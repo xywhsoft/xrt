@@ -3,6 +3,7 @@
 #define XRT_MODULE_TLS_STREAM_FUTURE
 #define XRT_MODULE_WEBSOCKET_STREAM_DEFLATE
 #define XRT_MODULE_WEBSOCKET_UPGRADE_DEFLATE
+#define XRT_MODULE_VFS
 #include <xrt.h>
 
 #include "public_struct_abi.h"
@@ -78,6 +79,48 @@ size_t xrtAbiFullLayout(xrtabitesttype Type, size_t iField)
 				case 2: return offsetof(xwsupgrade, Extensions);
 				case 3: return offsetof(xwsupgrade, ExtensionSize);
 				case 4: return offsetof(xwsupgrade, DeflateEnabled);
+			}
+			break;
+		case XRT_ABI_VFS_FILE_OPS:
+			switch ( iField ) {
+				case 0: return sizeof(xvfsfileops_v1);
+				case 1: return offsetof(xvfsfileops_v1, Version);
+				case 2: return offsetof(xvfsfileops_v1, Capabilities);
+				case 3: return offsetof(xvfsfileops_v1, Read);
+				case 4: return offsetof(xvfsfileops_v1, Close);
+			}
+			break;
+		case XRT_ABI_VFS_FILE:
+			switch ( iField ) {
+				case 0: return sizeof(xvfsfile_v1);
+				case 1: return offsetof(xvfsfile_v1, State);
+				case 2: return offsetof(xvfsfile_v1, Flags);
+				case 3: return offsetof(xvfsfile_v1, Reserved);
+			}
+			break;
+		case XRT_ABI_VFS_DIR_OPS:
+			switch ( iField ) {
+				case 0: return sizeof(xvfsdirops_v1);
+				case 1: return offsetof(xvfsdirops_v1, Version);
+				case 2: return offsetof(xvfsdirops_v1, Next);
+				case 3: return offsetof(xvfsdirops_v1, Close);
+			}
+			break;
+		case XRT_ABI_VFS_DIR:
+			switch ( iField ) {
+				case 0: return sizeof(xvfsdir_v1);
+				case 1: return offsetof(xvfsdir_v1, State);
+			}
+			break;
+		case XRT_ABI_VFS_PROVIDER:
+			switch ( iField ) {
+				case 0: return sizeof(xvfsprovider_v1);
+				case 1: return offsetof(xvfsprovider_v1, Version);
+				case 2: return offsetof(xvfsprovider_v1, Capabilities);
+				case 3: return offsetof(xvfsprovider_v1, ContextRetain);
+				case 4: return offsetof(xvfsprovider_v1, Open);
+				case 5: return offsetof(xvfsprovider_v1, DirOpen);
+				case 6: return offsetof(xvfsprovider_v1, OpenNative);
 			}
 			break;
 		default:

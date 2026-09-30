@@ -55,8 +55,9 @@
 #endif
 
 #if defined(XRT_FEATURE_FILE_ROOT) && \
-	(!defined(XRT_FEATURE_FILE) || !defined(XRT_FEATURE_FILE_LINK))
-	#error "XRT file roots require file and file-link support"
+	(!defined(XRT_FEATURE_FILE) || !defined(XRT_FEATURE_FILE_LINK) || \
+	 !defined(XRT_FEATURE_DIR))
+	#error "XRT file roots require file, file-link, and directory support"
 #endif
 
 #if defined(XRT_FEATURE_FILE_FIFO) && !defined(XRT_FEATURE_FILE)
@@ -746,6 +747,11 @@ XRT_API xfile xrtRootFileOpen(xroot Root, cstr sPath,
 /* 查询根内对象元数据；bFollowLink 决定是否解析末级链接。 */
 XRT_API bool xrtRootStat(xroot Root, cstr sPath,
 	bool bFollowLink, xfileinfo* pInfo);
+
+
+
+/* 从锚定目录句柄打开根内目录迭代器，不重新按诊断路径查找。 */
+XRT_API xdir xrtRootDirOpen(xroot Root, cstr sPath, uint32 iFlags);
 
 
 

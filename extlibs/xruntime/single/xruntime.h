@@ -1443,6 +1443,32 @@
 #endif
 #endif
 
+/* vfs_pack 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS_PACK)
+#ifndef XRT_FEATURE_VFS_PACK
+#define XRT_FEATURE_VFS_PACK
+#endif
+#ifndef XRT_MODULE_VFS
+#define XRT_MODULE_VFS
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
+#endif
+#endif
+
+/* vfs_disk 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS_DISK)
+#ifndef XRT_FEATURE_VFS_DISK
+#define XRT_FEATURE_VFS_DISK
+#endif
+#ifndef XRT_MODULE_VFS
+#define XRT_MODULE_VFS
+#endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
+#endif
+#endif
+
 /* file_root 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ROOT)
 #ifndef XRT_FEATURE_FILE_ROOT
@@ -1450,6 +1476,35 @@
 #endif
 #ifndef XRT_MODULE_FILE_LINK
 #define XRT_MODULE_FILE_LINK
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#endif
+
+/* vfs_memory 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS_MEMORY)
+#ifndef XRT_FEATURE_VFS_MEMORY
+#define XRT_FEATURE_VFS_MEMORY
+#endif
+#ifndef XRT_MODULE_VFS
+#define XRT_MODULE_VFS
+#endif
+#endif
+
+/* vfs 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS)
+#ifndef XRT_FEATURE_VFS
+#define XRT_FEATURE_VFS
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#ifndef XRT_MODULE_UNICODE
+#define XRT_MODULE_UNICODE
 #endif
 #endif
 
@@ -17170,8 +17225,9 @@ XRT_EXTERN_C_END
 #endif
 
 #if defined(XRT_FEATURE_FILE_ROOT) && \
-	(!defined(XRT_FEATURE_FILE) || !defined(XRT_FEATURE_FILE_LINK))
-	#error "XRT file roots require file and file-link support"
+	(!defined(XRT_FEATURE_FILE) || !defined(XRT_FEATURE_FILE_LINK) || \
+	 !defined(XRT_FEATURE_DIR))
+	#error "XRT file roots require file, file-link, and directory support"
 #endif
 
 #if defined(XRT_FEATURE_FILE_FIFO) && !defined(XRT_FEATURE_FILE)
@@ -17861,6 +17917,11 @@ XRT_API xfile xrtRootFileOpen(xroot Root, cstr sPath,
 /* 查询根内对象元数据；bFollowLink 决定是否解析末级链接。 */
 XRT_API bool xrtRootStat(xroot Root, cstr sPath,
 	bool bFollowLink, xfileinfo* pInfo);
+
+
+
+/* 从锚定目录句柄打开根内目录迭代器，不重新按诊断路径查找。 */
+XRT_API xdir xrtRootDirOpen(xroot Root, cstr sPath, uint32 iFlags);
 
 
 
@@ -36510,6 +36571,387 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: include/xrt/vfs.h */
+/* ========================================================================== */
+
+#ifndef XRT_VFS_H
+#define XRT_VFS_H
+
+
+
+
+#if defined(XRT_FEATURE_VFS) && \
+	(!defined(XRT_FEATURE_DIR) || !defined(XRT_FEATURE_MUTEX) || \
+	 !defined(XRT_FEATURE_UNICODE))
+	#error "XRT VFS requires directory, mutex, and Unicode support"
+#endif
+
+#if defined(XRT_FEATURE_VFS_MEMORY) && !defined(XRT_FEATURE_VFS)
+	#error "XRT memory VFS provider requires VFS support"
+#endif
+
+#if defined(XRT_FEATURE_VFS_DISK) && \
+	(!defined(XRT_FEATURE_VFS) || !defined(XRT_FEATURE_FILE_ROOT))
+	#error "XRT disk VFS provider requires VFS and file-root support"
+#endif
+
+#if defined(XRT_FEATURE_VFS_PACK) && \
+	(!defined(XRT_FEATURE_VFS) || !defined(XRT_FEATURE_COND))
+	#error "XRT pack VFS provider requires VFS and condition-variable support"
+#endif
+
+
+
+#define XRT_VFS_PATH_MAX 32768u
+#define XRT_VFS_PROVIDER_VERSION 1u
+#define XRT_VFS_FILE_OPS_VERSION 1u
+#define XRT_VFS_DIR_OPS_VERSION 1u
+#define XRT_VFS_PACK_OPTIONS_VERSION 1u
+
+#define XRT_VFS_PACK_MAX_ENTRIES_DEFAULT 100000u
+#define XRT_VFS_PACK_MAX_INDEX_BYTES_DEFAULT UINT64_C(67108864)
+#define XRT_VFS_PACK_MAX_ENTRY_BYTES_DEFAULT UINT64_C(1073741824)
+#define XRT_VFS_PACK_MAX_DECODED_BYTES_DEFAULT UINT64_C(8589934592)
+#define XRT_VFS_PACK_CACHE_BYTES_DEFAULT UINT64_C(67108864)
+
+
+
+#if defined(XRT_FEATURE_VFS)
+
+typedef struct xvfs_impl* xvfs;
+typedef struct xvfs_mount_impl* xvfsmount;
+
+#if defined(XRT_FEATURE_VFS_MEMORY)
+typedef struct xvfs_memory_impl* xvfsmemory;
+#endif
+
+#if defined(XRT_FEATURE_VFS_DISK)
+typedef struct xvfs_disk_impl* xvfsdisk;
+#endif
+
+#if defined(XRT_FEATURE_VFS_PACK)
+typedef struct xvfs_pack_impl* xvfspack;
+#endif
+
+
+
+/* Provider lookup 明确区分资源不存在和不可回退的访问失败。 */
+typedef enum xvfslookup {
+	XVFS_LOOKUP_ERROR = -1,
+	XVFS_LOOKUP_MISS = 0,
+	XVFS_LOOKUP_OPENED = 1
+} xvfslookup;
+
+
+
+/* 每个 mount 显式声明大小写策略；v1 只折叠 ASCII A-Z。 */
+typedef enum xvfscase {
+	XVFS_CASE_SENSITIVE = 0,
+	XVFS_CASE_ASCII_INSENSITIVE = 1
+} xvfscase;
+
+
+
+#if defined(XRT_FEATURE_VFS_DISK)
+
+/* Disk provider 权限在 context 创建时冻结。 */
+typedef enum xvfsdiskaccess {
+	XVFS_DISK_READ = 0x01,
+	XVFS_DISK_WRITE = 0x02
+} xvfsdiskaccess;
+
+#define XVFS_DISK_ACCESS 0x03u
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_VFS_PACK)
+
+/* AUTO 只按完整 header magic 选择格式，不把解析失败降级到另一格式。 */
+typedef enum xvfspackformat {
+	XVFS_PACK_AUTO = 0,
+	XVFS_PACK_XRT_V1 = 1,
+	XVFS_PACK_XSVPACK_V1 = 2
+} xvfspackformat;
+
+
+
+/* 新格式和旧 XSVPACK v1 使用相同的逐条 codec 编号。 */
+typedef enum xvfspackcodec {
+	XVFS_PACK_STORE = 0,
+	XVFS_PACK_LZMA1 = 1
+} xvfspackcodec;
+
+
+
+/* 非零解析限制是硬上限；CacheBytes 为零表示验证后不保留 cache 引用。 */
+typedef struct xvfspackoptions {
+	uint32 Size;
+	uint32 Version;
+	xvfspackformat Format;
+	uint32 MaxEntries;
+	uint64 MaxIndexBytes;
+	uint64 MaxEntryBytes;
+	uint64 MaxDecodedBytes;
+	uint64 CacheBytes;
+} xvfspackoptions;
+
+
+
+/* 计数单调递增；ResidentBytes 是取样时 cache 持有的解压字节。 */
+typedef struct xvfspackstats {
+	uint64 Hits;
+	uint64 Misses;
+	uint64 Loads;
+	uint64 Failures;
+	uint64 ResidentBytes;
+	uint64 Evictions;
+} xvfspackstats;
+
+#endif
+
+
+
+/* xrt.vfs 错误域中的稳定错误代码。 */
+typedef enum xvfserror {
+	XVFS_ERROR_CREATE = 1,
+	XVFS_ERROR_PATH,
+	XVFS_ERROR_MOUNT,
+	XVFS_ERROR_UNMOUNT,
+	XVFS_ERROR_NOT_FOUND,
+	XVFS_ERROR_PROVIDER,
+	XVFS_ERROR_OPEN,
+	XVFS_ERROR_STAT,
+	XVFS_ERROR_DIRECTORY,
+	XVFS_ERROR_UNSUPPORTED,
+	XVFS_ERROR_LIMIT,
+	XVFS_ERROR_CORRUPT,
+	XVFS_ERROR_CHECKSUM
+} xvfserror;
+
+
+
+/* 文件能力位必须与对应回调严格一致。 */
+typedef enum xvfsfilecapability {
+	XVFS_FILE_READ = UINT64_C(0x00000001),
+	XVFS_FILE_WRITE = UINT64_C(0x00000002),
+	XVFS_FILE_READ_AT = UINT64_C(0x00000004),
+	XVFS_FILE_WRITE_AT = UINT64_C(0x00000008),
+	XVFS_FILE_SEEK = UINT64_C(0x00000010),
+	XVFS_FILE_STAT = UINT64_C(0x00000020),
+	XVFS_FILE_RESIZE = UINT64_C(0x00000040),
+	XVFS_FILE_FLUSH = UINT64_C(0x00000080)
+} xvfsfilecapability;
+
+#define XVFS_FILE_CAPABILITIES UINT64_C(0x000000ff)
+
+
+
+typedef struct xvfsfileops_v1 {
+	uint32 Size;
+	uint32 Version;
+	uint64 Capabilities;
+	bool (*Read)(void* pState, void* pBuffer,
+		size_t iRequest, size_t* pRead);
+	bool (*Write)(void* pState, const void* pBuffer,
+		size_t iRequest, size_t* pWritten);
+	bool (*ReadAt)(void* pState, uint64 iOffset, void* pBuffer,
+		size_t iRequest, size_t* pRead);
+	bool (*WriteAt)(void* pState, uint64 iOffset, const void* pBuffer,
+		size_t iRequest, size_t* pWritten);
+	bool (*Seek)(void* pState, int64 iOffset,
+		xseek Origin, uint64* pPosition);
+	bool (*Stat)(void* pState, xfileinfo* pInfo);
+	bool (*Resize)(void* pState, uint64 iSize);
+	bool (*Flush)(void* pState);
+	void (*Close)(void* pState);
+} xvfsfileops_v1;
+
+
+
+/* OPENED 把 State 所有权转移给 VFS；MISS 和 ERROR 必须保持全零。 */
+typedef struct xvfsfile_v1 {
+	const xvfsfileops_v1* Ops;
+	void* State;
+	uint32 Flags;
+	uint32 Reserved;
+} xvfsfile_v1;
+
+
+
+typedef struct xvfsdirops_v1 {
+	uint32 Size;
+	uint32 Version;
+	bool (*Next)(void* pState, xdirentry* pEntry, bool* pEnd);
+	void (*Close)(void* pState);
+} xvfsdirops_v1;
+
+
+
+/* OPENED 把 State 所有权转移给 VFS；MISS 和 ERROR 必须保持全零。 */
+typedef struct xvfsdir_v1 {
+	const xvfsdirops_v1* Ops;
+	void* State;
+} xvfsdir_v1;
+
+
+
+typedef enum xvfsprovidercapability {
+	XVFS_PROVIDER_STAT = UINT64_C(0x00000001),
+	XVFS_PROVIDER_DIRECTORY = UINT64_C(0x00000002),
+	XVFS_PROVIDER_NATIVE_OPEN = UINT64_C(0x00000004)
+} xvfsprovidercapability;
+
+#define XVFS_PROVIDER_CAPABILITIES UINT64_C(0x00000007)
+
+
+
+typedef struct xvfsprovider_v1 {
+	uint32 Size;
+	uint32 Version;
+	uint64 Capabilities;
+	void (*ContextRetain)(void* pContext);
+	void (*ContextRelease)(void* pContext);
+	xvfslookup (*Open)(void* pContext, xvfscase CaseMode,
+		xstrview RelativePath,
+		const xfileoptions* pOptions, xvfsfile_v1* pFile);
+	xvfslookup (*Stat)(void* pContext, xvfscase CaseMode,
+		xstrview RelativePath,
+		bool bFollowLink, xfileinfo* pInfo);
+	xvfslookup (*DirOpen)(void* pContext, xvfscase CaseMode,
+		xstrview RelativePath,
+		uint32 iFlags, xvfsdir_v1* pDir);
+	/* 可选尾字段；仅在声明 NATIVE_OPEN 时使用并直接转移 xfile 所有权。 */
+	xvfslookup (*OpenNative)(void* pContext, xvfscase CaseMode,
+		xstrview RelativePath,
+		const xfileoptions* pOptions, xfile* pFile);
+} xvfsprovider_v1;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+/* 创建一个初始 mount snapshot 为空的隔离命名空间。 */
+XRT_API xvfs xrtVfsCreate(void);
+
+/* 增加一个命名空间 owned reference。 */
+XRT_API void xrtVfsRef(xvfs Vfs);
+
+/* 释放一个命名空间 reference。 */
+XRT_API void xrtVfsDestroy(xvfs Vfs);
+
+/* 在规范虚拟 prefix 上发布一个 provider generation。 */
+XRT_API xvfsmount xrtVfsMount(xvfs Vfs, cstr sVirtualPrefix,
+	int32 iPriority, xvfscase CaseMode,
+	const xvfsprovider_v1* pProvider, void* pProviderContext,
+	uint32 iFlags);
+
+/* 增加或释放一个 mount 控制句柄 reference。 */
+XRT_API void xrtVfsMountRef(xvfsmount Mount);
+XRT_API void xrtVfsMountDestroy(xvfsmount Mount);
+
+/* 幂等地阻止新 lookup 选择这个 generation。 */
+XRT_API bool xrtVfsUnmount(xvfsmount Mount);
+
+/* 返回稳定、单调分配的 mount 标识。 */
+XRT_API uint64 xrtVfsMountId(xvfsmount Mount);
+
+/* 把一个规范绝对虚拟路径打开为普通 xfile。 */
+XRT_API xfile xrtVfsOpen(xvfs Vfs, cstr sVirtualPath,
+	const xfileoptions* pOptions);
+
+/* 查询一个规范绝对虚拟路径且不打开文件。 */
+XRT_API bool xrtVfsStat(xvfs Vfs, cstr sVirtualPath,
+	bool bFollowLink, xfileinfo* pInfo);
+
+/* 读取完整虚拟文件，并在 pSize 之外追加一个零字节。 */
+XRT_API bytes xrtVfsReadAll(xvfs Vfs, cstr sVirtualPath,
+	size_t* pSize);
+XRT_API bytes xrtVfsReadAllLimit(xvfs Vfs, cstr sVirtualPath,
+	size_t iLimit, size_t* pSize);
+
+/* 物化并合并所有可见 provider 条目，返回普通 xdir。 */
+XRT_API xdir xrtVfsDirOpen(xvfs Vfs, cstr sVirtualPath,
+	uint32 iFlags);
+
+#if defined(XRT_FEATURE_VFS_MEMORY)
+
+/* 创建可变的 memory provider 构建器。 */
+XRT_API xvfsmemory xrtVfsMemoryCreate(void);
+
+/* 增加或释放一个 memory provider reference。 */
+XRT_API void xrtVfsMemoryRef(xvfsmemory Memory);
+XRT_API void xrtVfsMemoryDestroy(xvfsmemory Memory);
+
+/* 复制文件数据；相对路径必须规范且不能为空。 */
+XRT_API bool xrtVfsMemoryPutCopy(xvfsmemory Memory,
+	cstr sRelativePath, const void* pData, size_t iSize);
+
+/* 成功时接管由 xrt 分配的缓冲，失败时调用方仍持有它。 */
+XRT_API bool xrtVfsMemoryPutOwned(xvfsmemory Memory,
+	cstr sRelativePath, bytes pData, size_t iSize);
+
+/* 原子构建不可变目录索引；重复调用成功，分配失败可直接重试。 */
+XRT_API bool xrtVfsMemorySeal(xvfsmemory Memory);
+
+/* 只允许挂载已经 seal 的 memory provider。 */
+XRT_API xvfsmount xrtVfsMemoryMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfsmemory Memory, uint32 iFlags);
+
+#endif
+
+#if defined(XRT_FEATURE_VFS_DISK)
+
+/* 打开并锚定物理目录；Access 至少包含一个已知权限位。 */
+XRT_API xvfsdisk xrtVfsDiskCreate(cstr sPhysicalRoot, uint32 iAccess);
+
+/* 增加或释放一个 disk provider reference。 */
+XRT_API void xrtVfsDiskRef(xvfsdisk Disk);
+XRT_API void xrtVfsDiskDestroy(xvfsdisk Disk);
+
+/* 挂载锚定目录；首版始终拒绝符号链接和 reparse point。 */
+XRT_API xvfsmount xrtVfsDiskMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfsdisk Disk, uint32 iFlags);
+
+#endif
+
+#if defined(XRT_FEATURE_VFS_PACK)
+
+/* 写入生产默认限制和 AUTO 格式。 */
+XRT_API void xrtVfsPackOptionsInit(xvfspackoptions* pOptions);
+
+/* 成功时接管 Source，失败时调用方仍持有；范围必须包含完整归档。 */
+XRT_API xvfspack xrtVfsPackCreate(xfile Source,
+	uint64 iOffset, uint64 iLength, const xvfspackoptions* pOptions);
+
+/* 增加或释放 pack provider reference；最后一个引用关闭 Source。 */
+XRT_API void xrtVfsPackRef(xvfspack Pack);
+XRT_API void xrtVfsPackDestroy(xvfspack Pack);
+
+/* 返回 Create 最终选择的明确格式。 */
+XRT_API xvfspackformat xrtVfsPackFormat(xvfspack Pack);
+
+/* 取得线程安全的缓存统计快照。 */
+XRT_API bool xrtVfsPackStats(xvfspack Pack, xvfspackstats* pStats);
+
+/* 挂载已经完整解析并验证索引的只读 pack。 */
+XRT_API xvfsmount xrtVfsPackMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfspack Pack, uint32 iFlags);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
 /* public: include/xrt/list.h */
 /* ========================================================================== */
 
@@ -51742,6 +52184,67 @@ str __xrtPathFromWide(const wchar_t* sPath, size_t iSize);
 
 #if defined(XRT_FEATURE_FILE)
 
+/* Preallocate all native backend state before creating/truncating OS files. */
+xfile __xrtFileAlloc(void);
+void __xrtFileInitNativePair(xfile File, intptr_t iHandle,
+	intptr_t iControl, uint32 iFlags);
+
+/* xfile 后端能力只在运行时内部使用；公共 provider ABI 在 vfs.h 中独立冻结。 */
+typedef enum xrt_file_backend_capability {
+	XRT_FILE_BACKEND_READ = UINT64_C(0x00000001),
+	XRT_FILE_BACKEND_WRITE = UINT64_C(0x00000002),
+	XRT_FILE_BACKEND_READ_AT = UINT64_C(0x00000004),
+	XRT_FILE_BACKEND_WRITE_AT = UINT64_C(0x00000008),
+	XRT_FILE_BACKEND_SEEK = UINT64_C(0x00000010),
+	XRT_FILE_BACKEND_STAT = UINT64_C(0x00000020),
+	XRT_FILE_BACKEND_RESIZE = UINT64_C(0x00000040),
+	XRT_FILE_BACKEND_FLUSH = UINT64_C(0x00000080),
+	XRT_FILE_BACKEND_NATIVE = UINT64_C(0x00000100),
+	XRT_FILE_BACKEND_CONTROL_NATIVE = UINT64_C(0x00000200),
+	XRT_FILE_BACKEND_ASYNC_BIND = UINT64_C(0x00000400)
+} xrt_file_backend_capability;
+
+#define XRT_FILE_BACKEND_CAPABILITIES UINT64_C(0x000007ff)
+#define XRT_FILE_BACKEND_VERSION 1u
+
+/* Close 消费 State 且恰好调用一次。其他回调均借用 State。 */
+typedef struct xrt_file_backend_ops {
+	uint32 Size;
+	uint32 Version;
+	uint64 Capabilities;
+	bool (*Read)(ptr pState, ptr pBuffer, size_t iRequest, size_t* pRead);
+	bool (*Write)(ptr pState, const void* pBuffer,
+		size_t iRequest, size_t* pWritten);
+	bool (*ReadAt)(ptr pState, uint64 iOffset,
+		ptr pBuffer, size_t iRequest, size_t* pRead);
+	bool (*WriteAt)(ptr pState, uint64 iOffset,
+		const void* pBuffer, size_t iRequest, size_t* pWritten);
+	bool (*Seek)(ptr pState, int64 iOffset,
+		xseek Origin, uint64* pPosition);
+	bool (*Stat)(ptr pState, xfileinfo* pInfo);
+	bool (*Resize)(ptr pState, uint64 iSize);
+	bool (*Flush)(ptr pState);
+	intptr_t (*Native)(ptr pState);
+	intptr_t (*ControlNative)(ptr pState);
+	#if defined(XRT_FEATURE_NET_FILE)
+		bool (*AsyncBind)(ptr pState, uint64 iOwner,
+			bool** ppAssociated);
+	#else
+		ptr AsyncBind;
+	#endif
+	bool (*Close)(ptr pState);
+} xrt_file_backend_ops;
+
+
+
+/* 接管后端 State。失败时也调用一次 Ops.Close。 */
+xfile __xrtFileTakeBackend(const xrt_file_backend_ops* pOps,
+	ptr pState, uint32 iFlags);
+
+/* 给已构造文件附加一个 close 后释放的 owner；成功时消费 owner。 */
+bool __xrtFileAttachOwner(xfile File, ptr pOwner,
+	void (*pRelease)(ptr pOwner));
+
 /* 检查文件打开选项，并把空选项展开为稳定默认值。 */
 bool __xrtFileOptions(const xfileoptions* pInput, xfileoptions* pOptions);
 
@@ -51945,6 +52448,30 @@ xfile __xrtFileTempCreate(cstr sDirectory, cstr sPrefix,
 
 
 #if defined(XRT_FEATURE_DIR)
+
+#define XRT_DIR_BACKEND_VERSION 1u
+
+/* Next 只在 ITEM 时修改 pEntry；Close 消费 State 且恰好调用一次。 */
+typedef struct xrt_dir_backend_ops {
+	uint32 Size;
+	uint32 Version;
+	bool VirtualPath;
+	uint8 Reserved[3];
+	xdirnext (*Next)(ptr pState, cstr sPath,
+		uint32 iFlags, xdirentry* pEntry);
+	bool (*Close)(ptr pState);
+} xrt_dir_backend_ops;
+
+
+
+/* 接管后端 State。失败时也调用一次 Ops.Close。 */
+xdir __xrtDirTakeBackend(const xrt_dir_backend_ops* pOps,
+	ptr pState, cstr sPath, uint32 iFlags);
+
+
+
+/* 验证目录枚举标志，供原生目录和 VFS 共用。 */
+bool __xrtDirFlagsValid(uint32 iFlags);
 
 /* 设置带系统代码的目录错误。 */
 void __xrtDirSetError(xdirerror Code, cstr sOperation,
@@ -60607,14 +61134,16 @@ static inline void __xrtWsHandshakeWrap(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_INFLATE) || \
-	defined(XRT_FEATURE_DEFLATE)
+	defined(XRT_FEATURE_DEFLATE) || \
+	defined(XRT_FEATURE_VFS_PACK)
 #ifndef XRT_INTERNAL_COMPRESS_H
 #define XRT_INTERNAL_COMPRESS_H
 
 
 
 
-#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE)
+#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE) || \
+	defined(XRT_FEATURE_VFS_PACK)
 
 /* 使用共享小表更新未取反的 CRC32 状态。 */
 uint32 __xrtCompressCrc32Update(
@@ -62144,10 +62673,46 @@ str __xrtLinkReadAt(int hDirectory, cstr sLink);
 
 
 /* ========================================================================== */
+/* internal: src/internal/xrt_vfs.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS) || \
+	defined(XRT_FEATURE_VFS_MEMORY) || \
+	defined(XRT_FEATURE_VFS_DISK) || \
+	defined(XRT_FEATURE_VFS_PACK)
+#ifndef XRT_INTERNAL_VFS_H
+#define XRT_INTERNAL_VFS_H
+
+
+
+
+
+#if defined(XRT_FEATURE_VFS)
+
+/* 验证规范虚拟绝对路径；成功后返回不含零结尾的借用视图。 */
+bool __xrtVfsPath(cstr sPath, xstrview* pPath);
+
+/* 验证 provider 使用的规范相对路径。 */
+bool __xrtVfsRelativePath(xstrview Path, bool bAllowEmpty);
+
+
+
+/* 设置 xrt.vfs 域的稳定错误。 */
+void __xrtVfsError(xerrkind Kind, xvfserror Code,
+	cstr sOperation, cstr sMessage);
+
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* internal: src/internal/xrt_file_root.h */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_FILE_ROOT)
+#if defined(XRT_FEATURE_FILE_ROOT) || \
+	defined(XRT_FEATURE_VFS_DISK)
 #ifndef XRT_INTERNAL_FILE_ROOT_H
 #define XRT_INTERNAL_FILE_ROOT_H
 
@@ -62172,6 +62737,15 @@ typedef enum xrootstep {
 	XROOT_STEP_DONE = 0,
 	XROOT_STEP_LINK = 1
 } xrootstep;
+
+
+
+/* 内部解析策略；公共 API 保持平台大小写并允许根内相对链接。 */
+typedef enum xrootpolicy {
+	XROOT_POLICY_FOLLOW_LINKS = 0x01,
+	XROOT_POLICY_CASE_SENSITIVE = 0x02,
+	XROOT_POLICY_REGULAR_FILE = 0x04
+} xrootpolicy;
 
 
 
@@ -62213,19 +62787,38 @@ bool __xrtRootNativeClose(xrootnative Handle, bool bReport);
 
 /* 不跟随当前分量打开目录；链接目标通过拥有字符串返回。 */
 xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
-	xrootnative* pHandle, str* pLink);
+	bool bCaseSensitive, xrootnative* pHandle, str* pLink);
 
 
 
 /* 不跟随当前分量打开普通文件，并按选项决定是否继续解析链接。 */
 xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
-	const xfileoptions* pOptions, xfile* pFile, str* pLink);
+	bool bCaseSensitive, bool bRegularFile, const xfileoptions* pOptions,
+	xfile* pFile, str* pLink);
 
 
 
 /* 查询当前分量元数据，并按参数决定是否继续解析链接。 */
 xrootstep __xrtRootNativeStat(xrootnative Parent, cstr sName,
-	bool bFollowLink, xfileinfo* pInfo, str* pLink);
+	bool bCaseSensitive, bool bFollowLink,
+	xfileinfo* pInfo, str* pLink);
+
+
+
+/* 接管已打开目录句柄并创建句柄相对目录迭代器。 */
+xdir __xrtRootNativeDirTake(xrootnative Handle,
+	cstr sDisplayPath, uint32 iFlags);
+
+
+
+/* 供受限 provider 使用的精确解析入口。 */
+xroot __xrtRootOpenInPolicy(xroot Root, cstr sPath, uint32 iPolicy);
+xfile __xrtRootFileOpenPolicy(xroot Root, cstr sPath,
+	const xfileoptions* pOptions, uint32 iPolicy);
+bool __xrtRootStatPolicy(xroot Root, cstr sPath,
+	bool bFollowLink, xfileinfo* pInfo, uint32 iPolicy);
+xdir __xrtRootDirOpenPolicy(xroot Root, cstr sPath,
+	uint32 iFlags, uint32 iPolicy);
 
 
 
@@ -62269,6 +62862,1243 @@ xrootstep __xrtRootNativeSetMode(xrootnative Parent,
 	cstr sName, bool bFollowLink, uint32 iMode, str* pLink);
 
 #endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/third_party/lzma/Compiler.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_PACK)
+/* Compiler.h : Compiler specific defines and pragmas
+: Igor Pavlov : Public domain */
+
+#ifndef ZIP7_INC_COMPILER_H
+#define ZIP7_INC_COMPILER_H
+
+#if defined(__clang__)
+# define Z7_CLANG_VERSION  (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
+#endif
+#if defined(__clang__) && defined(__apple_build_version__)
+# define Z7_APPLE_CLANG_VERSION   Z7_CLANG_VERSION
+#elif defined(__clang__)
+# define Z7_LLVM_CLANG_VERSION    Z7_CLANG_VERSION
+#elif defined(__GNUC__)
+# define Z7_GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+#endif
+
+#ifdef _MSC_VER
+#if !defined(__clang__) && !defined(__GNUC__)
+#define Z7_MSC_VER_ORIGINAL _MSC_VER
+#endif
+#endif
+
+#if defined(__MINGW32__) || defined(__MINGW64__)
+#define Z7_MINGW
+#endif
+
+#if defined(__LCC__) && (defined(__MCST__) || defined(__e2k__))
+#define Z7_MCST_LCC
+#define Z7_MCST_LCC_VERSION (__LCC__ * 100 + __LCC_MINOR__)
+#endif
+
+/*
+#if defined(__AVX2__) \
+    || defined(Z7_GCC_VERSION) && (Z7_GCC_VERSION >= 40900) \
+    || defined(Z7_APPLE_CLANG_VERSION) && (Z7_APPLE_CLANG_VERSION >= 40600) \
+    || defined(Z7_LLVM_CLANG_VERSION) && (Z7_LLVM_CLANG_VERSION >= 30100) \
+    || defined(Z7_MSC_VER_ORIGINAL) && (Z7_MSC_VER_ORIGINAL >= 1800) \
+    || defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 1400)
+    #define Z7_COMPILER_AVX2_SUPPORTED
+  #endif
+#endif
+*/
+
+// #pragma GCC diagnostic ignored "-Wunknown-pragmas"
+
+#ifdef __clang__
+// padding size of '' with 4 bytes to alignment boundary
+#pragma GCC diagnostic ignored "-Wpadded"
+
+#if defined(Z7_LLVM_CLANG_VERSION) && (__clang_major__ == 13) \
+  && defined(__FreeBSD__)
+// freebsd:
+#pragma GCC diagnostic ignored "-Wexcess-padding"
+#endif
+
+#if __clang_major__ >= 16
+#pragma GCC diagnostic ignored "-Wunsafe-buffer-usage"
+#endif
+
+#if __clang_major__ == 13
+#if defined(__SIZEOF_POINTER__) && (__SIZEOF_POINTER__ == 16)
+// cheri
+#pragma GCC diagnostic ignored "-Wcapability-to-integer-cast"
+#endif
+#endif
+
+#if __clang_major__ == 13
+  // for <arm_neon.h>
+  #pragma GCC diagnostic ignored "-Wreserved-identifier"
+#endif
+
+#endif // __clang__
+
+#if defined(_WIN32) && defined(__clang__) && __clang_major__ >= 16
+// #pragma GCC diagnostic ignored "-Wcast-function-type-strict"
+#define Z7_DIAGNOSTIC_IGNORE_CAST_FUNCTION \
+  _Pragma("GCC diagnostic ignored \"-Wcast-function-type-strict\"")
+#else
+#define Z7_DIAGNOSTIC_IGNORE_CAST_FUNCTION
+#endif
+
+typedef void (*Z7_void_Function)(void);
+#if defined(__clang__) || defined(__GNUC__)
+#define Z7_CAST_FUNC_C  (Z7_void_Function)
+#elif defined(_MSC_VER) && _MSC_VER > 1920
+#define Z7_CAST_FUNC_C  (void *)
+// #pragma warning(disable : 4191) // 'type cast': unsafe conversion from 'FARPROC' to 'void (__cdecl *)()'
+#else
+#define Z7_CAST_FUNC_C
+#endif
+/*
+#if (defined(__GNUC__) && (__GNUC__ >= 8)) || defined(__clang__)
+  // #pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+*/
+#ifdef __GNUC__
+#if defined(Z7_GCC_VERSION) && (Z7_GCC_VERSION >= 40000) && (Z7_GCC_VERSION < 70000)
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif
+#endif
+
+
+#ifdef _MSC_VER
+
+  #ifdef UNDER_CE
+    #define RPC_NO_WINDOWS_H
+    /* #pragma warning(disable : 4115) // '_RPC_ASYNC_STATE' : named type definition in parentheses */
+    #pragma warning(disable : 4201) // nonstandard extension used : nameless struct/union
+    #pragma warning(disable : 4214) // nonstandard extension used : bit field types other than int
+  #endif
+
+#if defined(_MSC_VER) && _MSC_VER >= 1800
+#pragma warning(disable : 4464) // relative include path contains '..'
+#endif
+
+// == 1200 : -O1 : for __forceinline
+// >= 1900 : -O1 : for printf
+#pragma warning(disable : 4710) // function not inlined
+
+#if _MSC_VER < 1900
+// winnt.h: 'Int64ShllMod32'
+#pragma warning(disable : 4514) // unreferenced inline function has been removed
+#endif
+
+#if _MSC_VER < 1300
+// #pragma warning(disable : 4702) // unreachable code
+// Bra.c : -O1:
+#pragma warning(disable : 4714) // function marked as __forceinline not inlined
+#endif
+
+/*
+#if _MSC_VER > 1400 && _MSC_VER <= 1900
+// strcat: This function or variable may be unsafe
+// sysinfoapi.h: kit10: GetVersion was declared deprecated
+#pragma warning(disable : 4996)
+#endif
+*/
+
+#if _MSC_VER > 1200
+// -Wall warnings
+
+#pragma warning(disable : 4711) // function selected for automatic inline expansion
+#pragma warning(disable : 4820) // '2' bytes padding added after data member
+
+#if _MSC_VER >= 1400 && _MSC_VER < 1920
+// 1400: string.h: _DBG_MEMCPY_INLINE_
+// 1600 - 191x : smmintrin.h __cplusplus'
+// is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
+#pragma warning(disable : 4668)
+
+// 1400 - 1600 : WinDef.h : 'FARPROC' :
+// 1900 - 191x : immintrin.h: _readfsbase_u32
+// no function prototype given : converting '()' to '(void)'
+#pragma warning(disable : 4255)
+#endif
+
+#if _MSC_VER >= 1914
+// Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+#pragma warning(disable : 5045)
+#endif
+
+#endif // _MSC_VER > 1200
+#endif // _MSC_VER
+
+
+#if defined(__clang__) && (__clang_major__ >= 4)
+  #define Z7_PRAGMA_OPT_DISABLE_LOOP_UNROLL_VECTORIZE \
+    _Pragma("clang loop unroll(disable)") \
+    _Pragma("clang loop vectorize(disable)")
+  #define Z7_ATTRIB_NO_VECTORIZE
+#elif defined(__GNUC__) && (__GNUC__ >= 5) \
+    && (!defined(Z7_MCST_LCC_VERSION) || (Z7_MCST_LCC_VERSION >= 12610))
+  #define Z7_ATTRIB_NO_VECTORIZE __attribute__((optimize("no-tree-vectorize")))
+  // __attribute__((optimize("no-unroll-loops")));
+  #define Z7_PRAGMA_OPT_DISABLE_LOOP_UNROLL_VECTORIZE
+#elif defined(_MSC_VER) && (_MSC_VER >= 1920)
+  #define Z7_PRAGMA_OPT_DISABLE_LOOP_UNROLL_VECTORIZE \
+    _Pragma("loop( no_vector )")
+  #define Z7_ATTRIB_NO_VECTORIZE
+#else
+  #define Z7_PRAGMA_OPT_DISABLE_LOOP_UNROLL_VECTORIZE
+  #define Z7_ATTRIB_NO_VECTORIZE
+#endif
+
+#if defined(Z7_MSC_VER_ORIGINAL) && (Z7_MSC_VER_ORIGINAL >= 1920)
+  #define Z7_PRAGMA_OPTIMIZE_FOR_CODE_SIZE _Pragma("optimize ( \"s\", on )")
+  #define Z7_PRAGMA_OPTIMIZE_DEFAULT       _Pragma("optimize ( \"\", on )")
+#else
+  #define Z7_PRAGMA_OPTIMIZE_FOR_CODE_SIZE
+  #define Z7_PRAGMA_OPTIMIZE_DEFAULT
+#endif
+
+
+
+#if defined(MY_CPU_X86_OR_AMD64) && ( \
+       defined(__clang__) && (__clang_major__ >= 4) \
+    || defined(__GNUC__) && (__GNUC__ >= 5))
+  #define Z7_ATTRIB_NO_SSE  __attribute__((__target__("no-sse")))
+#else
+  #define Z7_ATTRIB_NO_SSE
+#endif
+
+#define Z7_ATTRIB_NO_VECTOR \
+  Z7_ATTRIB_NO_VECTORIZE \
+  Z7_ATTRIB_NO_SSE
+
+
+#if defined(__clang__) && (__clang_major__ >= 8) \
+  || defined(__GNUC__) && (__GNUC__ >= 1000) \
+  /* || defined(_MSC_VER) && (_MSC_VER >= 1920) */
+  // GCC is not good for __builtin_expect()
+  #define Z7_LIKELY(x)   (__builtin_expect((x), 1))
+  #define Z7_UNLIKELY(x) (__builtin_expect((x), 0))
+  // #define Z7_unlikely [[unlikely]]
+  // #define Z7_likely [[likely]]
+#else
+  #define Z7_LIKELY(x)   (x)
+  #define Z7_UNLIKELY(x) (x)
+  // #define Z7_likely
+#endif
+
+
+#if (defined(Z7_CLANG_VERSION) && (Z7_CLANG_VERSION >= 30600))
+
+#if (Z7_CLANG_VERSION < 130000)
+#define Z7_DIAGNOSTIC_IGNORE_BEGIN_RESERVED_MACRO_IDENTIFIER \
+  _Pragma("GCC diagnostic push") \
+  _Pragma("GCC diagnostic ignored \"-Wreserved-id-macro\"")
+#else
+#define Z7_DIAGNOSTIC_IGNORE_BEGIN_RESERVED_MACRO_IDENTIFIER \
+  _Pragma("GCC diagnostic push") \
+  _Pragma("GCC diagnostic ignored \"-Wreserved-macro-identifier\"")
+#endif
+
+#define Z7_DIAGNOSTIC_IGNORE_END_RESERVED_MACRO_IDENTIFIER \
+  _Pragma("GCC diagnostic pop")
+#else
+#define Z7_DIAGNOSTIC_IGNORE_BEGIN_RESERVED_MACRO_IDENTIFIER
+#define Z7_DIAGNOSTIC_IGNORE_END_RESERVED_MACRO_IDENTIFIER
+#endif
+
+#define UNUSED_VAR(x) (void)x;
+/* #define UNUSED_VAR(x) x=x; */
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/third_party/lzma/Precomp.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_PACK)
+/* Precomp.h -- precompilation file
+2024-01-25 : Igor Pavlov : Public domain */
+
+#ifndef ZIP7_INC_PRECOMP_H
+#define ZIP7_INC_PRECOMP_H
+
+/*
+  this file must be included before another *.h files and before <windows.h>.
+  this file is included from the following files:
+    C\*.c
+    C\Util\*\Precomp.h   <-  C\Util\*\*.c
+    CPP\Common\Common.h  <-  *\StdAfx.h    <-  *\*.cpp
+
+  this file can set the following macros:
+    Z7_LARGE_PAGES 1
+    Z7_LONG_PATH 1
+    Z7_WIN32_WINNT_MIN  0x0500 (or higher) : we require at least win2000+ for 7-Zip
+    _WIN32_WINNT        0x0500 (or higher)
+    WINVER  _WIN32_WINNT
+    UNICODE 1
+    _UNICODE 1
+*/
+
+
+#ifdef _MSC_VER
+// #pragma warning(disable : 4206) // nonstandard extension used : translation unit is empty
+#if _MSC_VER >= 1912
+// #pragma warning(disable : 5039) // pointer or reference to potentially throwing function passed to 'extern "C"' function under - EHc.Undefined behavior may occur if this function throws an exception.
+#endif
+#endif
+
+/*
+// for debug:
+#define UNICODE 1
+#define _UNICODE 1
+#define  _WIN32_WINNT  0x0500  // win2000
+#ifndef WINVER
+  #define WINVER  _WIN32_WINNT
+#endif
+*/
+
+#ifdef _WIN32
+/*
+  this "Precomp.h" file must be included before <windows.h>,
+  if we want to define _WIN32_WINNT before <windows.h>.
+*/
+
+#ifndef Z7_LARGE_PAGES
+#ifndef Z7_NO_LARGE_PAGES
+#define Z7_LARGE_PAGES 1
+#endif
+#endif
+
+#ifndef Z7_LONG_PATH
+#ifndef Z7_NO_LONG_PATH
+#define Z7_LONG_PATH 1
+#endif
+#endif
+
+#ifndef Z7_DEVICE_FILE
+#ifndef Z7_NO_DEVICE_FILE
+// #define Z7_DEVICE_FILE 1
+#endif
+#endif
+
+// we don't change macros if included after <windows.h>
+#ifndef _WINDOWS_
+
+#ifndef Z7_WIN32_WINNT_MIN
+  #if defined(_M_ARM64) || defined(__aarch64__)
+    // #define Z7_WIN32_WINNT_MIN  0x0a00  // win10
+    #define Z7_WIN32_WINNT_MIN  0x0600  // vista
+  #elif defined(_M_ARM) && defined(_M_ARMT) && defined(_M_ARM_NT)
+    // #define Z7_WIN32_WINNT_MIN  0x0602  // win8
+    #define Z7_WIN32_WINNT_MIN  0x0600  // vista
+  #elif defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__) || defined(_M_IA64)
+    #define Z7_WIN32_WINNT_MIN  0x0503  // win2003
+  // #elif defined(_M_IX86) || defined(__i386__)
+  //   #define Z7_WIN32_WINNT_MIN  0x0500  // win2000
+  #else // x86 and another(old) systems
+    #define Z7_WIN32_WINNT_MIN  0x0500  // win2000
+    // #define Z7_WIN32_WINNT_MIN  0x0502  // win2003 // for debug
+  #endif
+#endif // Z7_WIN32_WINNT_MIN
+
+
+#ifndef Z7_DO_NOT_DEFINE_WIN32_WINNT
+#ifdef _WIN32_WINNT
+  // #error Stop_Compiling_Bad_WIN32_WINNT
+#else
+  #ifndef Z7_NO_DEFINE_WIN32_WINNT
+Z7_DIAGNOSTIC_IGNORE_BEGIN_RESERVED_MACRO_IDENTIFIER
+    #define _WIN32_WINNT  Z7_WIN32_WINNT_MIN
+Z7_DIAGNOSTIC_IGNORE_END_RESERVED_MACRO_IDENTIFIER
+  #endif
+#endif // _WIN32_WINNT
+
+#ifndef WINVER
+  #define WINVER  _WIN32_WINNT
+#endif
+#endif // Z7_DO_NOT_DEFINE_WIN32_WINNT
+
+
+#ifndef _MBCS
+#ifndef Z7_NO_UNICODE
+// UNICODE and _UNICODE are used by <windows.h> and by 7-zip code.
+
+#ifndef UNICODE
+#define UNICODE 1
+#endif
+
+#ifndef _UNICODE
+Z7_DIAGNOSTIC_IGNORE_BEGIN_RESERVED_MACRO_IDENTIFIER
+#define _UNICODE 1
+Z7_DIAGNOSTIC_IGNORE_END_RESERVED_MACRO_IDENTIFIER
+#endif
+
+#endif // Z7_NO_UNICODE
+#endif // _MBCS
+#endif // _WINDOWS_
+
+// #include "7zWindows.h"
+
+#endif // _WIN32
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/third_party/lzma/7zTypes.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_PACK)
+/* 7zTypes.h -- Basic types
+2024-01-24 : Igor Pavlov : Public domain */
+
+#ifndef ZIP7_7Z_TYPES_H
+#define ZIP7_7Z_TYPES_H
+
+#ifdef _WIN32
+/* #include <windows.h> */
+#else
+#include <errno.h>
+#endif
+
+#include <stddef.h>
+
+#ifndef EXTERN_C_BEGIN
+#ifdef __cplusplus
+#define EXTERN_C_BEGIN extern "C" {
+#define EXTERN_C_END }
+#else
+#define EXTERN_C_BEGIN
+#define EXTERN_C_END
+#endif
+#endif
+
+EXTERN_C_BEGIN
+
+#define SZ_OK 0
+
+#define SZ_ERROR_DATA 1
+#define SZ_ERROR_MEM 2
+#define SZ_ERROR_CRC 3
+#define SZ_ERROR_UNSUPPORTED 4
+#define SZ_ERROR_PARAM 5
+#define SZ_ERROR_INPUT_EOF 6
+#define SZ_ERROR_OUTPUT_EOF 7
+#define SZ_ERROR_READ 8
+#define SZ_ERROR_WRITE 9
+#define SZ_ERROR_PROGRESS 10
+#define SZ_ERROR_FAIL 11
+#define SZ_ERROR_THREAD 12
+
+#define SZ_ERROR_ARCHIVE 16
+#define SZ_ERROR_NO_ARCHIVE 17
+
+typedef int SRes;
+
+
+#ifdef _MSC_VER
+  #if _MSC_VER > 1200
+    #define MY_ALIGN(n) __declspec(align(n))
+  #else
+    #define MY_ALIGN(n)
+  #endif
+#else
+  /*
+  // C11/C++11:
+  #include <stdalign.h>
+  #define MY_ALIGN(n) alignas(n)
+  */
+  #define MY_ALIGN(n) __attribute__ ((aligned(n)))
+#endif
+
+
+#ifdef _WIN32
+
+/* typedef DWORD WRes; */
+typedef unsigned WRes;
+#define MY_SRes_HRESULT_FROM_WRes(x) HRESULT_FROM_WIN32(x)
+
+// #define MY_HRES_ERROR_INTERNAL_ERROR  MY_SRes_HRESULT_FROM_WRes(ERROR_INTERNAL_ERROR)
+
+#else // _WIN32
+
+// #define ENV_HAVE_LSTAT
+typedef int WRes;
+
+// (FACILITY_ERRNO = 0x800) is 7zip's FACILITY constant to represent (errno) errors in HRESULT
+#define MY_FACILITY_ERRNO  0x800
+#define MY_FACILITY_WIN32  7
+#define MY_FACILITY_WRes  MY_FACILITY_ERRNO
+
+#define MY_HRESULT_FROM_errno_CONST_ERROR(x) ((HRESULT)( \
+          ( (HRESULT)(x) & 0x0000FFFF) \
+          | (MY_FACILITY_WRes << 16)  \
+          | (HRESULT)0x80000000 ))
+
+#define MY_SRes_HRESULT_FROM_WRes(x) \
+  ((HRESULT)(x) <= 0 ? ((HRESULT)(x)) : MY_HRESULT_FROM_errno_CONST_ERROR(x))
+
+// we call macro HRESULT_FROM_WIN32 for system errors (WRes) that are (errno)
+#define HRESULT_FROM_WIN32(x) MY_SRes_HRESULT_FROM_WRes(x)
+
+/*
+#define ERROR_FILE_NOT_FOUND             2L
+#define ERROR_ACCESS_DENIED              5L
+#define ERROR_NO_MORE_FILES              18L
+#define ERROR_LOCK_VIOLATION             33L
+#define ERROR_FILE_EXISTS                80L
+#define ERROR_DISK_FULL                  112L
+#define ERROR_NEGATIVE_SEEK              131L
+#define ERROR_ALREADY_EXISTS             183L
+#define ERROR_DIRECTORY                  267L
+#define ERROR_TOO_MANY_POSTS             298L
+
+#define ERROR_INTERNAL_ERROR             1359L
+#define ERROR_INVALID_REPARSE_DATA       4392L
+#define ERROR_REPARSE_TAG_INVALID        4393L
+#define ERROR_REPARSE_TAG_MISMATCH       4394L
+*/
+
+// we use errno equivalents for some WIN32 errors:
+
+#define ERROR_INVALID_PARAMETER     EINVAL
+#define ERROR_INVALID_FUNCTION      EINVAL
+#define ERROR_ALREADY_EXISTS        EEXIST
+#define ERROR_FILE_EXISTS           EEXIST
+#define ERROR_PATH_NOT_FOUND        ENOENT
+#define ERROR_FILE_NOT_FOUND        ENOENT
+#define ERROR_DISK_FULL             ENOSPC
+// #define ERROR_INVALID_HANDLE        EBADF
+
+// we use FACILITY_WIN32 for errors that has no errno equivalent
+// Too many posts were made to a semaphore.
+#define ERROR_TOO_MANY_POSTS        ((HRESULT)0x8007012AL)
+#define ERROR_INVALID_REPARSE_DATA  ((HRESULT)0x80071128L)
+#define ERROR_REPARSE_TAG_INVALID   ((HRESULT)0x80071129L)
+
+// if (MY_FACILITY_WRes != FACILITY_WIN32),
+// we use FACILITY_WIN32 for COM errors:
+#define E_OUTOFMEMORY               ((HRESULT)0x8007000EL)
+#define E_INVALIDARG                ((HRESULT)0x80070057L)
+#define MY_E_ERROR_NEGATIVE_SEEK    ((HRESULT)0x80070083L)
+
+/*
+// we can use FACILITY_ERRNO for some COM errors, that have errno equivalents:
+#define E_OUTOFMEMORY             MY_HRESULT_FROM_errno_CONST_ERROR(ENOMEM)
+#define E_INVALIDARG              MY_HRESULT_FROM_errno_CONST_ERROR(EINVAL)
+#define MY_E_ERROR_NEGATIVE_SEEK  MY_HRESULT_FROM_errno_CONST_ERROR(EINVAL)
+*/
+
+#define TEXT(quote) quote
+
+#define FILE_ATTRIBUTE_READONLY       0x0001
+#define FILE_ATTRIBUTE_HIDDEN         0x0002
+#define FILE_ATTRIBUTE_SYSTEM         0x0004
+#define FILE_ATTRIBUTE_DIRECTORY      0x0010
+#define FILE_ATTRIBUTE_ARCHIVE        0x0020
+#define FILE_ATTRIBUTE_DEVICE         0x0040
+#define FILE_ATTRIBUTE_NORMAL         0x0080
+#define FILE_ATTRIBUTE_TEMPORARY      0x0100
+#define FILE_ATTRIBUTE_SPARSE_FILE    0x0200
+#define FILE_ATTRIBUTE_REPARSE_POINT  0x0400
+#define FILE_ATTRIBUTE_COMPRESSED     0x0800
+#define FILE_ATTRIBUTE_OFFLINE        0x1000
+#define FILE_ATTRIBUTE_NOT_CONTENT_INDEXED 0x2000
+#define FILE_ATTRIBUTE_ENCRYPTED      0x4000
+
+#define FILE_ATTRIBUTE_UNIX_EXTENSION 0x8000   /* trick for Unix */
+
+#endif
+
+
+#ifndef RINOK
+#define RINOK(x) { const int _result_ = (x); if (_result_ != 0) return _result_; }
+#endif
+
+#ifndef RINOK_WRes
+#define RINOK_WRes(x) { const WRes _result_ = (x); if (_result_ != 0) return _result_; }
+#endif
+
+typedef unsigned char Byte;
+typedef short Int16;
+typedef unsigned short UInt16;
+
+#ifdef Z7_DECL_Int32_AS_long
+typedef long Int32;
+typedef unsigned long UInt32;
+#else
+typedef int Int32;
+typedef unsigned int UInt32;
+#endif
+
+
+#ifndef _WIN32
+
+typedef int INT;
+typedef Int32 INT32;
+typedef unsigned int UINT;
+typedef UInt32 UINT32;
+typedef INT32 LONG;   // LONG, ULONG and DWORD must be 32-bit for _WIN32 compatibility
+typedef UINT32 ULONG;
+
+#undef DWORD
+typedef UINT32 DWORD;
+
+#define VOID void
+
+#define HRESULT LONG
+
+typedef void *LPVOID;
+// typedef void VOID;
+// typedef ULONG_PTR DWORD_PTR, *PDWORD_PTR;
+// gcc / clang on Unix  : sizeof(long==sizeof(void*) in 32 or 64 bits)
+typedef          long  INT_PTR;
+typedef unsigned long  UINT_PTR;
+typedef          long  LONG_PTR;
+typedef unsigned long  DWORD_PTR;
+
+typedef size_t SIZE_T;
+
+#endif //  _WIN32
+
+
+#define MY_HRES_ERROR_INTERNAL_ERROR  ((HRESULT)0x8007054FL)
+
+
+#ifdef Z7_DECL_Int64_AS_long
+
+typedef long Int64;
+typedef unsigned long UInt64;
+
+#else
+
+#if (defined(_MSC_VER) || defined(__BORLANDC__)) && !defined(__clang__)
+typedef __int64 Int64;
+typedef unsigned __int64 UInt64;
+#else
+#if defined(__clang__) || defined(__GNUC__)
+#include <stdint.h>
+typedef int64_t Int64;
+typedef uint64_t UInt64;
+#else
+typedef long long int Int64;
+typedef unsigned long long int UInt64;
+// #define UINT64_CONST(n) n ## ULL
+#endif
+#endif
+
+#endif
+
+#define UINT64_CONST(n) n
+
+
+#ifdef Z7_DECL_SizeT_AS_unsigned_int
+typedef unsigned int SizeT;
+#else
+typedef size_t SizeT;
+#endif
+
+/*
+#if (defined(_MSC_VER) && _MSC_VER <= 1200)
+typedef size_t MY_uintptr_t;
+#else
+#include <stdint.h>
+typedef uintptr_t MY_uintptr_t;
+#endif
+*/
+
+typedef int BoolInt;
+/* typedef BoolInt Bool; */
+#define True 1
+#define False 0
+
+
+#ifdef _WIN32
+#define Z7_STDCALL __stdcall
+#else
+#define Z7_STDCALL
+#endif
+
+#ifdef _MSC_VER
+
+#if _MSC_VER >= 1300
+#define Z7_NO_INLINE __declspec(noinline)
+#else
+#define Z7_NO_INLINE
+#endif
+
+#define Z7_FORCE_INLINE __forceinline
+
+#define Z7_CDECL      __cdecl
+#define Z7_FASTCALL  __fastcall
+
+#else //  _MSC_VER
+
+#if (defined(__GNUC__) && (__GNUC__ >= 4)) \
+    || (defined(__clang__) && (__clang_major__ >= 4)) \
+    || defined(__INTEL_COMPILER) \
+    || defined(__xlC__)
+#define Z7_NO_INLINE      __attribute__((noinline))
+#define Z7_FORCE_INLINE   __attribute__((always_inline)) inline
+#else
+#define Z7_NO_INLINE
+#define Z7_FORCE_INLINE
+#endif
+
+#define Z7_CDECL
+
+#if  defined(_M_IX86) \
+  || defined(__i386__)
+// #define Z7_FASTCALL __attribute__((fastcall))
+// #define Z7_FASTCALL __attribute__((cdecl))
+#define Z7_FASTCALL
+#elif defined(MY_CPU_AMD64)
+// #define Z7_FASTCALL __attribute__((ms_abi))
+#define Z7_FASTCALL
+#else
+#define Z7_FASTCALL
+#endif
+
+#endif //  _MSC_VER
+
+
+/* The following interfaces use first parameter as pointer to structure */
+
+// #define Z7_C_IFACE_CONST_QUAL
+#define Z7_C_IFACE_CONST_QUAL const
+
+#define Z7_C_IFACE_DECL(a) \
+  struct a ## _; \
+  typedef Z7_C_IFACE_CONST_QUAL struct a ## _ * a ## Ptr; \
+  typedef struct a ## _ a; \
+  struct a ## _
+
+
+Z7_C_IFACE_DECL (IByteIn)
+{
+  Byte (*Read)(IByteInPtr p); /* reads one byte, returns 0 in case of EOF or error */
+};
+#define IByteIn_Read(p) (p)->Read(p)
+
+
+Z7_C_IFACE_DECL (IByteOut)
+{
+  void (*Write)(IByteOutPtr p, Byte b);
+};
+#define IByteOut_Write(p, b) (p)->Write(p, b)
+
+
+Z7_C_IFACE_DECL (ISeqInStream)
+{
+  SRes (*Read)(ISeqInStreamPtr p, void *buf, size_t *size);
+    /* if (input(*size) != 0 && output(*size) == 0) means end_of_stream.
+       (output(*size) < input(*size)) is allowed */
+};
+#define ISeqInStream_Read(p, buf, size) (p)->Read(p, buf, size)
+
+/* try to read as much as avail in stream and limited by (*processedSize) */
+SRes SeqInStream_ReadMax(ISeqInStreamPtr stream, void *buf, size_t *processedSize);
+/* it can return SZ_ERROR_INPUT_EOF */
+// SRes SeqInStream_Read(ISeqInStreamPtr stream, void *buf, size_t size);
+// SRes SeqInStream_Read2(ISeqInStreamPtr stream, void *buf, size_t size, SRes errorType);
+SRes SeqInStream_ReadByte(ISeqInStreamPtr stream, Byte *buf);
+
+
+Z7_C_IFACE_DECL (ISeqOutStream)
+{
+  size_t (*Write)(ISeqOutStreamPtr p, const void *buf, size_t size);
+    /* Returns: result - the number of actually written bytes.
+       (result < size) means error */
+};
+#define ISeqOutStream_Write(p, buf, size) (p)->Write(p, buf, size)
+
+typedef enum
+{
+  SZ_SEEK_SET = 0,
+  SZ_SEEK_CUR = 1,
+  SZ_SEEK_END = 2
+} ESzSeek;
+
+
+Z7_C_IFACE_DECL (ISeekInStream)
+{
+  SRes (*Read)(ISeekInStreamPtr p, void *buf, size_t *size);  /* same as ISeqInStream::Read */
+  SRes (*Seek)(ISeekInStreamPtr p, Int64 *pos, ESzSeek origin);
+};
+#define ISeekInStream_Read(p, buf, size)   (p)->Read(p, buf, size)
+#define ISeekInStream_Seek(p, pos, origin) (p)->Seek(p, pos, origin)
+
+
+Z7_C_IFACE_DECL (ILookInStream)
+{
+  SRes (*Look)(ILookInStreamPtr p, const void **buf, size_t *size);
+    /* if (input(*size) != 0 && output(*size) == 0) means end_of_stream.
+       (output(*size) > input(*size)) is not allowed
+       (output(*size) < input(*size)) is allowed */
+  SRes (*Skip)(ILookInStreamPtr p, size_t offset);
+    /* offset must be <= output(*size) of Look */
+  SRes (*Read)(ILookInStreamPtr p, void *buf, size_t *size);
+    /* reads directly (without buffer). It's same as ISeqInStream::Read */
+  SRes (*Seek)(ILookInStreamPtr p, Int64 *pos, ESzSeek origin);
+};
+
+#define ILookInStream_Look(p, buf, size)   (p)->Look(p, buf, size)
+#define ILookInStream_Skip(p, offset)      (p)->Skip(p, offset)
+#define ILookInStream_Read(p, buf, size)   (p)->Read(p, buf, size)
+#define ILookInStream_Seek(p, pos, origin) (p)->Seek(p, pos, origin)
+
+
+SRes LookInStream_LookRead(ILookInStreamPtr stream, void *buf, size_t *size);
+SRes LookInStream_SeekTo(ILookInStreamPtr stream, UInt64 offset);
+
+/* reads via ILookInStream::Read */
+SRes LookInStream_Read2(ILookInStreamPtr stream, void *buf, size_t size, SRes errorType);
+SRes LookInStream_Read(ILookInStreamPtr stream, void *buf, size_t size);
+
+
+typedef struct
+{
+  ILookInStream vt;
+  ISeekInStreamPtr realStream;
+
+  size_t pos;
+  size_t size; /* it's data size */
+
+  /* the following variables must be set outside */
+  Byte *buf;
+  size_t bufSize;
+} CLookToRead2;
+
+void LookToRead2_CreateVTable(CLookToRead2 *p, int lookahead);
+
+#define LookToRead2_INIT(p) { (p)->pos = (p)->size = 0; }
+
+
+typedef struct
+{
+  ISeqInStream vt;
+  ILookInStreamPtr realStream;
+} CSecToLook;
+
+void SecToLook_CreateVTable(CSecToLook *p);
+
+
+
+typedef struct
+{
+  ISeqInStream vt;
+  ILookInStreamPtr realStream;
+} CSecToRead;
+
+void SecToRead_CreateVTable(CSecToRead *p);
+
+
+Z7_C_IFACE_DECL (ICompressProgress)
+{
+  SRes (*Progress)(ICompressProgressPtr p, UInt64 inSize, UInt64 outSize);
+    /* Returns: result. (result != SZ_OK) means break.
+       Value (UInt64)(Int64)-1 for size means unknown value. */
+};
+
+#define ICompressProgress_Progress(p, inSize, outSize) (p)->Progress(p, inSize, outSize)
+
+
+
+typedef struct ISzAlloc ISzAlloc;
+typedef const ISzAlloc * ISzAllocPtr;
+
+struct ISzAlloc
+{
+  void *(*Alloc)(ISzAllocPtr p, size_t size);
+  void (*Free)(ISzAllocPtr p, void *address); /* address can be 0 */
+};
+
+#define ISzAlloc_Alloc(p, size) (p)->Alloc(p, size)
+#define ISzAlloc_Free(p, a) (p)->Free(p, a)
+
+/* deprecated */
+#define IAlloc_Alloc(p, size) ISzAlloc_Alloc(p, size)
+#define IAlloc_Free(p, a) ISzAlloc_Free(p, a)
+
+
+
+
+
+#ifndef MY_offsetof
+  #ifdef offsetof
+    #define MY_offsetof(type, m) offsetof(type, m)
+    /*
+    #define MY_offsetof(type, m) FIELD_OFFSET(type, m)
+    */
+  #else
+    #define MY_offsetof(type, m) ((size_t)&(((type *)0)->m))
+  #endif
+#endif
+
+
+
+#ifndef Z7_container_of
+
+/*
+#define Z7_container_of(ptr, type, m) container_of(ptr, type, m)
+#define Z7_container_of(ptr, type, m) CONTAINING_RECORD(ptr, type, m)
+#define Z7_container_of(ptr, type, m) ((type *)((char *)(ptr) - offsetof(type, m)))
+#define Z7_container_of(ptr, type, m) (&((type *)0)->m == (ptr), ((type *)(((char *)(ptr)) - MY_offsetof(type, m))))
+*/
+
+/*
+  GCC shows warning: "perhaps the 'offsetof' macro was used incorrectly"
+    GCC 3.4.4 : classes with constructor
+    GCC 4.8.1 : classes with non-public variable members"
+*/
+
+#define Z7_container_of(ptr, type, m) \
+  ((type *)(void *)((char *)(void *) \
+  (1 ? (ptr) : &((type *)NULL)->m) - MY_offsetof(type, m)))
+
+#define Z7_container_of_CONST(ptr, type, m) \
+  ((const type *)(const void *)((const char *)(const void *) \
+  (1 ? (ptr) : &((type *)NULL)->m) - MY_offsetof(type, m)))
+
+/*
+#define Z7_container_of_NON_CONST_FROM_CONST(ptr, type, m) \
+  ((type *)(void *)(const void *)((const char *)(const void *) \
+  (1 ? (ptr) : &((type *)NULL)->m) - MY_offsetof(type, m)))
+*/
+
+#endif
+
+#define Z7_CONTAINER_FROM_VTBL_SIMPLE(ptr, type, m) ((type *)(void *)(ptr))
+
+// #define Z7_CONTAINER_FROM_VTBL(ptr, type, m) Z7_CONTAINER_FROM_VTBL_SIMPLE(ptr, type, m)
+#define Z7_CONTAINER_FROM_VTBL(ptr, type, m) Z7_container_of(ptr, type, m)
+// #define Z7_CONTAINER_FROM_VTBL(ptr, type, m) Z7_container_of_NON_CONST_FROM_CONST(ptr, type, m)
+
+#define Z7_CONTAINER_FROM_VTBL_CONST(ptr, type, m) Z7_container_of_CONST(ptr, type, m)
+
+#define Z7_CONTAINER_FROM_VTBL_CLS(ptr, type, m) Z7_CONTAINER_FROM_VTBL_SIMPLE(ptr, type, m)
+/*
+#define Z7_CONTAINER_FROM_VTBL_CLS(ptr, type, m) Z7_CONTAINER_FROM_VTBL(ptr, type, m)
+*/
+#if defined (__clang__) || defined(__GNUC__)
+#define Z7_DIAGNOSTIC_IGNORE_BEGIN_CAST_QUAL \
+  _Pragma("GCC diagnostic push") \
+  _Pragma("GCC diagnostic ignored \"-Wcast-qual\"")
+#define Z7_DIAGNOSTIC_IGNORE_END_CAST_QUAL \
+  _Pragma("GCC diagnostic pop")
+#else
+#define Z7_DIAGNOSTIC_IGNORE_BEGIN_CAST_QUAL
+#define Z7_DIAGNOSTIC_IGNORE_END_CAST_QUAL
+#endif
+
+#define Z7_CONTAINER_FROM_VTBL_TO_DECL_VAR(ptr, type, m, p) \
+  Z7_DIAGNOSTIC_IGNORE_BEGIN_CAST_QUAL \
+  type *p = Z7_CONTAINER_FROM_VTBL(ptr, type, m); \
+  Z7_DIAGNOSTIC_IGNORE_END_CAST_QUAL
+
+#define Z7_CONTAINER_FROM_VTBL_TO_DECL_VAR_pp_vt_p(type) \
+  Z7_CONTAINER_FROM_VTBL_TO_DECL_VAR(pp, type, vt, p)
+
+
+// #define ZIP7_DECLARE_HANDLE(name)  typedef void *name;
+#define Z7_DECLARE_HANDLE(name)  struct name##_dummy{int unused;}; typedef struct name##_dummy *name;
+
+
+#define Z7_memset_0_ARRAY(a)  memset((a), 0, sizeof(a))
+
+#ifndef Z7_ARRAY_SIZE
+#define Z7_ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+#endif
+
+
+#ifdef _WIN32
+
+#define CHAR_PATH_SEPARATOR '\\'
+#define WCHAR_PATH_SEPARATOR L'\\'
+#define STRING_PATH_SEPARATOR "\\"
+#define WSTRING_PATH_SEPARATOR L"\\"
+
+#else
+
+#define CHAR_PATH_SEPARATOR '/'
+#define WCHAR_PATH_SEPARATOR L'/'
+#define STRING_PATH_SEPARATOR "/"
+#define WSTRING_PATH_SEPARATOR L"/"
+
+#endif
+
+#define k_PropVar_TimePrec_0        0
+#define k_PropVar_TimePrec_Unix     1
+#define k_PropVar_TimePrec_DOS      2
+#define k_PropVar_TimePrec_HighPrec 3
+#define k_PropVar_TimePrec_Base     16
+#define k_PropVar_TimePrec_100ns (k_PropVar_TimePrec_Base + 7)
+#define k_PropVar_TimePrec_1ns   (k_PropVar_TimePrec_Base + 9)
+
+EXTERN_C_END
+
+#endif
+
+/*
+#ifndef Z7_ST
+#ifdef _7ZIP_ST
+#define Z7_ST
+#endif
+#endif
+*/
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/third_party/lzma/LzmaDec.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_PACK)
+/* LzmaDec.h -- LZMA Decoder
+2023-04-02 : Igor Pavlov : Public domain */
+
+#ifndef ZIP7_INC_LZMA_DEC_H
+#define ZIP7_INC_LZMA_DEC_H
+
+
+EXTERN_C_BEGIN
+
+/* #define Z7_LZMA_PROB32 */
+/* Z7_LZMA_PROB32 can increase the speed on some CPUs,
+   but memory usage for CLzmaDec::probs will be doubled in that case */
+
+typedef
+#ifdef Z7_LZMA_PROB32
+  UInt32
+#else
+  UInt16
+#endif
+  CLzmaProb;
+
+
+/* ---------- LZMA Properties ---------- */
+
+#define LZMA_PROPS_SIZE 5
+
+typedef struct
+{
+  Byte lc;
+  Byte lp;
+  Byte pb;
+  Byte _pad_;
+  UInt32 dicSize;
+} CLzmaProps;
+
+/* LzmaProps_Decode - decodes properties
+Returns:
+  SZ_OK
+  SZ_ERROR_UNSUPPORTED - Unsupported properties
+*/
+
+SRes LzmaProps_Decode(CLzmaProps *p, const Byte *data, unsigned size);
+
+
+/* ---------- LZMA Decoder state ---------- */
+
+/* LZMA_REQUIRED_INPUT_MAX = number of required input bytes for worst case.
+   Num bits = log2((2^11 / 31) ^ 22) + 26 < 134 + 26 = 160; */
+
+#define LZMA_REQUIRED_INPUT_MAX 20
+
+typedef struct
+{
+  /* Don't change this structure. ASM code can use it. */
+  CLzmaProps prop;
+  CLzmaProb *probs;
+  CLzmaProb *probs_1664;
+  Byte *dic;
+  SizeT dicBufSize;
+  SizeT dicPos;
+  const Byte *buf;
+  UInt32 range;
+  UInt32 code;
+  UInt32 processedPos;
+  UInt32 checkDicSize;
+  UInt32 reps[4];
+  UInt32 state;
+  UInt32 remainLen;
+
+  UInt32 numProbs;
+  unsigned tempBufSize;
+  Byte tempBuf[LZMA_REQUIRED_INPUT_MAX];
+} CLzmaDec;
+
+#define LzmaDec_CONSTRUCT(p) { (p)->dic = NULL; (p)->probs = NULL; }
+#define LzmaDec_Construct(p) LzmaDec_CONSTRUCT(p)
+
+void LzmaDec_Init(CLzmaDec *p);
+
+/* There are two types of LZMA streams:
+     - Stream with end mark. That end mark adds about 6 bytes to compressed size.
+     - Stream without end mark. You must know exact uncompressed size to decompress such stream. */
+
+typedef enum
+{
+  LZMA_FINISH_ANY,   /* finish at any point */
+  LZMA_FINISH_END    /* block must be finished at the end */
+} ELzmaFinishMode;
+
+/* ELzmaFinishMode has meaning only if the decoding reaches output limit !!!
+
+   You must use LZMA_FINISH_END, when you know that current output buffer
+   covers last bytes of block. In other cases you must use LZMA_FINISH_ANY.
+
+   If LZMA decoder sees end marker before reaching output limit, it returns SZ_OK,
+   and output value of destLen will be less than output buffer size limit.
+   You can check status result also.
+
+   You can use multiple checks to test data integrity after full decompression:
+     1) Check Result and "status" variable.
+     2) Check that output(destLen) = uncompressedSize, if you know real uncompressedSize.
+     3) Check that output(srcLen) = compressedSize, if you know real compressedSize.
+        You must use correct finish mode in that case. */
+
+typedef enum
+{
+  LZMA_STATUS_NOT_SPECIFIED,               /* use main error code instead */
+  LZMA_STATUS_FINISHED_WITH_MARK,          /* stream was finished with end mark. */
+  LZMA_STATUS_NOT_FINISHED,                /* stream was not finished */
+  LZMA_STATUS_NEEDS_MORE_INPUT,            /* you must provide more input bytes */
+  LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK  /* there is probability that stream was finished without end mark */
+} ELzmaStatus;
+
+/* ELzmaStatus is used only as output value for function call */
+
+
+/* ---------- Interfaces ---------- */
+
+/* There are 3 levels of interfaces:
+     1) Dictionary Interface
+     2) Buffer Interface
+     3) One Call Interface
+   You can select any of these interfaces, but don't mix functions from different
+   groups for same object. */
+
+
+/* There are two variants to allocate state for Dictionary Interface:
+     1) LzmaDec_Allocate / LzmaDec_Free
+     2) LzmaDec_AllocateProbs / LzmaDec_FreeProbs
+   You can use variant 2, if you set dictionary buffer manually.
+   For Buffer Interface you must always use variant 1.
+
+LzmaDec_Allocate* can return:
+  SZ_OK
+  SZ_ERROR_MEM         - Memory allocation error
+  SZ_ERROR_UNSUPPORTED - Unsupported properties
+*/
+
+SRes LzmaDec_AllocateProbs(CLzmaDec *p, const Byte *props, unsigned propsSize, ISzAllocPtr alloc);
+void LzmaDec_FreeProbs(CLzmaDec *p, ISzAllocPtr alloc);
+
+SRes LzmaDec_Allocate(CLzmaDec *p, const Byte *props, unsigned propsSize, ISzAllocPtr alloc);
+void LzmaDec_Free(CLzmaDec *p, ISzAllocPtr alloc);
+
+/* ---------- Dictionary Interface ---------- */
+
+/* You can use it, if you want to eliminate the overhead for data copying from
+   dictionary to some other external buffer.
+   You must work with CLzmaDec variables directly in this interface.
+
+   STEPS:
+     LzmaDec_Construct()
+     LzmaDec_Allocate()
+     for (each new stream)
+     {
+       LzmaDec_Init()
+       while (it needs more decompression)
+       {
+         LzmaDec_DecodeToDic()
+         use data from CLzmaDec::dic and update CLzmaDec::dicPos
+       }
+     }
+     LzmaDec_Free()
+*/
+
+/* LzmaDec_DecodeToDic
+
+   The decoding to internal dictionary buffer (CLzmaDec::dic).
+   You must manually update CLzmaDec::dicPos, if it reaches CLzmaDec::dicBufSize !!!
+
+finishMode:
+  It has meaning only if the decoding reaches output limit (dicLimit).
+  LZMA_FINISH_ANY - Decode just dicLimit bytes.
+  LZMA_FINISH_END - Stream must be finished after dicLimit.
+
+Returns:
+  SZ_OK
+    status:
+      LZMA_STATUS_FINISHED_WITH_MARK
+      LZMA_STATUS_NOT_FINISHED
+      LZMA_STATUS_NEEDS_MORE_INPUT
+      LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK
+  SZ_ERROR_DATA - Data error
+  SZ_ERROR_FAIL - Some unexpected error: internal error of code, memory corruption or hardware failure
+*/
+
+SRes LzmaDec_DecodeToDic(CLzmaDec *p, SizeT dicLimit,
+    const Byte *src, SizeT *srcLen, ELzmaFinishMode finishMode, ELzmaStatus *status);
+
+
+/* ---------- Buffer Interface ---------- */
+
+/* It's zlib-like interface.
+   See LzmaDec_DecodeToDic description for information about STEPS and return results,
+   but you must use LzmaDec_DecodeToBuf instead of LzmaDec_DecodeToDic and you don't need
+   to work with CLzmaDec variables manually.
+
+finishMode:
+  It has meaning only if the decoding reaches output limit (*destLen).
+  LZMA_FINISH_ANY - Decode just destLen bytes.
+  LZMA_FINISH_END - Stream must be finished after (*destLen).
+*/
+
+SRes LzmaDec_DecodeToBuf(CLzmaDec *p, Byte *dest, SizeT *destLen,
+    const Byte *src, SizeT *srcLen, ELzmaFinishMode finishMode, ELzmaStatus *status);
+
+
+/* ---------- One Call Interface ---------- */
+
+/* LzmaDecode
+
+finishMode:
+  It has meaning only if the decoding reaches output limit (*destLen).
+  LZMA_FINISH_ANY - Decode just destLen bytes.
+  LZMA_FINISH_END - Stream must be finished after (*destLen).
+
+Returns:
+  SZ_OK
+    status:
+      LZMA_STATUS_FINISHED_WITH_MARK
+      LZMA_STATUS_NOT_FINISHED
+      LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK
+  SZ_ERROR_DATA - Data error
+  SZ_ERROR_MEM  - Memory allocation error
+  SZ_ERROR_UNSUPPORTED - Unsupported properties
+  SZ_ERROR_INPUT_EOF - It needs more bytes in input buffer (src).
+  SZ_ERROR_FAIL - Some unexpected error: internal error of code, memory corruption or hardware failure
+*/
+
+SRes LzmaDecode(Byte *dest, SizeT *destLen, const Byte *src, SizeT *srcLen,
+    const Byte *propData, unsigned propSize, ELzmaFinishMode finishMode,
+    ELzmaStatus *status, ISzAllocPtr alloc);
+
+EXTERN_C_END
 
 #endif
 #endif
@@ -124203,8 +126033,20 @@ XRT_API str xrtPathAppDir(void)
 
 #if defined(XRT_FEATURE_FILE)
 
-/* Windows 追加对象分离原子数据句柄和锁等控制操作句柄。 */
+/* 公共文件对象只保存后端分派、后端状态、打开标志与能力快照。 */
 struct xfile_impl {
+	const xrt_file_backend_ops* Ops;
+	ptr State;
+	uint32 Flags;
+	uint64 Capabilities;
+	ptr Owner;
+	void (*OwnerRelease)(ptr pOwner);
+};
+
+
+
+/* native backend 是平台句柄的唯一内部承载者。 */
+typedef struct xrt_native_file_state {
 	#if defined(_WIN32) || defined(_WIN64)
 		HANDLE Handle;
 		HANDLE Control;
@@ -124217,36 +126059,63 @@ struct xfile_impl {
 		xatomic64 AsyncOwner;
 		bool AsyncAssociated;
 	#endif
-};
+} xrt_native_file_state;
 
 
 
-/* 普通路径和根内路径都在系统创建/截断前准备对象。 */
-xfile __xrtFileAlloc(void)
-{
-	return (xfile)xrtMalloc(sizeof(struct xfile_impl));
-}
+static bool __xrtNativeFileRead(ptr pState, ptr pBuffer,
+	size_t iRequest, size_t* pRead);
+static bool __xrtNativeFileWrite(ptr pState, const void* pBuffer,
+	size_t iRequest, size_t* pWritten);
+static bool __xrtNativeFileReadAt(ptr pState, uint64 iOffset,
+	ptr pBuffer, size_t iRequest, size_t* pRead);
+static bool __xrtNativeFileWriteAt(ptr pState, uint64 iOffset,
+	const void* pBuffer, size_t iRequest, size_t* pWritten);
+static bool __xrtNativeFileSeek(ptr pState, int64 iOffset,
+	xseek Origin, uint64* pPosition);
+static bool __xrtNativeFileStat(ptr pState, xfileinfo* pInfo);
+static bool __xrtNativeFileResize(ptr pState, uint64 iSize);
+static bool __xrtNativeFileFlush(ptr pState);
+static intptr_t __xrtNativeFileHandle(ptr pState);
+static intptr_t __xrtNativeFileControlHandle(ptr pState);
+#if defined(XRT_FEATURE_NET_FILE)
+static bool __xrtNativeFileAsyncBind(ptr pState,
+	uint64 iOwner, bool** ppAssociated);
+#endif
+static bool __xrtNativeFileClose(ptr pState);
 
 
 
-/* 句柄接管本身不再分配，成功打开之后不能再因包装对象 OOM 返回失败。 */
-void __xrtFileInitNativePair(xfile File,
-	intptr_t iHandle, intptr_t iControl, uint32 iFlags)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		File->Handle = (HANDLE)iHandle;
-		File->Control = (HANDLE)iControl;
-		InitializeSRWLock(&File->CursorLock);
-	#else
-		File->Handle = (int)iHandle;
-		(void)iControl;
-	#endif
-	File->Flags = iFlags;
+static const xrt_file_backend_ops __xrtNativeFileOps = {
+	sizeof(xrt_file_backend_ops),
+	XRT_FILE_BACKEND_VERSION,
+	XRT_FILE_BACKEND_READ | XRT_FILE_BACKEND_WRITE |
+	XRT_FILE_BACKEND_READ_AT | XRT_FILE_BACKEND_WRITE_AT |
+	XRT_FILE_BACKEND_SEEK | XRT_FILE_BACKEND_STAT |
+	XRT_FILE_BACKEND_RESIZE | XRT_FILE_BACKEND_FLUSH |
+	XRT_FILE_BACKEND_NATIVE | XRT_FILE_BACKEND_CONTROL_NATIVE |
 	#if defined(XRT_FEATURE_NET_FILE)
-		xrtAtomic64Init(&File->AsyncOwner, 0);
-		File->AsyncAssociated = false;
+		XRT_FILE_BACKEND_ASYNC_BIND,
+	#else
+		UINT64_C(0),
 	#endif
-}
+	__xrtNativeFileRead,
+	__xrtNativeFileWrite,
+	__xrtNativeFileReadAt,
+	__xrtNativeFileWriteAt,
+	__xrtNativeFileSeek,
+	__xrtNativeFileStat,
+	__xrtNativeFileResize,
+	__xrtNativeFileFlush,
+	__xrtNativeFileHandle,
+	__xrtNativeFileControlHandle,
+	#if defined(XRT_FEATURE_NET_FILE)
+		__xrtNativeFileAsyncBind,
+	#else
+		NULL,
+	#endif
+	__xrtNativeFileClose
+};
 
 
 
@@ -124303,6 +126172,93 @@ void __xrtFileError(xerrkind Kind, xfileerror Code,
 
 
 
+/* 验证内部后端表的版本、能力位和回调一致性。 */
+static bool __xrtFileBackendOpsValid(const xrt_file_backend_ops* pOps)
+{
+	#define XRT_FILE_BACKEND_MATCH(Capability, Member) \
+		((((pOps->Capabilities & (Capability)) != 0u) == (pOps->Member != NULL)))
+	if ( (pOps == NULL) || (pOps->Size != sizeof(*pOps)) ||
+		 (pOps->Version != XRT_FILE_BACKEND_VERSION) ||
+		 ((pOps->Capabilities & ~XRT_FILE_BACKEND_CAPABILITIES) != 0u) ||
+		 (pOps->Close == NULL) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_READ, Read) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_WRITE, Write) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_READ_AT, ReadAt) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_WRITE_AT, WriteAt) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_SEEK, Seek) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_STAT, Stat) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_RESIZE, Resize) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_FLUSH, Flush) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_NATIVE, Native) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_CONTROL_NATIVE, ControlNative) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_ASYNC_BIND, AsyncBind) ) {
+		#undef XRT_FILE_BACKEND_MATCH
+		return false;
+	}
+	#undef XRT_FILE_BACKEND_MATCH
+	return true;
+}
+
+
+
+/* 接管后端状态并创建统一分派对象；分配失败仍消费 State。 */
+xfile __xrtFileTakeBackend(const xrt_file_backend_ops* pOps,
+	ptr pState, uint32 iFlags)
+{
+	xfile File;
+
+	if ( !__xrtFileBackendOpsValid(pOps) || (pState == NULL) ) {
+		if ( (pOps != NULL) && (pOps->Size == sizeof(*pOps)) &&
+			 (pOps->Close != NULL) && (pState != NULL) ) {
+			(void)pOps->Close(pState);
+		}
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	File = (xfile)xrtCalloc(1u, sizeof(*File));
+	if ( File == NULL ) {
+		xerror* pError = xrtTakeError();
+
+		(void)pOps->Close(pState);
+		xrtClearError();
+		__xrtErrorSetOwned(pError);
+		return NULL;
+	}
+	File->Ops = pOps;
+	File->State = pState;
+	File->Flags = iFlags;
+	File->Capabilities = pOps->Capabilities;
+	return File;
+}
+
+
+
+/* 附加一个独立生命周期 owner，不改变文件后端能力或分派。 */
+bool __xrtFileAttachOwner(xfile File, ptr pOwner,
+	void (*pRelease)(ptr pOwner))
+{
+	if ( (File == NULL) || (pOwner == NULL) || (pRelease == NULL) ||
+		 (File->Owner != NULL) || (File->OwnerRelease != NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	File->Owner = pOwner;
+	File->OwnerRelease = pRelease;
+	return true;
+}
+
+
+
+/* 发布稳定的后端不支持错误。 */
+static bool __xrtFileUnsupported(xfileerror Code,
+	cstr sOperation, cstr sMessage)
+{
+	__xrtFileError(XERR_UNSUPPORTED, Code, sOperation, sMessage);
+	return false;
+}
+
+
+
 /* 检查文件对象以及操作所需访问权限。 */
 static bool __xrtFileCheck(xfile File, uint32 iAccess)
 {
@@ -124317,6 +126273,22 @@ static bool __xrtFileCheck(xfile File, uint32 iAccess)
 	if ( (File->Flags & XFILE_ASYNC) != 0u ) {
 		__xrtErrorSetInvalidState();
 		return false;
+	}
+	return true;
+}
+
+
+
+/* 检查文件访问标志和后端能力。 */
+static bool __xrtFileCheckCapability(xfile File,
+	uint32 iAccess, uint64 iCapability,
+	xfileerror Code, cstr sOperation, cstr sMessage)
+{
+	if ( !__xrtFileCheck(File, iAccess) ) {
+		return false;
+	}
+	if ( (File->Capabilities & iCapability) == 0u ) {
+		return __xrtFileUnsupported(Code, sOperation, sMessage);
 	}
 	return true;
 }
@@ -124642,6 +126614,69 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 
 
 
+/* 接管数据句柄和可选控制句柄并创建文件对象。 */
+xfile __xrtFileAlloc(void)
+{
+	return (xfile)xrtCalloc(1u,
+		sizeof(struct xfile_impl) + sizeof(xrt_native_file_state));
+}
+
+/* Initialize the already allocated object without any fallible allocation. */
+void __xrtFileInitNativePair(xfile File,
+	intptr_t iHandle, intptr_t iControl, uint32 iFlags)
+{
+	xrt_native_file_state* pState;
+	pState = (xrt_native_file_state*)(File + 1);
+	memset(pState, 0, sizeof(*pState));
+	File->Ops = &__xrtNativeFileOps;
+	File->State = pState;
+	File->Flags = iFlags;
+	File->Capabilities = __xrtNativeFileOps.Capabilities;
+	#if defined(_WIN32) || defined(_WIN64)
+		pState->Handle = (HANDLE)iHandle;
+		pState->Control = (HANDLE)iControl;
+		InitializeSRWLock(&pState->CursorLock);
+	#else
+		pState->Handle = (int)iHandle;
+	#endif
+	#if defined(XRT_FEATURE_NET_FILE)
+		xrtAtomic64Init(&pState->AsyncOwner, 0);
+		pState->AsyncAssociated = false;
+	#endif
+	#if !defined(_WIN32) && !defined(_WIN64)
+		(void)iControl;
+	#endif
+}
+
+/* Adopt existing handles; newly creating/truncating opens use Alloc before OS IO. */
+xfile __xrtFileTakeNativePair(intptr_t iHandle,
+	intptr_t iControl, uint32 iFlags)
+{
+	xfile File = __xrtFileAlloc();
+	if (File == NULL) {
+		#if defined(_WIN32) || defined(_WIN64)
+			(void)CloseHandle((HANDLE)iHandle);
+			if ((HANDLE)iControl != INVALID_HANDLE_VALUE)
+				(void)CloseHandle((HANDLE)iControl);
+		#else
+			(void)close((int)iHandle);
+		#endif
+		return NULL;
+	}
+	__xrtFileInitNativePair(File, iHandle, iControl, iFlags);
+	return File;
+}
+
+
+
+/* 接管单个原生句柄并创建普通文件对象。 */
+xfile __xrtFileTakeNative(intptr_t iHandle, uint32 iFlags)
+{
+	return __xrtFileTakeNativePair(iHandle, (intptr_t)-1, iFlags);
+}
+
+
+
 /* 返回控制操作使用的原生句柄。 */
 intptr_t __xrtFileControlNative(xfile File)
 {
@@ -124649,12 +126684,12 @@ intptr_t __xrtFileControlNative(xfile File)
 		__xrtErrorSetInvalidArgument();
 		return (intptr_t)-1;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return (intptr_t)(File->Control != INVALID_HANDLE_VALUE ?
-			File->Control : File->Handle);
-	#else
-		return (intptr_t)File->Handle;
-	#endif
+	if ( (File->Capabilities & XRT_FILE_BACKEND_CONTROL_NATIVE) == 0u ) {
+		(void)__xrtFileUnsupported(XFILE_ERROR_LOCK, "control-native",
+			"the file backend does not expose a native control handle");
+		return (intptr_t)-1;
+	}
+	return File->Ops->ControlNative(File->State);
 }
 
 
@@ -124667,8 +126702,6 @@ bool __xrtFileAsyncBind(
 	bool** ppAssociated
 )
 {
-	uint64 iExpected = 0;
-
 	if ( (File == NULL) || (iOwner == 0) || (ppAssociated == NULL) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
@@ -124677,20 +126710,11 @@ bool __xrtFileAsyncBind(
 		__xrtErrorSetInvalidState();
 		return false;
 	}
-	if ( !xrtAtomic64CompareExchange(
-		&File->AsyncOwner,
-		&iExpected,
-		iOwner,
-		XMEMORY_ACQ_REL,
-		XMEMORY_ACQUIRE
-	) ) {
-		if ( iExpected != iOwner ) {
-			__xrtErrorSetInvalidState();
-			return false;
-		}
+	if ( (File->Capabilities & XRT_FILE_BACKEND_ASYNC_BIND) == 0u ) {
+		return __xrtFileUnsupported(XFILE_ERROR_OPEN, "async-bind",
+			"the file backend does not support native completion I/O");
 	}
-	*ppAssociated = &File->AsyncAssociated;
-	return true;
+	return File->Ops->AsyncBind(File->State, iOwner, ppAssociated);
 }
 #endif
 
@@ -124725,23 +126749,20 @@ XRT_API xfile xrtOpen(cstr sPath, uint32 iFlags)
 
 
 
-/* 关闭原生句柄并销毁文件对象。 */
-XRT_API bool xrtClose(xfile File)
+/* 关闭 native state 中的数据句柄和可选控制句柄。 */
+static bool __xrtNativeFileClose(ptr pState)
 {
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
 	bool bResult;
 	int iCode = 0;
 
-	if ( File == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
 	#if defined(_WIN32) || defined(_WIN64)
-		bResult = CloseHandle(File->Handle) != 0;
+		bResult = CloseHandle(pNative->Handle) != 0;
 		if ( !bResult ) {
 			iCode = (int)GetLastError();
 		}
-		if ( File->Control != INVALID_HANDLE_VALUE ) {
-			bool bControl = CloseHandle(File->Control) != 0;
+		if ( pNative->Control != INVALID_HANDLE_VALUE ) {
+			bool bControl = CloseHandle(pNative->Control) != 0;
 
 			if ( bResult && !bControl ) {
 				bResult = false;
@@ -124749,17 +126770,134 @@ XRT_API bool xrtClose(xfile File)
 			}
 		}
 	#else
-		bResult = close(File->Handle) == 0;
+		bResult = close(pNative->Handle) == 0;
 		if ( !bResult ) {
 			iCode = errno;
 		}
 	#endif
-	xrtFree(File);
 	if ( !bResult ) {
 		__xrtFileSetError(XFILE_ERROR_CLOSE, "close",
 			"failed to close the file", iCode);
 	}
 	return bResult;
+}
+
+
+
+/* 关闭后端状态并销毁统一文件对象。 */
+XRT_API bool xrtClose(xfile File)
+{
+	bool bResult;
+	ptr pOwner;
+	void (*pOwnerRelease)(ptr pOwner);
+
+	if ( File == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	pOwner = File->Owner;
+	pOwnerRelease = File->OwnerRelease;
+	bResult = File->Ops->Close(File->State);
+	xrtFree(File);
+	if ( pOwnerRelease != NULL ) pOwnerRelease(pOwner);
+	return bResult;
+}
+
+
+
+/* native backend 单次读取。 */
+static bool __xrtNativeFileRead(ptr pState, ptr pBuffer,
+	size_t iRequest, size_t* pRead)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD iDone = 0;
+		DWORD iChunk = (iRequest > (size_t)UINT32_MAX) ?
+			UINT32_MAX : (DWORD)iRequest;
+
+		AcquireSRWLockExclusive(&pNative->CursorLock);
+		if ( !ReadFile(pNative->Handle, pBuffer, iChunk, &iDone, NULL) ) {
+			int iCode = (int)GetLastError();
+
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+			if ( (iCode == ERROR_HANDLE_EOF) || (iCode == ERROR_BROKEN_PIPE) ) {
+				return true;
+			}
+			__xrtFileSetError(XFILE_ERROR_READ, "read",
+				"failed to read the file", iCode);
+			return false;
+		}
+		ReleaseSRWLockExclusive(&pNative->CursorLock);
+		if ( pRead != NULL ) {
+			*pRead = (size_t)iDone;
+		}
+	#else
+		ssize_t iDone;
+		size_t iChunk = (iRequest > (size_t)0x7FFFFFFF) ?
+			(size_t)0x7FFFFFFF : iRequest;
+
+		do {
+			iDone = read(pNative->Handle, pBuffer, iChunk);
+		} while ( (iDone < 0) && (errno == EINTR) );
+		if ( iDone < 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_READ, "read",
+				"failed to read the file", iCode);
+			return false;
+		}
+		if ( pRead != NULL ) {
+			*pRead = (size_t)iDone;
+		}
+	#endif
+	return true;
+}
+
+
+
+/* native backend 单次写入。 */
+static bool __xrtNativeFileWrite(ptr pState, const void* pBuffer,
+	size_t iRequest, size_t* pWritten)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD iDone = 0;
+		DWORD iChunk = (iRequest > (size_t)UINT32_MAX) ?
+			UINT32_MAX : (DWORD)iRequest;
+
+		AcquireSRWLockExclusive(&pNative->CursorLock);
+		if ( !WriteFile(pNative->Handle, pBuffer, iChunk, &iDone, NULL) ) {
+			int iCode = (int)GetLastError();
+
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+			__xrtFileSetError(XFILE_ERROR_WRITE, "write",
+				"failed to write the file", iCode);
+			return false;
+		}
+		ReleaseSRWLockExclusive(&pNative->CursorLock);
+		if ( pWritten != NULL ) {
+			*pWritten = (size_t)iDone;
+		}
+	#else
+		ssize_t iDone;
+		size_t iChunk = (iRequest > (size_t)0x7FFFFFFF) ?
+			(size_t)0x7FFFFFFF : iRequest;
+
+		do {
+			iDone = write(pNative->Handle, pBuffer, iChunk);
+		} while ( (iDone < 0) && (errno == EINTR) );
+		if ( iDone < 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_WRITE, "write",
+				"failed to write the file", iCode);
+			return false;
+		}
+		if ( pWritten != NULL ) {
+			*pWritten = (size_t)iDone;
+		}
+	#endif
+	return true;
 }
 
 
@@ -124774,56 +126912,15 @@ XRT_API bool xrtRead(xfile File, ptr pBuffer, size_t iRequest, size_t* pRead)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtFileCheck(File, XFILE_READ) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_READ,
+		XRT_FILE_BACKEND_READ, XFILE_ERROR_READ, "read",
+		"the file backend does not support sequential reads") ) {
 		return false;
 	}
 	if ( iRequest == 0u ) {
 		return true;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			DWORD iDone = 0;
-			DWORD iChunk = (iRequest > (size_t)UINT32_MAX) ? UINT32_MAX : (DWORD)iRequest;
-
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !ReadFile(File->Handle, pBuffer, iChunk, &iDone, NULL) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				if ( (iCode == ERROR_HANDLE_EOF) || (iCode == ERROR_BROKEN_PIPE) ) {
-					return true;
-				}
-				__xrtFileSetError(XFILE_ERROR_READ, "read",
-					"failed to read the file", iCode);
-				return false;
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-			if ( pRead != NULL ) {
-				*pRead = (size_t)iDone;
-			}
-		}
-	#else
-		{
-			ssize_t iDone;
-			size_t iChunk = (iRequest > (size_t)0x7FFFFFFF) ?
-				(size_t)0x7FFFFFFF : iRequest;
-
-			do {
-				iDone = read(File->Handle, pBuffer, iChunk);
-			} while ( (iDone < 0) && (errno == EINTR) );
-			if ( iDone < 0 ) {
-				int iCode = errno;
-
-				__xrtFileSetError(XFILE_ERROR_READ, "read",
-					"failed to read the file", iCode);
-				return false;
-			}
-			if ( pRead != NULL ) {
-				*pRead = (size_t)iDone;
-			}
-		}
-	#endif
-	return true;
+	return File->Ops->Read(File->State, pBuffer, iRequest, pRead);
 }
 
 
@@ -124839,53 +126936,15 @@ XRT_API bool xrtWrite(xfile File, const void* pBuffer,
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtFileCheck(File, XFILE_WRITE) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_WRITE,
+		XRT_FILE_BACKEND_WRITE, XFILE_ERROR_WRITE, "write",
+		"the file backend does not support sequential writes") ) {
 		return false;
 	}
 	if ( iRequest == 0u ) {
 		return true;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			DWORD iDone = 0;
-			DWORD iChunk = (iRequest > (size_t)UINT32_MAX) ? UINT32_MAX : (DWORD)iRequest;
-
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !WriteFile(File->Handle, pBuffer, iChunk, &iDone, NULL) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_WRITE, "write",
-					"failed to write the file", iCode);
-				return false;
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-			if ( pWritten != NULL ) {
-				*pWritten = (size_t)iDone;
-			}
-		}
-	#else
-		{
-			ssize_t iDone;
-			size_t iChunk = (iRequest > (size_t)0x7FFFFFFF) ?
-				(size_t)0x7FFFFFFF : iRequest;
-
-			do {
-				iDone = write(File->Handle, pBuffer, iChunk);
-			} while ( (iDone < 0) && (errno == EINTR) );
-			if ( iDone < 0 ) {
-				int iCode = errno;
-
-				__xrtFileSetError(XFILE_ERROR_WRITE, "write",
-					"failed to write the file", iCode);
-				return false;
-			}
-			if ( pWritten != NULL ) {
-				*pWritten = (size_t)iDone;
-			}
-		}
-	#endif
-	return true;
+	return File->Ops->Write(File->State, pBuffer, iRequest, pWritten);
 }
 
 
@@ -124995,6 +127054,150 @@ static bool __xrtFileAtRange(uint64 iOffset, size_t iRequest)
 
 
 
+/* native backend 从绝对偏移读取且不改变共享游标。 */
+static bool __xrtNativeFileReadAt(ptr pState, uint64 iOffset,
+	ptr pBuffer, size_t iRequest, size_t* pRead)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		LARGE_INTEGER Original;
+		LARGE_INTEGER Target;
+		LARGE_INTEGER Zero;
+		DWORD iDone = 0;
+		int iReadCode = 0;
+		int iRestoreCode = 0;
+
+		Zero.QuadPart = 0;
+		Target.QuadPart = (LONGLONG)iOffset;
+		AcquireSRWLockExclusive(&pNative->CursorLock);
+		if ( !SetFilePointerEx(pNative->Handle, Zero,
+			&Original, FILE_CURRENT) ) {
+			int iCode = (int)GetLastError();
+
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+			__xrtFileSetError(XFILE_ERROR_SEEK, "read-at-position",
+				"failed to save the shared file position", iCode);
+			return false;
+		}
+		if ( !SetFilePointerEx(pNative->Handle, Target, NULL, FILE_BEGIN) ) {
+			iReadCode = (int)GetLastError();
+		} else if ( !ReadFile(pNative->Handle, pBuffer,
+			(DWORD)iRequest, &iDone, NULL) ) {
+			iReadCode = (int)GetLastError();
+		}
+		if ( !SetFilePointerEx(pNative->Handle, Original, NULL, FILE_BEGIN) ) {
+			iRestoreCode = (int)GetLastError();
+		}
+		ReleaseSRWLockExclusive(&pNative->CursorLock);
+		if ( pRead != NULL ) {
+			*pRead = (size_t)iDone;
+		}
+		if ( (iReadCode != 0) && (iReadCode != ERROR_HANDLE_EOF) ) {
+			__xrtFileSetError(XFILE_ERROR_READ, "read-at",
+				"failed to read the file at the requested offset", iReadCode);
+			return false;
+		}
+		if ( iRestoreCode != 0 ) {
+			__xrtFileSetError(XFILE_ERROR_SEEK, "read-at-restore",
+				"the data was read but the shared file position could not be restored",
+				iRestoreCode);
+			return false;
+		}
+	#else
+		ssize_t iDone;
+
+		do {
+			iDone = pread(pNative->Handle, pBuffer,
+				iRequest, (off_t)iOffset);
+		} while ( (iDone < 0) && (errno == EINTR) );
+		if ( iDone < 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_READ, "read-at",
+				"failed to read the file at the requested offset", iCode);
+			return false;
+		}
+		if ( pRead != NULL ) {
+			*pRead = (size_t)iDone;
+		}
+	#endif
+	return true;
+}
+
+
+
+/* native backend 向绝对偏移写入且不改变共享游标。 */
+static bool __xrtNativeFileWriteAt(ptr pState, uint64 iOffset,
+	const void* pBuffer, size_t iRequest, size_t* pWritten)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		LARGE_INTEGER Original;
+		LARGE_INTEGER Target;
+		LARGE_INTEGER Zero;
+		DWORD iDone = 0;
+		int iWriteCode = 0;
+		int iRestoreCode = 0;
+
+		Zero.QuadPart = 0;
+		Target.QuadPart = (LONGLONG)iOffset;
+		AcquireSRWLockExclusive(&pNative->CursorLock);
+		if ( !SetFilePointerEx(pNative->Handle, Zero,
+			&Original, FILE_CURRENT) ) {
+			int iCode = (int)GetLastError();
+
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+			__xrtFileSetError(XFILE_ERROR_SEEK, "write-at-position",
+				"failed to save the shared file position", iCode);
+			return false;
+		}
+		if ( !SetFilePointerEx(pNative->Handle, Target, NULL, FILE_BEGIN) ) {
+			iWriteCode = (int)GetLastError();
+		} else if ( !WriteFile(pNative->Handle, pBuffer,
+			(DWORD)iRequest, &iDone, NULL) ) {
+			iWriteCode = (int)GetLastError();
+		}
+		if ( !SetFilePointerEx(pNative->Handle, Original, NULL, FILE_BEGIN) ) {
+			iRestoreCode = (int)GetLastError();
+		}
+		ReleaseSRWLockExclusive(&pNative->CursorLock);
+		if ( pWritten != NULL ) {
+			*pWritten = (size_t)iDone;
+		}
+		if ( iWriteCode != 0 ) {
+			__xrtFileSetError(XFILE_ERROR_WRITE, "write-at",
+				"failed to write the file at the requested offset", iWriteCode);
+			return false;
+		}
+		if ( iRestoreCode != 0 ) {
+			__xrtFileSetError(XFILE_ERROR_SEEK, "write-at-restore",
+				"the data was written but the shared file position could not be restored",
+				iRestoreCode);
+			return false;
+		}
+	#else
+		ssize_t iDone;
+
+		do {
+			iDone = pwrite(pNative->Handle, pBuffer,
+				iRequest, (off_t)iOffset);
+		} while ( (iDone < 0) && (errno == EINTR) );
+		if ( iDone < 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_WRITE, "write-at",
+				"failed to write the file at the requested offset", iCode);
+			return false;
+		}
+		if ( pWritten != NULL ) {
+			*pWritten = (size_t)iDone;
+		}
+	#endif
+	return true;
+}
+
+
+
 /* 从绝对偏移执行一次读取且不改变共享游标。 */
 XRT_API bool xrtReadAt(xfile File, uint64 iOffset,
 	ptr pBuffer, size_t iRequest, size_t* pRead)
@@ -125009,82 +127212,16 @@ XRT_API bool xrtReadAt(xfile File, uint64 iOffset,
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtFileCheck(File, XFILE_READ) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_READ,
+		XRT_FILE_BACKEND_READ_AT, XFILE_ERROR_READ, "read-at",
+		"the file backend does not support positional reads") ) {
 		return false;
 	}
 	if ( (iRequest == 0u) || !__xrtFileAtRange(iOffset, iChunk) ) {
 		return iRequest == 0u;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			LARGE_INTEGER Original;
-			LARGE_INTEGER Target;
-			LARGE_INTEGER Zero;
-			DWORD iDone = 0;
-			int iReadCode = 0;
-			int iRestoreCode = 0;
-
-			Zero.QuadPart = 0;
-			Target.QuadPart = (LONGLONG)iOffset;
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !SetFilePointerEx(File->Handle, Zero,
-				&Original, FILE_CURRENT) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_SEEK, "read-at-position",
-					"failed to save the shared file position", iCode);
-				return false;
-			}
-			if ( !SetFilePointerEx(File->Handle, Target, NULL, FILE_BEGIN) ) {
-				iReadCode = (int)GetLastError();
-			} else if ( !ReadFile(File->Handle, pBuffer,
-				(DWORD)iChunk, &iDone, NULL) ) {
-				iReadCode = (int)GetLastError();
-			}
-			if ( !SetFilePointerEx(File->Handle, Original,
-				NULL, FILE_BEGIN) ) {
-				iRestoreCode = (int)GetLastError();
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-			if ( pRead != NULL ) {
-				*pRead = (size_t)iDone;
-			}
-			if ( (iReadCode != 0) && (iReadCode != ERROR_HANDLE_EOF) ) {
-				__xrtFileSetError(XFILE_ERROR_READ, "read-at",
-					"failed to read the file at the requested offset",
-					iReadCode);
-				return false;
-			}
-			if ( iRestoreCode != 0 ) {
-				__xrtFileSetError(XFILE_ERROR_SEEK, "read-at-restore",
-					"the data was read but the shared file position could not be restored",
-					iRestoreCode);
-				return false;
-			}
-		}
-	#else
-		{
-			ssize_t iDone;
-
-			do {
-				iDone = pread(File->Handle, pBuffer,
-					iChunk, (off_t)iOffset);
-			} while ( (iDone < 0) && (errno == EINTR) );
-			if ( iDone < 0 ) {
-				int iCode = errno;
-
-				__xrtFileSetError(XFILE_ERROR_READ, "read-at",
-					"failed to read the file at the requested offset",
-					iCode);
-				return false;
-			}
-			if ( pRead != NULL ) {
-				*pRead = (size_t)iDone;
-			}
-		}
-	#endif
-	return true;
+	return File->Ops->ReadAt(File->State, iOffset,
+		pBuffer, iChunk, pRead);
 }
 
 
@@ -125103,7 +127240,9 @@ XRT_API bool xrtWriteAt(xfile File, uint64 iOffset,
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtFileCheck(File, XFILE_WRITE) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_WRITE,
+		XRT_FILE_BACKEND_WRITE_AT, XFILE_ERROR_WRITE, "write-at",
+		"the file backend does not support positional writes") ) {
 		return false;
 	}
 	if ( (File->Flags & XFILE_APPEND) != 0u ) {
@@ -125113,76 +127252,8 @@ XRT_API bool xrtWriteAt(xfile File, uint64 iOffset,
 	if ( (iRequest == 0u) || !__xrtFileAtRange(iOffset, iChunk) ) {
 		return iRequest == 0u;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			LARGE_INTEGER Original;
-			LARGE_INTEGER Target;
-			LARGE_INTEGER Zero;
-			DWORD iDone = 0;
-			int iWriteCode = 0;
-			int iRestoreCode = 0;
-
-			Zero.QuadPart = 0;
-			Target.QuadPart = (LONGLONG)iOffset;
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !SetFilePointerEx(File->Handle, Zero,
-				&Original, FILE_CURRENT) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_SEEK, "write-at-position",
-					"failed to save the shared file position", iCode);
-				return false;
-			}
-			if ( !SetFilePointerEx(File->Handle, Target, NULL, FILE_BEGIN) ) {
-				iWriteCode = (int)GetLastError();
-			} else if ( !WriteFile(File->Handle, pBuffer,
-				(DWORD)iChunk, &iDone, NULL) ) {
-				iWriteCode = (int)GetLastError();
-			}
-			if ( !SetFilePointerEx(File->Handle, Original,
-				NULL, FILE_BEGIN) ) {
-				iRestoreCode = (int)GetLastError();
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-			if ( pWritten != NULL ) {
-				*pWritten = (size_t)iDone;
-			}
-			if ( iWriteCode != 0 ) {
-				__xrtFileSetError(XFILE_ERROR_WRITE, "write-at",
-					"failed to write the file at the requested offset",
-					iWriteCode);
-				return false;
-			}
-			if ( iRestoreCode != 0 ) {
-				__xrtFileSetError(XFILE_ERROR_SEEK, "write-at-restore",
-					"the data was written but the shared file position could not be restored",
-					iRestoreCode);
-				return false;
-			}
-		}
-	#else
-		{
-			ssize_t iDone;
-
-			do {
-				iDone = pwrite(File->Handle, pBuffer,
-					iChunk, (off_t)iOffset);
-			} while ( (iDone < 0) && (errno == EINTR) );
-			if ( iDone < 0 ) {
-				int iCode = errno;
-
-				__xrtFileSetError(XFILE_ERROR_WRITE, "write-at",
-					"failed to write the file at the requested offset",
-					iCode);
-				return false;
-			}
-			if ( pWritten != NULL ) {
-				*pWritten = (size_t)iDone;
-			}
-		}
-	#endif
-	return true;
+	return File->Ops->WriteAt(File->State, iOffset,
+		pBuffer, iChunk, pWritten);
 }
 
 
@@ -125281,14 +127352,11 @@ XRT_API bool xrtWriteAtFull(xfile File, uint64 iOffset,
 
 
 
-/* 按 64 位偏移移动共享文件游标。 */
-XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
+/* native backend 按 64 位偏移移动共享文件游标。 */
+static bool __xrtNativeFileSeek(ptr pState, int64 iOffset,
+	xseek Origin, uint64* pPosition)
 {
-	if ( (File == NULL) || ((Origin != XSEEK_START) &&
-		 (Origin != XSEEK_CURRENT) && (Origin != XSEEK_END)) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
 	#if defined(_WIN32) || defined(_WIN64)
 		{
 			LARGE_INTEGER Offset;
@@ -125297,16 +127365,16 @@ XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
 				((Origin == XSEEK_CURRENT) ? FILE_CURRENT : FILE_END);
 
 			Offset.QuadPart = iOffset;
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !SetFilePointerEx(File->Handle, Offset, &Position, iMethod) ) {
+			AcquireSRWLockExclusive(&pNative->CursorLock);
+			if ( !SetFilePointerEx(pNative->Handle, Offset, &Position, iMethod) ) {
 				int iCode = (int)GetLastError();
 
-				ReleaseSRWLockExclusive(&File->CursorLock);
+				ReleaseSRWLockExclusive(&pNative->CursorLock);
 				__xrtFileSetError(XFILE_ERROR_SEEK, "seek",
 					"failed to move the file position", iCode);
 				return false;
 			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
 			if ( Position.QuadPart < 0 ) {
 				__xrtFileError(XERR_RANGE, XFILE_ERROR_SEEK, "seek",
 					"the resulting file position is negative");
@@ -125323,7 +127391,7 @@ XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
 			off_t iPosition;
 
 			errno = 0;
-			iPosition = lseek(File->Handle, (off_t)iOffset, iWhence);
+			iPosition = lseek(pNative->Handle, (off_t)iOffset, iWhence);
 			if ( iPosition < (off_t)0 ) {
 				int iCode = errno;
 
@@ -125337,6 +127405,23 @@ XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
 		}
 	#endif
 	return true;
+}
+
+
+
+/* 按 64 位偏移移动共享文件游标。 */
+XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
+{
+	if ( (File == NULL) || ((Origin != XSEEK_START) &&
+		 (Origin != XSEEK_CURRENT) && (Origin != XSEEK_END)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (File->Capabilities & XRT_FILE_BACKEND_SEEK) == 0u ) {
+		return __xrtFileUnsupported(XFILE_ERROR_SEEK, "seek",
+			"the file backend does not support a shared cursor");
+	}
+	return File->Ops->Seek(File->State, iOffset, Origin, pPosition);
 }
 
 
@@ -125614,6 +127699,19 @@ static bool __xrtFilePosixStat(int hFile, xfileinfo* pInfo, bool bReport)
 
 
 
+/* 查询 native backend 元数据。 */
+static bool __xrtNativeFileStat(ptr pState, xfileinfo* pInfo)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		return __xrtFileWindowsStat(pNative->Handle, pInfo, true);
+	#else
+		return __xrtFilePosixStat(pNative->Handle, pInfo, true);
+	#endif
+}
+
+
+
 /* 查询打开文件的元数据。 */
 XRT_API bool xrtFileStat(xfile File, xfileinfo* pInfo)
 {
@@ -125621,11 +127719,11 @@ XRT_API bool xrtFileStat(xfile File, xfileinfo* pInfo)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return __xrtFileWindowsStat(File->Handle, pInfo, true);
-	#else
-		return __xrtFilePosixStat(File->Handle, pInfo, true);
-	#endif
+	if ( (File->Capabilities & XRT_FILE_BACKEND_STAT) == 0u ) {
+		return __xrtFileUnsupported(XFILE_ERROR_STAT, "stat",
+			"the file backend does not expose metadata");
+	}
+	return File->Ops->Stat(File->State, pInfo);
 }
 
 
@@ -125653,10 +127751,73 @@ XRT_API bool xrtFileSize(xfile File, uint64* pSize)
 
 
 
+/* 修改 native backend 文件大小。 */
+static bool __xrtNativeFileResize(ptr pState, uint64 iSize)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			LARGE_INTEGER Original;
+			LARGE_INTEGER Target;
+			LARGE_INTEGER Zero;
+
+			Zero.QuadPart = 0;
+			Target.QuadPart = (LONGLONG)iSize;
+			AcquireSRWLockExclusive(&pNative->CursorLock);
+			if ( !SetFilePointerEx(pNative->Handle, Zero,
+				&Original, FILE_CURRENT) ) {
+				int iCode = (int)GetLastError();
+
+				ReleaseSRWLockExclusive(&pNative->CursorLock);
+				__xrtFileSetError(XFILE_ERROR_SEEK, "resize-position",
+					"failed to save the shared file position", iCode);
+				return false;
+			}
+			if ( !SetFilePointerEx(pNative->Handle, Target, NULL, FILE_BEGIN) ||
+				 !SetEndOfFile(pNative->Handle) ) {
+				int iCode = (int)GetLastError();
+
+				(void)SetFilePointerEx(pNative->Handle, Original, NULL, FILE_BEGIN);
+				ReleaseSRWLockExclusive(&pNative->CursorLock);
+				__xrtFileSetError(XFILE_ERROR_RESIZE, "resize",
+					"failed to resize the file", iCode);
+				return false;
+			}
+			if ( !SetFilePointerEx(pNative->Handle, Original, NULL, FILE_BEGIN) ) {
+				int iCode = (int)GetLastError();
+
+				ReleaseSRWLockExclusive(&pNative->CursorLock);
+				__xrtFileSetError(XFILE_ERROR_SEEK, "resize-restore",
+					"the file was resized but its position could not be restored", iCode);
+				return false;
+			}
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+		}
+	#else
+		int iResult;
+
+		do {
+			iResult = ftruncate(pNative->Handle, (off_t)iSize);
+		} while ( (iResult != 0) && (errno == EINTR) );
+		if ( iResult != 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_RESIZE, "resize",
+				"failed to resize the file", iCode);
+			return false;
+		}
+	#endif
+	return true;
+}
+
+
+
 /* 修改打开文件大小。 */
 XRT_API bool xrtFileResize(xfile File, uint64 iSize)
 {
-	if ( !__xrtFileCheck(File, XFILE_WRITE) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_WRITE,
+		XRT_FILE_BACKEND_RESIZE, XFILE_ERROR_RESIZE, "resize",
+		"the file backend does not support resize") ) {
 		return false;
 	}
 	if ( (File->Flags & XFILE_APPEND) != 0u ) {
@@ -125669,59 +127830,7 @@ XRT_API bool xrtFileResize(xfile File, uint64 iSize)
 			"the requested file size is outside the supported range");
 		return false;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			LARGE_INTEGER Original;
-			LARGE_INTEGER Target;
-			LARGE_INTEGER Zero;
-
-			Zero.QuadPart = 0;
-			Target.QuadPart = (LONGLONG)iSize;
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !SetFilePointerEx(File->Handle, Zero,
-				&Original, FILE_CURRENT) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_SEEK, "resize-position",
-					"failed to save the shared file position", iCode);
-				return false;
-			}
-			if ( !SetFilePointerEx(File->Handle, Target, NULL, FILE_BEGIN) ||
-				 !SetEndOfFile(File->Handle) ) {
-				int iCode = (int)GetLastError();
-
-				(void)SetFilePointerEx(File->Handle, Original, NULL, FILE_BEGIN);
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_RESIZE, "resize",
-					"failed to resize the file", iCode);
-				return false;
-			}
-			if ( !SetFilePointerEx(File->Handle, Original, NULL, FILE_BEGIN) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_SEEK, "resize-restore",
-					"the file was resized but its position could not be restored", iCode);
-				return false;
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-		}
-	#else
-		int iResult;
-
-		do {
-			iResult = ftruncate(File->Handle, (off_t)iSize);
-		} while ( (iResult != 0) && (errno == EINTR) );
-		if ( iResult != 0 ) {
-			int iCode = errno;
-
-			__xrtFileSetError(XFILE_ERROR_RESIZE, "resize",
-				"failed to resize the file", iCode);
-			return false;
-		}
-	#endif
-	return true;
+	return File->Ops->Resize(File->State, iSize);
 }
 
 
@@ -125751,14 +127860,12 @@ XRT_API bool xrtFileSetSize(cstr sPath, uint64 iSize)
 
 
 
-/* 把文件数据和必要元数据提交给稳定存储。 */
-XRT_API bool xrtFlush(xfile File)
+/* 把 native backend 数据提交给稳定存储。 */
+static bool __xrtNativeFileFlush(ptr pState)
 {
-	if ( !__xrtFileCheck(File, XFILE_WRITE) ) {
-		return false;
-	}
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
 	#if defined(_WIN32) || defined(_WIN64)
-		if ( !FlushFileBuffers(File->Handle) ) {
+		if ( !FlushFileBuffers(pNative->Handle) ) {
 			int iCode = (int)GetLastError();
 
 			__xrtFileSetError(XFILE_ERROR_SYNC, "flush",
@@ -125769,7 +127876,7 @@ XRT_API bool xrtFlush(xfile File)
 		int iResult;
 
 		do {
-			iResult = fsync(File->Handle);
+			iResult = fsync(pNative->Handle);
 		} while ( (iResult != 0) && (errno == EINTR) );
 		if ( iResult != 0 ) {
 			int iCode = errno;
@@ -125780,6 +127887,19 @@ XRT_API bool xrtFlush(xfile File)
 		}
 	#endif
 	return true;
+}
+
+
+
+/* 把文件数据和必要元数据提交给稳定存储。 */
+XRT_API bool xrtFlush(xfile File)
+{
+	if ( !__xrtFileCheckCapability(File, XFILE_WRITE,
+		XRT_FILE_BACKEND_FLUSH, XFILE_ERROR_SYNC, "flush",
+		"the file backend does not support flush") ) {
+		return false;
+	}
+	return File->Ops->Flush(File->State);
 }
 
 
@@ -125796,6 +127916,54 @@ XRT_API uint32 xrtFileFlags(xfile File)
 
 
 
+/* 返回 native backend 的数据句柄。 */
+static intptr_t __xrtNativeFileHandle(ptr pState)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	return (intptr_t)pNative->Handle;
+}
+
+
+
+/* 返回 native backend 的控制句柄。 */
+static intptr_t __xrtNativeFileControlHandle(ptr pState)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		return (intptr_t)(pNative->Control != INVALID_HANDLE_VALUE ?
+			pNative->Control : pNative->Handle);
+	#else
+		return (intptr_t)pNative->Handle;
+	#endif
+}
+
+
+
+#if defined(XRT_FEATURE_NET_FILE)
+/* 原子绑定 native async 文件的唯一完成端口。 */
+static bool __xrtNativeFileAsyncBind(ptr pState,
+	uint64 iOwner, bool** ppAssociated)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	uint64 iExpected = 0;
+
+	if ( !xrtAtomic64CompareExchange(
+		&pNative->AsyncOwner,
+		&iExpected,
+		iOwner,
+		XMEMORY_ACQ_REL,
+		XMEMORY_ACQUIRE
+	) && (iExpected != iOwner) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	*ppAssociated = &pNative->AsyncAssociated;
+	return true;
+}
+#endif
+
+
+
 /* 返回原生文件句柄的整数表示。 */
 XRT_API intptr_t xrtFileNative(xfile File)
 {
@@ -125803,11 +127971,12 @@ XRT_API intptr_t xrtFileNative(xfile File)
 		__xrtErrorSetInvalidArgument();
 		return (intptr_t)-1;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return (intptr_t)File->Handle;
-	#else
-		return (intptr_t)File->Handle;
-	#endif
+	if ( (File->Capabilities & XRT_FILE_BACKEND_NATIVE) == 0u ) {
+		(void)__xrtFileUnsupported(XFILE_ERROR_OPEN, "native-handle",
+			"the file backend does not expose a native handle");
+		return (intptr_t)-1;
+	}
+	return File->Ops->Native(File->State);
 }
 
 
@@ -127538,21 +129707,47 @@ XRT_API bool xrtFileMove(cstr sSource, cstr sTarget, bool bReplace)
 
 #if defined(XRT_FEATURE_DIR)
 
-/* 目录迭代器保留根路径和平台枚举状态。 */
+/* 公共目录对象只保存后端分派、状态、路径和迭代终态。 */
 struct xdir_impl {
+	const xrt_dir_backend_ops* Ops;
+	ptr State;
 	str Path;
 	uint32 Flags;
 	bool Done;
 	bool Failed;
+};
+
+
+
+/* native backend 是平台枚举句柄和借用名称缓冲的唯一承载者。 */
+typedef struct xrt_native_dir_state {
 	#if defined(_WIN32) || defined(_WIN64)
 		HANDLE Handle;
 		WIN32_FIND_DATAW Pending;
 		bool HasPending;
+		bool Empty;
 		str Name;
 		size_t NameCapacity;
 	#else
 		DIR* Handle;
 	#endif
+} xrt_native_dir_state;
+
+
+
+static xdirnext __xrtNativeDirNext(ptr pState, cstr sPath,
+	uint32 iFlags, xdirentry* pEntry);
+static bool __xrtNativeDirClose(ptr pState);
+
+
+
+static const xrt_dir_backend_ops __xrtNativeDirOps = {
+	(uint32)sizeof(xrt_dir_backend_ops),
+	XRT_DIR_BACKEND_VERSION,
+	false,
+	{ 0u, 0u, 0u },
+	__xrtNativeDirNext,
+	__xrtNativeDirClose
 };
 
 
@@ -127610,7 +129805,7 @@ static bool __xrtDirDot(cstr sName)
 
 
 /* 检查打开标志并要求跟随链接时同时请求完整元数据。 */
-static bool __xrtDirFlags(uint32 iFlags)
+bool __xrtDirFlagsValid(uint32 iFlags)
 {
 	const uint32 iKnown = XDIR_STAT | XDIR_FOLLOW_LINKS | XDIR_INCLUDE_DOTS;
 
@@ -127621,6 +129816,50 @@ static bool __xrtDirFlags(uint32 iFlags)
 		return false;
 	}
 	return true;
+}
+
+
+
+/* 接管后端状态并创建统一目录对象；分配失败仍消费 State。 */
+xdir __xrtDirTakeBackend(const xrt_dir_backend_ops* pOps,
+	ptr pState, cstr sPath, uint32 iFlags)
+{
+	xdir Dir;
+
+	if ( (pOps == NULL) || (pOps->Size != sizeof(*pOps)) ||
+		 (pOps->Version != XRT_DIR_BACKEND_VERSION) ||
+		 (pOps->Next == NULL) || (pOps->Close == NULL) ||
+		 (pState == NULL) || (sPath == NULL) || (sPath[0] == '\0') ) {
+		if ( (pOps != NULL) && (pOps->Size == sizeof(*pOps)) &&
+			 (pOps->Close != NULL) && (pState != NULL) ) {
+			(void)pOps->Close(pState);
+		}
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	Dir = (xdir)xrtCalloc(1u, sizeof(*Dir));
+	if ( Dir == NULL ) {
+		xerror* pError = xrtTakeError();
+
+		(void)pOps->Close(pState);
+		xrtClearError();
+		__xrtErrorSetOwned(pError);
+		return NULL;
+	}
+	Dir->Path = xrtStrDup(sPath);
+	if ( Dir->Path == NULL ) {
+		xerror* pError = xrtTakeError();
+
+		(void)pOps->Close(pState);
+		xrtFree(Dir);
+		xrtClearError();
+		__xrtErrorSetOwned(pError);
+		return NULL;
+	}
+	Dir->Ops = pOps;
+	Dir->State = pState;
+	Dir->Flags = iFlags;
+	return Dir;
 }
 
 
@@ -127645,9 +129884,9 @@ static bool __xrtDirWindowsLiteralPath(cstr sPath)
 
 
 /* 打开 Windows 目录枚举句柄，并保留首条结果。 */
-static bool __xrtDirOpenNative(xdir Dir)
+static bool __xrtNativeDirOpen(xrt_native_dir_state* pNative, cstr sPath)
 {
-	str sPattern = xrtPathJoin(Dir->Path, "*");
+	str sPattern = xrtPathJoin(sPath, "*");
 	uint16* pPattern;
 
 	if ( sPattern == NULL ) {
@@ -127658,17 +129897,20 @@ static bool __xrtDirOpenNative(xdir Dir)
 	if ( pPattern == NULL ) {
 		return false;
 	}
-	Dir->Handle = FindFirstFileW((const wchar_t*)pPattern, &Dir->Pending);
-	if ( Dir->Handle == INVALID_HANDLE_VALUE ) {
+	pNative->Handle = FindFirstFileW(
+		(const wchar_t*)pPattern,
+		&pNative->Pending
+	);
+	xrtFree(pPattern);
+	if ( pNative->Handle == INVALID_HANDLE_VALUE ) {
 		int iCode = (int)GetLastError();
 
-		xrtFree(pPattern);
 		if ( iCode == ERROR_FILE_NOT_FOUND ) {
 			xfileinfo Info;
 
-			if ( xrtPathStat(Dir->Path, true, &Info) &&
+			if ( xrtPathStat(sPath, true, &Info) &&
 				 (Info.Type == XFILE_TYPE_DIRECTORY) ) {
-				Dir->Done = true;
+				pNative->Empty = true;
 				return true;
 			}
 			if ( xrtGetError() != NULL ) {
@@ -127679,43 +129921,46 @@ static bool __xrtDirOpenNative(xdir Dir)
 			"failed to open the directory iterator", iCode);
 		return false;
 	}
-	xrtFree(pPattern);
-	Dir->HasPending = true;
+	pNative->HasPending = true;
 	return true;
 }
 
 
 
 /* 取得下一份 Windows 枚举数据。 */
-static bool __xrtDirWindowsData(xdir Dir, WIN32_FIND_DATAW* pData)
+static xdirnext __xrtNativeDirWindowsData(
+	xrt_native_dir_state* pNative,
+	WIN32_FIND_DATAW* pData
+)
 {
-	if ( Dir->HasPending ) {
-		*pData = Dir->Pending;
-		Dir->HasPending = false;
-		return true;
+	if ( pNative->Empty ) {
+		return XDIR_NEXT_END;
 	}
-	if ( FindNextFileW(Dir->Handle, pData) ) {
-		return true;
+	if ( pNative->HasPending ) {
+		*pData = pNative->Pending;
+		pNative->HasPending = false;
+		return XDIR_NEXT_ITEM;
+	}
+	if ( FindNextFileW(pNative->Handle, pData) ) {
+		return XDIR_NEXT_ITEM;
 	}
 	{
 		int iCode = (int)GetLastError();
 
 		if ( iCode == ERROR_NO_MORE_FILES ) {
-			Dir->Done = true;
-			return false;
+			return XDIR_NEXT_END;
 		}
-		Dir->Failed = true;
 		__xrtDirSetError(XDIR_ERROR_NEXT, "next",
 			"failed while reading the directory", iCode);
-		return false;
+		return XDIR_NEXT_ERROR;
 	}
 }
 
 
 
 /* 严格转换并复用 Windows 条目名称缓冲，避免逐条分配。 */
-static bool __xrtDirWindowsName(xdir Dir, const wchar_t* sName,
-	size_t iWideSize, size_t* pNameSize)
+static bool __xrtNativeDirWindowsName(xrt_native_dir_state* pNative,
+	const wchar_t* sName, size_t iWideSize, size_t* pNameSize)
 {
 	xutf16view Source = { (const uint16*)sName, iWideSize };
 	xutfresult Measure;
@@ -127731,17 +129976,17 @@ static bool __xrtDirWindowsName(xdir Dir, const wchar_t* sName,
 		return false;
 	}
 	iNeed = Measure.Written + 1u;
-	if ( Dir->NameCapacity < iNeed ) {
-		str sBuffer = (str)xrtRealloc(Dir->Name, iNeed);
+	if ( pNative->NameCapacity < iNeed ) {
+		str sBuffer = (str)xrtRealloc(pNative->Name, iNeed);
 
 		if ( sBuffer == NULL ) {
 			return false;
 		}
-		Dir->Name = sBuffer;
-		Dir->NameCapacity = iNeed;
+		pNative->Name = sBuffer;
+		pNative->NameCapacity = iNeed;
 	}
-	Result = xrtUtf16To8Buffer(Source, Dir->Name,
-		Dir->NameCapacity - 1u, XUTF_STRICT);
+	Result = xrtUtf16To8Buffer(Source, pNative->Name,
+		pNative->NameCapacity - 1u, XUTF_STRICT);
 	if ( (Result.Status != XUTF_OK) || (Result.Read != iWideSize) ||
 		 (Result.Written != Measure.Written) ) {
 		if ( Result.Status == XUTF_NO_SPACE ) {
@@ -127750,7 +129995,7 @@ static bool __xrtDirWindowsName(xdir Dir, const wchar_t* sName,
 		}
 		return false;
 	}
-	Dir->Name[Result.Written] = '\0';
+	pNative->Name[Result.Written] = '\0';
 	*pNameSize = Result.Written;
 	return true;
 }
@@ -127758,46 +130003,47 @@ static bool __xrtDirWindowsName(xdir Dir, const wchar_t* sName,
 
 
 /* 从 Windows 枚举数据构造借用目录条目。 */
-static xdirnext __xrtDirWindowsNext(xdir Dir, xdirentry* pEntry)
+static xdirnext __xrtNativeDirNext(ptr pState, cstr sPath,
+	uint32 iFlags, xdirentry* pEntry)
 {
+	xrt_native_dir_state* pNative = (xrt_native_dir_state*)pState;
+
 	for ( ;; ) {
 		WIN32_FIND_DATAW Data;
 		size_t iWideSize;
 		size_t iNameSize;
 		xdirentry Entry;
+		xdirnext Next = __xrtNativeDirWindowsData(pNative, &Data);
 
-		if ( !__xrtDirWindowsData(Dir, &Data) ) {
-			return Dir->Failed ? XDIR_NEXT_ERROR : XDIR_NEXT_END;
+		if ( Next != XDIR_NEXT_ITEM ) {
+			return Next;
 		}
 		iWideSize = wcslen(Data.cFileName);
-		if ( !__xrtDirWindowsName(Dir,
+		if ( !__xrtNativeDirWindowsName(pNative,
 			Data.cFileName, iWideSize, &iNameSize) ) {
-			Dir->Failed = true;
 			return XDIR_NEXT_ERROR;
 		}
-		if ( ((Dir->Flags & XDIR_INCLUDE_DOTS) == 0u) &&
-			 __xrtDirDot(Dir->Name) ) {
+		if ( ((iFlags & XDIR_INCLUDE_DOTS) == 0u) &&
+			 __xrtDirDot(pNative->Name) ) {
 			continue;
 		}
 		memset(&Entry, 0, sizeof(Entry));
-		Entry.Name.Data = Dir->Name;
+		Entry.Name.Data = pNative->Name;
 		Entry.Name.Size = iNameSize;
 		Entry.Flags = XDIR_ENTRY_UTF8;
 		__xrtFileWindowsFindInfo(&Data, &Entry.Info);
-		if ( (Dir->Flags & XDIR_STAT) != 0u ) {
-			str sPath = xrtPathJoin(Dir->Path, Dir->Name);
+		if ( (iFlags & XDIR_STAT) != 0u ) {
+			str sEntryPath = xrtPathJoin(sPath, pNative->Name);
 
-			if ( sPath == NULL ) {
-				Dir->Failed = true;
+			if ( sEntryPath == NULL ) {
 				return XDIR_NEXT_ERROR;
 			}
-			if ( !xrtPathStat(sPath,
-				(Dir->Flags & XDIR_FOLLOW_LINKS) != 0u, &Entry.Info) ) {
-				xrtFree(sPath);
-				Dir->Failed = true;
+			if ( !xrtPathStat(sEntryPath,
+				(iFlags & XDIR_FOLLOW_LINKS) != 0u, &Entry.Info) ) {
+				xrtFree(sEntryPath);
 				return XDIR_NEXT_ERROR;
 			}
-			xrtFree(sPath);
+			xrtFree(sEntryPath);
 		}
 		*pEntry = Entry;
 		return XDIR_NEXT_ITEM;
@@ -127810,24 +130056,12 @@ static xdirnext __xrtDirWindowsNext(xdir Dir, xdirentry* pEntry)
 #if defined(DT_REG)
 static xfiletype __xrtDirPosixType(unsigned char iType)
 {
-	if ( iType == DT_REG ) {
-		return XFILE_TYPE_FILE;
-	}
-	if ( iType == DT_DIR ) {
-		return XFILE_TYPE_DIRECTORY;
-	}
-	if ( iType == DT_LNK ) {
-		return XFILE_TYPE_LINK;
-	}
-	if ( iType == DT_FIFO ) {
-		return XFILE_TYPE_FIFO;
-	}
-	if ( iType == DT_SOCK ) {
-		return XFILE_TYPE_SOCKET;
-	}
-	if ( (iType == DT_CHR) || (iType == DT_BLK) ) {
-		return XFILE_TYPE_DEVICE;
-	}
+	if ( iType == DT_REG ) return XFILE_TYPE_FILE;
+	if ( iType == DT_DIR ) return XFILE_TYPE_DIRECTORY;
+	if ( iType == DT_LNK ) return XFILE_TYPE_LINK;
+	if ( iType == DT_FIFO ) return XFILE_TYPE_FIFO;
+	if ( iType == DT_SOCK ) return XFILE_TYPE_SOCKET;
+	if ( (iType == DT_CHR) || (iType == DT_BLK) ) return XFILE_TYPE_DEVICE;
 	return XFILE_TYPE_NONE;
 }
 #endif
@@ -127835,12 +130069,12 @@ static xfiletype __xrtDirPosixType(unsigned char iType)
 
 
 /* 打开 POSIX 目录枚举句柄。 */
-static bool __xrtDirOpenNative(xdir Dir)
+static bool __xrtNativeDirOpen(xrt_native_dir_state* pNative, cstr sPath)
 {
 	do {
-		Dir->Handle = opendir(Dir->Path);
-	} while ( (Dir->Handle == NULL) && (errno == EINTR) );
-	if ( Dir->Handle == NULL ) {
+		pNative->Handle = opendir(sPath);
+	} while ( (pNative->Handle == NULL) && (errno == EINTR) );
+	if ( pNative->Handle == NULL ) {
 		int iCode = errno;
 
 		__xrtDirSetError(XDIR_ERROR_OPEN, "open",
@@ -127853,8 +130087,11 @@ static bool __xrtDirOpenNative(xdir Dir)
 
 
 /* 从 POSIX dirent 构造借用目录条目。 */
-static xdirnext __xrtDirPosixNext(xdir Dir, xdirentry* pEntry)
+static xdirnext __xrtNativeDirNext(ptr pState, cstr sPath,
+	uint32 iFlags, xdirentry* pEntry)
 {
+	xrt_native_dir_state* pNative = (xrt_native_dir_state*)pState;
+
 	for ( ;; ) {
 		struct dirent* pData;
 		xdirentry Entry;
@@ -127862,19 +130099,15 @@ static xdirnext __xrtDirPosixNext(xdir Dir, xdirentry* pEntry)
 
 		do {
 			errno = 0;
-			pData = readdir(Dir->Handle);
+			pData = readdir(pNative->Handle);
 		} while ( (pData == NULL) && (errno == EINTR) );
 		if ( pData == NULL ) {
-			if ( errno == 0 ) {
-				Dir->Done = true;
-				return XDIR_NEXT_END;
-			}
-			Dir->Failed = true;
+			if ( errno == 0 ) return XDIR_NEXT_END;
 			__xrtDirSetError(XDIR_ERROR_NEXT, "next",
 				"failed while reading the directory", errno);
 			return XDIR_NEXT_ERROR;
 		}
-		if ( ((Dir->Flags & XDIR_INCLUDE_DOTS) == 0u) &&
+		if ( ((iFlags & XDIR_INCLUDE_DOTS) == 0u) &&
 			 __xrtDirDot(pData->d_name) ) {
 			continue;
 		}
@@ -127890,20 +130123,18 @@ static xdirnext __xrtDirPosixNext(xdir Dir, xdirentry* pEntry)
 		if ( xrtUtf8Valid(Entry.Name, NULL) ) {
 			Entry.Flags |= XDIR_ENTRY_UTF8;
 		}
-		if ( (Dir->Flags & XDIR_STAT) != 0u ) {
-			str sPath = xrtPathJoin(Dir->Path, pData->d_name);
+		if ( (iFlags & XDIR_STAT) != 0u ) {
+			str sEntryPath = xrtPathJoin(sPath, pData->d_name);
 
-			if ( sPath == NULL ) {
-				Dir->Failed = true;
+			if ( sEntryPath == NULL ) {
 				return XDIR_NEXT_ERROR;
 			}
-			if ( !xrtPathStat(sPath,
-				(Dir->Flags & XDIR_FOLLOW_LINKS) != 0u, &Entry.Info) ) {
-				xrtFree(sPath);
-				Dir->Failed = true;
+			if ( !xrtPathStat(sEntryPath,
+				(iFlags & XDIR_FOLLOW_LINKS) != 0u, &Entry.Info) ) {
+				xrtFree(sEntryPath);
 				return XDIR_NEXT_ERROR;
 			}
-			xrtFree(sPath);
+			xrtFree(sEntryPath);
 		}
 		*pEntry = Entry;
 		return XDIR_NEXT_ITEM;
@@ -127914,13 +130145,45 @@ static xdirnext __xrtDirPosixNext(xdir Dir, xdirentry* pEntry)
 
 
 
-/* 打开目录迭代器。 */
+/* 关闭 native 枚举状态。 */
+static bool __xrtNativeDirClose(ptr pState)
+{
+	xrt_native_dir_state* pNative = (xrt_native_dir_state*)pState;
+	bool bResult = true;
+	int iCode = 0;
+
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( (pNative->Handle != NULL) &&
+			 (pNative->Handle != INVALID_HANDLE_VALUE) &&
+			 !FindClose(pNative->Handle) ) {
+			bResult = false;
+			iCode = (int)GetLastError();
+		}
+		xrtFree(pNative->Name);
+	#else
+		if ( (pNative->Handle != NULL) && (closedir(pNative->Handle) != 0) ) {
+			bResult = false;
+			iCode = errno;
+		}
+	#endif
+	xrtFree(pNative);
+	if ( !bResult ) {
+		__xrtDirSetError(XDIR_ERROR_CLOSE, "close",
+			"failed to close the directory iterator", iCode);
+	}
+	return bResult;
+}
+
+
+
+/* 打开原生目录迭代器。 */
 XRT_API xdir xrtDirOpen(cstr sPath, uint32 iFlags)
 {
 	xfileinfo Info;
-	xdir Dir;
+	xrt_native_dir_state* pNative;
 
-	if ( (sPath == NULL) || (sPath[0] == '\0') || !__xrtDirFlags(iFlags) ) {
+	if ( (sPath == NULL) || (sPath[0] == '\0') ||
+		 !__xrtDirFlagsValid(iFlags) ) {
 		if ( (sPath == NULL) || (sPath[0] == '\0') ) {
 			__xrtErrorSetInvalidArgument();
 		}
@@ -127939,25 +130202,19 @@ XRT_API xdir xrtDirOpen(cstr sPath, uint32 iFlags)
 			"the path is not a directory");
 		return NULL;
 	}
-	Dir = (xdir)xrtCalloc(1u, sizeof(*Dir));
-	if ( Dir == NULL ) {
+	pNative = (xrt_native_dir_state*)xrtCalloc(1u, sizeof(*pNative));
+	if ( pNative == NULL ) {
 		return NULL;
 	}
-	Dir->Path = xrtStrDup(sPath);
-	if ( Dir->Path == NULL ) {
-		xrtFree(Dir);
-		return NULL;
-	}
-	Dir->Flags = iFlags;
 	#if defined(_WIN32) || defined(_WIN64)
-		Dir->Handle = INVALID_HANDLE_VALUE;
+		pNative->Handle = INVALID_HANDLE_VALUE;
 	#endif
-	if ( !__xrtDirOpenNative(Dir) ) {
-		xrtFree(Dir->Path);
-		xrtFree(Dir);
+	if ( !__xrtNativeDirOpen(pNative, sPath) ) {
+		xrtFree(pNative);
 		return NULL;
 	}
-	return Dir;
+	return __xrtDirTakeBackend(&__xrtNativeDirOps,
+		pNative, sPath, iFlags);
 }
 
 
@@ -127965,6 +130222,9 @@ XRT_API xdir xrtDirOpen(cstr sPath, uint32 iFlags)
 /* 读取下一条目录项。 */
 XRT_API xdirnext xrtDirNext(xdir Dir, xdirentry* pEntry)
 {
+	xdirnext Next;
+	xdirentry Entry;
+
 	if ( (Dir == NULL) || (pEntry == NULL) ) {
 		__xrtErrorSetInvalidArgument();
 		return XDIR_NEXT_ERROR;
@@ -127976,11 +130236,16 @@ XRT_API xdirnext xrtDirNext(xdir Dir, xdirentry* pEntry)
 	if ( Dir->Done ) {
 		return XDIR_NEXT_END;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return __xrtDirWindowsNext(Dir, pEntry);
-	#else
-		return __xrtDirPosixNext(Dir, pEntry);
-	#endif
+	Next = Dir->Ops->Next(Dir->State, Dir->Path, Dir->Flags, &Entry);
+	if ( Next == XDIR_NEXT_ITEM ) {
+		*pEntry = Entry;
+	} else if ( Next == XDIR_NEXT_END ) {
+		Dir->Done = true;
+	} else {
+		Dir->Failed = true;
+		Next = XDIR_NEXT_ERROR;
+	}
+	return Next;
 }
 
 
@@ -127988,32 +130253,15 @@ XRT_API xdirnext xrtDirNext(xdir Dir, xdirentry* pEntry)
 /* 关闭并销毁目录迭代器。 */
 XRT_API bool xrtDirClose(xdir Dir)
 {
-	bool bResult = true;
-	int iCode = 0;
+	bool bResult;
 
 	if ( Dir == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		if ( (Dir->Handle != NULL) && (Dir->Handle != INVALID_HANDLE_VALUE) &&
-			 !FindClose(Dir->Handle) ) {
-			bResult = false;
-			iCode = (int)GetLastError();
-		}
-		xrtFree(Dir->Name);
-	#else
-		if ( closedir(Dir->Handle) != 0 ) {
-			bResult = false;
-			iCode = errno;
-		}
-	#endif
+	bResult = Dir->Ops->Close(Dir->State);
 	xrtFree(Dir->Path);
 	xrtFree(Dir);
-	if ( !bResult ) {
-		__xrtDirSetError(XDIR_ERROR_CLOSE, "close",
-			"failed to close the directory iterator", iCode);
-	}
 	return bResult;
 }
 
@@ -128034,14 +130282,36 @@ XRT_API cstr xrtDirPath(xdir Dir)
 /* 把迭代器目录与条目名称拼成拥有路径。 */
 XRT_API str xrtDirEntryPath(xdir Dir, const xdirentry* pEntry)
 {
+	str sResult;
+	size_t iPath;
+	size_t iSize;
+	bool bRoot;
+
 	if ( (Dir == NULL) || (pEntry == NULL) ||
-		 ((pEntry->Name.Data == NULL) && (pEntry->Name.Size != 0u)) ||
 		 (pEntry->Name.Data == NULL) ||
 		 (strlen(pEntry->Name.Data) != pEntry->Name.Size) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	return xrtPathJoin(Dir->Path, pEntry->Name.Data);
+	if ( !Dir->Ops->VirtualPath ) {
+		return xrtPathJoin(Dir->Path, pEntry->Name.Data);
+	}
+	iPath = strlen(Dir->Path);
+	bRoot = (iPath == 1u) && (Dir->Path[0] == '/');
+	if ( iPath > (SIZE_MAX - pEntry->Name.Size - (bRoot ? 1u : 2u)) ) {
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
+	iSize = iPath + pEntry->Name.Size + (bRoot ? 0u : 1u);
+	sResult = (str)xrtMalloc(iSize + 1u);
+	if ( sResult == NULL ) {
+		return NULL;
+	}
+	memcpy(sResult, Dir->Path, iPath);
+	if ( !bRoot ) sResult[iPath++] = '/';
+	memcpy(sResult + iPath, pEntry->Name.Data, pEntry->Name.Size);
+	sResult[iSize] = '\0';
+	return sResult;
 }
 
 
@@ -218235,11 +220505,13 @@ XRT_API bool xrtWsDeflateDirection(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_INFLATE) || \
-	defined(XRT_FEATURE_DEFLATE)
+	defined(XRT_FEATURE_DEFLATE) || \
+	defined(XRT_FEATURE_VFS_PACK)
 
 
 
-#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE)
+#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE) || \
+	defined(XRT_FEATURE_VFS_PACK)
 
 /* Inflate 与 Deflate 共用 16 项小表，避免在两个裁剪模块中重复常量和逻辑。 */
 uint32 __xrtCompressCrc32Update(
@@ -272918,6 +275190,2261 @@ XRT_API bool xrtFileWriteTextAtomic(cstr sPath, xstrview Text,
 
 
 /* ========================================================================== */
+/* source: src/fs/vfs.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS)
+
+#include <stdlib.h>
+
+
+
+#if defined(XRT_FEATURE_VFS)
+
+#define XRT_VFS_DIR_MAX_ENTRIES 8192u
+#define XRT_VFS_DIR_MAX_NAME 4096u
+#define XRT_VFS_DIR_MAX_NAME_BYTES (8u * 1024u * 1024u)
+#define XRT_VFS_DIR_BUCKET_NONE SIZE_MAX
+
+typedef struct xrt_vfs_generation xrt_vfs_generation;
+typedef struct xrt_vfs_snapshot xrt_vfs_snapshot;
+
+struct xrt_vfs_generation {
+	volatile int32 RefCount;
+	uint64 MountId;
+	int32 Priority;
+	xvfscase CaseMode;
+	str Prefix;
+	size_t PrefixSize;
+	xvfsprovider_v1 Provider;
+	ptr Context;
+};
+
+struct xrt_vfs_snapshot {
+	volatile int32 RefCount;
+	size_t Count;
+	xrt_vfs_generation* Items[];
+};
+
+struct xvfs_impl {
+	volatile int32 RefCount;
+	xmutex Lock;
+	xrt_vfs_snapshot* Snapshot;
+	uint64 NextMountId;
+};
+
+struct xvfs_mount_impl {
+	volatile int32 RefCount;
+	xvfs Vfs;
+	xrt_vfs_generation* Generation;
+	bool Active;
+};
+
+typedef struct xrt_vfs_file_state {
+	xrt_file_backend_ops Backend;
+	xvfsfileops_v1 Provider;
+	ptr State;
+	xrt_vfs_generation* Generation;
+	xmutex CursorLock;
+	uint64 Cursor;
+} xrt_vfs_file_state;
+
+typedef struct xrt_vfs_dir_item {
+	xdirentry Entry;
+	str Name;
+	xvfscase CaseMode;
+	uint64 FoldHash;
+	size_t NextHash;
+} xrt_vfs_dir_item;
+
+typedef struct xrt_vfs_dir_state {
+	xrt_vfs_dir_item* Items;
+	size_t Count;
+	size_t Capacity;
+	size_t NameBytes;
+	size_t Position;
+	size_t* Buckets;
+	size_t BucketCount;
+	xrt_vfs_generation** Generations;
+	size_t GenerationCount;
+	size_t GenerationCapacity;
+} xrt_vfs_dir_state;
+
+static void __xrtVfsGenerationRelease(xrt_vfs_generation* pGeneration);
+
+
+
+/* 设置 xrt.vfs 域的稳定错误。 */
+void __xrtVfsError(xerrkind Kind, xvfserror Code,
+	cstr sOperation, cstr sMessage)
+{
+	xerrordesc Desc;
+	xerror* pError;
+
+	memset(&Desc, 0, sizeof(Desc));
+	Desc.Kind = Kind;
+	Desc.Domain = "xrt.vfs";
+	Desc.Code = (int32)Code;
+	Desc.Operation = sOperation;
+	Desc.Message = sMessage;
+	pError = xrtErrorBuild(&Desc);
+	if ( pError != NULL ) __xrtErrorSetOwned(pError);
+}
+
+
+
+/* 拒绝非规范路径，避免 provider 再次解释平台路径语义。 */
+bool __xrtVfsPath(cstr sPath, xstrview* pPath)
+{
+	xstrview Path;
+	size_t iStart;
+
+	if ( (sPath == NULL) || (pPath == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	Path = xrtStrView(sPath);
+	if ( (Path.Size == 0u) || (Path.Size > XRT_VFS_PATH_MAX) ||
+		 (Path.Data[0] != '/') ||
+		 ((Path.Size > 1u) && (Path.Data[Path.Size - 1u] == '/')) ||
+		 !xrtUtf8Valid(Path, NULL) ) {
+		__xrtVfsError(XERR_ARGUMENT, XVFS_ERROR_PATH,
+			"path", "the virtual path is not canonical UTF-8");
+		return false;
+	}
+	if ( Path.Size == 1u ) {
+		*pPath = Path;
+		return true;
+	}
+	iStart = 1u;
+	for ( size_t i = 1u; i <= Path.Size; i++ ) {
+		unsigned char iByte = (i == Path.Size) ? '/' :
+			(unsigned char)Path.Data[i];
+
+		if ( (i < Path.Size) &&
+			 ((iByte == 0u) || (iByte == (unsigned char)'\\')) ) {
+			__xrtVfsError(XERR_ARGUMENT, XVFS_ERROR_PATH,
+				"path", "the virtual path contains a forbidden byte");
+			return false;
+		}
+		if ( iByte != (unsigned char)'/' ) continue;
+		if ( (i == iStart) ||
+			 ((i - iStart == 1u) && (Path.Data[iStart] == '.')) ||
+			 ((i - iStart == 2u) && (Path.Data[iStart] == '.') &&
+			  (Path.Data[iStart + 1u] == '.')) ) {
+			__xrtVfsError(XERR_ARGUMENT, XVFS_ERROR_PATH,
+				"path", "the virtual path contains a non-canonical segment");
+			return false;
+		}
+		iStart = i + 1u;
+	}
+	*pPath = Path;
+	return true;
+}
+
+
+
+/* 验证 provider 相对路径；空路径只表示 mount 根。 */
+bool __xrtVfsRelativePath(xstrview Path, bool bAllowEmpty)
+{
+	size_t iStart = 0u;
+
+	if ( ((Path.Data == NULL) && (Path.Size != 0u)) ||
+		 (Path.Size > (XRT_VFS_PATH_MAX - 1u)) ||
+		 ((Path.Size == 0u) && !bAllowEmpty) ||
+		 ((Path.Size != 0u) &&
+		  ((Path.Data[0] == '/') || (Path.Data[Path.Size - 1u] == '/'))) ||
+		 !xrtUtf8Valid(Path, NULL) ) {
+		__xrtVfsError(XERR_ARGUMENT, XVFS_ERROR_PATH,
+			"relative-path", "the provider path is not canonical UTF-8");
+		return false;
+	}
+	for ( size_t i = 0u; i <= Path.Size; i++ ) {
+		unsigned char iByte = (i == Path.Size) ? '/' :
+			(unsigned char)Path.Data[i];
+
+		if ( (i < Path.Size) &&
+			 ((iByte == 0u) || (iByte == (unsigned char)'\\')) ) {
+			__xrtVfsError(XERR_ARGUMENT, XVFS_ERROR_PATH,
+				"relative-path", "the provider path contains a forbidden byte");
+			return false;
+		}
+		if ( iByte != (unsigned char)'/' ) continue;
+		if ( (i == iStart) ||
+			 ((i - iStart == 1u) && (Path.Data[iStart] == '.')) ||
+			 ((i - iStart == 2u) && (Path.Data[iStart] == '.') &&
+			  (Path.Data[iStart + 1u] == '.')) ) {
+			if ( (Path.Size == 0u) && bAllowEmpty ) return true;
+			__xrtVfsError(XERR_ARGUMENT, XVFS_ERROR_PATH,
+				"relative-path", "the provider path contains a non-canonical segment");
+			return false;
+		}
+		iStart = i + 1u;
+	}
+	return true;
+}
+
+
+
+static void __xrtVfsRestoreError(xerror* pError)
+{
+	xrtClearError();
+	if ( pError != NULL ) __xrtErrorSetOwned(pError);
+}
+
+static void __xrtVfsGenerationRef(xrt_vfs_generation* pGeneration)
+{
+	if ( xrtRefRetain(&pGeneration->RefCount) < 0 ) abort();
+}
+
+static void __xrtVfsGenerationRelease(xrt_vfs_generation* pGeneration)
+{
+	xerror* pError;
+
+	if ( (pGeneration == NULL) ||
+		 (xrtRefRelease(&pGeneration->RefCount) != 0) ) return;
+	pError = xrtTakeError();
+	if ( pGeneration->Provider.ContextRelease != NULL )
+		pGeneration->Provider.ContextRelease(pGeneration->Context);
+	xrtFree(pGeneration->Prefix);
+	xrtFree(pGeneration);
+	__xrtVfsRestoreError(pError);
+}
+
+
+
+static xrt_vfs_snapshot* __xrtVfsSnapshotCreate(size_t iCount)
+{
+	xrt_vfs_snapshot* pSnapshot;
+	size_t iSize;
+
+	if ( iCount > ((SIZE_MAX - sizeof(*pSnapshot)) /
+		sizeof(pSnapshot->Items[0])) ) {
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
+	iSize = sizeof(*pSnapshot) +
+		(iCount * sizeof(pSnapshot->Items[0]));
+	pSnapshot = (xrt_vfs_snapshot*)xrtMalloc(iSize);
+	if ( pSnapshot == NULL ) return NULL;
+	pSnapshot->RefCount = 1;
+	pSnapshot->Count = iCount;
+	return pSnapshot;
+}
+
+static void __xrtVfsSnapshotRef(xrt_vfs_snapshot* pSnapshot)
+{
+	if ( xrtRefRetain(&pSnapshot->RefCount) < 0 ) abort();
+}
+
+static void __xrtVfsSnapshotRelease(xrt_vfs_snapshot* pSnapshot)
+{
+	if ( (pSnapshot == NULL) ||
+		 (xrtRefRelease(&pSnapshot->RefCount) != 0) ) return;
+	for ( size_t i = 0u; i < pSnapshot->Count; i++ )
+		__xrtVfsGenerationRelease(pSnapshot->Items[i]);
+	xrtFree(pSnapshot);
+}
+
+
+
+static int __xrtVfsGenerationCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_generation* pA =
+		*(xrt_vfs_generation* const*)pLeft;
+	const xrt_vfs_generation* pB =
+		*(xrt_vfs_generation* const*)pRight;
+
+	if ( pA->PrefixSize != pB->PrefixSize )
+		return (pA->PrefixSize > pB->PrefixSize) ? -1 : 1;
+	if ( pA->Priority != pB->Priority )
+		return (pA->Priority > pB->Priority) ? -1 : 1;
+	if ( pA->MountId == pB->MountId ) return 0;
+	return (pA->MountId < pB->MountId) ? -1 : 1;
+}
+
+
+
+static xrt_vfs_snapshot* __xrtVfsSnapshotEdit(
+	const xrt_vfs_snapshot* pOld,
+	xrt_vfs_generation* pAdd,
+	const xrt_vfs_generation* pRemove)
+{
+	size_t iCount = pOld->Count + ((pAdd != NULL) ? 1u : 0u) -
+		((pRemove != NULL) ? 1u : 0u);
+	xrt_vfs_snapshot* pNew = __xrtVfsSnapshotCreate(iCount);
+	size_t iOutput = 0u;
+
+	if ( pNew == NULL ) return NULL;
+	for ( size_t i = 0u; i < pOld->Count; i++ ) {
+		if ( pOld->Items[i] == pRemove ) continue;
+		pNew->Items[iOutput] = pOld->Items[i];
+		__xrtVfsGenerationRef(pNew->Items[iOutput++]);
+	}
+	if ( pAdd != NULL ) {
+		pNew->Items[iOutput++] = pAdd;
+		__xrtVfsGenerationRef(pAdd);
+	}
+	if ( iOutput != iCount ) abort();
+	if ( iCount > 1u ) qsort(pNew->Items, iCount,
+		sizeof(pNew->Items[0]), __xrtVfsGenerationCompare);
+	return pNew;
+}
+
+
+
+static xrt_vfs_snapshot* __xrtVfsSnapshotAcquire(xvfs Vfs)
+{
+	xrt_vfs_snapshot* pSnapshot;
+
+	if ( (Vfs == NULL) || !xrtMutexLock(&Vfs->Lock) ) {
+		if ( Vfs == NULL ) __xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pSnapshot = Vfs->Snapshot;
+	if ( pSnapshot != NULL ) __xrtVfsSnapshotRef(pSnapshot);
+	(void)xrtMutexUnlock(&Vfs->Lock);
+	if ( pSnapshot == NULL ) __xrtErrorSetInvalidState();
+	return pSnapshot;
+}
+
+
+
+static bool __xrtVfsProviderCopy(
+	const xvfsprovider_v1* pInput, xvfsprovider_v1* pOutput)
+{
+	const size_t iMinimum = offsetof(xvfsprovider_v1, OpenNative);
+	size_t iCopy;
+	bool bStat;
+	bool bDir;
+	bool bNative;
+
+	if ( (pInput == NULL) || (pInput->Size < iMinimum) ||
+		 (pInput->Version != XRT_VFS_PROVIDER_VERSION) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	memset(pOutput, 0, sizeof(*pOutput));
+	iCopy = pInput->Size;
+	if ( iCopy > sizeof(*pOutput) ) iCopy = sizeof(*pOutput);
+	memcpy(pOutput, pInput, iCopy);
+	pOutput->Size = (uint32)sizeof(*pOutput);
+	if ( ((pOutput->Capabilities & ~XVFS_PROVIDER_CAPABILITIES) != 0u) ||
+		 ((pOutput->ContextRetain == NULL) !=
+		  (pOutput->ContextRelease == NULL)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	bStat = (pOutput->Capabilities & XVFS_PROVIDER_STAT) != 0u;
+	bDir = (pOutput->Capabilities & XVFS_PROVIDER_DIRECTORY) != 0u;
+	bNative = (pOutput->Capabilities & XVFS_PROVIDER_NATIVE_OPEN) != 0u;
+	if ( bStat != (pOutput->Stat != NULL) ||
+		 bDir != (pOutput->DirOpen != NULL) ||
+		 bNative != (pOutput->OpenNative != NULL) ||
+		 bNative == (pOutput->Open != NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 文件 close 后释放 provider generation；xfile 仅借用此函数地址。 */
+static void __xrtVfsFileGenerationRelease(ptr pOwner)
+{
+	__xrtVfsGenerationRelease((xrt_vfs_generation*)pOwner);
+}
+
+
+
+static bool __xrtVfsPrefixMatch(const xrt_vfs_generation* pGeneration,
+	xstrview Path, xstrview* pRelative)
+{
+	size_t iPrefix = pGeneration->PrefixSize;
+	bool bEqual;
+
+	if ( iPrefix > Path.Size ) return false;
+	if ( pGeneration->CaseMode == XVFS_CASE_SENSITIVE ) {
+		bEqual = memcmp(pGeneration->Prefix, Path.Data, iPrefix) == 0;
+	} else {
+		bEqual = xrtStrCaseEqual(
+			(xstrview){ pGeneration->Prefix, iPrefix },
+			(xstrview){ Path.Data, iPrefix });
+	}
+	if ( !bEqual || ((iPrefix != 1u) && (Path.Size > iPrefix) &&
+		(Path.Data[iPrefix] != '/')) ) return false;
+	if ( Path.Size == iPrefix ) {
+		pRelative->Data = Path.Data + Path.Size;
+		pRelative->Size = 0u;
+	} else if ( iPrefix == 1u ) {
+		pRelative->Data = Path.Data + 1u;
+		pRelative->Size = Path.Size - 1u;
+	} else {
+		pRelative->Data = Path.Data + iPrefix + 1u;
+		pRelative->Size = Path.Size - iPrefix - 1u;
+	}
+	return true;
+}
+
+
+
+static void __xrtVfsProviderError(cstr sOperation, cstr sMessage)
+{
+	if ( xrtGetError() == NULL )
+		__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+			sOperation, sMessage);
+}
+
+
+
+XRT_API xvfs xrtVfsCreate(void)
+{
+	xvfs Vfs = (xvfs)xrtCalloc(1u, sizeof(*Vfs));
+
+	if ( Vfs == NULL ) return NULL;
+	Vfs->RefCount = 1;
+	if ( !xrtMutexInit(&Vfs->Lock) ) {
+		xrtFree(Vfs);
+		return NULL;
+	}
+	Vfs->Snapshot = __xrtVfsSnapshotCreate(0u);
+	if ( Vfs->Snapshot == NULL ) {
+		(void)xrtMutexUnit(&Vfs->Lock);
+		xrtFree(Vfs);
+		return NULL;
+	}
+	return Vfs;
+}
+
+XRT_API void xrtVfsRef(xvfs Vfs)
+{
+	if ( Vfs == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	if ( xrtRefRetain(&Vfs->RefCount) < 0 ) abort();
+}
+
+XRT_API void xrtVfsDestroy(xvfs Vfs)
+{
+	xrt_vfs_snapshot* pSnapshot;
+
+	if ( Vfs == NULL ) return;
+	if ( xrtRefRelease(&Vfs->RefCount) != 0 ) return;
+	if ( !xrtMutexLock(&Vfs->Lock) ) abort();
+	pSnapshot = Vfs->Snapshot;
+	Vfs->Snapshot = NULL;
+	(void)xrtMutexUnlock(&Vfs->Lock);
+	__xrtVfsSnapshotRelease(pSnapshot);
+	if ( !xrtMutexUnit(&Vfs->Lock) ) abort();
+	xrtFree(Vfs);
+}
+
+
+
+XRT_API xvfsmount xrtVfsMount(xvfs Vfs, cstr sVirtualPrefix,
+	int32 iPriority, xvfscase CaseMode,
+	const xvfsprovider_v1* pProvider, void* pProviderContext,
+	uint32 iFlags)
+{
+	xstrview Prefix;
+	xvfsprovider_v1 Provider;
+	xrt_vfs_generation* pGeneration = NULL;
+	xvfsmount Mount = NULL;
+	xrt_vfs_snapshot* pOld = NULL;
+	xrt_vfs_snapshot* pNew = NULL;
+
+	if ( (Vfs == NULL) || (iFlags != 0u) ||
+		 ((CaseMode != XVFS_CASE_SENSITIVE) &&
+		  (CaseMode != XVFS_CASE_ASCII_INSENSITIVE)) ||
+		 !__xrtVfsPath(sVirtualPrefix, &Prefix) ||
+		 !__xrtVfsProviderCopy(pProvider, &Provider) ) {
+		if ( (Vfs == NULL) || (iFlags != 0u) ||
+			 ((CaseMode != XVFS_CASE_SENSITIVE) &&
+			  (CaseMode != XVFS_CASE_ASCII_INSENSITIVE)) )
+			__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pGeneration = (xrt_vfs_generation*)xrtCalloc(1u, sizeof(*pGeneration));
+	Mount = (xvfsmount)xrtCalloc(1u, sizeof(*Mount));
+	if ( (pGeneration == NULL) || (Mount == NULL) ) goto fail;
+	pGeneration->Prefix = xrtStrDupN(Prefix.Data, Prefix.Size);
+	if ( pGeneration->Prefix == NULL ) goto fail;
+	pGeneration->RefCount = 1;
+	pGeneration->Priority = iPriority;
+	pGeneration->CaseMode = CaseMode;
+	pGeneration->PrefixSize = Prefix.Size;
+	pGeneration->Provider = Provider;
+	pGeneration->Context = pProviderContext;
+	if ( Provider.ContextRetain != NULL ) Provider.ContextRetain(pProviderContext);
+	Mount->RefCount = 1;
+	Mount->Vfs = Vfs;
+	Mount->Generation = pGeneration;
+	if ( !xrtMutexLock(&Vfs->Lock) ) goto fail;
+	pOld = Vfs->Snapshot;
+	if ( (pOld == NULL) || (Vfs->NextMountId == UINT64_MAX) ) {
+		(void)xrtMutexUnlock(&Vfs->Lock);
+		__xrtVfsError(XERR_RANGE, XVFS_ERROR_LIMIT,
+			"mount", "the namespace exhausted mount identifiers");
+		goto fail;
+	}
+	pGeneration->MountId = Vfs->NextMountId + 1u;
+	pNew = __xrtVfsSnapshotEdit(pOld, pGeneration, NULL);
+	if ( pNew == NULL ) {
+		(void)xrtMutexUnlock(&Vfs->Lock);
+		goto fail;
+	}
+	Vfs->NextMountId = pGeneration->MountId;
+	Vfs->Snapshot = pNew;
+	Mount->Active = true;
+	xrtVfsRef(Vfs);
+	(void)xrtMutexUnlock(&Vfs->Lock);
+	__xrtVfsSnapshotRelease(pOld);
+	return Mount;
+
+fail:
+	if ( pGeneration != NULL ) {
+		if ( pGeneration->RefCount == 0 ) {
+			xrtFree(pGeneration->Prefix);
+			xrtFree(pGeneration);
+		} else {
+			__xrtVfsGenerationRelease(pGeneration);
+		}
+	}
+	xrtFree(Mount);
+	return NULL;
+}
+
+XRT_API void xrtVfsMountRef(xvfsmount Mount)
+{
+	if ( Mount == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	if ( xrtRefRetain(&Mount->RefCount) < 0 ) abort();
+}
+
+XRT_API void xrtVfsMountDestroy(xvfsmount Mount)
+{
+	if ( (Mount == NULL) || (xrtRefRelease(&Mount->RefCount) != 0) ) return;
+	__xrtVfsGenerationRelease(Mount->Generation);
+	xrtVfsDestroy(Mount->Vfs);
+	xrtFree(Mount);
+}
+
+XRT_API bool xrtVfsUnmount(xvfsmount Mount)
+{
+	xrt_vfs_snapshot* pOld;
+	xrt_vfs_snapshot* pNew;
+	xvfs Vfs;
+
+	if ( Mount == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	Vfs = Mount->Vfs;
+	if ( !xrtMutexLock(&Vfs->Lock) ) return false;
+	if ( !Mount->Active ) {
+		(void)xrtMutexUnlock(&Vfs->Lock);
+		return true;
+	}
+	pOld = Vfs->Snapshot;
+	pNew = __xrtVfsSnapshotEdit(pOld, NULL, Mount->Generation);
+	if ( pNew == NULL ) {
+		(void)xrtMutexUnlock(&Vfs->Lock);
+		return false;
+	}
+	Vfs->Snapshot = pNew;
+	Mount->Active = false;
+	(void)xrtMutexUnlock(&Vfs->Lock);
+	__xrtVfsSnapshotRelease(pOld);
+	return true;
+}
+
+XRT_API uint64 xrtVfsMountId(xvfsmount Mount)
+{
+	if ( Mount == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return 0u;
+	}
+	return Mount->Generation->MountId;
+}
+
+
+
+static bool __xrtVfsFileOpsCopy(const xvfsfile_v1* pFile,
+	const xfileoptions* pOptions, xvfsfileops_v1* pOps)
+{
+	const xvfsfileops_v1* pInput = pFile->Ops;
+	uint64 iCapabilities;
+
+	if ( (pInput == NULL) || (pFile->State == NULL) ||
+		 (pFile->Flags != pOptions->Flags) || (pFile->Reserved != 0u) ||
+		 (pInput->Size < sizeof(*pOps)) ||
+		 (pInput->Version != XRT_VFS_FILE_OPS_VERSION) ) return false;
+	memcpy(pOps, pInput, sizeof(*pOps));
+	pOps->Size = (uint32)sizeof(*pOps);
+	iCapabilities = pOps->Capabilities;
+	if ( ((iCapabilities & ~XVFS_FILE_CAPABILITIES) != 0u) ||
+		 (pOps->Close == NULL) ||
+		 (((iCapabilities & XVFS_FILE_READ) != 0u) != (pOps->Read != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_WRITE) != 0u) != (pOps->Write != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_READ_AT) != 0u) != (pOps->ReadAt != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_WRITE_AT) != 0u) != (pOps->WriteAt != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_SEEK) != 0u) != (pOps->Seek != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_STAT) != 0u) != (pOps->Stat != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_RESIZE) != 0u) != (pOps->Resize != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_FLUSH) != 0u) != (pOps->Flush != NULL)) )
+		return false;
+	if ( ((pOptions->Flags & XFILE_READ) != 0u) &&
+		 ((iCapabilities & (XVFS_FILE_READ | XVFS_FILE_READ_AT)) == 0u) )
+		return false;
+	if ( ((pOptions->Flags & XFILE_WRITE) != 0u) &&
+		 ((iCapabilities & (XVFS_FILE_WRITE | XVFS_FILE_WRITE_AT)) == 0u) )
+		return false;
+	if ( ((pOptions->Flags & XFILE_APPEND) != 0u) &&
+		 (pOps->Write == NULL) && (pOps->Stat == NULL) ) return false;
+	return true;
+}
+
+
+
+static void __xrtVfsProviderFileClose(xvfsfile_v1* pFile)
+{
+	xerror* pError = xrtTakeError();
+
+	if ( (pFile->Ops != NULL) &&
+		 (pFile->Ops->Size >= sizeof(xvfsfileops_v1)) &&
+		 (pFile->Ops->Close != NULL) && (pFile->State != NULL) )
+		pFile->Ops->Close(pFile->State);
+	__xrtVfsRestoreError(pError);
+}
+
+
+
+static bool __xrtVfsFileCount(bool bResult, size_t iRequest,
+	size_t iDone, size_t* pDone, cstr sOperation)
+{
+	if ( !bResult ) {
+		__xrtVfsProviderError(sOperation,
+			"the provider file callback failed without an error");
+		return false;
+	}
+	if ( iDone > iRequest ) {
+		__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+			sOperation, "the provider reported more bytes than requested");
+		return false;
+	}
+	*pDone = iDone;
+	return true;
+}
+
+
+
+static bool __xrtVfsFileRead(ptr pState, ptr pBuffer,
+	size_t iRequest, size_t* pRead)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	size_t iDone = 0u;
+	bool bResult;
+
+	if ( !xrtMutexLock(&pFile->CursorLock) ) return false;
+	if ( pFile->Provider.Read != NULL ) {
+		bResult = pFile->Provider.Read(pFile->State,
+			pBuffer, iRequest, &iDone);
+	} else {
+		bResult = pFile->Provider.ReadAt(pFile->State,
+			pFile->Cursor, pBuffer, iRequest, &iDone);
+	}
+	if ( bResult && (iDone <= iRequest) &&
+		 (pFile->Cursor <= UINT64_MAX - (uint64)iDone) ) {
+		pFile->Cursor += (uint64)iDone;
+	} else if ( bResult && (iDone <= iRequest) ) {
+		bResult = false;
+		__xrtErrorSetSizeOverflow();
+	}
+	(void)xrtMutexUnlock(&pFile->CursorLock);
+	return __xrtVfsFileCount(bResult, iRequest, iDone, pRead, "read");
+}
+
+
+
+static bool __xrtVfsFileWrite(ptr pState, const void* pBuffer,
+	size_t iRequest, size_t* pWritten)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	size_t iDone = 0u;
+	bool bResult;
+
+	if ( !xrtMutexLock(&pFile->CursorLock) ) return false;
+	if ( pFile->Provider.Write != NULL ) {
+		bResult = pFile->Provider.Write(pFile->State,
+			pBuffer, iRequest, &iDone);
+	} else {
+		bResult = pFile->Provider.WriteAt(pFile->State,
+			pFile->Cursor, pBuffer, iRequest, &iDone);
+	}
+	if ( bResult && (iDone <= iRequest) &&
+		 (pFile->Cursor <= UINT64_MAX - (uint64)iDone) ) {
+		pFile->Cursor += (uint64)iDone;
+	} else if ( bResult && (iDone <= iRequest) ) {
+		bResult = false;
+		__xrtErrorSetSizeOverflow();
+	}
+	(void)xrtMutexUnlock(&pFile->CursorLock);
+	return __xrtVfsFileCount(bResult, iRequest, iDone, pWritten, "write");
+}
+
+static bool __xrtVfsFileReadAt(ptr pState, uint64 iOffset,
+	ptr pBuffer, size_t iRequest, size_t* pRead)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	size_t iDone = 0u;
+	bool bResult = pFile->Provider.ReadAt(pFile->State,
+		iOffset, pBuffer, iRequest, &iDone);
+
+	return __xrtVfsFileCount(bResult, iRequest, iDone, pRead, "read-at");
+}
+
+static bool __xrtVfsFileWriteAt(ptr pState, uint64 iOffset,
+	const void* pBuffer, size_t iRequest, size_t* pWritten)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	size_t iDone = 0u;
+	bool bResult = pFile->Provider.WriteAt(pFile->State,
+		iOffset, pBuffer, iRequest, &iDone);
+
+	return __xrtVfsFileCount(bResult, iRequest, iDone, pWritten, "write-at");
+}
+
+
+
+static bool __xrtVfsSeekAdd(uint64 iBase, int64 iOffset, uint64* pPosition)
+{
+	if ( iOffset >= 0 ) {
+		uint64 iAdd = (uint64)iOffset;
+		if ( iBase > UINT64_MAX - iAdd ) return false;
+		*pPosition = iBase + iAdd;
+	} else {
+		uint64 iSubtract = (uint64)(-(iOffset + 1)) + 1u;
+		if ( iBase < iSubtract ) return false;
+		*pPosition = iBase - iSubtract;
+	}
+	return true;
+}
+
+static bool __xrtVfsFileSeek(ptr pState, int64 iOffset,
+	xseek Origin, uint64* pPosition)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	uint64 iPosition = 0u;
+	bool bResult = false;
+
+	if ( !xrtMutexLock(&pFile->CursorLock) ) return false;
+	if ( pFile->Provider.Seek != NULL ) {
+		bResult = pFile->Provider.Seek(pFile->State,
+			iOffset, Origin, &iPosition);
+		if ( !bResult ) __xrtVfsProviderError("seek",
+			"the provider seek callback failed without an error");
+	} else {
+		uint64 iBase;
+
+		if ( Origin == XSEEK_START ) {
+			iBase = 0u;
+		} else if ( Origin == XSEEK_CURRENT ) {
+			iBase = pFile->Cursor;
+		} else {
+			xfileinfo Info;
+
+			if ( (pFile->Provider.Stat == NULL) ||
+				 !pFile->Provider.Stat(pFile->State, &Info) ||
+				 ((Info.Available & XFILE_INFO_SIZE) == 0u) ) {
+				__xrtVfsProviderError("seek",
+					"the provider cannot resolve seek from end");
+				goto done;
+			}
+			iBase = Info.Size;
+		}
+		bResult = __xrtVfsSeekAdd(iBase, iOffset, &iPosition);
+		if ( !bResult ) __xrtVfsError(XERR_RANGE, XVFS_ERROR_OPEN,
+			"seek", "the requested provider file position is out of range");
+	}
+	if ( bResult ) {
+		pFile->Cursor = iPosition;
+		if ( pPosition != NULL ) *pPosition = iPosition;
+	}
+done:
+	(void)xrtMutexUnlock(&pFile->CursorLock);
+	return bResult;
+}
+
+
+
+static bool __xrtVfsFileStat(ptr pState, xfileinfo* pInfo)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	xfileinfo Info;
+
+	memset(&Info, 0, sizeof(Info));
+	if ( !pFile->Provider.Stat(pFile->State, &Info) ) {
+		__xrtVfsProviderError("file-stat",
+			"the provider file stat callback failed without an error");
+		return false;
+	}
+	*pInfo = Info;
+	return true;
+}
+
+static bool __xrtVfsFileResize(ptr pState, uint64 iSize)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	bool bResult = pFile->Provider.Resize(pFile->State, iSize);
+
+	if ( !bResult ) __xrtVfsProviderError("resize",
+		"the provider resize callback failed without an error");
+	return bResult;
+}
+
+static bool __xrtVfsFileFlush(ptr pState)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	bool bResult = pFile->Provider.Flush(pFile->State);
+
+	if ( !bResult ) __xrtVfsProviderError("flush",
+		"the provider flush callback failed without an error");
+	return bResult;
+}
+
+static bool __xrtVfsFileClose(ptr pState)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+
+	pFile->Provider.Close(pFile->State);
+	if ( !xrtMutexUnit(&pFile->CursorLock) ) abort();
+	__xrtVfsGenerationRelease(pFile->Generation);
+	xrtFree(pFile);
+	return true;
+}
+
+
+
+static xfile __xrtVfsFileTake(xrt_vfs_generation* pGeneration,
+	xvfsfile_v1* pSource, const xfileoptions* pOptions)
+{
+	xrt_vfs_file_state* pFile;
+	xvfsfileops_v1 Provider;
+	uint64 iPublic;
+	uint64 iBackend = 0u;
+
+	if ( !__xrtVfsFileOpsCopy(pSource, pOptions, &Provider) ) {
+		__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+			"open", "the provider returned an invalid file contract");
+		__xrtVfsProviderFileClose(pSource);
+		return NULL;
+	}
+	pFile = (xrt_vfs_file_state*)xrtCalloc(1u, sizeof(*pFile));
+	if ( pFile == NULL ) {
+		__xrtVfsProviderFileClose(pSource);
+		return NULL;
+	}
+	if ( !xrtMutexInit(&pFile->CursorLock) ) {
+		xerror* pError = xrtTakeError();
+		xrtFree(pFile);
+		__xrtVfsProviderFileClose(pSource);
+		__xrtVfsRestoreError(pError);
+		return NULL;
+	}
+	pFile->Provider = Provider;
+	pFile->State = pSource->State;
+	pFile->Generation = pGeneration;
+	__xrtVfsGenerationRef(pGeneration);
+	iPublic = Provider.Capabilities;
+	if ( (iPublic & (XVFS_FILE_READ | XVFS_FILE_READ_AT)) != 0u )
+		iBackend |= XRT_FILE_BACKEND_READ;
+	if ( (iPublic & (XVFS_FILE_WRITE | XVFS_FILE_WRITE_AT)) != 0u )
+		iBackend |= XRT_FILE_BACKEND_WRITE;
+	if ( (iPublic & XVFS_FILE_READ_AT) != 0u )
+		iBackend |= XRT_FILE_BACKEND_READ_AT;
+	if ( (iPublic & XVFS_FILE_WRITE_AT) != 0u )
+		iBackend |= XRT_FILE_BACKEND_WRITE_AT;
+	if ( ((iPublic & XVFS_FILE_SEEK) != 0u) ||
+		 ((iPublic & (XVFS_FILE_READ_AT | XVFS_FILE_WRITE_AT)) != 0u) )
+		iBackend |= XRT_FILE_BACKEND_SEEK;
+	if ( (iPublic & XVFS_FILE_STAT) != 0u ) iBackend |= XRT_FILE_BACKEND_STAT;
+	if ( (iPublic & XVFS_FILE_RESIZE) != 0u ) iBackend |= XRT_FILE_BACKEND_RESIZE;
+	if ( (iPublic & XVFS_FILE_FLUSH) != 0u ) iBackend |= XRT_FILE_BACKEND_FLUSH;
+	pFile->Backend.Size = (uint32)sizeof(pFile->Backend);
+	pFile->Backend.Version = XRT_FILE_BACKEND_VERSION;
+	pFile->Backend.Capabilities = iBackend;
+	pFile->Backend.Read = ((iBackend & XRT_FILE_BACKEND_READ) != 0u) ?
+		__xrtVfsFileRead : NULL;
+	pFile->Backend.Write = ((iBackend & XRT_FILE_BACKEND_WRITE) != 0u) ?
+		__xrtVfsFileWrite : NULL;
+	pFile->Backend.ReadAt = ((iBackend & XRT_FILE_BACKEND_READ_AT) != 0u) ?
+		__xrtVfsFileReadAt : NULL;
+	pFile->Backend.WriteAt = ((iBackend & XRT_FILE_BACKEND_WRITE_AT) != 0u) ?
+		__xrtVfsFileWriteAt : NULL;
+	pFile->Backend.Seek = ((iBackend & XRT_FILE_BACKEND_SEEK) != 0u) ?
+		__xrtVfsFileSeek : NULL;
+	pFile->Backend.Stat = ((iBackend & XRT_FILE_BACKEND_STAT) != 0u) ?
+		__xrtVfsFileStat : NULL;
+	pFile->Backend.Resize = ((iBackend & XRT_FILE_BACKEND_RESIZE) != 0u) ?
+		__xrtVfsFileResize : NULL;
+	pFile->Backend.Flush = ((iBackend & XRT_FILE_BACKEND_FLUSH) != 0u) ?
+		__xrtVfsFileFlush : NULL;
+	pFile->Backend.Close = __xrtVfsFileClose;
+	if ( ((pOptions->Flags & XFILE_APPEND) != 0u) &&
+		 (Provider.Write == NULL) ) {
+		xfileinfo Info;
+
+		if ( !Provider.Stat(pFile->State, &Info) ||
+			 ((Info.Available & XFILE_INFO_SIZE) == 0u) ) {
+			__xrtVfsProviderError("open",
+				"the provider cannot establish append position");
+			(void)__xrtVfsFileClose(pFile);
+			return NULL;
+		}
+		pFile->Cursor = Info.Size;
+	}
+	return __xrtFileTakeBackend(&pFile->Backend, pFile, pOptions->Flags);
+}
+
+
+
+XRT_API xfile xrtVfsOpen(xvfs Vfs, cstr sVirtualPath,
+	const xfileoptions* pOptions)
+{
+	xstrview Path;
+	xfileoptions Options;
+	xrt_vfs_snapshot* pSnapshot;
+	xerror* pBefore;
+
+	if ( (Vfs == NULL) || !__xrtVfsPath(sVirtualPath, &Path) ||
+		 !__xrtFileOptions(pOptions, &Options) ) {
+		if ( Vfs == NULL ) __xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pSnapshot = __xrtVfsSnapshotAcquire(Vfs);
+	if ( pSnapshot == NULL ) return NULL;
+	pBefore = xrtTakeError();
+	for ( size_t i = 0u; i < pSnapshot->Count; i++ ) {
+		xrt_vfs_generation* pGeneration = pSnapshot->Items[i];
+		xstrview Relative;
+		xvfslookup Result;
+
+		if ( !__xrtVfsPrefixMatch(pGeneration, Path, &Relative) ) continue;
+		if ( (pGeneration->Provider.Capabilities &
+			XVFS_PROVIDER_NATIVE_OPEN) != 0u ) {
+			xfile Native = NULL;
+			intptr_t iNative;
+
+			xrtClearError();
+			Result = pGeneration->Provider.OpenNative(
+				pGeneration->Context, pGeneration->CaseMode,
+				Relative, &Options, &Native);
+			if ( Result == XVFS_LOOKUP_MISS ) {
+				if ( Native != NULL ) {
+					xrtErrorFree(pBefore);
+					(void)xrtClose(Native);
+					__xrtVfsSnapshotRelease(pSnapshot);
+					__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+						"open", "a native provider returned a file on MISS");
+					return NULL;
+				}
+				continue;
+			}
+			if ( Result == XVFS_LOOKUP_ERROR ) {
+				if ( Native != NULL ) {
+					(void)xrtClose(Native);
+					xrtClearError();
+					__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+						"open", "a native provider returned a file on ERROR");
+				}
+				xrtErrorFree(pBefore);
+				__xrtVfsProviderError("open",
+					"the native provider returned ERROR without an error object");
+				__xrtVfsSnapshotRelease(pSnapshot);
+				return NULL;
+			}
+			if ( Result != XVFS_LOOKUP_OPENED ) {
+				if ( Native != NULL ) (void)xrtClose(Native);
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+					"open", "the native provider returned an unknown lookup result");
+				return NULL;
+			}
+			if ( (Native == NULL) ||
+				 (xrtFileFlags(Native) != Options.Flags) ) {
+				if ( Native != NULL ) (void)xrtClose(Native);
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+					"open", "the native provider returned an invalid file contract");
+				return NULL;
+			}
+			xrtClearError();
+			iNative = xrtFileNative(Native);
+			if ( iNative == (intptr_t)-1 ) {
+				(void)xrtClose(Native);
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+					"open", "the native provider returned a non-native file");
+				return NULL;
+			}
+			(void)iNative;
+			__xrtVfsGenerationRef(pGeneration);
+			if ( !__xrtFileAttachOwner(Native, pGeneration,
+				__xrtVfsFileGenerationRelease) ) {
+				__xrtVfsGenerationRelease(pGeneration);
+				(void)xrtClose(Native);
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+					"open", "the native provider returned an already-owned file");
+				return NULL;
+			}
+			__xrtVfsSnapshotRelease(pSnapshot);
+			__xrtVfsRestoreError(pBefore);
+			return Native;
+		}
+		{
+			xvfsfile_v1 File;
+
+		memset(&File, 0, sizeof(File));
+		xrtClearError();
+		Result = pGeneration->Provider.Open(pGeneration->Context,
+			pGeneration->CaseMode, Relative, &Options, &File);
+		if ( Result == XVFS_LOOKUP_MISS ) {
+			if ( (File.Ops != NULL) || (File.State != NULL) ||
+				 (File.Flags != 0u) || (File.Reserved != 0u) ) {
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+					"open", "a provider modified file output on MISS");
+				return NULL;
+			}
+			continue;
+		}
+		if ( Result == XVFS_LOOKUP_ERROR ) {
+			xrtErrorFree(pBefore);
+			__xrtVfsProviderError("open",
+				"the provider returned ERROR without an error object");
+			__xrtVfsSnapshotRelease(pSnapshot);
+			return NULL;
+		}
+		if ( Result == XVFS_LOOKUP_OPENED ) {
+			xfile Opened;
+
+			if ( (Options.Flags & XFILE_ASYNC) != 0u ) {
+				__xrtVfsProviderFileClose(&File);
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				__xrtVfsError(XERR_UNSUPPORTED, XVFS_ERROR_UNSUPPORTED,
+					"open", "callback provider files do not support native async I/O");
+				return NULL;
+			}
+			xrtClearError();
+			Opened = __xrtVfsFileTake(pGeneration, &File, &Options);
+			if ( Opened == NULL ) {
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				return NULL;
+			}
+			__xrtVfsSnapshotRelease(pSnapshot);
+			__xrtVfsRestoreError(pBefore);
+			return Opened;
+		}
+		xrtErrorFree(pBefore);
+		__xrtVfsSnapshotRelease(pSnapshot);
+		__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+			"open", "the provider returned an unknown lookup result");
+		return NULL;
+		}
+	}
+	xrtErrorFree(pBefore);
+	__xrtVfsSnapshotRelease(pSnapshot);
+	__xrtVfsError(XERR_NOT_FOUND, XVFS_ERROR_NOT_FOUND,
+		"open", "the virtual path was not found");
+	return NULL;
+}
+
+
+
+XRT_API bool xrtVfsStat(xvfs Vfs, cstr sVirtualPath,
+	bool bFollowLink, xfileinfo* pInfo)
+{
+	xstrview Path;
+	xrt_vfs_snapshot* pSnapshot;
+	xerror* pBefore;
+
+	if ( (Vfs == NULL) || (pInfo == NULL) ||
+		 !__xrtVfsPath(sVirtualPath, &Path) ) {
+		if ( (Vfs == NULL) || (pInfo == NULL) )
+			__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	pSnapshot = __xrtVfsSnapshotAcquire(Vfs);
+	if ( pSnapshot == NULL ) return false;
+	pBefore = xrtTakeError();
+	for ( size_t i = 0u; i < pSnapshot->Count; i++ ) {
+		xrt_vfs_generation* pGeneration = pSnapshot->Items[i];
+		xstrview Relative;
+		xfileinfo Info;
+		xvfslookup Result;
+
+		if ( !__xrtVfsPrefixMatch(pGeneration, Path, &Relative) ||
+			 ((pGeneration->Provider.Capabilities & XVFS_PROVIDER_STAT) == 0u) )
+			continue;
+		memset(&Info, 0, sizeof(Info));
+		xrtClearError();
+		Result = pGeneration->Provider.Stat(pGeneration->Context,
+			pGeneration->CaseMode, Relative, bFollowLink, &Info);
+		if ( Result == XVFS_LOOKUP_MISS ) continue;
+		if ( Result == XVFS_LOOKUP_OPENED ) {
+			*pInfo = Info;
+			__xrtVfsSnapshotRelease(pSnapshot);
+			__xrtVfsRestoreError(pBefore);
+			return true;
+		}
+		if ( Result == XVFS_LOOKUP_ERROR ) {
+			xrtErrorFree(pBefore);
+			__xrtVfsProviderError("stat",
+				"the provider returned ERROR without an error object");
+			__xrtVfsSnapshotRelease(pSnapshot);
+			return false;
+		}
+		xrtErrorFree(pBefore);
+		__xrtVfsSnapshotRelease(pSnapshot);
+		__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+			"stat", "the provider returned an unknown lookup result");
+		return false;
+	}
+	xrtErrorFree(pBefore);
+	__xrtVfsSnapshotRelease(pSnapshot);
+	__xrtVfsError(XERR_NOT_FOUND, XVFS_ERROR_NOT_FOUND,
+		"stat", "the virtual path was not found");
+	return false;
+}
+
+
+
+static void __xrtVfsFileCleanup(xfile File)
+{
+	xerror* pError = xrtTakeError();
+	(void)xrtClose(File);
+	__xrtVfsRestoreError(pError);
+}
+
+XRT_API bytes xrtVfsReadAllLimit(xvfs Vfs, cstr sVirtualPath,
+	size_t iLimit, size_t* pSize)
+{
+	xfileoptions Options = { XFILE_READ, 0u, XFILE_SHARE_ALL };
+	size_t iUseLimit = (iLimit == SIZE_MAX) ? (SIZE_MAX - 1u) : iLimit;
+	size_t iCapacity = (iUseLimit < 4096u) ? iUseLimit : 4096u;
+	size_t iSize = 0u;
+	bytes pBuffer;
+	xfile File;
+
+	File = xrtVfsOpen(Vfs, sVirtualPath, &Options);
+	if ( File == NULL ) return NULL;
+	pBuffer = (bytes)xrtMalloc(iCapacity + 1u);
+	if ( pBuffer == NULL ) {
+		__xrtVfsFileCleanup(File);
+		return NULL;
+	}
+	for ( ;; ) {
+		size_t iDone = 0u;
+
+		if ( iSize == iCapacity ) {
+			unsigned char iProbe;
+			if ( !xrtRead(File, &iProbe, 1u, &iDone) ) goto fail;
+			if ( iDone == 0u ) break;
+			if ( iCapacity == iUseLimit ) {
+				__xrtVfsError(XERR_RANGE, XVFS_ERROR_LIMIT,
+					"read-all", "the virtual file exceeds the configured limit");
+				goto fail;
+			}
+			{
+				size_t iNext = (iCapacity == 0u) ? 1u : iCapacity * 2u;
+				bytes pNext;
+				if ( (iNext < iCapacity) || (iNext > iUseLimit) ) iNext = iUseLimit;
+				pNext = (bytes)xrtRealloc(pBuffer, iNext + 1u);
+				if ( pNext == NULL ) goto fail;
+				pBuffer = pNext;
+				iCapacity = iNext;
+			}
+			pBuffer[iSize++] = iProbe;
+			continue;
+		}
+		if ( !xrtRead(File, pBuffer + iSize,
+			iCapacity - iSize, &iDone) ) goto fail;
+		if ( iDone == 0u ) break;
+		iSize += iDone;
+	}
+	if ( !xrtClose(File) ) {
+		xrtFree(pBuffer);
+		return NULL;
+	}
+	pBuffer[iSize] = 0u;
+	if ( pSize != NULL ) *pSize = iSize;
+	return pBuffer;
+
+fail:
+	xrtFree(pBuffer);
+	__xrtVfsFileCleanup(File);
+	return NULL;
+}
+
+XRT_API bytes xrtVfsReadAll(xvfs Vfs, cstr sVirtualPath, size_t* pSize)
+{
+	return xrtVfsReadAllLimit(Vfs, sVirtualPath, SIZE_MAX - 1u, pSize);
+}
+
+
+
+static uint64 __xrtVfsNameHash(xstrview Name)
+{
+	uint64 iHash = UINT64_C(1469598103934665603);
+
+	for ( size_t i = 0u; i < Name.Size; i++ ) {
+		unsigned char iByte = (unsigned char)Name.Data[i];
+		if ( (iByte >= 'A') && (iByte <= 'Z') ) iByte += 'a' - 'A';
+		iHash ^= (uint64)iByte;
+		iHash *= UINT64_C(1099511628211);
+	}
+	return iHash;
+}
+
+static bool __xrtVfsDirName(xstrview Name)
+{
+	if ( (Name.Data == NULL) || (Name.Size == 0u) ||
+		 (Name.Size > XRT_VFS_DIR_MAX_NAME) ||
+		 !xrtUtf8Valid(Name, NULL) ||
+		 ((Name.Size == 1u) && (Name.Data[0] == '.')) ||
+		 ((Name.Size == 2u) && (Name.Data[0] == '.') &&
+		  (Name.Data[1] == '.')) ) return false;
+	for ( size_t i = 0u; i < Name.Size; i++ ) {
+		if ( (Name.Data[i] == 0) || (Name.Data[i] == '/') ||
+			 (Name.Data[i] == '\\') ) return false;
+	}
+	return true;
+}
+
+
+
+static void __xrtVfsDirStateFree(xrt_vfs_dir_state* pState)
+{
+	if ( pState == NULL ) return;
+	for ( size_t i = 0u; i < pState->Count; i++ )
+		xrtFree(pState->Items[i].Name);
+	for ( size_t i = 0u; i < pState->GenerationCount; i++ )
+		__xrtVfsGenerationRelease(pState->Generations[i]);
+	xrtFree(pState->Generations);
+	xrtFree(pState->Buckets);
+	xrtFree(pState->Items);
+	xrtFree(pState);
+}
+
+static bool __xrtVfsDirRehash(xrt_vfs_dir_state* pState, size_t iCount)
+{
+	size_t* pBuckets;
+
+	if ( (iCount == 0u) || ((iCount & (iCount - 1u)) != 0u) ||
+		 (iCount > (SIZE_MAX / sizeof(size_t))) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	pBuckets = (size_t*)xrtMalloc(iCount * sizeof(size_t));
+	if ( pBuckets == NULL ) return false;
+	for ( size_t i = 0u; i < iCount; i++ )
+		pBuckets[i] = XRT_VFS_DIR_BUCKET_NONE;
+	for ( size_t i = 0u; i < pState->Count; i++ ) {
+		size_t iBucket = (size_t)pState->Items[i].FoldHash & (iCount - 1u);
+		pState->Items[i].NextHash = pBuckets[iBucket];
+		pBuckets[iBucket] = i;
+	}
+	xrtFree(pState->Buckets);
+	pState->Buckets = pBuckets;
+	pState->BucketCount = iCount;
+	return true;
+}
+
+static bool __xrtVfsDirGenerationAdd(xrt_vfs_dir_state* pState,
+	xrt_vfs_generation* pGeneration)
+{
+	if ( pState->GenerationCount == pState->GenerationCapacity ) {
+		size_t iCapacity = (pState->GenerationCapacity == 0u) ?
+			4u : pState->GenerationCapacity * 2u;
+		xrt_vfs_generation** pItems;
+
+		if ( (iCapacity < pState->GenerationCapacity) ||
+			 (iCapacity > SIZE_MAX / sizeof(*pItems)) ) {
+			__xrtErrorSetSizeOverflow();
+			return false;
+		}
+		pItems = (xrt_vfs_generation**)xrtRealloc(pState->Generations,
+			iCapacity * sizeof(*pItems));
+		if ( pItems == NULL ) return false;
+		pState->Generations = pItems;
+		pState->GenerationCapacity = iCapacity;
+	}
+	__xrtVfsGenerationRef(pGeneration);
+	pState->Generations[pState->GenerationCount++] = pGeneration;
+	return true;
+}
+
+
+
+static bool __xrtVfsDirItemAdd(xrt_vfs_dir_state* pState,
+	const xdirentry* pEntry, xvfscase CaseMode)
+{
+	uint64 iHash;
+	size_t iBucket;
+
+	if ( !__xrtVfsDirName(pEntry->Name) ) {
+		__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+			"directory", "the provider returned an invalid directory name");
+		return false;
+	}
+	if ( (pState->Count >= XRT_VFS_DIR_MAX_ENTRIES) ||
+		 (pEntry->Name.Size > XRT_VFS_DIR_MAX_NAME_BYTES - pState->NameBytes) ) {
+		__xrtVfsError(XERR_RANGE, XVFS_ERROR_LIMIT,
+			"directory", "the materialized directory exceeds its hard limit");
+		return false;
+	}
+	if ( pState->BucketCount == 0u ) {
+		if ( !__xrtVfsDirRehash(pState, 16u) ) return false;
+	} else if ( ((pState->Count + 1u) * 4u) >=
+		(pState->BucketCount * 3u) ) {
+		if ( (pState->BucketCount > (SIZE_MAX / 2u)) ||
+			 !__xrtVfsDirRehash(pState, pState->BucketCount * 2u) ) return false;
+	}
+	iHash = __xrtVfsNameHash(pEntry->Name);
+	iBucket = (size_t)iHash & (pState->BucketCount - 1u);
+	for ( size_t i = pState->Buckets[iBucket];
+		i != XRT_VFS_DIR_BUCKET_NONE; i = pState->Items[i].NextHash ) {
+		xrt_vfs_dir_item* pCurrent = &pState->Items[i];
+
+		if ( (pCurrent->FoldHash == iHash) &&
+			 xrtStrCaseEqual(pCurrent->Entry.Name, pEntry->Name) &&
+			 ((pCurrent->CaseMode == XVFS_CASE_ASCII_INSENSITIVE) ||
+			  (CaseMode == XVFS_CASE_ASCII_INSENSITIVE) ||
+			  xrtStrEqual(pCurrent->Entry.Name, pEntry->Name)) ) return true;
+	}
+	if ( pState->Count == pState->Capacity ) {
+		size_t iCapacity = (pState->Capacity == 0u) ? 16u :
+			pState->Capacity * 2u;
+		xrt_vfs_dir_item* pItems;
+
+		if ( (iCapacity < pState->Capacity) ||
+			 (iCapacity > SIZE_MAX / sizeof(*pItems)) ) {
+			__xrtErrorSetSizeOverflow();
+			return false;
+		}
+		pItems = (xrt_vfs_dir_item*)xrtRealloc(pState->Items,
+			iCapacity * sizeof(*pItems));
+		if ( pItems == NULL ) return false;
+		pState->Items = pItems;
+		pState->Capacity = iCapacity;
+	}
+	{
+		xrt_vfs_dir_item* pItem = &pState->Items[pState->Count];
+
+		memset(pItem, 0, sizeof(*pItem));
+		pItem->Name = xrtStrDupN(pEntry->Name.Data, pEntry->Name.Size);
+		if ( pItem->Name == NULL ) return false;
+		pItem->Entry = *pEntry;
+		pItem->Entry.Name.Data = pItem->Name;
+		pItem->Entry.Name.Size = pEntry->Name.Size;
+		pItem->Entry.Flags |= XDIR_ENTRY_UTF8;
+		pItem->CaseMode = CaseMode;
+		pItem->FoldHash = iHash;
+		pItem->NextHash = pState->Buckets[iBucket];
+		pState->Buckets[iBucket] = pState->Count;
+		pState->NameBytes += pEntry->Name.Size;
+		pState->Count++;
+	}
+	return true;
+}
+
+static int __xrtVfsDirItemCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_dir_item* pA = (const xrt_vfs_dir_item*)pLeft;
+	const xrt_vfs_dir_item* pB = (const xrt_vfs_dir_item*)pRight;
+	return xrtStrCompare(pA->Entry.Name, pB->Entry.Name);
+}
+
+static xdirnext __xrtVfsDirNext(ptr pState, cstr sPath,
+	uint32 iFlags, xdirentry* pEntry)
+{
+	xrt_vfs_dir_state* pDir = (xrt_vfs_dir_state*)pState;
+	(void)sPath;
+	(void)iFlags;
+	if ( pDir->Position == pDir->Count ) return XDIR_NEXT_END;
+	*pEntry = pDir->Items[pDir->Position++].Entry;
+	return XDIR_NEXT_ITEM;
+}
+
+static bool __xrtVfsDirClose(ptr pState)
+{
+	__xrtVfsDirStateFree((xrt_vfs_dir_state*)pState);
+	return true;
+}
+
+static const xrt_dir_backend_ops __xrtVfsDirOps = {
+	(uint32)sizeof(xrt_dir_backend_ops),
+	XRT_DIR_BACKEND_VERSION,
+	true,
+	{ 0u, 0u, 0u },
+	__xrtVfsDirNext,
+	__xrtVfsDirClose
+};
+
+
+
+static bool __xrtVfsProviderDirOps(const xvfsdir_v1* pDir,
+	xvfsdirops_v1* pOps)
+{
+	if ( (pDir->Ops == NULL) || (pDir->State == NULL) ||
+		 (pDir->Ops->Size < sizeof(*pOps)) ||
+		 (pDir->Ops->Version != XRT_VFS_DIR_OPS_VERSION) ) return false;
+	memcpy(pOps, pDir->Ops, sizeof(*pOps));
+	pOps->Size = (uint32)sizeof(*pOps);
+	return (pOps->Next != NULL) && (pOps->Close != NULL);
+}
+
+static void __xrtVfsProviderDirClose(xvfsdir_v1* pDir)
+{
+	xerror* pError = xrtTakeError();
+
+	if ( (pDir->Ops != NULL) &&
+		 (pDir->Ops->Size >= sizeof(xvfsdirops_v1)) &&
+		 (pDir->Ops->Close != NULL) && (pDir->State != NULL) )
+		pDir->Ops->Close(pDir->State);
+	__xrtVfsRestoreError(pError);
+}
+
+
+
+XRT_API xdir xrtVfsDirOpen(xvfs Vfs, cstr sVirtualPath,
+	uint32 iFlags)
+{
+	xstrview Path;
+	xrt_vfs_snapshot* pSnapshot;
+	xrt_vfs_dir_state* pState;
+	xerror* pBefore;
+	bool bOpened = false;
+
+	if ( (Vfs == NULL) || !__xrtDirFlagsValid(iFlags) ||
+		 !__xrtVfsPath(sVirtualPath, &Path) ) {
+		if ( Vfs == NULL ) __xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pSnapshot = __xrtVfsSnapshotAcquire(Vfs);
+	if ( pSnapshot == NULL ) return NULL;
+	pState = (xrt_vfs_dir_state*)xrtCalloc(1u, sizeof(*pState));
+	if ( pState == NULL ) {
+		__xrtVfsSnapshotRelease(pSnapshot);
+		return NULL;
+	}
+	pBefore = xrtTakeError();
+	for ( size_t i = 0u; i < pSnapshot->Count; i++ ) {
+		xrt_vfs_generation* pGeneration = pSnapshot->Items[i];
+		xstrview Relative;
+		xvfsdir_v1 Dir;
+		xvfsdirops_v1 Ops;
+		xvfslookup Result;
+
+		if ( !__xrtVfsPrefixMatch(pGeneration, Path, &Relative) ||
+			 ((pGeneration->Provider.Capabilities & XVFS_PROVIDER_DIRECTORY) == 0u) )
+			continue;
+		memset(&Dir, 0, sizeof(Dir));
+		xrtClearError();
+		Result = pGeneration->Provider.DirOpen(pGeneration->Context,
+			pGeneration->CaseMode, Relative, iFlags, &Dir);
+		if ( Result == XVFS_LOOKUP_MISS ) {
+			if ( (Dir.Ops != NULL) || (Dir.State != NULL) ) {
+				__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+					"directory", "a provider modified directory output on MISS");
+				goto fail;
+			}
+			continue;
+		}
+		if ( Result == XVFS_LOOKUP_ERROR ) {
+			__xrtVfsProviderError("directory",
+				"the provider returned ERROR without an error object");
+			goto fail;
+		}
+		if ( (Result != XVFS_LOOKUP_OPENED) ||
+			 !__xrtVfsProviderDirOps(&Dir, &Ops) ) {
+			__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+				"directory", "the provider returned an invalid directory contract");
+			if ( Result == XVFS_LOOKUP_OPENED ) __xrtVfsProviderDirClose(&Dir);
+			goto fail;
+		}
+		bOpened = true;
+		if ( !__xrtVfsDirGenerationAdd(pState, pGeneration) ) {
+			__xrtVfsProviderDirClose(&Dir);
+			goto fail;
+		}
+		for ( ;; ) {
+			xdirentry Entry;
+			bool bEnd = false;
+
+			memset(&Entry, 0, sizeof(Entry));
+			xrtClearError();
+			if ( !Ops.Next(Dir.State, &Entry, &bEnd) ) {
+				__xrtVfsProviderError("directory-next",
+					"the provider directory callback failed without an error");
+				__xrtVfsProviderDirClose(&Dir);
+				goto fail;
+			}
+			if ( bEnd ) break;
+			if ( !__xrtVfsDirItemAdd(pState, &Entry,
+				pGeneration->CaseMode) ) {
+				__xrtVfsProviderDirClose(&Dir);
+				goto fail;
+			}
+		}
+		Ops.Close(Dir.State);
+	}
+	if ( !bOpened ) {
+		xrtErrorFree(pBefore);
+		__xrtVfsSnapshotRelease(pSnapshot);
+		__xrtVfsDirStateFree(pState);
+		__xrtVfsError(XERR_NOT_FOUND, XVFS_ERROR_NOT_FOUND,
+			"directory", "the virtual directory was not found");
+		return NULL;
+	}
+	xrtFree(pState->Buckets);
+	pState->Buckets = NULL;
+	pState->BucketCount = 0u;
+	if ( pState->Count > 1u ) qsort(pState->Items, pState->Count,
+		sizeof(pState->Items[0]), __xrtVfsDirItemCompare);
+	__xrtVfsSnapshotRelease(pSnapshot);
+	{
+		xdir Result = __xrtDirTakeBackend(&__xrtVfsDirOps,
+			pState, sVirtualPath, iFlags);
+
+		if ( Result == NULL ) {
+			xrtErrorFree(pBefore);
+			return NULL;
+		}
+		__xrtVfsRestoreError(pBefore);
+		return Result;
+	}
+
+fail:
+	xrtErrorFree(pBefore);
+	__xrtVfsSnapshotRelease(pSnapshot);
+	__xrtVfsDirStateFree(pState);
+	return NULL;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/fs/vfs_memory.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_MEMORY)
+
+#include <stdlib.h>
+
+
+
+#if defined(XRT_FEATURE_VFS_MEMORY)
+
+typedef struct xrt_vfs_memory_blob {
+	volatile int32 RefCount;
+	bytes Data;
+	size_t Size;
+} xrt_vfs_memory_blob;
+
+typedef struct xrt_vfs_memory_build {
+	str Path;
+	size_t PathSize;
+	xrt_vfs_memory_blob* Blob;
+} xrt_vfs_memory_build;
+
+typedef struct xrt_vfs_memory_node {
+	str Path;
+	size_t PathSize;
+	size_t ParentSize;
+	size_t NameOffset;
+	bool Directory;
+	xrt_vfs_memory_blob* Blob;
+} xrt_vfs_memory_node;
+
+typedef struct xrt_vfs_memory_file {
+	xrt_vfs_memory_blob* Blob;
+	uint64 Cursor;
+} xrt_vfs_memory_file;
+
+typedef struct xrt_vfs_memory_dir {
+	xvfsmemory Memory;
+	size_t* Items;
+	size_t Count;
+	size_t Position;
+} xrt_vfs_memory_dir;
+
+struct xvfs_memory_impl {
+	volatile int32 RefCount;
+	bool Sealed;
+	bool FoldCollision;
+	xrt_vfs_memory_build* Build;
+	size_t BuildCount;
+	size_t BuildCapacity;
+	xrt_vfs_memory_node* Nodes;
+	xrt_vfs_memory_node** Folded;
+	size_t NodeCount;
+};
+
+
+
+static void __xrtVfsMemoryBlobRef(xrt_vfs_memory_blob* pBlob)
+{
+	if ( xrtRefRetain(&pBlob->RefCount) < 0 ) abort();
+}
+
+static void __xrtVfsMemoryBlobRelease(xrt_vfs_memory_blob* pBlob)
+{
+	if ( (pBlob == NULL) || (xrtRefRelease(&pBlob->RefCount) != 0) ) return;
+	xrtFree(pBlob->Data);
+	xrtFree(pBlob);
+}
+
+static void __xrtVfsMemoryBuildFree(xrt_vfs_memory_build* pBuild,
+	size_t iCount)
+{
+	if ( pBuild == NULL ) return;
+	for ( size_t i = 0u; i < iCount; i++ ) {
+		xrtFree(pBuild[i].Path);
+		__xrtVfsMemoryBlobRelease(pBuild[i].Blob);
+	}
+	xrtFree(pBuild);
+}
+
+static void __xrtVfsMemoryNodesFree(xrt_vfs_memory_node* pNodes,
+	size_t iCount)
+{
+	if ( pNodes == NULL ) return;
+	for ( size_t i = 0u; i < iCount; i++ ) {
+		xrtFree(pNodes[i].Path);
+		__xrtVfsMemoryBlobRelease(pNodes[i].Blob);
+	}
+	xrtFree(pNodes);
+}
+
+
+
+XRT_API xvfsmemory xrtVfsMemoryCreate(void)
+{
+	xvfsmemory Memory = (xvfsmemory)xrtCalloc(1u, sizeof(*Memory));
+	if ( Memory != NULL ) Memory->RefCount = 1;
+	return Memory;
+}
+
+XRT_API void xrtVfsMemoryRef(xvfsmemory Memory)
+{
+	if ( Memory == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	if ( xrtRefRetain(&Memory->RefCount) < 0 ) abort();
+}
+
+XRT_API void xrtVfsMemoryDestroy(xvfsmemory Memory)
+{
+	if ( (Memory == NULL) || (xrtRefRelease(&Memory->RefCount) != 0) ) return;
+	__xrtVfsMemoryBuildFree(Memory->Build, Memory->BuildCount);
+	__xrtVfsMemoryNodesFree(Memory->Nodes, Memory->NodeCount);
+	xrtFree(Memory->Folded);
+	xrtFree(Memory);
+}
+
+
+
+static bool __xrtVfsMemoryBuildReserve(xvfsmemory Memory)
+{
+	xrt_vfs_memory_build* pBuild;
+	size_t iCapacity;
+
+	if ( Memory->BuildCount < Memory->BuildCapacity ) return true;
+	iCapacity = (Memory->BuildCapacity == 0u) ? 8u :
+		Memory->BuildCapacity * 2u;
+	if ( (iCapacity < Memory->BuildCapacity) ||
+		 (iCapacity > (SIZE_MAX / sizeof(*pBuild))) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	pBuild = (xrt_vfs_memory_build*)xrtRealloc(Memory->Build,
+		iCapacity * sizeof(*pBuild));
+	if ( pBuild == NULL ) return false;
+	Memory->Build = pBuild;
+	Memory->BuildCapacity = iCapacity;
+	return true;
+}
+
+static bool __xrtVfsMemoryPut(xvfsmemory Memory,
+	cstr sRelativePath, bytes pData, size_t iSize)
+{
+	xstrview Path;
+	str sPath;
+	xrt_vfs_memory_blob* pBlob;
+
+	if ( (Memory == NULL) || (sRelativePath == NULL) ||
+		 ((pData == NULL) && (iSize != 0u)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( Memory->Sealed ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	Path = xrtStrView(sRelativePath);
+	if ( !__xrtVfsRelativePath(Path, false) ) return false;
+	for ( size_t i = 0u; i < Memory->BuildCount; i++ ) {
+		if ( xrtStrEqual(Path, (xstrview){ Memory->Build[i].Path,
+			Memory->Build[i].PathSize }) ) {
+			__xrtVfsError(XERR_EXISTS, XVFS_ERROR_CREATE,
+				"memory-put", "the memory provider path already exists");
+			return false;
+		}
+	}
+	sPath = xrtStrDupView(Path);
+	if ( sPath == NULL ) return false;
+	pBlob = (xrt_vfs_memory_blob*)xrtMalloc(sizeof(*pBlob));
+	if ( pBlob == NULL ) {
+		xrtFree(sPath);
+		return false;
+	}
+	if ( !__xrtVfsMemoryBuildReserve(Memory) ) {
+		xrtFree(pBlob);
+		xrtFree(sPath);
+		return false;
+	}
+	pBlob->RefCount = 1;
+	pBlob->Data = pData;
+	pBlob->Size = iSize;
+	Memory->Build[Memory->BuildCount].Path = sPath;
+	Memory->Build[Memory->BuildCount].PathSize = Path.Size;
+	Memory->Build[Memory->BuildCount].Blob = pBlob;
+	Memory->BuildCount++;
+	return true;
+}
+
+XRT_API bool xrtVfsMemoryPutOwned(xvfsmemory Memory,
+	cstr sRelativePath, bytes pData, size_t iSize)
+{
+	return __xrtVfsMemoryPut(Memory, sRelativePath, pData, iSize);
+}
+
+XRT_API bool xrtVfsMemoryPutCopy(xvfsmemory Memory,
+	cstr sRelativePath, const void* pData, size_t iSize)
+{
+	bytes pCopy = NULL;
+	bool bResult;
+
+	if ( (Memory == NULL) || (sRelativePath == NULL) ||
+		 ((pData == NULL) && (iSize != 0u)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( iSize != 0u ) {
+		pCopy = (bytes)xrtMemDup(pData, iSize);
+		if ( pCopy == NULL ) return false;
+	}
+	bResult = __xrtVfsMemoryPut(Memory,
+		sRelativePath, pCopy, iSize);
+	if ( !bResult ) xrtFree(pCopy);
+	return bResult;
+}
+
+
+
+static bool __xrtVfsMemoryNodeAdd(xrt_vfs_memory_node* pNodes,
+	size_t* pCount, xstrview Path, bool bDirectory,
+	xrt_vfs_memory_blob* pBlob)
+{
+	xrt_vfs_memory_node* pNode = &pNodes[*pCount];
+	size_t iSlash = SIZE_MAX;
+
+	pNode->Path = xrtStrDupView(Path);
+	if ( pNode->Path == NULL ) return false;
+	pNode->PathSize = Path.Size;
+	for ( size_t i = 0u; i < Path.Size; i++ )
+		if ( Path.Data[i] == '/' ) iSlash = i;
+	pNode->ParentSize = (Path.Size == 0u) ? SIZE_MAX :
+		((iSlash == SIZE_MAX) ? 0u : iSlash);
+	pNode->NameOffset = (iSlash == SIZE_MAX) ? 0u : iSlash + 1u;
+	pNode->Directory = bDirectory;
+	pNode->Blob = pBlob;
+	if ( pBlob != NULL ) __xrtVfsMemoryBlobRef(pBlob);
+	(*pCount)++;
+	return true;
+}
+
+static int __xrtVfsMemoryNodeCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_memory_node* pA = (const xrt_vfs_memory_node*)pLeft;
+	const xrt_vfs_memory_node* pB = (const xrt_vfs_memory_node*)pRight;
+	return xrtStrCompare((xstrview){ pA->Path, pA->PathSize },
+		(xstrview){ pB->Path, pB->PathSize });
+}
+
+static int __xrtVfsMemoryFoldCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_memory_node* pA =
+		*(xrt_vfs_memory_node* const*)pLeft;
+	const xrt_vfs_memory_node* pB =
+		*(xrt_vfs_memory_node* const*)pRight;
+	int iResult = xrtStrCaseCompare(
+		(xstrview){ pA->Path, pA->PathSize },
+		(xstrview){ pB->Path, pB->PathSize });
+	return (iResult != 0) ? iResult : __xrtVfsMemoryNodeCompare(pA, pB);
+}
+
+static bool __xrtVfsMemoryCandidateCount(xvfsmemory Memory,
+	size_t* pCount)
+{
+	size_t iCount = 1u;
+
+	for ( size_t i = 0u; i < Memory->BuildCount; i++ ) {
+		if ( iCount == SIZE_MAX ) goto overflow;
+		iCount++;
+		for ( size_t j = 0u; j < Memory->Build[i].PathSize; j++ ) {
+			if ( Memory->Build[i].Path[j] != '/' ) continue;
+			if ( iCount == SIZE_MAX ) goto overflow;
+			iCount++;
+		}
+	}
+	if ( iCount > (SIZE_MAX / sizeof(xrt_vfs_memory_node)) )
+		goto overflow;
+	*pCount = iCount;
+	return true;
+
+overflow:
+	__xrtErrorSetSizeOverflow();
+	return false;
+}
+
+XRT_API bool xrtVfsMemorySeal(xvfsmemory Memory)
+{
+	xrt_vfs_memory_node* pNodes = NULL;
+	xrt_vfs_memory_node** pFolded = NULL;
+	size_t iCandidates;
+	size_t iCount = 0u;
+	size_t iOutput = 0u;
+	bool bFoldCollision = false;
+
+	if ( Memory == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( Memory->Sealed ) return true;
+	if ( !__xrtVfsMemoryCandidateCount(Memory, &iCandidates) ) return false;
+	pNodes = (xrt_vfs_memory_node*)xrtCalloc(
+		iCandidates, sizeof(*pNodes));
+	if ( pNodes == NULL ) return false;
+	if ( !__xrtVfsMemoryNodeAdd(pNodes, &iCount,
+		XRT_STR_LITERAL(""), true, NULL) ) goto fail;
+	for ( size_t i = 0u; i < Memory->BuildCount; i++ ) {
+		xrt_vfs_memory_build* pBuild = &Memory->Build[i];
+
+		for ( size_t j = 0u; j < pBuild->PathSize; j++ ) {
+			if ( pBuild->Path[j] != '/' ) continue;
+			if ( !__xrtVfsMemoryNodeAdd(pNodes, &iCount,
+				(xstrview){ pBuild->Path, j }, true, NULL) ) goto fail;
+		}
+		if ( !__xrtVfsMemoryNodeAdd(pNodes, &iCount,
+			(xstrview){ pBuild->Path, pBuild->PathSize },
+			false, pBuild->Blob) ) goto fail;
+	}
+	qsort(pNodes, iCount, sizeof(*pNodes), __xrtVfsMemoryNodeCompare);
+	for ( size_t i = 0u; i < iCount; i++ ) {
+		if ( (iOutput != 0u) &&
+			 xrtStrEqual(
+				(xstrview){ pNodes[iOutput - 1u].Path,
+					pNodes[iOutput - 1u].PathSize },
+				(xstrview){ pNodes[i].Path, pNodes[i].PathSize }) ) {
+			if ( pNodes[iOutput - 1u].Directory != pNodes[i].Directory ) {
+				__xrtVfsError(XERR_EXISTS, XVFS_ERROR_CREATE,
+					"memory-seal", "a path is both a file and a directory");
+				goto fail;
+			}
+			xrtFree(pNodes[i].Path);
+			pNodes[i].Path = NULL;
+			continue;
+		}
+		if ( iOutput != i ) {
+			pNodes[iOutput] = pNodes[i];
+			memset(&pNodes[i], 0, sizeof(pNodes[i]));
+		}
+		iOutput++;
+	}
+	pFolded = (xrt_vfs_memory_node**)xrtMalloc(
+		iOutput * sizeof(*pFolded));
+	if ( pFolded == NULL ) goto fail;
+	for ( size_t i = 0u; i < iOutput; i++ ) pFolded[i] = &pNodes[i];
+	qsort(pFolded, iOutput, sizeof(*pFolded), __xrtVfsMemoryFoldCompare);
+	for ( size_t i = 1u; i < iOutput; i++ ) {
+		if ( xrtStrCaseEqual(
+			(xstrview){ pFolded[i - 1u]->Path,
+				pFolded[i - 1u]->PathSize },
+			(xstrview){ pFolded[i]->Path, pFolded[i]->PathSize }) ) {
+			bFoldCollision = true;
+			break;
+		}
+	}
+	__xrtVfsMemoryBuildFree(Memory->Build, Memory->BuildCount);
+	Memory->Build = NULL;
+	Memory->BuildCount = 0u;
+	Memory->BuildCapacity = 0u;
+	Memory->Nodes = pNodes;
+	Memory->Folded = pFolded;
+	Memory->NodeCount = iOutput;
+	Memory->FoldCollision = bFoldCollision;
+	Memory->Sealed = true;
+	return true;
+
+fail:
+	xrtFree(pFolded);
+	__xrtVfsMemoryNodesFree(pNodes, iCount);
+	return false;
+}
+
+
+
+static xrt_vfs_memory_node* __xrtVfsMemoryFind(
+	xvfsmemory Memory, xvfscase CaseMode, xstrview Path)
+{
+	size_t iLow = 0u;
+	size_t iHigh = Memory->NodeCount;
+
+	while ( iLow < iHigh ) {
+		size_t iMiddle = iLow + ((iHigh - iLow) / 2u);
+		xrt_vfs_memory_node* pNode =
+			(CaseMode == XVFS_CASE_SENSITIVE) ?
+			&Memory->Nodes[iMiddle] : Memory->Folded[iMiddle];
+		int iCompare = (CaseMode == XVFS_CASE_SENSITIVE) ?
+			xrtStrCompare((xstrview){ pNode->Path, pNode->PathSize }, Path) :
+			xrtStrCaseCompare((xstrview){ pNode->Path, pNode->PathSize }, Path);
+
+		if ( iCompare < 0 ) iLow = iMiddle + 1u;
+		else if ( iCompare > 0 ) iHigh = iMiddle;
+		else return pNode;
+	}
+	return NULL;
+}
+
+static bool __xrtVfsMemoryReadAt(void* pState, uint64 iOffset,
+	void* pBuffer, size_t iRequest, size_t* pRead)
+{
+	xrt_vfs_memory_file* pFile = (xrt_vfs_memory_file*)pState;
+	size_t iStart = (iOffset > (uint64)SIZE_MAX) ? SIZE_MAX :
+		(size_t)iOffset;
+	size_t iDone = (iStart < pFile->Blob->Size) ?
+		pFile->Blob->Size - iStart : 0u;
+
+	if ( iDone > iRequest ) iDone = iRequest;
+	if ( iDone != 0u ) memcpy(pBuffer, pFile->Blob->Data + iStart, iDone);
+	*pRead = iDone;
+	return true;
+}
+
+static bool __xrtVfsMemoryRead(void* pState, void* pBuffer,
+	size_t iRequest, size_t* pRead)
+{
+	xrt_vfs_memory_file* pFile = (xrt_vfs_memory_file*)pState;
+	bool bResult = __xrtVfsMemoryReadAt(
+		pState, pFile->Cursor, pBuffer, iRequest, pRead);
+	if ( bResult ) pFile->Cursor += (uint64)*pRead;
+	return bResult;
+}
+
+static bool __xrtVfsMemorySeekAdd(uint64 iBase,
+	int64 iOffset, uint64* pResult)
+{
+	if ( iOffset >= 0 ) {
+		uint64 iAdd = (uint64)iOffset;
+		if ( iBase > UINT64_MAX - iAdd ) return false;
+		*pResult = iBase + iAdd;
+	} else {
+		uint64 iSubtract = (uint64)(-(iOffset + 1)) + 1u;
+		if ( iBase < iSubtract ) return false;
+		*pResult = iBase - iSubtract;
+	}
+	return true;
+}
+
+static bool __xrtVfsMemorySeek(void* pState, int64 iOffset,
+	xseek Origin, uint64* pPosition)
+{
+	xrt_vfs_memory_file* pFile = (xrt_vfs_memory_file*)pState;
+	uint64 iBase;
+	uint64 iResult;
+
+	if ( Origin == XSEEK_START ) iBase = 0u;
+	else if ( Origin == XSEEK_CURRENT ) iBase = pFile->Cursor;
+	else if ( Origin == XSEEK_END ) iBase = (uint64)pFile->Blob->Size;
+	else {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtVfsMemorySeekAdd(iBase, iOffset, &iResult) ) {
+		__xrtVfsError(XERR_RANGE, XVFS_ERROR_OPEN,
+			"memory-seek", "the requested position is out of range");
+		return false;
+	}
+	pFile->Cursor = iResult;
+	if ( pPosition != NULL ) *pPosition = iResult;
+	return true;
+}
+
+static bool __xrtVfsMemoryFileStat(void* pState, xfileinfo* pInfo)
+{
+	xrt_vfs_memory_file* pFile = (xrt_vfs_memory_file*)pState;
+	memset(pInfo, 0, sizeof(*pInfo));
+	pInfo->Type = XFILE_TYPE_FILE;
+	pInfo->Available = XFILE_INFO_SIZE;
+	pInfo->Size = (uint64)pFile->Blob->Size;
+	return true;
+}
+
+static void __xrtVfsMemoryFileClose(void* pState)
+{
+	xrt_vfs_memory_file* pFile = (xrt_vfs_memory_file*)pState;
+	__xrtVfsMemoryBlobRelease(pFile->Blob);
+	xrtFree(pFile);
+}
+
+static const xvfsfileops_v1 __xrtVfsMemoryFileOps = {
+	(uint32)sizeof(xvfsfileops_v1),
+	XRT_VFS_FILE_OPS_VERSION,
+	XVFS_FILE_READ | XVFS_FILE_READ_AT | XVFS_FILE_SEEK | XVFS_FILE_STAT,
+	__xrtVfsMemoryRead, NULL,
+	__xrtVfsMemoryReadAt, NULL,
+	__xrtVfsMemorySeek, __xrtVfsMemoryFileStat,
+	NULL, NULL,
+	__xrtVfsMemoryFileClose
+};
+
+
+
+static bool __xrtVfsMemoryReady(xvfsmemory Memory, cstr sOperation)
+{
+	if ( Memory->Sealed ) return true;
+	__xrtVfsError(XERR_STATE, XVFS_ERROR_PROVIDER,
+		sOperation, "the memory provider is not sealed");
+	return false;
+}
+
+static bool __xrtVfsMemoryReadOnly(const xfileoptions* pOptions)
+{
+	uint32 iForbidden = XFILE_WRITE | XFILE_CREATE | XFILE_TRUNCATE |
+		XFILE_APPEND | XFILE_EXCLUSIVE | XFILE_SYNC;
+
+	if ( (pOptions->Flags & iForbidden) == 0u ) return true;
+	__xrtVfsError(XERR_UNSUPPORTED, XVFS_ERROR_UNSUPPORTED,
+		"memory-open", "the memory provider is read-only");
+	return false;
+}
+
+static xvfslookup __xrtVfsMemoryOpen(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	const xfileoptions* pOptions, xvfsfile_v1* pFile)
+{
+	xvfsmemory Memory = (xvfsmemory)pContext;
+	xrt_vfs_memory_node* pNode;
+	xrt_vfs_memory_file* pState;
+
+	if ( !__xrtVfsMemoryReady(Memory, "memory-open") )
+		return XVFS_LOOKUP_ERROR;
+	pNode = __xrtVfsMemoryFind(Memory, CaseMode, RelativePath);
+	if ( (pNode == NULL) || pNode->Directory ) return XVFS_LOOKUP_MISS;
+	if ( !__xrtVfsMemoryReadOnly(pOptions) ) return XVFS_LOOKUP_ERROR;
+	pState = (xrt_vfs_memory_file*)xrtCalloc(1u, sizeof(*pState));
+	if ( pState == NULL ) return XVFS_LOOKUP_ERROR;
+	pState->Blob = pNode->Blob;
+	__xrtVfsMemoryBlobRef(pState->Blob);
+	pFile->Ops = &__xrtVfsMemoryFileOps;
+	pFile->State = pState;
+	pFile->Flags = pOptions->Flags;
+	return XVFS_LOOKUP_OPENED;
+}
+
+static xvfslookup __xrtVfsMemoryStat(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	bool bFollowLink, xfileinfo* pInfo)
+{
+	xvfsmemory Memory = (xvfsmemory)pContext;
+	xrt_vfs_memory_node* pNode;
+	(void)bFollowLink;
+
+	if ( !__xrtVfsMemoryReady(Memory, "memory-stat") )
+		return XVFS_LOOKUP_ERROR;
+	pNode = __xrtVfsMemoryFind(Memory, CaseMode, RelativePath);
+	if ( pNode == NULL ) return XVFS_LOOKUP_MISS;
+	memset(pInfo, 0, sizeof(*pInfo));
+	pInfo->Type = pNode->Directory ? XFILE_TYPE_DIRECTORY : XFILE_TYPE_FILE;
+	if ( !pNode->Directory ) {
+		pInfo->Available = XFILE_INFO_SIZE;
+		pInfo->Size = (uint64)pNode->Blob->Size;
+	}
+	return XVFS_LOOKUP_OPENED;
+}
+
+static bool __xrtVfsMemoryDirNext(void* pState,
+	xdirentry* pEntry, bool* pEnd)
+{
+	xrt_vfs_memory_dir* pDir = (xrt_vfs_memory_dir*)pState;
+	xrt_vfs_memory_node* pNode;
+
+	if ( pDir->Position == pDir->Count ) {
+		*pEnd = true;
+		return true;
+	}
+	pNode = &pDir->Memory->Nodes[pDir->Items[pDir->Position++]];
+	memset(pEntry, 0, sizeof(*pEntry));
+	pEntry->Name.Data = pNode->Path + pNode->NameOffset;
+	pEntry->Name.Size = pNode->PathSize - pNode->NameOffset;
+	pEntry->Info.Type = pNode->Directory ?
+		XFILE_TYPE_DIRECTORY : XFILE_TYPE_FILE;
+	if ( !pNode->Directory ) {
+		pEntry->Info.Available = XFILE_INFO_SIZE;
+		pEntry->Info.Size = (uint64)pNode->Blob->Size;
+	}
+	pEntry->Flags = XDIR_ENTRY_UTF8;
+	return true;
+}
+
+static void __xrtVfsMemoryDirClose(void* pState)
+{
+	xrt_vfs_memory_dir* pDir = (xrt_vfs_memory_dir*)pState;
+	xrtVfsMemoryDestroy(pDir->Memory);
+	xrtFree(pDir->Items);
+	xrtFree(pDir);
+}
+
+static const xvfsdirops_v1 __xrtVfsMemoryDirOps = {
+	(uint32)sizeof(xvfsdirops_v1),
+	XRT_VFS_DIR_OPS_VERSION,
+	__xrtVfsMemoryDirNext,
+	__xrtVfsMemoryDirClose
+};
+
+static bool __xrtVfsMemoryParentEqual(const xrt_vfs_memory_node* pNode,
+	xstrview Path, xvfscase CaseMode)
+{
+	xstrview Parent;
+
+	if ( pNode->ParentSize == SIZE_MAX ) return false;
+	Parent.Data = pNode->Path;
+	Parent.Size = pNode->ParentSize;
+	return (CaseMode == XVFS_CASE_SENSITIVE) ?
+		xrtStrEqual(Parent, Path) : xrtStrCaseEqual(Parent, Path);
+}
+
+static xvfslookup __xrtVfsMemoryDirOpen(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	uint32 iFlags, xvfsdir_v1* pDir)
+{
+	xvfsmemory Memory = (xvfsmemory)pContext;
+	xrt_vfs_memory_node* pNode;
+	xrt_vfs_memory_dir* pState;
+	size_t iCount = 0u;
+	(void)iFlags;
+
+	if ( !__xrtVfsMemoryReady(Memory, "memory-directory") )
+		return XVFS_LOOKUP_ERROR;
+	pNode = __xrtVfsMemoryFind(Memory, CaseMode, RelativePath);
+	if ( (pNode == NULL) || !pNode->Directory ) return XVFS_LOOKUP_MISS;
+	for ( size_t i = 0u; i < Memory->NodeCount; i++ )
+		if ( __xrtVfsMemoryParentEqual(&Memory->Nodes[i],
+			RelativePath, CaseMode) ) iCount++;
+	pState = (xrt_vfs_memory_dir*)xrtCalloc(1u, sizeof(*pState));
+	if ( pState == NULL ) return XVFS_LOOKUP_ERROR;
+	if ( iCount != 0u ) {
+		if ( iCount > (SIZE_MAX / sizeof(pState->Items[0])) ) {
+			__xrtErrorSetSizeOverflow();
+			xrtFree(pState);
+			return XVFS_LOOKUP_ERROR;
+		}
+		pState->Items = (size_t*)xrtMalloc(
+			iCount * sizeof(pState->Items[0]));
+		if ( pState->Items == NULL ) {
+			xrtFree(pState);
+			return XVFS_LOOKUP_ERROR;
+		}
+	}
+	for ( size_t i = 0u; i < Memory->NodeCount; i++ ) {
+		if ( __xrtVfsMemoryParentEqual(&Memory->Nodes[i],
+			RelativePath, CaseMode) )
+			pState->Items[pState->Count++] = i;
+	}
+	pState->Memory = Memory;
+	xrtVfsMemoryRef(Memory);
+	pDir->Ops = &__xrtVfsMemoryDirOps;
+	pDir->State = pState;
+	return XVFS_LOOKUP_OPENED;
+}
+
+static void __xrtVfsMemoryContextRetain(void* pContext)
+{
+	xrtVfsMemoryRef((xvfsmemory)pContext);
+}
+
+static void __xrtVfsMemoryContextRelease(void* pContext)
+{
+	xrtVfsMemoryDestroy((xvfsmemory)pContext);
+}
+
+static const xvfsprovider_v1 __xrtVfsMemoryProvider = {
+	(uint32)sizeof(xvfsprovider_v1),
+	XRT_VFS_PROVIDER_VERSION,
+	XVFS_PROVIDER_STAT | XVFS_PROVIDER_DIRECTORY,
+	__xrtVfsMemoryContextRetain,
+	__xrtVfsMemoryContextRelease,
+	__xrtVfsMemoryOpen,
+	__xrtVfsMemoryStat,
+	__xrtVfsMemoryDirOpen,
+	NULL
+};
+
+XRT_API xvfsmount xrtVfsMemoryMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfsmemory Memory, uint32 iFlags)
+{
+	if ( (Vfs == NULL) || (Memory == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( !Memory->Sealed ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	if ( (CaseMode == XVFS_CASE_ASCII_INSENSITIVE) &&
+		 Memory->FoldCollision ) {
+		__xrtVfsError(XERR_EXISTS, XVFS_ERROR_MOUNT,
+			"memory-mount",
+			"the memory provider contains paths that collide under ASCII folding");
+		return NULL;
+	}
+	return xrtVfsMount(Vfs, sVirtualPrefix, iPriority, CaseMode,
+		&__xrtVfsMemoryProvider, Memory, iFlags);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* source: src/fs/file_root.c */
 /* ========================================================================== */
 
@@ -272952,6 +277479,7 @@ typedef xrootstep (*__xrt_root_proc)(xrootnative Parent,
 typedef struct __xrt_root_file_data {
 	const xfileoptions* Options;
 	xfile File;
+	uint32 Policy;
 } __xrt_root_file_data;
 
 
@@ -272960,7 +277488,16 @@ typedef struct __xrt_root_file_data {
 typedef struct __xrt_root_stat_data {
 	bool Follow;
 	xfileinfo Info;
+	uint32 Policy;
 } __xrt_root_stat_data;
+
+
+
+/* 目录句柄回调同时携带解析策略。 */
+typedef struct __xrt_root_handle_data {
+	xrootnative Handle;
+	uint32 Policy;
+} __xrt_root_handle_data;
 
 
 
@@ -273398,9 +277935,64 @@ static void __xrtRootRestart(xroot Root, xrootnative* pDirectory)
 
 
 
+/* 枚举父目录，保证请求分量与磁盘名称逐字节一致。 */
+static bool __xrtRootExactName(xrootnative Parent,
+	cstr sName, bool bAllowMissing)
+{
+	xrootnative Handle = XRT_ROOT_NATIVE_INVALID;
+	str sLink = NULL;
+	xrootstep Step;
+	xdir Dir;
+	xdirentry Entry;
+	xdirnext Next;
+	size_t iSize;
+	bool bExact = false;
+
+	if ( strcmp(sName, ".") == 0 ) return true;
+	Step = __xrtRootNativeOpenDir(Parent, ".", false,
+		&Handle, &sLink);
+	xrtFree(sLink);
+	if ( Step != XROOT_STEP_DONE ) return false;
+	Dir = __xrtRootNativeDirTake(Handle, ".", 0u);
+	if ( Dir == NULL ) return false;
+	iSize = strlen(sName);
+	while ( (Next = xrtDirNext(Dir, &Entry)) == XDIR_NEXT_ITEM ) {
+		if ( (Entry.Name.Size == iSize) &&
+			 (memcmp(Entry.Name.Data, sName, iSize) == 0) ) {
+			bExact = true;
+			break;
+		}
+	}
+	if ( !xrtDirClose(Dir) ) return false;
+	if ( Next == XDIR_NEXT_ERROR ) return false;
+	if ( bExact ) return true;
+	if ( bAllowMissing ) {
+		xfileinfo Info;
+
+		Step = __xrtRootNativeStat(Parent, sName,
+			false, false, &Info, &sLink);
+		xrtFree(sLink);
+		if ( Step == XROOT_STEP_ERROR ) {
+			const xerror* pError = xrtGetError();
+
+			if ( (pError != NULL) &&
+				 (xrtErrorKind(pError) == XERR_NOT_FOUND) ) {
+				xrtClearError();
+				return true;
+			}
+			return false;
+		}
+	}
+	__xrtRootError(XERR_NOT_FOUND, XROOT_ERROR_RESOLVE,
+		"resolve-case", "the exact root path component does not exist");
+	return false;
+}
+
+
+
 /* 逐分量解析路径，并且只通过目录句柄访问后续对象。 */
-static bool __xrtRootResolve(xroot Root, cstr sPath,
-	__xrt_root_proc pProc, ptr pData)
+static bool __xrtRootResolve(xroot Root, cstr sPath, uint32 iPolicy,
+	bool bAllowMissingFinal, __xrt_root_proc pProc, ptr pData)
 {
 	__xrt_root_path Path;
 	xrootnative Directory;
@@ -273409,7 +278001,9 @@ static bool __xrtRootResolve(xroot Root, cstr sPath,
 	size_t iLinks = 0;
 	bool bResult = false;
 
-	if ( (Root == NULL) || (pProc == NULL) ) {
+	if ( (Root == NULL) || (pProc == NULL) ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE | XROOT_POLICY_REGULAR_FILE)) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
@@ -273444,6 +278038,13 @@ static bool __xrtRootResolve(xroot Root, cstr sPath,
 			__xrtRootRestart(Root, &Directory);
 			continue;
 		}
+		if ( (iPolicy & XROOT_POLICY_CASE_SENSITIVE) != 0u ) {
+			bool bAllowMissing = bAllowMissingFinal &&
+				(iIndex == (Path.Count - 1u));
+
+			if ( !__xrtRootExactName(Directory,
+				Path.Parts[iIndex], bAllowMissing) ) break;
+		}
 		if ( iIndex == (Path.Count - 1u) ) {
 			Step = pProc(Directory, Path.Parts[iIndex],
 				Path.Trailing, pData, &sLink);
@@ -273451,7 +278052,9 @@ static bool __xrtRootResolve(xroot Root, cstr sPath,
 			xrootnative Next = XRT_ROOT_NATIVE_INVALID;
 
 			Step = __xrtRootNativeOpenDir(Directory,
-				Path.Parts[iIndex], &Next, &sLink);
+				Path.Parts[iIndex],
+				(iPolicy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
+				&Next, &sLink);
 			if ( Step == XROOT_STEP_DONE ) {
 				if ( Directory != Root->Handle ) {
 					(void)__xrtRootNativeClose(Directory, false);
@@ -273466,6 +278069,12 @@ static bool __xrtRootResolve(xroot Root, cstr sPath,
 			break;
 		}
 		if ( Step == XROOT_STEP_ERROR ) {
+			break;
+		}
+		if ( (iPolicy & XROOT_POLICY_FOLLOW_LINKS) == 0u ) {
+			xrtFree(sLink);
+			__xrtRootError(XERR_PERMISSION, XROOT_ERROR_ESCAPE,
+				"resolve-link", "the root policy rejects symbolic links");
 			break;
 		}
 		if ( ++iLinks > XRT_ROOT_MAX_LINKS ) {
@@ -273533,39 +278142,54 @@ XRT_API xroot xrtRootOpen(cstr sPath)
 static xrootstep __xrtRootOpenInProc(xrootnative Parent,
 	cstr sName, bool bTrailing, ptr pData, str* pLink)
 {
-	xrootnative* pHandle = (xrootnative*)pData;
+	__xrt_root_handle_data* pHandle = (__xrt_root_handle_data*)pData;
 
 	(void)bTrailing;
-	return __xrtRootNativeOpenDir(Parent, sName, pHandle, pLink);
+	return __xrtRootNativeOpenDir(Parent, sName,
+		(pHandle->Policy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
+		&pHandle->Handle, pLink);
 }
 
 
 
-/* 在已有根内打开并锚定一个子目录。 */
-XRT_API xroot xrtRootOpenIn(xroot Root, cstr sPath)
+/* 在已有根内按策略打开并锚定一个子目录。 */
+xroot __xrtRootOpenInPolicy(xroot Root, cstr sPath, uint32 iPolicy)
 {
-	xrootnative Handle = XRT_ROOT_NATIVE_INVALID;
+	__xrt_root_handle_data Data;
 	str sDisplay;
 
-	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ) {
+	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE)) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
+	Data.Handle = XRT_ROOT_NATIVE_INVALID;
+	Data.Policy = iPolicy;
 	sDisplay = xrtPathJoin(Root->Path, sPath);
 	if ( sDisplay == NULL ) {
 		return NULL;
 	}
-	if ( !__xrtRootResolve(Root, sPath,
-		__xrtRootOpenInProc, &Handle) ) {
+	if ( !__xrtRootResolve(Root, sPath, iPolicy, false,
+		__xrtRootOpenInProc, &Data) ) {
 		xrtFree(sDisplay);
 		return NULL;
 	}
 	{
-		xroot Child = __xrtRootCreate(Handle, sDisplay);
+		xroot Child = __xrtRootCreate(Data.Handle, sDisplay);
 
 		xrtFree(sDisplay);
 		return Child;
 	}
+}
+
+
+
+/* 在已有根内按公共兼容策略打开子目录。 */
+XRT_API xroot xrtRootOpenIn(xroot Root, cstr sPath)
+{
+	return __xrtRootOpenInPolicy(Root, sPath,
+		XROOT_POLICY_FOLLOW_LINKS);
 }
 
 
@@ -273623,19 +278247,23 @@ static xrootstep __xrtRootFileProc(xrootnative Parent,
 		return XROOT_STEP_ERROR;
 	}
 	return __xrtRootNativeOpenFile(Parent, sName,
+		(pFile->Policy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
+		(pFile->Policy & XROOT_POLICY_REGULAR_FILE) != 0u,
 		pFile->Options, &pFile->File, pLink);
 }
 
 
 
-/* 在根内使用完整文件选项打开普通文件。 */
-XRT_API xfile xrtRootFileOpen(xroot Root, cstr sPath,
-	const xfileoptions* pOptions)
+/* 在根内按策略使用完整文件选项打开普通文件。 */
+xfile __xrtRootFileOpenPolicy(xroot Root, cstr sPath,
+	const xfileoptions* pOptions, uint32 iPolicy)
 {
 	__xrt_root_file_data Data;
 	xfileoptions Options;
 
-	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ) {
+	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE | XROOT_POLICY_REGULAR_FILE)) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
@@ -273644,10 +278272,23 @@ XRT_API xfile xrtRootFileOpen(xroot Root, cstr sPath,
 	}
 	Data.Options = &Options;
 	Data.File = NULL;
-	if ( !__xrtRootResolve(Root, sPath, __xrtRootFileProc, &Data) ) {
+	Data.Policy = iPolicy;
+	if ( !__xrtRootResolve(Root, sPath, iPolicy,
+		(Options.Flags & XFILE_CREATE) != 0u,
+		__xrtRootFileProc, &Data) ) {
 		return NULL;
 	}
 	return Data.File;
+}
+
+
+
+/* 在根内按公共兼容策略打开普通文件。 */
+XRT_API xfile xrtRootFileOpen(xroot Root, cstr sPath,
+	const xfileoptions* pOptions)
+{
+	return __xrtRootFileOpenPolicy(Root, sPath,
+		pOptions, XROOT_POLICY_FOLLOW_LINKS);
 }
 
 
@@ -273658,6 +278299,7 @@ static xrootstep __xrtRootStatProc(xrootnative Parent,
 {
 	__xrt_root_stat_data* pStat = (__xrt_root_stat_data*)pData;
 	xrootstep Step = __xrtRootNativeStat(Parent, sName,
+		(pStat->Policy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
 		pStat->Follow, &pStat->Info, pLink);
 
 	if ( (Step == XROOT_STEP_DONE) && bTrailing &&
@@ -273671,24 +278313,100 @@ static xrootstep __xrtRootStatProc(xrootnative Parent,
 
 
 
-/* 查询根内对象元数据。 */
-XRT_API bool xrtRootStat(xroot Root, cstr sPath,
-	bool bFollowLink, xfileinfo* pInfo)
+/* 按策略查询根内对象元数据。 */
+bool __xrtRootStatPolicy(xroot Root, cstr sPath,
+	bool bFollowLink, xfileinfo* pInfo, uint32 iPolicy)
 {
 	__xrt_root_stat_data Data;
 
 	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ||
-		 (pInfo == NULL) ) {
+		 (pInfo == NULL) ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE)) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
 	memset(&Data, 0, sizeof(Data));
-	Data.Follow = bFollowLink;
-	if ( !__xrtRootResolve(Root, sPath, __xrtRootStatProc, &Data) ) {
+	Data.Follow = bFollowLink ||
+		((iPolicy & XROOT_POLICY_FOLLOW_LINKS) == 0u);
+	Data.Policy = iPolicy;
+	if ( !__xrtRootResolve(Root, sPath, iPolicy, false,
+		__xrtRootStatProc, &Data) ) {
 		return false;
 	}
 	*pInfo = Data.Info;
 	return true;
+}
+
+
+
+/* 按公共兼容策略查询根内对象元数据。 */
+XRT_API bool xrtRootStat(xroot Root, cstr sPath,
+	bool bFollowLink, xfileinfo* pInfo)
+{
+	return __xrtRootStatPolicy(Root, sPath, bFollowLink,
+		pInfo, XROOT_POLICY_FOLLOW_LINKS);
+}
+
+
+
+/* 根内目录枚举末级操作；成功时把新目录句柄转移给调用方。 */
+static xrootstep __xrtRootDirOpenProc(xrootnative Parent,
+	cstr sName, bool bTrailing, ptr pData, str* pLink)
+{
+	__xrt_root_handle_data* pHandle = (__xrt_root_handle_data*)pData;
+
+	(void)bTrailing;
+	return __xrtRootNativeOpenDir(Parent, sName,
+		(pHandle->Policy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
+		&pHandle->Handle, pLink);
+}
+
+
+
+/* 按策略从已锚定的根句柄打开目录迭代器。 */
+xdir __xrtRootDirOpenPolicy(xroot Root, cstr sPath,
+	uint32 iFlags, uint32 iPolicy)
+{
+	__xrt_root_handle_data Data;
+	str sDisplay;
+	xdir Dir;
+
+	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ||
+		 ((iFlags & XDIR_INCLUDE_DOTS) != 0u) ||
+		 !__xrtDirFlagsValid(iFlags) ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE)) != 0u) ) {
+		if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') )
+			__xrtErrorSetInvalidArgument();
+		else if ( (iFlags & XDIR_INCLUDE_DOTS) != 0u )
+			__xrtErrorSetInvalidArgument();
+		else if ( (iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+			XROOT_POLICY_CASE_SENSITIVE)) != 0u )
+			__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	Data.Handle = XRT_ROOT_NATIVE_INVALID;
+	Data.Policy = iPolicy;
+	if ( !__xrtRootResolve(Root, sPath, iPolicy, false,
+		__xrtRootDirOpenProc, &Data) ) return NULL;
+	sDisplay = xrtPathJoin(Root->Path, sPath);
+	if ( sDisplay == NULL ) {
+		(void)__xrtRootNativeClose(Data.Handle, false);
+		return NULL;
+	}
+	Dir = __xrtRootNativeDirTake(Data.Handle, sDisplay, iFlags);
+	xrtFree(sDisplay);
+	return Dir;
+}
+
+
+
+/* 按公共兼容策略打开根内目录迭代器。 */
+XRT_API xdir xrtRootDirOpen(xroot Root, cstr sPath, uint32 iFlags)
+{
+	return __xrtRootDirOpenPolicy(Root, sPath, iFlags,
+		XROOT_POLICY_FOLLOW_LINKS);
 }
 
 
@@ -273715,7 +278433,8 @@ XRT_API bool xrtRootDirCreate(xroot Root, cstr sPath, uint32 iMode)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtRootResolve(Root, sPath, __xrtRootCreateProc, &iMode);
+	return __xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
+		__xrtRootCreateProc, &iMode);
 }
 
 
@@ -273744,7 +278463,8 @@ XRT_API bool xrtRootRemove(xroot Root, cstr sPath)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtRootResolve(Root, sPath, __xrtRootRemoveProc, NULL);
+	return __xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
+		__xrtRootRemoveProc, NULL);
 }
 
 
@@ -273776,7 +278496,8 @@ XRT_API str xrtRootLinkRead(xroot Root, cstr sPath)
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	if ( !__xrtRootResolve(Root, sPath, __xrtRootLinkProc, &sTarget) ) {
+	if ( !__xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
+		__xrtRootLinkProc, &sTarget) ) {
 		return NULL;
 	}
 	return sTarget;
@@ -273819,7 +278540,7 @@ XRT_API bool xrtRootLinkCreate(xroot Root, cstr sTarget,
 	}
 	Data.Target = sTarget;
 	Data.Directory = bDirectory;
-	return __xrtRootResolve(Root, sLink,
+	return __xrtRootResolve(Root, sLink, XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootLinkCreateProc, &Data);
 }
 
@@ -273862,7 +278583,8 @@ static xrootstep __xrtRootHardSourceProc(xrootnative Parent,
 			"hard-link", "a hard-link source cannot end with a separator");
 		return XROOT_STEP_ERROR;
 	}
-	Step = __xrtRootNativeStat(Parent, sName, true, &Info, pLink);
+	Step = __xrtRootNativeStat(Parent, sName, false,
+		true, &Info, pLink);
 	if ( Step != XROOT_STEP_DONE ) { return Step; }
 	if ( Info.Type != XFILE_TYPE_FILE ) {
 		__xrtRootError(XERR_TYPE, XROOT_ERROR_LINK,
@@ -273872,6 +278594,7 @@ static xrootstep __xrtRootHardSourceProc(xrootnative Parent,
 	Source.SourceParent = Parent;
 	Source.SourceName = sName;
 	return __xrtRootResolve(pTarget->Root, pTarget->TargetPath,
+		XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootHardTargetProc, &Source) ?
 		XROOT_STEP_DONE : XROOT_STEP_ERROR;
 }
@@ -273891,7 +278614,7 @@ XRT_API bool xrtRootLinkHard(xroot Root, cstr sExisting, cstr sLink)
 	}
 	Data.Root = Root;
 	Data.TargetPath = sLink;
-	return __xrtRootResolve(Root, sExisting,
+	return __xrtRootResolve(Root, sExisting, XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootHardSourceProc, &Data);
 }
 
@@ -273925,7 +278648,7 @@ XRT_API bool xrtRootFifoCreate(xroot Root, cstr sPath, uint32 iMode)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtRootResolve(Root, sPath,
+	return __xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootFifoProc, &iMode);
 }
 
@@ -273943,7 +278666,7 @@ static xrootstep __xrtRootSetModeProc(xrootnative Parent,
 	if ( bTrailing ) {
 		xfileinfo Info;
 		xrootstep Step = __xrtRootNativeStat(Parent,
-			sName, pMode->Follow, &Info, pLink);
+			sName, false, pMode->Follow, &Info, pLink);
 
 		if ( Step != XROOT_STEP_DONE ) { return Step; }
 		if ( Info.Type != XFILE_TYPE_DIRECTORY ) {
@@ -273971,7 +278694,7 @@ XRT_API bool xrtRootSetMode(xroot Root, cstr sPath,
 	}
 	Data.Follow = bFollowLink;
 	Data.Mode = iMode;
-	return __xrtRootResolve(Root, sPath,
+	return __xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootSetModeProc, &Data);
 }
 
@@ -274093,10 +278816,12 @@ bool __xrtRootNativeClose(xrootnative Handle, bool bReport)
 
 /* 不跟随当前分量打开 POSIX 子目录。 */
 xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
-	xrootnative* pHandle, str* pLink)
+	bool bCaseSensitive, xrootnative* pHandle, str* pLink)
 {
 	int iFlags = O_RDONLY;
 	int hDirectory;
+
+	(void)bCaseSensitive;
 
 	#if defined(O_DIRECTORY) && defined(O_NOFOLLOW)
 		iFlags |= O_DIRECTORY | O_NOFOLLOW;
@@ -274128,12 +278853,15 @@ xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
 
 /* 不跟随当前分量打开 POSIX 普通文件。 */
 xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
-	const xfileoptions* pOptions, xfile* pFile, str* pLink)
+	bool bCaseSensitive, bool bRegularFile, const xfileoptions* pOptions,
+	xfile* pFile, str* pLink)
 {
 	int iFlags = __xrtFilePosixFlags(pOptions->Flags);
 	int hFile;
 	struct stat Info;
 	xfile File;
+
+	(void)bCaseSensitive;
 
 	#if defined(O_NOFOLLOW)
 		iFlags |= O_NOFOLLOW;
@@ -274142,10 +278870,18 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			"open-file", "the platform cannot open files without following links");
 		return XROOT_STEP_ERROR;
 	#endif
+	#if defined(O_NONBLOCK)
+		if ( bRegularFile ) iFlags |= O_NONBLOCK;
+	#else
+		if ( bRegularFile ) {
+			__xrtRootError(XERR_UNSUPPORTED, XROOT_ERROR_FILE,
+				"open-file",
+				"the platform cannot safely restrict an open to regular files");
+			return XROOT_STEP_ERROR;
+		}
+	#endif
 	File = __xrtFileAlloc();
-	if ( File == NULL ) {
-		return XROOT_STEP_ERROR;
-	}
+	if (File == NULL) return XROOT_STEP_ERROR;
 	hFile = __xrtFilePosixOpenAt(Parent, sName,
 		iFlags, pOptions->Mode);
 	if ( hFile < 0 ) {
@@ -274154,16 +278890,17 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			(XFILE_CREATE | XFILE_EXCLUSIVE)) ==
 			(XFILE_CREATE | XFILE_EXCLUSIVE);
 
-		xrtFree(File);
 		if ( ((iCode == ELOOP) || (iCode == ENOTDIR)) &&
 			 ((pOptions->Flags & XFILE_NOFOLLOW) == 0u) &&
 			 !bExclusive ) {
+			xrtFree(File);
 			return __xrtRootPosixLink(Parent, sName, iCode,
 				pLink, XROOT_ERROR_FILE, "open-file",
 				"failed to open the root-relative file");
 		}
 		__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 			"failed to open the root-relative file", iCode);
+		xrtFree(File);
 		return XROOT_STEP_ERROR;
 	}
 	{
@@ -274176,21 +278913,53 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			int iCode = errno;
 
 			(void)close(hFile);
-			xrtFree(File);
 			__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 				"failed to inspect the root-relative file", iCode);
+			xrtFree(File);
 			return XROOT_STEP_ERROR;
 		}
 	}
-	if ( S_ISDIR(Info.st_mode) ) {
+	if ( bRegularFile && !S_ISREG(Info.st_mode) ) {
 		(void)close(hFile);
-		xrtFree(File);
 		__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE, "open-file",
-			"the root-relative path is a directory");
+			"the root policy only permits regular files");
+		xrtFree(File);
 		return XROOT_STEP_ERROR;
 	}
-	__xrtFileInitNativePair(File, (intptr_t)hFile, (intptr_t)-1,
-		pOptions->Flags);
+	if ( S_ISDIR(Info.st_mode) ) {
+		(void)close(hFile);
+		__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE, "open-file",
+			"the root-relative path is a directory");
+		xrtFree(File);
+		return XROOT_STEP_ERROR;
+	}
+	#if defined(O_NONBLOCK)
+		if ( bRegularFile ) {
+			int iStatus;
+			int iResult;
+
+			do {
+				iStatus = fcntl(hFile, F_GETFL);
+			} while ( (iStatus < 0) && (errno == EINTR) );
+			if ( iStatus >= 0 ) {
+				do {
+					iResult = fcntl(hFile, F_SETFL, iStatus & ~O_NONBLOCK);
+				} while ( (iResult != 0) && (errno == EINTR) );
+			} else {
+				iResult = -1;
+			}
+			if ( iResult != 0 ) {
+				int iCode = errno;
+
+				(void)close(hFile);
+				__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
+					"failed to restore blocking mode on a regular file", iCode);
+				xrtFree(File);
+				return XROOT_STEP_ERROR;
+			}
+		}
+	#endif
+	__xrtFileInitNativePair(File, (intptr_t)hFile, (intptr_t)-1, pOptions->Flags);
 	*pFile = File;
 	return XROOT_STEP_DONE;
 }
@@ -274199,10 +278968,13 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 
 /* 查询 POSIX 根内当前分量元数据。 */
 xrootstep __xrtRootNativeStat(xrootnative Parent, cstr sName,
-	bool bFollowLink, xfileinfo* pInfo, str* pLink)
+	bool bCaseSensitive, bool bFollowLink,
+	xfileinfo* pInfo, str* pLink)
 {
 	struct stat Native;
 	int iResult;
+
+	(void)bCaseSensitive;
 
 	if ( strcmp(sName, ".") == 0 ) {
 		(void)bFollowLink;
@@ -274646,7 +279418,8 @@ static int __xrtRootNtErrorCode(NTSTATUS Status)
 /* 使用目录句柄和单个 UTF-8 分量调用 NtCreateFile。 */
 static bool __xrtRootNtCreate(xrootnative Parent, cstr sName,
 	ACCESS_MASK iAccess, ULONG iShare, ULONG iDisposition,
-	ULONG iOptions, ULONG iObjectFlags, HANDLE* pHandle,
+	ULONG iOptions, ULONG iObjectFlags, bool bCaseSensitive,
+	HANDLE* pHandle,
 	NTSTATUS* pStatus)
 {
 	HMODULE hModule = GetModuleHandleW(L"ntdll.dll");
@@ -274687,7 +279460,8 @@ static bool __xrtRootNtCreate(xrootnative Parent, cstr sName,
 	Attributes.Length = (ULONG)sizeof(Attributes);
 	Attributes.RootDirectory = Parent;
 	Attributes.ObjectName = &Name;
-	Attributes.Attributes = OBJ_CASE_INSENSITIVE | iObjectFlags;
+	Attributes.Attributes = iObjectFlags |
+		(bCaseSensitive ? 0u : OBJ_CASE_INSENSITIVE);
 	memset(&Status, 0, sizeof(Status));
 	*pHandle = INVALID_HANDLE_VALUE;
 	*pStatus = pCreate(pHandle, iAccess, &Attributes, &Status,
@@ -274700,7 +279474,8 @@ static bool __xrtRootNtCreate(xrootnative Parent, cstr sName,
 
 
 /* 打开重解析点自身并读取受支持的链接目标。 */
-static str __xrtRootWindowsReadAt(xrootnative Parent, cstr sName)
+static str __xrtRootWindowsReadAt(xrootnative Parent, cstr sName,
+	bool bCaseSensitive)
 {
 	HANDLE hLink;
 	NTSTATUS Status;
@@ -274713,7 +279488,7 @@ static str __xrtRootWindowsReadAt(xrootnative Parent, cstr sName)
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT |
 			FILE_OPEN_REPARSE_POINT,
-		0u, &hLink, &Status) ) {
+		0u, bCaseSensitive, &hLink, &Status) ) {
 		return NULL;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -274731,10 +279506,11 @@ static str __xrtRootWindowsReadAt(xrootnative Parent, cstr sName)
 
 /* 在 NT 打开失败后检查当前分量是否为受支持链接。 */
 static xrootstep __xrtRootWindowsLink(xrootnative Parent,
-	cstr sName, str* pLink, xrooterror Code,
+	cstr sName, bool bCaseSensitive, str* pLink, xrooterror Code,
 	cstr sOperation, cstr sMessage)
 {
-	str sTarget = __xrtRootWindowsReadAt(Parent, sName);
+	str sTarget = __xrtRootWindowsReadAt(Parent, sName,
+		bCaseSensitive);
 
 	if ( sTarget != NULL ) {
 		*pLink = sTarget;
@@ -274808,19 +279584,25 @@ bool __xrtRootNativeClose(xrootnative Handle, bool bReport)
 
 /* 不跟随当前分量打开 Windows 子目录。 */
 xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
-	xrootnative* pHandle, str* pLink)
+	bool bCaseSensitive, xrootnative* pHandle, str* pLink)
 {
 	HANDLE hDirectory;
 	NTSTATUS Status;
 
 	if ( strcmp(sName, ".") == 0 ) {
-		if ( !DuplicateHandle(GetCurrentProcess(), Parent,
-			GetCurrentProcess(), &hDirectory, 0u, FALSE,
-			DUPLICATE_SAME_ACCESS) ) {
-			int iCode = (int)GetLastError();
-
+		/* 空相对名重新打开锚点并取得独立目录查询状态。 */
+		if ( !__xrtRootNtCreate(Parent, "",
+			SYNCHRONIZE | FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			FILE_OPEN,
+			FILE_SYNCHRONOUS_IO_NONALERT |
+				FILE_OPEN_FOR_BACKUP_INTENT | FILE_DIRECTORY_FILE,
+			OBJ_DONT_REPARSE, true, &hDirectory, &Status) )
+			return XROOT_STEP_ERROR;
+		if ( !__xrtRootNtSuccess(Status) ) {
 			__xrtRootSetError(XROOT_ERROR_RESOLVE, "resolve",
-				"failed to duplicate the root directory handle", iCode);
+				"failed to reopen the anchored directory",
+				__xrtRootNtErrorCode(Status));
 			return XROOT_STEP_ERROR;
 		}
 		*pHandle = hDirectory;
@@ -274832,7 +279614,8 @@ xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
 		FILE_OPEN,
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT | FILE_DIRECTORY_FILE,
-		OBJ_DONT_REPARSE, &hDirectory, &Status) ) {
+		OBJ_DONT_REPARSE, bCaseSensitive,
+		&hDirectory, &Status) ) {
 		return XROOT_STEP_ERROR;
 	}
 	if ( __xrtRootNtSuccess(Status) ) {
@@ -274840,7 +279623,7 @@ xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
 		return XROOT_STEP_DONE;
 	}
 	if ( __xrtRootNtReparse(Status) ) {
-		return __xrtRootWindowsLink(Parent, sName,
+		return __xrtRootWindowsLink(Parent, sName, bCaseSensitive,
 			pLink, XROOT_ERROR_RESOLVE, "resolve",
 			"failed to open a root path directory");
 	}
@@ -274889,7 +279672,8 @@ static ULONG __xrtRootWindowsShare(uint32 iShare)
 
 /* 不跟随当前分量打开 Windows 普通文件。 */
 xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
-	const xfileoptions* pOptions, xfile* pFile, str* pLink)
+	bool bCaseSensitive, bool bRegularFile, const xfileoptions* pOptions,
+	xfile* pFile, str* pLink)
 {
 	ACCESS_MASK iAccess = SYNCHRONIZE | FILE_READ_ATTRIBUTES;
 	ULONG iOptions = FILE_SYNCHRONOUS_IO_NONALERT |
@@ -274909,26 +279693,45 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 		iOptions |= FILE_WRITE_THROUGH;
 	}
 	File = __xrtFileAlloc();
-	if ( File == NULL ) {
-		return XROOT_STEP_ERROR;
-	}
+	if (File == NULL) return XROOT_STEP_ERROR;
 	if ( !__xrtRootNtCreate(Parent, sName, iAccess,
 		__xrtRootWindowsShare(pOptions->Share),
 		__xrtRootWindowsDisposition(pOptions->Flags),
-		iOptions, OBJ_DONT_REPARSE, &hFile, &Status) ) {
+		iOptions, OBJ_DONT_REPARSE, bCaseSensitive,
+		&hFile, &Status) ) {
 		xrtFree(File);
 		return XROOT_STEP_ERROR;
 	}
 	if ( __xrtRootNtSuccess(Status) ) {
+		if ( bRegularFile ) {
+			xfileinfo Info;
+
+			if ( !__xrtFileWindowsStat(hFile, &Info, false) ) {
+				int iCode = (int)GetLastError();
+
+				(void)CloseHandle(hFile);
+				__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
+					"failed to inspect the root-relative file", iCode);
+				xrtFree(File);
+				return XROOT_STEP_ERROR;
+			}
+			if ( Info.Type != XFILE_TYPE_FILE ) {
+				(void)CloseHandle(hFile);
+				__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE, "open-file",
+					"the root policy only permits regular files");
+				xrtFree(File);
+				return XROOT_STEP_ERROR;
+			}
+		}
 		if ( !__xrtFileWindowsAppendHandles(
 			&hFile, &hControl, pOptions->Flags) ) {
 			int iCode = (int)GetLastError();
 
 			(void)CloseHandle(hFile);
-			xrtFree(File);
 			__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 				"failed to restrict the root-relative append handle",
 				iCode);
+			xrtFree(File);
 			return XROOT_STEP_ERROR;
 		}
 		__xrtFileInitNativePair(File, (intptr_t)hFile,
@@ -274936,19 +279739,20 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 		*pFile = File;
 		return XROOT_STEP_DONE;
 	}
-	xrtFree(File);
 	if ( __xrtRootNtReparse(Status) &&
 		 ((pOptions->Flags & XFILE_NOFOLLOW) == 0u) &&
 		 ((pOptions->Flags &
 		  (XFILE_CREATE | XFILE_EXCLUSIVE)) !=
 		  (XFILE_CREATE | XFILE_EXCLUSIVE)) ) {
-		return __xrtRootWindowsLink(Parent, sName,
+		xrtFree(File);
+		return __xrtRootWindowsLink(Parent, sName, bCaseSensitive,
 			pLink, XROOT_ERROR_FILE, "open-file",
 			"failed to open the root-relative file");
 	}
 	__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 		"failed to open the root-relative file",
 		__xrtRootNtErrorCode(Status));
+	xrtFree(File);
 	return XROOT_STEP_ERROR;
 }
 
@@ -274956,7 +279760,8 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 
 /* 查询 Windows 根内当前分量元数据。 */
 xrootstep __xrtRootNativeStat(xrootnative Parent, cstr sName,
-	bool bFollowLink, xfileinfo* pInfo, str* pLink)
+	bool bCaseSensitive, bool bFollowLink,
+	xfileinfo* pInfo, str* pLink)
 {
 	HANDLE hObject;
 	NTSTATUS Status;
@@ -274982,7 +279787,7 @@ xrootstep __xrtRootNativeStat(xrootnative Parent, cstr sName,
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT |
 			FILE_OPEN_REPARSE_POINT,
-		0u, &hObject, &Status) ) {
+		0u, bCaseSensitive, &hObject, &Status) ) {
 		return XROOT_STEP_ERROR;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -275031,7 +279836,7 @@ bool __xrtRootNativeCreateDir(xrootnative Parent,
 		FILE_CREATE,
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT | FILE_DIRECTORY_FILE,
-		OBJ_DONT_REPARSE, &hDirectory, &Status) ) {
+		OBJ_DONT_REPARSE, false, &hDirectory, &Status) ) {
 		return false;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -275065,7 +279870,8 @@ bool __xrtRootNativeRemove(xrootnative Parent,
 	if ( !__xrtRootNtCreate(Parent, sName,
 		SYNCHRONIZE | FILE_READ_ATTRIBUTES | DELETE,
 		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-		FILE_OPEN, iOptions, iObjectFlags, &hObject, &Status) ) {
+		FILE_OPEN, iOptions, iObjectFlags, false,
+		&hObject, &Status) ) {
 		return false;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -275104,7 +279910,7 @@ bool __xrtRootNativeRemove(xrootnative Parent,
 /* 相对 Windows 父目录读取末级重解析链接。 */
 str __xrtRootNativeReadLink(xrootnative Parent, cstr sName)
 {
-	str sTarget = __xrtRootWindowsReadAt(Parent, sName);
+	str sTarget = __xrtRootWindowsReadAt(Parent, sName, false);
 
 	if ( sTarget == NULL ) {
 		__xrtRootWrapError(XROOT_ERROR_LINK, "read-link",
@@ -275152,7 +279958,7 @@ bool __xrtRootNativeLinkHard(xrootnative SourceParent, cstr sSource,
 		FILE_OPEN,
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT | FILE_NON_DIRECTORY_FILE,
-		OBJ_DONT_REPARSE, &hSource, &Status) ) {
+		OBJ_DONT_REPARSE, false, &hSource, &Status) ) {
 		return false;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -275246,7 +280052,3920 @@ xrootstep __xrtRootNativeSetMode(xrootnative Parent,
 
 	(void)iMode;
 	return __xrtRootNativeStat(Parent, sName,
-		bFollowLink, &Info, pLink);
+		false, bFollowLink, &Info, pLink);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/fs/file_root_dir.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_FILE_ROOT)
+#if !defined(_WIN32) && !defined(_WIN64)
+	#if !defined(_POSIX_C_SOURCE)
+		#define _POSIX_C_SOURCE 200809L
+	#endif
+	#if !defined(_FILE_OFFSET_BITS)
+		#define _FILE_OFFSET_BITS 64
+	#endif
+#endif
+
+
+#include <errno.h>
+#include <stddef.h>
+
+#if !defined(_WIN32) && !defined(_WIN64)
+	#include <dirent.h>
+	#include <sys/stat.h>
+	#include <sys/types.h>
+	#include <unistd.h>
+#endif
+
+
+
+#if defined(XRT_FEATURE_FILE_ROOT)
+
+#if defined(_WIN32) || defined(_WIN64)
+	typedef LONG xrt_root_dir_status;
+	typedef struct xrt_root_dir_io_status xrt_root_dir_io_status;
+	typedef xrt_root_dir_status (WINAPI *xrt_root_dir_query_proc)(
+		HANDLE hFile, HANDLE hEvent, PVOID pApcRoutine, PVOID pApcContext,
+		xrt_root_dir_io_status* pStatus, PVOID pInformation, ULONG iSize,
+		int iClass, BYTE bSingleEntry, PVOID pName, BYTE bRestart);
+#endif
+
+
+
+/* 迭代器始终拥有锚定目录句柄；条目名称借用到下一次迭代。 */
+typedef struct xrt_root_dir_state {
+	xrootnative Directory;
+	#if defined(_WIN32) || defined(_WIN64)
+		xrt_root_dir_query_proc Query;
+		bytes Buffer;
+		size_t BufferSize;
+		str Name;
+		size_t NameCapacity;
+		bool Restart;
+	#else
+		DIR* Stream;
+	#endif
+} xrt_root_dir_state;
+
+
+
+/* 点条目不能通过 root API 表示父目录，root iterator 始终隐藏它们。 */
+static bool __xrtRootDirDot(cstr sName)
+{
+	return (sName[0] == '.') &&
+		((sName[1] == '\0') ||
+		 ((sName[1] == '.') && (sName[2] == '\0')));
+}
+
+
+
+/* 使用当前枚举目录作为临时根，安全取得条目完整元数据。 */
+static bool __xrtRootDirStat(xrt_root_dir_state* pState,
+	cstr sDisplayPath, cstr sName, uint32 iFlags, xfileinfo* pInfo)
+{
+	struct xroot_impl Anchor;
+
+	memset(&Anchor, 0, sizeof(Anchor));
+	Anchor.Path = (str)sDisplayPath;
+	Anchor.Handle = pState->Directory;
+	return xrtRootStat(&Anchor, sName,
+		(iFlags & XDIR_FOLLOW_LINKS) != 0u, pInfo);
+}
+
+
+
+#if defined(_WIN32) || defined(_WIN64)
+
+#define XRT_ROOT_DIR_STATUS_NO_MORE_FILES ((xrt_root_dir_status)0x80000006L)
+#define XRT_ROOT_DIR_STATUS_BUFFER_OVERFLOW ((xrt_root_dir_status)0x80000005L)
+#define XRT_ROOT_DIR_INFORMATION_CLASS 1
+#define XRT_ROOT_DIR_BUFFER_SIZE (64u * 1024u)
+
+struct xrt_root_dir_io_status {
+	union {
+		xrt_root_dir_status Status;
+		PVOID Pointer;
+	};
+	ULONG_PTR Information;
+};
+
+typedef struct xrt_root_dir_information {
+	ULONG NextEntryOffset;
+	ULONG FileIndex;
+	LARGE_INTEGER CreationTime;
+	LARGE_INTEGER LastAccessTime;
+	LARGE_INTEGER LastWriteTime;
+	LARGE_INTEGER ChangeTime;
+	LARGE_INTEGER EndOfFile;
+	LARGE_INTEGER AllocationSize;
+	ULONG FileAttributes;
+	ULONG FileNameLength;
+	WCHAR FileName[1];
+} xrt_root_dir_information;
+
+typedef ULONG (WINAPI *xrt_root_dir_error_proc)(xrt_root_dir_status Status);
+
+
+
+/* 把 NTSTATUS 转换为目录错误使用的 Win32 代码。 */
+static int __xrtRootDirWindowsError(xrt_root_dir_status Status)
+{
+	HMODULE hModule = GetModuleHandleW(L"ntdll.dll");
+	xrt_root_dir_error_proc pConvert = hModule != NULL ?
+		(xrt_root_dir_error_proc)(uintptr_t)
+		GetProcAddress(hModule, "RtlNtStatusToDosError") : NULL;
+
+	return pConvert != NULL ? (int)pConvert(Status) : ERROR_GEN_FAILURE;
+}
+
+
+
+/* 严格转换单条 UTF-16 名称并复用状态缓冲。 */
+static bool __xrtRootDirWindowsName(xrt_root_dir_state* pState,
+	const WCHAR* sName, size_t iUnits, size_t* pSize)
+{
+	xutf16view Source = { (const uint16*)sName, iUnits };
+	xutfresult Measure = xrtUtf16To8Buffer(Source, NULL, 0u, XUTF_STRICT);
+	xutfresult Result;
+	size_t iNeed;
+
+	if ( Measure.Status != XUTF_OK ) {
+		__xrtDirError(XERR_VALUE, XDIR_ERROR_ENTRY,
+			"root-entry-name", "a Windows directory name is not valid UTF-16");
+		return false;
+	}
+	if ( Measure.Written == SIZE_MAX ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	iNeed = Measure.Written + 1u;
+	if ( pState->NameCapacity < iNeed ) {
+		str sBuffer = (str)xrtRealloc(pState->Name, iNeed);
+
+		if ( sBuffer == NULL ) return false;
+		pState->Name = sBuffer;
+		pState->NameCapacity = iNeed;
+	}
+	Result = xrtUtf16To8Buffer(Source, pState->Name,
+		pState->NameCapacity - 1u, XUTF_STRICT);
+	if ( (Result.Status != XUTF_OK) || (Result.Read != iUnits) ||
+		 (Result.Written != Measure.Written) ) {
+		__xrtDirError(XERR_VALUE, XDIR_ERROR_ENTRY,
+			"root-entry-name", "a Windows directory name changed during conversion");
+		return false;
+	}
+	pState->Name[Result.Written] = '\0';
+	*pSize = Result.Written;
+	return true;
+}
+
+
+
+/* 把 NT 目录信息映射到公共的基本元数据。 */
+static void __xrtRootDirWindowsInfo(
+	const xrt_root_dir_information* pNative, xfileinfo* pInfo)
+{
+	WIN32_FIND_DATAW Data;
+
+	memset(&Data, 0, sizeof(Data));
+	Data.dwFileAttributes = pNative->FileAttributes;
+	Data.ftCreationTime.dwLowDateTime = pNative->CreationTime.LowPart;
+	Data.ftCreationTime.dwHighDateTime = (DWORD)pNative->CreationTime.HighPart;
+	Data.ftLastAccessTime.dwLowDateTime = pNative->LastAccessTime.LowPart;
+	Data.ftLastAccessTime.dwHighDateTime =
+		(DWORD)pNative->LastAccessTime.HighPart;
+	Data.ftLastWriteTime.dwLowDateTime = pNative->LastWriteTime.LowPart;
+	Data.ftLastWriteTime.dwHighDateTime =
+		(DWORD)pNative->LastWriteTime.HighPart;
+	Data.nFileSizeLow = pNative->EndOfFile.LowPart;
+	Data.nFileSizeHigh = (DWORD)pNative->EndOfFile.HighPart;
+	__xrtFileWindowsFindInfo(&Data, pInfo);
+}
+
+
+
+/* NtQueryDirectoryFile 的 single-entry 模式避免借用易失的路径字符串。 */
+static xdirnext __xrtRootDirNext(ptr pData, cstr sDisplayPath,
+	uint32 iFlags, xdirentry* pEntry)
+{
+	xrt_root_dir_state* pState = (xrt_root_dir_state*)pData;
+
+	for ( ;; ) {
+		xrt_root_dir_io_status Io;
+		xrt_root_dir_information* pNative;
+		xrt_root_dir_status Status;
+		size_t iNameBytes;
+		size_t iNameSize;
+		xdirentry Entry;
+
+		memset(&Io, 0, sizeof(Io));
+		Status = pState->Query(pState->Directory, NULL, NULL, NULL, &Io,
+			pState->Buffer, (ULONG)pState->BufferSize,
+			XRT_ROOT_DIR_INFORMATION_CLASS, TRUE, NULL,
+			pState->Restart ? TRUE : FALSE);
+		pState->Restart = false;
+		if ( Status == XRT_ROOT_DIR_STATUS_NO_MORE_FILES )
+			return XDIR_NEXT_END;
+		if ( Status == XRT_ROOT_DIR_STATUS_BUFFER_OVERFLOW ) {
+			__xrtDirError(XERR_RANGE, XDIR_ERROR_ENTRY,
+				"root-next", "a directory entry exceeds the native buffer limit");
+			return XDIR_NEXT_ERROR;
+		}
+		if ( Status < 0 ) {
+			__xrtDirSetError(XDIR_ERROR_NEXT, "root-next",
+				"failed while reading an anchored Windows directory",
+				__xrtRootDirWindowsError(Status));
+			return XDIR_NEXT_ERROR;
+		}
+		if ( Io.Information < offsetof(xrt_root_dir_information, FileName) ) {
+			__xrtDirError(XERR_PROTOCOL, XDIR_ERROR_ENTRY,
+				"root-next", "Windows returned a truncated directory entry");
+			return XDIR_NEXT_ERROR;
+		}
+		pNative = (xrt_root_dir_information*)pState->Buffer;
+		iNameBytes = (size_t)pNative->FileNameLength;
+		if ( ((iNameBytes % sizeof(WCHAR)) != 0u) ||
+			 (iNameBytes > (size_t)Io.Information -
+			  offsetof(xrt_root_dir_information, FileName)) ) {
+			__xrtDirError(XERR_PROTOCOL, XDIR_ERROR_ENTRY,
+				"root-next", "Windows returned an invalid directory name length");
+			return XDIR_NEXT_ERROR;
+		}
+		if ( !__xrtRootDirWindowsName(pState, pNative->FileName,
+			iNameBytes / sizeof(WCHAR), &iNameSize) )
+			return XDIR_NEXT_ERROR;
+		if ( __xrtRootDirDot(pState->Name) ) continue;
+		memset(&Entry, 0, sizeof(Entry));
+		Entry.Name.Data = pState->Name;
+		Entry.Name.Size = iNameSize;
+		Entry.Flags = XDIR_ENTRY_UTF8;
+		__xrtRootDirWindowsInfo(pNative, &Entry.Info);
+		if ( (iFlags & XDIR_STAT) != 0u &&
+			 !__xrtRootDirStat(pState, sDisplayPath,
+				pState->Name, iFlags, &Entry.Info) )
+			return XDIR_NEXT_ERROR;
+		*pEntry = Entry;
+		return XDIR_NEXT_ITEM;
+	}
+}
+
+#else
+
+/* 把 POSIX dirent 类型映射到无需额外 stat 的对象类别。 */
+static xfiletype __xrtRootDirPosixType(unsigned char iType)
+{
+	#if defined(DT_REG)
+		if ( iType == DT_REG ) return XFILE_TYPE_FILE;
+		if ( iType == DT_DIR ) return XFILE_TYPE_DIRECTORY;
+		if ( iType == DT_LNK ) return XFILE_TYPE_LINK;
+		if ( iType == DT_FIFO ) return XFILE_TYPE_FIFO;
+		if ( iType == DT_SOCK ) return XFILE_TYPE_SOCKET;
+		if ( (iType == DT_CHR) || (iType == DT_BLK) )
+			return XFILE_TYPE_DEVICE;
+	#else
+		(void)iType;
+	#endif
+	return XFILE_TYPE_NONE;
+}
+
+
+
+/* readdir 与 fstatat 始终以同一个打开目录描述符为锚点。 */
+static xdirnext __xrtRootDirNext(ptr pData, cstr sDisplayPath,
+	uint32 iFlags, xdirentry* pEntry)
+{
+	xrt_root_dir_state* pState = (xrt_root_dir_state*)pData;
+
+	for ( ;; ) {
+		struct dirent* pNative;
+		xdirentry Entry;
+
+		do {
+			errno = 0;
+			pNative = readdir(pState->Stream);
+		} while ( (pNative == NULL) && (errno == EINTR) );
+		if ( pNative == NULL ) {
+			if ( errno == 0 ) return XDIR_NEXT_END;
+			__xrtDirSetError(XDIR_ERROR_NEXT, "root-next",
+				"failed while reading an anchored POSIX directory", errno);
+			return XDIR_NEXT_ERROR;
+		}
+		if ( __xrtRootDirDot(pNative->d_name) ) continue;
+		memset(&Entry, 0, sizeof(Entry));
+		Entry.Name.Data = pNative->d_name;
+		Entry.Name.Size = strlen(pNative->d_name);
+		#if defined(DT_REG)
+			Entry.Info.Type = __xrtRootDirPosixType(pNative->d_type);
+		#else
+			Entry.Info.Type = __xrtRootDirPosixType(0u);
+		#endif
+		if ( xrtUtf8Valid(Entry.Name, NULL) )
+			Entry.Flags = XDIR_ENTRY_UTF8;
+		if ( (iFlags & XDIR_STAT) != 0u &&
+			 !__xrtRootDirStat(pState, sDisplayPath,
+				pNative->d_name, iFlags, &Entry.Info) )
+			return XDIR_NEXT_ERROR;
+		*pEntry = Entry;
+		return XDIR_NEXT_ITEM;
+	}
+}
+
+#endif
+
+
+
+/* 关闭枚举流和它拥有的目录句柄。 */
+static bool __xrtRootDirClose(ptr pData)
+{
+	xrt_root_dir_state* pState = (xrt_root_dir_state*)pData;
+	bool bResult = true;
+	int iCode = 0;
+
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( !__xrtRootNativeClose(pState->Directory, false) ) {
+			bResult = false;
+			iCode = (int)GetLastError();
+		}
+		xrtFree(pState->Name);
+		xrtFree(pState->Buffer);
+	#else
+		if ( closedir(pState->Stream) != 0 ) {
+			bResult = false;
+			iCode = errno;
+		}
+	#endif
+	xrtFree(pState);
+	if ( !bResult ) {
+		__xrtDirSetError(XDIR_ERROR_CLOSE, "root-close",
+			"failed to close the anchored directory iterator", iCode);
+	}
+	return bResult;
+}
+
+
+
+static const xrt_dir_backend_ops __xrtRootDirOps = {
+	(uint32)sizeof(xrt_dir_backend_ops),
+	XRT_DIR_BACKEND_VERSION,
+	false,
+	{ 0u, 0u, 0u },
+	__xrtRootDirNext,
+	__xrtRootDirClose
+};
+
+
+
+/* 接管已经由 root resolver 打开的目录句柄。 */
+xdir __xrtRootNativeDirTake(xrootnative Handle,
+	cstr sDisplayPath, uint32 iFlags)
+{
+	xrt_root_dir_state* pState;
+
+	if ( (Handle == XRT_ROOT_NATIVE_INVALID) ||
+		 (sDisplayPath == NULL) || (sDisplayPath[0] == '\0') ||
+		 ((iFlags & XDIR_INCLUDE_DOTS) != 0u) ) {
+		if ( Handle != XRT_ROOT_NATIVE_INVALID )
+			(void)__xrtRootNativeClose(Handle, false);
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pState = (xrt_root_dir_state*)xrtCalloc(1u, sizeof(*pState));
+	if ( pState == NULL ) {
+		(void)__xrtRootNativeClose(Handle, false);
+		return NULL;
+	}
+	pState->Directory = Handle;
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			HMODULE hModule = GetModuleHandleW(L"ntdll.dll");
+
+			pState->Query = hModule != NULL ?
+				(xrt_root_dir_query_proc)(uintptr_t)
+				GetProcAddress(hModule, "NtQueryDirectoryFile") : NULL;
+			if ( pState->Query == NULL ) {
+				(void)__xrtRootNativeClose(Handle, false);
+				xrtFree(pState);
+				__xrtDirError(XERR_UNSUPPORTED, XDIR_ERROR_OPEN,
+					"root-open", "NtQueryDirectoryFile is unavailable");
+				return NULL;
+			}
+		}
+		pState->BufferSize = XRT_ROOT_DIR_BUFFER_SIZE;
+		pState->Buffer = (bytes)xrtMalloc(pState->BufferSize);
+		if ( pState->Buffer == NULL ) {
+			(void)__xrtRootNativeClose(Handle, false);
+			xrtFree(pState);
+			return NULL;
+		}
+		pState->Restart = true;
+	#else
+		pState->Stream = fdopendir(Handle);
+		if ( pState->Stream == NULL ) {
+			int iCode = errno;
+
+			(void)__xrtRootNativeClose(Handle, false);
+			xrtFree(pState);
+			__xrtDirSetError(XDIR_ERROR_OPEN, "root-open",
+				"failed to attach a stream to the anchored directory", iCode);
+			return NULL;
+		}
+		pState->Directory = dirfd(pState->Stream);
+	#endif
+	return __xrtDirTakeBackend(&__xrtRootDirOps,
+		pState, sDisplayPath, iFlags);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/fs/vfs_disk.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_DISK)
+
+#include <stdlib.h>
+
+
+
+#if defined(XRT_FEATURE_VFS_DISK)
+
+typedef struct xrt_vfs_disk_entry {
+	str Name;
+	size_t NameSize;
+	xfileinfo Info;
+} xrt_vfs_disk_entry;
+
+typedef struct xrt_vfs_disk_dir {
+	xrt_vfs_disk_entry* Items;
+	size_t Count;
+	size_t Capacity;
+	size_t Position;
+} xrt_vfs_disk_dir;
+
+struct xvfs_disk_impl {
+	volatile int32 RefCount;
+	xroot Root;
+	uint32 Access;
+};
+
+
+
+/* 把 root 的不存在错误转换为可回退 MISS。 */
+static xvfslookup __xrtVfsDiskFailure(void)
+{
+	const xerror* pError = xrtGetError();
+
+	if ( (pError != NULL) &&
+		 (xrtErrorKind(pError) == XERR_NOT_FOUND) ) {
+		xrtClearError();
+		return XVFS_LOOKUP_MISS;
+	}
+	return XVFS_LOOKUP_ERROR;
+}
+
+
+
+/* 检查一次文件打开所需的冻结权限。 */
+static bool __xrtVfsDiskOpenAccess(xvfsdisk Disk,
+	const xfileoptions* pOptions)
+{
+	uint32 iWrite = XFILE_WRITE | XFILE_CREATE | XFILE_TRUNCATE |
+		XFILE_APPEND | XFILE_EXCLUSIVE | XFILE_SYNC;
+
+	if ( ((pOptions->Flags & XFILE_READ) != 0u) &&
+		 ((Disk->Access & XVFS_DISK_READ) == 0u) ) {
+		__xrtVfsError(XERR_PERMISSION, XVFS_ERROR_OPEN,
+			"disk-open", "the disk provider does not grant read access");
+		return false;
+	}
+	if ( ((pOptions->Flags & iWrite) != 0u) &&
+		 ((Disk->Access & XVFS_DISK_WRITE) == 0u) ) {
+		__xrtVfsError(XERR_PERMISSION, XVFS_ERROR_OPEN,
+			"disk-open", "the disk provider does not grant write access");
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 释放 ASCII-insensitive 解析过程中取得的子根。 */
+static bool __xrtVfsDiskCloseChild(xroot* pOwned)
+{
+	bool bResult;
+
+	if ( *pOwned == NULL ) return true;
+	bResult = xrtRootClose(*pOwned);
+	*pOwned = NULL;
+	return bResult;
+}
+
+
+
+/* 按 ASCII 折叠逐分量选择唯一的实际磁盘名称。 */
+static xvfslookup __xrtVfsDiskResolveFolded(xvfsdisk Disk,
+	xstrview RelativePath, bool bAllowMissingFinal, str* pPath)
+{
+	str sPath;
+	size_t iStart = 0u;
+	size_t iWrite = 0u;
+	xroot Current = Disk->Root;
+	xroot Owned = NULL;
+	xvfslookup Result = XVFS_LOOKUP_ERROR;
+
+	if ( RelativePath.Size == 0u ) {
+		*pPath = xrtStrDup(".");
+		return *pPath != NULL ? XVFS_LOOKUP_OPENED : XVFS_LOOKUP_ERROR;
+	}
+	if ( RelativePath.Size == SIZE_MAX ) {
+		__xrtErrorSetSizeOverflow();
+		return XVFS_LOOKUP_ERROR;
+	}
+	sPath = (str)xrtMalloc(RelativePath.Size + 1u);
+	if ( sPath == NULL ) return XVFS_LOOKUP_ERROR;
+	while ( iStart < RelativePath.Size ) {
+		size_t iEnd = iStart;
+		size_t iOutputStart = iWrite;
+		xstrview Requested;
+		xdir Dir;
+		xdirentry Entry;
+		xdirnext Next;
+		size_t iMatches = 0u;
+		bool bFinal;
+
+		while ( (iEnd < RelativePath.Size) &&
+			 (RelativePath.Data[iEnd] != '/') ) iEnd++;
+		Requested.Data = RelativePath.Data + iStart;
+		Requested.Size = iEnd - iStart;
+		bFinal = iEnd == RelativePath.Size;
+		Dir = __xrtRootDirOpenPolicy(Current, ".", 0u,
+			XROOT_POLICY_CASE_SENSITIVE);
+		if ( Dir == NULL ) goto done;
+		while ( (Next = xrtDirNext(Dir, &Entry)) == XDIR_NEXT_ITEM ) {
+			if ( ((Entry.Flags & XDIR_ENTRY_UTF8) == 0u) ||
+				 !xrtStrCaseEqual(Entry.Name, Requested) ) continue;
+			iMatches++;
+			if ( iMatches == 1u ) {
+				memcpy(sPath + iWrite,
+					Entry.Name.Data, Entry.Name.Size);
+				iWrite += Entry.Name.Size;
+			}
+		}
+		if ( Next == XDIR_NEXT_ERROR ) {
+			(void)xrtDirClose(Dir);
+			goto done;
+		}
+		if ( !xrtDirClose(Dir) ) goto done;
+		if ( iMatches > 1u ) {
+			__xrtVfsError(XERR_EXISTS, XVFS_ERROR_OPEN,
+				"disk-resolve", "the disk path is ambiguous under ASCII folding");
+			goto done;
+		}
+		if ( iMatches == 0u ) {
+			if ( !bFinal || !bAllowMissingFinal ) {
+				Result = XVFS_LOOKUP_MISS;
+				goto done;
+			}
+			memcpy(sPath + iWrite, Requested.Data, Requested.Size);
+			iWrite += Requested.Size;
+		}
+		sPath[iWrite] = '\0';
+		if ( !bFinal ) {
+			xroot Child = __xrtRootOpenInPolicy(Current,
+				sPath + iOutputStart, XROOT_POLICY_CASE_SENSITIVE);
+
+			if ( Child == NULL ) {
+				Result = __xrtVfsDiskFailure();
+				goto done;
+			}
+			if ( !__xrtVfsDiskCloseChild(&Owned) ) {
+				(void)xrtRootClose(Child);
+				goto done;
+			}
+			Owned = Child;
+			Current = Child;
+			sPath[iWrite++] = '/';
+		}
+		iStart = iEnd + 1u;
+	}
+	sPath[iWrite] = '\0';
+	*pPath = sPath;
+	sPath = NULL;
+	Result = XVFS_LOOKUP_OPENED;
+
+done:
+	if ( !__xrtVfsDiskCloseChild(&Owned) ) Result = XVFS_LOOKUP_ERROR;
+	xrtFree(sPath);
+	return Result;
+}
+
+
+
+/* 生成根 API 接受的实际相对路径。 */
+static xvfslookup __xrtVfsDiskResolve(xvfsdisk Disk,
+	xvfscase CaseMode, xstrview RelativePath,
+	bool bAllowMissingFinal, str* pPath)
+{
+	*pPath = NULL;
+	if ( CaseMode == XVFS_CASE_ASCII_INSENSITIVE ) {
+		return __xrtVfsDiskResolveFolded(Disk,
+			RelativePath, bAllowMissingFinal, pPath);
+	}
+	if ( CaseMode != XVFS_CASE_SENSITIVE ) {
+		__xrtErrorSetInvalidArgument();
+		return XVFS_LOOKUP_ERROR;
+	}
+	*pPath = RelativePath.Size == 0u ?
+		xrtStrDup(".") : xrtStrDupView(RelativePath);
+	return *pPath != NULL ? XVFS_LOOKUP_OPENED : XVFS_LOOKUP_ERROR;
+}
+
+
+
+/* 解析并严格查询对象；可为末级创建保留不存在结果。 */
+static xvfslookup __xrtVfsDiskResolveStat(xvfsdisk Disk,
+	xvfscase CaseMode, xstrview RelativePath,
+	bool bAllowMissingFinal, str* pPath,
+	xfileinfo* pInfo, bool* pExists)
+{
+	xvfslookup Result = __xrtVfsDiskResolve(Disk,
+		CaseMode, RelativePath, bAllowMissingFinal, pPath);
+
+	*pExists = false;
+	if ( Result != XVFS_LOOKUP_OPENED ) return Result;
+	if ( __xrtRootStatPolicy(Disk->Root, *pPath, true, pInfo,
+		XROOT_POLICY_CASE_SENSITIVE) ) {
+		*pExists = true;
+		return XVFS_LOOKUP_OPENED;
+	}
+	Result = __xrtVfsDiskFailure();
+	if ( (Result == XVFS_LOOKUP_MISS) && bAllowMissingFinal ) {
+		return XVFS_LOOKUP_OPENED;
+	}
+	xrtFree(*pPath);
+	*pPath = NULL;
+	return Result;
+}
+
+
+
+/* 返回原生 xfile，使 native handle、map、lock 和 async 能力保持不变。 */
+static xvfslookup __xrtVfsDiskOpenNative(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	const xfileoptions* pOptions, xfile* pFile)
+{
+	xvfsdisk Disk = (xvfsdisk)pContext;
+	str sPath = NULL;
+	xfileinfo Info;
+	bool bExists;
+	bool bCreate = (pOptions->Flags & XFILE_CREATE) != 0u;
+	xvfslookup Result;
+
+	if ( !__xrtVfsDiskOpenAccess(Disk, pOptions) )
+		return XVFS_LOOKUP_ERROR;
+	Result = __xrtVfsDiskResolveStat(Disk, CaseMode, RelativePath,
+		bCreate, &sPath, &Info, &bExists);
+	if ( Result != XVFS_LOOKUP_OPENED ) return Result;
+	if ( bExists && (Info.Type == XFILE_TYPE_DIRECTORY) ) {
+		xrtFree(sPath);
+		return XVFS_LOOKUP_MISS;
+	}
+	if ( bExists && (Info.Type != XFILE_TYPE_FILE) ) {
+		xrtFree(sPath);
+		__xrtVfsError(XERR_UNSUPPORTED, XVFS_ERROR_OPEN,
+			"disk-open", "the disk provider only opens regular files");
+		return XVFS_LOOKUP_ERROR;
+	}
+	*pFile = __xrtRootFileOpenPolicy(Disk->Root, sPath,
+		pOptions, XROOT_POLICY_CASE_SENSITIVE | XROOT_POLICY_REGULAR_FILE);
+	xrtFree(sPath);
+	if ( *pFile == NULL ) return __xrtVfsDiskFailure();
+	return XVFS_LOOKUP_OPENED;
+}
+
+
+
+/* Disk stat 从不跟随链接；发现链接时 root policy 返回权限错误。 */
+static xvfslookup __xrtVfsDiskStat(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	bool bFollowLink, xfileinfo* pInfo)
+{
+	xvfsdisk Disk = (xvfsdisk)pContext;
+	str sPath = NULL;
+	bool bExists;
+	xvfslookup Result;
+	(void)bFollowLink;
+
+	if ( (Disk->Access & XVFS_DISK_READ) == 0u ) {
+		__xrtVfsError(XERR_PERMISSION, XVFS_ERROR_STAT,
+			"disk-stat", "the disk provider does not grant read access");
+		return XVFS_LOOKUP_ERROR;
+	}
+	Result = __xrtVfsDiskResolveStat(Disk, CaseMode, RelativePath,
+		false, &sPath, pInfo, &bExists);
+	xrtFree(sPath);
+	return Result;
+}
+
+
+
+static void __xrtVfsDiskEntriesFree(xrt_vfs_disk_entry* pItems,
+	size_t iCount)
+{
+	if ( pItems == NULL ) return;
+	for ( size_t i = 0u; i < iCount; i++ ) xrtFree(pItems[i].Name);
+	xrtFree(pItems);
+}
+
+static bool __xrtVfsDiskDirReserve(xrt_vfs_disk_dir* pDir)
+{
+	xrt_vfs_disk_entry* pItems;
+	size_t iCapacity;
+
+	if ( pDir->Count < pDir->Capacity ) return true;
+	iCapacity = pDir->Capacity == 0u ? 16u : pDir->Capacity * 2u;
+	if ( (iCapacity < pDir->Capacity) ||
+		 (iCapacity > (SIZE_MAX / sizeof(*pItems))) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	pItems = (xrt_vfs_disk_entry*)xrtRealloc(pDir->Items,
+		iCapacity * sizeof(*pItems));
+	if ( pItems == NULL ) return false;
+	pDir->Items = pItems;
+	pDir->Capacity = iCapacity;
+	return true;
+}
+
+static int __xrtVfsDiskEntryCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_disk_entry* pA = (const xrt_vfs_disk_entry*)pLeft;
+	const xrt_vfs_disk_entry* pB = (const xrt_vfs_disk_entry*)pRight;
+	return xrtStrCompare((xstrview){ pA->Name, pA->NameSize },
+		(xstrview){ pB->Name, pB->NameSize });
+}
+
+static int __xrtVfsDiskEntryFoldCompare(const void* pLeft,
+	const void* pRight)
+{
+	const xrt_vfs_disk_entry* pA = (const xrt_vfs_disk_entry*)pLeft;
+	const xrt_vfs_disk_entry* pB = (const xrt_vfs_disk_entry*)pRight;
+	int iResult = xrtStrCaseCompare(
+		(xstrview){ pA->Name, pA->NameSize },
+		(xstrview){ pB->Name, pB->NameSize });
+
+	return iResult != 0 ? iResult : __xrtVfsDiskEntryCompare(pLeft, pRight);
+}
+
+
+
+static bool __xrtVfsDiskDirNext(void* pState,
+	xdirentry* pEntry, bool* pEnd)
+{
+	xrt_vfs_disk_dir* pDir = (xrt_vfs_disk_dir*)pState;
+	xrt_vfs_disk_entry* pItem;
+
+	if ( pDir->Position == pDir->Count ) {
+		*pEnd = true;
+		return true;
+	}
+	pItem = &pDir->Items[pDir->Position++];
+	memset(pEntry, 0, sizeof(*pEntry));
+	pEntry->Name.Data = pItem->Name;
+	pEntry->Name.Size = pItem->NameSize;
+	pEntry->Info = pItem->Info;
+	pEntry->Flags = XDIR_ENTRY_UTF8;
+	*pEnd = false;
+	return true;
+}
+
+static void __xrtVfsDiskDirClose(void* pState)
+{
+	xrt_vfs_disk_dir* pDir = (xrt_vfs_disk_dir*)pState;
+	__xrtVfsDiskEntriesFree(pDir->Items, pDir->Count);
+	xrtFree(pDir);
+}
+
+static const xvfsdirops_v1 __xrtVfsDiskDirOps = {
+	(uint32)sizeof(xvfsdirops_v1),
+	XRT_VFS_DIR_OPS_VERSION,
+	__xrtVfsDiskDirNext,
+	__xrtVfsDiskDirClose
+};
+
+
+
+/* 物化物理目录，拒绝链接和不区分大小写时的名称冲突。 */
+static xvfslookup __xrtVfsDiskDirOpen(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	uint32 iFlags, xvfsdir_v1* pOutput)
+{
+	xvfsdisk Disk = (xvfsdisk)pContext;
+	str sPath = NULL;
+	xfileinfo Info;
+	bool bExists;
+	xvfslookup Result;
+	xdir Native = NULL;
+	xrt_vfs_disk_dir* pDir = NULL;
+	xdirentry Entry;
+	xdirnext Next;
+	(void)iFlags;
+
+	if ( (Disk->Access & XVFS_DISK_READ) == 0u ) {
+		__xrtVfsError(XERR_PERMISSION, XVFS_ERROR_DIRECTORY,
+			"disk-directory", "the disk provider does not grant read access");
+		return XVFS_LOOKUP_ERROR;
+	}
+	Result = __xrtVfsDiskResolveStat(Disk, CaseMode, RelativePath,
+		false, &sPath, &Info, &bExists);
+	if ( Result != XVFS_LOOKUP_OPENED ) return Result;
+	if ( Info.Type != XFILE_TYPE_DIRECTORY ) {
+		xrtFree(sPath);
+		return XVFS_LOOKUP_MISS;
+	}
+	Native = __xrtRootDirOpenPolicy(Disk->Root, sPath,
+		XDIR_STAT, XROOT_POLICY_CASE_SENSITIVE);
+	xrtFree(sPath);
+	if ( Native == NULL ) return __xrtVfsDiskFailure();
+	pDir = (xrt_vfs_disk_dir*)xrtCalloc(1u, sizeof(*pDir));
+	if ( pDir == NULL ) goto fail;
+	while ( (Next = xrtDirNext(Native, &Entry)) == XDIR_NEXT_ITEM ) {
+		xrt_vfs_disk_entry* pItem;
+
+		if ( (Entry.Flags & XDIR_ENTRY_UTF8) == 0u ) continue;
+		if ( Entry.Info.Type == XFILE_TYPE_LINK ) {
+			__xrtVfsError(XERR_PERMISSION, XVFS_ERROR_DIRECTORY,
+				"disk-directory", "the disk provider rejects symbolic links");
+			goto fail;
+		}
+		if ( !__xrtVfsDiskDirReserve(pDir) ) goto fail;
+		pItem = &pDir->Items[pDir->Count];
+		memset(pItem, 0, sizeof(*pItem));
+		pItem->Name = xrtStrDupView(Entry.Name);
+		if ( pItem->Name == NULL ) goto fail;
+		pItem->NameSize = Entry.Name.Size;
+		pItem->Info = Entry.Info;
+		pDir->Count++;
+	}
+	if ( Next == XDIR_NEXT_ERROR ) goto fail;
+	if ( !xrtDirClose(Native) ) {
+		Native = NULL;
+		goto fail;
+	}
+	Native = NULL;
+	if ( pDir->Count > 1u ) {
+		qsort(pDir->Items, pDir->Count, sizeof(pDir->Items[0]),
+			CaseMode == XVFS_CASE_ASCII_INSENSITIVE ?
+			__xrtVfsDiskEntryFoldCompare : __xrtVfsDiskEntryCompare);
+	}
+	if ( CaseMode == XVFS_CASE_ASCII_INSENSITIVE ) {
+		for ( size_t i = 1u; i < pDir->Count; i++ ) {
+			if ( xrtStrCaseEqual(
+				(xstrview){ pDir->Items[i - 1u].Name,
+					pDir->Items[i - 1u].NameSize },
+				(xstrview){ pDir->Items[i].Name,
+					pDir->Items[i].NameSize }) ) {
+				__xrtVfsError(XERR_EXISTS, XVFS_ERROR_DIRECTORY,
+					"disk-directory",
+					"the physical directory has names that collide under ASCII folding");
+				goto fail;
+			}
+		}
+	}
+	pOutput->Ops = &__xrtVfsDiskDirOps;
+	pOutput->State = pDir;
+	return XVFS_LOOKUP_OPENED;
+
+fail:
+	if ( Native != NULL ) (void)xrtDirClose(Native);
+	if ( pDir != NULL ) __xrtVfsDiskDirClose(pDir);
+	return XVFS_LOOKUP_ERROR;
+}
+
+
+
+XRT_API xvfsdisk xrtVfsDiskCreate(cstr sPhysicalRoot, uint32 iAccess)
+{
+	xroot Root;
+	xvfsdisk Disk;
+
+	if ( (sPhysicalRoot == NULL) || (sPhysicalRoot[0] == '\0') ||
+		 (iAccess == 0u) || ((iAccess & ~XVFS_DISK_ACCESS) != 0u) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	Root = xrtRootOpen(sPhysicalRoot);
+	if ( Root == NULL ) return NULL;
+	Disk = (xvfsdisk)xrtMalloc(sizeof(*Disk));
+	if ( Disk == NULL ) {
+		xerror* pBefore = xrtTakeError();
+
+		(void)xrtRootClose(Root);
+		xrtClearError();
+		if ( pBefore != NULL ) __xrtErrorSetOwned(pBefore);
+		return NULL;
+	}
+	Disk->RefCount = 1;
+	Disk->Root = Root;
+	Disk->Access = iAccess;
+	return Disk;
+}
+
+XRT_API void xrtVfsDiskRef(xvfsdisk Disk)
+{
+	if ( Disk == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	if ( xrtRefRetain(&Disk->RefCount) < 0 ) abort();
+}
+
+XRT_API void xrtVfsDiskDestroy(xvfsdisk Disk)
+{
+	xerror* pBefore;
+
+	if ( (Disk == NULL) || (xrtRefRelease(&Disk->RefCount) != 0) ) return;
+	pBefore = xrtTakeError();
+	(void)xrtRootClose(Disk->Root);
+	xrtClearError();
+	if ( pBefore != NULL ) __xrtErrorSetOwned(pBefore);
+	xrtFree(Disk);
+}
+
+
+
+static void __xrtVfsDiskContextRetain(void* pContext)
+{
+	xrtVfsDiskRef((xvfsdisk)pContext);
+}
+
+static void __xrtVfsDiskContextRelease(void* pContext)
+{
+	xrtVfsDiskDestroy((xvfsdisk)pContext);
+}
+
+static const xvfsprovider_v1 __xrtVfsDiskProvider = {
+	(uint32)sizeof(xvfsprovider_v1),
+	XRT_VFS_PROVIDER_VERSION,
+	XVFS_PROVIDER_STAT | XVFS_PROVIDER_DIRECTORY |
+		XVFS_PROVIDER_NATIVE_OPEN,
+	__xrtVfsDiskContextRetain,
+	__xrtVfsDiskContextRelease,
+	NULL,
+	__xrtVfsDiskStat,
+	__xrtVfsDiskDirOpen,
+	__xrtVfsDiskOpenNative
+};
+
+XRT_API xvfsmount xrtVfsDiskMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfsdisk Disk, uint32 iFlags)
+{
+	if ( (Vfs == NULL) || (Disk == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	return xrtVfsMount(Vfs, sVirtualPrefix, iPriority, CaseMode,
+		&__xrtVfsDiskProvider, Disk, iFlags);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/third_party/lzma/LzmaDec.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_PACK)
+/* LzmaDec.c -- LZMA Decoder
+2023-04-07 : Igor Pavlov : Public domain */
+
+/* XRT keeps the SDK implementation private and avoids linker collisions with
+ * hosts that already embed the same decoder. */
+#define LzmaProps_Decode __xrtLzmaPropsDecode
+#define LzmaDec_Init __xrtLzmaDecInit
+#define LzmaDec_AllocateProbs __xrtLzmaDecAllocateProbs
+#define LzmaDec_FreeProbs __xrtLzmaDecFreeProbs
+#define LzmaDec_Allocate __xrtLzmaDecAllocate
+#define LzmaDec_Free __xrtLzmaDecFree
+#define LzmaDec_DecodeToDic __xrtLzmaDecDecodeToDic
+#define LzmaDec_DecodeToBuf __xrtLzmaDecDecodeToBuf
+#define LzmaDecode __xrtLzmaDecode
+
+
+#include <string.h>
+
+/* #include "CpuArch.h" */
+
+// #define kNumTopBits 24
+#define kTopValue ((UInt32)1 << 24)
+
+#define kNumBitModelTotalBits 11
+#define kBitModelTotal (1 << kNumBitModelTotalBits)
+
+#define RC_INIT_SIZE 5
+
+#ifndef Z7_LZMA_DEC_OPT
+
+#define kNumMoveBits 5
+#define NORMALIZE if (range < kTopValue) { range <<= 8; code = (code << 8) | (*buf++); }
+
+#define IF_BIT_0(p) ttt = *(p); NORMALIZE; bound = (range >> kNumBitModelTotalBits) * (UInt32)ttt; if (code < bound)
+#define UPDATE_0(p) range = bound; *(p) = (CLzmaProb)(ttt + ((kBitModelTotal - ttt) >> kNumMoveBits));
+#define UPDATE_1(p) range -= bound; code -= bound; *(p) = (CLzmaProb)(ttt - (ttt >> kNumMoveBits));
+#define GET_BIT2(p, i, A0, A1) IF_BIT_0(p) \
+  { UPDATE_0(p)  i = (i + i); A0; } else \
+  { UPDATE_1(p)  i = (i + i) + 1; A1; }
+
+#define TREE_GET_BIT(probs, i) { GET_BIT2(probs + i, i, ;, ;); }
+
+#define REV_BIT(p, i, A0, A1) IF_BIT_0(p + i) \
+  { UPDATE_0(p + i)  A0; } else \
+  { UPDATE_1(p + i)  A1; }
+#define REV_BIT_VAR(  p, i, m) REV_BIT(p, i, i += m; m += m, m += m; i += m; )
+#define REV_BIT_CONST(p, i, m) REV_BIT(p, i, i += m;       , i += m * 2; )
+#define REV_BIT_LAST( p, i, m) REV_BIT(p, i, i -= m        , ; )
+
+#define TREE_DECODE(probs, limit, i) \
+  { i = 1; do { TREE_GET_BIT(probs, i); } while (i < limit); i -= limit; }
+
+/* #define Z7_LZMA_SIZE_OPT */
+
+#ifdef Z7_LZMA_SIZE_OPT
+#define TREE_6_DECODE(probs, i) TREE_DECODE(probs, (1 << 6), i)
+#else
+#define TREE_6_DECODE(probs, i) \
+  { i = 1; \
+  TREE_GET_BIT(probs, i) \
+  TREE_GET_BIT(probs, i) \
+  TREE_GET_BIT(probs, i) \
+  TREE_GET_BIT(probs, i) \
+  TREE_GET_BIT(probs, i) \
+  TREE_GET_BIT(probs, i) \
+  i -= 0x40; }
+#endif
+
+#define NORMAL_LITER_DEC TREE_GET_BIT(prob, symbol)
+#define MATCHED_LITER_DEC \
+  matchByte += matchByte; \
+  bit = offs; \
+  offs &= matchByte; \
+  probLit = prob + (offs + bit + symbol); \
+  GET_BIT2(probLit, symbol, offs ^= bit; , ;)
+
+#endif // Z7_LZMA_DEC_OPT
+
+
+#define NORMALIZE_CHECK if (range < kTopValue) { if (buf >= bufLimit) return DUMMY_INPUT_EOF; range <<= 8; code = (code << 8) | (*buf++); }
+
+#define IF_BIT_0_CHECK(p) ttt = *(p); NORMALIZE_CHECK bound = (range >> kNumBitModelTotalBits) * (UInt32)ttt; if (code < bound)
+#define UPDATE_0_CHECK range = bound;
+#define UPDATE_1_CHECK range -= bound; code -= bound;
+#define GET_BIT2_CHECK(p, i, A0, A1) IF_BIT_0_CHECK(p) \
+  { UPDATE_0_CHECK  i = (i + i); A0; } else \
+  { UPDATE_1_CHECK  i = (i + i) + 1; A1; }
+#define GET_BIT_CHECK(p, i) GET_BIT2_CHECK(p, i, ; , ;)
+#define TREE_DECODE_CHECK(probs, limit, i) \
+  { i = 1; do { GET_BIT_CHECK(probs + i, i) } while (i < limit); i -= limit; }
+
+
+#define REV_BIT_CHECK(p, i, m) IF_BIT_0_CHECK(p + i) \
+  { UPDATE_0_CHECK  i += m; m += m; } else \
+  { UPDATE_1_CHECK  m += m; i += m; }
+
+
+#define kNumPosBitsMax 4
+#define kNumPosStatesMax (1 << kNumPosBitsMax)
+
+#define kLenNumLowBits 3
+#define kLenNumLowSymbols (1 << kLenNumLowBits)
+#define kLenNumHighBits 8
+#define kLenNumHighSymbols (1 << kLenNumHighBits)
+
+#define LenLow 0
+#define LenHigh (LenLow + 2 * (kNumPosStatesMax << kLenNumLowBits))
+#define kNumLenProbs (LenHigh + kLenNumHighSymbols)
+
+#define LenChoice LenLow
+#define LenChoice2 (LenLow + (1 << kLenNumLowBits))
+
+#define kNumStates 12
+#define kNumStates2 16
+#define kNumLitStates 7
+
+#define kStartPosModelIndex 4
+#define kEndPosModelIndex 14
+#define kNumFullDistances (1 << (kEndPosModelIndex >> 1))
+
+#define kNumPosSlotBits 6
+#define kNumLenToPosStates 4
+
+#define kNumAlignBits 4
+#define kAlignTableSize (1 << kNumAlignBits)
+
+#define kMatchMinLen 2
+#define kMatchSpecLenStart (kMatchMinLen + kLenNumLowSymbols * 2 + kLenNumHighSymbols)
+
+#define kMatchSpecLen_Error_Data (1 << 9)
+#define kMatchSpecLen_Error_Fail (kMatchSpecLen_Error_Data - 1)
+
+/* External ASM code needs same CLzmaProb array layout. So don't change it. */
+
+/* (probs_1664) is faster and better for code size at some platforms */
+/*
+#ifdef MY_CPU_X86_OR_AMD64
+*/
+#define kStartOffset 1664
+#define GET_PROBS p->probs_1664
+/*
+#define GET_PROBS p->probs + kStartOffset
+#else
+#define kStartOffset 0
+#define GET_PROBS p->probs
+#endif
+*/
+
+#define SpecPos (-kStartOffset)
+#define IsRep0Long (SpecPos + kNumFullDistances)
+#define RepLenCoder (IsRep0Long + (kNumStates2 << kNumPosBitsMax))
+#define LenCoder (RepLenCoder + kNumLenProbs)
+#define IsMatch (LenCoder + kNumLenProbs)
+#define Align (IsMatch + (kNumStates2 << kNumPosBitsMax))
+#define IsRep (Align + kAlignTableSize)
+#define IsRepG0 (IsRep + kNumStates)
+#define IsRepG1 (IsRepG0 + kNumStates)
+#define IsRepG2 (IsRepG1 + kNumStates)
+#define PosSlot (IsRepG2 + kNumStates)
+#define Literal (PosSlot + (kNumLenToPosStates << kNumPosSlotBits))
+#define NUM_BASE_PROBS (Literal + kStartOffset)
+
+#if Align != 0 && kStartOffset != 0
+  #error Stop_Compiling_Bad_LZMA_kAlign
+#endif
+
+#if NUM_BASE_PROBS != 1984
+  #error Stop_Compiling_Bad_LZMA_PROBS
+#endif
+
+
+#define LZMA_LIT_SIZE 0x300
+
+#define LzmaProps_GetNumProbs(p) (NUM_BASE_PROBS + ((UInt32)LZMA_LIT_SIZE << ((p)->lc + (p)->lp)))
+
+
+#define CALC_POS_STATE(processedPos, pbMask) (((processedPos) & (pbMask)) << 4)
+#define COMBINED_PS_STATE (posState + state)
+#define GET_LEN_STATE (posState)
+
+#define LZMA_DIC_MIN (1 << 12)
+
+/*
+p->remainLen : shows status of LZMA decoder:
+    < kMatchSpecLenStart  : the number of bytes to be copied with (p->rep0) offset
+    = kMatchSpecLenStart  : the LZMA stream was finished with end mark
+    = kMatchSpecLenStart + 1  : need init range coder
+    = kMatchSpecLenStart + 2  : need init range coder and state
+    = kMatchSpecLen_Error_Fail                : Internal Code Failure
+    = kMatchSpecLen_Error_Data + [0 ... 273]  : LZMA Data Error
+*/
+
+/* ---------- LZMA_DECODE_REAL ---------- */
+/*
+LzmaDec_DecodeReal_3() can be implemented in external ASM file.
+3 - is the code compatibility version of that function for check at link time.
+*/
+
+#define LZMA_DECODE_REAL LzmaDec_DecodeReal_3
+
+/*
+LZMA_DECODE_REAL()
+In:
+  RangeCoder is normalized
+  if (p->dicPos == limit)
+  {
+    LzmaDec_TryDummy() was called before to exclude LITERAL and MATCH-REP cases.
+    So first symbol can be only MATCH-NON-REP. And if that MATCH-NON-REP symbol
+    is not END_OF_PAYALOAD_MARKER, then the function doesn't write any byte to dictionary,
+    the function returns SZ_OK, and the caller can use (p->remainLen) and (p->reps[0]) later.
+  }
+
+Processing:
+  The first LZMA symbol will be decoded in any case.
+  All main checks for limits are at the end of main loop,
+  It decodes additional LZMA-symbols while (p->buf < bufLimit && dicPos < limit),
+  RangeCoder is still without last normalization when (p->buf < bufLimit) is being checked.
+  But if (p->buf < bufLimit), the caller provided at least (LZMA_REQUIRED_INPUT_MAX + 1) bytes for
+  next iteration  before limit (bufLimit + LZMA_REQUIRED_INPUT_MAX),
+  that is enough for worst case LZMA symbol with one additional RangeCoder normalization for one bit.
+  So that function never reads bufLimit [LZMA_REQUIRED_INPUT_MAX] byte.
+
+Out:
+  RangeCoder is normalized
+  Result:
+    SZ_OK - OK
+      p->remainLen:
+        < kMatchSpecLenStart : the number of bytes to be copied with (p->reps[0]) offset
+        = kMatchSpecLenStart : the LZMA stream was finished with end mark
+
+    SZ_ERROR_DATA - error, when the MATCH-Symbol refers out of dictionary
+      p->remainLen : undefined
+      p->reps[*]    : undefined
+*/
+
+
+#ifdef Z7_LZMA_DEC_OPT
+
+int Z7_FASTCALL LZMA_DECODE_REAL(CLzmaDec *p, SizeT limit, const Byte *bufLimit);
+
+#else
+
+static
+int Z7_FASTCALL LZMA_DECODE_REAL(CLzmaDec *p, SizeT limit, const Byte *bufLimit)
+{
+  CLzmaProb *probs = GET_PROBS;
+  unsigned state = (unsigned)p->state;
+  UInt32 rep0 = p->reps[0], rep1 = p->reps[1], rep2 = p->reps[2], rep3 = p->reps[3];
+  unsigned pbMask = ((unsigned)1 << (p->prop.pb)) - 1;
+  unsigned lc = p->prop.lc;
+  unsigned lpMask = ((unsigned)0x100 << p->prop.lp) - ((unsigned)0x100 >> lc);
+
+  Byte *dic = p->dic;
+  SizeT dicBufSize = p->dicBufSize;
+  SizeT dicPos = p->dicPos;
+
+  UInt32 processedPos = p->processedPos;
+  UInt32 checkDicSize = p->checkDicSize;
+  unsigned len = 0;
+
+  const Byte *buf = p->buf;
+  UInt32 range = p->range;
+  UInt32 code = p->code;
+
+  do
+  {
+    CLzmaProb *prob;
+    UInt32 bound;
+    unsigned ttt;
+    unsigned posState = CALC_POS_STATE(processedPos, pbMask);
+
+    prob = probs + IsMatch + COMBINED_PS_STATE;
+    IF_BIT_0(prob)
+    {
+      unsigned symbol;
+      UPDATE_0(prob)
+      prob = probs + Literal;
+      if (processedPos != 0 || checkDicSize != 0)
+        prob += (UInt32)3 * ((((processedPos << 8) + dic[(dicPos == 0 ? dicBufSize : dicPos) - 1]) & lpMask) << lc);
+      processedPos++;
+
+      if (state < kNumLitStates)
+      {
+        state -= (state < 4) ? state : 3;
+        symbol = 1;
+        #ifdef Z7_LZMA_SIZE_OPT
+        do { NORMAL_LITER_DEC } while (symbol < 0x100);
+        #else
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        #endif
+      }
+      else
+      {
+        unsigned matchByte = dic[dicPos - rep0 + (dicPos < rep0 ? dicBufSize : 0)];
+        unsigned offs = 0x100;
+        state -= (state < 10) ? 3 : 6;
+        symbol = 1;
+        #ifdef Z7_LZMA_SIZE_OPT
+        do
+        {
+          unsigned bit;
+          CLzmaProb *probLit;
+          MATCHED_LITER_DEC
+        }
+        while (symbol < 0x100);
+        #else
+        {
+          unsigned bit;
+          CLzmaProb *probLit;
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+        }
+        #endif
+      }
+
+      dic[dicPos++] = (Byte)symbol;
+      continue;
+    }
+
+    {
+      UPDATE_1(prob)
+      prob = probs + IsRep + state;
+      IF_BIT_0(prob)
+      {
+        UPDATE_0(prob)
+        state += kNumStates;
+        prob = probs + LenCoder;
+      }
+      else
+      {
+        UPDATE_1(prob)
+        prob = probs + IsRepG0 + state;
+        IF_BIT_0(prob)
+        {
+          UPDATE_0(prob)
+          prob = probs + IsRep0Long + COMBINED_PS_STATE;
+          IF_BIT_0(prob)
+          {
+            UPDATE_0(prob)
+
+            // that case was checked before with kBadRepCode
+            // if (checkDicSize == 0 && processedPos == 0) { len = kMatchSpecLen_Error_Data + 1; break; }
+            // The caller doesn't allow (dicPos == limit) case here
+            // so we don't need the following check:
+            // if (dicPos == limit) { state = state < kNumLitStates ? 9 : 11; len = 1; break; }
+
+            dic[dicPos] = dic[dicPos - rep0 + (dicPos < rep0 ? dicBufSize : 0)];
+            dicPos++;
+            processedPos++;
+            state = state < kNumLitStates ? 9 : 11;
+            continue;
+          }
+          UPDATE_1(prob)
+        }
+        else
+        {
+          UInt32 distance;
+          UPDATE_1(prob)
+          prob = probs + IsRepG1 + state;
+          IF_BIT_0(prob)
+          {
+            UPDATE_0(prob)
+            distance = rep1;
+          }
+          else
+          {
+            UPDATE_1(prob)
+            prob = probs + IsRepG2 + state;
+            IF_BIT_0(prob)
+            {
+              UPDATE_0(prob)
+              distance = rep2;
+            }
+            else
+            {
+              UPDATE_1(prob)
+              distance = rep3;
+              rep3 = rep2;
+            }
+            rep2 = rep1;
+          }
+          rep1 = rep0;
+          rep0 = distance;
+        }
+        state = state < kNumLitStates ? 8 : 11;
+        prob = probs + RepLenCoder;
+      }
+
+      #ifdef Z7_LZMA_SIZE_OPT
+      {
+        unsigned lim, offset;
+        CLzmaProb *probLen = prob + LenChoice;
+        IF_BIT_0(probLen)
+        {
+          UPDATE_0(probLen)
+          probLen = prob + LenLow + GET_LEN_STATE;
+          offset = 0;
+          lim = (1 << kLenNumLowBits);
+        }
+        else
+        {
+          UPDATE_1(probLen)
+          probLen = prob + LenChoice2;
+          IF_BIT_0(probLen)
+          {
+            UPDATE_0(probLen)
+            probLen = prob + LenLow + GET_LEN_STATE + (1 << kLenNumLowBits);
+            offset = kLenNumLowSymbols;
+            lim = (1 << kLenNumLowBits);
+          }
+          else
+          {
+            UPDATE_1(probLen)
+            probLen = prob + LenHigh;
+            offset = kLenNumLowSymbols * 2;
+            lim = (1 << kLenNumHighBits);
+          }
+        }
+        TREE_DECODE(probLen, lim, len)
+        len += offset;
+      }
+      #else
+      {
+        CLzmaProb *probLen = prob + LenChoice;
+        IF_BIT_0(probLen)
+        {
+          UPDATE_0(probLen)
+          probLen = prob + LenLow + GET_LEN_STATE;
+          len = 1;
+          TREE_GET_BIT(probLen, len)
+          TREE_GET_BIT(probLen, len)
+          TREE_GET_BIT(probLen, len)
+          len -= 8;
+        }
+        else
+        {
+          UPDATE_1(probLen)
+          probLen = prob + LenChoice2;
+          IF_BIT_0(probLen)
+          {
+            UPDATE_0(probLen)
+            probLen = prob + LenLow + GET_LEN_STATE + (1 << kLenNumLowBits);
+            len = 1;
+            TREE_GET_BIT(probLen, len)
+            TREE_GET_BIT(probLen, len)
+            TREE_GET_BIT(probLen, len)
+          }
+          else
+          {
+            UPDATE_1(probLen)
+            probLen = prob + LenHigh;
+            TREE_DECODE(probLen, (1 << kLenNumHighBits), len)
+            len += kLenNumLowSymbols * 2;
+          }
+        }
+      }
+      #endif
+
+      if (state >= kNumStates)
+      {
+        UInt32 distance;
+        prob = probs + PosSlot +
+            ((len < kNumLenToPosStates ? len : kNumLenToPosStates - 1) << kNumPosSlotBits);
+        TREE_6_DECODE(prob, distance)
+        if (distance >= kStartPosModelIndex)
+        {
+          unsigned posSlot = (unsigned)distance;
+          unsigned numDirectBits = (unsigned)(((distance >> 1) - 1));
+          distance = (2 | (distance & 1));
+          if (posSlot < kEndPosModelIndex)
+          {
+            distance <<= numDirectBits;
+            prob = probs + SpecPos;
+            {
+              UInt32 m = 1;
+              distance++;
+              do
+              {
+                REV_BIT_VAR(prob, distance, m)
+              }
+              while (--numDirectBits);
+              distance -= m;
+            }
+          }
+          else
+          {
+            numDirectBits -= kNumAlignBits;
+            do
+            {
+              NORMALIZE
+              range >>= 1;
+
+              {
+                UInt32 t;
+                code -= range;
+                t = (0 - ((UInt32)code >> 31)); /* (UInt32)((Int32)code >> 31) */
+                distance = (distance << 1) + (t + 1);
+                code += range & t;
+              }
+              /*
+              distance <<= 1;
+              if (code >= range)
+              {
+                code -= range;
+                distance |= 1;
+              }
+              */
+            }
+            while (--numDirectBits);
+            prob = probs + Align;
+            distance <<= kNumAlignBits;
+            {
+              unsigned i = 1;
+              REV_BIT_CONST(prob, i, 1)
+              REV_BIT_CONST(prob, i, 2)
+              REV_BIT_CONST(prob, i, 4)
+              REV_BIT_LAST (prob, i, 8)
+              distance |= i;
+            }
+            if (distance == (UInt32)0xFFFFFFFF)
+            {
+              len = kMatchSpecLenStart;
+              state -= kNumStates;
+              break;
+            }
+          }
+        }
+
+        rep3 = rep2;
+        rep2 = rep1;
+        rep1 = rep0;
+        rep0 = distance + 1;
+        state = (state < kNumStates + kNumLitStates) ? kNumLitStates : kNumLitStates + 3;
+        if (distance >= (checkDicSize == 0 ? processedPos: checkDicSize))
+        {
+          len += kMatchSpecLen_Error_Data + kMatchMinLen;
+          // len = kMatchSpecLen_Error_Data;
+          // len += kMatchMinLen;
+          break;
+        }
+      }
+
+      len += kMatchMinLen;
+
+      {
+        SizeT rem;
+        unsigned curLen;
+        SizeT pos;
+
+        if ((rem = limit - dicPos) == 0)
+        {
+          /*
+          We stop decoding and return SZ_OK, and we can resume decoding later.
+          Any error conditions can be tested later in caller code.
+          For more strict mode we can stop decoding with error
+          // len += kMatchSpecLen_Error_Data;
+          */
+          break;
+        }
+
+        curLen = ((rem < len) ? (unsigned)rem : len);
+        pos = dicPos - rep0 + (dicPos < rep0 ? dicBufSize : 0);
+
+        processedPos += (UInt32)curLen;
+
+        len -= curLen;
+        if (curLen <= dicBufSize - pos)
+        {
+          Byte *dest = dic + dicPos;
+          ptrdiff_t src = (ptrdiff_t)pos - (ptrdiff_t)dicPos;
+          const Byte *lim = dest + curLen;
+          dicPos += (SizeT)curLen;
+          do
+            *(dest) = (Byte)*(dest + src);
+          while (++dest != lim);
+        }
+        else
+        {
+          do
+          {
+            dic[dicPos++] = dic[pos];
+            if (++pos == dicBufSize)
+              pos = 0;
+          }
+          while (--curLen != 0);
+        }
+      }
+    }
+  }
+  while (dicPos < limit && buf < bufLimit);
+
+  NORMALIZE
+
+  p->buf = buf;
+  p->range = range;
+  p->code = code;
+  p->remainLen = (UInt32)len; // & (kMatchSpecLen_Error_Data - 1); // we can write real length for error matches too.
+  p->dicPos = dicPos;
+  p->processedPos = processedPos;
+  p->reps[0] = rep0;
+  p->reps[1] = rep1;
+  p->reps[2] = rep2;
+  p->reps[3] = rep3;
+  p->state = (UInt32)state;
+  if (len >= kMatchSpecLen_Error_Data)
+    return SZ_ERROR_DATA;
+  return SZ_OK;
+}
+#endif
+
+
+
+static void Z7_FASTCALL LzmaDec_WriteRem(CLzmaDec *p, SizeT limit)
+{
+  unsigned len = (unsigned)p->remainLen;
+  if (len == 0 /* || len >= kMatchSpecLenStart */)
+    return;
+  {
+    SizeT dicPos = p->dicPos;
+    Byte *dic;
+    SizeT dicBufSize;
+    SizeT rep0;   /* we use SizeT to avoid the BUG of VC14 for AMD64 */
+    {
+      SizeT rem = limit - dicPos;
+      if (rem < len)
+      {
+        len = (unsigned)(rem);
+        if (len == 0)
+          return;
+      }
+    }
+
+    if (p->checkDicSize == 0 && p->prop.dicSize - p->processedPos <= len)
+      p->checkDicSize = p->prop.dicSize;
+
+    p->processedPos += (UInt32)len;
+    p->remainLen -= (UInt32)len;
+    dic = p->dic;
+    rep0 = p->reps[0];
+    dicBufSize = p->dicBufSize;
+    do
+    {
+      dic[dicPos] = dic[dicPos - rep0 + (dicPos < rep0 ? dicBufSize : 0)];
+      dicPos++;
+    }
+    while (--len);
+    p->dicPos = dicPos;
+  }
+}
+
+
+/*
+At staring of new stream we have one of the following symbols:
+  - Literal        - is allowed
+  - Non-Rep-Match  - is allowed only if it's end marker symbol
+  - Rep-Match      - is not allowed
+We use early check of (RangeCoder:Code) over kBadRepCode to simplify main decoding code
+*/
+
+#define kRange0 0xFFFFFFFF
+#define kBound0 ((kRange0 >> kNumBitModelTotalBits) << (kNumBitModelTotalBits - 1))
+#define kBadRepCode (kBound0 + (((kRange0 - kBound0) >> kNumBitModelTotalBits) << (kNumBitModelTotalBits - 1)))
+#if kBadRepCode != (0xC0000000 - 0x400)
+  #error Stop_Compiling_Bad_LZMA_Check
+#endif
+
+
+/*
+LzmaDec_DecodeReal2():
+  It calls LZMA_DECODE_REAL() and it adjusts limit according (p->checkDicSize).
+
+We correct (p->checkDicSize) after LZMA_DECODE_REAL() and in LzmaDec_WriteRem(),
+and we support the following state of (p->checkDicSize):
+  if (total_processed < p->prop.dicSize) then
+  {
+    (total_processed == p->processedPos)
+    (p->checkDicSize == 0)
+  }
+  else
+    (p->checkDicSize == p->prop.dicSize)
+*/
+
+static int Z7_FASTCALL LzmaDec_DecodeReal2(CLzmaDec *p, SizeT limit, const Byte *bufLimit)
+{
+  if (p->checkDicSize == 0)
+  {
+    UInt32 rem = p->prop.dicSize - p->processedPos;
+    if (limit - p->dicPos > rem)
+      limit = p->dicPos + rem;
+  }
+  {
+    int res = LZMA_DECODE_REAL(p, limit, bufLimit);
+    if (p->checkDicSize == 0 && p->processedPos >= p->prop.dicSize)
+      p->checkDicSize = p->prop.dicSize;
+    return res;
+  }
+}
+
+
+
+typedef enum
+{
+  DUMMY_INPUT_EOF, /* need more input data */
+  DUMMY_LIT,
+  DUMMY_MATCH,
+  DUMMY_REP
+} ELzmaDummy;
+
+
+#define IS_DUMMY_END_MARKER_POSSIBLE(dummyRes) ((dummyRes) == DUMMY_MATCH)
+
+static ELzmaDummy LzmaDec_TryDummy(const CLzmaDec *p, const Byte *buf, const Byte **bufOut)
+{
+  UInt32 range = p->range;
+  UInt32 code = p->code;
+  const Byte *bufLimit = *bufOut;
+  const CLzmaProb *probs = GET_PROBS;
+  unsigned state = (unsigned)p->state;
+  ELzmaDummy res;
+
+  for (;;)
+  {
+    const CLzmaProb *prob;
+    UInt32 bound;
+    unsigned ttt;
+    unsigned posState = CALC_POS_STATE(p->processedPos, ((unsigned)1 << p->prop.pb) - 1);
+
+    prob = probs + IsMatch + COMBINED_PS_STATE;
+    IF_BIT_0_CHECK(prob)
+    {
+      UPDATE_0_CHECK
+
+      prob = probs + Literal;
+      if (p->checkDicSize != 0 || p->processedPos != 0)
+        prob += ((UInt32)LZMA_LIT_SIZE *
+            ((((p->processedPos) & (((unsigned)1 << (p->prop.lp)) - 1)) << p->prop.lc) +
+            ((unsigned)p->dic[(p->dicPos == 0 ? p->dicBufSize : p->dicPos) - 1] >> (8 - p->prop.lc))));
+
+      if (state < kNumLitStates)
+      {
+        unsigned symbol = 1;
+        do { GET_BIT_CHECK(prob + symbol, symbol) } while (symbol < 0x100);
+      }
+      else
+      {
+        unsigned matchByte = p->dic[p->dicPos - p->reps[0] +
+            (p->dicPos < p->reps[0] ? p->dicBufSize : 0)];
+        unsigned offs = 0x100;
+        unsigned symbol = 1;
+        do
+        {
+          unsigned bit;
+          const CLzmaProb *probLit;
+          matchByte += matchByte;
+          bit = offs;
+          offs &= matchByte;
+          probLit = prob + (offs + bit + symbol);
+          GET_BIT2_CHECK(probLit, symbol, offs ^= bit; , ; )
+        }
+        while (symbol < 0x100);
+      }
+      res = DUMMY_LIT;
+    }
+    else
+    {
+      unsigned len;
+      UPDATE_1_CHECK
+
+      prob = probs + IsRep + state;
+      IF_BIT_0_CHECK(prob)
+      {
+        UPDATE_0_CHECK
+        state = 0;
+        prob = probs + LenCoder;
+        res = DUMMY_MATCH;
+      }
+      else
+      {
+        UPDATE_1_CHECK
+        res = DUMMY_REP;
+        prob = probs + IsRepG0 + state;
+        IF_BIT_0_CHECK(prob)
+        {
+          UPDATE_0_CHECK
+          prob = probs + IsRep0Long + COMBINED_PS_STATE;
+          IF_BIT_0_CHECK(prob)
+          {
+            UPDATE_0_CHECK
+            break;
+          }
+          else
+          {
+            UPDATE_1_CHECK
+          }
+        }
+        else
+        {
+          UPDATE_1_CHECK
+          prob = probs + IsRepG1 + state;
+          IF_BIT_0_CHECK(prob)
+          {
+            UPDATE_0_CHECK
+          }
+          else
+          {
+            UPDATE_1_CHECK
+            prob = probs + IsRepG2 + state;
+            IF_BIT_0_CHECK(prob)
+            {
+              UPDATE_0_CHECK
+            }
+            else
+            {
+              UPDATE_1_CHECK
+            }
+          }
+        }
+        state = kNumStates;
+        prob = probs + RepLenCoder;
+      }
+      {
+        unsigned limit, offset;
+        const CLzmaProb *probLen = prob + LenChoice;
+        IF_BIT_0_CHECK(probLen)
+        {
+          UPDATE_0_CHECK
+          probLen = prob + LenLow + GET_LEN_STATE;
+          offset = 0;
+          limit = 1 << kLenNumLowBits;
+        }
+        else
+        {
+          UPDATE_1_CHECK
+          probLen = prob + LenChoice2;
+          IF_BIT_0_CHECK(probLen)
+          {
+            UPDATE_0_CHECK
+            probLen = prob + LenLow + GET_LEN_STATE + (1 << kLenNumLowBits);
+            offset = kLenNumLowSymbols;
+            limit = 1 << kLenNumLowBits;
+          }
+          else
+          {
+            UPDATE_1_CHECK
+            probLen = prob + LenHigh;
+            offset = kLenNumLowSymbols * 2;
+            limit = 1 << kLenNumHighBits;
+          }
+        }
+        TREE_DECODE_CHECK(probLen, limit, len)
+        len += offset;
+      }
+
+      if (state < 4)
+      {
+        unsigned posSlot;
+        prob = probs + PosSlot +
+            ((len < kNumLenToPosStates - 1 ? len : kNumLenToPosStates - 1) <<
+            kNumPosSlotBits);
+        TREE_DECODE_CHECK(prob, 1 << kNumPosSlotBits, posSlot)
+        if (posSlot >= kStartPosModelIndex)
+        {
+          unsigned numDirectBits = ((posSlot >> 1) - 1);
+
+          if (posSlot < kEndPosModelIndex)
+          {
+            prob = probs + SpecPos + ((2 | (posSlot & 1)) << numDirectBits);
+          }
+          else
+          {
+            numDirectBits -= kNumAlignBits;
+            do
+            {
+              NORMALIZE_CHECK
+              range >>= 1;
+              code -= range & (((code - range) >> 31) - 1);
+              /* if (code >= range) code -= range; */
+            }
+            while (--numDirectBits);
+            prob = probs + Align;
+            numDirectBits = kNumAlignBits;
+          }
+          {
+            unsigned i = 1;
+            unsigned m = 1;
+            do
+            {
+              REV_BIT_CHECK(prob, i, m)
+            }
+            while (--numDirectBits);
+          }
+        }
+      }
+    }
+    break;
+  }
+  NORMALIZE_CHECK
+
+  *bufOut = buf;
+  return res;
+}
+
+static void LzmaDec_InitDicAndState(CLzmaDec *p, BoolInt initDic, BoolInt initState);
+static void LzmaDec_InitDicAndState(CLzmaDec *p, BoolInt initDic, BoolInt initState)
+{
+  p->remainLen = kMatchSpecLenStart + 1;
+  p->tempBufSize = 0;
+
+  if (initDic)
+  {
+    p->processedPos = 0;
+    p->checkDicSize = 0;
+    p->remainLen = kMatchSpecLenStart + 2;
+  }
+  if (initState)
+    p->remainLen = kMatchSpecLenStart + 2;
+}
+
+void LzmaDec_Init(CLzmaDec *p)
+{
+  p->dicPos = 0;
+  LzmaDec_InitDicAndState(p, True, True);
+}
+
+
+/*
+LZMA supports optional end_marker.
+So the decoder can lookahead for one additional LZMA-Symbol to check end_marker.
+That additional LZMA-Symbol can require up to LZMA_REQUIRED_INPUT_MAX bytes in input stream.
+When the decoder reaches dicLimit, it looks (finishMode) parameter:
+  if (finishMode == LZMA_FINISH_ANY), the decoder doesn't lookahead
+  if (finishMode != LZMA_FINISH_ANY), the decoder lookahead, if end_marker is possible for current position
+
+When the decoder lookahead, and the lookahead symbol is not end_marker, we have two ways:
+  1) Strict mode (default) : the decoder returns SZ_ERROR_DATA.
+  2) The relaxed mode (alternative mode) : we could return SZ_OK, and the caller
+     must check (status) value. The caller can show the error,
+     if the end of stream is expected, and the (status) is noit
+     LZMA_STATUS_FINISHED_WITH_MARK or LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK.
+*/
+
+
+#define RETURN_NOT_FINISHED_FOR_FINISH \
+  *status = LZMA_STATUS_NOT_FINISHED; \
+  return SZ_ERROR_DATA; // for strict mode
+  // return SZ_OK; // for relaxed mode
+
+
+SRes LzmaDec_DecodeToDic(CLzmaDec *p, SizeT dicLimit, const Byte *src, SizeT *srcLen,
+    ELzmaFinishMode finishMode, ELzmaStatus *status)
+{
+  SizeT inSize = *srcLen;
+  (*srcLen) = 0;
+  *status = LZMA_STATUS_NOT_SPECIFIED;
+
+  if (p->remainLen > kMatchSpecLenStart)
+  {
+    if (p->remainLen > kMatchSpecLenStart + 2)
+      return p->remainLen == kMatchSpecLen_Error_Fail ? SZ_ERROR_FAIL : SZ_ERROR_DATA;
+
+    for (; inSize > 0 && p->tempBufSize < RC_INIT_SIZE; (*srcLen)++, inSize--)
+      p->tempBuf[p->tempBufSize++] = *src++;
+    if (p->tempBufSize != 0 && p->tempBuf[0] != 0)
+      return SZ_ERROR_DATA;
+    if (p->tempBufSize < RC_INIT_SIZE)
+    {
+      *status = LZMA_STATUS_NEEDS_MORE_INPUT;
+      return SZ_OK;
+    }
+    p->code =
+        ((UInt32)p->tempBuf[1] << 24)
+      | ((UInt32)p->tempBuf[2] << 16)
+      | ((UInt32)p->tempBuf[3] << 8)
+      | ((UInt32)p->tempBuf[4]);
+
+    if (p->checkDicSize == 0
+        && p->processedPos == 0
+        && p->code >= kBadRepCode)
+      return SZ_ERROR_DATA;
+
+    p->range = 0xFFFFFFFF;
+    p->tempBufSize = 0;
+
+    if (p->remainLen > kMatchSpecLenStart + 1)
+    {
+      SizeT numProbs = LzmaProps_GetNumProbs(&p->prop);
+      SizeT i;
+      CLzmaProb *probs = p->probs;
+      for (i = 0; i < numProbs; i++)
+        probs[i] = kBitModelTotal >> 1;
+      p->reps[0] = p->reps[1] = p->reps[2] = p->reps[3] = 1;
+      p->state = 0;
+    }
+
+    p->remainLen = 0;
+  }
+
+  for (;;)
+  {
+    if (p->remainLen == kMatchSpecLenStart)
+    {
+      if (p->code != 0)
+        return SZ_ERROR_DATA;
+      *status = LZMA_STATUS_FINISHED_WITH_MARK;
+      return SZ_OK;
+    }
+
+    LzmaDec_WriteRem(p, dicLimit);
+
+    {
+      // (p->remainLen == 0 || p->dicPos == dicLimit)
+
+      int checkEndMarkNow = 0;
+
+      if (p->dicPos >= dicLimit)
+      {
+        if (p->remainLen == 0 && p->code == 0)
+        {
+          *status = LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK;
+          return SZ_OK;
+        }
+        if (finishMode == LZMA_FINISH_ANY)
+        {
+          *status = LZMA_STATUS_NOT_FINISHED;
+          return SZ_OK;
+        }
+        if (p->remainLen != 0)
+        {
+          RETURN_NOT_FINISHED_FOR_FINISH
+        }
+        checkEndMarkNow = 1;
+      }
+
+      // (p->remainLen == 0)
+
+      if (p->tempBufSize == 0)
+      {
+        const Byte *bufLimit;
+        int dummyProcessed = -1;
+
+        if (inSize < LZMA_REQUIRED_INPUT_MAX || checkEndMarkNow)
+        {
+          const Byte *bufOut = src + inSize;
+
+          ELzmaDummy dummyRes = LzmaDec_TryDummy(p, src, &bufOut);
+
+          if (dummyRes == DUMMY_INPUT_EOF)
+          {
+            size_t i;
+            if (inSize >= LZMA_REQUIRED_INPUT_MAX)
+              break;
+            (*srcLen) += inSize;
+            p->tempBufSize = (unsigned)inSize;
+            for (i = 0; i < inSize; i++)
+              p->tempBuf[i] = src[i];
+            *status = LZMA_STATUS_NEEDS_MORE_INPUT;
+            return SZ_OK;
+          }
+
+          dummyProcessed = (int)(bufOut - src);
+          if ((unsigned)dummyProcessed > LZMA_REQUIRED_INPUT_MAX)
+            break;
+
+          if (checkEndMarkNow && !IS_DUMMY_END_MARKER_POSSIBLE(dummyRes))
+          {
+            unsigned i;
+            (*srcLen) += (unsigned)dummyProcessed;
+            p->tempBufSize = (unsigned)dummyProcessed;
+            for (i = 0; i < (unsigned)dummyProcessed; i++)
+              p->tempBuf[i] = src[i];
+            // p->remainLen = kMatchSpecLen_Error_Data;
+            RETURN_NOT_FINISHED_FOR_FINISH
+          }
+
+          bufLimit = src;
+          // we will decode only one iteration
+        }
+        else
+          bufLimit = src + inSize - LZMA_REQUIRED_INPUT_MAX;
+
+        p->buf = src;
+
+        {
+          int res = LzmaDec_DecodeReal2(p, dicLimit, bufLimit);
+
+          SizeT processed = (SizeT)(p->buf - src);
+
+          if (dummyProcessed < 0)
+          {
+            if (processed > inSize)
+              break;
+          }
+          else if ((unsigned)dummyProcessed != processed)
+            break;
+
+          src += processed;
+          inSize -= processed;
+          (*srcLen) += processed;
+
+          if (res != SZ_OK)
+          {
+            p->remainLen = kMatchSpecLen_Error_Data;
+            return SZ_ERROR_DATA;
+          }
+        }
+        continue;
+      }
+
+      {
+        // we have some data in (p->tempBuf)
+        // in strict mode: tempBufSize is not enough for one Symbol decoding.
+        // in relaxed mode: tempBufSize not larger than required for one Symbol decoding.
+
+        unsigned rem = p->tempBufSize;
+        unsigned ahead = 0;
+        int dummyProcessed = -1;
+
+        while (rem < LZMA_REQUIRED_INPUT_MAX && ahead < inSize)
+          p->tempBuf[rem++] = src[ahead++];
+
+        // ahead - the size of new data copied from (src) to (p->tempBuf)
+        // rem   - the size of temp buffer including new data from (src)
+
+        if (rem < LZMA_REQUIRED_INPUT_MAX || checkEndMarkNow)
+        {
+          const Byte *bufOut = p->tempBuf + rem;
+
+          ELzmaDummy dummyRes = LzmaDec_TryDummy(p, p->tempBuf, &bufOut);
+
+          if (dummyRes == DUMMY_INPUT_EOF)
+          {
+            if (rem >= LZMA_REQUIRED_INPUT_MAX)
+              break;
+            p->tempBufSize = rem;
+            (*srcLen) += (SizeT)ahead;
+            *status = LZMA_STATUS_NEEDS_MORE_INPUT;
+            return SZ_OK;
+          }
+
+          dummyProcessed = (int)(bufOut - p->tempBuf);
+
+          if ((unsigned)dummyProcessed < p->tempBufSize)
+            break;
+
+          if (checkEndMarkNow && !IS_DUMMY_END_MARKER_POSSIBLE(dummyRes))
+          {
+            (*srcLen) += (unsigned)dummyProcessed - p->tempBufSize;
+            p->tempBufSize = (unsigned)dummyProcessed;
+            // p->remainLen = kMatchSpecLen_Error_Data;
+            RETURN_NOT_FINISHED_FOR_FINISH
+          }
+        }
+
+        p->buf = p->tempBuf;
+
+        {
+          // we decode one symbol from (p->tempBuf) here, so the (bufLimit) is equal to (p->buf)
+          int res = LzmaDec_DecodeReal2(p, dicLimit, p->buf);
+
+          SizeT processed = (SizeT)(p->buf - p->tempBuf);
+          rem = p->tempBufSize;
+
+          if (dummyProcessed < 0)
+          {
+            if (processed > LZMA_REQUIRED_INPUT_MAX)
+              break;
+            if (processed < rem)
+              break;
+          }
+          else if ((unsigned)dummyProcessed != processed)
+            break;
+
+          processed -= rem;
+
+          src += processed;
+          inSize -= processed;
+          (*srcLen) += processed;
+          p->tempBufSize = 0;
+
+          if (res != SZ_OK)
+          {
+            p->remainLen = kMatchSpecLen_Error_Data;
+            return SZ_ERROR_DATA;
+          }
+        }
+      }
+    }
+  }
+
+  /*  Some unexpected error: internal error of code, memory corruption or hardware failure */
+  p->remainLen = kMatchSpecLen_Error_Fail;
+  return SZ_ERROR_FAIL;
+}
+
+
+
+SRes LzmaDec_DecodeToBuf(CLzmaDec *p, Byte *dest, SizeT *destLen, const Byte *src, SizeT *srcLen, ELzmaFinishMode finishMode, ELzmaStatus *status)
+{
+  SizeT outSize = *destLen;
+  SizeT inSize = *srcLen;
+  *srcLen = *destLen = 0;
+  for (;;)
+  {
+    SizeT inSizeCur = inSize, outSizeCur, dicPos;
+    ELzmaFinishMode curFinishMode;
+    SRes res;
+    if (p->dicPos == p->dicBufSize)
+      p->dicPos = 0;
+    dicPos = p->dicPos;
+    if (outSize > p->dicBufSize - dicPos)
+    {
+      outSizeCur = p->dicBufSize;
+      curFinishMode = LZMA_FINISH_ANY;
+    }
+    else
+    {
+      outSizeCur = dicPos + outSize;
+      curFinishMode = finishMode;
+    }
+
+    res = LzmaDec_DecodeToDic(p, outSizeCur, src, &inSizeCur, curFinishMode, status);
+    src += inSizeCur;
+    inSize -= inSizeCur;
+    *srcLen += inSizeCur;
+    outSizeCur = p->dicPos - dicPos;
+    memcpy(dest, p->dic + dicPos, outSizeCur);
+    dest += outSizeCur;
+    outSize -= outSizeCur;
+    *destLen += outSizeCur;
+    if (res != 0)
+      return res;
+    if (outSizeCur == 0 || outSize == 0)
+      return SZ_OK;
+  }
+}
+
+void LzmaDec_FreeProbs(CLzmaDec *p, ISzAllocPtr alloc)
+{
+  ISzAlloc_Free(alloc, p->probs);
+  p->probs = NULL;
+}
+
+static void LzmaDec_FreeDict(CLzmaDec *p, ISzAllocPtr alloc)
+{
+  ISzAlloc_Free(alloc, p->dic);
+  p->dic = NULL;
+}
+
+void LzmaDec_Free(CLzmaDec *p, ISzAllocPtr alloc)
+{
+  LzmaDec_FreeProbs(p, alloc);
+  LzmaDec_FreeDict(p, alloc);
+}
+
+SRes LzmaProps_Decode(CLzmaProps *p, const Byte *data, unsigned size)
+{
+  UInt32 dicSize;
+  Byte d;
+
+  if (size < LZMA_PROPS_SIZE)
+    return SZ_ERROR_UNSUPPORTED;
+  else
+    dicSize = data[1] | ((UInt32)data[2] << 8) | ((UInt32)data[3] << 16) | ((UInt32)data[4] << 24);
+
+  if (dicSize < LZMA_DIC_MIN)
+    dicSize = LZMA_DIC_MIN;
+  p->dicSize = dicSize;
+
+  d = data[0];
+  if (d >= (9 * 5 * 5))
+    return SZ_ERROR_UNSUPPORTED;
+
+  p->lc = (Byte)(d % 9);
+  d /= 9;
+  p->pb = (Byte)(d / 5);
+  p->lp = (Byte)(d % 5);
+
+  return SZ_OK;
+}
+
+static SRes LzmaDec_AllocateProbs2(CLzmaDec *p, const CLzmaProps *propNew, ISzAllocPtr alloc)
+{
+  UInt32 numProbs = LzmaProps_GetNumProbs(propNew);
+  if (!p->probs || numProbs != p->numProbs)
+  {
+    LzmaDec_FreeProbs(p, alloc);
+    p->probs = (CLzmaProb *)ISzAlloc_Alloc(alloc, numProbs * sizeof(CLzmaProb));
+    if (!p->probs)
+      return SZ_ERROR_MEM;
+    p->probs_1664 = p->probs + 1664;
+    p->numProbs = numProbs;
+  }
+  return SZ_OK;
+}
+
+SRes LzmaDec_AllocateProbs(CLzmaDec *p, const Byte *props, unsigned propsSize, ISzAllocPtr alloc)
+{
+  CLzmaProps propNew;
+  RINOK(LzmaProps_Decode(&propNew, props, propsSize))
+  RINOK(LzmaDec_AllocateProbs2(p, &propNew, alloc))
+  p->prop = propNew;
+  return SZ_OK;
+}
+
+SRes LzmaDec_Allocate(CLzmaDec *p, const Byte *props, unsigned propsSize, ISzAllocPtr alloc)
+{
+  CLzmaProps propNew;
+  SizeT dicBufSize;
+  RINOK(LzmaProps_Decode(&propNew, props, propsSize))
+  RINOK(LzmaDec_AllocateProbs2(p, &propNew, alloc))
+
+  {
+    UInt32 dictSize = propNew.dicSize;
+    SizeT mask = ((UInt32)1 << 12) - 1;
+         if (dictSize >= ((UInt32)1 << 30)) mask = ((UInt32)1 << 22) - 1;
+    else if (dictSize >= ((UInt32)1 << 22)) mask = ((UInt32)1 << 20) - 1;
+    dicBufSize = ((SizeT)dictSize + mask) & ~mask;
+    if (dicBufSize < dictSize)
+      dicBufSize = dictSize;
+  }
+
+  if (!p->dic || dicBufSize != p->dicBufSize)
+  {
+    LzmaDec_FreeDict(p, alloc);
+    p->dic = (Byte *)ISzAlloc_Alloc(alloc, dicBufSize);
+    if (!p->dic)
+    {
+      LzmaDec_FreeProbs(p, alloc);
+      return SZ_ERROR_MEM;
+    }
+  }
+  p->dicBufSize = dicBufSize;
+  p->prop = propNew;
+  return SZ_OK;
+}
+
+SRes LzmaDecode(Byte *dest, SizeT *destLen, const Byte *src, SizeT *srcLen,
+    const Byte *propData, unsigned propSize, ELzmaFinishMode finishMode,
+    ELzmaStatus *status, ISzAllocPtr alloc)
+{
+  CLzmaDec p;
+  SRes res;
+  SizeT outSize = *destLen, inSize = *srcLen;
+  *destLen = *srcLen = 0;
+  *status = LZMA_STATUS_NOT_SPECIFIED;
+  if (inSize < RC_INIT_SIZE)
+    return SZ_ERROR_INPUT_EOF;
+  LzmaDec_CONSTRUCT(&p)
+  RINOK(LzmaDec_AllocateProbs(&p, propData, propSize, alloc))
+  p.dic = dest;
+  p.dicBufSize = outSize;
+  LzmaDec_Init(&p);
+  *srcLen = inSize;
+  res = LzmaDec_DecodeToDic(&p, outSize, src, srcLen, finishMode, status);
+  *destLen = p.dicPos;
+  if (res == SZ_OK && *status == LZMA_STATUS_NEEDS_MORE_INPUT)
+    res = SZ_ERROR_INPUT_EOF;
+  LzmaDec_FreeProbs(&p, alloc);
+  return res;
+}
+
+
+/* XRT macro hygiene: the SDK implementation is concatenated into the XRT
+ * single header, so every implementation-local macro must end here. */
+#undef RETURN_NOT_FINISHED_FOR_FINISH
+#undef IS_DUMMY_END_MARKER_POSSIBLE
+#undef kBadRepCode
+#undef kBound0
+#undef kRange0
+#undef LZMA_DECODE_REAL
+#undef LZMA_DIC_MIN
+#undef GET_LEN_STATE
+#undef COMBINED_PS_STATE
+#undef CALC_POS_STATE
+#undef LzmaProps_GetNumProbs
+#undef LZMA_LIT_SIZE
+#undef NUM_BASE_PROBS
+#undef Literal
+#undef PosSlot
+#undef IsRepG2
+#undef IsRepG1
+#undef IsRepG0
+#undef IsRep
+#undef Align
+#undef IsMatch
+#undef LenCoder
+#undef RepLenCoder
+#undef IsRep0Long
+#undef SpecPos
+#undef GET_PROBS
+#undef kStartOffset
+#undef kMatchSpecLen_Error_Fail
+#undef kMatchSpecLen_Error_Data
+#undef kMatchSpecLenStart
+#undef kMatchMinLen
+#undef kAlignTableSize
+#undef kNumAlignBits
+#undef kNumLenToPosStates
+#undef kNumPosSlotBits
+#undef kNumFullDistances
+#undef kEndPosModelIndex
+#undef kStartPosModelIndex
+#undef kNumLitStates
+#undef kNumStates2
+#undef kNumStates
+#undef LenChoice2
+#undef LenChoice
+#undef kNumLenProbs
+#undef LenHigh
+#undef LenLow
+#undef kLenNumHighSymbols
+#undef kLenNumHighBits
+#undef kLenNumLowSymbols
+#undef kLenNumLowBits
+#undef kNumPosStatesMax
+#undef kNumPosBitsMax
+#undef REV_BIT_CHECK
+#undef TREE_DECODE_CHECK
+#undef GET_BIT_CHECK
+#undef GET_BIT2_CHECK
+#undef UPDATE_1_CHECK
+#undef UPDATE_0_CHECK
+#undef IF_BIT_0_CHECK
+#undef NORMALIZE_CHECK
+#undef MATCHED_LITER_DEC
+#undef NORMAL_LITER_DEC
+#undef TREE_6_DECODE
+#undef TREE_DECODE
+#undef REV_BIT_LAST
+#undef REV_BIT_CONST
+#undef REV_BIT_VAR
+#undef REV_BIT
+#undef TREE_GET_BIT
+#undef GET_BIT2
+#undef UPDATE_1
+#undef UPDATE_0
+#undef IF_BIT_0
+#undef NORMALIZE
+#undef kNumMoveBits
+#undef RC_INIT_SIZE
+#undef kBitModelTotal
+#undef kNumBitModelTotalBits
+#undef kTopValue
+#undef LzmaDecode
+#undef LzmaDec_DecodeToBuf
+#undef LzmaDec_DecodeToDic
+#undef LzmaDec_Free
+#undef LzmaDec_Allocate
+#undef LzmaDec_FreeProbs
+#undef LzmaDec_AllocateProbs
+#undef LzmaDec_Init
+#undef LzmaProps_Decode
+#endif
+
+
+/* ========================================================================== */
+/* source: src/fs/vfs_pack.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_PACK)
+
+#include <stdlib.h>
+
+
+
+#if defined(XRT_FEATURE_VFS_PACK)
+
+SRes __xrtLzmaDecode(Byte* pDestination, SizeT* pDestinationSize,
+	const Byte* pSource, SizeT* pSourceSize,
+	const Byte* pProperties, unsigned iPropertiesSize,
+	ELzmaFinishMode FinishMode, ELzmaStatus* pStatus,
+	ISzAllocPtr pAllocator);
+
+#define XRT_VFS_PACK_HEADER_SIZE 80u
+#define XRT_VFS_PACK_TRAILER_SIZE 32u
+#define XRT_VFS_PACK_RECORD_SIZE 40u
+#define XRT_VFS_PACK_LEGACY_HEADER_SIZE 64u
+#define XRT_VFS_PACK_LEGACY_TRAILER_SIZE 24u
+#define XRT_VFS_PACK_LEGACY_RECORD_SIZE 26u
+
+typedef enum xrt_vfs_pack_state {
+	XRT_VFS_PACK_UNLOADED = 0,
+	XRT_VFS_PACK_LOADING,
+	XRT_VFS_PACK_READY,
+	XRT_VFS_PACK_FAILED
+} xrt_vfs_pack_state;
+
+typedef struct xrt_vfs_pack_blob {
+	volatile int32 RefCount;
+	bytes Data;
+	size_t Size;
+} xrt_vfs_pack_blob;
+
+typedef struct xrt_vfs_pack_entry {
+	str Path;
+	size_t PathSize;
+	uint64 DataOffset;
+	uint64 StoredSize;
+	uint64 OriginalSize;
+	uint32 OriginalCrc32;
+	uint8 Codec;
+	xmutex Lock;
+	xcond Ready;
+	bool SyncReady;
+	xrt_vfs_pack_state State;
+	size_t Waiters;
+	xrt_vfs_pack_blob* Blob;
+	xerror* Failure;
+	bool Cached;
+	uint64 LastUse;
+} xrt_vfs_pack_entry;
+
+typedef struct xrt_vfs_pack_node {
+	str Path;
+	size_t PathSize;
+	size_t ParentSize;
+	size_t NameOffset;
+	bool Directory;
+	size_t Entry;
+} xrt_vfs_pack_node;
+
+typedef struct xrt_vfs_pack_file {
+	xrt_vfs_pack_blob* Blob;
+	uint64 Cursor;
+} xrt_vfs_pack_file;
+
+typedef struct xrt_vfs_pack_dir {
+	xvfspack Pack;
+	size_t* Items;
+	size_t Count;
+	size_t Position;
+} xrt_vfs_pack_dir;
+
+struct xvfs_pack_impl {
+	volatile int32 RefCount;
+	xfile Source;
+	uint64 Offset;
+	uint64 Length;
+	xvfspackformat Format;
+	xvfspackoptions Options;
+	xrt_vfs_pack_entry* Entries;
+	size_t EntryCount;
+	xrt_vfs_pack_node* Nodes;
+	xrt_vfs_pack_node** Folded;
+	size_t NodeCount;
+	bool FoldCollision;
+	xmutex CacheLock;
+	bool CacheLockReady;
+	xvfspackstats Stats;
+	uint64 CacheClock;
+};
+
+
+
+static const uint8 __xrtVfsPackHeaderMagic[8] = {
+	'X', 'R', 'T', 'P', 'A', 'C', 'K', 0
+};
+static const uint8 __xrtVfsPackTrailerMagic[8] = {
+	'X', 'R', 'T', 'P', 'E', 'N', 'D', 0
+};
+static const uint8 __xrtVfsPackLegacyHeaderMagic[8] = {
+	'X', 'S', 'V', 'F', 'H', 'D', 'R', 0
+};
+static const uint8 __xrtVfsPackLegacyTrailerMagic[8] = {
+	'X', 'S', 'V', 'P', 'A', 'C', 'K', 0
+};
+
+
+
+static uint16 __xrtVfsPackU16(const uint8* pData)
+{
+	return (uint16)((uint16)pData[0] | ((uint16)pData[1] << 8u));
+}
+
+static uint32 __xrtVfsPackU32(const uint8* pData)
+{
+	return (uint32)pData[0] |
+		((uint32)pData[1] << 8u) |
+		((uint32)pData[2] << 16u) |
+		((uint32)pData[3] << 24u);
+}
+
+static uint64 __xrtVfsPackU64(const uint8* pData)
+{
+	return (uint64)__xrtVfsPackU32(pData) |
+		((uint64)__xrtVfsPackU32(pData + 4u) << 32u);
+}
+
+static bool __xrtVfsPackAdd(uint64 iLeft, uint64 iRight, uint64* pOutput)
+{
+	if ( iLeft > UINT64_MAX - iRight ) return false;
+	*pOutput = iLeft + iRight;
+	return true;
+}
+
+static uint32 __xrtVfsPackCrc(const void* pData, size_t iSize)
+{
+	return __xrtCompressCrc32Update(UINT32_MAX, pData, iSize) ^ UINT32_MAX;
+}
+
+static uint32 __xrtVfsPackCrcPair(const void* pFirst, size_t iFirst,
+	const void* pSecond, size_t iSecond)
+{
+	uint32 iCrc = __xrtCompressCrc32Update(UINT32_MAX, pFirst, iFirst);
+	iCrc = __xrtCompressCrc32Update(iCrc, pSecond, iSecond);
+	return iCrc ^ UINT32_MAX;
+}
+
+static bool __xrtVfsPackCorrupt(cstr sOperation, cstr sMessage)
+{
+	__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_CORRUPT,
+		sOperation, sMessage);
+	return false;
+}
+
+static bool __xrtVfsPackChecksum(cstr sOperation, cstr sMessage)
+{
+	__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_CHECKSUM,
+		sOperation, sMessage);
+	return false;
+}
+
+static bool __xrtVfsPackLimit(cstr sOperation, cstr sMessage)
+{
+	__xrtVfsError(XERR_RANGE, XVFS_ERROR_LIMIT,
+		sOperation, sMessage);
+	return false;
+}
+
+
+
+static void __xrtVfsPackBlobRef(xrt_vfs_pack_blob* pBlob)
+{
+	if ( xrtRefRetain(&pBlob->RefCount) < 0 ) abort();
+}
+
+static void __xrtVfsPackBlobRelease(xrt_vfs_pack_blob* pBlob)
+{
+	if ( (pBlob == NULL) || (xrtRefRelease(&pBlob->RefCount) != 0) ) return;
+	xrtFree(pBlob->Data);
+	xrtFree(pBlob);
+}
+
+
+
+static bool __xrtVfsPackReadSource(xfile Source,
+	uint64 iBase, uint64 iLength, uint64 iRelative,
+	void* pData, size_t iSize, cstr sOperation)
+{
+	uint64 iAbsolute;
+	size_t iRead = 0u;
+
+	if ( (iRelative > iLength) ||
+		((uint64)iSize > iLength - iRelative) ||
+		!__xrtVfsPackAdd(iBase, iRelative, &iAbsolute) ) {
+		return __xrtVfsPackCorrupt(sOperation,
+			"the archive range is truncated or overflows");
+	}
+	if ( iSize == 0u ) return true;
+	if ( !xrtReadAtFull(Source, iAbsolute, pData, iSize, &iRead) ) return false;
+	if ( iRead != iSize ) {
+		return __xrtVfsPackCorrupt(sOperation,
+			"the archive source ended before the declared range");
+	}
+	return true;
+}
+
+
+
+static bool __xrtVfsPackPath(xstrview Path)
+{
+	if ( xrtUtf8Valid(Path, NULL) && __xrtVfsRelativePath(Path, false) )
+		return true;
+	xrtClearError();
+	return __xrtVfsPackCorrupt("pack-index",
+		"the archive contains a non-canonical UTF-8 path");
+}
+
+static bool __xrtVfsPackPathAfter(const xrt_vfs_pack_entry* pPrevious,
+	xstrview Path)
+{
+	if ( (pPrevious == NULL) ||
+		(xrtStrCompare((xstrview){ pPrevious->Path,
+			pPrevious->PathSize }, Path) < 0) ) return true;
+	return __xrtVfsPackCorrupt("pack-index",
+		"archive paths are duplicated or not strictly sorted");
+}
+
+
+
+static bool __xrtVfsPackEntrySet(xrt_vfs_pack_entry* pEntry,
+	xstrview Path, uint8 iCodec, uint64 iDataOffset,
+	uint64 iStoredSize, uint64 iOriginalSize, uint32 iCrc)
+{
+	pEntry->Path = xrtStrDupView(Path);
+	if ( pEntry->Path == NULL ) return false;
+	pEntry->PathSize = Path.Size;
+	pEntry->Codec = iCodec;
+	pEntry->DataOffset = iDataOffset;
+	pEntry->StoredSize = iStoredSize;
+	pEntry->OriginalSize = iOriginalSize;
+	pEntry->OriginalCrc32 = iCrc;
+	return true;
+}
+
+static bool __xrtVfsPackEntryLimits(const struct xvfs_pack_impl* pPack,
+	uint8 iCodec, uint64 iStoredSize, uint64 iOriginalSize,
+	uint64* pDecoded)
+{
+	uint64 iTotal;
+
+	if ( (iCodec != XVFS_PACK_STORE) && (iCodec != XVFS_PACK_LZMA1) )
+		return __xrtVfsPackCorrupt("pack-index",
+			"the archive uses an unsupported codec");
+	if ( iOriginalSize > pPack->Options.MaxEntryBytes )
+		return __xrtVfsPackLimit("pack-index",
+			"an archive entry exceeds the decoded size limit");
+	if ( (iStoredSize > (uint64)SIZE_MAX) ||
+		(iOriginalSize > (uint64)SIZE_MAX) )
+		return __xrtVfsPackLimit("pack-index",
+			"an archive entry is not addressable on this platform");
+	if ( (iCodec == XVFS_PACK_STORE) && (iStoredSize != iOriginalSize) )
+		return __xrtVfsPackCorrupt("pack-index",
+			"a STORE entry has different stored and original sizes");
+	if ( (iCodec == XVFS_PACK_LZMA1) &&
+		((iStoredSize < LZMA_PROPS_SIZE) || (iOriginalSize == 0u)) )
+		return __xrtVfsPackCorrupt("pack-index",
+			"an LZMA1 entry has invalid lengths");
+	if ( !__xrtVfsPackAdd(*pDecoded, iOriginalSize, &iTotal) ||
+		(iTotal > pPack->Options.MaxDecodedBytes) )
+		return __xrtVfsPackLimit("pack-index",
+			"the archive exceeds the total decoded size limit");
+	*pDecoded = iTotal;
+	return true;
+}
+
+
+
+static bool __xrtVfsPackEntriesAllocate(struct xvfs_pack_impl* pPack,
+	uint32 iCount)
+{
+	if ( iCount > pPack->Options.MaxEntries )
+		return __xrtVfsPackLimit("pack-header",
+			"the archive entry count exceeds the configured limit");
+	if ( (iCount != 0u) &&
+		(sizeof(pPack->Entries[0]) > SIZE_MAX / (size_t)iCount) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	if ( iCount != 0u ) {
+		pPack->Entries = (xrt_vfs_pack_entry*)xrtCalloc(
+			(size_t)iCount, sizeof(pPack->Entries[0]));
+		if ( pPack->Entries == NULL ) return false;
+	}
+	pPack->EntryCount = (size_t)iCount;
+	return true;
+}
+
+
+
+static bool __xrtVfsPackParseXrt(struct xvfs_pack_impl* pPack, xfile Source,
+	const uint8 arrHeader[XRT_VFS_PACK_HEADER_SIZE])
+{
+	uint8 arrTrailer[XRT_VFS_PACK_TRAILER_SIZE];
+	uint32 iEntryCount;
+	uint64 iDataOffset;
+	uint64 iDataSize;
+	uint64 iIndexOffset;
+	uint64 iIndexSize;
+	uint64 iArchiveSize;
+	uint64 iDecodedHeader;
+	uint64 iIndexEnd;
+	uint64 iExpectedEnd;
+	bytes pIndex = NULL;
+	uint64 iPosition = 0u;
+	uint64 iDataCursor;
+	uint64 iDecoded = 0u;
+	bool bResult = false;
+
+	if ( (__xrtVfsPackU16(arrHeader + 8u) != 1u) ||
+		(__xrtVfsPackU16(arrHeader + 10u) != 0u) ||
+		(__xrtVfsPackU32(arrHeader + 12u) != XRT_VFS_PACK_HEADER_SIZE) ||
+		(__xrtVfsPackU32(arrHeader + 16u) != 0u) ||
+		(__xrtVfsPackU32(arrHeader + 76u) != 0u) )
+		return __xrtVfsPackCorrupt("pack-header",
+			"the XRT pack header version, size, flags, or reserved fields are invalid");
+	iEntryCount = __xrtVfsPackU32(arrHeader + 20u);
+	iDataOffset = __xrtVfsPackU64(arrHeader + 24u);
+	iDataSize = __xrtVfsPackU64(arrHeader + 32u);
+	iIndexOffset = __xrtVfsPackU64(arrHeader + 40u);
+	iIndexSize = __xrtVfsPackU64(arrHeader + 48u);
+	iArchiveSize = __xrtVfsPackU64(arrHeader + 56u);
+	iDecodedHeader = __xrtVfsPackU64(arrHeader + 64u);
+	if ( (iDataOffset != XRT_VFS_PACK_HEADER_SIZE) ||
+		!__xrtVfsPackAdd(iDataOffset, iDataSize, &iExpectedEnd) ||
+		(iExpectedEnd != iIndexOffset) ||
+		!__xrtVfsPackAdd(iIndexOffset, iIndexSize, &iIndexEnd) ||
+		!__xrtVfsPackAdd(iIndexEnd, XRT_VFS_PACK_TRAILER_SIZE,
+			&iExpectedEnd) ||
+		(iExpectedEnd != iArchiveSize) || (iArchiveSize != pPack->Length) )
+		return __xrtVfsPackCorrupt("pack-header",
+			"the XRT pack physical layout is not exact");
+	if ( (iIndexSize > pPack->Options.MaxIndexBytes) ||
+		(iIndexSize > (uint64)SIZE_MAX) )
+		return __xrtVfsPackLimit("pack-index",
+			"the archive index exceeds the configured limit");
+	if ( iDecodedHeader > pPack->Options.MaxDecodedBytes )
+		return __xrtVfsPackLimit("pack-header",
+			"the archive decoded size exceeds the configured limit");
+	if ( !__xrtVfsPackReadSource(Source, pPack->Offset, pPack->Length,
+		iIndexEnd, arrTrailer, sizeof(arrTrailer), "pack-trailer") ) return false;
+	if ( (memcmp(arrTrailer, __xrtVfsPackTrailerMagic, 8u) != 0) ||
+		(__xrtVfsPackU64(arrTrailer + 8u) != iArchiveSize) ||
+		(__xrtVfsPackU64(arrTrailer + 16u) != 0u) ||
+		(__xrtVfsPackU32(arrTrailer + 28u) != 0u) )
+		return __xrtVfsPackCorrupt("pack-trailer",
+			"the XRT pack trailer is invalid");
+	if ( __xrtVfsPackCrcPair(arrTrailer, 24u, arrHeader,
+		XRT_VFS_PACK_HEADER_SIZE) != __xrtVfsPackU32(arrTrailer + 24u) )
+		return __xrtVfsPackChecksum("pack-trailer",
+			"the XRT pack metadata checksum is invalid");
+	if ( !__xrtVfsPackEntriesAllocate(pPack, iEntryCount) ) return false;
+	if ( iIndexSize != 0u ) {
+		pIndex = (bytes)xrtMalloc((size_t)iIndexSize);
+		if ( pIndex == NULL ) return false;
+		if ( !__xrtVfsPackReadSource(Source, pPack->Offset, pPack->Length,
+			iIndexOffset, pIndex, (size_t)iIndexSize, "pack-index") ) goto done;
+	}
+	if ( __xrtVfsPackCrc(pIndex, (size_t)iIndexSize) !=
+		__xrtVfsPackU32(arrHeader + 72u) ) {
+		(void)__xrtVfsPackChecksum("pack-index",
+			"the archive index checksum is invalid");
+		goto done;
+	}
+	iDataCursor = iDataOffset;
+	for ( size_t i = 0u; i < pPack->EntryCount; i++ ) {
+		xrt_vfs_pack_entry* pEntry = &pPack->Entries[i];
+		uint16 iPathSize;
+		uint8 iCodec;
+		uint64 iData;
+		uint64 iStored;
+		uint64 iOriginal;
+		xstrview Path;
+
+		if ( (iPosition > iIndexSize) ||
+			(iIndexSize - iPosition < XRT_VFS_PACK_RECORD_SIZE) ) {
+			(void)__xrtVfsPackCorrupt("pack-index",
+				"the archive index record is truncated");
+			goto done;
+		}
+		iPathSize = __xrtVfsPackU16(pIndex + (size_t)iPosition);
+		iCodec = pIndex[(size_t)iPosition + 2u];
+		if ( (iPathSize == 0u) ||
+			(pIndex[(size_t)iPosition + 3u] != 0u) ||
+			(__xrtVfsPackU32(pIndex + (size_t)iPosition + 4u) != 0u) ||
+			(__xrtVfsPackU32(pIndex + (size_t)iPosition + 36u) != 0u) ||
+			((uint64)iPathSize > iIndexSize - iPosition -
+				XRT_VFS_PACK_RECORD_SIZE) ) {
+			(void)__xrtVfsPackCorrupt("pack-index",
+				"the archive index record fields are invalid");
+			goto done;
+		}
+		iData = __xrtVfsPackU64(pIndex + (size_t)iPosition + 8u);
+		iStored = __xrtVfsPackU64(pIndex + (size_t)iPosition + 16u);
+		iOriginal = __xrtVfsPackU64(pIndex + (size_t)iPosition + 24u);
+		Path.Data = (cstr)(pIndex + (size_t)iPosition +
+			XRT_VFS_PACK_RECORD_SIZE);
+		Path.Size = iPathSize;
+		if ( (iData != iDataCursor) ||
+			!__xrtVfsPackAdd(iData, iStored, &iDataCursor) ||
+			(iDataCursor > iIndexOffset) || !__xrtVfsPackPath(Path) ||
+			!__xrtVfsPackPathAfter(i == 0u ? NULL :
+				&pPack->Entries[i - 1u], Path) ||
+			!__xrtVfsPackEntryLimits(pPack, iCodec, iStored,
+				iOriginal, &iDecoded) ||
+			!__xrtVfsPackEntrySet(pEntry, Path, iCodec, iData,
+				iStored, iOriginal,
+				__xrtVfsPackU32(pIndex + (size_t)iPosition + 32u)) ) goto done;
+		iPosition += XRT_VFS_PACK_RECORD_SIZE + (uint64)iPathSize;
+	}
+	if ( (iPosition != iIndexSize) || (iDataCursor != iIndexOffset) ||
+		(iDecoded != iDecodedHeader) ) {
+		(void)__xrtVfsPackCorrupt("pack-index",
+			"the archive index does not exactly describe the data region");
+		goto done;
+	}
+	bResult = true;
+
+done:
+	xrtFree(pIndex);
+	return bResult;
+}
+
+
+
+static bool __xrtVfsPackParseLegacy(struct xvfs_pack_impl* pPack, xfile Source,
+	const uint8 arrHeader[XRT_VFS_PACK_LEGACY_HEADER_SIZE])
+{
+	uint8 arrTrailer[XRT_VFS_PACK_LEGACY_TRAILER_SIZE];
+	uint32 iEntryCount;
+	uint64 iDataOffset;
+	uint64 iIndexOffset;
+	uint64 iArchiveSize;
+	uint64 iIndexSize;
+	uint64 iIndexEnd;
+	bytes pIndex = NULL;
+	uint64 iPosition = 0u;
+	uint64 iDataCursor;
+	uint64 iDecoded = 0u;
+	bool bResult = false;
+
+	if ( (__xrtVfsPackU16(arrHeader + 8u) != 1u) ||
+		(__xrtVfsPackU16(arrHeader + 10u) !=
+			XRT_VFS_PACK_LEGACY_HEADER_SIZE) ||
+		(__xrtVfsPackU32(arrHeader + 44u) != 0u) ||
+		(__xrtVfsPackU64(arrHeader + 48u) != 0u) ||
+		(__xrtVfsPackU64(arrHeader + 56u) != 0u) )
+		return __xrtVfsPackCorrupt("pack-header",
+			"the XSVPACK header version, size, flags, or reserved fields are invalid");
+	iEntryCount = __xrtVfsPackU32(arrHeader + 12u);
+	iDataOffset = __xrtVfsPackU64(arrHeader + 16u);
+	iIndexOffset = __xrtVfsPackU64(arrHeader + 24u);
+	iArchiveSize = __xrtVfsPackU64(arrHeader + 32u);
+	if ( (iEntryCount == 0u) ||
+		(iDataOffset != XRT_VFS_PACK_LEGACY_HEADER_SIZE) ||
+		(iIndexOffset < iDataOffset) ||
+		(iArchiveSize != pPack->Length) ||
+		(iArchiveSize < XRT_VFS_PACK_LEGACY_HEADER_SIZE +
+			XRT_VFS_PACK_LEGACY_TRAILER_SIZE) )
+		return __xrtVfsPackCorrupt("pack-header",
+			"the XSVPACK physical layout is invalid");
+	iIndexEnd = iArchiveSize - XRT_VFS_PACK_LEGACY_TRAILER_SIZE;
+	if ( iIndexOffset > iIndexEnd )
+		return __xrtVfsPackCorrupt("pack-header",
+			"the XSVPACK index lies outside the archive");
+	iIndexSize = iIndexEnd - iIndexOffset;
+	if ( iIndexSize == 0u )
+		return __xrtVfsPackCorrupt("pack-index",
+			"the XSVPACK index is empty");
+	if ( (iIndexSize > pPack->Options.MaxIndexBytes) ||
+		(iIndexSize > (uint64)SIZE_MAX) )
+		return __xrtVfsPackLimit("pack-index",
+			"the archive index exceeds the configured limit");
+	if ( !__xrtVfsPackReadSource(Source, pPack->Offset, pPack->Length,
+		iIndexEnd, arrTrailer, sizeof(arrTrailer), "pack-trailer") ) return false;
+	if ( (memcmp(arrTrailer, __xrtVfsPackLegacyTrailerMagic, 8u) != 0) ||
+		(__xrtVfsPackU64(arrTrailer + 8u) != pPack->Offset) ||
+		(__xrtVfsPackU32(arrTrailer + 20u) != 0u) )
+		return __xrtVfsPackCorrupt("pack-trailer",
+			"the XSVPACK trailer is invalid for the supplied range");
+	if ( __xrtVfsPackCrcPair(arrTrailer, 16u, arrHeader,
+		XRT_VFS_PACK_LEGACY_HEADER_SIZE) !=
+		__xrtVfsPackU32(arrTrailer + 16u) )
+		return __xrtVfsPackChecksum("pack-trailer",
+			"the XSVPACK metadata checksum is invalid");
+	if ( !__xrtVfsPackEntriesAllocate(pPack, iEntryCount) ) return false;
+	pIndex = (bytes)xrtMalloc((size_t)iIndexSize);
+	if ( pIndex == NULL ) return false;
+	if ( !__xrtVfsPackReadSource(Source, pPack->Offset, pPack->Length,
+		iIndexOffset, pIndex, (size_t)iIndexSize, "pack-index") ) goto done;
+	if ( __xrtVfsPackCrc(pIndex, (size_t)iIndexSize) !=
+		__xrtVfsPackU32(arrHeader + 40u) ) {
+		(void)__xrtVfsPackChecksum("pack-index",
+			"the XSVPACK index checksum is invalid");
+		goto done;
+	}
+	iDataCursor = iDataOffset;
+	for ( size_t i = 0u; i < pPack->EntryCount; i++ ) {
+		xrt_vfs_pack_entry* pEntry = &pPack->Entries[i];
+		uint16 iPathSize;
+		uint8 iCodec;
+		uint64 iData;
+		uint64 iStored;
+		uint64 iOriginal;
+		xstrview Path;
+		uint64 iFixed;
+
+		if ( (iPosition > iIndexSize) || (iIndexSize - iPosition < 2u) ) {
+			(void)__xrtVfsPackCorrupt("pack-index",
+				"the XSVPACK index record is truncated");
+			goto done;
+		}
+		iPathSize = __xrtVfsPackU16(pIndex + (size_t)iPosition);
+		iFixed = 2u + (uint64)iPathSize + XRT_VFS_PACK_LEGACY_RECORD_SIZE;
+		if ( (iPathSize == 0u) || (iFixed > iIndexSize - iPosition) ) {
+			(void)__xrtVfsPackCorrupt("pack-index",
+				"the XSVPACK path or record size is invalid");
+			goto done;
+		}
+		Path.Data = (cstr)(pIndex + (size_t)iPosition + 2u);
+		Path.Size = iPathSize;
+		iPosition += 2u + (uint64)iPathSize;
+		iCodec = pIndex[(size_t)iPosition];
+		if ( pIndex[(size_t)iPosition + 1u] != 0u ) {
+			(void)__xrtVfsPackCorrupt("pack-index",
+				"the XSVPACK entry flags are not zero");
+			goto done;
+		}
+		iData = __xrtVfsPackU64(pIndex + (size_t)iPosition + 2u);
+		iStored = __xrtVfsPackU32(pIndex + (size_t)iPosition + 10u);
+		iOriginal = __xrtVfsPackU64(pIndex + (size_t)iPosition + 14u);
+		if ( (iData != iDataCursor) ||
+			!__xrtVfsPackAdd(iData, iStored, &iDataCursor) ||
+			(iDataCursor > iIndexOffset) || !__xrtVfsPackPath(Path) ||
+			!__xrtVfsPackPathAfter(i == 0u ? NULL :
+				&pPack->Entries[i - 1u], Path) ||
+			!__xrtVfsPackEntryLimits(pPack, iCodec, iStored,
+				iOriginal, &iDecoded) ||
+			!__xrtVfsPackEntrySet(pEntry, Path, iCodec, iData,
+				iStored, iOriginal,
+				__xrtVfsPackU32(pIndex + (size_t)iPosition + 22u)) ) goto done;
+		iPosition += XRT_VFS_PACK_LEGACY_RECORD_SIZE;
+	}
+	if ( (iPosition != iIndexSize) || (iDataCursor != iIndexOffset) ) {
+		(void)__xrtVfsPackCorrupt("pack-index",
+			"the XSVPACK index does not exactly describe the data region");
+		goto done;
+	}
+	bResult = true;
+
+done:
+	xrtFree(pIndex);
+	return bResult;
+}
+
+
+
+static bool __xrtVfsPackEntriesSync(struct xvfs_pack_impl* pPack)
+{
+	for ( size_t i = 0u; i < pPack->EntryCount; i++ ) {
+		xrt_vfs_pack_entry* pEntry = &pPack->Entries[i];
+
+		if ( !xrtMutexInit(&pEntry->Lock) ) return false;
+		if ( !xrtCondInit(&pEntry->Ready) ) {
+			(void)xrtMutexUnit(&pEntry->Lock);
+			return false;
+		}
+		pEntry->SyncReady = true;
+	}
+	return true;
+}
+
+
+
+static bool __xrtVfsPackNodeAdd(xrt_vfs_pack_node* pNodes,
+	size_t* pCount, xstrview Path, bool bDirectory, size_t iEntry)
+{
+	xrt_vfs_pack_node* pNode = &pNodes[*pCount];
+	size_t iSlash = SIZE_MAX;
+
+	pNode->Path = xrtStrDupView(Path);
+	if ( pNode->Path == NULL ) return false;
+	pNode->PathSize = Path.Size;
+	for ( size_t i = 0u; i < Path.Size; i++ )
+		if ( Path.Data[i] == '/' ) iSlash = i;
+	pNode->ParentSize = (Path.Size == 0u) ? SIZE_MAX :
+		((iSlash == SIZE_MAX) ? 0u : iSlash);
+	pNode->NameOffset = (iSlash == SIZE_MAX) ? 0u : iSlash + 1u;
+	pNode->Directory = bDirectory;
+	pNode->Entry = iEntry;
+	(*pCount)++;
+	return true;
+}
+
+static int __xrtVfsPackNodeCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_pack_node* pA = (const xrt_vfs_pack_node*)pLeft;
+	const xrt_vfs_pack_node* pB = (const xrt_vfs_pack_node*)pRight;
+	return xrtStrCompare((xstrview){ pA->Path, pA->PathSize },
+		(xstrview){ pB->Path, pB->PathSize });
+}
+
+static int __xrtVfsPackFoldCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_pack_node* pA = *(xrt_vfs_pack_node* const*)pLeft;
+	const xrt_vfs_pack_node* pB = *(xrt_vfs_pack_node* const*)pRight;
+	int iResult = xrtStrCaseCompare(
+		(xstrview){ pA->Path, pA->PathSize },
+		(xstrview){ pB->Path, pB->PathSize });
+	return iResult != 0 ? iResult : __xrtVfsPackNodeCompare(pA, pB);
+}
+
+static bool __xrtVfsPackNodesBuild(struct xvfs_pack_impl* pPack)
+{
+	size_t iCandidates = 1u;
+	size_t iCount = 0u;
+	size_t iOutput = 0u;
+
+	for ( size_t i = 0u; i < pPack->EntryCount; i++ ) {
+		if ( iCandidates == SIZE_MAX ) goto overflow;
+		iCandidates++;
+		for ( size_t j = 0u; j < pPack->Entries[i].PathSize; j++ ) {
+			if ( pPack->Entries[i].Path[j] != '/' ) continue;
+			if ( iCandidates == SIZE_MAX ) goto overflow;
+			iCandidates++;
+		}
+	}
+	if ( iCandidates > SIZE_MAX / sizeof(pPack->Nodes[0]) ) goto overflow;
+	pPack->Nodes = (xrt_vfs_pack_node*)xrtCalloc(
+		iCandidates, sizeof(pPack->Nodes[0]));
+	if ( pPack->Nodes == NULL ) return false;
+	if ( !__xrtVfsPackNodeAdd(pPack->Nodes, &iCount,
+		XRT_STR_LITERAL(""), true, SIZE_MAX) ) return false;
+	pPack->NodeCount = iCount;
+	for ( size_t i = 0u; i < pPack->EntryCount; i++ ) {
+		xrt_vfs_pack_entry* pEntry = &pPack->Entries[i];
+
+		for ( size_t j = 0u; j < pEntry->PathSize; j++ ) {
+			if ( pEntry->Path[j] != '/' ) continue;
+			if ( !__xrtVfsPackNodeAdd(pPack->Nodes, &iCount,
+				(xstrview){ pEntry->Path, j }, true, SIZE_MAX) ) return false;
+			pPack->NodeCount = iCount;
+		}
+		if ( !__xrtVfsPackNodeAdd(pPack->Nodes, &iCount,
+			(xstrview){ pEntry->Path, pEntry->PathSize }, false, i) ) return false;
+		pPack->NodeCount = iCount;
+	}
+	qsort(pPack->Nodes, iCount, sizeof(pPack->Nodes[0]),
+		__xrtVfsPackNodeCompare);
+	for ( size_t i = 0u; i < iCount; i++ ) {
+		if ( (iOutput != 0u) && xrtStrEqual(
+			(xstrview){ pPack->Nodes[iOutput - 1u].Path,
+				pPack->Nodes[iOutput - 1u].PathSize },
+			(xstrview){ pPack->Nodes[i].Path,
+				pPack->Nodes[i].PathSize }) ) {
+			if ( pPack->Nodes[iOutput - 1u].Directory !=
+				pPack->Nodes[i].Directory )
+				return __xrtVfsPackCorrupt("pack-index",
+					"an archive path is both a file and a directory");
+			xrtFree(pPack->Nodes[i].Path);
+			pPack->Nodes[i].Path = NULL;
+			continue;
+		}
+		if ( iOutput != i ) {
+			pPack->Nodes[iOutput] = pPack->Nodes[i];
+			memset(&pPack->Nodes[i], 0, sizeof(pPack->Nodes[i]));
+		}
+		iOutput++;
+	}
+	pPack->NodeCount = iOutput;
+	pPack->Folded = (xrt_vfs_pack_node**)xrtMalloc(
+		iOutput * sizeof(pPack->Folded[0]));
+	if ( pPack->Folded == NULL ) return false;
+	for ( size_t i = 0u; i < iOutput; i++ )
+		pPack->Folded[i] = &pPack->Nodes[i];
+	qsort(pPack->Folded, iOutput, sizeof(pPack->Folded[0]),
+		__xrtVfsPackFoldCompare);
+	for ( size_t i = 1u; i < iOutput; i++ ) {
+		if ( xrtStrCaseEqual(
+			(xstrview){ pPack->Folded[i - 1u]->Path,
+				pPack->Folded[i - 1u]->PathSize },
+			(xstrview){ pPack->Folded[i]->Path,
+				pPack->Folded[i]->PathSize }) ) {
+			pPack->FoldCollision = true;
+			break;
+		}
+	}
+	return true;
+
+overflow:
+	__xrtErrorSetSizeOverflow();
+	return false;
+}
+
+
+
+static void __xrtVfsPackReleaseMembers(struct xvfs_pack_impl* pPack,
+	bool bCloseSource)
+{
+	if ( pPack == NULL ) return;
+	if ( pPack->Entries != NULL ) {
+		for ( size_t i = 0u; i < pPack->EntryCount; i++ ) {
+			xrt_vfs_pack_entry* pEntry = &pPack->Entries[i];
+
+			xrtFree(pEntry->Path);
+			__xrtVfsPackBlobRelease(pEntry->Blob);
+			xrtErrorFree(pEntry->Failure);
+			if ( pEntry->SyncReady ) {
+				if ( !xrtCondUnit(&pEntry->Ready) ) abort();
+				if ( !xrtMutexUnit(&pEntry->Lock) ) abort();
+			}
+		}
+	}
+	if ( pPack->Nodes != NULL ) {
+		for ( size_t i = 0u; i < pPack->NodeCount; i++ )
+			xrtFree(pPack->Nodes[i].Path);
+	}
+	xrtFree(pPack->Folded);
+	xrtFree(pPack->Nodes);
+	xrtFree(pPack->Entries);
+	if ( pPack->CacheLockReady && !xrtMutexUnit(&pPack->CacheLock) ) abort();
+	if ( bCloseSource && (pPack->Source != NULL) ) {
+		xerror* pBefore = xrtTakeError();
+
+		(void)xrtClose(pPack->Source);
+		xrtClearError();
+		if ( pBefore != NULL ) __xrtErrorSetOwned(pBefore);
+	}
+}
+
+
+
+XRT_API void xrtVfsPackOptionsInit(xvfspackoptions* pOptions)
+{
+	if ( pOptions == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	memset(pOptions, 0, sizeof(*pOptions));
+	pOptions->Size = (uint32)sizeof(*pOptions);
+	pOptions->Version = XRT_VFS_PACK_OPTIONS_VERSION;
+	pOptions->Format = XVFS_PACK_AUTO;
+	pOptions->MaxEntries = XRT_VFS_PACK_MAX_ENTRIES_DEFAULT;
+	pOptions->MaxIndexBytes = XRT_VFS_PACK_MAX_INDEX_BYTES_DEFAULT;
+	pOptions->MaxEntryBytes = XRT_VFS_PACK_MAX_ENTRY_BYTES_DEFAULT;
+	pOptions->MaxDecodedBytes = XRT_VFS_PACK_MAX_DECODED_BYTES_DEFAULT;
+	pOptions->CacheBytes = XRT_VFS_PACK_CACHE_BYTES_DEFAULT;
+}
+
+static bool __xrtVfsPackOptions(const xvfspackoptions* pInput,
+	xvfspackoptions* pOutput)
+{
+	if ( pInput == NULL ) {
+		xrtVfsPackOptionsInit(pOutput);
+		return true;
+	}
+	if ( (pInput->Size < sizeof(*pInput)) ||
+		(pInput->Version != XRT_VFS_PACK_OPTIONS_VERSION) ||
+		((pInput->Format != XVFS_PACK_AUTO) &&
+		 (pInput->Format != XVFS_PACK_XRT_V1) &&
+		 (pInput->Format != XVFS_PACK_XSVPACK_V1)) ||
+		(pInput->MaxEntries == 0u) || (pInput->MaxIndexBytes == 0u) ||
+		(pInput->MaxEntryBytes == 0u) ||
+		(pInput->MaxDecodedBytes == 0u) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	*pOutput = *pInput;
+	pOutput->Size = (uint32)sizeof(*pOutput);
+	return true;
+}
+
+XRT_API xvfspack xrtVfsPackCreate(xfile Source,
+	uint64 iOffset, uint64 iLength, const xvfspackoptions* pOptions)
+{
+	xvfspack Pack;
+	uint8 arrHeader[XRT_VFS_PACK_HEADER_SIZE];
+	size_t iHeaderSize;
+	xvfspackformat Format;
+
+	if ( (Source == NULL) || (iLength <
+		XRT_VFS_PACK_LEGACY_HEADER_SIZE +
+		XRT_VFS_PACK_LEGACY_TRAILER_SIZE) ||
+		((xrtFileFlags(Source) & XFILE_READ) == 0u) ||
+		((xrtFileFlags(Source) & XFILE_ASYNC) != 0u) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	Pack = (xvfspack)xrtCalloc(1u, sizeof(*Pack));
+	if ( Pack == NULL ) return NULL;
+	Pack->RefCount = 1;
+	Pack->Offset = iOffset;
+	Pack->Length = iLength;
+	if ( !__xrtVfsPackOptions(pOptions, &Pack->Options) ) goto fail;
+	iHeaderSize = iLength >= XRT_VFS_PACK_HEADER_SIZE ?
+		XRT_VFS_PACK_HEADER_SIZE : XRT_VFS_PACK_LEGACY_HEADER_SIZE;
+	if ( !__xrtVfsPackReadSource(Source, iOffset, iLength, 0u,
+		arrHeader, iHeaderSize, "pack-header") ) goto fail;
+	Format = Pack->Options.Format;
+	if ( Format == XVFS_PACK_AUTO ) {
+		if ( memcmp(arrHeader, __xrtVfsPackHeaderMagic, 8u) == 0 )
+			Format = XVFS_PACK_XRT_V1;
+		else if ( memcmp(arrHeader,
+			__xrtVfsPackLegacyHeaderMagic, 8u) == 0 )
+			Format = XVFS_PACK_XSVPACK_V1;
+		else {
+			(void)__xrtVfsPackCorrupt("pack-header",
+				"the archive header magic is unknown");
+			goto fail;
+		}
+	}
+	Pack->Format = Format;
+	if ( Format == XVFS_PACK_XRT_V1 ) {
+		if ( (iHeaderSize != XRT_VFS_PACK_HEADER_SIZE) ||
+			(memcmp(arrHeader, __xrtVfsPackHeaderMagic, 8u) != 0) ) {
+			(void)__xrtVfsPackCorrupt("pack-header",
+				"the source does not contain the requested XRT pack format");
+			goto fail;
+		}
+		if ( !__xrtVfsPackParseXrt(Pack, Source, arrHeader) ) goto fail;
+	} else {
+		if ( memcmp(arrHeader,
+			__xrtVfsPackLegacyHeaderMagic, 8u) != 0 ) {
+			(void)__xrtVfsPackCorrupt("pack-header",
+				"the source does not contain the requested XSVPACK format");
+			goto fail;
+		}
+		if ( !__xrtVfsPackParseLegacy(Pack, Source, arrHeader) ) goto fail;
+	}
+	if ( !__xrtVfsPackEntriesSync(Pack) ||
+		!__xrtVfsPackNodesBuild(Pack) ||
+		!xrtMutexInit(&Pack->CacheLock) ) goto fail;
+	Pack->CacheLockReady = true;
+	Pack->Source = Source;
+	return Pack;
+
+fail:
+	__xrtVfsPackReleaseMembers(Pack, false);
+	xrtFree(Pack);
+	return NULL;
+}
+
+XRT_API void xrtVfsPackRef(xvfspack Pack)
+{
+	if ( Pack == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	if ( xrtRefRetain(&Pack->RefCount) < 0 ) abort();
+}
+
+XRT_API void xrtVfsPackDestroy(xvfspack Pack)
+{
+	if ( (Pack == NULL) || (xrtRefRelease(&Pack->RefCount) != 0) ) return;
+	__xrtVfsPackReleaseMembers(Pack, true);
+	xrtFree(Pack);
+}
+
+XRT_API xvfspackformat xrtVfsPackFormat(xvfspack Pack)
+{
+	if ( Pack == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return XVFS_PACK_AUTO;
+	}
+	return Pack->Format;
+}
+
+XRT_API bool xrtVfsPackStats(xvfspack Pack, xvfspackstats* pStats)
+{
+	if ( (Pack == NULL) || (pStats == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !xrtMutexLock(&Pack->CacheLock) ) return false;
+	*pStats = Pack->Stats;
+	(void)xrtMutexUnlock(&Pack->CacheLock);
+	return true;
+}
+
+
+
+static void* __xrtVfsPackLzmaAlloc(ISzAllocPtr pAllocator, size_t iSize)
+{
+	(void)pAllocator;
+	return iSize == 0u ? NULL : xrtMalloc(iSize);
+}
+
+static void __xrtVfsPackLzmaFree(ISzAllocPtr pAllocator, void* pData)
+{
+	(void)pAllocator;
+	xrtFree(pData);
+}
+
+static const ISzAlloc __xrtVfsPackLzmaAllocator = {
+	__xrtVfsPackLzmaAlloc,
+	__xrtVfsPackLzmaFree
+};
+
+static xrt_vfs_pack_blob* __xrtVfsPackLoadBlob(xvfspack Pack,
+	const xrt_vfs_pack_entry* pEntry)
+{
+	xrt_vfs_pack_blob* pBlob;
+	bytes pStored = NULL;
+	bytes pOutput = NULL;
+
+	pBlob = (xrt_vfs_pack_blob*)xrtMalloc(sizeof(*pBlob));
+	if ( pBlob == NULL ) return NULL;
+	if ( pEntry->StoredSize != 0u ) {
+		pStored = (bytes)xrtMalloc((size_t)pEntry->StoredSize);
+		if ( pStored == NULL ) goto fail;
+		if ( !__xrtVfsPackReadSource(Pack->Source, Pack->Offset,
+			Pack->Length, pEntry->DataOffset, pStored,
+			(size_t)pEntry->StoredSize, "pack-entry-read") ) goto fail;
+	}
+	if ( pEntry->Codec == XVFS_PACK_STORE ) {
+		pOutput = pStored;
+		pStored = NULL;
+	} else {
+		SizeT iOutput = (SizeT)pEntry->OriginalSize;
+		SizeT iInput = (SizeT)pEntry->StoredSize - LZMA_PROPS_SIZE;
+		ELzmaStatus Status = LZMA_STATUS_NOT_SPECIFIED;
+		SRes Result;
+
+		pOutput = (bytes)xrtMalloc((size_t)pEntry->OriginalSize);
+		if ( pOutput == NULL ) goto fail;
+		Result = __xrtLzmaDecode(pOutput, &iOutput,
+			pStored + LZMA_PROPS_SIZE, &iInput,
+			pStored, LZMA_PROPS_SIZE, LZMA_FINISH_END,
+			&Status, &__xrtVfsPackLzmaAllocator);
+		if ( Result == SZ_ERROR_MEM ) goto fail;
+		if ( (Result != SZ_OK) ||
+			(iOutput != (SizeT)pEntry->OriginalSize) ||
+			(iInput + LZMA_PROPS_SIZE != (SizeT)pEntry->StoredSize) ||
+			((Status != LZMA_STATUS_FINISHED_WITH_MARK) &&
+			 (Status != LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK)) ) {
+			(void)__xrtVfsPackCorrupt("pack-entry-decode",
+				"the LZMA1 entry stream is invalid or incomplete");
+			goto fail;
+		}
+	}
+	if ( __xrtVfsPackCrc(pOutput, (size_t)pEntry->OriginalSize) !=
+		pEntry->OriginalCrc32 ) {
+		(void)__xrtVfsPackChecksum("pack-entry-checksum",
+			"the decoded entry checksum is invalid");
+		goto fail;
+	}
+	xrtFree(pStored);
+	pBlob->RefCount = 1;
+	pBlob->Data = pOutput;
+	pBlob->Size = (size_t)pEntry->OriginalSize;
+	return pBlob;
+
+fail:
+	xrtFree(pOutput);
+	xrtFree(pStored);
+	xrtFree(pBlob);
+	return NULL;
+}
+
+
+
+static bool __xrtVfsPackCacheRoom(xvfspack Pack,
+	size_t iIncoming, xrt_vfs_pack_entry* pCurrent)
+{
+	uint64 iIncoming64 = (uint64)iIncoming;
+
+	if ( (iIncoming64 > Pack->Options.CacheBytes) ||
+		(Pack->Options.CacheBytes == 0u) ) return false;
+	while ( Pack->Stats.ResidentBytes >
+		Pack->Options.CacheBytes - iIncoming64 ) {
+		xrt_vfs_pack_entry* pVictim = NULL;
+		uint64 iOldest = UINT64_MAX;
+
+		for ( size_t i = 0u; i < Pack->EntryCount; i++ ) {
+			xrt_vfs_pack_entry* pEntry = &Pack->Entries[i];
+
+			if ( (pEntry == pCurrent) || !pEntry->Cached ||
+				(pEntry->LastUse > iOldest) ) continue;
+			if ( !xrtMutexLock(&pEntry->Lock) ) abort();
+			if ( pEntry->Cached && (pEntry->Waiters == 0u) &&
+				(pEntry->LastUse <= iOldest) ) {
+				pVictim = pEntry;
+				iOldest = pEntry->LastUse;
+			}
+			(void)xrtMutexUnlock(&pEntry->Lock);
+		}
+		if ( pVictim == NULL ) return false;
+		if ( !xrtMutexLock(&pVictim->Lock) ) abort();
+		if ( pVictim->Cached && (pVictim->Waiters == 0u) ) {
+			xrt_vfs_pack_blob* pBlob = pVictim->Blob;
+
+			pVictim->Blob = NULL;
+			pVictim->Cached = false;
+			pVictim->State = XRT_VFS_PACK_UNLOADED;
+			Pack->Stats.ResidentBytes -= (uint64)pBlob->Size;
+			Pack->Stats.Evictions++;
+			(void)xrtMutexUnlock(&pVictim->Lock);
+			__xrtVfsPackBlobRelease(pBlob);
+		} else {
+			(void)xrtMutexUnlock(&pVictim->Lock);
+		}
+	}
+	return true;
+}
+
+static void __xrtVfsPackAccessStat(xvfspack Pack,
+	xrt_vfs_pack_entry* pEntry, bool bHit)
+{
+	if ( !xrtMutexLock(&Pack->CacheLock) ) abort();
+	if ( bHit ) Pack->Stats.Hits++;
+	else Pack->Stats.Misses++;
+	if ( pEntry->Cached ) pEntry->LastUse = ++Pack->CacheClock;
+	(void)xrtMutexUnlock(&Pack->CacheLock);
+}
+
+static xrt_vfs_pack_blob* __xrtVfsPackEntryAcquire(xvfspack Pack,
+	xrt_vfs_pack_entry* pEntry)
+{
+	bool bWaiter = false;
+
+	if ( !xrtMutexLock(&pEntry->Lock) ) return NULL;
+	for ( ;; ) {
+		if ( (pEntry->State == XRT_VFS_PACK_READY) &&
+			(pEntry->Blob != NULL) ) {
+			xrt_vfs_pack_blob* pBlob = pEntry->Blob;
+			xrt_vfs_pack_blob* pDrop = NULL;
+
+			__xrtVfsPackBlobRef(pBlob);
+			if ( bWaiter ) pEntry->Waiters--;
+			if ( !pEntry->Cached && (pEntry->Waiters == 0u) ) {
+				pDrop = pEntry->Blob;
+				pEntry->Blob = NULL;
+				pEntry->State = XRT_VFS_PACK_UNLOADED;
+			}
+			(void)xrtMutexUnlock(&pEntry->Lock);
+			__xrtVfsPackBlobRelease(pDrop);
+			__xrtVfsPackAccessStat(Pack, pEntry, !bWaiter);
+			return pBlob;
+		}
+		if ( pEntry->State == XRT_VFS_PACK_FAILED ) {
+			xerror* pFailure = xrtErrorRef(pEntry->Failure);
+
+			if ( bWaiter ) pEntry->Waiters--;
+			(void)xrtMutexUnlock(&pEntry->Lock);
+			__xrtVfsPackAccessStat(Pack, pEntry, false);
+			xrtSetErrorTake(pFailure);
+			return NULL;
+		}
+		if ( pEntry->State == XRT_VFS_PACK_LOADING ) {
+			if ( !bWaiter ) {
+				pEntry->Waiters++;
+				bWaiter = true;
+			}
+			if ( xrtCondWait(&pEntry->Ready,
+				&pEntry->Lock) != XWAIT_OK ) {
+				pEntry->Waiters--;
+				(void)xrtMutexUnlock(&pEntry->Lock);
+				return NULL;
+			}
+			continue;
+		}
+		pEntry->State = XRT_VFS_PACK_LOADING;
+		(void)xrtMutexUnlock(&pEntry->Lock);
+		break;
+	}
+
+	if ( !xrtMutexLock(&Pack->CacheLock) ) abort();
+	Pack->Stats.Misses++;
+	Pack->Stats.Loads++;
+	(void)xrtMutexUnlock(&Pack->CacheLock);
+	{
+		xrt_vfs_pack_blob* pBlob = __xrtVfsPackLoadBlob(Pack, pEntry);
+
+		if ( pBlob == NULL ) {
+			xerror* pFailure = xrtTakeError();
+
+			if ( pFailure == NULL ) {
+				(void)__xrtVfsPackCorrupt("pack-entry-load",
+					"the archive entry load failed without an error");
+				pFailure = xrtTakeError();
+			}
+			if ( !xrtMutexLock(&pEntry->Lock) ) abort();
+			pEntry->Failure = pFailure;
+			pEntry->State = XRT_VFS_PACK_FAILED;
+			(void)xrtCondBroadcast(&pEntry->Ready);
+			(void)xrtMutexUnlock(&pEntry->Lock);
+			if ( !xrtMutexLock(&Pack->CacheLock) ) abort();
+			Pack->Stats.Failures++;
+			(void)xrtMutexUnlock(&Pack->CacheLock);
+			xrtSetError(pFailure);
+			return NULL;
+		}
+		if ( !xrtMutexLock(&Pack->CacheLock) ) abort();
+		if ( __xrtVfsPackCacheRoom(Pack, pBlob->Size, pEntry) ) {
+			if ( !xrtMutexLock(&pEntry->Lock) ) abort();
+			__xrtVfsPackBlobRef(pBlob);
+			pEntry->Blob = pBlob;
+			pEntry->Cached = true;
+			pEntry->LastUse = ++Pack->CacheClock;
+			pEntry->State = XRT_VFS_PACK_READY;
+			Pack->Stats.ResidentBytes += (uint64)pBlob->Size;
+			(void)xrtCondBroadcast(&pEntry->Ready);
+			(void)xrtMutexUnlock(&pEntry->Lock);
+			(void)xrtMutexUnlock(&Pack->CacheLock);
+		} else {
+			(void)xrtMutexUnlock(&Pack->CacheLock);
+			if ( !xrtMutexLock(&pEntry->Lock) ) abort();
+			__xrtVfsPackBlobRef(pBlob);
+			pEntry->Blob = pBlob;
+			pEntry->Cached = false;
+			pEntry->State = XRT_VFS_PACK_READY;
+			(void)xrtCondBroadcast(&pEntry->Ready);
+			if ( pEntry->Waiters == 0u ) {
+				xrt_vfs_pack_blob* pDrop = pEntry->Blob;
+
+				pEntry->Blob = NULL;
+				pEntry->State = XRT_VFS_PACK_UNLOADED;
+				(void)xrtMutexUnlock(&pEntry->Lock);
+				__xrtVfsPackBlobRelease(pDrop);
+			} else {
+				(void)xrtMutexUnlock(&pEntry->Lock);
+			}
+		}
+		return pBlob;
+	}
+}
+
+
+
+static xrt_vfs_pack_node* __xrtVfsPackFind(xvfspack Pack,
+	xvfscase CaseMode, xstrview Path)
+{
+	size_t iLow = 0u;
+	size_t iHigh = Pack->NodeCount;
+
+	while ( iLow < iHigh ) {
+		size_t iMiddle = iLow + ((iHigh - iLow) / 2u);
+		xrt_vfs_pack_node* pNode = CaseMode == XVFS_CASE_SENSITIVE ?
+			&Pack->Nodes[iMiddle] : Pack->Folded[iMiddle];
+		int iCompare = CaseMode == XVFS_CASE_SENSITIVE ?
+			xrtStrCompare((xstrview){ pNode->Path, pNode->PathSize }, Path) :
+			xrtStrCaseCompare((xstrview){ pNode->Path, pNode->PathSize }, Path);
+
+		if ( iCompare < 0 ) iLow = iMiddle + 1u;
+		else if ( iCompare > 0 ) iHigh = iMiddle;
+		else return pNode;
+	}
+	return NULL;
+}
+
+static bool __xrtVfsPackReadAt(void* pState, uint64 iOffset,
+	void* pBuffer, size_t iRequest, size_t* pRead)
+{
+	xrt_vfs_pack_file* pFile = (xrt_vfs_pack_file*)pState;
+	size_t iStart = iOffset > (uint64)SIZE_MAX ? SIZE_MAX : (size_t)iOffset;
+	size_t iDone = iStart < pFile->Blob->Size ?
+		pFile->Blob->Size - iStart : 0u;
+
+	if ( iDone > iRequest ) iDone = iRequest;
+	if ( iDone != 0u ) memcpy(pBuffer, pFile->Blob->Data + iStart, iDone);
+	*pRead = iDone;
+	return true;
+}
+
+static bool __xrtVfsPackRead(void* pState, void* pBuffer,
+	size_t iRequest, size_t* pRead)
+{
+	xrt_vfs_pack_file* pFile = (xrt_vfs_pack_file*)pState;
+	bool bResult = __xrtVfsPackReadAt(pState, pFile->Cursor,
+		pBuffer, iRequest, pRead);
+
+	if ( bResult ) pFile->Cursor += (uint64)*pRead;
+	return bResult;
+}
+
+static bool __xrtVfsPackSeekAdd(uint64 iBase,
+	int64 iOffset, uint64* pResult)
+{
+	if ( iOffset >= 0 ) {
+		uint64 iAdd = (uint64)iOffset;
+
+		if ( iBase > UINT64_MAX - iAdd ) return false;
+		*pResult = iBase + iAdd;
+	} else {
+		uint64 iSubtract = (uint64)(-(iOffset + 1)) + 1u;
+
+		if ( iBase < iSubtract ) return false;
+		*pResult = iBase - iSubtract;
+	}
+	return true;
+}
+
+static bool __xrtVfsPackSeek(void* pState, int64 iOffset,
+	xseek Origin, uint64* pPosition)
+{
+	xrt_vfs_pack_file* pFile = (xrt_vfs_pack_file*)pState;
+	uint64 iBase;
+	uint64 iResult;
+
+	if ( Origin == XSEEK_START ) iBase = 0u;
+	else if ( Origin == XSEEK_CURRENT ) iBase = pFile->Cursor;
+	else if ( Origin == XSEEK_END ) iBase = (uint64)pFile->Blob->Size;
+	else {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtVfsPackSeekAdd(iBase, iOffset, &iResult) ) {
+		__xrtVfsError(XERR_RANGE, XVFS_ERROR_OPEN,
+			"pack-seek", "the requested position is out of range");
+		return false;
+	}
+	pFile->Cursor = iResult;
+	if ( pPosition != NULL ) *pPosition = iResult;
+	return true;
+}
+
+static bool __xrtVfsPackFileStat(void* pState, xfileinfo* pInfo)
+{
+	xrt_vfs_pack_file* pFile = (xrt_vfs_pack_file*)pState;
+
+	memset(pInfo, 0, sizeof(*pInfo));
+	pInfo->Type = XFILE_TYPE_FILE;
+	pInfo->Available = XFILE_INFO_SIZE;
+	pInfo->Size = (uint64)pFile->Blob->Size;
+	return true;
+}
+
+static void __xrtVfsPackFileClose(void* pState)
+{
+	xrt_vfs_pack_file* pFile = (xrt_vfs_pack_file*)pState;
+
+	__xrtVfsPackBlobRelease(pFile->Blob);
+	xrtFree(pFile);
+}
+
+static const xvfsfileops_v1 __xrtVfsPackFileOps = {
+	(uint32)sizeof(xvfsfileops_v1),
+	XRT_VFS_FILE_OPS_VERSION,
+	XVFS_FILE_READ | XVFS_FILE_READ_AT | XVFS_FILE_SEEK | XVFS_FILE_STAT,
+	__xrtVfsPackRead, NULL,
+	__xrtVfsPackReadAt, NULL,
+	__xrtVfsPackSeek, __xrtVfsPackFileStat,
+	NULL, NULL,
+	__xrtVfsPackFileClose
+};
+
+static bool __xrtVfsPackReadOnly(const xfileoptions* pOptions)
+{
+	uint32 iForbidden = XFILE_WRITE | XFILE_CREATE | XFILE_TRUNCATE |
+		XFILE_APPEND | XFILE_EXCLUSIVE | XFILE_SYNC;
+
+	if ( (pOptions->Flags & iForbidden) == 0u ) return true;
+	__xrtVfsError(XERR_UNSUPPORTED, XVFS_ERROR_UNSUPPORTED,
+		"pack-open", "the pack provider is read-only");
+	return false;
+}
+
+static xvfslookup __xrtVfsPackOpen(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	const xfileoptions* pOptions, xvfsfile_v1* pFile)
+{
+	xvfspack Pack = (xvfspack)pContext;
+	xrt_vfs_pack_node* pNode = __xrtVfsPackFind(Pack,
+		CaseMode, RelativePath);
+	xrt_vfs_pack_blob* pBlob;
+	xrt_vfs_pack_file* pState;
+
+	if ( (pNode == NULL) || pNode->Directory ) return XVFS_LOOKUP_MISS;
+	if ( !__xrtVfsPackReadOnly(pOptions) ) return XVFS_LOOKUP_ERROR;
+	pBlob = __xrtVfsPackEntryAcquire(Pack,
+		&Pack->Entries[pNode->Entry]);
+	if ( pBlob == NULL ) return XVFS_LOOKUP_ERROR;
+	pState = (xrt_vfs_pack_file*)xrtMalloc(sizeof(*pState));
+	if ( pState == NULL ) {
+		__xrtVfsPackBlobRelease(pBlob);
+		return XVFS_LOOKUP_ERROR;
+	}
+	pState->Blob = pBlob;
+	pState->Cursor = 0u;
+	pFile->Ops = &__xrtVfsPackFileOps;
+	pFile->State = pState;
+	pFile->Flags = pOptions->Flags;
+	return XVFS_LOOKUP_OPENED;
+}
+
+static xvfslookup __xrtVfsPackStat(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	bool bFollowLink, xfileinfo* pInfo)
+{
+	xvfspack Pack = (xvfspack)pContext;
+	xrt_vfs_pack_node* pNode = __xrtVfsPackFind(Pack,
+		CaseMode, RelativePath);
+	(void)bFollowLink;
+
+	if ( pNode == NULL ) return XVFS_LOOKUP_MISS;
+	memset(pInfo, 0, sizeof(*pInfo));
+	pInfo->Type = pNode->Directory ? XFILE_TYPE_DIRECTORY : XFILE_TYPE_FILE;
+	if ( !pNode->Directory ) {
+		pInfo->Available = XFILE_INFO_SIZE;
+		pInfo->Size = Pack->Entries[pNode->Entry].OriginalSize;
+	}
+	return XVFS_LOOKUP_OPENED;
+}
+
+static bool __xrtVfsPackParentEqual(const xrt_vfs_pack_node* pNode,
+	xstrview Path, xvfscase CaseMode)
+{
+	xstrview Parent;
+
+	if ( pNode->ParentSize == SIZE_MAX ) return false;
+	Parent.Data = pNode->Path;
+	Parent.Size = pNode->ParentSize;
+	return CaseMode == XVFS_CASE_SENSITIVE ?
+		xrtStrEqual(Parent, Path) : xrtStrCaseEqual(Parent, Path);
+}
+
+static bool __xrtVfsPackDirNext(void* pState,
+	xdirentry* pEntry, bool* pEnd)
+{
+	xrt_vfs_pack_dir* pDir = (xrt_vfs_pack_dir*)pState;
+	xrt_vfs_pack_node* pNode;
+
+	if ( pDir->Position == pDir->Count ) {
+		*pEnd = true;
+		return true;
+	}
+	pNode = &pDir->Pack->Nodes[pDir->Items[pDir->Position++]];
+	memset(pEntry, 0, sizeof(*pEntry));
+	pEntry->Name.Data = pNode->Path + pNode->NameOffset;
+	pEntry->Name.Size = pNode->PathSize - pNode->NameOffset;
+	pEntry->Info.Type = pNode->Directory ?
+		XFILE_TYPE_DIRECTORY : XFILE_TYPE_FILE;
+	if ( !pNode->Directory ) {
+		pEntry->Info.Available = XFILE_INFO_SIZE;
+		pEntry->Info.Size = pDir->Pack->Entries[pNode->Entry].OriginalSize;
+	}
+	pEntry->Flags = XDIR_ENTRY_UTF8;
+	return true;
+}
+
+static void __xrtVfsPackDirClose(void* pState)
+{
+	xrt_vfs_pack_dir* pDir = (xrt_vfs_pack_dir*)pState;
+
+	xrtVfsPackDestroy(pDir->Pack);
+	xrtFree(pDir->Items);
+	xrtFree(pDir);
+}
+
+static const xvfsdirops_v1 __xrtVfsPackDirOps = {
+	(uint32)sizeof(xvfsdirops_v1),
+	XRT_VFS_DIR_OPS_VERSION,
+	__xrtVfsPackDirNext,
+	__xrtVfsPackDirClose
+};
+
+static xvfslookup __xrtVfsPackDirOpen(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	uint32 iFlags, xvfsdir_v1* pOutput)
+{
+	xvfspack Pack = (xvfspack)pContext;
+	xrt_vfs_pack_node* pNode = __xrtVfsPackFind(Pack,
+		CaseMode, RelativePath);
+	xrt_vfs_pack_dir* pDir;
+	size_t iCount = 0u;
+	(void)iFlags;
+
+	if ( (pNode == NULL) || !pNode->Directory ) return XVFS_LOOKUP_MISS;
+	for ( size_t i = 0u; i < Pack->NodeCount; i++ )
+		if ( __xrtVfsPackParentEqual(&Pack->Nodes[i],
+			RelativePath, CaseMode) ) iCount++;
+	pDir = (xrt_vfs_pack_dir*)xrtCalloc(1u, sizeof(*pDir));
+	if ( pDir == NULL ) return XVFS_LOOKUP_ERROR;
+	if ( iCount != 0u ) {
+		if ( iCount > SIZE_MAX / sizeof(pDir->Items[0]) ) {
+			__xrtErrorSetSizeOverflow();
+			xrtFree(pDir);
+			return XVFS_LOOKUP_ERROR;
+		}
+		pDir->Items = (size_t*)xrtMalloc(
+			iCount * sizeof(pDir->Items[0]));
+		if ( pDir->Items == NULL ) {
+			xrtFree(pDir);
+			return XVFS_LOOKUP_ERROR;
+		}
+	}
+	for ( size_t i = 0u; i < Pack->NodeCount; i++ ) {
+		if ( __xrtVfsPackParentEqual(&Pack->Nodes[i],
+			RelativePath, CaseMode) ) pDir->Items[pDir->Count++] = i;
+	}
+	pDir->Pack = Pack;
+	xrtVfsPackRef(Pack);
+	pOutput->Ops = &__xrtVfsPackDirOps;
+	pOutput->State = pDir;
+	return XVFS_LOOKUP_OPENED;
+}
+
+static void __xrtVfsPackContextRetain(void* pContext)
+{
+	xrtVfsPackRef((xvfspack)pContext);
+}
+
+static void __xrtVfsPackContextRelease(void* pContext)
+{
+	xrtVfsPackDestroy((xvfspack)pContext);
+}
+
+static const xvfsprovider_v1 __xrtVfsPackProvider = {
+	(uint32)sizeof(xvfsprovider_v1),
+	XRT_VFS_PROVIDER_VERSION,
+	XVFS_PROVIDER_STAT | XVFS_PROVIDER_DIRECTORY,
+	__xrtVfsPackContextRetain,
+	__xrtVfsPackContextRelease,
+	__xrtVfsPackOpen,
+	__xrtVfsPackStat,
+	__xrtVfsPackDirOpen,
+	NULL
+};
+
+XRT_API xvfsmount xrtVfsPackMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfspack Pack, uint32 iFlags)
+{
+	if ( (Vfs == NULL) || (Pack == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( (CaseMode == XVFS_CASE_ASCII_INSENSITIVE) &&
+		Pack->FoldCollision ) {
+		__xrtVfsError(XERR_EXISTS, XVFS_ERROR_MOUNT,
+			"pack-mount",
+			"the pack contains paths that collide under ASCII folding");
+		return NULL;
+	}
+	return xrtVfsMount(Vfs, sVirtualPrefix, iPriority,
+		CaseMode, &__xrtVfsPackProvider, Pack, iFlags);
 }
 
 #endif

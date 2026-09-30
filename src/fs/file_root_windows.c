@@ -200,7 +200,8 @@ static int __xrtRootNtErrorCode(NTSTATUS Status)
 /* 使用目录句柄和单个 UTF-8 分量调用 NtCreateFile。 */
 static bool __xrtRootNtCreate(xrootnative Parent, cstr sName,
 	ACCESS_MASK iAccess, ULONG iShare, ULONG iDisposition,
-	ULONG iOptions, ULONG iObjectFlags, HANDLE* pHandle,
+	ULONG iOptions, ULONG iObjectFlags, bool bCaseSensitive,
+	HANDLE* pHandle,
 	NTSTATUS* pStatus)
 {
 	HMODULE hModule = GetModuleHandleW(L"ntdll.dll");
@@ -241,7 +242,8 @@ static bool __xrtRootNtCreate(xrootnative Parent, cstr sName,
 	Attributes.Length = (ULONG)sizeof(Attributes);
 	Attributes.RootDirectory = Parent;
 	Attributes.ObjectName = &Name;
-	Attributes.Attributes = OBJ_CASE_INSENSITIVE | iObjectFlags;
+	Attributes.Attributes = iObjectFlags |
+		(bCaseSensitive ? 0u : OBJ_CASE_INSENSITIVE);
 	memset(&Status, 0, sizeof(Status));
 	*pHandle = INVALID_HANDLE_VALUE;
 	*pStatus = pCreate(pHandle, iAccess, &Attributes, &Status,
@@ -254,7 +256,8 @@ static bool __xrtRootNtCreate(xrootnative Parent, cstr sName,
 
 
 /* 打开重解析点自身并读取受支持的链接目标。 */
-static str __xrtRootWindowsReadAt(xrootnative Parent, cstr sName)
+static str __xrtRootWindowsReadAt(xrootnative Parent, cstr sName,
+	bool bCaseSensitive)
 {
 	HANDLE hLink;
 	NTSTATUS Status;
@@ -267,7 +270,7 @@ static str __xrtRootWindowsReadAt(xrootnative Parent, cstr sName)
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT |
 			FILE_OPEN_REPARSE_POINT,
-		0u, &hLink, &Status) ) {
+		0u, bCaseSensitive, &hLink, &Status) ) {
 		return NULL;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -285,10 +288,11 @@ static str __xrtRootWindowsReadAt(xrootnative Parent, cstr sName)
 
 /* 在 NT 打开失败后检查当前分量是否为受支持链接。 */
 static xrootstep __xrtRootWindowsLink(xrootnative Parent,
-	cstr sName, str* pLink, xrooterror Code,
+	cstr sName, bool bCaseSensitive, str* pLink, xrooterror Code,
 	cstr sOperation, cstr sMessage)
 {
-	str sTarget = __xrtRootWindowsReadAt(Parent, sName);
+	str sTarget = __xrtRootWindowsReadAt(Parent, sName,
+		bCaseSensitive);
 
 	if ( sTarget != NULL ) {
 		*pLink = sTarget;
@@ -362,19 +366,25 @@ bool __xrtRootNativeClose(xrootnative Handle, bool bReport)
 
 /* 不跟随当前分量打开 Windows 子目录。 */
 xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
-	xrootnative* pHandle, str* pLink)
+	bool bCaseSensitive, xrootnative* pHandle, str* pLink)
 {
 	HANDLE hDirectory;
 	NTSTATUS Status;
 
 	if ( strcmp(sName, ".") == 0 ) {
-		if ( !DuplicateHandle(GetCurrentProcess(), Parent,
-			GetCurrentProcess(), &hDirectory, 0u, FALSE,
-			DUPLICATE_SAME_ACCESS) ) {
-			int iCode = (int)GetLastError();
-
+		/* 空相对名重新打开锚点并取得独立目录查询状态。 */
+		if ( !__xrtRootNtCreate(Parent, "",
+			SYNCHRONIZE | FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			FILE_OPEN,
+			FILE_SYNCHRONOUS_IO_NONALERT |
+				FILE_OPEN_FOR_BACKUP_INTENT | FILE_DIRECTORY_FILE,
+			OBJ_DONT_REPARSE, true, &hDirectory, &Status) )
+			return XROOT_STEP_ERROR;
+		if ( !__xrtRootNtSuccess(Status) ) {
 			__xrtRootSetError(XROOT_ERROR_RESOLVE, "resolve",
-				"failed to duplicate the root directory handle", iCode);
+				"failed to reopen the anchored directory",
+				__xrtRootNtErrorCode(Status));
 			return XROOT_STEP_ERROR;
 		}
 		*pHandle = hDirectory;
@@ -386,7 +396,8 @@ xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
 		FILE_OPEN,
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT | FILE_DIRECTORY_FILE,
-		OBJ_DONT_REPARSE, &hDirectory, &Status) ) {
+		OBJ_DONT_REPARSE, bCaseSensitive,
+		&hDirectory, &Status) ) {
 		return XROOT_STEP_ERROR;
 	}
 	if ( __xrtRootNtSuccess(Status) ) {
@@ -394,7 +405,7 @@ xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
 		return XROOT_STEP_DONE;
 	}
 	if ( __xrtRootNtReparse(Status) ) {
-		return __xrtRootWindowsLink(Parent, sName,
+		return __xrtRootWindowsLink(Parent, sName, bCaseSensitive,
 			pLink, XROOT_ERROR_RESOLVE, "resolve",
 			"failed to open a root path directory");
 	}
@@ -443,7 +454,8 @@ static ULONG __xrtRootWindowsShare(uint32 iShare)
 
 /* 不跟随当前分量打开 Windows 普通文件。 */
 xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
-	const xfileoptions* pOptions, xfile* pFile, str* pLink)
+	bool bCaseSensitive, bool bRegularFile, const xfileoptions* pOptions,
+	xfile* pFile, str* pLink)
 {
 	ACCESS_MASK iAccess = SYNCHRONIZE | FILE_READ_ATTRIBUTES;
 	ULONG iOptions = FILE_SYNCHRONOUS_IO_NONALERT |
@@ -463,26 +475,45 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 		iOptions |= FILE_WRITE_THROUGH;
 	}
 	File = __xrtFileAlloc();
-	if ( File == NULL ) {
-		return XROOT_STEP_ERROR;
-	}
+	if (File == NULL) return XROOT_STEP_ERROR;
 	if ( !__xrtRootNtCreate(Parent, sName, iAccess,
 		__xrtRootWindowsShare(pOptions->Share),
 		__xrtRootWindowsDisposition(pOptions->Flags),
-		iOptions, OBJ_DONT_REPARSE, &hFile, &Status) ) {
+		iOptions, OBJ_DONT_REPARSE, bCaseSensitive,
+		&hFile, &Status) ) {
 		xrtFree(File);
 		return XROOT_STEP_ERROR;
 	}
 	if ( __xrtRootNtSuccess(Status) ) {
+		if ( bRegularFile ) {
+			xfileinfo Info;
+
+			if ( !__xrtFileWindowsStat(hFile, &Info, false) ) {
+				int iCode = (int)GetLastError();
+
+				(void)CloseHandle(hFile);
+				__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
+					"failed to inspect the root-relative file", iCode);
+				xrtFree(File);
+				return XROOT_STEP_ERROR;
+			}
+			if ( Info.Type != XFILE_TYPE_FILE ) {
+				(void)CloseHandle(hFile);
+				__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE, "open-file",
+					"the root policy only permits regular files");
+				xrtFree(File);
+				return XROOT_STEP_ERROR;
+			}
+		}
 		if ( !__xrtFileWindowsAppendHandles(
 			&hFile, &hControl, pOptions->Flags) ) {
 			int iCode = (int)GetLastError();
 
 			(void)CloseHandle(hFile);
-			xrtFree(File);
 			__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 				"failed to restrict the root-relative append handle",
 				iCode);
+			xrtFree(File);
 			return XROOT_STEP_ERROR;
 		}
 		__xrtFileInitNativePair(File, (intptr_t)hFile,
@@ -490,19 +521,20 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 		*pFile = File;
 		return XROOT_STEP_DONE;
 	}
-	xrtFree(File);
 	if ( __xrtRootNtReparse(Status) &&
 		 ((pOptions->Flags & XFILE_NOFOLLOW) == 0u) &&
 		 ((pOptions->Flags &
 		  (XFILE_CREATE | XFILE_EXCLUSIVE)) !=
 		  (XFILE_CREATE | XFILE_EXCLUSIVE)) ) {
-		return __xrtRootWindowsLink(Parent, sName,
+		xrtFree(File);
+		return __xrtRootWindowsLink(Parent, sName, bCaseSensitive,
 			pLink, XROOT_ERROR_FILE, "open-file",
 			"failed to open the root-relative file");
 	}
 	__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 		"failed to open the root-relative file",
 		__xrtRootNtErrorCode(Status));
+	xrtFree(File);
 	return XROOT_STEP_ERROR;
 }
 
@@ -510,7 +542,8 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 
 /* 查询 Windows 根内当前分量元数据。 */
 xrootstep __xrtRootNativeStat(xrootnative Parent, cstr sName,
-	bool bFollowLink, xfileinfo* pInfo, str* pLink)
+	bool bCaseSensitive, bool bFollowLink,
+	xfileinfo* pInfo, str* pLink)
 {
 	HANDLE hObject;
 	NTSTATUS Status;
@@ -536,7 +569,7 @@ xrootstep __xrtRootNativeStat(xrootnative Parent, cstr sName,
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT |
 			FILE_OPEN_REPARSE_POINT,
-		0u, &hObject, &Status) ) {
+		0u, bCaseSensitive, &hObject, &Status) ) {
 		return XROOT_STEP_ERROR;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -585,7 +618,7 @@ bool __xrtRootNativeCreateDir(xrootnative Parent,
 		FILE_CREATE,
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT | FILE_DIRECTORY_FILE,
-		OBJ_DONT_REPARSE, &hDirectory, &Status) ) {
+		OBJ_DONT_REPARSE, false, &hDirectory, &Status) ) {
 		return false;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -619,7 +652,8 @@ bool __xrtRootNativeRemove(xrootnative Parent,
 	if ( !__xrtRootNtCreate(Parent, sName,
 		SYNCHRONIZE | FILE_READ_ATTRIBUTES | DELETE,
 		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-		FILE_OPEN, iOptions, iObjectFlags, &hObject, &Status) ) {
+		FILE_OPEN, iOptions, iObjectFlags, false,
+		&hObject, &Status) ) {
 		return false;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -658,7 +692,7 @@ bool __xrtRootNativeRemove(xrootnative Parent,
 /* 相对 Windows 父目录读取末级重解析链接。 */
 str __xrtRootNativeReadLink(xrootnative Parent, cstr sName)
 {
-	str sTarget = __xrtRootWindowsReadAt(Parent, sName);
+	str sTarget = __xrtRootWindowsReadAt(Parent, sName, false);
 
 	if ( sTarget == NULL ) {
 		__xrtRootWrapError(XROOT_ERROR_LINK, "read-link",
@@ -706,7 +740,7 @@ bool __xrtRootNativeLinkHard(xrootnative SourceParent, cstr sSource,
 		FILE_OPEN,
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT | FILE_NON_DIRECTORY_FILE,
-		OBJ_DONT_REPARSE, &hSource, &Status) ) {
+		OBJ_DONT_REPARSE, false, &hSource, &Status) ) {
 		return false;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -800,7 +834,7 @@ xrootstep __xrtRootNativeSetMode(xrootnative Parent,
 
 	(void)iMode;
 	return __xrtRootNativeStat(Parent, sName,
-		bFollowLink, &Info, pLink);
+		false, bFollowLink, &Info, pLink);
 }
 
 #endif

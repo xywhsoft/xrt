@@ -29,6 +29,7 @@ typedef xrootstep (*__xrt_root_proc)(xrootnative Parent,
 typedef struct __xrt_root_file_data {
 	const xfileoptions* Options;
 	xfile File;
+	uint32 Policy;
 } __xrt_root_file_data;
 
 
@@ -37,7 +38,16 @@ typedef struct __xrt_root_file_data {
 typedef struct __xrt_root_stat_data {
 	bool Follow;
 	xfileinfo Info;
+	uint32 Policy;
 } __xrt_root_stat_data;
+
+
+
+/* 目录句柄回调同时携带解析策略。 */
+typedef struct __xrt_root_handle_data {
+	xrootnative Handle;
+	uint32 Policy;
+} __xrt_root_handle_data;
 
 
 
@@ -475,9 +485,64 @@ static void __xrtRootRestart(xroot Root, xrootnative* pDirectory)
 
 
 
+/* 枚举父目录，保证请求分量与磁盘名称逐字节一致。 */
+static bool __xrtRootExactName(xrootnative Parent,
+	cstr sName, bool bAllowMissing)
+{
+	xrootnative Handle = XRT_ROOT_NATIVE_INVALID;
+	str sLink = NULL;
+	xrootstep Step;
+	xdir Dir;
+	xdirentry Entry;
+	xdirnext Next;
+	size_t iSize;
+	bool bExact = false;
+
+	if ( strcmp(sName, ".") == 0 ) return true;
+	Step = __xrtRootNativeOpenDir(Parent, ".", false,
+		&Handle, &sLink);
+	xrtFree(sLink);
+	if ( Step != XROOT_STEP_DONE ) return false;
+	Dir = __xrtRootNativeDirTake(Handle, ".", 0u);
+	if ( Dir == NULL ) return false;
+	iSize = strlen(sName);
+	while ( (Next = xrtDirNext(Dir, &Entry)) == XDIR_NEXT_ITEM ) {
+		if ( (Entry.Name.Size == iSize) &&
+			 (memcmp(Entry.Name.Data, sName, iSize) == 0) ) {
+			bExact = true;
+			break;
+		}
+	}
+	if ( !xrtDirClose(Dir) ) return false;
+	if ( Next == XDIR_NEXT_ERROR ) return false;
+	if ( bExact ) return true;
+	if ( bAllowMissing ) {
+		xfileinfo Info;
+
+		Step = __xrtRootNativeStat(Parent, sName,
+			false, false, &Info, &sLink);
+		xrtFree(sLink);
+		if ( Step == XROOT_STEP_ERROR ) {
+			const xerror* pError = xrtGetError();
+
+			if ( (pError != NULL) &&
+				 (xrtErrorKind(pError) == XERR_NOT_FOUND) ) {
+				xrtClearError();
+				return true;
+			}
+			return false;
+		}
+	}
+	__xrtRootError(XERR_NOT_FOUND, XROOT_ERROR_RESOLVE,
+		"resolve-case", "the exact root path component does not exist");
+	return false;
+}
+
+
+
 /* 逐分量解析路径，并且只通过目录句柄访问后续对象。 */
-static bool __xrtRootResolve(xroot Root, cstr sPath,
-	__xrt_root_proc pProc, ptr pData)
+static bool __xrtRootResolve(xroot Root, cstr sPath, uint32 iPolicy,
+	bool bAllowMissingFinal, __xrt_root_proc pProc, ptr pData)
 {
 	__xrt_root_path Path;
 	xrootnative Directory;
@@ -486,7 +551,9 @@ static bool __xrtRootResolve(xroot Root, cstr sPath,
 	size_t iLinks = 0;
 	bool bResult = false;
 
-	if ( (Root == NULL) || (pProc == NULL) ) {
+	if ( (Root == NULL) || (pProc == NULL) ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE | XROOT_POLICY_REGULAR_FILE)) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
@@ -521,6 +588,13 @@ static bool __xrtRootResolve(xroot Root, cstr sPath,
 			__xrtRootRestart(Root, &Directory);
 			continue;
 		}
+		if ( (iPolicy & XROOT_POLICY_CASE_SENSITIVE) != 0u ) {
+			bool bAllowMissing = bAllowMissingFinal &&
+				(iIndex == (Path.Count - 1u));
+
+			if ( !__xrtRootExactName(Directory,
+				Path.Parts[iIndex], bAllowMissing) ) break;
+		}
 		if ( iIndex == (Path.Count - 1u) ) {
 			Step = pProc(Directory, Path.Parts[iIndex],
 				Path.Trailing, pData, &sLink);
@@ -528,7 +602,9 @@ static bool __xrtRootResolve(xroot Root, cstr sPath,
 			xrootnative Next = XRT_ROOT_NATIVE_INVALID;
 
 			Step = __xrtRootNativeOpenDir(Directory,
-				Path.Parts[iIndex], &Next, &sLink);
+				Path.Parts[iIndex],
+				(iPolicy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
+				&Next, &sLink);
 			if ( Step == XROOT_STEP_DONE ) {
 				if ( Directory != Root->Handle ) {
 					(void)__xrtRootNativeClose(Directory, false);
@@ -543,6 +619,12 @@ static bool __xrtRootResolve(xroot Root, cstr sPath,
 			break;
 		}
 		if ( Step == XROOT_STEP_ERROR ) {
+			break;
+		}
+		if ( (iPolicy & XROOT_POLICY_FOLLOW_LINKS) == 0u ) {
+			xrtFree(sLink);
+			__xrtRootError(XERR_PERMISSION, XROOT_ERROR_ESCAPE,
+				"resolve-link", "the root policy rejects symbolic links");
 			break;
 		}
 		if ( ++iLinks > XRT_ROOT_MAX_LINKS ) {
@@ -610,39 +692,54 @@ XRT_API xroot xrtRootOpen(cstr sPath)
 static xrootstep __xrtRootOpenInProc(xrootnative Parent,
 	cstr sName, bool bTrailing, ptr pData, str* pLink)
 {
-	xrootnative* pHandle = (xrootnative*)pData;
+	__xrt_root_handle_data* pHandle = (__xrt_root_handle_data*)pData;
 
 	(void)bTrailing;
-	return __xrtRootNativeOpenDir(Parent, sName, pHandle, pLink);
+	return __xrtRootNativeOpenDir(Parent, sName,
+		(pHandle->Policy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
+		&pHandle->Handle, pLink);
 }
 
 
 
-/* 在已有根内打开并锚定一个子目录。 */
-XRT_API xroot xrtRootOpenIn(xroot Root, cstr sPath)
+/* 在已有根内按策略打开并锚定一个子目录。 */
+xroot __xrtRootOpenInPolicy(xroot Root, cstr sPath, uint32 iPolicy)
 {
-	xrootnative Handle = XRT_ROOT_NATIVE_INVALID;
+	__xrt_root_handle_data Data;
 	str sDisplay;
 
-	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ) {
+	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE)) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
+	Data.Handle = XRT_ROOT_NATIVE_INVALID;
+	Data.Policy = iPolicy;
 	sDisplay = xrtPathJoin(Root->Path, sPath);
 	if ( sDisplay == NULL ) {
 		return NULL;
 	}
-	if ( !__xrtRootResolve(Root, sPath,
-		__xrtRootOpenInProc, &Handle) ) {
+	if ( !__xrtRootResolve(Root, sPath, iPolicy, false,
+		__xrtRootOpenInProc, &Data) ) {
 		xrtFree(sDisplay);
 		return NULL;
 	}
 	{
-		xroot Child = __xrtRootCreate(Handle, sDisplay);
+		xroot Child = __xrtRootCreate(Data.Handle, sDisplay);
 
 		xrtFree(sDisplay);
 		return Child;
 	}
+}
+
+
+
+/* 在已有根内按公共兼容策略打开子目录。 */
+XRT_API xroot xrtRootOpenIn(xroot Root, cstr sPath)
+{
+	return __xrtRootOpenInPolicy(Root, sPath,
+		XROOT_POLICY_FOLLOW_LINKS);
 }
 
 
@@ -700,19 +797,23 @@ static xrootstep __xrtRootFileProc(xrootnative Parent,
 		return XROOT_STEP_ERROR;
 	}
 	return __xrtRootNativeOpenFile(Parent, sName,
+		(pFile->Policy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
+		(pFile->Policy & XROOT_POLICY_REGULAR_FILE) != 0u,
 		pFile->Options, &pFile->File, pLink);
 }
 
 
 
-/* 在根内使用完整文件选项打开普通文件。 */
-XRT_API xfile xrtRootFileOpen(xroot Root, cstr sPath,
-	const xfileoptions* pOptions)
+/* 在根内按策略使用完整文件选项打开普通文件。 */
+xfile __xrtRootFileOpenPolicy(xroot Root, cstr sPath,
+	const xfileoptions* pOptions, uint32 iPolicy)
 {
 	__xrt_root_file_data Data;
 	xfileoptions Options;
 
-	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ) {
+	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE | XROOT_POLICY_REGULAR_FILE)) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
@@ -721,10 +822,23 @@ XRT_API xfile xrtRootFileOpen(xroot Root, cstr sPath,
 	}
 	Data.Options = &Options;
 	Data.File = NULL;
-	if ( !__xrtRootResolve(Root, sPath, __xrtRootFileProc, &Data) ) {
+	Data.Policy = iPolicy;
+	if ( !__xrtRootResolve(Root, sPath, iPolicy,
+		(Options.Flags & XFILE_CREATE) != 0u,
+		__xrtRootFileProc, &Data) ) {
 		return NULL;
 	}
 	return Data.File;
+}
+
+
+
+/* 在根内按公共兼容策略打开普通文件。 */
+XRT_API xfile xrtRootFileOpen(xroot Root, cstr sPath,
+	const xfileoptions* pOptions)
+{
+	return __xrtRootFileOpenPolicy(Root, sPath,
+		pOptions, XROOT_POLICY_FOLLOW_LINKS);
 }
 
 
@@ -735,6 +849,7 @@ static xrootstep __xrtRootStatProc(xrootnative Parent,
 {
 	__xrt_root_stat_data* pStat = (__xrt_root_stat_data*)pData;
 	xrootstep Step = __xrtRootNativeStat(Parent, sName,
+		(pStat->Policy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
 		pStat->Follow, &pStat->Info, pLink);
 
 	if ( (Step == XROOT_STEP_DONE) && bTrailing &&
@@ -748,24 +863,100 @@ static xrootstep __xrtRootStatProc(xrootnative Parent,
 
 
 
-/* 查询根内对象元数据。 */
-XRT_API bool xrtRootStat(xroot Root, cstr sPath,
-	bool bFollowLink, xfileinfo* pInfo)
+/* 按策略查询根内对象元数据。 */
+bool __xrtRootStatPolicy(xroot Root, cstr sPath,
+	bool bFollowLink, xfileinfo* pInfo, uint32 iPolicy)
 {
 	__xrt_root_stat_data Data;
 
 	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ||
-		 (pInfo == NULL) ) {
+		 (pInfo == NULL) ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE)) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
 	memset(&Data, 0, sizeof(Data));
-	Data.Follow = bFollowLink;
-	if ( !__xrtRootResolve(Root, sPath, __xrtRootStatProc, &Data) ) {
+	Data.Follow = bFollowLink ||
+		((iPolicy & XROOT_POLICY_FOLLOW_LINKS) == 0u);
+	Data.Policy = iPolicy;
+	if ( !__xrtRootResolve(Root, sPath, iPolicy, false,
+		__xrtRootStatProc, &Data) ) {
 		return false;
 	}
 	*pInfo = Data.Info;
 	return true;
+}
+
+
+
+/* 按公共兼容策略查询根内对象元数据。 */
+XRT_API bool xrtRootStat(xroot Root, cstr sPath,
+	bool bFollowLink, xfileinfo* pInfo)
+{
+	return __xrtRootStatPolicy(Root, sPath, bFollowLink,
+		pInfo, XROOT_POLICY_FOLLOW_LINKS);
+}
+
+
+
+/* 根内目录枚举末级操作；成功时把新目录句柄转移给调用方。 */
+static xrootstep __xrtRootDirOpenProc(xrootnative Parent,
+	cstr sName, bool bTrailing, ptr pData, str* pLink)
+{
+	__xrt_root_handle_data* pHandle = (__xrt_root_handle_data*)pData;
+
+	(void)bTrailing;
+	return __xrtRootNativeOpenDir(Parent, sName,
+		(pHandle->Policy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
+		&pHandle->Handle, pLink);
+}
+
+
+
+/* 按策略从已锚定的根句柄打开目录迭代器。 */
+xdir __xrtRootDirOpenPolicy(xroot Root, cstr sPath,
+	uint32 iFlags, uint32 iPolicy)
+{
+	__xrt_root_handle_data Data;
+	str sDisplay;
+	xdir Dir;
+
+	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ||
+		 ((iFlags & XDIR_INCLUDE_DOTS) != 0u) ||
+		 !__xrtDirFlagsValid(iFlags) ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE)) != 0u) ) {
+		if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') )
+			__xrtErrorSetInvalidArgument();
+		else if ( (iFlags & XDIR_INCLUDE_DOTS) != 0u )
+			__xrtErrorSetInvalidArgument();
+		else if ( (iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+			XROOT_POLICY_CASE_SENSITIVE)) != 0u )
+			__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	Data.Handle = XRT_ROOT_NATIVE_INVALID;
+	Data.Policy = iPolicy;
+	if ( !__xrtRootResolve(Root, sPath, iPolicy, false,
+		__xrtRootDirOpenProc, &Data) ) return NULL;
+	sDisplay = xrtPathJoin(Root->Path, sPath);
+	if ( sDisplay == NULL ) {
+		(void)__xrtRootNativeClose(Data.Handle, false);
+		return NULL;
+	}
+	Dir = __xrtRootNativeDirTake(Data.Handle, sDisplay, iFlags);
+	xrtFree(sDisplay);
+	return Dir;
+}
+
+
+
+/* 按公共兼容策略打开根内目录迭代器。 */
+XRT_API xdir xrtRootDirOpen(xroot Root, cstr sPath, uint32 iFlags)
+{
+	return __xrtRootDirOpenPolicy(Root, sPath, iFlags,
+		XROOT_POLICY_FOLLOW_LINKS);
 }
 
 
@@ -792,7 +983,8 @@ XRT_API bool xrtRootDirCreate(xroot Root, cstr sPath, uint32 iMode)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtRootResolve(Root, sPath, __xrtRootCreateProc, &iMode);
+	return __xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
+		__xrtRootCreateProc, &iMode);
 }
 
 
@@ -821,7 +1013,8 @@ XRT_API bool xrtRootRemove(xroot Root, cstr sPath)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtRootResolve(Root, sPath, __xrtRootRemoveProc, NULL);
+	return __xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
+		__xrtRootRemoveProc, NULL);
 }
 
 
@@ -853,7 +1046,8 @@ XRT_API str xrtRootLinkRead(xroot Root, cstr sPath)
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	if ( !__xrtRootResolve(Root, sPath, __xrtRootLinkProc, &sTarget) ) {
+	if ( !__xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
+		__xrtRootLinkProc, &sTarget) ) {
 		return NULL;
 	}
 	return sTarget;
@@ -896,7 +1090,7 @@ XRT_API bool xrtRootLinkCreate(xroot Root, cstr sTarget,
 	}
 	Data.Target = sTarget;
 	Data.Directory = bDirectory;
-	return __xrtRootResolve(Root, sLink,
+	return __xrtRootResolve(Root, sLink, XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootLinkCreateProc, &Data);
 }
 
@@ -939,7 +1133,8 @@ static xrootstep __xrtRootHardSourceProc(xrootnative Parent,
 			"hard-link", "a hard-link source cannot end with a separator");
 		return XROOT_STEP_ERROR;
 	}
-	Step = __xrtRootNativeStat(Parent, sName, true, &Info, pLink);
+	Step = __xrtRootNativeStat(Parent, sName, false,
+		true, &Info, pLink);
 	if ( Step != XROOT_STEP_DONE ) { return Step; }
 	if ( Info.Type != XFILE_TYPE_FILE ) {
 		__xrtRootError(XERR_TYPE, XROOT_ERROR_LINK,
@@ -949,6 +1144,7 @@ static xrootstep __xrtRootHardSourceProc(xrootnative Parent,
 	Source.SourceParent = Parent;
 	Source.SourceName = sName;
 	return __xrtRootResolve(pTarget->Root, pTarget->TargetPath,
+		XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootHardTargetProc, &Source) ?
 		XROOT_STEP_DONE : XROOT_STEP_ERROR;
 }
@@ -968,7 +1164,7 @@ XRT_API bool xrtRootLinkHard(xroot Root, cstr sExisting, cstr sLink)
 	}
 	Data.Root = Root;
 	Data.TargetPath = sLink;
-	return __xrtRootResolve(Root, sExisting,
+	return __xrtRootResolve(Root, sExisting, XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootHardSourceProc, &Data);
 }
 
@@ -1002,7 +1198,7 @@ XRT_API bool xrtRootFifoCreate(xroot Root, cstr sPath, uint32 iMode)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtRootResolve(Root, sPath,
+	return __xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootFifoProc, &iMode);
 }
 
@@ -1020,7 +1216,7 @@ static xrootstep __xrtRootSetModeProc(xrootnative Parent,
 	if ( bTrailing ) {
 		xfileinfo Info;
 		xrootstep Step = __xrtRootNativeStat(Parent,
-			sName, pMode->Follow, &Info, pLink);
+			sName, false, pMode->Follow, &Info, pLink);
 
 		if ( Step != XROOT_STEP_DONE ) { return Step; }
 		if ( Info.Type != XFILE_TYPE_DIRECTORY ) {
@@ -1048,7 +1244,7 @@ XRT_API bool xrtRootSetMode(xroot Root, cstr sPath,
 	}
 	Data.Follow = bFollowLink;
 	Data.Mode = iMode;
-	return __xrtRootResolve(Root, sPath,
+	return __xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootSetModeProc, &Data);
 }
 

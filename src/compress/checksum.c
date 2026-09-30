@@ -2,7 +2,8 @@
 
 
 
-#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE)
+#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE) || \
+	defined(XRT_FEATURE_VFS_PACK)
 
 /* Inflate 与 Deflate 共用 16 项小表，避免在两个裁剪模块中重复常量和逻辑。 */
 uint32 __xrtCompressCrc32Update(

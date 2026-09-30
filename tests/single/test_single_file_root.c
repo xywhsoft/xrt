@@ -12,6 +12,10 @@ int main(void)
 	char sDirectory[96];
 	xfileoptions Options;
 	xfile File;
+	xdir Dir;
+	xdirentry Entry;
+	xdirnext Next;
+	bool bFound = false;
 	xroot Parent;
 	xroot Root;
 
@@ -48,11 +52,30 @@ int main(void)
 		(void)xrtRootClose(Parent);
 		return 5;
 	}
-	if ( !xrtClose(File) || !xrtRootRemove(Root, "single.txt") ||
+	if ( !xrtClose(File) ) {
+		(void)xrtRootClose(Root);
+		(void)xrtRootRemove(Parent, sDirectory);
+		(void)xrtRootClose(Parent);
+		return 6;
+	}
+	Dir = xrtRootDirOpen(Root, ".", XDIR_STAT);
+	if ( Dir == NULL ) {
+		(void)xrtRootRemove(Root, "single.txt");
+		(void)xrtRootClose(Root);
+		(void)xrtRootRemove(Parent, sDirectory);
+		(void)xrtRootClose(Parent);
+		return 7;
+	}
+	while ( (Next = xrtDirNext(Dir, &Entry)) == XDIR_NEXT_ITEM ) {
+		if ( xrtStrEqual(Entry.Name, xrtStrView("single.txt")) &&
+			 (Entry.Info.Type == XFILE_TYPE_FILE) ) bFound = true;
+	}
+	if ( (Next != XDIR_NEXT_END) || !xrtDirClose(Dir) || !bFound ||
+		 !xrtRootRemove(Root, "single.txt") ||
 		 !xrtRootClose(Root) ||
 		 !xrtRootRemove(Parent, sDirectory) ||
 		 !xrtRootClose(Parent) ) {
-		return 6;
+		return 8;
 	}
 	puts("single file root ok");
 	return 0;

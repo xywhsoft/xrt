@@ -6,7 +6,8 @@
 
 
 
-#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE)
+#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE) || \
+	defined(XRT_FEATURE_VFS_PACK)
 
 /* 使用共享小表更新未取反的 CRC32 状态。 */
 uint32 __xrtCompressCrc32Update(

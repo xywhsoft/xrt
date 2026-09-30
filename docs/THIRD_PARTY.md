@@ -67,6 +67,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
+## 7-Zip LZMA SDK decoder
+
+- 作者：Igor Pavlov
+- 来源：7-Zip LZMA SDK；本仓库快照文件日期为 2023-04-02 至 2024-01-25
+- 使用位置：`src/third_party/lzma`、`src/fs/vfs_pack.c`
+- 许可证：Public Domain
+- 改动：只引入 one-call LZMA1 解码所需文件；所有外部函数重命名为 XRT 私有符号，
+  防止宿主同时嵌入 LZMA SDK 时发生链接冲突；分配器接入 `xrtMalloc()`/`xrtFree()`，
+  输出长度、输入消费、结束状态和归档 CRC 由 pack provider 再次验证。
+
 ## nmhash32x v2.0
 
 - 作者：James Z.M. Gao

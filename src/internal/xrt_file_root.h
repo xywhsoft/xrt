@@ -1,6 +1,7 @@
 #ifndef XRT_INTERNAL_FILE_ROOT_H
 #define XRT_INTERNAL_FILE_ROOT_H
 
+#include "xrt_dir.h"
 #include "xrt_file_link.h"
 
 
@@ -23,6 +24,15 @@ typedef enum xrootstep {
 	XROOT_STEP_DONE = 0,
 	XROOT_STEP_LINK = 1
 } xrootstep;
+
+
+
+/* 内部解析策略；公共 API 保持平台大小写并允许根内相对链接。 */
+typedef enum xrootpolicy {
+	XROOT_POLICY_FOLLOW_LINKS = 0x01,
+	XROOT_POLICY_CASE_SENSITIVE = 0x02,
+	XROOT_POLICY_REGULAR_FILE = 0x04
+} xrootpolicy;
 
 
 
@@ -64,19 +74,38 @@ bool __xrtRootNativeClose(xrootnative Handle, bool bReport);
 
 /* 不跟随当前分量打开目录；链接目标通过拥有字符串返回。 */
 xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
-	xrootnative* pHandle, str* pLink);
+	bool bCaseSensitive, xrootnative* pHandle, str* pLink);
 
 
 
 /* 不跟随当前分量打开普通文件，并按选项决定是否继续解析链接。 */
 xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
-	const xfileoptions* pOptions, xfile* pFile, str* pLink);
+	bool bCaseSensitive, bool bRegularFile, const xfileoptions* pOptions,
+	xfile* pFile, str* pLink);
 
 
 
 /* 查询当前分量元数据，并按参数决定是否继续解析链接。 */
 xrootstep __xrtRootNativeStat(xrootnative Parent, cstr sName,
-	bool bFollowLink, xfileinfo* pInfo, str* pLink);
+	bool bCaseSensitive, bool bFollowLink,
+	xfileinfo* pInfo, str* pLink);
+
+
+
+/* 接管已打开目录句柄并创建句柄相对目录迭代器。 */
+xdir __xrtRootNativeDirTake(xrootnative Handle,
+	cstr sDisplayPath, uint32 iFlags);
+
+
+
+/* 供受限 provider 使用的精确解析入口。 */
+xroot __xrtRootOpenInPolicy(xroot Root, cstr sPath, uint32 iPolicy);
+xfile __xrtRootFileOpenPolicy(xroot Root, cstr sPath,
+	const xfileoptions* pOptions, uint32 iPolicy);
+bool __xrtRootStatPolicy(xroot Root, cstr sPath,
+	bool bFollowLink, xfileinfo* pInfo, uint32 iPolicy);
+xdir __xrtRootDirOpenPolicy(xroot Root, cstr sPath,
+	uint32 iFlags, uint32 iPolicy);
 
 
 

@@ -2,6 +2,7 @@
 #include "../internal/xrt_internal.h"
 #include "../internal/xrt_file.h"
 #include "../internal/xrt_net_port.h"
+#include "../internal/xrt_net_engine.h"
 
 
 

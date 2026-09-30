@@ -30,8 +30,20 @@
 
 #if defined(XRT_FEATURE_FILE)
 
-/* Windows 追加对象分离原子数据句柄和锁等控制操作句柄。 */
+/* 公共文件对象只保存后端分派、后端状态、打开标志与能力快照。 */
 struct xfile_impl {
+	const xrt_file_backend_ops* Ops;
+	ptr State;
+	uint32 Flags;
+	uint64 Capabilities;
+	ptr Owner;
+	void (*OwnerRelease)(ptr pOwner);
+};
+
+
+
+/* native backend 是平台句柄的唯一内部承载者。 */
+typedef struct xrt_native_file_state {
 	#if defined(_WIN32) || defined(_WIN64)
 		HANDLE Handle;
 		HANDLE Control;
@@ -44,36 +56,63 @@ struct xfile_impl {
 		xatomic64 AsyncOwner;
 		bool AsyncAssociated;
 	#endif
-};
+} xrt_native_file_state;
 
 
 
-/* 普通路径和根内路径都在系统创建/截断前准备对象。 */
-xfile __xrtFileAlloc(void)
-{
-	return (xfile)xrtMalloc(sizeof(struct xfile_impl));
-}
+static bool __xrtNativeFileRead(ptr pState, ptr pBuffer,
+	size_t iRequest, size_t* pRead);
+static bool __xrtNativeFileWrite(ptr pState, const void* pBuffer,
+	size_t iRequest, size_t* pWritten);
+static bool __xrtNativeFileReadAt(ptr pState, uint64 iOffset,
+	ptr pBuffer, size_t iRequest, size_t* pRead);
+static bool __xrtNativeFileWriteAt(ptr pState, uint64 iOffset,
+	const void* pBuffer, size_t iRequest, size_t* pWritten);
+static bool __xrtNativeFileSeek(ptr pState, int64 iOffset,
+	xseek Origin, uint64* pPosition);
+static bool __xrtNativeFileStat(ptr pState, xfileinfo* pInfo);
+static bool __xrtNativeFileResize(ptr pState, uint64 iSize);
+static bool __xrtNativeFileFlush(ptr pState);
+static intptr_t __xrtNativeFileHandle(ptr pState);
+static intptr_t __xrtNativeFileControlHandle(ptr pState);
+#if defined(XRT_FEATURE_NET_FILE)
+static bool __xrtNativeFileAsyncBind(ptr pState,
+	uint64 iOwner, bool** ppAssociated);
+#endif
+static bool __xrtNativeFileClose(ptr pState);
 
 
 
-/* 句柄接管本身不再分配，成功打开之后不能再因包装对象 OOM 返回失败。 */
-void __xrtFileInitNativePair(xfile File,
-	intptr_t iHandle, intptr_t iControl, uint32 iFlags)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		File->Handle = (HANDLE)iHandle;
-		File->Control = (HANDLE)iControl;
-		InitializeSRWLock(&File->CursorLock);
-	#else
-		File->Handle = (int)iHandle;
-		(void)iControl;
-	#endif
-	File->Flags = iFlags;
+static const xrt_file_backend_ops __xrtNativeFileOps = {
+	sizeof(xrt_file_backend_ops),
+	XRT_FILE_BACKEND_VERSION,
+	XRT_FILE_BACKEND_READ | XRT_FILE_BACKEND_WRITE |
+	XRT_FILE_BACKEND_READ_AT | XRT_FILE_BACKEND_WRITE_AT |
+	XRT_FILE_BACKEND_SEEK | XRT_FILE_BACKEND_STAT |
+	XRT_FILE_BACKEND_RESIZE | XRT_FILE_BACKEND_FLUSH |
+	XRT_FILE_BACKEND_NATIVE | XRT_FILE_BACKEND_CONTROL_NATIVE |
 	#if defined(XRT_FEATURE_NET_FILE)
-		xrtAtomic64Init(&File->AsyncOwner, 0);
-		File->AsyncAssociated = false;
+		XRT_FILE_BACKEND_ASYNC_BIND,
+	#else
+		UINT64_C(0),
 	#endif
-}
+	__xrtNativeFileRead,
+	__xrtNativeFileWrite,
+	__xrtNativeFileReadAt,
+	__xrtNativeFileWriteAt,
+	__xrtNativeFileSeek,
+	__xrtNativeFileStat,
+	__xrtNativeFileResize,
+	__xrtNativeFileFlush,
+	__xrtNativeFileHandle,
+	__xrtNativeFileControlHandle,
+	#if defined(XRT_FEATURE_NET_FILE)
+		__xrtNativeFileAsyncBind,
+	#else
+		NULL,
+	#endif
+	__xrtNativeFileClose
+};
 
 
 
@@ -130,6 +169,93 @@ void __xrtFileError(xerrkind Kind, xfileerror Code,
 
 
 
+/* 验证内部后端表的版本、能力位和回调一致性。 */
+static bool __xrtFileBackendOpsValid(const xrt_file_backend_ops* pOps)
+{
+	#define XRT_FILE_BACKEND_MATCH(Capability, Member) \
+		((((pOps->Capabilities & (Capability)) != 0u) == (pOps->Member != NULL)))
+	if ( (pOps == NULL) || (pOps->Size != sizeof(*pOps)) ||
+		 (pOps->Version != XRT_FILE_BACKEND_VERSION) ||
+		 ((pOps->Capabilities & ~XRT_FILE_BACKEND_CAPABILITIES) != 0u) ||
+		 (pOps->Close == NULL) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_READ, Read) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_WRITE, Write) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_READ_AT, ReadAt) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_WRITE_AT, WriteAt) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_SEEK, Seek) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_STAT, Stat) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_RESIZE, Resize) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_FLUSH, Flush) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_NATIVE, Native) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_CONTROL_NATIVE, ControlNative) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_ASYNC_BIND, AsyncBind) ) {
+		#undef XRT_FILE_BACKEND_MATCH
+		return false;
+	}
+	#undef XRT_FILE_BACKEND_MATCH
+	return true;
+}
+
+
+
+/* 接管后端状态并创建统一分派对象；分配失败仍消费 State。 */
+xfile __xrtFileTakeBackend(const xrt_file_backend_ops* pOps,
+	ptr pState, uint32 iFlags)
+{
+	xfile File;
+
+	if ( !__xrtFileBackendOpsValid(pOps) || (pState == NULL) ) {
+		if ( (pOps != NULL) && (pOps->Size == sizeof(*pOps)) &&
+			 (pOps->Close != NULL) && (pState != NULL) ) {
+			(void)pOps->Close(pState);
+		}
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	File = (xfile)xrtCalloc(1u, sizeof(*File));
+	if ( File == NULL ) {
+		xerror* pError = xrtTakeError();
+
+		(void)pOps->Close(pState);
+		xrtClearError();
+		__xrtErrorSetOwned(pError);
+		return NULL;
+	}
+	File->Ops = pOps;
+	File->State = pState;
+	File->Flags = iFlags;
+	File->Capabilities = pOps->Capabilities;
+	return File;
+}
+
+
+
+/* 附加一个独立生命周期 owner，不改变文件后端能力或分派。 */
+bool __xrtFileAttachOwner(xfile File, ptr pOwner,
+	void (*pRelease)(ptr pOwner))
+{
+	if ( (File == NULL) || (pOwner == NULL) || (pRelease == NULL) ||
+		 (File->Owner != NULL) || (File->OwnerRelease != NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	File->Owner = pOwner;
+	File->OwnerRelease = pRelease;
+	return true;
+}
+
+
+
+/* 发布稳定的后端不支持错误。 */
+static bool __xrtFileUnsupported(xfileerror Code,
+	cstr sOperation, cstr sMessage)
+{
+	__xrtFileError(XERR_UNSUPPORTED, Code, sOperation, sMessage);
+	return false;
+}
+
+
+
 /* 检查文件对象以及操作所需访问权限。 */
 static bool __xrtFileCheck(xfile File, uint32 iAccess)
 {
@@ -144,6 +270,22 @@ static bool __xrtFileCheck(xfile File, uint32 iAccess)
 	if ( (File->Flags & XFILE_ASYNC) != 0u ) {
 		__xrtErrorSetInvalidState();
 		return false;
+	}
+	return true;
+}
+
+
+
+/* 检查文件访问标志和后端能力。 */
+static bool __xrtFileCheckCapability(xfile File,
+	uint32 iAccess, uint64 iCapability,
+	xfileerror Code, cstr sOperation, cstr sMessage)
+{
+	if ( !__xrtFileCheck(File, iAccess) ) {
+		return false;
+	}
+	if ( (File->Capabilities & iCapability) == 0u ) {
+		return __xrtFileUnsupported(Code, sOperation, sMessage);
 	}
 	return true;
 }
@@ -469,6 +611,69 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 
 
 
+/* 接管数据句柄和可选控制句柄并创建文件对象。 */
+xfile __xrtFileAlloc(void)
+{
+	return (xfile)xrtCalloc(1u,
+		sizeof(struct xfile_impl) + sizeof(xrt_native_file_state));
+}
+
+/* Initialize the already allocated object without any fallible allocation. */
+void __xrtFileInitNativePair(xfile File,
+	intptr_t iHandle, intptr_t iControl, uint32 iFlags)
+{
+	xrt_native_file_state* pState;
+	pState = (xrt_native_file_state*)(File + 1);
+	memset(pState, 0, sizeof(*pState));
+	File->Ops = &__xrtNativeFileOps;
+	File->State = pState;
+	File->Flags = iFlags;
+	File->Capabilities = __xrtNativeFileOps.Capabilities;
+	#if defined(_WIN32) || defined(_WIN64)
+		pState->Handle = (HANDLE)iHandle;
+		pState->Control = (HANDLE)iControl;
+		InitializeSRWLock(&pState->CursorLock);
+	#else
+		pState->Handle = (int)iHandle;
+	#endif
+	#if defined(XRT_FEATURE_NET_FILE)
+		xrtAtomic64Init(&pState->AsyncOwner, 0);
+		pState->AsyncAssociated = false;
+	#endif
+	#if !defined(_WIN32) && !defined(_WIN64)
+		(void)iControl;
+	#endif
+}
+
+/* Adopt existing handles; newly creating/truncating opens use Alloc before OS IO. */
+xfile __xrtFileTakeNativePair(intptr_t iHandle,
+	intptr_t iControl, uint32 iFlags)
+{
+	xfile File = __xrtFileAlloc();
+	if (File == NULL) {
+		#if defined(_WIN32) || defined(_WIN64)
+			(void)CloseHandle((HANDLE)iHandle);
+			if ((HANDLE)iControl != INVALID_HANDLE_VALUE)
+				(void)CloseHandle((HANDLE)iControl);
+		#else
+			(void)close((int)iHandle);
+		#endif
+		return NULL;
+	}
+	__xrtFileInitNativePair(File, iHandle, iControl, iFlags);
+	return File;
+}
+
+
+
+/* 接管单个原生句柄并创建普通文件对象。 */
+xfile __xrtFileTakeNative(intptr_t iHandle, uint32 iFlags)
+{
+	return __xrtFileTakeNativePair(iHandle, (intptr_t)-1, iFlags);
+}
+
+
+
 /* 返回控制操作使用的原生句柄。 */
 intptr_t __xrtFileControlNative(xfile File)
 {
@@ -476,12 +681,12 @@ intptr_t __xrtFileControlNative(xfile File)
 		__xrtErrorSetInvalidArgument();
 		return (intptr_t)-1;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return (intptr_t)(File->Control != INVALID_HANDLE_VALUE ?
-			File->Control : File->Handle);
-	#else
-		return (intptr_t)File->Handle;
-	#endif
+	if ( (File->Capabilities & XRT_FILE_BACKEND_CONTROL_NATIVE) == 0u ) {
+		(void)__xrtFileUnsupported(XFILE_ERROR_LOCK, "control-native",
+			"the file backend does not expose a native control handle");
+		return (intptr_t)-1;
+	}
+	return File->Ops->ControlNative(File->State);
 }
 
 
@@ -494,8 +699,6 @@ bool __xrtFileAsyncBind(
 	bool** ppAssociated
 )
 {
-	uint64 iExpected = 0;
-
 	if ( (File == NULL) || (iOwner == 0) || (ppAssociated == NULL) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
@@ -504,20 +707,11 @@ bool __xrtFileAsyncBind(
 		__xrtErrorSetInvalidState();
 		return false;
 	}
-	if ( !xrtAtomic64CompareExchange(
-		&File->AsyncOwner,
-		&iExpected,
-		iOwner,
-		XMEMORY_ACQ_REL,
-		XMEMORY_ACQUIRE
-	) ) {
-		if ( iExpected != iOwner ) {
-			__xrtErrorSetInvalidState();
-			return false;
-		}
+	if ( (File->Capabilities & XRT_FILE_BACKEND_ASYNC_BIND) == 0u ) {
+		return __xrtFileUnsupported(XFILE_ERROR_OPEN, "async-bind",
+			"the file backend does not support native completion I/O");
 	}
-	*ppAssociated = &File->AsyncAssociated;
-	return true;
+	return File->Ops->AsyncBind(File->State, iOwner, ppAssociated);
 }
 #endif
 
@@ -552,23 +746,20 @@ XRT_API xfile xrtOpen(cstr sPath, uint32 iFlags)
 
 
 
-/* 关闭原生句柄并销毁文件对象。 */
-XRT_API bool xrtClose(xfile File)
+/* 关闭 native state 中的数据句柄和可选控制句柄。 */
+static bool __xrtNativeFileClose(ptr pState)
 {
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
 	bool bResult;
 	int iCode = 0;
 
-	if ( File == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
 	#if defined(_WIN32) || defined(_WIN64)
-		bResult = CloseHandle(File->Handle) != 0;
+		bResult = CloseHandle(pNative->Handle) != 0;
 		if ( !bResult ) {
 			iCode = (int)GetLastError();
 		}
-		if ( File->Control != INVALID_HANDLE_VALUE ) {
-			bool bControl = CloseHandle(File->Control) != 0;
+		if ( pNative->Control != INVALID_HANDLE_VALUE ) {
+			bool bControl = CloseHandle(pNative->Control) != 0;
 
 			if ( bResult && !bControl ) {
 				bResult = false;
@@ -576,17 +767,134 @@ XRT_API bool xrtClose(xfile File)
 			}
 		}
 	#else
-		bResult = close(File->Handle) == 0;
+		bResult = close(pNative->Handle) == 0;
 		if ( !bResult ) {
 			iCode = errno;
 		}
 	#endif
-	xrtFree(File);
 	if ( !bResult ) {
 		__xrtFileSetError(XFILE_ERROR_CLOSE, "close",
 			"failed to close the file", iCode);
 	}
 	return bResult;
+}
+
+
+
+/* 关闭后端状态并销毁统一文件对象。 */
+XRT_API bool xrtClose(xfile File)
+{
+	bool bResult;
+	ptr pOwner;
+	void (*pOwnerRelease)(ptr pOwner);
+
+	if ( File == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	pOwner = File->Owner;
+	pOwnerRelease = File->OwnerRelease;
+	bResult = File->Ops->Close(File->State);
+	xrtFree(File);
+	if ( pOwnerRelease != NULL ) pOwnerRelease(pOwner);
+	return bResult;
+}
+
+
+
+/* native backend 单次读取。 */
+static bool __xrtNativeFileRead(ptr pState, ptr pBuffer,
+	size_t iRequest, size_t* pRead)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD iDone = 0;
+		DWORD iChunk = (iRequest > (size_t)UINT32_MAX) ?
+			UINT32_MAX : (DWORD)iRequest;
+
+		AcquireSRWLockExclusive(&pNative->CursorLock);
+		if ( !ReadFile(pNative->Handle, pBuffer, iChunk, &iDone, NULL) ) {
+			int iCode = (int)GetLastError();
+
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+			if ( (iCode == ERROR_HANDLE_EOF) || (iCode == ERROR_BROKEN_PIPE) ) {
+				return true;
+			}
+			__xrtFileSetError(XFILE_ERROR_READ, "read",
+				"failed to read the file", iCode);
+			return false;
+		}
+		ReleaseSRWLockExclusive(&pNative->CursorLock);
+		if ( pRead != NULL ) {
+			*pRead = (size_t)iDone;
+		}
+	#else
+		ssize_t iDone;
+		size_t iChunk = (iRequest > (size_t)0x7FFFFFFF) ?
+			(size_t)0x7FFFFFFF : iRequest;
+
+		do {
+			iDone = read(pNative->Handle, pBuffer, iChunk);
+		} while ( (iDone < 0) && (errno == EINTR) );
+		if ( iDone < 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_READ, "read",
+				"failed to read the file", iCode);
+			return false;
+		}
+		if ( pRead != NULL ) {
+			*pRead = (size_t)iDone;
+		}
+	#endif
+	return true;
+}
+
+
+
+/* native backend 单次写入。 */
+static bool __xrtNativeFileWrite(ptr pState, const void* pBuffer,
+	size_t iRequest, size_t* pWritten)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD iDone = 0;
+		DWORD iChunk = (iRequest > (size_t)UINT32_MAX) ?
+			UINT32_MAX : (DWORD)iRequest;
+
+		AcquireSRWLockExclusive(&pNative->CursorLock);
+		if ( !WriteFile(pNative->Handle, pBuffer, iChunk, &iDone, NULL) ) {
+			int iCode = (int)GetLastError();
+
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+			__xrtFileSetError(XFILE_ERROR_WRITE, "write",
+				"failed to write the file", iCode);
+			return false;
+		}
+		ReleaseSRWLockExclusive(&pNative->CursorLock);
+		if ( pWritten != NULL ) {
+			*pWritten = (size_t)iDone;
+		}
+	#else
+		ssize_t iDone;
+		size_t iChunk = (iRequest > (size_t)0x7FFFFFFF) ?
+			(size_t)0x7FFFFFFF : iRequest;
+
+		do {
+			iDone = write(pNative->Handle, pBuffer, iChunk);
+		} while ( (iDone < 0) && (errno == EINTR) );
+		if ( iDone < 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_WRITE, "write",
+				"failed to write the file", iCode);
+			return false;
+		}
+		if ( pWritten != NULL ) {
+			*pWritten = (size_t)iDone;
+		}
+	#endif
+	return true;
 }
 
 
@@ -601,56 +909,15 @@ XRT_API bool xrtRead(xfile File, ptr pBuffer, size_t iRequest, size_t* pRead)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtFileCheck(File, XFILE_READ) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_READ,
+		XRT_FILE_BACKEND_READ, XFILE_ERROR_READ, "read",
+		"the file backend does not support sequential reads") ) {
 		return false;
 	}
 	if ( iRequest == 0u ) {
 		return true;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			DWORD iDone = 0;
-			DWORD iChunk = (iRequest > (size_t)UINT32_MAX) ? UINT32_MAX : (DWORD)iRequest;
-
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !ReadFile(File->Handle, pBuffer, iChunk, &iDone, NULL) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				if ( (iCode == ERROR_HANDLE_EOF) || (iCode == ERROR_BROKEN_PIPE) ) {
-					return true;
-				}
-				__xrtFileSetError(XFILE_ERROR_READ, "read",
-					"failed to read the file", iCode);
-				return false;
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-			if ( pRead != NULL ) {
-				*pRead = (size_t)iDone;
-			}
-		}
-	#else
-		{
-			ssize_t iDone;
-			size_t iChunk = (iRequest > (size_t)0x7FFFFFFF) ?
-				(size_t)0x7FFFFFFF : iRequest;
-
-			do {
-				iDone = read(File->Handle, pBuffer, iChunk);
-			} while ( (iDone < 0) && (errno == EINTR) );
-			if ( iDone < 0 ) {
-				int iCode = errno;
-
-				__xrtFileSetError(XFILE_ERROR_READ, "read",
-					"failed to read the file", iCode);
-				return false;
-			}
-			if ( pRead != NULL ) {
-				*pRead = (size_t)iDone;
-			}
-		}
-	#endif
-	return true;
+	return File->Ops->Read(File->State, pBuffer, iRequest, pRead);
 }
 
 
@@ -666,53 +933,15 @@ XRT_API bool xrtWrite(xfile File, const void* pBuffer,
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtFileCheck(File, XFILE_WRITE) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_WRITE,
+		XRT_FILE_BACKEND_WRITE, XFILE_ERROR_WRITE, "write",
+		"the file backend does not support sequential writes") ) {
 		return false;
 	}
 	if ( iRequest == 0u ) {
 		return true;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			DWORD iDone = 0;
-			DWORD iChunk = (iRequest > (size_t)UINT32_MAX) ? UINT32_MAX : (DWORD)iRequest;
-
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !WriteFile(File->Handle, pBuffer, iChunk, &iDone, NULL) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_WRITE, "write",
-					"failed to write the file", iCode);
-				return false;
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-			if ( pWritten != NULL ) {
-				*pWritten = (size_t)iDone;
-			}
-		}
-	#else
-		{
-			ssize_t iDone;
-			size_t iChunk = (iRequest > (size_t)0x7FFFFFFF) ?
-				(size_t)0x7FFFFFFF : iRequest;
-
-			do {
-				iDone = write(File->Handle, pBuffer, iChunk);
-			} while ( (iDone < 0) && (errno == EINTR) );
-			if ( iDone < 0 ) {
-				int iCode = errno;
-
-				__xrtFileSetError(XFILE_ERROR_WRITE, "write",
-					"failed to write the file", iCode);
-				return false;
-			}
-			if ( pWritten != NULL ) {
-				*pWritten = (size_t)iDone;
-			}
-		}
-	#endif
-	return true;
+	return File->Ops->Write(File->State, pBuffer, iRequest, pWritten);
 }
 
 
@@ -822,6 +1051,150 @@ static bool __xrtFileAtRange(uint64 iOffset, size_t iRequest)
 
 
 
+/* native backend 从绝对偏移读取且不改变共享游标。 */
+static bool __xrtNativeFileReadAt(ptr pState, uint64 iOffset,
+	ptr pBuffer, size_t iRequest, size_t* pRead)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		LARGE_INTEGER Original;
+		LARGE_INTEGER Target;
+		LARGE_INTEGER Zero;
+		DWORD iDone = 0;
+		int iReadCode = 0;
+		int iRestoreCode = 0;
+
+		Zero.QuadPart = 0;
+		Target.QuadPart = (LONGLONG)iOffset;
+		AcquireSRWLockExclusive(&pNative->CursorLock);
+		if ( !SetFilePointerEx(pNative->Handle, Zero,
+			&Original, FILE_CURRENT) ) {
+			int iCode = (int)GetLastError();
+
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+			__xrtFileSetError(XFILE_ERROR_SEEK, "read-at-position",
+				"failed to save the shared file position", iCode);
+			return false;
+		}
+		if ( !SetFilePointerEx(pNative->Handle, Target, NULL, FILE_BEGIN) ) {
+			iReadCode = (int)GetLastError();
+		} else if ( !ReadFile(pNative->Handle, pBuffer,
+			(DWORD)iRequest, &iDone, NULL) ) {
+			iReadCode = (int)GetLastError();
+		}
+		if ( !SetFilePointerEx(pNative->Handle, Original, NULL, FILE_BEGIN) ) {
+			iRestoreCode = (int)GetLastError();
+		}
+		ReleaseSRWLockExclusive(&pNative->CursorLock);
+		if ( pRead != NULL ) {
+			*pRead = (size_t)iDone;
+		}
+		if ( (iReadCode != 0) && (iReadCode != ERROR_HANDLE_EOF) ) {
+			__xrtFileSetError(XFILE_ERROR_READ, "read-at",
+				"failed to read the file at the requested offset", iReadCode);
+			return false;
+		}
+		if ( iRestoreCode != 0 ) {
+			__xrtFileSetError(XFILE_ERROR_SEEK, "read-at-restore",
+				"the data was read but the shared file position could not be restored",
+				iRestoreCode);
+			return false;
+		}
+	#else
+		ssize_t iDone;
+
+		do {
+			iDone = pread(pNative->Handle, pBuffer,
+				iRequest, (off_t)iOffset);
+		} while ( (iDone < 0) && (errno == EINTR) );
+		if ( iDone < 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_READ, "read-at",
+				"failed to read the file at the requested offset", iCode);
+			return false;
+		}
+		if ( pRead != NULL ) {
+			*pRead = (size_t)iDone;
+		}
+	#endif
+	return true;
+}
+
+
+
+/* native backend 向绝对偏移写入且不改变共享游标。 */
+static bool __xrtNativeFileWriteAt(ptr pState, uint64 iOffset,
+	const void* pBuffer, size_t iRequest, size_t* pWritten)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		LARGE_INTEGER Original;
+		LARGE_INTEGER Target;
+		LARGE_INTEGER Zero;
+		DWORD iDone = 0;
+		int iWriteCode = 0;
+		int iRestoreCode = 0;
+
+		Zero.QuadPart = 0;
+		Target.QuadPart = (LONGLONG)iOffset;
+		AcquireSRWLockExclusive(&pNative->CursorLock);
+		if ( !SetFilePointerEx(pNative->Handle, Zero,
+			&Original, FILE_CURRENT) ) {
+			int iCode = (int)GetLastError();
+
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+			__xrtFileSetError(XFILE_ERROR_SEEK, "write-at-position",
+				"failed to save the shared file position", iCode);
+			return false;
+		}
+		if ( !SetFilePointerEx(pNative->Handle, Target, NULL, FILE_BEGIN) ) {
+			iWriteCode = (int)GetLastError();
+		} else if ( !WriteFile(pNative->Handle, pBuffer,
+			(DWORD)iRequest, &iDone, NULL) ) {
+			iWriteCode = (int)GetLastError();
+		}
+		if ( !SetFilePointerEx(pNative->Handle, Original, NULL, FILE_BEGIN) ) {
+			iRestoreCode = (int)GetLastError();
+		}
+		ReleaseSRWLockExclusive(&pNative->CursorLock);
+		if ( pWritten != NULL ) {
+			*pWritten = (size_t)iDone;
+		}
+		if ( iWriteCode != 0 ) {
+			__xrtFileSetError(XFILE_ERROR_WRITE, "write-at",
+				"failed to write the file at the requested offset", iWriteCode);
+			return false;
+		}
+		if ( iRestoreCode != 0 ) {
+			__xrtFileSetError(XFILE_ERROR_SEEK, "write-at-restore",
+				"the data was written but the shared file position could not be restored",
+				iRestoreCode);
+			return false;
+		}
+	#else
+		ssize_t iDone;
+
+		do {
+			iDone = pwrite(pNative->Handle, pBuffer,
+				iRequest, (off_t)iOffset);
+		} while ( (iDone < 0) && (errno == EINTR) );
+		if ( iDone < 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_WRITE, "write-at",
+				"failed to write the file at the requested offset", iCode);
+			return false;
+		}
+		if ( pWritten != NULL ) {
+			*pWritten = (size_t)iDone;
+		}
+	#endif
+	return true;
+}
+
+
+
 /* 从绝对偏移执行一次读取且不改变共享游标。 */
 XRT_API bool xrtReadAt(xfile File, uint64 iOffset,
 	ptr pBuffer, size_t iRequest, size_t* pRead)
@@ -836,82 +1209,16 @@ XRT_API bool xrtReadAt(xfile File, uint64 iOffset,
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtFileCheck(File, XFILE_READ) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_READ,
+		XRT_FILE_BACKEND_READ_AT, XFILE_ERROR_READ, "read-at",
+		"the file backend does not support positional reads") ) {
 		return false;
 	}
 	if ( (iRequest == 0u) || !__xrtFileAtRange(iOffset, iChunk) ) {
 		return iRequest == 0u;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			LARGE_INTEGER Original;
-			LARGE_INTEGER Target;
-			LARGE_INTEGER Zero;
-			DWORD iDone = 0;
-			int iReadCode = 0;
-			int iRestoreCode = 0;
-
-			Zero.QuadPart = 0;
-			Target.QuadPart = (LONGLONG)iOffset;
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !SetFilePointerEx(File->Handle, Zero,
-				&Original, FILE_CURRENT) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_SEEK, "read-at-position",
-					"failed to save the shared file position", iCode);
-				return false;
-			}
-			if ( !SetFilePointerEx(File->Handle, Target, NULL, FILE_BEGIN) ) {
-				iReadCode = (int)GetLastError();
-			} else if ( !ReadFile(File->Handle, pBuffer,
-				(DWORD)iChunk, &iDone, NULL) ) {
-				iReadCode = (int)GetLastError();
-			}
-			if ( !SetFilePointerEx(File->Handle, Original,
-				NULL, FILE_BEGIN) ) {
-				iRestoreCode = (int)GetLastError();
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-			if ( pRead != NULL ) {
-				*pRead = (size_t)iDone;
-			}
-			if ( (iReadCode != 0) && (iReadCode != ERROR_HANDLE_EOF) ) {
-				__xrtFileSetError(XFILE_ERROR_READ, "read-at",
-					"failed to read the file at the requested offset",
-					iReadCode);
-				return false;
-			}
-			if ( iRestoreCode != 0 ) {
-				__xrtFileSetError(XFILE_ERROR_SEEK, "read-at-restore",
-					"the data was read but the shared file position could not be restored",
-					iRestoreCode);
-				return false;
-			}
-		}
-	#else
-		{
-			ssize_t iDone;
-
-			do {
-				iDone = pread(File->Handle, pBuffer,
-					iChunk, (off_t)iOffset);
-			} while ( (iDone < 0) && (errno == EINTR) );
-			if ( iDone < 0 ) {
-				int iCode = errno;
-
-				__xrtFileSetError(XFILE_ERROR_READ, "read-at",
-					"failed to read the file at the requested offset",
-					iCode);
-				return false;
-			}
-			if ( pRead != NULL ) {
-				*pRead = (size_t)iDone;
-			}
-		}
-	#endif
-	return true;
+	return File->Ops->ReadAt(File->State, iOffset,
+		pBuffer, iChunk, pRead);
 }
 
 
@@ -930,7 +1237,9 @@ XRT_API bool xrtWriteAt(xfile File, uint64 iOffset,
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtFileCheck(File, XFILE_WRITE) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_WRITE,
+		XRT_FILE_BACKEND_WRITE_AT, XFILE_ERROR_WRITE, "write-at",
+		"the file backend does not support positional writes") ) {
 		return false;
 	}
 	if ( (File->Flags & XFILE_APPEND) != 0u ) {
@@ -940,76 +1249,8 @@ XRT_API bool xrtWriteAt(xfile File, uint64 iOffset,
 	if ( (iRequest == 0u) || !__xrtFileAtRange(iOffset, iChunk) ) {
 		return iRequest == 0u;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			LARGE_INTEGER Original;
-			LARGE_INTEGER Target;
-			LARGE_INTEGER Zero;
-			DWORD iDone = 0;
-			int iWriteCode = 0;
-			int iRestoreCode = 0;
-
-			Zero.QuadPart = 0;
-			Target.QuadPart = (LONGLONG)iOffset;
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !SetFilePointerEx(File->Handle, Zero,
-				&Original, FILE_CURRENT) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_SEEK, "write-at-position",
-					"failed to save the shared file position", iCode);
-				return false;
-			}
-			if ( !SetFilePointerEx(File->Handle, Target, NULL, FILE_BEGIN) ) {
-				iWriteCode = (int)GetLastError();
-			} else if ( !WriteFile(File->Handle, pBuffer,
-				(DWORD)iChunk, &iDone, NULL) ) {
-				iWriteCode = (int)GetLastError();
-			}
-			if ( !SetFilePointerEx(File->Handle, Original,
-				NULL, FILE_BEGIN) ) {
-				iRestoreCode = (int)GetLastError();
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-			if ( pWritten != NULL ) {
-				*pWritten = (size_t)iDone;
-			}
-			if ( iWriteCode != 0 ) {
-				__xrtFileSetError(XFILE_ERROR_WRITE, "write-at",
-					"failed to write the file at the requested offset",
-					iWriteCode);
-				return false;
-			}
-			if ( iRestoreCode != 0 ) {
-				__xrtFileSetError(XFILE_ERROR_SEEK, "write-at-restore",
-					"the data was written but the shared file position could not be restored",
-					iRestoreCode);
-				return false;
-			}
-		}
-	#else
-		{
-			ssize_t iDone;
-
-			do {
-				iDone = pwrite(File->Handle, pBuffer,
-					iChunk, (off_t)iOffset);
-			} while ( (iDone < 0) && (errno == EINTR) );
-			if ( iDone < 0 ) {
-				int iCode = errno;
-
-				__xrtFileSetError(XFILE_ERROR_WRITE, "write-at",
-					"failed to write the file at the requested offset",
-					iCode);
-				return false;
-			}
-			if ( pWritten != NULL ) {
-				*pWritten = (size_t)iDone;
-			}
-		}
-	#endif
-	return true;
+	return File->Ops->WriteAt(File->State, iOffset,
+		pBuffer, iChunk, pWritten);
 }
 
 
@@ -1108,14 +1349,11 @@ XRT_API bool xrtWriteAtFull(xfile File, uint64 iOffset,
 
 
 
-/* 按 64 位偏移移动共享文件游标。 */
-XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
+/* native backend 按 64 位偏移移动共享文件游标。 */
+static bool __xrtNativeFileSeek(ptr pState, int64 iOffset,
+	xseek Origin, uint64* pPosition)
 {
-	if ( (File == NULL) || ((Origin != XSEEK_START) &&
-		 (Origin != XSEEK_CURRENT) && (Origin != XSEEK_END)) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
 	#if defined(_WIN32) || defined(_WIN64)
 		{
 			LARGE_INTEGER Offset;
@@ -1124,16 +1362,16 @@ XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
 				((Origin == XSEEK_CURRENT) ? FILE_CURRENT : FILE_END);
 
 			Offset.QuadPart = iOffset;
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !SetFilePointerEx(File->Handle, Offset, &Position, iMethod) ) {
+			AcquireSRWLockExclusive(&pNative->CursorLock);
+			if ( !SetFilePointerEx(pNative->Handle, Offset, &Position, iMethod) ) {
 				int iCode = (int)GetLastError();
 
-				ReleaseSRWLockExclusive(&File->CursorLock);
+				ReleaseSRWLockExclusive(&pNative->CursorLock);
 				__xrtFileSetError(XFILE_ERROR_SEEK, "seek",
 					"failed to move the file position", iCode);
 				return false;
 			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
 			if ( Position.QuadPart < 0 ) {
 				__xrtFileError(XERR_RANGE, XFILE_ERROR_SEEK, "seek",
 					"the resulting file position is negative");
@@ -1150,7 +1388,7 @@ XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
 			off_t iPosition;
 
 			errno = 0;
-			iPosition = lseek(File->Handle, (off_t)iOffset, iWhence);
+			iPosition = lseek(pNative->Handle, (off_t)iOffset, iWhence);
 			if ( iPosition < (off_t)0 ) {
 				int iCode = errno;
 
@@ -1164,6 +1402,23 @@ XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
 		}
 	#endif
 	return true;
+}
+
+
+
+/* 按 64 位偏移移动共享文件游标。 */
+XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
+{
+	if ( (File == NULL) || ((Origin != XSEEK_START) &&
+		 (Origin != XSEEK_CURRENT) && (Origin != XSEEK_END)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (File->Capabilities & XRT_FILE_BACKEND_SEEK) == 0u ) {
+		return __xrtFileUnsupported(XFILE_ERROR_SEEK, "seek",
+			"the file backend does not support a shared cursor");
+	}
+	return File->Ops->Seek(File->State, iOffset, Origin, pPosition);
 }
 
 
@@ -1441,6 +1696,19 @@ static bool __xrtFilePosixStat(int hFile, xfileinfo* pInfo, bool bReport)
 
 
 
+/* 查询 native backend 元数据。 */
+static bool __xrtNativeFileStat(ptr pState, xfileinfo* pInfo)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		return __xrtFileWindowsStat(pNative->Handle, pInfo, true);
+	#else
+		return __xrtFilePosixStat(pNative->Handle, pInfo, true);
+	#endif
+}
+
+
+
 /* 查询打开文件的元数据。 */
 XRT_API bool xrtFileStat(xfile File, xfileinfo* pInfo)
 {
@@ -1448,11 +1716,11 @@ XRT_API bool xrtFileStat(xfile File, xfileinfo* pInfo)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return __xrtFileWindowsStat(File->Handle, pInfo, true);
-	#else
-		return __xrtFilePosixStat(File->Handle, pInfo, true);
-	#endif
+	if ( (File->Capabilities & XRT_FILE_BACKEND_STAT) == 0u ) {
+		return __xrtFileUnsupported(XFILE_ERROR_STAT, "stat",
+			"the file backend does not expose metadata");
+	}
+	return File->Ops->Stat(File->State, pInfo);
 }
 
 
@@ -1480,10 +1748,73 @@ XRT_API bool xrtFileSize(xfile File, uint64* pSize)
 
 
 
+/* 修改 native backend 文件大小。 */
+static bool __xrtNativeFileResize(ptr pState, uint64 iSize)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			LARGE_INTEGER Original;
+			LARGE_INTEGER Target;
+			LARGE_INTEGER Zero;
+
+			Zero.QuadPart = 0;
+			Target.QuadPart = (LONGLONG)iSize;
+			AcquireSRWLockExclusive(&pNative->CursorLock);
+			if ( !SetFilePointerEx(pNative->Handle, Zero,
+				&Original, FILE_CURRENT) ) {
+				int iCode = (int)GetLastError();
+
+				ReleaseSRWLockExclusive(&pNative->CursorLock);
+				__xrtFileSetError(XFILE_ERROR_SEEK, "resize-position",
+					"failed to save the shared file position", iCode);
+				return false;
+			}
+			if ( !SetFilePointerEx(pNative->Handle, Target, NULL, FILE_BEGIN) ||
+				 !SetEndOfFile(pNative->Handle) ) {
+				int iCode = (int)GetLastError();
+
+				(void)SetFilePointerEx(pNative->Handle, Original, NULL, FILE_BEGIN);
+				ReleaseSRWLockExclusive(&pNative->CursorLock);
+				__xrtFileSetError(XFILE_ERROR_RESIZE, "resize",
+					"failed to resize the file", iCode);
+				return false;
+			}
+			if ( !SetFilePointerEx(pNative->Handle, Original, NULL, FILE_BEGIN) ) {
+				int iCode = (int)GetLastError();
+
+				ReleaseSRWLockExclusive(&pNative->CursorLock);
+				__xrtFileSetError(XFILE_ERROR_SEEK, "resize-restore",
+					"the file was resized but its position could not be restored", iCode);
+				return false;
+			}
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+		}
+	#else
+		int iResult;
+
+		do {
+			iResult = ftruncate(pNative->Handle, (off_t)iSize);
+		} while ( (iResult != 0) && (errno == EINTR) );
+		if ( iResult != 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_RESIZE, "resize",
+				"failed to resize the file", iCode);
+			return false;
+		}
+	#endif
+	return true;
+}
+
+
+
 /* 修改打开文件大小。 */
 XRT_API bool xrtFileResize(xfile File, uint64 iSize)
 {
-	if ( !__xrtFileCheck(File, XFILE_WRITE) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_WRITE,
+		XRT_FILE_BACKEND_RESIZE, XFILE_ERROR_RESIZE, "resize",
+		"the file backend does not support resize") ) {
 		return false;
 	}
 	if ( (File->Flags & XFILE_APPEND) != 0u ) {
@@ -1496,59 +1827,7 @@ XRT_API bool xrtFileResize(xfile File, uint64 iSize)
 			"the requested file size is outside the supported range");
 		return false;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			LARGE_INTEGER Original;
-			LARGE_INTEGER Target;
-			LARGE_INTEGER Zero;
-
-			Zero.QuadPart = 0;
-			Target.QuadPart = (LONGLONG)iSize;
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !SetFilePointerEx(File->Handle, Zero,
-				&Original, FILE_CURRENT) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_SEEK, "resize-position",
-					"failed to save the shared file position", iCode);
-				return false;
-			}
-			if ( !SetFilePointerEx(File->Handle, Target, NULL, FILE_BEGIN) ||
-				 !SetEndOfFile(File->Handle) ) {
-				int iCode = (int)GetLastError();
-
-				(void)SetFilePointerEx(File->Handle, Original, NULL, FILE_BEGIN);
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_RESIZE, "resize",
-					"failed to resize the file", iCode);
-				return false;
-			}
-			if ( !SetFilePointerEx(File->Handle, Original, NULL, FILE_BEGIN) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_SEEK, "resize-restore",
-					"the file was resized but its position could not be restored", iCode);
-				return false;
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-		}
-	#else
-		int iResult;
-
-		do {
-			iResult = ftruncate(File->Handle, (off_t)iSize);
-		} while ( (iResult != 0) && (errno == EINTR) );
-		if ( iResult != 0 ) {
-			int iCode = errno;
-
-			__xrtFileSetError(XFILE_ERROR_RESIZE, "resize",
-				"failed to resize the file", iCode);
-			return false;
-		}
-	#endif
-	return true;
+	return File->Ops->Resize(File->State, iSize);
 }
 
 
@@ -1578,14 +1857,12 @@ XRT_API bool xrtFileSetSize(cstr sPath, uint64 iSize)
 
 
 
-/* 把文件数据和必要元数据提交给稳定存储。 */
-XRT_API bool xrtFlush(xfile File)
+/* 把 native backend 数据提交给稳定存储。 */
+static bool __xrtNativeFileFlush(ptr pState)
 {
-	if ( !__xrtFileCheck(File, XFILE_WRITE) ) {
-		return false;
-	}
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
 	#if defined(_WIN32) || defined(_WIN64)
-		if ( !FlushFileBuffers(File->Handle) ) {
+		if ( !FlushFileBuffers(pNative->Handle) ) {
 			int iCode = (int)GetLastError();
 
 			__xrtFileSetError(XFILE_ERROR_SYNC, "flush",
@@ -1596,7 +1873,7 @@ XRT_API bool xrtFlush(xfile File)
 		int iResult;
 
 		do {
-			iResult = fsync(File->Handle);
+			iResult = fsync(pNative->Handle);
 		} while ( (iResult != 0) && (errno == EINTR) );
 		if ( iResult != 0 ) {
 			int iCode = errno;
@@ -1607,6 +1884,19 @@ XRT_API bool xrtFlush(xfile File)
 		}
 	#endif
 	return true;
+}
+
+
+
+/* 把文件数据和必要元数据提交给稳定存储。 */
+XRT_API bool xrtFlush(xfile File)
+{
+	if ( !__xrtFileCheckCapability(File, XFILE_WRITE,
+		XRT_FILE_BACKEND_FLUSH, XFILE_ERROR_SYNC, "flush",
+		"the file backend does not support flush") ) {
+		return false;
+	}
+	return File->Ops->Flush(File->State);
 }
 
 
@@ -1623,6 +1913,54 @@ XRT_API uint32 xrtFileFlags(xfile File)
 
 
 
+/* 返回 native backend 的数据句柄。 */
+static intptr_t __xrtNativeFileHandle(ptr pState)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	return (intptr_t)pNative->Handle;
+}
+
+
+
+/* 返回 native backend 的控制句柄。 */
+static intptr_t __xrtNativeFileControlHandle(ptr pState)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		return (intptr_t)(pNative->Control != INVALID_HANDLE_VALUE ?
+			pNative->Control : pNative->Handle);
+	#else
+		return (intptr_t)pNative->Handle;
+	#endif
+}
+
+
+
+#if defined(XRT_FEATURE_NET_FILE)
+/* 原子绑定 native async 文件的唯一完成端口。 */
+static bool __xrtNativeFileAsyncBind(ptr pState,
+	uint64 iOwner, bool** ppAssociated)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	uint64 iExpected = 0;
+
+	if ( !xrtAtomic64CompareExchange(
+		&pNative->AsyncOwner,
+		&iExpected,
+		iOwner,
+		XMEMORY_ACQ_REL,
+		XMEMORY_ACQUIRE
+	) && (iExpected != iOwner) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	*ppAssociated = &pNative->AsyncAssociated;
+	return true;
+}
+#endif
+
+
+
 /* 返回原生文件句柄的整数表示。 */
 XRT_API intptr_t xrtFileNative(xfile File)
 {
@@ -1630,11 +1968,12 @@ XRT_API intptr_t xrtFileNative(xfile File)
 		__xrtErrorSetInvalidArgument();
 		return (intptr_t)-1;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return (intptr_t)File->Handle;
-	#else
-		return (intptr_t)File->Handle;
-	#endif
+	if ( (File->Capabilities & XRT_FILE_BACKEND_NATIVE) == 0u ) {
+		(void)__xrtFileUnsupported(XFILE_ERROR_OPEN, "native-handle",
+			"the file backend does not expose a native handle");
+		return (intptr_t)-1;
+	}
+	return File->Ops->Native(File->State);
 }
 
 

@@ -108,10 +108,12 @@ bool __xrtRootNativeClose(xrootnative Handle, bool bReport)
 
 /* 不跟随当前分量打开 POSIX 子目录。 */
 xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
-	xrootnative* pHandle, str* pLink)
+	bool bCaseSensitive, xrootnative* pHandle, str* pLink)
 {
 	int iFlags = O_RDONLY;
 	int hDirectory;
+
+	(void)bCaseSensitive;
 
 	#if defined(O_DIRECTORY) && defined(O_NOFOLLOW)
 		iFlags |= O_DIRECTORY | O_NOFOLLOW;
@@ -143,12 +145,15 @@ xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
 
 /* 不跟随当前分量打开 POSIX 普通文件。 */
 xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
-	const xfileoptions* pOptions, xfile* pFile, str* pLink)
+	bool bCaseSensitive, bool bRegularFile, const xfileoptions* pOptions,
+	xfile* pFile, str* pLink)
 {
 	int iFlags = __xrtFilePosixFlags(pOptions->Flags);
 	int hFile;
 	struct stat Info;
 	xfile File;
+
+	(void)bCaseSensitive;
 
 	#if defined(O_NOFOLLOW)
 		iFlags |= O_NOFOLLOW;
@@ -157,10 +162,18 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			"open-file", "the platform cannot open files without following links");
 		return XROOT_STEP_ERROR;
 	#endif
+	#if defined(O_NONBLOCK)
+		if ( bRegularFile ) iFlags |= O_NONBLOCK;
+	#else
+		if ( bRegularFile ) {
+			__xrtRootError(XERR_UNSUPPORTED, XROOT_ERROR_FILE,
+				"open-file",
+				"the platform cannot safely restrict an open to regular files");
+			return XROOT_STEP_ERROR;
+		}
+	#endif
 	File = __xrtFileAlloc();
-	if ( File == NULL ) {
-		return XROOT_STEP_ERROR;
-	}
+	if (File == NULL) return XROOT_STEP_ERROR;
 	hFile = __xrtFilePosixOpenAt(Parent, sName,
 		iFlags, pOptions->Mode);
 	if ( hFile < 0 ) {
@@ -169,16 +182,17 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			(XFILE_CREATE | XFILE_EXCLUSIVE)) ==
 			(XFILE_CREATE | XFILE_EXCLUSIVE);
 
-		xrtFree(File);
 		if ( ((iCode == ELOOP) || (iCode == ENOTDIR)) &&
 			 ((pOptions->Flags & XFILE_NOFOLLOW) == 0u) &&
 			 !bExclusive ) {
+			xrtFree(File);
 			return __xrtRootPosixLink(Parent, sName, iCode,
 				pLink, XROOT_ERROR_FILE, "open-file",
 				"failed to open the root-relative file");
 		}
 		__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 			"failed to open the root-relative file", iCode);
+		xrtFree(File);
 		return XROOT_STEP_ERROR;
 	}
 	{
@@ -191,21 +205,53 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			int iCode = errno;
 
 			(void)close(hFile);
-			xrtFree(File);
 			__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 				"failed to inspect the root-relative file", iCode);
+			xrtFree(File);
 			return XROOT_STEP_ERROR;
 		}
 	}
-	if ( S_ISDIR(Info.st_mode) ) {
+	if ( bRegularFile && !S_ISREG(Info.st_mode) ) {
 		(void)close(hFile);
-		xrtFree(File);
 		__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE, "open-file",
-			"the root-relative path is a directory");
+			"the root policy only permits regular files");
+		xrtFree(File);
 		return XROOT_STEP_ERROR;
 	}
-	__xrtFileInitNativePair(File, (intptr_t)hFile, (intptr_t)-1,
-		pOptions->Flags);
+	if ( S_ISDIR(Info.st_mode) ) {
+		(void)close(hFile);
+		__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE, "open-file",
+			"the root-relative path is a directory");
+		xrtFree(File);
+		return XROOT_STEP_ERROR;
+	}
+	#if defined(O_NONBLOCK)
+		if ( bRegularFile ) {
+			int iStatus;
+			int iResult;
+
+			do {
+				iStatus = fcntl(hFile, F_GETFL);
+			} while ( (iStatus < 0) && (errno == EINTR) );
+			if ( iStatus >= 0 ) {
+				do {
+					iResult = fcntl(hFile, F_SETFL, iStatus & ~O_NONBLOCK);
+				} while ( (iResult != 0) && (errno == EINTR) );
+			} else {
+				iResult = -1;
+			}
+			if ( iResult != 0 ) {
+				int iCode = errno;
+
+				(void)close(hFile);
+				__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
+					"failed to restore blocking mode on a regular file", iCode);
+				xrtFree(File);
+				return XROOT_STEP_ERROR;
+			}
+		}
+	#endif
+	__xrtFileInitNativePair(File, (intptr_t)hFile, (intptr_t)-1, pOptions->Flags);
 	*pFile = File;
 	return XROOT_STEP_DONE;
 }
@@ -214,10 +260,13 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 
 /* 查询 POSIX 根内当前分量元数据。 */
 xrootstep __xrtRootNativeStat(xrootnative Parent, cstr sName,
-	bool bFollowLink, xfileinfo* pInfo, str* pLink)
+	bool bCaseSensitive, bool bFollowLink,
+	xfileinfo* pInfo, str* pLink)
 {
 	struct stat Native;
 	int iResult;
+
+	(void)bCaseSensitive;
 
 	if ( strcmp(sName, ".") == 0 ) {
 		(void)bFollowLink;

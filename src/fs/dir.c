@@ -22,21 +22,47 @@
 
 #if defined(XRT_FEATURE_DIR)
 
-/* 目录迭代器保留根路径和平台枚举状态。 */
+/* 公共目录对象只保存后端分派、状态、路径和迭代终态。 */
 struct xdir_impl {
+	const xrt_dir_backend_ops* Ops;
+	ptr State;
 	str Path;
 	uint32 Flags;
 	bool Done;
 	bool Failed;
+};
+
+
+
+/* native backend 是平台枚举句柄和借用名称缓冲的唯一承载者。 */
+typedef struct xrt_native_dir_state {
 	#if defined(_WIN32) || defined(_WIN64)
 		HANDLE Handle;
 		WIN32_FIND_DATAW Pending;
 		bool HasPending;
+		bool Empty;
 		str Name;
 		size_t NameCapacity;
 	#else
 		DIR* Handle;
 	#endif
+} xrt_native_dir_state;
+
+
+
+static xdirnext __xrtNativeDirNext(ptr pState, cstr sPath,
+	uint32 iFlags, xdirentry* pEntry);
+static bool __xrtNativeDirClose(ptr pState);
+
+
+
+static const xrt_dir_backend_ops __xrtNativeDirOps = {
+	(uint32)sizeof(xrt_dir_backend_ops),
+	XRT_DIR_BACKEND_VERSION,
+	false,
+	{ 0u, 0u, 0u },
+	__xrtNativeDirNext,
+	__xrtNativeDirClose
 };
 
 
@@ -94,7 +120,7 @@ static bool __xrtDirDot(cstr sName)
 
 
 /* 检查打开标志并要求跟随链接时同时请求完整元数据。 */
-static bool __xrtDirFlags(uint32 iFlags)
+bool __xrtDirFlagsValid(uint32 iFlags)
 {
 	const uint32 iKnown = XDIR_STAT | XDIR_FOLLOW_LINKS | XDIR_INCLUDE_DOTS;
 
@@ -105,6 +131,50 @@ static bool __xrtDirFlags(uint32 iFlags)
 		return false;
 	}
 	return true;
+}
+
+
+
+/* 接管后端状态并创建统一目录对象；分配失败仍消费 State。 */
+xdir __xrtDirTakeBackend(const xrt_dir_backend_ops* pOps,
+	ptr pState, cstr sPath, uint32 iFlags)
+{
+	xdir Dir;
+
+	if ( (pOps == NULL) || (pOps->Size != sizeof(*pOps)) ||
+		 (pOps->Version != XRT_DIR_BACKEND_VERSION) ||
+		 (pOps->Next == NULL) || (pOps->Close == NULL) ||
+		 (pState == NULL) || (sPath == NULL) || (sPath[0] == '\0') ) {
+		if ( (pOps != NULL) && (pOps->Size == sizeof(*pOps)) &&
+			 (pOps->Close != NULL) && (pState != NULL) ) {
+			(void)pOps->Close(pState);
+		}
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	Dir = (xdir)xrtCalloc(1u, sizeof(*Dir));
+	if ( Dir == NULL ) {
+		xerror* pError = xrtTakeError();
+
+		(void)pOps->Close(pState);
+		xrtClearError();
+		__xrtErrorSetOwned(pError);
+		return NULL;
+	}
+	Dir->Path = xrtStrDup(sPath);
+	if ( Dir->Path == NULL ) {
+		xerror* pError = xrtTakeError();
+
+		(void)pOps->Close(pState);
+		xrtFree(Dir);
+		xrtClearError();
+		__xrtErrorSetOwned(pError);
+		return NULL;
+	}
+	Dir->Ops = pOps;
+	Dir->State = pState;
+	Dir->Flags = iFlags;
+	return Dir;
 }
 
 
@@ -129,9 +199,9 @@ static bool __xrtDirWindowsLiteralPath(cstr sPath)
 
 
 /* 打开 Windows 目录枚举句柄，并保留首条结果。 */
-static bool __xrtDirOpenNative(xdir Dir)
+static bool __xrtNativeDirOpen(xrt_native_dir_state* pNative, cstr sPath)
 {
-	str sPattern = xrtPathJoin(Dir->Path, "*");
+	str sPattern = xrtPathJoin(sPath, "*");
 	uint16* pPattern;
 
 	if ( sPattern == NULL ) {
@@ -142,17 +212,20 @@ static bool __xrtDirOpenNative(xdir Dir)
 	if ( pPattern == NULL ) {
 		return false;
 	}
-	Dir->Handle = FindFirstFileW((const wchar_t*)pPattern, &Dir->Pending);
-	if ( Dir->Handle == INVALID_HANDLE_VALUE ) {
+	pNative->Handle = FindFirstFileW(
+		(const wchar_t*)pPattern,
+		&pNative->Pending
+	);
+	xrtFree(pPattern);
+	if ( pNative->Handle == INVALID_HANDLE_VALUE ) {
 		int iCode = (int)GetLastError();
 
-		xrtFree(pPattern);
 		if ( iCode == ERROR_FILE_NOT_FOUND ) {
 			xfileinfo Info;
 
-			if ( xrtPathStat(Dir->Path, true, &Info) &&
+			if ( xrtPathStat(sPath, true, &Info) &&
 				 (Info.Type == XFILE_TYPE_DIRECTORY) ) {
-				Dir->Done = true;
+				pNative->Empty = true;
 				return true;
 			}
 			if ( xrtGetError() != NULL ) {
@@ -163,43 +236,46 @@ static bool __xrtDirOpenNative(xdir Dir)
 			"failed to open the directory iterator", iCode);
 		return false;
 	}
-	xrtFree(pPattern);
-	Dir->HasPending = true;
+	pNative->HasPending = true;
 	return true;
 }
 
 
 
 /* 取得下一份 Windows 枚举数据。 */
-static bool __xrtDirWindowsData(xdir Dir, WIN32_FIND_DATAW* pData)
+static xdirnext __xrtNativeDirWindowsData(
+	xrt_native_dir_state* pNative,
+	WIN32_FIND_DATAW* pData
+)
 {
-	if ( Dir->HasPending ) {
-		*pData = Dir->Pending;
-		Dir->HasPending = false;
-		return true;
+	if ( pNative->Empty ) {
+		return XDIR_NEXT_END;
 	}
-	if ( FindNextFileW(Dir->Handle, pData) ) {
-		return true;
+	if ( pNative->HasPending ) {
+		*pData = pNative->Pending;
+		pNative->HasPending = false;
+		return XDIR_NEXT_ITEM;
+	}
+	if ( FindNextFileW(pNative->Handle, pData) ) {
+		return XDIR_NEXT_ITEM;
 	}
 	{
 		int iCode = (int)GetLastError();
 
 		if ( iCode == ERROR_NO_MORE_FILES ) {
-			Dir->Done = true;
-			return false;
+			return XDIR_NEXT_END;
 		}
-		Dir->Failed = true;
 		__xrtDirSetError(XDIR_ERROR_NEXT, "next",
 			"failed while reading the directory", iCode);
-		return false;
+		return XDIR_NEXT_ERROR;
 	}
 }
 
 
 
 /* 严格转换并复用 Windows 条目名称缓冲，避免逐条分配。 */
-static bool __xrtDirWindowsName(xdir Dir, const wchar_t* sName,
-	size_t iWideSize, size_t* pNameSize)
+static bool __xrtNativeDirWindowsName(xrt_native_dir_state* pNative,
+	const wchar_t* sName, size_t iWideSize, size_t* pNameSize)
 {
 	xutf16view Source = { (const uint16*)sName, iWideSize };
 	xutfresult Measure;
@@ -215,17 +291,17 @@ static bool __xrtDirWindowsName(xdir Dir, const wchar_t* sName,
 		return false;
 	}
 	iNeed = Measure.Written + 1u;
-	if ( Dir->NameCapacity < iNeed ) {
-		str sBuffer = (str)xrtRealloc(Dir->Name, iNeed);
+	if ( pNative->NameCapacity < iNeed ) {
+		str sBuffer = (str)xrtRealloc(pNative->Name, iNeed);
 
 		if ( sBuffer == NULL ) {
 			return false;
 		}
-		Dir->Name = sBuffer;
-		Dir->NameCapacity = iNeed;
+		pNative->Name = sBuffer;
+		pNative->NameCapacity = iNeed;
 	}
-	Result = xrtUtf16To8Buffer(Source, Dir->Name,
-		Dir->NameCapacity - 1u, XUTF_STRICT);
+	Result = xrtUtf16To8Buffer(Source, pNative->Name,
+		pNative->NameCapacity - 1u, XUTF_STRICT);
 	if ( (Result.Status != XUTF_OK) || (Result.Read != iWideSize) ||
 		 (Result.Written != Measure.Written) ) {
 		if ( Result.Status == XUTF_NO_SPACE ) {
@@ -234,7 +310,7 @@ static bool __xrtDirWindowsName(xdir Dir, const wchar_t* sName,
 		}
 		return false;
 	}
-	Dir->Name[Result.Written] = '\0';
+	pNative->Name[Result.Written] = '\0';
 	*pNameSize = Result.Written;
 	return true;
 }
@@ -242,46 +318,47 @@ static bool __xrtDirWindowsName(xdir Dir, const wchar_t* sName,
 
 
 /* 从 Windows 枚举数据构造借用目录条目。 */
-static xdirnext __xrtDirWindowsNext(xdir Dir, xdirentry* pEntry)
+static xdirnext __xrtNativeDirNext(ptr pState, cstr sPath,
+	uint32 iFlags, xdirentry* pEntry)
 {
+	xrt_native_dir_state* pNative = (xrt_native_dir_state*)pState;
+
 	for ( ;; ) {
 		WIN32_FIND_DATAW Data;
 		size_t iWideSize;
 		size_t iNameSize;
 		xdirentry Entry;
+		xdirnext Next = __xrtNativeDirWindowsData(pNative, &Data);
 
-		if ( !__xrtDirWindowsData(Dir, &Data) ) {
-			return Dir->Failed ? XDIR_NEXT_ERROR : XDIR_NEXT_END;
+		if ( Next != XDIR_NEXT_ITEM ) {
+			return Next;
 		}
 		iWideSize = wcslen(Data.cFileName);
-		if ( !__xrtDirWindowsName(Dir,
+		if ( !__xrtNativeDirWindowsName(pNative,
 			Data.cFileName, iWideSize, &iNameSize) ) {
-			Dir->Failed = true;
 			return XDIR_NEXT_ERROR;
 		}
-		if ( ((Dir->Flags & XDIR_INCLUDE_DOTS) == 0u) &&
-			 __xrtDirDot(Dir->Name) ) {
+		if ( ((iFlags & XDIR_INCLUDE_DOTS) == 0u) &&
+			 __xrtDirDot(pNative->Name) ) {
 			continue;
 		}
 		memset(&Entry, 0, sizeof(Entry));
-		Entry.Name.Data = Dir->Name;
+		Entry.Name.Data = pNative->Name;
 		Entry.Name.Size = iNameSize;
 		Entry.Flags = XDIR_ENTRY_UTF8;
 		__xrtFileWindowsFindInfo(&Data, &Entry.Info);
-		if ( (Dir->Flags & XDIR_STAT) != 0u ) {
-			str sPath = xrtPathJoin(Dir->Path, Dir->Name);
+		if ( (iFlags & XDIR_STAT) != 0u ) {
+			str sEntryPath = xrtPathJoin(sPath, pNative->Name);
 
-			if ( sPath == NULL ) {
-				Dir->Failed = true;
+			if ( sEntryPath == NULL ) {
 				return XDIR_NEXT_ERROR;
 			}
-			if ( !xrtPathStat(sPath,
-				(Dir->Flags & XDIR_FOLLOW_LINKS) != 0u, &Entry.Info) ) {
-				xrtFree(sPath);
-				Dir->Failed = true;
+			if ( !xrtPathStat(sEntryPath,
+				(iFlags & XDIR_FOLLOW_LINKS) != 0u, &Entry.Info) ) {
+				xrtFree(sEntryPath);
 				return XDIR_NEXT_ERROR;
 			}
-			xrtFree(sPath);
+			xrtFree(sEntryPath);
 		}
 		*pEntry = Entry;
 		return XDIR_NEXT_ITEM;
@@ -294,24 +371,12 @@ static xdirnext __xrtDirWindowsNext(xdir Dir, xdirentry* pEntry)
 #if defined(DT_REG)
 static xfiletype __xrtDirPosixType(unsigned char iType)
 {
-	if ( iType == DT_REG ) {
-		return XFILE_TYPE_FILE;
-	}
-	if ( iType == DT_DIR ) {
-		return XFILE_TYPE_DIRECTORY;
-	}
-	if ( iType == DT_LNK ) {
-		return XFILE_TYPE_LINK;
-	}
-	if ( iType == DT_FIFO ) {
-		return XFILE_TYPE_FIFO;
-	}
-	if ( iType == DT_SOCK ) {
-		return XFILE_TYPE_SOCKET;
-	}
-	if ( (iType == DT_CHR) || (iType == DT_BLK) ) {
-		return XFILE_TYPE_DEVICE;
-	}
+	if ( iType == DT_REG ) return XFILE_TYPE_FILE;
+	if ( iType == DT_DIR ) return XFILE_TYPE_DIRECTORY;
+	if ( iType == DT_LNK ) return XFILE_TYPE_LINK;
+	if ( iType == DT_FIFO ) return XFILE_TYPE_FIFO;
+	if ( iType == DT_SOCK ) return XFILE_TYPE_SOCKET;
+	if ( (iType == DT_CHR) || (iType == DT_BLK) ) return XFILE_TYPE_DEVICE;
 	return XFILE_TYPE_NONE;
 }
 #endif
@@ -319,12 +384,12 @@ static xfiletype __xrtDirPosixType(unsigned char iType)
 
 
 /* 打开 POSIX 目录枚举句柄。 */
-static bool __xrtDirOpenNative(xdir Dir)
+static bool __xrtNativeDirOpen(xrt_native_dir_state* pNative, cstr sPath)
 {
 	do {
-		Dir->Handle = opendir(Dir->Path);
-	} while ( (Dir->Handle == NULL) && (errno == EINTR) );
-	if ( Dir->Handle == NULL ) {
+		pNative->Handle = opendir(sPath);
+	} while ( (pNative->Handle == NULL) && (errno == EINTR) );
+	if ( pNative->Handle == NULL ) {
 		int iCode = errno;
 
 		__xrtDirSetError(XDIR_ERROR_OPEN, "open",
@@ -337,8 +402,11 @@ static bool __xrtDirOpenNative(xdir Dir)
 
 
 /* 从 POSIX dirent 构造借用目录条目。 */
-static xdirnext __xrtDirPosixNext(xdir Dir, xdirentry* pEntry)
+static xdirnext __xrtNativeDirNext(ptr pState, cstr sPath,
+	uint32 iFlags, xdirentry* pEntry)
 {
+	xrt_native_dir_state* pNative = (xrt_native_dir_state*)pState;
+
 	for ( ;; ) {
 		struct dirent* pData;
 		xdirentry Entry;
@@ -346,19 +414,15 @@ static xdirnext __xrtDirPosixNext(xdir Dir, xdirentry* pEntry)
 
 		do {
 			errno = 0;
-			pData = readdir(Dir->Handle);
+			pData = readdir(pNative->Handle);
 		} while ( (pData == NULL) && (errno == EINTR) );
 		if ( pData == NULL ) {
-			if ( errno == 0 ) {
-				Dir->Done = true;
-				return XDIR_NEXT_END;
-			}
-			Dir->Failed = true;
+			if ( errno == 0 ) return XDIR_NEXT_END;
 			__xrtDirSetError(XDIR_ERROR_NEXT, "next",
 				"failed while reading the directory", errno);
 			return XDIR_NEXT_ERROR;
 		}
-		if ( ((Dir->Flags & XDIR_INCLUDE_DOTS) == 0u) &&
+		if ( ((iFlags & XDIR_INCLUDE_DOTS) == 0u) &&
 			 __xrtDirDot(pData->d_name) ) {
 			continue;
 		}
@@ -374,20 +438,18 @@ static xdirnext __xrtDirPosixNext(xdir Dir, xdirentry* pEntry)
 		if ( xrtUtf8Valid(Entry.Name, NULL) ) {
 			Entry.Flags |= XDIR_ENTRY_UTF8;
 		}
-		if ( (Dir->Flags & XDIR_STAT) != 0u ) {
-			str sPath = xrtPathJoin(Dir->Path, pData->d_name);
+		if ( (iFlags & XDIR_STAT) != 0u ) {
+			str sEntryPath = xrtPathJoin(sPath, pData->d_name);
 
-			if ( sPath == NULL ) {
-				Dir->Failed = true;
+			if ( sEntryPath == NULL ) {
 				return XDIR_NEXT_ERROR;
 			}
-			if ( !xrtPathStat(sPath,
-				(Dir->Flags & XDIR_FOLLOW_LINKS) != 0u, &Entry.Info) ) {
-				xrtFree(sPath);
-				Dir->Failed = true;
+			if ( !xrtPathStat(sEntryPath,
+				(iFlags & XDIR_FOLLOW_LINKS) != 0u, &Entry.Info) ) {
+				xrtFree(sEntryPath);
 				return XDIR_NEXT_ERROR;
 			}
-			xrtFree(sPath);
+			xrtFree(sEntryPath);
 		}
 		*pEntry = Entry;
 		return XDIR_NEXT_ITEM;
@@ -398,13 +460,45 @@ static xdirnext __xrtDirPosixNext(xdir Dir, xdirentry* pEntry)
 
 
 
-/* 打开目录迭代器。 */
+/* 关闭 native 枚举状态。 */
+static bool __xrtNativeDirClose(ptr pState)
+{
+	xrt_native_dir_state* pNative = (xrt_native_dir_state*)pState;
+	bool bResult = true;
+	int iCode = 0;
+
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( (pNative->Handle != NULL) &&
+			 (pNative->Handle != INVALID_HANDLE_VALUE) &&
+			 !FindClose(pNative->Handle) ) {
+			bResult = false;
+			iCode = (int)GetLastError();
+		}
+		xrtFree(pNative->Name);
+	#else
+		if ( (pNative->Handle != NULL) && (closedir(pNative->Handle) != 0) ) {
+			bResult = false;
+			iCode = errno;
+		}
+	#endif
+	xrtFree(pNative);
+	if ( !bResult ) {
+		__xrtDirSetError(XDIR_ERROR_CLOSE, "close",
+			"failed to close the directory iterator", iCode);
+	}
+	return bResult;
+}
+
+
+
+/* 打开原生目录迭代器。 */
 XRT_API xdir xrtDirOpen(cstr sPath, uint32 iFlags)
 {
 	xfileinfo Info;
-	xdir Dir;
+	xrt_native_dir_state* pNative;
 
-	if ( (sPath == NULL) || (sPath[0] == '\0') || !__xrtDirFlags(iFlags) ) {
+	if ( (sPath == NULL) || (sPath[0] == '\0') ||
+		 !__xrtDirFlagsValid(iFlags) ) {
 		if ( (sPath == NULL) || (sPath[0] == '\0') ) {
 			__xrtErrorSetInvalidArgument();
 		}
@@ -423,25 +517,19 @@ XRT_API xdir xrtDirOpen(cstr sPath, uint32 iFlags)
 			"the path is not a directory");
 		return NULL;
 	}
-	Dir = (xdir)xrtCalloc(1u, sizeof(*Dir));
-	if ( Dir == NULL ) {
+	pNative = (xrt_native_dir_state*)xrtCalloc(1u, sizeof(*pNative));
+	if ( pNative == NULL ) {
 		return NULL;
 	}
-	Dir->Path = xrtStrDup(sPath);
-	if ( Dir->Path == NULL ) {
-		xrtFree(Dir);
-		return NULL;
-	}
-	Dir->Flags = iFlags;
 	#if defined(_WIN32) || defined(_WIN64)
-		Dir->Handle = INVALID_HANDLE_VALUE;
+		pNative->Handle = INVALID_HANDLE_VALUE;
 	#endif
-	if ( !__xrtDirOpenNative(Dir) ) {
-		xrtFree(Dir->Path);
-		xrtFree(Dir);
+	if ( !__xrtNativeDirOpen(pNative, sPath) ) {
+		xrtFree(pNative);
 		return NULL;
 	}
-	return Dir;
+	return __xrtDirTakeBackend(&__xrtNativeDirOps,
+		pNative, sPath, iFlags);
 }
 
 
@@ -449,6 +537,9 @@ XRT_API xdir xrtDirOpen(cstr sPath, uint32 iFlags)
 /* 读取下一条目录项。 */
 XRT_API xdirnext xrtDirNext(xdir Dir, xdirentry* pEntry)
 {
+	xdirnext Next;
+	xdirentry Entry;
+
 	if ( (Dir == NULL) || (pEntry == NULL) ) {
 		__xrtErrorSetInvalidArgument();
 		return XDIR_NEXT_ERROR;
@@ -460,11 +551,16 @@ XRT_API xdirnext xrtDirNext(xdir Dir, xdirentry* pEntry)
 	if ( Dir->Done ) {
 		return XDIR_NEXT_END;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return __xrtDirWindowsNext(Dir, pEntry);
-	#else
-		return __xrtDirPosixNext(Dir, pEntry);
-	#endif
+	Next = Dir->Ops->Next(Dir->State, Dir->Path, Dir->Flags, &Entry);
+	if ( Next == XDIR_NEXT_ITEM ) {
+		*pEntry = Entry;
+	} else if ( Next == XDIR_NEXT_END ) {
+		Dir->Done = true;
+	} else {
+		Dir->Failed = true;
+		Next = XDIR_NEXT_ERROR;
+	}
+	return Next;
 }
 
 
@@ -472,32 +568,15 @@ XRT_API xdirnext xrtDirNext(xdir Dir, xdirentry* pEntry)
 /* 关闭并销毁目录迭代器。 */
 XRT_API bool xrtDirClose(xdir Dir)
 {
-	bool bResult = true;
-	int iCode = 0;
+	bool bResult;
 
 	if ( Dir == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		if ( (Dir->Handle != NULL) && (Dir->Handle != INVALID_HANDLE_VALUE) &&
-			 !FindClose(Dir->Handle) ) {
-			bResult = false;
-			iCode = (int)GetLastError();
-		}
-		xrtFree(Dir->Name);
-	#else
-		if ( closedir(Dir->Handle) != 0 ) {
-			bResult = false;
-			iCode = errno;
-		}
-	#endif
+	bResult = Dir->Ops->Close(Dir->State);
 	xrtFree(Dir->Path);
 	xrtFree(Dir);
-	if ( !bResult ) {
-		__xrtDirSetError(XDIR_ERROR_CLOSE, "close",
-			"failed to close the directory iterator", iCode);
-	}
 	return bResult;
 }
 
@@ -518,14 +597,36 @@ XRT_API cstr xrtDirPath(xdir Dir)
 /* 把迭代器目录与条目名称拼成拥有路径。 */
 XRT_API str xrtDirEntryPath(xdir Dir, const xdirentry* pEntry)
 {
+	str sResult;
+	size_t iPath;
+	size_t iSize;
+	bool bRoot;
+
 	if ( (Dir == NULL) || (pEntry == NULL) ||
-		 ((pEntry->Name.Data == NULL) && (pEntry->Name.Size != 0u)) ||
 		 (pEntry->Name.Data == NULL) ||
 		 (strlen(pEntry->Name.Data) != pEntry->Name.Size) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	return xrtPathJoin(Dir->Path, pEntry->Name.Data);
+	if ( !Dir->Ops->VirtualPath ) {
+		return xrtPathJoin(Dir->Path, pEntry->Name.Data);
+	}
+	iPath = strlen(Dir->Path);
+	bRoot = (iPath == 1u) && (Dir->Path[0] == '/');
+	if ( iPath > (SIZE_MAX - pEntry->Name.Size - (bRoot ? 1u : 2u)) ) {
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
+	iSize = iPath + pEntry->Name.Size + (bRoot ? 0u : 1u);
+	sResult = (str)xrtMalloc(iSize + 1u);
+	if ( sResult == NULL ) {
+		return NULL;
+	}
+	memcpy(sResult, Dir->Path, iPath);
+	if ( !bRoot ) sResult[iPath++] = '/';
+	memcpy(sResult + iPath, pEntry->Name.Data, pEntry->Name.Size);
+	sResult[iSize] = '\0';
+	return sResult;
 }
 
 

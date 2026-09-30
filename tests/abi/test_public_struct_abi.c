@@ -2,6 +2,7 @@
 #define XRT_MODULE_WEBSOCKET_STREAM
 #define XRT_MODULE_WEBSOCKET_UPGRADE
 #define XRT_MODULE_VALUE_CONTAINER
+#define XRT_MODULE_VFS
 #include <xrt.h>
 
 #include "public_struct_abi.h"
@@ -111,6 +112,48 @@ static size_t __xrtAbiTrimLayout(xrtabitesttype Type, size_t iField)
 				case 4: return offsetof(xwsupgrade, DeflateEnabled);
 			}
 			break;
+		case XRT_ABI_VFS_FILE_OPS:
+			switch ( iField ) {
+				case 0: return sizeof(xvfsfileops_v1);
+				case 1: return offsetof(xvfsfileops_v1, Version);
+				case 2: return offsetof(xvfsfileops_v1, Capabilities);
+				case 3: return offsetof(xvfsfileops_v1, Read);
+				case 4: return offsetof(xvfsfileops_v1, Close);
+			}
+			break;
+		case XRT_ABI_VFS_FILE:
+			switch ( iField ) {
+				case 0: return sizeof(xvfsfile_v1);
+				case 1: return offsetof(xvfsfile_v1, State);
+				case 2: return offsetof(xvfsfile_v1, Flags);
+				case 3: return offsetof(xvfsfile_v1, Reserved);
+			}
+			break;
+		case XRT_ABI_VFS_DIR_OPS:
+			switch ( iField ) {
+				case 0: return sizeof(xvfsdirops_v1);
+				case 1: return offsetof(xvfsdirops_v1, Version);
+				case 2: return offsetof(xvfsdirops_v1, Next);
+				case 3: return offsetof(xvfsdirops_v1, Close);
+			}
+			break;
+		case XRT_ABI_VFS_DIR:
+			switch ( iField ) {
+				case 0: return sizeof(xvfsdir_v1);
+				case 1: return offsetof(xvfsdir_v1, State);
+			}
+			break;
+		case XRT_ABI_VFS_PROVIDER:
+			switch ( iField ) {
+				case 0: return sizeof(xvfsprovider_v1);
+				case 1: return offsetof(xvfsprovider_v1, Version);
+				case 2: return offsetof(xvfsprovider_v1, Capabilities);
+				case 3: return offsetof(xvfsprovider_v1, ContextRetain);
+				case 4: return offsetof(xvfsprovider_v1, Open);
+				case 5: return offsetof(xvfsprovider_v1, DirOpen);
+				case 6: return offsetof(xvfsprovider_v1, OpenNative);
+			}
+			break;
 		default:
 			break;
 	}
@@ -161,6 +204,11 @@ int main(void)
 		4
 	);
 	XRT_ABI_CHECK(xwsupgrade, XRT_ABI_WS_UPGRADE_RESULT, 5);
+	XRT_ABI_CHECK(xvfsfileops_v1, XRT_ABI_VFS_FILE_OPS, 5);
+	XRT_ABI_CHECK(xvfsfile_v1, XRT_ABI_VFS_FILE, 4);
+	XRT_ABI_CHECK(xvfsdirops_v1, XRT_ABI_VFS_DIR_OPS, 4);
+	XRT_ABI_CHECK(xvfsdir_v1, XRT_ABI_VFS_DIR, 2);
+	XRT_ABI_CHECK(xvfsprovider_v1, XRT_ABI_VFS_PROVIDER, 7);
 	puts("[PASS] public struct ABI across trimmed feature sets");
 	return 0;
 }

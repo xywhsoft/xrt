@@ -12,6 +12,67 @@
 
 #if defined(XRT_FEATURE_FILE)
 
+/* Preallocate all native backend state before creating/truncating OS files. */
+xfile __xrtFileAlloc(void);
+void __xrtFileInitNativePair(xfile File, intptr_t iHandle,
+	intptr_t iControl, uint32 iFlags);
+
+/* xfile 后端能力只在运行时内部使用；公共 provider ABI 在 vfs.h 中独立冻结。 */
+typedef enum xrt_file_backend_capability {
+	XRT_FILE_BACKEND_READ = UINT64_C(0x00000001),
+	XRT_FILE_BACKEND_WRITE = UINT64_C(0x00000002),
+	XRT_FILE_BACKEND_READ_AT = UINT64_C(0x00000004),
+	XRT_FILE_BACKEND_WRITE_AT = UINT64_C(0x00000008),
+	XRT_FILE_BACKEND_SEEK = UINT64_C(0x00000010),
+	XRT_FILE_BACKEND_STAT = UINT64_C(0x00000020),
+	XRT_FILE_BACKEND_RESIZE = UINT64_C(0x00000040),
+	XRT_FILE_BACKEND_FLUSH = UINT64_C(0x00000080),
+	XRT_FILE_BACKEND_NATIVE = UINT64_C(0x00000100),
+	XRT_FILE_BACKEND_CONTROL_NATIVE = UINT64_C(0x00000200),
+	XRT_FILE_BACKEND_ASYNC_BIND = UINT64_C(0x00000400)
+} xrt_file_backend_capability;
+
+#define XRT_FILE_BACKEND_CAPABILITIES UINT64_C(0x000007ff)
+#define XRT_FILE_BACKEND_VERSION 1u
+
+/* Close 消费 State 且恰好调用一次。其他回调均借用 State。 */
+typedef struct xrt_file_backend_ops {
+	uint32 Size;
+	uint32 Version;
+	uint64 Capabilities;
+	bool (*Read)(ptr pState, ptr pBuffer, size_t iRequest, size_t* pRead);
+	bool (*Write)(ptr pState, const void* pBuffer,
+		size_t iRequest, size_t* pWritten);
+	bool (*ReadAt)(ptr pState, uint64 iOffset,
+		ptr pBuffer, size_t iRequest, size_t* pRead);
+	bool (*WriteAt)(ptr pState, uint64 iOffset,
+		const void* pBuffer, size_t iRequest, size_t* pWritten);
+	bool (*Seek)(ptr pState, int64 iOffset,
+		xseek Origin, uint64* pPosition);
+	bool (*Stat)(ptr pState, xfileinfo* pInfo);
+	bool (*Resize)(ptr pState, uint64 iSize);
+	bool (*Flush)(ptr pState);
+	intptr_t (*Native)(ptr pState);
+	intptr_t (*ControlNative)(ptr pState);
+	#if defined(XRT_FEATURE_NET_FILE)
+		bool (*AsyncBind)(ptr pState, uint64 iOwner,
+			bool** ppAssociated);
+	#else
+		ptr AsyncBind;
+	#endif
+	bool (*Close)(ptr pState);
+} xrt_file_backend_ops;
+
+
+
+/* 接管后端 State。失败时也调用一次 Ops.Close。 */
+xfile __xrtFileTakeBackend(const xrt_file_backend_ops* pOps,
+	ptr pState, uint32 iFlags);
+
+/* 给已构造文件附加一个 close 后释放的 owner；成功时消费 owner。 */
+bool __xrtFileAttachOwner(xfile File, ptr pOwner,
+	void (*pRelease)(ptr pOwner));
+
 /* 检查文件打开选项，并把空选项展开为稳定默认值。 */
 bool __xrtFileOptions(const xfileoptions* pInput, xfileoptions* pOptions);
 

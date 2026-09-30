@@ -84,6 +84,7 @@
 #include <xrt/udp.h>
 #include <xrt/path.h>
 #include <xrt/file.h>
+#include <xrt/vfs.h>
 #include <xrt/file_async.h>
 #include <xrt/io.h>
 #include <xrt/value.h>

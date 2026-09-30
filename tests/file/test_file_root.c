@@ -451,6 +451,78 @@ static void testRootCreateObjects(void)
 
 
 
+/* 根目录枚举必须由已打开句柄锚定，并返回根相对完整元数据。 */
+static void testRootDirectoryIterator(void)
+{
+	char sDirectory[96];
+	char sMoved[96];
+	xroot Parent;
+	xroot Root;
+	xdir Dir;
+	xdirentry Entry;
+	bool bFile = false;
+	bool bChild = false;
+	xdirnext Next;
+
+	testRootName(sDirectory, sizeof(sDirectory), "root-dir");
+	testRootName(sMoved, sizeof(sMoved), "root-dir-moved");
+	Root = testRootCreate(sDirectory, &Parent);
+	if ( !xrtRootRemove(Parent, sMoved) ) xrtClearError();
+	testRootWrite(Root, "alpha.txt", "alpha");
+	testRequire(xrtRootDirCreate(Root, "child", 0700u),
+		"root directory fixture creation failed");
+	testRequire(xrtRootDirOpen(Root, "../", 0u) == NULL,
+		"root directory iterator accepted an escape path");
+	testRequire((xrtGetError() != NULL) &&
+		(xrtErrorKind(xrtGetError()) == XERR_PERMISSION),
+		"root directory escape reported the wrong error");
+	xrtClearError();
+	testRequire(xrtRootDirOpen(Root, ".", XDIR_INCLUDE_DOTS) == NULL,
+		"root directory iterator exposed parent dot entries");
+	testRequire((xrtGetError() != NULL) &&
+		(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT),
+		"root dot-entry rejection reported the wrong error");
+	xrtClearError();
+	Dir = xrtRootDirOpen(Root, ".", XDIR_STAT);
+	testRequire(Dir != NULL, "root directory iterator open failed");
+	testRequire(xrtPathRename(sDirectory, sMoved, false),
+		"root directory iterator rename fixture failed");
+	testRequire(xrtRootClose(Root),
+		"root directory iterator source root close failed");
+	Root = NULL;
+	while ( (Next = xrtDirNext(Dir, &Entry)) == XDIR_NEXT_ITEM ) {
+		testRequire((Entry.Flags & XDIR_ENTRY_UTF8) != 0u,
+			"root directory returned a non-UTF-8 fixture name");
+		if ( xrtStrEqual(Entry.Name, xrtStrView("alpha.txt")) ) {
+			testRequire(Entry.Info.Type == XFILE_TYPE_FILE,
+				"root directory file metadata is incorrect");
+			bFile = true;
+		} else if ( xrtStrEqual(Entry.Name, xrtStrView("child")) ) {
+			testRequire(Entry.Info.Type == XFILE_TYPE_DIRECTORY,
+				"root directory child metadata is incorrect");
+			bChild = true;
+		} else {
+			testRequire(false, "root directory returned an unexpected entry");
+		}
+	}
+	testRequire((Next == XDIR_NEXT_END) && bFile && bChild,
+		"root directory iterator did not survive rename and root close");
+	testRequire(xrtDirClose(Dir), "root directory iterator close failed");
+	Root = xrtRootOpenIn(Parent, sMoved);
+	testRequire(Root != NULL,
+		"renamed root directory iterator fixture reopen failed");
+	testRequire(xrtRootRemove(Root, "alpha.txt") &&
+		xrtRootRemove(Root, "child"),
+		"root directory iterator fixture cleanup failed");
+	testRequire(xrtRootClose(Root), "root directory iterator root close failed");
+	testRequire(xrtRootRemove(Parent, sMoved),
+		"renamed root directory iterator fixture cleanup failed");
+	testRequire(xrtRootClose(Parent),
+		"root directory iterator parent close failed");
+}
+
+
+
 /* 根句柄必须在目录改名后继续引用原来的目录对象。 */
 static void testRootRenameAnchor(void)
 {
@@ -490,6 +562,7 @@ int main(void)
 	testRootEscape();
 	testRootLinks();
 	testRootCreateObjects();
+	testRootDirectoryIterator();
 	testRootRenameAnchor();
 	return 0;
 }
