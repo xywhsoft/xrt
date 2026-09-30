@@ -4,7 +4,7 @@
 
 
 
-#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XLON_CORE)
 
 /* 建立稳定错误域、代码和可选文本位置。 */
 void __xrtTextValueError(

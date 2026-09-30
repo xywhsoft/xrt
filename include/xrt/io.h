@@ -28,6 +28,10 @@
 	#error "XRT line readers require IO and buffer support"
 #endif
 
+#if defined(XRT_FEATURE_IO_STANDARD) && !defined(XRT_FEATURE_IO)
+	#error "XRT standard streams require IO support"
+#endif
+
 
 
 #if defined(XRT_FEATURE_IO)
@@ -219,7 +223,17 @@ XRT_API bool xrtReaderCopyN(
 
 
 
-/* 在硬上限内复制到 EOF；超限时消费一个探测字节并返回范围错误。 */
+/* 复制至多指定字节数；提前 EOF 成功，达到上限后不探测下一字节。 */
+XRT_API bool xrtReaderCopyUpTo(
+	xreader* pReader,
+	xwriter* pWriter,
+	uint64 iLimit,
+	uint64* pCopied
+);
+
+
+
+/* 在硬上限内复制到 EOF；超限时返回范围错误，探测字节由 Reader 留待下次读取。 */
 XRT_API bool xrtReaderCopyLimit(
 	xreader* pReader,
 	xwriter* pWriter,
@@ -377,7 +391,7 @@ XRT_API xwriter* xrtWriterFromBuffer(xbuffer* pBuffer);
 
 
 
-/* 在硬上限内读取到新 Buffer；超限时消费一个探测字节。 */
+/* 在硬上限内读取到新 Buffer；超限时探测字节由 Reader 留待下次读取。 */
 XRT_API xbuffer* xrtReaderReadAll(xreader* pReader, size_t iLimit);
 
 
@@ -428,6 +442,19 @@ XRT_API xwriter* xrtWriterOpen(cstr sPath);
 XRT_API xwriter* xrtWriterOpenAppend(cstr sPath);
 
 
+
+XRT_EXTERN_C_END
+
+#endif
+
+#if defined(XRT_FEATURE_IO_STANDARD)
+
+XRT_EXTERN_C_BEGIN
+
+/* 标准流适配器借用进程标准句柄；销毁适配器不会关闭标准句柄。 */
+XRT_API xreader* xrtReaderStdin(void);
+XRT_API xwriter* xrtWriterStdout(void);
+XRT_API xwriter* xrtWriterStderr(void);
 
 XRT_EXTERN_C_END
 

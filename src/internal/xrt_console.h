@@ -34,6 +34,13 @@ bool __xrtConsoleWriterWrite(
 	size_t iSize
 );
 
+/* Validate a whole text value before any visible output or queue mutation. */
+bool __xrtConsoleValidateText(xstrview Text);
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN)
+bool __xrtTerminalStyle(char* Text, size_t Capacity, int32 Foreground, int32 Background, uint32 Attributes);
+#endif
+
 
 
 /* 刷新已锁定 Writer。 */

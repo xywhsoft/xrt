@@ -383,26 +383,11 @@ XRT_API xbuffer* xrtReaderReadAll(xreader* pReader, size_t iLimit)
 		}
 	}
 
-	{
-		uint8 iProbe;
-		size_t iRead = 0;
-
-		if ( !xrtReaderRead(pReader, &iProbe, 1u, &iRead) ) {
-			xrtBufferDestroy(pResult);
-			return NULL;
-		}
-		if ( iRead == 0u ) {
-			return pResult;
-		}
+	if ( !__xrtReaderCheckLimit(pReader, "read-all") ) {
+		xrtBufferDestroy(pResult);
+		return NULL;
 	}
-	__xrtIoError(
-		XERR_RANGE,
-		XIO_ERROR_LIMIT,
-		"read-all",
-		"reader exceeds the configured read-all limit"
-	);
-	xrtBufferDestroy(pResult);
-	return NULL;
+	return pResult;
 }
 
 

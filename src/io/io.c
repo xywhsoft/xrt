@@ -39,7 +39,8 @@ typedef struct __xrt_discard_writer {
 typedef enum __xrt_copy_mode {
 	__XRT_COPY_ALL = 0,
 	__XRT_COPY_EXACT,
-	__XRT_COPY_LIMIT
+	__XRT_COPY_LIMIT,
+	__XRT_COPY_UP_TO
 } __xrt_copy_mode;
 
 
@@ -191,6 +192,8 @@ xreader* __xrtReaderCreateInline(
 	pReader->Ops = *pOps;
 	pReader->Context = iContextSize != 0u ? (ptr)(pReader + 1) : NULL;
 	pReader->AtEnd = false;
+	pReader->HasPending = false;
+	pReader->Pending = 0u;
 	if ( iContextSize != 0u ) {
 		memset(pReader->Context, 0, iContextSize);
 	}
@@ -559,6 +562,14 @@ XRT_API bool xrtReaderRead(
 	if ( pReader->AtEnd ) {
 		return true;
 	}
+	if ( pReader->HasPending ) {
+		*((bytes)pBuffer) = pReader->Pending;
+		pReader->HasPending = false;
+		if ( pRead != NULL ) {
+			*pRead = 1u;
+		}
+		return true;
+	}
 	pPrevious = xrtGetError();
 	if ( !pReader->Ops.Read(pReader->Context, pBuffer, iRequest, &iDone) ) {
 		__xrtIoFallback(
@@ -718,19 +729,7 @@ static bool __xrtReaderCopyRun(
 	}
 
 	if ( Mode == __XRT_COPY_LIMIT ) {
-		uint8 iProbe;
-		size_t iRead = 0;
-
-		if ( !xrtReaderRead(pReader, &iProbe, 1u, &iRead) ) {
-			goto done;
-		}
-		if ( iRead != 0u ) {
-			__xrtIoError(
-				XERR_RANGE,
-				XIO_ERROR_LIMIT,
-				"copy-limit",
-				"reader exceeds the configured copy limit"
-			);
+		if ( !__xrtReaderCheckLimit(pReader, "copy-limit") ) {
 			goto done;
 		}
 	}
@@ -801,6 +800,45 @@ XRT_API bool xrtReaderCopyLimit(
 
 
 
+/* 在软上限内复制，达到上限后不再读取或探测。 */
+XRT_API bool xrtReaderCopyUpTo(
+	xreader* pReader,
+	xwriter* pWriter,
+	uint64 iLimit,
+	uint64* pCopied
+)
+{
+	return __xrtReaderCopyRun(pReader, pWriter, iLimit,
+		__XRT_COPY_UP_TO, pCopied);
+}
+
+
+
+/* A limit probe is replayed by the next read, including for non-seekable inputs. */
+bool __xrtReaderCheckLimit(xreader* pReader, cstr sOperation)
+{
+	uint8 iProbe = 0u;
+	size_t iRead = 0u;
+
+	if ( !xrtReaderRead(pReader, &iProbe, 1u, &iRead) ) {
+		return false;
+	}
+	if ( iRead == 0u ) {
+		return true;
+	}
+	pReader->Pending = iProbe;
+	pReader->HasPending = true;
+	__xrtIoError(
+		XERR_RANGE,
+		XIO_ERROR_LIMIT,
+		sOperation,
+		"reader exceeds the configured limit"
+	);
+	return false;
+}
+
+
+
 /* 移动 Reader 游标并在成功后解除 EOF 锁定。 */
 XRT_API bool xrtReaderSeek(
 	xreader* pReader,
@@ -810,6 +848,7 @@ XRT_API bool xrtReaderSeek(
 )
 {
 	uint64 iResult;
+	int64 iPhysicalOffset = iOffset;
 	const xerror* pPrevious;
 
 	if ( (pReader == NULL) ||
@@ -835,10 +874,17 @@ XRT_API bool xrtReaderSeek(
 		);
 		return false;
 	}
+	if ( pReader->HasPending && Origin == XSEEK_CURRENT ) {
+		if ( iOffset == INT64_MIN ) {
+			__xrtErrorSetRange();
+			return false;
+		}
+		iPhysicalOffset--;
+	}
 	pPrevious = xrtGetError();
 	if ( !pReader->Ops.Seek(
 		pReader->Context,
-		iOffset,
+		iPhysicalOffset,
 		Origin,
 		&iResult
 	) ) {
@@ -851,6 +897,7 @@ XRT_API bool xrtReaderSeek(
 		return false;
 	}
 	pReader->AtEnd = false;
+	pReader->HasPending = false;
 	if ( pPosition != NULL ) {
 		*pPosition = iResult;
 	}
@@ -894,6 +941,13 @@ XRT_API bool xrtReaderTell(xreader* pReader, uint64* pPosition)
 			"reader tell failed"
 		);
 		return false;
+	}
+	if ( pReader->HasPending ) {
+		if ( iResult == 0u ) {
+			__xrtIoError(XERR_INTERNAL, XIO_ERROR_TELL, "tell", "reader position precedes pending byte");
+			return false;
+		}
+		iResult--;
 	}
 	*pPosition = iResult;
 	return true;

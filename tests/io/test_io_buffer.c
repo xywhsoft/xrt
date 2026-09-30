@@ -11,6 +11,7 @@ static void testIoBufferReader(void)
 	xreader* pReader;
 	unsigned char arrRead[4];
 	size_t iDone = 0;
+	uint64 iPosition = 0;
 
 	testRequire(pBuffer != NULL, "Buffer Reader setup failed");
 	pReader = xrtReaderFromBuffer(pBuffer);
@@ -50,6 +51,12 @@ static void testIoBufferReader(void)
 		"Buffer ReadAll limit did not reject extra input"
 	);
 	xrtClearError();
+	testRequire(
+		xrtReaderTell(pReader, &iPosition) && (iPosition == 5u) &&
+		xrtReaderRead(pReader, arrRead, 1u, &iDone) &&
+		(iDone == 1u) && (arrRead[0] == (unsigned char)'f'),
+		"Buffer ReadAll limit consumed the excess byte"
+	);
 	xrtReaderDestroy(pReader);
 
 	pReader = xrtReaderFromMemory(XRT_BYTES_LITERAL(""));

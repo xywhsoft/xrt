@@ -4,7 +4,7 @@
 
 
 
-#if defined(XRT_FEATURE_JSON_READ) || defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_JSON_READ) || defined(XRT_FEATURE_XLON_READ)
 
 /* 单次解析持有显式长度游标、资源预算和两个互不覆盖的反转义缓冲。 */
 typedef struct xtextvalueparser {
@@ -206,7 +206,7 @@ static bool __xrtTextValueReadConfigValid(
 	return
 		(pConfig != NULL) &&
 		((pConfig->Dialect == XTEXT_VALUE_JSON) ||
-		 (pConfig->Dialect == XTEXT_VALUE_XSON)) &&
+		 (pConfig->Dialect == XTEXT_VALUE_XLON)) &&
 		((pConfig->Flags & ~iKnownFlags) == 0) &&
 		(pConfig->MaxDepth != 0) &&
 		(pConfig->MaxDepth <= XRT_VALUE_DEPTH_MAX) &&
@@ -599,7 +599,7 @@ static bool __xrtTextValueParserEmit(
 
 
 
-/* XSON 标签首字节只接受 ASCII 字母或下划线。 */
+/* XLON 标签首字节只接受 ASCII 字母或下划线。 */
 static bool __xrtTextValueIdentifierStart(uint8 iByte)
 {
 	return
@@ -1113,7 +1113,7 @@ static bool __xrtTextValueTagEqual(
 
 
 
-/* 解析 XSON 显式容器前缀或单字符串载荷标签。 */
+/* 解析 XLON 显式容器前缀或单字符串载荷标签。 */
 static bool __xrtTextValueParserTagged(
 	xtextvalueparser* pParser,
 	xtextvalueevent* pEvent
@@ -1140,7 +1140,7 @@ static bool __xrtTextValueParserTagged(
 				pParser,
 				XERR_RANGE,
 				XTEXT_VALUE_ERROR_LIMIT,
-				"XSON nesting exceeds configured depth"
+				"XLON nesting exceeds configured depth"
 			);
 			return false;
 		}
@@ -1162,7 +1162,7 @@ static bool __xrtTextValueParserTagged(
 				pParser,
 				XERR_RANGE,
 				XTEXT_VALUE_ERROR_LIMIT,
-				"XSON nesting exceeds configured depth"
+				"XLON nesting exceeds configured depth"
 			);
 			return false;
 		}
@@ -1182,7 +1182,7 @@ static bool __xrtTextValueParserTagged(
 			pParser,
 			XERR_PROTOCOL,
 			XTEXT_VALUE_ERROR_SYNTAX,
-			"expected XSON tag payload"
+			"expected XLON tag payload"
 		);
 		return false;
 	}
@@ -1207,7 +1207,7 @@ static bool __xrtTextValueParserTagged(
 			pParser,
 			XERR_PROTOCOL,
 			XTEXT_VALUE_ERROR_SYNTAX,
-			"expected end of XSON tag payload"
+			"expected end of XLON tag payload"
 		);
 		return false;
 	}
@@ -1321,7 +1321,7 @@ static bool __xrtTextValueParserValue(
 			__xrtTextValueParserEmit(pParser, &Event);
 	}
 	if (
-		(pParser->Config.Dialect == XTEXT_VALUE_XSON) &&
+		(pParser->Config.Dialect == XTEXT_VALUE_XLON) &&
 		__xrtTextValueIdentifierStart(iByte)
 	) {
 		return __xrtTextValueParserTagged(pParser, &Event);

@@ -329,7 +329,7 @@ typedef bool (*xjsonwriteproc)(xbytesview Data, ptr pUserData);
 
 `json_escape` 是不依赖 DOM、Buffer 和完整 Writer 的底层能力。`xrtJsonQuoteWrite` 严格校验 UTF-8，并把包含首尾双引号的 JSON 字符串 token 分段写入同步回调。可独立选择斜杠、HTML 字节和非 ASCII 转义；失败时返回 `xrt.json` 错误及 UTF-8 字节位置。
 
-完整 JSON/XSON Writer 与 Logger JSONL 共用这一实现，不再分别维护字符串转义规则。
+完整 JSON/XLON Writer 与 Logger JSONL 共用这一实现，不再分别维护字符串转义规则。
 
 `json` 提供严格 JSON 校验、事件访问、`xvalue` DOM 转换、增量写出和文件读写。程序内部长期持有的数据继续使用 `xvalue`；JSON 是文件、HTTP 和其他外部边界上的标准交换格式。
 
@@ -721,9 +721,9 @@ xrtJsonWriterFree(pWriter);
 
 完整可运行示例位于 `examples/data/json/main.c`。
 
-## JSON 与 XSON
+## JSON 与 XLON
 
-JSON 保持标准、严格和可互操作。需要无损保存 bytes、time、set、int-map 等 XRT 扩展值时使用 XSON；不要通过非标准 JSON 字面量偷偷扩展 JSON 语义。两者共享底层文本、安全预算和错误设计，但保持独立裁剪入口与格式契约。
+JSON 保持标准、严格和可互操作。需要无损保存 bytes、time、set、int-map 等 XRT 扩展值时使用 XLON；不要通过非标准 JSON 字面量偷偷扩展 JSON 语义。两者共享底层文本、安全预算和错误设计，但保持独立裁剪入口与格式契约。
 
 ## API
 

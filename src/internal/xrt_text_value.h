@@ -5,7 +5,7 @@
 
 
 
-#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XLON_CORE)
 
 /* 建立带可选文本位置的格式错误。 */
 void __xrtTextValueError(
@@ -35,8 +35,8 @@ bool __xrtTextValueErrorLocation(
 
 
 
-#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XSON_FILE) || \
-	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XLON_FILE) || \
+	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XLONL_FILE)
 
 /* 限额读取完整协议文件，并按调用方错误域包装 I/O 原因链。 */
 bytes __xrtTextValueFileReadAll(
@@ -63,12 +63,12 @@ bool __xrtTextValueFileWriteAll(
 
 
 
-#if defined(XRT_FEATURE_JSON_READ) || defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_JSON_READ) || defined(XRT_FEATURE_XLON_READ)
 
-/* 文本值读取器支持严格 JSON，以及由 XSON 显式开启的类型标签。 */
+/* 文本值读取器支持严格 JSON，以及由 XLON 显式开启的类型标签。 */
 typedef enum xtextvaluedialect {
 	XTEXT_VALUE_JSON = 0,
-	XTEXT_VALUE_XSON
+	XTEXT_VALUE_XLON
 } xtextvaluedialect;
 
 
@@ -100,7 +100,7 @@ typedef struct xtextvaluelocation {
 
 
 
-/* 内部事件覆盖 JSON 与 XSON 的共同值树和 XSON 显式标签。 */
+/* 内部事件覆盖 JSON 与 XLON 的共同值树和 XLON 显式标签。 */
 typedef enum xtextvalueeventtype {
 	XTEXT_VALUE_EVENT_NULL = 0,
 	XTEXT_VALUE_EVENT_BOOL,
@@ -148,7 +148,7 @@ typedef struct xtextvalueevent {
 
 
 
-/* 内部访问控制与公开 JSON/XSON 访问器保持相同的三态语义。 */
+/* 内部访问控制与公开 JSON/XLON 访问器保持相同的三态语义。 */
 typedef enum xtextvaluevisitaction {
 	XTEXT_VALUE_VISIT_NEXT = 0,
 	XTEXT_VALUE_VISIT_STOP,
@@ -223,9 +223,9 @@ xtextvaluevisitresult __xrtTextValueRead(
 
 
 
-#if defined(XRT_FEATURE_JSON_WRITE) || defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_JSON_WRITE) || defined(XRT_FEATURE_XLON_WRITE)
 
-/* 共同输出标志与 JSON/XSON 公开配置的低四位保持一致。 */
+/* 共同输出标志与 JSON/XLON 公开配置的低四位保持一致。 */
 typedef enum xtextvaluewriteflag {
 	XTEXT_VALUE_WRITE_PRETTY = UINT32_C(0x00000001),
 	XTEXT_VALUE_WRITE_ESCAPE_SLASH = UINT32_C(0x00000002),
@@ -245,7 +245,7 @@ typedef enum xtextvaluecontainertype {
 
 
 
-/* 内部输出错误由 JSON/XSON 适配器映射到各自错误域。 */
+/* 内部输出错误由 JSON/XLON 适配器映射到各自错误域。 */
 typedef enum xtextvaluewriteerror {
 	XTEXT_VALUE_WRITE_ERROR_LIMIT = 0,
 	XTEXT_VALUE_WRITE_ERROR_STATE,
@@ -345,7 +345,7 @@ bool __xrtTextValueWriterTag(
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 /* 以固定小块把任意字节写成规范 Base64 标签。 */
 bool __xrtTextValueWriterBase64Tag(

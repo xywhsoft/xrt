@@ -5,7 +5,7 @@
 
 
 
-#if defined(XRT_FEATURE_JSON_WRITE) || defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_JSON_WRITE) || defined(XRT_FEATURE_XLON_WRITE)
 
 /* 每个容器帧只保存类型、待键状态和已完成值数量。 */
 typedef struct xtextvaluewriterframe {
@@ -864,7 +864,7 @@ bool __xrtTextValueWriterTag(
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 /* 以 3 KiB 输入块增量写出规范 Base64，避免为二进制建立等大临时文本。 */
 bool __xrtTextValueWriterBase64Tag(

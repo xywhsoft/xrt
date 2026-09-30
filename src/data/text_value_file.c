@@ -2,8 +2,8 @@
 
 
 
-#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XSON_FILE) || \
-	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XLON_FILE) || \
+	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XLONL_FILE)
 
 /* 把底层文件错误包装到具体文本协议，并保留完整原因链。 */
 static void __xrtTextValueFileError(

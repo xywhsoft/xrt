@@ -3,7 +3,7 @@
 
 #include "xrt_text_value.h"
 
-#if defined(XRT_FEATURE_JSONL_CORE) || defined(XRT_FEATURE_XSONL_CORE)
+#if defined(XRT_FEATURE_JSONL_CORE) || defined(XRT_FEATURE_XLONL_CORE)
 
 /* 错误偏移在两个公开格式枚举中保持一致。 */
 typedef enum xtextlineserror {
@@ -40,7 +40,7 @@ bool __xrtTextLinesErrorLocation(
 );
 #endif
 
-#if defined(XRT_FEATURE_JSONL_READ) || defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_JSONL_READ) || defined(XRT_FEATURE_XLONL_READ)
 
 /* 验证路径成功返回 null 单例；读取路径返回拥有的单条值。 */
 typedef xvalue* (*xtextlinesreadproc)(
@@ -63,7 +63,7 @@ xvalue* __xrtTextLinesRead(
 );
 #endif
 
-#if defined(XRT_FEATURE_JSONL_WRITE) || defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_JSONL_WRITE) || defined(XRT_FEATURE_XLONL_WRITE)
 typedef bool (*xtextlineswriteproc)(xbytesview Data, ptr pUserData);
 typedef bool (*xtextlinesrecordwriteproc)(
 	const xvalue* pValue, const void* pConfig, xtextlineswriteproc pWrite, ptr pUserData

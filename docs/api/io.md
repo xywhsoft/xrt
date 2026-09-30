@@ -765,7 +765,7 @@ bool xrtReaderCopyN(
 
 ### `xrtReaderCopyLimit`
 
-在硬上限内复制到 EOF；超限时消费一个探测字节并返回范围错误。
+在硬上限内复制到 EOF；超限时返回范围错误。探测字节留在 Reader 内，下次读取仍会返回该字节；`Tell` 和相对 `Seek` 使用未消费探测字节的逻辑位置。
 
 ```c
 bool xrtReaderCopyLimit(
@@ -790,7 +790,7 @@ bool xrtReaderCopyLimit(
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | EOF 且未超限 | — |
-| `false` | 超限或错误 | 超限时 `*pCopied` 为 iLimit+1 |
+| `false` | 超限或错误 | 超限时 `*pCopied` 为 iLimit；探测字节没有写入目标或从逻辑 Reader 消费 |
 
 #### 错误
 
@@ -806,9 +806,31 @@ bool xrtReaderCopyLimit(
 ```
 
 
+### `xrtReaderCopyUpTo`
+
+```c
+bool xrtReaderCopyUpTo(xreader* Reader, xwriter* Writer, uint64 Limit, uint64* Copied);
+```
+
+最多复制 Limit 个字节，正常提前 EOF 返回 true。与 CopyN 的“必须恰好”
+和 CopyLimit 的“完整流必须不超过”区分；零上限不消费输入，达到上限
+不探测下一字节。失败时 Copied 保留已经写入的数量；两端不关闭。
+
+### `xrtReaderStdin` / `xrtWriterStdout` / `xrtWriterStderr`
+
+`io_standard` 依赖 `io` 和 `atomic`，选择宏 `XRT_MODULE_IO_STANDARD`。
+三个无参数工厂返回受调用者拥有的 Reader/Writer；Destroy 不关闭原生
+标准句柄。输入不预读，输出按原始字节处理，不做换行、编码或 NUL
+转换。标准输出先 drain CRT 已缓冲输出以保持串行调用顺序，再写原始
+句柄。跨线程竞争同一输出不提供跨多个 Write 的事务保证。
+
+一个 stdin Reader 在完整生命周期内独占标准输入；第二个 stdin Reader、
+Console 输入或终端 Session 会得到 XERR_STATE，避免跳过 Reader 中未
+消费的上限探测缓存。销毁释放租约。直接使用 CRT/OS 输入绕过本合同。
+
 ### `xrtReaderReadAll`
 
-在硬上限内读取到新 Buffer；超限时消费一个探测字节。
+在硬上限内读取到新 Buffer；超限时探测字节留在 Reader 内供下次读取。错误前已读取的内容仍然被消费，失败不会回滚整次读取。
 
 ```c
 xbuffer* xrtReaderReadAll(xreader* pReader, size_t iLimit);
@@ -1927,5 +1949,3 @@ bool xrtWriterDestroy(xwriter* pWriter);
 ```c
 	xrtWriterDestroy(pWriter);
 ```
-
-

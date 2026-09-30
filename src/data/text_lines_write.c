@@ -1,6 +1,6 @@
 #include "../internal/xrt_text_lines.h"
 
-#if defined(XRT_FEATURE_JSONL_WRITE) || defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_JSONL_WRITE) || defined(XRT_FEATURE_XLONL_WRITE)
 
 typedef struct xtextlinessink {
 	const xtextlinesformat* Format;

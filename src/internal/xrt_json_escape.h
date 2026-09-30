@@ -7,7 +7,7 @@
 
 #if defined(XRT_FEATURE_JSON_ESCAPE)
 
-/* 内部结果让 JSON、XSON 和独立 quote API 各自建立正确错误域。 */
+/* 内部结果让 JSON、XLON 和独立 quote API 各自建立正确错误域。 */
 typedef enum xjsonescaperesult {
 	XJSON_ESCAPE_OK = 0,
 	XJSON_ESCAPE_INVALID,

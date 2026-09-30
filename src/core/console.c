@@ -332,6 +332,33 @@ bool __xrtConsoleWriterOpen(
 
 
 /* 完整写入 UTF-8 文本；普通文件和管道保留原字节。 */
+bool __xrtConsoleValidateText(xstrview Text)
+{
+    size_t Index = 0;
+    if (Text.Data == NULL && Text.Size != 0) { __xrtErrorSetInvalidArgument(); return false; }
+    while (Index < Text.Size) {
+        uint32 Value, Minimum;
+        unsigned Count;
+        unsigned char Byte = (unsigned char)Text.Data[Index++];
+        if (Byte < 0x80) continue;
+        if (Byte >= 0xc2 && Byte <= 0xdf) { Value = Byte & 31; Count = 1; Minimum = 0x80; }
+        else if (Byte >= 0xe0 && Byte <= 0xef) { Value = Byte & 15; Count = 2; Minimum = 0x800; }
+        else if (Byte >= 0xf0 && Byte <= 0xf4) { Value = Byte & 7; Count = 3; Minimum = 0x10000; }
+        else goto invalid;
+        if (Count > Text.Size - Index) goto invalid;
+        while (Count--) {
+            Byte = (unsigned char)Text.Data[Index++];
+            if ((Byte & 0xc0) != 0x80) goto invalid;
+            Value = (Value << 6) | (Byte & 63);
+        }
+        if (Value < Minimum || Value > 0x10ffff || (Value >= 0xd800 && Value <= 0xdfff)) goto invalid;
+    }
+    return true;
+invalid:
+    __xrtErrorSetDetail(XERR_VALUE, "xrt.console", XCONSOLE_ERROR_UTF8, "write", "console text is not valid UTF-8", NULL);
+    return false;
+}
+
 bool __xrtConsoleWriterWrite(
 	xconsolewriter* pWriter,
 	const void* pData,
@@ -348,6 +375,7 @@ bool __xrtConsoleWriterWrite(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
+	if (!__xrtConsoleValidateText((xstrview){(const char*)pData, iSize})) return false;
 	if ( iSize == 0 ) {
 		return true;
 	}

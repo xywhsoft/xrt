@@ -14,6 +14,8 @@ struct xreader {
 	xreaderops Ops;
 	ptr Context;
 	bool AtEnd;
+	bool HasPending;
+	uint8 Pending;
 };
 
 
@@ -58,6 +60,15 @@ bool __xrtIoMove(
 	uint64 iLimit,
 	uint64* pPosition
 );
+
+/* Detect input beyond a hard limit without losing the probed byte. */
+bool __xrtReaderCheckLimit(xreader* pReader, cstr sOperation);
+
+#if defined(XRT_FEATURE_IO_STANDARD)
+/* An interactive session holds the same exclusive gate used by raw stdin. */
+bool __xrtStandardInputAcquire(ptr Owner);
+void __xrtStandardInputRelease(ptr Owner);
+#endif
 
 #endif
 

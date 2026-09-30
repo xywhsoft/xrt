@@ -47,9 +47,9 @@ static void testConsoleRedirectBegin(
 	pRedirect->Stream = pStream;
 	pRedirect->File = tmpfile();
 	testRequire(pRedirect->File != NULL, "console redirect tmpfile failed");
-	testRequire(fflush(pStream) == 0, "console redirect initial flush failed");
+	if (pStream != stdin) testRequire(fflush(pStream) == 0, "console redirect initial flush failed");
 	#if defined(_WIN32) || defined(_WIN64)
-		pRedirect->Standard = pStream == stdout
+		pRedirect->Standard = pStream == stdin ? STD_INPUT_HANDLE : pStream == stdout
 			? STD_OUTPUT_HANDLE
 			: STD_ERROR_HANDLE;
 		pRedirect->Native = GetStdHandle(pRedirect->Standard);
@@ -107,7 +107,7 @@ static void testConsoleRedirectRestore(testconsoleredirect* pRedirect)
 /* 恢复标准流，但保留临时文件供读取。 */
 static void testConsoleRedirectEnd(testconsoleredirect* pRedirect)
 {
-	(void)fflush(pRedirect->Stream);
+	if (pRedirect->Stream != stdin) (void)fflush(pRedirect->Stream);
 	testConsoleRedirectRestore(pRedirect);
 }
 

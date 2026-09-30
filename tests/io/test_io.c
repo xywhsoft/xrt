@@ -311,6 +311,7 @@ static void testIoCopy(void)
 	xwriter* pWriter;
 	uint64 iCopied = 0;
 	uint64 iSize = 0;
+	size_t iRead = 0;
 
 	memset(arrOutput, 0, sizeof(arrOutput));
 	pReader = xrtReaderFromMemory((xbytesview){ arrInput, 6u });
@@ -320,6 +321,17 @@ static void testIoCopy(void)
 		(iCopied == 6u) && (memcmp(arrOutput, arrInput, 6u) == 0),
 		"unbounded Reader copy failed"
 	);
+	xrtReaderDestroy(pReader);
+	xrtWriterDestroy(pWriter);
+
+	pReader = xrtReaderFromMemory((xbytesview){ arrInput, 6u });
+	pWriter = xrtWriterDiscard();
+	testRequire(xrtReaderCopyUpTo(pReader, pWriter, 0u, &iCopied) && iCopied == 0u &&
+		xrtReaderTell(pReader, &iSize) && iSize == 0u, "copy up to zero consumed input");
+	testRequire(xrtReaderCopyUpTo(pReader, pWriter, 3u, &iCopied) && iCopied == 3u &&
+		xrtReaderTell(pReader, &iSize) && iSize == 3u, "copy up to limit read ahead");
+	testRequire(xrtReaderCopyUpTo(pReader, pWriter, 8u, &iCopied) && iCopied == 3u,
+		"copy up to limit rejected normal early EOF");
 	xrtReaderDestroy(pReader);
 	xrtWriterDestroy(pWriter);
 
@@ -356,6 +368,24 @@ static void testIoCopy(void)
 		"limited Reader copy did not reject extra input"
 	);
 	xrtClearError();
+	testRequire(
+		xrtReaderTell(pReader, &iSize) && (iSize == 5u) &&
+		xrtReaderRead(pReader, arrOutput, 1u, &iRead) &&
+		(iRead == 1u) && (arrOutput[0] == arrInput[5]),
+		"limited Reader copy consumed the excess byte"
+	);
+	xrtReaderDestroy(pReader);
+	xrtWriterDestroy(pWriter);
+
+	pReader = xrtReaderFromMemory((xbytesview){ arrInput, 6u });
+	pWriter = xrtWriterDiscard();
+	testRequire(!xrtReaderCopyLimit(pReader, pWriter, 0u, &iCopied),
+		"zero copy limit accepted nonempty input");
+	xrtClearError();
+	testRequire(xrtReaderSeek(pReader, 2, XSEEK_CURRENT, &iSize) &&
+		(iSize == 2u) && xrtReaderRead(pReader, arrOutput, 1u, &iRead) &&
+		(iRead == 1u) && (arrOutput[0] == arrInput[2]),
+		"pending probe changed relative seek origin");
 	xrtReaderDestroy(pReader);
 	xrtWriterDestroy(pWriter);
 
@@ -368,6 +398,25 @@ static void testIoCopy(void)
 	);
 	xrtReaderDestroy(pReader);
 	xrtWriterDestroy(pWriter);
+
+	{
+		testshortio Io = {0};
+		xreaderops Ops = {0};
+		Io.Input = arrInput;
+		Io.InputSize = 6u;
+		Ops.Read = testShortRead;
+		pReader = xrtReaderCreate(&Ops, &Io);
+		pWriter = xrtWriterDiscard();
+		testRequire(!xrtReaderCopyLimit(pReader, pWriter, 3u, &iCopied) &&
+			(iCopied == 3u), "non-seekable copy limit mismatch");
+		xrtClearError();
+		testRequire(!xrtReaderEOF(pReader) &&
+			xrtReaderReadFull(pReader, arrOutput, 3u, &iRead) &&
+			(iRead == 3u) && (memcmp(arrOutput, arrInput + 3u, 3u) == 0),
+			"non-seekable limit probe lost or duplicated input");
+		xrtReaderDestroy(pReader);
+		xrtWriterDestroy(pWriter);
+	}
 }
 
 

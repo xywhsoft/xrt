@@ -484,6 +484,51 @@
 #endif
 #endif
 
+/* console_terminal 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_TERMINAL)
+#ifndef XRT_FEATURE_CONSOLE_TERMINAL
+#define XRT_FEATURE_CONSOLE_TERMINAL
+#endif
+#ifndef XRT_MODULE_CONSOLE_SCREEN
+#define XRT_MODULE_CONSOLE_SCREEN
+#endif
+#ifndef XRT_MODULE_IO_STANDARD
+#define XRT_MODULE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_THREAD
+#define XRT_MODULE_THREAD
+#endif
+#endif
+
+/* console_screen 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_SCREEN)
+#ifndef XRT_FEATURE_CONSOLE_SCREEN
+#define XRT_FEATURE_CONSOLE_SCREEN
+#endif
+#ifndef XRT_MODULE_CONSOLE
+#define XRT_MODULE_CONSOLE
+#endif
+#endif
+
+/* console_input 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_INPUT)
+#ifndef XRT_FEATURE_CONSOLE_INPUT
+#define XRT_FEATURE_CONSOLE_INPUT
+#endif
+#ifndef XRT_MODULE_CONSOLE
+#define XRT_MODULE_CONSOLE
+#endif
+#ifndef XRT_MODULE_IO_STANDARD
+#define XRT_MODULE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
 /* console 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE)
 #ifndef XRT_FEATURE_CONSOLE
@@ -578,62 +623,62 @@
 #endif
 #endif
 
-/* xsonl 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL)
-#ifndef XRT_FEATURE_XSONL
-#define XRT_FEATURE_XSONL
+/* xlonl 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL)
+#ifndef XRT_FEATURE_XLONL
+#define XRT_FEATURE_XLONL
 #endif
-#ifndef XRT_MODULE_XSONL_FILE
-#define XRT_MODULE_XSONL_FILE
+#ifndef XRT_MODULE_XLONL_FILE
+#define XRT_MODULE_XLONL_FILE
 #endif
 #endif
 
-/* xsonl_file 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_FILE)
-#ifndef XRT_FEATURE_XSONL_FILE
-#define XRT_FEATURE_XSONL_FILE
+/* xlonl_file 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_FILE)
+#ifndef XRT_FEATURE_XLONL_FILE
+#define XRT_FEATURE_XLONL_FILE
 #endif
-#ifndef XRT_MODULE_XSONL_READ
-#define XRT_MODULE_XSONL_READ
+#ifndef XRT_MODULE_XLONL_READ
+#define XRT_MODULE_XLONL_READ
 #endif
-#ifndef XRT_MODULE_XSONL_WRITE
-#define XRT_MODULE_XSONL_WRITE
+#ifndef XRT_MODULE_XLONL_WRITE
+#define XRT_MODULE_XLONL_WRITE
 #endif
 #ifndef XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_FILE_WHOLE
 #endif
 #endif
 
-/* xsonl_write 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_WRITE)
-#ifndef XRT_FEATURE_XSONL_WRITE
-#define XRT_FEATURE_XSONL_WRITE
+/* xlonl_write 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_WRITE)
+#ifndef XRT_FEATURE_XLONL_WRITE
+#define XRT_FEATURE_XLONL_WRITE
 #endif
-#ifndef XRT_MODULE_XSONL_CORE
-#define XRT_MODULE_XSONL_CORE
+#ifndef XRT_MODULE_XLONL_CORE
+#define XRT_MODULE_XLONL_CORE
 #endif
-#ifndef XRT_MODULE_XSON_WRITE
-#define XRT_MODULE_XSON_WRITE
-#endif
-#endif
-
-/* xsonl_read 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_READ)
-#ifndef XRT_FEATURE_XSONL_READ
-#define XRT_FEATURE_XSONL_READ
-#endif
-#ifndef XRT_MODULE_XSONL_CORE
-#define XRT_MODULE_XSONL_CORE
-#endif
-#ifndef XRT_MODULE_XSON_READ
-#define XRT_MODULE_XSON_READ
+#ifndef XRT_MODULE_XLON_WRITE
+#define XRT_MODULE_XLON_WRITE
 #endif
 #endif
 
-/* xsonl_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_CORE)
-#ifndef XRT_FEATURE_XSONL_CORE
-#define XRT_FEATURE_XSONL_CORE
+/* xlonl_read 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_READ)
+#ifndef XRT_FEATURE_XLONL_READ
+#define XRT_FEATURE_XLONL_READ
+#endif
+#ifndef XRT_MODULE_XLONL_CORE
+#define XRT_MODULE_XLONL_CORE
+#endif
+#ifndef XRT_MODULE_XLON_READ
+#define XRT_MODULE_XLON_READ
+#endif
+#endif
+
+/* xlonl_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_CORE)
+#ifndef XRT_FEATURE_XLONL_CORE
+#define XRT_FEATURE_XLONL_CORE
 #endif
 #endif
 
@@ -696,39 +741,39 @@
 #endif
 #endif
 
-/* xson 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON)
-#ifndef XRT_FEATURE_XSON
-#define XRT_FEATURE_XSON
+/* xlon 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON)
+#ifndef XRT_FEATURE_XLON
+#define XRT_FEATURE_XLON
 #endif
-#ifndef XRT_MODULE_XSON_FILE
-#define XRT_MODULE_XSON_FILE
+#ifndef XRT_MODULE_XLON_FILE
+#define XRT_MODULE_XLON_FILE
 #endif
 #endif
 
-/* xson_file 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_FILE)
-#ifndef XRT_FEATURE_XSON_FILE
-#define XRT_FEATURE_XSON_FILE
+/* xlon_file 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_FILE)
+#ifndef XRT_FEATURE_XLON_FILE
+#define XRT_FEATURE_XLON_FILE
 #endif
-#ifndef XRT_MODULE_XSON_READ
-#define XRT_MODULE_XSON_READ
+#ifndef XRT_MODULE_XLON_READ
+#define XRT_MODULE_XLON_READ
 #endif
-#ifndef XRT_MODULE_XSON_WRITE
-#define XRT_MODULE_XSON_WRITE
+#ifndef XRT_MODULE_XLON_WRITE
+#define XRT_MODULE_XLON_WRITE
 #endif
 #ifndef XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_FILE_WHOLE
 #endif
 #endif
 
-/* xson_write 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_WRITE)
-#ifndef XRT_FEATURE_XSON_WRITE
-#define XRT_FEATURE_XSON_WRITE
+/* xlon_write 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_WRITE)
+#ifndef XRT_FEATURE_XLON_WRITE
+#define XRT_FEATURE_XLON_WRITE
 #endif
-#ifndef XRT_MODULE_XSON_CORE
-#define XRT_MODULE_XSON_CORE
+#ifndef XRT_MODULE_XLON_CORE
+#define XRT_MODULE_XLON_CORE
 #endif
 #ifndef XRT_MODULE_JSON_ESCAPE
 #define XRT_MODULE_JSON_ESCAPE
@@ -756,13 +801,13 @@
 #endif
 #endif
 
-/* xson_read 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_READ)
-#ifndef XRT_FEATURE_XSON_READ
-#define XRT_FEATURE_XSON_READ
+/* xlon_read 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_READ)
+#ifndef XRT_FEATURE_XLON_READ
+#define XRT_FEATURE_XLON_READ
 #endif
-#ifndef XRT_MODULE_XSON_CORE
-#define XRT_MODULE_XSON_CORE
+#ifndef XRT_MODULE_XLON_CORE
+#define XRT_MODULE_XLON_CORE
 #endif
 #ifndef XRT_MODULE_BUFFER
 #define XRT_MODULE_BUFFER
@@ -787,10 +832,10 @@
 #endif
 #endif
 
-/* xson_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_CORE)
-#ifndef XRT_FEATURE_XSON_CORE
-#define XRT_FEATURE_XSON_CORE
+/* xlon_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_CORE)
+#ifndef XRT_FEATURE_XLON_CORE
+#define XRT_FEATURE_XLON_CORE
 #endif
 #endif
 
@@ -891,6 +936,19 @@
 #endif
 #ifndef XRT_MODULE_CODEC_HEX
 #define XRT_MODULE_CODEC_HEX
+#endif
+#endif
+
+/* io_standard 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_IO_STANDARD)
+#ifndef XRT_FEATURE_IO_STANDARD
+#define XRT_FEATURE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_IO
+#define XRT_MODULE_IO
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
 #endif
 #endif
 
@@ -36692,6 +36750,10 @@ XRT_EXTERN_C_END
 	#error "XRT line readers require IO and buffer support"
 #endif
 
+#if defined(XRT_FEATURE_IO_STANDARD) && !defined(XRT_FEATURE_IO)
+	#error "XRT standard streams require IO support"
+#endif
+
 
 
 #if defined(XRT_FEATURE_IO)
@@ -36883,7 +36945,17 @@ XRT_API bool xrtReaderCopyN(
 
 
 
-/* 在硬上限内复制到 EOF；超限时消费一个探测字节并返回范围错误。 */
+/* 复制至多指定字节数；提前 EOF 成功，达到上限后不探测下一字节。 */
+XRT_API bool xrtReaderCopyUpTo(
+	xreader* pReader,
+	xwriter* pWriter,
+	uint64 iLimit,
+	uint64* pCopied
+);
+
+
+
+/* 在硬上限内复制到 EOF；超限时返回范围错误，探测字节由 Reader 留待下次读取。 */
 XRT_API bool xrtReaderCopyLimit(
 	xreader* pReader,
 	xwriter* pWriter,
@@ -37041,7 +37113,7 @@ XRT_API xwriter* xrtWriterFromBuffer(xbuffer* pBuffer);
 
 
 
-/* 在硬上限内读取到新 Buffer；超限时消费一个探测字节。 */
+/* 在硬上限内读取到新 Buffer；超限时探测字节由 Reader 留待下次读取。 */
 XRT_API xbuffer* xrtReaderReadAll(xreader* pReader, size_t iLimit);
 
 
@@ -37092,6 +37164,19 @@ XRT_API xwriter* xrtWriterOpen(cstr sPath);
 XRT_API xwriter* xrtWriterOpenAppend(cstr sPath);
 
 
+
+XRT_EXTERN_C_END
+
+#endif
+
+#if defined(XRT_FEATURE_IO_STANDARD)
+
+XRT_EXTERN_C_BEGIN
+
+/* 标准流适配器借用进程标准句柄；销毁适配器不会关闭标准句柄。 */
+XRT_API xreader* xrtReaderStdin(void);
+XRT_API xwriter* xrtWriterStdout(void);
+XRT_API xwriter* xrtWriterStderr(void);
 
 XRT_EXTERN_C_END
 
@@ -37240,128 +37325,128 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/xson.h */
+/* public: include/xrt/xlon.h */
 /* ========================================================================== */
 
-#ifndef XRT_XSON_H
-#define XRT_XSON_H
+#ifndef XRT_XLON_H
+#define XRT_XLON_H
 
 
 
 
-#if defined(XRT_FEATURE_XSON) && !defined(XRT_FEATURE_XSON_FILE)
-	#error "XRT_FEATURE_XSON requires XRT_FEATURE_XSON_FILE"
+#if defined(XRT_FEATURE_XLON) && !defined(XRT_FEATURE_XLON_FILE)
+	#error "XRT_FEATURE_XLON requires XRT_FEATURE_XLON_FILE"
 #endif
 
-#if (defined(XRT_FEATURE_XSON_READ) || defined(XRT_FEATURE_XSON_WRITE)) && \
-	!defined(XRT_FEATURE_XSON_CORE)
-	#error "XSON read and write features require XRT_FEATURE_XSON_CORE"
+#if (defined(XRT_FEATURE_XLON_READ) || defined(XRT_FEATURE_XLON_WRITE)) && \
+	!defined(XRT_FEATURE_XLON_CORE)
+	#error "XLON read and write features require XRT_FEATURE_XLON_CORE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_VALUE_CONTAINER)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_VALUE_CONTAINER"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_VALUE_CONTAINER)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_VALUE_CONTAINER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_BUFFER)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_BUFFER"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_BUFFER)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_BUFFER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_CODEC_BASE64)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_CODEC_BASE64"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_CODEC_BASE64)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_CODEC_BASE64"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_TIME_TEXT)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_TIME_TEXT"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_TIME_TEXT)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_TIME_TEXT"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_NUMBER_INTEGER)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_NUMBER_INTEGER"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_NUMBER_INTEGER)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_NUMBER_INTEGER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_NUMBER_FLOAT)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_NUMBER_FLOAT"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_NUMBER_FLOAT)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_NUMBER_FLOAT"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_UNICODE)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_UNICODE"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_UNICODE)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_UNICODE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_VALUE_CONTAINER)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_VALUE_CONTAINER"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_VALUE_CONTAINER)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_VALUE_CONTAINER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_BUFFER)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_BUFFER"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_BUFFER)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_BUFFER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_CODEC_BASE64)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_CODEC_BASE64"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_CODEC_BASE64)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_CODEC_BASE64"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_TIME_TEXT)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_TIME_TEXT"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_TIME_TEXT)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_TIME_TEXT"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_NUMBER_INTEGER)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_NUMBER_INTEGER"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_NUMBER_INTEGER)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_NUMBER_INTEGER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_NUMBER_FLOAT)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_NUMBER_FLOAT"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_NUMBER_FLOAT)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_NUMBER_FLOAT"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_UNICODE)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_UNICODE"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_UNICODE)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_UNICODE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_JSON_ESCAPE)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_JSON_ESCAPE"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_JSON_ESCAPE)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_JSON_ESCAPE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_FILE) && !defined(XRT_FEATURE_FILE_WHOLE)
-	#error "XRT_FEATURE_XSON_FILE requires XRT_FEATURE_FILE_WHOLE"
+#if defined(XRT_FEATURE_XLON_FILE) && !defined(XRT_FEATURE_FILE_WHOLE)
+	#error "XRT_FEATURE_XLON_FILE requires XRT_FEATURE_FILE_WHOLE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_FILE) && \
-	(!defined(XRT_FEATURE_XSON_READ) || !defined(XRT_FEATURE_XSON_WRITE))
-	#error "XRT_FEATURE_XSON_FILE requires XSON read and write features"
+#if defined(XRT_FEATURE_XLON_FILE) && \
+	(!defined(XRT_FEATURE_XLON_READ) || !defined(XRT_FEATURE_XLON_WRITE))
+	#error "XRT_FEATURE_XLON_FILE requires XLON read and write features"
 #endif
 
 
 
-#if defined(XRT_FEATURE_XSON_READ) || defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_READ) || defined(XRT_FEATURE_XLON_WRITE)
 
-#define XXSON_DEPTH_DEFAULT 256u
-#define XXSON_INPUT_DEFAULT (64u * 1024u * 1024u)
-#define XXSON_STRING_DEFAULT (16u * 1024u * 1024u)
-#define XXSON_VALUES_DEFAULT 1000000u
-#define XXSON_CONTAINER_DEFAULT 1000000u
-#define XXSON_DECODED_DEFAULT (64u * 1024u * 1024u)
+#define XXLON_DEPTH_DEFAULT 256u
+#define XXLON_INPUT_DEFAULT (64u * 1024u * 1024u)
+#define XXLON_STRING_DEFAULT (16u * 1024u * 1024u)
+#define XXLON_VALUES_DEFAULT 1000000u
+#define XXLON_CONTAINER_DEFAULT 1000000u
+#define XXLON_DECODED_DEFAULT (64u * 1024u * 1024u)
 
 
 
-/* XSON 模块错误码在 xrt.xson 域内保持稳定。 */
-typedef enum xxsonerror {
-	XXSON_ERROR_CONFIG = 1401,
-	XXSON_ERROR_SYNTAX,
-	XXSON_ERROR_LIMIT,
-	XXSON_ERROR_DUPLICATE,
-	XXSON_ERROR_NUMBER,
-	XXSON_ERROR_TAG,
-	XXSON_ERROR_STATE,
-	XXSON_ERROR_UNSUPPORTED,
-	XXSON_ERROR_OUTPUT,
-	XXSON_ERROR_IO
-} xxsonerror;
+/* XLON 模块错误码在 xrt.xlon 域内保持稳定。 */
+typedef enum xxlonerror {
+	XXLON_ERROR_CONFIG = 1401,
+	XXLON_ERROR_SYNTAX,
+	XXLON_ERROR_LIMIT,
+	XXLON_ERROR_DUPLICATE,
+	XXLON_ERROR_NUMBER,
+	XXLON_ERROR_TAG,
+	XXLON_ERROR_STATE,
+	XXLON_ERROR_UNSUPPORTED,
+	XXLON_ERROR_OUTPUT,
+	XXLON_ERROR_IO
+} xxlonerror;
 
 
 
 /* 文本位置使用零基字节偏移和一基行列。 */
-typedef struct xxsonlocation {
+typedef struct xxlonlocation {
 	size_t Offset;
 	size_t Line;
 	size_t Column;
-} xxsonlocation;
+} xxlonlocation;
 
 
 
@@ -37369,10 +37454,10 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 从 xrt.xson 错误的机器数据中读取文本位置。 */
-XRT_API bool xrtXsonErrorLocation(
+/* 从 xrt.xlon 错误的机器数据中读取文本位置。 */
+XRT_API bool xrtXlonErrorLocation(
 	const xerror* pError,
-	xxsonlocation* pLocation
+	xxlonlocation* pLocation
 );
 
 
@@ -37383,36 +37468,36 @@ XRT_EXTERN_C_END
 
 
 
-#if defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_XLON_READ)
 
 /* 非标准空白扩展和自定义标签默认全部关闭。 */
-typedef enum xxsonreadflag {
-	XXSON_READ_COMMENTS = UINT32_C(0x00000001),
-	XXSON_READ_TRAILING_COMMA = UINT32_C(0x00000002),
-	XXSON_READ_CUSTOM = UINT32_C(0x00000004)
-} xxsonreadflag;
+typedef enum xxlonreadflag {
+	XXLON_READ_COMMENTS = UINT32_C(0x00000001),
+	XXLON_READ_TRAILING_COMMA = UINT32_C(0x00000002),
+	XXLON_READ_CUSTOM = UINT32_C(0x00000004)
+} xxlonreadflag;
 
 
 
 /* 对象和整数映射使用同一套明确的重复键策略。 */
-typedef enum xxsonduplicate {
-	XXSON_DUPLICATE_REJECT = 0,
-	XXSON_DUPLICATE_KEEP,
-	XXSON_DUPLICATE_REPLACE
-} xxsonduplicate;
+typedef enum xxlonduplicate {
+	XXLON_DUPLICATE_REJECT = 0,
+	XXLON_DUPLICATE_KEEP,
+	XXLON_DUPLICATE_REPLACE
+} xxlonduplicate;
 
 
 
 /* 超出 int64/uint64 的整数默认失败，可显式按 double 接收。 */
-typedef enum xxsonbigint {
-	XXSON_BIGINT_REJECT = 0,
-	XXSON_BIGINT_FLOAT
-} xxsonbigint;
+typedef enum xxlonbigint {
+	XXLON_BIGINT_REJECT = 0,
+	XXLON_BIGINT_FLOAT
+} xxlonbigint;
 
 
 
 /* 自定义标签解码器返回一个拥有引用；失败时应设置具体错误。 */
-typedef xvalue* (*xxsondecodeproc)(
+typedef xvalue* (*xxlondecodeproc)(
 	xstrview Tag,
 	xstrview Payload,
 	ptr pUserData
@@ -37420,79 +37505,79 @@ typedef xvalue* (*xxsondecodeproc)(
 
 
 
-/* XSON 读取配置同时约束语法、资源预算和自定义类型入口。 */
-typedef struct xxsonreadconfig {
+/* XLON 读取配置同时约束语法、资源预算和自定义类型入口。 */
+typedef struct xxlonreadconfig {
 	uint32 Flags;
-	xxsonduplicate Duplicate;
-	xxsonbigint BigInteger;
+	xxlonduplicate Duplicate;
+	xxlonbigint BigInteger;
 	uint32 MaxDepth;
 	size_t MaxInputBytes;
 	size_t MaxStringBytes;
 	size_t MaxValues;
 	size_t MaxContainerItems;
 	size_t MaxDecodedBytes;
-	xxsondecodeproc Decode;
+	xxlondecodeproc Decode;
 	ptr DecodeData;
 	uint32 Reserved[4];
-} xxsonreadconfig;
+} xxlonreadconfig;
 
 
 
-/* 访问事件直接表达全部可移植 XSON 类型。 */
-typedef enum xxsoneventtype {
-	XXSON_EVENT_NULL = 0,
-	XXSON_EVENT_BOOL,
-	XXSON_EVENT_INT,
-	XXSON_EVENT_FLOAT,
-	XXSON_EVENT_STRING,
-	XXSON_EVENT_BYTES,
-	XXSON_EVENT_TIME,
-	XXSON_EVENT_CUSTOM,
-	XXSON_EVENT_ARRAY_BEGIN,
-	XXSON_EVENT_ARRAY_END,
-	XXSON_EVENT_INT_MAP_BEGIN,
-	XXSON_EVENT_INT_MAP_END,
-	XXSON_EVENT_SET_BEGIN,
-	XXSON_EVENT_SET_END,
-	XXSON_EVENT_OBJECT_BEGIN,
-	XXSON_EVENT_OBJECT_END,
-	XXSON_EVENT_UINT,
+/* 访问事件直接表达全部可移植 XLON 类型。 */
+typedef enum xxloneventtype {
+	XXLON_EVENT_NULL = 0,
+	XXLON_EVENT_BOOL,
+	XXLON_EVENT_INT,
+	XXLON_EVENT_FLOAT,
+	XXLON_EVENT_STRING,
+	XXLON_EVENT_BYTES,
+	XXLON_EVENT_TIME,
+	XXLON_EVENT_CUSTOM,
+	XXLON_EVENT_ARRAY_BEGIN,
+	XXLON_EVENT_ARRAY_END,
+	XXLON_EVENT_INT_MAP_BEGIN,
+	XXLON_EVENT_INT_MAP_END,
+	XXLON_EVENT_SET_BEGIN,
+	XXLON_EVENT_SET_END,
+	XXLON_EVENT_OBJECT_BEGIN,
+	XXLON_EVENT_OBJECT_END,
+	XXLON_EVENT_UINT,
 	/* Appended to preserve the numeric identity of published event kinds. */
-	XXSON_EVENT_CHAR
-} xxsoneventtype;
+	XXLON_EVENT_CHAR
+} xxloneventtype;
 
 
 
 /* 回调可继续、正常提前停止或报告失败。 */
-typedef enum xxsonvisitaction {
-	XXSON_VISIT_NEXT = 0,
-	XXSON_VISIT_STOP,
-	XXSON_VISIT_FAIL
-} xxsonvisitaction;
+typedef enum xxlonvisitaction {
+	XXLON_VISIT_NEXT = 0,
+	XXLON_VISIT_STOP,
+	XXLON_VISIT_FAIL
+} xxlonvisitaction;
 
 
 
 /* 访问结果明确区分完成、调用方停止和失败。 */
-typedef enum xxsonvisitresult {
-	XXSON_VISIT_ERROR = -1,
-	XXSON_VISIT_DONE = 0,
-	XXSON_VISIT_STOPPED = 1
-} xxsonvisitresult;
+typedef enum xxlonvisitresult {
+	XXLON_VISIT_ERROR = -1,
+	XXLON_VISIT_DONE = 0,
+	XXLON_VISIT_STOPPED = 1
+} xxlonvisitresult;
 
 
 
 /* 自定义标签保留名称和已经完成 JSON 反转义的字符串载荷。 */
-typedef struct xxsontag {
+typedef struct xxlontag {
 	xstrview Name;
 	xstrview Payload;
-} xxsontag;
+} xxlontag;
 
 
 
 /* 键按父容器类型明确区分，事件视图只在回调期间有效。 */
-typedef struct xxsonevent {
-	xxsoneventtype Type;
-	xxsonlocation Location;
+typedef struct xxlonevent {
+	xxloneventtype Type;
+	xxlonlocation Location;
 	size_t Depth;
 	xvaluekey Key;
 	xstrview Raw;
@@ -37505,15 +37590,15 @@ typedef struct xxsonevent {
 		xstrview String;
 		xbytesview Bytes;
 		xtime Time;
-		xxsontag Tag;
+		xxlontag Tag;
 	} Value;
-} xxsonevent;
+} xxlonevent;
 
 
 
-/* XSON 访问器不得保存事件中的借用视图。 */
-typedef xxsonvisitaction (*xxsonvisitproc)(
-	const xxsonevent* pEvent,
+/* XLON 访问器不得保存事件中的借用视图。 */
+typedef xxlonvisitaction (*xxlonvisitproc)(
+	const xxlonevent* pEvent,
 	ptr pUserData
 );
 
@@ -37524,33 +37609,33 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化严格语法、拒绝重复键和有限资源预算。 */
-XRT_API void xrtXsonReadConfigInit(xxsonreadconfig* pConfig);
+XRT_API void xrtXlonReadConfigInit(xxlonreadconfig* pConfig);
 
 
 
-/* 使用默认严格配置解析一个完整 XSON 文本。 */
-XRT_API xvalue* xrtXsonParse(xstrview Text);
+/* 使用默认严格配置解析一个完整 XLON 文本。 */
+XRT_API xvalue* xrtXlonParse(xstrview Text);
 
 
 
-/* 使用高级配置解析一个完整 XSON 文本。 */
-XRT_API xvalue* xrtXsonRead(
+/* 使用高级配置解析一个完整 XLON 文本。 */
+XRT_API xvalue* xrtXlonRead(
 	xstrview Text,
-	const xxsonreadconfig* pConfig
+	const xxlonreadconfig* pConfig
 );
 
 
 
-/* 验证默认 XSON 语法和内建标签，不构造 Value DOM。 */
-XRT_API bool xrtXsonValid(xstrview Text);
+/* 验证默认 XLON 语法和内建标签，不构造 Value DOM。 */
+XRT_API bool xrtXlonValid(xstrview Text);
 
 
 
 /* 直接访问解析事件，不构造中间 DOM。 */
-XRT_API xxsonvisitresult xrtXsonVisit(
+XRT_API xxlonvisitresult xrtXlonVisit(
 	xstrview Text,
-	const xxsonreadconfig* pConfig,
-	xxsonvisitproc pVisitor,
+	const xxlonreadconfig* pConfig,
+	xxlonvisitproc pVisitor,
 	ptr pUserData
 );
 
@@ -37562,37 +37647,37 @@ XRT_EXTERN_C_END
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 /* 输出标志只改变文本布局和字符串转义。 */
-typedef enum xxsonwriteflag {
-	XXSON_WRITE_PRETTY = UINT32_C(0x00000001),
-	XXSON_WRITE_ESCAPE_SLASH = UINT32_C(0x00000002),
-	XXSON_WRITE_ESCAPE_HTML = UINT32_C(0x00000004),
-	XXSON_WRITE_ESCAPE_NON_ASCII = UINT32_C(0x00000008)
-} xxsonwriteflag;
+typedef enum xxlonwriteflag {
+	XXLON_WRITE_PRETTY = UINT32_C(0x00000001),
+	XXLON_WRITE_ESCAPE_SLASH = UINT32_C(0x00000002),
+	XXLON_WRITE_ESCAPE_HTML = UINT32_C(0x00000004),
+	XXLON_WRITE_ESCAPE_NON_ASCII = UINT32_C(0x00000008)
+} xxlonwriteflag;
 
 
 
 /* 不可直接表示的值默认失败，也可显式跳过容器成员。 */
-typedef enum xxsonunsupported {
-	XXSON_UNSUPPORTED_REJECT = 0,
-	XXSON_UNSUPPORTED_SKIP
-} xxsonunsupported;
+typedef enum xxlonunsupported {
+	XXLON_UNSUPPORTED_REJECT = 0,
+	XXLON_UNSUPPORTED_SKIP
+} xxlonunsupported;
 
 
 
 /* 自定义编码回调明确区分不处理、成功和失败。 */
-typedef enum xxsoncoderesult {
-	XXSON_CODE_ERROR = -1,
-	XXSON_CODE_UNSUPPORTED = 0,
-	XXSON_CODE_OK = 1
-} xxsoncoderesult;
+typedef enum xxloncoderesult {
+	XXLON_CODE_ERROR = -1,
+	XXLON_CODE_UNSUPPORTED = 0,
+	XXLON_CODE_OK = 1
+} xxloncoderesult;
 
 
 
 /* 编码器接收仅在回调期间有效的只读快照；返回视图保持到本次调用返回。 */
-typedef xxsoncoderesult (*xxsonencodeproc)(
+typedef xxloncoderesult (*xxlonencodeproc)(
 	const xvalue* pValue,
 	xstrview* pTag,
 	xstrview* pPayload,
@@ -37601,27 +37686,27 @@ typedef xxsoncoderesult (*xxsonencodeproc)(
 
 
 
-/* XSON 写出配置提供固定上限和唯一自定义类型入口。 */
-typedef struct xxsonwriteconfig {
+/* XLON 写出配置提供固定上限和唯一自定义类型入口。 */
+typedef struct xxlonwriteconfig {
 	uint32 Flags;
-	xxsonunsupported Unsupported;
+	xxlonunsupported Unsupported;
 	uint32 MaxDepth;
 	uint32 Indent;
 	size_t MaxOutputBytes;
-	xxsonencodeproc Encode;
+	xxlonencodeproc Encode;
 	ptr EncodeData;
 	uint32 Reserved[4];
-} xxsonwriteconfig;
+} xxlonwriteconfig;
 
 
 
 /* 输出回调必须在返回前消费借用字节。 */
-typedef bool (*xxsonwriteproc)(xbytesview Data, ptr pUserData);
+typedef bool (*xxlonwriteproc)(xbytesview Data, ptr pUserData);
 
 
 
 /* 增量写入器保持不透明，所有方法都拒绝回调重入。 */
-typedef struct xxsonwriter xxsonwriter;
+typedef struct xxlonwriter xxlonwriter;
 
 
 
@@ -37630,12 +37715,12 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化紧凑输出、严格类型和有限输出预算。 */
-XRT_API void xrtXsonWriteConfigInit(xxsonwriteconfig* pConfig);
+XRT_API void xrtXlonWriteConfigInit(xxlonwriteconfig* pConfig);
 
 
 
 /* 紧凑或美化地序列化 Value，并返回由 xrtFree 释放的文本。 */
-XRT_API str xrtXsonStringify(
+XRT_API str xrtXlonStringify(
 	const xvalue* pValue,
 	bool bPretty,
 	size_t* pSize
@@ -37644,114 +37729,114 @@ XRT_API str xrtXsonStringify(
 
 
 /* 使用高级配置把 Value 同步写入调用方输出回调。 */
-XRT_API bool xrtXsonWrite(
+XRT_API bool xrtXlonWrite(
 	const xvalue* pValue,
-	const xxsonwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+	const xxlonwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 );
 
 
 
-/* 创建把增量结果保存在内存中的 XSON 写入器。 */
-XRT_API xxsonwriter* xrtXsonWriterCreate(
-	const xxsonwriteconfig* pConfig
+/* 创建把增量结果保存在内存中的 XLON 写入器。 */
+XRT_API xxlonwriter* xrtXlonWriterCreate(
+	const xxlonwriteconfig* pConfig
 );
 
 
 
-/* 创建把增量结果同步提交给回调的 XSON 写入器。 */
-XRT_API xxsonwriter* xrtXsonWriterCreateSink(
-	const xxsonwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+/* 创建把增量结果同步提交给回调的 XLON 写入器。 */
+XRT_API xxlonwriter* xrtXlonWriterCreateSink(
+	const xxlonwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 );
 
 
 
 /* 在当前位置开始对象。 */
-XRT_API bool xrtXsonWriterObject(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterObject(xxlonwriter* pWriter);
 
 
 
 /* 在当前位置开始数组。 */
-XRT_API bool xrtXsonWriterArray(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterArray(xxlonwriter* pWriter);
 
 
 
 /* 在当前位置开始整数键映射。 */
-XRT_API bool xrtXsonWriterIntMap(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterIntMap(xxlonwriter* pWriter);
 
 
 
 /* 在当前位置开始集合。 */
-XRT_API bool xrtXsonWriterSet(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterSet(xxlonwriter* pWriter);
 
 
 
 /* 结束最近开始的容器。 */
-XRT_API bool xrtXsonWriterEnd(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterEnd(xxlonwriter* pWriter);
 
 
 
 /* 为对象中的下一个值写入字符串名称。 */
-XRT_API bool xrtXsonWriterName(xxsonwriter* pWriter, xstrview Name);
+XRT_API bool xrtXlonWriterName(xxlonwriter* pWriter, xstrview Name);
 
 
 
 /* 为整数映射中的下一个值写入 int64 键。 */
-XRT_API bool xrtXsonWriterKey(xxsonwriter* pWriter, int64 iKey);
+XRT_API bool xrtXlonWriterKey(xxlonwriter* pWriter, int64 iKey);
 
 
 
 /* 写入 null。 */
-XRT_API bool xrtXsonWriterNull(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterNull(xxlonwriter* pWriter);
 
 
 
 /* 写入布尔值。 */
-XRT_API bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue);
+XRT_API bool xrtXlonWriterBool(xxlonwriter* pWriter, bool bValue);
 
 
 
 /* 写入 int64。 */
-XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue);
+XRT_API bool xrtXlonWriterInt(xxlonwriter* pWriter, int64 iValue);
 
 
 
 /* 写入 uint64。 */
-XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue);
+XRT_API bool xrtXlonWriterUInt(xxlonwriter* pWriter, uint64 iValue);
 
 
 
 /* 写入保留字符身份的 Unicode 标量标签。 */
-XRT_API bool xrtXsonWriterChar(xxsonwriter* pWriter, uint32 iValue);
+XRT_API bool xrtXlonWriterChar(xxlonwriter* pWriter, uint32 iValue);
 
 
 
 /* 写入 double，非有限值使用显式 float 标签。 */
-XRT_API bool xrtXsonWriterFloat(xxsonwriter* pWriter, double fValue);
+XRT_API bool xrtXlonWriterFloat(xxlonwriter* pWriter, double fValue);
 
 
 
 /* 写入严格 UTF-8 字符串。 */
-XRT_API bool xrtXsonWriterString(xxsonwriter* pWriter, xstrview Text);
+XRT_API bool xrtXlonWriterString(xxlonwriter* pWriter, xstrview Text);
 
 
 
 /* 写入规范 Base64 二进制标签。 */
-XRT_API bool xrtXsonWriterBytes(xxsonwriter* pWriter, xbytesview Data);
+XRT_API bool xrtXlonWriterBytes(xxlonwriter* pWriter, xbytesview Data);
 
 
 
 /* 写入 UTC RFC 3339 时间标签。 */
-XRT_API bool xrtXsonWriterTime(xxsonwriter* pWriter, xtime Time);
+XRT_API bool xrtXlonWriterTime(xxlonwriter* pWriter, xtime Time);
 
 
 
 /* 写入已经验证名称和载荷的自定义标签。 */
-XRT_API bool xrtXsonWriterTag(
-	xxsonwriter* pWriter,
+XRT_API bool xrtXlonWriterTag(
+	xxlonwriter* pWriter,
 	xstrview Tag,
 	xstrview Payload
 );
@@ -37759,25 +37844,25 @@ XRT_API bool xrtXsonWriterTag(
 
 
 /* 在当前位置写入完整 Value 子树。 */
-XRT_API bool xrtXsonWriterValue(
-	xxsonwriter* pWriter,
+XRT_API bool xrtXlonWriterValue(
+	xxlonwriter* pWriter,
 	const xvalue* pValue
 );
 
 
 
 /* 验证根值和容器已完整结束，并关闭写入器。 */
-XRT_API bool xrtXsonWriterFinish(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterFinish(xxlonwriter* pWriter);
 
 
 
 /* 从已完成的内存写入器移交文本。 */
-XRT_API str xrtXsonWriterTake(xxsonwriter* pWriter, size_t* pSize);
+XRT_API str xrtXlonWriterTake(xxlonwriter* pWriter, size_t* pSize);
 
 
 
 /* 销毁写入器和未移交的内存结果。 */
-XRT_API void xrtXsonWriterFree(xxsonwriter* pWriter);
+XRT_API void xrtXlonWriterFree(xxlonwriter* pWriter);
 
 
 
@@ -37787,36 +37872,36 @@ XRT_EXTERN_C_END
 
 
 
-#if defined(XRT_FEATURE_XSON_FILE)
+#if defined(XRT_FEATURE_XLON_FILE)
 
 XRT_EXTERN_C_BEGIN
 
 
 
-/* 使用默认严格配置读取并解析 XSON 文件。 */
-XRT_API xvalue* xrtXsonParseFile(cstr sPath);
+/* 使用默认严格配置读取并解析 XLON 文件。 */
+XRT_API xvalue* xrtXlonParseFile(cstr sPath);
 
 
 
-/* 使用读取配置及其输入上限解析 XSON 文件。 */
-XRT_API xvalue* xrtXsonReadFile(
+/* 使用读取配置及其输入上限解析 XLON 文件。 */
+XRT_API xvalue* xrtXlonReadFile(
 	cstr sPath,
-	const xxsonreadconfig* pConfig
+	const xxlonreadconfig* pConfig
 );
 
 
 
-/* 使用高级配置序列化并原子替换 XSON 文件。 */
-XRT_API bool xrtXsonWriteFile(
+/* 使用高级配置序列化并原子替换 XLON 文件。 */
+XRT_API bool xrtXlonWriteFile(
 	cstr sPath,
 	const xvalue* pValue,
-	const xxsonwriteconfig* pConfig
+	const xxlonwriteconfig* pConfig
 );
 
 
 
-/* 紧凑或美化地序列化并原子替换 XSON 文件。 */
-XRT_API bool xrtXsonStringifyFile(
+/* 紧凑或美化地序列化并原子替换 XLON 文件。 */
+XRT_API bool xrtXlonStringifyFile(
 	cstr sPath,
 	const xvalue* pValue,
 	bool bPretty
@@ -38017,183 +38102,183 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/xsonl.h */
+/* public: include/xrt/xlonl.h */
 /* ========================================================================== */
 
-#ifndef XRT_XSONL_H
-#define XRT_XSONL_H
+#ifndef XRT_XLONL_H
+#define XRT_XLONL_H
 
 
-#if defined(XRT_FEATURE_XSONL) && (!defined(XRT_FEATURE_XSONL_FILE))
-	#error "XRT_FEATURE_XSONL requires XSONL_FILE"
+#if defined(XRT_FEATURE_XLONL) && (!defined(XRT_FEATURE_XLONL_FILE))
+	#error "XRT_FEATURE_XLONL requires XLONL_FILE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_READ) && (!defined(XRT_FEATURE_XSONL_CORE))
-	#error "XRT_FEATURE_XSONL_READ requires XSONL_CORE"
+#if defined(XRT_FEATURE_XLONL_READ) && (!defined(XRT_FEATURE_XLONL_CORE))
+	#error "XRT_FEATURE_XLONL_READ requires XLONL_CORE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_WRITE) && (!defined(XRT_FEATURE_XSONL_CORE))
-	#error "XRT_FEATURE_XSONL_WRITE requires XSONL_CORE"
+#if defined(XRT_FEATURE_XLONL_WRITE) && (!defined(XRT_FEATURE_XLONL_CORE))
+	#error "XRT_FEATURE_XLONL_WRITE requires XLONL_CORE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_FILE) && (!defined(XRT_FEATURE_XSONL_READ) || !defined(XRT_FEATURE_XSONL_WRITE))
-	#error "XRT_FEATURE_XSONL_FILE requires XSONL_READ and XSONL_WRITE"
+#if defined(XRT_FEATURE_XLONL_FILE) && (!defined(XRT_FEATURE_XLONL_READ) || !defined(XRT_FEATURE_XLONL_WRITE))
+	#error "XRT_FEATURE_XLONL_FILE requires XLONL_READ and XLONL_WRITE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_READ) && !defined(XRT_FEATURE_XSON_READ)
-	#error "XSONL read requires XSON read"
+#if defined(XRT_FEATURE_XLONL_READ) && !defined(XRT_FEATURE_XLON_READ)
+	#error "XLONL read requires XLON read"
 #endif
-#if defined(XRT_FEATURE_XSONL_WRITE) && !defined(XRT_FEATURE_XSON_WRITE)
-	#error "XSONL write requires XSON write"
+#if defined(XRT_FEATURE_XLONL_WRITE) && !defined(XRT_FEATURE_XLON_WRITE)
+	#error "XLONL write requires XLON write"
 #endif
-#if defined(XRT_FEATURE_XSONL_FILE) && !defined(XRT_FEATURE_FILE_WHOLE)
-	#error "XSONL file requires FILE_WHOLE"
+#if defined(XRT_FEATURE_XLONL_FILE) && !defined(XRT_FEATURE_FILE_WHOLE)
+	#error "XLONL file requires FILE_WHOLE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_CORE)
+#if defined(XRT_FEATURE_XLONL_CORE)
 
-/* XSONL 的稳定错误域为 xrt.xsonl；RECORD 保留单条编解码错误原因链。 */
-typedef enum xxsonlerror {
-	XXSONL_ERROR_CONFIG = 1801,
-	XXSONL_ERROR_SYNTAX,
-	XXSONL_ERROR_LIMIT,
-	XXSONL_ERROR_RECORD,
-	XXSONL_ERROR_TYPE,
-	XXSONL_ERROR_OUTPUT,
-	XXSONL_ERROR_IO,
-	XXSONL_ERROR_STATE
-} xxsonlerror;
+/* XLONL 的稳定错误域为 xrt.xlonl；RECORD 保留单条编解码错误原因链。 */
+typedef enum xxlonlerror {
+	XXLONL_ERROR_CONFIG = 1801,
+	XXLONL_ERROR_SYNTAX,
+	XXLONL_ERROR_LIMIT,
+	XXLONL_ERROR_RECORD,
+	XXLONL_ERROR_TYPE,
+	XXLONL_ERROR_OUTPUT,
+	XXLONL_ERROR_IO,
+	XXLONL_ERROR_STATE
+} xxlonlerror;
 
 /* 列按 UTF-8 字节计数；空白行计入 Line，不计入 RecordIndex。 */
-typedef struct xxsonllocation {
+typedef struct xxlonllocation {
 	size_t Offset;
 	size_t Line;
 	size_t Column;
 	size_t RecordIndex;
-} xxsonllocation;
+} xxlonllocation;
 
 XRT_EXTERN_C_BEGIN
 
 /* 读取全局字节偏移、一基物理行列及零基记录下标；无位置时保持输出不变。 */
-XRT_API bool xrtXsonlErrorLocation(
+XRT_API bool xrtXlonlErrorLocation(
 	const xerror* pError,
-	xxsonllocation* pLocation
+	xxlonllocation* pLocation
 );
 
 XRT_EXTERN_C_END
 #endif
 
-#if defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_XLONL_READ)
 
 /* 默认跳过空白行；此标志使空白行报告语法错误。 */
-typedef enum xxsonlreadflag {
-	XXSONL_READ_REJECT_EMPTY_LINES = UINT32_C(0x00000001)
-} xxsonlreadflag;
+typedef enum xxlonlreadflag {
+	XXLONL_READ_REJECT_EMPTY_LINES = UINT32_C(0x00000001)
+} xxlonlreadflag;
 
 /* Record 限制单条；外层限制累计消耗，合成的汇总 Array 不计入值数或深度。 */
-typedef struct xxsonlreadconfig {
-	xxsonreadconfig Record;
+typedef struct xxlonlreadconfig {
+	xxlonreadconfig Record;
 	uint32 Flags;
 	size_t MaxInputBytes;
 	size_t MaxRecords;
 	size_t MaxTotalValues;
 	size_t MaxTotalDecodedBytes;
 	uint32 Reserved[4];
-} xxsonlreadconfig;
+} xxlonlreadconfig;
 
 XRT_EXTERN_C_BEGIN
 
 /* 初始化默认忽略空白行、严格单条语法和有限累计预算。 */
-XRT_API void xrtXsonlReadConfigInit(
-	xxsonlreadconfig* pConfig
+XRT_API void xrtXlonlReadConfigInit(
+	xxlonlreadconfig* pConfig
 );
 
 
 /* 使用默认配置解析记录序列；成功返回拥有的 Array，空输入返回空 Array。 */
-XRT_API xvalue* xrtXsonlParse(
+XRT_API xvalue* xrtXlonlParse(
 	xstrview Text
 );
 
 
 /* 按配置解析全部记录；失败释放部分结果并返回 NULL，结果由 xrtValueRelease 释放。 */
-XRT_API xvalue* xrtXsonlRead(
+XRT_API xvalue* xrtXlonlRead(
 	xstrview Text,
-	const xxsonlreadconfig* pConfig
+	const xxlonlreadconfig* pConfig
 );
 
 
 /* 默认忽略空白行，验证逐行语法和累计预算，不构造 Value DOM；重复键策略不参与验证。 */
-XRT_API bool xrtXsonlValid(
+XRT_API bool xrtXlonlValid(
 	xstrview Text
 );
 
 XRT_EXTERN_C_END
 #endif
 
-#if defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_XLONL_WRITE)
 
 /* Record.MaxOutputBytes 不含分隔符；外层 MaxOutputBytes 包含每条 LF，不含末尾 NUL。 */
-typedef struct xxsonlwriteconfig {
-	xxsonwriteconfig Record;
+typedef struct xxlonlwriteconfig {
+	xxlonwriteconfig Record;
 	size_t MaxOutputBytes;
 	size_t MaxRecords;
 	uint32 Reserved[4];
-} xxsonlwriteconfig;
+} xxlonlwriteconfig;
 
 XRT_EXTERN_C_BEGIN
 
 /* 初始化紧凑单行输出、LF 分隔及有限累计预算；PRETTY 配置非法。 */
-XRT_API void xrtXsonlWriteConfigInit(
-	xxsonlwriteconfig* pConfig
+XRT_API void xrtXlonlWriteConfigInit(
+	xxlonlwriteconfig* pConfig
 );
 
 
 /* 每个 Array 元素写成一行；返回 xrtFree 释放的 NUL 结尾文本，失败不修改可空的 pSize。 */
-XRT_API str xrtXsonlStringify(
+XRT_API str xrtXlonlStringify(
 	const xvalue* pArray,
 	size_t* pSize
 );
 
 
 /* 同步分块输出各条记录及 LF；回调借用字节仅在调用期间有效，失败不能撤回已提交字节。 */
-XRT_API bool xrtXsonlWrite(
+XRT_API bool xrtXlonlWrite(
 	const xvalue* pArray,
-	const xxsonlwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+	const xxlonlwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 );
 
 XRT_EXTERN_C_END
 #endif
 
-#if defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_XLONL_FILE)
 XRT_EXTERN_C_BEGIN
 
 /* 按默认配置限额读取文件并返回拥有的 Array。 */
-XRT_API xvalue* xrtXsonlParseFile(
+XRT_API xvalue* xrtXlonlParseFile(
 	cstr sPath
 );
 
 
 /* 按整体输入上限读取文件，逐行解析；失败不返回部分 Array。 */
-XRT_API xvalue* xrtXsonlReadFile(
+XRT_API xvalue* xrtXlonlReadFile(
 	cstr sPath,
-	const xxsonlreadconfig* pConfig
+	const xxlonlreadconfig* pConfig
 );
 
 
 /* 按默认配置完整序列化 Array 后原子替换文件。 */
-XRT_API bool xrtXsonlStringifyFile(
+XRT_API bool xrtXlonlStringifyFile(
 	cstr sPath,
 	const xvalue* pArray
 );
 
 
 /* 按高级配置完整序列化后原子替换文件；序列化失败保留原文件。 */
-XRT_API bool xrtXsonlWriteFile(
+XRT_API bool xrtXlonlWriteFile(
 	cstr sPath,
 	const xvalue* pArray,
-	const xxsonlwriteconfig* pConfig
+	const xxlonlwriteconfig* pConfig
 );
 
 XRT_EXTERN_C_END
@@ -38783,6 +38868,19 @@ XRT_EXTERN_C_END
 #ifndef XRT_CONSOLE_H
 #define XRT_CONSOLE_H
 
+#if defined(XRT_FEATURE_CONSOLE_INPUT) || defined(XRT_FEATURE_CONSOLE_TERMINAL)
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_INPUT) && (!defined(XRT_FEATURE_CONSOLE) || !defined(XRT_FEATURE_BUFFER) || !defined(XRT_FEATURE_IO_STANDARD))
+#error "Console input requires console, buffer and standard IO"
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN) && !defined(XRT_FEATURE_CONSOLE)
+#error "Console screen requires console"
+#endif
+#if defined(XRT_FEATURE_CONSOLE_TERMINAL) && (!defined(XRT_FEATURE_CONSOLE_SCREEN) || !defined(XRT_FEATURE_BUFFER) || !defined(XRT_FEATURE_IO_STANDARD) || !defined(XRT_FEATURE_THREAD))
+#error "Console terminal requires console screen, buffer, standard IO and thread"
+#endif
 
 
 
@@ -38801,7 +38899,11 @@ typedef enum xconsoleerror {
 	XCONSOLE_ERROR_STREAM = 1,
 	XCONSOLE_ERROR_UTF8,
 	XCONSOLE_ERROR_WRITE,
-	XCONSOLE_ERROR_FLUSH
+	XCONSOLE_ERROR_FLUSH,
+	XCONSOLE_ERROR_READ,
+	XCONSOLE_ERROR_LIMIT,
+	XCONSOLE_ERROR_STATE,
+	XCONSOLE_ERROR_TERMINAL
 } xconsoleerror;
 
 
@@ -38827,6 +38929,60 @@ XRT_API bool xrtConsoleFlush(xconsolestream Stream);
 
 /* 判断指定标准输出流当前是否连接交互终端；非终端是正常结果，不设置错误。 */
 XRT_API bool xrtConsoleIsTerminal(xconsolestream Stream);
+
+#if defined(XRT_FEATURE_CONSOLE_INPUT)
+/* Strict Unicode scalar input: 1 value, 0 EOF, -1 error. No read-ahead. */
+XRT_API int xrtConsoleReadChar(uint32* pCodepoint);
+/* EOF before a character is a normal NULL result; an empty line owns an empty buffer. */
+XRT_API xbuffer* xrtConsoleReadLine(size_t iMaxBytes);
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_TERMINAL)
+typedef struct xconsolesession xconsolesession;
+typedef enum xconsoleeventkind {
+    XCONSOLE_EVENT_TEXT = 1, XCONSOLE_EVENT_KEY, XCONSOLE_EVENT_RESIZE,
+    XCONSOLE_EVENT_PASTE, XCONSOLE_EVENT_MOUSE, XCONSOLE_EVENT_CLOSED
+} xconsoleeventkind;
+typedef enum xconsolekey {
+    XCONSOLE_KEY_ESCAPE = 0x110000, XCONSOLE_KEY_ENTER, XCONSOLE_KEY_TAB,
+    XCONSOLE_KEY_BACKSPACE, XCONSOLE_KEY_UP, XCONSOLE_KEY_DOWN,
+    XCONSOLE_KEY_LEFT, XCONSOLE_KEY_RIGHT, XCONSOLE_KEY_HOME,
+    XCONSOLE_KEY_END, XCONSOLE_KEY_INSERT, XCONSOLE_KEY_DELETE,
+    XCONSOLE_KEY_PAGE_UP, XCONSOLE_KEY_PAGE_DOWN, XCONSOLE_KEY_F1
+} xconsolekey;
+typedef struct xconsoleevent {
+    xconsoleeventkind Kind;
+    uint32 Key, Modifiers, Repeat;
+    int32 X, Y, Wheel;
+    uint32 Columns, Rows;
+    bool Down;
+    xbuffer* Text; /* owned UTF-8; may contain NUL */
+} xconsoleevent;
+
+/* flags: raw=1, mouse=2, bracketed-paste=4, alternate-screen=8. Thread-affine, exclusive stdin. */
+XRT_API xconsolesession* xrtConsoleSessionOpen(uint32 Flags);
+XRT_API bool xrtConsoleSessionClose(xconsolesession* pSession);
+XRT_API void xrtConsoleSessionDestroy(xconsolesession* pSession);
+XRT_API bool xrtConsoleSessionClosed(const xconsolesession* pSession);
+XRT_API bool xrtConsoleSessionPasteSupported(const xconsolesession* pSession);
+XRT_API bool xrtConsoleSessionWrite(xconsolesession* pSession, xstrview Text);
+XRT_API bool xrtConsoleSessionFlush(xconsolesession* pSession);
+XRT_API bool xrtConsoleSessionMove(xconsolesession* pSession, uint32 X, uint32 Y);
+XRT_API bool xrtConsoleSessionClear(xconsolesession* pSession, int Mode);
+XRT_API bool xrtConsoleSessionCursor(xconsolesession* pSession, bool Visible);
+XRT_API bool xrtConsoleSessionStyle(xconsolesession* pSession, int32 Foreground, int32 Background, uint32 Attributes);
+/* NULL without error is timeout; CLOSED is emitted once. Returned event is owned. */
+XRT_API xconsoleevent* xrtConsoleSessionRead(xconsolesession* pSession, int TimeoutMs);
+XRT_API void xrtConsoleEventDestroy(xconsoleevent* pEvent);
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN)
+/* Queries never change terminal modes. Nonterminal size is 0,0. */
+XRT_API bool xrtConsoleSize(xconsolestream Stream, uint32* pColumns, uint32* pRows);
+XRT_API int xrtConsoleColorMode(xconsolestream Stream);
+/* -1 default, 0..255 palette, 0x1000000|RGB true color; attributes bits 1,2,4,8,16. */
+XRT_API bool xrtConsoleWriteStyled(xconsolestream Stream, xstrview Text, int32 Foreground, int32 Background, uint32 Attributes);
+#endif
 
 
 
@@ -46411,17 +46567,17 @@ bool __xrtSetAdoptHeap(xset* pTarget, xset* pSource);
 	defined(XRT_FEATURE_JSON_READ) || \
 	defined(XRT_FEATURE_JSON_WRITE) || \
 	defined(XRT_FEATURE_JSON_FILE) || \
-	defined(XRT_FEATURE_XSON_CORE) || \
-	defined(XRT_FEATURE_XSON_READ) || \
-	defined(XRT_FEATURE_XSON_WRITE) || \
-	defined(XRT_FEATURE_XSON_FILE)
+	defined(XRT_FEATURE_XLON_CORE) || \
+	defined(XRT_FEATURE_XLON_READ) || \
+	defined(XRT_FEATURE_XLON_WRITE) || \
+	defined(XRT_FEATURE_XLON_FILE)
 #ifndef XRT_INTERNAL_TEXT_VALUE_H
 #define XRT_INTERNAL_TEXT_VALUE_H
 
 
 
 
-#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XLON_CORE)
 
 /* 建立带可选文本位置的格式错误。 */
 void __xrtTextValueError(
@@ -46451,8 +46607,8 @@ bool __xrtTextValueErrorLocation(
 
 
 
-#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XSON_FILE) || \
-	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XLON_FILE) || \
+	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XLONL_FILE)
 
 /* 限额读取完整协议文件，并按调用方错误域包装 I/O 原因链。 */
 bytes __xrtTextValueFileReadAll(
@@ -46479,12 +46635,12 @@ bool __xrtTextValueFileWriteAll(
 
 
 
-#if defined(XRT_FEATURE_JSON_READ) || defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_JSON_READ) || defined(XRT_FEATURE_XLON_READ)
 
-/* 文本值读取器支持严格 JSON，以及由 XSON 显式开启的类型标签。 */
+/* 文本值读取器支持严格 JSON，以及由 XLON 显式开启的类型标签。 */
 typedef enum xtextvaluedialect {
 	XTEXT_VALUE_JSON = 0,
-	XTEXT_VALUE_XSON
+	XTEXT_VALUE_XLON
 } xtextvaluedialect;
 
 
@@ -46516,7 +46672,7 @@ typedef struct xtextvaluelocation {
 
 
 
-/* 内部事件覆盖 JSON 与 XSON 的共同值树和 XSON 显式标签。 */
+/* 内部事件覆盖 JSON 与 XLON 的共同值树和 XLON 显式标签。 */
 typedef enum xtextvalueeventtype {
 	XTEXT_VALUE_EVENT_NULL = 0,
 	XTEXT_VALUE_EVENT_BOOL,
@@ -46564,7 +46720,7 @@ typedef struct xtextvalueevent {
 
 
 
-/* 内部访问控制与公开 JSON/XSON 访问器保持相同的三态语义。 */
+/* 内部访问控制与公开 JSON/XLON 访问器保持相同的三态语义。 */
 typedef enum xtextvaluevisitaction {
 	XTEXT_VALUE_VISIT_NEXT = 0,
 	XTEXT_VALUE_VISIT_STOP,
@@ -46639,9 +46795,9 @@ xtextvaluevisitresult __xrtTextValueRead(
 
 
 
-#if defined(XRT_FEATURE_JSON_WRITE) || defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_JSON_WRITE) || defined(XRT_FEATURE_XLON_WRITE)
 
-/* 共同输出标志与 JSON/XSON 公开配置的低四位保持一致。 */
+/* 共同输出标志与 JSON/XLON 公开配置的低四位保持一致。 */
 typedef enum xtextvaluewriteflag {
 	XTEXT_VALUE_WRITE_PRETTY = UINT32_C(0x00000001),
 	XTEXT_VALUE_WRITE_ESCAPE_SLASH = UINT32_C(0x00000002),
@@ -46661,7 +46817,7 @@ typedef enum xtextvaluecontainertype {
 
 
 
-/* 内部输出错误由 JSON/XSON 适配器映射到各自错误域。 */
+/* 内部输出错误由 JSON/XLON 适配器映射到各自错误域。 */
 typedef enum xtextvaluewriteerror {
 	XTEXT_VALUE_WRITE_ERROR_LIMIT = 0,
 	XTEXT_VALUE_WRITE_ERROR_STATE,
@@ -46761,7 +46917,7 @@ bool __xrtTextValueWriterTag(
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 /* 以固定小块把任意字节写成规范 Base64 标签。 */
 bool __xrtTextValueWriterBase64Tag(
@@ -59848,7 +60004,10 @@ EXTERN_C_END
 #if defined(XRT_FEATURE_IO) || \
 	defined(XRT_FEATURE_IO_BUFFER) || \
 	defined(XRT_FEATURE_IO_FILE) || \
-	defined(XRT_FEATURE_IO_LINE)
+	defined(XRT_FEATURE_IO_LINE) || \
+	defined(XRT_FEATURE_IO_STANDARD) || \
+	defined(XRT_FEATURE_CONSOLE_INPUT) || \
+	defined(XRT_FEATURE_CONSOLE_TERMINAL)
 #ifndef XRT_INTERNAL_IO_H
 #define XRT_INTERNAL_IO_H
 
@@ -59863,6 +60022,8 @@ struct xreader {
 	xreaderops Ops;
 	ptr Context;
 	bool AtEnd;
+	bool HasPending;
+	uint8 Pending;
 };
 
 
@@ -59907,6 +60068,15 @@ bool __xrtIoMove(
 	uint64 iLimit,
 	uint64* pPosition
 );
+
+/* Detect input beyond a hard limit without losing the probed byte. */
+bool __xrtReaderCheckLimit(xreader* pReader, cstr sOperation);
+
+#if defined(XRT_FEATURE_IO_STANDARD)
+/* An interactive session holds the same exclusive gate used by raw stdin. */
+bool __xrtStandardInputAcquire(ptr Owner);
+void __xrtStandardInputRelease(ptr Owner);
+#endif
 
 #endif
 
@@ -59957,7 +60127,7 @@ typedef struct xslotentry {
 
 #if defined(XRT_FEATURE_JSON_ESCAPE)
 
-/* 内部结果让 JSON、XSON 和独立 quote API 各自建立正确错误域。 */
+/* 内部结果让 JSON、XLON 和独立 quote API 各自建立正确错误域。 */
 typedef enum xjsonescaperesult {
 	XJSON_ESCAPE_OK = 0,
 	XJSON_ESCAPE_INVALID,
@@ -59993,40 +60163,40 @@ xjsonescaperesult __xrtJsonEscapeWrite(
 
 
 /* ========================================================================== */
-/* internal: src/internal/xrt_xson.h */
+/* internal: src/internal/xrt_xlon.h */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSON_CORE)
-#ifndef XRT_INTERNAL_XSON_H
-#define XRT_INTERNAL_XSON_H
+#if defined(XRT_FEATURE_XLON_CORE)
+#ifndef XRT_INTERNAL_XLON_H
+#define XRT_INTERNAL_XLON_H
 
 
 
 
-#if defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_XLON_CORE)
 
-/* 设置 XSON 模块错误；位置为空时不写文本定位数据。 */
-void __xrtXsonError(
+/* 设置 XLON 模块错误；位置为空时不写文本定位数据。 */
+void __xrtXlonError(
 	xerrkind Kind,
-	xxsonerror Code,
+	xxlonerror Code,
 	cstr sOperation,
 	cstr sMessage,
-	const xxsonlocation* pLocation
+	const xxlonlocation* pLocation
 );
 
 #endif
 
 
 
-#if defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_XLON_READ)
 
 /* 验证读取配置已初始化且所有保留字段为零。 */
-bool __xrtXsonReadConfigValid(const xxsonreadconfig* pConfig);
+bool __xrtXlonReadConfigValid(const xxlonreadconfig* pConfig);
 
 /* 逐行适配器共享 DOM/验证路径；验证成功返回可释放的 null 单例。 */
-xvalue* __xrtXsonReadBudget(
+xvalue* __xrtXlonReadBudget(
 	xstrview Text,
-	const xxsonreadconfig* pConfig,
+	const xxlonreadconfig* pConfig,
 	xtextvaluebudget* pBudget,
 	bool bValidate
 );
@@ -60035,10 +60205,10 @@ xvalue* __xrtXsonReadBudget(
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 /* 验证写出配置已初始化且所有保留字段为零。 */
-bool __xrtXsonWriteConfigValid(const xxsonwriteconfig* pConfig);
+bool __xrtXlonWriteConfigValid(const xxlonwriteconfig* pConfig);
 
 #endif
 
@@ -60051,12 +60221,12 @@ bool __xrtXsonWriteConfigValid(const xxsonwriteconfig* pConfig);
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSONL_CORE) || \
-	defined(XRT_FEATURE_XSONL_CORE)
+	defined(XRT_FEATURE_XLONL_CORE)
 #ifndef XRT_INTERNAL_TEXT_LINES_H
 #define XRT_INTERNAL_TEXT_LINES_H
 
 
-#if defined(XRT_FEATURE_JSONL_CORE) || defined(XRT_FEATURE_XSONL_CORE)
+#if defined(XRT_FEATURE_JSONL_CORE) || defined(XRT_FEATURE_XLONL_CORE)
 
 /* 错误偏移在两个公开格式枚举中保持一致。 */
 typedef enum xtextlineserror {
@@ -60093,7 +60263,7 @@ bool __xrtTextLinesErrorLocation(
 );
 #endif
 
-#if defined(XRT_FEATURE_JSONL_READ) || defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_JSONL_READ) || defined(XRT_FEATURE_XLONL_READ)
 
 /* 验证路径成功返回 null 单例；读取路径返回拥有的单条值。 */
 typedef xvalue* (*xtextlinesreadproc)(
@@ -60116,7 +60286,7 @@ xvalue* __xrtTextLinesRead(
 );
 #endif
 
-#if defined(XRT_FEATURE_JSONL_WRITE) || defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_JSONL_WRITE) || defined(XRT_FEATURE_XLONL_WRITE)
 typedef bool (*xtextlineswriteproc)(xbytesview Data, ptr pUserData);
 typedef bool (*xtextlinesrecordwriteproc)(
 	const xvalue* pValue, const void* pConfig, xtextlineswriteproc pWrite, ptr pUserData
@@ -60168,24 +60338,24 @@ str __xrtJsonlStringify(const xvalue* pArray, const xjsonlwriteconfig* pConfig, 
 
 
 /* ========================================================================== */
-/* internal: src/internal/xrt_xsonl.h */
+/* internal: src/internal/xrt_xlonl.h */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSONL_CORE)
-#ifndef XRT_INTERNAL_XSONL_H
-#define XRT_INTERNAL_XSONL_H
+#if defined(XRT_FEATURE_XLONL_CORE)
+#ifndef XRT_INTERNAL_XLONL_H
+#define XRT_INTERNAL_XLONL_H
 
 
-#if defined(XRT_FEATURE_XSONL_CORE)
-extern const xtextlinesformat __xrtXsonlFormat;
+#if defined(XRT_FEATURE_XLONL_CORE)
+extern const xtextlinesformat __xrtXlonlFormat;
 #endif
 
-#if defined(XRT_FEATURE_XSONL_READ)
-bool __xrtXsonlReadConfigValid(const xxsonlreadconfig* pConfig);
+#if defined(XRT_FEATURE_XLONL_READ)
+bool __xrtXlonlReadConfigValid(const xxlonlreadconfig* pConfig);
 #endif
 
-#if defined(XRT_FEATURE_XSONL_WRITE)
-str __xrtXsonlStringify(const xvalue* pArray, const xxsonlwriteconfig* pConfig, size_t* pSize);
+#if defined(XRT_FEATURE_XLONL_WRITE)
+str __xrtXlonlStringify(const xvalue* pArray, const xxlonlwriteconfig* pConfig, size_t* pSize);
 #endif
 
 #endif
@@ -60784,7 +60954,10 @@ bool __xrtTemplateRender(xrt_template_render* pRender);
 /* internal: src/internal/xrt_console.h */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_CONSOLE)
+#if defined(XRT_FEATURE_CONSOLE) || \
+	defined(XRT_FEATURE_CONSOLE_INPUT) || \
+	defined(XRT_FEATURE_CONSOLE_SCREEN) || \
+	defined(XRT_FEATURE_CONSOLE_TERMINAL)
 #ifndef XRT_INTERNAL_CONSOLE_H
 #define XRT_INTERNAL_CONSOLE_H
 
@@ -60818,6 +60991,13 @@ bool __xrtConsoleWriterWrite(
 	const void* pData,
 	size_t iSize
 );
+
+/* Validate a whole text value before any visible output or queue mutation. */
+bool __xrtConsoleValidateText(xstrview Text);
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN)
+bool __xrtTerminalStyle(char* Text, size_t Capacity, int32 Foreground, int32 Background, uint32 Attributes);
+#endif
 
 
 
@@ -110521,13 +110701,13 @@ XRT_API bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight)
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSON_CORE) || \
-	defined(XRT_FEATURE_XSON_CORE)
+	defined(XRT_FEATURE_XLON_CORE)
 
 #include <stdio.h>
 
 
 
-#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XLON_CORE)
 
 /* 建立稳定错误域、代码和可选文本位置。 */
 void __xrtTextValueError(
@@ -114954,13 +115134,13 @@ XRT_API uint16* xrtUtf32ViewTo16(xutf32view Source, xutfpolicy Policy, size_t* p
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSON_READ) || \
-	defined(XRT_FEATURE_XSON_READ)
+	defined(XRT_FEATURE_XLON_READ)
 
 #include <math.h>
 
 
 
-#if defined(XRT_FEATURE_JSON_READ) || defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_JSON_READ) || defined(XRT_FEATURE_XLON_READ)
 
 /* 单次解析持有显式长度游标、资源预算和两个互不覆盖的反转义缓冲。 */
 typedef struct xtextvalueparser {
@@ -115162,7 +115342,7 @@ static bool __xrtTextValueReadConfigValid(
 	return
 		(pConfig != NULL) &&
 		((pConfig->Dialect == XTEXT_VALUE_JSON) ||
-		 (pConfig->Dialect == XTEXT_VALUE_XSON)) &&
+		 (pConfig->Dialect == XTEXT_VALUE_XLON)) &&
 		((pConfig->Flags & ~iKnownFlags) == 0) &&
 		(pConfig->MaxDepth != 0) &&
 		(pConfig->MaxDepth <= XRT_VALUE_DEPTH_MAX) &&
@@ -115555,7 +115735,7 @@ static bool __xrtTextValueParserEmit(
 
 
 
-/* XSON 标签首字节只接受 ASCII 字母或下划线。 */
+/* XLON 标签首字节只接受 ASCII 字母或下划线。 */
 static bool __xrtTextValueIdentifierStart(uint8 iByte)
 {
 	return
@@ -116069,7 +116249,7 @@ static bool __xrtTextValueTagEqual(
 
 
 
-/* 解析 XSON 显式容器前缀或单字符串载荷标签。 */
+/* 解析 XLON 显式容器前缀或单字符串载荷标签。 */
 static bool __xrtTextValueParserTagged(
 	xtextvalueparser* pParser,
 	xtextvalueevent* pEvent
@@ -116096,7 +116276,7 @@ static bool __xrtTextValueParserTagged(
 				pParser,
 				XERR_RANGE,
 				XTEXT_VALUE_ERROR_LIMIT,
-				"XSON nesting exceeds configured depth"
+				"XLON nesting exceeds configured depth"
 			);
 			return false;
 		}
@@ -116118,7 +116298,7 @@ static bool __xrtTextValueParserTagged(
 				pParser,
 				XERR_RANGE,
 				XTEXT_VALUE_ERROR_LIMIT,
-				"XSON nesting exceeds configured depth"
+				"XLON nesting exceeds configured depth"
 			);
 			return false;
 		}
@@ -116138,7 +116318,7 @@ static bool __xrtTextValueParserTagged(
 			pParser,
 			XERR_PROTOCOL,
 			XTEXT_VALUE_ERROR_SYNTAX,
-			"expected XSON tag payload"
+			"expected XLON tag payload"
 		);
 		return false;
 	}
@@ -116163,7 +116343,7 @@ static bool __xrtTextValueParserTagged(
 			pParser,
 			XERR_PROTOCOL,
 			XTEXT_VALUE_ERROR_SYNTAX,
-			"expected end of XSON tag payload"
+			"expected end of XLON tag payload"
 		);
 		return false;
 	}
@@ -116277,7 +116457,7 @@ static bool __xrtTextValueParserValue(
 			__xrtTextValueParserEmit(pParser, &Event);
 	}
 	if (
-		(pParser->Config.Dialect == XTEXT_VALUE_XSON) &&
+		(pParser->Config.Dialect == XTEXT_VALUE_XLON) &&
 		__xrtTextValueIdentifierStart(iByte)
 	) {
 		return __xrtTextValueParserTagged(pParser, &Event);
@@ -280853,7 +281033,8 @@ typedef struct __xrt_discard_writer {
 typedef enum __xrt_copy_mode {
 	__XRT_COPY_ALL = 0,
 	__XRT_COPY_EXACT,
-	__XRT_COPY_LIMIT
+	__XRT_COPY_LIMIT,
+	__XRT_COPY_UP_TO
 } __xrt_copy_mode;
 
 
@@ -281005,6 +281186,8 @@ xreader* __xrtReaderCreateInline(
 	pReader->Ops = *pOps;
 	pReader->Context = iContextSize != 0u ? (ptr)(pReader + 1) : NULL;
 	pReader->AtEnd = false;
+	pReader->HasPending = false;
+	pReader->Pending = 0u;
 	if ( iContextSize != 0u ) {
 		memset(pReader->Context, 0, iContextSize);
 	}
@@ -281373,6 +281556,14 @@ XRT_API bool xrtReaderRead(
 	if ( pReader->AtEnd ) {
 		return true;
 	}
+	if ( pReader->HasPending ) {
+		*((bytes)pBuffer) = pReader->Pending;
+		pReader->HasPending = false;
+		if ( pRead != NULL ) {
+			*pRead = 1u;
+		}
+		return true;
+	}
 	pPrevious = xrtGetError();
 	if ( !pReader->Ops.Read(pReader->Context, pBuffer, iRequest, &iDone) ) {
 		__xrtIoFallback(
@@ -281532,19 +281723,7 @@ static bool __xrtReaderCopyRun(
 	}
 
 	if ( Mode == __XRT_COPY_LIMIT ) {
-		uint8 iProbe;
-		size_t iRead = 0;
-
-		if ( !xrtReaderRead(pReader, &iProbe, 1u, &iRead) ) {
-			goto done;
-		}
-		if ( iRead != 0u ) {
-			__xrtIoError(
-				XERR_RANGE,
-				XIO_ERROR_LIMIT,
-				"copy-limit",
-				"reader exceeds the configured copy limit"
-			);
+		if ( !__xrtReaderCheckLimit(pReader, "copy-limit") ) {
 			goto done;
 		}
 	}
@@ -281615,6 +281794,45 @@ XRT_API bool xrtReaderCopyLimit(
 
 
 
+/* 在软上限内复制，达到上限后不再读取或探测。 */
+XRT_API bool xrtReaderCopyUpTo(
+	xreader* pReader,
+	xwriter* pWriter,
+	uint64 iLimit,
+	uint64* pCopied
+)
+{
+	return __xrtReaderCopyRun(pReader, pWriter, iLimit,
+		__XRT_COPY_UP_TO, pCopied);
+}
+
+
+
+/* A limit probe is replayed by the next read, including for non-seekable inputs. */
+bool __xrtReaderCheckLimit(xreader* pReader, cstr sOperation)
+{
+	uint8 iProbe = 0u;
+	size_t iRead = 0u;
+
+	if ( !xrtReaderRead(pReader, &iProbe, 1u, &iRead) ) {
+		return false;
+	}
+	if ( iRead == 0u ) {
+		return true;
+	}
+	pReader->Pending = iProbe;
+	pReader->HasPending = true;
+	__xrtIoError(
+		XERR_RANGE,
+		XIO_ERROR_LIMIT,
+		sOperation,
+		"reader exceeds the configured limit"
+	);
+	return false;
+}
+
+
+
 /* 移动 Reader 游标并在成功后解除 EOF 锁定。 */
 XRT_API bool xrtReaderSeek(
 	xreader* pReader,
@@ -281624,6 +281842,7 @@ XRT_API bool xrtReaderSeek(
 )
 {
 	uint64 iResult;
+	int64 iPhysicalOffset = iOffset;
 	const xerror* pPrevious;
 
 	if ( (pReader == NULL) ||
@@ -281649,10 +281868,17 @@ XRT_API bool xrtReaderSeek(
 		);
 		return false;
 	}
+	if ( pReader->HasPending && Origin == XSEEK_CURRENT ) {
+		if ( iOffset == INT64_MIN ) {
+			__xrtErrorSetRange();
+			return false;
+		}
+		iPhysicalOffset--;
+	}
 	pPrevious = xrtGetError();
 	if ( !pReader->Ops.Seek(
 		pReader->Context,
-		iOffset,
+		iPhysicalOffset,
 		Origin,
 		&iResult
 	) ) {
@@ -281665,6 +281891,7 @@ XRT_API bool xrtReaderSeek(
 		return false;
 	}
 	pReader->AtEnd = false;
+	pReader->HasPending = false;
 	if ( pPosition != NULL ) {
 		*pPosition = iResult;
 	}
@@ -281708,6 +281935,13 @@ XRT_API bool xrtReaderTell(xreader* pReader, uint64* pPosition)
 			"reader tell failed"
 		);
 		return false;
+	}
+	if ( pReader->HasPending ) {
+		if ( iResult == 0u ) {
+			__xrtIoError(XERR_INTERNAL, XIO_ERROR_TELL, "tell", "reader position precedes pending byte");
+			return false;
+		}
+		iResult--;
 	}
 	*pPosition = iResult;
 	return true;
@@ -282525,26 +282759,11 @@ XRT_API xbuffer* xrtReaderReadAll(xreader* pReader, size_t iLimit)
 		}
 	}
 
-	{
-		uint8 iProbe;
-		size_t iRead = 0;
-
-		if ( !xrtReaderRead(pReader, &iProbe, 1u, &iRead) ) {
-			xrtBufferDestroy(pResult);
-			return NULL;
-		}
-		if ( iRead == 0u ) {
-			return pResult;
-		}
+	if ( !__xrtReaderCheckLimit(pReader, "read-all") ) {
+		xrtBufferDestroy(pResult);
+		return NULL;
 	}
-	__xrtIoError(
-		XERR_RANGE,
-		XIO_ERROR_LIMIT,
-		"read-all",
-		"reader exceeds the configured read-all limit"
-	);
-	xrtBufferDestroy(pResult);
-	return NULL;
+	return pResult;
 }
 
 
@@ -283210,6 +283429,172 @@ XRT_API bool xrtLineReaderDestroy(xlinereader* pLines)
 	xrtFree(pLines);
 	return bResult;
 }
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/io/io_standard.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_IO_STANDARD)
+
+#include <stdio.h>
+#include <errno.h>
+
+#if defined(_WIN32) || defined(_WIN64)
+	#include <io.h>
+#else
+	#include <unistd.h>
+#endif
+
+#if defined(XRT_FEATURE_IO_STANDARD)
+
+typedef struct __xrt_standard_io {
+	int Stream;
+} __xrt_standard_io;
+
+static xatomicptr __xrtStandardInputOwner = XRT_ATOMICPTR_INIT(NULL);
+bool __xrtStandardInputAcquire(ptr Owner)
+{
+    ptr Expected = NULL;
+    if (xrtAtomicPtrCompareExchange(&__xrtStandardInputOwner, &Expected, Owner,
+        XMEMORY_ACQUIRE, XMEMORY_RELAXED)) return true;
+    __xrtIoError(XERR_STATE, XIO_ERROR_READ, "acquire-stdin", "standard input is already in use");
+    return false;
+}
+void __xrtStandardInputRelease(ptr Owner)
+{
+    (void)xrtAtomicPtrCompareExchange(&__xrtStandardInputOwner, &Owner, NULL,
+        XMEMORY_RELEASE, XMEMORY_RELAXED);
+}
+
+static FILE* __xrtStandardFile(int Stream)
+{
+	return Stream == 0 ? stdin : Stream == 1 ? stdout : stderr;
+}
+
+#if defined(_WIN32) || defined(_WIN64)
+static HANDLE __xrtStandardHandle(int Stream)
+{
+	HANDLE Handle = GetStdHandle(Stream == 0 ? STD_INPUT_HANDLE :
+		Stream == 1 ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE);
+	if (Handle == NULL || Handle == INVALID_HANDLE_VALUE) {
+		intptr_t Value = _get_osfhandle(_fileno(__xrtStandardFile(Stream)));
+		Handle = Value == -1 ? INVALID_HANDLE_VALUE : (HANDLE)Value;
+	}
+	return Handle;
+}
+#endif
+
+static bool __xrtStandardReadRaw(ptr Context, ptr Buffer, size_t Request, size_t* Read)
+{
+	(void)Context;
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD Done = 0;
+		DWORD Count = Request > MAXDWORD ? MAXDWORD : (DWORD)Request;
+		if (!ReadFile(__xrtStandardHandle(0), Buffer, Count, &Done, NULL)) {
+			DWORD Code = GetLastError();
+			if (Code == ERROR_BROKEN_PIPE || Code == ERROR_HANDLE_EOF) {
+				*Read = 0u;
+				return true;
+			}
+			__xrtErrorSetSystem("xrt.io", XIO_ERROR_READ, "read-stdin",
+				(int)Code, "standard input read failed");
+			return false;
+		}
+		*Read = (size_t)Done;
+	#else
+		ssize_t Done;
+		size_t Count = Request > (size_t)SSIZE_MAX ? (size_t)SSIZE_MAX : Request;
+		do { Done = read(STDIN_FILENO, Buffer, Count); } while (Done < 0 && errno == EINTR);
+		if (Done < 0) {
+			__xrtErrorSetSystem("xrt.io", XIO_ERROR_READ, "read-stdin",
+				errno, "standard input read failed");
+			return false;
+		}
+		*Read = (size_t)Done;
+	#endif
+	return true;
+}
+
+static bool __xrtStandardInputClose(ptr Context)
+{
+    __xrtStandardInputRelease(Context);
+    return true;
+}
+
+static bool __xrtStandardWrite(ptr Context, const void* Buffer, size_t Request, size_t* Written)
+{
+	int Stream = ((__xrt_standard_io*)Context)->Stream;
+	/* Drain stdio text before a raw write so serial console/IO calls stay ordered. */
+	if (fflush(__xrtStandardFile(Stream)) != 0) {
+		__xrtErrorSetSystem("xrt.io", XIO_ERROR_FLUSH, "write-standard",
+			errno, "standard output flush failed");
+		return false;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD Done = 0;
+		DWORD Count = Request > MAXDWORD ? MAXDWORD : (DWORD)Request;
+		if (!WriteFile(__xrtStandardHandle(Stream), Buffer, Count, &Done, NULL)) {
+			__xrtErrorSetSystem("xrt.io", XIO_ERROR_WRITE, "write-standard",
+				(int)GetLastError(), "standard output write failed");
+			return false;
+		}
+		*Written = (size_t)Done;
+	#else
+		ssize_t Done;
+		size_t Count = Request > (size_t)SSIZE_MAX ? (size_t)SSIZE_MAX : Request;
+		do { Done = write(Stream == 1 ? STDOUT_FILENO : STDERR_FILENO, Buffer, Count); }
+		while (Done < 0 && errno == EINTR);
+		if (Done < 0) {
+			__xrtErrorSetSystem("xrt.io", XIO_ERROR_WRITE, "write-standard",
+				errno, "standard output write failed");
+			return false;
+		}
+		*Written = (size_t)Done;
+	#endif
+	return true;
+}
+
+static bool __xrtStandardFlush(ptr Context)
+{
+	if (fflush(__xrtStandardFile(((__xrt_standard_io*)Context)->Stream)) == 0)
+		return true;
+	__xrtErrorSetSystem("xrt.io", XIO_ERROR_FLUSH, "flush-standard",
+		errno, "standard output flush failed");
+	return false;
+}
+
+XRT_API xreader* xrtReaderStdin(void)
+{
+	xreaderops Ops = {0};
+    ptr Context;
+    xreader* Reader;
+    Ops.Read = __xrtStandardReadRaw;
+    Ops.Close = __xrtStandardInputClose;
+    Reader = __xrtReaderCreateInline(&Ops, sizeof(__xrt_standard_io), &Context);
+    if (Reader == NULL) return NULL;
+    if (!__xrtStandardInputAcquire(Context)) { (void)xrtReaderDestroy(Reader); return NULL; }
+    ((__xrt_standard_io*)Context)->Stream = 0;
+    return Reader;
+}
+
+static xwriter* __xrtStandardWriter(int Stream)
+{
+	xwriterops Ops = {0};
+	ptr Context;
+	xwriter* Writer;
+	Ops.Write = __xrtStandardWrite;
+	Ops.Flush = __xrtStandardFlush;
+	Writer = __xrtWriterCreateInline(&Ops, sizeof(__xrt_standard_io), &Context);
+	if (Writer != NULL) ((__xrt_standard_io*)Context)->Stream = Stream;
+	return Writer;
+}
+
+XRT_API xwriter* xrtWriterStdout(void) { return __xrtStandardWriter(1); }
+XRT_API xwriter* xrtWriterStderr(void) { return __xrtStandardWriter(2); }
 
 #endif
 #endif
@@ -284142,13 +284527,13 @@ XRT_API bool xrtJsonQuoteWrite(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSON_WRITE) || \
-	defined(XRT_FEATURE_XSON_WRITE)
+	defined(XRT_FEATURE_XLON_WRITE)
 
 #include <math.h>
 
 
 
-#if defined(XRT_FEATURE_JSON_WRITE) || defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_JSON_WRITE) || defined(XRT_FEATURE_XLON_WRITE)
 
 /* 每个容器帧只保存类型、待键状态和已完成值数量。 */
 typedef struct xtextvaluewriterframe {
@@ -285007,7 +285392,7 @@ bool __xrtTextValueWriterTag(
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 /* 以 3 KiB 输入块增量写出规范 Base64，避免为二进制建立等大临时文本。 */
 bool __xrtTextValueWriterBase64Tag(
@@ -286093,14 +286478,14 @@ XRT_API str xrtJsonStringify(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSON_FILE) || \
-	defined(XRT_FEATURE_XSON_FILE) || \
+	defined(XRT_FEATURE_XLON_FILE) || \
 	defined(XRT_FEATURE_JSONL_FILE) || \
-	defined(XRT_FEATURE_XSONL_FILE)
+	defined(XRT_FEATURE_XLONL_FILE)
 
 
 
-#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XSON_FILE) || \
-	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XLON_FILE) || \
+	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XLONL_FILE)
 
 /* 把底层文件错误包装到具体文本协议，并保留完整原因链。 */
 static void __xrtTextValueFileError(
@@ -286299,28 +286684,28 @@ XRT_API bool xrtJsonStringifyFile(
 
 
 /* ========================================================================== */
-/* source: src/data/xson_common.c */
+/* source: src/data/xlon_common.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_XLON_CORE)
 
 
 
-#if defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_XLON_CORE)
 
-/* 设置带稳定域、代码和可选文本位置的 XSON 错误。 */
-void __xrtXsonError(
+/* 设置带稳定域、代码和可选文本位置的 XLON 错误。 */
+void __xrtXlonError(
 	xerrkind Kind,
-	xxsonerror Code,
+	xxlonerror Code,
 	cstr sOperation,
 	cstr sMessage,
-	const xxsonlocation* pLocation
+	const xxlonlocation* pLocation
 )
 {
 	__xrtTextValueError(
 		Kind,
 		(int32)Code,
-		"xrt.xson",
+		"xrt.xlon",
 		sOperation,
 		sMessage,
 		pLocation != NULL,
@@ -286332,10 +286717,10 @@ void __xrtXsonError(
 
 
 
-/* 从 XSON 错误机器数据中读取完整文本位置。 */
-XRT_API bool xrtXsonErrorLocation(
+/* 从 XLON 错误机器数据中读取完整文本位置。 */
+XRT_API bool xrtXlonErrorLocation(
 	const xerror* pError,
-	xxsonlocation* pLocation
+	xxlonlocation* pLocation
 )
 {
 	if ( pLocation == NULL ) {
@@ -286344,7 +286729,7 @@ XRT_API bool xrtXsonErrorLocation(
 	}
 	return __xrtTextValueErrorLocation(
 		pError,
-		"xrt.xson",
+		"xrt.xlon",
 		&pLocation->Offset,
 		&pLocation->Line,
 		&pLocation->Column
@@ -286356,53 +286741,53 @@ XRT_API bool xrtXsonErrorLocation(
 
 
 /* ========================================================================== */
-/* source: src/data/xson_read.c */
+/* source: src/data/xlon_read.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_XLON_READ)
 
 #include <math.h>
 
 
 
-#if defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_XLON_READ)
 
 /* DOM 栈帧只拥有因 KEEP 策略未挂入父容器的临时子树。 */
-typedef struct xsondomframe {
+typedef struct xlondomframe {
 	xvalue* Value;
 	bool Owned;
-} xsondomframe;
+} xlondomframe;
 
 
 
 /* DOM 构建器保存重复策略、自定义解码器和复用的二进制缓冲。 */
-typedef struct xsondombuilder {
-	xxsonreadconfig Config;
+typedef struct xlondombuilder {
+	xxlonreadconfig Config;
 	xtextvaluebudget* Budget;
 	bool Validate;
 	xvalue* Root;
-	xsondomframe Frames[XRT_VALUE_DEPTH_MAX];
+	xlondomframe Frames[XRT_VALUE_DEPTH_MAX];
 	xbuffer Bytes;
-} xsondombuilder;
+} xlondombuilder;
 
 
 
 /* 公开访问器适配器复用一个二进制缓冲，事件返回后即可覆盖。 */
-typedef struct xsonvisitadapter {
-	const xxsonreadconfig* Config;
-	xxsonvisitproc Visitor;
+typedef struct xlonvisitadapter {
+	const xxlonreadconfig* Config;
+	xxlonvisitproc Visitor;
 	ptr UserData;
 	xbuffer Bytes;
-} xsonvisitadapter;
+} xlonvisitadapter;
 
 
 
-/* 把内部文本位置复制为 XSON 稳定位置。 */
-static xxsonlocation __xrtXsonLocation(
+/* 把内部文本位置复制为 XLON 稳定位置。 */
+static xxlonlocation __xrtXlonLocation(
 	const xtextvaluelocation* pLocation
 )
 {
-	xxsonlocation Location;
+	xxlonlocation Location;
 
 	Location.Offset = pLocation->Offset;
 	Location.Line = pLocation->Line;
@@ -286412,23 +286797,23 @@ static xxsonlocation __xrtXsonLocation(
 
 
 
-/* 在事件位置设置 XSON 读取错误。 */
-static void __xrtXsonEventError(
+/* 在事件位置设置 XLON 读取错误。 */
+static void __xrtXlonEventError(
 	const xtextvalueevent* pEvent,
 	xerrkind Kind,
-	xxsonerror Code,
+	xxlonerror Code,
 	cstr sMessage
 )
 {
-	xxsonlocation Location = __xrtXsonLocation(&pEvent->Location);
+	xxlonlocation Location = __xrtXlonLocation(&pEvent->Location);
 
-	__xrtXsonError(Kind, Code, "read", sMessage, &Location);
+	__xrtXlonError(Kind, Code, "read", sMessage, &Location);
 }
 
 
 
-/* 把共享读取错误映射到 xrt.xson 错误域。 */
-static void __xrtXsonReadError(
+/* 把共享读取错误映射到 xrt.xlon 错误域。 */
+static void __xrtXlonReadError(
 	xerrkind Kind,
 	xtextvalueerror Code,
 	cstr sMessage,
@@ -286436,31 +286821,31 @@ static void __xrtXsonReadError(
 	ptr pUserData
 )
 {
-	xxsonlocation Location;
-	xxsonerror XsonCode;
+	xxlonlocation Location;
+	xxlonerror XlonCode;
 
 	(void)pUserData;
 	if ( Code == XTEXT_VALUE_ERROR_LIMIT ) {
-		XsonCode = XXSON_ERROR_LIMIT;
+		XlonCode = XXLON_ERROR_LIMIT;
 	} else if ( Code == XTEXT_VALUE_ERROR_NUMBER ) {
-		XsonCode = XXSON_ERROR_NUMBER;
+		XlonCode = XXLON_ERROR_NUMBER;
 	} else if ( Code == XTEXT_VALUE_ERROR_STATE ) {
-		XsonCode = XXSON_ERROR_STATE;
+		XlonCode = XXLON_ERROR_STATE;
 	} else {
-		XsonCode = XXSON_ERROR_SYNTAX;
+		XlonCode = XXLON_ERROR_SYNTAX;
 	}
 	if ( pLocation == NULL ) {
-		__xrtXsonError(Kind, XsonCode, "read", sMessage, NULL);
+		__xrtXlonError(Kind, XlonCode, "read", sMessage, NULL);
 		return;
 	}
-	Location = __xrtXsonLocation(pLocation);
-	__xrtXsonError(Kind, XsonCode, "read", sMessage, &Location);
+	Location = __xrtXlonLocation(pLocation);
+	__xrtXlonError(Kind, XlonCode, "read", sMessage, &Location);
 }
 
 
 
 /* 判断标签名称是否等于固定 ASCII 文本。 */
-static bool __xrtXsonTagEqual(
+static bool __xrtXlonTagEqual(
 	xstrview Tag,
 	cstr sName,
 	size_t iSize
@@ -286474,9 +286859,9 @@ static bool __xrtXsonTagEqual(
 
 
 /* 严格解码规范 Base64，并把结果保存在调用方复用缓冲中。 */
-static bool __xrtXsonDecodeBytes(
+static bool __xrtXlonDecodeBytes(
 	const xtextvalueevent* pSource,
-	const xxsonreadconfig* pConfig,
+	const xxlonreadconfig* pConfig,
 	xtextvaluebudget* pBudget,
 	xbuffer* pBuffer,
 	xbytesview* pBytes
@@ -286493,20 +286878,20 @@ static bool __xrtXsonDecodeBytes(
 		NULL
 	) ) {
 		xrtClearError();
-		__xrtXsonEventError(
+		__xrtXlonEventError(
 			pSource,
 			XERR_VALUE,
-			XXSON_ERROR_TAG,
+			XXLON_ERROR_TAG,
 			"bytes tag contains invalid Base64"
 		);
 		return false;
 	}
 	if ( (iSize > pConfig->MaxDecodedBytes) ||
 		 ((pBudget != NULL) && (iSize > pBudget->DecodedBytes)) ) {
-		__xrtXsonEventError(
+		__xrtXlonEventError(
 			pSource,
 			XERR_RANGE,
-			XXSON_ERROR_LIMIT,
+			XXLON_ERROR_LIMIT,
 			"decoded bytes exceed configured limit"
 		);
 		return false;
@@ -286528,10 +286913,10 @@ static bool __xrtXsonDecodeBytes(
 		)
 	) {
 		xrtClearError();
-		__xrtXsonEventError(
+		__xrtXlonEventError(
 			pSource,
 			XERR_VALUE,
-			XXSON_ERROR_TAG,
+			XXLON_ERROR_TAG,
 			"bytes tag could not be decoded"
 		);
 		return false;
@@ -286543,65 +286928,65 @@ static bool __xrtXsonDecodeBytes(
 
 
 
-/* 把共享事件转换为完整 XSON 事件，并解释所有内建标签。 */
-static bool __xrtXsonMakeEvent(
+/* 把共享事件转换为完整 XLON 事件，并解释所有内建标签。 */
+static bool __xrtXlonMakeEvent(
 	const xtextvalueevent* pSource,
-	const xxsonreadconfig* pConfig,
+	const xxlonreadconfig* pConfig,
 	xtextvaluebudget* pBudget,
 	xbuffer* pBytes,
-	xxsonevent* pEvent
+	xxlonevent* pEvent
 )
 {
 	memset(pEvent, 0, sizeof(*pEvent));
-	pEvent->Location = __xrtXsonLocation(&pSource->Location);
+	pEvent->Location = __xrtXlonLocation(&pSource->Location);
 	pEvent->Depth = pSource->Depth;
 	pEvent->Key = pSource->Key;
 	pEvent->Raw = pSource->Raw;
 
 	if ( pSource->Type == XTEXT_VALUE_EVENT_NULL ) {
-		pEvent->Type = XXSON_EVENT_NULL;
+		pEvent->Type = XXLON_EVENT_NULL;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_BOOL ) {
-		pEvent->Type = XXSON_EVENT_BOOL;
+		pEvent->Type = XXLON_EVENT_BOOL;
 		pEvent->Value.Boolean = pSource->Value.Boolean;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_INT ) {
-		pEvent->Type = XXSON_EVENT_INT;
+		pEvent->Type = XXLON_EVENT_INT;
 		pEvent->Value.Integer = pSource->Value.Integer;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_UINT ) {
-		pEvent->Type = XXSON_EVENT_UINT;
+		pEvent->Type = XXLON_EVENT_UINT;
 		pEvent->Value.Unsigned = pSource->Value.Unsigned;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_FLOAT ) {
-		pEvent->Type = XXSON_EVENT_FLOAT;
+		pEvent->Type = XXLON_EVENT_FLOAT;
 		pEvent->Value.Float = pSource->Value.Float;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_STRING ) {
-		pEvent->Type = XXSON_EVENT_STRING;
+		pEvent->Type = XXLON_EVENT_STRING;
 		pEvent->Value.String = pSource->Value.String;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_ARRAY_BEGIN ) {
-		pEvent->Type = XXSON_EVENT_ARRAY_BEGIN;
+		pEvent->Type = XXLON_EVENT_ARRAY_BEGIN;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_ARRAY_END ) {
-		pEvent->Type = XXSON_EVENT_ARRAY_END;
+		pEvent->Type = XXLON_EVENT_ARRAY_END;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_INT_MAP_BEGIN ) {
-		pEvent->Type = XXSON_EVENT_INT_MAP_BEGIN;
+		pEvent->Type = XXLON_EVENT_INT_MAP_BEGIN;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_INT_MAP_END ) {
-		pEvent->Type = XXSON_EVENT_INT_MAP_END;
+		pEvent->Type = XXLON_EVENT_INT_MAP_END;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_SET_BEGIN ) {
-		pEvent->Type = XXSON_EVENT_SET_BEGIN;
+		pEvent->Type = XXLON_EVENT_SET_BEGIN;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_SET_END ) {
-		pEvent->Type = XXSON_EVENT_SET_END;
+		pEvent->Type = XXLON_EVENT_SET_END;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_OBJECT_BEGIN ) {
-		pEvent->Type = XXSON_EVENT_OBJECT_BEGIN;
+		pEvent->Type = XXLON_EVENT_OBJECT_BEGIN;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_OBJECT_END ) {
-		pEvent->Type = XXSON_EVENT_OBJECT_END;
+		pEvent->Type = XXLON_EVENT_OBJECT_END;
 	} else if ( pSource->Type != XTEXT_VALUE_EVENT_TAG ) {
-		__xrtXsonEventError(
+		__xrtXlonEventError(
 			pSource,
 			XERR_STATE,
-			XXSON_ERROR_STATE,
-			"unknown internal XSON event"
+			XXLON_ERROR_STATE,
+			"unknown internal XLON event"
 		);
 		return false;
-	} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Name, "bytes", 5u) ) {
-		pEvent->Type = XXSON_EVENT_BYTES;
-		if ( !__xrtXsonDecodeBytes(
+	} else if ( __xrtXlonTagEqual(pSource->Value.Tag.Name, "bytes", 5u) ) {
+		pEvent->Type = XXLON_EVENT_BYTES;
+		if ( !__xrtXlonDecodeBytes(
 			pSource,
 			pConfig,
 			pBudget,
@@ -286610,66 +286995,66 @@ static bool __xrtXsonMakeEvent(
 		) ) {
 			return false;
 		}
-	} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Name, "char", 4u) ) {
+	} else if ( __xrtXlonTagEqual(pSource->Value.Tag.Name, "char", 4u) ) {
 		size_t iRead = 0;
 
-		pEvent->Type = XXSON_EVENT_CHAR;
+		pEvent->Type = XXLON_EVENT_CHAR;
 		if ( (xrtUtf8Decode(
 			pSource->Value.Tag.Payload,
 			&pEvent->Value.Character,
 			&iRead
 		) != XUTF_OK) || (iRead != pSource->Value.Tag.Payload.Size) ) {
-			__xrtXsonEventError(
+			__xrtXlonEventError(
 				pSource,
 				XERR_VALUE,
-				XXSON_ERROR_TAG,
+				XXLON_ERROR_TAG,
 				"char tag requires exactly one Unicode scalar"
 			);
 			return false;
 		}
-	} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Name, "time", 4u) ) {
-		pEvent->Type = XXSON_EVENT_TIME;
+	} else if ( __xrtXlonTagEqual(pSource->Value.Tag.Name, "time", 4u) ) {
+		pEvent->Type = XXLON_EVENT_TIME;
 		if ( !xrtTimeParseRFC3339(
 			pSource->Value.Tag.Payload,
 			&pEvent->Value.Time
 		) ) {
 			xrtClearError();
-			__xrtXsonEventError(
+			__xrtXlonEventError(
 				pSource,
 				XERR_VALUE,
-				XXSON_ERROR_TAG,
+				XXLON_ERROR_TAG,
 				"time tag requires strict RFC 3339 text"
 			);
 			return false;
 		}
-	} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Name, "float", 5u) ) {
-		pEvent->Type = XXSON_EVENT_FLOAT;
-		if ( __xrtXsonTagEqual(pSource->Value.Tag.Payload, "nan", 3u) ) {
+	} else if ( __xrtXlonTagEqual(pSource->Value.Tag.Name, "float", 5u) ) {
+		pEvent->Type = XXLON_EVENT_FLOAT;
+		if ( __xrtXlonTagEqual(pSource->Value.Tag.Payload, "nan", 3u) ) {
 			pEvent->Value.Float = NAN;
-		} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Payload, "inf", 3u) ) {
+		} else if ( __xrtXlonTagEqual(pSource->Value.Tag.Payload, "inf", 3u) ) {
 			pEvent->Value.Float = INFINITY;
-		} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Payload, "-inf", 4u) ) {
+		} else if ( __xrtXlonTagEqual(pSource->Value.Tag.Payload, "-inf", 4u) ) {
 			pEvent->Value.Float = -INFINITY;
 		} else {
-			__xrtXsonEventError(
+			__xrtXlonEventError(
 				pSource,
 				XERR_VALUE,
-				XXSON_ERROR_TAG,
+				XXLON_ERROR_TAG,
 				"float tag payload must be nan, inf or -inf"
 			);
 			return false;
 		}
 	} else {
-		if ( (pConfig->Flags & XXSON_READ_CUSTOM) == 0 ) {
-			__xrtXsonEventError(
+		if ( (pConfig->Flags & XXLON_READ_CUSTOM) == 0 ) {
+			__xrtXlonEventError(
 				pSource,
 				XERR_UNSUPPORTED,
-				XXSON_ERROR_UNSUPPORTED,
-				"custom XSON tag is disabled"
+				XXLON_ERROR_UNSUPPORTED,
+				"custom XLON tag is disabled"
 			);
 			return false;
 		}
-		pEvent->Type = XXSON_EVENT_CUSTOM;
+		pEvent->Type = XXLON_EVENT_CUSTOM;
 		pEvent->Value.Tag.Name = pSource->Value.Tag.Name;
 		pEvent->Value.Tag.Payload = pSource->Value.Tag.Payload;
 	}
@@ -286679,12 +287064,12 @@ static bool __xrtXsonMakeEvent(
 
 
 /* 验证读取配置和全部保留字段。 */
-bool __xrtXsonReadConfigValid(const xxsonreadconfig* pConfig)
+bool __xrtXlonReadConfigValid(const xxlonreadconfig* pConfig)
 {
 	uint32 iKnownFlags =
-		XXSON_READ_COMMENTS |
-		XXSON_READ_TRAILING_COMMA |
-		XXSON_READ_CUSTOM;
+		XXLON_READ_COMMENTS |
+		XXLON_READ_TRAILING_COMMA |
+		XXLON_READ_CUSTOM;
 
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -286692,10 +287077,10 @@ bool __xrtXsonReadConfigValid(const xxsonreadconfig* pConfig)
 	}
 	if (
 		((pConfig->Flags & ~iKnownFlags) != 0) ||
-		(pConfig->Duplicate < XXSON_DUPLICATE_REJECT) ||
-		(pConfig->Duplicate > XXSON_DUPLICATE_REPLACE) ||
-		(pConfig->BigInteger < XXSON_BIGINT_REJECT) ||
-		(pConfig->BigInteger > XXSON_BIGINT_FLOAT) ||
+		(pConfig->Duplicate < XXLON_DUPLICATE_REJECT) ||
+		(pConfig->Duplicate > XXLON_DUPLICATE_REPLACE) ||
+		(pConfig->BigInteger < XXLON_BIGINT_REJECT) ||
+		(pConfig->BigInteger > XXLON_BIGINT_FLOAT) ||
 		(pConfig->MaxDepth == 0) ||
 		(pConfig->MaxDepth > XRT_VALUE_DEPTH_MAX) ||
 		(pConfig->MaxInputBytes == 0) ||
@@ -286704,22 +287089,22 @@ bool __xrtXsonReadConfigValid(const xxsonreadconfig* pConfig)
 		(pConfig->MaxContainerItems == 0) ||
 		(pConfig->MaxDecodedBytes == 0)
 	) {
-		__xrtXsonError(
+		__xrtXlonError(
 			XERR_ARGUMENT,
-			XXSON_ERROR_CONFIG,
+			XXLON_ERROR_CONFIG,
 			"read",
-			"invalid XSON read configuration",
+			"invalid XLON read configuration",
 			NULL
 		);
 		return false;
 	}
 	for ( size_t i = 0; i < 4u; i++ ) {
 		if ( pConfig->Reserved[i] != 0 ) {
-			__xrtXsonError(
+			__xrtXlonError(
 				XERR_ARGUMENT,
-				XXSON_ERROR_CONFIG,
+				XXLON_ERROR_CONFIG,
 				"read",
-				"reserved XSON read configuration fields must be zero",
+				"reserved XLON read configuration fields must be zero",
 				NULL
 			);
 			return false;
@@ -286730,19 +287115,19 @@ bool __xrtXsonReadConfigValid(const xxsonreadconfig* pConfig)
 
 
 
-/* 把 XSON 配置压缩为共享解析器只需要的字段。 */
-static xtextvaluereadconfig __xrtXsonReadTextConfig(
-	const xxsonreadconfig* pConfig
+/* 把 XLON 配置压缩为共享解析器只需要的字段。 */
+static xtextvaluereadconfig __xrtXlonReadTextConfig(
+	const xxlonreadconfig* pConfig
 )
 {
 	xtextvaluereadconfig Config;
 
 	memset(&Config, 0, sizeof(Config));
-	Config.Dialect = XTEXT_VALUE_XSON;
+	Config.Dialect = XTEXT_VALUE_XLON;
 	Config.Flags = pConfig->Flags & (
-		XXSON_READ_COMMENTS | XXSON_READ_TRAILING_COMMA
+		XXLON_READ_COMMENTS | XXLON_READ_TRAILING_COMMA
 	);
-	Config.BigIntegerFloat = pConfig->BigInteger == XXSON_BIGINT_FLOAT;
+	Config.BigIntegerFloat = pConfig->BigInteger == XXLON_BIGINT_FLOAT;
 	Config.MaxDepth = pConfig->MaxDepth;
 	Config.MaxInputBytes = pConfig->MaxInputBytes;
 	Config.MaxStringBytes = pConfig->MaxStringBytes;
@@ -286754,9 +287139,9 @@ static xtextvaluereadconfig __xrtXsonReadTextConfig(
 
 
 /* 返回当前 DOM 事件的父容器。 */
-static xvalue* __xrtXsonDomParent(
-	xsondombuilder* pBuilder,
-	const xxsonevent* pEvent
+static xvalue* __xrtXlonDomParent(
+	xlondombuilder* pBuilder,
+	const xxlonevent* pEvent
 )
 {
 	if ( pEvent->Depth == 0 ) {
@@ -286768,22 +287153,22 @@ static xvalue* __xrtXsonDomParent(
 
 
 /* 按父容器类型挂入值，并执行对象与整数映射重复键策略。 */
-static int __xrtXsonDomAttach(
-	xsondombuilder* pBuilder,
-	const xxsonevent* pEvent,
+static int __xrtXlonDomAttach(
+	xlondombuilder* pBuilder,
+	const xxlonevent* pEvent,
 	xvalue* pValue
 )
 {
-	xvalue* pParent = __xrtXsonDomParent(pBuilder, pEvent);
+	xvalue* pParent = __xrtXlonDomParent(pBuilder, pEvent);
 	xvaluetype Type;
 
 	if ( pEvent->Depth == 0 ) {
 		if ( pBuilder->Root != NULL ) {
-			__xrtXsonError(
+			__xrtXlonError(
 				XERR_STATE,
-				XXSON_ERROR_STATE,
+				XXLON_ERROR_STATE,
 				"read",
-				"XSON DOM already has a root value",
+				"XLON DOM already has a root value",
 				&pEvent->Location
 			);
 			return -1;
@@ -286792,11 +287177,11 @@ static int __xrtXsonDomAttach(
 		return 0;
 	}
 	if ( pParent == NULL ) {
-		__xrtXsonError(
+		__xrtXlonError(
 			XERR_STATE,
-			XXSON_ERROR_STATE,
+			XXLON_ERROR_STATE,
 			"read",
-			"XSON DOM parent is missing",
+			"XLON DOM parent is missing",
 			&pEvent->Location
 		);
 		return -1;
@@ -286821,17 +287206,17 @@ static int __xrtXsonDomAttach(
 			return -1;
 		}
 		if ( xrtValueIntMapHas(pParent, pEvent->Key.Integer) ) {
-			if ( pBuilder->Config.Duplicate == XXSON_DUPLICATE_REJECT ) {
-				__xrtXsonError(
+			if ( pBuilder->Config.Duplicate == XXLON_DUPLICATE_REJECT ) {
+				__xrtXlonError(
 					XERR_EXISTS,
-					XXSON_ERROR_DUPLICATE,
+					XXLON_ERROR_DUPLICATE,
 					"read",
-					"duplicate XSON integer map key",
+					"duplicate XLON integer map key",
 					&pEvent->Location
 				);
 				return -1;
 			}
-			if ( pBuilder->Config.Duplicate == XXSON_DUPLICATE_KEEP ) {
+			if ( pBuilder->Config.Duplicate == XXLON_DUPLICATE_KEEP ) {
 				return 1;
 			}
 		}
@@ -286846,17 +287231,17 @@ static int __xrtXsonDomAttach(
 		return -1;
 	}
 	if ( xrtValueObjectHas(pParent, pEvent->Key.String) ) {
-		if ( pBuilder->Config.Duplicate == XXSON_DUPLICATE_REJECT ) {
-			__xrtXsonError(
+		if ( pBuilder->Config.Duplicate == XXLON_DUPLICATE_REJECT ) {
+			__xrtXlonError(
 				XERR_EXISTS,
-				XXSON_ERROR_DUPLICATE,
+				XXLON_ERROR_DUPLICATE,
 				"read",
-				"duplicate XSON object name",
+				"duplicate XLON object name",
 				&pEvent->Location
 			);
 			return -1;
 		}
-		if ( pBuilder->Config.Duplicate == XXSON_DUPLICATE_KEEP ) {
+		if ( pBuilder->Config.Duplicate == XXLON_DUPLICATE_KEEP ) {
 			return 1;
 		}
 	}
@@ -286866,9 +287251,9 @@ static int __xrtXsonDomAttach(
 
 
 /* 调用自定义标签解码器，并在无具体错误时建立标准错误。 */
-static xvalue* __xrtXsonDecodeCustom(
-	xsondombuilder* pBuilder,
-	const xxsonevent* pEvent
+static xvalue* __xrtXlonDecodeCustom(
+	xlondombuilder* pBuilder,
+	const xxlonevent* pEvent
 )
 {
 	const xerror* pPrevious;
@@ -286876,11 +287261,11 @@ static xvalue* __xrtXsonDecodeCustom(
 	xvalue* pValue;
 
 	if ( pBuilder->Config.Decode == NULL ) {
-		__xrtXsonError(
+		__xrtXlonError(
 			XERR_UNSUPPORTED,
-			XXSON_ERROR_UNSUPPORTED,
+			XXLON_ERROR_UNSUPPORTED,
 			"read",
-			"custom XSON tag has no decoder",
+			"custom XLON tag has no decoder",
 			&pEvent->Location
 		);
 		return NULL;
@@ -286893,11 +287278,11 @@ static xvalue* __xrtXsonDecodeCustom(
 		pBuilder->Config.DecodeData
 	);
 	if ( (pValue == NULL) && (xrtGetError() == pPrevious) ) {
-		__xrtXsonError(
+		__xrtXlonError(
 			XERR_VALUE,
-			XXSON_ERROR_TAG,
+			XXLON_ERROR_TAG,
 			"read",
-			"custom XSON decoder rejected tag",
+			"custom XLON decoder rejected tag",
 			&pEvent->Location
 		);
 	}
@@ -286907,33 +287292,33 @@ static xvalue* __xrtXsonDecodeCustom(
 
 
 
-/* 创建标量 XSON 事件对应的动态值。 */
-static xvalue* __xrtXsonDomScalar(
-	xsondombuilder* pBuilder,
-	const xxsonevent* pEvent
+/* 创建标量 XLON 事件对应的动态值。 */
+static xvalue* __xrtXlonDomScalar(
+	xlondombuilder* pBuilder,
+	const xxlonevent* pEvent
 )
 {
 	switch ( pEvent->Type ) {
-		case XXSON_EVENT_NULL:
+		case XXLON_EVENT_NULL:
 			return xrtValueRetain(xrtValueNull());
-		case XXSON_EVENT_BOOL:
+		case XXLON_EVENT_BOOL:
 			return xrtValueRetain(xrtValueBool(pEvent->Value.Boolean));
-		case XXSON_EVENT_INT:
+		case XXLON_EVENT_INT:
 			return xrtValueInt(pEvent->Value.Integer);
-		case XXSON_EVENT_UINT:
+		case XXLON_EVENT_UINT:
 			return xrtValueUInt(pEvent->Value.Unsigned);
-		case XXSON_EVENT_CHAR:
+		case XXLON_EVENT_CHAR:
 			return xrtValueChar(pEvent->Value.Character);
-		case XXSON_EVENT_FLOAT:
+		case XXLON_EVENT_FLOAT:
 			return xrtValueFloat(pEvent->Value.Float);
-		case XXSON_EVENT_STRING:
+		case XXLON_EVENT_STRING:
 			return xrtValueString(pEvent->Value.String);
-		case XXSON_EVENT_BYTES:
+		case XXLON_EVENT_BYTES:
 			return xrtValueBytes(pEvent->Value.Bytes);
-		case XXSON_EVENT_TIME:
+		case XXLON_EVENT_TIME:
 			return xrtValueTime(pEvent->Value.Time);
-		case XXSON_EVENT_CUSTOM:
-			return __xrtXsonDecodeCustom(pBuilder, pEvent);
+		case XXLON_EVENT_CUSTOM:
+			return __xrtXlonDecodeCustom(pBuilder, pEvent);
 		default:
 			__xrtErrorSetInvalidState();
 			return NULL;
@@ -286942,21 +287327,21 @@ static xvalue* __xrtXsonDomScalar(
 
 
 
-/* 使用已转换的 XSON 事件构建 Value DOM。 */
-static xtextvaluevisitaction __xrtXsonDomVisit(
+/* 使用已转换的 XLON 事件构建 Value DOM。 */
+static xtextvaluevisitaction __xrtXlonDomVisit(
 	const xtextvalueevent* pSource,
 	ptr pUserData
 )
 {
-	xsondombuilder* pBuilder = (xsondombuilder*)pUserData;
-	xxsonevent Event;
-	xsondomframe* pFrame;
+	xlondombuilder* pBuilder = (xlondombuilder*)pUserData;
+	xxlonevent Event;
+	xlondomframe* pFrame;
 	xvalue* pValue;
 	int iAttach;
 	bool bBegin;
 	bool bEnd;
 
-	if ( !__xrtXsonMakeEvent(
+	if ( !__xrtXlonMakeEvent(
 		pSource,
 		&pBuilder->Config,
 		pBuilder->Budget,
@@ -286969,23 +287354,23 @@ static xtextvaluevisitaction __xrtXsonDomVisit(
 		return XTEXT_VALUE_VISIT_NEXT;
 	}
 	bBegin =
-		(Event.Type == XXSON_EVENT_ARRAY_BEGIN) ||
-		(Event.Type == XXSON_EVENT_INT_MAP_BEGIN) ||
-		(Event.Type == XXSON_EVENT_SET_BEGIN) ||
-		(Event.Type == XXSON_EVENT_OBJECT_BEGIN);
+		(Event.Type == XXLON_EVENT_ARRAY_BEGIN) ||
+		(Event.Type == XXLON_EVENT_INT_MAP_BEGIN) ||
+		(Event.Type == XXLON_EVENT_SET_BEGIN) ||
+		(Event.Type == XXLON_EVENT_OBJECT_BEGIN);
 	bEnd =
-		(Event.Type == XXSON_EVENT_ARRAY_END) ||
-		(Event.Type == XXSON_EVENT_INT_MAP_END) ||
-		(Event.Type == XXSON_EVENT_SET_END) ||
-		(Event.Type == XXSON_EVENT_OBJECT_END);
+		(Event.Type == XXLON_EVENT_ARRAY_END) ||
+		(Event.Type == XXLON_EVENT_INT_MAP_END) ||
+		(Event.Type == XXLON_EVENT_SET_END) ||
+		(Event.Type == XXLON_EVENT_OBJECT_END);
 	if ( bEnd ) {
 		pFrame = &pBuilder->Frames[Event.Depth];
 		if ( pFrame->Value == NULL ) {
-			__xrtXsonError(
+			__xrtXlonError(
 				XERR_STATE,
-				XXSON_ERROR_STATE,
+				XXLON_ERROR_STATE,
 				"read",
-				"XSON DOM container stack is unbalanced",
+				"XLON DOM container stack is unbalanced",
 				&Event.Location
 			);
 			return XTEXT_VALUE_VISIT_FAIL;
@@ -286996,21 +287381,21 @@ static xtextvaluevisitaction __xrtXsonDomVisit(
 		memset(pFrame, 0, sizeof(*pFrame));
 		return XTEXT_VALUE_VISIT_NEXT;
 	}
-	if ( Event.Type == XXSON_EVENT_ARRAY_BEGIN ) {
+	if ( Event.Type == XXLON_EVENT_ARRAY_BEGIN ) {
 		pValue = xrtValueArray();
-	} else if ( Event.Type == XXSON_EVENT_INT_MAP_BEGIN ) {
+	} else if ( Event.Type == XXLON_EVENT_INT_MAP_BEGIN ) {
 		pValue = xrtValueIntMap();
-	} else if ( Event.Type == XXSON_EVENT_SET_BEGIN ) {
+	} else if ( Event.Type == XXLON_EVENT_SET_BEGIN ) {
 		pValue = xrtValueSet();
-	} else if ( Event.Type == XXSON_EVENT_OBJECT_BEGIN ) {
+	} else if ( Event.Type == XXLON_EVENT_OBJECT_BEGIN ) {
 		pValue = xrtValueObject();
 	} else {
-		pValue = __xrtXsonDomScalar(pBuilder, &Event);
+		pValue = __xrtXlonDomScalar(pBuilder, &Event);
 	}
 	if ( pValue == NULL ) {
 		return XTEXT_VALUE_VISIT_FAIL;
 	}
-	iAttach = __xrtXsonDomAttach(pBuilder, &Event, pValue);
+	iAttach = __xrtXlonDomAttach(pBuilder, &Event, pValue);
 	if ( iAttach < 0 ) {
 		xrtValueRelease(pValue);
 		return XTEXT_VALUE_VISIT_FAIL;
@@ -287033,7 +287418,7 @@ static xtextvaluevisitaction __xrtXsonDomVisit(
 
 
 /* 释放失败解析留下的根、栈所有权和临时二进制缓冲。 */
-static void __xrtXsonDomCleanup(xsondombuilder* pBuilder)
+static void __xrtXlonDomCleanup(xlondombuilder* pBuilder)
 {
 	for ( size_t i = 0; i < XRT_VALUE_DEPTH_MAX; i++ ) {
 		if ( pBuilder->Frames[i].Owned ) {
@@ -287047,17 +287432,17 @@ static void __xrtXsonDomCleanup(xsondombuilder* pBuilder)
 
 
 
-/* 把共享事件转换后提交给公开 XSON 访问器。 */
-static xtextvaluevisitaction __xrtXsonVisitAdapter(
+/* 把共享事件转换后提交给公开 XLON 访问器。 */
+static xtextvaluevisitaction __xrtXlonVisitAdapter(
 	const xtextvalueevent* pSource,
 	ptr pUserData
 )
 {
-	xsonvisitadapter* pAdapter = (xsonvisitadapter*)pUserData;
-	xxsonevent Event;
-	xxsonvisitaction Action;
+	xlonvisitadapter* pAdapter = (xlonvisitadapter*)pUserData;
+	xxlonevent Event;
+	xxlonvisitaction Action;
 
-	if ( !__xrtXsonMakeEvent(
+	if ( !__xrtXlonMakeEvent(
 		pSource,
 		pAdapter->Config,
 		NULL,
@@ -287073,51 +287458,51 @@ static xtextvaluevisitaction __xrtXsonVisitAdapter(
 
 
 /* 验证路径只消费事件，内建标签仍会完成严格语义校验。 */
-static xxsonvisitaction __xrtXsonValidateVisit(
-	const xxsonevent* pEvent,
+static xxlonvisitaction __xrtXlonValidateVisit(
+	const xxlonevent* pEvent,
 	ptr pUserData
 )
 {
 	(void)pEvent;
 	(void)pUserData;
-	return XXSON_VISIT_NEXT;
+	return XXLON_VISIT_NEXT;
 }
 
 
 
-/* 初始化严格且带安全资源预算的 XSON 读取配置。 */
-XRT_API void xrtXsonReadConfigInit(xxsonreadconfig* pConfig)
+/* 初始化严格且带安全资源预算的 XLON 读取配置。 */
+XRT_API void xrtXlonReadConfigInit(xxlonreadconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return;
 	}
 	memset(pConfig, 0, sizeof(*pConfig));
-	pConfig->Duplicate = XXSON_DUPLICATE_REJECT;
-	pConfig->BigInteger = XXSON_BIGINT_REJECT;
-	pConfig->MaxDepth = XXSON_DEPTH_DEFAULT;
-	pConfig->MaxInputBytes = XXSON_INPUT_DEFAULT;
-	pConfig->MaxStringBytes = XXSON_STRING_DEFAULT;
-	pConfig->MaxValues = XXSON_VALUES_DEFAULT;
-	pConfig->MaxContainerItems = XXSON_CONTAINER_DEFAULT;
-	pConfig->MaxDecodedBytes = XXSON_DECODED_DEFAULT;
+	pConfig->Duplicate = XXLON_DUPLICATE_REJECT;
+	pConfig->BigInteger = XXLON_BIGINT_REJECT;
+	pConfig->MaxDepth = XXLON_DEPTH_DEFAULT;
+	pConfig->MaxInputBytes = XXLON_INPUT_DEFAULT;
+	pConfig->MaxStringBytes = XXLON_STRING_DEFAULT;
+	pConfig->MaxValues = XXLON_VALUES_DEFAULT;
+	pConfig->MaxContainerItems = XXLON_CONTAINER_DEFAULT;
+	pConfig->MaxDecodedBytes = XXLON_DECODED_DEFAULT;
 }
 
 
 
-/* 使用高级配置解析完整 XSON 文本。 */
-xvalue* __xrtXsonReadBudget(
+/* 使用高级配置解析完整 XLON 文本。 */
+xvalue* __xrtXlonReadBudget(
 	xstrview Text,
-	const xxsonreadconfig* pConfig,
+	const xxlonreadconfig* pConfig,
 	xtextvaluebudget* pBudget,
 	bool bValidate
 )
 {
-	xsondombuilder Builder;
+	xlondombuilder Builder;
 	xtextvaluereadconfig TextConfig;
 	xtextvaluevisitresult Result;
 
-	if ( !__xrtXsonReadConfigValid(pConfig) ) {
+	if ( !__xrtXlonReadConfigValid(pConfig) ) {
 		return NULL;
 	}
 	memset(&Builder, 0, sizeof(Builder));
@@ -287127,20 +287512,20 @@ xvalue* __xrtXsonReadBudget(
 	if ( !xrtBufferInit(&Builder.Bytes) ) {
 		return NULL;
 	}
-	TextConfig = __xrtXsonReadTextConfig(pConfig);
+	TextConfig = __xrtXlonReadTextConfig(pConfig);
 	TextConfig.Budget = pBudget;
 	Result = __xrtTextValueRead(
 		Text,
 		&TextConfig,
-		__xrtXsonDomVisit,
+		__xrtXlonDomVisit,
 		&Builder,
-		__xrtXsonReadError,
+		__xrtXlonReadError,
 		NULL,
 		true
 	);
 	if ( Result != XTEXT_VALUE_VISIT_DONE ) {
 		xerror* pError = xrtTakeError();
-		__xrtXsonDomCleanup(&Builder);
+		__xrtXlonDomCleanup(&Builder);
 		xrtSetErrorTake(pError);
 		return NULL;
 	}
@@ -287150,78 +287535,78 @@ xvalue* __xrtXsonReadBudget(
 
 
 
-/* 使用高级配置解析完整 XSON 文本。 */
-XRT_API xvalue* xrtXsonRead(xstrview Text, const xxsonreadconfig* pConfig)
+/* 使用高级配置解析完整 XLON 文本。 */
+XRT_API xvalue* xrtXlonRead(xstrview Text, const xxlonreadconfig* pConfig)
 {
-	return __xrtXsonReadBudget(Text, pConfig, NULL, false);
+	return __xrtXlonReadBudget(Text, pConfig, NULL, false);
 }
 
 
 
-/* 使用默认严格配置解析完整 XSON 文本。 */
-XRT_API xvalue* xrtXsonParse(xstrview Text)
+/* 使用默认严格配置解析完整 XLON 文本。 */
+XRT_API xvalue* xrtXlonParse(xstrview Text)
 {
-	xxsonreadconfig Config;
+	xxlonreadconfig Config;
 
-	xrtXsonReadConfigInit(&Config);
-	return xrtXsonRead(Text, &Config);
+	xrtXlonReadConfigInit(&Config);
+	return xrtXlonRead(Text, &Config);
 }
 
 
 
-/* 验证默认 XSON 语法和内建标签，不构造 Value DOM。 */
-XRT_API bool xrtXsonValid(xstrview Text)
+/* 验证默认 XLON 语法和内建标签，不构造 Value DOM。 */
+XRT_API bool xrtXlonValid(xstrview Text)
 {
-	xxsonreadconfig Config;
+	xxlonreadconfig Config;
 
-	xrtXsonReadConfigInit(&Config);
-	return xrtXsonVisit(
+	xrtXlonReadConfigInit(&Config);
+	return xrtXlonVisit(
 		Text,
 		&Config,
-		__xrtXsonValidateVisit,
+		__xrtXlonValidateVisit,
 		NULL
-	) == XXSON_VISIT_DONE;
+	) == XXLON_VISIT_DONE;
 }
 
 
 
 /* 直接访问解析事件，不构造中间 DOM。 */
-XRT_API xxsonvisitresult xrtXsonVisit(
+XRT_API xxlonvisitresult xrtXlonVisit(
 	xstrview Text,
-	const xxsonreadconfig* pConfig,
-	xxsonvisitproc pVisitor,
+	const xxlonreadconfig* pConfig,
+	xxlonvisitproc pVisitor,
 	ptr pUserData
 )
 {
-	xsonvisitadapter Adapter;
+	xlonvisitadapter Adapter;
 	xtextvaluereadconfig TextConfig;
 	xtextvaluevisitresult Result;
 
-	if ( (pVisitor == NULL) || !__xrtXsonReadConfigValid(pConfig) ) {
+	if ( (pVisitor == NULL) || !__xrtXlonReadConfigValid(pConfig) ) {
 		if ( pVisitor == NULL ) {
 			__xrtErrorSetInvalidArgument();
 		}
-		return XXSON_VISIT_ERROR;
+		return XXLON_VISIT_ERROR;
 	}
 	memset(&Adapter, 0, sizeof(Adapter));
 	Adapter.Config = pConfig;
 	Adapter.Visitor = pVisitor;
 	Adapter.UserData = pUserData;
 	if ( !xrtBufferInit(&Adapter.Bytes) ) {
-		return XXSON_VISIT_ERROR;
+		return XXLON_VISIT_ERROR;
 	}
-	TextConfig = __xrtXsonReadTextConfig(pConfig);
+	TextConfig = __xrtXlonReadTextConfig(pConfig);
 	Result = __xrtTextValueRead(
 		Text,
 		&TextConfig,
-		__xrtXsonVisitAdapter,
+		__xrtXlonVisitAdapter,
 		&Adapter,
-		__xrtXsonReadError,
+		__xrtXlonReadError,
 		NULL,
 		true
 	);
 	xrtBufferUnit(&Adapter.Bytes);
-	return (xxsonvisitresult)Result;
+	return (xxlonvisitresult)Result;
 }
 
 #endif
@@ -287229,70 +287614,70 @@ XRT_API xxsonvisitresult xrtXsonVisit(
 
 
 /* ========================================================================== */
-/* source: src/data/xson_write.c */
+/* source: src/data/xlon_write.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 #include <math.h>
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
-/* XSON writer 保存格式策略、用户 sink 和共享状态机。 */
-struct xxsonwriter {
-	xxsonwriteconfig Config;
-	xxsonwriteproc Write;
+/* XLON writer 保存格式策略、用户 sink 和共享状态机。 */
+struct xxlonwriter {
+	xxlonwriteconfig Config;
+	xxlonwriteproc Write;
 	ptr UserData;
 	xtextvaluewriter* Core;
 };
 
 
 
-/* 把共享输出错误映射到 xrt.xson 错误域。 */
-static void __xrtXsonWriteError(
+/* 把共享输出错误映射到 xrt.xlon 错误域。 */
+static void __xrtXlonWriteError(
 	xerrkind Kind,
 	xtextvaluewriteerror Code,
 	cstr sMessage,
 	ptr pUserData
 )
 {
-	xxsonerror XsonCode;
+	xxlonerror XlonCode;
 
 	(void)pUserData;
 	if ( Code == XTEXT_VALUE_WRITE_ERROR_LIMIT ) {
-		XsonCode = XXSON_ERROR_LIMIT;
+		XlonCode = XXLON_ERROR_LIMIT;
 	} else if ( Code == XTEXT_VALUE_WRITE_ERROR_STATE ) {
-		XsonCode = XXSON_ERROR_STATE;
+		XlonCode = XXLON_ERROR_STATE;
 	} else if ( Code == XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED ) {
-		XsonCode = XXSON_ERROR_UNSUPPORTED;
+		XlonCode = XXLON_ERROR_UNSUPPORTED;
 	} else {
-		XsonCode = XXSON_ERROR_OUTPUT;
+		XlonCode = XXLON_ERROR_OUTPUT;
 	}
-	__xrtXsonError(Kind, XsonCode, "write", sMessage, NULL);
+	__xrtXlonError(Kind, XlonCode, "write", sMessage, NULL);
 }
 
 
 
 /* 用户 sink 桥接器保持错误传播和回调重入检查。 */
-static bool __xrtXsonWriteSink(xbytesview Data, ptr pUserData)
+static bool __xrtXlonWriteSink(xbytesview Data, ptr pUserData)
 {
-	xxsonwriter* pWriter = (xxsonwriter*)pUserData;
+	xxlonwriter* pWriter = (xxlonwriter*)pUserData;
 
 	return pWriter->Write(Data, pWriter->UserData);
 }
 
 
 
-/* 验证 XSON 写出配置及全部保留字段。 */
-bool __xrtXsonWriteConfigValid(const xxsonwriteconfig* pConfig)
+/* 验证 XLON 写出配置及全部保留字段。 */
+bool __xrtXlonWriteConfigValid(const xxlonwriteconfig* pConfig)
 {
 	uint32 iKnownFlags =
-		XXSON_WRITE_PRETTY |
-		XXSON_WRITE_ESCAPE_SLASH |
-		XXSON_WRITE_ESCAPE_HTML |
-		XXSON_WRITE_ESCAPE_NON_ASCII;
+		XXLON_WRITE_PRETTY |
+		XXLON_WRITE_ESCAPE_SLASH |
+		XXLON_WRITE_ESCAPE_HTML |
+		XXLON_WRITE_ESCAPE_NON_ASCII;
 
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -287300,29 +287685,29 @@ bool __xrtXsonWriteConfigValid(const xxsonwriteconfig* pConfig)
 	}
 	if (
 		((pConfig->Flags & ~iKnownFlags) != 0) ||
-		(pConfig->Unsupported < XXSON_UNSUPPORTED_REJECT) ||
-		(pConfig->Unsupported > XXSON_UNSUPPORTED_SKIP) ||
+		(pConfig->Unsupported < XXLON_UNSUPPORTED_REJECT) ||
+		(pConfig->Unsupported > XXLON_UNSUPPORTED_SKIP) ||
 		(pConfig->MaxDepth == 0) ||
 		(pConfig->MaxDepth > XRT_VALUE_DEPTH_MAX) ||
 		(pConfig->Indent > 16u) ||
 		(pConfig->MaxOutputBytes == 0)
 	) {
-		__xrtXsonError(
+		__xrtXlonError(
 			XERR_ARGUMENT,
-			XXSON_ERROR_CONFIG,
+			XXLON_ERROR_CONFIG,
 			"write",
-			"invalid XSON write configuration",
+			"invalid XLON write configuration",
 			NULL
 		);
 		return false;
 	}
 	for ( size_t i = 0; i < 4u; i++ ) {
 		if ( pConfig->Reserved[i] != 0 ) {
-			__xrtXsonError(
+			__xrtXlonError(
 				XERR_ARGUMENT,
-				XXSON_ERROR_CONFIG,
+				XXLON_ERROR_CONFIG,
 				"write",
-				"reserved XSON write configuration fields must be zero",
+				"reserved XLON write configuration fields must be zero",
 				NULL
 			);
 			return false;
@@ -287333,9 +287718,9 @@ bool __xrtXsonWriteConfigValid(const xxsonwriteconfig* pConfig)
 
 
 
-/* 把 XSON 布局配置压缩为共享 writer 字段。 */
-static xtextvaluewriteconfig __xrtXsonWriteTextConfig(
-	const xxsonwriteconfig* pConfig
+/* 把 XLON 布局配置压缩为共享 writer 字段。 */
+static xtextvaluewriteconfig __xrtXlonWriteTextConfig(
+	const xxlonwriteconfig* pConfig
 )
 {
 	xtextvaluewriteconfig Config;
@@ -287349,38 +287734,38 @@ static xtextvaluewriteconfig __xrtXsonWriteTextConfig(
 
 
 
-/* 创建内存或 sink 模式 XSON writer。 */
-static xxsonwriter* __xrtXsonWriterCreate(
-	const xxsonwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+/* 创建内存或 sink 模式 XLON writer。 */
+static xxlonwriter* __xrtXlonWriterCreate(
+	const xxlonwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData,
 	bool bMemory
 )
 {
 	xtextvaluewriteconfig TextConfig;
-	xxsonwriter* pWriter;
+	xxlonwriter* pWriter;
 
-	if ( !__xrtXsonWriteConfigValid(pConfig) ) {
+	if ( !__xrtXlonWriteConfigValid(pConfig) ) {
 		return NULL;
 	}
 	if ( !bMemory && (pWrite == NULL) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	pWriter = (xxsonwriter*)xrtCalloc(1, sizeof(xxsonwriter));
+	pWriter = (xxlonwriter*)xrtCalloc(1, sizeof(xxlonwriter));
 	if ( pWriter == NULL ) {
 		return NULL;
 	}
 	pWriter->Config = *pConfig;
 	pWriter->Write = pWrite;
 	pWriter->UserData = pUserData;
-	TextConfig = __xrtXsonWriteTextConfig(pConfig);
+	TextConfig = __xrtXlonWriteTextConfig(pConfig);
 	pWriter->Core = __xrtTextValueWriterCreate(
 		&TextConfig,
-		bMemory ? NULL : __xrtXsonWriteSink,
+		bMemory ? NULL : __xrtXlonWriteSink,
 		pWriter,
 		bMemory,
-		__xrtXsonWriteError,
+		__xrtXlonWriteError,
 		NULL
 	);
 	if ( pWriter->Core == NULL ) {
@@ -287393,8 +287778,8 @@ static xxsonwriter* __xrtXsonWriterCreate(
 
 
 /* 判断值是否应按显式策略从父容器中跳过。 */
-static bool __xrtXsonWriterSkipValue(
-	const xxsonwriter* pWriter,
+static bool __xrtXlonWriterSkipValue(
+	const xxlonwriter* pWriter,
 	const xvalue* pValue
 )
 {
@@ -287402,7 +287787,7 @@ static bool __xrtXsonWriterSkipValue(
 
 	if (
 		(pValue == NULL) ||
-		(pWriter->Config.Unsupported != XXSON_UNSUPPORTED_SKIP)
+		(pWriter->Config.Unsupported != XXLON_UNSUPPORTED_SKIP)
 	) {
 		return false;
 	}
@@ -287412,8 +287797,8 @@ static bool __xrtXsonWriterSkipValue(
 
 
 
-/* 判断标签名称是否保留给 XSON 内建类型或容器。 */
-static bool __xrtXsonReservedTag(xstrview Tag)
+/* 判断标签名称是否保留给 XLON 内建类型或容器。 */
+static bool __xrtXlonReservedTag(xstrview Tag)
 {
 	static const cstr arrNames[] = {
 		"bytes", "char", "time", "float", "set", "intmap"
@@ -287434,9 +287819,9 @@ static bool __xrtXsonReservedTag(xstrview Tag)
 
 
 
-/* 写出非有限浮点的显式 XSON 标签。 */
-static bool __xrtXsonWriterFloatValue(
-	xxsonwriter* pWriter,
+/* 写出非有限浮点的显式 XLON 标签。 */
+static bool __xrtXlonWriterFloatValue(
+	xxlonwriter* pWriter,
 	double fValue
 )
 {
@@ -287462,8 +287847,8 @@ static bool __xrtXsonWriterFloatValue(
 
 
 /* 写出规范 Base64 二进制标签，不建立完整临时文本。 */
-static bool __xrtXsonWriterBytesValue(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterBytesValue(
+	xxlonwriter* pWriter,
 	xbytesview Data
 )
 {
@@ -287477,8 +287862,8 @@ static bool __xrtXsonWriterBytesValue(
 
 
 /* 写出只包含一个 Unicode 标量的显式字符标签。 */
-static bool __xrtXsonWriterCharValue(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterCharValue(
+	xxlonwriter* pWriter,
 	uint32 iValue
 )
 {
@@ -287503,8 +287888,8 @@ static bool __xrtXsonWriterCharValue(
 
 
 /* 把绝对时间规范化为 UTC RFC 3339 标签。 */
-static bool __xrtXsonWriterTimeValue(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterTimeValue(
+	xxlonwriter* pWriter,
 	xtime Time
 )
 {
@@ -287530,8 +287915,8 @@ static bool __xrtXsonWriterTimeValue(
 
 
 /* 调用自定义编码器并立即消费其借用标签和载荷。 */
-static bool __xrtXsonWriterCustomValue(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterCustomValue(
+	xxlonwriter* pWriter,
 	const xvalue* pValue
 )
 {
@@ -287541,7 +287926,7 @@ static bool __xrtXsonWriterCustomValue(
 	xerror* pHeld;
 	xstrview Tag = { NULL, 0 };
 	xstrview Payload = { NULL, 0 };
-	xxsoncoderesult Result;
+	xxloncoderesult Result;
 	bool bWritten = false;
 
 	if ( pWriter->Config.Encode == NULL ) {
@@ -287549,7 +287934,7 @@ static bool __xrtXsonWriterCustomValue(
 			pWriter->Core,
 			XERR_UNSUPPORTED,
 			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-			"Value type has no XSON representation"
+			"Value type has no XLON representation"
 		);
 	}
 	if ( !__xrtValueCallbackProtect(arrValues, 1u) ) {
@@ -287575,13 +287960,13 @@ static bool __xrtXsonWriterCustomValue(
 	);
 	if ( !__xrtTextValueWriterCallbackLeave(pWriter->Core) ) {
 		bWritten = false;
-	} else if ( Result == XXSON_CODE_OK ) {
-		if ( __xrtXsonReservedTag(Tag) ) {
+	} else if ( Result == XXLON_CODE_OK ) {
+		if ( __xrtXlonReservedTag(Tag) ) {
 			bWritten = __xrtTextValueWriterFail(
 				pWriter->Core,
 				XERR_VALUE,
 				XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-				"custom encoder returned a reserved XSON tag"
+				"custom encoder returned a reserved XLON tag"
 			);
 		} else {
 			bWritten = __xrtTextValueWriterTag(
@@ -287590,30 +287975,30 @@ static bool __xrtXsonWriterCustomValue(
 				Payload
 			);
 		}
-	} else if ( Result == XXSON_CODE_ERROR ) {
+	} else if ( Result == XXLON_CODE_ERROR ) {
 		if ( xrtGetError() == pPrevious ) {
 			bWritten = __xrtTextValueWriterFail(
 				pWriter->Core,
 				XERR_VALUE,
 				XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-				"custom XSON encoder failed"
+				"custom XLON encoder failed"
 			);
 		} else {
 			__xrtTextValueWriterPoison(pWriter->Core);
 		}
-	} else if ( Result == XXSON_CODE_UNSUPPORTED ) {
+	} else if ( Result == XXLON_CODE_UNSUPPORTED ) {
 		bWritten = __xrtTextValueWriterFail(
 			pWriter->Core,
 			XERR_UNSUPPORTED,
 			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-			"custom XSON encoder did not handle Value"
+			"custom XLON encoder did not handle Value"
 		);
 	} else {
 		bWritten = __xrtTextValueWriterFail(
 			pWriter->Core,
 			XERR_STATE,
 			XTEXT_VALUE_WRITE_ERROR_STATE,
-			"custom XSON encoder returned an invalid result"
+			"custom XLON encoder returned an invalid result"
 		);
 	}
 	xrtErrorFree(pHeld);
@@ -287623,9 +288008,9 @@ static bool __xrtXsonWriterCustomValue(
 
 
 
-/* 前置声明递归 XSON 子树写出入口，供容器写出器调用。 */
-static bool __xrtXsonWriterTree(
-	xxsonwriter* pWriter,
+/* 前置声明递归 XLON 子树写出入口，供容器写出器调用。 */
+static bool __xrtXlonWriterTree(
+	xxlonwriter* pWriter,
 	const xvalue* pValue,
 	size_t iDepth,
 	ptr* arrActive
@@ -287634,8 +288019,8 @@ static bool __xrtXsonWriterTree(
 
 
 /* 写出数组或集合，并在取值前跳过显式不支持成员。 */
-static bool __xrtXsonWriterSequence(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterSequence(
+	xxlonwriter* pWriter,
 	const xvalue* pValue,
 	xtextvaluecontainertype Container,
 	size_t iDepth,
@@ -287653,10 +288038,10 @@ static bool __xrtXsonWriterSequence(
 		return false;
 	}
 	while ( bResult && ((pItem = xrtValueIterNext(&Iterator, &Key)) != NULL) ) {
-		if ( __xrtXsonWriterSkipValue(pWriter, pItem) ) {
+		if ( __xrtXlonWriterSkipValue(pWriter, pItem) ) {
 			continue;
 		}
-		bResult = __xrtXsonWriterTree(
+		bResult = __xrtXlonWriterTree(
 			pWriter,
 			pItem,
 			iDepth + 1u,
@@ -287670,8 +288055,8 @@ static bool __xrtXsonWriterSequence(
 
 
 /* 写出字符串键对象。 */
-static bool __xrtXsonWriterObjectValue(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterObjectValue(
+	xxlonwriter* pWriter,
 	const xvalue* pValue,
 	size_t iDepth,
 	ptr* arrActive
@@ -287691,12 +288076,12 @@ static bool __xrtXsonWriterObjectValue(
 		return false;
 	}
 	while ( bResult && ((pItem = xrtValueIterNext(&Iterator, &Key)) != NULL) ) {
-		if ( __xrtXsonWriterSkipValue(pWriter, pItem) ) {
+		if ( __xrtXlonWriterSkipValue(pWriter, pItem) ) {
 			continue;
 		}
 		bResult =
 			__xrtTextValueWriterName(pWriter->Core, Key.String) &&
-			__xrtXsonWriterTree(
+			__xrtXlonWriterTree(
 				pWriter,
 				pItem,
 				iDepth + 1u,
@@ -287710,8 +288095,8 @@ static bool __xrtXsonWriterObjectValue(
 
 
 /* 写出 int64 键映射。 */
-static bool __xrtXsonWriterIntMapValue(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterIntMapValue(
+	xxlonwriter* pWriter,
 	const xvalue* pValue,
 	size_t iDepth,
 	ptr* arrActive
@@ -287731,12 +288116,12 @@ static bool __xrtXsonWriterIntMapValue(
 		return false;
 	}
 	while ( bResult && ((pItem = xrtValueIterNext(&Iterator, &Key)) != NULL) ) {
-		if ( __xrtXsonWriterSkipValue(pWriter, pItem) ) {
+		if ( __xrtXlonWriterSkipValue(pWriter, pItem) ) {
 			continue;
 		}
 		bResult =
 			__xrtTextValueWriterKey(pWriter->Core, Key.Integer) &&
-			__xrtXsonWriterTree(
+			__xrtXlonWriterTree(
 				pWriter,
 				pItem,
 				iDepth + 1u,
@@ -287749,9 +288134,9 @@ static bool __xrtXsonWriterIntMapValue(
 
 
 
-/* 写出完整 XSON Value 子树，并检测活动容器 backing 环。 */
-static bool __xrtXsonWriterTree(
-	xxsonwriter* pWriter,
+/* 写出完整 XLON Value 子树，并检测活动容器 backing 环。 */
+static bool __xrtXlonWriterTree(
+	xxlonwriter* pWriter,
 	const xvalue* pValue,
 	size_t iDepth,
 	ptr* arrActive
@@ -287772,7 +288157,7 @@ static bool __xrtXsonWriterTree(
 			pWriter->Core,
 			XERR_ARGUMENT,
 			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-			"cannot write a null Value pointer as XSON"
+			"cannot write a null Value pointer as XLON"
 		);
 	}
 	Type = xrtValueType(pValue);
@@ -287807,14 +288192,14 @@ static bool __xrtXsonWriterTree(
 			__xrtTextValueWriterPoison(pWriter->Core);
 			return false;
 		}
-		return __xrtXsonWriterCharValue(pWriter, iCharacter);
+		return __xrtXlonWriterCharValue(pWriter, iCharacter);
 	}
 	if ( Type == XVALUE_FLOAT ) {
 		if ( !xrtValueGetFloat(pValue, &fValue) ) {
 			__xrtTextValueWriterPoison(pWriter->Core);
 			return false;
 		}
-		return __xrtXsonWriterFloatValue(pWriter, fValue);
+		return __xrtXlonWriterFloatValue(pWriter, fValue);
 	}
 	if ( Type == XVALUE_STRING ) {
 		if ( !xrtValueGetString(pValue, &Text) ) {
@@ -287828,17 +288213,17 @@ static bool __xrtXsonWriterTree(
 			__xrtTextValueWriterPoison(pWriter->Core);
 			return false;
 		}
-		return __xrtXsonWriterBytesValue(pWriter, Data);
+		return __xrtXlonWriterBytesValue(pWriter, Data);
 	}
 	if ( Type == XVALUE_TIME ) {
 		if ( !xrtValueGetTime(pValue, &Time) ) {
 			__xrtTextValueWriterPoison(pWriter->Core);
 			return false;
 		}
-		return __xrtXsonWriterTimeValue(pWriter, Time);
+		return __xrtXlonWriterTimeValue(pWriter, Time);
 	}
 	if ( (Type == XVALUE_POINTER) || (Type == XVALUE_HANDLE) ) {
-		return __xrtXsonWriterCustomValue(pWriter, pValue);
+		return __xrtXlonWriterCustomValue(pWriter, pValue);
 	}
 	if (
 		(Type != XVALUE_ARRAY) && (Type != XVALUE_INT_MAP) &&
@@ -287848,7 +288233,7 @@ static bool __xrtXsonWriterTree(
 			pWriter->Core,
 			XERR_UNSUPPORTED,
 			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-			"Value type has no XSON representation"
+			"Value type has no XLON representation"
 		);
 	}
 	if ( iDepth >= pWriter->Config.MaxDepth ) {
@@ -287856,7 +288241,7 @@ static bool __xrtXsonWriterTree(
 			pWriter->Core,
 			XERR_RANGE,
 			XTEXT_VALUE_WRITE_ERROR_LIMIT,
-			"XSON Value nesting exceeds configured depth"
+			"XLON Value nesting exceeds configured depth"
 		);
 	}
 	pIdentity = (ptr)pValue->Data.Backing;
@@ -287866,13 +288251,13 @@ static bool __xrtXsonWriterTree(
 				pWriter->Core,
 				XERR_VALUE,
 				XTEXT_VALUE_WRITE_ERROR_STATE,
-				"cyclic Value graph cannot be written as XSON"
+				"cyclic Value graph cannot be written as XLON"
 			);
 		}
 	}
 	arrActive[iDepth] = pIdentity;
 	if ( Type == XVALUE_ARRAY ) {
-		return __xrtXsonWriterSequence(
+		return __xrtXlonWriterSequence(
 			pWriter,
 			pValue,
 			XTEXT_VALUE_CONTAINER_ARRAY,
@@ -287881,7 +288266,7 @@ static bool __xrtXsonWriterTree(
 		);
 	}
 	if ( Type == XVALUE_SET ) {
-		return __xrtXsonWriterSequence(
+		return __xrtXlonWriterSequence(
 			pWriter,
 			pValue,
 			XTEXT_VALUE_CONTAINER_SET,
@@ -287890,14 +288275,14 @@ static bool __xrtXsonWriterTree(
 		);
 	}
 	if ( Type == XVALUE_OBJECT ) {
-		return __xrtXsonWriterObjectValue(
+		return __xrtXlonWriterObjectValue(
 			pWriter,
 			pValue,
 			iDepth,
 			arrActive
 		);
 	}
-	return __xrtXsonWriterIntMapValue(
+	return __xrtXlonWriterIntMapValue(
 		pWriter,
 		pValue,
 		iDepth,
@@ -287908,45 +288293,45 @@ static bool __xrtXsonWriterTree(
 
 
 /* 初始化紧凑输出、严格类型和有限输出预算。 */
-XRT_API void xrtXsonWriteConfigInit(xxsonwriteconfig* pConfig)
+XRT_API void xrtXlonWriteConfigInit(xxlonwriteconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return;
 	}
 	memset(pConfig, 0, sizeof(*pConfig));
-	pConfig->Unsupported = XXSON_UNSUPPORTED_REJECT;
-	pConfig->MaxDepth = XXSON_DEPTH_DEFAULT;
+	pConfig->Unsupported = XXLON_UNSUPPORTED_REJECT;
+	pConfig->MaxDepth = XXLON_DEPTH_DEFAULT;
 	pConfig->Indent = 2u;
-	pConfig->MaxOutputBytes = XXSON_INPUT_DEFAULT;
+	pConfig->MaxOutputBytes = XXLON_INPUT_DEFAULT;
 }
 
 
 
 /* 创建内存增量 writer。 */
-XRT_API xxsonwriter* xrtXsonWriterCreate(
-	const xxsonwriteconfig* pConfig
+XRT_API xxlonwriter* xrtXlonWriterCreate(
+	const xxlonwriteconfig* pConfig
 )
 {
-	return __xrtXsonWriterCreate(pConfig, NULL, NULL, true);
+	return __xrtXlonWriterCreate(pConfig, NULL, NULL, true);
 }
 
 
 
 /* 创建同步 sink 增量 writer。 */
-XRT_API xxsonwriter* xrtXsonWriterCreateSink(
-	const xxsonwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+XRT_API xxlonwriter* xrtXlonWriterCreateSink(
+	const xxlonwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 )
 {
-	return __xrtXsonWriterCreate(pConfig, pWrite, pUserData, false);
+	return __xrtXlonWriterCreate(pConfig, pWrite, pUserData, false);
 }
 
 
 
 /* 在当前位置开始对象。 */
-XRT_API bool xrtXsonWriterObject(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterObject(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -287961,7 +288346,7 @@ XRT_API bool xrtXsonWriterObject(xxsonwriter* pWriter)
 
 
 /* 在当前位置开始数组。 */
-XRT_API bool xrtXsonWriterArray(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterArray(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -287976,7 +288361,7 @@ XRT_API bool xrtXsonWriterArray(xxsonwriter* pWriter)
 
 
 /* 在当前位置开始整数映射。 */
-XRT_API bool xrtXsonWriterIntMap(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterIntMap(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -287991,7 +288376,7 @@ XRT_API bool xrtXsonWriterIntMap(xxsonwriter* pWriter)
 
 
 /* 在当前位置开始集合。 */
-XRT_API bool xrtXsonWriterSet(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterSet(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -288006,7 +288391,7 @@ XRT_API bool xrtXsonWriterSet(xxsonwriter* pWriter)
 
 
 /* 结束当前容器。 */
-XRT_API bool xrtXsonWriterEnd(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterEnd(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -288018,7 +288403,7 @@ XRT_API bool xrtXsonWriterEnd(xxsonwriter* pWriter)
 
 
 /* 写入对象名称。 */
-XRT_API bool xrtXsonWriterName(xxsonwriter* pWriter, xstrview Name)
+XRT_API bool xrtXlonWriterName(xxlonwriter* pWriter, xstrview Name)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -288030,7 +288415,7 @@ XRT_API bool xrtXsonWriterName(xxsonwriter* pWriter, xstrview Name)
 
 
 /* 写入整数映射键。 */
-XRT_API bool xrtXsonWriterKey(xxsonwriter* pWriter, int64 iKey)
+XRT_API bool xrtXlonWriterKey(xxlonwriter* pWriter, int64 iKey)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -288042,7 +288427,7 @@ XRT_API bool xrtXsonWriterKey(xxsonwriter* pWriter, int64 iKey)
 
 
 /* 写入 null。 */
-XRT_API bool xrtXsonWriterNull(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterNull(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -288054,7 +288439,7 @@ XRT_API bool xrtXsonWriterNull(xxsonwriter* pWriter)
 
 
 /* 写入布尔值。 */
-XRT_API bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue)
+XRT_API bool xrtXlonWriterBool(xxlonwriter* pWriter, bool bValue)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -288066,7 +288451,7 @@ XRT_API bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue)
 
 
 /* 写入 int64。 */
-XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue)
+XRT_API bool xrtXlonWriterInt(xxlonwriter* pWriter, int64 iValue)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -288078,7 +288463,7 @@ XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue)
 
 
 /* 写入 uint64。 */
-XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue)
+XRT_API bool xrtXlonWriterUInt(xxlonwriter* pWriter, uint64 iValue)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -288090,31 +288475,31 @@ XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue)
 
 
 /* 写入保留字符身份的 Unicode 标量。 */
-XRT_API bool xrtXsonWriterChar(xxsonwriter* pWriter, uint32 iValue)
+XRT_API bool xrtXlonWriterChar(xxlonwriter* pWriter, uint32 iValue)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtXsonWriterCharValue(pWriter, iValue);
+	return __xrtXlonWriterCharValue(pWriter, iValue);
 }
 
 
 
 /* 写入 double，非有限值使用显式标签。 */
-XRT_API bool xrtXsonWriterFloat(xxsonwriter* pWriter, double fValue)
+XRT_API bool xrtXlonWriterFloat(xxlonwriter* pWriter, double fValue)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtXsonWriterFloatValue(pWriter, fValue);
+	return __xrtXlonWriterFloatValue(pWriter, fValue);
 }
 
 
 
 /* 写入严格 UTF-8 字符串。 */
-XRT_API bool xrtXsonWriterString(xxsonwriter* pWriter, xstrview Text)
+XRT_API bool xrtXlonWriterString(xxlonwriter* pWriter, xstrview Text)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -288126,32 +288511,32 @@ XRT_API bool xrtXsonWriterString(xxsonwriter* pWriter, xstrview Text)
 
 
 /* 写入规范 Base64 二进制标签。 */
-XRT_API bool xrtXsonWriterBytes(xxsonwriter* pWriter, xbytesview Data)
+XRT_API bool xrtXlonWriterBytes(xxlonwriter* pWriter, xbytesview Data)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtXsonWriterBytesValue(pWriter, Data);
+	return __xrtXlonWriterBytesValue(pWriter, Data);
 }
 
 
 
 /* 写入 UTC RFC 3339 时间标签。 */
-XRT_API bool xrtXsonWriterTime(xxsonwriter* pWriter, xtime Time)
+XRT_API bool xrtXlonWriterTime(xxlonwriter* pWriter, xtime Time)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtXsonWriterTimeValue(pWriter, Time);
+	return __xrtXlonWriterTimeValue(pWriter, Time);
 }
 
 
 
 /* 写入非保留自定义标签。 */
-XRT_API bool xrtXsonWriterTag(
-	xxsonwriter* pWriter,
+XRT_API bool xrtXlonWriterTag(
+	xxlonwriter* pWriter,
 	xstrview Tag,
 	xstrview Payload
 )
@@ -288160,12 +288545,12 @@ XRT_API bool xrtXsonWriterTag(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( __xrtXsonReservedTag(Tag) ) {
+	if ( __xrtXlonReservedTag(Tag) ) {
 		return __xrtTextValueWriterFail(
 			pWriter->Core,
 			XERR_ARGUMENT,
 			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-			"custom XSON tag uses a reserved name"
+			"custom XLON tag uses a reserved name"
 		);
 	}
 	return __xrtTextValueWriterTag(pWriter->Core, Tag, Payload);
@@ -288174,8 +288559,8 @@ XRT_API bool xrtXsonWriterTag(
 
 
 /* 写入完整 Value 子树。 */
-XRT_API bool xrtXsonWriterValue(
-	xxsonwriter* pWriter,
+XRT_API bool xrtXlonWriterValue(
+	xxlonwriter* pWriter,
 	const xvalue* pValue
 )
 {
@@ -288186,15 +288571,15 @@ XRT_API bool xrtXsonWriterValue(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( __xrtXsonWriterSkipValue(pWriter, pValue) ) {
+	if ( __xrtXlonWriterSkipValue(pWriter, pValue) ) {
 		return __xrtTextValueWriterFail(
 			pWriter->Core,
 			XERR_UNSUPPORTED,
 			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-			"root or direct XSON value cannot be skipped"
+			"root or direct XLON value cannot be skipped"
 		);
 	}
-	bResult = __xrtXsonWriterTree(pWriter, pValue, 0, arrActive);
+	bResult = __xrtXlonWriterTree(pWriter, pValue, 0, arrActive);
 	if ( !bResult ) {
 		__xrtTextValueWriterPoison(pWriter->Core);
 	}
@@ -288204,7 +288589,7 @@ XRT_API bool xrtXsonWriterValue(
 
 
 /* 完成 writer。 */
-XRT_API bool xrtXsonWriterFinish(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterFinish(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -288216,7 +288601,7 @@ XRT_API bool xrtXsonWriterFinish(xxsonwriter* pWriter)
 
 
 /* 从已完成的内存 writer 移交文本。 */
-XRT_API str xrtXsonWriterTake(xxsonwriter* pWriter, size_t* pSize)
+XRT_API str xrtXlonWriterTake(xxlonwriter* pWriter, size_t* pSize)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -288228,7 +288613,7 @@ XRT_API str xrtXsonWriterTake(xxsonwriter* pWriter, size_t* pSize)
 
 
 /* 销毁 writer；回调重入时保持对象有效。 */
-XRT_API void xrtXsonWriterFree(xxsonwriter* pWriter)
+XRT_API void xrtXlonWriterFree(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		return;
@@ -288241,57 +288626,57 @@ XRT_API void xrtXsonWriterFree(xxsonwriter* pWriter)
 
 
 /* 使用高级配置把 Value 写入同步 sink。 */
-XRT_API bool xrtXsonWrite(
+XRT_API bool xrtXlonWrite(
 	const xvalue* pValue,
-	const xxsonwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+	const xxlonwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 )
 {
-	xxsonwriter* pWriter;
+	xxlonwriter* pWriter;
 	bool bResult;
 
-	pWriter = xrtXsonWriterCreateSink(pConfig, pWrite, pUserData);
+	pWriter = xrtXlonWriterCreateSink(pConfig, pWrite, pUserData);
 	if ( pWriter == NULL ) {
 		return false;
 	}
 	bResult =
-		xrtXsonWriterValue(pWriter, pValue) &&
-		xrtXsonWriterFinish(pWriter);
-	xrtXsonWriterFree(pWriter);
+		xrtXlonWriterValue(pWriter, pValue) &&
+		xrtXlonWriterFinish(pWriter);
+	xrtXlonWriterFree(pWriter);
 	return bResult;
 }
 
 
 
 /* 紧凑或美化地序列化 Value 到新文本。 */
-XRT_API str xrtXsonStringify(
+XRT_API str xrtXlonStringify(
 	const xvalue* pValue,
 	bool bPretty,
 	size_t* pSize
 )
 {
-	xxsonwriteconfig Config;
-	xxsonwriter* pWriter;
+	xxlonwriteconfig Config;
+	xxlonwriter* pWriter;
 	str sText;
 
-	xrtXsonWriteConfigInit(&Config);
+	xrtXlonWriteConfigInit(&Config);
 	if ( bPretty ) {
-		Config.Flags |= XXSON_WRITE_PRETTY;
+		Config.Flags |= XXLON_WRITE_PRETTY;
 	}
-	pWriter = xrtXsonWriterCreate(&Config);
+	pWriter = xrtXlonWriterCreate(&Config);
 	if ( pWriter == NULL ) {
 		return NULL;
 	}
 	if (
-		!xrtXsonWriterValue(pWriter, pValue) ||
-		!xrtXsonWriterFinish(pWriter)
+		!xrtXlonWriterValue(pWriter, pValue) ||
+		!xrtXlonWriterFinish(pWriter)
 	) {
-		xrtXsonWriterFree(pWriter);
+		xrtXlonWriterFree(pWriter);
 		return NULL;
 	}
-	sText = xrtXsonWriterTake(pWriter, pSize);
-	xrtXsonWriterFree(pWriter);
+	sText = xrtXlonWriterTake(pWriter, pSize);
+	xrtXlonWriterFree(pWriter);
 	return sText;
 }
 
@@ -288300,26 +288685,26 @@ XRT_API str xrtXsonStringify(
 
 
 /* ========================================================================== */
-/* source: src/data/xson_file.c */
+/* source: src/data/xlon_file.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSON_FILE)
+#if defined(XRT_FEATURE_XLON_FILE)
 
 
 
-#if defined(XRT_FEATURE_XSON_FILE)
+#if defined(XRT_FEATURE_XLON_FILE)
 
-/* 使用高级配置限额读取并解析 XSON 文件。 */
-XRT_API xvalue* xrtXsonReadFile(
+/* 使用高级配置限额读取并解析 XLON 文件。 */
+XRT_API xvalue* xrtXlonReadFile(
 	cstr sPath,
-	const xxsonreadconfig* pConfig
+	const xxlonreadconfig* pConfig
 )
 {
 	bytes pData;
 	size_t iSize;
 	xvalue* pValue;
 
-	if ( (sPath == NULL) || !__xrtXsonReadConfigValid(pConfig) ) {
+	if ( (sPath == NULL) || !__xrtXlonReadConfigValid(pConfig) ) {
 		if ( sPath == NULL ) {
 			__xrtErrorSetInvalidArgument();
 		}
@@ -288329,39 +288714,39 @@ XRT_API xvalue* xrtXsonReadFile(
 		sPath,
 		pConfig->MaxInputBytes,
 		&iSize,
-		"xrt.xson",
-		XXSON_ERROR_IO,
-		"failed to read XSON file"
+		"xrt.xlon",
+		XXLON_ERROR_IO,
+		"failed to read XLON file"
 	);
 	if ( pData == NULL ) {
 		return NULL;
 	}
-	pValue = xrtXsonRead((xstrview){ (cstr)pData, iSize }, pConfig);
+	pValue = xrtXlonRead((xstrview){ (cstr)pData, iSize }, pConfig);
 	xrtFree(pData);
 	return pValue;
 }
 
 
 
-/* 使用默认严格配置读取并解析 XSON 文件。 */
-XRT_API xvalue* xrtXsonParseFile(cstr sPath)
+/* 使用默认严格配置读取并解析 XLON 文件。 */
+XRT_API xvalue* xrtXlonParseFile(cstr sPath)
 {
-	xxsonreadconfig Config;
+	xxlonreadconfig Config;
 
-	xrtXsonReadConfigInit(&Config);
-	return xrtXsonReadFile(sPath, &Config);
+	xrtXlonReadConfigInit(&Config);
+	return xrtXlonReadFile(sPath, &Config);
 }
 
 
 
-/* 使用高级配置完整序列化后原子替换 XSON 文件。 */
-XRT_API bool xrtXsonWriteFile(
+/* 使用高级配置完整序列化后原子替换 XLON 文件。 */
+XRT_API bool xrtXlonWriteFile(
 	cstr sPath,
 	const xvalue* pValue,
-	const xxsonwriteconfig* pConfig
+	const xxlonwriteconfig* pConfig
 )
 {
-	xxsonwriter* pWriter;
+	xxlonwriter* pWriter;
 	str sText;
 	size_t iSize;
 	bool bResult;
@@ -288370,28 +288755,28 @@ XRT_API bool xrtXsonWriteFile(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	pWriter = xrtXsonWriterCreate(pConfig);
+	pWriter = xrtXlonWriterCreate(pConfig);
 	if ( pWriter == NULL ) {
 		return false;
 	}
 	if (
-		!xrtXsonWriterValue(pWriter, pValue) ||
-		!xrtXsonWriterFinish(pWriter)
+		!xrtXlonWriterValue(pWriter, pValue) ||
+		!xrtXlonWriterFinish(pWriter)
 	) {
-		xrtXsonWriterFree(pWriter);
+		xrtXlonWriterFree(pWriter);
 		return false;
 	}
-	sText = xrtXsonWriterTake(pWriter, &iSize);
-	xrtXsonWriterFree(pWriter);
+	sText = xrtXlonWriterTake(pWriter, &iSize);
+	xrtXlonWriterFree(pWriter);
 	if ( sText == NULL ) {
 		return false;
 	}
 	bResult = __xrtTextValueFileWriteAll(
 		sPath,
 		(xbytesview){ (cbytes)sText, iSize },
-		"xrt.xson",
-		XXSON_ERROR_IO,
-		"failed to write XSON file"
+		"xrt.xlon",
+		XXLON_ERROR_IO,
+		"failed to write XLON file"
 	);
 	xrtFree(sText);
 	return bResult;
@@ -288399,20 +288784,20 @@ XRT_API bool xrtXsonWriteFile(
 
 
 
-/* 紧凑或美化地序列化并原子替换 XSON 文件。 */
-XRT_API bool xrtXsonStringifyFile(
+/* 紧凑或美化地序列化并原子替换 XLON 文件。 */
+XRT_API bool xrtXlonStringifyFile(
 	cstr sPath,
 	const xvalue* pValue,
 	bool bPretty
 )
 {
-	xxsonwriteconfig Config;
+	xxlonwriteconfig Config;
 
-	xrtXsonWriteConfigInit(&Config);
+	xrtXlonWriteConfigInit(&Config);
 	if ( bPretty ) {
-		Config.Flags |= XXSON_WRITE_PRETTY;
+		Config.Flags |= XXLON_WRITE_PRETTY;
 	}
-	return xrtXsonWriteFile(sPath, pValue, &Config);
+	return xrtXlonWriteFile(sPath, pValue, &Config);
 }
 
 #endif
@@ -288424,11 +288809,11 @@ XRT_API bool xrtXsonStringifyFile(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSONL_CORE) || \
-	defined(XRT_FEATURE_XSONL_CORE)
+	defined(XRT_FEATURE_XLONL_CORE)
 
 #include <stdio.h>
 
-#if defined(XRT_FEATURE_JSONL_CORE) || defined(XRT_FEATURE_XSONL_CORE)
+#if defined(XRT_FEATURE_JSONL_CORE) || defined(XRT_FEATURE_XLONL_CORE)
 
 /* 新错误保留底层原因；如果包装本身 OOM，恢复原始错误。 */
 void __xrtTextLinesError(
@@ -288529,9 +288914,9 @@ XRT_API bool xrtJsonlErrorLocation(const xerror* pError, xjsonllocation* pLocati
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSONL_READ) || \
-	defined(XRT_FEATURE_XSONL_READ)
+	defined(XRT_FEATURE_XLONL_READ)
 
-#if defined(XRT_FEATURE_JSONL_READ) || defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_JSONL_READ) || defined(XRT_FEATURE_XLONL_READ)
 
 /* 分隔符由扫描器处理；空白只接受 JSON 的 ASCII 空格、Tab、CR。 */
 static bool __xrtTextLinesBlank(xstrview Text)
@@ -288746,9 +289131,9 @@ XRT_API bool xrtJsonlValid(xstrview Text)
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSONL_WRITE) || \
-	defined(XRT_FEATURE_XSONL_WRITE)
+	defined(XRT_FEATURE_XLONL_WRITE)
 
-#if defined(XRT_FEATURE_JSONL_WRITE) || defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_JSONL_WRITE) || defined(XRT_FEATURE_XLONL_WRITE)
 
 typedef struct xtextlinessink {
 	const xtextlinesformat* Format;
@@ -289040,22 +289425,22 @@ XRT_API bool xrtJsonlStringifyFile(cstr sPath, const xvalue* pArray)
 
 
 /* ========================================================================== */
-/* source: src/data/xsonl_common.c */
+/* source: src/data/xlonl_common.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSONL_CORE)
+#if defined(XRT_FEATURE_XLONL_CORE)
 
-#if defined(XRT_FEATURE_XSONL_CORE)
-const xtextlinesformat __xrtXsonlFormat = { "xrt.xsonl", "xrt.xson", XXSONL_ERROR_CONFIG };
+#if defined(XRT_FEATURE_XLONL_CORE)
+const xtextlinesformat __xrtXlonlFormat = { "xrt.xlonl", "xrt.xlon", XXLONL_ERROR_CONFIG };
 
-XRT_API bool xrtXsonlErrorLocation(const xerror* pError, xxsonllocation* pLocation)
+XRT_API bool xrtXlonlErrorLocation(const xerror* pError, xxlonllocation* pLocation)
 {
 	xtextlineslocation Location;
 	if ( pLocation == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtTextLinesErrorLocation(pError, &__xrtXsonlFormat, &Location) ) {
+	if ( !__xrtTextLinesErrorLocation(pError, &__xrtXlonlFormat, &Location) ) {
 		return false;
 	}
 	pLocation->Offset = Location.Offset;
@@ -289069,99 +289454,99 @@ XRT_API bool xrtXsonlErrorLocation(const xerror* pError, xxsonllocation* pLocati
 
 
 /* ========================================================================== */
-/* source: src/data/xsonl_read.c */
+/* source: src/data/xlonl_read.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_XLONL_READ)
 
-#if defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_XLONL_READ)
 
 /* 即使输入为空，也完整验证配置和底层记录配置。 */
-bool __xrtXsonlReadConfigValid(const xxsonlreadconfig* pConfig)
+bool __xrtXlonlReadConfigValid(const xxlonlreadconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( ((pConfig->Flags & ~XXSONL_READ_REJECT_EMPTY_LINES) != 0) ||
+	if ( ((pConfig->Flags & ~XXLONL_READ_REJECT_EMPTY_LINES) != 0) ||
 		 (pConfig->MaxInputBytes == 0) || (pConfig->MaxRecords == 0) ||
 		 (pConfig->MaxTotalValues == 0) ||
 		 (pConfig->MaxTotalDecodedBytes == 0) ||
 		 (pConfig->Reserved[0] != 0) || (pConfig->Reserved[1] != 0) ||
 		 (pConfig->Reserved[2] != 0) || (pConfig->Reserved[3] != 0) ) {
-		__xrtTextLinesError(&__xrtXsonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
-			"read", "invalid XSONL read configuration", NULL, false);
+		__xrtTextLinesError(&__xrtXlonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
+			"read", "invalid XLONL read configuration", NULL, false);
 		return false;
 	}
-	if ( !__xrtXsonReadConfigValid(&pConfig->Record) ) {
-		__xrtTextLinesError(&__xrtXsonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
+	if ( !__xrtXlonReadConfigValid(&pConfig->Record) ) {
+		__xrtTextLinesError(&__xrtXlonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
 			"read", "invalid record read configuration", NULL, true);
 		return false;
 	}
 	return true;
 }
 
-XRT_API void xrtXsonlReadConfigInit(xxsonlreadconfig* pConfig)
+XRT_API void xrtXlonlReadConfigInit(xxlonlreadconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return;
 	}
 	memset(pConfig, 0, sizeof(*pConfig));
-	xrtXsonReadConfigInit(&pConfig->Record);
-	pConfig->MaxInputBytes = XXSON_INPUT_DEFAULT;
-	pConfig->MaxRecords = XXSON_CONTAINER_DEFAULT;
-	pConfig->MaxTotalValues = XXSON_VALUES_DEFAULT;
-	pConfig->MaxTotalDecodedBytes = XXSON_DECODED_DEFAULT;
+	xrtXlonReadConfigInit(&pConfig->Record);
+	pConfig->MaxInputBytes = XXLON_INPUT_DEFAULT;
+	pConfig->MaxRecords = XXLON_CONTAINER_DEFAULT;
+	pConfig->MaxTotalValues = XXLON_VALUES_DEFAULT;
+	pConfig->MaxTotalDecodedBytes = XXLON_DECODED_DEFAULT;
 }
 
-static xvalue* __xrtXsonlRecordRead(
+static xvalue* __xrtXlonlRecordRead(
 	xstrview Text, const void* pConfig, xtextvaluebudget* pBudget, bool bValidate
 )
 {
-	return __xrtXsonReadBudget(Text, (const xxsonreadconfig*)pConfig, pBudget, bValidate);
+	return __xrtXlonReadBudget(Text, (const xxlonreadconfig*)pConfig, pBudget, bValidate);
 }
 
-static xvalue* __xrtXsonlRead(
-	xstrview Text, const xxsonlreadconfig* pConfig, bool bValidate
+static xvalue* __xrtXlonlRead(
+	xstrview Text, const xxlonlreadconfig* pConfig, bool bValidate
 )
 {
-	xxsonlreadconfig Snapshot;
+	xxlonlreadconfig Snapshot;
 	xtextlinesreadconfig Config;
-	if ( !__xrtXsonlReadConfigValid(pConfig) ) {
+	if ( !__xrtXlonlReadConfigValid(pConfig) ) {
 		return NULL;
 	}
 	Snapshot = *pConfig;
 	memset(&Config, 0, sizeof(Config));
-	Config.RejectEmpty = (Snapshot.Flags & XXSONL_READ_REJECT_EMPTY_LINES) != 0;
+	Config.RejectEmpty = (Snapshot.Flags & XXLONL_READ_REJECT_EMPTY_LINES) != 0;
 	Config.MaxInputBytes = Snapshot.MaxInputBytes;
 	Config.MaxLineBytes = Snapshot.Record.MaxInputBytes;
 	Config.MaxRecords = Snapshot.MaxRecords;
 	Config.MaxTotalValues = Snapshot.MaxTotalValues;
 	Config.MaxTotalDecodedBytes = Snapshot.MaxTotalDecodedBytes;
 	Config.Record = &Snapshot.Record;
-	Config.Read = __xrtXsonlRecordRead;
-	return __xrtTextLinesRead(Text, &Config, &__xrtXsonlFormat, bValidate);
+	Config.Read = __xrtXlonlRecordRead;
+	return __xrtTextLinesRead(Text, &Config, &__xrtXlonlFormat, bValidate);
 }
 
-XRT_API xvalue* xrtXsonlRead(xstrview Text, const xxsonlreadconfig* pConfig)
+XRT_API xvalue* xrtXlonlRead(xstrview Text, const xxlonlreadconfig* pConfig)
 {
-	return __xrtXsonlRead(Text, pConfig, false);
+	return __xrtXlonlRead(Text, pConfig, false);
 }
 
-XRT_API xvalue* xrtXsonlParse(xstrview Text)
+XRT_API xvalue* xrtXlonlParse(xstrview Text)
 {
-	xxsonlreadconfig Config;
-	xrtXsonlReadConfigInit(&Config);
-	return xrtXsonlRead(Text, &Config);
+	xxlonlreadconfig Config;
+	xrtXlonlReadConfigInit(&Config);
+	return xrtXlonlRead(Text, &Config);
 }
 
-XRT_API bool xrtXsonlValid(xstrview Text)
+XRT_API bool xrtXlonlValid(xstrview Text)
 {
-	xxsonlreadconfig Config;
+	xxlonlreadconfig Config;
 	xvalue* pResult;
-	xrtXsonlReadConfigInit(&Config);
-	pResult = __xrtXsonlRead(Text, &Config, true);
+	xrtXlonlReadConfigInit(&Config);
+	pResult = __xrtXlonlRead(Text, &Config, true);
 	xrtValueRelease(pResult);
 	return pResult != NULL;
 }
@@ -289170,113 +289555,113 @@ XRT_API bool xrtXsonlValid(xstrview Text)
 
 
 /* ========================================================================== */
-/* source: src/data/xsonl_write.c */
+/* source: src/data/xlonl_write.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_XLONL_WRITE)
 
-#if defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_XLONL_WRITE)
 
 /* 拒绝 PRETTY，保证一个元素只生成一个物理行。 */
-static bool __xrtXsonlWriteConfigValid(const xxsonlwriteconfig* pConfig)
+static bool __xrtXlonlWriteConfigValid(const xxlonlwriteconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( ((pConfig->Record.Flags & XXSON_WRITE_PRETTY) != 0) ||
+	if ( ((pConfig->Record.Flags & XXLON_WRITE_PRETTY) != 0) ||
 		 (pConfig->MaxOutputBytes == 0) || (pConfig->MaxRecords == 0) ||
 		 (pConfig->Reserved[0] != 0) || (pConfig->Reserved[1] != 0) ||
 		 (pConfig->Reserved[2] != 0) || (pConfig->Reserved[3] != 0) ) {
-		__xrtTextLinesError(&__xrtXsonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
-			"write", "invalid XSONL write configuration", NULL, false);
+		__xrtTextLinesError(&__xrtXlonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
+			"write", "invalid XLONL write configuration", NULL, false);
 		return false;
 	}
-	if ( !__xrtXsonWriteConfigValid(&pConfig->Record) ) {
-		__xrtTextLinesError(&__xrtXsonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
+	if ( !__xrtXlonWriteConfigValid(&pConfig->Record) ) {
+		__xrtTextLinesError(&__xrtXlonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
 			"write", "invalid record write configuration", NULL, true);
 		return false;
 	}
 	return true;
 }
 
-XRT_API void xrtXsonlWriteConfigInit(xxsonlwriteconfig* pConfig)
+XRT_API void xrtXlonlWriteConfigInit(xxlonlwriteconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return;
 	}
 	memset(pConfig, 0, sizeof(*pConfig));
-	xrtXsonWriteConfigInit(&pConfig->Record);
-	pConfig->MaxOutputBytes = XXSON_INPUT_DEFAULT;
-	pConfig->MaxRecords = XXSON_CONTAINER_DEFAULT;
+	xrtXlonWriteConfigInit(&pConfig->Record);
+	pConfig->MaxOutputBytes = XXLON_INPUT_DEFAULT;
+	pConfig->MaxRecords = XXLON_CONTAINER_DEFAULT;
 }
 
-static bool __xrtXsonlRecordWrite(
+static bool __xrtXlonlRecordWrite(
 	const xvalue* pValue, const void* pConfig, xtextlineswriteproc pWrite, ptr pUserData
 )
 {
-	return xrtXsonWrite(pValue, (const xxsonwriteconfig*)pConfig, pWrite, pUserData);
+	return xrtXlonWrite(pValue, (const xxlonwriteconfig*)pConfig, pWrite, pUserData);
 }
 
-static xtextlineswriteconfig __xrtXsonlWriteConfig(const xxsonlwriteconfig* pConfig)
+static xtextlineswriteconfig __xrtXlonlWriteConfig(const xxlonlwriteconfig* pConfig)
 {
 	xtextlineswriteconfig Config;
 	Config.MaxOutputBytes = pConfig->MaxOutputBytes;
 	Config.MaxRecords = pConfig->MaxRecords;
 	Config.Record = &pConfig->Record;
-	Config.Write = __xrtXsonlRecordWrite;
+	Config.Write = __xrtXlonlRecordWrite;
 	return Config;
 }
 
-XRT_API bool xrtXsonlWrite(
-	const xvalue* pArray, const xxsonlwriteconfig* pConfig,
-	xxsonwriteproc pWrite, ptr pUserData
+XRT_API bool xrtXlonlWrite(
+	const xvalue* pArray, const xxlonlwriteconfig* pConfig,
+	xxlonwriteproc pWrite, ptr pUserData
 )
 {
-	xxsonlwriteconfig Snapshot;
+	xxlonlwriteconfig Snapshot;
 	xtextlineswriteconfig Config;
-	if ( !__xrtXsonlWriteConfigValid(pConfig) ) {
+	if ( !__xrtXlonlWriteConfigValid(pConfig) ) {
 		return false;
 	}
 	Snapshot = *pConfig;
-	Config = __xrtXsonlWriteConfig(&Snapshot);
-	return __xrtTextLinesWrite(pArray, &Config, &__xrtXsonlFormat, pWrite, pUserData);
+	Config = __xrtXlonlWriteConfig(&Snapshot);
+	return __xrtTextLinesWrite(pArray, &Config, &__xrtXlonlFormat, pWrite, pUserData);
 }
 
-str __xrtXsonlStringify(
-	const xvalue* pArray, const xxsonlwriteconfig* pConfig, size_t* pSize
+str __xrtXlonlStringify(
+	const xvalue* pArray, const xxlonlwriteconfig* pConfig, size_t* pSize
 )
 {
-	xxsonlwriteconfig Snapshot;
+	xxlonlwriteconfig Snapshot;
 	xtextlineswriteconfig Config;
-	if ( !__xrtXsonlWriteConfigValid(pConfig) ) {
+	if ( !__xrtXlonlWriteConfigValid(pConfig) ) {
 		return NULL;
 	}
 	Snapshot = *pConfig;
-	Config = __xrtXsonlWriteConfig(&Snapshot);
-	return __xrtTextLinesStringify(pArray, &Config, &__xrtXsonlFormat, pSize);
+	Config = __xrtXlonlWriteConfig(&Snapshot);
+	return __xrtTextLinesStringify(pArray, &Config, &__xrtXlonlFormat, pSize);
 }
 
-XRT_API str xrtXsonlStringify(const xvalue* pArray, size_t* pSize)
+XRT_API str xrtXlonlStringify(const xvalue* pArray, size_t* pSize)
 {
-	xxsonlwriteconfig Config;
-	xrtXsonlWriteConfigInit(&Config);
-	return __xrtXsonlStringify(pArray, &Config, pSize);
+	xxlonlwriteconfig Config;
+	xrtXlonlWriteConfigInit(&Config);
+	return __xrtXlonlStringify(pArray, &Config, pSize);
 }
 #endif
 #endif
 
 
 /* ========================================================================== */
-/* source: src/data/xsonl_file.c */
+/* source: src/data/xlonl_file.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_XLONL_FILE)
 
-#if defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_XLONL_FILE)
 
-XRT_API xvalue* xrtXsonlReadFile(cstr sPath, const xxsonlreadconfig* pConfig)
+XRT_API xvalue* xrtXlonlReadFile(cstr sPath, const xxlonlreadconfig* pConfig)
 {
 	bytes pData;
 	size_t iSize;
@@ -289285,28 +289670,28 @@ XRT_API xvalue* xrtXsonlReadFile(cstr sPath, const xxsonlreadconfig* pConfig)
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	if ( !__xrtXsonlReadConfigValid(pConfig) ) {
+	if ( !__xrtXlonlReadConfigValid(pConfig) ) {
 		return NULL;
 	}
 	pData = __xrtTextValueFileReadAll(sPath, pConfig->MaxInputBytes, &iSize,
-		"xrt.xsonl", XXSONL_ERROR_IO, "failed to read XSONL file");
+		"xrt.xlonl", XXLONL_ERROR_IO, "failed to read XLONL file");
 	if ( pData == NULL ) {
 		return NULL;
 	}
-	pValue = xrtXsonlRead((xstrview){ (cstr)pData, iSize }, pConfig);
+	pValue = xrtXlonlRead((xstrview){ (cstr)pData, iSize }, pConfig);
 	xrtFree(pData);
 	return pValue;
 }
 
-XRT_API xvalue* xrtXsonlParseFile(cstr sPath)
+XRT_API xvalue* xrtXlonlParseFile(cstr sPath)
 {
-	xxsonlreadconfig Config;
-	xrtXsonlReadConfigInit(&Config);
-	return xrtXsonlReadFile(sPath, &Config);
+	xxlonlreadconfig Config;
+	xrtXlonlReadConfigInit(&Config);
+	return xrtXlonlReadFile(sPath, &Config);
 }
 
-XRT_API bool xrtXsonlWriteFile(
-	cstr sPath, const xvalue* pArray, const xxsonlwriteconfig* pConfig
+XRT_API bool xrtXlonlWriteFile(
+	cstr sPath, const xvalue* pArray, const xxlonlwriteconfig* pConfig
 )
 {
 	str sText;
@@ -289316,21 +289701,21 @@ XRT_API bool xrtXsonlWriteFile(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	sText = __xrtXsonlStringify(pArray, pConfig, &iSize);
+	sText = __xrtXlonlStringify(pArray, pConfig, &iSize);
 	if ( sText == NULL ) {
 		return false;
 	}
 	bResult = __xrtTextValueFileWriteAll(sPath, (xbytesview){ (cbytes)sText, iSize },
-		"xrt.xsonl", XXSONL_ERROR_IO, "failed to write XSONL file");
+		"xrt.xlonl", XXLONL_ERROR_IO, "failed to write XLONL file");
 	xrtFree(sText);
 	return bResult;
 }
 
-XRT_API bool xrtXsonlStringifyFile(cstr sPath, const xvalue* pArray)
+XRT_API bool xrtXlonlStringifyFile(cstr sPath, const xvalue* pArray)
 {
-	xxsonlwriteconfig Config;
-	xrtXsonlWriteConfigInit(&Config);
-	return xrtXsonlWriteFile(sPath, pArray, &Config);
+	xxlonlwriteconfig Config;
+	xrtXlonlWriteConfigInit(&Config);
+	return xrtXlonlWriteFile(sPath, pArray, &Config);
 }
 #endif
 #endif
@@ -296871,6 +297256,33 @@ bool __xrtConsoleWriterOpen(
 
 
 /* 完整写入 UTF-8 文本；普通文件和管道保留原字节。 */
+bool __xrtConsoleValidateText(xstrview Text)
+{
+    size_t Index = 0;
+    if (Text.Data == NULL && Text.Size != 0) { __xrtErrorSetInvalidArgument(); return false; }
+    while (Index < Text.Size) {
+        uint32 Value, Minimum;
+        unsigned Count;
+        unsigned char Byte = (unsigned char)Text.Data[Index++];
+        if (Byte < 0x80) continue;
+        if (Byte >= 0xc2 && Byte <= 0xdf) { Value = Byte & 31; Count = 1; Minimum = 0x80; }
+        else if (Byte >= 0xe0 && Byte <= 0xef) { Value = Byte & 15; Count = 2; Minimum = 0x800; }
+        else if (Byte >= 0xf0 && Byte <= 0xf4) { Value = Byte & 7; Count = 3; Minimum = 0x10000; }
+        else goto invalid;
+        if (Count > Text.Size - Index) goto invalid;
+        while (Count--) {
+            Byte = (unsigned char)Text.Data[Index++];
+            if ((Byte & 0xc0) != 0x80) goto invalid;
+            Value = (Value << 6) | (Byte & 63);
+        }
+        if (Value < Minimum || Value > 0x10ffff || (Value >= 0xd800 && Value <= 0xdfff)) goto invalid;
+    }
+    return true;
+invalid:
+    __xrtErrorSetDetail(XERR_VALUE, "xrt.console", XCONSOLE_ERROR_UTF8, "write", "console text is not valid UTF-8", NULL);
+    return false;
+}
+
 bool __xrtConsoleWriterWrite(
 	xconsolewriter* pWriter,
 	const void* pData,
@@ -296887,6 +297299,7 @@ bool __xrtConsoleWriterWrite(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
+	if (!__xrtConsoleValidateText((xstrview){(const char*)pData, iSize})) return false;
 	if ( iSize == 0 ) {
 		return true;
 	}
@@ -297027,6 +297440,723 @@ XRT_API bool xrtConsoleIsTerminal(xconsolestream Stream)
 	#endif
 }
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/core/console_input.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_CONSOLE_INPUT)
+#include <errno.h>
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_INPUT)
+
+static int __xrtConsoleInputError(xerrkind Kind, int Code, cstr Message)
+{
+    __xrtErrorSetDetail(Kind, "xrt.console", Code, "read", Message, NULL);
+    return -1;
+}
+
+static int __xrtConsoleInputByte(unsigned char* Byte)
+{
+#if defined(_WIN32) || defined(_WIN64)
+    DWORD Done;
+    if (!ReadFile(GetStdHandle(STD_INPUT_HANDLE), Byte, 1, &Done, NULL)) {
+        DWORD Code = GetLastError();
+        if (Code == ERROR_BROKEN_PIPE || Code == ERROR_HANDLE_EOF) return 0;
+        __xrtErrorSetSystem("xrt.console", XCONSOLE_ERROR_READ, "read", (int)Code, "stdin read failed");
+        return -1;
+    }
+    return Done ? 1 : 0;
+#else
+    ssize_t Done;
+    do { Done = read(STDIN_FILENO, Byte, 1); } while (Done < 0 && errno == EINTR);
+    if (Done >= 0) return Done ? 1 : 0;
+    __xrtErrorSetSystem("xrt.console", XCONSOLE_ERROR_READ, "read", errno, "stdin read failed");
+    return -1;
+#endif
+}
+
+static int __xrtConsoleInputScalar(uint32* Codepoint)
+{
+    unsigned char Byte;
+    uint32 Value, Minimum;
+    unsigned Remaining;
+    int Status;
+#if defined(_WIN32) || defined(_WIN64)
+    HANDLE Input = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD Mode, Done;
+    WCHAR Unit, Low;
+    if (GetConsoleMode(Input, &Mode)) {
+        if (!ReadConsoleW(Input, &Unit, 1, &Done, NULL)) {
+            __xrtErrorSetSystem("xrt.console", XCONSOLE_ERROR_READ, "read", (int)GetLastError(), "console read failed");
+            return -1;
+        }
+        if (!Done) return 0;
+        Value = (uint32)Unit;
+        if (Value >= 0xd800 && Value <= 0xdbff) {
+            if (!ReadConsoleW(Input, &Low, 1, &Done, NULL) || Done != 1 || Low < 0xdc00 || Low > 0xdfff)
+                return __xrtConsoleInputError(XERR_IO, XCONSOLE_ERROR_UTF8, "invalid UTF-16 input");
+            Value = 0x10000 + ((Value - 0xd800) << 10) + ((uint32)Low - 0xdc00);
+        } else if (Value >= 0xdc00 && Value <= 0xdfff)
+            return __xrtConsoleInputError(XERR_IO, XCONSOLE_ERROR_UTF8, "unpaired UTF-16 surrogate");
+        *Codepoint = Value;
+        return 1;
+    }
+#endif
+    Status = __xrtConsoleInputByte(&Byte);
+    if (Status <= 0) return Status;
+    if (Byte < 0x80) { *Codepoint = Byte; return 1; }
+    if (Byte >= 0xc2 && Byte <= 0xdf) { Value = Byte & 31; Remaining = 1; Minimum = 0x80; }
+    else if (Byte >= 0xe0 && Byte <= 0xef) { Value = Byte & 15; Remaining = 2; Minimum = 0x800; }
+    else if (Byte >= 0xf0 && Byte <= 0xf4) { Value = Byte & 7; Remaining = 3; Minimum = 0x10000; }
+    else return __xrtConsoleInputError(XERR_IO, XCONSOLE_ERROR_UTF8, "invalid UTF-8 input");
+    while (Remaining--) {
+        Status = __xrtConsoleInputByte(&Byte);
+        if (Status < 0) return -1;
+        if (Status == 0 || (Byte & 0xc0) != 0x80)
+            return __xrtConsoleInputError(XERR_IO, XCONSOLE_ERROR_UTF8, "truncated or invalid UTF-8 input");
+        Value = (Value << 6) | (Byte & 63);
+    }
+    if (Value < Minimum || Value > 0x10ffff || (Value >= 0xd800 && Value <= 0xdfff))
+        return __xrtConsoleInputError(XERR_IO, XCONSOLE_ERROR_UTF8, "invalid Unicode scalar input");
+    *Codepoint = Value;
+    return 1;
+}
+
+XRT_API int xrtConsoleReadChar(uint32* Codepoint)
+{
+    int Token, Status;
+    if (Codepoint == NULL) return __xrtConsoleInputError(XERR_ARGUMENT, XCONSOLE_ERROR_READ, "null codepoint output");
+    if (!__xrtStandardInputAcquire(&Token)) return -1;
+    Status = __xrtConsoleInputScalar(Codepoint);
+    __xrtStandardInputRelease(&Token);
+    return Status;
+}
+
+XRT_API xbuffer* xrtConsoleReadLine(size_t MaxBytes)
+{
+    int Token, Status;
+    xbuffer* Buffer = NULL;
+    uint32 Codepoint;
+    size_t Count;
+    unsigned char Encoded[4];
+    bool PendingCR = false;
+    if (!__xrtStandardInputAcquire(&Token)) return NULL;
+    for (;;) {
+        Status = __xrtConsoleInputScalar(&Codepoint);
+        if (Status < 0) goto fail;
+        if (Status == 0) break;
+        if (Buffer == NULL && (Buffer = xrtBufferCreate()) == NULL) goto fail;
+        if (Codepoint == '\n') { PendingCR = false; break; }
+        if (PendingCR) {
+            if (xrtBufferView(Buffer).Size >= MaxBytes) {
+                (void)__xrtConsoleInputError(XERR_RANGE, XCONSOLE_ERROR_LIMIT, "console line limit exceeded"); goto fail;
+            }
+            if (!xrtBufferAppendByte(Buffer, '\r')) goto fail;
+            PendingCR = false;
+        }
+        if (Codepoint == '\r') { PendingCR = true; continue; }
+        if (Codepoint < 0x80) { Encoded[0] = (unsigned char)Codepoint; Count = 1; }
+        else if (Codepoint < 0x800) { Encoded[0] = (unsigned char)(0xc0 | (Codepoint >> 6)); Encoded[1] = (unsigned char)(0x80 | (Codepoint & 63)); Count = 2; }
+        else if (Codepoint < 0x10000) { Encoded[0] = (unsigned char)(0xe0 | (Codepoint >> 12)); Encoded[1] = (unsigned char)(0x80 | ((Codepoint >> 6) & 63)); Encoded[2] = (unsigned char)(0x80 | (Codepoint & 63)); Count = 3; }
+        else { Encoded[0] = (unsigned char)(0xf0 | (Codepoint >> 18)); Encoded[1] = (unsigned char)(0x80 | ((Codepoint >> 12) & 63)); Encoded[2] = (unsigned char)(0x80 | ((Codepoint >> 6) & 63)); Encoded[3] = (unsigned char)(0x80 | (Codepoint & 63)); Count = 4; }
+        if (Count > MaxBytes || xrtBufferView(Buffer).Size > MaxBytes - Count) {
+            (void)__xrtConsoleInputError(XERR_RANGE, XCONSOLE_ERROR_LIMIT, "console line limit exceeded");
+            goto fail;
+        }
+        if (!xrtBufferAppend(Buffer, (xbytesview){Encoded, Count})) goto fail;
+    }
+    if (PendingCR) {
+        if (xrtBufferView(Buffer).Size >= MaxBytes) {
+            (void)__xrtConsoleInputError(XERR_RANGE, XCONSOLE_ERROR_LIMIT, "console line limit exceeded"); goto fail;
+        }
+        if (!xrtBufferAppendByte(Buffer, '\r')) goto fail;
+    }
+    __xrtStandardInputRelease(&Token);
+    return Buffer;
+fail:
+    xrtBufferDestroy(Buffer);
+    __xrtStandardInputRelease(&Token);
+    return NULL;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/core/console_screen.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN)
+#include <errno.h>
+#include <stdlib.h>
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#include <sys/ioctl.h>
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN)
+static bool __xrtScreenError(xerrkind Kind, cstr Message)
+{
+    __xrtErrorSetDetail(Kind, "xrt.console", XCONSOLE_ERROR_TERMINAL, "terminal", Message, NULL);
+    return false;
+}
+static bool __xrtScreenSystem(cstr Operation)
+{
+#if defined(_WIN32) || defined(_WIN64)
+    int Code = (int)GetLastError();
+#else
+    int Code = errno;
+#endif
+    __xrtErrorSetSystem("xrt.console", XCONSOLE_ERROR_TERMINAL, Operation, Code, "terminal operation failed");
+    return false;
+}
+
+XRT_API bool xrtConsoleSize(xconsolestream Stream, uint32* Columns, uint32* Rows)
+{
+    if (Columns == NULL || Rows == NULL || (Stream != XCONSOLE_STDOUT && Stream != XCONSOLE_STDERR))
+        return __xrtScreenError(XERR_ARGUMENT, "invalid terminal size argument");
+    *Columns = *Rows = 0;
+    if (!xrtConsoleIsTerminal(Stream)) return true;
+#if defined(_WIN32) || defined(_WIN64)
+    CONSOLE_SCREEN_BUFFER_INFO Info;
+    if (!GetConsoleScreenBufferInfo(GetStdHandle(Stream == XCONSOLE_STDOUT ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE), &Info))
+        return __xrtScreenSystem("size");
+    *Columns = (uint32)(Info.srWindow.Right - Info.srWindow.Left + 1);
+    *Rows = (uint32)(Info.srWindow.Bottom - Info.srWindow.Top + 1);
+#else
+    struct winsize Size;
+    if (ioctl(Stream == XCONSOLE_STDOUT ? STDOUT_FILENO : STDERR_FILENO, TIOCGWINSZ, &Size) != 0)
+        return __xrtScreenSystem("size");
+    *Columns = Size.ws_col; *Rows = Size.ws_row;
+#endif
+    return true;
+}
+XRT_API int xrtConsoleColorMode(xconsolestream Stream)
+{
+    const char* Term;
+    if ((Stream != XCONSOLE_STDOUT && Stream != XCONSOLE_STDERR)) {
+        (void)__xrtScreenError(XERR_ARGUMENT, "invalid console stream"); return -1;
+    }
+    if (!xrtConsoleIsTerminal(Stream) || getenv("NO_COLOR") != NULL) return 0;
+    Term = getenv("TERM");
+    if (Term != NULL && strcmp(Term, "dumb") == 0) return 0;
+#if defined(_WIN32) || defined(_WIN64)
+    DWORD Mode;
+    if (GetConsoleMode(GetStdHandle(Stream == XCONSOLE_STDOUT ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE), &Mode) &&
+        (Mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING)) return 3;
+    return 1;
+#else
+    { const char* Color = getenv("COLORTERM");
+      if (Color != NULL && (strcmp(Color,"truecolor") == 0 || strcmp(Color,"24bit") == 0)) return 3; }
+    return Term != NULL && strstr(Term, "256color") != NULL ? 2 : 1;
+#endif
+}
+bool __xrtTerminalStyle(char* Text, size_t Capacity, int32 Fg, int32 Bg, uint32 Attributes)
+{
+    int Length, Extra;
+    int32 Colors[2] = {Fg, Bg};
+    if ((Attributes & ~31u) != 0) return __xrtScreenError(XERR_RANGE, "invalid text attributes");
+    for (unsigned i=0; i<2; ++i)
+        if (Colors[i] < -1 || Colors[i] > 0x1ffffff || (Colors[i] > 255 && Colors[i] < 0x1000000))
+            return __xrtScreenError(XERR_RANGE, "invalid terminal color");
+    Length = snprintf(Text, Capacity, "\x1b[0%s%s%s%s%s",
+        Attributes&1?";1":"", Attributes&2?";2":"", Attributes&4?";3":"", Attributes&8?";4":"", Attributes&16?";7":"");
+    if (Length < 0 || (size_t)Length >= Capacity) return __xrtScreenError(XERR_INTERNAL, "style buffer overflow");
+    for (unsigned i=0; i<2; ++i) {
+        int32 Color = Colors[i];
+        if (Color < 0) continue;
+        if (Color < 8) Extra = snprintf(Text+Length, Capacity-(size_t)Length, ";%d", (i?40:30)+Color);
+        else if (Color < 16) Extra = snprintf(Text+Length, Capacity-(size_t)Length, ";%d", (i?100:90)+Color-8);
+        else if (Color <= 255) Extra = snprintf(Text+Length, Capacity-(size_t)Length, ";%d;5;%d", i?48:38, Color);
+        else Extra = snprintf(Text+Length, Capacity-(size_t)Length, ";%d;2;%d;%d;%d", i?48:38, (Color>>16)&255, (Color>>8)&255, Color&255);
+        if (Extra < 0 || (size_t)Extra >= Capacity-(size_t)Length) return __xrtScreenError(XERR_INTERNAL, "style buffer overflow");
+        Length += Extra;
+    }
+    if ((size_t)Length+2 > Capacity) return __xrtScreenError(XERR_INTERNAL, "style buffer overflow");
+    Text[Length++] = 'm'; Text[Length] = 0; return true;
+}
+XRT_API bool xrtConsoleWriteStyled(xconsolestream Stream, xstrview Text, int32 Fg, int32 Bg, uint32 Attributes)
+{
+    char Style[128]; xconsolewriter Writer; bool Ok;
+#if defined(_WIN32) || defined(_WIN64)
+    DWORD Mode = 0; bool Changed = false;
+#endif
+    if (!__xrtTerminalStyle(Style, sizeof(Style), Fg, Bg, Attributes) || !__xrtConsoleValidateText(Text)) return false;
+    if (!__xrtConsoleWriterOpen(Stream, &Writer)) return false;
+    if (!xrtConsoleIsTerminal(Stream) || xrtConsoleColorMode(Stream) == 0) {
+        Ok = __xrtConsoleWriterWrite(&Writer, Text.Data, Text.Size);
+        __xrtConsoleWriterClose(&Writer); return Ok;
+    }
+#if defined(_WIN32) || defined(_WIN64)
+    if (!GetConsoleMode((HANDLE)Writer.Console, &Mode)) { __xrtConsoleWriterClose(&Writer); return __xrtScreenSystem("style"); }
+    if (!(Mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
+        if (!SetConsoleMode((HANDLE)Writer.Console, Mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
+            __xrtConsoleWriterClose(&Writer); return __xrtScreenSystem("style");
+        }
+        Changed = true;
+    }
+#endif
+    Ok = __xrtConsoleWriterWrite(&Writer, Style, strlen(Style)) && __xrtConsoleWriterWrite(&Writer, Text.Data, Text.Size);
+    { xerror* Error = Ok ? NULL : xrtTakeError();
+      if (!__xrtConsoleWriterWrite(&Writer, "\x1b[0m", 4)) Ok = false;
+#if defined(_WIN32) || defined(_WIN64)
+      if (Changed && !SetConsoleMode((HANDLE)Writer.Console, Mode)) { (void)__xrtScreenSystem("restore-style"); Ok = false; }
+#endif
+      if (Error != NULL) xrtSetErrorTake(Error); }
+    __xrtConsoleWriterClose(&Writer); return Ok;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/core/console_terminal.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_CONSOLE_TERMINAL)
+#include <errno.h>
+#include <stdlib.h>
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <poll.h>
+#include <time.h>
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_TERMINAL)
+enum { XRT_CONSOLE_QUEUE_LIMIT = 16 * 1024 * 1024, XRT_CONSOLE_EVENT_LIMIT = 1024 * 1024 };
+struct xconsolesession {
+    uint64 Thread;
+    uint32 Flags, Columns, Rows;
+    bool Active, InputEnded, ClosedEvent, CursorChanged;
+    xbuffer Output, Input;
+    uint64 EscapeSince;
+#if defined(_WIN32) || defined(_WIN64)
+    HANDLE In, Out;
+    DWORD InputMode, OutputMode;
+    CONSOLE_CURSOR_INFO Cursor;
+    WCHAR HighSurrogate;
+#else
+    struct termios InputMode;
+#endif
+};
+
+static bool __xrtTerminalError(xerrkind Kind, cstr Message)
+{
+    __xrtErrorSetDetail(Kind, "xrt.console", XCONSOLE_ERROR_TERMINAL, "terminal", Message, NULL);
+    return false;
+}
+static bool __xrtTerminalSystem(cstr Operation)
+{
+#if defined(_WIN32) || defined(_WIN64)
+    int Code = (int)GetLastError();
+#else
+    int Code = errno;
+#endif
+    __xrtErrorSetSystem("xrt.console", XCONSOLE_ERROR_TERMINAL, Operation, Code, "terminal operation failed");
+    return false;
+}
+static uint64 __xrtTerminalNow(void)
+{
+    return xrtClock() / 1000u;
+}
+static bool __xrtSessionCheck(const xconsolesession* Session)
+{
+    if (Session == NULL || !Session->Active) return __xrtTerminalError(XERR_CLOSED, "terminal session is closed");
+    if (Session->Thread != xrtThreadCurrentId()) return __xrtTerminalError(XERR_STATE, "terminal session belongs to another thread");
+    return true;
+}
+
+
+XRT_API xconsolesession* xrtConsoleSessionOpen(uint32 Flags)
+{
+    xconsolesession* Session; xerror* Error;
+    if (Flags & ~15u) { (void)__xrtTerminalError(XERR_RANGE, "invalid terminal session flags"); return NULL; }
+    Session = (xconsolesession*)xrtCalloc(1, sizeof(*Session));
+    if (Session == NULL) return NULL;
+    if (!__xrtStandardInputAcquire(Session)) { xrtFree(Session); return NULL; }
+    Session->Thread = xrtThreadCurrentId(); Session->Flags = Flags;
+    (void)xrtBufferInit(&Session->Input); (void)xrtBufferInit(&Session->Output);
+    if (!xrtConsoleIsTerminal(XCONSOLE_STDOUT)) {
+        (void)__xrtTerminalError(XERR_UNSUPPORTED, "terminal session requires interactive stdin and stdout"); goto fail;
+    }
+#if defined(_WIN32) || defined(_WIN64)
+    Session->In = GetStdHandle(STD_INPUT_HANDLE); Session->Out = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (!GetConsoleMode(Session->In, &Session->InputMode) || !GetConsoleMode(Session->Out, &Session->OutputMode) ||
+        !GetConsoleCursorInfo(Session->Out, &Session->Cursor)) { (void)__xrtTerminalSystem("open"); goto fail; }
+    { DWORD Input = Session->InputMode | ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS;
+      if (Flags & 1) Input &= ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT);
+      Input &= ~ENABLE_QUICK_EDIT_MODE;
+      if (Flags & 2) Input |= ENABLE_MOUSE_INPUT; else Input &= ~ENABLE_MOUSE_INPUT;
+      if (!SetConsoleMode(Session->Out, Session->OutputMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
+          (void)__xrtTerminalSystem("output-mode"); goto fail; }
+      if (!SetConsoleMode(Session->In, Input)) {
+          Error = xrtTakeError(); (void)__xrtTerminalSystem("input-mode");
+          (void)SetConsoleMode(Session->Out, Session->OutputMode); if (Error != NULL) xrtSetErrorTake(Error); goto fail; } }
+#else
+    if (!isatty(STDIN_FILENO) || tcgetattr(STDIN_FILENO, &Session->InputMode) != 0) {
+        (void)__xrtTerminalError(XERR_UNSUPPORTED, "terminal input is not interactive"); goto fail; }
+    { struct termios Input = Session->InputMode;
+      if (Flags & 1) { Input.c_iflag &= ~(BRKINT|ICRNL|INLCR|IGNCR|INPCK|ISTRIP|IXON|PARMRK);
+        Input.c_cflag = (Input.c_cflag & ~(CSIZE|PARENB)) | CS8;
+        Input.c_lflag &= ~(ECHO|ICANON|IEXTEN|ISIG); Input.c_cc[VMIN] = 1; Input.c_cc[VTIME] = 0; }
+      if (tcsetattr(STDIN_FILENO, TCSANOW, &Input) != 0) { (void)__xrtTerminalSystem("input-mode"); goto fail; } }
+#endif
+    Session->Active = true;
+    if (!xrtConsoleSize(XCONSOLE_STDOUT, &Session->Columns, &Session->Rows) ||
+        ((Flags & 8) && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?1049h"))) ||
+#if !defined(_WIN32) && !defined(_WIN64)
+        ((Flags & 4) && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?2004h"))) ||
+        ((Flags & 2) && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?1002h\x1b[?1006h"))) ||
+#endif
+        !xrtConsoleFlush(XCONSOLE_STDOUT)) {
+        Error = xrtTakeError(); (void)xrtConsoleSessionClose(Session);
+        if (Error != NULL) xrtSetErrorTake(Error);
+        goto fail;
+    }
+    return Session;
+fail:
+    __xrtStandardInputRelease(Session); xrtBufferUnit(&Session->Input); xrtBufferUnit(&Session->Output); xrtFree(Session); return NULL;
+}
+XRT_API bool xrtConsoleSessionClosed(const xconsolesession* Session) { return Session == NULL || !Session->Active; }
+XRT_API bool xrtConsoleSessionPasteSupported(const xconsolesession* Session)
+{
+#if defined(_WIN32) || defined(_WIN64)
+    (void)Session; return false; /* Native Windows input records cannot distinguish paste from typing. */
+#else
+    return Session != NULL && Session->Active && (Session->Flags & 4) != 0;
+#endif
+}
+XRT_API bool xrtConsoleSessionWrite(xconsolesession* Session, xstrview Text)
+{
+    if (!__xrtSessionCheck(Session) || !__xrtConsoleValidateText(Text)) return false;
+    if (Text.Size > XRT_CONSOLE_QUEUE_LIMIT || Session->Output.Size > XRT_CONSOLE_QUEUE_LIMIT - Text.Size)
+        return __xrtTerminalError(XERR_RANGE, "terminal output queue limit exceeded");
+    return xrtBufferAppend(&Session->Output, (xbytesview){(const unsigned char*)Text.Data, Text.Size});
+}
+XRT_API bool xrtConsoleSessionFlush(xconsolesession* Session)
+{
+    bool Ok;
+    if (!__xrtSessionCheck(Session)) return false;
+    Ok = xrtConsoleWrite(XCONSOLE_STDOUT, (xstrview){(const char*)Session->Output.Data, Session->Output.Size});
+    /* A write error may be partial: discard the batch, never replay duplicated bytes. */
+    xrtBufferClear(&Session->Output);
+    return Ok && xrtConsoleFlush(XCONSOLE_STDOUT);
+}
+XRT_API bool xrtConsoleSessionMove(xconsolesession* Session, uint32 X, uint32 Y)
+{
+    char Text[64]; int Length;
+    if (X == UINT32_MAX || Y == UINT32_MAX) return __xrtTerminalError(XERR_RANGE, "cursor position overflow");
+    Length = snprintf(Text, sizeof(Text), "\x1b[%u;%uH", Y+1u, X+1u);
+    return Length > 0 && xrtConsoleSessionWrite(Session, (xstrview){Text, (size_t)Length});
+}
+XRT_API bool xrtConsoleSessionClear(xconsolesession* Session, int Mode)
+{
+    if (Mode < 0 || Mode > 2) return __xrtTerminalError(XERR_RANGE, "invalid clear mode");
+    return xrtConsoleSessionWrite(Session, Mode == 0 ? XRT_STR_LITERAL("\x1b[2J\x1b[H") :
+        Mode == 1 ? XRT_STR_LITERAL("\x1b[2K") : XRT_STR_LITERAL("\x1b[J"));
+}
+XRT_API bool xrtConsoleSessionCursor(xconsolesession* Session, bool Visible)
+{
+    if (!__xrtSessionCheck(Session)) return false;
+    if (!xrtConsoleSessionWrite(Session, Visible ? XRT_STR_LITERAL("\x1b[?25h") : XRT_STR_LITERAL("\x1b[?25l"))) return false;
+    Session->CursorChanged = true; return true;
+}
+XRT_API bool xrtConsoleSessionStyle(xconsolesession* Session, int32 Fg, int32 Bg, uint32 Attributes)
+{
+    char Text[128];
+    return __xrtTerminalStyle(Text, sizeof(Text), Fg, Bg, Attributes) && xrtConsoleSessionWrite(Session, (xstrview){Text, strlen(Text)});
+}
+XRT_API bool xrtConsoleSessionClose(xconsolesession* Session)
+{
+    bool Ok = true; xerror* Error = NULL;
+    if (Session == NULL || !Session->Active) return true;
+    if (!__xrtSessionCheck(Session)) return false;
+    if (!xrtConsoleSessionFlush(Session)) { Ok = false; Error = xrtTakeError(); }
+    /* Restoration always continues after any output failure. */
+    if (!xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[0m"))) Ok = false;
+#if !defined(_WIN32) && !defined(_WIN64)
+    if ((Session->Flags & 2) && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?1002l\x1b[?1006l"))) Ok = false;
+    if ((Session->Flags & 4) && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?2004l"))) Ok = false;
+    if (Session->CursorChanged && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?25h"))) Ok = false;
+#endif
+    if ((Session->Flags & 8) && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?1049l"))) Ok = false;
+    if (!xrtConsoleFlush(XCONSOLE_STDOUT)) Ok = false;
+#if defined(_WIN32) || defined(_WIN64)
+    if (!SetConsoleMode(Session->In, Session->InputMode)) { (void)__xrtTerminalSystem("restore-input"); Ok = false; }
+    if (!SetConsoleCursorInfo(Session->Out, &Session->Cursor)) { (void)__xrtTerminalSystem("restore-cursor"); Ok = false; }
+    if (!SetConsoleMode(Session->Out, Session->OutputMode)) { (void)__xrtTerminalSystem("restore-output"); Ok = false; }
+#else
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &Session->InputMode) != 0) { (void)__xrtTerminalSystem("restore-input"); Ok = false; }
+#endif
+    Session->Active = false; __xrtStandardInputRelease(Session);
+    if (Error != NULL) xrtSetErrorTake(Error);
+    return Ok;
+}
+XRT_API void xrtConsoleSessionDestroy(xconsolesession* Session)
+{
+    if (Session == NULL) return;
+    /* Destruction owns the last resource edge. Cleanup is not an event operation
+     * and must restore process modes even if the final owner is another thread.
+     * Concurrent operations/destruction on a C session remain forbidden. */
+    Session->Thread = xrtThreadCurrentId();
+    (void)xrtConsoleSessionClose(Session); xrtBufferUnit(&Session->Input); xrtBufferUnit(&Session->Output); xrtFree(Session);
+}
+XRT_API void xrtConsoleEventDestroy(xconsoleevent* Event)
+{ if (Event != NULL) { xrtBufferDestroy(Event->Text); xrtFree(Event); } }
+static xconsoleevent* __xrtConsoleEvent(xconsoleeventkind Kind)
+{
+    xconsoleevent* Event = (xconsoleevent*)xrtCalloc(1, sizeof(*Event));
+    if (Event != NULL) { Event->Kind = Kind; Event->Repeat = 1; Event->Down = true; }
+    return Event;
+}
+static bool __xrtConsoleEventText(xconsoleevent* Event, const void* Text, size_t Size)
+{
+    if (!__xrtConsoleValidateText((xstrview){(const char*)Text, Size})) return false;
+    Event->Text = xrtBufferFrom((xbytesview){(const unsigned char*)Text, Size});
+    return Event->Text != NULL;
+}
+
+#if defined(_WIN32) || defined(_WIN64)
+static uint32 __xrtConsoleWindowsKey(WORD Key)
+{
+    switch (Key) {
+    case VK_ESCAPE: return XCONSOLE_KEY_ESCAPE; case VK_RETURN: return XCONSOLE_KEY_ENTER;
+    case VK_TAB: return XCONSOLE_KEY_TAB; case VK_BACK: return XCONSOLE_KEY_BACKSPACE;
+    case VK_UP: return XCONSOLE_KEY_UP; case VK_DOWN: return XCONSOLE_KEY_DOWN;
+    case VK_LEFT: return XCONSOLE_KEY_LEFT; case VK_RIGHT: return XCONSOLE_KEY_RIGHT;
+    case VK_HOME: return XCONSOLE_KEY_HOME; case VK_END: return XCONSOLE_KEY_END;
+    case VK_INSERT: return XCONSOLE_KEY_INSERT; case VK_DELETE: return XCONSOLE_KEY_DELETE;
+    case VK_PRIOR: return XCONSOLE_KEY_PAGE_UP; case VK_NEXT: return XCONSOLE_KEY_PAGE_DOWN;
+    default: return Key >= VK_F1 && Key <= VK_F24 ? XCONSOLE_KEY_F1 + Key - VK_F1 : Key;
+    }
+}
+static uint32 __xrtConsoleWindowsModifiers(DWORD State)
+{ return (State & SHIFT_PRESSED ? 1u:0u) | (State & (LEFT_CTRL_PRESSED|RIGHT_CTRL_PRESSED) ? 2u:0u) |
+    (State & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED) ? 4u:0u); }
+XRT_API xconsoleevent* xrtConsoleSessionRead(xconsolesession* Session, int TimeoutMs)
+{
+    uint64 Deadline; INPUT_RECORD Record; DWORD Done, Wait; xconsoleevent* Event;
+    if (!__xrtSessionCheck(Session)) return NULL;
+    if (TimeoutMs < -1) { (void)__xrtTerminalError(XERR_RANGE, "invalid event timeout"); return NULL; }
+    Deadline = TimeoutMs >= 0 ? __xrtTerminalNow() + (uint64)TimeoutMs : 0;
+    for (;;) {
+        uint64 Now = __xrtTerminalNow();
+        DWORD Remaining = TimeoutMs < 0 ? INFINITE : Now >= Deadline ? 0 : (DWORD)(Deadline-Now);
+        Wait = WaitForSingleObject(Session->In, Remaining);
+        if (Wait == WAIT_TIMEOUT) return NULL;
+        if (Wait != WAIT_OBJECT_0 || !ReadConsoleInputW(Session->In, &Record, 1, &Done)) {
+            (void)__xrtTerminalSystem("read-event"); return NULL; }
+        if (Done == 0) return NULL;
+        if (Record.EventType == WINDOW_BUFFER_SIZE_EVENT) {
+            uint32 Columns, Rows;
+            if (!xrtConsoleSize(XCONSOLE_STDOUT, &Columns, &Rows)) return NULL;
+            if (Columns == Session->Columns && Rows == Session->Rows) continue;
+            Event = __xrtConsoleEvent(XCONSOLE_EVENT_RESIZE); if (Event == NULL) return NULL;
+            Session->Columns = Event->Columns = Columns; Session->Rows = Event->Rows = Rows; return Event;
+        }
+        if (Record.EventType == MOUSE_EVENT && (Session->Flags & 2)) {
+            MOUSE_EVENT_RECORD* Mouse = &Record.Event.MouseEvent;
+            CONSOLE_SCREEN_BUFFER_INFO Info;
+            Event = __xrtConsoleEvent(XCONSOLE_EVENT_MOUSE); if (Event == NULL) return NULL;
+            Event->X = Mouse->dwMousePosition.X; Event->Y = Mouse->dwMousePosition.Y;
+            if (GetConsoleScreenBufferInfo(Session->Out, &Info)) {
+                Event->X -= Info.srWindow.Left; Event->Y -= Info.srWindow.Top;
+            }
+            Event->Key = Mouse->dwButtonState & 0xffffu; Event->Down = Event->Key != 0;
+            Event->Modifiers = __xrtConsoleWindowsModifiers(Mouse->dwControlKeyState);
+            if (Mouse->dwEventFlags & MOUSE_WHEELED) Event->Wheel = (int16)HIWORD(Mouse->dwButtonState) / WHEEL_DELTA;
+            return Event;
+        }
+        if (Record.EventType == KEY_EVENT) {
+            KEY_EVENT_RECORD* Key = &Record.Event.KeyEvent; uint32 Scalar = Key->uChar.UnicodeChar;
+            uint32 Modifiers = __xrtConsoleWindowsModifiers(Key->dwControlKeyState);
+            unsigned char Text[4]; size_t Length;
+            /* UTF-16 key-up records are not standalone Unicode scalars. */
+            if (!Key->bKeyDown && Scalar >= 0xd800 && Scalar <= 0xdfff) continue;
+            if (Key->bKeyDown && Scalar >= 0xd800 && Scalar <= 0xdbff) { Session->HighSurrogate = (WCHAR)Scalar; continue; }
+            if (Key->bKeyDown && Scalar >= 0xdc00 && Scalar <= 0xdfff) {
+                if (Session->HighSurrogate == 0) { (void)__xrtTerminalError(XERR_IO, "unpaired input surrogate"); return NULL; }
+                Scalar = 0x10000u + (((uint32)Session->HighSurrogate-0xd800u)<<10) + Scalar-0xdc00u;
+                Session->HighSurrogate = 0;
+            } else if (Key->bKeyDown && Session->HighSurrogate != 0) {
+                Session->HighSurrogate = 0; (void)__xrtTerminalError(XERR_IO, "incomplete input surrogate"); return NULL;
+            }
+            if (Key->wVirtualKeyCode == VK_SHIFT || Key->wVirtualKeyCode == VK_CONTROL || Key->wVirtualKeyCode == VK_MENU) continue;
+            /* AltGr often sets both Ctrl and Alt but still produces printable
+             * Unicode. Use the delivered scalar, not modifiers, to classify text. */
+            Event = __xrtConsoleEvent(Key->bKeyDown && Scalar >= 32 ? XCONSOLE_EVENT_TEXT : XCONSOLE_EVENT_KEY);
+            if (Event == NULL) return NULL;
+            Event->Key = Event->Kind == XCONSOLE_EVENT_TEXT ? Scalar : __xrtConsoleWindowsKey(Key->wVirtualKeyCode);
+            Event->Down = Key->bKeyDown != 0; Event->Modifiers = Modifiers; Event->Repeat = Key->wRepeatCount ? Key->wRepeatCount : 1;
+            if (Event->Kind != XCONSOLE_EVENT_TEXT) return Event;
+            if (Scalar < 0x80) { Text[0] = (unsigned char)Scalar; Length = 1; }
+            else if (Scalar < 0x800) { Text[0] = (unsigned char)(0xc0|(Scalar>>6)); Text[1] = (unsigned char)(0x80|(Scalar&63)); Length = 2; }
+            else if (Scalar < 0x10000) { Text[0] = (unsigned char)(0xe0|(Scalar>>12)); Text[1] = (unsigned char)(0x80|((Scalar>>6)&63)); Text[2] = (unsigned char)(0x80|(Scalar&63)); Length = 3; }
+            else { Text[0] = (unsigned char)(0xf0|(Scalar>>18)); Text[1] = (unsigned char)(0x80|((Scalar>>12)&63)); Text[2] = (unsigned char)(0x80|((Scalar>>6)&63)); Text[3] = (unsigned char)(0x80|(Scalar&63)); Length = 4; }
+            if (__xrtConsoleEventText(Event, Text, Length)) return Event;
+            xrtConsoleEventDestroy(Event); return NULL;
+        }
+        if (TimeoutMs >= 0 && __xrtTerminalNow() >= Deadline) return NULL;
+    }
+}
+#else
+static void __xrtConsoleConsume(xconsolesession* Session, size_t Count)
+{ memmove(Session->Input.Data, Session->Input.Data+Count, Session->Input.Size-Count); (void)xrtBufferResize(&Session->Input, Session->Input.Size-Count); Session->EscapeSince = 0; }
+/* Never pass terminal-controlled numbers to scanf: overflowing numeric input
+ * must not invoke undefined conversion behavior. Accept only complete fields. */
+static bool __xrtConsoleNumbers(const unsigned char* Data, size_t Size, uint32* Values, size_t Count)
+{
+    size_t Offset = 0;
+    for (size_t Field = 0; Field < Count; ++Field) {
+        uint32 Value = 0; size_t Begin = Offset;
+        while (Offset < Size && Data[Offset] >= '0' && Data[Offset] <= '9') {
+            unsigned Digit = Data[Offset++] - '0';
+            if (Value > (UINT32_MAX - Digit) / 10u) return false;
+            Value = Value * 10u + Digit;
+        }
+        if (Offset == Begin) return false;
+        Values[Field] = Value;
+        if (Field + 1 < Count && (Offset >= Size || Data[Offset++] != ';')) return false;
+    }
+    return Offset == Size;
+}
+static uint32 __xrtConsoleScalar(const unsigned char* Data, size_t Count)
+{
+    uint32 Scalar = Data[0] & (Count == 1 ? 127u : Count == 2 ? 31u : Count == 3 ? 15u : 7u);
+    for (size_t i = 1; i < Count; ++i) Scalar = (Scalar << 6) | (Data[i] & 63u);
+    return Scalar;
+}
+/* Parse only complete bounded events; an incomplete sequence remains owned by the session. */
+static xconsoleevent* __xrtConsoleParseEvent(xconsolesession* Session)
+{
+    const unsigned char* Data = Session->Input.Data; size_t Size = Session->Input.Size, Count=1;
+    xconsoleevent* Event; uint32 Key=0, Modifiers=0; bool Text=false; size_t TextOffset=0;
+    if (Size == 0) return NULL;
+    if (Data[0] == 0x1b) {
+        if (Session->EscapeSince == 0) Session->EscapeSince = __xrtTerminalNow();
+        if (Size >= 6 && memcmp(Data,"\x1b[200~",6)==0 && (Session->Flags & 4)) {
+            size_t End;
+            for (End=6; End+6<=Size; ++End) if (memcmp(Data+End,"\x1b[201~",6)==0) break;
+            if (End+6>Size) return NULL;
+            if (End-6>XRT_CONSOLE_EVENT_LIMIT) { (void)__xrtTerminalError(XERR_RANGE,"paste limit exceeded"); return NULL; }
+            Event=__xrtConsoleEvent(XCONSOLE_EVENT_PASTE); if (Event==NULL) return NULL;
+            if (!__xrtConsoleEventText(Event,Data+6,End-6)) { xrtConsoleEventDestroy(Event); return NULL; }
+            __xrtConsoleConsume(Session,End+6); return Event;
+        }
+        if (Size >= 3 && (Data[1]=='[' || Data[1]=='O')) {
+            size_t End=2;
+            while (End<Size && End<64 && !(Data[End]>=0x40 && Data[End]<=0x7e)) ++End;
+            if (End<Size && End<64) {
+                uint32 Values[3]={0,0,0}, First=0, Second=0, Third=0;
+                size_t Length=End-2; bool Valid;
+                if (Length!=0 && Data[2]=='<' && (Session->Flags & 2) && (Data[End]=='M'||Data[End]=='m') &&
+                    __xrtConsoleNumbers(Data+3,Length-1,Values,3) &&
+                    (First=Values[0],Second=Values[1],Third=Values[2],Second!=0 && Third!=0 && Second<=INT32_MAX && Third<=INT32_MAX)) {
+                    Event=__xrtConsoleEvent(XCONSOLE_EVENT_MOUSE); if (Event==NULL) return NULL;
+                    Event->X=(int32)Second-1; Event->Y=(int32)Third-1;
+                    Event->Key=Data[End]=='m' || (First&64u) || (First&3u)==3 ? 0u :
+                        (First&3u)==0 ? 1u : (First&3u)==1 ? 4u : 2u;
+                    Event->Modifiers=(First&4?1u:0u)|(First&8?4u:0u)|(First&16?2u:0u);
+                    Event->Down=Data[End]=='M' && Event->Key!=0; Event->Wheel=First&64 ? (First&1?-1:1) : 0;
+                    __xrtConsoleConsume(Session,End+1); return Event;
+                }
+                Valid=Length==0 || __xrtConsoleNumbers(Data+2,Length,Values,1) || __xrtConsoleNumbers(Data+2,Length,Values,2);
+                First=Values[0]; Second=Values[1];
+                if (Second>16) Valid=false;
+                if (Second>=2 && Second<=16) {
+                    uint32 Bits=Second-1;
+                    Modifiers=(Bits&1u)|(Bits&2u?4u:0u)|(Bits&4u?2u:0u)|(Bits&8u);
+                }
+                if (Valid) switch (Data[End]) {
+                case 'A':Key=XCONSOLE_KEY_UP;break;case 'B':Key=XCONSOLE_KEY_DOWN;break;
+                case 'C':Key=XCONSOLE_KEY_RIGHT;break;case 'D':Key=XCONSOLE_KEY_LEFT;break;
+                case 'H':Key=XCONSOLE_KEY_HOME;break;case 'F':Key=XCONSOLE_KEY_END;break;
+                case 'P':Key=XCONSOLE_KEY_F1;break;case 'Q':Key=XCONSOLE_KEY_F1+1;break;
+                case 'R':Key=XCONSOLE_KEY_F1+2;break;case 'S':Key=XCONSOLE_KEY_F1+3;break;
+                case 'Z':Key=XCONSOLE_KEY_TAB;Modifiers=1;break;
+                case '~': switch(First) {
+                    case 1:case 7:Key=XCONSOLE_KEY_HOME;break;case 4:case 8:Key=XCONSOLE_KEY_END;break;
+                    case 2:Key=XCONSOLE_KEY_INSERT;break;case 3:Key=XCONSOLE_KEY_DELETE;break;
+                    case 5:Key=XCONSOLE_KEY_PAGE_UP;break;case 6:Key=XCONSOLE_KEY_PAGE_DOWN;break;
+                    default: { const unsigned Codes[]={11,12,13,14,15,17,18,19,20,21,23,24};
+                      for (unsigned i=0;i<12;++i) if (Codes[i]==First) Key=XCONSOLE_KEY_F1+i; } } break;
+                default: break;
+                }
+                if (Key!=0) Count=End+1;
+            } else if (Size<64 && __xrtTerminalNow()-Session->EscapeSince<30) return NULL;
+        } else if (Size>=2 && Data[1]!='[' && Data[1]!='O' && Data[1]!=0x1b) {
+            size_t Bytes=Data[1]<0x80?1:Data[1]>=0xc2&&Data[1]<=0xdf?2:Data[1]>=0xe0&&Data[1]<=0xef?3:Data[1]>=0xf0&&Data[1]<=0xf4?4:0;
+            if (Bytes==0) { (void)__xrtTerminalError(XERR_IO,"invalid Alt event UTF-8"); return NULL; }
+            if (Size<Bytes+1) return NULL;
+            TextOffset=1; Count=Bytes+1; Text=true; Modifiers=4;
+        } else if ((Size==1 || (Size==2 && (Data[1]=='[' || Data[1]=='O'))) &&
+            __xrtTerminalNow()-Session->EscapeSince<30 && !Session->InputEnded) return NULL;
+        if (Key==0 && !Text) Key=XCONSOLE_KEY_ESCAPE;
+    } else if (Data[0]<32 || Data[0]==127) {
+        Key=Data[0]==13||Data[0]==10?XCONSOLE_KEY_ENTER:Data[0]==9?XCONSOLE_KEY_TAB:
+            Data[0]==127||Data[0]==8?XCONSOLE_KEY_BACKSPACE:Data[0]+64;
+        if (Data[0]<32 && Data[0]!=13 && Data[0]!=10 && Data[0]!=9 && Data[0]!=8) Modifiers=2;
+    } else {
+        Count=Data[0]<0x80?1:Data[0]>=0xc2&&Data[0]<=0xdf?2:Data[0]>=0xe0&&Data[0]<=0xef?3:Data[0]>=0xf0&&Data[0]<=0xf4?4:0;
+        if (Count==0) { (void)__xrtTerminalError(XERR_IO,"invalid event UTF-8"); return NULL; }
+        if (Size<Count) return NULL;
+        Text=true;
+    }
+    Event=__xrtConsoleEvent(Text?XCONSOLE_EVENT_TEXT:XCONSOLE_EVENT_KEY); if (Event==NULL) return NULL;
+    Event->Key=Key; Event->Modifiers=Modifiers;
+    if (Text) {
+        if (!__xrtConsoleEventText(Event,Data+TextOffset,Count-TextOffset)) { xrtConsoleEventDestroy(Event); return NULL; }
+        Event->Key=__xrtConsoleScalar(Data+TextOffset,Count-TextOffset);
+    }
+    __xrtConsoleConsume(Session,Count); return Event;
+}
+XRT_API xconsoleevent* xrtConsoleSessionRead(xconsolesession* Session, int TimeoutMs)
+{
+    uint64 Deadline; bool First=true;
+    if (!__xrtSessionCheck(Session)) return NULL;
+    if (TimeoutMs < -1) { (void)__xrtTerminalError(XERR_RANGE,"invalid event timeout"); return NULL; }
+    Deadline=TimeoutMs>=0?__xrtTerminalNow()+(uint64)TimeoutMs:0;
+    for (;;) {
+        struct pollfd Poll={STDIN_FILENO,POLLIN,0}; uint32 Columns,Rows; xconsoleevent* Event;
+        unsigned char Data[256]; ssize_t Read; int Status,Wait=50; uint64 Now=__xrtTerminalNow();
+        if (!xrtConsoleSize(XCONSOLE_STDOUT,&Columns,&Rows)) return NULL;
+        if (Columns!=Session->Columns || Rows!=Session->Rows) {
+            Event=__xrtConsoleEvent(XCONSOLE_EVENT_RESIZE); if (Event==NULL) return NULL;
+            Session->Columns=Event->Columns=Columns; Session->Rows=Event->Rows=Rows; return Event;
+        }
+        Event=__xrtConsoleParseEvent(Session);
+        if (Event!=NULL || xrtGetError()!=NULL) return Event;
+        if (Session->InputEnded) {
+            if (Session->Input.Size!=0) { (void)__xrtTerminalError(XERR_IO,"incomplete event at EOF"); return NULL; }
+            if (Session->ClosedEvent) return NULL;
+            Event=__xrtConsoleEvent(XCONSOLE_EVENT_CLOSED); if (Event!=NULL) Session->ClosedEvent=true; return Event;
+        }
+        if (!First && TimeoutMs>=0 && Now>=Deadline) return NULL;
+        if (TimeoutMs>=0 && (uint64)Wait> (Deadline>Now?Deadline-Now:0)) Wait=(int)(Deadline>Now?Deadline-Now:0);
+        if (Session->EscapeSince!=0 && Wait>10) Wait=10;
+        First=false;
+        Status=poll(&Poll,1,Wait);
+        if (Status<0 && errno==EINTR) continue;
+        if (Status<0 || (Poll.revents&(POLLERR|POLLNVAL))) { (void)__xrtTerminalSystem("poll"); return NULL; }
+        if (Status==0) continue;
+        do { Read=read(STDIN_FILENO,Data,sizeof(Data)); } while (Read<0 && errno==EINTR);
+        if (Read<0) { (void)__xrtTerminalSystem("read-event"); return NULL; }
+        if (Read==0) { Session->InputEnded=true; continue; }
+        if (Session->Input.Size>XRT_CONSOLE_EVENT_LIMIT+12u-(size_t)Read) {
+            (void)__xrtTerminalError(XERR_RANGE,"event input limit exceeded"); return NULL; }
+        if (!xrtBufferAppend(&Session->Input,(xbytesview){Data,(size_t)Read})) return NULL;
+    }
+}
+#endif
 #endif
 #endif
 

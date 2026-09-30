@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-#if defined(XRT_FEATURE_JSONL_CORE) || defined(XRT_FEATURE_XSONL_CORE)
+#if defined(XRT_FEATURE_JSONL_CORE) || defined(XRT_FEATURE_XLONL_CORE)
 
 /* 新错误保留底层原因；如果包装本身 OOM，恢复原始错误。 */
 void __xrtTextLinesError(

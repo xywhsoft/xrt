@@ -431,6 +431,51 @@
 #endif
 #endif
 
+/* console_terminal 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_TERMINAL)
+#ifndef XRT_FEATURE_CONSOLE_TERMINAL
+#define XRT_FEATURE_CONSOLE_TERMINAL
+#endif
+#ifndef XRT_MODULE_CONSOLE_SCREEN
+#define XRT_MODULE_CONSOLE_SCREEN
+#endif
+#ifndef XRT_MODULE_IO_STANDARD
+#define XRT_MODULE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_THREAD
+#define XRT_MODULE_THREAD
+#endif
+#endif
+
+/* console_screen 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_SCREEN)
+#ifndef XRT_FEATURE_CONSOLE_SCREEN
+#define XRT_FEATURE_CONSOLE_SCREEN
+#endif
+#ifndef XRT_MODULE_CONSOLE
+#define XRT_MODULE_CONSOLE
+#endif
+#endif
+
+/* console_input 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_INPUT)
+#ifndef XRT_FEATURE_CONSOLE_INPUT
+#define XRT_FEATURE_CONSOLE_INPUT
+#endif
+#ifndef XRT_MODULE_CONSOLE
+#define XRT_MODULE_CONSOLE
+#endif
+#ifndef XRT_MODULE_IO_STANDARD
+#define XRT_MODULE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
 /* console 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE)
 #ifndef XRT_FEATURE_CONSOLE
@@ -525,62 +570,62 @@
 #endif
 #endif
 
-/* xsonl 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL)
-#ifndef XRT_FEATURE_XSONL
-#define XRT_FEATURE_XSONL
+/* xlonl 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL)
+#ifndef XRT_FEATURE_XLONL
+#define XRT_FEATURE_XLONL
 #endif
-#ifndef XRT_MODULE_XSONL_FILE
-#define XRT_MODULE_XSONL_FILE
+#ifndef XRT_MODULE_XLONL_FILE
+#define XRT_MODULE_XLONL_FILE
 #endif
 #endif
 
-/* xsonl_file 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_FILE)
-#ifndef XRT_FEATURE_XSONL_FILE
-#define XRT_FEATURE_XSONL_FILE
+/* xlonl_file 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_FILE)
+#ifndef XRT_FEATURE_XLONL_FILE
+#define XRT_FEATURE_XLONL_FILE
 #endif
-#ifndef XRT_MODULE_XSONL_READ
-#define XRT_MODULE_XSONL_READ
+#ifndef XRT_MODULE_XLONL_READ
+#define XRT_MODULE_XLONL_READ
 #endif
-#ifndef XRT_MODULE_XSONL_WRITE
-#define XRT_MODULE_XSONL_WRITE
+#ifndef XRT_MODULE_XLONL_WRITE
+#define XRT_MODULE_XLONL_WRITE
 #endif
 #ifndef XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_FILE_WHOLE
 #endif
 #endif
 
-/* xsonl_write 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_WRITE)
-#ifndef XRT_FEATURE_XSONL_WRITE
-#define XRT_FEATURE_XSONL_WRITE
+/* xlonl_write 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_WRITE)
+#ifndef XRT_FEATURE_XLONL_WRITE
+#define XRT_FEATURE_XLONL_WRITE
 #endif
-#ifndef XRT_MODULE_XSONL_CORE
-#define XRT_MODULE_XSONL_CORE
+#ifndef XRT_MODULE_XLONL_CORE
+#define XRT_MODULE_XLONL_CORE
 #endif
-#ifndef XRT_MODULE_XSON_WRITE
-#define XRT_MODULE_XSON_WRITE
-#endif
-#endif
-
-/* xsonl_read 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_READ)
-#ifndef XRT_FEATURE_XSONL_READ
-#define XRT_FEATURE_XSONL_READ
-#endif
-#ifndef XRT_MODULE_XSONL_CORE
-#define XRT_MODULE_XSONL_CORE
-#endif
-#ifndef XRT_MODULE_XSON_READ
-#define XRT_MODULE_XSON_READ
+#ifndef XRT_MODULE_XLON_WRITE
+#define XRT_MODULE_XLON_WRITE
 #endif
 #endif
 
-/* xsonl_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_CORE)
-#ifndef XRT_FEATURE_XSONL_CORE
-#define XRT_FEATURE_XSONL_CORE
+/* xlonl_read 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_READ)
+#ifndef XRT_FEATURE_XLONL_READ
+#define XRT_FEATURE_XLONL_READ
+#endif
+#ifndef XRT_MODULE_XLONL_CORE
+#define XRT_MODULE_XLONL_CORE
+#endif
+#ifndef XRT_MODULE_XLON_READ
+#define XRT_MODULE_XLON_READ
+#endif
+#endif
+
+/* xlonl_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_CORE)
+#ifndef XRT_FEATURE_XLONL_CORE
+#define XRT_FEATURE_XLONL_CORE
 #endif
 #endif
 
@@ -643,39 +688,39 @@
 #endif
 #endif
 
-/* xson 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON)
-#ifndef XRT_FEATURE_XSON
-#define XRT_FEATURE_XSON
+/* xlon 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON)
+#ifndef XRT_FEATURE_XLON
+#define XRT_FEATURE_XLON
 #endif
-#ifndef XRT_MODULE_XSON_FILE
-#define XRT_MODULE_XSON_FILE
+#ifndef XRT_MODULE_XLON_FILE
+#define XRT_MODULE_XLON_FILE
 #endif
 #endif
 
-/* xson_file 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_FILE)
-#ifndef XRT_FEATURE_XSON_FILE
-#define XRT_FEATURE_XSON_FILE
+/* xlon_file 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_FILE)
+#ifndef XRT_FEATURE_XLON_FILE
+#define XRT_FEATURE_XLON_FILE
 #endif
-#ifndef XRT_MODULE_XSON_READ
-#define XRT_MODULE_XSON_READ
+#ifndef XRT_MODULE_XLON_READ
+#define XRT_MODULE_XLON_READ
 #endif
-#ifndef XRT_MODULE_XSON_WRITE
-#define XRT_MODULE_XSON_WRITE
+#ifndef XRT_MODULE_XLON_WRITE
+#define XRT_MODULE_XLON_WRITE
 #endif
 #ifndef XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_FILE_WHOLE
 #endif
 #endif
 
-/* xson_write 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_WRITE)
-#ifndef XRT_FEATURE_XSON_WRITE
-#define XRT_FEATURE_XSON_WRITE
+/* xlon_write 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_WRITE)
+#ifndef XRT_FEATURE_XLON_WRITE
+#define XRT_FEATURE_XLON_WRITE
 #endif
-#ifndef XRT_MODULE_XSON_CORE
-#define XRT_MODULE_XSON_CORE
+#ifndef XRT_MODULE_XLON_CORE
+#define XRT_MODULE_XLON_CORE
 #endif
 #ifndef XRT_MODULE_JSON_ESCAPE
 #define XRT_MODULE_JSON_ESCAPE
@@ -703,13 +748,13 @@
 #endif
 #endif
 
-/* xson_read 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_READ)
-#ifndef XRT_FEATURE_XSON_READ
-#define XRT_FEATURE_XSON_READ
+/* xlon_read 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_READ)
+#ifndef XRT_FEATURE_XLON_READ
+#define XRT_FEATURE_XLON_READ
 #endif
-#ifndef XRT_MODULE_XSON_CORE
-#define XRT_MODULE_XSON_CORE
+#ifndef XRT_MODULE_XLON_CORE
+#define XRT_MODULE_XLON_CORE
 #endif
 #ifndef XRT_MODULE_BUFFER
 #define XRT_MODULE_BUFFER
@@ -734,10 +779,10 @@
 #endif
 #endif
 
-/* xson_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_CORE)
-#ifndef XRT_FEATURE_XSON_CORE
-#define XRT_FEATURE_XSON_CORE
+/* xlon_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_CORE)
+#ifndef XRT_FEATURE_XLON_CORE
+#define XRT_FEATURE_XLON_CORE
 #endif
 #endif
 
@@ -838,6 +883,19 @@
 #endif
 #ifndef XRT_MODULE_CODEC_HEX
 #define XRT_MODULE_CODEC_HEX
+#endif
+#endif
+
+/* io_standard 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_IO_STANDARD)
+#ifndef XRT_FEATURE_IO_STANDARD
+#define XRT_FEATURE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_IO
+#define XRT_MODULE_IO
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
 #endif
 #endif
 

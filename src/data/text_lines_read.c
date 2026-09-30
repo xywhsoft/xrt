@@ -1,6 +1,6 @@
 #include "../internal/xrt_text_lines.h"
 
-#if defined(XRT_FEATURE_JSONL_READ) || defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_JSONL_READ) || defined(XRT_FEATURE_XLONL_READ)
 
 /* 分隔符由扫描器处理；空白只接受 JSON 的 ASCII 空格、Tab、CR。 */
 static bool __xrtTextLinesBlank(xstrview Text)
