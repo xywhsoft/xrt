@@ -1,5 +1,22 @@
 #include "../test.h"
 
+static bool TempFailAllocations;
+static size_t TempAllocationAttempts;
+static ptr tempTestAlloc(ptr Context, size_t Size)
+{
+    (void)Context;
+    if (TempFailAllocations) { ++TempAllocationAttempts; return NULL; }
+    return malloc(Size);
+}
+static ptr tempTestRealloc(ptr Context, ptr Memory, size_t Size)
+{
+    (void)Context;
+    if (TempFailAllocations) { ++TempAllocationAttempts; return NULL; }
+    return realloc(Memory, Size);
+}
+static void tempTestFree(ptr Context, ptr Memory)
+{ (void)Context; free(Memory); }
+
 
 
 /* 临时文件必须在指定目录排他创建并返回完整拥有路径。 */
@@ -88,10 +105,54 @@ static void testFileTempArguments(void)
 
 
 
+/* 打开的临时文件清理不能在正常路径重新申请内存。 */
+static void testFileTempDeleteOpen(void)
+{
+    str Path = NULL;
+    xfile File = xrtFileTemp(NULL, "xrt-delete-open-", ".tmp", &Path);
+    testRequire(File != NULL && Path != NULL, "delete-open fixture creation failed");
+    TempFailAllocations = true;
+    testRequire(xrtFileDeleteOpen(File, Path), "delete-open failed with all allocations disabled");
+    testRequire(TempAllocationAttempts == 0, "delete-open allocated on its success path");
+    TempFailAllocations = false;
+    testRequire(xrtClose(File), "delete-open close failed");
+    testRequire(!xrtFileExists(Path), "delete-open left the temporary file behind");
+    xrtFree(Path);
+}
+
+static void testFileTempReplacedName(void)
+{
+    str Path = NULL;
+    xfile File = xrtFileTemp(NULL, "xrt-replaced-temp-", ".tmp", &Path);
+    str Moved;
+    testRequire(File != NULL && Path != NULL, "replacement fixture creation failed");
+    Moved = (str)xrtMalloc(strlen(Path) + 7u);
+    testRequire(Moved != NULL, "replacement fixture path allocation failed");
+    sprintf(Moved, "%s.moved", Path);
+    testRequire(xrtPathRename(Path, Moved, false) && xrtFileTouch(Path),
+        "replacement fixture rename failed");
+    #if defined(_WIN32) || defined(_WIN64)
+        testRequire(xrtFileDeleteOpen(File, Path), "handle deletion failed after rename");
+        testRequire(xrtClose(File) && !xrtFileExists(Moved), "renamed original was not deleted");
+    #else
+        testRequire(!xrtFileDeleteOpen(File, Path) && xrtGetError() != NULL &&
+            xrtErrorKind(xrtGetError()) == XERR_STATE, "replaced POSIX name was not rejected");
+        xrtClearError();
+        testRequire(xrtClose(File) && xrtFileDelete(Moved), "renamed original cleanup failed");
+    #endif
+    testRequire(xrtFileExists(Path) && xrtFileDelete(Path), "replacement object was removed");
+    xrtFree(Moved);
+    xrtFree(Path);
+}
+
 /* 临时文件回归入口。 */
 int main(void)
 {
+    xallocator Allocator = {NULL, tempTestAlloc, tempTestRealloc, tempTestFree};
+    testRequire(xrtSetAllocator(&Allocator), "test allocator installation failed");
 	testFileTempCreate();
 	testFileTempArguments();
+    testFileTempDeleteOpen();
+    testFileTempReplacedName();
 	return 0;
 }

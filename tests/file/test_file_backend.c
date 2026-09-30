@@ -272,6 +272,11 @@ static void testFileBackendDispatch(void)
 		(pState->Resizes == 1u) && (pState->Flushes == 1u),
 		"test backend dispatch counts are incorrect");
 
+    testRequire(!xrtFileDeleteOpen(File, "not-a-native-path"),
+        "virtual backend accepted native open-file deletion");
+    testRequire(xrtGetError() != NULL && xrtErrorKind(xrtGetError()) == XERR_UNSUPPORTED,
+        "open-file deletion reported the wrong virtual-backend error");
+    xrtClearError();
 	testRequire(xrtFileNative(File) == (intptr_t)-1,
 		"non-native backend exposed a native handle");
 	testRequire((xrtGetError() != NULL) &&

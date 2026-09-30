@@ -20419,6 +20419,14 @@ XRT_API bool xrtPathRename(cstr sSource, cstr sTarget, bool bReplace);
 /* 删除一个非目录文件或链接。 */
 XRT_API bool xrtFileDelete(cstr sPath);
 
+/* Remove an open native non-directory file without allocating on success.
+ * The caller retains File and must close it. Windows marks the opened object
+ * for deletion on last close; sPath is the POSIX name to unlink. POSIX checks
+ * device/inode before unlink, but the caller must serialize namespace changes.
+ * A missing POSIX name is success; a replaced name is never knowingly removed.
+ * Virtual files are unsupported. */
+XRT_API bool xrtFileDeleteOpen(xfile File, cstr sPath);
+
 
 
 /* 创建不存在的空文件，或把已有对象的访问和修改时间更新为当前时刻。 */
@@ -20560,7 +20568,8 @@ XRT_API bool xrtRootFifoCreate(xroot Root, cstr sPath, uint32 iMode);
 
 
 
-/* 在根内设置对象权限；跟随链接时仍由根解析器阻止越界。 */
+/* 在根内设置 POSIX 对象权限；Windows 返回 XERR_UNSUPPORTED。
+ * 跟随链接时仍由根解析器阻止越界。 */
 XRT_API bool xrtRootSetMode(xroot Root, cstr sPath,
 	bool bFollowLink, uint32 iMode);
 

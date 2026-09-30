@@ -12,10 +12,11 @@ int main(void)
 
 	if ( (File != NULL) && (sPath != NULL) ) {
 		bool bWritten = xrtWriteFull(File, "ok", 2u, NULL);
+        bool bDeleted = xrtFileDeleteOpen(File, sPath);
 		bool bClosed = xrtClose(File);
 
 		File = NULL;
-		if ( bWritten && bClosed && xrtFileDelete(sPath) ) {
+		if ( bWritten && bDeleted && bClosed && !xrtFileExists(sPath) ) {
 			iResult = 0;
 		}
 	}

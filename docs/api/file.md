@@ -2452,6 +2452,13 @@ bool xrtFileTouch(cstr sPath);
 
 ## 临时文件和目录
 
+`xrtFileDeleteOpen(File, path)` 为受管理临时文件提供不在成功路径申请内存的删除入口。
+它不消费或关闭 File，调用者仍须关闭句柄。Windows 按打开对象标记最后关闭时删除，
+即使名称被改动也不会按旧路径误删替代对象；POSIX 使用 path 并先核对设备号/inode，
+不存在视为已删除、已被替换则报 STATE。POSIX 核对与 unlink 不是原子操作，调用者须
+保证临时目录／该名称不被并发替换。虚拟句柄不支持。系统权限、共享冲突等删除失败
+仍会报告错误；析构中的自动清理只能是 best-effort，不是无条件删除承诺。
+
 ```c
 xfile xrtFileTemp(cstr sDirectory, cstr sPrefix,
 	cstr sSuffix, str* pPath);
