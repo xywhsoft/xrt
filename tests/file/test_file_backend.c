@@ -246,6 +246,10 @@ static void testFileBackendDispatch(void)
 	uint64 iPosition;
 
 	testRequire(File != NULL, "test backend construction failed");
+    testRequire(xrtFileCapabilities(File) ==
+        (XFILE_CAP_READ | XFILE_CAP_WRITE | XFILE_CAP_READ_AT | XFILE_CAP_WRITE_AT |
+         XFILE_CAP_SEEK | XFILE_CAP_STAT | XFILE_CAP_RESIZE | XFILE_CAP_FLUSH),
+        "virtual backend advertised a nonexistent native capability");
 	testRequire(xrtWrite(File, "abc", 3u, &iDone) && (iDone == 3u),
 		"test backend write dispatch failed");
 	testRequire(xrtSeek(File, 0, XSEEK_START, &iPosition) &&
@@ -291,6 +295,34 @@ static void testFileBackendDispatch(void)
 }
 
 
+
+static void testFileBackendCapabilities(void)
+{
+    const uint32 Flags[] = { XFILE_READ, XFILE_WRITE,
+        XFILE_WRITE | XFILE_APPEND, XFILE_READ | XFILE_WRITE | XFILE_ASYNC };
+    const uint64 Expected[] = {
+        XFILE_CAP_READ | XFILE_CAP_READ_AT | XFILE_CAP_SEEK | XFILE_CAP_STAT,
+        XFILE_CAP_WRITE | XFILE_CAP_WRITE_AT | XFILE_CAP_SEEK | XFILE_CAP_STAT |
+            XFILE_CAP_RESIZE | XFILE_CAP_FLUSH,
+        XFILE_CAP_WRITE | XFILE_CAP_SEEK | XFILE_CAP_STAT | XFILE_CAP_FLUSH,
+        XFILE_CAP_STAT
+    };
+    size_t Index;
+    for (Index = 0; Index < sizeof(Flags)/sizeof(Flags[0]); ++Index) {
+        test_file_backend_observer Observer = { 0u };
+        test_file_backend_state* State = testFileBackendState(&Observer);
+        xfile File = __xrtFileTakeBackend(&testFileBackendOps, State, Flags[Index]);
+        testRequire(File != NULL, "capability test backend creation failed");
+        testRequire(xrtFileCapabilities(File) == Expected[Index],
+            "capabilities ignored the handle access/append/async mode");
+        testRequire(xrtClose(File) && Observer.Closes == 1u,
+            "capability query changed backend ownership");
+    }
+    testRequire(xrtFileCapabilities(NULL) == 0 && xrtGetError() != NULL &&
+        xrtErrorKind(xrtGetError()) == XERR_ARGUMENT,
+        "NULL capability query silently reported an empty mask");
+    xrtClearError();
+}
 
 static void testFileBackendValidation(void)
 {
@@ -358,6 +390,7 @@ static void testFileBackendConstructionOOM(void)
 int main(void)
 {
 	testFileBackendDispatch();
+    testFileBackendCapabilities();
 	testFileBackendValidation();
 	#if defined(XRT_FEATURE_NET_FILE)
 		testFileBackendAsyncCapability();

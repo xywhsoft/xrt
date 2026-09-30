@@ -1911,6 +1911,32 @@ XRT_API uint32 xrtFileFlags(xfile File)
 	return File->Flags;
 }
 
+XRT_API uint64 xrtFileCapabilities(xfile File)
+{
+    uint64 Capabilities;
+    if ( File == NULL ) {
+        __xrtErrorSetInvalidArgument();
+        return 0;
+    }
+    Capabilities = File->Capabilities;
+    if ( (File->Flags & XFILE_READ) == 0u ) {
+        Capabilities &= ~((uint64)XFILE_CAP_READ | XFILE_CAP_READ_AT);
+    }
+    if ( (File->Flags & XFILE_WRITE) == 0u ) {
+        Capabilities &= ~((uint64)XFILE_CAP_WRITE | XFILE_CAP_WRITE_AT |
+            XFILE_CAP_RESIZE | XFILE_CAP_FLUSH);
+    }
+    if ( (File->Flags & XFILE_APPEND) != 0u ) {
+        Capabilities &= ~((uint64)XFILE_CAP_WRITE_AT | XFILE_CAP_RESIZE);
+    }
+    if ( (File->Flags & XFILE_ASYNC) != 0u ) {
+        Capabilities &= ~((uint64)XFILE_CAP_READ | XFILE_CAP_WRITE |
+            XFILE_CAP_READ_AT | XFILE_CAP_WRITE_AT | XFILE_CAP_SEEK |
+            XFILE_CAP_RESIZE | XFILE_CAP_FLUSH);
+    }
+    return Capabilities;
+}
+
 
 
 /* 返回 native backend 的数据句柄。 */
