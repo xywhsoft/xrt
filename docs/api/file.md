@@ -4644,7 +4644,8 @@ bool xrtRootFifoCreate(xroot Root, cstr sPath, uint32 iMode);
 
 ### `xrtRootSetMode`
 
-在根内设置对象权限；跟随链接时仍由根解析器阻止越界。
+在根内设置 POSIX 对象权限；跟随链接时仍由根解析器阻止越界。
+Windows 返回 `XERR_UNSUPPORTED`，不会以目标存在代替权限设置成功，也不会修改目标属性。
 
 ```c
 bool xrtRootSetMode(xroot Root, cstr sPath,

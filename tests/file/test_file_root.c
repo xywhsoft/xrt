@@ -397,9 +397,29 @@ static void testRootCreateObjects(void)
 	} else {
 		testRootRead(Root, "hard.txt", "linked");
 	}
-	testRequire(xrtRootSetMode(Root,
-		"source.txt", true, 0640u),
-		"root-relative mode update failed");
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			xfileinfo Before, After;
+
+			testRequire(xrtRootStat(Root, "source.txt", true, &Before),
+				"root mode precondition stat failed");
+			testRequire(!xrtRootSetMode(Root, "source.txt", true, 0640u),
+				"Windows root silently accepted an unsupported POSIX mode");
+			testRequire((xrtGetError() != NULL) &&
+				(xrtErrorKind(xrtGetError()) == XERR_UNSUPPORTED),
+				"Windows root mode failure lost its unsupported error");
+			xrtClearError();
+			testRequire(xrtRootStat(Root, "source.txt", true, &After),
+				"root mode postcondition stat failed");
+			testRequire((Before.Mode == After.Mode) &&
+				(Before.Attributes == After.Attributes),
+				"rejected root mode operation changed metadata");
+		}
+	#else
+		testRequire(xrtRootSetMode(Root,
+			"source.txt", true, 0640u),
+			"root-relative mode update failed");
+	#endif
 
 	#if defined(_WIN32) || defined(_WIN64)
 		testRequire(!xrtRootLinkCreate(Root,
