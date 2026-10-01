@@ -6,11 +6,19 @@
 #include <xrt/runtime_type_string.h>
 
 const xrttype* xrtTypeString(void);
+const xrttype* xrtTypeStringView(void);
 ```
 
 ## 表示
 
-该描述只表示以下 C ABI：
+`xrtTypeStringView()` 描述拥有型双字段 `xstrview` 槽，保留精确字节长度，允许内嵌 NUL。
+Data 的分配由槽拥有；事务复制先创建完整副本再替换目标，移动同时清空来源的两字段，
+销毁释放 Data 并清空槽。比较、散列、格式化及动态 Value 转换都使用完整长度。
+描述和操作函数位于常驻 xruntime，不引用生成模块代码。
+它不是只借用外部内存的普通 view；两种描述的 Id/AbiName/Size 独立，不能混用。
+通用数值转换仍使用 `xrtTypeString()` 的显式 C 文本合同，不隐式截断双字段 view。
+
+`xrtTypeString()` 仍只表示以下 C ABI：
 
 - 槽类型是 `str`。
 - 非空值必须是零结尾字符串。

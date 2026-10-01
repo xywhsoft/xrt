@@ -90,6 +90,20 @@ int main(void)
 	);
 	xrtTypeDropValue(pType, &sSource);
 	xrtTypeDropValue(pType, &sTarget);
+	{
+		const xrttype* pViewType = xrtTypeStringView();
+		xstrview Source = {sLarge, sizeof(sLarge) - 1u}, Target = {0};
+		const char* pBefore;
+		testRequire(xrtTypeCopyValue(pViewType, &Target, &Source), "view OOM setup");
+		pBefore = Target.Data;
+		State.Fail = true;
+		testRequire(!xrtTypeCopyValue(pViewType, &Target, &Source), "view copy must fail");
+		testRequire(Target.Data == pBefore && Target.Size == Source.Size &&
+			memcmp(Target.Data, Source.Data, Source.Size) == 0, "view OOM preserves target");
+		State.Fail = false;
+		xrtClearError();
+		xrtTypeDropValue(pViewType, &Target);
+	}
 	xrtClearError();
 	printf("[PASS] runtime string type OOM\n");
 	return 0;

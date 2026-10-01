@@ -23,5 +23,12 @@ int main(void)
 	}
 	xrtTypeDropValue(pType, &sSource);
 	xrtTypeDropValue(pType, &sCopy);
+	{
+		xstrview Source = XRT_STR_LITERAL("a\0b"), Copy = {0};
+		if (!xrtTypeValidate(xrtTypeStringView()) ||
+			!xrtTypeCopyValue(xrtTypeStringView(), &Copy, &Source) ||
+			Copy.Size != 3u || memcmp(Copy.Data, Source.Data, 3u) != 0) iResult = 1;
+		xrtTypeDropValue(xrtTypeStringView(), &Copy);
+	}
 	return iResult;
 }

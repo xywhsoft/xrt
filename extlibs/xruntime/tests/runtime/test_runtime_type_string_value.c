@@ -51,6 +51,18 @@ int main(void)
 	);
 
 	xrtTypeDropValue(pType, &sText);
+	{
+		const xrttype* pViewType = xrtTypeStringView();
+		xstrview View = {0}, Read = {0};
+		xvalue* pRoundTrip;
+		xrtClearError();
+		testRequire(xrtValueToTyped(pEmbedded, pViewType, &View, NULL), "decode owned view");
+		pRoundTrip = xrtValueFromTyped(pViewType, &View, NULL);
+		testRequire(pRoundTrip && xrtValueGetString(pRoundTrip, &Read) &&
+			Read.Size == View.Size && memcmp(Read.Data, View.Data, View.Size) == 0, "view NUL round trip");
+		xrtValueRelease(pRoundTrip);
+		xrtTypeDropValue(pViewType, &View);
+	}
 	xrtTypeDropValue(pType, &sEmpty);
 	xrtValueRelease(pEmbedded);
 	xrtValueRelease(pResult);

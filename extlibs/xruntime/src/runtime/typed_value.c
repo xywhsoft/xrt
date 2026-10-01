@@ -514,7 +514,8 @@ static bool __xrtTypedValueDecodeString(
 	xstrview Text;
 	str sResult;
 
-	*pHandled = xrtTypeSame(pTargetType, xrtTypeString());
+	*pHandled = xrtTypeSame(pTargetType, xrtTypeString()) ||
+		xrtTypeSame(pTargetType, xrtTypeStringView());
 	if ( !*pHandled ) {
 		return false;
 	}
@@ -522,6 +523,12 @@ static bool __xrtTypedValueDecodeString(
 		__xrtTypedValueWrap(XERR_TYPE, XTYPED_VALUE_ERROR_TYPE,
 			"to-typed", "the dynamic value is not a string");
 		return false;
+	}
+	if ( xrtTypeSame(pTargetType, xrtTypeStringView()) ) {
+		xstrview Result = {0};
+		if ( !xrtTypeCopyValue(pTargetType, &Result, &Text) ) return false;
+		memcpy(pTarget, &Result, sizeof(Result));
+		return true;
 	}
 	if ( (Text.Size != 0u) &&
 		 (memchr(Text.Data, 0, Text.Size) != NULL) ) {
@@ -550,9 +557,15 @@ static xvalue* __xrtTypedValueEncodeString(
 {
 	str sSource;
 
-	*pHandled = xrtTypeSame(pSourceType, xrtTypeString());
+	*pHandled = xrtTypeSame(pSourceType, xrtTypeString()) ||
+		xrtTypeSame(pSourceType, xrtTypeStringView());
 	if ( !*pHandled ) {
 		return NULL;
+	}
+	if ( xrtTypeSame(pSourceType, xrtTypeStringView()) ) {
+		xstrview Text;
+		memcpy(&Text, pSource, sizeof(Text));
+		return xrtValueString(Text);
 	}
 	memcpy(&sSource, pSource, sizeof(sSource));
 	return xrtValueString(xrtStrView(sSource));

@@ -51,6 +51,9 @@ static bool __xrtValueConvertString(
 	if ( !xrtValueGetString(pSource, &Text) ) {
 		return __xrtValueConvertReadFailed();
 	}
+	if ( pTargetType == xrtTypeStringView() ) {
+		return xrtTypeCopyValue(pTargetType, pTarget, &Text);
+	}
 	if ( (Text.Size != 0u) &&
 		 (memchr(Text.Data, 0, Text.Size) != NULL) ) {
 		__xrtTypeConvertError(XERR_TYPE, XTYPE_CONVERT_ERROR_TYPE,

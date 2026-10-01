@@ -5,6 +5,18 @@
 /* 验证拥有型字符串描述、事务复制、移动、内容比较和散列。 */
 int main(void)
 {
+	{
+		const xrttype* pViewType = xrtTypeStringView();
+		xstrview Source = {"a\0b", 3}, Target = {0}, Moved = {0}, Compare = {"a\0c", 3};
+		testRequire(xrtTypeValidate(pViewType) && pViewType->Size == sizeof(xstrview), "view descriptor");
+		testRequire(xrtTypeCopyValue(pViewType, &Target, &Source), "view copy");
+		testRequire(Target.Size == 3 && Target.Data != Source.Data && !memcmp(Target.Data, Source.Data, 3), "view exact bytes");
+		testRequire(pViewType->Ops->Compare(&Target, &Compare, pViewType) < 0, "view NUL ordering");
+		testRequire(pViewType->Ops->Hash(&Target, pViewType) == xrtHash64(Source.Data, Source.Size), "view hash");
+		testRequire(xrtTypeMoveValue(pViewType, &Moved, &Target) && !Target.Data && !Target.Size, "view detach");
+		xrtTypeDropValue(pViewType, &Moved);
+		testRequire(!Moved.Data && !Moved.Size, "view drop");
+	}
 	const xrttype* pType = xrtTypeString();
 	str sSource = xrtStrDup("alpha");
 	str sTarget = xrtStrDup("old");

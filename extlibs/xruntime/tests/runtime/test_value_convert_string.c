@@ -97,6 +97,14 @@ static void testValueStringEmbeddedZero(void)
 		(xrtErrorCode(xrtGetError()) == XTYPE_CONVERT_ERROR_TYPE),
 		"embedded-zero dynamic string was truncated or changed the target"
 	);
+	{
+		xstrview View = {0};
+		xrtClearError();
+		testRequire(xrtValueConvertTo(pText, xrtTypeStringView(), &View, XTYPE_CONVERT_EXACT) &&
+			View.Size == sizeof(Data) && memcmp(View.Data, Data, sizeof(Data)) == 0,
+			"length-preserving string conversion lost embedded zero bytes");
+		xrtTypeDropValue(xrtTypeStringView(), &View);
+	}
 	xrtValueRelease(pText);
 }
 
