@@ -6,6 +6,20 @@
 
 #include <stdio.h>
 
+#if defined(_WIN32) || defined(_WIN64)
+/* Fixed Win32 SDK flag; old SDK headers omit it. Define before every Console
+ * implementation, not incidentally via the later optional logger module. */
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#endif
+#ifndef ENABLE_QUICK_EDIT_MODE
+#define ENABLE_QUICK_EDIT_MODE 0x0040
+#endif
+#ifndef ENABLE_EXTENDED_FLAGS
+#define ENABLE_EXTENDED_FLAGS 0x0080
+#endif
+#endif
+
 
 
 #if defined(XRT_FEATURE_CONSOLE)

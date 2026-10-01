@@ -13,13 +13,6 @@
 
 #if defined(XRT_FEATURE_LOGGER_CONSOLE)
 
-#if (defined(_WIN32) || defined(_WIN64)) && \
-	!defined(ENABLE_VIRTUAL_TERMINAL_PROCESSING)
-	#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
-#endif
-
-
-
 /* Console Sink 保存不可变配置、终端能力和逐条记录串行锁。 */
 typedef struct xlogconsolestate {
 	xmutex Lock;
