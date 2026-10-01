@@ -1503,6 +1503,22 @@ str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCount)
 	str sJoin = xrtStrJoin(SV(", "), Parts, 3u);
 ```
 
+### `xrtStrJoinSized`
+
+```c
+str xrtStrJoinSized(xstrview Separator, const xstrview* arrText,
+    size_t iCount, size_t* pOutputSize);
+```
+
+与 `xrtStrJoin` 共用唯一布局和写出实现，交付不含末尾零的实际字节数，
+保留分隔符和每个元素中的 NUL。不要求输入为 UTF-8，也不经 `strlen`。
+成功结果总是独立拥有的分配（包括零元素）；用 `xrtFree` 释放。
+
+输出槽可为 `NULL`。普通失败清零；与分隔符、视图表或任意输入字节区域
+重叠则报 `XERR_ARGUMENT`，保持槽和输入不变。无效视图报 `XERR_ARGUMENT`，
+表/结果长度溢出报 `XERR_RANGE`，分配失败报 `XERR_MEMORY`。输入表和字节
+均只在调用期间借入；`iCount > 0` 时调用者须提供完整有效视图表。
+
 ### `xrtStrRepeat`
 
 重复字符串指定次数。

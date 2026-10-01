@@ -24,5 +24,10 @@ int main(void)
 	testRequire(xrtErrorKind(xrtGetError()) == XERR_MEMORY, "builder OOM error mismatch");
 	xrtClearError();
 	printf("[PASS] string-oom\n");
+	size_t iSize = SIZE_MAX;
+	xstrview Items[] = {XRT_STR_LITERAL("a\0b")};
+	testRequire(xrtStrJoinSized(XRT_STR_LITERAL("|"), Items, 1, &iSize) == NULL &&
+		iSize == 0 && xrtErrorKind(xrtGetError()) == XERR_MEMORY, "join sized OOM must clear result size");
+	xrtClearError();
 	return 0;
 }

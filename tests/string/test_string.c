@@ -100,8 +100,47 @@ static void testStringFilter(void)
 
 
 /* 验证视图、查找、变换和所有权边界。 */
+static void testStringJoinSized(void)
+{
+	xstrview Items[] = {XRT_STR_LITERAL("你\0"), XRT_STR_LITERAL("x\0y"), XRT_STR_LITERAL("")};
+	size_t iSize = SIZE_MAX;
+	str sResult = xrtStrJoinSized(XRT_STR_LITERAL("\0|"), Items, 3, &iSize);
+	testRequire(sResult != NULL && iSize == 11 &&
+		memcmp(sResult, "你\0\0|x\0y\0|", 11) == 0 && sResult[11] == 0,
+		"join sized binary length mismatch");
+	xrtFree(sResult);
+	sResult = xrtStrJoinSized(XRT_STR_LITERAL("ignored"), NULL, 0, &iSize);
+	testRequire(sResult != NULL && iSize == 0 && sResult[0] == 0, "empty join must own its result");
+	xrtFree(sResult);
+	iSize = SIZE_MAX;
+	testRequire(xrtStrJoinSized(XRT_STR_LITERAL("|"), NULL, 1, &iSize) == NULL &&
+		iSize == 0 && xrtErrorKind(xrtGetError()) == XERR_ARGUMENT, "invalid join must clear size");
+	xrtClearError();
+	iSize = SIZE_MAX;
+	testRequire(xrtStrJoinSized(XRT_STR_LITERAL("|"), NULL, SIZE_MAX, &iSize) == NULL &&
+		iSize == 0 && xrtErrorKind(xrtGetError()) == XERR_RANGE, "join count overflow must clear size");
+	xrtClearError();
+	testRequire(xrtStrJoinSized(XRT_STR_LITERAL("|"), Items, 3, &Items[0].Size) == NULL &&
+		Items[0].Size == 4 && xrtErrorKind(xrtGetError()) == XERR_ARGUMENT,
+		"join output must not overwrite view table");
+	xrtClearError();
+	union {size_t Size; unsigned char Data[sizeof(size_t)];} Alias;
+	memset(Alias.Data, 'x', sizeof(Alias.Data));
+	size_t iBefore = Alias.Size;
+	xstrview Aliased[] = {{(const char*)Alias.Data, sizeof(Alias.Data)}};
+	testRequire(xrtStrJoinSized(XRT_STR_LITERAL("|"), Aliased, 1, &Alias.Size) == NULL &&
+		Alias.Size == iBefore && xrtErrorKind(xrtGetError()) == XERR_ARGUMENT,
+		"join output must not overwrite item bytes");
+	xrtClearError();
+	testRequire(xrtStrJoinSized(Aliased[0], Items, 3, &Alias.Size) == NULL &&
+		Alias.Size == iBefore && xrtErrorKind(xrtGetError()) == XERR_ARGUMENT,
+		"join output must not overwrite separator bytes");
+	xrtClearError();
+}
+
 int main(void)
 {
+	testStringJoinSized();
 	static const char sBinary[] = { 'a', 0, 'b', 'a', 0, 'b' };
 	static const char sUtf8[] = "A你Z";
 	xstrview arrJoin[3];

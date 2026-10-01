@@ -993,12 +993,34 @@ XRT_API str xrtStrConcat(xstrview Left, xstrview Right)
 
 
 /* 使用分隔符连接一组字符串视图。 */
-XRT_API str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCount)
+static str __xrtStrJoin(xstrview Separator, const xstrview* arrText,
+	size_t iCount, size_t* pOutputSize)
 {
 	size_t iSize = 0;
 	size_t iPosition = 0;
 	str sResult;
 
+	if ( pOutputSize != NULL ) {
+		if ( __xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), Separator.Data, Separator.Size) ||
+			 (arrText != NULL && iCount <= SIZE_MAX / sizeof(*arrText) &&
+			  __xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), arrText, iCount * sizeof(*arrText))) ) {
+			__xrtErrorSetInvalidArgument();
+			return NULL;
+		}
+		if ( arrText != NULL && iCount <= SIZE_MAX / sizeof(*arrText) ) {
+			for ( size_t i = 0; i < iCount; ++i ) {
+				if ( __xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), arrText[i].Data, arrText[i].Size) ) {
+					__xrtErrorSetInvalidArgument();
+					return NULL;
+				}
+			}
+		}
+		*pOutputSize = 0;
+	}
+	if ( iCount > SIZE_MAX / sizeof(*arrText) ) {
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
 	if ( !__xrtStrViewValid(Separator) || ((arrText == NULL) && (iCount != 0)) ) {
 		if ( (arrText == NULL) && (iCount != 0) ) {
 			__xrtErrorSetInvalidArgument();
@@ -1027,6 +1049,7 @@ XRT_API str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCoun
 	}
 	sResult = (str)xrtMalloc(iSize + 1u);
 	if ( sResult == NULL ) {
+		__xrtErrorSetOutOfMemory();
 		return NULL;
 	}
 	for ( size_t i = 0; i < iCount; i++ ) {
@@ -1040,7 +1063,19 @@ XRT_API str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCoun
 		}
 	}
 	sResult[iPosition] = 0;
+	if ( pOutputSize != NULL ) *pOutputSize = iPosition;
 	return sResult;
+}
+
+XRT_API str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCount)
+{
+	return __xrtStrJoin(Separator, arrText, iCount, NULL);
+}
+
+XRT_API str xrtStrJoinSized(xstrview Separator, const xstrview* arrText,
+	size_t iCount, size_t* pOutputSize)
+{
+	return __xrtStrJoin(Separator, arrText, iCount, pOutputSize);
 }
 
 
