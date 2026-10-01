@@ -222,6 +222,33 @@ int main(void)
 	sResult = xrtStrReplace(XRT_STR_LITERAL("a--b--c"), XRT_STR_LITERAL("--"), XRT_STR_LITERAL("/"));
 	testRequire((sResult != NULL) && (strcmp(sResult, "a/b/c") == 0), "replace mismatch");
 	xrtFree(sResult);
+	{
+		size_t iOutputSize = SIZE_MAX;
+		sResult = xrtStrReplaceSized(XRT_STR_LITERAL("a\0b\0a"),
+			XRT_STR_LITERAL("a"), XRT_STR_LITERAL("你\0"), &iOutputSize);
+		testRequire((sResult != NULL) && (iOutputSize == 11) &&
+			(memcmp(sResult, "你\0\0b\0你\0", 11) == 0) && (sResult[11] == 0),
+			"replace exact NUL size mismatch");
+		xrtFree(sResult);
+		iOutputSize = SIZE_MAX;
+		sResult = xrtStrReplaceSized(XRT_STR_LITERAL("a\0b"),
+			XRT_STR_LITERAL(""), XRT_STR_LITERAL("x"), &iOutputSize);
+		testRequire((sResult != NULL) && (iOutputSize == 3) &&
+			(memcmp(sResult, "a\0b", 3) == 0), "empty part exact size mismatch");
+		xrtFree(sResult);
+		iOutputSize = SIZE_MAX;
+		testRequire(xrtStrReplaceSized((xstrview){NULL, 1}, XRT_STR_LITERAL("a"),
+			XRT_STR_LITERAL("b"), &iOutputSize) == NULL && iOutputSize == 0,
+			"replace failure must clear output size");
+		union { size_t Size; char Data[32]; } Alias;
+		char Before[32];
+		memset(Alias.Data, 'a', sizeof(Alias.Data));
+		memcpy(Before, Alias.Data, sizeof(Before));
+		testRequire(xrtStrReplaceSized((xstrview){Alias.Data, sizeof(Alias.Data)},
+			XRT_STR_LITERAL("a"), XRT_STR_LITERAL("b"), &Alias.Size) == NULL &&
+			memcmp(Alias.Data, Before, sizeof(Before)) == 0,
+			"replace must reject aliased size without corrupting input");
+	}
 	sResult = xrtStrInsert(XRT_STR_LITERAL("abcd"), 2, XRT_STR_LITERAL("XY"));
 	testRequire((sResult != NULL) && (strcmp(sResult, "abXYcd") == 0), "insert mismatch");
 	xrtFree(sResult);

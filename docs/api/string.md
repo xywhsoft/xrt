@@ -1576,6 +1576,30 @@ str xrtStrReplace(xstrview Text, xstrview Part, xstrview Replacement)
 	showOwned("replace", xrtStrReplace(SV("a.b.c"), SV("."), SV("-")));
 ```
 
+### `xrtStrReplaceSized`
+
+与 `xrtStrReplace` 使用同一替换实现，额外交付它已计算的实际字节长度，包含
+内嵌 NUL、不包含最后的零终止符；不额外计数输入或 `strlen` 扫描输出。
+
+```c
+str xrtStrReplaceSized(xstrview Text, xstrview Part,
+    xstrview Replacement, size_t* pOutputSize)
+```
+
+前三个参数的借用、非重叠替换、空 Part 和错误合同与 xrtStrReplace 相同。
+成功结果为独立分配，由 `xrtFree` 释放。`pOutputSize` 可为 NULL；非空时须
+指向可写 size_t 且与三个输入字节区域不重叠。普通失败输出长度清零；拒绝
+重叠时不写输出指针，避免破坏输入。非法参数报 XERR_ARGUMENT，长度溢出
+报 XERR_RANGE，分配失败报 XERR_MEMORY；失败不返回部分结果。
+
+```c
+size_t size = 0;
+str text = xrtStrReplaceSized(XRT_STR_LITERAL("a\0b"),
+    XRT_STR_LITERAL("a"), XRT_STR_LITERAL("你"), &size);
+/* 成功时 size == 5，结果是 "你\0b"。 */
+xrtFree(text);
+```
+
 ### `xrtStrInsert`
 
 按字节位置插入子串。
