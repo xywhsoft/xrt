@@ -379,16 +379,24 @@ static void __xrtUtf8PadWrite(char* sOutput, size_t iBytes, xstrview Fill)
 
 /* 按标量宽度创建填充后的 UTF-8 字符串。 */
 static str __xrtUtf8Pad(xstrview Text, size_t iWidth,
-	xstrview Fill, int iMode)
+	xstrview Fill, int iMode, size_t* pOutputSize)
 {
 	xrt_utf8_pad_plan Plan;
 	str sResult;
 
+	if ( pOutputSize != NULL &&
+		 (__xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), Text.Data, Text.Size) ||
+		  __xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), Fill.Data, Fill.Size)) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( pOutputSize != NULL ) *pOutputSize = 0;
 	if ( !__xrtUtf8PadPlan(Text, iWidth, Fill, iMode, &Plan) ) {
 		return NULL;
 	}
 	sResult = (str)xrtMalloc(Plan.OutputBytes + 1u);
 	if ( sResult == NULL ) {
+		__xrtErrorSetOutOfMemory();
 		return NULL;
 	}
 	__xrtUtf8PadWrite(sResult, Plan.LeftBytes, Plan.Fill);
@@ -398,6 +406,7 @@ static str __xrtUtf8Pad(xstrview Text, size_t iWidth,
 	__xrtUtf8PadWrite(sResult + Plan.LeftBytes + Text.Size,
 		Plan.RightBytes, Plan.Fill);
 	sResult[Plan.OutputBytes] = 0;
+	if ( pOutputSize != NULL ) *pOutputSize = Plan.OutputBytes;
 	return sResult;
 }
 
@@ -716,7 +725,7 @@ XRT_API str xrtUtf8Remove(xstrview Text, int64 iStart, int64 iCount)
 /* 按 Unicode 标量宽度在左侧重复填充文本。 */
 XRT_API str xrtUtf8PadLeft(xstrview Text, size_t iWidth, xstrview Fill)
 {
-	return __xrtUtf8Pad(Text, iWidth, Fill, -1);
+	return __xrtUtf8Pad(Text, iWidth, Fill, -1, NULL);
 }
 
 
@@ -724,7 +733,7 @@ XRT_API str xrtUtf8PadLeft(xstrview Text, size_t iWidth, xstrview Fill)
 /* 按 Unicode 标量宽度在右侧重复填充文本。 */
 XRT_API str xrtUtf8PadRight(xstrview Text, size_t iWidth, xstrview Fill)
 {
-	return __xrtUtf8Pad(Text, iWidth, Fill, 1);
+	return __xrtUtf8Pad(Text, iWidth, Fill, 1, NULL);
 }
 
 
@@ -732,8 +741,20 @@ XRT_API str xrtUtf8PadRight(xstrview Text, size_t iWidth, xstrview Fill)
 /* 按 Unicode 标量宽度在两侧重复填充文本。 */
 XRT_API str xrtUtf8PadCenter(xstrview Text, size_t iWidth, xstrview Fill)
 {
-	return __xrtUtf8Pad(Text, iWidth, Fill, 0);
+	return __xrtUtf8Pad(Text, iWidth, Fill, 0, NULL);
 }
+
+XRT_API str xrtUtf8PadLeftSized(xstrview Text, size_t iWidth,
+	xstrview Fill, size_t* pOutputSize)
+{ return __xrtUtf8Pad(Text, iWidth, Fill, -1, pOutputSize); }
+
+XRT_API str xrtUtf8PadRightSized(xstrview Text, size_t iWidth,
+	xstrview Fill, size_t* pOutputSize)
+{ return __xrtUtf8Pad(Text, iWidth, Fill, 1, pOutputSize); }
+
+XRT_API str xrtUtf8PadCenterSized(xstrview Text, size_t iWidth,
+	xstrview Fill, size_t* pOutputSize)
+{ return __xrtUtf8Pad(Text, iWidth, Fill, 0, pOutputSize); }
 
 
 

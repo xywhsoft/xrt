@@ -1546,6 +1546,50 @@ if ( sPadded == NULL ) {
 printf("%s\n", sPadded);
 ```
 
+### `xrtUtf8PadLeftSized`
+
+```c
+str xrtUtf8PadLeftSized(xstrview Text, size_t iWidth,
+    xstrview Fill, size_t* pOutputSize);
+```
+
+与 `xrtUtf8PadLeft` 共用同一验证、布局和写出实现。`iWidth` 是 Unicode
+标量数，`pOutputSize` 接收不含终止零的实际字节数，保留输入与填充模式的
+内嵌 NUL；不要用 `strlen` 恢复长度。宽度不足时也返回完整文本的独立副本。
+空填充模式使用空格，空结果仍拥有可释放的非空分配。
+
+`pOutputSize` 可以为 `NULL`。普通失败清零；若其内存区域与 Text/Fill 的
+输入字节区域重叠，则以 `XERR_ARGUMENT` 拒绝并保持输入和该输出槽原值。
+非法 UTF-8 报 `XERR_VALUE`，字节布局或终止零容量溢出报 `XERR_RANGE`，
+分配失败报 `XERR_MEMORY`。结果由 `xrtFree` 释放。
+
+```c
+size_t size = 0;
+str padded = xrtUtf8PadLeftSized(XRT_STR_LITERAL("x\0"), 4,
+    XRT_STR_LITERAL("你\0"), &size);
+/* 成功时 size == 6，精确内容为 "你\0x\0"。 */
+xrtFree(padded);
+```
+
+### `xrtUtf8PadRightSized`
+
+```c
+str xrtUtf8PadRightSized(xstrview Text, size_t iWidth,
+    xstrview Fill, size_t* pOutputSize);
+```
+
+右侧填充；精确长度、拥有关系、输出别名与失败合同同 `xrtUtf8PadLeftSized`。
+
+### `xrtUtf8PadCenterSized`
+
+```c
+str xrtUtf8PadCenterSized(xstrview Text, size_t iWidth,
+    xstrview Fill, size_t* pOutputSize);
+```
+
+两侧填充；左侧取所需标量数的一半（向下取整），右侧取剩余数量，
+每侧独立从填充模式首标量开始循环。其他合同同 `xrtUtf8PadLeftSized`。
+
 ## 反转与过滤
 
 ### `xrtUtf8ReverseTo`

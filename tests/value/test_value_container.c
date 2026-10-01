@@ -493,6 +493,32 @@ static void testValueCowCycleGuard(void)
 
 
 
+/* 字符/无符号数与整数相等时必须共享 Set 的哈希和去重域。 */
+static void testValueCharSet(void)
+{
+	xvalue* pSet = xrtValueSet();
+	xvalue* pClone;
+	xvalue* pKey = xrtValueInt(65);
+	testRequire(pSet != NULL && pKey != NULL, "char Set setup");
+	testRequire(xrtValueSetAddNew(pSet, xrtValueChar(65)) &&
+		xrtValueSetAddNew(pSet, xrtValueUInt(65)) &&
+		xrtValueSetAddNew(pSet, xrtValueFloat(65.0)) &&
+		xrtValueSetAdd(pSet, pKey) && xrtValueCount(pSet) == 1,
+		"equal char/int/uint/float must deduplicate");
+	testRequire(xrtValueSetHas(pSet, pKey), "integer lookup must find char");
+	testRequire(xrtValueSetAddNew(pSet, xrtValueChar(0)) &&
+		xrtValueSetAddNew(pSet, xrtValueChar(UINT32_C(0x1F600))) &&
+		xrtValueSetAddNew(pSet, xrtValueUInt(UINT64_MAX)) &&
+		xrtValueCount(pSet) == 4, "Set must support NUL/supplementary/full uint64");
+	pClone = xrtValueClone(pSet);
+	testRequire(pClone != NULL && xrtValueSetRemove(pClone, pKey) &&
+		xrtValueCount(pClone) == 3 && xrtValueCount(pSet) == 4 &&
+		xrtValueSetHas(pSet, pKey), "numeric remove must preserve clone isolation");
+	xrtValueRelease(pClone);
+	xrtValueRelease(pKey);
+	xrtValueRelease(pSet);
+}
+
 /* 运行动态值容器回归。 */
 int main(void)
 {
@@ -503,6 +529,7 @@ int main(void)
 	testValueOwnedIterator();
 	testValueObjectOps();
 	testValueSetOps();
+	testValueCharSet();
 	testValueIdentitySetOps();
 	testValueCycleGuard();
 	testValueCowCycleGuard();

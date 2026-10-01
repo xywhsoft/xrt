@@ -37,5 +37,10 @@ int main(void)
 		"Unicode pad OOM error mismatch");
 	xrtClearError();
 	printf("[PASS] unicode-text-oom\n");
+	size_t iOutput = SIZE_MAX;
+	testRequire(xrtUtf8PadLeftSized(XRT_STR_LITERAL("text"), 8,
+		XRT_STR_LITERAL("x"), &iOutput) == NULL && iOutput == 0 &&
+		xrtErrorKind(xrtGetError()) == XERR_MEMORY, "sized pad OOM contract");
+	xrtClearError();
 	return 0;
 }

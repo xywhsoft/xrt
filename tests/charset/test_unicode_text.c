@@ -193,6 +193,49 @@ int main(void)
 		(xrtErrorKind(xrtGetError()) == XERR_VALUE),
 		"invalid Unicode pad text must fail");
 	xrtClearError();
+	{
+		str (*arrPad[])(xstrview, size_t, xstrview, size_t*) = {
+			xrtUtf8PadLeftSized, xrtUtf8PadRightSized, xrtUtf8PadCenterSized
+		};
+		const char* arrExpected[] = {"你\0x\0", "x\0你\0", "你x\0你"};
+		size_t arrSizes[] = {6, 6, 8};
+		for (size_t i = 0; i < 3; ++i) {
+			size_t iOutput = SIZE_MAX;
+			str sPadded = arrPad[i](XRT_STR_LITERAL("x\0"), 4,
+				XRT_STR_LITERAL("你\0"), &iOutput);
+			testRequire(sPadded != NULL && iOutput == arrSizes[i] &&
+				memcmp(sPadded, arrExpected[i], arrSizes[i]) == 0 && sPadded[arrSizes[i]] == 0,
+				"sized Unicode pad must retain exact NUL size");
+			xrtFree(sPadded);
+			sPadded = arrPad[i](XRT_STR_LITERAL("你\0"), 1, XRT_STR_LITERAL("."), &iOutput);
+			testRequire(sPadded != NULL && iOutput == 4 && memcmp(sPadded, "你\0", 5) == 0,
+				"shorter width must preserve owned text and NUL");
+			xrtFree(sPadded);
+			sPadded = arrPad[i]((xstrview){NULL, 0}, 0, (xstrview){NULL, 0}, &iOutput);
+			testRequire(sPadded != NULL && iOutput == 0 && sPadded[0] == 0,
+				"empty sized pad must be an owned empty string");
+			xrtFree(sPadded);
+			iOutput = SIZE_MAX;
+			testRequire(arrPad[i]((xstrview){arrInvalid, sizeof(arrInvalid)},
+				4, XRT_STR_LITERAL("."), &iOutput) == NULL && iOutput == 0,
+				"failed sized Unicode pad must clear size");
+			xrtClearError();
+			iOutput = SIZE_MAX;
+			testRequire(arrPad[i](XRT_STR_LITERAL("x"), SIZE_MAX,
+				XRT_STR_LITERAL("你"), &iOutput) == NULL && iOutput == 0 &&
+				xrtErrorKind(xrtGetError()) == XERR_RANGE,
+				"overflow must fail before allocation and clear size");
+			xrtClearError();
+			union {size_t Size; unsigned char Data[sizeof(size_t)];} Alias;
+			memset(Alias.Data, 'x', sizeof(Alias.Data));
+			size_t iBefore = Alias.Size;
+			testRequire(arrPad[i]((xstrview){(const char*)Alias.Data, sizeof(Alias.Data)},
+				32, XRT_STR_LITERAL("."), &Alias.Size) == NULL && Alias.Size == iBefore &&
+				xrtErrorKind(xrtGetError()) == XERR_ARGUMENT,
+				"aliased size output must not change input");
+			xrtClearError();
+		}
+	}
 	printf("[PASS] unicode-text\n");
 	return 0;
 }

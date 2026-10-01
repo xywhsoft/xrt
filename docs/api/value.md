@@ -50,9 +50,97 @@ Release 若释放最后一份代码租约，Release 本身须常驻；XRT 不会
 - 非静态值可在发布前用 `xrtValueTypeIdBind` 一次性绑定调用者定义的非零语义类型身份；重复绑定同一值成功，冲突绑定报告 `XERR_STATE`。该身份随浅克隆和深克隆传播，但不改变 XRT 的类别、相等、哈希或序列化语义。
 - 精确 Getter 不做文本解析或隐式类型转换，类型错误报告 `XERR_TYPE`。
 - `xrtValueHash` 只接受可哈希标量，并与数值相等规则保持一致；Pointer 和 Handle 的哈希仅在当前进程内有效，不可持久化或跨进程比较。
-- `xrtValueScalarEqual` 比较标量内容；有符号整数、无符号整数与可无损转换的浮点数按精确数值等价，所有 NaN 互相等价。
+- `xrtValueScalarEqual` 比较标量内容；字符代码、有符号整数、无符号整数与可无损转换的浮点数按精确数值等价，所有 NaN 互相等价。
+- Value Set 同样接受 `XVALUE_CHAR` 与完整 `XVALUE_UINT`；字符 `'A'`、整数 65、
+  无符号整数 65 和浮点数 65.0 共用规范哈希，去重时保留首次插入的值类型。
+  字符 NUL/补充平面码点合法；浅克隆后的增删不会更改原集合。
 
 `xrtValueTruthy` 使用稳定的动态值真值口径：null、false、数值零、空字符串、空字节和空容器为 false；其他值为 true。Time、Pointer 和 Handle 表示已经存在的值对象，因此即使其内部数值或地址为零也为 true。
+
+## 字符与拥有图补充合同
+
+以下是现有原生 Value API 的合同，不表示语言标准库公开拥有图或回调接口。
+
+### `xrtValueChar`
+
+```c
+xvalue* xrtValueChar(uint32 iValue);
+```
+
+创建引用数为 1 的不可变 Unicode scalar；用后调用 `xrtValueRelease`。
+零和补充平面合法，代理项及大于 `0x10FFFF` 的输入返回 `NULL`/`XERR_VALUE`；
+分配失败返回 `NULL`/`XERR_MEMORY`。类别是 `XVALUE_CHAR`，不是整数隐式转换。
+
+### `xrtValueGetChar`
+
+```c
+bool xrtValueGetChar(const xvalue* pValue, uint32* pResult);
+```
+
+精确读取 CHAR 的 scalar。整数 65 虽与字符 `'A'` 数值相等，却不能被此 Getter
+读取；类型不符报告 `XERR_TYPE`。失败不改输出，输出必须是独立有效槽，不能
+覆盖 Value 外壳或其拥有内存；同样遵守上述通用 Getter 别名规则。
+
+### `xvalueownershiptrace`
+
+```c
+typedef bool (*xvalueownershiptrace)(const xvalue* pValue,
+    xrtownershipvisitor pVisit, ptr pContext);
+```
+
+生产者描述隐藏状态中实际拥有的强引用槽，用 visitor 报告边并传播失败。
+检查在整个图静止且由调用者保活的情况下进行，不以普通 Trace 回调自动授予
+收集资格；不透明 Handle 未提供完整适配时封闭拒绝。
+
+### `xvalueobjectfinalizerrelease`
+
+```c
+typedef void (*xvalueobjectfinalizerrelease)(ptr pUserData);
+```
+
+拥有式终结器在 Finalize 和全部 backing 字段销毁之后恰好调用一次 Release，
+释放接管的上下文。若它释放最后一份代码租约，Release 自身必须常驻；XRT
+不隐式保活回调代码。失败的 BindOwned 不消费上下文，也不调用此回调。
+
+### `xrtValueOwnership`
+
+```c
+xrtownershipref xrtValueOwnership(const xvalue* pValue);
+```
+
+返回检查用的借入身份，不增加引用。调用者必须保活并冻结完整传递拥有图。
+外壳拥有一个 backing 引用，backing 拥有元素槽，不将每个 COW 外壳重复算为
+元素所有者；普通标量是叶节点。此接口本身不是垃圾收集器。
+
+### `xrtValueObjectFinalizerOwnershipBind`
+
+```c
+bool xrtValueObjectFinalizerOwnershipBind(xvalue* pObject, xrtownershiptrace pTrace);
+```
+
+为已绑定终结器的上下文登记实际强引用槽；在发布之前、外壳与 backing 都唯一
+时绑定一次。回调取得真实 `FinalizerUserData`，不是临时伪造的 Value 外壳。
+空上下文不需要适配器；登记的是边元数据，不是回调代码的生命周期租约。
+
+### `xrtValueCursorRCreate`
+
+```c
+xvaluecursor* xrtValueCursorRCreate(const xvalue* pValue);
+```
+
+创建拥有式反向快照游标，失败返回 `NULL` 并设置错误。游标保活 backing，
+对带终结器的身份对象还保活真实来源外壳；普通 COW 来源外壳不被保活。
+推进必须串行且调用期间持有引用；元素/键借入有效期到下次推进或最后释放。
+
+### `xrtValueCursorRelease`
+
+```c
+void xrtValueCursorRelease(xvaluecursor* pCursor);
+```
+
+释放一份游标引用，允许 `NULL`。最后释放结束快照并销毁游标；调用者不能
+在推进进行中释放最后引用，也不能在最后释放后使用借入元素或键。
+现有栈迭代器和独占堆迭代器的 ABI、生命周期不因此改变。
 
 ## 类型
 
@@ -75,6 +163,7 @@ Release 若释放最后一份代码租约，Release 本身须常驻；XRT 不会
 | `XVALUE_SET` | 保持首次插入顺序的标量集合。 |
 | `XVALUE_OBJECT` | 保持首次插入顺序的字符串键对象。 |
 | `XVALUE_UINT` | 无符号 64 位整数。 |
+| `XVALUE_CHAR` | 不可变 Unicode scalar，排除代理项。 |
 
 ### `xvaluetype`
 
@@ -96,7 +185,8 @@ typedef enum xvaluetype {
 	XVALUE_INT_MAP,
 	XVALUE_SET,
 	XVALUE_OBJECT,
-	XVALUE_UINT
+	XVALUE_UINT,
+	XVALUE_CHAR
 } xvaluetype;
 ```
 
@@ -117,6 +207,7 @@ typedef enum xvaluetype {
 | `XVALUE_SET` | 集合形态 |
 | `XVALUE_OBJECT` | 对象形态 |
 | `XVALUE_UINT` | 无符号整数 |
+| `XVALUE_CHAR` | Unicode scalar |
 
 ### `xvaluehandleops`
 
@@ -285,6 +376,7 @@ xvalue* xrtValueNull(void);
 xvalue* xrtValueBool(bool value);
 xvalue* xrtValueInt(int64 value);
 xvalue* xrtValueUInt(uint64 value);
+xvalue* xrtValueChar(uint32 value);
 xvalue* xrtValueFloat(double value);
 xvalue* xrtValueString(xstrview text);
 xvalue* xrtValueStringTake(str* text, size_t size);
@@ -309,6 +401,7 @@ bool xrtValueTruthy(const xvalue* value);
 bool xrtValueGetBool(const xvalue* value, bool* output);
 bool xrtValueGetInt(const xvalue* value, int64* output);
 bool xrtValueGetUInt(const xvalue* value, uint64* output);
+bool xrtValueGetChar(const xvalue* value, uint32* output);
 bool xrtValueGetFloat(const xvalue* value, double* output);
 bool xrtValueGetString(const xvalue* value, xstrview* output);
 bool xrtValueGetBytes(const xvalue* value, xbytesview* output);

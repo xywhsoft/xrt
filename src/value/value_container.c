@@ -1318,7 +1318,8 @@ static bool __xrtValueSetItemValid(const xvalue* pItem)
 		__xrtErrorSetType();
 		return false;
 	}
-	if ( pItem->Type > XVALUE_HANDLE ) {
+	if ( (pItem->Type > XVALUE_HANDLE) &&
+		 (pItem->Type != XVALUE_UINT) && (pItem->Type != XVALUE_CHAR) ) {
 		__xrtErrorSetType();
 		return false;
 	}
