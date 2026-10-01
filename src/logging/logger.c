@@ -1400,4 +1400,16 @@ XRT_API bool xrtLogSetDefault(xlogger* pLogger)
 	return true;
 }
 
+XRT_API xlogger* xrtLogTakeDefaultIf(xlogger* pExpected)
+{
+	xlogger* pLogger = NULL;
+	__xrtSpinLock(&__xrtLogDefaultLock);
+	if (pExpected == NULL || __xrtLogDefaultLogger == pExpected) {
+		pLogger = __xrtLogDefaultLogger;
+		__xrtLogDefaultLogger = NULL;
+	}
+	__xrtSpinUnlock(&__xrtLogDefaultLock);
+	return pLogger;
+}
+
 #endif

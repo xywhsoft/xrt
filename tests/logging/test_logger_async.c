@@ -681,6 +681,19 @@ int main(void)
 	testLogAsyncDrain();
 	testLogAsyncAdd();
 	testLogAsyncDiscard();
+	testlogasynctarget State;
+	testLogAsyncTargetInit(&State);
+	xlogsink* pTarget=testLogAsyncTarget(&State);
+	xlogasyncconfig Config;
+	testRequire(xrtLogAsyncConfigInit(&Config), "async stop config failed");
+	xlogsink* pAsync=xrtLogAsync(pTarget,&Config);
+	testRequire(pAsync && testLogAsyncSubmit(pAsync,"drain")==XLOG_RESULT_WRITTEN, "async stop submit failed");
+	testRequire(xrtLogAsyncStop(pAsync) && xrtLogAsyncStop(pAsync), "async checked stop is not idempotent");
+	testRequire(State.Count==1u, "async stop failed to drain accepted records");
+	testRequire(testLogAsyncSubmit(pAsync,"closed")==XLOG_RESULT_ERROR &&
+		xrtErrorKind(xrtGetError())==XERR_CLOSED, "stopped async accepted a write");
+	xrtClearError();
+	xrtLogSinkFree(pAsync); xrtLogSinkFree(pTarget); testLogAsyncTargetUnit(&State);
 	printf("[PASS] Logger async\n");
 	return 0;
 }

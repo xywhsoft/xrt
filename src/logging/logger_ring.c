@@ -64,6 +64,7 @@ typedef struct xlogringstate {
 	size_t Stride;
 	xatomic32 Gate;
 	xatomic64 WorkerId;
+	xatomic32 WorkerDone;
 	xatomic64 Enqueued;
 	xatomic64 Processed;
 	xatomic64 Written;
@@ -151,9 +152,13 @@ static bool __xrtLogRingWriterEnter(xlogringstate* pState)
 
 	for ( ;; ) {
 		if ( (iGate & XLOG_RING_GATE_CLOSED) != 0u ) {
+			__xrtLogErrorSet(XERR_CLOSED, XLOG_ERROR_RING_CLOSED,
+				"ring-write", "ring log sink is closed");
 			return false;
 		}
 		if ( (iGate & XLOG_RING_GATE_WRITERS) == XLOG_RING_GATE_WRITERS ) {
+			__xrtLogErrorSet(XERR_RANGE, XLOG_ERROR_RING_QUEUE,
+				"ring-write", "ring producer count overflow");
 			return false;
 		}
 		if (
@@ -404,6 +409,7 @@ static int32 __xrtLogRingWorker(ptr pData)
 		(void)xrtAtomic64FetchAdd(&pState->Flushes, 1u, XMEMORY_RELAXED);
 		(void)xrtAtomic64FetchAdd(&pState->Failed, 1u, XMEMORY_RELAXED);
 	}
+	xrtAtomic32Store(&pState->WorkerDone, 1u, XMEMORY_RELEASE);
 	__xrtLogRingStateRelease(pState);
 	return 0;
 }
@@ -459,7 +465,7 @@ static xlogresult __xrtLogRingWrite(
 		return XLOG_RESULT_DROPPED;
 	}
 	if ( !__xrtLogRingWriterEnter(pState) ) {
-		return XLOG_RESULT_DROPPED;
+		return XLOG_RESULT_ERROR;
 	}
 	if ( !__xrtLogOwnedSize(pRecord, &iSize) ) {
 		xrtClearError();
@@ -684,6 +690,7 @@ static void __xrtLogRingAtomicsInit(xlogringstate* pState)
 {
 	xrtAtomic32Init(&pState->Gate, 0u);
 	xrtAtomic64Init(&pState->WorkerId, 0u);
+	xrtAtomic32Init(&pState->WorkerDone, 0u);
 	xrtAtomic64Init(&pState->Enqueued, 0u);
 	xrtAtomic64Init(&pState->Processed, 0u);
 	xrtAtomic64Init(&pState->Written, 0u);
@@ -902,6 +909,26 @@ XRT_API xlogsink* xrtLogRingTarget(const xlogsink* pSink)
 	xlogringstate* pState = __xrtLogRingState(pSink);
 
 	return pState == NULL ? NULL : pState->Target;
+}
+
+XRT_API bool xrtLogRingStop(xlogsink* pSink)
+{
+	xlogringstate* pState = __xrtLogRingState(pSink);
+	xerror* pError;
+	if (pState == NULL) return false;
+	uint64 iWorker = xrtAtomic64Load(&pState->WorkerId, XMEMORY_ACQUIRE);
+	if (iWorker != 0u && iWorker == xrtThreadCurrentId()) {
+		__xrtLogErrorSet(XERR_STATE, XLOG_ERROR_RING_CLOSED,
+			"ring-stop", "ring worker cannot stop its own queue");
+		return false;
+	}
+	__xrtLogRingClose(pState);
+	while (!xrtAtomic32Load(&pState->WorkerDone, XMEMORY_ACQUIRE)) xrtSleepUs(100u);
+	if (!xrtMutexLock(&pState->ErrorLock)) return false;
+	pError = xrtErrorRef(pState->LastError);
+	if (!xrtMutexUnlock(&pState->ErrorLock)) { xrtErrorFree(pError); return false; }
+	if (pError != NULL) { xrtSetErrorTake(pError); return false; }
+	return true;
 }
 
 

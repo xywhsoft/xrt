@@ -211,6 +211,10 @@ int main(void)
 	testRequire(xrtLogRingTarget(pRing) == pTarget, "Logger ring target mismatch");
 	testRequire(xrtLogRingLastError(pRing) == NULL, "Logger ring unexpected error");
 
+	testRequire(xrtLogRingStop(pRing) && xrtLogRingStop(pRing), "ring checked stop is not idempotent");
+	testRequire(xrtLogSinkSubmit(pRing,&Record)==XLOG_RESULT_ERROR &&
+		xrtErrorKind(xrtGetError())==XERR_CLOSED, "stopped ring accepted a write");
+	xrtClearError();
 	xrtLogSinkFree(pRing);
 	testRequire(Target.Flushes == 2u, "Logger ring shutdown flush mismatch");
 	xrtLogSinkFree(pTarget);

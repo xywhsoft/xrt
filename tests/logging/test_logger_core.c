@@ -471,6 +471,17 @@ int main(void)
 	testLogSharingAndDefault();
 	testLogErrorsAndResults();
 	testLogInvalid();
+	xlogger* pFirst=xrtLogCreate(XRT_STR_LITERAL("first"),XLOG_INFO);
+	xlogger* pOther=xrtLogCreate(XRT_STR_LITERAL("other"),XLOG_INFO);
+	testRequire(pFirst && pOther && xrtLogSetDefault(pFirst), "default lifecycle create failed");
+	testRequire(xrtLogTakeDefaultIf(pOther)==NULL, "nonmatching default was removed");
+	xlogger* pTaken=xrtLogTakeDefaultIf(pFirst);
+	testRequire(pTaken==pFirst && xrtLogDefault()==NULL, "matching default reference was not transferred");
+	xrtLogFree(pTaken);
+	testRequire(xrtLogSetDefault(pOther), "default lifecycle replace failed");
+	pTaken=xrtLogTakeDefaultIf(NULL);
+	testRequire(pTaken==pOther && xrtLogDefault()==NULL, "unconditional default take failed");
+	xrtLogFree(pTaken); xrtLogFree(pFirst); xrtLogFree(pOther);
 	printf("[PASS] Logger core\n");
 	return 0;
 }

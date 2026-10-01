@@ -622,6 +622,13 @@ static void testLogFileOwnership(void)
 	Config.UserData = pOwned;
 	pSink = xrtLogFile(&Config);
 	testRequire(pSink != NULL, "Logger owned formatter creation failed");
+	testRequire(xrtLogFileClose(pSink) && xrtLogFileClose(pSink), "file checked close is not idempotent");
+	testRequire(!xrtLogSinkFlush(pSink) && xrtErrorKind(xrtGetError())==XERR_CLOSED, "closed file accepted flush");
+	xrtClearError();
+	testRequire(!xrtLogFileRotate(pSink) && xrtErrorKind(xrtGetError())==XERR_CLOSED, "closed file accepted rotation");
+	xrtClearError();
+	testRequire(xrtLogFileReopen(pSink) && xrtLogSinkFlush(pSink), "closed file could not be reopened");
+	testRequire(xrtLogFileClose(pSink), "reopened file close failed");
 	xrtLogSinkFree(pSink);
 	testRequire(iDrops == 1u, "Logger owned formatter was not dropped once");
 

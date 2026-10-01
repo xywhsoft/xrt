@@ -51,6 +51,7 @@ typedef struct xlogasyncstate {
 	xcond NotEmpty;
 	xcond NotFull;
 	xatomic64 WorkerId;
+	xatomic32 WorkerDone;
 	xlogasyncconfig Config;
 	xlogsink* Target;
 	xthread* Thread;
@@ -701,6 +702,7 @@ static int32 __xrtLogAsyncWorker(ptr pData)
 		xrtErrorFree(pWaitError);
 	}
 	__xrtLogAsyncFinalFlush(pState);
+	xrtAtomic32Store(&pState->WorkerDone, 1u, XMEMORY_RELEASE);
 	__xrtLogAsyncStateRelease(pState);
 	return 0;
 }
@@ -965,6 +967,7 @@ XRT_API xlogsink* xrtLogAsync(
 	pState->RefCount = 1;
 	pState->Config = *pConfig;
 	xrtAtomic64Init(&pState->WorkerId, 0u);
+	xrtAtomic32Init(&pState->WorkerDone, 0u);
 	pState->Target = xrtLogSinkRef(pTarget);
 	if ( pState->Target == NULL ) {
 		pCause = xrtTakeError();
@@ -1119,6 +1122,29 @@ XRT_API xlogsink* xrtLogAsyncTarget(const xlogsink* pSink)
 	xlogasyncstate* pState = __xrtLogAsyncState(pSink);
 
 	return pState == NULL ? NULL : pState->Target;
+}
+
+XRT_API bool xrtLogAsyncStop(xlogsink* pSink)
+{
+	xlogasyncstate* pState = __xrtLogAsyncState(pSink);
+	xerror* pError;
+	if (pState == NULL) return false;
+	uint64 iWorker = xrtAtomic64Load(&pState->WorkerId, XMEMORY_ACQUIRE);
+	if (iWorker != 0u && iWorker == xrtThreadCurrentId()) {
+		__xrtLogErrorSet(XERR_STATE, XLOG_ERROR_ASYNC_CLOSED,
+			"async-stop", "async worker cannot stop its own queue");
+		return false;
+	}
+	__xrtLogAsyncClose(pState);
+	/* The sink reference keeps state alive. Completion is published after the
+	 * worker's final flush; joining/destroying the thread remains single-owner
+	 * destructor work, so concurrent stop callers never race a native join. */
+	while (!xrtAtomic32Load(&pState->WorkerDone, XMEMORY_ACQUIRE)) xrtSleepUs(100u);
+	if (!xrtMutexLock(&pState->Lock)) return false;
+	pError = xrtErrorRef(pState->LastError);
+	if (!xrtMutexUnlock(&pState->Lock)) { xrtErrorFree(pError); return false; }
+	if (pError != NULL) { xrtSetErrorTake(pError); return false; }
+	return true;
 }
 
 

@@ -14,6 +14,7 @@ typedef struct xlogfilestate {
 	xatomic64 Owner;
 	xlogfileoptions Options;
 	xfile File;
+	bool Closed;
 	xbuffer Record;
 	xlogformatproc Format;
 	xlogformatdropproc Drop;
@@ -443,6 +444,11 @@ static xlogresult __xrtLogFileWrite(
 	}
 	xrtAtomic64Store(&pState->Owner, iThread, XMEMORY_RELEASE);
 	memset(&Writer, 0, sizeof(Writer));
+	if (pState->Closed) {
+		__xrtLogErrorSet(XERR_CLOSED, XLOG_ERROR_FILE_CLOSE,
+			"file-write", "log file sink is closed");
+		goto Finish;
+	}
 	Writer.State = pState;
 	xrtBufferClear(&pState->Record);
 	bFormatted = pState->Format(
@@ -522,7 +528,11 @@ static bool __xrtLogFileFlush(ptr pUserData)
 		return false;
 	}
 	xrtAtomic64Store(&pState->Owner, iThread, XMEMORY_RELEASE);
-	bResult = __xrtLogFileSyncLocked(pState);
+	if (pState->Closed) {
+		__xrtLogErrorSet(XERR_CLOSED, XLOG_ERROR_FILE_CLOSE,
+			"file-flush", "log file sink is closed");
+		bResult = false;
+	} else bResult = __xrtLogFileSyncLocked(pState);
 	xrtAtomic64Store(&pState->Owner, 0, XMEMORY_RELEASE);
 	if ( !xrtMutexUnlock(&pState->Lock) ) {
 		return false;
@@ -753,7 +763,11 @@ XRT_API bool xrtLogFileRotate(xlogsink* pSink)
 		return false;
 	}
 	xrtAtomic64Store(&pState->Owner, iThread, XMEMORY_RELEASE);
-	bResult = __xrtLogFileRotateLocked(pState);
+	if (pState->Closed) {
+		__xrtLogErrorSet(XERR_CLOSED, XLOG_ERROR_FILE_CLOSE,
+			"file-rotate", "log file sink is closed");
+		bResult = false;
+	} else bResult = __xrtLogFileRotateLocked(pState);
 	xrtAtomic64Store(&pState->Owner, 0, XMEMORY_RELEASE);
 	if ( !xrtMutexUnlock(&pState->Lock) ) {
 		return false;
@@ -782,10 +796,44 @@ XRT_API bool xrtLogFileReopen(xlogsink* pSink)
 	}
 	xrtAtomic64Store(&pState->Owner, iThread, XMEMORY_RELEASE);
 	bResult = __xrtLogFileReopenLocked(pState);
+	if (bResult) pState->Closed = false;
 	xrtAtomic64Store(&pState->Owner, 0, XMEMORY_RELEASE);
 	if ( !xrtMutexUnlock(&pState->Lock) ) {
 		return false;
 	}
+	return bResult;
+}
+
+XRT_API bool xrtLogFileClose(xlogsink* pSink)
+{
+	xlogfilestate* pState = __xrtLogFileState(pSink);
+	xerror* pFirst = NULL;
+	bool bResult = true;
+	if (pState == NULL) return false;
+	uint64 iThread = __xrtCurrentThreadId();
+	if (xrtAtomic64Load(&pState->Owner, XMEMORY_ACQUIRE) == iThread) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	if (!xrtMutexLock(&pState->Lock)) return false;
+	xrtAtomic64Store(&pState->Owner, iThread, XMEMORY_RELEASE);
+	if (!pState->Closed) {
+		pState->Closed = true;
+		if (pState->File != NULL) {
+			if (!__xrtLogFileSyncLocked(pState)) { bResult = false; pFirst = xrtTakeError(); }
+			if (!xrtClose(pState->File)) {
+				bResult = false;
+				if (pFirst == NULL) {
+					__xrtLogFileWrap(XERR_IO, XLOG_ERROR_FILE_CLOSE,
+						"file-close", "failed to close log file");
+					pFirst = xrtTakeError();
+				}
+			}
+			pState->File = NULL;
+		}
+	}
+	xrtAtomic64Store(&pState->Owner, 0u, XMEMORY_RELEASE);
+	if (!xrtMutexUnlock(&pState->Lock)) bResult = false;
+	if (pFirst != NULL) xrtSetErrorTake(pFirst);
 	return bResult;
 }
 
