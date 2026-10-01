@@ -28,5 +28,8 @@ int main(void)
 		return 3;
 	}
 	printf("[PASS] single-number-format\n");
+	str sText = xrtIntFormatSized(0, XRT_STR_LITERAL("c"), &iSize);
+	if (!sText || iSize != 1 || sText[0] != 0 || sText[1] != 0) return 4;
+	xrtFree(sText);
 	return 0;
 }

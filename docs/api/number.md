@@ -612,6 +612,10 @@ bool xrtNumFormatTo(double value, xstrview format,
 str xrtIntFormat(int64 value, xstrview format);
 str xrtUIntFormat(uint64 value, xstrview format);
 str xrtNumFormat(double value, xstrview format);
+
+str xrtIntFormatSized(int64 value, xstrview format, size_t* outputSize);
+str xrtUIntFormatSized(uint64 value, xstrview format, size_t* outputSize);
+str xrtNumFormatSized(double value, xstrview format, size_t* outputSize);
 ```
 
 三个 `To` 接口都支持 `output == NULL && capacity == 0` 的精确长度查询。容量不足时通过 `outputSize` 返回所需长度，目标保持不变；实际容量必须包含末尾零。三个分配接口返回由 `xrtFree` 释放的字符串。
@@ -642,7 +646,7 @@ str xrtNumFormat(double value, xstrview format);
 | `b` / `B` | 二进制；大写形式影响可选前缀 |
 | `c` | 把整数解释为 Unicode 标量并写出 UTF-8 |
 
-`c` 只接受可选的最小宽度，宽度不足时在左侧补空格。符号、`#`、补零、分组和精度均返回 `XNUMBER_ERROR_FORMAT`。负数、`U+0000`、代理区以及大于 `U+10FFFF` 的值生成空文本；这样零结尾字符串不会包含不可表达的内嵌零字节。
+`c` 只接受可选的最小宽度，宽度不足时在左侧补空格。符号、`#`、补零、分组和精度均返回 `XNUMBER_ERROR_FORMAT`。负数、代理区以及大于 `U+10FFFF` 的值生成空文本。`U+0000` 是有效标量，生成一个零字节；必须保留 `To` 或 `Sized` 返回的长度，不能用 `strlen` 恢复其长度。
 
 浮点类型：
 
@@ -912,6 +916,110 @@ str xrtNumFormat(double fValue, xstrview Format)
 ```c
 	str sFloat = xrtNumFormat(
 		1234567.895, XRT_STR_LITERAL(",.2f"));
+```
+
+### `xrtIntFormatSized`
+
+分配有符号整数的精确字节结果，按 `xrtIntFormatTo` 的格式合同处理。
+
+```c
+str xrtIntFormatSized(int64 iValue, xstrview Format, size_t* pOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValue` | 输入 | 值 | 有符号整数 |
+| `Format` | 输入 | 借用 | 精确字节格式视图 |
+| `pOutputSize` | 输出 | 必须非空，不与 Format 重叠 | 不含末尾终止零的字节长度 |
+
+#### 返回值
+
+非空为独立拥有的零结尾分配，由 `xrtFree` 释放。可以包含内嵌零。
+普通失败返回 `NULL`，输出长度为零；输出槽与输入重叠时拒绝并保持输入不变。
+
+#### 错误
+
+沿用 `To` 的格式和范围错误；参数槽无效报 `XERR_ARGUMENT`，分配失败报 `XERR_MEMORY`。
+
+#### 范例
+
+见 [format](../../examples/number/format/main.c)，以下示例保留精确长度：
+
+```c
+size_t size;
+str text = xrtIntFormatSized(0, XRT_STR_LITERAL("4c"), &size);
+/* 成功时 size == 4，text 是三个空格和 U+0000。 */
+xrtFree(text);
+```
+
+### `xrtUIntFormatSized`
+
+无符号版本，所有权、精确长度、输出槽和失败合同与 `xrtIntFormatSized` 相同。
+
+```c
+str xrtUIntFormatSized(uint64 iValue, xstrview Format, size_t* pOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `iValue` | 输入 | 值 | 完整 uint64 |
+| `Format` | 输入 | 借用 | 精确字节格式视图 |
+| `pOutputSize` | 输出 | 必须非空，不与 Format 重叠 | 不含末尾终止零的字节长度 |
+
+#### 返回值
+
+独立分配或 `NULL`，长度与清理合同相同。
+
+#### 错误
+
+沿用 `xrtUIntFormatTo`；另可能有参数槽或内存错误。
+
+#### 范例
+
+见 [format](../../examples/number/format/main.c)。
+
+```c
+size_t size;
+str text = xrtUIntFormatSized(UINT64_MAX, XRT_STR_LITERAL("X"), &size);
+xrtFree(text);
+```
+
+### `xrtNumFormatSized`
+
+double 版本，所有权、精确长度、输出槽和失败合同与 `xrtIntFormatSized` 相同。
+
+```c
+str xrtNumFormatSized(double fValue, xstrview Format, size_t* pOutputSize)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `fValue` | 输入 | 值 | double |
+| `Format` | 输入 | 借用 | 精确字节格式视图 |
+| `pOutputSize` | 输出 | 必须非空，不与 Format 重叠 | 不含末尾终止零的字节长度 |
+
+#### 返回值
+
+独立分配或 `NULL`，长度与清理合同相同。
+
+#### 错误
+
+沿用 `xrtNumFormatTo`；另可能有参数槽或内存错误。
+
+#### 范例
+
+见 [format](../../examples/number/format/main.c)。
+
+```c
+size_t size;
+str text = xrtNumFormatSized(-0.0, XRT_STR_LITERAL(".2f"), &size);
+xrtFree(text);
 ```
 
 ## 错误

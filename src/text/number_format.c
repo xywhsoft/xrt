@@ -394,7 +394,7 @@ static bool __xrtNumberCharacterFormat(
 		return __xrtNumberFormatError(
 			sOperation, "character format only accepts width");
 	}
-	if ( !bNegative && (iMagnitude != 0) &&
+	if ( !bNegative &&
 		 (iMagnitude <= UINT32_MAX) ) {
 		iCoreSize = __xrtUtf8Encode((uint32)iMagnitude, arrCore);
 	}
@@ -558,12 +558,21 @@ static str __xrtNumberFormatAllocate(
 	int64 iSigned,
 	uint64 iUnsigned,
 	double fValue,
-	xstrview Format
+	xstrview Format,
+	size_t* pOutputSize
 )
 {
 	size_t iSize;
 	str sOutput;
 	bool bResult;
+
+	if ( pOutputSize == NULL ||
+		 __xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), Format.Data, Format.Size) ) {
+		__xrtNumberError(XERR_ARGUMENT, XNUMBER_ERROR_CONFIG,
+			"format-sized", "invalid or overlapping output size");
+		return NULL;
+	}
+	*pOutputSize = 0;
 
 	if ( iKind == 0 ) {
 		bResult = xrtIntFormatTo(
@@ -596,6 +605,7 @@ static str __xrtNumberFormatAllocate(
 		xrtFree(sOutput);
 		return NULL;
 	}
+	*pOutputSize = iSize;
 	return sOutput;
 }
 
@@ -604,7 +614,8 @@ static str __xrtNumberFormatAllocate(
 /* 格式化有符号整数并分配结果。 */
 XRT_API str xrtIntFormat(int64 iValue, xstrview Format)
 {
-	return __xrtNumberFormatAllocate(0, iValue, 0, 0.0, Format);
+	size_t iSize;
+	return xrtIntFormatSized(iValue, Format, &iSize);
 }
 
 
@@ -612,7 +623,8 @@ XRT_API str xrtIntFormat(int64 iValue, xstrview Format)
 /* 格式化无符号整数并分配结果。 */
 XRT_API str xrtUIntFormat(uint64 iValue, xstrview Format)
 {
-	return __xrtNumberFormatAllocate(1, 0, iValue, 0.0, Format);
+	size_t iSize;
+	return xrtUIntFormatSized(iValue, Format, &iSize);
 }
 
 
@@ -620,7 +632,21 @@ XRT_API str xrtUIntFormat(uint64 iValue, xstrview Format)
 /* 格式化 double 并分配结果。 */
 XRT_API str xrtNumFormat(double fValue, xstrview Format)
 {
-	return __xrtNumberFormatAllocate(2, 0, 0, fValue, Format);
+	size_t iSize;
+	return xrtNumFormatSized(fValue, Format, &iSize);
+}
+
+XRT_API str xrtIntFormatSized(int64 iValue, xstrview Format, size_t* pOutputSize)
+{
+	return __xrtNumberFormatAllocate(0, iValue, 0, 0.0, Format, pOutputSize);
+}
+XRT_API str xrtUIntFormatSized(uint64 iValue, xstrview Format, size_t* pOutputSize)
+{
+	return __xrtNumberFormatAllocate(1, 0, iValue, 0.0, Format, pOutputSize);
+}
+XRT_API str xrtNumFormatSized(double fValue, xstrview Format, size_t* pOutputSize)
+{
+	return __xrtNumberFormatAllocate(2, 0, 0, fValue, Format, pOutputSize);
 }
 
 #endif

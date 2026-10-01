@@ -110,7 +110,36 @@ int main(void)
 	testSignedIntegerFormat(0x10FFFF, XRT_STR_LITERAL("c"),
 		"\xF4\x8F\xBF\xBF");
 	testSignedIntegerFormat(65, XRT_STR_LITERAL("4c"), "   A");
-	testSignedIntegerFormat(0, XRT_STR_LITERAL("c"), "");
+	testRequire(xrtIntFormatTo(0, XRT_STR_LITERAL("c"), sOutput,
+		sizeof(sOutput), &iSize) && iSize == 1 && sOutput[0] == 0 && sOutput[1] == 0,
+		"U+0000 character lost its byte length");
+	{
+		str sText = xrtIntFormatSized(0, XRT_STR_LITERAL("4c"), &iSize);
+		testRequire(sText && iSize == 4 && memcmp(sText, "   \0", 4) == 0 && sText[4] == 0,
+			"sized padded U+0000 mismatch");
+		xrtFree(sText);
+		sText = xrtUIntFormatSized(UINT64_MAX, XRT_STR_LITERAL("X"), &iSize);
+		testRequire(sText && iSize == 16 && strcmp(sText, "FFFFFFFFFFFFFFFF") == 0,
+			"sized unsigned format mismatch");
+		xrtFree(sText);
+		sText = xrtNumFormatSized(-0.0, XRT_STR_LITERAL(".2f"), &iSize);
+		testRequire(sText && iSize == 5 && strcmp(sText, "-0.00") == 0,
+			"sized float format mismatch");
+		xrtFree(sText);
+		iSize = SIZE_MAX;
+		testRequire(!xrtNumFormatSized(1, XRT_STR_LITERAL("?"), &iSize) && iSize == 0,
+			"sized failure did not clear size");
+		xrtClearError();
+		testRequire(!xrtIntFormatSized(1, XRT_STR_LITERAL("d"), NULL) &&
+			xrtErrorKind(xrtGetError()) == XERR_ARGUMENT, "missing output slot accepted");
+		xrtClearError();
+		union {size_t Size; char Text[sizeof(size_t)];} Alias;
+		memset(&Alias, 'd', sizeof(Alias));
+		testRequire(!xrtIntFormatSized(1, (xstrview){Alias.Text, sizeof(Alias)}, &Alias.Size) &&
+			Alias.Text[0] == 'd' && xrtErrorKind(xrtGetError()) == XERR_ARGUMENT,
+			"overlapping output slot modified format input");
+		xrtClearError();
+	}
 	testSignedIntegerFormat(-1, XRT_STR_LITERAL("c"), "");
 	testSignedIntegerFormat(0xD800, XRT_STR_LITERAL("c"), "");
 	testUnsignedIntegerFormat(UINT64_C(0x110000),
