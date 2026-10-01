@@ -172,16 +172,65 @@ static void testFutureCombineDuplicate(void)
 
 
 
+/* Completion observers must see the loser's cancellation request, not a
+ * publication-before-cancel gap. The request does not forge a terminal state. */
+typedef struct testFutureRaceProbe {
+    xcancel* Cancel;
+    bool Observed, Released;
+} testFutureRaceProbe;
+static void testFutureRacePublished(ptr data)
+{
+    testFutureRaceProbe* probe = data;
+    testRequire(!probe->Observed && xrtCancelRequested(probe->Cancel),
+        "future Race published before requesting loser cancellation");
+    probe->Observed = true;
+}
+static void testFutureRaceObserverReleased(ptr data)
+{ ((testFutureRaceProbe*)data)->Released = true; }
+
+static void testFutureRaceMapped(const xfuturepick* input, xpromise* output, ptr data)
+{
+    testRequire(input != NULL && input->Future != NULL && xrtCancelRequested((xcancel*)data),
+        "future Race entered its mapper before requesting loser cancellation");
+    testRequire(xrtPromiseForward(output, input->Future), "future Race mapper forward failed");
+}
+static void testFutureRaceMapDrop(ptr data, ptr ignored)
+{ (void)ignored; xrtCancelDestroy((xcancel*)data); }
+static bool testFutureRaceMapTrace(const void* data, const void* ignored,
+    xrtownershipvisitor visit, ptr context)
+{ (void)ignored; return visit(xrtCancelOwnership((const xcancel*)data), context); }
+
+static void testFutureCombineRaceMapped(void)
+{
+    xfuture *a, *b;
+    xpromise* pa = testFutureCombinePair(&a);
+    xpromise* pb = testFutureCombinePair(&b);
+    xcancel* cancel = xrtFutureCancelToken(b);
+    xfuture* inputs[] = {a, b};
+    int value = 41;
+    xfuture* result = xrtFutureRaceMapOwnedTraced(inputs, 2, testFutureRaceMapped,
+        xrtCancelRef(cancel), testFutureRaceMapDrop, NULL, testFutureRaceMapTrace);
+    testRequire(result != NULL, "mapped Race create failed");
+    testRequire(xrtPromiseResolve(pa, &value), "mapped Race winner resolve failed");
+    testRequire(xrtFutureValue(result) == &value && xrtCancelRequested(cancel),
+        "mapped Race result or cancellation failed");
+    testRequire(xrtFutureState(b) == XFUTURE_PENDING, "mapped Race forged loser terminal state");
+    xrtFutureDestroy(result); xrtCancelDestroy(cancel);
+    testFutureCombineDestroyPair(pa, a); testFutureCombineDestroyPair(pb, b);
+}
+
 /* 验证 Race 只请求败者取消，败者生产端仍决定最终终态。 */
 static void testFutureCombineRace(void)
 {
 	xfuture* pA;
 	xfuture* pB;
 	xfuture* pRace;
+	xfuturewatch watch = {0};
 	xfuture* arrFuture[2];
 	xpromise* pPromiseA = testFutureCombinePair(&pA);
 	xpromise* pPromiseB = testFutureCombinePair(&pB);
 	xcancel* pLoserCancel = xrtFutureCancelToken(pB);
+	testFutureRaceProbe probe = {pLoserCancel, false, false};
 	const xfuturepick* pPick;
 	int iValueA = 41;
 	int iValueB = 42;
@@ -191,6 +240,10 @@ static void testFutureCombineRace(void)
 	arrFuture[1] = pB;
 	pRace = xrtFutureRace(arrFuture, 2);
 	testRequire(pRace != NULL, "future Race create failed");
+	testRequire(xrtFutureWatchInit(&watch, testFutureRacePublished,
+		testFutureRaceObserverReleased, &probe), "future Race publication observer init failed");
+	testRequire(xrtFutureWatchAdd(pRace, &watch) == XFUTURE_WATCH_PENDING,
+		"future Race publication observer add failed");
 	testRequire(xrtPromiseResolve(pPromiseA, &iValueA),
 		"future Race winner resolve failed");
 	pPick = (const xfuturepick*)xrtFutureValue(pRace);
@@ -198,6 +251,8 @@ static void testFutureCombineRace(void)
 		(pPick->Future == pA), "future Race winner mismatch");
 	testRequire(xrtCancelRequested(pLoserCancel),
 		"future Race did not request loser cancellation");
+	testRequire(probe.Observed && probe.Released,
+		"future Race publication observer did not complete");
 	testRequire(xrtFutureState(pB) == XFUTURE_PENDING,
 		"future Race forged loser terminal state");
 	testRequire(xrtPromiseResolve(pPromiseB, &iValueB),
@@ -315,6 +370,7 @@ int main(void)
 	testFutureCombineImmediate();
 	testFutureCombineDuplicate();
 	testFutureCombineRace();
+	testFutureCombineRaceMapped();
 	testFutureCombineCancel();
 	testFutureCombineInvalid();
 	testFutureCombineDeepCascade();

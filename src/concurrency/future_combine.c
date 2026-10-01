@@ -243,8 +243,13 @@ static void __xrtFutureCombineSourceDone(ptr data)
     }
     __xrtFutureCombineEnd(group, &scope);
     if (promise) {
-        __xrtFutureCombineDetach(group, item); __xrtFutureCombineComplete(group, promise);
+        __xrtFutureCombineDetach(group, item);
+        /* The winning callback still owns the group and its source slots.
+         * Request cancellation before the mapper can publish to another
+         * thread; callbacks run without the group mutex, and Completed makes
+         * reentrant loser notifications inert. Producers keep terminal rights. */
         if (race) __xrtFutureCombineCancelSources(group, item->Index);
+        __xrtFutureCombineComplete(group, promise);
     }
     __xrtFutureCombineBegin(group, &scope); --group->Active; __xrtFutureCombineEnd(group, &scope);
 }
