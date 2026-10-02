@@ -1220,6 +1220,47 @@ bool __xrtProcessPlatformWait(
 
 
 
+/* Acquire an operation-owned close-on-exec fd under the slot lock. A
+ * concurrent Close retires future operations, not this operation's endpoint. */
+static int __xrtProcessIoAcquire(xprocess* pProcess, xprocessstream Stream)
+{
+	int iSource, iCopy = -1, iError = 0;
+	bool bWrite = Stream == XPROCESS_STDIN;
+
+	if (!xrtMutexLock(&pProcess->Lock)) return -1;
+	iSource = bWrite ? pProcess->Stdin :
+		Stream == XPROCESS_STDOUT ? pProcess->Stdout : pProcess->Stderr;
+	if ( (iSource >= 0) && !__xrtProcessFdDuplicate(iSource, &iCopy) ) iError = errno;
+	if (!xrtMutexUnlock(&pProcess->Lock)) {
+		if (iCopy >= 0) (void)close(iCopy);
+		return -1;
+	}
+	if (iSource < 0) {
+		__xrtProcessErrorSet(XERR_CLOSED,
+			bWrite ? XPROCESS_ERROR_WRITE : XPROCESS_ERROR_READ,
+			bWrite ? "write" : "read", "process pipe is closed", 0);
+	} else if (iCopy < 0) {
+		__xrtProcessErrorSet(__xrtSystemErrorKind(iError),
+			bWrite ? XPROCESS_ERROR_WRITE : XPROCESS_ERROR_READ,
+			bWrite ? "write.acquire" : "read.acquire",
+			"process pipe fd could not be acquired", iError);
+	}
+	return iCopy;
+}
+
+/* Do not retry close(EINTR): a retired descriptor may already be reused.
+ * Preserve the first IO error, but report release failure after successful IO. */
+static bool __xrtProcessIoRelease(int iCopy, bool bReport)
+{
+	if (close(iCopy) == 0) return true;
+	if (bReport) {
+		int iError = errno;
+		__xrtProcessErrorSet(__xrtSystemErrorKind(iError), XPROCESS_ERROR_CLOSE,
+			"io.release", "process pipe operation fd could not be released", iError);
+	}
+	return false;
+}
+
 /* 读取父端输出 fd。 */
 int64 __xrtProcessPlatformRead(
 	xprocess* pProcess,
@@ -1228,49 +1269,25 @@ int64 __xrtProcessPlatformRead(
 	size_t iSize
 )
 {
-	int iFd;
+	int iFd = __xrtProcessIoAcquire(pProcess, Stream), iError;
 	ssize_t iRead;
+	bool bEof = false, bReleased;
 	size_t iChunk = iSize > (size_t)SSIZE_MAX ? (size_t)SSIZE_MAX : iSize;
 
-	(void)xrtMutexLock(&pProcess->Lock);
-	iFd = Stream == XPROCESS_STDOUT ? pProcess->Stdout : pProcess->Stderr;
-	(void)xrtMutexUnlock(&pProcess->Lock);
-	if ( iFd < 0 ) {
-		__xrtProcessErrorSet(
-			XERR_CLOSED,
-			XPROCESS_ERROR_READ,
-			"read",
-			"process output pipe is closed",
-			0
-		);
-		return -1;
-	}
+	if (iFd < 0) return -1;
 	do {
 		iRead = read(iFd, pData, iChunk);
 	} while ( (iRead < 0) && (errno == EINTR) );
-	if ( iRead >= 0 ) {
-		return (int64)iRead;
-	}
+	iError = iRead < 0 ? errno : 0;
 	#if defined(XRT_FEATURE_PROCESS_TERMINAL)
-		if ( pProcess->Terminal && (errno == EIO) ) {
-			return 0;
-		}
+		bEof = (iRead < 0) && pProcess->Terminal && (iError == EIO);
 	#endif
-	{
-		int iError = errno;
-
-		__xrtProcessErrorSet(
-			__xrtSystemErrorKind(iError),
-			XPROCESS_ERROR_READ,
-			"read",
-			"process output read failed",
-			iError
-		);
-	}
+	bReleased = __xrtProcessIoRelease(iFd, (iRead >= 0) || bEof);
+	if ( (iRead >= 0) || bEof ) return bReleased ? (bEof ? 0 : (int64)iRead) : -1;
+	__xrtProcessErrorSet(__xrtSystemErrorKind(iError), XPROCESS_ERROR_READ,
+		"read", "process output read failed", iError);
 	return -1;
 }
-
-
 
 /* 向 socketpair stdin 写入并抑制 SIGPIPE。 */
 int64 __xrtProcessPlatformWrite(
@@ -1279,23 +1296,12 @@ int64 __xrtProcessPlatformWrite(
 	size_t iSize
 )
 {
-	int iFd;
+	int iFd = __xrtProcessIoAcquire(pProcess, XPROCESS_STDIN), iError;
 	ssize_t iWritten;
+	bool bReleased;
 	size_t iChunk = iSize > (size_t)SSIZE_MAX ? (size_t)SSIZE_MAX : iSize;
 
-	(void)xrtMutexLock(&pProcess->Lock);
-	iFd = pProcess->Stdin;
-	(void)xrtMutexUnlock(&pProcess->Lock);
-	if ( iFd < 0 ) {
-		__xrtProcessErrorSet(
-			XERR_CLOSED,
-			XPROCESS_ERROR_WRITE,
-			"write",
-			"process input pipe is closed",
-			0
-		);
-		return -1;
-	}
+	if (iFd < 0) return -1;
 	do {
 		#if defined(XRT_FEATURE_PROCESS_TERMINAL)
 			if ( pProcess->Terminal ) {
@@ -1310,20 +1316,11 @@ int64 __xrtProcessPlatformWrite(
 			#endif
 		}
 	} while ( (iWritten < 0) && (errno == EINTR) );
-	if ( iWritten >= 0 ) {
-		return (int64)iWritten;
-	}
-	{
-		int iError = errno;
-
-		__xrtProcessErrorSet(
-			__xrtSystemErrorKind(iError),
-			XPROCESS_ERROR_WRITE,
-			"write",
-			"process input write failed",
-			iError
-		);
-	}
+	iError = iWritten < 0 ? errno : 0;
+	bReleased = __xrtProcessIoRelease(iFd, iWritten >= 0);
+	if (iWritten >= 0) return bReleased ? (int64)iWritten : -1;
+	__xrtProcessErrorSet(__xrtSystemErrorKind(iError), XPROCESS_ERROR_WRITE,
+		"write", "process input write failed", iError);
 	return -1;
 }
 

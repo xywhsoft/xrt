@@ -887,6 +887,10 @@ intptr_t xrtProcessNative(const xprocess* pProcess)
 
 返回借用的父端标准流句柄；未配置 PIPE 或已关闭时返回 -1。
 
+该数值不是安全的 I/O 持有权；解锁后可能被并发 Close 或后台 waiter
+退役并由 OS 复用。不要自行关闭它，也不要用它实现并发安全的流适配器。
+应使用 xrtProcessRead / xrtProcessWrite；调用期间保持有效的 Process 引用。
+
 ```c
 intptr_t xrtProcessStreamNative(
 	const xprocess* pProcess,
@@ -995,6 +999,11 @@ xerror* xrtProcessError(const xprocess* pProcess)
 
 从 stdout 或 stderr 管道同步读取；零表示 EOF，负数表示错误。同一标准流同一时刻只允许一个读取者。
 
+非零请求在流槽位锁下取得不可继承的操作副本，随后在锁外阻塞读取，
+结束后释放副本。并发 Close 不会把此次读取重定向到复用的无关句柄。
+复制失败报告 READ 错误；成功读取或 EOF 后释放失败报告 CLOSE 错误，
+此时数据可能已被消耗。读取失败时保留首个原生错误，不被释放错误覆盖。
+
 ```c
 int64 xrtProcessRead(
 	xprocess* pProcess,
@@ -1042,6 +1051,11 @@ int64 xrtProcessRead(
 
 向 stdin 管道同步写入，返回实际写入字节数，负数表示错误。函数可能部分写入；同一时刻只允许一个写入者。
 
+与 Read 相同，非零请求取得私有操作副本，不跨阻塞 I/O 持有 Process
+锁。复制失败报告 WRITE 错误；成功写入后释放失败报告 CLOSE 错误，
+此时数据可能已写入，不能假定负数意味着没有副作用或盲目重试。
+写入失败保留首个原生错误。
+
 ```c
 int64 xrtProcessWrite(
 	xprocess* pProcess,
@@ -1080,6 +1094,12 @@ int64 xrtProcessWrite(
 ### `xrtProcessClose`
 
 关闭父进程持有的指定管道端；重复关闭成功。
+
+Close 只退役该槽位并阻止之后的非零读写，不取消已经取得操作副本的
+阻塞 I/O，也不等待这些调用结束。stdin 的最后一个操作副本释放前，
+子进程可能尚未看到 EOF。需要停止阻塞调用时，应由协议结束对端或
+终止子进程；不能把 Close 当作跨平台 CancelIo。调用期间保留有效
+Process 引用；单读者 / 单写者约束不因此放宽。
 
 ```c
 bool xrtProcessClose(
