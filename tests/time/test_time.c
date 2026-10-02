@@ -2,6 +2,51 @@
 
 #include <time.h>
 
+/* Fail exactly one allocator request, then delegate normally. A permanently
+ * failing allocator cannot detect a second diagnostic overwriting MemoryError. */
+static xallocator tOriginalAllocator;
+static bool bFailNextAllocation;
+static unsigned iDiagnosticRequests;
+
+static ptr testCalendarAlloc(ptr pContext, size_t iSize)
+{
+	(void)pContext;
+	if ( bFailNextAllocation ) {
+		bFailNextAllocation = false;
+		iDiagnosticRequests++;
+		return NULL;
+	}
+	return tOriginalAllocator.Alloc(tOriginalAllocator.Context, iSize);
+}
+
+static ptr testCalendarRealloc(ptr pContext, ptr pMemory, size_t iSize)
+{
+	(void)pContext;
+	if ( bFailNextAllocation ) {
+		bFailNextAllocation = false;
+		iDiagnosticRequests++;
+		return NULL;
+	}
+	return tOriginalAllocator.Realloc(tOriginalAllocator.Context, pMemory, iSize);
+}
+
+static void testCalendarFree(ptr pContext, ptr pMemory)
+{
+	(void)pContext;
+	tOriginalAllocator.Free(tOriginalAllocator.Context, pMemory);
+}
+
+static void testInstallCalendarAllocator(void)
+{
+	xallocator tAllocator;
+	xrtGetAllocator(&tOriginalAllocator);
+	tAllocator.Context = NULL;
+	tAllocator.Alloc = testCalendarAlloc;
+	tAllocator.Realloc = testCalendarRealloc;
+	tAllocator.Free = testCalendarFree;
+	testRequire(xrtSetAllocator(&tAllocator), "calendar test allocator install failed");
+}
+
 
 
 /* 时钟 API 必须区分墙钟与单调时钟，并保留旧版轻量测量手感。 */
@@ -272,9 +317,55 @@ static void testRangesAndISOWeek(void)
 
 
 
+/* Calendar overflow must preserve a failed diagnostic allocation, including
+ * when propagated through half-open range constructors. */
+static void testCalendarDiagnosticOOM(void)
+{
+	xtime iStart = 123;
+	xtime iEnd = 456;
+	/* Initialize the optional TLS heap cache using a different size class.
+	 * Cache allocation failure alone may validly fall back to the global heap;
+	 * the injected failure must hit the diagnostic's actual backing span. */
+	ptr pWarmup = xrtMalloc(1);
+	testRequire(pWarmup != NULL, "calendar allocator warmup failed");
+	xrtFree(pWarmup);
+	bFailNextAllocation = true;
+	testRequire(!xrtYearRange(INT64_MAX, &iStart, &iEnd),
+		"year range overflow unexpectedly succeeded");
+	testRequire(!bFailNextAllocation && (iDiagnosticRequests == 1),
+		"calendar diagnostic fail-once injection missed");
+	testRequire(xrtErrorKind(xrtGetError()) == XERR_MEMORY,
+		"calendar propagation replaced the original diagnostic error");
+	testRequire((iStart == 123) && (iEnd == 456), "calendar OOM changed output");
+	xrtClearError();
+	for ( unsigned iPath = 0; iPath < 6; iPath++ ) {
+		bool bSuccess;
+		iStart = 123;
+		iEnd = 456;
+		xrtClearError();
+		switch ( iPath ) {
+		case 0: bSuccess = xrtTimeAdd(INT64_MAX, 1, XTIME_UNIT_MONTH, &iStart); break;
+		case 1: bSuccess = xrtTimeAdd(INT64_MIN, -1, XTIME_UNIT_YEAR, &iStart); break;
+		case 2: bSuccess = xrtTimeAdd(0, INT64_MAX, XTIME_UNIT_MONTH, &iStart); break;
+		case 3: bSuccess = xrtTimeAdd(0, INT64_MIN, XTIME_UNIT_MONTH, &iStart); break;
+		case 4: bSuccess = xrtMonthRange(INT64_MAX, &iStart, &iEnd); break;
+		default: bSuccess = xrtYearRange(INT64_MAX, &iStart, &iEnd); break;
+		}
+		testRequire(!bSuccess && (iStart == 123) && (iEnd == 456),
+			"calendar overflow changed output");
+		testRequire(xrtErrorKind(xrtGetError()) == XERR_RANGE,
+			"calendar propagation replaced the original diagnostic error");
+		testRequire(xrtErrorCode(xrtGetError()) == XTIME_ERROR_OVERFLOW,
+			"calendar overflow code changed");
+		xrtClearError();
+	}
+}
+
 /* 执行时钟、Gregorian、全域、偏移、算术、区间与 ISO 周测试。 */
 int main(void)
 {
+	testInstallCalendarAllocator();
+	testCalendarDiagnosticOOM();
 	testClocks();
 	testCalendarRules();
 	testEpochAndParts();
