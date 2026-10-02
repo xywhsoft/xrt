@@ -446,6 +446,56 @@ cleanup:
 
 
 
+/* Isolate text preparation so allocation/Unicode errors are not replaced by
+ * a guessed OS error, and stop before subsequent conversions after failure.
+ * The caller owns every non-NULL output even when preparation fails. */
+static bool __xrtProcessTextPrepare(
+	const xprocessconfig* pConfig,
+	cstr sProgram8,
+	wchar_t** ppProgram,
+	wchar_t** ppCommand,
+	wchar_t** ppWorkDir
+)
+{
+	xerror* pPrevious = xrtTakeError();
+
+	*ppProgram = __xrtProcessProgramResolve(sProgram8);
+	if ( *ppProgram == NULL ) {
+		if ( xrtGetError() == NULL ) {
+			__xrtProcessErrorSet(XERR_NOT_FOUND, XPROCESS_ERROR_COMMAND,
+				"spawn.command", "process program could not be resolved",
+				(int)GetLastError());
+		}
+		goto fail;
+	}
+	*ppCommand = __xrtProcessCommandBuild(pConfig, sProgram8);
+	if ( *ppCommand == NULL ) {
+		if ( xrtGetError() == NULL ) {
+			__xrtProcessErrorSet(XERR_VALUE, XPROCESS_ERROR_COMMAND,
+				"spawn.command", "process command is not valid UTF-8", 0);
+		}
+		goto fail;
+	}
+	if ( pConfig->WorkDir != NULL ) {
+		*ppWorkDir = (wchar_t*)xrtUtf8To16(pConfig->WorkDir, NULL);
+		if ( *ppWorkDir == NULL ) {
+			if ( xrtGetError() == NULL ) {
+				__xrtProcessErrorSet(XERR_VALUE, XPROCESS_ERROR_CONFIG,
+					"spawn.workdir", "process working directory is not valid UTF-8", 0);
+			}
+			goto fail;
+		}
+	}
+	xrtClearError();
+	xrtSetErrorTake(pPrevious);
+	return true;
+fail:
+	xrtErrorFree(pPrevious);
+	return false;
+}
+
+
+
 /* 返回 Windows 环境项名称长度，驱动变量包含开头等号。 */
 static size_t __xrtProcessEnvNameSize(const wchar_t* sEntry)
 {
@@ -1104,33 +1154,9 @@ bool __xrtProcessTerminalSpawnWindows(
 		goto cleanup;
 	}
 	Startup.AttributeList = pAttributes;
-	sProgram = __xrtProcessProgramResolve(sProgram8);
-	sCommand = __xrtProcessCommandBuild(pConfig, sProgram8);
-	if ( (sProgram == NULL) || (sCommand == NULL) ) {
-		iError = (int)GetLastError();
-		__xrtProcessErrorSet(
-			sProgram == NULL ? XERR_NOT_FOUND : XERR_VALUE,
-			XPROCESS_ERROR_COMMAND,
-			"spawn.command",
-			sProgram == NULL ?
-				"process program could not be resolved" :
-				"process command is not valid UTF-8",
-			iError
-		);
+	if ( !__xrtProcessTextPrepare(pConfig, sProgram8,
+		&sProgram, &sCommand, &sWorkDir) ) {
 		goto cleanup;
-	}
-	if ( pConfig->WorkDir != NULL ) {
-		sWorkDir = (wchar_t*)xrtUtf8To16(pConfig->WorkDir, NULL);
-		if ( sWorkDir == NULL ) {
-			__xrtProcessErrorSet(
-				XERR_VALUE,
-				XPROCESS_ERROR_CONFIG,
-				"spawn.workdir",
-				"process working directory is not valid UTF-8",
-				0
-			);
-			goto cleanup;
-		}
 	}
 	if ( !__xrtProcessEnvironmentBuild(pConfig, &sEnvironment) ) {
 		goto cleanup;
@@ -1396,33 +1422,9 @@ bool __xrtProcessPlatformSpawn(
 		goto cleanup;
 	}
 	Startup.AttributeList = pAttributes;
-	sProgram = __xrtProcessProgramResolve(sProgram8);
-	sCommand = __xrtProcessCommandBuild(pConfig, sProgram8);
-	if ( (sProgram == NULL) || (sCommand == NULL) ) {
-		iError = (int)GetLastError();
-		__xrtProcessErrorSet(
-			sProgram == NULL ? XERR_NOT_FOUND : XERR_VALUE,
-			XPROCESS_ERROR_COMMAND,
-			"spawn.command",
-			sProgram == NULL ?
-				"process program could not be resolved" :
-				"process command is not valid UTF-8",
-			iError
-		);
+	if ( !__xrtProcessTextPrepare(pConfig, sProgram8,
+		&sProgram, &sCommand, &sWorkDir) ) {
 		goto cleanup;
-	}
-	if ( pConfig->WorkDir != NULL ) {
-		sWorkDir = (wchar_t*)xrtUtf8To16(pConfig->WorkDir, NULL);
-		if ( sWorkDir == NULL ) {
-			__xrtProcessErrorSet(
-				XERR_VALUE,
-				XPROCESS_ERROR_CONFIG,
-				"spawn.workdir",
-				"process working directory is not valid UTF-8",
-				0
-			);
-			goto cleanup;
-		}
 	}
 	if ( !__xrtProcessEnvironmentBuild(pConfig, &sEnvironment) ) {
 		goto cleanup;

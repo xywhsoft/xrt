@@ -422,19 +422,21 @@ static bool __xrtProcessPlanBuild(
 	if ( pPlan->Argv == NULL ) {
 		return false;
 	}
-	if ( pConfig->Target == XPROCESS_SHELL ) {
-		pPlan->Argv[0] = __xrtProcessTextCopy("/bin/sh");
-		pPlan->Argv[1] = __xrtProcessTextCopy("-c");
-		pPlan->Argv[2] = __xrtProcessTextCopy(pConfig->Command);
-	} else {
-		pPlan->Argv[0] = __xrtProcessTextCopy(
-			pConfig->Arg0 != NULL ? pConfig->Arg0 : pConfig->Program
-		);
-		for ( size_t i = 0u; i < pConfig->ArgCount; i++ ) {
-			pPlan->Argv[i + 1u] = __xrtProcessTextCopy(pConfig->Args[i]);
-		}
-	}
+	/* Keep the zero-terminated cleanup prefix contiguous on every failure.
+	 * Do not allocate later arguments after a failed copy: cleanup stops at
+	 * the first NULL and would otherwise leak those later allocations. */
 	for ( size_t i = 0u; i < iArgCount; i++ ) {
+		cstr sArgument;
+
+		if ( pConfig->Target == XPROCESS_SHELL ) {
+			sArgument = i == 0u ? "/bin/sh" :
+				(i == 1u ? "-c" : pConfig->Command);
+		} else {
+			sArgument = i == 0u ?
+				(pConfig->Arg0 != NULL ? pConfig->Arg0 : pConfig->Program) :
+				pConfig->Args[i - 1u];
+		}
+		pPlan->Argv[i] = __xrtProcessTextCopy(sArgument);
 		if ( pPlan->Argv[i] == NULL ) {
 			return false;
 		}

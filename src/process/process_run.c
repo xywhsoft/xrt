@@ -636,9 +636,6 @@ XRT_API bool xrtProcessRun(
 	pResult->StderrTruncated = State.Stderr.Truncated;
 	pResult->Duration = xrtClock() - iStart;
 	bOk = !__xrtProcessRunFailed(&State);
-	if ( !bOk && (State.Error != NULL) ) {
-		xrtSetError(State.Error);
-	}
 	goto cleanup;
 
 stop_failed:
@@ -648,6 +645,16 @@ stop_failed:
 	goto cleanup;
 
 cleanup:
+	{
+	/* Keep the first infrastructure error alive across stop/join/destruction.
+	 * In particular stop_failed owns it in State, not in the thread slot. */
+	xerror* pFailure = NULL;
+	if ( !bOk ) {
+		pFailure = State.Error;
+		State.Error = NULL;
+		if ( pFailure == NULL ) pFailure = xrtTakeError();
+		else xrtClearError();
+	}
 	if ( pProcess != NULL ) {
 		xrtProcessDestroy(pProcess);
 	}
@@ -661,7 +668,12 @@ cleanup:
 	if ( bLockReady ) {
 		(void)xrtMutexUnit(&State.Lock);
 	}
+	if ( pFailure != NULL ) {
+		xrtClearError();
+		xrtSetErrorTake(pFailure);
+	}
 	return bOk;
+	}
 }
 
 

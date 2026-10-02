@@ -396,18 +396,17 @@ XRT_API xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
 	pProcess->Waiter = xrtThreadCreate(__xrtProcessWaiter, pProcess, 0u);
 	if ( pProcess->Waiter == NULL ) {
 		(void)xrtRefRelease(&pProcess->RefCount);
-		__xrtProcessErrorSet(
-			XERR_INTERNAL,
-			XPROCESS_ERROR_THREAD,
-			"spawn.waiter",
-			"process wait thread could not start",
-			0
-		);
+		if ( xrtGetError() == NULL ) {
+			__xrtProcessErrorSet(XERR_INTERNAL, XPROCESS_ERROR_THREAD,
+				"spawn.waiter", "process wait thread could not start", 0);
+		}
 		goto fail_running;
 	}
 	return pProcess;
 
 fail_running:
+	{
+	xerror* pFailure = xrtTakeError();
 	(void)__xrtProcessPlatformKillTree(pProcess);
 	(void)__xrtProcessPlatformKill(pProcess);
 	memset(&Status, 0, sizeof(Status));
@@ -416,7 +415,10 @@ fail_running:
 	(void)xrtCondUnit(&pProcess->Changed);
 	(void)xrtMutexUnit(&pProcess->Lock);
 	xrtFree(pProcess);
+	xrtClearError();
+	xrtSetErrorTake(pFailure);
 	return NULL;
+	}
 }
 
 
