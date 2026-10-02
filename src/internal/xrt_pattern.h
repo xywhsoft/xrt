@@ -219,6 +219,28 @@ struct xpatternbuilder {
 	uint64 Version;
 	uint64 CompiledVersion;
 	xpattern* Cached;
+	xpatternedit* Pending;
+};
+
+
+
+typedef enum __xrt_pattern_edit_kind {
+	__XRT_PATTERN_EDIT_ADD,
+	__XRT_PATTERN_EDIT_SET,
+	__XRT_PATTERN_EDIT_REMOVE,
+	__XRT_PATTERN_EDIT_CLEAR
+} __xrt_pattern_edit_kind;
+
+typedef struct __xrt_pattern_edit_item {
+	__xrt_pattern_source* Source;
+	xpatternid Id;
+} __xrt_pattern_edit_item;
+
+struct xpatternedit {
+	xpatternbuilder* Builder;
+	__xrt_pattern_edit_kind Kind;
+	size_t Count;
+	__xrt_pattern_edit_item Items[];
 };
 
 

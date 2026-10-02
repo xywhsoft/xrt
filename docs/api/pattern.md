@@ -3,6 +3,32 @@
 Pattern 是面向大量结构化字节模式的编译式匹配器。它只负责完整字符串
 匹配、顺序捕获和模式选择，不包含 HTTP、路由处理函数或正则表达式语义。
 
+## Builder 的关联元数据事务
+
+ID 为 Builder 实例局部的槽位/代际；不同 Builder 可产生相同数字，调用方
+必须同时保存实例身份。代际或版本耗尽时拒绝相应结构修改并报 StateError，
+不回绕、不使旧 ID 复活。`xrtPatternBuilderContains` 查询活动 ID；无效或
+陈旧 ID 为 false，不设置错误（NULL Builder 仍报 ArgumentError）。
+
+当模式表与语言对象 tag 等关联元数据必须一起更新时，使用 `xpatternedit`：
+
+1. `xrtPatternBuilderPrepareAdd(builder, specs, count)` 准备整批追加；
+   `PrepareSet(builder, id, spec)`、`PrepareRemove(builder, id)`、
+   `PrepareClear(builder)` 准备替换、删除、清空。Set/Remove 的无效 ID 报
+   StateError，不采用原有非报错 false 的查找语义。
+2. `xrtPatternEditReady/Count/Id` 查询独占编辑及确定的 ID。准备不改变活动
+   条目、版本、Dirty 或缓存；可能增长物理容量。失败或取消不消费 ID。
+3. 调用方完成关联元数据的可能失败部分，再调用 `xrtPatternEditCommit`。
+   有效且串行的提交不分配、不失败；空 Add/Clear 不增加版本。
+4. `xrtPatternEditFree` 释放编辑。未提交时即取消；已提交时只释放元数据。
+   Commit 不自动释放编辑，提交后仍可读取其 Count/Id，但不能再次提交。
+
+Pending 期间其他结构修改（包含 Reserve）报 StateError；读取与 Compile
+仍使用提交前的完整状态。Builder Free 自动使 edit 失效，但不代替调用方
+EditFree。Builder/edit 须串行且不得重入修改；元数据及用户析构/回调等
+外部副作用不由原生事务自动回滚。事务/代际白盒、实际 OOM 及无分配提交
+回归在 `tests/pattern/test_pattern_edit.c`；OOM 子集仅在 MEMORY_DEBUG 开启时执行。
+
 ## 类型与常量
 
 ### `xpatternresult`
