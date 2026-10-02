@@ -77,8 +77,8 @@
 		{
 			"name": "data",
 			"system": "data",
-			"suite": "json,xson",
-			"description": "JSON、XSON 和动态值持久化"
+			"suite": "json,xlon",
+			"description": "JSON、XLON 和动态值持久化"
 		},
 		{
 			"name": "system_io",
