@@ -312772,6 +312772,14 @@ cleanup:
 		else xrtClearError();
 	}
 	if ( pProcess != NULL ) {
+		/* ProcessWait publishes the exit status before the private waiter
+		 * retires its process reference and thread context. A synchronous Run
+		 * must join that owner too, not leave a detached cleanup tail. */
+		if ( xrtThreadWait(pProcess->Waiter) != XWAIT_OK ) {
+			if ( pFailure == NULL ) pFailure = xrtTakeError();
+			else xrtClearError();
+			bOk = false;
+		}
 		xrtProcessDestroy(pProcess);
 	}
 	if ( !bThreadsReady ) {
