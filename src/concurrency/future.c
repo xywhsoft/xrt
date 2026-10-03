@@ -26,6 +26,7 @@ struct xfuture {
 	const xfuturepayloadownershipv1* OwnershipPolicy;
 	xrtownershipref Producer;
 	const xfutureproducerownershipv1* ProducerPolicy;
+	const xfutureproducercancellationv1* ProducerCancellation;
 	const void* OwnershipClaim;
 	bool OwnershipCleared;
 	struct xfuture* Owner;
@@ -108,13 +109,15 @@ static void __xrtFutureProducerDrop(xrtownershipref Producer, const xfutureprodu
 	xrtClearError(); xrtSetErrorTake(pPrevious);
 }
 
-XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
-	const xfutureproducerownershipv1* pPolicy)
+static bool __xrtFutureProducerBindTake(xpromise* pPromise, xrtownershipref Producer,
+	const xfutureproducerownershipv1* pPolicy, const xfutureproducercancellationv1* pCancellation)
 {
 	xrtownershipscope Mutation = {0}; xfuture* pFuture; bool bBound = false;
 	if (pPromise == NULL || Producer.Data == NULL || Producer.Ops == NULL ||
 		Producer.Ops->Count == NULL || Producer.Ops->Trace == NULL ||
-		pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) || pPolicy->Drop == NULL) {
+		pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) || pPolicy->Drop == NULL ||
+		(pCancellation != NULL && (pCancellation->size != sizeof(*pCancellation) ||
+			pCancellation->Retain == NULL || pCancellation->Request == NULL))) {
 		__xrtErrorSetInvalidArgument(); return false;
 	}
 	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
@@ -125,11 +128,23 @@ XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Pr
 		pFuture->Waiters == NULL && pFuture->WaitersTail == NULL &&
 		__xrtAtomicRefLoad(&pFuture->RefCount) == 2 && __xrtAtomicRefLoad(&pFuture->PromiseRefs) == 1) {
 		pFuture->Producer = Producer; pFuture->ProducerPolicy = pPolicy; bBound = true;
+		pFuture->ProducerCancellation = pCancellation;
 	}
 	(void)xrtMutexUnlock(&pFuture->Lock);
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if (!bBound) __xrtErrorSetInvalidState();
 	return bBound;
+}
+
+XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
+	const xfutureproducerownershipv1* pPolicy)
+{ return __xrtFutureProducerBindTake(pPromise, Producer, pPolicy, NULL); }
+
+XRT_API bool xrtPromiseProducerBindTakeV2(xpromise* pPromise, xrtownershipref Producer,
+	const xfutureproducerownershipv1* pPolicy, const xfutureproducercancellationv1* pCancellation)
+{
+	if (pCancellation == NULL) { __xrtErrorSetInvalidArgument(); return false; }
+	return __xrtFutureProducerBindTake(pPromise, Producer, pPolicy, pCancellation);
 }
 
 static bool __xrtFutureAdapterHold(const void* pData)
@@ -176,6 +191,7 @@ static bool __xrtFutureAdapterFinish(const void* pData, const void* pToken)
 	pFuture->OwnershipTrace = NULL; pFuture->OwnershipPolicy = NULL;
 	pFuture->Owner = NULL; pFuture->Error = NULL; pFuture->Cancel = NULL;
 	pFuture->Producer = (xrtownershipref){0}; pFuture->ProducerPolicy = NULL;
+	pFuture->ProducerCancellation = NULL;
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if (pDestroy != NULL) pDestroy(pValue, NULL);
 	xrtFutureDestroy(pOwner); xrtErrorFree(pError); xrtCancelDestroy(pCancel);
@@ -261,7 +277,7 @@ static const xrtownershipadapterv1* __xrtFutureAdapterQuery(xrtownershipref Refe
 		if (!bKnown || pFuture->ProducerPolicy->size != sizeof(xfutureproducerownershipv1) ||
 			pFuture->ProducerPolicy->Drop == NULL || pFuture->Producer.Ops == NULL ||
 			pFuture->Producer.Ops->Count == NULL || pFuture->Producer.Ops->Trace == NULL) return NULL;
-	} else if (pFuture->ProducerPolicy != NULL) return NULL;
+	} else if (pFuture->ProducerPolicy != NULL || pFuture->ProducerCancellation != NULL) return NULL;
 	if (pFuture->Destroy != NULL) {
 		bool bKnown = false;
 		/* Match identity BEFORE dereferencing a producer's descriptor. */
@@ -437,7 +453,7 @@ static xfuture* __xrtFutureFree(xfuture* pFuture, xrtownershipscope* pMutation)
 	bool bPhased = pFuture->OwnershipPolicy != NULL;
 	/* Last PromiseDestroy closes before returning its physical reference;
 	 * terminal publication or graph Finish has already returned this owner. */
-	if (pFuture->Producer.Data != NULL || pFuture->ProducerPolicy != NULL) abort();
+	if (pFuture->Producer.Data != NULL || pFuture->ProducerPolicy != NULL || pFuture->ProducerCancellation != NULL) abort();
 
 	(void)xrtCondUnit(&pFuture->Ready);
 	(void)xrtMutexUnit(&pFuture->Lock);
@@ -590,6 +606,7 @@ static void __xrtFuturePublishLocked(
 	pFuture->Error = pError;
 	*pProducer = pFuture->Producer; *ppProducerPolicy = pFuture->ProducerPolicy;
 	pFuture->Producer = (xrtownershipref){0}; pFuture->ProducerPolicy = NULL;
+	pFuture->ProducerCancellation = NULL;
 	*ppWaiter = pFuture->Waiters;
 	pFuture->Waiters = NULL;
 	pFuture->WaitersTail = NULL;
@@ -1400,6 +1417,8 @@ XRT_API const xerror* xrtFutureError(const xfuture* pFuture)
 XRT_API bool xrtFutureCancel(xfuture* pFuture)
 {
 	xrtownershipscope Mutation = {0}; xcancel* pCancel; bool bRequested;
+	xrtownershipref Producer = {0}; const xfutureproducerownershipv1* pPolicy = NULL;
+	const xfutureproducercancellationv1* pCancellation = NULL;
 
 	if ( pFuture == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -1413,11 +1432,23 @@ XRT_API bool xrtFutureCancel(xfuture* pFuture)
 	/* The real local Cancel reference protects callback/release tails after
 	 * leaving the Future transition. Certified observers must not inherit an
 	 * API-owned scope; a caller-owned outer scope remains untouched. */
+	if (pFuture->State == XFUTURE_PENDING && !pFuture->Completing && !pFuture->OwnershipCleared &&
+		pFuture->ProducerCancellation != NULL) {
+		pCancellation = pFuture->ProducerCancellation;
+		if (!pCancellation->Retain(pFuture->Producer.Data)) {
+			(void)xrtMutexUnlock(&pFuture->Lock);
+			if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+			__xrtErrorSetInvalidState(); return false;
+		}
+		Producer = pFuture->Producer; pPolicy = pFuture->ProducerPolicy;
+	}
 	pCancel = pFuture->State == XFUTURE_PENDING && !pFuture->OwnershipCleared ?
 		xrtCancelRef(pFuture->Cancel) : NULL;
 	(void)xrtMutexUnlock(&pFuture->Lock);
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	bRequested = pCancel != NULL && xrtCancelRequest(pCancel);
+	if (bRequested && Producer.Data != NULL) pCancellation->Request(Producer.Data);
+	__xrtFutureProducerDrop(Producer, pPolicy);
 	xrtCancelDestroy(pCancel); return bRequested;
 }
 

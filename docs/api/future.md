@@ -4,6 +4,32 @@
 
 ## 物理拥有图
 
+### 显式生产者协作取消
+
+`xrtPromiseProducerBindTakeV2` 在 V1 的同一真实 producer 节点上增加
+`xfutureproducercancellationv1` 能力，不添加 Watch、隐藏引用或额外图边。
+Bind 仍只接受尚未发布、无 waiter、唯一 Promise 端的私有新建 pair；
+成功转移一个 producer 引用，拒绝时不消费。V1 和原有图准入合同不变。
+
+描述表须是全 Future 寿命内不变的常驻代码。Retain 在 Future 锁和本次
+mutation 内，仅获取一个真实引用；禁止 Future 重入、分配、等待工作/
+回调、执行语义或最后引用释放。Request 在本次 API 锁与 mutation 外、
+持该真实引用执行，只能唤醒已受理工作，不得内联语言 CFG 或虚构终态。
+随后由原 ownership policy 的 Drop 归还该引用。调用者自己的外层 scope
+不会被暂停；若 Request 会同步回调退役，调用者也必须在 scope 外请求。
+
+只有 `xrtFutureCancel` 的第一次成功显式令牌请求会路由到 Request；
+原始 token 请求、父 token 传播和 PromiseClose 不提供这一交付保证。
+终态发布可能与 Request 竞争，由 retained producer 判断是否仍有激活。
+消费端丢弃不是取消，重复请求不重复交付。该能力不证明 producer/子节点
+可被图收集；collector 仍按已有物理 ownership policy 独立准入。
+
+已有 bridge 扩展与此 producer 能力不同：`xrtFutureBridgeWatchOwnedV1`
+显式安装一个真实 owned cancel Watch（成功消费 Data 引用，失败不消费）；
+`xrtFutureBridgeWatchOwnershipV1` 在 whole-graph freeze 下读取该 Watch
+的物理引用，不包含借用 Promise，也不认证 embedding owner 的生命周期。
+bridge 仍由 owner 串行装配/卸载，未知或在途状态拒绝投影。
+
 ### 协作冻结与完整状态转换
 
 Future/Promise 的强引用、生产端双计数、最后销毁、终态发布、转发和 Watch
