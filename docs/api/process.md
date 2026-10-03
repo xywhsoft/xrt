@@ -583,6 +583,12 @@ if ( xrtProcessCapture("git", args, 1u, &result) ) {
 
 `xprocesspipelineoptions` 的 `Input` 只写入首段，Deadline 与 Cancel 对全部阶段共享。捕获上限分别应用于末段 stdout 和每一段 stderr。调用结束后使用 `xrtProcessPipelineResultUnit()` 释放全部结果。
 
+Pipeline 是同步捕获器：返回前收口输入/输出泵以及各阶段的私有 waiter，
+不会留下尚在释放进程引用和线程上下文的退役尾部。基础
+`xrtProcessWait()` 仍只等待终态发布，不具备该额外保证。部分启动、分配
+失败和停止清理保留首个基础设施错误，不复制并覆盖该错误；失败的
+setup 不获取或关闭无关父进程描述符。所有返回路径仍需调用结果 Unit。
+
 
 
 ## 等待与状态
@@ -1912,7 +1918,7 @@ bool xrtProcessPipeline(
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pStages` | 输入 | 非空数组 | 各阶段配置 |
-| `iStageCount` | 输入 | > 1 | 阶段数量 |
+| `iStageCount` | 输入 | > 0 且非 SIZE_MAX | 阶段数量；单阶段允许 |
 | `pOptions` | 输入 | 允许空 | 空 = 默认选项 |
 | `pResult` | 输出 | 非空 | 接收结果 |
 
