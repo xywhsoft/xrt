@@ -536,6 +536,11 @@ PIPE stdin 使用 `xrtProcessWrite()`，写完后必须用 `xrtProcessClose(...,
 
 启用 `process_file` 后，`xrtProcessFile()` 把借用的 `xfile` 映射为 HANDLE 配置。Spawn 在返回前复制底层句柄，不接管原文件；因此 Spawn 成功后调用方可以立即关闭文件，子进程仍持有自己的副本。
 
+没有原生句柄的 VFS backend 返回无效 HANDLE，并保留 File 的原始错误
+（例如 Unsupported 或构造错误时的 Memory），不覆盖成进程参数错误。
+NULL 文件仍返回 `XPROCESS_ERROR_ARGUMENT`。该函数只取得借用能力，不复制
+句柄、不延长文件寿命；配置到 Spawn 之前文件必须保持有效。
+
 Process 核心不缓存输出。需要并发排空和有界结果时选择 `process_run`，不要在子进程可能同时大量写 stdout/stderr 时顺序读两个流。
 
 
