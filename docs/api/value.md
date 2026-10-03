@@ -4975,3 +4975,78 @@ phased 绑定，任意 Object/Weak/native 包装策略不会因有 Trace 而自�
 拥有槽，Finish 在 freeze 之外结束快照并释放子引用，可重复而不重复释放。
 所有传递子节点仍需独立准入，尤其是析构对象的 shell/backing/lifetime；
 获得游标适配器本身不等于拥有完整循环回收或模块卸载权限。
+
+### `xvalueobjectownershipdiscoverv1`
+
+```c
+typedef bool (*xvalueobjectownershipdiscoverv1)(xrtownershipref Reference,
+    const void* pLifetimeContext, ptr pContext);
+```
+
+收集器的只读 visitor。`Reference` 是真实 backing 的借用身份，context 是
+该 backing 共享的 lifetime 原始 UserData，最后一参是枚举调用方数据。
+true 继续，false 停止；不得把借用身份当作新的强拥有槽。
+
+### `xrtValueObjectOwnershipDiscoverV1`
+
+```c
+bool xrtValueObjectOwnershipDiscoverV1(const xvalueobjectownershipv1* pExpectedPolicy,
+    xvalueobjectownershipdiscoverv1 pVisit, ptr pContext)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pExpectedPolicy` | 输入 | 非空、有效、不可变、常驻 | 独立批准的精确 descriptor 身份 |
+| `pVisit` | 输入 | 非空、只读 | 接收每个实际 backing 的借用身份和 lifetime context |
+| `pContext` | 输入 | 可空 | visitor 的调用方上下文 |
+
+#### 返回值
+
+true 表示完整枚举；false 表示参数非法、登记状态不一致或 visitor 拒绝。
+已调用 visitor 的效果不回滚；失败时必须丢弃部分锚点列表。
+
+#### 错误
+
+- `XERR_ARGUMENT`：policy 无效或 visitor 为空。
+- `XERR_STATE`：登记中的 policy/lifetime 身份不一致。
+- visitor 自身失败的诊断原样保留；仅返回 false 不凭空制造诊断。
+
+#### 范例
+
+[discovery](../../examples/value/discovery/main.c) 在真实独占 freeze 中只读观察，
+不收集、不释放节点，也不抵扣引用：
+
+```c
+    bool ok=xrtValueObjectOwnershipDiscoverV1(&policy,observe,&result);
+```
+
+这是收集器的内部支撑接口，不是新的自动 GC 或语言公共容器 API。传入确切、
+不可变、常驻的 ownership policy 身份，在调用方保持的独占 ownership freeze
+内枚举本 XRT 实例当前登记的物理 Object backing。`Reference` 和 lifetime
+的原始 `UserData` 都是借用，可能含 NULL context；不会取得引用、构造反向
+强边或把这些锚点当作外部根。它们只能用于 snapshot 的 anchors，不能加入
+internal slots 抵扣引用。所有传递节点仍须在 Count/Trace 之前逐项准入。
+
+BindV1 才登记；COW/deep-clone 的不同 backing 分别登记，共享外壳不重复。
+普通对象和其他 policy 不登记。每个对象 backing 增加两个内部指针，无新
+分配；普通未绑定对象不取得登记锁，紧凑 Value 外壳布局和公开 ABI 不变。
+登记在 mutation 内用短锁串行链接修改；freeze 内枚举不等待参与者锁。
+实际终止释放在自身 scope 外执行子释放之前摘除，Clear 在退休 lifetime
+context 前摘除。不能只保存创建时 shell 的地址来替代它：原 shell 结束后，
+深拷贝 backing 或原生游标仍可能持有共享 lifetime。
+
+`pVisit` 应只读，可筛选或收集锚点，不得修改/释放节点、执行它们的回调或
+破坏 freeze。false 停止枚举，不回滚已经发生的 visitor 效果，不凭空替换
+visitor 的错误；调用者必须丢弃部分锚点列表。无效 policy 或 NULL visitor
+返回 false 并报告参数错误。运行/终结中的 backing 仍可被发现，但不能因
+登记就跳过正式图准入的拒绝边界。未知 policy、任意 lifetime 和子句柄不会
+因此得到认证，模块卸载仍需要独立的实际图、销毁计划与代码保活合同。
+
+`value_object_discovery_tests` 使用两套真实实现布局，覆盖独立 COW/深拷贝、
+原 shell 提前结束、两套相同回调但不同 descriptor 身份、真实外部强根、
+带 native 拥有字段的脱根循环、完整字段上的一次性语义析构、Clear/abort、
+工厂/克隆的完整 OOM 前缀及四个原生线程对 freeze 的竞争。专项脚本保留
+既有 construction/copy/publication/finalizer/cursor/adapter 人口，不以原生
+测试替代 xlang 的宿主发现接入或实际 TCC 退役证明。
