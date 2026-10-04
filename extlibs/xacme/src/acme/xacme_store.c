@@ -399,6 +399,7 @@ static bool xacmeStoreWritePointer(cstr sPath, cstr sText,
 		xfile File;
 		bool bOk;
 		size_t iAttempt;
+		xerror* pRenameError = NULL;
 		if(sDirectory == NULL)
 			return false;
 		File = xrtFileTemp(sDirectory,
@@ -417,9 +418,12 @@ static bool xacmeStoreWritePointer(cstr sPath, cstr sText,
 			{
 				if(xrtPathRename(sTemporary, sPath, true))
 				{
+					xrtErrorFree(pRenameError);
 					xrtFree(sTemporary);
 					return true;
 				}
+				if(pRenameError == NULL)
+					pRenameError = xrtErrorRef(xrtGetError());
 				if(iAttempt == 7u ||
 					(xrtErrorKind(xrtGetError()) != XERR_IO &&
 					xrtErrorKind(xrtGetError()) != XERR_PERMISSION &&
@@ -431,6 +435,11 @@ static bool xacmeStoreWritePointer(cstr sPath, cstr sText,
 		}
 		{
 			xerror* pCause = xrtTakeError();
+			if(pRenameError != NULL)
+			{
+				xrtErrorFree(pCause);
+				pCause = pRenameError;
+			}
 			(void)xrtFileDelete(sTemporary);
 			xrtClearError();
 			if(pCause != NULL)
@@ -508,8 +517,6 @@ bool xrtAcmeStoreSaveAccount(
 		return false;
 	if(!xrtDirCreateAll(sDirectory))
 	{
-		xacmeStoreError(
-			XERR_IO, XACME_STORE_ERROR_IO, "acme store mkdir failed");
 		return false;
 	}
 	if(!xacmeStoreSyncAncestors(sDirectory))
@@ -519,9 +526,6 @@ bool xrtAcmeStoreSaveAccount(
 		return false;
 	if(!xacmeStoreWriteAtomicKey(sPath, sAccountPem))
 	{
-		xacmeStoreError(
-			XERR_IO, XACME_STORE_ERROR_IO,
-			"acme store write account failed");
 		return false;
 	}
 	/* 文件已可见；失败时交由调用方重新读取以核对提交状态。 */
@@ -586,8 +590,6 @@ bool xrtAcmeStoreSaveCert(
 	xrtClearError();
 	if(!xrtDirCreateAll(sPath))
 	{
-		xacmeStoreError(
-			XERR_IO, XACME_STORE_ERROR_IO, "acme store mkdir failed");
 		return false;
 	}
 	if(!xacmeStoreCertPath(sPath, sizeof(sPath),
@@ -595,9 +597,6 @@ bool xrtAcmeStoreSaveCert(
 		return false;
 	if(!xacmeStoreWriteAtomicText(sPath, sChainPem))
 	{
-		xacmeStoreError(
-			XERR_IO, XACME_STORE_ERROR_IO,
-			"acme store write chain failed");
 		return false;
 	}
 	if(!xacmeStoreFormat(sMeta, sizeof(sMeta), "directory=%s\n",
@@ -607,8 +606,6 @@ bool xrtAcmeStoreSaveCert(
 		return false;
 	if(!xacmeStoreWriteAtomicText(sPath, sMeta))
 	{
-		xacmeStoreError(
-			XERR_IO, XACME_STORE_ERROR_IO, "acme store write meta failed");
 		return false;
 	}
 	return true;
@@ -900,10 +897,9 @@ bool xrtAcmeStoreListDomains(
 	Dir = xrtDirOpen(sPath, XDIR_STAT);
 	if(!Dir)
 	{
-		/* 目录不存在视为空清单（首次运行前）。 */
-		xacmeStoreError(
-			XERR_NOT_FOUND, XACME_STORE_ERROR_NOT_FOUND,
-			"acme store certs dir not found");
+		if(xrtErrorKind(xrtGetError()) == XERR_NOT_FOUND)
+			xacmeStoreError(XERR_NOT_FOUND, XACME_STORE_ERROR_NOT_FOUND,
+				"acme store certs dir not found");
 		return false;
 	}
 	for(;;)
@@ -919,10 +915,10 @@ bool xrtAcmeStoreListDomains(
 		}
 		if(eNext != XDIR_NEXT_ITEM)
 		{
-			xrtDirClose(Dir);
-			xacmeStoreError(
-				XERR_IO, XACME_STORE_ERROR_IO,
-				"acme store list iterate failed");
+			xerror* pCause = xrtTakeError();
+			(void)xrtDirClose(Dir);
+			xrtClearError();
+			if(pCause != NULL) xrtSetErrorTake(pCause);
 			return false;
 		}
 		if((Entry.Name.Size == 0u) || (Entry.Name.Size >= 256u) ||
@@ -1000,8 +996,10 @@ bool xrtAcmeStoreNeedRenew(
 		}
 		return true; /* 缺证书即需要签发。 */
 	}
-	if(!xrtPemInit(&Pem, sChain, strlen(sChain)) ||
-		(xrtPemRead(&Pem, &Block) != XPEM_BLOCK))
+	if(!xrtPemInit(&Pem, sChain, strlen(sChain))) goto Done;
+	xpemresult Next = xrtPemRead(&Pem, &Block);
+	if(Next == XPEM_ERROR) goto Done;
+	if(Next != XPEM_BLOCK)
 	{
 		xacmeStoreError(
 			XERR_PROTOCOL, XACME_STORE_ERROR_PARSE,
@@ -1016,9 +1014,6 @@ bool xrtAcmeStoreNeedRenew(
 	if(!xrtX509Parse(pDer, iDerSize, &Cert))
 	{
 		xrtFree(pDer);
-		xacmeStoreError(
-			XERR_PROTOCOL, XACME_STORE_ERROR_PARSE,
-			"acme store leaf cert parse failed");
 		goto Done;
 	}
 	xrtFree(pDer);

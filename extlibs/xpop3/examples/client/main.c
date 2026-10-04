@@ -1,6 +1,10 @@
 #include <xpop3.h>
 #include "../../../xmail/examples/mail_client_setup.h"
 #include <errno.h>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 
 
@@ -36,6 +40,7 @@ bool fetchMessage(
 	Config.Net.Tls.Verifier = pVerifier;
 	pClient = xrtPop3ClientOpen(&Config, Deadline, NULL);
 	if ( pClient == NULL ) {
+		mailExampleDiagnostic("POP3 open");
 		return false;
 	}
 	if ( !xrtPop3ClientLogin(
@@ -51,6 +56,7 @@ bool fetchMessage(
 		Deadline,
 		NULL
 	) ) {
+		mailExampleDiagnostic("POP3 login or retrieval");
 		xrtPop3ClientDestroy(pClient);
 		return false;
 	}
@@ -65,8 +71,16 @@ bool fetchMessage(
 			}
 		}
 	} while ( Next == XMAIL_NEXT_ITEM );
-	bSuccess = (Next == XMAIL_NEXT_END) &&
-		xrtPop3ClientQuit(pClient, Deadline, NULL);
+	bSuccess = Next == XMAIL_NEXT_END;
+	if ( bSuccess && fflush(stdout) != 0 ) {
+		fputs("POP3 output flush failed\n", stderr);
+		bSuccess = false;
+	}
+	/* This example performs no DELE: the complete RETR is already delivered.
+	 * Keep a subsequent shutdown diagnostic separate from its result. */
+	if ( bSuccess && !xrtPop3ClientQuit(pClient, Deadline, NULL) )
+		mailExampleDiagnostic("POP3 retrieval completed; shutdown");
+	if ( !bSuccess ) mailExampleDiagnostic("POP3 retrieval or quit");
 	xrtPop3ClientDestroy(pClient);
 	return bSuccess;
 }
@@ -95,11 +109,21 @@ int main(int argc, char** argv)
 		*end != 0 || message == 0 ||
 		(argc == 6 && strcmp(argv[5], "tls") != 0 &&
 		 strcmp(argv[5], "stls") != 0) ) return 2;
-	if ( !mailExampleNetInit(&Net, argv[3]) ) return 1;
+	#ifdef _WIN32
+	/* RETR emits exact message bytes; text mode would double each CRLF. */
+	if ( _setmode(_fileno(stdout), _O_BINARY) == -1 ) {
+		fputs("POP3 binary output initialization failed\n", stderr);
+		return 1;
+	}
+	#endif
+	if ( !mailExampleNetInit(&Net, argv[3]) ) {
+		mailExampleDiagnostic("POP3 network initialization");
+		return 1;
+	}
 	ok = fetchMessage(Net.Engine, Net.Resolver, Net.Tls, Net.Verifier,
 		argv[1], port, (uint64)message,
 		xrtStrView(user), xrtStrView(secret),
 		argc == 6 && strcmp(argv[5], "tls") == 0);
-	mailExampleNetUnit(&Net);
+	if ( !mailExampleNetUnit(&Net) ) ok = false;
 	return ok ? 0 : 1;
 }

@@ -48,12 +48,12 @@ jobs:
         run: python tools/doc_audit.py --all
 
       - name: Verify book chapter gates (docs/book)
-        run: python tools/check_book.py check
+        run: python tools/check_book.py --repo . check
 
       - name: Verify i18n translation gates (docs/book en/ru)
         run: |
           python tools/check_i18n.py selftest
-          python tools/check_i18n.py check en ru
+          python tools/check_i18n.py check
 
       - name: Verify WebSocket API documentation
         run: >-
@@ -177,21 +177,29 @@ jobs:
           - product: xmail
             test_suite: xmail_tests
             package_suite: xmail
+            tls_fault_suite: mail_net_tls_close_fault_tests
+            tls_fault_test: test_mail_net_tls_close_fault
             min_line_coverage: 73
             min_branch_coverage: 59
           - product: xsmtp
             test_suite: xsmtp_tests
             package_suite: xsmtp
+            tls_fault_suite: smtp_upload_tls_fault_runtime_tests
+            tls_fault_test: test_smtp_upload_tls_fault_runtime
             min_line_coverage: 75
             min_branch_coverage: 56
           - product: xpop3
             test_suite: xpop3_tests
             package_suite: xpop3
+            tls_fault_suite: pop3_read_tls_fault_runtime_tests
+            tls_fault_test: test_pop3_read_tls_fault_runtime
             min_line_coverage: 72
             min_branch_coverage: 55
           - product: ximap
             test_suite: ximap_tests
             package_suite: ximap
+            tls_fault_suite: imap_append_tls_fault_runtime_tests
+            tls_fault_test: test_imap_append_tls_fault_runtime
             min_line_coverage: 74
             min_branch_coverage: 55
           - product: xssh
@@ -232,6 +240,13 @@ jobs:
           --exclude-single-test *uring*
           --jobs 4
 
+      - name: Verify mail coverage input provenance
+        if: matrix.product == 'xmail' || matrix.product == 'xpop3' || matrix.product == 'xsmtp' || matrix.product == 'ximap'
+        run: |
+          python tools/test_gcov_coverage.py
+          python tools/test_mail_coverage_inputs.py
+          python tools/test_mail_header_coverage.py
+
       - name: Measure mail extension coverage
         if: matrix.product == 'xmail' || matrix.product == 'xpop3' || matrix.product == 'xsmtp' || matrix.product == 'ximap'
         run: >-
@@ -240,9 +255,187 @@ jobs:
           --min-lines ${{ matrix.min_line_coverage }}
           --min-branches ${{ matrix.min_branch_coverage }}
 
+      - name: Verify saved mail coverage provenance
+        if: matrix.product == 'xmail' || matrix.product == 'xpop3' || matrix.product == 'xsmtp' || matrix.product == 'ximap'
+        run: python tools/measure_mail_coverage.py --product ${{ matrix.product }} --report-only
+
+      - name: Measure and verify private mail header functions
+        if: matrix.product == 'xmail' || matrix.product == 'xpop3' || matrix.product == 'xsmtp' || matrix.product == 'ximap'
+        run: |
+          python tools/measure_mail_header_coverage.py --product ${{ matrix.product }}
+          python tools/measure_mail_header_coverage.py --product ${{ matrix.product }} --report-only
+
+      - name: Upload mail coverage report
+        if: matrix.product == 'xmail' || matrix.product == 'xpop3' || matrix.product == 'xsmtp' || matrix.product == 'ximap'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mail-coverage-linux-${{ matrix.product }}
+          path: |
+            out/mail/coverage/linux/${{ matrix.product }}/coverage.json
+            out/mail/coverage/linux/${{ matrix.product }}/header-functions.json
+            out/gcc/native-linux/${{ matrix.test_suite }}/obj/extlibs__${{ matrix.product }}__src__*.gcno
+            out/gcc/native-linux/${{ matrix.test_suite }}/obj/extlibs__${{ matrix.product }}__src__*.gcda
+            out/mail/tls-coverage/linux/${{ matrix.product }}/execution.json
+            out/gcc/native-linux/*example,${{ matrix.product }}/obj/extlibs__${{ matrix.product }}__src__*.gcno
+            out/gcc/native-linux/*example,${{ matrix.product }}/obj/extlibs__${{ matrix.product }}__src__*.gcda
+            out/gcc/native-linux/*example,${{ matrix.product }}/examples_*
+          if-no-files-found: error
+
+      - name: Sanitize untrusted MIME parsing
+        if: matrix.product == 'xmail'
+        run: >-
+          python tools/build.py
+          --compiler gcc
+          --manifest extlibs/xmail/config/modules.json
+          --suite xmail_tests
+          --test test_mail_tree_adversarial
+          --no-single
+          --jobs 4
+          --cflag=-Werror
+          --cflag=-fno-omit-frame-pointer
+          --cflag=-fsanitize=address,undefined
+          --ldflag=-fsanitize=address,undefined
+
+      - name: Sanitize mail TLS protocol failures
+        if: matrix.product == 'xmail' || matrix.product == 'ximap' || matrix.product == 'xsmtp' || matrix.product == 'xpop3'
+        run: >-
+          python tools/build.py
+          --compiler gcc
+          --manifest extlibs/${{ matrix.product }}/config/modules.json
+          --suite ${{ matrix.tls_fault_suite }}
+          --test ${{ matrix.tls_fault_test }}
+          --no-single
+          --no-examples
+          --jobs 4
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fno-omit-frame-pointer
+          --cflag=-fsanitize=address,undefined
+          --ldflag=-fsanitize=address,undefined
+
+      - name: Sanitize mail example retirement
+        if: matrix.product == 'xmail'
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --manifest extlibs/xmail/config/modules.json
+          --suite mail_net_tls_close_fault_tests
+          --test test_mail_example_cleanup
+          --no-single
+          --no-examples
+          --jobs 4
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fno-omit-frame-pointer
+          --cflag=-fsanitize=address,undefined
+          --ldflag=-fsanitize=address,undefined
+
+      - name: Sanitize compressed IMAP failures and streaming uploads
+        if: matrix.product == 'ximap'
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --manifest extlibs/ximap/config/modules.json
+          --suite imap_compress_fault_runtime_tests
+          --no-examples
+          --jobs 4
+          --cflag=-std=c11
+          --cflag=-D_GNU_SOURCE=
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fno-omit-frame-pointer
+          --cflag=-fsanitize=address,undefined
+          --ldflag=-fsanitize=address,undefined
+
+      - name: Sanitize IMAP data and BODYSTRUCTURE diagnostics and borrowed outputs
+        if: matrix.product == 'ximap'
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --manifest extlibs/ximap/config/modules.json
+          --suite imap_data,imap_data_error_tests,imap_body,imap_body_error_tests
+          --no-examples
+          --jobs 4
+          --cflag=-std=c11
+          --cflag=-D_GNU_SOURCE=
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fno-omit-frame-pointer
+          --cflag=-fsanitize=address,undefined
+          --ldflag=-fsanitize=address,undefined
+
+      - name: Sanitize ACME DNS, flow, storage and directory diagnostics
+        if: matrix.product == 'xacme'
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --manifest extlibs/xacme/config/modules.json
+          --suite acme_store,acme_store_diagnostic_tests,acme_flow_fault_tests,acme_dns_fault_tests,dir_create_diagnostic_tests
+          --no-examples
+          --jobs 4
+          --cflag=-std=c11
+          --cflag=-D_GNU_SOURCE=
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fno-omit-frame-pointer
+          --cflag=-fsanitize=address,undefined
+          --ldflag=-fsanitize=address,undefined
+
+      - name: Verify IMAP interoperability input and artifact regressions
+        if: matrix.product == 'ximap'
+        run: python tools/test_imap_compress_interop_inputs.py
+
+      - name: Verify IMAP compression against independent zlib and TLS
+        if: matrix.product == 'ximap'
+        run: |
+          python tools/test_imap_compress_interop.py
+          python tools/test_imap_compress_interop.py --compiler clang --sanitize
+
+      - name: Verify POP3 SMTP and IMAP against an independent TLS server
+        if: matrix.product == 'xmail'
+        run: python tools/test_mail_tls_interop.py --rejection-policy
+
+      - name: Verify MIME example output bytes and failed sinks
+        if: matrix.product == 'xmail'
+        run: python tools/test_mail_example_output.py
+
       - name: Run xacme cross-process rotation
         if: matrix.product == 'xacme'
         run: python tools/test_acme_store_processes.py
+
+      - name: Check xacme partial HTTP responses
+        if: matrix.product == 'xacme'
+        run: python tools/test_acme_http_faults.py
+
+      - name: Verify xacme HTTP, TLS, DNS and lifecycle boundaries
+        if: matrix.product == 'xacme'
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: python tools/test_acme_http_interop.py --sanitize
+
+      - name: Execute registered ACME public example
+        if: matrix.product == 'xacme'
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: |
+          python -m pip install --disable-pip-version-check 'cryptography>=42'
+          python -m unittest tools.test_acme_grant_verifier -v
+          python tools/test_acme_examples.py
+          python tools/test_acme_examples.py --single --sanitize
 
       - name: Check xacme offline pruning
         if: matrix.product == 'xacme'
@@ -290,7 +483,7 @@ jobs:
   auth-extensions:
     name: JWT and OAuth2 / ${{ matrix.runner }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -313,18 +506,321 @@ jobs:
           path-type: inherit
           install: mingw-w64-ucrt-x86_64-gcc
 
+      - name: Install independent ID token fixture signer
+        run: python -m pip install cryptography==46.0.5
+
+      - name: Verify OIDC login and refresh application policy
+        if: runner.os != 'Windows'
+        run: python tools/test_oidc_example_policy.py --output-dir out/auth_extensions/oidc-policy/normal
+
+      - name: Sanitize OIDC application policy
+        if: runner.os != 'Windows'
+        run: python tools/test_oidc_example_policy.py --compiler clang --sanitize --output-dir out/auth_extensions/oidc-policy/sanitize
+
+      - name: Verify OIDC application policy on Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: python tools/test_oidc_example_policy.py --output-dir out/auth_extensions/oidc-policy/normal
+
+      - name: Upload OIDC policy results and fixture logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: oidc-policy-${{ matrix.runner }}
+          path: out/auth_extensions/oidc-policy/
+          if-no-files-found: error
+
       - name: Run JWT and OAuth2 tests and examples
         if: runner.os != 'Windows'
         run: python tools/test_auth_extensions.py
 
-      - name: Check JWT and OAuth2 line coverage baseline
+      - name: Sanitize JWT and OAuth2 tests
         if: runner.os != 'Windows'
-        run: python tools/measure_auth_coverage.py
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: python tools/test_auth_extensions.py --case jwt --case oauth2 --case oauth2_flow_fault --case oauth2_http_fault --case jwt_example_fault --case oauth2_example_fault --case oidc_example_fault --sanitize
+
+      - name: Verify RFC 5958 RSA/EC OpenSSL interoperability
+        if: runner.os != 'Windows'
+        run: python extlibs/xjwt/tests/test_rfc5958_openssl.py
+
+      - name: Verify OAuth2 HTTP/TLS against independent servers
+        if: runner.os != 'Windows'
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: python tools/test_oauth2_tls_interop.py --sanitize
+
+      - name: Check JWT and unified OAuth2 line and branch coverage
+        if: runner.os != 'Windows'
+        run: |
+          python tools/test_gcov_coverage.py
+          python tools/test_auth_coverage_inputs.py
+          python tools/measure_auth_coverage.py
+          python tools/test_extension_header_coverage.py
+          python tools/measure_extension_header_coverage.py --product xjwt
+          python tools/measure_extension_header_coverage.py --product xoauth2
+          python tools/measure_extension_header_coverage.py --product xjwt --report-only
+          python tools/measure_extension_header_coverage.py --product xoauth2 --report-only
 
       - name: Run JWT and OAuth2 tests and examples on Windows
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: python tools/test_auth_extensions.py
+
+      - name: Verify auth static and shared consumers
+        if: runner.os != 'Windows'
+        run: python tools/test_auth_package.py
+
+      - name: Verify auth static and shared consumers on Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: python tools/test_auth_package.py
+
+      - name: Upload authentication delivery artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: auth-delivery-${{ matrix.runner }}
+          path: out/auth_extensions/package/
+          if-no-files-found: error
+
+      - name: Verify OAuth2 HTTP/TLS against independent servers on Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          pacman --noconfirm --needed -S mingw-w64-ucrt-x86_64-openssl
+          python tools/test_oauth2_tls_interop.py
+
+      - name: Check JWT and unified OAuth2 coverage on Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          python tools/test_gcov_coverage.py
+          python tools/test_auth_coverage_inputs.py
+          python tools/measure_auth_coverage.py
+          python tools/test_extension_header_coverage.py
+          python tools/measure_extension_header_coverage.py --product xjwt
+          python tools/measure_extension_header_coverage.py --product xoauth2
+          python tools/measure_extension_header_coverage.py --product xjwt --report-only
+          python tools/measure_extension_header_coverage.py --product xoauth2 --report-only
+
+      - name: Upload authentication coverage reports
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: auth-coverage-${{ matrix.runner }}
+          path: |
+            out/auth_extensions/coverage/*/*/coverage.json
+            out/auth_extensions/coverage/*/*/header-functions.json
+            out/auth_extensions/coverage/**/*.gcno
+            out/auth_extensions/coverage/**/*.gcda
+          if-no-files-found: error
+
+  oidc-hydra-interop:
+    name: OIDC / real Hydra HTTPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Install independent oracle signer
+        run: python -m pip install cryptography==46.0.5
+      - name: Prepare checksum-pinned Hydra SQLite runtime
+        run: python tools/prepare_hydra.py
+      - name: Verify Basic, body and public clients with real Hydra
+        run: python tools/test_hydra_interop.py --hydra out/hydra-runtime/hydra --output-dir out/hydra-interoperability/normal
+      - name: Sanitize real OIDC example and exchange fault controls
+        run: python tools/test_hydra_interop.py --hydra out/hydra-runtime/hydra --compiler clang --sanitize --output-dir out/hydra-interoperability/sanitize
+      - name: Upload Hydra client results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: oidc-hydra-interop
+          path: |
+            out/hydra-runtime/runtime.json
+            out/hydra-interoperability/
+          if-no-files-found: error
+
+  mail-coverage-windows:
+    name: Mail coverage / Windows / ${{ matrix.product }}
+    runs-on: windows-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        product: [xmail, xpop3, xsmtp, ximap]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-openssl
+
+      - name: Measure and verify original mail coverage inputs
+        shell: msys2 {0}
+        run: |
+          python tools/test_gcov_coverage.py
+          python tools/test_mail_coverage_inputs.py
+          python tools/test_mail_header_coverage.py
+          python tools/measure_mail_coverage.py --product ${{ matrix.product }}
+          python tools/measure_mail_coverage.py --product ${{ matrix.product }} --report-only
+          python tools/measure_mail_header_coverage.py --product ${{ matrix.product }}
+          python tools/measure_mail_header_coverage.py --product ${{ matrix.product }} --report-only
+
+      - name: Upload mail coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mail-coverage-windows-${{ matrix.product }}
+          path: |
+            out/mail/coverage/win32/${{ matrix.product }}/coverage.json
+            out/mail/coverage/win32/${{ matrix.product }}/header-functions.json
+            out/gcc/native-windows/${{ matrix.product }}_tests/obj/extlibs__${{ matrix.product }}__src__*.gcno
+            out/gcc/native-windows/${{ matrix.product }}_tests/obj/extlibs__${{ matrix.product }}__src__*.gcda
+            out/mail/tls-coverage/win32/${{ matrix.product }}/execution.json
+            out/gcc/native-windows/*example,${{ matrix.product }}/obj/extlibs__${{ matrix.product }}__src__*.gcno
+            out/gcc/native-windows/*example,${{ matrix.product }}/obj/extlibs__${{ matrix.product }}__src__*.gcda
+            out/gcc/native-windows/*example,${{ matrix.product }}/examples_*
+          if-no-files-found: error
+
+  acme-pebble:
+    name: Independent ACME service / ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install certificate verifier
+        run: python -m pip install --disable-pip-version-check 'cryptography>=42'
+
+      - name: Setup pinned Go toolchain
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: "1.26.0"
+          cache: false
+
+      - name: Setup MSYS2
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Build and verify pinned independent services on Linux
+        if: runner.os != 'Windows'
+        run: |
+          python tools/prepare_acme_pebble.py --output out/pebble-runtime
+          python tools/build.py --manifest extlibs/xacme/config/modules.json --suite xacme_tests --test test_flow --no-run --no-single --no-examples --jobs 4
+          python tools/test_acme_pebble.py --runtime out/pebble-runtime --binary out/gcc/native-linux/xacme_tests/test_flow --output out/pebble-acceptance
+
+      - name: Build and verify pinned independent services on Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          set -eu
+          python tools/prepare_acme_pebble.py --output out/pebble-runtime
+          python tools/build.py --manifest extlibs/xacme/config/modules.json --suite xacme_tests --test test_flow --no-run --no-single --no-examples --jobs 4
+          python tools/test_acme_pebble.py --runtime out/pebble-runtime --binary out/gcc/native-windows/xacme_tests/test_flow.exe --output out/pebble-acceptance
+
+      - name: Upload independent service evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: acme-pebble-${{ matrix.runner }}
+          path: |
+            out/pebble-runtime/runtime.json
+            out/pebble-runtime/*.log
+            out/pebble-acceptance/
+          if-no-files-found: warn
+
+  acme-coverage:
+    name: ACME coverage / ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install mock CA dependency
+        run: python -m pip install --disable-pip-version-check 'cryptography>=42'
+
+      - name: Setup MSYS2
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-openssl
+
+      - name: Measure ACME module, mock CA and independent coverage
+        if: runner.os != 'Windows'
+        run: |
+          set -eu
+          python tools/test_gcov_coverage.py
+          python tools/measure_acme_coverage.py
+          python tools/test_extension_header_coverage.py
+          python tools/measure_extension_header_coverage.py --product xacme
+          python tools/measure_extension_header_coverage.py --product xacme --report-only
+
+      - name: Measure ACME coverage on Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          set -eu
+          python tools/test_gcov_coverage.py
+          python tools/measure_acme_coverage.py
+          python tools/test_extension_header_coverage.py
+          python tools/measure_extension_header_coverage.py --product xacme
+          python tools/measure_extension_header_coverage.py --product xacme --report-only
+
+      - name: Upload ACME coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: acme-coverage-${{ matrix.runner }}
+          path: |
+            out/acme/coverage/*/coverage.json
+            out/acme/coverage/*/header-functions.json
+            out/acme/coverage/**/*.gcno
+            out/acme/coverage/**/*.gcda
+            out/gcc/native-*/xacme_tests/obj/extlibs__xacme__src__*.gcno
+            out/gcc/native-*/xacme_tests/obj/extlibs__xacme__src__*.gcda
+          if-no-files-found: warn
 
   mail-and-acme-windows:
     name: Mail and ACME / Windows / ${{ matrix.product }}
@@ -377,6 +873,19 @@ jobs:
           if [ "${{ matrix.product }}" = ximap ]; then suite=imap_client_example; fi
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite "$suite" --no-single --exclude-test '*' --jobs 4
 
+      - name: Verify mail clients against an independent TLS server
+        if: matrix.product == 'xmail'
+        shell: msys2 {0}
+        run: |
+          set -e
+          pacman --noconfirm --needed -S mingw-w64-ucrt-x86_64-openssl
+          python tools/test_mail_tls_interop.py --rejection-policy
+
+      - name: Verify MIME example output bytes and failed sinks on Windows
+        if: matrix.product == 'xmail'
+        shell: msys2 {0}
+        run: python tools/test_mail_example_output.py
+
       - name: Run offline POP3 client example
         if: matrix.product == 'xpop3'
         shell: msys2 {0}
@@ -396,6 +905,26 @@ jobs:
         if: matrix.product == 'xacme'
         shell: msys2 {0}
         run: python tools/test_acme_store_processes.py
+
+      - name: Check xacme partial HTTP responses
+        if: matrix.product == 'xacme'
+        shell: msys2 {0}
+        run: python tools/test_acme_http_faults.py
+
+      - name: Verify xacme HTTP, TLS, DNS and lifecycle boundaries on Windows
+        if: matrix.product == 'xacme'
+        shell: msys2 {0}
+        run: |
+          pacman --noconfirm --needed -S mingw-w64-ucrt-x86_64-openssl
+          python tools/test_acme_http_interop.py
+
+      - name: Execute registered ACME public example on Windows
+        if: matrix.product == 'xacme'
+        shell: msys2 {0}
+        run: |
+          python -m unittest tools.test_acme_grant_verifier -v
+          python tools/test_acme_examples.py
+          python tools/test_acme_examples.py --single
 
       - name: Check xacme offline pruning
         if: matrix.product == 'xacme'
@@ -583,6 +1112,23 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+      - name: Run time arithmetic and diagnostic sanitizer gate
+        if: matrix.runner == 'ubuntu-latest'
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --suite time,time_text,time_error_oom_tests
+          --no-examples
+          --jobs 2
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fsanitize=address,undefined
+          --cflag=-fno-omit-frame-pointer
+          --ldflag=-fsanitize=address,undefined
+
       - name: Run coroutine sanitizer gate
         if: matrix.runner == 'ubuntu-latest'
         env:
@@ -610,6 +1156,23 @@ jobs:
           --suite core,memory_debug,memory_stats,coroutine,coroutine_scheduler,coroutine_event
           --no-single
           --rebuild
+          --cflag=-O1
+          --cflag=-g
+          --cflag=-fsanitize=thread
+          --cflag=-fno-omit-frame-pointer
+
+      - name: Run IMAP fault lifecycle with thread sanitizer
+        if: matrix.runner == 'ubuntu-latest'
+        env:
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+        run: >-
+          python tools/build.py
+          --compiler clang
+          --manifest extlibs/ximap/config/modules.json
+          --suite ximap_tests
+          --test test_imap_compress_fault_runtime
+          --no-single
+          --no-examples
           --cflag=-O1
           --cflag=-g
           --cflag=-fsanitize=thread

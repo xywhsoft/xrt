@@ -335,14 +335,16 @@ XRT_API xmailnext xrtImapLiteralParse(
 	while ( iPosition < iEnd ) {
 		unsigned char iByte = (unsigned char)Line.Data[iPosition++];
 
-		if ( (iByte < (unsigned char)'0') || (iByte > (unsigned char)'9') ||
-			 (iValue > ((UINT64_MAX -
-			  (uint64)(iByte - (unsigned char)'0')) / UINT64_C(10))) ) {
+		if ( (iByte < (unsigned char)'0') || (iByte > (unsigned char)'9') ) {
 			__xrtMailError(
 				XERR_PROTOCOL,
 				XMAIL_ERROR_PROTOCOL,
 				"invalid IMAP literal marker"
 			);
+			return XMAIL_NEXT_ERROR;
+		}
+		if ( iValue > (((uint64)INT64_MAX - (uint64)(iByte - (unsigned char)'0')) / UINT64_C(10)) ) {
+			__xrtMailError(XERR_RANGE, XMAIL_ERROR_LIMIT, "IMAP literal size exceeds 63 bits");
 			return XMAIL_NEXT_ERROR;
 		}
 		iValue = (iValue * UINT64_C(10)) +

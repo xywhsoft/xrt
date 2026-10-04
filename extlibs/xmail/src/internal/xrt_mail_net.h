@@ -150,6 +150,11 @@ bool __xrtMailTransportAbort(__xmailtransport* pTransport);
 
 
 
+/* 不可恢复的协议故障中止连接，同时保留原始诊断。 */
+void __xrtMailTransportAbortPreserveError(__xmailtransport* pTransport);
+
+
+
 void __xrtMailTransportDestroy(__xmailtransport* pTransport);
 
 

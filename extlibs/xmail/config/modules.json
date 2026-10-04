@@ -619,10 +619,10 @@
 				"extlibs/xmail/src/transport/mail_net.c",
 				"extlibs/xmail/src/transport/mail_auth.c"
 			],
-   "tests": [
-    "extlibs/xmail/tests/mail/test_mail_net.c",
-    "extlibs/xmail/tests/mail/test_mail_auth.c"
-   ],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_net.c",
+				"extlibs/xmail/tests/mail/test_mail_auth.c"
+			],
 			"single_tests": [
 				"extlibs/xmail/tests/single/test_single_mail_net.c"
 			],
@@ -747,6 +747,7 @@
 				"extlibs/xmail/tests/mail/test_mail_multipart.c",
 				"extlibs/xmail/tests/mail/test_mail_message.c",
 				"extlibs/xmail/tests/mail/test_mail_tree.c",
+				"extlibs/xmail/tests/mail/test_mail_tree_adversarial.c",
 				"extlibs/xmail/tests/mail/test_mail_build.c",
 				"extlibs/xmail/tests/mail/test_mail_compose.c",
 				"extlibs/xmail/tests/mail/test_mail_wire.c",
@@ -828,7 +829,9 @@
 			"internal_headers": [],
 			"sources": [],
 			"tests": [
-				"extlibs/xmail/tests/mail/test_mail_net_tls_runtime.c"
+				"extlibs/xmail/tests/mail/test_mail_net_tls_runtime.c",
+				"extlibs/xmail/tests/mail/test_mail_net_tls_handshake_fault.c",
+				"extlibs/xmail/tests/mail/test_mail_net_starttls_queue.c"
 			],
 			"single_tests": [],
 			"examples": [],
@@ -879,6 +882,28 @@
 			"benchmarks": []
 		},
 		{
+			"name": "mail_net_tls_close_fault_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"mail_net_tls",
+				"tls_identity_rsa",
+				"pem",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_net_tls_close_fault.c",
+				"extlibs/xmail/tests/mail/test_mail_example_cleanup.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
 			"name": "xmail_tests",
 			"state": "implemented",
 			"feature": null,
@@ -890,7 +915,8 @@
 				"xmail",
 				"mail_net_tls_runtime_tests",
 				"mail_compose_oom_tests",
-				"mail_tree_oom_tests"
+				"mail_tree_oom_tests",
+				"mail_net_tls_close_fault_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],

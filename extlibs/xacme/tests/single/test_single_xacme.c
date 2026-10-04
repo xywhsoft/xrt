@@ -42,6 +42,11 @@ int main(void)
 		return 2;
 	}
 	xrtAcmeGrantUnit(&Grant);
+	if(!xrtAcmeClientCleanup(NULL)) return 3;
+	{
+		size_t pending = SIZE_MAX;
+		if(!xrtAcmeCleanupPending(0u, &pending) || pending != 0u) return 4;
+	}
 	xrtAcmeClientDestroy(NULL);
 	return 0;
 }

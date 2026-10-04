@@ -5,7 +5,7 @@ title: 组合收发：附件、编码与收发闭环
 volume: 卷十一 其他扩展库
 type: practice
 lead: 一行 Compose 的结构化邮件、三段 multipart 自动选型、SMTP 提交闭环与 Bcc 边界——xmail 五章的收官合体。
-api: xmail-mail_compose, xmail-smtp_submit, xmail-mail
+api: xmail-mail_compose, xsmtp-smtp_submit, xmail-mail
 ---
 
 ## 导读
@@ -62,6 +62,8 @@ Bcc 的处理是安全设计的样本：**密送地址只进入 SMTP 提交层�
 
 ## 示例
 
+本章命令在仓库根目录执行，构建器按清单选择模块、公共头和平台链接库，并输出构建及依赖测试日志。终端块摘录范例自身的输出。第二个程序在进程内启动回环服务器，只使用固定演示数据；真实服务的主机、端口、CA 与运行时凭据配置见相应客户端库的 README。
+
 ### 第一个完整程序：一行 Compose
 
 下面的程序来自 `examples/mail/compose`——UTF-8 主题文本邮件的最短路径：
@@ -70,25 +72,25 @@ Bcc 的处理是安全设计的样本：**密送地址只进入 SMTP 提交层�
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/mail/compose/main.c -lws2_32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xmail/config/modules.json --suite mail_compose --no-single --jobs 4
 （输出完整 MIME 报文——含编码词主题与 QP 正文）
 ```
 
 **刚才发生了什么。** ① `MailMessageInit`+五字段赋值（发件人/收件人/Subject `示例邮件`/正文）——**全部借用**（字符串字面量直进结构，零复制零树）。② `xrtMailCompose` 一行产完整报文：中文 Subject 自动编码词（`=?utf-8?B?...?=`）、纯文本 QP 编码、Date/Message-ID 安全随机——**手工 MIME 二十行的全部决策在这里自动完成**。③ 输出 fwrite 后 `xrtFree`——本入口是"完整报文"形态（要流式改 `ComposeWrite`+sink：附件分块进 sink）。④ 用第 116 章的 `MailMessageParse` 解回这个输出——**发与收用的是同一套解析词汇**，闭环自洽。
 
-### 第二个完整程序：Submit 提交
+### 第二个完整程序：本地 Submit 提交
 
-第二个程序来自 `examples/smtp/submit`——最高层的发送：
+第二个程序来自 `extlibs/xsmtp/examples/offline/main.c`.
 
-```embed path="extlibs/xsmtp/examples/submit/main.c" title="extlibs/xsmtp/examples/submit/main.c"
+```embed path="extlibs/xsmtp/examples/offline/main.c" title="extlibs/xsmtp/examples/offline/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xsmtp/examples/submit/main.c -lws2_32 -liphlpapi
-（对配置的服务器完成一次提交后正常退出）
+$ python tools/build.py --manifest extlibs/xsmtp/config/modules.json --suite smtp_offline_example --no-single --jobs 4
+offline SMTP submission: message accepted
 ```
 
-**刚才发生了什么。** ① `xmailmessage` 同款描述（From/To/Subject/Text）→ `xrtSmtpSubmit(pClient, &Message, iDeadline, NULL)` 一行——内部 Compose+envelope 推导+会话命令+流式发送。② 截止与取消贯穿（第 117 章阻塞形态不变——层次上升纪律不变）。③ 对照第 117 章 client 示例（自备完整报文）：那是"我控制每一字节"、这是"我描述业务意图"——**同一条会话、两种 altitude**。附件版本把 `Attachments` 数组填上即得 multipart/mixed——组合层自动升级结构。
+**刚才发生了什么。** ① 离线程序用与第一例相同的结构化邮件接口填写 From、To、Subject 与 Text，并把描述交给 `xrtSmtpSubmit`。Compose 负责报文，SMTP 客户端负责 envelope 和 DATA，两层使用各自的公开入口；提交代码位于 xsmtp，MIME 组合代码位于 xmail。② 进程内服务器检查实际收到的主题、正文和 DATA 终止行并返回成功响应，客户端再执行 QUIT。只有客户端和服务器都成功，程序才输出接受信息，因此这是一项可执行的提交闭环。③ 演示收件地址与明文线路只指向本地夹具，不会向外部邮箱发信；配置真实服务时使用提交范例及 README 指定的 CA、账户与运行时凭据。提交成功仅代表服务器接受，不等于目标收件箱已经投递；生产调用方应分别记录提交结果、关闭诊断和独立收信证据。
 
 ## 契约
 

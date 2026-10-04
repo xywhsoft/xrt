@@ -22,10 +22,8 @@ static void testStoreNoLive(cstr sMessage)
 
 static void testStoreCheckFailure(cstr sMessage)
 {
-	/* store 各入口按语义把底层失败包装为 IO/NOT_FOUND/MEMORY 等类，
-	   OOM 保证的核心是：注入命中、有错误、且无泄漏——类别不作限定。 */
 	testRequire(xrtMemDebugFailTriggered(), sMessage);
-	testRequire(xrtGetError() != NULL, sMessage);
+	testRequire(xrtErrorKind(xrtGetError()) == XERR_MEMORY, sMessage);
 }
 
 static const char* g_sRoot;
@@ -46,6 +44,12 @@ static bool testSaveGrantRun(void)
 	return xrtAcmeStoreSaveGrant(
 		g_sRoot, "oom.example.com", &Grant,
 		"https://acme-oom.example/dir");
+}
+
+static bool testSaveCertRun(void)
+{
+	return xrtAcmeStoreSaveCert(g_sRoot, "legacy-oom.example.com",
+		g_sChain, "https://acme-oom.example/dir");
 }
 
 static bool testLoadGrantRun(void)
@@ -91,6 +95,9 @@ static void testSweepStore(cstr sName, bool (*fn)(void),
 		}
 		else
 		{
+			printf("[diagnostic] STORE_OOM %s point=%llu kind=%u triggered=%u\n",
+				sName, (unsigned long long)i, (unsigned)xrtErrorKind(xrtGetError()),
+				(unsigned)xrtMemDebugFailTriggered());
 			testStoreCheckFailure("store oom failure mismatch");
 			iCovered++;
 		}
@@ -111,14 +118,15 @@ static void testSweepStore(cstr sName, bool (*fn)(void),
 			break;
 		}
 		i++;
+		testRequire(i < UINT64_C(1024), "store oom sweep exceeded the allocation bound");
 	}
 	testRequire(iCovered != 0u, "store oom no points");
 	printf("[oom] %s points=%zu\n", sName, iCovered);
 }
 
-int main(void)
+int main(int argc, char** argv)
 {
-	static char sRoot[300];
+	static char sRoot[340];
 	const char* sPem =
 		"-----BEGIN PRIVATE KEY-----\n"
 		"MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgya+p2EW6dRZrXCFX\n"
@@ -150,12 +158,23 @@ int main(void)
 	testRequire(testSaveGrantRun(), "store oom baseline grant failed");
 	testStoreNoLive("store oom baseline live");
 
-	testSweepStore("account save", testSaveAccountRun, NULL);
+	testRequire(argc == 1 || argc == 2, "store oom usage: [account-save|cert-save|grant-save|grant-load|need-renew|list-domains]");
+	if ( argc == 1 || strcmp(argv[1], "account-save") == 0 )
+		testSweepStore("account-save", testSaveAccountRun, NULL);
+	if ( argc == 1 || strcmp(argv[1], "cert-save") == 0 )
+		testSweepStore("cert-save", testSaveCertRun, NULL);
 	g_sKey = "-----BEGIN PRIVATE KEY-----\nreplacement\n-----END PRIVATE KEY-----\n";
-	testSweepStore("grant save", testSaveGrantRun, sPem);
-	testSweepStore("grant load", testLoadGrantRun, NULL);
-	testSweepStore("need renew", testNeedRenewRun, NULL);
-	testSweepStore("list domains", testListRun, NULL);
+	if ( argc == 1 || strcmp(argv[1], "grant-save") == 0 )
+		testSweepStore("grant-save", testSaveGrantRun, sPem);
+	if ( argc == 1 || strcmp(argv[1], "grant-load") == 0 )
+		testSweepStore("grant-load", testLoadGrantRun, NULL);
+	if ( argc == 1 || strcmp(argv[1], "need-renew") == 0 )
+		testSweepStore("need-renew", testNeedRenewRun, NULL);
+	if ( argc == 1 || strcmp(argv[1], "list-domains") == 0 )
+		testSweepStore("list-domains", testListRun, NULL);
+	if ( argc == 2 ) testRequire(strcmp(argv[1], "account-save") == 0 || strcmp(argv[1], "cert-save") == 0 ||
+		strcmp(argv[1], "grant-save") == 0 || strcmp(argv[1], "grant-load") == 0 ||
+		strcmp(argv[1], "need-renew") == 0 || strcmp(argv[1], "list-domains") == 0, "unknown store oom operation");
 
 	/* 恢复正常分配后读侧完整可用。 */
 	testRequire(testLoadGrantRun(), "store oom recovery load failed");

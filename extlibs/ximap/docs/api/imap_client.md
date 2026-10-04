@@ -56,7 +56,13 @@ CAPABILITY、APPENDLIMIT、状态和最近 completion 都由 Client 保存。未
 但仍等待传输正常关闭；`Abort` 无网络等待地提交异常中止，并且可以重复调用。原有 FAILED
 状态和最近 completion 会保留到 `Destroy`，销毁未终止会话时也会补做异常中止。网络、取消、
 超时、协议错序或解析失败会使线路进入 `XIMAP_CLIENT_FAILED`，因为此时无法保证下一字节仍
-位于命令边界。服务器对完整命令返回 NO 或 BAD 时，客户端保留可恢复状态并返回结构化错误。
+位于命令边界；进入失败终态时会立即异常中止传输并保留原始错误。服务器对完整命令返回
+NO 或 BAD 时，客户端保留可恢复状态并返回结构化错误。
+
+服务器主动发送未标记 `BYE` 时，低层 `Receive` 仍返回该事件，并把 `BYE` 保存为最近响应，
+但会话立即进入 `XIMAP_CLIENT_FAILED`，后续命令被拒绝。顺序命令的 `Next` 返回
+`XMAIL_NEXT_ERROR` 和 `XERR_CLOSED`。通过高层或低层接口发送 `LOGOUT` 后，客户端拒绝
+新的命令，但允许继续读取 `BYE` 和最终 tagged completion；高层 `Logout` 会随后关闭传输。
 
 ## 示例
 

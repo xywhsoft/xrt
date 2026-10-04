@@ -100,6 +100,15 @@ class State:
 		self.require_contact = require_contact
 		self.flakiness = 0.0
 		self.flaky_every = 0
+		self.flaky_get_only = False
+		self.drop_authz_once = False
+		self.authz_drops = 0
+		self.drop_keychange_response_once = False
+		self.keychange_response_drops = 0
+		self.drop_keychange_before_once = False
+		self.keychange_before_drops = 0
+		self.keychange_badnonce_once = False
+		self.keychange_badnonces = 0
 		self.flaky_requests = 0
 		self.flaky_hits = 0
 		self.alt_served = 0
@@ -113,9 +122,15 @@ class State:
 
 
 def acme_error(handler, status: int, typ: str, detail: str) -> None:
+	if ":" not in typ:
+		typ = "urn:ietf:params:acme:error:" + typ
 	body = json.dumps({"type": typ, "detail": detail}).encode()
+	nonce = new_nonce()
+	with handler.state.lock:
+		handler.state.nonces.add(nonce)
 	handler.send_response(status)
 	handler.send_header("Content-Type", "application/problem+json")
+	handler.send_header("Replay-Nonce", nonce)
 	handler.send_header("Content-Length", str(len(body)))
 	handler.end_headers()
 	handler.wfile.write(body)
@@ -231,6 +246,12 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 			with self.state.lock:
 				self._respond_json({
 					"flaky_hits": self.state.flaky_hits,
+					"authz_drops": self.state.authz_drops,
+					"keychange_response_drops":
+						self.state.keychange_response_drops,
+					"keychange_before_drops":
+						self.state.keychange_before_drops,
+					"keychange_badnonces": self.state.keychange_badnonces,
 					"accounts": len(self.state.accounts),
 					"orders": len(self.state.orders),
 					"revoked": len(self.state.revoked),
@@ -251,7 +272,20 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 		acme_error(self, 404, "malformed", "unknown GET " + self.path)
 
 	def do_POST(self):
-		if self._flaky_drop():
+		if self.state.drop_keychange_before_once and \
+				self.path == "/keychange":
+			with self.state.lock:
+				if self.state.keychange_before_drops == 0:
+					self.state.keychange_before_drops = 1
+					self.close_connection = True
+					return
+		if self.state.drop_authz_once and self.path.startswith("/authz/"):
+			with self.state.lock:
+				if self.state.authz_drops == 0:
+					self.state.authz_drops = 1
+					self.close_connection = True
+					return
+		if not self.state.flaky_get_only and self._flaky_drop():
 			return
 		try:
 			self._dispatch()
@@ -301,11 +335,8 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 			payload = json.loads(payload_text)
 		except Exception:
 			raise AcmeAbort(400, "malformed", "payload not json")
-		if not payload.get("termsOfServiceAgreed"):
-			raise AcmeAbort(400, "userActionRequired", "must agree to terms")
-		contact = payload.get("contact", [])
-		if st.require_contact and not contact:
-			raise AcmeAbort(400, "invalidContact", "contact required")
+		if payload.get("onlyReturnExisting") not in (None, True):
+			raise AcmeAbort(400, "malformed", "onlyReturnExisting invalid")
 		with st.lock:
 			for kid_url, existing in st.accounts.items():
 				if existing["thumb"] == thumb:
@@ -313,6 +344,15 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 						{"status": "valid", "contact": existing["contact"]},
 						status=200, location=kid_url)
 					return
+		if payload.get("onlyReturnExisting") is True:
+			raise AcmeAbort(
+				400, "accountDoesNotExist", "key has no account")
+		if not payload.get("termsOfServiceAgreed"):
+			raise AcmeAbort(400, "userActionRequired", "must agree to terms")
+		contact = payload.get("contact", [])
+		if st.require_contact and not contact:
+			raise AcmeAbort(400, "invalidContact", "contact required")
+		with st.lock:
 			# EAB 仅在开户时要求（RFC 8555 §7.3.4）。
 			binding = payload.get("externalAccountBinding")
 			if st.eab_mac:
@@ -481,8 +521,12 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 		self._respond_json({"status": account.get("status", "valid")})
 
 	def _key_change(self, body):
-		"""RFC 8555 §7.3.5：外层新钥 JWS（嵌新 JWK），内层旧钥签名。"""
+		"""RFC 8555 §7.3.5: outer old account key; inner new JWK."""
 		st = self.state
+		with st.lock:
+			if st.keychange_badnonce_once and st.keychange_badnonces == 0:
+				st.keychange_badnonces = 1
+				raise AcmeAbort(400, "badNonce", "injected keyChange nonce")
 		try:
 			obj = json.loads(body)
 			outer = json.loads(b64u_decode(obj["protected"]))
@@ -492,8 +536,9 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 				b64u_decode(inner_obj["payload"]))
 		except Exception:
 			raise AcmeAbort(400, "malformed", "keyChange decode failed")
-		if outer.get("alg") != "ES256" or "jwk" not in outer:
-			raise AcmeAbort(400, "malformed", "outer must embed new JWK")
+		if outer.get("alg") != "ES256" or "kid" not in outer or \
+				"jwk" in outer:
+			raise AcmeAbort(400, "malformed", "outer must use account kid")
 		if outer.get("url") != self.base + "/keychange":
 			raise AcmeAbort(400, "malformed", "outer url mismatch")
 		with st.lock:
@@ -502,25 +547,28 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 				st.nonces.discard(outer.get("nonce"))
 		if not nonce_ok:
 			raise AcmeAbort(400, "badNonce", "outer nonce invalid")
-		new_jwk = outer["jwk"]
-		# 外层签名用新 JWK 验证。
+		with st.lock:
+			account = st.accounts.get(outer["kid"])
+		if account is None:
+			raise AcmeAbort(400, "accountDoesNotExist", "outer kid")
+		# 外层签名用账户当前旧钥验证。
 		try:
-			jwk_public_key(new_jwk).verify(
+			jwk_public_key(account["jwk"]).verify(
 				raw_to_der_sig(b64u_decode(obj["signature"])),
 				(obj["protected"] + "." + obj["payload"]).encode(),
 				ec.ECDSA(hashes.SHA256()),
 			)
 		except Exception:
 			raise AcmeAbort(400, "malformed", "outer signature invalid")
-		# 内层：旧账户钥签名，kid 归属，oldKey 与现钥一致。
-		with st.lock:
-			account = st.accounts.get(inner.get("kid", ""))
-		if account is None:
-			raise AcmeAbort(400, "accountDoesNotExist", "inner kid")
+		# 内层由新钥签名，保护头只含 JWK 和 URL、不能携带 nonce。
+		if inner.get("alg") != "ES256" or "jwk" not in inner or \
+				"kid" in inner or "nonce" in inner:
+			raise AcmeAbort(400, "malformed", "inner must embed new JWK")
 		if inner.get("url") != self.base + "/keychange":
 			raise AcmeAbort(400, "malformed", "inner url mismatch")
+		new_jwk = inner["jwk"]
 		try:
-			jwk_public_key(account["jwk"]).verify(
+			jwk_public_key(new_jwk).verify(
 				raw_to_der_sig(b64u_decode(inner_obj["signature"])),
 				(inner_obj["protected"] + "." +
 					inner_obj["payload"]).encode(),
@@ -528,14 +576,24 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 			)
 		except Exception:
 			raise AcmeAbort(400, "malformed", "inner signature invalid")
-		if inner_payload.get("account") != inner.get("kid"):
+		if inner_payload.get("account") != outer["kid"]:
 			raise AcmeAbort(400, "malformed", "account mismatch")
 		if inner_payload.get("oldKey") != account["jwk"]:
 			raise AcmeAbort(400, "malformed", "oldKey mismatch")
 		with st.lock:
+			if account.get("status", "valid") != "valid":
+				raise AcmeAbort(400, "unauthorized", "account inactive")
+			if any(existing["thumb"] == jwk_thumbprint(new_jwk)
+					for existing in st.accounts.values()):
+				raise AcmeAbort(409, "malformed", "new key in use")
 			account["jwk"] = new_jwk
 			account["thumb"] = jwk_thumbprint(new_jwk)
 			st.rollovers += 1
+			if st.drop_keychange_response_once and \
+					st.keychange_response_drops == 0:
+				st.keychange_response_drops = 1
+				self.close_connection = True
+				return
 		self._respond_json({})
 
 	# ---------- 证书 ----------
@@ -563,6 +621,12 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 		with self.state.lock:
 			self.state.nonces.add(nonce)
 		alt_url = self.base + path.replace("/cert-", "/certalt-")
+		if self.state.alternate_reference == "path":
+			alt_url = path.replace("/cert-", "certalt-")
+		elif self.state.alternate_reference == "dot":
+			alt_url = "./unused/../" + path.replace("/cert-", "certalt-")
+		elif self.state.alternate_reference == "network":
+			alt_url = "//" + alt_url.split("://", 1)[1]
 		self.send_response(200)
 		self.send_header("Content-Type", "application/pem-certificate-chain")
 		self.send_header("Replay-Nonce", nonce)
@@ -684,7 +748,8 @@ def generate_ca(workdir: str, common_name: str = "xacme mock CA",
 		.public_key(key.public_key()).serial_number(x509.random_serial_number())
 		.not_valid_before(now - datetime.timedelta(days=1))
 		.not_valid_after(now + datetime.timedelta(days=days))
-		.add_extension(x509.BasicConstraints(ca=True, path_length=0), True)
+		.add_extension(x509.BasicConstraints(ca=True,
+			path_length=1 if "ALT" in common_name else 0), True)
 		.sign(key, hashes.SHA256()))
 	suffix = "alt" if "ALT" in common_name else "ca"
 	key_path = os.path.join(workdir, f"{suffix}-key.pem")
@@ -740,7 +805,13 @@ def main() -> int:
 	parser.add_argument("--eab", default="")
 	parser.add_argument("--flakiness", type=float, default=0.0)
 	parser.add_argument("--flaky-every", type=int, default=0)
+	parser.add_argument("--flaky-get-only", action="store_true")
+	parser.add_argument("--drop-authz-once", action="store_true")
+	parser.add_argument("--drop-keychange-response-once", action="store_true")
+	parser.add_argument("--drop-keychange-before-once", action="store_true")
+	parser.add_argument("--keychange-badnonce-once", action="store_true")
 	parser.add_argument("--require-contact", action="store_true")
+	parser.add_argument("--alternate-reference", choices=("absolute", "path", "dot", "network"), default="absolute")
 	args = parser.parse_args()
 
 	os.makedirs(args.workdir, exist_ok=True)
@@ -749,8 +820,14 @@ def main() -> int:
 		eab_kid, mac_text = args.eab.split(":", 1)
 		eab_mac = b64u_decode(mac_text)
 	state = State(eab_kid, eab_mac, args.require_contact)
+	state.alternate_reference = args.alternate_reference
 	state.flakiness = max(0.0, min(0.9, args.flakiness))
 	state.flaky_every = max(0, args.flaky_every)
+	state.flaky_get_only = args.flaky_get_only
+	state.drop_authz_once = args.drop_authz_once
+	state.drop_keychange_response_once = args.drop_keychange_response_once
+	state.drop_keychange_before_once = args.drop_keychange_before_once
+	state.keychange_badnonce_once = args.keychange_badnonce_once
 	state.ca_key, state.ca_cert, ca_path = generate_ca(args.workdir)
 	state.alt_key, state.alt_cert, _ = generate_ca(
 		args.workdir, "xacme mock ALT CA")
@@ -791,6 +868,11 @@ def main() -> int:
 				x509.DNSName)
 			if not sans:
 				raise AcmeAbort(400, "malformed", "csr has no SAN")
+			if not csr.is_signature_valid:
+				raise AcmeAbort(400, "badCSR", "csr signature invalid")
+			expected = set(order["domains"])
+			if len(sans) != len(set(sans)) or set(sans) != expected:
+				raise AcmeAbort(400, "badCSR", "csr SAN differs from order identifiers")
 			now = datetime.datetime.now(datetime.timezone.utc)
 			leaf = (x509.CertificateBuilder()
 				.subject_name(x509.Name([x509.NameAttribute(
@@ -808,24 +890,22 @@ def main() -> int:
 			cert_url = base + "/cert-%d" % serial
 			chain = (leaf.public_bytes(serialization.Encoding.PEM) +
 				st.ca_cert.public_bytes(serialization.Encoding.PEM)).decode()
-			# 备用链：同一 CSR 由 ALT CA 独立签发（真不同链）。
+			# RFC 8555 alternate chains start with the identical leaf. Cross-sign
+			# the primary issuer under the alternate root to produce another path.
 			now2 = datetime.datetime.now(datetime.timezone.utc)
-			alt_leaf = (x509.CertificateBuilder()
-				.subject_name(x509.Name([x509.NameAttribute(
-					NameOID.COMMON_NAME, sans[0])]))
+			alt_issuer = (x509.CertificateBuilder()
+				.subject_name(st.ca_cert.subject)
 				.issuer_name(st.alt_cert.subject)
-				.public_key(csr.public_key())
+				.public_key(st.ca_key.public_key())
 				.serial_number(x509.random_serial_number())
 				.not_valid_before(now2 - datetime.timedelta(days=1))
 				.not_valid_after(now2 + datetime.timedelta(days=90))
-				.add_extension(
-					x509.SubjectAlternativeName(
-						[x509.DNSName(d) for d in sans]), False)
+				.add_extension(x509.BasicConstraints(ca=True, path_length=0), True)
 				.sign(st.alt_key, hashes.SHA256()))
 			alt_url = base + "/certalt-%d" % serial
 			st.certificates[alt_url] = (
-				alt_leaf.public_bytes(serialization.Encoding.PEM) +
-				st.alt_cert.public_bytes(serialization.Encoding.PEM)
+				leaf.public_bytes(serialization.Encoding.PEM) +
+				alt_issuer.public_bytes(serialization.Encoding.PEM)
 			).decode()
 			st.certificates[cert_url] = chain
 			order["status"] = "valid"

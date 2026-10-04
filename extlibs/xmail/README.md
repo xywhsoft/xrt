@@ -1,5 +1,9 @@
 # xmail
 
+POP3、SMTP、IMAP 的真实客户端范例共享 `examples/mail_client_setup.h`。
+清理在五秒预算内推进 Resolver 和 Engine 的退休，只在成功时清空拥有型指针；
+忙碌或失败时保留句柄供重试，并保留调用前的错误。清理未完成时范例返回失败。
+
 `xmail` 是只依赖 XRT 公共 API 的邮件底层扩展库：MIME 内容层与跨协议传输基座。SMTP、POP3
 与 IMAP 协议客户端分别由 `xsmtp`、`xpop3`、`ximap` 扩展库提供，它们以本库为依赖
 （`dependency_manifests`）组合出完整邮件能力。正式实现不复刻 socket、TLS、压缩、取消或
@@ -55,5 +59,50 @@ python tools/measure_performance.py --config extlibs/xmail/config/performance_pr
 python tools/measure_size.py --config extlibs/xmail/config/size_profiles.json --manifest extlibs/xmail/config/modules.json --profiles '*'
 ```
 
+`xmail_tests` 包含 MIME 对抗输入回归：重复单例字段、非法传输编码、未闭合
+multipart、头内 NUL、伪装分隔线，以及逐字节截断与控制字节变异。
+可用 `--test test_mail_tree_adversarial --no-single` 单独运行这组样本。
+`test_mail_net` 与 `test_mail_net_tls_runtime` 还用停顿的本地 DNS 解析器验证
+明文及隐式 TLS 拨号进行中的取消、超时，以及解析器恢复后明文无迟到连接、
+TLS 无迟到会话；两项测试由
+`xmail_tests` 自动收集。
+
+`examples/mail/compose` 向 stdout 输出完整 MIME 报文；Windows 使用二进制模式保留
+CRLF，写入或刷新输出失败时返回失败。`python tools/test_mail_example_output.py`
+独立解析实际输出的主题和正文，并以只读输出句柄验证失败返回；两平台 CI 均执行。
+`test_mail_net_tls_close_fault` 在 TLS 关闭等待 Future 分配时注入内存失败，
+确认立即请求中止、保留内存错误，并在销毁传输前由对端观察到异常关闭。
+可用 `--suite mail_net_tls_close_fault_tests --no-single --no-examples`
+单独运行。
+
 根目录中的旧协议设计稿和 `xmail_xlang` 文件是历史迁移资产，不进入当前模块清单、公共头、
 单头或发布包。正式 API、测试和文档分别以 `include`、`tests` 与 `docs/api` 为准。
+
+## 覆盖率
+
+实际 Dovecot/Postfix 互操作的运行条件、十八个场景和 Windows/WSL 用法见
+[独立邮件服务器验收](../mail-real-server-testing.md)。
+
+从仓库根目录执行：
+
+```text
+python tools/test_mail_coverage_inputs.py
+python tools/measure_mail_coverage.py --product xmail
+python tools/measure_mail_coverage.py --product xmail --report-only
+```
+
+工具重建模块套件，以 gcov JSON 原始计数统计本库全部自有 `.c` 文件，
+保存精确行数、分支结果数和未触达位置。默认口径为
+`module_and_independent_tls_object_profiles`，合并模块套件与独立 TLS 范例的原始
+客户端对象计数，仅统计本库自有 `.c` 文件。Core 和 Python 服务端代码不计入；
+内部头中的 static 函数另存于 `header-functions.json`，不改变主报告分母。
+`--module-only` 可选择仅模块套件的独立口径；同一报告不能混用两种口径。
+默认防倒退门槛与 CI 一致：行 73% / 分支结果 59%；门槛通过不代表生产验收完成。
+
+报告位于 `out/mail/coverage/{win32,linux}/xmail/coverage.json`。
+Windows 与 Linux 的编译计数分别保存在 `out/gcc/native-windows` 与
+`out/gcc/native-linux`，避免交叉覆盖。报告绑定源码、Core、测试、夹具、清单、
+构建工具和原始 `.gcno`/`.gcda` 的 SHA256；测量期间输入变化会使测量失败。
+`--report-only` 要求保留原报告和原始计数，重新核对输入和精确计数，不重建测试。
+旧计数未绑定报告、输入已经变化、计数丢失或报告与计数不符时都会拒绝读取，
+不会给旧计数重新附上当前源码的哈希。CI 在两个平台执行溯源回归并保留报告及自有对象计数。

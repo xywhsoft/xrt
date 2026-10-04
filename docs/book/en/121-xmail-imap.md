@@ -5,12 +5,12 @@ title: IMAP: The Server-Side Mailbox
 volume: 卷十一 其他扩展库
 type: practice
 lead: Tagged responses and streaming literal reads, the two-level command model, SELECT summaries and IDLE push, COMPRESS and pipelining — the server-authoritative receiving protocol.
-api: xmail-imap, xmail-imap_client, xmail-imap_command
+api: ximap-imap, ximap-imap_client, ximap-imap_command
 ---
 
 ## Orientation
 
-IMAP is POP3's (Chapter 118) "server-authoritative" dual: mail stays on the server, and folders/flags/search/FETCH partial retrieval all happen server-side — the cornerstone of multi-device sync. The protocol complexity is an order higher too: **the tagged response model** (every command carries a unique tag; server responses correlate by tag — enabling pipelining); **the literal mechanism** (parameters and responses containing arbitrary bytes go through `{N}` length declarations — synchronous literals wait for a continuation confirmation, `LITERAL+` skips the sync); **the untagged event stream** (EXISTS/RECENT/FETCH updates cut in at any time). xmail's layering: protocol primitives (`imap`: replies/literals/capabilities/commands — builds no mailbox objects and constructs no search conditions; **unknown extensions remain reachable as raw text**) → client (`imap_client`: the two-level command model — a low-level explicit-tag pipeline plus a sequential convenience layer) → command convenience layer (`imap_command`: safe construction of SELECT/LIST/SEARCH/FETCH/IDLE) → specialized layers (auth/body/message/append/compress).
+IMAP is POP3's (Chapter 118) "server-authoritative" dual: mail stays on the server, and folders/flags/search/FETCH partial retrieval all happen server-side — the cornerstone of multi-device sync. The protocol complexity is an order higher too: **the tagged response model** (every command carries a unique tag; server responses correlate by tag — enabling pipelining); **the literal mechanism** (parameters and responses containing arbitrary bytes go through `{N}` length declarations — synchronous literals wait for a continuation confirmation, `LITERAL+` skips the sync); **the untagged event stream** (EXISTS/RECENT/FETCH updates cut in at any time). ximap layering: protocol primitives (`imap`: replies/literals/capabilities/commands — builds no mailbox objects and constructs no search conditions; **unknown extensions remain reachable as raw text**) → client (`imap_client`: the two-level command model — a low-level explicit-tag pipeline plus a sequential convenience layer) → command convenience layer (`imap_command`: safe construction of SELECT/LIST/SEARCH/FETCH/IDLE) → specialized layers (auth/body/message/append/compress).
 
 ## Introduction
 
@@ -46,6 +46,8 @@ The usual injection defense is present: `CommandWrite` rejects malformed atoms/c
 
 ## Examples
 
+Run these commands from the repository root. The builder selects modules, public headers and platform libraries from the manifest, and also prints build and dependency-test logs. Terminal blocks show the example output. The second program starts a loopback server within the process and uses fixed demonstration data. See the client library README for real-service host, port, CA and runtime credential configuration.
+
 ### First complete program: protocol primitives
 
 The program below is from `examples/imap/protocol` — an offline loop of replies and commands:
@@ -54,25 +56,25 @@ The program below is from `examples/imap/protocol` — an offline loop of replie
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/ximap/examples/protocol/main.c -lws2_32 -liphlpapi
-（输出 IMAP 响应/literal/命令原语的离线自检结果）
+$ python tools/build.py --manifest extlibs/ximap/config/modules.json --suite imap --no-single --jobs 4
+status=1 command=A002 SELECT "INBOX"
 ```
 
-**What just happened.** (1) Parsing of the three reply classes/five status states/three literal forms is fully verified without a network — the same "offline-testable, no second implementation" as the SMTP/POP3 protocol layers. (2) Literal parsing yields only **length and marker views** — data reading is the client state machine's business (inter-layer responsibility: the parsing layer owns syntax, the state machine owns the byte stream); this split is what makes "streaming literals" possible: parsing never touches the data body. (3) `QuoteWrite`'s escaping (control data must go via literal) and `CommandWrite`'s injection rejection — both send-side gates are unit-testable at the primitive layer.
+**What just happened.** (1) The program parses a fixed tagged OK reply with `xrtImapResponseParse`, then builds SELECT with an explicit tag and mailbox argument through `xrtImapCommandWrite`, printing the status and command bytes. (2) The mailbox argument already includes double quotes; the builder validates wire syntax and injection boundaries. Callers choose a quoted string or literal according to the argument type. The same suite tests other reply, literal and escaping boundaries; body reads remain the client state machine responsibility.
 
-### Second complete program: a session and compression configuration
+### Second complete program: a read-only mailbox query
 
-The second program is from `examples/imap/client` — a real session with COMPRESS negotiation:
+The second program is from `extlibs/ximap/examples/offline/main.c`.
 
-```embed path="extlibs/ximap/examples/client/main.c" title="extlibs/ximap/examples/client/main.c"
+```embed path="extlibs/ximap/examples/offline/main.c" title="extlibs/ximap/examples/offline/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/ximap/examples/client/main.c -lws2_32 -liphlpapi
-（对配置的 IMAP 服务器完成会话与压缩协商后正常退出）
+$ python tools/build.py --manifest extlibs/ximap/config/modules.json --suite imap_offline_example --no-single --jobs 4
+offline IMAP EXAMINE: INBOX has 2 messages (read-only)
 ```
 
-**What just happened.** (1) `ImapCompressConfigInit/Valid` — configuration validation for the compressed wire (window/level and friends); after authentication the COMPRESS command runs, and the wire bytes from then on are a DEFLATE stream. (2) The meaning and price of compression: mobile networks save 60–80% of wire bytes; CPU buys bandwidth — the configuration layer's Valid is the entrance that "declares the price" — a checksum gate before the wire compresses. (3) The session skeleton (Open→CAPABILITY→authenticate→SELECT→…→Logout) runs through the two-level command model — this sample focuses on the compression insertion point; the `message`/`body` samples cover the consumption side of FETCH streaming and MIME boundaries.
+**What just happened.** (1) The program creates an in-process loopback IMAP server. The client reads the greeting and establishes a sequential command session. LOGIN uses a fixed demonstration account, with plaintext authentication allowed only for this local fixture. (2) The client calls `xrtImapClientExamine`, reads the read-only INBOX state and a count of two messages, checks the selected state and mailbox facts, and waits for tagged completion. EXAMINE does not change server message flags and demonstrates a short read-only query. (3) After LOGOUT the program waits for the server thread, then closes and destroys the listener, resolver and network engine. Success means both the command result and server script were checked. Compression requires a separate authenticated negotiation and stream-decoding flow; see the library README for compression tests and real-client configuration.
 
 ## Contracts
 

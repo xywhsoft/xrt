@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `41` 个函数、`42` 个常量或宏、
-`23` 个公共类型。
+当前登记 `43` 个函数、`51` 个常量或宏、
+`21` 个公共类型。
 
 ## `extlibs/xacme/include/xrt/acme.h`
 
@@ -16,9 +16,8 @@
 - `xrtAcmeAccountConfigInit`
 - `xrtAcmeGrantUnit`
 
-### 常量与宏 (21)
+### 常量与宏 (20)
 
-- `XACME_DIRECTORY_`
 - `XACME_DIRECTORY_BUYPASS`
 - `XACME_DIRECTORY_BUYPASS_TEST`
 - `XACME_DIRECTORY_GOOGLE`
@@ -40,22 +39,21 @@
 - `XACME_FEATURE_ACME_CORE`
 - `XACME_FEATURE_ACME_DNS`
 
-### 类型 (6)
+### 类型 (4)
 
-- `xacme`
 - `xacmeaccountconfig`
 - `xacmeeab`
 - `xacmeerror`
 - `xacmeissuegrant`
-- `xrt`
 
 ## `extlibs/xacme/include/xrt/acme_client.h`
 
 [查看带契约注释的公共头](../../include/xrt/acme_client.h)
 
-### 函数 (10)
+### 函数 (11)
 
 - `xrtAcmeClientAccountPem`
+- `xrtAcmeClientCleanup`
 - `xrtAcmeClientConfigInit`
 - `xrtAcmeClientCreate`
 - `xrtAcmeClientDeactivate`
@@ -93,13 +91,15 @@
 - `xrtAcmeDnsProviderId`
 - `xrtAcmeDnsProviderValidate`
 
-### 常量与宏 (6)
+### 常量与宏 (8)
 
 - `XACME_DNS_CAP_PROPAGATE`
 - `XACME_DNS_ERROR_ARGUMENT`
 - `XACME_DNS_ERROR_CREDENTIAL`
 - `XACME_DNS_ERROR_NETWORK`
 - `XACME_DNS_ERROR_PROTOCOL`
+- `XACME_DNS_ERROR_STATE`
+- `XACME_DNS_ERROR_UNCERTAIN`
 - `XACME_DNS_ERROR_ZONE`
 
 ### 类型 (4)
@@ -195,6 +195,29 @@
 
 - `xacmednstencentconfig`
 
+## `extlibs/xacme/include/xrt/acme_http.h`
+
+[查看带契约注释的公共头](../../include/xrt/acme_http.h)
+
+### 函数 (1)
+
+- `xrtAcmeCleanupPending`
+
+### 常量与宏 (8)
+
+- `XACME_HTTP_ERROR_ARGUMENT`
+- `XACME_HTTP_ERROR_CONNECT`
+- `XACME_HTTP_ERROR_PROTOCOL`
+- `XACME_HTTP_ERROR_SEND`
+- `XACME_HTTP_ERROR_TIMEOUT`
+- `XACME_HTTP_ERROR_TLS`
+- `XACME_HTTP_ERROR_UNCERTAIN`
+- `XACME_HTTP_ERROR_URL`
+
+### 类型 (1)
+
+- `xacmehttperror`
+
 ## `extlibs/xacme/include/xrt/acme_obtain.h`
 
 [查看带契约注释的公共头](../../include/xrt/acme_obtain.h)
@@ -235,7 +258,6 @@
 - `XACME_STORE_ERROR_NOT_FOUND`
 - `XACME_STORE_ERROR_PARSE`
 
-### 类型 (2)
+### 类型 (1)
 
-- `x509`
 - `xacmestoreerror`

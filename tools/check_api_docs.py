@@ -65,21 +65,36 @@ def _manifest_files(
 		root / path
 		for module in data["modules"]
 		for path in module.get("public_headers", [])
-		if (root / path).is_file() and
-		("XRT_API" in (root / path).read_text(encoding="utf-8"))
 	})
 	docs = sorted({
 		root / path
 		for module in data["modules"]
 		for path in module.get("docs", [])
 	})
-	missing = [path for path in docs if not path.is_file()]
+	missing = [path for path in headers + docs if not path.is_file()]
 	if missing:
 		raise ValueError(
 			"registered API documentation input is missing: " +
 			", ".join(str(path.relative_to(root)) for path in missing)
 		)
+	headers = [path for path in headers
+		if "XRT_API" in _header_code(path.read_text(encoding="utf-8"))]
 	return headers, docs, config
+
+
+
+def _header_code(text: str) -> str:
+	"""掩去注释、字面量和 include 路径，保留真实声明的标识符。"""
+
+	# C 在识别 // 注释之前拼接反斜杠续行。
+	text = re.sub(r"\\\r?\n", "", text)
+	pattern = (r"/\*.*?\*/|//[^\n]*" +
+		r'|"(?:\\.|[^"\\])*"' + r"|'(?:\\.|[^'\\])*'")
+	text = re.sub(pattern,
+		lambda match: re.sub(r"[^\n]", " ", match.group(0)),
+		text, flags=re.DOTALL)
+	return re.sub(r"^[ \t]*#[ \t]*include(?:_next)?\b[^\n]*", "",
+		text, flags=re.MULTILINE)
 
 
 
@@ -91,6 +106,7 @@ def _header_symbols(
 ) -> tuple[set[str], set[str], set[str]]:
 	"""提取导出函数以及家族前缀约束的常量和类型标识符。"""
 
+	text = _header_code(text)
 	functions: set[str] = set()
 	for match in re.finditer(r"\bXRT_API\b([^;]+);", text, re.DOTALL):
 		declaration = match.group(1)

@@ -194,6 +194,17 @@ bool __xrtMailTransportOpen(
 	pTransport->ReadChunk = pConfig->ReadChunk;
 	pTransport->WriteChunk = pConfig->WriteChunk;
 	pTransport->Security = pConfig->Security;
+	/* 已失效的调用不能先向 Engine 提交拨号任务。 */
+	if ( xrtDeadlineExpired(iDeadline) ) {
+		__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
+			"mail connection timed out before dialing");
+		return false;
+	}
+	if ( xrtCancelRequested(pCancel) ) {
+		__xrtMailError(XERR_CANCELLED, XMAIL_ERROR_PROTOCOL,
+			"mail connection was cancelled before dialing");
+		return false;
+	}
 	if ( pConfig->Security == XMAIL_SECURITY_TLS ) {
 		#if defined(XMAIL_FEATURE_MAIL_NET_TLS)
 			return __xrtMailTransportTlsOpen(
@@ -249,6 +260,17 @@ bool __xrtMailTransportRawSend(
 	while ( iOffset < iSize ) {
 		size_t iChunk = iSize - iOffset;
 
+		/* 无需等待写就绪时也必须遵守取消和截止时间。 */
+		if ( xrtDeadlineExpired(iDeadline) ) {
+			__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
+				"mail send timed out");
+			return false;
+		}
+		if ( xrtCancelRequested(pCancel) ) {
+			__xrtMailError(XERR_CANCELLED, XMAIL_ERROR_PROTOCOL,
+				"mail send was cancelled");
+			return false;
+		}
 		if ( iChunk > pTransport->WriteChunk ) {
 			iChunk = pTransport->WriteChunk;
 		}
@@ -268,6 +290,17 @@ bool __xrtMailTransportRawSend(
 			xnetresult Result;
 
 			for ( ;; ) {
+				/* 写队列唤醒后再次检查，避免失效请求继续提交字节。 */
+				if ( xrtDeadlineExpired(iDeadline) ) {
+					__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
+						"mail send timed out");
+					return false;
+				}
+				if ( xrtCancelRequested(pCancel) ) {
+					__xrtMailError(XERR_CANCELLED, XMAIL_ERROR_PROTOCOL,
+						"mail send was cancelled");
+					return false;
+				}
 				Result = xrtNetStreamSend(
 					pTransport->Tcp,
 					pBytes + iOffset,
@@ -621,7 +654,7 @@ bool __xrtMailTransportRead(
 
 
 
-/* 正常关闭传输；超时后转为异常关闭。 */
+/* 正常关闭传输；任一关闭失败均中止连接并保留原始错误。 */
 bool __xrtMailTransportClose(
 	__xmailtransport* pTransport,
 	xdeadline iDeadline
@@ -646,9 +679,9 @@ bool __xrtMailTransportClose(
 				iDeadline,
 				NULL
 			);
-		if ( !bSuccess ) {
-			(void)xrtNetStreamAbort(pTransport->Tcp);
-		}
+	}
+	if ( !bSuccess ) {
+		__xrtMailTransportAbortPreserveError(pTransport);
 	}
 	return bSuccess;
 }
@@ -671,6 +704,25 @@ bool __xrtMailTransportAbort(__xmailtransport* pTransport)
 		return xrtNetStreamAbort(pTransport->Tcp);
 	}
 	return true;
+}
+
+
+
+/* 终止失败会话上的待发异步字节，不让清理错误覆盖真正的故障。 */
+void __xrtMailTransportAbortPreserveError(__xmailtransport* pTransport)
+{
+	xerror* pPrimary = xrtTakeError();
+	xerror* pAbort;
+
+	(void)__xrtMailTransportAbort(pTransport);
+	pAbort = xrtTakeError();
+	if ( pPrimary != NULL ) {
+		xrtSetError(pPrimary);
+	} else if ( pAbort != NULL ) {
+		xrtSetError(pAbort);
+	}
+	xrtErrorFree(pPrimary);
+	xrtErrorFree(pAbort);
 }
 
 

@@ -13,252 +13,429 @@ static unsigned char* b64url_dec(const char* s, size_t n, size_t* out)
 /* RSA 私钥 PEM 解析（PKCS#8 或 PKCS#1 → xrsaprivatekey）              */
 /* ------------------------------------------------------------------ */
 typedef struct xjwt__rsa_owned {
-	unsigned char* pRaw;        /* DER 解码后的原始字节 */
-	unsigned char** ppParts;    /* 各组件指针数组（8 个：n,e,d,p,q,dp,dq,qinv） */
-	int nParts;
+	unsigned char* pRaw;        /* 私钥组件借用此 DER 存储 */
+	size_t iRawSize;
 } xjwt__rsa_owned;
 
 static void xjwt__rsa_owned_free(xjwt__rsa_owned* p)
 {
 	if ( p == NULL ) return;
-	if ( p->ppParts ) {
-		for ( int i = 0; i < p->nParts; i++ ) {
-			if ( p->ppParts[i] ) xrtFree(p->ppParts[i]);
-		}
-		xrtFree(p->ppParts);
+	if ( p->pRaw ) {
+		xrtSecureZero(p->pRaw, p->iRawSize);
+		xrtFree(p->pRaw);
 	}
-	if ( p->pRaw ) xrtFree(p->pRaw);
 	xrtFree(p);
 }
 
-/* 从 DER 序列中顺序读取 count 个 INTEGER */
-static bool der_read_ints(xdercursor* pCur, int count,
-                          unsigned char** ppOut, size_t* pSizes)
+static bool rsa_private_pkcs1_parse(const void* pData, size_t iSize,
+	xbytesview aParts[8])
 {
-	for ( int i = 0; i < count; i++ ) {
-		xdervalue tVal;
-		if ( xrtDerRead(pCur, &tVal) != XDER_VALUE ||
-		     tVal.Tag.Number != XASN1_INTEGER || tVal.Value.Size == 0 ) {
+	xdercursor Outer, Fields;
+	xdervalue Value;
+	uint64 iVersion;
+
+	if ( !xrtDerValidate(pData, iSize) ||
+		!xrtDerInit(&Outer, pData, iSize) ||
+		xrtDerRead(&Outer, &Value) != XDER_VALUE ||
+		!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) ||
+		!xrtDerDone(&Outer) || !xrtDerEnter(&Value, &Fields) ||
+		xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+		!xrtDerUInt64(&Value, &iVersion) || (iVersion != 0) ) {
+		return false;
+	}
+	for ( size_t i = 0; i < 8u; i++ ) {
+		if ( xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+			!xrtDerUnsigned(&Value, &aParts[i]) ) return false;
+	}
+	return xrtDerDone(&Fields);
+}
+
+/* RFC 5208/5958 [0] IMPLICIT SET OF Attribute: validate but ignore metadata. */
+static bool pkcs8_attributes_parse(const xdervalue* pAttributeField)
+{
+	xdercursor Attributes;
+	xdervalue Value;
+	xbytesview Previous = { NULL, 0 };
+
+	if ( !xrtDerEnter(pAttributeField, &Attributes) ) {
+		return false;
+	}
+	while ( !xrtDerDone(&Attributes) ) {
+		xdercursor Attribute, Values;
+		xbytesview Oid, Current;
+		int iOrder;
+		if ( xrtDerRead(&Attributes, &Value) != XDER_VALUE ||
+			!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) )
 			return false;
+		Current = Value.Raw;
+		if ( Previous.Data != NULL ) {
+			size_t iCommon = Previous.Size < Current.Size ?
+				Previous.Size : Current.Size;
+			iOrder = memcmp(Previous.Data, Current.Data, iCommon);
+			if ( (iOrder > 0) ||
+				((iOrder == 0) && (Previous.Size > Current.Size)) )
+				return false;
 		}
-		ppOut[i] = (unsigned char*)xrtMalloc(tVal.Value.Size);
-		if ( ppOut[i] == NULL ) return false;
-		memcpy(ppOut[i], tVal.Value.Data, tVal.Value.Size);
-		pSizes[i] = tVal.Value.Size;
-		xjwt__int_trim(ppOut[i], &pSizes[i]);
+		Previous = Current;
+		if ( !xrtDerEnter(&Value, &Attribute) ||
+			xrtDerRead(&Attribute, &Value) != XDER_VALUE ||
+			!xrtDerOid(&Value, &Oid) ||
+			xrtDerRead(&Attribute, &Value) != XDER_VALUE ||
+			!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SET, true) ||
+			!xrtDerDone(&Attribute) || !xrtDerEnter(&Value, &Values) ||
+			xrtDerDone(&Values) ) return false;
+		while ( !xrtDerDone(&Values) ) {
+			if ( xrtDerRead(&Values, &Value) != XDER_VALUE ) return false;
+		}
 	}
 	return true;
+}
+
+/* OneAsymmetricKey 的可选字段必须按标签排序，版本须与外层公钥一致。 */
+static bool pkcs8_options_parse(xdercursor* pFields, uint64 iVersion,
+	xbytesview* pPublic)
+{
+	xdervalue Value;
+	bool bAttributes = false;
+	bool bPublic = false;
+
+	pPublic->Data = NULL;
+	pPublic->Size = 0;
+	while ( !xrtDerDone(pFields) ) {
+		if ( xrtDerRead(pFields, &Value) != XDER_VALUE ||
+			(Value.Tag.Class != XASN1_CONTEXT) ) return false;
+		if ( (Value.Tag.Number == 0u) && Value.Tag.Constructed &&
+			!bAttributes && !bPublic ) {
+			if ( !pkcs8_attributes_parse(&Value) ) return false;
+			bAttributes = true;
+		} else if ( (Value.Tag.Number == 1u) &&
+			!Value.Tag.Constructed && !bPublic &&
+			(Value.Value.Size > 1u) && (Value.Value.Data[0] == 0u) ) {
+			pPublic->Data = Value.Value.Data + 1u;
+			pPublic->Size = Value.Value.Size - 1u;
+			bPublic = true;
+		} else {
+			return false;
+		}
+	}
+	return ((iVersion == 0u) && !bPublic) ||
+		((iVersion == 1u) && bPublic);
+}
+
+/* 外层 RSA 公钥必须与 RSAPrivateKey 中的模数和指数完全一致。 */
+static bool rsa_pkcs8_public_matches(xbytesview Encoded,
+	const xbytesview aParts[8])
+{
+	xdercursor Outer, Fields;
+	xdervalue Value;
+	xbytesview Modulus, Exponent;
+
+	return xrtDerValidate(Encoded.Data, Encoded.Size) &&
+		xrtDerInit(&Outer, Encoded.Data, Encoded.Size) &&
+		(xrtDerRead(&Outer, &Value) == XDER_VALUE) &&
+		xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) &&
+		xrtDerDone(&Outer) && xrtDerEnter(&Value, &Fields) &&
+		(xrtDerRead(&Fields, &Value) == XDER_VALUE) &&
+		xrtDerUnsigned(&Value, &Modulus) &&
+		(xrtDerRead(&Fields, &Value) == XDER_VALUE) &&
+		xrtDerUnsigned(&Value, &Exponent) && xrtDerDone(&Fields) &&
+		(Modulus.Size == aParts[0].Size) &&
+		(Exponent.Size == aParts[1].Size) &&
+		(memcmp(Modulus.Data, aParts[0].Data, Modulus.Size) == 0) &&
+		(memcmp(Exponent.Data, aParts[1].Data, Exponent.Size) == 0);
+}
+
+static bool rsa_private_der_parse(const void* pData, size_t iSize,
+	bool bPkcs8, xbytesview aParts[8])
+{
+	static const unsigned char aRsaOid[] = {
+		0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01
+	};
+	xdercursor Outer, Fields, Algorithm;
+	xdervalue Value;
+	xbytesview EncodedKey, Public;
+	uint64 iVersion;
+
+	if ( !bPkcs8 ) return rsa_private_pkcs1_parse(pData, iSize, aParts);
+	if ( !xrtDerValidate(pData, iSize) ||
+		!xrtDerInit(&Outer, pData, iSize) ||
+		xrtDerRead(&Outer, &Value) != XDER_VALUE ||
+		!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) ||
+		!xrtDerDone(&Outer) || !xrtDerEnter(&Value, &Fields) ||
+		xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+		!xrtDerUInt64(&Value, &iVersion) || (iVersion > 1u) ||
+		xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+		!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) ||
+		!xrtDerEnter(&Value, &Algorithm) ||
+		xrtDerRead(&Algorithm, &Value) != XDER_VALUE ||
+		!xrtDerOidEqual(&Value, aRsaOid, sizeof(aRsaOid)) ||
+		xrtDerRead(&Algorithm, &Value) != XDER_VALUE ||
+		!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_NULL, false) ||
+		(Value.Value.Size != 0) || !xrtDerDone(&Algorithm) ||
+		xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+		!xrtDerOctets(&Value, &EncodedKey) ||
+		!pkcs8_options_parse(&Fields, iVersion, &Public) ) {
+		return false;
+	}
+	return rsa_private_pkcs1_parse(EncodedKey.Data, EncodedKey.Size, aParts) &&
+		((Public.Data == NULL) ||
+		 rsa_pkcs8_public_matches(Public, aParts));
 }
 
 bool xjwt__rsa_private_parse(const char* sPem, xrsaprivatekey* pKey,
                              xjwt__rsa_owned** ppOwned)
 {
-	xpemblock tBlock;
-	if ( !xrtPemFind(sPem, strlen(sPem), "PRIVATE KEY", &tBlock) &&
-	     !xrtPemFind(sPem, strlen(sPem), "RSA PRIVATE KEY", &tBlock) ) {
+	xpemblock Block;
+	xbytesview Parts[8];
+	xrsaprivatekey Parsed;
+	xjwt__rsa_owned* pOwn;
+	size_t iPemSize, iDerSize = 0;
+	bytes pDer;
+	bool bPkcs8;
+
+	if ( (sPem == NULL) || (pKey == NULL) || (ppOwned == NULL) ) {
+		xjwt__error(XJWT_ERROR_ARGUMENT, "RSA private key argument is null");
+		return false;
+	}
+	iPemSize = strlen(sPem);
+	bPkcs8 = xrtPemFind(sPem, iPemSize, "PRIVATE KEY", &Block);
+	if ( !bPkcs8 &&
+		!xrtPemFind(sPem, iPemSize, "RSA PRIVATE KEY", &Block) ) {
 		xjwt__error(XJWT_ERROR_PARSE, "PEM private key not found");
 		return false;
 	}
-	size_t iDerSize = 0;
-	bytes pDer = xrtPemDecodeNew(&tBlock, &iDerSize);
+	pDer = xrtPemDecodeNew(&Block, &iDerSize);
 	if ( pDer == NULL ) {
-		xjwt__error(XJWT_ERROR_PARSE, "PEM decode failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE,
+			"PEM decode failed");
 		return false;
 	}
-
-	xjwt__rsa_owned* pOwn = (xjwt__rsa_owned*)xrtMalloc(sizeof(xjwt__rsa_owned));
-	if ( pOwn == NULL ) { xrtFree(pDer); return false; }
-	memset(pOwn, 0, sizeof(*pOwn));
-	pOwn->pRaw = pDer;
-
-	xdervalue tVal;
-	xdercursor tCur;
-	xrtDerInit(&tCur, pDer, iDerSize);
-
-	/* 外层 SEQ */
-	if ( xrtDerRead(&tCur, &tVal) != XDER_VALUE ||
-	     tVal.Tag.Number != XASN1_SEQUENCE ) goto fail;
-
-	/* 判断 PKCS#8 vs PKCS#1：两者都以 version INTEGER 开头，
-	 * 区别在第二个元素 —— PKCS#1 是 INTEGER(n)，PKCS#8 是 SEQ(AlgorithmIdentifier)。
-	 * PKCS#1  RSAPrivateKey  = SEQ { INT ver, INT n, INT e, INT d, INT p, INT q, INT dp, INT dq, INT qinv }
-	 * PKCS#8  PrivateKeyInfo = SEQ { INT ver, SEQ algid, OCTET STRING { PKCS#1 } } */
-	{
-		xdercursor tInner;
-		xrtDerInit(&tInner, tVal.Value.Data, tVal.Value.Size);
-		if ( xrtDerRead(&tInner, &tVal) != XDER_VALUE ||
-		     tVal.Tag.Number != XASN1_INTEGER ) goto fail;  /* version */
-
-		xdervalue tSecond;
-		if ( xrtDerRead(&tInner, &tSecond) != XDER_VALUE ) goto fail;
-
-		unsigned char** pp = (unsigned char**)xrtMalloc(8 * sizeof(void*));
-		size_t aSizes[8];
-		if ( pp == NULL ) goto fail;
-		memset(pp, 0, 8 * sizeof(void*));
-
-		bool ok8 = false;
-		if ( tSecond.Tag.Number == XASN1_SEQUENCE ) {
-			/* PKCS#8：跳过 algid，取 OCTET STRING 内嵌 PKCS#1 */
-			xdercursor tInts;
-			if ( xrtDerRead(&tInner, &tVal) != XDER_VALUE ||
-			     tVal.Tag.Number != XASN1_OCTET_STRING ) goto fail_ints;
-			xrtDerInit(&tInts, tVal.Value.Data, tVal.Value.Size);
-			if ( xrtDerRead(&tInts, &tVal) != XDER_VALUE ||
-			     tVal.Tag.Number != XASN1_SEQUENCE ) goto fail_ints;
-			/* 在 SEQ 内容上重开游标，跳过 version */
-			xrtDerInit(&tInts, tVal.Value.Data, tVal.Value.Size);
-			if ( xrtDerRead(&tInts, &tVal) != XDER_VALUE ||
-			     tVal.Tag.Number != XASN1_INTEGER ) goto fail_ints;  /* version */
-			ok8 = der_read_ints(&tInts, 8, pp, aSizes);
-		} else if ( tSecond.Tag.Number == XASN1_INTEGER ) {
-			/* PKCS#1：tSecond 已是 n（不可回退），先入槽 0 再读余下 7 个 */
-			pp[0] = (unsigned char*)xrtMalloc(tSecond.Value.Size);
-			if ( pp[0] != NULL ) {
-				memcpy(pp[0], tSecond.Value.Data, tSecond.Value.Size);
-				aSizes[0] = tSecond.Value.Size;
-				xjwt__int_trim(pp[0], &aSizes[0]);
-				ok8 = true;
-				for ( int i = 1; i < 8 && ok8; i++ ) {
-					xdervalue tInt;
-					if ( xrtDerRead(&tInner, &tInt) != XDER_VALUE ||
-					     tInt.Tag.Number != XASN1_INTEGER ||
-					     tInt.Value.Size == 0 ) { ok8 = false; break; }
-					pp[i] = (unsigned char*)xrtMalloc(tInt.Value.Size);
-					if ( pp[i] == NULL ) { ok8 = false; break; }
-					memcpy(pp[i], tInt.Value.Data, tInt.Value.Size);
-					aSizes[i] = tInt.Value.Size;
-					xjwt__int_trim(pp[i], &aSizes[i]);
-				}
-			}
-		}
-		if ( !ok8 ) {
-fail_ints:
-			for ( int i = 0; i < 8; i++ ) if ( pp[i] ) xrtFree(pp[i]);
-			xrtFree(pp);
-			goto fail;
-		}
-		pOwn->ppParts = pp;
-		pOwn->nParts = 8;
-		pKey->Public.Modulus       = pp[0]; pKey->Public.ModulusSize   = aSizes[0];
-		pKey->Public.Exponent      = pp[1]; pKey->Public.ExponentSize  = aSizes[1];
-		pKey->PrivateExponent      = pp[2]; pKey->PrivateExponentSize = aSizes[2];
-		pKey->Prime1               = pp[3]; pKey->Prime1Size          = aSizes[3];
-		pKey->Prime2               = pp[4]; pKey->Prime2Size          = aSizes[4];
-		pKey->Exponent1            = pp[5]; pKey->Exponent1Size       = aSizes[5];
-		pKey->Exponent2            = pp[6]; pKey->Exponent2Size       = aSizes[6];
-		pKey->Coefficient          = pp[7]; pKey->CoefficientSize     = aSizes[7];
+	if ( !rsa_private_der_parse(pDer, iDerSize, bPkcs8, Parts) ) {
+		xrtSecureZero(pDer, iDerSize);
+		xrtFree(pDer);
+		xjwt__error(XJWT_ERROR_PARSE, "RSA private key DER parse failed");
+		return false;
 	}
-
+	pOwn = (xjwt__rsa_owned*)xrtMalloc(sizeof(*pOwn));
+	if ( pOwn == NULL ) {
+		xrtSecureZero(pDer, iDerSize);
+		xrtFree(pDer);
+		return false;
+	}
+	pOwn->pRaw = pDer;
+	pOwn->iRawSize = iDerSize;
+	Parsed.Public.Modulus       = Parts[0].Data; Parsed.Public.ModulusSize   = Parts[0].Size;
+	Parsed.Public.Exponent      = Parts[1].Data; Parsed.Public.ExponentSize  = Parts[1].Size;
+	Parsed.PrivateExponent      = Parts[2].Data; Parsed.PrivateExponentSize = Parts[2].Size;
+	Parsed.Prime1               = Parts[3].Data; Parsed.Prime1Size          = Parts[3].Size;
+	Parsed.Prime2               = Parts[4].Data; Parsed.Prime2Size          = Parts[4].Size;
+	Parsed.Exponent1            = Parts[5].Data; Parsed.Exponent1Size       = Parts[5].Size;
+	Parsed.Exponent2            = Parts[6].Data; Parsed.Exponent2Size       = Parts[6].Size;
+	Parsed.Coefficient          = Parts[7].Data; Parsed.CoefficientSize     = Parts[7].Size;
+	*pKey = Parsed;
 	*ppOwned = pOwn;
 	return true;
-
-fail:
-	xjwt__rsa_owned_free(pOwn);
-	xjwt__error(XJWT_ERROR_PARSE, "RSA private key DER parse failed");
-	return false;
 }
 
 /* ------------------------------------------------------------------ */
 /* EC P-256 公钥/私钥 PEM 解析                                          */
 /* ------------------------------------------------------------------ */
 
+/* EC P-256 PEM keys use id-ecPublicKey and prime256v1 namedCurve. */
+static const unsigned char s_ecPublicKeyOid[] = {
+	0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01
+};
+static const unsigned char s_p256Oid[] = {
+	0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
+};
+
 bool xjwt__ecdsa_public_parse(const char* sPem, unsigned char* pPublic65)
 {
-	xpemblock tBlock;
-	if ( !xrtPemFind(sPem, strlen(sPem), "PUBLIC KEY", &tBlock) ) {
+	xpemblock Block;
+	xdercursor Outer, Fields, Algorithm;
+	xdervalue Value;
+	xbytesview Point;
+	uint8 iUnused;
+	size_t iDerSize = 0;
+	bytes pDer;
+
+	if ( (sPem == NULL) || (pPublic65 == NULL) ) {
+		xjwt__error(XJWT_ERROR_ARGUMENT, "EC public key argument is null");
+		return false;
+	}
+	if ( !xrtPemFind(sPem, strlen(sPem), "PUBLIC KEY", &Block) ) {
 		xjwt__error(XJWT_ERROR_PARSE, "PEM public key not found");
 		return false;
 	}
-	size_t iDerSize = 0;
-	bytes pDer = xrtPemDecodeNew(&tBlock, &iDerSize);
-	if ( pDer == NULL ) return false;
-
-	xdervalue tVal;
-	xdercursor tCur;
-	xrtDerInit(&tCur, pDer, iDerSize);
-
-	/* SPKI: SEQ { SEQ { OID ecPublicKey, OID P-256 }, BIT STRING { 65B point } } */
-	if ( xrtDerRead(&tCur, &tVal) != XDER_VALUE ||
-	     tVal.Tag.Number != XASN1_SEQUENCE ) goto fail;
-	{
-		xdercursor tInner;
-		xrtDerInit(&tInner, tVal.Value.Data, tVal.Value.Size);
-		/* 跳过 AlgorithmIdentifier */
-		if ( xrtDerRead(&tInner, &tVal) != XDER_VALUE ||
-		     tVal.Tag.Number != XASN1_SEQUENCE ) goto fail;
-		/* 读 BIT STRING */
-		if ( xrtDerRead(&tInner, &tVal) != XDER_VALUE ||
-		     tVal.Tag.Number != XASN1_BIT_STRING ) goto fail;
-		/* BIT STRING 第一字节 unused-bits = 0，剩余 65 字节 */
-		if ( tVal.Value.Size != 66 || tVal.Value.Data[0] != 0 ) goto fail;
-		memcpy(pPublic65, (const unsigned char*)tVal.Value.Data + 1, 65);
+	if ( Block.Body.Size > 4096u ) {
+		xjwt__error(XJWT_ERROR_PARSE, "EC public key PEM is too large");
+		return false;
 	}
+	pDer = xrtPemDecodeNew(&Block, &iDerSize);
+	if ( pDer == NULL ) {
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE,
+			"PEM decode failed");
+		return false;
+	}
+	if ( !xrtDerValidate(pDer, iDerSize) ||
+		!xrtDerInit(&Outer, pDer, iDerSize) ||
+		xrtDerRead(&Outer, &Value) != XDER_VALUE ||
+		!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) ||
+		!xrtDerDone(&Outer) || !xrtDerEnter(&Value, &Fields) ||
+		xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+		!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) ||
+		!xrtDerEnter(&Value, &Algorithm) ||
+		xrtDerRead(&Algorithm, &Value) != XDER_VALUE ||
+		!xrtDerOidEqual(&Value, s_ecPublicKeyOid, sizeof(s_ecPublicKeyOid)) ||
+		xrtDerRead(&Algorithm, &Value) != XDER_VALUE ||
+		!xrtDerOidEqual(&Value, s_p256Oid, sizeof(s_p256Oid)) ||
+		!xrtDerDone(&Algorithm) ||
+		xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+		!xrtDerBitString(&Value, &Point, &iUnused) ||
+		(iUnused != 0) || (Point.Size != 65u) ||
+		(Point.Data[0] != 0x04u) || !xrtDerDone(&Fields) ||
+		!xrtP256Valid(Point.Data) ) {
+		xrtFree(pDer);
+		xjwt__error(XJWT_ERROR_PARSE, "EC public key DER parse failed");
+		return false;
+	}
+	memcpy(pPublic65, Point.Data, 65u);
 	xrtFree(pDer);
 	return true;
+}
 
-fail:
-	xrtFree(pDer);
-	xjwt__error(XJWT_ERROR_PARSE, "EC public key DER parse failed");
-	return false;
+/* Parse SEC1 ECPrivateKey, including its optional explicit curve/public key. */
+static bool ecdsa_sec1_parse(const void* pData, size_t iSize,
+	xbytesview* pPrivate, xbytesview* pPublic)
+{
+	xdercursor Outer, Fields;
+	xdervalue Value;
+	uint64 iVersion;
+	int iLastOptional = -1;
+
+	pPublic->Data = NULL;
+	pPublic->Size = 0;
+	if ( !xrtDerValidate(pData, iSize) ||
+		!xrtDerInit(&Outer, pData, iSize) ||
+		xrtDerRead(&Outer, &Value) != XDER_VALUE ||
+		!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) ||
+		!xrtDerDone(&Outer) || !xrtDerEnter(&Value, &Fields) ||
+		xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+		!xrtDerUInt64(&Value, &iVersion) || (iVersion != 1u) ||
+		xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+		!xrtDerOctets(&Value, pPrivate) || (pPrivate->Size != 32u) ) {
+		return false;
+	}
+	while ( !xrtDerDone(&Fields) ) {
+		xdercursor Optional;
+		xbytesview Point;
+		uint8 iUnused;
+		if ( xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+			(Value.Tag.Class != XASN1_CONTEXT) ||
+			!Value.Tag.Constructed || (Value.Tag.Number > 1u) ||
+			((int)Value.Tag.Number <= iLastOptional) ||
+			!xrtDerEnter(&Value, &Optional) ) return false;
+		iLastOptional = (int)Value.Tag.Number;
+		if ( xrtDerRead(&Optional, &Value) != XDER_VALUE ) return false;
+		if ( iLastOptional == 0 ) {
+			if ( !xrtDerOidEqual(&Value, s_p256Oid, sizeof(s_p256Oid)) )
+				return false;
+		} else {
+			if ( !xrtDerBitString(&Value, &Point, &iUnused) ||
+				(iUnused != 0) || (Point.Size != 65u) ||
+				(Point.Data[0] != 0x04u) || !xrtP256Valid(Point.Data) )
+				return false;
+			*pPublic = Point;
+		}
+		if ( !xrtDerDone(&Optional) ) return false;
+	}
+	return true;
+}
+
+static bool ecdsa_private_der_parse(const void* pData, size_t iSize,
+	bool bPkcs8, xbytesview* pPrivate, xbytesview* pPublic,
+	xbytesview* pOuterPublic)
+{
+	xdercursor Outer, Fields, Algorithm;
+	xdervalue Value;
+	xbytesview EncodedKey;
+	uint64 iVersion;
+
+	pOuterPublic->Data = NULL;
+	pOuterPublic->Size = 0;
+	if ( !bPkcs8 ) return ecdsa_sec1_parse(pData, iSize, pPrivate, pPublic);
+	if ( !xrtDerValidate(pData, iSize) ||
+		!xrtDerInit(&Outer, pData, iSize) ||
+		xrtDerRead(&Outer, &Value) != XDER_VALUE ||
+		!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) ||
+		!xrtDerDone(&Outer) || !xrtDerEnter(&Value, &Fields) ||
+		xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+		!xrtDerUInt64(&Value, &iVersion) || (iVersion > 1u) ||
+		xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+		!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) ||
+		!xrtDerEnter(&Value, &Algorithm) ||
+		xrtDerRead(&Algorithm, &Value) != XDER_VALUE ||
+		!xrtDerOidEqual(&Value, s_ecPublicKeyOid, sizeof(s_ecPublicKeyOid)) ||
+		xrtDerRead(&Algorithm, &Value) != XDER_VALUE ||
+		!xrtDerOidEqual(&Value, s_p256Oid, sizeof(s_p256Oid)) ||
+		!xrtDerDone(&Algorithm) ||
+		xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+		!xrtDerOctets(&Value, &EncodedKey) ||
+		!pkcs8_options_parse(&Fields, iVersion, pOuterPublic) ) {
+		return false;
+	}
+	return ecdsa_sec1_parse(EncodedKey.Data, EncodedKey.Size,
+		pPrivate, pPublic) &&
+		((pOuterPublic->Data == NULL) ||
+		 ((pOuterPublic->Size == 65u) &&
+		  (pOuterPublic->Data[0] == 0x04u)));
 }
 
 static bool ecdsa_private_parse(const char* sPem, unsigned char* pPrivate32)
 {
-	xpemblock tBlock;
-	if ( !xrtPemFind(sPem, strlen(sPem), "EC PRIVATE KEY", &tBlock) &&
-	     !xrtPemFind(sPem, strlen(sPem), "PRIVATE KEY", &tBlock) ) {
+	xpemblock Block;
+	xbytesview Private, Public, OuterPublic;
+	unsigned char ExpectedPublic[65];
+	size_t iDerSize = 0;
+	bytes pDer;
+	bool bPkcs8, bValid;
+
+	if ( (sPem == NULL) || (pPrivate32 == NULL) ) {
+		xjwt__error(XJWT_ERROR_ARGUMENT, "EC private key argument is null");
+		return false;
+	}
+	bPkcs8 = xrtPemFind(sPem, strlen(sPem), "PRIVATE KEY", &Block);
+	if ( !bPkcs8 &&
+		!xrtPemFind(sPem, strlen(sPem), "EC PRIVATE KEY", &Block) ) {
 		xjwt__error(XJWT_ERROR_PARSE, "PEM EC private key not found");
 		return false;
 	}
-	size_t iDerSize = 0;
-	bytes pDer = xrtPemDecodeNew(&tBlock, &iDerSize);
-	if ( pDer == NULL ) return false;
-
-	xdervalue tVal;
-	xdercursor tCur;
-	xrtDerInit(&tCur, pDer, iDerSize);
-
-	/* SEC1:  SEQ { INTEGER version, OCTET STRING { 32B private }, ... }
-	 * PKCS#8: SEQ { INTEGER version, SEQ algid, OCTET STRING { SEC1 } } */
-	if ( xrtDerRead(&tCur, &tVal) != XDER_VALUE ||
-	     tVal.Tag.Number != XASN1_SEQUENCE ) goto fail;
-	{
-		xdercursor tInner;
-		xrtDerInit(&tInner, tVal.Value.Data, tVal.Value.Size);
-		/* 跳过 version */
-		if ( xrtDerRead(&tInner, &tVal) != XDER_VALUE ||
-		     tVal.Tag.Number != XASN1_INTEGER ) goto fail;
-		xdervalue tNext;
-		if ( xrtDerRead(&tInner, &tNext) != XDER_VALUE ) goto fail;
-		if ( tNext.Tag.Number == XASN1_SEQUENCE ) {
-			/* PKCS#8：跳过 algid 取 OCTET STRING，进入内嵌 SEC1 */
-			if ( xrtDerRead(&tInner, &tVal) != XDER_VALUE ||
-			     tVal.Tag.Number != XASN1_OCTET_STRING ) goto fail;
-			xrtDerInit(&tInner, tVal.Value.Data, tVal.Value.Size);
-			if ( xrtDerRead(&tInner, &tVal) != XDER_VALUE ||
-			     tVal.Tag.Number != XASN1_SEQUENCE ) goto fail;
-			/* 在 SEC1 SEQ 内容上重开游标 */
-			xrtDerInit(&tInner, tVal.Value.Data, tVal.Value.Size);
-			if ( xrtDerRead(&tInner, &tVal) != XDER_VALUE ||
-			     tVal.Tag.Number != XASN1_INTEGER ) goto fail;  /* version */
-			if ( xrtDerRead(&tInner, &tVal) != XDER_VALUE ||
-			     tVal.Tag.Number != XASN1_OCTET_STRING || tVal.Value.Size != 32 ) goto fail;
-			memcpy(pPrivate32, tVal.Value.Data, 32);
-		} else if ( tNext.Tag.Number == XASN1_OCTET_STRING && tNext.Value.Size == 32 ) {
-			/* SEC1：直接就是 32 字节私钥 */
-			memcpy(pPrivate32, tNext.Value.Data, 32);
-		} else {
-			goto fail;
-		}
+	if ( Block.Body.Size > 4096u ) {
+		xjwt__error(XJWT_ERROR_PARSE, "EC private key PEM is too large");
+		return false;
 	}
+	pDer = xrtPemDecodeNew(&Block, &iDerSize);
+	if ( pDer == NULL ) {
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE,
+			"PEM decode failed");
+		return false;
+	}
+	bValid = ecdsa_private_der_parse(pDer, iDerSize, bPkcs8,
+		&Private, &Public, &OuterPublic);
+	if ( bValid ) bValid = xrtP256Public(Private.Data, ExpectedPublic);
+	if ( bValid && Public.Data != NULL )
+		bValid = xrtConstTimeEqual(ExpectedPublic, Public.Data, 65u);
+	if ( bValid && OuterPublic.Data != NULL )
+		bValid = xrtConstTimeEqual(ExpectedPublic, OuterPublic.Data, 65u);
+	if ( bValid ) memcpy(pPrivate32, Private.Data, 32u);
+	xrtSecureZero(ExpectedPublic, sizeof(ExpectedPublic));
+	xrtSecureZero(pDer, iDerSize);
 	xrtFree(pDer);
+	if ( !bValid ) {
+		xjwt__error(XJWT_ERROR_PARSE, "EC private key DER parse failed");
+		return false;
+	}
 	return true;
-
-fail:
-	xrtFree(pDer);
-	xjwt__error(XJWT_ERROR_PARSE, "EC private key DER parse failed");
-	return false;
 }
 
 /* ------------------------------------------------------------------ */
@@ -285,6 +462,12 @@ bool rsa_sign_impl(int alg, const void* pData, size_t iSize,
 	xrsaprivatekey tKey;
 	xjwt__rsa_owned* pOwn = NULL;
 	if ( !xjwt__rsa_private_parse(sPrivatePem, &tKey, &pOwn) ) return false;
+	if ( !xjwt__rsa_jwa_key_valid(&tKey.Public) ) {
+		xjwt__error(XJWT_ERROR_ARGUMENT,
+			"RSA signing key must be at least 2048 bits");
+		xjwt__rsa_owned_free(pOwn);
+		return false;
+	}
 
 	/* RSA 签名长度 = 模数长度；超出输出容量直接失败，不截断 */
 	if ( tKey.Public.ModulusSize > iCapacity ) {
@@ -329,21 +512,26 @@ bool es256_sign_impl(const void* pData, size_t iSize,
                      unsigned char* pOut, size_t iCapacity, size_t* pOutSize)
 {
 	unsigned char aPrivate[32];
-	if ( !ecdsa_private_parse(sPrivatePem, aPrivate) ) return false;
-
 	unsigned char aDigest[32];
-	if ( !xrtSha256(pData, iSize, aDigest) ) return false;
+	bool bResult = false;
+	if ( !ecdsa_private_parse(sPrivatePem, aPrivate) ) return false;
+	if ( !xrtSha256(pData, iSize, aDigest) ) goto cleanup;
 
 	/* RFC 7518 §3.4：JWS ES256 是定宽 32 字节 R + 32 字节 S。 */
 	if ( iCapacity < 64 ) {
 		xjwt__error(XJWT_ERROR_ARGUMENT,
 			"output buffer too small for ES256 signature");
-		return false;
+		goto cleanup;
 	}
 	if ( !xrtEcdsaP256Sign(XCRYPTO_HASH_SHA256, aDigest, aPrivate, pOut) )
-		return false;
-	*pOutSize = 64;
-	return true;
+		goto cleanup;
+	*pOutSize = 64u;
+	bResult = true;
+
+cleanup:
+	xrtSecureZero(aPrivate, sizeof(aPrivate));
+	xrtSecureZero(aDigest, sizeof(aDigest));
+	return bResult;
 }
 
 /* ------------------------------------------------------------------ */
@@ -354,6 +542,7 @@ struct xjwtjwks {
 	int nKeys;
 	struct {
 		char kid[128];
+		bool HasKid;      /* 显式空 kid 与未提供 kid 不同 */
 		char kty[8];       /* "RSA" 或 "EC" */
 		xrsapublickey rsa;
 		unsigned char ec65[65];
@@ -369,26 +558,35 @@ struct xjwtjwks {
 xjwtjwks* xjwtJwksParse(const char* sJson)
 {
 	if ( sJson == NULL ) return NULL;
+	xerror* pPrevious = xrtTakeError();
 	xvalue* p = xrtJsonParse(xrtStrView(sJson));
 	if ( p == NULL ) {
-		xjwt__error(XJWT_ERROR_PARSE, "JWKS JSON parse failed");
+		if ( !xjwt__memory_error() )
+			xjwt__error(XJWT_ERROR_PARSE, "JWKS JSON parse failed");
+		xrtErrorFree(pPrevious);
 		return NULL;
 	}
 	xvalue* pKeys = xrtValueObjectGet(p, xrtStrView("keys"));
 	if ( pKeys == NULL || !xrtValueIs(pKeys, XVALUE_ARRAY) ) {
 		xrtValueRelease(p);
+		xrtErrorFree(pPrevious);
 		xjwt__error(XJWT_ERROR_PARSE, "JWKS missing 'keys' array");
 		return NULL;
 	}
 	size_t n = xrtValueCount(pKeys);
 	if ( n > XJWT_JWKS_MAX_KEYS ) {
 		xrtValueRelease(p);
+		xrtErrorFree(pPrevious);
 		xjwt__error(XJWT_ERROR_PARSE, "JWKS exceeds 16 keys");
 		return NULL;
 	}
 
 	xjwtjwks* pJwks = (xjwtjwks*)xrtMalloc(sizeof(xjwtjwks));
-	if ( pJwks == NULL ) { xrtValueRelease(p); return NULL; }
+	if ( pJwks == NULL ) {
+		xrtValueRelease(p);
+		xrtErrorFree(pPrevious);
+		return NULL;
+	}
 	memset(pJwks, 0, sizeof(*pJwks));
 
 	for ( size_t i = 0; i < n; i++ ) {
@@ -397,40 +595,61 @@ xjwtjwks* xjwtJwksParse(const char* sJson)
 
 		xstrview sv;
 		int idx = pJwks->nKeys;
+		memset(&pJwks->keys[idx], 0, sizeof(pJwks->keys[idx]));
 
 		/* kid：超长（≥128）跳过该条目——静默截断会让严格匹配
 		 * 永不命中且报错误导排障 */
-		if ( xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("kid")), &sv) ) {
-			if ( sv.Size >= sizeof(pJwks->keys[idx].kid) ) continue;
+		xvalue* pKid = xrtValueObjectGet(pKey, xrtStrView("kid"));
+		if ( pKid != NULL ) {
+			if ( !xrtValueGetString(pKid, &sv) ||
+				sv.Size >= sizeof(pJwks->keys[idx].kid) ||
+				memchr(sv.Data, 0, sv.Size) != NULL ) continue;
 			memcpy(pJwks->keys[idx].kid, sv.Data, sv.Size);
 			pJwks->keys[idx].kid[sv.Size] = 0;
+			pJwks->keys[idx].HasKid = true;
 		}
 		/* kty */
-		if ( xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("kty")), &sv) ) {
-			size_t c = sv.Size < 7 ? sv.Size : 7;
-			memcpy(pJwks->keys[idx].kty, sv.Data, c);
-			pJwks->keys[idx].kty[c] = 0;
-		}
+		if ( !xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("kty")), &sv) ||
+			sv.Size >= sizeof(pJwks->keys[idx].kty) ||
+			memchr(sv.Data, 0, sv.Size) != NULL ) continue;
+		memcpy(pJwks->keys[idx].kty, sv.Data, sv.Size);
+		pJwks->keys[idx].kty[sv.Size] = 0;
 
 		if ( strcmp(pJwks->keys[idx].kty, "RSA") == 0 ) {
 			/* RSA: n + e；任一缺失/畸形则释放并清零槽位后跳过
 			 * （残留指针既泄漏、又可能被后续条目沿用造成跨条目混淆） */
 			size_t nSize = 0, eSize = 0;
 			unsigned char* pn = NULL, *pe = NULL;
-			if ( xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("n")), &sv) )
+			if ( xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("n")), &sv) ) {
 				pn = b64url_dec((const char*)sv.Data, sv.Size, &nSize);
-			if ( xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("e")), &sv) )
+				if ( pn == NULL && xjwt__memory_error() )
+					goto memory_failure;
+			}
+			if ( xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("e")), &sv) ) {
 				pe = b64url_dec((const char*)sv.Data, sv.Size, &eSize);
+				if ( pe == NULL && xjwt__memory_error() ) {
+					xrtFree(pn);
+					goto memory_failure;
+				}
+			}
 			if ( pn != NULL && pe != NULL ) {
+				xrsapublickey Candidate;
+
 				xjwt__int_trim(pn, &nSize);
 				xjwt__int_trim(pe, &eSize);
-				pJwks->keys[idx].pOwnedN = pn;
-				pJwks->keys[idx].pOwnedE = pe;
-				pJwks->keys[idx].rsa.Modulus = pn;
-				pJwks->keys[idx].rsa.ModulusSize = nSize;
-				pJwks->keys[idx].rsa.Exponent = pe;
-				pJwks->keys[idx].rsa.ExponentSize = eSize;
-				pJwks->nKeys++;
+				Candidate.Modulus = pn;
+				Candidate.ModulusSize = nSize;
+				Candidate.Exponent = pe;
+				Candidate.ExponentSize = eSize;
+				if ( xjwt__rsa_jwa_key_valid(&Candidate) ) {
+					pJwks->keys[idx].pOwnedN = pn;
+					pJwks->keys[idx].pOwnedE = pe;
+					pJwks->keys[idx].rsa = Candidate;
+					pJwks->nKeys++;
+				} else {
+					xrtFree(pn);
+					xrtFree(pe);
+				}
 			} else {
 				xrtFree(pn);
 				xrtFree(pe);
@@ -438,31 +657,54 @@ xjwtjwks* xjwtJwksParse(const char* sJson)
 		} else if ( strcmp(pJwks->keys[idx].kty, "EC") == 0 ) {
 			/* EC：仅支持 P-256，其他 crv（P-384/P-521）跳过该条目；
 			 * 坐标必须恰为 32 字节，短坐标视为畸形 */
-			char aCrv[16] = {0};
-			if ( xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("crv")), &sv) ) {
-				size_t c = sv.Size < sizeof(aCrv) - 1 ? sv.Size : sizeof(aCrv) - 1;
-				memcpy(aCrv, sv.Data, c);
-			}
-			if ( strcmp(aCrv, "P-256") != 0 ) continue;
+			if ( !xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("crv")), &sv) ||
+				sv.Size != 5u || memcmp(sv.Data, "P-256", 5u) != 0 ) continue;
 
 			size_t xSize = 0, ySize = 0;
 			unsigned char* px = NULL, *py = NULL;
-			if ( xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("x")), &sv) )
+			if ( xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("x")), &sv) ) {
 				px = b64url_dec((const char*)sv.Data, sv.Size, &xSize);
-			if ( xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("y")), &sv) )
+				if ( px == NULL && xjwt__memory_error() )
+					goto memory_failure;
+			}
+			if ( xrtValueGetString(xrtValueObjectGet(pKey, xrtStrView("y")), &sv) ) {
 				py = b64url_dec((const char*)sv.Data, sv.Size, &ySize);
+				if ( py == NULL && xjwt__memory_error() ) {
+					xrtFree(px);
+					goto memory_failure;
+				}
+			}
 			if ( px != NULL && py != NULL && xSize == 32 && ySize == 32 ) {
 				pJwks->keys[idx].ec65[0] = 0x04;
 				memcpy(pJwks->keys[idx].ec65 + 1, px, 32);
 				memcpy(pJwks->keys[idx].ec65 + 33, py, 32);
-				pJwks->nKeys++;
+				if ( xrtP256Valid(pJwks->keys[idx].ec65) )
+					pJwks->nKeys++;
 			}
 			xrtFree(px); xrtFree(py);
 		}
 	}
 
 	xrtValueRelease(p);
+	xrtErrorFree(xrtTakeError());
+	if ( pPrevious != NULL ) {
+		xrtSetError(pPrevious);
+		xrtErrorFree(pPrevious);
+	}
 	return pJwks;
+
+memory_failure:
+	{
+		xerror* pFailure = xrtTakeError();
+		xjwtJwksFree(pJwks);
+		xrtValueRelease(p);
+		xrtErrorFree(pPrevious);
+		if ( pFailure != NULL ) {
+			xrtSetError(pFailure);
+			xrtErrorFree(pFailure);
+		}
+		return NULL;
+	}
 }
 
 void xjwtJwksFree(xjwtjwks* pJwks)
@@ -520,7 +762,8 @@ xvalue* xjwtVerifyJwks(const char* sToken, const xjwtjwks* pJwks,
 	int iFound = -1;
 	for ( int i = 0; i < pJwks->nKeys; i++ ) {
 		if ( sKid == NULL ) { iFound = i; break; }
-		if ( strcmp(sKid, pJwks->keys[i].kid) == 0 ) { iFound = i; break; }
+		if ( pJwks->keys[i].HasKid &&
+			strcmp(sKid, pJwks->keys[i].kid) == 0 ) { iFound = i; break; }
 	}
 	xrtFree((void*)sKid);
 	if ( iFound < 0 ) {
@@ -549,7 +792,8 @@ xvalue* xjwtVerifyJwks(const char* sToken, const xjwtjwks* pJwks,
 
 	xrtFree(sInput); xrtFree(pSigBin);
 	if ( !ok ) {
-		xjwt__error(XJWT_ERROR_SIGNATURE, "JWKS signature mismatch");
+		xjwt__error_unless_memory(XJWT_ERROR_SIGNATURE,
+			"JWKS signature mismatch");
 		xrtValueRelease(pClaims);
 		return NULL;
 	}
@@ -573,8 +817,12 @@ xjwtkey* xjwtKeyParse(const char* sPublicPem)
 		xjwt__error(XJWT_ERROR_ARGUMENT, "xjwtKeyParse: null argument");
 		return NULL;
 	}
+	xerror* pPrevious = xrtTakeError();
 	xjwtkey* pKey = (xjwtkey*)xrtMalloc(sizeof(xjwtkey));
-	if ( pKey == NULL ) return NULL;
+	if ( pKey == NULL ) {
+		xrtErrorFree(pPrevious);
+		return NULL;
+	}
 	memset(pKey, 0, sizeof(*pKey));
 
 	/* 先按 RSA（SPKI / PKCS#1）解析，失败再按 EC P-256 SPKI */
@@ -584,15 +832,28 @@ xjwtkey* xjwtKeyParse(const char* sPublicPem)
 		pKey->bRsa = true;
 		pKey->Rsa = tRsa;
 		pKey->pOwnedArr = pOwned;
-		return pKey;
+		goto success;
 	}
+	/* 内存错误不代表算法不匹配，不能换解析器后吞掉根因。 */
+	if ( xjwt__memory_error() ) goto failure;
 	if ( xjwt__ecdsa_public_parse(sPublicPem, pKey->Ec65) ) {
 		pKey->bRsa = false;
-		return pKey;
+		goto success;
 	}
+failure:
 	xrtFree(pKey);
-	xjwt__error(XJWT_ERROR_PARSE, "not an RSA/EC public key PEM");
+	xrtErrorFree(pPrevious);
+	xjwt__error_unless_memory(XJWT_ERROR_PARSE, "not an RSA/EC public key PEM");
 	return NULL;
+
+success:
+	/* 丢弃内部算法探测的诊断，恢复调用前已有的错误。 */
+	xrtErrorFree(xrtTakeError());
+	if ( pPrevious != NULL ) {
+		xrtSetError(pPrevious);
+		xrtErrorFree(pPrevious);
+	}
+	return pKey;
 }
 
 void xjwtKeyFree(xjwtkey* pKey)
@@ -638,7 +899,8 @@ xvalue* xjwtVerifyKey(const char* sToken, const xjwtkey* pKey,
 
 	xrtFree(sInput); xrtFree(pSigBin);
 	if ( !ok ) {
-		xjwt__error(XJWT_ERROR_SIGNATURE, "cached key signature mismatch");
+		xjwt__error_unless_memory(XJWT_ERROR_SIGNATURE,
+			"cached key signature mismatch");
 		xrtValueRelease(pClaims);
 		return NULL;
 	}

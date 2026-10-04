@@ -12,6 +12,7 @@
 	!defined(XRT_FEATURE_NET_ENGINE) || \
 	!defined(XRT_FEATURE_NET_UDP) || \
 	!defined(XRT_FEATURE_NET_UDP_SYNC) || \
+	!defined(XRT_FEATURE_THREAD) || \
 	!defined(XRT_FEATURE_RANDOM) || \
 	!defined(XRT_FEATURE_RANDOM_DEFAULT) || \
 	!defined(XRT_FEATURE_RANDOM_SECURE) || \
@@ -27,7 +28,11 @@ typedef enum xacmednserror {
 	XACME_DNS_ERROR_CREDENTIAL,
 	XACME_DNS_ERROR_ZONE,
 	XACME_DNS_ERROR_PROTOCOL,
-	XACME_DNS_ERROR_NETWORK
+	XACME_DNS_ERROR_NETWORK,
+	/* A write was sent but record ownership could not be confirmed. Do not replay. */
+	XACME_DNS_ERROR_UNCERTAIN,
+	/* Built-in provider context was released or transport cleanup has begun. */
+	XACME_DNS_ERROR_STATE
 } xacmednserror;
 
 
@@ -68,11 +73,27 @@ typedef bool (*xacmednspropagateproc)(
 
 /*
 	DNS-01 provider 是值语义小结构：内建实现由各家构造函数填充，
-	自定义 provider 由宿主直接填写字段，无注册、无全局状态。
+	自定义 provider 由宿主直接填写字段，无全局注册；请求状态由
+	实例持有。内建构造失败的未交付上下文若尚未退休，会转移至
+	跨实例待清理队列；宿主用 xrt/acme_http.h 中的
+	xrtAcmeCleanupPending 重试，并在退出/卸载前确认完成。
+	内建 ProviderUnit 等待私有引擎退休；完成后 pContext 为 NULL。
+	超时或失败时保留上下文供重试，此后实例只能继续 ProviderUnit。
+	保留调用前诊断，因此以 pContext 是否为 NULL 判断释放结果。
+	宿主须先停止新回调并等待已有调用结束，再串行执行 ProviderUnit；
+	ProviderUnit 不可与回调或另一次 ProviderUnit 并发。
 
 	Add/Remove 契约：
 	- sFqdn 恒为 _acme-challenge.<domain> 全称，sTxt 为 base64url 文本；
 	- 同一 Fqdn 会多条 TXT 并存，Add 必须可叠加；
+	- 内建 Add/Remove 的 provider 为空时返回 false 并设置
+	  XERR_ARGUMENT/XACME_DNS_ERROR_ARGUMENT；上下文已释放或清理
+	  未完成时设置 XERR_STATE/XACME_DNS_ERROR_STATE，错误域均为
+	  xrt.acme.dns。该状态检查先于记录操作；自定义 provider 可使用
+	  空上下文，最小契约校验不检查其上下文；
+	- Add 写入已发送但结果未知时必须返回明确错误；流程不会重放该次
+	  Add。无法证明记录所有权时，不得按同名同值查询结果自动删除；
+	  提供商层结果未知使用 xrt.acme.dns/XACME_DNS_ERROR_UNCERTAIN；
 	- 回调为同步契约且必须可重入；zone 归属解析是 provider 内部职责。
 */
 struct xacmednsprovider {

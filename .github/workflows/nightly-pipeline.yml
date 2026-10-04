@@ -96,6 +96,15 @@ jobs:
           --cflag=-fno-omit-frame-pointer
           --cflag=-fno-builtin-memcpy
 
+      - name: Check xacme partial HTTP responses under ASan and UBSan
+        run: python tools/test_acme_http_faults.py --compiler clang
+
+      - name: Execute the ACME public example under ASan and UBSan
+        run: |
+          python -m pip install 'cryptography>=42'
+          python -m unittest tools.test_acme_grant_verifier -v
+          python tools/test_acme_examples.py --compiler clang --single --sanitize
+
   sanitizer-tsan:
     name: Full suite TSan
     runs-on: ubuntu-latest

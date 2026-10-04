@@ -74,7 +74,7 @@ typedef struct xjwtcheck {
 	const char* Issuer;        /* NULL = 跳过 iss 检查 */
 	const char* Audience;      /* NULL = 跳过 aud 检查 */
 	int64_t     NowOverride;   /* 0 = 当前时间（秒）；非零 = 测试注入 */
-	int         ClockLeeway;   /* exp/nbf 容差秒数，默认 0 */
+	int         ClockLeeway;   /* exp/nbf 容差秒数，默认 0；负数报 ARGUMENT */
 } xjwtcheck;
 
 void xjwtCheckInit(xjwtcheck* pCheck);
@@ -82,17 +82,18 @@ void xjwtCheckInit(xjwtcheck* pCheck);
 /* ------------------------------------------------------------------
  * 签发（一步式）
  * claims 是 xrt 的 xvalue JSON 对象；返回 token 字符串（xrtFree 释放）。
- * expireSeconds > 0 自动注入 exp；自动注入 iat。
+ * expireSeconds != 0 自动注入 exp；自动注入 iat。调用方保留 claims 所有权，
+ * 签发成功或失败都不修改传入对象；自动字段仅存在于签发的 token 中。
  * 注意：本族不注入 iss/aud —— 验证侧 xjwtcheck 带 Issuer/Audience
  * 校验时请改用 xjwtSign（config 式可注入全部标准 claims）。
  * ------------------------------------------------------------------ */
-char* xjwtHs256(xvalue* claims, const char* secret, int expireSeconds);
-char* xjwtHs384(xvalue* claims, const char* secret, int expireSeconds);
-char* xjwtHs512(xvalue* claims, const char* secret, int expireSeconds);
-char* xjwtRs256(xvalue* claims, const char* privatePem, int expireSeconds);
-char* xjwtRs384(xvalue* claims, const char* privatePem, int expireSeconds);
-char* xjwtRs512(xvalue* claims, const char* privatePem, int expireSeconds);
-char* xjwtEs256(xvalue* claims, const char* privatePem, int expireSeconds);
+char* xjwtHs256(const xvalue* claims, const char* secret, int expireSeconds);
+char* xjwtHs384(const xvalue* claims, const char* secret, int expireSeconds);
+char* xjwtHs512(const xvalue* claims, const char* secret, int expireSeconds);
+char* xjwtRs256(const xvalue* claims, const char* privatePem, int expireSeconds);
+char* xjwtRs384(const xvalue* claims, const char* privatePem, int expireSeconds);
+char* xjwtRs512(const xvalue* claims, const char* privatePem, int expireSeconds);
+char* xjwtEs256(const xvalue* claims, const char* privatePem, int expireSeconds);
 
 /* ------------------------------------------------------------------
  * 签发（config 式，精调 header / kid / iss / aud）
@@ -101,7 +102,7 @@ typedef struct xjwtconfig {
 	int         Alg;            /* XJWT_ALG_* */
 	const char* KeyPem;         /* HMAC 密钥（C 字符串，内嵌 '\0' 会被截断，
 	                             * 不支持二进制密钥）或 RSA/ECDSA PEM */
-	const char* KeyId;          /* 可选 kid 写入 header；≥256 字符签发被拒绝 */
+	const char* KeyId;          /* 可选 kid；短于 256 字节，NULL 表示省略，"" 表示空标识 */
 	const char* Issuer;         /* 可选自动注入 iss */
 	const char* Audience;       /* 可选自动注入 aud */
 	const char* Subject;        /* 可选自动注入 sub */
@@ -110,7 +111,8 @@ typedef struct xjwtconfig {
 } xjwtconfig;
 
 void  xjwtConfigInit(xjwtconfig* pConfig);
-char* xjwtSign(const xjwtconfig* pConfig, xvalue* claims);
+/* config 指定的字段覆盖 token 中同名字段，不改变调用方的 claims。 */
+char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims);
 
 /* ------------------------------------------------------------------
  * 验证（一步式：验签 + exp/nbf/iss/aud 全检）
@@ -127,14 +129,17 @@ xvalue* xjwtVerify(const char* token, const char* keyPem, const xjwtcheck* check
  * ------------------------------------------------------------------ */
 typedef struct xjwtkey xjwtkey;
 
-xjwtkey* xjwtKeyParse(const char* publicPem);   /* 失败返回 NULL 并设 xerror */
+xjwtkey* xjwtKeyParse(const char* publicPem);   /* 失败返回 NULL 并设 xerror；OOM 不回退算法 */
 void     xjwtKeyFree(xjwtkey* key);
 xvalue*  xjwtVerifyKey(const char* token, const xjwtkey* key, const xjwtcheck* check);
 
 /* ------------------------------------------------------------------
  * 解码（不验签，调试/信任源）
- * 返回 claims（xrtValueRelease 释放）；*pAlg 收 header 中的算法。
- * claims/header 必须是 JSON 对象；传 pKid 时 kid ≥256 字符整体拒绝。
+ * xjwtDecode 返回 claims，xjwtDecodeHeader 返回 header，均由 xrtValueRelease 释放。
+ * 对应 JSON 必须是对象；xjwtDecode 传 pAlg 时也要求 header 成功解码。
+ * *pAlg 收 header 算法（未知为 INVALID），失败时置 INVALID。
+ * *pKid 为堆拷贝，由调用方 xrtFree；缺失或失败为 NULL，显式空 kid 为 ""。
+ * 传 pKid 时拒绝非字符串、≥256 字节或含 NUL 的 kid，不做前缀匹配。
  * ------------------------------------------------------------------ */
 xvalue* xjwtDecode(const char* token, int* pAlg);
 xvalue* xjwtDecodeHeader(const char* token, int* pAlg, const char** pKid);
@@ -158,7 +163,9 @@ int xjwtLastError(void);
 
 /* ------------------------------------------------------------------
  * JWKS (RFC 7517)：最多 16 把密钥（超出整体解析失败）。
- * kid 严格匹配：token 带 kid 时必须精确命中某条目；
+ * 不支持或畸形的单项密钥会跳过；分配失败使整组解析失败，不返回部分密钥集。
+ * kid 严格匹配：token 带 kid 时须为字符串并精确命中带同一 kid 的条目；
+ * 空字符串与缺失不同，含 NUL 不支持；JWK kid 须短于 128 字节。
  * token 无 kid 时取第一把可用密钥。
  * ------------------------------------------------------------------ */
 typedef struct xjwtjwks xjwtjwks;

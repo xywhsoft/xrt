@@ -32,11 +32,15 @@ bool xjwtClaimsValid(const xvalue* claims, const xjwtcheck* check)
 		xjwt__error(XJWT_ERROR_MALFORMED, "claims must be a JSON object");
 		return false;
 	}
-	int64_t now = check && check->NowOverride > 0 ? check->NowOverride
+	int64_t now = check && check->NowOverride != 0 ? check->NowOverride
 		: (int64_t)(xrtNow() / 1000000);
 	int leeway = check ? check->ClockLeeway : 0;
+	if ( leeway < 0 ) {
+		xjwt__error(XJWT_ERROR_ARGUMENT, "clock leeway must be nonnegative");
+		return false;
+	}
 
-	/* exp：RFC 7519 NumericDate 必须是整数；存在但类型错误一律拒绝，
+	/* exp：本接口仅支持整数 NumericDate；存在但类型不支持一律拒绝，
 	 * 防止字符串时间戳绕过过期检查 */
 	{
 		xvalue* pExp = xrtValueObjectGet(p, xrtStrView("exp"));
@@ -46,7 +50,9 @@ bool xjwtClaimsValid(const xvalue* claims, const xjwtcheck* check)
 				xjwt__error(XJWT_ERROR_EXPIRED, "exp must be an integer NumericDate");
 				return false;
 			}
-			if ( now - leeway > exp ) {
+			/* RFC 7519 §4.1.4：到期瞬间即失效。先比较顺序再求无符号
+			 * 距离，跨越 INT64_MIN/MAX 也不会发生有符号溢出。 */
+			if ( now >= exp && (uint64_t)now - (uint64_t)exp >= (uint64_t)leeway ) {
 				xjwt__error(XJWT_ERROR_EXPIRED, "token expired");
 				return false;
 			}
@@ -61,7 +67,7 @@ bool xjwtClaimsValid(const xvalue* claims, const xjwtcheck* check)
 				xjwt__error(XJWT_ERROR_NOT_YET, "nbf must be an integer NumericDate");
 				return false;
 			}
-			if ( now + leeway < nbf ) {
+			if ( nbf > now && (uint64_t)nbf - (uint64_t)now > (uint64_t)leeway ) {
 				xjwt__error(XJWT_ERROR_NOT_YET, "token not yet valid");
 				return false;
 			}
@@ -140,7 +146,7 @@ static bool xjwtSignSet(xvalue* pObject, const char* sKey, xvalue* pValue)
 	return false;
 }
 
-char* xjwtSign(const xjwtconfig* pConfig, xvalue* claims)
+char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 {
 	if ( pConfig == NULL || claims == NULL || pConfig->KeyPem == NULL ) {
 		xjwt__error(XJWT_ERROR_ARGUMENT, "xjwtSign: null argument");
@@ -153,40 +159,44 @@ char* xjwtSign(const xjwtconfig* pConfig, xvalue* claims)
 	}
 	/* 与 DecodeHeader 的验证侧上限保持一致：超长 kid 直接拒绝签发 */
 	if ( pConfig->KeyId != NULL && strlen(pConfig->KeyId) >= 256 ) {
-		xjwt__error(XJWT_ERROR_ARGUMENT, "KeyId too long (>= 256)");
+		xjwt__error(XJWT_ERROR_ARGUMENT,
+			"KeyId must be shorter than 256 bytes");
 		return NULL;
 	}
-	/* 自动注入标准 claims（就地修改传入对象） */
-	{
-		int64_t now = (int64_t)(xrtNow() / 1000000);
-		if ( pConfig->ExpireSeconds != 0 &&
-			 !xjwtSignSet(claims, "exp", xrtValueInt(now + pConfig->ExpireSeconds)) )
-			return NULL;
-		if ( pConfig->Issuer != NULL &&
-			 !xjwtSignSet(claims, "iss", xrtValueString(xrtStrView(pConfig->Issuer))) )
-			return NULL;
-		if ( pConfig->Audience != NULL &&
-			 !xjwtSignSet(claims, "aud", xrtValueString(xrtStrView(pConfig->Audience))) )
-			return NULL;
-		if ( pConfig->Subject != NULL &&
-			 !xjwtSignSet(claims, "sub", xrtValueString(xrtStrView(pConfig->Subject))) )
-			return NULL;
-		if ( pConfig->Jti != NULL &&
-			 !xjwtSignSet(claims, "jti", xrtValueString(xrtStrView(pConfig->Jti))) )
-			return NULL;
-		/* iat 始终注入 */
-		if ( !xjwtSignSet(claims, "iat", xrtValueInt(now)) )
-			return NULL;
-	}
-
-	/* header 经 JSON 序列化构造：kid 自动转义且不受定长缓冲限制 */
 	const char* sAlg = xjwtAlgName(pConfig->Alg);
 	if ( sAlg == NULL ) {
 		xjwt__error(XJWT_ERROR_ALG_MISMATCH, "unknown algorithm");
 		return NULL;
 	}
+	/* 仅复制顶层对象：xrt 的 COW 外壳隔离字段替换，嵌套值只读序列化。 */
+	xvalue* pClaims = xrtValueClone(claims);
+	if ( pClaims == NULL ) {
+		xjwt__error(XJWT_ERROR_PARSE, "claims clone failed");
+		return NULL;
+	}
+	/* 自动注入标准 claims；成功或失败都不改变调用方对象。 */
+	{
+		int64_t now = (int64_t)(xrtNow() / 1000000);
+		if ( (pConfig->ExpireSeconds != 0 &&
+			  !xjwtSignSet(pClaims, "exp", xrtValueInt(now + pConfig->ExpireSeconds))) ||
+			 (pConfig->Issuer != NULL &&
+			  !xjwtSignSet(pClaims, "iss", xrtValueString(xrtStrView(pConfig->Issuer)))) ||
+			 (pConfig->Audience != NULL &&
+			  !xjwtSignSet(pClaims, "aud", xrtValueString(xrtStrView(pConfig->Audience)))) ||
+			 (pConfig->Subject != NULL &&
+			  !xjwtSignSet(pClaims, "sub", xrtValueString(xrtStrView(pConfig->Subject)))) ||
+			 (pConfig->Jti != NULL &&
+			  !xjwtSignSet(pClaims, "jti", xrtValueString(xrtStrView(pConfig->Jti)))) ||
+			 !xjwtSignSet(pClaims, "iat", xrtValueInt(now)) ) {
+			xrtValueRelease(pClaims);
+			return NULL;
+		}
+	}
+
+	/* header 经 JSON 序列化构造：kid 自动转义且不受定长缓冲限制 */
 	xvalue* pHead = xrtValueObject();
 	if ( pHead == NULL ) {
+		xrtValueRelease(pClaims);
 		xjwt__error(XJWT_ERROR_PARSE, "header object alloc failed");
 		return NULL;
 	}
@@ -195,17 +205,20 @@ char* xjwtSign(const xjwtconfig* pConfig, xvalue* claims)
 		 (pConfig->KeyId != NULL &&
 		  !xjwtSignSet(pHead, "kid", xrtValueString(xrtStrView(pConfig->KeyId)))) ) {
 		xrtValueRelease(pHead);
+		xrtValueRelease(pClaims);
 		return NULL;
 	}
 	char* sHeadJson = xrtJsonStringify(pHead, false, NULL);
 	xrtValueRelease(pHead);
 	if ( sHeadJson == NULL ) {
+		xrtValueRelease(pClaims);
 		xjwt__error(XJWT_ERROR_PARSE, "header stringify failed");
 		return NULL;
 	}
 
 	/* claims JSON */
-	char* sClaimsJson = xrtJsonStringify(claims, false, NULL);  /* compact */
+	char* sClaimsJson = xrtJsonStringify(pClaims, false, NULL);  /* compact */
+	xrtValueRelease(pClaims);
 	if ( sClaimsJson == NULL ) {
 		xrtFree(sHeadJson);
 		xjwt__error(XJWT_ERROR_PARSE, "claims stringify failed");
@@ -247,43 +260,43 @@ char* xjwtSign(const xjwtconfig* pConfig, xvalue* claims)
 }
 
 /* 一步式便捷 */
-char* xjwtHs256(xvalue* claims, const char* secret, int expireSeconds)
+char* xjwtHs256(const xvalue* claims, const char* secret, int expireSeconds)
 {
 	xjwtconfig cfg; xjwtConfigInit(&cfg);
 	cfg.Alg = XJWT_ALG_HS256; cfg.KeyPem = secret; cfg.ExpireSeconds = expireSeconds;
 	return xjwtSign(&cfg, claims);
 }
-char* xjwtHs384(xvalue* claims, const char* secret, int expireSeconds)
+char* xjwtHs384(const xvalue* claims, const char* secret, int expireSeconds)
 {
 	xjwtconfig cfg; xjwtConfigInit(&cfg);
 	cfg.Alg = XJWT_ALG_HS384; cfg.KeyPem = secret; cfg.ExpireSeconds = expireSeconds;
 	return xjwtSign(&cfg, claims);
 }
-char* xjwtHs512(xvalue* claims, const char* secret, int expireSeconds)
+char* xjwtHs512(const xvalue* claims, const char* secret, int expireSeconds)
 {
 	xjwtconfig cfg; xjwtConfigInit(&cfg);
 	cfg.Alg = XJWT_ALG_HS512; cfg.KeyPem = secret; cfg.ExpireSeconds = expireSeconds;
 	return xjwtSign(&cfg, claims);
 }
-char* xjwtRs256(xvalue* claims, const char* privatePem, int expireSeconds)
+char* xjwtRs256(const xvalue* claims, const char* privatePem, int expireSeconds)
 {
 	xjwtconfig cfg; xjwtConfigInit(&cfg);
 	cfg.Alg = XJWT_ALG_RS256; cfg.KeyPem = privatePem; cfg.ExpireSeconds = expireSeconds;
 	return xjwtSign(&cfg, claims);
 }
-char* xjwtRs384(xvalue* claims, const char* privatePem, int expireSeconds)
+char* xjwtRs384(const xvalue* claims, const char* privatePem, int expireSeconds)
 {
 	xjwtconfig cfg; xjwtConfigInit(&cfg);
 	cfg.Alg = XJWT_ALG_RS384; cfg.KeyPem = privatePem; cfg.ExpireSeconds = expireSeconds;
 	return xjwtSign(&cfg, claims);
 }
-char* xjwtRs512(xvalue* claims, const char* privatePem, int expireSeconds)
+char* xjwtRs512(const xvalue* claims, const char* privatePem, int expireSeconds)
 {
 	xjwtconfig cfg; xjwtConfigInit(&cfg);
 	cfg.Alg = XJWT_ALG_RS512; cfg.KeyPem = privatePem; cfg.ExpireSeconds = expireSeconds;
 	return xjwtSign(&cfg, claims);
 }
-char* xjwtEs256(xvalue* claims, const char* privatePem, int expireSeconds)
+char* xjwtEs256(const xvalue* claims, const char* privatePem, int expireSeconds)
 {
 	xjwtconfig cfg; xjwtConfigInit(&cfg);
 	cfg.Alg = XJWT_ALG_ES256; cfg.KeyPem = privatePem; cfg.ExpireSeconds = expireSeconds;
@@ -388,7 +401,11 @@ xvalue* xjwtVerify(const char* token, const char* keyPem, const xjwtcheck* check
 /* ------------------------------------------------------------------ */
 xvalue* xjwtDecode(const char* token, int* pAlg)
 {
-	if ( token == NULL ) return NULL;
+	if ( pAlg != NULL ) *pAlg = XJWT_ALG_INVALID;
+	if ( token == NULL ) {
+		xjwt__error(XJWT_ERROR_ARGUMENT, "token is null");
+		return NULL;
+	}
 	const char *pHead, *pClaims, *pSig;
 	size_t iHeadSize, iClaimsSize, iSigSize;
 	if ( !xjwt__split(token, &pHead, &iHeadSize, &pClaims, &iClaimsSize, &pSig, &iSigSize) ) {
@@ -401,27 +418,23 @@ xvalue* xjwtDecode(const char* token, int* pAlg)
 	xvalue* p = xrtJsonParse(xrtStrViewN((cstr)pJson, n));
 	xrtFree(pJson);
 	if ( p == NULL ) {
-		xjwt__error(XJWT_ERROR_PARSE, "claims JSON parse failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE,
+			"claims JSON parse failed");
+		return NULL;
+	}
+	if ( !xrtValueIs(p, XVALUE_OBJECT) ) {
+		xrtValueRelease(p);
+		xjwt__error(XJWT_ERROR_PARSE, "claims must be a JSON object");
 		return NULL;
 	}
 	if ( pAlg != NULL ) {
-		/* 解析 header alg */
-		unsigned char* pHeadJson = xjwt__base64url_decode(pHead, iHeadSize, &n);
-		if ( pHeadJson != NULL ) {
-			xvalue* pHeadVal = xrtJsonParse(xrtStrViewN((cstr)pHeadJson, n));
-			xrtFree(pHeadJson);
-			if ( pHeadVal != NULL ) {
-				xstrview sv;
-				if ( xrtValueGetString(xrtValueObjectGet(pHeadVal, xrtStrView("alg")), &sv) ) {
-					char a[16];
-					if ( sv.Size < sizeof(a) ) {
-						memcpy(a, sv.Data, sv.Size); a[sv.Size] = 0;
-						*pAlg = xjwtAlgParse(a);
-					}
-				}
-				xrtValueRelease(pHeadVal);
-			}
+		/* 请求 header 输出时不能交付仅成功解析的 claims。 */
+		xvalue* pHeader = xjwtDecodeHeader(token, pAlg, NULL);
+		if ( pHeader == NULL ) {
+			xrtValueRelease(p);
+			return NULL;
 		}
+		xrtValueRelease(pHeader);
 	}
 	return p;
 }
@@ -431,7 +444,12 @@ xvalue* xjwtDecode(const char* token, int* pAlg)
 /* ------------------------------------------------------------------ */
 xvalue* xjwtDecodeHeader(const char* token, int* pAlg, const char** pKid)
 {
-	if ( token == NULL ) return NULL;
+	if ( pAlg != NULL ) *pAlg = XJWT_ALG_INVALID;
+	if ( pKid != NULL ) *pKid = NULL;
+	if ( token == NULL ) {
+		xjwt__error(XJWT_ERROR_ARGUMENT, "token is null");
+		return NULL;
+	}
 	const char *pHead, *pClaims, *pSig;
 	size_t iHeadSize, iClaimsSize, iSigSize;
 	if ( !xjwt__split(token, &pHead, &iHeadSize, &pClaims, &iClaimsSize, &pSig, &iSigSize) ) {
@@ -444,39 +462,53 @@ xvalue* xjwtDecodeHeader(const char* token, int* pAlg, const char** pKid)
 	xvalue* p = xrtJsonParse(xrtStrViewN((cstr)pJson, n));
 	xrtFree(pJson);
 	if ( p == NULL ) {
-		xjwt__error(XJWT_ERROR_PARSE, "header JSON parse failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE,
+			"header JSON parse failed");
 		return NULL;
 	}
+	if ( !xrtValueIs(p, XVALUE_OBJECT) ) {
+		xrtValueRelease(p);
+		xjwt__error(XJWT_ERROR_PARSE, "header must be a JSON object");
+		return NULL;
+	}
+	int alg = XJWT_ALG_INVALID;
 	if ( pAlg != NULL ) {
-		*pAlg = XJWT_ALG_INVALID;
 		xstrview sv;
 		if ( xrtValueGetString(xrtValueObjectGet(p, xrtStrView("alg")), &sv) ) {
 			char a[16];
-			if ( sv.Size < sizeof(a) ) {
+			if ( sv.Size < sizeof(a) && memchr(sv.Data, 0, sv.Size) == NULL ) {
 				memcpy(a, sv.Data, sv.Size); a[sv.Size] = 0;
-				*pAlg = xjwtAlgParse(a);
+				alg = xjwtAlgParse(a);
 			}
 		}
 	}
 	if ( pKid != NULL ) {
-		*pKid = NULL;
 		xstrview sv;
 		xvalue* pKidVal = xrtValueObjectGet(p, xrtStrView("kid"));
-		if ( pKidVal != NULL && xrtValueGetString(pKidVal, &sv) && sv.Size > 0 ) {
+		if ( pKidVal != NULL ) {
+			if ( !xrtValueGetString(pKidVal, &sv) ) {
+				xrtValueRelease(p);
+				xjwt__error(XJWT_ERROR_PARSE,
+					"kid must be a string");
+				return NULL;
+			}
 			/* 超长 kid 视为"存在但不可用"：整条验证拒绝，
 			 * 不允许退化成"无 kid 取第一把钥"绕过严格匹配 */
-			if ( sv.Size >= 256 ) {
+			if ( sv.Size >= 256 || memchr(sv.Data, 0, sv.Size) != NULL ) {
 				xrtValueRelease(p);
-				xjwt__error(XJWT_ERROR_PARSE, "kid too long (>= 256)");
+				xjwt__error(XJWT_ERROR_PARSE, "kid too long or contains NUL");
 				return NULL;
 			}
 			char* s = (char*)xrtMalloc(sv.Size + 1);
-			if ( s != NULL ) {
-				memcpy(s, sv.Data, sv.Size); s[sv.Size] = 0;
-				*pKid = s;
+			if ( s == NULL ) {
+				xrtValueRelease(p);
+				return NULL;
 			}
+			memcpy(s, sv.Data, sv.Size); s[sv.Size] = 0;
+			*pKid = s;
 		}
 	}
+	if ( pAlg != NULL ) *pAlg = alg;
 	return p;
 }
 

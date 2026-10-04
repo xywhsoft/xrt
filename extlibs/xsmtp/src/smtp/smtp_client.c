@@ -7,23 +7,7 @@
 
 #if defined(XSMTP_FEATURE_SMTP_CLIENT)
 
-/* 同步客户端只保存会话状态、能力和最后响应，不复制配置。 */
-struct xsmtpclient {
-	__xmailtransport Transport;
-	xsmtpclientstate State;
-	uint64 Capabilities;
-	uint64 SizeLimit;
-	__xmailtext Reply;
-	size_t ReplyLines;
-	size_t ReplyLineLimit;
-	int ReplyCode;
-	xmaildotwriter DataWriter;
-	size_t ChunkRemaining;
-	bool ChunkLast;
-	bool ChunkActive;
-	bool ChunkRejected;
-	bool Authenticated;
-};
+
 
 
 
@@ -84,6 +68,7 @@ static bool __xrtSmtpClientFailed(xsmtpclient* pClient)
 {
 	if ( pClient != NULL ) {
 		pClient->State = XSMTP_CLIENT_FAILED;
+		__xrtMailTransportAbortPreserveError(&pClient->Transport);
 	}
 	return false;
 }
@@ -155,6 +140,7 @@ static bool __xrtSmtpClientReceiveMode(
 			return __xrtSmtpClientFailed(pClient);
 		}
 		if ( bCapabilities && (Parser.Lines > 1u) &&
+			(Line.Code != 421) &&
 			!__xrtSmtpClientCapability(pClient, Line.Text) ) {
 			return __xrtSmtpClientFailed(pClient);
 		}
@@ -174,6 +160,13 @@ static bool __xrtSmtpClientReceiveMode(
 	pReply->Lines = pClient->ReplyLines;
 	pReply->Text.Data = pClient->Reply.Data;
 	pReply->Text.Size = pClient->Reply.Size;
+	if ( pReply->Code == 421 ) {
+		__xrtSmtpClientError(
+			XERR_CLOSED,
+			"SMTP server is closing the transmission channel"
+		);
+		return __xrtSmtpClientFailed(pClient);
+	}
 	return true;
 }
 

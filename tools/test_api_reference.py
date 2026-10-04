@@ -9,6 +9,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import generate_api_reference as reference
@@ -17,6 +18,24 @@ import generate_api_reference as reference
 
 class ApiReferenceTest(unittest.TestCase):
 	"""验证家族收集、符号归属和稳定输出。"""
+
+	def test_manifest_comment_only_export_is_not_an_api_header(self) -> None:
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			header = root / "include/fixture.h"
+			header.parent.mkdir(parents=True)
+			header.write_text("/* XRT_API bool xrtWsFake(void); */\n"
+				"#define XWS_INTERNAL 1\n", encoding="utf-8")
+			manifest = root / "modules.json"
+			manifest.write_text(json.dumps({"modules": [{
+				"public_headers": ["include/fixture.h"]}], "api_reference": {
+				"title": "fixture", "function_prefix": "xrtWs", "constant_prefix": "XWS_",
+				"type_prefix": "xws", "guide": "guide.md", "output": "reference.md"}}),
+				encoding="utf-8")
+			with patch.object(reference, "ROOT", root):
+				_, output = reference._generate_manifest(manifest)
+			self.assertNotIn("xrtWsFake", output)
+			self.assertNotIn("XWS_INTERNAL", output)
 
 	def test_groups_symbols_by_first_header(self) -> None:
 		"""重复符号只归属第一次出现的公共头。"""

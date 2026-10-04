@@ -34,8 +34,7 @@ static void testCsrCheckFailure(cstr sMessage)
 {
 	testRequire(xrtMemDebugFailTriggered(), sMessage);
 	testRequire(
-		(xrtErrorKind(xrtGetError()) == XERR_MEMORY) ||
-			(xrtErrorKind(xrtGetError()) == XERR_INTERNAL),
+		xrtErrorKind(xrtGetError()) == XERR_MEMORY,
 		sMessage);
 }
 

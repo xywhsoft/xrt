@@ -13,8 +13,15 @@ static bool xoauth2__copy_token_field(const xvalue* p, const char* sKey,
 	size_t i;
 	if(pField == NULL)
 		return true;
-	if(!xrtValueGetString(pField, &Text) || Text.Size == SIZE_MAX)
+	if(!xrtValueGetString(pField, &Text) || Text.Size == SIZE_MAX) {
+		xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE, "invalid token response field type");
 		return false;
+	}
+	/* The public token stores C strings; accepting decoded NUL would lose credential bytes. */
+	if(Text.Size != 0u && memchr(Text.Data, 0, Text.Size) != NULL) {
+		xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE, "token response field contains NUL");
+		return false;
+	}
 	*ppOut = (char*)xrtMalloc(Text.Size + 1u);
 	if(*ppOut == NULL)
 		return false;
@@ -38,7 +45,8 @@ static xoauth2token* xoauth2__parse_token_response_mode(
 
 	xvalue* p = xrtJsonParse(xrtStrViewN((cstr)sJson, iSize));
 	if ( p == NULL ) {
-		xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE, "JSON parse failed");
+		if ( xrtErrorKind(xrtGetError()) != XERR_MEMORY )
+			xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE, "JSON parse failed");
 		return NULL;
 	}
 
@@ -72,8 +80,6 @@ static xoauth2token* xoauth2__parse_token_response_mode(
 	{
 		xrtValueRelease(p);
 		xoauth2TokenFree(pToken);
-		xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE,
-			"invalid or incomplete token response field");
 		return NULL;
 	}
 	{
@@ -244,12 +250,7 @@ char* xoauth2__build_token_request(xoauth2client* pClient, const char* sCode)
 		keys[nFields] = "code_verifier"; values[nFields++] = pClient->sVerifier;
 	}
 
-	char* sBody = build_form(keys, values, nFields);
-	if ( sBody == NULL ) {
-		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "token request build failed");
-		return NULL;
-	}
-	return sBody;
+	return build_form(keys, values, nFields);
 }
 
 char* xoauth2__build_refresh_request(const xoauth2client* pClient,
@@ -282,12 +283,7 @@ char* xoauth2__build_refresh_request(const xoauth2client* pClient,
 		}
 	}
 
-	char* sBody = build_form(keys, values, nFields);
-	if ( sBody == NULL ) {
-		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "refresh request build failed");
-		return NULL;
-	}
-	return sBody;
+	return build_form(keys, values, nFields);
 }
 
 /* ------------------------------------------------------------------ */
@@ -305,15 +301,15 @@ static bool state_consume(xoauth2client* pClient, const char* sState)
 		return false;
 	}
 	/* state 一次性：校验通过即焚毁（无论后续交换成败，会话已消费） */
-	memset(pClient->sState, 0, sizeof(pClient->sState));
+	xrtSecureZero(pClient->sState, sizeof(pClient->sState));
 	return true;
 }
 
 /* verifier 焚毁：请求构造完成后一次性消费（RFC 7636 防重放） */
 static void verifier_burn(xoauth2client* pClient)
 {
-	memset(pClient->sVerifier, 0, sizeof(pClient->sVerifier));
-	memset(pClient->sChallenge, 0, sizeof(pClient->sChallenge));
+	xrtSecureZero(pClient->sVerifier, sizeof(pClient->sVerifier));
+	xrtSecureZero(pClient->sChallenge, sizeof(pClient->sChallenge));
 }
 
 /* ------------------------------------------------------------------ */
@@ -364,11 +360,15 @@ static xoauth2token* exchange(const xoauth2client* pClient,
 		sMethod = "GET";
 		sRequestBody = NULL;
 	}
+	/* A silent failed callback must not inherit a caller's stale error. */
+	xrtClearError();
 	if ( !pClient->Config.Http(sMethod, sUrl, sRequestBody, sAuth,
 	                           &sResp, &iStatus, pClient->Config.HttpContext) ) {
+		xerror* pError = xrtErrorRef(xrtGetError());
 		xrtFree(sRequestUrl);
 		xrtFree(sResp);
-		xoauth2__error(XOAUTH2_ERROR_NETWORK, "transport failed");
+		if ( pError != NULL ) xrtSetErrorTake(pError);
+		else xoauth2__error(XOAUTH2_ERROR_NETWORK, "transport failed");
 		return NULL;
 	}
 	xrtFree(sRequestUrl);
@@ -386,7 +386,8 @@ static xoauth2token* exchange(const xoauth2client* pClient,
 			sResp, strlen(sResp), pClient->Wechat);
 		if ( pProbe != NULL )
 			xoauth2TokenFree(pProbe);
-		if ( xoauth2LastError() != XOAUTH2_ERROR_TOKEN_DENIED )
+		if ( xoauth2LastError() != XOAUTH2_ERROR_TOKEN_DENIED &&
+			xrtErrorKind(xrtGetError()) != XERR_MEMORY )
 			xoauth2__error(XOAUTH2_ERROR_TOKEN_ENDPOINT,
 				"token endpoint returned HTTP error status");
 	}
@@ -419,7 +420,10 @@ xoauth2token* xoauth2CompleteLogin(xoauth2client* pClient,
 
 	/* 构造请求体与认证头，随即焚毁 verifier */
 	char* sBody = xoauth2__build_token_request(pClient, sCode);
-	if ( sBody == NULL ) return NULL;
+	if ( sBody == NULL ) {
+		verifier_burn(pClient);
+		return NULL;
+	}
 	char* sAuth = xoauth2__build_auth_header(pClient);
 	verifier_burn(pClient);
 	if(pClient->Config.AuthStyle == XOAUTH2_AUTH_BASIC && sAuth == NULL)
@@ -478,10 +482,13 @@ char* xoauth2HttpGet(xoauth2client* pClient, const char* sUrl,
 		xoauth2__error(XOAUTH2_ERROR_NETWORK, "no transport configured");
 		return NULL;
 	}
+	xrtClearError();
 	if ( !pClient->Config.Http("GET", sUrl, NULL, sAuthHeader,
 	                           &sResp, &iStatus, pClient->Config.HttpContext) ) {
+		xerror* pError = xrtErrorRef(xrtGetError());
 		xrtFree(sResp);
-		xoauth2__error(XOAUTH2_ERROR_NETWORK, "transport failed");
+		if ( pError != NULL ) xrtSetErrorTake(pError);
+		else xoauth2__error(XOAUTH2_ERROR_NETWORK, "transport failed");
 		return NULL;
 	}
 	*piStatus = iStatus;
@@ -523,10 +530,7 @@ xvalue* xoauth2GetUserInfo(xoauth2client* pClient, const char* sAccessToken)
 	/* Bearer 头动态分配：JWT 形态的 access token 常超 512 字符，
 	 * 定长缓冲会静默截断导致 userinfo 永远 401 */
 	sBearer = (char*)xrtMalloc(strlen(sAccessToken) + 8);
-	if ( sBearer == NULL ) {
-		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "bearer header alloc failed");
-		return NULL;
-	}
+	if ( sBearer == NULL ) return NULL;
 	snprintf(sBearer, strlen(sAccessToken) + 8, "Bearer %s", sAccessToken);
 	sBody = xoauth2HttpGet(pClient, pClient->Config.UserInfoUrl,
 	                       sBearer, &iStatus);
@@ -536,7 +540,8 @@ xvalue* xoauth2GetUserInfo(xoauth2client* pClient, const char* sAccessToken)
 	pClaims = xrtJsonParse(xrtStrView(sBody));
 	xrtFree(sBody);
 	if ( pClaims == NULL ) {
-		xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE, "userinfo JSON parse failed");
+		if ( xrtErrorKind(xrtGetError()) != XERR_MEMORY )
+			xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE, "userinfo JSON parse failed");
 		return NULL;
 	}
 	/* userinfo 必须是 JSON 对象（OIDC Core §5.3）；非对象 fail-closed */
@@ -600,7 +605,12 @@ xvalue* xoauth2GetWechatUserInfo(xoauth2client* pClient,
 	sBody = xoauth2HttpGet(pClient, sUrl, NULL, &iStatus);
 	if ( sBody == NULL ) goto Done;
 	pClaims = xrtJsonParse(xrtStrView(sBody));
-	if ( pClaims == NULL || !xrtValueIs(pClaims, XVALUE_OBJECT) ) {
+	if ( pClaims == NULL ) {
+		if ( xrtErrorKind(xrtGetError()) != XERR_MEMORY )
+			xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE,
+				"invalid WeChat userinfo response");
+	}
+	else if ( !xrtValueIs(pClaims, XVALUE_OBJECT) ) {
 		xrtValueRelease(pClaims);
 		pClaims = NULL;
 		xoauth2__error(XOAUTH2_ERROR_TOKEN_RESPONSE,

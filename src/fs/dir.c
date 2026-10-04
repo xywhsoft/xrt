@@ -649,9 +649,10 @@ static bool __xrtDirCreateOne(cstr sPath, uint32 iMode, bool bExistingOk)
 			int iCode = (int)GetLastError();
 
 			xrtFree(pPath);
-			if ( bExistingOk && (iCode == ERROR_ALREADY_EXISTS) &&
-				xrtDirExists(sPath) ) {
-				return true;
+			if ( bExistingOk && (iCode == ERROR_ALREADY_EXISTS) ) {
+				xfileinfo Info;
+				if ( !xrtPathStat(sPath, true, &Info) ) return false;
+				if ( Info.Type == XFILE_TYPE_DIRECTORY ) return true;
 			}
 			__xrtDirSetError(XDIR_ERROR_CREATE, "create",
 				"failed to create the directory", iCode);
@@ -669,8 +670,10 @@ static bool __xrtDirCreateOne(cstr sPath, uint32 iMode, bool bExistingOk)
 		{
 			int iCode = errno;
 
-			if ( bExistingOk && (iCode == EEXIST) && xrtDirExists(sPath) ) {
-				return true;
+			if ( bExistingOk && (iCode == EEXIST) ) {
+				xfileinfo Info;
+				if ( !xrtPathStat(sPath, true, &Info) ) return false;
+				if ( Info.Type == XFILE_TYPE_DIRECTORY ) return true;
 			}
 			__xrtDirSetError(XDIR_ERROR_CREATE, "create",
 				"failed to create the directory", iCode);
@@ -750,14 +753,17 @@ XRT_API bool xrtDirCreateAllMode(cstr sPath, uint32 iMode)
 		sCurrent[--iSize] = '\0';
 	}
 	if ( iSize == iRootSize ) {
-		bool bResult = xrtDirExists(sCurrent);
+		xfileinfo Info;
+		bool bResult = xrtPathStat(sCurrent, true, &Info);
 
 		xrtFree(sCurrent);
-		if ( !bResult ) {
-			__xrtDirError(XERR_NOT_FOUND, XDIR_ERROR_CREATE, "create-all",
-				"the directory root does not exist");
+		if ( !bResult ) return false;
+		if ( Info.Type != XFILE_TYPE_DIRECTORY ) {
+			__xrtDirError(XERR_TYPE, XDIR_ERROR_CREATE, "create-all",
+				"the directory root is not a directory");
+			return false;
 		}
-		return bResult;
+		return true;
 	}
 	if ( !__xrtDirCreateOne(sCurrent, iMode, true) ) {
 		xrtFree(sCurrent);

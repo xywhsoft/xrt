@@ -48,6 +48,23 @@ int main(void)
 	);
 
 	/* Destroy 空指针为无操作。 */
+	{
+		xacmeaccountconfig Account;
+		xrtAcmeAccountConfigInit(&Account);
+		Config.pAccount = &Account;
+		xrtClearError();
+		testRequire(xrtAcmeClientCreate(&Config) == NULL &&
+			xrtErrorKind(xrtGetError()) == XERR_ARGUMENT,
+			"acme client create missing directory must roll back an empty shell");
+	}
+	testRequire(xrtAcmeClientCleanup(NULL), "acme client cleanup null mismatch");
+	{
+		size_t Pending = SIZE_MAX;
+		xerror* Previous = xrtErrorRef(xrtGetError());
+		testRequire(xrtAcmeCleanupPending(0u, &Pending) && Pending == 0u &&
+			xrtGetError() == Previous, "acme empty pending cleanup must preserve the error");
+		xrtErrorFree(Previous);
+	}
 	xrtAcmeClientDestroy(NULL);
 
 	/* 签发入口参数错误语义。 */

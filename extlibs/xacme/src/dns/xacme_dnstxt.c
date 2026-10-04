@@ -7,6 +7,7 @@
 #include <xrt/net.h>
 #include <xrt/random.h>
 #include <xrt/time.h>
+#include <xrt/thread.h>
 #include <xrt/udp.h>
 
 #include <string.h>
@@ -15,6 +16,15 @@ static void xacmeTxtError(
 	xerrkind Kind, xacmednstxterror Code, cstr sMessage)
 {
 	xrtSetErrorInfo(Kind, "xrt.acme.dns.txt", (int32)Code, sMessage);
+}
+
+/* Resource exhaustion is terminal and retains the actual allocator cause.
+ * Other failures keep the DNS probe's stable protocol/network diagnostics. */
+static void xacmeTxtFailure(
+	xerrkind Kind, xacmednstxterror Code, cstr sMessage)
+{
+	if(xrtErrorKind(xrtGetError()) != XERR_MEMORY)
+		xacmeTxtError(Kind, Code, sMessage);
 }
 
 bool xacmeDnsInit(xacmedns* pDns, struct xnetengine* pBorrowedEngine)
@@ -36,31 +46,47 @@ bool xacmeDnsInit(xacmedns* pDns, struct xnetengine* pBorrowedEngine)
 		xnetengineconfig Engine;
 		xrtNetEngineConfigInit(&Engine);
 		pDns->pEngine = xrtNetEngineCreate(&Engine);
-		if((pDns->pEngine == NULL) || !xrtNetEngineStart(pDns->pEngine))
+		if(pDns->pEngine == NULL) return false;
+		pDns->bEngineOwned = true;
+		if(!xrtNetEngineStart(pDns->pEngine))
 		{
-			pDns->pEngine = NULL;
-			xacmeTxtError(
-				XERR_STATE, XACME_TXT_ERROR_NETWORK,
-				"acme dns engine start failed");
+			(void)xacmeDnsUnit(pDns);
 			return false;
 		}
-		pDns->bEngineOwned = true;
 	}
 	return true;
 }
 
-void xacmeDnsUnit(xacmedns* pDns)
+bool xacmeDnsUnit(xacmedns* pDns)
 {
+	xerror* pPrevious;
+	bool bReady = true;
 	if(pDns == NULL)
 	{
-		return;
+		return true;
 	}
+	pPrevious = xrtErrorRef(xrtGetError());
 	if(pDns->bEngineOwned && (pDns->pEngine != NULL))
 	{
-		(void)xrtNetEngineStop(pDns->pEngine);
-		(void)xrtNetEngineDestroy(pDns->pEngine);
+		xdeadline Deadline = xrtDeadlineAfter(UINT64_C(30000000));
+		for(;;)
+		{
+			xnetretireresult Result = xrtNetEngineTryDestroy(pDns->pEngine);
+			if(Result == XNET_RETIRE_READY) break;
+			if(Result == XNET_RETIRE_ERROR) { bReady = false; break; }
+			if(xrtDeadlineExpired(Deadline))
+			{
+				xacmeTxtError(XERR_TIMEOUT, XACME_TXT_ERROR_TIMEOUT,
+					"acme dns engine still has live objects during cleanup");
+				bReady = false;
+				break;
+			}
+			xrtSleep(1u);
+		}
 	}
-	memset(pDns, 0, sizeof(*pDns));
+	if(bReady) memset(pDns, 0, sizeof(*pDns));
+	if(pPrevious != NULL) xrtSetErrorTake(pPrevious);
+	return bReady;
 }
 
 /* 组装 QNAME：点分文本 → DNS 标签序列（含末尾根零）。 */
@@ -69,6 +95,8 @@ static bool xacmeTxtEncodeName(xbuffer* pOut, cstr sFqdn)
 	const char* s = sFqdn;
 	if((sFqdn == NULL) || (sFqdn[0] == '\0'))
 	{
+		xacmeTxtError(XERR_ARGUMENT, XACME_TXT_ERROR_ARGUMENT,
+			"acme dns txt query fqdn invalid");
 		return false;
 	}
 	while(*s != '\0')
@@ -78,6 +106,8 @@ static bool xacmeTxtEncodeName(xbuffer* pOut, cstr sFqdn)
 			(sDot != NULL) ? (size_t)(sDot - s) : strlen(s);
 		if((iLabel == 0u) || (iLabel > 63u))
 		{
+			xacmeTxtError(XERR_ARGUMENT, XACME_TXT_ERROR_ARGUMENT,
+				"acme dns txt query fqdn invalid");
 			return false;
 		}
 		if(!xrtBufferAppendByte(pOut, (uint8)iLabel) ||
@@ -151,8 +181,9 @@ bool xacmeTxtParseResponse(
 	uint16 iQuestions;
 	uint16 iAnswers;
 	uint16 iFlags;
+	size_t iCount = 0u;
 
-	*pOutCount = 0u;
+	if(pOutCount != NULL) *pOutCount = 0u;
 	if((p == NULL) || (iSize < 12u) || (sOutRecords == NULL) ||
 		(pOutCount == NULL) || (iCapacity == 0u))
 	{
@@ -215,14 +246,14 @@ bool xacmeTxtParseResponse(
 		iRdAt = iAt;
 		iAt += iRdLength;
 		if((iType != 0x0010u) || (iClass != 0x0001u) ||
-			(*pOutCount >= iCapacity))
+			(iCount >= iCapacity))
 		{
 			continue;
 		}
 		/* TXT rdata = 若干 character-string，拼接为一条记录值。 */
 		{
 			size_t iUsed = 0u;
-			char* sRecord = sOutRecords[*pOutCount];
+			char* sRecord = sOutRecords[iCount];
 			while(iRdAt < iAt)
 			{
 				uint8 iStrLen = p[iRdAt];
@@ -237,9 +268,10 @@ bool xacmeTxtParseResponse(
 				iRdAt += iStrLen;
 			}
 			sRecord[iUsed] = '\0';
-			(*pOutCount)++;
+			iCount++;
 		}
 	}
+	*pOutCount = iCount;
 	return true;
 }
 
@@ -257,7 +289,8 @@ bool xacmeDnsTxtQuery(
 	size_t iSize;
 	bool bOk = false;
 
-	if((pDns == NULL) || (sResolver == NULL) || (sFqdn == NULL) ||
+	if(pOutCount != NULL) *pOutCount = 0u;
+	if((pDns == NULL) || (pDns->pEngine == NULL) || (sResolver == NULL) || (sFqdn == NULL) ||
 		(sOutRecords == NULL) || (pOutCount == NULL) || (iCapacity == 0u))
 	{
 		xacmeTxtError(
@@ -265,8 +298,6 @@ bool xacmeDnsTxtQuery(
 			"acme dns txt query requires dns, resolver, fqdn and outputs");
 		return false;
 	}
-	*pOutCount = 0u;
-
 	xrtBufferInit(&Query);
 	/* 探测仅咨询性（失败不阻断），但事务 ID 仍用密码学随机，
 	   降低在路径攻击者伪造应答提前放行传播门的概率。 */
@@ -274,7 +305,7 @@ bool xacmeDnsTxtQuery(
 		uint8 uSecure[2];
 		if(!xrtSecureRandom(uSecure, sizeof(uSecure)))
 		{
-			xacmeTxtError(
+			xacmeTxtFailure(
 				XERR_INTERNAL, XACME_TXT_ERROR_NETWORK,
 				"acme dns txt secure random failed");
 			goto Done;
@@ -289,9 +320,6 @@ bool xacmeDnsTxtQuery(
 		if(!xrtBufferAppend(&Query, (xbytesview){ Head, 12u }) ||
 			!xacmeTxtEncodeName(&Query, sFqdn))
 		{
-			xacmeTxtError(
-				XERR_ARGUMENT, XACME_TXT_ERROR_ARGUMENT,
-				"acme dns txt query fqdn invalid");
 			goto Done;
 		}
 		{
@@ -305,7 +333,7 @@ bool xacmeDnsTxtQuery(
 
 	if(!xrtNetAddrParse(&Peer, sResolver, (iPort != 0u) ? iPort : 53u))
 	{
-		xacmeTxtError(
+		xacmeTxtFailure(
 			XERR_ARGUMENT, XACME_TXT_ERROR_ARGUMENT,
 			"acme dns txt resolver address invalid");
 		goto Done;
@@ -313,14 +341,14 @@ bool xacmeDnsTxtQuery(
 	pUdp = xrtNetUdpConnect(pDns->pEngine, &Peer, 0u, NULL, NULL, NULL);
 	if(pUdp == NULL)
 	{
-		xacmeTxtError(
+		xacmeTxtFailure(
 			XERR_IO, XACME_TXT_ERROR_NETWORK,
 			"acme dns txt udp open failed");
 		goto Done;
 	}
 	if(xrtNetUdpSend(pUdp, Query.Data, Query.Size) != XNET_RESULT_OK)
 	{
-		xacmeTxtError(
+		xacmeTxtFailure(
 			XERR_IO, XACME_TXT_ERROR_NETWORK,
 			"acme dns txt udp send failed");
 		goto Done;
@@ -334,6 +362,7 @@ bool xacmeDnsTxtQuery(
 				pUdp, xrtClock() + UINT64_C(2000000), NULL);
 			if(pPacket == NULL)
 			{
+				if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) goto Done;
 				if(iAttempt == 1)
 				{
 					xacmeTxtError(
@@ -341,7 +370,12 @@ bool xacmeDnsTxtQuery(
 						"acme dns txt udp receive timeout");
 					goto Done;
 				}
-				(void)xrtNetUdpSend(pUdp, Query.Data, Query.Size);
+				if(xrtNetUdpSend(pUdp, Query.Data, Query.Size) != XNET_RESULT_OK)
+				{
+					xacmeTxtFailure(XERR_IO, XACME_TXT_ERROR_NETWORK,
+						"acme dns txt udp resend failed");
+					goto Done;
+				}
 				continue;
 			}
 			if((xrtNetUdpPacketSize(pPacket) >= 12u) &&
@@ -371,24 +405,27 @@ bool xacmeDnsTxtQuery(
 	if(!xacmeTxtParseResponse(p, iSize, iId, sOutRecords, iCapacity,
 			pOutCount))
 	{
-		if(xrtGetError() == NULL)
-		{
-			goto Protocol;
-		}
-		goto Done;
+		goto Protocol;
 	}
 	bOk = true;
 
 Done:
-	if(pPacket != NULL)
 	{
-		xrtNetUdpPacketDestroy(pPacket);
+		xerror* pPrevious = xrtErrorRef(xrtGetError());
+		if(!bOk) *pOutCount = 0u;
+		if(pPacket != NULL)
+		{
+			xrtNetUdpPacketDestroy(pPacket);
+		}
+		if(pUdp != NULL)
+		{
+			/* Destroy 只释放调用方引用；不关闭的 UDP 会继续占用引擎。 */
+			if(!bOk || !xrtNetUdpClose(pUdp)) (void)xrtNetUdpAbort(pUdp);
+			xrtNetUdpDestroy(pUdp);
+		}
+		xrtBufferUnit(&Query);
+		if(pPrevious != NULL) xrtSetErrorTake(pPrevious);
 	}
-	if(pUdp != NULL)
-	{
-		xrtNetUdpDestroy(pUdp);
-	}
-	xrtBufferUnit(&Query);
 	return bOk;
 
 Protocol:

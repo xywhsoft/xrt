@@ -1,4 +1,7 @@
 /* xjwt 测试：单 TU（XRT_IMPLEMENTATION 只定义一次）。 */
+#if !defined(_WIN32) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE 1
+#endif
 #define XRT_MODULE_ALL
 #define XRT_IMPLEMENTATION
 #include "../xjwt.c"
@@ -7,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "test_keys.h"
+#include "time_bounds_cases.h"
 
 /* ---- 计数分配器：泄漏回归实测（main 首行安装，须在首个 xrt 分配前） ---- */
 #include <stdlib.h>
@@ -52,6 +56,194 @@ static int s_pass = 0, s_fail = 0;
 	if ( !(expr) ) { printf("FAIL: %s\n", msg); s_fail++; } \
 	else { s_pass++; } \
 } while (0)
+
+/* 手工签名不可信 JSON，确保拒绝原因是字段语义而非无效签名。 */
+static char* jwt_test_sign_json(const char* header, const char* claims,
+	int alg, const char* key)
+{
+	char* h64 = xjwt__base64url_encode(header, strlen(header));
+	char* c64 = xjwt__base64url_encode(claims, strlen(claims));
+	char* input = NULL;
+	char* token = NULL;
+	unsigned char signature[1024];
+	size_t sigSize = 0;
+	if ( h64 == NULL || c64 == NULL ) goto cleanup;
+	size_t inputSize = strlen(h64) + 1u + strlen(c64);
+	input = (char*)xrtMalloc(inputSize + 1u);
+	if ( input == NULL ) goto cleanup;
+	snprintf(input, inputSize + 1u, "%s.%s", h64, c64);
+	if ( xjwt__sign(alg, input, inputSize, key, signature,
+		sizeof(signature), &sigSize) )
+		token = xjwt__join(header, claims, signature, sigSize);
+cleanup:
+	xrtFree(h64);
+	xrtFree(c64);
+	xrtFree(input);
+	return token;
+}
+
+static bool ec_public_der_rejected(const void* pDer, size_t iSize)
+{
+	str pem = xrtPemEncodeNew("PUBLIC KEY", pDer, iSize);
+	xjwtkey* key = pem != NULL ? xjwtKeyParse(pem) : NULL;
+	bool rejected = pem != NULL && key == NULL;
+	xjwtKeyFree(key);
+	xrtFree(pem);
+	return rejected;
+}
+
+static bool ec_private_der_rejected(const char* sLabel,
+	const void* pDer, size_t iSize)
+{
+	str pem = xrtPemEncodeNew(sLabel, pDer, iSize);
+	unsigned char scalar[32];
+	bool encoded = pem != NULL;
+	bool accepted = pem != NULL && ecdsa_private_parse(pem, scalar);
+	xrtSecureZero(scalar, sizeof(scalar));
+	xrtFree(pem);
+	return encoded && !accepted;
+}
+
+static bytes pkcs8_with_options(const char* sPem,
+	xbytesview Attributes, xbytesview Public, uint64 iVersion,
+	size_t* pOutSize)
+{
+	xpemblock Block;
+	xdercursor Outer, Fields;
+	xdervalue Value;
+	xbytesview Parts[2];
+	xbuffer Content, Encoded, PublicBits;
+	bytes pDer = NULL, pResult = NULL;
+	size_t iDerSize = 0;
+	bool bOk = false;
+
+	*pOutSize = 0;
+	xrtBufferInit(&Content);
+	xrtBufferInit(&Encoded);
+	xrtBufferInit(&PublicBits);
+	if ( !xrtPemFind(sPem, strlen(sPem), "PRIVATE KEY", &Block) )
+		goto cleanup;
+	pDer = xrtPemDecodeNew(&Block, &iDerSize);
+	if ( pDer == NULL || !xrtDerValidate(pDer, iDerSize) ||
+		!xrtDerInit(&Outer, pDer, iDerSize) ||
+		xrtDerRead(&Outer, &Value) != XDER_VALUE ||
+		!xrtDerEnter(&Value, &Fields) ) goto cleanup;
+	if ( xrtDerRead(&Fields, &Value) != XDER_VALUE ) goto cleanup;
+	for ( int i = 0; i < 2; i++ ) {
+		if ( xrtDerRead(&Fields, &Value) != XDER_VALUE ) goto cleanup;
+		Parts[i] = Value.Raw;
+	}
+	if ( !xrtDerDone(&Fields) ) goto cleanup;
+	bOk = xrtDerAppendUInt64(&Content, iVersion) &&
+		xrtBufferAppend(&Content, Parts[0]) &&
+		xrtBufferAppend(&Content, Parts[1]);
+	if ( bOk && Attributes.Data != NULL )
+		bOk = xrtDerAppend(&Content, XASN1_CONTEXT, 0u,
+			true, Attributes);
+	if ( bOk && Public.Data != NULL ) {
+		static const uint8 unused = 0;
+		bOk = xrtBufferAppend(&PublicBits,
+			(xbytesview){ &unused, 1u }) &&
+			xrtBufferAppend(&PublicBits, Public) &&
+			xrtDerAppend(&Content, XASN1_CONTEXT, 1u, false,
+				xrtBufferView(&PublicBits));
+	}
+	if ( bOk ) bOk = xrtDerAppend(&Encoded, XASN1_UNIVERSAL,
+		XASN1_SEQUENCE, true, xrtBufferView(&Content));
+	if ( bOk ) {
+		pResult = Encoded.Data;
+		*pOutSize = Encoded.Size;
+		Encoded.Data = NULL;
+		Encoded.Size = Encoded.Capacity = 0;
+	}
+
+cleanup:
+	if ( pDer != NULL ) {
+		xrtSecureZero(pDer, iDerSize);
+		xrtFree(pDer);
+	}
+	if ( Content.Data != NULL ) xrtSecureZero(Content.Data, Content.Size);
+	if ( Encoded.Data != NULL ) xrtSecureZero(Encoded.Data, Encoded.Size);
+	if ( PublicBits.Data != NULL )
+		xrtSecureZero(PublicBits.Data, PublicBits.Size);
+	xrtBufferUnit(&Content);
+	xrtBufferUnit(&Encoded);
+	xrtBufferUnit(&PublicBits);
+	return pResult;
+}
+
+static bytes pkcs8_with_attributes(const char* sPem,
+	xbytesview Attributes, size_t* pOutSize)
+{
+	return pkcs8_with_options(sPem, Attributes,
+		(xbytesview){ NULL, 0 }, 0u, pOutSize);
+}
+
+/* 从测试 SPKI 中取出公钥 BIT STRING 内容，供 OneAsymmetricKey 外层字段复用。 */
+static bytes spki_public_copy(const char* sPem, size_t* pOutSize)
+{
+	xpemblock Block;
+	xdercursor Outer, Fields;
+	xdervalue Value;
+	xbytesview Public;
+	uint8 iUnused;
+	size_t iDerSize = 0;
+	bytes pDer = NULL, pCopy = NULL;
+
+	*pOutSize = 0;
+	if ( !xrtPemFind(sPem, strlen(sPem), "PUBLIC KEY", &Block) )
+		return NULL;
+	pDer = xrtPemDecodeNew(&Block, &iDerSize);
+	if ( pDer == NULL || !xrtDerValidate(pDer, iDerSize) ||
+		!xrtDerInit(&Outer, pDer, iDerSize) ||
+		(xrtDerRead(&Outer, &Value) != XDER_VALUE) ||
+		!xrtDerEnter(&Value, &Fields) ||
+		(xrtDerRead(&Fields, &Value) != XDER_VALUE) ||
+		(xrtDerRead(&Fields, &Value) != XDER_VALUE) ||
+		!xrtDerBitString(&Value, &Public, &iUnused) ||
+		(iUnused != 0u) || !xrtDerDone(&Fields) ) goto cleanup;
+	pCopy = (bytes)xrtMalloc(Public.Size);
+	if ( pCopy != NULL ) {
+		memcpy(pCopy, Public.Data, Public.Size);
+		*pOutSize = Public.Size;
+	}
+cleanup:
+	xrtFree(pDer);
+	return pCopy;
+}
+
+static bool one_asym_public_offsets(const void* pDer, size_t iSize,
+	size_t* pTag, size_t* pUnused)
+{
+	xdercursor Outer, Fields;
+	xdervalue Value;
+
+	if ( !xrtDerInit(&Outer, pDer, iSize) ||
+		(xrtDerRead(&Outer, &Value) != XDER_VALUE) ||
+		!xrtDerEnter(&Value, &Fields) ) return false;
+	for ( int i = 0; i < 4; i++ ) {
+		if ( xrtDerRead(&Fields, &Value) != XDER_VALUE ) return false;
+	}
+	if ( !xrtDerDone(&Fields) ||
+		(Value.Tag.Class != XASN1_CONTEXT) ||
+		(Value.Tag.Number != 1u) || Value.Tag.Constructed ||
+		(Value.Value.Size < 2u) ) return false;
+	*pTag = (size_t)(Value.Raw.Data - (const uint8*)pDer);
+	*pUnused = (size_t)(Value.Value.Data - (const uint8*)pDer);
+	return true;
+}
+
+static bool rsa_private_der_rejected(const void* pDer, size_t iSize)
+{
+	str pem = xrtPemEncodeNew("PRIVATE KEY", pDer, iSize);
+	xrsaprivatekey key;
+	xjwt__rsa_owned* owned = NULL;
+	bool encoded = pem != NULL;
+	bool accepted = pem != NULL && xjwt__rsa_private_parse(pem, &key, &owned);
+	xjwt__rsa_owned_free(owned);
+	xrtFree(pem);
+	return encoded && !accepted;
+}
 
 int main(void)
 {
@@ -407,7 +599,131 @@ int main(void)
 		bool failed = xrtMemDebugFailTriggered();
 		xrtMemDebugFailClear();
 		CHECK(failed && token == NULL, "JWT signing fails closed on exp allocation");
+		CHECK(!xrtValueObjectHas(claims, xrtStrView("exp")) &&
+			!xrtValueObjectHas(claims, xrtStrView("iat")),
+			"JWT allocation failure leaves caller claims unchanged");
 		xrtFree(token);
+		xrtValueRelease(claims);
+	}
+
+	/* ---- HS/RS/ES 签发逐点 OOM：不发布令牌，不修改输入 ---- */
+	{
+		const int algorithms[] = {
+			XJWT_ALG_HS256, XJWT_ALG_RS256, XJWT_ALG_ES256
+		};
+		const char* keys[] = {
+			"test-secret", K_RSA_PRIV, K_EC_PRIV_PKCS8
+		};
+		const char* publicKeys[] = {
+			"test-secret", K_RSA_PUB, K_EC_PUB
+		};
+		for ( size_t alg = 0; alg < 3u; alg++ ) {
+			xvalue* claims = xrtValueObject();
+			xjwtconfig cfg;
+			bool armed = true, closed = true, unchanged = true;
+			bool completed = false, verified = false;
+			int injected = 0;
+			xrtValueObjectSetNew(claims, xrtStrView("sub"),
+				xrtValueString(xrtStrView("original")));
+			xjwtConfigInit(&cfg);
+			cfg.Alg = algorithms[alg];
+			cfg.KeyPem = keys[alg];
+			cfg.Subject = "configured";
+			cfg.ExpireSeconds = 3600;
+			for ( uint64 point = 0; point < 128u; point++ ) {
+				char original[32];
+				char* token;
+				bool hit;
+				if ( !xrtMemDebugFailAfter(point) ) {
+					armed = false;
+					break;
+				}
+				token = xjwtSign(&cfg, claims);
+				hit = xrtMemDebugFailTriggered();
+				xrtMemDebugFailClear();
+				if ( hit ) {
+					injected++;
+					if ( token != NULL ) {
+						printf("OOM issued token: alg=%d point=%llu\n",
+							algorithms[alg], (unsigned long long)point);
+						closed = false;
+					}
+				} else {
+					completed = token != NULL;
+					if ( token != NULL ) {
+						xvalue* out = xjwtVerify(token, publicKeys[alg], NULL);
+						char subject[32];
+						verified = out != NULL &&
+							xjwtClaimString(out, "sub", subject, sizeof(subject)) &&
+							strcmp(subject, "configured") == 0;
+						if ( out != NULL ) xrtValueRelease(out);
+					}
+				}
+				unchanged = unchanged &&
+					xjwtClaimString(claims, "sub", original, sizeof(original)) &&
+					strcmp(original, "original") == 0 &&
+					!xrtValueObjectHas(claims, xrtStrView("iat")) &&
+					!xrtValueObjectHas(claims, xrtStrView("exp"));
+				xrtFree(token);
+				xrtClearError();
+				if ( !hit ) break;
+			}
+			CHECK(armed && completed && verified && injected > 0,
+				"JWT HS/RS/ES OOM sweep reaches valid signing");
+			CHECK(closed, "JWT HS/RS/ES OOM never issues partial token");
+			CHECK(unchanged, "JWT HS/RS/ES OOM leaves caller claims intact");
+			xrtValueRelease(claims);
+		}
+	}
+
+	/* ---- 签发字段只进入 token；重复签发及后期失败不污染调用方 ---- */
+	{
+		xvalue* claims = xrtValueObject();
+		xrtValueObjectSetNew(claims, xrtStrView("iss"),
+			xrtValueString(xrtStrView("original")));
+		const xvalue* input = claims;
+		xjwtconfig cfg; xjwtConfigInit(&cfg);
+		cfg.KeyPem = "secret"; cfg.ExpireSeconds = 3600;
+		cfg.Issuer = "first";
+		char* token = xjwtSign(&cfg, input);
+		CHECK(token != NULL, "JWT signs const claims");
+		if ( token != NULL ) {
+			xvalue* out = xjwtVerify(token, "secret", NULL);
+			char issuer[32];
+			CHECK(out != NULL && xjwtClaimString(out, "iss", issuer, sizeof(issuer)) &&
+				strcmp(issuer, "first") == 0 &&
+				xrtValueObjectHas(out, xrtStrView("exp")),
+				"JWT config fields appear in signed claims");
+			xrtValueRelease(out);
+			xrtFree(token);
+		}
+		char original[32];
+		CHECK(xjwtClaimString(claims, "iss", original, sizeof(original)) &&
+			strcmp(original, "original") == 0 &&
+			!xrtValueObjectHas(claims, xrtStrView("exp")) &&
+			!xrtValueObjectHas(claims, xrtStrView("iat")),
+			"JWT successful signing leaves caller claims unchanged");
+
+		cfg.Issuer = "second"; cfg.ExpireSeconds = 0;
+		token = xjwtSign(&cfg, input);
+		CHECK(token != NULL, "JWT re-signs same claims");
+		if ( token != NULL ) {
+			xvalue* out = xjwtVerify(token, "secret", NULL);
+			char issuer[32];
+			CHECK(out != NULL && xjwtClaimString(out, "iss", issuer, sizeof(issuer)) &&
+				strcmp(issuer, "second") == 0 &&
+				!xrtValueObjectHas(out, xrtStrView("exp")),
+				"JWT repeat signing does not reuse injected claims");
+			xrtValueRelease(out);
+			xrtFree(token);
+		}
+		cfg.Alg = XJWT_ALG_RS256; cfg.KeyPem = "invalid PEM";
+		CHECK(xjwtSign(&cfg, input) == NULL,
+			"JWT invalid key fails after claims preparation");
+		CHECK(xjwtClaimString(claims, "iss", original, sizeof(original)) &&
+			strcmp(original, "original") == 0 &&
+			!xrtValueObjectHas(claims, xrtStrView("iat")),
+			"JWT signing failure leaves caller claims unchanged");
 		xrtValueRelease(claims);
 	}
 
@@ -450,6 +766,407 @@ int main(void)
 		xjwtJwksFree(jwks);
 		CHECK(xjwtJwksParse("{}") == NULL, "JWKS without keys rejected");
 		CHECK(xjwtJwksParse("not json") == NULL, "JWKS invalid JSON rejected");
+	}
+	{
+		xerror* marker = xrtErrorCreate(XERR_STATE, "xrt.jwt.test", 1,
+			"prior diagnostic");
+		CHECK(marker != NULL, "JWKS prior diagnostic fixture created");
+		if ( marker != NULL ) {
+			xrtSetError(marker);
+			xjwtjwks* jwks = xjwtJwksParse(K_JWKS);
+			CHECK(jwks != NULL && xrtGetError() == marker,
+				"successful JWKS parse preserves prior diagnostic");
+			xjwtJwksFree(jwks);
+			xrtClearError();
+			xrtErrorFree(marker);
+		}
+	}
+
+	/* ---- JWKS 解析逐分配点 OOM：不得返回缺钥的部分密钥集 ---- */
+	{
+		bool armed = true, closed = true, memoryError = true;
+		bool completed = false;
+		int injected = 0;
+
+		for ( uint64 point = 0; point < 512u; point++ ) {
+			xjwtjwks* jwks;
+			bool hit;
+
+			xrtClearError();
+			if ( !xrtMemDebugFailAfter(point) ) {
+				armed = false;
+				break;
+			}
+			jwks = xjwtJwksParse(K_JWKS);
+			hit = xrtMemDebugFailTriggered();
+			xrtMemDebugFailClear();
+			if ( hit ) {
+				injected++;
+				if ( xrtGetError() == NULL ||
+					xrtErrorKind(xrtGetError()) != XERR_MEMORY ) {
+					printf("OOM lost memory error: point=%llu\n",
+						(unsigned long long)point);
+					memoryError = false;
+				}
+				if ( jwks != NULL ) {
+					printf("OOM returned JWKS: point=%llu\n",
+						(unsigned long long)point);
+					closed = false;
+				}
+			} else {
+				completed = jwks != NULL && xrtGetError() == NULL;
+			}
+			xjwtJwksFree(jwks);
+			xrtClearError();
+			if ( !hit ) break;
+		}
+		CHECK(armed && completed && injected > 0,
+			"JWKS OOM sweep reaches a complete parse");
+		CHECK(closed, "JWKS allocation failure returns no partial set");
+		CHECK(memoryError, "JWKS allocation failure preserves memory error");
+	}
+
+	/* ---- HS/RS/ES 验签入口逐分配点 OOM：不可交付 claims 或丢失根因 ---- */
+	{
+		xjwtkey* key = xjwtKeyParse(K_RSA_PUB);
+		xjwtkey* ecKey = xjwtKeyParse(K_EC_PUB);
+		xjwtjwks* jwks = xjwtJwksParse(K_JWKS);
+		xvalue* hsClaims = xrtValueObject();
+		char* hsToken = hsClaims != NULL ?
+			xjwtHs256(hsClaims, "oom-secret", 3600) : NULL;
+		xrtValueRelease(hsClaims);
+		CHECK(key != NULL && ecKey != NULL && jwks != NULL &&
+			hsToken != NULL,
+			"JWT verification OOM fixtures created");
+		if ( key != NULL && ecKey != NULL && jwks != NULL &&
+			hsToken != NULL ) {
+			for ( int route = 0; route < 7; route++ ) {
+				bool armed = true, closed = true, memoryError = true;
+				bool completed = false;
+				int injected = 0;
+
+				for ( uint64 point = 0; point < 512u; point++ ) {
+					xvalue* claims;
+					bool hit;
+
+					xrtClearError();
+					if ( !xrtMemDebugFailAfter(point) ) {
+						armed = false;
+						break;
+					}
+					switch ( route ) {
+					case 0:
+						claims = xjwtVerify(K_TOKEN_RS256_OPENSSL,
+							K_RSA_PUB, NULL); break;
+					case 1:
+						claims = xjwtVerifyKey(K_TOKEN_RS256_OPENSSL,
+							key, NULL); break;
+					case 2:
+						claims = xjwtVerifyJwks(K_TOKEN_RS256_OPENSSL,
+							jwks, NULL); break;
+					case 3:
+						claims = xjwtVerify(hsToken, "oom-secret", NULL);
+						break;
+					case 4:
+						claims = xjwtVerify(K_TOKEN_ES256_OPENSSL,
+							K_EC_PUB, NULL); break;
+					case 5:
+						claims = xjwtVerifyKey(K_TOKEN_ES256_OPENSSL,
+							ecKey, NULL); break;
+					default:
+						claims = xjwtVerifyJwks(K_TOKEN_ES256_OPENSSL,
+							jwks, NULL); break;
+					}
+					hit = xrtMemDebugFailTriggered();
+					xrtMemDebugFailClear();
+					if ( hit ) {
+						injected++;
+						if ( claims != NULL ) {
+							printf("OOM verified token: route=%d point=%llu\n",
+								route, (unsigned long long)point);
+							closed = false;
+						}
+						if ( xrtGetError() == NULL ||
+							xrtErrorKind(xrtGetError()) != XERR_MEMORY ) {
+							printf("OOM lost verify error: route=%d point=%llu\n",
+								route, (unsigned long long)point);
+							memoryError = false;
+						}
+					} else {
+						completed = claims != NULL;
+					}
+					xrtValueRelease(claims);
+					xrtClearError();
+					if ( !hit ) break;
+				}
+				CHECK(armed && completed && injected > 0,
+					"JWT verification OOM sweep reaches a valid token");
+				CHECK(closed, "JWT verification allocation failure stays closed");
+				CHECK(memoryError,
+					"JWT verification allocation failure preserves memory error");
+			}
+		}
+		xjwtKeyFree(key);
+		xjwtKeyFree(ecKey);
+		xjwtJwksFree(jwks);
+		xrtFree(hsToken);
+	}
+
+	/* ---- 公钥缓存与可选解码输出逐分配点 OOM ---- */
+	{
+		static const char sentinel[] = "output sentinel";
+		for ( int route = 0; route < 5; route++ ) {
+			bool armed = true, closed = true, memoryError = true;
+			bool outputs = true, leakFree = true, completed = false;
+			int injected = 0;
+			for ( uint64 point = 0; point < 512u; point++ ) {
+				xjwtkey* key = NULL;
+				xvalue* value = NULL;
+				int alg = XJWT_ALG_HS512;
+				const char* kid = sentinel;
+				bool hit;
+				xrtClearError();
+				long before = g_probeLiveBytes;
+				if ( !xrtMemDebugFailAfter(point) ) {
+					armed = false;
+					break;
+				}
+				switch ( route ) {
+				case 0: key = xjwtKeyParse(K_RSA_PUB); break;
+				case 1: key = xjwtKeyParse(K_EC_PUB); break;
+				case 2: value = xjwtDecode(K_TOKEN_RS256_OPENSSL, NULL); break;
+				case 3: value = xjwtDecode(K_TOKEN_RS256_OPENSSL, &alg); break;
+				default:
+					value = xjwtDecodeHeader(K_TOKEN_RS256_OPENSSL, &alg, &kid);
+					break;
+				}
+				hit = xrtMemDebugFailTriggered();
+				xrtMemDebugFailClear();
+				if ( hit ) {
+					injected++;
+					if ( key != NULL || value != NULL ) {
+						printf("OOM returned parsed output: route=%d point=%llu\n",
+							route, (unsigned long long)point);
+						closed = false;
+					}
+					if ( xrtGetError() == NULL ||
+						xrtErrorKind(xrtGetError()) != XERR_MEMORY ) {
+						printf("OOM lost parse error: route=%d point=%llu\n",
+							route, (unsigned long long)point);
+						memoryError = false;
+					}
+					if ( (route >= 3 && alg != XJWT_ALG_INVALID) ||
+						(route == 4 && kid != NULL) ) outputs = false;
+				} else completed = key != NULL || value != NULL;
+				xjwtKeyFree(key);
+				xrtValueRelease(value);
+				if ( route == 4 && kid != NULL &&
+					kid != sentinel ) xrtFree((void*)kid);
+				xrtClearError();
+				if ( g_probeLiveBytes != before ) leakFree = false;
+				if ( !hit ) break;
+			}
+			CHECK(armed && completed && injected > 0,
+				"JWT key/decode OOM sweep reaches a complete result");
+			CHECK(closed, "JWT key/decode OOM returns no partial output");
+			CHECK(memoryError, "JWT key/decode OOM preserves memory error");
+			CHECK(outputs, "JWT decode OOM clears optional outputs");
+			CHECK(leakFree, "JWT key/decode OOM releases all owned memory");
+		}
+	}
+	{
+		const char* pems[] = {K_RSA_PUB, K_EC_PUB};
+		for ( int i = 0; i < 2; i++ ) {
+			xerror* marker = xrtErrorCreate(XERR_MEMORY, "xrt.jwt.test", 2,
+				"prior memory diagnostic");
+			CHECK(marker != NULL, "JWT cached-key prior diagnostic fixture created");
+			if ( marker != NULL ) {
+				xrtSetError(marker);
+				xjwtkey* key = xjwtKeyParse(pems[i]);
+				CHECK(key != NULL && xrtGetError() == marker,
+					"JWT cached-key parse preserves a prior memory diagnostic on success");
+				xjwtKeyFree(key);
+				xrtClearError();
+				xrtErrorFree(marker);
+			}
+		}
+		xrtClearError();
+		xjwtkey* key = xjwtKeyParse(K_EC_PUB);
+		CHECK(key != NULL && xrtGetError() == NULL,
+			"JWT EC cached-key success discards RSA probe diagnostics");
+		xjwtKeyFree(key);
+	}
+
+	/* ---- 解码失败清空输出，非对象与带 NUL 的算法名不能伪装合法字段 ---- */
+	{
+		int alg = XJWT_ALG_RS256;
+		const char* kid = "sentinel";
+		CHECK(xjwtDecodeHeader(NULL, &alg, &kid) == NULL &&
+			alg == XJWT_ALG_INVALID && kid == NULL &&
+			xjwtLastError() == XJWT_ERROR_ARGUMENT,
+			"JWT null header decode clears outputs and reports argument error");
+		alg = XJWT_ALG_RS256;
+		CHECK(xjwtDecode(NULL, &alg) == NULL && alg == XJWT_ALG_INVALID &&
+			xjwtLastError() == XJWT_ERROR_ARGUMENT,
+			"JWT null claims decode clears alg and reports argument error");
+		const char* headers[] = {"[1]", "{"};
+		for ( int i = 0; i < 2; i++ ) {
+			char* token = jwt_test_sign_json(headers[i], "{}", XJWT_ALG_HS256, "k");
+			CHECK(token != NULL, "JWT invalid-header signed fixture created");
+			if ( token != NULL ) {
+				alg = XJWT_ALG_RS256;
+				kid = "sentinel";
+				xvalue* value = xjwtDecodeHeader(token, &alg, &kid);
+				CHECK(value == NULL && alg == XJWT_ALG_INVALID && kid == NULL,
+					"JWT invalid header rejected with empty optional outputs");
+				xrtValueRelease(value);
+				value = xjwtDecode(token, &alg);
+				CHECK(value == NULL && alg == XJWT_ALG_INVALID,
+					"JWT claims decode with alg rejects an invalid header");
+				xrtValueRelease(value);
+			}
+			xrtFree(token);
+		}
+		char* token = jwt_test_sign_json("{\"alg\":\"HS256\"}", "[1]",
+			XJWT_ALG_HS256, "k");
+		CHECK(token != NULL, "JWT array-claims signed fixture created");
+		if ( token != NULL ) {
+			xvalue* value = xjwtDecode(token, NULL);
+			CHECK(value == NULL, "JWT claims decode rejects a JSON array");
+			xrtValueRelease(value);
+		}
+		xrtFree(token);
+		token = jwt_test_sign_json("{\"alg\":\"HS256\\u0000suffix\"}", "{}",
+			XJWT_ALG_HS256, "k");
+		CHECK(token != NULL, "JWT NUL-alg signed fixture created");
+		if ( token != NULL ) {
+			alg = XJWT_ALG_RS256;
+			xvalue* value = xjwtDecodeHeader(token, &alg, NULL);
+			CHECK(value != NULL && alg == XJWT_ALG_INVALID,
+				"JWT NUL-containing algorithm does not match a supported name");
+			xrtValueRelease(value);
+			value = xjwtVerify(token, "k", NULL);
+			CHECK(value == NULL && xjwtLastError() == XJWT_ERROR_ALG_MISMATCH,
+				"JWT valid HMAC cannot authorize a NUL-containing algorithm");
+			xrtValueRelease(value);
+		}
+		xrtFree(token);
+	}
+
+	/* ---- kid 字段存在时须为字符串，空值不等价于缺失 ---- */
+	{
+		const char* kid = NULL;
+		int alg = XJWT_ALG_INVALID;
+		xvalue* header = xjwtDecodeHeader(
+			"eyJhbGciOiJSUzI1NiIsImtpZCI6NDJ9.e30.AA",
+			&alg, &kid);
+		CHECK(header == NULL && kid == NULL,
+			"JWT numeric kid rejected before JWKS fallback");
+		xrtValueRelease(header);
+		xrtFree((void*)kid);
+		kid = NULL;
+		header = xjwtDecodeHeader(
+			"eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.e30.AA",
+			&alg, &kid);
+		CHECK(header != NULL && kid != NULL && kid[0] == '\0',
+			"JWT empty kid preserved as a present identifier");
+		xrtValueRelease(header);
+		xrtFree((void*)kid);
+		kid = NULL;
+		header = xjwtDecodeHeader(
+			"eyJhbGciOiJSUzI1NiJ9.e30.AA", &alg, &kid);
+		CHECK(header != NULL && kid == NULL && alg == XJWT_ALG_RS256,
+			"JWT absent kid remains valid");
+		xrtValueRelease(header);
+		xrtFree((void*)kid);
+		xvalue* claims = xrtValueObject();
+		xjwtconfig cfg; xjwtConfigInit(&cfg);
+		cfg.Alg = XJWT_ALG_RS256;
+		cfg.KeyPem = K_RSA_PRIV;
+		cfg.KeyId = "";
+		char* token = xjwtSign(&cfg, claims);
+		CHECK(token != NULL, "JWT signing accepts an empty configured kid");
+		if ( token != NULL ) {
+			xjwtjwks* noKid = xjwtJwksParse(K_JWKS_NOKID);
+			CHECK(noKid != NULL, "JWT no-kid key set fixture created");
+			xvalue* verified = noKid != NULL ? xjwtVerifyJwks(token, noKid, NULL) : NULL;
+			CHECK(verified == NULL && xjwtLastError() == XJWT_ERROR_KEY_NOT_FOUND,
+				"JWT empty kid never matches a key with no identifier");
+			xrtValueRelease(verified);
+			xjwtJwksFree(noKid);
+
+			xvalue* set = xrtJsonParse(xrtStrView(K_JWKS_NOKID));
+			xvalue* key = xrtValueArrayGet(xrtValueObjectGet(set, xrtStrView("keys")), 0);
+			bool configured = key != NULL && xrtValueObjectSetNew(key,
+				xrtStrView("kid"), xrtValueString(xrtStrView("")));
+			char* json = configured ? xrtJsonStringify(set, false, NULL) : NULL;
+			xjwtjwks* emptyKid = json != NULL ? xjwtJwksParse(json) : NULL;
+			CHECK(emptyKid != NULL, "JWT explicit empty-kid key set fixture created");
+			verified = emptyKid != NULL ? xjwtVerifyJwks(token, emptyKid, NULL) : NULL;
+			CHECK(verified != NULL, "JWT empty kid matches an explicit empty JWK kid");
+			xrtValueRelease(verified);
+			xjwtJwksFree(emptyKid);
+			xrtFree(json);
+			xrtValueRelease(set);
+		}
+		xrtFree(token);
+		xrtValueRelease(claims);
+	}
+
+	/* ---- NUL kid 不允许按 C 字符串前缀选钥 ---- */
+	{
+		char* token = jwt_test_sign_json(
+			"{\"alg\":\"RS256\",\"kid\":\"rsa-key-1\\u0000suffix\"}", "{}",
+			XJWT_ALG_RS256, K_RSA_PRIV);
+		xjwtjwks* jwks = xjwtJwksParse(K_JWKS);
+		xjwtkey* key = xjwtKeyParse(K_RSA_PUB);
+		CHECK(token != NULL && jwks != NULL && key != NULL,
+			"JWT NUL-kid signed fixtures created");
+		if ( token != NULL && jwks != NULL && key != NULL ) {
+			for ( int route = 0; route < 3; route++ ) {
+				xvalue* value;
+				if ( route == 0 ) value = xjwtVerify(token, K_RSA_PUB, NULL);
+				else if ( route == 1 ) value = xjwtVerifyKey(token, key, NULL);
+				else value = xjwtVerifyJwks(token, jwks, NULL);
+				CHECK(value == NULL && xjwtLastError() == XJWT_ERROR_PARSE,
+					"JWT NUL kid rejected before verification or prefix selection");
+				xrtValueRelease(value);
+			}
+		}
+		xrtFree(token);
+		xjwtJwksFree(jwks);
+		xjwtKeyFree(key);
+	}
+	{
+		const char* fields[] = {"kid", "kid", "kty", "crv"};
+		const char* values[] = {"rsa-key-1\0suffix", NULL, "RSA\0suffix", "P-256\0suffix"};
+		const size_t sizes[] = {16u, 0u, 10u, 12u};
+		for ( int i = 0; i < 4; i++ ) {
+			xvalue* set = xrtJsonParse(xrtStrView(K_JWKS));
+			xvalue* entry = xrtValueArrayGet(xrtValueObjectGet(set, xrtStrView("keys")),
+				i == 3 ? 1u : 0u);
+			bool changed = entry != NULL && xrtValueObjectSetNew(entry,
+				xrtStrView(fields[i]), values[i] == NULL ? xrtValueInt(42) :
+				xrtValueString(xrtStrViewN(values[i], sizes[i])));
+			char* json = changed ? xrtJsonStringify(set, false, NULL) : NULL;
+			xjwtjwks* jwks = json != NULL ? xjwtJwksParse(json) : NULL;
+			CHECK(jwks != NULL, "JWKS malformed-selector fixture parses");
+			if ( jwks != NULL ) {
+				xvalue* value = xjwtVerifyJwks(i == 3 ? K_TOKEN_ES256_OPENSSL :
+					K_TOKEN_RS256_OPENSSL, jwks, NULL);
+				CHECK(value == NULL && xjwtLastError() == XJWT_ERROR_KEY_NOT_FOUND,
+					"JWKS malformed selector cannot authorize a matching prefix token");
+				xrtValueRelease(value);
+				value = xjwtVerifyJwks(i == 3 ? K_TOKEN_RS256_OPENSSL :
+					K_TOKEN_ES256_OPENSSL, jwks, NULL);
+				CHECK(value != NULL,
+					"JWKS retains the other valid key after skipping a malformed selector");
+				xrtValueRelease(value);
+			}
+			xjwtJwksFree(jwks);
+			xrtFree(json);
+			xrtValueRelease(set);
+		}
 	}
 
 	/* ---- JWKS + RS256（带 kid）---- */
@@ -829,6 +1546,659 @@ int main(void)
 		CHECK(xjwtKeyParse(K_RSA_PRIV) == NULL, "LOW5 private PEM rejected");
 	}
 
+	/* ---- RSA 公钥 DER 结构与 JWA 最低密钥长度 ---- */
+	{
+		xpemblock block;
+		size_t derSize = 0;
+		unsigned char* der = NULL;
+		CHECK(xrtPemFind(K_RSA_PUB, strlen(K_RSA_PUB), "PUBLIC KEY", &block),
+			"RSA SPKI fixture found");
+		if ( xrtPemFind(K_RSA_PUB, strlen(K_RSA_PUB), "PUBLIC KEY", &block) )
+			der = xrtPemDecodeNew(&block, &derSize);
+		CHECK(der != NULL, "RSA SPKI fixture decoded");
+		if ( der != NULL ) {
+			xdercursor outer, body, algorithm;
+			xdervalue value;
+			const unsigned char *oid = NULL, *parameterTag = NULL,
+				*bitString = NULL;
+			xbytesview encodedKey = { NULL, 0 };
+			uint8 unusedBits = 0;
+			bool parsed = xrtDerInit(&outer, der, derSize) &&
+				xrtDerRead(&outer, &value) == XDER_VALUE &&
+				xrtDerEnter(&value, &body) &&
+				xrtDerRead(&body, &value) == XDER_VALUE &&
+				xrtDerEnter(&value, &algorithm) &&
+				xrtDerRead(&algorithm, &value) == XDER_VALUE;
+			if ( parsed ) {
+				oid = (const unsigned char*)value.Value.Data;
+				parsed = xrtDerRead(&algorithm, &value) == XDER_VALUE;
+				if ( parsed ) parameterTag = (const unsigned char*)value.Raw.Data;
+				parsed = parsed && xrtDerRead(&body, &value) == XDER_VALUE &&
+					xrtDerBitString(&value, &encodedKey, &unusedBits) &&
+					unusedBits == 0;
+				if ( parsed ) bitString = (const unsigned char*)value.Value.Data;
+			}
+			CHECK(parsed && oid != NULL && parameterTag != NULL &&
+				bitString != NULL,
+				"RSA SPKI structure available for mutation tests");
+			if ( parsed ) {
+				str pem = xrtPemEncodeNew("RSA PUBLIC KEY",
+					encodedKey.Data, encodedKey.Size);
+				xjwtkey* key = pem != NULL ? xjwtKeyParse(pem) : NULL;
+				CHECK(key != NULL, "valid PKCS#1 RSA public key accepted");
+				if ( key != NULL ) {
+					xvalue* out = xjwtVerifyKey(K_TOKEN_RS256_OPENSSL, key, NULL);
+					CHECK(out != NULL, "PKCS#1 RSA public key verifies RS256");
+					if ( out != NULL ) xrtValueRelease(out);
+					xjwtKeyFree(key);
+				}
+				xrtFree(pem);
+
+				unsigned char* changed = (unsigned char*)xrtMalloc(derSize + 1u);
+				CHECK(changed != NULL, "RSA DER mutation buffer allocated");
+				if ( changed != NULL ) {
+					memcpy(changed, der, derSize);
+					changed[(size_t)(oid - der) + 8u] = 0x0au;
+					CHECK(xrtDerValidate(changed, derSize),
+						"wrong-OID SPKI remains valid DER");
+					pem = xrtPemEncodeNew("PUBLIC KEY", changed, derSize);
+					CHECK(pem != NULL && xjwtKeyParse(pem) == NULL,
+						"SPKI with wrong RSA algorithm OID rejected");
+					xrtFree(pem);
+
+					memcpy(changed, der, derSize);
+					changed[(size_t)(parameterTag - der)] = 0x04u;
+					CHECK(xrtDerValidate(changed, derSize),
+						"wrong-parameter SPKI remains valid DER");
+					pem = xrtPemEncodeNew("PUBLIC KEY", changed, derSize);
+					CHECK(pem != NULL && xjwtKeyParse(pem) == NULL,
+						"SPKI with non-NULL RSA parameters rejected");
+					xrtFree(pem);
+
+					memcpy(changed, der, derSize);
+					changed[(size_t)(bitString - der)] = 1u;
+					changed[derSize - 1u] &= 0xfeu;
+					CHECK(xrtDerValidate(changed, derSize),
+						"nonzero-unused-bits SPKI remains valid DER");
+					pem = xrtPemEncodeNew("PUBLIC KEY", changed, derSize);
+					CHECK(pem != NULL && xjwtKeyParse(pem) == NULL,
+						"SPKI with nonzero unused BIT STRING bits rejected");
+					xrtFree(pem);
+
+					memcpy(changed, der, derSize);
+					changed[derSize] = 0u;
+					pem = xrtPemEncodeNew("PUBLIC KEY", changed, derSize + 1u);
+					CHECK(pem != NULL && xjwtKeyParse(pem) == NULL,
+						"SPKI with trailing DER byte rejected");
+					xrtFree(pem);
+					xrtFree(changed);
+				}
+			}
+			xrtFree(der);
+		}
+
+		unsigned char weakModulus[129] = { 0 };
+		xbuffer integers, weakDer;
+		weakModulus[1] = 0x80u;
+		weakModulus[128] = 1u;
+		xrtBufferInit(&integers);
+		xrtBufferInit(&weakDer);
+		bool weakBuilt = xrtDerAppend(&integers, XASN1_UNIVERSAL,
+			XASN1_INTEGER, false,
+			(xbytesview){ weakModulus, sizeof(weakModulus) }) &&
+			xrtDerAppendUInt64(&integers, 65537u) &&
+			xrtDerAppend(&weakDer, XASN1_UNIVERSAL,
+				XASN1_SEQUENCE, true, xrtBufferView(&integers));
+		CHECK(weakBuilt, "1024-bit RSA public DER fixture built");
+		if ( weakBuilt ) {
+			str pem = xrtPemEncodeNew("RSA PUBLIC KEY", weakDer.Data, weakDer.Size);
+			CHECK(pem != NULL && xjwtKeyParse(pem) == NULL,
+				"JWA rejects 1024-bit RSA public key");
+			xrtFree(pem);
+			str n = xjwt__base64url_encode(weakModulus + 1u, 128u);
+			if ( n != NULL ) {
+				char json[256];
+				int len = snprintf(json, sizeof(json),
+					"{\"keys\":[{\"kty\":\"RSA\",\"kid\":\"weak\",\"n\":\"%s\",\"e\":\"AQAB\"}]}", n);
+				CHECK(len > 0 && (size_t)len < sizeof(json),
+					"1024-bit RSA JWK fixture built");
+				if ( len > 0 && (size_t)len < sizeof(json) ) {
+					xjwtjwks* jwks = xjwtJwksParse(json);
+					CHECK(jwks != NULL && jwks->nKeys == 0,
+						"JWA skips 1024-bit RSA JWK");
+					xjwtJwksFree(jwks);
+				}
+				xrtFree(n);
+			}
+		}
+		xrtBufferUnit(&weakDer);
+		xrtBufferUnit(&integers);
+	}
+
+	/* ---- RSA 私钥 PKCS#8 算法标识、完整性与长度下限 ---- */
+	{
+		xpemblock block;
+		size_t derSize = 0;
+		unsigned char* der = NULL;
+		if ( xrtPemFind(K_RSA_PRIV, strlen(K_RSA_PRIV), "PRIVATE KEY", &block) )
+			der = xrtPemDecodeNew(&block, &derSize);
+		CHECK(der != NULL, "RSA PKCS#8 fixture decoded");
+		if ( der != NULL ) {
+			xdercursor outer, fields, algorithm;
+			xdervalue value;
+			const unsigned char *oid = NULL, *parameterTag = NULL;
+			bool parsed = xrtDerInit(&outer, der, derSize) &&
+				xrtDerRead(&outer, &value) == XDER_VALUE &&
+				xrtDerEnter(&value, &fields) &&
+				xrtDerRead(&fields, &value) == XDER_VALUE &&
+				xrtDerRead(&fields, &value) == XDER_VALUE &&
+				xrtDerEnter(&value, &algorithm) &&
+				xrtDerRead(&algorithm, &value) == XDER_VALUE;
+			if ( parsed ) {
+				oid = (const unsigned char*)value.Value.Data;
+				if ( xrtDerRead(&algorithm, &value) == XDER_VALUE )
+					parameterTag = (const unsigned char*)value.Raw.Data;
+			}
+			CHECK(oid != NULL && parameterTag != NULL,
+				"RSA PKCS#8 algorithm identifier located");
+			if ( oid != NULL && parameterTag != NULL ) {
+				unsigned char* changed = (unsigned char*)xrtMalloc(derSize + 1u);
+				CHECK(changed != NULL, "RSA private DER mutation buffer allocated");
+				if ( changed != NULL ) {
+					xvalue* claims = xrtValueObject();
+					memcpy(changed, der, derSize);
+					changed[(size_t)(oid - der) + 8u] = 0x0au;
+					CHECK(xrtDerValidate(changed, derSize),
+						"wrong-OID PKCS#8 remains valid DER");
+					str pem = xrtPemEncodeNew("PRIVATE KEY", changed, derSize);
+					char* token = pem != NULL ? xjwtRs256(claims, pem, 60) : NULL;
+					CHECK(pem != NULL && token == NULL,
+						"PKCS#8 with wrong RSA algorithm OID rejected");
+					xrtFree(token);
+					xrtFree(pem);
+
+					memcpy(changed, der, derSize);
+					changed[(size_t)(parameterTag - der)] = 0x04u;
+					CHECK(xrtDerValidate(changed, derSize),
+						"wrong-parameter PKCS#8 remains valid DER");
+					pem = xrtPemEncodeNew("PRIVATE KEY", changed, derSize);
+					token = pem != NULL ? xjwtRs256(claims, pem, 60) : NULL;
+					CHECK(pem != NULL && token == NULL,
+						"PKCS#8 with non-NULL RSA parameters rejected");
+					xrtFree(token);
+					xrtFree(pem);
+
+					memcpy(changed, der, derSize);
+					changed[derSize] = 0u;
+					pem = xrtPemEncodeNew("PRIVATE KEY", changed, derSize + 1u);
+					token = pem != NULL ? xjwtRs256(claims, pem, 60) : NULL;
+					CHECK(pem != NULL && token == NULL,
+						"PKCS#8 with trailing DER byte rejected");
+					xrtFree(token);
+					xrtFree(pem);
+					xrtValueRelease(claims);
+					xrtFree(changed);
+				}
+			}
+			xrtSecureZero(der, derSize);
+			xrtFree(der);
+		}
+
+		unsigned char weakModulus[129] = { 0 };
+		xbuffer integers, weakDer;
+		weakModulus[1] = 0x80u;
+		weakModulus[128] = 1u;
+		xrtBufferInit(&integers);
+		xrtBufferInit(&weakDer);
+		bool weakBuilt = xrtDerAppendUInt64(&integers, 0u) &&
+			xrtDerAppend(&integers, XASN1_UNIVERSAL, XASN1_INTEGER,
+				false, (xbytesview){ weakModulus, sizeof(weakModulus) }) &&
+			xrtDerAppendUInt64(&integers, 65537u);
+		for ( int i = 0; i < 6 && weakBuilt; i++ )
+			weakBuilt = xrtDerAppendUInt64(&integers, 3u);
+		if ( weakBuilt )
+			weakBuilt = xrtDerAppend(&weakDer, XASN1_UNIVERSAL,
+				XASN1_SEQUENCE, true, xrtBufferView(&integers));
+		CHECK(weakBuilt, "1024-bit RSA private DER fixture built");
+		if ( weakBuilt ) {
+			str pem = xrtPemEncodeNew("RSA PRIVATE KEY", weakDer.Data, weakDer.Size);
+			xvalue* claims = xrtValueObject();
+			char* token = pem != NULL ? xjwtRs256(claims, pem, 60) : NULL;
+			CHECK(pem != NULL && token == NULL,
+				"JWA rejects 1024-bit RSA signing key");
+			xrtFree(token);
+			xrtValueRelease(claims);
+			xrtFree(pem);
+		}
+		if ( integers.Data != NULL ) xrtSecureZero(integers.Data, integers.Size);
+		if ( weakDer.Data != NULL ) xrtSecureZero(weakDer.Data, weakDer.Size);
+		xrtBufferUnit(&weakDer);
+		xrtBufferUnit(&integers);
+	}
+
+	/* ---- ES256 公钥必须明确指定 P-256，且点、DER 均有效 ---- */
+	{
+		xpemblock block;
+		size_t derSize = 0;
+		unsigned char* der = NULL;
+		if ( xrtPemFind(K_EC_PUB, strlen(K_EC_PUB), "PUBLIC KEY", &block) )
+			der = xrtPemDecodeNew(&block, &derSize);
+		CHECK(der != NULL, "EC SPKI fixture decoded");
+		if ( der != NULL ) {
+			xdercursor outer, fields, algorithm;
+			xdervalue value;
+			xbytesview point = { NULL, 0 };
+			const unsigned char *algorithmOid = NULL, *curveOid = NULL;
+			uint8 unused = 0;
+			bool parsed = xrtDerInit(&outer, der, derSize) &&
+				xrtDerRead(&outer, &value) == XDER_VALUE &&
+				xrtDerEnter(&value, &fields) &&
+				xrtDerRead(&fields, &value) == XDER_VALUE &&
+				xrtDerEnter(&value, &algorithm) &&
+				xrtDerRead(&algorithm, &value) == XDER_VALUE;
+			if ( parsed ) {
+				algorithmOid = (const unsigned char*)value.Value.Data;
+				parsed = xrtDerRead(&algorithm, &value) == XDER_VALUE;
+				if ( parsed ) curveOid = (const unsigned char*)value.Value.Data;
+				parsed = parsed && xrtDerRead(&fields, &value) == XDER_VALUE &&
+					xrtDerBitString(&value, &point, &unused);
+			}
+			CHECK(parsed && algorithmOid != NULL && curveOid != NULL &&
+				point.Size == 65u && unused == 0u,
+				"EC SPKI mutation offsets located");
+			if ( parsed && point.Size == 65u ) {
+				unsigned char* changed = (unsigned char*)xrtMalloc(derSize + 1u);
+				CHECK(changed != NULL, "EC SPKI mutation buffer allocated");
+				if ( changed != NULL ) {
+					memcpy(changed, der, derSize);
+					changed[(size_t)(algorithmOid - der) + 6u] = 2u;
+					CHECK(xrtDerValidate(changed, derSize) &&
+						ec_public_der_rejected(changed, derSize),
+						"EC SPKI wrong algorithm OID rejected");
+					memcpy(changed, der, derSize);
+					changed[(size_t)(curveOid - der) + 7u] = 8u;
+					CHECK(xrtDerValidate(changed, derSize) &&
+						ec_public_der_rejected(changed, derSize),
+						"EC SPKI wrong named curve rejected");
+					memcpy(changed, der, derSize);
+					changed[(size_t)(point.Data - der)] = 2u;
+					CHECK(xrtDerValidate(changed, derSize) &&
+						ec_public_der_rejected(changed, derSize),
+						"EC SPKI non-uncompressed point rejected");
+					memcpy(changed, der, derSize);
+					changed[derSize] = 0u;
+					CHECK(ec_public_der_rejected(changed, derSize + 1u),
+						"EC SPKI trailing DER rejected");
+					xrtFree(changed);
+				}
+				unsigned char zeros[32] = { 0 };
+				str zero = xjwt__base64url_encode(zeros, sizeof(zeros));
+				str x = xjwt__base64url_encode(point.Data + 1u, 32u);
+				str y = xjwt__base64url_encode(point.Data + 33u, 32u);
+				CHECK(zero != NULL && x != NULL && y != NULL,
+					"EC JWKS coordinates encoded");
+				if ( zero != NULL && x != NULL && y != NULL ) {
+					char json[512];
+					int len = snprintf(json, sizeof(json),
+						"{\"keys\":[{\"kty\":\"EC\",\"kid\":\"stale\",\"crv\":\"P-256\",\"x\":\"%s\",\"y\":\"%s\"},"
+						"{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"%s\",\"y\":\"%s\"}]}",
+						zero, zero, x, y);
+					CHECK(len > 0 && (size_t)len < sizeof(json),
+						"EC mixed JWKS fixture built");
+					if ( len > 0 && (size_t)len < sizeof(json) ) {
+						xjwtjwks* jwks = xjwtJwksParse(json);
+						CHECK(jwks != NULL && jwks->nKeys == 1 &&
+							jwks->keys[0].kid[0] == 0 &&
+							memcmp(jwks->keys[0].ec65, point.Data, 65u) == 0,
+							"off-curve JWKS key skipped without stale kid");
+						xjwtJwksFree(jwks);
+					}
+				}
+				xrtFree(zero);
+				xrtFree(x);
+				xrtFree(y);
+			}
+			xrtFree(der);
+		}
+	}
+
+	/* ---- SEC1 私钥可选曲线和公钥必须与标量一致 ---- */
+	{
+		xpemblock block;
+		size_t derSize = 0;
+		unsigned char* der = NULL;
+		if ( xrtPemFind(K_EC_PRIV, strlen(K_EC_PRIV), "EC PRIVATE KEY", &block) )
+			der = xrtPemDecodeNew(&block, &derSize);
+		CHECK(der != NULL, "EC SEC1 fixture decoded");
+		if ( der != NULL ) {
+			xdercursor outer, fields, optional;
+			xdervalue value;
+			xbytesview scalar = { NULL, 0 }, point = { NULL, 0 };
+			const unsigned char *version = NULL, *curveOid = NULL;
+			uint8 unused = 0;
+			bool parsed = xrtDerInit(&outer, der, derSize) &&
+				xrtDerRead(&outer, &value) == XDER_VALUE &&
+				xrtDerEnter(&value, &fields) &&
+				xrtDerRead(&fields, &value) == XDER_VALUE;
+			if ( parsed ) {
+				version = (const unsigned char*)value.Value.Data;
+				parsed = xrtDerRead(&fields, &value) == XDER_VALUE &&
+					xrtDerOctets(&value, &scalar) &&
+					xrtDerRead(&fields, &value) == XDER_VALUE &&
+					xrtDerEnter(&value, &optional) &&
+					xrtDerRead(&optional, &value) == XDER_VALUE;
+				if ( parsed ) curveOid = (const unsigned char*)value.Value.Data;
+				parsed = parsed && xrtDerRead(&fields, &value) == XDER_VALUE &&
+					xrtDerEnter(&value, &optional) &&
+					xrtDerRead(&optional, &value) == XDER_VALUE &&
+					xrtDerBitString(&value, &point, &unused);
+			}
+			CHECK(parsed && version != NULL && curveOid != NULL &&
+				scalar.Size == 32u && point.Size == 65u && unused == 0u,
+				"EC SEC1 mutation offsets located");
+			if ( parsed && scalar.Size == 32u && point.Size == 65u ) {
+				unsigned char* changed = (unsigned char*)xrtMalloc(derSize + 1u);
+				CHECK(changed != NULL, "EC SEC1 mutation buffer allocated");
+				if ( changed != NULL ) {
+					memcpy(changed, der, derSize);
+					changed[(size_t)(version - der)] = 2u;
+					CHECK(xrtDerValidate(changed, derSize) &&
+						ec_private_der_rejected("EC PRIVATE KEY", changed, derSize),
+						"SEC1 wrong version rejected");
+					memcpy(changed, der, derSize);
+					changed[(size_t)(curveOid - der) + 7u] = 8u;
+					CHECK(xrtDerValidate(changed, derSize) &&
+						ec_private_der_rejected("EC PRIVATE KEY", changed, derSize),
+						"SEC1 wrong named curve rejected");
+					memcpy(changed, der, derSize);
+					memset(changed + (size_t)(scalar.Data - der), 0, 32u);
+					CHECK(xrtDerValidate(changed, derSize) &&
+						ec_private_der_rejected("EC PRIVATE KEY", changed, derSize),
+						"SEC1 zero private scalar rejected");
+					unsigned char one[32] = { 0 }, alternate[65];
+					one[31] = 1u;
+					bool alternateReady = xrtP256Public(one, alternate);
+					CHECK(alternateReady,
+						"alternate P-256 public point generated");
+					if ( alternateReady ) {
+						memcpy(changed, der, derSize);
+						memcpy(changed + (size_t)(point.Data - der), alternate, 65u);
+						CHECK(xrtDerValidate(changed, derSize) &&
+							ec_private_der_rejected("EC PRIVATE KEY", changed, derSize),
+							"SEC1 mismatched valid public point rejected");
+					}
+					memcpy(changed, der, derSize);
+					changed[derSize] = 0u;
+					CHECK(ec_private_der_rejected("EC PRIVATE KEY", changed,
+						derSize + 1u), "SEC1 trailing DER rejected");
+					xrtFree(changed);
+				}
+			}
+			xrtSecureZero(der, derSize);
+			xrtFree(der);
+		}
+	}
+
+	/* ---- PKCS#8 私钥算法标识必须是 P-256 ---- */
+	{
+		xpemblock block;
+		size_t derSize = 0;
+		unsigned char* der = NULL;
+		if ( xrtPemFind(K_EC_PRIV_PKCS8, strlen(K_EC_PRIV_PKCS8),
+			"PRIVATE KEY", &block) )
+			der = xrtPemDecodeNew(&block, &derSize);
+		CHECK(der != NULL, "EC PKCS#8 fixture decoded");
+		if ( der != NULL ) {
+			xdercursor outer, fields, algorithm;
+			xdervalue value;
+			const unsigned char *algorithmOid = NULL, *curveOid = NULL;
+			bool parsed = xrtDerInit(&outer, der, derSize) &&
+				xrtDerRead(&outer, &value) == XDER_VALUE &&
+				xrtDerEnter(&value, &fields) &&
+				xrtDerRead(&fields, &value) == XDER_VALUE &&
+				xrtDerRead(&fields, &value) == XDER_VALUE &&
+				xrtDerEnter(&value, &algorithm) &&
+				xrtDerRead(&algorithm, &value) == XDER_VALUE;
+			if ( parsed ) {
+				algorithmOid = (const unsigned char*)value.Value.Data;
+				parsed = xrtDerRead(&algorithm, &value) == XDER_VALUE;
+				if ( parsed ) curveOid = (const unsigned char*)value.Value.Data;
+			}
+			CHECK(parsed && algorithmOid != NULL && curveOid != NULL,
+				"EC PKCS#8 mutation offsets located");
+			if ( parsed ) {
+				unsigned char* changed = (unsigned char*)xrtMalloc(derSize + 1u);
+				CHECK(changed != NULL, "EC PKCS#8 mutation buffer allocated");
+				if ( changed != NULL ) {
+					memcpy(changed, der, derSize);
+					changed[(size_t)(algorithmOid - der) + 6u] = 2u;
+					CHECK(xrtDerValidate(changed, derSize) &&
+						ec_private_der_rejected("PRIVATE KEY", changed, derSize),
+						"EC PKCS#8 wrong algorithm OID rejected");
+					memcpy(changed, der, derSize);
+					changed[(size_t)(curveOid - der) + 7u] = 8u;
+					CHECK(xrtDerValidate(changed, derSize) &&
+						ec_private_der_rejected("PRIVATE KEY", changed, derSize),
+						"EC PKCS#8 wrong named curve rejected");
+					memcpy(changed, der, derSize);
+					changed[derSize] = 0u;
+					CHECK(ec_private_der_rejected("PRIVATE KEY", changed,
+						derSize + 1u), "EC PKCS#8 trailing DER rejected");
+					xrtFree(changed);
+				}
+			}
+			xrtSecureZero(der, derSize);
+			xrtFree(der);
+		}
+	}
+
+	/* ---- PKCS#8 可选 Attributes：RSA/EC 签发与畸形字段拒绝 ---- */
+	{
+		static const unsigned char attr[] = {
+			0x30, 0x0b, 0x06, 0x03, 0x2a, 0x03, 0x04,
+			0x31, 0x04, 0x0c, 0x02, 'o', 'k'
+		};
+		static const unsigned char emptyValues[] = {
+			0x30, 0x07, 0x06, 0x03, 0x2a, 0x03, 0x04,
+			0x31, 0x00
+		};
+		const char* fixtures[2] = { K_RSA_PRIV, K_EC_PRIV_PKCS8 };
+		const char* publicKeys[2] = { K_RSA_PUB, K_EC_PUB };
+		for ( int i = 0; i < 2; i++ ) {
+			size_t derSize = 0;
+			bytes der = pkcs8_with_attributes(fixtures[i],
+				(xbytesview){ attr, sizeof(attr) }, &derSize);
+			CHECK(der != NULL && xrtDerValidate(der, derSize),
+				"PKCS#8 with attribute encoded as valid DER");
+			if ( der != NULL ) {
+				str pem = xrtPemEncodeNew("PRIVATE KEY", der, derSize);
+				xvalue* claims = xrtValueObject();
+				char* token = pem != NULL ? (i == 0 ?
+					xjwtRs256(claims, pem, 60) :
+					xjwtEs256(claims, pem, 60)) : NULL;
+				CHECK(token != NULL,
+					"PKCS#8 with attribute signs RSA or ES256 token");
+				if ( token != NULL ) {
+					xvalue* verified = xjwtVerify(token, publicKeys[i], NULL);
+					CHECK(verified != NULL,
+						"PKCS#8 with attribute signature verifies");
+					if ( verified != NULL ) xrtValueRelease(verified);
+				}
+				xrtFree(token);
+				xrtValueRelease(claims);
+				xrtFree(pem);
+
+				bytes changed = (bytes)xrtMalloc(derSize);
+				CHECK(changed != NULL, "PKCS#8 attribute mutation buffer allocated");
+				if ( changed != NULL ) {
+					size_t tag = derSize - sizeof(attr) - 2u;
+					memcpy(changed, der, derSize);
+					changed[tag] = 0xa1u;
+					CHECK(xrtDerValidate(changed, derSize) &&
+						(i == 0 ? rsa_private_der_rejected(changed, derSize) :
+							ec_private_der_rejected("PRIVATE KEY", changed, derSize)),
+						"PKCS#8 wrong attribute context tag rejected");
+					memcpy(changed, der, derSize);
+					changed[tag + 4u] = 0x04u;
+					CHECK(xrtDerValidate(changed, derSize) &&
+						(i == 0 ? rsa_private_der_rejected(changed, derSize) :
+							ec_private_der_rejected("PRIVATE KEY", changed, derSize)),
+						"PKCS#8 attribute without OID rejected");
+					xrtSecureZero(changed, derSize);
+					xrtFree(changed);
+				}
+				xrtSecureZero(der, derSize);
+				xrtFree(der);
+			}
+
+			der = pkcs8_with_attributes(fixtures[i],
+				(xbytesview){ emptyValues, sizeof(emptyValues) }, &derSize);
+			CHECK(der != NULL && xrtDerValidate(der, derSize) &&
+				(i == 0 ? rsa_private_der_rejected(der, derSize) :
+					ec_private_der_rejected("PRIVATE KEY", der, derSize)),
+				"PKCS#8 attribute with empty value set rejected");
+			if ( der != NULL ) {
+				xrtSecureZero(der, derSize);
+				xrtFree(der);
+			}
+		}
+
+		unsigned char unsorted[2u * sizeof(attr)];
+		memcpy(unsorted, attr, sizeof(attr));
+		unsorted[6] = 0x05u;
+		memcpy(unsorted + sizeof(attr), attr, sizeof(attr));
+		size_t derSize = 0;
+		bytes der = pkcs8_with_attributes(K_RSA_PRIV,
+			(xbytesview){ unsorted, sizeof(unsorted) }, &derSize);
+		CHECK(der != NULL && xrtDerValidate(der, derSize) &&
+			rsa_private_der_rejected(der, derSize),
+			"PKCS#8 unsorted attribute SET rejected");
+		if ( der != NULL ) {
+			xrtSecureZero(der, derSize);
+			xrtFree(der);
+		}
+	}
+
+	/* ---- RFC 5958 OneAsymmetricKey：外层公钥、版本与私钥一致性 ---- */
+	{
+		static const unsigned char attr[] = {
+			0x30, 0x0b, 0x06, 0x03, 0x2a, 0x03, 0x04,
+			0x31, 0x04, 0x0c, 0x02, 'o', 'k'
+		};
+		const char* privateKeys[2] = { K_RSA_PRIV, K_EC_PRIV_PKCS8 };
+		const char* publicKeys[2] = { K_RSA_PUB, K_EC_PUB };
+		for ( int i = 0; i < 2; i++ ) {
+			size_t publicSize = 0, derSize = 0;
+			bytes publicBytes = spki_public_copy(publicKeys[i], &publicSize);
+			bytes der;
+
+			CHECK(publicBytes != NULL && publicSize != 0u,
+				"OneAsymmetricKey public fixture extracted");
+			if ( publicBytes == NULL ) continue;
+			for ( int withAttributes = 0; withAttributes < 2;
+				withAttributes++ ) {
+				der = pkcs8_with_options(privateKeys[i],
+					withAttributes ? (xbytesview){ attr, sizeof(attr) } :
+						(xbytesview){ NULL, 0 },
+					(xbytesview){ publicBytes, publicSize }, 1u, &derSize);
+				CHECK(der != NULL && xrtDerValidate(der, derSize),
+					"OneAsymmetricKey v2 encoded as valid DER");
+				if ( der != NULL ) {
+					str pem = xrtPemEncodeNew("PRIVATE KEY", der, derSize);
+					xvalue* claims = xrtValueObject();
+					char* token = pem != NULL ? (i == 0 ?
+						xjwtRs256(claims, pem, 60) :
+						xjwtEs256(claims, pem, 60)) : NULL;
+					CHECK(token != NULL,
+						"OneAsymmetricKey v2 signs RSA or ES256 token");
+					if ( token != NULL ) {
+						xvalue* verified = xjwtVerify(token,
+						publicKeys[i], NULL);
+						CHECK(verified != NULL,
+							"OneAsymmetricKey v2 signature verifies");
+						if ( verified != NULL ) xrtValueRelease(verified);
+					}
+					xrtFree(token);
+					xrtValueRelease(claims);
+					xrtFree(pem);
+					if ( !withAttributes ) {
+						size_t tag = 0, unused = 0;
+						bool located = one_asym_public_offsets(
+							der, derSize, &tag, &unused);
+						bytes changed = (bytes)xrtMalloc(derSize);
+						CHECK(located && changed != NULL,
+							"OneAsymmetricKey public field located");
+						if ( located && changed != NULL ) {
+							memcpy(changed, der, derSize);
+							changed[tag] = 0xa1u;
+							CHECK((i == 0 ? rsa_private_der_rejected(
+									changed, derSize) :
+								 ec_private_der_rejected("PRIVATE KEY",
+									changed, derSize)),
+								"OneAsymmetricKey rejects explicit public tag");
+							memcpy(changed, der, derSize);
+							changed[unused] = 1u;
+							CHECK(xrtDerValidate(changed, derSize) &&
+								(i == 0 ? rsa_private_der_rejected(
+									changed, derSize) :
+								 ec_private_der_rejected("PRIVATE KEY",
+									changed, derSize)),
+								"OneAsymmetricKey rejects nonzero unused bits");
+						}
+						if ( changed != NULL ) {
+							xrtSecureZero(changed, derSize);
+							xrtFree(changed);
+						}
+					}
+					xrtSecureZero(der, derSize);
+					xrtFree(der);
+				}
+			}
+			der = pkcs8_with_options(privateKeys[i],
+				(xbytesview){ NULL, 0 },
+				(xbytesview){ publicBytes, publicSize }, 0u, &derSize);
+			CHECK(der != NULL && xrtDerValidate(der, derSize) &&
+				(i == 0 ? rsa_private_der_rejected(der, derSize) :
+				 ec_private_der_rejected("PRIVATE KEY", der, derSize)),
+				"OneAsymmetricKey rejects v1 with an outer public key");
+			if ( der != NULL ) {
+				xrtSecureZero(der, derSize);
+				xrtFree(der);
+			}
+			der = pkcs8_with_options(privateKeys[i],
+				(xbytesview){ NULL, 0 },
+				(xbytesview){ NULL, 0 }, 1u, &derSize);
+			CHECK(der != NULL && xrtDerValidate(der, derSize) &&
+				(i == 0 ? rsa_private_der_rejected(der, derSize) :
+				 ec_private_der_rejected("PRIVATE KEY", der, derSize)),
+				"OneAsymmetricKey rejects v2 without an outer public key");
+			if ( der != NULL ) {
+				xrtSecureZero(der, derSize);
+				xrtFree(der);
+			}
+			if ( i == 0 ) {
+				publicBytes[publicSize - 1u] ^= 2u;
+			} else {
+				uint8 otherScalar[32] = { 0 };
+				otherScalar[31] = 1u;
+				CHECK(xrtP256Public(otherScalar, publicBytes),
+					"OneAsymmetricKey alternate EC public key created");
+			}
+			der = pkcs8_with_options(privateKeys[i],
+				(xbytesview){ NULL, 0 },
+				(xbytesview){ publicBytes, publicSize }, 1u, &derSize);
+			CHECK(der != NULL && xrtDerValidate(der, derSize) &&
+				(i == 0 ? rsa_private_der_rejected(der, derSize) :
+				 ec_private_der_rejected("PRIVATE KEY", der, derSize)),
+				"OneAsymmetricKey rejects mismatched outer public key");
+			if ( der != NULL ) {
+				xrtSecureZero(der, derSize);
+				xrtFree(der);
+			}
+			xrtFree(publicBytes);
+		}
+	}
+
 	/* ============ 二轮审计修复回归 ============ */
 
 	/* ---- M-A：JWKS 部分条目零泄漏（计数分配器实测） ---- */
@@ -971,7 +2341,7 @@ int main(void)
 	/* ---- fuzz：畸形输入不崩溃（确定性 LCG，2000 例） ---- */
 	{
 		unsigned int seed = 0x9E3779B9u;
-		const char* aAlphabet =
+		static const char aAlphabet[] =
 			"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.";
 		char aBuf[80];
 		for ( int iter = 0; iter < 2000; iter++ ) {
@@ -980,7 +2350,7 @@ int main(void)
 			if ( len >= sizeof(aBuf) ) len = sizeof(aBuf) - 1;
 			for ( size_t i = 0; i < len; i++ ) {
 				seed = seed * 1664525u + 1013904223u;
-				aBuf[i] = aAlphabet[seed % 65];
+				aBuf[i] = aAlphabet[seed % (sizeof(aAlphabet) - 1u)];
 			}
 			aBuf[len] = 0;
 			/* 四条解码/验证入口全喂一遍；返回值只做释放，不校验语义 */
@@ -1143,6 +2513,7 @@ int main(void)
 		}
 	}
 
+	CHECK(jwt_time_bounds_run(false) == 0, "RFC 7519 time bounds and leeway");
 	printf("\n%d pass, %d fail\n", s_pass, s_fail);
 	xjwtKeyFree(g_fuzzKey);
 	return s_fail > 0 ? 1 : 0;

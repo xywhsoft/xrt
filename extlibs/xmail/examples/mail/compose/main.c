@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include <xmail.h>
 
+#if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 
 
 /* 使用一行式 Compose 构建带 UTF-8 主题的文本邮件。 */
@@ -10,6 +15,14 @@ int main(void)
 	xmailaddress To;
 	str sOutput;
 	size_t iSize;
+	bool bOutputOk;
+
+#if defined(_WIN32)
+	if ( _setmode(_fileno(stdout), _O_BINARY) == -1 ) {
+		fputs("MIME output mode failed\n", stderr);
+		return 1;
+	}
+#endif
 
 	xrtMailMessageInit(&Message);
 	Message.From = (xmailaddress){
@@ -29,7 +42,12 @@ int main(void)
 	if ( sOutput == NULL ) {
 		return 1;
 	}
-	fwrite(sOutput, 1u, iSize, stdout);
+	bOutputOk = fwrite(sOutput, 1u, iSize, stdout) == iSize;
+	if ( fflush(stdout) != 0 ) bOutputOk = false;
 	xrtFree(sOutput);
+	if ( !bOutputOk ) {
+		fputs("MIME output failed\n", stderr);
+		return 1;
+	}
 	return 0;
 }

@@ -271,11 +271,9 @@ XRT_API bool xrtPop3CapabilityParse(
 		 (Line.Data[iPosition] != ' ') && (Line.Data[iPosition] != '\t') ) {
 		unsigned char iByte = (unsigned char)Line.Data[iPosition];
 
-		if ( !(((iByte >= (unsigned char)'A') &&
-			 (iByte <= (unsigned char)'Z')) ||
-			((iByte >= (unsigned char)'a') &&
-			 (iByte <= (unsigned char)'z')) ||
-			(iByte == (unsigned char)'-')) ) {
+		/* CAPA tags are extensible printable ASCII tokens, excluding '.'.
+		 * Digits and punctuation in unknown tags must not reject the session. */
+		if ( (iByte < 33u) || (iByte > 126u) || (iByte == '.') ) {
 			__xrtMailError(
 				XERR_PROTOCOL,
 				XMAIL_ERROR_PROTOCOL,

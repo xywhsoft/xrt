@@ -5,12 +5,12 @@ title: IMAP：服务端邮箱
 volume: 卷十一 其他扩展库
 type: practice
 lead: tagged 响应与 literal 流式读取、两级命令模型、SELECT 摘要与 IDLE 推送、COMPRESS 与流水线——服务器权威的收件协议。
-api: xmail-imap, xmail-imap_client, xmail-imap_command
+api: ximap-imap, ximap-imap_client, ximap-imap_command
 ---
 
 ## 导读
 
-IMAP 是 POP3（第 118 章）的"服务器权威"对偶：邮件留在服务端、文件夹/标记/搜索/FETCH 部分获取都在服务器上做——多设备同步的基石。协议复杂度也高一个量级：**tagged 响应模型**（每命令带唯一 tag，服务器响应按 tag 关联——支持流水线）；**literal 机制**（含任意字节的参数与响应走 `{N}` 长度声明——同步 literal 要等续行确认、`LITERAL+` 免同步）；**untagged 事件流**（EXISTS/RECENT/FETCH 更新随时插队）。xmail 的分层：协议原语（`imap`：响应/literal/capability/命令——不建邮箱对象不构造搜索条件，**未知扩展按原始文本可达**）→客户端（`imap_client`：两级命令模型——低层显式 tag 流水线 + 顺序便利层）→命令便利层（`imap_command`：SELECT/LIST/SEARCH/FETCH/IDLE 的安全构造）→ 专项层（auth/body/message/append/compress）。
+IMAP 是 POP3（第 118 章）的"服务器权威"对偶：邮件留在服务端、文件夹/标记/搜索/FETCH 部分获取都在服务器上做——多设备同步的基石。协议复杂度也高一个量级：**tagged 响应模型**（每命令带唯一 tag，服务器响应按 tag 关联——支持流水线）；**literal 机制**（含任意字节的参数与响应走 `{N}` 长度声明——同步 literal 要等续行确认、`LITERAL+` 免同步）；**untagged 事件流**（EXISTS/RECENT/FETCH 更新随时插队）。ximap 的分层：协议原语（`imap`：响应/literal/capability/命令——不建邮箱对象不构造搜索条件，**未知扩展按原始文本可达**）→客户端（`imap_client`：两级命令模型——低层显式 tag 流水线 + 顺序便利层）→命令便利层（`imap_command`：SELECT/LIST/SEARCH/FETCH/IDLE 的安全构造）→ 专项层（auth/body/message/append/compress）。
 
 ## 引入
 
@@ -46,6 +46,8 @@ IMAP 的三个机制值得开场。**其一：literal 流式**。FETCH 一封 20
 
 ## 示例
 
+本章命令在仓库根目录执行，构建器按清单选择模块、公共头和平台链接库，并输出构建及依赖测试日志。终端块摘录范例自身的输出。第二个程序在进程内启动回环服务器，只使用固定演示数据；真实服务的主机、端口、CA 与运行时凭据配置见相应客户端库的 README。
+
 ### 第一个完整程序：协议原语
 
 下面的程序来自 `examples/imap/protocol`——离线的响应与命令闭环：
@@ -54,25 +56,25 @@ IMAP 的三个机制值得开场。**其一：literal 流式**。FETCH 一封 20
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/ximap/examples/protocol/main.c -lws2_32 -liphlpapi
-（输出 IMAP 响应/literal/命令原语的离线自检结果）
+$ python tools/build.py --manifest extlibs/ximap/config/modules.json --suite imap --no-single --jobs 4
+status=1 command=A002 SELECT "INBOX"
 ```
 
-**刚才发生了什么。** ① 响应三类/状态五态/literal 三形态的解析验证全部无网络完成——与 SMTP/POP3 协议层同款"离线可测、无第二实现"。② literal 解析只产**长度与标记视图**——数据读取是客户端状态机的事（层间职责：解析层管语法、状态机管字节流）；这个切分让"literal 流式"成为可能：解析永远不碰数据本体。③ `QuoteWrite` 的转义（控制数据必须改走 literal）与 `CommandWrite` 的注入拒绝——发送侧的两道闸都在原语层可单测。
+**刚才发生了什么。** ① 程序用 `xrtImapResponseParse` 解析固定 tagged OK 响应，再用 `xrtImapCommandWrite` 构造带明确 tag 和邮箱参数的 SELECT 命令，输出状态与命令字节。② 命令中的邮箱参数已经带双引号，构造器校验线路语法与注入边界；调用方按参数类型选择 quoted string 或 literal。响应分类、literal 与转义的其他边界由同一套件的协议测试覆盖，实际读取正文仍由客户端状态机处理。
 
-### 第二个完整程序：会话与压缩配置
+### 第二个完整程序：只读邮箱查询
 
-第二个程序来自 `examples/imap/client`——真实会话与 COMPRESS 协商：
+第二个程序来自 `extlibs/ximap/examples/offline/main.c`.
 
-```embed path="extlibs/ximap/examples/client/main.c" title="extlibs/ximap/examples/client/main.c"
+```embed path="extlibs/ximap/examples/offline/main.c" title="extlibs/ximap/examples/offline/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/ximap/examples/client/main.c -lws2_32 -liphlpapi
-（对配置的 IMAP 服务器完成会话与压缩协商后正常退出）
+$ python tools/build.py --manifest extlibs/ximap/config/modules.json --suite imap_offline_example --no-single --jobs 4
+offline IMAP EXAMINE: INBOX has 2 messages (read-only)
 ```
 
-**刚才发生了什么。** ① `ImapCompressConfigInit/Valid`——压缩线路的配置校验（窗口/等级等）；认证后执行 COMPRESS 命令、其后线路字节即 DEFLATE 流。② 压缩的意义与代价：移动网络省 60-80% 线路字节；CPU 换带宽——配置层的 Valid 就是"代价声明"的入口。③ 会话骨架（Open→CAPABILITY→认证→SELECT→…→Logout）贯穿两级命令模型——本示例聚焦压缩插入点；`message`/`body` 示例覆盖 FETCH 流式与 MIME 边界的消费侧。
+**刚才发生了什么。** ① 程序在进程内创建回环 IMAP 服务器，客户端实际读取欢迎响应并建立顺序命令会话。服务器与客户端使用固定演示账户完成 LOGIN；明文认证的允许配置只用于这个本地夹具。② 客户端调用 `xrtImapClientExamine`，读取 INBOX 的只读状态与两封邮件计数，验证选中状态及返回的邮箱事实，再等待命令的 tagged completion。EXAMINE 不改变服务器消息标记，适合展示只读检查的最短路径。③ LOGOUT 后程序等待服务器线程正常结束，关闭并销毁监听器、解析器和网络引擎；成功输出代表命令结果与服务器脚本均已核对。压缩扩展需要另行建立认证后的协商与流解码流程，压缩测试和真实客户端配置见库的 README。
 
 ## 契约
 

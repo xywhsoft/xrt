@@ -97,7 +97,7 @@ XRT_API xmailsecurity xrtPop3ClientSecurity(const xpop3client* pClient);
 
 
 
-/* 取得最近状态行的稳定借用视图。 */
+/* 取得最近有效状态行的稳定借用视图；畸形行不会覆盖它。 */
 XRT_API bool xrtPop3ClientLastReply(
 	const xpop3client* pClient,
 	xpop3reply* pReply

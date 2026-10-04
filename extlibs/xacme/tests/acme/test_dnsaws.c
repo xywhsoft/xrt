@@ -28,6 +28,32 @@ static size_t countText(cstr sText, cstr sNeedle)
 	return iCount;
 }
 
+/* 按 AWS SigV4 公式独立计算的 Route53 派生密钥固定向量。 */
+static void testAwsSigningKey(void)
+{
+	static const uint8 Expected[32] = {
+		0x88, 0x6c, 0x84, 0x4a, 0x71, 0xd6, 0x55, 0x04,
+		0x13, 0xda, 0xae, 0xf6, 0xb8, 0x3a, 0xdd, 0xe8,
+		0x18, 0x53, 0x27, 0xc9, 0xf0, 0x37, 0x94, 0x22,
+		0x25, 0x05, 0x8c, 0x67, 0x93, 0xc0, 0x37, 0xef
+	};
+	char sTooLong[256];
+	uint8 Key[32];
+	testRequire(xacmeAwsSigningKey(
+		"wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+		"20130524", "us-east-1", Key) &&
+		memcmp(Key, Expected, sizeof(Key)) == 0,
+		"aws Route53 SigV4 signing key vector mismatch");
+	memset(sTooLong, 's', sizeof(sTooLong) - 1u);
+	sTooLong[sizeof(sTooLong) - 1u] = '\0';
+	xrtClearError();
+	testRequire(!xacmeAwsSigningKey(sTooLong, "20130524",
+		"us-east-1", Key) &&
+		xrtErrorKind(xrtGetError()) == XERR_RANGE,
+		"aws Route53 must reject a truncated signing secret");
+	xrtClearError();
+}
+
 static void testOfflineZones(void)
 {
 	static const char* sMixed =
@@ -201,8 +227,102 @@ static void testOfflineRecordSet(void)
 	}
 }
 
+static void testAwsChangeAcknowledgment(void)
+{
+	static const char* Valid[] = {
+		"<ChangeResourceRecordSetsResponse><ChangeInfo><Id>/change/1</Id><Status>PENDING</Status><SubmittedAt>2026-10-01T00:00:00Z</SubmittedAt></ChangeInfo></ChangeResourceRecordSetsResponse>",
+		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ChangeResourceRecordSetsResponse xmlns=\"https://route53.amazonaws.com/doc/2013-04-01/\"><ChangeInfo><Comment>a &amp; b</Comment><Id>/change/1</Id><Status>INSYNC</Status><SubmittedAt>2026-10-01T00:00:00.123Z</SubmittedAt></ChangeInfo></ChangeResourceRecordSetsResponse>\n",
+		"<ChangeResourceRecordSetsResponse><ChangeInfo><Comment/><Id>/change/1</Id><Status>PENDING</Status><SubmittedAt>2026-10-01T00:00:00Z</SubmittedAt></ChangeInfo></ChangeResourceRecordSetsResponse>"
+	};
+	static const char* Invalid[] = {
+		NULL, "", "<ErrorResponse><Code>AccessDenied</Code></ErrorResponse>",
+		"<?xml version=\"1.0\"",
+		"<ChangeResourceRecordSetsResponse><ChangeInfo><Id>1</Id><Status>PENDING</Status></ChangeInfo></ChangeResourceRecordSetsResponse>",
+		"<ChangeResourceRecordSetsResponse><ChangeInfo><Id>1</Id><Status>FAILED</Status><SubmittedAt>x</SubmittedAt></ChangeInfo></ChangeResourceRecordSetsResponse>",
+		"<ChangeResourceRecordSetsResponse><ChangeInfo><Id></Id><Status>PENDING</Status><SubmittedAt>x</SubmittedAt></ChangeInfo></ChangeResourceRecordSetsResponse>",
+		"<ChangeResourceRecordSetsResponse><ChangeInfo><Id>1</Id><Status>PENDING</Status><SubmittedAt></SubmittedAt></ChangeInfo></ChangeResourceRecordSetsResponse>",
+		"<ChangeResourceRecordSetsResponse><ChangeInfo><Id>1</Id><Status>PENDING</Status><SubmittedAt>x</SubmittedAt></ChangeInfo>",
+		"<ChangeResourceRecordSetsResponse><ChangeInfo><Id>1</Id><Status>PENDING</Status><SubmittedAt>x</SubmittedAt></ChangeInfo></ChangeResourceRecordSetsResponse>extra",
+		"<ChangeResourceRecordSetsResponse><ChangeInfo><Id>1</Id><Id>2</Id><Status>PENDING</Status><SubmittedAt>x</SubmittedAt></ChangeInfo></ChangeResourceRecordSetsResponse>"
+	};
+	for(size_t i = 0u; i < sizeof(Valid) / sizeof(Valid[0]); i++)
+		testRequire(xacmeAwsChangeAccepted(Valid[i]), "valid Route53 change acknowledgment rejected");
+	for(size_t i = 0u; i < sizeof(Invalid) / sizeof(Invalid[0]); i++)
+		testRequire(!xacmeAwsChangeAccepted(Invalid[i]), "invalid Route53 change acknowledgment accepted");
+}
+
+static void testAwsErrorEnvelope(void)
+{
+	static const struct { cstr sXml; cstr sCode; } Valid[] = {
+		{ "<ErrorResponse><Error><Code>InvalidChangeBatch</Code></Error></ErrorResponse>", "InvalidChangeBatch" },
+		{ "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ErrorResponse xmlns=\"https://route53.amazonaws.com/doc/2013-04-01/\"><Error><Type>Sender</Type><Code>Throttling</Code><Message>Rate &amp; &#101;xceeded</Message></Error><RequestId>x</RequestId></ErrorResponse>\n", "Throttling" },
+		{ "<?xml version='1.0' encoding='UTF-8'?><!--before--><r:ErrorResponse xmlns:r='http://route53.amazonaws.com/doc/2013-04-01/'><r:Error><r:Message/><r:Code>PriorRequestNotComplete</r:Code><r:Type /></r:Error><r:RequestId /></r:ErrorResponse><!--after-->", "PriorRequestNotComplete" },
+		{ "<ErrorResponse ><Error><Code>Invalid&#x43;hange<!-- split -->Batch</Code><Messages><Message>a &lt; b</Message><Message><![CDATA[raw <&>]]></Message></Messages></Error></ErrorResponse>", "InvalidChangeBatch" },
+		{ "\xef\xbb\xbf<?xml version=\"1.0\"?><ErrorResponse><Error><Code><![CDATA[AccessDenied]]></Code><Message>\xe4\xb8\xad\xf0\x9f\x98\x80</Message></Error></ErrorResponse>", "AccessDenied" },
+		{ "<ErrorResponse><Error><Code>InvalidInput</Code><Message>InvalidChangeBatch</Message></Error></ErrorResponse>", "InvalidInput" },
+		{ "<ErrorResponse><Error><Code>InvalidChangeBatchExtra</Code><Messages /></Error></ErrorResponse>", "InvalidChangeBatchExtra" }
+	};
+	static const cstr Invalid[] = {
+		"", "<ErrorResponse><Code>InvalidChangeBatch</Code></ErrorResponse>",
+		"<ErrorResponse><Error><Code /></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code></Code></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code> InvalidChangeBatch</Code></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Code>InvalidInput</Code></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code></Error><Error><Code>InvalidInput</Code></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code></Error></ErrorResponse>x",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Message>&bogus;</Message></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Message>&#0;</Message></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Message>&#xD800;</Message></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Message>&#x110000;</Message></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Message>&#;</Message></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Message>&#xG;</Message></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Message>\xc0\xaf</Message></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Message>\xed\xa0\x80</Message></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Message>\x01</Message></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><!--bad--comment--></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Message>]]></Message></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Message><Code>InvalidInput</Code></Message></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code><Message/><Message/></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>InvalidChangeBatch</Code></Error><RequestId/><RequestId/></ErrorResponse>",
+		"<ErrorResponse xmlns='urn:other'><Error><Code>InvalidChangeBatch</Code></Error></ErrorResponse>",
+		"<r:ErrorResponse><r:Error><r:Code>InvalidChangeBatch</r:Code></r:Error></r:ErrorResponse>",
+		"<r:ErrorResponse xmlns:r='https://route53.amazonaws.com/doc/2013-04-01/'><Error><Code>InvalidChangeBatch</Code></Error></r:ErrorResponse>",
+		"<!DOCTYPE ErrorResponse><ErrorResponse><Error><Code>InvalidChangeBatch</Code></Error></ErrorResponse>",
+		"<?xml version=\"1.0\" encoding=\"UTF-16\"?><ErrorResponse><Error><Code>InvalidChangeBatch</Code></Error></ErrorResponse>",
+		"<ErrorResponse><Error><Code>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA</Code></Error></ErrorResponse>"
+	};
+	char Code[64];
+	for(size_t i = 0u; i < sizeof(Valid) / sizeof(Valid[0]); i++) {
+		size_t iSize = strlen(Valid[i].sXml);
+		testRequire(xacmeAwsErrorCode((xstrview){ Valid[i].sXml, iSize }, Code) &&
+			strcmp(Code, Valid[i].sCode) == 0, "valid Route53 error envelope rejected or code misread");
+		/* Every truncated input is bounded; trailing XML whitespace/comments
+		 * can themselves form a complete document, so only test before root close. */
+		const char* pClose = strstr(Valid[i].sXml, "</ErrorResponse>");
+		if(pClose != NULL) for(size_t n = 0u; n < (size_t)(pClose - Valid[i].sXml) + 16u; n++) {
+			strcpy(Code, "stale");
+			testRequire(!xacmeAwsErrorCode((xstrview){ Valid[i].sXml, n }, Code) && Code[0] == '\0',
+				"truncated Route53 error accepted or stale output retained");
+		}
+	}
+	for(size_t i = 0u; i < sizeof(Invalid) / sizeof(Invalid[0]); i++) {
+		strcpy(Code, "stale");
+		testRequire(!xacmeAwsErrorCode((xstrview){ Invalid[i], strlen(Invalid[i]) }, Code) && Code[0] == '\0',
+			"invalid Route53 error envelope accepted or stale output retained");
+	}
+	{
+		const char Nul[] = "<ErrorResponse><Error><Code>InvalidChangeBatch</Code></Error></ErrorResponse>\0x";
+		testRequire(!xacmeAwsErrorCode((xstrview){ Nul, sizeof(Nul) - 1u }, Code) &&
+			!xacmeAwsErrorCode((xstrview){ NULL, 1u }, Code) && !xacmeAwsErrorCode((xstrview){ "x", 4194305u }, Code) &&
+			!xacmeAwsErrorCode((xstrview){ "x", 1u }, NULL), "error parser argument/size boundary failed");
+	}
+}
+
 int main(void)
 {
+	testAwsErrorEnvelope();
+	testAwsChangeAcknowledgment();
+	testAwsSigningKey();
 	testOfflineZones();
 	testOfflineRecordSet();
 	const char* sKey = getenv("XACME_AWS_KEY");

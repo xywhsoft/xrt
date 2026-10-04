@@ -5,7 +5,7 @@ title: Composed Sending: Attachments, Encodings, and the Send-Receive Loop
 volume: 卷十一 其他扩展库
 type: practice
 lead: A one-line Compose of structured mail, three-layer automatic multipart selection, the SMTP submission loop and the Bcc boundary — the concluding fusion of xmail's five chapters.
-api: xmail-mail_compose, xmail-smtp_submit, xmail-mail
+api: xmail-mail_compose, xsmtp-smtp_submit, xmail-mail
 ---
 
 ## Orientation
@@ -62,6 +62,8 @@ Encoding policy: text QP (Chapter 116's MIME line-width form); attachments **Bas
 
 ## Examples
 
+Run these commands from the repository root. The builder selects modules, public headers and platform libraries from the manifest, and also prints build and dependency-test logs. Terminal blocks show the example output. The second program starts a loopback server within the process and uses fixed demonstration data. See the client library README for real-service host, port, CA and runtime credential configuration.
+
 ### First complete program: one-line Compose
 
 The program below is from `examples/mail/compose` — the shortest path to a UTF-8-subject text mail:
@@ -70,25 +72,25 @@ The program below is from `examples/mail/compose` — the shortest path to a UTF
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/mail/compose/main.c -lws2_32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xmail/config/modules.json --suite mail_compose --no-single --jobs 4
 （输出完整 MIME 报文——含编码词主题与 QP 正文）
 ```
 
 **What just happened.** (1) `MailMessageInit` + five field assignments (sender/recipient/Subject `示例邮件` (sample mail)/body) — **all borrowed** (string literals go straight into the struct, zero copy, zero tree). (2) `xrtMailCompose` produces the complete message in one line: the Chinese Subject automatically encoded-worded (`=?utf-8?B?...?=`), plain text QP-encoded, Date/Message-ID secure-random — **every decision of hand-made MIME's twenty lines happens automatically here**. (3) After fwrite of the output, `xrtFree` — this outlet is the "complete message" form (for streaming, switch to `ComposeWrite`+sink: attachments enter the sink in chunks). (4) Parse this output back with Chapter 116's `MailMessageParse` — **sending and receiving use the same parsing vocabulary**, the loop is self-consistent.
 
-### Second complete program: Submit
+### Second complete program: local Submit
 
-The second program is from `examples/smtp/submit` — the highest-level send:
+The second program is from `extlibs/xsmtp/examples/offline/main.c`.
 
-```embed path="extlibs/xsmtp/examples/submit/main.c" title="extlibs/xsmtp/examples/submit/main.c"
+```embed path="extlibs/xsmtp/examples/offline/main.c" title="extlibs/xsmtp/examples/offline/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xsmtp/examples/submit/main.c -lws2_32 -liphlpapi
-（对配置的服务器完成一次提交后正常退出）
+$ python tools/build.py --manifest extlibs/xsmtp/config/modules.json --suite smtp_offline_example --no-single --jobs 4
+offline SMTP submission: message accepted
 ```
 
-**What just happened.** (1) The same `xmailmessage` description (From/To/Subject/Text) → `xrtSmtpSubmit(pClient, &Message, iDeadline, NULL)` in one line — internally Compose + envelope derivation + session commands + streaming send. (2) Deadline and cancellation run throughout (Chapter 117's blocking shape unchanged — the discipline holds as layers rise). (3) Against Chapter 117's client sample (self-supplied complete message): that one is "I control every byte", this one is "I describe business intent" — **the same session, two altitudes**. The attachment version just fills the `Attachments` array to get multipart/mixed — the composition layer upgrades the structure automatically.
+**What just happened.** (1) The offline program fills From, To, Subject and Text using the same structured-message interface as the first example, then passes the description to `xrtSmtpSubmit`. Compose owns the message; the SMTP client owns envelope and DATA. Submission belongs to xsmtp, MIME composition to xmail, with each layer using its public API. (2) The in-process server checks the subject, body and DATA terminator actually received, then returns success; the client sends QUIT. Acceptance is printed only when both client and server succeed, making this an executable submission loop. (3) Demonstration addresses and plaintext traffic stay within the local fixture and send nothing to external mailboxes. Real services use the submission example and README configuration for CA, account and runtime credentials. Submission success means server acceptance, not arrival in the recipient inbox; production callers record submission, shutdown diagnostics and independent receipt evidence separately.
 
 ## Contracts
 

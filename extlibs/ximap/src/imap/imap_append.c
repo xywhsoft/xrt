@@ -148,8 +148,24 @@ static bool __xrtImapAppendWait(
 			return false;
 		}
 		if ( Next == XMAIL_NEXT_END ) {
+			ximapresponseview Final;
+
+			if ( !xrtImapClientLastResponse(pClient, &Final) ) {
+				return __xrtImapClientProtocolFail(
+					pClient,
+					"missing IMAP APPEND completion"
+				);
+			}
+			if ( (Final.Status != XIMAP_STATUS_NO) &&
+				(Final.Status != XIMAP_STATUS_BAD) ) {
+				return __xrtImapClientProtocolFail(
+					pClient,
+					"IMAP APPEND completed before literal upload"
+				);
+			}
 			return __xrtImapAppendError(
-				XERR_PERMISSION,
+				Final.Status == XIMAP_STATUS_NO ?
+					XERR_PERMISSION : XERR_PROTOCOL,
 				"IMAP APPEND was rejected before literal upload"
 			);
 		}
@@ -248,7 +264,7 @@ XRT_API bool xrtImapClientAppendBegin(
 	str sMailbox = NULL;
 	str sDate = NULL;
 	size_t iCount = 0;
-	bool bNonSynchronizing;
+	bool bNonSynchronizing = false;
 	bool bSuccess = false;
 
 	if ( (pClient == NULL) ||
@@ -259,6 +275,9 @@ XRT_API bool xrtImapClientAppendBegin(
 		!__xrtImapAppendFlagsValid(pConfig->Flags) ) {
 		__xrtMailSetInvalidArgument();
 		return false;
+	}
+	if ( (uint64)pConfig->Size > (uint64)INT64_MAX ) {
+		return __xrtImapAppendError(XERR_RANGE, "IMAP APPEND size exceeds 63 bits");
 	}
 	if ( (xrtImapClientState(pClient) != XIMAP_CLIENT_AUTHENTICATED) &&
 		(xrtImapClientState(pClient) != XIMAP_CLIENT_SELECTED) ) {
@@ -392,10 +411,18 @@ XRT_API bool xrtImapClientAppendEnd(
 			if ( !xrtImapClientLastResponse(pClient, &Final) ) {
 				return false;
 			}
-			if ( Final.Status != XIMAP_STATUS_OK ) {
+			if ( (Final.Status == XIMAP_STATUS_NO) ||
+				(Final.Status == XIMAP_STATUS_BAD) ) {
 				return __xrtImapAppendError(
-					XERR_PERMISSION,
+					Final.Status == XIMAP_STATUS_NO ?
+						XERR_PERMISSION : XERR_PROTOCOL,
 					"IMAP APPEND was rejected"
+				);
+			}
+			if ( Final.Status != XIMAP_STATUS_OK ) {
+				return __xrtImapClientProtocolFail(
+					pClient,
+					"invalid IMAP APPEND completion status"
 				);
 			}
 			if ( !__xrtImapAppendResult(Final.Text, &Result) ) {

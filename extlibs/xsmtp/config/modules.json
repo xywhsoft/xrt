@@ -301,6 +301,26 @@
 			"legacy": []
 		},
 		{
+			"name": "smtp_upload_tls_fault_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"smtp_client_tls",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xsmtp/tests/test_smtp_upload_tls_fault_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
 			"name": "smtp_protocol_oom_tests",
 			"state": "implemented",
 			"feature": null,
@@ -346,7 +366,8 @@
 				"extlibs/xsmtp/tests/test_smtp_submit.c",
 				"extlibs/xsmtp/tests/test_smtp_auth.c",
 				"extlibs/xsmtp/tests/test_smtp_client_starttls_runtime.c",
-				"extlibs/xsmtp/tests/test_xsmtp_protocol_oom.c"
+				"extlibs/xsmtp/tests/test_xsmtp_protocol_oom.c",
+				"extlibs/xsmtp/tests/test_smtp_upload_tls_fault_runtime.c"
 			],
 			"single_tests": [
 				"extlibs/xsmtp/tests/single/test_single_xsmtp.c"
@@ -370,7 +391,8 @@
 				"smtp_client_example",
 				"smtp_client_tls_runtime_tests",
 				"smtp_protocol_oom_tests",
-				"xsmtp"
+				"xsmtp",
+				"smtp_upload_tls_fault_runtime_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],

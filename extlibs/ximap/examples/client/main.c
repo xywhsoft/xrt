@@ -25,7 +25,10 @@ int main(int argc, char** argv)
 		!mailExamplePort(argv[2], &port) ||
 		(argc == 6 && strcmp(argv[5], "tls") != 0 &&
 		 strcmp(argv[5], "starttls") != 0) ) return 2;
-	if ( !mailExampleNetInit(&Net, argv[3]) ) return 1;
+	if ( !mailExampleNetInit(&Net, argv[3]) ) {
+		mailExampleDiagnostic("IMAP network initialization");
+		return 1;
+	}
 	deadline = xrtDeadlineAfter(UINT64_C(30000000));
 	xrtImapClientConfigInit(&Config);
 	Config.Net.Engine = Net.Engine;
@@ -38,7 +41,8 @@ int main(int argc, char** argv)
 	Config.Net.Tls.Verifier = Net.Verifier;
 	client = xrtImapClientOpen(&Config, deadline, NULL);
 	if ( client == NULL ) {
-		mailExampleNetUnit(&Net);
+		mailExampleDiagnostic("IMAP open");
+		(void)mailExampleNetUnit(&Net);
 		return 1;
 	}
 	xrtImapAuthConfigInit(&Auth);
@@ -59,8 +63,12 @@ int main(int argc, char** argv)
 		if ( ok ) printf("%s: %llu messages\n", argv[4],
 			(unsigned long long)Mailbox.Exists);
 	}
-	if ( ok ) ok = xrtImapClientLogout(client, deadline, NULL);
+	/* EXAMINE is read-only and its tagged completion already proved the query.
+	 * LOGOUT/transport errors remain visible without discarding that result. */
+	if ( ok && !xrtImapClientLogout(client, deadline, NULL) )
+		mailExampleDiagnostic("IMAP query completed; shutdown");
+	if ( !ok ) mailExampleDiagnostic("IMAP operation");
 	xrtImapClientDestroy(client);
-	mailExampleNetUnit(&Net);
+	if ( !mailExampleNetUnit(&Net) ) ok = false;
 	return ok ? 0 : 1;
 }

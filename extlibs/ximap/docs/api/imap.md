@@ -13,6 +13,9 @@
 literal，只返回长度与标记视图；literal 数据仍由网络状态机按明确长度读取，避免复制和
 隐式缓存。
 
+literal 长度最多为 INT64_MAX，且必须能由 size_t 表示；超限或数值溢出返回 RANGE，
+错误时不发布部分视图。通用 number 数据视图与 MODSEQ 的 uint64 范围不受该尺寸限制影响。
+
 ## Capability 与命令
 
 `xrtImapAtomCursorInit` 和 `xrtImapAtomNext` 遍历空白分隔的简单 atom 列表；

@@ -281,7 +281,8 @@ static int32 testPop3FaultServer(ptr pData)
 		pServer->Listener, pServer->Deadline, NULL);
 	cstr sCommand = pServer->Mode == 1u ? "LIST 1\r\n" :
 		pServer->Mode == 2u ? "UIDL 1\r\n" : "STAT\r\n";
-	cstr sReply = pServer->Mode == 4u ? "+OK 2 " :
+	cstr sReply = pServer->Mode == 8u ? "+BROKEN reply\r\n" :
+		pServer->Mode == 4u ? "+OK 2 " :
 		pServer->Mode == 0u ? "+OK invalid\r\n" :
 		pServer->Mode == 1u ? "+OK invalid\r\n" :
 		pServer->Mode == 2u ? "+OK 1 \r\n" : "-ERR unavailable\r\n";
@@ -297,17 +298,25 @@ static int32 testPop3FaultServer(ptr pData)
 		bOk = testPop3Send(pStream, "+OK user\r\n",
 			strlen("+OK user\r\n"), pServer->Deadline) &&
 			testPop3Receive(pStream, "PASS pass\r\n",
-			strlen("PASS pass\r\n"), pServer->Deadline) &&
-			testPop3Send(pStream, "+OK locked\r\n",
-			strlen("+OK locked\r\n"), pServer->Deadline) &&
-			testPop3Receive(pStream, sCommand, strlen(sCommand),
-				pServer->Deadline);
+				strlen("PASS pass\r\n"), pServer->Deadline);
+		if ( bOk && (pServer->Mode == 9u) ) {
+			bOk = testPop3Send(pStream, "+BROKEN auth\r\n",
+				strlen("+BROKEN auth\r\n"), pServer->Deadline);
+		} else if ( bOk ) {
+			bOk = testPop3Send(pStream, "+OK locked\r\n",
+				strlen("+OK locked\r\n"), pServer->Deadline);
+			if ( bOk && (pServer->Mode < 10u) ) {
+				bOk = testPop3Receive(pStream, sCommand,
+					strlen(sCommand), pServer->Deadline);
+			}
+		}
 	}
-	if ( bOk && (pServer->Mode < 5u) ) {
+	if ( bOk && ((pServer->Mode < 5u) || (pServer->Mode == 8u)) ) {
 		bOk = testPop3Send(pStream, sReply, strlen(sReply),
 			pServer->Deadline);
 	}
-	if ( bOk && (pServer->Mode >= 5u) ) {
+	if ( bOk && (((pServer->Mode >= 5u) &&
+		(pServer->Mode <= 7u)) || (pServer->Mode >= 10u)) ) {
 		if ( pServer->Mode == 6u ) {
 			bOk = xrtCancelRequest(pServer->Cancel);
 		}
@@ -320,6 +329,24 @@ static int32 testPop3FaultServer(ptr pData)
 			xrtThreadYield();
 		}
 	}
+	if ( bOk && (pServer->Mode >= 10u) ) {
+		xnetbytes* pUnexpected = xrtNetStreamRecv(
+			pStream, 1u, xrtDeadlineAfter(UINT64_C(100000)), NULL);
+
+		bOk = (pUnexpected == NULL) &&
+			(xrtNetStreamState(pStream) != XNET_STREAM_OPEN);
+		xrtNetBytesDestroy(pUnexpected);
+	}
+	if ( bOk && (pServer->Mode == 6u) ) {
+		/* 取消已发送命令后，失败终态必须主动切断连接。 */
+		xnetbytes* pUnexpected = xrtNetStreamRecv(
+			pStream, 1u, pServer->Deadline, NULL);
+
+		bOk = pUnexpected == NULL &&
+			(xrtErrorKind(xrtGetError()) != XERR_TIMEOUT);
+		xrtNetBytesDestroy(pUnexpected);
+		xrtClearError();
+	}
 	if ( bOk && (pServer->Mode == 3u) ) {
 		bOk = testPop3Receive(pStream, "NOOP\r\n",
 			strlen("NOOP\r\n"), pServer->Deadline) &&
@@ -330,7 +357,7 @@ static int32 testPop3FaultServer(ptr pData)
 			testPop3Send(pStream, "+OK bye\r\n",
 				strlen("+OK bye\r\n"), pServer->Deadline);
 	}
-	if ( bOk ) {
+	if ( bOk && (xrtNetStreamState(pStream) == XNET_STREAM_OPEN) ) {
 		bOk = xrtNetStreamClose(pStream) && xrtNetStreamWait(
 			pStream, XNET_STREAM_WAIT_CLOSE, pServer->Deadline, NULL);
 	}
@@ -514,7 +541,8 @@ int main(void)
 		"POP3 server transcript mismatch");
 	xrtThreadDestroy(pThread);
 	xrtPop3ClientDestroy(pClient);
-	for ( unsigned iMode = 0u; iMode < 8u; iMode++ ) {
+	/* 0-3 协议错误/拒绝，4-7 断流/等待，8-9 畸形状态，10-11 发送前取消/到期。 */
+	for ( unsigned iMode = 0u; iMode < 12u; iMode++ ) {
 		testpop3faultserver Fault = { 0 };
 		xcancel* pCancel = NULL;
 		xdeadline CommandDeadline;
@@ -526,7 +554,7 @@ int main(void)
 		Fault.Deadline = Deadline;
 		Fault.Mode = iMode;
 		xrtAtomic32Init(&Fault.Release, 0u);
-		if ( iMode == 6u ) {
+		if ( (iMode == 6u) || (iMode == 10u) ) {
 			pCancel = xrtCancelCreate();
 			testRequire(pCancel != NULL,
 				"POP3 fault cancellation creation failed");
@@ -538,7 +566,7 @@ int main(void)
 		Config.ReadCapabilities = false;
 		pClient = xrtPop3ClientOpen(&Config, Deadline, NULL);
 		testRequire(pClient != NULL, "POP3 fault scenario open failed");
-		if ( iMode != 7u ) {
+		if ( (iMode != 7u) && (iMode != 9u) ) {
 			testRequire(xrtPop3ClientLogin(pClient,
 				XRT_STR_LITERAL("user"), XRT_STR_LITERAL("pass"),
 				true, Deadline, NULL),
@@ -547,7 +575,13 @@ int main(void)
 		xrtClearError();
 		CommandDeadline = (iMode == 5u || iMode == 7u) ?
 			xrtDeadlineAfter(UINT64_C(100000)) : Deadline;
-		if ( iMode == 7u ) {
+		if ( iMode == 10u ) {
+			testRequire(xrtCancelRequest(pCancel),
+				"POP3 send cancellation request failed");
+		} else if ( iMode == 11u ) {
+			CommandDeadline = xrtDeadlineAfter(0);
+		}
+		if ( (iMode == 7u) || (iMode == 9u) ) {
 			bCommandOk = xrtPop3ClientLogin(pClient,
 				XRT_STR_LITERAL("user"), XRT_STR_LITERAL("pass"),
 				true, CommandDeadline, NULL);
@@ -557,6 +591,9 @@ int main(void)
 		} else if ( iMode == 2u ) {
 			bCommandOk = xrtPop3ClientUidl(
 				pClient, 1u, &Uidl, Deadline, NULL);
+		} else if ( iMode >= 10u ) {
+			bCommandOk = xrtPop3ClientSend(pClient,
+				XRT_STR_LITERAL("STAT"), CommandDeadline, pCancel);
 		} else {
 			bCommandOk = xrtPop3ClientStat(
 				pClient, &Stat, CommandDeadline, pCancel);
@@ -566,6 +603,12 @@ int main(void)
 			  xrtErrorKind(xrtGetError()) == XERR_TIMEOUT) ||
 			 (iMode == 6u &&
 			  xrtErrorKind(xrtGetError()) == XERR_CANCELLED) ||
+			 (iMode == 10u &&
+			  xrtErrorKind(xrtGetError()) == XERR_CANCELLED) ||
+			 (iMode == 11u &&
+			  xrtErrorKind(xrtGetError()) == XERR_TIMEOUT) ||
+			 ((iMode == 8u || iMode == 9u) &&
+			  xrtErrorKind(xrtGetError()) == XERR_PROTOCOL) ||
 			 (iMode == 4u &&
 			  xrtErrorKind(xrtGetError()) != XERR_NONE) ||
 			 (iMode < 4u &&
@@ -576,13 +619,30 @@ int main(void)
 			testRequire(testMailViewEqual(
 				Last.Source, XRT_STR_LITERAL("+OK ready")),
 				"POP3 auth timeout changed greeting reply");
+		} else if ( iMode == 9u ) {
+			testRequire(testMailViewEqual(
+				Last.Source, XRT_STR_LITERAL("+OK user")),
+				"POP3 malformed PASS reply changed prior reply");
 		} else if ( iMode >= 4u ) {
 			testRequire(testMailViewEqual(
 				Last.Source, XRT_STR_LITERAL("+OK locked")),
 				"POP3 transport failure changed the prior reply");
 		}
-		if ( iMode >= 5u ) {
+		if ( ((iMode >= 5u) && (iMode <= 7u)) ||
+			(iMode >= 10u) ) {
 			xrtAtomic32Store(&Fault.Release, 1u, XMEMORY_RELEASE);
+		}
+		if ( iMode == 6u ) {
+			testRequire(xrtThreadWaitUntil(pThread, Deadline) ==
+				XWAIT_OK && Fault.Success &&
+				(xrtThreadExitCode(pThread) == 0),
+				"POP3 cancelled command did not close the connection");
+		}
+		if ( iMode >= 10u ) {
+			testRequire(xrtThreadWaitUntil(pThread, Deadline) ==
+				XWAIT_OK && Fault.Success &&
+				(xrtThreadExitCode(pThread) == 0),
+				"POP3 stopped send reached the server");
 		}
 		if ( iMode == 3u ) {
 			testRequire(xrtPop3ClientState(pClient) ==
@@ -600,9 +660,12 @@ int main(void)
 				"POP3 malformed +OK must fail the session");
 		}
 		xrtPop3ClientDestroy(pClient);
-		testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
-			Fault.Success && (xrtThreadExitCode(pThread) == 0),
-			"POP3 fault server transcript mismatch");
+		if ( iMode < 10u ) {
+			testRequire(xrtThreadWaitUntil(pThread, Deadline) ==
+				XWAIT_OK && Fault.Success &&
+				(xrtThreadExitCode(pThread) == 0),
+				"POP3 fault server transcript mismatch");
+		}
 		xrtThreadDestroy(pThread);
 		xrtCancelDestroy(pCancel);
 	}

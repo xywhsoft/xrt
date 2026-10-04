@@ -1,7 +1,7 @@
 # IMAP BODYSTRUCTURE
 
 `imap_body` 在通用 `imap_data` 之上提供独立、可裁剪的 RFC 9051
-BODY/BODYSTRUCTURE 语义层。解析过程不分配内存，所有结果都借用输入文本；模块不依赖
+BODY/BODYSTRUCTURE 语义层。正常解析不分配内存，所有结果都借用输入文本；模块不依赖
 IMAP 客户端、任务或网络。
 
 ## 视图
@@ -13,6 +13,14 @@ MESSAGE/GLOBAL 和 multipart 结构。`ximapbodyview` 投影常用字段：
 - 嵌套消息的 envelope 与子 BODYSTRUCTURE 原始值。
 - multipart 的直接子部分区、subtype 和子部分数量。
 - MD5、disposition、language、location 及未知扩展尾。
+
+MESSAGE 的 ENVELOPE 完整验证十个字段：日期、主题、回复引用和消息标识是 nstring，
+其余六项是 NIL 或非空地址列表；每个地址含四个 nstring。相邻地址、NIL 分组标记和
+空 quoted string 保留原始表示。字符串字段不接受裸 atom；本模块不消费跨行 literal。
+
+Octets、Lines 与数字扩展仍以 uint64 存储，但合法值限于 0 到 INT64_MAX。
+按 RFC 9051 [附录 D](https://www.rfc-editor.org/rfc/rfc9051.html#appendix-D) 接受超过
+4 GiB 的正文尺寸；大于 63 位的值返回 RANGE。
 
 multipart 没有线路中的 type 字段，因此 `Type.Kind` 为零，由 `Kind == XIMAP_BODY_MULTIPART`
 表示其类别。`xrtImapFetchNext` 返回 BODYSTRUCTURE 属性后，可直接把 `Item.Value.Source`
@@ -35,3 +43,12 @@ multipart 没有线路中的 type 字段，因此 `Type.Kind` 为零，由 `Kind
 literal 标记会返回协议错误。需要处理 literal 字段时，继续使用 `imap_client` 的流式 literal
 接口读取和归一化数据，再把完整 BODYSTRUCTURE 交给本模块。未知扩展值按通用
 body-extension 语法递归校验并保留，未来协议扩展不要求修改固定结构。
+
+字段之间需要空格；multipart 的连续子 BODY 列表允许直接相邻，子列表到 subtype 之间仍需
+空格。参数、语言和未知扩展列表也检查各值之间的分隔，不能用缺失空格的 quoted 值拼接
+成合法字段。语法依据 [RFC 9051 第 9 节](https://www.rfc-editor.org/rfc/rfc9051.html#section-9)。
+
+解析和游标失败时不发布部分结果；结果结构不得与它借用的输入文本重叠。下层游标或
+递归解析已经报告错误时，直接传播该诊断，包括数值溢出的 RANGE 和错误构造失败的
+MEMORY，不由外层重复分配协议错误。成功调用保留调用方已有诊断。错误路径的诊断
+对象可能需要分配，不能把正常路径的零分配保证扩展到错误构造。

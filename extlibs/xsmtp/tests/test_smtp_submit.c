@@ -118,7 +118,71 @@ static bool testSmtpSubmitServerReceive(
 
 
 
-/* 验证恢复事务、自动 envelope、独立 envelope 和两次流式 DATA。 */
+/* 完整接收第三封 DATA 后拒绝入队，验证客户端保留最终拒绝。 */
+static bool testSmtpSubmitServerRejectData(
+	xnetstream* pStream,
+	const testsmtpsubmitserver* pServer
+)
+{
+	return testSmtpSubmitServerReceive(pStream,
+		"MAIL FROM:<sender@example.com>\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"250 sender accepted\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerReceive(pStream,
+			"RCPT TO:<to@example.net>\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"250 recipient accepted\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerReceive(pStream,
+			"RCPT TO:<cc@example.org>\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"250 recipient accepted\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerReceive(pStream,
+			"RCPT TO:<hidden@example.io>\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"250 recipient accepted\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerReceive(pStream,
+			"DATA\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"354 send message\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerReceiveBytes(pStream,
+			pServer->Message, pServer->MessageSize,
+			pServer->Deadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"554 message rejected\r\n", pServer->Deadline);
+}
+
+
+
+
+/* DATA 命令被拒后必须显式 RSET，且原始错误不能被恢复回复覆盖。 */
+static bool testSmtpSubmitServerRejectDataBegin(
+	xnetstream* pStream,
+	xdeadline iDeadline
+)
+{
+	return testSmtpSubmitServerReceive(pStream,
+		"MAIL FROM:<> RET=FULL\r\n", iDeadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"250 sender accepted\r\n", iDeadline) &&
+		testSmtpSubmitServerReceive(pStream,
+			"RCPT TO:<advanced@example.net> NOTIFY=SUCCESS\r\n",
+			iDeadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"250 recipient accepted\r\n", iDeadline) &&
+		testSmtpSubmitServerReceive(pStream,
+			"DATA\r\n", iDeadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"554 DATA unavailable\r\n", iDeadline) &&
+		testSmtpSubmitServerReceive(pStream,
+			"RSET\r\n", iDeadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"250 reset\r\n", iDeadline);
+}
+
+
+
+
+/* 验证恢复事务、自动 envelope、独立 envelope 和 DATA 拒绝。 */
 static int32 testSmtpSubmitServer(ptr pData)
 {
 	testsmtpsubmitserver* pServer = (testsmtpsubmitserver*)pData;
@@ -250,6 +314,12 @@ static int32 testSmtpSubmitServer(ptr pData)
 		pStream,
 		"250 queued\r\n",
 		pServer->Deadline
+	) && testSmtpSubmitServerRejectData(
+		pStream,
+		pServer
+	) && testSmtpSubmitServerRejectDataBegin(
+		pStream,
+		pServer->Deadline
 	) && testSmtpSubmitServerReceive(
 		pStream,
 		"QUIT\r\n",
@@ -268,6 +338,67 @@ static int32 testSmtpSubmitServer(ptr pData)
 	xrtNetStreamDestroy(pStream);
 	return bSuccess ? 0 : 2;
 }
+
+
+
+/* 421 是关闭通道的终态回复，不能把 envelope 留给后续命令复用。 */
+static int32 testSmtpSubmitClosingServer(ptr pData)
+{
+	testsmtpsubmitserver* pServer = (testsmtpsubmitserver*)pData;
+	xnetstream* pStream = xrtNetListenerAcceptWait(
+		pServer->Listener, pServer->Deadline, NULL);
+	bool bSuccess;
+
+	if ( pStream == NULL ) {
+		return 1;
+	}
+	bSuccess = testSmtpSubmitServerSend(pStream,
+		"220 submit.test ready\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerReceive(pStream,
+			"EHLO client.test\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"250 submit.test\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerReceive(pStream,
+			"MAIL FROM:<sender@example.com>\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"421 service shutting down\r\n", pServer->Deadline) &&
+		xrtNetStreamClose(pStream) && xrtNetStreamWait(
+			pStream, XNET_STREAM_WAIT_CLOSE,
+			pServer->Deadline, NULL);
+	pServer->Success = bSuccess;
+	xrtNetStreamDestroy(pStream);
+	return bSuccess ? 0 : 2;
+}
+
+
+
+
+/* EHLO 的多行 421 同样表示关闭，不能误当作能力扩展解析。 */
+static int32 testSmtpSubmitHelloClosingServer(ptr pData)
+{
+	testsmtpsubmitserver* pServer = (testsmtpsubmitserver*)pData;
+	xnetstream* pStream = xrtNetListenerAcceptWait(
+		pServer->Listener, pServer->Deadline, NULL);
+	bool bSuccess;
+
+	if ( pStream == NULL ) {
+		return 1;
+	}
+	bSuccess = testSmtpSubmitServerSend(pStream,
+		"220 submit.test ready\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerReceive(pStream,
+			"EHLO client.test\r\n", pServer->Deadline) &&
+		testSmtpSubmitServerSend(pStream,
+			"421-service shutting down\r\n421 now\r\n",
+			pServer->Deadline) &&
+		xrtNetStreamClose(pStream) && xrtNetStreamWait(
+			pStream, XNET_STREAM_WAIT_CLOSE,
+			pServer->Deadline, NULL);
+	pServer->Success = bSuccess;
+	xrtNetStreamDestroy(pStream);
+	return bSuccess ? 0 : 2;
+}
+
 
 
 
@@ -326,6 +457,7 @@ int main(void)
 	xsmtprecipient RejectRecipient;
 	xsmtprecipient AdvancedRecipient;
 	xsmtpenvelope Envelope;
+	xsmtpreply Reply;
 	xnetengine* pEngine;
 	xnetresolver* pResolver;
 	xnetlistener* pListener;
@@ -447,6 +579,22 @@ int main(void)
 		Deadline,
 		NULL
 	), "SMTP submit independent envelope failed");
+	xrtClearError();
+	testRequire(!xrtSmtpSubmit(pClient, &Message, Deadline, NULL) &&
+		(xrtSmtpClientState(pClient) == XSMTP_CLIENT_READY) &&
+		(xrtErrorKind(xrtGetError()) == XERR_PROTOCOL) &&
+		xrtSmtpClientLastReply(pClient, &Reply) &&
+		(Reply.Code == 554) &&
+		testMailViewEqual(Reply.Text,
+			XRT_STR_LITERAL("message rejected")),
+		"SMTP submit lost final DATA rejection or READY state");
+	xrtClearError();
+	testRequire(!xrtSmtpSubmitEnvelope(
+		pClient, &Envelope, &Message, Deadline, NULL
+	) && (xrtSmtpClientState(pClient) == XSMTP_CLIENT_READY) &&
+		(xrtErrorKind(xrtGetError()) == XERR_PROTOCOL),
+		"SMTP submit lost DATA command rejection after RSET");
+	xrtClearError();
 	testRequire(xrtSmtpClientQuit(pClient, Deadline, NULL),
 		"SMTP submit QUIT failed");
 	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
@@ -456,6 +604,48 @@ int main(void)
 
 	xrtThreadDestroy(pThread);
 	xrtSmtpClientDestroy(pClient);
+	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Server.Deadline = Deadline;
+	Server.Success = false;
+	pThread = xrtThreadCreate(testSmtpSubmitClosingServer, &Server, 0);
+	testRequire(pThread != NULL,
+		"SMTP closing server thread creation failed");
+	pClient = xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
+	testRequire(pClient != NULL, "SMTP closing scenario open failed");
+	xrtClearError();
+	testRequire(!xrtSmtpSubmit(pClient, &Message, Deadline, NULL) &&
+		(xrtErrorKind(xrtGetError()) == XERR_CLOSED) &&
+		(xrtSmtpClientState(pClient) == XSMTP_CLIENT_FAILED) &&
+		xrtSmtpClientLastReply(pClient, &Reply) &&
+		(Reply.Code == 421) &&
+		testMailViewEqual(Reply.Text,
+			XRT_STR_LITERAL("service shutting down")),
+		"SMTP 421 did not fail session or preserve reply");
+	xrtClearError();
+	testRequire(!xrtSmtpClientQuit(pClient, Deadline, NULL) &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE),
+		"SMTP sent a command after 421");
+	xrtSmtpClientDestroy(pClient);
+	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
+		Server.Success && (xrtThreadExitCode(pThread) == 0),
+		"SMTP 421 server transcript mismatch");
+	xrtThreadDestroy(pThread);
+	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Server.Deadline = Deadline;
+	Server.Success = false;
+	pThread = xrtThreadCreate(testSmtpSubmitHelloClosingServer,
+		&Server, 0);
+	testRequire(pThread != NULL,
+		"SMTP EHLO 421 server thread creation failed");
+	xrtClearError();
+	pClient = xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
+	testRequire((pClient == NULL) &&
+		(xrtErrorKind(xrtGetError()) == XERR_CLOSED),
+		"SMTP EHLO 421 was not a connection failure");
+	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
+		Server.Success && (xrtThreadExitCode(pThread) == 0),
+		"SMTP EHLO 421 server transcript mismatch");
+	xrtThreadDestroy(pThread);
 	testRequire(xrtNetListenerClose(pListener),
 		"SMTP submit listener close request failed");
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {

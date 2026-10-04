@@ -27,6 +27,11 @@ static size_t __xrtImapDataSpace(xstrview Text, size_t iPosition)
 
 
 /* 验证数据片段不含线路控制字节。 */
+static bool __xrtImapDataByteValid(unsigned char Byte)
+{
+	return Byte >= 32u && Byte != 127u;
+}
+
 static bool __xrtImapDataTextValid(xstrview Text)
 {
 	if ( !__xrtMailViewValid(Text) ) {
@@ -35,9 +40,7 @@ static bool __xrtImapDataTextValid(xstrview Text)
 	for ( size_t i = 0; i < Text.Size; i++ ) {
 		unsigned char iByte = (unsigned char)Text.Data[i];
 
-		if ( (iByte == 0) || (iByte == (unsigned char)'\r') ||
-			(iByte == (unsigned char)'\n') || (iByte < 32u) ||
-			(iByte == 127u) ) {
+		if ( !__xrtImapDataByteValid(iByte) ) {
 			return false;
 		}
 	}
@@ -58,6 +61,10 @@ static bool __xrtImapDataQuoted(
 
 	while ( iPosition < Text.Size ) {
 		unsigned char iByte = (unsigned char)Text.Data[iPosition];
+		if ( !__xrtImapDataByteValid(iByte) ) {
+			__xrtMailSetInvalidArgument();
+			return false;
+		}
 
 		if ( iByte == (unsigned char)'"' ) {
 			pValue->Source = __xrtMailSlice(
@@ -108,6 +115,10 @@ static bool __xrtImapDataList(
 
 	while ( iPosition < Text.Size ) {
 		char iByte = Text.Data[iPosition];
+		if ( !__xrtImapDataByteValid((unsigned char)iByte) ) {
+			__xrtMailSetInvalidArgument();
+			return false;
+		}
 
 		if ( iByte == '"' ) {
 			ximapdataview Quoted;
@@ -157,7 +168,8 @@ static bool __xrtImapDataList(
 static bool __xrtImapDataAtom(
 	xstrview Text,
 	size_t* pPosition,
-	ximapdataview* pValue
+	ximapdataview* pValue,
+	bool bAtomOnly
 )
 {
 	size_t iStart = *pPosition;
@@ -169,8 +181,12 @@ static bool __xrtImapDataAtom(
 	while ( (iPosition < Text.Size) && (Text.Data[iPosition] != ' ') &&
 		(Text.Data[iPosition] != '(') && (Text.Data[iPosition] != ')') ) {
 		unsigned char iByte = (unsigned char)Text.Data[iPosition];
+		if ( !__xrtImapDataByteValid(iByte) ) {
+			__xrtMailSetInvalidArgument();
+			return false;
+		}
 
-		if ( (iByte < (unsigned char)'0') ||
+		if ( bAtomOnly || (iByte < (unsigned char)'0') ||
 			(iByte > (unsigned char)'9') ) {
 			bNumber = false;
 		} else if ( bNumber && !bOverflow ) {
@@ -201,7 +217,7 @@ static bool __xrtImapDataAtom(
 		}
 		pValue->Kind = XIMAP_DATA_NUMBER;
 		pValue->Number = iNumber;
-	} else if ( __xrtMailAsciiEqualI(
+	} else if ( !bAtomOnly && __xrtMailAsciiEqualI(
 		pValue->Source,
 		XRT_STR_LITERAL("NIL")
 	) ) {
@@ -266,7 +282,7 @@ static bool __xrtImapDataValue(
 		*pPosition = Text.Size;
 		return true;
 	}
-	return __xrtImapDataAtom(Text, pPosition, pValue);
+	return __xrtImapDataAtom(Text, pPosition, pValue, false);
 }
 
 
@@ -320,9 +336,10 @@ XRT_API bool xrtImapDataCursorInit(
 
 
 /* 返回一层数据区的下一项。 */
-XRT_API xmailnext xrtImapDataNext(
+static xmailnext __xrtImapDataNext(
 	ximapdatacursor* pCursor,
-	ximapdataview* pValue
+	ximapdataview* pValue,
+	bool bAtomOnly
 )
 {
 	size_t iPosition;
@@ -330,7 +347,7 @@ XRT_API xmailnext xrtImapDataNext(
 
 	if ( !xrtMemRangeValid(pCursor, sizeof(*pCursor)) ||
 		!xrtMemRangeValid(pValue, sizeof(*pValue)) ||
-		(pCursor == NULL) || !__xrtImapDataTextValid(pCursor->Text) ||
+		(pCursor == NULL) || !__xrtMailViewValid(pCursor->Text) ||
 		(pCursor->Position > pCursor->Text.Size) ||
 		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), pValue, sizeof(*pValue)) ||
 		xrtMemRangesOverlap(pValue, sizeof(*pValue), pCursor->Text.Data,
@@ -351,12 +368,93 @@ XRT_API xmailnext xrtImapDataNext(
 		__xrtImapDataError(XERR_PROTOCOL, "unexpected IMAP list terminator");
 		return XMAIL_NEXT_ERROR;
 	}
-	if ( !__xrtImapDataValue(pCursor->Text, &iPosition, &Value) ) {
+	bool bLiteral = pCursor->Text.Data[iPosition] == '{' ||
+		(pCursor->Text.Data[iPosition] == '~' && iPosition + 1u < pCursor->Text.Size &&
+		 pCursor->Text.Data[iPosition + 1u] == '{');
+	memset(&Value, 0, sizeof(Value));
+	if ( !(bAtomOnly && !bLiteral && pCursor->Text.Data[iPosition] != '"' &&
+		pCursor->Text.Data[iPosition] != '(' ?
+		__xrtImapDataAtom(pCursor->Text, &iPosition, &Value, true) :
+		__xrtImapDataValue(pCursor->Text, &iPosition, &Value)) ) {
 		return XMAIL_NEXT_ERROR;
 	}
 	pCursor->Position = iPosition;
 	*pValue = Value;
 	return XMAIL_NEXT_ITEM;
+}
+
+/* General data also serves adjacent BODY child lists. SP is imposed only by
+ * the response grammar that requires it, without changing the generic API. */
+XRT_API xmailnext xrtImapDataNext(ximapdatacursor* pCursor, ximapdataview* pValue)
+{
+	return __xrtImapDataNext(pCursor, pValue, false);
+}
+
+static xmailnext __xrtImapDataSeparated(
+	ximapdatacursor* pCursor, ximapdataview* pValue, bool bAtomOnly)
+{
+	size_t iPosition = pCursor->Position;
+	xmailnext Next = __xrtImapDataNext(pCursor, pValue, bAtomOnly);
+	if ( Next == XMAIL_NEXT_ITEM && iPosition != 0 &&
+		pValue->Source.Data == pCursor->Text.Data + iPosition ) {
+		pCursor->Position = iPosition;
+		__xrtImapDataError(XERR_PROTOCOL, "missing space between IMAP response fields");
+		return XMAIL_NEXT_ERROR;
+	}
+	return Next;
+}
+
+static bool __xrtImapDataRequired(
+	ximapdatacursor* pCursor, ximapdataview* pValue, bool bAtomOnly)
+{
+	xmailnext Next = __xrtImapDataSeparated(pCursor, pValue, bAtomOnly);
+	if ( Next == XMAIL_NEXT_ERROR ) return false;
+	return Next == XMAIL_NEXT_ITEM || __xrtImapDataError(XERR_PROTOCOL, "missing IMAP response field");
+}
+
+static bool __xrtImapDataEnd(ximapdatacursor* pCursor)
+{
+	ximapdataview Extra;
+	xmailnext Next = __xrtImapDataSeparated(pCursor, &Extra, false);
+	if ( Next == XMAIL_NEXT_ERROR ) return false;
+	return Next == XMAIL_NEXT_END || __xrtImapDataError(XERR_PROTOCOL, "unexpected IMAP response field");
+}
+
+static bool __xrtImapDataAStringByte(unsigned char Byte)
+{
+	return __xrtImapDataByteValid(Byte) && Byte != (unsigned char)' ' &&
+		Byte != (unsigned char)'(' && Byte != (unsigned char)')' && Byte != (unsigned char)'{' &&
+		Byte != (unsigned char)'%' && Byte != (unsigned char)'*' && Byte != (unsigned char)'"' && Byte != (unsigned char)'\\';
+}
+
+/* An astring is a lexical string: numeric and NIL mailbox names must not be
+ * converted to numbers/nstrings, including names larger than uint64. */
+static bool __xrtImapDataAString(const ximapdataview* pValue)
+{
+	if ( pValue->Kind == XIMAP_DATA_QUOTED || pValue->Kind == XIMAP_DATA_LITERAL ) return true;
+	if ( pValue->Kind != XIMAP_DATA_ATOM ) return false;
+	for ( size_t i = 0; i < pValue->Source.Size; i++ )
+		if ( !__xrtImapDataAStringByte((unsigned char)pValue->Source.Data[i]) ) return false;
+	return pValue->Source.Size != 0;
+}
+
+/* LIST's quoted hierarchy delimiter is one character, including a single
+ * UTF-8 scalar or an escaped quote/backslash. No Unicode module is needed. */
+static bool __xrtImapDataDelimiter(const ximapdataview* pValue)
+{
+	if ( pValue->Kind == XIMAP_DATA_NIL ) return true;
+	if ( pValue->Kind != XIMAP_DATA_QUOTED || pValue->Value.Size == 0 ) return false;
+	const unsigned char* Bytes = (const unsigned char*)pValue->Value.Data;
+	size_t Size = pValue->Value.Size;
+	if ( Bytes[0] == (unsigned char)'\\' )
+		return Size == 2u && (Bytes[1] == (unsigned char)'\\' || Bytes[1] == (unsigned char)'"');
+	if ( Bytes[0] < 128u ) return Size == 1u;
+	size_t Expected = Bytes[0] >= 0xc2u && Bytes[0] <= 0xdfu ? 2u :
+		(Bytes[0] >= 0xe0u && Bytes[0] <= 0xefu ? 3u : (Bytes[0] >= 0xf0u && Bytes[0] <= 0xf4u ? 4u : 0u));
+	if ( Size != Expected || Expected == 0 ) return false;
+	for ( size_t i = 1; i < Size; i++ ) if ( Bytes[i] < 0x80u || Bytes[i] > 0xbfu ) return false;
+	return !(Bytes[0] == 0xe0u && Bytes[1] < 0xa0u) && !(Bytes[0] == 0xedu && Bytes[1] >= 0xa0u) &&
+		!(Bytes[0] == 0xf0u && Bytes[1] < 0x90u) && !(Bytes[0] == 0xf4u && Bytes[1] >= 0x90u);
 }
 
 
@@ -377,8 +475,15 @@ XRT_API bool xrtImapStringWrite(
 		!xrtMemRangeValid(pOutputSize, sizeof(*pOutputSize)) ||
 		(pValue == NULL) || !__xrtMailViewValid(pValue->Source) ||
 		!__xrtMailViewValid(pValue->Value) ||
+		xrtMemRangesOverlap(pOutputSize, sizeof(*pOutputSize), pValue, sizeof(*pValue)) ||
+		xrtMemRangesOverlap(pOutputSize, sizeof(*pOutputSize), sOutput, iCapacity) ||
 		xrtMemRangesOverlap(pOutputSize, sizeof(*pOutputSize),
-			pValue->Source.Data, pValue->Source.Size) ) {
+			pValue->Source.Data, pValue->Source.Size) ||
+		xrtMemRangesOverlap(pOutputSize, sizeof(*pOutputSize),
+			pValue->Value.Data, pValue->Value.Size) ||
+		xrtMemRangesOverlap(sOutput, iCapacity, pValue, sizeof(*pValue)) ||
+		xrtMemRangesOverlap(sOutput, iCapacity, pValue->Source.Data, pValue->Source.Size) ||
+		xrtMemRangesOverlap(sOutput, iCapacity, pValue->Value.Data, pValue->Value.Size) ) {
 		__xrtMailSetInvalidArgument();
 		return false;
 	}
@@ -417,11 +522,6 @@ XRT_API bool xrtImapStringWrite(
 		__xrtMailSetRange();
 		return false;
 	}
-	if ( xrtMemRangesOverlap(sOutput, iRequired + 1u,
-		pValue->Source.Data, pValue->Source.Size) ) {
-		__xrtMailSetInvalidArgument();
-		return false;
-	}
 	if ( pValue->Kind == XIMAP_DATA_QUOTED ) {
 		for ( size_t i = 0; i < pValue->Value.Size; i++ ) {
 			if ( pValue->Value.Data[i] == '\\' ) {
@@ -454,27 +554,23 @@ XRT_API bool xrtImapListParse(
 	xstrview Payload;
 	size_t iExtensions;
 
-	if ( !xrtMemRangeValid(pList, sizeof(*pList)) ||
+	if ( !xrtMemRangeValid(pList, sizeof(*pList)) || !__xrtMailViewValid(Text) ||
 		xrtMemRangesOverlap(pList, sizeof(*pList), Text.Data, Text.Size) ) {
 		__xrtMailSetInvalidArgument();
 		return false;
 	}
 	if ( !__xrtImapDataPayload(Text, XRT_STR_LITERAL("LIST"), &Payload) ||
 		!xrtImapDataCursorInit(&Cursor, Payload) ||
-		(xrtImapDataNext(&Cursor, &Attributes) != XMAIL_NEXT_ITEM) ||
-		(Attributes.Kind != XIMAP_DATA_LIST) ||
-		(xrtImapDataNext(&Cursor, &Delimiter) != XMAIL_NEXT_ITEM) ||
-		((Delimiter.Kind != XIMAP_DATA_QUOTED) &&
-		 (Delimiter.Kind != XIMAP_DATA_NIL)) ||
-		(xrtImapDataNext(&Cursor, &Mailbox) != XMAIL_NEXT_ITEM) ||
-		((Mailbox.Kind != XIMAP_DATA_ATOM) &&
-		 (Mailbox.Kind != XIMAP_DATA_QUOTED) &&
-		 (Mailbox.Kind != XIMAP_DATA_LITERAL)) ) {
-		return __xrtImapDataError(
-			XERR_PROTOCOL,
-			"invalid IMAP LIST response"
-		);
-	}
+		!__xrtImapDataRequired(&Cursor, &Attributes, false) ) return false;
+	if ( Attributes.Kind != XIMAP_DATA_LIST )
+		return __xrtImapDataError(XERR_PROTOCOL, "invalid IMAP LIST attributes");
+	if ( !__xrtImapDataRequired(&Cursor, &Delimiter, false) ) return false;
+	if ( !__xrtImapDataDelimiter(&Delimiter) )
+		return __xrtImapDataError(XERR_PROTOCOL, "invalid IMAP LIST delimiter");
+	if ( !__xrtImapDataRequired(&Cursor, &Mailbox, true) ) return false;
+	if ( !__xrtImapDataAString(&Mailbox) ||
+		(Cursor.Position < Payload.Size && Payload.Data[Cursor.Position] != ' ') )
+		return __xrtImapDataError(XERR_PROTOCOL, "invalid IMAP LIST mailbox or extension separator");
 	iExtensions = __xrtImapDataSpace(Payload, Cursor.Position);
 	List.Source = Text;
 	List.Attributes = Attributes.Value;
@@ -499,19 +595,16 @@ XRT_API bool xrtImapFlagCursorInit(
 {
 	ximapdatacursor Outer;
 	ximapdataview List;
-	ximapdataview Extra;
 
-	if ( !xrtMemRangeValid(pCursor, sizeof(*pCursor)) ||
-		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), Flags.Data, Flags.Size) ||
-		!xrtImapDataCursorInit(&Outer, Flags) ||
-		(xrtImapDataNext(&Outer, &List) != XMAIL_NEXT_ITEM) ||
-		(List.Kind != XIMAP_DATA_LIST) ||
-		(xrtImapDataNext(&Outer, &Extra) != XMAIL_NEXT_END) ) {
-		return __xrtImapDataError(
-			XERR_PROTOCOL,
-			"invalid IMAP flag list"
-		);
+	if ( !xrtMemRangeValid(pCursor, sizeof(*pCursor)) || !__xrtMailViewValid(Flags) ||
+		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), Flags.Data, Flags.Size) ) {
+		__xrtMailSetInvalidArgument();
+		return false;
 	}
+	if ( !xrtImapDataCursorInit(&Outer, Flags) || !__xrtImapDataRequired(&Outer, &List, false) ) return false;
+	if ( List.Kind != XIMAP_DATA_LIST )
+		return __xrtImapDataError(XERR_PROTOCOL, "invalid IMAP flag list");
+	if ( !__xrtImapDataEnd(&Outer) ) return false;
 	return xrtImapDataCursorInit(&pCursor->Data, List.Value);
 }
 
@@ -528,18 +621,25 @@ XRT_API xmailnext xrtImapFlagNext(
 
 	if ( !xrtMemRangeValid(pCursor, sizeof(*pCursor)) ||
 		!xrtMemRangeValid(pFlag, sizeof(*pFlag)) ||
-		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), pFlag, sizeof(*pFlag)) ) {
+		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), pFlag, sizeof(*pFlag)) ||
+		xrtMemRangesOverlap(pFlag, sizeof(*pFlag), pCursor->Data.Text.Data, pCursor->Data.Text.Size) ) {
 		__xrtMailSetInvalidArgument();
 		return XMAIL_NEXT_ERROR;
 	}
-	Next = xrtImapDataNext(&pCursor->Data, &Value);
+	ximapdatacursor Cursor = pCursor->Data;
+	Next = __xrtImapDataSeparated(&Cursor, &Value, true);
 	if ( Next != XMAIL_NEXT_ITEM ) {
+		if ( Next == XMAIL_NEXT_END ) pCursor->Data = Cursor;
 		return Next;
 	}
-	if ( Value.Kind != XIMAP_DATA_ATOM ) {
+	xstrview Atom = Value.Source;
+	bool bStar = Atom.Size == 2u && Atom.Data[0] == '\\' && Atom.Data[1] == '*';
+	if ( Atom.Size != 0 && Atom.Data[0] == '\\' ) Atom = __xrtMailSlice(Atom, 1u, Atom.Size - 1u);
+	if ( Value.Kind != XIMAP_DATA_ATOM || (!bStar && !xrtImapAtomValid(Atom)) ) {
 		__xrtImapDataError(XERR_PROTOCOL, "invalid IMAP flag value");
 		return XMAIL_NEXT_ERROR;
 	}
+	pCursor->Data = Cursor;
 	*pFlag = Value.Source;
 	return XMAIL_NEXT_ITEM;
 }
@@ -556,28 +656,19 @@ XRT_API bool xrtImapStatusParse(
 	ximapdatacursor Cursor;
 	ximapdataview Mailbox;
 	ximapdataview Items;
-	ximapdataview Extra;
 	xstrview Payload;
 
-	if ( !xrtMemRangeValid(pStatus, sizeof(*pStatus)) ||
+	if ( !xrtMemRangeValid(pStatus, sizeof(*pStatus)) || !__xrtMailViewValid(Text) ||
 		xrtMemRangesOverlap(pStatus, sizeof(*pStatus), Text.Data, Text.Size) ) {
 		__xrtMailSetInvalidArgument();
 		return false;
 	}
 	if ( !__xrtImapDataPayload(Text, XRT_STR_LITERAL("STATUS"), &Payload) ||
-		!xrtImapDataCursorInit(&Cursor, Payload) ||
-		(xrtImapDataNext(&Cursor, &Mailbox) != XMAIL_NEXT_ITEM) ||
-		((Mailbox.Kind != XIMAP_DATA_ATOM) &&
-		 (Mailbox.Kind != XIMAP_DATA_QUOTED) &&
-		 (Mailbox.Kind != XIMAP_DATA_LITERAL)) ||
-		(xrtImapDataNext(&Cursor, &Items) != XMAIL_NEXT_ITEM) ||
-		(Items.Kind != XIMAP_DATA_LIST) ||
-		(xrtImapDataNext(&Cursor, &Extra) != XMAIL_NEXT_END) ) {
-		return __xrtImapDataError(
-			XERR_PROTOCOL,
-			"invalid IMAP STATUS response"
-		);
-	}
+		!xrtImapDataCursorInit(&Cursor, Payload) || !__xrtImapDataRequired(&Cursor, &Mailbox, true) ) return false;
+	if ( !__xrtImapDataAString(&Mailbox) ) return __xrtImapDataError(XERR_PROTOCOL, "invalid IMAP STATUS mailbox");
+	if ( !__xrtImapDataRequired(&Cursor, &Items, false) ) return false;
+	if ( Items.Kind != XIMAP_DATA_LIST ) return __xrtImapDataError(XERR_PROTOCOL, "invalid IMAP STATUS items");
+	if ( !__xrtImapDataEnd(&Cursor) ) return false;
 	Status.Source = Text;
 	Status.Mailbox = Mailbox;
 	Status.Items = Items.Value;
@@ -606,33 +697,61 @@ XRT_API bool xrtImapStatusCursorInit(
 
 
 /* 返回下一 STATUS 属性对。 */
+static xmailnext __xrtImapDataPair(
+	ximapdatacursor* pCursor, xstrview* pName, ximapdataview* pValue)
+{
+	ximapdataview Name;
+	xmailnext Next = __xrtImapDataSeparated(pCursor, &Name, true);
+	if ( Next != XMAIL_NEXT_ITEM ) return Next;
+	if ( Name.Kind != XIMAP_DATA_ATOM || !xrtImapAtomValid(Name.Source) ) {
+		__xrtImapDataError(XERR_PROTOCOL, "invalid IMAP response item name");
+		return XMAIL_NEXT_ERROR;
+	}
+	if ( !__xrtImapDataRequired(pCursor, pValue, false) ) return XMAIL_NEXT_ERROR;
+	*pName = Name.Source;
+	return XMAIL_NEXT_ITEM;
+}
+
+/* Known scalar fields retain their specified bounds; vendor extensions keep
+ * their generic values instead of being coerced to a fixed schema. */
+static bool __xrtImapDataScalar(const ximapdataview* pValue, bool bNonzero, uint64 Maximum)
+{
+	if ( pValue->Kind != XIMAP_DATA_NUMBER || (bNonzero && pValue->Number == 0) )
+		return __xrtImapDataError(XERR_PROTOCOL, "invalid IMAP numeric response item");
+	return pValue->Number <= Maximum || __xrtImapDataError(XERR_RANGE, "IMAP response item exceeds its numeric range");
+}
+
 XRT_API xmailnext xrtImapStatusNext(
 	ximapstatuscursor* pCursor,
 	ximapstatusitem* pItem
 )
 {
-	ximapdataview Name;
-	ximapdataview Value;
+	ximapstatusitem Item;
 	xmailnext Next;
 
 	if ( !xrtMemRangeValid(pCursor, sizeof(*pCursor)) ||
 		!xrtMemRangeValid(pItem, sizeof(*pItem)) ||
-		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), pItem, sizeof(*pItem)) ) {
+		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), pItem, sizeof(*pItem)) ||
+		xrtMemRangesOverlap(pItem, sizeof(*pItem), pCursor->Data.Text.Data, pCursor->Data.Text.Size) ) {
 		__xrtMailSetInvalidArgument();
 		return XMAIL_NEXT_ERROR;
 	}
-	Next = xrtImapDataNext(&pCursor->Data, &Name);
-	if ( Next != XMAIL_NEXT_ITEM ) {
-		return Next;
+	ximapstatuscursor Cursor = *pCursor;
+	Next = __xrtImapDataPair(&Cursor.Data, &Item.Name, &Item.Value);
+	if ( Next == XMAIL_NEXT_ERROR ) return Next;
+	if ( Next == XMAIL_NEXT_ITEM ) {
+		bool Nonzero = __xrtMailAsciiEqualI(Item.Name, XRT_STR_LITERAL("UIDNEXT")) ||
+			__xrtMailAsciiEqualI(Item.Name, XRT_STR_LITERAL("UIDVALIDITY"));
+		bool Size = __xrtMailAsciiEqualI(Item.Name, XRT_STR_LITERAL("SIZE"));
+		bool Count = __xrtMailAsciiEqualI(Item.Name, XRT_STR_LITERAL("MESSAGES")) ||
+			__xrtMailAsciiEqualI(Item.Name, XRT_STR_LITERAL("UNSEEN")) ||
+			__xrtMailAsciiEqualI(Item.Name, XRT_STR_LITERAL("DELETED"));
+		if ( (Nonzero || Size || Count) && !__xrtImapDataScalar(&Item.Value, Nonzero, Size ? (uint64)INT64_MAX : UINT32_MAX) )
+			return XMAIL_NEXT_ERROR;
+		*pItem = Item;
 	}
-	if ( (Name.Kind != XIMAP_DATA_ATOM) ||
-		(xrtImapDataNext(&pCursor->Data, &Value) != XMAIL_NEXT_ITEM) ) {
-		__xrtImapDataError(XERR_PROTOCOL, "invalid IMAP STATUS item");
-		return XMAIL_NEXT_ERROR;
-	}
-	pItem->Name = Name.Source;
-	pItem->Value = Value;
-	return XMAIL_NEXT_ITEM;
+	*pCursor = Cursor;
+	return Next;
 }
 
 
@@ -645,11 +764,12 @@ XRT_API bool xrtImapSearchCursorInit(
 {
 	xstrview Payload;
 
-	if ( !xrtMemRangeValid(pCursor, sizeof(*pCursor)) ||
-		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), Text.Data, Text.Size) ||
-		!__xrtImapDataPayload(Text, XRT_STR_LITERAL("SEARCH"), &Payload) ) {
+	if ( !xrtMemRangeValid(pCursor, sizeof(*pCursor)) || !__xrtMailViewValid(Text) ||
+		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), Text.Data, Text.Size) ) {
+		__xrtMailSetInvalidArgument();
 		return false;
 	}
+	if ( !__xrtImapDataPayload(Text, XRT_STR_LITERAL("SEARCH"), &Payload) ) return false;
 	return xrtImapDataCursorInit(&pCursor->Data, Payload);
 }
 
@@ -666,44 +786,69 @@ XRT_API xmailnext xrtImapSearchNext(
 
 	if ( !xrtMemRangeValid(pCursor, sizeof(*pCursor)) ||
 		!xrtMemRangeValid(pItem, sizeof(*pItem)) ||
-		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), pItem, sizeof(*pItem)) ) {
+		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), pItem, sizeof(*pItem)) ||
+		xrtMemRangesOverlap(pItem, sizeof(*pItem), pCursor->Data.Text.Data, pCursor->Data.Text.Size) ) {
 		__xrtMailSetInvalidArgument();
 		return XMAIL_NEXT_ERROR;
 	}
-	Next = xrtImapDataNext(&pCursor->Data, &Value);
+	ximapsearchcursor Working = *pCursor;
+	ximapsearchitem Item;
+	Next = __xrtImapDataSeparated(&Working.Data, &Value, false);
 	if ( Next != XMAIL_NEXT_ITEM ) {
+		if ( Next == XMAIL_NEXT_END ) *pCursor = Working;
 		return Next;
 	}
 	if ( Value.Kind == XIMAP_DATA_NUMBER ) {
-		pItem->Kind = XIMAP_SEARCH_ID;
-		pItem->Number = Value.Number;
-		return XMAIL_NEXT_ITEM;
-	}
-	if ( Value.Kind == XIMAP_DATA_LIST ) {
+		if ( !__xrtImapDataScalar(&Value, true, UINT32_MAX) ) return XMAIL_NEXT_ERROR;
+		Item.Kind = XIMAP_SEARCH_ID;
+		Item.Number = Value.Number;
+	} else if ( Value.Kind == XIMAP_DATA_LIST ) {
 		ximapdatacursor Cursor;
 		ximapdataview Name;
 		ximapdataview Number;
-		ximapdataview Extra;
-
-		if ( xrtImapDataCursorInit(&Cursor, Value.Value) &&
-			(xrtImapDataNext(&Cursor, &Name) == XMAIL_NEXT_ITEM) &&
-			(Name.Kind == XIMAP_DATA_ATOM) &&
-			__xrtMailAsciiEqualI(Name.Source, XRT_STR_LITERAL("MODSEQ")) &&
-			(xrtImapDataNext(&Cursor, &Number) == XMAIL_NEXT_ITEM) &&
-			(Number.Kind == XIMAP_DATA_NUMBER) &&
-			(xrtImapDataNext(&Cursor, &Extra) == XMAIL_NEXT_END) ) {
-			pItem->Kind = XIMAP_SEARCH_MODSEQ;
-			pItem->Number = Number.Number;
-			return XMAIL_NEXT_ITEM;
+		if ( !xrtImapDataCursorInit(&Cursor, Value.Value) ||
+			!__xrtImapDataRequired(&Cursor, &Name, true) ) return XMAIL_NEXT_ERROR;
+		if ( Name.Kind != XIMAP_DATA_ATOM || !__xrtMailAsciiEqualI(Name.Source, XRT_STR_LITERAL("MODSEQ")) ) {
+			__xrtImapDataError(XERR_PROTOCOL, "invalid IMAP SEARCH MODSEQ name");
+			return XMAIL_NEXT_ERROR;
 		}
+		if ( !__xrtImapDataRequired(&Cursor, &Number, false) ||
+			!__xrtImapDataScalar(&Number, false, UINT64_MAX) ||
+			!__xrtImapDataEnd(&Cursor) || !__xrtImapDataEnd(&Working.Data) ) return XMAIL_NEXT_ERROR;
+		Item.Kind = XIMAP_SEARCH_MODSEQ;
+		Item.Number = Number.Number;
+	} else {
+		__xrtImapDataError(XERR_PROTOCOL, "invalid IMAP SEARCH result");
+		return XMAIL_NEXT_ERROR;
 	}
-	__xrtImapDataError(XERR_PROTOCOL, "invalid IMAP SEARCH result");
-	return XMAIL_NEXT_ERROR;
+	*pCursor = Working;
+	*pItem = Item;
+	return XMAIL_NEXT_ITEM;
 }
 
 
 
 /* 解析 ESEARCH 的可选 correlator 和 UID 指示器。 */
+static bool __xrtImapDataCorrelator(const ximapdataview* pList)
+{
+	ximapdatacursor Cursor;
+	ximapdataview Name, Tag;
+	if ( !xrtImapDataCursorInit(&Cursor, pList->Value) ||
+		!__xrtImapDataRequired(&Cursor, &Name, true) ) return false;
+	if ( Name.Kind != XIMAP_DATA_ATOM || !__xrtMailAsciiEqualI(Name.Source, XRT_STR_LITERAL("TAG")) )
+		return __xrtImapDataError(XERR_PROTOCOL, "invalid IMAP ESEARCH correlator name");
+	if ( !__xrtImapDataRequired(&Cursor, &Tag, true) ) return false;
+	if ( (Tag.Kind != XIMAP_DATA_ATOM && Tag.Kind != XIMAP_DATA_QUOTED) || Tag.Value.Size == 0 )
+		return __xrtImapDataError(XERR_PROTOCOL, "invalid IMAP ESEARCH correlator tag");
+	for ( size_t i = 0; i < Tag.Value.Size; i++ ) {
+		unsigned char Byte = (unsigned char)Tag.Value.Data[i];
+		if ( Tag.Kind == XIMAP_DATA_QUOTED && Byte == (unsigned char)'\\' ) Byte = (unsigned char)Tag.Value.Data[++i];
+		if ( Byte == (unsigned char)'+' || !__xrtImapDataAStringByte(Byte) )
+			return __xrtImapDataError(XERR_PROTOCOL, "invalid IMAP ESEARCH correlator tag character");
+	}
+	return __xrtImapDataEnd(&Cursor);
+}
+
 XRT_API bool xrtImapESearchParse(
 	xstrview Text,
 	ximapesearchview* pSearch
@@ -716,7 +861,7 @@ XRT_API bool xrtImapESearchParse(
 	size_t iPosition;
 	xmailnext Next;
 
-	if ( !xrtMemRangeValid(pSearch, sizeof(*pSearch)) ||
+	if ( !xrtMemRangeValid(pSearch, sizeof(*pSearch)) || !__xrtMailViewValid(Text) ||
 		xrtMemRangesOverlap(pSearch, sizeof(*pSearch), Text.Data, Text.Size) ) {
 		__xrtMailSetInvalidArgument();
 		return false;
@@ -728,24 +873,27 @@ XRT_API bool xrtImapESearchParse(
 	memset(&Search, 0, sizeof(Search));
 	Search.Source = Text;
 	iPosition = Cursor.Position;
-	Next = xrtImapDataNext(&Cursor, &Value);
+	Next = __xrtImapDataSeparated(&Cursor, &Value, false);
 	if ( Next == XMAIL_NEXT_ERROR ) {
 		return false;
 	}
 	if ( (Next == XMAIL_NEXT_ITEM) && (Value.Kind == XIMAP_DATA_LIST) ) {
+		if ( !__xrtImapDataCorrelator(&Value) ) return false;
 		Search.Correlator = Value.Value;
 	} else {
 		Cursor.Position = iPosition;
 		Cursor.Done = false;
 	}
 	iPosition = Cursor.Position;
-	Next = xrtImapDataNext(&Cursor, &Value);
+	Next = __xrtImapDataSeparated(&Cursor, &Value, true);
 	if ( Next == XMAIL_NEXT_ERROR ) {
 		return false;
 	}
 	if ( (Next == XMAIL_NEXT_ITEM) && (Value.Kind == XIMAP_DATA_ATOM) &&
 		__xrtMailAsciiEqualI(Value.Source, XRT_STR_LITERAL("UID")) ) {
 		Search.Uid = true;
+		if ( Cursor.Position < Payload.Size && Payload.Data[Cursor.Position] != ' ' )
+			return __xrtImapDataError(XERR_PROTOCOL, "missing space after IMAP ESEARCH UID");
 	} else {
 		Cursor.Position = iPosition;
 		Cursor.Done = false;
@@ -787,28 +935,34 @@ XRT_API xmailnext xrtImapESearchNext(
 	ximapesearchitem* pItem
 )
 {
-	ximapdataview Name;
-	ximapdataview Value;
+	ximapesearchitem Item;
 	xmailnext Next;
 
 	if ( !xrtMemRangeValid(pCursor, sizeof(*pCursor)) ||
 		!xrtMemRangeValid(pItem, sizeof(*pItem)) ||
-		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), pItem, sizeof(*pItem)) ) {
+		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), pItem, sizeof(*pItem)) ||
+		xrtMemRangesOverlap(pItem, sizeof(*pItem), pCursor->Data.Text.Data, pCursor->Data.Text.Size) ) {
 		__xrtMailSetInvalidArgument();
 		return XMAIL_NEXT_ERROR;
 	}
-	Next = xrtImapDataNext(&pCursor->Data, &Name);
-	if ( Next != XMAIL_NEXT_ITEM ) {
-		return Next;
+	ximapesearchcursor Cursor = *pCursor;
+	Next = __xrtImapDataPair(&Cursor.Data, &Item.Name, &Item.Value);
+	if ( Next == XMAIL_NEXT_ERROR ) return Next;
+	if ( Next == XMAIL_NEXT_ITEM ) {
+		bool Nonzero = __xrtMailAsciiEqualI(Item.Name, XRT_STR_LITERAL("MIN")) ||
+			__xrtMailAsciiEqualI(Item.Name, XRT_STR_LITERAL("MAX"));
+		if ( (Nonzero || __xrtMailAsciiEqualI(Item.Name, XRT_STR_LITERAL("COUNT"))) &&
+			!__xrtImapDataScalar(&Item.Value, Nonzero, UINT32_MAX) ) return XMAIL_NEXT_ERROR;
+		if ( __xrtMailAsciiEqualI(Item.Name, XRT_STR_LITERAL("ALL")) &&
+			(!xrtImapSequenceSetValid(Item.Value.Source) ||
+			 __xrtMailAsciiEqualI(Item.Value.Source, XRT_STR_LITERAL("$"))) ) {
+			__xrtImapDataError(XERR_PROTOCOL, "invalid IMAP ESEARCH ALL set");
+			return XMAIL_NEXT_ERROR;
+		}
+		*pItem = Item;
 	}
-	if ( (Name.Kind != XIMAP_DATA_ATOM) ||
-		(xrtImapDataNext(&pCursor->Data, &Value) != XMAIL_NEXT_ITEM) ) {
-		__xrtImapDataError(XERR_PROTOCOL, "invalid IMAP ESEARCH item");
-		return XMAIL_NEXT_ERROR;
-	}
-	pItem->Name = Name.Source;
-	pItem->Value = Value;
-	return XMAIL_NEXT_ITEM;
+	*pCursor = Cursor;
+	return Next;
 }
 
 
@@ -821,21 +975,24 @@ XRT_API bool xrtImapFetchParse(
 {
 	ximapnumberview Number;
 	ximapfetchview Fetch;
+	xmailnext Next;
 
-	if ( !xrtMemRangeValid(pFetch, sizeof(*pFetch)) ||
+	if ( !xrtMemRangeValid(pFetch, sizeof(*pFetch)) || !__xrtMailViewValid(Text) ||
 		xrtMemRangesOverlap(pFetch, sizeof(*pFetch), Text.Data, Text.Size) ) {
 		__xrtMailSetInvalidArgument();
 		return false;
 	}
-	if ( (xrtImapNumberParse(Text, &Number) != XMAIL_NEXT_ITEM) ||
-		!__xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("FETCH")) ||
-		(Number.Number == 0) || (Number.Number > UINT32_MAX) ||
+	Next = xrtImapNumberParse(Text, &Number);
+	if ( Next == XMAIL_NEXT_ERROR ) return false;
+	if ( Next != XMAIL_NEXT_ITEM || !__xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("FETCH")) ||
+		(Number.Number == 0) ||
 		(Number.Text.Size == 0) || (Number.Text.Data[0] != '(') ) {
 		return __xrtImapDataError(
 			XERR_PROTOCOL,
 			"invalid IMAP FETCH response"
 		);
 	}
+	if ( Number.Number > UINT32_MAX ) return __xrtImapDataError(XERR_RANGE, "IMAP FETCH sequence exceeds uint32");
 	Fetch.Source = Text;
 	Fetch.Items = Number.Text;
 	Fetch.Sequence = Number.Number;
@@ -856,7 +1013,8 @@ XRT_API bool xrtImapFetchCursorInit(
 		(pFetch == NULL) || !__xrtImapDataTextValid(pFetch->Items) ||
 		(pFetch->Items.Size == 0) || (pFetch->Items.Data[0] != '(') ||
 		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), pFetch,
-			sizeof(*pFetch)) ) {
+			sizeof(*pFetch)) ||
+		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), pFetch->Items.Data, pFetch->Items.Size) ) {
 		__xrtMailSetInvalidArgument();
 		return false;
 	}
@@ -903,6 +1061,10 @@ static bool __xrtImapFetchAttribute(
 
 	while ( iPosition < Text.Size ) {
 		char iByte = Text.Data[iPosition];
+		if ( !__xrtImapDataByteValid((unsigned char)iByte) ) {
+			__xrtMailSetInvalidArgument();
+			return false;
+		}
 
 		if ( iByte == '[' ) {
 			iBrackets++;
@@ -946,7 +1108,7 @@ XRT_API xmailnext xrtImapFetchNext(
 
 	if ( !xrtMemRangeValid(pCursor, sizeof(*pCursor)) ||
 		!xrtMemRangeValid(pItem, sizeof(*pItem)) ||
-		(pCursor == NULL) || !__xrtImapDataTextValid(pCursor->Text) ||
+		(pCursor == NULL) || !__xrtMailViewValid(pCursor->Text) ||
 		(pCursor->Position > pCursor->Text.Size) ||
 		xrtMemRangesOverlap(pCursor, sizeof(*pCursor), pItem, sizeof(*pItem)) ||
 		xrtMemRangesOverlap(pItem, sizeof(*pItem), pCursor->Text.Data,
@@ -956,6 +1118,15 @@ XRT_API xmailnext xrtImapFetchNext(
 	}
 	if ( pCursor->Done || pCursor->NeedMore ) {
 		return XMAIL_NEXT_END;
+	}
+	/* After a value (or a consumed literal), the next attribute needs SP;
+	 * an immediate closing ')' is valid, including in a continuation. */
+	if ( (pCursor->Position == 0 || pCursor->Position > 1u) &&
+		pCursor->Position < pCursor->Text.Size &&
+		pCursor->Text.Data[pCursor->Position] != ' ' &&
+		pCursor->Text.Data[pCursor->Position] != ')' ) {
+		__xrtImapDataError(XERR_PROTOCOL, "missing space between IMAP FETCH attributes");
+		return XMAIL_NEXT_ERROR;
 	}
 	iPosition = __xrtImapDataSpace(pCursor->Text, pCursor->Position);
 	if ( iPosition == pCursor->Text.Size ) {
@@ -980,10 +1151,14 @@ XRT_API xmailnext xrtImapFetchNext(
 		pCursor->Text,
 		&iPosition,
 		&Item.Attribute
-	) || (iPosition == pCursor->Text.Size) ||
-		!__xrtImapDataValue(pCursor->Text, &iPosition, &Value) ) {
+	) ) {
 		return XMAIL_NEXT_ERROR;
 	}
+	if ( iPosition == pCursor->Text.Size ) {
+		__xrtImapDataError(XERR_PROTOCOL, "missing IMAP FETCH value");
+		return XMAIL_NEXT_ERROR;
+	}
+	if ( !__xrtImapDataValue(pCursor->Text, &iPosition, &Value) ) return XMAIL_NEXT_ERROR;
 	Item.Value = Value;
 	pCursor->Position = iPosition;
 	if ( Value.Kind == XIMAP_DATA_LITERAL ) {

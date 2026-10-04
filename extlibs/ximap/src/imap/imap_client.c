@@ -7,28 +7,6 @@
 
 #if defined(XIMAP_FEATURE_IMAP_CLIENT)
 
-/* 客户端只保存协议状态、能力快照和当前顺序命令，不缓存完整响应。 */
-struct ximapclient {
-	__xmailtransport Transport;
-	__xmailtext Last;
-	ximapclientstate State;
-	uint64 Capabilities;
-	uint64 AppendLimit;
-	size_t CommandLineLimit;
-	size_t LiteralRemaining;
-	size_t AppendRemaining;
-	uint32 TagCounter;
-	char ActiveTag[XIMAP_CLIENT_TAG_MAX + 1u];
-	size_t ActiveTagSize;
-	bool Active;
-	bool ExpectFragment;
-	bool Idle;
-	bool IdleDone;
-	bool Append;
-};
-
-
-
 /* 设置 IMAP 客户端稳定错误。 */
 static bool __xrtImapClientError(xerrkind Kind, cstr sMessage)
 {
@@ -53,11 +31,27 @@ static bool __xrtImapClientUsable(const ximapclient* pClient)
 
 
 
+
+/* BYE 或 LOGOUT 后仍可读取响应，但不能再发送命令。 */
+static bool __xrtImapClientWritable(const ximapclient* pClient)
+{
+	if ( !__xrtImapClientUsable(pClient) ) {
+		return false;
+	}
+	if ( pClient->Closing ) {
+		return __xrtImapClientError(XERR_CLOSED, "IMAP server is closing");
+	}
+	return true;
+}
+
+
+
 /* 把不可恢复的传输或协议失败记录为终态。 */
 static bool __xrtImapClientFailed(ximapclient* pClient)
 {
 	if ( pClient != NULL ) {
 		pClient->State = XIMAP_CLIENT_FAILED;
+		__xrtMailTransportAbortPreserveError(&pClient->Transport);
 	}
 	return false;
 }
@@ -233,6 +227,10 @@ static bool __xrtImapClientSendCommandParts(
 		pCancel
 	) ) {
 		return __xrtImapClientFailed(pClient);
+	}
+	if ( __xrtMailAsciiEqualI(Command, XRT_STR_LITERAL("LOGOUT")) ) {
+		pClient->LogoutSent = true;
+		pClient->Closing = true;
 	}
 	return true;
 }
@@ -678,7 +676,7 @@ XRT_API bool xrtImapClientSend(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapClientUsable(pClient) ) {
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( pClient->Active || (pClient->LiteralRemaining != 0) ||
@@ -711,7 +709,7 @@ XRT_API bool xrtImapClientSendParts(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapClientUsable(pClient) ) {
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( pClient->Active || (pClient->LiteralRemaining != 0) ||
@@ -743,7 +741,7 @@ XRT_API bool xrtImapClientWrite(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapClientUsable(pClient) ) {
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( !xrtMemRangeValid(pData, iSize) ) {
@@ -881,6 +879,18 @@ XRT_API bool xrtImapClientReceive(
 		!__xrtImapClientResponseSave(pClient, &pEvent->Response) ) {
 		return __xrtImapClientFailed(pClient);
 	}
+	if ( (pEvent->Kind == XIMAP_EVENT_RESPONSE) &&
+		(pEvent->Response.Kind == XIMAP_RESPONSE_UNTAGGED) &&
+		(pEvent->Response.Status == XIMAP_STATUS_BYE) ) {
+		pClient->Closing = true;
+		if ( !__xrtImapClientResponseSave(pClient, &pEvent->Response) ) {
+			return __xrtImapClientFailed(pClient);
+		}
+		if ( !pClient->LogoutSent ) {
+			pClient->State = XIMAP_CLIENT_FAILED;
+			__xrtMailTransportAbortPreserveError(&pClient->Transport);
+		}
+	}
 	return true;
 }
 
@@ -954,7 +964,7 @@ XRT_API bool xrtImapClientBegin(
 {
 	xstrview Tag;
 
-	if ( !__xrtImapClientUsable(pClient) ) {
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( pClient->Active || (pClient->LiteralRemaining != 0) ||
@@ -994,7 +1004,7 @@ XRT_API bool xrtImapClientBeginParts(
 {
 	xstrview Tag;
 
-	if ( !__xrtImapClientUsable(pClient) ) {
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( pClient->Active || (pClient->LiteralRemaining != 0) ||
@@ -1051,6 +1061,10 @@ XRT_API xmailnext xrtImapClientNext(
 		iDeadline,
 		pCancel
 	) ) {
+		return XMAIL_NEXT_ERROR;
+	}
+	if ( pClient->State == XIMAP_CLIENT_FAILED ) {
+		(void)__xrtImapClientError(XERR_CLOSED, "IMAP server sent BYE");
 		return XMAIL_NEXT_ERROR;
 	}
 	if ( (pEvent->Kind != XIMAP_EVENT_RESPONSE) ||

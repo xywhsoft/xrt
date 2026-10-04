@@ -17,7 +17,9 @@ Open 验证 `220` banner，然后发送 EHLO；只有服务器明确返回 `500`
 才可按配置回退 HELO。`READY -> MAIL -> RECIPIENT -> READY` 对应一笔 DATA envelope 事务；
 CHUNKING 路径在首块后进入 `XSMTP_CLIENT_CHUNK`，LAST 成功后回到 READY。
 协议拒绝保留服务器响应并允许调用方决定 RSET、重试或关闭；传输和解析失败进入
-`XSMTP_CLIENT_FAILED`，不能继续复用。
+`XSMTP_CLIENT_FAILED` 并立即异常中止传输，不能继续复用；原始错误仍可读取。
+服务器返回 `421` 表示正在关闭传输通道；客户端保留该回复，返回 `XERR_CLOSED` 并进入
+`XSMTP_CLIENT_FAILED`，后续命令不会发送。
 
 `Quit` 发送协议命令后正常关闭，`Close` 跳过 QUIT 但仍等待传输正常关闭。`Abort` 从任意
 非空 Client 状态立即提交异常中止，不等待网络完成；重复中止或对已关闭 Client 中止成功。

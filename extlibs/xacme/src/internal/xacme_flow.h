@@ -82,7 +82,11 @@ bool xacmeClientInit(
 	uint64 uTimeoutUs
 );
 
-void xacmeClientUnit(xacmeclient* pClient);
+/* false 时保留传输拥有者，只能继续清理。 */
+bool xacmeClientUnit(xacmeclient* pClient);
+
+/* 消费尚未交付的堆客户端；退休未完成时把拥有权转移到公共待清理队列。 */
+void xacmeClientDiscard(xacmeclient* pClient);
 
 /* 账户密钥的 PKCS#8 PEM 导出（xrtFree 释放），宿主可持久化后传入 Init 复用。 */
 str xacmeClientAccountPem(const xacmeclient* pClient);
@@ -90,8 +94,11 @@ str xacmeClientAccountPem(const xacmeclient* pClient);
 /*
 	一次 dns-01 签发：域名可含通配符（*. 前缀）；产物含证书链与
 	配对私钥（均 xrtFree）。bAlt 时若证书响应带 rel="alternate"
-	备用链则优先采用（失败回退主链）。失败返回 false 并设置线程
-	错误；provider 的 Add 在挑战触发前调用、Remove 在结束后尽力
+	备用链则优先采用（失败回退主链）。链中仅接受证书对象，核对
+	CSR 公钥、SAN、叶有效期及所提供
+	链的相邻签名；备用链要求同一 DER 叶证书，相对 URI 以主下载 URL
+	解析。此检查不代替部署根信任与完整 PKIX 策略。失败返回 false
+	并保留线程错误；provider 的 Add 在挑战触发前调用、Remove 在结束后尽力
 	调用。
 */
 bool xacmeClientIssue(

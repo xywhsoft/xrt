@@ -600,10 +600,9 @@
 - `XSSH_FEATURE_CHANNELS`
 - `XSSH_FEATURE_CONNECTION_SESSION`
 
-### 类型 (7)
+### 类型 (6)
 
 - `xsshchannel`
-- `xsshchannelresolveproc`
 - `xsshchannels`
 - `xsshchannelsconfig`
 - `xsshchannelsiter`
@@ -919,8 +918,9 @@
 - `XSSH_CONNECTION_QUEUE_PUSH`
 - `XSSH_FEATURE_REPLY_QUEUE`
 
-### 类型 (5)
+### 类型 (6)
 
+- `xsshchannelresolveproc`
 - `xsshconnectionmessage`
 - `xsshconnectionpacket`
 - `xsshconnectionpacketkind`
@@ -1314,7 +1314,7 @@
 - `xrtSshKnownHostDbInit`
 - `xrtSshKnownHostDbNext`
 
-### 常量与宏 (10)
+### 常量与宏 (9)
 
 - `XSSH_FEATURE_KNOWN_HOST_DB`
 - `XSSH_FEATURE_KNOWN_HOST_HASH`
@@ -1325,7 +1325,6 @@
 - `XSSH_KNOWN_HOST_TRUST_MATCH`
 - `XSSH_KNOWN_HOST_TRUST_NEW`
 - `XSSH_KNOWN_HOST_TRUST_REVOKED`
-- `XSSH_NEED_MORE`
 
 ### 类型 (5)
 
@@ -2008,7 +2007,7 @@
 - `xrtSshWriterReserve`
 - `xrtSshWriterReserveInputs`
 
-### 常量与宏 (12)
+### 常量与宏 (13)
 
 - `XSSH_ERROR_ARGUMENT`
 - `XSSH_ERROR_AUTHENTICATION`
@@ -2021,4 +2020,5 @@
 - `XSSH_ERROR_UNSUPPORTED`
 - `XSSH_FEATURE_SSH`
 - `XSSH_IDENTIFICATION_MAX`
+- `XSSH_NEED_MORE`
 - `XSSH_OK`

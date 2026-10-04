@@ -49,102 +49,115 @@ static bool hmac_sign(int alg, const void* pData, size_t iSize,
 /* ------------------------------------------------------------------ */
 /* RSA PEM 解析（SPKI 或 PKCS#1 → xrt 公钥视图）                        */
 /* ------------------------------------------------------------------ */
+static bool rsa_public_der_parse(const void* pData, size_t iSize,
+	bool bSpki, xbytesview* pModulus, xbytesview* pExponent)
+{
+	static const unsigned char aRsaOid[] = {
+		0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01
+	};
+	xdercursor Outer, Body, Key;
+	xdervalue Value;
+
+	if ( !xrtDerValidate(pData, iSize) ||
+		!xrtDerInit(&Outer, pData, iSize) ||
+		xrtDerRead(&Outer, &Value) != XDER_VALUE ||
+		!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) ||
+		!xrtDerDone(&Outer) || !xrtDerEnter(&Value, &Body) ) {
+		return false;
+	}
+	if ( bSpki ) {
+		xdercursor Algorithm;
+		xbytesview EncodedKey;
+		uint8 iUnused;
+
+		if ( xrtDerRead(&Body, &Value) != XDER_VALUE ||
+			!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) ||
+			!xrtDerEnter(&Value, &Algorithm) ||
+			xrtDerRead(&Algorithm, &Value) != XDER_VALUE ||
+			!xrtDerOidEqual(&Value, aRsaOid, sizeof(aRsaOid)) ||
+			xrtDerRead(&Algorithm, &Value) != XDER_VALUE ||
+			!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_NULL, false) ||
+			(Value.Value.Size != 0) || !xrtDerDone(&Algorithm) ||
+			xrtDerRead(&Body, &Value) != XDER_VALUE ||
+			!xrtDerBitString(&Value, &EncodedKey, &iUnused) ||
+			(iUnused != 0) || !xrtDerDone(&Body) ||
+			!xrtDerInit(&Key, EncodedKey.Data, EncodedKey.Size) ||
+			xrtDerRead(&Key, &Value) != XDER_VALUE ||
+			!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true) ||
+			!xrtDerDone(&Key) || !xrtDerEnter(&Value, &Key) ) {
+			return false;
+		}
+	} else {
+		Key = Body;
+	}
+	return xrtDerRead(&Key, &Value) == XDER_VALUE &&
+		xrtDerUnsigned(&Value, pModulus) &&
+		xrtDerRead(&Key, &Value) == XDER_VALUE &&
+		xrtDerUnsigned(&Value, pExponent) && xrtDerDone(&Key);
+}
+
 bool xjwt__rsa_public_parse(const char* sPem, xrsapublickey* pKey,
                             unsigned char** ppOwned)
 {
 	xpemblock tBlock;
-	if ( !xrtPemFind(sPem, strlen(sPem), "PUBLIC KEY", &tBlock) ) {
-		/* 也试 PKCS#1 标签 */
-		if ( !xrtPemFind(sPem, strlen(sPem), "RSA PUBLIC KEY", &tBlock) ) {
-			xjwt__error(XJWT_ERROR_PARSE, "PEM public key not found");
-			return false;
-		}
+	xbytesview Modulus, Exponent;
+	xrsapublickey Parsed;
+	unsigned char *pModulus = NULL, *pExponent = NULL, **ppArr = NULL;
+	bool bSpki;
+	size_t iPemSize;
+
+	if ( (sPem == NULL) || (pKey == NULL) || (ppOwned == NULL) ) {
+		xjwt__error(XJWT_ERROR_ARGUMENT, "RSA public key argument is null");
+		return false;
+	}
+	iPemSize = strlen(sPem);
+	bSpki = xrtPemFind(sPem, iPemSize, "PUBLIC KEY", &tBlock);
+	if ( !bSpki &&
+		!xrtPemFind(sPem, iPemSize, "RSA PUBLIC KEY", &tBlock) ) {
+		xjwt__error(XJWT_ERROR_PARSE, "PEM public key not found");
+		return false;
 	}
 	size_t iDerSize = 0;
 	bytes pDer = xrtPemDecodeNew(&tBlock, &iDerSize);
 	if ( pDer == NULL ) {
-		xjwt__error(XJWT_ERROR_PARSE, "PEM decode failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE,
+			"PEM decode failed");
 		return false;
 	}
-
-	/* SPKI DER：SEQ { SEQ { OID, NULL }, BIT STRING { SEQ { INTEGER n, INTEGER e } } }
-	 * PKCS#1 DER：SEQ { INTEGER n, INTEGER e }
-	 * 我们简化：手动走 DER 找两个 INTEGER（n 和 e）。 */
-	xdercursor tCur;
-	xdervalue tVal;
-	unsigned char* pModulus = NULL;
-	unsigned char* pExponent = NULL;
-	size_t iModSize = 0, iExpSize = 0;
-
-	xrtDerInit(&tCur, pDer, iDerSize);
-	/* 外层 SEQ */
-	if ( xrtDerRead(&tCur, &tVal) != XDER_VALUE ) goto fail;
-	{
-		/* 尝试 SPKI：内层第一个是 SEQ（AlgorithmIdentifier），跳过后 BIT STRING */
-		xdercursor tInner;
-		xrtDerInit(&tInner, tVal.Value.Data, tVal.Value.Size);
-		if ( xrtDerRead(&tInner, &tVal) != XDER_VALUE ) goto fail;
-		if ( tVal.Tag.Number == XASN1_SEQUENCE ) {
-			/* SPKI：跳过 AlgorithmIdentifier，读 BIT STRING */
-			if ( xrtDerRead(&tInner, &tVal) != XDER_VALUE ) goto fail;
-			if ( tVal.Tag.Number != XASN1_BIT_STRING ) goto fail;
-			/* BIT STRING 第一字节是 unused-bits 计数 */
-			{
-				const unsigned char* p = (const unsigned char*)tVal.Value.Data;
-				size_t n = tVal.Value.Size;
-				if ( n < 1 ) goto fail;
-				p++; n--;
-				/* 内层 SEQ { INTEGER n, INTEGER e } */
-				xdercursor tKey;
-				xrtDerInit(&tKey, p, n);
-				if ( xrtDerRead(&tKey, &tVal) != XDER_VALUE || tVal.Tag.Number != XASN1_SEQUENCE ) goto fail;
-				/* 在 SEQ 内容上重开游标读两个 INTEGER */
-				xrtDerInit(&tKey, tVal.Value.Data, tVal.Value.Size);
-				if ( xrtDerRead(&tKey, &tVal) != XDER_VALUE || tVal.Tag.Number != XASN1_INTEGER ) goto fail;
-				iModSize = tVal.Value.Size;
-				pModulus = (unsigned char*)xrtMalloc(iModSize);
-				if ( pModulus ) memcpy(pModulus, tVal.Value.Data, iModSize);
-				if ( xrtDerRead(&tKey, &tVal) != XDER_VALUE || tVal.Tag.Number != XASN1_INTEGER ) goto fail;
-				iExpSize = tVal.Value.Size;
-				pExponent = (unsigned char*)xrtMalloc(iExpSize);
-				if ( pExponent ) memcpy(pExponent, tVal.Value.Data, iExpSize);
-			}
-		} else if ( tVal.Tag.Number == XASN1_INTEGER ) {
-			/* PKCS#1：SEQ { INTEGER n, INTEGER e } */
-			iModSize = tVal.Value.Size;
-			pModulus = (unsigned char*)xrtMalloc(iModSize);
-			if ( pModulus ) memcpy(pModulus, tVal.Value.Data, iModSize);
-			if ( xrtDerRead(&tInner, &tVal) != XDER_VALUE || tVal.Tag.Number != XASN1_INTEGER ) goto fail;
-			iExpSize = tVal.Value.Size;
-			pExponent = (unsigned char*)xrtMalloc(iExpSize);
-			if ( pExponent ) memcpy(pExponent, tVal.Value.Data, iExpSize);
-		} else {
-			goto fail;
-		}
+	if ( !rsa_public_der_parse(pDer, iDerSize, bSpki,
+		&Modulus, &Exponent) ) {
+		goto invalid;
 	}
-
-	if ( pModulus == NULL || pExponent == NULL ) goto fail;
-	xjwt__int_trim(pModulus, &iModSize);
-	xjwt__int_trim(pExponent, &iExpSize);
+	Parsed.Modulus = Modulus.Data;
+	Parsed.ModulusSize = Modulus.Size;
+	Parsed.Exponent = Exponent.Data;
+	Parsed.ExponentSize = Exponent.Size;
+	if ( !xjwt__rsa_jwa_key_valid(&Parsed) ) goto invalid;
+	pModulus = (unsigned char*)xrtMalloc(Modulus.Size);
+	pExponent = (unsigned char*)xrtMalloc(Exponent.Size);
+	ppArr = (unsigned char**)xrtMalloc(2u * sizeof(*ppArr));
+	if ( (pModulus == NULL) || (pExponent == NULL) || (ppArr == NULL) ) {
+		goto cleanup;
+	}
+	memcpy(pModulus, Modulus.Data, Modulus.Size);
+	memcpy(pExponent, Exponent.Data, Exponent.Size);
+	ppArr[0] = pModulus;
+	ppArr[1] = pExponent;
 	pKey->Modulus = pModulus;
-	pKey->ModulusSize = iModSize;
+	pKey->ModulusSize = Modulus.Size;
 	pKey->Exponent = pExponent;
-	pKey->ExponentSize = iExpSize;
-	{
-		unsigned char** ppArr = (unsigned char**)xrtMalloc(2 * sizeof(void*));
-		if ( ppArr == NULL ) goto fail;
-		ppArr[0] = pModulus;
-		ppArr[1] = pExponent;
-		*ppOwned = (unsigned char*)ppArr;
-	}
+	pKey->ExponentSize = Exponent.Size;
+	*ppOwned = (unsigned char*)ppArr;
 	xrtFree(pDer);
 	return true;
 
-fail:
-	if ( pModulus ) xrtFree(pModulus);
-	if ( pExponent ) xrtFree(pExponent);
-	xrtFree(pDer);
+invalid:
 	xjwt__error(XJWT_ERROR_PARSE, "RSA public key DER parse failed");
+cleanup:
+	xrtFree(pModulus);
+	xrtFree(pExponent);
+	xrtFree(ppArr);
+	xrtFree(pDer);
 	return false;
 }
 
@@ -231,7 +244,8 @@ bool xjwt__verify(int alg, const void* pData, size_t iSize,
 	case XJWT_ALG_HS256: {
 		unsigned char aMac[32];
 		if ( !xrtHmacSha256(sKeyPem, strlen(sKeyPem), pData, iSize, aMac) ) {
-			xjwt__error(XJWT_ERROR_SIGNATURE, "HS256 HMAC computation failed");
+			xjwt__error_unless_memory(XJWT_ERROR_SIGNATURE,
+				"HS256 HMAC computation failed");
 			return false;
 		}
 		if ( iSigSize != 32 ) { xjwt__error(XJWT_ERROR_SIGNATURE, "HS256 signature size mismatch"); return false; }
@@ -244,7 +258,8 @@ bool xjwt__verify(int alg, const void* pData, size_t iSize,
 	case XJWT_ALG_HS384: {
 		unsigned char aMac[48];
 		if ( !xrtHmacSha384(sKeyPem, strlen(sKeyPem), pData, iSize, aMac) ) {
-			xjwt__error(XJWT_ERROR_SIGNATURE, "HS384 HMAC computation failed");
+			xjwt__error_unless_memory(XJWT_ERROR_SIGNATURE,
+				"HS384 HMAC computation failed");
 			return false;
 		}
 		if ( iSigSize != 48 ) { xjwt__error(XJWT_ERROR_SIGNATURE, "HS384 signature size mismatch"); return false; }
@@ -257,7 +272,8 @@ bool xjwt__verify(int alg, const void* pData, size_t iSize,
 	case XJWT_ALG_HS512: {
 		unsigned char aMac[64];
 		if ( !xrtHmacSha512(sKeyPem, strlen(sKeyPem), pData, iSize, aMac) ) {
-			xjwt__error(XJWT_ERROR_SIGNATURE, "HS512 HMAC computation failed");
+			xjwt__error_unless_memory(XJWT_ERROR_SIGNATURE,
+				"HS512 HMAC computation failed");
 			return false;
 		}
 		if ( iSigSize != 64 ) { xjwt__error(XJWT_ERROR_SIGNATURE, "HS512 signature size mismatch"); return false; }
@@ -274,12 +290,14 @@ bool xjwt__verify(int alg, const void* pData, size_t iSize,
 			return false;
 		bool ok = xjwt__verify_rsa_raw(pData, iSize, pSig, iSigSize, &tKey, alg);
 		xjwt__rsa_public_free(&tKey, pOwned);
-		if ( !ok ) xjwt__error(XJWT_ERROR_SIGNATURE, "RSA signature mismatch");
+		if ( !ok ) xjwt__error_unless_memory(
+			XJWT_ERROR_SIGNATURE, "RSA signature mismatch");
 		return ok;
 	}
 	case XJWT_ALG_ES256: {
 		bool ok = xjwt__verify_es256_full(pData, iSize, sKeyPem, pSig, iSigSize);
-		if ( !ok ) xjwt__error(XJWT_ERROR_SIGNATURE, "ES256 signature mismatch");
+		if ( !ok ) xjwt__error_unless_memory(
+			XJWT_ERROR_SIGNATURE, "ES256 signature mismatch");
 		return ok;
 	}
 	}
@@ -293,6 +311,7 @@ bool xjwt__verify_rsa_raw(const void* pData, size_t iSize,
 {
 	xcryptohash iHash = alg_hash(alg);
 	unsigned char aDigest[64];
+	if ( !xjwt__rsa_jwa_key_valid(pKey) ) return false;
 	switch ( iHash ) {
 	case XCRYPTO_HASH_SHA256:
 		if ( !xrtSha256(pData, iSize, aDigest) ) return false;

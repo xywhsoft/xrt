@@ -156,3 +156,15 @@ void xjwt__error(int iCode, const char* sMessage)
 {
 	xrtSetErrorInfo(XERR_STATE, "xrt.jwt", iCode, sMessage);
 }
+
+bool xjwt__memory_error(void)
+{
+	const xerror* pError = xrtGetError();
+	return pError != NULL && xrtErrorKind(pError) == XERR_MEMORY;
+}
+
+void xjwt__error_unless_memory(int iCode, const char* sMessage)
+{
+	if ( !xjwt__memory_error() )
+		xjwt__error(iCode, sMessage);
+}

@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `1036` 个函数、`901` 个常量或宏、
-`442` 个公共类型。
+当前登记 `1036` 个函数、`898` 个常量或宏、
+`439` 个公共类型。
 
 ## `extlibs/xhttp/include/xrt/cookie.h`
 
@@ -31,7 +31,7 @@
 - `XHTTP_FEATURE_COOKIE`
 - `XHTTP_FEATURE_SET_COOKIE`
 
-### 类型 (11)
+### 类型 (10)
 
 - `xcookieattribute`
 - `xcookieattributenext`
@@ -40,7 +40,6 @@
 - `xcookiepair`
 - `xcookiepriority`
 - `xcookiesamesite`
-- `xrt`
 - `xsetcookie`
 - `xstrview`
 - `xtime`
@@ -151,9 +150,8 @@
 - `xrtFormDataSetBytes`
 - `xrtFormDataSetText`
 
-### 常量与宏 (11)
+### 常量与宏 (10)
 
-- `XHTTP_BODY_UNKNOWN`
 - `XHTTP_FEATURE_FORM_DATA`
 - `XHTTP_FEATURE_FORM_DATA_MULTIPART`
 - `XHTTP_FEATURE_FORM_DATA_PARSE`
@@ -281,7 +279,7 @@
 - `xrtHttpDigestVerify`
 - `xrtHttpFieldChallengeNext`
 
-### 常量与宏 (101)
+### 常量与宏 (100)
 
 - `XHTTP_AUTH_NONE`
 - `XHTTP_AUTH_PARAMS`
@@ -324,7 +322,6 @@
 - `XHTTP_DIGEST_CHOOSE_ACCEPTED`
 - `XHTTP_DIGEST_CHOOSE_ERROR`
 - `XHTTP_DIGEST_CHOOSE_REJECTED`
-- `XHTTP_DIGEST_CLIENT_`
 - `XHTTP_DIGEST_CLIENT_USERNAME_EXTENDED`
 - `XHTTP_DIGEST_INFO_ERROR`
 - `XHTTP_DIGEST_INFO_HAS_NEXT_NONCE`
@@ -445,7 +442,7 @@
 - `xrtHttpBodyTake`
 - `xrtHttpBodyView`
 
-### 常量与宏 (12)
+### 常量与宏 (13)
 
 - `XHTTP_BODY_AGAIN`
 - `XHTTP_BODY_DATA`
@@ -457,6 +454,7 @@
 - `XHTTP_BODY_ERROR_SOURCE`
 - `XHTTP_BODY_NONE`
 - `XHTTP_BODY_REPLAYABLE`
+- `XHTTP_BODY_UNKNOWN`
 - `XHTTP_FEATURE_HTTP_BODY_ASYNC`
 - `XHTTP_FEATURE_HTTP_BODY_TRANSFORM`
 
@@ -652,7 +650,7 @@
 - `xrtHttpCacheDirectiveParse`
 - `xrtHttpCacheNext`
 
-### 常量与宏 (27)
+### 常量与宏 (25)
 
 - `XHTTP_CACHE_CONFLICT`
 - `XHTTP_CACHE_DELTA_MAX`
@@ -679,8 +677,6 @@
 - `XHTTP_CACHE_S_MAXAGE`
 - `XHTTP_CACHE_UNKNOWN`
 - `XHTTP_FEATURE_HTTP_CACHE`
-- `XHTTP_PARAM_HAS_VALUE`
-- `XHTTP_PARAM_QUOTED`
 
 ### 类型 (5)
 
@@ -1789,9 +1785,8 @@
 
 - `XHTTP_FEATURE_HTTP_LANGUAGE_CORE`
 
-### 类型 (2)
+### 类型 (1)
 
-- `xhttp`
 - `xhttpextvalue`
 
 ## `extlibs/xhttp/include/xrt/http_forward.h`
@@ -1952,7 +1947,7 @@
 - `XHTTP_LINK_HAS_TITLE_EXT`
 - `XHTTP_LINK_HAS_TYPE`
 
-### 类型 (7)
+### 类型 (6)
 
 - `xhttplink`
 - `xhttplinkcursor`
@@ -1960,7 +1955,6 @@
 - `xhttplinkflags`
 - `xhttplinkparamvalue`
 - `xhttplinkvalue`
-- `xhttpparamflags`
 
 ## `extlibs/xhttp/include/xrt/http_origin.h`
 

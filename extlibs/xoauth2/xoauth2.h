@@ -64,8 +64,10 @@ enum {
 	都经它）。请求 = method（"POST"/"GET"）+ url + form 编码 body
 	（GET 时为 NULL）+ 可选 Authorization 头（AuthStyle=BASIC 与
 	Bearer 场景非 NULL）。
-	成功时把响应体写入 *psBody（xrtMalloc，库负责 xrtFree）、状态码
-	写入 *piStatus 并返回 true；网络层失败（连接/超时/TLS）返回
+	成功时把响应体写入 *psBody（xrtMalloc）、状态码写入 *piStatus 并返回 true。
+	只要 *psBody 非 NULL，库在返回值为 true 或 false 时都接管所有权；内部处理
+	结束后用 xrtFree 释放，xoauth2HttpGet 成功返回时则转交其调用方释放。
+	回调不可交付静态/栈内存。网络层失败（连接/超时/TLS）返回
 	false（*piStatus 置 0）。测试可用 mock 注入。
 */
 typedef bool (*xoauth2httpproc)(const char* sMethod, const char* sUrl,
@@ -141,9 +143,12 @@ char* xoauth2BeginLogin(xoauth2client* pClient);
 	（一次性，防重放）→ 构造 token 请求（通用端点按 AuthStyle 使用
 	Basic 头或 body，微信端点使用 GET 查询参数）→ 网络交换 → 解析响应 JSON。
 	成功返回 token（xoauth2TokenFree 释放），失败返回 NULL 并设 xerror。
-	state 校验通过即消费会话——失败后必须重新 BeginLogin。
+	state 校验通过即消费会话；请求构造失败也清除 verifier/challenge。
+	保留分配与传输回调的原始 xerror；无回调诊断时补 NETWORK。
+	不会自动重发授权码；失败后必须重新 BeginLogin。
 */
 typedef struct xoauth2token {
+	/* 响应字符串字段拒绝解码后的嵌入 NUL，不交付截断的凭据或元数据。 */
 	char* AccessToken;
 	char* RefreshToken;         /* 可能为 NULL */
 	char* IdToken;              /* 可能为 NULL（OIDC） */
@@ -234,17 +239,44 @@ int xoauth2LastError(void);
 typedef struct xoauth2httpxrt xoauth2httpxrt;
 
 /* 零值可用；pBorrowedEngine 借用宿主 net engine（NULL 则自建），
- * sCaPem 为 NULL 时用系统证书库，uTimeoutUs 为 0 时默认 15s。 */
+ * sCaPem 为 NULL 时用系统证书库，uTimeoutUs 为 0 时默认 15s。
+ * 此超时分别约束连接、整次发送及完整响应，不会逐分片重置。
+ * Init 仅用于首次或已成功清理的外壳；失败回滚至少有 30 秒预算，与请求
+ * 时限分开。失败后仍须清理外壳，清理未完成时只能重试 Cleanup/Unit/Destroy。
+ * 未交付的堆构造由 CleanupPending 清理；有待清理对象时新建私有引擎
+ * 会先非阻塞轮询，仍未完成则拒绝，借用引擎不受该限制。 */
 bool xoauth2HttpXrtInit(xoauth2httpxrt* pHttp, void* pBorrowedEngine,
                         const char* sCaPem, uint64_t uTimeoutUs);
 void xoauth2HttpXrtUnit(xoauth2httpxrt* pHttp);
 
+/* 与请求串行调用；等待自建 engine 的异步 Close/Abort，最多 uTimeoutUs。
+ * 成功释放内部资源（不释放句柄），重复调用或 NULL 均成功；不停止借用 engine。
+ * 失败保留自建 engine 的拥有权，句柄仅可用于再次 Cleanup/Unit/Destroy。
+ * 保留调用前的非空错误；需判断清理结果时使用此返回值。 */
+bool xoauth2HttpXrtCleanup(xoauth2httpxrt* pHttp);
+
 /* 堆版本（opaque 结构无法栈上声明时用——脚本层/绑定层的正路；
- * Destroy 释放整个句柄）。参数语义与 Init 相同。 */
+ * Destroy 清理成功才释放整个句柄；失败保留句柄供重试。
+ * 需要确认成功时先调用 Cleanup，成功后再 Destroy。参数语义与 Init 相同。 */
 xoauth2httpxrt* xoauth2HttpXrtCreate(void* pBorrowedEngine,
                                      const char* sCaPem, uint64_t uTimeoutUs);
 void            xoauth2HttpXrtDestroy(xoauth2httpxrt* pHttp);
 
+/* 重试未交付失败堆构造的引擎退休；并发可用，入列不分配且不启动后台线程。
+ * 宿主停止新调用、等待在途调用结束并清理已交付实例后，在退出/卸载前
+ * 调用至 true；false 时保留库及运行环境并稍后重试。
+ * uTimeoutUs == 0 为一次非阻塞轮询；非零为等待预算，退休 ERROR 提前结束。
+ * true 表示队列及其他清理调用正在处理的对象全部释放；piPending 可空，
+ * 非空时返回尚未完成数量。保留已有错误；无旧错误时报告退休错误或 XERR_TIMEOUT，
+ * 非阻塞 BUSY 不制造错误。已交付句柄仍由 Cleanup/Unit/Destroy 清理。 */
+bool xoauth2HttpXrtCleanupPending(uint64_t uTimeoutUs, size_t* piPending);
+
+/* 交付最多 1 MiB 的 C 字符串正文（拒绝原始 NUL），调用方用 xrtFree 释放。
+ * 响应头与 trailer 各限 100 字段；HTTPS 关闭定界正文须认证 close_notify。
+ * 参数有效时，失败清空响应体指针与状态码；不返回部分正文。
+ * 保留异步生产过程的 MEMORY 原因，其他传输失败归类 NETWORK；清理
+ * 不覆盖首个错误。超时请求取消在途任务并中止已取得的连接，不自动重发。
+ * POST 失败可能已被服务端处理，宿主须按协议处理未知结果。 */
 bool xoauth2HttpXrt(const char* sMethod, const char* sUrl, const char* sBody,
                     const char* sAuthHeader,
                     char** psResponseBody, int* piStatus, void* pContext);

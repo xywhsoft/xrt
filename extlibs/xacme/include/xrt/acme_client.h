@@ -15,8 +15,10 @@
 	!defined(XACME_FEATURE_ACME_CSR) || \
 	!defined(XACME_FEATURE_DNS_ALI) || \
 	!defined(XACME_FEATURE_ACME_STORE) || \
-	!defined(XRT_FEATURE_JSON))
-	#error "XACME_FEATURE_ACME_FLOW requires core, dns, http, jose, csr, dns_ali, store and json"
+	!defined(XRT_FEATURE_JSON) || !defined(XRT_FEATURE_HTTP_TARGET) || \
+	!defined(XRT_FEATURE_X509_PARSE) || !defined(XRT_FEATURE_X509_PROFILE) || \
+	!defined(XRT_FEATURE_X509_NAME) || !defined(XRT_FEATURE_X509_VERIFY))
+	#error "XACME_FEATURE_ACME_FLOW requires its core, DNS, HTTP target, JOSE, CSR, store, JSON and X.509 closures"
 #endif
 
 struct xnetengine;
@@ -24,8 +26,9 @@ struct xnetengine;
 /*
 	线程安全契约：客户端与 provider 实例为单线程归属对象——同一
 	实例的任意两个调用不得并发；跨线程使用需宿主外部串行化。
-	不同实例（各自 Create 的客户端/provider）之间无共享状态，
-	可并行使用。全部 API 为同步阻塞调用。
+	不同实例的请求与账户状态独立，可并行使用；未交付对象的异常
+	退休队列跨实例共享，经 xrtAcmeCleanupPending 同步。全部 API
+	为同步阻塞调用。
 */
 
 #if defined(XACME_FEATURE_ACME_FLOW)
@@ -72,12 +75,27 @@ XRT_API void xrtAcmeClientConfigInit(xacmeclientconfig* pConfig);
 
 /*
 	创建客户端：建传输、解析 directory、注册或复用账户（含
-	EAB/contact）。失败返回 NULL 并设置线程错误。
+	EAB/contact）。失败返回 NULL 并设置线程错误。失败构造的资源
+	回滚独立留出至少 30 秒预算，不复用已耗尽的单次请求超时。
+	仍未退休的未交付对象转移至待清理队列，保留原始构造错误；
+	宿主在退出/卸载前用 xrtAcmeCleanupPending 确认全部释放。
+	JSON/PEM/签名/传输/存储的内存失败保留原错误；底层传输失败
+	保留其 kind/domain/code。宿主按 xrtErrorKind 分类，不假定
+	所有错误来自 xrt.acme.flow。响应格式或状态无效为 XERR_PROTOCOL。
 */
 XRT_API struct xacmeclient* xrtAcmeClientCreate(
 	const xacmeclientconfig* pConfig);
 
-/* 销毁并释放；入参可为空。 */
+/*
+	清理资源而保留客户端外壳；空指针为 true，可重复调用。
+	true 表示完成，随后可 Destroy；false 表示引擎尚未退休，保留
+	客户端供稍后重试。无论结果如何，实例此后仅可 Cleanup/Destroy。
+	保留调用前已有错误，因此用返回值判断清理结果，不能只看线程错误。
+*/
+XRT_API bool xrtAcmeClientCleanup(struct xacmeclient* pClient);
+
+/* 销毁并释放；入参可为空。清理超时或失败时保留外壳供重试。
+ * 需要确定释放结果时先调用 Cleanup；true 后再调用 Destroy。 */
 XRT_API void xrtAcmeClientDestroy(struct xacmeclient* pClient);
 
 /* 账户密钥 PKCS#8 PEM 导出（xrtFree 释放），宿主可持久化复用。 */
@@ -86,8 +104,16 @@ XRT_API str xrtAcmeClientAccountPem(const struct xacmeclient* pClient);
 /*
 	一次 dns-01 签发：域名可含通配符（*. 前缀）；产物含证书链与
 	配对私钥（pOut 两段均 xrtFree，或经 xrtAcmeGrantUnit 统一释放）。
-	provider 的 Add 在 TXT 铺设后、挑战触发前调用；传播确认通过后
-	才触发挑战；Remove 在结束后尽力调用。
+	provider 的 Add 用于铺设 TXT；随后传播确认，最后触发挑战。
+	普通传播不可达或超时不阻断签发；传播分配失败立即返回，
+	保留 MEMORY 诊断且不再查询其他 resolver 或触发挑战。
+	Remove 在结束后尽力调用。
+	最多 16 个不同域名；每段视图须为 1-511 字节且不含 NUL。
+	这些限制在发订单前检查。失败不交付部分产物，清理 TXT 时
+	保留签发的原始失败原因。轮询的解析或内存失败立即返回。
+	证书密钥须不同于当前账户钥。下载仅接受 PEM 证书链（最多
+	16 张、每张 DER 不超过 256 KiB），检查公钥、SAN、叶证书有效期
+	及所提供链的发行者、CA 标志和签名；不代替部署的根信任策略。
 */
 XRT_API bool xrtAcmeClientIssue(
 	struct xacmeclient* pClient,
@@ -100,7 +126,8 @@ XRT_API bool xrtAcmeClientIssue(
 /*
 	Issue 的备用链变体：bPreferAlternate 时若证书响应的 Link 头带
 	rel="alternate"（RFC 8555 §7.4.2），改用备用链下载；备用链获取
-	失败自动回退主链，不视为错误。
+	或校验失败自动回退主链，不视为错误。相对引用以主证书 URL
+	解析；备用链须从同一张 DER 叶证书开始。
 */
 XRT_API bool xrtAcmeClientIssueEx(
 	struct xacmeclient* pClient,
@@ -125,8 +152,11 @@ XRT_API bool xrtAcmeClientRevoke(
 /*
 	账户密钥滚动（RFC 8555 §7.3.5）：用 sNewKeyPem（PKCS#8/SEC1）
 	替换当前账户密钥，账户 kid 不变。要求 directory 提供 keyChange
-	端点；成功后客户端即刻使用新钥，宿主应经 xrtAcmeClientAccountPem
-	重新持久化。
+	端点；请求按 RFC 8555 内层新钥 JWK、外层旧钥 kid 签名。
+	写入响应丢失时，使用 onlyReturnExisting 对账；未确认生效则返回
+	false 并保留当前内存密钥。成功后客户端即刻使用新钥；若指定
+	sStoreRoot 而重存失败，返回 false 但内存仍使用新钥，调用方可
+	用同一 sNewKeyPem 重试对账与持久化。
 */
 XRT_API bool xrtAcmeClientRollover(
 	struct xacmeclient* pClient,

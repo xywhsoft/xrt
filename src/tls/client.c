@@ -826,7 +826,7 @@ bool __xrtTlsClientHelloQueue(
 	bytes pOldHello;
 	size_t iOldWorkspaceSize;
 	size_t iOldHelloSize;
-	size_t iExtensions;
+	size_t iExtensions = 0;
 	size_t iBodySize;
 	size_t iHelloSize;
 	bool bResult = false;

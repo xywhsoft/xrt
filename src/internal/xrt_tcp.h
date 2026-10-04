@@ -185,6 +185,7 @@ struct xnetstream {
 	bool AbortRequested;
 	bool EngineHeld;
 	bool RuntimeHeld;
+	/* Worker-only synchronous send/close reentrancy, never cross-thread submit depth. */
 	uint32 ActiveDepth;
 	bool ReleasePending;
 	xnetstream* AcceptNext;

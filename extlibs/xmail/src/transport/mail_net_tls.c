@@ -4,8 +4,9 @@
 
 #if defined(XMAIL_FEATURE_MAIL_NET_TLS)
 
-/* STARTTLS 接管请求只在原 TCP Stream 的 Worker 上短暂存在。 */
+/* 排队期间由 Worker 持有；接管开始后调用线程必须等到交接完成。 */
 typedef struct __xmailtlsupgrade {
+	xatomic32 Gate; /* 0: queued, 1: running, 2: cancelled before start */
 	xnetstream* Tcp;
 	const xtlsclientconfig* Client;
 	const xtlsstreamconfig* Stream;
@@ -33,11 +34,12 @@ static bool __xrtMailNetTlsHostIsIp(cstr sHost)
 
 
 
-/* 等待 TLS Future 并把失败终态恢复为当前结构化错误。 */
-static bool __xrtMailNetTlsFuture(
+/* 等待 TLS Future；只有关闭时的接收允许认证 EOF 的 CLOSED 终态。 */
+static bool __xrtMailNetTlsFutureResult(
 	xfuture* pFuture,
 	xdeadline iDeadline,
-	xcancel* pCancel
+	xcancel* pCancel,
+	bool bAllowClosed
 )
 {
 	xwaitresult Wait = xrtFutureWaitUntilCancel(
@@ -65,7 +67,8 @@ static bool __xrtMailNetTlsFuture(
 		return false;
 	}
 	State = xrtFutureState(pFuture);
-	if ( State == XFUTURE_RESOLVED ) {
+	if ( (State == XFUTURE_RESOLVED) ||
+		(bAllowClosed && (State == XFUTURE_CLOSED)) ) {
 		return true;
 	}
 	if ( State == XFUTURE_FAILED ) {
@@ -84,6 +87,23 @@ static bool __xrtMailNetTlsFuture(
 		);
 	}
 	return false;
+}
+
+
+
+/* 一般 TLS 操作必须交付成功结果，不能把 EOF 当作成功。 */
+static bool __xrtMailNetTlsFuture(
+	xfuture* pFuture,
+	xdeadline iDeadline,
+	xcancel* pCancel
+)
+{
+	return __xrtMailNetTlsFutureResult(
+		pFuture,
+		iDeadline,
+		pCancel,
+		false
+	);
 }
 
 
@@ -117,8 +137,19 @@ static void __xrtMailNetTlsUpgradeTask(
 )
 {
 	__xmailtlsupgrade* pUpgrade = (__xmailtlsupgrade*)pData;
+	xpromise* pPromise = pUpgrade->Promise;
+	uint32 iExpected = 0;
 
 	(void)pWorker;
+	if ( !xrtAtomic32CompareExchange(
+		&pUpgrade->Gate, &iExpected, 1,
+		XMEMORY_ACQ_REL, XMEMORY_ACQUIRE
+	) ) {
+		/* 调用方已返回；不得再触碰其 TCP 或借用的 TLS 配置。 */
+		xrtPromiseDestroy(pPromise);
+		xrtFree(pUpgrade);
+		return;
+	}
 	if ( xrtTlsStreamClient(
 		pUpgrade->Tcp,
 		pUpgrade->Client,
@@ -127,13 +158,14 @@ static void __xrtMailNetTlsUpgradeTask(
 		NULL,
 		&pUpgrade->Tls
 	) ) {
-		(void)xrtPromiseResolve(pUpgrade->Promise, NULL);
+		(void)xrtPromiseResolve(pPromise, NULL);
 	} else if ( xrtGetError() != NULL ) {
-		(void)xrtPromiseReject(pUpgrade->Promise, xrtGetError());
+		(void)xrtPromiseReject(pPromise, xrtGetError());
 	} else {
-		(void)xrtPromiseClose(pUpgrade->Promise);
+		(void)xrtPromiseClose(pPromise);
 	}
-	xrtPromiseDestroy(pUpgrade->Promise);
+	/* Resolve/Reject 可立即唤醒调用方；此后不再访问 pUpgrade。 */
+	xrtPromiseDestroy(pPromise);
 }
 
 
@@ -190,12 +222,13 @@ bool __xrtMailTransportStartTls(
 	xcancel* pCancel
 )
 {
-	__xmailtlsupgrade Upgrade;
+	__xmailtlsupgrade* pUpgrade;
 	xtlsclientconfig Client;
 	xnetworker* pWorker;
 	xfuture* pFuture;
 	xfuture* pOpen;
 	xwaitresult Wait;
+	uint32 iExpected;
 
 	if ( !xrtMemRangeValid(pTransport, sizeof(*pTransport)) ||
 		!xrtMailNetConfigValid(pConfig) ||
@@ -231,28 +264,67 @@ bool __xrtMailTransportStartTls(
 		return false;
 	}
 	__xrtMailNetTlsClient(pConfig, &Client);
-	memset(&Upgrade, 0, sizeof(Upgrade));
-	Upgrade.Tcp = pTransport->Tcp;
-	Upgrade.Client = &Client;
-	Upgrade.Stream = &pConfig->TlsStream;
-	Upgrade.Promise = xrtPromiseCreate(&pFuture, NULL);
-	if ( Upgrade.Promise == NULL ) {
+	pUpgrade = (__xmailtlsupgrade*)xrtCalloc(1, sizeof(*pUpgrade));
+	if ( pUpgrade == NULL ) {
+		return false;
+	}
+	xrtAtomic32Init(&pUpgrade->Gate, 0);
+	pUpgrade->Tcp = pTransport->Tcp;
+	pUpgrade->Client = &Client;
+	pUpgrade->Stream = &pConfig->TlsStream;
+	pUpgrade->Promise = xrtPromiseCreate(&pFuture, NULL);
+	if ( pUpgrade->Promise == NULL ) {
+		xrtFree(pUpgrade);
 		return false;
 	}
 	if ( !xrtNetEnginePost(
 		xrtNetWorkerEngine(pWorker),
 		xrtNetWorkerIndex(pWorker),
 		__xrtMailNetTlsUpgradeTask,
-		&Upgrade
+		pUpgrade
 	) ) {
-		xrtPromiseDestroy(Upgrade.Promise);
+		xrtPromiseDestroy(pUpgrade->Promise);
 		xrtFutureDestroy(pFuture);
+		xrtFree(pUpgrade);
 		return false;
 	}
-	Wait = xrtFutureWait(pFuture);
+	Wait = xrtFutureWaitUntilCancel(pFuture, iDeadline, pCancel);
+	if ( Wait != XWAIT_OK ) {
+		iExpected = 0;
+		if ( xrtAtomic32CompareExchange(
+			&pUpgrade->Gate, &iExpected, 2,
+			XMEMORY_ACQ_REL, XMEMORY_ACQUIRE
+		) ) {
+			/* Worker 尚未开始接管，TCP 仍由调用方持有。 */
+			xrtFutureDestroy(pFuture);
+			__xrtMailError(
+				Wait == XWAIT_TIMEOUT ? XERR_TIMEOUT :
+					Wait == XWAIT_CANCELLED ? XERR_CANCELLED : XERR_IO,
+				XMAIL_ERROR_PROTOCOL,
+				"mail STARTTLS worker handoff interrupted"
+			);
+			return false;
+		}
+		/* Worker 已开始：先收回所有权，避免 TLS/TCP 引用悬空。 */
+		(void)xrtFutureWait(pFuture);
+		if ( pUpgrade->Tls != NULL ) {
+			pTransport->Tcp = NULL;
+			(void)xrtTlsStreamAbort(pUpgrade->Tls);
+			xrtTlsStreamDestroy(pUpgrade->Tls);
+		}
+		xrtFutureDestroy(pFuture);
+		xrtFree(pUpgrade);
+		__xrtMailError(
+			Wait == XWAIT_TIMEOUT ? XERR_TIMEOUT :
+				Wait == XWAIT_CANCELLED ? XERR_CANCELLED : XERR_IO,
+			XMAIL_ERROR_PROTOCOL,
+			"mail STARTTLS worker handoff interrupted"
+		);
+		return false;
+	}
 	if ( (Wait != XWAIT_OK) ||
 		(xrtFutureState(pFuture) != XFUTURE_RESOLVED) ||
-		(Upgrade.Tls == NULL) ) {
+		(pUpgrade->Tls == NULL) ) {
 		if ( xrtFutureState(pFuture) == XFUTURE_FAILED ) {
 			xrtSetError(xrtFutureError(pFuture));
 		} else if ( Wait != XWAIT_OK ) {
@@ -263,11 +335,13 @@ bool __xrtMailTransportStartTls(
 			);
 		}
 		xrtFutureDestroy(pFuture);
+		xrtFree(pUpgrade);
 		return false;
 	}
 	xrtFutureDestroy(pFuture);
 	pTransport->Tcp = NULL;
-	pTransport->Tls = Upgrade.Tls;
+	pTransport->Tls = pUpgrade->Tls;
+	xrtFree(pUpgrade);
 	pTransport->PendingSize = 0;
 	pTransport->PendingConsumed = 0;
 	pOpen = xrtTlsStreamWaitAsync(
@@ -347,7 +421,40 @@ xnetbytes* __xrtMailTransportTlsRecv(
 
 
 
-/* 等待 TLS Stream 进入关闭终态。 */
+/* 按有界块消费剩余 TLS 明文，使读取背压不会挡住 close_notify。 */
+static bool __xrtMailTransportTlsDrainClose(
+	__xmailtransport* pTransport,
+	xdeadline iDeadline
+)
+{
+	for ( ;; ) {
+		xfuture* pFuture = xrtTlsStreamRecvAsync(
+			pTransport->Tls,
+			pTransport->ReadChunk
+		);
+		bool bSuccess;
+		bool bEnd;
+
+		if ( pFuture == NULL ) {
+			return false;
+		}
+		bSuccess = __xrtMailNetTlsFutureResult(
+			pFuture,
+			iDeadline,
+			NULL,
+			true
+		);
+		bEnd = xrtFutureState(pFuture) == XFUTURE_CLOSED;
+		xrtFutureDestroy(pFuture);
+		if ( !bSuccess || bEnd ) {
+			return bSuccess;
+		}
+	}
+}
+
+
+
+/* 请求认证关闭，消费协议结束后的残留明文并等待 Stream 关闭终态。 */
 bool __xrtMailTransportTlsClose(
 	__xmailtransport* pTransport,
 	xdeadline iDeadline
@@ -356,7 +463,8 @@ bool __xrtMailTransportTlsClose(
 	xfuture* pFuture;
 	bool bSuccess;
 
-	if ( !xrtTlsStreamClose(pTransport->Tls) ) {
+	if ( !xrtTlsStreamClose(pTransport->Tls) ||
+		!__xrtMailTransportTlsDrainClose(pTransport, iDeadline) ) {
 		return false;
 	}
 	pFuture = xrtTlsStreamWaitAsync(
@@ -367,9 +475,6 @@ bool __xrtMailTransportTlsClose(
 		return false;
 	}
 	bSuccess = __xrtMailNetTlsFuture(pFuture, iDeadline, NULL);
-	if ( !bSuccess ) {
-		(void)xrtTlsStreamAbort(pTransport->Tls);
-	}
 	xrtFutureDestroy(pFuture);
 	return bSuccess;
 }

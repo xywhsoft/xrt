@@ -56,6 +56,25 @@ static void testPop3Capabilities(void)
 		"POP3 capability lookup failed");
 	testRequire(xrtPop3Capability(XRT_STR_LITERAL("X-VENDOR")) == 0,
 		"unknown POP3 capability consumed a built-in bit");
+	testRequire(xrtPop3CapabilityParse(XRT_STR_LITERAL("XOAUTH2"), &Capability) &&
+		testMailViewEqual(Capability.Name, XRT_STR_LITERAL("XOAUTH2")) &&
+		Capability.Parameters.Size == 0u && xrtPop3Capability(Capability.Name) == 0u,
+		"QQ's unknown XOAUTH2 tag must parse without enabling a built-in capability");
+	testRequire(xrtPop3CapabilityParse(XRT_STR_LITERAL("X_VENDOR! 42"), &Capability) &&
+		testMailViewEqual(Capability.Name, XRT_STR_LITERAL("X_VENDOR!")) &&
+		testMailViewEqual(Capability.Parameters, XRT_STR_LITERAL("42")),
+		"POP3 extension punctuation or parameters were rejected");
+	for(unsigned i = 0u; i < 256u; i++) {
+		char byte = (char)i;
+		bool valid = i >= 33u && i <= 126u && i != (unsigned)'.';
+		testRequire(xrtPop3CapabilityParse((xstrview){ &byte, 1u }, &Capability) == valid,
+			"POP3 capability tag accepted an invalid byte or rejected printable ASCII");
+		xrtClearError();
+	}
+	testRequire(!xrtPop3CapabilityParse(XRT_STR_LITERAL("X.Y"), &Capability) &&
+		!xrtPop3CapabilityParse(XRT_STR_LITERAL("X\r\nUSER"), &Capability) &&
+		!xrtPop3CapabilityParse(XRT_STR_LITERAL("X\0Y"), &Capability),
+		"POP3 capability tag accepted a dot, line injection or embedded NUL");
 }
 
 

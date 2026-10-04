@@ -5,12 +5,12 @@ title: SMTP: Sending Mail
 volume: 卷十一 其他扩展库
 type: practice
 lead: Reply parsing and capability negotiation, command-injection defense, streaming DATA with dot transparency, the CHUNKING fast path and STARTTLS — the complete outbound wire.
-api: xmail-smtp, xmail-smtp_client, xmail-mail
+api: xsmtp-smtp, xsmtp-smtp_client, xmail-mail
 ---
 
 ## Orientation
 
-The data layer (Chapter 116) defines what a mail message is; SMTP defines **how to send**. xmail's SMTP has two layers: **protocol primitives** (`smtp`: reply-line parsing, EHLO capability merging, command building — no network dependency; the official client and custom state machines share one implementation); **the client** (`smtp_client`: a synchronous session state machine — the `READY → MAIL → RECIPIENT → DATA → READY` envelope transaction; no hidden Engine/DNS thread/fixed buffers, and it does not build MIME). Four main threads: **injection defense** (the command layer rejects CR/LF and control characters — SMTP is the worst header-injection zone); **streaming DATA** (dot transparency as an incremental state machine — line-start state preserved across chunks, no whole-message copy); **CHUNKING** (BDAT sends raw by declared byte count — no scanning, no escaping); **TLS in two forms** (implicit TLS and STARTTLS upgrade — the post-upgrade capability snapshot is not carried over).
+The data layer (Chapter 116) defines what a mail message is; SMTP defines **how to send**. xsmtp has two layers: **protocol primitives** (`smtp`: reply-line parsing, EHLO capability merging, command building — no network dependency; the official client and custom state machines share one implementation); **the client** (`smtp_client`: a synchronous session state machine — the `READY → MAIL → RECIPIENT → DATA → READY` envelope transaction; no hidden Engine/DNS thread/fixed buffers, and it does not build MIME). Four main threads: **injection defense** (the command layer rejects CR/LF and control characters — SMTP is the worst header-injection zone); **streaming DATA** (dot transparency as an incremental state machine — line-start state preserved across chunks, no whole-message copy); **CHUNKING** (BDAT sends raw by declared byte count — no scanning, no escaping); **TLS in two forms** (implicit TLS and STARTTLS upgrade — the post-upgrade capability snapshot is not carried over).
 
 ## Introduction
 
@@ -48,6 +48,8 @@ The base client is plaintext; the `smtp_client_tls` layer adds two forms: `XMAIL
 
 ## Examples
 
+Run these commands from the repository root. The builder selects modules, public headers and platform libraries from the manifest, and also prints build and dependency-test logs. Terminal blocks show the example output. The second program starts a loopback server within the process and uses fixed demonstration data. See the client library README for real-service host, port, CA and runtime credential configuration.
+
 ### First complete program: capability parsing and command building
 
 The program below is from `examples/smtp/protocol` — an offline loop of the protocol primitives:
@@ -56,25 +58,25 @@ The program below is from `examples/smtp/protocol` — an offline loop of the pr
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xsmtp/examples/protocol/main.c -lws2_32 -liphlpapi
-（输出能力合并与 EHLO 命令构建的自检结果）
+$ python tools/build.py --manifest extlibs/xsmtp/config/modules.json --suite smtp --no-single --jobs 4
+SIZE=10485760 command=EHLO client.example
 ```
 
 **What just happened.** (1) `SmtpCapabilityParse("SIZE 10485760")` parses a single capability (name + borrowed parameter view) → `CapabilityAdd` merges it into the built-in bits — **SIZE's 64-bit cap** (10 MiB) is recorded: later, before DATA, you can check against it (don't send past the limit in vain). (2) `SmtpCommandWrite("EHLO", "client.example", ...)` produces `EHLO client.example\r\n` — the arguments pass the injection checks (control characters/CR/LF rejected), 512-byte cap. (3) **Offline testability** is this sample's point: the protocol layer touches no network — the reply/capability/command primitive families are all unit-testable (the official client is precisely an assembly of these primitives, one behavior, no second implementation).
 
-### Second complete program: a complete sending session
+### Second complete program: local submission
 
-The second program is from `examples/smtp/client` — a synchronous loop against a real session:
+The second program is from `extlibs/xsmtp/examples/offline/main.c`.
 
-```embed path="extlibs/xsmtp/examples/client/main.c" title="extlibs/xsmtp/examples/client/main.c"
+```embed path="extlibs/xsmtp/examples/offline/main.c" title="extlibs/xsmtp/examples/offline/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xsmtp/examples/client/main.c -lws2_32 -liphlpapi
-（对配置的 SMTP 服务器完成发送会话后正常退出）
+$ python tools/build.py --manifest extlibs/xsmtp/config/modules.json --suite smtp_offline_example --no-single --jobs 4
+offline SMTP submission: message accepted
 ```
 
-**What just happened.** (1) `xrtSmtpClientData` sends the complete message (headers + empty line + body) — the convenience entrance validates CRLF first, then enters the incremental state machine (dot transparency automatic). (2) `xrtSmtpClientQuit` is the protocol farewell — the normal close path; the failure path switches to Abort (the sample's Cleanup shape). (3) The whole session is bound by `Deadline` + optional Cancel — the standard two parameters of blocking operations (the common shape since Chapter 82). (4) Compare with the `submit` sample: that one is the **highest layer** (`xrtSmtpSubmit` — one struct submission of sender/recipients/subject/body; MIME assembled and the session run inside); this chapter's sample shows the middle layer (the complete message self-supplied) — **the higher the layer, the more it does for you; the lower, the more freedom** — Chapter 120 completes the layer diagram.
+**What just happened.** (1) The program creates a listener, resolver and network engine, then starts a local server thread. The resolver maps the demonstration hostname to loopback, the OS selects the port, and the connection uses TCP. (2) The client reads the banner, sends EHLO and passes a structured message to `xrtSmtpSubmit`. Shared MIME composition produces the body; the client completes the envelope and DATA. The server checks the subject, body and terminator, accepts the message, and the client sends QUIT. (3) Success requires completed submission, verified server content and a normal server-thread exit. Every failed stage returns failure and cleans up created objects. This local plaintext example has neither TLS nor account authentication. The real-service submission example requires a trusted CA and runtime credentials, and server acceptance must be interpreted separately from later shutdown diagnostics.
 
 ## Contracts
 

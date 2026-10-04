@@ -6,6 +6,7 @@
 
 #include <xrt/acme.h>
 #include <xrt/acme_dns.h>
+#include <xrt/acme_http.h>
 
 #if defined(XACME_FEATURE_ACME_OBTAIN) && (\
 	!defined(XACME_FEATURE_ACME_FLOW) || \
@@ -71,6 +72,9 @@ XRT_API void xrtAcmeObtainConfigInit(xacmeobtainconfig* pConfig);
 	     （certs/<主域名>/.grant-<16hex>/{key.pem,fullchain.pem,meta.txt}）。
 	pOut 两段文本均 xrtFree（或 xrtAcmeGrantUnit 统一释放）。
 	失败返回 false 并设置线程错误。
+	返回值只表示证书操作结果。临时客户端清理独立留出至少 30 秒
+	回滚预算；仍未退休时转移至待清理队列，宿主用
+	xrtAcmeCleanupPending 重试并在退出/卸载前确认全部释放。
 */
 XRT_API bool xrtAcmeObtain(
 	const xacmeobtainconfig* pConfig,

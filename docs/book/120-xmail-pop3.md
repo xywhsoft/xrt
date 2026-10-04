@@ -5,12 +5,12 @@ title: POP3：收取邮件
 volume: 卷十一 其他扩展库
 type: practice
 lead: +OK/-ERR 的简单世界、STAT/LIST/UIDL 的邮箱事实、流式 RETR 与 dot 去转义、SASL 认证与 STLS——下载式收件的标准协议。
-api: xmail-pop3, xmail-pop3_client, xmail-mail
+api: xpop3-pop3, xpop3-pop3_client, xmail-mail
 ---
 
 ## 导读
 
-POP3 是收件三协议（POP3/IMAP/第 119 章）里最简单的：**下载式**模型——连上、认证、列邮件、逐封取、（可选）删、告别。简单不等于没讲究：**多行响应的 dot transparency**（RETR/TOP 的正文行首点转义与单点终止——与 SMTP DATA 对称的反向操作）；**流式收取**（`Begin/Next` 逐行产出、**不分配整封邮件**——每行借用内部缓冲、只稳定到下一次读取：直写文件/增量 MIME/自有存储的三条出路）；**UIDL 的身份语义**（唯一 ID 支撑"只取新邮件"的客户端逻辑）；**SASL 认证族**（USER/PASS 明文的默认拒绝与 SASL PLAIN 加 OAuth 机制）；**STLS 升级**（CAPA 声明→+OK→原位升级→**重新 CAPA**）。xmail 的分层照旧：协议原语（离线）+客户端（同步状态机：AUTHORIZATION→TRANSACTION→MULTILINE→UPDATE）+可选 message 层（有界聚合）。
+POP3 是收件三协议（POP3/IMAP/第 119 章）里最简单的：**下载式**模型——连上、认证、列邮件、逐封取、（可选）删、告别。简单不等于没讲究：**多行响应的 dot transparency**（RETR/TOP 的正文行首点转义与单点终止——与 SMTP DATA 对称的反向操作）；**流式收取**（`Begin/Next` 逐行产出、**不分配整封邮件**——每行借用内部缓冲、只稳定到下一次读取：直写文件/增量 MIME/自有存储的三条出路）；**UIDL 的身份语义**（唯一 ID 支撑"只取新邮件"的客户端逻辑）；**SASL 认证族**（USER/PASS 明文的默认拒绝与 SASL PLAIN 加 OAuth 机制）；**STLS 升级**（CAPA 声明→+OK→原位升级→**重新 CAPA**）。xpop3 的分层：协议原语（离线）+客户端（同步状态机：AUTHORIZATION→TRANSACTION→MULTILINE→UPDATE）+可选 message 层（有界聚合）。
 
 ## 引入
 
@@ -53,6 +53,8 @@ RETR/TOP 的 `Begin/Next`：每行去 dot transparency、**不分配整封邮件
 
 ## 示例
 
+本章命令在仓库根目录执行，构建器按清单选择模块、公共头和平台链接库，并输出构建及依赖测试日志。终端块摘录范例自身的输出。第二个程序在进程内启动回环服务器，只使用固定演示数据；真实服务的主机、端口、CA 与运行时凭据配置见相应客户端库的 README。
+
 ### 第一个完整程序：协议原语
 
 下面的程序来自 `examples/pop3/protocol`——离线的响应与命令闭环：
@@ -61,25 +63,25 @@ RETR/TOP 的 `Begin/Next`：每行去 dot transparency、**不分配整封邮件
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xpop3/examples/protocol/main.c -lws2_32 -liphlpapi
-（输出 POP3 响应解析与命令构建的自检结果）
+$ python tools/build.py --manifest extlibs/xpop3/config/modules.json --suite pop3 --no-single --jobs 4
+messages=12 command=RETR 1
 ```
 
-**刚才发生了什么。** ① 响应/STAT/UIDL/命令四族原语在无网络环境完成解析与构建验证——与 SMTP/SSH 协议层同款"离线可测"纪律。② POP3 的响应比 SMTP 更简单（`+OK`/`-ERR` 两态——没有多行状态码的复杂度），复杂度全在**多行数据**的 dot 家族——那是 `mail_net` 共享原语，本示例之外由测试矩阵覆盖。③ 自定义状态机作者（写代理/测试服务器的人）直接消费这些原语——与官方客户端同一实现（无第二实现的家族传统）。
+**刚才发生了什么。** ① 程序用 `xrtPop3StatParse` 解析固定 STAT 响应，取得邮件数量，再用 `xrtPop3CommandWrite` 生成 RETR 命令并输出。数量与字节数都保留 64 位语义，命令参数接受协议层校验。② 协议解析与命令构建不建立连接，适合作为自定义客户端或测试服务器的原语。响应、UIDL 及多行数据的其他边界由同一套件的协议测试覆盖；这个短程序展示其中两条入口。
 
-### 第二个完整程序：收取会话
+### 第二个完整程序：本地收取会话
 
-第二个程序来自 `examples/pop3/client`——同步客户端的完整流程：
+第二个程序来自 `extlibs/xpop3/examples/offline/main.c`.
 
-```embed path="extlibs/xpop3/examples/client/main.c" title="extlibs/xpop3/examples/client/main.c"
+```embed path="extlibs/xpop3/examples/offline/main.c" title="extlibs/xpop3/examples/offline/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xpop3/examples/client/main.c -lws2_32 -liphlpapi
-（对配置的 POP3 服务器完成收取会话后正常退出）
+$ python tools/build.py --manifest extlibs/xpop3/config/modules.json --suite pop3_offline_example --no-single --jobs 4
+offline POP3 retrieval: 3 message lines
 ```
 
-**刚才发生了什么。** ① Open（greeting 验证+CAPA 快照）→认证→STAT（邮箱事实：N 封 M 字节）→标准命令（示例按场景取 RETR/TOP/UIDL 组合）。② **收取的流式形态**：`Begin/Next` 循环逐行——每行立刻消费（打印/写盘/喂解析器），内存与邮件大小无关；`message` 示例对照有界聚合入口（`RetrWrite` 的上限形态）。③ 收尾三选（Quit 提交 UPDATE/Close/Abort）——DELE 的删除语义只在 Quit 的 UPDATE 阶段生效（中途 Abort = 放弃删除标记——"没告别就没删"的协议安全网）。
+**刚才发生了什么。** ① 程序创建本地监听器与服务器线程，通过自定义解析器连接回环地址。此夹具不实现 CAPA，所以配置关闭自动能力读取；对真实服务应按服务器行为选择该配置。② 客户端完成 USER/PASS，执行 RETR 并逐行消费 `xrtPop3ClientNext` 的结果。程序逐字节核对主题行、空行和正文，最终必须恰好得到三行及完整多行终止响应。③ 客户端完成 QUIT 后，程序等待服务器线程并销毁连接、监听器、解析器和引擎，只有内容校验及收尾全部成功才打印成功行。本地演示显式允许固定明文凭据，这个设置限定在回环夹具；真实服务器范例使用 TLS 和运行时凭据。此程序不删除邮件，下载和服务器删除是两个独立操作。
 
 ## 契约
 

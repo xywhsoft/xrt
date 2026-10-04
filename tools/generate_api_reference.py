@@ -9,7 +9,7 @@ import json
 import os
 from pathlib import Path
 
-from check_api_docs import _header_symbols
+from check_api_docs import _header_code, _header_symbols
 from xrt_text import write_utf8
 
 
@@ -240,7 +240,7 @@ def _generate_manifest(manifest_path: Path) -> tuple[Path, str]:
 		)
 	headers = [
 		path for path in headers
-		if "XRT_API" in path.read_text(encoding="utf-8")
+		if "XRT_API" in _header_code(path.read_text(encoding="utf-8"))
 	]
 	output = ROOT / config["output"]
 	groups = _symbol_groups(

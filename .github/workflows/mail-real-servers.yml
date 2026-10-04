@@ -1,0 +1,50 @@
+name: Independent mail servers
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  mail:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      # Official Ubuntu 26.04, resolute-20260927. Dovecot 2.4 fixture.
+      image: ubuntu:26.04@sha256:3595d7fc4286a33fad0fd853a4063e654287a9c3787437d7937c94ca3f7a804e
+      # Only this disposable container needs private mount namespaces.
+      options: --cap-add=SYS_ADMIN --security-opt seccomp=unconfined --security-opt apparmor=unconfined
+    steps:
+      - name: Prepare build tools and shared libraries
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3 gcc libc6-dev openssl util-linux procps ca-certificates git libapparmor1 libbz2-1.0 libcap2 libcrypt1 libgssapi-krb5-2 libkrb5-3 liblz4-1 libpam0g libsodium23 libstemmer0d libsystemd0 libtirpc3t64 libzstd1 zlib1g libdb5.3t64 libsasl2-2 libldap2
+
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Extract and verify server packages
+        run: python3 tools/prepare_mail_servers.py --output /var/tmp/xrt-mail-runtime
+
+      - name: Exercise C clients against Dovecot and Postfix
+        run: >-
+          unshare --mount --propagation private -- python3 tools/test_mail_real_servers.py
+          --runtime /var/tmp/xrt-mail-runtime --output /var/tmp/xrt-mail-test
+
+      - name: Collect original test records
+        if: always()
+        run: |
+          mkdir -p out/mail-real-service-records
+          if [ -d /var/tmp/xrt-mail-test ]; then cp /var/tmp/xrt-mail-test/*.log /var/tmp/xrt-mail-test/*.json out/mail-real-service-records/; fi
+          if [ -f /var/tmp/xrt-mail-runtime/runtime.json ]; then cp /var/tmp/xrt-mail-runtime/runtime.json out/mail-real-service-records/runtime.json; fi
+
+      - name: Preserve records
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: independent-mail-server-records
+          path: out/mail-real-service-records

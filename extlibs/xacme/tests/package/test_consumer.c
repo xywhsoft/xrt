@@ -5,5 +5,7 @@
 
 int main(void)
 {
-	return (xrtAcmeDnsProviderCount() > 0) ? 0 : 1;
+	size_t pending = SIZE_MAX;
+	return (xrtAcmeDnsProviderCount() > 0 && xrtAcmeClientCleanup(NULL) &&
+		xrtAcmeCleanupPending(0u, &pending) && pending == 0u) ? 0 : 1;
 }

@@ -894,7 +894,12 @@ static bool __xrtTimeAddMonths(xtime iTime, int64 iMonths, xtime* pResult)
 		return false;
 	}
 	iTargetYear = __xrtTimeFloorDiv(iTarget, 12);
-	iTargetMonth = (int)(iTarget - (iTargetYear * 12)) + 1;
+	/* INT64_MIN 的向下整除商乘以 12 会越界；直接规范化余数。 */
+	iTargetMonth = (int)(iTarget % 12);
+	if ( iTargetMonth < 0 ) {
+		iTargetMonth += 12;
+	}
+	iTargetMonth++;
 	iTargetDays = xrtDaysInMonth(iTargetYear, iTargetMonth);
 	if ( tDateTime.Day > iTargetDays ) {
 		tDateTime.Day = iTargetDays;

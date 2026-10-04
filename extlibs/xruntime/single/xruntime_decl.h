@@ -3228,6 +3228,16 @@
 #endif
 #endif
 
+/* process_open 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_OPEN)
+#ifndef XRT_FEATURE_PROCESS_OPEN
+#define XRT_FEATURE_PROCESS_OPEN
+#endif
+#ifndef XRT_MODULE_PROCESS
+#define XRT_MODULE_PROCESS
+#endif
+#endif
+
 /* process_run 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_RUN)
 #ifndef XRT_FEATURE_PROCESS_RUN
@@ -3241,16 +3251,6 @@
 #endif
 #ifndef XRT_MODULE_CANCEL
 #define XRT_MODULE_CANCEL
-#endif
-#endif
-
-/* process_open 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_OPEN)
-#ifndef XRT_FEATURE_PROCESS_OPEN
-#define XRT_FEATURE_PROCESS_OPEN
-#endif
-#ifndef XRT_MODULE_PROCESS
-#define XRT_MODULE_PROCESS
 #endif
 #endif
 
@@ -16062,6 +16062,26 @@ XRT_API bool xrtValueObjectIdentityBindV1(xvalue* pObject, xvalueidentityhash pH
 	xvalueidentityequal pEqual, const xvalueobjectownershipv1* pExpectedPolicy);
 XRT_API const xrtownershipadapterv1* xrtValueObjectOwnershipAdapterV1(
 	xrtownershipref Reference, const xvalueobjectownershipv1* pExpectedPolicy);
+/* Borrowed discovery anchors for this instance's live, explicitly certified
+ * Object backings. Policy identity is exact; COW/deep-clone backings are each
+ * visited once, with their shared Lifetime UserData (possibly NULL). Ordinary
+ * objects and other policies are not enrolled. Enrollment/removal allocates
+ * nothing and changes NO reference count or owning graph edge.
+ *
+ * Caller holds exclusive whole-domain Freeze throughout enumeration and the
+ * subsequent snapshot/pin transaction. Visitor must remain read-only: it may
+ * collect/filter anchors, but must not mutate/release nodes or invoke their
+ * callbacks. Anchors are NOT internal slots and must never be subtracted from
+ * StrongCount. They are not pins, roots, reverse strong edges or unload proof.
+ * A running/finalizing backing may be discovered but must still be refused by
+ * snapshot admission; discovery is not lifecycle certification. Clear removes
+ * enrollment before Lifetime context retirement. false stops enumeration;
+ * prior visitor effects are not rolled back, so discard partial anchor lists.
+ * This is internal collector support, not automatic cycle collection. */
+typedef bool (*xvalueobjectownershipdiscoverv1)(xrtownershipref Reference,
+	const void* pLifetimeContext, ptr pContext);
+XRT_API bool xrtValueObjectOwnershipDiscoverV1(const xvalueobjectownershipv1* pExpectedPolicy,
+	xvalueobjectownershipdiscoverv1 pVisit, ptr pContext);
 /* Authorize a known resident Handle bridge, before any policy callback. The
  * expected immutable Ops/Trace must cover the complete coordinated payload;
  * identity hooks and non-NULL UserData are independently refused. This does
@@ -53637,6 +53657,16 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
+/* process_open 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_OPEN)
+#ifndef XRT_FEATURE_PROCESS_OPEN
+#define XRT_FEATURE_PROCESS_OPEN
+#endif
+#ifndef XRT_MODULE_PROCESS
+#define XRT_MODULE_PROCESS
+#endif
+#endif
+
 /* process_run 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_RUN)
 #ifndef XRT_FEATURE_PROCESS_RUN
@@ -53650,16 +53680,6 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_CANCEL
 #define XRT_MODULE_CANCEL
-#endif
-#endif
-
-/* process_open 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_OPEN)
-#ifndef XRT_FEATURE_PROCESS_OPEN
-#define XRT_FEATURE_PROCESS_OPEN
-#endif
-#ifndef XRT_MODULE_PROCESS
-#define XRT_MODULE_PROCESS
 #endif
 #endif
 

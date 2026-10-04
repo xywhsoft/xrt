@@ -494,7 +494,10 @@ static __xrt_tls_stream_async_result __xrtTlsStreamAsyncWaitResult(
 		}
 		if ( (pAsync->Kind == __XRT_TLS_STREAM_ASYNC_WAIT) &&
 			(pAsync->Wait == XTLS_STREAM_WAIT_END) &&
-			pStream->EndEmitted ) {
+			(pStream->EndEmitted ||
+			 (xrtTlsStreamAvailable(pStream) == 0)) ) {
+			/* CLOSED 已确认双向 close_notify。密文排空可同步重入 Close，
+			   先于 End 事件记账；明文已交付时不能因此丢失认证 EOF。 */
 			return __XRT_TLS_STREAM_ASYNC_READY;
 		}
 		if ( (pAsync->Kind == __XRT_TLS_STREAM_ASYNC_WAIT) &&

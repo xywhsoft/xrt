@@ -5,12 +5,12 @@ title: POP3: Receiving Mail
 volume: 卷十一 其他扩展库
 type: practice
 lead: The +OK/-ERR simple world, the mailbox facts of STAT/LIST/UIDL, streaming RETR with dot un-escaping, SASL authentication and STLS — the standard protocol of download-style receipt.
-api: xmail-pop3, xmail-pop3_client, xmail-mail
+api: xpop3-pop3, xpop3-pop3_client, xmail-mail
 ---
 
 ## Orientation
 
-POP3 is the simplest of the three receiving protocols (POP3/IMAP/Chapter 119): a **download** model — connect, authenticate, list messages, fetch one by one, (optionally) delete, say goodbye. Simple doesn't mean careless: **multiline-response dot transparency** (RETR/TOP body line-start dot escaping and single-dot termination — the symmetric reverse of SMTP DATA); **streaming receipt** (`Begin/Next` yields line by line, **never allocating the whole message** — each line borrows the internal buffer, stable only until the next read: three outlets in direct file writes / incremental MIME / your own storage); **UIDL's identity semantics** (unique IDs underpin the client logic of "fetch only new mail"); **the SASL authentication family** (USER/PASS plaintext rejected by default, SASL PLAIN plus OAuth mechanisms); **STLS upgrade** (CAPA declares → +OK → upgrade in place → **re-run CAPA**). xmail's layering as before: protocol primitives (offline) + client (a synchronous state machine: AUTHORIZATION→TRANSACTION→MULTILINE→UPDATE) + an optional message layer (bounded aggregation).
+POP3 is the simplest of the three receiving protocols (POP3/IMAP/Chapter 119): a **download** model — connect, authenticate, list messages, fetch one by one, (optionally) delete, say goodbye. Simple doesn't mean careless: **multiline-response dot transparency** (RETR/TOP body line-start dot escaping and single-dot termination — the symmetric reverse of SMTP DATA); **streaming receipt** (`Begin/Next` yields line by line, **never allocating the whole message** — each line borrows the internal buffer, stable only until the next read: three outlets in direct file writes / incremental MIME / your own storage); **UIDL's identity semantics** (unique IDs underpin the client logic of "fetch only new mail"); **the SASL authentication family** (USER/PASS plaintext rejected by default, SASL PLAIN plus OAuth mechanisms); **STLS upgrade** (CAPA declares → +OK → upgrade in place → **re-run CAPA**). xpop3 layering: protocol primitives (offline) + client (a synchronous state machine: AUTHORIZATION→TRANSACTION→MULTILINE→UPDATE) + an optional message layer (bounded aggregation).
 
 ## Introduction
 
@@ -53,6 +53,8 @@ The base client is plaintext on 110; `pop3_client_tls` adds two forms: implicit 
 
 ## Examples
 
+Run these commands from the repository root. The builder selects modules, public headers and platform libraries from the manifest, and also prints build and dependency-test logs. Terminal blocks show the example output. The second program starts a loopback server within the process and uses fixed demonstration data. See the client library README for real-service host, port, CA and runtime credential configuration.
+
 ### First complete program: protocol primitives
 
 The program below is from `examples/pop3/protocol` — an offline loop of replies and commands:
@@ -61,25 +63,25 @@ The program below is from `examples/pop3/protocol` — an offline loop of replie
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xpop3/examples/protocol/main.c -lws2_32 -liphlpapi
-（输出 POP3 响应解析与命令构建的自检结果）
+$ python tools/build.py --manifest extlibs/xpop3/config/modules.json --suite pop3 --no-single --jobs 4
+messages=12 command=RETR 1
 ```
 
-**What just happened.** (1) Four primitive families — reply/STAT/UIDL/command — complete parsing and building verification without a network — the same "offline-testable" discipline as the SMTP/SSH protocol layers. (2) POP3's replies are simpler than SMTP's (`+OK`/`-ERR`, two states — none of multiline status-code complexity); the complexity lives entirely in the **multiline data** dot family — those are `mail_net` shared primitives, covered outside this sample by the test matrix. (3) Custom state-machine authors (people writing proxies/test servers) consume these primitives directly — the same implementation as the official client (the family tradition of no second implementation).
+**What just happened.** (1) The program parses a fixed STAT reply with `xrtPop3StatParse`, obtains the message count, then constructs and prints RETR with `xrtPop3CommandWrite`. Counts and byte sizes retain 64-bit semantics; command arguments pass protocol validation. (2) Parsing and command construction open no connection and can serve custom clients or test servers. The same suite tests other reply, UIDL and multiline boundaries; this short program demonstrates two entry points.
 
-### Second complete program: a receiving session
+### Second complete program: local retrieval
 
-The second program is from `examples/pop3/client` — the full flow of the synchronous client:
+The second program is from `extlibs/xpop3/examples/offline/main.c`.
 
-```embed path="extlibs/xpop3/examples/client/main.c" title="extlibs/xpop3/examples/client/main.c"
+```embed path="extlibs/xpop3/examples/offline/main.c" title="extlibs/xpop3/examples/offline/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xpop3/examples/client/main.c -lws2_32 -liphlpapi
-（对配置的 POP3 服务器完成收取会话后正常退出）
+$ python tools/build.py --manifest extlibs/xpop3/config/modules.json --suite pop3_offline_example --no-single --jobs 4
+offline POP3 retrieval: 3 message lines
 ```
 
-**What just happened.** (1) Open (greeting validation + CAPA snapshot) → authenticate → STAT (mailbox facts: N messages, M bytes) → standard commands (the sample takes a RETR/TOP/UIDL combination per scenario). (2) **The streaming shape of receipt**: the `Begin/Next` loop goes line by line — each line consumed immediately (print/write to disk/feed a parser), memory independent of message size; the `message` sample contrasts with the bounded aggregation entrance (`RetrWrite`'s capped form). (3) Three finishes to choose from (Quit commits UPDATE / Close / Abort) — DELE's deletion semantics take effect only at Quit's UPDATE stage (an Abort midway abandons the deletion marks — the protocol safety net of "no goodbye, no deletion").
+**What just happened.** (1) The program creates a local listener and server thread, then resolves the demonstration host to loopback. This fixture does not implement CAPA, so automatic capability reads are disabled; select that configuration according to real server behavior. (2) The client completes USER/PASS, executes RETR and consumes `xrtPop3ClientNext` line by line. The program compares the subject, empty line and body byte for byte, requiring exactly three lines and a complete multiline terminator. (3) After QUIT it waits for the server thread and destroys the connection, listener, resolver and engine. Only content checks and successful retirement produce the success line. Fixed plaintext credentials are explicitly allowed only in this loopback fixture; the real-service example uses TLS and runtime credentials. This program does not delete mail: downloading and server deletion are separate operations.
 
 ## Contracts
 

@@ -24,14 +24,69 @@ static bool mailExamplePort(const char* text, uint16* port)
 	return true;
 }
 
-static void mailExampleNetUnit(mail_example_net* net)
+static bool mailExampleCleanupWait(xdeadline deadline)
 {
-	if ( net == NULL ) return;
-	if ( net->Resolver != NULL ) (void)xrtNetResolverDestroy(net->Resolver);
-	if ( net->Verifier != NULL ) xrtTlsVerifierRelease(net->Verifier);
-	if ( net->Tls != NULL ) xrtTlsContextRelease(net->Tls);
-	if ( net->Engine != NULL ) (void)xrtNetEngineDestroy(net->Engine);
-	memset(net, 0, sizeof(*net));
+	if ( xrtDeadlineExpired(deadline) ) {
+		xerror* timeout = xrtErrorCreate(XERR_TIMEOUT, "mail-example", 1,
+			"network cleanup still has live objects");
+		if ( timeout != NULL ) xrtSetErrorTake(timeout);
+		return false;
+	}
+	xrtSleep(1u);
+	return true;
+}
+
+/* 只在退休成功时清空拥有型指针；失败后调用方仍可重试。 */
+static bool mailExampleNetCleanup(mail_example_net* net, xdeadline deadline)
+{
+	xerror* previous;
+	bool ready = true;
+	if ( net == NULL ) return true;
+	previous = xrtTakeError();
+	if ( net->Resolver != NULL ) {
+		for ( ;; ) {
+			xnetretireresult result = xrtNetResolverTryDestroy(net->Resolver);
+			if ( result == XNET_RETIRE_READY ) { net->Resolver = NULL; break; }
+			if ( result == XNET_RETIRE_ERROR || !mailExampleCleanupWait(deadline) ) {
+				ready = false;
+				break;
+			}
+		}
+	}
+	if ( ready && net->Engine != NULL ) {
+		for ( ;; ) {
+			xnetretireresult result = xrtNetEngineTryDestroy(net->Engine);
+			if ( result == XNET_RETIRE_READY ) { net->Engine = NULL; break; }
+			if ( result == XNET_RETIRE_ERROR ) { ready = false; break; }
+			if ( !mailExampleCleanupWait(deadline) ) {
+				ready = false;
+				break;
+			}
+		}
+	}
+	if ( ready ) {
+		if ( net->Verifier != NULL ) xrtTlsVerifierRelease(net->Verifier);
+		if ( net->Tls != NULL ) xrtTlsContextRelease(net->Tls);
+		net->Verifier = NULL;
+		net->Tls = NULL;
+	}
+	if ( previous != NULL ) xrtSetErrorTake(previous);
+	else if ( ready ) xrtClearError();
+	return ready;
+}
+
+static bool mailExampleNetUnit(mail_example_net* net)
+{
+	bool ready = mailExampleNetCleanup(net, xrtDeadlineAfter(UINT64_C(5000000)));
+	if ( !ready ) fputs("Mail network cleanup incomplete; handles retained for retry\n", stderr);
+	return ready;
+}
+
+/* 不输出认证材料或服务器返回的任意文本。 */
+static void mailExampleDiagnostic(const char* stage)
+{
+	fprintf(stderr, "%s failed: kind=%d code=%d\n", stage,
+		(int)xrtErrorKind(xrtGetError()), (int)xrtErrorCode(xrtGetError()));
 }
 
 static bool mailExampleNetInit(mail_example_net* net, const char* caPath)

@@ -24,6 +24,8 @@
 */
 
 static str g_sCertKeyPem = NULL;
+static size_t g_iDnsAddCalls = 0u;
+static size_t g_iDnsRemoveCalls = 0u;
 
 typedef struct testdnsctx {
 	xacmehttp Http;
@@ -93,6 +95,19 @@ static bool testDnsExchange(
 static bool testDnsAdd(
 	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
 {
+	const char* sFailAt = getenv("XACME_TEST_DNS_ADD_UNCERTAIN");
+	g_iDnsAddCalls++;
+	if((sFailAt != NULL) && (g_iDnsAddCalls >= (size_t)atoi(sFailAt)))
+	{
+		cstr sKind = getenv("XACME_TEST_DNS_UNCERTAIN_KIND");
+		if(sKind != NULL && strcmp(sKind, "memory") == 0) xrtSetErrorKind(XERR_MEMORY);
+		else if(sKind != NULL && strcmp(sKind, "provider") == 0)
+			xrtSetErrorInfo(XERR_IO, "xrt.acme.dns", XACME_DNS_ERROR_UNCERTAIN,
+				"injected provider ownership unknown after send");
+		else xrtSetErrorInfo(XERR_IO, "xrt.acme.http", XACME_HTTP_ERROR_UNCERTAIN,
+				"injected DNS add result unknown after send");
+		return false;
+	}
 	return testDnsExchange(
 		(testdnsctx*)pProvider->pContext, "set", sFqdn, sTxt);
 }
@@ -100,8 +115,18 @@ static bool testDnsAdd(
 static bool testDnsRemove(
 	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
 {
+	g_iDnsRemoveCalls++;
 	return testDnsExchange(
 		(testdnsctx*)pProvider->pContext, "clear", sFqdn, sTxt);
+}
+
+static bool testDnsPropagate(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	(void)pProvider;
+	(void)sFqdn;
+	(void)sTxt;
+	return true;
 }
 
 /* 读文件到 xrtMalloc 缓冲（CA PEM）。 */
@@ -167,7 +192,7 @@ int main(void)
 		xacmeclientconfig ClientConfig;
 		testdnsctx Dns;
 		xacmednsprovider Provider;
-		xstrview Domains[2];
+		xstrview Domains[17];
 		xacmeissuegrant Grant;
 		size_t iCerts;
 		size_t i;
@@ -237,6 +262,38 @@ int main(void)
 				(strstr(sAccountPem, "BEGIN PRIVATE KEY") != NULL),
 			"acme flow account pem export failed");
 		xrtFree(sAccountPem);
+		if(getenv("XACME_TEST_ROLLOVER_DROP_BEFORE") != NULL)
+		{
+			xacmees256key Fresh;
+			str sNewPem = NULL;
+			str sBefore = xrtAcmeClientAccountPem(Client);
+			str sAfter;
+			if(xacmeEs256Generate(&Fresh))
+				sNewPem = xacmeKeyPemWrite(&Fresh);
+			xrtSecureZero(&Fresh, sizeof(Fresh));
+			testRequire((sBefore != NULL) && (sNewPem != NULL) &&
+				!xrtAcmeClientRollover(Client, sNewPem, NULL) &&
+				(xrtErrorCode(xrtGetError()) ==
+					XACME_HTTP_ERROR_UNCERTAIN) &&
+				(xrtErrorDomain(xrtGetError()) != NULL) &&
+				(strcmp(xrtErrorDomain(xrtGetError()),
+					"xrt.acme.http") == 0),
+				"acme flow uncertain rollover did not retain error");
+			sAfter = xrtAcmeClientAccountPem(Client);
+			testRequire((sAfter != NULL) &&
+				(strcmp(sBefore, sAfter) == 0),
+				"acme flow uncertain rollover changed local key");
+			xrtFree(sBefore);
+			xrtFree(sAfter);
+			xrtFree(sNewPem);
+			xrtClearError();
+			xrtAcmeClientDestroy(Client);
+			xacmeHttpUnit(&Dns.Http);
+			xrtFree(g_sCertKeyPem);
+			xrtFree(sCaPem);
+			printf("[PASS] acme rollover unknown result preserves old key\n");
+			return 0;
+		}
 
 		Provider.sId = "challtestsrv";
 		Provider.iCaps = 0u;
@@ -246,8 +303,36 @@ int main(void)
 		Provider.Propagate = NULL;
 
 		Domains[0] = XRT_STR_LITERAL("test.xxrpa.com");
+		for(i = 1u; i < 17u; i++) Domains[i] = Domains[0];
+		if(getenv("XACME_TEST_DNS_ADD_UNCERTAIN") != NULL)
+		{
+			size_t iFailAt = (size_t)atoi(
+				getenv("XACME_TEST_DNS_ADD_UNCERTAIN"));
+			Domains[1] = XRT_STR_LITERAL("other.xxrpa.com");
+			Provider.iCaps = XACME_DNS_CAP_PROPAGATE;
+			Provider.Propagate = testDnsPropagate;
+			bool bIssued = xrtAcmeClientIssueEx(
+				Client, Domains, iFailAt, &Provider, false, &Grant);
+			cstr sKind = getenv("XACME_TEST_DNS_UNCERTAIN_KIND");
+			bool bMemory = sKind != NULL && strcmp(sKind, "memory") == 0;
+			bool bProvider = sKind != NULL && strcmp(sKind, "provider") == 0;
+			testRequire(!bIssued && g_iDnsAddCalls == iFailAt &&
+				g_iDnsRemoveCalls == iFailAt - 1u &&
+				(bMemory ? xrtErrorKind(xrtGetError()) == XERR_MEMORY :
+				 (xrtErrorDomain(xrtGetError()) != NULL &&
+				  strcmp(xrtErrorDomain(xrtGetError()), bProvider ? "xrt.acme.dns" : "xrt.acme.http") == 0 &&
+				  xrtErrorCode(xrtGetError()) == (bProvider ? XACME_DNS_ERROR_UNCERTAIN : XACME_HTTP_ERROR_UNCERTAIN))),
+				"acme flow replayed uncertain add or leaked prior TXT");
+			xrtClearError();
+			xrtAcmeClientDestroy(Client);
+			xacmeHttpUnit(&Dns.Http);
+			xrtFree(g_sCertKeyPem);
+			xrtFree(sCaPem);
+			printf("[PASS] acme flow uncertain DNS add not replayed\n");
+			return 0;
+		}
 		if(!xrtAcmeClientIssueEx(
-				Client, Domains, 1u, &Provider,
+				Client, Domains, getenv("XACME_TEST_DUPLICATES") ? 17u : 1u, &Provider,
 				(getenv("XACME_PREFER_ALT") != NULL), &Grant))
 		{
 			const xerror* pError = xrtGetError();
@@ -375,11 +460,19 @@ int main(void)
 					(G3.sFullchainPem != NULL),
 				"acme flow obtain first failed");
 			xrtAcmeGrantUnit(&G3);
-			testRequire(
-				xrtAcmeObtain(
-					&Obtain, Domains, 1u, &Provider, &G3, &bRenewed) &&
-					!bRenewed && (G3.sKeyPem != NULL),
-				"acme flow obtain skip failed");
+			{
+				bool bObtained = xrtAcmeObtain(
+					&Obtain, Domains, 1u, &Provider, &G3, &bRenewed);
+				if(!bObtained || bRenewed || G3.sKeyPem == NULL)
+				{
+					size_t Pending = SIZE_MAX;
+					(void)xrtAcmeCleanupPending(0u, &Pending);
+					fprintf(stderr, "obtain repeat result=%d renewed=%d pending=%zu error=%s\n",
+						(int)bObtained, (int)bRenewed, Pending, xrtErrorMessage(xrtGetError()));
+				}
+				testRequire(bObtained && !bRenewed && G3.sKeyPem != NULL,
+					"acme flow obtain skip failed");
+			}
 			xrtAcmeGrantUnit(&G3);
 		}
 
@@ -389,17 +482,68 @@ int main(void)
 			char sRollStore[320];
 			xacmees256key Fresh;
 			str sNewPem = NULL;
+			bool bStoreFail =
+				(getenv("XACME_TEST_ROLLOVER_STORE_FAIL") != NULL);
+			bool bRolled;
+			xerror* pExpectedPersistenceError = NULL;
 			snprintf(sRollStore, sizeof(sRollStore), "%s/store_rollover",
 				testOutRoot());
+			if(bStoreFail)
+			{
+				FILE* pBlocker = fopen(sRollStore, "wb");
+				testRequire(pBlocker != NULL && fclose(pBlocker) == 0,
+					"acme rollover store failure fixture setup failed");
+			}
 			if(xacmeEs256Generate(&Fresh))
 			{
 				sNewPem = xacmeKeyPemWrite(&Fresh);
 			}
 			xrtSecureZero(&Fresh, sizeof(Fresh));
-			testRequire(
-				(sNewPem != NULL) &&
-					xrtAcmeClientRollover(Client, sNewPem, sRollStore),
-				"acme flow rollover failed");
+			testRequire(sNewPem != NULL,
+				"acme flow rollover key generation failed");
+			if(bStoreFail)
+			{
+				/* Derive the child contract from the real store on this platform. */
+				testRequire(!xrtAcmeStoreSaveAccount(
+					sRollStore, Account.sDirectoryUrl, sNewPem),
+					"acme rollover store blocker unexpectedly writable");
+				pExpectedPersistenceError = xrtErrorRef(xrtGetError());
+				testRequire(pExpectedPersistenceError != NULL &&
+					xrtErrorDomain(pExpectedPersistenceError) != NULL,
+					"acme rollover store blocker missing child diagnosis");
+				xrtClearError();
+			}
+			bRolled = xrtAcmeClientRollover(Client, sNewPem, sRollStore);
+			if(bStoreFail)
+			{
+				xerror* pPersistenceError = xrtErrorRef(xrtGetError());
+				str sCurrent = xrtAcmeClientAccountPem(Client);
+				testRequire(!bRolled && (sCurrent != NULL) &&
+					(strcmp(sCurrent, sNewPem) == 0) &&
+					(pPersistenceError != NULL) &&
+					(xrtErrorKind(pPersistenceError) == xrtErrorKind(pExpectedPersistenceError)) &&
+					(xrtErrorCode(pPersistenceError) == xrtErrorCode(pExpectedPersistenceError)) &&
+					(xrtErrorDomain(pPersistenceError) != NULL) &&
+					(strcmp(xrtErrorDomain(pPersistenceError),
+						xrtErrorDomain(pExpectedPersistenceError)) == 0) &&
+					(xrtGetError() == pPersistenceError),
+					"acme rollover store failure was hidden or key reverted");
+				printf("[PASS] acme rollover child store diagnosis kind=%d domain=%s code=%d; applied key retained\n",
+					(int)xrtErrorKind(pPersistenceError), xrtErrorDomain(pPersistenceError),
+					(int)xrtErrorCode(pPersistenceError));
+				xrtFree(sCurrent);
+				xrtErrorFree(pPersistenceError);
+				xrtErrorFree(pExpectedPersistenceError);
+				xrtClearError();
+			}
+			else
+				testRequire(bRolled, "acme flow rollover failed");
+			if(getenv("XACME_TEST_ROLLOVER_REPEAT") != NULL)
+			{
+				testRequire(xrtAcmeClientRollover(
+					Client, sNewPem, sRollStore),
+					"acme flow repeated rollover failed");
+			}
 			xrtFree(sNewPem);
 			/* store 里的账户钥应已被新钥替换。 */
 			{
@@ -415,10 +559,16 @@ int main(void)
 			xrtAcmeClientDeactivate(Client),
 			"acme flow deactivate failed");
 
+		testRequire(xrtAcmeClientCleanup(Client), "acme flow client cleanup incomplete");
 		xrtAcmeClientDestroy(Client);
-		xacmeHttpUnit(&Dns.Http);
+		testRequire(xacmeHttpUnit(&Dns.Http), "acme flow dns transport cleanup incomplete");
 		xrtFree(g_sCertKeyPem);
 		xrtFree(sCaPem);
+		{
+			size_t Pending = SIZE_MAX;
+			testRequire(xrtAcmeCleanupPending(UINT64_C(5000000), &Pending) && Pending == 0u,
+				"acme flow unpublished clients still pending");
+		}
 	}
 
 	printf("[PASS] acme flow pebble issuance\n");

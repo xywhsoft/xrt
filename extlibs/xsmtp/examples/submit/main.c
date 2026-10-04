@@ -48,7 +48,10 @@ int main(int argc, char** argv)
 		!mailExamplePort(argv[2], &port) ||
 		(argc == 9 && strcmp(argv[8], "tls") != 0 &&
 		 strcmp(argv[8], "starttls") != 0) ) return 2;
-	if ( !mailExampleNetInit(&Net, argv[3]) ) return 1;
+	if ( !mailExampleNetInit(&Net, argv[3]) ) {
+		mailExampleDiagnostic("SMTP network initialization");
+		return 1;
+	}
 	deadline = xrtDeadlineAfter(UINT64_C(30000000));
 	xrtSmtpClientConfigInit(&Config);
 	Config.Net.Engine = Net.Engine;
@@ -62,17 +65,27 @@ int main(int argc, char** argv)
 	Config.Hello = (xstrview)XRT_STR_LITERAL("localhost");
 	client = xrtSmtpClientOpen(&Config, deadline, NULL);
 	if ( client == NULL ) {
-		mailExampleNetUnit(&Net);
+		mailExampleDiagnostic("SMTP open");
+		(void)mailExampleNetUnit(&Net);
 		return 1;
 	}
 	xrtSmtpAuthConfigInit(&Auth);
 	Auth.Method = XSMTP_AUTH_PLAIN;
 	Auth.Username = xrtStrView(user);
 	Auth.Secret = xrtStrView(secret);
-	ok = xrtSmtpClientAuth(client, &Auth, deadline, NULL) &&
-		submitMessage(client, deadline, argv[4], argv[5], argv[6], argv[7]) &&
-		xrtSmtpClientQuit(client, deadline, NULL);
+	ok = xrtSmtpClientAuth(client, &Auth, deadline, NULL);
+	if ( !ok ) mailExampleDiagnostic("SMTP authentication");
+	if ( ok ) {
+		ok = submitMessage(client, deadline, argv[4], argv[5], argv[6], argv[7]);
+		if ( !ok ) mailExampleDiagnostic("SMTP submission");
+	}
+	if ( ok ) {
+		/* DATA's positive completion commits the submission. A later QUIT or
+		 * TLS shutdown failure must not report it as an unsent message. */
+		if ( !xrtSmtpClientQuit(client, deadline, NULL) )
+			mailExampleDiagnostic("SMTP submission completed; shutdown");
+	}
 	xrtSmtpClientDestroy(client);
-	mailExampleNetUnit(&Net);
+	if ( !mailExampleNetUnit(&Net) ) ok = false;
 	return ok ? 0 : 1;
 }

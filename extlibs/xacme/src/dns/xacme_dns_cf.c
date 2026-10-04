@@ -7,6 +7,7 @@
 
 #include <xrt/buffer.h>
 #include <xrt/memory.h>
+#include <xrt/sync.h>
 
 #include <stdlib.h>
 
@@ -20,10 +21,11 @@
 
 typedef struct xacmednscfcontext {
 	xacmehttp Http;
+	xmutex Lock;
 	char sToken[200];
 	char sEndpoint[160];
-	xacmednszonecache Zones;
 	xacmednsrecords Records;
+	bool bUncertain[XACME_DNS_RECORD_MAX];
 } xacmednscfcontext;
 
 static void xacmeCfError(xerrkind Kind, cstr sMessage)
@@ -35,16 +37,20 @@ static void xacmeCfError(xerrkind Kind, cstr sMessage)
 /* 执行一次 API 调用；pBody 为空表示无请求体。 */
 static bool xacmeCfCall(
 	xacmednscfcontext* pCtx, cstr sMethod, cstr sPathAndQuery,
-	cstr sBody, uint16* pOutStatus, str* pOutBody)
+	cstr sBody, uint16* pOutStatus, str* pOutBody, size_t* pOutSize)
 {
 	char sAuth[240];
-	char sUrl[400];
+	char sUrl[512];
 	xacmehttpheader Extra[1];
 	xacmehttpresponse R;
 
+	pCtx->Http.bWriteUncertain = false;
 	snprintf(sAuth, sizeof(sAuth), "Bearer %s", pCtx->sToken);
-	snprintf(sUrl, sizeof(sUrl), "https://%s%s", pCtx->sEndpoint,
-		sPathAndQuery);
+	if(!xacmeDnsHttpsUrl(sUrl, sizeof(sUrl), pCtx->sEndpoint,
+			sPathAndQuery))
+	{
+		return false;
+	}
 	Extra[0] = (xacmehttpheader){ "Authorization", sAuth };
 	if(!xacmeHttpExchangeV(
 			&pCtx->Http, sMethod, sUrl, "application/json",
@@ -55,102 +61,92 @@ static bool xacmeCfCall(
 	}
 	*pOutStatus = R.iStatus;
 	*pOutBody = R.sBody;
+	if(pOutSize != NULL) *pOutSize = R.iBodySize;
 	R.sBody = NULL;
 	xacmeHttpResponseUnit(&R);
 	return true;
 }
 
 /* 在 zones 列表里按 name 精确查 zone id。 */
-static bool xacmeCfZoneId(
+static xacmednszoneresult xacmeCfZoneId(
 	xacmednscfcontext* pCtx, cstr sZone, char* sOutId, size_t iIdCap)
 {
 	char sPath[300];
 	uint16 iStatus = 0u;
 	str sBody = NULL;
-	xvalue* pRoot = NULL;
-	xvalue* pResult = NULL;
-	bool bOk = false;
-	size_t i;
+	size_t iBodySize = 0u;
+	xacmednszoneresult Result;
 
 	snprintf(sPath, sizeof(sPath),
 		"/client/v4/zones?name=%s&per_page=5", sZone);
-	if(!xacmeCfCall(pCtx, "GET", sPath, NULL, &iStatus, &sBody))
+	if(!xacmeCfCall(pCtx, "GET", sPath, NULL, &iStatus, &sBody, &iBodySize))
 	{
-		return false;
+		return XACME_DNS_ZONE_ERROR;
 	}
-	if(sBody != NULL)
+	if(iStatus == 200u)
+		Result = xacmeDnsJsonZoneId(
+			(xstrview){ sBody, iBodySize },
+			"result", sZone, true, 5u, sOutId, iIdCap);
+	else
 	{
-		pRoot = xrtJsonParse((xstrview){ sBody, strlen(sBody) });
+		Result = XACME_DNS_ZONE_ERROR;
+		xacmeCfError((iStatus == 401u || iStatus == 403u) ? XERR_PERMISSION :
+			(iStatus == 429u || iStatus >= 500u) ? XERR_AGAIN : XERR_PROTOCOL,
+			"acme dns_cf zone query rejected or unavailable");
 	}
-	if((pRoot != NULL) &&
-		((pResult = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("result"))) !=
-			NULL) &&
-		xrtValueIs(pResult, XVALUE_ARRAY))
-	{
-		for(i = 0; i < xrtValueCount(pResult); i++)
-		{
-			xvalue* pItem = xrtValueArrayGet(pResult, i);
-			char sName[256];
-			if((pItem != NULL) && xrtValueIs(pItem, XVALUE_OBJECT) &&
-				xacmeDnsJsonText(pItem, "name", sName, sizeof(sName)) &&
-				(strcmp(sName, sZone) == 0) &&
-				xacmeDnsJsonText(pItem, "id", sOutId, iIdCap))
-			{
-				bOk = true;
-				break;
-			}
-		}
-	}
-	xrtValueRelease(pRoot);
 	xrtFree(sBody);
-	if((iStatus < 200u) || (iStatus >= 300u))
-	{
-		xacmeCfError(XERR_PROTOCOL, "acme dns_cf zones response invalid");
-		return false;
-	}
-	return bOk;
+	return Result;
 }
 
-/* zone 逐级上探发现并缓存；返回 zone id。 */
+/* 每次从完整属主查找最近的托管区域；父区域不能证明子区域不存在。 */
 static bool xacmeCfFindZone(
 	xacmednscfcontext* pCtx, cstr sFqdn, char* sOutZone, size_t iZoneCap,
 	char* sOutId, size_t iIdCap)
 {
 	char sCandidate[256];
-	const char* sCached = xacmeDnsZoneMatch(&pCtx->Zones, sFqdn);
-	if(sCached != NULL)
-	{
-		snprintf(sOutZone, iZoneCap, "%s", sCached);
-		return xacmeCfZoneId(pCtx, sCached, sOutId, iIdCap);
-	}
+	xacmednszoneresult Lookup;
 	snprintf(sCandidate, sizeof(sCandidate), "%s", sFqdn);
 	for(;;)
 	{
-		char sRr[200];
-		char sZone[256];
-		if(!xacmeDnsSplit(sCandidate, sRr, sizeof(sRr), sZone,
-				sizeof(sZone)))
+		char* sDot;
+		Lookup = xacmeCfZoneId(pCtx, sCandidate, sOutId, iIdCap);
+		if(Lookup == XACME_DNS_ZONE_FOUND)
 		{
-			return false;
-		}
-		if(xacmeCfZoneId(pCtx, sZone, sOutId, iIdCap))
-		{
-			snprintf(sOutZone, iZoneCap, "%s", sZone);
-			xacmeDnsZoneRemember(&pCtx->Zones, sZone);
+			snprintf(sOutZone, iZoneCap, "%s", sCandidate);
 			return true;
 		}
-		{
-			char* sDot = strchr(sZone, '.');
-			if((sDot == NULL) || (strchr(sDot + 1, '.') == NULL))
-			{
-				return false; /* 剩两段仍失败：放弃 */
-			}
-			snprintf(sCandidate, sizeof(sCandidate), "%s", sZone);
-		}
+		if(Lookup == XACME_DNS_ZONE_ERROR) return false;
+		sDot = strchr(sCandidate, '.');
+		if((sDot == NULL) || (strchr(sDot + 1, '.') == NULL)) break;
+		memmove(sCandidate, sDot + 1, strlen(sDot + 1) + 1u);
 	}
+	xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns", XACME_DNS_ERROR_ZONE,
+		"acme dns_cf managed zone not found");
+	return false;
 }
 
-static bool xacmeCfAdd(
+static bool xacmeCfCreateRejected(const xvalue* pRoot, uint16 iStatus)
+{
+	if(pRoot == NULL || !xrtValueIs(pRoot, XVALUE_OBJECT)) return false;
+	xvalue* pSuccess = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("success"));
+	xvalue* pErrors = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("errors"));
+	xvalue* pResult = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("result"));
+	bool bSuccess = true;
+	size_t i;
+	if(iStatus < 400u || iStatus >= 500u || !xrtValueGetBool(pSuccess, &bSuccess) || bSuccess ||
+		(pResult != NULL && !xrtValueIs(pResult, XVALUE_NULL)) ||
+		!xrtValueIs(pErrors, XVALUE_ARRAY) || xrtValueCount(pErrors) == 0u) return false;
+	for(i = 0u; i < xrtValueCount(pErrors); i++) {
+		xvalue* pError = xrtValueArrayGet(pErrors, i);
+		char sMessage[512]; int64 iCode = 0;
+		if(!xrtValueIs(pError, XVALUE_OBJECT) ||
+			!xrtValueGetInt(xrtValueObjectGet(pError, XRT_STR_LITERAL("code")), &iCode) || iCode <= 0 ||
+			!xacmeDnsJsonText(pError, "message", sMessage, sizeof(sMessage)) || sMessage[0] == '\0') return false;
+	}
+	return true;
+}
+
+static bool xacmeCfAddLocked(
 	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
 {
 	xacmednscfcontext* pCtx = (xacmednscfcontext*)pProvider->pContext;
@@ -161,10 +157,13 @@ static bool xacmeCfAdd(
 	xbuffer Body;
 	uint16 iStatus = 0u;
 	str sResp = NULL;
+	size_t iRespSize = 0u;
 	xvalue* pRoot = NULL;
 	char sRecordId[64];
 	bool bOk = false;
 	bool bTracked = false;
+	bool bSent = false;
+	size_t iSlot;
 
 	if(!xacmeDnsChallengeValid(sFqdn, sTxt))
 	{
@@ -172,14 +171,16 @@ static bool xacmeCfAdd(
 			"acme dns_cf owner or digest is invalid");
 		return false;
 	}
-	if(!xacmeDnsRecordCanAdd(&pCtx->Records))
+	sFqdn = xacmeDnsCanonicalOwner(sFqdn, sFqdnText);
+	if(xacmeDnsCreateBlocked(&pCtx->Records, pCtx->bUncertain, sFqdn, sTxt))
+		return xacmeDnsCreateUncertainError();
+	iSlot = xacmeDnsCreateSlot(&pCtx->Records, pCtx->bUncertain);
+	if(iSlot >= XACME_DNS_RECORD_MAX)
 	{
 		xacmeCfError(XERR_RANGE,
 			"acme dns_cf record tracking capacity exhausted");
 		return false;
 	}
-	memcpy(sFqdnText, sFqdn.Data, sFqdn.Size);
-	sFqdnText[sFqdn.Size] = '\0';
 	memcpy(sTxtText, sTxt.Data, sTxt.Size);
 	sTxtText[sTxt.Size] = '\0';
 
@@ -194,44 +195,171 @@ static bool xacmeCfAdd(
 		xacmeDnsJsonQuote(&Body, sFqdn) &&
 		xrtBufferAppend(&Body, XRT_BYTES_LITERAL(",\"content\":")) &&
 		xacmeDnsJsonQuote(&Body, sTxt) &&
-		xrtBufferAppend(&Body, XRT_BYTES_LITERAL(",\"ttl\":60}")))
+		xrtBufferAppend(&Body, XRT_BYTES_LITERAL(",\"ttl\":60}")) &&
+		xrtBufferAppendByte(&Body, 0u))
 	{
 		char sPath[128];
 		snprintf(sPath, sizeof(sPath), "/client/v4/zones/%s/dns_records",
 			sZoneId);
+		xacmeDnsCreateReserve(&pCtx->Records, pCtx->bUncertain, iSlot, sFqdn, sTxt);
+		bSent = true;
 		bOk = xacmeCfCall(pCtx, "POST", sPath, (cstr)Body.Data, &iStatus,
-			&sResp);
+			&sResp, &iRespSize);
 	}
 	xrtBufferUnit(&Body);
-	if(!bOk || (iStatus < 200u) || (iStatus >= 300u))
+	if(!bOk)
 	{
 		xrtFree(sResp);
-		return false;
+		if(!bSent) return false;
+		if(!pCtx->Http.bWriteUncertain) {
+			xacmeDnsCreateCancel(&pCtx->Records, pCtx->bUncertain, iSlot);
+			return false;
+		}
+		return xacmeDnsCreateUncertainError();
 	}
 	/* 提取 result.id 供 Remove（记录句柄 = "zoneid/recordid"）。 */
 	if(sResp != NULL)
 	{
-		pRoot = xrtJsonParse((xstrview){ sResp, strlen(sResp) });
+		pRoot = xrtJsonParse((xstrview){ sResp, iRespSize });
 	}
-	if(pRoot != NULL)
+	if(xacmeCfCreateRejected(pRoot, iStatus)) {
+		xacmeDnsCreateCancel(&pCtx->Records, pCtx->bUncertain, iSlot);
+		xrtValueRelease(pRoot); xrtFree(sResp);
+		xacmeCfError((iStatus == 401u || iStatus == 403u) ? XERR_PERMISSION : XERR_PROTOCOL,
+			"acme dns_cf create was rejected");
+		return false;
+	}
+	if(iStatus >= 200u && iStatus < 300u && xacmeDnsJsonSuccess(pRoot))
 	{
 		xvalue* pResult = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("result"));
+		xvalue* pErrors = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("errors"));
 		if((pResult != NULL) && xrtValueIs(pResult, XVALUE_OBJECT) &&
-			xacmeDnsJsonText(pResult, "id", sRecordId, sizeof(sRecordId)))
+			xrtValueIs(pErrors, XVALUE_ARRAY) && xrtValueCount(pErrors) == 0u &&
+			xacmeDnsJsonEqual(pResult, "name", sFqdnText) &&
+			xacmeDnsJsonEqual(pResult, "type", "TXT") &&
+			xacmeDnsJsonEqual(pResult, "content", sTxtText) &&
+			xacmeDnsJsonPathId(pResult, "id", sRecordId, sizeof(sRecordId)))
 		{
-			bTracked = xacmeDnsRecordRememberPair(&pCtx->Records,
-				sZoneId, '/', sRecordId, sFqdn, sTxt);
+			bTracked = xacmeDnsCreateCommit(&pCtx->Records, pCtx->bUncertain,
+				iSlot, sZoneId, '/', sRecordId);
 		}
 	}
 	xrtValueRelease(pRoot);
 	xrtFree(sResp);
-	if(!bTracked)
-		xacmeCfError(XERR_PROTOCOL,
-			"acme dns_cf create response lacks a usable record id");
-	return bTracked;
+	return bTracked ? true : xacmeDnsCreateUncertainError();
 }
 
-static bool xacmeCfDeleteRecord(void* pContext, cstr sId)
+/* GET requires the full envelope; DELETE's documented response also permits
+ * just result.id. Present success/errors fields must never contradict it. */
+static bool xacmeCfRecordResponseOk(const xvalue* pRoot, bool bFull)
+{
+	xvalue* pSuccess;
+	xvalue* pErrors;
+	bool bSuccess = false;
+	if(!xrtValueIs(pRoot, XVALUE_OBJECT)) return false;
+	pSuccess = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("success"));
+	pErrors = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("errors"));
+	if((bFull || pSuccess != NULL) &&
+		(!xrtValueGetBool(pSuccess, &bSuccess) || !bSuccess)) return false;
+	return !(bFull || pErrors != NULL) ||
+		(xrtValueIs(pErrors, XVALUE_ARRAY) && xrtValueCount(pErrors) == 0u);
+}
+
+/* A bare 404 can be an authentication, zone or proxy failure. Only the DNS
+ * record-not-found error in a non-contradictory envelope proves absence. */
+static bool xacmeCfRecordMissing(const xvalue* pRoot, uint16 iStatus)
+{
+	xvalue* pErrors;
+	size_t i;
+	if(iStatus != 404u || !xacmeCfCreateRejected(pRoot, iStatus)) return false;
+	pErrors = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("errors"));
+	for(i = 0u; i < xrtValueCount(pErrors); i++) {
+		int64 iCode = 0;
+		if(!xrtValueGetInt(xrtValueObjectGet(xrtValueArrayGet(pErrors, i),
+			XRT_STR_LITERAL("code")), &iCode) || iCode != 81044) return false;
+	}
+	return true;
+}
+
+typedef enum xacmecfrecordresult {
+	XACME_CF_RECORD_ERROR,
+	XACME_CF_RECORD_FOUND,
+	XACME_CF_RECORD_MISSING
+} xacmecfrecordresult;
+
+static xacmecfrecordresult xacmeCfReadRecord(xacmednscfcontext* pCtx,
+	cstr sPath, cstr sRecordId, xstrview sFqdn, xstrview sTxt)
+{
+	uint16 iStatus = 0u;
+	str sResp = NULL;
+	size_t iRespSize = 0u;
+	xvalue* pRoot;
+	xacmecfrecordresult Result = XACME_CF_RECORD_ERROR;
+	char sOwner[256], sValue[208];
+	/* These views have already passed challenge validation. */
+	memcpy(sOwner, sFqdn.Data, sFqdn.Size); sOwner[sFqdn.Size] = '\0';
+	memcpy(sValue, sTxt.Data, sTxt.Size); sValue[sTxt.Size] = '\0';
+	xrtClearError();
+	if(!xacmeCfCall(pCtx, "GET", sPath, NULL, &iStatus, &sResp, &iRespSize)) {
+		xrtFree(sResp); return Result;
+	}
+	pRoot = xrtJsonParse((xstrview){ sResp, iRespSize });
+	if(xacmeCfRecordMissing(pRoot, iStatus)) Result = XACME_CF_RECORD_MISSING;
+	else if(iStatus == 200u && xacmeCfRecordResponseOk(pRoot, true)) {
+		xvalue* pRecord = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("result"));
+		if(xacmeDnsJsonEqual(pRecord, "id", sRecordId) &&
+			xacmeDnsJsonEqual(pRecord, "name", sOwner) &&
+			xacmeDnsJsonEqual(pRecord, "type", "TXT") &&
+			xacmeDnsJsonEqual(pRecord, "content", sValue)) Result = XACME_CF_RECORD_FOUND;
+	}
+	xrtValueRelease(pRoot); xrtFree(sResp);
+	if(Result != XACME_CF_RECORD_ERROR) xrtClearError();
+	else if(xrtErrorKind(xrtGetError()) != XERR_MEMORY)
+		xacmeCfError((iStatus == 401u || iStatus == 403u) ? XERR_PERMISSION : XERR_PROTOCOL,
+			"acme dns_cf record read failed or no longer matches its tracked identity");
+	return Result;
+}
+
+static xacmednsownedresult xacmeCfReuseOwned(xacmednscfcontext* pCtx,
+	xstrview Owner, xstrview Txt)
+{
+	char sOwner[256];
+	/* Invalid arguments are diagnosed by the ordinary create path. */
+	if(!xacmeDnsChallengeValid(Owner, Txt)) return XACME_DNS_OWNED_NONE;
+	Owner = xacmeDnsCanonicalOwner(Owner, sOwner);
+	if(xacmeDnsCreateBlocked(&pCtx->Records, pCtx->bUncertain, Owner, Txt)) {
+		(void)xacmeDnsCreateUncertainError(); return XACME_DNS_OWNED_ERROR;
+	}
+	for(;;) {
+		char sZoneId[64], sRecordId[64], sPath[200];
+		size_t iSlot = xacmeDnsRecordFindOwned(&pCtx->Records, Owner, Txt);
+		xacmecfrecordresult Result;
+		if(iSlot == XACME_DNS_RECORD_MAX) return XACME_DNS_OWNED_NONE;
+		if(!xacmeDnsRecordSplit(pCtx->Records.sIds[iSlot], '/', sZoneId,
+				sizeof(sZoneId), sRecordId, sizeof(sRecordId))) {
+			xacmeCfError(XERR_PROTOCOL, "acme dns_cf tracked record handle is invalid");
+			return XACME_DNS_OWNED_ERROR;
+		}
+		snprintf(sPath, sizeof(sPath), "/client/v4/zones/%s/dns_records/%s", sZoneId, sRecordId);
+		Result = xacmeCfReadRecord(pCtx, sPath, sRecordId, Owner, Txt);
+		if(Result == XACME_CF_RECORD_FOUND) return XACME_DNS_OWNED_VALID;
+		if(Result != XACME_CF_RECORD_MISSING) return XACME_DNS_OWNED_ERROR;
+		xacmeDnsCreateCancel(&pCtx->Records, pCtx->bUncertain, iSlot);
+	}
+}
+
+static bool xacmeCfDeleteUncertain(void)
+{
+	xerror* pError;
+	if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
+	pError = xrtErrorWrap(xrtGetError(), XERR_IO, "xrt.acme.dns",
+		XACME_DNS_ERROR_UNCERTAIN, "DNS deletion outcome is unknown; tracked record retained");
+	if(pError != NULL) xrtSetErrorTake(pError);
+	return false;
+}
+
+static bool xacmeCfDeleteRecord(void* pContext, cstr sId,
+	xstrview sFqdn, xstrview sTxt)
 {
 	xacmednscfcontext* pCtx = (xacmednscfcontext*)pContext;
 	char sZoneId[64];
@@ -239,7 +367,10 @@ static bool xacmeCfDeleteRecord(void* pContext, cstr sId)
 	char sPath[200];
 	uint16 iStatus = 0u;
 	str sResp = NULL;
+	size_t iRespSize = 0u;
 	bool bOk;
+	xvalue* pRoot = NULL;
+	xacmecfrecordresult Result;
 	if(!xacmeDnsRecordSplit(sId, '/', sZoneId, sizeof(sZoneId),
 			sRecordId, sizeof(sRecordId)))
 	{
@@ -248,24 +379,83 @@ static bool xacmeCfDeleteRecord(void* pContext, cstr sId)
 	}
 	snprintf(sPath, sizeof(sPath),
 		"/client/v4/zones/%s/dns_records/%s", sZoneId, sRecordId);
-	if(!xacmeCfCall(pCtx, "DELETE", sPath, NULL, &iStatus, &sResp))
-	{
-		xrtFree(sResp);
-		return false;
+	Result = xacmeCfReadRecord(pCtx, sPath, sRecordId, sFqdn, sTxt);
+	if(Result != XACME_CF_RECORD_FOUND) return Result == XACME_CF_RECORD_MISSING;
+	bOk = xacmeCfCall(pCtx, "DELETE", sPath, NULL, &iStatus, &sResp, &iRespSize);
+	if(!bOk && !pCtx->Http.bWriteUncertain) { xrtFree(sResp); return false; }
+	if(bOk) {
+		pRoot = xrtJsonParse((xstrview){ sResp, iRespSize });
+		bOk = iStatus == 200u && xacmeCfRecordResponseOk(pRoot, false) &&
+			xacmeDnsJsonEqual(xrtValueObjectGet(pRoot, XRT_STR_LITERAL("result")), "id", sRecordId);
+		if(!bOk && (iStatus == 401u || iStatus == 403u) && xacmeCfCreateRejected(pRoot, iStatus) &&
+			xrtErrorKind(xrtGetError()) != XERR_MEMORY) {
+			xrtValueRelease(pRoot); xrtFree(sResp);
+			xacmeCfError(XERR_PERMISSION, "acme dns_cf record deletion was rejected"); return false;
+		}
 	}
-	xrtFree(sResp);
-	bOk = ((iStatus >= 200u) && (iStatus < 300u)) || (iStatus == 404u);
-	if(!bOk)
-		xacmeCfError(XERR_PROTOCOL, "acme dns_cf record deletion failed");
-	return bOk;
+	xrtValueRelease(pRoot); xrtFree(sResp);
+	if(bOk) return true;
+	(void)xacmeCfDeleteUncertain();
+	/* Allocation failures retain both the diagnosis and handle. A subsequent
+ * Remove can reconcile; no write is repeated within this call. */
+	if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
+	{
+		xerror* pWriteError = xrtTakeError();
+		Result = xacmeCfReadRecord(pCtx, sPath, sRecordId, sFqdn, sTxt);
+		if(Result == XACME_CF_RECORD_FOUND) xrtSetErrorTake(pWriteError);
+		else xrtErrorFree(pWriteError);
+	}
+	return Result == XACME_CF_RECORD_MISSING;
 }
 
-static bool xacmeCfRemove(
+static bool xacmeCfRemoveLocked(
 	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
 {
 	xacmednscfcontext* pCtx = (xacmednscfcontext*)pProvider->pContext;
+	char sOwner[256];
+	if(!xacmeDnsChallengeValid(sFqdn, sTxt)) {
+		xacmeCfError(XERR_ARGUMENT, "acme dns_cf owner or digest is invalid"); return false;
+	}
+	sFqdn = xacmeDnsCanonicalOwner(sFqdn, sOwner);
+	if(xacmeDnsCreateBlocked(&pCtx->Records, pCtx->bUncertain, sFqdn, sTxt))
+		return xacmeDnsCreateUncertainError();
 	return xacmeDnsRecordRemoveMatching(&pCtx->Records, sFqdn, sTxt,
 		xacmeCfDeleteRecord, pCtx);
+}
+
+static bool xacmeCfAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	xacmednscfcontext* pCtx = (xacmednscfcontext*)xacmeDnsProviderContext(pProvider);
+	bool bOk;
+	xacmednsownedresult Existing;
+	if(pCtx == NULL) return false;
+	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	if(!xacmeDnsProviderReady(&pCtx->Http))
+	{
+		(void)xrtMutexUnlock(&pCtx->Lock);
+		return false;
+	}
+	Existing = xacmeCfReuseOwned(pCtx, sFqdn, sTxt);
+	bOk = Existing == XACME_DNS_OWNED_VALID ||
+		(Existing == XACME_DNS_OWNED_NONE && xacmeCfAddLocked(pProvider, sFqdn, sTxt));
+	(void)xrtMutexUnlock(&pCtx->Lock);
+	return bOk;
+}
+
+static bool xacmeCfRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	xacmednscfcontext* pCtx = (xacmednscfcontext*)xacmeDnsProviderContext(pProvider);
+	bool bOk;
+	if(pCtx == NULL) return false;
+	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	if(!xacmeDnsProviderReady(&pCtx->Http))
+	{
+		(void)xrtMutexUnlock(&pCtx->Lock);
+		return false;
+	}
+	bOk = xacmeCfRemoveLocked(pProvider, sFqdn, sTxt);
+	(void)xrtMutexUnlock(&pCtx->Lock);
+	return bOk;
 }
 
 void xrtAcmeDnsCfConfigInit(xacmednscfconfig* pConfig)
@@ -309,11 +499,21 @@ bool xrtAcmeDnsCf(
 	snprintf(pCtx->sEndpoint, sizeof(pCtx->sEndpoint), "%s",
 		(pConfig->sEndpoint != NULL) ? pConfig->sEndpoint :
 			"api.cloudflare.com");
-	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
+	if(!xrtMutexInit(&pCtx->Lock))
 	{
-		xacmeHttpUnit(&pCtx->Http);
 		xrtSecureZero(pCtx, sizeof(*pCtx));
 		xrtFree(pCtx);
+		return false;
+	}
+	if(!xacmeHttpInit(&pCtx->Http, pBorrowedEngine, NULL, 0u))
+	{
+		(void)xrtMutexUnit(&pCtx->Lock);
+		if(xacmeHttpUnit(&pCtx->Http))
+		{
+			xrtSecureZero(pCtx, sizeof(*pCtx));
+			xrtFree(pCtx);
+		}
+		else xacmeHttpDeferOwner(&pCtx->Http, sizeof(*pCtx));
 		return false;
 	}
 	pProvider->sId = "cf";
@@ -330,7 +530,8 @@ void xrtAcmeDnsCfProviderUnit(xacmednsprovider* pProvider)
 	if((pProvider != NULL) && (pProvider->pContext != NULL))
 	{
 		xacmednscfcontext* pCtx = (xacmednscfcontext*)pProvider->pContext;
-		xacmeHttpUnit(&pCtx->Http);
+		if(!xacmeHttpUnit(&pCtx->Http)) return;
+		(void)xrtMutexUnit(&pCtx->Lock);
 		xrtSecureZero(pCtx, sizeof(*pCtx));
 		xrtFree(pCtx);
 		pProvider->pContext = NULL;

@@ -15,5 +15,9 @@ int main(void)
 	}
 	xrtFree(url);
 	xoauth2ClientUnit(&client);
+	{
+		size_t pending = SIZE_MAX;
+		if(!xoauth2HttpXrtCleanupPending(0u, &pending) || pending != 0u) return 1;
+	}
 	return 0;
 }

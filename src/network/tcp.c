@@ -1062,10 +1062,12 @@ static void __xrtNetStreamTryFinish(xnetstream* pStream);
 
 
 
-/* 进入可能同步触发底层关闭的发送调用帧。 */
+/* 仅 Worker 调用帧可能同步重入关闭；跨线程发送由 SendSubmitters 保护。 */
 static void __xrtNetStreamActiveEnter(xnetstream* pStream)
 {
-	pStream->ActiveDepth++;
+	if ( xrtNetWorkerIsCurrent(pStream->Worker) ) {
+		pStream->ActiveDepth++;
+	}
 }
 
 
@@ -1090,6 +1092,9 @@ static void __xrtNetStreamReleaseRuntime(xnetstream* pStream)
 /* 离开最外层发送调用帧后完成延迟释放；必须是调用函数的最后一条语句。 */
 static void __xrtNetStreamActiveLeave(xnetstream* pStream)
 {
+	if ( !xrtNetWorkerIsCurrent(pStream->Worker) ) {
+		return;
+	}
 	pStream->ActiveDepth--;
 	if ( (pStream->ActiveDepth == 0) &&
 		pStream->ReleasePending ) {
@@ -3491,8 +3496,8 @@ static xnetresult __xrtNetStreamSend(
 		__xrtNetStreamEndSend(pStream);
 		return XNET_RESULT_OK;
 	}
-	if ( bCopy && pStream->BuffersReady &&
-		 xrtNetWorkerIsCurrent(pStream->Worker) ) {
+	if ( bCopy && xrtNetWorkerIsCurrent(pStream->Worker) &&
+		 pStream->BuffersReady ) {
 		xnetspan Span = { (cbytes)pData, iSize };
 
 		__xrtNetStreamActiveEnter(pStream);
@@ -3590,8 +3595,8 @@ XRT_API xnetresult xrtNetStreamSendVec(
 	if ( !__xrtNetStreamBeginSend(pStream) ) {
 		return XNET_RESULT_CLOSED;
 	}
-	if ( pStream->BuffersReady &&
-		 xrtNetWorkerIsCurrent(pStream->Worker) ) {
+	if ( xrtNetWorkerIsCurrent(pStream->Worker) &&
+		 pStream->BuffersReady ) {
 		__xrtNetStreamActiveEnter(pStream);
 		Result = __xrtNetStreamCopyCurrent(
 			pStream,

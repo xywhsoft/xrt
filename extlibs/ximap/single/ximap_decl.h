@@ -334,6 +334,15 @@
 #if !defined(XRT_FEATURE_CONSOLE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CONSOLE 1
 #endif
+#if !defined(XRT_FEATURE_CONSOLE_INPUT)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CONSOLE_INPUT 1
+#endif
+#if !defined(XRT_FEATURE_CONSOLE_SCREEN)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CONSOLE_SCREEN 1
+#endif
+#if !defined(XRT_FEATURE_CONSOLE_TERMINAL)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CONSOLE_TERMINAL 1
+#endif
 #if !defined(XRT_FEATURE_COROUTINE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_COROUTINE 1
 #endif
@@ -681,6 +690,9 @@
 #endif
 #if !defined(XRT_FEATURE_IO_LINE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_IO_LINE 1
+#endif
+#if !defined(XRT_FEATURE_IO_STANDARD)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_IO_STANDARD 1
 #endif
 #if !defined(XRT_FEATURE_JSON)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_JSON 1
@@ -1255,6 +1267,18 @@
 #if !defined(XRT_FEATURE_VALUE_GRAPH)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VALUE_GRAPH 1
 #endif
+#if !defined(XRT_FEATURE_VFS)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VFS 1
+#endif
+#if !defined(XRT_FEATURE_VFS_DISK)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VFS_DISK 1
+#endif
+#if !defined(XRT_FEATURE_VFS_MEMORY)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VFS_MEMORY 1
+#endif
+#if !defined(XRT_FEATURE_VFS_PACK)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VFS_PACK 1
+#endif
 #if !defined(XRT_FEATURE_WAIT)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WAIT 1
 #endif
@@ -1372,35 +1396,35 @@
 #if !defined(XRT_FEATURE_XID)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XID 1
 #endif
-#if !defined(XRT_FEATURE_XSON)
-#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON 1
+#if !defined(XRT_FEATURE_XLON)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON 1
 #endif
-#if !defined(XRT_FEATURE_XSONL)
-#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL 1
+#if !defined(XRT_FEATURE_XLONL)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL 1
 #endif
-#if !defined(XRT_FEATURE_XSONL_CORE)
-#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL_CORE 1
+#if !defined(XRT_FEATURE_XLONL_CORE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL_CORE 1
 #endif
-#if !defined(XRT_FEATURE_XSONL_FILE)
-#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL_FILE 1
+#if !defined(XRT_FEATURE_XLONL_FILE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL_FILE 1
 #endif
-#if !defined(XRT_FEATURE_XSONL_READ)
-#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL_READ 1
+#if !defined(XRT_FEATURE_XLONL_READ)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL_READ 1
 #endif
-#if !defined(XRT_FEATURE_XSONL_WRITE)
-#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL_WRITE 1
+#if !defined(XRT_FEATURE_XLONL_WRITE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL_WRITE 1
 #endif
-#if !defined(XRT_FEATURE_XSON_CORE)
-#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON_CORE 1
+#if !defined(XRT_FEATURE_XLON_CORE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_CORE 1
 #endif
-#if !defined(XRT_FEATURE_XSON_FILE)
-#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON_FILE 1
+#if !defined(XRT_FEATURE_XLON_FILE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_FILE 1
 #endif
-#if !defined(XRT_FEATURE_XSON_READ)
-#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON_READ 1
+#if !defined(XRT_FEATURE_XLON_READ)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_READ 1
 #endif
-#if !defined(XRT_FEATURE_XSON_WRITE)
-#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON_WRITE 1
+#if !defined(XRT_FEATURE_XLON_WRITE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_WRITE 1
 #endif
 #if !defined(XRT_MODULE_ALL)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_ALL 1
@@ -1470,6 +1494,15 @@
 #endif
 #if !defined(XRT_MODULE_CONSOLE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CONSOLE 1
+#endif
+#if !defined(XRT_MODULE_CONSOLE_INPUT)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CONSOLE_INPUT 1
+#endif
+#if !defined(XRT_MODULE_CONSOLE_SCREEN)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CONSOLE_SCREEN 1
+#endif
+#if !defined(XRT_MODULE_CONSOLE_TERMINAL)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CONSOLE_TERMINAL 1
 #endif
 #if !defined(XRT_MODULE_COROUTINE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_COROUTINE 1
@@ -1818,6 +1851,9 @@
 #endif
 #if !defined(XRT_MODULE_IO_LINE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_IO_LINE 1
+#endif
+#if !defined(XRT_MODULE_IO_STANDARD)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_IO_STANDARD 1
 #endif
 #if !defined(XRT_MODULE_JSON)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON 1
@@ -2392,6 +2428,18 @@
 #if !defined(XRT_MODULE_VALUE_GRAPH)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_VALUE_GRAPH 1
 #endif
+#if !defined(XRT_MODULE_VFS)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_VFS 1
+#endif
+#if !defined(XRT_MODULE_VFS_DISK)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_VFS_DISK 1
+#endif
+#if !defined(XRT_MODULE_VFS_MEMORY)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_VFS_MEMORY 1
+#endif
+#if !defined(XRT_MODULE_VFS_PACK)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_VFS_PACK 1
+#endif
 #if !defined(XRT_MODULE_WAIT)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_WAIT 1
 #endif
@@ -2509,35 +2557,35 @@
 #if !defined(XRT_MODULE_XID)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XID 1
 #endif
-#if !defined(XRT_MODULE_XSON)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON 1
+#if !defined(XRT_MODULE_XLON)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON 1
 #endif
-#if !defined(XRT_MODULE_XSONL)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL 1
+#if !defined(XRT_MODULE_XLONL)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL 1
 #endif
-#if !defined(XRT_MODULE_XSONL_CORE)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL_CORE 1
+#if !defined(XRT_MODULE_XLONL_CORE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL_CORE 1
 #endif
-#if !defined(XRT_MODULE_XSONL_FILE)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL_FILE 1
+#if !defined(XRT_MODULE_XLONL_FILE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL_FILE 1
 #endif
-#if !defined(XRT_MODULE_XSONL_READ)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL_READ 1
+#if !defined(XRT_MODULE_XLONL_READ)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL_READ 1
 #endif
-#if !defined(XRT_MODULE_XSONL_WRITE)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL_WRITE 1
+#if !defined(XRT_MODULE_XLONL_WRITE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL_WRITE 1
 #endif
-#if !defined(XRT_MODULE_XSON_CORE)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON_CORE 1
+#if !defined(XRT_MODULE_XLON_CORE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON_CORE 1
 #endif
-#if !defined(XRT_MODULE_XSON_FILE)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON_FILE 1
+#if !defined(XRT_MODULE_XLON_FILE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON_FILE 1
 #endif
-#if !defined(XRT_MODULE_XSON_READ)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON_READ 1
+#if !defined(XRT_MODULE_XLON_READ)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON_READ 1
 #endif
-#if !defined(XRT_MODULE_XSON_WRITE)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON_WRITE 1
+#if !defined(XRT_MODULE_XLON_WRITE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON_WRITE 1
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_ALL)
 #define XRT_MODULE_ALL 1
@@ -3205,6 +3253,16 @@
 #endif
 #endif
 
+/* process_open 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_OPEN)
+#ifndef XRT_FEATURE_PROCESS_OPEN
+#define XRT_FEATURE_PROCESS_OPEN
+#endif
+#ifndef XRT_MODULE_PROCESS
+#define XRT_MODULE_PROCESS
+#endif
+#endif
+
 /* process_run 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_RUN)
 #ifndef XRT_FEATURE_PROCESS_RUN
@@ -3218,16 +3276,6 @@
 #endif
 #ifndef XRT_MODULE_CANCEL
 #define XRT_MODULE_CANCEL
-#endif
-#endif
-
-/* process_open 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_OPEN)
-#ifndef XRT_FEATURE_PROCESS_OPEN
-#define XRT_FEATURE_PROCESS_OPEN
-#endif
-#ifndef XRT_MODULE_PROCESS
-#define XRT_MODULE_PROCESS
 #endif
 #endif
 
@@ -3462,6 +3510,51 @@
 #endif
 #endif
 
+/* console_terminal 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_TERMINAL)
+#ifndef XRT_FEATURE_CONSOLE_TERMINAL
+#define XRT_FEATURE_CONSOLE_TERMINAL
+#endif
+#ifndef XRT_MODULE_CONSOLE_SCREEN
+#define XRT_MODULE_CONSOLE_SCREEN
+#endif
+#ifndef XRT_MODULE_IO_STANDARD
+#define XRT_MODULE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_THREAD
+#define XRT_MODULE_THREAD
+#endif
+#endif
+
+/* console_screen 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_SCREEN)
+#ifndef XRT_FEATURE_CONSOLE_SCREEN
+#define XRT_FEATURE_CONSOLE_SCREEN
+#endif
+#ifndef XRT_MODULE_CONSOLE
+#define XRT_MODULE_CONSOLE
+#endif
+#endif
+
+/* console_input 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_INPUT)
+#ifndef XRT_FEATURE_CONSOLE_INPUT
+#define XRT_FEATURE_CONSOLE_INPUT
+#endif
+#ifndef XRT_MODULE_CONSOLE
+#define XRT_MODULE_CONSOLE
+#endif
+#ifndef XRT_MODULE_IO_STANDARD
+#define XRT_MODULE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
 /* console 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE)
 #ifndef XRT_FEATURE_CONSOLE
@@ -3556,62 +3649,62 @@
 #endif
 #endif
 
-/* xsonl 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL)
-#ifndef XRT_FEATURE_XSONL
-#define XRT_FEATURE_XSONL
+/* xlonl 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL)
+#ifndef XRT_FEATURE_XLONL
+#define XRT_FEATURE_XLONL
 #endif
-#ifndef XRT_MODULE_XSONL_FILE
-#define XRT_MODULE_XSONL_FILE
+#ifndef XRT_MODULE_XLONL_FILE
+#define XRT_MODULE_XLONL_FILE
 #endif
 #endif
 
-/* xsonl_file 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_FILE)
-#ifndef XRT_FEATURE_XSONL_FILE
-#define XRT_FEATURE_XSONL_FILE
+/* xlonl_file 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_FILE)
+#ifndef XRT_FEATURE_XLONL_FILE
+#define XRT_FEATURE_XLONL_FILE
 #endif
-#ifndef XRT_MODULE_XSONL_READ
-#define XRT_MODULE_XSONL_READ
+#ifndef XRT_MODULE_XLONL_READ
+#define XRT_MODULE_XLONL_READ
 #endif
-#ifndef XRT_MODULE_XSONL_WRITE
-#define XRT_MODULE_XSONL_WRITE
+#ifndef XRT_MODULE_XLONL_WRITE
+#define XRT_MODULE_XLONL_WRITE
 #endif
 #ifndef XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_FILE_WHOLE
 #endif
 #endif
 
-/* xsonl_write 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_WRITE)
-#ifndef XRT_FEATURE_XSONL_WRITE
-#define XRT_FEATURE_XSONL_WRITE
+/* xlonl_write 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_WRITE)
+#ifndef XRT_FEATURE_XLONL_WRITE
+#define XRT_FEATURE_XLONL_WRITE
 #endif
-#ifndef XRT_MODULE_XSONL_CORE
-#define XRT_MODULE_XSONL_CORE
+#ifndef XRT_MODULE_XLONL_CORE
+#define XRT_MODULE_XLONL_CORE
 #endif
-#ifndef XRT_MODULE_XSON_WRITE
-#define XRT_MODULE_XSON_WRITE
-#endif
-#endif
-
-/* xsonl_read 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_READ)
-#ifndef XRT_FEATURE_XSONL_READ
-#define XRT_FEATURE_XSONL_READ
-#endif
-#ifndef XRT_MODULE_XSONL_CORE
-#define XRT_MODULE_XSONL_CORE
-#endif
-#ifndef XRT_MODULE_XSON_READ
-#define XRT_MODULE_XSON_READ
+#ifndef XRT_MODULE_XLON_WRITE
+#define XRT_MODULE_XLON_WRITE
 #endif
 #endif
 
-/* xsonl_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_CORE)
-#ifndef XRT_FEATURE_XSONL_CORE
-#define XRT_FEATURE_XSONL_CORE
+/* xlonl_read 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_READ)
+#ifndef XRT_FEATURE_XLONL_READ
+#define XRT_FEATURE_XLONL_READ
+#endif
+#ifndef XRT_MODULE_XLONL_CORE
+#define XRT_MODULE_XLONL_CORE
+#endif
+#ifndef XRT_MODULE_XLON_READ
+#define XRT_MODULE_XLON_READ
+#endif
+#endif
+
+/* xlonl_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_CORE)
+#ifndef XRT_FEATURE_XLONL_CORE
+#define XRT_FEATURE_XLONL_CORE
 #endif
 #endif
 
@@ -3674,39 +3767,39 @@
 #endif
 #endif
 
-/* xson 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON)
-#ifndef XRT_FEATURE_XSON
-#define XRT_FEATURE_XSON
+/* xlon 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON)
+#ifndef XRT_FEATURE_XLON
+#define XRT_FEATURE_XLON
 #endif
-#ifndef XRT_MODULE_XSON_FILE
-#define XRT_MODULE_XSON_FILE
+#ifndef XRT_MODULE_XLON_FILE
+#define XRT_MODULE_XLON_FILE
 #endif
 #endif
 
-/* xson_file 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_FILE)
-#ifndef XRT_FEATURE_XSON_FILE
-#define XRT_FEATURE_XSON_FILE
+/* xlon_file 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_FILE)
+#ifndef XRT_FEATURE_XLON_FILE
+#define XRT_FEATURE_XLON_FILE
 #endif
-#ifndef XRT_MODULE_XSON_READ
-#define XRT_MODULE_XSON_READ
+#ifndef XRT_MODULE_XLON_READ
+#define XRT_MODULE_XLON_READ
 #endif
-#ifndef XRT_MODULE_XSON_WRITE
-#define XRT_MODULE_XSON_WRITE
+#ifndef XRT_MODULE_XLON_WRITE
+#define XRT_MODULE_XLON_WRITE
 #endif
 #ifndef XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_FILE_WHOLE
 #endif
 #endif
 
-/* xson_write 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_WRITE)
-#ifndef XRT_FEATURE_XSON_WRITE
-#define XRT_FEATURE_XSON_WRITE
+/* xlon_write 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_WRITE)
+#ifndef XRT_FEATURE_XLON_WRITE
+#define XRT_FEATURE_XLON_WRITE
 #endif
-#ifndef XRT_MODULE_XSON_CORE
-#define XRT_MODULE_XSON_CORE
+#ifndef XRT_MODULE_XLON_CORE
+#define XRT_MODULE_XLON_CORE
 #endif
 #ifndef XRT_MODULE_JSON_ESCAPE
 #define XRT_MODULE_JSON_ESCAPE
@@ -3734,13 +3827,13 @@
 #endif
 #endif
 
-/* xson_read 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_READ)
-#ifndef XRT_FEATURE_XSON_READ
-#define XRT_FEATURE_XSON_READ
+/* xlon_read 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_READ)
+#ifndef XRT_FEATURE_XLON_READ
+#define XRT_FEATURE_XLON_READ
 #endif
-#ifndef XRT_MODULE_XSON_CORE
-#define XRT_MODULE_XSON_CORE
+#ifndef XRT_MODULE_XLON_CORE
+#define XRT_MODULE_XLON_CORE
 #endif
 #ifndef XRT_MODULE_BUFFER
 #define XRT_MODULE_BUFFER
@@ -3765,10 +3858,10 @@
 #endif
 #endif
 
-/* xson_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_CORE)
-#ifndef XRT_FEATURE_XSON_CORE
-#define XRT_FEATURE_XSON_CORE
+/* xlon_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_CORE)
+#ifndef XRT_FEATURE_XLON_CORE
+#define XRT_FEATURE_XLON_CORE
 #endif
 #endif
 
@@ -3872,6 +3965,19 @@
 #endif
 #endif
 
+/* io_standard 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_IO_STANDARD)
+#ifndef XRT_FEATURE_IO_STANDARD
+#define XRT_FEATURE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_IO
+#define XRT_MODULE_IO
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#endif
+
 /* io_line 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_IO_LINE)
 #ifndef XRT_FEATURE_IO_LINE
@@ -3945,6 +4051,32 @@
 #endif
 #endif
 
+/* vfs_pack 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS_PACK)
+#ifndef XRT_FEATURE_VFS_PACK
+#define XRT_FEATURE_VFS_PACK
+#endif
+#ifndef XRT_MODULE_VFS
+#define XRT_MODULE_VFS
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
+#endif
+#endif
+
+/* vfs_disk 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS_DISK)
+#ifndef XRT_FEATURE_VFS_DISK
+#define XRT_FEATURE_VFS_DISK
+#endif
+#ifndef XRT_MODULE_VFS
+#define XRT_MODULE_VFS
+#endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
+#endif
+#endif
+
 /* file_root 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ROOT)
 #ifndef XRT_FEATURE_FILE_ROOT
@@ -3952,6 +4084,35 @@
 #endif
 #ifndef XRT_MODULE_FILE_LINK
 #define XRT_MODULE_FILE_LINK
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#endif
+
+/* vfs_memory 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS_MEMORY)
+#ifndef XRT_FEATURE_VFS_MEMORY
+#define XRT_FEATURE_VFS_MEMORY
+#endif
+#ifndef XRT_MODULE_VFS
+#define XRT_MODULE_VFS
+#endif
+#endif
+
+/* vfs 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS)
+#ifndef XRT_FEATURE_VFS
+#define XRT_FEATURE_VFS
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#ifndef XRT_MODULE_UNICODE
+#define XRT_MODULE_UNICODE
 #endif
 #endif
 
@@ -9770,6 +9931,25 @@ typedef struct xfutureproducerownershipv1 {
 	void (*Drop)(const void* pProducer);
 } xfutureproducerownershipv1;
 
+/* Optional explicit cooperative-cancellation capability of the SAME producer
+ * node. No Watch, hidden reference or additional graph edge is created.
+ * Both descriptors are immutable resident code for the full Future lifetime.
+ * Retain executes under the Future lock/mutation: it must only acquire one
+ * real producer reference, never call back into a Future, invoke semantic
+ * code, allocate, wait for work/callbacks or release a last reference.
+ * Request executes outside
+ * this API's lock/mutation with that real reference; it may wake accepted
+ * work, but must not execute language CFG inline or invent a terminal result.
+ * The ownership policy Drop returns the acquired reference afterwards.
+ * A caller-owned enclosing scope is never suspended. Request must be called
+ * outside such a scope if its producer may synchronize callback retirement.
+ * This capability does not admit the producer or its children for collection. */
+typedef struct xfutureproducercancellationv1 {
+	size_t size;
+	bool (*Retain)(const void* pProducer);
+	void (*Request)(const void* pProducer);
+} xfutureproducercancellationv1;
+
 /* A registered Watch owns exactly ONE Data node reference, returned by Release.
  * Immutable resident callbacks coordinate their own activity and code lifetime;
  * Ops describes that same physical node, not a synthetic watch leaf. The core
@@ -9832,6 +10012,15 @@ XRT_API xpromise* xrtPromiseCreate(xfuture** ppFuture, xcancel* pParentCancel);
  * is never suspended. A trace-only or unknown policy is not collection proof. */
 XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
 	const xfutureproducerownershipv1* pPolicy);
+
+/* Same bind-once/private-pair/transfer rules as V1. The cancellation capability
+ * belongs to that exact producer. xrtFutureCancel requests its output token,
+ * then calls Request only for the first accepted explicit request. Terminal
+ * publication may race Request; the independently retained producer decides
+ * whether any activation remains. Merely dropping an observer still does not
+ * cancel work. Raw token requests and PromiseClose are not routed through it. */
+XRT_API bool xrtPromiseProducerBindTakeV2(xpromise* pPromise, xrtownershipref Producer,
+	const xfutureproducerownershipv1* pPolicy, const xfutureproducercancellationv1* pCancellation);
 
 
 
@@ -10124,7 +10313,8 @@ XRT_API xfuture* xrtFutureAll(xfuture* const* pFutures, size_t iCount);
 
 
 
-/* 在任一源进入终态后完成，并向其余未完成源发出协作取消请求。 */
+/* 在任一源进入终态后完成，并向其余未完成源发出协作取消请求。
+ * 取消请求在结果映射/发布之前完成；这不强制改变败者的终态。 */
 XRT_API xfuture* xrtFutureRace(xfuture* const* pFutures, size_t iCount);
 
 /* Synchronous result mapping is part of the aggregate's activation, not a
@@ -15897,6 +16087,26 @@ XRT_API bool xrtValueObjectIdentityBindV1(xvalue* pObject, xvalueidentityhash pH
 	xvalueidentityequal pEqual, const xvalueobjectownershipv1* pExpectedPolicy);
 XRT_API const xrtownershipadapterv1* xrtValueObjectOwnershipAdapterV1(
 	xrtownershipref Reference, const xvalueobjectownershipv1* pExpectedPolicy);
+/* Borrowed discovery anchors for this instance's live, explicitly certified
+ * Object backings. Policy identity is exact; COW/deep-clone backings are each
+ * visited once, with their shared Lifetime UserData (possibly NULL). Ordinary
+ * objects and other policies are not enrolled. Enrollment/removal allocates
+ * nothing and changes NO reference count or owning graph edge.
+ *
+ * Caller holds exclusive whole-domain Freeze throughout enumeration and the
+ * subsequent snapshot/pin transaction. Visitor must remain read-only: it may
+ * collect/filter anchors, but must not mutate/release nodes or invoke their
+ * callbacks. Anchors are NOT internal slots and must never be subtracted from
+ * StrongCount. They are not pins, roots, reverse strong edges or unload proof.
+ * A running/finalizing backing may be discovered but must still be refused by
+ * snapshot admission; discovery is not lifecycle certification. Clear removes
+ * enrollment before Lifetime context retirement. false stops enumeration;
+ * prior visitor effects are not rolled back, so discard partial anchor lists.
+ * This is internal collector support, not automatic cycle collection. */
+typedef bool (*xvalueobjectownershipdiscoverv1)(xrtownershipref Reference,
+	const void* pLifetimeContext, ptr pContext);
+XRT_API bool xrtValueObjectOwnershipDiscoverV1(const xvalueobjectownershipv1* pExpectedPolicy,
+	xvalueobjectownershipdiscoverv1 pVisit, ptr pContext);
 /* Authorize a known resident Handle bridge, before any policy callback. The
  * expected immutable Ops/Trace must cover the complete coordinated payload;
  * identity hooks and non-NULL UserData are independently refused. This does
@@ -18181,6 +18391,14 @@ XRT_API str xrtUIntFormat(uint64 iValue, xstrview Format);
 /* 格式化 double 并返回由 xrtFree 释放的零结尾字符串。 */
 XRT_API str xrtNumFormat(double fValue, xstrview Format);
 
+/* Exact-size owned results, including U+0000 for integer character format.
+ * pOutputSize is required and must not overlap Format. Ordinary failure sets
+ * it to zero; invalid output-slot aliasing leaves the input unchanged.
+ * Successful Data is zero-terminated but Size excludes that terminator. */
+XRT_API str xrtIntFormatSized(int64 iValue, xstrview Format, size_t* pOutputSize);
+XRT_API str xrtUIntFormatSized(uint64 iValue, xstrview Format, size_t* pOutputSize);
+XRT_API str xrtNumFormatSized(double fValue, xstrview Format, size_t* pOutputSize);
+
 #endif
 
 
@@ -18610,6 +18828,16 @@ XRT_API str xrtUtf8PadRight(xstrview Text, size_t iWidth, xstrview Fill);
 /* 按 Unicode 标量宽度在两侧重复填充严格 UTF-8 文本。 */
 XRT_API str xrtUtf8PadCenter(xstrview Text, size_t iWidth, xstrview Fill);
 
+/* 与上述填充函数共用实现，交付包含内嵌 NUL 的精确结果字节数。
+ * pOutputSize 可为 NULL；普通失败清零。输出指针不得重叠输入字节区域，
+ * 拒绝重叠时保持输入和输出原值。结果由 xrtFree 释放。 */
+XRT_API str xrtUtf8PadLeftSized(xstrview Text, size_t iWidth,
+	xstrview Fill, size_t* pOutputSize);
+XRT_API str xrtUtf8PadRightSized(xstrview Text, size_t iWidth,
+	xstrview Fill, size_t* pOutputSize);
+XRT_API str xrtUtf8PadCenterSized(xstrview Text, size_t iWidth,
+	xstrview Fill, size_t* pOutputSize);
+
 
 
 /* 按 Unicode 标量反转严格 UTF-8 文本到调用方缓冲区；允许原地反转。 */
@@ -18976,6 +19204,11 @@ XRT_API str xrtStrConcat(xstrview Left, xstrview Right);
 /* 使用分隔符连接一组字符串视图。 */
 XRT_API str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCount);
 
+/* 共用连接实现，交付精确结果字节数（不含末尾零）。普通失败清零；
+ * 输出槽不得重叠分隔符、视图表或任意输入字节，别名拒绝时不改槽。 */
+XRT_API str xrtStrJoinSized(xstrview Separator, const xstrview* arrText,
+	size_t iCount, size_t* pOutputSize);
+
 
 
 /* 重复字符串指定次数。 */
@@ -18985,6 +19218,14 @@ XRT_API str xrtStrRepeat(xstrview Text, size_t iCount);
 
 /* 替换所有不重叠子串。 */
 XRT_API str xrtStrReplace(xstrview Text, xstrview Part, xstrview Replacement);
+
+
+
+/* 替换所有不重叠子串并返回精确字节长度（不含终止 NUL）。
+ * pOutputSize 可为 NULL；失败时非空输出长度清零，结果由 xrtFree 释放。
+ * 输出长度指针必须与所有输入字节区域不重叠；拒绝重叠时不写输出指针。 */
+XRT_API str xrtStrReplaceSized(xstrview Text, xstrview Part,
+	xstrview Replacement, size_t* pOutputSize);
 
 
 
@@ -19672,8 +19913,9 @@ XRT_EXTERN_C_END
 #endif
 
 #if defined(XRT_FEATURE_FILE_ROOT) && \
-	(!defined(XRT_FEATURE_FILE) || !defined(XRT_FEATURE_FILE_LINK))
-	#error "XRT file roots require file and file-link support"
+	(!defined(XRT_FEATURE_FILE) || !defined(XRT_FEATURE_FILE_LINK) || \
+	 !defined(XRT_FEATURE_DIR))
+	#error "XRT file roots require file, file-link, and directory support"
 #endif
 
 #if defined(XRT_FEATURE_FILE_FIFO) && !defined(XRT_FEATURE_FILE)
@@ -19813,6 +20055,23 @@ typedef struct xfileinfo {
 	xtime Created;
 	xtime Changed;
 } xfileinfo;
+
+/* Structural backend capabilities filtered by the handle's access/mode.
+ * A bit does not guarantee a particular range, filesystem object or option.
+ * Native-control permits requesting native locks/maps; it is not a handle. */
+typedef enum xfilecapability {
+    XFILE_CAP_READ = 0x001,
+    XFILE_CAP_WRITE = 0x002,
+    XFILE_CAP_READ_AT = 0x004,
+    XFILE_CAP_WRITE_AT = 0x008,
+    XFILE_CAP_SEEK = 0x010,
+    XFILE_CAP_STAT = 0x020,
+    XFILE_CAP_RESIZE = 0x040,
+    XFILE_CAP_FLUSH = 0x080,
+    XFILE_CAP_NATIVE = 0x100,
+    XFILE_CAP_NATIVE_CONTROL = 0x200,
+    XFILE_CAP_ASYNC_BIND = 0x400
+} xfilecapability;
 
 
 
@@ -20205,6 +20464,10 @@ XRT_API bool xrtFlush(xfile File);
 /* 返回打开文件经过验证的标志；失败返回 0。 */
 XRT_API uint32 xrtFileFlags(xfile File);
 
+/* Zero-allocation capability query; NULL is an error, not an empty mask.
+ * Async-only handles suppress synchronous operations but retain metadata. */
+XRT_API uint64 xrtFileCapabilities(xfile File);
+
 
 
 /* 返回 HANDLE 或文件描述符的整数表示；失败返回 -1。 */
@@ -20260,6 +20523,14 @@ XRT_API bool xrtPathRename(cstr sSource, cstr sTarget, bool bReplace);
 
 /* 删除一个非目录文件或链接。 */
 XRT_API bool xrtFileDelete(cstr sPath);
+
+/* Remove an open native non-directory file without allocating on success.
+ * The caller retains File and must close it. Windows marks the opened object
+ * for deletion on last close; sPath is the POSIX name to unlink. POSIX checks
+ * device/inode before unlink, but the caller must serialize namespace changes.
+ * A missing POSIX name is success; a replaced name is never knowingly removed.
+ * Virtual files are unsupported. */
+XRT_API bool xrtFileDeleteOpen(xfile File, cstr sPath);
 
 
 
@@ -20366,6 +20637,11 @@ XRT_API bool xrtRootStat(xroot Root, cstr sPath,
 
 
 
+/* 从锚定目录句柄打开根内目录迭代器，不重新按诊断路径查找。 */
+XRT_API xdir xrtRootDirOpen(xroot Root, cstr sPath, uint32 iFlags);
+
+
+
 /* 在根内创建一个目录；POSIX 使用显式模式，Windows 接受但忽略模式。 */
 XRT_API bool xrtRootDirCreate(xroot Root, cstr sPath, uint32 iMode);
 
@@ -20397,7 +20673,8 @@ XRT_API bool xrtRootFifoCreate(xroot Root, cstr sPath, uint32 iMode);
 
 
 
-/* 在根内设置对象权限；跟随链接时仍由根解析器阻止越界。 */
+/* 在根内设置 POSIX 对象权限；Windows 返回 XERR_UNSUPPORTED。
+ * 跟随链接时仍由根解析器阻止越界。 */
 XRT_API bool xrtRootSetMode(xroot Root, cstr sPath,
 	bool bFollowLink, uint32 iMode);
 
@@ -39012,6 +39289,387 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: include/xrt/vfs.h */
+/* ========================================================================== */
+
+#ifndef XRT_VFS_H
+#define XRT_VFS_H
+
+
+
+
+#if defined(XRT_FEATURE_VFS) && \
+	(!defined(XRT_FEATURE_DIR) || !defined(XRT_FEATURE_MUTEX) || \
+	 !defined(XRT_FEATURE_UNICODE))
+	#error "XRT VFS requires directory, mutex, and Unicode support"
+#endif
+
+#if defined(XRT_FEATURE_VFS_MEMORY) && !defined(XRT_FEATURE_VFS)
+	#error "XRT memory VFS provider requires VFS support"
+#endif
+
+#if defined(XRT_FEATURE_VFS_DISK) && \
+	(!defined(XRT_FEATURE_VFS) || !defined(XRT_FEATURE_FILE_ROOT))
+	#error "XRT disk VFS provider requires VFS and file-root support"
+#endif
+
+#if defined(XRT_FEATURE_VFS_PACK) && \
+	(!defined(XRT_FEATURE_VFS) || !defined(XRT_FEATURE_COND))
+	#error "XRT pack VFS provider requires VFS and condition-variable support"
+#endif
+
+
+
+#define XRT_VFS_PATH_MAX 32768u
+#define XRT_VFS_PROVIDER_VERSION 1u
+#define XRT_VFS_FILE_OPS_VERSION 1u
+#define XRT_VFS_DIR_OPS_VERSION 1u
+#define XRT_VFS_PACK_OPTIONS_VERSION 1u
+
+#define XRT_VFS_PACK_MAX_ENTRIES_DEFAULT 100000u
+#define XRT_VFS_PACK_MAX_INDEX_BYTES_DEFAULT UINT64_C(67108864)
+#define XRT_VFS_PACK_MAX_ENTRY_BYTES_DEFAULT UINT64_C(1073741824)
+#define XRT_VFS_PACK_MAX_DECODED_BYTES_DEFAULT UINT64_C(8589934592)
+#define XRT_VFS_PACK_CACHE_BYTES_DEFAULT UINT64_C(67108864)
+
+
+
+#if defined(XRT_FEATURE_VFS)
+
+typedef struct xvfs_impl* xvfs;
+typedef struct xvfs_mount_impl* xvfsmount;
+
+#if defined(XRT_FEATURE_VFS_MEMORY)
+typedef struct xvfs_memory_impl* xvfsmemory;
+#endif
+
+#if defined(XRT_FEATURE_VFS_DISK)
+typedef struct xvfs_disk_impl* xvfsdisk;
+#endif
+
+#if defined(XRT_FEATURE_VFS_PACK)
+typedef struct xvfs_pack_impl* xvfspack;
+#endif
+
+
+
+/* Provider lookup 明确区分资源不存在和不可回退的访问失败。 */
+typedef enum xvfslookup {
+	XVFS_LOOKUP_ERROR = -1,
+	XVFS_LOOKUP_MISS = 0,
+	XVFS_LOOKUP_OPENED = 1
+} xvfslookup;
+
+
+
+/* 每个 mount 显式声明大小写策略；v1 只折叠 ASCII A-Z。 */
+typedef enum xvfscase {
+	XVFS_CASE_SENSITIVE = 0,
+	XVFS_CASE_ASCII_INSENSITIVE = 1
+} xvfscase;
+
+
+
+#if defined(XRT_FEATURE_VFS_DISK)
+
+/* Disk provider 权限在 context 创建时冻结。 */
+typedef enum xvfsdiskaccess {
+	XVFS_DISK_READ = 0x01,
+	XVFS_DISK_WRITE = 0x02
+} xvfsdiskaccess;
+
+#define XVFS_DISK_ACCESS 0x03u
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_VFS_PACK)
+
+/* AUTO 只按完整 header magic 选择格式，不把解析失败降级到另一格式。 */
+typedef enum xvfspackformat {
+	XVFS_PACK_AUTO = 0,
+	XVFS_PACK_XRT_V1 = 1,
+	XVFS_PACK_XSVPACK_V1 = 2
+} xvfspackformat;
+
+
+
+/* 新格式和旧 XSVPACK v1 使用相同的逐条 codec 编号。 */
+typedef enum xvfspackcodec {
+	XVFS_PACK_STORE = 0,
+	XVFS_PACK_LZMA1 = 1
+} xvfspackcodec;
+
+
+
+/* 非零解析限制是硬上限；CacheBytes 为零表示验证后不保留 cache 引用。 */
+typedef struct xvfspackoptions {
+	uint32 Size;
+	uint32 Version;
+	xvfspackformat Format;
+	uint32 MaxEntries;
+	uint64 MaxIndexBytes;
+	uint64 MaxEntryBytes;
+	uint64 MaxDecodedBytes;
+	uint64 CacheBytes;
+} xvfspackoptions;
+
+
+
+/* 计数单调递增；ResidentBytes 是取样时 cache 持有的解压字节。 */
+typedef struct xvfspackstats {
+	uint64 Hits;
+	uint64 Misses;
+	uint64 Loads;
+	uint64 Failures;
+	uint64 ResidentBytes;
+	uint64 Evictions;
+} xvfspackstats;
+
+#endif
+
+
+
+/* xrt.vfs 错误域中的稳定错误代码。 */
+typedef enum xvfserror {
+	XVFS_ERROR_CREATE = 1,
+	XVFS_ERROR_PATH,
+	XVFS_ERROR_MOUNT,
+	XVFS_ERROR_UNMOUNT,
+	XVFS_ERROR_NOT_FOUND,
+	XVFS_ERROR_PROVIDER,
+	XVFS_ERROR_OPEN,
+	XVFS_ERROR_STAT,
+	XVFS_ERROR_DIRECTORY,
+	XVFS_ERROR_UNSUPPORTED,
+	XVFS_ERROR_LIMIT,
+	XVFS_ERROR_CORRUPT,
+	XVFS_ERROR_CHECKSUM
+} xvfserror;
+
+
+
+/* 文件能力位必须与对应回调严格一致。 */
+typedef enum xvfsfilecapability {
+	XVFS_FILE_READ = UINT64_C(0x00000001),
+	XVFS_FILE_WRITE = UINT64_C(0x00000002),
+	XVFS_FILE_READ_AT = UINT64_C(0x00000004),
+	XVFS_FILE_WRITE_AT = UINT64_C(0x00000008),
+	XVFS_FILE_SEEK = UINT64_C(0x00000010),
+	XVFS_FILE_STAT = UINT64_C(0x00000020),
+	XVFS_FILE_RESIZE = UINT64_C(0x00000040),
+	XVFS_FILE_FLUSH = UINT64_C(0x00000080)
+} xvfsfilecapability;
+
+#define XVFS_FILE_CAPABILITIES UINT64_C(0x000000ff)
+
+
+
+typedef struct xvfsfileops_v1 {
+	uint32 Size;
+	uint32 Version;
+	uint64 Capabilities;
+	bool (*Read)(void* pState, void* pBuffer,
+		size_t iRequest, size_t* pRead);
+	bool (*Write)(void* pState, const void* pBuffer,
+		size_t iRequest, size_t* pWritten);
+	bool (*ReadAt)(void* pState, uint64 iOffset, void* pBuffer,
+		size_t iRequest, size_t* pRead);
+	bool (*WriteAt)(void* pState, uint64 iOffset, const void* pBuffer,
+		size_t iRequest, size_t* pWritten);
+	bool (*Seek)(void* pState, int64 iOffset,
+		xseek Origin, uint64* pPosition);
+	bool (*Stat)(void* pState, xfileinfo* pInfo);
+	bool (*Resize)(void* pState, uint64 iSize);
+	bool (*Flush)(void* pState);
+	void (*Close)(void* pState);
+} xvfsfileops_v1;
+
+
+
+/* OPENED 把 State 所有权转移给 VFS；MISS 和 ERROR 必须保持全零。 */
+typedef struct xvfsfile_v1 {
+	const xvfsfileops_v1* Ops;
+	void* State;
+	uint32 Flags;
+	uint32 Reserved;
+} xvfsfile_v1;
+
+
+
+typedef struct xvfsdirops_v1 {
+	uint32 Size;
+	uint32 Version;
+	bool (*Next)(void* pState, xdirentry* pEntry, bool* pEnd);
+	void (*Close)(void* pState);
+} xvfsdirops_v1;
+
+
+
+/* OPENED 把 State 所有权转移给 VFS；MISS 和 ERROR 必须保持全零。 */
+typedef struct xvfsdir_v1 {
+	const xvfsdirops_v1* Ops;
+	void* State;
+} xvfsdir_v1;
+
+
+
+typedef enum xvfsprovidercapability {
+	XVFS_PROVIDER_STAT = UINT64_C(0x00000001),
+	XVFS_PROVIDER_DIRECTORY = UINT64_C(0x00000002),
+	XVFS_PROVIDER_NATIVE_OPEN = UINT64_C(0x00000004)
+} xvfsprovidercapability;
+
+#define XVFS_PROVIDER_CAPABILITIES UINT64_C(0x00000007)
+
+
+
+typedef struct xvfsprovider_v1 {
+	uint32 Size;
+	uint32 Version;
+	uint64 Capabilities;
+	void (*ContextRetain)(void* pContext);
+	void (*ContextRelease)(void* pContext);
+	xvfslookup (*Open)(void* pContext, xvfscase CaseMode,
+		xstrview RelativePath,
+		const xfileoptions* pOptions, xvfsfile_v1* pFile);
+	xvfslookup (*Stat)(void* pContext, xvfscase CaseMode,
+		xstrview RelativePath,
+		bool bFollowLink, xfileinfo* pInfo);
+	xvfslookup (*DirOpen)(void* pContext, xvfscase CaseMode,
+		xstrview RelativePath,
+		uint32 iFlags, xvfsdir_v1* pDir);
+	/* 可选尾字段；仅在声明 NATIVE_OPEN 时使用并直接转移 xfile 所有权。 */
+	xvfslookup (*OpenNative)(void* pContext, xvfscase CaseMode,
+		xstrview RelativePath,
+		const xfileoptions* pOptions, xfile* pFile);
+} xvfsprovider_v1;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+/* 创建一个初始 mount snapshot 为空的隔离命名空间。 */
+XRT_API xvfs xrtVfsCreate(void);
+
+/* 增加一个命名空间 owned reference。 */
+XRT_API void xrtVfsRef(xvfs Vfs);
+
+/* 释放一个命名空间 reference。 */
+XRT_API void xrtVfsDestroy(xvfs Vfs);
+
+/* 在规范虚拟 prefix 上发布一个 provider generation。 */
+XRT_API xvfsmount xrtVfsMount(xvfs Vfs, cstr sVirtualPrefix,
+	int32 iPriority, xvfscase CaseMode,
+	const xvfsprovider_v1* pProvider, void* pProviderContext,
+	uint32 iFlags);
+
+/* 增加或释放一个 mount 控制句柄 reference。 */
+XRT_API void xrtVfsMountRef(xvfsmount Mount);
+XRT_API void xrtVfsMountDestroy(xvfsmount Mount);
+
+/* 幂等地阻止新 lookup 选择这个 generation。 */
+XRT_API bool xrtVfsUnmount(xvfsmount Mount);
+
+/* 返回稳定、单调分配的 mount 标识。 */
+XRT_API uint64 xrtVfsMountId(xvfsmount Mount);
+
+/* 把一个规范绝对虚拟路径打开为普通 xfile。 */
+XRT_API xfile xrtVfsOpen(xvfs Vfs, cstr sVirtualPath,
+	const xfileoptions* pOptions);
+
+/* 查询一个规范绝对虚拟路径且不打开文件。 */
+XRT_API bool xrtVfsStat(xvfs Vfs, cstr sVirtualPath,
+	bool bFollowLink, xfileinfo* pInfo);
+
+/* 读取完整虚拟文件，并在 pSize 之外追加一个零字节。 */
+XRT_API bytes xrtVfsReadAll(xvfs Vfs, cstr sVirtualPath,
+	size_t* pSize);
+XRT_API bytes xrtVfsReadAllLimit(xvfs Vfs, cstr sVirtualPath,
+	size_t iLimit, size_t* pSize);
+
+/* 物化并合并所有可见 provider 条目，返回普通 xdir。 */
+XRT_API xdir xrtVfsDirOpen(xvfs Vfs, cstr sVirtualPath,
+	uint32 iFlags);
+
+#if defined(XRT_FEATURE_VFS_MEMORY)
+
+/* 创建可变的 memory provider 构建器。 */
+XRT_API xvfsmemory xrtVfsMemoryCreate(void);
+
+/* 增加或释放一个 memory provider reference。 */
+XRT_API void xrtVfsMemoryRef(xvfsmemory Memory);
+XRT_API void xrtVfsMemoryDestroy(xvfsmemory Memory);
+
+/* 复制文件数据；相对路径必须规范且不能为空。 */
+XRT_API bool xrtVfsMemoryPutCopy(xvfsmemory Memory,
+	cstr sRelativePath, const void* pData, size_t iSize);
+
+/* 成功时接管由 xrt 分配的缓冲，失败时调用方仍持有它。 */
+XRT_API bool xrtVfsMemoryPutOwned(xvfsmemory Memory,
+	cstr sRelativePath, bytes pData, size_t iSize);
+
+/* 原子构建不可变目录索引；重复调用成功，分配失败可直接重试。 */
+XRT_API bool xrtVfsMemorySeal(xvfsmemory Memory);
+
+/* 只允许挂载已经 seal 的 memory provider。 */
+XRT_API xvfsmount xrtVfsMemoryMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfsmemory Memory, uint32 iFlags);
+
+#endif
+
+#if defined(XRT_FEATURE_VFS_DISK)
+
+/* 打开并锚定物理目录；Access 至少包含一个已知权限位。 */
+XRT_API xvfsdisk xrtVfsDiskCreate(cstr sPhysicalRoot, uint32 iAccess);
+
+/* 增加或释放一个 disk provider reference。 */
+XRT_API void xrtVfsDiskRef(xvfsdisk Disk);
+XRT_API void xrtVfsDiskDestroy(xvfsdisk Disk);
+
+/* 挂载锚定目录；首版始终拒绝符号链接和 reparse point。 */
+XRT_API xvfsmount xrtVfsDiskMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfsdisk Disk, uint32 iFlags);
+
+#endif
+
+#if defined(XRT_FEATURE_VFS_PACK)
+
+/* 写入生产默认限制和 AUTO 格式。 */
+XRT_API void xrtVfsPackOptionsInit(xvfspackoptions* pOptions);
+
+/* 成功时接管 Source，失败时调用方仍持有；范围必须包含完整归档。 */
+XRT_API xvfspack xrtVfsPackCreate(xfile Source,
+	uint64 iOffset, uint64 iLength, const xvfspackoptions* pOptions);
+
+/* 增加或释放 pack provider reference；最后一个引用关闭 Source。 */
+XRT_API void xrtVfsPackRef(xvfspack Pack);
+XRT_API void xrtVfsPackDestroy(xvfspack Pack);
+
+/* 返回 Create 最终选择的明确格式。 */
+XRT_API xvfspackformat xrtVfsPackFormat(xvfspack Pack);
+
+/* 取得线程安全的缓存统计快照。 */
+XRT_API bool xrtVfsPackStats(xvfspack Pack, xvfspackstats* pStats);
+
+/* 挂载已经完整解析并验证索引的只读 pack。 */
+XRT_API xvfsmount xrtVfsPackMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfspack Pack, uint32 iFlags);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
 /* public: include/xrt/list.h */
 /* ========================================================================== */
 
@@ -39228,6 +39886,10 @@ XRT_EXTERN_C_END
 	#error "XRT line readers require IO and buffer support"
 #endif
 
+#if defined(XRT_FEATURE_IO_STANDARD) && !defined(XRT_FEATURE_IO)
+	#error "XRT standard streams require IO support"
+#endif
+
 
 
 #if defined(XRT_FEATURE_IO)
@@ -39419,7 +40081,17 @@ XRT_API bool xrtReaderCopyN(
 
 
 
-/* 在硬上限内复制到 EOF；超限时消费一个探测字节并返回范围错误。 */
+/* 复制至多指定字节数；提前 EOF 成功，达到上限后不探测下一字节。 */
+XRT_API bool xrtReaderCopyUpTo(
+	xreader* pReader,
+	xwriter* pWriter,
+	uint64 iLimit,
+	uint64* pCopied
+);
+
+
+
+/* 在硬上限内复制到 EOF；超限时返回范围错误，探测字节由 Reader 留待下次读取。 */
 XRT_API bool xrtReaderCopyLimit(
 	xreader* pReader,
 	xwriter* pWriter,
@@ -39577,7 +40249,7 @@ XRT_API xwriter* xrtWriterFromBuffer(xbuffer* pBuffer);
 
 
 
-/* 在硬上限内读取到新 Buffer；超限时消费一个探测字节。 */
+/* 在硬上限内读取到新 Buffer；超限时探测字节由 Reader 留待下次读取。 */
 XRT_API xbuffer* xrtReaderReadAll(xreader* pReader, size_t iLimit);
 
 
@@ -39628,6 +40300,19 @@ XRT_API xwriter* xrtWriterOpen(cstr sPath);
 XRT_API xwriter* xrtWriterOpenAppend(cstr sPath);
 
 
+
+XRT_EXTERN_C_END
+
+#endif
+
+#if defined(XRT_FEATURE_IO_STANDARD)
+
+XRT_EXTERN_C_BEGIN
+
+/* 标准流适配器借用进程标准句柄；销毁适配器不会关闭标准句柄。 */
+XRT_API xreader* xrtReaderStdin(void);
+XRT_API xwriter* xrtWriterStdout(void);
+XRT_API xwriter* xrtWriterStderr(void);
 
 XRT_EXTERN_C_END
 
@@ -39776,128 +40461,128 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/xson.h */
+/* public: include/xrt/xlon.h */
 /* ========================================================================== */
 
-#ifndef XRT_XSON_H
-#define XRT_XSON_H
+#ifndef XRT_XLON_H
+#define XRT_XLON_H
 
 
 
 
-#if defined(XRT_FEATURE_XSON) && !defined(XRT_FEATURE_XSON_FILE)
-	#error "XRT_FEATURE_XSON requires XRT_FEATURE_XSON_FILE"
+#if defined(XRT_FEATURE_XLON) && !defined(XRT_FEATURE_XLON_FILE)
+	#error "XRT_FEATURE_XLON requires XRT_FEATURE_XLON_FILE"
 #endif
 
-#if (defined(XRT_FEATURE_XSON_READ) || defined(XRT_FEATURE_XSON_WRITE)) && \
-	!defined(XRT_FEATURE_XSON_CORE)
-	#error "XSON read and write features require XRT_FEATURE_XSON_CORE"
+#if (defined(XRT_FEATURE_XLON_READ) || defined(XRT_FEATURE_XLON_WRITE)) && \
+	!defined(XRT_FEATURE_XLON_CORE)
+	#error "XLON read and write features require XRT_FEATURE_XLON_CORE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_VALUE_CONTAINER)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_VALUE_CONTAINER"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_VALUE_CONTAINER)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_VALUE_CONTAINER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_BUFFER)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_BUFFER"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_BUFFER)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_BUFFER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_CODEC_BASE64)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_CODEC_BASE64"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_CODEC_BASE64)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_CODEC_BASE64"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_TIME_TEXT)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_TIME_TEXT"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_TIME_TEXT)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_TIME_TEXT"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_NUMBER_INTEGER)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_NUMBER_INTEGER"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_NUMBER_INTEGER)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_NUMBER_INTEGER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_NUMBER_FLOAT)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_NUMBER_FLOAT"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_NUMBER_FLOAT)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_NUMBER_FLOAT"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_UNICODE)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_UNICODE"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_UNICODE)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_UNICODE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_VALUE_CONTAINER)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_VALUE_CONTAINER"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_VALUE_CONTAINER)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_VALUE_CONTAINER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_BUFFER)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_BUFFER"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_BUFFER)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_BUFFER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_CODEC_BASE64)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_CODEC_BASE64"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_CODEC_BASE64)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_CODEC_BASE64"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_TIME_TEXT)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_TIME_TEXT"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_TIME_TEXT)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_TIME_TEXT"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_NUMBER_INTEGER)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_NUMBER_INTEGER"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_NUMBER_INTEGER)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_NUMBER_INTEGER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_NUMBER_FLOAT)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_NUMBER_FLOAT"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_NUMBER_FLOAT)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_NUMBER_FLOAT"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_UNICODE)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_UNICODE"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_UNICODE)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_UNICODE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_JSON_ESCAPE)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_JSON_ESCAPE"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_JSON_ESCAPE)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_JSON_ESCAPE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_FILE) && !defined(XRT_FEATURE_FILE_WHOLE)
-	#error "XRT_FEATURE_XSON_FILE requires XRT_FEATURE_FILE_WHOLE"
+#if defined(XRT_FEATURE_XLON_FILE) && !defined(XRT_FEATURE_FILE_WHOLE)
+	#error "XRT_FEATURE_XLON_FILE requires XRT_FEATURE_FILE_WHOLE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_FILE) && \
-	(!defined(XRT_FEATURE_XSON_READ) || !defined(XRT_FEATURE_XSON_WRITE))
-	#error "XRT_FEATURE_XSON_FILE requires XSON read and write features"
+#if defined(XRT_FEATURE_XLON_FILE) && \
+	(!defined(XRT_FEATURE_XLON_READ) || !defined(XRT_FEATURE_XLON_WRITE))
+	#error "XRT_FEATURE_XLON_FILE requires XLON read and write features"
 #endif
 
 
 
-#if defined(XRT_FEATURE_XSON_READ) || defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_READ) || defined(XRT_FEATURE_XLON_WRITE)
 
-#define XXSON_DEPTH_DEFAULT 256u
-#define XXSON_INPUT_DEFAULT (64u * 1024u * 1024u)
-#define XXSON_STRING_DEFAULT (16u * 1024u * 1024u)
-#define XXSON_VALUES_DEFAULT 1000000u
-#define XXSON_CONTAINER_DEFAULT 1000000u
-#define XXSON_DECODED_DEFAULT (64u * 1024u * 1024u)
+#define XXLON_DEPTH_DEFAULT 256u
+#define XXLON_INPUT_DEFAULT (64u * 1024u * 1024u)
+#define XXLON_STRING_DEFAULT (16u * 1024u * 1024u)
+#define XXLON_VALUES_DEFAULT 1000000u
+#define XXLON_CONTAINER_DEFAULT 1000000u
+#define XXLON_DECODED_DEFAULT (64u * 1024u * 1024u)
 
 
 
-/* XSON 模块错误码在 xrt.xson 域内保持稳定。 */
-typedef enum xxsonerror {
-	XXSON_ERROR_CONFIG = 1401,
-	XXSON_ERROR_SYNTAX,
-	XXSON_ERROR_LIMIT,
-	XXSON_ERROR_DUPLICATE,
-	XXSON_ERROR_NUMBER,
-	XXSON_ERROR_TAG,
-	XXSON_ERROR_STATE,
-	XXSON_ERROR_UNSUPPORTED,
-	XXSON_ERROR_OUTPUT,
-	XXSON_ERROR_IO
-} xxsonerror;
+/* XLON 模块错误码在 xrt.xlon 域内保持稳定。 */
+typedef enum xxlonerror {
+	XXLON_ERROR_CONFIG = 1401,
+	XXLON_ERROR_SYNTAX,
+	XXLON_ERROR_LIMIT,
+	XXLON_ERROR_DUPLICATE,
+	XXLON_ERROR_NUMBER,
+	XXLON_ERROR_TAG,
+	XXLON_ERROR_STATE,
+	XXLON_ERROR_UNSUPPORTED,
+	XXLON_ERROR_OUTPUT,
+	XXLON_ERROR_IO
+} xxlonerror;
 
 
 
 /* 文本位置使用零基字节偏移和一基行列。 */
-typedef struct xxsonlocation {
+typedef struct xxlonlocation {
 	size_t Offset;
 	size_t Line;
 	size_t Column;
-} xxsonlocation;
+} xxlonlocation;
 
 
 
@@ -39905,10 +40590,10 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 从 xrt.xson 错误的机器数据中读取文本位置。 */
-XRT_API bool xrtXsonErrorLocation(
+/* 从 xrt.xlon 错误的机器数据中读取文本位置。 */
+XRT_API bool xrtXlonErrorLocation(
 	const xerror* pError,
-	xxsonlocation* pLocation
+	xxlonlocation* pLocation
 );
 
 
@@ -39919,36 +40604,36 @@ XRT_EXTERN_C_END
 
 
 
-#if defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_XLON_READ)
 
 /* 非标准空白扩展和自定义标签默认全部关闭。 */
-typedef enum xxsonreadflag {
-	XXSON_READ_COMMENTS = UINT32_C(0x00000001),
-	XXSON_READ_TRAILING_COMMA = UINT32_C(0x00000002),
-	XXSON_READ_CUSTOM = UINT32_C(0x00000004)
-} xxsonreadflag;
+typedef enum xxlonreadflag {
+	XXLON_READ_COMMENTS = UINT32_C(0x00000001),
+	XXLON_READ_TRAILING_COMMA = UINT32_C(0x00000002),
+	XXLON_READ_CUSTOM = UINT32_C(0x00000004)
+} xxlonreadflag;
 
 
 
 /* 对象和整数映射使用同一套明确的重复键策略。 */
-typedef enum xxsonduplicate {
-	XXSON_DUPLICATE_REJECT = 0,
-	XXSON_DUPLICATE_KEEP,
-	XXSON_DUPLICATE_REPLACE
-} xxsonduplicate;
+typedef enum xxlonduplicate {
+	XXLON_DUPLICATE_REJECT = 0,
+	XXLON_DUPLICATE_KEEP,
+	XXLON_DUPLICATE_REPLACE
+} xxlonduplicate;
 
 
 
 /* 超出 int64/uint64 的整数默认失败，可显式按 double 接收。 */
-typedef enum xxsonbigint {
-	XXSON_BIGINT_REJECT = 0,
-	XXSON_BIGINT_FLOAT
-} xxsonbigint;
+typedef enum xxlonbigint {
+	XXLON_BIGINT_REJECT = 0,
+	XXLON_BIGINT_FLOAT
+} xxlonbigint;
 
 
 
 /* 自定义标签解码器返回一个拥有引用；失败时应设置具体错误。 */
-typedef xvalue* (*xxsondecodeproc)(
+typedef xvalue* (*xxlondecodeproc)(
 	xstrview Tag,
 	xstrview Payload,
 	ptr pUserData
@@ -39956,79 +40641,79 @@ typedef xvalue* (*xxsondecodeproc)(
 
 
 
-/* XSON 读取配置同时约束语法、资源预算和自定义类型入口。 */
-typedef struct xxsonreadconfig {
+/* XLON 读取配置同时约束语法、资源预算和自定义类型入口。 */
+typedef struct xxlonreadconfig {
 	uint32 Flags;
-	xxsonduplicate Duplicate;
-	xxsonbigint BigInteger;
+	xxlonduplicate Duplicate;
+	xxlonbigint BigInteger;
 	uint32 MaxDepth;
 	size_t MaxInputBytes;
 	size_t MaxStringBytes;
 	size_t MaxValues;
 	size_t MaxContainerItems;
 	size_t MaxDecodedBytes;
-	xxsondecodeproc Decode;
+	xxlondecodeproc Decode;
 	ptr DecodeData;
 	uint32 Reserved[4];
-} xxsonreadconfig;
+} xxlonreadconfig;
 
 
 
-/* 访问事件直接表达全部可移植 XSON 类型。 */
-typedef enum xxsoneventtype {
-	XXSON_EVENT_NULL = 0,
-	XXSON_EVENT_BOOL,
-	XXSON_EVENT_INT,
-	XXSON_EVENT_FLOAT,
-	XXSON_EVENT_STRING,
-	XXSON_EVENT_BYTES,
-	XXSON_EVENT_TIME,
-	XXSON_EVENT_CUSTOM,
-	XXSON_EVENT_ARRAY_BEGIN,
-	XXSON_EVENT_ARRAY_END,
-	XXSON_EVENT_INT_MAP_BEGIN,
-	XXSON_EVENT_INT_MAP_END,
-	XXSON_EVENT_SET_BEGIN,
-	XXSON_EVENT_SET_END,
-	XXSON_EVENT_OBJECT_BEGIN,
-	XXSON_EVENT_OBJECT_END,
-	XXSON_EVENT_UINT,
+/* 访问事件直接表达全部可移植 XLON 类型。 */
+typedef enum xxloneventtype {
+	XXLON_EVENT_NULL = 0,
+	XXLON_EVENT_BOOL,
+	XXLON_EVENT_INT,
+	XXLON_EVENT_FLOAT,
+	XXLON_EVENT_STRING,
+	XXLON_EVENT_BYTES,
+	XXLON_EVENT_TIME,
+	XXLON_EVENT_CUSTOM,
+	XXLON_EVENT_ARRAY_BEGIN,
+	XXLON_EVENT_ARRAY_END,
+	XXLON_EVENT_INT_MAP_BEGIN,
+	XXLON_EVENT_INT_MAP_END,
+	XXLON_EVENT_SET_BEGIN,
+	XXLON_EVENT_SET_END,
+	XXLON_EVENT_OBJECT_BEGIN,
+	XXLON_EVENT_OBJECT_END,
+	XXLON_EVENT_UINT,
 	/* Appended to preserve the numeric identity of published event kinds. */
-	XXSON_EVENT_CHAR
-} xxsoneventtype;
+	XXLON_EVENT_CHAR
+} xxloneventtype;
 
 
 
 /* 回调可继续、正常提前停止或报告失败。 */
-typedef enum xxsonvisitaction {
-	XXSON_VISIT_NEXT = 0,
-	XXSON_VISIT_STOP,
-	XXSON_VISIT_FAIL
-} xxsonvisitaction;
+typedef enum xxlonvisitaction {
+	XXLON_VISIT_NEXT = 0,
+	XXLON_VISIT_STOP,
+	XXLON_VISIT_FAIL
+} xxlonvisitaction;
 
 
 
 /* 访问结果明确区分完成、调用方停止和失败。 */
-typedef enum xxsonvisitresult {
-	XXSON_VISIT_ERROR = -1,
-	XXSON_VISIT_DONE = 0,
-	XXSON_VISIT_STOPPED = 1
-} xxsonvisitresult;
+typedef enum xxlonvisitresult {
+	XXLON_VISIT_ERROR = -1,
+	XXLON_VISIT_DONE = 0,
+	XXLON_VISIT_STOPPED = 1
+} xxlonvisitresult;
 
 
 
 /* 自定义标签保留名称和已经完成 JSON 反转义的字符串载荷。 */
-typedef struct xxsontag {
+typedef struct xxlontag {
 	xstrview Name;
 	xstrview Payload;
-} xxsontag;
+} xxlontag;
 
 
 
 /* 键按父容器类型明确区分，事件视图只在回调期间有效。 */
-typedef struct xxsonevent {
-	xxsoneventtype Type;
-	xxsonlocation Location;
+typedef struct xxlonevent {
+	xxloneventtype Type;
+	xxlonlocation Location;
 	size_t Depth;
 	xvaluekey Key;
 	xstrview Raw;
@@ -40041,15 +40726,15 @@ typedef struct xxsonevent {
 		xstrview String;
 		xbytesview Bytes;
 		xtime Time;
-		xxsontag Tag;
+		xxlontag Tag;
 	} Value;
-} xxsonevent;
+} xxlonevent;
 
 
 
-/* XSON 访问器不得保存事件中的借用视图。 */
-typedef xxsonvisitaction (*xxsonvisitproc)(
-	const xxsonevent* pEvent,
+/* XLON 访问器不得保存事件中的借用视图。 */
+typedef xxlonvisitaction (*xxlonvisitproc)(
+	const xxlonevent* pEvent,
 	ptr pUserData
 );
 
@@ -40060,33 +40745,33 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化严格语法、拒绝重复键和有限资源预算。 */
-XRT_API void xrtXsonReadConfigInit(xxsonreadconfig* pConfig);
+XRT_API void xrtXlonReadConfigInit(xxlonreadconfig* pConfig);
 
 
 
-/* 使用默认严格配置解析一个完整 XSON 文本。 */
-XRT_API xvalue* xrtXsonParse(xstrview Text);
+/* 使用默认严格配置解析一个完整 XLON 文本。 */
+XRT_API xvalue* xrtXlonParse(xstrview Text);
 
 
 
-/* 使用高级配置解析一个完整 XSON 文本。 */
-XRT_API xvalue* xrtXsonRead(
+/* 使用高级配置解析一个完整 XLON 文本。 */
+XRT_API xvalue* xrtXlonRead(
 	xstrview Text,
-	const xxsonreadconfig* pConfig
+	const xxlonreadconfig* pConfig
 );
 
 
 
-/* 验证默认 XSON 语法和内建标签，不构造 Value DOM。 */
-XRT_API bool xrtXsonValid(xstrview Text);
+/* 验证默认 XLON 语法和内建标签，不构造 Value DOM。 */
+XRT_API bool xrtXlonValid(xstrview Text);
 
 
 
 /* 直接访问解析事件，不构造中间 DOM。 */
-XRT_API xxsonvisitresult xrtXsonVisit(
+XRT_API xxlonvisitresult xrtXlonVisit(
 	xstrview Text,
-	const xxsonreadconfig* pConfig,
-	xxsonvisitproc pVisitor,
+	const xxlonreadconfig* pConfig,
+	xxlonvisitproc pVisitor,
 	ptr pUserData
 );
 
@@ -40098,37 +40783,37 @@ XRT_EXTERN_C_END
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 /* 输出标志只改变文本布局和字符串转义。 */
-typedef enum xxsonwriteflag {
-	XXSON_WRITE_PRETTY = UINT32_C(0x00000001),
-	XXSON_WRITE_ESCAPE_SLASH = UINT32_C(0x00000002),
-	XXSON_WRITE_ESCAPE_HTML = UINT32_C(0x00000004),
-	XXSON_WRITE_ESCAPE_NON_ASCII = UINT32_C(0x00000008)
-} xxsonwriteflag;
+typedef enum xxlonwriteflag {
+	XXLON_WRITE_PRETTY = UINT32_C(0x00000001),
+	XXLON_WRITE_ESCAPE_SLASH = UINT32_C(0x00000002),
+	XXLON_WRITE_ESCAPE_HTML = UINT32_C(0x00000004),
+	XXLON_WRITE_ESCAPE_NON_ASCII = UINT32_C(0x00000008)
+} xxlonwriteflag;
 
 
 
 /* 不可直接表示的值默认失败，也可显式跳过容器成员。 */
-typedef enum xxsonunsupported {
-	XXSON_UNSUPPORTED_REJECT = 0,
-	XXSON_UNSUPPORTED_SKIP
-} xxsonunsupported;
+typedef enum xxlonunsupported {
+	XXLON_UNSUPPORTED_REJECT = 0,
+	XXLON_UNSUPPORTED_SKIP
+} xxlonunsupported;
 
 
 
 /* 自定义编码回调明确区分不处理、成功和失败。 */
-typedef enum xxsoncoderesult {
-	XXSON_CODE_ERROR = -1,
-	XXSON_CODE_UNSUPPORTED = 0,
-	XXSON_CODE_OK = 1
-} xxsoncoderesult;
+typedef enum xxloncoderesult {
+	XXLON_CODE_ERROR = -1,
+	XXLON_CODE_UNSUPPORTED = 0,
+	XXLON_CODE_OK = 1
+} xxloncoderesult;
 
 
 
 /* 编码器接收仅在回调期间有效的只读快照；返回视图保持到本次调用返回。 */
-typedef xxsoncoderesult (*xxsonencodeproc)(
+typedef xxloncoderesult (*xxlonencodeproc)(
 	const xvalue* pValue,
 	xstrview* pTag,
 	xstrview* pPayload,
@@ -40137,27 +40822,27 @@ typedef xxsoncoderesult (*xxsonencodeproc)(
 
 
 
-/* XSON 写出配置提供固定上限和唯一自定义类型入口。 */
-typedef struct xxsonwriteconfig {
+/* XLON 写出配置提供固定上限和唯一自定义类型入口。 */
+typedef struct xxlonwriteconfig {
 	uint32 Flags;
-	xxsonunsupported Unsupported;
+	xxlonunsupported Unsupported;
 	uint32 MaxDepth;
 	uint32 Indent;
 	size_t MaxOutputBytes;
-	xxsonencodeproc Encode;
+	xxlonencodeproc Encode;
 	ptr EncodeData;
 	uint32 Reserved[4];
-} xxsonwriteconfig;
+} xxlonwriteconfig;
 
 
 
 /* 输出回调必须在返回前消费借用字节。 */
-typedef bool (*xxsonwriteproc)(xbytesview Data, ptr pUserData);
+typedef bool (*xxlonwriteproc)(xbytesview Data, ptr pUserData);
 
 
 
 /* 增量写入器保持不透明，所有方法都拒绝回调重入。 */
-typedef struct xxsonwriter xxsonwriter;
+typedef struct xxlonwriter xxlonwriter;
 
 
 
@@ -40166,12 +40851,12 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化紧凑输出、严格类型和有限输出预算。 */
-XRT_API void xrtXsonWriteConfigInit(xxsonwriteconfig* pConfig);
+XRT_API void xrtXlonWriteConfigInit(xxlonwriteconfig* pConfig);
 
 
 
 /* 紧凑或美化地序列化 Value，并返回由 xrtFree 释放的文本。 */
-XRT_API str xrtXsonStringify(
+XRT_API str xrtXlonStringify(
 	const xvalue* pValue,
 	bool bPretty,
 	size_t* pSize
@@ -40180,114 +40865,114 @@ XRT_API str xrtXsonStringify(
 
 
 /* 使用高级配置把 Value 同步写入调用方输出回调。 */
-XRT_API bool xrtXsonWrite(
+XRT_API bool xrtXlonWrite(
 	const xvalue* pValue,
-	const xxsonwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+	const xxlonwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 );
 
 
 
-/* 创建把增量结果保存在内存中的 XSON 写入器。 */
-XRT_API xxsonwriter* xrtXsonWriterCreate(
-	const xxsonwriteconfig* pConfig
+/* 创建把增量结果保存在内存中的 XLON 写入器。 */
+XRT_API xxlonwriter* xrtXlonWriterCreate(
+	const xxlonwriteconfig* pConfig
 );
 
 
 
-/* 创建把增量结果同步提交给回调的 XSON 写入器。 */
-XRT_API xxsonwriter* xrtXsonWriterCreateSink(
-	const xxsonwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+/* 创建把增量结果同步提交给回调的 XLON 写入器。 */
+XRT_API xxlonwriter* xrtXlonWriterCreateSink(
+	const xxlonwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 );
 
 
 
 /* 在当前位置开始对象。 */
-XRT_API bool xrtXsonWriterObject(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterObject(xxlonwriter* pWriter);
 
 
 
 /* 在当前位置开始数组。 */
-XRT_API bool xrtXsonWriterArray(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterArray(xxlonwriter* pWriter);
 
 
 
 /* 在当前位置开始整数键映射。 */
-XRT_API bool xrtXsonWriterIntMap(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterIntMap(xxlonwriter* pWriter);
 
 
 
 /* 在当前位置开始集合。 */
-XRT_API bool xrtXsonWriterSet(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterSet(xxlonwriter* pWriter);
 
 
 
 /* 结束最近开始的容器。 */
-XRT_API bool xrtXsonWriterEnd(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterEnd(xxlonwriter* pWriter);
 
 
 
 /* 为对象中的下一个值写入字符串名称。 */
-XRT_API bool xrtXsonWriterName(xxsonwriter* pWriter, xstrview Name);
+XRT_API bool xrtXlonWriterName(xxlonwriter* pWriter, xstrview Name);
 
 
 
 /* 为整数映射中的下一个值写入 int64 键。 */
-XRT_API bool xrtXsonWriterKey(xxsonwriter* pWriter, int64 iKey);
+XRT_API bool xrtXlonWriterKey(xxlonwriter* pWriter, int64 iKey);
 
 
 
 /* 写入 null。 */
-XRT_API bool xrtXsonWriterNull(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterNull(xxlonwriter* pWriter);
 
 
 
 /* 写入布尔值。 */
-XRT_API bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue);
+XRT_API bool xrtXlonWriterBool(xxlonwriter* pWriter, bool bValue);
 
 
 
 /* 写入 int64。 */
-XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue);
+XRT_API bool xrtXlonWriterInt(xxlonwriter* pWriter, int64 iValue);
 
 
 
 /* 写入 uint64。 */
-XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue);
+XRT_API bool xrtXlonWriterUInt(xxlonwriter* pWriter, uint64 iValue);
 
 
 
 /* 写入保留字符身份的 Unicode 标量标签。 */
-XRT_API bool xrtXsonWriterChar(xxsonwriter* pWriter, uint32 iValue);
+XRT_API bool xrtXlonWriterChar(xxlonwriter* pWriter, uint32 iValue);
 
 
 
 /* 写入 double，非有限值使用显式 float 标签。 */
-XRT_API bool xrtXsonWriterFloat(xxsonwriter* pWriter, double fValue);
+XRT_API bool xrtXlonWriterFloat(xxlonwriter* pWriter, double fValue);
 
 
 
 /* 写入严格 UTF-8 字符串。 */
-XRT_API bool xrtXsonWriterString(xxsonwriter* pWriter, xstrview Text);
+XRT_API bool xrtXlonWriterString(xxlonwriter* pWriter, xstrview Text);
 
 
 
 /* 写入规范 Base64 二进制标签。 */
-XRT_API bool xrtXsonWriterBytes(xxsonwriter* pWriter, xbytesview Data);
+XRT_API bool xrtXlonWriterBytes(xxlonwriter* pWriter, xbytesview Data);
 
 
 
 /* 写入 UTC RFC 3339 时间标签。 */
-XRT_API bool xrtXsonWriterTime(xxsonwriter* pWriter, xtime Time);
+XRT_API bool xrtXlonWriterTime(xxlonwriter* pWriter, xtime Time);
 
 
 
 /* 写入已经验证名称和载荷的自定义标签。 */
-XRT_API bool xrtXsonWriterTag(
-	xxsonwriter* pWriter,
+XRT_API bool xrtXlonWriterTag(
+	xxlonwriter* pWriter,
 	xstrview Tag,
 	xstrview Payload
 );
@@ -40295,25 +40980,25 @@ XRT_API bool xrtXsonWriterTag(
 
 
 /* 在当前位置写入完整 Value 子树。 */
-XRT_API bool xrtXsonWriterValue(
-	xxsonwriter* pWriter,
+XRT_API bool xrtXlonWriterValue(
+	xxlonwriter* pWriter,
 	const xvalue* pValue
 );
 
 
 
 /* 验证根值和容器已完整结束，并关闭写入器。 */
-XRT_API bool xrtXsonWriterFinish(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterFinish(xxlonwriter* pWriter);
 
 
 
 /* 从已完成的内存写入器移交文本。 */
-XRT_API str xrtXsonWriterTake(xxsonwriter* pWriter, size_t* pSize);
+XRT_API str xrtXlonWriterTake(xxlonwriter* pWriter, size_t* pSize);
 
 
 
 /* 销毁写入器和未移交的内存结果。 */
-XRT_API void xrtXsonWriterFree(xxsonwriter* pWriter);
+XRT_API void xrtXlonWriterFree(xxlonwriter* pWriter);
 
 
 
@@ -40323,36 +41008,36 @@ XRT_EXTERN_C_END
 
 
 
-#if defined(XRT_FEATURE_XSON_FILE)
+#if defined(XRT_FEATURE_XLON_FILE)
 
 XRT_EXTERN_C_BEGIN
 
 
 
-/* 使用默认严格配置读取并解析 XSON 文件。 */
-XRT_API xvalue* xrtXsonParseFile(cstr sPath);
+/* 使用默认严格配置读取并解析 XLON 文件。 */
+XRT_API xvalue* xrtXlonParseFile(cstr sPath);
 
 
 
-/* 使用读取配置及其输入上限解析 XSON 文件。 */
-XRT_API xvalue* xrtXsonReadFile(
+/* 使用读取配置及其输入上限解析 XLON 文件。 */
+XRT_API xvalue* xrtXlonReadFile(
 	cstr sPath,
-	const xxsonreadconfig* pConfig
+	const xxlonreadconfig* pConfig
 );
 
 
 
-/* 使用高级配置序列化并原子替换 XSON 文件。 */
-XRT_API bool xrtXsonWriteFile(
+/* 使用高级配置序列化并原子替换 XLON 文件。 */
+XRT_API bool xrtXlonWriteFile(
 	cstr sPath,
 	const xvalue* pValue,
-	const xxsonwriteconfig* pConfig
+	const xxlonwriteconfig* pConfig
 );
 
 
 
-/* 紧凑或美化地序列化并原子替换 XSON 文件。 */
-XRT_API bool xrtXsonStringifyFile(
+/* 紧凑或美化地序列化并原子替换 XLON 文件。 */
+XRT_API bool xrtXlonStringifyFile(
 	cstr sPath,
 	const xvalue* pValue,
 	bool bPretty
@@ -40553,183 +41238,183 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/xsonl.h */
+/* public: include/xrt/xlonl.h */
 /* ========================================================================== */
 
-#ifndef XRT_XSONL_H
-#define XRT_XSONL_H
+#ifndef XRT_XLONL_H
+#define XRT_XLONL_H
 
 
-#if defined(XRT_FEATURE_XSONL) && (!defined(XRT_FEATURE_XSONL_FILE))
-	#error "XRT_FEATURE_XSONL requires XSONL_FILE"
+#if defined(XRT_FEATURE_XLONL) && (!defined(XRT_FEATURE_XLONL_FILE))
+	#error "XRT_FEATURE_XLONL requires XLONL_FILE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_READ) && (!defined(XRT_FEATURE_XSONL_CORE))
-	#error "XRT_FEATURE_XSONL_READ requires XSONL_CORE"
+#if defined(XRT_FEATURE_XLONL_READ) && (!defined(XRT_FEATURE_XLONL_CORE))
+	#error "XRT_FEATURE_XLONL_READ requires XLONL_CORE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_WRITE) && (!defined(XRT_FEATURE_XSONL_CORE))
-	#error "XRT_FEATURE_XSONL_WRITE requires XSONL_CORE"
+#if defined(XRT_FEATURE_XLONL_WRITE) && (!defined(XRT_FEATURE_XLONL_CORE))
+	#error "XRT_FEATURE_XLONL_WRITE requires XLONL_CORE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_FILE) && (!defined(XRT_FEATURE_XSONL_READ) || !defined(XRT_FEATURE_XSONL_WRITE))
-	#error "XRT_FEATURE_XSONL_FILE requires XSONL_READ and XSONL_WRITE"
+#if defined(XRT_FEATURE_XLONL_FILE) && (!defined(XRT_FEATURE_XLONL_READ) || !defined(XRT_FEATURE_XLONL_WRITE))
+	#error "XRT_FEATURE_XLONL_FILE requires XLONL_READ and XLONL_WRITE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_READ) && !defined(XRT_FEATURE_XSON_READ)
-	#error "XSONL read requires XSON read"
+#if defined(XRT_FEATURE_XLONL_READ) && !defined(XRT_FEATURE_XLON_READ)
+	#error "XLONL read requires XLON read"
 #endif
-#if defined(XRT_FEATURE_XSONL_WRITE) && !defined(XRT_FEATURE_XSON_WRITE)
-	#error "XSONL write requires XSON write"
+#if defined(XRT_FEATURE_XLONL_WRITE) && !defined(XRT_FEATURE_XLON_WRITE)
+	#error "XLONL write requires XLON write"
 #endif
-#if defined(XRT_FEATURE_XSONL_FILE) && !defined(XRT_FEATURE_FILE_WHOLE)
-	#error "XSONL file requires FILE_WHOLE"
+#if defined(XRT_FEATURE_XLONL_FILE) && !defined(XRT_FEATURE_FILE_WHOLE)
+	#error "XLONL file requires FILE_WHOLE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_CORE)
+#if defined(XRT_FEATURE_XLONL_CORE)
 
-/* XSONL 的稳定错误域为 xrt.xsonl；RECORD 保留单条编解码错误原因链。 */
-typedef enum xxsonlerror {
-	XXSONL_ERROR_CONFIG = 1801,
-	XXSONL_ERROR_SYNTAX,
-	XXSONL_ERROR_LIMIT,
-	XXSONL_ERROR_RECORD,
-	XXSONL_ERROR_TYPE,
-	XXSONL_ERROR_OUTPUT,
-	XXSONL_ERROR_IO,
-	XXSONL_ERROR_STATE
-} xxsonlerror;
+/* XLONL 的稳定错误域为 xrt.xlonl；RECORD 保留单条编解码错误原因链。 */
+typedef enum xxlonlerror {
+	XXLONL_ERROR_CONFIG = 1801,
+	XXLONL_ERROR_SYNTAX,
+	XXLONL_ERROR_LIMIT,
+	XXLONL_ERROR_RECORD,
+	XXLONL_ERROR_TYPE,
+	XXLONL_ERROR_OUTPUT,
+	XXLONL_ERROR_IO,
+	XXLONL_ERROR_STATE
+} xxlonlerror;
 
 /* 列按 UTF-8 字节计数；空白行计入 Line，不计入 RecordIndex。 */
-typedef struct xxsonllocation {
+typedef struct xxlonllocation {
 	size_t Offset;
 	size_t Line;
 	size_t Column;
 	size_t RecordIndex;
-} xxsonllocation;
+} xxlonllocation;
 
 XRT_EXTERN_C_BEGIN
 
 /* 读取全局字节偏移、一基物理行列及零基记录下标；无位置时保持输出不变。 */
-XRT_API bool xrtXsonlErrorLocation(
+XRT_API bool xrtXlonlErrorLocation(
 	const xerror* pError,
-	xxsonllocation* pLocation
+	xxlonllocation* pLocation
 );
 
 XRT_EXTERN_C_END
 #endif
 
-#if defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_XLONL_READ)
 
 /* 默认跳过空白行；此标志使空白行报告语法错误。 */
-typedef enum xxsonlreadflag {
-	XXSONL_READ_REJECT_EMPTY_LINES = UINT32_C(0x00000001)
-} xxsonlreadflag;
+typedef enum xxlonlreadflag {
+	XXLONL_READ_REJECT_EMPTY_LINES = UINT32_C(0x00000001)
+} xxlonlreadflag;
 
 /* Record 限制单条；外层限制累计消耗，合成的汇总 Array 不计入值数或深度。 */
-typedef struct xxsonlreadconfig {
-	xxsonreadconfig Record;
+typedef struct xxlonlreadconfig {
+	xxlonreadconfig Record;
 	uint32 Flags;
 	size_t MaxInputBytes;
 	size_t MaxRecords;
 	size_t MaxTotalValues;
 	size_t MaxTotalDecodedBytes;
 	uint32 Reserved[4];
-} xxsonlreadconfig;
+} xxlonlreadconfig;
 
 XRT_EXTERN_C_BEGIN
 
 /* 初始化默认忽略空白行、严格单条语法和有限累计预算。 */
-XRT_API void xrtXsonlReadConfigInit(
-	xxsonlreadconfig* pConfig
+XRT_API void xrtXlonlReadConfigInit(
+	xxlonlreadconfig* pConfig
 );
 
 
 /* 使用默认配置解析记录序列；成功返回拥有的 Array，空输入返回空 Array。 */
-XRT_API xvalue* xrtXsonlParse(
+XRT_API xvalue* xrtXlonlParse(
 	xstrview Text
 );
 
 
 /* 按配置解析全部记录；失败释放部分结果并返回 NULL，结果由 xrtValueRelease 释放。 */
-XRT_API xvalue* xrtXsonlRead(
+XRT_API xvalue* xrtXlonlRead(
 	xstrview Text,
-	const xxsonlreadconfig* pConfig
+	const xxlonlreadconfig* pConfig
 );
 
 
 /* 默认忽略空白行，验证逐行语法和累计预算，不构造 Value DOM；重复键策略不参与验证。 */
-XRT_API bool xrtXsonlValid(
+XRT_API bool xrtXlonlValid(
 	xstrview Text
 );
 
 XRT_EXTERN_C_END
 #endif
 
-#if defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_XLONL_WRITE)
 
 /* Record.MaxOutputBytes 不含分隔符；外层 MaxOutputBytes 包含每条 LF，不含末尾 NUL。 */
-typedef struct xxsonlwriteconfig {
-	xxsonwriteconfig Record;
+typedef struct xxlonlwriteconfig {
+	xxlonwriteconfig Record;
 	size_t MaxOutputBytes;
 	size_t MaxRecords;
 	uint32 Reserved[4];
-} xxsonlwriteconfig;
+} xxlonlwriteconfig;
 
 XRT_EXTERN_C_BEGIN
 
 /* 初始化紧凑单行输出、LF 分隔及有限累计预算；PRETTY 配置非法。 */
-XRT_API void xrtXsonlWriteConfigInit(
-	xxsonlwriteconfig* pConfig
+XRT_API void xrtXlonlWriteConfigInit(
+	xxlonlwriteconfig* pConfig
 );
 
 
 /* 每个 Array 元素写成一行；返回 xrtFree 释放的 NUL 结尾文本，失败不修改可空的 pSize。 */
-XRT_API str xrtXsonlStringify(
+XRT_API str xrtXlonlStringify(
 	const xvalue* pArray,
 	size_t* pSize
 );
 
 
 /* 同步分块输出各条记录及 LF；回调借用字节仅在调用期间有效，失败不能撤回已提交字节。 */
-XRT_API bool xrtXsonlWrite(
+XRT_API bool xrtXlonlWrite(
 	const xvalue* pArray,
-	const xxsonlwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+	const xxlonlwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 );
 
 XRT_EXTERN_C_END
 #endif
 
-#if defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_XLONL_FILE)
 XRT_EXTERN_C_BEGIN
 
 /* 按默认配置限额读取文件并返回拥有的 Array。 */
-XRT_API xvalue* xrtXsonlParseFile(
+XRT_API xvalue* xrtXlonlParseFile(
 	cstr sPath
 );
 
 
 /* 按整体输入上限读取文件，逐行解析；失败不返回部分 Array。 */
-XRT_API xvalue* xrtXsonlReadFile(
+XRT_API xvalue* xrtXlonlReadFile(
 	cstr sPath,
-	const xxsonlreadconfig* pConfig
+	const xxlonlreadconfig* pConfig
 );
 
 
 /* 按默认配置完整序列化 Array 后原子替换文件。 */
-XRT_API bool xrtXsonlStringifyFile(
+XRT_API bool xrtXlonlStringifyFile(
 	cstr sPath,
 	const xvalue* pArray
 );
 
 
 /* 按高级配置完整序列化后原子替换文件；序列化失败保留原文件。 */
-XRT_API bool xrtXsonlWriteFile(
+XRT_API bool xrtXlonlWriteFile(
 	cstr sPath,
 	const xvalue* pArray,
-	const xxsonlwriteconfig* pConfig
+	const xxlonlwriteconfig* pConfig
 );
 
 XRT_EXTERN_C_END
@@ -41319,6 +42004,19 @@ XRT_EXTERN_C_END
 #ifndef XRT_CONSOLE_H
 #define XRT_CONSOLE_H
 
+#if defined(XRT_FEATURE_CONSOLE_INPUT) || defined(XRT_FEATURE_CONSOLE_TERMINAL)
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_INPUT) && (!defined(XRT_FEATURE_CONSOLE) || !defined(XRT_FEATURE_BUFFER) || !defined(XRT_FEATURE_IO_STANDARD))
+#error "Console input requires console, buffer and standard IO"
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN) && !defined(XRT_FEATURE_CONSOLE)
+#error "Console screen requires console"
+#endif
+#if defined(XRT_FEATURE_CONSOLE_TERMINAL) && (!defined(XRT_FEATURE_CONSOLE_SCREEN) || !defined(XRT_FEATURE_BUFFER) || !defined(XRT_FEATURE_IO_STANDARD) || !defined(XRT_FEATURE_THREAD))
+#error "Console terminal requires console screen, buffer, standard IO and thread"
+#endif
 
 
 
@@ -41337,7 +42035,11 @@ typedef enum xconsoleerror {
 	XCONSOLE_ERROR_STREAM = 1,
 	XCONSOLE_ERROR_UTF8,
 	XCONSOLE_ERROR_WRITE,
-	XCONSOLE_ERROR_FLUSH
+	XCONSOLE_ERROR_FLUSH,
+	XCONSOLE_ERROR_READ,
+	XCONSOLE_ERROR_LIMIT,
+	XCONSOLE_ERROR_STATE,
+	XCONSOLE_ERROR_TERMINAL
 } xconsoleerror;
 
 
@@ -41363,6 +42065,60 @@ XRT_API bool xrtConsoleFlush(xconsolestream Stream);
 
 /* 判断指定标准输出流当前是否连接交互终端；非终端是正常结果，不设置错误。 */
 XRT_API bool xrtConsoleIsTerminal(xconsolestream Stream);
+
+#if defined(XRT_FEATURE_CONSOLE_INPUT)
+/* Strict Unicode scalar input: 1 value, 0 EOF, -1 error. No read-ahead. */
+XRT_API int xrtConsoleReadChar(uint32* pCodepoint);
+/* EOF before a character is a normal NULL result; an empty line owns an empty buffer. */
+XRT_API xbuffer* xrtConsoleReadLine(size_t iMaxBytes);
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_TERMINAL)
+typedef struct xconsolesession xconsolesession;
+typedef enum xconsoleeventkind {
+    XCONSOLE_EVENT_TEXT = 1, XCONSOLE_EVENT_KEY, XCONSOLE_EVENT_RESIZE,
+    XCONSOLE_EVENT_PASTE, XCONSOLE_EVENT_MOUSE, XCONSOLE_EVENT_CLOSED
+} xconsoleeventkind;
+typedef enum xconsolekey {
+    XCONSOLE_KEY_ESCAPE = 0x110000, XCONSOLE_KEY_ENTER, XCONSOLE_KEY_TAB,
+    XCONSOLE_KEY_BACKSPACE, XCONSOLE_KEY_UP, XCONSOLE_KEY_DOWN,
+    XCONSOLE_KEY_LEFT, XCONSOLE_KEY_RIGHT, XCONSOLE_KEY_HOME,
+    XCONSOLE_KEY_END, XCONSOLE_KEY_INSERT, XCONSOLE_KEY_DELETE,
+    XCONSOLE_KEY_PAGE_UP, XCONSOLE_KEY_PAGE_DOWN, XCONSOLE_KEY_F1
+} xconsolekey;
+typedef struct xconsoleevent {
+    xconsoleeventkind Kind;
+    uint32 Key, Modifiers, Repeat;
+    int32 X, Y, Wheel;
+    uint32 Columns, Rows;
+    bool Down;
+    xbuffer* Text; /* owned UTF-8; may contain NUL */
+} xconsoleevent;
+
+/* flags: raw=1, mouse=2, bracketed-paste=4, alternate-screen=8. Thread-affine, exclusive stdin. */
+XRT_API xconsolesession* xrtConsoleSessionOpen(uint32 Flags);
+XRT_API bool xrtConsoleSessionClose(xconsolesession* pSession);
+XRT_API void xrtConsoleSessionDestroy(xconsolesession* pSession);
+XRT_API bool xrtConsoleSessionClosed(const xconsolesession* pSession);
+XRT_API bool xrtConsoleSessionPasteSupported(const xconsolesession* pSession);
+XRT_API bool xrtConsoleSessionWrite(xconsolesession* pSession, xstrview Text);
+XRT_API bool xrtConsoleSessionFlush(xconsolesession* pSession);
+XRT_API bool xrtConsoleSessionMove(xconsolesession* pSession, uint32 X, uint32 Y);
+XRT_API bool xrtConsoleSessionClear(xconsolesession* pSession, int Mode);
+XRT_API bool xrtConsoleSessionCursor(xconsolesession* pSession, bool Visible);
+XRT_API bool xrtConsoleSessionStyle(xconsolesession* pSession, int32 Foreground, int32 Background, uint32 Attributes);
+/* NULL without error is timeout; CLOSED is emitted once. Returned event is owned. */
+XRT_API xconsoleevent* xrtConsoleSessionRead(xconsolesession* pSession, int TimeoutMs);
+XRT_API void xrtConsoleEventDestroy(xconsoleevent* pEvent);
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN)
+/* Queries never change terminal modes. Nonterminal size is 0,0. */
+XRT_API bool xrtConsoleSize(xconsolestream Stream, uint32* pColumns, uint32* pRows);
+XRT_API int xrtConsoleColorMode(xconsolestream Stream);
+/* -1 default, 0..255 palette, 0x1000000|RGB true color; attributes bits 1,2,4,8,16. */
+XRT_API bool xrtConsoleWriteStyled(xconsolestream Stream, xstrview Text, int32 Foreground, int32 Background, uint32 Attributes);
+#endif
 
 
 
@@ -41836,6 +42592,12 @@ XRT_API xlogger* xrtLogDefault(void);
 /* 原子替换进程默认 Logger；空指针用于清除。 */
 XRT_API bool xrtLogSetDefault(xlogger* pLogger);
 
+/* Atomically remove and transfer the default's owning reference if it equals
+ * pExpected. NULL expected unconditionally takes the current default. A NULL
+ * result means no match, not failure. The caller owns the returned reference;
+ * no user callback is invoked while the default lock is held. */
+XRT_API xlogger* xrtLogTakeDefaultIf(xlogger* pExpected);
+
 
 
 XRT_EXTERN_C_END
@@ -42185,6 +42947,9 @@ XRT_API bool xrtLogFileRotate(xlogsink* pSink);
 /* 重新打开当前路径，供外部 logrotate 或路径替换后切换句柄。 */
 XRT_API bool xrtLogFileReopen(xlogsink* pSink);
 
+/* Checked, idempotent close. Reopen is the only operation that re-enables writes. */
+XRT_API bool xrtLogFileClose(xlogsink* pSink);
+
 
 
 XRT_EXTERN_C_END
@@ -42350,6 +43115,10 @@ XRT_API bool xrtLogAsyncStats(
 /* 返回后台最近一次错误的新引用；尚无错误时返回空且不设置错误。 */
 XRT_API xerror* xrtLogAsyncLastError(const xlogsink* pSink);
 
+/* Close admission, apply Shutdown policy, wait for final target flush. Does not
+ * release the caller's sink reference. Rejects calls from its own worker. */
+XRT_API bool xrtLogAsyncStop(xlogsink* pSink);
+
 
 
 XRT_EXTERN_C_END
@@ -42441,6 +43210,9 @@ XRT_API bool xrtLogRingStats(
 
 /* 返回后台最近一次错误的新引用；尚无错误时返回空且不设置错误。 */
 XRT_API xerror* xrtLogRingLastError(const xlogsink* pSink);
+
+/* Close admission and drain accepted records through the final target flush. */
+XRT_API bool xrtLogRingStop(xlogsink* pSink);
 
 
 
@@ -44001,7 +44773,10 @@ XRT_EXTERN_C_END
 
 
 
-/* 零值永远不是有效的 Builder 条目句柄。 */
+/*
+	零值永远不是有效的 Builder 条目句柄。ID 只在创建它的 Builder 内有效；
+	不同 Builder 的数字 ID 可以相同，跨实例使用须另外携带实例身份。
+*/
 typedef uint64 xpatternid;
 
 #define XPATTERN_ID_INVALID ((xpatternid)0)
@@ -44076,6 +44851,11 @@ typedef struct xpattern xpattern;
 
 /* Builder 可变且不保证并发安全；成功编译不会清空其中的模式。 */
 typedef struct xpatternbuilder xpatternbuilder;
+
+
+
+/* 尚未提交的独占编辑；准备阶段拥有解析结果，提交阶段不分配内存。 */
+typedef struct xpatternedit xpatternedit;
 
 
 
@@ -44355,6 +45135,69 @@ XRT_API bool xrtPatternBuilderRemove(
 	也不会撤销 Builder 中等待修正的修改。
 */
 XRT_API xpattern* xrtPatternBuilderCompile(xpatternbuilder* pBuilder);
+
+
+
+/* 判断 ID 是否仍为此 Builder 的活动条目；陈旧 ID 返回 false，不设置错误。 */
+XRT_API bool xrtPatternBuilderContains(const xpatternbuilder* pBuilder, xpatternid Id);
+
+
+
+/*
+	准备原子追加。复制/解析、预留槽和 ID 均在此阶段完成；失败不改变条目、
+	版本、Dirty 或缓存（物理容量可增长）。成功后其他结构修改被拒绝，
+	直至 Commit/Free。调用方可先准备关联元数据，再无分配提交。
+*/
+XRT_API xpatternedit* xrtPatternBuilderPrepareAdd(
+	xpatternbuilder* pBuilder, const xpatternspec* arrSpec, size_t iCount
+);
+
+
+
+/* 准备保留 ID/注册顺序的替换；无效或陈旧 ID 报 StateError。 */
+XRT_API xpatternedit* xrtPatternBuilderPrepareSet(
+	xpatternbuilder* pBuilder, xpatternid Id, const xpatternspec* pSpec
+);
+
+
+
+/* 准备删除；无效/陈旧 ID 或代际耗尽报 StateError，保持原状态不变。 */
+XRT_API xpatternedit* xrtPatternBuilderPrepareRemove(xpatternbuilder* pBuilder, xpatternid Id);
+
+
+
+/* 准备清空；版本或代际耗尽报 StateError，空 Builder 的提交不增加版本。 */
+XRT_API xpatternedit* xrtPatternBuilderPrepareClear(xpatternbuilder* pBuilder);
+
+
+
+/* 取消未提交的编辑并释放资源；已提交编辑仅释放元数据；NULL 安全。 */
+XRT_API void xrtPatternEditFree(xpatternedit* pEdit);
+
+
+
+/* 是否仍可提交；NULL、已提交或所属 Builder 已释放均返回 false，不设置错误。 */
+XRT_API bool xrtPatternEditReady(const xpatternedit* pEdit);
+
+
+
+/* 返回编辑的 ID 个数：Add 为批量长度，Set/Remove 为 1，Clear 为 0。 */
+XRT_API size_t xrtPatternEditCount(const xpatternedit* pEdit);
+
+
+
+/* 返回准备时确定的 ID，提交后仍可查询；越界报 RangeError。 */
+XRT_API xpatternid xrtPatternEditId(const xpatternedit* pEdit, size_t iIndex);
+
+
+
+/*
+	有效且串行使用的编辑提交不分配、不失败；提交后不可重复提交。
+	已提交或所属 Builder 已释放时报 StateError。释放 Builder 自动使编辑
+	失效，但不释放调用方拥有的编辑，仍须 EditFree。整个 Builder/edit 家族
+	须由调用方串行使用；这里不提供跨线程事务或回滚外部副作用。
+*/
+XRT_API bool xrtPatternEditCommit(xpatternedit* pEdit);
 
 
 
@@ -46731,8 +47574,9 @@ XRT_EXTERN_C_END
 
 #if defined(XMAIL_FEATURE_MAIL_NET) && \
 	(!defined(XMAIL_FEATURE_MAIL_WIRE) || \
-	 !defined(XRT_FEATURE_NET_TCP_DIAL_SYNC))
-	#error "XMAIL_FEATURE_MAIL_NET requires mail wire and TCP sync dial"
+	 !defined(XRT_FEATURE_NET_TCP_DIAL_SYNC) || \
+	 !defined(XRT_FEATURE_CODEC_BASE64))
+	#error "XMAIL_FEATURE_MAIL_NET requires mail wire, TCP sync dial and Base64"
 #endif
 
 #if defined(XMAIL_FEATURE_MAIL_NET_TLS) && \
@@ -48925,6 +49769,18 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_CONSOLE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CONSOLE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CONSOLE_INPUT)
+#undef XRT_FEATURE_CONSOLE_INPUT
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CONSOLE_INPUT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CONSOLE_SCREEN)
+#undef XRT_FEATURE_CONSOLE_SCREEN
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CONSOLE_SCREEN
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CONSOLE_TERMINAL)
+#undef XRT_FEATURE_CONSOLE_TERMINAL
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CONSOLE_TERMINAL
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_COROUTINE)
 #undef XRT_FEATURE_COROUTINE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_COROUTINE
@@ -49388,6 +50244,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_IO_LINE)
 #undef XRT_FEATURE_IO_LINE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_IO_LINE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_IO_STANDARD)
+#undef XRT_FEATURE_IO_STANDARD
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_IO_STANDARD
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_JSON)
 #undef XRT_FEATURE_JSON
@@ -50153,6 +51013,22 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_VALUE_GRAPH
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VALUE_GRAPH
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VFS)
+#undef XRT_FEATURE_VFS
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VFS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VFS_DISK)
+#undef XRT_FEATURE_VFS_DISK
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VFS_DISK
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VFS_MEMORY)
+#undef XRT_FEATURE_VFS_MEMORY
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VFS_MEMORY
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VFS_PACK)
+#undef XRT_FEATURE_VFS_PACK
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_VFS_PACK
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WAIT)
 #undef XRT_FEATURE_WAIT
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_WAIT
@@ -50309,45 +51185,45 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_XID
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XID
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON)
-#undef XRT_FEATURE_XSON
-#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON)
+#undef XRT_FEATURE_XLON
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL)
-#undef XRT_FEATURE_XSONL
-#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL)
+#undef XRT_FEATURE_XLONL
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL_CORE)
-#undef XRT_FEATURE_XSONL_CORE
-#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL_CORE
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL_CORE)
+#undef XRT_FEATURE_XLONL_CORE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL_CORE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL_FILE)
-#undef XRT_FEATURE_XSONL_FILE
-#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL_FILE
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL_FILE)
+#undef XRT_FEATURE_XLONL_FILE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL_FILE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL_READ)
-#undef XRT_FEATURE_XSONL_READ
-#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL_READ
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL_READ)
+#undef XRT_FEATURE_XLONL_READ
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL_READ
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL_WRITE)
-#undef XRT_FEATURE_XSONL_WRITE
-#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSONL_WRITE
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL_WRITE)
+#undef XRT_FEATURE_XLONL_WRITE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLONL_WRITE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON_CORE)
-#undef XRT_FEATURE_XSON_CORE
-#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON_CORE
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_CORE)
+#undef XRT_FEATURE_XLON_CORE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_CORE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON_FILE)
-#undef XRT_FEATURE_XSON_FILE
-#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON_FILE
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_FILE)
+#undef XRT_FEATURE_XLON_FILE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_FILE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON_READ)
-#undef XRT_FEATURE_XSON_READ
-#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON_READ
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_READ)
+#undef XRT_FEATURE_XLON_READ
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_READ
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON_WRITE)
-#undef XRT_FEATURE_XSON_WRITE
-#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XSON_WRITE
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_WRITE)
+#undef XRT_FEATURE_XLON_WRITE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_WRITE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_ALL)
 #undef XRT_MODULE_ALL
@@ -50440,6 +51316,18 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_CONSOLE)
 #undef XRT_MODULE_CONSOLE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CONSOLE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_CONSOLE_INPUT)
+#undef XRT_MODULE_CONSOLE_INPUT
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CONSOLE_INPUT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_CONSOLE_SCREEN)
+#undef XRT_MODULE_CONSOLE_SCREEN
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CONSOLE_SCREEN
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_CONSOLE_TERMINAL)
+#undef XRT_MODULE_CONSOLE_TERMINAL
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CONSOLE_TERMINAL
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_COROUTINE)
 #undef XRT_MODULE_COROUTINE
@@ -50904,6 +51792,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_IO_LINE)
 #undef XRT_MODULE_IO_LINE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_IO_LINE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_IO_STANDARD)
+#undef XRT_MODULE_IO_STANDARD
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_IO_STANDARD
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON)
 #undef XRT_MODULE_JSON
@@ -51669,6 +52561,22 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_VALUE_GRAPH
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_VALUE_GRAPH
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_VFS)
+#undef XRT_MODULE_VFS
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_VFS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_VFS_DISK)
+#undef XRT_MODULE_VFS_DISK
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_VFS_DISK
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_VFS_MEMORY)
+#undef XRT_MODULE_VFS_MEMORY
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_VFS_MEMORY
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_VFS_PACK)
+#undef XRT_MODULE_VFS_PACK
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_VFS_PACK
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_WAIT)
 #undef XRT_MODULE_WAIT
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_WAIT
@@ -51825,45 +52733,45 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_XID
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XID
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON)
-#undef XRT_MODULE_XSON
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON)
+#undef XRT_MODULE_XLON
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL)
-#undef XRT_MODULE_XSONL
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL)
+#undef XRT_MODULE_XLONL
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL_CORE)
-#undef XRT_MODULE_XSONL_CORE
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL_CORE
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL_CORE)
+#undef XRT_MODULE_XLONL_CORE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL_CORE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL_FILE)
-#undef XRT_MODULE_XSONL_FILE
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL_FILE
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL_FILE)
+#undef XRT_MODULE_XLONL_FILE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL_FILE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL_READ)
-#undef XRT_MODULE_XSONL_READ
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL_READ
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL_READ)
+#undef XRT_MODULE_XLONL_READ
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL_READ
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL_WRITE)
-#undef XRT_MODULE_XSONL_WRITE
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSONL_WRITE
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL_WRITE)
+#undef XRT_MODULE_XLONL_WRITE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLONL_WRITE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON_CORE)
-#undef XRT_MODULE_XSON_CORE
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON_CORE
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON_CORE)
+#undef XRT_MODULE_XLON_CORE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON_CORE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON_FILE)
-#undef XRT_MODULE_XSON_FILE
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON_FILE
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON_FILE)
+#undef XRT_MODULE_XLON_FILE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON_FILE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON_READ)
-#undef XRT_MODULE_XSON_READ
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON_READ
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON_READ)
+#undef XRT_MODULE_XLON_READ
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON_READ
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON_WRITE)
-#undef XRT_MODULE_XSON_WRITE
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XSON_WRITE
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON_WRITE)
+#undef XRT_MODULE_XLON_WRITE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_XLON_WRITE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_EXCLUDE_MEMORY_DEBUG)
 #define XRT_EXCLUDE_MEMORY_DEBUG 1
@@ -52526,6 +53434,16 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
+/* process_open 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_OPEN)
+#ifndef XRT_FEATURE_PROCESS_OPEN
+#define XRT_FEATURE_PROCESS_OPEN
+#endif
+#ifndef XRT_MODULE_PROCESS
+#define XRT_MODULE_PROCESS
+#endif
+#endif
+
 /* process_run 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_RUN)
 #ifndef XRT_FEATURE_PROCESS_RUN
@@ -52539,16 +53457,6 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_CANCEL
 #define XRT_MODULE_CANCEL
-#endif
-#endif
-
-/* process_open 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_OPEN)
-#ifndef XRT_FEATURE_PROCESS_OPEN
-#define XRT_FEATURE_PROCESS_OPEN
-#endif
-#ifndef XRT_MODULE_PROCESS
-#define XRT_MODULE_PROCESS
 #endif
 #endif
 
@@ -52783,6 +53691,51 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
+/* console_terminal 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_TERMINAL)
+#ifndef XRT_FEATURE_CONSOLE_TERMINAL
+#define XRT_FEATURE_CONSOLE_TERMINAL
+#endif
+#ifndef XRT_MODULE_CONSOLE_SCREEN
+#define XRT_MODULE_CONSOLE_SCREEN
+#endif
+#ifndef XRT_MODULE_IO_STANDARD
+#define XRT_MODULE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_THREAD
+#define XRT_MODULE_THREAD
+#endif
+#endif
+
+/* console_screen 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_SCREEN)
+#ifndef XRT_FEATURE_CONSOLE_SCREEN
+#define XRT_FEATURE_CONSOLE_SCREEN
+#endif
+#ifndef XRT_MODULE_CONSOLE
+#define XRT_MODULE_CONSOLE
+#endif
+#endif
+
+/* console_input 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_INPUT)
+#ifndef XRT_FEATURE_CONSOLE_INPUT
+#define XRT_FEATURE_CONSOLE_INPUT
+#endif
+#ifndef XRT_MODULE_CONSOLE
+#define XRT_MODULE_CONSOLE
+#endif
+#ifndef XRT_MODULE_IO_STANDARD
+#define XRT_MODULE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
 /* console 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE)
 #ifndef XRT_FEATURE_CONSOLE
@@ -52877,62 +53830,62 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
-/* xsonl 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL)
-#ifndef XRT_FEATURE_XSONL
-#define XRT_FEATURE_XSONL
+/* xlonl 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL)
+#ifndef XRT_FEATURE_XLONL
+#define XRT_FEATURE_XLONL
 #endif
-#ifndef XRT_MODULE_XSONL_FILE
-#define XRT_MODULE_XSONL_FILE
+#ifndef XRT_MODULE_XLONL_FILE
+#define XRT_MODULE_XLONL_FILE
 #endif
 #endif
 
-/* xsonl_file 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_FILE)
-#ifndef XRT_FEATURE_XSONL_FILE
-#define XRT_FEATURE_XSONL_FILE
+/* xlonl_file 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_FILE)
+#ifndef XRT_FEATURE_XLONL_FILE
+#define XRT_FEATURE_XLONL_FILE
 #endif
-#ifndef XRT_MODULE_XSONL_READ
-#define XRT_MODULE_XSONL_READ
+#ifndef XRT_MODULE_XLONL_READ
+#define XRT_MODULE_XLONL_READ
 #endif
-#ifndef XRT_MODULE_XSONL_WRITE
-#define XRT_MODULE_XSONL_WRITE
+#ifndef XRT_MODULE_XLONL_WRITE
+#define XRT_MODULE_XLONL_WRITE
 #endif
 #ifndef XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_FILE_WHOLE
 #endif
 #endif
 
-/* xsonl_write 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_WRITE)
-#ifndef XRT_FEATURE_XSONL_WRITE
-#define XRT_FEATURE_XSONL_WRITE
+/* xlonl_write 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_WRITE)
+#ifndef XRT_FEATURE_XLONL_WRITE
+#define XRT_FEATURE_XLONL_WRITE
 #endif
-#ifndef XRT_MODULE_XSONL_CORE
-#define XRT_MODULE_XSONL_CORE
+#ifndef XRT_MODULE_XLONL_CORE
+#define XRT_MODULE_XLONL_CORE
 #endif
-#ifndef XRT_MODULE_XSON_WRITE
-#define XRT_MODULE_XSON_WRITE
-#endif
-#endif
-
-/* xsonl_read 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_READ)
-#ifndef XRT_FEATURE_XSONL_READ
-#define XRT_FEATURE_XSONL_READ
-#endif
-#ifndef XRT_MODULE_XSONL_CORE
-#define XRT_MODULE_XSONL_CORE
-#endif
-#ifndef XRT_MODULE_XSON_READ
-#define XRT_MODULE_XSON_READ
+#ifndef XRT_MODULE_XLON_WRITE
+#define XRT_MODULE_XLON_WRITE
 #endif
 #endif
 
-/* xsonl_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_CORE)
-#ifndef XRT_FEATURE_XSONL_CORE
-#define XRT_FEATURE_XSONL_CORE
+/* xlonl_read 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_READ)
+#ifndef XRT_FEATURE_XLONL_READ
+#define XRT_FEATURE_XLONL_READ
+#endif
+#ifndef XRT_MODULE_XLONL_CORE
+#define XRT_MODULE_XLONL_CORE
+#endif
+#ifndef XRT_MODULE_XLON_READ
+#define XRT_MODULE_XLON_READ
+#endif
+#endif
+
+/* xlonl_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_CORE)
+#ifndef XRT_FEATURE_XLONL_CORE
+#define XRT_FEATURE_XLONL_CORE
 #endif
 #endif
 
@@ -52995,39 +53948,39 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
-/* xson 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON)
-#ifndef XRT_FEATURE_XSON
-#define XRT_FEATURE_XSON
+/* xlon 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON)
+#ifndef XRT_FEATURE_XLON
+#define XRT_FEATURE_XLON
 #endif
-#ifndef XRT_MODULE_XSON_FILE
-#define XRT_MODULE_XSON_FILE
+#ifndef XRT_MODULE_XLON_FILE
+#define XRT_MODULE_XLON_FILE
 #endif
 #endif
 
-/* xson_file 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_FILE)
-#ifndef XRT_FEATURE_XSON_FILE
-#define XRT_FEATURE_XSON_FILE
+/* xlon_file 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_FILE)
+#ifndef XRT_FEATURE_XLON_FILE
+#define XRT_FEATURE_XLON_FILE
 #endif
-#ifndef XRT_MODULE_XSON_READ
-#define XRT_MODULE_XSON_READ
+#ifndef XRT_MODULE_XLON_READ
+#define XRT_MODULE_XLON_READ
 #endif
-#ifndef XRT_MODULE_XSON_WRITE
-#define XRT_MODULE_XSON_WRITE
+#ifndef XRT_MODULE_XLON_WRITE
+#define XRT_MODULE_XLON_WRITE
 #endif
 #ifndef XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_FILE_WHOLE
 #endif
 #endif
 
-/* xson_write 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_WRITE)
-#ifndef XRT_FEATURE_XSON_WRITE
-#define XRT_FEATURE_XSON_WRITE
+/* xlon_write 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_WRITE)
+#ifndef XRT_FEATURE_XLON_WRITE
+#define XRT_FEATURE_XLON_WRITE
 #endif
-#ifndef XRT_MODULE_XSON_CORE
-#define XRT_MODULE_XSON_CORE
+#ifndef XRT_MODULE_XLON_CORE
+#define XRT_MODULE_XLON_CORE
 #endif
 #ifndef XRT_MODULE_JSON_ESCAPE
 #define XRT_MODULE_JSON_ESCAPE
@@ -53055,13 +54008,13 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
-/* xson_read 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_READ)
-#ifndef XRT_FEATURE_XSON_READ
-#define XRT_FEATURE_XSON_READ
+/* xlon_read 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_READ)
+#ifndef XRT_FEATURE_XLON_READ
+#define XRT_FEATURE_XLON_READ
 #endif
-#ifndef XRT_MODULE_XSON_CORE
-#define XRT_MODULE_XSON_CORE
+#ifndef XRT_MODULE_XLON_CORE
+#define XRT_MODULE_XLON_CORE
 #endif
 #ifndef XRT_MODULE_BUFFER
 #define XRT_MODULE_BUFFER
@@ -53086,10 +54039,10 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
-/* xson_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_CORE)
-#ifndef XRT_FEATURE_XSON_CORE
-#define XRT_FEATURE_XSON_CORE
+/* xlon_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_CORE)
+#ifndef XRT_FEATURE_XLON_CORE
+#define XRT_FEATURE_XLON_CORE
 #endif
 #endif
 
@@ -53193,6 +54146,19 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
+/* io_standard 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_IO_STANDARD)
+#ifndef XRT_FEATURE_IO_STANDARD
+#define XRT_FEATURE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_IO
+#define XRT_MODULE_IO
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#endif
+
 /* io_line 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_IO_LINE)
 #ifndef XRT_FEATURE_IO_LINE
@@ -53266,6 +54232,32 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
+/* vfs_pack 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS_PACK)
+#ifndef XRT_FEATURE_VFS_PACK
+#define XRT_FEATURE_VFS_PACK
+#endif
+#ifndef XRT_MODULE_VFS
+#define XRT_MODULE_VFS
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
+#endif
+#endif
+
+/* vfs_disk 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS_DISK)
+#ifndef XRT_FEATURE_VFS_DISK
+#define XRT_FEATURE_VFS_DISK
+#endif
+#ifndef XRT_MODULE_VFS
+#define XRT_MODULE_VFS
+#endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
+#endif
+#endif
+
 /* file_root 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ROOT)
 #ifndef XRT_FEATURE_FILE_ROOT
@@ -53273,6 +54265,35 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_FILE_LINK
 #define XRT_MODULE_FILE_LINK
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#endif
+
+/* vfs_memory 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS_MEMORY)
+#ifndef XRT_FEATURE_VFS_MEMORY
+#define XRT_FEATURE_VFS_MEMORY
+#endif
+#ifndef XRT_MODULE_VFS
+#define XRT_MODULE_VFS
+#endif
+#endif
+
+/* vfs 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS)
+#ifndef XRT_FEATURE_VFS
+#define XRT_FEATURE_VFS
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#ifndef XRT_MODULE_UNICODE
+#define XRT_MODULE_UNICODE
 #endif
 #endif
 

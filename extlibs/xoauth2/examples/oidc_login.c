@@ -3,8 +3,8 @@
 
 	两个库互相不知道对方的存在——耦合只发生在本文件的应用层胶水，
 	边界数据是纯 C 字符串（id_token / JWKS JSON）与 xrt 核心的 xvalue。
-	本示例用 mock 传输离线可跑；真实部署把 mock_http 换成
-	xoauth2HttpXrt（或你自己的 HTTP 实现）即可。
+	本示例使用离线夹具，并执行授权码 ID token 的应用策略。
+	网络部署还须配置可信 discovery/注册算法、传输与回调会话管理。
 
 	编译（在 extlibs/xoauth2 目录）：
 	  gcc -std=c11 -I. -I../xjwt -I../../single \
@@ -23,137 +23,91 @@
 #include "../tests/oidc_keys.h"
 
 /* ---- mock 传输：替 IdP 应答三个端点 ---- */
-static char* dupstr(const char* s)
-{
-	char* p = (char*)xrtMalloc(strlen(s) + 1);
-	strcpy(p, s);
-	return p;
-}
+#include "auth_example_support.h"
+#include "oidc_example_support.h"
+static char g_Nonce[128];
+static char* dupstr(const char* text) { return xrtStrDup(text); }
 
-static bool mock_http(const char* sMethod, const char* sUrl, const char* sBody,
-                      const char* sAuthHeader, char** psBody, int* piStatus,
-                      void* pContext)
+static bool mock_http(const char* method, const char* url, const char* body,
+                      const char* auth, char** response, int* status, void* context)
 {
-	(void)sMethod; (void)sBody; (void)sAuthHeader; (void)pContext;
-	*piStatus = 200;
-	if ( strstr(sUrl, "/jwks") != NULL )
-		*psBody = dupstr(OIDC_JWKS);
-	else if ( strstr(sUrl, "/token") != NULL ) {
-		/* 演示：IdP 返回 access_token + id_token。
-		 * 真实场景 id_token 由 IdP 用它的私钥签发。 */
-		static char sTokenJson[4096];
-		xvalue* claims = xrtValueObject();
-		xrtValueObjectSetNew(claims, xrtStrView("iss"),
-			xrtValueString(xrtStrView("https://idp.example")));
-		xrtValueObjectSetNew(claims, xrtStrView("aud"),
-			xrtValueString(xrtStrView("demo-client-id")));
-		xrtValueObjectSetNew(claims, xrtStrView("sub"),
-			xrtValueString(xrtStrView("user-42")));
-		xrtValueObjectSetNew(claims, xrtStrView("email"),
-			xrtValueString(xrtStrView("alice@example.com")));
-		{
-			/* nonce 由调用方经 extern 传入（见下方 g_Nonce） */
-			extern char g_Nonce[128];
-			xrtValueObjectSetNew(claims, xrtStrView("nonce"),
-				xrtValueString(xrtStrView(g_Nonce)));
-		}
-		{
-			xjwtconfig cfg;
-			xjwtConfigInit(&cfg);
-			cfg.Alg = XJWT_ALG_ES256;
-			cfg.KeyPem = OIDC_EC_PRIV;
-			cfg.KeyId = "oidc-ec-1";
-			cfg.ExpireSeconds = 600;
-			char* idTok = xjwtSign(&cfg, claims);
-			snprintf(sTokenJson, sizeof(sTokenJson),
-				"{\"access_token\":\"acc-demo\",\"token_type\":\"Bearer\","
-				"\"expires_in\":3600,\"id_token\":\"%s\"}", idTok);
-			xrtFree(idTok);
-		}
-		xrtValueRelease(claims);
-		*psBody = dupstr(sTokenJson);
-	}
-	else
-		*psBody = dupstr("{\"sub\":\"user-42\",\"email\":\"alice@example.com\"}");
-	return true;
+    (void)method; (void)body; (void)auth; (void)context;
+    *response=NULL; *status=200;
+    if(strstr(url,"/jwks")!=NULL) *response=dupstr(OIDC_JWKS);
+    else if(strstr(url,"/token")!=NULL) {
+        /* 离线 IdP 使用夹具私钥；实际部署只验证 IdP 返回的令牌。 */
+        xvalue* claims=xrtValueObject();
+        char* idToken=NULL;
+        if(claims!=NULL && oauthExampleSetString(claims,"iss","https://idp.example") &&
+           oauthExampleSetString(claims,"aud","demo-client-id") &&
+           oauthExampleSetString(claims,"sub","user-42") &&
+           oauthExampleSetString(claims,"email","alice@example.com") &&
+           oauthExampleSetString(claims,"nonce",g_Nonce)) {
+            xjwtconfig config; xjwtConfigInit(&config);
+            config.Alg=XJWT_ALG_ES256; config.KeyPem=OIDC_EC_PRIV;
+            config.KeyId="oidc-ec-1"; config.ExpireSeconds=600;
+            idToken=xjwtSign(&config,claims);
+            if(idToken!=NULL) {
+                char json[4096];
+                int length=snprintf(json,sizeof(json),
+                    "{\"access_token\":\"acc-demo\",\"token_type\":\"Bearer\",\"expires_in\":3600,\"id_token\":\"%s\"}",idToken);
+                if(length>=0 && (size_t)length<sizeof(json)) *response=dupstr(json);
+            }
+        }
+        xrtFree(idToken); xrtValueRelease(claims);
+    } else *response=dupstr("{\"sub\":\"user-42\",\"email\":\"alice@example.com\"}");
+    return *response!=NULL;
 }
-
-char g_Nonce[128];   /* BeginLogin 生成后、token 签发前由胶水保存 */
 
 int main(void)
 {
-	xoauth2client oauth = {0};
-
-	/* ① 客户端配置（真实场景用 xoauth2UseGoogle/UseMicrosoft 预设） */
-	{
-		xoauth2config cfg;
-		xoauth2ConfigInit(&cfg);
-		cfg.AuthorizeUrl = "https://idp.example/authorize";
-		cfg.TokenUrl = "https://idp.example/token";
-		cfg.UserInfoUrl = "https://idp.example/userinfo";
-		cfg.JwksUrl = "https://idp.example/jwks";
-		cfg.Issuer = "https://idp.example";
-		cfg.ClientId = "demo-client-id";
-		cfg.RedirectUri = "https://app.example/cb";
-		cfg.Scope = "openid email profile";
-		cfg.UseNonce = true;
-		cfg.Http = mock_http;
-		xoauth2UseCustom(&oauth, &cfg);
-	}
-
-	/* ② 登录入口：302 到授权页（nonce 已自动生成并进 URL） */
-	char* url = xoauth2BeginLogin(&oauth);
-	printf("authorize: %.60s...nonce=%.8s...\n", url, oauth.sNonce);
-	strcpy(g_Nonce, oauth.sNonce);   /* 演示：mock IdP 签发时要回显 */
-
-	/* ③ 回调：code + state 换 token（state 常时校验后即焚毁） */
-	xoauth2token* tok = xoauth2CompleteLogin(&oauth, "auth-code", oauth.sState);
-	if ( tok == NULL ) {
-		printf("token exchange failed: err=%d\n", xoauth2LastError());
-		return 1;
-	}
-	xrtFree(url);
-	printf("token: access=%.12s... id_token=%zu chars\n",
-		tok->AccessToken, strlen(tok->IdToken));
-
-	/* ④ ===== 应用层胶水：xoauth2 取数 + xjwt 验签（两库在此会师）===== */
-	int st = 0;
-	char* jwksJson = xoauth2HttpGet(&oauth, oauth.Config.JwksUrl, NULL, &st);
-	xjwtjwks* keys = xjwtJwksParse(jwksJson);
-	xjwtcheck ck;
-	xjwtCheckInit(&ck);
-	ck.Issuer = oauth.Config.Issuer;      /* issuer/JWKS 是 xoauth2 的预设知识，
-	                                       * 但只是一根字符串，喂给谁都不产生依赖 */
-	ck.Audience = oauth.Config.ClientId;
-	xvalue* claims = xjwtVerifyJwks(tok->IdToken, keys, &ck);
-	if ( claims == NULL ) {
-		printf("id_token verify failed: err=%d\n", xjwtLastError());
-		return 1;
-	}
-	char sub[32], email[64], nonce[128];
-	xjwtClaimString(claims, "sub", sub, sizeof(sub));
-	xjwtClaimString(claims, "email", email, sizeof(email));
-	xjwtClaimString(claims, "nonce", nonce, sizeof(nonce));
-	if ( !xoauth2NonceConsume(&oauth, nonce) ) {   /* 常时比对 + 一次性焚毁 */
-		printf("nonce mismatch (replay?)\n");
-		return 1;
-	}
-	printf("verified: sub=%s email=%s nonce=ok\n", sub, email);
-
-	/* ⑤ userinfo（Bearer + 对象 claims；非 OIDC provider 同样适用） */
-	xvalue* ui = xoauth2GetUserInfo(&oauth, tok->AccessToken);
-	if ( ui != NULL ) {
-		xjwtClaimString(ui, "email", email, sizeof(email));
-		printf("userinfo: email=%s\n", email);
-		xrtValueRelease(ui);
-	}
-
-	/* ⑥ 清理（各自释放各自的） */
-	xrtValueRelease(claims);
-	xjwtJwksFree(keys);
-	xrtFree(jwksJson);
-	xoauth2TokenFree(tok);
-	xoauth2ClientUnit(&oauth);
-	printf("done\n");
-	return 0;
+    int result=1,status=0;
+    const char* stage="authorization URL";
+    xoauth2client oauth={0}; xoauth2config config;
+    char* url=NULL; char* jwksJson=NULL;
+    xoauth2token* tok=NULL; xjwtjwks* keys=NULL;
+    xvalue* claims=NULL; xvalue* user=NULL;
+    char sub[256];
+    xoauth2ConfigInit(&config);
+    config.AuthorizeUrl="https://idp.example/authorize";
+    config.TokenUrl="https://idp.example/token";
+    config.UserInfoUrl="https://idp.example/userinfo";
+    config.JwksUrl="https://idp.example/jwks";
+    config.Issuer="https://idp.example"; config.ClientId="demo-client-id";
+    config.RedirectUri="https://app.example/cb"; config.Scope="openid email profile";
+    config.UseNonce=true; config.Http=mock_http;
+    xoauth2UseCustom(&oauth,&config);
+    url=xoauth2BeginLogin(&oauth);
+    if(url==NULL || strlen(oauth.sNonce)>=sizeof(g_Nonce)) goto done;
+    printf("authorize: %.60s...\n",url);
+    strcpy(g_Nonce,oauth.sNonce);
+    stage="token exchange";
+    tok=xoauth2CompleteLogin(&oauth,"auth-code",oauth.sState);
+    if(tok==NULL || tok->IdToken==NULL) goto done;
+    printf("token received; id_token=%zu chars\n",strlen(tok->IdToken));
+    stage="JWKS retrieval and parse";
+    jwksJson=xoauth2HttpGet(&oauth,oauth.Config.JwksUrl,NULL,&status);
+    if(jwksJson==NULL || status!=200) goto done;
+    keys=xjwtJwksParse(jwksJson);
+    if(keys==NULL) goto done;
+    stage="id_token verification and required claims";
+    oidcExamplePolicy policy; oidcExamplePolicyInit(&policy);
+    policy.SigningAlg=XJWT_ALG_ES256; /* 本离线 IdP 显式注册 ES256。 */
+    claims=oidcExampleVerifyIdToken(&oauth,tok,keys,&policy,NULL);
+    if(claims==NULL || !oauthExampleClaimString(claims,"sub",sub,sizeof(sub))) goto done;
+    puts("verified identity; nonce=ok");
+    stage="userinfo";
+    user=xoauth2GetUserInfo(&oauth,tok->AccessToken);
+    char userSub[256];
+    if(user==NULL || !oauthExampleClaimString(user,"sub",userSub,sizeof(userSub)) ||
+       strcmp(userSub,sub)!=0) goto done;
+    puts("userinfo: verified subject matched");
+    result=0;
+done:
+    if(result!=0) fprintf(stderr,"OIDC example failed at %s (kind=%d code=%d)\n",stage,
+        (int)xrtErrorKind(xrtGetError()),xrtErrorCode(xrtGetError()));
+    xrtValueRelease(user); xrtValueRelease(claims); xjwtJwksFree(keys);
+    xrtFree(jwksJson); xrtFree(url); xoauth2TokenFree(tok); xoauth2ClientUnit(&oauth);
+    memset(g_Nonce,0,sizeof(g_Nonce));
+    return result;
 }

@@ -250,7 +250,7 @@ bool xacmeCsrEc(
 	xrtBufferUnit(&SigAlgRaw);
 	xrtBufferUnit(&SigAlg);
 	xrtBufferUnit(&Outer);
-	if(!bOk)
+	if(!bOk && xrtGetError() == NULL)
 	{
 		xrtSetErrorInfo(
 			XERR_INTERNAL,
@@ -544,6 +544,7 @@ bool xacmeCertKeyReadPem(cstr sPem, size_t iSize, xacmecertkey* pKey)
 	xpemblock Block;
 	bool bHavePkcs8;
 	bool bHavePkcs1Rsa;
+	bool bHaveSec1 = false;
 
 	if((sPem == NULL) || (iSize == 0u) || (pKey == NULL))
 	{
@@ -554,10 +555,23 @@ bool xacmeCertKeyReadPem(cstr sPem, size_t iSize, xacmecertkey* pKey)
 	}
 	xacmeCertKeyUnit(pKey);
 	bHavePkcs8 = xrtPemFind(sPem, iSize, "PRIVATE KEY", &Block);
-	bHavePkcs1Rsa = xrtPemFind(sPem, iSize, "RSA PRIVATE KEY", &Block);
+	if(!bHavePkcs8 && xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
+	bHavePkcs1Rsa = false;
+	if(!bHavePkcs8)
+	{
+		xrtClearError();
+		bHavePkcs1Rsa = xrtPemFind(sPem, iSize, "RSA PRIVATE KEY", &Block);
+		if(!bHavePkcs1Rsa && xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
+		if(!bHavePkcs1Rsa)
+		{
+			xrtClearError();
+			bHaveSec1 = xrtPemFind(sPem, iSize, "EC PRIVATE KEY", &Block);
+			if(!bHaveSec1 && xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
+		}
+	}
 
 	/* EC：PKCS#8（非 RSA）或 SEC1。 */
-	if(bHavePkcs8 || xrtPemFind(sPem, iSize, "EC PRIVATE KEY", &Block))
+	if(bHavePkcs8 || bHaveSec1)
 	{
 		xrtClearError();
 		if(xacmeKeyPemRead(sPem, iSize, &pKey->Ec))
@@ -565,6 +579,7 @@ bool xacmeCertKeyReadPem(cstr sPem, size_t iSize, xacmecertkey* pKey)
 			pKey->Kind = XACME_CERT_KEY_ES256;
 			return true;
 		}
+		if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
 		xrtClearError();
 	}
 
@@ -803,7 +818,7 @@ bool xacmeCsrBuild(
 	xrtBufferUnit(&SigAlgRaw);
 	xrtBufferUnit(&SigAlg);
 	xrtBufferUnit(&Outer);
-	if(!bOk)
+	if(!bOk && xrtGetError() == NULL)
 	{
 		xrtSetErrorInfo(
 			XERR_INTERNAL, "xrt.acme.csr", XACME_CSR_ERROR_INTERNAL,

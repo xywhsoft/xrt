@@ -89,7 +89,7 @@ int main(void)
 		"acme dns txt bad resolver mismatch"
 	);
 
-	xacmeDnsUnit(&Dns);
+	testRequire(xacmeDnsUnit(&Dns), "acme dns private engine cleanup incomplete");
 	printf("[PASS] acme dns txt probe\n");
 	return 0;
 }

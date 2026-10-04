@@ -21,6 +21,30 @@ static inline void xjwt__int_trim(unsigned char* p, size_t* pn)
 	}
 }
 
+/* JWA RS256/384/512 要求 RSA 模数至少 2048 位。 */
+static inline bool xjwt__rsa_jwa_key_valid(const xrsapublickey* pKey)
+{
+	const unsigned char* pModulus;
+	const unsigned char* pExponent;
+
+	if ( (pKey == NULL) || (pKey->Modulus == NULL) ||
+		(pKey->Exponent == NULL) ||
+		(pKey->ModulusSize < 256u) ||
+		(pKey->ModulusSize > XRT_RSA_MAX_MODULUS_SIZE) ||
+		(pKey->ExponentSize == 0) ||
+		(pKey->ExponentSize > pKey->ModulusSize) ) {
+		return false;
+	}
+	pModulus = (const unsigned char*)pKey->Modulus;
+	pExponent = (const unsigned char*)pKey->Exponent;
+	return (pModulus[0] != 0) &&
+		((pKey->ModulusSize > 256u) || (pModulus[0] >= 0x80u)) &&
+		((pModulus[pKey->ModulusSize - 1u] & 1u) != 0) &&
+		(pExponent[0] != 0) &&
+		((pExponent[pKey->ExponentSize - 1u] & 1u) != 0) &&
+		((pKey->ExponentSize > 1u) || (pExponent[0] > 1u));
+}
+
 /* ------------------------------------------------------------------
  * Base64URL（RFC 4648 §5：无 padding，- 和 _ 替代 + 和 /）
  * ------------------------------------------------------------------ */
@@ -52,6 +76,8 @@ char* xjwt__join(const char* sHeadJson, const char* sClaimsJson,
  * 错误设置（域 "xrt.jwt"）
  * ------------------------------------------------------------------ */
 void xjwt__error(int iCode, const char* sMessage);
+bool xjwt__memory_error(void);
+void xjwt__error_unless_memory(int iCode, const char* sMessage);
 
 /* ------------------------------------------------------------------
  * RSA / EC 密钥解析（PEM → xrt 内部表示）

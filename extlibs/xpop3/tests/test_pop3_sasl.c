@@ -152,7 +152,7 @@ static bool testPop3SaslSession(
 			sizeof("+ \r\n") - 1u,
 			iDeadline
 		);
-		if ( iMode == 1 ) {
+		if ( (iMode == 1) || (iMode == 3) ) {
 			bSuccess = bSuccess && testPop3SaslReceive(
 				pStream,
 				sResponse,
@@ -172,6 +172,10 @@ static bool testPop3SaslSession(
 				iDeadline
 			);
 		}
+	}
+	if ( iMode == 3 ) {
+		/* 已接收 challenge 响应，但不返回认证结果。 */
+		return bSuccess;
 	}
 	return bSuccess && testPop3SaslSend(
 		pStream,
@@ -193,13 +197,13 @@ static bool testPop3SaslSession(
 
 
 
-/* 连续服务初始响应、显式 challenge 和超长响应回退。 */
+/* 连续服务初始响应、显式 challenge、超长响应及认证中途断流。 */
 static int32 testPop3SaslServer(ptr pData)
 {
 	testpop3saslserver* pServer = (testpop3saslserver*)pData;
 	bool bSuccess = true;
 
-	for ( size_t i = 0; i < 3u; i++ ) {
+	for ( size_t i = 0; i < 4u; i++ ) {
 		xnetstream* pStream = xrtNetListenerAcceptWait(
 			pServer->Listener,
 			pServer->Deadline,
@@ -251,7 +255,7 @@ static xpop3client* testPop3SaslOpen(
 
 
 
-/* 验证 POP3 SASL 能力、TLS 安全门、初始响应和 challenge 回退。 */
+/* 验证 POP3 SASL 能力、TLS 安全门、challenge 回退和断流终态。 */
 int main(void)
 {
 	xnetengineconfig EngineConfig;
@@ -315,7 +319,7 @@ int main(void)
 	Server.Success = false;
 	pThread = xrtThreadCreate(testPop3SaslServer, &Server, 0);
 	testRequire(pThread != NULL, "POP3 SASL server thread creation failed");
-	for ( size_t i = 0; i < 3u; i++ ) {
+	for ( size_t i = 0; i < 4u; i++ ) {
 		pClient = testPop3SaslOpen(pEngine, pResolver, Deadline);
 		testRequire((pClient != NULL) &&
 			(xrtPop3ClientSaslMechanisms(pClient) == iExpected),
@@ -339,17 +343,35 @@ int main(void)
 			sSecret,
 			sizeof(sSecret)
 		) : XRT_STR_LITERAL("pass");
-		Auth.InitialResponse = i != 1;
+		Auth.InitialResponse = (i != 1) && (i != 3);
 		Auth.AllowPlaintext = true;
-		testRequire(xrtPop3ClientAuth(
-			pClient,
-			&Auth,
-			Deadline,
-			NULL
-		) && (xrtPop3ClientState(pClient) == XPOP3_CLIENT_TRANSACTION),
-			"POP3 AUTH PLAIN exchange failed");
-		testRequire(xrtPop3ClientQuit(pClient, Deadline, NULL),
-			"POP3 SASL QUIT failed");
+		if ( i == 3 ) {
+			xpop3reply Last;
+
+			xrtClearError();
+			testRequire(!xrtPop3ClientAuth(pClient, &Auth, Deadline, NULL) &&
+				(xrtErrorKind(xrtGetError()) != XERR_NONE) &&
+				(xrtPop3ClientState(pClient) == XPOP3_CLIENT_FAILED) &&
+				xrtPop3ClientLastReply(pClient, &Last) &&
+				testMailViewEqual(Last.Source,
+					XRT_STR_LITERAL("+OK capabilities")),
+				"POP3 SASL completion disconnect lost terminal state or prior reply");
+			xrtClearError();
+			testRequire(!xrtPop3ClientNoop(pClient, Deadline, NULL) &&
+				(xrtErrorKind(xrtGetError()) == XERR_STATE) &&
+				xrtPop3ClientAbort(pClient),
+				"POP3 SASL disconnect allowed reuse of a failed session");
+		} else {
+			testRequire(xrtPop3ClientAuth(
+				pClient,
+				&Auth,
+				Deadline,
+				NULL
+			) && (xrtPop3ClientState(pClient) == XPOP3_CLIENT_TRANSACTION),
+				"POP3 AUTH PLAIN exchange failed");
+			testRequire(xrtPop3ClientQuit(pClient, Deadline, NULL),
+				"POP3 SASL QUIT failed");
+		}
 		xrtPop3ClientDestroy(pClient);
 	}
 	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,

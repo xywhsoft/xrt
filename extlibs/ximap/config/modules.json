@@ -158,13 +158,15 @@
 			],
 			"internal_headers": [
 				"extlibs/ximap/src/internal/xrt_mail.h",
-				"extlibs/ximap/src/internal/xrt_mail_net.h"
+				"extlibs/ximap/src/internal/xrt_mail_net.h",
+				"extlibs/ximap/src/internal/xrt_imap_client.h"
 			],
 			"sources": [
 				"extlibs/ximap/src/imap/imap_client.c"
 			],
 			"tests": [
-				"extlibs/ximap/tests/test_imap_client.c"
+				"extlibs/ximap/tests/test_imap_client.c",
+				"extlibs/ximap/tests/test_imap_bye_runtime.c"
 			],
 			"single_tests": [
 				"extlibs/ximap/tests/single/test_single_imap_client.c"
@@ -325,7 +327,8 @@
 			],
 			"tests": [
 				"extlibs/ximap/tests/test_imap_append.c",
-				"extlibs/ximap/tests/test_imap_append_runtime.c"
+				"extlibs/ximap/tests/test_imap_append_runtime.c",
+				"extlibs/ximap/tests/test_imap_append_fault_runtime.c"
 			],
 			"single_tests": [
 				"extlibs/ximap/tests/single/test_single_imap_append.c"
@@ -465,6 +468,80 @@
 			"legacy": []
 		},
 		{
+			"name": "imap_append_tls_fault_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_append",
+				"imap_client_tls",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_append_tls_fault_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "imap_compress_fault_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_compress",
+				"imap_append",
+				"imap_client_tls",
+				"tls_identity_rsa",
+				"pem",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_compress_fault_runtime.c"
+			],
+			"single_tests": [
+				"extlibs/ximap/tests/single/test_single_imap_compress_fault_runtime.c"
+			],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "imap_data_error_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["imap_data", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["extlibs/ximap/tests/test_imap_data_error.c"],
+			"single_tests": ["extlibs/ximap/tests/single/test_single_imap_data_error.c"],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
+			"name": "imap_body_error_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["imap_body", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["extlibs/ximap/tests/test_imap_body_error.c", "extlibs/ximap/tests/test_imap_body_semantics.c"],
+			"single_tests": ["extlibs/ximap/tests/single/test_single_imap_body_error.c", "extlibs/ximap/tests/single/test_single_imap_body_semantics.c"],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
 			"name": "imap_protocol_oom_tests",
 			"state": "implemented",
 			"feature": null,
@@ -513,6 +590,7 @@
 				"extlibs/ximap/tests/test_imap_data.c",
 				"extlibs/ximap/tests/test_imap_body.c",
 				"extlibs/ximap/tests/test_imap_client.c",
+				"extlibs/ximap/tests/test_imap_bye_runtime.c",
 				"extlibs/ximap/tests/test_imap_auth.c",
 				"extlibs/ximap/tests/test_imap_command.c",
 				"extlibs/ximap/tests/test_imap_command_runtime.c",
@@ -520,6 +598,8 @@
 				"extlibs/ximap/tests/test_imap_message_runtime.c",
 				"extlibs/ximap/tests/test_imap_append.c",
 				"extlibs/ximap/tests/test_imap_append_runtime.c",
+				"extlibs/ximap/tests/test_imap_append_fault_runtime.c",
+				"extlibs/ximap/tests/test_imap_append_tls_fault_runtime.c",
 				"extlibs/ximap/tests/test_imap_compress.c",
 				"extlibs/ximap/tests/test_imap_client_starttls_runtime.c",
 				"extlibs/ximap/tests/test_imap_compress_tls_runtime.c",
@@ -546,6 +626,10 @@
 			"depends": [
 				"imap_client_tls_runtime_tests",
 				"imap_compress_tls_runtime_tests",
+				"imap_append_tls_fault_runtime_tests",
+				"imap_compress_fault_runtime_tests",
+				"imap_data_error_tests",
+				"imap_body_error_tests",
 				"imap_protocol_oom_tests",
 				"ximap"
 			],

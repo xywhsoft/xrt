@@ -1,5 +1,9 @@
 #include "../fixtures/tls_server.h"
 
+#if !defined(XRT_IMPLEMENTATION)
+	#include "../../src/internal/xrt_tls_stream.h"
+#endif
+
 
 
 #if !defined(TEST_TLS_STREAM_FUTURE_BACKEND)
@@ -1911,6 +1915,28 @@ int main(void)
 	xrtNetListenerDestroy(pListener);
 	testRequire(xrtNetEngineDestroy(pEngine),
 		"TLS Stream Future engine destroy failed");
+	{
+		xfuture* pLateEnd;
+		bool bEndEmitted = pRetainedServer->EndEmitted;
+
+		/* 复现密文排空同步重入 Close，先于 End 回调记账的已认证终态。
+		   Engine 已退出，修改事件记账不与 Worker 竞争，也不伪造 TLS 状态。 */
+		testRequire(
+			(xrtTlsStreamState(pRetainedServer) == XTLS_STREAM_CLOSED) &&
+			(xrtTlsStreamAvailable(pRetainedServer) == 0) &&
+			(xrtTlsStreamError(pRetainedServer) == NULL),
+			"TLS Stream late End requires authenticated drained closure"
+		);
+		pRetainedServer->EndEmitted = false;
+		pLateEnd = xrtTlsStreamWaitAsync(pRetainedServer, XTLS_STREAM_WAIT_END);
+		testTlsStreamFutureState(
+			pLateEnd,
+			XFUTURE_RESOLVED,
+			"TLS Stream authenticated late End depended on callback bookkeeping"
+		);
+		xrtFutureDestroy(pLateEnd);
+		pRetainedServer->EndEmitted = bEndEmitted;
+	}
 	pAfterEngineClose = xrtTlsStreamWaitAsync(
 		pRetainedServer,
 		XTLS_STREAM_WAIT_CLOSE

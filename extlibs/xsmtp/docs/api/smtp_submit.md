@@ -15,9 +15,12 @@
 
 ## 状态与失败
 
-调用前 Client 必须处于 `XSMTP_CLIENT_READY`。MAIL 或 RCPT 失败时，提交层在仍可复用的连接
-上发送 RSET，并保留最初失败的结构化错误；DATA 已经开始后若 Compose、取消或传输失败，
+调用前 Client 必须处于 `XSMTP_CLIENT_READY`。MAIL 被服务器拒绝后仍处于 READY；RCPT 或
+DATA 命令被拒且连接可复用时，提交层发送 RSET，并保留最初失败的结构化错误。
+DATA 已经开始后若 Compose、取消或传输失败，
 连接会被关闭，避免半封消息被误提交。成功后 Client 回到 READY，可继续提交下一封消息。
+完整 DATA 已发送而服务器以非 `250` 最终回复拒绝入队时，调用返回协议错误并保留
+`LastReply`；Client 回到 READY，调用方可继续发送命令。
 
 提交层不负责打开连接、TLS 或认证。调用方应先使用 `smtp_client_tls` 和 `smtp_auth` 完成这些
 步骤；不需要高层消息描述时，仍可直接使用 `xrtSmtpClientDataBegin`、`DataWrite` 和 `DataEnd`

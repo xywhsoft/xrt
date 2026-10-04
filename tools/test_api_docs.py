@@ -51,6 +51,28 @@ class HeaderSymbolsTest(unittest.TestCase):
 			["xrtWsOpen"],
 		)
 
+	def test_ignores_comments_literals_and_include_paths(self) -> None:
+		text = r'''
+			/* XRT_API bool xrtWsFake(void); XWS_FAKE xwsfake */
+			#include <xws/path.h>
+			#include "XWS_HEADER/xwsheader.h"
+			#define XWS_URI "https://host/XWS_PHANTOM xwsstring"
+			#define XWS_QUOTED "escaped\" // XWS_STRING_COMMENT xwsquoted"
+			#define XWS_CHAR 'x'
+			typedef struct xwsitem xwsitem;
+			XRT_API bool xrtWsReal(xwsitem* item);
+			// XRT_API bool xrtWsLineFake(void); \
+			XRT_API bool xrtWsContinuedFake(void);
+		'''
+		actual = check_api_docs._header_symbols(text, "xrtWs", "XWS_", "xws")
+		self.assertEqual(actual, ({"xrtWsReal"},
+			{"XWS_URI", "XWS_QUOTED", "XWS_CHAR"}, {"xwsitem"}))
+
+	def test_comment_between_declaration_tokens_keeps_real_function(self) -> None:
+		text = "XRT_API /* documentation */ bool xrtWsOpen(void);"
+		self.assertEqual(check_api_docs._header_symbols(
+			text, "xrtWs", "XWS_", "xws")[0], {"xrtWsOpen"})
+
 
 
 	def test_excludes_include_guards(self) -> None:
@@ -75,6 +97,17 @@ class HeaderSymbolsTest(unittest.TestCase):
 
 class FamilyFilesTest(unittest.TestCase):
 	"""验证模块清单范围和文件存在性。"""
+
+	def test_manifest_rejects_missing_registered_header(self) -> None:
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			(root / "reference.md").write_text("documentation", encoding="utf-8")
+			manifest = root / "modules.json"
+			manifest.write_text(json.dumps({"api_reference": {"title": "fixture"},
+				"modules": [{"public_headers": ["missing.h"],
+					"docs": ["reference.md"]}]}), encoding="utf-8")
+			with self.assertRaisesRegex(ValueError, "input is missing.*missing.h"):
+				check_api_docs._manifest_files(root, manifest)
 
 	def test_collects_and_deduplicates_family_files(self) -> None:
 		"""同一家族模块共享的头文件与文档只检查一次。"""

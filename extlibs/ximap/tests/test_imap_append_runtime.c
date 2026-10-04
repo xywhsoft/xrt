@@ -6,6 +6,7 @@ typedef struct testimapappendserver {
 	xnetlistener* Listener;
 	xdeadline Deadline;
 	bool Success;
+	bool Unlimited;
 } testimapappendserver;
 
 
@@ -108,6 +109,9 @@ static int32 testImapAppendServer(ptr pData)
 		NULL
 	);
 	bool bSuccess;
+	const char* Capability = pServer->Unlimited ?
+		"* CAPABILITY IMAP4rev2 UIDPLUS LITERAL+\r\nA00000001 OK capability complete\r\n" :
+		"* CAPABILITY IMAP4rev1 UIDPLUS LITERAL+ APPENDLIMIT=64\r\nA00000001 OK capability complete\r\n";
 
 	if ( pStream == NULL ) {
 		return 1;
@@ -124,12 +128,8 @@ static int32 testImapAppendServer(ptr pData)
 		pServer->Deadline
 	) && testImapAppendSend(
 		pStream,
-		"* CAPABILITY IMAP4rev1 UIDPLUS LITERAL+ APPENDLIMIT=64\r\n"
-		"A00000001 OK capability complete\r\n",
-		sizeof(
-			"* CAPABILITY IMAP4rev1 UIDPLUS LITERAL+ APPENDLIMIT=64\r\n"
-			"A00000001 OK capability complete\r\n"
-		) - 1u,
+		Capability,
+		strlen(Capability),
 		pServer->Deadline
 	) && testImapAppendReceive(
 		pStream,
@@ -191,7 +191,7 @@ static int32 testImapAppendServer(ptr pData)
 
 
 /* 验证 APPEND 的流式字节约束、能力选择与完成结果。 */
-int main(void)
+static void testImapAppendRoundtrip(bool Unlimited)
 {
 	xnetengineconfig EngineConfig;
 	xnetresolverconfig ResolverConfig;
@@ -235,6 +235,7 @@ int main(void)
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Success = false;
+	Server.Unlimited = Unlimited;
 	pThread = xrtThreadCreate(testImapAppendServer, &Server, 0);
 	testRequire(pThread != NULL, "IMAP APPEND server thread creation failed");
 	xrtImapClientConfigInit(&ClientConfig);
@@ -245,11 +246,24 @@ int main(void)
 	pClient = xrtImapClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire((pClient != NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED) &&
-		(xrtImapClientAppendLimit(pClient) == UINT64_C(64)),
+		(xrtImapClientAppendLimit(pClient) == (Unlimited ? XIMAP_APPEND_LIMIT_UNKNOWN : UINT64_C(64))),
 		"IMAP APPEND client open failed");
 
 	xrtImapAppendConfigInit(&AppendConfig);
 	AppendConfig.Mailbox = XRT_STR_LITERAL("INBOX");
+	if ( Unlimited && SIZE_MAX > (uint64)INT64_MAX ) {
+		AppendConfig.Size = (size_t)((uint64)INT64_MAX + UINT64_C(1));
+		AppendConfig.Literal = XIMAP_LITERAL_NONSYNC;
+		xrtClearError();
+		bool Started = xrtImapClientAppendBegin(pClient, &AppendConfig, Deadline, NULL);
+		printf("[diagnostic] APPEND above-63 started=%d kind=%d state=%d remaining=%zu\n", (int)Started,
+			(int)xrtErrorKind(xrtGetError()), (int)xrtImapClientState(pClient), xrtImapClientAppendRemaining(pClient));
+		testRequire(!Started &&
+			xrtErrorKind(xrtGetError()) == XERR_RANGE && xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED &&
+			xrtImapClientAppendRemaining(pClient) == 0, "IMAP APPEND accepted a size above 63 bits without a server limit");
+		xrtClearError();
+		puts("[PASS] APPEND 63-bit rejection before wire");
+	}
 	AppendConfig.Flags = XRT_STR_LITERAL("(\\Seen)");
 	AppendConfig.InternalDate = XRT_STR_LITERAL("16-Aug-2026 12:00:00 +0800");
 	AppendConfig.Size = 11u;
@@ -292,6 +306,7 @@ int main(void)
 	xrtImapAppendConfigInit(&AppendConfig);
 	AppendConfig.Mailbox = XRT_STR_LITERAL("Drafts");
 	AppendConfig.Size = 5u;
+	AppendConfig.Literal = XIMAP_LITERAL_NONSYNC;
 	testRequire(xrtImapClientAppend(
 		pClient,
 		&AppendConfig,
@@ -301,16 +316,13 @@ int main(void)
 		NULL
 	) && !Result.Present, "non-synchronizing IMAP APPEND failed");
 
-	AppendConfig.Size = 65u;
-	xrtClearError();
-	testRequire(!xrtImapClientAppendBegin(
-		pClient,
-		&AppendConfig,
-		Deadline,
-		NULL
-	) && (xrtErrorKind(xrtGetError()) == XERR_RANGE) &&
-		(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED),
-		"IMAP APPENDLIMIT did not reject before upload");
+	if ( !Unlimited ) {
+		AppendConfig.Size = 65u;
+		xrtClearError();
+		testRequire(!xrtImapClientAppendBegin(pClient, &AppendConfig, Deadline, NULL) &&
+			xrtErrorKind(xrtGetError()) == XERR_RANGE && xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED,
+			"IMAP APPENDLIMIT did not reject before upload");
+	}
 	xrtClearError();
 	testRequire(xrtImapClientLogout(pClient, Deadline, NULL),
 		"IMAP APPEND logout failed");
@@ -331,5 +343,18 @@ int main(void)
 		"IMAP APPEND resolver destroy failed");
 	testRequire(xrtNetEngineDestroy(pEngine),
 		"IMAP APPEND engine destroy failed");
+	printf("[PASS] APPEND %s transcript and cleanup\n", Unlimited ? "unlimited" : "limited");
+}
+
+int main(int argc, char** argv)
+{
+	if ( argc == 2 ) {
+		testRequire(strcmp(argv[1], "--unlimited") == 0, "APPEND runtime usage: [--unlimited]");
+		testImapAppendRoundtrip(true);
+	} else {
+		testRequire(argc == 1, "APPEND runtime usage: [--unlimited]");
+		testImapAppendRoundtrip(false);
+		testImapAppendRoundtrip(true);
+	}
 	return 0;
 }

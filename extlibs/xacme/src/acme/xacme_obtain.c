@@ -114,7 +114,10 @@ Done:
 	xrtFree(sStoredAccountPem);
 	if(pClient != NULL)
 	{
-		xrtAcmeClientDestroy(pClient);
+		/* 此临时客户端不会交付调用者；回滚单独留出退休预算。 */
+		if(pClient->Http.uTimeoutUs < UINT64_C(30000000))
+			pClient->Http.uTimeoutUs = UINT64_C(30000000);
+		xacmeClientDiscard(pClient);
 	}
 	if(!bResult)
 	{

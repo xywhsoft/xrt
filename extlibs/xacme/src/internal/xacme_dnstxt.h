@@ -33,11 +33,14 @@ XRT_EXTERN_C_BEGIN
 
 /* pBorrowedEngine 为空时自建引擎。 */
 bool xacmeDnsInit(xacmedns* pDns, struct xnetengine* pBorrowedEngine);
-void xacmeDnsUnit(xacmedns* pDns);
+/* 等待私有引擎退休（最多 30 秒）；false 保留拥有者供重试。
+ * 借用引擎不停止；调用前诊断保留。Init 失败后也须清理非空实例。 */
+bool xacmeDnsUnit(xacmedns* pDns);
 
 /*
 	一次 TXT 查询。记录值拷入调用方数组（每元素 XACME_TXT_RECORD_MAX
-	字节），无记录时成功且计数为零。失败设置线程错误。
+	字节），无记录时成功且计数为零。失败设置线程错误，非空输出计数
+	清零；分配失败保留原 MEMORY 诊断，不再重发。
 	sResolver 为 IP 字面量（v1 不解析解析器域名）。
 */
 bool xacmeDnsTxtQuery(
@@ -54,6 +57,7 @@ bool xacmeDnsTxtQuery(
 	解析完整 DNS 响应报文为 TXT 记录集合（不可信网络输入的唯一
 	消化口，fuzz 目标）。QR 位缺失/结构损坏 → false；RCODE 非零
 	→ true 且零记录。每条记录严格小于 XACME_TXT_RECORD_MAX。
+	输出计数必须非空；失败时不发布部分记录计数。
 */
 bool xacmeTxtParseResponse(
 	const uint8* pData,

@@ -564,6 +564,16 @@
 #endif
 #endif
 
+/* process_open 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_OPEN)
+#ifndef XRT_FEATURE_PROCESS_OPEN
+#define XRT_FEATURE_PROCESS_OPEN
+#endif
+#ifndef XRT_MODULE_PROCESS
+#define XRT_MODULE_PROCESS
+#endif
+#endif
+
 /* process_run 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_RUN)
 #ifndef XRT_FEATURE_PROCESS_RUN
@@ -577,16 +587,6 @@
 #endif
 #ifndef XRT_MODULE_CANCEL
 #define XRT_MODULE_CANCEL
-#endif
-#endif
-
-/* process_open 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_PROCESS_OPEN)
-#ifndef XRT_FEATURE_PROCESS_OPEN
-#define XRT_FEATURE_PROCESS_OPEN
-#endif
-#ifndef XRT_MODULE_PROCESS
-#define XRT_MODULE_PROCESS
 #endif
 #endif
 
@@ -821,6 +821,51 @@
 #endif
 #endif
 
+/* console_terminal 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_TERMINAL)
+#ifndef XRT_FEATURE_CONSOLE_TERMINAL
+#define XRT_FEATURE_CONSOLE_TERMINAL
+#endif
+#ifndef XRT_MODULE_CONSOLE_SCREEN
+#define XRT_MODULE_CONSOLE_SCREEN
+#endif
+#ifndef XRT_MODULE_IO_STANDARD
+#define XRT_MODULE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#ifndef XRT_MODULE_THREAD
+#define XRT_MODULE_THREAD
+#endif
+#endif
+
+/* console_screen 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_SCREEN)
+#ifndef XRT_FEATURE_CONSOLE_SCREEN
+#define XRT_FEATURE_CONSOLE_SCREEN
+#endif
+#ifndef XRT_MODULE_CONSOLE
+#define XRT_MODULE_CONSOLE
+#endif
+#endif
+
+/* console_input 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE_INPUT)
+#ifndef XRT_FEATURE_CONSOLE_INPUT
+#define XRT_FEATURE_CONSOLE_INPUT
+#endif
+#ifndef XRT_MODULE_CONSOLE
+#define XRT_MODULE_CONSOLE
+#endif
+#ifndef XRT_MODULE_IO_STANDARD
+#define XRT_MODULE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
 /* console 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CONSOLE)
 #ifndef XRT_FEATURE_CONSOLE
@@ -915,62 +960,62 @@
 #endif
 #endif
 
-/* xsonl 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL)
-#ifndef XRT_FEATURE_XSONL
-#define XRT_FEATURE_XSONL
+/* xlonl 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL)
+#ifndef XRT_FEATURE_XLONL
+#define XRT_FEATURE_XLONL
 #endif
-#ifndef XRT_MODULE_XSONL_FILE
-#define XRT_MODULE_XSONL_FILE
+#ifndef XRT_MODULE_XLONL_FILE
+#define XRT_MODULE_XLONL_FILE
 #endif
 #endif
 
-/* xsonl_file 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_FILE)
-#ifndef XRT_FEATURE_XSONL_FILE
-#define XRT_FEATURE_XSONL_FILE
+/* xlonl_file 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_FILE)
+#ifndef XRT_FEATURE_XLONL_FILE
+#define XRT_FEATURE_XLONL_FILE
 #endif
-#ifndef XRT_MODULE_XSONL_READ
-#define XRT_MODULE_XSONL_READ
+#ifndef XRT_MODULE_XLONL_READ
+#define XRT_MODULE_XLONL_READ
 #endif
-#ifndef XRT_MODULE_XSONL_WRITE
-#define XRT_MODULE_XSONL_WRITE
+#ifndef XRT_MODULE_XLONL_WRITE
+#define XRT_MODULE_XLONL_WRITE
 #endif
 #ifndef XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_FILE_WHOLE
 #endif
 #endif
 
-/* xsonl_write 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_WRITE)
-#ifndef XRT_FEATURE_XSONL_WRITE
-#define XRT_FEATURE_XSONL_WRITE
+/* xlonl_write 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_WRITE)
+#ifndef XRT_FEATURE_XLONL_WRITE
+#define XRT_FEATURE_XLONL_WRITE
 #endif
-#ifndef XRT_MODULE_XSONL_CORE
-#define XRT_MODULE_XSONL_CORE
+#ifndef XRT_MODULE_XLONL_CORE
+#define XRT_MODULE_XLONL_CORE
 #endif
-#ifndef XRT_MODULE_XSON_WRITE
-#define XRT_MODULE_XSON_WRITE
-#endif
-#endif
-
-/* xsonl_read 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_READ)
-#ifndef XRT_FEATURE_XSONL_READ
-#define XRT_FEATURE_XSONL_READ
-#endif
-#ifndef XRT_MODULE_XSONL_CORE
-#define XRT_MODULE_XSONL_CORE
-#endif
-#ifndef XRT_MODULE_XSON_READ
-#define XRT_MODULE_XSON_READ
+#ifndef XRT_MODULE_XLON_WRITE
+#define XRT_MODULE_XLON_WRITE
 #endif
 #endif
 
-/* xsonl_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSONL_CORE)
-#ifndef XRT_FEATURE_XSONL_CORE
-#define XRT_FEATURE_XSONL_CORE
+/* xlonl_read 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_READ)
+#ifndef XRT_FEATURE_XLONL_READ
+#define XRT_FEATURE_XLONL_READ
+#endif
+#ifndef XRT_MODULE_XLONL_CORE
+#define XRT_MODULE_XLONL_CORE
+#endif
+#ifndef XRT_MODULE_XLON_READ
+#define XRT_MODULE_XLON_READ
+#endif
+#endif
+
+/* xlonl_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLONL_CORE)
+#ifndef XRT_FEATURE_XLONL_CORE
+#define XRT_FEATURE_XLONL_CORE
 #endif
 #endif
 
@@ -1033,39 +1078,39 @@
 #endif
 #endif
 
-/* xson 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON)
-#ifndef XRT_FEATURE_XSON
-#define XRT_FEATURE_XSON
+/* xlon 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON)
+#ifndef XRT_FEATURE_XLON
+#define XRT_FEATURE_XLON
 #endif
-#ifndef XRT_MODULE_XSON_FILE
-#define XRT_MODULE_XSON_FILE
+#ifndef XRT_MODULE_XLON_FILE
+#define XRT_MODULE_XLON_FILE
 #endif
 #endif
 
-/* xson_file 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_FILE)
-#ifndef XRT_FEATURE_XSON_FILE
-#define XRT_FEATURE_XSON_FILE
+/* xlon_file 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_FILE)
+#ifndef XRT_FEATURE_XLON_FILE
+#define XRT_FEATURE_XLON_FILE
 #endif
-#ifndef XRT_MODULE_XSON_READ
-#define XRT_MODULE_XSON_READ
+#ifndef XRT_MODULE_XLON_READ
+#define XRT_MODULE_XLON_READ
 #endif
-#ifndef XRT_MODULE_XSON_WRITE
-#define XRT_MODULE_XSON_WRITE
+#ifndef XRT_MODULE_XLON_WRITE
+#define XRT_MODULE_XLON_WRITE
 #endif
 #ifndef XRT_MODULE_FILE_WHOLE
 #define XRT_MODULE_FILE_WHOLE
 #endif
 #endif
 
-/* xson_write 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_WRITE)
-#ifndef XRT_FEATURE_XSON_WRITE
-#define XRT_FEATURE_XSON_WRITE
+/* xlon_write 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_WRITE)
+#ifndef XRT_FEATURE_XLON_WRITE
+#define XRT_FEATURE_XLON_WRITE
 #endif
-#ifndef XRT_MODULE_XSON_CORE
-#define XRT_MODULE_XSON_CORE
+#ifndef XRT_MODULE_XLON_CORE
+#define XRT_MODULE_XLON_CORE
 #endif
 #ifndef XRT_MODULE_JSON_ESCAPE
 #define XRT_MODULE_JSON_ESCAPE
@@ -1093,13 +1138,13 @@
 #endif
 #endif
 
-/* xson_read 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_READ)
-#ifndef XRT_FEATURE_XSON_READ
-#define XRT_FEATURE_XSON_READ
+/* xlon_read 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_READ)
+#ifndef XRT_FEATURE_XLON_READ
+#define XRT_FEATURE_XLON_READ
 #endif
-#ifndef XRT_MODULE_XSON_CORE
-#define XRT_MODULE_XSON_CORE
+#ifndef XRT_MODULE_XLON_CORE
+#define XRT_MODULE_XLON_CORE
 #endif
 #ifndef XRT_MODULE_BUFFER
 #define XRT_MODULE_BUFFER
@@ -1124,10 +1169,10 @@
 #endif
 #endif
 
-/* xson_core 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XSON_CORE)
-#ifndef XRT_FEATURE_XSON_CORE
-#define XRT_FEATURE_XSON_CORE
+/* xlon_core 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_XLON_CORE)
+#ifndef XRT_FEATURE_XLON_CORE
+#define XRT_FEATURE_XLON_CORE
 #endif
 #endif
 
@@ -1231,6 +1276,19 @@
 #endif
 #endif
 
+/* io_standard 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_IO_STANDARD)
+#ifndef XRT_FEATURE_IO_STANDARD
+#define XRT_FEATURE_IO_STANDARD
+#endif
+#ifndef XRT_MODULE_IO
+#define XRT_MODULE_IO
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#endif
+
 /* io_line 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_IO_LINE)
 #ifndef XRT_FEATURE_IO_LINE
@@ -1304,6 +1362,32 @@
 #endif
 #endif
 
+/* vfs_pack 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS_PACK)
+#ifndef XRT_FEATURE_VFS_PACK
+#define XRT_FEATURE_VFS_PACK
+#endif
+#ifndef XRT_MODULE_VFS
+#define XRT_MODULE_VFS
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
+#endif
+#endif
+
+/* vfs_disk 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS_DISK)
+#ifndef XRT_FEATURE_VFS_DISK
+#define XRT_FEATURE_VFS_DISK
+#endif
+#ifndef XRT_MODULE_VFS
+#define XRT_MODULE_VFS
+#endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
+#endif
+#endif
+
 /* file_root 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_FILE_ROOT)
 #ifndef XRT_FEATURE_FILE_ROOT
@@ -1311,6 +1395,35 @@
 #endif
 #ifndef XRT_MODULE_FILE_LINK
 #define XRT_MODULE_FILE_LINK
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#endif
+
+/* vfs_memory 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS_MEMORY)
+#ifndef XRT_FEATURE_VFS_MEMORY
+#define XRT_FEATURE_VFS_MEMORY
+#endif
+#ifndef XRT_MODULE_VFS
+#define XRT_MODULE_VFS
+#endif
+#endif
+
+/* vfs 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_VFS)
+#ifndef XRT_FEATURE_VFS
+#define XRT_FEATURE_VFS
+#endif
+#ifndef XRT_MODULE_DIR
+#define XRT_MODULE_DIR
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#ifndef XRT_MODULE_UNICODE
+#define XRT_MODULE_UNICODE
 #endif
 #endif
 
@@ -7129,6 +7242,25 @@ typedef struct xfutureproducerownershipv1 {
 	void (*Drop)(const void* pProducer);
 } xfutureproducerownershipv1;
 
+/* Optional explicit cooperative-cancellation capability of the SAME producer
+ * node. No Watch, hidden reference or additional graph edge is created.
+ * Both descriptors are immutable resident code for the full Future lifetime.
+ * Retain executes under the Future lock/mutation: it must only acquire one
+ * real producer reference, never call back into a Future, invoke semantic
+ * code, allocate, wait for work/callbacks or release a last reference.
+ * Request executes outside
+ * this API's lock/mutation with that real reference; it may wake accepted
+ * work, but must not execute language CFG inline or invent a terminal result.
+ * The ownership policy Drop returns the acquired reference afterwards.
+ * A caller-owned enclosing scope is never suspended. Request must be called
+ * outside such a scope if its producer may synchronize callback retirement.
+ * This capability does not admit the producer or its children for collection. */
+typedef struct xfutureproducercancellationv1 {
+	size_t size;
+	bool (*Retain)(const void* pProducer);
+	void (*Request)(const void* pProducer);
+} xfutureproducercancellationv1;
+
 /* A registered Watch owns exactly ONE Data node reference, returned by Release.
  * Immutable resident callbacks coordinate their own activity and code lifetime;
  * Ops describes that same physical node, not a synthetic watch leaf. The core
@@ -7191,6 +7323,15 @@ XRT_API xpromise* xrtPromiseCreate(xfuture** ppFuture, xcancel* pParentCancel);
  * is never suspended. A trace-only or unknown policy is not collection proof. */
 XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
 	const xfutureproducerownershipv1* pPolicy);
+
+/* Same bind-once/private-pair/transfer rules as V1. The cancellation capability
+ * belongs to that exact producer. xrtFutureCancel requests its output token,
+ * then calls Request only for the first accepted explicit request. Terminal
+ * publication may race Request; the independently retained producer decides
+ * whether any activation remains. Merely dropping an observer still does not
+ * cancel work. Raw token requests and PromiseClose are not routed through it. */
+XRT_API bool xrtPromiseProducerBindTakeV2(xpromise* pPromise, xrtownershipref Producer,
+	const xfutureproducerownershipv1* pPolicy, const xfutureproducercancellationv1* pCancellation);
 
 
 
@@ -7483,7 +7624,8 @@ XRT_API xfuture* xrtFutureAll(xfuture* const* pFutures, size_t iCount);
 
 
 
-/* 在任一源进入终态后完成，并向其余未完成源发出协作取消请求。 */
+/* 在任一源进入终态后完成，并向其余未完成源发出协作取消请求。
+ * 取消请求在结果映射/发布之前完成；这不强制改变败者的终态。 */
 XRT_API xfuture* xrtFutureRace(xfuture* const* pFutures, size_t iCount);
 
 /* Synchronous result mapping is part of the aggregate's activation, not a
@@ -13256,6 +13398,26 @@ XRT_API bool xrtValueObjectIdentityBindV1(xvalue* pObject, xvalueidentityhash pH
 	xvalueidentityequal pEqual, const xvalueobjectownershipv1* pExpectedPolicy);
 XRT_API const xrtownershipadapterv1* xrtValueObjectOwnershipAdapterV1(
 	xrtownershipref Reference, const xvalueobjectownershipv1* pExpectedPolicy);
+/* Borrowed discovery anchors for this instance's live, explicitly certified
+ * Object backings. Policy identity is exact; COW/deep-clone backings are each
+ * visited once, with their shared Lifetime UserData (possibly NULL). Ordinary
+ * objects and other policies are not enrolled. Enrollment/removal allocates
+ * nothing and changes NO reference count or owning graph edge.
+ *
+ * Caller holds exclusive whole-domain Freeze throughout enumeration and the
+ * subsequent snapshot/pin transaction. Visitor must remain read-only: it may
+ * collect/filter anchors, but must not mutate/release nodes or invoke their
+ * callbacks. Anchors are NOT internal slots and must never be subtracted from
+ * StrongCount. They are not pins, roots, reverse strong edges or unload proof.
+ * A running/finalizing backing may be discovered but must still be refused by
+ * snapshot admission; discovery is not lifecycle certification. Clear removes
+ * enrollment before Lifetime context retirement. false stops enumeration;
+ * prior visitor effects are not rolled back, so discard partial anchor lists.
+ * This is internal collector support, not automatic cycle collection. */
+typedef bool (*xvalueobjectownershipdiscoverv1)(xrtownershipref Reference,
+	const void* pLifetimeContext, ptr pContext);
+XRT_API bool xrtValueObjectOwnershipDiscoverV1(const xvalueobjectownershipv1* pExpectedPolicy,
+	xvalueobjectownershipdiscoverv1 pVisit, ptr pContext);
 /* Authorize a known resident Handle bridge, before any policy callback. The
  * expected immutable Ops/Trace must cover the complete coordinated payload;
  * identity hooks and non-NULL UserData are independently refused. This does
@@ -15540,6 +15702,14 @@ XRT_API str xrtUIntFormat(uint64 iValue, xstrview Format);
 /* 格式化 double 并返回由 xrtFree 释放的零结尾字符串。 */
 XRT_API str xrtNumFormat(double fValue, xstrview Format);
 
+/* Exact-size owned results, including U+0000 for integer character format.
+ * pOutputSize is required and must not overlap Format. Ordinary failure sets
+ * it to zero; invalid output-slot aliasing leaves the input unchanged.
+ * Successful Data is zero-terminated but Size excludes that terminator. */
+XRT_API str xrtIntFormatSized(int64 iValue, xstrview Format, size_t* pOutputSize);
+XRT_API str xrtUIntFormatSized(uint64 iValue, xstrview Format, size_t* pOutputSize);
+XRT_API str xrtNumFormatSized(double fValue, xstrview Format, size_t* pOutputSize);
+
 #endif
 
 
@@ -15969,6 +16139,16 @@ XRT_API str xrtUtf8PadRight(xstrview Text, size_t iWidth, xstrview Fill);
 /* 按 Unicode 标量宽度在两侧重复填充严格 UTF-8 文本。 */
 XRT_API str xrtUtf8PadCenter(xstrview Text, size_t iWidth, xstrview Fill);
 
+/* 与上述填充函数共用实现，交付包含内嵌 NUL 的精确结果字节数。
+ * pOutputSize 可为 NULL；普通失败清零。输出指针不得重叠输入字节区域，
+ * 拒绝重叠时保持输入和输出原值。结果由 xrtFree 释放。 */
+XRT_API str xrtUtf8PadLeftSized(xstrview Text, size_t iWidth,
+	xstrview Fill, size_t* pOutputSize);
+XRT_API str xrtUtf8PadRightSized(xstrview Text, size_t iWidth,
+	xstrview Fill, size_t* pOutputSize);
+XRT_API str xrtUtf8PadCenterSized(xstrview Text, size_t iWidth,
+	xstrview Fill, size_t* pOutputSize);
+
 
 
 /* 按 Unicode 标量反转严格 UTF-8 文本到调用方缓冲区；允许原地反转。 */
@@ -16335,6 +16515,11 @@ XRT_API str xrtStrConcat(xstrview Left, xstrview Right);
 /* 使用分隔符连接一组字符串视图。 */
 XRT_API str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCount);
 
+/* 共用连接实现，交付精确结果字节数（不含末尾零）。普通失败清零；
+ * 输出槽不得重叠分隔符、视图表或任意输入字节，别名拒绝时不改槽。 */
+XRT_API str xrtStrJoinSized(xstrview Separator, const xstrview* arrText,
+	size_t iCount, size_t* pOutputSize);
+
 
 
 /* 重复字符串指定次数。 */
@@ -16344,6 +16529,14 @@ XRT_API str xrtStrRepeat(xstrview Text, size_t iCount);
 
 /* 替换所有不重叠子串。 */
 XRT_API str xrtStrReplace(xstrview Text, xstrview Part, xstrview Replacement);
+
+
+
+/* 替换所有不重叠子串并返回精确字节长度（不含终止 NUL）。
+ * pOutputSize 可为 NULL；失败时非空输出长度清零，结果由 xrtFree 释放。
+ * 输出长度指针必须与所有输入字节区域不重叠；拒绝重叠时不写输出指针。 */
+XRT_API str xrtStrReplaceSized(xstrview Text, xstrview Part,
+	xstrview Replacement, size_t* pOutputSize);
 
 
 
@@ -17031,8 +17224,9 @@ XRT_EXTERN_C_END
 #endif
 
 #if defined(XRT_FEATURE_FILE_ROOT) && \
-	(!defined(XRT_FEATURE_FILE) || !defined(XRT_FEATURE_FILE_LINK))
-	#error "XRT file roots require file and file-link support"
+	(!defined(XRT_FEATURE_FILE) || !defined(XRT_FEATURE_FILE_LINK) || \
+	 !defined(XRT_FEATURE_DIR))
+	#error "XRT file roots require file, file-link, and directory support"
 #endif
 
 #if defined(XRT_FEATURE_FILE_FIFO) && !defined(XRT_FEATURE_FILE)
@@ -17172,6 +17366,23 @@ typedef struct xfileinfo {
 	xtime Created;
 	xtime Changed;
 } xfileinfo;
+
+/* Structural backend capabilities filtered by the handle's access/mode.
+ * A bit does not guarantee a particular range, filesystem object or option.
+ * Native-control permits requesting native locks/maps; it is not a handle. */
+typedef enum xfilecapability {
+    XFILE_CAP_READ = 0x001,
+    XFILE_CAP_WRITE = 0x002,
+    XFILE_CAP_READ_AT = 0x004,
+    XFILE_CAP_WRITE_AT = 0x008,
+    XFILE_CAP_SEEK = 0x010,
+    XFILE_CAP_STAT = 0x020,
+    XFILE_CAP_RESIZE = 0x040,
+    XFILE_CAP_FLUSH = 0x080,
+    XFILE_CAP_NATIVE = 0x100,
+    XFILE_CAP_NATIVE_CONTROL = 0x200,
+    XFILE_CAP_ASYNC_BIND = 0x400
+} xfilecapability;
 
 
 
@@ -17564,6 +17775,10 @@ XRT_API bool xrtFlush(xfile File);
 /* 返回打开文件经过验证的标志；失败返回 0。 */
 XRT_API uint32 xrtFileFlags(xfile File);
 
+/* Zero-allocation capability query; NULL is an error, not an empty mask.
+ * Async-only handles suppress synchronous operations but retain metadata. */
+XRT_API uint64 xrtFileCapabilities(xfile File);
+
 
 
 /* 返回 HANDLE 或文件描述符的整数表示；失败返回 -1。 */
@@ -17619,6 +17834,14 @@ XRT_API bool xrtPathRename(cstr sSource, cstr sTarget, bool bReplace);
 
 /* 删除一个非目录文件或链接。 */
 XRT_API bool xrtFileDelete(cstr sPath);
+
+/* Remove an open native non-directory file without allocating on success.
+ * The caller retains File and must close it. Windows marks the opened object
+ * for deletion on last close; sPath is the POSIX name to unlink. POSIX checks
+ * device/inode before unlink, but the caller must serialize namespace changes.
+ * A missing POSIX name is success; a replaced name is never knowingly removed.
+ * Virtual files are unsupported. */
+XRT_API bool xrtFileDeleteOpen(xfile File, cstr sPath);
 
 
 
@@ -17725,6 +17948,11 @@ XRT_API bool xrtRootStat(xroot Root, cstr sPath,
 
 
 
+/* 从锚定目录句柄打开根内目录迭代器，不重新按诊断路径查找。 */
+XRT_API xdir xrtRootDirOpen(xroot Root, cstr sPath, uint32 iFlags);
+
+
+
 /* 在根内创建一个目录；POSIX 使用显式模式，Windows 接受但忽略模式。 */
 XRT_API bool xrtRootDirCreate(xroot Root, cstr sPath, uint32 iMode);
 
@@ -17756,7 +17984,8 @@ XRT_API bool xrtRootFifoCreate(xroot Root, cstr sPath, uint32 iMode);
 
 
 
-/* 在根内设置对象权限；跟随链接时仍由根解析器阻止越界。 */
+/* 在根内设置 POSIX 对象权限；Windows 返回 XERR_UNSUPPORTED。
+ * 跟随链接时仍由根解析器阻止越界。 */
 XRT_API bool xrtRootSetMode(xroot Root, cstr sPath,
 	bool bFollowLink, uint32 iMode);
 
@@ -36371,6 +36600,387 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: include/xrt/vfs.h */
+/* ========================================================================== */
+
+#ifndef XRT_VFS_H
+#define XRT_VFS_H
+
+
+
+
+#if defined(XRT_FEATURE_VFS) && \
+	(!defined(XRT_FEATURE_DIR) || !defined(XRT_FEATURE_MUTEX) || \
+	 !defined(XRT_FEATURE_UNICODE))
+	#error "XRT VFS requires directory, mutex, and Unicode support"
+#endif
+
+#if defined(XRT_FEATURE_VFS_MEMORY) && !defined(XRT_FEATURE_VFS)
+	#error "XRT memory VFS provider requires VFS support"
+#endif
+
+#if defined(XRT_FEATURE_VFS_DISK) && \
+	(!defined(XRT_FEATURE_VFS) || !defined(XRT_FEATURE_FILE_ROOT))
+	#error "XRT disk VFS provider requires VFS and file-root support"
+#endif
+
+#if defined(XRT_FEATURE_VFS_PACK) && \
+	(!defined(XRT_FEATURE_VFS) || !defined(XRT_FEATURE_COND))
+	#error "XRT pack VFS provider requires VFS and condition-variable support"
+#endif
+
+
+
+#define XRT_VFS_PATH_MAX 32768u
+#define XRT_VFS_PROVIDER_VERSION 1u
+#define XRT_VFS_FILE_OPS_VERSION 1u
+#define XRT_VFS_DIR_OPS_VERSION 1u
+#define XRT_VFS_PACK_OPTIONS_VERSION 1u
+
+#define XRT_VFS_PACK_MAX_ENTRIES_DEFAULT 100000u
+#define XRT_VFS_PACK_MAX_INDEX_BYTES_DEFAULT UINT64_C(67108864)
+#define XRT_VFS_PACK_MAX_ENTRY_BYTES_DEFAULT UINT64_C(1073741824)
+#define XRT_VFS_PACK_MAX_DECODED_BYTES_DEFAULT UINT64_C(8589934592)
+#define XRT_VFS_PACK_CACHE_BYTES_DEFAULT UINT64_C(67108864)
+
+
+
+#if defined(XRT_FEATURE_VFS)
+
+typedef struct xvfs_impl* xvfs;
+typedef struct xvfs_mount_impl* xvfsmount;
+
+#if defined(XRT_FEATURE_VFS_MEMORY)
+typedef struct xvfs_memory_impl* xvfsmemory;
+#endif
+
+#if defined(XRT_FEATURE_VFS_DISK)
+typedef struct xvfs_disk_impl* xvfsdisk;
+#endif
+
+#if defined(XRT_FEATURE_VFS_PACK)
+typedef struct xvfs_pack_impl* xvfspack;
+#endif
+
+
+
+/* Provider lookup 明确区分资源不存在和不可回退的访问失败。 */
+typedef enum xvfslookup {
+	XVFS_LOOKUP_ERROR = -1,
+	XVFS_LOOKUP_MISS = 0,
+	XVFS_LOOKUP_OPENED = 1
+} xvfslookup;
+
+
+
+/* 每个 mount 显式声明大小写策略；v1 只折叠 ASCII A-Z。 */
+typedef enum xvfscase {
+	XVFS_CASE_SENSITIVE = 0,
+	XVFS_CASE_ASCII_INSENSITIVE = 1
+} xvfscase;
+
+
+
+#if defined(XRT_FEATURE_VFS_DISK)
+
+/* Disk provider 权限在 context 创建时冻结。 */
+typedef enum xvfsdiskaccess {
+	XVFS_DISK_READ = 0x01,
+	XVFS_DISK_WRITE = 0x02
+} xvfsdiskaccess;
+
+#define XVFS_DISK_ACCESS 0x03u
+
+#endif
+
+
+
+#if defined(XRT_FEATURE_VFS_PACK)
+
+/* AUTO 只按完整 header magic 选择格式，不把解析失败降级到另一格式。 */
+typedef enum xvfspackformat {
+	XVFS_PACK_AUTO = 0,
+	XVFS_PACK_XRT_V1 = 1,
+	XVFS_PACK_XSVPACK_V1 = 2
+} xvfspackformat;
+
+
+
+/* 新格式和旧 XSVPACK v1 使用相同的逐条 codec 编号。 */
+typedef enum xvfspackcodec {
+	XVFS_PACK_STORE = 0,
+	XVFS_PACK_LZMA1 = 1
+} xvfspackcodec;
+
+
+
+/* 非零解析限制是硬上限；CacheBytes 为零表示验证后不保留 cache 引用。 */
+typedef struct xvfspackoptions {
+	uint32 Size;
+	uint32 Version;
+	xvfspackformat Format;
+	uint32 MaxEntries;
+	uint64 MaxIndexBytes;
+	uint64 MaxEntryBytes;
+	uint64 MaxDecodedBytes;
+	uint64 CacheBytes;
+} xvfspackoptions;
+
+
+
+/* 计数单调递增；ResidentBytes 是取样时 cache 持有的解压字节。 */
+typedef struct xvfspackstats {
+	uint64 Hits;
+	uint64 Misses;
+	uint64 Loads;
+	uint64 Failures;
+	uint64 ResidentBytes;
+	uint64 Evictions;
+} xvfspackstats;
+
+#endif
+
+
+
+/* xrt.vfs 错误域中的稳定错误代码。 */
+typedef enum xvfserror {
+	XVFS_ERROR_CREATE = 1,
+	XVFS_ERROR_PATH,
+	XVFS_ERROR_MOUNT,
+	XVFS_ERROR_UNMOUNT,
+	XVFS_ERROR_NOT_FOUND,
+	XVFS_ERROR_PROVIDER,
+	XVFS_ERROR_OPEN,
+	XVFS_ERROR_STAT,
+	XVFS_ERROR_DIRECTORY,
+	XVFS_ERROR_UNSUPPORTED,
+	XVFS_ERROR_LIMIT,
+	XVFS_ERROR_CORRUPT,
+	XVFS_ERROR_CHECKSUM
+} xvfserror;
+
+
+
+/* 文件能力位必须与对应回调严格一致。 */
+typedef enum xvfsfilecapability {
+	XVFS_FILE_READ = UINT64_C(0x00000001),
+	XVFS_FILE_WRITE = UINT64_C(0x00000002),
+	XVFS_FILE_READ_AT = UINT64_C(0x00000004),
+	XVFS_FILE_WRITE_AT = UINT64_C(0x00000008),
+	XVFS_FILE_SEEK = UINT64_C(0x00000010),
+	XVFS_FILE_STAT = UINT64_C(0x00000020),
+	XVFS_FILE_RESIZE = UINT64_C(0x00000040),
+	XVFS_FILE_FLUSH = UINT64_C(0x00000080)
+} xvfsfilecapability;
+
+#define XVFS_FILE_CAPABILITIES UINT64_C(0x000000ff)
+
+
+
+typedef struct xvfsfileops_v1 {
+	uint32 Size;
+	uint32 Version;
+	uint64 Capabilities;
+	bool (*Read)(void* pState, void* pBuffer,
+		size_t iRequest, size_t* pRead);
+	bool (*Write)(void* pState, const void* pBuffer,
+		size_t iRequest, size_t* pWritten);
+	bool (*ReadAt)(void* pState, uint64 iOffset, void* pBuffer,
+		size_t iRequest, size_t* pRead);
+	bool (*WriteAt)(void* pState, uint64 iOffset, const void* pBuffer,
+		size_t iRequest, size_t* pWritten);
+	bool (*Seek)(void* pState, int64 iOffset,
+		xseek Origin, uint64* pPosition);
+	bool (*Stat)(void* pState, xfileinfo* pInfo);
+	bool (*Resize)(void* pState, uint64 iSize);
+	bool (*Flush)(void* pState);
+	void (*Close)(void* pState);
+} xvfsfileops_v1;
+
+
+
+/* OPENED 把 State 所有权转移给 VFS；MISS 和 ERROR 必须保持全零。 */
+typedef struct xvfsfile_v1 {
+	const xvfsfileops_v1* Ops;
+	void* State;
+	uint32 Flags;
+	uint32 Reserved;
+} xvfsfile_v1;
+
+
+
+typedef struct xvfsdirops_v1 {
+	uint32 Size;
+	uint32 Version;
+	bool (*Next)(void* pState, xdirentry* pEntry, bool* pEnd);
+	void (*Close)(void* pState);
+} xvfsdirops_v1;
+
+
+
+/* OPENED 把 State 所有权转移给 VFS；MISS 和 ERROR 必须保持全零。 */
+typedef struct xvfsdir_v1 {
+	const xvfsdirops_v1* Ops;
+	void* State;
+} xvfsdir_v1;
+
+
+
+typedef enum xvfsprovidercapability {
+	XVFS_PROVIDER_STAT = UINT64_C(0x00000001),
+	XVFS_PROVIDER_DIRECTORY = UINT64_C(0x00000002),
+	XVFS_PROVIDER_NATIVE_OPEN = UINT64_C(0x00000004)
+} xvfsprovidercapability;
+
+#define XVFS_PROVIDER_CAPABILITIES UINT64_C(0x00000007)
+
+
+
+typedef struct xvfsprovider_v1 {
+	uint32 Size;
+	uint32 Version;
+	uint64 Capabilities;
+	void (*ContextRetain)(void* pContext);
+	void (*ContextRelease)(void* pContext);
+	xvfslookup (*Open)(void* pContext, xvfscase CaseMode,
+		xstrview RelativePath,
+		const xfileoptions* pOptions, xvfsfile_v1* pFile);
+	xvfslookup (*Stat)(void* pContext, xvfscase CaseMode,
+		xstrview RelativePath,
+		bool bFollowLink, xfileinfo* pInfo);
+	xvfslookup (*DirOpen)(void* pContext, xvfscase CaseMode,
+		xstrview RelativePath,
+		uint32 iFlags, xvfsdir_v1* pDir);
+	/* 可选尾字段；仅在声明 NATIVE_OPEN 时使用并直接转移 xfile 所有权。 */
+	xvfslookup (*OpenNative)(void* pContext, xvfscase CaseMode,
+		xstrview RelativePath,
+		const xfileoptions* pOptions, xfile* pFile);
+} xvfsprovider_v1;
+
+
+
+XRT_EXTERN_C_BEGIN
+
+/* 创建一个初始 mount snapshot 为空的隔离命名空间。 */
+XRT_API xvfs xrtVfsCreate(void);
+
+/* 增加一个命名空间 owned reference。 */
+XRT_API void xrtVfsRef(xvfs Vfs);
+
+/* 释放一个命名空间 reference。 */
+XRT_API void xrtVfsDestroy(xvfs Vfs);
+
+/* 在规范虚拟 prefix 上发布一个 provider generation。 */
+XRT_API xvfsmount xrtVfsMount(xvfs Vfs, cstr sVirtualPrefix,
+	int32 iPriority, xvfscase CaseMode,
+	const xvfsprovider_v1* pProvider, void* pProviderContext,
+	uint32 iFlags);
+
+/* 增加或释放一个 mount 控制句柄 reference。 */
+XRT_API void xrtVfsMountRef(xvfsmount Mount);
+XRT_API void xrtVfsMountDestroy(xvfsmount Mount);
+
+/* 幂等地阻止新 lookup 选择这个 generation。 */
+XRT_API bool xrtVfsUnmount(xvfsmount Mount);
+
+/* 返回稳定、单调分配的 mount 标识。 */
+XRT_API uint64 xrtVfsMountId(xvfsmount Mount);
+
+/* 把一个规范绝对虚拟路径打开为普通 xfile。 */
+XRT_API xfile xrtVfsOpen(xvfs Vfs, cstr sVirtualPath,
+	const xfileoptions* pOptions);
+
+/* 查询一个规范绝对虚拟路径且不打开文件。 */
+XRT_API bool xrtVfsStat(xvfs Vfs, cstr sVirtualPath,
+	bool bFollowLink, xfileinfo* pInfo);
+
+/* 读取完整虚拟文件，并在 pSize 之外追加一个零字节。 */
+XRT_API bytes xrtVfsReadAll(xvfs Vfs, cstr sVirtualPath,
+	size_t* pSize);
+XRT_API bytes xrtVfsReadAllLimit(xvfs Vfs, cstr sVirtualPath,
+	size_t iLimit, size_t* pSize);
+
+/* 物化并合并所有可见 provider 条目，返回普通 xdir。 */
+XRT_API xdir xrtVfsDirOpen(xvfs Vfs, cstr sVirtualPath,
+	uint32 iFlags);
+
+#if defined(XRT_FEATURE_VFS_MEMORY)
+
+/* 创建可变的 memory provider 构建器。 */
+XRT_API xvfsmemory xrtVfsMemoryCreate(void);
+
+/* 增加或释放一个 memory provider reference。 */
+XRT_API void xrtVfsMemoryRef(xvfsmemory Memory);
+XRT_API void xrtVfsMemoryDestroy(xvfsmemory Memory);
+
+/* 复制文件数据；相对路径必须规范且不能为空。 */
+XRT_API bool xrtVfsMemoryPutCopy(xvfsmemory Memory,
+	cstr sRelativePath, const void* pData, size_t iSize);
+
+/* 成功时接管由 xrt 分配的缓冲，失败时调用方仍持有它。 */
+XRT_API bool xrtVfsMemoryPutOwned(xvfsmemory Memory,
+	cstr sRelativePath, bytes pData, size_t iSize);
+
+/* 原子构建不可变目录索引；重复调用成功，分配失败可直接重试。 */
+XRT_API bool xrtVfsMemorySeal(xvfsmemory Memory);
+
+/* 只允许挂载已经 seal 的 memory provider。 */
+XRT_API xvfsmount xrtVfsMemoryMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfsmemory Memory, uint32 iFlags);
+
+#endif
+
+#if defined(XRT_FEATURE_VFS_DISK)
+
+/* 打开并锚定物理目录；Access 至少包含一个已知权限位。 */
+XRT_API xvfsdisk xrtVfsDiskCreate(cstr sPhysicalRoot, uint32 iAccess);
+
+/* 增加或释放一个 disk provider reference。 */
+XRT_API void xrtVfsDiskRef(xvfsdisk Disk);
+XRT_API void xrtVfsDiskDestroy(xvfsdisk Disk);
+
+/* 挂载锚定目录；首版始终拒绝符号链接和 reparse point。 */
+XRT_API xvfsmount xrtVfsDiskMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfsdisk Disk, uint32 iFlags);
+
+#endif
+
+#if defined(XRT_FEATURE_VFS_PACK)
+
+/* 写入生产默认限制和 AUTO 格式。 */
+XRT_API void xrtVfsPackOptionsInit(xvfspackoptions* pOptions);
+
+/* 成功时接管 Source，失败时调用方仍持有；范围必须包含完整归档。 */
+XRT_API xvfspack xrtVfsPackCreate(xfile Source,
+	uint64 iOffset, uint64 iLength, const xvfspackoptions* pOptions);
+
+/* 增加或释放 pack provider reference；最后一个引用关闭 Source。 */
+XRT_API void xrtVfsPackRef(xvfspack Pack);
+XRT_API void xrtVfsPackDestroy(xvfspack Pack);
+
+/* 返回 Create 最终选择的明确格式。 */
+XRT_API xvfspackformat xrtVfsPackFormat(xvfspack Pack);
+
+/* 取得线程安全的缓存统计快照。 */
+XRT_API bool xrtVfsPackStats(xvfspack Pack, xvfspackstats* pStats);
+
+/* 挂载已经完整解析并验证索引的只读 pack。 */
+XRT_API xvfsmount xrtVfsPackMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfspack Pack, uint32 iFlags);
+
+#endif
+
+XRT_EXTERN_C_END
+
+#endif
+
+#endif
+
+
+/* ========================================================================== */
 /* public: include/xrt/list.h */
 /* ========================================================================== */
 
@@ -36587,6 +37197,10 @@ XRT_EXTERN_C_END
 	#error "XRT line readers require IO and buffer support"
 #endif
 
+#if defined(XRT_FEATURE_IO_STANDARD) && !defined(XRT_FEATURE_IO)
+	#error "XRT standard streams require IO support"
+#endif
+
 
 
 #if defined(XRT_FEATURE_IO)
@@ -36778,7 +37392,17 @@ XRT_API bool xrtReaderCopyN(
 
 
 
-/* 在硬上限内复制到 EOF；超限时消费一个探测字节并返回范围错误。 */
+/* 复制至多指定字节数；提前 EOF 成功，达到上限后不探测下一字节。 */
+XRT_API bool xrtReaderCopyUpTo(
+	xreader* pReader,
+	xwriter* pWriter,
+	uint64 iLimit,
+	uint64* pCopied
+);
+
+
+
+/* 在硬上限内复制到 EOF；超限时返回范围错误，探测字节由 Reader 留待下次读取。 */
 XRT_API bool xrtReaderCopyLimit(
 	xreader* pReader,
 	xwriter* pWriter,
@@ -36936,7 +37560,7 @@ XRT_API xwriter* xrtWriterFromBuffer(xbuffer* pBuffer);
 
 
 
-/* 在硬上限内读取到新 Buffer；超限时消费一个探测字节。 */
+/* 在硬上限内读取到新 Buffer；超限时探测字节由 Reader 留待下次读取。 */
 XRT_API xbuffer* xrtReaderReadAll(xreader* pReader, size_t iLimit);
 
 
@@ -36987,6 +37611,19 @@ XRT_API xwriter* xrtWriterOpen(cstr sPath);
 XRT_API xwriter* xrtWriterOpenAppend(cstr sPath);
 
 
+
+XRT_EXTERN_C_END
+
+#endif
+
+#if defined(XRT_FEATURE_IO_STANDARD)
+
+XRT_EXTERN_C_BEGIN
+
+/* 标准流适配器借用进程标准句柄；销毁适配器不会关闭标准句柄。 */
+XRT_API xreader* xrtReaderStdin(void);
+XRT_API xwriter* xrtWriterStdout(void);
+XRT_API xwriter* xrtWriterStderr(void);
 
 XRT_EXTERN_C_END
 
@@ -37135,128 +37772,128 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/xson.h */
+/* public: include/xrt/xlon.h */
 /* ========================================================================== */
 
-#ifndef XRT_XSON_H
-#define XRT_XSON_H
+#ifndef XRT_XLON_H
+#define XRT_XLON_H
 
 
 
 
-#if defined(XRT_FEATURE_XSON) && !defined(XRT_FEATURE_XSON_FILE)
-	#error "XRT_FEATURE_XSON requires XRT_FEATURE_XSON_FILE"
+#if defined(XRT_FEATURE_XLON) && !defined(XRT_FEATURE_XLON_FILE)
+	#error "XRT_FEATURE_XLON requires XRT_FEATURE_XLON_FILE"
 #endif
 
-#if (defined(XRT_FEATURE_XSON_READ) || defined(XRT_FEATURE_XSON_WRITE)) && \
-	!defined(XRT_FEATURE_XSON_CORE)
-	#error "XSON read and write features require XRT_FEATURE_XSON_CORE"
+#if (defined(XRT_FEATURE_XLON_READ) || defined(XRT_FEATURE_XLON_WRITE)) && \
+	!defined(XRT_FEATURE_XLON_CORE)
+	#error "XLON read and write features require XRT_FEATURE_XLON_CORE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_VALUE_CONTAINER)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_VALUE_CONTAINER"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_VALUE_CONTAINER)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_VALUE_CONTAINER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_BUFFER)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_BUFFER"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_BUFFER)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_BUFFER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_CODEC_BASE64)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_CODEC_BASE64"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_CODEC_BASE64)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_CODEC_BASE64"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_TIME_TEXT)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_TIME_TEXT"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_TIME_TEXT)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_TIME_TEXT"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_NUMBER_INTEGER)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_NUMBER_INTEGER"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_NUMBER_INTEGER)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_NUMBER_INTEGER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_NUMBER_FLOAT)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_NUMBER_FLOAT"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_NUMBER_FLOAT)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_NUMBER_FLOAT"
 #endif
 
-#if defined(XRT_FEATURE_XSON_READ) && !defined(XRT_FEATURE_UNICODE)
-	#error "XRT_FEATURE_XSON_READ requires XRT_FEATURE_UNICODE"
+#if defined(XRT_FEATURE_XLON_READ) && !defined(XRT_FEATURE_UNICODE)
+	#error "XRT_FEATURE_XLON_READ requires XRT_FEATURE_UNICODE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_VALUE_CONTAINER)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_VALUE_CONTAINER"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_VALUE_CONTAINER)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_VALUE_CONTAINER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_BUFFER)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_BUFFER"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_BUFFER)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_BUFFER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_CODEC_BASE64)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_CODEC_BASE64"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_CODEC_BASE64)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_CODEC_BASE64"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_TIME_TEXT)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_TIME_TEXT"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_TIME_TEXT)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_TIME_TEXT"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_NUMBER_INTEGER)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_NUMBER_INTEGER"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_NUMBER_INTEGER)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_NUMBER_INTEGER"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_NUMBER_FLOAT)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_NUMBER_FLOAT"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_NUMBER_FLOAT)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_NUMBER_FLOAT"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_UNICODE)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_UNICODE"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_UNICODE)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_UNICODE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_WRITE) && !defined(XRT_FEATURE_JSON_ESCAPE)
-	#error "XRT_FEATURE_XSON_WRITE requires XRT_FEATURE_JSON_ESCAPE"
+#if defined(XRT_FEATURE_XLON_WRITE) && !defined(XRT_FEATURE_JSON_ESCAPE)
+	#error "XRT_FEATURE_XLON_WRITE requires XRT_FEATURE_JSON_ESCAPE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_FILE) && !defined(XRT_FEATURE_FILE_WHOLE)
-	#error "XRT_FEATURE_XSON_FILE requires XRT_FEATURE_FILE_WHOLE"
+#if defined(XRT_FEATURE_XLON_FILE) && !defined(XRT_FEATURE_FILE_WHOLE)
+	#error "XRT_FEATURE_XLON_FILE requires XRT_FEATURE_FILE_WHOLE"
 #endif
 
-#if defined(XRT_FEATURE_XSON_FILE) && \
-	(!defined(XRT_FEATURE_XSON_READ) || !defined(XRT_FEATURE_XSON_WRITE))
-	#error "XRT_FEATURE_XSON_FILE requires XSON read and write features"
+#if defined(XRT_FEATURE_XLON_FILE) && \
+	(!defined(XRT_FEATURE_XLON_READ) || !defined(XRT_FEATURE_XLON_WRITE))
+	#error "XRT_FEATURE_XLON_FILE requires XLON read and write features"
 #endif
 
 
 
-#if defined(XRT_FEATURE_XSON_READ) || defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_READ) || defined(XRT_FEATURE_XLON_WRITE)
 
-#define XXSON_DEPTH_DEFAULT 256u
-#define XXSON_INPUT_DEFAULT (64u * 1024u * 1024u)
-#define XXSON_STRING_DEFAULT (16u * 1024u * 1024u)
-#define XXSON_VALUES_DEFAULT 1000000u
-#define XXSON_CONTAINER_DEFAULT 1000000u
-#define XXSON_DECODED_DEFAULT (64u * 1024u * 1024u)
+#define XXLON_DEPTH_DEFAULT 256u
+#define XXLON_INPUT_DEFAULT (64u * 1024u * 1024u)
+#define XXLON_STRING_DEFAULT (16u * 1024u * 1024u)
+#define XXLON_VALUES_DEFAULT 1000000u
+#define XXLON_CONTAINER_DEFAULT 1000000u
+#define XXLON_DECODED_DEFAULT (64u * 1024u * 1024u)
 
 
 
-/* XSON 模块错误码在 xrt.xson 域内保持稳定。 */
-typedef enum xxsonerror {
-	XXSON_ERROR_CONFIG = 1401,
-	XXSON_ERROR_SYNTAX,
-	XXSON_ERROR_LIMIT,
-	XXSON_ERROR_DUPLICATE,
-	XXSON_ERROR_NUMBER,
-	XXSON_ERROR_TAG,
-	XXSON_ERROR_STATE,
-	XXSON_ERROR_UNSUPPORTED,
-	XXSON_ERROR_OUTPUT,
-	XXSON_ERROR_IO
-} xxsonerror;
+/* XLON 模块错误码在 xrt.xlon 域内保持稳定。 */
+typedef enum xxlonerror {
+	XXLON_ERROR_CONFIG = 1401,
+	XXLON_ERROR_SYNTAX,
+	XXLON_ERROR_LIMIT,
+	XXLON_ERROR_DUPLICATE,
+	XXLON_ERROR_NUMBER,
+	XXLON_ERROR_TAG,
+	XXLON_ERROR_STATE,
+	XXLON_ERROR_UNSUPPORTED,
+	XXLON_ERROR_OUTPUT,
+	XXLON_ERROR_IO
+} xxlonerror;
 
 
 
 /* 文本位置使用零基字节偏移和一基行列。 */
-typedef struct xxsonlocation {
+typedef struct xxlonlocation {
 	size_t Offset;
 	size_t Line;
 	size_t Column;
-} xxsonlocation;
+} xxlonlocation;
 
 
 
@@ -37264,10 +37901,10 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 从 xrt.xson 错误的机器数据中读取文本位置。 */
-XRT_API bool xrtXsonErrorLocation(
+/* 从 xrt.xlon 错误的机器数据中读取文本位置。 */
+XRT_API bool xrtXlonErrorLocation(
 	const xerror* pError,
-	xxsonlocation* pLocation
+	xxlonlocation* pLocation
 );
 
 
@@ -37278,36 +37915,36 @@ XRT_EXTERN_C_END
 
 
 
-#if defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_XLON_READ)
 
 /* 非标准空白扩展和自定义标签默认全部关闭。 */
-typedef enum xxsonreadflag {
-	XXSON_READ_COMMENTS = UINT32_C(0x00000001),
-	XXSON_READ_TRAILING_COMMA = UINT32_C(0x00000002),
-	XXSON_READ_CUSTOM = UINT32_C(0x00000004)
-} xxsonreadflag;
+typedef enum xxlonreadflag {
+	XXLON_READ_COMMENTS = UINT32_C(0x00000001),
+	XXLON_READ_TRAILING_COMMA = UINT32_C(0x00000002),
+	XXLON_READ_CUSTOM = UINT32_C(0x00000004)
+} xxlonreadflag;
 
 
 
 /* 对象和整数映射使用同一套明确的重复键策略。 */
-typedef enum xxsonduplicate {
-	XXSON_DUPLICATE_REJECT = 0,
-	XXSON_DUPLICATE_KEEP,
-	XXSON_DUPLICATE_REPLACE
-} xxsonduplicate;
+typedef enum xxlonduplicate {
+	XXLON_DUPLICATE_REJECT = 0,
+	XXLON_DUPLICATE_KEEP,
+	XXLON_DUPLICATE_REPLACE
+} xxlonduplicate;
 
 
 
 /* 超出 int64/uint64 的整数默认失败，可显式按 double 接收。 */
-typedef enum xxsonbigint {
-	XXSON_BIGINT_REJECT = 0,
-	XXSON_BIGINT_FLOAT
-} xxsonbigint;
+typedef enum xxlonbigint {
+	XXLON_BIGINT_REJECT = 0,
+	XXLON_BIGINT_FLOAT
+} xxlonbigint;
 
 
 
 /* 自定义标签解码器返回一个拥有引用；失败时应设置具体错误。 */
-typedef xvalue* (*xxsondecodeproc)(
+typedef xvalue* (*xxlondecodeproc)(
 	xstrview Tag,
 	xstrview Payload,
 	ptr pUserData
@@ -37315,79 +37952,79 @@ typedef xvalue* (*xxsondecodeproc)(
 
 
 
-/* XSON 读取配置同时约束语法、资源预算和自定义类型入口。 */
-typedef struct xxsonreadconfig {
+/* XLON 读取配置同时约束语法、资源预算和自定义类型入口。 */
+typedef struct xxlonreadconfig {
 	uint32 Flags;
-	xxsonduplicate Duplicate;
-	xxsonbigint BigInteger;
+	xxlonduplicate Duplicate;
+	xxlonbigint BigInteger;
 	uint32 MaxDepth;
 	size_t MaxInputBytes;
 	size_t MaxStringBytes;
 	size_t MaxValues;
 	size_t MaxContainerItems;
 	size_t MaxDecodedBytes;
-	xxsondecodeproc Decode;
+	xxlondecodeproc Decode;
 	ptr DecodeData;
 	uint32 Reserved[4];
-} xxsonreadconfig;
+} xxlonreadconfig;
 
 
 
-/* 访问事件直接表达全部可移植 XSON 类型。 */
-typedef enum xxsoneventtype {
-	XXSON_EVENT_NULL = 0,
-	XXSON_EVENT_BOOL,
-	XXSON_EVENT_INT,
-	XXSON_EVENT_FLOAT,
-	XXSON_EVENT_STRING,
-	XXSON_EVENT_BYTES,
-	XXSON_EVENT_TIME,
-	XXSON_EVENT_CUSTOM,
-	XXSON_EVENT_ARRAY_BEGIN,
-	XXSON_EVENT_ARRAY_END,
-	XXSON_EVENT_INT_MAP_BEGIN,
-	XXSON_EVENT_INT_MAP_END,
-	XXSON_EVENT_SET_BEGIN,
-	XXSON_EVENT_SET_END,
-	XXSON_EVENT_OBJECT_BEGIN,
-	XXSON_EVENT_OBJECT_END,
-	XXSON_EVENT_UINT,
+/* 访问事件直接表达全部可移植 XLON 类型。 */
+typedef enum xxloneventtype {
+	XXLON_EVENT_NULL = 0,
+	XXLON_EVENT_BOOL,
+	XXLON_EVENT_INT,
+	XXLON_EVENT_FLOAT,
+	XXLON_EVENT_STRING,
+	XXLON_EVENT_BYTES,
+	XXLON_EVENT_TIME,
+	XXLON_EVENT_CUSTOM,
+	XXLON_EVENT_ARRAY_BEGIN,
+	XXLON_EVENT_ARRAY_END,
+	XXLON_EVENT_INT_MAP_BEGIN,
+	XXLON_EVENT_INT_MAP_END,
+	XXLON_EVENT_SET_BEGIN,
+	XXLON_EVENT_SET_END,
+	XXLON_EVENT_OBJECT_BEGIN,
+	XXLON_EVENT_OBJECT_END,
+	XXLON_EVENT_UINT,
 	/* Appended to preserve the numeric identity of published event kinds. */
-	XXSON_EVENT_CHAR
-} xxsoneventtype;
+	XXLON_EVENT_CHAR
+} xxloneventtype;
 
 
 
 /* 回调可继续、正常提前停止或报告失败。 */
-typedef enum xxsonvisitaction {
-	XXSON_VISIT_NEXT = 0,
-	XXSON_VISIT_STOP,
-	XXSON_VISIT_FAIL
-} xxsonvisitaction;
+typedef enum xxlonvisitaction {
+	XXLON_VISIT_NEXT = 0,
+	XXLON_VISIT_STOP,
+	XXLON_VISIT_FAIL
+} xxlonvisitaction;
 
 
 
 /* 访问结果明确区分完成、调用方停止和失败。 */
-typedef enum xxsonvisitresult {
-	XXSON_VISIT_ERROR = -1,
-	XXSON_VISIT_DONE = 0,
-	XXSON_VISIT_STOPPED = 1
-} xxsonvisitresult;
+typedef enum xxlonvisitresult {
+	XXLON_VISIT_ERROR = -1,
+	XXLON_VISIT_DONE = 0,
+	XXLON_VISIT_STOPPED = 1
+} xxlonvisitresult;
 
 
 
 /* 自定义标签保留名称和已经完成 JSON 反转义的字符串载荷。 */
-typedef struct xxsontag {
+typedef struct xxlontag {
 	xstrview Name;
 	xstrview Payload;
-} xxsontag;
+} xxlontag;
 
 
 
 /* 键按父容器类型明确区分，事件视图只在回调期间有效。 */
-typedef struct xxsonevent {
-	xxsoneventtype Type;
-	xxsonlocation Location;
+typedef struct xxlonevent {
+	xxloneventtype Type;
+	xxlonlocation Location;
 	size_t Depth;
 	xvaluekey Key;
 	xstrview Raw;
@@ -37400,15 +38037,15 @@ typedef struct xxsonevent {
 		xstrview String;
 		xbytesview Bytes;
 		xtime Time;
-		xxsontag Tag;
+		xxlontag Tag;
 	} Value;
-} xxsonevent;
+} xxlonevent;
 
 
 
-/* XSON 访问器不得保存事件中的借用视图。 */
-typedef xxsonvisitaction (*xxsonvisitproc)(
-	const xxsonevent* pEvent,
+/* XLON 访问器不得保存事件中的借用视图。 */
+typedef xxlonvisitaction (*xxlonvisitproc)(
+	const xxlonevent* pEvent,
 	ptr pUserData
 );
 
@@ -37419,33 +38056,33 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化严格语法、拒绝重复键和有限资源预算。 */
-XRT_API void xrtXsonReadConfigInit(xxsonreadconfig* pConfig);
+XRT_API void xrtXlonReadConfigInit(xxlonreadconfig* pConfig);
 
 
 
-/* 使用默认严格配置解析一个完整 XSON 文本。 */
-XRT_API xvalue* xrtXsonParse(xstrview Text);
+/* 使用默认严格配置解析一个完整 XLON 文本。 */
+XRT_API xvalue* xrtXlonParse(xstrview Text);
 
 
 
-/* 使用高级配置解析一个完整 XSON 文本。 */
-XRT_API xvalue* xrtXsonRead(
+/* 使用高级配置解析一个完整 XLON 文本。 */
+XRT_API xvalue* xrtXlonRead(
 	xstrview Text,
-	const xxsonreadconfig* pConfig
+	const xxlonreadconfig* pConfig
 );
 
 
 
-/* 验证默认 XSON 语法和内建标签，不构造 Value DOM。 */
-XRT_API bool xrtXsonValid(xstrview Text);
+/* 验证默认 XLON 语法和内建标签，不构造 Value DOM。 */
+XRT_API bool xrtXlonValid(xstrview Text);
 
 
 
 /* 直接访问解析事件，不构造中间 DOM。 */
-XRT_API xxsonvisitresult xrtXsonVisit(
+XRT_API xxlonvisitresult xrtXlonVisit(
 	xstrview Text,
-	const xxsonreadconfig* pConfig,
-	xxsonvisitproc pVisitor,
+	const xxlonreadconfig* pConfig,
+	xxlonvisitproc pVisitor,
 	ptr pUserData
 );
 
@@ -37457,37 +38094,37 @@ XRT_EXTERN_C_END
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 /* 输出标志只改变文本布局和字符串转义。 */
-typedef enum xxsonwriteflag {
-	XXSON_WRITE_PRETTY = UINT32_C(0x00000001),
-	XXSON_WRITE_ESCAPE_SLASH = UINT32_C(0x00000002),
-	XXSON_WRITE_ESCAPE_HTML = UINT32_C(0x00000004),
-	XXSON_WRITE_ESCAPE_NON_ASCII = UINT32_C(0x00000008)
-} xxsonwriteflag;
+typedef enum xxlonwriteflag {
+	XXLON_WRITE_PRETTY = UINT32_C(0x00000001),
+	XXLON_WRITE_ESCAPE_SLASH = UINT32_C(0x00000002),
+	XXLON_WRITE_ESCAPE_HTML = UINT32_C(0x00000004),
+	XXLON_WRITE_ESCAPE_NON_ASCII = UINT32_C(0x00000008)
+} xxlonwriteflag;
 
 
 
 /* 不可直接表示的值默认失败，也可显式跳过容器成员。 */
-typedef enum xxsonunsupported {
-	XXSON_UNSUPPORTED_REJECT = 0,
-	XXSON_UNSUPPORTED_SKIP
-} xxsonunsupported;
+typedef enum xxlonunsupported {
+	XXLON_UNSUPPORTED_REJECT = 0,
+	XXLON_UNSUPPORTED_SKIP
+} xxlonunsupported;
 
 
 
 /* 自定义编码回调明确区分不处理、成功和失败。 */
-typedef enum xxsoncoderesult {
-	XXSON_CODE_ERROR = -1,
-	XXSON_CODE_UNSUPPORTED = 0,
-	XXSON_CODE_OK = 1
-} xxsoncoderesult;
+typedef enum xxloncoderesult {
+	XXLON_CODE_ERROR = -1,
+	XXLON_CODE_UNSUPPORTED = 0,
+	XXLON_CODE_OK = 1
+} xxloncoderesult;
 
 
 
 /* 编码器接收仅在回调期间有效的只读快照；返回视图保持到本次调用返回。 */
-typedef xxsoncoderesult (*xxsonencodeproc)(
+typedef xxloncoderesult (*xxlonencodeproc)(
 	const xvalue* pValue,
 	xstrview* pTag,
 	xstrview* pPayload,
@@ -37496,27 +38133,27 @@ typedef xxsoncoderesult (*xxsonencodeproc)(
 
 
 
-/* XSON 写出配置提供固定上限和唯一自定义类型入口。 */
-typedef struct xxsonwriteconfig {
+/* XLON 写出配置提供固定上限和唯一自定义类型入口。 */
+typedef struct xxlonwriteconfig {
 	uint32 Flags;
-	xxsonunsupported Unsupported;
+	xxlonunsupported Unsupported;
 	uint32 MaxDepth;
 	uint32 Indent;
 	size_t MaxOutputBytes;
-	xxsonencodeproc Encode;
+	xxlonencodeproc Encode;
 	ptr EncodeData;
 	uint32 Reserved[4];
-} xxsonwriteconfig;
+} xxlonwriteconfig;
 
 
 
 /* 输出回调必须在返回前消费借用字节。 */
-typedef bool (*xxsonwriteproc)(xbytesview Data, ptr pUserData);
+typedef bool (*xxlonwriteproc)(xbytesview Data, ptr pUserData);
 
 
 
 /* 增量写入器保持不透明，所有方法都拒绝回调重入。 */
-typedef struct xxsonwriter xxsonwriter;
+typedef struct xxlonwriter xxlonwriter;
 
 
 
@@ -37525,12 +38162,12 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化紧凑输出、严格类型和有限输出预算。 */
-XRT_API void xrtXsonWriteConfigInit(xxsonwriteconfig* pConfig);
+XRT_API void xrtXlonWriteConfigInit(xxlonwriteconfig* pConfig);
 
 
 
 /* 紧凑或美化地序列化 Value，并返回由 xrtFree 释放的文本。 */
-XRT_API str xrtXsonStringify(
+XRT_API str xrtXlonStringify(
 	const xvalue* pValue,
 	bool bPretty,
 	size_t* pSize
@@ -37539,114 +38176,114 @@ XRT_API str xrtXsonStringify(
 
 
 /* 使用高级配置把 Value 同步写入调用方输出回调。 */
-XRT_API bool xrtXsonWrite(
+XRT_API bool xrtXlonWrite(
 	const xvalue* pValue,
-	const xxsonwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+	const xxlonwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 );
 
 
 
-/* 创建把增量结果保存在内存中的 XSON 写入器。 */
-XRT_API xxsonwriter* xrtXsonWriterCreate(
-	const xxsonwriteconfig* pConfig
+/* 创建把增量结果保存在内存中的 XLON 写入器。 */
+XRT_API xxlonwriter* xrtXlonWriterCreate(
+	const xxlonwriteconfig* pConfig
 );
 
 
 
-/* 创建把增量结果同步提交给回调的 XSON 写入器。 */
-XRT_API xxsonwriter* xrtXsonWriterCreateSink(
-	const xxsonwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+/* 创建把增量结果同步提交给回调的 XLON 写入器。 */
+XRT_API xxlonwriter* xrtXlonWriterCreateSink(
+	const xxlonwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 );
 
 
 
 /* 在当前位置开始对象。 */
-XRT_API bool xrtXsonWriterObject(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterObject(xxlonwriter* pWriter);
 
 
 
 /* 在当前位置开始数组。 */
-XRT_API bool xrtXsonWriterArray(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterArray(xxlonwriter* pWriter);
 
 
 
 /* 在当前位置开始整数键映射。 */
-XRT_API bool xrtXsonWriterIntMap(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterIntMap(xxlonwriter* pWriter);
 
 
 
 /* 在当前位置开始集合。 */
-XRT_API bool xrtXsonWriterSet(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterSet(xxlonwriter* pWriter);
 
 
 
 /* 结束最近开始的容器。 */
-XRT_API bool xrtXsonWriterEnd(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterEnd(xxlonwriter* pWriter);
 
 
 
 /* 为对象中的下一个值写入字符串名称。 */
-XRT_API bool xrtXsonWriterName(xxsonwriter* pWriter, xstrview Name);
+XRT_API bool xrtXlonWriterName(xxlonwriter* pWriter, xstrview Name);
 
 
 
 /* 为整数映射中的下一个值写入 int64 键。 */
-XRT_API bool xrtXsonWriterKey(xxsonwriter* pWriter, int64 iKey);
+XRT_API bool xrtXlonWriterKey(xxlonwriter* pWriter, int64 iKey);
 
 
 
 /* 写入 null。 */
-XRT_API bool xrtXsonWriterNull(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterNull(xxlonwriter* pWriter);
 
 
 
 /* 写入布尔值。 */
-XRT_API bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue);
+XRT_API bool xrtXlonWriterBool(xxlonwriter* pWriter, bool bValue);
 
 
 
 /* 写入 int64。 */
-XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue);
+XRT_API bool xrtXlonWriterInt(xxlonwriter* pWriter, int64 iValue);
 
 
 
 /* 写入 uint64。 */
-XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue);
+XRT_API bool xrtXlonWriterUInt(xxlonwriter* pWriter, uint64 iValue);
 
 
 
 /* 写入保留字符身份的 Unicode 标量标签。 */
-XRT_API bool xrtXsonWriterChar(xxsonwriter* pWriter, uint32 iValue);
+XRT_API bool xrtXlonWriterChar(xxlonwriter* pWriter, uint32 iValue);
 
 
 
 /* 写入 double，非有限值使用显式 float 标签。 */
-XRT_API bool xrtXsonWriterFloat(xxsonwriter* pWriter, double fValue);
+XRT_API bool xrtXlonWriterFloat(xxlonwriter* pWriter, double fValue);
 
 
 
 /* 写入严格 UTF-8 字符串。 */
-XRT_API bool xrtXsonWriterString(xxsonwriter* pWriter, xstrview Text);
+XRT_API bool xrtXlonWriterString(xxlonwriter* pWriter, xstrview Text);
 
 
 
 /* 写入规范 Base64 二进制标签。 */
-XRT_API bool xrtXsonWriterBytes(xxsonwriter* pWriter, xbytesview Data);
+XRT_API bool xrtXlonWriterBytes(xxlonwriter* pWriter, xbytesview Data);
 
 
 
 /* 写入 UTC RFC 3339 时间标签。 */
-XRT_API bool xrtXsonWriterTime(xxsonwriter* pWriter, xtime Time);
+XRT_API bool xrtXlonWriterTime(xxlonwriter* pWriter, xtime Time);
 
 
 
 /* 写入已经验证名称和载荷的自定义标签。 */
-XRT_API bool xrtXsonWriterTag(
-	xxsonwriter* pWriter,
+XRT_API bool xrtXlonWriterTag(
+	xxlonwriter* pWriter,
 	xstrview Tag,
 	xstrview Payload
 );
@@ -37654,25 +38291,25 @@ XRT_API bool xrtXsonWriterTag(
 
 
 /* 在当前位置写入完整 Value 子树。 */
-XRT_API bool xrtXsonWriterValue(
-	xxsonwriter* pWriter,
+XRT_API bool xrtXlonWriterValue(
+	xxlonwriter* pWriter,
 	const xvalue* pValue
 );
 
 
 
 /* 验证根值和容器已完整结束，并关闭写入器。 */
-XRT_API bool xrtXsonWriterFinish(xxsonwriter* pWriter);
+XRT_API bool xrtXlonWriterFinish(xxlonwriter* pWriter);
 
 
 
 /* 从已完成的内存写入器移交文本。 */
-XRT_API str xrtXsonWriterTake(xxsonwriter* pWriter, size_t* pSize);
+XRT_API str xrtXlonWriterTake(xxlonwriter* pWriter, size_t* pSize);
 
 
 
 /* 销毁写入器和未移交的内存结果。 */
-XRT_API void xrtXsonWriterFree(xxsonwriter* pWriter);
+XRT_API void xrtXlonWriterFree(xxlonwriter* pWriter);
 
 
 
@@ -37682,36 +38319,36 @@ XRT_EXTERN_C_END
 
 
 
-#if defined(XRT_FEATURE_XSON_FILE)
+#if defined(XRT_FEATURE_XLON_FILE)
 
 XRT_EXTERN_C_BEGIN
 
 
 
-/* 使用默认严格配置读取并解析 XSON 文件。 */
-XRT_API xvalue* xrtXsonParseFile(cstr sPath);
+/* 使用默认严格配置读取并解析 XLON 文件。 */
+XRT_API xvalue* xrtXlonParseFile(cstr sPath);
 
 
 
-/* 使用读取配置及其输入上限解析 XSON 文件。 */
-XRT_API xvalue* xrtXsonReadFile(
+/* 使用读取配置及其输入上限解析 XLON 文件。 */
+XRT_API xvalue* xrtXlonReadFile(
 	cstr sPath,
-	const xxsonreadconfig* pConfig
+	const xxlonreadconfig* pConfig
 );
 
 
 
-/* 使用高级配置序列化并原子替换 XSON 文件。 */
-XRT_API bool xrtXsonWriteFile(
+/* 使用高级配置序列化并原子替换 XLON 文件。 */
+XRT_API bool xrtXlonWriteFile(
 	cstr sPath,
 	const xvalue* pValue,
-	const xxsonwriteconfig* pConfig
+	const xxlonwriteconfig* pConfig
 );
 
 
 
-/* 紧凑或美化地序列化并原子替换 XSON 文件。 */
-XRT_API bool xrtXsonStringifyFile(
+/* 紧凑或美化地序列化并原子替换 XLON 文件。 */
+XRT_API bool xrtXlonStringifyFile(
 	cstr sPath,
 	const xvalue* pValue,
 	bool bPretty
@@ -37912,183 +38549,183 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: include/xrt/xsonl.h */
+/* public: include/xrt/xlonl.h */
 /* ========================================================================== */
 
-#ifndef XRT_XSONL_H
-#define XRT_XSONL_H
+#ifndef XRT_XLONL_H
+#define XRT_XLONL_H
 
 
-#if defined(XRT_FEATURE_XSONL) && (!defined(XRT_FEATURE_XSONL_FILE))
-	#error "XRT_FEATURE_XSONL requires XSONL_FILE"
+#if defined(XRT_FEATURE_XLONL) && (!defined(XRT_FEATURE_XLONL_FILE))
+	#error "XRT_FEATURE_XLONL requires XLONL_FILE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_READ) && (!defined(XRT_FEATURE_XSONL_CORE))
-	#error "XRT_FEATURE_XSONL_READ requires XSONL_CORE"
+#if defined(XRT_FEATURE_XLONL_READ) && (!defined(XRT_FEATURE_XLONL_CORE))
+	#error "XRT_FEATURE_XLONL_READ requires XLONL_CORE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_WRITE) && (!defined(XRT_FEATURE_XSONL_CORE))
-	#error "XRT_FEATURE_XSONL_WRITE requires XSONL_CORE"
+#if defined(XRT_FEATURE_XLONL_WRITE) && (!defined(XRT_FEATURE_XLONL_CORE))
+	#error "XRT_FEATURE_XLONL_WRITE requires XLONL_CORE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_FILE) && (!defined(XRT_FEATURE_XSONL_READ) || !defined(XRT_FEATURE_XSONL_WRITE))
-	#error "XRT_FEATURE_XSONL_FILE requires XSONL_READ and XSONL_WRITE"
+#if defined(XRT_FEATURE_XLONL_FILE) && (!defined(XRT_FEATURE_XLONL_READ) || !defined(XRT_FEATURE_XLONL_WRITE))
+	#error "XRT_FEATURE_XLONL_FILE requires XLONL_READ and XLONL_WRITE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_READ) && !defined(XRT_FEATURE_XSON_READ)
-	#error "XSONL read requires XSON read"
+#if defined(XRT_FEATURE_XLONL_READ) && !defined(XRT_FEATURE_XLON_READ)
+	#error "XLONL read requires XLON read"
 #endif
-#if defined(XRT_FEATURE_XSONL_WRITE) && !defined(XRT_FEATURE_XSON_WRITE)
-	#error "XSONL write requires XSON write"
+#if defined(XRT_FEATURE_XLONL_WRITE) && !defined(XRT_FEATURE_XLON_WRITE)
+	#error "XLONL write requires XLON write"
 #endif
-#if defined(XRT_FEATURE_XSONL_FILE) && !defined(XRT_FEATURE_FILE_WHOLE)
-	#error "XSONL file requires FILE_WHOLE"
+#if defined(XRT_FEATURE_XLONL_FILE) && !defined(XRT_FEATURE_FILE_WHOLE)
+	#error "XLONL file requires FILE_WHOLE"
 #endif
 
-#if defined(XRT_FEATURE_XSONL_CORE)
+#if defined(XRT_FEATURE_XLONL_CORE)
 
-/* XSONL 的稳定错误域为 xrt.xsonl；RECORD 保留单条编解码错误原因链。 */
-typedef enum xxsonlerror {
-	XXSONL_ERROR_CONFIG = 1801,
-	XXSONL_ERROR_SYNTAX,
-	XXSONL_ERROR_LIMIT,
-	XXSONL_ERROR_RECORD,
-	XXSONL_ERROR_TYPE,
-	XXSONL_ERROR_OUTPUT,
-	XXSONL_ERROR_IO,
-	XXSONL_ERROR_STATE
-} xxsonlerror;
+/* XLONL 的稳定错误域为 xrt.xlonl；RECORD 保留单条编解码错误原因链。 */
+typedef enum xxlonlerror {
+	XXLONL_ERROR_CONFIG = 1801,
+	XXLONL_ERROR_SYNTAX,
+	XXLONL_ERROR_LIMIT,
+	XXLONL_ERROR_RECORD,
+	XXLONL_ERROR_TYPE,
+	XXLONL_ERROR_OUTPUT,
+	XXLONL_ERROR_IO,
+	XXLONL_ERROR_STATE
+} xxlonlerror;
 
 /* 列按 UTF-8 字节计数；空白行计入 Line，不计入 RecordIndex。 */
-typedef struct xxsonllocation {
+typedef struct xxlonllocation {
 	size_t Offset;
 	size_t Line;
 	size_t Column;
 	size_t RecordIndex;
-} xxsonllocation;
+} xxlonllocation;
 
 XRT_EXTERN_C_BEGIN
 
 /* 读取全局字节偏移、一基物理行列及零基记录下标；无位置时保持输出不变。 */
-XRT_API bool xrtXsonlErrorLocation(
+XRT_API bool xrtXlonlErrorLocation(
 	const xerror* pError,
-	xxsonllocation* pLocation
+	xxlonllocation* pLocation
 );
 
 XRT_EXTERN_C_END
 #endif
 
-#if defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_XLONL_READ)
 
 /* 默认跳过空白行；此标志使空白行报告语法错误。 */
-typedef enum xxsonlreadflag {
-	XXSONL_READ_REJECT_EMPTY_LINES = UINT32_C(0x00000001)
-} xxsonlreadflag;
+typedef enum xxlonlreadflag {
+	XXLONL_READ_REJECT_EMPTY_LINES = UINT32_C(0x00000001)
+} xxlonlreadflag;
 
 /* Record 限制单条；外层限制累计消耗，合成的汇总 Array 不计入值数或深度。 */
-typedef struct xxsonlreadconfig {
-	xxsonreadconfig Record;
+typedef struct xxlonlreadconfig {
+	xxlonreadconfig Record;
 	uint32 Flags;
 	size_t MaxInputBytes;
 	size_t MaxRecords;
 	size_t MaxTotalValues;
 	size_t MaxTotalDecodedBytes;
 	uint32 Reserved[4];
-} xxsonlreadconfig;
+} xxlonlreadconfig;
 
 XRT_EXTERN_C_BEGIN
 
 /* 初始化默认忽略空白行、严格单条语法和有限累计预算。 */
-XRT_API void xrtXsonlReadConfigInit(
-	xxsonlreadconfig* pConfig
+XRT_API void xrtXlonlReadConfigInit(
+	xxlonlreadconfig* pConfig
 );
 
 
 /* 使用默认配置解析记录序列；成功返回拥有的 Array，空输入返回空 Array。 */
-XRT_API xvalue* xrtXsonlParse(
+XRT_API xvalue* xrtXlonlParse(
 	xstrview Text
 );
 
 
 /* 按配置解析全部记录；失败释放部分结果并返回 NULL，结果由 xrtValueRelease 释放。 */
-XRT_API xvalue* xrtXsonlRead(
+XRT_API xvalue* xrtXlonlRead(
 	xstrview Text,
-	const xxsonlreadconfig* pConfig
+	const xxlonlreadconfig* pConfig
 );
 
 
 /* 默认忽略空白行，验证逐行语法和累计预算，不构造 Value DOM；重复键策略不参与验证。 */
-XRT_API bool xrtXsonlValid(
+XRT_API bool xrtXlonlValid(
 	xstrview Text
 );
 
 XRT_EXTERN_C_END
 #endif
 
-#if defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_XLONL_WRITE)
 
 /* Record.MaxOutputBytes 不含分隔符；外层 MaxOutputBytes 包含每条 LF，不含末尾 NUL。 */
-typedef struct xxsonlwriteconfig {
-	xxsonwriteconfig Record;
+typedef struct xxlonlwriteconfig {
+	xxlonwriteconfig Record;
 	size_t MaxOutputBytes;
 	size_t MaxRecords;
 	uint32 Reserved[4];
-} xxsonlwriteconfig;
+} xxlonlwriteconfig;
 
 XRT_EXTERN_C_BEGIN
 
 /* 初始化紧凑单行输出、LF 分隔及有限累计预算；PRETTY 配置非法。 */
-XRT_API void xrtXsonlWriteConfigInit(
-	xxsonlwriteconfig* pConfig
+XRT_API void xrtXlonlWriteConfigInit(
+	xxlonlwriteconfig* pConfig
 );
 
 
 /* 每个 Array 元素写成一行；返回 xrtFree 释放的 NUL 结尾文本，失败不修改可空的 pSize。 */
-XRT_API str xrtXsonlStringify(
+XRT_API str xrtXlonlStringify(
 	const xvalue* pArray,
 	size_t* pSize
 );
 
 
 /* 同步分块输出各条记录及 LF；回调借用字节仅在调用期间有效，失败不能撤回已提交字节。 */
-XRT_API bool xrtXsonlWrite(
+XRT_API bool xrtXlonlWrite(
 	const xvalue* pArray,
-	const xxsonlwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+	const xxlonlwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 );
 
 XRT_EXTERN_C_END
 #endif
 
-#if defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_XLONL_FILE)
 XRT_EXTERN_C_BEGIN
 
 /* 按默认配置限额读取文件并返回拥有的 Array。 */
-XRT_API xvalue* xrtXsonlParseFile(
+XRT_API xvalue* xrtXlonlParseFile(
 	cstr sPath
 );
 
 
 /* 按整体输入上限读取文件，逐行解析；失败不返回部分 Array。 */
-XRT_API xvalue* xrtXsonlReadFile(
+XRT_API xvalue* xrtXlonlReadFile(
 	cstr sPath,
-	const xxsonlreadconfig* pConfig
+	const xxlonlreadconfig* pConfig
 );
 
 
 /* 按默认配置完整序列化 Array 后原子替换文件。 */
-XRT_API bool xrtXsonlStringifyFile(
+XRT_API bool xrtXlonlStringifyFile(
 	cstr sPath,
 	const xvalue* pArray
 );
 
 
 /* 按高级配置完整序列化后原子替换文件；序列化失败保留原文件。 */
-XRT_API bool xrtXsonlWriteFile(
+XRT_API bool xrtXlonlWriteFile(
 	cstr sPath,
 	const xvalue* pArray,
-	const xxsonlwriteconfig* pConfig
+	const xxlonlwriteconfig* pConfig
 );
 
 XRT_EXTERN_C_END
@@ -38678,6 +39315,19 @@ XRT_EXTERN_C_END
 #ifndef XRT_CONSOLE_H
 #define XRT_CONSOLE_H
 
+#if defined(XRT_FEATURE_CONSOLE_INPUT) || defined(XRT_FEATURE_CONSOLE_TERMINAL)
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_INPUT) && (!defined(XRT_FEATURE_CONSOLE) || !defined(XRT_FEATURE_BUFFER) || !defined(XRT_FEATURE_IO_STANDARD))
+#error "Console input requires console, buffer and standard IO"
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN) && !defined(XRT_FEATURE_CONSOLE)
+#error "Console screen requires console"
+#endif
+#if defined(XRT_FEATURE_CONSOLE_TERMINAL) && (!defined(XRT_FEATURE_CONSOLE_SCREEN) || !defined(XRT_FEATURE_BUFFER) || !defined(XRT_FEATURE_IO_STANDARD) || !defined(XRT_FEATURE_THREAD))
+#error "Console terminal requires console screen, buffer, standard IO and thread"
+#endif
 
 
 
@@ -38696,7 +39346,11 @@ typedef enum xconsoleerror {
 	XCONSOLE_ERROR_STREAM = 1,
 	XCONSOLE_ERROR_UTF8,
 	XCONSOLE_ERROR_WRITE,
-	XCONSOLE_ERROR_FLUSH
+	XCONSOLE_ERROR_FLUSH,
+	XCONSOLE_ERROR_READ,
+	XCONSOLE_ERROR_LIMIT,
+	XCONSOLE_ERROR_STATE,
+	XCONSOLE_ERROR_TERMINAL
 } xconsoleerror;
 
 
@@ -38722,6 +39376,60 @@ XRT_API bool xrtConsoleFlush(xconsolestream Stream);
 
 /* 判断指定标准输出流当前是否连接交互终端；非终端是正常结果，不设置错误。 */
 XRT_API bool xrtConsoleIsTerminal(xconsolestream Stream);
+
+#if defined(XRT_FEATURE_CONSOLE_INPUT)
+/* Strict Unicode scalar input: 1 value, 0 EOF, -1 error. No read-ahead. */
+XRT_API int xrtConsoleReadChar(uint32* pCodepoint);
+/* EOF before a character is a normal NULL result; an empty line owns an empty buffer. */
+XRT_API xbuffer* xrtConsoleReadLine(size_t iMaxBytes);
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_TERMINAL)
+typedef struct xconsolesession xconsolesession;
+typedef enum xconsoleeventkind {
+    XCONSOLE_EVENT_TEXT = 1, XCONSOLE_EVENT_KEY, XCONSOLE_EVENT_RESIZE,
+    XCONSOLE_EVENT_PASTE, XCONSOLE_EVENT_MOUSE, XCONSOLE_EVENT_CLOSED
+} xconsoleeventkind;
+typedef enum xconsolekey {
+    XCONSOLE_KEY_ESCAPE = 0x110000, XCONSOLE_KEY_ENTER, XCONSOLE_KEY_TAB,
+    XCONSOLE_KEY_BACKSPACE, XCONSOLE_KEY_UP, XCONSOLE_KEY_DOWN,
+    XCONSOLE_KEY_LEFT, XCONSOLE_KEY_RIGHT, XCONSOLE_KEY_HOME,
+    XCONSOLE_KEY_END, XCONSOLE_KEY_INSERT, XCONSOLE_KEY_DELETE,
+    XCONSOLE_KEY_PAGE_UP, XCONSOLE_KEY_PAGE_DOWN, XCONSOLE_KEY_F1
+} xconsolekey;
+typedef struct xconsoleevent {
+    xconsoleeventkind Kind;
+    uint32 Key, Modifiers, Repeat;
+    int32 X, Y, Wheel;
+    uint32 Columns, Rows;
+    bool Down;
+    xbuffer* Text; /* owned UTF-8; may contain NUL */
+} xconsoleevent;
+
+/* flags: raw=1, mouse=2, bracketed-paste=4, alternate-screen=8. Thread-affine, exclusive stdin. */
+XRT_API xconsolesession* xrtConsoleSessionOpen(uint32 Flags);
+XRT_API bool xrtConsoleSessionClose(xconsolesession* pSession);
+XRT_API void xrtConsoleSessionDestroy(xconsolesession* pSession);
+XRT_API bool xrtConsoleSessionClosed(const xconsolesession* pSession);
+XRT_API bool xrtConsoleSessionPasteSupported(const xconsolesession* pSession);
+XRT_API bool xrtConsoleSessionWrite(xconsolesession* pSession, xstrview Text);
+XRT_API bool xrtConsoleSessionFlush(xconsolesession* pSession);
+XRT_API bool xrtConsoleSessionMove(xconsolesession* pSession, uint32 X, uint32 Y);
+XRT_API bool xrtConsoleSessionClear(xconsolesession* pSession, int Mode);
+XRT_API bool xrtConsoleSessionCursor(xconsolesession* pSession, bool Visible);
+XRT_API bool xrtConsoleSessionStyle(xconsolesession* pSession, int32 Foreground, int32 Background, uint32 Attributes);
+/* NULL without error is timeout; CLOSED is emitted once. Returned event is owned. */
+XRT_API xconsoleevent* xrtConsoleSessionRead(xconsolesession* pSession, int TimeoutMs);
+XRT_API void xrtConsoleEventDestroy(xconsoleevent* pEvent);
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN)
+/* Queries never change terminal modes. Nonterminal size is 0,0. */
+XRT_API bool xrtConsoleSize(xconsolestream Stream, uint32* pColumns, uint32* pRows);
+XRT_API int xrtConsoleColorMode(xconsolestream Stream);
+/* -1 default, 0..255 palette, 0x1000000|RGB true color; attributes bits 1,2,4,8,16. */
+XRT_API bool xrtConsoleWriteStyled(xconsolestream Stream, xstrview Text, int32 Foreground, int32 Background, uint32 Attributes);
+#endif
 
 
 
@@ -39195,6 +39903,12 @@ XRT_API xlogger* xrtLogDefault(void);
 /* 原子替换进程默认 Logger；空指针用于清除。 */
 XRT_API bool xrtLogSetDefault(xlogger* pLogger);
 
+/* Atomically remove and transfer the default's owning reference if it equals
+ * pExpected. NULL expected unconditionally takes the current default. A NULL
+ * result means no match, not failure. The caller owns the returned reference;
+ * no user callback is invoked while the default lock is held. */
+XRT_API xlogger* xrtLogTakeDefaultIf(xlogger* pExpected);
+
 
 
 XRT_EXTERN_C_END
@@ -39544,6 +40258,9 @@ XRT_API bool xrtLogFileRotate(xlogsink* pSink);
 /* 重新打开当前路径，供外部 logrotate 或路径替换后切换句柄。 */
 XRT_API bool xrtLogFileReopen(xlogsink* pSink);
 
+/* Checked, idempotent close. Reopen is the only operation that re-enables writes. */
+XRT_API bool xrtLogFileClose(xlogsink* pSink);
+
 
 
 XRT_EXTERN_C_END
@@ -39709,6 +40426,10 @@ XRT_API bool xrtLogAsyncStats(
 /* 返回后台最近一次错误的新引用；尚无错误时返回空且不设置错误。 */
 XRT_API xerror* xrtLogAsyncLastError(const xlogsink* pSink);
 
+/* Close admission, apply Shutdown policy, wait for final target flush. Does not
+ * release the caller's sink reference. Rejects calls from its own worker. */
+XRT_API bool xrtLogAsyncStop(xlogsink* pSink);
+
 
 
 XRT_EXTERN_C_END
@@ -39800,6 +40521,9 @@ XRT_API bool xrtLogRingStats(
 
 /* 返回后台最近一次错误的新引用；尚无错误时返回空且不设置错误。 */
 XRT_API xerror* xrtLogRingLastError(const xlogsink* pSink);
+
+/* Close admission and drain accepted records through the final target flush. */
+XRT_API bool xrtLogRingStop(xlogsink* pSink);
 
 
 
@@ -41360,7 +42084,10 @@ XRT_EXTERN_C_END
 
 
 
-/* 零值永远不是有效的 Builder 条目句柄。 */
+/*
+	零值永远不是有效的 Builder 条目句柄。ID 只在创建它的 Builder 内有效；
+	不同 Builder 的数字 ID 可以相同，跨实例使用须另外携带实例身份。
+*/
 typedef uint64 xpatternid;
 
 #define XPATTERN_ID_INVALID ((xpatternid)0)
@@ -41435,6 +42162,11 @@ typedef struct xpattern xpattern;
 
 /* Builder 可变且不保证并发安全；成功编译不会清空其中的模式。 */
 typedef struct xpatternbuilder xpatternbuilder;
+
+
+
+/* 尚未提交的独占编辑；准备阶段拥有解析结果，提交阶段不分配内存。 */
+typedef struct xpatternedit xpatternedit;
 
 
 
@@ -41714,6 +42446,69 @@ XRT_API bool xrtPatternBuilderRemove(
 	也不会撤销 Builder 中等待修正的修改。
 */
 XRT_API xpattern* xrtPatternBuilderCompile(xpatternbuilder* pBuilder);
+
+
+
+/* 判断 ID 是否仍为此 Builder 的活动条目；陈旧 ID 返回 false，不设置错误。 */
+XRT_API bool xrtPatternBuilderContains(const xpatternbuilder* pBuilder, xpatternid Id);
+
+
+
+/*
+	准备原子追加。复制/解析、预留槽和 ID 均在此阶段完成；失败不改变条目、
+	版本、Dirty 或缓存（物理容量可增长）。成功后其他结构修改被拒绝，
+	直至 Commit/Free。调用方可先准备关联元数据，再无分配提交。
+*/
+XRT_API xpatternedit* xrtPatternBuilderPrepareAdd(
+	xpatternbuilder* pBuilder, const xpatternspec* arrSpec, size_t iCount
+);
+
+
+
+/* 准备保留 ID/注册顺序的替换；无效或陈旧 ID 报 StateError。 */
+XRT_API xpatternedit* xrtPatternBuilderPrepareSet(
+	xpatternbuilder* pBuilder, xpatternid Id, const xpatternspec* pSpec
+);
+
+
+
+/* 准备删除；无效/陈旧 ID 或代际耗尽报 StateError，保持原状态不变。 */
+XRT_API xpatternedit* xrtPatternBuilderPrepareRemove(xpatternbuilder* pBuilder, xpatternid Id);
+
+
+
+/* 准备清空；版本或代际耗尽报 StateError，空 Builder 的提交不增加版本。 */
+XRT_API xpatternedit* xrtPatternBuilderPrepareClear(xpatternbuilder* pBuilder);
+
+
+
+/* 取消未提交的编辑并释放资源；已提交编辑仅释放元数据；NULL 安全。 */
+XRT_API void xrtPatternEditFree(xpatternedit* pEdit);
+
+
+
+/* 是否仍可提交；NULL、已提交或所属 Builder 已释放均返回 false，不设置错误。 */
+XRT_API bool xrtPatternEditReady(const xpatternedit* pEdit);
+
+
+
+/* 返回编辑的 ID 个数：Add 为批量长度，Set/Remove 为 1，Clear 为 0。 */
+XRT_API size_t xrtPatternEditCount(const xpatternedit* pEdit);
+
+
+
+/* 返回准备时确定的 ID，提交后仍可查询；越界报 RangeError。 */
+XRT_API xpatternid xrtPatternEditId(const xpatternedit* pEdit, size_t iIndex);
+
+
+
+/*
+	有效且串行使用的编辑提交不分配、不失败；提交后不可重复提交。
+	已提交或所属 Builder 已释放时报 StateError。释放 Builder 自动使编辑
+	失效，但不释放调用方拥有的编辑，仍须 EditFree。整个 Builder/edit 家族
+	须由调用方串行使用；这里不提供跨线程事务或回滚外部副作用。
+*/
+XRT_API bool xrtPatternEditCommit(xpatternedit* pEdit);
 
 
 
@@ -44090,8 +44885,9 @@ XRT_EXTERN_C_END
 
 #if defined(XMAIL_FEATURE_MAIL_NET) && \
 	(!defined(XMAIL_FEATURE_MAIL_WIRE) || \
-	 !defined(XRT_FEATURE_NET_TCP_DIAL_SYNC))
-	#error "XMAIL_FEATURE_MAIL_NET requires mail wire and TCP sync dial"
+	 !defined(XRT_FEATURE_NET_TCP_DIAL_SYNC) || \
+	 !defined(XRT_FEATURE_CODEC_BASE64))
+	#error "XMAIL_FEATURE_MAIL_NET requires mail wire, TCP sync dial and Base64"
 #endif
 
 #if defined(XMAIL_FEATURE_MAIL_NET_TLS) && \
@@ -48221,17 +49017,17 @@ bool __xrtSetAdoptHeap(xset* pTarget, xset* pSource);
 	defined(XRT_FEATURE_JSON_READ) || \
 	defined(XRT_FEATURE_JSON_WRITE) || \
 	defined(XRT_FEATURE_JSON_FILE) || \
-	defined(XRT_FEATURE_XSON_CORE) || \
-	defined(XRT_FEATURE_XSON_READ) || \
-	defined(XRT_FEATURE_XSON_WRITE) || \
-	defined(XRT_FEATURE_XSON_FILE)
+	defined(XRT_FEATURE_XLON_CORE) || \
+	defined(XRT_FEATURE_XLON_READ) || \
+	defined(XRT_FEATURE_XLON_WRITE) || \
+	defined(XRT_FEATURE_XLON_FILE)
 #ifndef XRT_INTERNAL_TEXT_VALUE_H
 #define XRT_INTERNAL_TEXT_VALUE_H
 
 
 
 
-#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XLON_CORE)
 
 /* 建立带可选文本位置的格式错误。 */
 void __xrtTextValueError(
@@ -48261,8 +49057,8 @@ bool __xrtTextValueErrorLocation(
 
 
 
-#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XSON_FILE) || \
-	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XLON_FILE) || \
+	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XLONL_FILE)
 
 /* 限额读取完整协议文件，并按调用方错误域包装 I/O 原因链。 */
 bytes __xrtTextValueFileReadAll(
@@ -48289,12 +49085,12 @@ bool __xrtTextValueFileWriteAll(
 
 
 
-#if defined(XRT_FEATURE_JSON_READ) || defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_JSON_READ) || defined(XRT_FEATURE_XLON_READ)
 
-/* 文本值读取器支持严格 JSON，以及由 XSON 显式开启的类型标签。 */
+/* 文本值读取器支持严格 JSON，以及由 XLON 显式开启的类型标签。 */
 typedef enum xtextvaluedialect {
 	XTEXT_VALUE_JSON = 0,
-	XTEXT_VALUE_XSON
+	XTEXT_VALUE_XLON
 } xtextvaluedialect;
 
 
@@ -48326,7 +49122,7 @@ typedef struct xtextvaluelocation {
 
 
 
-/* 内部事件覆盖 JSON 与 XSON 的共同值树和 XSON 显式标签。 */
+/* 内部事件覆盖 JSON 与 XLON 的共同值树和 XLON 显式标签。 */
 typedef enum xtextvalueeventtype {
 	XTEXT_VALUE_EVENT_NULL = 0,
 	XTEXT_VALUE_EVENT_BOOL,
@@ -48374,7 +49170,7 @@ typedef struct xtextvalueevent {
 
 
 
-/* 内部访问控制与公开 JSON/XSON 访问器保持相同的三态语义。 */
+/* 内部访问控制与公开 JSON/XLON 访问器保持相同的三态语义。 */
 typedef enum xtextvaluevisitaction {
 	XTEXT_VALUE_VISIT_NEXT = 0,
 	XTEXT_VALUE_VISIT_STOP,
@@ -48449,9 +49245,9 @@ xtextvaluevisitresult __xrtTextValueRead(
 
 
 
-#if defined(XRT_FEATURE_JSON_WRITE) || defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_JSON_WRITE) || defined(XRT_FEATURE_XLON_WRITE)
 
-/* 共同输出标志与 JSON/XSON 公开配置的低四位保持一致。 */
+/* 共同输出标志与 JSON/XLON 公开配置的低四位保持一致。 */
 typedef enum xtextvaluewriteflag {
 	XTEXT_VALUE_WRITE_PRETTY = UINT32_C(0x00000001),
 	XTEXT_VALUE_WRITE_ESCAPE_SLASH = UINT32_C(0x00000002),
@@ -48471,7 +49267,7 @@ typedef enum xtextvaluecontainertype {
 
 
 
-/* 内部输出错误由 JSON/XSON 适配器映射到各自错误域。 */
+/* 内部输出错误由 JSON/XLON 适配器映射到各自错误域。 */
 typedef enum xtextvaluewriteerror {
 	XTEXT_VALUE_WRITE_ERROR_LIMIT = 0,
 	XTEXT_VALUE_WRITE_ERROR_STATE,
@@ -48571,7 +49367,7 @@ bool __xrtTextValueWriterTag(
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 /* 以固定小块把任意字节写成规范 Base64 标签。 */
 bool __xrtTextValueWriterBase64Tag(
@@ -49731,6 +50527,68 @@ str __xrtPathFromWide(const wchar_t* sPath, size_t iSize);
 
 #if defined(XRT_FEATURE_FILE)
 
+/* Preallocate all native backend state before creating/truncating OS files. */
+xfile __xrtFileAlloc(void);
+void __xrtFileInitNativePair(xfile File, intptr_t iHandle,
+	intptr_t iControl, uint32 iFlags);
+
+/* Backend operations share the frozen public capability bits. The public
+ * query additionally filters them by the handle's access and async mode. */
+typedef enum xrt_file_backend_capability {
+	XRT_FILE_BACKEND_READ = XFILE_CAP_READ,
+	XRT_FILE_BACKEND_WRITE = XFILE_CAP_WRITE,
+	XRT_FILE_BACKEND_READ_AT = XFILE_CAP_READ_AT,
+	XRT_FILE_BACKEND_WRITE_AT = XFILE_CAP_WRITE_AT,
+	XRT_FILE_BACKEND_SEEK = XFILE_CAP_SEEK,
+	XRT_FILE_BACKEND_STAT = XFILE_CAP_STAT,
+	XRT_FILE_BACKEND_RESIZE = XFILE_CAP_RESIZE,
+	XRT_FILE_BACKEND_FLUSH = XFILE_CAP_FLUSH,
+	XRT_FILE_BACKEND_NATIVE = XFILE_CAP_NATIVE,
+	XRT_FILE_BACKEND_CONTROL_NATIVE = XFILE_CAP_NATIVE_CONTROL,
+	XRT_FILE_BACKEND_ASYNC_BIND = XFILE_CAP_ASYNC_BIND
+} xrt_file_backend_capability;
+
+#define XRT_FILE_BACKEND_CAPABILITIES UINT64_C(0x000007ff)
+#define XRT_FILE_BACKEND_VERSION 1u
+
+/* Close 消费 State 且恰好调用一次。其他回调均借用 State。 */
+typedef struct xrt_file_backend_ops {
+	uint32 Size;
+	uint32 Version;
+	uint64 Capabilities;
+	bool (*Read)(ptr pState, ptr pBuffer, size_t iRequest, size_t* pRead);
+	bool (*Write)(ptr pState, const void* pBuffer,
+		size_t iRequest, size_t* pWritten);
+	bool (*ReadAt)(ptr pState, uint64 iOffset,
+		ptr pBuffer, size_t iRequest, size_t* pRead);
+	bool (*WriteAt)(ptr pState, uint64 iOffset,
+		const void* pBuffer, size_t iRequest, size_t* pWritten);
+	bool (*Seek)(ptr pState, int64 iOffset,
+		xseek Origin, uint64* pPosition);
+	bool (*Stat)(ptr pState, xfileinfo* pInfo);
+	bool (*Resize)(ptr pState, uint64 iSize);
+	bool (*Flush)(ptr pState);
+	intptr_t (*Native)(ptr pState);
+	intptr_t (*ControlNative)(ptr pState);
+	#if defined(XRT_FEATURE_NET_FILE)
+		bool (*AsyncBind)(ptr pState, uint64 iOwner,
+			bool** ppAssociated);
+	#else
+		ptr AsyncBind;
+	#endif
+	bool (*Close)(ptr pState);
+} xrt_file_backend_ops;
+
+
+
+/* 接管后端 State。失败时也调用一次 Ops.Close。 */
+xfile __xrtFileTakeBackend(const xrt_file_backend_ops* pOps,
+	ptr pState, uint32 iFlags);
+
+/* 给已构造文件附加一个 close 后释放的 owner；成功时消费 owner。 */
+bool __xrtFileAttachOwner(xfile File, ptr pOwner,
+	void (*pRelease)(ptr pOwner));
+
 /* 检查文件打开选项，并把空选项展开为稳定默认值。 */
 bool __xrtFileOptions(const xfileoptions* pInput, xfileoptions* pOptions);
 
@@ -49934,6 +50792,30 @@ xfile __xrtFileTempCreate(cstr sDirectory, cstr sPrefix,
 
 
 #if defined(XRT_FEATURE_DIR)
+
+#define XRT_DIR_BACKEND_VERSION 1u
+
+/* Next 只在 ITEM 时修改 pEntry；Close 消费 State 且恰好调用一次。 */
+typedef struct xrt_dir_backend_ops {
+	uint32 Size;
+	uint32 Version;
+	bool VirtualPath;
+	uint8 Reserved[3];
+	xdirnext (*Next)(ptr pState, cstr sPath,
+		uint32 iFlags, xdirentry* pEntry);
+	bool (*Close)(ptr pState);
+} xrt_dir_backend_ops;
+
+
+
+/* 接管后端 State。失败时也调用一次 Ops.Close。 */
+xdir __xrtDirTakeBackend(const xrt_dir_backend_ops* pOps,
+	ptr pState, cstr sPath, uint32 iFlags);
+
+
+
+/* 验证目录枚举标志，供原生目录和 VFS 共用。 */
+bool __xrtDirFlagsValid(uint32 iFlags);
 
 /* 设置带系统代码的目录错误。 */
 void __xrtDirSetError(xdirerror Code, cstr sOperation,
@@ -50304,6 +51186,7 @@ struct xnetstream {
 	bool AbortRequested;
 	bool EngineHeld;
 	bool RuntimeHeld;
+	/* Worker-only synchronous send/close reentrancy, never cross-thread submit depth. */
 	uint32 ActiveDepth;
 	bool ReleasePending;
 	xnetstream* AcceptNext;
@@ -58596,14 +59479,16 @@ static inline void __xrtWsHandshakeWrap(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_INFLATE) || \
-	defined(XRT_FEATURE_DEFLATE)
+	defined(XRT_FEATURE_DEFLATE) || \
+	defined(XRT_FEATURE_VFS_PACK)
 #ifndef XRT_INTERNAL_COMPRESS_H
 #define XRT_INTERNAL_COMPRESS_H
 
 
 
 
-#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE)
+#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE) || \
+	defined(XRT_FEATURE_VFS_PACK)
 
 /* 使用共享小表更新未取反的 CRC32 状态。 */
 uint32 __xrtCompressCrc32Update(
@@ -60133,10 +61018,46 @@ str __xrtLinkReadAt(int hDirectory, cstr sLink);
 
 
 /* ========================================================================== */
+/* internal: src/internal/xrt_vfs.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS) || \
+	defined(XRT_FEATURE_VFS_MEMORY) || \
+	defined(XRT_FEATURE_VFS_DISK) || \
+	defined(XRT_FEATURE_VFS_PACK)
+#ifndef XRT_INTERNAL_VFS_H
+#define XRT_INTERNAL_VFS_H
+
+
+
+
+
+#if defined(XRT_FEATURE_VFS)
+
+/* 验证规范虚拟绝对路径；成功后返回不含零结尾的借用视图。 */
+bool __xrtVfsPath(cstr sPath, xstrview* pPath);
+
+/* 验证 provider 使用的规范相对路径。 */
+bool __xrtVfsRelativePath(xstrview Path, bool bAllowEmpty);
+
+
+
+/* 设置 xrt.vfs 域的稳定错误。 */
+void __xrtVfsError(xerrkind Kind, xvfserror Code,
+	cstr sOperation, cstr sMessage);
+
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* internal: src/internal/xrt_file_root.h */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_FILE_ROOT)
+#if defined(XRT_FEATURE_FILE_ROOT) || \
+	defined(XRT_FEATURE_VFS_DISK)
 #ifndef XRT_INTERNAL_FILE_ROOT_H
 #define XRT_INTERNAL_FILE_ROOT_H
 
@@ -60161,6 +61082,15 @@ typedef enum xrootstep {
 	XROOT_STEP_DONE = 0,
 	XROOT_STEP_LINK = 1
 } xrootstep;
+
+
+
+/* 内部解析策略；公共 API 保持平台大小写并允许根内相对链接。 */
+typedef enum xrootpolicy {
+	XROOT_POLICY_FOLLOW_LINKS = 0x01,
+	XROOT_POLICY_CASE_SENSITIVE = 0x02,
+	XROOT_POLICY_REGULAR_FILE = 0x04
+} xrootpolicy;
 
 
 
@@ -60202,19 +61132,38 @@ bool __xrtRootNativeClose(xrootnative Handle, bool bReport);
 
 /* 不跟随当前分量打开目录；链接目标通过拥有字符串返回。 */
 xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
-	xrootnative* pHandle, str* pLink);
+	bool bCaseSensitive, xrootnative* pHandle, str* pLink);
 
 
 
 /* 不跟随当前分量打开普通文件，并按选项决定是否继续解析链接。 */
 xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
-	const xfileoptions* pOptions, xfile* pFile, str* pLink);
+	bool bCaseSensitive, bool bRegularFile, const xfileoptions* pOptions,
+	xfile* pFile, str* pLink);
 
 
 
 /* 查询当前分量元数据，并按参数决定是否继续解析链接。 */
 xrootstep __xrtRootNativeStat(xrootnative Parent, cstr sName,
-	bool bFollowLink, xfileinfo* pInfo, str* pLink);
+	bool bCaseSensitive, bool bFollowLink,
+	xfileinfo* pInfo, str* pLink);
+
+
+
+/* 接管已打开目录句柄并创建句柄相对目录迭代器。 */
+xdir __xrtRootNativeDirTake(xrootnative Handle,
+	cstr sDisplayPath, uint32 iFlags);
+
+
+
+/* 供受限 provider 使用的精确解析入口。 */
+xroot __xrtRootOpenInPolicy(xroot Root, cstr sPath, uint32 iPolicy);
+xfile __xrtRootFileOpenPolicy(xroot Root, cstr sPath,
+	const xfileoptions* pOptions, uint32 iPolicy);
+bool __xrtRootStatPolicy(xroot Root, cstr sPath,
+	bool bFollowLink, xfileinfo* pInfo, uint32 iPolicy);
+xdir __xrtRootDirOpenPolicy(xroot Root, cstr sPath,
+	uint32 iFlags, uint32 iPolicy);
 
 
 
@@ -60264,13 +61213,1253 @@ xrootstep __xrtRootNativeSetMode(xrootnative Parent,
 
 
 /* ========================================================================== */
+/* internal: src/third_party/lzma/Compiler.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_PACK)
+/* Compiler.h : Compiler specific defines and pragmas
+: Igor Pavlov : Public domain */
+
+#ifndef ZIP7_INC_COMPILER_H
+#define ZIP7_INC_COMPILER_H
+
+#if defined(__clang__)
+# define Z7_CLANG_VERSION  (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
+#endif
+#if defined(__clang__) && defined(__apple_build_version__)
+# define Z7_APPLE_CLANG_VERSION   Z7_CLANG_VERSION
+#elif defined(__clang__)
+# define Z7_LLVM_CLANG_VERSION    Z7_CLANG_VERSION
+#elif defined(__GNUC__)
+# define Z7_GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+#endif
+
+#ifdef _MSC_VER
+#if !defined(__clang__) && !defined(__GNUC__)
+#define Z7_MSC_VER_ORIGINAL _MSC_VER
+#endif
+#endif
+
+#if defined(__MINGW32__) || defined(__MINGW64__)
+#define Z7_MINGW
+#endif
+
+#if defined(__LCC__) && (defined(__MCST__) || defined(__e2k__))
+#define Z7_MCST_LCC
+#define Z7_MCST_LCC_VERSION (__LCC__ * 100 + __LCC_MINOR__)
+#endif
+
+/*
+#if defined(__AVX2__) \
+    || defined(Z7_GCC_VERSION) && (Z7_GCC_VERSION >= 40900) \
+    || defined(Z7_APPLE_CLANG_VERSION) && (Z7_APPLE_CLANG_VERSION >= 40600) \
+    || defined(Z7_LLVM_CLANG_VERSION) && (Z7_LLVM_CLANG_VERSION >= 30100) \
+    || defined(Z7_MSC_VER_ORIGINAL) && (Z7_MSC_VER_ORIGINAL >= 1800) \
+    || defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 1400)
+    #define Z7_COMPILER_AVX2_SUPPORTED
+  #endif
+#endif
+*/
+
+// #pragma GCC diagnostic ignored "-Wunknown-pragmas"
+
+#ifdef __clang__
+// padding size of '' with 4 bytes to alignment boundary
+#pragma GCC diagnostic ignored "-Wpadded"
+
+#if defined(Z7_LLVM_CLANG_VERSION) && (__clang_major__ == 13) \
+  && defined(__FreeBSD__)
+// freebsd:
+#pragma GCC diagnostic ignored "-Wexcess-padding"
+#endif
+
+#if __clang_major__ >= 16
+#pragma GCC diagnostic ignored "-Wunsafe-buffer-usage"
+#endif
+
+#if __clang_major__ == 13
+#if defined(__SIZEOF_POINTER__) && (__SIZEOF_POINTER__ == 16)
+// cheri
+#pragma GCC diagnostic ignored "-Wcapability-to-integer-cast"
+#endif
+#endif
+
+#if __clang_major__ == 13
+  // for <arm_neon.h>
+  #pragma GCC diagnostic ignored "-Wreserved-identifier"
+#endif
+
+#endif // __clang__
+
+#if defined(_WIN32) && defined(__clang__) && __clang_major__ >= 16
+// #pragma GCC diagnostic ignored "-Wcast-function-type-strict"
+#define Z7_DIAGNOSTIC_IGNORE_CAST_FUNCTION \
+  _Pragma("GCC diagnostic ignored \"-Wcast-function-type-strict\"")
+#else
+#define Z7_DIAGNOSTIC_IGNORE_CAST_FUNCTION
+#endif
+
+typedef void (*Z7_void_Function)(void);
+#if defined(__clang__) || defined(__GNUC__)
+#define Z7_CAST_FUNC_C  (Z7_void_Function)
+#elif defined(_MSC_VER) && _MSC_VER > 1920
+#define Z7_CAST_FUNC_C  (void *)
+// #pragma warning(disable : 4191) // 'type cast': unsafe conversion from 'FARPROC' to 'void (__cdecl *)()'
+#else
+#define Z7_CAST_FUNC_C
+#endif
+/*
+#if (defined(__GNUC__) && (__GNUC__ >= 8)) || defined(__clang__)
+  // #pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+*/
+#ifdef __GNUC__
+#if defined(Z7_GCC_VERSION) && (Z7_GCC_VERSION >= 40000) && (Z7_GCC_VERSION < 70000)
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif
+#endif
+
+
+#ifdef _MSC_VER
+
+  #ifdef UNDER_CE
+    #define RPC_NO_WINDOWS_H
+    /* #pragma warning(disable : 4115) // '_RPC_ASYNC_STATE' : named type definition in parentheses */
+    #pragma warning(disable : 4201) // nonstandard extension used : nameless struct/union
+    #pragma warning(disable : 4214) // nonstandard extension used : bit field types other than int
+  #endif
+
+#if defined(_MSC_VER) && _MSC_VER >= 1800
+#pragma warning(disable : 4464) // relative include path contains '..'
+#endif
+
+// == 1200 : -O1 : for __forceinline
+// >= 1900 : -O1 : for printf
+#pragma warning(disable : 4710) // function not inlined
+
+#if _MSC_VER < 1900
+// winnt.h: 'Int64ShllMod32'
+#pragma warning(disable : 4514) // unreferenced inline function has been removed
+#endif
+
+#if _MSC_VER < 1300
+// #pragma warning(disable : 4702) // unreachable code
+// Bra.c : -O1:
+#pragma warning(disable : 4714) // function marked as __forceinline not inlined
+#endif
+
+/*
+#if _MSC_VER > 1400 && _MSC_VER <= 1900
+// strcat: This function or variable may be unsafe
+// sysinfoapi.h: kit10: GetVersion was declared deprecated
+#pragma warning(disable : 4996)
+#endif
+*/
+
+#if _MSC_VER > 1200
+// -Wall warnings
+
+#pragma warning(disable : 4711) // function selected for automatic inline expansion
+#pragma warning(disable : 4820) // '2' bytes padding added after data member
+
+#if _MSC_VER >= 1400 && _MSC_VER < 1920
+// 1400: string.h: _DBG_MEMCPY_INLINE_
+// 1600 - 191x : smmintrin.h __cplusplus'
+// is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
+#pragma warning(disable : 4668)
+
+// 1400 - 1600 : WinDef.h : 'FARPROC' :
+// 1900 - 191x : immintrin.h: _readfsbase_u32
+// no function prototype given : converting '()' to '(void)'
+#pragma warning(disable : 4255)
+#endif
+
+#if _MSC_VER >= 1914
+// Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+#pragma warning(disable : 5045)
+#endif
+
+#endif // _MSC_VER > 1200
+#endif // _MSC_VER
+
+
+#if defined(__clang__) && (__clang_major__ >= 4)
+  #define Z7_PRAGMA_OPT_DISABLE_LOOP_UNROLL_VECTORIZE \
+    _Pragma("clang loop unroll(disable)") \
+    _Pragma("clang loop vectorize(disable)")
+  #define Z7_ATTRIB_NO_VECTORIZE
+#elif defined(__GNUC__) && (__GNUC__ >= 5) \
+    && (!defined(Z7_MCST_LCC_VERSION) || (Z7_MCST_LCC_VERSION >= 12610))
+  #define Z7_ATTRIB_NO_VECTORIZE __attribute__((optimize("no-tree-vectorize")))
+  // __attribute__((optimize("no-unroll-loops")));
+  #define Z7_PRAGMA_OPT_DISABLE_LOOP_UNROLL_VECTORIZE
+#elif defined(_MSC_VER) && (_MSC_VER >= 1920)
+  #define Z7_PRAGMA_OPT_DISABLE_LOOP_UNROLL_VECTORIZE \
+    _Pragma("loop( no_vector )")
+  #define Z7_ATTRIB_NO_VECTORIZE
+#else
+  #define Z7_PRAGMA_OPT_DISABLE_LOOP_UNROLL_VECTORIZE
+  #define Z7_ATTRIB_NO_VECTORIZE
+#endif
+
+#if defined(Z7_MSC_VER_ORIGINAL) && (Z7_MSC_VER_ORIGINAL >= 1920)
+  #define Z7_PRAGMA_OPTIMIZE_FOR_CODE_SIZE _Pragma("optimize ( \"s\", on )")
+  #define Z7_PRAGMA_OPTIMIZE_DEFAULT       _Pragma("optimize ( \"\", on )")
+#else
+  #define Z7_PRAGMA_OPTIMIZE_FOR_CODE_SIZE
+  #define Z7_PRAGMA_OPTIMIZE_DEFAULT
+#endif
+
+
+
+#if defined(MY_CPU_X86_OR_AMD64) && ( \
+       defined(__clang__) && (__clang_major__ >= 4) \
+    || defined(__GNUC__) && (__GNUC__ >= 5))
+  #define Z7_ATTRIB_NO_SSE  __attribute__((__target__("no-sse")))
+#else
+  #define Z7_ATTRIB_NO_SSE
+#endif
+
+#define Z7_ATTRIB_NO_VECTOR \
+  Z7_ATTRIB_NO_VECTORIZE \
+  Z7_ATTRIB_NO_SSE
+
+
+#if defined(__clang__) && (__clang_major__ >= 8) \
+  || defined(__GNUC__) && (__GNUC__ >= 1000) \
+  /* || defined(_MSC_VER) && (_MSC_VER >= 1920) */
+  // GCC is not good for __builtin_expect()
+  #define Z7_LIKELY(x)   (__builtin_expect((x), 1))
+  #define Z7_UNLIKELY(x) (__builtin_expect((x), 0))
+  // #define Z7_unlikely [[unlikely]]
+  // #define Z7_likely [[likely]]
+#else
+  #define Z7_LIKELY(x)   (x)
+  #define Z7_UNLIKELY(x) (x)
+  // #define Z7_likely
+#endif
+
+
+#if (defined(Z7_CLANG_VERSION) && (Z7_CLANG_VERSION >= 30600))
+
+#if (Z7_CLANG_VERSION < 130000)
+#define Z7_DIAGNOSTIC_IGNORE_BEGIN_RESERVED_MACRO_IDENTIFIER \
+  _Pragma("GCC diagnostic push") \
+  _Pragma("GCC diagnostic ignored \"-Wreserved-id-macro\"")
+#else
+#define Z7_DIAGNOSTIC_IGNORE_BEGIN_RESERVED_MACRO_IDENTIFIER \
+  _Pragma("GCC diagnostic push") \
+  _Pragma("GCC diagnostic ignored \"-Wreserved-macro-identifier\"")
+#endif
+
+#define Z7_DIAGNOSTIC_IGNORE_END_RESERVED_MACRO_IDENTIFIER \
+  _Pragma("GCC diagnostic pop")
+#else
+#define Z7_DIAGNOSTIC_IGNORE_BEGIN_RESERVED_MACRO_IDENTIFIER
+#define Z7_DIAGNOSTIC_IGNORE_END_RESERVED_MACRO_IDENTIFIER
+#endif
+
+#define UNUSED_VAR(x) (void)x;
+/* #define UNUSED_VAR(x) x=x; */
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/third_party/lzma/Precomp.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_PACK)
+/* Precomp.h -- precompilation file
+2024-01-25 : Igor Pavlov : Public domain */
+
+#ifndef ZIP7_INC_PRECOMP_H
+#define ZIP7_INC_PRECOMP_H
+
+/*
+  this file must be included before another *.h files and before <windows.h>.
+  this file is included from the following files:
+    C\*.c
+    C\Util\*\Precomp.h   <-  C\Util\*\*.c
+    CPP\Common\Common.h  <-  *\StdAfx.h    <-  *\*.cpp
+
+  this file can set the following macros:
+    Z7_LARGE_PAGES 1
+    Z7_LONG_PATH 1
+    Z7_WIN32_WINNT_MIN  0x0500 (or higher) : we require at least win2000+ for 7-Zip
+    _WIN32_WINNT        0x0500 (or higher)
+    WINVER  _WIN32_WINNT
+    UNICODE 1
+    _UNICODE 1
+*/
+
+
+#ifdef _MSC_VER
+// #pragma warning(disable : 4206) // nonstandard extension used : translation unit is empty
+#if _MSC_VER >= 1912
+// #pragma warning(disable : 5039) // pointer or reference to potentially throwing function passed to 'extern "C"' function under - EHc.Undefined behavior may occur if this function throws an exception.
+#endif
+#endif
+
+/*
+// for debug:
+#define UNICODE 1
+#define _UNICODE 1
+#define  _WIN32_WINNT  0x0500  // win2000
+#ifndef WINVER
+  #define WINVER  _WIN32_WINNT
+#endif
+*/
+
+#ifdef _WIN32
+/*
+  this "Precomp.h" file must be included before <windows.h>,
+  if we want to define _WIN32_WINNT before <windows.h>.
+*/
+
+#ifndef Z7_LARGE_PAGES
+#ifndef Z7_NO_LARGE_PAGES
+#define Z7_LARGE_PAGES 1
+#endif
+#endif
+
+#ifndef Z7_LONG_PATH
+#ifndef Z7_NO_LONG_PATH
+#define Z7_LONG_PATH 1
+#endif
+#endif
+
+#ifndef Z7_DEVICE_FILE
+#ifndef Z7_NO_DEVICE_FILE
+// #define Z7_DEVICE_FILE 1
+#endif
+#endif
+
+// we don't change macros if included after <windows.h>
+#ifndef _WINDOWS_
+
+#ifndef Z7_WIN32_WINNT_MIN
+  #if defined(_M_ARM64) || defined(__aarch64__)
+    // #define Z7_WIN32_WINNT_MIN  0x0a00  // win10
+    #define Z7_WIN32_WINNT_MIN  0x0600  // vista
+  #elif defined(_M_ARM) && defined(_M_ARMT) && defined(_M_ARM_NT)
+    // #define Z7_WIN32_WINNT_MIN  0x0602  // win8
+    #define Z7_WIN32_WINNT_MIN  0x0600  // vista
+  #elif defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__) || defined(_M_IA64)
+    #define Z7_WIN32_WINNT_MIN  0x0503  // win2003
+  // #elif defined(_M_IX86) || defined(__i386__)
+  //   #define Z7_WIN32_WINNT_MIN  0x0500  // win2000
+  #else // x86 and another(old) systems
+    #define Z7_WIN32_WINNT_MIN  0x0500  // win2000
+    // #define Z7_WIN32_WINNT_MIN  0x0502  // win2003 // for debug
+  #endif
+#endif // Z7_WIN32_WINNT_MIN
+
+
+#ifndef Z7_DO_NOT_DEFINE_WIN32_WINNT
+#ifdef _WIN32_WINNT
+  // #error Stop_Compiling_Bad_WIN32_WINNT
+#else
+  #ifndef Z7_NO_DEFINE_WIN32_WINNT
+Z7_DIAGNOSTIC_IGNORE_BEGIN_RESERVED_MACRO_IDENTIFIER
+    #define _WIN32_WINNT  Z7_WIN32_WINNT_MIN
+Z7_DIAGNOSTIC_IGNORE_END_RESERVED_MACRO_IDENTIFIER
+  #endif
+#endif // _WIN32_WINNT
+
+#ifndef WINVER
+  #define WINVER  _WIN32_WINNT
+#endif
+#endif // Z7_DO_NOT_DEFINE_WIN32_WINNT
+
+
+#ifndef _MBCS
+#ifndef Z7_NO_UNICODE
+// UNICODE and _UNICODE are used by <windows.h> and by 7-zip code.
+
+#ifndef UNICODE
+#define UNICODE 1
+#endif
+
+#ifndef _UNICODE
+Z7_DIAGNOSTIC_IGNORE_BEGIN_RESERVED_MACRO_IDENTIFIER
+#define _UNICODE 1
+Z7_DIAGNOSTIC_IGNORE_END_RESERVED_MACRO_IDENTIFIER
+#endif
+
+#endif // Z7_NO_UNICODE
+#endif // _MBCS
+#endif // _WINDOWS_
+
+// #include "7zWindows.h"
+
+#endif // _WIN32
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/third_party/lzma/7zTypes.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_PACK)
+/* 7zTypes.h -- Basic types
+2024-01-24 : Igor Pavlov : Public domain */
+
+#ifndef ZIP7_7Z_TYPES_H
+#define ZIP7_7Z_TYPES_H
+
+#ifdef _WIN32
+/* #include <windows.h> */
+#else
+#include <errno.h>
+#endif
+
+#include <stddef.h>
+
+#ifndef EXTERN_C_BEGIN
+#ifdef __cplusplus
+#define EXTERN_C_BEGIN extern "C" {
+#define EXTERN_C_END }
+#else
+#define EXTERN_C_BEGIN
+#define EXTERN_C_END
+#endif
+#endif
+
+EXTERN_C_BEGIN
+
+#define SZ_OK 0
+
+#define SZ_ERROR_DATA 1
+#define SZ_ERROR_MEM 2
+#define SZ_ERROR_CRC 3
+#define SZ_ERROR_UNSUPPORTED 4
+#define SZ_ERROR_PARAM 5
+#define SZ_ERROR_INPUT_EOF 6
+#define SZ_ERROR_OUTPUT_EOF 7
+#define SZ_ERROR_READ 8
+#define SZ_ERROR_WRITE 9
+#define SZ_ERROR_PROGRESS 10
+#define SZ_ERROR_FAIL 11
+#define SZ_ERROR_THREAD 12
+
+#define SZ_ERROR_ARCHIVE 16
+#define SZ_ERROR_NO_ARCHIVE 17
+
+typedef int SRes;
+
+
+#ifdef _MSC_VER
+  #if _MSC_VER > 1200
+    #define MY_ALIGN(n) __declspec(align(n))
+  #else
+    #define MY_ALIGN(n)
+  #endif
+#else
+  /*
+  // C11/C++11:
+  #include <stdalign.h>
+  #define MY_ALIGN(n) alignas(n)
+  */
+  #define MY_ALIGN(n) __attribute__ ((aligned(n)))
+#endif
+
+
+#ifdef _WIN32
+
+/* typedef DWORD WRes; */
+typedef unsigned WRes;
+#define MY_SRes_HRESULT_FROM_WRes(x) HRESULT_FROM_WIN32(x)
+
+// #define MY_HRES_ERROR_INTERNAL_ERROR  MY_SRes_HRESULT_FROM_WRes(ERROR_INTERNAL_ERROR)
+
+#else // _WIN32
+
+// #define ENV_HAVE_LSTAT
+typedef int WRes;
+
+// (FACILITY_ERRNO = 0x800) is 7zip's FACILITY constant to represent (errno) errors in HRESULT
+#define MY_FACILITY_ERRNO  0x800
+#define MY_FACILITY_WIN32  7
+#define MY_FACILITY_WRes  MY_FACILITY_ERRNO
+
+#define MY_HRESULT_FROM_errno_CONST_ERROR(x) ((HRESULT)( \
+          ( (HRESULT)(x) & 0x0000FFFF) \
+          | (MY_FACILITY_WRes << 16)  \
+          | (HRESULT)0x80000000 ))
+
+#define MY_SRes_HRESULT_FROM_WRes(x) \
+  ((HRESULT)(x) <= 0 ? ((HRESULT)(x)) : MY_HRESULT_FROM_errno_CONST_ERROR(x))
+
+// we call macro HRESULT_FROM_WIN32 for system errors (WRes) that are (errno)
+#define HRESULT_FROM_WIN32(x) MY_SRes_HRESULT_FROM_WRes(x)
+
+/*
+#define ERROR_FILE_NOT_FOUND             2L
+#define ERROR_ACCESS_DENIED              5L
+#define ERROR_NO_MORE_FILES              18L
+#define ERROR_LOCK_VIOLATION             33L
+#define ERROR_FILE_EXISTS                80L
+#define ERROR_DISK_FULL                  112L
+#define ERROR_NEGATIVE_SEEK              131L
+#define ERROR_ALREADY_EXISTS             183L
+#define ERROR_DIRECTORY                  267L
+#define ERROR_TOO_MANY_POSTS             298L
+
+#define ERROR_INTERNAL_ERROR             1359L
+#define ERROR_INVALID_REPARSE_DATA       4392L
+#define ERROR_REPARSE_TAG_INVALID        4393L
+#define ERROR_REPARSE_TAG_MISMATCH       4394L
+*/
+
+// we use errno equivalents for some WIN32 errors:
+
+#define ERROR_INVALID_PARAMETER     EINVAL
+#define ERROR_INVALID_FUNCTION      EINVAL
+#define ERROR_ALREADY_EXISTS        EEXIST
+#define ERROR_FILE_EXISTS           EEXIST
+#define ERROR_PATH_NOT_FOUND        ENOENT
+#define ERROR_FILE_NOT_FOUND        ENOENT
+#define ERROR_DISK_FULL             ENOSPC
+// #define ERROR_INVALID_HANDLE        EBADF
+
+// we use FACILITY_WIN32 for errors that has no errno equivalent
+// Too many posts were made to a semaphore.
+#define ERROR_TOO_MANY_POSTS        ((HRESULT)0x8007012AL)
+#define ERROR_INVALID_REPARSE_DATA  ((HRESULT)0x80071128L)
+#define ERROR_REPARSE_TAG_INVALID   ((HRESULT)0x80071129L)
+
+// if (MY_FACILITY_WRes != FACILITY_WIN32),
+// we use FACILITY_WIN32 for COM errors:
+#define E_OUTOFMEMORY               ((HRESULT)0x8007000EL)
+#define E_INVALIDARG                ((HRESULT)0x80070057L)
+#define MY_E_ERROR_NEGATIVE_SEEK    ((HRESULT)0x80070083L)
+
+/*
+// we can use FACILITY_ERRNO for some COM errors, that have errno equivalents:
+#define E_OUTOFMEMORY             MY_HRESULT_FROM_errno_CONST_ERROR(ENOMEM)
+#define E_INVALIDARG              MY_HRESULT_FROM_errno_CONST_ERROR(EINVAL)
+#define MY_E_ERROR_NEGATIVE_SEEK  MY_HRESULT_FROM_errno_CONST_ERROR(EINVAL)
+*/
+
+#define TEXT(quote) quote
+
+#define FILE_ATTRIBUTE_READONLY       0x0001
+#define FILE_ATTRIBUTE_HIDDEN         0x0002
+#define FILE_ATTRIBUTE_SYSTEM         0x0004
+#define FILE_ATTRIBUTE_DIRECTORY      0x0010
+#define FILE_ATTRIBUTE_ARCHIVE        0x0020
+#define FILE_ATTRIBUTE_DEVICE         0x0040
+#define FILE_ATTRIBUTE_NORMAL         0x0080
+#define FILE_ATTRIBUTE_TEMPORARY      0x0100
+#define FILE_ATTRIBUTE_SPARSE_FILE    0x0200
+#define FILE_ATTRIBUTE_REPARSE_POINT  0x0400
+#define FILE_ATTRIBUTE_COMPRESSED     0x0800
+#define FILE_ATTRIBUTE_OFFLINE        0x1000
+#define FILE_ATTRIBUTE_NOT_CONTENT_INDEXED 0x2000
+#define FILE_ATTRIBUTE_ENCRYPTED      0x4000
+
+#define FILE_ATTRIBUTE_UNIX_EXTENSION 0x8000   /* trick for Unix */
+
+#endif
+
+
+#ifndef RINOK
+#define RINOK(x) { const int _result_ = (x); if (_result_ != 0) return _result_; }
+#endif
+
+#ifndef RINOK_WRes
+#define RINOK_WRes(x) { const WRes _result_ = (x); if (_result_ != 0) return _result_; }
+#endif
+
+typedef unsigned char Byte;
+typedef short Int16;
+typedef unsigned short UInt16;
+
+#ifdef Z7_DECL_Int32_AS_long
+typedef long Int32;
+typedef unsigned long UInt32;
+#else
+typedef int Int32;
+typedef unsigned int UInt32;
+#endif
+
+
+#ifndef _WIN32
+
+typedef int INT;
+typedef Int32 INT32;
+typedef unsigned int UINT;
+typedef UInt32 UINT32;
+typedef INT32 LONG;   // LONG, ULONG and DWORD must be 32-bit for _WIN32 compatibility
+typedef UINT32 ULONG;
+
+#undef DWORD
+typedef UINT32 DWORD;
+
+#define VOID void
+
+#define HRESULT LONG
+
+typedef void *LPVOID;
+// typedef void VOID;
+// typedef ULONG_PTR DWORD_PTR, *PDWORD_PTR;
+// gcc / clang on Unix  : sizeof(long==sizeof(void*) in 32 or 64 bits)
+typedef          long  INT_PTR;
+typedef unsigned long  UINT_PTR;
+typedef          long  LONG_PTR;
+typedef unsigned long  DWORD_PTR;
+
+typedef size_t SIZE_T;
+
+#endif //  _WIN32
+
+
+#define MY_HRES_ERROR_INTERNAL_ERROR  ((HRESULT)0x8007054FL)
+
+
+#ifdef Z7_DECL_Int64_AS_long
+
+typedef long Int64;
+typedef unsigned long UInt64;
+
+#else
+
+#if (defined(_MSC_VER) || defined(__BORLANDC__)) && !defined(__clang__)
+typedef __int64 Int64;
+typedef unsigned __int64 UInt64;
+#else
+#if defined(__clang__) || defined(__GNUC__)
+#include <stdint.h>
+typedef int64_t Int64;
+typedef uint64_t UInt64;
+#else
+typedef long long int Int64;
+typedef unsigned long long int UInt64;
+// #define UINT64_CONST(n) n ## ULL
+#endif
+#endif
+
+#endif
+
+#define UINT64_CONST(n) n
+
+
+#ifdef Z7_DECL_SizeT_AS_unsigned_int
+typedef unsigned int SizeT;
+#else
+typedef size_t SizeT;
+#endif
+
+/*
+#if (defined(_MSC_VER) && _MSC_VER <= 1200)
+typedef size_t MY_uintptr_t;
+#else
+#include <stdint.h>
+typedef uintptr_t MY_uintptr_t;
+#endif
+*/
+
+typedef int BoolInt;
+/* typedef BoolInt Bool; */
+#define True 1
+#define False 0
+
+
+#ifdef _WIN32
+#define Z7_STDCALL __stdcall
+#else
+#define Z7_STDCALL
+#endif
+
+#ifdef _MSC_VER
+
+#if _MSC_VER >= 1300
+#define Z7_NO_INLINE __declspec(noinline)
+#else
+#define Z7_NO_INLINE
+#endif
+
+#define Z7_FORCE_INLINE __forceinline
+
+#define Z7_CDECL      __cdecl
+#define Z7_FASTCALL  __fastcall
+
+#else //  _MSC_VER
+
+#if (defined(__GNUC__) && (__GNUC__ >= 4)) \
+    || (defined(__clang__) && (__clang_major__ >= 4)) \
+    || defined(__INTEL_COMPILER) \
+    || defined(__xlC__)
+#define Z7_NO_INLINE      __attribute__((noinline))
+#define Z7_FORCE_INLINE   __attribute__((always_inline)) inline
+#else
+#define Z7_NO_INLINE
+#define Z7_FORCE_INLINE
+#endif
+
+#define Z7_CDECL
+
+#if  defined(_M_IX86) \
+  || defined(__i386__)
+// #define Z7_FASTCALL __attribute__((fastcall))
+// #define Z7_FASTCALL __attribute__((cdecl))
+#define Z7_FASTCALL
+#elif defined(MY_CPU_AMD64)
+// #define Z7_FASTCALL __attribute__((ms_abi))
+#define Z7_FASTCALL
+#else
+#define Z7_FASTCALL
+#endif
+
+#endif //  _MSC_VER
+
+
+/* The following interfaces use first parameter as pointer to structure */
+
+// #define Z7_C_IFACE_CONST_QUAL
+#define Z7_C_IFACE_CONST_QUAL const
+
+#define Z7_C_IFACE_DECL(a) \
+  struct a ## _; \
+  typedef Z7_C_IFACE_CONST_QUAL struct a ## _ * a ## Ptr; \
+  typedef struct a ## _ a; \
+  struct a ## _
+
+
+Z7_C_IFACE_DECL (IByteIn)
+{
+  Byte (*Read)(IByteInPtr p); /* reads one byte, returns 0 in case of EOF or error */
+};
+#define IByteIn_Read(p) (p)->Read(p)
+
+
+Z7_C_IFACE_DECL (IByteOut)
+{
+  void (*Write)(IByteOutPtr p, Byte b);
+};
+#define IByteOut_Write(p, b) (p)->Write(p, b)
+
+
+Z7_C_IFACE_DECL (ISeqInStream)
+{
+  SRes (*Read)(ISeqInStreamPtr p, void *buf, size_t *size);
+    /* if (input(*size) != 0 && output(*size) == 0) means end_of_stream.
+       (output(*size) < input(*size)) is allowed */
+};
+#define ISeqInStream_Read(p, buf, size) (p)->Read(p, buf, size)
+
+/* try to read as much as avail in stream and limited by (*processedSize) */
+SRes SeqInStream_ReadMax(ISeqInStreamPtr stream, void *buf, size_t *processedSize);
+/* it can return SZ_ERROR_INPUT_EOF */
+// SRes SeqInStream_Read(ISeqInStreamPtr stream, void *buf, size_t size);
+// SRes SeqInStream_Read2(ISeqInStreamPtr stream, void *buf, size_t size, SRes errorType);
+SRes SeqInStream_ReadByte(ISeqInStreamPtr stream, Byte *buf);
+
+
+Z7_C_IFACE_DECL (ISeqOutStream)
+{
+  size_t (*Write)(ISeqOutStreamPtr p, const void *buf, size_t size);
+    /* Returns: result - the number of actually written bytes.
+       (result < size) means error */
+};
+#define ISeqOutStream_Write(p, buf, size) (p)->Write(p, buf, size)
+
+typedef enum
+{
+  SZ_SEEK_SET = 0,
+  SZ_SEEK_CUR = 1,
+  SZ_SEEK_END = 2
+} ESzSeek;
+
+
+Z7_C_IFACE_DECL (ISeekInStream)
+{
+  SRes (*Read)(ISeekInStreamPtr p, void *buf, size_t *size);  /* same as ISeqInStream::Read */
+  SRes (*Seek)(ISeekInStreamPtr p, Int64 *pos, ESzSeek origin);
+};
+#define ISeekInStream_Read(p, buf, size)   (p)->Read(p, buf, size)
+#define ISeekInStream_Seek(p, pos, origin) (p)->Seek(p, pos, origin)
+
+
+Z7_C_IFACE_DECL (ILookInStream)
+{
+  SRes (*Look)(ILookInStreamPtr p, const void **buf, size_t *size);
+    /* if (input(*size) != 0 && output(*size) == 0) means end_of_stream.
+       (output(*size) > input(*size)) is not allowed
+       (output(*size) < input(*size)) is allowed */
+  SRes (*Skip)(ILookInStreamPtr p, size_t offset);
+    /* offset must be <= output(*size) of Look */
+  SRes (*Read)(ILookInStreamPtr p, void *buf, size_t *size);
+    /* reads directly (without buffer). It's same as ISeqInStream::Read */
+  SRes (*Seek)(ILookInStreamPtr p, Int64 *pos, ESzSeek origin);
+};
+
+#define ILookInStream_Look(p, buf, size)   (p)->Look(p, buf, size)
+#define ILookInStream_Skip(p, offset)      (p)->Skip(p, offset)
+#define ILookInStream_Read(p, buf, size)   (p)->Read(p, buf, size)
+#define ILookInStream_Seek(p, pos, origin) (p)->Seek(p, pos, origin)
+
+
+SRes LookInStream_LookRead(ILookInStreamPtr stream, void *buf, size_t *size);
+SRes LookInStream_SeekTo(ILookInStreamPtr stream, UInt64 offset);
+
+/* reads via ILookInStream::Read */
+SRes LookInStream_Read2(ILookInStreamPtr stream, void *buf, size_t size, SRes errorType);
+SRes LookInStream_Read(ILookInStreamPtr stream, void *buf, size_t size);
+
+
+typedef struct
+{
+  ILookInStream vt;
+  ISeekInStreamPtr realStream;
+
+  size_t pos;
+  size_t size; /* it's data size */
+
+  /* the following variables must be set outside */
+  Byte *buf;
+  size_t bufSize;
+} CLookToRead2;
+
+void LookToRead2_CreateVTable(CLookToRead2 *p, int lookahead);
+
+#define LookToRead2_INIT(p) { (p)->pos = (p)->size = 0; }
+
+
+typedef struct
+{
+  ISeqInStream vt;
+  ILookInStreamPtr realStream;
+} CSecToLook;
+
+void SecToLook_CreateVTable(CSecToLook *p);
+
+
+
+typedef struct
+{
+  ISeqInStream vt;
+  ILookInStreamPtr realStream;
+} CSecToRead;
+
+void SecToRead_CreateVTable(CSecToRead *p);
+
+
+Z7_C_IFACE_DECL (ICompressProgress)
+{
+  SRes (*Progress)(ICompressProgressPtr p, UInt64 inSize, UInt64 outSize);
+    /* Returns: result. (result != SZ_OK) means break.
+       Value (UInt64)(Int64)-1 for size means unknown value. */
+};
+
+#define ICompressProgress_Progress(p, inSize, outSize) (p)->Progress(p, inSize, outSize)
+
+
+
+typedef struct ISzAlloc ISzAlloc;
+typedef const ISzAlloc * ISzAllocPtr;
+
+struct ISzAlloc
+{
+  void *(*Alloc)(ISzAllocPtr p, size_t size);
+  void (*Free)(ISzAllocPtr p, void *address); /* address can be 0 */
+};
+
+#define ISzAlloc_Alloc(p, size) (p)->Alloc(p, size)
+#define ISzAlloc_Free(p, a) (p)->Free(p, a)
+
+/* deprecated */
+#define IAlloc_Alloc(p, size) ISzAlloc_Alloc(p, size)
+#define IAlloc_Free(p, a) ISzAlloc_Free(p, a)
+
+
+
+
+
+#ifndef MY_offsetof
+  #ifdef offsetof
+    #define MY_offsetof(type, m) offsetof(type, m)
+    /*
+    #define MY_offsetof(type, m) FIELD_OFFSET(type, m)
+    */
+  #else
+    #define MY_offsetof(type, m) ((size_t)&(((type *)0)->m))
+  #endif
+#endif
+
+
+
+#ifndef Z7_container_of
+
+/*
+#define Z7_container_of(ptr, type, m) container_of(ptr, type, m)
+#define Z7_container_of(ptr, type, m) CONTAINING_RECORD(ptr, type, m)
+#define Z7_container_of(ptr, type, m) ((type *)((char *)(ptr) - offsetof(type, m)))
+#define Z7_container_of(ptr, type, m) (&((type *)0)->m == (ptr), ((type *)(((char *)(ptr)) - MY_offsetof(type, m))))
+*/
+
+/*
+  GCC shows warning: "perhaps the 'offsetof' macro was used incorrectly"
+    GCC 3.4.4 : classes with constructor
+    GCC 4.8.1 : classes with non-public variable members"
+*/
+
+#define Z7_container_of(ptr, type, m) \
+  ((type *)(void *)((char *)(void *) \
+  (1 ? (ptr) : &((type *)NULL)->m) - MY_offsetof(type, m)))
+
+#define Z7_container_of_CONST(ptr, type, m) \
+  ((const type *)(const void *)((const char *)(const void *) \
+  (1 ? (ptr) : &((type *)NULL)->m) - MY_offsetof(type, m)))
+
+/*
+#define Z7_container_of_NON_CONST_FROM_CONST(ptr, type, m) \
+  ((type *)(void *)(const void *)((const char *)(const void *) \
+  (1 ? (ptr) : &((type *)NULL)->m) - MY_offsetof(type, m)))
+*/
+
+#endif
+
+#define Z7_CONTAINER_FROM_VTBL_SIMPLE(ptr, type, m) ((type *)(void *)(ptr))
+
+// #define Z7_CONTAINER_FROM_VTBL(ptr, type, m) Z7_CONTAINER_FROM_VTBL_SIMPLE(ptr, type, m)
+#define Z7_CONTAINER_FROM_VTBL(ptr, type, m) Z7_container_of(ptr, type, m)
+// #define Z7_CONTAINER_FROM_VTBL(ptr, type, m) Z7_container_of_NON_CONST_FROM_CONST(ptr, type, m)
+
+#define Z7_CONTAINER_FROM_VTBL_CONST(ptr, type, m) Z7_container_of_CONST(ptr, type, m)
+
+#define Z7_CONTAINER_FROM_VTBL_CLS(ptr, type, m) Z7_CONTAINER_FROM_VTBL_SIMPLE(ptr, type, m)
+/*
+#define Z7_CONTAINER_FROM_VTBL_CLS(ptr, type, m) Z7_CONTAINER_FROM_VTBL(ptr, type, m)
+*/
+#if defined (__clang__) || defined(__GNUC__)
+#define Z7_DIAGNOSTIC_IGNORE_BEGIN_CAST_QUAL \
+  _Pragma("GCC diagnostic push") \
+  _Pragma("GCC diagnostic ignored \"-Wcast-qual\"")
+#define Z7_DIAGNOSTIC_IGNORE_END_CAST_QUAL \
+  _Pragma("GCC diagnostic pop")
+#else
+#define Z7_DIAGNOSTIC_IGNORE_BEGIN_CAST_QUAL
+#define Z7_DIAGNOSTIC_IGNORE_END_CAST_QUAL
+#endif
+
+#define Z7_CONTAINER_FROM_VTBL_TO_DECL_VAR(ptr, type, m, p) \
+  Z7_DIAGNOSTIC_IGNORE_BEGIN_CAST_QUAL \
+  type *p = Z7_CONTAINER_FROM_VTBL(ptr, type, m); \
+  Z7_DIAGNOSTIC_IGNORE_END_CAST_QUAL
+
+#define Z7_CONTAINER_FROM_VTBL_TO_DECL_VAR_pp_vt_p(type) \
+  Z7_CONTAINER_FROM_VTBL_TO_DECL_VAR(pp, type, vt, p)
+
+
+// #define ZIP7_DECLARE_HANDLE(name)  typedef void *name;
+#define Z7_DECLARE_HANDLE(name)  struct name##_dummy{int unused;}; typedef struct name##_dummy *name;
+
+
+#define Z7_memset_0_ARRAY(a)  memset((a), 0, sizeof(a))
+
+#ifndef Z7_ARRAY_SIZE
+#define Z7_ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+#endif
+
+
+#ifdef _WIN32
+
+#define CHAR_PATH_SEPARATOR '\\'
+#define WCHAR_PATH_SEPARATOR L'\\'
+#define STRING_PATH_SEPARATOR "\\"
+#define WSTRING_PATH_SEPARATOR L"\\"
+
+#else
+
+#define CHAR_PATH_SEPARATOR '/'
+#define WCHAR_PATH_SEPARATOR L'/'
+#define STRING_PATH_SEPARATOR "/"
+#define WSTRING_PATH_SEPARATOR L"/"
+
+#endif
+
+#define k_PropVar_TimePrec_0        0
+#define k_PropVar_TimePrec_Unix     1
+#define k_PropVar_TimePrec_DOS      2
+#define k_PropVar_TimePrec_HighPrec 3
+#define k_PropVar_TimePrec_Base     16
+#define k_PropVar_TimePrec_100ns (k_PropVar_TimePrec_Base + 7)
+#define k_PropVar_TimePrec_1ns   (k_PropVar_TimePrec_Base + 9)
+
+EXTERN_C_END
+
+#endif
+
+/*
+#ifndef Z7_ST
+#ifdef _7ZIP_ST
+#define Z7_ST
+#endif
+#endif
+*/
+#endif
+
+
+/* ========================================================================== */
+/* internal: src/third_party/lzma/LzmaDec.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_PACK)
+/* LzmaDec.h -- LZMA Decoder
+2023-04-02 : Igor Pavlov : Public domain */
+
+#ifndef ZIP7_INC_LZMA_DEC_H
+#define ZIP7_INC_LZMA_DEC_H
+
+
+EXTERN_C_BEGIN
+
+/* #define Z7_LZMA_PROB32 */
+/* Z7_LZMA_PROB32 can increase the speed on some CPUs,
+   but memory usage for CLzmaDec::probs will be doubled in that case */
+
+typedef
+#ifdef Z7_LZMA_PROB32
+  UInt32
+#else
+  UInt16
+#endif
+  CLzmaProb;
+
+
+/* ---------- LZMA Properties ---------- */
+
+#define LZMA_PROPS_SIZE 5
+
+typedef struct
+{
+  Byte lc;
+  Byte lp;
+  Byte pb;
+  Byte _pad_;
+  UInt32 dicSize;
+} CLzmaProps;
+
+/* LzmaProps_Decode - decodes properties
+Returns:
+  SZ_OK
+  SZ_ERROR_UNSUPPORTED - Unsupported properties
+*/
+
+SRes LzmaProps_Decode(CLzmaProps *p, const Byte *data, unsigned size);
+
+
+/* ---------- LZMA Decoder state ---------- */
+
+/* LZMA_REQUIRED_INPUT_MAX = number of required input bytes for worst case.
+   Num bits = log2((2^11 / 31) ^ 22) + 26 < 134 + 26 = 160; */
+
+#define LZMA_REQUIRED_INPUT_MAX 20
+
+typedef struct
+{
+  /* Don't change this structure. ASM code can use it. */
+  CLzmaProps prop;
+  CLzmaProb *probs;
+  CLzmaProb *probs_1664;
+  Byte *dic;
+  SizeT dicBufSize;
+  SizeT dicPos;
+  const Byte *buf;
+  UInt32 range;
+  UInt32 code;
+  UInt32 processedPos;
+  UInt32 checkDicSize;
+  UInt32 reps[4];
+  UInt32 state;
+  UInt32 remainLen;
+
+  UInt32 numProbs;
+  unsigned tempBufSize;
+  Byte tempBuf[LZMA_REQUIRED_INPUT_MAX];
+} CLzmaDec;
+
+#define LzmaDec_CONSTRUCT(p) { (p)->dic = NULL; (p)->probs = NULL; }
+#define LzmaDec_Construct(p) LzmaDec_CONSTRUCT(p)
+
+void LzmaDec_Init(CLzmaDec *p);
+
+/* There are two types of LZMA streams:
+     - Stream with end mark. That end mark adds about 6 bytes to compressed size.
+     - Stream without end mark. You must know exact uncompressed size to decompress such stream. */
+
+typedef enum
+{
+  LZMA_FINISH_ANY,   /* finish at any point */
+  LZMA_FINISH_END    /* block must be finished at the end */
+} ELzmaFinishMode;
+
+/* ELzmaFinishMode has meaning only if the decoding reaches output limit !!!
+
+   You must use LZMA_FINISH_END, when you know that current output buffer
+   covers last bytes of block. In other cases you must use LZMA_FINISH_ANY.
+
+   If LZMA decoder sees end marker before reaching output limit, it returns SZ_OK,
+   and output value of destLen will be less than output buffer size limit.
+   You can check status result also.
+
+   You can use multiple checks to test data integrity after full decompression:
+     1) Check Result and "status" variable.
+     2) Check that output(destLen) = uncompressedSize, if you know real uncompressedSize.
+     3) Check that output(srcLen) = compressedSize, if you know real compressedSize.
+        You must use correct finish mode in that case. */
+
+typedef enum
+{
+  LZMA_STATUS_NOT_SPECIFIED,               /* use main error code instead */
+  LZMA_STATUS_FINISHED_WITH_MARK,          /* stream was finished with end mark. */
+  LZMA_STATUS_NOT_FINISHED,                /* stream was not finished */
+  LZMA_STATUS_NEEDS_MORE_INPUT,            /* you must provide more input bytes */
+  LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK  /* there is probability that stream was finished without end mark */
+} ELzmaStatus;
+
+/* ELzmaStatus is used only as output value for function call */
+
+
+/* ---------- Interfaces ---------- */
+
+/* There are 3 levels of interfaces:
+     1) Dictionary Interface
+     2) Buffer Interface
+     3) One Call Interface
+   You can select any of these interfaces, but don't mix functions from different
+   groups for same object. */
+
+
+/* There are two variants to allocate state for Dictionary Interface:
+     1) LzmaDec_Allocate / LzmaDec_Free
+     2) LzmaDec_AllocateProbs / LzmaDec_FreeProbs
+   You can use variant 2, if you set dictionary buffer manually.
+   For Buffer Interface you must always use variant 1.
+
+LzmaDec_Allocate* can return:
+  SZ_OK
+  SZ_ERROR_MEM         - Memory allocation error
+  SZ_ERROR_UNSUPPORTED - Unsupported properties
+*/
+
+SRes LzmaDec_AllocateProbs(CLzmaDec *p, const Byte *props, unsigned propsSize, ISzAllocPtr alloc);
+void LzmaDec_FreeProbs(CLzmaDec *p, ISzAllocPtr alloc);
+
+SRes LzmaDec_Allocate(CLzmaDec *p, const Byte *props, unsigned propsSize, ISzAllocPtr alloc);
+void LzmaDec_Free(CLzmaDec *p, ISzAllocPtr alloc);
+
+/* ---------- Dictionary Interface ---------- */
+
+/* You can use it, if you want to eliminate the overhead for data copying from
+   dictionary to some other external buffer.
+   You must work with CLzmaDec variables directly in this interface.
+
+   STEPS:
+     LzmaDec_Construct()
+     LzmaDec_Allocate()
+     for (each new stream)
+     {
+       LzmaDec_Init()
+       while (it needs more decompression)
+       {
+         LzmaDec_DecodeToDic()
+         use data from CLzmaDec::dic and update CLzmaDec::dicPos
+       }
+     }
+     LzmaDec_Free()
+*/
+
+/* LzmaDec_DecodeToDic
+
+   The decoding to internal dictionary buffer (CLzmaDec::dic).
+   You must manually update CLzmaDec::dicPos, if it reaches CLzmaDec::dicBufSize !!!
+
+finishMode:
+  It has meaning only if the decoding reaches output limit (dicLimit).
+  LZMA_FINISH_ANY - Decode just dicLimit bytes.
+  LZMA_FINISH_END - Stream must be finished after dicLimit.
+
+Returns:
+  SZ_OK
+    status:
+      LZMA_STATUS_FINISHED_WITH_MARK
+      LZMA_STATUS_NOT_FINISHED
+      LZMA_STATUS_NEEDS_MORE_INPUT
+      LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK
+  SZ_ERROR_DATA - Data error
+  SZ_ERROR_FAIL - Some unexpected error: internal error of code, memory corruption or hardware failure
+*/
+
+SRes LzmaDec_DecodeToDic(CLzmaDec *p, SizeT dicLimit,
+    const Byte *src, SizeT *srcLen, ELzmaFinishMode finishMode, ELzmaStatus *status);
+
+
+/* ---------- Buffer Interface ---------- */
+
+/* It's zlib-like interface.
+   See LzmaDec_DecodeToDic description for information about STEPS and return results,
+   but you must use LzmaDec_DecodeToBuf instead of LzmaDec_DecodeToDic and you don't need
+   to work with CLzmaDec variables manually.
+
+finishMode:
+  It has meaning only if the decoding reaches output limit (*destLen).
+  LZMA_FINISH_ANY - Decode just destLen bytes.
+  LZMA_FINISH_END - Stream must be finished after (*destLen).
+*/
+
+SRes LzmaDec_DecodeToBuf(CLzmaDec *p, Byte *dest, SizeT *destLen,
+    const Byte *src, SizeT *srcLen, ELzmaFinishMode finishMode, ELzmaStatus *status);
+
+
+/* ---------- One Call Interface ---------- */
+
+/* LzmaDecode
+
+finishMode:
+  It has meaning only if the decoding reaches output limit (*destLen).
+  LZMA_FINISH_ANY - Decode just destLen bytes.
+  LZMA_FINISH_END - Stream must be finished after (*destLen).
+
+Returns:
+  SZ_OK
+    status:
+      LZMA_STATUS_FINISHED_WITH_MARK
+      LZMA_STATUS_NOT_FINISHED
+      LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK
+  SZ_ERROR_DATA - Data error
+  SZ_ERROR_MEM  - Memory allocation error
+  SZ_ERROR_UNSUPPORTED - Unsupported properties
+  SZ_ERROR_INPUT_EOF - It needs more bytes in input buffer (src).
+  SZ_ERROR_FAIL - Some unexpected error: internal error of code, memory corruption or hardware failure
+*/
+
+SRes LzmaDecode(Byte *dest, SizeT *destLen, const Byte *src, SizeT *srcLen,
+    const Byte *propData, unsigned propSize, ELzmaFinishMode finishMode,
+    ELzmaStatus *status, ISzAllocPtr alloc);
+
+EXTERN_C_END
+
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* internal: src/internal/xrt_io.h */
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_IO) || \
 	defined(XRT_FEATURE_IO_BUFFER) || \
 	defined(XRT_FEATURE_IO_FILE) || \
-	defined(XRT_FEATURE_IO_LINE)
+	defined(XRT_FEATURE_IO_LINE) || \
+	defined(XRT_FEATURE_IO_STANDARD) || \
+	defined(XRT_FEATURE_CONSOLE_INPUT) || \
+	defined(XRT_FEATURE_CONSOLE_TERMINAL)
 #ifndef XRT_INTERNAL_IO_H
 #define XRT_INTERNAL_IO_H
 
@@ -60285,6 +62474,8 @@ struct xreader {
 	xreaderops Ops;
 	ptr Context;
 	bool AtEnd;
+	bool HasPending;
+	uint8 Pending;
 };
 
 
@@ -60329,6 +62520,15 @@ bool __xrtIoMove(
 	uint64 iLimit,
 	uint64* pPosition
 );
+
+/* Detect input beyond a hard limit without losing the probed byte. */
+bool __xrtReaderCheckLimit(xreader* pReader, cstr sOperation);
+
+#if defined(XRT_FEATURE_IO_STANDARD)
+/* An interactive session holds the same exclusive gate used by raw stdin. */
+bool __xrtStandardInputAcquire(ptr Owner);
+void __xrtStandardInputRelease(ptr Owner);
+#endif
 
 #endif
 
@@ -60379,7 +62579,7 @@ typedef struct xslotentry {
 
 #if defined(XRT_FEATURE_JSON_ESCAPE)
 
-/* 内部结果让 JSON、XSON 和独立 quote API 各自建立正确错误域。 */
+/* 内部结果让 JSON、XLON 和独立 quote API 各自建立正确错误域。 */
 typedef enum xjsonescaperesult {
 	XJSON_ESCAPE_OK = 0,
 	XJSON_ESCAPE_INVALID,
@@ -60415,40 +62615,40 @@ xjsonescaperesult __xrtJsonEscapeWrite(
 
 
 /* ========================================================================== */
-/* internal: src/internal/xrt_xson.h */
+/* internal: src/internal/xrt_xlon.h */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSON_CORE)
-#ifndef XRT_INTERNAL_XSON_H
-#define XRT_INTERNAL_XSON_H
+#if defined(XRT_FEATURE_XLON_CORE)
+#ifndef XRT_INTERNAL_XLON_H
+#define XRT_INTERNAL_XLON_H
 
 
 
 
-#if defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_XLON_CORE)
 
-/* 设置 XSON 模块错误；位置为空时不写文本定位数据。 */
-void __xrtXsonError(
+/* 设置 XLON 模块错误；位置为空时不写文本定位数据。 */
+void __xrtXlonError(
 	xerrkind Kind,
-	xxsonerror Code,
+	xxlonerror Code,
 	cstr sOperation,
 	cstr sMessage,
-	const xxsonlocation* pLocation
+	const xxlonlocation* pLocation
 );
 
 #endif
 
 
 
-#if defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_XLON_READ)
 
 /* 验证读取配置已初始化且所有保留字段为零。 */
-bool __xrtXsonReadConfigValid(const xxsonreadconfig* pConfig);
+bool __xrtXlonReadConfigValid(const xxlonreadconfig* pConfig);
 
 /* 逐行适配器共享 DOM/验证路径；验证成功返回可释放的 null 单例。 */
-xvalue* __xrtXsonReadBudget(
+xvalue* __xrtXlonReadBudget(
 	xstrview Text,
-	const xxsonreadconfig* pConfig,
+	const xxlonreadconfig* pConfig,
 	xtextvaluebudget* pBudget,
 	bool bValidate
 );
@@ -60457,10 +62657,10 @@ xvalue* __xrtXsonReadBudget(
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 /* 验证写出配置已初始化且所有保留字段为零。 */
-bool __xrtXsonWriteConfigValid(const xxsonwriteconfig* pConfig);
+bool __xrtXlonWriteConfigValid(const xxlonwriteconfig* pConfig);
 
 #endif
 
@@ -60473,12 +62673,12 @@ bool __xrtXsonWriteConfigValid(const xxsonwriteconfig* pConfig);
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSONL_CORE) || \
-	defined(XRT_FEATURE_XSONL_CORE)
+	defined(XRT_FEATURE_XLONL_CORE)
 #ifndef XRT_INTERNAL_TEXT_LINES_H
 #define XRT_INTERNAL_TEXT_LINES_H
 
 
-#if defined(XRT_FEATURE_JSONL_CORE) || defined(XRT_FEATURE_XSONL_CORE)
+#if defined(XRT_FEATURE_JSONL_CORE) || defined(XRT_FEATURE_XLONL_CORE)
 
 /* 错误偏移在两个公开格式枚举中保持一致。 */
 typedef enum xtextlineserror {
@@ -60515,7 +62715,7 @@ bool __xrtTextLinesErrorLocation(
 );
 #endif
 
-#if defined(XRT_FEATURE_JSONL_READ) || defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_JSONL_READ) || defined(XRT_FEATURE_XLONL_READ)
 
 /* 验证路径成功返回 null 单例；读取路径返回拥有的单条值。 */
 typedef xvalue* (*xtextlinesreadproc)(
@@ -60538,7 +62738,7 @@ xvalue* __xrtTextLinesRead(
 );
 #endif
 
-#if defined(XRT_FEATURE_JSONL_WRITE) || defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_JSONL_WRITE) || defined(XRT_FEATURE_XLONL_WRITE)
 typedef bool (*xtextlineswriteproc)(xbytesview Data, ptr pUserData);
 typedef bool (*xtextlinesrecordwriteproc)(
 	const xvalue* pValue, const void* pConfig, xtextlineswriteproc pWrite, ptr pUserData
@@ -60590,24 +62790,24 @@ str __xrtJsonlStringify(const xvalue* pArray, const xjsonlwriteconfig* pConfig, 
 
 
 /* ========================================================================== */
-/* internal: src/internal/xrt_xsonl.h */
+/* internal: src/internal/xrt_xlonl.h */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSONL_CORE)
-#ifndef XRT_INTERNAL_XSONL_H
-#define XRT_INTERNAL_XSONL_H
+#if defined(XRT_FEATURE_XLONL_CORE)
+#ifndef XRT_INTERNAL_XLONL_H
+#define XRT_INTERNAL_XLONL_H
 
 
-#if defined(XRT_FEATURE_XSONL_CORE)
-extern const xtextlinesformat __xrtXsonlFormat;
+#if defined(XRT_FEATURE_XLONL_CORE)
+extern const xtextlinesformat __xrtXlonlFormat;
 #endif
 
-#if defined(XRT_FEATURE_XSONL_READ)
-bool __xrtXsonlReadConfigValid(const xxsonlreadconfig* pConfig);
+#if defined(XRT_FEATURE_XLONL_READ)
+bool __xrtXlonlReadConfigValid(const xxlonlreadconfig* pConfig);
 #endif
 
-#if defined(XRT_FEATURE_XSONL_WRITE)
-str __xrtXsonlStringify(const xvalue* pArray, const xxsonlwriteconfig* pConfig, size_t* pSize);
+#if defined(XRT_FEATURE_XLONL_WRITE)
+str __xrtXlonlStringify(const xvalue* pArray, const xxlonlwriteconfig* pConfig, size_t* pSize);
 #endif
 
 #endif
@@ -61206,12 +63406,29 @@ bool __xrtTemplateRender(xrt_template_render* pRender);
 /* internal: src/internal/xrt_console.h */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_CONSOLE)
+#if defined(XRT_FEATURE_CONSOLE) || \
+	defined(XRT_FEATURE_CONSOLE_INPUT) || \
+	defined(XRT_FEATURE_CONSOLE_SCREEN) || \
+	defined(XRT_FEATURE_CONSOLE_TERMINAL)
 #ifndef XRT_INTERNAL_CONSOLE_H
 #define XRT_INTERNAL_CONSOLE_H
 
 
 #include <stdio.h>
+
+#if defined(_WIN32) || defined(_WIN64)
+/* Fixed Win32 SDK flag; old SDK headers omit it. Define before every Console
+ * implementation, not incidentally via the later optional logger module. */
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#endif
+#ifndef ENABLE_QUICK_EDIT_MODE
+#define ENABLE_QUICK_EDIT_MODE 0x0040
+#endif
+#ifndef ENABLE_EXTENDED_FLAGS
+#define ENABLE_EXTENDED_FLAGS 0x0080
+#endif
+#endif
 
 
 
@@ -61240,6 +63457,13 @@ bool __xrtConsoleWriterWrite(
 	const void* pData,
 	size_t iSize
 );
+
+/* Validate a whole text value before any visible output or queue mutation. */
+bool __xrtConsoleValidateText(xstrview Text);
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN)
+bool __xrtTerminalStyle(char* Text, size_t Capacity, int32 Foreground, int32 Background, uint32 Attributes);
+#endif
 
 
 
@@ -61460,8 +63684,8 @@ bool __xrtSignalPlatformRaise(uint32 iSlot, int* pSystemCode);
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_PROCESS) || \
-	defined(XRT_FEATURE_PROCESS_OPEN) || \
 	defined(XRT_FEATURE_PROCESS_RUN) || \
+	defined(XRT_FEATURE_PROCESS_OPEN) || \
 	defined(XRT_FEATURE_PROCESS_FUTURE) || \
 	defined(XRT_FEATURE_PROCESS_FILE) || \
 	defined(XRT_FEATURE_PROCESS_TERMINAL)
@@ -61949,6 +64173,28 @@ struct xpatternbuilder {
 	uint64 Version;
 	uint64 CompiledVersion;
 	xpattern* Cached;
+	xpatternedit* Pending;
+};
+
+
+
+typedef enum __xrt_pattern_edit_kind {
+	__XRT_PATTERN_EDIT_ADD,
+	__XRT_PATTERN_EDIT_SET,
+	__XRT_PATTERN_EDIT_REMOVE,
+	__XRT_PATTERN_EDIT_CLEAR
+} __xrt_pattern_edit_kind;
+
+typedef struct __xrt_pattern_edit_item {
+	__xrt_pattern_source* Source;
+	xpatternid Id;
+} __xrt_pattern_edit_item;
+
+struct xpatternedit {
+	xpatternbuilder* Builder;
+	__xrt_pattern_edit_kind Kind;
+	size_t Count;
+	__xrt_pattern_edit_item Items[];
 };
 
 
@@ -63067,6 +65313,11 @@ bool __xrtMailTransportClose(
 
 
 bool __xrtMailTransportAbort(__xmailtransport* pTransport);
+
+
+
+/* 不可恢复的协议故障中止连接，同时保留原始诊断。 */
+void __xrtMailTransportAbortPreserveError(__xmailtransport* pTransport);
 
 
 
@@ -74427,10 +76678,16 @@ static bool __xrtTimeAddMonths(xtime iTime, int64 iMonths, xtime* pResult)
 	if ( !__xrtTimeMulChecked(tDateTime.Year, 12, &iMonthIndex) ||
 		 !__xrtTimeAddChecked(iMonthIndex, tDateTime.Month - 1, &iMonthIndex) ||
 		 !__xrtTimeAddChecked(iMonthIndex, iMonths, &iTarget) ) {
+		__xrtTimeSetOverflow("add");
 		return false;
 	}
 	iTargetYear = __xrtTimeFloorDiv(iTarget, 12);
-	iTargetMonth = (int)(iTarget - (iTargetYear * 12)) + 1;
+	/* INT64_MIN 的向下整除商乘以 12 会越界；直接规范化余数。 */
+	iTargetMonth = (int)(iTarget % 12);
+	if ( iTargetMonth < 0 ) {
+		iTargetMonth += 12;
+	}
+	iTargetMonth++;
 	iTargetDays = xrtDaysInMonth(iTargetYear, iTargetMonth);
 	if ( tDateTime.Day > iTargetDays ) {
 		tDateTime.Day = iTargetDays;
@@ -74478,11 +76735,10 @@ XRT_API bool xrtTimeAdd(xtime iTime, int64 iValue, xtimeunit Unit, xtime* pResul
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtTimeAddMonths(iTime, iMonths, pResult) ) {
-		__xrtTimeSetOverflow("add");
-		return false;
-	}
-	return true;
+	/* The helper diagnoses arithmetic overflow and xrtTimeMake diagnoses the
+	 * final date. Propagate its error once: rebuilding here can mask an OOM
+	 * while constructing the first diagnostic and needlessly allocate twice. */
+	return __xrtTimeAddMonths(iTime, iMonths, pResult);
 }
 
 
@@ -92866,6 +95122,7 @@ struct xfuture {
 	const xfuturepayloadownershipv1* OwnershipPolicy;
 	xrtownershipref Producer;
 	const xfutureproducerownershipv1* ProducerPolicy;
+	const xfutureproducercancellationv1* ProducerCancellation;
 	const void* OwnershipClaim;
 	bool OwnershipCleared;
 	struct xfuture* Owner;
@@ -92948,13 +95205,15 @@ static void __xrtFutureProducerDrop(xrtownershipref Producer, const xfutureprodu
 	xrtClearError(); xrtSetErrorTake(pPrevious);
 }
 
-XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
-	const xfutureproducerownershipv1* pPolicy)
+static bool __xrtFutureProducerBindTake(xpromise* pPromise, xrtownershipref Producer,
+	const xfutureproducerownershipv1* pPolicy, const xfutureproducercancellationv1* pCancellation)
 {
 	xrtownershipscope Mutation = {0}; xfuture* pFuture; bool bBound = false;
 	if (pPromise == NULL || Producer.Data == NULL || Producer.Ops == NULL ||
 		Producer.Ops->Count == NULL || Producer.Ops->Trace == NULL ||
-		pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) || pPolicy->Drop == NULL) {
+		pPolicy == NULL || pPolicy->size != sizeof(*pPolicy) || pPolicy->Drop == NULL ||
+		(pCancellation != NULL && (pCancellation->size != sizeof(*pCancellation) ||
+			pCancellation->Retain == NULL || pCancellation->Request == NULL))) {
 		__xrtErrorSetInvalidArgument(); return false;
 	}
 	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
@@ -92965,11 +95224,23 @@ XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Pr
 		pFuture->Waiters == NULL && pFuture->WaitersTail == NULL &&
 		__xrtAtomicRefLoad(&pFuture->RefCount) == 2 && __xrtAtomicRefLoad(&pFuture->PromiseRefs) == 1) {
 		pFuture->Producer = Producer; pFuture->ProducerPolicy = pPolicy; bBound = true;
+		pFuture->ProducerCancellation = pCancellation;
 	}
 	(void)xrtMutexUnlock(&pFuture->Lock);
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if (!bBound) __xrtErrorSetInvalidState();
 	return bBound;
+}
+
+XRT_API bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer,
+	const xfutureproducerownershipv1* pPolicy)
+{ return __xrtFutureProducerBindTake(pPromise, Producer, pPolicy, NULL); }
+
+XRT_API bool xrtPromiseProducerBindTakeV2(xpromise* pPromise, xrtownershipref Producer,
+	const xfutureproducerownershipv1* pPolicy, const xfutureproducercancellationv1* pCancellation)
+{
+	if (pCancellation == NULL) { __xrtErrorSetInvalidArgument(); return false; }
+	return __xrtFutureProducerBindTake(pPromise, Producer, pPolicy, pCancellation);
 }
 
 static bool __xrtFutureAdapterHold(const void* pData)
@@ -93016,6 +95287,7 @@ static bool __xrtFutureAdapterFinish(const void* pData, const void* pToken)
 	pFuture->OwnershipTrace = NULL; pFuture->OwnershipPolicy = NULL;
 	pFuture->Owner = NULL; pFuture->Error = NULL; pFuture->Cancel = NULL;
 	pFuture->Producer = (xrtownershipref){0}; pFuture->ProducerPolicy = NULL;
+	pFuture->ProducerCancellation = NULL;
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if (pDestroy != NULL) pDestroy(pValue, NULL);
 	xrtFutureDestroy(pOwner); xrtErrorFree(pError); xrtCancelDestroy(pCancel);
@@ -93101,7 +95373,7 @@ static const xrtownershipadapterv1* __xrtFutureAdapterQuery(xrtownershipref Refe
 		if (!bKnown || pFuture->ProducerPolicy->size != sizeof(xfutureproducerownershipv1) ||
 			pFuture->ProducerPolicy->Drop == NULL || pFuture->Producer.Ops == NULL ||
 			pFuture->Producer.Ops->Count == NULL || pFuture->Producer.Ops->Trace == NULL) return NULL;
-	} else if (pFuture->ProducerPolicy != NULL) return NULL;
+	} else if (pFuture->ProducerPolicy != NULL || pFuture->ProducerCancellation != NULL) return NULL;
 	if (pFuture->Destroy != NULL) {
 		bool bKnown = false;
 		/* Match identity BEFORE dereferencing a producer's descriptor. */
@@ -93277,7 +95549,7 @@ static xfuture* __xrtFutureFree(xfuture* pFuture, xrtownershipscope* pMutation)
 	bool bPhased = pFuture->OwnershipPolicy != NULL;
 	/* Last PromiseDestroy closes before returning its physical reference;
 	 * terminal publication or graph Finish has already returned this owner. */
-	if (pFuture->Producer.Data != NULL || pFuture->ProducerPolicy != NULL) abort();
+	if (pFuture->Producer.Data != NULL || pFuture->ProducerPolicy != NULL || pFuture->ProducerCancellation != NULL) abort();
 
 	(void)xrtCondUnit(&pFuture->Ready);
 	(void)xrtMutexUnit(&pFuture->Lock);
@@ -93430,6 +95702,7 @@ static void __xrtFuturePublishLocked(
 	pFuture->Error = pError;
 	*pProducer = pFuture->Producer; *ppProducerPolicy = pFuture->ProducerPolicy;
 	pFuture->Producer = (xrtownershipref){0}; pFuture->ProducerPolicy = NULL;
+	pFuture->ProducerCancellation = NULL;
 	*ppWaiter = pFuture->Waiters;
 	pFuture->Waiters = NULL;
 	pFuture->WaitersTail = NULL;
@@ -94240,6 +96513,8 @@ XRT_API const xerror* xrtFutureError(const xfuture* pFuture)
 XRT_API bool xrtFutureCancel(xfuture* pFuture)
 {
 	xrtownershipscope Mutation = {0}; xcancel* pCancel; bool bRequested;
+	xrtownershipref Producer = {0}; const xfutureproducerownershipv1* pPolicy = NULL;
+	const xfutureproducercancellationv1* pCancellation = NULL;
 
 	if ( pFuture == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -94253,11 +96528,23 @@ XRT_API bool xrtFutureCancel(xfuture* pFuture)
 	/* The real local Cancel reference protects callback/release tails after
 	 * leaving the Future transition. Certified observers must not inherit an
 	 * API-owned scope; a caller-owned outer scope remains untouched. */
+	if (pFuture->State == XFUTURE_PENDING && !pFuture->Completing && !pFuture->OwnershipCleared &&
+		pFuture->ProducerCancellation != NULL) {
+		pCancellation = pFuture->ProducerCancellation;
+		if (!pCancellation->Retain(pFuture->Producer.Data)) {
+			(void)xrtMutexUnlock(&pFuture->Lock);
+			if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+			__xrtErrorSetInvalidState(); return false;
+		}
+		Producer = pFuture->Producer; pPolicy = pFuture->ProducerPolicy;
+	}
 	pCancel = pFuture->State == XFUTURE_PENDING && !pFuture->OwnershipCleared ?
 		xrtCancelRef(pFuture->Cancel) : NULL;
 	(void)xrtMutexUnlock(&pFuture->Lock);
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	bRequested = pCancel != NULL && xrtCancelRequest(pCancel);
+	if (bRequested && Producer.Data != NULL) pCancellation->Request(Producer.Data);
+	__xrtFutureProducerDrop(Producer, pPolicy);
 	xrtCancelDestroy(pCancel); return bRequested;
 }
 
@@ -95435,8 +97722,13 @@ static void __xrtFutureCombineSourceDone(ptr data)
     }
     __xrtFutureCombineEnd(group, &scope);
     if (promise) {
-        __xrtFutureCombineDetach(group, item); __xrtFutureCombineComplete(group, promise);
+        __xrtFutureCombineDetach(group, item);
+        /* The winning callback still owns the group and its source slots.
+         * Request cancellation before the mapper can publish to another
+         * thread; callbacks run without the group mutex, and Completed makes
+         * reentrant loser notifications inert. Producers keep terminal rights. */
         if (race) __xrtFutureCombineCancelSources(group, item->Index);
+        __xrtFutureCombineComplete(group, promise);
     }
     __xrtFutureCombineBegin(group, &scope); --group->Active; __xrtFutureCombineEnd(group, &scope);
 }
@@ -106372,10 +108664,52 @@ typedef struct xvalueobjectbacking {
 	const void* ReceiverClaim;
 	xvalueidentityhash OwnedIdentityHash;
 	xvalueidentityequal OwnedIdentityEqual;
+	/* Borrowed discovery links, never an owning edge or reference. Only exact
+	 * explicitly bound policies enroll; no global list of ordinary Values. */
+	struct xvalueobjectbacking* DiscoveryPrevious;
+	struct xvalueobjectbacking* DiscoveryNext;
 } xvalueobjectbacking;
 
 static bool __xrtValueObjectPolicyValid(const xvalueobjectownershipv1*);
 static bool __xrtValueObjectPolicyCallbacks(const xvalueobjectbacking*, const xvalueobjectownershipv1*);
+
+/* Mutators can run concurrently; this short lock protects ONLY intrusive link
+ * writes. Enter after ownership mutation, never across allocation, RC, a user
+ * callback or native teardown. Frozen enumeration needs no participant lock. */
+#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64)
+static xrt_spinlock __xrtValueObjectDiscoveryLock = { PTHREAD_MUTEX_INITIALIZER };
+#else
+static xrt_spinlock __xrtValueObjectDiscoveryLock = {0};
+#endif
+static xvalueobjectbacking* __xrtValueObjectDiscovery;
+static void __xrtValueObjectDiscoveryEnroll(xvalueobjectbacking* pObject)
+{
+	if (pObject->OwnershipPolicy == NULL) return;
+	__xrtSpinLock(&__xrtValueObjectDiscoveryLock);
+	if (pObject->DiscoveryPrevious != NULL || pObject->DiscoveryNext != NULL ||
+		__xrtValueObjectDiscovery == pObject) abort();
+	pObject->DiscoveryNext = __xrtValueObjectDiscovery;
+	if (__xrtValueObjectDiscovery != NULL) __xrtValueObjectDiscovery->DiscoveryPrevious = pObject;
+	__xrtValueObjectDiscovery = pObject;
+	__xrtSpinUnlock(&__xrtValueObjectDiscoveryLock);
+}
+static void __xrtValueObjectDiscoveryRemove(xvalueobjectbacking* pObject)
+{
+	if (pObject->OwnershipPolicy == NULL) return;
+	__xrtSpinLock(&__xrtValueObjectDiscoveryLock);
+	if (pObject->DiscoveryPrevious != NULL)
+		pObject->DiscoveryPrevious->DiscoveryNext = pObject->DiscoveryNext;
+	else if (__xrtValueObjectDiscovery == pObject)
+		__xrtValueObjectDiscovery = pObject->DiscoveryNext;
+	else {
+		if (pObject->DiscoveryNext != NULL) abort();
+		__xrtSpinUnlock(&__xrtValueObjectDiscoveryLock); return;
+	}
+	if (pObject->DiscoveryNext != NULL)
+		pObject->DiscoveryNext->DiscoveryPrevious = pObject->DiscoveryPrevious;
+	pObject->DiscoveryPrevious = pObject->DiscoveryNext = NULL;
+	__xrtSpinUnlock(&__xrtValueObjectDiscoveryLock);
+}
 
 static bool __xrtValueLifetimeOwnershipCount(const void* pData, size_t* pCount)
 {
@@ -106422,6 +108756,7 @@ static bool __xrtValueObjectBackingLifetimeCopy(xvalueobjectbacking* pTarget,
 	/* Only ordinary construction state is copyable. A finalization duty is
 	 * reference identity, deliberately never cloned into a new backing. */
 	pTarget->FinalizerPrepared = !pSource->FinalizerBound && pSource->FinalizerPrepared;
+	__xrtValueObjectDiscoveryEnroll(pTarget);
 	return true;
 }
 
@@ -106796,6 +109131,8 @@ static void __xrtValueBackingReleaseView(xvaluebacking* pBacking, xvalue* pView,
 	 * still-owned child references are real external roots while recursive
 	 * releases run, even if a child finalizer inspects/collects another graph.
 	 * Opaque legacy finalizers/lifetimes keep their conservative boundary. */
+	if (pBacking->Type == XVALUE_OBJECT)
+		__xrtValueObjectDiscoveryRemove((xvalueobjectbacking*)pBacking);
 	if (bPhased && !xrtOwnershipScopeEnd(pMutation)) abort();
 	if ( pBacking->Type == XVALUE_ARRAY ) {
 		xvaluearraybacking* pArray = (xvaluearraybacking*)pBacking;
@@ -106877,6 +109214,7 @@ static void __xrtValueBackingAdapterClear(const void* pData, const void* pToken)
 	} else if (pBacking->Type == XVALUE_SET) {
 		xrtSetClear(&((xvaluesetbacking*)pBacking)->Items);
 	} else if (pBacking->Type == XVALUE_OBJECT) {
+		__xrtValueObjectDiscoveryRemove((xvalueobjectbacking*)pBacking);
 		xrtMapClear(&((xvalueobjectbacking*)pBacking)->Items);
 	} else abort();
 	pBacking->Flags |= XRT_VALUE_BACKING_OWNERSHIP_CLEARED;
@@ -107077,10 +109415,30 @@ static bool __xrtOwnershipBody_ValueObjectOwnershipBindV1(xvalue* pValue, const 
 		__xrtErrorSetInvalidState(); return false;
 	}
 	pObject->OwnershipPolicy = pPolicy; pObject->Lifetime->OwnershipPolicy = pPolicy;
+	__xrtValueObjectDiscoveryEnroll(pObject);
 	return true;
 }
 XRT_API bool xrtValueObjectOwnershipBindV1(xvalue* pObject, const xvalueobjectownershipv1* pPolicy)
 { XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectOwnershipBindV1(pObject, pPolicy)); }
+XRT_API bool xrtValueObjectOwnershipDiscoverV1(const xvalueobjectownershipv1* pPolicy,
+	xvalueobjectownershipdiscoverv1 pVisit, ptr pContext)
+{
+	if (!__xrtValueObjectPolicyValid(pPolicy) || pVisit == NULL) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	/* Caller already owns Freeze. No lock/hold or invocation of the producer's
+	 * callbacks: exact immutable identity selects this family's borrowed nodes. */
+	for (const xvalueobjectbacking* pObject = __xrtValueObjectDiscovery;
+		pObject != NULL; pObject = pObject->DiscoveryNext) {
+		if (pObject->OwnershipPolicy != pPolicy) continue;
+		if (pObject->Lifetime == NULL || pObject->Lifetime->OwnershipPolicy != pPolicy) {
+			__xrtErrorSetInvalidState(); return false;
+		}
+		if (!pVisit((xrtownershipref){pObject, &__xrtValueBackingOwnershipOps},
+			pObject->Lifetime->UserData, pContext)) return false;
+	}
+	return true;
+}
 
 static bool __xrtOwnershipBody_ValueObjectIdentityBindV1(xvalue* pValue,
 	xvalueidentityhash pHash, xvalueidentityequal pEqual, const xvalueobjectownershipv1* pPolicy)
@@ -107619,7 +109977,8 @@ static bool __xrtValueSetItemValid(const xvalue* pItem)
 		__xrtErrorSetType();
 		return false;
 	}
-	if ( pItem->Type > XVALUE_HANDLE ) {
+	if ( (pItem->Type > XVALUE_HANDLE) &&
+		 (pItem->Type != XVALUE_UINT) && (pItem->Type != XVALUE_CHAR) ) {
 		__xrtErrorSetType();
 		return false;
 	}
@@ -111505,13 +113864,13 @@ XRT_API bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight)
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSON_CORE) || \
-	defined(XRT_FEATURE_XSON_CORE)
+	defined(XRT_FEATURE_XLON_CORE)
 
 #include <stdio.h>
 
 
 
-#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_JSON_CORE) || defined(XRT_FEATURE_XLON_CORE)
 
 /* 建立稳定错误域、代码和可选文本位置。 */
 void __xrtTextValueError(
@@ -115938,13 +118297,13 @@ XRT_API uint16* xrtUtf32ViewTo16(xutf32view Source, xutfpolicy Policy, size_t* p
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSON_READ) || \
-	defined(XRT_FEATURE_XSON_READ)
+	defined(XRT_FEATURE_XLON_READ)
 
 #include <math.h>
 
 
 
-#if defined(XRT_FEATURE_JSON_READ) || defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_JSON_READ) || defined(XRT_FEATURE_XLON_READ)
 
 /* 单次解析持有显式长度游标、资源预算和两个互不覆盖的反转义缓冲。 */
 typedef struct xtextvalueparser {
@@ -116146,7 +118505,7 @@ static bool __xrtTextValueReadConfigValid(
 	return
 		(pConfig != NULL) &&
 		((pConfig->Dialect == XTEXT_VALUE_JSON) ||
-		 (pConfig->Dialect == XTEXT_VALUE_XSON)) &&
+		 (pConfig->Dialect == XTEXT_VALUE_XLON)) &&
 		((pConfig->Flags & ~iKnownFlags) == 0) &&
 		(pConfig->MaxDepth != 0) &&
 		(pConfig->MaxDepth <= XRT_VALUE_DEPTH_MAX) &&
@@ -116539,7 +118898,7 @@ static bool __xrtTextValueParserEmit(
 
 
 
-/* XSON 标签首字节只接受 ASCII 字母或下划线。 */
+/* XLON 标签首字节只接受 ASCII 字母或下划线。 */
 static bool __xrtTextValueIdentifierStart(uint8 iByte)
 {
 	return
@@ -117053,7 +119412,7 @@ static bool __xrtTextValueTagEqual(
 
 
 
-/* 解析 XSON 显式容器前缀或单字符串载荷标签。 */
+/* 解析 XLON 显式容器前缀或单字符串载荷标签。 */
 static bool __xrtTextValueParserTagged(
 	xtextvalueparser* pParser,
 	xtextvalueevent* pEvent
@@ -117080,7 +119439,7 @@ static bool __xrtTextValueParserTagged(
 				pParser,
 				XERR_RANGE,
 				XTEXT_VALUE_ERROR_LIMIT,
-				"XSON nesting exceeds configured depth"
+				"XLON nesting exceeds configured depth"
 			);
 			return false;
 		}
@@ -117102,7 +119461,7 @@ static bool __xrtTextValueParserTagged(
 				pParser,
 				XERR_RANGE,
 				XTEXT_VALUE_ERROR_LIMIT,
-				"XSON nesting exceeds configured depth"
+				"XLON nesting exceeds configured depth"
 			);
 			return false;
 		}
@@ -117122,7 +119481,7 @@ static bool __xrtTextValueParserTagged(
 			pParser,
 			XERR_PROTOCOL,
 			XTEXT_VALUE_ERROR_SYNTAX,
-			"expected XSON tag payload"
+			"expected XLON tag payload"
 		);
 		return false;
 	}
@@ -117147,7 +119506,7 @@ static bool __xrtTextValueParserTagged(
 			pParser,
 			XERR_PROTOCOL,
 			XTEXT_VALUE_ERROR_SYNTAX,
-			"expected end of XSON tag payload"
+			"expected end of XLON tag payload"
 		);
 		return false;
 	}
@@ -117261,7 +119620,7 @@ static bool __xrtTextValueParserValue(
 			__xrtTextValueParserEmit(pParser, &Event);
 	}
 	if (
-		(pParser->Config.Dialect == XTEXT_VALUE_XSON) &&
+		(pParser->Config.Dialect == XTEXT_VALUE_XLON) &&
 		__xrtTextValueIdentifierStart(iByte)
 	) {
 		return __xrtTextValueParserTagged(pParser, &Event);
@@ -118939,12 +121298,34 @@ XRT_API str xrtStrConcat(xstrview Left, xstrview Right)
 
 
 /* 使用分隔符连接一组字符串视图。 */
-XRT_API str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCount)
+static str __xrtStrJoin(xstrview Separator, const xstrview* arrText,
+	size_t iCount, size_t* pOutputSize)
 {
 	size_t iSize = 0;
 	size_t iPosition = 0;
 	str sResult;
 
+	if ( pOutputSize != NULL ) {
+		if ( __xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), Separator.Data, Separator.Size) ||
+			 (arrText != NULL && iCount <= SIZE_MAX / sizeof(*arrText) &&
+			  __xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), arrText, iCount * sizeof(*arrText))) ) {
+			__xrtErrorSetInvalidArgument();
+			return NULL;
+		}
+		if ( arrText != NULL && iCount <= SIZE_MAX / sizeof(*arrText) ) {
+			for ( size_t i = 0; i < iCount; ++i ) {
+				if ( __xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), arrText[i].Data, arrText[i].Size) ) {
+					__xrtErrorSetInvalidArgument();
+					return NULL;
+				}
+			}
+		}
+		*pOutputSize = 0;
+	}
+	if ( iCount > SIZE_MAX / sizeof(*arrText) ) {
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
 	if ( !__xrtStrViewValid(Separator) || ((arrText == NULL) && (iCount != 0)) ) {
 		if ( (arrText == NULL) && (iCount != 0) ) {
 			__xrtErrorSetInvalidArgument();
@@ -118973,6 +121354,7 @@ XRT_API str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCoun
 	}
 	sResult = (str)xrtMalloc(iSize + 1u);
 	if ( sResult == NULL ) {
+		__xrtErrorSetOutOfMemory();
 		return NULL;
 	}
 	for ( size_t i = 0; i < iCount; i++ ) {
@@ -118986,7 +121368,19 @@ XRT_API str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCoun
 		}
 	}
 	sResult[iPosition] = 0;
+	if ( pOutputSize != NULL ) *pOutputSize = iPosition;
 	return sResult;
+}
+
+XRT_API str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCount)
+{
+	return __xrtStrJoin(Separator, arrText, iCount, NULL);
+}
+
+XRT_API str xrtStrJoinSized(xstrview Separator, const xstrview* arrText,
+	size_t iCount, size_t* pOutputSize)
+{
+	return __xrtStrJoin(Separator, arrText, iCount, pOutputSize);
 }
 
 
@@ -119014,7 +121408,7 @@ XRT_API str xrtStrRepeat(xstrview Text, size_t iCount)
 	if ( sResult == NULL ) {
 		return NULL;
 	}
-	iWritten = Text.Size;
+	iWritten = iSize == 0 ? 0 : Text.Size;
 	if ( iWritten != 0 ) {
 		memcpy(sResult, Text.Data, iWritten);
 	}
@@ -119034,18 +121428,38 @@ XRT_API str xrtStrRepeat(xstrview Text, size_t iCount)
 /* 替换所有不重叠子串。 */
 XRT_API str xrtStrReplace(xstrview Text, xstrview Part, xstrview Replacement)
 {
+	return xrtStrReplaceSized(Text, Part, Replacement, NULL);
+}
+
+
+
+/* 替换并保留已计算的精确结果长度，不重新扫描含 NUL 的结果。 */
+XRT_API str xrtStrReplaceSized(xstrview Text, xstrview Part,
+	xstrview Replacement, size_t* pOutputSize)
+{
 	size_t iMatchCount;
 	size_t iResultSize;
 	size_t iRead = 0;
 	size_t iWrite = 0;
 	str sResult;
 
+	if ( (pOutputSize != NULL) &&
+		 (__xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), Text.Data, Text.Size) ||
+		  __xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), Part.Data, Part.Size) ||
+		  __xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), Replacement.Data, Replacement.Size)) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( pOutputSize != NULL ) *pOutputSize = 0;
 	if ( !__xrtStrViewValid(Text) || !__xrtStrViewValid(Part) ||
 		 !__xrtStrViewValid(Replacement) ) {
 		return NULL;
 	}
 	if ( Part.Size == 0 ) {
-		return __xrtStrCopyView(Text);
+		sResult = __xrtStrCopyView(Text);
+		if ( (sResult == NULL) && (Text.Size != SIZE_MAX) ) __xrtErrorSetOutOfMemory();
+		if ( (sResult != NULL) && (pOutputSize != NULL) ) *pOutputSize = Text.Size;
+		return sResult;
 	}
 	iMatchCount = xrtStrCount(Text, Part);
 	iResultSize = Text.Size;
@@ -119066,6 +121480,7 @@ XRT_API str xrtStrReplace(xstrview Text, xstrview Part, xstrview Replacement)
 	}
 	sResult = (str)xrtMalloc(iResultSize + 1u);
 	if ( sResult == NULL ) {
+		__xrtErrorSetOutOfMemory();
 		return NULL;
 	}
 	while ( iRead < Text.Size ) {
@@ -119093,6 +121508,7 @@ XRT_API str xrtStrReplace(xstrview Text, xstrview Part, xstrview Replacement)
 		iRead = iFound + Part.Size;
 	}
 	sResult[iWrite] = 0;
+	if ( pOutputSize != NULL ) *pOutputSize = iWrite;
 	return sResult;
 }
 
@@ -121949,8 +124365,25 @@ XRT_API str xrtPathAppDir(void)
 
 #if defined(XRT_FEATURE_FILE)
 
-/* Windows 追加对象分离原子数据句柄和锁等控制操作句柄。 */
+#if (defined(_WIN32) || defined(_WIN64)) && defined(__TINYC__)
+/* Same Vista handle API compatibility declaration used by file_root_windows. */
+BOOL WINAPI SetFileInformationByHandle(HANDLE File, int Class, LPVOID Info, DWORD Size);
+#endif
+
+/* 公共文件对象只保存后端分派、后端状态、打开标志与能力快照。 */
 struct xfile_impl {
+	const xrt_file_backend_ops* Ops;
+	ptr State;
+	uint32 Flags;
+	uint64 Capabilities;
+	ptr Owner;
+	void (*OwnerRelease)(ptr pOwner);
+};
+
+
+
+/* native backend 是平台句柄的唯一内部承载者。 */
+typedef struct xrt_native_file_state {
 	#if defined(_WIN32) || defined(_WIN64)
 		HANDLE Handle;
 		HANDLE Control;
@@ -121963,36 +124396,63 @@ struct xfile_impl {
 		xatomic64 AsyncOwner;
 		bool AsyncAssociated;
 	#endif
-};
+} xrt_native_file_state;
 
 
 
-/* 普通路径和根内路径都在系统创建/截断前准备对象。 */
-xfile __xrtFileAlloc(void)
-{
-	return (xfile)xrtMalloc(sizeof(struct xfile_impl));
-}
+static bool __xrtNativeFileRead(ptr pState, ptr pBuffer,
+	size_t iRequest, size_t* pRead);
+static bool __xrtNativeFileWrite(ptr pState, const void* pBuffer,
+	size_t iRequest, size_t* pWritten);
+static bool __xrtNativeFileReadAt(ptr pState, uint64 iOffset,
+	ptr pBuffer, size_t iRequest, size_t* pRead);
+static bool __xrtNativeFileWriteAt(ptr pState, uint64 iOffset,
+	const void* pBuffer, size_t iRequest, size_t* pWritten);
+static bool __xrtNativeFileSeek(ptr pState, int64 iOffset,
+	xseek Origin, uint64* pPosition);
+static bool __xrtNativeFileStat(ptr pState, xfileinfo* pInfo);
+static bool __xrtNativeFileResize(ptr pState, uint64 iSize);
+static bool __xrtNativeFileFlush(ptr pState);
+static intptr_t __xrtNativeFileHandle(ptr pState);
+static intptr_t __xrtNativeFileControlHandle(ptr pState);
+#if defined(XRT_FEATURE_NET_FILE)
+static bool __xrtNativeFileAsyncBind(ptr pState,
+	uint64 iOwner, bool** ppAssociated);
+#endif
+static bool __xrtNativeFileClose(ptr pState);
 
 
 
-/* 句柄接管本身不再分配，成功打开之后不能再因包装对象 OOM 返回失败。 */
-void __xrtFileInitNativePair(xfile File,
-	intptr_t iHandle, intptr_t iControl, uint32 iFlags)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		File->Handle = (HANDLE)iHandle;
-		File->Control = (HANDLE)iControl;
-		InitializeSRWLock(&File->CursorLock);
-	#else
-		File->Handle = (int)iHandle;
-		(void)iControl;
-	#endif
-	File->Flags = iFlags;
+static const xrt_file_backend_ops __xrtNativeFileOps = {
+	sizeof(xrt_file_backend_ops),
+	XRT_FILE_BACKEND_VERSION,
+	XRT_FILE_BACKEND_READ | XRT_FILE_BACKEND_WRITE |
+	XRT_FILE_BACKEND_READ_AT | XRT_FILE_BACKEND_WRITE_AT |
+	XRT_FILE_BACKEND_SEEK | XRT_FILE_BACKEND_STAT |
+	XRT_FILE_BACKEND_RESIZE | XRT_FILE_BACKEND_FLUSH |
+	XRT_FILE_BACKEND_NATIVE | XRT_FILE_BACKEND_CONTROL_NATIVE |
 	#if defined(XRT_FEATURE_NET_FILE)
-		xrtAtomic64Init(&File->AsyncOwner, 0);
-		File->AsyncAssociated = false;
+		XRT_FILE_BACKEND_ASYNC_BIND,
+	#else
+		UINT64_C(0),
 	#endif
-}
+	__xrtNativeFileRead,
+	__xrtNativeFileWrite,
+	__xrtNativeFileReadAt,
+	__xrtNativeFileWriteAt,
+	__xrtNativeFileSeek,
+	__xrtNativeFileStat,
+	__xrtNativeFileResize,
+	__xrtNativeFileFlush,
+	__xrtNativeFileHandle,
+	__xrtNativeFileControlHandle,
+	#if defined(XRT_FEATURE_NET_FILE)
+		__xrtNativeFileAsyncBind,
+	#else
+		NULL,
+	#endif
+	__xrtNativeFileClose
+};
 
 
 
@@ -122049,6 +124509,93 @@ void __xrtFileError(xerrkind Kind, xfileerror Code,
 
 
 
+/* 验证内部后端表的版本、能力位和回调一致性。 */
+static bool __xrtFileBackendOpsValid(const xrt_file_backend_ops* pOps)
+{
+	#define XRT_FILE_BACKEND_MATCH(Capability, Member) \
+		((((pOps->Capabilities & (Capability)) != 0u) == (pOps->Member != NULL)))
+	if ( (pOps == NULL) || (pOps->Size != sizeof(*pOps)) ||
+		 (pOps->Version != XRT_FILE_BACKEND_VERSION) ||
+		 ((pOps->Capabilities & ~XRT_FILE_BACKEND_CAPABILITIES) != 0u) ||
+		 (pOps->Close == NULL) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_READ, Read) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_WRITE, Write) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_READ_AT, ReadAt) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_WRITE_AT, WriteAt) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_SEEK, Seek) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_STAT, Stat) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_RESIZE, Resize) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_FLUSH, Flush) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_NATIVE, Native) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_CONTROL_NATIVE, ControlNative) ||
+		 !XRT_FILE_BACKEND_MATCH(XRT_FILE_BACKEND_ASYNC_BIND, AsyncBind) ) {
+		#undef XRT_FILE_BACKEND_MATCH
+		return false;
+	}
+	#undef XRT_FILE_BACKEND_MATCH
+	return true;
+}
+
+
+
+/* 接管后端状态并创建统一分派对象；分配失败仍消费 State。 */
+xfile __xrtFileTakeBackend(const xrt_file_backend_ops* pOps,
+	ptr pState, uint32 iFlags)
+{
+	xfile File;
+
+	if ( !__xrtFileBackendOpsValid(pOps) || (pState == NULL) ) {
+		if ( (pOps != NULL) && (pOps->Size == sizeof(*pOps)) &&
+			 (pOps->Close != NULL) && (pState != NULL) ) {
+			(void)pOps->Close(pState);
+		}
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	File = (xfile)xrtCalloc(1u, sizeof(*File));
+	if ( File == NULL ) {
+		xerror* pError = xrtTakeError();
+
+		(void)pOps->Close(pState);
+		xrtClearError();
+		__xrtErrorSetOwned(pError);
+		return NULL;
+	}
+	File->Ops = pOps;
+	File->State = pState;
+	File->Flags = iFlags;
+	File->Capabilities = pOps->Capabilities;
+	return File;
+}
+
+
+
+/* 附加一个独立生命周期 owner，不改变文件后端能力或分派。 */
+bool __xrtFileAttachOwner(xfile File, ptr pOwner,
+	void (*pRelease)(ptr pOwner))
+{
+	if ( (File == NULL) || (pOwner == NULL) || (pRelease == NULL) ||
+		 (File->Owner != NULL) || (File->OwnerRelease != NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	File->Owner = pOwner;
+	File->OwnerRelease = pRelease;
+	return true;
+}
+
+
+
+/* 发布稳定的后端不支持错误。 */
+static bool __xrtFileUnsupported(xfileerror Code,
+	cstr sOperation, cstr sMessage)
+{
+	__xrtFileError(XERR_UNSUPPORTED, Code, sOperation, sMessage);
+	return false;
+}
+
+
+
 /* 检查文件对象以及操作所需访问权限。 */
 static bool __xrtFileCheck(xfile File, uint32 iAccess)
 {
@@ -122063,6 +124610,22 @@ static bool __xrtFileCheck(xfile File, uint32 iAccess)
 	if ( (File->Flags & XFILE_ASYNC) != 0u ) {
 		__xrtErrorSetInvalidState();
 		return false;
+	}
+	return true;
+}
+
+
+
+/* 检查文件访问标志和后端能力。 */
+static bool __xrtFileCheckCapability(xfile File,
+	uint32 iAccess, uint64 iCapability,
+	xfileerror Code, cstr sOperation, cstr sMessage)
+{
+	if ( !__xrtFileCheck(File, iAccess) ) {
+		return false;
+	}
+	if ( (File->Capabilities & iCapability) == 0u ) {
+		return __xrtFileUnsupported(Code, sOperation, sMessage);
 	}
 	return true;
 }
@@ -122388,6 +124951,69 @@ static xfile __xrtFileOpenNative(cstr sPath, const xfileoptions* pOptions)
 
 
 
+/* 接管数据句柄和可选控制句柄并创建文件对象。 */
+xfile __xrtFileAlloc(void)
+{
+	return (xfile)xrtCalloc(1u,
+		sizeof(struct xfile_impl) + sizeof(xrt_native_file_state));
+}
+
+/* Initialize the already allocated object without any fallible allocation. */
+void __xrtFileInitNativePair(xfile File,
+	intptr_t iHandle, intptr_t iControl, uint32 iFlags)
+{
+	xrt_native_file_state* pState;
+	pState = (xrt_native_file_state*)(File + 1);
+	memset(pState, 0, sizeof(*pState));
+	File->Ops = &__xrtNativeFileOps;
+	File->State = pState;
+	File->Flags = iFlags;
+	File->Capabilities = __xrtNativeFileOps.Capabilities;
+	#if defined(_WIN32) || defined(_WIN64)
+		pState->Handle = (HANDLE)iHandle;
+		pState->Control = (HANDLE)iControl;
+		InitializeSRWLock(&pState->CursorLock);
+	#else
+		pState->Handle = (int)iHandle;
+	#endif
+	#if defined(XRT_FEATURE_NET_FILE)
+		xrtAtomic64Init(&pState->AsyncOwner, 0);
+		pState->AsyncAssociated = false;
+	#endif
+	#if !defined(_WIN32) && !defined(_WIN64)
+		(void)iControl;
+	#endif
+}
+
+/* Adopt existing handles; newly creating/truncating opens use Alloc before OS IO. */
+xfile __xrtFileTakeNativePair(intptr_t iHandle,
+	intptr_t iControl, uint32 iFlags)
+{
+	xfile File = __xrtFileAlloc();
+	if (File == NULL) {
+		#if defined(_WIN32) || defined(_WIN64)
+			(void)CloseHandle((HANDLE)iHandle);
+			if ((HANDLE)iControl != INVALID_HANDLE_VALUE)
+				(void)CloseHandle((HANDLE)iControl);
+		#else
+			(void)close((int)iHandle);
+		#endif
+		return NULL;
+	}
+	__xrtFileInitNativePair(File, iHandle, iControl, iFlags);
+	return File;
+}
+
+
+
+/* 接管单个原生句柄并创建普通文件对象。 */
+xfile __xrtFileTakeNative(intptr_t iHandle, uint32 iFlags)
+{
+	return __xrtFileTakeNativePair(iHandle, (intptr_t)-1, iFlags);
+}
+
+
+
 /* 返回控制操作使用的原生句柄。 */
 intptr_t __xrtFileControlNative(xfile File)
 {
@@ -122395,12 +125021,12 @@ intptr_t __xrtFileControlNative(xfile File)
 		__xrtErrorSetInvalidArgument();
 		return (intptr_t)-1;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return (intptr_t)(File->Control != INVALID_HANDLE_VALUE ?
-			File->Control : File->Handle);
-	#else
-		return (intptr_t)File->Handle;
-	#endif
+	if ( (File->Capabilities & XRT_FILE_BACKEND_CONTROL_NATIVE) == 0u ) {
+		(void)__xrtFileUnsupported(XFILE_ERROR_LOCK, "control-native",
+			"the file backend does not expose a native control handle");
+		return (intptr_t)-1;
+	}
+	return File->Ops->ControlNative(File->State);
 }
 
 
@@ -122413,8 +125039,6 @@ bool __xrtFileAsyncBind(
 	bool** ppAssociated
 )
 {
-	uint64 iExpected = 0;
-
 	if ( (File == NULL) || (iOwner == 0) || (ppAssociated == NULL) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
@@ -122423,20 +125047,11 @@ bool __xrtFileAsyncBind(
 		__xrtErrorSetInvalidState();
 		return false;
 	}
-	if ( !xrtAtomic64CompareExchange(
-		&File->AsyncOwner,
-		&iExpected,
-		iOwner,
-		XMEMORY_ACQ_REL,
-		XMEMORY_ACQUIRE
-	) ) {
-		if ( iExpected != iOwner ) {
-			__xrtErrorSetInvalidState();
-			return false;
-		}
+	if ( (File->Capabilities & XRT_FILE_BACKEND_ASYNC_BIND) == 0u ) {
+		return __xrtFileUnsupported(XFILE_ERROR_OPEN, "async-bind",
+			"the file backend does not support native completion I/O");
 	}
-	*ppAssociated = &File->AsyncAssociated;
-	return true;
+	return File->Ops->AsyncBind(File->State, iOwner, ppAssociated);
 }
 #endif
 
@@ -122471,23 +125086,20 @@ XRT_API xfile xrtOpen(cstr sPath, uint32 iFlags)
 
 
 
-/* 关闭原生句柄并销毁文件对象。 */
-XRT_API bool xrtClose(xfile File)
+/* 关闭 native state 中的数据句柄和可选控制句柄。 */
+static bool __xrtNativeFileClose(ptr pState)
 {
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
 	bool bResult;
 	int iCode = 0;
 
-	if ( File == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
 	#if defined(_WIN32) || defined(_WIN64)
-		bResult = CloseHandle(File->Handle) != 0;
+		bResult = CloseHandle(pNative->Handle) != 0;
 		if ( !bResult ) {
 			iCode = (int)GetLastError();
 		}
-		if ( File->Control != INVALID_HANDLE_VALUE ) {
-			bool bControl = CloseHandle(File->Control) != 0;
+		if ( pNative->Control != INVALID_HANDLE_VALUE ) {
+			bool bControl = CloseHandle(pNative->Control) != 0;
 
 			if ( bResult && !bControl ) {
 				bResult = false;
@@ -122495,17 +125107,134 @@ XRT_API bool xrtClose(xfile File)
 			}
 		}
 	#else
-		bResult = close(File->Handle) == 0;
+		bResult = close(pNative->Handle) == 0;
 		if ( !bResult ) {
 			iCode = errno;
 		}
 	#endif
-	xrtFree(File);
 	if ( !bResult ) {
 		__xrtFileSetError(XFILE_ERROR_CLOSE, "close",
 			"failed to close the file", iCode);
 	}
 	return bResult;
+}
+
+
+
+/* 关闭后端状态并销毁统一文件对象。 */
+XRT_API bool xrtClose(xfile File)
+{
+	bool bResult;
+	ptr pOwner;
+	void (*pOwnerRelease)(ptr pOwner);
+
+	if ( File == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	pOwner = File->Owner;
+	pOwnerRelease = File->OwnerRelease;
+	bResult = File->Ops->Close(File->State);
+	xrtFree(File);
+	if ( pOwnerRelease != NULL ) pOwnerRelease(pOwner);
+	return bResult;
+}
+
+
+
+/* native backend 单次读取。 */
+static bool __xrtNativeFileRead(ptr pState, ptr pBuffer,
+	size_t iRequest, size_t* pRead)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD iDone = 0;
+		DWORD iChunk = (iRequest > (size_t)UINT32_MAX) ?
+			UINT32_MAX : (DWORD)iRequest;
+
+		AcquireSRWLockExclusive(&pNative->CursorLock);
+		if ( !ReadFile(pNative->Handle, pBuffer, iChunk, &iDone, NULL) ) {
+			int iCode = (int)GetLastError();
+
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+			if ( (iCode == ERROR_HANDLE_EOF) || (iCode == ERROR_BROKEN_PIPE) ) {
+				return true;
+			}
+			__xrtFileSetError(XFILE_ERROR_READ, "read",
+				"failed to read the file", iCode);
+			return false;
+		}
+		ReleaseSRWLockExclusive(&pNative->CursorLock);
+		if ( pRead != NULL ) {
+			*pRead = (size_t)iDone;
+		}
+	#else
+		ssize_t iDone;
+		size_t iChunk = (iRequest > (size_t)0x7FFFFFFF) ?
+			(size_t)0x7FFFFFFF : iRequest;
+
+		do {
+			iDone = read(pNative->Handle, pBuffer, iChunk);
+		} while ( (iDone < 0) && (errno == EINTR) );
+		if ( iDone < 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_READ, "read",
+				"failed to read the file", iCode);
+			return false;
+		}
+		if ( pRead != NULL ) {
+			*pRead = (size_t)iDone;
+		}
+	#endif
+	return true;
+}
+
+
+
+/* native backend 单次写入。 */
+static bool __xrtNativeFileWrite(ptr pState, const void* pBuffer,
+	size_t iRequest, size_t* pWritten)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD iDone = 0;
+		DWORD iChunk = (iRequest > (size_t)UINT32_MAX) ?
+			UINT32_MAX : (DWORD)iRequest;
+
+		AcquireSRWLockExclusive(&pNative->CursorLock);
+		if ( !WriteFile(pNative->Handle, pBuffer, iChunk, &iDone, NULL) ) {
+			int iCode = (int)GetLastError();
+
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+			__xrtFileSetError(XFILE_ERROR_WRITE, "write",
+				"failed to write the file", iCode);
+			return false;
+		}
+		ReleaseSRWLockExclusive(&pNative->CursorLock);
+		if ( pWritten != NULL ) {
+			*pWritten = (size_t)iDone;
+		}
+	#else
+		ssize_t iDone;
+		size_t iChunk = (iRequest > (size_t)0x7FFFFFFF) ?
+			(size_t)0x7FFFFFFF : iRequest;
+
+		do {
+			iDone = write(pNative->Handle, pBuffer, iChunk);
+		} while ( (iDone < 0) && (errno == EINTR) );
+		if ( iDone < 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_WRITE, "write",
+				"failed to write the file", iCode);
+			return false;
+		}
+		if ( pWritten != NULL ) {
+			*pWritten = (size_t)iDone;
+		}
+	#endif
+	return true;
 }
 
 
@@ -122520,56 +125249,15 @@ XRT_API bool xrtRead(xfile File, ptr pBuffer, size_t iRequest, size_t* pRead)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtFileCheck(File, XFILE_READ) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_READ,
+		XRT_FILE_BACKEND_READ, XFILE_ERROR_READ, "read",
+		"the file backend does not support sequential reads") ) {
 		return false;
 	}
 	if ( iRequest == 0u ) {
 		return true;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			DWORD iDone = 0;
-			DWORD iChunk = (iRequest > (size_t)UINT32_MAX) ? UINT32_MAX : (DWORD)iRequest;
-
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !ReadFile(File->Handle, pBuffer, iChunk, &iDone, NULL) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				if ( (iCode == ERROR_HANDLE_EOF) || (iCode == ERROR_BROKEN_PIPE) ) {
-					return true;
-				}
-				__xrtFileSetError(XFILE_ERROR_READ, "read",
-					"failed to read the file", iCode);
-				return false;
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-			if ( pRead != NULL ) {
-				*pRead = (size_t)iDone;
-			}
-		}
-	#else
-		{
-			ssize_t iDone;
-			size_t iChunk = (iRequest > (size_t)0x7FFFFFFF) ?
-				(size_t)0x7FFFFFFF : iRequest;
-
-			do {
-				iDone = read(File->Handle, pBuffer, iChunk);
-			} while ( (iDone < 0) && (errno == EINTR) );
-			if ( iDone < 0 ) {
-				int iCode = errno;
-
-				__xrtFileSetError(XFILE_ERROR_READ, "read",
-					"failed to read the file", iCode);
-				return false;
-			}
-			if ( pRead != NULL ) {
-				*pRead = (size_t)iDone;
-			}
-		}
-	#endif
-	return true;
+	return File->Ops->Read(File->State, pBuffer, iRequest, pRead);
 }
 
 
@@ -122585,53 +125273,15 @@ XRT_API bool xrtWrite(xfile File, const void* pBuffer,
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtFileCheck(File, XFILE_WRITE) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_WRITE,
+		XRT_FILE_BACKEND_WRITE, XFILE_ERROR_WRITE, "write",
+		"the file backend does not support sequential writes") ) {
 		return false;
 	}
 	if ( iRequest == 0u ) {
 		return true;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			DWORD iDone = 0;
-			DWORD iChunk = (iRequest > (size_t)UINT32_MAX) ? UINT32_MAX : (DWORD)iRequest;
-
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !WriteFile(File->Handle, pBuffer, iChunk, &iDone, NULL) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_WRITE, "write",
-					"failed to write the file", iCode);
-				return false;
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-			if ( pWritten != NULL ) {
-				*pWritten = (size_t)iDone;
-			}
-		}
-	#else
-		{
-			ssize_t iDone;
-			size_t iChunk = (iRequest > (size_t)0x7FFFFFFF) ?
-				(size_t)0x7FFFFFFF : iRequest;
-
-			do {
-				iDone = write(File->Handle, pBuffer, iChunk);
-			} while ( (iDone < 0) && (errno == EINTR) );
-			if ( iDone < 0 ) {
-				int iCode = errno;
-
-				__xrtFileSetError(XFILE_ERROR_WRITE, "write",
-					"failed to write the file", iCode);
-				return false;
-			}
-			if ( pWritten != NULL ) {
-				*pWritten = (size_t)iDone;
-			}
-		}
-	#endif
-	return true;
+	return File->Ops->Write(File->State, pBuffer, iRequest, pWritten);
 }
 
 
@@ -122741,6 +125391,150 @@ static bool __xrtFileAtRange(uint64 iOffset, size_t iRequest)
 
 
 
+/* native backend 从绝对偏移读取且不改变共享游标。 */
+static bool __xrtNativeFileReadAt(ptr pState, uint64 iOffset,
+	ptr pBuffer, size_t iRequest, size_t* pRead)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		LARGE_INTEGER Original;
+		LARGE_INTEGER Target;
+		LARGE_INTEGER Zero;
+		DWORD iDone = 0;
+		int iReadCode = 0;
+		int iRestoreCode = 0;
+
+		Zero.QuadPart = 0;
+		Target.QuadPart = (LONGLONG)iOffset;
+		AcquireSRWLockExclusive(&pNative->CursorLock);
+		if ( !SetFilePointerEx(pNative->Handle, Zero,
+			&Original, FILE_CURRENT) ) {
+			int iCode = (int)GetLastError();
+
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+			__xrtFileSetError(XFILE_ERROR_SEEK, "read-at-position",
+				"failed to save the shared file position", iCode);
+			return false;
+		}
+		if ( !SetFilePointerEx(pNative->Handle, Target, NULL, FILE_BEGIN) ) {
+			iReadCode = (int)GetLastError();
+		} else if ( !ReadFile(pNative->Handle, pBuffer,
+			(DWORD)iRequest, &iDone, NULL) ) {
+			iReadCode = (int)GetLastError();
+		}
+		if ( !SetFilePointerEx(pNative->Handle, Original, NULL, FILE_BEGIN) ) {
+			iRestoreCode = (int)GetLastError();
+		}
+		ReleaseSRWLockExclusive(&pNative->CursorLock);
+		if ( pRead != NULL ) {
+			*pRead = (size_t)iDone;
+		}
+		if ( (iReadCode != 0) && (iReadCode != ERROR_HANDLE_EOF) ) {
+			__xrtFileSetError(XFILE_ERROR_READ, "read-at",
+				"failed to read the file at the requested offset", iReadCode);
+			return false;
+		}
+		if ( iRestoreCode != 0 ) {
+			__xrtFileSetError(XFILE_ERROR_SEEK, "read-at-restore",
+				"the data was read but the shared file position could not be restored",
+				iRestoreCode);
+			return false;
+		}
+	#else
+		ssize_t iDone;
+
+		do {
+			iDone = pread(pNative->Handle, pBuffer,
+				iRequest, (off_t)iOffset);
+		} while ( (iDone < 0) && (errno == EINTR) );
+		if ( iDone < 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_READ, "read-at",
+				"failed to read the file at the requested offset", iCode);
+			return false;
+		}
+		if ( pRead != NULL ) {
+			*pRead = (size_t)iDone;
+		}
+	#endif
+	return true;
+}
+
+
+
+/* native backend 向绝对偏移写入且不改变共享游标。 */
+static bool __xrtNativeFileWriteAt(ptr pState, uint64 iOffset,
+	const void* pBuffer, size_t iRequest, size_t* pWritten)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		LARGE_INTEGER Original;
+		LARGE_INTEGER Target;
+		LARGE_INTEGER Zero;
+		DWORD iDone = 0;
+		int iWriteCode = 0;
+		int iRestoreCode = 0;
+
+		Zero.QuadPart = 0;
+		Target.QuadPart = (LONGLONG)iOffset;
+		AcquireSRWLockExclusive(&pNative->CursorLock);
+		if ( !SetFilePointerEx(pNative->Handle, Zero,
+			&Original, FILE_CURRENT) ) {
+			int iCode = (int)GetLastError();
+
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+			__xrtFileSetError(XFILE_ERROR_SEEK, "write-at-position",
+				"failed to save the shared file position", iCode);
+			return false;
+		}
+		if ( !SetFilePointerEx(pNative->Handle, Target, NULL, FILE_BEGIN) ) {
+			iWriteCode = (int)GetLastError();
+		} else if ( !WriteFile(pNative->Handle, pBuffer,
+			(DWORD)iRequest, &iDone, NULL) ) {
+			iWriteCode = (int)GetLastError();
+		}
+		if ( !SetFilePointerEx(pNative->Handle, Original, NULL, FILE_BEGIN) ) {
+			iRestoreCode = (int)GetLastError();
+		}
+		ReleaseSRWLockExclusive(&pNative->CursorLock);
+		if ( pWritten != NULL ) {
+			*pWritten = (size_t)iDone;
+		}
+		if ( iWriteCode != 0 ) {
+			__xrtFileSetError(XFILE_ERROR_WRITE, "write-at",
+				"failed to write the file at the requested offset", iWriteCode);
+			return false;
+		}
+		if ( iRestoreCode != 0 ) {
+			__xrtFileSetError(XFILE_ERROR_SEEK, "write-at-restore",
+				"the data was written but the shared file position could not be restored",
+				iRestoreCode);
+			return false;
+		}
+	#else
+		ssize_t iDone;
+
+		do {
+			iDone = pwrite(pNative->Handle, pBuffer,
+				iRequest, (off_t)iOffset);
+		} while ( (iDone < 0) && (errno == EINTR) );
+		if ( iDone < 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_WRITE, "write-at",
+				"failed to write the file at the requested offset", iCode);
+			return false;
+		}
+		if ( pWritten != NULL ) {
+			*pWritten = (size_t)iDone;
+		}
+	#endif
+	return true;
+}
+
+
+
 /* 从绝对偏移执行一次读取且不改变共享游标。 */
 XRT_API bool xrtReadAt(xfile File, uint64 iOffset,
 	ptr pBuffer, size_t iRequest, size_t* pRead)
@@ -122755,82 +125549,16 @@ XRT_API bool xrtReadAt(xfile File, uint64 iOffset,
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtFileCheck(File, XFILE_READ) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_READ,
+		XRT_FILE_BACKEND_READ_AT, XFILE_ERROR_READ, "read-at",
+		"the file backend does not support positional reads") ) {
 		return false;
 	}
 	if ( (iRequest == 0u) || !__xrtFileAtRange(iOffset, iChunk) ) {
 		return iRequest == 0u;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			LARGE_INTEGER Original;
-			LARGE_INTEGER Target;
-			LARGE_INTEGER Zero;
-			DWORD iDone = 0;
-			int iReadCode = 0;
-			int iRestoreCode = 0;
-
-			Zero.QuadPart = 0;
-			Target.QuadPart = (LONGLONG)iOffset;
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !SetFilePointerEx(File->Handle, Zero,
-				&Original, FILE_CURRENT) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_SEEK, "read-at-position",
-					"failed to save the shared file position", iCode);
-				return false;
-			}
-			if ( !SetFilePointerEx(File->Handle, Target, NULL, FILE_BEGIN) ) {
-				iReadCode = (int)GetLastError();
-			} else if ( !ReadFile(File->Handle, pBuffer,
-				(DWORD)iChunk, &iDone, NULL) ) {
-				iReadCode = (int)GetLastError();
-			}
-			if ( !SetFilePointerEx(File->Handle, Original,
-				NULL, FILE_BEGIN) ) {
-				iRestoreCode = (int)GetLastError();
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-			if ( pRead != NULL ) {
-				*pRead = (size_t)iDone;
-			}
-			if ( (iReadCode != 0) && (iReadCode != ERROR_HANDLE_EOF) ) {
-				__xrtFileSetError(XFILE_ERROR_READ, "read-at",
-					"failed to read the file at the requested offset",
-					iReadCode);
-				return false;
-			}
-			if ( iRestoreCode != 0 ) {
-				__xrtFileSetError(XFILE_ERROR_SEEK, "read-at-restore",
-					"the data was read but the shared file position could not be restored",
-					iRestoreCode);
-				return false;
-			}
-		}
-	#else
-		{
-			ssize_t iDone;
-
-			do {
-				iDone = pread(File->Handle, pBuffer,
-					iChunk, (off_t)iOffset);
-			} while ( (iDone < 0) && (errno == EINTR) );
-			if ( iDone < 0 ) {
-				int iCode = errno;
-
-				__xrtFileSetError(XFILE_ERROR_READ, "read-at",
-					"failed to read the file at the requested offset",
-					iCode);
-				return false;
-			}
-			if ( pRead != NULL ) {
-				*pRead = (size_t)iDone;
-			}
-		}
-	#endif
-	return true;
+	return File->Ops->ReadAt(File->State, iOffset,
+		pBuffer, iChunk, pRead);
 }
 
 
@@ -122849,7 +125577,9 @@ XRT_API bool xrtWriteAt(xfile File, uint64 iOffset,
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtFileCheck(File, XFILE_WRITE) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_WRITE,
+		XRT_FILE_BACKEND_WRITE_AT, XFILE_ERROR_WRITE, "write-at",
+		"the file backend does not support positional writes") ) {
 		return false;
 	}
 	if ( (File->Flags & XFILE_APPEND) != 0u ) {
@@ -122859,76 +125589,8 @@ XRT_API bool xrtWriteAt(xfile File, uint64 iOffset,
 	if ( (iRequest == 0u) || !__xrtFileAtRange(iOffset, iChunk) ) {
 		return iRequest == 0u;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			LARGE_INTEGER Original;
-			LARGE_INTEGER Target;
-			LARGE_INTEGER Zero;
-			DWORD iDone = 0;
-			int iWriteCode = 0;
-			int iRestoreCode = 0;
-
-			Zero.QuadPart = 0;
-			Target.QuadPart = (LONGLONG)iOffset;
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !SetFilePointerEx(File->Handle, Zero,
-				&Original, FILE_CURRENT) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_SEEK, "write-at-position",
-					"failed to save the shared file position", iCode);
-				return false;
-			}
-			if ( !SetFilePointerEx(File->Handle, Target, NULL, FILE_BEGIN) ) {
-				iWriteCode = (int)GetLastError();
-			} else if ( !WriteFile(File->Handle, pBuffer,
-				(DWORD)iChunk, &iDone, NULL) ) {
-				iWriteCode = (int)GetLastError();
-			}
-			if ( !SetFilePointerEx(File->Handle, Original,
-				NULL, FILE_BEGIN) ) {
-				iRestoreCode = (int)GetLastError();
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-			if ( pWritten != NULL ) {
-				*pWritten = (size_t)iDone;
-			}
-			if ( iWriteCode != 0 ) {
-				__xrtFileSetError(XFILE_ERROR_WRITE, "write-at",
-					"failed to write the file at the requested offset",
-					iWriteCode);
-				return false;
-			}
-			if ( iRestoreCode != 0 ) {
-				__xrtFileSetError(XFILE_ERROR_SEEK, "write-at-restore",
-					"the data was written but the shared file position could not be restored",
-					iRestoreCode);
-				return false;
-			}
-		}
-	#else
-		{
-			ssize_t iDone;
-
-			do {
-				iDone = pwrite(File->Handle, pBuffer,
-					iChunk, (off_t)iOffset);
-			} while ( (iDone < 0) && (errno == EINTR) );
-			if ( iDone < 0 ) {
-				int iCode = errno;
-
-				__xrtFileSetError(XFILE_ERROR_WRITE, "write-at",
-					"failed to write the file at the requested offset",
-					iCode);
-				return false;
-			}
-			if ( pWritten != NULL ) {
-				*pWritten = (size_t)iDone;
-			}
-		}
-	#endif
-	return true;
+	return File->Ops->WriteAt(File->State, iOffset,
+		pBuffer, iChunk, pWritten);
 }
 
 
@@ -123027,14 +125689,11 @@ XRT_API bool xrtWriteAtFull(xfile File, uint64 iOffset,
 
 
 
-/* 按 64 位偏移移动共享文件游标。 */
-XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
+/* native backend 按 64 位偏移移动共享文件游标。 */
+static bool __xrtNativeFileSeek(ptr pState, int64 iOffset,
+	xseek Origin, uint64* pPosition)
 {
-	if ( (File == NULL) || ((Origin != XSEEK_START) &&
-		 (Origin != XSEEK_CURRENT) && (Origin != XSEEK_END)) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
 	#if defined(_WIN32) || defined(_WIN64)
 		{
 			LARGE_INTEGER Offset;
@@ -123043,16 +125702,16 @@ XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
 				((Origin == XSEEK_CURRENT) ? FILE_CURRENT : FILE_END);
 
 			Offset.QuadPart = iOffset;
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !SetFilePointerEx(File->Handle, Offset, &Position, iMethod) ) {
+			AcquireSRWLockExclusive(&pNative->CursorLock);
+			if ( !SetFilePointerEx(pNative->Handle, Offset, &Position, iMethod) ) {
 				int iCode = (int)GetLastError();
 
-				ReleaseSRWLockExclusive(&File->CursorLock);
+				ReleaseSRWLockExclusive(&pNative->CursorLock);
 				__xrtFileSetError(XFILE_ERROR_SEEK, "seek",
 					"failed to move the file position", iCode);
 				return false;
 			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
 			if ( Position.QuadPart < 0 ) {
 				__xrtFileError(XERR_RANGE, XFILE_ERROR_SEEK, "seek",
 					"the resulting file position is negative");
@@ -123069,7 +125728,7 @@ XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
 			off_t iPosition;
 
 			errno = 0;
-			iPosition = lseek(File->Handle, (off_t)iOffset, iWhence);
+			iPosition = lseek(pNative->Handle, (off_t)iOffset, iWhence);
 			if ( iPosition < (off_t)0 ) {
 				int iCode = errno;
 
@@ -123083,6 +125742,23 @@ XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
 		}
 	#endif
 	return true;
+}
+
+
+
+/* 按 64 位偏移移动共享文件游标。 */
+XRT_API bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition)
+{
+	if ( (File == NULL) || ((Origin != XSEEK_START) &&
+		 (Origin != XSEEK_CURRENT) && (Origin != XSEEK_END)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( (File->Capabilities & XRT_FILE_BACKEND_SEEK) == 0u ) {
+		return __xrtFileUnsupported(XFILE_ERROR_SEEK, "seek",
+			"the file backend does not support a shared cursor");
+	}
+	return File->Ops->Seek(File->State, iOffset, Origin, pPosition);
 }
 
 
@@ -123360,6 +126036,19 @@ static bool __xrtFilePosixStat(int hFile, xfileinfo* pInfo, bool bReport)
 
 
 
+/* 查询 native backend 元数据。 */
+static bool __xrtNativeFileStat(ptr pState, xfileinfo* pInfo)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		return __xrtFileWindowsStat(pNative->Handle, pInfo, true);
+	#else
+		return __xrtFilePosixStat(pNative->Handle, pInfo, true);
+	#endif
+}
+
+
+
 /* 查询打开文件的元数据。 */
 XRT_API bool xrtFileStat(xfile File, xfileinfo* pInfo)
 {
@@ -123367,11 +126056,11 @@ XRT_API bool xrtFileStat(xfile File, xfileinfo* pInfo)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return __xrtFileWindowsStat(File->Handle, pInfo, true);
-	#else
-		return __xrtFilePosixStat(File->Handle, pInfo, true);
-	#endif
+	if ( (File->Capabilities & XRT_FILE_BACKEND_STAT) == 0u ) {
+		return __xrtFileUnsupported(XFILE_ERROR_STAT, "stat",
+			"the file backend does not expose metadata");
+	}
+	return File->Ops->Stat(File->State, pInfo);
 }
 
 
@@ -123399,10 +126088,73 @@ XRT_API bool xrtFileSize(xfile File, uint64* pSize)
 
 
 
+/* 修改 native backend 文件大小。 */
+static bool __xrtNativeFileResize(ptr pState, uint64 iSize)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			LARGE_INTEGER Original;
+			LARGE_INTEGER Target;
+			LARGE_INTEGER Zero;
+
+			Zero.QuadPart = 0;
+			Target.QuadPart = (LONGLONG)iSize;
+			AcquireSRWLockExclusive(&pNative->CursorLock);
+			if ( !SetFilePointerEx(pNative->Handle, Zero,
+				&Original, FILE_CURRENT) ) {
+				int iCode = (int)GetLastError();
+
+				ReleaseSRWLockExclusive(&pNative->CursorLock);
+				__xrtFileSetError(XFILE_ERROR_SEEK, "resize-position",
+					"failed to save the shared file position", iCode);
+				return false;
+			}
+			if ( !SetFilePointerEx(pNative->Handle, Target, NULL, FILE_BEGIN) ||
+				 !SetEndOfFile(pNative->Handle) ) {
+				int iCode = (int)GetLastError();
+
+				(void)SetFilePointerEx(pNative->Handle, Original, NULL, FILE_BEGIN);
+				ReleaseSRWLockExclusive(&pNative->CursorLock);
+				__xrtFileSetError(XFILE_ERROR_RESIZE, "resize",
+					"failed to resize the file", iCode);
+				return false;
+			}
+			if ( !SetFilePointerEx(pNative->Handle, Original, NULL, FILE_BEGIN) ) {
+				int iCode = (int)GetLastError();
+
+				ReleaseSRWLockExclusive(&pNative->CursorLock);
+				__xrtFileSetError(XFILE_ERROR_SEEK, "resize-restore",
+					"the file was resized but its position could not be restored", iCode);
+				return false;
+			}
+			ReleaseSRWLockExclusive(&pNative->CursorLock);
+		}
+	#else
+		int iResult;
+
+		do {
+			iResult = ftruncate(pNative->Handle, (off_t)iSize);
+		} while ( (iResult != 0) && (errno == EINTR) );
+		if ( iResult != 0 ) {
+			int iCode = errno;
+
+			__xrtFileSetError(XFILE_ERROR_RESIZE, "resize",
+				"failed to resize the file", iCode);
+			return false;
+		}
+	#endif
+	return true;
+}
+
+
+
 /* 修改打开文件大小。 */
 XRT_API bool xrtFileResize(xfile File, uint64 iSize)
 {
-	if ( !__xrtFileCheck(File, XFILE_WRITE) ) {
+	if ( !__xrtFileCheckCapability(File, XFILE_WRITE,
+		XRT_FILE_BACKEND_RESIZE, XFILE_ERROR_RESIZE, "resize",
+		"the file backend does not support resize") ) {
 		return false;
 	}
 	if ( (File->Flags & XFILE_APPEND) != 0u ) {
@@ -123415,59 +126167,7 @@ XRT_API bool xrtFileResize(xfile File, uint64 iSize)
 			"the requested file size is outside the supported range");
 		return false;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		{
-			LARGE_INTEGER Original;
-			LARGE_INTEGER Target;
-			LARGE_INTEGER Zero;
-
-			Zero.QuadPart = 0;
-			Target.QuadPart = (LONGLONG)iSize;
-			AcquireSRWLockExclusive(&File->CursorLock);
-			if ( !SetFilePointerEx(File->Handle, Zero,
-				&Original, FILE_CURRENT) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_SEEK, "resize-position",
-					"failed to save the shared file position", iCode);
-				return false;
-			}
-			if ( !SetFilePointerEx(File->Handle, Target, NULL, FILE_BEGIN) ||
-				 !SetEndOfFile(File->Handle) ) {
-				int iCode = (int)GetLastError();
-
-				(void)SetFilePointerEx(File->Handle, Original, NULL, FILE_BEGIN);
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_RESIZE, "resize",
-					"failed to resize the file", iCode);
-				return false;
-			}
-			if ( !SetFilePointerEx(File->Handle, Original, NULL, FILE_BEGIN) ) {
-				int iCode = (int)GetLastError();
-
-				ReleaseSRWLockExclusive(&File->CursorLock);
-				__xrtFileSetError(XFILE_ERROR_SEEK, "resize-restore",
-					"the file was resized but its position could not be restored", iCode);
-				return false;
-			}
-			ReleaseSRWLockExclusive(&File->CursorLock);
-		}
-	#else
-		int iResult;
-
-		do {
-			iResult = ftruncate(File->Handle, (off_t)iSize);
-		} while ( (iResult != 0) && (errno == EINTR) );
-		if ( iResult != 0 ) {
-			int iCode = errno;
-
-			__xrtFileSetError(XFILE_ERROR_RESIZE, "resize",
-				"failed to resize the file", iCode);
-			return false;
-		}
-	#endif
-	return true;
+	return File->Ops->Resize(File->State, iSize);
 }
 
 
@@ -123497,14 +126197,12 @@ XRT_API bool xrtFileSetSize(cstr sPath, uint64 iSize)
 
 
 
-/* 把文件数据和必要元数据提交给稳定存储。 */
-XRT_API bool xrtFlush(xfile File)
+/* 把 native backend 数据提交给稳定存储。 */
+static bool __xrtNativeFileFlush(ptr pState)
 {
-	if ( !__xrtFileCheck(File, XFILE_WRITE) ) {
-		return false;
-	}
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
 	#if defined(_WIN32) || defined(_WIN64)
-		if ( !FlushFileBuffers(File->Handle) ) {
+		if ( !FlushFileBuffers(pNative->Handle) ) {
 			int iCode = (int)GetLastError();
 
 			__xrtFileSetError(XFILE_ERROR_SYNC, "flush",
@@ -123515,7 +126213,7 @@ XRT_API bool xrtFlush(xfile File)
 		int iResult;
 
 		do {
-			iResult = fsync(File->Handle);
+			iResult = fsync(pNative->Handle);
 		} while ( (iResult != 0) && (errno == EINTR) );
 		if ( iResult != 0 ) {
 			int iCode = errno;
@@ -123530,6 +126228,19 @@ XRT_API bool xrtFlush(xfile File)
 
 
 
+/* 把文件数据和必要元数据提交给稳定存储。 */
+XRT_API bool xrtFlush(xfile File)
+{
+	if ( !__xrtFileCheckCapability(File, XFILE_WRITE,
+		XRT_FILE_BACKEND_FLUSH, XFILE_ERROR_SYNC, "flush",
+		"the file backend does not support flush") ) {
+		return false;
+	}
+	return File->Ops->Flush(File->State);
+}
+
+
+
 /* 返回打开文件经过验证的标志。 */
 XRT_API uint32 xrtFileFlags(xfile File)
 {
@@ -123540,6 +126251,80 @@ XRT_API uint32 xrtFileFlags(xfile File)
 	return File->Flags;
 }
 
+XRT_API uint64 xrtFileCapabilities(xfile File)
+{
+    uint64 Capabilities;
+    if ( File == NULL ) {
+        __xrtErrorSetInvalidArgument();
+        return 0;
+    }
+    Capabilities = File->Capabilities;
+    if ( (File->Flags & XFILE_READ) == 0u ) {
+        Capabilities &= ~((uint64)XFILE_CAP_READ | XFILE_CAP_READ_AT);
+    }
+    if ( (File->Flags & XFILE_WRITE) == 0u ) {
+        Capabilities &= ~((uint64)XFILE_CAP_WRITE | XFILE_CAP_WRITE_AT |
+            XFILE_CAP_RESIZE | XFILE_CAP_FLUSH);
+    }
+    if ( (File->Flags & XFILE_APPEND) != 0u ) {
+        Capabilities &= ~((uint64)XFILE_CAP_WRITE_AT | XFILE_CAP_RESIZE);
+    }
+    if ( (File->Flags & XFILE_ASYNC) != 0u ) {
+        Capabilities &= ~((uint64)XFILE_CAP_READ | XFILE_CAP_WRITE |
+            XFILE_CAP_READ_AT | XFILE_CAP_WRITE_AT | XFILE_CAP_SEEK |
+            XFILE_CAP_RESIZE | XFILE_CAP_FLUSH);
+    }
+    return Capabilities;
+}
+
+
+
+/* 返回 native backend 的数据句柄。 */
+static intptr_t __xrtNativeFileHandle(ptr pState)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	return (intptr_t)pNative->Handle;
+}
+
+
+
+/* 返回 native backend 的控制句柄。 */
+static intptr_t __xrtNativeFileControlHandle(ptr pState)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	#if defined(_WIN32) || defined(_WIN64)
+		return (intptr_t)(pNative->Control != INVALID_HANDLE_VALUE ?
+			pNative->Control : pNative->Handle);
+	#else
+		return (intptr_t)pNative->Handle;
+	#endif
+}
+
+
+
+#if defined(XRT_FEATURE_NET_FILE)
+/* 原子绑定 native async 文件的唯一完成端口。 */
+static bool __xrtNativeFileAsyncBind(ptr pState,
+	uint64 iOwner, bool** ppAssociated)
+{
+	xrt_native_file_state* pNative = (xrt_native_file_state*)pState;
+	uint64 iExpected = 0;
+
+	if ( !xrtAtomic64CompareExchange(
+		&pNative->AsyncOwner,
+		&iExpected,
+		iOwner,
+		XMEMORY_ACQ_REL,
+		XMEMORY_ACQUIRE
+	) && (iExpected != iOwner) ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	*ppAssociated = &pNative->AsyncAssociated;
+	return true;
+}
+#endif
+
 
 
 /* 返回原生文件句柄的整数表示。 */
@@ -123549,11 +126334,12 @@ XRT_API intptr_t xrtFileNative(xfile File)
 		__xrtErrorSetInvalidArgument();
 		return (intptr_t)-1;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return (intptr_t)File->Handle;
-	#else
-		return (intptr_t)File->Handle;
-	#endif
+	if ( (File->Capabilities & XRT_FILE_BACKEND_NATIVE) == 0u ) {
+		(void)__xrtFileUnsupported(XFILE_ERROR_OPEN, "native-handle",
+			"the file backend does not expose a native handle");
+		return (intptr_t)-1;
+	}
+	return File->Ops->Native(File->State);
 }
 
 
@@ -124028,6 +126814,85 @@ XRT_API bool xrtFileDelete(cstr sPath)
 		}
 	#endif
 	return true;
+}
+
+
+
+/* 删除仍打开的原生文件；成功路径无堆分配，适用于临时文件回滚。 */
+XRT_API bool xrtFileDeleteOpen(xfile File, cstr sPath)
+{
+    if (File == NULL || sPath == NULL || sPath[0] == '\0') {
+        __xrtErrorSetInvalidArgument();
+        return false;
+    }
+    if (File->Ops != &__xrtNativeFileOps) {
+        __xrtFileError(XERR_UNSUPPORTED, XFILE_ERROR_DELETE, "delete-open",
+            "open-file deletion requires a native backend");
+        return false;
+    }
+    #if defined(_WIN32) || defined(_WIN64)
+        {
+            xrt_native_file_state* State = (xrt_native_file_state*)File->State;
+            typedef HANDLE (WINAPI *ReopenProc)(HANDLE, DWORD, DWORD, DWORD);
+            FARPROC Address = GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "ReOpenFile");
+            ReopenProc Reopen = NULL;
+            HANDLE DeleteHandle;
+            struct { BOOL DeleteFile; } Disposition;
+            _Static_assert(sizeof(Reopen) == sizeof(Address), "Windows procedure pointer ABI mismatch");
+            memcpy(&Reopen, &Address, sizeof(Reopen));
+            if (Reopen == NULL) {
+                __xrtFileError(XERR_UNSUPPORTED, XFILE_ERROR_DELETE, "delete-open",
+                    "native handle reopening is unavailable");
+                return false;
+            }
+            DeleteHandle = Reopen(State->Handle, DELETE,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0);
+            int Code = 0;
+            if (DeleteHandle == INVALID_HANDLE_VALUE) {
+                Code = (int)GetLastError();
+            } else {
+                Disposition.DeleteFile = TRUE;
+                if (!SetFileInformationByHandle(DeleteHandle,
+                        #if defined(__TINYC__)
+                            4,
+                        #else
+                            FileDispositionInfo,
+                        #endif
+                        &Disposition, sizeof(Disposition))) Code = (int)GetLastError();
+                if (!CloseHandle(DeleteHandle) && Code == 0) Code = (int)GetLastError();
+            }
+            if (Code != 0) {
+                __xrtFileSetError(XFILE_ERROR_DELETE, "delete-open",
+                    "failed to mark the open file for deletion", Code);
+                return false;
+            }
+        }
+    #else
+        {
+            xrt_native_file_state* State = (xrt_native_file_state*)File->State;
+            struct stat Opened, Named;
+            int Code = 0;
+            if (fstat(State->Handle, &Opened) != 0) Code = errno;
+            else if (S_ISDIR(Opened.st_mode)) {
+                __xrtFileError(XERR_TYPE, XFILE_ERROR_DELETE, "delete-open",
+                    "open-file deletion does not accept directories");
+                return false;
+            } else if (lstat(sPath, &Named) != 0) {
+                if (errno == ENOENT) return true;
+                Code = errno;
+            } else if (Opened.st_dev != Named.st_dev || Opened.st_ino != Named.st_ino) {
+                __xrtFileError(XERR_STATE, XFILE_ERROR_DELETE, "delete-open",
+                    "the file name no longer identifies the opened object");
+                return false;
+            } else if (unlink(sPath) != 0 && errno != ENOENT) Code = errno;
+            if (Code != 0) {
+                __xrtFileSetError(XFILE_ERROR_DELETE, "delete-open",
+                    "failed to unlink the open file", Code);
+                return false;
+            }
+        }
+    #endif
+    return true;
 }
 
 
@@ -125284,21 +128149,47 @@ XRT_API bool xrtFileMove(cstr sSource, cstr sTarget, bool bReplace)
 
 #if defined(XRT_FEATURE_DIR)
 
-/* 目录迭代器保留根路径和平台枚举状态。 */
+/* 公共目录对象只保存后端分派、状态、路径和迭代终态。 */
 struct xdir_impl {
+	const xrt_dir_backend_ops* Ops;
+	ptr State;
 	str Path;
 	uint32 Flags;
 	bool Done;
 	bool Failed;
+};
+
+
+
+/* native backend 是平台枚举句柄和借用名称缓冲的唯一承载者。 */
+typedef struct xrt_native_dir_state {
 	#if defined(_WIN32) || defined(_WIN64)
 		HANDLE Handle;
 		WIN32_FIND_DATAW Pending;
 		bool HasPending;
+		bool Empty;
 		str Name;
 		size_t NameCapacity;
 	#else
 		DIR* Handle;
 	#endif
+} xrt_native_dir_state;
+
+
+
+static xdirnext __xrtNativeDirNext(ptr pState, cstr sPath,
+	uint32 iFlags, xdirentry* pEntry);
+static bool __xrtNativeDirClose(ptr pState);
+
+
+
+static const xrt_dir_backend_ops __xrtNativeDirOps = {
+	(uint32)sizeof(xrt_dir_backend_ops),
+	XRT_DIR_BACKEND_VERSION,
+	false,
+	{ 0u, 0u, 0u },
+	__xrtNativeDirNext,
+	__xrtNativeDirClose
 };
 
 
@@ -125356,7 +128247,7 @@ static bool __xrtDirDot(cstr sName)
 
 
 /* 检查打开标志并要求跟随链接时同时请求完整元数据。 */
-static bool __xrtDirFlags(uint32 iFlags)
+bool __xrtDirFlagsValid(uint32 iFlags)
 {
 	const uint32 iKnown = XDIR_STAT | XDIR_FOLLOW_LINKS | XDIR_INCLUDE_DOTS;
 
@@ -125367,6 +128258,50 @@ static bool __xrtDirFlags(uint32 iFlags)
 		return false;
 	}
 	return true;
+}
+
+
+
+/* 接管后端状态并创建统一目录对象；分配失败仍消费 State。 */
+xdir __xrtDirTakeBackend(const xrt_dir_backend_ops* pOps,
+	ptr pState, cstr sPath, uint32 iFlags)
+{
+	xdir Dir;
+
+	if ( (pOps == NULL) || (pOps->Size != sizeof(*pOps)) ||
+		 (pOps->Version != XRT_DIR_BACKEND_VERSION) ||
+		 (pOps->Next == NULL) || (pOps->Close == NULL) ||
+		 (pState == NULL) || (sPath == NULL) || (sPath[0] == '\0') ) {
+		if ( (pOps != NULL) && (pOps->Size == sizeof(*pOps)) &&
+			 (pOps->Close != NULL) && (pState != NULL) ) {
+			(void)pOps->Close(pState);
+		}
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	Dir = (xdir)xrtCalloc(1u, sizeof(*Dir));
+	if ( Dir == NULL ) {
+		xerror* pError = xrtTakeError();
+
+		(void)pOps->Close(pState);
+		xrtClearError();
+		__xrtErrorSetOwned(pError);
+		return NULL;
+	}
+	Dir->Path = xrtStrDup(sPath);
+	if ( Dir->Path == NULL ) {
+		xerror* pError = xrtTakeError();
+
+		(void)pOps->Close(pState);
+		xrtFree(Dir);
+		xrtClearError();
+		__xrtErrorSetOwned(pError);
+		return NULL;
+	}
+	Dir->Ops = pOps;
+	Dir->State = pState;
+	Dir->Flags = iFlags;
+	return Dir;
 }
 
 
@@ -125391,9 +128326,9 @@ static bool __xrtDirWindowsLiteralPath(cstr sPath)
 
 
 /* 打开 Windows 目录枚举句柄，并保留首条结果。 */
-static bool __xrtDirOpenNative(xdir Dir)
+static bool __xrtNativeDirOpen(xrt_native_dir_state* pNative, cstr sPath)
 {
-	str sPattern = xrtPathJoin(Dir->Path, "*");
+	str sPattern = xrtPathJoin(sPath, "*");
 	uint16* pPattern;
 
 	if ( sPattern == NULL ) {
@@ -125404,17 +128339,20 @@ static bool __xrtDirOpenNative(xdir Dir)
 	if ( pPattern == NULL ) {
 		return false;
 	}
-	Dir->Handle = FindFirstFileW((const wchar_t*)pPattern, &Dir->Pending);
-	if ( Dir->Handle == INVALID_HANDLE_VALUE ) {
+	pNative->Handle = FindFirstFileW(
+		(const wchar_t*)pPattern,
+		&pNative->Pending
+	);
+	xrtFree(pPattern);
+	if ( pNative->Handle == INVALID_HANDLE_VALUE ) {
 		int iCode = (int)GetLastError();
 
-		xrtFree(pPattern);
 		if ( iCode == ERROR_FILE_NOT_FOUND ) {
 			xfileinfo Info;
 
-			if ( xrtPathStat(Dir->Path, true, &Info) &&
+			if ( xrtPathStat(sPath, true, &Info) &&
 				 (Info.Type == XFILE_TYPE_DIRECTORY) ) {
-				Dir->Done = true;
+				pNative->Empty = true;
 				return true;
 			}
 			if ( xrtGetError() != NULL ) {
@@ -125425,43 +128363,46 @@ static bool __xrtDirOpenNative(xdir Dir)
 			"failed to open the directory iterator", iCode);
 		return false;
 	}
-	xrtFree(pPattern);
-	Dir->HasPending = true;
+	pNative->HasPending = true;
 	return true;
 }
 
 
 
 /* 取得下一份 Windows 枚举数据。 */
-static bool __xrtDirWindowsData(xdir Dir, WIN32_FIND_DATAW* pData)
+static xdirnext __xrtNativeDirWindowsData(
+	xrt_native_dir_state* pNative,
+	WIN32_FIND_DATAW* pData
+)
 {
-	if ( Dir->HasPending ) {
-		*pData = Dir->Pending;
-		Dir->HasPending = false;
-		return true;
+	if ( pNative->Empty ) {
+		return XDIR_NEXT_END;
 	}
-	if ( FindNextFileW(Dir->Handle, pData) ) {
-		return true;
+	if ( pNative->HasPending ) {
+		*pData = pNative->Pending;
+		pNative->HasPending = false;
+		return XDIR_NEXT_ITEM;
+	}
+	if ( FindNextFileW(pNative->Handle, pData) ) {
+		return XDIR_NEXT_ITEM;
 	}
 	{
 		int iCode = (int)GetLastError();
 
 		if ( iCode == ERROR_NO_MORE_FILES ) {
-			Dir->Done = true;
-			return false;
+			return XDIR_NEXT_END;
 		}
-		Dir->Failed = true;
 		__xrtDirSetError(XDIR_ERROR_NEXT, "next",
 			"failed while reading the directory", iCode);
-		return false;
+		return XDIR_NEXT_ERROR;
 	}
 }
 
 
 
 /* 严格转换并复用 Windows 条目名称缓冲，避免逐条分配。 */
-static bool __xrtDirWindowsName(xdir Dir, const wchar_t* sName,
-	size_t iWideSize, size_t* pNameSize)
+static bool __xrtNativeDirWindowsName(xrt_native_dir_state* pNative,
+	const wchar_t* sName, size_t iWideSize, size_t* pNameSize)
 {
 	xutf16view Source = { (const uint16*)sName, iWideSize };
 	xutfresult Measure;
@@ -125477,17 +128418,17 @@ static bool __xrtDirWindowsName(xdir Dir, const wchar_t* sName,
 		return false;
 	}
 	iNeed = Measure.Written + 1u;
-	if ( Dir->NameCapacity < iNeed ) {
-		str sBuffer = (str)xrtRealloc(Dir->Name, iNeed);
+	if ( pNative->NameCapacity < iNeed ) {
+		str sBuffer = (str)xrtRealloc(pNative->Name, iNeed);
 
 		if ( sBuffer == NULL ) {
 			return false;
 		}
-		Dir->Name = sBuffer;
-		Dir->NameCapacity = iNeed;
+		pNative->Name = sBuffer;
+		pNative->NameCapacity = iNeed;
 	}
-	Result = xrtUtf16To8Buffer(Source, Dir->Name,
-		Dir->NameCapacity - 1u, XUTF_STRICT);
+	Result = xrtUtf16To8Buffer(Source, pNative->Name,
+		pNative->NameCapacity - 1u, XUTF_STRICT);
 	if ( (Result.Status != XUTF_OK) || (Result.Read != iWideSize) ||
 		 (Result.Written != Measure.Written) ) {
 		if ( Result.Status == XUTF_NO_SPACE ) {
@@ -125496,7 +128437,7 @@ static bool __xrtDirWindowsName(xdir Dir, const wchar_t* sName,
 		}
 		return false;
 	}
-	Dir->Name[Result.Written] = '\0';
+	pNative->Name[Result.Written] = '\0';
 	*pNameSize = Result.Written;
 	return true;
 }
@@ -125504,46 +128445,47 @@ static bool __xrtDirWindowsName(xdir Dir, const wchar_t* sName,
 
 
 /* 从 Windows 枚举数据构造借用目录条目。 */
-static xdirnext __xrtDirWindowsNext(xdir Dir, xdirentry* pEntry)
+static xdirnext __xrtNativeDirNext(ptr pState, cstr sPath,
+	uint32 iFlags, xdirentry* pEntry)
 {
+	xrt_native_dir_state* pNative = (xrt_native_dir_state*)pState;
+
 	for ( ;; ) {
 		WIN32_FIND_DATAW Data;
 		size_t iWideSize;
 		size_t iNameSize;
 		xdirentry Entry;
+		xdirnext Next = __xrtNativeDirWindowsData(pNative, &Data);
 
-		if ( !__xrtDirWindowsData(Dir, &Data) ) {
-			return Dir->Failed ? XDIR_NEXT_ERROR : XDIR_NEXT_END;
+		if ( Next != XDIR_NEXT_ITEM ) {
+			return Next;
 		}
 		iWideSize = wcslen(Data.cFileName);
-		if ( !__xrtDirWindowsName(Dir,
+		if ( !__xrtNativeDirWindowsName(pNative,
 			Data.cFileName, iWideSize, &iNameSize) ) {
-			Dir->Failed = true;
 			return XDIR_NEXT_ERROR;
 		}
-		if ( ((Dir->Flags & XDIR_INCLUDE_DOTS) == 0u) &&
-			 __xrtDirDot(Dir->Name) ) {
+		if ( ((iFlags & XDIR_INCLUDE_DOTS) == 0u) &&
+			 __xrtDirDot(pNative->Name) ) {
 			continue;
 		}
 		memset(&Entry, 0, sizeof(Entry));
-		Entry.Name.Data = Dir->Name;
+		Entry.Name.Data = pNative->Name;
 		Entry.Name.Size = iNameSize;
 		Entry.Flags = XDIR_ENTRY_UTF8;
 		__xrtFileWindowsFindInfo(&Data, &Entry.Info);
-		if ( (Dir->Flags & XDIR_STAT) != 0u ) {
-			str sPath = xrtPathJoin(Dir->Path, Dir->Name);
+		if ( (iFlags & XDIR_STAT) != 0u ) {
+			str sEntryPath = xrtPathJoin(sPath, pNative->Name);
 
-			if ( sPath == NULL ) {
-				Dir->Failed = true;
+			if ( sEntryPath == NULL ) {
 				return XDIR_NEXT_ERROR;
 			}
-			if ( !xrtPathStat(sPath,
-				(Dir->Flags & XDIR_FOLLOW_LINKS) != 0u, &Entry.Info) ) {
-				xrtFree(sPath);
-				Dir->Failed = true;
+			if ( !xrtPathStat(sEntryPath,
+				(iFlags & XDIR_FOLLOW_LINKS) != 0u, &Entry.Info) ) {
+				xrtFree(sEntryPath);
 				return XDIR_NEXT_ERROR;
 			}
-			xrtFree(sPath);
+			xrtFree(sEntryPath);
 		}
 		*pEntry = Entry;
 		return XDIR_NEXT_ITEM;
@@ -125556,24 +128498,12 @@ static xdirnext __xrtDirWindowsNext(xdir Dir, xdirentry* pEntry)
 #if defined(DT_REG)
 static xfiletype __xrtDirPosixType(unsigned char iType)
 {
-	if ( iType == DT_REG ) {
-		return XFILE_TYPE_FILE;
-	}
-	if ( iType == DT_DIR ) {
-		return XFILE_TYPE_DIRECTORY;
-	}
-	if ( iType == DT_LNK ) {
-		return XFILE_TYPE_LINK;
-	}
-	if ( iType == DT_FIFO ) {
-		return XFILE_TYPE_FIFO;
-	}
-	if ( iType == DT_SOCK ) {
-		return XFILE_TYPE_SOCKET;
-	}
-	if ( (iType == DT_CHR) || (iType == DT_BLK) ) {
-		return XFILE_TYPE_DEVICE;
-	}
+	if ( iType == DT_REG ) return XFILE_TYPE_FILE;
+	if ( iType == DT_DIR ) return XFILE_TYPE_DIRECTORY;
+	if ( iType == DT_LNK ) return XFILE_TYPE_LINK;
+	if ( iType == DT_FIFO ) return XFILE_TYPE_FIFO;
+	if ( iType == DT_SOCK ) return XFILE_TYPE_SOCKET;
+	if ( (iType == DT_CHR) || (iType == DT_BLK) ) return XFILE_TYPE_DEVICE;
 	return XFILE_TYPE_NONE;
 }
 #endif
@@ -125581,12 +128511,12 @@ static xfiletype __xrtDirPosixType(unsigned char iType)
 
 
 /* 打开 POSIX 目录枚举句柄。 */
-static bool __xrtDirOpenNative(xdir Dir)
+static bool __xrtNativeDirOpen(xrt_native_dir_state* pNative, cstr sPath)
 {
 	do {
-		Dir->Handle = opendir(Dir->Path);
-	} while ( (Dir->Handle == NULL) && (errno == EINTR) );
-	if ( Dir->Handle == NULL ) {
+		pNative->Handle = opendir(sPath);
+	} while ( (pNative->Handle == NULL) && (errno == EINTR) );
+	if ( pNative->Handle == NULL ) {
 		int iCode = errno;
 
 		__xrtDirSetError(XDIR_ERROR_OPEN, "open",
@@ -125599,8 +128529,11 @@ static bool __xrtDirOpenNative(xdir Dir)
 
 
 /* 从 POSIX dirent 构造借用目录条目。 */
-static xdirnext __xrtDirPosixNext(xdir Dir, xdirentry* pEntry)
+static xdirnext __xrtNativeDirNext(ptr pState, cstr sPath,
+	uint32 iFlags, xdirentry* pEntry)
 {
+	xrt_native_dir_state* pNative = (xrt_native_dir_state*)pState;
+
 	for ( ;; ) {
 		struct dirent* pData;
 		xdirentry Entry;
@@ -125608,19 +128541,15 @@ static xdirnext __xrtDirPosixNext(xdir Dir, xdirentry* pEntry)
 
 		do {
 			errno = 0;
-			pData = readdir(Dir->Handle);
+			pData = readdir(pNative->Handle);
 		} while ( (pData == NULL) && (errno == EINTR) );
 		if ( pData == NULL ) {
-			if ( errno == 0 ) {
-				Dir->Done = true;
-				return XDIR_NEXT_END;
-			}
-			Dir->Failed = true;
+			if ( errno == 0 ) return XDIR_NEXT_END;
 			__xrtDirSetError(XDIR_ERROR_NEXT, "next",
 				"failed while reading the directory", errno);
 			return XDIR_NEXT_ERROR;
 		}
-		if ( ((Dir->Flags & XDIR_INCLUDE_DOTS) == 0u) &&
+		if ( ((iFlags & XDIR_INCLUDE_DOTS) == 0u) &&
 			 __xrtDirDot(pData->d_name) ) {
 			continue;
 		}
@@ -125636,20 +128565,18 @@ static xdirnext __xrtDirPosixNext(xdir Dir, xdirentry* pEntry)
 		if ( xrtUtf8Valid(Entry.Name, NULL) ) {
 			Entry.Flags |= XDIR_ENTRY_UTF8;
 		}
-		if ( (Dir->Flags & XDIR_STAT) != 0u ) {
-			str sPath = xrtPathJoin(Dir->Path, pData->d_name);
+		if ( (iFlags & XDIR_STAT) != 0u ) {
+			str sEntryPath = xrtPathJoin(sPath, pData->d_name);
 
-			if ( sPath == NULL ) {
-				Dir->Failed = true;
+			if ( sEntryPath == NULL ) {
 				return XDIR_NEXT_ERROR;
 			}
-			if ( !xrtPathStat(sPath,
-				(Dir->Flags & XDIR_FOLLOW_LINKS) != 0u, &Entry.Info) ) {
-				xrtFree(sPath);
-				Dir->Failed = true;
+			if ( !xrtPathStat(sEntryPath,
+				(iFlags & XDIR_FOLLOW_LINKS) != 0u, &Entry.Info) ) {
+				xrtFree(sEntryPath);
 				return XDIR_NEXT_ERROR;
 			}
-			xrtFree(sPath);
+			xrtFree(sEntryPath);
 		}
 		*pEntry = Entry;
 		return XDIR_NEXT_ITEM;
@@ -125660,13 +128587,45 @@ static xdirnext __xrtDirPosixNext(xdir Dir, xdirentry* pEntry)
 
 
 
-/* 打开目录迭代器。 */
+/* 关闭 native 枚举状态。 */
+static bool __xrtNativeDirClose(ptr pState)
+{
+	xrt_native_dir_state* pNative = (xrt_native_dir_state*)pState;
+	bool bResult = true;
+	int iCode = 0;
+
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( (pNative->Handle != NULL) &&
+			 (pNative->Handle != INVALID_HANDLE_VALUE) &&
+			 !FindClose(pNative->Handle) ) {
+			bResult = false;
+			iCode = (int)GetLastError();
+		}
+		xrtFree(pNative->Name);
+	#else
+		if ( (pNative->Handle != NULL) && (closedir(pNative->Handle) != 0) ) {
+			bResult = false;
+			iCode = errno;
+		}
+	#endif
+	xrtFree(pNative);
+	if ( !bResult ) {
+		__xrtDirSetError(XDIR_ERROR_CLOSE, "close",
+			"failed to close the directory iterator", iCode);
+	}
+	return bResult;
+}
+
+
+
+/* 打开原生目录迭代器。 */
 XRT_API xdir xrtDirOpen(cstr sPath, uint32 iFlags)
 {
 	xfileinfo Info;
-	xdir Dir;
+	xrt_native_dir_state* pNative;
 
-	if ( (sPath == NULL) || (sPath[0] == '\0') || !__xrtDirFlags(iFlags) ) {
+	if ( (sPath == NULL) || (sPath[0] == '\0') ||
+		 !__xrtDirFlagsValid(iFlags) ) {
 		if ( (sPath == NULL) || (sPath[0] == '\0') ) {
 			__xrtErrorSetInvalidArgument();
 		}
@@ -125685,25 +128644,19 @@ XRT_API xdir xrtDirOpen(cstr sPath, uint32 iFlags)
 			"the path is not a directory");
 		return NULL;
 	}
-	Dir = (xdir)xrtCalloc(1u, sizeof(*Dir));
-	if ( Dir == NULL ) {
+	pNative = (xrt_native_dir_state*)xrtCalloc(1u, sizeof(*pNative));
+	if ( pNative == NULL ) {
 		return NULL;
 	}
-	Dir->Path = xrtStrDup(sPath);
-	if ( Dir->Path == NULL ) {
-		xrtFree(Dir);
-		return NULL;
-	}
-	Dir->Flags = iFlags;
 	#if defined(_WIN32) || defined(_WIN64)
-		Dir->Handle = INVALID_HANDLE_VALUE;
+		pNative->Handle = INVALID_HANDLE_VALUE;
 	#endif
-	if ( !__xrtDirOpenNative(Dir) ) {
-		xrtFree(Dir->Path);
-		xrtFree(Dir);
+	if ( !__xrtNativeDirOpen(pNative, sPath) ) {
+		xrtFree(pNative);
 		return NULL;
 	}
-	return Dir;
+	return __xrtDirTakeBackend(&__xrtNativeDirOps,
+		pNative, sPath, iFlags);
 }
 
 
@@ -125711,6 +128664,9 @@ XRT_API xdir xrtDirOpen(cstr sPath, uint32 iFlags)
 /* 读取下一条目录项。 */
 XRT_API xdirnext xrtDirNext(xdir Dir, xdirentry* pEntry)
 {
+	xdirnext Next;
+	xdirentry Entry;
+
 	if ( (Dir == NULL) || (pEntry == NULL) ) {
 		__xrtErrorSetInvalidArgument();
 		return XDIR_NEXT_ERROR;
@@ -125722,11 +128678,16 @@ XRT_API xdirnext xrtDirNext(xdir Dir, xdirentry* pEntry)
 	if ( Dir->Done ) {
 		return XDIR_NEXT_END;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		return __xrtDirWindowsNext(Dir, pEntry);
-	#else
-		return __xrtDirPosixNext(Dir, pEntry);
-	#endif
+	Next = Dir->Ops->Next(Dir->State, Dir->Path, Dir->Flags, &Entry);
+	if ( Next == XDIR_NEXT_ITEM ) {
+		*pEntry = Entry;
+	} else if ( Next == XDIR_NEXT_END ) {
+		Dir->Done = true;
+	} else {
+		Dir->Failed = true;
+		Next = XDIR_NEXT_ERROR;
+	}
+	return Next;
 }
 
 
@@ -125734,32 +128695,15 @@ XRT_API xdirnext xrtDirNext(xdir Dir, xdirentry* pEntry)
 /* 关闭并销毁目录迭代器。 */
 XRT_API bool xrtDirClose(xdir Dir)
 {
-	bool bResult = true;
-	int iCode = 0;
+	bool bResult;
 
 	if ( Dir == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	#if defined(_WIN32) || defined(_WIN64)
-		if ( (Dir->Handle != NULL) && (Dir->Handle != INVALID_HANDLE_VALUE) &&
-			 !FindClose(Dir->Handle) ) {
-			bResult = false;
-			iCode = (int)GetLastError();
-		}
-		xrtFree(Dir->Name);
-	#else
-		if ( closedir(Dir->Handle) != 0 ) {
-			bResult = false;
-			iCode = errno;
-		}
-	#endif
+	bResult = Dir->Ops->Close(Dir->State);
 	xrtFree(Dir->Path);
 	xrtFree(Dir);
-	if ( !bResult ) {
-		__xrtDirSetError(XDIR_ERROR_CLOSE, "close",
-			"failed to close the directory iterator", iCode);
-	}
 	return bResult;
 }
 
@@ -125780,14 +128724,36 @@ XRT_API cstr xrtDirPath(xdir Dir)
 /* 把迭代器目录与条目名称拼成拥有路径。 */
 XRT_API str xrtDirEntryPath(xdir Dir, const xdirentry* pEntry)
 {
+	str sResult;
+	size_t iPath;
+	size_t iSize;
+	bool bRoot;
+
 	if ( (Dir == NULL) || (pEntry == NULL) ||
-		 ((pEntry->Name.Data == NULL) && (pEntry->Name.Size != 0u)) ||
 		 (pEntry->Name.Data == NULL) ||
 		 (strlen(pEntry->Name.Data) != pEntry->Name.Size) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	return xrtPathJoin(Dir->Path, pEntry->Name.Data);
+	if ( !Dir->Ops->VirtualPath ) {
+		return xrtPathJoin(Dir->Path, pEntry->Name.Data);
+	}
+	iPath = strlen(Dir->Path);
+	bRoot = (iPath == 1u) && (Dir->Path[0] == '/');
+	if ( iPath > (SIZE_MAX - pEntry->Name.Size - (bRoot ? 1u : 2u)) ) {
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
+	iSize = iPath + pEntry->Name.Size + (bRoot ? 0u : 1u);
+	sResult = (str)xrtMalloc(iSize + 1u);
+	if ( sResult == NULL ) {
+		return NULL;
+	}
+	memcpy(sResult, Dir->Path, iPath);
+	if ( !bRoot ) sResult[iPath++] = '/';
+	memcpy(sResult + iPath, pEntry->Name.Data, pEntry->Name.Size);
+	sResult[iSize] = '\0';
+	return sResult;
 }
 
 
@@ -125810,9 +128776,10 @@ static bool __xrtDirCreateOne(cstr sPath, uint32 iMode, bool bExistingOk)
 			int iCode = (int)GetLastError();
 
 			xrtFree(pPath);
-			if ( bExistingOk && (iCode == ERROR_ALREADY_EXISTS) &&
-				xrtDirExists(sPath) ) {
-				return true;
+			if ( bExistingOk && (iCode == ERROR_ALREADY_EXISTS) ) {
+				xfileinfo Info;
+				if ( !xrtPathStat(sPath, true, &Info) ) return false;
+				if ( Info.Type == XFILE_TYPE_DIRECTORY ) return true;
 			}
 			__xrtDirSetError(XDIR_ERROR_CREATE, "create",
 				"failed to create the directory", iCode);
@@ -125830,8 +128797,10 @@ static bool __xrtDirCreateOne(cstr sPath, uint32 iMode, bool bExistingOk)
 		{
 			int iCode = errno;
 
-			if ( bExistingOk && (iCode == EEXIST) && xrtDirExists(sPath) ) {
-				return true;
+			if ( bExistingOk && (iCode == EEXIST) ) {
+				xfileinfo Info;
+				if ( !xrtPathStat(sPath, true, &Info) ) return false;
+				if ( Info.Type == XFILE_TYPE_DIRECTORY ) return true;
 			}
 			__xrtDirSetError(XDIR_ERROR_CREATE, "create",
 				"failed to create the directory", iCode);
@@ -125911,14 +128880,17 @@ XRT_API bool xrtDirCreateAllMode(cstr sPath, uint32 iMode)
 		sCurrent[--iSize] = '\0';
 	}
 	if ( iSize == iRootSize ) {
-		bool bResult = xrtDirExists(sCurrent);
+		xfileinfo Info;
+		bool bResult = xrtPathStat(sCurrent, true, &Info);
 
 		xrtFree(sCurrent);
-		if ( !bResult ) {
-			__xrtDirError(XERR_NOT_FOUND, XDIR_ERROR_CREATE, "create-all",
-				"the directory root does not exist");
+		if ( !bResult ) return false;
+		if ( Info.Type != XFILE_TYPE_DIRECTORY ) {
+			__xrtDirError(XERR_TYPE, XDIR_ERROR_CREATE, "create-all",
+				"the directory root is not a directory");
+			return false;
 		}
-		return bResult;
+		return true;
 	}
 	if ( !__xrtDirCreateOne(sCurrent, iMode, true) ) {
 		xrtFree(sCurrent);
@@ -127826,10 +130798,12 @@ static void __xrtNetStreamTryFinish(xnetstream* pStream);
 
 
 
-/* 进入可能同步触发底层关闭的发送调用帧。 */
+/* 仅 Worker 调用帧可能同步重入关闭；跨线程发送由 SendSubmitters 保护。 */
 static void __xrtNetStreamActiveEnter(xnetstream* pStream)
 {
-	pStream->ActiveDepth++;
+	if ( xrtNetWorkerIsCurrent(pStream->Worker) ) {
+		pStream->ActiveDepth++;
+	}
 }
 
 
@@ -127854,6 +130828,9 @@ static void __xrtNetStreamReleaseRuntime(xnetstream* pStream)
 /* 离开最外层发送调用帧后完成延迟释放；必须是调用函数的最后一条语句。 */
 static void __xrtNetStreamActiveLeave(xnetstream* pStream)
 {
+	if ( !xrtNetWorkerIsCurrent(pStream->Worker) ) {
+		return;
+	}
 	pStream->ActiveDepth--;
 	if ( (pStream->ActiveDepth == 0) &&
 		pStream->ReleasePending ) {
@@ -130255,8 +133232,8 @@ static xnetresult __xrtNetStreamSend(
 		__xrtNetStreamEndSend(pStream);
 		return XNET_RESULT_OK;
 	}
-	if ( bCopy && pStream->BuffersReady &&
-		 xrtNetWorkerIsCurrent(pStream->Worker) ) {
+	if ( bCopy && xrtNetWorkerIsCurrent(pStream->Worker) &&
+		 pStream->BuffersReady ) {
 		xnetspan Span = { (cbytes)pData, iSize };
 
 		__xrtNetStreamActiveEnter(pStream);
@@ -130354,8 +133331,8 @@ XRT_API xnetresult xrtNetStreamSendVec(
 	if ( !__xrtNetStreamBeginSend(pStream) ) {
 		return XNET_RESULT_CLOSED;
 	}
-	if ( pStream->BuffersReady &&
-		 xrtNetWorkerIsCurrent(pStream->Worker) ) {
+	if ( xrtNetWorkerIsCurrent(pStream->Worker) &&
+		 pStream->BuffersReady ) {
 		__xrtNetStreamActiveEnter(pStream);
 		Result = __xrtNetStreamCopyCurrent(
 			pStream,
@@ -147397,7 +150374,7 @@ bool __xrtTlsClientHelloQueue(
 	bytes pOldHello;
 	size_t iOldWorkspaceSize;
 	size_t iOldHelloSize;
-	size_t iExtensions;
+	size_t iExtensions = 0;
 	size_t iBodySize;
 	size_t iHelloSize;
 	bool bResult = false;
@@ -165086,7 +168063,10 @@ static __xrt_tls_stream_async_result __xrtTlsStreamAsyncWaitResult(
 		}
 		if ( (pAsync->Kind == __XRT_TLS_STREAM_ASYNC_WAIT) &&
 			(pAsync->Wait == XTLS_STREAM_WAIT_END) &&
-			pStream->EndEmitted ) {
+			(pStream->EndEmitted ||
+			 (xrtTlsStreamAvailable(pStream) == 0)) ) {
+			/* CLOSED 已确认双向 close_notify。密文排空可同步重入 Close，
+			   先于 End 事件记账；明文已交付时不能因此丢失认证 EOF。 */
 			return __XRT_TLS_STREAM_ASYNC_READY;
 		}
 		if ( (pAsync->Kind == __XRT_TLS_STREAM_ASYNC_WAIT) &&
@@ -207347,7 +210327,7 @@ static bool __xrtNumberCharacterFormat(
 		return __xrtNumberFormatError(
 			sOperation, "character format only accepts width");
 	}
-	if ( !bNegative && (iMagnitude != 0) &&
+	if ( !bNegative &&
 		 (iMagnitude <= UINT32_MAX) ) {
 		iCoreSize = __xrtUtf8Encode((uint32)iMagnitude, arrCore);
 	}
@@ -207511,12 +210491,21 @@ static str __xrtNumberFormatAllocate(
 	int64 iSigned,
 	uint64 iUnsigned,
 	double fValue,
-	xstrview Format
+	xstrview Format,
+	size_t* pOutputSize
 )
 {
 	size_t iSize;
 	str sOutput;
 	bool bResult;
+
+	if ( pOutputSize == NULL ||
+		 __xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), Format.Data, Format.Size) ) {
+		__xrtNumberError(XERR_ARGUMENT, XNUMBER_ERROR_CONFIG,
+			"format-sized", "invalid or overlapping output size");
+		return NULL;
+	}
+	*pOutputSize = 0;
 
 	if ( iKind == 0 ) {
 		bResult = xrtIntFormatTo(
@@ -207549,6 +210538,7 @@ static str __xrtNumberFormatAllocate(
 		xrtFree(sOutput);
 		return NULL;
 	}
+	*pOutputSize = iSize;
 	return sOutput;
 }
 
@@ -207557,7 +210547,8 @@ static str __xrtNumberFormatAllocate(
 /* 格式化有符号整数并分配结果。 */
 XRT_API str xrtIntFormat(int64 iValue, xstrview Format)
 {
-	return __xrtNumberFormatAllocate(0, iValue, 0, 0.0, Format);
+	size_t iSize;
+	return xrtIntFormatSized(iValue, Format, &iSize);
 }
 
 
@@ -207565,7 +210556,8 @@ XRT_API str xrtIntFormat(int64 iValue, xstrview Format)
 /* 格式化无符号整数并分配结果。 */
 XRT_API str xrtUIntFormat(uint64 iValue, xstrview Format)
 {
-	return __xrtNumberFormatAllocate(1, 0, iValue, 0.0, Format);
+	size_t iSize;
+	return xrtUIntFormatSized(iValue, Format, &iSize);
 }
 
 
@@ -207573,7 +210565,21 @@ XRT_API str xrtUIntFormat(uint64 iValue, xstrview Format)
 /* 格式化 double 并分配结果。 */
 XRT_API str xrtNumFormat(double fValue, xstrview Format)
 {
-	return __xrtNumberFormatAllocate(2, 0, 0, fValue, Format);
+	size_t iSize;
+	return xrtNumFormatSized(fValue, Format, &iSize);
+}
+
+XRT_API str xrtIntFormatSized(int64 iValue, xstrview Format, size_t* pOutputSize)
+{
+	return __xrtNumberFormatAllocate(0, iValue, 0, 0.0, Format, pOutputSize);
+}
+XRT_API str xrtUIntFormatSized(uint64 iValue, xstrview Format, size_t* pOutputSize)
+{
+	return __xrtNumberFormatAllocate(1, 0, iValue, 0.0, Format, pOutputSize);
+}
+XRT_API str xrtNumFormatSized(double fValue, xstrview Format, size_t* pOutputSize)
+{
+	return __xrtNumberFormatAllocate(2, 0, 0, fValue, Format, pOutputSize);
 }
 
 #endif
@@ -215981,11 +218987,13 @@ XRT_API bool xrtWsDeflateDirection(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_INFLATE) || \
-	defined(XRT_FEATURE_DEFLATE)
+	defined(XRT_FEATURE_DEFLATE) || \
+	defined(XRT_FEATURE_VFS_PACK)
 
 
 
-#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE)
+#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE) || \
+	defined(XRT_FEATURE_VFS_PACK)
 
 /* Inflate 与 Deflate 共用 16 项小表，避免在两个裁剪模块中重复常量和逻辑。 */
 uint32 __xrtCompressCrc32Update(
@@ -234678,16 +237686,24 @@ static void __xrtUtf8PadWrite(char* sOutput, size_t iBytes, xstrview Fill)
 
 /* 按标量宽度创建填充后的 UTF-8 字符串。 */
 static str __xrtUtf8Pad(xstrview Text, size_t iWidth,
-	xstrview Fill, int iMode)
+	xstrview Fill, int iMode, size_t* pOutputSize)
 {
 	xrt_utf8_pad_plan Plan;
 	str sResult;
 
+	if ( pOutputSize != NULL &&
+		 (__xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), Text.Data, Text.Size) ||
+		  __xrtRangesOverlap(pOutputSize, sizeof(*pOutputSize), Fill.Data, Fill.Size)) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( pOutputSize != NULL ) *pOutputSize = 0;
 	if ( !__xrtUtf8PadPlan(Text, iWidth, Fill, iMode, &Plan) ) {
 		return NULL;
 	}
 	sResult = (str)xrtMalloc(Plan.OutputBytes + 1u);
 	if ( sResult == NULL ) {
+		__xrtErrorSetOutOfMemory();
 		return NULL;
 	}
 	__xrtUtf8PadWrite(sResult, Plan.LeftBytes, Plan.Fill);
@@ -234697,6 +237713,7 @@ static str __xrtUtf8Pad(xstrview Text, size_t iWidth,
 	__xrtUtf8PadWrite(sResult + Plan.LeftBytes + Text.Size,
 		Plan.RightBytes, Plan.Fill);
 	sResult[Plan.OutputBytes] = 0;
+	if ( pOutputSize != NULL ) *pOutputSize = Plan.OutputBytes;
 	return sResult;
 }
 
@@ -235015,7 +238032,7 @@ XRT_API str xrtUtf8Remove(xstrview Text, int64 iStart, int64 iCount)
 /* 按 Unicode 标量宽度在左侧重复填充文本。 */
 XRT_API str xrtUtf8PadLeft(xstrview Text, size_t iWidth, xstrview Fill)
 {
-	return __xrtUtf8Pad(Text, iWidth, Fill, -1);
+	return __xrtUtf8Pad(Text, iWidth, Fill, -1, NULL);
 }
 
 
@@ -235023,7 +238040,7 @@ XRT_API str xrtUtf8PadLeft(xstrview Text, size_t iWidth, xstrview Fill)
 /* 按 Unicode 标量宽度在右侧重复填充文本。 */
 XRT_API str xrtUtf8PadRight(xstrview Text, size_t iWidth, xstrview Fill)
 {
-	return __xrtUtf8Pad(Text, iWidth, Fill, 1);
+	return __xrtUtf8Pad(Text, iWidth, Fill, 1, NULL);
 }
 
 
@@ -235031,8 +238048,20 @@ XRT_API str xrtUtf8PadRight(xstrview Text, size_t iWidth, xstrview Fill)
 /* 按 Unicode 标量宽度在两侧重复填充文本。 */
 XRT_API str xrtUtf8PadCenter(xstrview Text, size_t iWidth, xstrview Fill)
 {
-	return __xrtUtf8Pad(Text, iWidth, Fill, 0);
+	return __xrtUtf8Pad(Text, iWidth, Fill, 0, NULL);
 }
+
+XRT_API str xrtUtf8PadLeftSized(xstrview Text, size_t iWidth,
+	xstrview Fill, size_t* pOutputSize)
+{ return __xrtUtf8Pad(Text, iWidth, Fill, -1, pOutputSize); }
+
+XRT_API str xrtUtf8PadRightSized(xstrview Text, size_t iWidth,
+	xstrview Fill, size_t* pOutputSize)
+{ return __xrtUtf8Pad(Text, iWidth, Fill, 1, pOutputSize); }
+
+XRT_API str xrtUtf8PadCenterSized(xstrview Text, size_t iWidth,
+	xstrview Fill, size_t* pOutputSize)
+{ return __xrtUtf8Pad(Text, iWidth, Fill, 0, pOutputSize); }
 
 
 
@@ -270664,6 +273693,2261 @@ XRT_API bool xrtFileWriteTextAtomic(cstr sPath, xstrview Text,
 
 
 /* ========================================================================== */
+/* source: src/fs/vfs.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS)
+
+#include <stdlib.h>
+
+
+
+#if defined(XRT_FEATURE_VFS)
+
+#define XRT_VFS_DIR_MAX_ENTRIES 8192u
+#define XRT_VFS_DIR_MAX_NAME 4096u
+#define XRT_VFS_DIR_MAX_NAME_BYTES (8u * 1024u * 1024u)
+#define XRT_VFS_DIR_BUCKET_NONE SIZE_MAX
+
+typedef struct xrt_vfs_generation xrt_vfs_generation;
+typedef struct xrt_vfs_snapshot xrt_vfs_snapshot;
+
+struct xrt_vfs_generation {
+	volatile int32 RefCount;
+	uint64 MountId;
+	int32 Priority;
+	xvfscase CaseMode;
+	str Prefix;
+	size_t PrefixSize;
+	xvfsprovider_v1 Provider;
+	ptr Context;
+};
+
+struct xrt_vfs_snapshot {
+	volatile int32 RefCount;
+	size_t Count;
+	xrt_vfs_generation* Items[];
+};
+
+struct xvfs_impl {
+	volatile int32 RefCount;
+	xmutex Lock;
+	xrt_vfs_snapshot* Snapshot;
+	uint64 NextMountId;
+};
+
+struct xvfs_mount_impl {
+	volatile int32 RefCount;
+	xvfs Vfs;
+	xrt_vfs_generation* Generation;
+	bool Active;
+};
+
+typedef struct xrt_vfs_file_state {
+	xrt_file_backend_ops Backend;
+	xvfsfileops_v1 Provider;
+	ptr State;
+	xrt_vfs_generation* Generation;
+	xmutex CursorLock;
+	uint64 Cursor;
+} xrt_vfs_file_state;
+
+typedef struct xrt_vfs_dir_item {
+	xdirentry Entry;
+	str Name;
+	xvfscase CaseMode;
+	uint64 FoldHash;
+	size_t NextHash;
+} xrt_vfs_dir_item;
+
+typedef struct xrt_vfs_dir_state {
+	xrt_vfs_dir_item* Items;
+	size_t Count;
+	size_t Capacity;
+	size_t NameBytes;
+	size_t Position;
+	size_t* Buckets;
+	size_t BucketCount;
+	xrt_vfs_generation** Generations;
+	size_t GenerationCount;
+	size_t GenerationCapacity;
+} xrt_vfs_dir_state;
+
+static void __xrtVfsGenerationRelease(xrt_vfs_generation* pGeneration);
+
+
+
+/* 设置 xrt.vfs 域的稳定错误。 */
+void __xrtVfsError(xerrkind Kind, xvfserror Code,
+	cstr sOperation, cstr sMessage)
+{
+	xerrordesc Desc;
+	xerror* pError;
+
+	memset(&Desc, 0, sizeof(Desc));
+	Desc.Kind = Kind;
+	Desc.Domain = "xrt.vfs";
+	Desc.Code = (int32)Code;
+	Desc.Operation = sOperation;
+	Desc.Message = sMessage;
+	pError = xrtErrorBuild(&Desc);
+	if ( pError != NULL ) __xrtErrorSetOwned(pError);
+}
+
+
+
+/* 拒绝非规范路径，避免 provider 再次解释平台路径语义。 */
+bool __xrtVfsPath(cstr sPath, xstrview* pPath)
+{
+	xstrview Path;
+	size_t iStart;
+
+	if ( (sPath == NULL) || (pPath == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	Path = xrtStrView(sPath);
+	if ( (Path.Size == 0u) || (Path.Size > XRT_VFS_PATH_MAX) ||
+		 (Path.Data[0] != '/') ||
+		 ((Path.Size > 1u) && (Path.Data[Path.Size - 1u] == '/')) ||
+		 !xrtUtf8Valid(Path, NULL) ) {
+		__xrtVfsError(XERR_ARGUMENT, XVFS_ERROR_PATH,
+			"path", "the virtual path is not canonical UTF-8");
+		return false;
+	}
+	if ( Path.Size == 1u ) {
+		*pPath = Path;
+		return true;
+	}
+	iStart = 1u;
+	for ( size_t i = 1u; i <= Path.Size; i++ ) {
+		unsigned char iByte = (i == Path.Size) ? '/' :
+			(unsigned char)Path.Data[i];
+
+		if ( (i < Path.Size) &&
+			 ((iByte == 0u) || (iByte == (unsigned char)'\\')) ) {
+			__xrtVfsError(XERR_ARGUMENT, XVFS_ERROR_PATH,
+				"path", "the virtual path contains a forbidden byte");
+			return false;
+		}
+		if ( iByte != (unsigned char)'/' ) continue;
+		if ( (i == iStart) ||
+			 ((i - iStart == 1u) && (Path.Data[iStart] == '.')) ||
+			 ((i - iStart == 2u) && (Path.Data[iStart] == '.') &&
+			  (Path.Data[iStart + 1u] == '.')) ) {
+			__xrtVfsError(XERR_ARGUMENT, XVFS_ERROR_PATH,
+				"path", "the virtual path contains a non-canonical segment");
+			return false;
+		}
+		iStart = i + 1u;
+	}
+	*pPath = Path;
+	return true;
+}
+
+
+
+/* 验证 provider 相对路径；空路径只表示 mount 根。 */
+bool __xrtVfsRelativePath(xstrview Path, bool bAllowEmpty)
+{
+	size_t iStart = 0u;
+
+	if ( ((Path.Data == NULL) && (Path.Size != 0u)) ||
+		 (Path.Size > (XRT_VFS_PATH_MAX - 1u)) ||
+		 ((Path.Size == 0u) && !bAllowEmpty) ||
+		 ((Path.Size != 0u) &&
+		  ((Path.Data[0] == '/') || (Path.Data[Path.Size - 1u] == '/'))) ||
+		 !xrtUtf8Valid(Path, NULL) ) {
+		__xrtVfsError(XERR_ARGUMENT, XVFS_ERROR_PATH,
+			"relative-path", "the provider path is not canonical UTF-8");
+		return false;
+	}
+	for ( size_t i = 0u; i <= Path.Size; i++ ) {
+		unsigned char iByte = (i == Path.Size) ? '/' :
+			(unsigned char)Path.Data[i];
+
+		if ( (i < Path.Size) &&
+			 ((iByte == 0u) || (iByte == (unsigned char)'\\')) ) {
+			__xrtVfsError(XERR_ARGUMENT, XVFS_ERROR_PATH,
+				"relative-path", "the provider path contains a forbidden byte");
+			return false;
+		}
+		if ( iByte != (unsigned char)'/' ) continue;
+		if ( (i == iStart) ||
+			 ((i - iStart == 1u) && (Path.Data[iStart] == '.')) ||
+			 ((i - iStart == 2u) && (Path.Data[iStart] == '.') &&
+			  (Path.Data[iStart + 1u] == '.')) ) {
+			if ( (Path.Size == 0u) && bAllowEmpty ) return true;
+			__xrtVfsError(XERR_ARGUMENT, XVFS_ERROR_PATH,
+				"relative-path", "the provider path contains a non-canonical segment");
+			return false;
+		}
+		iStart = i + 1u;
+	}
+	return true;
+}
+
+
+
+static void __xrtVfsRestoreError(xerror* pError)
+{
+	xrtClearError();
+	if ( pError != NULL ) __xrtErrorSetOwned(pError);
+}
+
+static void __xrtVfsGenerationRef(xrt_vfs_generation* pGeneration)
+{
+	if ( xrtRefRetain(&pGeneration->RefCount) < 0 ) abort();
+}
+
+static void __xrtVfsGenerationRelease(xrt_vfs_generation* pGeneration)
+{
+	xerror* pError;
+
+	if ( (pGeneration == NULL) ||
+		 (xrtRefRelease(&pGeneration->RefCount) != 0) ) return;
+	pError = xrtTakeError();
+	if ( pGeneration->Provider.ContextRelease != NULL )
+		pGeneration->Provider.ContextRelease(pGeneration->Context);
+	xrtFree(pGeneration->Prefix);
+	xrtFree(pGeneration);
+	__xrtVfsRestoreError(pError);
+}
+
+
+
+static xrt_vfs_snapshot* __xrtVfsSnapshotCreate(size_t iCount)
+{
+	xrt_vfs_snapshot* pSnapshot;
+	size_t iSize;
+
+	if ( iCount > ((SIZE_MAX - sizeof(*pSnapshot)) /
+		sizeof(pSnapshot->Items[0])) ) {
+		__xrtErrorSetSizeOverflow();
+		return NULL;
+	}
+	iSize = sizeof(*pSnapshot) +
+		(iCount * sizeof(pSnapshot->Items[0]));
+	pSnapshot = (xrt_vfs_snapshot*)xrtMalloc(iSize);
+	if ( pSnapshot == NULL ) return NULL;
+	pSnapshot->RefCount = 1;
+	pSnapshot->Count = iCount;
+	return pSnapshot;
+}
+
+static void __xrtVfsSnapshotRef(xrt_vfs_snapshot* pSnapshot)
+{
+	if ( xrtRefRetain(&pSnapshot->RefCount) < 0 ) abort();
+}
+
+static void __xrtVfsSnapshotRelease(xrt_vfs_snapshot* pSnapshot)
+{
+	if ( (pSnapshot == NULL) ||
+		 (xrtRefRelease(&pSnapshot->RefCount) != 0) ) return;
+	for ( size_t i = 0u; i < pSnapshot->Count; i++ )
+		__xrtVfsGenerationRelease(pSnapshot->Items[i]);
+	xrtFree(pSnapshot);
+}
+
+
+
+static int __xrtVfsGenerationCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_generation* pA =
+		*(xrt_vfs_generation* const*)pLeft;
+	const xrt_vfs_generation* pB =
+		*(xrt_vfs_generation* const*)pRight;
+
+	if ( pA->PrefixSize != pB->PrefixSize )
+		return (pA->PrefixSize > pB->PrefixSize) ? -1 : 1;
+	if ( pA->Priority != pB->Priority )
+		return (pA->Priority > pB->Priority) ? -1 : 1;
+	if ( pA->MountId == pB->MountId ) return 0;
+	return (pA->MountId < pB->MountId) ? -1 : 1;
+}
+
+
+
+static xrt_vfs_snapshot* __xrtVfsSnapshotEdit(
+	const xrt_vfs_snapshot* pOld,
+	xrt_vfs_generation* pAdd,
+	const xrt_vfs_generation* pRemove)
+{
+	size_t iCount = pOld->Count + ((pAdd != NULL) ? 1u : 0u) -
+		((pRemove != NULL) ? 1u : 0u);
+	xrt_vfs_snapshot* pNew = __xrtVfsSnapshotCreate(iCount);
+	size_t iOutput = 0u;
+
+	if ( pNew == NULL ) return NULL;
+	for ( size_t i = 0u; i < pOld->Count; i++ ) {
+		if ( pOld->Items[i] == pRemove ) continue;
+		pNew->Items[iOutput] = pOld->Items[i];
+		__xrtVfsGenerationRef(pNew->Items[iOutput++]);
+	}
+	if ( pAdd != NULL ) {
+		pNew->Items[iOutput++] = pAdd;
+		__xrtVfsGenerationRef(pAdd);
+	}
+	if ( iOutput != iCount ) abort();
+	if ( iCount > 1u ) qsort(pNew->Items, iCount,
+		sizeof(pNew->Items[0]), __xrtVfsGenerationCompare);
+	return pNew;
+}
+
+
+
+static xrt_vfs_snapshot* __xrtVfsSnapshotAcquire(xvfs Vfs)
+{
+	xrt_vfs_snapshot* pSnapshot;
+
+	if ( (Vfs == NULL) || !xrtMutexLock(&Vfs->Lock) ) {
+		if ( Vfs == NULL ) __xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pSnapshot = Vfs->Snapshot;
+	if ( pSnapshot != NULL ) __xrtVfsSnapshotRef(pSnapshot);
+	(void)xrtMutexUnlock(&Vfs->Lock);
+	if ( pSnapshot == NULL ) __xrtErrorSetInvalidState();
+	return pSnapshot;
+}
+
+
+
+static bool __xrtVfsProviderCopy(
+	const xvfsprovider_v1* pInput, xvfsprovider_v1* pOutput)
+{
+	const size_t iMinimum = offsetof(xvfsprovider_v1, OpenNative);
+	size_t iCopy;
+	bool bStat;
+	bool bDir;
+	bool bNative;
+
+	if ( (pInput == NULL) || (pInput->Size < iMinimum) ||
+		 (pInput->Version != XRT_VFS_PROVIDER_VERSION) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	memset(pOutput, 0, sizeof(*pOutput));
+	iCopy = pInput->Size;
+	if ( iCopy > sizeof(*pOutput) ) iCopy = sizeof(*pOutput);
+	memcpy(pOutput, pInput, iCopy);
+	pOutput->Size = (uint32)sizeof(*pOutput);
+	if ( ((pOutput->Capabilities & ~XVFS_PROVIDER_CAPABILITIES) != 0u) ||
+		 ((pOutput->ContextRetain == NULL) !=
+		  (pOutput->ContextRelease == NULL)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	bStat = (pOutput->Capabilities & XVFS_PROVIDER_STAT) != 0u;
+	bDir = (pOutput->Capabilities & XVFS_PROVIDER_DIRECTORY) != 0u;
+	bNative = (pOutput->Capabilities & XVFS_PROVIDER_NATIVE_OPEN) != 0u;
+	if ( bStat != (pOutput->Stat != NULL) ||
+		 bDir != (pOutput->DirOpen != NULL) ||
+		 bNative != (pOutput->OpenNative != NULL) ||
+		 bNative == (pOutput->Open != NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 文件 close 后释放 provider generation；xfile 仅借用此函数地址。 */
+static void __xrtVfsFileGenerationRelease(ptr pOwner)
+{
+	__xrtVfsGenerationRelease((xrt_vfs_generation*)pOwner);
+}
+
+
+
+static bool __xrtVfsPrefixMatch(const xrt_vfs_generation* pGeneration,
+	xstrview Path, xstrview* pRelative)
+{
+	size_t iPrefix = pGeneration->PrefixSize;
+	bool bEqual;
+
+	if ( iPrefix > Path.Size ) return false;
+	if ( pGeneration->CaseMode == XVFS_CASE_SENSITIVE ) {
+		bEqual = memcmp(pGeneration->Prefix, Path.Data, iPrefix) == 0;
+	} else {
+		bEqual = xrtStrCaseEqual(
+			(xstrview){ pGeneration->Prefix, iPrefix },
+			(xstrview){ Path.Data, iPrefix });
+	}
+	if ( !bEqual || ((iPrefix != 1u) && (Path.Size > iPrefix) &&
+		(Path.Data[iPrefix] != '/')) ) return false;
+	if ( Path.Size == iPrefix ) {
+		pRelative->Data = Path.Data + Path.Size;
+		pRelative->Size = 0u;
+	} else if ( iPrefix == 1u ) {
+		pRelative->Data = Path.Data + 1u;
+		pRelative->Size = Path.Size - 1u;
+	} else {
+		pRelative->Data = Path.Data + iPrefix + 1u;
+		pRelative->Size = Path.Size - iPrefix - 1u;
+	}
+	return true;
+}
+
+
+
+static void __xrtVfsProviderError(cstr sOperation, cstr sMessage)
+{
+	if ( xrtGetError() == NULL )
+		__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+			sOperation, sMessage);
+}
+
+
+
+XRT_API xvfs xrtVfsCreate(void)
+{
+	xvfs Vfs = (xvfs)xrtCalloc(1u, sizeof(*Vfs));
+
+	if ( Vfs == NULL ) return NULL;
+	Vfs->RefCount = 1;
+	if ( !xrtMutexInit(&Vfs->Lock) ) {
+		xrtFree(Vfs);
+		return NULL;
+	}
+	Vfs->Snapshot = __xrtVfsSnapshotCreate(0u);
+	if ( Vfs->Snapshot == NULL ) {
+		(void)xrtMutexUnit(&Vfs->Lock);
+		xrtFree(Vfs);
+		return NULL;
+	}
+	return Vfs;
+}
+
+XRT_API void xrtVfsRef(xvfs Vfs)
+{
+	if ( Vfs == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	if ( xrtRefRetain(&Vfs->RefCount) < 0 ) abort();
+}
+
+XRT_API void xrtVfsDestroy(xvfs Vfs)
+{
+	xrt_vfs_snapshot* pSnapshot;
+
+	if ( Vfs == NULL ) return;
+	if ( xrtRefRelease(&Vfs->RefCount) != 0 ) return;
+	if ( !xrtMutexLock(&Vfs->Lock) ) abort();
+	pSnapshot = Vfs->Snapshot;
+	Vfs->Snapshot = NULL;
+	(void)xrtMutexUnlock(&Vfs->Lock);
+	__xrtVfsSnapshotRelease(pSnapshot);
+	if ( !xrtMutexUnit(&Vfs->Lock) ) abort();
+	xrtFree(Vfs);
+}
+
+
+
+XRT_API xvfsmount xrtVfsMount(xvfs Vfs, cstr sVirtualPrefix,
+	int32 iPriority, xvfscase CaseMode,
+	const xvfsprovider_v1* pProvider, void* pProviderContext,
+	uint32 iFlags)
+{
+	xstrview Prefix;
+	xvfsprovider_v1 Provider;
+	xrt_vfs_generation* pGeneration = NULL;
+	xvfsmount Mount = NULL;
+	xrt_vfs_snapshot* pOld = NULL;
+	xrt_vfs_snapshot* pNew = NULL;
+
+	if ( (Vfs == NULL) || (iFlags != 0u) ||
+		 ((CaseMode != XVFS_CASE_SENSITIVE) &&
+		  (CaseMode != XVFS_CASE_ASCII_INSENSITIVE)) ||
+		 !__xrtVfsPath(sVirtualPrefix, &Prefix) ||
+		 !__xrtVfsProviderCopy(pProvider, &Provider) ) {
+		if ( (Vfs == NULL) || (iFlags != 0u) ||
+			 ((CaseMode != XVFS_CASE_SENSITIVE) &&
+			  (CaseMode != XVFS_CASE_ASCII_INSENSITIVE)) )
+			__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pGeneration = (xrt_vfs_generation*)xrtCalloc(1u, sizeof(*pGeneration));
+	Mount = (xvfsmount)xrtCalloc(1u, sizeof(*Mount));
+	if ( (pGeneration == NULL) || (Mount == NULL) ) goto fail;
+	pGeneration->Prefix = xrtStrDupN(Prefix.Data, Prefix.Size);
+	if ( pGeneration->Prefix == NULL ) goto fail;
+	pGeneration->RefCount = 1;
+	pGeneration->Priority = iPriority;
+	pGeneration->CaseMode = CaseMode;
+	pGeneration->PrefixSize = Prefix.Size;
+	pGeneration->Provider = Provider;
+	pGeneration->Context = pProviderContext;
+	if ( Provider.ContextRetain != NULL ) Provider.ContextRetain(pProviderContext);
+	Mount->RefCount = 1;
+	Mount->Vfs = Vfs;
+	Mount->Generation = pGeneration;
+	if ( !xrtMutexLock(&Vfs->Lock) ) goto fail;
+	pOld = Vfs->Snapshot;
+	if ( (pOld == NULL) || (Vfs->NextMountId == UINT64_MAX) ) {
+		(void)xrtMutexUnlock(&Vfs->Lock);
+		__xrtVfsError(XERR_RANGE, XVFS_ERROR_LIMIT,
+			"mount", "the namespace exhausted mount identifiers");
+		goto fail;
+	}
+	pGeneration->MountId = Vfs->NextMountId + 1u;
+	pNew = __xrtVfsSnapshotEdit(pOld, pGeneration, NULL);
+	if ( pNew == NULL ) {
+		(void)xrtMutexUnlock(&Vfs->Lock);
+		goto fail;
+	}
+	Vfs->NextMountId = pGeneration->MountId;
+	Vfs->Snapshot = pNew;
+	Mount->Active = true;
+	xrtVfsRef(Vfs);
+	(void)xrtMutexUnlock(&Vfs->Lock);
+	__xrtVfsSnapshotRelease(pOld);
+	return Mount;
+
+fail:
+	if ( pGeneration != NULL ) {
+		if ( pGeneration->RefCount == 0 ) {
+			xrtFree(pGeneration->Prefix);
+			xrtFree(pGeneration);
+		} else {
+			__xrtVfsGenerationRelease(pGeneration);
+		}
+	}
+	xrtFree(Mount);
+	return NULL;
+}
+
+XRT_API void xrtVfsMountRef(xvfsmount Mount)
+{
+	if ( Mount == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	if ( xrtRefRetain(&Mount->RefCount) < 0 ) abort();
+}
+
+XRT_API void xrtVfsMountDestroy(xvfsmount Mount)
+{
+	if ( (Mount == NULL) || (xrtRefRelease(&Mount->RefCount) != 0) ) return;
+	__xrtVfsGenerationRelease(Mount->Generation);
+	xrtVfsDestroy(Mount->Vfs);
+	xrtFree(Mount);
+}
+
+XRT_API bool xrtVfsUnmount(xvfsmount Mount)
+{
+	xrt_vfs_snapshot* pOld;
+	xrt_vfs_snapshot* pNew;
+	xvfs Vfs;
+
+	if ( Mount == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	Vfs = Mount->Vfs;
+	if ( !xrtMutexLock(&Vfs->Lock) ) return false;
+	if ( !Mount->Active ) {
+		(void)xrtMutexUnlock(&Vfs->Lock);
+		return true;
+	}
+	pOld = Vfs->Snapshot;
+	pNew = __xrtVfsSnapshotEdit(pOld, NULL, Mount->Generation);
+	if ( pNew == NULL ) {
+		(void)xrtMutexUnlock(&Vfs->Lock);
+		return false;
+	}
+	Vfs->Snapshot = pNew;
+	Mount->Active = false;
+	(void)xrtMutexUnlock(&Vfs->Lock);
+	__xrtVfsSnapshotRelease(pOld);
+	return true;
+}
+
+XRT_API uint64 xrtVfsMountId(xvfsmount Mount)
+{
+	if ( Mount == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return 0u;
+	}
+	return Mount->Generation->MountId;
+}
+
+
+
+static bool __xrtVfsFileOpsCopy(const xvfsfile_v1* pFile,
+	const xfileoptions* pOptions, xvfsfileops_v1* pOps)
+{
+	const xvfsfileops_v1* pInput = pFile->Ops;
+	uint64 iCapabilities;
+
+	if ( (pInput == NULL) || (pFile->State == NULL) ||
+		 (pFile->Flags != pOptions->Flags) || (pFile->Reserved != 0u) ||
+		 (pInput->Size < sizeof(*pOps)) ||
+		 (pInput->Version != XRT_VFS_FILE_OPS_VERSION) ) return false;
+	memcpy(pOps, pInput, sizeof(*pOps));
+	pOps->Size = (uint32)sizeof(*pOps);
+	iCapabilities = pOps->Capabilities;
+	if ( ((iCapabilities & ~XVFS_FILE_CAPABILITIES) != 0u) ||
+		 (pOps->Close == NULL) ||
+		 (((iCapabilities & XVFS_FILE_READ) != 0u) != (pOps->Read != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_WRITE) != 0u) != (pOps->Write != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_READ_AT) != 0u) != (pOps->ReadAt != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_WRITE_AT) != 0u) != (pOps->WriteAt != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_SEEK) != 0u) != (pOps->Seek != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_STAT) != 0u) != (pOps->Stat != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_RESIZE) != 0u) != (pOps->Resize != NULL)) ||
+		 (((iCapabilities & XVFS_FILE_FLUSH) != 0u) != (pOps->Flush != NULL)) )
+		return false;
+	if ( ((pOptions->Flags & XFILE_READ) != 0u) &&
+		 ((iCapabilities & (XVFS_FILE_READ | XVFS_FILE_READ_AT)) == 0u) )
+		return false;
+	if ( ((pOptions->Flags & XFILE_WRITE) != 0u) &&
+		 ((iCapabilities & (XVFS_FILE_WRITE | XVFS_FILE_WRITE_AT)) == 0u) )
+		return false;
+	if ( ((pOptions->Flags & XFILE_APPEND) != 0u) &&
+		 (pOps->Write == NULL) && (pOps->Stat == NULL) ) return false;
+	return true;
+}
+
+
+
+static void __xrtVfsProviderFileClose(xvfsfile_v1* pFile)
+{
+	xerror* pError = xrtTakeError();
+
+	if ( (pFile->Ops != NULL) &&
+		 (pFile->Ops->Size >= sizeof(xvfsfileops_v1)) &&
+		 (pFile->Ops->Close != NULL) && (pFile->State != NULL) )
+		pFile->Ops->Close(pFile->State);
+	__xrtVfsRestoreError(pError);
+}
+
+
+
+static bool __xrtVfsFileCount(bool bResult, size_t iRequest,
+	size_t iDone, size_t* pDone, cstr sOperation)
+{
+	if ( !bResult ) {
+		__xrtVfsProviderError(sOperation,
+			"the provider file callback failed without an error");
+		return false;
+	}
+	if ( iDone > iRequest ) {
+		__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+			sOperation, "the provider reported more bytes than requested");
+		return false;
+	}
+	*pDone = iDone;
+	return true;
+}
+
+
+
+static bool __xrtVfsFileRead(ptr pState, ptr pBuffer,
+	size_t iRequest, size_t* pRead)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	size_t iDone = 0u;
+	bool bResult;
+
+	if ( !xrtMutexLock(&pFile->CursorLock) ) return false;
+	if ( pFile->Provider.Read != NULL ) {
+		bResult = pFile->Provider.Read(pFile->State,
+			pBuffer, iRequest, &iDone);
+	} else {
+		bResult = pFile->Provider.ReadAt(pFile->State,
+			pFile->Cursor, pBuffer, iRequest, &iDone);
+	}
+	if ( bResult && (iDone <= iRequest) &&
+		 (pFile->Cursor <= UINT64_MAX - (uint64)iDone) ) {
+		pFile->Cursor += (uint64)iDone;
+	} else if ( bResult && (iDone <= iRequest) ) {
+		bResult = false;
+		__xrtErrorSetSizeOverflow();
+	}
+	(void)xrtMutexUnlock(&pFile->CursorLock);
+	return __xrtVfsFileCount(bResult, iRequest, iDone, pRead, "read");
+}
+
+
+
+static bool __xrtVfsFileWrite(ptr pState, const void* pBuffer,
+	size_t iRequest, size_t* pWritten)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	size_t iDone = 0u;
+	bool bResult;
+
+	if ( !xrtMutexLock(&pFile->CursorLock) ) return false;
+	if ( pFile->Provider.Write != NULL ) {
+		bResult = pFile->Provider.Write(pFile->State,
+			pBuffer, iRequest, &iDone);
+	} else {
+		bResult = pFile->Provider.WriteAt(pFile->State,
+			pFile->Cursor, pBuffer, iRequest, &iDone);
+	}
+	if ( bResult && (iDone <= iRequest) &&
+		 (pFile->Cursor <= UINT64_MAX - (uint64)iDone) ) {
+		pFile->Cursor += (uint64)iDone;
+	} else if ( bResult && (iDone <= iRequest) ) {
+		bResult = false;
+		__xrtErrorSetSizeOverflow();
+	}
+	(void)xrtMutexUnlock(&pFile->CursorLock);
+	return __xrtVfsFileCount(bResult, iRequest, iDone, pWritten, "write");
+}
+
+static bool __xrtVfsFileReadAt(ptr pState, uint64 iOffset,
+	ptr pBuffer, size_t iRequest, size_t* pRead)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	size_t iDone = 0u;
+	bool bResult = pFile->Provider.ReadAt(pFile->State,
+		iOffset, pBuffer, iRequest, &iDone);
+
+	return __xrtVfsFileCount(bResult, iRequest, iDone, pRead, "read-at");
+}
+
+static bool __xrtVfsFileWriteAt(ptr pState, uint64 iOffset,
+	const void* pBuffer, size_t iRequest, size_t* pWritten)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	size_t iDone = 0u;
+	bool bResult = pFile->Provider.WriteAt(pFile->State,
+		iOffset, pBuffer, iRequest, &iDone);
+
+	return __xrtVfsFileCount(bResult, iRequest, iDone, pWritten, "write-at");
+}
+
+
+
+static bool __xrtVfsSeekAdd(uint64 iBase, int64 iOffset, uint64* pPosition)
+{
+	if ( iOffset >= 0 ) {
+		uint64 iAdd = (uint64)iOffset;
+		if ( iBase > UINT64_MAX - iAdd ) return false;
+		*pPosition = iBase + iAdd;
+	} else {
+		uint64 iSubtract = (uint64)(-(iOffset + 1)) + 1u;
+		if ( iBase < iSubtract ) return false;
+		*pPosition = iBase - iSubtract;
+	}
+	return true;
+}
+
+static bool __xrtVfsFileSeek(ptr pState, int64 iOffset,
+	xseek Origin, uint64* pPosition)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	uint64 iPosition = 0u;
+	bool bResult = false;
+
+	if ( !xrtMutexLock(&pFile->CursorLock) ) return false;
+	if ( pFile->Provider.Seek != NULL ) {
+		bResult = pFile->Provider.Seek(pFile->State,
+			iOffset, Origin, &iPosition);
+		if ( !bResult ) __xrtVfsProviderError("seek",
+			"the provider seek callback failed without an error");
+	} else {
+		uint64 iBase;
+
+		if ( Origin == XSEEK_START ) {
+			iBase = 0u;
+		} else if ( Origin == XSEEK_CURRENT ) {
+			iBase = pFile->Cursor;
+		} else {
+			xfileinfo Info;
+
+			if ( (pFile->Provider.Stat == NULL) ||
+				 !pFile->Provider.Stat(pFile->State, &Info) ||
+				 ((Info.Available & XFILE_INFO_SIZE) == 0u) ) {
+				__xrtVfsProviderError("seek",
+					"the provider cannot resolve seek from end");
+				goto done;
+			}
+			iBase = Info.Size;
+		}
+		bResult = __xrtVfsSeekAdd(iBase, iOffset, &iPosition);
+		if ( !bResult ) __xrtVfsError(XERR_RANGE, XVFS_ERROR_OPEN,
+			"seek", "the requested provider file position is out of range");
+	}
+	if ( bResult ) {
+		pFile->Cursor = iPosition;
+		if ( pPosition != NULL ) *pPosition = iPosition;
+	}
+done:
+	(void)xrtMutexUnlock(&pFile->CursorLock);
+	return bResult;
+}
+
+
+
+static bool __xrtVfsFileStat(ptr pState, xfileinfo* pInfo)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	xfileinfo Info;
+
+	memset(&Info, 0, sizeof(Info));
+	if ( !pFile->Provider.Stat(pFile->State, &Info) ) {
+		__xrtVfsProviderError("file-stat",
+			"the provider file stat callback failed without an error");
+		return false;
+	}
+	*pInfo = Info;
+	return true;
+}
+
+static bool __xrtVfsFileResize(ptr pState, uint64 iSize)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	bool bResult = pFile->Provider.Resize(pFile->State, iSize);
+
+	if ( !bResult ) __xrtVfsProviderError("resize",
+		"the provider resize callback failed without an error");
+	return bResult;
+}
+
+static bool __xrtVfsFileFlush(ptr pState)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+	bool bResult = pFile->Provider.Flush(pFile->State);
+
+	if ( !bResult ) __xrtVfsProviderError("flush",
+		"the provider flush callback failed without an error");
+	return bResult;
+}
+
+static bool __xrtVfsFileClose(ptr pState)
+{
+	xrt_vfs_file_state* pFile = (xrt_vfs_file_state*)pState;
+
+	pFile->Provider.Close(pFile->State);
+	if ( !xrtMutexUnit(&pFile->CursorLock) ) abort();
+	__xrtVfsGenerationRelease(pFile->Generation);
+	xrtFree(pFile);
+	return true;
+}
+
+
+
+static xfile __xrtVfsFileTake(xrt_vfs_generation* pGeneration,
+	xvfsfile_v1* pSource, const xfileoptions* pOptions)
+{
+	xrt_vfs_file_state* pFile;
+	xvfsfileops_v1 Provider;
+	uint64 iPublic;
+	uint64 iBackend = 0u;
+
+	if ( !__xrtVfsFileOpsCopy(pSource, pOptions, &Provider) ) {
+		__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+			"open", "the provider returned an invalid file contract");
+		__xrtVfsProviderFileClose(pSource);
+		return NULL;
+	}
+	pFile = (xrt_vfs_file_state*)xrtCalloc(1u, sizeof(*pFile));
+	if ( pFile == NULL ) {
+		__xrtVfsProviderFileClose(pSource);
+		return NULL;
+	}
+	if ( !xrtMutexInit(&pFile->CursorLock) ) {
+		xerror* pError = xrtTakeError();
+		xrtFree(pFile);
+		__xrtVfsProviderFileClose(pSource);
+		__xrtVfsRestoreError(pError);
+		return NULL;
+	}
+	pFile->Provider = Provider;
+	pFile->State = pSource->State;
+	pFile->Generation = pGeneration;
+	__xrtVfsGenerationRef(pGeneration);
+	iPublic = Provider.Capabilities;
+	if ( (iPublic & (XVFS_FILE_READ | XVFS_FILE_READ_AT)) != 0u )
+		iBackend |= XRT_FILE_BACKEND_READ;
+	if ( (iPublic & (XVFS_FILE_WRITE | XVFS_FILE_WRITE_AT)) != 0u )
+		iBackend |= XRT_FILE_BACKEND_WRITE;
+	if ( (iPublic & XVFS_FILE_READ_AT) != 0u )
+		iBackend |= XRT_FILE_BACKEND_READ_AT;
+	if ( (iPublic & XVFS_FILE_WRITE_AT) != 0u )
+		iBackend |= XRT_FILE_BACKEND_WRITE_AT;
+	if ( ((iPublic & XVFS_FILE_SEEK) != 0u) ||
+		 ((iPublic & (XVFS_FILE_READ_AT | XVFS_FILE_WRITE_AT)) != 0u) )
+		iBackend |= XRT_FILE_BACKEND_SEEK;
+	if ( (iPublic & XVFS_FILE_STAT) != 0u ) iBackend |= XRT_FILE_BACKEND_STAT;
+	if ( (iPublic & XVFS_FILE_RESIZE) != 0u ) iBackend |= XRT_FILE_BACKEND_RESIZE;
+	if ( (iPublic & XVFS_FILE_FLUSH) != 0u ) iBackend |= XRT_FILE_BACKEND_FLUSH;
+	pFile->Backend.Size = (uint32)sizeof(pFile->Backend);
+	pFile->Backend.Version = XRT_FILE_BACKEND_VERSION;
+	pFile->Backend.Capabilities = iBackend;
+	pFile->Backend.Read = ((iBackend & XRT_FILE_BACKEND_READ) != 0u) ?
+		__xrtVfsFileRead : NULL;
+	pFile->Backend.Write = ((iBackend & XRT_FILE_BACKEND_WRITE) != 0u) ?
+		__xrtVfsFileWrite : NULL;
+	pFile->Backend.ReadAt = ((iBackend & XRT_FILE_BACKEND_READ_AT) != 0u) ?
+		__xrtVfsFileReadAt : NULL;
+	pFile->Backend.WriteAt = ((iBackend & XRT_FILE_BACKEND_WRITE_AT) != 0u) ?
+		__xrtVfsFileWriteAt : NULL;
+	pFile->Backend.Seek = ((iBackend & XRT_FILE_BACKEND_SEEK) != 0u) ?
+		__xrtVfsFileSeek : NULL;
+	pFile->Backend.Stat = ((iBackend & XRT_FILE_BACKEND_STAT) != 0u) ?
+		__xrtVfsFileStat : NULL;
+	pFile->Backend.Resize = ((iBackend & XRT_FILE_BACKEND_RESIZE) != 0u) ?
+		__xrtVfsFileResize : NULL;
+	pFile->Backend.Flush = ((iBackend & XRT_FILE_BACKEND_FLUSH) != 0u) ?
+		__xrtVfsFileFlush : NULL;
+	pFile->Backend.Close = __xrtVfsFileClose;
+	if ( ((pOptions->Flags & XFILE_APPEND) != 0u) &&
+		 (Provider.Write == NULL) ) {
+		xfileinfo Info;
+
+		if ( !Provider.Stat(pFile->State, &Info) ||
+			 ((Info.Available & XFILE_INFO_SIZE) == 0u) ) {
+			__xrtVfsProviderError("open",
+				"the provider cannot establish append position");
+			(void)__xrtVfsFileClose(pFile);
+			return NULL;
+		}
+		pFile->Cursor = Info.Size;
+	}
+	return __xrtFileTakeBackend(&pFile->Backend, pFile, pOptions->Flags);
+}
+
+
+
+XRT_API xfile xrtVfsOpen(xvfs Vfs, cstr sVirtualPath,
+	const xfileoptions* pOptions)
+{
+	xstrview Path;
+	xfileoptions Options;
+	xrt_vfs_snapshot* pSnapshot;
+	xerror* pBefore;
+
+	if ( (Vfs == NULL) || !__xrtVfsPath(sVirtualPath, &Path) ||
+		 !__xrtFileOptions(pOptions, &Options) ) {
+		if ( Vfs == NULL ) __xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pSnapshot = __xrtVfsSnapshotAcquire(Vfs);
+	if ( pSnapshot == NULL ) return NULL;
+	pBefore = xrtTakeError();
+	for ( size_t i = 0u; i < pSnapshot->Count; i++ ) {
+		xrt_vfs_generation* pGeneration = pSnapshot->Items[i];
+		xstrview Relative;
+		xvfslookup Result;
+
+		if ( !__xrtVfsPrefixMatch(pGeneration, Path, &Relative) ) continue;
+		if ( (pGeneration->Provider.Capabilities &
+			XVFS_PROVIDER_NATIVE_OPEN) != 0u ) {
+			xfile Native = NULL;
+			intptr_t iNative;
+
+			xrtClearError();
+			Result = pGeneration->Provider.OpenNative(
+				pGeneration->Context, pGeneration->CaseMode,
+				Relative, &Options, &Native);
+			if ( Result == XVFS_LOOKUP_MISS ) {
+				if ( Native != NULL ) {
+					xrtErrorFree(pBefore);
+					(void)xrtClose(Native);
+					__xrtVfsSnapshotRelease(pSnapshot);
+					__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+						"open", "a native provider returned a file on MISS");
+					return NULL;
+				}
+				continue;
+			}
+			if ( Result == XVFS_LOOKUP_ERROR ) {
+				if ( Native != NULL ) {
+					(void)xrtClose(Native);
+					xrtClearError();
+					__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+						"open", "a native provider returned a file on ERROR");
+				}
+				xrtErrorFree(pBefore);
+				__xrtVfsProviderError("open",
+					"the native provider returned ERROR without an error object");
+				__xrtVfsSnapshotRelease(pSnapshot);
+				return NULL;
+			}
+			if ( Result != XVFS_LOOKUP_OPENED ) {
+				if ( Native != NULL ) (void)xrtClose(Native);
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+					"open", "the native provider returned an unknown lookup result");
+				return NULL;
+			}
+			if ( (Native == NULL) ||
+				 (xrtFileFlags(Native) != Options.Flags) ) {
+				if ( Native != NULL ) (void)xrtClose(Native);
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+					"open", "the native provider returned an invalid file contract");
+				return NULL;
+			}
+			xrtClearError();
+			iNative = xrtFileNative(Native);
+			if ( iNative == (intptr_t)-1 ) {
+				(void)xrtClose(Native);
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+					"open", "the native provider returned a non-native file");
+				return NULL;
+			}
+			(void)iNative;
+			__xrtVfsGenerationRef(pGeneration);
+			if ( !__xrtFileAttachOwner(Native, pGeneration,
+				__xrtVfsFileGenerationRelease) ) {
+				__xrtVfsGenerationRelease(pGeneration);
+				(void)xrtClose(Native);
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+					"open", "the native provider returned an already-owned file");
+				return NULL;
+			}
+			__xrtVfsSnapshotRelease(pSnapshot);
+			__xrtVfsRestoreError(pBefore);
+			return Native;
+		}
+		{
+			xvfsfile_v1 File;
+
+		memset(&File, 0, sizeof(File));
+		xrtClearError();
+		Result = pGeneration->Provider.Open(pGeneration->Context,
+			pGeneration->CaseMode, Relative, &Options, &File);
+		if ( Result == XVFS_LOOKUP_MISS ) {
+			if ( (File.Ops != NULL) || (File.State != NULL) ||
+				 (File.Flags != 0u) || (File.Reserved != 0u) ) {
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+					"open", "a provider modified file output on MISS");
+				return NULL;
+			}
+			continue;
+		}
+		if ( Result == XVFS_LOOKUP_ERROR ) {
+			xrtErrorFree(pBefore);
+			__xrtVfsProviderError("open",
+				"the provider returned ERROR without an error object");
+			__xrtVfsSnapshotRelease(pSnapshot);
+			return NULL;
+		}
+		if ( Result == XVFS_LOOKUP_OPENED ) {
+			xfile Opened;
+
+			if ( (Options.Flags & XFILE_ASYNC) != 0u ) {
+				__xrtVfsProviderFileClose(&File);
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				__xrtVfsError(XERR_UNSUPPORTED, XVFS_ERROR_UNSUPPORTED,
+					"open", "callback provider files do not support native async I/O");
+				return NULL;
+			}
+			xrtClearError();
+			Opened = __xrtVfsFileTake(pGeneration, &File, &Options);
+			if ( Opened == NULL ) {
+				xrtErrorFree(pBefore);
+				__xrtVfsSnapshotRelease(pSnapshot);
+				return NULL;
+			}
+			__xrtVfsSnapshotRelease(pSnapshot);
+			__xrtVfsRestoreError(pBefore);
+			return Opened;
+		}
+		xrtErrorFree(pBefore);
+		__xrtVfsSnapshotRelease(pSnapshot);
+		__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+			"open", "the provider returned an unknown lookup result");
+		return NULL;
+		}
+	}
+	xrtErrorFree(pBefore);
+	__xrtVfsSnapshotRelease(pSnapshot);
+	__xrtVfsError(XERR_NOT_FOUND, XVFS_ERROR_NOT_FOUND,
+		"open", "the virtual path was not found");
+	return NULL;
+}
+
+
+
+XRT_API bool xrtVfsStat(xvfs Vfs, cstr sVirtualPath,
+	bool bFollowLink, xfileinfo* pInfo)
+{
+	xstrview Path;
+	xrt_vfs_snapshot* pSnapshot;
+	xerror* pBefore;
+
+	if ( (Vfs == NULL) || (pInfo == NULL) ||
+		 !__xrtVfsPath(sVirtualPath, &Path) ) {
+		if ( (Vfs == NULL) || (pInfo == NULL) )
+			__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	pSnapshot = __xrtVfsSnapshotAcquire(Vfs);
+	if ( pSnapshot == NULL ) return false;
+	pBefore = xrtTakeError();
+	for ( size_t i = 0u; i < pSnapshot->Count; i++ ) {
+		xrt_vfs_generation* pGeneration = pSnapshot->Items[i];
+		xstrview Relative;
+		xfileinfo Info;
+		xvfslookup Result;
+
+		if ( !__xrtVfsPrefixMatch(pGeneration, Path, &Relative) ||
+			 ((pGeneration->Provider.Capabilities & XVFS_PROVIDER_STAT) == 0u) )
+			continue;
+		memset(&Info, 0, sizeof(Info));
+		xrtClearError();
+		Result = pGeneration->Provider.Stat(pGeneration->Context,
+			pGeneration->CaseMode, Relative, bFollowLink, &Info);
+		if ( Result == XVFS_LOOKUP_MISS ) continue;
+		if ( Result == XVFS_LOOKUP_OPENED ) {
+			*pInfo = Info;
+			__xrtVfsSnapshotRelease(pSnapshot);
+			__xrtVfsRestoreError(pBefore);
+			return true;
+		}
+		if ( Result == XVFS_LOOKUP_ERROR ) {
+			xrtErrorFree(pBefore);
+			__xrtVfsProviderError("stat",
+				"the provider returned ERROR without an error object");
+			__xrtVfsSnapshotRelease(pSnapshot);
+			return false;
+		}
+		xrtErrorFree(pBefore);
+		__xrtVfsSnapshotRelease(pSnapshot);
+		__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+			"stat", "the provider returned an unknown lookup result");
+		return false;
+	}
+	xrtErrorFree(pBefore);
+	__xrtVfsSnapshotRelease(pSnapshot);
+	__xrtVfsError(XERR_NOT_FOUND, XVFS_ERROR_NOT_FOUND,
+		"stat", "the virtual path was not found");
+	return false;
+}
+
+
+
+static void __xrtVfsFileCleanup(xfile File)
+{
+	xerror* pError = xrtTakeError();
+	(void)xrtClose(File);
+	__xrtVfsRestoreError(pError);
+}
+
+XRT_API bytes xrtVfsReadAllLimit(xvfs Vfs, cstr sVirtualPath,
+	size_t iLimit, size_t* pSize)
+{
+	xfileoptions Options = { XFILE_READ, 0u, XFILE_SHARE_ALL };
+	size_t iUseLimit = (iLimit == SIZE_MAX) ? (SIZE_MAX - 1u) : iLimit;
+	size_t iCapacity = (iUseLimit < 4096u) ? iUseLimit : 4096u;
+	size_t iSize = 0u;
+	bytes pBuffer;
+	xfile File;
+
+	File = xrtVfsOpen(Vfs, sVirtualPath, &Options);
+	if ( File == NULL ) return NULL;
+	pBuffer = (bytes)xrtMalloc(iCapacity + 1u);
+	if ( pBuffer == NULL ) {
+		__xrtVfsFileCleanup(File);
+		return NULL;
+	}
+	for ( ;; ) {
+		size_t iDone = 0u;
+
+		if ( iSize == iCapacity ) {
+			unsigned char iProbe;
+			if ( !xrtRead(File, &iProbe, 1u, &iDone) ) goto fail;
+			if ( iDone == 0u ) break;
+			if ( iCapacity == iUseLimit ) {
+				__xrtVfsError(XERR_RANGE, XVFS_ERROR_LIMIT,
+					"read-all", "the virtual file exceeds the configured limit");
+				goto fail;
+			}
+			{
+				size_t iNext = (iCapacity == 0u) ? 1u : iCapacity * 2u;
+				bytes pNext;
+				if ( (iNext < iCapacity) || (iNext > iUseLimit) ) iNext = iUseLimit;
+				pNext = (bytes)xrtRealloc(pBuffer, iNext + 1u);
+				if ( pNext == NULL ) goto fail;
+				pBuffer = pNext;
+				iCapacity = iNext;
+			}
+			pBuffer[iSize++] = iProbe;
+			continue;
+		}
+		if ( !xrtRead(File, pBuffer + iSize,
+			iCapacity - iSize, &iDone) ) goto fail;
+		if ( iDone == 0u ) break;
+		iSize += iDone;
+	}
+	if ( !xrtClose(File) ) {
+		xrtFree(pBuffer);
+		return NULL;
+	}
+	pBuffer[iSize] = 0u;
+	if ( pSize != NULL ) *pSize = iSize;
+	return pBuffer;
+
+fail:
+	xrtFree(pBuffer);
+	__xrtVfsFileCleanup(File);
+	return NULL;
+}
+
+XRT_API bytes xrtVfsReadAll(xvfs Vfs, cstr sVirtualPath, size_t* pSize)
+{
+	return xrtVfsReadAllLimit(Vfs, sVirtualPath, SIZE_MAX - 1u, pSize);
+}
+
+
+
+static uint64 __xrtVfsNameHash(xstrview Name)
+{
+	uint64 iHash = UINT64_C(1469598103934665603);
+
+	for ( size_t i = 0u; i < Name.Size; i++ ) {
+		unsigned char iByte = (unsigned char)Name.Data[i];
+		if ( (iByte >= 'A') && (iByte <= 'Z') ) iByte += 'a' - 'A';
+		iHash ^= (uint64)iByte;
+		iHash *= UINT64_C(1099511628211);
+	}
+	return iHash;
+}
+
+static bool __xrtVfsDirName(xstrview Name)
+{
+	if ( (Name.Data == NULL) || (Name.Size == 0u) ||
+		 (Name.Size > XRT_VFS_DIR_MAX_NAME) ||
+		 !xrtUtf8Valid(Name, NULL) ||
+		 ((Name.Size == 1u) && (Name.Data[0] == '.')) ||
+		 ((Name.Size == 2u) && (Name.Data[0] == '.') &&
+		  (Name.Data[1] == '.')) ) return false;
+	for ( size_t i = 0u; i < Name.Size; i++ ) {
+		if ( (Name.Data[i] == 0) || (Name.Data[i] == '/') ||
+			 (Name.Data[i] == '\\') ) return false;
+	}
+	return true;
+}
+
+
+
+static void __xrtVfsDirStateFree(xrt_vfs_dir_state* pState)
+{
+	if ( pState == NULL ) return;
+	for ( size_t i = 0u; i < pState->Count; i++ )
+		xrtFree(pState->Items[i].Name);
+	for ( size_t i = 0u; i < pState->GenerationCount; i++ )
+		__xrtVfsGenerationRelease(pState->Generations[i]);
+	xrtFree(pState->Generations);
+	xrtFree(pState->Buckets);
+	xrtFree(pState->Items);
+	xrtFree(pState);
+}
+
+static bool __xrtVfsDirRehash(xrt_vfs_dir_state* pState, size_t iCount)
+{
+	size_t* pBuckets;
+
+	if ( (iCount == 0u) || ((iCount & (iCount - 1u)) != 0u) ||
+		 (iCount > (SIZE_MAX / sizeof(size_t))) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	pBuckets = (size_t*)xrtMalloc(iCount * sizeof(size_t));
+	if ( pBuckets == NULL ) return false;
+	for ( size_t i = 0u; i < iCount; i++ )
+		pBuckets[i] = XRT_VFS_DIR_BUCKET_NONE;
+	for ( size_t i = 0u; i < pState->Count; i++ ) {
+		size_t iBucket = (size_t)pState->Items[i].FoldHash & (iCount - 1u);
+		pState->Items[i].NextHash = pBuckets[iBucket];
+		pBuckets[iBucket] = i;
+	}
+	xrtFree(pState->Buckets);
+	pState->Buckets = pBuckets;
+	pState->BucketCount = iCount;
+	return true;
+}
+
+static bool __xrtVfsDirGenerationAdd(xrt_vfs_dir_state* pState,
+	xrt_vfs_generation* pGeneration)
+{
+	if ( pState->GenerationCount == pState->GenerationCapacity ) {
+		size_t iCapacity = (pState->GenerationCapacity == 0u) ?
+			4u : pState->GenerationCapacity * 2u;
+		xrt_vfs_generation** pItems;
+
+		if ( (iCapacity < pState->GenerationCapacity) ||
+			 (iCapacity > SIZE_MAX / sizeof(*pItems)) ) {
+			__xrtErrorSetSizeOverflow();
+			return false;
+		}
+		pItems = (xrt_vfs_generation**)xrtRealloc(pState->Generations,
+			iCapacity * sizeof(*pItems));
+		if ( pItems == NULL ) return false;
+		pState->Generations = pItems;
+		pState->GenerationCapacity = iCapacity;
+	}
+	__xrtVfsGenerationRef(pGeneration);
+	pState->Generations[pState->GenerationCount++] = pGeneration;
+	return true;
+}
+
+
+
+static bool __xrtVfsDirItemAdd(xrt_vfs_dir_state* pState,
+	const xdirentry* pEntry, xvfscase CaseMode)
+{
+	uint64 iHash;
+	size_t iBucket;
+
+	if ( !__xrtVfsDirName(pEntry->Name) ) {
+		__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+			"directory", "the provider returned an invalid directory name");
+		return false;
+	}
+	if ( (pState->Count >= XRT_VFS_DIR_MAX_ENTRIES) ||
+		 (pEntry->Name.Size > XRT_VFS_DIR_MAX_NAME_BYTES - pState->NameBytes) ) {
+		__xrtVfsError(XERR_RANGE, XVFS_ERROR_LIMIT,
+			"directory", "the materialized directory exceeds its hard limit");
+		return false;
+	}
+	if ( pState->BucketCount == 0u ) {
+		if ( !__xrtVfsDirRehash(pState, 16u) ) return false;
+	} else if ( ((pState->Count + 1u) * 4u) >=
+		(pState->BucketCount * 3u) ) {
+		if ( (pState->BucketCount > (SIZE_MAX / 2u)) ||
+			 !__xrtVfsDirRehash(pState, pState->BucketCount * 2u) ) return false;
+	}
+	iHash = __xrtVfsNameHash(pEntry->Name);
+	iBucket = (size_t)iHash & (pState->BucketCount - 1u);
+	for ( size_t i = pState->Buckets[iBucket];
+		i != XRT_VFS_DIR_BUCKET_NONE; i = pState->Items[i].NextHash ) {
+		xrt_vfs_dir_item* pCurrent = &pState->Items[i];
+
+		if ( (pCurrent->FoldHash == iHash) &&
+			 xrtStrCaseEqual(pCurrent->Entry.Name, pEntry->Name) &&
+			 ((pCurrent->CaseMode == XVFS_CASE_ASCII_INSENSITIVE) ||
+			  (CaseMode == XVFS_CASE_ASCII_INSENSITIVE) ||
+			  xrtStrEqual(pCurrent->Entry.Name, pEntry->Name)) ) return true;
+	}
+	if ( pState->Count == pState->Capacity ) {
+		size_t iCapacity = (pState->Capacity == 0u) ? 16u :
+			pState->Capacity * 2u;
+		xrt_vfs_dir_item* pItems;
+
+		if ( (iCapacity < pState->Capacity) ||
+			 (iCapacity > SIZE_MAX / sizeof(*pItems)) ) {
+			__xrtErrorSetSizeOverflow();
+			return false;
+		}
+		pItems = (xrt_vfs_dir_item*)xrtRealloc(pState->Items,
+			iCapacity * sizeof(*pItems));
+		if ( pItems == NULL ) return false;
+		pState->Items = pItems;
+		pState->Capacity = iCapacity;
+	}
+	{
+		xrt_vfs_dir_item* pItem = &pState->Items[pState->Count];
+
+		memset(pItem, 0, sizeof(*pItem));
+		pItem->Name = xrtStrDupN(pEntry->Name.Data, pEntry->Name.Size);
+		if ( pItem->Name == NULL ) return false;
+		pItem->Entry = *pEntry;
+		pItem->Entry.Name.Data = pItem->Name;
+		pItem->Entry.Name.Size = pEntry->Name.Size;
+		pItem->Entry.Flags |= XDIR_ENTRY_UTF8;
+		pItem->CaseMode = CaseMode;
+		pItem->FoldHash = iHash;
+		pItem->NextHash = pState->Buckets[iBucket];
+		pState->Buckets[iBucket] = pState->Count;
+		pState->NameBytes += pEntry->Name.Size;
+		pState->Count++;
+	}
+	return true;
+}
+
+static int __xrtVfsDirItemCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_dir_item* pA = (const xrt_vfs_dir_item*)pLeft;
+	const xrt_vfs_dir_item* pB = (const xrt_vfs_dir_item*)pRight;
+	return xrtStrCompare(pA->Entry.Name, pB->Entry.Name);
+}
+
+static xdirnext __xrtVfsDirNext(ptr pState, cstr sPath,
+	uint32 iFlags, xdirentry* pEntry)
+{
+	xrt_vfs_dir_state* pDir = (xrt_vfs_dir_state*)pState;
+	(void)sPath;
+	(void)iFlags;
+	if ( pDir->Position == pDir->Count ) return XDIR_NEXT_END;
+	*pEntry = pDir->Items[pDir->Position++].Entry;
+	return XDIR_NEXT_ITEM;
+}
+
+static bool __xrtVfsDirClose(ptr pState)
+{
+	__xrtVfsDirStateFree((xrt_vfs_dir_state*)pState);
+	return true;
+}
+
+static const xrt_dir_backend_ops __xrtVfsDirOps = {
+	(uint32)sizeof(xrt_dir_backend_ops),
+	XRT_DIR_BACKEND_VERSION,
+	true,
+	{ 0u, 0u, 0u },
+	__xrtVfsDirNext,
+	__xrtVfsDirClose
+};
+
+
+
+static bool __xrtVfsProviderDirOps(const xvfsdir_v1* pDir,
+	xvfsdirops_v1* pOps)
+{
+	if ( (pDir->Ops == NULL) || (pDir->State == NULL) ||
+		 (pDir->Ops->Size < sizeof(*pOps)) ||
+		 (pDir->Ops->Version != XRT_VFS_DIR_OPS_VERSION) ) return false;
+	memcpy(pOps, pDir->Ops, sizeof(*pOps));
+	pOps->Size = (uint32)sizeof(*pOps);
+	return (pOps->Next != NULL) && (pOps->Close != NULL);
+}
+
+static void __xrtVfsProviderDirClose(xvfsdir_v1* pDir)
+{
+	xerror* pError = xrtTakeError();
+
+	if ( (pDir->Ops != NULL) &&
+		 (pDir->Ops->Size >= sizeof(xvfsdirops_v1)) &&
+		 (pDir->Ops->Close != NULL) && (pDir->State != NULL) )
+		pDir->Ops->Close(pDir->State);
+	__xrtVfsRestoreError(pError);
+}
+
+
+
+XRT_API xdir xrtVfsDirOpen(xvfs Vfs, cstr sVirtualPath,
+	uint32 iFlags)
+{
+	xstrview Path;
+	xrt_vfs_snapshot* pSnapshot;
+	xrt_vfs_dir_state* pState;
+	xerror* pBefore;
+	bool bOpened = false;
+
+	if ( (Vfs == NULL) || !__xrtDirFlagsValid(iFlags) ||
+		 !__xrtVfsPath(sVirtualPath, &Path) ) {
+		if ( Vfs == NULL ) __xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pSnapshot = __xrtVfsSnapshotAcquire(Vfs);
+	if ( pSnapshot == NULL ) return NULL;
+	pState = (xrt_vfs_dir_state*)xrtCalloc(1u, sizeof(*pState));
+	if ( pState == NULL ) {
+		__xrtVfsSnapshotRelease(pSnapshot);
+		return NULL;
+	}
+	pBefore = xrtTakeError();
+	for ( size_t i = 0u; i < pSnapshot->Count; i++ ) {
+		xrt_vfs_generation* pGeneration = pSnapshot->Items[i];
+		xstrview Relative;
+		xvfsdir_v1 Dir;
+		xvfsdirops_v1 Ops;
+		xvfslookup Result;
+
+		if ( !__xrtVfsPrefixMatch(pGeneration, Path, &Relative) ||
+			 ((pGeneration->Provider.Capabilities & XVFS_PROVIDER_DIRECTORY) == 0u) )
+			continue;
+		memset(&Dir, 0, sizeof(Dir));
+		xrtClearError();
+		Result = pGeneration->Provider.DirOpen(pGeneration->Context,
+			pGeneration->CaseMode, Relative, iFlags, &Dir);
+		if ( Result == XVFS_LOOKUP_MISS ) {
+			if ( (Dir.Ops != NULL) || (Dir.State != NULL) ) {
+				__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+					"directory", "a provider modified directory output on MISS");
+				goto fail;
+			}
+			continue;
+		}
+		if ( Result == XVFS_LOOKUP_ERROR ) {
+			__xrtVfsProviderError("directory",
+				"the provider returned ERROR without an error object");
+			goto fail;
+		}
+		if ( (Result != XVFS_LOOKUP_OPENED) ||
+			 !__xrtVfsProviderDirOps(&Dir, &Ops) ) {
+			__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_PROVIDER,
+				"directory", "the provider returned an invalid directory contract");
+			if ( Result == XVFS_LOOKUP_OPENED ) __xrtVfsProviderDirClose(&Dir);
+			goto fail;
+		}
+		bOpened = true;
+		if ( !__xrtVfsDirGenerationAdd(pState, pGeneration) ) {
+			__xrtVfsProviderDirClose(&Dir);
+			goto fail;
+		}
+		for ( ;; ) {
+			xdirentry Entry;
+			bool bEnd = false;
+
+			memset(&Entry, 0, sizeof(Entry));
+			xrtClearError();
+			if ( !Ops.Next(Dir.State, &Entry, &bEnd) ) {
+				__xrtVfsProviderError("directory-next",
+					"the provider directory callback failed without an error");
+				__xrtVfsProviderDirClose(&Dir);
+				goto fail;
+			}
+			if ( bEnd ) break;
+			if ( !__xrtVfsDirItemAdd(pState, &Entry,
+				pGeneration->CaseMode) ) {
+				__xrtVfsProviderDirClose(&Dir);
+				goto fail;
+			}
+		}
+		Ops.Close(Dir.State);
+	}
+	if ( !bOpened ) {
+		xrtErrorFree(pBefore);
+		__xrtVfsSnapshotRelease(pSnapshot);
+		__xrtVfsDirStateFree(pState);
+		__xrtVfsError(XERR_NOT_FOUND, XVFS_ERROR_NOT_FOUND,
+			"directory", "the virtual directory was not found");
+		return NULL;
+	}
+	xrtFree(pState->Buckets);
+	pState->Buckets = NULL;
+	pState->BucketCount = 0u;
+	if ( pState->Count > 1u ) qsort(pState->Items, pState->Count,
+		sizeof(pState->Items[0]), __xrtVfsDirItemCompare);
+	__xrtVfsSnapshotRelease(pSnapshot);
+	{
+		xdir Result = __xrtDirTakeBackend(&__xrtVfsDirOps,
+			pState, sVirtualPath, iFlags);
+
+		if ( Result == NULL ) {
+			xrtErrorFree(pBefore);
+			return NULL;
+		}
+		__xrtVfsRestoreError(pBefore);
+		return Result;
+	}
+
+fail:
+	xrtErrorFree(pBefore);
+	__xrtVfsSnapshotRelease(pSnapshot);
+	__xrtVfsDirStateFree(pState);
+	return NULL;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/fs/vfs_memory.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_MEMORY)
+
+#include <stdlib.h>
+
+
+
+#if defined(XRT_FEATURE_VFS_MEMORY)
+
+typedef struct xrt_vfs_memory_blob {
+	volatile int32 RefCount;
+	bytes Data;
+	size_t Size;
+} xrt_vfs_memory_blob;
+
+typedef struct xrt_vfs_memory_build {
+	str Path;
+	size_t PathSize;
+	xrt_vfs_memory_blob* Blob;
+} xrt_vfs_memory_build;
+
+typedef struct xrt_vfs_memory_node {
+	str Path;
+	size_t PathSize;
+	size_t ParentSize;
+	size_t NameOffset;
+	bool Directory;
+	xrt_vfs_memory_blob* Blob;
+} xrt_vfs_memory_node;
+
+typedef struct xrt_vfs_memory_file {
+	xrt_vfs_memory_blob* Blob;
+	uint64 Cursor;
+} xrt_vfs_memory_file;
+
+typedef struct xrt_vfs_memory_dir {
+	xvfsmemory Memory;
+	size_t* Items;
+	size_t Count;
+	size_t Position;
+} xrt_vfs_memory_dir;
+
+struct xvfs_memory_impl {
+	volatile int32 RefCount;
+	bool Sealed;
+	bool FoldCollision;
+	xrt_vfs_memory_build* Build;
+	size_t BuildCount;
+	size_t BuildCapacity;
+	xrt_vfs_memory_node* Nodes;
+	xrt_vfs_memory_node** Folded;
+	size_t NodeCount;
+};
+
+
+
+static void __xrtVfsMemoryBlobRef(xrt_vfs_memory_blob* pBlob)
+{
+	if ( xrtRefRetain(&pBlob->RefCount) < 0 ) abort();
+}
+
+static void __xrtVfsMemoryBlobRelease(xrt_vfs_memory_blob* pBlob)
+{
+	if ( (pBlob == NULL) || (xrtRefRelease(&pBlob->RefCount) != 0) ) return;
+	xrtFree(pBlob->Data);
+	xrtFree(pBlob);
+}
+
+static void __xrtVfsMemoryBuildFree(xrt_vfs_memory_build* pBuild,
+	size_t iCount)
+{
+	if ( pBuild == NULL ) return;
+	for ( size_t i = 0u; i < iCount; i++ ) {
+		xrtFree(pBuild[i].Path);
+		__xrtVfsMemoryBlobRelease(pBuild[i].Blob);
+	}
+	xrtFree(pBuild);
+}
+
+static void __xrtVfsMemoryNodesFree(xrt_vfs_memory_node* pNodes,
+	size_t iCount)
+{
+	if ( pNodes == NULL ) return;
+	for ( size_t i = 0u; i < iCount; i++ ) {
+		xrtFree(pNodes[i].Path);
+		__xrtVfsMemoryBlobRelease(pNodes[i].Blob);
+	}
+	xrtFree(pNodes);
+}
+
+
+
+XRT_API xvfsmemory xrtVfsMemoryCreate(void)
+{
+	xvfsmemory Memory = (xvfsmemory)xrtCalloc(1u, sizeof(*Memory));
+	if ( Memory != NULL ) Memory->RefCount = 1;
+	return Memory;
+}
+
+XRT_API void xrtVfsMemoryRef(xvfsmemory Memory)
+{
+	if ( Memory == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	if ( xrtRefRetain(&Memory->RefCount) < 0 ) abort();
+}
+
+XRT_API void xrtVfsMemoryDestroy(xvfsmemory Memory)
+{
+	if ( (Memory == NULL) || (xrtRefRelease(&Memory->RefCount) != 0) ) return;
+	__xrtVfsMemoryBuildFree(Memory->Build, Memory->BuildCount);
+	__xrtVfsMemoryNodesFree(Memory->Nodes, Memory->NodeCount);
+	xrtFree(Memory->Folded);
+	xrtFree(Memory);
+}
+
+
+
+static bool __xrtVfsMemoryBuildReserve(xvfsmemory Memory)
+{
+	xrt_vfs_memory_build* pBuild;
+	size_t iCapacity;
+
+	if ( Memory->BuildCount < Memory->BuildCapacity ) return true;
+	iCapacity = (Memory->BuildCapacity == 0u) ? 8u :
+		Memory->BuildCapacity * 2u;
+	if ( (iCapacity < Memory->BuildCapacity) ||
+		 (iCapacity > (SIZE_MAX / sizeof(*pBuild))) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	pBuild = (xrt_vfs_memory_build*)xrtRealloc(Memory->Build,
+		iCapacity * sizeof(*pBuild));
+	if ( pBuild == NULL ) return false;
+	Memory->Build = pBuild;
+	Memory->BuildCapacity = iCapacity;
+	return true;
+}
+
+static bool __xrtVfsMemoryPut(xvfsmemory Memory,
+	cstr sRelativePath, bytes pData, size_t iSize)
+{
+	xstrview Path;
+	str sPath;
+	xrt_vfs_memory_blob* pBlob;
+
+	if ( (Memory == NULL) || (sRelativePath == NULL) ||
+		 ((pData == NULL) && (iSize != 0u)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( Memory->Sealed ) {
+		__xrtErrorSetInvalidState();
+		return false;
+	}
+	Path = xrtStrView(sRelativePath);
+	if ( !__xrtVfsRelativePath(Path, false) ) return false;
+	for ( size_t i = 0u; i < Memory->BuildCount; i++ ) {
+		if ( xrtStrEqual(Path, (xstrview){ Memory->Build[i].Path,
+			Memory->Build[i].PathSize }) ) {
+			__xrtVfsError(XERR_EXISTS, XVFS_ERROR_CREATE,
+				"memory-put", "the memory provider path already exists");
+			return false;
+		}
+	}
+	sPath = xrtStrDupView(Path);
+	if ( sPath == NULL ) return false;
+	pBlob = (xrt_vfs_memory_blob*)xrtMalloc(sizeof(*pBlob));
+	if ( pBlob == NULL ) {
+		xrtFree(sPath);
+		return false;
+	}
+	if ( !__xrtVfsMemoryBuildReserve(Memory) ) {
+		xrtFree(pBlob);
+		xrtFree(sPath);
+		return false;
+	}
+	pBlob->RefCount = 1;
+	pBlob->Data = pData;
+	pBlob->Size = iSize;
+	Memory->Build[Memory->BuildCount].Path = sPath;
+	Memory->Build[Memory->BuildCount].PathSize = Path.Size;
+	Memory->Build[Memory->BuildCount].Blob = pBlob;
+	Memory->BuildCount++;
+	return true;
+}
+
+XRT_API bool xrtVfsMemoryPutOwned(xvfsmemory Memory,
+	cstr sRelativePath, bytes pData, size_t iSize)
+{
+	return __xrtVfsMemoryPut(Memory, sRelativePath, pData, iSize);
+}
+
+XRT_API bool xrtVfsMemoryPutCopy(xvfsmemory Memory,
+	cstr sRelativePath, const void* pData, size_t iSize)
+{
+	bytes pCopy = NULL;
+	bool bResult;
+
+	if ( (Memory == NULL) || (sRelativePath == NULL) ||
+		 ((pData == NULL) && (iSize != 0u)) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( iSize != 0u ) {
+		pCopy = (bytes)xrtMemDup(pData, iSize);
+		if ( pCopy == NULL ) return false;
+	}
+	bResult = __xrtVfsMemoryPut(Memory,
+		sRelativePath, pCopy, iSize);
+	if ( !bResult ) xrtFree(pCopy);
+	return bResult;
+}
+
+
+
+static bool __xrtVfsMemoryNodeAdd(xrt_vfs_memory_node* pNodes,
+	size_t* pCount, xstrview Path, bool bDirectory,
+	xrt_vfs_memory_blob* pBlob)
+{
+	xrt_vfs_memory_node* pNode = &pNodes[*pCount];
+	size_t iSlash = SIZE_MAX;
+
+	pNode->Path = xrtStrDupView(Path);
+	if ( pNode->Path == NULL ) return false;
+	pNode->PathSize = Path.Size;
+	for ( size_t i = 0u; i < Path.Size; i++ )
+		if ( Path.Data[i] == '/' ) iSlash = i;
+	pNode->ParentSize = (Path.Size == 0u) ? SIZE_MAX :
+		((iSlash == SIZE_MAX) ? 0u : iSlash);
+	pNode->NameOffset = (iSlash == SIZE_MAX) ? 0u : iSlash + 1u;
+	pNode->Directory = bDirectory;
+	pNode->Blob = pBlob;
+	if ( pBlob != NULL ) __xrtVfsMemoryBlobRef(pBlob);
+	(*pCount)++;
+	return true;
+}
+
+static int __xrtVfsMemoryNodeCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_memory_node* pA = (const xrt_vfs_memory_node*)pLeft;
+	const xrt_vfs_memory_node* pB = (const xrt_vfs_memory_node*)pRight;
+	return xrtStrCompare((xstrview){ pA->Path, pA->PathSize },
+		(xstrview){ pB->Path, pB->PathSize });
+}
+
+static int __xrtVfsMemoryFoldCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_memory_node* pA =
+		*(xrt_vfs_memory_node* const*)pLeft;
+	const xrt_vfs_memory_node* pB =
+		*(xrt_vfs_memory_node* const*)pRight;
+	int iResult = xrtStrCaseCompare(
+		(xstrview){ pA->Path, pA->PathSize },
+		(xstrview){ pB->Path, pB->PathSize });
+	return (iResult != 0) ? iResult : __xrtVfsMemoryNodeCompare(pA, pB);
+}
+
+static bool __xrtVfsMemoryCandidateCount(xvfsmemory Memory,
+	size_t* pCount)
+{
+	size_t iCount = 1u;
+
+	for ( size_t i = 0u; i < Memory->BuildCount; i++ ) {
+		if ( iCount == SIZE_MAX ) goto overflow;
+		iCount++;
+		for ( size_t j = 0u; j < Memory->Build[i].PathSize; j++ ) {
+			if ( Memory->Build[i].Path[j] != '/' ) continue;
+			if ( iCount == SIZE_MAX ) goto overflow;
+			iCount++;
+		}
+	}
+	if ( iCount > (SIZE_MAX / sizeof(xrt_vfs_memory_node)) )
+		goto overflow;
+	*pCount = iCount;
+	return true;
+
+overflow:
+	__xrtErrorSetSizeOverflow();
+	return false;
+}
+
+XRT_API bool xrtVfsMemorySeal(xvfsmemory Memory)
+{
+	xrt_vfs_memory_node* pNodes = NULL;
+	xrt_vfs_memory_node** pFolded = NULL;
+	size_t iCandidates;
+	size_t iCount = 0u;
+	size_t iOutput = 0u;
+	bool bFoldCollision = false;
+
+	if ( Memory == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( Memory->Sealed ) return true;
+	if ( !__xrtVfsMemoryCandidateCount(Memory, &iCandidates) ) return false;
+	pNodes = (xrt_vfs_memory_node*)xrtCalloc(
+		iCandidates, sizeof(*pNodes));
+	if ( pNodes == NULL ) return false;
+	if ( !__xrtVfsMemoryNodeAdd(pNodes, &iCount,
+		XRT_STR_LITERAL(""), true, NULL) ) goto fail;
+	for ( size_t i = 0u; i < Memory->BuildCount; i++ ) {
+		xrt_vfs_memory_build* pBuild = &Memory->Build[i];
+
+		for ( size_t j = 0u; j < pBuild->PathSize; j++ ) {
+			if ( pBuild->Path[j] != '/' ) continue;
+			if ( !__xrtVfsMemoryNodeAdd(pNodes, &iCount,
+				(xstrview){ pBuild->Path, j }, true, NULL) ) goto fail;
+		}
+		if ( !__xrtVfsMemoryNodeAdd(pNodes, &iCount,
+			(xstrview){ pBuild->Path, pBuild->PathSize },
+			false, pBuild->Blob) ) goto fail;
+	}
+	qsort(pNodes, iCount, sizeof(*pNodes), __xrtVfsMemoryNodeCompare);
+	for ( size_t i = 0u; i < iCount; i++ ) {
+		if ( (iOutput != 0u) &&
+			 xrtStrEqual(
+				(xstrview){ pNodes[iOutput - 1u].Path,
+					pNodes[iOutput - 1u].PathSize },
+				(xstrview){ pNodes[i].Path, pNodes[i].PathSize }) ) {
+			if ( pNodes[iOutput - 1u].Directory != pNodes[i].Directory ) {
+				__xrtVfsError(XERR_EXISTS, XVFS_ERROR_CREATE,
+					"memory-seal", "a path is both a file and a directory");
+				goto fail;
+			}
+			xrtFree(pNodes[i].Path);
+			pNodes[i].Path = NULL;
+			continue;
+		}
+		if ( iOutput != i ) {
+			pNodes[iOutput] = pNodes[i];
+			memset(&pNodes[i], 0, sizeof(pNodes[i]));
+		}
+		iOutput++;
+	}
+	pFolded = (xrt_vfs_memory_node**)xrtMalloc(
+		iOutput * sizeof(*pFolded));
+	if ( pFolded == NULL ) goto fail;
+	for ( size_t i = 0u; i < iOutput; i++ ) pFolded[i] = &pNodes[i];
+	qsort(pFolded, iOutput, sizeof(*pFolded), __xrtVfsMemoryFoldCompare);
+	for ( size_t i = 1u; i < iOutput; i++ ) {
+		if ( xrtStrCaseEqual(
+			(xstrview){ pFolded[i - 1u]->Path,
+				pFolded[i - 1u]->PathSize },
+			(xstrview){ pFolded[i]->Path, pFolded[i]->PathSize }) ) {
+			bFoldCollision = true;
+			break;
+		}
+	}
+	__xrtVfsMemoryBuildFree(Memory->Build, Memory->BuildCount);
+	Memory->Build = NULL;
+	Memory->BuildCount = 0u;
+	Memory->BuildCapacity = 0u;
+	Memory->Nodes = pNodes;
+	Memory->Folded = pFolded;
+	Memory->NodeCount = iOutput;
+	Memory->FoldCollision = bFoldCollision;
+	Memory->Sealed = true;
+	return true;
+
+fail:
+	xrtFree(pFolded);
+	__xrtVfsMemoryNodesFree(pNodes, iCount);
+	return false;
+}
+
+
+
+static xrt_vfs_memory_node* __xrtVfsMemoryFind(
+	xvfsmemory Memory, xvfscase CaseMode, xstrview Path)
+{
+	size_t iLow = 0u;
+	size_t iHigh = Memory->NodeCount;
+
+	while ( iLow < iHigh ) {
+		size_t iMiddle = iLow + ((iHigh - iLow) / 2u);
+		xrt_vfs_memory_node* pNode =
+			(CaseMode == XVFS_CASE_SENSITIVE) ?
+			&Memory->Nodes[iMiddle] : Memory->Folded[iMiddle];
+		int iCompare = (CaseMode == XVFS_CASE_SENSITIVE) ?
+			xrtStrCompare((xstrview){ pNode->Path, pNode->PathSize }, Path) :
+			xrtStrCaseCompare((xstrview){ pNode->Path, pNode->PathSize }, Path);
+
+		if ( iCompare < 0 ) iLow = iMiddle + 1u;
+		else if ( iCompare > 0 ) iHigh = iMiddle;
+		else return pNode;
+	}
+	return NULL;
+}
+
+static bool __xrtVfsMemoryReadAt(void* pState, uint64 iOffset,
+	void* pBuffer, size_t iRequest, size_t* pRead)
+{
+	xrt_vfs_memory_file* pFile = (xrt_vfs_memory_file*)pState;
+	size_t iStart = (iOffset > (uint64)SIZE_MAX) ? SIZE_MAX :
+		(size_t)iOffset;
+	size_t iDone = (iStart < pFile->Blob->Size) ?
+		pFile->Blob->Size - iStart : 0u;
+
+	if ( iDone > iRequest ) iDone = iRequest;
+	if ( iDone != 0u ) memcpy(pBuffer, pFile->Blob->Data + iStart, iDone);
+	*pRead = iDone;
+	return true;
+}
+
+static bool __xrtVfsMemoryRead(void* pState, void* pBuffer,
+	size_t iRequest, size_t* pRead)
+{
+	xrt_vfs_memory_file* pFile = (xrt_vfs_memory_file*)pState;
+	bool bResult = __xrtVfsMemoryReadAt(
+		pState, pFile->Cursor, pBuffer, iRequest, pRead);
+	if ( bResult ) pFile->Cursor += (uint64)*pRead;
+	return bResult;
+}
+
+static bool __xrtVfsMemorySeekAdd(uint64 iBase,
+	int64 iOffset, uint64* pResult)
+{
+	if ( iOffset >= 0 ) {
+		uint64 iAdd = (uint64)iOffset;
+		if ( iBase > UINT64_MAX - iAdd ) return false;
+		*pResult = iBase + iAdd;
+	} else {
+		uint64 iSubtract = (uint64)(-(iOffset + 1)) + 1u;
+		if ( iBase < iSubtract ) return false;
+		*pResult = iBase - iSubtract;
+	}
+	return true;
+}
+
+static bool __xrtVfsMemorySeek(void* pState, int64 iOffset,
+	xseek Origin, uint64* pPosition)
+{
+	xrt_vfs_memory_file* pFile = (xrt_vfs_memory_file*)pState;
+	uint64 iBase;
+	uint64 iResult;
+
+	if ( Origin == XSEEK_START ) iBase = 0u;
+	else if ( Origin == XSEEK_CURRENT ) iBase = pFile->Cursor;
+	else if ( Origin == XSEEK_END ) iBase = (uint64)pFile->Blob->Size;
+	else {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtVfsMemorySeekAdd(iBase, iOffset, &iResult) ) {
+		__xrtVfsError(XERR_RANGE, XVFS_ERROR_OPEN,
+			"memory-seek", "the requested position is out of range");
+		return false;
+	}
+	pFile->Cursor = iResult;
+	if ( pPosition != NULL ) *pPosition = iResult;
+	return true;
+}
+
+static bool __xrtVfsMemoryFileStat(void* pState, xfileinfo* pInfo)
+{
+	xrt_vfs_memory_file* pFile = (xrt_vfs_memory_file*)pState;
+	memset(pInfo, 0, sizeof(*pInfo));
+	pInfo->Type = XFILE_TYPE_FILE;
+	pInfo->Available = XFILE_INFO_SIZE;
+	pInfo->Size = (uint64)pFile->Blob->Size;
+	return true;
+}
+
+static void __xrtVfsMemoryFileClose(void* pState)
+{
+	xrt_vfs_memory_file* pFile = (xrt_vfs_memory_file*)pState;
+	__xrtVfsMemoryBlobRelease(pFile->Blob);
+	xrtFree(pFile);
+}
+
+static const xvfsfileops_v1 __xrtVfsMemoryFileOps = {
+	(uint32)sizeof(xvfsfileops_v1),
+	XRT_VFS_FILE_OPS_VERSION,
+	XVFS_FILE_READ | XVFS_FILE_READ_AT | XVFS_FILE_SEEK | XVFS_FILE_STAT,
+	__xrtVfsMemoryRead, NULL,
+	__xrtVfsMemoryReadAt, NULL,
+	__xrtVfsMemorySeek, __xrtVfsMemoryFileStat,
+	NULL, NULL,
+	__xrtVfsMemoryFileClose
+};
+
+
+
+static bool __xrtVfsMemoryReady(xvfsmemory Memory, cstr sOperation)
+{
+	if ( Memory->Sealed ) return true;
+	__xrtVfsError(XERR_STATE, XVFS_ERROR_PROVIDER,
+		sOperation, "the memory provider is not sealed");
+	return false;
+}
+
+static bool __xrtVfsMemoryReadOnly(const xfileoptions* pOptions)
+{
+	uint32 iForbidden = XFILE_WRITE | XFILE_CREATE | XFILE_TRUNCATE |
+		XFILE_APPEND | XFILE_EXCLUSIVE | XFILE_SYNC;
+
+	if ( (pOptions->Flags & iForbidden) == 0u ) return true;
+	__xrtVfsError(XERR_UNSUPPORTED, XVFS_ERROR_UNSUPPORTED,
+		"memory-open", "the memory provider is read-only");
+	return false;
+}
+
+static xvfslookup __xrtVfsMemoryOpen(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	const xfileoptions* pOptions, xvfsfile_v1* pFile)
+{
+	xvfsmemory Memory = (xvfsmemory)pContext;
+	xrt_vfs_memory_node* pNode;
+	xrt_vfs_memory_file* pState;
+
+	if ( !__xrtVfsMemoryReady(Memory, "memory-open") )
+		return XVFS_LOOKUP_ERROR;
+	pNode = __xrtVfsMemoryFind(Memory, CaseMode, RelativePath);
+	if ( (pNode == NULL) || pNode->Directory ) return XVFS_LOOKUP_MISS;
+	if ( !__xrtVfsMemoryReadOnly(pOptions) ) return XVFS_LOOKUP_ERROR;
+	pState = (xrt_vfs_memory_file*)xrtCalloc(1u, sizeof(*pState));
+	if ( pState == NULL ) return XVFS_LOOKUP_ERROR;
+	pState->Blob = pNode->Blob;
+	__xrtVfsMemoryBlobRef(pState->Blob);
+	pFile->Ops = &__xrtVfsMemoryFileOps;
+	pFile->State = pState;
+	pFile->Flags = pOptions->Flags;
+	return XVFS_LOOKUP_OPENED;
+}
+
+static xvfslookup __xrtVfsMemoryStat(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	bool bFollowLink, xfileinfo* pInfo)
+{
+	xvfsmemory Memory = (xvfsmemory)pContext;
+	xrt_vfs_memory_node* pNode;
+	(void)bFollowLink;
+
+	if ( !__xrtVfsMemoryReady(Memory, "memory-stat") )
+		return XVFS_LOOKUP_ERROR;
+	pNode = __xrtVfsMemoryFind(Memory, CaseMode, RelativePath);
+	if ( pNode == NULL ) return XVFS_LOOKUP_MISS;
+	memset(pInfo, 0, sizeof(*pInfo));
+	pInfo->Type = pNode->Directory ? XFILE_TYPE_DIRECTORY : XFILE_TYPE_FILE;
+	if ( !pNode->Directory ) {
+		pInfo->Available = XFILE_INFO_SIZE;
+		pInfo->Size = (uint64)pNode->Blob->Size;
+	}
+	return XVFS_LOOKUP_OPENED;
+}
+
+static bool __xrtVfsMemoryDirNext(void* pState,
+	xdirentry* pEntry, bool* pEnd)
+{
+	xrt_vfs_memory_dir* pDir = (xrt_vfs_memory_dir*)pState;
+	xrt_vfs_memory_node* pNode;
+
+	if ( pDir->Position == pDir->Count ) {
+		*pEnd = true;
+		return true;
+	}
+	pNode = &pDir->Memory->Nodes[pDir->Items[pDir->Position++]];
+	memset(pEntry, 0, sizeof(*pEntry));
+	pEntry->Name.Data = pNode->Path + pNode->NameOffset;
+	pEntry->Name.Size = pNode->PathSize - pNode->NameOffset;
+	pEntry->Info.Type = pNode->Directory ?
+		XFILE_TYPE_DIRECTORY : XFILE_TYPE_FILE;
+	if ( !pNode->Directory ) {
+		pEntry->Info.Available = XFILE_INFO_SIZE;
+		pEntry->Info.Size = (uint64)pNode->Blob->Size;
+	}
+	pEntry->Flags = XDIR_ENTRY_UTF8;
+	return true;
+}
+
+static void __xrtVfsMemoryDirClose(void* pState)
+{
+	xrt_vfs_memory_dir* pDir = (xrt_vfs_memory_dir*)pState;
+	xrtVfsMemoryDestroy(pDir->Memory);
+	xrtFree(pDir->Items);
+	xrtFree(pDir);
+}
+
+static const xvfsdirops_v1 __xrtVfsMemoryDirOps = {
+	(uint32)sizeof(xvfsdirops_v1),
+	XRT_VFS_DIR_OPS_VERSION,
+	__xrtVfsMemoryDirNext,
+	__xrtVfsMemoryDirClose
+};
+
+static bool __xrtVfsMemoryParentEqual(const xrt_vfs_memory_node* pNode,
+	xstrview Path, xvfscase CaseMode)
+{
+	xstrview Parent;
+
+	if ( pNode->ParentSize == SIZE_MAX ) return false;
+	Parent.Data = pNode->Path;
+	Parent.Size = pNode->ParentSize;
+	return (CaseMode == XVFS_CASE_SENSITIVE) ?
+		xrtStrEqual(Parent, Path) : xrtStrCaseEqual(Parent, Path);
+}
+
+static xvfslookup __xrtVfsMemoryDirOpen(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	uint32 iFlags, xvfsdir_v1* pDir)
+{
+	xvfsmemory Memory = (xvfsmemory)pContext;
+	xrt_vfs_memory_node* pNode;
+	xrt_vfs_memory_dir* pState;
+	size_t iCount = 0u;
+	(void)iFlags;
+
+	if ( !__xrtVfsMemoryReady(Memory, "memory-directory") )
+		return XVFS_LOOKUP_ERROR;
+	pNode = __xrtVfsMemoryFind(Memory, CaseMode, RelativePath);
+	if ( (pNode == NULL) || !pNode->Directory ) return XVFS_LOOKUP_MISS;
+	for ( size_t i = 0u; i < Memory->NodeCount; i++ )
+		if ( __xrtVfsMemoryParentEqual(&Memory->Nodes[i],
+			RelativePath, CaseMode) ) iCount++;
+	pState = (xrt_vfs_memory_dir*)xrtCalloc(1u, sizeof(*pState));
+	if ( pState == NULL ) return XVFS_LOOKUP_ERROR;
+	if ( iCount != 0u ) {
+		if ( iCount > (SIZE_MAX / sizeof(pState->Items[0])) ) {
+			__xrtErrorSetSizeOverflow();
+			xrtFree(pState);
+			return XVFS_LOOKUP_ERROR;
+		}
+		pState->Items = (size_t*)xrtMalloc(
+			iCount * sizeof(pState->Items[0]));
+		if ( pState->Items == NULL ) {
+			xrtFree(pState);
+			return XVFS_LOOKUP_ERROR;
+		}
+	}
+	for ( size_t i = 0u; i < Memory->NodeCount; i++ ) {
+		if ( __xrtVfsMemoryParentEqual(&Memory->Nodes[i],
+			RelativePath, CaseMode) )
+			pState->Items[pState->Count++] = i;
+	}
+	pState->Memory = Memory;
+	xrtVfsMemoryRef(Memory);
+	pDir->Ops = &__xrtVfsMemoryDirOps;
+	pDir->State = pState;
+	return XVFS_LOOKUP_OPENED;
+}
+
+static void __xrtVfsMemoryContextRetain(void* pContext)
+{
+	xrtVfsMemoryRef((xvfsmemory)pContext);
+}
+
+static void __xrtVfsMemoryContextRelease(void* pContext)
+{
+	xrtVfsMemoryDestroy((xvfsmemory)pContext);
+}
+
+static const xvfsprovider_v1 __xrtVfsMemoryProvider = {
+	(uint32)sizeof(xvfsprovider_v1),
+	XRT_VFS_PROVIDER_VERSION,
+	XVFS_PROVIDER_STAT | XVFS_PROVIDER_DIRECTORY,
+	__xrtVfsMemoryContextRetain,
+	__xrtVfsMemoryContextRelease,
+	__xrtVfsMemoryOpen,
+	__xrtVfsMemoryStat,
+	__xrtVfsMemoryDirOpen,
+	NULL
+};
+
+XRT_API xvfsmount xrtVfsMemoryMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfsmemory Memory, uint32 iFlags)
+{
+	if ( (Vfs == NULL) || (Memory == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( !Memory->Sealed ) {
+		__xrtErrorSetInvalidState();
+		return NULL;
+	}
+	if ( (CaseMode == XVFS_CASE_ASCII_INSENSITIVE) &&
+		 Memory->FoldCollision ) {
+		__xrtVfsError(XERR_EXISTS, XVFS_ERROR_MOUNT,
+			"memory-mount",
+			"the memory provider contains paths that collide under ASCII folding");
+		return NULL;
+	}
+	return xrtVfsMount(Vfs, sVirtualPrefix, iPriority, CaseMode,
+		&__xrtVfsMemoryProvider, Memory, iFlags);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* source: src/fs/file_root.c */
 /* ========================================================================== */
 
@@ -270698,6 +275982,7 @@ typedef xrootstep (*__xrt_root_proc)(xrootnative Parent,
 typedef struct __xrt_root_file_data {
 	const xfileoptions* Options;
 	xfile File;
+	uint32 Policy;
 } __xrt_root_file_data;
 
 
@@ -270706,7 +275991,16 @@ typedef struct __xrt_root_file_data {
 typedef struct __xrt_root_stat_data {
 	bool Follow;
 	xfileinfo Info;
+	uint32 Policy;
 } __xrt_root_stat_data;
+
+
+
+/* 目录句柄回调同时携带解析策略。 */
+typedef struct __xrt_root_handle_data {
+	xrootnative Handle;
+	uint32 Policy;
+} __xrt_root_handle_data;
 
 
 
@@ -271144,9 +276438,64 @@ static void __xrtRootRestart(xroot Root, xrootnative* pDirectory)
 
 
 
+/* 枚举父目录，保证请求分量与磁盘名称逐字节一致。 */
+static bool __xrtRootExactName(xrootnative Parent,
+	cstr sName, bool bAllowMissing)
+{
+	xrootnative Handle = XRT_ROOT_NATIVE_INVALID;
+	str sLink = NULL;
+	xrootstep Step;
+	xdir Dir;
+	xdirentry Entry;
+	xdirnext Next;
+	size_t iSize;
+	bool bExact = false;
+
+	if ( strcmp(sName, ".") == 0 ) return true;
+	Step = __xrtRootNativeOpenDir(Parent, ".", false,
+		&Handle, &sLink);
+	xrtFree(sLink);
+	if ( Step != XROOT_STEP_DONE ) return false;
+	Dir = __xrtRootNativeDirTake(Handle, ".", 0u);
+	if ( Dir == NULL ) return false;
+	iSize = strlen(sName);
+	while ( (Next = xrtDirNext(Dir, &Entry)) == XDIR_NEXT_ITEM ) {
+		if ( (Entry.Name.Size == iSize) &&
+			 (memcmp(Entry.Name.Data, sName, iSize) == 0) ) {
+			bExact = true;
+			break;
+		}
+	}
+	if ( !xrtDirClose(Dir) ) return false;
+	if ( Next == XDIR_NEXT_ERROR ) return false;
+	if ( bExact ) return true;
+	if ( bAllowMissing ) {
+		xfileinfo Info;
+
+		Step = __xrtRootNativeStat(Parent, sName,
+			false, false, &Info, &sLink);
+		xrtFree(sLink);
+		if ( Step == XROOT_STEP_ERROR ) {
+			const xerror* pError = xrtGetError();
+
+			if ( (pError != NULL) &&
+				 (xrtErrorKind(pError) == XERR_NOT_FOUND) ) {
+				xrtClearError();
+				return true;
+			}
+			return false;
+		}
+	}
+	__xrtRootError(XERR_NOT_FOUND, XROOT_ERROR_RESOLVE,
+		"resolve-case", "the exact root path component does not exist");
+	return false;
+}
+
+
+
 /* 逐分量解析路径，并且只通过目录句柄访问后续对象。 */
-static bool __xrtRootResolve(xroot Root, cstr sPath,
-	__xrt_root_proc pProc, ptr pData)
+static bool __xrtRootResolve(xroot Root, cstr sPath, uint32 iPolicy,
+	bool bAllowMissingFinal, __xrt_root_proc pProc, ptr pData)
 {
 	__xrt_root_path Path;
 	xrootnative Directory;
@@ -271155,7 +276504,9 @@ static bool __xrtRootResolve(xroot Root, cstr sPath,
 	size_t iLinks = 0;
 	bool bResult = false;
 
-	if ( (Root == NULL) || (pProc == NULL) ) {
+	if ( (Root == NULL) || (pProc == NULL) ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE | XROOT_POLICY_REGULAR_FILE)) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
@@ -271190,6 +276541,13 @@ static bool __xrtRootResolve(xroot Root, cstr sPath,
 			__xrtRootRestart(Root, &Directory);
 			continue;
 		}
+		if ( (iPolicy & XROOT_POLICY_CASE_SENSITIVE) != 0u ) {
+			bool bAllowMissing = bAllowMissingFinal &&
+				(iIndex == (Path.Count - 1u));
+
+			if ( !__xrtRootExactName(Directory,
+				Path.Parts[iIndex], bAllowMissing) ) break;
+		}
 		if ( iIndex == (Path.Count - 1u) ) {
 			Step = pProc(Directory, Path.Parts[iIndex],
 				Path.Trailing, pData, &sLink);
@@ -271197,7 +276555,9 @@ static bool __xrtRootResolve(xroot Root, cstr sPath,
 			xrootnative Next = XRT_ROOT_NATIVE_INVALID;
 
 			Step = __xrtRootNativeOpenDir(Directory,
-				Path.Parts[iIndex], &Next, &sLink);
+				Path.Parts[iIndex],
+				(iPolicy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
+				&Next, &sLink);
 			if ( Step == XROOT_STEP_DONE ) {
 				if ( Directory != Root->Handle ) {
 					(void)__xrtRootNativeClose(Directory, false);
@@ -271212,6 +276572,12 @@ static bool __xrtRootResolve(xroot Root, cstr sPath,
 			break;
 		}
 		if ( Step == XROOT_STEP_ERROR ) {
+			break;
+		}
+		if ( (iPolicy & XROOT_POLICY_FOLLOW_LINKS) == 0u ) {
+			xrtFree(sLink);
+			__xrtRootError(XERR_PERMISSION, XROOT_ERROR_ESCAPE,
+				"resolve-link", "the root policy rejects symbolic links");
 			break;
 		}
 		if ( ++iLinks > XRT_ROOT_MAX_LINKS ) {
@@ -271279,39 +276645,54 @@ XRT_API xroot xrtRootOpen(cstr sPath)
 static xrootstep __xrtRootOpenInProc(xrootnative Parent,
 	cstr sName, bool bTrailing, ptr pData, str* pLink)
 {
-	xrootnative* pHandle = (xrootnative*)pData;
+	__xrt_root_handle_data* pHandle = (__xrt_root_handle_data*)pData;
 
 	(void)bTrailing;
-	return __xrtRootNativeOpenDir(Parent, sName, pHandle, pLink);
+	return __xrtRootNativeOpenDir(Parent, sName,
+		(pHandle->Policy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
+		&pHandle->Handle, pLink);
 }
 
 
 
-/* 在已有根内打开并锚定一个子目录。 */
-XRT_API xroot xrtRootOpenIn(xroot Root, cstr sPath)
+/* 在已有根内按策略打开并锚定一个子目录。 */
+xroot __xrtRootOpenInPolicy(xroot Root, cstr sPath, uint32 iPolicy)
 {
-	xrootnative Handle = XRT_ROOT_NATIVE_INVALID;
+	__xrt_root_handle_data Data;
 	str sDisplay;
 
-	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ) {
+	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE)) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
+	Data.Handle = XRT_ROOT_NATIVE_INVALID;
+	Data.Policy = iPolicy;
 	sDisplay = xrtPathJoin(Root->Path, sPath);
 	if ( sDisplay == NULL ) {
 		return NULL;
 	}
-	if ( !__xrtRootResolve(Root, sPath,
-		__xrtRootOpenInProc, &Handle) ) {
+	if ( !__xrtRootResolve(Root, sPath, iPolicy, false,
+		__xrtRootOpenInProc, &Data) ) {
 		xrtFree(sDisplay);
 		return NULL;
 	}
 	{
-		xroot Child = __xrtRootCreate(Handle, sDisplay);
+		xroot Child = __xrtRootCreate(Data.Handle, sDisplay);
 
 		xrtFree(sDisplay);
 		return Child;
 	}
+}
+
+
+
+/* 在已有根内按公共兼容策略打开子目录。 */
+XRT_API xroot xrtRootOpenIn(xroot Root, cstr sPath)
+{
+	return __xrtRootOpenInPolicy(Root, sPath,
+		XROOT_POLICY_FOLLOW_LINKS);
 }
 
 
@@ -271369,19 +276750,23 @@ static xrootstep __xrtRootFileProc(xrootnative Parent,
 		return XROOT_STEP_ERROR;
 	}
 	return __xrtRootNativeOpenFile(Parent, sName,
+		(pFile->Policy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
+		(pFile->Policy & XROOT_POLICY_REGULAR_FILE) != 0u,
 		pFile->Options, &pFile->File, pLink);
 }
 
 
 
-/* 在根内使用完整文件选项打开普通文件。 */
-XRT_API xfile xrtRootFileOpen(xroot Root, cstr sPath,
-	const xfileoptions* pOptions)
+/* 在根内按策略使用完整文件选项打开普通文件。 */
+xfile __xrtRootFileOpenPolicy(xroot Root, cstr sPath,
+	const xfileoptions* pOptions, uint32 iPolicy)
 {
 	__xrt_root_file_data Data;
 	xfileoptions Options;
 
-	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ) {
+	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE | XROOT_POLICY_REGULAR_FILE)) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
@@ -271390,10 +276775,23 @@ XRT_API xfile xrtRootFileOpen(xroot Root, cstr sPath,
 	}
 	Data.Options = &Options;
 	Data.File = NULL;
-	if ( !__xrtRootResolve(Root, sPath, __xrtRootFileProc, &Data) ) {
+	Data.Policy = iPolicy;
+	if ( !__xrtRootResolve(Root, sPath, iPolicy,
+		(Options.Flags & XFILE_CREATE) != 0u,
+		__xrtRootFileProc, &Data) ) {
 		return NULL;
 	}
 	return Data.File;
+}
+
+
+
+/* 在根内按公共兼容策略打开普通文件。 */
+XRT_API xfile xrtRootFileOpen(xroot Root, cstr sPath,
+	const xfileoptions* pOptions)
+{
+	return __xrtRootFileOpenPolicy(Root, sPath,
+		pOptions, XROOT_POLICY_FOLLOW_LINKS);
 }
 
 
@@ -271404,6 +276802,7 @@ static xrootstep __xrtRootStatProc(xrootnative Parent,
 {
 	__xrt_root_stat_data* pStat = (__xrt_root_stat_data*)pData;
 	xrootstep Step = __xrtRootNativeStat(Parent, sName,
+		(pStat->Policy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
 		pStat->Follow, &pStat->Info, pLink);
 
 	if ( (Step == XROOT_STEP_DONE) && bTrailing &&
@@ -271417,24 +276816,100 @@ static xrootstep __xrtRootStatProc(xrootnative Parent,
 
 
 
-/* 查询根内对象元数据。 */
-XRT_API bool xrtRootStat(xroot Root, cstr sPath,
-	bool bFollowLink, xfileinfo* pInfo)
+/* 按策略查询根内对象元数据。 */
+bool __xrtRootStatPolicy(xroot Root, cstr sPath,
+	bool bFollowLink, xfileinfo* pInfo, uint32 iPolicy)
 {
 	__xrt_root_stat_data Data;
 
 	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ||
-		 (pInfo == NULL) ) {
+		 (pInfo == NULL) ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE)) != 0u) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
 	memset(&Data, 0, sizeof(Data));
-	Data.Follow = bFollowLink;
-	if ( !__xrtRootResolve(Root, sPath, __xrtRootStatProc, &Data) ) {
+	Data.Follow = bFollowLink ||
+		((iPolicy & XROOT_POLICY_FOLLOW_LINKS) == 0u);
+	Data.Policy = iPolicy;
+	if ( !__xrtRootResolve(Root, sPath, iPolicy, false,
+		__xrtRootStatProc, &Data) ) {
 		return false;
 	}
 	*pInfo = Data.Info;
 	return true;
+}
+
+
+
+/* 按公共兼容策略查询根内对象元数据。 */
+XRT_API bool xrtRootStat(xroot Root, cstr sPath,
+	bool bFollowLink, xfileinfo* pInfo)
+{
+	return __xrtRootStatPolicy(Root, sPath, bFollowLink,
+		pInfo, XROOT_POLICY_FOLLOW_LINKS);
+}
+
+
+
+/* 根内目录枚举末级操作；成功时把新目录句柄转移给调用方。 */
+static xrootstep __xrtRootDirOpenProc(xrootnative Parent,
+	cstr sName, bool bTrailing, ptr pData, str* pLink)
+{
+	__xrt_root_handle_data* pHandle = (__xrt_root_handle_data*)pData;
+
+	(void)bTrailing;
+	return __xrtRootNativeOpenDir(Parent, sName,
+		(pHandle->Policy & XROOT_POLICY_CASE_SENSITIVE) != 0u,
+		&pHandle->Handle, pLink);
+}
+
+
+
+/* 按策略从已锚定的根句柄打开目录迭代器。 */
+xdir __xrtRootDirOpenPolicy(xroot Root, cstr sPath,
+	uint32 iFlags, uint32 iPolicy)
+{
+	__xrt_root_handle_data Data;
+	str sDisplay;
+	xdir Dir;
+
+	if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') ||
+		 ((iFlags & XDIR_INCLUDE_DOTS) != 0u) ||
+		 !__xrtDirFlagsValid(iFlags) ||
+		 ((iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+		 XROOT_POLICY_CASE_SENSITIVE)) != 0u) ) {
+		if ( (Root == NULL) || (sPath == NULL) || (sPath[0] == '\0') )
+			__xrtErrorSetInvalidArgument();
+		else if ( (iFlags & XDIR_INCLUDE_DOTS) != 0u )
+			__xrtErrorSetInvalidArgument();
+		else if ( (iPolicy & ~(uint32)(XROOT_POLICY_FOLLOW_LINKS |
+			XROOT_POLICY_CASE_SENSITIVE)) != 0u )
+			__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	Data.Handle = XRT_ROOT_NATIVE_INVALID;
+	Data.Policy = iPolicy;
+	if ( !__xrtRootResolve(Root, sPath, iPolicy, false,
+		__xrtRootDirOpenProc, &Data) ) return NULL;
+	sDisplay = xrtPathJoin(Root->Path, sPath);
+	if ( sDisplay == NULL ) {
+		(void)__xrtRootNativeClose(Data.Handle, false);
+		return NULL;
+	}
+	Dir = __xrtRootNativeDirTake(Data.Handle, sDisplay, iFlags);
+	xrtFree(sDisplay);
+	return Dir;
+}
+
+
+
+/* 按公共兼容策略打开根内目录迭代器。 */
+XRT_API xdir xrtRootDirOpen(xroot Root, cstr sPath, uint32 iFlags)
+{
+	return __xrtRootDirOpenPolicy(Root, sPath, iFlags,
+		XROOT_POLICY_FOLLOW_LINKS);
 }
 
 
@@ -271461,7 +276936,8 @@ XRT_API bool xrtRootDirCreate(xroot Root, cstr sPath, uint32 iMode)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtRootResolve(Root, sPath, __xrtRootCreateProc, &iMode);
+	return __xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
+		__xrtRootCreateProc, &iMode);
 }
 
 
@@ -271490,7 +276966,8 @@ XRT_API bool xrtRootRemove(xroot Root, cstr sPath)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtRootResolve(Root, sPath, __xrtRootRemoveProc, NULL);
+	return __xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
+		__xrtRootRemoveProc, NULL);
 }
 
 
@@ -271522,7 +276999,8 @@ XRT_API str xrtRootLinkRead(xroot Root, cstr sPath)
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	if ( !__xrtRootResolve(Root, sPath, __xrtRootLinkProc, &sTarget) ) {
+	if ( !__xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
+		__xrtRootLinkProc, &sTarget) ) {
 		return NULL;
 	}
 	return sTarget;
@@ -271565,7 +277043,7 @@ XRT_API bool xrtRootLinkCreate(xroot Root, cstr sTarget,
 	}
 	Data.Target = sTarget;
 	Data.Directory = bDirectory;
-	return __xrtRootResolve(Root, sLink,
+	return __xrtRootResolve(Root, sLink, XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootLinkCreateProc, &Data);
 }
 
@@ -271608,7 +277086,8 @@ static xrootstep __xrtRootHardSourceProc(xrootnative Parent,
 			"hard-link", "a hard-link source cannot end with a separator");
 		return XROOT_STEP_ERROR;
 	}
-	Step = __xrtRootNativeStat(Parent, sName, true, &Info, pLink);
+	Step = __xrtRootNativeStat(Parent, sName, false,
+		true, &Info, pLink);
 	if ( Step != XROOT_STEP_DONE ) { return Step; }
 	if ( Info.Type != XFILE_TYPE_FILE ) {
 		__xrtRootError(XERR_TYPE, XROOT_ERROR_LINK,
@@ -271618,6 +277097,7 @@ static xrootstep __xrtRootHardSourceProc(xrootnative Parent,
 	Source.SourceParent = Parent;
 	Source.SourceName = sName;
 	return __xrtRootResolve(pTarget->Root, pTarget->TargetPath,
+		XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootHardTargetProc, &Source) ?
 		XROOT_STEP_DONE : XROOT_STEP_ERROR;
 }
@@ -271637,7 +277117,7 @@ XRT_API bool xrtRootLinkHard(xroot Root, cstr sExisting, cstr sLink)
 	}
 	Data.Root = Root;
 	Data.TargetPath = sLink;
-	return __xrtRootResolve(Root, sExisting,
+	return __xrtRootResolve(Root, sExisting, XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootHardSourceProc, &Data);
 }
 
@@ -271671,7 +277151,7 @@ XRT_API bool xrtRootFifoCreate(xroot Root, cstr sPath, uint32 iMode)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtRootResolve(Root, sPath,
+	return __xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootFifoProc, &iMode);
 }
 
@@ -271689,7 +277169,7 @@ static xrootstep __xrtRootSetModeProc(xrootnative Parent,
 	if ( bTrailing ) {
 		xfileinfo Info;
 		xrootstep Step = __xrtRootNativeStat(Parent,
-			sName, pMode->Follow, &Info, pLink);
+			sName, false, pMode->Follow, &Info, pLink);
 
 		if ( Step != XROOT_STEP_DONE ) { return Step; }
 		if ( Info.Type != XFILE_TYPE_DIRECTORY ) {
@@ -271717,7 +277197,7 @@ XRT_API bool xrtRootSetMode(xroot Root, cstr sPath,
 	}
 	Data.Follow = bFollowLink;
 	Data.Mode = iMode;
-	return __xrtRootResolve(Root, sPath,
+	return __xrtRootResolve(Root, sPath, XROOT_POLICY_FOLLOW_LINKS, false,
 		__xrtRootSetModeProc, &Data);
 }
 
@@ -271839,10 +277319,12 @@ bool __xrtRootNativeClose(xrootnative Handle, bool bReport)
 
 /* 不跟随当前分量打开 POSIX 子目录。 */
 xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
-	xrootnative* pHandle, str* pLink)
+	bool bCaseSensitive, xrootnative* pHandle, str* pLink)
 {
 	int iFlags = O_RDONLY;
 	int hDirectory;
+
+	(void)bCaseSensitive;
 
 	#if defined(O_DIRECTORY) && defined(O_NOFOLLOW)
 		iFlags |= O_DIRECTORY | O_NOFOLLOW;
@@ -271874,12 +277356,15 @@ xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
 
 /* 不跟随当前分量打开 POSIX 普通文件。 */
 xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
-	const xfileoptions* pOptions, xfile* pFile, str* pLink)
+	bool bCaseSensitive, bool bRegularFile, const xfileoptions* pOptions,
+	xfile* pFile, str* pLink)
 {
 	int iFlags = __xrtFilePosixFlags(pOptions->Flags);
 	int hFile;
 	struct stat Info;
 	xfile File;
+
+	(void)bCaseSensitive;
 
 	#if defined(O_NOFOLLOW)
 		iFlags |= O_NOFOLLOW;
@@ -271888,10 +277373,18 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			"open-file", "the platform cannot open files without following links");
 		return XROOT_STEP_ERROR;
 	#endif
+	#if defined(O_NONBLOCK)
+		if ( bRegularFile ) iFlags |= O_NONBLOCK;
+	#else
+		if ( bRegularFile ) {
+			__xrtRootError(XERR_UNSUPPORTED, XROOT_ERROR_FILE,
+				"open-file",
+				"the platform cannot safely restrict an open to regular files");
+			return XROOT_STEP_ERROR;
+		}
+	#endif
 	File = __xrtFileAlloc();
-	if ( File == NULL ) {
-		return XROOT_STEP_ERROR;
-	}
+	if (File == NULL) return XROOT_STEP_ERROR;
 	hFile = __xrtFilePosixOpenAt(Parent, sName,
 		iFlags, pOptions->Mode);
 	if ( hFile < 0 ) {
@@ -271900,16 +277393,17 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			(XFILE_CREATE | XFILE_EXCLUSIVE)) ==
 			(XFILE_CREATE | XFILE_EXCLUSIVE);
 
-		xrtFree(File);
 		if ( ((iCode == ELOOP) || (iCode == ENOTDIR)) &&
 			 ((pOptions->Flags & XFILE_NOFOLLOW) == 0u) &&
 			 !bExclusive ) {
+			xrtFree(File);
 			return __xrtRootPosixLink(Parent, sName, iCode,
 				pLink, XROOT_ERROR_FILE, "open-file",
 				"failed to open the root-relative file");
 		}
 		__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 			"failed to open the root-relative file", iCode);
+		xrtFree(File);
 		return XROOT_STEP_ERROR;
 	}
 	{
@@ -271922,21 +277416,53 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 			int iCode = errno;
 
 			(void)close(hFile);
-			xrtFree(File);
 			__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 				"failed to inspect the root-relative file", iCode);
+			xrtFree(File);
 			return XROOT_STEP_ERROR;
 		}
 	}
-	if ( S_ISDIR(Info.st_mode) ) {
+	if ( bRegularFile && !S_ISREG(Info.st_mode) ) {
 		(void)close(hFile);
-		xrtFree(File);
 		__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE, "open-file",
-			"the root-relative path is a directory");
+			"the root policy only permits regular files");
+		xrtFree(File);
 		return XROOT_STEP_ERROR;
 	}
-	__xrtFileInitNativePair(File, (intptr_t)hFile, (intptr_t)-1,
-		pOptions->Flags);
+	if ( S_ISDIR(Info.st_mode) ) {
+		(void)close(hFile);
+		__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE, "open-file",
+			"the root-relative path is a directory");
+		xrtFree(File);
+		return XROOT_STEP_ERROR;
+	}
+	#if defined(O_NONBLOCK)
+		if ( bRegularFile ) {
+			int iStatus;
+			int iResult;
+
+			do {
+				iStatus = fcntl(hFile, F_GETFL);
+			} while ( (iStatus < 0) && (errno == EINTR) );
+			if ( iStatus >= 0 ) {
+				do {
+					iResult = fcntl(hFile, F_SETFL, iStatus & ~O_NONBLOCK);
+				} while ( (iResult != 0) && (errno == EINTR) );
+			} else {
+				iResult = -1;
+			}
+			if ( iResult != 0 ) {
+				int iCode = errno;
+
+				(void)close(hFile);
+				__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
+					"failed to restore blocking mode on a regular file", iCode);
+				xrtFree(File);
+				return XROOT_STEP_ERROR;
+			}
+		}
+	#endif
+	__xrtFileInitNativePair(File, (intptr_t)hFile, (intptr_t)-1, pOptions->Flags);
 	*pFile = File;
 	return XROOT_STEP_DONE;
 }
@@ -271945,10 +277471,13 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 
 /* 查询 POSIX 根内当前分量元数据。 */
 xrootstep __xrtRootNativeStat(xrootnative Parent, cstr sName,
-	bool bFollowLink, xfileinfo* pInfo, str* pLink)
+	bool bCaseSensitive, bool bFollowLink,
+	xfileinfo* pInfo, str* pLink)
 {
 	struct stat Native;
 	int iResult;
+
+	(void)bCaseSensitive;
 
 	if ( strcmp(sName, ".") == 0 ) {
 		(void)bFollowLink;
@@ -272392,7 +277921,8 @@ static int __xrtRootNtErrorCode(NTSTATUS Status)
 /* 使用目录句柄和单个 UTF-8 分量调用 NtCreateFile。 */
 static bool __xrtRootNtCreate(xrootnative Parent, cstr sName,
 	ACCESS_MASK iAccess, ULONG iShare, ULONG iDisposition,
-	ULONG iOptions, ULONG iObjectFlags, HANDLE* pHandle,
+	ULONG iOptions, ULONG iObjectFlags, bool bCaseSensitive,
+	HANDLE* pHandle,
 	NTSTATUS* pStatus)
 {
 	HMODULE hModule = GetModuleHandleW(L"ntdll.dll");
@@ -272433,7 +277963,8 @@ static bool __xrtRootNtCreate(xrootnative Parent, cstr sName,
 	Attributes.Length = (ULONG)sizeof(Attributes);
 	Attributes.RootDirectory = Parent;
 	Attributes.ObjectName = &Name;
-	Attributes.Attributes = OBJ_CASE_INSENSITIVE | iObjectFlags;
+	Attributes.Attributes = iObjectFlags |
+		(bCaseSensitive ? 0u : OBJ_CASE_INSENSITIVE);
 	memset(&Status, 0, sizeof(Status));
 	*pHandle = INVALID_HANDLE_VALUE;
 	*pStatus = pCreate(pHandle, iAccess, &Attributes, &Status,
@@ -272446,7 +277977,8 @@ static bool __xrtRootNtCreate(xrootnative Parent, cstr sName,
 
 
 /* 打开重解析点自身并读取受支持的链接目标。 */
-static str __xrtRootWindowsReadAt(xrootnative Parent, cstr sName)
+static str __xrtRootWindowsReadAt(xrootnative Parent, cstr sName,
+	bool bCaseSensitive)
 {
 	HANDLE hLink;
 	NTSTATUS Status;
@@ -272459,7 +277991,7 @@ static str __xrtRootWindowsReadAt(xrootnative Parent, cstr sName)
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT |
 			FILE_OPEN_REPARSE_POINT,
-		0u, &hLink, &Status) ) {
+		0u, bCaseSensitive, &hLink, &Status) ) {
 		return NULL;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -272477,10 +278009,11 @@ static str __xrtRootWindowsReadAt(xrootnative Parent, cstr sName)
 
 /* 在 NT 打开失败后检查当前分量是否为受支持链接。 */
 static xrootstep __xrtRootWindowsLink(xrootnative Parent,
-	cstr sName, str* pLink, xrooterror Code,
+	cstr sName, bool bCaseSensitive, str* pLink, xrooterror Code,
 	cstr sOperation, cstr sMessage)
 {
-	str sTarget = __xrtRootWindowsReadAt(Parent, sName);
+	str sTarget = __xrtRootWindowsReadAt(Parent, sName,
+		bCaseSensitive);
 
 	if ( sTarget != NULL ) {
 		*pLink = sTarget;
@@ -272554,19 +278087,25 @@ bool __xrtRootNativeClose(xrootnative Handle, bool bReport)
 
 /* 不跟随当前分量打开 Windows 子目录。 */
 xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
-	xrootnative* pHandle, str* pLink)
+	bool bCaseSensitive, xrootnative* pHandle, str* pLink)
 {
 	HANDLE hDirectory;
 	NTSTATUS Status;
 
 	if ( strcmp(sName, ".") == 0 ) {
-		if ( !DuplicateHandle(GetCurrentProcess(), Parent,
-			GetCurrentProcess(), &hDirectory, 0u, FALSE,
-			DUPLICATE_SAME_ACCESS) ) {
-			int iCode = (int)GetLastError();
-
+		/* 空相对名重新打开锚点并取得独立目录查询状态。 */
+		if ( !__xrtRootNtCreate(Parent, "",
+			SYNCHRONIZE | FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			FILE_OPEN,
+			FILE_SYNCHRONOUS_IO_NONALERT |
+				FILE_OPEN_FOR_BACKUP_INTENT | FILE_DIRECTORY_FILE,
+			OBJ_DONT_REPARSE, true, &hDirectory, &Status) )
+			return XROOT_STEP_ERROR;
+		if ( !__xrtRootNtSuccess(Status) ) {
 			__xrtRootSetError(XROOT_ERROR_RESOLVE, "resolve",
-				"failed to duplicate the root directory handle", iCode);
+				"failed to reopen the anchored directory",
+				__xrtRootNtErrorCode(Status));
 			return XROOT_STEP_ERROR;
 		}
 		*pHandle = hDirectory;
@@ -272578,7 +278117,8 @@ xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
 		FILE_OPEN,
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT | FILE_DIRECTORY_FILE,
-		OBJ_DONT_REPARSE, &hDirectory, &Status) ) {
+		OBJ_DONT_REPARSE, bCaseSensitive,
+		&hDirectory, &Status) ) {
 		return XROOT_STEP_ERROR;
 	}
 	if ( __xrtRootNtSuccess(Status) ) {
@@ -272586,7 +278126,7 @@ xrootstep __xrtRootNativeOpenDir(xrootnative Parent, cstr sName,
 		return XROOT_STEP_DONE;
 	}
 	if ( __xrtRootNtReparse(Status) ) {
-		return __xrtRootWindowsLink(Parent, sName,
+		return __xrtRootWindowsLink(Parent, sName, bCaseSensitive,
 			pLink, XROOT_ERROR_RESOLVE, "resolve",
 			"failed to open a root path directory");
 	}
@@ -272635,7 +278175,8 @@ static ULONG __xrtRootWindowsShare(uint32 iShare)
 
 /* 不跟随当前分量打开 Windows 普通文件。 */
 xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
-	const xfileoptions* pOptions, xfile* pFile, str* pLink)
+	bool bCaseSensitive, bool bRegularFile, const xfileoptions* pOptions,
+	xfile* pFile, str* pLink)
 {
 	ACCESS_MASK iAccess = SYNCHRONIZE | FILE_READ_ATTRIBUTES;
 	ULONG iOptions = FILE_SYNCHRONOUS_IO_NONALERT |
@@ -272655,26 +278196,45 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 		iOptions |= FILE_WRITE_THROUGH;
 	}
 	File = __xrtFileAlloc();
-	if ( File == NULL ) {
-		return XROOT_STEP_ERROR;
-	}
+	if (File == NULL) return XROOT_STEP_ERROR;
 	if ( !__xrtRootNtCreate(Parent, sName, iAccess,
 		__xrtRootWindowsShare(pOptions->Share),
 		__xrtRootWindowsDisposition(pOptions->Flags),
-		iOptions, OBJ_DONT_REPARSE, &hFile, &Status) ) {
+		iOptions, OBJ_DONT_REPARSE, bCaseSensitive,
+		&hFile, &Status) ) {
 		xrtFree(File);
 		return XROOT_STEP_ERROR;
 	}
 	if ( __xrtRootNtSuccess(Status) ) {
+		if ( bRegularFile ) {
+			xfileinfo Info;
+
+			if ( !__xrtFileWindowsStat(hFile, &Info, false) ) {
+				int iCode = (int)GetLastError();
+
+				(void)CloseHandle(hFile);
+				__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
+					"failed to inspect the root-relative file", iCode);
+				xrtFree(File);
+				return XROOT_STEP_ERROR;
+			}
+			if ( Info.Type != XFILE_TYPE_FILE ) {
+				(void)CloseHandle(hFile);
+				__xrtRootError(XERR_TYPE, XROOT_ERROR_FILE, "open-file",
+					"the root policy only permits regular files");
+				xrtFree(File);
+				return XROOT_STEP_ERROR;
+			}
+		}
 		if ( !__xrtFileWindowsAppendHandles(
 			&hFile, &hControl, pOptions->Flags) ) {
 			int iCode = (int)GetLastError();
 
 			(void)CloseHandle(hFile);
-			xrtFree(File);
 			__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 				"failed to restrict the root-relative append handle",
 				iCode);
+			xrtFree(File);
 			return XROOT_STEP_ERROR;
 		}
 		__xrtFileInitNativePair(File, (intptr_t)hFile,
@@ -272682,19 +278242,20 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 		*pFile = File;
 		return XROOT_STEP_DONE;
 	}
-	xrtFree(File);
 	if ( __xrtRootNtReparse(Status) &&
 		 ((pOptions->Flags & XFILE_NOFOLLOW) == 0u) &&
 		 ((pOptions->Flags &
 		  (XFILE_CREATE | XFILE_EXCLUSIVE)) !=
 		  (XFILE_CREATE | XFILE_EXCLUSIVE)) ) {
-		return __xrtRootWindowsLink(Parent, sName,
+		xrtFree(File);
+		return __xrtRootWindowsLink(Parent, sName, bCaseSensitive,
 			pLink, XROOT_ERROR_FILE, "open-file",
 			"failed to open the root-relative file");
 	}
 	__xrtRootSetError(XROOT_ERROR_FILE, "open-file",
 		"failed to open the root-relative file",
 		__xrtRootNtErrorCode(Status));
+	xrtFree(File);
 	return XROOT_STEP_ERROR;
 }
 
@@ -272702,7 +278263,8 @@ xrootstep __xrtRootNativeOpenFile(xrootnative Parent, cstr sName,
 
 /* 查询 Windows 根内当前分量元数据。 */
 xrootstep __xrtRootNativeStat(xrootnative Parent, cstr sName,
-	bool bFollowLink, xfileinfo* pInfo, str* pLink)
+	bool bCaseSensitive, bool bFollowLink,
+	xfileinfo* pInfo, str* pLink)
 {
 	HANDLE hObject;
 	NTSTATUS Status;
@@ -272728,7 +278290,7 @@ xrootstep __xrtRootNativeStat(xrootnative Parent, cstr sName,
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT |
 			FILE_OPEN_REPARSE_POINT,
-		0u, &hObject, &Status) ) {
+		0u, bCaseSensitive, &hObject, &Status) ) {
 		return XROOT_STEP_ERROR;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -272777,7 +278339,7 @@ bool __xrtRootNativeCreateDir(xrootnative Parent,
 		FILE_CREATE,
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT | FILE_DIRECTORY_FILE,
-		OBJ_DONT_REPARSE, &hDirectory, &Status) ) {
+		OBJ_DONT_REPARSE, false, &hDirectory, &Status) ) {
 		return false;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -272811,7 +278373,8 @@ bool __xrtRootNativeRemove(xrootnative Parent,
 	if ( !__xrtRootNtCreate(Parent, sName,
 		SYNCHRONIZE | FILE_READ_ATTRIBUTES | DELETE,
 		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-		FILE_OPEN, iOptions, iObjectFlags, &hObject, &Status) ) {
+		FILE_OPEN, iOptions, iObjectFlags, false,
+		&hObject, &Status) ) {
 		return false;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -272850,7 +278413,7 @@ bool __xrtRootNativeRemove(xrootnative Parent,
 /* 相对 Windows 父目录读取末级重解析链接。 */
 str __xrtRootNativeReadLink(xrootnative Parent, cstr sName)
 {
-	str sTarget = __xrtRootWindowsReadAt(Parent, sName);
+	str sTarget = __xrtRootWindowsReadAt(Parent, sName, false);
 
 	if ( sTarget == NULL ) {
 		__xrtRootWrapError(XROOT_ERROR_LINK, "read-link",
@@ -272898,7 +278461,7 @@ bool __xrtRootNativeLinkHard(xrootnative SourceParent, cstr sSource,
 		FILE_OPEN,
 		FILE_SYNCHRONOUS_IO_NONALERT |
 			FILE_OPEN_FOR_BACKUP_INTENT | FILE_NON_DIRECTORY_FILE,
-		OBJ_DONT_REPARSE, &hSource, &Status) ) {
+		OBJ_DONT_REPARSE, false, &hSource, &Status) ) {
 		return false;
 	}
 	if ( !__xrtRootNtSuccess(Status) ) {
@@ -272984,15 +278547,3931 @@ bool __xrtRootNativeFifoCreate(xrootnative Parent,
 
 
 
-/* Windows 忽略 POSIX 模式，但仍验证目标存在且安全解析。 */
+/* Windows 无 POSIX 权限模式；不能把存在性查询伪装为设置成功。 */
 xrootstep __xrtRootNativeSetMode(xrootnative Parent,
 	cstr sName, bool bFollowLink, uint32 iMode, str* pLink)
 {
-	xfileinfo Info;
-
+	(void)Parent;
+	(void)sName;
+	(void)bFollowLink;
 	(void)iMode;
-	return __xrtRootNativeStat(Parent, sName,
-		bFollowLink, &Info, pLink);
+	(void)pLink;
+	__xrtRootError(XERR_UNSUPPORTED, XROOT_ERROR_STAT,
+		"set-mode", "POSIX permission modes are not available on Windows");
+	return XROOT_STEP_ERROR;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/fs/file_root_dir.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_FILE_ROOT)
+#if !defined(_WIN32) && !defined(_WIN64)
+	#if !defined(_POSIX_C_SOURCE)
+		#define _POSIX_C_SOURCE 200809L
+	#endif
+	#if !defined(_FILE_OFFSET_BITS)
+		#define _FILE_OFFSET_BITS 64
+	#endif
+#endif
+
+
+#include <errno.h>
+#include <stddef.h>
+
+#if !defined(_WIN32) && !defined(_WIN64)
+	#include <dirent.h>
+	#include <sys/stat.h>
+	#include <sys/types.h>
+	#include <unistd.h>
+#endif
+
+
+
+#if defined(XRT_FEATURE_FILE_ROOT)
+
+#if defined(_WIN32) || defined(_WIN64)
+	typedef LONG xrt_root_dir_status;
+	typedef struct xrt_root_dir_io_status xrt_root_dir_io_status;
+	typedef xrt_root_dir_status (WINAPI *xrt_root_dir_query_proc)(
+		HANDLE hFile, HANDLE hEvent, PVOID pApcRoutine, PVOID pApcContext,
+		xrt_root_dir_io_status* pStatus, PVOID pInformation, ULONG iSize,
+		int iClass, BYTE bSingleEntry, PVOID pName, BYTE bRestart);
+#endif
+
+
+
+/* 迭代器始终拥有锚定目录句柄；条目名称借用到下一次迭代。 */
+typedef struct xrt_root_dir_state {
+	xrootnative Directory;
+	#if defined(_WIN32) || defined(_WIN64)
+		xrt_root_dir_query_proc Query;
+		bytes Buffer;
+		size_t BufferSize;
+		str Name;
+		size_t NameCapacity;
+		bool Restart;
+	#else
+		DIR* Stream;
+	#endif
+} xrt_root_dir_state;
+
+
+
+/* 点条目不能通过 root API 表示父目录，root iterator 始终隐藏它们。 */
+static bool __xrtRootDirDot(cstr sName)
+{
+	return (sName[0] == '.') &&
+		((sName[1] == '\0') ||
+		 ((sName[1] == '.') && (sName[2] == '\0')));
+}
+
+
+
+/* 使用当前枚举目录作为临时根，安全取得条目完整元数据。 */
+static bool __xrtRootDirStat(xrt_root_dir_state* pState,
+	cstr sDisplayPath, cstr sName, uint32 iFlags, xfileinfo* pInfo)
+{
+	struct xroot_impl Anchor;
+
+	memset(&Anchor, 0, sizeof(Anchor));
+	Anchor.Path = (str)sDisplayPath;
+	Anchor.Handle = pState->Directory;
+	return xrtRootStat(&Anchor, sName,
+		(iFlags & XDIR_FOLLOW_LINKS) != 0u, pInfo);
+}
+
+
+
+#if defined(_WIN32) || defined(_WIN64)
+
+#define XRT_ROOT_DIR_STATUS_NO_MORE_FILES ((xrt_root_dir_status)0x80000006L)
+#define XRT_ROOT_DIR_STATUS_BUFFER_OVERFLOW ((xrt_root_dir_status)0x80000005L)
+#define XRT_ROOT_DIR_INFORMATION_CLASS 1
+#define XRT_ROOT_DIR_BUFFER_SIZE (64u * 1024u)
+
+struct xrt_root_dir_io_status {
+	union {
+		xrt_root_dir_status Status;
+		PVOID Pointer;
+	};
+	ULONG_PTR Information;
+};
+
+typedef struct xrt_root_dir_information {
+	ULONG NextEntryOffset;
+	ULONG FileIndex;
+	LARGE_INTEGER CreationTime;
+	LARGE_INTEGER LastAccessTime;
+	LARGE_INTEGER LastWriteTime;
+	LARGE_INTEGER ChangeTime;
+	LARGE_INTEGER EndOfFile;
+	LARGE_INTEGER AllocationSize;
+	ULONG FileAttributes;
+	ULONG FileNameLength;
+	WCHAR FileName[1];
+} xrt_root_dir_information;
+
+typedef ULONG (WINAPI *xrt_root_dir_error_proc)(xrt_root_dir_status Status);
+
+
+
+/* 把 NTSTATUS 转换为目录错误使用的 Win32 代码。 */
+static int __xrtRootDirWindowsError(xrt_root_dir_status Status)
+{
+	HMODULE hModule = GetModuleHandleW(L"ntdll.dll");
+	xrt_root_dir_error_proc pConvert = hModule != NULL ?
+		(xrt_root_dir_error_proc)(uintptr_t)
+		GetProcAddress(hModule, "RtlNtStatusToDosError") : NULL;
+
+	return pConvert != NULL ? (int)pConvert(Status) : ERROR_GEN_FAILURE;
+}
+
+
+
+/* 严格转换单条 UTF-16 名称并复用状态缓冲。 */
+static bool __xrtRootDirWindowsName(xrt_root_dir_state* pState,
+	const WCHAR* sName, size_t iUnits, size_t* pSize)
+{
+	xutf16view Source = { (const uint16*)sName, iUnits };
+	xutfresult Measure = xrtUtf16To8Buffer(Source, NULL, 0u, XUTF_STRICT);
+	xutfresult Result;
+	size_t iNeed;
+
+	if ( Measure.Status != XUTF_OK ) {
+		__xrtDirError(XERR_VALUE, XDIR_ERROR_ENTRY,
+			"root-entry-name", "a Windows directory name is not valid UTF-16");
+		return false;
+	}
+	if ( Measure.Written == SIZE_MAX ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	iNeed = Measure.Written + 1u;
+	if ( pState->NameCapacity < iNeed ) {
+		str sBuffer = (str)xrtRealloc(pState->Name, iNeed);
+
+		if ( sBuffer == NULL ) return false;
+		pState->Name = sBuffer;
+		pState->NameCapacity = iNeed;
+	}
+	Result = xrtUtf16To8Buffer(Source, pState->Name,
+		pState->NameCapacity - 1u, XUTF_STRICT);
+	if ( (Result.Status != XUTF_OK) || (Result.Read != iUnits) ||
+		 (Result.Written != Measure.Written) ) {
+		__xrtDirError(XERR_VALUE, XDIR_ERROR_ENTRY,
+			"root-entry-name", "a Windows directory name changed during conversion");
+		return false;
+	}
+	pState->Name[Result.Written] = '\0';
+	*pSize = Result.Written;
+	return true;
+}
+
+
+
+/* 把 NT 目录信息映射到公共的基本元数据。 */
+static void __xrtRootDirWindowsInfo(
+	const xrt_root_dir_information* pNative, xfileinfo* pInfo)
+{
+	WIN32_FIND_DATAW Data;
+
+	memset(&Data, 0, sizeof(Data));
+	Data.dwFileAttributes = pNative->FileAttributes;
+	Data.ftCreationTime.dwLowDateTime = pNative->CreationTime.LowPart;
+	Data.ftCreationTime.dwHighDateTime = (DWORD)pNative->CreationTime.HighPart;
+	Data.ftLastAccessTime.dwLowDateTime = pNative->LastAccessTime.LowPart;
+	Data.ftLastAccessTime.dwHighDateTime =
+		(DWORD)pNative->LastAccessTime.HighPart;
+	Data.ftLastWriteTime.dwLowDateTime = pNative->LastWriteTime.LowPart;
+	Data.ftLastWriteTime.dwHighDateTime =
+		(DWORD)pNative->LastWriteTime.HighPart;
+	Data.nFileSizeLow = pNative->EndOfFile.LowPart;
+	Data.nFileSizeHigh = (DWORD)pNative->EndOfFile.HighPart;
+	__xrtFileWindowsFindInfo(&Data, pInfo);
+}
+
+
+
+/* NtQueryDirectoryFile 的 single-entry 模式避免借用易失的路径字符串。 */
+static xdirnext __xrtRootDirNext(ptr pData, cstr sDisplayPath,
+	uint32 iFlags, xdirentry* pEntry)
+{
+	xrt_root_dir_state* pState = (xrt_root_dir_state*)pData;
+
+	for ( ;; ) {
+		xrt_root_dir_io_status Io;
+		xrt_root_dir_information* pNative;
+		xrt_root_dir_status Status;
+		size_t iNameBytes;
+		size_t iNameSize;
+		xdirentry Entry;
+
+		memset(&Io, 0, sizeof(Io));
+		Status = pState->Query(pState->Directory, NULL, NULL, NULL, &Io,
+			pState->Buffer, (ULONG)pState->BufferSize,
+			XRT_ROOT_DIR_INFORMATION_CLASS, TRUE, NULL,
+			pState->Restart ? TRUE : FALSE);
+		pState->Restart = false;
+		if ( Status == XRT_ROOT_DIR_STATUS_NO_MORE_FILES )
+			return XDIR_NEXT_END;
+		if ( Status == XRT_ROOT_DIR_STATUS_BUFFER_OVERFLOW ) {
+			__xrtDirError(XERR_RANGE, XDIR_ERROR_ENTRY,
+				"root-next", "a directory entry exceeds the native buffer limit");
+			return XDIR_NEXT_ERROR;
+		}
+		if ( Status < 0 ) {
+			__xrtDirSetError(XDIR_ERROR_NEXT, "root-next",
+				"failed while reading an anchored Windows directory",
+				__xrtRootDirWindowsError(Status));
+			return XDIR_NEXT_ERROR;
+		}
+		if ( Io.Information < offsetof(xrt_root_dir_information, FileName) ) {
+			__xrtDirError(XERR_PROTOCOL, XDIR_ERROR_ENTRY,
+				"root-next", "Windows returned a truncated directory entry");
+			return XDIR_NEXT_ERROR;
+		}
+		pNative = (xrt_root_dir_information*)pState->Buffer;
+		iNameBytes = (size_t)pNative->FileNameLength;
+		if ( ((iNameBytes % sizeof(WCHAR)) != 0u) ||
+			 (iNameBytes > (size_t)Io.Information -
+			  offsetof(xrt_root_dir_information, FileName)) ) {
+			__xrtDirError(XERR_PROTOCOL, XDIR_ERROR_ENTRY,
+				"root-next", "Windows returned an invalid directory name length");
+			return XDIR_NEXT_ERROR;
+		}
+		if ( !__xrtRootDirWindowsName(pState, pNative->FileName,
+			iNameBytes / sizeof(WCHAR), &iNameSize) )
+			return XDIR_NEXT_ERROR;
+		if ( __xrtRootDirDot(pState->Name) ) continue;
+		memset(&Entry, 0, sizeof(Entry));
+		Entry.Name.Data = pState->Name;
+		Entry.Name.Size = iNameSize;
+		Entry.Flags = XDIR_ENTRY_UTF8;
+		__xrtRootDirWindowsInfo(pNative, &Entry.Info);
+		if ( (iFlags & XDIR_STAT) != 0u &&
+			 !__xrtRootDirStat(pState, sDisplayPath,
+				pState->Name, iFlags, &Entry.Info) )
+			return XDIR_NEXT_ERROR;
+		*pEntry = Entry;
+		return XDIR_NEXT_ITEM;
+	}
+}
+
+#else
+
+/* 把 POSIX dirent 类型映射到无需额外 stat 的对象类别。 */
+static xfiletype __xrtRootDirPosixType(unsigned char iType)
+{
+	#if defined(DT_REG)
+		if ( iType == DT_REG ) return XFILE_TYPE_FILE;
+		if ( iType == DT_DIR ) return XFILE_TYPE_DIRECTORY;
+		if ( iType == DT_LNK ) return XFILE_TYPE_LINK;
+		if ( iType == DT_FIFO ) return XFILE_TYPE_FIFO;
+		if ( iType == DT_SOCK ) return XFILE_TYPE_SOCKET;
+		if ( (iType == DT_CHR) || (iType == DT_BLK) )
+			return XFILE_TYPE_DEVICE;
+	#else
+		(void)iType;
+	#endif
+	return XFILE_TYPE_NONE;
+}
+
+
+
+/* readdir 与 fstatat 始终以同一个打开目录描述符为锚点。 */
+static xdirnext __xrtRootDirNext(ptr pData, cstr sDisplayPath,
+	uint32 iFlags, xdirentry* pEntry)
+{
+	xrt_root_dir_state* pState = (xrt_root_dir_state*)pData;
+
+	for ( ;; ) {
+		struct dirent* pNative;
+		xdirentry Entry;
+
+		do {
+			errno = 0;
+			pNative = readdir(pState->Stream);
+		} while ( (pNative == NULL) && (errno == EINTR) );
+		if ( pNative == NULL ) {
+			if ( errno == 0 ) return XDIR_NEXT_END;
+			__xrtDirSetError(XDIR_ERROR_NEXT, "root-next",
+				"failed while reading an anchored POSIX directory", errno);
+			return XDIR_NEXT_ERROR;
+		}
+		if ( __xrtRootDirDot(pNative->d_name) ) continue;
+		memset(&Entry, 0, sizeof(Entry));
+		Entry.Name.Data = pNative->d_name;
+		Entry.Name.Size = strlen(pNative->d_name);
+		#if defined(DT_REG)
+			Entry.Info.Type = __xrtRootDirPosixType(pNative->d_type);
+		#else
+			Entry.Info.Type = __xrtRootDirPosixType(0u);
+		#endif
+		if ( xrtUtf8Valid(Entry.Name, NULL) )
+			Entry.Flags = XDIR_ENTRY_UTF8;
+		if ( (iFlags & XDIR_STAT) != 0u &&
+			 !__xrtRootDirStat(pState, sDisplayPath,
+				pNative->d_name, iFlags, &Entry.Info) )
+			return XDIR_NEXT_ERROR;
+		*pEntry = Entry;
+		return XDIR_NEXT_ITEM;
+	}
+}
+
+#endif
+
+
+
+/* 关闭枚举流和它拥有的目录句柄。 */
+static bool __xrtRootDirClose(ptr pData)
+{
+	xrt_root_dir_state* pState = (xrt_root_dir_state*)pData;
+	bool bResult = true;
+	int iCode = 0;
+
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( !__xrtRootNativeClose(pState->Directory, false) ) {
+			bResult = false;
+			iCode = (int)GetLastError();
+		}
+		xrtFree(pState->Name);
+		xrtFree(pState->Buffer);
+	#else
+		if ( closedir(pState->Stream) != 0 ) {
+			bResult = false;
+			iCode = errno;
+		}
+	#endif
+	xrtFree(pState);
+	if ( !bResult ) {
+		__xrtDirSetError(XDIR_ERROR_CLOSE, "root-close",
+			"failed to close the anchored directory iterator", iCode);
+	}
+	return bResult;
+}
+
+
+
+static const xrt_dir_backend_ops __xrtRootDirOps = {
+	(uint32)sizeof(xrt_dir_backend_ops),
+	XRT_DIR_BACKEND_VERSION,
+	false,
+	{ 0u, 0u, 0u },
+	__xrtRootDirNext,
+	__xrtRootDirClose
+};
+
+
+
+/* 接管已经由 root resolver 打开的目录句柄。 */
+xdir __xrtRootNativeDirTake(xrootnative Handle,
+	cstr sDisplayPath, uint32 iFlags)
+{
+	xrt_root_dir_state* pState;
+
+	if ( (Handle == XRT_ROOT_NATIVE_INVALID) ||
+		 (sDisplayPath == NULL) || (sDisplayPath[0] == '\0') ||
+		 ((iFlags & XDIR_INCLUDE_DOTS) != 0u) ) {
+		if ( Handle != XRT_ROOT_NATIVE_INVALID )
+			(void)__xrtRootNativeClose(Handle, false);
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pState = (xrt_root_dir_state*)xrtCalloc(1u, sizeof(*pState));
+	if ( pState == NULL ) {
+		(void)__xrtRootNativeClose(Handle, false);
+		return NULL;
+	}
+	pState->Directory = Handle;
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			HMODULE hModule = GetModuleHandleW(L"ntdll.dll");
+
+			pState->Query = hModule != NULL ?
+				(xrt_root_dir_query_proc)(uintptr_t)
+				GetProcAddress(hModule, "NtQueryDirectoryFile") : NULL;
+			if ( pState->Query == NULL ) {
+				(void)__xrtRootNativeClose(Handle, false);
+				xrtFree(pState);
+				__xrtDirError(XERR_UNSUPPORTED, XDIR_ERROR_OPEN,
+					"root-open", "NtQueryDirectoryFile is unavailable");
+				return NULL;
+			}
+		}
+		pState->BufferSize = XRT_ROOT_DIR_BUFFER_SIZE;
+		pState->Buffer = (bytes)xrtMalloc(pState->BufferSize);
+		if ( pState->Buffer == NULL ) {
+			(void)__xrtRootNativeClose(Handle, false);
+			xrtFree(pState);
+			return NULL;
+		}
+		pState->Restart = true;
+	#else
+		pState->Stream = fdopendir(Handle);
+		if ( pState->Stream == NULL ) {
+			int iCode = errno;
+
+			(void)__xrtRootNativeClose(Handle, false);
+			xrtFree(pState);
+			__xrtDirSetError(XDIR_ERROR_OPEN, "root-open",
+				"failed to attach a stream to the anchored directory", iCode);
+			return NULL;
+		}
+		pState->Directory = dirfd(pState->Stream);
+	#endif
+	return __xrtDirTakeBackend(&__xrtRootDirOps,
+		pState, sDisplayPath, iFlags);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/fs/vfs_disk.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_DISK)
+
+#include <stdlib.h>
+
+
+
+#if defined(XRT_FEATURE_VFS_DISK)
+
+typedef struct xrt_vfs_disk_entry {
+	str Name;
+	size_t NameSize;
+	xfileinfo Info;
+} xrt_vfs_disk_entry;
+
+typedef struct xrt_vfs_disk_dir {
+	xrt_vfs_disk_entry* Items;
+	size_t Count;
+	size_t Capacity;
+	size_t Position;
+} xrt_vfs_disk_dir;
+
+struct xvfs_disk_impl {
+	volatile int32 RefCount;
+	xroot Root;
+	uint32 Access;
+};
+
+
+
+/* 把 root 的不存在错误转换为可回退 MISS。 */
+static xvfslookup __xrtVfsDiskFailure(void)
+{
+	const xerror* pError = xrtGetError();
+
+	if ( (pError != NULL) &&
+		 (xrtErrorKind(pError) == XERR_NOT_FOUND) ) {
+		xrtClearError();
+		return XVFS_LOOKUP_MISS;
+	}
+	return XVFS_LOOKUP_ERROR;
+}
+
+
+
+/* 检查一次文件打开所需的冻结权限。 */
+static bool __xrtVfsDiskOpenAccess(xvfsdisk Disk,
+	const xfileoptions* pOptions)
+{
+	uint32 iWrite = XFILE_WRITE | XFILE_CREATE | XFILE_TRUNCATE |
+		XFILE_APPEND | XFILE_EXCLUSIVE | XFILE_SYNC;
+
+	if ( ((pOptions->Flags & XFILE_READ) != 0u) &&
+		 ((Disk->Access & XVFS_DISK_READ) == 0u) ) {
+		__xrtVfsError(XERR_PERMISSION, XVFS_ERROR_OPEN,
+			"disk-open", "the disk provider does not grant read access");
+		return false;
+	}
+	if ( ((pOptions->Flags & iWrite) != 0u) &&
+		 ((Disk->Access & XVFS_DISK_WRITE) == 0u) ) {
+		__xrtVfsError(XERR_PERMISSION, XVFS_ERROR_OPEN,
+			"disk-open", "the disk provider does not grant write access");
+		return false;
+	}
+	return true;
+}
+
+
+
+/* 释放 ASCII-insensitive 解析过程中取得的子根。 */
+static bool __xrtVfsDiskCloseChild(xroot* pOwned)
+{
+	bool bResult;
+
+	if ( *pOwned == NULL ) return true;
+	bResult = xrtRootClose(*pOwned);
+	*pOwned = NULL;
+	return bResult;
+}
+
+
+
+/* 按 ASCII 折叠逐分量选择唯一的实际磁盘名称。 */
+static xvfslookup __xrtVfsDiskResolveFolded(xvfsdisk Disk,
+	xstrview RelativePath, bool bAllowMissingFinal, str* pPath)
+{
+	str sPath;
+	size_t iStart = 0u;
+	size_t iWrite = 0u;
+	xroot Current = Disk->Root;
+	xroot Owned = NULL;
+	xvfslookup Result = XVFS_LOOKUP_ERROR;
+
+	if ( RelativePath.Size == 0u ) {
+		*pPath = xrtStrDup(".");
+		return *pPath != NULL ? XVFS_LOOKUP_OPENED : XVFS_LOOKUP_ERROR;
+	}
+	if ( RelativePath.Size == SIZE_MAX ) {
+		__xrtErrorSetSizeOverflow();
+		return XVFS_LOOKUP_ERROR;
+	}
+	sPath = (str)xrtMalloc(RelativePath.Size + 1u);
+	if ( sPath == NULL ) return XVFS_LOOKUP_ERROR;
+	while ( iStart < RelativePath.Size ) {
+		size_t iEnd = iStart;
+		size_t iOutputStart = iWrite;
+		xstrview Requested;
+		xdir Dir;
+		xdirentry Entry;
+		xdirnext Next;
+		size_t iMatches = 0u;
+		bool bFinal;
+
+		while ( (iEnd < RelativePath.Size) &&
+			 (RelativePath.Data[iEnd] != '/') ) iEnd++;
+		Requested.Data = RelativePath.Data + iStart;
+		Requested.Size = iEnd - iStart;
+		bFinal = iEnd == RelativePath.Size;
+		Dir = __xrtRootDirOpenPolicy(Current, ".", 0u,
+			XROOT_POLICY_CASE_SENSITIVE);
+		if ( Dir == NULL ) goto done;
+		while ( (Next = xrtDirNext(Dir, &Entry)) == XDIR_NEXT_ITEM ) {
+			if ( ((Entry.Flags & XDIR_ENTRY_UTF8) == 0u) ||
+				 !xrtStrCaseEqual(Entry.Name, Requested) ) continue;
+			iMatches++;
+			if ( iMatches == 1u ) {
+				memcpy(sPath + iWrite,
+					Entry.Name.Data, Entry.Name.Size);
+				iWrite += Entry.Name.Size;
+			}
+		}
+		if ( Next == XDIR_NEXT_ERROR ) {
+			(void)xrtDirClose(Dir);
+			goto done;
+		}
+		if ( !xrtDirClose(Dir) ) goto done;
+		if ( iMatches > 1u ) {
+			__xrtVfsError(XERR_EXISTS, XVFS_ERROR_OPEN,
+				"disk-resolve", "the disk path is ambiguous under ASCII folding");
+			goto done;
+		}
+		if ( iMatches == 0u ) {
+			if ( !bFinal || !bAllowMissingFinal ) {
+				Result = XVFS_LOOKUP_MISS;
+				goto done;
+			}
+			memcpy(sPath + iWrite, Requested.Data, Requested.Size);
+			iWrite += Requested.Size;
+		}
+		sPath[iWrite] = '\0';
+		if ( !bFinal ) {
+			xroot Child = __xrtRootOpenInPolicy(Current,
+				sPath + iOutputStart, XROOT_POLICY_CASE_SENSITIVE);
+
+			if ( Child == NULL ) {
+				Result = __xrtVfsDiskFailure();
+				goto done;
+			}
+			if ( !__xrtVfsDiskCloseChild(&Owned) ) {
+				(void)xrtRootClose(Child);
+				goto done;
+			}
+			Owned = Child;
+			Current = Child;
+			sPath[iWrite++] = '/';
+		}
+		iStart = iEnd + 1u;
+	}
+	sPath[iWrite] = '\0';
+	*pPath = sPath;
+	sPath = NULL;
+	Result = XVFS_LOOKUP_OPENED;
+
+done:
+	if ( !__xrtVfsDiskCloseChild(&Owned) ) Result = XVFS_LOOKUP_ERROR;
+	xrtFree(sPath);
+	return Result;
+}
+
+
+
+/* 生成根 API 接受的实际相对路径。 */
+static xvfslookup __xrtVfsDiskResolve(xvfsdisk Disk,
+	xvfscase CaseMode, xstrview RelativePath,
+	bool bAllowMissingFinal, str* pPath)
+{
+	*pPath = NULL;
+	if ( CaseMode == XVFS_CASE_ASCII_INSENSITIVE ) {
+		return __xrtVfsDiskResolveFolded(Disk,
+			RelativePath, bAllowMissingFinal, pPath);
+	}
+	if ( CaseMode != XVFS_CASE_SENSITIVE ) {
+		__xrtErrorSetInvalidArgument();
+		return XVFS_LOOKUP_ERROR;
+	}
+	*pPath = RelativePath.Size == 0u ?
+		xrtStrDup(".") : xrtStrDupView(RelativePath);
+	return *pPath != NULL ? XVFS_LOOKUP_OPENED : XVFS_LOOKUP_ERROR;
+}
+
+
+
+/* 解析并严格查询对象；可为末级创建保留不存在结果。 */
+static xvfslookup __xrtVfsDiskResolveStat(xvfsdisk Disk,
+	xvfscase CaseMode, xstrview RelativePath,
+	bool bAllowMissingFinal, str* pPath,
+	xfileinfo* pInfo, bool* pExists)
+{
+	xvfslookup Result = __xrtVfsDiskResolve(Disk,
+		CaseMode, RelativePath, bAllowMissingFinal, pPath);
+
+	*pExists = false;
+	if ( Result != XVFS_LOOKUP_OPENED ) return Result;
+	if ( __xrtRootStatPolicy(Disk->Root, *pPath, true, pInfo,
+		XROOT_POLICY_CASE_SENSITIVE) ) {
+		*pExists = true;
+		return XVFS_LOOKUP_OPENED;
+	}
+	Result = __xrtVfsDiskFailure();
+	if ( (Result == XVFS_LOOKUP_MISS) && bAllowMissingFinal ) {
+		return XVFS_LOOKUP_OPENED;
+	}
+	xrtFree(*pPath);
+	*pPath = NULL;
+	return Result;
+}
+
+
+
+/* 返回原生 xfile，使 native handle、map、lock 和 async 能力保持不变。 */
+static xvfslookup __xrtVfsDiskOpenNative(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	const xfileoptions* pOptions, xfile* pFile)
+{
+	xvfsdisk Disk = (xvfsdisk)pContext;
+	str sPath = NULL;
+	xfileinfo Info;
+	bool bExists;
+	bool bCreate = (pOptions->Flags & XFILE_CREATE) != 0u;
+	xvfslookup Result;
+
+	if ( !__xrtVfsDiskOpenAccess(Disk, pOptions) )
+		return XVFS_LOOKUP_ERROR;
+	Result = __xrtVfsDiskResolveStat(Disk, CaseMode, RelativePath,
+		bCreate, &sPath, &Info, &bExists);
+	if ( Result != XVFS_LOOKUP_OPENED ) return Result;
+	if ( bExists && (Info.Type == XFILE_TYPE_DIRECTORY) ) {
+		xrtFree(sPath);
+		return XVFS_LOOKUP_MISS;
+	}
+	if ( bExists && (Info.Type != XFILE_TYPE_FILE) ) {
+		xrtFree(sPath);
+		__xrtVfsError(XERR_UNSUPPORTED, XVFS_ERROR_OPEN,
+			"disk-open", "the disk provider only opens regular files");
+		return XVFS_LOOKUP_ERROR;
+	}
+	*pFile = __xrtRootFileOpenPolicy(Disk->Root, sPath,
+		pOptions, XROOT_POLICY_CASE_SENSITIVE | XROOT_POLICY_REGULAR_FILE);
+	xrtFree(sPath);
+	if ( *pFile == NULL ) return __xrtVfsDiskFailure();
+	return XVFS_LOOKUP_OPENED;
+}
+
+
+
+/* Disk stat 从不跟随链接；发现链接时 root policy 返回权限错误。 */
+static xvfslookup __xrtVfsDiskStat(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	bool bFollowLink, xfileinfo* pInfo)
+{
+	xvfsdisk Disk = (xvfsdisk)pContext;
+	str sPath = NULL;
+	bool bExists;
+	xvfslookup Result;
+	(void)bFollowLink;
+
+	if ( (Disk->Access & XVFS_DISK_READ) == 0u ) {
+		__xrtVfsError(XERR_PERMISSION, XVFS_ERROR_STAT,
+			"disk-stat", "the disk provider does not grant read access");
+		return XVFS_LOOKUP_ERROR;
+	}
+	Result = __xrtVfsDiskResolveStat(Disk, CaseMode, RelativePath,
+		false, &sPath, pInfo, &bExists);
+	xrtFree(sPath);
+	return Result;
+}
+
+
+
+static void __xrtVfsDiskEntriesFree(xrt_vfs_disk_entry* pItems,
+	size_t iCount)
+{
+	if ( pItems == NULL ) return;
+	for ( size_t i = 0u; i < iCount; i++ ) xrtFree(pItems[i].Name);
+	xrtFree(pItems);
+}
+
+static bool __xrtVfsDiskDirReserve(xrt_vfs_disk_dir* pDir)
+{
+	xrt_vfs_disk_entry* pItems;
+	size_t iCapacity;
+
+	if ( pDir->Count < pDir->Capacity ) return true;
+	iCapacity = pDir->Capacity == 0u ? 16u : pDir->Capacity * 2u;
+	if ( (iCapacity < pDir->Capacity) ||
+		 (iCapacity > (SIZE_MAX / sizeof(*pItems))) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	pItems = (xrt_vfs_disk_entry*)xrtRealloc(pDir->Items,
+		iCapacity * sizeof(*pItems));
+	if ( pItems == NULL ) return false;
+	pDir->Items = pItems;
+	pDir->Capacity = iCapacity;
+	return true;
+}
+
+static int __xrtVfsDiskEntryCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_disk_entry* pA = (const xrt_vfs_disk_entry*)pLeft;
+	const xrt_vfs_disk_entry* pB = (const xrt_vfs_disk_entry*)pRight;
+	return xrtStrCompare((xstrview){ pA->Name, pA->NameSize },
+		(xstrview){ pB->Name, pB->NameSize });
+}
+
+static int __xrtVfsDiskEntryFoldCompare(const void* pLeft,
+	const void* pRight)
+{
+	const xrt_vfs_disk_entry* pA = (const xrt_vfs_disk_entry*)pLeft;
+	const xrt_vfs_disk_entry* pB = (const xrt_vfs_disk_entry*)pRight;
+	int iResult = xrtStrCaseCompare(
+		(xstrview){ pA->Name, pA->NameSize },
+		(xstrview){ pB->Name, pB->NameSize });
+
+	return iResult != 0 ? iResult : __xrtVfsDiskEntryCompare(pLeft, pRight);
+}
+
+
+
+static bool __xrtVfsDiskDirNext(void* pState,
+	xdirentry* pEntry, bool* pEnd)
+{
+	xrt_vfs_disk_dir* pDir = (xrt_vfs_disk_dir*)pState;
+	xrt_vfs_disk_entry* pItem;
+
+	if ( pDir->Position == pDir->Count ) {
+		*pEnd = true;
+		return true;
+	}
+	pItem = &pDir->Items[pDir->Position++];
+	memset(pEntry, 0, sizeof(*pEntry));
+	pEntry->Name.Data = pItem->Name;
+	pEntry->Name.Size = pItem->NameSize;
+	pEntry->Info = pItem->Info;
+	pEntry->Flags = XDIR_ENTRY_UTF8;
+	*pEnd = false;
+	return true;
+}
+
+static void __xrtVfsDiskDirClose(void* pState)
+{
+	xrt_vfs_disk_dir* pDir = (xrt_vfs_disk_dir*)pState;
+	__xrtVfsDiskEntriesFree(pDir->Items, pDir->Count);
+	xrtFree(pDir);
+}
+
+static const xvfsdirops_v1 __xrtVfsDiskDirOps = {
+	(uint32)sizeof(xvfsdirops_v1),
+	XRT_VFS_DIR_OPS_VERSION,
+	__xrtVfsDiskDirNext,
+	__xrtVfsDiskDirClose
+};
+
+
+
+/* 物化物理目录，拒绝链接和不区分大小写时的名称冲突。 */
+static xvfslookup __xrtVfsDiskDirOpen(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	uint32 iFlags, xvfsdir_v1* pOutput)
+{
+	xvfsdisk Disk = (xvfsdisk)pContext;
+	str sPath = NULL;
+	xfileinfo Info;
+	bool bExists;
+	xvfslookup Result;
+	xdir Native = NULL;
+	xrt_vfs_disk_dir* pDir = NULL;
+	xdirentry Entry;
+	xdirnext Next;
+	(void)iFlags;
+
+	if ( (Disk->Access & XVFS_DISK_READ) == 0u ) {
+		__xrtVfsError(XERR_PERMISSION, XVFS_ERROR_DIRECTORY,
+			"disk-directory", "the disk provider does not grant read access");
+		return XVFS_LOOKUP_ERROR;
+	}
+	Result = __xrtVfsDiskResolveStat(Disk, CaseMode, RelativePath,
+		false, &sPath, &Info, &bExists);
+	if ( Result != XVFS_LOOKUP_OPENED ) return Result;
+	if ( Info.Type != XFILE_TYPE_DIRECTORY ) {
+		xrtFree(sPath);
+		return XVFS_LOOKUP_MISS;
+	}
+	Native = __xrtRootDirOpenPolicy(Disk->Root, sPath,
+		XDIR_STAT, XROOT_POLICY_CASE_SENSITIVE);
+	xrtFree(sPath);
+	if ( Native == NULL ) return __xrtVfsDiskFailure();
+	pDir = (xrt_vfs_disk_dir*)xrtCalloc(1u, sizeof(*pDir));
+	if ( pDir == NULL ) goto fail;
+	while ( (Next = xrtDirNext(Native, &Entry)) == XDIR_NEXT_ITEM ) {
+		xrt_vfs_disk_entry* pItem;
+
+		if ( (Entry.Flags & XDIR_ENTRY_UTF8) == 0u ) continue;
+		if ( Entry.Info.Type == XFILE_TYPE_LINK ) {
+			__xrtVfsError(XERR_PERMISSION, XVFS_ERROR_DIRECTORY,
+				"disk-directory", "the disk provider rejects symbolic links");
+			goto fail;
+		}
+		if ( !__xrtVfsDiskDirReserve(pDir) ) goto fail;
+		pItem = &pDir->Items[pDir->Count];
+		memset(pItem, 0, sizeof(*pItem));
+		pItem->Name = xrtStrDupView(Entry.Name);
+		if ( pItem->Name == NULL ) goto fail;
+		pItem->NameSize = Entry.Name.Size;
+		pItem->Info = Entry.Info;
+		pDir->Count++;
+	}
+	if ( Next == XDIR_NEXT_ERROR ) goto fail;
+	if ( !xrtDirClose(Native) ) {
+		Native = NULL;
+		goto fail;
+	}
+	Native = NULL;
+	if ( pDir->Count > 1u ) {
+		qsort(pDir->Items, pDir->Count, sizeof(pDir->Items[0]),
+			CaseMode == XVFS_CASE_ASCII_INSENSITIVE ?
+			__xrtVfsDiskEntryFoldCompare : __xrtVfsDiskEntryCompare);
+	}
+	if ( CaseMode == XVFS_CASE_ASCII_INSENSITIVE ) {
+		for ( size_t i = 1u; i < pDir->Count; i++ ) {
+			if ( xrtStrCaseEqual(
+				(xstrview){ pDir->Items[i - 1u].Name,
+					pDir->Items[i - 1u].NameSize },
+				(xstrview){ pDir->Items[i].Name,
+					pDir->Items[i].NameSize }) ) {
+				__xrtVfsError(XERR_EXISTS, XVFS_ERROR_DIRECTORY,
+					"disk-directory",
+					"the physical directory has names that collide under ASCII folding");
+				goto fail;
+			}
+		}
+	}
+	pOutput->Ops = &__xrtVfsDiskDirOps;
+	pOutput->State = pDir;
+	return XVFS_LOOKUP_OPENED;
+
+fail:
+	if ( Native != NULL ) (void)xrtDirClose(Native);
+	if ( pDir != NULL ) __xrtVfsDiskDirClose(pDir);
+	return XVFS_LOOKUP_ERROR;
+}
+
+
+
+XRT_API xvfsdisk xrtVfsDiskCreate(cstr sPhysicalRoot, uint32 iAccess)
+{
+	xroot Root;
+	xvfsdisk Disk;
+
+	if ( (sPhysicalRoot == NULL) || (sPhysicalRoot[0] == '\0') ||
+		 (iAccess == 0u) || ((iAccess & ~XVFS_DISK_ACCESS) != 0u) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	Root = xrtRootOpen(sPhysicalRoot);
+	if ( Root == NULL ) return NULL;
+	Disk = (xvfsdisk)xrtMalloc(sizeof(*Disk));
+	if ( Disk == NULL ) {
+		xerror* pBefore = xrtTakeError();
+
+		(void)xrtRootClose(Root);
+		xrtClearError();
+		if ( pBefore != NULL ) __xrtErrorSetOwned(pBefore);
+		return NULL;
+	}
+	Disk->RefCount = 1;
+	Disk->Root = Root;
+	Disk->Access = iAccess;
+	return Disk;
+}
+
+XRT_API void xrtVfsDiskRef(xvfsdisk Disk)
+{
+	if ( Disk == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	if ( xrtRefRetain(&Disk->RefCount) < 0 ) abort();
+}
+
+XRT_API void xrtVfsDiskDestroy(xvfsdisk Disk)
+{
+	xerror* pBefore;
+
+	if ( (Disk == NULL) || (xrtRefRelease(&Disk->RefCount) != 0) ) return;
+	pBefore = xrtTakeError();
+	(void)xrtRootClose(Disk->Root);
+	xrtClearError();
+	if ( pBefore != NULL ) __xrtErrorSetOwned(pBefore);
+	xrtFree(Disk);
+}
+
+
+
+static void __xrtVfsDiskContextRetain(void* pContext)
+{
+	xrtVfsDiskRef((xvfsdisk)pContext);
+}
+
+static void __xrtVfsDiskContextRelease(void* pContext)
+{
+	xrtVfsDiskDestroy((xvfsdisk)pContext);
+}
+
+static const xvfsprovider_v1 __xrtVfsDiskProvider = {
+	(uint32)sizeof(xvfsprovider_v1),
+	XRT_VFS_PROVIDER_VERSION,
+	XVFS_PROVIDER_STAT | XVFS_PROVIDER_DIRECTORY |
+		XVFS_PROVIDER_NATIVE_OPEN,
+	__xrtVfsDiskContextRetain,
+	__xrtVfsDiskContextRelease,
+	NULL,
+	__xrtVfsDiskStat,
+	__xrtVfsDiskDirOpen,
+	__xrtVfsDiskOpenNative
+};
+
+XRT_API xvfsmount xrtVfsDiskMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfsdisk Disk, uint32 iFlags)
+{
+	if ( (Vfs == NULL) || (Disk == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	return xrtVfsMount(Vfs, sVirtualPrefix, iPriority, CaseMode,
+		&__xrtVfsDiskProvider, Disk, iFlags);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/third_party/lzma/LzmaDec.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_PACK)
+/* LzmaDec.c -- LZMA Decoder
+2023-04-07 : Igor Pavlov : Public domain */
+
+/* XRT keeps the SDK implementation private and avoids linker collisions with
+ * hosts that already embed the same decoder. */
+#define LzmaProps_Decode __xrtLzmaPropsDecode
+#define LzmaDec_Init __xrtLzmaDecInit
+#define LzmaDec_AllocateProbs __xrtLzmaDecAllocateProbs
+#define LzmaDec_FreeProbs __xrtLzmaDecFreeProbs
+#define LzmaDec_Allocate __xrtLzmaDecAllocate
+#define LzmaDec_Free __xrtLzmaDecFree
+#define LzmaDec_DecodeToDic __xrtLzmaDecDecodeToDic
+#define LzmaDec_DecodeToBuf __xrtLzmaDecDecodeToBuf
+#define LzmaDecode __xrtLzmaDecode
+
+
+#include <string.h>
+
+/* #include "CpuArch.h" */
+
+// #define kNumTopBits 24
+#define kTopValue ((UInt32)1 << 24)
+
+#define kNumBitModelTotalBits 11
+#define kBitModelTotal (1 << kNumBitModelTotalBits)
+
+#define RC_INIT_SIZE 5
+
+#ifndef Z7_LZMA_DEC_OPT
+
+#define kNumMoveBits 5
+#define NORMALIZE if (range < kTopValue) { range <<= 8; code = (code << 8) | (*buf++); }
+
+#define IF_BIT_0(p) ttt = *(p); NORMALIZE; bound = (range >> kNumBitModelTotalBits) * (UInt32)ttt; if (code < bound)
+#define UPDATE_0(p) range = bound; *(p) = (CLzmaProb)(ttt + ((kBitModelTotal - ttt) >> kNumMoveBits));
+#define UPDATE_1(p) range -= bound; code -= bound; *(p) = (CLzmaProb)(ttt - (ttt >> kNumMoveBits));
+#define GET_BIT2(p, i, A0, A1) IF_BIT_0(p) \
+  { UPDATE_0(p)  i = (i + i); A0; } else \
+  { UPDATE_1(p)  i = (i + i) + 1; A1; }
+
+#define TREE_GET_BIT(probs, i) { GET_BIT2(probs + i, i, ;, ;); }
+
+#define REV_BIT(p, i, A0, A1) IF_BIT_0(p + i) \
+  { UPDATE_0(p + i)  A0; } else \
+  { UPDATE_1(p + i)  A1; }
+#define REV_BIT_VAR(  p, i, m) REV_BIT(p, i, i += m; m += m, m += m; i += m; )
+#define REV_BIT_CONST(p, i, m) REV_BIT(p, i, i += m;       , i += m * 2; )
+#define REV_BIT_LAST( p, i, m) REV_BIT(p, i, i -= m        , ; )
+
+#define TREE_DECODE(probs, limit, i) \
+  { i = 1; do { TREE_GET_BIT(probs, i); } while (i < limit); i -= limit; }
+
+/* #define Z7_LZMA_SIZE_OPT */
+
+#ifdef Z7_LZMA_SIZE_OPT
+#define TREE_6_DECODE(probs, i) TREE_DECODE(probs, (1 << 6), i)
+#else
+#define TREE_6_DECODE(probs, i) \
+  { i = 1; \
+  TREE_GET_BIT(probs, i) \
+  TREE_GET_BIT(probs, i) \
+  TREE_GET_BIT(probs, i) \
+  TREE_GET_BIT(probs, i) \
+  TREE_GET_BIT(probs, i) \
+  TREE_GET_BIT(probs, i) \
+  i -= 0x40; }
+#endif
+
+#define NORMAL_LITER_DEC TREE_GET_BIT(prob, symbol)
+#define MATCHED_LITER_DEC \
+  matchByte += matchByte; \
+  bit = offs; \
+  offs &= matchByte; \
+  probLit = prob + (offs + bit + symbol); \
+  GET_BIT2(probLit, symbol, offs ^= bit; , ;)
+
+#endif // Z7_LZMA_DEC_OPT
+
+
+#define NORMALIZE_CHECK if (range < kTopValue) { if (buf >= bufLimit) return DUMMY_INPUT_EOF; range <<= 8; code = (code << 8) | (*buf++); }
+
+#define IF_BIT_0_CHECK(p) ttt = *(p); NORMALIZE_CHECK bound = (range >> kNumBitModelTotalBits) * (UInt32)ttt; if (code < bound)
+#define UPDATE_0_CHECK range = bound;
+#define UPDATE_1_CHECK range -= bound; code -= bound;
+#define GET_BIT2_CHECK(p, i, A0, A1) IF_BIT_0_CHECK(p) \
+  { UPDATE_0_CHECK  i = (i + i); A0; } else \
+  { UPDATE_1_CHECK  i = (i + i) + 1; A1; }
+#define GET_BIT_CHECK(p, i) GET_BIT2_CHECK(p, i, ; , ;)
+#define TREE_DECODE_CHECK(probs, limit, i) \
+  { i = 1; do { GET_BIT_CHECK(probs + i, i) } while (i < limit); i -= limit; }
+
+
+#define REV_BIT_CHECK(p, i, m) IF_BIT_0_CHECK(p + i) \
+  { UPDATE_0_CHECK  i += m; m += m; } else \
+  { UPDATE_1_CHECK  m += m; i += m; }
+
+
+#define kNumPosBitsMax 4
+#define kNumPosStatesMax (1 << kNumPosBitsMax)
+
+#define kLenNumLowBits 3
+#define kLenNumLowSymbols (1 << kLenNumLowBits)
+#define kLenNumHighBits 8
+#define kLenNumHighSymbols (1 << kLenNumHighBits)
+
+#define LenLow 0
+#define LenHigh (LenLow + 2 * (kNumPosStatesMax << kLenNumLowBits))
+#define kNumLenProbs (LenHigh + kLenNumHighSymbols)
+
+#define LenChoice LenLow
+#define LenChoice2 (LenLow + (1 << kLenNumLowBits))
+
+#define kNumStates 12
+#define kNumStates2 16
+#define kNumLitStates 7
+
+#define kStartPosModelIndex 4
+#define kEndPosModelIndex 14
+#define kNumFullDistances (1 << (kEndPosModelIndex >> 1))
+
+#define kNumPosSlotBits 6
+#define kNumLenToPosStates 4
+
+#define kNumAlignBits 4
+#define kAlignTableSize (1 << kNumAlignBits)
+
+#define kMatchMinLen 2
+#define kMatchSpecLenStart (kMatchMinLen + kLenNumLowSymbols * 2 + kLenNumHighSymbols)
+
+#define kMatchSpecLen_Error_Data (1 << 9)
+#define kMatchSpecLen_Error_Fail (kMatchSpecLen_Error_Data - 1)
+
+/* External ASM code needs same CLzmaProb array layout. So don't change it. */
+
+/* (probs_1664) is faster and better for code size at some platforms */
+/*
+#ifdef MY_CPU_X86_OR_AMD64
+*/
+#define kStartOffset 1664
+#define GET_PROBS p->probs_1664
+/*
+#define GET_PROBS p->probs + kStartOffset
+#else
+#define kStartOffset 0
+#define GET_PROBS p->probs
+#endif
+*/
+
+#define SpecPos (-kStartOffset)
+#define IsRep0Long (SpecPos + kNumFullDistances)
+#define RepLenCoder (IsRep0Long + (kNumStates2 << kNumPosBitsMax))
+#define LenCoder (RepLenCoder + kNumLenProbs)
+#define IsMatch (LenCoder + kNumLenProbs)
+#define Align (IsMatch + (kNumStates2 << kNumPosBitsMax))
+#define IsRep (Align + kAlignTableSize)
+#define IsRepG0 (IsRep + kNumStates)
+#define IsRepG1 (IsRepG0 + kNumStates)
+#define IsRepG2 (IsRepG1 + kNumStates)
+#define PosSlot (IsRepG2 + kNumStates)
+#define Literal (PosSlot + (kNumLenToPosStates << kNumPosSlotBits))
+#define NUM_BASE_PROBS (Literal + kStartOffset)
+
+#if Align != 0 && kStartOffset != 0
+  #error Stop_Compiling_Bad_LZMA_kAlign
+#endif
+
+#if NUM_BASE_PROBS != 1984
+  #error Stop_Compiling_Bad_LZMA_PROBS
+#endif
+
+
+#define LZMA_LIT_SIZE 0x300
+
+#define LzmaProps_GetNumProbs(p) (NUM_BASE_PROBS + ((UInt32)LZMA_LIT_SIZE << ((p)->lc + (p)->lp)))
+
+
+#define CALC_POS_STATE(processedPos, pbMask) (((processedPos) & (pbMask)) << 4)
+#define COMBINED_PS_STATE (posState + state)
+#define GET_LEN_STATE (posState)
+
+#define LZMA_DIC_MIN (1 << 12)
+
+/*
+p->remainLen : shows status of LZMA decoder:
+    < kMatchSpecLenStart  : the number of bytes to be copied with (p->rep0) offset
+    = kMatchSpecLenStart  : the LZMA stream was finished with end mark
+    = kMatchSpecLenStart + 1  : need init range coder
+    = kMatchSpecLenStart + 2  : need init range coder and state
+    = kMatchSpecLen_Error_Fail                : Internal Code Failure
+    = kMatchSpecLen_Error_Data + [0 ... 273]  : LZMA Data Error
+*/
+
+/* ---------- LZMA_DECODE_REAL ---------- */
+/*
+LzmaDec_DecodeReal_3() can be implemented in external ASM file.
+3 - is the code compatibility version of that function for check at link time.
+*/
+
+#define LZMA_DECODE_REAL LzmaDec_DecodeReal_3
+
+/*
+LZMA_DECODE_REAL()
+In:
+  RangeCoder is normalized
+  if (p->dicPos == limit)
+  {
+    LzmaDec_TryDummy() was called before to exclude LITERAL and MATCH-REP cases.
+    So first symbol can be only MATCH-NON-REP. And if that MATCH-NON-REP symbol
+    is not END_OF_PAYALOAD_MARKER, then the function doesn't write any byte to dictionary,
+    the function returns SZ_OK, and the caller can use (p->remainLen) and (p->reps[0]) later.
+  }
+
+Processing:
+  The first LZMA symbol will be decoded in any case.
+  All main checks for limits are at the end of main loop,
+  It decodes additional LZMA-symbols while (p->buf < bufLimit && dicPos < limit),
+  RangeCoder is still without last normalization when (p->buf < bufLimit) is being checked.
+  But if (p->buf < bufLimit), the caller provided at least (LZMA_REQUIRED_INPUT_MAX + 1) bytes for
+  next iteration  before limit (bufLimit + LZMA_REQUIRED_INPUT_MAX),
+  that is enough for worst case LZMA symbol with one additional RangeCoder normalization for one bit.
+  So that function never reads bufLimit [LZMA_REQUIRED_INPUT_MAX] byte.
+
+Out:
+  RangeCoder is normalized
+  Result:
+    SZ_OK - OK
+      p->remainLen:
+        < kMatchSpecLenStart : the number of bytes to be copied with (p->reps[0]) offset
+        = kMatchSpecLenStart : the LZMA stream was finished with end mark
+
+    SZ_ERROR_DATA - error, when the MATCH-Symbol refers out of dictionary
+      p->remainLen : undefined
+      p->reps[*]    : undefined
+*/
+
+
+#ifdef Z7_LZMA_DEC_OPT
+
+int Z7_FASTCALL LZMA_DECODE_REAL(CLzmaDec *p, SizeT limit, const Byte *bufLimit);
+
+#else
+
+static
+int Z7_FASTCALL LZMA_DECODE_REAL(CLzmaDec *p, SizeT limit, const Byte *bufLimit)
+{
+  CLzmaProb *probs = GET_PROBS;
+  unsigned state = (unsigned)p->state;
+  UInt32 rep0 = p->reps[0], rep1 = p->reps[1], rep2 = p->reps[2], rep3 = p->reps[3];
+  unsigned pbMask = ((unsigned)1 << (p->prop.pb)) - 1;
+  unsigned lc = p->prop.lc;
+  unsigned lpMask = ((unsigned)0x100 << p->prop.lp) - ((unsigned)0x100 >> lc);
+
+  Byte *dic = p->dic;
+  SizeT dicBufSize = p->dicBufSize;
+  SizeT dicPos = p->dicPos;
+
+  UInt32 processedPos = p->processedPos;
+  UInt32 checkDicSize = p->checkDicSize;
+  unsigned len = 0;
+
+  const Byte *buf = p->buf;
+  UInt32 range = p->range;
+  UInt32 code = p->code;
+
+  do
+  {
+    CLzmaProb *prob;
+    UInt32 bound;
+    unsigned ttt;
+    unsigned posState = CALC_POS_STATE(processedPos, pbMask);
+
+    prob = probs + IsMatch + COMBINED_PS_STATE;
+    IF_BIT_0(prob)
+    {
+      unsigned symbol;
+      UPDATE_0(prob)
+      prob = probs + Literal;
+      if (processedPos != 0 || checkDicSize != 0)
+        prob += (UInt32)3 * ((((processedPos << 8) + dic[(dicPos == 0 ? dicBufSize : dicPos) - 1]) & lpMask) << lc);
+      processedPos++;
+
+      if (state < kNumLitStates)
+      {
+        state -= (state < 4) ? state : 3;
+        symbol = 1;
+        #ifdef Z7_LZMA_SIZE_OPT
+        do { NORMAL_LITER_DEC } while (symbol < 0x100);
+        #else
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        NORMAL_LITER_DEC
+        #endif
+      }
+      else
+      {
+        unsigned matchByte = dic[dicPos - rep0 + (dicPos < rep0 ? dicBufSize : 0)];
+        unsigned offs = 0x100;
+        state -= (state < 10) ? 3 : 6;
+        symbol = 1;
+        #ifdef Z7_LZMA_SIZE_OPT
+        do
+        {
+          unsigned bit;
+          CLzmaProb *probLit;
+          MATCHED_LITER_DEC
+        }
+        while (symbol < 0x100);
+        #else
+        {
+          unsigned bit;
+          CLzmaProb *probLit;
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+          MATCHED_LITER_DEC
+        }
+        #endif
+      }
+
+      dic[dicPos++] = (Byte)symbol;
+      continue;
+    }
+
+    {
+      UPDATE_1(prob)
+      prob = probs + IsRep + state;
+      IF_BIT_0(prob)
+      {
+        UPDATE_0(prob)
+        state += kNumStates;
+        prob = probs + LenCoder;
+      }
+      else
+      {
+        UPDATE_1(prob)
+        prob = probs + IsRepG0 + state;
+        IF_BIT_0(prob)
+        {
+          UPDATE_0(prob)
+          prob = probs + IsRep0Long + COMBINED_PS_STATE;
+          IF_BIT_0(prob)
+          {
+            UPDATE_0(prob)
+
+            // that case was checked before with kBadRepCode
+            // if (checkDicSize == 0 && processedPos == 0) { len = kMatchSpecLen_Error_Data + 1; break; }
+            // The caller doesn't allow (dicPos == limit) case here
+            // so we don't need the following check:
+            // if (dicPos == limit) { state = state < kNumLitStates ? 9 : 11; len = 1; break; }
+
+            dic[dicPos] = dic[dicPos - rep0 + (dicPos < rep0 ? dicBufSize : 0)];
+            dicPos++;
+            processedPos++;
+            state = state < kNumLitStates ? 9 : 11;
+            continue;
+          }
+          UPDATE_1(prob)
+        }
+        else
+        {
+          UInt32 distance;
+          UPDATE_1(prob)
+          prob = probs + IsRepG1 + state;
+          IF_BIT_0(prob)
+          {
+            UPDATE_0(prob)
+            distance = rep1;
+          }
+          else
+          {
+            UPDATE_1(prob)
+            prob = probs + IsRepG2 + state;
+            IF_BIT_0(prob)
+            {
+              UPDATE_0(prob)
+              distance = rep2;
+            }
+            else
+            {
+              UPDATE_1(prob)
+              distance = rep3;
+              rep3 = rep2;
+            }
+            rep2 = rep1;
+          }
+          rep1 = rep0;
+          rep0 = distance;
+        }
+        state = state < kNumLitStates ? 8 : 11;
+        prob = probs + RepLenCoder;
+      }
+
+      #ifdef Z7_LZMA_SIZE_OPT
+      {
+        unsigned lim, offset;
+        CLzmaProb *probLen = prob + LenChoice;
+        IF_BIT_0(probLen)
+        {
+          UPDATE_0(probLen)
+          probLen = prob + LenLow + GET_LEN_STATE;
+          offset = 0;
+          lim = (1 << kLenNumLowBits);
+        }
+        else
+        {
+          UPDATE_1(probLen)
+          probLen = prob + LenChoice2;
+          IF_BIT_0(probLen)
+          {
+            UPDATE_0(probLen)
+            probLen = prob + LenLow + GET_LEN_STATE + (1 << kLenNumLowBits);
+            offset = kLenNumLowSymbols;
+            lim = (1 << kLenNumLowBits);
+          }
+          else
+          {
+            UPDATE_1(probLen)
+            probLen = prob + LenHigh;
+            offset = kLenNumLowSymbols * 2;
+            lim = (1 << kLenNumHighBits);
+          }
+        }
+        TREE_DECODE(probLen, lim, len)
+        len += offset;
+      }
+      #else
+      {
+        CLzmaProb *probLen = prob + LenChoice;
+        IF_BIT_0(probLen)
+        {
+          UPDATE_0(probLen)
+          probLen = prob + LenLow + GET_LEN_STATE;
+          len = 1;
+          TREE_GET_BIT(probLen, len)
+          TREE_GET_BIT(probLen, len)
+          TREE_GET_BIT(probLen, len)
+          len -= 8;
+        }
+        else
+        {
+          UPDATE_1(probLen)
+          probLen = prob + LenChoice2;
+          IF_BIT_0(probLen)
+          {
+            UPDATE_0(probLen)
+            probLen = prob + LenLow + GET_LEN_STATE + (1 << kLenNumLowBits);
+            len = 1;
+            TREE_GET_BIT(probLen, len)
+            TREE_GET_BIT(probLen, len)
+            TREE_GET_BIT(probLen, len)
+          }
+          else
+          {
+            UPDATE_1(probLen)
+            probLen = prob + LenHigh;
+            TREE_DECODE(probLen, (1 << kLenNumHighBits), len)
+            len += kLenNumLowSymbols * 2;
+          }
+        }
+      }
+      #endif
+
+      if (state >= kNumStates)
+      {
+        UInt32 distance;
+        prob = probs + PosSlot +
+            ((len < kNumLenToPosStates ? len : kNumLenToPosStates - 1) << kNumPosSlotBits);
+        TREE_6_DECODE(prob, distance)
+        if (distance >= kStartPosModelIndex)
+        {
+          unsigned posSlot = (unsigned)distance;
+          unsigned numDirectBits = (unsigned)(((distance >> 1) - 1));
+          distance = (2 | (distance & 1));
+          if (posSlot < kEndPosModelIndex)
+          {
+            distance <<= numDirectBits;
+            prob = probs + SpecPos;
+            {
+              UInt32 m = 1;
+              distance++;
+              do
+              {
+                REV_BIT_VAR(prob, distance, m)
+              }
+              while (--numDirectBits);
+              distance -= m;
+            }
+          }
+          else
+          {
+            numDirectBits -= kNumAlignBits;
+            do
+            {
+              NORMALIZE
+              range >>= 1;
+
+              {
+                UInt32 t;
+                code -= range;
+                t = (0 - ((UInt32)code >> 31)); /* (UInt32)((Int32)code >> 31) */
+                distance = (distance << 1) + (t + 1);
+                code += range & t;
+              }
+              /*
+              distance <<= 1;
+              if (code >= range)
+              {
+                code -= range;
+                distance |= 1;
+              }
+              */
+            }
+            while (--numDirectBits);
+            prob = probs + Align;
+            distance <<= kNumAlignBits;
+            {
+              unsigned i = 1;
+              REV_BIT_CONST(prob, i, 1)
+              REV_BIT_CONST(prob, i, 2)
+              REV_BIT_CONST(prob, i, 4)
+              REV_BIT_LAST (prob, i, 8)
+              distance |= i;
+            }
+            if (distance == (UInt32)0xFFFFFFFF)
+            {
+              len = kMatchSpecLenStart;
+              state -= kNumStates;
+              break;
+            }
+          }
+        }
+
+        rep3 = rep2;
+        rep2 = rep1;
+        rep1 = rep0;
+        rep0 = distance + 1;
+        state = (state < kNumStates + kNumLitStates) ? kNumLitStates : kNumLitStates + 3;
+        if (distance >= (checkDicSize == 0 ? processedPos: checkDicSize))
+        {
+          len += kMatchSpecLen_Error_Data + kMatchMinLen;
+          // len = kMatchSpecLen_Error_Data;
+          // len += kMatchMinLen;
+          break;
+        }
+      }
+
+      len += kMatchMinLen;
+
+      {
+        SizeT rem;
+        unsigned curLen;
+        SizeT pos;
+
+        if ((rem = limit - dicPos) == 0)
+        {
+          /*
+          We stop decoding and return SZ_OK, and we can resume decoding later.
+          Any error conditions can be tested later in caller code.
+          For more strict mode we can stop decoding with error
+          // len += kMatchSpecLen_Error_Data;
+          */
+          break;
+        }
+
+        curLen = ((rem < len) ? (unsigned)rem : len);
+        pos = dicPos - rep0 + (dicPos < rep0 ? dicBufSize : 0);
+
+        processedPos += (UInt32)curLen;
+
+        len -= curLen;
+        if (curLen <= dicBufSize - pos)
+        {
+          Byte *dest = dic + dicPos;
+          ptrdiff_t src = (ptrdiff_t)pos - (ptrdiff_t)dicPos;
+          const Byte *lim = dest + curLen;
+          dicPos += (SizeT)curLen;
+          do
+            *(dest) = (Byte)*(dest + src);
+          while (++dest != lim);
+        }
+        else
+        {
+          do
+          {
+            dic[dicPos++] = dic[pos];
+            if (++pos == dicBufSize)
+              pos = 0;
+          }
+          while (--curLen != 0);
+        }
+      }
+    }
+  }
+  while (dicPos < limit && buf < bufLimit);
+
+  NORMALIZE
+
+  p->buf = buf;
+  p->range = range;
+  p->code = code;
+  p->remainLen = (UInt32)len; // & (kMatchSpecLen_Error_Data - 1); // we can write real length for error matches too.
+  p->dicPos = dicPos;
+  p->processedPos = processedPos;
+  p->reps[0] = rep0;
+  p->reps[1] = rep1;
+  p->reps[2] = rep2;
+  p->reps[3] = rep3;
+  p->state = (UInt32)state;
+  if (len >= kMatchSpecLen_Error_Data)
+    return SZ_ERROR_DATA;
+  return SZ_OK;
+}
+#endif
+
+
+
+static void Z7_FASTCALL LzmaDec_WriteRem(CLzmaDec *p, SizeT limit)
+{
+  unsigned len = (unsigned)p->remainLen;
+  if (len == 0 /* || len >= kMatchSpecLenStart */)
+    return;
+  {
+    SizeT dicPos = p->dicPos;
+    Byte *dic;
+    SizeT dicBufSize;
+    SizeT rep0;   /* we use SizeT to avoid the BUG of VC14 for AMD64 */
+    {
+      SizeT rem = limit - dicPos;
+      if (rem < len)
+      {
+        len = (unsigned)(rem);
+        if (len == 0)
+          return;
+      }
+    }
+
+    if (p->checkDicSize == 0 && p->prop.dicSize - p->processedPos <= len)
+      p->checkDicSize = p->prop.dicSize;
+
+    p->processedPos += (UInt32)len;
+    p->remainLen -= (UInt32)len;
+    dic = p->dic;
+    rep0 = p->reps[0];
+    dicBufSize = p->dicBufSize;
+    do
+    {
+      dic[dicPos] = dic[dicPos - rep0 + (dicPos < rep0 ? dicBufSize : 0)];
+      dicPos++;
+    }
+    while (--len);
+    p->dicPos = dicPos;
+  }
+}
+
+
+/*
+At staring of new stream we have one of the following symbols:
+  - Literal        - is allowed
+  - Non-Rep-Match  - is allowed only if it's end marker symbol
+  - Rep-Match      - is not allowed
+We use early check of (RangeCoder:Code) over kBadRepCode to simplify main decoding code
+*/
+
+#define kRange0 0xFFFFFFFF
+#define kBound0 ((kRange0 >> kNumBitModelTotalBits) << (kNumBitModelTotalBits - 1))
+#define kBadRepCode (kBound0 + (((kRange0 - kBound0) >> kNumBitModelTotalBits) << (kNumBitModelTotalBits - 1)))
+#if kBadRepCode != (0xC0000000 - 0x400)
+  #error Stop_Compiling_Bad_LZMA_Check
+#endif
+
+
+/*
+LzmaDec_DecodeReal2():
+  It calls LZMA_DECODE_REAL() and it adjusts limit according (p->checkDicSize).
+
+We correct (p->checkDicSize) after LZMA_DECODE_REAL() and in LzmaDec_WriteRem(),
+and we support the following state of (p->checkDicSize):
+  if (total_processed < p->prop.dicSize) then
+  {
+    (total_processed == p->processedPos)
+    (p->checkDicSize == 0)
+  }
+  else
+    (p->checkDicSize == p->prop.dicSize)
+*/
+
+static int Z7_FASTCALL LzmaDec_DecodeReal2(CLzmaDec *p, SizeT limit, const Byte *bufLimit)
+{
+  if (p->checkDicSize == 0)
+  {
+    UInt32 rem = p->prop.dicSize - p->processedPos;
+    if (limit - p->dicPos > rem)
+      limit = p->dicPos + rem;
+  }
+  {
+    int res = LZMA_DECODE_REAL(p, limit, bufLimit);
+    if (p->checkDicSize == 0 && p->processedPos >= p->prop.dicSize)
+      p->checkDicSize = p->prop.dicSize;
+    return res;
+  }
+}
+
+
+
+typedef enum
+{
+  DUMMY_INPUT_EOF, /* need more input data */
+  DUMMY_LIT,
+  DUMMY_MATCH,
+  DUMMY_REP
+} ELzmaDummy;
+
+
+#define IS_DUMMY_END_MARKER_POSSIBLE(dummyRes) ((dummyRes) == DUMMY_MATCH)
+
+static ELzmaDummy LzmaDec_TryDummy(const CLzmaDec *p, const Byte *buf, const Byte **bufOut)
+{
+  UInt32 range = p->range;
+  UInt32 code = p->code;
+  const Byte *bufLimit = *bufOut;
+  const CLzmaProb *probs = GET_PROBS;
+  unsigned state = (unsigned)p->state;
+  ELzmaDummy res;
+
+  for (;;)
+  {
+    const CLzmaProb *prob;
+    UInt32 bound;
+    unsigned ttt;
+    unsigned posState = CALC_POS_STATE(p->processedPos, ((unsigned)1 << p->prop.pb) - 1);
+
+    prob = probs + IsMatch + COMBINED_PS_STATE;
+    IF_BIT_0_CHECK(prob)
+    {
+      UPDATE_0_CHECK
+
+      prob = probs + Literal;
+      if (p->checkDicSize != 0 || p->processedPos != 0)
+        prob += ((UInt32)LZMA_LIT_SIZE *
+            ((((p->processedPos) & (((unsigned)1 << (p->prop.lp)) - 1)) << p->prop.lc) +
+            ((unsigned)p->dic[(p->dicPos == 0 ? p->dicBufSize : p->dicPos) - 1] >> (8 - p->prop.lc))));
+
+      if (state < kNumLitStates)
+      {
+        unsigned symbol = 1;
+        do { GET_BIT_CHECK(prob + symbol, symbol) } while (symbol < 0x100);
+      }
+      else
+      {
+        unsigned matchByte = p->dic[p->dicPos - p->reps[0] +
+            (p->dicPos < p->reps[0] ? p->dicBufSize : 0)];
+        unsigned offs = 0x100;
+        unsigned symbol = 1;
+        do
+        {
+          unsigned bit;
+          const CLzmaProb *probLit;
+          matchByte += matchByte;
+          bit = offs;
+          offs &= matchByte;
+          probLit = prob + (offs + bit + symbol);
+          GET_BIT2_CHECK(probLit, symbol, offs ^= bit; , ; )
+        }
+        while (symbol < 0x100);
+      }
+      res = DUMMY_LIT;
+    }
+    else
+    {
+      unsigned len;
+      UPDATE_1_CHECK
+
+      prob = probs + IsRep + state;
+      IF_BIT_0_CHECK(prob)
+      {
+        UPDATE_0_CHECK
+        state = 0;
+        prob = probs + LenCoder;
+        res = DUMMY_MATCH;
+      }
+      else
+      {
+        UPDATE_1_CHECK
+        res = DUMMY_REP;
+        prob = probs + IsRepG0 + state;
+        IF_BIT_0_CHECK(prob)
+        {
+          UPDATE_0_CHECK
+          prob = probs + IsRep0Long + COMBINED_PS_STATE;
+          IF_BIT_0_CHECK(prob)
+          {
+            UPDATE_0_CHECK
+            break;
+          }
+          else
+          {
+            UPDATE_1_CHECK
+          }
+        }
+        else
+        {
+          UPDATE_1_CHECK
+          prob = probs + IsRepG1 + state;
+          IF_BIT_0_CHECK(prob)
+          {
+            UPDATE_0_CHECK
+          }
+          else
+          {
+            UPDATE_1_CHECK
+            prob = probs + IsRepG2 + state;
+            IF_BIT_0_CHECK(prob)
+            {
+              UPDATE_0_CHECK
+            }
+            else
+            {
+              UPDATE_1_CHECK
+            }
+          }
+        }
+        state = kNumStates;
+        prob = probs + RepLenCoder;
+      }
+      {
+        unsigned limit, offset;
+        const CLzmaProb *probLen = prob + LenChoice;
+        IF_BIT_0_CHECK(probLen)
+        {
+          UPDATE_0_CHECK
+          probLen = prob + LenLow + GET_LEN_STATE;
+          offset = 0;
+          limit = 1 << kLenNumLowBits;
+        }
+        else
+        {
+          UPDATE_1_CHECK
+          probLen = prob + LenChoice2;
+          IF_BIT_0_CHECK(probLen)
+          {
+            UPDATE_0_CHECK
+            probLen = prob + LenLow + GET_LEN_STATE + (1 << kLenNumLowBits);
+            offset = kLenNumLowSymbols;
+            limit = 1 << kLenNumLowBits;
+          }
+          else
+          {
+            UPDATE_1_CHECK
+            probLen = prob + LenHigh;
+            offset = kLenNumLowSymbols * 2;
+            limit = 1 << kLenNumHighBits;
+          }
+        }
+        TREE_DECODE_CHECK(probLen, limit, len)
+        len += offset;
+      }
+
+      if (state < 4)
+      {
+        unsigned posSlot;
+        prob = probs + PosSlot +
+            ((len < kNumLenToPosStates - 1 ? len : kNumLenToPosStates - 1) <<
+            kNumPosSlotBits);
+        TREE_DECODE_CHECK(prob, 1 << kNumPosSlotBits, posSlot)
+        if (posSlot >= kStartPosModelIndex)
+        {
+          unsigned numDirectBits = ((posSlot >> 1) - 1);
+
+          if (posSlot < kEndPosModelIndex)
+          {
+            prob = probs + SpecPos + ((2 | (posSlot & 1)) << numDirectBits);
+          }
+          else
+          {
+            numDirectBits -= kNumAlignBits;
+            do
+            {
+              NORMALIZE_CHECK
+              range >>= 1;
+              code -= range & (((code - range) >> 31) - 1);
+              /* if (code >= range) code -= range; */
+            }
+            while (--numDirectBits);
+            prob = probs + Align;
+            numDirectBits = kNumAlignBits;
+          }
+          {
+            unsigned i = 1;
+            unsigned m = 1;
+            do
+            {
+              REV_BIT_CHECK(prob, i, m)
+            }
+            while (--numDirectBits);
+          }
+        }
+      }
+    }
+    break;
+  }
+  NORMALIZE_CHECK
+
+  *bufOut = buf;
+  return res;
+}
+
+static void LzmaDec_InitDicAndState(CLzmaDec *p, BoolInt initDic, BoolInt initState);
+static void LzmaDec_InitDicAndState(CLzmaDec *p, BoolInt initDic, BoolInt initState)
+{
+  p->remainLen = kMatchSpecLenStart + 1;
+  p->tempBufSize = 0;
+
+  if (initDic)
+  {
+    p->processedPos = 0;
+    p->checkDicSize = 0;
+    p->remainLen = kMatchSpecLenStart + 2;
+  }
+  if (initState)
+    p->remainLen = kMatchSpecLenStart + 2;
+}
+
+void LzmaDec_Init(CLzmaDec *p)
+{
+  p->dicPos = 0;
+  LzmaDec_InitDicAndState(p, True, True);
+}
+
+
+/*
+LZMA supports optional end_marker.
+So the decoder can lookahead for one additional LZMA-Symbol to check end_marker.
+That additional LZMA-Symbol can require up to LZMA_REQUIRED_INPUT_MAX bytes in input stream.
+When the decoder reaches dicLimit, it looks (finishMode) parameter:
+  if (finishMode == LZMA_FINISH_ANY), the decoder doesn't lookahead
+  if (finishMode != LZMA_FINISH_ANY), the decoder lookahead, if end_marker is possible for current position
+
+When the decoder lookahead, and the lookahead symbol is not end_marker, we have two ways:
+  1) Strict mode (default) : the decoder returns SZ_ERROR_DATA.
+  2) The relaxed mode (alternative mode) : we could return SZ_OK, and the caller
+     must check (status) value. The caller can show the error,
+     if the end of stream is expected, and the (status) is noit
+     LZMA_STATUS_FINISHED_WITH_MARK or LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK.
+*/
+
+
+#define RETURN_NOT_FINISHED_FOR_FINISH \
+  *status = LZMA_STATUS_NOT_FINISHED; \
+  return SZ_ERROR_DATA; // for strict mode
+  // return SZ_OK; // for relaxed mode
+
+
+SRes LzmaDec_DecodeToDic(CLzmaDec *p, SizeT dicLimit, const Byte *src, SizeT *srcLen,
+    ELzmaFinishMode finishMode, ELzmaStatus *status)
+{
+  SizeT inSize = *srcLen;
+  (*srcLen) = 0;
+  *status = LZMA_STATUS_NOT_SPECIFIED;
+
+  if (p->remainLen > kMatchSpecLenStart)
+  {
+    if (p->remainLen > kMatchSpecLenStart + 2)
+      return p->remainLen == kMatchSpecLen_Error_Fail ? SZ_ERROR_FAIL : SZ_ERROR_DATA;
+
+    for (; inSize > 0 && p->tempBufSize < RC_INIT_SIZE; (*srcLen)++, inSize--)
+      p->tempBuf[p->tempBufSize++] = *src++;
+    if (p->tempBufSize != 0 && p->tempBuf[0] != 0)
+      return SZ_ERROR_DATA;
+    if (p->tempBufSize < RC_INIT_SIZE)
+    {
+      *status = LZMA_STATUS_NEEDS_MORE_INPUT;
+      return SZ_OK;
+    }
+    p->code =
+        ((UInt32)p->tempBuf[1] << 24)
+      | ((UInt32)p->tempBuf[2] << 16)
+      | ((UInt32)p->tempBuf[3] << 8)
+      | ((UInt32)p->tempBuf[4]);
+
+    if (p->checkDicSize == 0
+        && p->processedPos == 0
+        && p->code >= kBadRepCode)
+      return SZ_ERROR_DATA;
+
+    p->range = 0xFFFFFFFF;
+    p->tempBufSize = 0;
+
+    if (p->remainLen > kMatchSpecLenStart + 1)
+    {
+      SizeT numProbs = LzmaProps_GetNumProbs(&p->prop);
+      SizeT i;
+      CLzmaProb *probs = p->probs;
+      for (i = 0; i < numProbs; i++)
+        probs[i] = kBitModelTotal >> 1;
+      p->reps[0] = p->reps[1] = p->reps[2] = p->reps[3] = 1;
+      p->state = 0;
+    }
+
+    p->remainLen = 0;
+  }
+
+  for (;;)
+  {
+    if (p->remainLen == kMatchSpecLenStart)
+    {
+      if (p->code != 0)
+        return SZ_ERROR_DATA;
+      *status = LZMA_STATUS_FINISHED_WITH_MARK;
+      return SZ_OK;
+    }
+
+    LzmaDec_WriteRem(p, dicLimit);
+
+    {
+      // (p->remainLen == 0 || p->dicPos == dicLimit)
+
+      int checkEndMarkNow = 0;
+
+      if (p->dicPos >= dicLimit)
+      {
+        if (p->remainLen == 0 && p->code == 0)
+        {
+          *status = LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK;
+          return SZ_OK;
+        }
+        if (finishMode == LZMA_FINISH_ANY)
+        {
+          *status = LZMA_STATUS_NOT_FINISHED;
+          return SZ_OK;
+        }
+        if (p->remainLen != 0)
+        {
+          RETURN_NOT_FINISHED_FOR_FINISH
+        }
+        checkEndMarkNow = 1;
+      }
+
+      // (p->remainLen == 0)
+
+      if (p->tempBufSize == 0)
+      {
+        const Byte *bufLimit;
+        int dummyProcessed = -1;
+
+        if (inSize < LZMA_REQUIRED_INPUT_MAX || checkEndMarkNow)
+        {
+          const Byte *bufOut = src + inSize;
+
+          ELzmaDummy dummyRes = LzmaDec_TryDummy(p, src, &bufOut);
+
+          if (dummyRes == DUMMY_INPUT_EOF)
+          {
+            size_t i;
+            if (inSize >= LZMA_REQUIRED_INPUT_MAX)
+              break;
+            (*srcLen) += inSize;
+            p->tempBufSize = (unsigned)inSize;
+            for (i = 0; i < inSize; i++)
+              p->tempBuf[i] = src[i];
+            *status = LZMA_STATUS_NEEDS_MORE_INPUT;
+            return SZ_OK;
+          }
+
+          dummyProcessed = (int)(bufOut - src);
+          if ((unsigned)dummyProcessed > LZMA_REQUIRED_INPUT_MAX)
+            break;
+
+          if (checkEndMarkNow && !IS_DUMMY_END_MARKER_POSSIBLE(dummyRes))
+          {
+            unsigned i;
+            (*srcLen) += (unsigned)dummyProcessed;
+            p->tempBufSize = (unsigned)dummyProcessed;
+            for (i = 0; i < (unsigned)dummyProcessed; i++)
+              p->tempBuf[i] = src[i];
+            // p->remainLen = kMatchSpecLen_Error_Data;
+            RETURN_NOT_FINISHED_FOR_FINISH
+          }
+
+          bufLimit = src;
+          // we will decode only one iteration
+        }
+        else
+          bufLimit = src + inSize - LZMA_REQUIRED_INPUT_MAX;
+
+        p->buf = src;
+
+        {
+          int res = LzmaDec_DecodeReal2(p, dicLimit, bufLimit);
+
+          SizeT processed = (SizeT)(p->buf - src);
+
+          if (dummyProcessed < 0)
+          {
+            if (processed > inSize)
+              break;
+          }
+          else if ((unsigned)dummyProcessed != processed)
+            break;
+
+          src += processed;
+          inSize -= processed;
+          (*srcLen) += processed;
+
+          if (res != SZ_OK)
+          {
+            p->remainLen = kMatchSpecLen_Error_Data;
+            return SZ_ERROR_DATA;
+          }
+        }
+        continue;
+      }
+
+      {
+        // we have some data in (p->tempBuf)
+        // in strict mode: tempBufSize is not enough for one Symbol decoding.
+        // in relaxed mode: tempBufSize not larger than required for one Symbol decoding.
+
+        unsigned rem = p->tempBufSize;
+        unsigned ahead = 0;
+        int dummyProcessed = -1;
+
+        while (rem < LZMA_REQUIRED_INPUT_MAX && ahead < inSize)
+          p->tempBuf[rem++] = src[ahead++];
+
+        // ahead - the size of new data copied from (src) to (p->tempBuf)
+        // rem   - the size of temp buffer including new data from (src)
+
+        if (rem < LZMA_REQUIRED_INPUT_MAX || checkEndMarkNow)
+        {
+          const Byte *bufOut = p->tempBuf + rem;
+
+          ELzmaDummy dummyRes = LzmaDec_TryDummy(p, p->tempBuf, &bufOut);
+
+          if (dummyRes == DUMMY_INPUT_EOF)
+          {
+            if (rem >= LZMA_REQUIRED_INPUT_MAX)
+              break;
+            p->tempBufSize = rem;
+            (*srcLen) += (SizeT)ahead;
+            *status = LZMA_STATUS_NEEDS_MORE_INPUT;
+            return SZ_OK;
+          }
+
+          dummyProcessed = (int)(bufOut - p->tempBuf);
+
+          if ((unsigned)dummyProcessed < p->tempBufSize)
+            break;
+
+          if (checkEndMarkNow && !IS_DUMMY_END_MARKER_POSSIBLE(dummyRes))
+          {
+            (*srcLen) += (unsigned)dummyProcessed - p->tempBufSize;
+            p->tempBufSize = (unsigned)dummyProcessed;
+            // p->remainLen = kMatchSpecLen_Error_Data;
+            RETURN_NOT_FINISHED_FOR_FINISH
+          }
+        }
+
+        p->buf = p->tempBuf;
+
+        {
+          // we decode one symbol from (p->tempBuf) here, so the (bufLimit) is equal to (p->buf)
+          int res = LzmaDec_DecodeReal2(p, dicLimit, p->buf);
+
+          SizeT processed = (SizeT)(p->buf - p->tempBuf);
+          rem = p->tempBufSize;
+
+          if (dummyProcessed < 0)
+          {
+            if (processed > LZMA_REQUIRED_INPUT_MAX)
+              break;
+            if (processed < rem)
+              break;
+          }
+          else if ((unsigned)dummyProcessed != processed)
+            break;
+
+          processed -= rem;
+
+          src += processed;
+          inSize -= processed;
+          (*srcLen) += processed;
+          p->tempBufSize = 0;
+
+          if (res != SZ_OK)
+          {
+            p->remainLen = kMatchSpecLen_Error_Data;
+            return SZ_ERROR_DATA;
+          }
+        }
+      }
+    }
+  }
+
+  /*  Some unexpected error: internal error of code, memory corruption or hardware failure */
+  p->remainLen = kMatchSpecLen_Error_Fail;
+  return SZ_ERROR_FAIL;
+}
+
+
+
+SRes LzmaDec_DecodeToBuf(CLzmaDec *p, Byte *dest, SizeT *destLen, const Byte *src, SizeT *srcLen, ELzmaFinishMode finishMode, ELzmaStatus *status)
+{
+  SizeT outSize = *destLen;
+  SizeT inSize = *srcLen;
+  *srcLen = *destLen = 0;
+  for (;;)
+  {
+    SizeT inSizeCur = inSize, outSizeCur, dicPos;
+    ELzmaFinishMode curFinishMode;
+    SRes res;
+    if (p->dicPos == p->dicBufSize)
+      p->dicPos = 0;
+    dicPos = p->dicPos;
+    if (outSize > p->dicBufSize - dicPos)
+    {
+      outSizeCur = p->dicBufSize;
+      curFinishMode = LZMA_FINISH_ANY;
+    }
+    else
+    {
+      outSizeCur = dicPos + outSize;
+      curFinishMode = finishMode;
+    }
+
+    res = LzmaDec_DecodeToDic(p, outSizeCur, src, &inSizeCur, curFinishMode, status);
+    src += inSizeCur;
+    inSize -= inSizeCur;
+    *srcLen += inSizeCur;
+    outSizeCur = p->dicPos - dicPos;
+    memcpy(dest, p->dic + dicPos, outSizeCur);
+    dest += outSizeCur;
+    outSize -= outSizeCur;
+    *destLen += outSizeCur;
+    if (res != 0)
+      return res;
+    if (outSizeCur == 0 || outSize == 0)
+      return SZ_OK;
+  }
+}
+
+void LzmaDec_FreeProbs(CLzmaDec *p, ISzAllocPtr alloc)
+{
+  ISzAlloc_Free(alloc, p->probs);
+  p->probs = NULL;
+}
+
+static void LzmaDec_FreeDict(CLzmaDec *p, ISzAllocPtr alloc)
+{
+  ISzAlloc_Free(alloc, p->dic);
+  p->dic = NULL;
+}
+
+void LzmaDec_Free(CLzmaDec *p, ISzAllocPtr alloc)
+{
+  LzmaDec_FreeProbs(p, alloc);
+  LzmaDec_FreeDict(p, alloc);
+}
+
+SRes LzmaProps_Decode(CLzmaProps *p, const Byte *data, unsigned size)
+{
+  UInt32 dicSize;
+  Byte d;
+
+  if (size < LZMA_PROPS_SIZE)
+    return SZ_ERROR_UNSUPPORTED;
+  else
+    dicSize = data[1] | ((UInt32)data[2] << 8) | ((UInt32)data[3] << 16) | ((UInt32)data[4] << 24);
+
+  if (dicSize < LZMA_DIC_MIN)
+    dicSize = LZMA_DIC_MIN;
+  p->dicSize = dicSize;
+
+  d = data[0];
+  if (d >= (9 * 5 * 5))
+    return SZ_ERROR_UNSUPPORTED;
+
+  p->lc = (Byte)(d % 9);
+  d /= 9;
+  p->pb = (Byte)(d / 5);
+  p->lp = (Byte)(d % 5);
+
+  return SZ_OK;
+}
+
+static SRes LzmaDec_AllocateProbs2(CLzmaDec *p, const CLzmaProps *propNew, ISzAllocPtr alloc)
+{
+  UInt32 numProbs = LzmaProps_GetNumProbs(propNew);
+  if (!p->probs || numProbs != p->numProbs)
+  {
+    LzmaDec_FreeProbs(p, alloc);
+    p->probs = (CLzmaProb *)ISzAlloc_Alloc(alloc, numProbs * sizeof(CLzmaProb));
+    if (!p->probs)
+      return SZ_ERROR_MEM;
+    p->probs_1664 = p->probs + 1664;
+    p->numProbs = numProbs;
+  }
+  return SZ_OK;
+}
+
+SRes LzmaDec_AllocateProbs(CLzmaDec *p, const Byte *props, unsigned propsSize, ISzAllocPtr alloc)
+{
+  CLzmaProps propNew;
+  RINOK(LzmaProps_Decode(&propNew, props, propsSize))
+  RINOK(LzmaDec_AllocateProbs2(p, &propNew, alloc))
+  p->prop = propNew;
+  return SZ_OK;
+}
+
+SRes LzmaDec_Allocate(CLzmaDec *p, const Byte *props, unsigned propsSize, ISzAllocPtr alloc)
+{
+  CLzmaProps propNew;
+  SizeT dicBufSize;
+  RINOK(LzmaProps_Decode(&propNew, props, propsSize))
+  RINOK(LzmaDec_AllocateProbs2(p, &propNew, alloc))
+
+  {
+    UInt32 dictSize = propNew.dicSize;
+    SizeT mask = ((UInt32)1 << 12) - 1;
+         if (dictSize >= ((UInt32)1 << 30)) mask = ((UInt32)1 << 22) - 1;
+    else if (dictSize >= ((UInt32)1 << 22)) mask = ((UInt32)1 << 20) - 1;
+    dicBufSize = ((SizeT)dictSize + mask) & ~mask;
+    if (dicBufSize < dictSize)
+      dicBufSize = dictSize;
+  }
+
+  if (!p->dic || dicBufSize != p->dicBufSize)
+  {
+    LzmaDec_FreeDict(p, alloc);
+    p->dic = (Byte *)ISzAlloc_Alloc(alloc, dicBufSize);
+    if (!p->dic)
+    {
+      LzmaDec_FreeProbs(p, alloc);
+      return SZ_ERROR_MEM;
+    }
+  }
+  p->dicBufSize = dicBufSize;
+  p->prop = propNew;
+  return SZ_OK;
+}
+
+SRes LzmaDecode(Byte *dest, SizeT *destLen, const Byte *src, SizeT *srcLen,
+    const Byte *propData, unsigned propSize, ELzmaFinishMode finishMode,
+    ELzmaStatus *status, ISzAllocPtr alloc)
+{
+  CLzmaDec p;
+  SRes res;
+  SizeT outSize = *destLen, inSize = *srcLen;
+  *destLen = *srcLen = 0;
+  *status = LZMA_STATUS_NOT_SPECIFIED;
+  if (inSize < RC_INIT_SIZE)
+    return SZ_ERROR_INPUT_EOF;
+  LzmaDec_CONSTRUCT(&p)
+  RINOK(LzmaDec_AllocateProbs(&p, propData, propSize, alloc))
+  p.dic = dest;
+  p.dicBufSize = outSize;
+  LzmaDec_Init(&p);
+  *srcLen = inSize;
+  res = LzmaDec_DecodeToDic(&p, outSize, src, srcLen, finishMode, status);
+  *destLen = p.dicPos;
+  if (res == SZ_OK && *status == LZMA_STATUS_NEEDS_MORE_INPUT)
+    res = SZ_ERROR_INPUT_EOF;
+  LzmaDec_FreeProbs(&p, alloc);
+  return res;
+}
+
+
+/* XRT macro hygiene: the SDK implementation is concatenated into the XRT
+ * single header, so every implementation-local macro must end here. */
+#undef RETURN_NOT_FINISHED_FOR_FINISH
+#undef IS_DUMMY_END_MARKER_POSSIBLE
+#undef kBadRepCode
+#undef kBound0
+#undef kRange0
+#undef LZMA_DECODE_REAL
+#undef LZMA_DIC_MIN
+#undef GET_LEN_STATE
+#undef COMBINED_PS_STATE
+#undef CALC_POS_STATE
+#undef LzmaProps_GetNumProbs
+#undef LZMA_LIT_SIZE
+#undef NUM_BASE_PROBS
+#undef Literal
+#undef PosSlot
+#undef IsRepG2
+#undef IsRepG1
+#undef IsRepG0
+#undef IsRep
+#undef Align
+#undef IsMatch
+#undef LenCoder
+#undef RepLenCoder
+#undef IsRep0Long
+#undef SpecPos
+#undef GET_PROBS
+#undef kStartOffset
+#undef kMatchSpecLen_Error_Fail
+#undef kMatchSpecLen_Error_Data
+#undef kMatchSpecLenStart
+#undef kMatchMinLen
+#undef kAlignTableSize
+#undef kNumAlignBits
+#undef kNumLenToPosStates
+#undef kNumPosSlotBits
+#undef kNumFullDistances
+#undef kEndPosModelIndex
+#undef kStartPosModelIndex
+#undef kNumLitStates
+#undef kNumStates2
+#undef kNumStates
+#undef LenChoice2
+#undef LenChoice
+#undef kNumLenProbs
+#undef LenHigh
+#undef LenLow
+#undef kLenNumHighSymbols
+#undef kLenNumHighBits
+#undef kLenNumLowSymbols
+#undef kLenNumLowBits
+#undef kNumPosStatesMax
+#undef kNumPosBitsMax
+#undef REV_BIT_CHECK
+#undef TREE_DECODE_CHECK
+#undef GET_BIT_CHECK
+#undef GET_BIT2_CHECK
+#undef UPDATE_1_CHECK
+#undef UPDATE_0_CHECK
+#undef IF_BIT_0_CHECK
+#undef NORMALIZE_CHECK
+#undef MATCHED_LITER_DEC
+#undef NORMAL_LITER_DEC
+#undef TREE_6_DECODE
+#undef TREE_DECODE
+#undef REV_BIT_LAST
+#undef REV_BIT_CONST
+#undef REV_BIT_VAR
+#undef REV_BIT
+#undef TREE_GET_BIT
+#undef GET_BIT2
+#undef UPDATE_1
+#undef UPDATE_0
+#undef IF_BIT_0
+#undef NORMALIZE
+#undef kNumMoveBits
+#undef RC_INIT_SIZE
+#undef kBitModelTotal
+#undef kNumBitModelTotalBits
+#undef kTopValue
+#undef LzmaDecode
+#undef LzmaDec_DecodeToBuf
+#undef LzmaDec_DecodeToDic
+#undef LzmaDec_Free
+#undef LzmaDec_Allocate
+#undef LzmaDec_FreeProbs
+#undef LzmaDec_AllocateProbs
+#undef LzmaDec_Init
+#undef LzmaProps_Decode
+#endif
+
+
+/* ========================================================================== */
+/* source: src/fs/vfs_pack.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_VFS_PACK)
+
+#include <stdlib.h>
+
+
+
+#if defined(XRT_FEATURE_VFS_PACK)
+
+SRes __xrtLzmaDecode(Byte* pDestination, SizeT* pDestinationSize,
+	const Byte* pSource, SizeT* pSourceSize,
+	const Byte* pProperties, unsigned iPropertiesSize,
+	ELzmaFinishMode FinishMode, ELzmaStatus* pStatus,
+	ISzAllocPtr pAllocator);
+
+#define XRT_VFS_PACK_HEADER_SIZE 80u
+#define XRT_VFS_PACK_TRAILER_SIZE 32u
+#define XRT_VFS_PACK_RECORD_SIZE 40u
+#define XRT_VFS_PACK_LEGACY_HEADER_SIZE 64u
+#define XRT_VFS_PACK_LEGACY_TRAILER_SIZE 24u
+#define XRT_VFS_PACK_LEGACY_RECORD_SIZE 26u
+
+typedef enum xrt_vfs_pack_state {
+	XRT_VFS_PACK_UNLOADED = 0,
+	XRT_VFS_PACK_LOADING,
+	XRT_VFS_PACK_READY,
+	XRT_VFS_PACK_FAILED
+} xrt_vfs_pack_state;
+
+typedef struct xrt_vfs_pack_blob {
+	volatile int32 RefCount;
+	bytes Data;
+	size_t Size;
+} xrt_vfs_pack_blob;
+
+typedef struct xrt_vfs_pack_entry {
+	str Path;
+	size_t PathSize;
+	uint64 DataOffset;
+	uint64 StoredSize;
+	uint64 OriginalSize;
+	uint32 OriginalCrc32;
+	uint8 Codec;
+	xmutex Lock;
+	xcond Ready;
+	bool SyncReady;
+	xrt_vfs_pack_state State;
+	size_t Waiters;
+	xrt_vfs_pack_blob* Blob;
+	xerror* Failure;
+	bool Cached;
+	uint64 LastUse;
+} xrt_vfs_pack_entry;
+
+typedef struct xrt_vfs_pack_node {
+	str Path;
+	size_t PathSize;
+	size_t ParentSize;
+	size_t NameOffset;
+	bool Directory;
+	size_t Entry;
+} xrt_vfs_pack_node;
+
+typedef struct xrt_vfs_pack_file {
+	xrt_vfs_pack_blob* Blob;
+	uint64 Cursor;
+} xrt_vfs_pack_file;
+
+typedef struct xrt_vfs_pack_dir {
+	xvfspack Pack;
+	size_t* Items;
+	size_t Count;
+	size_t Position;
+} xrt_vfs_pack_dir;
+
+struct xvfs_pack_impl {
+	volatile int32 RefCount;
+	xfile Source;
+	uint64 Offset;
+	uint64 Length;
+	xvfspackformat Format;
+	xvfspackoptions Options;
+	xrt_vfs_pack_entry* Entries;
+	size_t EntryCount;
+	xrt_vfs_pack_node* Nodes;
+	xrt_vfs_pack_node** Folded;
+	size_t NodeCount;
+	bool FoldCollision;
+	xmutex CacheLock;
+	bool CacheLockReady;
+	xvfspackstats Stats;
+	uint64 CacheClock;
+};
+
+
+
+static const uint8 __xrtVfsPackHeaderMagic[8] = {
+	'X', 'R', 'T', 'P', 'A', 'C', 'K', 0
+};
+static const uint8 __xrtVfsPackTrailerMagic[8] = {
+	'X', 'R', 'T', 'P', 'E', 'N', 'D', 0
+};
+static const uint8 __xrtVfsPackLegacyHeaderMagic[8] = {
+	'X', 'S', 'V', 'F', 'H', 'D', 'R', 0
+};
+static const uint8 __xrtVfsPackLegacyTrailerMagic[8] = {
+	'X', 'S', 'V', 'P', 'A', 'C', 'K', 0
+};
+
+
+
+static uint16 __xrtVfsPackU16(const uint8* pData)
+{
+	return (uint16)((uint16)pData[0] | ((uint16)pData[1] << 8u));
+}
+
+static uint32 __xrtVfsPackU32(const uint8* pData)
+{
+	return (uint32)pData[0] |
+		((uint32)pData[1] << 8u) |
+		((uint32)pData[2] << 16u) |
+		((uint32)pData[3] << 24u);
+}
+
+static uint64 __xrtVfsPackU64(const uint8* pData)
+{
+	return (uint64)__xrtVfsPackU32(pData) |
+		((uint64)__xrtVfsPackU32(pData + 4u) << 32u);
+}
+
+static bool __xrtVfsPackAdd(uint64 iLeft, uint64 iRight, uint64* pOutput)
+{
+	if ( iLeft > UINT64_MAX - iRight ) return false;
+	*pOutput = iLeft + iRight;
+	return true;
+}
+
+static uint32 __xrtVfsPackCrc(const void* pData, size_t iSize)
+{
+	return __xrtCompressCrc32Update(UINT32_MAX, pData, iSize) ^ UINT32_MAX;
+}
+
+static uint32 __xrtVfsPackCrcPair(const void* pFirst, size_t iFirst,
+	const void* pSecond, size_t iSecond)
+{
+	uint32 iCrc = __xrtCompressCrc32Update(UINT32_MAX, pFirst, iFirst);
+	iCrc = __xrtCompressCrc32Update(iCrc, pSecond, iSecond);
+	return iCrc ^ UINT32_MAX;
+}
+
+static bool __xrtVfsPackCorrupt(cstr sOperation, cstr sMessage)
+{
+	__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_CORRUPT,
+		sOperation, sMessage);
+	return false;
+}
+
+static bool __xrtVfsPackChecksum(cstr sOperation, cstr sMessage)
+{
+	__xrtVfsError(XERR_PROTOCOL, XVFS_ERROR_CHECKSUM,
+		sOperation, sMessage);
+	return false;
+}
+
+static bool __xrtVfsPackLimit(cstr sOperation, cstr sMessage)
+{
+	__xrtVfsError(XERR_RANGE, XVFS_ERROR_LIMIT,
+		sOperation, sMessage);
+	return false;
+}
+
+
+
+static void __xrtVfsPackBlobRef(xrt_vfs_pack_blob* pBlob)
+{
+	if ( xrtRefRetain(&pBlob->RefCount) < 0 ) abort();
+}
+
+static void __xrtVfsPackBlobRelease(xrt_vfs_pack_blob* pBlob)
+{
+	if ( (pBlob == NULL) || (xrtRefRelease(&pBlob->RefCount) != 0) ) return;
+	xrtFree(pBlob->Data);
+	xrtFree(pBlob);
+}
+
+
+
+static bool __xrtVfsPackReadSource(xfile Source,
+	uint64 iBase, uint64 iLength, uint64 iRelative,
+	void* pData, size_t iSize, cstr sOperation)
+{
+	uint64 iAbsolute;
+	size_t iRead = 0u;
+
+	if ( (iRelative > iLength) ||
+		((uint64)iSize > iLength - iRelative) ||
+		!__xrtVfsPackAdd(iBase, iRelative, &iAbsolute) ) {
+		return __xrtVfsPackCorrupt(sOperation,
+			"the archive range is truncated or overflows");
+	}
+	if ( iSize == 0u ) return true;
+	if ( !xrtReadAtFull(Source, iAbsolute, pData, iSize, &iRead) ) return false;
+	if ( iRead != iSize ) {
+		return __xrtVfsPackCorrupt(sOperation,
+			"the archive source ended before the declared range");
+	}
+	return true;
+}
+
+
+
+static bool __xrtVfsPackPath(xstrview Path)
+{
+	if ( xrtUtf8Valid(Path, NULL) && __xrtVfsRelativePath(Path, false) )
+		return true;
+	xrtClearError();
+	return __xrtVfsPackCorrupt("pack-index",
+		"the archive contains a non-canonical UTF-8 path");
+}
+
+static bool __xrtVfsPackPathAfter(const xrt_vfs_pack_entry* pPrevious,
+	xstrview Path)
+{
+	if ( (pPrevious == NULL) ||
+		(xrtStrCompare((xstrview){ pPrevious->Path,
+			pPrevious->PathSize }, Path) < 0) ) return true;
+	return __xrtVfsPackCorrupt("pack-index",
+		"archive paths are duplicated or not strictly sorted");
+}
+
+
+
+static bool __xrtVfsPackEntrySet(xrt_vfs_pack_entry* pEntry,
+	xstrview Path, uint8 iCodec, uint64 iDataOffset,
+	uint64 iStoredSize, uint64 iOriginalSize, uint32 iCrc)
+{
+	pEntry->Path = xrtStrDupView(Path);
+	if ( pEntry->Path == NULL ) return false;
+	pEntry->PathSize = Path.Size;
+	pEntry->Codec = iCodec;
+	pEntry->DataOffset = iDataOffset;
+	pEntry->StoredSize = iStoredSize;
+	pEntry->OriginalSize = iOriginalSize;
+	pEntry->OriginalCrc32 = iCrc;
+	return true;
+}
+
+static bool __xrtVfsPackEntryLimits(const struct xvfs_pack_impl* pPack,
+	uint8 iCodec, uint64 iStoredSize, uint64 iOriginalSize,
+	uint64* pDecoded)
+{
+	uint64 iTotal;
+
+	if ( (iCodec != XVFS_PACK_STORE) && (iCodec != XVFS_PACK_LZMA1) )
+		return __xrtVfsPackCorrupt("pack-index",
+			"the archive uses an unsupported codec");
+	if ( iOriginalSize > pPack->Options.MaxEntryBytes )
+		return __xrtVfsPackLimit("pack-index",
+			"an archive entry exceeds the decoded size limit");
+	if ( (iStoredSize > (uint64)SIZE_MAX) ||
+		(iOriginalSize > (uint64)SIZE_MAX) )
+		return __xrtVfsPackLimit("pack-index",
+			"an archive entry is not addressable on this platform");
+	if ( (iCodec == XVFS_PACK_STORE) && (iStoredSize != iOriginalSize) )
+		return __xrtVfsPackCorrupt("pack-index",
+			"a STORE entry has different stored and original sizes");
+	if ( (iCodec == XVFS_PACK_LZMA1) &&
+		((iStoredSize < LZMA_PROPS_SIZE) || (iOriginalSize == 0u)) )
+		return __xrtVfsPackCorrupt("pack-index",
+			"an LZMA1 entry has invalid lengths");
+	if ( !__xrtVfsPackAdd(*pDecoded, iOriginalSize, &iTotal) ||
+		(iTotal > pPack->Options.MaxDecodedBytes) )
+		return __xrtVfsPackLimit("pack-index",
+			"the archive exceeds the total decoded size limit");
+	*pDecoded = iTotal;
+	return true;
+}
+
+
+
+static bool __xrtVfsPackEntriesAllocate(struct xvfs_pack_impl* pPack,
+	uint32 iCount)
+{
+	if ( iCount > pPack->Options.MaxEntries )
+		return __xrtVfsPackLimit("pack-header",
+			"the archive entry count exceeds the configured limit");
+	if ( (iCount != 0u) &&
+		(sizeof(pPack->Entries[0]) > SIZE_MAX / (size_t)iCount) ) {
+		__xrtErrorSetSizeOverflow();
+		return false;
+	}
+	if ( iCount != 0u ) {
+		pPack->Entries = (xrt_vfs_pack_entry*)xrtCalloc(
+			(size_t)iCount, sizeof(pPack->Entries[0]));
+		if ( pPack->Entries == NULL ) return false;
+	}
+	pPack->EntryCount = (size_t)iCount;
+	return true;
+}
+
+
+
+static bool __xrtVfsPackParseXrt(struct xvfs_pack_impl* pPack, xfile Source,
+	const uint8 arrHeader[XRT_VFS_PACK_HEADER_SIZE])
+{
+	uint8 arrTrailer[XRT_VFS_PACK_TRAILER_SIZE];
+	uint32 iEntryCount;
+	uint64 iDataOffset;
+	uint64 iDataSize;
+	uint64 iIndexOffset;
+	uint64 iIndexSize;
+	uint64 iArchiveSize;
+	uint64 iDecodedHeader;
+	uint64 iIndexEnd;
+	uint64 iExpectedEnd;
+	bytes pIndex = NULL;
+	uint64 iPosition = 0u;
+	uint64 iDataCursor;
+	uint64 iDecoded = 0u;
+	bool bResult = false;
+
+	if ( (__xrtVfsPackU16(arrHeader + 8u) != 1u) ||
+		(__xrtVfsPackU16(arrHeader + 10u) != 0u) ||
+		(__xrtVfsPackU32(arrHeader + 12u) != XRT_VFS_PACK_HEADER_SIZE) ||
+		(__xrtVfsPackU32(arrHeader + 16u) != 0u) ||
+		(__xrtVfsPackU32(arrHeader + 76u) != 0u) )
+		return __xrtVfsPackCorrupt("pack-header",
+			"the XRT pack header version, size, flags, or reserved fields are invalid");
+	iEntryCount = __xrtVfsPackU32(arrHeader + 20u);
+	iDataOffset = __xrtVfsPackU64(arrHeader + 24u);
+	iDataSize = __xrtVfsPackU64(arrHeader + 32u);
+	iIndexOffset = __xrtVfsPackU64(arrHeader + 40u);
+	iIndexSize = __xrtVfsPackU64(arrHeader + 48u);
+	iArchiveSize = __xrtVfsPackU64(arrHeader + 56u);
+	iDecodedHeader = __xrtVfsPackU64(arrHeader + 64u);
+	if ( (iDataOffset != XRT_VFS_PACK_HEADER_SIZE) ||
+		!__xrtVfsPackAdd(iDataOffset, iDataSize, &iExpectedEnd) ||
+		(iExpectedEnd != iIndexOffset) ||
+		!__xrtVfsPackAdd(iIndexOffset, iIndexSize, &iIndexEnd) ||
+		!__xrtVfsPackAdd(iIndexEnd, XRT_VFS_PACK_TRAILER_SIZE,
+			&iExpectedEnd) ||
+		(iExpectedEnd != iArchiveSize) || (iArchiveSize != pPack->Length) )
+		return __xrtVfsPackCorrupt("pack-header",
+			"the XRT pack physical layout is not exact");
+	if ( (iIndexSize > pPack->Options.MaxIndexBytes) ||
+		(iIndexSize > (uint64)SIZE_MAX) )
+		return __xrtVfsPackLimit("pack-index",
+			"the archive index exceeds the configured limit");
+	if ( iDecodedHeader > pPack->Options.MaxDecodedBytes )
+		return __xrtVfsPackLimit("pack-header",
+			"the archive decoded size exceeds the configured limit");
+	if ( !__xrtVfsPackReadSource(Source, pPack->Offset, pPack->Length,
+		iIndexEnd, arrTrailer, sizeof(arrTrailer), "pack-trailer") ) return false;
+	if ( (memcmp(arrTrailer, __xrtVfsPackTrailerMagic, 8u) != 0) ||
+		(__xrtVfsPackU64(arrTrailer + 8u) != iArchiveSize) ||
+		(__xrtVfsPackU64(arrTrailer + 16u) != 0u) ||
+		(__xrtVfsPackU32(arrTrailer + 28u) != 0u) )
+		return __xrtVfsPackCorrupt("pack-trailer",
+			"the XRT pack trailer is invalid");
+	if ( __xrtVfsPackCrcPair(arrTrailer, 24u, arrHeader,
+		XRT_VFS_PACK_HEADER_SIZE) != __xrtVfsPackU32(arrTrailer + 24u) )
+		return __xrtVfsPackChecksum("pack-trailer",
+			"the XRT pack metadata checksum is invalid");
+	if ( !__xrtVfsPackEntriesAllocate(pPack, iEntryCount) ) return false;
+	if ( iIndexSize != 0u ) {
+		pIndex = (bytes)xrtMalloc((size_t)iIndexSize);
+		if ( pIndex == NULL ) return false;
+		if ( !__xrtVfsPackReadSource(Source, pPack->Offset, pPack->Length,
+			iIndexOffset, pIndex, (size_t)iIndexSize, "pack-index") ) goto done;
+	}
+	if ( __xrtVfsPackCrc(pIndex, (size_t)iIndexSize) !=
+		__xrtVfsPackU32(arrHeader + 72u) ) {
+		(void)__xrtVfsPackChecksum("pack-index",
+			"the archive index checksum is invalid");
+		goto done;
+	}
+	iDataCursor = iDataOffset;
+	for ( size_t i = 0u; i < pPack->EntryCount; i++ ) {
+		xrt_vfs_pack_entry* pEntry = &pPack->Entries[i];
+		uint16 iPathSize;
+		uint8 iCodec;
+		uint64 iData;
+		uint64 iStored;
+		uint64 iOriginal;
+		xstrview Path;
+
+		if ( (iPosition > iIndexSize) ||
+			(iIndexSize - iPosition < XRT_VFS_PACK_RECORD_SIZE) ) {
+			(void)__xrtVfsPackCorrupt("pack-index",
+				"the archive index record is truncated");
+			goto done;
+		}
+		iPathSize = __xrtVfsPackU16(pIndex + (size_t)iPosition);
+		iCodec = pIndex[(size_t)iPosition + 2u];
+		if ( (iPathSize == 0u) ||
+			(pIndex[(size_t)iPosition + 3u] != 0u) ||
+			(__xrtVfsPackU32(pIndex + (size_t)iPosition + 4u) != 0u) ||
+			(__xrtVfsPackU32(pIndex + (size_t)iPosition + 36u) != 0u) ||
+			((uint64)iPathSize > iIndexSize - iPosition -
+				XRT_VFS_PACK_RECORD_SIZE) ) {
+			(void)__xrtVfsPackCorrupt("pack-index",
+				"the archive index record fields are invalid");
+			goto done;
+		}
+		iData = __xrtVfsPackU64(pIndex + (size_t)iPosition + 8u);
+		iStored = __xrtVfsPackU64(pIndex + (size_t)iPosition + 16u);
+		iOriginal = __xrtVfsPackU64(pIndex + (size_t)iPosition + 24u);
+		Path.Data = (cstr)(pIndex + (size_t)iPosition +
+			XRT_VFS_PACK_RECORD_SIZE);
+		Path.Size = iPathSize;
+		if ( (iData != iDataCursor) ||
+			!__xrtVfsPackAdd(iData, iStored, &iDataCursor) ||
+			(iDataCursor > iIndexOffset) || !__xrtVfsPackPath(Path) ||
+			!__xrtVfsPackPathAfter(i == 0u ? NULL :
+				&pPack->Entries[i - 1u], Path) ||
+			!__xrtVfsPackEntryLimits(pPack, iCodec, iStored,
+				iOriginal, &iDecoded) ||
+			!__xrtVfsPackEntrySet(pEntry, Path, iCodec, iData,
+				iStored, iOriginal,
+				__xrtVfsPackU32(pIndex + (size_t)iPosition + 32u)) ) goto done;
+		iPosition += XRT_VFS_PACK_RECORD_SIZE + (uint64)iPathSize;
+	}
+	if ( (iPosition != iIndexSize) || (iDataCursor != iIndexOffset) ||
+		(iDecoded != iDecodedHeader) ) {
+		(void)__xrtVfsPackCorrupt("pack-index",
+			"the archive index does not exactly describe the data region");
+		goto done;
+	}
+	bResult = true;
+
+done:
+	xrtFree(pIndex);
+	return bResult;
+}
+
+
+
+static bool __xrtVfsPackParseLegacy(struct xvfs_pack_impl* pPack, xfile Source,
+	const uint8 arrHeader[XRT_VFS_PACK_LEGACY_HEADER_SIZE])
+{
+	uint8 arrTrailer[XRT_VFS_PACK_LEGACY_TRAILER_SIZE];
+	uint32 iEntryCount;
+	uint64 iDataOffset;
+	uint64 iIndexOffset;
+	uint64 iArchiveSize;
+	uint64 iIndexSize;
+	uint64 iIndexEnd;
+	bytes pIndex = NULL;
+	uint64 iPosition = 0u;
+	uint64 iDataCursor;
+	uint64 iDecoded = 0u;
+	bool bResult = false;
+
+	if ( (__xrtVfsPackU16(arrHeader + 8u) != 1u) ||
+		(__xrtVfsPackU16(arrHeader + 10u) !=
+			XRT_VFS_PACK_LEGACY_HEADER_SIZE) ||
+		(__xrtVfsPackU32(arrHeader + 44u) != 0u) ||
+		(__xrtVfsPackU64(arrHeader + 48u) != 0u) ||
+		(__xrtVfsPackU64(arrHeader + 56u) != 0u) )
+		return __xrtVfsPackCorrupt("pack-header",
+			"the XSVPACK header version, size, flags, or reserved fields are invalid");
+	iEntryCount = __xrtVfsPackU32(arrHeader + 12u);
+	iDataOffset = __xrtVfsPackU64(arrHeader + 16u);
+	iIndexOffset = __xrtVfsPackU64(arrHeader + 24u);
+	iArchiveSize = __xrtVfsPackU64(arrHeader + 32u);
+	if ( (iEntryCount == 0u) ||
+		(iDataOffset != XRT_VFS_PACK_LEGACY_HEADER_SIZE) ||
+		(iIndexOffset < iDataOffset) ||
+		(iArchiveSize != pPack->Length) ||
+		(iArchiveSize < XRT_VFS_PACK_LEGACY_HEADER_SIZE +
+			XRT_VFS_PACK_LEGACY_TRAILER_SIZE) )
+		return __xrtVfsPackCorrupt("pack-header",
+			"the XSVPACK physical layout is invalid");
+	iIndexEnd = iArchiveSize - XRT_VFS_PACK_LEGACY_TRAILER_SIZE;
+	if ( iIndexOffset > iIndexEnd )
+		return __xrtVfsPackCorrupt("pack-header",
+			"the XSVPACK index lies outside the archive");
+	iIndexSize = iIndexEnd - iIndexOffset;
+	if ( iIndexSize == 0u )
+		return __xrtVfsPackCorrupt("pack-index",
+			"the XSVPACK index is empty");
+	if ( (iIndexSize > pPack->Options.MaxIndexBytes) ||
+		(iIndexSize > (uint64)SIZE_MAX) )
+		return __xrtVfsPackLimit("pack-index",
+			"the archive index exceeds the configured limit");
+	if ( !__xrtVfsPackReadSource(Source, pPack->Offset, pPack->Length,
+		iIndexEnd, arrTrailer, sizeof(arrTrailer), "pack-trailer") ) return false;
+	if ( (memcmp(arrTrailer, __xrtVfsPackLegacyTrailerMagic, 8u) != 0) ||
+		(__xrtVfsPackU64(arrTrailer + 8u) != pPack->Offset) ||
+		(__xrtVfsPackU32(arrTrailer + 20u) != 0u) )
+		return __xrtVfsPackCorrupt("pack-trailer",
+			"the XSVPACK trailer is invalid for the supplied range");
+	if ( __xrtVfsPackCrcPair(arrTrailer, 16u, arrHeader,
+		XRT_VFS_PACK_LEGACY_HEADER_SIZE) !=
+		__xrtVfsPackU32(arrTrailer + 16u) )
+		return __xrtVfsPackChecksum("pack-trailer",
+			"the XSVPACK metadata checksum is invalid");
+	if ( !__xrtVfsPackEntriesAllocate(pPack, iEntryCount) ) return false;
+	pIndex = (bytes)xrtMalloc((size_t)iIndexSize);
+	if ( pIndex == NULL ) return false;
+	if ( !__xrtVfsPackReadSource(Source, pPack->Offset, pPack->Length,
+		iIndexOffset, pIndex, (size_t)iIndexSize, "pack-index") ) goto done;
+	if ( __xrtVfsPackCrc(pIndex, (size_t)iIndexSize) !=
+		__xrtVfsPackU32(arrHeader + 40u) ) {
+		(void)__xrtVfsPackChecksum("pack-index",
+			"the XSVPACK index checksum is invalid");
+		goto done;
+	}
+	iDataCursor = iDataOffset;
+	for ( size_t i = 0u; i < pPack->EntryCount; i++ ) {
+		xrt_vfs_pack_entry* pEntry = &pPack->Entries[i];
+		uint16 iPathSize;
+		uint8 iCodec;
+		uint64 iData;
+		uint64 iStored;
+		uint64 iOriginal;
+		xstrview Path;
+		uint64 iFixed;
+
+		if ( (iPosition > iIndexSize) || (iIndexSize - iPosition < 2u) ) {
+			(void)__xrtVfsPackCorrupt("pack-index",
+				"the XSVPACK index record is truncated");
+			goto done;
+		}
+		iPathSize = __xrtVfsPackU16(pIndex + (size_t)iPosition);
+		iFixed = 2u + (uint64)iPathSize + XRT_VFS_PACK_LEGACY_RECORD_SIZE;
+		if ( (iPathSize == 0u) || (iFixed > iIndexSize - iPosition) ) {
+			(void)__xrtVfsPackCorrupt("pack-index",
+				"the XSVPACK path or record size is invalid");
+			goto done;
+		}
+		Path.Data = (cstr)(pIndex + (size_t)iPosition + 2u);
+		Path.Size = iPathSize;
+		iPosition += 2u + (uint64)iPathSize;
+		iCodec = pIndex[(size_t)iPosition];
+		if ( pIndex[(size_t)iPosition + 1u] != 0u ) {
+			(void)__xrtVfsPackCorrupt("pack-index",
+				"the XSVPACK entry flags are not zero");
+			goto done;
+		}
+		iData = __xrtVfsPackU64(pIndex + (size_t)iPosition + 2u);
+		iStored = __xrtVfsPackU32(pIndex + (size_t)iPosition + 10u);
+		iOriginal = __xrtVfsPackU64(pIndex + (size_t)iPosition + 14u);
+		if ( (iData != iDataCursor) ||
+			!__xrtVfsPackAdd(iData, iStored, &iDataCursor) ||
+			(iDataCursor > iIndexOffset) || !__xrtVfsPackPath(Path) ||
+			!__xrtVfsPackPathAfter(i == 0u ? NULL :
+				&pPack->Entries[i - 1u], Path) ||
+			!__xrtVfsPackEntryLimits(pPack, iCodec, iStored,
+				iOriginal, &iDecoded) ||
+			!__xrtVfsPackEntrySet(pEntry, Path, iCodec, iData,
+				iStored, iOriginal,
+				__xrtVfsPackU32(pIndex + (size_t)iPosition + 22u)) ) goto done;
+		iPosition += XRT_VFS_PACK_LEGACY_RECORD_SIZE;
+	}
+	if ( (iPosition != iIndexSize) || (iDataCursor != iIndexOffset) ) {
+		(void)__xrtVfsPackCorrupt("pack-index",
+			"the XSVPACK index does not exactly describe the data region");
+		goto done;
+	}
+	bResult = true;
+
+done:
+	xrtFree(pIndex);
+	return bResult;
+}
+
+
+
+static bool __xrtVfsPackEntriesSync(struct xvfs_pack_impl* pPack)
+{
+	for ( size_t i = 0u; i < pPack->EntryCount; i++ ) {
+		xrt_vfs_pack_entry* pEntry = &pPack->Entries[i];
+
+		if ( !xrtMutexInit(&pEntry->Lock) ) return false;
+		if ( !xrtCondInit(&pEntry->Ready) ) {
+			(void)xrtMutexUnit(&pEntry->Lock);
+			return false;
+		}
+		pEntry->SyncReady = true;
+	}
+	return true;
+}
+
+
+
+static bool __xrtVfsPackNodeAdd(xrt_vfs_pack_node* pNodes,
+	size_t* pCount, xstrview Path, bool bDirectory, size_t iEntry)
+{
+	xrt_vfs_pack_node* pNode = &pNodes[*pCount];
+	size_t iSlash = SIZE_MAX;
+
+	pNode->Path = xrtStrDupView(Path);
+	if ( pNode->Path == NULL ) return false;
+	pNode->PathSize = Path.Size;
+	for ( size_t i = 0u; i < Path.Size; i++ )
+		if ( Path.Data[i] == '/' ) iSlash = i;
+	pNode->ParentSize = (Path.Size == 0u) ? SIZE_MAX :
+		((iSlash == SIZE_MAX) ? 0u : iSlash);
+	pNode->NameOffset = (iSlash == SIZE_MAX) ? 0u : iSlash + 1u;
+	pNode->Directory = bDirectory;
+	pNode->Entry = iEntry;
+	(*pCount)++;
+	return true;
+}
+
+static int __xrtVfsPackNodeCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_pack_node* pA = (const xrt_vfs_pack_node*)pLeft;
+	const xrt_vfs_pack_node* pB = (const xrt_vfs_pack_node*)pRight;
+	return xrtStrCompare((xstrview){ pA->Path, pA->PathSize },
+		(xstrview){ pB->Path, pB->PathSize });
+}
+
+static int __xrtVfsPackFoldCompare(const void* pLeft, const void* pRight)
+{
+	const xrt_vfs_pack_node* pA = *(xrt_vfs_pack_node* const*)pLeft;
+	const xrt_vfs_pack_node* pB = *(xrt_vfs_pack_node* const*)pRight;
+	int iResult = xrtStrCaseCompare(
+		(xstrview){ pA->Path, pA->PathSize },
+		(xstrview){ pB->Path, pB->PathSize });
+	return iResult != 0 ? iResult : __xrtVfsPackNodeCompare(pA, pB);
+}
+
+static bool __xrtVfsPackNodesBuild(struct xvfs_pack_impl* pPack)
+{
+	size_t iCandidates = 1u;
+	size_t iCount = 0u;
+	size_t iOutput = 0u;
+
+	for ( size_t i = 0u; i < pPack->EntryCount; i++ ) {
+		if ( iCandidates == SIZE_MAX ) goto overflow;
+		iCandidates++;
+		for ( size_t j = 0u; j < pPack->Entries[i].PathSize; j++ ) {
+			if ( pPack->Entries[i].Path[j] != '/' ) continue;
+			if ( iCandidates == SIZE_MAX ) goto overflow;
+			iCandidates++;
+		}
+	}
+	if ( iCandidates > SIZE_MAX / sizeof(pPack->Nodes[0]) ) goto overflow;
+	pPack->Nodes = (xrt_vfs_pack_node*)xrtCalloc(
+		iCandidates, sizeof(pPack->Nodes[0]));
+	if ( pPack->Nodes == NULL ) return false;
+	if ( !__xrtVfsPackNodeAdd(pPack->Nodes, &iCount,
+		XRT_STR_LITERAL(""), true, SIZE_MAX) ) return false;
+	pPack->NodeCount = iCount;
+	for ( size_t i = 0u; i < pPack->EntryCount; i++ ) {
+		xrt_vfs_pack_entry* pEntry = &pPack->Entries[i];
+
+		for ( size_t j = 0u; j < pEntry->PathSize; j++ ) {
+			if ( pEntry->Path[j] != '/' ) continue;
+			if ( !__xrtVfsPackNodeAdd(pPack->Nodes, &iCount,
+				(xstrview){ pEntry->Path, j }, true, SIZE_MAX) ) return false;
+			pPack->NodeCount = iCount;
+		}
+		if ( !__xrtVfsPackNodeAdd(pPack->Nodes, &iCount,
+			(xstrview){ pEntry->Path, pEntry->PathSize }, false, i) ) return false;
+		pPack->NodeCount = iCount;
+	}
+	qsort(pPack->Nodes, iCount, sizeof(pPack->Nodes[0]),
+		__xrtVfsPackNodeCompare);
+	for ( size_t i = 0u; i < iCount; i++ ) {
+		if ( (iOutput != 0u) && xrtStrEqual(
+			(xstrview){ pPack->Nodes[iOutput - 1u].Path,
+				pPack->Nodes[iOutput - 1u].PathSize },
+			(xstrview){ pPack->Nodes[i].Path,
+				pPack->Nodes[i].PathSize }) ) {
+			if ( pPack->Nodes[iOutput - 1u].Directory !=
+				pPack->Nodes[i].Directory )
+				return __xrtVfsPackCorrupt("pack-index",
+					"an archive path is both a file and a directory");
+			xrtFree(pPack->Nodes[i].Path);
+			pPack->Nodes[i].Path = NULL;
+			continue;
+		}
+		if ( iOutput != i ) {
+			pPack->Nodes[iOutput] = pPack->Nodes[i];
+			memset(&pPack->Nodes[i], 0, sizeof(pPack->Nodes[i]));
+		}
+		iOutput++;
+	}
+	pPack->NodeCount = iOutput;
+	pPack->Folded = (xrt_vfs_pack_node**)xrtMalloc(
+		iOutput * sizeof(pPack->Folded[0]));
+	if ( pPack->Folded == NULL ) return false;
+	for ( size_t i = 0u; i < iOutput; i++ )
+		pPack->Folded[i] = &pPack->Nodes[i];
+	qsort(pPack->Folded, iOutput, sizeof(pPack->Folded[0]),
+		__xrtVfsPackFoldCompare);
+	for ( size_t i = 1u; i < iOutput; i++ ) {
+		if ( xrtStrCaseEqual(
+			(xstrview){ pPack->Folded[i - 1u]->Path,
+				pPack->Folded[i - 1u]->PathSize },
+			(xstrview){ pPack->Folded[i]->Path,
+				pPack->Folded[i]->PathSize }) ) {
+			pPack->FoldCollision = true;
+			break;
+		}
+	}
+	return true;
+
+overflow:
+	__xrtErrorSetSizeOverflow();
+	return false;
+}
+
+
+
+static void __xrtVfsPackReleaseMembers(struct xvfs_pack_impl* pPack,
+	bool bCloseSource)
+{
+	if ( pPack == NULL ) return;
+	if ( pPack->Entries != NULL ) {
+		for ( size_t i = 0u; i < pPack->EntryCount; i++ ) {
+			xrt_vfs_pack_entry* pEntry = &pPack->Entries[i];
+
+			xrtFree(pEntry->Path);
+			__xrtVfsPackBlobRelease(pEntry->Blob);
+			xrtErrorFree(pEntry->Failure);
+			if ( pEntry->SyncReady ) {
+				if ( !xrtCondUnit(&pEntry->Ready) ) abort();
+				if ( !xrtMutexUnit(&pEntry->Lock) ) abort();
+			}
+		}
+	}
+	if ( pPack->Nodes != NULL ) {
+		for ( size_t i = 0u; i < pPack->NodeCount; i++ )
+			xrtFree(pPack->Nodes[i].Path);
+	}
+	xrtFree(pPack->Folded);
+	xrtFree(pPack->Nodes);
+	xrtFree(pPack->Entries);
+	if ( pPack->CacheLockReady && !xrtMutexUnit(&pPack->CacheLock) ) abort();
+	if ( bCloseSource && (pPack->Source != NULL) ) {
+		xerror* pBefore = xrtTakeError();
+
+		(void)xrtClose(pPack->Source);
+		xrtClearError();
+		if ( pBefore != NULL ) __xrtErrorSetOwned(pBefore);
+	}
+}
+
+
+
+XRT_API void xrtVfsPackOptionsInit(xvfspackoptions* pOptions)
+{
+	if ( pOptions == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	memset(pOptions, 0, sizeof(*pOptions));
+	pOptions->Size = (uint32)sizeof(*pOptions);
+	pOptions->Version = XRT_VFS_PACK_OPTIONS_VERSION;
+	pOptions->Format = XVFS_PACK_AUTO;
+	pOptions->MaxEntries = XRT_VFS_PACK_MAX_ENTRIES_DEFAULT;
+	pOptions->MaxIndexBytes = XRT_VFS_PACK_MAX_INDEX_BYTES_DEFAULT;
+	pOptions->MaxEntryBytes = XRT_VFS_PACK_MAX_ENTRY_BYTES_DEFAULT;
+	pOptions->MaxDecodedBytes = XRT_VFS_PACK_MAX_DECODED_BYTES_DEFAULT;
+	pOptions->CacheBytes = XRT_VFS_PACK_CACHE_BYTES_DEFAULT;
+}
+
+static bool __xrtVfsPackOptions(const xvfspackoptions* pInput,
+	xvfspackoptions* pOutput)
+{
+	if ( pInput == NULL ) {
+		xrtVfsPackOptionsInit(pOutput);
+		return true;
+	}
+	if ( (pInput->Size < sizeof(*pInput)) ||
+		(pInput->Version != XRT_VFS_PACK_OPTIONS_VERSION) ||
+		((pInput->Format != XVFS_PACK_AUTO) &&
+		 (pInput->Format != XVFS_PACK_XRT_V1) &&
+		 (pInput->Format != XVFS_PACK_XSVPACK_V1)) ||
+		(pInput->MaxEntries == 0u) || (pInput->MaxIndexBytes == 0u) ||
+		(pInput->MaxEntryBytes == 0u) ||
+		(pInput->MaxDecodedBytes == 0u) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	*pOutput = *pInput;
+	pOutput->Size = (uint32)sizeof(*pOutput);
+	return true;
+}
+
+XRT_API xvfspack xrtVfsPackCreate(xfile Source,
+	uint64 iOffset, uint64 iLength, const xvfspackoptions* pOptions)
+{
+	xvfspack Pack;
+	uint8 arrHeader[XRT_VFS_PACK_HEADER_SIZE];
+	size_t iHeaderSize;
+	xvfspackformat Format;
+
+	if ( (Source == NULL) || (iLength <
+		XRT_VFS_PACK_LEGACY_HEADER_SIZE +
+		XRT_VFS_PACK_LEGACY_TRAILER_SIZE) ||
+		((xrtFileFlags(Source) & XFILE_READ) == 0u) ||
+		((xrtFileFlags(Source) & XFILE_ASYNC) != 0u) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	Pack = (xvfspack)xrtCalloc(1u, sizeof(*Pack));
+	if ( Pack == NULL ) return NULL;
+	Pack->RefCount = 1;
+	Pack->Offset = iOffset;
+	Pack->Length = iLength;
+	if ( !__xrtVfsPackOptions(pOptions, &Pack->Options) ) goto fail;
+	iHeaderSize = iLength >= XRT_VFS_PACK_HEADER_SIZE ?
+		XRT_VFS_PACK_HEADER_SIZE : XRT_VFS_PACK_LEGACY_HEADER_SIZE;
+	if ( !__xrtVfsPackReadSource(Source, iOffset, iLength, 0u,
+		arrHeader, iHeaderSize, "pack-header") ) goto fail;
+	Format = Pack->Options.Format;
+	if ( Format == XVFS_PACK_AUTO ) {
+		if ( memcmp(arrHeader, __xrtVfsPackHeaderMagic, 8u) == 0 )
+			Format = XVFS_PACK_XRT_V1;
+		else if ( memcmp(arrHeader,
+			__xrtVfsPackLegacyHeaderMagic, 8u) == 0 )
+			Format = XVFS_PACK_XSVPACK_V1;
+		else {
+			(void)__xrtVfsPackCorrupt("pack-header",
+				"the archive header magic is unknown");
+			goto fail;
+		}
+	}
+	Pack->Format = Format;
+	if ( Format == XVFS_PACK_XRT_V1 ) {
+		if ( (iHeaderSize != XRT_VFS_PACK_HEADER_SIZE) ||
+			(memcmp(arrHeader, __xrtVfsPackHeaderMagic, 8u) != 0) ) {
+			(void)__xrtVfsPackCorrupt("pack-header",
+				"the source does not contain the requested XRT pack format");
+			goto fail;
+		}
+		if ( !__xrtVfsPackParseXrt(Pack, Source, arrHeader) ) goto fail;
+	} else {
+		if ( memcmp(arrHeader,
+			__xrtVfsPackLegacyHeaderMagic, 8u) != 0 ) {
+			(void)__xrtVfsPackCorrupt("pack-header",
+				"the source does not contain the requested XSVPACK format");
+			goto fail;
+		}
+		if ( !__xrtVfsPackParseLegacy(Pack, Source, arrHeader) ) goto fail;
+	}
+	if ( !__xrtVfsPackEntriesSync(Pack) ||
+		!__xrtVfsPackNodesBuild(Pack) ||
+		!xrtMutexInit(&Pack->CacheLock) ) goto fail;
+	Pack->CacheLockReady = true;
+	Pack->Source = Source;
+	return Pack;
+
+fail:
+	__xrtVfsPackReleaseMembers(Pack, false);
+	xrtFree(Pack);
+	return NULL;
+}
+
+XRT_API void xrtVfsPackRef(xvfspack Pack)
+{
+	if ( Pack == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return;
+	}
+	if ( xrtRefRetain(&Pack->RefCount) < 0 ) abort();
+}
+
+XRT_API void xrtVfsPackDestroy(xvfspack Pack)
+{
+	if ( (Pack == NULL) || (xrtRefRelease(&Pack->RefCount) != 0) ) return;
+	__xrtVfsPackReleaseMembers(Pack, true);
+	xrtFree(Pack);
+}
+
+XRT_API xvfspackformat xrtVfsPackFormat(xvfspack Pack)
+{
+	if ( Pack == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return XVFS_PACK_AUTO;
+	}
+	return Pack->Format;
+}
+
+XRT_API bool xrtVfsPackStats(xvfspack Pack, xvfspackstats* pStats)
+{
+	if ( (Pack == NULL) || (pStats == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !xrtMutexLock(&Pack->CacheLock) ) return false;
+	*pStats = Pack->Stats;
+	(void)xrtMutexUnlock(&Pack->CacheLock);
+	return true;
+}
+
+
+
+static void* __xrtVfsPackLzmaAlloc(ISzAllocPtr pAllocator, size_t iSize)
+{
+	(void)pAllocator;
+	return iSize == 0u ? NULL : xrtMalloc(iSize);
+}
+
+static void __xrtVfsPackLzmaFree(ISzAllocPtr pAllocator, void* pData)
+{
+	(void)pAllocator;
+	xrtFree(pData);
+}
+
+static const ISzAlloc __xrtVfsPackLzmaAllocator = {
+	__xrtVfsPackLzmaAlloc,
+	__xrtVfsPackLzmaFree
+};
+
+static xrt_vfs_pack_blob* __xrtVfsPackLoadBlob(xvfspack Pack,
+	const xrt_vfs_pack_entry* pEntry)
+{
+	xrt_vfs_pack_blob* pBlob;
+	bytes pStored = NULL;
+	bytes pOutput = NULL;
+
+	pBlob = (xrt_vfs_pack_blob*)xrtMalloc(sizeof(*pBlob));
+	if ( pBlob == NULL ) return NULL;
+	if ( pEntry->StoredSize != 0u ) {
+		pStored = (bytes)xrtMalloc((size_t)pEntry->StoredSize);
+		if ( pStored == NULL ) goto fail;
+		if ( !__xrtVfsPackReadSource(Pack->Source, Pack->Offset,
+			Pack->Length, pEntry->DataOffset, pStored,
+			(size_t)pEntry->StoredSize, "pack-entry-read") ) goto fail;
+	}
+	if ( pEntry->Codec == XVFS_PACK_STORE ) {
+		pOutput = pStored;
+		pStored = NULL;
+	} else {
+		SizeT iOutput = (SizeT)pEntry->OriginalSize;
+		SizeT iInput = (SizeT)pEntry->StoredSize - LZMA_PROPS_SIZE;
+		ELzmaStatus Status = LZMA_STATUS_NOT_SPECIFIED;
+		SRes Result;
+
+		pOutput = (bytes)xrtMalloc((size_t)pEntry->OriginalSize);
+		if ( pOutput == NULL ) goto fail;
+		Result = __xrtLzmaDecode(pOutput, &iOutput,
+			pStored + LZMA_PROPS_SIZE, &iInput,
+			pStored, LZMA_PROPS_SIZE, LZMA_FINISH_END,
+			&Status, &__xrtVfsPackLzmaAllocator);
+		if ( Result == SZ_ERROR_MEM ) goto fail;
+		if ( (Result != SZ_OK) ||
+			(iOutput != (SizeT)pEntry->OriginalSize) ||
+			(iInput + LZMA_PROPS_SIZE != (SizeT)pEntry->StoredSize) ||
+			((Status != LZMA_STATUS_FINISHED_WITH_MARK) &&
+			 (Status != LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK)) ) {
+			(void)__xrtVfsPackCorrupt("pack-entry-decode",
+				"the LZMA1 entry stream is invalid or incomplete");
+			goto fail;
+		}
+	}
+	if ( __xrtVfsPackCrc(pOutput, (size_t)pEntry->OriginalSize) !=
+		pEntry->OriginalCrc32 ) {
+		(void)__xrtVfsPackChecksum("pack-entry-checksum",
+			"the decoded entry checksum is invalid");
+		goto fail;
+	}
+	xrtFree(pStored);
+	pBlob->RefCount = 1;
+	pBlob->Data = pOutput;
+	pBlob->Size = (size_t)pEntry->OriginalSize;
+	return pBlob;
+
+fail:
+	xrtFree(pOutput);
+	xrtFree(pStored);
+	xrtFree(pBlob);
+	return NULL;
+}
+
+
+
+static bool __xrtVfsPackCacheRoom(xvfspack Pack,
+	size_t iIncoming, xrt_vfs_pack_entry* pCurrent)
+{
+	uint64 iIncoming64 = (uint64)iIncoming;
+
+	if ( (iIncoming64 > Pack->Options.CacheBytes) ||
+		(Pack->Options.CacheBytes == 0u) ) return false;
+	while ( Pack->Stats.ResidentBytes >
+		Pack->Options.CacheBytes - iIncoming64 ) {
+		xrt_vfs_pack_entry* pVictim = NULL;
+		uint64 iOldest = UINT64_MAX;
+
+		for ( size_t i = 0u; i < Pack->EntryCount; i++ ) {
+			xrt_vfs_pack_entry* pEntry = &Pack->Entries[i];
+
+			if ( (pEntry == pCurrent) || !pEntry->Cached ||
+				(pEntry->LastUse > iOldest) ) continue;
+			if ( !xrtMutexLock(&pEntry->Lock) ) abort();
+			if ( pEntry->Cached && (pEntry->Waiters == 0u) &&
+				(pEntry->LastUse <= iOldest) ) {
+				pVictim = pEntry;
+				iOldest = pEntry->LastUse;
+			}
+			(void)xrtMutexUnlock(&pEntry->Lock);
+		}
+		if ( pVictim == NULL ) return false;
+		if ( !xrtMutexLock(&pVictim->Lock) ) abort();
+		if ( pVictim->Cached && (pVictim->Waiters == 0u) ) {
+			xrt_vfs_pack_blob* pBlob = pVictim->Blob;
+
+			pVictim->Blob = NULL;
+			pVictim->Cached = false;
+			pVictim->State = XRT_VFS_PACK_UNLOADED;
+			Pack->Stats.ResidentBytes -= (uint64)pBlob->Size;
+			Pack->Stats.Evictions++;
+			(void)xrtMutexUnlock(&pVictim->Lock);
+			__xrtVfsPackBlobRelease(pBlob);
+		} else {
+			(void)xrtMutexUnlock(&pVictim->Lock);
+		}
+	}
+	return true;
+}
+
+static void __xrtVfsPackAccessStat(xvfspack Pack,
+	xrt_vfs_pack_entry* pEntry, bool bHit)
+{
+	if ( !xrtMutexLock(&Pack->CacheLock) ) abort();
+	if ( bHit ) Pack->Stats.Hits++;
+	else Pack->Stats.Misses++;
+	if ( pEntry->Cached ) pEntry->LastUse = ++Pack->CacheClock;
+	(void)xrtMutexUnlock(&Pack->CacheLock);
+}
+
+static xrt_vfs_pack_blob* __xrtVfsPackEntryAcquire(xvfspack Pack,
+	xrt_vfs_pack_entry* pEntry)
+{
+	bool bWaiter = false;
+
+	if ( !xrtMutexLock(&pEntry->Lock) ) return NULL;
+	for ( ;; ) {
+		if ( (pEntry->State == XRT_VFS_PACK_READY) &&
+			(pEntry->Blob != NULL) ) {
+			xrt_vfs_pack_blob* pBlob = pEntry->Blob;
+			xrt_vfs_pack_blob* pDrop = NULL;
+
+			__xrtVfsPackBlobRef(pBlob);
+			if ( bWaiter ) pEntry->Waiters--;
+			if ( !pEntry->Cached && (pEntry->Waiters == 0u) ) {
+				pDrop = pEntry->Blob;
+				pEntry->Blob = NULL;
+				pEntry->State = XRT_VFS_PACK_UNLOADED;
+			}
+			(void)xrtMutexUnlock(&pEntry->Lock);
+			__xrtVfsPackBlobRelease(pDrop);
+			__xrtVfsPackAccessStat(Pack, pEntry, !bWaiter);
+			return pBlob;
+		}
+		if ( pEntry->State == XRT_VFS_PACK_FAILED ) {
+			xerror* pFailure = xrtErrorRef(pEntry->Failure);
+
+			if ( bWaiter ) pEntry->Waiters--;
+			(void)xrtMutexUnlock(&pEntry->Lock);
+			__xrtVfsPackAccessStat(Pack, pEntry, false);
+			xrtSetErrorTake(pFailure);
+			return NULL;
+		}
+		if ( pEntry->State == XRT_VFS_PACK_LOADING ) {
+			if ( !bWaiter ) {
+				pEntry->Waiters++;
+				bWaiter = true;
+			}
+			if ( xrtCondWait(&pEntry->Ready,
+				&pEntry->Lock) != XWAIT_OK ) {
+				pEntry->Waiters--;
+				(void)xrtMutexUnlock(&pEntry->Lock);
+				return NULL;
+			}
+			continue;
+		}
+		pEntry->State = XRT_VFS_PACK_LOADING;
+		(void)xrtMutexUnlock(&pEntry->Lock);
+		break;
+	}
+
+	if ( !xrtMutexLock(&Pack->CacheLock) ) abort();
+	Pack->Stats.Misses++;
+	Pack->Stats.Loads++;
+	(void)xrtMutexUnlock(&Pack->CacheLock);
+	{
+		xrt_vfs_pack_blob* pBlob = __xrtVfsPackLoadBlob(Pack, pEntry);
+
+		if ( pBlob == NULL ) {
+			xerror* pFailure = xrtTakeError();
+
+			if ( pFailure == NULL ) {
+				(void)__xrtVfsPackCorrupt("pack-entry-load",
+					"the archive entry load failed without an error");
+				pFailure = xrtTakeError();
+			}
+			if ( !xrtMutexLock(&pEntry->Lock) ) abort();
+			pEntry->Failure = pFailure;
+			pEntry->State = XRT_VFS_PACK_FAILED;
+			(void)xrtCondBroadcast(&pEntry->Ready);
+			(void)xrtMutexUnlock(&pEntry->Lock);
+			if ( !xrtMutexLock(&Pack->CacheLock) ) abort();
+			Pack->Stats.Failures++;
+			(void)xrtMutexUnlock(&Pack->CacheLock);
+			xrtSetError(pFailure);
+			return NULL;
+		}
+		if ( !xrtMutexLock(&Pack->CacheLock) ) abort();
+		if ( __xrtVfsPackCacheRoom(Pack, pBlob->Size, pEntry) ) {
+			if ( !xrtMutexLock(&pEntry->Lock) ) abort();
+			__xrtVfsPackBlobRef(pBlob);
+			pEntry->Blob = pBlob;
+			pEntry->Cached = true;
+			pEntry->LastUse = ++Pack->CacheClock;
+			pEntry->State = XRT_VFS_PACK_READY;
+			Pack->Stats.ResidentBytes += (uint64)pBlob->Size;
+			(void)xrtCondBroadcast(&pEntry->Ready);
+			(void)xrtMutexUnlock(&pEntry->Lock);
+			(void)xrtMutexUnlock(&Pack->CacheLock);
+		} else {
+			(void)xrtMutexUnlock(&Pack->CacheLock);
+			if ( !xrtMutexLock(&pEntry->Lock) ) abort();
+			__xrtVfsPackBlobRef(pBlob);
+			pEntry->Blob = pBlob;
+			pEntry->Cached = false;
+			pEntry->State = XRT_VFS_PACK_READY;
+			(void)xrtCondBroadcast(&pEntry->Ready);
+			if ( pEntry->Waiters == 0u ) {
+				xrt_vfs_pack_blob* pDrop = pEntry->Blob;
+
+				pEntry->Blob = NULL;
+				pEntry->State = XRT_VFS_PACK_UNLOADED;
+				(void)xrtMutexUnlock(&pEntry->Lock);
+				__xrtVfsPackBlobRelease(pDrop);
+			} else {
+				(void)xrtMutexUnlock(&pEntry->Lock);
+			}
+		}
+		return pBlob;
+	}
+}
+
+
+
+static xrt_vfs_pack_node* __xrtVfsPackFind(xvfspack Pack,
+	xvfscase CaseMode, xstrview Path)
+{
+	size_t iLow = 0u;
+	size_t iHigh = Pack->NodeCount;
+
+	while ( iLow < iHigh ) {
+		size_t iMiddle = iLow + ((iHigh - iLow) / 2u);
+		xrt_vfs_pack_node* pNode = CaseMode == XVFS_CASE_SENSITIVE ?
+			&Pack->Nodes[iMiddle] : Pack->Folded[iMiddle];
+		int iCompare = CaseMode == XVFS_CASE_SENSITIVE ?
+			xrtStrCompare((xstrview){ pNode->Path, pNode->PathSize }, Path) :
+			xrtStrCaseCompare((xstrview){ pNode->Path, pNode->PathSize }, Path);
+
+		if ( iCompare < 0 ) iLow = iMiddle + 1u;
+		else if ( iCompare > 0 ) iHigh = iMiddle;
+		else return pNode;
+	}
+	return NULL;
+}
+
+static bool __xrtVfsPackReadAt(void* pState, uint64 iOffset,
+	void* pBuffer, size_t iRequest, size_t* pRead)
+{
+	xrt_vfs_pack_file* pFile = (xrt_vfs_pack_file*)pState;
+	size_t iStart = iOffset > (uint64)SIZE_MAX ? SIZE_MAX : (size_t)iOffset;
+	size_t iDone = iStart < pFile->Blob->Size ?
+		pFile->Blob->Size - iStart : 0u;
+
+	if ( iDone > iRequest ) iDone = iRequest;
+	if ( iDone != 0u ) memcpy(pBuffer, pFile->Blob->Data + iStart, iDone);
+	*pRead = iDone;
+	return true;
+}
+
+static bool __xrtVfsPackRead(void* pState, void* pBuffer,
+	size_t iRequest, size_t* pRead)
+{
+	xrt_vfs_pack_file* pFile = (xrt_vfs_pack_file*)pState;
+	bool bResult = __xrtVfsPackReadAt(pState, pFile->Cursor,
+		pBuffer, iRequest, pRead);
+
+	if ( bResult ) pFile->Cursor += (uint64)*pRead;
+	return bResult;
+}
+
+static bool __xrtVfsPackSeekAdd(uint64 iBase,
+	int64 iOffset, uint64* pResult)
+{
+	if ( iOffset >= 0 ) {
+		uint64 iAdd = (uint64)iOffset;
+
+		if ( iBase > UINT64_MAX - iAdd ) return false;
+		*pResult = iBase + iAdd;
+	} else {
+		uint64 iSubtract = (uint64)(-(iOffset + 1)) + 1u;
+
+		if ( iBase < iSubtract ) return false;
+		*pResult = iBase - iSubtract;
+	}
+	return true;
+}
+
+static bool __xrtVfsPackSeek(void* pState, int64 iOffset,
+	xseek Origin, uint64* pPosition)
+{
+	xrt_vfs_pack_file* pFile = (xrt_vfs_pack_file*)pState;
+	uint64 iBase;
+	uint64 iResult;
+
+	if ( Origin == XSEEK_START ) iBase = 0u;
+	else if ( Origin == XSEEK_CURRENT ) iBase = pFile->Cursor;
+	else if ( Origin == XSEEK_END ) iBase = (uint64)pFile->Blob->Size;
+	else {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtVfsPackSeekAdd(iBase, iOffset, &iResult) ) {
+		__xrtVfsError(XERR_RANGE, XVFS_ERROR_OPEN,
+			"pack-seek", "the requested position is out of range");
+		return false;
+	}
+	pFile->Cursor = iResult;
+	if ( pPosition != NULL ) *pPosition = iResult;
+	return true;
+}
+
+static bool __xrtVfsPackFileStat(void* pState, xfileinfo* pInfo)
+{
+	xrt_vfs_pack_file* pFile = (xrt_vfs_pack_file*)pState;
+
+	memset(pInfo, 0, sizeof(*pInfo));
+	pInfo->Type = XFILE_TYPE_FILE;
+	pInfo->Available = XFILE_INFO_SIZE;
+	pInfo->Size = (uint64)pFile->Blob->Size;
+	return true;
+}
+
+static void __xrtVfsPackFileClose(void* pState)
+{
+	xrt_vfs_pack_file* pFile = (xrt_vfs_pack_file*)pState;
+
+	__xrtVfsPackBlobRelease(pFile->Blob);
+	xrtFree(pFile);
+}
+
+static const xvfsfileops_v1 __xrtVfsPackFileOps = {
+	(uint32)sizeof(xvfsfileops_v1),
+	XRT_VFS_FILE_OPS_VERSION,
+	XVFS_FILE_READ | XVFS_FILE_READ_AT | XVFS_FILE_SEEK | XVFS_FILE_STAT,
+	__xrtVfsPackRead, NULL,
+	__xrtVfsPackReadAt, NULL,
+	__xrtVfsPackSeek, __xrtVfsPackFileStat,
+	NULL, NULL,
+	__xrtVfsPackFileClose
+};
+
+static bool __xrtVfsPackReadOnly(const xfileoptions* pOptions)
+{
+	uint32 iForbidden = XFILE_WRITE | XFILE_CREATE | XFILE_TRUNCATE |
+		XFILE_APPEND | XFILE_EXCLUSIVE | XFILE_SYNC;
+
+	if ( (pOptions->Flags & iForbidden) == 0u ) return true;
+	__xrtVfsError(XERR_UNSUPPORTED, XVFS_ERROR_UNSUPPORTED,
+		"pack-open", "the pack provider is read-only");
+	return false;
+}
+
+static xvfslookup __xrtVfsPackOpen(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	const xfileoptions* pOptions, xvfsfile_v1* pFile)
+{
+	xvfspack Pack = (xvfspack)pContext;
+	xrt_vfs_pack_node* pNode = __xrtVfsPackFind(Pack,
+		CaseMode, RelativePath);
+	xrt_vfs_pack_blob* pBlob;
+	xrt_vfs_pack_file* pState;
+
+	if ( (pNode == NULL) || pNode->Directory ) return XVFS_LOOKUP_MISS;
+	if ( !__xrtVfsPackReadOnly(pOptions) ) return XVFS_LOOKUP_ERROR;
+	pBlob = __xrtVfsPackEntryAcquire(Pack,
+		&Pack->Entries[pNode->Entry]);
+	if ( pBlob == NULL ) return XVFS_LOOKUP_ERROR;
+	pState = (xrt_vfs_pack_file*)xrtMalloc(sizeof(*pState));
+	if ( pState == NULL ) {
+		__xrtVfsPackBlobRelease(pBlob);
+		return XVFS_LOOKUP_ERROR;
+	}
+	pState->Blob = pBlob;
+	pState->Cursor = 0u;
+	pFile->Ops = &__xrtVfsPackFileOps;
+	pFile->State = pState;
+	pFile->Flags = pOptions->Flags;
+	return XVFS_LOOKUP_OPENED;
+}
+
+static xvfslookup __xrtVfsPackStat(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	bool bFollowLink, xfileinfo* pInfo)
+{
+	xvfspack Pack = (xvfspack)pContext;
+	xrt_vfs_pack_node* pNode = __xrtVfsPackFind(Pack,
+		CaseMode, RelativePath);
+	(void)bFollowLink;
+
+	if ( pNode == NULL ) return XVFS_LOOKUP_MISS;
+	memset(pInfo, 0, sizeof(*pInfo));
+	pInfo->Type = pNode->Directory ? XFILE_TYPE_DIRECTORY : XFILE_TYPE_FILE;
+	if ( !pNode->Directory ) {
+		pInfo->Available = XFILE_INFO_SIZE;
+		pInfo->Size = Pack->Entries[pNode->Entry].OriginalSize;
+	}
+	return XVFS_LOOKUP_OPENED;
+}
+
+static bool __xrtVfsPackParentEqual(const xrt_vfs_pack_node* pNode,
+	xstrview Path, xvfscase CaseMode)
+{
+	xstrview Parent;
+
+	if ( pNode->ParentSize == SIZE_MAX ) return false;
+	Parent.Data = pNode->Path;
+	Parent.Size = pNode->ParentSize;
+	return CaseMode == XVFS_CASE_SENSITIVE ?
+		xrtStrEqual(Parent, Path) : xrtStrCaseEqual(Parent, Path);
+}
+
+static bool __xrtVfsPackDirNext(void* pState,
+	xdirentry* pEntry, bool* pEnd)
+{
+	xrt_vfs_pack_dir* pDir = (xrt_vfs_pack_dir*)pState;
+	xrt_vfs_pack_node* pNode;
+
+	if ( pDir->Position == pDir->Count ) {
+		*pEnd = true;
+		return true;
+	}
+	pNode = &pDir->Pack->Nodes[pDir->Items[pDir->Position++]];
+	memset(pEntry, 0, sizeof(*pEntry));
+	pEntry->Name.Data = pNode->Path + pNode->NameOffset;
+	pEntry->Name.Size = pNode->PathSize - pNode->NameOffset;
+	pEntry->Info.Type = pNode->Directory ?
+		XFILE_TYPE_DIRECTORY : XFILE_TYPE_FILE;
+	if ( !pNode->Directory ) {
+		pEntry->Info.Available = XFILE_INFO_SIZE;
+		pEntry->Info.Size = pDir->Pack->Entries[pNode->Entry].OriginalSize;
+	}
+	pEntry->Flags = XDIR_ENTRY_UTF8;
+	return true;
+}
+
+static void __xrtVfsPackDirClose(void* pState)
+{
+	xrt_vfs_pack_dir* pDir = (xrt_vfs_pack_dir*)pState;
+
+	xrtVfsPackDestroy(pDir->Pack);
+	xrtFree(pDir->Items);
+	xrtFree(pDir);
+}
+
+static const xvfsdirops_v1 __xrtVfsPackDirOps = {
+	(uint32)sizeof(xvfsdirops_v1),
+	XRT_VFS_DIR_OPS_VERSION,
+	__xrtVfsPackDirNext,
+	__xrtVfsPackDirClose
+};
+
+static xvfslookup __xrtVfsPackDirOpen(void* pContext,
+	xvfscase CaseMode, xstrview RelativePath,
+	uint32 iFlags, xvfsdir_v1* pOutput)
+{
+	xvfspack Pack = (xvfspack)pContext;
+	xrt_vfs_pack_node* pNode = __xrtVfsPackFind(Pack,
+		CaseMode, RelativePath);
+	xrt_vfs_pack_dir* pDir;
+	size_t iCount = 0u;
+	(void)iFlags;
+
+	if ( (pNode == NULL) || !pNode->Directory ) return XVFS_LOOKUP_MISS;
+	for ( size_t i = 0u; i < Pack->NodeCount; i++ )
+		if ( __xrtVfsPackParentEqual(&Pack->Nodes[i],
+			RelativePath, CaseMode) ) iCount++;
+	pDir = (xrt_vfs_pack_dir*)xrtCalloc(1u, sizeof(*pDir));
+	if ( pDir == NULL ) return XVFS_LOOKUP_ERROR;
+	if ( iCount != 0u ) {
+		if ( iCount > SIZE_MAX / sizeof(pDir->Items[0]) ) {
+			__xrtErrorSetSizeOverflow();
+			xrtFree(pDir);
+			return XVFS_LOOKUP_ERROR;
+		}
+		pDir->Items = (size_t*)xrtMalloc(
+			iCount * sizeof(pDir->Items[0]));
+		if ( pDir->Items == NULL ) {
+			xrtFree(pDir);
+			return XVFS_LOOKUP_ERROR;
+		}
+	}
+	for ( size_t i = 0u; i < Pack->NodeCount; i++ ) {
+		if ( __xrtVfsPackParentEqual(&Pack->Nodes[i],
+			RelativePath, CaseMode) ) pDir->Items[pDir->Count++] = i;
+	}
+	pDir->Pack = Pack;
+	xrtVfsPackRef(Pack);
+	pOutput->Ops = &__xrtVfsPackDirOps;
+	pOutput->State = pDir;
+	return XVFS_LOOKUP_OPENED;
+}
+
+static void __xrtVfsPackContextRetain(void* pContext)
+{
+	xrtVfsPackRef((xvfspack)pContext);
+}
+
+static void __xrtVfsPackContextRelease(void* pContext)
+{
+	xrtVfsPackDestroy((xvfspack)pContext);
+}
+
+static const xvfsprovider_v1 __xrtVfsPackProvider = {
+	(uint32)sizeof(xvfsprovider_v1),
+	XRT_VFS_PROVIDER_VERSION,
+	XVFS_PROVIDER_STAT | XVFS_PROVIDER_DIRECTORY,
+	__xrtVfsPackContextRetain,
+	__xrtVfsPackContextRelease,
+	__xrtVfsPackOpen,
+	__xrtVfsPackStat,
+	__xrtVfsPackDirOpen,
+	NULL
+};
+
+XRT_API xvfsmount xrtVfsPackMount(xvfs Vfs,
+	cstr sVirtualPrefix, int32 iPriority, xvfscase CaseMode,
+	xvfspack Pack, uint32 iFlags)
+{
+	if ( (Vfs == NULL) || (Pack == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	if ( (CaseMode == XVFS_CASE_ASCII_INSENSITIVE) &&
+		Pack->FoldCollision ) {
+		__xrtVfsError(XERR_EXISTS, XVFS_ERROR_MOUNT,
+			"pack-mount",
+			"the pack contains paths that collide under ASCII folding");
+		return NULL;
+	}
+	return xrtVfsMount(Vfs, sVirtualPrefix, iPriority,
+		CaseMode, &__xrtVfsPackProvider, Pack, iFlags);
 }
 
 #endif
@@ -274948,7 +284427,8 @@ typedef struct __xrt_discard_writer {
 typedef enum __xrt_copy_mode {
 	__XRT_COPY_ALL = 0,
 	__XRT_COPY_EXACT,
-	__XRT_COPY_LIMIT
+	__XRT_COPY_LIMIT,
+	__XRT_COPY_UP_TO
 } __xrt_copy_mode;
 
 
@@ -275100,6 +284580,8 @@ xreader* __xrtReaderCreateInline(
 	pReader->Ops = *pOps;
 	pReader->Context = iContextSize != 0u ? (ptr)(pReader + 1) : NULL;
 	pReader->AtEnd = false;
+	pReader->HasPending = false;
+	pReader->Pending = 0u;
 	if ( iContextSize != 0u ) {
 		memset(pReader->Context, 0, iContextSize);
 	}
@@ -275468,6 +284950,14 @@ XRT_API bool xrtReaderRead(
 	if ( pReader->AtEnd ) {
 		return true;
 	}
+	if ( pReader->HasPending ) {
+		*((bytes)pBuffer) = pReader->Pending;
+		pReader->HasPending = false;
+		if ( pRead != NULL ) {
+			*pRead = 1u;
+		}
+		return true;
+	}
 	pPrevious = xrtGetError();
 	if ( !pReader->Ops.Read(pReader->Context, pBuffer, iRequest, &iDone) ) {
 		__xrtIoFallback(
@@ -275627,19 +285117,7 @@ static bool __xrtReaderCopyRun(
 	}
 
 	if ( Mode == __XRT_COPY_LIMIT ) {
-		uint8 iProbe;
-		size_t iRead = 0;
-
-		if ( !xrtReaderRead(pReader, &iProbe, 1u, &iRead) ) {
-			goto done;
-		}
-		if ( iRead != 0u ) {
-			__xrtIoError(
-				XERR_RANGE,
-				XIO_ERROR_LIMIT,
-				"copy-limit",
-				"reader exceeds the configured copy limit"
-			);
+		if ( !__xrtReaderCheckLimit(pReader, "copy-limit") ) {
 			goto done;
 		}
 	}
@@ -275710,6 +285188,45 @@ XRT_API bool xrtReaderCopyLimit(
 
 
 
+/* 在软上限内复制，达到上限后不再读取或探测。 */
+XRT_API bool xrtReaderCopyUpTo(
+	xreader* pReader,
+	xwriter* pWriter,
+	uint64 iLimit,
+	uint64* pCopied
+)
+{
+	return __xrtReaderCopyRun(pReader, pWriter, iLimit,
+		__XRT_COPY_UP_TO, pCopied);
+}
+
+
+
+/* A limit probe is replayed by the next read, including for non-seekable inputs. */
+bool __xrtReaderCheckLimit(xreader* pReader, cstr sOperation)
+{
+	uint8 iProbe = 0u;
+	size_t iRead = 0u;
+
+	if ( !xrtReaderRead(pReader, &iProbe, 1u, &iRead) ) {
+		return false;
+	}
+	if ( iRead == 0u ) {
+		return true;
+	}
+	pReader->Pending = iProbe;
+	pReader->HasPending = true;
+	__xrtIoError(
+		XERR_RANGE,
+		XIO_ERROR_LIMIT,
+		sOperation,
+		"reader exceeds the configured limit"
+	);
+	return false;
+}
+
+
+
 /* 移动 Reader 游标并在成功后解除 EOF 锁定。 */
 XRT_API bool xrtReaderSeek(
 	xreader* pReader,
@@ -275719,6 +285236,7 @@ XRT_API bool xrtReaderSeek(
 )
 {
 	uint64 iResult;
+	int64 iPhysicalOffset = iOffset;
 	const xerror* pPrevious;
 
 	if ( (pReader == NULL) ||
@@ -275744,10 +285262,17 @@ XRT_API bool xrtReaderSeek(
 		);
 		return false;
 	}
+	if ( pReader->HasPending && Origin == XSEEK_CURRENT ) {
+		if ( iOffset == INT64_MIN ) {
+			__xrtErrorSetRange();
+			return false;
+		}
+		iPhysicalOffset--;
+	}
 	pPrevious = xrtGetError();
 	if ( !pReader->Ops.Seek(
 		pReader->Context,
-		iOffset,
+		iPhysicalOffset,
 		Origin,
 		&iResult
 	) ) {
@@ -275760,6 +285285,7 @@ XRT_API bool xrtReaderSeek(
 		return false;
 	}
 	pReader->AtEnd = false;
+	pReader->HasPending = false;
 	if ( pPosition != NULL ) {
 		*pPosition = iResult;
 	}
@@ -275803,6 +285329,13 @@ XRT_API bool xrtReaderTell(xreader* pReader, uint64* pPosition)
 			"reader tell failed"
 		);
 		return false;
+	}
+	if ( pReader->HasPending ) {
+		if ( iResult == 0u ) {
+			__xrtIoError(XERR_INTERNAL, XIO_ERROR_TELL, "tell", "reader position precedes pending byte");
+			return false;
+		}
+		iResult--;
 	}
 	*pPosition = iResult;
 	return true;
@@ -276620,26 +286153,11 @@ XRT_API xbuffer* xrtReaderReadAll(xreader* pReader, size_t iLimit)
 		}
 	}
 
-	{
-		uint8 iProbe;
-		size_t iRead = 0;
-
-		if ( !xrtReaderRead(pReader, &iProbe, 1u, &iRead) ) {
-			xrtBufferDestroy(pResult);
-			return NULL;
-		}
-		if ( iRead == 0u ) {
-			return pResult;
-		}
+	if ( !__xrtReaderCheckLimit(pReader, "read-all") ) {
+		xrtBufferDestroy(pResult);
+		return NULL;
 	}
-	__xrtIoError(
-		XERR_RANGE,
-		XIO_ERROR_LIMIT,
-		"read-all",
-		"reader exceeds the configured read-all limit"
-	);
-	xrtBufferDestroy(pResult);
-	return NULL;
+	return pResult;
 }
 
 
@@ -277305,6 +286823,172 @@ XRT_API bool xrtLineReaderDestroy(xlinereader* pLines)
 	xrtFree(pLines);
 	return bResult;
 }
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/io/io_standard.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_IO_STANDARD)
+
+#include <stdio.h>
+#include <errno.h>
+
+#if defined(_WIN32) || defined(_WIN64)
+	#include <io.h>
+#else
+	#include <unistd.h>
+#endif
+
+#if defined(XRT_FEATURE_IO_STANDARD)
+
+typedef struct __xrt_standard_io {
+	int Stream;
+} __xrt_standard_io;
+
+static xatomicptr __xrtStandardInputOwner = XRT_ATOMICPTR_INIT(NULL);
+bool __xrtStandardInputAcquire(ptr Owner)
+{
+    ptr Expected = NULL;
+    if (xrtAtomicPtrCompareExchange(&__xrtStandardInputOwner, &Expected, Owner,
+        XMEMORY_ACQUIRE, XMEMORY_RELAXED)) return true;
+    __xrtIoError(XERR_STATE, XIO_ERROR_READ, "acquire-stdin", "standard input is already in use");
+    return false;
+}
+void __xrtStandardInputRelease(ptr Owner)
+{
+    (void)xrtAtomicPtrCompareExchange(&__xrtStandardInputOwner, &Owner, NULL,
+        XMEMORY_RELEASE, XMEMORY_RELAXED);
+}
+
+static FILE* __xrtStandardFile(int Stream)
+{
+	return Stream == 0 ? stdin : Stream == 1 ? stdout : stderr;
+}
+
+#if defined(_WIN32) || defined(_WIN64)
+static HANDLE __xrtStandardHandle(int Stream)
+{
+	HANDLE Handle = GetStdHandle(Stream == 0 ? STD_INPUT_HANDLE :
+		Stream == 1 ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE);
+	if (Handle == NULL || Handle == INVALID_HANDLE_VALUE) {
+		intptr_t Value = _get_osfhandle(_fileno(__xrtStandardFile(Stream)));
+		Handle = Value == -1 ? INVALID_HANDLE_VALUE : (HANDLE)Value;
+	}
+	return Handle;
+}
+#endif
+
+static bool __xrtStandardReadRaw(ptr Context, ptr Buffer, size_t Request, size_t* Read)
+{
+	(void)Context;
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD Done = 0;
+		DWORD Count = Request > MAXDWORD ? MAXDWORD : (DWORD)Request;
+		if (!ReadFile(__xrtStandardHandle(0), Buffer, Count, &Done, NULL)) {
+			DWORD Code = GetLastError();
+			if (Code == ERROR_BROKEN_PIPE || Code == ERROR_HANDLE_EOF) {
+				*Read = 0u;
+				return true;
+			}
+			__xrtErrorSetSystem("xrt.io", XIO_ERROR_READ, "read-stdin",
+				(int)Code, "standard input read failed");
+			return false;
+		}
+		*Read = (size_t)Done;
+	#else
+		ssize_t Done;
+		size_t Count = Request > (size_t)SSIZE_MAX ? (size_t)SSIZE_MAX : Request;
+		do { Done = read(STDIN_FILENO, Buffer, Count); } while (Done < 0 && errno == EINTR);
+		if (Done < 0) {
+			__xrtErrorSetSystem("xrt.io", XIO_ERROR_READ, "read-stdin",
+				errno, "standard input read failed");
+			return false;
+		}
+		*Read = (size_t)Done;
+	#endif
+	return true;
+}
+
+static bool __xrtStandardInputClose(ptr Context)
+{
+    __xrtStandardInputRelease(Context);
+    return true;
+}
+
+static bool __xrtStandardWrite(ptr Context, const void* Buffer, size_t Request, size_t* Written)
+{
+	int Stream = ((__xrt_standard_io*)Context)->Stream;
+	/* Drain stdio text before a raw write so serial console/IO calls stay ordered. */
+	if (fflush(__xrtStandardFile(Stream)) != 0) {
+		__xrtErrorSetSystem("xrt.io", XIO_ERROR_FLUSH, "write-standard",
+			errno, "standard output flush failed");
+		return false;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD Done = 0;
+		DWORD Count = Request > MAXDWORD ? MAXDWORD : (DWORD)Request;
+		if (!WriteFile(__xrtStandardHandle(Stream), Buffer, Count, &Done, NULL)) {
+			__xrtErrorSetSystem("xrt.io", XIO_ERROR_WRITE, "write-standard",
+				(int)GetLastError(), "standard output write failed");
+			return false;
+		}
+		*Written = (size_t)Done;
+	#else
+		ssize_t Done;
+		size_t Count = Request > (size_t)SSIZE_MAX ? (size_t)SSIZE_MAX : Request;
+		do { Done = write(Stream == 1 ? STDOUT_FILENO : STDERR_FILENO, Buffer, Count); }
+		while (Done < 0 && errno == EINTR);
+		if (Done < 0) {
+			__xrtErrorSetSystem("xrt.io", XIO_ERROR_WRITE, "write-standard",
+				errno, "standard output write failed");
+			return false;
+		}
+		*Written = (size_t)Done;
+	#endif
+	return true;
+}
+
+static bool __xrtStandardFlush(ptr Context)
+{
+	if (fflush(__xrtStandardFile(((__xrt_standard_io*)Context)->Stream)) == 0)
+		return true;
+	__xrtErrorSetSystem("xrt.io", XIO_ERROR_FLUSH, "flush-standard",
+		errno, "standard output flush failed");
+	return false;
+}
+
+XRT_API xreader* xrtReaderStdin(void)
+{
+	xreaderops Ops = {0};
+    ptr Context;
+    xreader* Reader;
+    Ops.Read = __xrtStandardReadRaw;
+    Ops.Close = __xrtStandardInputClose;
+    Reader = __xrtReaderCreateInline(&Ops, sizeof(__xrt_standard_io), &Context);
+    if (Reader == NULL) return NULL;
+    if (!__xrtStandardInputAcquire(Context)) { (void)xrtReaderDestroy(Reader); return NULL; }
+    ((__xrt_standard_io*)Context)->Stream = 0;
+    return Reader;
+}
+
+static xwriter* __xrtStandardWriter(int Stream)
+{
+	xwriterops Ops = {0};
+	ptr Context;
+	xwriter* Writer;
+	Ops.Write = __xrtStandardWrite;
+	Ops.Flush = __xrtStandardFlush;
+	Writer = __xrtWriterCreateInline(&Ops, sizeof(__xrt_standard_io), &Context);
+	if (Writer != NULL) ((__xrt_standard_io*)Context)->Stream = Stream;
+	return Writer;
+}
+
+XRT_API xwriter* xrtWriterStdout(void) { return __xrtStandardWriter(1); }
+XRT_API xwriter* xrtWriterStderr(void) { return __xrtStandardWriter(2); }
 
 #endif
 #endif
@@ -278237,13 +287921,13 @@ XRT_API bool xrtJsonQuoteWrite(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSON_WRITE) || \
-	defined(XRT_FEATURE_XSON_WRITE)
+	defined(XRT_FEATURE_XLON_WRITE)
 
 #include <math.h>
 
 
 
-#if defined(XRT_FEATURE_JSON_WRITE) || defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_JSON_WRITE) || defined(XRT_FEATURE_XLON_WRITE)
 
 /* 每个容器帧只保存类型、待键状态和已完成值数量。 */
 typedef struct xtextvaluewriterframe {
@@ -279102,7 +288786,7 @@ bool __xrtTextValueWriterTag(
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 /* 以 3 KiB 输入块增量写出规范 Base64，避免为二进制建立等大临时文本。 */
 bool __xrtTextValueWriterBase64Tag(
@@ -280188,14 +289872,14 @@ XRT_API str xrtJsonStringify(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSON_FILE) || \
-	defined(XRT_FEATURE_XSON_FILE) || \
+	defined(XRT_FEATURE_XLON_FILE) || \
 	defined(XRT_FEATURE_JSONL_FILE) || \
-	defined(XRT_FEATURE_XSONL_FILE)
+	defined(XRT_FEATURE_XLONL_FILE)
 
 
 
-#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XSON_FILE) || \
-	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_JSON_FILE) || defined(XRT_FEATURE_XLON_FILE) || \
+	defined(XRT_FEATURE_JSONL_FILE) || defined(XRT_FEATURE_XLONL_FILE)
 
 /* 把底层文件错误包装到具体文本协议，并保留完整原因链。 */
 static void __xrtTextValueFileError(
@@ -280394,28 +290078,28 @@ XRT_API bool xrtJsonStringifyFile(
 
 
 /* ========================================================================== */
-/* source: src/data/xson_common.c */
+/* source: src/data/xlon_common.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_XLON_CORE)
 
 
 
-#if defined(XRT_FEATURE_XSON_CORE)
+#if defined(XRT_FEATURE_XLON_CORE)
 
-/* 设置带稳定域、代码和可选文本位置的 XSON 错误。 */
-void __xrtXsonError(
+/* 设置带稳定域、代码和可选文本位置的 XLON 错误。 */
+void __xrtXlonError(
 	xerrkind Kind,
-	xxsonerror Code,
+	xxlonerror Code,
 	cstr sOperation,
 	cstr sMessage,
-	const xxsonlocation* pLocation
+	const xxlonlocation* pLocation
 )
 {
 	__xrtTextValueError(
 		Kind,
 		(int32)Code,
-		"xrt.xson",
+		"xrt.xlon",
 		sOperation,
 		sMessage,
 		pLocation != NULL,
@@ -280427,10 +290111,10 @@ void __xrtXsonError(
 
 
 
-/* 从 XSON 错误机器数据中读取完整文本位置。 */
-XRT_API bool xrtXsonErrorLocation(
+/* 从 XLON 错误机器数据中读取完整文本位置。 */
+XRT_API bool xrtXlonErrorLocation(
 	const xerror* pError,
-	xxsonlocation* pLocation
+	xxlonlocation* pLocation
 )
 {
 	if ( pLocation == NULL ) {
@@ -280439,7 +290123,7 @@ XRT_API bool xrtXsonErrorLocation(
 	}
 	return __xrtTextValueErrorLocation(
 		pError,
-		"xrt.xson",
+		"xrt.xlon",
 		&pLocation->Offset,
 		&pLocation->Line,
 		&pLocation->Column
@@ -280451,53 +290135,53 @@ XRT_API bool xrtXsonErrorLocation(
 
 
 /* ========================================================================== */
-/* source: src/data/xson_read.c */
+/* source: src/data/xlon_read.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_XLON_READ)
 
 #include <math.h>
 
 
 
-#if defined(XRT_FEATURE_XSON_READ)
+#if defined(XRT_FEATURE_XLON_READ)
 
 /* DOM 栈帧只拥有因 KEEP 策略未挂入父容器的临时子树。 */
-typedef struct xsondomframe {
+typedef struct xlondomframe {
 	xvalue* Value;
 	bool Owned;
-} xsondomframe;
+} xlondomframe;
 
 
 
 /* DOM 构建器保存重复策略、自定义解码器和复用的二进制缓冲。 */
-typedef struct xsondombuilder {
-	xxsonreadconfig Config;
+typedef struct xlondombuilder {
+	xxlonreadconfig Config;
 	xtextvaluebudget* Budget;
 	bool Validate;
 	xvalue* Root;
-	xsondomframe Frames[XRT_VALUE_DEPTH_MAX];
+	xlondomframe Frames[XRT_VALUE_DEPTH_MAX];
 	xbuffer Bytes;
-} xsondombuilder;
+} xlondombuilder;
 
 
 
 /* 公开访问器适配器复用一个二进制缓冲，事件返回后即可覆盖。 */
-typedef struct xsonvisitadapter {
-	const xxsonreadconfig* Config;
-	xxsonvisitproc Visitor;
+typedef struct xlonvisitadapter {
+	const xxlonreadconfig* Config;
+	xxlonvisitproc Visitor;
 	ptr UserData;
 	xbuffer Bytes;
-} xsonvisitadapter;
+} xlonvisitadapter;
 
 
 
-/* 把内部文本位置复制为 XSON 稳定位置。 */
-static xxsonlocation __xrtXsonLocation(
+/* 把内部文本位置复制为 XLON 稳定位置。 */
+static xxlonlocation __xrtXlonLocation(
 	const xtextvaluelocation* pLocation
 )
 {
-	xxsonlocation Location;
+	xxlonlocation Location;
 
 	Location.Offset = pLocation->Offset;
 	Location.Line = pLocation->Line;
@@ -280507,23 +290191,23 @@ static xxsonlocation __xrtXsonLocation(
 
 
 
-/* 在事件位置设置 XSON 读取错误。 */
-static void __xrtXsonEventError(
+/* 在事件位置设置 XLON 读取错误。 */
+static void __xrtXlonEventError(
 	const xtextvalueevent* pEvent,
 	xerrkind Kind,
-	xxsonerror Code,
+	xxlonerror Code,
 	cstr sMessage
 )
 {
-	xxsonlocation Location = __xrtXsonLocation(&pEvent->Location);
+	xxlonlocation Location = __xrtXlonLocation(&pEvent->Location);
 
-	__xrtXsonError(Kind, Code, "read", sMessage, &Location);
+	__xrtXlonError(Kind, Code, "read", sMessage, &Location);
 }
 
 
 
-/* 把共享读取错误映射到 xrt.xson 错误域。 */
-static void __xrtXsonReadError(
+/* 把共享读取错误映射到 xrt.xlon 错误域。 */
+static void __xrtXlonReadError(
 	xerrkind Kind,
 	xtextvalueerror Code,
 	cstr sMessage,
@@ -280531,31 +290215,31 @@ static void __xrtXsonReadError(
 	ptr pUserData
 )
 {
-	xxsonlocation Location;
-	xxsonerror XsonCode;
+	xxlonlocation Location;
+	xxlonerror XlonCode;
 
 	(void)pUserData;
 	if ( Code == XTEXT_VALUE_ERROR_LIMIT ) {
-		XsonCode = XXSON_ERROR_LIMIT;
+		XlonCode = XXLON_ERROR_LIMIT;
 	} else if ( Code == XTEXT_VALUE_ERROR_NUMBER ) {
-		XsonCode = XXSON_ERROR_NUMBER;
+		XlonCode = XXLON_ERROR_NUMBER;
 	} else if ( Code == XTEXT_VALUE_ERROR_STATE ) {
-		XsonCode = XXSON_ERROR_STATE;
+		XlonCode = XXLON_ERROR_STATE;
 	} else {
-		XsonCode = XXSON_ERROR_SYNTAX;
+		XlonCode = XXLON_ERROR_SYNTAX;
 	}
 	if ( pLocation == NULL ) {
-		__xrtXsonError(Kind, XsonCode, "read", sMessage, NULL);
+		__xrtXlonError(Kind, XlonCode, "read", sMessage, NULL);
 		return;
 	}
-	Location = __xrtXsonLocation(pLocation);
-	__xrtXsonError(Kind, XsonCode, "read", sMessage, &Location);
+	Location = __xrtXlonLocation(pLocation);
+	__xrtXlonError(Kind, XlonCode, "read", sMessage, &Location);
 }
 
 
 
 /* 判断标签名称是否等于固定 ASCII 文本。 */
-static bool __xrtXsonTagEqual(
+static bool __xrtXlonTagEqual(
 	xstrview Tag,
 	cstr sName,
 	size_t iSize
@@ -280569,9 +290253,9 @@ static bool __xrtXsonTagEqual(
 
 
 /* 严格解码规范 Base64，并把结果保存在调用方复用缓冲中。 */
-static bool __xrtXsonDecodeBytes(
+static bool __xrtXlonDecodeBytes(
 	const xtextvalueevent* pSource,
-	const xxsonreadconfig* pConfig,
+	const xxlonreadconfig* pConfig,
 	xtextvaluebudget* pBudget,
 	xbuffer* pBuffer,
 	xbytesview* pBytes
@@ -280588,20 +290272,20 @@ static bool __xrtXsonDecodeBytes(
 		NULL
 	) ) {
 		xrtClearError();
-		__xrtXsonEventError(
+		__xrtXlonEventError(
 			pSource,
 			XERR_VALUE,
-			XXSON_ERROR_TAG,
+			XXLON_ERROR_TAG,
 			"bytes tag contains invalid Base64"
 		);
 		return false;
 	}
 	if ( (iSize > pConfig->MaxDecodedBytes) ||
 		 ((pBudget != NULL) && (iSize > pBudget->DecodedBytes)) ) {
-		__xrtXsonEventError(
+		__xrtXlonEventError(
 			pSource,
 			XERR_RANGE,
-			XXSON_ERROR_LIMIT,
+			XXLON_ERROR_LIMIT,
 			"decoded bytes exceed configured limit"
 		);
 		return false;
@@ -280623,10 +290307,10 @@ static bool __xrtXsonDecodeBytes(
 		)
 	) {
 		xrtClearError();
-		__xrtXsonEventError(
+		__xrtXlonEventError(
 			pSource,
 			XERR_VALUE,
-			XXSON_ERROR_TAG,
+			XXLON_ERROR_TAG,
 			"bytes tag could not be decoded"
 		);
 		return false;
@@ -280638,65 +290322,65 @@ static bool __xrtXsonDecodeBytes(
 
 
 
-/* 把共享事件转换为完整 XSON 事件，并解释所有内建标签。 */
-static bool __xrtXsonMakeEvent(
+/* 把共享事件转换为完整 XLON 事件，并解释所有内建标签。 */
+static bool __xrtXlonMakeEvent(
 	const xtextvalueevent* pSource,
-	const xxsonreadconfig* pConfig,
+	const xxlonreadconfig* pConfig,
 	xtextvaluebudget* pBudget,
 	xbuffer* pBytes,
-	xxsonevent* pEvent
+	xxlonevent* pEvent
 )
 {
 	memset(pEvent, 0, sizeof(*pEvent));
-	pEvent->Location = __xrtXsonLocation(&pSource->Location);
+	pEvent->Location = __xrtXlonLocation(&pSource->Location);
 	pEvent->Depth = pSource->Depth;
 	pEvent->Key = pSource->Key;
 	pEvent->Raw = pSource->Raw;
 
 	if ( pSource->Type == XTEXT_VALUE_EVENT_NULL ) {
-		pEvent->Type = XXSON_EVENT_NULL;
+		pEvent->Type = XXLON_EVENT_NULL;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_BOOL ) {
-		pEvent->Type = XXSON_EVENT_BOOL;
+		pEvent->Type = XXLON_EVENT_BOOL;
 		pEvent->Value.Boolean = pSource->Value.Boolean;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_INT ) {
-		pEvent->Type = XXSON_EVENT_INT;
+		pEvent->Type = XXLON_EVENT_INT;
 		pEvent->Value.Integer = pSource->Value.Integer;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_UINT ) {
-		pEvent->Type = XXSON_EVENT_UINT;
+		pEvent->Type = XXLON_EVENT_UINT;
 		pEvent->Value.Unsigned = pSource->Value.Unsigned;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_FLOAT ) {
-		pEvent->Type = XXSON_EVENT_FLOAT;
+		pEvent->Type = XXLON_EVENT_FLOAT;
 		pEvent->Value.Float = pSource->Value.Float;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_STRING ) {
-		pEvent->Type = XXSON_EVENT_STRING;
+		pEvent->Type = XXLON_EVENT_STRING;
 		pEvent->Value.String = pSource->Value.String;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_ARRAY_BEGIN ) {
-		pEvent->Type = XXSON_EVENT_ARRAY_BEGIN;
+		pEvent->Type = XXLON_EVENT_ARRAY_BEGIN;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_ARRAY_END ) {
-		pEvent->Type = XXSON_EVENT_ARRAY_END;
+		pEvent->Type = XXLON_EVENT_ARRAY_END;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_INT_MAP_BEGIN ) {
-		pEvent->Type = XXSON_EVENT_INT_MAP_BEGIN;
+		pEvent->Type = XXLON_EVENT_INT_MAP_BEGIN;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_INT_MAP_END ) {
-		pEvent->Type = XXSON_EVENT_INT_MAP_END;
+		pEvent->Type = XXLON_EVENT_INT_MAP_END;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_SET_BEGIN ) {
-		pEvent->Type = XXSON_EVENT_SET_BEGIN;
+		pEvent->Type = XXLON_EVENT_SET_BEGIN;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_SET_END ) {
-		pEvent->Type = XXSON_EVENT_SET_END;
+		pEvent->Type = XXLON_EVENT_SET_END;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_OBJECT_BEGIN ) {
-		pEvent->Type = XXSON_EVENT_OBJECT_BEGIN;
+		pEvent->Type = XXLON_EVENT_OBJECT_BEGIN;
 	} else if ( pSource->Type == XTEXT_VALUE_EVENT_OBJECT_END ) {
-		pEvent->Type = XXSON_EVENT_OBJECT_END;
+		pEvent->Type = XXLON_EVENT_OBJECT_END;
 	} else if ( pSource->Type != XTEXT_VALUE_EVENT_TAG ) {
-		__xrtXsonEventError(
+		__xrtXlonEventError(
 			pSource,
 			XERR_STATE,
-			XXSON_ERROR_STATE,
-			"unknown internal XSON event"
+			XXLON_ERROR_STATE,
+			"unknown internal XLON event"
 		);
 		return false;
-	} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Name, "bytes", 5u) ) {
-		pEvent->Type = XXSON_EVENT_BYTES;
-		if ( !__xrtXsonDecodeBytes(
+	} else if ( __xrtXlonTagEqual(pSource->Value.Tag.Name, "bytes", 5u) ) {
+		pEvent->Type = XXLON_EVENT_BYTES;
+		if ( !__xrtXlonDecodeBytes(
 			pSource,
 			pConfig,
 			pBudget,
@@ -280705,66 +290389,66 @@ static bool __xrtXsonMakeEvent(
 		) ) {
 			return false;
 		}
-	} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Name, "char", 4u) ) {
+	} else if ( __xrtXlonTagEqual(pSource->Value.Tag.Name, "char", 4u) ) {
 		size_t iRead = 0;
 
-		pEvent->Type = XXSON_EVENT_CHAR;
+		pEvent->Type = XXLON_EVENT_CHAR;
 		if ( (xrtUtf8Decode(
 			pSource->Value.Tag.Payload,
 			&pEvent->Value.Character,
 			&iRead
 		) != XUTF_OK) || (iRead != pSource->Value.Tag.Payload.Size) ) {
-			__xrtXsonEventError(
+			__xrtXlonEventError(
 				pSource,
 				XERR_VALUE,
-				XXSON_ERROR_TAG,
+				XXLON_ERROR_TAG,
 				"char tag requires exactly one Unicode scalar"
 			);
 			return false;
 		}
-	} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Name, "time", 4u) ) {
-		pEvent->Type = XXSON_EVENT_TIME;
+	} else if ( __xrtXlonTagEqual(pSource->Value.Tag.Name, "time", 4u) ) {
+		pEvent->Type = XXLON_EVENT_TIME;
 		if ( !xrtTimeParseRFC3339(
 			pSource->Value.Tag.Payload,
 			&pEvent->Value.Time
 		) ) {
 			xrtClearError();
-			__xrtXsonEventError(
+			__xrtXlonEventError(
 				pSource,
 				XERR_VALUE,
-				XXSON_ERROR_TAG,
+				XXLON_ERROR_TAG,
 				"time tag requires strict RFC 3339 text"
 			);
 			return false;
 		}
-	} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Name, "float", 5u) ) {
-		pEvent->Type = XXSON_EVENT_FLOAT;
-		if ( __xrtXsonTagEqual(pSource->Value.Tag.Payload, "nan", 3u) ) {
+	} else if ( __xrtXlonTagEqual(pSource->Value.Tag.Name, "float", 5u) ) {
+		pEvent->Type = XXLON_EVENT_FLOAT;
+		if ( __xrtXlonTagEqual(pSource->Value.Tag.Payload, "nan", 3u) ) {
 			pEvent->Value.Float = NAN;
-		} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Payload, "inf", 3u) ) {
+		} else if ( __xrtXlonTagEqual(pSource->Value.Tag.Payload, "inf", 3u) ) {
 			pEvent->Value.Float = INFINITY;
-		} else if ( __xrtXsonTagEqual(pSource->Value.Tag.Payload, "-inf", 4u) ) {
+		} else if ( __xrtXlonTagEqual(pSource->Value.Tag.Payload, "-inf", 4u) ) {
 			pEvent->Value.Float = -INFINITY;
 		} else {
-			__xrtXsonEventError(
+			__xrtXlonEventError(
 				pSource,
 				XERR_VALUE,
-				XXSON_ERROR_TAG,
+				XXLON_ERROR_TAG,
 				"float tag payload must be nan, inf or -inf"
 			);
 			return false;
 		}
 	} else {
-		if ( (pConfig->Flags & XXSON_READ_CUSTOM) == 0 ) {
-			__xrtXsonEventError(
+		if ( (pConfig->Flags & XXLON_READ_CUSTOM) == 0 ) {
+			__xrtXlonEventError(
 				pSource,
 				XERR_UNSUPPORTED,
-				XXSON_ERROR_UNSUPPORTED,
-				"custom XSON tag is disabled"
+				XXLON_ERROR_UNSUPPORTED,
+				"custom XLON tag is disabled"
 			);
 			return false;
 		}
-		pEvent->Type = XXSON_EVENT_CUSTOM;
+		pEvent->Type = XXLON_EVENT_CUSTOM;
 		pEvent->Value.Tag.Name = pSource->Value.Tag.Name;
 		pEvent->Value.Tag.Payload = pSource->Value.Tag.Payload;
 	}
@@ -280774,12 +290458,12 @@ static bool __xrtXsonMakeEvent(
 
 
 /* 验证读取配置和全部保留字段。 */
-bool __xrtXsonReadConfigValid(const xxsonreadconfig* pConfig)
+bool __xrtXlonReadConfigValid(const xxlonreadconfig* pConfig)
 {
 	uint32 iKnownFlags =
-		XXSON_READ_COMMENTS |
-		XXSON_READ_TRAILING_COMMA |
-		XXSON_READ_CUSTOM;
+		XXLON_READ_COMMENTS |
+		XXLON_READ_TRAILING_COMMA |
+		XXLON_READ_CUSTOM;
 
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -280787,10 +290471,10 @@ bool __xrtXsonReadConfigValid(const xxsonreadconfig* pConfig)
 	}
 	if (
 		((pConfig->Flags & ~iKnownFlags) != 0) ||
-		(pConfig->Duplicate < XXSON_DUPLICATE_REJECT) ||
-		(pConfig->Duplicate > XXSON_DUPLICATE_REPLACE) ||
-		(pConfig->BigInteger < XXSON_BIGINT_REJECT) ||
-		(pConfig->BigInteger > XXSON_BIGINT_FLOAT) ||
+		(pConfig->Duplicate < XXLON_DUPLICATE_REJECT) ||
+		(pConfig->Duplicate > XXLON_DUPLICATE_REPLACE) ||
+		(pConfig->BigInteger < XXLON_BIGINT_REJECT) ||
+		(pConfig->BigInteger > XXLON_BIGINT_FLOAT) ||
 		(pConfig->MaxDepth == 0) ||
 		(pConfig->MaxDepth > XRT_VALUE_DEPTH_MAX) ||
 		(pConfig->MaxInputBytes == 0) ||
@@ -280799,22 +290483,22 @@ bool __xrtXsonReadConfigValid(const xxsonreadconfig* pConfig)
 		(pConfig->MaxContainerItems == 0) ||
 		(pConfig->MaxDecodedBytes == 0)
 	) {
-		__xrtXsonError(
+		__xrtXlonError(
 			XERR_ARGUMENT,
-			XXSON_ERROR_CONFIG,
+			XXLON_ERROR_CONFIG,
 			"read",
-			"invalid XSON read configuration",
+			"invalid XLON read configuration",
 			NULL
 		);
 		return false;
 	}
 	for ( size_t i = 0; i < 4u; i++ ) {
 		if ( pConfig->Reserved[i] != 0 ) {
-			__xrtXsonError(
+			__xrtXlonError(
 				XERR_ARGUMENT,
-				XXSON_ERROR_CONFIG,
+				XXLON_ERROR_CONFIG,
 				"read",
-				"reserved XSON read configuration fields must be zero",
+				"reserved XLON read configuration fields must be zero",
 				NULL
 			);
 			return false;
@@ -280825,19 +290509,19 @@ bool __xrtXsonReadConfigValid(const xxsonreadconfig* pConfig)
 
 
 
-/* 把 XSON 配置压缩为共享解析器只需要的字段。 */
-static xtextvaluereadconfig __xrtXsonReadTextConfig(
-	const xxsonreadconfig* pConfig
+/* 把 XLON 配置压缩为共享解析器只需要的字段。 */
+static xtextvaluereadconfig __xrtXlonReadTextConfig(
+	const xxlonreadconfig* pConfig
 )
 {
 	xtextvaluereadconfig Config;
 
 	memset(&Config, 0, sizeof(Config));
-	Config.Dialect = XTEXT_VALUE_XSON;
+	Config.Dialect = XTEXT_VALUE_XLON;
 	Config.Flags = pConfig->Flags & (
-		XXSON_READ_COMMENTS | XXSON_READ_TRAILING_COMMA
+		XXLON_READ_COMMENTS | XXLON_READ_TRAILING_COMMA
 	);
-	Config.BigIntegerFloat = pConfig->BigInteger == XXSON_BIGINT_FLOAT;
+	Config.BigIntegerFloat = pConfig->BigInteger == XXLON_BIGINT_FLOAT;
 	Config.MaxDepth = pConfig->MaxDepth;
 	Config.MaxInputBytes = pConfig->MaxInputBytes;
 	Config.MaxStringBytes = pConfig->MaxStringBytes;
@@ -280849,9 +290533,9 @@ static xtextvaluereadconfig __xrtXsonReadTextConfig(
 
 
 /* 返回当前 DOM 事件的父容器。 */
-static xvalue* __xrtXsonDomParent(
-	xsondombuilder* pBuilder,
-	const xxsonevent* pEvent
+static xvalue* __xrtXlonDomParent(
+	xlondombuilder* pBuilder,
+	const xxlonevent* pEvent
 )
 {
 	if ( pEvent->Depth == 0 ) {
@@ -280863,22 +290547,22 @@ static xvalue* __xrtXsonDomParent(
 
 
 /* 按父容器类型挂入值，并执行对象与整数映射重复键策略。 */
-static int __xrtXsonDomAttach(
-	xsondombuilder* pBuilder,
-	const xxsonevent* pEvent,
+static int __xrtXlonDomAttach(
+	xlondombuilder* pBuilder,
+	const xxlonevent* pEvent,
 	xvalue* pValue
 )
 {
-	xvalue* pParent = __xrtXsonDomParent(pBuilder, pEvent);
+	xvalue* pParent = __xrtXlonDomParent(pBuilder, pEvent);
 	xvaluetype Type;
 
 	if ( pEvent->Depth == 0 ) {
 		if ( pBuilder->Root != NULL ) {
-			__xrtXsonError(
+			__xrtXlonError(
 				XERR_STATE,
-				XXSON_ERROR_STATE,
+				XXLON_ERROR_STATE,
 				"read",
-				"XSON DOM already has a root value",
+				"XLON DOM already has a root value",
 				&pEvent->Location
 			);
 			return -1;
@@ -280887,11 +290571,11 @@ static int __xrtXsonDomAttach(
 		return 0;
 	}
 	if ( pParent == NULL ) {
-		__xrtXsonError(
+		__xrtXlonError(
 			XERR_STATE,
-			XXSON_ERROR_STATE,
+			XXLON_ERROR_STATE,
 			"read",
-			"XSON DOM parent is missing",
+			"XLON DOM parent is missing",
 			&pEvent->Location
 		);
 		return -1;
@@ -280916,17 +290600,17 @@ static int __xrtXsonDomAttach(
 			return -1;
 		}
 		if ( xrtValueIntMapHas(pParent, pEvent->Key.Integer) ) {
-			if ( pBuilder->Config.Duplicate == XXSON_DUPLICATE_REJECT ) {
-				__xrtXsonError(
+			if ( pBuilder->Config.Duplicate == XXLON_DUPLICATE_REJECT ) {
+				__xrtXlonError(
 					XERR_EXISTS,
-					XXSON_ERROR_DUPLICATE,
+					XXLON_ERROR_DUPLICATE,
 					"read",
-					"duplicate XSON integer map key",
+					"duplicate XLON integer map key",
 					&pEvent->Location
 				);
 				return -1;
 			}
-			if ( pBuilder->Config.Duplicate == XXSON_DUPLICATE_KEEP ) {
+			if ( pBuilder->Config.Duplicate == XXLON_DUPLICATE_KEEP ) {
 				return 1;
 			}
 		}
@@ -280941,17 +290625,17 @@ static int __xrtXsonDomAttach(
 		return -1;
 	}
 	if ( xrtValueObjectHas(pParent, pEvent->Key.String) ) {
-		if ( pBuilder->Config.Duplicate == XXSON_DUPLICATE_REJECT ) {
-			__xrtXsonError(
+		if ( pBuilder->Config.Duplicate == XXLON_DUPLICATE_REJECT ) {
+			__xrtXlonError(
 				XERR_EXISTS,
-				XXSON_ERROR_DUPLICATE,
+				XXLON_ERROR_DUPLICATE,
 				"read",
-				"duplicate XSON object name",
+				"duplicate XLON object name",
 				&pEvent->Location
 			);
 			return -1;
 		}
-		if ( pBuilder->Config.Duplicate == XXSON_DUPLICATE_KEEP ) {
+		if ( pBuilder->Config.Duplicate == XXLON_DUPLICATE_KEEP ) {
 			return 1;
 		}
 	}
@@ -280961,9 +290645,9 @@ static int __xrtXsonDomAttach(
 
 
 /* 调用自定义标签解码器，并在无具体错误时建立标准错误。 */
-static xvalue* __xrtXsonDecodeCustom(
-	xsondombuilder* pBuilder,
-	const xxsonevent* pEvent
+static xvalue* __xrtXlonDecodeCustom(
+	xlondombuilder* pBuilder,
+	const xxlonevent* pEvent
 )
 {
 	const xerror* pPrevious;
@@ -280971,11 +290655,11 @@ static xvalue* __xrtXsonDecodeCustom(
 	xvalue* pValue;
 
 	if ( pBuilder->Config.Decode == NULL ) {
-		__xrtXsonError(
+		__xrtXlonError(
 			XERR_UNSUPPORTED,
-			XXSON_ERROR_UNSUPPORTED,
+			XXLON_ERROR_UNSUPPORTED,
 			"read",
-			"custom XSON tag has no decoder",
+			"custom XLON tag has no decoder",
 			&pEvent->Location
 		);
 		return NULL;
@@ -280988,11 +290672,11 @@ static xvalue* __xrtXsonDecodeCustom(
 		pBuilder->Config.DecodeData
 	);
 	if ( (pValue == NULL) && (xrtGetError() == pPrevious) ) {
-		__xrtXsonError(
+		__xrtXlonError(
 			XERR_VALUE,
-			XXSON_ERROR_TAG,
+			XXLON_ERROR_TAG,
 			"read",
-			"custom XSON decoder rejected tag",
+			"custom XLON decoder rejected tag",
 			&pEvent->Location
 		);
 	}
@@ -281002,33 +290686,33 @@ static xvalue* __xrtXsonDecodeCustom(
 
 
 
-/* 创建标量 XSON 事件对应的动态值。 */
-static xvalue* __xrtXsonDomScalar(
-	xsondombuilder* pBuilder,
-	const xxsonevent* pEvent
+/* 创建标量 XLON 事件对应的动态值。 */
+static xvalue* __xrtXlonDomScalar(
+	xlondombuilder* pBuilder,
+	const xxlonevent* pEvent
 )
 {
 	switch ( pEvent->Type ) {
-		case XXSON_EVENT_NULL:
+		case XXLON_EVENT_NULL:
 			return xrtValueRetain(xrtValueNull());
-		case XXSON_EVENT_BOOL:
+		case XXLON_EVENT_BOOL:
 			return xrtValueRetain(xrtValueBool(pEvent->Value.Boolean));
-		case XXSON_EVENT_INT:
+		case XXLON_EVENT_INT:
 			return xrtValueInt(pEvent->Value.Integer);
-		case XXSON_EVENT_UINT:
+		case XXLON_EVENT_UINT:
 			return xrtValueUInt(pEvent->Value.Unsigned);
-		case XXSON_EVENT_CHAR:
+		case XXLON_EVENT_CHAR:
 			return xrtValueChar(pEvent->Value.Character);
-		case XXSON_EVENT_FLOAT:
+		case XXLON_EVENT_FLOAT:
 			return xrtValueFloat(pEvent->Value.Float);
-		case XXSON_EVENT_STRING:
+		case XXLON_EVENT_STRING:
 			return xrtValueString(pEvent->Value.String);
-		case XXSON_EVENT_BYTES:
+		case XXLON_EVENT_BYTES:
 			return xrtValueBytes(pEvent->Value.Bytes);
-		case XXSON_EVENT_TIME:
+		case XXLON_EVENT_TIME:
 			return xrtValueTime(pEvent->Value.Time);
-		case XXSON_EVENT_CUSTOM:
-			return __xrtXsonDecodeCustom(pBuilder, pEvent);
+		case XXLON_EVENT_CUSTOM:
+			return __xrtXlonDecodeCustom(pBuilder, pEvent);
 		default:
 			__xrtErrorSetInvalidState();
 			return NULL;
@@ -281037,21 +290721,21 @@ static xvalue* __xrtXsonDomScalar(
 
 
 
-/* 使用已转换的 XSON 事件构建 Value DOM。 */
-static xtextvaluevisitaction __xrtXsonDomVisit(
+/* 使用已转换的 XLON 事件构建 Value DOM。 */
+static xtextvaluevisitaction __xrtXlonDomVisit(
 	const xtextvalueevent* pSource,
 	ptr pUserData
 )
 {
-	xsondombuilder* pBuilder = (xsondombuilder*)pUserData;
-	xxsonevent Event;
-	xsondomframe* pFrame;
+	xlondombuilder* pBuilder = (xlondombuilder*)pUserData;
+	xxlonevent Event;
+	xlondomframe* pFrame;
 	xvalue* pValue;
 	int iAttach;
 	bool bBegin;
 	bool bEnd;
 
-	if ( !__xrtXsonMakeEvent(
+	if ( !__xrtXlonMakeEvent(
 		pSource,
 		&pBuilder->Config,
 		pBuilder->Budget,
@@ -281064,23 +290748,23 @@ static xtextvaluevisitaction __xrtXsonDomVisit(
 		return XTEXT_VALUE_VISIT_NEXT;
 	}
 	bBegin =
-		(Event.Type == XXSON_EVENT_ARRAY_BEGIN) ||
-		(Event.Type == XXSON_EVENT_INT_MAP_BEGIN) ||
-		(Event.Type == XXSON_EVENT_SET_BEGIN) ||
-		(Event.Type == XXSON_EVENT_OBJECT_BEGIN);
+		(Event.Type == XXLON_EVENT_ARRAY_BEGIN) ||
+		(Event.Type == XXLON_EVENT_INT_MAP_BEGIN) ||
+		(Event.Type == XXLON_EVENT_SET_BEGIN) ||
+		(Event.Type == XXLON_EVENT_OBJECT_BEGIN);
 	bEnd =
-		(Event.Type == XXSON_EVENT_ARRAY_END) ||
-		(Event.Type == XXSON_EVENT_INT_MAP_END) ||
-		(Event.Type == XXSON_EVENT_SET_END) ||
-		(Event.Type == XXSON_EVENT_OBJECT_END);
+		(Event.Type == XXLON_EVENT_ARRAY_END) ||
+		(Event.Type == XXLON_EVENT_INT_MAP_END) ||
+		(Event.Type == XXLON_EVENT_SET_END) ||
+		(Event.Type == XXLON_EVENT_OBJECT_END);
 	if ( bEnd ) {
 		pFrame = &pBuilder->Frames[Event.Depth];
 		if ( pFrame->Value == NULL ) {
-			__xrtXsonError(
+			__xrtXlonError(
 				XERR_STATE,
-				XXSON_ERROR_STATE,
+				XXLON_ERROR_STATE,
 				"read",
-				"XSON DOM container stack is unbalanced",
+				"XLON DOM container stack is unbalanced",
 				&Event.Location
 			);
 			return XTEXT_VALUE_VISIT_FAIL;
@@ -281091,21 +290775,21 @@ static xtextvaluevisitaction __xrtXsonDomVisit(
 		memset(pFrame, 0, sizeof(*pFrame));
 		return XTEXT_VALUE_VISIT_NEXT;
 	}
-	if ( Event.Type == XXSON_EVENT_ARRAY_BEGIN ) {
+	if ( Event.Type == XXLON_EVENT_ARRAY_BEGIN ) {
 		pValue = xrtValueArray();
-	} else if ( Event.Type == XXSON_EVENT_INT_MAP_BEGIN ) {
+	} else if ( Event.Type == XXLON_EVENT_INT_MAP_BEGIN ) {
 		pValue = xrtValueIntMap();
-	} else if ( Event.Type == XXSON_EVENT_SET_BEGIN ) {
+	} else if ( Event.Type == XXLON_EVENT_SET_BEGIN ) {
 		pValue = xrtValueSet();
-	} else if ( Event.Type == XXSON_EVENT_OBJECT_BEGIN ) {
+	} else if ( Event.Type == XXLON_EVENT_OBJECT_BEGIN ) {
 		pValue = xrtValueObject();
 	} else {
-		pValue = __xrtXsonDomScalar(pBuilder, &Event);
+		pValue = __xrtXlonDomScalar(pBuilder, &Event);
 	}
 	if ( pValue == NULL ) {
 		return XTEXT_VALUE_VISIT_FAIL;
 	}
-	iAttach = __xrtXsonDomAttach(pBuilder, &Event, pValue);
+	iAttach = __xrtXlonDomAttach(pBuilder, &Event, pValue);
 	if ( iAttach < 0 ) {
 		xrtValueRelease(pValue);
 		return XTEXT_VALUE_VISIT_FAIL;
@@ -281128,7 +290812,7 @@ static xtextvaluevisitaction __xrtXsonDomVisit(
 
 
 /* 释放失败解析留下的根、栈所有权和临时二进制缓冲。 */
-static void __xrtXsonDomCleanup(xsondombuilder* pBuilder)
+static void __xrtXlonDomCleanup(xlondombuilder* pBuilder)
 {
 	for ( size_t i = 0; i < XRT_VALUE_DEPTH_MAX; i++ ) {
 		if ( pBuilder->Frames[i].Owned ) {
@@ -281142,17 +290826,17 @@ static void __xrtXsonDomCleanup(xsondombuilder* pBuilder)
 
 
 
-/* 把共享事件转换后提交给公开 XSON 访问器。 */
-static xtextvaluevisitaction __xrtXsonVisitAdapter(
+/* 把共享事件转换后提交给公开 XLON 访问器。 */
+static xtextvaluevisitaction __xrtXlonVisitAdapter(
 	const xtextvalueevent* pSource,
 	ptr pUserData
 )
 {
-	xsonvisitadapter* pAdapter = (xsonvisitadapter*)pUserData;
-	xxsonevent Event;
-	xxsonvisitaction Action;
+	xlonvisitadapter* pAdapter = (xlonvisitadapter*)pUserData;
+	xxlonevent Event;
+	xxlonvisitaction Action;
 
-	if ( !__xrtXsonMakeEvent(
+	if ( !__xrtXlonMakeEvent(
 		pSource,
 		pAdapter->Config,
 		NULL,
@@ -281168,51 +290852,51 @@ static xtextvaluevisitaction __xrtXsonVisitAdapter(
 
 
 /* 验证路径只消费事件，内建标签仍会完成严格语义校验。 */
-static xxsonvisitaction __xrtXsonValidateVisit(
-	const xxsonevent* pEvent,
+static xxlonvisitaction __xrtXlonValidateVisit(
+	const xxlonevent* pEvent,
 	ptr pUserData
 )
 {
 	(void)pEvent;
 	(void)pUserData;
-	return XXSON_VISIT_NEXT;
+	return XXLON_VISIT_NEXT;
 }
 
 
 
-/* 初始化严格且带安全资源预算的 XSON 读取配置。 */
-XRT_API void xrtXsonReadConfigInit(xxsonreadconfig* pConfig)
+/* 初始化严格且带安全资源预算的 XLON 读取配置。 */
+XRT_API void xrtXlonReadConfigInit(xxlonreadconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return;
 	}
 	memset(pConfig, 0, sizeof(*pConfig));
-	pConfig->Duplicate = XXSON_DUPLICATE_REJECT;
-	pConfig->BigInteger = XXSON_BIGINT_REJECT;
-	pConfig->MaxDepth = XXSON_DEPTH_DEFAULT;
-	pConfig->MaxInputBytes = XXSON_INPUT_DEFAULT;
-	pConfig->MaxStringBytes = XXSON_STRING_DEFAULT;
-	pConfig->MaxValues = XXSON_VALUES_DEFAULT;
-	pConfig->MaxContainerItems = XXSON_CONTAINER_DEFAULT;
-	pConfig->MaxDecodedBytes = XXSON_DECODED_DEFAULT;
+	pConfig->Duplicate = XXLON_DUPLICATE_REJECT;
+	pConfig->BigInteger = XXLON_BIGINT_REJECT;
+	pConfig->MaxDepth = XXLON_DEPTH_DEFAULT;
+	pConfig->MaxInputBytes = XXLON_INPUT_DEFAULT;
+	pConfig->MaxStringBytes = XXLON_STRING_DEFAULT;
+	pConfig->MaxValues = XXLON_VALUES_DEFAULT;
+	pConfig->MaxContainerItems = XXLON_CONTAINER_DEFAULT;
+	pConfig->MaxDecodedBytes = XXLON_DECODED_DEFAULT;
 }
 
 
 
-/* 使用高级配置解析完整 XSON 文本。 */
-xvalue* __xrtXsonReadBudget(
+/* 使用高级配置解析完整 XLON 文本。 */
+xvalue* __xrtXlonReadBudget(
 	xstrview Text,
-	const xxsonreadconfig* pConfig,
+	const xxlonreadconfig* pConfig,
 	xtextvaluebudget* pBudget,
 	bool bValidate
 )
 {
-	xsondombuilder Builder;
+	xlondombuilder Builder;
 	xtextvaluereadconfig TextConfig;
 	xtextvaluevisitresult Result;
 
-	if ( !__xrtXsonReadConfigValid(pConfig) ) {
+	if ( !__xrtXlonReadConfigValid(pConfig) ) {
 		return NULL;
 	}
 	memset(&Builder, 0, sizeof(Builder));
@@ -281222,20 +290906,20 @@ xvalue* __xrtXsonReadBudget(
 	if ( !xrtBufferInit(&Builder.Bytes) ) {
 		return NULL;
 	}
-	TextConfig = __xrtXsonReadTextConfig(pConfig);
+	TextConfig = __xrtXlonReadTextConfig(pConfig);
 	TextConfig.Budget = pBudget;
 	Result = __xrtTextValueRead(
 		Text,
 		&TextConfig,
-		__xrtXsonDomVisit,
+		__xrtXlonDomVisit,
 		&Builder,
-		__xrtXsonReadError,
+		__xrtXlonReadError,
 		NULL,
 		true
 	);
 	if ( Result != XTEXT_VALUE_VISIT_DONE ) {
 		xerror* pError = xrtTakeError();
-		__xrtXsonDomCleanup(&Builder);
+		__xrtXlonDomCleanup(&Builder);
 		xrtSetErrorTake(pError);
 		return NULL;
 	}
@@ -281245,78 +290929,78 @@ xvalue* __xrtXsonReadBudget(
 
 
 
-/* 使用高级配置解析完整 XSON 文本。 */
-XRT_API xvalue* xrtXsonRead(xstrview Text, const xxsonreadconfig* pConfig)
+/* 使用高级配置解析完整 XLON 文本。 */
+XRT_API xvalue* xrtXlonRead(xstrview Text, const xxlonreadconfig* pConfig)
 {
-	return __xrtXsonReadBudget(Text, pConfig, NULL, false);
+	return __xrtXlonReadBudget(Text, pConfig, NULL, false);
 }
 
 
 
-/* 使用默认严格配置解析完整 XSON 文本。 */
-XRT_API xvalue* xrtXsonParse(xstrview Text)
+/* 使用默认严格配置解析完整 XLON 文本。 */
+XRT_API xvalue* xrtXlonParse(xstrview Text)
 {
-	xxsonreadconfig Config;
+	xxlonreadconfig Config;
 
-	xrtXsonReadConfigInit(&Config);
-	return xrtXsonRead(Text, &Config);
+	xrtXlonReadConfigInit(&Config);
+	return xrtXlonRead(Text, &Config);
 }
 
 
 
-/* 验证默认 XSON 语法和内建标签，不构造 Value DOM。 */
-XRT_API bool xrtXsonValid(xstrview Text)
+/* 验证默认 XLON 语法和内建标签，不构造 Value DOM。 */
+XRT_API bool xrtXlonValid(xstrview Text)
 {
-	xxsonreadconfig Config;
+	xxlonreadconfig Config;
 
-	xrtXsonReadConfigInit(&Config);
-	return xrtXsonVisit(
+	xrtXlonReadConfigInit(&Config);
+	return xrtXlonVisit(
 		Text,
 		&Config,
-		__xrtXsonValidateVisit,
+		__xrtXlonValidateVisit,
 		NULL
-	) == XXSON_VISIT_DONE;
+	) == XXLON_VISIT_DONE;
 }
 
 
 
 /* 直接访问解析事件，不构造中间 DOM。 */
-XRT_API xxsonvisitresult xrtXsonVisit(
+XRT_API xxlonvisitresult xrtXlonVisit(
 	xstrview Text,
-	const xxsonreadconfig* pConfig,
-	xxsonvisitproc pVisitor,
+	const xxlonreadconfig* pConfig,
+	xxlonvisitproc pVisitor,
 	ptr pUserData
 )
 {
-	xsonvisitadapter Adapter;
+	xlonvisitadapter Adapter;
 	xtextvaluereadconfig TextConfig;
 	xtextvaluevisitresult Result;
 
-	if ( (pVisitor == NULL) || !__xrtXsonReadConfigValid(pConfig) ) {
+	if ( (pVisitor == NULL) || !__xrtXlonReadConfigValid(pConfig) ) {
 		if ( pVisitor == NULL ) {
 			__xrtErrorSetInvalidArgument();
 		}
-		return XXSON_VISIT_ERROR;
+		return XXLON_VISIT_ERROR;
 	}
 	memset(&Adapter, 0, sizeof(Adapter));
 	Adapter.Config = pConfig;
 	Adapter.Visitor = pVisitor;
 	Adapter.UserData = pUserData;
 	if ( !xrtBufferInit(&Adapter.Bytes) ) {
-		return XXSON_VISIT_ERROR;
+		return XXLON_VISIT_ERROR;
 	}
-	TextConfig = __xrtXsonReadTextConfig(pConfig);
+	TextConfig = __xrtXlonReadTextConfig(pConfig);
 	Result = __xrtTextValueRead(
 		Text,
 		&TextConfig,
-		__xrtXsonVisitAdapter,
+		__xrtXlonVisitAdapter,
 		&Adapter,
-		__xrtXsonReadError,
+		__xrtXlonReadError,
 		NULL,
 		true
 	);
 	xrtBufferUnit(&Adapter.Bytes);
-	return (xxsonvisitresult)Result;
+	return (xxlonvisitresult)Result;
 }
 
 #endif
@@ -281324,70 +291008,70 @@ XRT_API xxsonvisitresult xrtXsonVisit(
 
 
 /* ========================================================================== */
-/* source: src/data/xson_write.c */
+/* source: src/data/xlon_write.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
 #include <math.h>
 
 
 
-#if defined(XRT_FEATURE_XSON_WRITE)
+#if defined(XRT_FEATURE_XLON_WRITE)
 
-/* XSON writer 保存格式策略、用户 sink 和共享状态机。 */
-struct xxsonwriter {
-	xxsonwriteconfig Config;
-	xxsonwriteproc Write;
+/* XLON writer 保存格式策略、用户 sink 和共享状态机。 */
+struct xxlonwriter {
+	xxlonwriteconfig Config;
+	xxlonwriteproc Write;
 	ptr UserData;
 	xtextvaluewriter* Core;
 };
 
 
 
-/* 把共享输出错误映射到 xrt.xson 错误域。 */
-static void __xrtXsonWriteError(
+/* 把共享输出错误映射到 xrt.xlon 错误域。 */
+static void __xrtXlonWriteError(
 	xerrkind Kind,
 	xtextvaluewriteerror Code,
 	cstr sMessage,
 	ptr pUserData
 )
 {
-	xxsonerror XsonCode;
+	xxlonerror XlonCode;
 
 	(void)pUserData;
 	if ( Code == XTEXT_VALUE_WRITE_ERROR_LIMIT ) {
-		XsonCode = XXSON_ERROR_LIMIT;
+		XlonCode = XXLON_ERROR_LIMIT;
 	} else if ( Code == XTEXT_VALUE_WRITE_ERROR_STATE ) {
-		XsonCode = XXSON_ERROR_STATE;
+		XlonCode = XXLON_ERROR_STATE;
 	} else if ( Code == XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED ) {
-		XsonCode = XXSON_ERROR_UNSUPPORTED;
+		XlonCode = XXLON_ERROR_UNSUPPORTED;
 	} else {
-		XsonCode = XXSON_ERROR_OUTPUT;
+		XlonCode = XXLON_ERROR_OUTPUT;
 	}
-	__xrtXsonError(Kind, XsonCode, "write", sMessage, NULL);
+	__xrtXlonError(Kind, XlonCode, "write", sMessage, NULL);
 }
 
 
 
 /* 用户 sink 桥接器保持错误传播和回调重入检查。 */
-static bool __xrtXsonWriteSink(xbytesview Data, ptr pUserData)
+static bool __xrtXlonWriteSink(xbytesview Data, ptr pUserData)
 {
-	xxsonwriter* pWriter = (xxsonwriter*)pUserData;
+	xxlonwriter* pWriter = (xxlonwriter*)pUserData;
 
 	return pWriter->Write(Data, pWriter->UserData);
 }
 
 
 
-/* 验证 XSON 写出配置及全部保留字段。 */
-bool __xrtXsonWriteConfigValid(const xxsonwriteconfig* pConfig)
+/* 验证 XLON 写出配置及全部保留字段。 */
+bool __xrtXlonWriteConfigValid(const xxlonwriteconfig* pConfig)
 {
 	uint32 iKnownFlags =
-		XXSON_WRITE_PRETTY |
-		XXSON_WRITE_ESCAPE_SLASH |
-		XXSON_WRITE_ESCAPE_HTML |
-		XXSON_WRITE_ESCAPE_NON_ASCII;
+		XXLON_WRITE_PRETTY |
+		XXLON_WRITE_ESCAPE_SLASH |
+		XXLON_WRITE_ESCAPE_HTML |
+		XXLON_WRITE_ESCAPE_NON_ASCII;
 
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -281395,29 +291079,29 @@ bool __xrtXsonWriteConfigValid(const xxsonwriteconfig* pConfig)
 	}
 	if (
 		((pConfig->Flags & ~iKnownFlags) != 0) ||
-		(pConfig->Unsupported < XXSON_UNSUPPORTED_REJECT) ||
-		(pConfig->Unsupported > XXSON_UNSUPPORTED_SKIP) ||
+		(pConfig->Unsupported < XXLON_UNSUPPORTED_REJECT) ||
+		(pConfig->Unsupported > XXLON_UNSUPPORTED_SKIP) ||
 		(pConfig->MaxDepth == 0) ||
 		(pConfig->MaxDepth > XRT_VALUE_DEPTH_MAX) ||
 		(pConfig->Indent > 16u) ||
 		(pConfig->MaxOutputBytes == 0)
 	) {
-		__xrtXsonError(
+		__xrtXlonError(
 			XERR_ARGUMENT,
-			XXSON_ERROR_CONFIG,
+			XXLON_ERROR_CONFIG,
 			"write",
-			"invalid XSON write configuration",
+			"invalid XLON write configuration",
 			NULL
 		);
 		return false;
 	}
 	for ( size_t i = 0; i < 4u; i++ ) {
 		if ( pConfig->Reserved[i] != 0 ) {
-			__xrtXsonError(
+			__xrtXlonError(
 				XERR_ARGUMENT,
-				XXSON_ERROR_CONFIG,
+				XXLON_ERROR_CONFIG,
 				"write",
-				"reserved XSON write configuration fields must be zero",
+				"reserved XLON write configuration fields must be zero",
 				NULL
 			);
 			return false;
@@ -281428,9 +291112,9 @@ bool __xrtXsonWriteConfigValid(const xxsonwriteconfig* pConfig)
 
 
 
-/* 把 XSON 布局配置压缩为共享 writer 字段。 */
-static xtextvaluewriteconfig __xrtXsonWriteTextConfig(
-	const xxsonwriteconfig* pConfig
+/* 把 XLON 布局配置压缩为共享 writer 字段。 */
+static xtextvaluewriteconfig __xrtXlonWriteTextConfig(
+	const xxlonwriteconfig* pConfig
 )
 {
 	xtextvaluewriteconfig Config;
@@ -281444,38 +291128,38 @@ static xtextvaluewriteconfig __xrtXsonWriteTextConfig(
 
 
 
-/* 创建内存或 sink 模式 XSON writer。 */
-static xxsonwriter* __xrtXsonWriterCreate(
-	const xxsonwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+/* 创建内存或 sink 模式 XLON writer。 */
+static xxlonwriter* __xrtXlonWriterCreate(
+	const xxlonwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData,
 	bool bMemory
 )
 {
 	xtextvaluewriteconfig TextConfig;
-	xxsonwriter* pWriter;
+	xxlonwriter* pWriter;
 
-	if ( !__xrtXsonWriteConfigValid(pConfig) ) {
+	if ( !__xrtXlonWriteConfigValid(pConfig) ) {
 		return NULL;
 	}
 	if ( !bMemory && (pWrite == NULL) ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	pWriter = (xxsonwriter*)xrtCalloc(1, sizeof(xxsonwriter));
+	pWriter = (xxlonwriter*)xrtCalloc(1, sizeof(xxlonwriter));
 	if ( pWriter == NULL ) {
 		return NULL;
 	}
 	pWriter->Config = *pConfig;
 	pWriter->Write = pWrite;
 	pWriter->UserData = pUserData;
-	TextConfig = __xrtXsonWriteTextConfig(pConfig);
+	TextConfig = __xrtXlonWriteTextConfig(pConfig);
 	pWriter->Core = __xrtTextValueWriterCreate(
 		&TextConfig,
-		bMemory ? NULL : __xrtXsonWriteSink,
+		bMemory ? NULL : __xrtXlonWriteSink,
 		pWriter,
 		bMemory,
-		__xrtXsonWriteError,
+		__xrtXlonWriteError,
 		NULL
 	);
 	if ( pWriter->Core == NULL ) {
@@ -281488,8 +291172,8 @@ static xxsonwriter* __xrtXsonWriterCreate(
 
 
 /* 判断值是否应按显式策略从父容器中跳过。 */
-static bool __xrtXsonWriterSkipValue(
-	const xxsonwriter* pWriter,
+static bool __xrtXlonWriterSkipValue(
+	const xxlonwriter* pWriter,
 	const xvalue* pValue
 )
 {
@@ -281497,7 +291181,7 @@ static bool __xrtXsonWriterSkipValue(
 
 	if (
 		(pValue == NULL) ||
-		(pWriter->Config.Unsupported != XXSON_UNSUPPORTED_SKIP)
+		(pWriter->Config.Unsupported != XXLON_UNSUPPORTED_SKIP)
 	) {
 		return false;
 	}
@@ -281507,8 +291191,8 @@ static bool __xrtXsonWriterSkipValue(
 
 
 
-/* 判断标签名称是否保留给 XSON 内建类型或容器。 */
-static bool __xrtXsonReservedTag(xstrview Tag)
+/* 判断标签名称是否保留给 XLON 内建类型或容器。 */
+static bool __xrtXlonReservedTag(xstrview Tag)
 {
 	static const cstr arrNames[] = {
 		"bytes", "char", "time", "float", "set", "intmap"
@@ -281529,9 +291213,9 @@ static bool __xrtXsonReservedTag(xstrview Tag)
 
 
 
-/* 写出非有限浮点的显式 XSON 标签。 */
-static bool __xrtXsonWriterFloatValue(
-	xxsonwriter* pWriter,
+/* 写出非有限浮点的显式 XLON 标签。 */
+static bool __xrtXlonWriterFloatValue(
+	xxlonwriter* pWriter,
 	double fValue
 )
 {
@@ -281557,8 +291241,8 @@ static bool __xrtXsonWriterFloatValue(
 
 
 /* 写出规范 Base64 二进制标签，不建立完整临时文本。 */
-static bool __xrtXsonWriterBytesValue(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterBytesValue(
+	xxlonwriter* pWriter,
 	xbytesview Data
 )
 {
@@ -281572,8 +291256,8 @@ static bool __xrtXsonWriterBytesValue(
 
 
 /* 写出只包含一个 Unicode 标量的显式字符标签。 */
-static bool __xrtXsonWriterCharValue(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterCharValue(
+	xxlonwriter* pWriter,
 	uint32 iValue
 )
 {
@@ -281598,8 +291282,8 @@ static bool __xrtXsonWriterCharValue(
 
 
 /* 把绝对时间规范化为 UTC RFC 3339 标签。 */
-static bool __xrtXsonWriterTimeValue(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterTimeValue(
+	xxlonwriter* pWriter,
 	xtime Time
 )
 {
@@ -281625,8 +291309,8 @@ static bool __xrtXsonWriterTimeValue(
 
 
 /* 调用自定义编码器并立即消费其借用标签和载荷。 */
-static bool __xrtXsonWriterCustomValue(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterCustomValue(
+	xxlonwriter* pWriter,
 	const xvalue* pValue
 )
 {
@@ -281636,7 +291320,7 @@ static bool __xrtXsonWriterCustomValue(
 	xerror* pHeld;
 	xstrview Tag = { NULL, 0 };
 	xstrview Payload = { NULL, 0 };
-	xxsoncoderesult Result;
+	xxloncoderesult Result;
 	bool bWritten = false;
 
 	if ( pWriter->Config.Encode == NULL ) {
@@ -281644,7 +291328,7 @@ static bool __xrtXsonWriterCustomValue(
 			pWriter->Core,
 			XERR_UNSUPPORTED,
 			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-			"Value type has no XSON representation"
+			"Value type has no XLON representation"
 		);
 	}
 	if ( !__xrtValueCallbackProtect(arrValues, 1u) ) {
@@ -281670,13 +291354,13 @@ static bool __xrtXsonWriterCustomValue(
 	);
 	if ( !__xrtTextValueWriterCallbackLeave(pWriter->Core) ) {
 		bWritten = false;
-	} else if ( Result == XXSON_CODE_OK ) {
-		if ( __xrtXsonReservedTag(Tag) ) {
+	} else if ( Result == XXLON_CODE_OK ) {
+		if ( __xrtXlonReservedTag(Tag) ) {
 			bWritten = __xrtTextValueWriterFail(
 				pWriter->Core,
 				XERR_VALUE,
 				XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-				"custom encoder returned a reserved XSON tag"
+				"custom encoder returned a reserved XLON tag"
 			);
 		} else {
 			bWritten = __xrtTextValueWriterTag(
@@ -281685,30 +291369,30 @@ static bool __xrtXsonWriterCustomValue(
 				Payload
 			);
 		}
-	} else if ( Result == XXSON_CODE_ERROR ) {
+	} else if ( Result == XXLON_CODE_ERROR ) {
 		if ( xrtGetError() == pPrevious ) {
 			bWritten = __xrtTextValueWriterFail(
 				pWriter->Core,
 				XERR_VALUE,
 				XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-				"custom XSON encoder failed"
+				"custom XLON encoder failed"
 			);
 		} else {
 			__xrtTextValueWriterPoison(pWriter->Core);
 		}
-	} else if ( Result == XXSON_CODE_UNSUPPORTED ) {
+	} else if ( Result == XXLON_CODE_UNSUPPORTED ) {
 		bWritten = __xrtTextValueWriterFail(
 			pWriter->Core,
 			XERR_UNSUPPORTED,
 			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-			"custom XSON encoder did not handle Value"
+			"custom XLON encoder did not handle Value"
 		);
 	} else {
 		bWritten = __xrtTextValueWriterFail(
 			pWriter->Core,
 			XERR_STATE,
 			XTEXT_VALUE_WRITE_ERROR_STATE,
-			"custom XSON encoder returned an invalid result"
+			"custom XLON encoder returned an invalid result"
 		);
 	}
 	xrtErrorFree(pHeld);
@@ -281718,9 +291402,9 @@ static bool __xrtXsonWriterCustomValue(
 
 
 
-/* 前置声明递归 XSON 子树写出入口，供容器写出器调用。 */
-static bool __xrtXsonWriterTree(
-	xxsonwriter* pWriter,
+/* 前置声明递归 XLON 子树写出入口，供容器写出器调用。 */
+static bool __xrtXlonWriterTree(
+	xxlonwriter* pWriter,
 	const xvalue* pValue,
 	size_t iDepth,
 	ptr* arrActive
@@ -281729,8 +291413,8 @@ static bool __xrtXsonWriterTree(
 
 
 /* 写出数组或集合，并在取值前跳过显式不支持成员。 */
-static bool __xrtXsonWriterSequence(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterSequence(
+	xxlonwriter* pWriter,
 	const xvalue* pValue,
 	xtextvaluecontainertype Container,
 	size_t iDepth,
@@ -281748,10 +291432,10 @@ static bool __xrtXsonWriterSequence(
 		return false;
 	}
 	while ( bResult && ((pItem = xrtValueIterNext(&Iterator, &Key)) != NULL) ) {
-		if ( __xrtXsonWriterSkipValue(pWriter, pItem) ) {
+		if ( __xrtXlonWriterSkipValue(pWriter, pItem) ) {
 			continue;
 		}
-		bResult = __xrtXsonWriterTree(
+		bResult = __xrtXlonWriterTree(
 			pWriter,
 			pItem,
 			iDepth + 1u,
@@ -281765,8 +291449,8 @@ static bool __xrtXsonWriterSequence(
 
 
 /* 写出字符串键对象。 */
-static bool __xrtXsonWriterObjectValue(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterObjectValue(
+	xxlonwriter* pWriter,
 	const xvalue* pValue,
 	size_t iDepth,
 	ptr* arrActive
@@ -281786,12 +291470,12 @@ static bool __xrtXsonWriterObjectValue(
 		return false;
 	}
 	while ( bResult && ((pItem = xrtValueIterNext(&Iterator, &Key)) != NULL) ) {
-		if ( __xrtXsonWriterSkipValue(pWriter, pItem) ) {
+		if ( __xrtXlonWriterSkipValue(pWriter, pItem) ) {
 			continue;
 		}
 		bResult =
 			__xrtTextValueWriterName(pWriter->Core, Key.String) &&
-			__xrtXsonWriterTree(
+			__xrtXlonWriterTree(
 				pWriter,
 				pItem,
 				iDepth + 1u,
@@ -281805,8 +291489,8 @@ static bool __xrtXsonWriterObjectValue(
 
 
 /* 写出 int64 键映射。 */
-static bool __xrtXsonWriterIntMapValue(
-	xxsonwriter* pWriter,
+static bool __xrtXlonWriterIntMapValue(
+	xxlonwriter* pWriter,
 	const xvalue* pValue,
 	size_t iDepth,
 	ptr* arrActive
@@ -281826,12 +291510,12 @@ static bool __xrtXsonWriterIntMapValue(
 		return false;
 	}
 	while ( bResult && ((pItem = xrtValueIterNext(&Iterator, &Key)) != NULL) ) {
-		if ( __xrtXsonWriterSkipValue(pWriter, pItem) ) {
+		if ( __xrtXlonWriterSkipValue(pWriter, pItem) ) {
 			continue;
 		}
 		bResult =
 			__xrtTextValueWriterKey(pWriter->Core, Key.Integer) &&
-			__xrtXsonWriterTree(
+			__xrtXlonWriterTree(
 				pWriter,
 				pItem,
 				iDepth + 1u,
@@ -281844,9 +291528,9 @@ static bool __xrtXsonWriterIntMapValue(
 
 
 
-/* 写出完整 XSON Value 子树，并检测活动容器 backing 环。 */
-static bool __xrtXsonWriterTree(
-	xxsonwriter* pWriter,
+/* 写出完整 XLON Value 子树，并检测活动容器 backing 环。 */
+static bool __xrtXlonWriterTree(
+	xxlonwriter* pWriter,
 	const xvalue* pValue,
 	size_t iDepth,
 	ptr* arrActive
@@ -281867,7 +291551,7 @@ static bool __xrtXsonWriterTree(
 			pWriter->Core,
 			XERR_ARGUMENT,
 			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-			"cannot write a null Value pointer as XSON"
+			"cannot write a null Value pointer as XLON"
 		);
 	}
 	Type = xrtValueType(pValue);
@@ -281902,14 +291586,14 @@ static bool __xrtXsonWriterTree(
 			__xrtTextValueWriterPoison(pWriter->Core);
 			return false;
 		}
-		return __xrtXsonWriterCharValue(pWriter, iCharacter);
+		return __xrtXlonWriterCharValue(pWriter, iCharacter);
 	}
 	if ( Type == XVALUE_FLOAT ) {
 		if ( !xrtValueGetFloat(pValue, &fValue) ) {
 			__xrtTextValueWriterPoison(pWriter->Core);
 			return false;
 		}
-		return __xrtXsonWriterFloatValue(pWriter, fValue);
+		return __xrtXlonWriterFloatValue(pWriter, fValue);
 	}
 	if ( Type == XVALUE_STRING ) {
 		if ( !xrtValueGetString(pValue, &Text) ) {
@@ -281923,17 +291607,17 @@ static bool __xrtXsonWriterTree(
 			__xrtTextValueWriterPoison(pWriter->Core);
 			return false;
 		}
-		return __xrtXsonWriterBytesValue(pWriter, Data);
+		return __xrtXlonWriterBytesValue(pWriter, Data);
 	}
 	if ( Type == XVALUE_TIME ) {
 		if ( !xrtValueGetTime(pValue, &Time) ) {
 			__xrtTextValueWriterPoison(pWriter->Core);
 			return false;
 		}
-		return __xrtXsonWriterTimeValue(pWriter, Time);
+		return __xrtXlonWriterTimeValue(pWriter, Time);
 	}
 	if ( (Type == XVALUE_POINTER) || (Type == XVALUE_HANDLE) ) {
-		return __xrtXsonWriterCustomValue(pWriter, pValue);
+		return __xrtXlonWriterCustomValue(pWriter, pValue);
 	}
 	if (
 		(Type != XVALUE_ARRAY) && (Type != XVALUE_INT_MAP) &&
@@ -281943,7 +291627,7 @@ static bool __xrtXsonWriterTree(
 			pWriter->Core,
 			XERR_UNSUPPORTED,
 			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-			"Value type has no XSON representation"
+			"Value type has no XLON representation"
 		);
 	}
 	if ( iDepth >= pWriter->Config.MaxDepth ) {
@@ -281951,7 +291635,7 @@ static bool __xrtXsonWriterTree(
 			pWriter->Core,
 			XERR_RANGE,
 			XTEXT_VALUE_WRITE_ERROR_LIMIT,
-			"XSON Value nesting exceeds configured depth"
+			"XLON Value nesting exceeds configured depth"
 		);
 	}
 	pIdentity = (ptr)pValue->Data.Backing;
@@ -281961,13 +291645,13 @@ static bool __xrtXsonWriterTree(
 				pWriter->Core,
 				XERR_VALUE,
 				XTEXT_VALUE_WRITE_ERROR_STATE,
-				"cyclic Value graph cannot be written as XSON"
+				"cyclic Value graph cannot be written as XLON"
 			);
 		}
 	}
 	arrActive[iDepth] = pIdentity;
 	if ( Type == XVALUE_ARRAY ) {
-		return __xrtXsonWriterSequence(
+		return __xrtXlonWriterSequence(
 			pWriter,
 			pValue,
 			XTEXT_VALUE_CONTAINER_ARRAY,
@@ -281976,7 +291660,7 @@ static bool __xrtXsonWriterTree(
 		);
 	}
 	if ( Type == XVALUE_SET ) {
-		return __xrtXsonWriterSequence(
+		return __xrtXlonWriterSequence(
 			pWriter,
 			pValue,
 			XTEXT_VALUE_CONTAINER_SET,
@@ -281985,14 +291669,14 @@ static bool __xrtXsonWriterTree(
 		);
 	}
 	if ( Type == XVALUE_OBJECT ) {
-		return __xrtXsonWriterObjectValue(
+		return __xrtXlonWriterObjectValue(
 			pWriter,
 			pValue,
 			iDepth,
 			arrActive
 		);
 	}
-	return __xrtXsonWriterIntMapValue(
+	return __xrtXlonWriterIntMapValue(
 		pWriter,
 		pValue,
 		iDepth,
@@ -282003,45 +291687,45 @@ static bool __xrtXsonWriterTree(
 
 
 /* 初始化紧凑输出、严格类型和有限输出预算。 */
-XRT_API void xrtXsonWriteConfigInit(xxsonwriteconfig* pConfig)
+XRT_API void xrtXlonWriteConfigInit(xxlonwriteconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return;
 	}
 	memset(pConfig, 0, sizeof(*pConfig));
-	pConfig->Unsupported = XXSON_UNSUPPORTED_REJECT;
-	pConfig->MaxDepth = XXSON_DEPTH_DEFAULT;
+	pConfig->Unsupported = XXLON_UNSUPPORTED_REJECT;
+	pConfig->MaxDepth = XXLON_DEPTH_DEFAULT;
 	pConfig->Indent = 2u;
-	pConfig->MaxOutputBytes = XXSON_INPUT_DEFAULT;
+	pConfig->MaxOutputBytes = XXLON_INPUT_DEFAULT;
 }
 
 
 
 /* 创建内存增量 writer。 */
-XRT_API xxsonwriter* xrtXsonWriterCreate(
-	const xxsonwriteconfig* pConfig
+XRT_API xxlonwriter* xrtXlonWriterCreate(
+	const xxlonwriteconfig* pConfig
 )
 {
-	return __xrtXsonWriterCreate(pConfig, NULL, NULL, true);
+	return __xrtXlonWriterCreate(pConfig, NULL, NULL, true);
 }
 
 
 
 /* 创建同步 sink 增量 writer。 */
-XRT_API xxsonwriter* xrtXsonWriterCreateSink(
-	const xxsonwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+XRT_API xxlonwriter* xrtXlonWriterCreateSink(
+	const xxlonwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 )
 {
-	return __xrtXsonWriterCreate(pConfig, pWrite, pUserData, false);
+	return __xrtXlonWriterCreate(pConfig, pWrite, pUserData, false);
 }
 
 
 
 /* 在当前位置开始对象。 */
-XRT_API bool xrtXsonWriterObject(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterObject(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282056,7 +291740,7 @@ XRT_API bool xrtXsonWriterObject(xxsonwriter* pWriter)
 
 
 /* 在当前位置开始数组。 */
-XRT_API bool xrtXsonWriterArray(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterArray(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282071,7 +291755,7 @@ XRT_API bool xrtXsonWriterArray(xxsonwriter* pWriter)
 
 
 /* 在当前位置开始整数映射。 */
-XRT_API bool xrtXsonWriterIntMap(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterIntMap(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282086,7 +291770,7 @@ XRT_API bool xrtXsonWriterIntMap(xxsonwriter* pWriter)
 
 
 /* 在当前位置开始集合。 */
-XRT_API bool xrtXsonWriterSet(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterSet(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282101,7 +291785,7 @@ XRT_API bool xrtXsonWriterSet(xxsonwriter* pWriter)
 
 
 /* 结束当前容器。 */
-XRT_API bool xrtXsonWriterEnd(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterEnd(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282113,7 +291797,7 @@ XRT_API bool xrtXsonWriterEnd(xxsonwriter* pWriter)
 
 
 /* 写入对象名称。 */
-XRT_API bool xrtXsonWriterName(xxsonwriter* pWriter, xstrview Name)
+XRT_API bool xrtXlonWriterName(xxlonwriter* pWriter, xstrview Name)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282125,7 +291809,7 @@ XRT_API bool xrtXsonWriterName(xxsonwriter* pWriter, xstrview Name)
 
 
 /* 写入整数映射键。 */
-XRT_API bool xrtXsonWriterKey(xxsonwriter* pWriter, int64 iKey)
+XRT_API bool xrtXlonWriterKey(xxlonwriter* pWriter, int64 iKey)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282137,7 +291821,7 @@ XRT_API bool xrtXsonWriterKey(xxsonwriter* pWriter, int64 iKey)
 
 
 /* 写入 null。 */
-XRT_API bool xrtXsonWriterNull(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterNull(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282149,7 +291833,7 @@ XRT_API bool xrtXsonWriterNull(xxsonwriter* pWriter)
 
 
 /* 写入布尔值。 */
-XRT_API bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue)
+XRT_API bool xrtXlonWriterBool(xxlonwriter* pWriter, bool bValue)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282161,7 +291845,7 @@ XRT_API bool xrtXsonWriterBool(xxsonwriter* pWriter, bool bValue)
 
 
 /* 写入 int64。 */
-XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue)
+XRT_API bool xrtXlonWriterInt(xxlonwriter* pWriter, int64 iValue)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282173,7 +291857,7 @@ XRT_API bool xrtXsonWriterInt(xxsonwriter* pWriter, int64 iValue)
 
 
 /* 写入 uint64。 */
-XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue)
+XRT_API bool xrtXlonWriterUInt(xxlonwriter* pWriter, uint64 iValue)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282185,31 +291869,31 @@ XRT_API bool xrtXsonWriterUInt(xxsonwriter* pWriter, uint64 iValue)
 
 
 /* 写入保留字符身份的 Unicode 标量。 */
-XRT_API bool xrtXsonWriterChar(xxsonwriter* pWriter, uint32 iValue)
+XRT_API bool xrtXlonWriterChar(xxlonwriter* pWriter, uint32 iValue)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtXsonWriterCharValue(pWriter, iValue);
+	return __xrtXlonWriterCharValue(pWriter, iValue);
 }
 
 
 
 /* 写入 double，非有限值使用显式标签。 */
-XRT_API bool xrtXsonWriterFloat(xxsonwriter* pWriter, double fValue)
+XRT_API bool xrtXlonWriterFloat(xxlonwriter* pWriter, double fValue)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtXsonWriterFloatValue(pWriter, fValue);
+	return __xrtXlonWriterFloatValue(pWriter, fValue);
 }
 
 
 
 /* 写入严格 UTF-8 字符串。 */
-XRT_API bool xrtXsonWriterString(xxsonwriter* pWriter, xstrview Text)
+XRT_API bool xrtXlonWriterString(xxlonwriter* pWriter, xstrview Text)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282221,32 +291905,32 @@ XRT_API bool xrtXsonWriterString(xxsonwriter* pWriter, xstrview Text)
 
 
 /* 写入规范 Base64 二进制标签。 */
-XRT_API bool xrtXsonWriterBytes(xxsonwriter* pWriter, xbytesview Data)
+XRT_API bool xrtXlonWriterBytes(xxlonwriter* pWriter, xbytesview Data)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtXsonWriterBytesValue(pWriter, Data);
+	return __xrtXlonWriterBytesValue(pWriter, Data);
 }
 
 
 
 /* 写入 UTC RFC 3339 时间标签。 */
-XRT_API bool xrtXsonWriterTime(xxsonwriter* pWriter, xtime Time)
+XRT_API bool xrtXlonWriterTime(xxlonwriter* pWriter, xtime Time)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtXsonWriterTimeValue(pWriter, Time);
+	return __xrtXlonWriterTimeValue(pWriter, Time);
 }
 
 
 
 /* 写入非保留自定义标签。 */
-XRT_API bool xrtXsonWriterTag(
-	xxsonwriter* pWriter,
+XRT_API bool xrtXlonWriterTag(
+	xxlonwriter* pWriter,
 	xstrview Tag,
 	xstrview Payload
 )
@@ -282255,12 +291939,12 @@ XRT_API bool xrtXsonWriterTag(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( __xrtXsonReservedTag(Tag) ) {
+	if ( __xrtXlonReservedTag(Tag) ) {
 		return __xrtTextValueWriterFail(
 			pWriter->Core,
 			XERR_ARGUMENT,
 			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-			"custom XSON tag uses a reserved name"
+			"custom XLON tag uses a reserved name"
 		);
 	}
 	return __xrtTextValueWriterTag(pWriter->Core, Tag, Payload);
@@ -282269,8 +291953,8 @@ XRT_API bool xrtXsonWriterTag(
 
 
 /* 写入完整 Value 子树。 */
-XRT_API bool xrtXsonWriterValue(
-	xxsonwriter* pWriter,
+XRT_API bool xrtXlonWriterValue(
+	xxlonwriter* pWriter,
 	const xvalue* pValue
 )
 {
@@ -282281,15 +291965,15 @@ XRT_API bool xrtXsonWriterValue(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( __xrtXsonWriterSkipValue(pWriter, pValue) ) {
+	if ( __xrtXlonWriterSkipValue(pWriter, pValue) ) {
 		return __xrtTextValueWriterFail(
 			pWriter->Core,
 			XERR_UNSUPPORTED,
 			XTEXT_VALUE_WRITE_ERROR_UNSUPPORTED,
-			"root or direct XSON value cannot be skipped"
+			"root or direct XLON value cannot be skipped"
 		);
 	}
-	bResult = __xrtXsonWriterTree(pWriter, pValue, 0, arrActive);
+	bResult = __xrtXlonWriterTree(pWriter, pValue, 0, arrActive);
 	if ( !bResult ) {
 		__xrtTextValueWriterPoison(pWriter->Core);
 	}
@@ -282299,7 +291983,7 @@ XRT_API bool xrtXsonWriterValue(
 
 
 /* 完成 writer。 */
-XRT_API bool xrtXsonWriterFinish(xxsonwriter* pWriter)
+XRT_API bool xrtXlonWriterFinish(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282311,7 +291995,7 @@ XRT_API bool xrtXsonWriterFinish(xxsonwriter* pWriter)
 
 
 /* 从已完成的内存 writer 移交文本。 */
-XRT_API str xrtXsonWriterTake(xxsonwriter* pWriter, size_t* pSize)
+XRT_API str xrtXlonWriterTake(xxlonwriter* pWriter, size_t* pSize)
 {
 	if ( pWriter == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -282323,7 +292007,7 @@ XRT_API str xrtXsonWriterTake(xxsonwriter* pWriter, size_t* pSize)
 
 
 /* 销毁 writer；回调重入时保持对象有效。 */
-XRT_API void xrtXsonWriterFree(xxsonwriter* pWriter)
+XRT_API void xrtXlonWriterFree(xxlonwriter* pWriter)
 {
 	if ( pWriter == NULL ) {
 		return;
@@ -282336,57 +292020,57 @@ XRT_API void xrtXsonWriterFree(xxsonwriter* pWriter)
 
 
 /* 使用高级配置把 Value 写入同步 sink。 */
-XRT_API bool xrtXsonWrite(
+XRT_API bool xrtXlonWrite(
 	const xvalue* pValue,
-	const xxsonwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+	const xxlonwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 )
 {
-	xxsonwriter* pWriter;
+	xxlonwriter* pWriter;
 	bool bResult;
 
-	pWriter = xrtXsonWriterCreateSink(pConfig, pWrite, pUserData);
+	pWriter = xrtXlonWriterCreateSink(pConfig, pWrite, pUserData);
 	if ( pWriter == NULL ) {
 		return false;
 	}
 	bResult =
-		xrtXsonWriterValue(pWriter, pValue) &&
-		xrtXsonWriterFinish(pWriter);
-	xrtXsonWriterFree(pWriter);
+		xrtXlonWriterValue(pWriter, pValue) &&
+		xrtXlonWriterFinish(pWriter);
+	xrtXlonWriterFree(pWriter);
 	return bResult;
 }
 
 
 
 /* 紧凑或美化地序列化 Value 到新文本。 */
-XRT_API str xrtXsonStringify(
+XRT_API str xrtXlonStringify(
 	const xvalue* pValue,
 	bool bPretty,
 	size_t* pSize
 )
 {
-	xxsonwriteconfig Config;
-	xxsonwriter* pWriter;
+	xxlonwriteconfig Config;
+	xxlonwriter* pWriter;
 	str sText;
 
-	xrtXsonWriteConfigInit(&Config);
+	xrtXlonWriteConfigInit(&Config);
 	if ( bPretty ) {
-		Config.Flags |= XXSON_WRITE_PRETTY;
+		Config.Flags |= XXLON_WRITE_PRETTY;
 	}
-	pWriter = xrtXsonWriterCreate(&Config);
+	pWriter = xrtXlonWriterCreate(&Config);
 	if ( pWriter == NULL ) {
 		return NULL;
 	}
 	if (
-		!xrtXsonWriterValue(pWriter, pValue) ||
-		!xrtXsonWriterFinish(pWriter)
+		!xrtXlonWriterValue(pWriter, pValue) ||
+		!xrtXlonWriterFinish(pWriter)
 	) {
-		xrtXsonWriterFree(pWriter);
+		xrtXlonWriterFree(pWriter);
 		return NULL;
 	}
-	sText = xrtXsonWriterTake(pWriter, pSize);
-	xrtXsonWriterFree(pWriter);
+	sText = xrtXlonWriterTake(pWriter, pSize);
+	xrtXlonWriterFree(pWriter);
 	return sText;
 }
 
@@ -282395,26 +292079,26 @@ XRT_API str xrtXsonStringify(
 
 
 /* ========================================================================== */
-/* source: src/data/xson_file.c */
+/* source: src/data/xlon_file.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSON_FILE)
+#if defined(XRT_FEATURE_XLON_FILE)
 
 
 
-#if defined(XRT_FEATURE_XSON_FILE)
+#if defined(XRT_FEATURE_XLON_FILE)
 
-/* 使用高级配置限额读取并解析 XSON 文件。 */
-XRT_API xvalue* xrtXsonReadFile(
+/* 使用高级配置限额读取并解析 XLON 文件。 */
+XRT_API xvalue* xrtXlonReadFile(
 	cstr sPath,
-	const xxsonreadconfig* pConfig
+	const xxlonreadconfig* pConfig
 )
 {
 	bytes pData;
 	size_t iSize;
 	xvalue* pValue;
 
-	if ( (sPath == NULL) || !__xrtXsonReadConfigValid(pConfig) ) {
+	if ( (sPath == NULL) || !__xrtXlonReadConfigValid(pConfig) ) {
 		if ( sPath == NULL ) {
 			__xrtErrorSetInvalidArgument();
 		}
@@ -282424,39 +292108,39 @@ XRT_API xvalue* xrtXsonReadFile(
 		sPath,
 		pConfig->MaxInputBytes,
 		&iSize,
-		"xrt.xson",
-		XXSON_ERROR_IO,
-		"failed to read XSON file"
+		"xrt.xlon",
+		XXLON_ERROR_IO,
+		"failed to read XLON file"
 	);
 	if ( pData == NULL ) {
 		return NULL;
 	}
-	pValue = xrtXsonRead((xstrview){ (cstr)pData, iSize }, pConfig);
+	pValue = xrtXlonRead((xstrview){ (cstr)pData, iSize }, pConfig);
 	xrtFree(pData);
 	return pValue;
 }
 
 
 
-/* 使用默认严格配置读取并解析 XSON 文件。 */
-XRT_API xvalue* xrtXsonParseFile(cstr sPath)
+/* 使用默认严格配置读取并解析 XLON 文件。 */
+XRT_API xvalue* xrtXlonParseFile(cstr sPath)
 {
-	xxsonreadconfig Config;
+	xxlonreadconfig Config;
 
-	xrtXsonReadConfigInit(&Config);
-	return xrtXsonReadFile(sPath, &Config);
+	xrtXlonReadConfigInit(&Config);
+	return xrtXlonReadFile(sPath, &Config);
 }
 
 
 
-/* 使用高级配置完整序列化后原子替换 XSON 文件。 */
-XRT_API bool xrtXsonWriteFile(
+/* 使用高级配置完整序列化后原子替换 XLON 文件。 */
+XRT_API bool xrtXlonWriteFile(
 	cstr sPath,
 	const xvalue* pValue,
-	const xxsonwriteconfig* pConfig
+	const xxlonwriteconfig* pConfig
 )
 {
-	xxsonwriter* pWriter;
+	xxlonwriter* pWriter;
 	str sText;
 	size_t iSize;
 	bool bResult;
@@ -282465,28 +292149,28 @@ XRT_API bool xrtXsonWriteFile(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	pWriter = xrtXsonWriterCreate(pConfig);
+	pWriter = xrtXlonWriterCreate(pConfig);
 	if ( pWriter == NULL ) {
 		return false;
 	}
 	if (
-		!xrtXsonWriterValue(pWriter, pValue) ||
-		!xrtXsonWriterFinish(pWriter)
+		!xrtXlonWriterValue(pWriter, pValue) ||
+		!xrtXlonWriterFinish(pWriter)
 	) {
-		xrtXsonWriterFree(pWriter);
+		xrtXlonWriterFree(pWriter);
 		return false;
 	}
-	sText = xrtXsonWriterTake(pWriter, &iSize);
-	xrtXsonWriterFree(pWriter);
+	sText = xrtXlonWriterTake(pWriter, &iSize);
+	xrtXlonWriterFree(pWriter);
 	if ( sText == NULL ) {
 		return false;
 	}
 	bResult = __xrtTextValueFileWriteAll(
 		sPath,
 		(xbytesview){ (cbytes)sText, iSize },
-		"xrt.xson",
-		XXSON_ERROR_IO,
-		"failed to write XSON file"
+		"xrt.xlon",
+		XXLON_ERROR_IO,
+		"failed to write XLON file"
 	);
 	xrtFree(sText);
 	return bResult;
@@ -282494,20 +292178,20 @@ XRT_API bool xrtXsonWriteFile(
 
 
 
-/* 紧凑或美化地序列化并原子替换 XSON 文件。 */
-XRT_API bool xrtXsonStringifyFile(
+/* 紧凑或美化地序列化并原子替换 XLON 文件。 */
+XRT_API bool xrtXlonStringifyFile(
 	cstr sPath,
 	const xvalue* pValue,
 	bool bPretty
 )
 {
-	xxsonwriteconfig Config;
+	xxlonwriteconfig Config;
 
-	xrtXsonWriteConfigInit(&Config);
+	xrtXlonWriteConfigInit(&Config);
 	if ( bPretty ) {
-		Config.Flags |= XXSON_WRITE_PRETTY;
+		Config.Flags |= XXLON_WRITE_PRETTY;
 	}
-	return xrtXsonWriteFile(sPath, pValue, &Config);
+	return xrtXlonWriteFile(sPath, pValue, &Config);
 }
 
 #endif
@@ -282519,11 +292203,11 @@ XRT_API bool xrtXsonStringifyFile(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSONL_CORE) || \
-	defined(XRT_FEATURE_XSONL_CORE)
+	defined(XRT_FEATURE_XLONL_CORE)
 
 #include <stdio.h>
 
-#if defined(XRT_FEATURE_JSONL_CORE) || defined(XRT_FEATURE_XSONL_CORE)
+#if defined(XRT_FEATURE_JSONL_CORE) || defined(XRT_FEATURE_XLONL_CORE)
 
 /* 新错误保留底层原因；如果包装本身 OOM，恢复原始错误。 */
 void __xrtTextLinesError(
@@ -282624,9 +292308,9 @@ XRT_API bool xrtJsonlErrorLocation(const xerror* pError, xjsonllocation* pLocati
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSONL_READ) || \
-	defined(XRT_FEATURE_XSONL_READ)
+	defined(XRT_FEATURE_XLONL_READ)
 
-#if defined(XRT_FEATURE_JSONL_READ) || defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_JSONL_READ) || defined(XRT_FEATURE_XLONL_READ)
 
 /* 分隔符由扫描器处理；空白只接受 JSON 的 ASCII 空格、Tab、CR。 */
 static bool __xrtTextLinesBlank(xstrview Text)
@@ -282841,9 +292525,9 @@ XRT_API bool xrtJsonlValid(xstrview Text)
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_JSONL_WRITE) || \
-	defined(XRT_FEATURE_XSONL_WRITE)
+	defined(XRT_FEATURE_XLONL_WRITE)
 
-#if defined(XRT_FEATURE_JSONL_WRITE) || defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_JSONL_WRITE) || defined(XRT_FEATURE_XLONL_WRITE)
 
 typedef struct xtextlinessink {
 	const xtextlinesformat* Format;
@@ -283135,22 +292819,22 @@ XRT_API bool xrtJsonlStringifyFile(cstr sPath, const xvalue* pArray)
 
 
 /* ========================================================================== */
-/* source: src/data/xsonl_common.c */
+/* source: src/data/xlonl_common.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSONL_CORE)
+#if defined(XRT_FEATURE_XLONL_CORE)
 
-#if defined(XRT_FEATURE_XSONL_CORE)
-const xtextlinesformat __xrtXsonlFormat = { "xrt.xsonl", "xrt.xson", XXSONL_ERROR_CONFIG };
+#if defined(XRT_FEATURE_XLONL_CORE)
+const xtextlinesformat __xrtXlonlFormat = { "xrt.xlonl", "xrt.xlon", XXLONL_ERROR_CONFIG };
 
-XRT_API bool xrtXsonlErrorLocation(const xerror* pError, xxsonllocation* pLocation)
+XRT_API bool xrtXlonlErrorLocation(const xerror* pError, xxlonllocation* pLocation)
 {
 	xtextlineslocation Location;
 	if ( pLocation == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( !__xrtTextLinesErrorLocation(pError, &__xrtXsonlFormat, &Location) ) {
+	if ( !__xrtTextLinesErrorLocation(pError, &__xrtXlonlFormat, &Location) ) {
 		return false;
 	}
 	pLocation->Offset = Location.Offset;
@@ -283164,99 +292848,99 @@ XRT_API bool xrtXsonlErrorLocation(const xerror* pError, xxsonllocation* pLocati
 
 
 /* ========================================================================== */
-/* source: src/data/xsonl_read.c */
+/* source: src/data/xlonl_read.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_XLONL_READ)
 
-#if defined(XRT_FEATURE_XSONL_READ)
+#if defined(XRT_FEATURE_XLONL_READ)
 
 /* 即使输入为空，也完整验证配置和底层记录配置。 */
-bool __xrtXsonlReadConfigValid(const xxsonlreadconfig* pConfig)
+bool __xrtXlonlReadConfigValid(const xxlonlreadconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( ((pConfig->Flags & ~XXSONL_READ_REJECT_EMPTY_LINES) != 0) ||
+	if ( ((pConfig->Flags & ~XXLONL_READ_REJECT_EMPTY_LINES) != 0) ||
 		 (pConfig->MaxInputBytes == 0) || (pConfig->MaxRecords == 0) ||
 		 (pConfig->MaxTotalValues == 0) ||
 		 (pConfig->MaxTotalDecodedBytes == 0) ||
 		 (pConfig->Reserved[0] != 0) || (pConfig->Reserved[1] != 0) ||
 		 (pConfig->Reserved[2] != 0) || (pConfig->Reserved[3] != 0) ) {
-		__xrtTextLinesError(&__xrtXsonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
-			"read", "invalid XSONL read configuration", NULL, false);
+		__xrtTextLinesError(&__xrtXlonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
+			"read", "invalid XLONL read configuration", NULL, false);
 		return false;
 	}
-	if ( !__xrtXsonReadConfigValid(&pConfig->Record) ) {
-		__xrtTextLinesError(&__xrtXsonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
+	if ( !__xrtXlonReadConfigValid(&pConfig->Record) ) {
+		__xrtTextLinesError(&__xrtXlonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
 			"read", "invalid record read configuration", NULL, true);
 		return false;
 	}
 	return true;
 }
 
-XRT_API void xrtXsonlReadConfigInit(xxsonlreadconfig* pConfig)
+XRT_API void xrtXlonlReadConfigInit(xxlonlreadconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return;
 	}
 	memset(pConfig, 0, sizeof(*pConfig));
-	xrtXsonReadConfigInit(&pConfig->Record);
-	pConfig->MaxInputBytes = XXSON_INPUT_DEFAULT;
-	pConfig->MaxRecords = XXSON_CONTAINER_DEFAULT;
-	pConfig->MaxTotalValues = XXSON_VALUES_DEFAULT;
-	pConfig->MaxTotalDecodedBytes = XXSON_DECODED_DEFAULT;
+	xrtXlonReadConfigInit(&pConfig->Record);
+	pConfig->MaxInputBytes = XXLON_INPUT_DEFAULT;
+	pConfig->MaxRecords = XXLON_CONTAINER_DEFAULT;
+	pConfig->MaxTotalValues = XXLON_VALUES_DEFAULT;
+	pConfig->MaxTotalDecodedBytes = XXLON_DECODED_DEFAULT;
 }
 
-static xvalue* __xrtXsonlRecordRead(
+static xvalue* __xrtXlonlRecordRead(
 	xstrview Text, const void* pConfig, xtextvaluebudget* pBudget, bool bValidate
 )
 {
-	return __xrtXsonReadBudget(Text, (const xxsonreadconfig*)pConfig, pBudget, bValidate);
+	return __xrtXlonReadBudget(Text, (const xxlonreadconfig*)pConfig, pBudget, bValidate);
 }
 
-static xvalue* __xrtXsonlRead(
-	xstrview Text, const xxsonlreadconfig* pConfig, bool bValidate
+static xvalue* __xrtXlonlRead(
+	xstrview Text, const xxlonlreadconfig* pConfig, bool bValidate
 )
 {
-	xxsonlreadconfig Snapshot;
+	xxlonlreadconfig Snapshot;
 	xtextlinesreadconfig Config;
-	if ( !__xrtXsonlReadConfigValid(pConfig) ) {
+	if ( !__xrtXlonlReadConfigValid(pConfig) ) {
 		return NULL;
 	}
 	Snapshot = *pConfig;
 	memset(&Config, 0, sizeof(Config));
-	Config.RejectEmpty = (Snapshot.Flags & XXSONL_READ_REJECT_EMPTY_LINES) != 0;
+	Config.RejectEmpty = (Snapshot.Flags & XXLONL_READ_REJECT_EMPTY_LINES) != 0;
 	Config.MaxInputBytes = Snapshot.MaxInputBytes;
 	Config.MaxLineBytes = Snapshot.Record.MaxInputBytes;
 	Config.MaxRecords = Snapshot.MaxRecords;
 	Config.MaxTotalValues = Snapshot.MaxTotalValues;
 	Config.MaxTotalDecodedBytes = Snapshot.MaxTotalDecodedBytes;
 	Config.Record = &Snapshot.Record;
-	Config.Read = __xrtXsonlRecordRead;
-	return __xrtTextLinesRead(Text, &Config, &__xrtXsonlFormat, bValidate);
+	Config.Read = __xrtXlonlRecordRead;
+	return __xrtTextLinesRead(Text, &Config, &__xrtXlonlFormat, bValidate);
 }
 
-XRT_API xvalue* xrtXsonlRead(xstrview Text, const xxsonlreadconfig* pConfig)
+XRT_API xvalue* xrtXlonlRead(xstrview Text, const xxlonlreadconfig* pConfig)
 {
-	return __xrtXsonlRead(Text, pConfig, false);
+	return __xrtXlonlRead(Text, pConfig, false);
 }
 
-XRT_API xvalue* xrtXsonlParse(xstrview Text)
+XRT_API xvalue* xrtXlonlParse(xstrview Text)
 {
-	xxsonlreadconfig Config;
-	xrtXsonlReadConfigInit(&Config);
-	return xrtXsonlRead(Text, &Config);
+	xxlonlreadconfig Config;
+	xrtXlonlReadConfigInit(&Config);
+	return xrtXlonlRead(Text, &Config);
 }
 
-XRT_API bool xrtXsonlValid(xstrview Text)
+XRT_API bool xrtXlonlValid(xstrview Text)
 {
-	xxsonlreadconfig Config;
+	xxlonlreadconfig Config;
 	xvalue* pResult;
-	xrtXsonlReadConfigInit(&Config);
-	pResult = __xrtXsonlRead(Text, &Config, true);
+	xrtXlonlReadConfigInit(&Config);
+	pResult = __xrtXlonlRead(Text, &Config, true);
 	xrtValueRelease(pResult);
 	return pResult != NULL;
 }
@@ -283265,113 +292949,113 @@ XRT_API bool xrtXsonlValid(xstrview Text)
 
 
 /* ========================================================================== */
-/* source: src/data/xsonl_write.c */
+/* source: src/data/xlonl_write.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_XLONL_WRITE)
 
-#if defined(XRT_FEATURE_XSONL_WRITE)
+#if defined(XRT_FEATURE_XLONL_WRITE)
 
 /* 拒绝 PRETTY，保证一个元素只生成一个物理行。 */
-static bool __xrtXsonlWriteConfigValid(const xxsonlwriteconfig* pConfig)
+static bool __xrtXlonlWriteConfigValid(const xxlonlwriteconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( ((pConfig->Record.Flags & XXSON_WRITE_PRETTY) != 0) ||
+	if ( ((pConfig->Record.Flags & XXLON_WRITE_PRETTY) != 0) ||
 		 (pConfig->MaxOutputBytes == 0) || (pConfig->MaxRecords == 0) ||
 		 (pConfig->Reserved[0] != 0) || (pConfig->Reserved[1] != 0) ||
 		 (pConfig->Reserved[2] != 0) || (pConfig->Reserved[3] != 0) ) {
-		__xrtTextLinesError(&__xrtXsonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
-			"write", "invalid XSONL write configuration", NULL, false);
+		__xrtTextLinesError(&__xrtXlonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
+			"write", "invalid XLONL write configuration", NULL, false);
 		return false;
 	}
-	if ( !__xrtXsonWriteConfigValid(&pConfig->Record) ) {
-		__xrtTextLinesError(&__xrtXsonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
+	if ( !__xrtXlonWriteConfigValid(&pConfig->Record) ) {
+		__xrtTextLinesError(&__xrtXlonlFormat, XTEXT_LINES_CONFIG, XERR_ARGUMENT,
 			"write", "invalid record write configuration", NULL, true);
 		return false;
 	}
 	return true;
 }
 
-XRT_API void xrtXsonlWriteConfigInit(xxsonlwriteconfig* pConfig)
+XRT_API void xrtXlonlWriteConfigInit(xxlonlwriteconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return;
 	}
 	memset(pConfig, 0, sizeof(*pConfig));
-	xrtXsonWriteConfigInit(&pConfig->Record);
-	pConfig->MaxOutputBytes = XXSON_INPUT_DEFAULT;
-	pConfig->MaxRecords = XXSON_CONTAINER_DEFAULT;
+	xrtXlonWriteConfigInit(&pConfig->Record);
+	pConfig->MaxOutputBytes = XXLON_INPUT_DEFAULT;
+	pConfig->MaxRecords = XXLON_CONTAINER_DEFAULT;
 }
 
-static bool __xrtXsonlRecordWrite(
+static bool __xrtXlonlRecordWrite(
 	const xvalue* pValue, const void* pConfig, xtextlineswriteproc pWrite, ptr pUserData
 )
 {
-	return xrtXsonWrite(pValue, (const xxsonwriteconfig*)pConfig, pWrite, pUserData);
+	return xrtXlonWrite(pValue, (const xxlonwriteconfig*)pConfig, pWrite, pUserData);
 }
 
-static xtextlineswriteconfig __xrtXsonlWriteConfig(const xxsonlwriteconfig* pConfig)
+static xtextlineswriteconfig __xrtXlonlWriteConfig(const xxlonlwriteconfig* pConfig)
 {
 	xtextlineswriteconfig Config;
 	Config.MaxOutputBytes = pConfig->MaxOutputBytes;
 	Config.MaxRecords = pConfig->MaxRecords;
 	Config.Record = &pConfig->Record;
-	Config.Write = __xrtXsonlRecordWrite;
+	Config.Write = __xrtXlonlRecordWrite;
 	return Config;
 }
 
-XRT_API bool xrtXsonlWrite(
-	const xvalue* pArray, const xxsonlwriteconfig* pConfig,
-	xxsonwriteproc pWrite, ptr pUserData
+XRT_API bool xrtXlonlWrite(
+	const xvalue* pArray, const xxlonlwriteconfig* pConfig,
+	xxlonwriteproc pWrite, ptr pUserData
 )
 {
-	xxsonlwriteconfig Snapshot;
+	xxlonlwriteconfig Snapshot;
 	xtextlineswriteconfig Config;
-	if ( !__xrtXsonlWriteConfigValid(pConfig) ) {
+	if ( !__xrtXlonlWriteConfigValid(pConfig) ) {
 		return false;
 	}
 	Snapshot = *pConfig;
-	Config = __xrtXsonlWriteConfig(&Snapshot);
-	return __xrtTextLinesWrite(pArray, &Config, &__xrtXsonlFormat, pWrite, pUserData);
+	Config = __xrtXlonlWriteConfig(&Snapshot);
+	return __xrtTextLinesWrite(pArray, &Config, &__xrtXlonlFormat, pWrite, pUserData);
 }
 
-str __xrtXsonlStringify(
-	const xvalue* pArray, const xxsonlwriteconfig* pConfig, size_t* pSize
+str __xrtXlonlStringify(
+	const xvalue* pArray, const xxlonlwriteconfig* pConfig, size_t* pSize
 )
 {
-	xxsonlwriteconfig Snapshot;
+	xxlonlwriteconfig Snapshot;
 	xtextlineswriteconfig Config;
-	if ( !__xrtXsonlWriteConfigValid(pConfig) ) {
+	if ( !__xrtXlonlWriteConfigValid(pConfig) ) {
 		return NULL;
 	}
 	Snapshot = *pConfig;
-	Config = __xrtXsonlWriteConfig(&Snapshot);
-	return __xrtTextLinesStringify(pArray, &Config, &__xrtXsonlFormat, pSize);
+	Config = __xrtXlonlWriteConfig(&Snapshot);
+	return __xrtTextLinesStringify(pArray, &Config, &__xrtXlonlFormat, pSize);
 }
 
-XRT_API str xrtXsonlStringify(const xvalue* pArray, size_t* pSize)
+XRT_API str xrtXlonlStringify(const xvalue* pArray, size_t* pSize)
 {
-	xxsonlwriteconfig Config;
-	xrtXsonlWriteConfigInit(&Config);
-	return __xrtXsonlStringify(pArray, &Config, pSize);
+	xxlonlwriteconfig Config;
+	xrtXlonlWriteConfigInit(&Config);
+	return __xrtXlonlStringify(pArray, &Config, pSize);
 }
 #endif
 #endif
 
 
 /* ========================================================================== */
-/* source: src/data/xsonl_file.c */
+/* source: src/data/xlonl_file.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_XLONL_FILE)
 
-#if defined(XRT_FEATURE_XSONL_FILE)
+#if defined(XRT_FEATURE_XLONL_FILE)
 
-XRT_API xvalue* xrtXsonlReadFile(cstr sPath, const xxsonlreadconfig* pConfig)
+XRT_API xvalue* xrtXlonlReadFile(cstr sPath, const xxlonlreadconfig* pConfig)
 {
 	bytes pData;
 	size_t iSize;
@@ -283380,28 +293064,28 @@ XRT_API xvalue* xrtXsonlReadFile(cstr sPath, const xxsonlreadconfig* pConfig)
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	if ( !__xrtXsonlReadConfigValid(pConfig) ) {
+	if ( !__xrtXlonlReadConfigValid(pConfig) ) {
 		return NULL;
 	}
 	pData = __xrtTextValueFileReadAll(sPath, pConfig->MaxInputBytes, &iSize,
-		"xrt.xsonl", XXSONL_ERROR_IO, "failed to read XSONL file");
+		"xrt.xlonl", XXLONL_ERROR_IO, "failed to read XLONL file");
 	if ( pData == NULL ) {
 		return NULL;
 	}
-	pValue = xrtXsonlRead((xstrview){ (cstr)pData, iSize }, pConfig);
+	pValue = xrtXlonlRead((xstrview){ (cstr)pData, iSize }, pConfig);
 	xrtFree(pData);
 	return pValue;
 }
 
-XRT_API xvalue* xrtXsonlParseFile(cstr sPath)
+XRT_API xvalue* xrtXlonlParseFile(cstr sPath)
 {
-	xxsonlreadconfig Config;
-	xrtXsonlReadConfigInit(&Config);
-	return xrtXsonlReadFile(sPath, &Config);
+	xxlonlreadconfig Config;
+	xrtXlonlReadConfigInit(&Config);
+	return xrtXlonlReadFile(sPath, &Config);
 }
 
-XRT_API bool xrtXsonlWriteFile(
-	cstr sPath, const xvalue* pArray, const xxsonlwriteconfig* pConfig
+XRT_API bool xrtXlonlWriteFile(
+	cstr sPath, const xvalue* pArray, const xxlonlwriteconfig* pConfig
 )
 {
 	str sText;
@@ -283411,21 +293095,21 @@ XRT_API bool xrtXsonlWriteFile(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	sText = __xrtXsonlStringify(pArray, pConfig, &iSize);
+	sText = __xrtXlonlStringify(pArray, pConfig, &iSize);
 	if ( sText == NULL ) {
 		return false;
 	}
 	bResult = __xrtTextValueFileWriteAll(sPath, (xbytesview){ (cbytes)sText, iSize },
-		"xrt.xsonl", XXSONL_ERROR_IO, "failed to write XSONL file");
+		"xrt.xlonl", XXLONL_ERROR_IO, "failed to write XLONL file");
 	xrtFree(sText);
 	return bResult;
 }
 
-XRT_API bool xrtXsonlStringifyFile(cstr sPath, const xvalue* pArray)
+XRT_API bool xrtXlonlStringifyFile(cstr sPath, const xvalue* pArray)
 {
-	xxsonlwriteconfig Config;
-	xrtXsonlWriteConfigInit(&Config);
-	return xrtXsonlWriteFile(sPath, pArray, &Config);
+	xxlonlwriteconfig Config;
+	xrtXlonlWriteConfigInit(&Config);
+	return xrtXlonlWriteFile(sPath, pArray, &Config);
 }
 #endif
 #endif
@@ -290966,6 +300650,33 @@ bool __xrtConsoleWriterOpen(
 
 
 /* 完整写入 UTF-8 文本；普通文件和管道保留原字节。 */
+bool __xrtConsoleValidateText(xstrview Text)
+{
+    size_t Index = 0;
+    if (Text.Data == NULL && Text.Size != 0) { __xrtErrorSetInvalidArgument(); return false; }
+    while (Index < Text.Size) {
+        uint32 Value, Minimum;
+        unsigned Count;
+        unsigned char Byte = (unsigned char)Text.Data[Index++];
+        if (Byte < 0x80) continue;
+        if (Byte >= 0xc2 && Byte <= 0xdf) { Value = Byte & 31; Count = 1; Minimum = 0x80; }
+        else if (Byte >= 0xe0 && Byte <= 0xef) { Value = Byte & 15; Count = 2; Minimum = 0x800; }
+        else if (Byte >= 0xf0 && Byte <= 0xf4) { Value = Byte & 7; Count = 3; Minimum = 0x10000; }
+        else goto invalid;
+        if (Count > Text.Size - Index) goto invalid;
+        while (Count--) {
+            Byte = (unsigned char)Text.Data[Index++];
+            if ((Byte & 0xc0) != 0x80) goto invalid;
+            Value = (Value << 6) | (Byte & 63);
+        }
+        if (Value < Minimum || Value > 0x10ffff || (Value >= 0xd800 && Value <= 0xdfff)) goto invalid;
+    }
+    return true;
+invalid:
+    __xrtErrorSetDetail(XERR_VALUE, "xrt.console", XCONSOLE_ERROR_UTF8, "write", "console text is not valid UTF-8", NULL);
+    return false;
+}
+
 bool __xrtConsoleWriterWrite(
 	xconsolewriter* pWriter,
 	const void* pData,
@@ -290982,6 +300693,7 @@ bool __xrtConsoleWriterWrite(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
+	if (!__xrtConsoleValidateText((xstrview){(const char*)pData, iSize})) return false;
 	if ( iSize == 0 ) {
 		return true;
 	}
@@ -291122,6 +300834,723 @@ XRT_API bool xrtConsoleIsTerminal(xconsolestream Stream)
 	#endif
 }
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/core/console_input.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_CONSOLE_INPUT)
+#include <errno.h>
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_INPUT)
+
+static int __xrtConsoleInputError(xerrkind Kind, int Code, cstr Message)
+{
+    __xrtErrorSetDetail(Kind, "xrt.console", Code, "read", Message, NULL);
+    return -1;
+}
+
+static int __xrtConsoleInputByte(unsigned char* Byte)
+{
+#if defined(_WIN32) || defined(_WIN64)
+    DWORD Done;
+    if (!ReadFile(GetStdHandle(STD_INPUT_HANDLE), Byte, 1, &Done, NULL)) {
+        DWORD Code = GetLastError();
+        if (Code == ERROR_BROKEN_PIPE || Code == ERROR_HANDLE_EOF) return 0;
+        __xrtErrorSetSystem("xrt.console", XCONSOLE_ERROR_READ, "read", (int)Code, "stdin read failed");
+        return -1;
+    }
+    return Done ? 1 : 0;
+#else
+    ssize_t Done;
+    do { Done = read(STDIN_FILENO, Byte, 1); } while (Done < 0 && errno == EINTR);
+    if (Done >= 0) return Done ? 1 : 0;
+    __xrtErrorSetSystem("xrt.console", XCONSOLE_ERROR_READ, "read", errno, "stdin read failed");
+    return -1;
+#endif
+}
+
+static int __xrtConsoleInputScalar(uint32* Codepoint)
+{
+    unsigned char Byte;
+    uint32 Value, Minimum;
+    unsigned Remaining;
+    int Status;
+#if defined(_WIN32) || defined(_WIN64)
+    HANDLE Input = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD Mode, Done;
+    WCHAR Unit, Low;
+    if (GetConsoleMode(Input, &Mode)) {
+        if (!ReadConsoleW(Input, &Unit, 1, &Done, NULL)) {
+            __xrtErrorSetSystem("xrt.console", XCONSOLE_ERROR_READ, "read", (int)GetLastError(), "console read failed");
+            return -1;
+        }
+        if (!Done) return 0;
+        Value = (uint32)Unit;
+        if (Value >= 0xd800 && Value <= 0xdbff) {
+            if (!ReadConsoleW(Input, &Low, 1, &Done, NULL) || Done != 1 || Low < 0xdc00 || Low > 0xdfff)
+                return __xrtConsoleInputError(XERR_IO, XCONSOLE_ERROR_UTF8, "invalid UTF-16 input");
+            Value = 0x10000 + ((Value - 0xd800) << 10) + ((uint32)Low - 0xdc00);
+        } else if (Value >= 0xdc00 && Value <= 0xdfff)
+            return __xrtConsoleInputError(XERR_IO, XCONSOLE_ERROR_UTF8, "unpaired UTF-16 surrogate");
+        *Codepoint = Value;
+        return 1;
+    }
+#endif
+    Status = __xrtConsoleInputByte(&Byte);
+    if (Status <= 0) return Status;
+    if (Byte < 0x80) { *Codepoint = Byte; return 1; }
+    if (Byte >= 0xc2 && Byte <= 0xdf) { Value = Byte & 31; Remaining = 1; Minimum = 0x80; }
+    else if (Byte >= 0xe0 && Byte <= 0xef) { Value = Byte & 15; Remaining = 2; Minimum = 0x800; }
+    else if (Byte >= 0xf0 && Byte <= 0xf4) { Value = Byte & 7; Remaining = 3; Minimum = 0x10000; }
+    else return __xrtConsoleInputError(XERR_IO, XCONSOLE_ERROR_UTF8, "invalid UTF-8 input");
+    while (Remaining--) {
+        Status = __xrtConsoleInputByte(&Byte);
+        if (Status < 0) return -1;
+        if (Status == 0 || (Byte & 0xc0) != 0x80)
+            return __xrtConsoleInputError(XERR_IO, XCONSOLE_ERROR_UTF8, "truncated or invalid UTF-8 input");
+        Value = (Value << 6) | (Byte & 63);
+    }
+    if (Value < Minimum || Value > 0x10ffff || (Value >= 0xd800 && Value <= 0xdfff))
+        return __xrtConsoleInputError(XERR_IO, XCONSOLE_ERROR_UTF8, "invalid Unicode scalar input");
+    *Codepoint = Value;
+    return 1;
+}
+
+XRT_API int xrtConsoleReadChar(uint32* Codepoint)
+{
+    int Token, Status;
+    if (Codepoint == NULL) return __xrtConsoleInputError(XERR_ARGUMENT, XCONSOLE_ERROR_READ, "null codepoint output");
+    if (!__xrtStandardInputAcquire(&Token)) return -1;
+    Status = __xrtConsoleInputScalar(Codepoint);
+    __xrtStandardInputRelease(&Token);
+    return Status;
+}
+
+XRT_API xbuffer* xrtConsoleReadLine(size_t MaxBytes)
+{
+    int Token, Status;
+    xbuffer* Buffer = NULL;
+    uint32 Codepoint;
+    size_t Count;
+    unsigned char Encoded[4];
+    bool PendingCR = false;
+    if (!__xrtStandardInputAcquire(&Token)) return NULL;
+    for (;;) {
+        Status = __xrtConsoleInputScalar(&Codepoint);
+        if (Status < 0) goto fail;
+        if (Status == 0) break;
+        if (Buffer == NULL && (Buffer = xrtBufferCreate()) == NULL) goto fail;
+        if (Codepoint == '\n') { PendingCR = false; break; }
+        if (PendingCR) {
+            if (xrtBufferView(Buffer).Size >= MaxBytes) {
+                (void)__xrtConsoleInputError(XERR_RANGE, XCONSOLE_ERROR_LIMIT, "console line limit exceeded"); goto fail;
+            }
+            if (!xrtBufferAppendByte(Buffer, '\r')) goto fail;
+            PendingCR = false;
+        }
+        if (Codepoint == '\r') { PendingCR = true; continue; }
+        if (Codepoint < 0x80) { Encoded[0] = (unsigned char)Codepoint; Count = 1; }
+        else if (Codepoint < 0x800) { Encoded[0] = (unsigned char)(0xc0 | (Codepoint >> 6)); Encoded[1] = (unsigned char)(0x80 | (Codepoint & 63)); Count = 2; }
+        else if (Codepoint < 0x10000) { Encoded[0] = (unsigned char)(0xe0 | (Codepoint >> 12)); Encoded[1] = (unsigned char)(0x80 | ((Codepoint >> 6) & 63)); Encoded[2] = (unsigned char)(0x80 | (Codepoint & 63)); Count = 3; }
+        else { Encoded[0] = (unsigned char)(0xf0 | (Codepoint >> 18)); Encoded[1] = (unsigned char)(0x80 | ((Codepoint >> 12) & 63)); Encoded[2] = (unsigned char)(0x80 | ((Codepoint >> 6) & 63)); Encoded[3] = (unsigned char)(0x80 | (Codepoint & 63)); Count = 4; }
+        if (Count > MaxBytes || xrtBufferView(Buffer).Size > MaxBytes - Count) {
+            (void)__xrtConsoleInputError(XERR_RANGE, XCONSOLE_ERROR_LIMIT, "console line limit exceeded");
+            goto fail;
+        }
+        if (!xrtBufferAppend(Buffer, (xbytesview){Encoded, Count})) goto fail;
+    }
+    if (PendingCR) {
+        if (xrtBufferView(Buffer).Size >= MaxBytes) {
+            (void)__xrtConsoleInputError(XERR_RANGE, XCONSOLE_ERROR_LIMIT, "console line limit exceeded"); goto fail;
+        }
+        if (!xrtBufferAppendByte(Buffer, '\r')) goto fail;
+    }
+    __xrtStandardInputRelease(&Token);
+    return Buffer;
+fail:
+    xrtBufferDestroy(Buffer);
+    __xrtStandardInputRelease(&Token);
+    return NULL;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/core/console_screen.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN)
+#include <errno.h>
+#include <stdlib.h>
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#include <sys/ioctl.h>
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_SCREEN)
+static bool __xrtScreenError(xerrkind Kind, cstr Message)
+{
+    __xrtErrorSetDetail(Kind, "xrt.console", XCONSOLE_ERROR_TERMINAL, "terminal", Message, NULL);
+    return false;
+}
+static bool __xrtScreenSystem(cstr Operation)
+{
+#if defined(_WIN32) || defined(_WIN64)
+    int Code = (int)GetLastError();
+#else
+    int Code = errno;
+#endif
+    __xrtErrorSetSystem("xrt.console", XCONSOLE_ERROR_TERMINAL, Operation, Code, "terminal operation failed");
+    return false;
+}
+
+XRT_API bool xrtConsoleSize(xconsolestream Stream, uint32* Columns, uint32* Rows)
+{
+    if (Columns == NULL || Rows == NULL || (Stream != XCONSOLE_STDOUT && Stream != XCONSOLE_STDERR))
+        return __xrtScreenError(XERR_ARGUMENT, "invalid terminal size argument");
+    *Columns = *Rows = 0;
+    if (!xrtConsoleIsTerminal(Stream)) return true;
+#if defined(_WIN32) || defined(_WIN64)
+    CONSOLE_SCREEN_BUFFER_INFO Info;
+    if (!GetConsoleScreenBufferInfo(GetStdHandle(Stream == XCONSOLE_STDOUT ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE), &Info))
+        return __xrtScreenSystem("size");
+    *Columns = (uint32)(Info.srWindow.Right - Info.srWindow.Left + 1);
+    *Rows = (uint32)(Info.srWindow.Bottom - Info.srWindow.Top + 1);
+#else
+    struct winsize Size;
+    if (ioctl(Stream == XCONSOLE_STDOUT ? STDOUT_FILENO : STDERR_FILENO, TIOCGWINSZ, &Size) != 0)
+        return __xrtScreenSystem("size");
+    *Columns = Size.ws_col; *Rows = Size.ws_row;
+#endif
+    return true;
+}
+XRT_API int xrtConsoleColorMode(xconsolestream Stream)
+{
+    const char* Term;
+    if ((Stream != XCONSOLE_STDOUT && Stream != XCONSOLE_STDERR)) {
+        (void)__xrtScreenError(XERR_ARGUMENT, "invalid console stream"); return -1;
+    }
+    if (!xrtConsoleIsTerminal(Stream) || getenv("NO_COLOR") != NULL) return 0;
+    Term = getenv("TERM");
+    if (Term != NULL && strcmp(Term, "dumb") == 0) return 0;
+#if defined(_WIN32) || defined(_WIN64)
+    DWORD Mode;
+    if (GetConsoleMode(GetStdHandle(Stream == XCONSOLE_STDOUT ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE), &Mode) &&
+        (Mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING)) return 3;
+    return 1;
+#else
+    { const char* Color = getenv("COLORTERM");
+      if (Color != NULL && (strcmp(Color,"truecolor") == 0 || strcmp(Color,"24bit") == 0)) return 3; }
+    return Term != NULL && strstr(Term, "256color") != NULL ? 2 : 1;
+#endif
+}
+bool __xrtTerminalStyle(char* Text, size_t Capacity, int32 Fg, int32 Bg, uint32 Attributes)
+{
+    int Length, Extra;
+    int32 Colors[2] = {Fg, Bg};
+    if ((Attributes & ~31u) != 0) return __xrtScreenError(XERR_RANGE, "invalid text attributes");
+    for (unsigned i=0; i<2; ++i)
+        if (Colors[i] < -1 || Colors[i] > 0x1ffffff || (Colors[i] > 255 && Colors[i] < 0x1000000))
+            return __xrtScreenError(XERR_RANGE, "invalid terminal color");
+    Length = snprintf(Text, Capacity, "\x1b[0%s%s%s%s%s",
+        Attributes&1?";1":"", Attributes&2?";2":"", Attributes&4?";3":"", Attributes&8?";4":"", Attributes&16?";7":"");
+    if (Length < 0 || (size_t)Length >= Capacity) return __xrtScreenError(XERR_INTERNAL, "style buffer overflow");
+    for (unsigned i=0; i<2; ++i) {
+        int32 Color = Colors[i];
+        if (Color < 0) continue;
+        if (Color < 8) Extra = snprintf(Text+Length, Capacity-(size_t)Length, ";%d", (i?40:30)+Color);
+        else if (Color < 16) Extra = snprintf(Text+Length, Capacity-(size_t)Length, ";%d", (i?100:90)+Color-8);
+        else if (Color <= 255) Extra = snprintf(Text+Length, Capacity-(size_t)Length, ";%d;5;%d", i?48:38, Color);
+        else Extra = snprintf(Text+Length, Capacity-(size_t)Length, ";%d;2;%d;%d;%d", i?48:38, (Color>>16)&255, (Color>>8)&255, Color&255);
+        if (Extra < 0 || (size_t)Extra >= Capacity-(size_t)Length) return __xrtScreenError(XERR_INTERNAL, "style buffer overflow");
+        Length += Extra;
+    }
+    if ((size_t)Length+2 > Capacity) return __xrtScreenError(XERR_INTERNAL, "style buffer overflow");
+    Text[Length++] = 'm'; Text[Length] = 0; return true;
+}
+XRT_API bool xrtConsoleWriteStyled(xconsolestream Stream, xstrview Text, int32 Fg, int32 Bg, uint32 Attributes)
+{
+    char Style[128]; xconsolewriter Writer; bool Ok;
+#if defined(_WIN32) || defined(_WIN64)
+    DWORD Mode = 0; bool Changed = false;
+#endif
+    if (!__xrtTerminalStyle(Style, sizeof(Style), Fg, Bg, Attributes) || !__xrtConsoleValidateText(Text)) return false;
+    if (!__xrtConsoleWriterOpen(Stream, &Writer)) return false;
+    if (!xrtConsoleIsTerminal(Stream) || xrtConsoleColorMode(Stream) == 0) {
+        Ok = __xrtConsoleWriterWrite(&Writer, Text.Data, Text.Size);
+        __xrtConsoleWriterClose(&Writer); return Ok;
+    }
+#if defined(_WIN32) || defined(_WIN64)
+    if (!GetConsoleMode((HANDLE)Writer.Console, &Mode)) { __xrtConsoleWriterClose(&Writer); return __xrtScreenSystem("style"); }
+    if (!(Mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
+        if (!SetConsoleMode((HANDLE)Writer.Console, Mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
+            __xrtConsoleWriterClose(&Writer); return __xrtScreenSystem("style");
+        }
+        Changed = true;
+    }
+#endif
+    Ok = __xrtConsoleWriterWrite(&Writer, Style, strlen(Style)) && __xrtConsoleWriterWrite(&Writer, Text.Data, Text.Size);
+    { xerror* Error = Ok ? NULL : xrtTakeError();
+      if (!__xrtConsoleWriterWrite(&Writer, "\x1b[0m", 4)) Ok = false;
+#if defined(_WIN32) || defined(_WIN64)
+      if (Changed && !SetConsoleMode((HANDLE)Writer.Console, Mode)) { (void)__xrtScreenSystem("restore-style"); Ok = false; }
+#endif
+      if (Error != NULL) xrtSetErrorTake(Error); }
+    __xrtConsoleWriterClose(&Writer); return Ok;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/core/console_terminal.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_CONSOLE_TERMINAL)
+#include <errno.h>
+#include <stdlib.h>
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <poll.h>
+#include <time.h>
+#endif
+
+#if defined(XRT_FEATURE_CONSOLE_TERMINAL)
+enum { XRT_CONSOLE_QUEUE_LIMIT = 16 * 1024 * 1024, XRT_CONSOLE_EVENT_LIMIT = 1024 * 1024 };
+struct xconsolesession {
+    uint64 Thread;
+    uint32 Flags, Columns, Rows;
+    bool Active, InputEnded, ClosedEvent, CursorChanged;
+    xbuffer Output, Input;
+    uint64 EscapeSince;
+#if defined(_WIN32) || defined(_WIN64)
+    HANDLE In, Out;
+    DWORD InputMode, OutputMode;
+    CONSOLE_CURSOR_INFO Cursor;
+    WCHAR HighSurrogate;
+#else
+    struct termios InputMode;
+#endif
+};
+
+static bool __xrtTerminalError(xerrkind Kind, cstr Message)
+{
+    __xrtErrorSetDetail(Kind, "xrt.console", XCONSOLE_ERROR_TERMINAL, "terminal", Message, NULL);
+    return false;
+}
+static bool __xrtTerminalSystem(cstr Operation)
+{
+#if defined(_WIN32) || defined(_WIN64)
+    int Code = (int)GetLastError();
+#else
+    int Code = errno;
+#endif
+    __xrtErrorSetSystem("xrt.console", XCONSOLE_ERROR_TERMINAL, Operation, Code, "terminal operation failed");
+    return false;
+}
+static uint64 __xrtTerminalNow(void)
+{
+    return xrtClock() / 1000u;
+}
+static bool __xrtSessionCheck(const xconsolesession* Session)
+{
+    if (Session == NULL || !Session->Active) return __xrtTerminalError(XERR_CLOSED, "terminal session is closed");
+    if (Session->Thread != xrtThreadCurrentId()) return __xrtTerminalError(XERR_STATE, "terminal session belongs to another thread");
+    return true;
+}
+
+
+XRT_API xconsolesession* xrtConsoleSessionOpen(uint32 Flags)
+{
+    xconsolesession* Session; xerror* Error;
+    if (Flags & ~15u) { (void)__xrtTerminalError(XERR_RANGE, "invalid terminal session flags"); return NULL; }
+    Session = (xconsolesession*)xrtCalloc(1, sizeof(*Session));
+    if (Session == NULL) return NULL;
+    if (!__xrtStandardInputAcquire(Session)) { xrtFree(Session); return NULL; }
+    Session->Thread = xrtThreadCurrentId(); Session->Flags = Flags;
+    (void)xrtBufferInit(&Session->Input); (void)xrtBufferInit(&Session->Output);
+    if (!xrtConsoleIsTerminal(XCONSOLE_STDOUT)) {
+        (void)__xrtTerminalError(XERR_UNSUPPORTED, "terminal session requires interactive stdin and stdout"); goto fail;
+    }
+#if defined(_WIN32) || defined(_WIN64)
+    Session->In = GetStdHandle(STD_INPUT_HANDLE); Session->Out = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (!GetConsoleMode(Session->In, &Session->InputMode) || !GetConsoleMode(Session->Out, &Session->OutputMode) ||
+        !GetConsoleCursorInfo(Session->Out, &Session->Cursor)) { (void)__xrtTerminalSystem("open"); goto fail; }
+    { DWORD Input = Session->InputMode | ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS;
+      if (Flags & 1) Input &= ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT);
+      Input &= ~ENABLE_QUICK_EDIT_MODE;
+      if (Flags & 2) Input |= ENABLE_MOUSE_INPUT; else Input &= ~ENABLE_MOUSE_INPUT;
+      if (!SetConsoleMode(Session->Out, Session->OutputMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
+          (void)__xrtTerminalSystem("output-mode"); goto fail; }
+      if (!SetConsoleMode(Session->In, Input)) {
+          Error = xrtTakeError(); (void)__xrtTerminalSystem("input-mode");
+          (void)SetConsoleMode(Session->Out, Session->OutputMode); if (Error != NULL) xrtSetErrorTake(Error); goto fail; } }
+#else
+    if (!isatty(STDIN_FILENO) || tcgetattr(STDIN_FILENO, &Session->InputMode) != 0) {
+        (void)__xrtTerminalError(XERR_UNSUPPORTED, "terminal input is not interactive"); goto fail; }
+    { struct termios Input = Session->InputMode;
+      if (Flags & 1) { Input.c_iflag &= ~(BRKINT|ICRNL|INLCR|IGNCR|INPCK|ISTRIP|IXON|PARMRK);
+        Input.c_cflag = (Input.c_cflag & ~(CSIZE|PARENB)) | CS8;
+        Input.c_lflag &= ~(ECHO|ICANON|IEXTEN|ISIG); Input.c_cc[VMIN] = 1; Input.c_cc[VTIME] = 0; }
+      if (tcsetattr(STDIN_FILENO, TCSANOW, &Input) != 0) { (void)__xrtTerminalSystem("input-mode"); goto fail; } }
+#endif
+    Session->Active = true;
+    if (!xrtConsoleSize(XCONSOLE_STDOUT, &Session->Columns, &Session->Rows) ||
+        ((Flags & 8) && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?1049h"))) ||
+#if !defined(_WIN32) && !defined(_WIN64)
+        ((Flags & 4) && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?2004h"))) ||
+        ((Flags & 2) && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?1002h\x1b[?1006h"))) ||
+#endif
+        !xrtConsoleFlush(XCONSOLE_STDOUT)) {
+        Error = xrtTakeError(); (void)xrtConsoleSessionClose(Session);
+        if (Error != NULL) xrtSetErrorTake(Error);
+        goto fail;
+    }
+    return Session;
+fail:
+    __xrtStandardInputRelease(Session); xrtBufferUnit(&Session->Input); xrtBufferUnit(&Session->Output); xrtFree(Session); return NULL;
+}
+XRT_API bool xrtConsoleSessionClosed(const xconsolesession* Session) { return Session == NULL || !Session->Active; }
+XRT_API bool xrtConsoleSessionPasteSupported(const xconsolesession* Session)
+{
+#if defined(_WIN32) || defined(_WIN64)
+    (void)Session; return false; /* Native Windows input records cannot distinguish paste from typing. */
+#else
+    return Session != NULL && Session->Active && (Session->Flags & 4) != 0;
+#endif
+}
+XRT_API bool xrtConsoleSessionWrite(xconsolesession* Session, xstrview Text)
+{
+    if (!__xrtSessionCheck(Session) || !__xrtConsoleValidateText(Text)) return false;
+    if (Text.Size > XRT_CONSOLE_QUEUE_LIMIT || Session->Output.Size > XRT_CONSOLE_QUEUE_LIMIT - Text.Size)
+        return __xrtTerminalError(XERR_RANGE, "terminal output queue limit exceeded");
+    return xrtBufferAppend(&Session->Output, (xbytesview){(const unsigned char*)Text.Data, Text.Size});
+}
+XRT_API bool xrtConsoleSessionFlush(xconsolesession* Session)
+{
+    bool Ok;
+    if (!__xrtSessionCheck(Session)) return false;
+    Ok = xrtConsoleWrite(XCONSOLE_STDOUT, (xstrview){(const char*)Session->Output.Data, Session->Output.Size});
+    /* A write error may be partial: discard the batch, never replay duplicated bytes. */
+    xrtBufferClear(&Session->Output);
+    return Ok && xrtConsoleFlush(XCONSOLE_STDOUT);
+}
+XRT_API bool xrtConsoleSessionMove(xconsolesession* Session, uint32 X, uint32 Y)
+{
+    char Text[64]; int Length;
+    if (X == UINT32_MAX || Y == UINT32_MAX) return __xrtTerminalError(XERR_RANGE, "cursor position overflow");
+    Length = snprintf(Text, sizeof(Text), "\x1b[%u;%uH", Y+1u, X+1u);
+    return Length > 0 && xrtConsoleSessionWrite(Session, (xstrview){Text, (size_t)Length});
+}
+XRT_API bool xrtConsoleSessionClear(xconsolesession* Session, int Mode)
+{
+    if (Mode < 0 || Mode > 2) return __xrtTerminalError(XERR_RANGE, "invalid clear mode");
+    return xrtConsoleSessionWrite(Session, Mode == 0 ? XRT_STR_LITERAL("\x1b[2J\x1b[H") :
+        Mode == 1 ? XRT_STR_LITERAL("\x1b[2K") : XRT_STR_LITERAL("\x1b[J"));
+}
+XRT_API bool xrtConsoleSessionCursor(xconsolesession* Session, bool Visible)
+{
+    if (!__xrtSessionCheck(Session)) return false;
+    if (!xrtConsoleSessionWrite(Session, Visible ? XRT_STR_LITERAL("\x1b[?25h") : XRT_STR_LITERAL("\x1b[?25l"))) return false;
+    Session->CursorChanged = true; return true;
+}
+XRT_API bool xrtConsoleSessionStyle(xconsolesession* Session, int32 Fg, int32 Bg, uint32 Attributes)
+{
+    char Text[128];
+    return __xrtTerminalStyle(Text, sizeof(Text), Fg, Bg, Attributes) && xrtConsoleSessionWrite(Session, (xstrview){Text, strlen(Text)});
+}
+XRT_API bool xrtConsoleSessionClose(xconsolesession* Session)
+{
+    bool Ok = true; xerror* Error = NULL;
+    if (Session == NULL || !Session->Active) return true;
+    if (!__xrtSessionCheck(Session)) return false;
+    if (!xrtConsoleSessionFlush(Session)) { Ok = false; Error = xrtTakeError(); }
+    /* Restoration always continues after any output failure. */
+    if (!xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[0m"))) Ok = false;
+#if !defined(_WIN32) && !defined(_WIN64)
+    if ((Session->Flags & 2) && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?1002l\x1b[?1006l"))) Ok = false;
+    if ((Session->Flags & 4) && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?2004l"))) Ok = false;
+    if (Session->CursorChanged && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?25h"))) Ok = false;
+#endif
+    if ((Session->Flags & 8) && !xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("\x1b[?1049l"))) Ok = false;
+    if (!xrtConsoleFlush(XCONSOLE_STDOUT)) Ok = false;
+#if defined(_WIN32) || defined(_WIN64)
+    if (!SetConsoleMode(Session->In, Session->InputMode)) { (void)__xrtTerminalSystem("restore-input"); Ok = false; }
+    if (!SetConsoleCursorInfo(Session->Out, &Session->Cursor)) { (void)__xrtTerminalSystem("restore-cursor"); Ok = false; }
+    if (!SetConsoleMode(Session->Out, Session->OutputMode)) { (void)__xrtTerminalSystem("restore-output"); Ok = false; }
+#else
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &Session->InputMode) != 0) { (void)__xrtTerminalSystem("restore-input"); Ok = false; }
+#endif
+    Session->Active = false; __xrtStandardInputRelease(Session);
+    if (Error != NULL) xrtSetErrorTake(Error);
+    return Ok;
+}
+XRT_API void xrtConsoleSessionDestroy(xconsolesession* Session)
+{
+    if (Session == NULL) return;
+    /* Destruction owns the last resource edge. Cleanup is not an event operation
+     * and must restore process modes even if the final owner is another thread.
+     * Concurrent operations/destruction on a C session remain forbidden. */
+    Session->Thread = xrtThreadCurrentId();
+    (void)xrtConsoleSessionClose(Session); xrtBufferUnit(&Session->Input); xrtBufferUnit(&Session->Output); xrtFree(Session);
+}
+XRT_API void xrtConsoleEventDestroy(xconsoleevent* Event)
+{ if (Event != NULL) { xrtBufferDestroy(Event->Text); xrtFree(Event); } }
+static xconsoleevent* __xrtConsoleEvent(xconsoleeventkind Kind)
+{
+    xconsoleevent* Event = (xconsoleevent*)xrtCalloc(1, sizeof(*Event));
+    if (Event != NULL) { Event->Kind = Kind; Event->Repeat = 1; Event->Down = true; }
+    return Event;
+}
+static bool __xrtConsoleEventText(xconsoleevent* Event, const void* Text, size_t Size)
+{
+    if (!__xrtConsoleValidateText((xstrview){(const char*)Text, Size})) return false;
+    Event->Text = xrtBufferFrom((xbytesview){(const unsigned char*)Text, Size});
+    return Event->Text != NULL;
+}
+
+#if defined(_WIN32) || defined(_WIN64)
+static uint32 __xrtConsoleWindowsKey(WORD Key)
+{
+    switch (Key) {
+    case VK_ESCAPE: return XCONSOLE_KEY_ESCAPE; case VK_RETURN: return XCONSOLE_KEY_ENTER;
+    case VK_TAB: return XCONSOLE_KEY_TAB; case VK_BACK: return XCONSOLE_KEY_BACKSPACE;
+    case VK_UP: return XCONSOLE_KEY_UP; case VK_DOWN: return XCONSOLE_KEY_DOWN;
+    case VK_LEFT: return XCONSOLE_KEY_LEFT; case VK_RIGHT: return XCONSOLE_KEY_RIGHT;
+    case VK_HOME: return XCONSOLE_KEY_HOME; case VK_END: return XCONSOLE_KEY_END;
+    case VK_INSERT: return XCONSOLE_KEY_INSERT; case VK_DELETE: return XCONSOLE_KEY_DELETE;
+    case VK_PRIOR: return XCONSOLE_KEY_PAGE_UP; case VK_NEXT: return XCONSOLE_KEY_PAGE_DOWN;
+    default: return Key >= VK_F1 && Key <= VK_F24 ? XCONSOLE_KEY_F1 + Key - VK_F1 : Key;
+    }
+}
+static uint32 __xrtConsoleWindowsModifiers(DWORD State)
+{ return (State & SHIFT_PRESSED ? 1u:0u) | (State & (LEFT_CTRL_PRESSED|RIGHT_CTRL_PRESSED) ? 2u:0u) |
+    (State & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED) ? 4u:0u); }
+XRT_API xconsoleevent* xrtConsoleSessionRead(xconsolesession* Session, int TimeoutMs)
+{
+    uint64 Deadline; INPUT_RECORD Record; DWORD Done, Wait; xconsoleevent* Event;
+    if (!__xrtSessionCheck(Session)) return NULL;
+    if (TimeoutMs < -1) { (void)__xrtTerminalError(XERR_RANGE, "invalid event timeout"); return NULL; }
+    Deadline = TimeoutMs >= 0 ? __xrtTerminalNow() + (uint64)TimeoutMs : 0;
+    for (;;) {
+        uint64 Now = __xrtTerminalNow();
+        DWORD Remaining = TimeoutMs < 0 ? INFINITE : Now >= Deadline ? 0 : (DWORD)(Deadline-Now);
+        Wait = WaitForSingleObject(Session->In, Remaining);
+        if (Wait == WAIT_TIMEOUT) return NULL;
+        if (Wait != WAIT_OBJECT_0 || !ReadConsoleInputW(Session->In, &Record, 1, &Done)) {
+            (void)__xrtTerminalSystem("read-event"); return NULL; }
+        if (Done == 0) return NULL;
+        if (Record.EventType == WINDOW_BUFFER_SIZE_EVENT) {
+            uint32 Columns, Rows;
+            if (!xrtConsoleSize(XCONSOLE_STDOUT, &Columns, &Rows)) return NULL;
+            if (Columns == Session->Columns && Rows == Session->Rows) continue;
+            Event = __xrtConsoleEvent(XCONSOLE_EVENT_RESIZE); if (Event == NULL) return NULL;
+            Session->Columns = Event->Columns = Columns; Session->Rows = Event->Rows = Rows; return Event;
+        }
+        if (Record.EventType == MOUSE_EVENT && (Session->Flags & 2)) {
+            MOUSE_EVENT_RECORD* Mouse = &Record.Event.MouseEvent;
+            CONSOLE_SCREEN_BUFFER_INFO Info;
+            Event = __xrtConsoleEvent(XCONSOLE_EVENT_MOUSE); if (Event == NULL) return NULL;
+            Event->X = Mouse->dwMousePosition.X; Event->Y = Mouse->dwMousePosition.Y;
+            if (GetConsoleScreenBufferInfo(Session->Out, &Info)) {
+                Event->X -= Info.srWindow.Left; Event->Y -= Info.srWindow.Top;
+            }
+            Event->Key = Mouse->dwButtonState & 0xffffu; Event->Down = Event->Key != 0;
+            Event->Modifiers = __xrtConsoleWindowsModifiers(Mouse->dwControlKeyState);
+            if (Mouse->dwEventFlags & MOUSE_WHEELED) Event->Wheel = (int16)HIWORD(Mouse->dwButtonState) / WHEEL_DELTA;
+            return Event;
+        }
+        if (Record.EventType == KEY_EVENT) {
+            KEY_EVENT_RECORD* Key = &Record.Event.KeyEvent; uint32 Scalar = Key->uChar.UnicodeChar;
+            uint32 Modifiers = __xrtConsoleWindowsModifiers(Key->dwControlKeyState);
+            unsigned char Text[4]; size_t Length;
+            /* UTF-16 key-up records are not standalone Unicode scalars. */
+            if (!Key->bKeyDown && Scalar >= 0xd800 && Scalar <= 0xdfff) continue;
+            if (Key->bKeyDown && Scalar >= 0xd800 && Scalar <= 0xdbff) { Session->HighSurrogate = (WCHAR)Scalar; continue; }
+            if (Key->bKeyDown && Scalar >= 0xdc00 && Scalar <= 0xdfff) {
+                if (Session->HighSurrogate == 0) { (void)__xrtTerminalError(XERR_IO, "unpaired input surrogate"); return NULL; }
+                Scalar = 0x10000u + (((uint32)Session->HighSurrogate-0xd800u)<<10) + Scalar-0xdc00u;
+                Session->HighSurrogate = 0;
+            } else if (Key->bKeyDown && Session->HighSurrogate != 0) {
+                Session->HighSurrogate = 0; (void)__xrtTerminalError(XERR_IO, "incomplete input surrogate"); return NULL;
+            }
+            if (Key->wVirtualKeyCode == VK_SHIFT || Key->wVirtualKeyCode == VK_CONTROL || Key->wVirtualKeyCode == VK_MENU) continue;
+            /* AltGr often sets both Ctrl and Alt but still produces printable
+             * Unicode. Use the delivered scalar, not modifiers, to classify text. */
+            Event = __xrtConsoleEvent(Key->bKeyDown && Scalar >= 32 ? XCONSOLE_EVENT_TEXT : XCONSOLE_EVENT_KEY);
+            if (Event == NULL) return NULL;
+            Event->Key = Event->Kind == XCONSOLE_EVENT_TEXT ? Scalar : __xrtConsoleWindowsKey(Key->wVirtualKeyCode);
+            Event->Down = Key->bKeyDown != 0; Event->Modifiers = Modifiers; Event->Repeat = Key->wRepeatCount ? Key->wRepeatCount : 1;
+            if (Event->Kind != XCONSOLE_EVENT_TEXT) return Event;
+            if (Scalar < 0x80) { Text[0] = (unsigned char)Scalar; Length = 1; }
+            else if (Scalar < 0x800) { Text[0] = (unsigned char)(0xc0|(Scalar>>6)); Text[1] = (unsigned char)(0x80|(Scalar&63)); Length = 2; }
+            else if (Scalar < 0x10000) { Text[0] = (unsigned char)(0xe0|(Scalar>>12)); Text[1] = (unsigned char)(0x80|((Scalar>>6)&63)); Text[2] = (unsigned char)(0x80|(Scalar&63)); Length = 3; }
+            else { Text[0] = (unsigned char)(0xf0|(Scalar>>18)); Text[1] = (unsigned char)(0x80|((Scalar>>12)&63)); Text[2] = (unsigned char)(0x80|((Scalar>>6)&63)); Text[3] = (unsigned char)(0x80|(Scalar&63)); Length = 4; }
+            if (__xrtConsoleEventText(Event, Text, Length)) return Event;
+            xrtConsoleEventDestroy(Event); return NULL;
+        }
+        if (TimeoutMs >= 0 && __xrtTerminalNow() >= Deadline) return NULL;
+    }
+}
+#else
+static void __xrtConsoleConsume(xconsolesession* Session, size_t Count)
+{ memmove(Session->Input.Data, Session->Input.Data+Count, Session->Input.Size-Count); (void)xrtBufferResize(&Session->Input, Session->Input.Size-Count); Session->EscapeSince = 0; }
+/* Never pass terminal-controlled numbers to scanf: overflowing numeric input
+ * must not invoke undefined conversion behavior. Accept only complete fields. */
+static bool __xrtConsoleNumbers(const unsigned char* Data, size_t Size, uint32* Values, size_t Count)
+{
+    size_t Offset = 0;
+    for (size_t Field = 0; Field < Count; ++Field) {
+        uint32 Value = 0; size_t Begin = Offset;
+        while (Offset < Size && Data[Offset] >= '0' && Data[Offset] <= '9') {
+            unsigned Digit = Data[Offset++] - '0';
+            if (Value > (UINT32_MAX - Digit) / 10u) return false;
+            Value = Value * 10u + Digit;
+        }
+        if (Offset == Begin) return false;
+        Values[Field] = Value;
+        if (Field + 1 < Count && (Offset >= Size || Data[Offset++] != ';')) return false;
+    }
+    return Offset == Size;
+}
+static uint32 __xrtConsoleScalar(const unsigned char* Data, size_t Count)
+{
+    uint32 Scalar = Data[0] & (Count == 1 ? 127u : Count == 2 ? 31u : Count == 3 ? 15u : 7u);
+    for (size_t i = 1; i < Count; ++i) Scalar = (Scalar << 6) | (Data[i] & 63u);
+    return Scalar;
+}
+/* Parse only complete bounded events; an incomplete sequence remains owned by the session. */
+static xconsoleevent* __xrtConsoleParseEvent(xconsolesession* Session)
+{
+    const unsigned char* Data = Session->Input.Data; size_t Size = Session->Input.Size, Count=1;
+    xconsoleevent* Event; uint32 Key=0, Modifiers=0; bool Text=false; size_t TextOffset=0;
+    if (Size == 0) return NULL;
+    if (Data[0] == 0x1b) {
+        if (Session->EscapeSince == 0) Session->EscapeSince = __xrtTerminalNow();
+        if (Size >= 6 && memcmp(Data,"\x1b[200~",6)==0 && (Session->Flags & 4)) {
+            size_t End;
+            for (End=6; End+6<=Size; ++End) if (memcmp(Data+End,"\x1b[201~",6)==0) break;
+            if (End+6>Size) return NULL;
+            if (End-6>XRT_CONSOLE_EVENT_LIMIT) { (void)__xrtTerminalError(XERR_RANGE,"paste limit exceeded"); return NULL; }
+            Event=__xrtConsoleEvent(XCONSOLE_EVENT_PASTE); if (Event==NULL) return NULL;
+            if (!__xrtConsoleEventText(Event,Data+6,End-6)) { xrtConsoleEventDestroy(Event); return NULL; }
+            __xrtConsoleConsume(Session,End+6); return Event;
+        }
+        if (Size >= 3 && (Data[1]=='[' || Data[1]=='O')) {
+            size_t End=2;
+            while (End<Size && End<64 && !(Data[End]>=0x40 && Data[End]<=0x7e)) ++End;
+            if (End<Size && End<64) {
+                uint32 Values[3]={0,0,0}, First=0, Second=0, Third=0;
+                size_t Length=End-2; bool Valid;
+                if (Length!=0 && Data[2]=='<' && (Session->Flags & 2) && (Data[End]=='M'||Data[End]=='m') &&
+                    __xrtConsoleNumbers(Data+3,Length-1,Values,3) &&
+                    (First=Values[0],Second=Values[1],Third=Values[2],Second!=0 && Third!=0 && Second<=INT32_MAX && Third<=INT32_MAX)) {
+                    Event=__xrtConsoleEvent(XCONSOLE_EVENT_MOUSE); if (Event==NULL) return NULL;
+                    Event->X=(int32)Second-1; Event->Y=(int32)Third-1;
+                    Event->Key=Data[End]=='m' || (First&64u) || (First&3u)==3 ? 0u :
+                        (First&3u)==0 ? 1u : (First&3u)==1 ? 4u : 2u;
+                    Event->Modifiers=(First&4?1u:0u)|(First&8?4u:0u)|(First&16?2u:0u);
+                    Event->Down=Data[End]=='M' && Event->Key!=0; Event->Wheel=First&64 ? (First&1?-1:1) : 0;
+                    __xrtConsoleConsume(Session,End+1); return Event;
+                }
+                Valid=Length==0 || __xrtConsoleNumbers(Data+2,Length,Values,1) || __xrtConsoleNumbers(Data+2,Length,Values,2);
+                First=Values[0]; Second=Values[1];
+                if (Second>16) Valid=false;
+                if (Second>=2 && Second<=16) {
+                    uint32 Bits=Second-1;
+                    Modifiers=(Bits&1u)|(Bits&2u?4u:0u)|(Bits&4u?2u:0u)|(Bits&8u);
+                }
+                if (Valid) switch (Data[End]) {
+                case 'A':Key=XCONSOLE_KEY_UP;break;case 'B':Key=XCONSOLE_KEY_DOWN;break;
+                case 'C':Key=XCONSOLE_KEY_RIGHT;break;case 'D':Key=XCONSOLE_KEY_LEFT;break;
+                case 'H':Key=XCONSOLE_KEY_HOME;break;case 'F':Key=XCONSOLE_KEY_END;break;
+                case 'P':Key=XCONSOLE_KEY_F1;break;case 'Q':Key=XCONSOLE_KEY_F1+1;break;
+                case 'R':Key=XCONSOLE_KEY_F1+2;break;case 'S':Key=XCONSOLE_KEY_F1+3;break;
+                case 'Z':Key=XCONSOLE_KEY_TAB;Modifiers=1;break;
+                case '~': switch(First) {
+                    case 1:case 7:Key=XCONSOLE_KEY_HOME;break;case 4:case 8:Key=XCONSOLE_KEY_END;break;
+                    case 2:Key=XCONSOLE_KEY_INSERT;break;case 3:Key=XCONSOLE_KEY_DELETE;break;
+                    case 5:Key=XCONSOLE_KEY_PAGE_UP;break;case 6:Key=XCONSOLE_KEY_PAGE_DOWN;break;
+                    default: { const unsigned Codes[]={11,12,13,14,15,17,18,19,20,21,23,24};
+                      for (unsigned i=0;i<12;++i) if (Codes[i]==First) Key=XCONSOLE_KEY_F1+i; } } break;
+                default: break;
+                }
+                if (Key!=0) Count=End+1;
+            } else if (Size<64 && __xrtTerminalNow()-Session->EscapeSince<30) return NULL;
+        } else if (Size>=2 && Data[1]!='[' && Data[1]!='O' && Data[1]!=0x1b) {
+            size_t Bytes=Data[1]<0x80?1:Data[1]>=0xc2&&Data[1]<=0xdf?2:Data[1]>=0xe0&&Data[1]<=0xef?3:Data[1]>=0xf0&&Data[1]<=0xf4?4:0;
+            if (Bytes==0) { (void)__xrtTerminalError(XERR_IO,"invalid Alt event UTF-8"); return NULL; }
+            if (Size<Bytes+1) return NULL;
+            TextOffset=1; Count=Bytes+1; Text=true; Modifiers=4;
+        } else if ((Size==1 || (Size==2 && (Data[1]=='[' || Data[1]=='O'))) &&
+            __xrtTerminalNow()-Session->EscapeSince<30 && !Session->InputEnded) return NULL;
+        if (Key==0 && !Text) Key=XCONSOLE_KEY_ESCAPE;
+    } else if (Data[0]<32 || Data[0]==127) {
+        Key=Data[0]==13||Data[0]==10?XCONSOLE_KEY_ENTER:Data[0]==9?XCONSOLE_KEY_TAB:
+            Data[0]==127||Data[0]==8?XCONSOLE_KEY_BACKSPACE:Data[0]+64;
+        if (Data[0]<32 && Data[0]!=13 && Data[0]!=10 && Data[0]!=9 && Data[0]!=8) Modifiers=2;
+    } else {
+        Count=Data[0]<0x80?1:Data[0]>=0xc2&&Data[0]<=0xdf?2:Data[0]>=0xe0&&Data[0]<=0xef?3:Data[0]>=0xf0&&Data[0]<=0xf4?4:0;
+        if (Count==0) { (void)__xrtTerminalError(XERR_IO,"invalid event UTF-8"); return NULL; }
+        if (Size<Count) return NULL;
+        Text=true;
+    }
+    Event=__xrtConsoleEvent(Text?XCONSOLE_EVENT_TEXT:XCONSOLE_EVENT_KEY); if (Event==NULL) return NULL;
+    Event->Key=Key; Event->Modifiers=Modifiers;
+    if (Text) {
+        if (!__xrtConsoleEventText(Event,Data+TextOffset,Count-TextOffset)) { xrtConsoleEventDestroy(Event); return NULL; }
+        Event->Key=__xrtConsoleScalar(Data+TextOffset,Count-TextOffset);
+    }
+    __xrtConsoleConsume(Session,Count); return Event;
+}
+XRT_API xconsoleevent* xrtConsoleSessionRead(xconsolesession* Session, int TimeoutMs)
+{
+    uint64 Deadline; bool First=true;
+    if (!__xrtSessionCheck(Session)) return NULL;
+    if (TimeoutMs < -1) { (void)__xrtTerminalError(XERR_RANGE,"invalid event timeout"); return NULL; }
+    Deadline=TimeoutMs>=0?__xrtTerminalNow()+(uint64)TimeoutMs:0;
+    for (;;) {
+        struct pollfd Poll={STDIN_FILENO,POLLIN,0}; uint32 Columns,Rows; xconsoleevent* Event;
+        unsigned char Data[256]; ssize_t Read; int Status,Wait=50; uint64 Now=__xrtTerminalNow();
+        if (!xrtConsoleSize(XCONSOLE_STDOUT,&Columns,&Rows)) return NULL;
+        if (Columns!=Session->Columns || Rows!=Session->Rows) {
+            Event=__xrtConsoleEvent(XCONSOLE_EVENT_RESIZE); if (Event==NULL) return NULL;
+            Session->Columns=Event->Columns=Columns; Session->Rows=Event->Rows=Rows; return Event;
+        }
+        Event=__xrtConsoleParseEvent(Session);
+        if (Event!=NULL || xrtGetError()!=NULL) return Event;
+        if (Session->InputEnded) {
+            if (Session->Input.Size!=0) { (void)__xrtTerminalError(XERR_IO,"incomplete event at EOF"); return NULL; }
+            if (Session->ClosedEvent) return NULL;
+            Event=__xrtConsoleEvent(XCONSOLE_EVENT_CLOSED); if (Event!=NULL) Session->ClosedEvent=true; return Event;
+        }
+        if (!First && TimeoutMs>=0 && Now>=Deadline) return NULL;
+        if (TimeoutMs>=0 && (uint64)Wait> (Deadline>Now?Deadline-Now:0)) Wait=(int)(Deadline>Now?Deadline-Now:0);
+        if (Session->EscapeSince!=0 && Wait>10) Wait=10;
+        First=false;
+        Status=poll(&Poll,1,Wait);
+        if (Status<0 && errno==EINTR) continue;
+        if (Status<0 || (Poll.revents&(POLLERR|POLLNVAL))) { (void)__xrtTerminalSystem("poll"); return NULL; }
+        if (Status==0) continue;
+        do { Read=read(STDIN_FILENO,Data,sizeof(Data)); } while (Read<0 && errno==EINTR);
+        if (Read<0) { (void)__xrtTerminalSystem("read-event"); return NULL; }
+        if (Read==0) { Session->InputEnded=true; continue; }
+        if (Session->Input.Size>XRT_CONSOLE_EVENT_LIMIT+12u-(size_t)Read) {
+            (void)__xrtTerminalError(XERR_RANGE,"event input limit exceeded"); return NULL; }
+        if (!xrtBufferAppend(&Session->Input,(xbytesview){Data,(size_t)Read})) return NULL;
+    }
+}
+#endif
 #endif
 #endif
 
@@ -292528,6 +302957,18 @@ XRT_API bool xrtLogSetDefault(xlogger* pLogger)
 	__xrtSpinUnlock(&__xrtLogDefaultLock);
 	xrtLogFree(pOldLogger);
 	return true;
+}
+
+XRT_API xlogger* xrtLogTakeDefaultIf(xlogger* pExpected)
+{
+	xlogger* pLogger = NULL;
+	__xrtSpinLock(&__xrtLogDefaultLock);
+	if (pExpected == NULL || __xrtLogDefaultLogger == pExpected) {
+		pLogger = __xrtLogDefaultLogger;
+		__xrtLogDefaultLogger = NULL;
+	}
+	__xrtSpinUnlock(&__xrtLogDefaultLock);
+	return pLogger;
 }
 
 #endif
@@ -294161,13 +304602,6 @@ XRT_API bool xrtLogJsonWrite(
 
 #if defined(XRT_FEATURE_LOGGER_CONSOLE)
 
-#if (defined(_WIN32) || defined(_WIN64)) && \
-	!defined(ENABLE_VIRTUAL_TERMINAL_PROCESSING)
-	#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
-#endif
-
-
-
 /* Console Sink 保存不可变配置、终端能力和逐条记录串行锁。 */
 typedef struct xlogconsolestate {
 	xmutex Lock;
@@ -294729,6 +305163,7 @@ typedef struct xlogfilestate {
 	xatomic64 Owner;
 	xlogfileoptions Options;
 	xfile File;
+	bool Closed;
 	xbuffer Record;
 	xlogformatproc Format;
 	xlogformatdropproc Drop;
@@ -295158,6 +305593,11 @@ static xlogresult __xrtLogFileWrite(
 	}
 	xrtAtomic64Store(&pState->Owner, iThread, XMEMORY_RELEASE);
 	memset(&Writer, 0, sizeof(Writer));
+	if (pState->Closed) {
+		__xrtLogErrorSet(XERR_CLOSED, XLOG_ERROR_FILE_CLOSE,
+			"file-write", "log file sink is closed");
+		goto Finish;
+	}
 	Writer.State = pState;
 	xrtBufferClear(&pState->Record);
 	bFormatted = pState->Format(
@@ -295237,7 +305677,11 @@ static bool __xrtLogFileFlush(ptr pUserData)
 		return false;
 	}
 	xrtAtomic64Store(&pState->Owner, iThread, XMEMORY_RELEASE);
-	bResult = __xrtLogFileSyncLocked(pState);
+	if (pState->Closed) {
+		__xrtLogErrorSet(XERR_CLOSED, XLOG_ERROR_FILE_CLOSE,
+			"file-flush", "log file sink is closed");
+		bResult = false;
+	} else bResult = __xrtLogFileSyncLocked(pState);
 	xrtAtomic64Store(&pState->Owner, 0, XMEMORY_RELEASE);
 	if ( !xrtMutexUnlock(&pState->Lock) ) {
 		return false;
@@ -295468,7 +305912,11 @@ XRT_API bool xrtLogFileRotate(xlogsink* pSink)
 		return false;
 	}
 	xrtAtomic64Store(&pState->Owner, iThread, XMEMORY_RELEASE);
-	bResult = __xrtLogFileRotateLocked(pState);
+	if (pState->Closed) {
+		__xrtLogErrorSet(XERR_CLOSED, XLOG_ERROR_FILE_CLOSE,
+			"file-rotate", "log file sink is closed");
+		bResult = false;
+	} else bResult = __xrtLogFileRotateLocked(pState);
 	xrtAtomic64Store(&pState->Owner, 0, XMEMORY_RELEASE);
 	if ( !xrtMutexUnlock(&pState->Lock) ) {
 		return false;
@@ -295497,10 +305945,44 @@ XRT_API bool xrtLogFileReopen(xlogsink* pSink)
 	}
 	xrtAtomic64Store(&pState->Owner, iThread, XMEMORY_RELEASE);
 	bResult = __xrtLogFileReopenLocked(pState);
+	if (bResult) pState->Closed = false;
 	xrtAtomic64Store(&pState->Owner, 0, XMEMORY_RELEASE);
 	if ( !xrtMutexUnlock(&pState->Lock) ) {
 		return false;
 	}
+	return bResult;
+}
+
+XRT_API bool xrtLogFileClose(xlogsink* pSink)
+{
+	xlogfilestate* pState = __xrtLogFileState(pSink);
+	xerror* pFirst = NULL;
+	bool bResult = true;
+	if (pState == NULL) return false;
+	uint64 iThread = __xrtCurrentThreadId();
+	if (xrtAtomic64Load(&pState->Owner, XMEMORY_ACQUIRE) == iThread) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	if (!xrtMutexLock(&pState->Lock)) return false;
+	xrtAtomic64Store(&pState->Owner, iThread, XMEMORY_RELEASE);
+	if (!pState->Closed) {
+		pState->Closed = true;
+		if (pState->File != NULL) {
+			if (!__xrtLogFileSyncLocked(pState)) { bResult = false; pFirst = xrtTakeError(); }
+			if (!xrtClose(pState->File)) {
+				bResult = false;
+				if (pFirst == NULL) {
+					__xrtLogFileWrap(XERR_IO, XLOG_ERROR_FILE_CLOSE,
+						"file-close", "failed to close log file");
+					pFirst = xrtTakeError();
+				}
+			}
+			pState->File = NULL;
+		}
+	}
+	xrtAtomic64Store(&pState->Owner, 0u, XMEMORY_RELEASE);
+	if (!xrtMutexUnlock(&pState->Lock)) bResult = false;
+	if (pFirst != NULL) xrtSetErrorTake(pFirst);
 	return bResult;
 }
 
@@ -295794,6 +306276,7 @@ typedef struct xlogasyncstate {
 	xcond NotEmpty;
 	xcond NotFull;
 	xatomic64 WorkerId;
+	xatomic32 WorkerDone;
 	xlogasyncconfig Config;
 	xlogsink* Target;
 	xthread* Thread;
@@ -296444,6 +306927,7 @@ static int32 __xrtLogAsyncWorker(ptr pData)
 		xrtErrorFree(pWaitError);
 	}
 	__xrtLogAsyncFinalFlush(pState);
+	xrtAtomic32Store(&pState->WorkerDone, 1u, XMEMORY_RELEASE);
 	__xrtLogAsyncStateRelease(pState);
 	return 0;
 }
@@ -296708,6 +307192,7 @@ XRT_API xlogsink* xrtLogAsync(
 	pState->RefCount = 1;
 	pState->Config = *pConfig;
 	xrtAtomic64Init(&pState->WorkerId, 0u);
+	xrtAtomic32Init(&pState->WorkerDone, 0u);
 	pState->Target = xrtLogSinkRef(pTarget);
 	if ( pState->Target == NULL ) {
 		pCause = xrtTakeError();
@@ -296864,6 +307349,29 @@ XRT_API xlogsink* xrtLogAsyncTarget(const xlogsink* pSink)
 	return pState == NULL ? NULL : pState->Target;
 }
 
+XRT_API bool xrtLogAsyncStop(xlogsink* pSink)
+{
+	xlogasyncstate* pState = __xrtLogAsyncState(pSink);
+	xerror* pError;
+	if (pState == NULL) return false;
+	uint64 iWorker = xrtAtomic64Load(&pState->WorkerId, XMEMORY_ACQUIRE);
+	if (iWorker != 0u && iWorker == xrtThreadCurrentId()) {
+		__xrtLogErrorSet(XERR_STATE, XLOG_ERROR_ASYNC_CLOSED,
+			"async-stop", "async worker cannot stop its own queue");
+		return false;
+	}
+	__xrtLogAsyncClose(pState);
+	/* The sink reference keeps state alive. Completion is published after the
+	 * worker's final flush; joining/destroying the thread remains single-owner
+	 * destructor work, so concurrent stop callers never race a native join. */
+	while (!xrtAtomic32Load(&pState->WorkerDone, XMEMORY_ACQUIRE)) xrtSleepUs(100u);
+	if (!xrtMutexLock(&pState->Lock)) return false;
+	pError = xrtErrorRef(pState->LastError);
+	if (!xrtMutexUnlock(&pState->Lock)) { xrtErrorFree(pError); return false; }
+	if (pError != NULL) { xrtSetErrorTake(pError); return false; }
+	return true;
+}
+
 
 
 /* 读取队列和后台处理的同锁统计快照。 */
@@ -296988,6 +307496,7 @@ typedef struct xlogringstate {
 	size_t Stride;
 	xatomic32 Gate;
 	xatomic64 WorkerId;
+	xatomic32 WorkerDone;
 	xatomic64 Enqueued;
 	xatomic64 Processed;
 	xatomic64 Written;
@@ -297075,9 +307584,13 @@ static bool __xrtLogRingWriterEnter(xlogringstate* pState)
 
 	for ( ;; ) {
 		if ( (iGate & XLOG_RING_GATE_CLOSED) != 0u ) {
+			__xrtLogErrorSet(XERR_CLOSED, XLOG_ERROR_RING_CLOSED,
+				"ring-write", "ring log sink is closed");
 			return false;
 		}
 		if ( (iGate & XLOG_RING_GATE_WRITERS) == XLOG_RING_GATE_WRITERS ) {
+			__xrtLogErrorSet(XERR_RANGE, XLOG_ERROR_RING_QUEUE,
+				"ring-write", "ring producer count overflow");
 			return false;
 		}
 		if (
@@ -297328,6 +307841,7 @@ static int32 __xrtLogRingWorker(ptr pData)
 		(void)xrtAtomic64FetchAdd(&pState->Flushes, 1u, XMEMORY_RELAXED);
 		(void)xrtAtomic64FetchAdd(&pState->Failed, 1u, XMEMORY_RELAXED);
 	}
+	xrtAtomic32Store(&pState->WorkerDone, 1u, XMEMORY_RELEASE);
 	__xrtLogRingStateRelease(pState);
 	return 0;
 }
@@ -297383,7 +307897,7 @@ static xlogresult __xrtLogRingWrite(
 		return XLOG_RESULT_DROPPED;
 	}
 	if ( !__xrtLogRingWriterEnter(pState) ) {
-		return XLOG_RESULT_DROPPED;
+		return XLOG_RESULT_ERROR;
 	}
 	if ( !__xrtLogOwnedSize(pRecord, &iSize) ) {
 		xrtClearError();
@@ -297608,6 +308122,7 @@ static void __xrtLogRingAtomicsInit(xlogringstate* pState)
 {
 	xrtAtomic32Init(&pState->Gate, 0u);
 	xrtAtomic64Init(&pState->WorkerId, 0u);
+	xrtAtomic32Init(&pState->WorkerDone, 0u);
 	xrtAtomic64Init(&pState->Enqueued, 0u);
 	xrtAtomic64Init(&pState->Processed, 0u);
 	xrtAtomic64Init(&pState->Written, 0u);
@@ -297826,6 +308341,26 @@ XRT_API xlogsink* xrtLogRingTarget(const xlogsink* pSink)
 	xlogringstate* pState = __xrtLogRingState(pSink);
 
 	return pState == NULL ? NULL : pState->Target;
+}
+
+XRT_API bool xrtLogRingStop(xlogsink* pSink)
+{
+	xlogringstate* pState = __xrtLogRingState(pSink);
+	xerror* pError;
+	if (pState == NULL) return false;
+	uint64 iWorker = xrtAtomic64Load(&pState->WorkerId, XMEMORY_ACQUIRE);
+	if (iWorker != 0u && iWorker == xrtThreadCurrentId()) {
+		__xrtLogErrorSet(XERR_STATE, XLOG_ERROR_RING_CLOSED,
+			"ring-stop", "ring worker cannot stop its own queue");
+		return false;
+	}
+	__xrtLogRingClose(pState);
+	while (!xrtAtomic32Load(&pState->WorkerDone, XMEMORY_ACQUIRE)) xrtSleepUs(100u);
+	if (!xrtMutexLock(&pState->ErrorLock)) return false;
+	pError = xrtErrorRef(pState->LastError);
+	if (!xrtMutexUnlock(&pState->ErrorLock)) { xrtErrorFree(pError); return false; }
+	if (pError != NULL) { xrtSetErrorTake(pError); return false; }
+	return true;
 }
 
 
@@ -300601,18 +311136,17 @@ XRT_API xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
 	pProcess->Waiter = xrtThreadCreate(__xrtProcessWaiter, pProcess, 0u);
 	if ( pProcess->Waiter == NULL ) {
 		(void)xrtRefRelease(&pProcess->RefCount);
-		__xrtProcessErrorSet(
-			XERR_INTERNAL,
-			XPROCESS_ERROR_THREAD,
-			"spawn.waiter",
-			"process wait thread could not start",
-			0
-		);
+		if ( xrtGetError() == NULL ) {
+			__xrtProcessErrorSet(XERR_INTERNAL, XPROCESS_ERROR_THREAD,
+				"spawn.waiter", "process wait thread could not start", 0);
+		}
 		goto fail_running;
 	}
 	return pProcess;
 
 fail_running:
+	{
+	xerror* pFailure = xrtTakeError();
 	(void)__xrtProcessPlatformKillTree(pProcess);
 	(void)__xrtProcessPlatformKill(pProcess);
 	memset(&Status, 0, sizeof(Status));
@@ -300621,7 +311155,10 @@ fail_running:
 	(void)xrtCondUnit(&pProcess->Changed);
 	(void)xrtMutexUnit(&pProcess->Lock);
 	xrtFree(pProcess);
+	xrtClearError();
+	xrtSetErrorTake(pFailure);
 	return NULL;
+	}
 }
 
 
@@ -301446,6 +311983,56 @@ cleanup:
 
 
 
+/* Isolate text preparation so allocation/Unicode errors are not replaced by
+ * a guessed OS error, and stop before subsequent conversions after failure.
+ * The caller owns every non-NULL output even when preparation fails. */
+static bool __xrtProcessTextPrepare(
+	const xprocessconfig* pConfig,
+	cstr sProgram8,
+	wchar_t** ppProgram,
+	wchar_t** ppCommand,
+	wchar_t** ppWorkDir
+)
+{
+	xerror* pPrevious = xrtTakeError();
+
+	*ppProgram = __xrtProcessProgramResolve(sProgram8);
+	if ( *ppProgram == NULL ) {
+		if ( xrtGetError() == NULL ) {
+			__xrtProcessErrorSet(XERR_NOT_FOUND, XPROCESS_ERROR_COMMAND,
+				"spawn.command", "process program could not be resolved",
+				(int)GetLastError());
+		}
+		goto fail;
+	}
+	*ppCommand = __xrtProcessCommandBuild(pConfig, sProgram8);
+	if ( *ppCommand == NULL ) {
+		if ( xrtGetError() == NULL ) {
+			__xrtProcessErrorSet(XERR_VALUE, XPROCESS_ERROR_COMMAND,
+				"spawn.command", "process command is not valid UTF-8", 0);
+		}
+		goto fail;
+	}
+	if ( pConfig->WorkDir != NULL ) {
+		*ppWorkDir = (wchar_t*)xrtUtf8To16(pConfig->WorkDir, NULL);
+		if ( *ppWorkDir == NULL ) {
+			if ( xrtGetError() == NULL ) {
+				__xrtProcessErrorSet(XERR_VALUE, XPROCESS_ERROR_CONFIG,
+					"spawn.workdir", "process working directory is not valid UTF-8", 0);
+			}
+			goto fail;
+		}
+	}
+	xrtClearError();
+	xrtSetErrorTake(pPrevious);
+	return true;
+fail:
+	xrtErrorFree(pPrevious);
+	return false;
+}
+
+
+
 /* 返回 Windows 环境项名称长度，驱动变量包含开头等号。 */
 static size_t __xrtProcessEnvNameSize(const wchar_t* sEntry)
 {
@@ -302104,33 +312691,9 @@ bool __xrtProcessTerminalSpawnWindows(
 		goto cleanup;
 	}
 	Startup.AttributeList = pAttributes;
-	sProgram = __xrtProcessProgramResolve(sProgram8);
-	sCommand = __xrtProcessCommandBuild(pConfig, sProgram8);
-	if ( (sProgram == NULL) || (sCommand == NULL) ) {
-		iError = (int)GetLastError();
-		__xrtProcessErrorSet(
-			sProgram == NULL ? XERR_NOT_FOUND : XERR_VALUE,
-			XPROCESS_ERROR_COMMAND,
-			"spawn.command",
-			sProgram == NULL ?
-				"process program could not be resolved" :
-				"process command is not valid UTF-8",
-			iError
-		);
+	if ( !__xrtProcessTextPrepare(pConfig, sProgram8,
+		&sProgram, &sCommand, &sWorkDir) ) {
 		goto cleanup;
-	}
-	if ( pConfig->WorkDir != NULL ) {
-		sWorkDir = (wchar_t*)xrtUtf8To16(pConfig->WorkDir, NULL);
-		if ( sWorkDir == NULL ) {
-			__xrtProcessErrorSet(
-				XERR_VALUE,
-				XPROCESS_ERROR_CONFIG,
-				"spawn.workdir",
-				"process working directory is not valid UTF-8",
-				0
-			);
-			goto cleanup;
-		}
 	}
 	if ( !__xrtProcessEnvironmentBuild(pConfig, &sEnvironment) ) {
 		goto cleanup;
@@ -302396,33 +312959,9 @@ bool __xrtProcessPlatformSpawn(
 		goto cleanup;
 	}
 	Startup.AttributeList = pAttributes;
-	sProgram = __xrtProcessProgramResolve(sProgram8);
-	sCommand = __xrtProcessCommandBuild(pConfig, sProgram8);
-	if ( (sProgram == NULL) || (sCommand == NULL) ) {
-		iError = (int)GetLastError();
-		__xrtProcessErrorSet(
-			sProgram == NULL ? XERR_NOT_FOUND : XERR_VALUE,
-			XPROCESS_ERROR_COMMAND,
-			"spawn.command",
-			sProgram == NULL ?
-				"process program could not be resolved" :
-				"process command is not valid UTF-8",
-			iError
-		);
+	if ( !__xrtProcessTextPrepare(pConfig, sProgram8,
+		&sProgram, &sCommand, &sWorkDir) ) {
 		goto cleanup;
-	}
-	if ( pConfig->WorkDir != NULL ) {
-		sWorkDir = (wchar_t*)xrtUtf8To16(pConfig->WorkDir, NULL);
-		if ( sWorkDir == NULL ) {
-			__xrtProcessErrorSet(
-				XERR_VALUE,
-				XPROCESS_ERROR_CONFIG,
-				"spawn.workdir",
-				"process working directory is not valid UTF-8",
-				0
-			);
-			goto cleanup;
-		}
 	}
 	if ( !__xrtProcessEnvironmentBuild(pConfig, &sEnvironment) ) {
 		goto cleanup;
@@ -302596,6 +313135,54 @@ bool __xrtProcessPlatformWait(
 
 
 
+/* Acquire an operation-owned, non-inheritable handle while the slot is
+ * protected. Close may retire the slot afterwards, never this private loan. */
+static HANDLE __xrtProcessIoAcquire(xprocess* pProcess, xprocessstream Stream)
+{
+	HANDLE hSource;
+	HANDLE hCopy = INVALID_HANDLE_VALUE;
+	int iError = 0;
+	bool bWrite = Stream == XPROCESS_STDIN;
+
+	if (!xrtMutexLock(&pProcess->Lock)) return INVALID_HANDLE_VALUE;
+	hSource = bWrite ? pProcess->Stdin :
+		Stream == XPROCESS_STDOUT ? pProcess->Stdout : pProcess->Stderr;
+	if ( (hSource != NULL) && (hSource != INVALID_HANDLE_VALUE) &&
+		!DuplicateHandle(GetCurrentProcess(), hSource, GetCurrentProcess(),
+			&hCopy, 0, FALSE, DUPLICATE_SAME_ACCESS) ) {
+		iError = (int)GetLastError();
+		hCopy = INVALID_HANDLE_VALUE; /* Failed calls do not transfer output ownership. */
+	}
+	if (!xrtMutexUnlock(&pProcess->Lock)) {
+		if (hCopy != INVALID_HANDLE_VALUE) (void)CloseHandle(hCopy);
+		return INVALID_HANDLE_VALUE;
+	}
+	if ( (hSource == NULL) || (hSource == INVALID_HANDLE_VALUE) ) {
+		__xrtProcessErrorSet(XERR_CLOSED,
+			bWrite ? XPROCESS_ERROR_WRITE : XPROCESS_ERROR_READ,
+			bWrite ? "write" : "read", "process pipe is closed", 0);
+	} else if (hCopy == INVALID_HANDLE_VALUE) {
+		__xrtProcessErrorSet(__xrtSystemErrorKind(iError),
+			bWrite ? XPROCESS_ERROR_WRITE : XPROCESS_ERROR_READ,
+			bWrite ? "write.acquire" : "read.acquire",
+			"process pipe handle could not be acquired", iError);
+	}
+	return hCopy;
+}
+
+/* Never let release replace an earlier IO error. A release failure after
+ * successful IO is still an error; the data operation may already have run. */
+static bool __xrtProcessIoRelease(HANDLE hCopy, bool bReport)
+{
+	if (CloseHandle(hCopy)) return true;
+	if (bReport) {
+		int iError = (int)GetLastError();
+		__xrtProcessErrorSet(__xrtSystemErrorKind(iError), XPROCESS_ERROR_CLOSE,
+			"io.release", "process pipe operation handle could not be released", iError);
+	}
+	return false;
+}
+
 /* 读取父端 stdout 或 stderr。 */
 int64 __xrtProcessPlatformRead(
 	xprocess* pProcess,
@@ -302604,45 +313191,22 @@ int64 __xrtProcessPlatformRead(
 	size_t iSize
 )
 {
-	HANDLE hHandle;
+	HANDLE hHandle = __xrtProcessIoAcquire(pProcess, Stream);
 	DWORD iRead = 0u;
 	DWORD iChunk = iSize > UINT32_MAX ? UINT32_MAX : (DWORD)iSize;
+	bool bRead, bEof, bReleased;
+	int iError;
 
-	(void)xrtMutexLock(&pProcess->Lock);
-	hHandle = Stream == XPROCESS_STDOUT ? pProcess->Stdout : pProcess->Stderr;
-	(void)xrtMutexUnlock(&pProcess->Lock);
-	if ( (hHandle == NULL) || (hHandle == INVALID_HANDLE_VALUE) ) {
-		__xrtProcessErrorSet(
-			XERR_CLOSED,
-			XPROCESS_ERROR_READ,
-			"read",
-			"process output pipe is closed",
-			0
-		);
-		return -1;
-	}
-	if ( ReadFile(hHandle, pData, iChunk, &iRead, NULL) ) {
-		return (int64)iRead;
-	}
-	if ( (GetLastError() == ERROR_BROKEN_PIPE) ||
-		(GetLastError() == ERROR_HANDLE_EOF) ) {
-		return 0;
-	}
-	{
-		int iError = (int)GetLastError();
-
-		__xrtProcessErrorSet(
-			__xrtSystemErrorKind(iError),
-			XPROCESS_ERROR_READ,
-			"read",
-			"process output read failed",
-			iError
-		);
-	}
+	if (hHandle == INVALID_HANDLE_VALUE) return -1;
+	bRead = ReadFile(hHandle, pData, iChunk, &iRead, NULL) != FALSE;
+	iError = bRead ? 0 : (int)GetLastError();
+	bEof = !bRead && ( (iError == ERROR_BROKEN_PIPE) || (iError == ERROR_HANDLE_EOF) );
+	bReleased = __xrtProcessIoRelease(hHandle, bRead || bEof);
+	if (bRead || bEof) return bReleased ? (bEof ? 0 : (int64)iRead) : -1;
+	__xrtProcessErrorSet(__xrtSystemErrorKind(iError), XPROCESS_ERROR_READ,
+		"read", "process output read failed", iError);
 	return -1;
 }
-
-
 
 /* 写入父端 stdin，允许 Windows 平台短写。 */
 int64 __xrtProcessPlatformWrite(
@@ -302651,37 +313215,19 @@ int64 __xrtProcessPlatformWrite(
 	size_t iSize
 )
 {
-	HANDLE hHandle;
+	HANDLE hHandle = __xrtProcessIoAcquire(pProcess, XPROCESS_STDIN);
 	DWORD iWritten = 0u;
 	DWORD iChunk = iSize > UINT32_MAX ? UINT32_MAX : (DWORD)iSize;
+	bool bWritten, bReleased;
+	int iError;
 
-	(void)xrtMutexLock(&pProcess->Lock);
-	hHandle = pProcess->Stdin;
-	(void)xrtMutexUnlock(&pProcess->Lock);
-	if ( (hHandle == NULL) || (hHandle == INVALID_HANDLE_VALUE) ) {
-		__xrtProcessErrorSet(
-			XERR_CLOSED,
-			XPROCESS_ERROR_WRITE,
-			"write",
-			"process input pipe is closed",
-			0
-		);
-		return -1;
-	}
-	if ( WriteFile(hHandle, pData, iChunk, &iWritten, NULL) ) {
-		return (int64)iWritten;
-	}
-	{
-		int iError = (int)GetLastError();
-
-		__xrtProcessErrorSet(
-			__xrtSystemErrorKind(iError),
-			XPROCESS_ERROR_WRITE,
-			"write",
-			"process input write failed",
-			iError
-		);
-	}
+	if (hHandle == INVALID_HANDLE_VALUE) return -1;
+	bWritten = WriteFile(hHandle, pData, iChunk, &iWritten, NULL) != FALSE;
+	iError = bWritten ? 0 : (int)GetLastError();
+	bReleased = __xrtProcessIoRelease(hHandle, bWritten);
+	if (bWritten) return bReleased ? (int64)iWritten : -1;
+	__xrtProcessErrorSet(__xrtSystemErrorKind(iError), XPROCESS_ERROR_WRITE,
+		"write", "process input write failed", iError);
 	return -1;
 }
 
@@ -303317,19 +313863,21 @@ static bool __xrtProcessPlanBuild(
 	if ( pPlan->Argv == NULL ) {
 		return false;
 	}
-	if ( pConfig->Target == XPROCESS_SHELL ) {
-		pPlan->Argv[0] = __xrtProcessTextCopy("/bin/sh");
-		pPlan->Argv[1] = __xrtProcessTextCopy("-c");
-		pPlan->Argv[2] = __xrtProcessTextCopy(pConfig->Command);
-	} else {
-		pPlan->Argv[0] = __xrtProcessTextCopy(
-			pConfig->Arg0 != NULL ? pConfig->Arg0 : pConfig->Program
-		);
-		for ( size_t i = 0u; i < pConfig->ArgCount; i++ ) {
-			pPlan->Argv[i + 1u] = __xrtProcessTextCopy(pConfig->Args[i]);
-		}
-	}
+	/* Keep the zero-terminated cleanup prefix contiguous on every failure.
+	 * Do not allocate later arguments after a failed copy: cleanup stops at
+	 * the first NULL and would otherwise leak those later allocations. */
 	for ( size_t i = 0u; i < iArgCount; i++ ) {
+		cstr sArgument;
+
+		if ( pConfig->Target == XPROCESS_SHELL ) {
+			sArgument = i == 0u ? "/bin/sh" :
+				(i == 1u ? "-c" : pConfig->Command);
+		} else {
+			sArgument = i == 0u ?
+				(pConfig->Arg0 != NULL ? pConfig->Arg0 : pConfig->Program) :
+				pConfig->Args[i - 1u];
+		}
+		pPlan->Argv[i] = __xrtProcessTextCopy(sArgument);
 		if ( pPlan->Argv[i] == NULL ) {
 			return false;
 		}
@@ -304113,6 +314661,47 @@ bool __xrtProcessPlatformWait(
 
 
 
+/* Acquire an operation-owned close-on-exec fd under the slot lock. A
+ * concurrent Close retires future operations, not this operation's endpoint. */
+static int __xrtProcessIoAcquire(xprocess* pProcess, xprocessstream Stream)
+{
+	int iSource, iCopy = -1, iError = 0;
+	bool bWrite = Stream == XPROCESS_STDIN;
+
+	if (!xrtMutexLock(&pProcess->Lock)) return -1;
+	iSource = bWrite ? pProcess->Stdin :
+		Stream == XPROCESS_STDOUT ? pProcess->Stdout : pProcess->Stderr;
+	if ( (iSource >= 0) && !__xrtProcessFdDuplicate(iSource, &iCopy) ) iError = errno;
+	if (!xrtMutexUnlock(&pProcess->Lock)) {
+		if (iCopy >= 0) (void)close(iCopy);
+		return -1;
+	}
+	if (iSource < 0) {
+		__xrtProcessErrorSet(XERR_CLOSED,
+			bWrite ? XPROCESS_ERROR_WRITE : XPROCESS_ERROR_READ,
+			bWrite ? "write" : "read", "process pipe is closed", 0);
+	} else if (iCopy < 0) {
+		__xrtProcessErrorSet(__xrtSystemErrorKind(iError),
+			bWrite ? XPROCESS_ERROR_WRITE : XPROCESS_ERROR_READ,
+			bWrite ? "write.acquire" : "read.acquire",
+			"process pipe fd could not be acquired", iError);
+	}
+	return iCopy;
+}
+
+/* Do not retry close(EINTR): a retired descriptor may already be reused.
+ * Preserve the first IO error, but report release failure after successful IO. */
+static bool __xrtProcessIoRelease(int iCopy, bool bReport)
+{
+	if (close(iCopy) == 0) return true;
+	if (bReport) {
+		int iError = errno;
+		__xrtProcessErrorSet(__xrtSystemErrorKind(iError), XPROCESS_ERROR_CLOSE,
+			"io.release", "process pipe operation fd could not be released", iError);
+	}
+	return false;
+}
+
 /* 读取父端输出 fd。 */
 int64 __xrtProcessPlatformRead(
 	xprocess* pProcess,
@@ -304121,49 +314710,25 @@ int64 __xrtProcessPlatformRead(
 	size_t iSize
 )
 {
-	int iFd;
+	int iFd = __xrtProcessIoAcquire(pProcess, Stream), iError;
 	ssize_t iRead;
+	bool bEof = false, bReleased;
 	size_t iChunk = iSize > (size_t)SSIZE_MAX ? (size_t)SSIZE_MAX : iSize;
 
-	(void)xrtMutexLock(&pProcess->Lock);
-	iFd = Stream == XPROCESS_STDOUT ? pProcess->Stdout : pProcess->Stderr;
-	(void)xrtMutexUnlock(&pProcess->Lock);
-	if ( iFd < 0 ) {
-		__xrtProcessErrorSet(
-			XERR_CLOSED,
-			XPROCESS_ERROR_READ,
-			"read",
-			"process output pipe is closed",
-			0
-		);
-		return -1;
-	}
+	if (iFd < 0) return -1;
 	do {
 		iRead = read(iFd, pData, iChunk);
 	} while ( (iRead < 0) && (errno == EINTR) );
-	if ( iRead >= 0 ) {
-		return (int64)iRead;
-	}
+	iError = iRead < 0 ? errno : 0;
 	#if defined(XRT_FEATURE_PROCESS_TERMINAL)
-		if ( pProcess->Terminal && (errno == EIO) ) {
-			return 0;
-		}
+		bEof = (iRead < 0) && pProcess->Terminal && (iError == EIO);
 	#endif
-	{
-		int iError = errno;
-
-		__xrtProcessErrorSet(
-			__xrtSystemErrorKind(iError),
-			XPROCESS_ERROR_READ,
-			"read",
-			"process output read failed",
-			iError
-		);
-	}
+	bReleased = __xrtProcessIoRelease(iFd, (iRead >= 0) || bEof);
+	if ( (iRead >= 0) || bEof ) return bReleased ? (bEof ? 0 : (int64)iRead) : -1;
+	__xrtProcessErrorSet(__xrtSystemErrorKind(iError), XPROCESS_ERROR_READ,
+		"read", "process output read failed", iError);
 	return -1;
 }
-
-
 
 /* 向 socketpair stdin 写入并抑制 SIGPIPE。 */
 int64 __xrtProcessPlatformWrite(
@@ -304172,23 +314737,12 @@ int64 __xrtProcessPlatformWrite(
 	size_t iSize
 )
 {
-	int iFd;
+	int iFd = __xrtProcessIoAcquire(pProcess, XPROCESS_STDIN), iError;
 	ssize_t iWritten;
+	bool bReleased;
 	size_t iChunk = iSize > (size_t)SSIZE_MAX ? (size_t)SSIZE_MAX : iSize;
 
-	(void)xrtMutexLock(&pProcess->Lock);
-	iFd = pProcess->Stdin;
-	(void)xrtMutexUnlock(&pProcess->Lock);
-	if ( iFd < 0 ) {
-		__xrtProcessErrorSet(
-			XERR_CLOSED,
-			XPROCESS_ERROR_WRITE,
-			"write",
-			"process input pipe is closed",
-			0
-		);
-		return -1;
-	}
+	if (iFd < 0) return -1;
 	do {
 		#if defined(XRT_FEATURE_PROCESS_TERMINAL)
 			if ( pProcess->Terminal ) {
@@ -304203,20 +314757,11 @@ int64 __xrtProcessPlatformWrite(
 			#endif
 		}
 	} while ( (iWritten < 0) && (errno == EINTR) );
-	if ( iWritten >= 0 ) {
-		return (int64)iWritten;
-	}
-	{
-		int iError = errno;
-
-		__xrtProcessErrorSet(
-			__xrtSystemErrorKind(iError),
-			XPROCESS_ERROR_WRITE,
-			"write",
-			"process input write failed",
-			iError
-		);
-	}
+	iError = iWritten < 0 ? errno : 0;
+	bReleased = __xrtProcessIoRelease(iFd, iWritten >= 0);
+	if (iWritten >= 0) return bReleased ? (int64)iWritten : -1;
+	__xrtProcessErrorSet(__xrtSystemErrorKind(iError), XPROCESS_ERROR_WRITE,
+		"write", "process input write failed", iError);
 	return -1;
 }
 
@@ -304395,159 +314940,6 @@ bool __xrtProcessPlatformKillTree(xprocess* pProcess)
 		return false;
 	}
 	return __xrtProcessSignal(pProcess, SIGKILL, true, "kill.tree");
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: src/process/process_open.c */
-/* ========================================================================== */
-
-#if defined(XRT_FEATURE_PROCESS_OPEN)
-
-#if defined(_WIN32) || defined(_WIN64)
-	#include <shellapi.h>
-#endif
-
-
-
-#if defined(XRT_FEATURE_PROCESS_OPEN)
-
-/* 把默认程序启动失败包装为稳定的 Process Open 错误。 */
-static void __xrtProcessOpenError(cstr sMessage)
-{
-	xerror* pCause = xrtTakeError();
-	xerrordesc Desc;
-	xerror* pError;
-
-	memset(&Desc, 0, sizeof(Desc));
-	Desc.Kind = pCause != NULL ? xrtErrorKind(pCause) : XERR_IO;
-	Desc.Code = XPROCESS_ERROR_OPEN;
-	Desc.SystemCode = pCause != NULL ?
-		xrtErrorSystemCode(pCause) : 0;
-	Desc.Domain = "xrt.process";
-	Desc.Operation = "open";
-	Desc.Message = sMessage;
-	Desc.Cause = pCause;
-	pError = xrtErrorBuild(&Desc);
-	if ( pError != NULL ) {
-		__xrtErrorSetOwned(pError);
-	} else if ( pCause != NULL ) {
-		xrtSetError(pCause);
-	}
-	xrtErrorFree(pCause);
-}
-
-
-
-#if defined(_WIN32) || defined(_WIN64)
-/* 使用 Shell 关联处理器打开目标，不保留可能返回的进程句柄。 */
-static bool __xrtProcessOpenPlatform(cstr sTarget)
-{
-	HINSTANCE hResult;
-	wchar_t* sTarget16 = (wchar_t*)xrtUtf8To16(sTarget, NULL);
-	int iError;
-
-	if ( sTarget16 == NULL ) {
-		__xrtProcessOpenError(
-			"process open target could not be converted to UTF-16"
-		);
-		return false;
-	}
-	hResult = ShellExecuteW(
-		NULL,
-		L"open",
-		sTarget16,
-		NULL,
-		NULL,
-		SW_SHOWNORMAL
-	);
-	if ( ((INT_PTR)hResult) > 32 ) {
-		xrtFree(sTarget16);
-		return true;
-	}
-	iError = (int)GetLastError();
-	if ( iError == 0 ) {
-		iError = (int)(INT_PTR)hResult;
-	}
-	xrtFree(sTarget16);
-	__xrtProcessErrorSet(
-		iError != 0 ? __xrtSystemErrorKind(iError) : XERR_IO,
-		XPROCESS_ERROR_OPEN,
-		"open",
-		"system default application rejected the target",
-		iError
-	);
-	return false;
-}
-#else
-/* POSIX 桌面入口作为直接子进程启动，目标永远是独立参数。 */
-static bool __xrtProcessOpenPlatform(cstr sTarget)
-{
-	const cstr pArgs[] = { sTarget };
-	xprocessconfig Config;
-	xprocess* pProcess;
-
-	if ( !xrtProcessConfigInit(&Config) ) {
-		__xrtProcessOpenError(
-			"process open configuration could not be initialized"
-		);
-		return false;
-	}
-	#if defined(__APPLE__) && defined(__MACH__)
-		Config.Program = "/usr/bin/open";
-	#else
-		Config.Program = "xdg-open";
-	#endif
-	Config.Args = pArgs;
-	Config.ArgCount = 1u;
-	Config.Stdin.Mode = XPROCESS_IO_NULL;
-	Config.Stdout.Mode = XPROCESS_IO_NULL;
-	Config.Stderr.Mode = XPROCESS_IO_NULL;
-	pProcess = xrtProcessSpawn(&Config);
-	if ( pProcess == NULL ) {
-		__xrtProcessOpenError(
-			"system default application launcher could not start"
-		);
-		return false;
-	}
-	xrtProcessDestroy(pProcess);
-	return true;
-}
-#endif
-
-
-
-/* 校验目标后交给平台默认程序机制。 */
-XRT_API bool xrtProcessOpen(cstr sTarget)
-{
-	xstrview Target;
-
-	if ( (sTarget == NULL) || (sTarget[0] == 0) ) {
-		__xrtProcessErrorSet(
-			XERR_ARGUMENT,
-			XPROCESS_ERROR_OPEN,
-			"open",
-			"process open target is empty",
-			0
-		);
-		return false;
-	}
-	Target.Data = sTarget;
-	Target.Size = strlen(sTarget);
-	if ( !xrtUtf8Valid(Target, NULL) ) {
-		__xrtProcessErrorSet(
-			XERR_VALUE,
-			XPROCESS_ERROR_OPEN,
-			"open",
-			"process open target is not valid UTF-8",
-			0
-		);
-		return false;
-	}
-	return __xrtProcessOpenPlatform(sTarget);
 }
 
 #endif
@@ -305196,9 +315588,6 @@ XRT_API bool xrtProcessRun(
 	pResult->StderrTruncated = State.Stderr.Truncated;
 	pResult->Duration = xrtClock() - iStart;
 	bOk = !__xrtProcessRunFailed(&State);
-	if ( !bOk && (State.Error != NULL) ) {
-		xrtSetError(State.Error);
-	}
 	goto cleanup;
 
 stop_failed:
@@ -305208,7 +315597,25 @@ stop_failed:
 	goto cleanup;
 
 cleanup:
+	{
+	/* Keep the first infrastructure error alive across stop/join/destruction.
+	 * In particular stop_failed owns it in State, not in the thread slot. */
+	xerror* pFailure = NULL;
+	if ( !bOk ) {
+		pFailure = State.Error;
+		State.Error = NULL;
+		if ( pFailure == NULL ) pFailure = xrtTakeError();
+		else xrtClearError();
+	}
 	if ( pProcess != NULL ) {
+		/* ProcessWait publishes the exit status before the private waiter
+		 * retires its process reference and thread context. A synchronous Run
+		 * must join that owner too, not leave a detached cleanup tail. */
+		if ( xrtThreadWait(pProcess->Waiter) != XWAIT_OK ) {
+			if ( pFailure == NULL ) pFailure = xrtTakeError();
+			else xrtClearError();
+			bOk = false;
+		}
 		xrtProcessDestroy(pProcess);
 	}
 	if ( !bThreadsReady ) {
@@ -305221,7 +315628,12 @@ cleanup:
 	if ( bLockReady ) {
 		(void)xrtMutexUnit(&State.Lock);
 	}
+	if ( pFailure != NULL ) {
+		xrtClearError();
+		xrtSetErrorTake(pFailure);
+	}
 	return bOk;
+	}
 }
 
 
@@ -305261,6 +315673,159 @@ XRT_API bool xrtProcessShell(
 	}
 	Config.Stdin.Mode = XPROCESS_IO_NULL;
 	return xrtProcessRun(&Config, NULL, pResult);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/process/process_open.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_PROCESS_OPEN)
+
+#if defined(_WIN32) || defined(_WIN64)
+	#include <shellapi.h>
+#endif
+
+
+
+#if defined(XRT_FEATURE_PROCESS_OPEN)
+
+/* 把默认程序启动失败包装为稳定的 Process Open 错误。 */
+static void __xrtProcessOpenError(cstr sMessage)
+{
+	xerror* pCause = xrtTakeError();
+	xerrordesc Desc;
+	xerror* pError;
+
+	memset(&Desc, 0, sizeof(Desc));
+	Desc.Kind = pCause != NULL ? xrtErrorKind(pCause) : XERR_IO;
+	Desc.Code = XPROCESS_ERROR_OPEN;
+	Desc.SystemCode = pCause != NULL ?
+		xrtErrorSystemCode(pCause) : 0;
+	Desc.Domain = "xrt.process";
+	Desc.Operation = "open";
+	Desc.Message = sMessage;
+	Desc.Cause = pCause;
+	pError = xrtErrorBuild(&Desc);
+	/* Build failure already publishes Memory/Range/State. Restoring the
+	 * launch cause here would replace that real failure with an older error. */
+	if ( pError != NULL ) {
+		__xrtErrorSetOwned(pError);
+	}
+	xrtErrorFree(pCause);
+}
+
+
+
+#if defined(_WIN32) || defined(_WIN64)
+/* 使用 Shell 关联处理器打开目标，不保留可能返回的进程句柄。 */
+static bool __xrtProcessOpenPlatform(cstr sTarget)
+{
+	HINSTANCE hResult;
+	wchar_t* sTarget16 = (wchar_t*)xrtUtf8To16(sTarget, NULL);
+	int iError;
+
+	if ( sTarget16 == NULL ) {
+		__xrtProcessOpenError(
+			"process open target could not be converted to UTF-16"
+		);
+		return false;
+	}
+	hResult = ShellExecuteW(
+		NULL,
+		L"open",
+		sTarget16,
+		NULL,
+		NULL,
+		SW_SHOWNORMAL
+	);
+	if ( ((INT_PTR)hResult) > 32 ) {
+		xrtFree(sTarget16);
+		return true;
+	}
+	iError = (int)GetLastError();
+	if ( iError == 0 ) {
+		iError = (int)(INT_PTR)hResult;
+	}
+	xrtFree(sTarget16);
+	__xrtProcessErrorSet(
+		iError != 0 ? __xrtSystemErrorKind(iError) : XERR_IO,
+		XPROCESS_ERROR_OPEN,
+		"open",
+		"system default application rejected the target",
+		iError
+	);
+	return false;
+}
+#else
+/* POSIX 桌面入口作为直接子进程启动，目标永远是独立参数。 */
+static bool __xrtProcessOpenPlatform(cstr sTarget)
+{
+	const cstr pArgs[] = { sTarget };
+	xprocessconfig Config;
+	xprocess* pProcess;
+
+	if ( !xrtProcessConfigInit(&Config) ) {
+		__xrtProcessOpenError(
+			"process open configuration could not be initialized"
+		);
+		return false;
+	}
+	#if defined(__APPLE__) && defined(__MACH__)
+		Config.Program = "/usr/bin/open";
+	#else
+		Config.Program = "xdg-open";
+	#endif
+	Config.Args = pArgs;
+	Config.ArgCount = 1u;
+	Config.Stdin.Mode = XPROCESS_IO_NULL;
+	Config.Stdout.Mode = XPROCESS_IO_NULL;
+	Config.Stderr.Mode = XPROCESS_IO_NULL;
+	pProcess = xrtProcessSpawn(&Config);
+	if ( pProcess == NULL ) {
+		__xrtProcessOpenError(
+			"system default application launcher could not start"
+		);
+		return false;
+	}
+	xrtProcessDestroy(pProcess);
+	return true;
+}
+#endif
+
+
+
+/* 校验目标后交给平台默认程序机制。 */
+XRT_API bool xrtProcessOpen(cstr sTarget)
+{
+	xstrview Target;
+
+	if ( (sTarget == NULL) || (sTarget[0] == 0) ) {
+		__xrtProcessErrorSet(
+			XERR_ARGUMENT,
+			XPROCESS_ERROR_OPEN,
+			"open",
+			"process open target is empty",
+			0
+		);
+		return false;
+	}
+	Target.Data = sTarget;
+	Target.Size = strlen(sTarget);
+	if ( !xrtUtf8Valid(Target, NULL) ) {
+		__xrtProcessErrorSet(
+			XERR_VALUE,
+			XPROCESS_ERROR_OPEN,
+			"open",
+			"process open target is not valid UTF-8",
+			0
+		);
+		return false;
+	}
+	return __xrtProcessOpenPlatform(sTarget);
 }
 
 #endif
@@ -305755,28 +316320,30 @@ XRT_API bool xrtProcessPipeline(
 		iPumpCount,
 		sizeof(xprocesspipelinepump)
 	);
+	if ( pPumps == NULL ) goto cleanup;
 	pStageResults = (xprocessstageresult*)xrtCalloc(
 		iStageCount,
 		sizeof(xprocessstageresult)
 	);
+	if ( pStageResults == NULL ) goto cleanup;
 	pProcesses = (xprocess**)xrtCalloc(iStageCount, sizeof(xprocess*));
+	if ( pProcesses == NULL ) goto cleanup;
 	if ( iStageCount > 1u ) {
 		pPipes = (xprocesspipe*)xrtCalloc(
 			iStageCount - 1u,
 			sizeof(xprocesspipe)
 		);
-	}
-	if ( (pPumps == NULL) || (pStageResults == NULL) ||
-		(pProcesses == NULL) || ((iStageCount > 1u) && (pPipes == NULL)) ) {
-		goto cleanup;
+		if ( pPipes == NULL ) goto cleanup;
+		/* calloc's zero is a live POSIX descriptor, not an empty slot. Make
+		 * every owned connector invalid before any failing operation. */
+		for ( size_t i = 0u; i < (iStageCount - 1u); i++ ) {
+			pPipes[i].Read = -1;
+			pPipes[i].Write = -1;
+		}
 	}
 	for ( size_t i = 0u; i < iPumpCount; i++ ) {
 		(void)xrtBufferInit(&pPumps[i].Buffer);
 		pPumps[i].State = &State;
-	}
-	for ( size_t i = 0u; i < (iStageCount - 1u); i++ ) {
-		pPipes[i].Read = -1;
-		pPipes[i].Write = -1;
 	}
 	for ( size_t i = 0u; i < (iStageCount - 1u); i++ ) {
 		if ( !__xrtProcessPipeCreate(&pPipes[i]) ) {
@@ -305934,6 +316501,16 @@ stop_failed:
 	(void)__xrtProcessPipelineThreadsJoin(pPumps, iPumpCount, &Input);
 
 cleanup:
+	{
+	/* Preserve the first infrastructure error while retiring all physical
+	 * owners. In stop_failed it belongs to State, not the thread slot. */
+	xerror* pFailure = NULL;
+	if ( !bOk ) {
+		pFailure = State.Error;
+		State.Error = NULL;
+		if ( pFailure == NULL ) pFailure = xrtTakeError();
+		else xrtClearError();
+	}
 	if ( pPipes != NULL ) {
 		for ( size_t i = 0u; i < (iStageCount - 1u); i++ ) {
 			__xrtProcessPipeClose(&pPipes[i]);
@@ -305947,6 +316524,15 @@ cleanup:
 	}
 	if ( pProcesses != NULL ) {
 		for ( size_t i = 0u; i < iStageCount; i++ ) {
+			if ( pProcesses[i] == NULL ) continue;
+			/* Exit publication precedes the private waiter's last reference
+			 * and context retirement. A synchronous collector must join it,
+			 * just as ProcessRun does; public ProcessWait remains unchanged. */
+			if ( xrtThreadWait(pProcesses[i]->Waiter) != XWAIT_OK ) {
+				if ( pFailure == NULL ) pFailure = xrtTakeError();
+				else xrtClearError();
+				bOk = false;
+			}
 			xrtProcessDestroy(pProcesses[i]);
 		}
 	}
@@ -305954,9 +316540,6 @@ cleanup:
 		for ( size_t i = 0u; i < iStageCount; i++ ) {
 			xrtFree(pStageResults[i].Stderr);
 		}
-	}
-	if ( !bOk && (State.Error != NULL) ) {
-		xrtSetError(State.Error);
 	}
 	xrtFree(pStageResults);
 	xrtFree(pPumps);
@@ -305967,7 +316550,12 @@ cleanup:
 	if ( bLockReady ) {
 		(void)xrtMutexUnit(&State.Lock);
 	}
+	if ( pFailure != NULL ) {
+		xrtClearError();
+		xrtSetErrorTake(pFailure);
+	}
 	return bOk;
+	}
 }
 
 #endif
@@ -306251,7 +316839,10 @@ XRT_API xprocessio xrtProcessFile(xfile File)
 
 	Io.Mode = XPROCESS_IO_HANDLE;
 	Io.Handle = xrtFileNative(File);
-	if ( Io.Handle == -1 ) {
+	/* Preserve an actual backend failure (including unsupported VFS handles).
+	 * NULL input keeps the process argument contract; a silent backend still
+	 * receives a useful fallback rather than returning an unreported error. */
+	if ( (Io.Handle == -1) && ((File == NULL) || (xrtGetError() == NULL)) ) {
 		__xrtProcessErrorSet(
 			XERR_ARGUMENT,
 			XPROCESS_ERROR_ARGUMENT,
@@ -309465,6 +320056,10 @@ XRT_API bool xrtPatternErrorPattern(
 
 #if defined(XRT_FEATURE_PATTERN)
 
+static xpatternedit* __xrtPatternBuilderPrepareAdd(
+	xpatternbuilder* pBuilder, const xpatternspec* arrSpec, size_t iCount, cstr sOperation
+);
+
 /* 将槽下标与非零代际编码为公开稳定 ID。 */
 static xpatternid __xrtPatternBuilderId(size_t iIndex, uint32 iGeneration)
 {
@@ -309477,7 +320072,7 @@ static xpatternid __xrtPatternBuilderId(size_t iIndex, uint32 iGeneration)
 
 /* 解析 ID 并验证其仍指向活动槽。 */
 static __xrt_pattern_builder_slot* __xrtPatternBuilderSlot(
-	xpatternbuilder* pBuilder,
+	const xpatternbuilder* pBuilder,
 	xpatternid Id,
 	size_t* pIndex
 )
@@ -309509,7 +320104,7 @@ static __xrt_pattern_builder_slot* __xrtPatternBuilderSlot(
 /* 在修改前保留版本单调性，避免溢出后 Dirty 状态产生歧义。 */
 static bool __xrtPatternBuilderCanModify(xpatternbuilder* pBuilder)
 {
-	if ( pBuilder->Version == UINT64_MAX ) {
+	if ( (pBuilder->Pending != NULL) || (pBuilder->Version == UINT64_MAX) ) {
 		__xrtPatternSetInvalidState();
 		return false;
 	}
@@ -309640,6 +320235,10 @@ XRT_API void xrtPatternBuilderFree(xpatternbuilder* pBuilder)
 	if ( pBuilder == NULL ) {
 		return;
 	}
+	if ( pBuilder->Pending != NULL ) {
+		pBuilder->Pending->Builder = NULL;
+		pBuilder->Pending = NULL;
+	}
 	for ( size_t i = 0; i < pBuilder->SlotCount; i++ ) {
 		__xrtPatternSourceFree(pBuilder->Slots[i].Source);
 	}
@@ -309650,35 +320249,58 @@ XRT_API void xrtPatternBuilderFree(xpatternbuilder* pBuilder)
 
 
 
-XRT_API void xrtPatternBuilderClear(xpatternbuilder* pBuilder)
+static bool __xrtPatternBuilderClearAllowed(xpatternbuilder* pBuilder)
+{
+	if ( !__xrtPatternBuilderCanModify(pBuilder) ) {
+		return false;
+	}
+	/* 代际不能回绕，清空必须在释放任何源之前完成全量预检。 */
+	for ( size_t i = 0; i < pBuilder->SlotCount; i++ ) {
+		if ( pBuilder->Slots[i].Generation == UINT32_MAX ) {
+			__xrtPatternSetInvalidState();
+			return false;
+		}
+	}
+	return true;
+}
+
+
+
+static void __xrtPatternBuilderClearValid(xpatternbuilder* pBuilder)
 {
 	uint32 iFree = __XRT_PATTERN_SLOT_NONE;
-
-	if ( pBuilder == NULL ) {
-		__xrtPatternSetInvalidArgument();
-		return;
-	}
-	if ( pBuilder->Count == 0 ) {
-		return;
-	}
-	if ( !__xrtPatternBuilderCanModify(pBuilder) ) {
-		return;
-	}
 	for ( size_t i = pBuilder->SlotCount; i != 0; i-- ) {
 		__xrt_pattern_builder_slot* pSlot = &pBuilder->Slots[i - 1u];
 
 		__xrtPatternSourceFree(pSlot->Source);
 		pSlot->Source = NULL;
 		pSlot->Generation++;
-		if ( pSlot->Generation == 0 ) {
-			pSlot->Generation = 1u;
-		}
 		pSlot->NextFree = iFree;
 		iFree = (uint32)(i - 1u);
 	}
 	pBuilder->FreeSlot = iFree;
 	pBuilder->Count = 0;
 	pBuilder->Version++;
+}
+
+
+
+XRT_API void xrtPatternBuilderClear(xpatternbuilder* pBuilder)
+{
+	if ( pBuilder == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return;
+	}
+	if ( pBuilder->Pending != NULL ) {
+		__xrtPatternSetInvalidState();
+		return;
+	}
+	if ( pBuilder->Count == 0 ) {
+		return;
+	}
+	if ( __xrtPatternBuilderClearAllowed(pBuilder) ) {
+		__xrtPatternBuilderClearValid(pBuilder);
+	}
 }
 
 
@@ -309690,6 +320312,10 @@ XRT_API bool xrtPatternBuilderReserve(
 {
 	if ( pBuilder == NULL ) {
 		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	if ( pBuilder->Pending != NULL ) {
+		__xrtPatternSetInvalidState();
 		return false;
 	}
 	return __xrtPatternBuilderReserveValid(pBuilder, iCapacity);
@@ -309798,79 +320424,21 @@ XRT_API bool xrtPatternBuilderAddMany(
 	xpatternid* arrId
 )
 {
-	__xrt_pattern_source** arrSource = NULL;
-	size_t iParsed = 0;
-
+	xpatternedit* pEdit;
+	bool bResult;
 	if ( (pBuilder == NULL) || ((arrSpec == NULL) && (iCount != 0)) ) {
-		__xrtPatternSetInvalidArgument();
-		return false;
+		__xrtPatternSetInvalidArgument(); return false;
 	}
-	if ( iCount == 0 ) {
-		return true;
+	if ( pBuilder->Pending != NULL ) { __xrtPatternSetInvalidState(); return false; }
+	if ( iCount == 0 ) return true;
+	pEdit = __xrtPatternBuilderPrepareAdd(pBuilder, arrSpec, iCount, "builder_add_many");
+	if ( pEdit == NULL ) return false;
+	bResult = xrtPatternEditCommit(pEdit);
+	if ( bResult && (arrId != NULL) ) {
+		for ( size_t i = 0; i < iCount; i++ ) arrId[i] = pEdit->Items[i].Id;
 	}
-	if ( (iCount > (pBuilder->Options.MaxPatterns - pBuilder->Count)) ||
-		 (iCount > (UINT64_MAX - pBuilder->NextOrder)) ) {
-		__xrtPatternError(
-			XERR_RANGE,
-			XPATTERN_ERROR_LIMIT,
-			"builder_add_many",
-			"builder batch exceeds its pattern limit",
-			false,
-			0,
-			false,
-			0
-		);
-		return false;
-	}
-	if ( !__xrtPatternBuilderCanModify(pBuilder) ) {
-		return false;
-	}
-	if ( iCount > (SIZE_MAX / sizeof(*arrSource)) ) {
-		__xrtPatternSetSizeOverflow();
-		return false;
-	}
-	arrSource = (__xrt_pattern_source**)xrtCalloc(iCount, sizeof(*arrSource));
-	if ( arrSource == NULL ) {
-		return false;
-	}
-	for ( ; iParsed < iCount; iParsed++ ) {
-		arrSource[iParsed] = __xrtPatternSourceCreate(
-			&arrSpec[iParsed],
-			&pBuilder->Options,
-			"builder_add_many",
-			XPATTERN_ID_INVALID,
-			pBuilder->NextOrder + iParsed,
-			true,
-			iParsed
-		);
-		if ( arrSource[iParsed] == NULL ) {
-			break;
-		}
-	}
-	if ( (iParsed != iCount) ||
-		 !__xrtPatternBuilderReserveValid(pBuilder, pBuilder->Count + iCount) ) {
-		for ( size_t i = 0; i < iCount; i++ ) {
-			__xrtPatternSourceFree(arrSource[i]);
-		}
-		xrtFree(arrSource);
-		return false;
-	}
-	for ( size_t i = 0; i < iCount; i++ ) {
-		size_t iIndex = __xrtPatternBuilderTakeSlot(pBuilder);
-		__xrt_pattern_builder_slot* pSlot = &pBuilder->Slots[iIndex];
-		xpatternid Id = __xrtPatternBuilderId(iIndex, pSlot->Generation);
-
-		arrSource[i]->Id = Id;
-		pSlot->Source = arrSource[i];
-		if ( arrId != NULL ) {
-			arrId[i] = Id;
-		}
-	}
-	pBuilder->Count += iCount;
-	pBuilder->NextOrder += iCount;
-	pBuilder->Version++;
-	xrtFree(arrSource);
-	return true;
+	xrtPatternEditFree(pEdit);
+	return bResult;
 }
 
 
@@ -309886,6 +320454,10 @@ XRT_API bool xrtPatternBuilderSet(
 
 	if ( (pBuilder == NULL) || (pSpec == NULL) ) {
 		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	if ( pBuilder->Pending != NULL ) {
+		__xrtPatternSetInvalidState();
 		return false;
 	}
 	pSlot = __xrtPatternBuilderSlot(pBuilder, Id, NULL);
@@ -309915,16 +320487,31 @@ XRT_API bool xrtPatternBuilderSet(
 
 
 
-XRT_API bool xrtPatternBuilderRemove(
-	xpatternbuilder* pBuilder,
-	xpatternid Id
-)
+static void __xrtPatternBuilderRemoveValid(xpatternbuilder* pBuilder, size_t iIndex)
+{
+	__xrt_pattern_builder_slot* pSlot = &pBuilder->Slots[iIndex];
+	__xrtPatternSourceFree(pSlot->Source);
+	pSlot->Source = NULL;
+	pSlot->Generation++;
+	pSlot->NextFree = pBuilder->FreeSlot;
+	pBuilder->FreeSlot = (uint32)iIndex;
+	pBuilder->Count--;
+	pBuilder->Version++;
+}
+
+
+
+XRT_API bool xrtPatternBuilderRemove(xpatternbuilder* pBuilder, xpatternid Id)
 {
 	__xrt_pattern_builder_slot* pSlot;
 	size_t iIndex;
 
 	if ( pBuilder == NULL ) {
 		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	if ( pBuilder->Pending != NULL ) {
+		__xrtPatternSetInvalidState();
 		return false;
 	}
 	pSlot = __xrtPatternBuilderSlot(pBuilder, Id, &iIndex);
@@ -309934,16 +320521,267 @@ XRT_API bool xrtPatternBuilderRemove(
 	if ( !__xrtPatternBuilderCanModify(pBuilder) ) {
 		return false;
 	}
-	__xrtPatternSourceFree(pSlot->Source);
-	pSlot->Source = NULL;
-	pSlot->Generation++;
-	if ( pSlot->Generation == 0 ) {
-		pSlot->Generation = 1u;
+	if ( pSlot->Generation == UINT32_MAX ) {
+		__xrtPatternSetInvalidState();
+		return false;
 	}
-	pSlot->NextFree = pBuilder->FreeSlot;
-	pBuilder->FreeSlot = (uint32)iIndex;
-	pBuilder->Count--;
-	pBuilder->Version++;
+	__xrtPatternBuilderRemoveValid(pBuilder, iIndex);
+	return true;
+}
+
+
+
+XRT_API bool xrtPatternBuilderContains(const xpatternbuilder* pBuilder, xpatternid Id)
+{
+	if ( pBuilder == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	return __xrtPatternBuilderSlot(pBuilder, Id, NULL) != NULL;
+}
+
+
+
+/* 只检查独占权；零项编辑不要求增加版本。 */
+static bool __xrtPatternBuilderPrepareAllowed(xpatternbuilder* pBuilder)
+{
+	if ( pBuilder == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return false;
+	}
+	if ( pBuilder->Pending != NULL ) {
+		__xrtPatternSetInvalidState();
+		return false;
+	}
+	return true;
+}
+
+
+
+static xpatternedit* __xrtPatternEditCreate(__xrt_pattern_edit_kind Kind, size_t iCount)
+{
+	xpatternedit* pEdit;
+	if ( iCount > ((SIZE_MAX - sizeof(*pEdit)) / sizeof(pEdit->Items[0])) ) {
+		__xrtPatternSetSizeOverflow();
+		return NULL;
+	}
+	pEdit = (xpatternedit*)xrtCalloc(1u, sizeof(*pEdit) + iCount * sizeof(pEdit->Items[0]));
+	if ( pEdit != NULL ) {
+		pEdit->Kind = Kind;
+		pEdit->Count = iCount;
+	}
+	return pEdit;
+}
+
+
+
+XRT_API void xrtPatternEditFree(xpatternedit* pEdit)
+{
+	if ( pEdit == NULL ) {
+		return;
+	}
+	if ( pEdit->Builder != NULL ) {
+		pEdit->Builder->Pending = NULL;
+		pEdit->Builder = NULL;
+	}
+	for ( size_t i = 0; i < pEdit->Count; i++ ) {
+		__xrtPatternSourceFree(pEdit->Items[i].Source);
+	}
+	xrtFree(pEdit);
+}
+
+
+
+XRT_API bool xrtPatternEditReady(const xpatternedit* pEdit)
+{
+	return (pEdit != NULL) && (pEdit->Builder != NULL) &&
+		(pEdit->Builder->Pending == pEdit);
+}
+
+
+
+XRT_API size_t xrtPatternEditCount(const xpatternedit* pEdit)
+{
+	if ( pEdit == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return 0;
+	}
+	return pEdit->Count;
+}
+
+
+
+XRT_API xpatternid xrtPatternEditId(const xpatternedit* pEdit, size_t iIndex)
+{
+	if ( pEdit == NULL ) {
+		__xrtPatternSetInvalidArgument();
+		return XPATTERN_ID_INVALID;
+	}
+	if ( iIndex >= pEdit->Count ) {
+		__xrtPatternSetRange();
+		return XPATTERN_ID_INVALID;
+	}
+	return pEdit->Items[iIndex].Id;
+}
+
+
+
+static xpatternedit* __xrtPatternBuilderPrepareAdd(
+	xpatternbuilder* pBuilder, const xpatternspec* arrSpec, size_t iCount, cstr sOperation
+)
+{
+	xpatternedit* pEdit;
+	uint32 iFree;
+	size_t iFresh;
+	if ( !__xrtPatternBuilderPrepareAllowed(pBuilder) ) {
+		return NULL;
+	}
+	if ( (arrSpec == NULL) && (iCount != 0) ) {
+		__xrtPatternSetInvalidArgument();
+		return NULL;
+	}
+	if ( (iCount > (pBuilder->Options.MaxPatterns - pBuilder->Count)) ||
+		 (iCount > (UINT64_MAX - pBuilder->NextOrder)) ) {
+		__xrtPatternError(XERR_RANGE, XPATTERN_ERROR_LIMIT, sOperation,
+			"builder batch exceeds its pattern limit", false, 0, false, 0);
+		return NULL;
+	}
+	if ( (iCount != 0) && !__xrtPatternBuilderCanModify(pBuilder) ) {
+		return NULL;
+	}
+	pEdit = __xrtPatternEditCreate(__XRT_PATTERN_EDIT_ADD, iCount);
+	if ( pEdit == NULL ) {
+		return NULL;
+	}
+	for ( size_t i = 0; i < iCount; i++ ) {
+		pEdit->Items[i].Source = __xrtPatternSourceCreate(&arrSpec[i], &pBuilder->Options,
+			sOperation, XPATTERN_ID_INVALID, pBuilder->NextOrder + i, true, i);
+		if ( pEdit->Items[i].Source == NULL ) {
+			xrtPatternEditFree(pEdit);
+			return NULL;
+		}
+	}
+	if ( !__xrtPatternBuilderReserveValid(pBuilder, pBuilder->Count + iCount) ) {
+		xrtPatternEditFree(pEdit);
+		return NULL;
+	}
+	/* 只读取空闲链，取消不会消费 ID、注册顺序或槽代际。 */
+	iFree = pBuilder->FreeSlot;
+	iFresh = pBuilder->SlotCount;
+	for ( size_t i = 0; i < iCount; i++ ) {
+		size_t iSlot;
+		if ( iFree != __XRT_PATTERN_SLOT_NONE ) {
+			iSlot = iFree;
+			iFree = pBuilder->Slots[iSlot].NextFree;
+		} else {
+			iSlot = iFresh++;
+		}
+		pEdit->Items[i].Id = __xrtPatternBuilderId(iSlot, pBuilder->Slots[iSlot].Generation);
+		pEdit->Items[i].Source->Id = pEdit->Items[i].Id;
+	}
+	pEdit->Builder = pBuilder;
+	pBuilder->Pending = pEdit;
+	return pEdit;
+}
+
+
+
+XRT_API xpatternedit* xrtPatternBuilderPrepareAdd(
+	xpatternbuilder* pBuilder, const xpatternspec* arrSpec, size_t iCount
+)
+{
+	return __xrtPatternBuilderPrepareAdd(pBuilder, arrSpec, iCount, "builder_prepare_add");
+}
+
+
+
+XRT_API xpatternedit* xrtPatternBuilderPrepareSet(
+	xpatternbuilder* pBuilder, xpatternid Id, const xpatternspec* pSpec
+)
+{
+	__xrt_pattern_builder_slot* pSlot;
+	xpatternedit* pEdit;
+	if ( !__xrtPatternBuilderPrepareAllowed(pBuilder) ) return NULL;
+	if ( pSpec == NULL ) { __xrtPatternSetInvalidArgument(); return NULL; }
+	pSlot = __xrtPatternBuilderSlot(pBuilder, Id, NULL);
+	if ( pSlot == NULL ) { __xrtPatternSetInvalidState(); return NULL; }
+	if ( !__xrtPatternBuilderCanModify(pBuilder) ) return NULL;
+	pEdit = __xrtPatternEditCreate(__XRT_PATTERN_EDIT_SET, 1u);
+	if ( pEdit == NULL ) return NULL;
+	pEdit->Items[0].Id = Id;
+	pEdit->Items[0].Source = __xrtPatternSourceCreate(pSpec, &pBuilder->Options,
+		"builder_prepare_set", Id, pSlot->Source->Order, false, 0);
+	if ( pEdit->Items[0].Source == NULL ) { xrtPatternEditFree(pEdit); return NULL; }
+	pEdit->Builder = pBuilder; pBuilder->Pending = pEdit;
+	return pEdit;
+}
+
+
+
+XRT_API xpatternedit* xrtPatternBuilderPrepareRemove(xpatternbuilder* pBuilder, xpatternid Id)
+{
+	__xrt_pattern_builder_slot* pSlot;
+	xpatternedit* pEdit;
+	if ( !__xrtPatternBuilderPrepareAllowed(pBuilder) ) return NULL;
+	pSlot = __xrtPatternBuilderSlot(pBuilder, Id, NULL);
+	if ( (pSlot == NULL) || (pSlot->Generation == UINT32_MAX) ) {
+		__xrtPatternSetInvalidState(); return NULL;
+	}
+	if ( !__xrtPatternBuilderCanModify(pBuilder) ) return NULL;
+	pEdit = __xrtPatternEditCreate(__XRT_PATTERN_EDIT_REMOVE, 1u);
+	if ( pEdit == NULL ) return NULL;
+	pEdit->Items[0].Id = Id; pEdit->Builder = pBuilder; pBuilder->Pending = pEdit;
+	return pEdit;
+}
+
+
+
+XRT_API xpatternedit* xrtPatternBuilderPrepareClear(xpatternbuilder* pBuilder)
+{
+	xpatternedit* pEdit;
+	if ( !__xrtPatternBuilderPrepareAllowed(pBuilder) ) return NULL;
+	if ( (pBuilder->Count != 0) && !__xrtPatternBuilderClearAllowed(pBuilder) ) return NULL;
+	pEdit = __xrtPatternEditCreate(__XRT_PATTERN_EDIT_CLEAR, 0);
+	if ( pEdit == NULL ) return NULL;
+	pEdit->Builder = pBuilder; pBuilder->Pending = pEdit;
+	return pEdit;
+}
+
+
+
+XRT_API bool xrtPatternEditCommit(xpatternedit* pEdit)
+{
+	xpatternbuilder* pBuilder;
+	if ( !xrtPatternEditReady(pEdit) ) { __xrtPatternSetInvalidState(); return false; }
+	pBuilder = pEdit->Builder;
+	switch ( pEdit->Kind ) {
+	case __XRT_PATTERN_EDIT_ADD:
+		for ( size_t i = 0; i < pEdit->Count; i++ ) {
+			size_t iSlot = __xrtPatternBuilderTakeSlot(pBuilder);
+			pBuilder->Slots[iSlot].Source = pEdit->Items[i].Source;
+			pEdit->Items[i].Source = NULL;
+		}
+		if ( pEdit->Count != 0 ) {
+			pBuilder->Count += pEdit->Count;
+			pBuilder->NextOrder += pEdit->Count;
+			pBuilder->Version++;
+		}
+		break;
+	case __XRT_PATTERN_EDIT_SET: {
+		__xrt_pattern_builder_slot* pSlot = &pBuilder->Slots[(uint32)pEdit->Items[0].Id - 1u];
+		__xrtPatternSourceFree(pSlot->Source);
+		pSlot->Source = pEdit->Items[0].Source; pEdit->Items[0].Source = NULL;
+		pBuilder->Version++;
+		break;
+	}
+	case __XRT_PATTERN_EDIT_REMOVE:
+		__xrtPatternBuilderRemoveValid(pBuilder, (uint32)pEdit->Items[0].Id - 1u);
+		break;
+	case __XRT_PATTERN_EDIT_CLEAR:
+		if ( pBuilder->Count != 0 ) __xrtPatternBuilderClearValid(pBuilder);
+		break;
+	}
+	pBuilder->Pending = NULL; pEdit->Builder = NULL;
 	return true;
 }
 
@@ -333207,6 +344045,17 @@ bool __xrtMailTransportOpen(
 	pTransport->ReadChunk = pConfig->ReadChunk;
 	pTransport->WriteChunk = pConfig->WriteChunk;
 	pTransport->Security = pConfig->Security;
+	/* 已失效的调用不能先向 Engine 提交拨号任务。 */
+	if ( xrtDeadlineExpired(iDeadline) ) {
+		__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
+			"mail connection timed out before dialing");
+		return false;
+	}
+	if ( xrtCancelRequested(pCancel) ) {
+		__xrtMailError(XERR_CANCELLED, XMAIL_ERROR_PROTOCOL,
+			"mail connection was cancelled before dialing");
+		return false;
+	}
 	if ( pConfig->Security == XMAIL_SECURITY_TLS ) {
 		#if defined(XMAIL_FEATURE_MAIL_NET_TLS)
 			return __xrtMailTransportTlsOpen(
@@ -333262,6 +344111,17 @@ bool __xrtMailTransportRawSend(
 	while ( iOffset < iSize ) {
 		size_t iChunk = iSize - iOffset;
 
+		/* 无需等待写就绪时也必须遵守取消和截止时间。 */
+		if ( xrtDeadlineExpired(iDeadline) ) {
+			__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
+				"mail send timed out");
+			return false;
+		}
+		if ( xrtCancelRequested(pCancel) ) {
+			__xrtMailError(XERR_CANCELLED, XMAIL_ERROR_PROTOCOL,
+				"mail send was cancelled");
+			return false;
+		}
 		if ( iChunk > pTransport->WriteChunk ) {
 			iChunk = pTransport->WriteChunk;
 		}
@@ -333281,6 +344141,17 @@ bool __xrtMailTransportRawSend(
 			xnetresult Result;
 
 			for ( ;; ) {
+				/* 写队列唤醒后再次检查，避免失效请求继续提交字节。 */
+				if ( xrtDeadlineExpired(iDeadline) ) {
+					__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
+						"mail send timed out");
+					return false;
+				}
+				if ( xrtCancelRequested(pCancel) ) {
+					__xrtMailError(XERR_CANCELLED, XMAIL_ERROR_PROTOCOL,
+						"mail send was cancelled");
+					return false;
+				}
 				Result = xrtNetStreamSend(
 					pTransport->Tcp,
 					pBytes + iOffset,
@@ -333634,7 +344505,7 @@ bool __xrtMailTransportRead(
 
 
 
-/* 正常关闭传输；超时后转为异常关闭。 */
+/* 正常关闭传输；任一关闭失败均中止连接并保留原始错误。 */
 bool __xrtMailTransportClose(
 	__xmailtransport* pTransport,
 	xdeadline iDeadline
@@ -333659,9 +344530,9 @@ bool __xrtMailTransportClose(
 				iDeadline,
 				NULL
 			);
-		if ( !bSuccess ) {
-			(void)xrtNetStreamAbort(pTransport->Tcp);
-		}
+	}
+	if ( !bSuccess ) {
+		__xrtMailTransportAbortPreserveError(pTransport);
 	}
 	return bSuccess;
 }
@@ -333684,6 +344555,25 @@ bool __xrtMailTransportAbort(__xmailtransport* pTransport)
 		return xrtNetStreamAbort(pTransport->Tcp);
 	}
 	return true;
+}
+
+
+
+/* 终止失败会话上的待发异步字节，不让清理错误覆盖真正的故障。 */
+void __xrtMailTransportAbortPreserveError(__xmailtransport* pTransport)
+{
+	xerror* pPrimary = xrtTakeError();
+	xerror* pAbort;
+
+	(void)__xrtMailTransportAbort(pTransport);
+	pAbort = xrtTakeError();
+	if ( pPrimary != NULL ) {
+		xrtSetError(pPrimary);
+	} else if ( pAbort != NULL ) {
+		xrtSetError(pAbort);
+	}
+	xrtErrorFree(pPrimary);
+	xrtErrorFree(pAbort);
 }
 
 
@@ -333984,8 +344874,9 @@ char* __xrtMailAuthOauthBearer(
 
 #if defined(XMAIL_FEATURE_MAIL_NET_TLS)
 
-/* STARTTLS 接管请求只在原 TCP Stream 的 Worker 上短暂存在。 */
+/* 排队期间由 Worker 持有；接管开始后调用线程必须等到交接完成。 */
 typedef struct __xmailtlsupgrade {
+	xatomic32 Gate; /* 0: queued, 1: running, 2: cancelled before start */
 	xnetstream* Tcp;
 	const xtlsclientconfig* Client;
 	const xtlsstreamconfig* Stream;
@@ -334013,11 +344904,12 @@ static bool __xrtMailNetTlsHostIsIp(cstr sHost)
 
 
 
-/* 等待 TLS Future 并把失败终态恢复为当前结构化错误。 */
-static bool __xrtMailNetTlsFuture(
+/* 等待 TLS Future；只有关闭时的接收允许认证 EOF 的 CLOSED 终态。 */
+static bool __xrtMailNetTlsFutureResult(
 	xfuture* pFuture,
 	xdeadline iDeadline,
-	xcancel* pCancel
+	xcancel* pCancel,
+	bool bAllowClosed
 )
 {
 	xwaitresult Wait = xrtFutureWaitUntilCancel(
@@ -334045,7 +344937,8 @@ static bool __xrtMailNetTlsFuture(
 		return false;
 	}
 	State = xrtFutureState(pFuture);
-	if ( State == XFUTURE_RESOLVED ) {
+	if ( (State == XFUTURE_RESOLVED) ||
+		(bAllowClosed && (State == XFUTURE_CLOSED)) ) {
 		return true;
 	}
 	if ( State == XFUTURE_FAILED ) {
@@ -334064,6 +344957,23 @@ static bool __xrtMailNetTlsFuture(
 		);
 	}
 	return false;
+}
+
+
+
+/* 一般 TLS 操作必须交付成功结果，不能把 EOF 当作成功。 */
+static bool __xrtMailNetTlsFuture(
+	xfuture* pFuture,
+	xdeadline iDeadline,
+	xcancel* pCancel
+)
+{
+	return __xrtMailNetTlsFutureResult(
+		pFuture,
+		iDeadline,
+		pCancel,
+		false
+	);
 }
 
 
@@ -334097,8 +345007,19 @@ static void __xrtMailNetTlsUpgradeTask(
 )
 {
 	__xmailtlsupgrade* pUpgrade = (__xmailtlsupgrade*)pData;
+	xpromise* pPromise = pUpgrade->Promise;
+	uint32 iExpected = 0;
 
 	(void)pWorker;
+	if ( !xrtAtomic32CompareExchange(
+		&pUpgrade->Gate, &iExpected, 1,
+		XMEMORY_ACQ_REL, XMEMORY_ACQUIRE
+	) ) {
+		/* 调用方已返回；不得再触碰其 TCP 或借用的 TLS 配置。 */
+		xrtPromiseDestroy(pPromise);
+		xrtFree(pUpgrade);
+		return;
+	}
 	if ( xrtTlsStreamClient(
 		pUpgrade->Tcp,
 		pUpgrade->Client,
@@ -334107,13 +345028,14 @@ static void __xrtMailNetTlsUpgradeTask(
 		NULL,
 		&pUpgrade->Tls
 	) ) {
-		(void)xrtPromiseResolve(pUpgrade->Promise, NULL);
+		(void)xrtPromiseResolve(pPromise, NULL);
 	} else if ( xrtGetError() != NULL ) {
-		(void)xrtPromiseReject(pUpgrade->Promise, xrtGetError());
+		(void)xrtPromiseReject(pPromise, xrtGetError());
 	} else {
-		(void)xrtPromiseClose(pUpgrade->Promise);
+		(void)xrtPromiseClose(pPromise);
 	}
-	xrtPromiseDestroy(pUpgrade->Promise);
+	/* Resolve/Reject 可立即唤醒调用方；此后不再访问 pUpgrade。 */
+	xrtPromiseDestroy(pPromise);
 }
 
 
@@ -334170,12 +345092,13 @@ bool __xrtMailTransportStartTls(
 	xcancel* pCancel
 )
 {
-	__xmailtlsupgrade Upgrade;
+	__xmailtlsupgrade* pUpgrade;
 	xtlsclientconfig Client;
 	xnetworker* pWorker;
 	xfuture* pFuture;
 	xfuture* pOpen;
 	xwaitresult Wait;
+	uint32 iExpected;
 
 	if ( !xrtMemRangeValid(pTransport, sizeof(*pTransport)) ||
 		!xrtMailNetConfigValid(pConfig) ||
@@ -334211,28 +345134,67 @@ bool __xrtMailTransportStartTls(
 		return false;
 	}
 	__xrtMailNetTlsClient(pConfig, &Client);
-	memset(&Upgrade, 0, sizeof(Upgrade));
-	Upgrade.Tcp = pTransport->Tcp;
-	Upgrade.Client = &Client;
-	Upgrade.Stream = &pConfig->TlsStream;
-	Upgrade.Promise = xrtPromiseCreate(&pFuture, NULL);
-	if ( Upgrade.Promise == NULL ) {
+	pUpgrade = (__xmailtlsupgrade*)xrtCalloc(1, sizeof(*pUpgrade));
+	if ( pUpgrade == NULL ) {
+		return false;
+	}
+	xrtAtomic32Init(&pUpgrade->Gate, 0);
+	pUpgrade->Tcp = pTransport->Tcp;
+	pUpgrade->Client = &Client;
+	pUpgrade->Stream = &pConfig->TlsStream;
+	pUpgrade->Promise = xrtPromiseCreate(&pFuture, NULL);
+	if ( pUpgrade->Promise == NULL ) {
+		xrtFree(pUpgrade);
 		return false;
 	}
 	if ( !xrtNetEnginePost(
 		xrtNetWorkerEngine(pWorker),
 		xrtNetWorkerIndex(pWorker),
 		__xrtMailNetTlsUpgradeTask,
-		&Upgrade
+		pUpgrade
 	) ) {
-		xrtPromiseDestroy(Upgrade.Promise);
+		xrtPromiseDestroy(pUpgrade->Promise);
 		xrtFutureDestroy(pFuture);
+		xrtFree(pUpgrade);
 		return false;
 	}
-	Wait = xrtFutureWait(pFuture);
+	Wait = xrtFutureWaitUntilCancel(pFuture, iDeadline, pCancel);
+	if ( Wait != XWAIT_OK ) {
+		iExpected = 0;
+		if ( xrtAtomic32CompareExchange(
+			&pUpgrade->Gate, &iExpected, 2,
+			XMEMORY_ACQ_REL, XMEMORY_ACQUIRE
+		) ) {
+			/* Worker 尚未开始接管，TCP 仍由调用方持有。 */
+			xrtFutureDestroy(pFuture);
+			__xrtMailError(
+				Wait == XWAIT_TIMEOUT ? XERR_TIMEOUT :
+					Wait == XWAIT_CANCELLED ? XERR_CANCELLED : XERR_IO,
+				XMAIL_ERROR_PROTOCOL,
+				"mail STARTTLS worker handoff interrupted"
+			);
+			return false;
+		}
+		/* Worker 已开始：先收回所有权，避免 TLS/TCP 引用悬空。 */
+		(void)xrtFutureWait(pFuture);
+		if ( pUpgrade->Tls != NULL ) {
+			pTransport->Tcp = NULL;
+			(void)xrtTlsStreamAbort(pUpgrade->Tls);
+			xrtTlsStreamDestroy(pUpgrade->Tls);
+		}
+		xrtFutureDestroy(pFuture);
+		xrtFree(pUpgrade);
+		__xrtMailError(
+			Wait == XWAIT_TIMEOUT ? XERR_TIMEOUT :
+				Wait == XWAIT_CANCELLED ? XERR_CANCELLED : XERR_IO,
+			XMAIL_ERROR_PROTOCOL,
+			"mail STARTTLS worker handoff interrupted"
+		);
+		return false;
+	}
 	if ( (Wait != XWAIT_OK) ||
 		(xrtFutureState(pFuture) != XFUTURE_RESOLVED) ||
-		(Upgrade.Tls == NULL) ) {
+		(pUpgrade->Tls == NULL) ) {
 		if ( xrtFutureState(pFuture) == XFUTURE_FAILED ) {
 			xrtSetError(xrtFutureError(pFuture));
 		} else if ( Wait != XWAIT_OK ) {
@@ -334243,11 +345205,13 @@ bool __xrtMailTransportStartTls(
 			);
 		}
 		xrtFutureDestroy(pFuture);
+		xrtFree(pUpgrade);
 		return false;
 	}
 	xrtFutureDestroy(pFuture);
 	pTransport->Tcp = NULL;
-	pTransport->Tls = Upgrade.Tls;
+	pTransport->Tls = pUpgrade->Tls;
+	xrtFree(pUpgrade);
 	pTransport->PendingSize = 0;
 	pTransport->PendingConsumed = 0;
 	pOpen = xrtTlsStreamWaitAsync(
@@ -334327,7 +345291,40 @@ xnetbytes* __xrtMailTransportTlsRecv(
 
 
 
-/* 等待 TLS Stream 进入关闭终态。 */
+/* 按有界块消费剩余 TLS 明文，使读取背压不会挡住 close_notify。 */
+static bool __xrtMailTransportTlsDrainClose(
+	__xmailtransport* pTransport,
+	xdeadline iDeadline
+)
+{
+	for ( ;; ) {
+		xfuture* pFuture = xrtTlsStreamRecvAsync(
+			pTransport->Tls,
+			pTransport->ReadChunk
+		);
+		bool bSuccess;
+		bool bEnd;
+
+		if ( pFuture == NULL ) {
+			return false;
+		}
+		bSuccess = __xrtMailNetTlsFutureResult(
+			pFuture,
+			iDeadline,
+			NULL,
+			true
+		);
+		bEnd = xrtFutureState(pFuture) == XFUTURE_CLOSED;
+		xrtFutureDestroy(pFuture);
+		if ( !bSuccess || bEnd ) {
+			return bSuccess;
+		}
+	}
+}
+
+
+
+/* 请求认证关闭，消费协议结束后的残留明文并等待 Stream 关闭终态。 */
 bool __xrtMailTransportTlsClose(
 	__xmailtransport* pTransport,
 	xdeadline iDeadline
@@ -334336,7 +345333,8 @@ bool __xrtMailTransportTlsClose(
 	xfuture* pFuture;
 	bool bSuccess;
 
-	if ( !xrtTlsStreamClose(pTransport->Tls) ) {
+	if ( !xrtTlsStreamClose(pTransport->Tls) ||
+		!__xrtMailTransportTlsDrainClose(pTransport, iDeadline) ) {
 		return false;
 	}
 	pFuture = xrtTlsStreamWaitAsync(
@@ -334347,9 +345345,6 @@ bool __xrtMailTransportTlsClose(
 		return false;
 	}
 	bSuccess = __xrtMailNetTlsFuture(pFuture, iDeadline, NULL);
-	if ( !bSuccess ) {
-		(void)xrtTlsStreamAbort(pTransport->Tls);
-	}
 	xrtFutureDestroy(pFuture);
 	return bSuccess;
 }
@@ -334382,6 +345377,7 @@ void __xrtMailTransportTlsDestroy(__xmailtransport* pTransport)
 #if defined(XMAIL_FEATURE_MAIL_NET_DEFLATE)
 
 #define __XMAIL_DEFLATE_INPUT_CHUNK 256u
+#define __XMAIL_DEFLATE_WRITE_CHUNK 16384u
 
 
 
@@ -334391,6 +345387,28 @@ typedef struct __xmaildeflatesend {
 	xdeadline Deadline;
 	xcancel* Cancel;
 } __xmaildeflatesend;
+
+typedef struct __xmailinflateread {
+	__xmailtransport* Transport;
+	xdeadline Deadline;
+	xcancel* Cancel;
+} __xmailinflateread;
+
+/* 编解码器可能只缓存数据；请求检查不能依赖网络回调。 */
+static bool __xrtMailDeflateRequestActive(xdeadline Deadline, xcancel* pCancel)
+{
+	if ( xrtDeadlineExpired(Deadline) ) {
+		__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
+			"compressed mail operation timed out");
+		return false;
+	}
+	if ( xrtCancelRequested(pCancel) ) {
+		__xrtMailError(XERR_CANCELLED, XMAIL_ERROR_PROTOCOL,
+			"compressed mail operation was cancelled");
+		return false;
+	}
+	return true;
+}
 
 
 
@@ -334419,7 +345437,12 @@ static bool __xrtMailTransportInflateOutput(
 	ptr pData
 )
 {
-	__xmailtransport* pTransport = (__xmailtransport*)pData;
+	__xmailinflateread* pRead = (__xmailinflateread*)pData;
+	__xmailtransport* pTransport = pRead->Transport;
+
+	if ( !__xrtMailDeflateRequestActive(pRead->Deadline, pRead->Cancel) ) {
+		return false;
+	}
 
 	if ( Data.Size == 0 ) {
 		return true;
@@ -334499,6 +345522,8 @@ bool __xrtMailTransportDeflateSend(
 )
 {
 	__xmaildeflatesend Send;
+	const unsigned char* pBytes = (const unsigned char*)pData;
+	size_t iOffset = 0;
 
 	if ( !__xrtMailTransportDeflated(pTransport) ||
 		!xrtMemRangeValid(pData, iSize) ) {
@@ -334508,13 +345533,23 @@ bool __xrtMailTransportDeflateSend(
 	Send.Transport = pTransport;
 	Send.Deadline = iDeadline;
 	Send.Cancel = pCancel;
-	return xrtDeflateWrite(
-		pTransport->Deflater,
-		(xbytesview) { (cbytes)pData, iSize },
-		bFlush ? XDEFLATE_FLUSH_SYNC : XDEFLATE_FLUSH_NONE,
-		__xrtMailTransportDeflateOutput,
-		&Send
-	);
+	for ( ;; ) {
+		size_t iChunk = iSize - iOffset;
+		if ( !__xrtMailDeflateRequestActive(iDeadline, pCancel) ) return false;
+		if ( iChunk > __XMAIL_DEFLATE_WRITE_CHUNK )
+			iChunk = __XMAIL_DEFLATE_WRITE_CHUNK;
+		bool bLast = iChunk == iSize - iOffset;
+		if ( !xrtDeflateWrite(
+			pTransport->Deflater,
+			(xbytesview) { pBytes != NULL ? pBytes + iOffset : NULL, iChunk },
+			bFlush && bLast ? XDEFLATE_FLUSH_SYNC : XDEFLATE_FLUSH_NONE,
+			__xrtMailTransportDeflateOutput,
+			&Send
+		) ) return false;
+		iOffset += iChunk;
+		if ( bLast ) break;
+	}
+	return __xrtMailDeflateRequestActive(iDeadline, pCancel);
 }
 
 
@@ -334552,7 +345587,7 @@ static bool __xrtMailTransportDeflateInput(
 	xbytesview* pInput
 )
 {
-	xbytesview Input;
+		xbytesview Input;
 	size_t iRemain;
 	size_t iChunk;
 
@@ -334618,6 +345653,8 @@ bool __xrtMailTransportDeflateFill(
 	xcancel* pCancel
 )
 {
+	__xmailinflateread Read = { pTransport, iDeadline, pCancel };
+
 	if ( !__xrtMailTransportDeflated(pTransport) ) {
 		__xrtMailSetInvalidArgument();
 		return false;
@@ -334626,7 +345663,8 @@ bool __xrtMailTransportDeflateFill(
 		xbytesview Input;
 		size_t iBefore = pTransport->PendingSize;
 
-		if ( !__xrtMailTransportDeflateInput(
+		if ( !__xrtMailDeflateRequestActive(iDeadline, pCancel) ||
+			!__xrtMailTransportDeflateInput(
 			pTransport,
 			iDeadline,
 			pCancel,
@@ -334636,13 +345674,13 @@ bool __xrtMailTransportDeflateFill(
 			Input,
 			false,
 			__xrtMailTransportInflateOutput,
-			pTransport
+			&Read
 		) ) {
 			return false;
 		}
 		__xrtMailTransportDeflateAdvance(pTransport, Input.Size);
 		if ( pTransport->PendingSize != iBefore ) {
-			return true;
+			return __xrtMailDeflateRequestActive(iDeadline, pCancel);
 		}
 	}
 }

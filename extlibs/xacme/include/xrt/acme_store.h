@@ -49,6 +49,10 @@ typedef enum xacmestoreerror {
 	<ca16> 为 directory URL 的 SHA-256 hex 前 16 字符，多 CA 并存互不污染。
 	POSIX 私钥临时文件从创建起使用 0600；Windows 上宿主应限制 root 的 ACL。
 	域名必须是 ASCII DNS 名或开头为 *. 的通配符名。
+	存储层自身的参数、容量和结构错误使用 xrt.acme.store 错误域。
+	文件系统、分配、PEM 与 X509 子操作失败保留其原始错误；尤其不得把
+	XERR_MEMORY 包装成 IO、NOT_FOUND 或重新签发的条件。诊断分配失败
+	也交付内存错误，调用方不能只按存储层域名判断失败。
 */
 
 XRT_EXTERN_C_BEGIN

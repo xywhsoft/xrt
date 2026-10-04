@@ -5,12 +5,12 @@ title: SMTP：发送邮件
 volume: 卷十一 其他扩展库
 type: practice
 lead: 响应解析与能力协商、命令注入防御、dot transparency 的流式 DATA、CHUNKING 快速路径与 STARTTLS——发件的完整线路。
-api: xmail-smtp, xmail-smtp_client, xmail-mail
+api: xsmtp-smtp, xsmtp-smtp_client, xmail-mail
 ---
 
 ## 导读
 
-数据层（第 116 章）定义了邮件是什么；SMTP 定义**怎么发**。xmail 的 SMTP 两层：**协议原语**（`smtp`：响应行解析、EHLO 能力合并、命令构建——不依赖网络，官方客户端与自定义状态机同一实现）；**客户端**（`smtp_client`：同步会话状态机——`READY → MAIL → RECIPIENT → DATA → READY` 的 envelope 事务；不建隐藏 Engine/DNS 线程/固定缓冲，不负责构造 MIME）。四条主线：**注入防御**（命令层拒绝 CR/LF 与控制字符——SMTP 是头注入重灾区）；**流式 DATA**（dot transparency 的增量状态机——跨片段保留行首状态、不建整报文副本）；**CHUNKING**（BDAT 按字节声明直发——不扫描不转义）；**TLS 两形态**（隐式 TLS 与 STARTTLS 升级——升级后能力快照不沿用）。
+数据层（第 116 章）定义了邮件是什么；SMTP 定义**怎么发**。xsmtp 的两层：**协议原语**（`smtp`：响应行解析、EHLO 能力合并、命令构建——不依赖网络，官方客户端与自定义状态机同一实现）；**客户端**（`smtp_client`：同步会话状态机——`READY → MAIL → RECIPIENT → DATA → READY` 的 envelope 事务；不建隐藏 Engine/DNS 线程/固定缓冲，不负责构造 MIME）。四条主线：**注入防御**（命令层拒绝 CR/LF 与控制字符——SMTP 是头注入重灾区）；**流式 DATA**（dot transparency 的增量状态机——跨片段保留行首状态、不建整报文副本）；**CHUNKING**（BDAT 按字节声明直发——不扫描不转义）；**TLS 两形态**（隐式 TLS 与 STARTTLS 升级——升级后能力快照不沿用）。
 
 ## 引入
 
@@ -48,6 +48,8 @@ SMTP 是 1982 年的对话协议：客户端发命令（`EHLO`/`MAIL FROM`/`RCPT
 
 ## 示例
 
+本章命令在仓库根目录执行，构建器按清单选择模块、公共头和平台链接库，并输出构建及依赖测试日志。终端块摘录范例自身的输出。第二个程序在进程内启动回环服务器，只使用固定演示数据；真实服务的主机、端口、CA 与运行时凭据配置见相应客户端库的 README。
+
 ### 第一个完整程序：能力解析与命令构建
 
 下面的程序来自 `examples/smtp/protocol`——协议原语的离线闭环：
@@ -56,25 +58,25 @@ SMTP 是 1982 年的对话协议：客户端发命令（`EHLO`/`MAIL FROM`/`RCPT
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xsmtp/examples/protocol/main.c -lws2_32 -liphlpapi
-（输出能力合并与 EHLO 命令构建的自检结果）
+$ python tools/build.py --manifest extlibs/xsmtp/config/modules.json --suite smtp --no-single --jobs 4
+SIZE=10485760 command=EHLO client.example
 ```
 
 **刚才发生了什么。** ① `SmtpCapabilityParse("SIZE 10485760")` 解析单条能力（名称+参数借用视图）→ `CapabilityAdd` 并入内置位——**SIZE 的 64 位上限**（10 MiB）被记录：后续 DATA 前可对照（超限别白发）。② `SmtpCommandWrite("EHLO", "client.example", ...)` 产 `EHLO client.example\r\n`——参数过注入检查（控制字符/CR/LF 拒绝）、512 字节上限。③ **离线可测**是这个示例的要点：协议层不碰网络——响应/能力/命令三族原语都能单测（官方客户端就是这些原语的组装，行为一致无第二实现）。
 
-### 第二个完整程序：完整发送会话
+### 第二个完整程序：本地提交
 
-第二个程序来自 `examples/smtp/client`——真实会话的同步闭环：
+第二个程序来自 `extlibs/xsmtp/examples/offline/main.c`.
 
-```embed path="extlibs/xsmtp/examples/client/main.c" title="extlibs/xsmtp/examples/client/main.c"
+```embed path="extlibs/xsmtp/examples/offline/main.c" title="extlibs/xsmtp/examples/offline/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xsmtp/examples/client/main.c -lws2_32 -liphlpapi
-（对配置的 SMTP 服务器完成发送会话后正常退出）
+$ python tools/build.py --manifest extlibs/xsmtp/config/modules.json --suite smtp_offline_example --no-single --jobs 4
+offline SMTP submission: message accepted
 ```
 
-**刚才发生了什么。** ① `xrtSmtpClientData` 发送完整报文（头+空行+正文）——便利入口先验 CRLF 再进增量状态机（dot transparency 自动）。② `xrtSmtpClientQuit` 协议告别——正常关闭路径；失败路径换 Abort（示例的 Cleanup 形态）。③ 会话全程受 `Deadline`+可选 Cancel 约束——阻塞操作的标准两参（第 82 章以来的通用形态）。④ 与 `submit` 示例对照：那个是**最高层**（`xrtSmtpSubmit`——发件人/收件人/主题/正文的 struct 一次提交，内部组装 MIME+走会话）；本章示例展示中间层（完整报文自备）——**层次越高代劳越多、越低自由越大**，第 120 章把层次图补全。
+**刚才发生了什么。** ① 程序先创建监听器、解析器与网络引擎，再启动本地服务器线程。解析器把演示主机名绑定到回环地址，监听端口由系统分配，连接实际经过 TCP。② 客户端读取 banner、发送 EHLO，然后把结构化消息交给 `xrtSmtpSubmit`，由共享 MIME 组合层生成正文，并完成 envelope 与 DATA。服务器检查主题、正文和终止行，返回接受响应；客户端随后执行 QUIT。③ 成功输出同时要求客户端完成提交、本地服务器确认收到内容、服务器线程正常退出。任一阶段失败均返回失败并清理创建的对象。这个程序使用本地明文线路，没有 TLS 或账户认证；真实服务器的提交范例需要提供可信 CA 与运行时凭据，并把服务器接受提交和后续关闭诊断分别解释。
 
 ## 契约
 

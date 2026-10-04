@@ -4,11 +4,13 @@
 
 #include <xrt/acme_dns.h>
 #include <xrt/codec.h>
+#include <xrt/http.h>
 #include <xrt/json.h>
 #include <xrt/memory.h>
 #include <xrt/pem.h>
 #include <xrt/time.h>
 #include <xrt/value.h>
+#include <xrt/x509.h>
 
 #include "../internal/xacme_dnstxt.h"
 
@@ -38,6 +40,197 @@ static bool xacmeFlowCopyText(char* sDest, size_t iCapacity, cstr sSource)
 	}
 	strcpy(sDest, sSource);
 	return true;
+}
+
+/* Keep only the CSR public key after the temporary private key is erased. */
+typedef struct xacmeflowcertpublic {
+	xacmecertkeykind Kind;
+	uint8 Data[1040];
+	size_t ModulusSize;
+	size_t ExponentSize;
+} xacmeflowcertpublic;
+
+static void xacmeFlowCertPublic(
+	const xacmecertkey* pKey, xacmeflowcertpublic* pPublic)
+{
+	pPublic->Kind = pKey->Kind;
+	if(pKey->Kind == XACME_CERT_KEY_ES256)
+		memcpy(pPublic->Data, pKey->Ec.Public, sizeof(pKey->Ec.Public));
+	else
+	{
+		pPublic->ModulusSize = pKey->Rsa.ModulusSize;
+		pPublic->ExponentSize = pKey->Rsa.ExponentSize;
+		memcpy(pPublic->Data, pKey->Rsa.Modulus, pPublic->ModulusSize);
+		memcpy(pPublic->Data + pPublic->ModulusSize,
+			pKey->Rsa.Exponent, pPublic->ExponentSize);
+	}
+}
+
+static bool xacmeFlowCertWhitespace(cstr sText, size_t iSize)
+{
+	size_t i;
+	for(i = 0u; i < iSize; i++)
+		if((sText[i] != ' ') && (sText[i] != '\t') &&
+			(sText[i] != '\r') && (sText[i] != '\n')) return false;
+	return true;
+}
+
+static bool xacmeFlowCertType(cstr sType)
+{
+	cstr sEnd;
+	if(sType == NULL) return false;
+	while((*sType == ' ') || (*sType == '\t')) sType++;
+	sEnd = sType;
+	while((*sEnd != '\0') && (*sEnd != ';')) sEnd++;
+	while((sEnd > sType) && ((sEnd[-1] == ' ') || (sEnd[-1] == '\t')))
+		sEnd--;
+	return xrtHttpFieldNameEqual((xstrview){ sType, (size_t)(sEnd - sType) },
+		XRT_STR_LITERAL("application/pem-certificate-chain"));
+}
+
+static bool xacmeFlowCertLeaf(
+	const xx509cert* pCert, const xacmeflowcertpublic* pPublic,
+	const xacmeflowurl* pDomains, size_t iDomainCount)
+{
+	xx509pubkey Key;
+	xx509gencursor Names;
+	xx509genname Name;
+	xx509basicconstraints Constraints;
+	xx509result Result;
+	uint32 uMatched = 0u;
+	xtime Now = xrtNow();
+	if(!xrtX509PublicKey(pCert, &Key)) return false;
+	if(pPublic->Kind == XACME_CERT_KEY_ES256)
+	{
+		if((Key.Type != X509_KEY_EC) || (Key.Curve != X509_CURVE_P256) ||
+			(Key.Key.Size != 65u) || (memcmp(Key.Key.Data, pPublic->Data, 65u) != 0))
+			goto Invalid;
+	}
+	else if(((Key.Type != X509_KEY_RSA) && (Key.Type != X509_KEY_RSA_PSS)) ||
+		(Key.Modulus.Size != pPublic->ModulusSize) ||
+		(Key.Exponent.Size != pPublic->ExponentSize) ||
+		(memcmp(Key.Modulus.Data, pPublic->Data, Key.Modulus.Size) != 0) ||
+		(memcmp(Key.Exponent.Data, pPublic->Data + pPublic->ModulusSize,
+			Key.Exponent.Size) != 0)) goto Invalid;
+	if((Now < pCert->NotBefore) || (Now > pCert->NotAfter)) goto Invalid;
+	Result = xrtX509BasicConstraints(pCert, &Constraints);
+	if(Result == X509_ERROR) return false;
+	if((Result == X509_VALUE) && Constraints.CA) goto Invalid;
+	Result = xrtX509SubjectAltName(pCert, &Names);
+	if(Result == X509_ERROR) return false;
+	if(Result != X509_VALUE) goto Invalid;
+	while((Result = xrtX509GeneralNameRead(&Names, &Name)) == X509_VALUE)
+	{
+		size_t i;
+		bool bFound = false;
+		if(Name.Type != X509_NAME_DNS) goto Invalid;
+		for(i = 0u; i < iDomainCount; i++)
+			if(xrtHttpFieldNameEqual(
+				(xstrview){ (cstr)Name.Value.Data, Name.Value.Size },
+				(xstrview){ pDomains[i].sData, pDomains[i].iSize }))
+			{
+				uMatched |= UINT32_C(1) << i;
+				bFound = true;
+			}
+		if(!bFound) goto Invalid;
+	}
+	if(Result == X509_ERROR) return false;
+	if(uMatched == ((UINT32_C(1) << iDomainCount) - 1u)) return true;
+Invalid:
+	xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_CERTIFICATE,
+		"acme certificate does not match CSR key, identifiers or validity");
+	return false;
+}
+
+/* This checks the supplied chain, not trust in a deployment's root store.
+ * RFC 8555 certificates contain only CERTIFICATE objects, leaf first. Bounds
+ * are independent of the HTTP body cap; at most three DER buffers are live. */
+static bool xacmeFlowCertificate(
+	const xacmehttpresponse* pR, const xacmeflowcertpublic* pPublic,
+	const xacmeflowurl* pDomains, size_t iDomainCount, xbytesview Reference,
+	bytes* ppLeaf, size_t* piLeafSize)
+{
+	xpemcursor Cursor;
+	xpemblock Block;
+	xpemresult Result;
+	xx509cert Previous, Current;
+	bytes pLeaf = NULL, pPrevious = NULL, pCurrent = NULL;
+	size_t iLeafSize = 0u, iCount = 0u;
+	bool bOk = false;
+	if((pR->iStatus != 200u) || (pR->sBody == NULL) ||
+		(pR->iBodySize == 0u) || !xacmeFlowCertType(pR->sContentType))
+		goto Invalid;
+	if(!xrtPemInit(&Cursor, pR->sBody, pR->iBodySize)) goto ChildFailure;
+	for(;;)
+	{
+		size_t iOffset = Cursor.Offset, iDerSize = 0u;
+		Result = xrtPemRead(&Cursor, &Block);
+		if(Result == XPEM_ERROR) goto ChildFailure;
+		if(Result == XPEM_DONE)
+		{
+			if((iCount == 0u) || !xacmeFlowCertWhitespace(
+				pR->sBody + iOffset, pR->iBodySize - iOffset)) goto Invalid;
+			break;
+		}
+		if((iCount >= 16u) || (Block.Label.Size != 11u) ||
+			(memcmp(Block.Label.Data, "CERTIFICATE", 11u) != 0) ||
+			!xacmeFlowCertWhitespace(pR->sBody + iOffset,
+				(size_t)(Block.Raw.Data - (pR->sBody + iOffset)))) goto Invalid;
+		if(!xrtPemDecode(&Block, NULL, 0u, &iDerSize)) goto ChildFailure;
+		if((iDerSize == 0u) || (iDerSize > 256u * 1024u)) goto Invalid;
+		pCurrent = xrtPemDecodeNew(&Block, &iDerSize);
+		if((pCurrent == NULL) || !xrtX509Parse(pCurrent, iDerSize, &Current))
+			goto ChildFailure;
+		if(iCount == 0u)
+		{
+			if(!xacmeFlowCertLeaf(&Current, pPublic, pDomains, iDomainCount))
+				goto ChildFailure;
+			if((Reference.Data != NULL) && ((Reference.Size != iDerSize) ||
+				(memcmp(Reference.Data, pCurrent, iDerSize) != 0))) goto Invalid;
+			pLeaf = pCurrent;
+			iLeafSize = iDerSize;
+		}
+		else
+		{
+			xx509basicconstraints Constraints;
+			uint16 uUsage;
+			xx509result ConstraintsResult = xrtX509BasicConstraints(&Current, &Constraints);
+			xx509result UsageResult, NameResult;
+			if(ConstraintsResult == X509_ERROR) goto ChildFailure;
+			UsageResult = xrtX509KeyUsage(&Current, &uUsage);
+			if(UsageResult == X509_ERROR) goto ChildFailure;
+			NameResult = xrtX509NameEqual(Previous.Issuer, Current.Subject);
+			if(NameResult == X509_ERROR) goto ChildFailure;
+			if((ConstraintsResult != X509_VALUE) || !Constraints.CA ||
+				((UsageResult == X509_VALUE) && !(uUsage & X509_USAGE_CERT_SIGN)) ||
+				(NameResult != X509_VALUE)) goto Invalid;
+			if(!xrtX509CertificateVerify(&Previous, &Current)) goto ChildFailure;
+		}
+		if(pPrevious != pLeaf) xrtFree(pPrevious);
+		pPrevious = pCurrent;
+		Previous = Current;
+		pCurrent = NULL;
+		iCount++;
+	}
+	bOk = true;
+	goto Done;
+ChildFailure:
+	if((xrtErrorKind(xrtGetError()) == XERR_MEMORY) ||
+		(xrtErrorKind(xrtGetError()) == XERR_UNSUPPORTED)) goto Done;
+Invalid:
+	xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_CERTIFICATE,
+		"acme certificate response has invalid type, objects, identity or chain");
+Done:
+	xrtFree(pCurrent);
+	if(pPrevious != pLeaf) xrtFree(pPrevious);
+	if(bOk && (ppLeaf != NULL))
+	{
+		*ppLeaf = pLeaf;
+		*piLeafSize = iLeafSize;
+		pLeaf = NULL;
+	}
+	xrtFree(pLeaf);
+	return bOk;
 }
 
 /* ---------------- JSON 辅助 ---------------- */
@@ -90,7 +283,9 @@ static bool xacmeJsonValueText(
 		pObject, (xstrview){ sKey, strlen(sKey) });
 	xstrview Text;
 	if((pMember == NULL) ||
-		!xrtValueGetString(pMember, &Text) || (Text.Size >= sizeof(pOut->sData)))
+		!xrtValueGetString(pMember, &Text) || (Text.Size == 0u) ||
+		(Text.Size >= sizeof(pOut->sData)) ||
+		(memchr(Text.Data, '\0', Text.Size) != NULL))
 	{
 		return false;
 	}
@@ -100,50 +295,328 @@ static bool xacmeJsonValueText(
 	return true;
 }
 
-/* 从 Link 头提取 rel="alternate" 的 URL（RFC 8288 朴素形态）。 */
+/* A malformed peer response is a protocol error. Allocation failures retain
+ * the parser's original cause, including its domain and object identity. */
+static xvalue* xacmeFlowResponseObject(
+	const xacmehttpresponse* pR, xacmeflowerror Code, cstr sMessage)
+{
+	xvalue* pRoot = NULL;
+	if((pR->sBody != NULL) && (pR->iBodySize != 0u))
+	{
+		pRoot = xrtJsonParse((xstrview){ pR->sBody, pR->iBodySize });
+		if((pRoot == NULL) && (xrtErrorKind(xrtGetError()) == XERR_MEMORY))
+			return NULL;
+	}
+	if((pRoot == NULL) || !xrtValueIs(pRoot, XVALUE_OBJECT))
+	{
+		xrtValueRelease(pRoot);
+		xacmeFlowError(XERR_PROTOCOL, Code, sMessage);
+		return NULL;
+	}
+	return pRoot;
+}
+
+static bool xacmeFlowProblemType(
+	const xacmehttpresponse* pR, xacmeflowurl* pType)
+{
+	xvalue* pRoot = xacmeFlowResponseObject(pR, XACME_FLOW_ERROR_PROTOCOL,
+		"acme problem response must be a JSON object");
+	bool bOk;
+	if(pRoot == NULL) return false;
+	bOk = xacmeJsonValueText(pRoot, "type", pType);
+	xrtValueRelease(pRoot);
+	if(!bOk)
+		xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_PROTOCOL,
+			"acme problem response type invalid");
+	return bOk;
+}
+
+static bool xacmeFlowLinkTokenChar(unsigned char c)
+{
+	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+		(c >= '0' && c <= '9') ||
+		(c != 0u && strchr("!#$%&'*+-.^_`|~", c) != NULL);
+}
+
+/* Registered relation names are case insensitive. A quoted rel value may
+ * contain several space-separated relations and quoted-pair escapes. */
+static bool xacmeFlowLinkHasAlternate(const char* p, const char* pEnd)
+{
+	static const char sRelation[] = "alternate";
+	size_t iSize = 0u;
+	bool bMatch = true;
+	while(p < pEnd)
+	{
+		unsigned char c = (unsigned char)*p++;
+		if(c == '\\' && p < pEnd) c = (unsigned char)*p++;
+		if(c == ' ' || c == '\t')
+		{
+			if(bMatch && iSize == sizeof(sRelation) - 1u) return true;
+			iSize = 0u;
+			bMatch = true;
+			continue;
+		}
+		if(c >= 'A' && c <= 'Z') c = (unsigned char)(c + 'a' - 'A');
+		if(iSize >= sizeof(sRelation) - 1u || c != sRelation[iSize])
+			bMatch = false;
+		iSize++;
+	}
+	return bMatch && iSize == sizeof(sRelation) - 1u;
+}
+
+/* Parse each RFC 8288 link-value before considering its target. Commas in
+ * URI references and quoted strings do not separate links. We do not apply
+ * anchor overrides, so links containing anchor are ignored as required by
+ * section 3.2. Only the first rel parameter of a link has meaning. */
 static bool xacmeFlowLinkAlternate(cstr sLink, char* sOut, size_t iCap)
 {
 	const char* p = sLink;
-	if((sLink == NULL) || (iCap == 0u))
+	if(sLink == NULL || sOut == NULL || iCap == 0u) return false;
+	for(;;)
 	{
-		return false;
-	}
-	while((p = strchr(p, '<')) != NULL)
-	{
-		const char* pEnd = strchr(p, '>');
-		const char* pRel;
-		const char* pSeg;
-		if(pEnd == NULL)
+		const char *pTarget, *pTargetEnd;
+		bool bAlternate = false, bRelSeen = false, bAnchor = false;
+		while(*p == ' ' || *p == '\t' || *p == ',') p++;
+		if(*p != '<') return false;
+		pTarget = ++p;
+		while(*p != '>' && *p != '\0')
 		{
-			return false;
+			if((unsigned char)*p <= 0x20u || *p == '<') return false;
+			p++;
 		}
-		pSeg = pEnd;
+		if(*p != '>') return false;
+		pTargetEnd = p++;
 		for(;;)
 		{
-			const char* pComma = strchr(pSeg, ',');
-			pRel = strstr(pSeg, "rel=");
-			if((pRel != NULL) &&
-				((pComma == NULL) || (pRel < pComma)) &&
-				(strncmp(pRel + 4u, "\"alternate\"", 11u) == 0))
+			const char *pName, *pValue = NULL, *pValueEnd = NULL;
+			bool bRel;
+			xstrview Name;
+			while(*p == ' ' || *p == '\t') p++;
+			if(*p == ',' || *p == '\0') break;
+			if(*p++ != ';') return false;
+			while(*p == ' ' || *p == '\t') p++;
+			pName = p;
+			while(xacmeFlowLinkTokenChar((unsigned char)*p)) p++;
+			if(p == pName) return false;
+			Name = (xstrview){ pName, (size_t)(p - pName) };
+			bRel = xrtHttpFieldNameEqual(Name, XRT_STR_LITERAL("rel"));
+			if(xrtHttpFieldNameEqual(Name, XRT_STR_LITERAL("anchor"))) bAnchor = true;
+			while(*p == ' ' || *p == '\t') p++;
+			if(*p == '=')
 			{
-				size_t iLen = (size_t)(pEnd - p - 1u);
-				if((iLen == 0u) || (iLen >= iCap))
+				p++;
+				while(*p == ' ' || *p == '\t') p++;
+				if(*p == '"')
 				{
-					return false;
+					pValue = ++p;
+					while(*p != '"')
+					{
+						if(*p == '\0' || ((unsigned char)*p < 0x20u && *p != '\t') ||
+							(unsigned char)*p == 0x7fu) return false;
+						if(*p == '\\')
+						{
+							p++;
+							if(*p == '\0' || ((unsigned char)*p < 0x20u && *p != '\t') ||
+								(unsigned char)*p == 0x7fu) return false;
+						}
+						p++;
+					}
+					pValueEnd = p++;
 				}
-				memcpy(sOut, p + 1u, iLen);
-				sOut[iLen] = '\0';
-				return true;
+				else
+				{
+					pValue = p;
+					while(xacmeFlowLinkTokenChar((unsigned char)*p)) p++;
+					if(p == pValue) return false;
+					pValueEnd = p;
+				}
 			}
-			if(pComma == NULL)
+			if(bRel && !bRelSeen)
 			{
-				break;
+				if(pValue == NULL) return false;
+				bAlternate = xacmeFlowLinkHasAlternate(pValue, pValueEnd);
+				bRelSeen = true;
 			}
-			pSeg = pComma + 1u;
 		}
-		p = pEnd;
+		if(bAlternate && !bAnchor)
+		{
+			size_t iLen = (size_t)(pTargetEnd - pTarget);
+			if(iLen == 0u || iLen >= iCap) return false;
+			memcpy(sOut, pTarget, iLen);
+			sOut[iLen] = '\0';
+			return true;
+		}
+		if(*p == '\0') return false;
+		p++;
 	}
-	return false;
+}
+
+static bool xacmeFlowUriAppend(char* sOut, size_t iCapacity,
+	size_t* piSize, xstrview Part)
+{
+	if(Part.Size >= iCapacity - *piSize) return false;
+	if(Part.Size != 0u) memcpy(sOut + *piSize, Part.Data, Part.Size);
+	*piSize += Part.Size;
+	sOut[*piSize] = '\0';
+	return true;
+}
+
+/* RFC 3986 section 5.2.4. Only literal dot segments are removed: percent
+ * escapes and the query retain their exact spelling for the protected URL. */
+static size_t xacmeFlowUriDots(cstr sPath, size_t iSize, char* sOut)
+{
+	size_t i = 0u, n = 0u;
+	while(i < iSize)
+	{
+		size_t r = iSize - i;
+		if((r >= 3u) && (memcmp(sPath + i, "../", 3u) == 0)) i += 3u;
+		else if((r >= 2u) && (memcmp(sPath + i, "./", 2u) == 0)) i += 2u;
+		else if((r >= 3u) && (memcmp(sPath + i, "/./", 3u) == 0)) i += 2u;
+		else if((r == 2u) && (memcmp(sPath + i, "/.", 2u) == 0))
+		{
+			i += 2u;
+			sOut[n++] = '/';
+		}
+		else if(((r >= 4u) && (memcmp(sPath + i, "/../", 4u) == 0)) ||
+			((r == 3u) && (memcmp(sPath + i, "/..", 3u) == 0)))
+		{
+			i += 3u;
+			while((n > 0u) && (sOut[n - 1u] != '/')) n--;
+			if(n > 0u) n--;
+			if(i == iSize) sOut[n++] = '/';
+		}
+		else if(((r == 1u) && (sPath[i] == '.')) ||
+			((r == 2u) && (memcmp(sPath + i, "..", 2u) == 0))) i = iSize;
+		else
+		{
+			if(sPath[i] == '/') sOut[n++] = sPath[i++];
+			while((i < iSize) && (sPath[i] != '/')) sOut[n++] = sPath[i++];
+		}
+	}
+	sOut[n] = '\0';
+	return n;
+}
+
+static bool xacmeFlowUriText(cstr sText)
+{
+	size_t i;
+	for(i = 0u; sText[i] != '\0'; i++)
+	{
+		unsigned char c = (unsigned char)sText[i];
+		if(((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) ||
+			((c >= '0') && (c <= '9'))) continue;
+		if((c == '%') && sText[i + 1u] && sText[i + 2u])
+		{
+			size_t k;
+			for(k = 1u; k <= 2u; k++)
+			{
+				unsigned char h = (unsigned char)sText[i + k];
+				if(!((h >= '0' && h <= '9') || (h >= 'a' && h <= 'f') ||
+					(h >= 'A' && h <= 'F'))) return false;
+			}
+			i += 2u;
+		}
+		else if((c == '%') || (c > 0x7fu) ||
+			(strchr("-._~:/?#[]@!$&'()*+,;=", c) == NULL)) return false;
+	}
+	return true;
+}
+
+/* Resolve against the certificate retrieval URL, not the directory URL.
+ * Fragments identify no different HTTP resource and are omitted from both
+ * the request and its JWS URL. Failure leaves the caller's output untouched. */
+static bool xacmeFlowAlternateUrl(cstr sBase, cstr sReference,
+	char* sOut, size_t iCapacity)
+{
+	xhttptarget Base, Ref, Checked;
+	xstrview Scheme, Authority, Path, Query;
+	char sRef[1024] = {0}, sMerged[1024] = {0}, sPath[1024], sUrl[512] = {0};
+	size_t iRefSize, iSize = 0u, iPathSize;
+	bool bQuery, bNormalize = true;
+	cstr sQuestion;
+	size_t iFirstDelimiter;
+	if((sBase == NULL) || (sReference == NULL) || (sOut == NULL) ||
+		(iCapacity == 0u) || (strlen(sBase) >= sizeof(sUrl)) ||
+		(strlen(sReference) >= sizeof(sUrl)) || !xacmeFlowUriText(sReference) ||
+		!xrtHttpTargetParse(XRT_STR_LITERAL("POST"),
+			(xstrview){ sBase, strlen(sBase) }, &Base) ||
+		(Base.Form != XHTTP_TARGET_ABSOLUTE) ||
+		!(Base.Flags & XHTTP_TARGET_HAS_AUTHORITY) ||
+		(Base.Authority.Size == 0u)) return false;
+	iRefSize = strcspn(sReference, "#");
+	iFirstDelimiter = strcspn(sReference, ":/?#");
+	Scheme = Base.Scheme;
+	Authority = Base.Authority;
+	if((iFirstDelimiter < iRefSize && sReference[iFirstDelimiter] == ':') ||
+		((iRefSize >= 2u) && (memcmp(sReference, "//", 2u) == 0)))
+	{
+		if((sReference[0] != '/') &&
+			((iRefSize - iFirstDelimiter < 3u) ||
+			(memcmp(sReference + iFirstDelimiter, "://", 3u) != 0))) return false;
+		if(sReference[0] == '/')
+		{
+			if(!xacmeFlowUriAppend(sRef, sizeof(sRef), &iSize, Scheme) ||
+				!xacmeFlowUriAppend(sRef, sizeof(sRef), &iSize, XRT_STR_LITERAL(":")))
+				return false;
+		}
+		if(!xacmeFlowUriAppend(sRef, sizeof(sRef), &iSize,
+			(xstrview){ sReference, iRefSize }) ||
+			!xrtHttpTargetParse(XRT_STR_LITERAL("POST"),
+				(xstrview){ sRef, iSize }, &Ref) ||
+			(Ref.Form != XHTTP_TARGET_ABSOLUTE) ||
+			!(Ref.Flags & XHTTP_TARGET_HAS_AUTHORITY) ||
+			(Ref.Authority.Size == 0u)) return false;
+		Scheme = Ref.Scheme;
+		Authority = Ref.Authority;
+		Path = Ref.Path;
+		Query = Ref.Query;
+		bQuery = (Ref.Flags & XHTTP_TARGET_HAS_QUERY) != 0u;
+	}
+	else
+	{
+		sQuestion = (cstr)memchr(sReference, '?', iRefSize);
+		Path = (xstrview){ sReference, sQuestion ? (size_t)(sQuestion - sReference) : iRefSize };
+		bQuery = (sQuestion != NULL);
+		Query = bQuery ? (xstrview){ sQuestion + 1u,
+			iRefSize - (size_t)(sQuestion + 1u - sReference) } : (xstrview){ NULL, 0u };
+		if(Path.Size == 0u)
+		{
+			Path = Base.Path;
+			bNormalize = false;
+			if(!bQuery)
+			{
+				Query = Base.Query;
+				bQuery = (Base.Flags & XHTTP_TARGET_HAS_QUERY) != 0u;
+			}
+		}
+		else if(Path.Data[0] != '/')
+		{
+			size_t iPrefix = Base.Path.Size;
+			while((iPrefix > 0u) && (Base.Path.Data[iPrefix - 1u] != '/')) iPrefix--;
+			iSize = 0u;
+			if(!xacmeFlowUriAppend(sMerged, sizeof(sMerged), &iSize,
+				Base.Path.Size == 0u ? XRT_STR_LITERAL("/") :
+				(xstrview){ Base.Path.Data, iPrefix }) ||
+				!xacmeFlowUriAppend(sMerged, sizeof(sMerged), &iSize, Path)) return false;
+			Path = (xstrview){ sMerged, iSize };
+		}
+	}
+	if(!xrtHttpFieldNameEqual(Scheme, XRT_STR_LITERAL("http")) &&
+		!xrtHttpFieldNameEqual(Scheme, XRT_STR_LITERAL("https"))) return false;
+	if(!xrtHttpHostValid(Authority)) return false;
+	iPathSize = bNormalize ? xacmeFlowUriDots(Path.Data, Path.Size, sPath) : Path.Size;
+	if(bNormalize) Path = (xstrview){ sPath, iPathSize };
+	iSize = 0u;
+	if(!xacmeFlowUriAppend(sUrl, sizeof(sUrl), &iSize, Scheme) ||
+		!xacmeFlowUriAppend(sUrl, sizeof(sUrl), &iSize, XRT_STR_LITERAL("://")) ||
+		!xacmeFlowUriAppend(sUrl, sizeof(sUrl), &iSize, Authority) ||
+		!xacmeFlowUriAppend(sUrl, sizeof(sUrl), &iSize, Path) ||
+		(bQuery && (!xacmeFlowUriAppend(sUrl, sizeof(sUrl), &iSize, XRT_STR_LITERAL("?")) ||
+			!xacmeFlowUriAppend(sUrl, sizeof(sUrl), &iSize, Query))) ||
+		!xrtHttpTargetParse(XRT_STR_LITERAL("POST"), (xstrview){ sUrl, iSize }, &Checked) ||
+		(iSize >= iCapacity)) return false;
+	memcpy(sOut, sUrl, iSize + 1u);
+	return true;
 }
 
 /* Issue 总预算：超限返回 true（已到截止）。 */
@@ -157,11 +630,17 @@ static bool xacmeFlowDeadlineHit(const xacmeclient* pClient)
 
 static void xacmeFlowTakeNonce(xacmeclient* pClient, xacmehttpresponse* pR)
 {
-	if((pR->sReplayNonce != NULL) &&
-		(strlen(pR->sReplayNonce) < sizeof(pClient->sNonce)))
+	cstr sNonce = pR->sReplayNonce;
+	size_t i;
+	if((sNonce == NULL) || (sNonce[0] == '\0') ||
+		(strlen(sNonce) >= sizeof(pClient->sNonce))) return;
+	for(i = 0u; sNonce[i] != '\0'; i++)
 	{
-		strcpy(pClient->sNonce, pR->sReplayNonce);
+		unsigned char c = (unsigned char)sNonce[i];
+		if(!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+			(c >= '0' && c <= '9') || c == '-' || c == '_')) return;
 	}
+	strcpy(pClient->sNonce, sNonce);
 }
 
 static bool xacmeFlowNewNonce(xacmeclient* pClient)
@@ -175,6 +654,13 @@ static bool xacmeFlowNewNonce(xacmeclient* pClient)
 		&pClient->Http, "GET", pClient->sNewNonce, NULL,
 		(xstrview){ NULL, 0u }, &R))
 	{
+		return false;
+	}
+	if((R.iStatus < 200u) || (R.iStatus >= 300u))
+	{
+		xacmeHttpResponseUnit(&R);
+		xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_NONCE,
+			"acme flow new-nonce response status invalid");
 		return false;
 	}
 	xacmeFlowTakeNonce(pClient, &R);
@@ -201,6 +687,7 @@ static bool xacmeFlowPost(
 	str sToken = NULL;
 	bool bOk;
 
+	memset(pR, 0, sizeof(*pR));
 	if(!xacmeFlowNewNonce(pClient))
 	{
 		return false;
@@ -231,13 +718,25 @@ static bool xacmeFlowPost(
 		return false;
 	}
 	xacmeFlowTakeNonce(pClient, pR);
-	/* RFC 8555 badNonce：换新 nonce 重试（上限 3 次）。 */
-	if((pR->iStatus == 400u) && (pR->sBody != NULL) &&
-		(strstr(pR->sBody, "badNonce") != NULL) && (uNonceRetry < 3u))
+	/* RFC 8555 §6.5: identify the problem structurally and use the fresh
+	 * nonce supplied with that response. Three POST attempts in total. */
+	if(pR->iStatus == 400u)
 	{
-		pClient->sNonce[0] = '\0';
-		if(xacmeFlowNewNonce(pClient))
+		xacmeflowurl Type;
+		if(!xacmeFlowProblemType(pR, &Type))
 		{
+			xacmeHttpResponseUnit(pR);
+			return false;
+		}
+		if(strcmp(Type.sData, "urn:ietf:params:acme:error:badNonce") == 0)
+		{
+			if((pClient->sNonce[0] == '\0') || (uNonceRetry >= 2u))
+			{
+				xacmeHttpResponseUnit(pR);
+				xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_NONCE,
+					"acme badNonce response missing fresh nonce or retries exhausted");
+				return false;
+			}
 			xacmeHttpResponseUnit(pR);
 			return xacmeFlowPost(
 				pClient, sUrl, sPayload, bKid, pR, uNonceRetry + 1u);
@@ -250,8 +749,31 @@ static bool xacmeFlowPost(
 static bool xacmeFlowPostAsGet(
 	xacmeclient* pClient, cstr sUrl, xacmehttpresponse* pR)
 {
-	return xacmeFlowPost(
-		pClient, sUrl, (xstrview){ "", 0u }, true, pR, 0u);
+	uint32 uAttempt;
+	for(uAttempt = 1u; uAttempt <= 3u; uAttempt++)
+	{
+		const xerror* pError;
+		cstr sDomain;
+		if(xacmeFlowPost(
+			pClient, sUrl, (xstrview){ "", 0u }, true, pR, 0u))
+		{
+			xrtClearError();
+			return true;
+		}
+		pError = xrtGetError();
+		sDomain = xrtErrorDomain(pError);
+		if((uAttempt == 3u) || xacmeFlowDeadlineHit(pClient) ||
+			(xrtErrorCode(pError) != XACME_HTTP_ERROR_UNCERTAIN) ||
+			(sDomain == NULL) ||
+			(strcmp(sDomain, "xrt.acme.http") != 0))
+		{
+			return false;
+		}
+		/* 只读 POST-as-GET 可用新 nonce/JWS 安全重试。 */
+		xrtClearError();
+		xrtSleep((uAttempt == 1u) ? 500u : 1000u);
+	}
+	return false;
 }
 
 static uint32 xacmeFlowSleepMs(xacmehttpresponse* pR)
@@ -281,100 +803,105 @@ static str xacmeFlowWaitStatus(
 	for(i = 0; i < XACME_FLOW_POLL_MAX; i++)
 	{
 		xacmehttpresponse R;
-		xvalue* pRoot = NULL;
+		xvalue* pRoot;
 		xacmeflowurl Status;
-		str sStatus = NULL;
-		bool bTerminal = false;
+		uint32 uMs;
+		bool bTerminal;
 		if(xacmeFlowDeadlineHit(pClient))
 		{
-			xacmeFlowError(
-				XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
+			xacmeFlowError(XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
 				"acme flow issue budget exhausted");
 			return NULL;
 		}
-		if(!xacmeFlowPostAsGet(pClient, sUrl, &R))
+		if(!xacmeFlowPostAsGet(pClient, sUrl, &R)) return NULL;
+		if((R.iStatus < 200u) || (R.iStatus >= 300u))
 		{
+			char sDetail[280];
+			snprintf(sDetail, sizeof(sDetail),
+				"acme flow poll error status=%u body=%.180s",
+				(unsigned)R.iStatus, R.sBody ? R.sBody : "");
+			xacmeHttpResponseUnit(&R);
+			xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_PROTOCOL, sDetail);
 			return NULL;
 		}
-		if((R.sBody != NULL) && (R.iBodySize > 0u))
+		pRoot = xacmeFlowResponseObject(&R, XACME_FLOW_ERROR_PROTOCOL,
+			"acme flow poll json invalid");
+		if(pRoot == NULL)
 		{
-			pRoot = xrtJsonParse((xstrview){ R.sBody, R.iBodySize });
+			xacmeHttpResponseUnit(&R);
+			return NULL;
 		}
-		if((pRoot != NULL) && xrtValueIs(pRoot, XVALUE_OBJECT) &&
-			xacmeJsonValueText(pRoot, "status", &Status))
-		{
-			sStatus = (str)xrtMalloc(Status.iSize + 1u);
-			if(sStatus != NULL)
-			{
-				memcpy(sStatus, Status.sData, Status.iSize + 1u);
-			}
-			if((pFinalizeOut != NULL) &&
-				xacmeJsonValueText(pRoot, "finalize", pFinalizeOut))
-			{
-				pFinalizeOut = NULL;
-			}
-			bTerminal = (strcmp(Status.sData, "pending") != 0) &&
-				(strcmp(Status.sData, "processing") != 0);
-		}
-		if(pRoot != NULL)
+		if(!xacmeJsonValueText(pRoot, "status", &Status))
 		{
 			xrtValueRelease(pRoot);
+			xacmeHttpResponseUnit(&R);
+			xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_PROTOCOL,
+				"acme flow poll status invalid");
+			return NULL;
 		}
-		if((sStatus != NULL) && bTerminal)
+		if(pFinalizeOut != NULL)
 		{
-			if(strcmp(sStatus, "valid") != 0 && getenv("XACME_DEBUG"))
+			if(xrtValueObjectGet(pRoot, XRT_STR_LITERAL("finalize")) != NULL)
 			{
-				printf("[dbg] terminal=%s body=%.1400s\n", sStatus,
-					(R.sBody != NULL) ? R.sBody : "");
+				if(!xacmeJsonValueText(pRoot, "finalize", pFinalizeOut))
+				{
+					xrtValueRelease(pRoot);
+					xacmeHttpResponseUnit(&R);
+					xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_FINALIZE,
+						"acme flow order finalize url invalid");
+					return NULL;
+				}
 			}
+			if(strcmp(Status.sData, "ready") == 0 && pFinalizeOut->sData[0] == 0)
+			{
+				xrtValueRelease(pRoot);
+				xacmeHttpResponseUnit(&R);
+				xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_FINALIZE,
+					"acme flow ready order missing finalize url");
+				return NULL;
+			}
+		}
+		bTerminal = strcmp(Status.sData, "pending") != 0 &&
+			strcmp(Status.sData, "processing") != 0;
+		xrtValueRelease(pRoot);
+		if(bTerminal)
+		{
+			str sStatus = (str)xrtMalloc(Status.iSize + 1u);
+			if(sStatus != NULL) memcpy(sStatus, Status.sData, Status.iSize + 1u);
 			xacmeHttpResponseUnit(&R);
 			return sStatus;
 		}
-		xrtFree(sStatus);
-		{
-			uint32 uMs = xacmeFlowSleepMs(&R);
-			bool bAgain = (R.iStatus >= 200u) && (R.iStatus < 300u);
-			xacmeHttpResponseUnit(&R);
-			if(!bAgain)
-			{
-				if(xacmeFlowDeadlineHit(pClient))
-				{
-					xacmeFlowError(
-						XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
-						"acme flow issue budget exhausted");
-					xacmeHttpResponseUnit(&R);
-					return NULL;
-				}
-				if(getenv("XACME_DEBUG"))
-				{
-					printf("[dbg] poll resp status=%u body=%.160s\n",
-						(unsigned)R.iStatus,
-						(R.sBody != NULL) ? R.sBody : "");
-				}
-				char sDetail[280];
-				snprintf(sDetail, sizeof(sDetail),
-					"acme flow poll error status=%u body=%.180s",
-					(unsigned)R.iStatus,
-					(R.sBody != NULL) ? R.sBody : "");
-				xacmeFlowError(
-					XERR_PROTOCOL, XACME_FLOW_ERROR_PROTOCOL, sDetail);
-				return NULL;
-			}
-			xrtSleep(uMs);
-		}
+		uMs = xacmeFlowSleepMs(&R);
+		xacmeHttpResponseUnit(&R);
+		xrtSleep(uMs);
 	}
-	xacmeFlowError(
-		XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
+	xacmeFlowError(XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
 		"acme flow status poll exhausted");
 	return NULL;
 }
 
 /* ---------------- DNS 铺设与清理（带重试） ---------------- */
 
+static bool xacmeFlowHttpUncertain(const xerror* pError)
+{
+	cstr sDomain = xrtErrorDomain(pError);
+	return (xrtErrorCode(pError) == XACME_HTTP_ERROR_UNCERTAIN) &&
+		(sDomain != NULL) && (strcmp(sDomain, "xrt.acme.http") == 0);
+}
+
+static bool xacmeFlowDnsAddTerminal(const xerror* pError)
+{
+	cstr sDomain = xrtErrorDomain(pError);
+	return xrtErrorKind(pError) == XERR_MEMORY || xacmeFlowHttpUncertain(pError) ||
+		(xrtErrorCode(pError) == XACME_DNS_ERROR_UNCERTAIN && sDomain != NULL &&
+		 strcmp(sDomain, "xrt.acme.dns") == 0);
+}
+
 /*
 	provider Add/Remove 各最多 3 次尝试（1s/2s 退避）。
-	重放语义安全：同值 TXT 重复铺设对 dns-01 无害；
-	Remove 幂等（记录不存在视为成功）。失败保留首个根因。
+	Add 在已发送请求的结果未知时不可重试：重复记录可能失去可清理的
+	RecordId；Remove 按 provider 契约幂等。失败保留首个根因。
+	提供商层结果未知及内存错误同样不重放 Add。
 */
 static bool xacmeFlowDnsAdd(
 	const xacmednsprovider* pDns, cstr sFqdn, cstr sTxt)
@@ -390,6 +917,13 @@ static bool xacmeFlowDnsAdd(
 			return true;
 		}
 		pFirst = xrtErrorRef(xrtGetError());
+		/* OOM can prevent publishing an uncertainty wrapper; never replay an
+		 * Add when its failure could not even be represented completely. */
+		if(xacmeFlowDnsAddTerminal(pFirst))
+		{
+			xrtSetErrorTake(pFirst);
+			return false;
+		}
 		if(uAttempt < 3u)
 		{
 			if(getenv("XACME_DEBUG"))
@@ -473,6 +1007,8 @@ static bool xacmeFlowTxtVisible(
 		if(!xacmeDnsTxtQuery(
 				pDns, sHost, iPort, sFqdn, sRecords, 4u, &iCount))
 		{
+			if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
+			xrtClearError(); /* Advisory reachability failure must not mask a later OOM. */
 			continue; /* 单个 resolver 不可达不算失败。 */
 		}
 		for(j = 0; j < iCount; j++)
@@ -525,6 +1061,11 @@ static void xacmeFlowWaitPropagate(
 			xacmeDnsUnit(&Probe);
 			return;
 		}
+		if(xrtErrorKind(xrtGetError()) == XERR_MEMORY)
+		{
+			xacmeDnsUnit(&Probe);
+			return;
+		}
 		xrtSleep(2000u);
 	}
 	xacmeDnsUnit(&Probe);
@@ -558,6 +1099,7 @@ static void xacmeFlowChallengeDetail(
 	xacmeHttpResponseUnit(&R);
 	if((pRoot == NULL) || !xrtValueIs(pRoot, XVALUE_OBJECT))
 	{
+		xrtValueRelease(pRoot);
 		return;
 	}
 	pChallenges = xrtValueObjectGet(pRoot, XRT_STR_LITERAL("challenges"));
@@ -634,9 +1176,6 @@ bool xacmeClientInit(
 			pAccount->sAccountKeyPem, strlen(pAccount->sAccountKeyPem),
 			&pClient->AccountKey))
 		{
-			xacmeFlowError(
-				XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
-				"acme client account pem invalid");
 			goto Done;
 		}
 	}
@@ -650,9 +1189,6 @@ bool xacmeClientInit(
 		&pClient->Http, "GET", pAccount->sDirectoryUrl, NULL,
 		(xstrview){ NULL, 0u }, &R))
 	{
-		xacmeFlowError(
-			XERR_IO, XACME_FLOW_ERROR_DIRECTORY,
-			"acme client directory fetch failed");
 		goto Done;
 	}
 	if((R.iStatus != 200u) || (R.sBody == NULL))
@@ -663,9 +1199,11 @@ bool xacmeClientInit(
 			"acme client directory response invalid");
 		goto Done;
 	}
-	pRoot = xrtJsonParse((xstrview){ R.sBody, R.iBodySize });
+	pRoot = xacmeFlowResponseObject(&R, XACME_FLOW_ERROR_DIRECTORY,
+		"acme client directory json invalid");
 	xacmeHttpResponseUnit(&R);
-	if((pRoot == NULL) || !xrtValueIs(pRoot, XVALUE_OBJECT) ||
+	if(pRoot == NULL) goto Done;
+	if(
 		!xacmeJsonValueText(pRoot, "newNonce", &NewNonce) ||
 		!xacmeJsonValueText(pRoot, "newAccount", &NewAccount) ||
 		!xacmeJsonValueText(pRoot, "newOrder", &NewOrder))
@@ -691,6 +1229,15 @@ bool xacmeClientInit(
 	/* revokeCert/keyChange 可选：缺失时对应路径显式报错。 */
 	{
 		xacmeflowurl Optional;
+		if((xrtValueObjectGet(pRoot, XRT_STR_LITERAL("revokeCert")) != NULL &&
+			 !xacmeJsonValueText(pRoot, "revokeCert", &Optional)) ||
+			(xrtValueObjectGet(pRoot, XRT_STR_LITERAL("keyChange")) != NULL &&
+			 !xacmeJsonValueText(pRoot, "keyChange", &Optional)))
+		{
+			xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_DIRECTORY,
+				"acme client optional directory endpoint invalid");
+			goto Done;
+		}
 		if(xacmeJsonValueText(pRoot, "revokeCert", &Optional))
 		{
 			(void)xacmeFlowCopyText(
@@ -717,13 +1264,19 @@ bool xacmeClientInit(
 	if((pAccount->sContactEmail != NULL) &&
 		(pAccount->sContactEmail[0] != '\0'))
 	{
-		char sMailto[320];
-		snprintf(sMailto, sizeof(sMailto), "mailto:%s",
-			pAccount->sContactEmail);
-		if(!xrtBufferAppend(&Payload, XRT_BYTES_LITERAL(",\"contact\":[")) ||
-			!xacmeFlowJsonQuoteAppend(
-				&Payload, (xstrview){ sMailto, strlen(sMailto) }) ||
-			!xrtBufferAppendByte(&Payload, (uint8)']'))
+		xbuffer Mailto;
+		bool bContactOk;
+		xrtBufferInit(&Mailto);
+		bContactOk = xrtBufferAppend(&Mailto, XRT_BYTES_LITERAL("mailto:")) &&
+			xrtBufferAppend(&Mailto, (xbytesview){
+				(const uint8*)pAccount->sContactEmail,
+				strlen(pAccount->sContactEmail) }) &&
+			xrtBufferAppend(&Payload, XRT_BYTES_LITERAL(",\"contact\":[")) &&
+			xacmeFlowJsonQuoteAppend(&Payload,
+				(xstrview){ (cstr)Mailto.Data, Mailto.Size }) &&
+			xrtBufferAppendByte(&Payload, (uint8)']');
+		xrtBufferUnit(&Mailto);
+		if(!bContactOk)
 		{
 			xrtBufferUnit(&Payload);
 			goto Done;
@@ -769,9 +1322,6 @@ bool xacmeClientInit(
 		if(sEab == NULL)
 		{
 			xrtBufferUnit(&Payload);
-			xacmeFlowError(
-				XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
-				"acme client eab binding build failed");
 			goto Done;
 		}
 		if(!xrtBufferAppend(
@@ -796,9 +1346,6 @@ bool xacmeClientInit(
 		(xstrview){ (cstr)Payload.Data, Payload.Size }, false, &R, 0u))
 	{
 		xrtBufferUnit(&Payload);
-		xacmeFlowError(
-			XERR_PROTOCOL, XACME_FLOW_ERROR_ACCOUNT,
-			"acme client new-account post failed");
 		goto Done;
 	}
 	xrtBufferUnit(&Payload);
@@ -815,6 +1362,7 @@ bool xacmeClientInit(
 		goto Done;
 	}
 	if((R.sLocation == NULL) ||
+		(R.sLocation[0] == '\0') ||
 		!xacmeFlowCopyText(
 			pClient->sKid, sizeof(pClient->sKid), R.sLocation))
 	{
@@ -824,7 +1372,21 @@ bool xacmeClientInit(
 			"acme client new-account missing location");
 		goto Done;
 	}
+	xrtValueRelease(pRoot);
+	pRoot = xacmeFlowResponseObject(&R, XACME_FLOW_ERROR_ACCOUNT,
+		"acme client account json invalid");
 	xacmeHttpResponseUnit(&R);
+	if(pRoot == NULL) goto Done;
+	{
+		xacmeflowurl Status;
+		if(!xacmeJsonValueText(pRoot, "status", &Status) ||
+			strcmp(Status.sData, "valid") != 0)
+		{
+			xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_ACCOUNT,
+				"acme client account is not valid");
+			goto Done;
+		}
+	}
 	bOk = true;
 
 Done:
@@ -836,6 +1398,9 @@ Done:
 	{
 		/* 先保留首个根因，再拆传输（Unit 可能覆盖线程错误）。 */
 		xerror* pFirst = xrtErrorRef(xrtGetError());
+		/* 失败构造尚未交付拥有者，回滚不复用已经耗尽的请求预算。 */
+		if(pClient->Http.uTimeoutUs < UINT64_C(30000000))
+			pClient->Http.uTimeoutUs = UINT64_C(30000000);
 		xacmeHttpUnit(&pClient->Http);
 		if(pFirst != NULL)
 		{
@@ -845,14 +1410,15 @@ Done:
 	return bOk;
 }
 
-void xacmeClientUnit(xacmeclient* pClient)
+bool xacmeClientUnit(xacmeclient* pClient)
 {
 	if(pClient == NULL)
 	{
-		return;
+		return true;
 	}
-	xacmeHttpUnit(&pClient->Http);
-	memset(pClient, 0, sizeof(*pClient));
+	if(!xacmeHttpUnit(&pClient->Http)) return false;
+	xrtSecureZero(pClient, sizeof(*pClient));
+	return true;
 }
 
 str xacmeClientAccountPem(const xacmeclient* pClient)
@@ -873,13 +1439,18 @@ bool xacmeClientIssue(
 	xacmehttpresponse R;
 	xvalue* pRoot = NULL;
 	bool bResult = false;
+	xerror* pUncertainError = NULL;
 	xacmeflowurl Finalize;
 	xacmeflowurl OrderUrl;
 	Finalize.sData[0] = 0;
 	xacmeflowurl Certificate;
 	size_t i;
 	bool bOk = false;
+	xacmeflowcertpublic CertPublic = {0};
+	bytes pLeafDer = NULL;
+	size_t iLeafDerSize = 0u;
 
+	if(pOut != NULL) memset(pOut, 0, sizeof(*pOut));
 	if((pClient == NULL) || (pDomains == NULL) || (iDomainCount == 0u) ||
 		(pDns == NULL) || (pDns->Add == NULL) || (pDns->Remove == NULL) ||
 		(pOut == NULL) ||
@@ -891,6 +1462,17 @@ bool xacmeClientIssue(
 		return false;
 	}
 	memset(pOut, 0, sizeof(*pOut));
+	/* RFC 8555 section 11.1 forbids reusing a known account key in a CSR.
+	 * Check at issue time too: account rollover may change this relationship. */
+	if((pClient->pCertKey != NULL) &&
+		(pClient->pCertKey->Kind == XACME_CERT_KEY_ES256) &&
+		(memcmp(pClient->pCertKey->Ec.Public, pClient->AccountKey.Public,
+			sizeof(pClient->AccountKey.Public)) == 0))
+	{
+		xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme certificate key must differ from the account key");
+		return false;
+	}
 	/* 总预算打点：uIssueTimeoutUs 非零时本次 Issue 全程受限。 */
 	pClient->bIssueDeadline = (pClient->uIssueTimeoutUs != 0u);
 	pClient->IssueDeadline = xrtClock() + pClient->uIssueTimeoutUs;
@@ -909,6 +1491,14 @@ bool xacmeClientIssue(
 		str sTxt;
 	} TxtPending[16];
 	size_t iTxtPending = 0u;
+	struct
+	{
+		xacmeflowurl Authz;
+		xacmeflowurl Challenge;
+		str sFqdn;
+		str sTxt;
+	} Work[16];
+	size_t iWorkCount = 0u;
 	xrtBufferInit(&Payload);
 	for(i = 0; i < iDomainCount; i++)
 	{
@@ -916,7 +1506,8 @@ bool xacmeClientIssue(
 		size_t j;
 		bool bDup = false;
 		if((Domain.Data == NULL) || (Domain.Size == 0u) ||
-			(iBaseCount >= (sizeof(Bases) / sizeof(Bases[0]))))
+			(Domain.Size >= sizeof(Bases[0].sData)) ||
+			(memchr(Domain.Data, '\0', Domain.Size) != NULL))
 		{
 			xacmeFlowError(
 				XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
@@ -935,6 +1526,12 @@ bool xacmeClientIssue(
 		if(bDup)
 		{
 			continue;
+		}
+		if(iBaseCount >= sizeof(Bases) / sizeof(Bases[0]))
+		{
+			xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+				"acme issue has too many distinct domains");
+			goto Done;
 		}
 		memcpy(Bases[iBaseCount].sData, Domain.Data, Domain.Size);
 		Bases[iBaseCount].sData[Domain.Size] = 0;
@@ -969,12 +1566,9 @@ bool xacmeClientIssue(
 		pClient, pClient->sNewOrder,
 		(xstrview){ (cstr)Payload.Data, Payload.Size }, true, &R, 0u))
 	{
-		xacmeFlowError(
-			XERR_PROTOCOL, XACME_FLOW_ERROR_ORDER,
-			"acme issue new-order post failed");
 		goto Done;
 	}
-	if((R.iStatus != 201u) || (R.sLocation == NULL) ||
+	if((R.iStatus != 201u) || (R.sLocation == NULL) || (R.sLocation[0] == 0) ||
 		!xacmeFlowCopyText(
 			OrderUrl.sData, sizeof(OrderUrl.sData), R.sLocation))
 	{
@@ -985,17 +1579,10 @@ bool xacmeClientIssue(
 		goto Done;
 	}
 	OrderUrl.iSize = strlen(OrderUrl.sData);
-	if((R.sBody == NULL) ||
-		((pRoot = xrtJsonParse((xstrview){ R.sBody, R.iBodySize })) == NULL) ||
-		!xrtValueIs(pRoot, XVALUE_OBJECT))
-	{
-		xacmeHttpResponseUnit(&R);
-		xacmeFlowError(
-			XERR_PROTOCOL, XACME_FLOW_ERROR_ORDER,
-			"acme issue new-order json invalid");
-		goto Done;
-	}
+	pRoot = xacmeFlowResponseObject(&R, XACME_FLOW_ERROR_ORDER,
+		"acme issue new-order json invalid");
 	xacmeHttpResponseUnit(&R);
+	if(pRoot == NULL) goto Done;
 
 /* 2. 逐授权域处理 dns-01（两段式：先铺全部 TXT 再统一触发）。
  *
@@ -1009,24 +1596,16 @@ bool xacmeClientIssue(
 		pRoot, XRT_STR_LITERAL("authorizations"));
 	size_t iCount = (pAuthz != NULL) ? xrtValueCount(pAuthz) : 0u;
 	char sThumb[44];
-	struct
-	{
-		xacmeflowurl Authz;
-		xacmeflowurl Challenge;
-		str sFqdn;
-		str sTxt;
-	} Work[16];
-	size_t iWorkCount = 0u;
 	size_t k;
 	if((pAuthz == NULL) || !xrtValueIs(pAuthz, XVALUE_ARRAY) ||
-		(iCount != iBaseCount) ||
-		!xacmeJwkEcThumbprint(&pClient->AccountKey, sThumb))
+		(iCount != iBaseCount))
 	{
 		xacmeFlowError(
 			XERR_PROTOCOL, XACME_FLOW_ERROR_ORDER,
 			"acme issue order authorizations invalid");
 		goto Done;
 	}
+	if(!xacmeJwkEcThumbprint(&pClient->AccountKey, sThumb)) goto Done;
 	/* Pass A：逐授权取 dns-01 挑战，铺 TXT 并确认传播。 */
 	for(i = 0; i < iCount; i++)
 	{
@@ -1041,7 +1620,8 @@ bool xacmeClientIssue(
 		bool bFound = false;
 		if((pUrl == NULL) ||
 			!xrtValueGetString(pUrl, &UrlText) ||
-			(UrlText.Size >= sizeof(Authz.sData)))
+			(UrlText.Size == 0u) || (UrlText.Size >= sizeof(Authz.sData)) ||
+			(memchr(UrlText.Data, '\0', UrlText.Size) != NULL))
 		{
 			xacmeFlowError(
 				XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE,
@@ -1053,32 +1633,42 @@ bool xacmeClientIssue(
 		Authz.iSize = UrlText.Size;
 		if(!xacmeFlowPostAsGet(pClient, Authz.sData, &A))
 		{
-			xacmeFlowError(
-				XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE,
-				"acme issue authorization fetch failed");
 			goto Done;
 		}
-		if(A.sBody != NULL)
+		if(A.iStatus != 200u)
 		{
-			pAuthRoot = xrtJsonParse((xstrview){ A.sBody, A.iBodySize });
+			xacmeHttpResponseUnit(&A);
+			xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE,
+				"acme authorization response status invalid");
+			goto Done;
 		}
+		pAuthRoot = xacmeFlowResponseObject(&A, XACME_FLOW_ERROR_CHALLENGE,
+			"acme authorization json invalid");
 		if(pAuthRoot == NULL)
 		{
-			char sDetail[220];
-			snprintf(sDetail, sizeof(sDetail),
-				"acme authz fetch status=%u body=%.150s",
-				(unsigned)A.iStatus,
-				(A.sBody != NULL) ? A.sBody : "");
 			xacmeHttpResponseUnit(&A);
-			xacmeFlowError(
-				XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE, sDetail);
 			goto Done;
 		}
 		{
 			xacmeflowurl AuthzStatus;
-			bool bValid = xacmeJsonValueText(
-				pAuthRoot, "status", &AuthzStatus) &&
-				(strcmp(AuthzStatus.sData, "valid") == 0);
+			bool bValid;
+			if(!xacmeJsonValueText(pAuthRoot, "status", &AuthzStatus))
+			{
+				xrtValueRelease(pAuthRoot);
+				xacmeHttpResponseUnit(&A);
+				xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE,
+					"acme authorization status invalid");
+				goto Done;
+			}
+			bValid = strcmp(AuthzStatus.sData, "valid") == 0;
+			if(!bValid && strcmp(AuthzStatus.sData, "pending") != 0)
+			{
+				xrtValueRelease(pAuthRoot);
+				xacmeHttpResponseUnit(&A);
+				xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE,
+					"acme authorization is not pending or valid");
+				goto Done;
+			}
 			pChallenges = xrtValueObjectGet(
 				pAuthRoot, XRT_STR_LITERAL("challenges"));
 			if(getenv("XACME_DEBUG"))
@@ -1159,8 +1749,9 @@ bool xacmeClientIssue(
 						((sTxt = xrtBase64EncodeNew(
 							Digest, sizeof(Digest), &B64Url)) == NULL))
 					{
-						if(getenv("XACME_DEBUG")) printf("[dbg] txt b64 null\n");
-						continue;
+						xrtValueRelease(pAuthRoot);
+						xacmeHttpResponseUnit(&A);
+						goto Done;
 					}
 					/* TXT 属主 = _acme-challenge.<授权 identifier.value>
 					   （通配符授权返回的 value 已是基础域；协议正源，
@@ -1176,16 +1767,20 @@ bool xacmeClientIssue(
 						bool bFqdnOk;
 						if((pIdentValue != NULL) &&
 							xrtValueGetString(pIdentValue, &Domain) &&
-							(Domain.Size != 0u))
+							(Domain.Size != 0u) &&
+							(Domain.Size < sizeof(Bases[0].sData)) &&
+							(memchr(Domain.Data, '\0', Domain.Size) == NULL))
 						{
 							/* 协议正源路径 */
 						}
 						else
 						{
-							/* 兜底：CA 未回 identifier 时退回订单侧
-							   完整域名（Bases 现为全量 identifier） */
-							Domain = (xstrview){
-								Bases[i].sData, Bases[i].iSize };
+							xrtFree(sTxt);
+							xrtValueRelease(pAuthRoot);
+							xacmeHttpResponseUnit(&A);
+							xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE,
+								"acme authorization identifier invalid");
+							goto Done;
 						}
 						xrtBufferInit(&Fqdn);
 						bFqdnOk = xrtBufferAppend(
@@ -1203,14 +1798,21 @@ bool xacmeClientIssue(
 							xrtBufferUnit(&Fqdn);
 						}
 					}
-					if((sFqdn == NULL) ||
-						(iWorkCount >=
-							(sizeof(Work) / sizeof(Work[0]))) ||
+					bool bCanAdd = (sFqdn != NULL) &&
+						(iWorkCount <
+							(sizeof(Work) / sizeof(Work[0])));
+					if(!bCanAdd ||
 						!xacmeFlowDnsAdd(pDns, sFqdn, sTxt))
 					{
+						if(xacmeFlowDnsAddTerminal(xrtGetError()))
+						{
+							pUncertainError = xrtErrorRef(xrtGetError());
+						}
 						if(getenv("XACME_DEBUG")) printf("[dbg] dns add failed fqdn=%s err=%d\n", sFqdn ? sFqdn : "null", (int)xrtErrorKind(xrtGetError()));
 						xrtFree(sFqdn);
 						xrtFree(sTxt);
+						if(pUncertainError != NULL)
+							break;
 						continue;
 					}
 					/* 传播确认：全部 TXT 就位后才进入 Pass B 统一触发。 */
@@ -1222,6 +1824,12 @@ bool xacmeClientIssue(
 					Work[iWorkCount].sFqdn = sFqdn;
 					Work[iWorkCount].sTxt = sTxt;
 					iWorkCount++;
+					if(xrtErrorKind(xrtGetError()) == XERR_MEMORY)
+					{
+						xrtValueRelease(pAuthRoot);
+						xacmeHttpResponseUnit(&A);
+						goto Done;
+					}
 					bFound = true;
 					break;
 				}
@@ -1230,9 +1838,10 @@ bool xacmeClientIssue(
 			xacmeHttpResponseUnit(&A);
 			if(!bFound)
 			{
-				xacmeFlowError(
-					XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE,
-					"acme issue no dns-01 challenge solved");
+				if(pUncertainError == NULL)
+					xacmeFlowError(
+						XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE,
+						"acme issue no dns-01 challenge solved");
 				goto Done;
 			}
 		}
@@ -1247,20 +1856,25 @@ bool xacmeClientIssue(
 				pClient, Work[k].Challenge.sData,
 				(xstrview){ "{}", 2u }, true, &T, 0u))
 			{
-				xacmeFlowError(
-					XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE,
-					"acme issue challenge trigger failed");
+				goto Done;
+			}
+			if(T.iStatus != 200u)
+			{
+				xacmeHttpResponseUnit(&T);
+				xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE,
+					"acme challenge response status invalid");
 				goto Done;
 			}
 			xacmeHttpResponseUnit(&T);
 			sStatus = xacmeFlowWaitStatus(pClient, Work[k].Authz.sData, NULL);
-			bValidNow = (sStatus != NULL) &&
+			if(sStatus == NULL) goto Done;
+			bValidNow =
 				(strcmp(sStatus, "valid") == 0);
 			if(!bValidNow)
 			{
 				char sChallengeError[200];
 				char sDetail[320];
-				const xerror* pE = xrtGetError();
+				xerror* pE = xrtErrorRef(xrtGetError());
 				xacmeFlowChallengeDetail(
 					pClient, Work[k].Authz.sData, sChallengeError,
 					sizeof(sChallengeError));
@@ -1279,6 +1893,7 @@ bool xacmeClientIssue(
 					"challenge=%.180s",
 					(sStatus != NULL) ? sStatus : "null",
 					sChallengeError);
+				xrtErrorFree(pE);
 				xrtFree(sStatus);
 				xacmeFlowError(
 					XERR_PROTOCOL, XACME_FLOW_ERROR_CHALLENGE, sDetail);
@@ -1295,6 +1910,8 @@ bool xacmeClientIssue(
 				TxtPending[iTxtPending].sFqdn = Work[k].sFqdn;
 				TxtPending[iTxtPending].sTxt = Work[k].sTxt;
 				iTxtPending++;
+				Work[k].sFqdn = NULL;
+				Work[k].sTxt = NULL;
 			}
 			else
 			{
@@ -1313,9 +1930,9 @@ bool xacmeClientIssue(
 	/* 3. 订单 ready → finalize。 */
 	{
 		str sStatus = xacmeFlowWaitStatus(pClient, OrderUrl.sData, &Finalize);
+		if(sStatus == NULL) goto Done;
 		bool bReady = (sStatus != NULL) &&
-			((strcmp(sStatus, "ready") == 0) ||
-				(strcmp(sStatus, "valid") == 0));
+			(strcmp(sStatus, "ready") == 0);
 		xrtFree(sStatus);
 		if(!bReady)
 		{
@@ -1328,22 +1945,24 @@ bool xacmeClientIssue(
 	/* CSR（首个域名为 CN；SAN 全量，含通配符原样）。 */
 	{
 		xacmecsrconfig Csr;
+		xstrview CsrDomains[16];
 		xbuffer CsrDer;
 		str sCsrB64;
-		xacmecertkey StackKey;
+		xacmecertkey StackKey = {0};
 		xacmecertkey* pUseKey = pClient->pCertKey;
 		static const xbase64config B64Url = {
 			NULL, XBASE64_URL | XBASE64_NO_PADDING };
 		bool bCsrOk;
-		Csr.CommonName = pDomains[0];
-		Csr.Domains = pDomains;
-		Csr.DomainCount = iDomainCount;
+		for(i = 0u; i < iBaseCount; i++)
+			CsrDomains[i] = (xstrview){ Bases[i].sData, Bases[i].iSize };
+		Csr.CommonName = CsrDomains[0];
+		Csr.Domains = CsrDomains;
+		Csr.DomainCount = iBaseCount;
 		xrtBufferInit(&CsrDer);
 		if(pUseKey == NULL)
 		{
 			/* 无宿主密钥：生成一次性 ES256（证书密钥独立于账户
 			   密钥，CA 普遍拒绝复用账户钥）。 */
-			memset(&StackKey, 0, sizeof(StackKey));
 			StackKey.Kind = XACME_CERT_KEY_ES256;
 			bCsrOk = xacmeEs256Generate(&StackKey.Ec);
 			pUseKey = &StackKey;
@@ -1354,6 +1973,7 @@ bool xacmeClientIssue(
 		}
 		if(bCsrOk)
 		{
+			xacmeFlowCertPublic(pUseKey, &CertPublic);
 			bCsrOk = xacmeCsrBuild(pUseKey, &Csr, &CsrDer);
 		}
 		if(bCsrOk)
@@ -1369,9 +1989,6 @@ bool xacmeClientIssue(
 		xrtBufferUnit(&CsrDer);
 		if(sCsrB64 == NULL)
 		{
-			xacmeFlowError(
-				XERR_INTERNAL, XACME_FLOW_ERROR_FINALIZE,
-				"acme issue csr build failed");
 			goto Done;
 		}
 		xrtBufferClear(&Payload);
@@ -1392,9 +2009,6 @@ bool xacmeClientIssue(
 		pClient, Finalize.sData,
 		(xstrview){ (cstr)Payload.Data, Payload.Size }, true, &R, 0u))
 	{
-		xacmeFlowError(
-			XERR_PROTOCOL, XACME_FLOW_ERROR_FINALIZE,
-			"acme issue finalize post failed");
 		goto Done;
 	}
 	if((R.iStatus != 200u) && (R.iStatus != 201u))
@@ -1414,6 +2028,7 @@ bool xacmeClientIssue(
 	/* 4. 订单 valid → 证书 URL → 下载链。 */
 	{
 		str sStatus = xacmeFlowWaitStatus(pClient, OrderUrl.sData, NULL);
+		if(sStatus == NULL) goto Done;
 		bool bValid = (sStatus != NULL) && (strcmp(sStatus, "valid") == 0);
 		char sDetail[320];
 		snprintf(sDetail, sizeof(sDetail),
@@ -1429,15 +2044,24 @@ bool xacmeClientIssue(
 	}
 	if(!xacmeFlowPostAsGet(pClient, OrderUrl.sData, &R))
 	{
-		xacmeFlowError(
-			XERR_PROTOCOL, XACME_FLOW_ERROR_CERTIFICATE,
-			"acme issue order fetch for certificate failed");
 		goto Done;
 	}
 	{
-		xvalue* pOrderRoot = (R.sBody != NULL) ?
-			xrtJsonParse((xstrview){ R.sBody, R.iBodySize }) : NULL;
-		bool bCertUrl = (pOrderRoot != NULL) &&
+		if(R.iStatus != 200u)
+		{
+			xacmeHttpResponseUnit(&R);
+			xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_CERTIFICATE,
+				"acme certificate order response status invalid");
+			goto Done;
+		}
+		xvalue* pOrderRoot = xacmeFlowResponseObject(&R, XACME_FLOW_ERROR_CERTIFICATE,
+			"acme certificate order json invalid");
+		if(pOrderRoot == NULL)
+		{
+			xacmeHttpResponseUnit(&R);
+			goto Done;
+		}
+		bool bCertUrl =
 			xacmeJsonValueText(pOrderRoot, "certificate", &Certificate);
 		if(pOrderRoot != NULL)
 		{
@@ -1454,17 +2078,12 @@ bool xacmeClientIssue(
 	}
 	if(!xacmeFlowPostAsGet(pClient, Certificate.sData, &R))
 	{
-		xacmeFlowError(
-			XERR_PROTOCOL, XACME_FLOW_ERROR_CERTIFICATE,
-			"acme issue certificate download failed");
 		goto Done;
 	}
-	if((R.iStatus != 200u) || (R.sBody == NULL) || (R.iBodySize == 0u))
+	if(!xacmeFlowCertificate(&R, &CertPublic, Bases, iBaseCount,
+		(xbytesview){ NULL, 0u }, &pLeafDer, &iLeafDerSize))
 	{
 		xacmeHttpResponseUnit(&R);
-		xacmeFlowError(
-			XERR_PROTOCOL, XACME_FLOW_ERROR_CERTIFICATE,
-			"acme issue certificate response invalid");
 		goto Done;
 	}
 	pOut->sFullchainPem = R.sBody;
@@ -1473,13 +2092,15 @@ bool xacmeClientIssue(
 	if(bAlt && (R.sLink != NULL))
 	{
 		char sAlternate[512];
-		if(xacmeFlowLinkAlternate(R.sLink, sAlternate,
-				sizeof(sAlternate)))
+		char sReference[512];
+		if(xacmeFlowLinkAlternate(R.sLink, sReference, sizeof(sReference)) &&
+			xacmeFlowAlternateUrl(Certificate.sData, sReference,
+				sAlternate, sizeof(sAlternate)))
 		{
 			xacmehttpresponse Alt;
 			if(xacmeFlowPostAsGet(pClient, sAlternate, &Alt) &&
-				(Alt.iStatus == 200u) && (Alt.sBody != NULL) &&
-				(Alt.iBodySize != 0u))
+				xacmeFlowCertificate(&Alt, &CertPublic, Bases, iBaseCount,
+					(xbytesview){ pLeafDer, iLeafDerSize }, NULL, NULL))
 			{
 				xrtFree(pOut->sFullchainPem);
 				pOut->sFullchainPem = Alt.sBody;
@@ -1489,15 +2110,27 @@ bool xacmeClientIssue(
 			xacmeHttpResponseUnit(&Alt);
 			xrtClearError();
 		}
+		else xrtClearError();
 	}
 	xacmeHttpResponseUnit(&R);
 	bResult = true;
 
 Done:
+	if(pUncertainError == NULL && !bResult)
+		pUncertainError = xrtErrorRef(xrtGetError());
+	xrtFree(pLeafDer);
 	/* TXT 统一清理：全部授权验证完成（或中途失败）后统一 Remove，
 	   期间多值并存规避次级验证器缓存竞态。 */
 	{
 		size_t k;
+		for(k = 0; k < iWorkCount; k++)
+		{
+			if(Work[k].sFqdn == NULL)
+				continue;
+			xacmeFlowDnsRemove(pDns, Work[k].sFqdn, Work[k].sTxt);
+			xrtFree(Work[k].sFqdn);
+			xrtFree(Work[k].sTxt);
+		}
 
 		for(k = 0; k < iTxtPending; k++)
 		{
@@ -1512,11 +2145,13 @@ Done:
 		xrtValueRelease(pRoot);
 	}
 	xrtBufferUnit(&Payload);
+	/* Cleanup must not replace the primary failure with a DNS removal error. */
+	if(pUncertainError != NULL)
+		xrtSetErrorTake(pUncertainError);
 	if(!bResult)
 	{
-		xrtFree(pOut->sFullchainPem);
-		xrtFree(pOut->sKeyPem);
-		memset(pOut, 0, sizeof(*pOut));
+		/* The common grant destructor also erases the exported private key. */
+		xrtAcmeGrantUnit(pOut);
 	}
 	return bResult;
 }
@@ -1533,7 +2168,9 @@ bool xacmeClientIssueStored(
 	char sPrimary[256];
 	if((pClient == NULL) || (pDomains == NULL) || (iDomainCount == 0u) ||
 		(pbRenewed == NULL) || (pOut == NULL) ||
-		(pDomains[0].Size == 0u) || (pDomains[0].Size >= sizeof(sPrimary)))
+		(pDomains[0].Data == NULL) || (pDomains[0].Size == 0u) ||
+		(pDomains[0].Size >= sizeof(sPrimary)) ||
+		(memchr(pDomains[0].Data, '\0', pDomains[0].Size) != NULL))
 	{
 		xacmeFlowError(
 			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
@@ -1567,8 +2204,6 @@ bool xacmeClientIssueStored(
 			sStoreRoot, sPrimary, pOut, pClient->sDirectoryUrl))
 	{
 		/* 落盘失败不作废已签证书；报告错误由调用方权衡。 */
-		xacmeFlowError(
-			XERR_IO, XACME_FLOW_ERROR_STORE, "acme issue stored save failed");
 		xrtAcmeGrantUnit(pOut);
 		return false;
 	}
@@ -1607,9 +2242,6 @@ bool xacmeClientRevoke(xacmeclient* pClient, cstr sCertPem, int iReason)
 	if(!xrtPemFind(sCertPem, strlen(sCertPem), "CERTIFICATE", &Block) ||
 		((pDer = xrtPemDecodeNew(&Block, &iDerSize)) == NULL))
 	{
-		xacmeFlowError(
-			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
-			"acme revoke certificate pem invalid");
 		return false;
 	}
 	sCertB64 = xrtBase64EncodeNew(pDer, iDerSize, &B64Url);
@@ -1651,11 +2283,19 @@ bool xacmeClientRevoke(xacmeclient* pClient, cstr sCertPem, int iReason)
 		xacmeHttpResponseUnit(&R);
 		return true;
 	}
-	if((R.iStatus == 400u) && (R.sBody != NULL) &&
-		(strstr(R.sBody, "alreadyRevoked") != NULL))
+	if(R.iStatus == 400u)
 	{
-		xacmeHttpResponseUnit(&R);
-		return true;
+		xacmeflowurl Type;
+		if(!xacmeFlowProblemType(&R, &Type))
+		{
+			xacmeHttpResponseUnit(&R);
+			return false;
+		}
+		if(strcmp(Type.sData, "urn:ietf:params:acme:error:alreadyRevoked") == 0)
+		{
+			xacmeHttpResponseUnit(&R);
+			return true;
+		}
 	}
 	{
 		char sDetail[240];
@@ -1670,14 +2310,112 @@ bool xacmeClientRevoke(xacmeclient* pClient, cstr sCertPem, int iReason)
 #endif
 
 #if defined(XACME_FEATURE_ACME_FLOW)
+typedef enum xacmerolloverlookup {
+	XACME_ROLLOVER_LOOKUP_UNKNOWN = 0,
+	XACME_ROLLOVER_LOOKUP_MATCH,
+	XACME_ROLLOVER_LOOKUP_ABSENT,
+	XACME_ROLLOVER_LOOKUP_OTHER_ACCOUNT
+} xacmerolloverlookup;
+
+/* RFC 8555 §7.3.1：只查询新钥是否已绑定当前账户，不创建账户。 */
+static xacmerolloverlookup xacmeFlowRolloverLookup(
+	xacmeclient* pClient, const xacmees256key* pNewKey)
+{
+	static const char* sPayload = "{\"onlyReturnExisting\":true}";
+	uint32 uAttempt;
+	for(uAttempt = 0u; uAttempt < 3u; uAttempt++)
+	{
+		xacmejwsheader H;
+		xacmehttpresponse R;
+		str sToken;
+		xacmerolloverlookup Result = XACME_ROLLOVER_LOOKUP_UNKNOWN;
+		bool bBadNonce;
+		if(!xacmeFlowNewNonce(pClient))
+			return Result;
+		H.Nonce = (xstrview){
+			pClient->sNonce, strlen(pClient->sNonce) };
+		H.Url = (xstrview){
+			pClient->sNewAccount, strlen(pClient->sNewAccount) };
+		H.Kid = (xstrview){ NULL, 0u };
+		sToken = xacmeJwsEs256(pNewKey, &H,
+			(xstrview){ sPayload, strlen(sPayload) });
+		if(sToken == NULL)
+			return Result;
+		pClient->sNonce[0] = '\0';
+		if(!xacmeHttpExchange(&pClient->Http, "POST",
+				pClient->sNewAccount, "application/jose+json",
+				(xstrview){ sToken, strlen(sToken) }, &R))
+		{
+			bool bRetry = xacmeFlowHttpUncertain(xrtGetError());
+			xrtFree(sToken);
+			if(bRetry && (uAttempt + 1u < 3u))
+			{
+				xrtClearError();
+				continue;
+			}
+			return Result;
+		}
+		xrtFree(sToken);
+		xacmeFlowTakeNonce(pClient, &R);
+		bBadNonce = false;
+		if(R.iStatus == 400u)
+		{
+			xacmeflowurl Type;
+			if(!xacmeFlowProblemType(&R, &Type))
+			{
+				xacmeHttpResponseUnit(&R);
+				return Result;
+			}
+			bBadNonce = strcmp(Type.sData, "urn:ietf:params:acme:error:badNonce") == 0;
+			if(strcmp(Type.sData, "urn:ietf:params:acme:error:accountDoesNotExist") == 0)
+				Result = XACME_ROLLOVER_LOOKUP_ABSENT;
+		}
+		else if((R.iStatus == 200u) && (R.sLocation != NULL) && R.sLocation[0])
+		{
+			xvalue* pRoot = xacmeFlowResponseObject(&R, XACME_FLOW_ERROR_ACCOUNT,
+				"acme rollover lookup account json invalid");
+			xacmeflowurl Status;
+			if(pRoot == NULL)
+			{
+				xacmeHttpResponseUnit(&R);
+				return Result;
+			}
+			if(xacmeJsonValueText(pRoot, "status", &Status) && strcmp(Status.sData, "valid") == 0)
+				Result = strcmp(R.sLocation, pClient->sKid) == 0 ?
+					XACME_ROLLOVER_LOOKUP_MATCH : XACME_ROLLOVER_LOOKUP_OTHER_ACCOUNT;
+			xrtValueRelease(pRoot);
+		}
+		xacmeHttpResponseUnit(&R);
+		if(bBadNonce)
+		{
+			if(uAttempt + 1u == 3u || pClient->sNonce[0] == 0)
+			{
+				xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_NONCE,
+					"acme rollover key lookup nonce retries exhausted");
+				return XACME_ROLLOVER_LOOKUP_UNKNOWN;
+			}
+			continue;
+		}
+		if(Result != XACME_ROLLOVER_LOOKUP_UNKNOWN)
+			xrtClearError();
+		else
+			xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_ACCOUNT,
+				"acme rollover key lookup response inconclusive");
+		return Result;
+	}
+	xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_NONCE,
+		"acme rollover key lookup retry exhausted");
+	return XACME_ROLLOVER_LOOKUP_UNKNOWN;
+}
+
 bool xacmeClientRollover(
 	xacmeclient* pClient, cstr sNewKeyPem, cstr sStoreRoot)
 {
 	xacmees256key NewKey;
 	str sOldJwk = NULL;
-	str sPayload = NULL;
 	str sInner = NULL;
 	str sOuter = NULL;
+	xacmerolloverlookup Lookup;
 	bool bOk = false;
 
 	if((pClient == NULL) || (sNewKeyPem == NULL) ||
@@ -1697,17 +2435,25 @@ bool xacmeClientRollover(
 	}
 	if(!xacmeKeyPemRead(sNewKeyPem, strlen(sNewKeyPem), &NewKey))
 	{
-		xacmeFlowError(
-			XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
-			"acme rollover new key pem invalid");
 		return false;
+	}
+	/* 进程重启后重试同一新钥时，先确认服务器是否已经换钥。 */
+	Lookup = xacmeFlowRolloverLookup(pClient, &NewKey);
+	if(Lookup == XACME_ROLLOVER_LOOKUP_MATCH)
+		goto ApplyNewKey;
+	if(Lookup != XACME_ROLLOVER_LOOKUP_ABSENT)
+	{
+		if(Lookup == XACME_ROLLOVER_LOOKUP_OTHER_ACCOUNT)
+			xacmeFlowError(XERR_STATE, XACME_FLOW_ERROR_ACCOUNT,
+				"acme rollover new key belongs to another account");
+		goto Done;
 	}
 	sOldJwk = xacmeJwkEcJson(&pClient->AccountKey);
 	if(sOldJwk == NULL)
 	{
 		goto Done;
 	}
-	/* 内层 JWS：旧钥签名，载荷 {account, oldKey}。 */
+	/* RFC 8555 §7.3.5：内层由新钥签名并嵌新 JWK。 */
 	{
 		xbuffer Payload;
 		xacmejwsheader Inner;
@@ -1732,9 +2478,9 @@ bool xacmeClientRollover(
 		Inner.Nonce.Size = 0u;
 		Inner.Url = (xstrview){
 			pClient->sKeyChange, strlen(pClient->sKeyChange) };
-		Inner.Kid = (xstrview){ pClient->sKid, strlen(pClient->sKid) };
+		Inner.Kid = (xstrview){ NULL, 0u };
 		sInner = xacmeJwsEs256(
-			&pClient->AccountKey, &Inner,
+			&NewKey, &Inner,
 			(xstrview){ (cstr)Payload.Data, Payload.Size });
 		xrtBufferUnit(&Payload);
 	}
@@ -1742,10 +2488,8 @@ bool xacmeClientRollover(
 	{
 		goto Done;
 	}
-	/* 外层 JWS：新钥签名（保护头嵌新 JWK + nonce），载荷 = 内层
-	   JWS；构建移入下方 badNonce 重试循环（每次换 nonce 重建）。 */
-	/* 裸 POST 带 badNonce 重试：外层 JWS 嵌死 nonce，服务端已消费
-	   而响应丢失时需换 nonce 重建 token 重发（对齐 FlowPost 语义）。 */
+	/* 外层由旧账户钥签名，保护头携带 kid + nonce；badNonce 时
+	   只重建外层 JWS，内层无 nonce 可以复用。 */
 	{
 		uint32 uNonceRetry;
 		bool bPosted = false;
@@ -1761,11 +2505,12 @@ bool xacmeClientRollover(
 				pClient->sNonce, strlen(pClient->sNonce) };
 			Outer.Url = (xstrview){
 				pClient->sKeyChange, strlen(pClient->sKeyChange) };
-			Outer.Kid.Data = NULL;
-			Outer.Kid.Size = 0u; /* 嵌新 JWK。 */
+			Outer.Kid = (xstrview){
+				pClient->sKid, strlen(pClient->sKid) };
 			xrtFree(sOuter);
 			sOuter = xacmeJwsEs256(
-				&NewKey, &Outer, (xstrview){ sInner, strlen(sInner) });
+				&pClient->AccountKey, &Outer,
+				(xstrview){ sInner, strlen(sInner) });
 			if(sOuter == NULL)
 			{
 				goto Done;
@@ -1776,14 +2521,40 @@ bool xacmeClientRollover(
 					"application/jose+json",
 					(xstrview){ sOuter, strlen(sOuter) }, &R))
 			{
+				if(xacmeFlowHttpUncertain(xrtGetError()))
+				{
+					xerror* pWriteError = xrtErrorRef(xrtGetError());
+					Lookup = xacmeFlowRolloverLookup(pClient, &NewKey);
+					if(Lookup == XACME_ROLLOVER_LOOKUP_MATCH)
+					{
+						xrtErrorFree(pWriteError);
+						xrtClearError();
+						goto ApplyNewKey;
+					}
+					xrtSetErrorTake(pWriteError);
+				}
 				goto Done;
 			}
 			xacmeFlowTakeNonce(pClient, &R);
-			if((R.iStatus == 400u) && (R.sBody != NULL) &&
-				(strstr(R.sBody, "badNonce") != NULL))
+			if(R.iStatus == 400u)
 			{
-				xacmeHttpResponseUnit(&R);
-				continue;
+				xacmeflowurl Type;
+				if(!xacmeFlowProblemType(&R, &Type))
+				{
+					xacmeHttpResponseUnit(&R);
+					goto Done;
+				}
+				if(strcmp(Type.sData, "urn:ietf:params:acme:error:badNonce") == 0)
+				{
+					xacmeHttpResponseUnit(&R);
+					if(pClient->sNonce[0] == 0)
+					{
+						xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_NONCE,
+							"acme rollover badNonce response missing fresh nonce");
+						goto Done;
+					}
+					continue;
+				}
 			}
 			if(R.iStatus != 200u)
 			{
@@ -1809,12 +2580,15 @@ bool xacmeClientRollover(
 			goto Done;
 		}
 	}
-	/* 生效：旧钥擦除，客户端切到新钥（kid 不变）。 */
+ApplyNewKey:
+	/* 200 响应或只读账户查询证明新钥生效后，才替换内存与存储。 */
+	xrtClearError();
 	xrtSecureZero(&pClient->AccountKey, sizeof(pClient->AccountKey));
 	pClient->AccountKey = NewKey;
 	memset(&NewKey, 0, sizeof(NewKey));
-	/* store 重存：消除滚动后 Obtain 读旧钥开新账户的漂移。
-	   失败不作废滚动（内存已生效），报告由错误链承载。 */
+	bOk = true;
+	/* store 重存失败不能撤销远端换钥；内存继续使用新钥，返回失败
+	   让调用方知道持久化尚未完成，并可用同一新钥重试对账。 */
 	if((sStoreRoot != NULL) && (sStoreRoot[0] != 0))
 	{
 #if defined(XACME_FEATURE_ACME_STORE)
@@ -1824,19 +2598,19 @@ bool xacmeClientRollover(
 		xrtFree(sNewAccountPem);
 		if(!bSaved)
 		{
-			xacmeFlowError(
-				XERR_IO, XACME_FLOW_ERROR_STORE,
-				"acme rollover store resave failed");
+			bOk = false;
 		}
+#else
+		xacmeFlowError(XERR_UNSUPPORTED, XACME_FLOW_ERROR_STORE,
+			"acme rollover store support is not enabled");
+		bOk = false;
 #endif
 	}
-	bOk = true;
 
 Done:
 	/* 失败时擦除新钥副本。 */
 	xrtSecureZero(&NewKey, sizeof(NewKey));
 	xrtFree(sOldJwk);
-	xrtFree(sPayload);
 	xrtFree(sInner);
 	xrtFree(sOuter);
 	return bOk;
@@ -1871,8 +2645,19 @@ bool xacmeClientDeactivate(xacmeclient* pClient)
 	/* 200 = 已停用或刚停用；幂等成功。 */
 	if(R.iStatus == 200u)
 	{
+		xvalue* pRoot = xacmeFlowResponseObject(&R, XACME_FLOW_ERROR_ACCOUNT,
+			"acme deactivate account json invalid");
+		xacmeflowurl Status;
+		bool bDeactivated;
 		xacmeHttpResponseUnit(&R);
-		return true;
+		if(pRoot == NULL) return false;
+		bDeactivated = xacmeJsonValueText(pRoot, "status", &Status) &&
+			strcmp(Status.sData, "deactivated") == 0;
+		xrtValueRelease(pRoot);
+		if(!bDeactivated)
+			xacmeFlowError(XERR_PROTOCOL, XACME_FLOW_ERROR_ACCOUNT,
+				"acme deactivate account is not deactivated");
+		return bDeactivated;
 	}
 	{
 		char sDetail[220];
@@ -1932,7 +2717,8 @@ struct xacmeclient* xrtAcmeClientCreate(
 		sResolvers = sDefaults;
 		iResolverCount = 3u;
 	}
-	pClient = (xacmeclient*)xrtMalloc(sizeof(*pClient));
+	/* Init 可在参数校验时返回；失败回滚也必须看到一个有效的空对象。 */
+	pClient = (xacmeclient*)xrtCalloc(1u, sizeof(*pClient));
 	if(pClient == NULL)
 	{
 		return NULL;
@@ -1941,7 +2727,7 @@ struct xacmeclient* xrtAcmeClientCreate(
 			pClient, pConfig->pBorrowedEngine, pConfig->sCaPem,
 			pConfig->pAccount, pConfig->uTimeoutUs))
 	{
-		xrtFree(pClient);
+		xacmeClientDiscard(pClient);
 		return NULL;
 	}
 	if((pConfig->sCertKeyPem != NULL) && (pConfig->sCertKeyPem[0] != 0))
@@ -1953,12 +2739,12 @@ struct xacmeclient* xrtAcmeClientCreate(
 				pConfig->sCertKeyPem, strlen(pConfig->sCertKeyPem),
 				pClient->pCertKey))
 		{
-			xacmeFlowError(
-				XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
-				"acme client cert key pem invalid");
+			xacmeCertKeyUnit(pClient->pCertKey);
 			xrtFree(pClient->pCertKey);
-			xacmeClientUnit(pClient);
-			xrtFree(pClient);
+			pClient->pCertKey = NULL;
+			if(pClient->Http.uTimeoutUs < UINT64_C(30000000))
+				pClient->Http.uTimeoutUs = UINT64_C(30000000);
+			xacmeClientDiscard(pClient);
 			return NULL;
 		}
 	}
@@ -1985,19 +2771,31 @@ struct xacmeclient* xrtAcmeClientCreate(
 	return pClient;
 }
 
-void xrtAcmeClientDestroy(struct xacmeclient* pClient)
+bool xrtAcmeClientCleanup(struct xacmeclient* pClient)
 {
 	if(pClient == NULL)
 	{
-		return;
+		return true;
 	}
 	if(pClient->pCertKey != NULL)
 	{
 		xacmeCertKeyUnit(pClient->pCertKey);
 		xrtFree(pClient->pCertKey);
+		pClient->pCertKey = NULL;
 	}
-	xacmeClientUnit(pClient);
-	xrtFree(pClient);
+	return xacmeClientUnit(pClient);
+}
+
+void xacmeClientDiscard(xacmeclient* pClient)
+{
+	if(pClient == NULL) return;
+	if(xrtAcmeClientCleanup(pClient)) xrtFree(pClient);
+	else xacmeHttpDeferOwner(&pClient->Http, sizeof(*pClient));
+}
+
+void xrtAcmeClientDestroy(struct xacmeclient* pClient)
+{
+	if(xrtAcmeClientCleanup(pClient)) xrtFree(pClient);
 }
 
 str xrtAcmeClientAccountPem(const struct xacmeclient* pClient)

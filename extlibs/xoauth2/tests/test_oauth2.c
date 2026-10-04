@@ -1,6 +1,9 @@
 /* xoauth2 测试：单 TU（XRT_IMPLEMENTATION 只定义一次）。
  * 覆盖：PKCE/state/URL 编码/预设/授权 URL/CSRF/请求构造（三种
  * AuthStyle）/响应解析/token 时间戳/错误码/泄漏实测/fuzz。 */
+#if !defined(_WIN32) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE 1
+#endif
 #define XRT_MODULE_ALL
 #define XRT_IMPLEMENTATION
 #include "../xoauth2.c"
@@ -98,14 +101,23 @@ static bool leakcycle_http(const char* sMethod, const char* sUrl,
 	switch ( s_LeakCycle++ % 3 ) {
 	case 0:
 		*piStatus = 200;
-		*psBody = (char*)xrtMalloc(40);
-		strcpy(*psBody, "{\"access_token\":\"ok\",\"token_type\":\"bearer\",\"expires_in\":60}");
+		{
+			static const char sReply[] =
+				"{\"access_token\":\"ok\",\"token_type\":\"bearer\",\"expires_in\":60}";
+			*psBody = (char*)xrtMalloc(sizeof(sReply));
+			if ( *psBody == NULL ) return false;
+			memcpy(*psBody, sReply, sizeof(sReply));
+		}
 		return true;
 	case 1:   /* 非 2xx 但含完整令牌结构：exchange 探测后必须释放 */
 		*piStatus = 404;
-		*psBody = (char*)xrtMalloc(64);
-		strcpy(*psBody,
-			"{\"access_token\":\"ghost\",\"token_type\":\"bearer\"}");
+		{
+			static const char sReply[] =
+				"{\"access_token\":\"ghost\",\"token_type\":\"bearer\"}";
+			*psBody = (char*)xrtMalloc(sizeof(sReply));
+			if ( *psBody == NULL ) return false;
+			memcpy(*psBody, sReply, sizeof(sReply));
+		}
 		return true;
 	default:
 		return false;
@@ -119,9 +131,22 @@ static bool fuzz_http(const char* sMethod, const char* sUrl,
 {
 	(void)sUrl; (void)sBody; (void)sAuthHeader; (void)pContext;
 	*piStatus = (sMethod[0] == 'G') ? 200 : 400;
-	*psBody = (char*)xrtMalloc(2);
-	strcpy(*psBody, "{}");
+	*psBody = (char*)xrtMalloc(sizeof("{}"));
+	if ( *psBody == NULL ) return false;
+	memcpy(*psBody, "{}", sizeof("{}"));
 	return true;
+}
+
+/* 失败前交付部分响应体：调用方仍须按回调所有权契约释放它。 */
+static bool failed_body_http(const char* sMethod, const char* sUrl,
+                             const char* sBody, const char* sAuthHeader,
+                             char** psBody, int* piStatus, void* pContext)
+{
+	(void)sMethod; (void)sUrl; (void)sBody; (void)sAuthHeader; (void)pContext;
+	*psBody = (char*)xrtMalloc(sizeof("partial"));
+	if ( *psBody != NULL ) memcpy(*psBody, "partial", sizeof("partial"));
+	*piStatus = 0;
+	return false;
 }
 
 #ifdef _WIN32
@@ -131,6 +156,8 @@ static const char* g_ServerReply = "";
 static char g_ServerSaw[4096];
 static char g_ServerDone[4096];
 static volatile LONG g_ServerStop = 0;
+static volatile LONG g_ServerSlow = 0;
+static volatile LONG g_ServerSlowDone = 0;
 static SOCKET g_ListenSock = INVALID_SOCKET;
 
 /* 单连接循环：accept → 读到 Content-Length 满足 → 回 canned 响应 */
@@ -159,10 +186,182 @@ static DWORD WINAPI loop_server_proc(LPVOID param)
 			}
 		}
 		memcpy(g_ServerDone, g_ServerSaw, sizeof(g_ServerSaw));
-		send(cli, g_ServerReply, (int)strlen(g_ServerReply), 0);
+		if ( InterlockedExchange(&g_ServerSlow, 0) != 0 ) {
+			(void)send(cli, "HTTP/1.1 200 OK\r\n", 17, 0);
+			Sleep(180);
+			(void)send(cli,
+				"Content-Length: 2\r\nConnection: close\r\n\r\n", 40, 0);
+			Sleep(180);
+			(void)send(cli, "ok", 2, 0);
+			InterlockedExchange(&g_ServerSlowDone, 1);
+		} else {
+			(void)send(cli, g_ServerReply, (int)strlen(g_ServerReply), 0);
+		}
 		closesocket(cli);
 	}
 	return 0;
+}
+#else
+#include <arpa/inet.h>
+#include <errno.h>
+#include <netinet/in.h>
+#include <pthread.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <unistd.h>
+
+static int g_PosixListen = -1;
+static pthread_t g_PosixThread;
+static pthread_mutex_t g_PosixLock = PTHREAD_MUTEX_INITIALIZER;
+static char g_PosixDone[4096];
+static unsigned g_PosixCount = 0u;
+static bool g_PosixSuccess = true;
+
+static const char* const s_PosixReplies[] = {
+	"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+	"Content-Length: 66\r\nConnection: close\r\n\r\n"
+	"{\"access_token\":\"loop_tok\",\"token_type\":\"bearer\",\"expires_in\":900}",
+	"HTTP/1.1 400 Bad Request\r\nContent-Length: 25\r\n"
+	"Connection: close\r\n\r\n{\"error\":\"invalid_grant\"}",
+	"HTTP/1.1 200 OK\r\nContent-Length: 61\r\n"
+	"Connection: close\r\n\r\n"
+	"{\"access_token\":\"rf2\",\"token_type\":\"bearer\",\"expires_in\":600}",
+	"HTTP/1.1 200 OK\r\nContent-Length: 99999999\r\n"
+	"Connection: close\r\n\r\n{\"access_token\":\"x\"}",
+	"HTTP/1.1 200 OK\r\nContent-Length: 65\r\n"
+	"Connection: close\r\n\r\n"
+	"{\"access_token\":\"heap-rt\",\"token_type\":\"bearer\",\"expires_in\":600}"
+};
+
+static bool posixLoopReceive(int iClient, char* sRequest, size_t iCapacity)
+{
+	size_t iUsed = 0u;
+	size_t iBody = SIZE_MAX;
+	while ( iUsed < iCapacity - 1u ) {
+		ssize_t iRead = recv(iClient, sRequest + iUsed,
+			iCapacity - 1u - iUsed, 0);
+		if ( iRead < 0 && errno == EINTR ) continue;
+		if ( iRead <= 0 ) return false;
+		iUsed += (size_t)iRead;
+		sRequest[iUsed] = 0;
+		char* pEnd = strstr(sRequest, "\r\n\r\n");
+		if ( pEnd != NULL ) {
+			if ( iBody == SIZE_MAX ) {
+				char* pLength = strstr(sRequest, "Content-Length:");
+				iBody = pLength != NULL ?
+					(size_t)strtoul(pLength + 15, NULL, 10) : 0u;
+			}
+			if ( iBody > iCapacity - 1u ) return false;
+			if ( iUsed - (size_t)(pEnd - sRequest) - 4u >= iBody )
+				return true;
+		}
+	}
+	return false;
+}
+
+static bool posixLoopSend(int iClient, const char* sReply)
+{
+	size_t iUsed = 0u;
+	size_t iSize = strlen(sReply);
+	while ( iUsed < iSize ) {
+		int iFlags = 0;
+		#ifdef MSG_NOSIGNAL
+			iFlags = MSG_NOSIGNAL;
+		#endif
+		ssize_t iSent = send(iClient, sReply + iUsed, iSize - iUsed,
+			iFlags);
+		if ( iSent < 0 && errno == EINTR ) continue;
+		if ( iSent <= 0 ) return false;
+		iUsed += (size_t)iSent;
+	}
+	return true;
+}
+
+static void* posixLoopServer(void* pData)
+{
+	(void)pData;
+	const size_t iReplies = sizeof(s_PosixReplies) / sizeof(s_PosixReplies[0]);
+	for ( size_t i = 0u; i <= iReplies; i++ ) {
+		char sRequest[sizeof(g_PosixDone)];
+		int iClient = accept(g_PosixListen, NULL, NULL);
+		if ( iClient < 0 ) {
+			g_PosixSuccess = false;
+			break;
+		}
+		struct timeval Timeout = { 5, 0 };
+		(void)setsockopt(iClient, SOL_SOCKET, SO_RCVTIMEO,
+			&Timeout, sizeof(Timeout));
+		bool bOk = posixLoopReceive(iClient, sRequest,
+			sizeof(sRequest));
+		if ( bOk ) {
+			pthread_mutex_lock(&g_PosixLock);
+			strcpy(g_PosixDone, sRequest);
+			pthread_mutex_unlock(&g_PosixLock);
+			if ( i == iReplies ) {
+				/* 每段间隔小于单次等待、总时间超过响应截止时间。 */
+				(void)posixLoopSend(iClient, "HTTP/1.1 200 OK\r\n");
+				usleep(180000);
+				(void)posixLoopSend(iClient,
+					"Content-Length: 2\r\nConnection: close\r\n\r\n");
+				usleep(180000);
+				(void)posixLoopSend(iClient, "ok");
+			} else {
+				bOk = posixLoopSend(iClient, s_PosixReplies[i]);
+			}
+		}
+		close(iClient);
+		if ( !bOk ) {
+			g_PosixSuccess = false;
+			break;
+		}
+		g_PosixCount++;
+	}
+	return NULL;
+}
+
+static bool posixLoopStart(int* pPort)
+{
+	struct sockaddr_in Address;
+	socklen_t iAddressSize = sizeof(Address);
+	memset(&Address, 0, sizeof(Address));
+	Address.sin_family = AF_INET;
+	Address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	g_PosixListen = socket(AF_INET, SOCK_STREAM, 0);
+	if ( g_PosixListen < 0 ) return false;
+	if ( bind(g_PosixListen, (struct sockaddr*)&Address,
+			sizeof(Address)) != 0 ||
+		listen(g_PosixListen, 4) != 0 ||
+		getsockname(g_PosixListen, (struct sockaddr*)&Address,
+			&iAddressSize) != 0 ) {
+		close(g_PosixListen);
+		g_PosixListen = -1;
+		return false;
+	}
+	*pPort = (int)ntohs(Address.sin_port);
+	if ( pthread_create(&g_PosixThread, NULL, posixLoopServer, NULL) != 0 ) {
+		close(g_PosixListen);
+		g_PosixListen = -1;
+		return false;
+	}
+	return true;
+}
+
+static bool posixLoopSaw(const char* sNeedle)
+{
+	bool bFound;
+	pthread_mutex_lock(&g_PosixLock);
+	bFound = strstr(g_PosixDone, sNeedle) != NULL;
+	pthread_mutex_unlock(&g_PosixLock);
+	return bFound;
+}
+
+static void posixLoopStop(void)
+{
+	if ( g_PosixListen < 0 ) return;
+	(void)shutdown(g_PosixListen, SHUT_RDWR);
+	pthread_join(g_PosixThread, NULL);
+	close(g_PosixListen);
+	g_PosixListen = -1;
 }
 #endif
 
@@ -171,10 +370,261 @@ static const char* T_JSON_OK =
 	"\"id_token\":\"eyJ...\",\"token_type\":\"Bearer\","
 	"\"expires_in\":3600,\"scope\":\"read:user\"}";
 
+static void test_token_fields_embedded_nul(void)
+{
+	static const char* names[] = { "access_token", "refresh_token", "id_token",
+		"openid", "token_type", "scope" };
+	static const char* invalid[] = { "\\u0000tail", "head\\u0000tail", "head\\u0000" };
+	for (size_t field = 0u; field < 6u; field++) {
+	for (size_t position = 0u; position < 3u; position++) {
+		const char* values[] = { "access", "refresh", "id", "openid", "Bearer", "read:user" };
+		char json[512], label[128];
+		xoauth2token* token;
+		long baselineBytes, baselineCount;
+		values[field] = invalid[position];
+		(void)snprintf(json, sizeof(json),
+			"{\"access_token\":\"%s\",\"refresh_token\":\"%s\",\"id_token\":\"%s\","
+			"\"openid\":\"%s\",\"token_type\":\"%s\",\"scope\":\"%s\"}",
+			values[0], values[1], values[2], values[3], values[4], values[5]);
+		(void)snprintf(label, sizeof(label), "token field %s rejects NUL at position %zu",
+			names[field], position);
+		xrtClearError();
+		baselineBytes = g_probeLiveBytes;
+		baselineCount = s_probeLive;
+		token = xoauth2__parse_token_response(json, strlen(json));
+		CHECK(token == NULL && xoauth2LastError() == XOAUTH2_ERROR_TOKEN_RESPONSE, label);
+		xoauth2TokenFree(token);
+		xrtClearError();
+		if (g_probeLiveBytes != baselineBytes || s_probeLive != baselineCount)
+			printf("NUL field %s position %zu memory %ld/%ld -> %ld/%ld\n", names[field],
+				position, baselineBytes, baselineCount, g_probeLiveBytes, s_probeLive);
+		CHECK(g_probeLiveBytes == baselineBytes && s_probeLive == baselineCount,
+			"NUL token-field rejection releases partial token and JSON");
+	}
+	}
+	/* Literal backslash-u text is representable; only the decoded NUL is rejected. */
+	{
+		const char* json = "{\"access_token\":\"prefix\\\\u0000suffix\",\"token_type\":\"Bearer\"}";
+		long baselineBytes = g_probeLiveBytes, baselineCount = s_probeLive;
+		xoauth2token* token = xoauth2__parse_token_response(json, strlen(json));
+		CHECK(token != NULL && strcmp(token->AccessToken, "prefix\\u0000suffix") == 0 &&
+			strcmp(token->TokenType, "bearer") == 0,
+			"token fields preserve literal escaped backslash-u text");
+		xoauth2TokenFree(token);
+		xrtClearError();
+		CHECK(g_probeLiveBytes == baselineBytes && s_probeLive == baselineCount,
+			"literal backslash-u token cleanup releases allocations");
+	}
+	for (unsigned wechat = 0u; wechat < 2u; wechat++) {
+	for (unsigned refresh = 0u; refresh < 2u; refresh++) {
+		xoauth2client client = {0};
+		xoauth2token* token;
+		long baselineBytes = g_probeLiveBytes, baselineCount = s_probeLive;
+		if (wechat) xoauth2UseWechat(&client, "id", "secret", "https://app/cb");
+		else xoauth2UseGithub(&client, "id", "secret", "https://app/cb");
+		client.Config.Http = mock_http;
+		mock_setup(200, wechat ?
+			"{\"access_token\":\"access\",\"openid\":\"head\\u0000tail\"}" :
+			"{\"access_token\":\"head\\u0000tail\",\"token_type\":\"bearer\"}");
+		xrtClearError();
+		if (refresh) token = xoauth2Refresh(&client, "refresh");
+		else {
+			char* url = xoauth2BeginLogin(&client);
+			xrtFree(url);
+			token = xoauth2CompleteLogin(&client, "code", client.sState);
+			CHECK(client.sState[0] == 0, "NUL token response does not restore consumed login state");
+		}
+		CHECK(token == NULL && xoauth2LastError() == XOAUTH2_ERROR_TOKEN_RESPONSE,
+			"public login/refresh rejects decoded NUL in generic and WeChat token fields");
+		xoauth2TokenFree(token);
+		xoauth2ClientUnit(&client);
+		xrtClearError();
+		if (g_probeLiveBytes != baselineBytes || s_probeLive != baselineCount)
+			printf("NUL public wechat=%u refresh=%u memory %ld/%ld -> %ld/%ld\n", wechat,
+				refresh, baselineBytes, baselineCount, g_probeLiveBytes, s_probeLive);
+		CHECK(g_probeLiveBytes == baselineBytes && s_probeLive == baselineCount,
+			"public NUL token rejection releases response and client resources");
+	}
+	}
+}
+
+static void test_http_future_terminal_states(void)
+{
+	static const char* labels[] = {
+		"HTTP send future resolved", "HTTP send future failed",
+		"HTTP send future cancelled", "HTTP send future closed"
+	};
+	int i;
+	for ( i = 0; i < 4; ++i ) {
+		xfuture* pFuture = NULL;
+		xpromise* pPromise = xrtPromiseCreate(&pFuture, NULL);
+		xerror* pError = NULL;
+		bool bDone = false;
+		CHECK(pPromise != NULL && pFuture != NULL,
+			"HTTP future terminal-state fixture created");
+		if ( pPromise == NULL || pFuture == NULL ) {
+			xrtFutureDestroy(pFuture);
+			xrtPromiseDestroy(pPromise);
+			continue;
+		}
+		if ( i == 0 ) bDone = xrtPromiseResolve(pPromise, NULL);
+		else if ( i == 1 ) {
+			pError = xrtErrorCreate(XERR_IO, "xoauth2.test", 1,
+				"injected I/O failure");
+			bDone = pError != NULL && xrtPromiseReject(pPromise, pError);
+		}
+		else if ( i == 2 ) bDone = xrtPromiseCancel(pPromise);
+		else bDone = xrtPromiseClose(pPromise);
+		CHECK(bDone, "HTTP future terminal state published");
+		if ( bDone )
+			CHECK(future_wait(pFuture, xrtDeadlineAfter(1000000u)) == (i == 0),
+				labels[i]);
+		else xrtFutureDestroy(pFuture);
+		xrtErrorFree(pError);
+		xrtPromiseDestroy(pPromise);
+	}
+}
+
 int main(void)
 {
 	xallocator tProbeAlloc = { NULL, probe_alloc, probe_realloc, probe_free };
 	xrtSetAllocator(&tProbeAlloc);
+	test_http_future_terminal_states();
+	{
+		size_t pending = SIZE_MAX;
+		xerror* previous;
+		xoauth2__error(XOAUTH2_ERROR_TOKEN_DENIED, "previous operation error");
+		previous = xrtErrorRef(xrtGetError());
+		CHECK(xoauth2HttpXrtCleanupPending(0u, &pending) && pending == 0u &&
+			xrtGetError() == previous, "HTTP pending cleanup on empty queue retains diagnostic");
+		xrtErrorFree(previous);
+		xrtClearError();
+	}
+
+	/* ---- HTTP endpoint URL：authority、端口和请求目标不得产生歧义 ---- */
+	{
+		xoauth2url url;
+		static const char* invalid[] = {
+			"http://user@idp.example/token",
+			"http://idp.example:80@evil.example/token",
+			"http://idp.example:80junk/token",
+			"http://idp.example:80:90/token",
+			"http://idp.example:+80/token",
+			"http://idp.example:0/token",
+			"http://idp.example:65536/token",
+			"http://idp.example:9999999999999999/token",
+			"http://999.999.999.999/token",
+			"http://127.1/token",
+			"http://.idp.example/token",
+			"http://idp.example../token",
+			"http://[::1]:80@evil.example/token",
+			"http://[::1]:80junk/token",
+			"http://[a]:80/token",
+			"http://[:::]:80/token",
+			"http://idp.example\\evil/token",
+			"http://idp.example/token\r\nX-Evil: yes",
+			"http://idp.example/%zz",
+			"http://2130706433/token",
+			"http://017700000001/token",
+			"http://0x7f000001/token",
+			"http://0x7f.0.0.1/token",
+			"http://127.0x1/token",
+			"http://0177.0x0.0.1/token",
+			"http://0X7F.0.0.1./token",
+			"http://idp.example/token#bad%",
+			"http://idp.example#bad%GG",
+			"http://[::1]/token#bad[",
+			"http://[::1]#bad space",
+			"http://idp.example/token#bad#second",
+			"http://idp.example/token#bad\x7f",
+			"http://idp.example/token#bad\xc3\xa9"
+		};
+		CHECK(url_parse("https://idp.example:8443/token?x=1#ignored", &url) &&
+			url.bTls && url.iPort == 8443u &&
+			strcmp(url.sHost, "idp.example") == 0 &&
+			strcmp(url.sPath, "/token?x=1") == 0,
+			"HTTP URL keeps authority and path/query, strips fragment");
+		CHECK(url_parse("http://idp.example?x=1", &url) &&
+			url.iPort == 80u && strcmp(url.sPath, "/?x=1") == 0,
+			"HTTP URL with query-only target uses slash path");
+		CHECK(url_parse("http://idp.example:000080/token", &url) &&
+			url.iPort == 80u && strcmp(url.sPath, "/token") == 0,
+			"HTTP URL accepts numeric port with leading zeroes");
+		CHECK(url_parse("http://[::1]:8080#ignored", &url) &&
+			url.iPort == 8080u && strcmp(url.sHost, "[::1]") == 0 &&
+			strcmp(url.sPath, "/") == 0,
+			"HTTP IPv6 authority and fragment parsed");
+		CHECK(url_parse("hTtPs://idp.example:00443?x=%23#valid", &url) &&
+			url.bTls && url.iPort == 443u && strcmp(url.sPath, "/?x=%23") == 0 &&
+			url_parse("hTtP://idp.example/#", &url) && !url.bTls,
+			"HTTP schemes accept mixed ASCII case");
+		CHECK(url_parse("https://[::1]/#AZaz09-._~!$&'()*+,;=:@/?%00%23%FF", &url) &&
+			url.bIpLiteral && strcmp(url.sPath, "/") == 0,
+			"HTTP fragment grammar is validated without changing target");
+		CHECK(url_parse("https://0xdead.example/token", &url) && !url.bIpLiteral &&
+			url_parse("https://a.0x1./token", &url) && !url.bIpLiteral &&
+			url_parse("https://0xg.example/token", &url) && !url.bIpLiteral,
+			"HTTP hexadecimal-looking DNS labels retain DNS identity");
+		{
+			xtlsclientconfig tls;
+			xtlsdialconfig dial;
+			bool parsed = url_parse("https://idp.example/token", &url);
+			xrtTlsClientConfigInit(&tls);
+			xrtTlsDialConfigInit(&dial);
+			if ( parsed ) url_tls_names(&url, &tls, &dial);
+			CHECK(parsed && !url.bIpLiteral &&
+				tls.ServerName.Size == strlen("idp.example") &&
+				memcmp(tls.ServerName.Data, "idp.example",
+					tls.ServerName.Size) == 0 &&
+				tls.VerifyName.Size == tls.ServerName.Size &&
+				!dial.ServerNameFromHost,
+				"HTTP TLS DNS target keeps SNI and verification name");
+			parsed = url_parse("https://idp.example./token", &url);
+			xrtTlsClientConfigInit(&tls);
+			xrtTlsDialConfigInit(&dial);
+			if ( parsed ) url_tls_names(&url, &tls, &dial);
+			CHECK(parsed && tls.ServerName.Size == strlen("idp.example") &&
+				memcmp(tls.ServerName.Data, "idp.example",
+					tls.ServerName.Size) == 0 &&
+				tls.VerifyName.Size == tls.ServerName.Size,
+				"HTTP TLS DNS SNI omits trailing root dot");
+			parsed = url_parse("https://127.0.0.1/token", &url);
+			xrtTlsClientConfigInit(&tls);
+			xrtTlsDialConfigInit(&dial);
+			if ( parsed ) url_tls_names(&url, &tls, &dial);
+			CHECK(parsed && url.bIpLiteral && tls.ServerName.Size == 0u &&
+				tls.VerifyName.Size == strlen("127.0.0.1") &&
+				memcmp(tls.VerifyName.Data, "127.0.0.1",
+					tls.VerifyName.Size) == 0 && !dial.ServerNameFromHost,
+				"HTTP TLS IPv4 target verifies IP without SNI");
+			parsed = url_parse("https://[::1]/token", &url);
+			xrtTlsClientConfigInit(&tls);
+			xrtTlsDialConfigInit(&dial);
+			if ( parsed ) url_tls_names(&url, &tls, &dial);
+			CHECK(parsed && url.bIpLiteral && tls.ServerName.Size == 0u &&
+				tls.VerifyName.Size == strlen("::1") &&
+					memcmp(tls.VerifyName.Data, "::1",
+						tls.VerifyName.Size) == 0 && !dial.ServerNameFromHost,
+				"HTTP TLS IPv6 target verifies unbracketed IP without SNI");
+		}
+		bool rejected = true;
+		for ( size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++ ) {
+			bool parsed = url_parse(invalid[i], &url);
+			if ( parsed ) printf("accepted unsafe URL: %s\n", invalid[i]);
+			rejected = rejected && !parsed;
+		}
+		CHECK(rejected, "HTTP URL rejects userinfo, bad port and unsafe target");
+		{
+			xoauth2httpxrt http = { 0 };
+			char* body = (char*)1;
+			int status = 123;
+			CHECK(!xoauth2HttpXrt("GET", invalid[1], NULL, NULL,
+				&body, &status, &http) && body == NULL && status == 0 &&
+				xoauth2LastError() == XOAUTH2_ERROR_ARGUMENT,
+				"HTTP transport rejects ambiguous authority before dialing");
+			xrtClearError();
+		}
+	}
 
 	/* ============ PKCE (RFC 7636) ============ */
 	{
@@ -834,7 +1284,7 @@ int main(void)
 	/* ============ fuzz：畸形输入不崩溃（确定性 LCG，2000 例） ============ */
 	{
 		unsigned int seed = 0xC0FFEE42u;
-		const char* aAlphabet =
+		static const char aAlphabet[] =
 			"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 			"-._~&=%?#/\\ \"'{}[]<>";
 		char aBuf[160];
@@ -845,7 +1295,7 @@ int main(void)
 			if ( len >= sizeof(aBuf) ) len = sizeof(aBuf) - 1;
 			for ( size_t i = 0; i < len; i++ ) {
 				seed = seed * 1664525u + 1013904223u;
-				aBuf[i] = aAlphabet[seed % 85];
+				aBuf[i] = aAlphabet[seed % (sizeof(aAlphabet) - 1u)];
 			}
 			aBuf[len] = 0;
 			char* e = xoauth2UrlEncode(aBuf);
@@ -1138,6 +1588,14 @@ int main(void)
 		t = xoauth2Refresh(&c, "rt");
 		CHECK(t == NULL && xoauth2LastError() == XOAUTH2_ERROR_NETWORK,
 			"P4-M4 oversized declared body -> NETWORK");
+		{
+			char* sFailedBody = NULL;
+			int iFailedStatus = 123;
+			bool bTransport = xoauth2HttpXrt("GET", aTokenUrl, NULL,
+				NULL, &sFailedBody, &iFailedStatus, &httpxrt);
+			CHECK(!bTransport && sFailedBody == NULL && iFailedStatus == 0,
+				"P4-M4 body rejection clears transport outputs");
+		}
 
 		/* P4-L4：IPv6 字面量 URL 解析被接受（区别于格式拒绝） */
 		{
@@ -1145,10 +1603,7 @@ int main(void)
 			int st6 = 0;
 			bool ok6 = xoauth2HttpXrt("GET", "http://[::1]:1/jwks", NULL,
 				NULL, &pBody6, &st6, &httpxrt);
-			CHECK(!ok6 && strstr(
-				xrtErrorMessage(xrtGetError()) ?
-				xrtErrorMessage(xrtGetError()) : "",
-				"url is not") == NULL,
+			CHECK(!ok6 && xoauth2LastError() == XOAUTH2_ERROR_NETWORK,
 				"P4-L4 ipv6 literal parsed (not url-reject)");
 			xrtClearError();
 			ok6 = xoauth2HttpXrt("GET", "http://[::1/x", NULL,
@@ -1178,21 +1633,176 @@ int main(void)
 			}
 		}
 
-		/* 畸形 scheme → 回调 false → NETWORK */
+		/* 分片间隔小于等待时限，但整个响应超过时限。 */
+		{
+			char* sSlowBody = NULL;
+			int iSlowStatus = 123;
+			InterlockedExchange(&g_ServerSlowDone, 0);
+			InterlockedExchange(&g_ServerSlow, 1);
+			httpxrt.uTimeoutUs = 300000u;
+			xrtClearError();
+			bool bSlow = xoauth2HttpXrt("GET", aTokenUrl, NULL,
+				NULL, &sSlowBody, &iSlowStatus, &httpxrt);
+			CHECK(!bSlow && sSlowBody == NULL && iSlowStatus == 0 &&
+				xoauth2LastError() == XOAUTH2_ERROR_NETWORK,
+				"p2 windows slow response obeys total deadline");
+			for ( int i = 0; i < 100 &&
+				InterlockedCompareExchange(&g_ServerSlowDone, 0, 0) == 0; i++ )
+				Sleep(10);
+			CHECK(InterlockedCompareExchange(&g_ServerSlowDone, 0, 0) != 0,
+				"p2 windows slow server completed");
+			httpxrt.uTimeoutUs = 3000000u;
+		}
+
+		/* 保留便捷传输对非法配置给出的 ARGUMENT 诊断。 */
 		cfg.TokenUrl = "ftp://bad";
 		xoauth2UseCustom(&c, &cfg);
 		xrtClearError();
 		t = xoauth2Refresh(&c, "rt");
-		CHECK(t == NULL && xoauth2LastError() == XOAUTH2_ERROR_NETWORK,
-			"p2 loop: bad scheme -> NETWORK");
+		CHECK(t == NULL && xoauth2LastError() == XOAUTH2_ERROR_ARGUMENT,
+			"p2 loop: bad scheme retains transport ARGUMENT");
 
 		xoauth2HttpXrtUnit(&httpxrt);
 		InterlockedExchange(&g_ServerStop, 1);
 		closesocket(g_ListenSock);
 		WSACleanup();
 #else
-		/* 非 Windows：网络端到端留给 CI（xrt 自身有跨平台网络测试基建） */
-		CHECK(1, "p2 loopback skipped on non-windows");
+		int iPort = 0;
+		CHECK(posixLoopStart(&iPort), "p2 posix loopback started");
+		if ( g_PosixListen >= 0 ) {
+			xoauth2client c = {0};
+			xoauth2config cfg;
+			xoauth2token* t;
+			xoauth2httpxrt Http;
+			char sTokenUrl[128];
+			char* sUrl;
+			bool bHttp = xoauth2HttpXrtInit(&Http, NULL, NULL, 3000000);
+			CHECK(bHttp, "p2 posix transport init");
+			if ( bHttp ) {
+				xoauth2ConfigInit(&cfg);
+				cfg.AuthorizeUrl = "https://idp.example/authorize";
+				snprintf(sTokenUrl, sizeof(sTokenUrl),
+					"http://127.0.0.1:%d/token", iPort);
+				cfg.TokenUrl = sTokenUrl;
+				cfg.ClientId = "loop-id";
+				cfg.ClientSecret = "loop-secret";
+				cfg.RedirectUri = "https://app/cb";
+				cfg.Http = xoauth2HttpXrt;
+				cfg.HttpContext = &Http;
+				xoauth2UseCustom(&c, &cfg);
+				sUrl = xoauth2BeginLogin(&c);
+				CHECK(sUrl != NULL, "p2 posix begin login");
+				xrtFree(sUrl);
+				t = xoauth2CompleteLogin(&c, "loop-code", c.sState);
+				CHECK(t != NULL && strcmp(t->AccessToken, "loop_tok") == 0,
+					"p2 posix token exchange");
+				xoauth2TokenFree(t);
+				CHECK(posixLoopSaw("POST /token HTTP/1.1") &&
+					posixLoopSaw("Host: 127.0.0.1:") &&
+					posixLoopSaw("code=loop-code"),
+					"p2 posix token request transcript");
+
+				sUrl = xoauth2BeginLogin(&c);
+				xrtFree(sUrl);
+				xrtClearError();
+				t = xoauth2CompleteLogin(&c, "x", c.sState);
+				CHECK(t == NULL &&
+					xoauth2LastError() == XOAUTH2_ERROR_TOKEN_DENIED,
+					"p2 posix 400 token denied");
+				xoauth2TokenFree(t);
+
+				xrtClearError();
+				t = xoauth2Refresh(&c, "rt-loop");
+				CHECK(t != NULL && strcmp(t->AccessToken, "rf2") == 0,
+					"p2 posix refresh succeeded");
+				xoauth2TokenFree(t);
+				CHECK(posixLoopSaw("grant_type=refresh_token") &&
+					posixLoopSaw("refresh_token=rt-loop"),
+					"p2 posix refresh request transcript");
+
+				snprintf(sTokenUrl, sizeof(sTokenUrl),
+					"http://127.0.0.1:1/token");
+				xrtClearError();
+				t = xoauth2Refresh(&c, "rt");
+				CHECK(t == NULL &&
+					xoauth2LastError() == XOAUTH2_ERROR_NETWORK,
+					"p2 posix unreachable network failure");
+				xoauth2TokenFree(t);
+
+				snprintf(sTokenUrl, sizeof(sTokenUrl),
+					"http://127.0.0.1:%d/token", iPort);
+				xoauth2UseCustom(&c, &cfg);
+				xrtClearError();
+				t = xoauth2Refresh(&c, "rt");
+				CHECK(t == NULL &&
+					xoauth2LastError() == XOAUTH2_ERROR_NETWORK,
+					"p2 posix oversized response rejected");
+				xoauth2TokenFree(t);
+
+				{
+					char* sBody = NULL;
+					int iStatus = 0;
+					bool bIpv6 = xoauth2HttpXrt("GET",
+						"http://[::1]:1/jwks", NULL, NULL,
+						&sBody, &iStatus, &Http);
+					CHECK(!bIpv6 &&
+						xoauth2LastError() == XOAUTH2_ERROR_NETWORK,
+						"p2 posix IPv6 literal parsed");
+					xrtClearError();
+					CHECK(!xoauth2HttpXrt("GET", "http://[::1/x",
+						NULL, NULL, &sBody, &iStatus, &Http),
+						"p2 posix malformed IPv6 rejected");
+				}
+
+				{
+					xoauth2httpxrt* pHeap = xoauth2HttpXrtCreate(
+						NULL, NULL, 3000000);
+					CHECK(pHeap != NULL, "p2 posix heap transport created");
+					if ( pHeap != NULL ) {
+						xoauth2client HeapClient = {0};
+						xoauth2config HeapConfig = cfg;
+						HeapConfig.HttpContext = pHeap;
+						xoauth2UseCustom(&HeapClient, &HeapConfig);
+						t = xoauth2Refresh(&HeapClient, "rt");
+						CHECK(t != NULL &&
+							strcmp(t->AccessToken, "heap-rt") == 0,
+							"p2 posix heap transport exchange");
+						xoauth2TokenFree(t);
+						xoauth2ClientUnit(&HeapClient);
+						xoauth2HttpXrtDestroy(pHeap);
+					}
+				}
+
+				/* 首尾间隔 360ms，但每次读取间隔仅 180ms。 */
+				{
+					char* sSlowBody = NULL;
+					int iSlowStatus = 123;
+					Http.uTimeoutUs = 300000u;
+					xrtClearError();
+					bool bSlow = xoauth2HttpXrt("GET", sTokenUrl,
+						NULL, NULL, &sSlowBody, &iSlowStatus, &Http);
+					CHECK(!bSlow && sSlowBody == NULL &&
+						iSlowStatus == 0 &&
+						xoauth2LastError() == XOAUTH2_ERROR_NETWORK,
+						"p2 posix slow response obeys total deadline");
+					Http.uTimeoutUs = 3000000u;
+				}
+
+				cfg.TokenUrl = "ftp://bad";
+				xoauth2UseCustom(&c, &cfg);
+				xrtClearError();
+				t = xoauth2Refresh(&c, "rt");
+				CHECK(t == NULL &&
+					xoauth2LastError() == XOAUTH2_ERROR_ARGUMENT,
+					"p2 posix unsupported scheme retains transport ARGUMENT");
+				xoauth2TokenFree(t);
+				xoauth2ClientUnit(&c);
+				xoauth2HttpXrtUnit(&Http);
+			}
+			posixLoopStop();
+			CHECK(g_PosixSuccess && g_PosixCount == 6u,
+				"p2 posix server transcript completed");
+		}
 #endif
 	}
 
@@ -1315,6 +1925,24 @@ int main(void)
 			xoauth2LastError() == XOAUTH2_ERROR_TOKEN_RESPONSE,
 			"p3 HttpGet empty -> RESPONSE");
 
+		/* 回调失败前分配的响应体也由库回收；GET 失败状态清零。 */
+		c.Config.Http = failed_body_http;
+		long iBodyBase = g_probeLiveBytes;
+		st = 123;
+		xrtClearError();
+		CHECK(xoauth2HttpGet(&c, "https://idp/jwks", NULL, &st) == NULL &&
+			st == 0 && xoauth2LastError() == XOAUTH2_ERROR_NETWORK,
+			"p3 failed GET callback reports NETWORK and clears status");
+		xrtClearError();
+		xoauth2token* failedToken = xoauth2Refresh(&c, "rt");
+		CHECK(failedToken == NULL &&
+			xoauth2LastError() == XOAUTH2_ERROR_NETWORK,
+			"p3 failed token callback reports NETWORK");
+		xoauth2TokenFree(failedToken);
+		CHECK(g_probeLiveBytes == iBodyBase,
+			"p3 failed callbacks free partial response body");
+		c.Config.Http = mock_http;
+
 		/* GetUserInfo：Bearer + 对象 claims；非对象拒绝 */
 		mock_setup(200, "{\"sub\":\"u1\",\"email\":\"u@x.com\"}");
 		xvalue* ui = xoauth2GetUserInfo(&c, "the-access-token");
@@ -1335,6 +1963,7 @@ int main(void)
 			"p3 userinfo non-object rejected");
 	}
 
+	test_token_fields_embedded_nul();
 	printf("\n%d pass, %d fail\n", s_pass, s_fail);
 	return s_fail > 0 ? 1 : 0;
 }
