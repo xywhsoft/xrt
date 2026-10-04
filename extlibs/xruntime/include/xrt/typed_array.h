@@ -66,7 +66,8 @@ XRT_API const void* xrtTypedArrayConstData(const xtypedarray* pArray);
 
 
 
-/* 预留、调整、裁剪或清空数组；新增元素按类型初始化。 */
+/* 预留、调整、裁剪或清空数组；新增元素按类型初始化。
+ * Resize 增长分配或初始化失败，保留原地址、容量、数量与活动元素。 */
 XRT_API bool xrtTypedArrayReserve(xtypedarray* pArray, size_t iCapacity);
 XRT_API bool xrtTypedArrayResize(xtypedarray* pArray, size_t iCount);
 XRT_API bool xrtTypedArrayTrim(xtypedarray* pArray);

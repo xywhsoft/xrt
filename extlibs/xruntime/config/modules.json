@@ -424,6 +424,20 @@
 			]
 		},
 		{
+			"name": "typed_array_resize_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["typed_array", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["extlibs/xruntime/tests/runtime/test_typed_array_resize.c"],
+			"single_tests": ["extlibs/xruntime/tests/single/test_single_typed_array_resize.c"],
+			"examples": [],
+			"docs": ["extlibs/xruntime/docs/api/typed_array.md"],
+			"legacy": []
+		},
+		{
 			"name": "typed_queue",
 			"state": "implemented",
 			"feature": "XRUNTIME_FEATURE_TYPED_QUEUE",

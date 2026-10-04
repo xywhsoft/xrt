@@ -44966,7 +44966,8 @@ XRT_API const void* xrtTypedArrayConstData(const xtypedarray* pArray);
 
 
 
-/* 预留、调整、裁剪或清空数组；新增元素按类型初始化。 */
+/* 预留、调整、裁剪或清空数组；新增元素按类型初始化。
+ * Resize 增长分配或初始化失败，保留原地址、容量、数量与活动元素。 */
 XRT_API bool xrtTypedArrayReserve(xtypedarray* pArray, size_t iCapacity);
 XRT_API bool xrtTypedArrayResize(xtypedarray* pArray, size_t iCount);
 XRT_API bool xrtTypedArrayTrim(xtypedarray* pArray);
@@ -346395,11 +346396,16 @@ XRT_API bool xrtTypedArrayReserve(xtypedarray* pArray, size_t iCapacity)
 
 
 
-/* 调整元素数量，增长部分逐项初始化，失败时恢复原数量。 */
+/* 增长先完成所有可失败工作再发布；失败保留地址、容量、数量和旧值。
+ * 无 Init 回调的零初始化走原始数组快路径；有回调时只初始化新增值，
+ * 不复制或销毁旧元素。需要扩容时使用独立存储，提交只重定位字节。 */
 XRT_API bool xrtTypedArrayResize(xtypedarray* pArray, size_t iCount)
 {
 	size_t iOriginalCount;
 	size_t iAdded;
+	xarray Prepared;
+	bytes pNewItems;
+	bool bDetached;
 
 	if ( !__xrtTypedArrayValid(pArray, "resize") ) {
 		return false;
@@ -346421,36 +346427,78 @@ XRT_API bool xrtTypedArrayResize(xtypedarray* pArray, size_t iCount)
 	if ( iCount == iOriginalCount ) {
 		return true;
 	}
-	if ( !xrtTypedArrayReserve(pArray, iCount) ) {
-		return false;
-	}
 	iAdded = iCount - iOriginalCount;
-	if ( xrtArrayAdd(&pArray->Storage, iAdded) == NULL ) {
-		__xrtTypedArrayWrap(XERR_MEMORY, XTYPED_ARRAY_ERROR_OPERATION,
-			"resize", "the typed array growth failed");
-		return false;
-	}
 	__xrtTypedArrayCallbackBegin(pArray);
+	if ( (pArray->ItemType->Ops == NULL) ||
+		 (pArray->ItemType->Ops->Init == NULL) ) {
+		bool bResized = xrtArrayResize(&pArray->Storage, iCount);
+
+		if ( !bResized ) {
+			__xrtTypedArrayWrap(XERR_MEMORY, XTYPED_ARRAY_ERROR_OPERATION,
+				"resize", "the typed array growth failed");
+		}
+		__xrtTypedArrayCallbackEnd(pArray);
+		return bResized;
+	}
+	bDetached = iCount > pArray->Storage.Capacity;
+	if ( bDetached ) {
+		/* Keep the validated layout, not its allocation or ownership count.
+		 * The raw allocator retains its own alignment/growth/overflow policy. */
+		Prepared = pArray->Storage;
+		Prepared.Data = NULL;
+		Prepared.Allocation = NULL;
+		Prepared.Count = 0u;
+		Prepared.Capacity = 0u;
+		if ( !xrtArrayReserve(&Prepared, iCount) ) {
+			__xrtTypedArrayWrap(XERR_MEMORY, XTYPED_ARRAY_ERROR_OPERATION,
+				"resize", "the typed array growth failed");
+			__xrtTypedArrayCallbackEnd(pArray);
+			return false;
+		}
+		pNewItems = Prepared.Data + iOriginalCount * pArray->ItemType->Size;
+	} else {
+		/* Inactive tail slots are not published while Init can still fail. */
+		pNewItems = pArray->Storage.Data + iOriginalCount * pArray->ItemType->Size;
+	}
 	for ( size_t i = 0; i < iAdded; i++ ) {
-		ptr pItem = xrtArrayGet(&pArray->Storage, iOriginalCount + i);
+		ptr pItem = pNewItems + i * pArray->ItemType->Size;
 
 		if ( !xrtTypeInitValue(pArray->ItemType, pItem) ) {
 			xerror* pError = xrtTakeError();
 
-			for ( size_t j = 0; j < i; j++ ) {
+			/* A failed Init cleans its own partial value. Drop only completed
+			 * defaults, in reverse order, and preserve the primary failure even
+			 * if Drop or the allocator writes a secondary error. */
+			for ( size_t j = i; j != 0u; j-- ) {
 				xrtTypeDropValue(pArray->ItemType,
-					xrtArrayGet(&pArray->Storage, iOriginalCount + j));
+					pNewItems + (j - 1u) * pArray->ItemType->Size);
 			}
-			(void)xrtArrayRemove(&pArray->Storage, iOriginalCount, iAdded);
-			__xrtTypedArrayCallbackEnd(pArray);
-			if ( pError != NULL ) {
-				xrtSetError(pError);
-				xrtErrorFree(pError);
+			if ( bDetached ) {
+				xrtArrayUnit(&Prepared);
 			}
+			xrtSetErrorTake(pError);
 			__xrtTypedArrayWrap(XERR_STATE, XTYPED_ARRAY_ERROR_OPERATION,
 				"resize", "a new typed array item could not be initialized");
+			__xrtTypedArrayCallbackEnd(pArray);
 			return false;
 		}
+	}
+	if ( bDetached ) {
+		xarray Previous = pArray->Storage;
+
+		/* Relocatable is an admission requirement. After all defaults exist,
+		 * no Copy/Move/Drop callback or allocation may precede publication. */
+		if ( iOriginalCount != 0u ) {
+			memcpy(Prepared.Data, Previous.Data,
+				iOriginalCount * pArray->ItemType->Size);
+		}
+		Prepared.Count = iCount;
+		pArray->Storage = Prepared;
+		/* Old bytes no longer own values. Keep the receiver BUSY through
+		 * allocator cleanup so a Free callback cannot retire the new array. */
+		xrtArrayUnit(&Previous);
+	} else {
+		pArray->Storage.Count = iCount;
 	}
 	__xrtTypedArrayCallbackEnd(pArray);
 	return true;
