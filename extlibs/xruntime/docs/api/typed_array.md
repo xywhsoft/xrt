@@ -196,6 +196,19 @@ xrttype ArrayType = {
 
 ## 失败与线程
 
+`xrtTypedArrayResizeWithInitializer(array, count, initializer, context)` 仅覆盖本次增长的
+默认值，不改变元素 descriptor、普通 Copy/Move 的空目标初始化、Push/Insert 或 Clone。
+这适用于语言默认值不同于物理空槽的情况，例如指针槽复制前应为空，而增长默认值应为
+present empty bytes。新增槽在调用 initializer 前按 `ItemType->Size` 清零；成功后交给
+数组，失败时 initializer 自行释放其部分资源并设置错误。initializer 与 context 只在
+同步调用期间借用，不会被数组保存；传入 NULL initializer 等同普通 Resize，缩短和
+等长不会调用它。不能把不满足元素 Copy/Move/Drop 合同的值放入槽位。
+
+自定义增长继续使用同一个强失败原子事务：既有元素不调用 Copy/Move/Drop，失败保留
+地址、容量、数量与旧值，只逆序释放完成初始化的新槽；主错误优先于清理错误。重入、
+溢出、对齐和分配失败的检查不因自定义 initializer 而放宽。没有 initializer 且类型
+没有 Init 时保留批量零初始化快路径。
+
 结构操作不是同一数组上的并发 API；多个线程可只读访问稳定数组，但任何写入都需要调用方同步。
 模块不在元素回调期间持锁。扩容 OOM、元素初始化失败和元素复制失败均保持原有元素与所有权。
 

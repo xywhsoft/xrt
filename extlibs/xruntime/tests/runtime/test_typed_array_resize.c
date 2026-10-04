@@ -91,6 +91,61 @@ static bool testResizeInit(ptr pValue, const xrttype* pType)
 	return true;
 }
 
+static bool testResizeDefault(ptr pValue, const xrttype* pType, ptr pContext)
+{
+    testRequire(pContext == &State, "resize initializer lost its borrowed context");
+    const unsigned char* pBytes = pValue;
+    for ( size_t i = 0u; i < pType->Size; i++ ) {
+        testRequire(pBytes[i] == 0u, "resize initializer received a nonzero inactive slot");
+    }
+    /* Error construction itself allocates under MemDebug. Probe reentry in
+     * the allocator phase, not inside the logical allocation-fault prefix. */
+    if ( !xrtMemDebugEnabled() ) testResizeProbe();
+    return testResizeInit(pValue, pType);
+}
+
+static bool testResizeGrow(xtypedarray* pArray, size_t iCount, bool bCustom)
+{
+    return bCustom ? xrtTypedArrayResizeWithInitializer(pArray, iCount, testResizeDefault, &State) :
+        xrtTypedArrayResize(pArray, iCount);
+}
+
+typedef struct testscalardefault { xtypedarray* Array; size_t Calls; } testscalardefault;
+static bool testScalarDefault(ptr pValue, const xrttype* pType, ptr pContext)
+{
+    testscalardefault* pState = pContext;
+    testRequire(pType == xrtTypeInt64() && *(int64*)pValue == 0,
+        "custom scalar default did not override zero initialization");
+    xerror* pSaved = xrtTakeError();
+    testRequire(xrtTypedArrayCount(pState->Array) == 0u && xrtErrorKind(xrtGetError()) == XERR_STATE,
+        "custom scalar default allowed API reentry");
+    xrtSetErrorTake(pSaved);
+    *(int64*)pValue = 55; pState->Calls++; return true;
+}
+
+static void testScalarDefaults(void)
+{
+    xtypedarray Array; testscalardefault Context = {&Array, 0u};
+    testRequire(xrtTypedArrayInit(&Array, xrtTypeInt64()) &&
+        xrtTypedArrayResizeWithInitializer(&Array, 3u, testScalarDefault, &Context),
+        "custom scalar growth failed");
+    int64 Value = 7;
+    testRequire(xrtTypedArrayPush(&Array, &Value), "custom scalar transfer failed");
+    xtypedarray* pCopy = xrtTypedArrayClone(&Array);
+    testRequire(pCopy && Context.Calls == 3u, "ordinary copy invoked the growth default");
+    xrtTypedArrayDestroy(pCopy);
+    testRequire(xrtTypedArrayResizeWithInitializer(&Array, 4u, testScalarDefault, &Context) &&
+        xrtTypedArrayResizeWithInitializer(&Array, 3u, testScalarDefault, &Context) && Context.Calls == 3u,
+        "equal/shrink invoked the growth default");
+    testRequire(xrtTypedArrayResizeWithInitializer(&Array, 6u, NULL, &Context) && Context.Calls == 3u,
+        "NULL initializer did not select ordinary type defaults");
+    for ( size_t i = 0u; i < 6u; i++ ) {
+        testRequire(*(const int64*)xrtTypedArrayConstGet(&Array, i) == (i < 3u ? 55 : 0),
+            "custom and ordinary defaults were conflated");
+    }
+    xrtTypedArrayUnit(&Array);
+}
+
 static bool testResizeCopy(ptr pTarget, const void* pSource, const xrttype* pType)
 {
 	(void)pTarget;
@@ -169,7 +224,7 @@ static void testResizeBalanced(const xmemdebugsnapshot* pBefore)
 		"resize logical allocation ledger is not balanced");
 }
 
-static void testResizeCase(size_t iAlignment, bool bSpare, size_t iFailure)
+static void testResizeCase(size_t iAlignment, bool bSpare, size_t iFailure, bool bCustom)
 {
 	xmemdebugsnapshot Baseline;
 	xrtMemDebugSnapshot(&Baseline);
@@ -191,7 +246,7 @@ static void testResizeCase(size_t iAlignment, bool bSpare, size_t iFailure)
 	State.ProbeAlloc = !xrtMemDebugEnabled() && !bSpare;
 	State.ProbeFree = !xrtMemDebugEnabled() && (!bSpare || iFailure != SIZE_MAX);
 	State.ExpectedFreeCount = iFailure == SIZE_MAX ? iTarget : Before.Count;
-	testRequire(xrtTypedArrayResize(&Array, iTarget) == (iFailure == SIZE_MAX),
+	testRequire(testResizeGrow(&Array, iTarget, bCustom) == (iFailure == SIZE_MAX),
 		"resize returned an incorrect init outcome");
 	if ( iFailure != SIZE_MAX ) {
 		testRequire(xrtErrorFind(xrtGetError(), "test.resize.init", 17) != NULL &&
@@ -228,7 +283,7 @@ static void testResizeCase(size_t iAlignment, bool bSpare, size_t iFailure)
 	testResizeBalanced(&Baseline);
 }
 
-static void testResizeOom(size_t iAlignment, bool bSpare)
+static void testResizeOom(size_t iAlignment, bool bSpare, bool bCustom)
 {
 	for ( size_t iPoint = 0u; iPoint < 128u; iPoint++ ) {
 		xmemdebugsnapshot Baseline;
@@ -245,8 +300,9 @@ static void testResizeOom(size_t iAlignment, bool bSpare)
 		}
 		xarray Before = Array.Storage;
 		size_t iTarget = bSpare ? 9u : Before.Capacity + 6u;
+		State.Array = &Array;
 		testRequire(xrtMemDebugFailAfter(iPoint), "resize logical fault arming failed");
-		bool bResult = xrtTypedArrayResize(&Array, iTarget);
+		bool bResult = testResizeGrow(&Array, iTarget, bCustom);
 		bool bHit = xrtMemDebugFailTriggered();
 		xrtMemDebugFailClear();
 		if ( bHit ) {
@@ -263,8 +319,8 @@ static void testResizeOom(size_t iAlignment, bool bSpare)
 		testRequire(State.LiveValues == 0u, "resize OOM leaked an owned value");
 		testResizeBalanced(&Baseline);
 		if ( !bHit ) {
-			printf("[PASS] resize align=%zu spare=%d closed-prefix=%zu\n",
-				iAlignment, bSpare, iPoint);
+			printf("[PASS] resize align=%zu spare=%d custom=%d closed-prefix=%zu\n",
+				iAlignment, bSpare, bCustom, iPoint);
 			return;
 		}
 	}
@@ -280,12 +336,14 @@ int main(void)
 	testRequire(State.Secondary != NULL, "resize secondary fixture failed");
 	for ( size_t iAlignment = 16u; iAlignment <= 64u; iAlignment *= 4u ) {
 		for ( int iSpare = 0; iSpare <= 1; iSpare++ ) {
+			for ( int iCustom = 0; iCustom <= 1; iCustom++ ) {
 			/* Initial raw capacity is 8; detached path adds 11, spare adds 6. */
 			size_t iAdded = iSpare ? 6u : 11u;
 			for ( size_t iFailure = 0u; iFailure < iAdded; iFailure++ ) {
-				testResizeCase(iAlignment, iSpare != 0, iFailure);
+				testResizeCase(iAlignment, iSpare != 0, iFailure, iCustom != 0);
 			}
-			testResizeCase(iAlignment, iSpare != 0, SIZE_MAX);
+			testResizeCase(iAlignment, iSpare != 0, SIZE_MAX, iCustom != 0);
+			}
 		}
 	}
 	/* Successful growth and allocator probes must not discard a pending error. */
@@ -319,6 +377,7 @@ int main(void)
 			"resize scalar default was not zero");
 	}
 	xrtTypedArrayUnit(&Array);
+	testScalarDefaults();
 	xrtErrorFree(State.Secondary);
 	xrtClearError();
 	/* Debug quarantine intentionally delays backing frees. Do not pretend
@@ -331,12 +390,14 @@ int main(void)
 	testRequire(State.Secondary != NULL, "resize debug secondary fixture failed");
 	for ( size_t iAlignment = 16u; iAlignment <= 64u; iAlignment *= 4u ) {
 		for ( int iSpare = 0; iSpare <= 1; iSpare++ ) {
+			for ( int iCustom = 0; iCustom <= 1; iCustom++ ) {
 			size_t iAdded = iSpare ? 6u : 11u;
 			for ( size_t iFailure = 0u; iFailure < iAdded; iFailure++ ) {
-				testResizeCase(iAlignment, iSpare != 0, iFailure);
+				testResizeCase(iAlignment, iSpare != 0, iFailure, iCustom != 0);
 			}
-			testResizeCase(iAlignment, iSpare != 0, SIZE_MAX);
-			testResizeOom(iAlignment, iSpare != 0);
+			testResizeCase(iAlignment, iSpare != 0, SIZE_MAX, iCustom != 0);
+			testResizeOom(iAlignment, iSpare != 0, iCustom != 0);
+			}
 		}
 	}
 	testRequire(xrtTypedArrayInit(&Array, xrtTypeInt64()) && xrtTypedArrayResize(&Array, 3u),

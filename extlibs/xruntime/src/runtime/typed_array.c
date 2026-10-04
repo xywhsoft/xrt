@@ -519,7 +519,9 @@ XRT_API bool xrtTypedArrayReserve(xtypedarray* pArray, size_t iCapacity)
 /* 增长先完成所有可失败工作再发布；失败保留地址、容量、数量和旧值。
  * 无 Init 回调的零初始化走原始数组快路径；有回调时只初始化新增值，
  * 不复制或销毁旧元素。需要扩容时使用独立存储，提交只重定位字节。 */
-XRT_API bool xrtTypedArrayResize(xtypedarray* pArray, size_t iCount)
+XRT_API bool xrtTypedArrayResizeWithInitializer(
+    xtypedarray* pArray, size_t iCount, xrttypedarrayinitializer Initializer, ptr pContext
+)
 {
 	size_t iOriginalCount;
 	size_t iAdded;
@@ -549,8 +551,8 @@ XRT_API bool xrtTypedArrayResize(xtypedarray* pArray, size_t iCount)
 	}
 	iAdded = iCount - iOriginalCount;
 	__xrtTypedArrayCallbackBegin(pArray);
-	if ( (pArray->ItemType->Ops == NULL) ||
-		 (pArray->ItemType->Ops->Init == NULL) ) {
+	if ( (Initializer == NULL) && ((pArray->ItemType->Ops == NULL) ||
+		 (pArray->ItemType->Ops->Init == NULL)) ) {
 		bool bResized = xrtArrayResize(&pArray->Storage, iCount);
 
 		if ( !bResized ) {
@@ -583,7 +585,14 @@ XRT_API bool xrtTypedArrayResize(xtypedarray* pArray, size_t iCount)
 	for ( size_t i = 0; i < iAdded; i++ ) {
 		ptr pItem = pNewItems + i * pArray->ItemType->Size;
 
-		if ( !xrtTypeInitValue(pArray->ItemType, pItem) ) {
+		bool bInitialized;
+		if ( Initializer != NULL ) {
+			memset(pItem, 0, pArray->ItemType->Size);
+			bInitialized = Initializer(pItem, pArray->ItemType, pContext);
+		} else {
+			bInitialized = xrtTypeInitValue(pArray->ItemType, pItem);
+		}
+		if ( !bInitialized ) {
 			xerror* pError = xrtTakeError();
 
 			/* A failed Init cleans its own partial value. Drop only completed
@@ -622,6 +631,13 @@ XRT_API bool xrtTypedArrayResize(xtypedarray* pArray, size_t iCount)
 	}
 	__xrtTypedArrayCallbackEnd(pArray);
 	return true;
+}
+
+
+
+XRT_API bool xrtTypedArrayResize(xtypedarray* pArray, size_t iCount)
+{
+	return xrtTypedArrayResizeWithInitializer(pArray, iCount, NULL, NULL);
 }
 
 
