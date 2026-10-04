@@ -114,6 +114,50 @@ XRT_API bool xrtTypedStackPop(xtypedstack* pStack, ptr pValue)
 
 
 
+/* 事务压入一批同类型值，来源顺序与逐次 Push 完全一致。 */
+XRT_API bool xrtTypedStackPushBatch(
+	xtypedstack* pStack,
+	const xtypedarray* pItems
+)
+{
+	return xrtTypedArrayAppend(pStack, pItems);
+}
+
+
+
+/* 原子移交尾部，按逐次 Pop 顺序交付拥有数组。 */
+XRT_API xtypedarray* xrtTypedStackPopBatch(
+	xtypedstack* pStack,
+	size_t iMaxCount
+)
+{
+	return xrtTypedArrayTakeTail(pStack, iMaxCount, true);
+}
+
+
+
+/* 复制栈顶向下的最多指定数量；起点超过深度由 Slice 报范围错误。 */
+XRT_API xtypedarray* xrtTypedStackPeekBatch(
+	const xtypedstack* pStack,
+	size_t iDepth,
+	size_t iMaxCount
+)
+{
+	/* ItemType validates before Count, including the empty/busy case. */
+	if ( xrtTypedArrayItemType(pStack) == NULL ) {
+		return NULL;
+	}
+	size_t iCount = xrtTypedArrayCount(pStack);
+	if ( iDepth > iCount ) {
+		return xrtTypedArraySlice(pStack, iDepth, 0u, true);
+	}
+	size_t iAvailable = iCount - iDepth;
+	size_t iTake = iMaxCount < iAvailable ? iMaxCount : iAvailable;
+	return xrtTypedArraySlice(pStack, iAvailable - iTake, iTake, true);
+}
+
+
+
 /* 按距栈顶深度返回可写借用值。 */
 XRT_API ptr xrtTypedStackPeek(xtypedstack* pStack, size_t iDepth)
 {

@@ -1,5 +1,20 @@
 # 类型数组
 
+## 有界区间与尾部移交
+
+`xrtTypedArraySlice(array, index, count, reverse)` 返回同类型独立拥有数组，复制精确
+区间 `[index,index+count)`；先以减法验证边界，不允许加法溢出或静默截断。
+`index == Count, count == 0` 合法；`reverse` 只反转结果顺序。
+失败时销毁部分结果并保留来源及原错误，来源在分配/类型复制/清理回调期间拒绝重入。
+
+`xrtTypedArrayTakeTail(array, maxCount, reverse)` 最多取实际存在的尾部数量，返回独立
+拥有数组。结果全部分配成功后才移交可重定位的元素字节；不进行元素复制或初始化，
+不保留第二份拥有值。失败不修改来源的地址、容量、数量和元素。
+空请求仍返回拥有的空数组，`NULL` 表示错误；两种结果均用 `xrtTypedArrayDestroy` 销毁。
+
+`Reserve` 的底层分配器回调期间拒绝同数组 API 重入；`Append` 在预留阶段即保护来源，
+不能在复制开始前通过分配器修改输入。该门禁不提供跨线程同步。
+
 `typed_array` 在原始 `xarray` 连续存储之上增加运行时元素类型、完整值生命周期和对象图
 追踪。启用宏为 `XRUNTIME_FEATURE_TYPED_ARRAY`，依赖 `array` 与 `runtime_type`。
 

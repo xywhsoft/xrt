@@ -20,5 +20,17 @@ int main(void)
 		iResult = 2;
 	}
 	xrtTypedStackUnit(&Stack);
+	if ( !xrtTypedStackInit(&Stack, xrtTypeInt64()) ||
+		 !xrtTypedStackPush(&Stack, &iInput) ||
+		 !xrtTypedStackPushBatch(&Stack, &Stack) ) return 3;
+	xtypedarray* pItems = xrtTypedStackPeekBatch(&Stack, 0u, SIZE_MAX);
+	if ( !pItems || xrtTypedArrayCount(pItems) != 2u ) return 4;
+	xrtTypedArrayDestroy(pItems);
+	pItems = xrtTypedStackPopBatch(&Stack, SIZE_MAX);
+	if ( !pItems || xrtTypedArrayCount(pItems) != 2u ||
+		 xrtTypedStackCount(&Stack) != 0u ||
+		 *(const int64*)xrtTypedArrayConstGet(pItems, 0u) != iInput ) return 5;
+	xrtTypedArrayDestroy(pItems);
+	xrtTypedStackUnit(&Stack);
 	return iResult;
 }

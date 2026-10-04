@@ -488,7 +488,10 @@ XRT_API bool xrtTypedArrayReserve(xtypedarray* pArray, size_t iCapacity)
 	if ( !__xrtTypedArrayValid(pArray, "reserve") ) {
 		return false;
 	}
-	if ( !xrtArrayReserve(&pArray->Storage, iCapacity) ) {
+	__xrtTypedArrayCallbackBegin(pArray);
+	bool bReserved = xrtArrayReserve(&pArray->Storage, iCapacity);
+	__xrtTypedArrayCallbackEnd(pArray);
+	if ( !bReserved ) {
 		__xrtTypedArrayWrap(XERR_MEMORY, XTYPED_ARRAY_ERROR_OPERATION,
 			"reserve", "the typed array capacity could not be reserved");
 		return false;
@@ -950,11 +953,14 @@ XRT_API bool xrtTypedArrayAppend(
 			"append", "the typed array element count overflows");
 		return false;
 	}
-	if ( !xrtTypedArrayReserve(pTarget, iOriginalCount + iSourceCount) ) {
-		return false;
-	}
 	if ( pTarget != pSource ) {
 		__xrtTypedArrayCallbackBegin(pSource);
+	}
+	if ( !xrtTypedArrayReserve(pTarget, iOriginalCount + iSourceCount) ) {
+		if ( pTarget != pSource ) {
+			__xrtTypedArrayCallbackEnd(pSource);
+		}
+		return false;
 	}
 	for ( size_t i = 0; i < iSourceCount; i++ ) {
 		const void* pItem = xrtArrayConstGet(&pSource->Storage, i);
@@ -973,6 +979,102 @@ XRT_API bool xrtTypedArrayAppend(
 		__xrtTypedArrayCallbackEnd(pSource);
 	}
 	return true;
+}
+
+
+
+/* 区间结果复用同一类型数组布局；复制和移交共享分配/门禁边界。
+ * Relocatable 是类型数组准入条件：尾部移交不执行可失败的 Move/Copy。
+ * 在任何来源修改前完成结果分配，提交区间只有字节移交和计数更新。 */
+static xtypedarray* __xrtTypedArrayExtract(
+	const xtypedarray* pArray,
+	size_t iIndex,
+	size_t iCount,
+	bool bReverse,
+	bool bTake,
+	cstr sOperation
+)
+{
+	xtypedarray* pResult;
+
+	__xrtTypedArrayCallbackBegin(pArray);
+	pResult = xrtTypedArrayCreate(pArray->ItemType);
+	if ( pResult == NULL ) {
+		__xrtTypedArrayCallbackEnd(pArray);
+		return NULL;
+	}
+	if ( !xrtTypedArrayReserve(pResult, iCount) ) {
+		__xrtTypedArrayDestroyPreserveError(pResult);
+		__xrtTypedArrayCallbackEnd(pArray);
+		return NULL;
+	}
+	if ( bTake ) {
+		/* Result storage is reserved and empty. No allocations, callbacks or
+		 * fallible operations are allowed until both ownership counts publish. */
+		for ( size_t i = 0u; i < iCount; i++ ) {
+			size_t iSource = iIndex + (bReverse ? iCount - i - 1u : i);
+			memcpy(pResult->Storage.Data + i * pResult->ItemType->Size,
+				pArray->Storage.Data + iSource * pArray->ItemType->Size,
+				pArray->ItemType->Size);
+		}
+		pResult->Storage.Count = iCount;
+		((xtypedarray*)pArray)->Storage.Count -= iCount;
+	} else {
+		for ( size_t i = 0u; i < iCount; i++ ) {
+			size_t iSource = iIndex + (bReverse ? iCount - i - 1u : i);
+			if ( !xrtTypedArrayPush(pResult,
+					xrtArrayConstGet(&pArray->Storage, iSource)) ) {
+				__xrtTypedArrayDestroyPreserveError(pResult);
+				__xrtTypedArrayCallbackEnd(pArray);
+				__xrtTypedArrayWrap(XERR_STATE, XTYPED_ARRAY_ERROR_OPERATION,
+					sOperation, "a typed array range item could not be copied");
+				return NULL;
+			}
+		}
+	}
+	__xrtTypedArrayCallbackEnd(pArray);
+	return pResult;
+}
+
+
+
+/* 复制精确有界区间；不把错误区间静默截断为合法区间。 */
+XRT_API xtypedarray* xrtTypedArraySlice(
+	const xtypedarray* pArray,
+	size_t iIndex,
+	size_t iCount,
+	bool bReverse
+)
+{
+	if ( !__xrtTypedArrayValid(pArray, "slice") ) {
+		return NULL;
+	}
+	if ( iIndex > pArray->Storage.Count ||
+		 iCount > pArray->Storage.Count - iIndex ) {
+		__xrtTypedArrayError(XERR_RANGE, XTYPED_ARRAY_ERROR_RANGE,
+			"slice", "the typed array range is out of bounds");
+		return NULL;
+	}
+	return __xrtTypedArrayExtract(pArray, iIndex, iCount, bReverse, false, "slice");
+}
+
+
+
+/* 移交实际存在的尾部元素，空请求仍返回独立的空拥有数组。 */
+XRT_API xtypedarray* xrtTypedArrayTakeTail(
+	xtypedarray* pArray,
+	size_t iMaxCount,
+	bool bReverse
+)
+{
+	size_t iCount;
+
+	if ( !__xrtTypedArrayValid(pArray, "take-tail") ) {
+		return NULL;
+	}
+	iCount = iMaxCount < pArray->Storage.Count ? iMaxCount : pArray->Storage.Count;
+	return __xrtTypedArrayExtract(pArray, pArray->Storage.Count - iCount,
+		iCount, bReverse, true, "take-tail");
 }
 
 

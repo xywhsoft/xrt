@@ -45016,6 +45016,19 @@ XRT_API bool xrtTypedArrayAppend(
 	xtypedarray* pTarget,
 	const xtypedarray* pSource
 );
+/* 精确区间复制为独立数组；反序只改变交付顺序，不改变来源。 */
+XRT_API xtypedarray* xrtTypedArraySlice(
+	const xtypedarray* pArray,
+	size_t iIndex,
+	size_t iCount,
+	bool bReverse
+);
+/* 最多移交尾部指定数量为独立数组；分配失败时来源完全不变。 */
+XRT_API xtypedarray* xrtTypedArrayTakeTail(
+	xtypedarray* pArray,
+	size_t iMaxCount,
+	bool bReverse
+);
 XRT_API xtypedarray* xrtTypedArrayClone(const xtypedarray* pArray);
 XRT_API xtypedarray* xrtTypedArrayConcat(
 	const xtypedarray* pLeft,
@@ -46788,6 +46801,23 @@ XRT_API bool xrtTypedStackPush(
 
 /* 弹出栈顶；输出为空时销毁元素，否则移动到已初始化输出值。 */
 XRT_API bool xrtTypedStackPop(xtypedstack* pStack, ptr pValue);
+
+/* 数组顺序压入（最后一项成为栈顶）；允许栈自身作为来源。 */
+XRT_API bool xrtTypedStackPushBatch(
+	xtypedstack* pStack,
+	const xtypedarray* pItems
+);
+/* 最多弹出指定数量，结果按逐次 Pop 顺序；空栈返回空拥有数组。 */
+XRT_API xtypedarray* xrtTypedStackPopBatch(
+	xtypedstack* pStack,
+	size_t iMaxCount
+);
+/* 从指定深度最多复制指定数量，结果按栈顶向栈底顺序。 */
+XRT_API xtypedarray* xrtTypedStackPeekBatch(
+	const xtypedstack* pStack,
+	size_t iDepth,
+	size_t iMaxCount
+);
 
 
 
@@ -346246,7 +346276,10 @@ XRT_API bool xrtTypedArrayReserve(xtypedarray* pArray, size_t iCapacity)
 	if ( !__xrtTypedArrayValid(pArray, "reserve") ) {
 		return false;
 	}
-	if ( !xrtArrayReserve(&pArray->Storage, iCapacity) ) {
+	__xrtTypedArrayCallbackBegin(pArray);
+	bool bReserved = xrtArrayReserve(&pArray->Storage, iCapacity);
+	__xrtTypedArrayCallbackEnd(pArray);
+	if ( !bReserved ) {
 		__xrtTypedArrayWrap(XERR_MEMORY, XTYPED_ARRAY_ERROR_OPERATION,
 			"reserve", "the typed array capacity could not be reserved");
 		return false;
@@ -346708,11 +346741,14 @@ XRT_API bool xrtTypedArrayAppend(
 			"append", "the typed array element count overflows");
 		return false;
 	}
-	if ( !xrtTypedArrayReserve(pTarget, iOriginalCount + iSourceCount) ) {
-		return false;
-	}
 	if ( pTarget != pSource ) {
 		__xrtTypedArrayCallbackBegin(pSource);
+	}
+	if ( !xrtTypedArrayReserve(pTarget, iOriginalCount + iSourceCount) ) {
+		if ( pTarget != pSource ) {
+			__xrtTypedArrayCallbackEnd(pSource);
+		}
+		return false;
 	}
 	for ( size_t i = 0; i < iSourceCount; i++ ) {
 		const void* pItem = xrtArrayConstGet(&pSource->Storage, i);
@@ -346731,6 +346767,102 @@ XRT_API bool xrtTypedArrayAppend(
 		__xrtTypedArrayCallbackEnd(pSource);
 	}
 	return true;
+}
+
+
+
+/* 区间结果复用同一类型数组布局；复制和移交共享分配/门禁边界。
+ * Relocatable 是类型数组准入条件：尾部移交不执行可失败的 Move/Copy。
+ * 在任何来源修改前完成结果分配，提交区间只有字节移交和计数更新。 */
+static xtypedarray* __xrtTypedArrayExtract(
+	const xtypedarray* pArray,
+	size_t iIndex,
+	size_t iCount,
+	bool bReverse,
+	bool bTake,
+	cstr sOperation
+)
+{
+	xtypedarray* pResult;
+
+	__xrtTypedArrayCallbackBegin(pArray);
+	pResult = xrtTypedArrayCreate(pArray->ItemType);
+	if ( pResult == NULL ) {
+		__xrtTypedArrayCallbackEnd(pArray);
+		return NULL;
+	}
+	if ( !xrtTypedArrayReserve(pResult, iCount) ) {
+		__xrtTypedArrayDestroyPreserveError(pResult);
+		__xrtTypedArrayCallbackEnd(pArray);
+		return NULL;
+	}
+	if ( bTake ) {
+		/* Result storage is reserved and empty. No allocations, callbacks or
+		 * fallible operations are allowed until both ownership counts publish. */
+		for ( size_t i = 0u; i < iCount; i++ ) {
+			size_t iSource = iIndex + (bReverse ? iCount - i - 1u : i);
+			memcpy(pResult->Storage.Data + i * pResult->ItemType->Size,
+				pArray->Storage.Data + iSource * pArray->ItemType->Size,
+				pArray->ItemType->Size);
+		}
+		pResult->Storage.Count = iCount;
+		((xtypedarray*)pArray)->Storage.Count -= iCount;
+	} else {
+		for ( size_t i = 0u; i < iCount; i++ ) {
+			size_t iSource = iIndex + (bReverse ? iCount - i - 1u : i);
+			if ( !xrtTypedArrayPush(pResult,
+					xrtArrayConstGet(&pArray->Storage, iSource)) ) {
+				__xrtTypedArrayDestroyPreserveError(pResult);
+				__xrtTypedArrayCallbackEnd(pArray);
+				__xrtTypedArrayWrap(XERR_STATE, XTYPED_ARRAY_ERROR_OPERATION,
+					sOperation, "a typed array range item could not be copied");
+				return NULL;
+			}
+		}
+	}
+	__xrtTypedArrayCallbackEnd(pArray);
+	return pResult;
+}
+
+
+
+/* 复制精确有界区间；不把错误区间静默截断为合法区间。 */
+XRT_API xtypedarray* xrtTypedArraySlice(
+	const xtypedarray* pArray,
+	size_t iIndex,
+	size_t iCount,
+	bool bReverse
+)
+{
+	if ( !__xrtTypedArrayValid(pArray, "slice") ) {
+		return NULL;
+	}
+	if ( iIndex > pArray->Storage.Count ||
+		 iCount > pArray->Storage.Count - iIndex ) {
+		__xrtTypedArrayError(XERR_RANGE, XTYPED_ARRAY_ERROR_RANGE,
+			"slice", "the typed array range is out of bounds");
+		return NULL;
+	}
+	return __xrtTypedArrayExtract(pArray, iIndex, iCount, bReverse, false, "slice");
+}
+
+
+
+/* 移交实际存在的尾部元素，空请求仍返回独立的空拥有数组。 */
+XRT_API xtypedarray* xrtTypedArrayTakeTail(
+	xtypedarray* pArray,
+	size_t iMaxCount,
+	bool bReverse
+)
+{
+	size_t iCount;
+
+	if ( !__xrtTypedArrayValid(pArray, "take-tail") ) {
+		return NULL;
+	}
+	iCount = iMaxCount < pArray->Storage.Count ? iMaxCount : pArray->Storage.Count;
+	return __xrtTypedArrayExtract(pArray, pArray->Storage.Count - iCount,
+		iCount, bReverse, true, "take-tail");
 }
 
 
@@ -349536,6 +349668,50 @@ XRT_API bool xrtTypedStackPop(xtypedstack* pStack, ptr pValue)
 		return xrtTypedArrayPop(pStack, pValue);
 	}
 	return xrtTypedArrayRemove(pStack, iCount - 1u, 1u);
+}
+
+
+
+/* 事务压入一批同类型值，来源顺序与逐次 Push 完全一致。 */
+XRT_API bool xrtTypedStackPushBatch(
+	xtypedstack* pStack,
+	const xtypedarray* pItems
+)
+{
+	return xrtTypedArrayAppend(pStack, pItems);
+}
+
+
+
+/* 原子移交尾部，按逐次 Pop 顺序交付拥有数组。 */
+XRT_API xtypedarray* xrtTypedStackPopBatch(
+	xtypedstack* pStack,
+	size_t iMaxCount
+)
+{
+	return xrtTypedArrayTakeTail(pStack, iMaxCount, true);
+}
+
+
+
+/* 复制栈顶向下的最多指定数量；起点超过深度由 Slice 报范围错误。 */
+XRT_API xtypedarray* xrtTypedStackPeekBatch(
+	const xtypedstack* pStack,
+	size_t iDepth,
+	size_t iMaxCount
+)
+{
+	/* ItemType validates before Count, including the empty/busy case. */
+	if ( xrtTypedArrayItemType(pStack) == NULL ) {
+		return NULL;
+	}
+	size_t iCount = xrtTypedArrayCount(pStack);
+	if ( iDepth > iCount ) {
+		return xrtTypedArraySlice(pStack, iDepth, 0u, true);
+	}
+	size_t iAvailable = iCount - iDepth;
+	size_t iTake = iMaxCount < iAvailable ? iMaxCount : iAvailable;
+	return xrtTypedArraySlice(pStack, iAvailable - iTake, iTake, true);
 }
 
 

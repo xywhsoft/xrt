@@ -136,6 +136,19 @@ XRT_API bool xrtTypedArrayAppend(
 	xtypedarray* pTarget,
 	const xtypedarray* pSource
 );
+/* 精确区间复制为独立数组；反序只改变交付顺序，不改变来源。 */
+XRT_API xtypedarray* xrtTypedArraySlice(
+	const xtypedarray* pArray,
+	size_t iIndex,
+	size_t iCount,
+	bool bReverse
+);
+/* 最多移交尾部指定数量为独立数组；分配失败时来源完全不变。 */
+XRT_API xtypedarray* xrtTypedArrayTakeTail(
+	xtypedarray* pArray,
+	size_t iMaxCount,
+	bool bReverse
+);
 XRT_API xtypedarray* xrtTypedArrayClone(const xtypedarray* pArray);
 XRT_API xtypedarray* xrtTypedArrayConcat(
 	const xtypedarray* pLeft,

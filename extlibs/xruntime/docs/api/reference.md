@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `442` 个函数、`125` 个常量或宏、
-`68` 个公共类型。
+当前登记 `457` 个函数、`125` 个常量或宏、
+`74` 个公共类型。
 
 ## `extlibs/xruntime/include/xrt/runtime_call.h`
 
 [查看带契约注释的公共头](../../include/xrt/runtime_call.h)
 
-### 函数 (21)
+### 函数 (25)
 
 - `xrtCallFrameArgument`
 - `xrtCallFrameKeyword`
@@ -29,6 +29,10 @@
 - `xrtCallResultUnit`
 - `xrtCallableCreate`
 - `xrtCallableInvoke`
+- `xrtCallableOwnership`
+- `xrtCallableOwnershipAdapterV1`
+- `xrtCallableOwnershipBindV1`
+- `xrtCallableOwnershipTraceBind`
 - `xrtCallableRef`
 - `xrtCallableSignature`
 - `xrtCallableSignatureId`
@@ -46,15 +50,19 @@
 - `XRT_CALL_RESULT_INIT`
 - `XRT_CALL_RESULT_INLINE_COUNT`
 
-### 类型 (8)
+### 类型 (12)
 
 - `xcallerror`
 - `xrtcallable`
+- `xrtcallableownershipv1`
 - `xrtcalldrop`
 - `xrtcallframe`
 - `xrtcallproc`
 - `xrtcallresult`
 - `xrtfunctionsig`
+- `xrtownershipadapterv1`
+- `xrtownershipref`
+- `xrtownershiptrace`
 - `xrttype`
 
 ## `extlibs/xruntime/include/xrt/runtime_convert.h`
@@ -161,12 +169,14 @@
 
 [查看带契约注释的公共头](../../include/xrt/runtime_object.h)
 
-### 函数 (18)
+### 函数 (20)
 
 - `xrtObjectConstData`
 - `xrtObjectCreate`
 - `xrtObjectCreateSized`
 - `xrtObjectData`
+- `xrtObjectOwnership`
+- `xrtObjectOwnershipTraceBind`
 - `xrtObjectRef`
 - `xrtObjectRefCount`
 - `xrtObjectSize`
@@ -200,9 +210,10 @@
 
 [查看带契约注释的公共头](../../include/xrt/runtime_object_graph.h)
 
-### 函数 (8)
+### 函数 (9)
 
 - `xrtObjectGraphCollect`
+- `xrtObjectGraphCollectOwned`
 - `xrtObjectGraphCollectRoots`
 - `xrtObjectGraphContains`
 - `xrtObjectGraphCount`
@@ -219,13 +230,15 @@
 - `XOBJECT_GRAPH_ERROR_TRACE`
 - `XOBJECT_GRAPH_ERROR_TRACK`
 
-### 类型 (5)
+### 类型 (7)
 
 - `xobjectgrapherror`
 - `xrtobjectgraph`
+- `xrtobjectgraphownedresult`
 - `xrtobjectgraphresult`
 - `xrtobjectrootproc`
 - `xrtobjectvisitor`
+- `xrtownershipresult`
 
 ## `extlibs/xruntime/include/xrt/runtime_type.h`
 
@@ -374,15 +387,16 @@
 
 [查看带契约注释的公共头](../../include/xrt/runtime_type_string.h)
 
-### 函数 (1)
+### 函数 (2)
 
 - `xrtTypeString`
+- `xrtTypeStringView`
 
 ## `extlibs/xruntime/include/xrt/runtime_value.h`
 
 [查看带契约注释的公共头](../../include/xrt/runtime_value.h)
 
-### 函数 (26)
+### 函数 (28)
 
 - `xrtObjectGraphCollectValueRoot`
 - `xrtObjectGraphCollectValueRoots`
@@ -390,9 +404,11 @@
 - `xrtProgressCallInvoke`
 - `xrtTypeValue`
 - `xrtValueCallable`
+- `xrtValueCallableOwnershipAdapterV1`
 - `xrtValueCallableSignature`
 - `xrtValueCallableTake`
 - `xrtValueFuture`
+- `xrtValueFutureOwnershipAdapterV1`
 - `xrtValueFutureTake`
 - `xrtValueGetCallable`
 - `xrtValueGetFuture`
@@ -431,7 +447,7 @@
 
 [查看带契约注释的公共头](../../include/xrt/typed_array.h)
 
-### 函数 (31)
+### 函数 (33)
 
 - `xrtTypedArrayAppend`
 - `xrtTypedArrayCapacity`
@@ -459,8 +475,10 @@
 - `xrtTypedArrayResize`
 - `xrtTypedArrayReverse`
 - `xrtTypedArraySet`
+- `xrtTypedArraySlice`
 - `xrtTypedArraySwap`
 - `xrtTypedArrayTake`
+- `xrtTypedArrayTakeTail`
 - `xrtTypedArrayTrim`
 - `xrtTypedArrayTypeValidate`
 - `xrtTypedArrayUnit`
@@ -715,7 +733,7 @@
 
 [查看带契约注释的公共头](../../include/xrt/typed_stack.h)
 
-### 函数 (18)
+### 函数 (21)
 
 - `xrtTypedStackCapacity`
 - `xrtTypedStackClear`
@@ -729,8 +747,11 @@
 - `xrtTypedStackInit`
 - `xrtTypedStackItemType`
 - `xrtTypedStackPeek`
+- `xrtTypedStackPeekBatch`
 - `xrtTypedStackPop`
+- `xrtTypedStackPopBatch`
 - `xrtTypedStackPush`
+- `xrtTypedStackPushBatch`
 - `xrtTypedStackReserve`
 - `xrtTypedStackTop`
 - `xrtTypedStackTrim`

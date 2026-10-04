@@ -58,6 +58,23 @@ XRT_API bool xrtTypedStackPush(
 /* 弹出栈顶；输出为空时销毁元素，否则移动到已初始化输出值。 */
 XRT_API bool xrtTypedStackPop(xtypedstack* pStack, ptr pValue);
 
+/* 数组顺序压入（最后一项成为栈顶）；允许栈自身作为来源。 */
+XRT_API bool xrtTypedStackPushBatch(
+	xtypedstack* pStack,
+	const xtypedarray* pItems
+);
+/* 最多弹出指定数量，结果按逐次 Pop 顺序；空栈返回空拥有数组。 */
+XRT_API xtypedarray* xrtTypedStackPopBatch(
+	xtypedstack* pStack,
+	size_t iMaxCount
+);
+/* 从指定深度最多复制指定数量，结果按栈顶向栈底顺序。 */
+XRT_API xtypedarray* xrtTypedStackPeekBatch(
+	const xtypedstack* pStack,
+	size_t iDepth,
+	size_t iMaxCount
+);
+
 
 
 /* 按距栈顶深度返回借用值，深度零表示栈顶。 */
