@@ -203,7 +203,10 @@ static void testTypedStackBatchAllocatorReentry(testtypedstackoom* pState)
 /* 验证扩容 OOM 不改变来源栈。 */
 int main(void)
 {
-	testtypedstackoom State = {0};
+	/* The installed allocator is process-wide; Windows frees its cached
+	 * backing metadata from FLS after main returns. Its context must outlive
+	 * main's stack frame, including those legitimate deferred frees. */
+	static testtypedstackoom State;
 	xallocator Allocator = {
 		&State,
 		testTypedStackOomAlloc,

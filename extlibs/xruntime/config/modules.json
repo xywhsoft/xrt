@@ -431,8 +431,8 @@
 			"public_headers": [],
 			"internal_headers": [],
 			"sources": [],
-			"tests": ["extlibs/xruntime/tests/runtime/test_typed_array_resize.c"],
-			"single_tests": ["extlibs/xruntime/tests/single/test_single_typed_array_resize.c"],
+			"tests": ["extlibs/xruntime/tests/runtime/test_typed_array_resize.c", "extlibs/xruntime/tests/runtime/test_typed_array_clear.c"],
+			"single_tests": ["extlibs/xruntime/tests/single/test_single_typed_array_resize.c", "extlibs/xruntime/tests/single/test_single_typed_array_clear.c"],
 			"examples": [],
 			"docs": ["extlibs/xruntime/docs/api/typed_array.md"],
 			"legacy": []
