@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：tls/listener_tour —— TLS Listener 全接口 + 回调式 Dial 自省
  * ----------------------------------------------------------------
@@ -103,10 +104,10 @@ static void exampleClientClose(xtlsstream* pStream,
 
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 	while ( !*pFlag ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -243,7 +244,7 @@ int main(void)
 		if ( pServerA != NULL ) {
 			break;
 		}
-		if ( xrtDeadlineExpired(xrtDeadlineAfter(
+		if ( __xrtWaitExpired(__xrtWaitAfter(
 				EXAMPLE_DEADLINE_US)) ) {
 			iResult = 4;
 			goto Cleanup;
@@ -270,10 +271,10 @@ int main(void)
 		goto Cleanup;
 	}
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+		double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 		while ( ClientA.Received < 9u ) {
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				iResult = 4;
 				goto Cleanup;
 			}
@@ -319,8 +320,8 @@ int main(void)
 		goto Cleanup;
 	}
 	pClientC = Slot.pStream;
-	pServerC = xrtTlsListenerAcceptWait(pListener,
-		xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL);
+	pServerC = __xrtTlsListenerAcceptWait(pListener,
+		__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL);
 	if ( (pServerC == NULL) || !exampleSpinUntil(&ClientC.bOpen) ) {
 		iResult = 6;
 		goto Cleanup;
@@ -386,7 +387,7 @@ Cleanup:
 	 * 避免逐条串行等待把最坏退出时间放大到数倍截止时间。 */
 	{
 		xtlsstream* Streams[6];
-		xdeadline iEnd = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 		bool bSettled;
 
 		Streams[0] = pClientA;
@@ -412,7 +413,7 @@ Cleanup:
 					bSettled = false;
 				}
 			}
-			if ( bSettled || xrtDeadlineExpired(iEnd) ) {
+			if ( bSettled || __xrtWaitExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();
@@ -439,12 +440,12 @@ Cleanup:
 	xrtTlsStreamDestroy(pServerB);
 	xrtTlsStreamDestroy(pServerC);
 	if ( pListener != NULL ) {
-		xdeadline iEnd = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 		(void)xrtTlsListenerClose(pListener);
 		while ( xrtTlsListenerState(pListener) !=
 			XTLS_LISTENER_CLOSED ) {
-			if ( xrtDeadlineExpired(iEnd) ) {
+			if ( __xrtWaitExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();

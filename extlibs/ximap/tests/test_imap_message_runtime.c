@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
@@ -18,7 +19,7 @@ static const char TestImapHeaderRaw[] =
 
 typedef struct testimapmessageserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } testimapmessageserver;
 
@@ -62,7 +63,7 @@ static bool testImapMessageSend(
 	xnetstream* pStream,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -71,7 +72,7 @@ static bool testImapMessageSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -88,14 +89,14 @@ static bool testImapMessageSend(
 static bool testImapMessageReceive(
 	xnetstream* pStream,
 	cstr sExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iExpected = strlen(sExpected);
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -125,7 +126,7 @@ static bool testImapMessageExchange(
 	xnetstream* pStream,
 	cstr sCommand,
 	cstr sResponse,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return testImapMessageReceive(pStream, sCommand, iDeadline) &&
@@ -148,7 +149,7 @@ static bool testImapMessageLiteral(
 	cstr sData,
 	size_t iSize,
 	cstr sTag,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	char sPrefix[256];
@@ -196,10 +197,10 @@ static bool testImapMessageLiteral(
 /* 通过 FIN 或异常复位终态验证对端已经停止传输。 */
 static bool testImapMessagePeerClosed(
 	xnetstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
-	xnetbytes* pBytes = xrtNetStreamRecv(
+	xnetbytes* pBytes = __xrtNetStreamRecv(
 		pStream,
 		0,
 		iDeadline,
@@ -216,7 +217,7 @@ static bool testImapMessagePeerClosed(
 		!xrtNetStreamClose(pStream) ) {
 		return false;
 	}
-	bClosed = xrtNetStreamWait(
+	bClosed = __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		iDeadline,
@@ -232,7 +233,7 @@ static bool testImapMessagePeerClosed(
 static int32 testImapMessageServer(ptr pData)
 {
 	testimapmessageserver* pServer = (testimapmessageserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -317,7 +318,7 @@ static int32 testImapMessageServer(ptr pData)
 		"A00000008 LOGOUT\r\n",
 		"* BYE signing off\r\nA00000008 OK logout complete\r\n",
 		pServer->Deadline
-	) && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+	) && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		pServer->Deadline,
@@ -334,7 +335,7 @@ static int32 testImapMessageServer(ptr pData)
 static int32 testImapMessageLimitServer(ptr pData)
 {
 	testimapmessageserver* pServer = (testimapmessageserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -411,7 +412,7 @@ int main(void)
 	xnetlistener* pListener;
 	ximapclient* pClient;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 	xmailtree Tree;
 	bytes pHeader;
 	size_t iWritten;
@@ -441,7 +442,7 @@ int main(void)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "IMAP message resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Success = false;
@@ -452,16 +453,16 @@ int main(void)
 	Config.Net.Resolver = pResolver;
 	Config.Net.Host = "message.imap.test";
 	Config.Net.Port = TestImapMessageAddress.Port;
-	pClient = xrtImapClientOpen(&Config, Deadline, NULL);
+	pClient = __xrtImapClientOpen(&Config, Deadline, NULL);
 	testRequire(pClient != NULL, "IMAP message client open failed");
-	testRequire(xrtImapClientSelect(
+	testRequire(__xrtImapClientSelect(
 		pClient,
 		XRT_STR_LITERAL("INBOX"),
 		&Info,
 		Deadline,
 		NULL
 	) && (Info.Exists == 3u), "IMAP message SELECT failed");
-	testRequire(!xrtImapClientBodyWrite(
+	testRequire(!__xrtImapClientBodyWrite(
 		pClient,
 		1u,
 		XRT_STR_LITERAL("HEADER] UID FETCH 2 BODY["),
@@ -477,7 +478,7 @@ int main(void)
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_SELECTED),
 		"IMAP BODY section injection reached the active session");
 	xrtClearError();
-	testRequire(xrtImapClientBodyWrite(
+	testRequire(__xrtImapClientBodyWrite(
 		pClient,
 		1u,
 		XRT_STR_LITERAL(""),
@@ -493,7 +494,7 @@ int main(void)
 		(Sink.Size == iWritten) && (Sink.Calls != 0) &&
 		(memcmp(Sink.Data, TestImapMessageRaw, iWritten) == 0),
 		"IMAP streamed BODY output mismatch");
-	pHeader = xrtImapClientBodyBytes(
+	pHeader = __xrtImapClientBodyBytes(
 		pClient,
 		42u,
 		XRT_STR_LITERAL("HEADER"),
@@ -510,7 +511,7 @@ int main(void)
 		(memcmp(pHeader, TestImapHeaderRaw, iHeaderSize) == 0),
 		"IMAP owned BODY section mismatch");
 	xrtFree(pHeader);
-	testRequire(xrtImapClientMessageTree(
+	testRequire(__xrtImapClientMessageTree(
 		pClient,
 		3u,
 		false,
@@ -527,7 +528,7 @@ int main(void)
 			Tree.Root->Data.Size
 		) == 0), "IMAP BODY MIME tree mismatch");
 	xrtMailTreeFree(&Tree);
-	testRequire(xrtImapClientBodyBytes(
+	testRequire(__xrtImapClientBodyBytes(
 		pClient,
 		99u,
 		XRT_STR_LITERAL(""),
@@ -541,32 +542,32 @@ int main(void)
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_SELECTED),
 		"IMAP missing BODY result state mismatch");
 	xrtClearError();
-	testRequire(xrtImapClientNoop(pClient, Deadline, NULL),
+	testRequire(__xrtImapClientNoop(pClient, Deadline, NULL),
 		"IMAP client was not reusable after an empty BODY result");
-	testRequire(xrtImapClientLogout(pClient, Deadline, NULL),
+	testRequire(__xrtImapClientLogout(pClient, Deadline, NULL),
 		"IMAP message LOGOUT failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"IMAP message server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"IMAP message server transcript mismatch");
 	xrtThreadDestroy(pThread);
 	xrtImapClientDestroy(pClient);
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Deadline = Deadline;
 	Server.Success = false;
 	pThread = xrtThreadCreate(testImapMessageLimitServer, &Server, 0);
 	testRequire(pThread != NULL,
 		"IMAP message limit server thread creation failed");
-	pClient = xrtImapClientOpen(&Config, Deadline, NULL);
-	testRequire((pClient != NULL) && xrtImapClientSelect(
+	pClient = __xrtImapClientOpen(&Config, Deadline, NULL);
+	testRequire((pClient != NULL) && __xrtImapClientSelect(
 		pClient,
 		XRT_STR_LITERAL("INBOX"),
 		NULL,
 		Deadline,
 		NULL
 	), "IMAP message limit client setup failed");
-	testRequire(xrtImapClientBodyBytes(
+	testRequire(__xrtImapClientBodyBytes(
 		pClient,
 		1u,
 		XRT_STR_LITERAL(""),
@@ -583,7 +584,7 @@ int main(void)
 	testRequire(xrtImapClientAbort(pClient) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_CLOSED),
 		"IMAP client abort was not idempotent");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"IMAP message limit server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"IMAP message limit server transcript mismatch");

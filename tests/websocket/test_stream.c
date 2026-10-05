@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 #include "../../src/internal/xrt_tcp.h"
@@ -231,7 +232,7 @@ static void testWsConnWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 
@@ -240,7 +241,7 @@ static void testWsConnWait(
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -2649,7 +2650,7 @@ int main(void)
 	xwsstream* pClient;
 	xwsstream* pServer;
 	xwsstreamclose OpenClose;
-	xdeadline AttachDeadline;
+	double AttachDeadline;
 	uint32 iExpectedMessages = 2;
 	uint32 iExpectedClientMessages;
 
@@ -2794,7 +2795,7 @@ int main(void)
 		pClientStream != NULL,
 		"WebSocket client TCP connect failed"
 	);
-	AttachDeadline = xrtDeadlineAfter(
+	AttachDeadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 	while ( ((pClient = (xwsstream*)xrtAtomicPtrLoad(
@@ -2805,7 +2806,7 @@ int main(void)
 		XMEMORY_ACQUIRE
 	)) == NULL) ) {
 		testRequire(
-			!xrtDeadlineExpired(AttachDeadline),
+			!__xrtWaitExpired(AttachDeadline),
 			"WebSocket connections were not attached"
 		);
 		xrtThreadYield();
@@ -3049,12 +3050,12 @@ int main(void)
 		#endif
 	#endif
 	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_REF)
-		AttachDeadline = xrtDeadlineAfter(
+		AttachDeadline = __xrtWaitAfter(
 			UINT64_C(10000000)
 		);
 		while ( xrtWsStreamPending(pServer) != 0 ) {
 			testRequire(
-				!xrtDeadlineExpired(AttachDeadline),
+				!__xrtWaitExpired(AttachDeadline),
 				"WebSocket server reference precondition did not drain"
 			);
 			xrtThreadYield();

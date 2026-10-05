@@ -323,7 +323,7 @@ static ptr __xrtWsConnTransportRef(
 	if ( pTransport != NULL ) {
 		#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 			if ( pMutable->TransportKind ==
-				__XRT_WS_TRANSPORT_TLS ) {
+				__XWS_TRANSPORT_TLS ) {
 				pTransport = xrtTlsStreamRef(
 					(xtlsstream*)pTransport
 				);
@@ -353,7 +353,7 @@ static void __xrtWsConnTransportRelease(
 	(void)pConnection;
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 		if ( pConnection->TransportKind ==
-			__XRT_WS_TRANSPORT_TLS ) {
+			__XWS_TRANSPORT_TLS ) {
 			xrtTlsStreamDestroy((xtlsstream*)pTransport);
 			return;
 		}
@@ -374,7 +374,7 @@ static size_t __xrtWsConnTransportPending(
 	if ( pTransport != NULL ) {
 		#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 			if ( pConnection->TransportKind ==
-				__XRT_WS_TRANSPORT_TLS ) {
+				__XWS_TRANSPORT_TLS ) {
 				iPending = xrtTlsStreamPending(
 					(xtlsstream*)pTransport
 				);
@@ -395,13 +395,13 @@ static size_t __xrtWsConnTransportPending(
 /* 释放 TLS 尚未受理的全部精确帧余量。 */
 static void __xrtWsConnOutputClear(xwsconn* pConnection)
 {
-	__xrt_ws_output* pOutput = pConnection->OutputHead;
+	__xws_output* pOutput = pConnection->OutputHead;
 
 	pConnection->OutputHead = NULL;
 	pConnection->OutputTail = NULL;
 	xrtAtomic64Init(&pConnection->OutputBytes, 0);
 	while ( pOutput != NULL ) {
-		__xrt_ws_output* pNext = pOutput->Next;
+		__xws_output* pNext = pOutput->Next;
 
 		xrtFree(pOutput);
 		pOutput = pNext;
@@ -518,17 +518,17 @@ static bool __xrtWsConnTransportSize(
 /* 返回发送类别必须留给更高优先级协议帧的传输预算。 */
 static size_t __xrtWsConnReserve(
 	const xwsconn* pConnection,
-	__xrt_ws_send_class Class
+	__xws_send_class Class
 )
 {
 	switch ( Class ) {
-		case __XRT_WS_SEND_DATA:
+		case __XWS_SEND_DATA:
 			return pConnection->Config.ControlReserve;
-		case __XRT_WS_SEND_CONTROL:
+		case __XWS_SEND_CONTROL:
 			return pConnection->ControlSlot * 2u;
-		case __XRT_WS_SEND_AUTO_PONG:
+		case __XWS_SEND_AUTO_PONG:
 			return pConnection->ControlSlot;
-		case __XRT_WS_SEND_CLOSE:
+		case __XWS_SEND_CLOSE:
 		default:
 			return 0;
 	}
@@ -555,7 +555,7 @@ static size_t __xrtWsConnClassCapacity(
 */
 static size_t __xrtWsConnCapacity(
 	const xwsconn* pConnection,
-	__xrt_ws_send_class Class
+	__xws_send_class Class
 )
 {
 	size_t iReserve = __xrtWsConnReserve(pConnection, Class);
@@ -567,7 +567,7 @@ static size_t __xrtWsConnCapacity(
 
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 		if ( pConnection->TransportKind ==
-			__XRT_WS_TRANSPORT_TLS ) {
+			__XWS_TRANSPORT_TLS ) {
 			return iCapacity;
 		}
 	#endif
@@ -591,7 +591,7 @@ static size_t __xrtWsConnCapacity(
 /* 前置声明供公开普通数据可写查询复用同一容量口径。 */
 static size_t __xrtWsConnAvailable(
 	const xwsconn* pConnection,
-	__xrt_ws_send_class Class
+	__xws_send_class Class
 );
 
 
@@ -610,7 +610,7 @@ XRT_API size_t xrtWsConnWritable(const xwsconn* pConnection)
 	}
 	return __xrtWsConnAvailable(
 		pConnection,
-		__XRT_WS_SEND_DATA
+		__XWS_SEND_DATA
 	);
 }
 
@@ -619,7 +619,7 @@ XRT_API size_t xrtWsConnWritable(const xwsconn* pConnection)
 /* 按发送类别扣除更高优先级协议帧的固定预留。 */
 static size_t __xrtWsConnAvailable(
 	const xwsconn* pConnection,
-	__xrt_ws_send_class Class
+	__xws_send_class Class
 )
 {
 	size_t iPending = xrtWsConnPending(pConnection);
@@ -636,7 +636,7 @@ static size_t __xrtWsConnAvailable(
 	);
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 		if ( pConnection->TransportKind ==
-			__XRT_WS_TRANSPORT_TLS ) {
+			__XWS_TRANSPORT_TLS ) {
 			return iAvailable;
 		}
 	#endif
@@ -695,7 +695,7 @@ static void __xrtWsConnWritableEvent(xwsconn* pConnection)
 
 
 /* 创建一个头部与负载同分配的完整线路帧。 */
-static __xrt_ws_output* __xrtWsConnFrame(
+static __xws_output* __xrtWsConnFrame(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload,
@@ -705,7 +705,7 @@ static __xrt_ws_output* __xrtWsConnFrame(
 {
 	xwsframe Frame;
 	xwsframeconfig Config;
-	__xrt_ws_output* pOutput;
+	__xws_output* pOutput;
 	size_t iHead = 0;
 	size_t iTotal;
 
@@ -762,7 +762,7 @@ static __xrt_ws_output* __xrtWsConnFrame(
 		);
 		return NULL;
 	}
-	pOutput = (struct __xrt_ws_output*)xrtMalloc(
+	pOutput = (struct __xws_output*)xrtMalloc(
 		sizeof(*pOutput) + iTotal
 	);
 	if ( pOutput == NULL ) {
@@ -844,17 +844,17 @@ static bool __xrtWsConnFrameSize(
 xnetresult __xrtWsConnFrameBudget(
 	xwsconn* pConnection,
 	size_t iPayload,
-	__xrt_ws_send_class Class,
+	__xws_send_class Class,
 	size_t* pWireSize
 )
 {
 	size_t iWireSize;
 	size_t iBudget;
-	bool bControl = Class != __XRT_WS_SEND_DATA;
+	bool bControl = Class != __XWS_SEND_DATA;
 
 	if ( (pConnection == NULL) || (pWireSize == NULL) ||
-		(Class < __XRT_WS_SEND_DATA) ||
-		(Class > __XRT_WS_SEND_CLOSE) ) {
+		(Class < __XWS_SEND_DATA) ||
+		(Class > __XWS_SEND_CLOSE) ) {
 		__xwsErrorSetInvalidArgument();
 		return XNET_RESULT_ERROR;
 	}
@@ -917,7 +917,7 @@ xnetresult __xrtWsConnFrameBudget(
 		pConnection,
 		Class
 	) ) {
-		if ( Class == __XRT_WS_SEND_DATA ) {
+		if ( Class == __XWS_SEND_DATA ) {
 			__xrtWsConnBackpressure(pConnection);
 		}
 		return XNET_RESULT_AGAIN;
@@ -932,7 +932,7 @@ xnetresult __xrtWsConnFrameBudget(
 /* 把 TLS 尚未受理的帧尾追加到精确余量队列。 */
 static void __xrtWsConnOutputAppend(
 	xwsconn* pConnection,
-	__xrt_ws_output* pOutput
+	__xws_output* pOutput
 )
 {
 	pOutput->Next = NULL;
@@ -986,8 +986,8 @@ void __xrtWsConnSendFailure(
 /* 向 TCP 或 TLS 提交一整个已计入预算的帧。 */
 static xnetresult __xrtWsConnSubmit(
 	xwsconn* pConnection,
-	__xrt_ws_output* pOutput,
-	__xrt_ws_send_class Class
+	__xws_output* pOutput,
+	__xws_send_class Class
 )
 {
 	ptr pTransport = xrtAtomicPtrLoad(
@@ -1021,14 +1021,14 @@ static xnetresult __xrtWsConnSubmit(
 		Class
 	) ) {
 		xrtFree(pOutput);
-		if ( Class == __XRT_WS_SEND_DATA ) {
+		if ( Class == __XWS_SEND_DATA ) {
 			__xrtWsConnBackpressure(pConnection);
 		}
 		return XNET_RESULT_AGAIN;
 	}
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 		if ( pConnection->TransportKind ==
-			__XRT_WS_TRANSPORT_TLS ) {
+			__XWS_TRANSPORT_TLS ) {
 			size_t iWritten = 0;
 			xtlsresult TlsResult;
 
@@ -1110,7 +1110,7 @@ static xnetresult __xrtWsConnSubmit(
 	if ( Result != XNET_RESULT_OK ) {
 		xrtFree(pOutput);
 		if ( (Result == XNET_RESULT_AGAIN) &&
-			(Class == __XRT_WS_SEND_DATA) ) {
+			(Class == __XWS_SEND_DATA) ) {
 			__xrtWsConnBackpressure(pConnection);
 		} else if ( Result == XNET_RESULT_ERROR ) {
 			const xerror* pCause = xrtNetStreamError(
@@ -1145,11 +1145,11 @@ xnetresult __xrtWsConnSendFrame(
 	xwsopcode Opcode,
 	xbytesview Payload,
 	bool bFinal,
-	__xrt_ws_send_class Class,
+	__xws_send_class Class,
 	bool bCompressed
 )
 {
-	__xrt_ws_output* pOutput;
+	__xws_output* pOutput;
 	size_t iWireSize;
 	xnetresult Budget;
 
@@ -1233,7 +1233,7 @@ static void __xrtWsConnCloseTransportStart(xwsconn* pConnection)
 	__xrtWsConnCancelCloseTimer(pConnection);
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 		if ( pConnection->TransportKind ==
-			__XRT_WS_TRANSPORT_TLS ) {
+			__XWS_TRANSPORT_TLS ) {
 			bAccepted = xrtTlsStreamClose(
 				(xtlsstream*)pTransport
 			);
@@ -1372,7 +1372,7 @@ static xnetresult __xrtWsConnClosePayload(
 		XWS_OPCODE_CLOSE,
 		Payload,
 		true,
-		__XRT_WS_SEND_CLOSE,
+		__XWS_SEND_CLOSE,
 		false
 	);
 	if ( Result != XNET_RESULT_OK ) {
@@ -1431,7 +1431,7 @@ static bool __xrtWsConnOutputDrive(xwsconn* pConnection)
 
 	while ( (pStream != NULL) &&
 		(pConnection->OutputHead != NULL) ) {
-		__xrt_ws_output* pOutput =
+		__xws_output* pOutput =
 			pConnection->OutputHead;
 		size_t iRemaining =
 			pOutput->Size - pOutput->Offset;
@@ -1519,7 +1519,7 @@ static const xnetbuf* __xrtWsConnBuffer(xwsconn* pConnection)
 	}
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 		if ( pConnection->TransportKind ==
-			__XRT_WS_TRANSPORT_TLS ) {
+			__XWS_TRANSPORT_TLS ) {
 			return xrtTlsStreamBuffer(
 				(xtlsstream*)pTransport
 			);
@@ -1546,7 +1546,7 @@ static bool __xrtWsConnConsume(
 	}
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 		if ( pConnection->TransportKind ==
-			__XRT_WS_TRANSPORT_TLS ) {
+			__XWS_TRANSPORT_TLS ) {
 			return xrtTlsStreamConsume(
 				(xtlsstream*)pTransport,
 				iSize
@@ -1765,7 +1765,7 @@ static bool __xrtWsConnControl(xwsconn* pConnection)
 				XWS_OPCODE_PONG,
 				Payload,
 				true,
-				__XRT_WS_SEND_AUTO_PONG,
+				__XWS_SEND_AUTO_PONG,
 				false
 			);
 
@@ -2281,7 +2281,7 @@ static void __xrtWsConnDrive(
 	}
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 		if ( pConnection->TransportKind ==
-			__XRT_WS_TRANSPORT_TLS ) {
+			__XWS_TRANSPORT_TLS ) {
 			xrtWsConnDestroy(pConnection);
 			return;
 		}
@@ -2376,7 +2376,7 @@ XRT_API void xrtWsConnPause(xwsconn* pConnection)
 	}
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 		if ( pConnection->TransportKind ==
-			__XRT_WS_TRANSPORT_TLS ) {
+			__XWS_TRANSPORT_TLS ) {
 			return;
 		}
 	#endif
@@ -2684,7 +2684,7 @@ static void __xrtWsConnTransportClose(
 	if ( pOwned != NULL ) {
 		#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 			if ( pConnection->TransportKind ==
-				__XRT_WS_TRANSPORT_TLS ) {
+				__XWS_TRANSPORT_TLS ) {
 				xrtTlsStreamDestroy(
 					(xtlsstream*)pOwned
 				);
@@ -2857,7 +2857,7 @@ static const xtlsstreamevents* __xrtWsConnTlsEvents(void)
 /* 创建共享 Connection 状态，但不提前改变传输事件所有权。 */
 static xwsconn* __xrtWsConnCreate(
 	xnetworker* pWorker,
-	__xrt_ws_transport TransportKind,
+	__xws_transport TransportKind,
 	ptr pTransport,
 	const xwsconnconfig* pConfig,
 	const xwsconnevents* pEvents,
@@ -3118,7 +3118,7 @@ static bool __xrtWsConnAttachBudget(
 
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 		if ( pConnection->TransportKind ==
-			__XRT_WS_TRANSPORT_TLS ) {
+			__XWS_TRANSPORT_TLS ) {
 			size_t iOne;
 			size_t iFull;
 
@@ -3156,7 +3156,7 @@ static bool __xrtWsConnAttachBudget(
 		 pConnection->Config.ControlReserve)) ) {
 		return false;
 	}
-	if ( pConnection->TransportKind == __XRT_WS_TRANSPORT_TCP ) {
+	if ( pConnection->TransportKind == __XWS_TRANSPORT_TCP ) {
 		size_t iWriteLimit = xrtNetStreamWriteLimit(
 			(xnetstream*)pTransport
 		);
@@ -3210,7 +3210,7 @@ XRT_API xwsconn* xrtWsConnAttach(
 	}
 	pConnection = __xrtWsConnCreate(
 		pWorker,
-		__XRT_WS_TRANSPORT_TCP,
+		__XWS_TRANSPORT_TCP,
 		pStream,
 		pConfig,
 		pEvents,
@@ -3287,7 +3287,7 @@ XRT_API xwsconn* xrtWsConnAttachTls(
 	}
 	pConnection = __xrtWsConnCreate(
 		pWorker,
-		__XRT_WS_TRANSPORT_TLS,
+		__XWS_TRANSPORT_TLS,
 		pStream,
 		pConfig,
 		pEvents,
@@ -3498,7 +3498,7 @@ XRT_API xnetstream* xrtWsConnTcp(
 		pConnection,
 		"query-websocket-tcp"
 	) || (pConnection->TransportKind !=
-		 __XRT_WS_TRANSPORT_TCP) ) {
+		 __XWS_TRANSPORT_TCP) ) {
 		return NULL;
 	}
 	if ( !xrtNetWorkerIsCurrent(pConnection->Worker) ) {
@@ -3531,7 +3531,7 @@ XRT_API xnetstream* xrtWsConnTcpRef(
 		pConnection,
 		"retain-websocket-tcp"
 	) || (pConnection->TransportKind !=
-		 __XRT_WS_TRANSPORT_TCP) ) {
+		 __XWS_TRANSPORT_TCP) ) {
 		return NULL;
 	}
 	return (xnetstream*)__xrtWsConnTransportRef(
@@ -3554,7 +3554,7 @@ XRT_API xtlsstream* xrtWsConnTls(
 		pConnection,
 		"query-websocket-tls"
 	) || (pConnection->TransportKind !=
-		 __XRT_WS_TRANSPORT_TLS) ) {
+		 __XWS_TRANSPORT_TLS) ) {
 		return NULL;
 	}
 	if ( !xrtNetWorkerIsCurrent(pConnection->Worker) ) {
@@ -3587,7 +3587,7 @@ XRT_API xtlsstream* xrtWsConnTlsRef(
 		pConnection,
 		"retain-websocket-tls"
 	) || (pConnection->TransportKind !=
-		 __XRT_WS_TRANSPORT_TLS) ) {
+		 __XWS_TRANSPORT_TLS) ) {
 		return NULL;
 	}
 	return (xtlsstream*)__xrtWsConnTransportRef(
@@ -3600,13 +3600,13 @@ XRT_API xtlsstream* xrtWsConnTlsRef(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
 /* 单条压缩消息只按实际输出增长，不在连接对象中保留固定缓冲。 */
-typedef struct __xrt_ws_compressed {
+typedef struct __xws_compressed {
 	bytes Data;
 	size_t Size;
 	size_t Capacity;
 	size_t Limit;
 	xnetbuf* Buffer;
-} __xrt_ws_compressed;
+} __xws_compressed;
 
 
 
@@ -3616,8 +3616,8 @@ static bool __xrtWsConnDeflateOutput(
 	ptr pData
 )
 {
-	__xrt_ws_compressed* pOutput =
-		(__xrt_ws_compressed*)pData;
+	__xws_compressed* pOutput =
+		(__xws_compressed*)pData;
 	size_t iRequired;
 	size_t iCapacity;
 	bytes pBytes;
@@ -3719,7 +3719,7 @@ static xnetresult __xrtWsConnDeflateBufferSubmit(
 	Result = __xrtWsConnFrameBudget(
 		pConnection,
 		iPayload,
-		__XRT_WS_SEND_DATA,
+		__XWS_SEND_DATA,
 		&iWireSize
 	);
 	if ( Result != XNET_RESULT_OK ) {
@@ -3804,7 +3804,7 @@ static void __xrtWsConnDeflateRollback(
 #if defined(XWS_FEATURE_WEBSOCKET_WRITER_DEFLATE)
 /* 流式压缩帧把最终线路节点和最大负载放在同一分配中。 */
 typedef struct __xrt_ws_deflate_frame {
-	__xrt_ws_output* Output;
+	__xws_output* Output;
 	size_t Size;
 	size_t Limit;
 	xnetbuf* Buffer;
@@ -3926,7 +3926,7 @@ xnetresult __xrtWsConnSendDeflatePart(
 	Budget = __xrtWsConnFrameBudget(
 		pConnection,
 		iBound,
-		__XRT_WS_SEND_DATA,
+		__XWS_SEND_DATA,
 		&iWireSize
 	);
 	if ( Budget != XNET_RESULT_OK ) {
@@ -3947,7 +3947,7 @@ xnetresult __xrtWsConnSendDeflatePart(
 	memset(&Output, 0, sizeof(Output));
 	memset(&Buffer, 0, sizeof(Buffer));
 	bBuffer = (pConnection->Config.Role == XWS_ROLE_SERVER) &&
-		(pConnection->TransportKind == __XRT_WS_TRANSPORT_TCP);
+		(pConnection->TransportKind == __XWS_TRANSPORT_TCP);
 	if ( bBuffer ) {
 		if ( !xrtNetBufInit(
 			&Buffer,
@@ -3959,7 +3959,7 @@ xnetresult __xrtWsConnSendDeflatePart(
 	} else {
 		iAllocation = sizeof(*Output.Output) +
 			XWS_FRAME_HEAD_MAX + iBound;
-		Output.Output = (__xrt_ws_output*)xrtMalloc(iAllocation);
+		Output.Output = (__xws_output*)xrtMalloc(iAllocation);
 		if ( Output.Output == NULL ) {
 			(void)__xrtWsConnReject(
 				XERR_MEMORY,
@@ -4111,7 +4111,7 @@ xnetresult __xrtWsConnSendDeflatePart(
 	Result = __xrtWsConnSubmit(
 		pConnection,
 		Output.Output,
-		__XRT_WS_SEND_DATA
+		__XWS_SEND_DATA
 	);
 	if ( Result != XNET_RESULT_OK ) {
 		if ( bFirst ) {
@@ -4137,17 +4137,17 @@ static xnetresult __xrtWsConnSendDeflate(
 	xbytesview Payload
 )
 {
-	__xrt_ws_compressed Output;
+	__xws_compressed Output;
 	xnetbuf Buffer;
 	xnetresult Result;
 	size_t iMinimum;
 	size_t iAvailable = __xrtWsConnAvailable(
 		pConnection,
-		__XRT_WS_SEND_DATA
+		__XWS_SEND_DATA
 	);
 	size_t iCapacity = __xrtWsConnCapacity(
 		pConnection,
-		__XRT_WS_SEND_DATA
+		__XWS_SEND_DATA
 	);
 
 	if ( iCapacity == 0 ) {
@@ -4185,7 +4185,7 @@ static xnetresult __xrtWsConnSendDeflate(
 	memset(&Output, 0, sizeof(Output));
 	(void)xrtNetBufInit(&Buffer, NULL);
 	if ( (pConnection->Config.Role == XWS_ROLE_SERVER) &&
-		(pConnection->TransportKind == __XRT_WS_TRANSPORT_TCP) ) {
+		(pConnection->TransportKind == __XWS_TRANSPORT_TCP) ) {
 		if ( !xrtNetBufInit(
 			&Buffer,
 			xrtNetWorkerBufPool(pConnection->Worker)
@@ -4259,7 +4259,7 @@ static xnetresult __xrtWsConnSendDeflate(
 			Output.Size
 		},
 		true,
-		__XRT_WS_SEND_DATA,
+		__XWS_SEND_DATA,
 		true
 	);
 	xrtFree(Output.Data);
@@ -4342,7 +4342,7 @@ bool __xrtWsConnMessageCheck(
 		 ) || (iWireSize >
 			__xrtWsConnCapacity(
 				pConnection,
-				__XRT_WS_SEND_DATA
+				__XWS_SEND_DATA
 			))) ) {
 		(void)__xrtWsConnReject(
 			XERR_RANGE,
@@ -4418,7 +4418,7 @@ static xnetresult __xrtWsConnSendMessage(
 		Opcode,
 		Payload,
 		true,
-		__XRT_WS_SEND_DATA,
+		__XWS_SEND_DATA,
 		false
 	);
 }
@@ -4552,7 +4552,7 @@ static xnetresult __xrtWsConnControlSend(
 		Opcode,
 		Payload,
 		true,
-		__XRT_WS_SEND_CONTROL,
+		__XWS_SEND_CONTROL,
 		false
 	);
 }
@@ -4675,7 +4675,7 @@ XRT_API bool xrtWsConnAbort(xwsconn* pConnection)
 	}
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 		if ( pConnection->TransportKind ==
-			__XRT_WS_TRANSPORT_TLS ) {
+			__XWS_TRANSPORT_TLS ) {
 			bAccepted = xrtTlsStreamAbort(
 				(xtlsstream*)pTransport
 			);

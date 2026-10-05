@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 #if !defined(TEST_PROXY_DIAL_HTTP_CONNECT) || \
@@ -71,10 +72,10 @@ static void testProxyDialWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(Deadline), sMessage);
+		testRequire(!__xrtWaitExpired(Deadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -87,10 +88,10 @@ static void testProxyDialWaitClosed(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtNetStreamState(pStream) != XNET_STREAM_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(Deadline), sMessage);
+		testRequire(!__xrtWaitExpired(Deadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -103,7 +104,7 @@ static void testProxyDialWaitBytes(
 	uint32 iExpected
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000000u);
 	uint32 iReceived;
 
 	for ( ;; ) {
@@ -114,7 +115,7 @@ static void testProxyDialWaitBytes(
 		if ( iReceived >= iExpected ) {
 			return;
 		}
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			fprintf(
 				stderr,
 				"[INFO] received=%u expected=%u stage=%d result=%d "

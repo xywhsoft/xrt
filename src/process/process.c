@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_process.h"
 
 
@@ -636,9 +637,9 @@ XRT_API bool xrtProcessClose(
 
 
 /* 等待终态并把后台等待错误复制到当前调用上下文。 */
-XRT_API xwaitresult xrtProcessWaitUntil(
+XRT_API xwaitresult __xrtProcessWaitUntil(
 	xprocess* pProcess,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xwaitresult Result = XWAIT_OK;
@@ -656,7 +657,7 @@ XRT_API xwaitresult xrtProcessWaitUntil(
 	}
 	(void)xrtMutexLock(&pProcess->Lock);
 	while ( pProcess->State != XPROCESS_EXITED ) {
-		Result = xrtCondWaitUntil(
+		Result = __xrtCondWaitUntil(
 			&pProcess->Changed,
 			&pProcess->Lock,
 			iDeadline
@@ -683,7 +684,7 @@ XRT_API xwaitresult xrtProcessWaitUntil(
 /* 使用无限 Deadline 等待。 */
 XRT_API xwaitresult xrtProcessWait(xprocess* pProcess)
 {
-	return xrtProcessWaitUntil(pProcess, XRT_DEADLINE_NEVER);
+	return __xrtProcessWaitUntil(pProcess, INFINITY);
 }
 
 
@@ -691,10 +692,10 @@ XRT_API xwaitresult xrtProcessWait(xprocess* pProcess)
 /* 从相对微秒数构造单调 Deadline。 */
 XRT_API xwaitresult xrtProcessWaitFor(
 	xprocess* pProcess,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	return xrtProcessWaitUntil(pProcess, xrtDeadlineAfter(iTimeout));
+	return __xrtProcessWaitUntil(pProcess, __xrtWaitAfter(iTimeout));
 }
 
 

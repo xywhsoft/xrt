@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 #include "test_tls.h"
 
@@ -6,7 +7,7 @@
 typedef struct testimapstarttlsserver {
 	xnetlistener* Listener;
 	const xtlsserverconfig* Tls;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } testimapstarttlsserver;
 
@@ -41,7 +42,7 @@ static xnetaddrlist* testImapStartTlsResolve(
 static int32 testImapStartTlsServer(ptr pData)
 {
 	testimapstarttlsserver* pServer = (testimapstarttlsserver*)pData;
-	xnetstream* pTcp = xrtNetListenerAcceptWait(
+	xnetstream* pTcp = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -182,7 +183,7 @@ int main(void)
 	xnetlistener* pListener;
 	ximapclient* pClient;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 
 	pContext = testTlsServerContext();
 	pIdentity = testTlsServerIdentity();
@@ -220,7 +221,7 @@ int main(void)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "IMAP STARTTLS resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Tls = &ServerConfig;
 	Server.Deadline = Deadline;
@@ -235,7 +236,7 @@ int main(void)
 	Config.Net.Security = XMAIL_SECURITY_STARTTLS;
 	Config.Net.Tls.Context = pContext;
 	Config.Net.Tls.Verifier = pVerifier;
-	pClient = xrtImapClientOpen(&Config, Deadline, NULL);
+	pClient = __xrtImapClientOpen(&Config, Deadline, NULL);
 	testRequire((pClient != NULL) &&
 		(xrtImapClientSecurity(pClient) == XMAIL_SECURITY_TLS) &&
 		((xrtImapClientCapabilities(pClient) & XIMAP_CAP_STARTTLS) == 0) &&
@@ -250,13 +251,13 @@ int main(void)
 	Auth.Username = XRT_STR_LITERAL("user");
 	Auth.AuthorizationId = XRT_STR_LITERAL("u,s=e");
 	Auth.Secret = XRT_STR_LITERAL("token");
-	testRequire(!xrtImapClientAuth(pClient, &Auth, Deadline, NULL) &&
+	testRequire(!__xrtImapClientAuth(pClient, &Auth, Deadline, NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_NOT_AUTHENTICATED),
 		"IMAP OAUTHBEARER rejection did not preserve reusable state");
 	xrtClearError();
-	testRequire(xrtImapClientLogout(pClient, Deadline, NULL),
+	testRequire(__xrtImapClientLogout(pClient, Deadline, NULL),
 		"IMAP STARTTLS LOGOUT failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"IMAP STARTTLS server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"IMAP STARTTLS transcript mismatch");

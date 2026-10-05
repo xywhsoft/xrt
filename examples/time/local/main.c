@@ -41,7 +41,7 @@ int main(void)
 	}
 	printf("local=%lld-%02d-%02d %02d:%02d:%02d.%06d offset=%+d dst=%d\n",
 		(long long)tLocal.Year, tLocal.Month, tLocal.Day,
-		tLocal.Hour, tLocal.Minute, tLocal.Second, tLocal.Microsecond,
+		tLocal.Hour, tLocal.Minute, tLocal.Second, tLocal.Millisecond,
 		tLocal.Offset, tLocal.IsDST);
 
 	/* 往返校验：本地字段 → 绝对时刻 → 应回到原值。 */

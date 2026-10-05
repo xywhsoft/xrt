@@ -1,6 +1,8 @@
-#include "../xwork.c"
-#include "xllm.c"
-#include "xllm-session.c"
+#include <xrt/detail/wait.h>
+#include "../../xllm/src/internal/xllm_internal.h"
+#include "../../xllm-session/src/internal/xllm_session_internal.h"
+#include "../src/internal/xwork_internal.h"
+
 
 static int g_iFailures = 0;
 static const char* g_sSelfPath = NULL;
@@ -212,7 +214,7 @@ static xllm_result mock_complete(
     size_t i;
     (void)pError;
     *ppResponse = NULL;
-    if ( pRequest->pCancel || pRequest->uDeadline != XRT_DEADLINE_NEVER )
+    if ( pRequest->pCancel || pRequest->uDeadline != INFINITY )
         pMock->bSawContext = true;
     if ( pRequest->iToolCount == 0u ) {
         ++pMock->uCompactionCalls;
@@ -561,14 +563,14 @@ static void test_agent_loop(void)
             strcmp(tMcpInfo.sProtocolVersion, "2025-06-18") == 0,
             "MCP diagnostics expose negotiated version, tool count, and request count");
         {
-            uint64_t uStartedMs = xrtClock() / UINT64_C(1000);
+            uint64_t uStartedMs = xrtTimer() / UINT64_C(1000);
             xwork_result eMcpDeadlineResult;
             uint64_t uElapsedMs;
             xworkToolOutputInit(&tMcpOutput);
             eMcpDeadlineResult = xworkMcpClientCallTool(
                 pMcpClient, "echo", "{\"delay\":true}", NULL,
-                xrtDeadlineAfter(UINT64_C(100000)), &tMcpOutput, &tError);
-            uElapsedMs = xrtClock() / UINT64_C(1000) - uStartedMs;
+                __xrtWaitAfter(UINT64_C(100000)), &tMcpOutput, &tError);
+            uElapsedMs = xrtTimer() / UINT64_C(1000) - uStartedMs;
             if ( eMcpDeadlineResult != XWORK_RESULT_TIMEOUT ||
                  tError.eCode != XWORK_ERROR_TIMEOUT || uElapsedMs >= 2000u ) {
                 fprintf(stderr, "MCP deadline: result=%d error=%d elapsed=%llu message=%s\n",
@@ -892,7 +894,7 @@ static void test_agent_context_deadline(void)
     pSession = xllmSessionCreate(&tSessionConfig, &tLlmError);
     xworkAgentConfigInit(&tAgentConfig);
     tAgentConfig.pSession = pSession;
-    tAgentConfig.uDeadline = xrtDeadlineAfter(0u);
+    tAgentConfig.uDeadline = __xrtWaitAfter(0u);
     tAgentConfig.sWorkspaceRoot = sWorkspace;
     tAgentConfig.OnModelComplete = mock_complete;
     tAgentConfig.pModelUserData = &tMock;
@@ -1223,7 +1225,7 @@ static void test_command_context_deadline(void)
     pSession = xllmSessionCreate(&tSessionConfig, &tLlmError);
     xworkAgentConfigInit(&tAgentConfig);
     tAgentConfig.pSession = pSession;
-    tAgentConfig.uDeadline = xrtDeadlineAfter(UINT64_C(300000));
+    tAgentConfig.uDeadline = __xrtWaitAfter(UINT64_C(300000));
     tAgentConfig.sWorkspaceRoot = sWorkspace;
     tAgentConfig.OnModelComplete = mock_complete;
     tAgentConfig.pModelUserData = &tMock;
@@ -1232,7 +1234,7 @@ static void test_command_context_deadline(void)
     tToolContext.pAgent = pAgent;
     tToolContext.sWorkspaceRoot = sWorkspace;
     xworkToolOutputInit(&tOutput);
-    uStartedMs = xrtClock() / UINT64_C(1000);
+    uStartedMs = xrtTimer() / UINT64_C(1000);
 #if defined(_WIN32)
     if ( pExecTool ) eResult = pExecTool->OnExecute(pExecTool->pUserData, &tToolContext,
         "{\"argv\":[\"ping\",\"-n\",\"6\",\"127.0.0.1\"],\"timeout_ms\":5000}", &tOutput, &tError);
@@ -1240,7 +1242,7 @@ static void test_command_context_deadline(void)
     if ( pExecTool ) eResult = pExecTool->OnExecute(pExecTool->pUserData, &tToolContext,
         "{\"argv\":[\"sleep\",\"5\"],\"timeout_ms\":5000}", &tOutput, &tError);
 #endif
-    uElapsedMs = xrtClock() / UINT64_C(1000) - uStartedMs;
+    uElapsedMs = xrtTimer() / UINT64_C(1000) - uStartedMs;
     CHECK(pAgent && pExecTool && eResult == XWORK_RESULT_TIMEOUT &&
         tError.eCode == XWORK_ERROR_TIMEOUT && uElapsedMs < 3000u,
         "operation deadline interrupts a long command without waiting for tool timeout");
@@ -1298,7 +1300,7 @@ static void test_executor_bind(void)
         "{\"path\":\"note.txt\",\"content\":\"executor wrote this\",\"mode\":\"create\"}";
     memset(&tCtx, 0, sizeof(tCtx));
     tCtx.uRound = 1u;
-    tCtx.uDeadline = XRT_DEADLINE_NEVER;
+    tCtx.uDeadline = INFINITY;
     memset(&tOut, 0, sizeof(tOut));
     CHECK(tExecutor.pExecute && tExecutor.pExecute(tExecutor.pUserData, &tCall, &tCtx, &tOut) &&
         tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "status: success"),

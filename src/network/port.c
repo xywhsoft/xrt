@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_net_port.h"
 
 
@@ -1499,9 +1500,9 @@ XRT_API bool xrtNetPortWake(xnetport* pPort)
 
 
 /* 等待到事件、截止时间或错误；成功和超时都会先清零输出数量。 */
-XRT_API xnetresult xrtNetPortWait(xnetport* pPort,
+XRT_API xnetresult __xrtNetPortWait(xnetport* pPort,
 	xnetportevent* pEvents, size_t iCapacity,
-	xdeadline iDeadline, size_t* pCount)
+	double iDeadline, size_t* pCount)
 {
 	if ( pCount != NULL ) {
 		*pCount = 0;
@@ -1527,7 +1528,7 @@ XRT_API xnetresult xrtNetPortWait(xnetport* pPort,
 		size_t iPosts = 0;
 		size_t iReady = 0;
 		size_t iPostBudget;
-		uint64 iTimeout;
+		int64 iTimeout;
 		bool bBackendFirst = pPort->BackendTurn;
 		bool bPending = false;
 
@@ -1548,7 +1549,7 @@ XRT_API xnetresult xrtNetPortWait(xnetport* pPort,
 			pPort->BackendTurn = bPending;
 		}
 		iTimeout = ((iCount != 0) || bBackendFirst) ?
-			0 : xrtDeadlineRemaining(iDeadline);
+			0 : __xrtWaitRemaining(iDeadline);
 		if ( iCount < iCapacity ) {
 			Result = pPort->Driver->Wait(pPort,
 				pEvents + iCount, iCapacity - iCount,
@@ -1587,10 +1588,19 @@ XRT_API xnetresult xrtNetPortWait(xnetport* pPort,
 			return XNET_RESULT_OK;
 		}
 		if ( (Result == XNET_RESULT_TIMEOUT) ||
-			xrtDeadlineExpired(iDeadline) ) {
+			__xrtWaitExpired(iDeadline) ) {
 			return XNET_RESULT_TIMEOUT;
 		}
 	}
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_NET_PORT))
+XRT_API xnetresult xrtNetPortWait(xnetport* pPort,
+	xnetportevent* pEvents, size_t iCapacity,
+	int64 iTimeout, size_t* pCount)
+{
+    return __xrtNetPortWait(pPort, pEvents, iCapacity, __xrtWaitAfter(iTimeout), pCount);
+}
 #endif

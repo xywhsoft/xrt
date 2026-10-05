@@ -22,29 +22,29 @@ CASES = {
     "jwt_example_fault": ["extlibs/xjwt/tests/test_example_fault.c"],
     "oauth2_example_fault": [
         "extlibs/xoauth2/tests/test_api_review_fault.c",
-        "extlibs/xoauth2/xoauth2.c", "extlibs/xjwt/xjwt.c",
+        "extlibs/xoauth2/tests/support/implementation.c", "extlibs/xjwt/tests/support/implementation.c",
     ],
     "oidc_example_fault": [
         "extlibs/xoauth2/tests/test_oidc_example_fault.c",
-        "extlibs/xoauth2/xoauth2.c", "extlibs/xjwt/xjwt.c",
+        "extlibs/xoauth2/tests/support/implementation.c", "extlibs/xjwt/tests/support/implementation.c",
     ],
     "oauth2_example": [
         "extlibs/xoauth2/examples/api_review.c",
-        "extlibs/xoauth2/xoauth2.c",
-        "extlibs/xjwt/xjwt.c",
+        "extlibs/xoauth2/tests/support/implementation.c",
+        "extlibs/xjwt/tests/support/implementation.c",
     ],
     "oidc_example": [
         "extlibs/xoauth2/examples/oidc_login.c",
-        "extlibs/xoauth2/xoauth2.c",
-        "extlibs/xjwt/xjwt.c",
+        "extlibs/xoauth2/tests/support/implementation.c",
+        "extlibs/xjwt/tests/support/implementation.c",
     ],
     "oidc_live_usage": [
         "extlibs/xoauth2/examples/oidc_live.c",
-        "extlibs/xoauth2/xoauth2.c", "extlibs/xjwt/xjwt.c",
+        "extlibs/xoauth2/tests/support/implementation.c", "extlibs/xjwt/tests/support/implementation.c",
     ],
     "wechat_example": [
         "extlibs/xoauth2/examples/wechat_login.c",
-        "extlibs/xoauth2/xoauth2.c",
+        "extlibs/xoauth2/tests/support/implementation.c",
     ],
 }
 
@@ -74,8 +74,8 @@ def main() -> int:
             *(["-g", "-fsanitize=address,undefined",
                "-fno-omit-frame-pointer"] if args.sanitize else []),
             "-I", str(ROOT / "single"),
-            "-I", str(ROOT / "extlibs" / "xjwt"),
-            "-I", str(ROOT / "extlibs" / "xoauth2"),
+            "-I", str(ROOT / "extlibs" / "xjwt" / "include"),
+            "-I", str(ROOT / "extlibs" / "xoauth2" / "include"),
             *(str(ROOT / source) for source in CASES[name]),
             "-o", str(binary),
         ]

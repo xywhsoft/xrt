@@ -41,10 +41,13 @@ def coverage_percent(text: str) -> float:
 
 def measurement_dependencies(name: str, *, include_interop: bool) -> list[Path]:
     library = ROOT / f"extlibs/x{name}"
-    dependencies = [*library.glob("*.h"), *(library / "src").rglob("*.h"),
-                    *(library / "tests").rglob("*.h"), library / f"x{name}.c",
+    dependencies = [*(library / "include").rglob("*.h"), *(library / "src").rglob("*.h"),
+                    *(library / "tests").rglob("*.h"), library / "tests/support/implementation.c",
+                    library / "config/modules.json",
                     ROOT / "single/xrt.h", ROOT / SOURCES[name],
                     ROOT / "tools/measure_auth_coverage.py", ROOT / "tools/gcov_coverage.py"]
+    if name == "oauth2":
+        dependencies += [ROOT / "extlibs/xjwt/include/xjwt/features.h", ROOT / "extlibs/xjwt/config/modules.json"]
     if name == "oauth2" and include_interop:
         dependencies += [library / "tests" / filename for filename in
                          ("test_tls_interop_client.c", "test_lifecycle_interop_client.c")]
@@ -71,8 +74,8 @@ def measure(name: str, compiler: str, gcov: str | None = None,
         compiler, "-std=c11", "-D_GNU_SOURCE", "-O0", "--coverage",
         "-fprofile-update=atomic", "-Wall", "-Wextra", "-Werror",
         "-I", str(ROOT / "single"),
-        "-I", str(ROOT / "extlibs" / "xjwt"),
-        "-I", str(ROOT / "extlibs" / "xoauth2"),
+        "-I", str(ROOT / "extlibs" / "xjwt" / "include"),
+        "-I", str(ROOT / "extlibs" / "xoauth2" / "include"),
         str(ROOT / source), "-o", str(binary),
     ]
     if os.name == "nt":

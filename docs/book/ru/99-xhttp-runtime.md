@@ -64,7 +64,7 @@ api: xhttp-http_client, xhttp-http_client_runtime, net
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/client_request/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_request/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 POST api.example.test:443
 ```
 
@@ -78,7 +78,7 @@ POST api.example.test:443
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/client_pool/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_pool/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （示例校验连接池统计与空闲清理路径后正常退出）
 ```
 

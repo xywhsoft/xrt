@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <xpop3.h>
 
 
@@ -7,7 +8,7 @@ bool fetchMessage(
 	xpop3client* pClient,
 	uint64 iMessage,
 	xmailtree* pTree,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xmailtreelimits Limits;
@@ -15,7 +16,7 @@ bool fetchMessage(
 	xrtMailTreeLimitsInit(&Limits);
 	Limits.MaxSourceBytes = 16u * 1024u * 1024u;
 	Limits.MaxDecodedBytes = 32u * 1024u * 1024u;
-	return xrtPop3ClientRetrTree(
+	return __xrtPop3ClientRetrTree(
 		pClient,
 		iMessage,
 		&Limits,

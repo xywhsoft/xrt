@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <xsmtp.h>
 
 #include <stdio.h>
@@ -8,7 +9,7 @@ static xnetaddr ExampleAddress;
 
 typedef struct example_server {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } example_server;
 
@@ -22,24 +23,24 @@ static xnetaddrlist* exampleResolve(cstr sHost, xnetfamily Family, ptr pData)
 	return xrtNetAddrListCreate(&Address, 1u);
 }
 
-static bool exampleSend(xnetstream* pStream, cstr sText, xdeadline Deadline)
+static bool exampleSend(xnetstream* pStream, cstr sText, double Deadline)
 {
 	size_t iSize = strlen(sText);
 	for ( ;; ) {
 		xnetresult Result = xrtNetStreamSend(pStream, sText, iSize);
 		if ( Result == XNET_RESULT_OK ) return true;
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream, XNET_STREAM_WAIT_WRITE, Deadline, NULL) ) return false;
 	}
 }
 
 static bool exampleExpect(xnetstream* pStream, cstr sExpected,
-	xdeadline Deadline)
+	double Deadline)
 {
 	size_t iSize = strlen(sExpected);
 	size_t iUsed = 0u;
 	while ( iUsed < iSize ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream, iSize - iUsed, Deadline, NULL);
 		xbytesview Bytes;
 		if ( pBytes == NULL ) return false;
@@ -56,12 +57,12 @@ static bool exampleExpect(xnetstream* pStream, cstr sExpected,
 }
 
 /* 有界读取 DATA，逐字节读取可避免越过终止符消费下一条命令。 */
-static bool exampleExpectMessage(xnetstream* pStream, xdeadline Deadline)
+static bool exampleExpectMessage(xnetstream* pStream, double Deadline)
 {
 	char sMessage[8193];
 	size_t iUsed = 0u;
 	while ( iUsed < sizeof(sMessage) - 1u ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(pStream, 1u, Deadline, NULL);
+		xnetbytes* pBytes = __xrtNetStreamRecv(pStream, 1u, Deadline, NULL);
 		xbytesview Bytes;
 		if ( pBytes == NULL ) return false;
 		Bytes = xrtNetBytesView(pBytes);
@@ -86,7 +87,7 @@ static bool exampleExpectMessage(xnetstream* pStream, xdeadline Deadline)
 static int32 exampleServer(ptr pData)
 {
 	example_server* pServer = (example_server*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener, pServer->Deadline, NULL);
 	bool bOk;
 	if ( pStream == NULL ) return 1;
@@ -111,7 +112,7 @@ static int32 exampleServer(ptr pData)
 		exampleExpect(pStream, "QUIT\r\n", pServer->Deadline) &&
 		exampleSend(pStream, "221 closing\r\n", pServer->Deadline) &&
 		xrtNetStreamClose(pStream) &&
-		xrtNetStreamWait(pStream, XNET_STREAM_WAIT_CLOSE,
+		__xrtNetStreamWait(pStream, XNET_STREAM_WAIT_CLOSE,
 			pServer->Deadline, NULL);
 	pServer->Success = bOk;
 	xrtNetStreamDestroy(pStream);
@@ -132,7 +133,7 @@ int main(void)
 	xnetlistener* pListener = NULL;
 	xsmtpclient* pClient = NULL;
 	xthread* pThread = NULL;
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	bool bOk = false;
 
 	xrtNetEngineConfigInit(&EngineConfig);
@@ -162,7 +163,7 @@ int main(void)
 	ClientConfig.Net.Host = "smtp.example.invalid";
 	ClientConfig.Net.Port = ExampleAddress.Port;
 	ClientConfig.Hello = XRT_STR_LITERAL("offline.example");
-	pClient = xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
 	if ( pClient == NULL ) goto Done;
 	xrtMailMessageInit(&Message);
 	Message.From = (xmailaddress){
@@ -175,8 +176,8 @@ int main(void)
 	Message.ToCount = 1u;
 	Message.Subject = XRT_STR_LITERAL("Offline SMTP example");
 	Message.Text = XRT_STR_LITERAL("Hello from loopback.");
-	if ( !xrtSmtpSubmit(pClient, &Message, Deadline, NULL) ||
-		!xrtSmtpClientQuit(pClient, Deadline, NULL) ) goto Done;
+	if ( !__xrtSmtpSubmit(pClient, &Message, Deadline, NULL) ||
+		!__xrtSmtpClientQuit(pClient, Deadline, NULL) ) goto Done;
 	bOk = true;
 
 Done:

@@ -3,7 +3,15 @@
 #endif
 #define XSMTP_MODULE_SMTP_AUTH
 #define XSMTP_IMPLEMENTATION
-#include "../../single/xsmtp.h"
+#include "../../include/xsmtp/features.h"
+#include "../../../xmail/include/xmail/features.h"
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../../single/xrt.h"
+#define XMAIL_IMPLEMENTATION
+#include "../../../../single/extlibs/xmail.h"
+#include "../../../../single/extlibs/xsmtp.h"
 
 
 

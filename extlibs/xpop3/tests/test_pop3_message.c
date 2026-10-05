@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
@@ -19,7 +20,7 @@ int main(void)
 	xmailtree Tree;
 	size_t iWritten = 99u;
 
-	testRequire(!xrtPop3ClientRetrWrite(
+	testRequire(!__xrtPop3ClientRetrWrite(
 		NULL,
 		1u,
 		1024u,
@@ -36,7 +37,7 @@ int main(void)
 	Limits.Flags = UINT32_MAX;
 	memset(&Tree, 0, sizeof(Tree));
 	Tree.PartCount = 77u;
-	testRequire(!xrtPop3ClientRetrTree(
+	testRequire(!__xrtPop3ClientRetrTree(
 		NULL,
 		1u,
 		&Limits,

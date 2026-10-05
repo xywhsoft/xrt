@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -446,15 +447,15 @@ static void testHttpServerUpgradeWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline =
-		xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline =
+		__xrtWaitAfter(UINT64_C(10000000));
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();

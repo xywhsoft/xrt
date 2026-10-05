@@ -60,7 +60,7 @@ The program below is from `examples/http/client_cache` — Store mounting and ca
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/client_cache/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_cache/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （示例校验缓存装配与回源-命中路径后正常退出）
 ```
 
@@ -74,7 +74,7 @@ The second program is from `examples/http/cache_policy` — the protocol layer o
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/cache_policy/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/cache_policy/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出策略解析与可存储性判定的自检结果）
 ```
 

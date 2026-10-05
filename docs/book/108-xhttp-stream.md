@@ -67,7 +67,7 @@ HTTP 的正文是"内容"与"内存"的战场：2 GB 上传、流式下载、按
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/body_stream/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/body_stream/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 first chunk
 second chunk
 ```
@@ -82,7 +82,7 @@ second chunk
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/body_file/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/body_file/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （示例校验文件正文创建与读回后正常退出）
 ```
 

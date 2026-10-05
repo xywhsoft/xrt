@@ -1,2 +1,0 @@
-#define TEST_HTTP_SERVER_STATIC_BACKEND XNET_PORT_IOCP
-#include "test_http_server_static_runtime.c"

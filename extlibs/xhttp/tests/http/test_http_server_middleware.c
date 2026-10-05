@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 #include <xrt/http_server_middleware.h>
@@ -290,7 +291,7 @@ static void testHttpServerMiddlewareRoundTrip(
 		0
 	);
 	char Response[4096];
-	xdeadline Deadline;
+	double Deadline;
 
 	pContext->OrderSize = 0;
 	pContext->Order[0] = '\0';
@@ -309,12 +310,12 @@ static void testHttpServerMiddlewareRoundTrip(
 		xrtNetSocketClose(Socket),
 		"HTTP server middleware socket close failed"
 	);
-	Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(UINT64_C(5000000));
 	while ( xrtAtomic32Load(
 		&pContext->Completed, XMEMORY_ACQUIRE
 	) != iCompleted ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP server middleware callback completion timed out"
 		);
 		xrtThreadYield();
@@ -338,7 +339,7 @@ int main(void)
 	xnetengine* pEngine;
 	xhttpserver* pServer;
 	xnetaddr Address;
-	xdeadline Deadline;
+	double Deadline;
 
 	memset(&Context, 0, sizeof(Context));
 	xrtAtomic32Init(&Context.Completed, 0);
@@ -462,11 +463,11 @@ int main(void)
 		xrtHttpServerDrain(pServer),
 		"HTTP server middleware drain failed"
 	);
-	Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(UINT64_C(5000000));
 	while ( xrtHttpServerState(pServer) !=
 		XHTTP_SERVER_CLOSED ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP server middleware shutdown timed out"
 		);
 		xrtThreadYield();
@@ -475,7 +476,7 @@ int main(void)
 		&Context.Released, XMEMORY_ACQUIRE
 	) != 1 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP server middleware owned data release timed out"
 		);
 		xrtThreadYield();

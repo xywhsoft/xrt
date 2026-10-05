@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../src/internal/xrt_mail_net.h"
 #include "../../../../tests/fixtures/tls_server.h"
 #include "../test.h"
@@ -13,7 +14,7 @@ static xnetaddr TestMailNetHandshakeAddress;
 typedef struct testmailhandshakedial {
 	xmailnetconfig Config;
 	xcancel* Cancel;
-	uint64 Timeout;
+	int64 Timeout;
 	xerrkind ErrorKind;
 	bool HasError;
 	bool Opened;
@@ -63,7 +64,7 @@ static int32 testMailHandshakeDial(ptr pData)
 	pDial->Opened = __xrtMailTransportOpen(
 		&Transport,
 		&pDial->Config,
-		xrtDeadlineAfter(pDial->Timeout),
+		__xrtWaitAfter(pDial->Timeout),
 		pDial->Cancel
 	);
 	pError = xrtGetError();
@@ -84,10 +85,10 @@ static void testMailHandshakeHello(xnetstream* pServer)
 {
 	uint8 Header[5];
 	size_t iOffset = 0;
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(3000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(3000000));
 
 	while ( iOffset < sizeof(Header) ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pServer, sizeof(Header) - iOffset, Deadline, NULL
 		);
 		xbytesview Data;
@@ -120,7 +121,7 @@ static void testMailHandshakeCase(
 	testmailhandshakedial Dial;
 	xthread* pThread;
 	xnetstream* pServer;
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
 
 	memset(&Dial, 0, sizeof(Dial));
 	Dial.Config = *pConfig;
@@ -134,7 +135,7 @@ static void testMailHandshakeCase(
 	pThread = xrtThreadCreate(testMailHandshakeDial, &Dial, 0);
 	testRequire(pThread != NULL,
 		"mail TLS handshake dial thread creation failed");
-	pServer = xrtNetListenerAcceptWait(pListener, Deadline, NULL);
+	pServer = __xrtNetListenerAcceptWait(pListener, Deadline, NULL);
 	testRequire(pServer != NULL,
 		"mail TLS handshake TCP connection was not accepted");
 	testMailHandshakeHello(pServer);

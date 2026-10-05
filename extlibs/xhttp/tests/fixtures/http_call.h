@@ -66,7 +66,7 @@ static inline void testHttpCallStateInit(
 	xrtAtomic32Init(&pCall->Info.Error, XHTTP_CLIENT_ERROR_NONE);
 	xrtAtomic32Init(&pCall->Info.Reused, 0);
 	xrtAtomic32Init(&pCall->Info.Secure, 0);
-	xrtAtomic64Init(&pCall->Info.Submitted, xrtClock());
+	xrtAtomic64Init(&pCall->Info.Submitted, xrtTimer());
 	xrtAtomic64Init(&pCall->Info.Started, 0);
 	xrtAtomic64Init(&pCall->Info.TransportReady, 0);
 	xrtAtomic64Init(&pCall->Info.RequestSent, 0);

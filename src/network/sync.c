@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_net.h"
 #include "../internal/xrt_net_sync.h"
 
@@ -83,7 +84,7 @@ static bool __xrtNetSyncResult(
 bool __xrtNetSyncWait(
 	xfuture* pFuture,
 	const xnetworker* pWorker,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel,
 	int32 iCode,
 	cstr sOperation,
@@ -109,7 +110,7 @@ bool __xrtNetSyncWait(
 		);
 		return false;
 	}
-	Wait = xrtFutureWaitUntilCancel(
+	Wait = __xrtFutureWaitUntilCancel(
 		pFuture,
 		iDeadline,
 		pCancel

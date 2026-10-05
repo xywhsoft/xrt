@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_sync.h"
 
 #include <errno.h>
@@ -148,24 +149,24 @@ XRT_API bool xrtCondDestroy(xcond* pCond)
 /* 原子释放 mutex 并等待通知。 */
 XRT_API xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex)
 {
-	return xrtCondWaitUntil(pCond, pMutex, XRT_DEADLINE_NEVER);
+	return __xrtCondWaitUntil(pCond, pMutex, INFINITY);
 }
 
 
 
 /* 在相对微秒数内等待通知。 */
-XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout)
+XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, int64 iTimeout)
 {
-	return xrtCondWaitUntil(pCond, pMutex, xrtDeadlineAfter(iTimeout));
+	return __xrtCondWaitUntil(pCond, pMutex, __xrtWaitAfter(iTimeout));
 }
 
 
 
 /* 等待通知到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtCondWaitUntil(
+XRT_API xwaitresult __xrtCondWaitUntil(
 	xcond* pCond,
 	xmutex* pMutex,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xrt_cond_impl* pCondImpl = __xrtCondRequire(pCond);
@@ -176,7 +177,7 @@ XRT_API xwaitresult xrtCondWaitUntil(
 	}
 	#if defined(_WIN32) || defined(_WIN64)
 		{
-			uint64 iRemaining = xrtDeadlineRemaining(iDeadline);
+			int64 iRemaining = __xrtWaitRemaining(iDeadline);
 			DWORD iMilliseconds;
 			BOOL bResult;
 			int iCode;
@@ -184,7 +185,7 @@ XRT_API xwaitresult xrtCondWaitUntil(
 			if ( iRemaining == 0 ) {
 				return XWAIT_TIMEOUT;
 			}
-			iMilliseconds = iRemaining == UINT64_MAX ? INFINITE :
+			iMilliseconds = iRemaining == XRT_WAIT_FOREVER ? INFINITE :
 				(DWORD)__xrtWaitMilliseconds(iRemaining);
 			__xrtMutexOwnerStore(pMutexImpl, 0);
 			bResult = SleepConditionVariableSRW(
@@ -209,8 +210,8 @@ XRT_API xwaitresult xrtCondWaitUntil(
 			struct timespec tDeadline;
 			int iResult;
 
-			if ( iDeadline != XRT_DEADLINE_NEVER ) {
-				if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( iDeadline != INFINITY ) {
+				if ( __xrtWaitExpired(iDeadline) ) {
 					return XWAIT_TIMEOUT;
 				}
 				if ( !__xrtSyncDeadlineTime(
@@ -222,7 +223,7 @@ XRT_API xwaitresult xrtCondWaitUntil(
 				}
 			}
 			__xrtMutexOwnerStore(pMutexImpl, 0);
-			if ( iDeadline == XRT_DEADLINE_NEVER ) {
+			if ( iDeadline == INFINITY ) {
 				iResult = pthread_cond_wait(&pCondImpl->Condition, &pMutexImpl->Lock);
 			} else {
 				iResult = pthread_cond_timedwait(

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifdef TASK_POLICY_SINGLE
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
@@ -8,8 +9,8 @@ typedef struct PolicyJob { unsigned kind; bool destroyed; } PolicyJob;
 static unsigned drops, mismatches;
 static void drop_value(ptr value,ptr data)
 {
-    xrtownershipscope freeze={0}; xdeadline deadline=xrtDeadlineAfter(1000000);
-    while(!xrtOwnershipFreezeTryBegin(&freeze)){assert(!xrtDeadlineExpired(deadline));xrtThreadYield();}
+    xrtownershipscope freeze={0}; double deadline=__xrtWaitAfter(1000000);
+    while(!xrtOwnershipFreezeTryBegin(&freeze)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     assert(xrtOwnershipScopeEnd(&freeze));
     if(data){assert(!((PolicyJob*)data)->destroyed);++mismatches;}
     ++drops;xrtFree(value);

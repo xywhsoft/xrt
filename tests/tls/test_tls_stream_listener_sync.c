@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../fixtures/tls_server.h"
 
 
@@ -43,9 +44,9 @@ int main(void)
 	xrtTlsIdentityRelease(pIdentity);
 	xrtTlsContextRelease(pContext);
 
-	pStream = xrtTlsListenerAcceptWait(
+	pStream = __xrtTlsListenerAcceptWait(
 		pListener,
-		xrtDeadlineAfter(UINT64_C(1000)),
+		__xrtWaitAfter(UINT64_C(1000)),
 		NULL
 	);
 	testRequire((pStream == NULL) &&

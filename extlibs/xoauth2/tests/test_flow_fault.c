@@ -5,7 +5,7 @@
 #endif
 #define XRT_IMPLEMENTATION
 #define XRT_MODULE_MEMORY_DEBUG
-#include "../xoauth2-xrt.h"
+#include "support/runtime.h"
 
 static bool Faulting;
 static xerror* FirstError;
@@ -42,7 +42,7 @@ static void flow_error_info(xerrkind Kind,cstr Domain,int32 Code,cstr Message)
 #define xrtJsonParse flow_parse
 #define xrtBase64EncodeNew flow_base64
 #define xrtSetErrorInfo flow_error_info
-#include "../xoauth2.c"
+#include "support/implementation.c"
 #undef xrtMalloc
 #undef xrtJsonParse
 #undef xrtBase64EncodeNew

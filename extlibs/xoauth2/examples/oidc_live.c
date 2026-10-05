@@ -2,10 +2,11 @@
 #if !defined(_WIN32) && !defined(_GNU_SOURCE)
 #define _GNU_SOURCE 1
 #endif
-#define XRT_MODULE_ALL
+#if !defined(XOAUTH2_FEATURE_XOAUTH2)
 #define XRT_IMPLEMENTATION
-#include <xrt.h>
-#include "../xoauth2.h"
+#include "../tests/support/runtime.h"
+#endif
+#include <xoauth2.h>
 #include "xjwt.h"
 #include "oidc_example_support.h"
 #include <stdio.h>

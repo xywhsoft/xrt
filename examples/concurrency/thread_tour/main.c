@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：concurrency/thread_tour —— 线程生命周期/TLS/停止协作补集
  * ----------------------------------------------------------------
@@ -49,9 +50,9 @@ typedef struct examplestop {
 static int32 exampleStopWorker(ptr pData)
 {
 	examplestop* pJob = (examplestop*)pData;
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(3000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(3000000));
 
-	while ( xrtDeadlineExpired(iDeadline) == false ) {
+	while ( __xrtWaitExpired(iDeadline) == false ) {
 		/* StopRequested(NULL) 恒为假——线程内自检必须用
 		 * Stopping()（等价于当前对象的 StopRequested）。 */
 		if ( xrtThreadStopping() ) {
@@ -101,8 +102,8 @@ int main(void)
 		(xrtThreadWaitFor(pThread, 1000u) == XWAIT_OK) ) {
 		goto Cleanup;  /* 50ms 睡眠：1ms 窗口内必未完成 */
 	}
-	if ( (xrtThreadWaitUntil(pThread,
-			xrtDeadlineAfter(UINT64_C(3000000))) !=
+	if ( (__xrtThreadWaitUntil(pThread,
+			__xrtWaitAfter(UINT64_C(3000000))) !=
 			XWAIT_OK) ||
 		(xrtThreadState(pThread) != XTHREAD_FINISHED) ||
 		(xrtThreadExitCode(pThread) != 42) ||
@@ -127,9 +128,9 @@ int main(void)
 	}
 	StopJob.pSelf = pStop;
 	{
-		xdeadline iGrace = xrtDeadlineAfter(UINT64_C(100000));
+		double iGrace = __xrtWaitAfter(UINT64_C(100000));
 
-		while ( xrtDeadlineExpired(iGrace) == false ) {
+		while ( __xrtWaitExpired(iGrace) == false ) {
 			xrtThreadYield();
 		}
 	}
@@ -137,10 +138,10 @@ int main(void)
 		goto Cleanup;
 	}
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(3000000));
+		double iDeadline = __xrtWaitAfter(UINT64_C(3000000));
 
 		while ( StopJob.bDone == false ) {
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				goto Cleanup;
 			}
 			xrtThreadYield();

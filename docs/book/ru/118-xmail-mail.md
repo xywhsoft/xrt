@@ -59,7 +59,7 @@ api: xmail-mail, xmail-mail_message, xmail-mail_multipart
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/mail/message/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXMAIL_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xmail.h impl.c extlibs/xmail/examples/mail/message/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 headers=2 body=hello
 ```
 
@@ -73,7 +73,7 @@ headers=2 body=hello
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xmail/single -include xmail.h impl.c extlibs/xmail/examples/mail/multipart/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXMAIL_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xmail.h impl.c extlibs/xmail/examples/mail/multipart/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 body=hello
 ```
 

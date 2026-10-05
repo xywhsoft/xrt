@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -52,13 +53,13 @@ static void testHttpClientStreamRaceWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(10000000u);
+	double iDeadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -449,7 +450,7 @@ static void testHttpClientStreamRaceWaitEngineIdle(
 	xnetengine* pEngine
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(10000000u);
+	double iDeadline = __xrtWaitAfter(10000000u);
 	xnetenginestats Stats;
 
 	for ( ;; ) {
@@ -463,7 +464,7 @@ static void testHttpClientStreamRaceWaitEngineIdle(
 			return;
 		}
 		testRequire(
-			!xrtDeadlineExpired(iDeadline),
+			!__xrtWaitExpired(iDeadline),
 			"HTTP cancel race Engine resources did not drain"
 		);
 		xrtThreadYield();

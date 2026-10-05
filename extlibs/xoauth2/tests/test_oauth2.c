@@ -1,12 +1,18 @@
+#include <xrt/detail/wait.h>
 /* xoauth2 测试：单 TU（XRT_IMPLEMENTATION 只定义一次）。
  * 覆盖：PKCE/state/URL 编码/预设/授权 URL/CSRF/请求构造（三种
  * AuthStyle）/响应解析/token 时间戳/错误码/泄漏实测/fuzz。 */
 #if !defined(_WIN32) && !defined(_GNU_SOURCE)
 #define _GNU_SOURCE 1
 #endif
-#define XRT_MODULE_ALL
+#if defined(XOAUTH2_FEATURE_XOAUTH2) || defined(XOAUTH2_SINGLE_HEADER)
+#include "../src/internal/xoauth2_internal.h"
+#else
+#define XRT_MODULE_MEMORY_DEBUG
 #define XRT_IMPLEMENTATION
-#include "../xoauth2.c"
+#include "support/runtime.h"
+#include "support/implementation.c"
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -477,7 +483,7 @@ static void test_http_future_terminal_states(void)
 		else bDone = xrtPromiseClose(pPromise);
 		CHECK(bDone, "HTTP future terminal state published");
 		if ( bDone )
-			CHECK(future_wait(pFuture, xrtDeadlineAfter(1000000u)) == (i == 0),
+			CHECK(xoauth2__future_wait(pFuture, __xrtWaitAfter(1000000u)) == (i == 0),
 				labels[i]);
 		else xrtFutureDestroy(pFuture);
 		xrtErrorFree(pError);
@@ -539,39 +545,39 @@ int main(void)
 			"http://idp.example/token#bad\x7f",
 			"http://idp.example/token#bad\xc3\xa9"
 		};
-		CHECK(url_parse("https://idp.example:8443/token?x=1#ignored", &url) &&
+		CHECK(xoauth2__url_parse("https://idp.example:8443/token?x=1#ignored", &url) &&
 			url.bTls && url.iPort == 8443u &&
 			strcmp(url.sHost, "idp.example") == 0 &&
 			strcmp(url.sPath, "/token?x=1") == 0,
 			"HTTP URL keeps authority and path/query, strips fragment");
-		CHECK(url_parse("http://idp.example?x=1", &url) &&
+		CHECK(xoauth2__url_parse("http://idp.example?x=1", &url) &&
 			url.iPort == 80u && strcmp(url.sPath, "/?x=1") == 0,
 			"HTTP URL with query-only target uses slash path");
-		CHECK(url_parse("http://idp.example:000080/token", &url) &&
+		CHECK(xoauth2__url_parse("http://idp.example:000080/token", &url) &&
 			url.iPort == 80u && strcmp(url.sPath, "/token") == 0,
 			"HTTP URL accepts numeric port with leading zeroes");
-		CHECK(url_parse("http://[::1]:8080#ignored", &url) &&
+		CHECK(xoauth2__url_parse("http://[::1]:8080#ignored", &url) &&
 			url.iPort == 8080u && strcmp(url.sHost, "[::1]") == 0 &&
 			strcmp(url.sPath, "/") == 0,
 			"HTTP IPv6 authority and fragment parsed");
-		CHECK(url_parse("hTtPs://idp.example:00443?x=%23#valid", &url) &&
+		CHECK(xoauth2__url_parse("hTtPs://idp.example:00443?x=%23#valid", &url) &&
 			url.bTls && url.iPort == 443u && strcmp(url.sPath, "/?x=%23") == 0 &&
-			url_parse("hTtP://idp.example/#", &url) && !url.bTls,
+			xoauth2__url_parse("hTtP://idp.example/#", &url) && !url.bTls,
 			"HTTP schemes accept mixed ASCII case");
-		CHECK(url_parse("https://[::1]/#AZaz09-._~!$&'()*+,;=:@/?%00%23%FF", &url) &&
+		CHECK(xoauth2__url_parse("https://[::1]/#AZaz09-._~!$&'()*+,;=:@/?%00%23%FF", &url) &&
 			url.bIpLiteral && strcmp(url.sPath, "/") == 0,
 			"HTTP fragment grammar is validated without changing target");
-		CHECK(url_parse("https://0xdead.example/token", &url) && !url.bIpLiteral &&
-			url_parse("https://a.0x1./token", &url) && !url.bIpLiteral &&
-			url_parse("https://0xg.example/token", &url) && !url.bIpLiteral,
+		CHECK(xoauth2__url_parse("https://0xdead.example/token", &url) && !url.bIpLiteral &&
+			xoauth2__url_parse("https://a.0x1./token", &url) && !url.bIpLiteral &&
+			xoauth2__url_parse("https://0xg.example/token", &url) && !url.bIpLiteral,
 			"HTTP hexadecimal-looking DNS labels retain DNS identity");
 		{
 			xtlsclientconfig tls;
 			xtlsdialconfig dial;
-			bool parsed = url_parse("https://idp.example/token", &url);
+			bool parsed = xoauth2__url_parse("https://idp.example/token", &url);
 			xrtTlsClientConfigInit(&tls);
 			xrtTlsDialConfigInit(&dial);
-			if ( parsed ) url_tls_names(&url, &tls, &dial);
+			if ( parsed ) xoauth2__url_tls_names(&url, &tls, &dial);
 			CHECK(parsed && !url.bIpLiteral &&
 				tls.ServerName.Size == strlen("idp.example") &&
 				memcmp(tls.ServerName.Data, "idp.example",
@@ -579,28 +585,28 @@ int main(void)
 				tls.VerifyName.Size == tls.ServerName.Size &&
 				!dial.ServerNameFromHost,
 				"HTTP TLS DNS target keeps SNI and verification name");
-			parsed = url_parse("https://idp.example./token", &url);
+			parsed = xoauth2__url_parse("https://idp.example./token", &url);
 			xrtTlsClientConfigInit(&tls);
 			xrtTlsDialConfigInit(&dial);
-			if ( parsed ) url_tls_names(&url, &tls, &dial);
+			if ( parsed ) xoauth2__url_tls_names(&url, &tls, &dial);
 			CHECK(parsed && tls.ServerName.Size == strlen("idp.example") &&
 				memcmp(tls.ServerName.Data, "idp.example",
 					tls.ServerName.Size) == 0 &&
 				tls.VerifyName.Size == tls.ServerName.Size,
 				"HTTP TLS DNS SNI omits trailing root dot");
-			parsed = url_parse("https://127.0.0.1/token", &url);
+			parsed = xoauth2__url_parse("https://127.0.0.1/token", &url);
 			xrtTlsClientConfigInit(&tls);
 			xrtTlsDialConfigInit(&dial);
-			if ( parsed ) url_tls_names(&url, &tls, &dial);
+			if ( parsed ) xoauth2__url_tls_names(&url, &tls, &dial);
 			CHECK(parsed && url.bIpLiteral && tls.ServerName.Size == 0u &&
 				tls.VerifyName.Size == strlen("127.0.0.1") &&
 				memcmp(tls.VerifyName.Data, "127.0.0.1",
 					tls.VerifyName.Size) == 0 && !dial.ServerNameFromHost,
 				"HTTP TLS IPv4 target verifies IP without SNI");
-			parsed = url_parse("https://[::1]/token", &url);
+			parsed = xoauth2__url_parse("https://[::1]/token", &url);
 			xrtTlsClientConfigInit(&tls);
 			xrtTlsDialConfigInit(&dial);
-			if ( parsed ) url_tls_names(&url, &tls, &dial);
+			if ( parsed ) xoauth2__url_tls_names(&url, &tls, &dial);
 			CHECK(parsed && url.bIpLiteral && tls.ServerName.Size == 0u &&
 				tls.VerifyName.Size == strlen("::1") &&
 					memcmp(tls.VerifyName.Data, "::1",
@@ -609,7 +615,7 @@ int main(void)
 		}
 		bool rejected = true;
 		for ( size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++ ) {
-			bool parsed = url_parse(invalid[i], &url);
+			bool parsed = xoauth2__url_parse(invalid[i], &url);
 			if ( parsed ) printf("accepted unsafe URL: %s\n", invalid[i]);
 			rejected = rejected && !parsed;
 		}

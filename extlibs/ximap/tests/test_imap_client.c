@@ -1,10 +1,11 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
 
 typedef struct testimapserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } testimapserver;
 
@@ -40,7 +41,7 @@ static bool testImapSend(
 	xnetstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -49,7 +50,7 @@ static bool testImapSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -67,13 +68,13 @@ static bool testImapReceive(
 	xnetstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -102,7 +103,7 @@ static bool testImapReceive(
 static int32 testImapServer(ptr pData)
 {
 	testimapserver* pServer = (testimapserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -197,7 +198,7 @@ static int32 testImapServer(ptr pData)
 			"* BYE signing off\r\nA00000004 OK logout complete\r\n"
 		) - 1u,
 		pServer->Deadline
-	) && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+	) && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		pServer->Deadline,
@@ -215,7 +216,7 @@ static bool testImapLiteral(
 	ximapclient* pClient,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	char sBuffer[8];
@@ -224,7 +225,7 @@ static bool testImapLiteral(
 	while ( xrtImapClientLiteralRemaining(pClient) != 0 ) {
 		size_t iRead;
 
-		if ( !xrtImapClientReadLiteral(
+		if ( !__xrtImapClientReadLiteral(
 			pClient,
 			sBuffer,
 			3u,
@@ -256,7 +257,7 @@ int main(void)
 	ximapclient* pClient;
 	ximapevent Event;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 	uint64 iExpectedCapabilities;
 	xstrview Parts[2];
 	xmailnext Next;
@@ -290,7 +291,7 @@ int main(void)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "IMAP client resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Success = false;
@@ -301,7 +302,7 @@ int main(void)
 	Config.Net.Resolver = pResolver;
 	Config.Net.Host = "imap.test";
 	Config.Net.Port = TestImapAddress.Port;
-	pClient = xrtImapClientOpen(&Config, Deadline, NULL);
+	pClient = __xrtImapClientOpen(&Config, Deadline, NULL);
 	iExpectedCapabilities = XIMAP_CAP_IMAP4REV2 | XIMAP_CAP_IDLE |
 		XIMAP_CAP_SASL_IR | XIMAP_CAP_AUTH_PLAIN |
 		XIMAP_CAP_LOGIN_DISABLED | XIMAP_CAP_LIST_EXTENDED |
@@ -316,7 +317,7 @@ int main(void)
 
 	Parts[0] = XRT_STR_LITERAL("invalid\r\nargument");
 	xrtClearError();
-	testRequire(!xrtImapClientSendParts(
+	testRequire(!__xrtImapClientSendParts(
 		pClient,
 		XRT_STR_LITERAL("P0"),
 		XRT_STR_LITERAL("NOOP"),
@@ -328,7 +329,7 @@ int main(void)
 		"IMAP command parts accepted a line separator");
 	xrtClearError();
 
-	testRequire(xrtImapClientSendParts(
+	testRequire(__xrtImapClientSendParts(
 		pClient,
 		XRT_STR_LITERAL("P1"),
 		XRT_STR_LITERAL("NOOP"),
@@ -336,7 +337,7 @@ int main(void)
 		0,
 		Deadline,
 		NULL
-	) && xrtImapClientSendParts(
+	) && __xrtImapClientSendParts(
 		pClient,
 		XRT_STR_LITERAL("P2"),
 		XRT_STR_LITERAL("NOOP"),
@@ -345,19 +346,19 @@ int main(void)
 		Deadline,
 		NULL
 	), "IMAP low-level pipelined send failed");
-	testRequire(xrtImapClientReceive(pClient, &Event, Deadline, NULL) &&
+	testRequire(__xrtImapClientReceive(pClient, &Event, Deadline, NULL) &&
 		(Event.Response.Kind == XIMAP_RESPONSE_UNTAGGED),
 		"IMAP unsolicited response mismatch");
-	testRequire(xrtImapClientReceive(pClient, &Event, Deadline, NULL) &&
+	testRequire(__xrtImapClientReceive(pClient, &Event, Deadline, NULL) &&
 		testMailViewEqual(Event.Response.Tag, XRT_STR_LITERAL("P2")),
 		"IMAP second pipelined completion mismatch");
-	testRequire(xrtImapClientReceive(pClient, &Event, Deadline, NULL) &&
+	testRequire(__xrtImapClientReceive(pClient, &Event, Deadline, NULL) &&
 		testMailViewEqual(Event.Response.Tag, XRT_STR_LITERAL("P1")),
 		"IMAP first pipelined completion mismatch");
 
 	Parts[0] = XRT_STR_LITERAL("1");
 	Parts[1] = XRT_STR_LITERAL("BODY[]");
-	testRequire(xrtImapClientBeginParts(
+	testRequire(__xrtImapClientBeginParts(
 		pClient,
 		XRT_STR_LITERAL("FETCH"),
 		Parts,
@@ -365,56 +366,56 @@ int main(void)
 		Deadline,
 		NULL
 	), "IMAP FETCH begin failed");
-	Next = xrtImapClientNext(pClient, &Event, Deadline, NULL);
+	Next = __xrtImapClientNext(pClient, &Event, Deadline, NULL);
 	testRequire((Next == XMAIL_NEXT_ITEM) && Event.HasLiteral &&
 		(Event.Kind == XIMAP_EVENT_RESPONSE) &&
 		(Event.Literal.Size == 5u), "IMAP first literal marker mismatch");
-	testRequire(xrtImapClientNext(pClient, &Event, Deadline, NULL) ==
+	testRequire(__xrtImapClientNext(pClient, &Event, Deadline, NULL) ==
 		XMAIL_NEXT_ERROR, "IMAP allowed event read before literal completion");
 	xrtClearError();
 	testRequire(testImapLiteral(pClient, "abcde", 5u, Deadline),
 		"IMAP first literal bytes mismatch");
-	Next = xrtImapClientNext(pClient, &Event, Deadline, NULL);
+	Next = __xrtImapClientNext(pClient, &Event, Deadline, NULL);
 	testRequire((Next == XMAIL_NEXT_ITEM) && Event.HasLiteral &&
 		(Event.Kind == XIMAP_EVENT_FRAGMENT) &&
 		(Event.Literal.Size == 4u), "IMAP second literal marker mismatch");
 	testRequire(testImapLiteral(pClient, "wxyz", 4u, Deadline),
 		"IMAP second literal bytes mismatch");
-	Next = xrtImapClientNext(pClient, &Event, Deadline, NULL);
+	Next = __xrtImapClientNext(pClient, &Event, Deadline, NULL);
 	testRequire((Next == XMAIL_NEXT_ITEM) && !Event.HasLiteral &&
 		(Event.Kind == XIMAP_EVENT_FRAGMENT) &&
 		testMailViewEqual(Event.Source, XRT_STR_LITERAL(")")),
 		"IMAP literal response closing fragment mismatch");
-	testRequire(xrtImapClientNext(pClient, &Event, Deadline, NULL) ==
+	testRequire(__xrtImapClientNext(pClient, &Event, Deadline, NULL) ==
 		XMAIL_NEXT_END, "IMAP FETCH completion mismatch");
 
-	testRequire(xrtImapClientBegin(
+	testRequire(__xrtImapClientBegin(
 		pClient,
 		XRT_STR_LITERAL("IDLE"),
 		XRT_STR_LITERAL(""),
 		Deadline,
 		NULL
 	), "IMAP IDLE begin failed");
-	testRequire((xrtImapClientNext(pClient, &Event, Deadline, NULL) ==
+	testRequire((__xrtImapClientNext(pClient, &Event, Deadline, NULL) ==
 		XMAIL_NEXT_ITEM) &&
 		(Event.Response.Kind == XIMAP_RESPONSE_CONTINUATION),
 		"IMAP IDLE continuation mismatch");
-	testRequire((xrtImapClientNext(pClient, &Event, Deadline, NULL) ==
+	testRequire((__xrtImapClientNext(pClient, &Event, Deadline, NULL) ==
 		XMAIL_NEXT_ITEM) &&
 		(Event.Response.Kind == XIMAP_RESPONSE_UNTAGGED),
 		"IMAP IDLE unsolicited event mismatch");
-	testRequire(xrtImapClientContinue(
+	testRequire(__xrtImapClientContinue(
 		pClient,
 		XRT_STR_LITERAL("DONE"),
 		Deadline,
 		NULL
-	) && (xrtImapClientNext(pClient, &Event, Deadline, NULL) ==
+	) && (__xrtImapClientNext(pClient, &Event, Deadline, NULL) ==
 		XMAIL_NEXT_END), "IMAP IDLE termination mismatch");
 
-	testRequire(xrtImapClientLogout(pClient, Deadline, NULL) &&
+	testRequire(__xrtImapClientLogout(pClient, Deadline, NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_CLOSED),
 		"IMAP LOGOUT failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"IMAP server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"IMAP server transcript mismatch");

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -30,14 +31,14 @@ static void testHttpClientHttpsStateWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -203,7 +204,7 @@ int main(void)
 	xtlsverifier* pVerifier;
 	xhttprequest* pRequest;
 	xnetaddr Address;
-	xdeadline Deadline;
+	double Deadline;
 	char Url[128];
 	int iLength;
 
@@ -303,11 +304,11 @@ int main(void)
 		&State.Accepted,
 		"HTTPS state connection was not accepted"
 	);
-	Deadline = xrtDeadlineAfter(5000000u);
+	Deadline = __xrtWaitAfter(5000000u);
 	while ( xrtHttpCallState(State.Call) !=
 		XHTTP_CALL_HANDSHAKING ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTPS Call never exposed HANDSHAKING"
 		);
 		xrtThreadYield();

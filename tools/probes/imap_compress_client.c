@@ -8,7 +8,15 @@
 #define XRT_MODULE_X509_STORE
 #if defined(XRT_TEST_IMAP_SINGLE)
 	#define XIMAP_IMPLEMENTATION
-	#include "../../extlibs/ximap/single/ximap.h"
+	#include "../../extlibs/ximap/include/ximap/features.h"
+	#include "../../extlibs/xmail/include/xmail/features.h"
+	#ifndef XRT_IMPLEMENTATION
+	#define XRT_IMPLEMENTATION
+	#endif
+	#include "../../single/xrt.h"
+	#define XMAIL_IMPLEMENTATION
+	#include "../../single/extlibs/xmail.h"
+	#include "../../single/extlibs/ximap.h"
 #else
 	#include <ximap.h>
 #endif

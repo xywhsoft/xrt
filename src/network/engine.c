@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_net_engine.h"
 
 
@@ -717,7 +718,7 @@ static void __xrtNetEngineTimerAdd(
 static void __xrtNetEngineTimersExpire(xnetworker* pWorker)
 {
 	__xrt_net_engine_timers* pTimers = &pWorker->Timers;
-	xdeadline iNow = xrtClock();
+	double iNow = xrtTimer();
 
 	while ( (pTimers->Count != 0) &&
 			(pTimers->Heap[0]->Deadline <= iNow) ) {
@@ -775,7 +776,7 @@ static void __xrtNetEngineTimersUnit(xnetworker* pWorker)
 
 
 /* 返回下一次 Worker 等待使用的单调截止时间。 */
-static xdeadline __xrtNetEngineNextDeadline(xnetworker* pWorker)
+static double __xrtNetEngineNextDeadline(xnetworker* pWorker)
 {
 	if ( (xrtAtomic32Load(
 		&pWorker->CommandPending,
@@ -785,12 +786,12 @@ static xdeadline __xrtNetEngineNextDeadline(xnetworker* pWorker)
 			&pWorker->InternalPending,
 			XMEMORY_ACQUIRE
 		 ) != 0) ) {
-		return xrtClock();
+		return xrtTimer();
 	}
 	if ( pWorker->Timers.Count != 0 ) {
 		return pWorker->Timers.Heap[0]->Deadline;
 	}
-	return xrtDeadlineAfter(pWorker->Engine->Config.IdleWait);
+	return __xrtWaitAfter(pWorker->Engine->Config.IdleWait);
 }
 
 
@@ -1008,9 +1009,9 @@ static int32 __xrtNetEngineWorkerMain(ptr pData)
 			XRT_NET_ENGINE_COMMAND_BUDGET
 		);
 		__xrtNetEngineTimersExpire(pWorker);
-		xdeadline Deadline = __xrtNetEngineNextDeadline(pWorker);
+		double Deadline = __xrtNetEngineNextDeadline(pWorker);
 		__xrtNetEnginePark(pWorker, true);
-		Result = xrtNetPortWait(
+		Result = __xrtNetPortWait(
 			pWorker->Port,
 			pWorker->Events,
 			pWorker->Engine->Config.EventBatch,
@@ -2439,7 +2440,7 @@ XRT_API bool xrtNetPost(
 static uint64 __xrtNetEngineSchedule(
 	xnetengine* pEngine,
 	uint64 iAffinity,
-	xdeadline iDeadline,
+	double iDeadline,
 	xnettimerproc pProc,
 	ptr pData,
 	const xnettimerownershipv1* pPolicy
@@ -2452,7 +2453,7 @@ static uint64 __xrtNetEngineSchedule(
 	bool bCurrent;
 
 	if ( (pEngine == NULL) || (pProc == NULL) ||
-		 (iDeadline == XRT_DEADLINE_NEVER) ) {
+		 (iDeadline == INFINITY) ) {
 		__xrtErrorSetInvalidArgument();
 		return 0;
 	}
@@ -2582,13 +2583,13 @@ static uint64 __xrtNetEngineSchedule(
 	return Id;
 }
 
-XRT_API uint64 xrtNetEngineSchedule(xnetengine* pEngine, uint64 iAffinity,
-	xdeadline iDeadline, xnettimerproc pProc, ptr pData)
+XRT_API uint64 __xrtNetEngineSchedule(xnetengine* pEngine, uint64 iAffinity,
+	double iDeadline, xnettimerproc pProc, ptr pData)
 {
 	return __xrtNetEngineSchedule(pEngine, iAffinity, iDeadline, pProc, pData, NULL);
 }
-XRT_API uint64 xrtNetEngineScheduleOwnedV1(xnetengine* pEngine, uint64 iAffinity,
-	xdeadline iDeadline, ptr pData, const xnettimerownershipv1* pPolicy)
+XRT_API uint64 __xrtNetEngineScheduleOwnedV1(xnetengine* pEngine, uint64 iAffinity,
+	double iDeadline, ptr pData, const xnettimerownershipv1* pPolicy)
 {
 	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) || !pPolicy->Proc ||
 		!pPolicy->Drop || !pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) {
@@ -2603,15 +2604,15 @@ XRT_API uint64 xrtNetEngineScheduleOwnedV1(xnetengine* pEngine, uint64 iAffinity
 XRT_API uint64 xrtNetEngineAfter(
 	xnetengine* pEngine,
 	uint64 iAffinity,
-	uint64 iTimeout,
+	int64 iTimeout,
 	xnettimerproc pProc,
 	ptr pData
 )
 {
-	return xrtNetEngineSchedule(
+	return __xrtNetEngineSchedule(
 		pEngine,
 		iAffinity,
-		xrtDeadlineAfter(iTimeout),
+		__xrtWaitAfter(iTimeout),
 		pProc,
 		pData
 	);
@@ -3085,4 +3086,21 @@ XRT_API const xrtownershipadapterv1* xrtNetEngineOwnershipAdapterV1(xrtownership
 	*ppPreparation = &Preparation; return &Adapter;
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_NET_ENGINE))
+XRT_API uint64 xrtNetEngineScheduleOwnedV1(xnetengine* pEngine, uint64 iAffinity,
+	int64 iTimeout, ptr pData, const xnettimerownershipv1* pPolicy)
+{
+    return __xrtNetEngineScheduleOwnedV1(pEngine, iAffinity, __xrtWaitAfter(iTimeout), pData, pPolicy);
+}
+#endif
+
+#if (defined(XRT_FEATURE_NET_ENGINE))
+XRT_API uint64 xrtNetEngineSchedule(xnetengine* pEngine,
+	uint64 iAffinity, int64 iTimeout,
+	xnettimerproc pProc, ptr pData)
+{
+    return __xrtNetEngineSchedule(pEngine, iAffinity, __xrtWaitAfter(iTimeout), pProc, pData);
+}
 #endif

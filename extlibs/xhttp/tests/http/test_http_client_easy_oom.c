@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -35,14 +36,14 @@ static void testHttpEasyOomDone(
 /* 在固定截止时间内等待预取消调用释放其异步内部引用。 */
 static void testHttpEasyOomWait(const xatomic32* pCompleted)
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 
 	while ( xrtAtomic32Load(
 		pCompleted,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP easy OOM call did not complete"
 		);
 		xrtThreadYield();
@@ -92,7 +93,7 @@ int main(void)
 	xnetengine* pEngine;
 	xhttpclient* pClient;
 	xcancel* pCancel;
-	xdeadline Deadline;
+	double Deadline;
 	size_t iFail;
 	size_t iFailures = 0;
 	bool bComplete = false;
@@ -158,11 +159,11 @@ int main(void)
 
 	xrtCancelDestroy(pCancel);
 	xrtHttpClientDestroy(pClient);
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP easy OOM retained an Engine object"
 		);
 		xrtThreadYield();

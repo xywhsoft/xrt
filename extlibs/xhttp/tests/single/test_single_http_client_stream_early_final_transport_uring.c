@@ -1,7 +1,12 @@
 /* 验证单头文件在 Linux io_uring 上停止提前拒绝的请求正文。 */
 #if defined(__linux__)
 	#define XHTTP_IMPLEMENTATION
-	#include "../../single/xhttp.h"
+	#include "../../include/xhttp/features.h"
+	#ifndef XRT_IMPLEMENTATION
+	#define XRT_IMPLEMENTATION
+	#endif
+	#include "../../../../single/xrt.h"
+	#include "../../../../single/extlibs/xhttp.h"
 
 	#define TEST_HTTP_CLIENT_STREAM_BACKEND XNET_PORT_URING
 	#define TEST_HTTP_CLIENT_STREAM_BACKEND_NAME "single io_uring"

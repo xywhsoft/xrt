@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -5,7 +6,7 @@
 /* 等待启动回滚释放全部 Engine 对象。 */
 static void testTcpServerOomRollback(xnetengine* pEngine)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 	xnetenginestats Stats;
 
 	for ( ;; ) {
@@ -14,7 +15,7 @@ static void testTcpServerOomRollback(xnetengine* pEngine)
 		if ( Stats.LiveObjects == 0 ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP server OOM rollback leaked an Engine object");
 		xrtThreadYield();
 	}

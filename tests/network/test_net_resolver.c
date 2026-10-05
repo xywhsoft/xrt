@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -33,13 +34,13 @@ static void testResolverWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	testRequire(xrtMutexLock(&pContext->Lock),
 		"resolver test lock failed");
 	while ( *pValue < iExpected ) {
 		testRequire(
-			xrtCondWaitUntil(
+			__xrtCondWaitUntil(
 				&pContext->Condition,
 				&pContext->Lock,
 				iDeadline
@@ -191,7 +192,7 @@ static void testResolverWaitIdle(
 	xnetresolverstats* pStats
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	for ( ;; ) {
 		testRequire(xrtNetResolverStats(pResolver, pStats),
@@ -203,7 +204,7 @@ static void testResolverWaitIdle(
 			 (pStats->ReadyCallbacks == 0) ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"resolver did not become idle");
 		xrtThreadYield();
 	}

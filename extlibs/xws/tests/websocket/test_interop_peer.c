@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -207,7 +208,7 @@ static void interopFailError(
 /* 等待 Connection 关闭或测试发布错误。 */
 static bool interopWaitTerminal(interop_context* pContext)
 {
-	xdeadline Deadline = xrtDeadlineAfter(INTEROP_TIMEOUT);
+	double Deadline = __xrtWaitAfter(INTEROP_TIMEOUT);
 
 	for ( ;; ) {
 		uint32 iError = xrtAtomic32Load(
@@ -225,7 +226,7 @@ static bool interopWaitTerminal(interop_context* pContext)
 			 ) != 0) ) {
 			return true;
 		}
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			interopFail(pContext, "interop peer timed out");
 			return false;
 		}
@@ -238,7 +239,7 @@ static bool interopWaitTerminal(interop_context* pContext)
 /* 等待 HTTP Server 进入终态并完成 Shutdown 回调发布。 */
 static bool interopWaitServer(interop_context* pContext)
 {
-	xdeadline Deadline = xrtDeadlineAfter(INTEROP_TIMEOUT);
+	double Deadline = __xrtWaitAfter(INTEROP_TIMEOUT);
 
 	while ( (xrtHttpServerState(pContext->Server) !=
 			 XHTTP_SERVER_CLOSED) ||
@@ -246,7 +247,7 @@ static bool interopWaitServer(interop_context* pContext)
 			&pContext->Shutdown,
 			XMEMORY_ACQUIRE
 		 ) != 1) ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			interopFail(pContext, "HTTP server shutdown timed out");
 			return false;
 		}

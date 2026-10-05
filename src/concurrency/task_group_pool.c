@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_task.h"
 
 
@@ -10,7 +11,7 @@ typedef struct xrt_task_group_pool_start {
 	xtaskproc Proc;
 	ptr Data;
 	const xtaskargs* Args;
-	xdeadline Deadline;
+	double Deadline;
 	xcancel* Cancel;
 	bool Wait;
 } xrt_task_group_pool_start;
@@ -39,7 +40,7 @@ static xfuture* __xrtTaskGroupPoolStart(ptr pData)
 			pStart->Args
 		);
 	}
-	return xrtTaskSubmitUntilCancel(
+	return __xrtTaskSubmitUntilCancel(
 		pStart->Pool,
 		pStart->Proc,
 		pStart->Data,
@@ -85,7 +86,7 @@ static xfuture* __xrtTaskGroupPoolSubmit(
 	ptr pData,
 	const xtaskargs* pArgs,
 	bool bWait,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -174,7 +175,7 @@ XRT_API xfuture* xrtTaskGroupSubmit(
 		pData,
 		pArgs,
 		false,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	);
 }
@@ -190,13 +191,13 @@ XRT_API xfuture* xrtTaskGroupSubmitWait(
 	const xtaskargs* pArgs
 )
 {
-	return xrtTaskGroupSubmitUntilCancel(
+	return __xrtTaskGroupSubmitUntilCancel(
 		pGroup,
 		pPool,
 		pProc,
 		pData,
 		pArgs,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	);
 }
@@ -210,16 +211,16 @@ XRT_API xfuture* xrtTaskGroupSubmitFor(
 	xtaskproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	return xrtTaskGroupSubmitUntilCancel(
+	return __xrtTaskGroupSubmitUntilCancel(
 		pGroup,
 		pPool,
 		pProc,
 		pData,
 		pArgs,
-		xrtDeadlineAfter(iTimeout),
+		__xrtWaitAfter(iTimeout),
 		NULL
 	);
 }
@@ -227,16 +228,16 @@ XRT_API xfuture* xrtTaskGroupSubmitFor(
 
 
 /* 等待任务池槽位到指定单调时钟截止时间并原子纳入组。 */
-XRT_API xfuture* xrtTaskGroupSubmitUntil(
+XRT_API xfuture* __xrtTaskGroupSubmitUntil(
 	xtaskgroup* pGroup,
 	xtaskpool* pPool,
 	xtaskproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
-	return xrtTaskGroupSubmitUntilCancel(
+	return __xrtTaskGroupSubmitUntilCancel(
 		pGroup,
 		pPool,
 		pProc,
@@ -250,13 +251,13 @@ XRT_API xfuture* xrtTaskGroupSubmitUntil(
 
 
 /* 同时受截止时间、调用方取消和组取消约束地等待提交。 */
-XRT_API xfuture* xrtTaskGroupSubmitUntilCancel(
+XRT_API xfuture* __xrtTaskGroupSubmitUntilCancel(
 	xtaskgroup* pGroup,
 	xtaskpool* pPool,
 	xtaskproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -272,4 +273,19 @@ XRT_API xfuture* xrtTaskGroupSubmitUntilCancel(
 	);
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_TASK_GROUP_POOL))
+XRT_API xfuture* xrtTaskGroupSubmitForCancel(
+	xtaskgroup* pGroup,
+	xtaskpool* pPool,
+	xtaskproc pProc,
+	ptr pData,
+	const xtaskargs* pArgs,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtTaskGroupSubmitUntilCancel(pGroup, pPool, pProc, pData, pArgs, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

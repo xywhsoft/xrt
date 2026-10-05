@@ -1,0 +1,12 @@
+#include "../../include/xwork/features.h"
+#include "../../../xllm-session/include/xllm-session/features.h"
+#include "../../../xllm/include/xllm/features.h"
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XLLM_IMPLEMENTATION
+#include "../../../../single/extlibs/xllm.h"
+#define XLLM_SESSION_IMPLEMENTATION
+#include "../../../../single/extlibs/xllm-session.h"
+#define XWORK_IMPLEMENTATION
+#include "../../../../single/extlibs/xwork.h"
+#include "../test_xwork.c"

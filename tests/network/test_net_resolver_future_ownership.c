@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifdef NET_RESOLVER_FUTURE_OWNERSHIP_SINGLE
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
@@ -14,17 +15,17 @@ typedef struct Pins {
 static unsigned graph_cases, budgets, failures, race_cases, active_cases;
 static void freeze_begin(xrtownershipscope* scope)
 {
-    xdeadline deadline=xrtDeadlineAfter(5000000);
-    while(!xrtOwnershipFreezeTryBegin(scope)){assert(!xrtDeadlineExpired(deadline));xrtThreadYield();}
+    double deadline=__xrtWaitAfter(5000000);
+    while(!xrtOwnershipFreezeTryBegin(scope)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
 static void idle_freeze(xnetresolver* resolver,xrtownershipscope* scope)
 {
     xrtownershipref ref=xrtNetResolverOwnership(resolver);size_t count;
-    xdeadline deadline=xrtDeadlineAfter(5000000);
+    double deadline=__xrtWaitAfter(5000000);
     for(;;){
         freeze_begin(scope);
         if(ref.Ops->Count(ref.Data,&count))return;
-        assert(xrtOwnershipScopeEnd(scope));assert(!xrtDeadlineExpired(deadline));xrtThreadYield();
+        assert(xrtOwnershipScopeEnd(scope));assert(!__xrtWaitExpired(deadline));xrtThreadYield();
     }
 }
 static void balanced(const xmemdebugsnapshot* before)
@@ -77,7 +78,7 @@ static void collect(Pins* pins,const xrtownershipref* anchors,size_t count)
 }
 static void prepare_all(Pins* pins)
 {
-    xdeadline deadline=xrtDeadlineAfter(5000000);
+    double deadline=__xrtWaitAfter(5000000);
     for(;;){
         bool ready=true;
         for(size_t i=0;i<pins->count;++i)if(pins->preparations[i]){
@@ -86,7 +87,7 @@ static void prepare_all(Pins* pins)
             if(result!=XRT_OWNERSHIP_PREPARE_READY)ready=false;
         }
         if(ready)return;
-        assert(!xrtDeadlineExpired(deadline));xrtThreadYield();
+        assert(!__xrtWaitExpired(deadline));xrtThreadYield();
     }
 }
 static void pending(unsigned mode,bool reverse)
@@ -280,9 +281,9 @@ static xnetaddrlist* blocked_lookup(cstr host,xnetfamily family,ptr data)
 {
     Blocked* block=data;(void)host;(void)family;
     xrtAtomic32Store(&block->entered,1,XMEMORY_RELEASE);
-    xdeadline deadline=xrtDeadlineAfter(5000000);
+    double deadline=__xrtWaitAfter(5000000);
     while(!xrtAtomic32Load(&block->release,XMEMORY_ACQUIRE)){
-        assert(!xrtDeadlineExpired(deadline));xrtThreadYield();
+        assert(!__xrtWaitExpired(deadline));xrtThreadYield();
     }
     xnetaddr address;assert(xrtNetAddrLoopback(&address,XNET_FAMILY_IPV4,0));
     return xrtNetAddrListCreate(&address,1);
@@ -301,8 +302,8 @@ static void blocked_prepare(void)
     config.Lookup=blocked_lookup;config.LookupData=&block;
     xnetresolver* resolver=xrtNetResolverCreate(&config);assert(resolver);
     xfuture* future=xrtNetResolveAsync(resolver,"blocked.test",XNET_FAMILY_IPV4);assert(future);
-    xdeadline deadline=xrtDeadlineAfter(5000000);
-    while(!xrtAtomic32Load(&block.entered,XMEMORY_ACQUIRE)){assert(!xrtDeadlineExpired(deadline));xrtThreadYield();}
+    double deadline=__xrtWaitAfter(5000000);
+    while(!xrtAtomic32Load(&block.entered,XMEMORY_ACQUIRE)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     xrtownershipscope freeze={0};freeze_begin(&freeze);xrtownershipref ref=xrtFutureOwnership(future);
     assert(ref.Ops->Trace(ref.Data,select_frame,&block)&&block.adapter);
     const xrtownershippreparationv1* future_preparation=NULL;
@@ -342,8 +343,8 @@ static void cleanup_release(ptr data)
 static void cleanup_tail(ptr data)
 {
     Cleanup* item=data;xrtAtomic32Store(&item->entered,1,XMEMORY_RELEASE);
-    xdeadline deadline=xrtDeadlineAfter(5000000);
-    while(!xrtAtomic32Load(&item->release,XMEMORY_ACQUIRE)){assert(!xrtDeadlineExpired(deadline));xrtThreadYield();}
+    double deadline=__xrtWaitAfter(5000000);
+    while(!xrtAtomic32Load(&item->release,XMEMORY_ACQUIRE)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     cleanup_release(item);
 }
 static void cleanup_notify(ptr data)
@@ -366,11 +367,11 @@ static void exit_observation(void)
     xrtownershipref ref=xrtNetResolverOwnership(resolver);const xrtownershippreparationv1* prep=NULL;
     const xrtownershipadapterv1* resolver_adapter=xrtNetResolverOwnershipAdapterV1(ref,NULL,0,&prep);
     assert(resolver_adapter&&resolver_adapter->Hold(resolver)&&resolver_adapter->Claim(resolver,&item));
-    assert(xrtOwnershipScopeEnd(&freeze));xdeadline deadline=xrtDeadlineAfter(5000000);
+    assert(xrtOwnershipScopeEnd(&freeze));double deadline=__xrtWaitAfter(5000000);
     /* Start nonblocking retirement; a real user thread-key tail stays active. */
     while(!xrtAtomic32Load(&item.entered,XMEMORY_ACQUIRE)){
         assert(prep->Prepare(resolver,&item)==XRT_OWNERSHIP_PREPARE_BUSY);
-        assert(!xrtDeadlineExpired(deadline));xrtThreadYield();
+        assert(!__xrtWaitExpired(deadline));xrtThreadYield();
     }
     freeze_begin(&freeze);size_t count=731;xthreadstate state=XTHREAD_FINISHED;
     xerror* marker=xrtErrorCreate(XERR_STATE,"resolver.exit",92,"exit marker");assert(marker);xrtSetError(marker);
@@ -383,7 +384,7 @@ static void exit_observation(void)
     for(;;){
         freeze_begin(&freeze);
         if(ref.Ops->Count(ref.Data,&count))break;
-        assert(xrtOwnershipScopeEnd(&freeze));assert(!xrtDeadlineExpired(deadline));xrtThreadYield();
+        assert(xrtOwnershipScopeEnd(&freeze));assert(!__xrtWaitExpired(deadline));xrtThreadYield();
     }
     assert(count==2&&!prep->Ready(resolver)&&xrtGetError()==marker);
     assert(xrtThreadStateTry(item.worker,&state)&&state==XTHREAD_FINISHED);

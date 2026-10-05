@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -68,10 +69,10 @@ int main(void)
 
 	tState.Fail = true;
 	testRequire(
-		xrtChannelRecvUntilCancel(
+		__xrtChannelRecvUntilCancel(
 			&tChannel,
 			&pItem,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pCancel
 		) == XWAIT_ERROR,
 		"channel cancel watch OOM result mismatch"

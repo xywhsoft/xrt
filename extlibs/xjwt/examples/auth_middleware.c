@@ -9,13 +9,15 @@
 	  5. 第三方 IdP：JWKS 验证 id_token，密钥轮换失败自动刷新重试
 	  6. 错误诊断：区分过期 / 签名错误 / 未到期，返回不同 HTTP 状态码
 
-	编译：
-	  gcc -std=c11 -I../../single -o auth_middleware examples/auth_middleware.c \
-	      -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+ * 构建入口见本库 README；使用根目录 tools/build.py。
 */
-#define XRT_MODULE_ALL
+#if defined(XJWT_FEATURE_XJWT)
+#include <xjwt.h>
+#else
 #define XRT_IMPLEMENTATION
-#include "../xjwt.c"
+#include "../tests/support/runtime.h"
+#include "../tests/support/implementation.c"
+#endif
 #include <stdio.h>
 #include <string.h>
 

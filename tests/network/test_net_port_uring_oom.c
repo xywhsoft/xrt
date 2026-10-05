@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -154,11 +155,11 @@ int main(void)
 	);
 	iCount = 0;
 	testRequire(
-		(xrtNetPortWait(
+		(__xrtNetPortWait(
 			pPort,
 			&Event,
 			1,
-			xrtDeadlineAfter(1000000),
+			__xrtWaitAfter(1000000),
 			&iCount
 		) == XNET_RESULT_OK) &&
 		(iCount == 1) && (Event.Id == 1) && (Event.Bytes == 1) &&
@@ -176,11 +177,11 @@ int main(void)
 	);
 	iCount = 0;
 	testRequire(
-		(xrtNetPortWait(
+		(__xrtNetPortWait(
 			pPort,
 			&Event,
 			1,
-			xrtDeadlineAfter(1000000),
+			__xrtWaitAfter(1000000),
 			&iCount
 		) == XNET_RESULT_OK) &&
 		(iCount == 1) && (Event.Id == 2) && (Event.Bytes == 1) &&
@@ -204,11 +205,11 @@ int main(void)
 	);
 	xrtClearError();
 	testRequire(
-		(xrtNetPortWait(
+		(__xrtNetPortWait(
 			pPort,
 			&Event,
 			1,
-			xrtDeadlineAfter(0),
+			__xrtWaitAfter(0),
 			&iCount
 		) == XNET_RESULT_TIMEOUT) &&
 		(iCount == 0),

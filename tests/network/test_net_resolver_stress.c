@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -211,7 +212,7 @@ static void testResolverStressWaitIdle(
 	xnetresolverstats* pStats
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(10000000u);
+	double iDeadline = __xrtWaitAfter(10000000u);
 
 	for ( ;; ) {
 		uint32 iAccepted = xrtAtomic32Load(
@@ -233,7 +234,7 @@ static void testResolverStressWaitIdle(
 			 (pStats->ReadyCallbacks == 0) ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"resolver stress did not become idle");
 		xrtThreadYield();
 	}
@@ -249,7 +250,7 @@ int main(void)
 	xthread* Threads[TEST_RESOLVER_STRESS_PRODUCERS];
 	xnetresolverconfig Config;
 	xnetresolverstats Stats;
-	xdeadline iDeadline;
+	double iDeadline;
 	uint32 iAccepted;
 	uint32 iRejected;
 	uint32 iCallbacks;
@@ -291,10 +292,10 @@ int main(void)
 		testRequire(Threads[i] != NULL,
 			"resolver stress producer create failed");
 	}
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( xrtAtomic32Load(&pState->Ready, XMEMORY_ACQUIRE) <
 		TEST_RESOLVER_STRESS_PRODUCERS ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"resolver stress producers did not become ready");
 		xrtThreadYield();
 	}

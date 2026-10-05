@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
@@ -11,7 +12,7 @@ typedef enum testimapbyemode {
 
 typedef struct testimapbyeserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	testimapbyemode Mode;
 	bool Success;
 } testimapbyeserver;
@@ -38,7 +39,7 @@ static xnetaddrlist* testImapByeResolve(cstr sHost, xnetfamily Family, ptr pData
 
 
 
-static bool testImapByeSend(xnetstream* pStream, cstr sText, xdeadline Deadline)
+static bool testImapByeSend(xnetstream* pStream, cstr sText, double Deadline)
 {
 	for ( ;; ) {
 		xnetresult Result = xrtNetStreamSend(pStream, sText, strlen(sText));
@@ -46,7 +47,7 @@ static bool testImapByeSend(xnetstream* pStream, cstr sText, xdeadline Deadline)
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			Deadline,
@@ -63,14 +64,14 @@ static bool testImapByeSend(xnetstream* pStream, cstr sText, xdeadline Deadline)
 static bool testImapByeReceive(
 	xnetstream* pStream,
 	cstr sExpected,
-	xdeadline Deadline
+	double Deadline
 )
 {
 	size_t iReceived = 0;
 	size_t iExpected = strlen(sExpected);
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			Deadline,
@@ -99,7 +100,7 @@ static bool testImapByeReceive(
 static int32 testImapByeServer(ptr pData)
 {
 	testimapbyeserver* pServer = (testimapbyeserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -149,7 +150,7 @@ static int32 testImapByeServer(ptr pData)
 			pServer->Deadline
 		);
 	}
-	bSuccess = bSuccess && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+	bSuccess = bSuccess && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		pServer->Deadline,
@@ -173,7 +174,7 @@ int main(void)
 	xnetengine* pEngine;
 	xnetresolver* pResolver;
 	xnetlistener* pListener;
-	xdeadline Deadline;
+	double Deadline;
 
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = XNET_PORT_SELECT;
@@ -212,25 +213,25 @@ int main(void)
 		ximapevent Event;
 		ximapresponseview Last;
 
-		Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+		Deadline = __xrtWaitAfter(UINT64_C(10000000));
 		Server.Deadline = Deadline;
 		Server.Mode = (testimapbyemode)iMode;
 		Server.Success = false;
 		pThread = xrtThreadCreate(testImapByeServer, &Server, 0);
 		testRequire(pThread != NULL, "IMAP BYE server thread failed");
-		pClient = xrtImapClientOpen(&Config, Deadline, NULL);
+		pClient = __xrtImapClientOpen(&Config, Deadline, NULL);
 		testRequire((pClient != NULL) &&
 			(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED),
 			"IMAP BYE session open failed");
 		if ( iMode == TEST_IMAP_BYE_IDLE ) {
-			testRequire(xrtImapClientReceive(pClient, &Event, Deadline, NULL) &&
+			testRequire(__xrtImapClientReceive(pClient, &Event, Deadline, NULL) &&
 				(Event.Response.Status == XIMAP_STATUS_BYE) &&
 				(xrtImapClientState(pClient) == XIMAP_CLIENT_FAILED) &&
 				xrtImapClientLastResponse(pClient, &Last) &&
 				testMailViewEqual(Last.Text, XRT_STR_LITERAL("idle shutdown")),
 				"IMAP unsolicited BYE did not fail the session");
 			xrtClearError();
-			testRequire(!xrtImapClientBegin(
+			testRequire(!__xrtImapClientBegin(
 				pClient,
 				XRT_STR_LITERAL("NOOP"),
 				XRT_STR_LITERAL(""),
@@ -241,13 +242,13 @@ int main(void)
 				"IMAP sent a command after unsolicited BYE");
 		} else if ( iMode == TEST_IMAP_BYE_COMMAND ) {
 			xrtClearError();
-			testRequire(xrtImapClientBegin(
+			testRequire(__xrtImapClientBegin(
 				pClient,
 				XRT_STR_LITERAL("NOOP"),
 				XRT_STR_LITERAL(""),
 				Deadline,
 				NULL
-			) && (xrtImapClientNext(pClient, &Event, Deadline, NULL) ==
+			) && (__xrtImapClientNext(pClient, &Event, Deadline, NULL) ==
 				XMAIL_NEXT_ERROR) &&
 				(xrtErrorKind(xrtGetError()) == XERR_CLOSED) &&
 				(xrtImapClientState(pClient) == XIMAP_CLIENT_FAILED) &&
@@ -255,7 +256,7 @@ int main(void)
 				testMailViewEqual(Last.Text, XRT_STR_LITERAL("command shutdown")),
 				"IMAP command BYE did not preserve close reason");
 		} else {
-			testRequire(xrtImapClientSend(
+			testRequire(__xrtImapClientSend(
 				pClient,
 				XRT_STR_LITERAL("L1"),
 				XRT_STR_LITERAL("LOGOUT"),
@@ -264,7 +265,7 @@ int main(void)
 				NULL
 			), "IMAP low-level LOGOUT send failed");
 			xrtClearError();
-			testRequire(!xrtImapClientSend(
+			testRequire(!__xrtImapClientSend(
 				pClient,
 				XRT_STR_LITERAL("L2"),
 				XRT_STR_LITERAL("NOOP"),
@@ -274,11 +275,11 @@ int main(void)
 			) && (xrtErrorKind(xrtGetError()) == XERR_CLOSED),
 				"IMAP accepted a command after LOGOUT");
 			xrtClearError();
-			testRequire(xrtImapClientReceive(pClient, &Event, Deadline, NULL) &&
+			testRequire(__xrtImapClientReceive(pClient, &Event, Deadline, NULL) &&
 				(Event.Response.Status == XIMAP_STATUS_BYE) &&
 				xrtImapClientLastResponse(pClient, &Last) &&
 				testMailViewEqual(Last.Text, XRT_STR_LITERAL("signing off")) &&
-				xrtImapClientReceive(pClient, &Event, Deadline, NULL) &&
+				__xrtImapClientReceive(pClient, &Event, Deadline, NULL) &&
 				(Event.Response.Kind == XIMAP_RESPONSE_TAGGED) &&
 				(Event.Response.Status == XIMAP_STATUS_OK) &&
 				testMailViewEqual(Event.Response.Tag, XRT_STR_LITERAL("L1")) &&
@@ -288,7 +289,7 @@ int main(void)
 				"IMAP low-level LOGOUT lost its tagged completion");
 		}
 		xrtImapClientDestroy(pClient);
-		testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+		testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 			"IMAP BYE server did not finish");
 		testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 			"IMAP BYE server transcript mismatch");

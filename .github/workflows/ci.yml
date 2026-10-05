@@ -27,6 +27,8 @@ jobs:
           tools/test_clean.py
           tools/test_build.py
           tools/test_declaration_features.py
+          tools/test_extension_single.py
+          tools/test_extension_layout.py
           tools/test_package.py
           tools/test_measure_size.py
           tools/test_measure_performance.py
@@ -119,6 +121,7 @@ jobs:
       - name: Verify generated features
         run: |
           python tools/generate_features.py --check
+          python tools/amalgamate.py --all --check
           python tools/generate_api_reference.py --check
           python tools/generate_example_index.py --check
 
@@ -139,6 +142,11 @@ jobs:
           - ximap
           - xssh
           - xacme
+          - xllm
+          - xllm-session
+          - xwork
+          - xjwt
+          - xoauth2
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -208,6 +216,21 @@ jobs:
           - product: xacme
             test_suite: xacme_tests
             package_suite: xacme
+          - product: xllm
+            test_suite: xllm
+            package_suite: xllm
+          - product: xllm-session
+            test_suite: xllm_session
+            package_suite: xllm_session
+          - product: xwork
+            test_suite: xwork
+            package_suite: xwork
+          - product: xjwt
+            test_suite: xjwt,xjwt_tests
+            package_suite: xjwt
+          - product: xoauth2
+            test_suite: xoauth2,xoauth2_tests,xoauth2_oidc
+            package_suite: xoauth2
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6

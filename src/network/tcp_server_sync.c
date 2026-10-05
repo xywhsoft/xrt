@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_tcp_server.h"
 #include "../internal/xrt_net_sync.h"
 
@@ -6,9 +7,9 @@
 #if defined(XRT_FEATURE_NET_TCP_SERVER_SYNC)
 
 /* 阻塞接受一个聚合连接，并把 Future 持有转换为调用方引用。 */
-XRT_API xnetstream* xrtNetServerAcceptWait(
+XRT_API xnetstream* __xrtNetServerAcceptWait(
 	xnetserver* pServer,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -50,4 +51,15 @@ XRT_API xnetstream* xrtNetServerAcceptWait(
 	return pStream;
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_NET_TCP_SERVER)) && (defined(XRT_FEATURE_NET_TCP_SERVER_SYNC))
+XRT_API xnetstream* xrtNetServerAcceptWait(
+	xnetserver* pServer,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtNetServerAcceptWait(pServer, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

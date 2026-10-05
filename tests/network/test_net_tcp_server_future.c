@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -9,12 +10,12 @@ static void testTcpServerFutureClose(
 	xnetstream* pAccepted
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( (xrtNetServerState(pServer) != XNET_SERVER_CLOSED) ||
 		 (xrtNetStreamState(pClient) != XNET_STREAM_CLOSED) ||
 		 (xrtNetStreamState(pAccepted) != XNET_STREAM_CLOSED) ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP server Future objects did not close");
 		xrtThreadYield();
 	}

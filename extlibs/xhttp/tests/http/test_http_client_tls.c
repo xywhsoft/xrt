@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../fixtures/tls_server.h"
 
 
@@ -38,14 +39,14 @@ static void testHttpClientTlsWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(10000000u);
+	double iDeadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(iDeadline),
+			!__xrtWaitExpired(iDeadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -371,7 +372,7 @@ int main(void)
 	xtlsverifier* pVerifier;
 	xtlsstream* pClient;
 	xnetaddr Address;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	memset(&State, 0, sizeof(State));
 	memset(&ListenerEvents, 0, sizeof(ListenerEvents));
@@ -490,11 +491,11 @@ int main(void)
 		&State.ServerClosed,
 		"HTTPS server TLS Stream did not close"
 	);
-	iDeadline = xrtDeadlineAfter(10000000u);
+	iDeadline = __xrtWaitAfter(10000000u);
 	while ( (xrtTlsStreamState(State.Returned) !=
 		XTLS_STREAM_CLOSED) ) {
 		testRequire(
-			!xrtDeadlineExpired(iDeadline),
+			!__xrtWaitExpired(iDeadline),
 			"HTTPS reusable TLS Stream did not close"
 		);
 		xrtThreadYield();
@@ -580,11 +581,11 @@ int main(void)
 		xrtNetListenerClose(State.Listener),
 		"HTTPS Listener close failed"
 	);
-	iDeadline = xrtDeadlineAfter(10000000u);
+	iDeadline = __xrtWaitAfter(10000000u);
 	while ( xrtNetListenerState(State.Listener) !=
 		XNET_LISTENER_CLOSED ) {
 		testRequire(
-			!xrtDeadlineExpired(iDeadline),
+			!__xrtWaitExpired(iDeadline),
 			"HTTPS Listener did not close"
 		);
 		xrtThreadYield();

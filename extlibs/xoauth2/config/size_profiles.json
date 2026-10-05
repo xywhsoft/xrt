@@ -1,0 +1,18 @@
+{
+	"schema": 1,
+	"profiles": [
+		{
+			"name": "xoauth2",
+			"system": "oauth2",
+			"suite": "xoauth2",
+			"description": "xoauth2 full public API"
+		}
+	],
+	"manifest": "extlibs/xoauth2/config/modules.json",
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

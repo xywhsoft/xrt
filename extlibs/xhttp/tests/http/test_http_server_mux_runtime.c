@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 #include <xrt/http_server_mux.h>
@@ -185,7 +186,7 @@ static void testHttpServerMuxWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(5000000)
 	);
 
@@ -193,7 +194,7 @@ static void testHttpServerMuxWait(
 		pValue, XMEMORY_ACQUIRE
 	) != iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -328,7 +329,7 @@ int main(void)
 	xnetsocket Socket;
 	xnetaddr Address;
 	char Response[4096];
-	xdeadline Deadline;
+	double Deadline;
 
 	memset(&One, 0, sizeof(One));
 	memset(&Two, 0, sizeof(Two));
@@ -483,11 +484,11 @@ int main(void)
 		xrtHttpServerDrain(pServer),
 		"HTTP server mux drain failed"
 	);
-	Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(UINT64_C(5000000));
 	while ( xrtHttpServerState(pServer) !=
 		XHTTP_SERVER_CLOSED ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP server mux shutdown timed out"
 		);
 		xrtThreadYield();

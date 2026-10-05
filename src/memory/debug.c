@@ -72,7 +72,7 @@ static xrt_memdebug_state __xrtMemDebug;
 
 /* 故障注入只影响当前线程，避免并发测试互相污染。 */
 typedef struct xrt_memdebug_fail_state {
-	uint64 Remaining;
+	int64 Remaining;
 	bool Armed;
 	bool Triggered;
 } xrt_memdebug_fail_state;

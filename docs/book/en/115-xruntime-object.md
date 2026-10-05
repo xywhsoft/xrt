@@ -77,7 +77,7 @@ The program below is from `examples/runtime/object_graph` — building and recla
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xruntime/single -include xruntime.h impl.c extlibs/xruntime/examples/runtime/object_graph/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXRUNTIME_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xruntime.h impl.c extlibs/xruntime/examples/runtime/object_graph/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 tracked/edges/collected 的收集结果自检行）
 ```
 
@@ -91,7 +91,7 @@ The second program is from `examples/runtime/object` — reference counting's ev
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xruntime/single -include xruntime.h impl.c extlibs/xruntime/examples/runtime/object/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXRUNTIME_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xruntime.h impl.c extlibs/xruntime/examples/runtime/object/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 counter 值与弱引用 expired 状态的自检行）
 ```
 

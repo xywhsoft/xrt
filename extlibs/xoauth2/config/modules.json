@@ -1,0 +1,176 @@
+{
+	"schema": 1,
+	"product": "xoauth2",
+	"module_prefix": "XOAUTH2_MODULE_",
+	"single_header": "single/extlibs/xoauth2.h",
+	"declaration_header": "single/extlibs/xoauth2_decl.h",
+	"implementation_macro": "XOAUTH2_IMPLEMENTATION",
+	"implementation_once_macro": "XOAUTH2_IMPLEMENTATION_ONCE",
+	"single_guard": "XOAUTH2_SINGLE_HEADER_H",
+	"single_marker": "XOAUTH2_SINGLE_HEADER",
+	"declaration_guard": "XOAUTH2_DECLARATIONS_H",
+	"declaration_marker": "XOAUTH2_DECLARATIONS",
+	"package_consumer": "extlibs/xoauth2/tests/package/test_consumer.c",
+	"product_root": "extlibs/xoauth2",
+	"performance_config": "extlibs/xoauth2/config/performance_profiles.json",
+	"size_config": "extlibs/xoauth2/config/size_profiles.json",
+	"scope": {
+		"product": "xoauth2",
+		"external_integrations": [],
+		"systems": [
+			{
+				"name": "oauth2",
+				"state": "retained",
+				"source_roots": [
+					"oauth2"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xoauth2 public API reference",
+		"function_prefix": "xoauth2",
+		"constant_prefix": "XOAUTH2_",
+		"type_prefix": "xoauth2",
+		"guide": "../../README.md",
+		"output": "extlibs/xoauth2/docs/api/reference.md"
+	},
+	"features_guard": "XOAUTH2_FEATURES_H",
+	"features_header": "extlibs/xoauth2/include/xoauth2/features.h",
+	"include_dirs": [
+		"extlibs/xoauth2/include"
+	],
+	"header_roots": [
+		"extlibs/xoauth2/include",
+		"extlibs/xoauth2/src/internal"
+	],
+	"modules": [
+		{
+			"name": "xoauth2",
+			"state": "implemented",
+			"feature": "XOAUTH2_FEATURE_XOAUTH2",
+			"depends": [
+				"core",
+				"atomic",
+				"thread",
+				"string",
+				"time",
+				"random",
+				"random_secure",
+				"json_read",
+				"json_write",
+				"value",
+				"codec_base64",
+				"crypto_core",
+				"crypto_sha256",
+				"buffer",
+				"net_engine",
+				"net_resolver",
+				"net_tcp_dial_sync",
+				"net_tcp_future",
+				"tls_stream_dial_future",
+				"tls_stream_future",
+				"tls_client_verify",
+				"tls_schedule_sha256",
+				"tls_schedule_sha384",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"http1_body",
+				"x509_store_system",
+				"future"
+			],
+			"public_headers": [
+				"extlibs/xoauth2/include/xoauth2.h",
+				"extlibs/xoauth2/include/xoauth2/features.h",
+				"extlibs/xoauth2/include/xoauth2/api.h"
+			],
+			"internal_headers": [
+				"extlibs/xoauth2/src/internal/xoauth2_internal.h"
+			],
+			"sources": [
+				"extlibs/xoauth2/src/oauth2/xoauth2_core.c",
+				"extlibs/xoauth2/src/oauth2/xoauth2_flow.c",
+				"extlibs/xoauth2/src/oauth2/xoauth2_http.c"
+			],
+			"tests": [
+				"extlibs/xoauth2/tests/test_minimal.c"
+			],
+			"single_tests": [
+				"extlibs/xoauth2/tests/single/test_single_xoauth2.c"
+			],
+			"examples": [
+				"extlibs/xoauth2/examples/wechat_login.c"
+			],
+			"benchmarks": [
+				"extlibs/xoauth2/bench/bench_xoauth2.c"
+			],
+			"docs": [
+				"extlibs/xoauth2/README.md",
+				"extlibs/xoauth2/docs/api/reference.md"
+			]
+		},
+		{
+			"name": "xoauth2_oidc",
+			"state": "implemented",
+			"depends": [
+				"xoauth2",
+				"xjwt"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xoauth2/tests/test_oidc_compose.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xoauth2/examples/api_review.c",
+				"extlibs/xoauth2/examples/oidc_login.c"
+			],
+			"benchmarks": [],
+			"docs": []
+		},
+		{
+			"name": "xoauth2_live",
+			"state": "implemented",
+			"depends": [
+				"xoauth2",
+				"xjwt"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xoauth2/examples/oidc_live.c"
+			],
+			"benchmarks": [],
+			"docs": []
+		},
+		{
+			"name": "xoauth2_tests",
+			"state": "implemented",
+			"depends": [
+				"xoauth2",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xoauth2/tests/test_oauth2.c"
+			],
+			"single_tests": [
+				"extlibs/xoauth2/tests/single/test_single_xoauth2_full.c"
+			],
+			"examples": [],
+			"benchmarks": [],
+			"docs": []
+		}
+	],
+	"dependency_manifests": [
+		"extlibs/xjwt/config/modules.json"
+	],
+	"umbrella_header": "xoauth2.h"
+}

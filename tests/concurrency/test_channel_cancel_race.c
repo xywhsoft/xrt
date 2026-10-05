@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../src/internal/xrt_channel.h"
 #include "../test.h"
 #include "../test_thread.h"
@@ -85,7 +86,7 @@ static void testChannelCancelWaitReaders(
 )
 {
 	xrt_channel_impl* pImpl = (xrt_channel_impl*)pChannel;
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
 
 	for ( ;; ) {
 		size_t iReaders;
@@ -103,7 +104,7 @@ static void testChannelCancelWaitReaders(
 			return;
 		}
 		testRequire(
-			!xrtDeadlineExpired(iDeadline),
+			!__xrtWaitExpired(iDeadline),
 			"channel cancel race waiters did not converge"
 		);
 		xrtSleepUs(UINT64_C(1000));

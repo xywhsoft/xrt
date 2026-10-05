@@ -25,11 +25,11 @@ static void testTimeFormatBuffers(void)
 	size_t iSize;
 	str sText;
 
-	testRequire(xrtDateTime(2024, 2, 29, 23, 58, 57, 654321, &iTime),
+	testRequire(xrtDateTime(2024, 2, 29, 23, 58, 57, 654, &iTime),
 		"format source construction failed");
 	iSize = xrtTimeWrite(NULL, 0, iTime, 8 * 3600,
 		XRT_STR_LITERAL("%F %T.%f %:z"));
-	testRequire(iSize == 33, "format size query is wrong");
+	testRequire(iSize == 30, "format size query is wrong");
 	testRequire(xrtTimeWrite(arrSmall, sizeof(arrSmall), iTime, 8 * 3600,
 		XRT_STR_LITERAL("%F %T.%f %:z")) == iSize,
 		"bounded format returned the wrong size");
@@ -176,11 +176,11 @@ static void testRFC3339(void)
 	testRequire(xrtTimeParseRFC3339(
 		XRT_STR_LITERAL("2024-01-02T03:04:05.123456789+08:30"), &iTime),
 		"RFC 3339 fractional offset parse failed");
-	testRequire(xrtDateTime(2024, 1, 1, 18, 34, 5, 123456, &iExpected) &&
+	testRequire(xrtDateTime(2024, 1, 1, 18, 34, 5, 123, &iExpected) &&
 		(iTime == iExpected), "RFC 3339 fraction truncation is wrong");
 	sText = xrtTimeRFC3339(iTime, 8 * 3600 + 30 * 60);
 	testRequire((sText != NULL) &&
-		(strcmp(sText, "2024-01-02T03:04:05.123456+08:30") == 0),
+		(strcmp(sText, "2024-01-02T03:04:05.123+08:30") == 0),
 		"RFC 3339 canonical format is wrong");
 	xrtFree(sText);
 
@@ -197,9 +197,9 @@ static void testRFC3339(void)
 /* HTTP-date 必须覆盖规范格式和两种历史兼容格式，并校验星期。 */
 static void testHTTPDate(void)
 {
-	const xtime iKnown = INT64_C(784111777) * XRT_TIME_SECOND;
+	const xtime iKnown = XRT_TIME_UNIX_EPOCH + INT64_C(784111777) * XRT_TIME_SECOND;
 	xtime iTime = 0;
-	str sText = xrtTimeHTTPDate(iKnown + 654321);
+	str sText = xrtTimeHTTPDate(iKnown + 654);
 
 	testRequire((sText != NULL) &&
 		(strcmp(sText, "Sun, 06 Nov 1994 08:49:37 GMT") == 0),

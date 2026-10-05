@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../src/internal/xrt_channel.h"
 #include "../test.h"
 #include "../test_thread.h"
@@ -19,10 +20,10 @@ static int testChannelSelectCancelWorker(ptr pData)
 	testchannelselectcancel* pOp =
 		(testchannelselectcancel*)pData;
 
-	pOp->Result = xrtChannelSelectUntilCancel(
+	pOp->Result = __xrtChannelSelectUntilCancel(
 		&pOp->Case,
 		1u,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		pOp->Cancel
 	);
 	return 0;
@@ -34,7 +35,7 @@ static int testChannelSelectCancelWorker(ptr pData)
 static void testChannelSelectCancelAwait(xchannel* pChannel)
 {
 	xrt_channel_impl* pImpl = (xrt_channel_impl*)pChannel;
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
 
 	for ( ;; ) {
 		bool bRegistered;
@@ -52,7 +53,7 @@ static void testChannelSelectCancelAwait(xchannel* pChannel)
 			return;
 		}
 		testRequire(
-			!xrtDeadlineExpired(iDeadline),
+			!__xrtWaitExpired(iDeadline),
 			"select cancel registration did not converge"
 		);
 		xrtSleepUs(UINT64_C(1000));
@@ -107,10 +108,10 @@ int main(void)
 	);
 	pItem = NULL;
 	tOp.Case = xrtChannelCaseRecv(&tChannel, &pItem);
-	tOp.Result = xrtChannelSelectUntilCancel(
+	tOp.Result = __xrtChannelSelectUntilCancel(
 		&tOp.Case,
 		1u,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		pCancel
 	);
 	testRequire(

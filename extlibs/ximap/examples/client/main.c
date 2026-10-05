@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <ximap.h>
 #include "../../../xmail/examples/mail_client_setup.h"
 
@@ -15,7 +16,7 @@ int main(int argc, char** argv)
 	const char* user = getenv("XIMAP_USER");
 	const char* secret = getenv("XIMAP_PASSWORD");
 	uint16 port;
-	xdeadline deadline;
+	double deadline;
 	bool ok;
 	if ( argc == 1 ) {
 		puts("usage: client host port ca.pem mailbox [tls|starttls] (set XIMAP_USER and XIMAP_PASSWORD)");
@@ -29,7 +30,7 @@ int main(int argc, char** argv)
 		mailExampleDiagnostic("IMAP network initialization");
 		return 1;
 	}
-	deadline = xrtDeadlineAfter(UINT64_C(30000000));
+	deadline = __xrtWaitAfter(UINT64_C(30000000));
 	xrtImapClientConfigInit(&Config);
 	Config.Net.Engine = Net.Engine;
 	Config.Net.Resolver = Net.Resolver;
@@ -39,7 +40,7 @@ int main(int argc, char** argv)
 		XMAIL_SECURITY_TLS : XMAIL_SECURITY_STARTTLS;
 	Config.Net.Tls.Context = Net.Tls;
 	Config.Net.Tls.Verifier = Net.Verifier;
-	client = xrtImapClientOpen(&Config, deadline, NULL);
+	client = __xrtImapClientOpen(&Config, deadline, NULL);
 	if ( client == NULL ) {
 		mailExampleDiagnostic("IMAP open");
 		(void)mailExampleNetUnit(&Net);
@@ -49,23 +50,23 @@ int main(int argc, char** argv)
 	Auth.Method = XIMAP_AUTH_PLAIN;
 	Auth.Username = xrtStrView(user);
 	Auth.Secret = xrtStrView(secret);
-	ok = xrtImapClientAuth(client, &Auth, deadline, NULL);
+	ok = __xrtImapClientAuth(client, &Auth, deadline, NULL);
 
 	xrtImapCompressConfigInit(&Compress);
 	if ( ok &&
 		(xrtImapClientCapabilities(client) & XIMAP_CAP_COMPRESS_DEFLATE) != 0u ) {
-		ok = xrtImapClientCompress(client, &Compress, deadline, NULL);
+		ok = __xrtImapClientCompress(client, &Compress, deadline, NULL);
 	}
 	if ( ok ) {
 		xrtImapMailboxInfoInit(&Mailbox);
-		ok = xrtImapClientExamine(client, xrtStrView(argv[4]),
+		ok = __xrtImapClientExamine(client, xrtStrView(argv[4]),
 			&Mailbox, deadline, NULL);
 		if ( ok ) printf("%s: %llu messages\n", argv[4],
 			(unsigned long long)Mailbox.Exists);
 	}
 	/* EXAMINE is read-only and its tagged completion already proved the query.
 	 * LOGOUT/transport errors remain visible without discarding that result. */
-	if ( ok && !xrtImapClientLogout(client, deadline, NULL) )
+	if ( ok && !__xrtImapClientLogout(client, deadline, NULL) )
 		mailExampleDiagnostic("IMAP query completed; shutdown");
 	if ( !ok ) mailExampleDiagnostic("IMAP operation");
 	xrtImapClientDestroy(client);

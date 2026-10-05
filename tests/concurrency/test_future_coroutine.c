@@ -9,7 +9,7 @@ typedef struct testfutureawait {
 	xpromise* Promise;
 	xwaitresult Result;
 	ptr Value;
-	uint64 Timeout;
+	int64 Timeout;
 	bool Confirm;
 } testfutureawait;
 

@@ -1,14 +1,13 @@
-/* OIDC 组合测试：xoauth2 + xjwt 数据耦合全链路（应用层胶水的回归锁）。
- * 单 TU 同时编入两个库（互不认知，仅在测试里会师）：
- *   #include "../../xjwt/xjwt.c"    ← xrt 全量实现（XRT_MODULE_ALL）
- *   #include "../xoauth2.c"         <xrt.h> 已含，include guard 生效
- * 验证 README "数据耦合" 一节的 8 行胶水组合：
- * BeginLogin(nonce) → CompleteLogin(id_token) → HttpGet(JWKS) →
- * xjwtJwksParse → xjwtVerifyJwks(iss/aud) → nonce 消费 → userinfo。 */
-#define XRT_MODULE_ALL
+/* OIDC application composition: OAuth2 and JWT share one Core runtime. */
+#if defined(XOAUTH2_FEATURE_XOAUTH2)
+#include "../src/internal/xoauth2_internal.h"
+#include "../../xjwt/src/internal/xjwt_internal.h"
+#else
 #define XRT_IMPLEMENTATION
-#include "../../xjwt/xjwt.c"
-#include "../xoauth2.c"
+#include "support/runtime.h"
+#include "../../xjwt/tests/support/implementation.c"
+#include "support/implementation.c"
+#endif
 
 #include <stdio.h>
 #include <string.h>

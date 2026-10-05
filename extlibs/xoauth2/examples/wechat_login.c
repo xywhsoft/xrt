@@ -1,7 +1,9 @@
 /* 微信网站登录：离线 mock 展示 appid 授权、GET 换票、openid userinfo 和刷新。 */
+#if !defined(XOAUTH2_FEATURE_XOAUTH2)
 #define XRT_IMPLEMENTATION
-#include "../xoauth2-xrt.h"
-#include "../xoauth2.h"
+#include "../tests/support/runtime.h"
+#endif
+#include <xoauth2.h>
 
 #include <stdio.h>
 #include <string.h>

@@ -26,14 +26,14 @@
 
 int main(void)
 {
-	uint64 iStart = xrtClock();
+	double iStart = xrtTimer();
 	double fStart = xrtTimer();
 
 	/* 睡 10ms：两种计时器测同一段间隔。 */
 	xrtSleep(10);
 
 	/* 整数差值（新代码推荐）：直接相减即微秒数。 */
-	printf("elapsed_us=%llu\n", (unsigned long long)(xrtClock() - iStart));
+	printf("elapsed_us=%llu\n", (unsigned long long)(xrtTimer() - iStart));
 
 	/* 浮点秒（旧接口保留）：适合与秒为单位的 API 混用。 */
 	printf("elapsed_s=%.6f\n", xrtTimer() - fStart);

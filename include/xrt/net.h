@@ -352,8 +352,8 @@ typedef struct xnetresolverconfig {
 	size_t RequestLimit;
 	size_t QueryLimit;
 	size_t CacheEntries;
-	uint64 SuccessTTL;
-	uint64 FailureTTL;
+	int64 SuccessTTL;
+	int64 FailureTTL;
 	size_t HostLimit;
 	size_t ThreadStack;
 	xnetresolverlookup Lookup;
@@ -785,7 +785,7 @@ typedef struct xnetengineconfig {
 	size_t PortWatchLimit;
 	size_t PortOperationLimit;
 	size_t PortOperationCache;
-	uint64 IdleWait;
+	int64 IdleWait;
 	size_t ThreadStack;
 } xnetengineconfig;
 
@@ -1616,7 +1616,7 @@ XRT_API bool xrtNetPortWake(xnetport* pPort);
 /* 等待到事件、截止时间或错误；成功和超时都会先清零输出数量。 */
 XRT_API xnetresult xrtNetPortWait(xnetport* pPort,
 	xnetportevent* pEvents, size_t iCapacity,
-	xdeadline iDeadline, size_t* pCount);
+	int64 iTimeout, size_t* pCount);
 
 #endif
 
@@ -1664,7 +1664,7 @@ XRT_API const xrtownershipadapterv1* xrtNetEngineOwnershipAdapterV1(
 XRT_API bool xrtNetEnginePostOwnedV1(xnetengine* pEngine, uint64 iAffinity,
 	ptr pData, const xnettaskownershipv1* pPolicy);
 XRT_API uint64 xrtNetEngineScheduleOwnedV1(xnetengine* pEngine, uint64 iAffinity,
-	xdeadline iDeadline, ptr pData, const xnettimerownershipv1* pPolicy);
+	int64 iTimeout, ptr pData, const xnettimerownershipv1* pPolicy);
 
 
 
@@ -1787,14 +1787,14 @@ XRT_API bool xrtNetEnginePost(xnetengine* pEngine,
 
 /* 按单调时钟截止时间调度 Timer；成功返回非零 ID。 */
 XRT_API uint64 xrtNetEngineSchedule(xnetengine* pEngine,
-	uint64 iAffinity, xdeadline iDeadline,
+	uint64 iAffinity, int64 iTimeout,
 	xnettimerproc pProc, ptr pData);
 
 
 
 /* 按相对微秒数调度 Timer；零表示在下一次 Worker 循环到期。 */
 XRT_API uint64 xrtNetEngineAfter(xnetengine* pEngine,
-	uint64 iAffinity, uint64 iTimeout,
+	uint64 iAffinity, int64 iTimeout,
 	xnettimerproc pProc, ptr pData);
 
 

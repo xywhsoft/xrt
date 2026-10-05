@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -31,7 +32,7 @@ int main(void)
 	xnetaddr Address;
 	size_t iReceiveCount = 0;
 	size_t iSendCount = 0;
-	xdeadline Deadline = xrtDeadlineAfter(10000000);
+	double Deadline = __xrtWaitAfter(10000000);
 
 	xrtNetPortConfigInit(&Config);
 	Config.Backend = XNET_PORT_IOCP;
@@ -69,7 +70,7 @@ int main(void)
 		(iSendCount < TEST_IOCP_STRESS_COUNT) ) {
 		size_t iCount = 0;
 
-		testRequire(xrtNetPortWait(pPort, Events, 64,
+		testRequire(__xrtNetPortWait(pPort, Events, 64,
 			Deadline, &iCount) == XNET_RESULT_OK,
 			"IOCP stress wait failed");
 		for ( size_t i = 0; i < iCount; i++ ) {

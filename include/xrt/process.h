@@ -314,16 +314,13 @@ XRT_API xwaitresult xrtProcessWait(xprocess* pProcess);
 /* 在相对微秒数内等待进程退出。 */
 XRT_API xwaitresult xrtProcessWaitFor(
 	xprocess* pProcess,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 等待进程退出到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtProcessWaitUntil(
-	xprocess* pProcess,
-	xdeadline iDeadline
-);
+
 
 
 
@@ -404,7 +401,7 @@ typedef bool (*xprocessoutputproc)(
 */
 typedef struct xprocessrunoptions {
 	xbytesview Input;
-	xdeadline Deadline;
+	double Deadline;
 	xcancel* Cancel;
 	uint64 StopGrace;
 	size_t StdoutLimit;
@@ -442,9 +439,9 @@ XRT_API bool xrtProcessRunOptionsInit(xprocessrunoptions* pOptions);
 
 
 /* 等待进程、Deadline 或取消令牌中的首个事件。 */
-XRT_API xwaitresult xrtProcessWaitUntilCancel(
+XRT_API xwaitresult xrtProcessWaitForCancel(
 	xprocess* pProcess,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -511,7 +508,7 @@ typedef bool (*xprocesspipelineoutputproc)(
 /* Pipeline 选项独立表达首段输入、共享等待控制和逐流捕获边界。 */
 typedef struct xprocesspipelineoptions {
 	xbytesview Input;
-	xdeadline Deadline;
+	double Deadline;
 	xcancel* Cancel;
 	uint64 StopGrace;
 	size_t StdoutLimit;

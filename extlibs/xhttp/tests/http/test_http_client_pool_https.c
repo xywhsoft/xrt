@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../fixtures/tls_server.h"
 
 
@@ -47,14 +48,14 @@ static void testHttpPoolHttpsWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -68,7 +69,7 @@ static void testHttpPoolHttpsWaitClosed(
 	xhttpclient* pClient
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 	xhttpclientstats Stats;
 
 	for ( ;; ) {
@@ -80,7 +81,7 @@ static void testHttpPoolHttpsWaitClosed(
 			return;
 		}
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTPS pool client close did not drain"
 		);
 		xrtThreadYield();

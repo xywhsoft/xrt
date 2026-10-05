@@ -56,7 +56,7 @@ SSH 握手与 TLS 1.3 的同与异。**同**：ECDHE（x25519 曲线）+ transcr
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/kex_session/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/kex_session/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 KEX 会话结构尺寸的自检结果）
 ```
 
@@ -70,7 +70,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/kexinit/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/kexinit/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 KEXINIT 报文尺寸与所选 kex 算法名的自检结果）
 ```
 

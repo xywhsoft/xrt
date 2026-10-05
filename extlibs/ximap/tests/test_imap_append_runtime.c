@@ -1,10 +1,11 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
 
 typedef struct testimapappendserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 	bool Unlimited;
 } testimapappendserver;
@@ -41,7 +42,7 @@ static bool testImapAppendSend(
 	xnetstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -50,7 +51,7 @@ static bool testImapAppendSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -68,13 +69,13 @@ static bool testImapAppendReceive(
 	xnetstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -103,7 +104,7 @@ static bool testImapAppendReceive(
 static int32 testImapAppendServer(ptr pData)
 {
 	testimapappendserver* pServer = (testimapappendserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -177,7 +178,7 @@ static int32 testImapAppendServer(ptr pData)
 			"* BYE signing off\r\nA00000004 OK logout complete\r\n"
 		) - 1u,
 		pServer->Deadline
-	) && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+	) && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		pServer->Deadline,
@@ -205,7 +206,7 @@ static void testImapAppendRoundtrip(bool Unlimited)
 	xnetlistener* pListener;
 	ximapclient* pClient;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = XNET_PORT_SELECT;
@@ -231,7 +232,7 @@ static void testImapAppendRoundtrip(bool Unlimited)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "IMAP APPEND resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Success = false;
@@ -243,7 +244,7 @@ static void testImapAppendRoundtrip(bool Unlimited)
 	ClientConfig.Net.Resolver = pResolver;
 	ClientConfig.Net.Host = "imap-append.test";
 	ClientConfig.Net.Port = TestImapAppendAddress.Port;
-	pClient = xrtImapClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtImapClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire((pClient != NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED) &&
 		(xrtImapClientAppendLimit(pClient) == (Unlimited ? XIMAP_APPEND_LIMIT_UNKNOWN : UINT64_C(64))),
@@ -255,7 +256,7 @@ static void testImapAppendRoundtrip(bool Unlimited)
 		AppendConfig.Size = (size_t)((uint64)INT64_MAX + UINT64_C(1));
 		AppendConfig.Literal = XIMAP_LITERAL_NONSYNC;
 		xrtClearError();
-		bool Started = xrtImapClientAppendBegin(pClient, &AppendConfig, Deadline, NULL);
+		bool Started = __xrtImapClientAppendBegin(pClient, &AppendConfig, Deadline, NULL);
 		printf("[diagnostic] APPEND above-63 started=%d kind=%d state=%d remaining=%zu\n", (int)Started,
 			(int)xrtErrorKind(xrtGetError()), (int)xrtImapClientState(pClient), xrtImapClientAppendRemaining(pClient));
 		testRequire(!Started &&
@@ -268,14 +269,14 @@ static void testImapAppendRoundtrip(bool Unlimited)
 	AppendConfig.InternalDate = XRT_STR_LITERAL("16-Aug-2026 12:00:00 +0800");
 	AppendConfig.Size = 11u;
 	AppendConfig.Literal = XIMAP_LITERAL_SYNC;
-	testRequire(xrtImapClientAppendBegin(
+	testRequire(__xrtImapClientAppendBegin(
 		pClient,
 		&AppendConfig,
 		Deadline,
 		NULL
 	), "synchronizing IMAP APPEND begin failed");
 	xrtClearError();
-	testRequire(!xrtImapClientAppendWrite(
+	testRequire(!__xrtImapClientAppendWrite(
 		pClient,
 		"hello world!",
 		12u,
@@ -285,20 +286,20 @@ static void testImapAppendRoundtrip(bool Unlimited)
 		(xrtImapClientAppendRemaining(pClient) == 11u),
 		"IMAP APPEND accepted bytes beyond its literal size");
 	xrtClearError();
-	testRequire(xrtImapClientAppendWrite(
+	testRequire(__xrtImapClientAppendWrite(
 		pClient,
 		"hello ",
 		6u,
 		Deadline,
 		NULL
-	) && xrtImapClientAppendWrite(
+	) && __xrtImapClientAppendWrite(
 		pClient,
 		"world",
 		5u,
 		Deadline,
 		NULL
 	) && (xrtImapClientAppendRemaining(pClient) == 0) &&
-		xrtImapClientAppendEnd(pClient, &Result, Deadline, NULL) &&
+		__xrtImapClientAppendEnd(pClient, &Result, Deadline, NULL) &&
 		Result.Present && (Result.UidValidity == UINT64_C(42)) &&
 		(Result.Uid == UINT64_C(9)),
 		"streaming IMAP APPEND failed");
@@ -307,7 +308,7 @@ static void testImapAppendRoundtrip(bool Unlimited)
 	AppendConfig.Mailbox = XRT_STR_LITERAL("Drafts");
 	AppendConfig.Size = 5u;
 	AppendConfig.Literal = XIMAP_LITERAL_NONSYNC;
-	testRequire(xrtImapClientAppend(
+	testRequire(__xrtImapClientAppend(
 		pClient,
 		&AppendConfig,
 		"world",
@@ -319,14 +320,14 @@ static void testImapAppendRoundtrip(bool Unlimited)
 	if ( !Unlimited ) {
 		AppendConfig.Size = 65u;
 		xrtClearError();
-		testRequire(!xrtImapClientAppendBegin(pClient, &AppendConfig, Deadline, NULL) &&
+		testRequire(!__xrtImapClientAppendBegin(pClient, &AppendConfig, Deadline, NULL) &&
 			xrtErrorKind(xrtGetError()) == XERR_RANGE && xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED,
 			"IMAP APPENDLIMIT did not reject before upload");
 	}
 	xrtClearError();
-	testRequire(xrtImapClientLogout(pClient, Deadline, NULL),
+	testRequire(__xrtImapClientLogout(pClient, Deadline, NULL),
 		"IMAP APPEND logout failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"IMAP APPEND server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"IMAP APPEND transcript mismatch");

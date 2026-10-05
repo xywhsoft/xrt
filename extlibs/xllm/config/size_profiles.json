@@ -1,0 +1,18 @@
+{
+	"schema": 1,
+	"profiles": [
+		{
+			"name": "xllm",
+			"system": "llm",
+			"suite": "xllm",
+			"description": "xllm full public API"
+		}
+	],
+	"manifest": "extlibs/xllm/config/modules.json",
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

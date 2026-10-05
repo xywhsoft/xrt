@@ -78,7 +78,7 @@ The program below is from `examples/websocket/group` — the integration templat
 
 ```
 ```
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xws/single -include xws.h impl.c extlibs/xws/examples/websocket/group/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/group/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 WebSocket connection group is ready
 ```
 
@@ -92,7 +92,7 @@ The second program is from `examples/websocket/group_future` — the waitable br
 
 ```
 ```
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xws/single -include xws.h impl.c extlibs/xws/examples/websocket/group_future/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/group_future/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （空组广播操作完成自检通过后正常退出）
 ```
 

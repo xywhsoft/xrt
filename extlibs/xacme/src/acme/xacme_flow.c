@@ -623,7 +623,7 @@ static bool xacmeFlowAlternateUrl(cstr sBase, cstr sReference,
 static bool xacmeFlowDeadlineHit(const xacmeclient* pClient)
 {
 	return pClient->bIssueDeadline &&
-		(xrtClock() >= (uint64)pClient->IssueDeadline);
+		(xrtTimer() >= (uint64)pClient->IssueDeadline);
 }
 
 /* ---------------- nonce 与 POST ---------------- */
@@ -1047,14 +1047,14 @@ static void xacmeFlowWaitPropagate(
 	{
 		return;
 	}
-	uDeadline = xrtClock() +
+	uDeadline = xrtTimer() +
 		(uint64)pClient->uPropagateTimeoutMs * UINT64_C(1000);
 	if(pClient->bIssueDeadline &&
 		((uint64)pClient->IssueDeadline < uDeadline))
 	{
 		uDeadline = pClient->IssueDeadline;
 	}
-	while(xrtClock() < uDeadline)
+	while(xrtTimer() < uDeadline)
 	{
 		if(xacmeFlowTxtVisible(&Probe, pClient, sFqdn, sTxt))
 		{
@@ -1136,7 +1136,7 @@ static void xacmeFlowChallengeDetail(
 
 bool xacmeClientInit(
 	xacmeclient* pClient, struct xnetengine* pBorrowedEngine,
-	cstr sCaPem, const xacmeaccountconfig* pAccount, uint64 uTimeoutUs)
+	cstr sCaPem, const xacmeaccountconfig* pAccount, int64 uTimeoutUs)
 {
 	xacmehttpresponse R;
 	xvalue* pRoot = NULL;
@@ -1475,7 +1475,7 @@ bool xacmeClientIssue(
 	}
 	/* 总预算打点：uIssueTimeoutUs 非零时本次 Issue 全程受限。 */
 	pClient->bIssueDeadline = (pClient->uIssueTimeoutUs != 0u);
-	pClient->IssueDeadline = xrtClock() + pClient->uIssueTimeoutUs;
+	pClient->IssueDeadline = xrtTimer() + pClient->uIssueTimeoutUs;
 
 	/* 1. 新订单；identifier 用完整域名（通配符原样：*.example.com 是
 	   独立 identifier，CA 依此返回通配符授权）。去重按完整字符串——

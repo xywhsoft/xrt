@@ -61,7 +61,7 @@ api: xhttp-http_server, xhttp-http_compress, xhttp-http_cache_range
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/reply_compress/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/reply_compress/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出压缩协商与产出响应的自检结果）
 ```
 
@@ -75,7 +75,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extli
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/range_multipart/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/range_multipart/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出多区间响应组合的自检结果）
 ```
 

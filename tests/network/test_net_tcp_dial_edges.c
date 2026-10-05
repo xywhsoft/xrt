@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -42,10 +43,10 @@ static void testDialEdgeWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -220,11 +221,11 @@ static uint16 testDialEdgeUnusedPort(void)
 /* 重试无副作用的活动对象检查，确保异步取消资源已经真正排空。 */
 static void testDialEdgeDestroyEngine(xnetengine* pEngine)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"dial edge engine retained an internal resource");
 		xrtThreadYield();
 	}

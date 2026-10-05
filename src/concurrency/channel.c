@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_channel.h"
 
 
@@ -519,7 +520,7 @@ static xwaitresult __xrtChannelWaitResult(xchannelresult iResult)
 
 /* 检查尚未提交的等待是否已取消或到达截止时间。 */
 static xwaitresult __xrtChannelStop(
-	xdeadline iDeadline,
+	double iDeadline,
 	ptr pCancel
 )
 {
@@ -533,7 +534,7 @@ static xwaitresult __xrtChannelStop(
 	#else
 		(void)pCancel;
 	#endif
-	return xrtDeadlineExpired(iDeadline) ? XWAIT_TIMEOUT : XWAIT_OK;
+	return __xrtWaitExpired(iDeadline) ? XWAIT_TIMEOUT : XWAIT_OK;
 }
 
 
@@ -542,12 +543,12 @@ static xwaitresult __xrtChannelStop(
 static xwaitresult __xrtChannelWaitCondition(
 	xcond* pCond,
 	xmutex* pMutex,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
-	return iDeadline == XRT_DEADLINE_NEVER ?
+	return iDeadline == INFINITY ?
 		xrtCondWait(pCond, pMutex) :
-		xrtCondWaitUntil(pCond, pMutex, iDeadline);
+		__xrtCondWaitUntil(pCond, pMutex, iDeadline);
 }
 
 
@@ -556,7 +557,7 @@ static xwaitresult __xrtChannelWaitCondition(
 static xwaitresult __xrtChannelSendWait(
 	xchannel* pChannel,
 	ptr pItem,
-	xdeadline iDeadline,
+	double iDeadline,
 	ptr pCancel
 )
 {
@@ -683,7 +684,7 @@ static xwaitresult __xrtChannelSendWait(
 static xwaitresult __xrtChannelRecvWait(
 	xchannel* pChannel,
 	ptr* pItem,
-	xdeadline iDeadline,
+	double iDeadline,
 	ptr pCancel
 )
 {
@@ -918,7 +919,7 @@ XRT_API xwaitresult xrtChannelSend(xchannel* pChannel, ptr pItem)
 	return __xrtChannelSendWait(
 		pChannel,
 		pItem,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	);
 }
@@ -929,23 +930,23 @@ XRT_API xwaitresult xrtChannelSend(xchannel* pChannel, ptr pItem)
 XRT_API xwaitresult xrtChannelSendFor(
 	xchannel* pChannel,
 	ptr pItem,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	return xrtChannelSendUntil(
+	return __xrtChannelSendUntil(
 		pChannel,
 		pItem,
-		xrtDeadlineAfter(iTimeout)
+		__xrtWaitAfter(iTimeout)
 	);
 }
 
 
 
 /* 等待发送一个指针值到指定截止时间。 */
-XRT_API xwaitresult xrtChannelSendUntil(
+XRT_API xwaitresult __xrtChannelSendUntil(
 	xchannel* pChannel,
 	ptr pItem,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return __xrtChannelSendWait(
@@ -987,7 +988,7 @@ XRT_API xwaitresult xrtChannelRecv(xchannel* pChannel, ptr* pItem)
 	return __xrtChannelRecvWait(
 		pChannel,
 		pItem,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	);
 }
@@ -998,23 +999,23 @@ XRT_API xwaitresult xrtChannelRecv(xchannel* pChannel, ptr* pItem)
 XRT_API xwaitresult xrtChannelRecvFor(
 	xchannel* pChannel,
 	ptr* pItem,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	return xrtChannelRecvUntil(
+	return __xrtChannelRecvUntil(
 		pChannel,
 		pItem,
-		xrtDeadlineAfter(iTimeout)
+		__xrtWaitAfter(iTimeout)
 	);
 }
 
 
 
 /* 等待接收一个指针值到指定截止时间。 */
-XRT_API xwaitresult xrtChannelRecvUntil(
+XRT_API xwaitresult __xrtChannelRecvUntil(
 	xchannel* pChannel,
 	ptr* pItem,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return __xrtChannelRecvWait(
@@ -1036,10 +1037,10 @@ XRT_API xwaitresult xrtChannelSendCancel(
 	xcancel* pCancel
 )
 {
-	return xrtChannelSendUntilCancel(
+	return __xrtChannelSendUntilCancel(
 		pChannel,
 		pItem,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		pCancel
 	);
 }
@@ -1050,14 +1051,14 @@ XRT_API xwaitresult xrtChannelSendCancel(
 XRT_API xwaitresult xrtChannelSendForCancel(
 	xchannel* pChannel,
 	ptr pItem,
-	uint64 iTimeout,
+	int64 iTimeout,
 	xcancel* pCancel
 )
 {
-	return xrtChannelSendUntilCancel(
+	return __xrtChannelSendUntilCancel(
 		pChannel,
 		pItem,
-		xrtDeadlineAfter(iTimeout),
+		__xrtWaitAfter(iTimeout),
 		pCancel
 	);
 }
@@ -1065,10 +1066,10 @@ XRT_API xwaitresult xrtChannelSendForCancel(
 
 
 /* 等待发送到截止时间，并允许取消尚未提交的操作。 */
-XRT_API xwaitresult xrtChannelSendUntilCancel(
+XRT_API xwaitresult __xrtChannelSendUntilCancel(
 	xchannel* pChannel,
 	ptr pItem,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -1078,7 +1079,7 @@ XRT_API xwaitresult xrtChannelSendUntilCancel(
 	xwaitresult iResult;
 
 	if ( pCancel == NULL ) {
-		return xrtChannelSendUntil(pChannel, pItem, iDeadline);
+		return __xrtChannelSendUntil(pChannel, pItem, iDeadline);
 	}
 
 	/* 有缓冲的立即成功路径不为取消监听分配内存。 */
@@ -1124,10 +1125,10 @@ XRT_API xwaitresult xrtChannelRecvCancel(
 	xcancel* pCancel
 )
 {
-	return xrtChannelRecvUntilCancel(
+	return __xrtChannelRecvUntilCancel(
 		pChannel,
 		pItem,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		pCancel
 	);
 }
@@ -1138,14 +1139,14 @@ XRT_API xwaitresult xrtChannelRecvCancel(
 XRT_API xwaitresult xrtChannelRecvForCancel(
 	xchannel* pChannel,
 	ptr* pItem,
-	uint64 iTimeout,
+	int64 iTimeout,
 	xcancel* pCancel
 )
 {
-	return xrtChannelRecvUntilCancel(
+	return __xrtChannelRecvUntilCancel(
 		pChannel,
 		pItem,
-		xrtDeadlineAfter(iTimeout),
+		__xrtWaitAfter(iTimeout),
 		pCancel
 	);
 }
@@ -1153,10 +1154,10 @@ XRT_API xwaitresult xrtChannelRecvForCancel(
 
 
 /* 等待接收到截止时间，并允许取消尚未完成的操作。 */
-XRT_API xwaitresult xrtChannelRecvUntilCancel(
+XRT_API xwaitresult __xrtChannelRecvUntilCancel(
 	xchannel* pChannel,
 	ptr* pItem,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -1166,7 +1167,7 @@ XRT_API xwaitresult xrtChannelRecvUntilCancel(
 	xwaitresult iResult;
 
 	if ( pCancel == NULL ) {
-		return xrtChannelRecvUntil(pChannel, pItem, iDeadline);
+		return __xrtChannelRecvUntil(pChannel, pItem, iDeadline);
 	}
 
 	/* 已经可接收的值优先于监听分配、取消和截止时间。 */

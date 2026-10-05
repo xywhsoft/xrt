@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：concurrency/channel_tour —— 通道全接口（阻塞/取消/Select/协程）
  * ----------------------------------------------------------------
@@ -47,10 +48,10 @@ typedef struct examplecancel {
 
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(3000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(3000000));
 
 	while ( !*pFlag ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -75,8 +76,8 @@ static int32 exampleRecvWaiter(ptr pArg)
 	examplecancel* pJob = (examplecancel*)pArg;
 	ptr pItem = NULL;
 
-	pJob->Result = xrtChannelRecvUntilCancel(pJob->pChannel, &pItem,
-		xrtDeadlineAfter(UINT64_C(10000000)), pJob->pCancel);
+	pJob->Result = __xrtChannelRecvUntilCancel(pJob->pChannel, &pItem,
+		__xrtWaitAfter(UINT64_C(10000000)), pJob->pCancel);
 	pJob->bDone = true;
 	return 0;
 }
@@ -98,8 +99,8 @@ static ptr exampleCoSendBlocked(ptr pData)
 {
 	xchannel* pChannel = (xchannel*)pData;
 
-	return (ptr)(uintptr_t)xrtChannelSendAwaitUntil(pChannel,
-		(ptr)77, xrtDeadlineAfter(UINT64_C(3000000)));
+	return (ptr)(uintptr_t)__xrtChannelSendAwaitUntil(pChannel,
+		(ptr)77, __xrtWaitAfter(UINT64_C(3000000)));
 }
 
 /* 协程三：SelectAwaitFor 在两条通道间选择（第二条预填）。 */
@@ -134,8 +135,8 @@ static ptr exampleCoRecvExpired(ptr pData)
 	xchannel* pChannel = (xchannel*)pData;
 	ptr pItem = NULL;
 
-	return (ptr)(uintptr_t)xrtChannelRecvAwaitUntil(pChannel, &pItem,
-		xrtDeadlineAfter(UINT64_C(1)));
+	return (ptr)(uintptr_t)__xrtChannelRecvAwaitUntil(pChannel, &pItem,
+		__xrtWaitAfter(UINT64_C(1)));
 }
 
 /* 协程六：SelectAwait 无限期版（预填 case0 保证完成）。 */
@@ -165,8 +166,8 @@ static ptr exampleCoSelectExpired(ptr pData)
 
 	Cases[0] = xrtChannelCaseRecv(pEmpty, &pItem);
 	Cases[1] = xrtChannelCaseSend(pEmpty, (ptr)1);
-	Result = xrtChannelSelectAwaitUntil(Cases, 2u,
-		xrtDeadlineAfter(UINT64_C(1)));
+	Result = __xrtChannelSelectAwaitUntil(Cases, 2u,
+		__xrtWaitAfter(UINT64_C(1)));
 	return (ptr)(uintptr_t)Result.Wait;
 }
 
@@ -230,28 +231,28 @@ int main(void)
 			EXAMPLE_TIMEOUT_US) != XWAIT_OK) ||
 		(xrtChannelSendFor(pHeap, (ptr)4,
 			EXAMPLE_TIMEOUT_US) != XWAIT_TIMEOUT) ||
-		(xrtChannelSendUntil(pHeap, (ptr)4,
-			xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) !=
+		(__xrtChannelSendUntil(pHeap, (ptr)4,
+			__xrtWaitAfter(EXAMPLE_TIMEOUT_US)) !=
 			XWAIT_TIMEOUT) ) {
 		goto Cleanup;
 	}
 	if ( (xrtChannelRecvFor(pHeap, &pItem,
 			EXAMPLE_TIMEOUT_US) != XWAIT_OK) ||
 		(pItem != (ptr)1) ||
-		(xrtChannelRecvUntil(pHeap, &pItem,
-			xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) !=
+		(__xrtChannelRecvUntil(pHeap, &pItem,
+			__xrtWaitAfter(EXAMPLE_TIMEOUT_US)) !=
 			XWAIT_OK) ||
 		(pItem != (ptr)2) ||
 		(xrtChannelRecvFor(pHeap, &pItem,
 			EXAMPLE_TIMEOUT_US) != XWAIT_TIMEOUT) ||
-		(xrtChannelRecvUntil(pHeap, &pItem,
-			xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) !=
+		(__xrtChannelRecvUntil(pHeap, &pItem,
+			__xrtWaitAfter(EXAMPLE_TIMEOUT_US)) !=
 			XWAIT_TIMEOUT) ) {
 		goto Cleanup;
 	}
 	/* SendUntil 的正常路径：空通道 + 远期截止。 */
-	if ( xrtChannelSendUntil(pHeap, (ptr)3,
-			xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) != XWAIT_OK ) {
+	if ( __xrtChannelSendUntil(pHeap, (ptr)3,
+			__xrtWaitAfter(EXAMPLE_TIMEOUT_US)) != XWAIT_OK ) {
 		goto Cleanup;
 	}
 	(void)xrtChannelTryRecv(pHeap, &pItem);
@@ -278,10 +279,10 @@ int main(void)
 		goto Cleanup;
 	}
 	{
-		xdeadline iGrace = xrtDeadlineAfter(UINT64_C(300000));
+		double iGrace = __xrtWaitAfter(UINT64_C(300000));
 
 		while ( (SendJob.bDone || RecvJob.bDone) == false ) {
-			if ( xrtDeadlineExpired(iGrace) ) {
+			if ( __xrtWaitExpired(iGrace) ) {
 				break;
 			}
 			xrtThreadYield();
@@ -307,8 +308,8 @@ int main(void)
 
 		if ( (xrtChannelSendCancel(pHeap, (ptr)9,
 				SendJob.pCancel) != XWAIT_CANCELLED) ||
-			(xrtChannelSendUntilCancel(pHeap, (ptr)9,
-				xrtDeadlineAfter(UINT64_C(1000000)),
+			(__xrtChannelSendUntilCancel(pHeap, (ptr)9,
+				__xrtWaitAfter(UINT64_C(1000000)),
 				SendJob.pCancel) != XWAIT_CANCELLED) ||
 			(xrtChannelSendForCancel(pHeap, (ptr)9,
 				UINT64_C(1000000), SendJob.pCancel) !=
@@ -316,8 +317,8 @@ int main(void)
 			(xrtChannelRecvForCancel(pEmpty, &pOne,
 				UINT64_C(1000000), RecvJob.pCancel) !=
 				XWAIT_CANCELLED) ||
-			(xrtChannelRecvUntilCancel(pEmpty, &pOne,
-				xrtDeadlineAfter(UINT64_C(1000000)),
+			(__xrtChannelRecvUntilCancel(pEmpty, &pOne,
+				__xrtWaitAfter(UINT64_C(1000000)),
 				RecvJob.pCancel) != XWAIT_CANCELLED) ) {
 			goto Cleanup;
 		}
@@ -349,8 +350,8 @@ int main(void)
 	}
 	/* 3) Empty 放入一条：SelectUntil 选中接收 case1。 */
 	(void)xrtChannelTrySend(pEmpty, (ptr)30);
-	Select = xrtChannelSelectUntil(Cases, 2u,
-		xrtDeadlineAfter(UINT64_C(1000000)));
+	Select = __xrtChannelSelectUntil(Cases, 2u,
+		__xrtWaitAfter(UINT64_C(1000000)));
 	if ( (Select.Wait != XWAIT_OK) || (Select.Index != 1u) ||
 		(pItem != (ptr)30) ) {
 		goto Cleanup;

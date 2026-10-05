@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：process/tour —— 进程生命周期/等待/停止/Run 一把抓补集
  * ----------------------------------------------------------------
@@ -93,8 +94,8 @@ int main(void)
 	pCancel = xrtCancelCreate();
 	if ( (pCancel == NULL) ||
 		!xrtCancelRequest(pCancel) ||
-		(xrtProcessWaitUntilCancel(pProcess,
-			xrtDeadlineAfter(UINT64_C(3000000)),
+		(__xrtProcessWaitUntilCancel(pProcess,
+			__xrtWaitAfter(UINT64_C(3000000)),
 			pCancel) != XWAIT_CANCELLED) ) {
 		goto Cleanup;
 	}
@@ -105,8 +106,8 @@ int main(void)
 	}
 	if ( !xrtProcessTerminate(pProcess) ||
 		!xrtProcessKill(pProcess) ||
-		(xrtProcessWaitUntil(pProcess,
-			xrtDeadlineAfter(UINT64_C(2000000))) !=
+		(__xrtProcessWaitUntil(pProcess,
+			__xrtWaitAfter(UINT64_C(2000000))) !=
 			XWAIT_OK) ) {
 		goto Cleanup;
 	}

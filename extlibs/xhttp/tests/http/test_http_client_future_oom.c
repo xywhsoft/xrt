@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../fixtures/http_origin.h"
 
@@ -178,7 +179,7 @@ int main(void)
 	xhttpresult* pResult;
 	char Url[256];
 	int iLength;
-	xdeadline Deadline;
+	double Deadline;
 
 	memset(&State, 0, sizeof(State));
 	xrtAtomic32Init(&State.Gate, 0);
@@ -319,11 +320,11 @@ int main(void)
 	xrtHttpClientDestroy(pClient);
 	testHttpOriginStop(&Origin);
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP Future OOM retained an Engine object"
 		);
 		xrtThreadYield();

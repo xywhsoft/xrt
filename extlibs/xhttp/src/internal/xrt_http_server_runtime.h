@@ -470,7 +470,7 @@ void __xrtHttpConnProtocolFail(
 bool __xrtHttpConnArmTimer(
 	xhttpconn* pConnection,
 	uint32 iKind,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 

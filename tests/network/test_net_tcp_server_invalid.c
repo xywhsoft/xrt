@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -5,7 +6,7 @@
 /* 等待失败回滚释放全部 Listener Engine 占用。 */
 static void testTcpServerRollback(xnetengine* pEngine)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 	xnetenginestats Stats;
 
 	for ( ;; ) {
@@ -14,7 +15,7 @@ static void testTcpServerRollback(xnetengine* pEngine)
 		if ( Stats.LiveObjects == 0 ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP server rollback leaked a Listener");
 		xrtThreadYield();
 	}

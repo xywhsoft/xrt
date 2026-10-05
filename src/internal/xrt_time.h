@@ -21,6 +21,8 @@ typedef enum __xrt_time_make_status {
 __xrt_time_make_status __xrtTimeMakeValue(
 	const xdatetime* pDateTime, xtime* pTime);
 
+bool __xrtTimeFromUnixParts(int64 iSeconds, int iMillisecond, xtime* pTime);
+
 /* 设置时间模块的结构化错误。 */
 void __xrtTimeSetError(xerrkind Kind, xtimeerror Code,
 	cstr sOperation, cstr sMessage, int iSystemCode);

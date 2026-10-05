@@ -71,7 +71,7 @@ api: xruntime-runtime_type, xruntime-runtime_convert
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xruntime/single -include xruntime.h impl.c extlibs/xruntime/examples/runtime/type/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXRUNTIME_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xruntime.h impl.c extlibs/xruntime/examples/runtime/type/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出类型名、稳定 ID、大小、比较与散列结果的自检行）
 ```
 
@@ -85,7 +85,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xruntime/single -include xruntime.h impl.c
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xruntime/single -include xruntime.h impl.c extlibs/xruntime/examples/runtime/convert/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXRUNTIME_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xruntime.h impl.c extlibs/xruntime/examples/runtime/convert/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出转换判定与执行结果的自检行）
 ```
 

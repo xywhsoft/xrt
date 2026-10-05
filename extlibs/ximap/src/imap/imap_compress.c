@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <xrt/imap_compress.h>
 
 #include "../internal/xrt_imap_client.h"
@@ -79,10 +80,10 @@ XRT_API bool xrtImapClientCompressed(const ximapclient* pClient)
 
 
 /* 协商并切换 IMAP COMPRESS=DEFLATE。 */
-XRT_API bool xrtImapClientCompress(
+XRT_API bool __xrtImapClientCompress(
 	ximapclient* pClient,
 	const ximapcompressconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -118,7 +119,7 @@ XRT_API bool xrtImapClientCompress(
 			"IMAP server did not advertise COMPRESS=DEFLATE"
 		);
 	}
-	if ( !xrtImapClientBegin(
+	if ( !__xrtImapClientBegin(
 		pClient,
 		XRT_STR_LITERAL("COMPRESS"),
 		XRT_STR_LITERAL("DEFLATE"),
@@ -129,7 +130,7 @@ XRT_API bool xrtImapClientCompress(
 	}
 	for ( ;; ) {
 		ximapevent Event;
-		xmailnext Next = xrtImapClientNext(
+		xmailnext Next = __xrtImapClientNext(
 			pClient,
 			&Event,
 			iDeadline,
@@ -166,4 +167,16 @@ XRT_API bool xrtImapClientCompress(
 	}
 }
 
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMPRESS))
+XRT_API bool xrtImapClientCompress(
+	ximapclient* pClient,
+	const ximapcompressconfig* pConfig,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientCompress(pClient, pConfig, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

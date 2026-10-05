@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -34,13 +35,13 @@ static void testWsHttpHandoffWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(Deadline), sMessage);
+		testRequire(!__xrtWaitExpired(Deadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -178,7 +179,7 @@ static xfuture* testWsHttpHandoffFutureTake(
 	test_ws_http_handoff* pState
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	xfuture* pFuture;
 
 	do {
@@ -189,7 +190,7 @@ static xfuture* testWsHttpHandoffFutureTake(
 		);
 		if ( pFuture == NULL ) {
 			testRequire(
-				!xrtDeadlineExpired(Deadline),
+				!__xrtWaitExpired(Deadline),
 				"WebSocket server Future was not published"
 			);
 			xrtThreadYield();
@@ -205,11 +206,11 @@ static void testWsHttpHandoffFutureClosed(
 	xwsconn* pConnection
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 
 	while ( xrtWsConnState(pConnection) != XWS_CONN_CLOSED ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"WebSocket server Future connection did not close"
 		);
 		xrtThreadYield();

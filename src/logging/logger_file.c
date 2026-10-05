@@ -390,7 +390,7 @@ static bool __xrtLogFileSyncLocked(xlogfilestate* pState)
 /* 按逐条或单调时间间隔策略决定是否持久化。 */
 static bool __xrtLogFileSyncRecord(xlogfilestate* pState)
 {
-	uint64 iNow;
+	double iNow;
 
 	if ( pState->Options.Sync == XLOG_FILE_SYNC_MANUAL ) {
 		return true;
@@ -398,7 +398,7 @@ static bool __xrtLogFileSyncRecord(xlogfilestate* pState)
 	if ( pState->Options.Sync == XLOG_FILE_SYNC_RECORD ) {
 		return __xrtLogFileSyncLocked(pState);
 	}
-	iNow = xrtClock();
+	iNow = xrtTimer();
 	if ( (iNow == 0u) && (xrtGetError() != NULL) ) {
 		__xrtLogFileWrap(
 			XERR_IO,

@@ -173,7 +173,7 @@ typedef struct xsshclientevents {
 typedef struct xsshclientconfig {
 	xsshclientcoreconfig Core;
 	xsshchannelsconfig Channels;
-	uint64 ReadyTimeout;
+	int64 ReadyTimeout;
 	size_t ControlInitial;
 	size_t ControlLimit;
 	size_t GlobalReplyLimit;

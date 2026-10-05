@@ -66,19 +66,19 @@ XRT_API xfuture* xrtTaskNetAfter(
 	xtasknetproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 在指定单调时钟截止时间到期后向亲和 Worker 提交任务。 */
-XRT_API xfuture* xrtTaskNetUntil(
+XRT_API xfuture* xrtTaskNetFor(
 	xnetengine* pEngine,
 	uint64 iAffinity,
 	xtasknetproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	xdeadline iDeadline
+	int64 iTimeout
 );
 
 
@@ -115,20 +115,20 @@ XRT_API xfuture* xrtTaskGroupNetAfter(
 	xtasknetproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 按单调截止时间提交网络任务，并原子纳入任务组。 */
-XRT_API xfuture* xrtTaskGroupNetUntil(
+XRT_API xfuture* xrtTaskGroupNetFor(
 	xtaskgroup* pGroup,
 	xnetengine* pEngine,
 	uint64 iAffinity,
 	xtasknetproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	xdeadline iDeadline
+	int64 iTimeout
 );
 
 

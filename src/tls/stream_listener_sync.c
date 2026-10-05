@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_tls_stream.h"
 
 
@@ -50,12 +51,12 @@ static bool __xrtTlsListenerSyncResult(
 /* 等待 Future 的首个线性化终态，并保持超时与取消优先级。 */
 static bool __xrtTlsListenerSyncWait(
 	xfuture* pFuture,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel,
 	xfutureresult* pResult
 )
 {
-	xwaitresult Wait = xrtFutureWaitUntilCancel(
+	xwaitresult Wait = __xrtFutureWaitUntilCancel(
 		pFuture,
 		iDeadline,
 		pCancel
@@ -80,9 +81,9 @@ static bool __xrtTlsListenerSyncWait(
 }
 
 /* 阻塞等待一个完成握手的 TLS Stream，并克隆 Future 持有的引用。 */
-XRT_API xtlsstream* xrtTlsListenerAcceptWait(
+XRT_API xtlsstream* __xrtTlsListenerAcceptWait(
 	xtlslistener* pListener,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -121,4 +122,15 @@ XRT_API xtlsstream* xrtTlsListenerAcceptWait(
 	return pStream;
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_TLS_STREAM)) && (defined(XRT_FEATURE_TLS_STREAM_LISTENER_SYNC))
+XRT_API xtlsstream* xrtTlsListenerAcceptWait(
+	xtlslistener* pListener,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtTlsListenerAcceptWait(pListener, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

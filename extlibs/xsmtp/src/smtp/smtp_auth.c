@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <xrt/smtp_auth.h>
 
 #include "../internal/xrt_mail_auth.h"
@@ -23,7 +24,7 @@ static bool __xrtSmtpAuthSend(
 	xstrview Prefix,
 	xstrview Encoded,
 	xsmtpreply* pReply,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -50,19 +51,19 @@ static bool __xrtSmtpAuthSend(
 		memcpy(sLine + Prefix.Size, Encoded.Data, Encoded.Size);
 	}
 	sLine[iSize] = 0;
-	bSuccess = Prefix.Size != 0 ? xrtSmtpClientSend(
+	bSuccess = Prefix.Size != 0 ? __xrtSmtpClientSend(
 		pClient,
 		(xstrview) { sLine, iSize },
 		iDeadline,
 		pCancel
-	) : xrtSmtpClientAuthLine(
+	) : __xrtSmtpClientAuthLine(
 		pClient,
 		(xstrview) { sLine, iSize },
 		iDeadline,
 		pCancel
 	);
 	__xrtMailAuthFree(sLine, iSize + 1u);
-	return bSuccess && xrtSmtpClientReceive(
+	return bSuccess && __xrtSmtpClientReceive(
 		pClient,
 		pReply,
 		iDeadline,
@@ -95,7 +96,7 @@ static bool __xrtSmtpAuthExchange(
 	size_t iEncoded,
 	bool bInitial,
 	xsmtpreply* pReply,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -130,7 +131,7 @@ static bool __xrtSmtpAuthExchange(
 			pCancel
 		);
 	}
-	if ( !xrtSmtpClientCommand(
+	if ( !__xrtSmtpClientCommand(
 		pClient,
 		XRT_STR_LITERAL("AUTH"),
 		Mechanism,
@@ -159,7 +160,7 @@ static bool __xrtSmtpAuthExchange(
 static bool __xrtSmtpAuthPlain(
 	xsmtpclient* pClient,
 	const xsmtpauthconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -207,7 +208,7 @@ static bool __xrtSmtpAuthPlain(
 static bool __xrtSmtpAuthLogin(
 	xsmtpclient* pClient,
 	const xsmtpauthconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -218,7 +219,7 @@ static bool __xrtSmtpAuthLogin(
 	xsmtpreply Reply;
 	bool bSuccess;
 
-	if ( !xrtSmtpClientCommand(
+	if ( !__xrtSmtpClientCommand(
 		pClient,
 		XRT_STR_LITERAL("AUTH"),
 		XRT_STR_LITERAL("LOGIN"),
@@ -277,7 +278,7 @@ static bool __xrtSmtpAuthLogin(
 static bool __xrtSmtpAuthBearer(
 	xsmtpclient* pClient,
 	const xsmtpauthconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -315,13 +316,13 @@ static bool __xrtSmtpAuthBearer(
 	);
 	__xrtMailAuthFree(sEncoded, iEncoded + 1u);
 	if ( bSuccess && (Reply.Code == 334) ) {
-		bSuccess = xrtSmtpClientSend(
+		bSuccess = __xrtSmtpClientSend(
 			pClient,
 			pConfig->Method == XSMTP_AUTH_XOAUTH2 ?
 				XRT_STR_LITERAL("") : XRT_STR_LITERAL("AQ=="),
 			iDeadline,
 			pCancel
-		) && xrtSmtpClientReceive(
+		) && __xrtSmtpClientReceive(
 			pClient,
 			&Reply,
 			iDeadline,
@@ -383,10 +384,10 @@ XRT_API bool xrtSmtpAuthConfigValid(const xsmtpauthconfig* pConfig)
 
 
 /* 完成一次 SMTP 认证。 */
-XRT_API bool xrtSmtpClientAuth(
+XRT_API bool __xrtSmtpClientAuth(
 	xsmtpclient* pClient,
 	const xsmtpauthconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -450,4 +451,16 @@ XRT_API bool xrtSmtpClientAuth(
 	return bSuccess;
 }
 
+#endif
+
+#if (defined(XSMTP_FEATURE_SMTP_AUTH))
+XRT_API bool xrtSmtpClientAuth(
+	xsmtpclient* pClient,
+	const xsmtpauthconfig* pConfig,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtSmtpClientAuth(pClient, pConfig, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

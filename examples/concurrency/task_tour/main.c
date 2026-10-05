@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：concurrency/task_tour —— 任务池/任务组提交与等待补集
  * ----------------------------------------------------------------
@@ -72,9 +73,9 @@ int main(void)
 			NULL, NULL)) == NULL) ||
 		((arrFutures[1] = xrtTaskSubmitFor(pPool, exampleTask,
 			NULL, NULL, EXAMPLE_TIMEOUT_US)) == NULL) ||
-		((arrFutures[2] = xrtTaskSubmitUntil(pPool, exampleTask,
+		((arrFutures[2] = __xrtTaskSubmitUntil(pPool, exampleTask,
 			NULL, NULL,
-			xrtDeadlineAfter(EXAMPLE_TIMEOUT_US))) == NULL) ||
+			__xrtWaitAfter(EXAMPLE_TIMEOUT_US))) == NULL) ||
 		((arrFutures[3] = xrtTaskSubmit(pPool, exampleTask,
 			NULL, NULL)) == NULL) ) {
 		goto Cleanup;
@@ -82,9 +83,9 @@ int main(void)
 	/* SubmitUntilCancel：未触发令牌正常提交。 */
 	pCancel = xrtCancelCreate();
 	if ( (pCancel == NULL) ||
-		((arrFutures[4] = xrtTaskSubmitUntilCancel(pPool,
+		((arrFutures[4] = __xrtTaskSubmitUntilCancel(pPool,
 			exampleTask, NULL, NULL,
-			xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
+			__xrtWaitAfter(EXAMPLE_TIMEOUT_US),
 			pCancel)) == NULL) ) {
 		goto Cleanup;
 	}
@@ -125,9 +126,9 @@ int main(void)
 		(void)xrtTaskSubmit(pFullPool, exampleTask, NULL, NULL);
 		/* 第三个：已触发令牌让容量等待立即取消。 */
 		{
-			xfuture* pThird = xrtTaskSubmitUntilCancel(
+			xfuture* pThird = __xrtTaskSubmitUntilCancel(
 				pFullPool, exampleTask, NULL, NULL,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
+				__xrtWaitAfter(EXAMPLE_TIMEOUT_US),
 				pCancel);
 
 			if ( (pThird != NULL) ||
@@ -135,8 +136,8 @@ int main(void)
 				/* 取消后池进入 Cancelling。 */
 			}
 		}
-		if ( (xrtTaskPoolWaitUntil(pFullPool,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) !=
+		if ( (__xrtTaskPoolWaitUntil(pFullPool,
+				__xrtWaitAfter(EXAMPLE_TIMEOUT_US)) !=
 				XWAIT_OK) ||
 			!xrtTaskPoolGet(pFullPool, &Stats) ) {
 			goto Cleanup;
@@ -144,9 +145,9 @@ int main(void)
 		/* WaitUntilCancel：空池返回 ERROR（等价演示调用形态），
 		 * Wait 单独收口。 */
 		{
-			xwaitresult iWait = xrtTaskPoolWaitUntilCancel(
+			xwaitresult iWait = __xrtTaskPoolWaitUntilCancel(
 				pFullPool,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
+				__xrtWaitAfter(EXAMPLE_TIMEOUT_US),
 				pCancel);
 
 			if ( (iWait != XWAIT_OK) &&
@@ -183,17 +184,17 @@ int main(void)
 			((arrFutures[5] = xrtTaskGroupSubmitWait(pGroup,
 				pPool2, exampleTask, NULL, NULL)) ==
 				NULL) ||
-			((arrFutures[6] = xrtTaskGroupSubmitUntil(pGroup,
+			((arrFutures[6] = __xrtTaskGroupSubmitUntil(pGroup,
 				pPool2, exampleTask, NULL, NULL,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US))) ==
+				__xrtWaitAfter(EXAMPLE_TIMEOUT_US))) ==
 				NULL) ) {
 			goto Cleanup;
 		}
 		/* GroupSubmitUntilCancel：未触发令牌正常纳入。 */
 		{
-			xfuture* pThird = xrtTaskGroupSubmitUntilCancel(
+			xfuture* pThird = __xrtTaskGroupSubmitUntilCancel(
 				pGroup, pPool2, exampleTask, NULL, NULL,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
+				__xrtWaitAfter(EXAMPLE_TIMEOUT_US),
 				pCancel);
 
 			if ( pThird == NULL ) {
@@ -214,11 +215,11 @@ int main(void)
 			xrtFutureDestroy(pStarted);
 		}
 		/* 组等待族。 */
-		if ( (xrtTaskGroupWaitUntil(pGroup,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) !=
+		if ( (__xrtTaskGroupWaitUntil(pGroup,
+				__xrtWaitAfter(EXAMPLE_TIMEOUT_US)) !=
 				XWAIT_OK) ||
-			(xrtTaskGroupWaitUntilCancel(pGroup,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
+			(__xrtTaskGroupWaitUntilCancel(pGroup,
+				__xrtWaitAfter(EXAMPLE_TIMEOUT_US),
 				pCancel) != XWAIT_OK) ) {
 			goto Cleanup;
 		}

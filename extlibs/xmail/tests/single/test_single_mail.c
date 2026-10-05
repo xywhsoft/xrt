@@ -1,6 +1,11 @@
 #define XMAIL_MODULE_XMAIL
 #define XMAIL_IMPLEMENTATION
-#include "../../single/xmail.h"
+#include "../../include/xmail/features.h"
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../../single/xrt.h"
+#include "../../../../single/extlibs/xmail.h"
 
 
 

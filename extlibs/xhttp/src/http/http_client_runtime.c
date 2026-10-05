@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_http_client_runtime.h"
 
 
@@ -207,7 +208,7 @@ static bool __xrtHttpClientConfigFailure(cstr sMessage)
 /* 只写入尚未到达的第一个时间点。 */
 static bool __xrtHttpCallFirstTime(
 	xatomic64* pTime,
-	uint64 iNow
+	double iNow
 )
 {
 	uint64 iExpected = 0;
@@ -224,14 +225,14 @@ static bool __xrtHttpCallFirstTime(
 
 
 /* 把有限相对时长转换为 Engine 可调度的最大有限 deadline。 */
-static xdeadline __xrtHttpCallDeadline(
-	uint64 iNow,
-	uint64 iTimeout
+static double __xrtHttpCallDeadline(
+	double iNow,
+	int64 iTimeout
 )
 {
 	if ( iNow >=
-		((XRT_DEADLINE_NEVER - 1u) - iTimeout) ) {
-		return XRT_DEADLINE_NEVER - 1u;
+		((INFINITY - 1u) - iTimeout) ) {
+		return INFINITY - 1u;
 	}
 	return iNow + iTimeout;
 }
@@ -241,7 +242,7 @@ static xdeadline __xrtHttpCallDeadline(
 /* 按最后一次真实进度刷新 idle deadline，不创建新 Timer。 */
 static void __xrtHttpCallProgressAt(
 	xhttpcall* pCall,
-	uint64 iNow
+	double iNow
 )
 {
 	uint64 iDeadline;
@@ -287,12 +288,12 @@ void __xrtHttpCallSetPhase(
 /* 标记当前 Hop 的传输已经可以承载 HTTP。 */
 void __xrtHttpCallTransportReady(xhttpcall* pCall)
 {
-	uint64 iNow;
+	double iNow;
 
 	if ( pCall == NULL ) {
 		return;
 	}
-	iNow = xrtClock();
+	iNow = xrtTimer();
 	(void)__xrtHttpCallFirstTime(
 		&pCall->Info.TransportReady,
 		iNow
@@ -329,7 +330,7 @@ static void __xrtHttpCallStreamProgress(
 )
 {
 	xhttpcall* pCall = (xhttpcall*)pData;
-	uint64 iNow = xrtClock();
+	double iNow = xrtTimer();
 
 	(void)pStreamCall;
 	__xrtHttpCallProgressAt(pCall, iNow);
@@ -1225,7 +1226,7 @@ static void __xrtHttpCallResultDestroy(
 /* 初始化 Call 的无锁诊断快照和绝对截止时间。 */
 static void __xrtHttpCallInfoInit(
 	xhttpcall* pCall,
-	uint64 iNow
+	double iNow
 )
 {
 	uint64 iTotalDeadline = 0;
@@ -1537,7 +1538,7 @@ static void __xrtHttpCallFinish(
 	);
 	xrtAtomic64Store(
 		&pCall->Info.Completed,
-		xrtClock(),
+		xrtTimer(),
 		XMEMORY_RELEASE
 	);
 	iDeliveredBody = xrtAtomic64Load(
@@ -1760,7 +1761,7 @@ static void __xrtHttpCallTotalTimer(
 /* 为现有 idle Timer 引用重新安排下一次 deadline。 */
 static bool __xrtHttpCallIdleTimerAgain(
 	xhttpcall* pCall,
-	xdeadline iDeadline
+	double iDeadline
 );
 
 
@@ -1777,8 +1778,8 @@ static void __xrtHttpCallIdleTimer(
 )
 {
 	xhttpcall* pCall = (xhttpcall*)pData;
-	xdeadline iDeadline;
-	uint64 iNow;
+	double iDeadline;
+	double iNow;
 	uint32 iCause;
 
 	(void)pWorker;
@@ -1802,7 +1803,7 @@ static void __xrtHttpCallIdleTimer(
 			&pCall->IdleDeadline,
 			XMEMORY_ACQUIRE
 		);
-		iNow = xrtClock();
+		iNow = xrtTimer();
 		if ( iDeadline > iNow ) {
 			if ( __xrtHttpCallIdleTimerAgain(
 				pCall,
@@ -1851,7 +1852,7 @@ static void __xrtHttpCallIdleTimer(
 /* 把当前 Timer 持有的 Call 引用转移给下一次 idle deadline。 */
 static bool __xrtHttpCallIdleTimerAgain(
 	xhttpcall* pCall,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	uint64 Id;
@@ -1861,7 +1862,7 @@ static bool __xrtHttpCallIdleTimerAgain(
 		0,
 		XMEMORY_RELEASE
 	);
-	Id = xrtNetEngineSchedule(
+	Id = __xrtNetEngineSchedule(
 		pCall->Client->Engine,
 		pCall->Affinity,
 		iDeadline,
@@ -2138,7 +2139,7 @@ static void __xrtHttpCallStart(
 {
 	xhttpcall* pCall = (xhttpcall*)pData;
 	xerror* pCause;
-	uint64 iNow;
+	double iNow;
 	uint64 Id;
 
 	(void)pWorker;
@@ -2178,7 +2179,7 @@ static void __xrtHttpCallStart(
 			return;
 		}
 	}
-	iNow = xrtClock();
+	iNow = xrtTimer();
 	(void)__xrtHttpCallFirstTime(
 		&pCall->Info.Started,
 		iNow
@@ -2202,7 +2203,7 @@ static void __xrtHttpCallStart(
 			0,
 			XMEMORY_RELEASE
 		);
-		Id = xrtNetEngineSchedule(
+		Id = __xrtNetEngineSchedule(
 			pCall->Client->Engine,
 			pCall->Affinity,
 			pCall->TotalDeadline,
@@ -2265,7 +2266,7 @@ static void __xrtHttpCallStart(
 			0,
 			XMEMORY_RELEASE
 		);
-		Id = xrtNetEngineSchedule(
+		Id = __xrtNetEngineSchedule(
 			pCall->Client->Engine,
 			pCall->Affinity,
 			xrtAtomic64Load(
@@ -2348,7 +2349,7 @@ static bool __xrtHttpCallInfoInformational(
 
 	(void)__xrtHttpCallFirstTime(
 		&pCall->Info.FirstByte,
-		xrtClock()
+		xrtTimer()
 	);
 	__xrtHttpCallSetPhase(
 		pCall,
@@ -2373,7 +2374,7 @@ static bool __xrtHttpCallInfoHeaders(
 )
 {
 	xhttpcall* pCall = (xhttpcall*)pData;
-	uint64 iNow = xrtClock();
+	double iNow = xrtTimer();
 
 	(void)__xrtHttpCallFirstTime(
 		&pCall->Info.FirstByte,
@@ -2626,7 +2627,7 @@ XRT_API xhttpcall* xrtHttpClientDo(
 	xhttpclient* pClientRef;
 	xhttpcall* pCall;
 	uint64 iAffinity;
-	uint64 iNow;
+	double iNow;
 	uint32 iWorkers;
 
 	if ( (pClient == NULL) || (pRequest == NULL) ||
@@ -2700,7 +2701,7 @@ XRT_API xhttpcall* xrtHttpClientDo(
 		xrtAtomic32Init(&pCall->RetryTimerDone, 0);
 		xrtAtomic64Init(&pCall->RetryTimer, 0);
 	#endif
-	iNow = xrtClock();
+	iNow = xrtTimer();
 	__xrtHttpCallInfoInit(pCall, iNow);
 	if ( !xrtSpinInit(&pCall->Lock) ) {
 		__xrtHttpClientRelease(pCall->Client);

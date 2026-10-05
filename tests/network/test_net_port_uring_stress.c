@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -31,7 +32,7 @@ static void testUringDatagrams(void)
 	size_t iReceiveCount = 0;
 	size_t iSendCount = 0;
 	size_t iSubmitted = 0;
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	xrtNetPortConfigInit(&Config);
 	Config.Backend = XNET_PORT_URING;
@@ -101,7 +102,7 @@ static void testUringDatagrams(void)
 			size_t iCount = 0;
 			xnetresult Result;
 
-			Result = xrtNetPortWait(
+			Result = __xrtNetPortWait(
 				pPort,
 				Events,
 				64,
@@ -176,7 +177,7 @@ static void testUringCancellations(void)
 	xnetsocket Listener;
 	xnetaddr Address;
 	size_t iCompleted = 0;
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	xrtNetPortConfigInit(&Config);
 	Config.Backend = XNET_PORT_URING;
@@ -213,7 +214,7 @@ static void testUringCancellations(void)
 		size_t iCount = 0;
 
 		testRequire(
-			xrtNetPortWait(
+			__xrtNetPortWait(
 				pPort,
 				Events,
 				64,

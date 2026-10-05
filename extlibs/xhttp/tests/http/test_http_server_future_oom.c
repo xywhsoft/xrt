@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -235,7 +236,7 @@ static void testHttpServerFutureOomWaitCreate(
 	xhttpserver* pServer
 )
 {
-	xdeadline Deadline;
+	double Deadline;
 	xfuture* pFuture;
 
 	testRequire(
@@ -247,13 +248,13 @@ static void testHttpServerFutureOomWaitCreate(
 		),
 		"HTTP server close wait OOM barrier post failed"
 	);
-	Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(UINT64_C(5000000));
 	while ( xrtAtomic32Load(
 		&pState->BarrierStarted,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP server close wait OOM barrier did not start"
 		);
 		xrtThreadYield();
@@ -277,13 +278,13 @@ static void testHttpServerFutureOomWaitCreate(
 		1,
 		XMEMORY_RELEASE
 	);
-	Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(UINT64_C(5000000));
 	while ( xrtAtomic32Load(
 		&pState->BarrierDone,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP server close wait OOM barrier did not finish"
 		);
 		xrtThreadYield();
@@ -472,7 +473,7 @@ static void testHttpServerFutureOomWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 
@@ -481,7 +482,7 @@ static void testHttpServerFutureOomWait(
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();

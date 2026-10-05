@@ -59,7 +59,7 @@ api: xhttp-http_auth, xhttp-http_server, xhttp-http_digest
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/auth/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/auth/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 Digest
 Basic
 ```
@@ -74,7 +74,7 @@ Basic
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/auth_basic/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/auth_basic/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 Basic QWxhZGRpbjpvcGVuIHNlc2VtZQ==
 ```
 

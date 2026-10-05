@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifndef XRT_TEST_HTTP_ORIGIN_H
 #define XRT_TEST_HTTP_ORIGIN_H
 
@@ -35,14 +36,14 @@ static inline void testHttpOriginWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();

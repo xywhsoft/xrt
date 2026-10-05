@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -18,10 +19,10 @@
 /* 等待 UDP 拉取队列达到指定长度。 */
 static void testUdpSyncQueued(xnetudp* pUdp, size_t iCount)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtNetUdpQueued(pUdp) < iCount ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"UDP sync receive queue timed out");
 		xrtThreadYield();
 	}
@@ -35,10 +36,10 @@ static void testUdpSyncClose(xnetudp* pUdp)
 	if ( xrtNetUdpState(pUdp) != XNET_UDP_CLOSED ) {
 		testRequire(xrtNetUdpClose(pUdp),
 			"UDP sync close request failed");
-		testRequire(xrtNetUdpWait(
+		testRequire(__xrtNetUdpWait(
 			pUdp,
 			XNET_UDP_WAIT_CLOSE,
-			xrtDeadlineAfter(5000000u),
+			__xrtWaitAfter(5000000u),
 			NULL
 		), "UDP sync close wait failed");
 	}
@@ -91,17 +92,17 @@ static void testUdpSyncErrors(xnetengine* pEngine)
 		NULL
 	);
 	testRequire(pUdp != NULL, "UDP sync error object create failed");
-	testRequire(xrtNetUdpWait(
+	testRequire(__xrtNetUdpWait(
 		pUdp,
 		XNET_UDP_WAIT_OPEN,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "UDP sync error object open failed");
 
 	/* 超时只撤销内部 Future，不关闭对象也不遗留错误消费者。 */
-	pPacket = xrtNetUdpReceiveErrorWait(
+	pPacket = __xrtNetUdpReceiveErrorWait(
 		pUdp,
-		xrtDeadlineAfter(1000u),
+		__xrtWaitAfter(1000u),
 		NULL
 	);
 	testRequire(
@@ -118,9 +119,9 @@ static void testUdpSyncErrors(xnetengine* pEngine)
 		xrtNetUdpSend(pUdp, "error", 5) == XNET_RESULT_OK,
 		"UDP sync error trigger send failed"
 	);
-	pPacket = xrtNetUdpReceiveErrorWait(
+	pPacket = __xrtNetUdpReceiveErrorWait(
 		pUdp,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	pError = xrtNetUdpErrorPacketInfo(pPacket);
@@ -171,7 +172,7 @@ int main(void)
 	testRequire((pEngine != NULL) && xrtNetEngineStart(pEngine),
 		"UDP sync engine start failed");
 	testRequire(
-		xrtNetUdpReceiveErrorWait(NULL, XRT_DEADLINE_NEVER, NULL) == NULL &&
+		__xrtNetUdpReceiveErrorWait(NULL, INFINITY, NULL) == NULL &&
 		(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT),
 		"UDP sync error receive accepted null UDP"
 	);
@@ -204,28 +205,28 @@ int main(void)
 		NULL
 	);
 	testRequire(pClient != NULL, "UDP sync client connect failed");
-	testRequire(xrtNetUdpWait(
+	testRequire(__xrtNetUdpWait(
 		pServer,
 		XNET_UDP_WAIT_OPEN,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
-	) && xrtNetUdpWait(
+	) && __xrtNetUdpWait(
 		pClient,
 		XNET_UDP_WAIT_OPEN,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "UDP sync open wait failed");
-	testRequire(xrtNetUdpWritable(
+	testRequire(__xrtNetUdpWritable(
 		pClient,
 		16,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "UDP sync writable wait failed");
 
 	/* 超时和取消只撤销本次接收，不关闭 UDP。 */
-	testRequire(xrtNetUdpReceiveWait(
+	testRequire(__xrtNetUdpReceiveWait(
 		pServer,
-		xrtDeadlineAfter(1000u),
+		__xrtWaitAfter(1000u),
 		NULL
 	) == NULL, "UDP sync receive unexpectedly ignored timeout");
 	testRequire((xrtErrorKind(xrtGetError()) == XERR_TIMEOUT) &&
@@ -236,9 +237,9 @@ int main(void)
 	pCancel = xrtCancelCreate();
 	testRequire((pCancel != NULL) && xrtCancelRequest(pCancel),
 		"UDP sync cancel setup failed");
-	testRequire(xrtNetUdpReceiveWait(
+	testRequire(__xrtNetUdpReceiveWait(
 		pServer,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		pCancel
 	) == NULL, "UDP sync receive ignored cancellation");
 	testRequire((xrtErrorKind(xrtGetError()) == XERR_CANCELLED) &&
@@ -253,9 +254,9 @@ int main(void)
 		"packet",
 		6
 	) == XNET_RESULT_OK, "UDP sync single send failed");
-	pPacket = xrtNetUdpReceiveWait(
+	pPacket = __xrtNetUdpReceiveWait(
 		pServer,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	testRequire((pPacket != NULL) &&
@@ -270,10 +271,10 @@ int main(void)
 		(xrtNetUdpSend(pClient, "C", 1) == XNET_RESULT_OK),
 		"UDP sync batch send failed");
 	testUdpSyncQueued(pServer, 3);
-	pBatch = xrtNetUdpReceiveBatchWait(
+	pBatch = __xrtNetUdpReceiveBatchWait(
 		pServer,
 		3,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	testRequire((pBatch != NULL) &&

@@ -37,7 +37,7 @@ int main(void)
 		return 1;
 	}
 	printf(
-		"age=%llu, lifetime=%llu microseconds\n",
+		"age=%llu, lifetime=%llu milliseconds\n",
 		(unsigned long long)Age.CurrentAge,
 		(unsigned long long)Freshness.Lifetime
 	);

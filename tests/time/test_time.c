@@ -1,6 +1,7 @@
 #include "../test.h"
 
 #include <time.h>
+#include <math.h>
 
 /* Fail exactly one allocator request, then delegate normally. A permanently
  * failing allocator cannot detect a second diagnostic overwriting MemoryError. */
@@ -52,17 +53,19 @@ static void testInstallCalendarAllocator(void)
 /* 时钟 API 必须区分墙钟与单调时钟，并保留旧版轻量测量手感。 */
 static void testClocks(void)
 {
-	uint64 iStart = xrtClock();
-	double fStart = xrtTimer();
-	xtime iNow = xrtNow();
-	time_t iSystemNow = time(NULL);
-
-	xrtSleepUs(2000);
-	testRequire(xrtClock() > iStart, "monotonic clock did not advance");
-	testRequire(xrtTimer() > fStart, "floating timer did not advance");
-	testRequire(xrtTimeNear(iNow, (xtime)iSystemNow * XRT_TIME_SECOND,
-		UINT64_C(2000000)), "wall clock is not close to the system clock");
-	xrtSleepUntil(xrtClock() - 1u);
+    double Start = xrtTimer();
+    xtime Now = xrtNow();
+    xtime SystemNow;
+    testRequire(isfinite(Start), "timer is not finite");
+    testRequire(xrtTimeFromUnix((int64)time(NULL), &SystemNow), "system wall clock conversion failed");
+    testRequire(xrtTimeNear(Now, SystemNow, 2000), "wall clock disagrees with the system clock");
+    xrtSleep(2);
+    testRequire(xrtTimer() >= Start + 0.001, "timer seconds or millisecond sleep are wrong");
+    xrtSleep(0);
+    xrtClearError();
+    xrtSleep(-1);
+    testRequire(xrtGetError() != NULL, "negative sleep accepted");
+    xrtClearError();
 }
 
 
@@ -73,8 +76,8 @@ static void testCalendarRules(void)
 	testRequire(xrtIsLeapYear(2000), "year 2000 should be a leap year");
 	testRequire(!xrtIsLeapYear(1900), "year 1900 should not be a leap year");
 	testRequire(xrtIsLeapYear(2024), "year 2024 should be a leap year");
-	testRequire(xrtIsLeapYear(0), "astronomical year zero should be a leap year");
-	testRequire(xrtIsLeapYear(-400), "negative 400-year cycle is incorrect");
+	testRequire(!xrtIsLeapYear(0), "civil year zero must be rejected");
+	testRequire(xrtIsLeapYear(-401), "negative 400-year cycle is incorrect");
 	testRequire(xrtDaysInMonth(2024, 2) == 29, "leap February length is wrong");
 	testRequire(xrtDaysInMonth(2023, 2) == 28, "common February length is wrong");
 	testRequire(xrtDaysInYear(2024) == 366, "leap year length is wrong");
@@ -91,32 +94,41 @@ static void testCalendarRules(void)
 /* Epoch 前后的构造、分解和单位换算必须使用向负无穷取整语义。 */
 static void testEpochAndParts(void)
 {
-	xtime iEpoch;
-	xtime iBefore;
-	xtime iRoundtrip;
-	xdatetime tDateTime;
-
-	testRequire(xrtDate(1970, 1, 1, &iEpoch) && (iEpoch == 0),
-		"Unix epoch construction failed");
-	testRequire(xrtDateTime(1969, 12, 31, 23, 59, 59, 999999, &iBefore) &&
-		(iBefore == -1), "pre-epoch microsecond construction failed");
-	testRequire(xrtTimeUnix(-1) == -1, "negative Unix second did not floor");
-	testRequire(xrtTimeUnixMs(-1) == -1, "negative Unix millisecond did not floor");
-	testRequire(xrtTimeFromUnix(-1, &iRoundtrip) &&
-		(iRoundtrip == -XRT_TIME_SECOND), "Unix second conversion failed");
-	testRequire(xrtTimeFromUnixMs(-1, &iRoundtrip) &&
-		(iRoundtrip == -XRT_TIME_MILLISECOND), "Unix millisecond conversion failed");
-
-	testRequire(xrtDateTime(2024, 2, 29, 23, 58, 57, 654321, &iRoundtrip),
-		"leap date construction failed");
-	testRequire(xrtTimeSplit(iRoundtrip, &tDateTime), "time split failed");
-	testRequire((tDateTime.Year == 2024) && (tDateTime.Month == 2) &&
-		(tDateTime.Day == 29) && (tDateTime.Hour == 23) &&
-		(tDateTime.Minute == 58) && (tDateTime.Second == 57) &&
-		(tDateTime.Microsecond == 654321) && (tDateTime.YearDay == 60),
-		"time split returned incorrect fields");
-	testRequire(xrtTimeMake(&tDateTime, &iEpoch) && (iEpoch == iRoundtrip),
-		"time split/make roundtrip failed");
+    xtime Epoch, Before, Roundtrip;
+    int64 UnixMilliseconds;
+    int32 Unix32;
+    xdatetime Parts;
+    testRequire(xrtDate(1, 1, 1, &Epoch) && Epoch == 0, "civil epoch is wrong");
+    testRequire(xrtDateTime(-1, 12, 31, 23, 59, 59, 999, &Before) && Before == -1, "BCE/CE boundary is discontinuous");
+    testRequire(xrtTimeSplit(-1, &Parts) && Parts.Year == -1 && Parts.Millisecond == 999, "negative millisecond split is wrong");
+    testRequire(xrtDate(1970, 1, 1, &Epoch) && Epoch == XRT_TIME_UNIX_EPOCH, "Unix epoch bias is wrong");
+    testRequire(xrtTimeUnix(Epoch - 1) == -1, "negative Unix seconds must floor");
+    testRequire(xrtTimeToUnixMs(Epoch - 1, &UnixMilliseconds) && UnixMilliseconds == -1, "negative Unix milliseconds are wrong");
+    testRequire(xrtTimeFromUnix(-1, &Roundtrip) && Roundtrip == Epoch - 1000, "Unix seconds conversion failed");
+    testRequire(xrtTimeFromUnixMs(-1, &Roundtrip) && Roundtrip == Epoch - 1, "Unix ms conversion failed");
+    testRequire(xrtTimeFromUnix32(INT32_MIN, &Roundtrip) && xrtTimeToUnix32(Roundtrip, &Unix32) && Unix32 == INT32_MIN, "Unix32 lower boundary failed");
+    testRequire(xrtTimeFromUnix32(INT32_MAX, &Roundtrip) && xrtTimeToUnix32(Roundtrip + 999, &Unix32) && Unix32 == INT32_MAX, "Unix32 upper boundary failed");
+    Unix32 = 17;
+    testRequire(!xrtTimeToUnix32(Roundtrip + 1000, &Unix32) && Unix32 == 17, "Unix32 overflow modified output");
+    Roundtrip = 17;
+    testRequire(!xrtTimeFromUnix(INT64_MAX, &Roundtrip) && Roundtrip == 17, "Unix64 overflow modified output");
+    testRequire(xrtTimeFromUnixMs(INT64_MIN, &Roundtrip) && Roundtrip == INT64_MIN + XRT_TIME_UNIX_EPOCH, "Unix ms lower input failed");
+    UnixMilliseconds = 17;
+    testRequire(!xrtTimeToUnixMs(INT64_MIN, &UnixMilliseconds) && UnixMilliseconds == 17, "Unix ms lower output overflow changed output");
+    testRequire(xrtTimeFromUnixMs(INT64_MAX - XRT_TIME_UNIX_EPOCH, &Roundtrip) && Roundtrip == INT64_MAX, "Unix ms upper input failed");
+    testRequire(xrtTimeFromUnix(xrtTimeUnix(INT64_MIN) + 1, &Roundtrip) && Roundtrip == INT64_MIN + 808, "valid Unix seconds rejected due to intermediate overflow");
+    Roundtrip = 17;
+    testRequire(!xrtDate(0, 1, 1, &Roundtrip) && Roundtrip == 17, "year zero accepted");
+    testRequire(xrtDateTime(2024, 2, 29, 23, 58, 57, 654, &Roundtrip), "leap date failed");
+    testRequire(xrtTimeSplit(Roundtrip, &Parts) && Parts.Year == 2024 && Parts.Month == 2 && Parts.Day == 29 && Parts.Millisecond == 654 && Parts.YearDay == 60, "millisecond parts wrong");
+    testRequire(xrtTimeMake(&Parts, &Epoch) && Epoch == Roundtrip, "date roundtrip failed");
+    testRequire(xrtDateDiff(-1, 0, XTIME_UNIT_YEAR, &UnixMilliseconds) && UnixMilliseconds == 1, "year difference counted a nonexistent year");
+    testRequire(xrtDateDiff(-1, 0, XTIME_UNIT_MONTH, &UnixMilliseconds) && UnixMilliseconds == 1, "month difference at era boundary failed");
+    testRequire(xrtTimeAdd(-1, 1, XTIME_UNIT_MONTH, &Roundtrip) && xrtYear(Roundtrip) == 1 && xrtMonth(Roundtrip) == 1, "month addition did not skip year zero");
+    testRequire(xrtTimeAdd(INT64_MIN, INT64_C(9223372036854776), XTIME_UNIT_SECOND, &Roundtrip) && Roundtrip == 192, "scaled addition rejected a representable result");
+    testRequire(xrtTimeAdd(INT64_MAX, -INT64_C(9223372036854776), XTIME_UNIT_SECOND, &Roundtrip) && Roundtrip == -193, "negative scaled addition rejected a representable result");
+    testRequire(xrtDate(2024, 1, 31, &Before) && xrtDate(2024, 2, 1, &Epoch) && xrtDateDiff(Before, Epoch, XTIME_UNIT_MONTH, &UnixMilliseconds) && UnixMilliseconds == 1, "DateDiff must use calendar month indices");
+    xrtClearError();
 }
 
 
@@ -176,7 +188,7 @@ static void testOffsets(void)
 	tDateTime.Day = 1;
 	tDateTime.Offset = 8 * 3600;
 	testRequire(xrtTimeMake(&tDateTime, &iTime) &&
-		(iTime == (-8 * XRT_TIME_HOUR)), "positive offset construction failed");
+		(iTime == (XRT_TIME_UNIX_EPOCH - 8 * XRT_TIME_HOUR)), "positive offset construction failed");
 	testRequire(xrtTimeSplitAt(iTime, 8 * 3600, &tDateTime),
 		"fixed offset split failed");
 	testRequire((tDateTime.Year == 1970) && (tDateTime.Month == 1) &&
@@ -211,10 +223,10 @@ static void testArithmetic(void)
 	(void)xrtTimeSplit(iFebruary, &tDateTime);
 	testRequire((tDateTime.Year == 2024) && (tDateTime.Month == 2) &&
 		(tDateTime.Day == 29), "month-end clamp failed");
-	testRequire(xrtTimeDiff(iJanuary31, iFebruary, XTIME_UNIT_MONTH, &iDifference) &&
+	testRequire(xrtDateDiff(iJanuary31, iFebruary, XTIME_UNIT_MONTH, &iDifference) &&
 		(iDifference == 1), "forward complete-month difference failed");
-	testRequire(xrtTimeDiff(iFebruary, iJanuary31, XTIME_UNIT_MONTH, &iDifference) &&
-		(iDifference == 0), "reverse complete-month difference failed");
+	testRequire(xrtDateDiff(iFebruary, iJanuary31, XTIME_UNIT_MONTH, &iDifference) &&
+		(iDifference == -1), "reverse calendar-month difference failed");
 
 	testRequire(xrtDate(2024, 2, 29, &iLeapDay), "leap day failed");
 	testRequire(xrtTimeAdd(iLeapDay, 1, XTIME_UNIT_YEAR, &iNextYear),
@@ -223,27 +235,27 @@ static void testArithmetic(void)
 	testRequire((tDateTime.Year == 2025) && (tDateTime.Month == 2) &&
 		(tDateTime.Day == 28), "leap-year clamp failed");
 
-	testRequire(xrtTimeAdd(0, -1, XTIME_UNIT_MICROSECOND, &iNextYear) &&
+	testRequire(xrtTimeAdd(0, -1, XTIME_UNIT_MILLISECOND, &iNextYear) &&
 		(iNextYear == -1), "fixed duration addition failed");
-	testRequire(xrtTimeDiff(-XRT_TIME_SECOND, XRT_TIME_SECOND,
+	testRequire(xrtDateDiff(-XRT_TIME_SECOND, XRT_TIME_SECOND,
 		XTIME_UNIT_MILLISECOND, &iDifference) && (iDifference == 2000),
 		"fixed duration difference failed");
-	testRequire(xrtTimeDiff(INT64_MIN, INT64_MAX,
-		XTIME_UNIT_MILLISECOND, &iDifference) &&
+	testRequire(xrtDateDiff(INT64_MIN, INT64_MAX,
+		XTIME_UNIT_SECOND, &iDifference) &&
 		(iDifference == INT64_C(18446744073709551)),
 		"full-domain positive millisecond difference failed");
-	testRequire(xrtTimeDiff(INT64_MAX, INT64_MIN,
-		XTIME_UNIT_MILLISECOND, &iDifference) &&
+	testRequire(xrtDateDiff(INT64_MAX, INT64_MIN,
+		XTIME_UNIT_SECOND, &iDifference) &&
 		(iDifference == -INT64_C(18446744073709551)),
 		"full-domain negative millisecond difference failed");
-	testRequire(xrtTimeDiff(0, INT64_MIN,
-		XTIME_UNIT_MICROSECOND, &iDifference) &&
+	testRequire(xrtDateDiff(0, INT64_MIN,
+		XTIME_UNIT_MILLISECOND, &iDifference) &&
 		(iDifference == INT64_MIN),
 		"representable negative extreme difference failed");
 
 	xrtClearError();
 	iNextYear = 123;
-	testRequire(!xrtTimeAdd(INT64_MAX, 1, XTIME_UNIT_MICROSECOND, &iNextYear) &&
+	testRequire(!xrtTimeAdd(INT64_MAX, 1, XTIME_UNIT_MILLISECOND, &iNextYear) &&
 		(iNextYear == 123), "overflowing addition modified the output");
 	testRequire((xrtGetError() != NULL) &&
 		(xrtErrorCode(xrtGetError()) == XTIME_ERROR_OVERFLOW),
@@ -251,10 +263,10 @@ static void testArithmetic(void)
 
 	xrtClearError();
 	iDifference = 123;
-	testRequire(!xrtTimeDiff(INT64_MIN, INT64_MAX,
-		XTIME_UNIT_MICROSECOND, &iDifference) &&
+	testRequire(!xrtDateDiff(INT64_MIN, INT64_MAX,
+		XTIME_UNIT_MILLISECOND, &iDifference) &&
 		(iDifference == 123),
-		"unrepresentable microsecond difference modified the output");
+		"unrepresentable millisecond difference modified the output");
 	testRequire((xrtGetError() != NULL) &&
 		(xrtErrorCode(xrtGetError()) == XTIME_ERROR_OVERFLOW),
 		"difference overflow reported the wrong error");
@@ -296,7 +308,7 @@ static void testRangesAndISOWeek(void)
 		(xrtWeekday(iStart) == XTIME_MONDAY) &&
 		((iEnd - iStart) == XRT_TIME_WEEK), "week range failed");
 
-	testRequire(xrtDateTime(2024, 2, 15, 23, 59, 59, 999999, &iSame),
+	testRequire(xrtDateTime(2024, 2, 15, 23, 59, 59, 999, &iSame),
 		"same-period first source construction failed");
 	testRequire(xrtDateTime(2024, 2, 16, 0, 0, 0, 0, &iOther),
 		"same-period second source construction failed");

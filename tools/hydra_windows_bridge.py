@@ -39,9 +39,9 @@ def main():
         for name, source in CLIENTS.items():
             binary = output / (name + '.exe')
             command = [args.compiler, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
-                       '-I', str(ROOT / 'single'), '-I', str(ROOT / 'extlibs/xjwt'),
-                       str(ROOT / source), str(ROOT / 'extlibs/xoauth2/xoauth2.c'),
-                       str(ROOT / 'extlibs/xjwt/xjwt.c'), '-o', str(binary),
+                       '-I', str(ROOT / 'single'), '-I', str(ROOT / 'extlibs/xjwt/include'), '-I', str(ROOT / 'extlibs/xoauth2/include'),
+                       str(ROOT / source), str(ROOT / 'extlibs/xoauth2/tests/support/implementation.c'),
+                       str(ROOT / 'extlibs/xjwt/tests/support/implementation.c'), '-o', str(binary),
                        '-lws2_32', '-lbcrypt', '-ladvapi32', '-liphlpapi']
             build = subprocess.run(command, capture_output=True, text=True, timeout=240)
             (output / (name + '-build.log')).write_text(build.stdout + build.stderr, encoding='utf-8')

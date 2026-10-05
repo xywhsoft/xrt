@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 #include "../../../../src/internal/xrt_tcp.h"
@@ -245,7 +246,7 @@ static void testWsConnWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 
@@ -254,7 +255,7 @@ static void testWsConnWait(
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -1098,13 +1099,13 @@ static void testWsConnControlReserve(xwsconn* pConnection)
 		(__xrtWsConnFrameBudget(
 			pConnection,
 			XWS_CLOSE_PAYLOAD_MAX,
-			__XRT_WS_SEND_DATA,
+			__XWS_SEND_DATA,
 			&iWire
 		 ) == XNET_RESULT_AGAIN) &&
 		(__xrtWsConnFrameBudget(
 			pConnection,
 			XWS_CLOSE_PAYLOAD_MAX,
-			__XRT_WS_SEND_CONTROL,
+			__XWS_SEND_CONTROL,
 			&iWire
 		 ) == XNET_RESULT_OK) &&
 		(iWire == iControlSlot),
@@ -1120,13 +1121,13 @@ static void testWsConnControlReserve(xwsconn* pConnection)
 		(__xrtWsConnFrameBudget(
 			pConnection,
 			XWS_CLOSE_PAYLOAD_MAX,
-			__XRT_WS_SEND_CONTROL,
+			__XWS_SEND_CONTROL,
 			&iWire
 		 ) == XNET_RESULT_AGAIN) &&
 		(__xrtWsConnFrameBudget(
 			pConnection,
 			XWS_CLOSE_PAYLOAD_MAX,
-			__XRT_WS_SEND_AUTO_PONG,
+			__XWS_SEND_AUTO_PONG,
 			&iWire
 		 ) == XNET_RESULT_OK),
 		"WebSocket automatic Pong did not retain its private slot"
@@ -1141,13 +1142,13 @@ static void testWsConnControlReserve(xwsconn* pConnection)
 		(__xrtWsConnFrameBudget(
 			pConnection,
 			XWS_CLOSE_PAYLOAD_MAX,
-			__XRT_WS_SEND_AUTO_PONG,
+			__XWS_SEND_AUTO_PONG,
 			&iWire
 		 ) == XNET_RESULT_AGAIN) &&
 		(__xrtWsConnFrameBudget(
 			pConnection,
 			XWS_CLOSE_PAYLOAD_MAX,
-			__XRT_WS_SEND_CLOSE,
+			__XWS_SEND_CLOSE,
 			&iWire
 		 ) == XNET_RESULT_OK),
 		"WebSocket Close did not retain the final control slot"
@@ -2636,7 +2637,7 @@ int main(void)
 	xwsconn* pClient;
 	xwsconn* pServer;
 	xwsconnclose OpenClose;
-	xdeadline AttachDeadline;
+	double AttachDeadline;
 	uint32 iExpectedMessages = 2;
 	uint32 iExpectedClientMessages;
 
@@ -2781,7 +2782,7 @@ int main(void)
 		pClientStream != NULL,
 		"WebSocket client TCP connect failed"
 	);
-	AttachDeadline = xrtDeadlineAfter(
+	AttachDeadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 	while ( ((pClient = (xwsconn*)xrtAtomicPtrLoad(
@@ -2792,7 +2793,7 @@ int main(void)
 		XMEMORY_ACQUIRE
 	)) == NULL) ) {
 		testRequire(
-			!xrtDeadlineExpired(AttachDeadline),
+			!__xrtWaitExpired(AttachDeadline),
 			"WebSocket connections were not attached"
 		);
 		xrtThreadYield();
@@ -3036,12 +3037,12 @@ int main(void)
 		#endif
 	#endif
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_REF)
-		AttachDeadline = xrtDeadlineAfter(
+		AttachDeadline = __xrtWaitAfter(
 			UINT64_C(10000000)
 		);
 		while ( xrtWsConnPending(pServer) != 0 ) {
 			testRequire(
-				!xrtDeadlineExpired(AttachDeadline),
+				!__xrtWaitExpired(AttachDeadline),
 				"WebSocket server reference precondition did not drain"
 			);
 			xrtThreadYield();

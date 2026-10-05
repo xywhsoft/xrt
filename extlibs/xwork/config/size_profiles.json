@@ -1,0 +1,18 @@
+{
+	"schema": 1,
+	"profiles": [
+		{
+			"name": "xwork",
+			"system": "work",
+			"suite": "xwork",
+			"description": "xwork full public API"
+		}
+	],
+	"manifest": "extlibs/xwork/config/modules.json",
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

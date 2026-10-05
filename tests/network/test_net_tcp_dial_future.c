@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -50,12 +51,12 @@ static xnetaddrlist* testDialFutureLookup(
 /* 在截止时间内轮询拉取一个已接受 Stream。 */
 static xnetstream* testDialFutureAccept(xnetlistener* pListener)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 	xnetstream* pStream;
 
 	while ( (pStream = xrtNetListenerAccept(pListener)) == NULL ) {
 		xrtClearError();
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"dial Future server accept timed out");
 		xrtThreadYield();
 	}
@@ -71,13 +72,13 @@ static void testDialFutureWaitClosed(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( ((pStream != NULL) &&
 		  (xrtNetStreamState(pStream) != XNET_STREAM_CLOSED)) ||
 		 ((pListener != NULL) &&
 		  (xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED)) ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -99,7 +100,7 @@ int main(void)
 	xfuture* pConnect;
 	xfuture* pCancel;
 	xnetaddr Address;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	memset(&Context, 0, sizeof(Context));
 	xrtNetEngineConfigInit(&EngineConfig);
@@ -174,9 +175,9 @@ int main(void)
 		NULL
 	);
 	testRequire(pCancel != NULL, "cancelled dial Future submit failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( xrtAtomic32Load(&Context.Entered, XMEMORY_ACQUIRE) == 0 ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"cancelled dial Future lookup did not start");
 		xrtThreadYield();
 	}
@@ -198,10 +199,10 @@ int main(void)
 	xrtNetListenerDestroy(pListener);
 	testRequire(xrtNetResolverDestroy(pResolver),
 		"dial Future resolver destroy failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"dial Future retained an internal engine resource");
 		xrtThreadYield();
 	}

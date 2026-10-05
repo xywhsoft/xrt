@@ -1019,7 +1019,7 @@ typedef struct xlogringconfig {
 	size_t RecordLimit;
 	size_t Batch;
 	size_t StackSize;
-	uint64 IdleWait;
+	int64 IdleWait;
 } xlogringconfig;
 
 

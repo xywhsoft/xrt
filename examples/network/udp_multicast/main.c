@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/udp_multicast —— 多播成员族（Worker 内调用范式）
  * ----------------------------------------------------------------
@@ -81,10 +82,10 @@ static void exampleLeaveTask(xnetworker* pWorker, ptr pData)
 /* 在截止时间内轮询标志。 */
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( !*pFlag ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -104,7 +105,7 @@ int main(void)
 	examplemcast Task;
 	xnetpost Post;
 	xnetudppacket* pPacket = NULL;
-	xdeadline iDeadline;
+	double iDeadline;
 	uint16 iPort;
 	int iResult = 1;
 
@@ -157,13 +158,13 @@ int main(void)
 		 XNET_RESULT_OK ) {
 		goto Cleanup;
 	}
-	iDeadline = xrtDeadlineAfter(3000000u);
+	iDeadline = __xrtWaitAfter(3000000u);
 	for ( ;; ) {
 		pPacket = xrtNetUdpReceive(pUdp);
 		if ( pPacket != NULL ) {
 			break;
 		}
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			break;
 		}
 		xrtThreadYield();
@@ -196,11 +197,11 @@ int main(void)
 
 Cleanup:
 	if ( pUdp != NULL ) {
-		xdeadline iEnd = xrtDeadlineAfter(3000000u);
+		double iEnd = __xrtWaitAfter(3000000u);
 
 		(void)xrtNetUdpAbort(pUdp);
 		while ( xrtNetUdpState(pUdp) != XNET_UDP_CLOSED ) {
-			if ( xrtDeadlineExpired(iEnd) ) {
+			if ( __xrtWaitExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../src/internal/xrt_channel.h"
 #include "../test.h"
 
@@ -85,10 +86,10 @@ int main(void)
 
 	tState.Remaining = 0;
 	tCase = xrtChannelCaseRecv(&tChannel, &pItem);
-	tResult = xrtChannelSelectUntilCancel(
+	tResult = __xrtChannelSelectUntilCancel(
 		&tCase,
 		1u,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		pCancel
 	);
 	testRequire(

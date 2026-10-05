@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -18,9 +19,9 @@ static void testTcpServerSyncWorker(xnetworker* pWorker, ptr pData)
 	xnetstream* pStream;
 
 	(void)pWorker;
-	pStream = xrtNetServerAcceptWait(
+	pStream = __xrtNetServerAcceptWait(
 		pContext->Server,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	);
 	if ( (pStream == NULL) &&
@@ -46,7 +47,7 @@ static void testTcpServerSyncWait(
 	xnetstream* pAccepted
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	for ( ;; ) {
 		bool bWorkerDone = (pWorker == NULL) ||
@@ -65,7 +66,7 @@ static void testTcpServerSyncWait(
 			 bAcceptedDone ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP server sync wait timed out");
 		xrtThreadYield();
 	}
@@ -110,9 +111,9 @@ int main(void)
 		 xrtNetServerLocal(pServer, 0, &Local),
 		"TCP server sync start failed");
 
-	testRequire(xrtNetServerAcceptWait(
+	testRequire(__xrtNetServerAcceptWait(
 		pServer,
-		xrtDeadlineAfter(1000u),
+		__xrtWaitAfter(1000u),
 		NULL
 	) == NULL, "TCP server sync Accept ignored timeout");
 	testRequire((xrtErrorKind(xrtGetError()) == XERR_TIMEOUT) &&
@@ -122,9 +123,9 @@ int main(void)
 	pCancel = xrtCancelCreate();
 	testRequire((pCancel != NULL) && xrtCancelRequest(pCancel),
 		"TCP server sync cancel setup failed");
-	testRequire(xrtNetServerAcceptWait(
+	testRequire(__xrtNetServerAcceptWait(
 		pServer,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		pCancel
 	) == NULL, "TCP server sync Accept ignored cancellation");
 	testRequire((xrtErrorKind(xrtGetError()) == XERR_CANCELLED) &&
@@ -156,9 +157,9 @@ int main(void)
 	);
 	testRequire(pClient != NULL,
 		"TCP server sync client connect failed");
-	pAccepted = xrtNetServerAcceptWait(
+	pAccepted = __xrtNetServerAcceptWait(
 		pServer,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	testRequire(pAccepted != NULL,

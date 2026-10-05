@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../fixtures/http_connect_proxy.h"
 
 
@@ -42,14 +43,14 @@ static void testHttpProxyFailureWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();

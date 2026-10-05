@@ -71,7 +71,7 @@ api: xruntime-runtime_call, xruntime-runtime_type
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xruntime/single -include xruntime.h impl.c extlibs/xruntime/examples/runtime/call/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXRUNTIME_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xruntime.h impl.c extlibs/xruntime/examples/runtime/call/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 type=callable
 7 + 5 = 12
 ```
@@ -86,7 +86,7 @@ type=callable
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xruntime/single -include xruntime.h impl.c extlibs/xruntime/examples/runtime/value_callable/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXRUNTIME_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xruntime.h impl.c extlibs/xruntime/examples/runtime/value_callable/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 callable 装入 Value 后的调用自检结果）
 ```
 

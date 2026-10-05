@@ -44,7 +44,8 @@ def build_client(directory: Path, compiler: str, single: bool, sanitize: bool) -
     flags = ["-fno-omit-frame-pointer", "-fsanitize=address,undefined"] if sanitize else []
     run_command(compiler, "-std=c11", "-D_GNU_SOURCE", "-DACME_EXAMPLE_SINGLE", "-O2",
                 "-Wall", "-Wextra", "-Werror", *flags,
-                "-I", str(ROOT / "extlibs/xacme/single"), "-I", str(ROOT / "single"),
+                "-I", str(ROOT / "single/extlibs"), "-I", str(ROOT / "single"),
+                "-I", str(ROOT / "extlibs/xacme/include"),
                 str(SOURCE), "-o", str(binary), *libs, *flags)
     return binary
 

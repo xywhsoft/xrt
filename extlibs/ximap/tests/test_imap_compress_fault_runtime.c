@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 #include "test_tls.h"
 #include "../src/internal/xrt_imap_client.h"
@@ -29,14 +30,14 @@ static const char* TestCompressNames[] = {
 typedef struct testcompresssocket {
 	xnetstream* Tcp;
 	xtlsstream* Tls;
-	xdeadline Deadline;
+	double Deadline;
 	bool PeerClosed;
 } testcompresssocket;
 
 typedef struct testcompressserver {
 	xnetlistener* Listener;
 	const xtlsserverconfig* Tls;
-	xdeadline Deadline;
+	double Deadline;
 	xcancel* Cancel;
 	testcompressfault Fault;
 	xatomic32 ReadStarted;
@@ -63,10 +64,10 @@ static void testCompressPayload(char* pData, size_t Size)
 	}
 }
 
-static bool testCompressWait(xatomic32* pFlag, xdeadline Deadline)
+static bool testCompressWait(xatomic32* pFlag, double Deadline)
 {
 	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) == 0 ) {
-		if ( xrtDeadlineExpired(Deadline) ) return false;
+		if ( __xrtWaitExpired(Deadline) ) return false;
 		xrtThreadYield();
 	}
 	return true;
@@ -90,7 +91,7 @@ static bool testCompressRawSend(xbytesview Data, ptr pData)
 	for ( ;; ) {
 		xnetresult Result = xrtNetStreamSend(pSocket->Tcp, Data.Data, Data.Size);
 		if ( Result == XNET_RESULT_OK ) return true;
-		if ( Result != XNET_RESULT_AGAIN || !xrtNetStreamWait(pSocket->Tcp,
+		if ( Result != XNET_RESULT_AGAIN || !__xrtNetStreamWait(pSocket->Tcp,
 			XNET_STREAM_WAIT_WRITE, pSocket->Deadline, NULL) ) return false;
 	}
 }
@@ -101,7 +102,7 @@ static xnetbytes* testCompressRawRecv(testcompresssocket* pSocket)
 	xfuture* pRead = pSocket->Tls != NULL ? xrtTlsStreamRecvAsync(pSocket->Tls, 256u) :
 		xrtNetStreamRecvAsync(pSocket->Tcp, 256u);
 	xnetbytes* pBytes = NULL;
-	if ( pRead != NULL && xrtFutureWaitUntil(pRead, pSocket->Deadline) == XWAIT_OK ) {
+	if ( pRead != NULL && __xrtFutureWaitUntil(pRead, pSocket->Deadline) == XWAIT_OK ) {
 		xfuturestate State = xrtFutureState(pRead);
 		if ( State == XFUTURE_RESOLVED ) {
 			pBytes = xrtNetBytesRef((xnetbytes*)xrtFutureValue(pRead));
@@ -160,7 +161,7 @@ static bool testCompressPeerClosed(testcompresssocket* pSocket)
 	xnetbytes* pBytes = testCompressRawRecv(pSocket);
 	bool Closed = pSocket->PeerClosed;
 	xrtNetBytesDestroy(pBytes);
-	return Closed && !xrtDeadlineExpired(pSocket->Deadline);
+	return Closed && !__xrtWaitExpired(pSocket->Deadline);
 }
 
 /* Stage exactly one real socket response before arming the caller-thread fault.
@@ -207,11 +208,11 @@ static bool testCompressLiteralPrefix(testcompresssocket* pSocket, xinflate* pDe
 	for ( ;; ) {
 		xnetbytes* pBytes = testCompressRawRecv(pSocket);
 		if ( pBytes == NULL ) return UntilClosed && pSocket->PeerClosed &&
-			!xrtDeadlineExpired(pSocket->Deadline) && pPlain->Size != 0;
+			!__xrtWaitExpired(pSocket->Deadline) && pPlain->Size != 0;
 		xbytesview Data = xrtNetBytesView(pBytes);
 		if ( Data.Size == 0 && pSocket->PeerClosed ) {
 			xrtNetBytesDestroy(pBytes);
-			return UntilClosed && !xrtDeadlineExpired(pSocket->Deadline) && pPlain->Size != 0;
+			return UntilClosed && !__xrtWaitExpired(pSocket->Deadline) && pPlain->Size != 0;
 		}
 		bool Success = Data.Size != 0 && xrtInflateWrite(pDecoder, Data, false,
 			testCompressPlainWrite, pPlain);
@@ -226,7 +227,7 @@ static int32 testCompressServer(ptr pData)
 {
 	testcompressserver* pServer = (testcompressserver*)pData;
 	testcompresssocket Socket = { NULL, NULL, pServer->Deadline, false };
-	Socket.Tcp = xrtNetListenerAcceptWait(pServer->Listener, pServer->Deadline, NULL);
+	Socket.Tcp = __xrtNetListenerAcceptWait(pServer->Listener, pServer->Deadline, NULL);
 	if ( Socket.Tcp == NULL ) return 1;
 	if ( pServer->Tls != NULL ) {
 		Socket.Tls = testMailTlsUpgrade(&Socket.Tcp, pServer->Tls, pServer->Deadline);
@@ -265,7 +266,7 @@ static int32 testCompressServer(ptr pData)
 				testMailTlsFuture(pClose, Socket.Deadline);
 			xrtFutureDestroy(pClose);
 		} else if ( Success ) {
-			Success = xrtNetStreamClose(Socket.Tcp) && xrtNetStreamWait(Socket.Tcp,
+			Success = xrtNetStreamClose(Socket.Tcp) && __xrtNetStreamWait(Socket.Tcp,
 				XNET_STREAM_WAIT_CLOSE, Socket.Deadline, NULL);
 		}
 	} else if ( Success && (pServer->Fault == TEST_COMPRESS_WRITE_BUFFER_OOM ||
@@ -304,7 +305,7 @@ static int32 testCompressServer(ptr pData)
 					testMailTlsFuture(pClose, Socket.Deadline);
 				xrtFutureDestroy(pClose);
 			} else if ( Success ) {
-				Success = xrtNetStreamClose(Socket.Tcp) && xrtNetStreamWait(Socket.Tcp,
+				Success = xrtNetStreamClose(Socket.Tcp) && __xrtNetStreamWait(Socket.Tcp,
 					XNET_STREAM_WAIT_CLOSE, Socket.Deadline, NULL);
 			}
 		}
@@ -356,7 +357,7 @@ static void testCompressCase(xnetengine* pEngine, xnetresolver* pResolver,
 	memset(&Server, 0, sizeof(Server));
 	Server.Listener = pListener; Server.Tls = pTls; Server.Fault = Fault;
 	Server.NoFault = !Inject;
-	Server.Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Server.Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Cancel = xrtCancelCreate();
 	testRequire(Server.Cancel != NULL, "COMPRESS fault cancel create failed");
 	xrtAtomic32Init(&Server.ReadStarted, 0u);
@@ -375,7 +376,7 @@ static void testCompressCase(xnetengine* pEngine, xnetresolver* pResolver,
 	}
 	Config.Net.Security = pTls != NULL ? XMAIL_SECURITY_TLS : XMAIL_SECURITY_PLAIN;
 	Config.Net.Tls.Context = pContext; Config.Net.Tls.Verifier = pVerifier;
-	ximapclient* pClient = xrtImapClientOpen(&Config, Server.Deadline, NULL);
+	ximapclient* pClient = __xrtImapClientOpen(&Config, Server.Deadline, NULL);
 	testRequire(pClient != NULL, "COMPRESS fault client open failed");
 	ximapcompressconfig Compress;
 	xrtImapCompressConfigInit(&Compress);
@@ -386,14 +387,14 @@ static void testCompressCase(xnetengine* pEngine, xnetresolver* pResolver,
 		xrtImapAppendConfigInit(&Append);
 		Append.Mailbox = XRT_STR_LITERAL("INBOX"); Append.Size = sizeof(Literal);
 		Append.Literal = XIMAP_LITERAL_SYNC;
-		testRequire(xrtImapClientCompress(pClient, &Compress, Server.Deadline, NULL) &&
-			xrtImapClientAppendBegin(pClient, &Append, Server.Deadline, NULL) &&
-			xrtImapClientAppendWrite(pClient, Literal, 7u, Server.Deadline, NULL) &&
-			xrtImapClientAppendWrite(pClient, Literal + 7u, 32770u, Server.Deadline, NULL) &&
-			xrtImapClientAppendWrite(pClient, Literal + 32777u, 7223u, Server.Deadline, NULL) &&
+		testRequire(__xrtImapClientCompress(pClient, &Compress, Server.Deadline, NULL) &&
+			__xrtImapClientAppendBegin(pClient, &Append, Server.Deadline, NULL) &&
+			__xrtImapClientAppendWrite(pClient, Literal, 7u, Server.Deadline, NULL) &&
+			__xrtImapClientAppendWrite(pClient, Literal + 7u, 32770u, Server.Deadline, NULL) &&
+			__xrtImapClientAppendWrite(pClient, Literal + 32777u, 7223u, Server.Deadline, NULL) &&
 			xrtImapClientAppendRemaining(pClient) == 0 &&
-			xrtImapClientAppendEnd(pClient, NULL, Server.Deadline, NULL) &&
-			xrtImapClientLogout(pClient, Server.Deadline, NULL) &&
+			__xrtImapClientAppendEnd(pClient, NULL, Server.Deadline, NULL) &&
+			__xrtImapClientLogout(pClient, Server.Deadline, NULL) &&
 			xrtImapClientState(pClient) == XIMAP_CLIENT_CLOSED,
 			"COMPRESS continued streaming did not preserve literal bytes and command boundaries");
 		goto finished;
@@ -404,9 +405,9 @@ static void testCompressCase(xnetengine* pEngine, xnetresolver* pResolver,
 	if ( Fault == TEST_COMPRESS_ENCODER_OOM || Fault == TEST_COMPRESS_DECODER_OOM ) {
 		/* Complete the actual public negotiation first, then inject precisely at
 		 * the internal installation operation used by ClientCompress after OK. */
-		testRequire(xrtImapClientBegin(pClient, XRT_STR_LITERAL("COMPRESS"),
+		testRequire(__xrtImapClientBegin(pClient, XRT_STR_LITERAL("COMPRESS"),
 			XRT_STR_LITERAL("DEFLATE"), Server.Deadline, NULL) &&
-			xrtImapClientNext(pClient, &Event, Server.Deadline, NULL) == XMAIL_NEXT_END,
+			__xrtImapClientNext(pClient, &Event, Server.Deadline, NULL) == XMAIL_NEXT_END,
 			"COMPRESS OOM acknowledgement failed");
 		xdeflateconfig Deflate;
 		xinflateconfig Inflate;
@@ -423,11 +424,11 @@ static void testCompressCase(xnetengine* pEngine, xnetresolver* pResolver,
 			"COMPRESS installation left a partially installed codec");
 		Expected = XERR_MEMORY;
 	} else if ( Fault == TEST_COMPRESS_READ_BUFFER_OOM || Fault == TEST_COMPRESS_READ_GROW_OOM ) {
-		testRequire(xrtImapClientCompress(pClient, &Compress, Server.Deadline, NULL) &&
-			xrtImapClientBegin(pClient, XRT_STR_LITERAL("NOOP"), XRT_STR_LITERAL(""),
+		testRequire(__xrtImapClientCompress(pClient, &Compress, Server.Deadline, NULL) &&
+			__xrtImapClientBegin(pClient, XRT_STR_LITERAL("NOOP"), XRT_STR_LITERAL(""),
 				Server.Deadline, NULL), "COMPRESS read OOM negotiation failed");
 		if ( Fault == TEST_COMPRESS_READ_GROW_OOM ) {
-			testRequire(xrtImapClientNext(pClient, &Event, Server.Deadline, NULL) == XMAIL_NEXT_ITEM &&
+			testRequire(__xrtImapClientNext(pClient, &Event, Server.Deadline, NULL) == XMAIL_NEXT_ITEM &&
 				testMailViewEqual(Event.Response.Text, XRT_STR_LITERAL("1 EXISTS")),
 				"COMPRESS growth OOM first response failed");
 			testRequire(pClient->Transport.Pending != NULL &&
@@ -439,21 +440,21 @@ static void testCompressCase(xnetengine* pEngine, xnetresolver* pResolver,
 			"COMPRESS first output OOM buffer was already allocated");
 		testCompressStageResponse(pClient, &Server);
 		if ( !Inject ) {
-			testRequire(xrtImapClientNext(pClient, &Event, Server.Deadline, NULL) == XMAIL_NEXT_ITEM &&
+			testRequire(__xrtImapClientNext(pClient, &Event, Server.Deadline, NULL) == XMAIL_NEXT_ITEM &&
 				Event.Response.Status == XIMAP_STATUS_OK && Event.Response.Text.Size == 4096u &&
 				pClient->Transport.PendingCapacity >= 4096u,
 				"COMPRESS decoded output control did not grow and parse the response");
 			for ( size_t i = 0; i < Event.Response.Text.Size; i++ )
 				testRequire(Event.Response.Text.Data[i] == 'x', "COMPRESS decoded output control data changed");
-			testRequire(xrtImapClientNext(pClient, &Event, Server.Deadline, NULL) == XMAIL_NEXT_END &&
-				xrtImapClientLogout(pClient, Server.Deadline, NULL) &&
+			testRequire(__xrtImapClientNext(pClient, &Event, Server.Deadline, NULL) == XMAIL_NEXT_END &&
+				__xrtImapClientLogout(pClient, Server.Deadline, NULL) &&
 				xrtImapClientState(pClient) == XIMAP_CLIENT_CLOSED,
 				"COMPRESS decoded output control lost continued command or close state");
 			goto finished;
 		}
 		xrtClearError();
 		testRequire(xrtMemDebugFailAfter(0), "COMPRESS decoded output injection failed");
-		Result = xrtImapClientNext(pClient, &Event, Server.Deadline, NULL) != XMAIL_NEXT_ERROR;
+		Result = __xrtImapClientNext(pClient, &Event, Server.Deadline, NULL) != XMAIL_NEXT_ERROR;
 		testRequire(xrtMemDebugFailTriggered(), "COMPRESS decoded output allocation was not hit");
 		xrtMemDebugFailClear();
 		Expected = XERR_MEMORY;
@@ -464,12 +465,12 @@ static void testCompressCase(xnetengine* pEngine, xnetresolver* pResolver,
 		xrtImapAppendConfigInit(&Append);
 		Append.Mailbox = XRT_STR_LITERAL("INBOX"); Append.Size = sizeof(Literal);
 		Append.Literal = XIMAP_LITERAL_SYNC;
-		testRequire(xrtImapClientCompress(pClient, &Compress, Server.Deadline, NULL) &&
-			xrtImapClientAppendBegin(pClient, &Append, Server.Deadline, NULL),
+		testRequire(__xrtImapClientCompress(pClient, &Compress, Server.Deadline, NULL) &&
+			__xrtImapClientAppendBegin(pClient, &Append, Server.Deadline, NULL),
 			"COMPRESS write OOM continuation failed");
 		if ( Fault == TEST_COMPRESS_WRITE_FLUSH_OOM ) {
 			uint64 Before = xrtDeflateOutputSize(pClient->Transport.Deflater);
-			testRequire(xrtImapClientAppendWrite(pClient, Literal, sizeof(Literal), Server.Deadline, NULL) &&
+			testRequire(__xrtImapClientAppendWrite(pClient, Literal, sizeof(Literal), Server.Deadline, NULL) &&
 				xrtImapClientAppendRemaining(pClient) == 0 &&
 				xrtDeflateOutputSize(pClient->Transport.Deflater) > Before &&
 				testCompressWait(&Server.ReadStarted, Server.Deadline),
@@ -478,13 +479,13 @@ static void testCompressCase(xnetengine* pEngine, xnetresolver* pResolver,
 		xrtClearError();
 		testRequire(xrtMemDebugFailAfter(0), "COMPRESS transport output injection failed");
 		if ( Fault == TEST_COMPRESS_WRITE_BUFFER_OOM ) {
-			Result = xrtImapClientAppendWrite(pClient, Literal, sizeof(Literal), Server.Deadline, NULL);
+			Result = __xrtImapClientAppendWrite(pClient, Literal, sizeof(Literal), Server.Deadline, NULL);
 			testRequire(xrtImapClientAppendRemaining(pClient) == sizeof(Literal),
 				"COMPRESS failed write counted literal bytes");
 		} else {
 			ximapappendresult Output, Original;
 			memset(&Output, 0xA5, sizeof(Output)); Original = Output;
-			Result = xrtImapClientAppendEnd(pClient, &Output, Server.Deadline, NULL);
+			Result = __xrtImapClientAppendEnd(pClient, &Output, Server.Deadline, NULL);
 			testRequire(memcmp(&Output, &Original, sizeof(Output)) == 0,
 				"COMPRESS failed flush modified APPEND output");
 		}
@@ -492,38 +493,38 @@ static void testCompressCase(xnetengine* pEngine, xnetresolver* pResolver,
 		xrtMemDebugFailClear();
 		Expected = XERR_MEMORY;
 	} else {
-		testRequire(xrtImapClientCompress(pClient, &Compress, Server.Deadline, NULL),
+		testRequire(__xrtImapClientCompress(pClient, &Compress, Server.Deadline, NULL),
 			"COMPRESS fault negotiation failed");
 		if ( Fault <= TEST_COMPRESS_WRITE_TIMEOUT ) {
 			ximapappendconfig Append;
 			xrtImapAppendConfigInit(&Append);
 			Append.Mailbox = XRT_STR_LITERAL("INBOX"); Append.Size = 8u;
 			Append.Literal = XIMAP_LITERAL_SYNC;
-			testRequire(xrtImapClientAppendBegin(pClient, &Append, Server.Deadline, NULL),
+			testRequire(__xrtImapClientAppendBegin(pClient, &Append, Server.Deadline, NULL),
 				"compressed APPEND continuation failed");
 			if ( Fault == TEST_COMPRESS_WRITE_CANCEL )
 				testRequire(xrtCancelRequest(Server.Cancel), "COMPRESS write cancel request failed");
 			xrtClearError();
-			Result = xrtImapClientAppendWrite(pClient, "abcdefgh", 8u,
-				Fault == TEST_COMPRESS_WRITE_TIMEOUT ? xrtDeadlineAfter(0) : Server.Deadline,
+			Result = __xrtImapClientAppendWrite(pClient, "abcdefgh", 8u,
+				Fault == TEST_COMPRESS_WRITE_TIMEOUT ? __xrtWaitAfter(0) : Server.Deadline,
 				Server.Cancel);
 			Expected = Fault == TEST_COMPRESS_WRITE_CANCEL ? XERR_CANCELLED : XERR_TIMEOUT;
 			testRequire(!Result, "compressed APPEND accepted expired or cancelled buffered bytes");
 			testRequire(xrtImapClientAppendRemaining(pClient) == 8u,
 				"compressed APPEND counted bytes after cancellation or timeout");
 		} else {
-			testRequire(xrtImapClientBegin(pClient, XRT_STR_LITERAL("NOOP"),
+			testRequire(__xrtImapClientBegin(pClient, XRT_STR_LITERAL("NOOP"),
 				XRT_STR_LITERAL(""), Server.Deadline, NULL), "COMPRESS fault NOOP failed");
 			if ( Fault == TEST_COMPRESS_READ_CANCEL || Fault == TEST_COMPRESS_READ_TIMEOUT ||
 				Fault == TEST_COMPRESS_TRUNCATED ) {
-				testRequire(xrtImapClientNext(pClient, &Event, Server.Deadline, NULL) == XMAIL_NEXT_ITEM &&
+				testRequire(__xrtImapClientNext(pClient, &Event, Server.Deadline, NULL) == XMAIL_NEXT_ITEM &&
 					testMailViewEqual(Event.Response.Text, XRT_STR_LITERAL("1 EXISTS")),
 					"COMPRESS partial response was not decoded first");
 			}
 			xrtClearError();
 			xrtAtomic32Store(&Server.ReadStarted, 1u, XMEMORY_RELEASE);
-			Result = xrtImapClientNext(pClient, &Event,
-				Fault == TEST_COMPRESS_READ_TIMEOUT ? xrtDeadlineAfter(UINT64_C(100000)) :
+			Result = __xrtImapClientNext(pClient, &Event,
+				Fault == TEST_COMPRESS_READ_TIMEOUT ? __xrtWaitAfter(UINT64_C(100000)) :
 				Server.Deadline, Server.Cancel) != XMAIL_NEXT_ERROR;
 			Expected = Fault == TEST_COMPRESS_READ_CANCEL ? XERR_CANCELLED :
 				Fault == TEST_COMPRESS_READ_TIMEOUT ? XERR_TIMEOUT :
@@ -544,13 +545,13 @@ static void testCompressCase(xnetengine* pEngine, xnetresolver* pResolver,
 		"COMPRESS fault replaced the last complete response");
 	xrtErrorFree(pFailure);
 	xrtClearError();
-	testRequire(!xrtImapClientBegin(pClient, XRT_STR_LITERAL("NOOP"),
+	testRequire(!__xrtImapClientBegin(pClient, XRT_STR_LITERAL("NOOP"),
 		XRT_STR_LITERAL(""), Server.Deadline, NULL) && xrtErrorKind(xrtGetError()) == XERR_STATE,
 		"COMPRESS failed session accepted another command");
 	xrtClearError();
 finished:
 	xrtAtomic32Store(&Server.Returned, 1u, XMEMORY_RELEASE);
-	testRequire(xrtThreadWaitUntil(pThread, Server.Deadline) == XWAIT_OK && Server.Success &&
+	testRequire(__xrtThreadWaitUntil(pThread, Server.Deadline) == XWAIT_OK && Server.Success &&
 		xrtThreadExitCode(pThread) == 0, "COMPRESS fault did not close peer before destruction");
 	xrtThreadDestroy(pThread);
 	xrtImapClientDestroy(pClient);
@@ -602,9 +603,9 @@ int main(int argc, char** argv)
 					tls != 0 ? &Tls : NULL, (testcompressfault)fault, true);
 			}
 	testRequire(xrtNetListenerClose(pListener), "COMPRESS listener close failed");
-	xdeadline Retire = xrtDeadlineAfter(UINT64_C(5000000));
+	double Retire = __xrtWaitAfter(UINT64_C(5000000));
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(Retire), "COMPRESS listener did not retire");
+		testRequire(!__xrtWaitExpired(Retire), "COMPRESS listener did not retire");
 		xrtThreadYield();
 	}
 	xrtNetListenerDestroy(pListener);
@@ -613,7 +614,7 @@ int main(int argc, char** argv)
 	for ( ;; ) {
 		xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
 		if ( Result == XNET_RETIRE_READY ) break;
-		testRequire(Result != XNET_RETIRE_ERROR && !xrtDeadlineExpired(Retire), "COMPRESS engine did not retire");
+		testRequire(Result != XNET_RETIRE_ERROR && !__xrtWaitExpired(Retire), "COMPRESS engine did not retire");
 		xrtThreadYield();
 	}
 	xrtClearError();

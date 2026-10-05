@@ -317,12 +317,12 @@ XRT_API xwaitresult xrtCoSchedStep(xcosched* pSched);
 
 
 /* 在相对微秒数内等待事件并执行至多一个就绪协程。 */
-XRT_API xwaitresult xrtCoSchedPollFor(xcosched* pSched, uint64 iTimeout);
+XRT_API xwaitresult xrtCoSchedPollFor(xcosched* pSched, int64 iTimeout);
 
 
 
 /* 等待事件到指定截止时间并执行至多一个就绪协程。 */
-XRT_API xwaitresult xrtCoSchedPollUntil(xcosched* pSched, xdeadline iDeadline);
+
 
 
 
@@ -347,22 +347,22 @@ XRT_API xwaitresult xrtCoPark(void);
 
 
 /* 在相对微秒数内挂起当前调度协程。 */
-XRT_API xwaitresult xrtCoParkFor(uint64 iTimeout);
+XRT_API xwaitresult xrtCoParkFor(int64 iTimeout);
 
 
 
 /* 挂起当前调度协程，直到被唤醒、取消或到达截止时间。 */
-XRT_API xwaitresult xrtCoParkUntil(xdeadline iDeadline);
+
 
 
 
 /* 睡眠相对微秒数；自然到期或提前唤醒返回 OK。 */
-XRT_API xwaitresult xrtCoSleep(uint64 iTimeout);
+XRT_API xwaitresult xrtCoSleep(int64 iTimeout);
 
 
 
 /* 睡眠到指定截止时间；自然到期或提前唤醒返回 OK。 */
-XRT_API xwaitresult xrtCoSleepUntil(xdeadline iDeadline);
+XRT_API xwaitresult xrtCoSleepFor(int64 iTimeout);
 
 
 
@@ -372,12 +372,12 @@ XRT_API xwaitresult xrtCoJoin(xcoro* pCo);
 
 
 /* 在相对微秒数内等待同一调度器的目标结束。 */
-XRT_API xwaitresult xrtCoJoinFor(xcoro* pCo, uint64 iTimeout);
+XRT_API xwaitresult xrtCoJoinFor(xcoro* pCo, int64 iTimeout);
 
 
 
 /* 等待同一调度器的目标结束到指定截止时间。 */
-XRT_API xwaitresult xrtCoJoinUntil(xcoro* pCo, xdeadline iDeadline);
+
 
 
 
@@ -463,16 +463,13 @@ XRT_API xwaitresult xrtCoEventTryAwait(xcoevent* pEvent);
 /* 在相对微秒数内等待事件置位。 */
 XRT_API xwaitresult xrtCoEventAwaitFor(
 	xcoevent* pEvent,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 等待事件置位、协程取消或到达截止时间。 */
-XRT_API xwaitresult xrtCoEventAwaitUntil(
-	xcoevent* pEvent,
-	xdeadline iDeadline
-);
+
 
 
 

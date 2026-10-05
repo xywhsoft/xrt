@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/tcp —— 事件驱动 TCP 回显（回调面完整形态）
  * ----------------------------------------------------------------
@@ -124,7 +125,7 @@ int main(void)
 	xnetlistener* pListener;
 	xnetstream* pServer;
 	xnetaddr Address;
-	xdeadline iDeadline;
+	double iDeadline;
 	str sEndpoint;
 	int iResult = 1;
 
@@ -183,9 +184,9 @@ int main(void)
 		iResult = 4;
 		goto Cleanup;
 	}
-	iDeadline = xrtDeadlineAfter(3000000u);
+	iDeadline = __xrtWaitAfter(3000000u);
 	while ( xrtAtomic32Load(&Example.Accepted, XMEMORY_ACQUIRE) == 0 ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			iResult = 5;
 			goto Cleanup;
 		}
@@ -208,7 +209,7 @@ int main(void)
 		goto Cleanup;
 	}
 	while ( xrtAtomic32Load(&Example.Reply, XMEMORY_ACQUIRE) == 0 ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			iResult = 7;
 			goto Cleanup;
 		}
@@ -216,18 +217,18 @@ int main(void)
 	}
 	(void)xrtNetStreamClose(Example.Client);
 	(void)xrtNetStreamClose(pServer);
-	iDeadline = xrtDeadlineAfter(3000000u);
+	iDeadline = __xrtWaitAfter(3000000u);
 	while ( xrtAtomic32Load(&Example.Closed, XMEMORY_ACQUIRE) != 2 ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			iResult = 8;
 			goto Cleanup;
 		}
 		xrtThreadYield();
 	}
 	(void)xrtNetListenerClose(pListener);
-	iDeadline = xrtDeadlineAfter(3000000u);
+	iDeadline = __xrtWaitAfter(3000000u);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			iResult = 8;
 			goto Cleanup;
 		}
@@ -253,14 +254,14 @@ Cleanup:
 		 (xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED) ) {
 		(void)xrtNetListenerClose(pListener);
 	}
-	iDeadline = xrtDeadlineAfter(3000000u);
+	iDeadline = __xrtWaitAfter(3000000u);
 	while ( ((Example.Client != NULL) &&
 		  (xrtNetStreamState(Example.Client) != XNET_STREAM_CLOSED)) ||
 		 ((pServer != NULL) &&
 		  (xrtNetStreamState(pServer) != XNET_STREAM_CLOSED)) ||
 		 ((pListener != NULL) &&
 		  (xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED)) ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			if ( iResult == 0 ) {
 				iResult = 8;
 			}

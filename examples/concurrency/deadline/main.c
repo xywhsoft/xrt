@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 
 #include <xrt.h>
@@ -8,9 +9,9 @@
  * 范例：concurrency/deadline —— 截止时间：剩余量与过期判定
  * ----------------------------------------------------------------
  * 演示 API：
- *   xrtDeadlineAfter     相对超时 → 绝对截止（单调钟基准）
- *   xrtDeadlineRemaining 剩余微秒
- *   xrtDeadlineExpired   是否已过期
+ *   __xrtWaitAfter     相对超时 → 绝对截止（单调钟基准）
+ *   __xrtWaitRemaining 剩余微秒
+ *   __xrtWaitExpired   是否已过期
  * 模块宏：XRT_MODULE_THREAD（deadline 同族）
  * 编译（单头形态，Windows）：
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
@@ -28,11 +29,11 @@
 /* 展示相对超时与绝对截止时间之间的统一转换。 */
 int main(void)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(50000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(50000));
 
 	printf("remaining: %llu us\n",
-		(unsigned long long)xrtDeadlineRemaining(iDeadline));
+		(unsigned long long)__xrtWaitRemaining(iDeadline));
 	xrtSleepUntil(iDeadline);
-	printf("expired: %s\n", xrtDeadlineExpired(iDeadline) ? "yes" : "no");
+	printf("expired: %s\n", __xrtWaitExpired(iDeadline) ? "yes" : "no");
 	return 0;
 }

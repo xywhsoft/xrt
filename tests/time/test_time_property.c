@@ -35,8 +35,8 @@ static void testTimeRoundtripProperty(void)
 			(tDateTime.Hour >= 0) && (tDateTime.Hour <= 23) &&
 			(tDateTime.Minute >= 0) && (tDateTime.Minute <= 59) &&
 			(tDateTime.Second >= 0) && (tDateTime.Second <= 59) &&
-			(tDateTime.Microsecond >= 0) &&
-			(tDateTime.Microsecond <= 999999) &&
+			(tDateTime.Millisecond >= 0) &&
+			(tDateTime.Millisecond <= 999) &&
 			(tDateTime.Offset == iOffset),
 			"random fixed-offset split returned invalid fields");
 		testRequire(xrtTimeMake(&tDateTime, &iRoundtrip) &&
@@ -54,13 +54,12 @@ static void testTimeDifferenceProperty(void)
 		xtimeunit Unit;
 		uint64 Duration;
 	} arrUnits[] = {
-		{ XTIME_UNIT_MICROSECOND, UINT64_C(1) },
-		{ XTIME_UNIT_MILLISECOND, UINT64_C(1000) },
-		{ XTIME_UNIT_SECOND, UINT64_C(1000000) },
-		{ XTIME_UNIT_MINUTE, UINT64_C(60000000) },
-		{ XTIME_UNIT_HOUR, UINT64_C(3600000000) },
-		{ XTIME_UNIT_DAY, UINT64_C(86400000000) },
-		{ XTIME_UNIT_WEEK, UINT64_C(604800000000) }
+				{ XTIME_UNIT_MILLISECOND, (uint64)XRT_TIME_MILLISECOND },
+		{ XTIME_UNIT_SECOND, (uint64)XRT_TIME_SECOND },
+		{ XTIME_UNIT_MINUTE, (uint64)XRT_TIME_MINUTE },
+		{ XTIME_UNIT_HOUR, (uint64)XRT_TIME_HOUR },
+		{ XTIME_UNIT_DAY, (uint64)XRT_TIME_DAY },
+		{ XTIME_UNIT_WEEK, (uint64)XRT_TIME_WEEK }
 	};
 	uint64 iState = UINT64_C(0xBB67AE8584CAA73B);
 
@@ -88,13 +87,13 @@ static void testTimeDifferenceProperty(void)
 				iExpected = iUnits == (UINT64_C(1) << 63u) ?
 					INT64_MIN : -(int64)iUnits;
 			}
-			testRequire(xrtTimeDiff(
+			testRequire(xrtDateDiff(
 				iStart, iEnd, arrUnits[iUnit].Unit, &iActual) &&
 				(iActual == iExpected),
 				"random full-domain fixed difference mismatch");
 		} else {
 			xrtClearError();
-			testRequire(!xrtTimeDiff(
+			testRequire(!xrtDateDiff(
 				iStart, iEnd, arrUnits[iUnit].Unit, &iActual) &&
 				(iActual == 37) &&
 				(xrtErrorCode(xrtGetError()) == XTIME_ERROR_OVERFLOW),
@@ -122,10 +121,10 @@ static void testTimeAddProperty(void)
 			continue;
 		}
 		testRequire(xrtTimeAdd(
-			iTime, iDelta, XTIME_UNIT_MICROSECOND, &iResult),
+			iTime, iDelta, XTIME_UNIT_MILLISECOND, &iResult),
 			"random fixed addition failed");
-		testRequire(xrtTimeDiff(
-			iTime, iResult, XTIME_UNIT_MICROSECOND, &iDifference) &&
+		testRequire(xrtDateDiff(
+			iTime, iResult, XTIME_UNIT_MILLISECOND, &iDifference) &&
 			(iDifference == iDelta),
 			"random fixed add/diff invariant failed");
 	}

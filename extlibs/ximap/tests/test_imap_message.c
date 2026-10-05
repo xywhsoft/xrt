@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
@@ -15,7 +16,7 @@ static bool testImapMessageDiscard(xbytesview Data, ptr pUserData)
 /* 验证消息便利层的无副作用参数边界。 */
 int main(void)
 {
-	testRequire(!xrtImapClientBodyWrite(
+	testRequire(!__xrtImapClientBodyWrite(
 		NULL,
 		1u,
 		XRT_STR_LITERAL(""),
@@ -30,7 +31,7 @@ int main(void)
 	) && (xrtErrorKind(xrtGetError()) == XERR_ARGUMENT),
 		"IMAP BODY accepted a missing client");
 	xrtClearError();
-	testRequire(xrtImapClientBodyBytes(
+	testRequire(__xrtImapClientBodyBytes(
 		NULL,
 		0,
 		XRT_STR_LITERAL("HEADER] UID FETCH 1 BODY["),

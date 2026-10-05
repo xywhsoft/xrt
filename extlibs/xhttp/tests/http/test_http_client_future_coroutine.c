@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../fixtures/http_origin.h"
 
@@ -110,12 +111,12 @@ static void testHttpFutureCoroutineEngineDestroy(
 	xnetengine* pEngine
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP coroutine retained an Engine object"
 		);
 		xrtThreadYield();

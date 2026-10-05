@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_coroutine.h"
 
 
@@ -275,9 +276,9 @@ XRT_API bool xrtCoEventReset(xcoevent* pEvent)
 
 
 /* 等待事件置位、协程取消或截止时间。 */
-XRT_API xwaitresult xrtCoEventAwaitUntil(
+XRT_API xwaitresult __xrtCoEventAwaitUntil(
 	xcoevent* pEvent,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xrt_co_event_impl* pImpl = __xrtCoEventRequire(pEvent);
@@ -313,7 +314,7 @@ XRT_API xwaitresult xrtCoEventAwaitUntil(
 		__xrtCoWaitClose(&tWaiter.Wait);
 		return XWAIT_OK;
 	}
-	if ( xrtDeadlineExpired(iDeadline) ) {
+	if ( __xrtWaitExpired(iDeadline) ) {
 		(void)xrtMutexUnlock(&pImpl->Lock);
 		__xrtCoWaitClose(&tWaiter.Wait);
 		return XWAIT_TIMEOUT;
@@ -363,7 +364,7 @@ XRT_API xwaitresult xrtCoEventAwaitUntil(
 /* 无限期等待事件置位。 */
 XRT_API xwaitresult xrtCoEventAwait(xcoevent* pEvent)
 {
-	return xrtCoEventAwaitUntil(pEvent, XRT_DEADLINE_NEVER);
+	return __xrtCoEventAwaitUntil(pEvent, INFINITY);
 }
 
 
@@ -371,7 +372,7 @@ XRT_API xwaitresult xrtCoEventAwait(xcoevent* pEvent)
 /* 非阻塞地检查并消费自动复位事件。 */
 XRT_API xwaitresult xrtCoEventTryAwait(xcoevent* pEvent)
 {
-	return xrtCoEventAwaitUntil(pEvent, xrtClock());
+	return __xrtCoEventAwaitUntil(pEvent, xrtTimer());
 }
 
 
@@ -379,10 +380,10 @@ XRT_API xwaitresult xrtCoEventTryAwait(xcoevent* pEvent)
 /* 在相对微秒数内等待事件置位。 */
 XRT_API xwaitresult xrtCoEventAwaitFor(
 	xcoevent* pEvent,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	return xrtCoEventAwaitUntil(pEvent, xrtDeadlineAfter(iTimeout));
+	return __xrtCoEventAwaitUntil(pEvent, __xrtWaitAfter(iTimeout));
 }
 
 #endif

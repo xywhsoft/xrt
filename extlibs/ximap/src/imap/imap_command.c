@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <xrt/imap_command.h>
 
 #include "../internal/xrt_imap_client.h"
@@ -87,11 +88,11 @@ static bool __xrtImapCommandBegin(
 	xstrview Command,
 	const xstrview* pParts,
 	size_t iCount,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
-	return xrtImapClientBeginParts(
+	return __xrtImapClientBeginParts(
 		pClient,
 		Command,
 		pParts,
@@ -136,7 +137,7 @@ static bool __xrtImapCommandBeginMailbox(
 	ximapclient* pClient,
 	xstrview Command,
 	xstrview Mailbox,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -267,13 +268,13 @@ static xmailnext __xrtImapCommandMailboxCode(
 static bool __xrtImapCommandFinish(
 	ximapclient* pClient,
 	ximapmailboxinfo* pInfo,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
 	for ( ;; ) {
 		ximapevent Event;
-		xmailnext Next = xrtImapClientNext(
+		xmailnext Next = __xrtImapClientNext(
 			pClient,
 			&Event,
 			iDeadline,
@@ -330,11 +331,11 @@ static bool __xrtImapCommandFinish(
 static bool __xrtImapCommandSimple(
 	ximapclient* pClient,
 	xstrview Command,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
-	return xrtImapClientBegin(
+	return __xrtImapClientBegin(
 		pClient,
 		Command,
 		XRT_STR_LITERAL(""),
@@ -355,7 +356,7 @@ static bool __xrtImapCommandMailboxSimple(
 	ximapclient* pClient,
 	xstrview Command,
 	xstrview Mailbox,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -444,9 +445,9 @@ XRT_API xmailnext xrtImapMailboxInfoUpdate(
 
 
 /* 执行 NOOP。 */
-XRT_API bool xrtImapClientNoop(
+XRT_API bool __xrtImapClientNoop(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -466,7 +467,7 @@ static bool __xrtImapCommandSelect(
 	xstrview Mailbox,
 	ximapmailboxinfo* pInfo,
 	bool bReadOnly,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -519,11 +520,11 @@ static bool __xrtImapCommandSelect(
 
 
 /* 选择可写邮箱。 */
-XRT_API bool xrtImapClientSelect(
+XRT_API bool __xrtImapClientSelect(
 	ximapclient* pClient,
 	xstrview Mailbox,
 	ximapmailboxinfo* pInfo,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -540,11 +541,11 @@ XRT_API bool xrtImapClientSelect(
 
 
 /* 以只读方式选择邮箱。 */
-XRT_API bool xrtImapClientExamine(
+XRT_API bool __xrtImapClientExamine(
 	ximapclient* pClient,
 	xstrview Mailbox,
 	ximapmailboxinfo* pInfo,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -561,9 +562,9 @@ XRT_API bool xrtImapClientExamine(
 
 
 /* 对当前选中邮箱执行 CHECK。 */
-XRT_API bool xrtImapClientCheck(
+XRT_API bool __xrtImapClientCheck(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -578,9 +579,9 @@ XRT_API bool xrtImapClientCheck(
 
 
 /* 执行 UNSELECT 并返回认证态。 */
-XRT_API bool xrtImapClientUnselect(
+XRT_API bool __xrtImapClientUnselect(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -611,9 +612,9 @@ XRT_API bool xrtImapClientUnselect(
 
 
 /* 执行 CLOSE 并返回认证态。 */
-XRT_API bool xrtImapClientCloseMailbox(
+XRT_API bool __xrtImapClientCloseMailbox(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -631,10 +632,10 @@ XRT_API bool xrtImapClientCloseMailbox(
 
 
 /* 创建邮箱。 */
-XRT_API bool xrtImapClientCreateMailbox(
+XRT_API bool __xrtImapClientCreateMailbox(
 	ximapclient* pClient,
 	xstrview Mailbox,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -650,10 +651,10 @@ XRT_API bool xrtImapClientCreateMailbox(
 
 
 /* 删除邮箱。 */
-XRT_API bool xrtImapClientDeleteMailbox(
+XRT_API bool __xrtImapClientDeleteMailbox(
 	ximapclient* pClient,
 	xstrview Mailbox,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -669,11 +670,11 @@ XRT_API bool xrtImapClientDeleteMailbox(
 
 
 /* 重命名邮箱。 */
-XRT_API bool xrtImapClientRenameMailbox(
+XRT_API bool __xrtImapClientRenameMailbox(
 	ximapclient* pClient,
 	xstrview Source,
 	xstrview Target,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -717,10 +718,10 @@ XRT_API bool xrtImapClientRenameMailbox(
 
 
 /* 订阅邮箱。 */
-XRT_API bool xrtImapClientSubscribe(
+XRT_API bool __xrtImapClientSubscribe(
 	ximapclient* pClient,
 	xstrview Mailbox,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -736,10 +737,10 @@ XRT_API bool xrtImapClientSubscribe(
 
 
 /* 取消订阅邮箱。 */
-XRT_API bool xrtImapClientUnsubscribe(
+XRT_API bool __xrtImapClientUnsubscribe(
 	ximapclient* pClient,
 	xstrview Mailbox,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -755,11 +756,11 @@ XRT_API bool xrtImapClientUnsubscribe(
 
 
 /* 开始 LIST 并保留流式响应。 */
-XRT_API bool xrtImapClientBeginList(
+XRT_API bool __xrtImapClientBeginList(
 	ximapclient* pClient,
 	xstrview Reference,
 	xstrview Pattern,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -802,11 +803,11 @@ XRT_API bool xrtImapClientBeginList(
 
 
 /* 开始 STATUS；空 Items 使用常见状态集合。 */
-XRT_API bool xrtImapClientBeginStatus(
+XRT_API bool __xrtImapClientBeginStatus(
 	ximapclient* pClient,
 	xstrview Mailbox,
 	xstrview Items,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -844,11 +845,11 @@ XRT_API bool xrtImapClientBeginStatus(
 
 
 /* 开始 SEARCH 或 UID SEARCH。 */
-XRT_API bool xrtImapClientBeginSearch(
+XRT_API bool __xrtImapClientBeginSearch(
 	ximapclient* pClient,
 	xstrview Criteria,
 	bool bUid,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -886,12 +887,12 @@ XRT_API bool xrtImapClientBeginSearch(
 
 
 /* 开始 FETCH 或 UID FETCH。 */
-XRT_API bool xrtImapClientBeginFetch(
+XRT_API bool __xrtImapClientBeginFetch(
 	ximapclient* pClient,
 	xstrview Set,
 	xstrview Items,
 	bool bUid,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -952,13 +953,13 @@ static xstrview __xrtImapCommandStoreMode(ximapstoremode Mode)
 
 
 /* 开始 STORE 或 UID STORE。 */
-XRT_API bool xrtImapClientBeginStore(
+XRT_API bool __xrtImapClientBeginStore(
 	ximapclient* pClient,
 	xstrview Set,
 	ximapstoremode Mode,
 	xstrview Flags,
 	bool bUid,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -1011,7 +1012,7 @@ static bool __xrtImapCommandBeginCopyMove(
 	xstrview Mailbox,
 	bool bUid,
 	bool bMove,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -1066,12 +1067,12 @@ static bool __xrtImapCommandBeginCopyMove(
 
 
 /* 开始 COPY。 */
-XRT_API bool xrtImapClientBeginCopy(
+XRT_API bool __xrtImapClientBeginCopy(
 	ximapclient* pClient,
 	xstrview Set,
 	xstrview Mailbox,
 	bool bUid,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -1089,12 +1090,12 @@ XRT_API bool xrtImapClientBeginCopy(
 
 
 /* 开始 MOVE。 */
-XRT_API bool xrtImapClientBeginMove(
+XRT_API bool __xrtImapClientBeginMove(
 	ximapclient* pClient,
 	xstrview Set,
 	xstrview Mailbox,
 	bool bUid,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -1112,10 +1113,10 @@ XRT_API bool xrtImapClientBeginMove(
 
 
 /* 开始 EXPUNGE 或 UID EXPUNGE。 */
-XRT_API bool xrtImapClientBeginExpunge(
+XRT_API bool __xrtImapClientBeginExpunge(
 	ximapclient* pClient,
 	xstrview UidSet,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -1165,9 +1166,9 @@ XRT_API bool xrtImapClientBeginExpunge(
 
 
 /* 开始 IDLE，continuation 和未请求事件由调用方读取。 */
-XRT_API bool xrtImapClientBeginIdle(
+XRT_API bool __xrtImapClientBeginIdle(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -1180,7 +1181,7 @@ XRT_API bool xrtImapClientBeginIdle(
 			"IMAP server did not advertise IDLE"
 		);
 	}
-	return xrtImapClientBegin(
+	return __xrtImapClientBegin(
 		pClient,
 		XRT_STR_LITERAL("IDLE"),
 		XRT_STR_LITERAL(""),
@@ -1192,16 +1193,16 @@ XRT_API bool xrtImapClientBeginIdle(
 
 
 /* 向活动 IDLE 命令发送 DONE。 */
-XRT_API bool xrtImapClientEndIdle(
+XRT_API bool __xrtImapClientEndIdle(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
 	if ( !__xrtImapCommandSelected(pClient) ) {
 		return false;
 	}
-	return __xrtImapClientIdleEnd(pClient) && xrtImapClientContinue(
+	return __xrtImapClientIdleEnd(pClient) && __xrtImapClientContinue(
 		pClient,
 		XRT_STR_LITERAL("DONE"),
 		iDeadline,
@@ -1209,4 +1210,265 @@ XRT_API bool xrtImapClientEndIdle(
 	);
 }
 
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientNoop(
+	ximapclient* pClient,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientNoop(pClient, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientSelect(
+	ximapclient* pClient,
+	xstrview Mailbox,
+	ximapmailboxinfo* pInfo,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientSelect(pClient, Mailbox, pInfo, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientExamine(
+	ximapclient* pClient,
+	xstrview Mailbox,
+	ximapmailboxinfo* pInfo,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientExamine(pClient, Mailbox, pInfo, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientCheck(
+	ximapclient* pClient,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientCheck(pClient, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientUnselect(
+	ximapclient* pClient,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientUnselect(pClient, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientCloseMailbox(
+	ximapclient* pClient,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientCloseMailbox(pClient, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientCreateMailbox(
+	ximapclient* pClient,
+	xstrview Mailbox,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientCreateMailbox(pClient, Mailbox, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientDeleteMailbox(
+	ximapclient* pClient,
+	xstrview Mailbox,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientDeleteMailbox(pClient, Mailbox, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientRenameMailbox(
+	ximapclient* pClient,
+	xstrview Source,
+	xstrview Target,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientRenameMailbox(pClient, Source, Target, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientSubscribe(
+	ximapclient* pClient,
+	xstrview Mailbox,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientSubscribe(pClient, Mailbox, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientUnsubscribe(
+	ximapclient* pClient,
+	xstrview Mailbox,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientUnsubscribe(pClient, Mailbox, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientBeginList(
+	ximapclient* pClient,
+	xstrview Reference,
+	xstrview Pattern,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientBeginList(pClient, Reference, Pattern, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientBeginStatus(
+	ximapclient* pClient,
+	xstrview Mailbox,
+	xstrview Items,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientBeginStatus(pClient, Mailbox, Items, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientBeginSearch(
+	ximapclient* pClient,
+	xstrview Criteria,
+	bool bUid,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientBeginSearch(pClient, Criteria, bUid, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientBeginFetch(
+	ximapclient* pClient,
+	xstrview Set,
+	xstrview Items,
+	bool bUid,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientBeginFetch(pClient, Set, Items, bUid, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientBeginStore(
+	ximapclient* pClient,
+	xstrview Set,
+	ximapstoremode Mode,
+	xstrview Flags,
+	bool bUid,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientBeginStore(pClient, Set, Mode, Flags, bUid, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientBeginCopy(
+	ximapclient* pClient,
+	xstrview Set,
+	xstrview Mailbox,
+	bool bUid,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientBeginCopy(pClient, Set, Mailbox, bUid, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientBeginMove(
+	ximapclient* pClient,
+	xstrview Set,
+	xstrview Mailbox,
+	bool bUid,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientBeginMove(pClient, Set, Mailbox, bUid, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientBeginExpunge(
+	ximapclient* pClient,
+	xstrview UidSet,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientBeginExpunge(pClient, UidSet, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientBeginIdle(
+	ximapclient* pClient,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientBeginIdle(pClient, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_COMMAND))
+XRT_API bool xrtImapClientEndIdle(
+	ximapclient* pClient,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientEndIdle(pClient, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

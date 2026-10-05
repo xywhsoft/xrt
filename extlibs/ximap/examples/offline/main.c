@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <ximap.h>
 
 #include <stdio.h>
@@ -8,7 +9,7 @@ static xnetaddr ExampleAddress;
 
 typedef struct example_server {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } example_server;
 
@@ -22,24 +23,24 @@ static xnetaddrlist* exampleResolve(cstr sHost, xnetfamily Family, ptr pData)
 	return xrtNetAddrListCreate(&Address, 1u);
 }
 
-static bool exampleSend(xnetstream* pStream, cstr sText, xdeadline Deadline)
+static bool exampleSend(xnetstream* pStream, cstr sText, double Deadline)
 {
 	size_t iSize = strlen(sText);
 	for ( ;; ) {
 		xnetresult Result = xrtNetStreamSend(pStream, sText, iSize);
 		if ( Result == XNET_RESULT_OK ) return true;
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream, XNET_STREAM_WAIT_WRITE, Deadline, NULL) ) return false;
 	}
 }
 
 static bool exampleExpect(xnetstream* pStream, cstr sExpected,
-	xdeadline Deadline)
+	double Deadline)
 {
 	size_t iSize = strlen(sExpected);
 	size_t iUsed = 0u;
 	while ( iUsed < iSize ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream, iSize - iUsed, Deadline, NULL);
 		xbytesview Bytes;
 		if ( pBytes == NULL ) return false;
@@ -58,7 +59,7 @@ static bool exampleExpect(xnetstream* pStream, cstr sExpected,
 static int32 exampleServer(ptr pData)
 {
 	example_server* pServer = (example_server*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener, pServer->Deadline, NULL);
 	bool bOk;
 	if ( pStream == NULL ) return 1;
@@ -90,7 +91,7 @@ static int32 exampleServer(ptr pData)
 			"A00000004 OK logout complete\r\n",
 			pServer->Deadline) &&
 		xrtNetStreamClose(pStream) &&
-		xrtNetStreamWait(pStream, XNET_STREAM_WAIT_CLOSE,
+		__xrtNetStreamWait(pStream, XNET_STREAM_WAIT_CLOSE,
 			pServer->Deadline, NULL);
 	pServer->Success = bOk;
 	xrtNetStreamDestroy(pStream);
@@ -111,7 +112,7 @@ int main(void)
 	xnetlistener* pListener = NULL;
 	ximapclient* pClient = NULL;
 	xthread* pThread = NULL;
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	bool bOk = false;
 
 	xrtNetEngineConfigInit(&EngineConfig);
@@ -140,7 +141,7 @@ int main(void)
 	ClientConfig.Net.Resolver = pResolver;
 	ClientConfig.Net.Host = "imap.example.invalid";
 	ClientConfig.Net.Port = ExampleAddress.Port;
-	pClient = xrtImapClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtImapClientOpen(&ClientConfig, Deadline, NULL);
 	if ( pClient == NULL ) goto Done;
 	xrtImapAuthConfigInit(&Auth);
 	Auth.Method = XIMAP_AUTH_LOGIN;
@@ -149,13 +150,13 @@ int main(void)
 	/* 明文凭据仅供进程内回环演示；真实服务使用 TLS 范例。 */
 	Auth.AllowPlaintext = true;
 	xrtImapMailboxInfoInit(&Mailbox);
-	if ( !xrtImapClientAuth(pClient, &Auth, Deadline, NULL) ||
-		!xrtImapClientExamine(pClient, XRT_STR_LITERAL("INBOX"),
+	if ( !__xrtImapClientAuth(pClient, &Auth, Deadline, NULL) ||
+		!__xrtImapClientExamine(pClient, XRT_STR_LITERAL("INBOX"),
 			&Mailbox, Deadline, NULL) ||
 		(Mailbox.Exists != 2u) || (Mailbox.Recent != 0u) ||
 		(Mailbox.UidValidity != 42u) || !Mailbox.ReadOnly ||
 		(xrtImapClientState(pClient) != XIMAP_CLIENT_SELECTED) ||
-		!xrtImapClientLogout(pClient, Deadline, NULL) ) goto Done;
+		!__xrtImapClientLogout(pClient, Deadline, NULL) ) goto Done;
 	bOk = true;
 
 Done:

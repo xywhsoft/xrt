@@ -98,20 +98,19 @@ API key 只从调用方配置传入；库不会把 key 写入请求 JSON、日�
 
 ## 构建与测试
 
-```bat
-build.bat
-```
+依赖闭包由 `config/modules.json` 声明，公共入口是 `include/xllm.h`，实现位于 `src/`，每个 `.c` 独立编译。构建、测试、单头生成与 CI 均使用仓库根目录的统一工具；目录规范见 [扩展库开发说明](../README.md)。
 
-Linux/macOS（也可通过 `CC` 指定 Clang 或交叉编译器）：
+从仓库根目录执行（Windows 与 POSIX 使用同一入口）：
 
 ```sh
-sh build.sh
+python tools/build.py --compiler gcc --manifest extlibs/xllm/config/modules.json --suite xllm --jobs 4
+python tools/package.py --compiler gcc --manifest extlibs/xllm/config/modules.json --suite xllm --kind static --verify
+python tools/amalgamate.py --manifest extlibs/xllm/config/modules.json
 ```
 
-交叉编译时设置 `RUN_TESTS=0`，并可通过 `XRT_DIR`、`BUILD_DIR`、
-`RELEASE_DIR`、`CFLAGS`、`LDFLAGS` 和 `LIBS` 覆盖默认值。
+单头实现与声明分别生成到 `single/extlibs/xllm.h` 和 `single/extlibs/xllm_decl.h`，只包含本库代码。调用方先提供核心 XRT，再按依赖顺序提供扩展；见 [构建说明](../../docs/BUILD.md)。
 
-构建会生成 `release/xllm.o`、`release/xllm-session.o` 与 `release/xllm-memory.o`，并运行 provider、会话预算/恢复、memory 写入/检索/审计与持久化测试。
+真实端点测试与 `complete_stats` 示例使用 `--suite xllm_live --no-run --no-single` 构建，再显式提供运行时密钥与端点。
 
 ## 诊断与重试
 

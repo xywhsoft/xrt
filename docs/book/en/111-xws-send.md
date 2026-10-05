@@ -60,7 +60,7 @@ The program below is from `examples/websocket/writer` — the writer template fo
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xws/single -include xws.h impl.c extlibs/xws/examples/websocket/writer/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/writer/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 WebSocket Writer example is ready
 ```
 
@@ -74,7 +74,7 @@ The second program is from `examples/websocket/writer_deflate` — an isomorphis
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xws/single -include xws.h impl.c extlibs/xws/examples/websocket/writer_deflate/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/writer_deflate/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （压缩 writer 就绪自检通过后正常退出）
 ```
 

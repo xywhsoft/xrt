@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -356,7 +357,7 @@ int main(void)
 	testRequire((pPromise != NULL) && (pToken != NULL), "future wait setup failed");
 	testRequire(xrtFutureWaitFor(pFuture, 0) == XWAIT_TIMEOUT, "future zero wait mismatch");
 	testRequire(xrtCancelRequest(pToken), "future waiter cancel request failed");
-	testRequire(xrtFutureWaitUntilCancel(pFuture, XRT_DEADLINE_NEVER, pToken) ==
+	testRequire(__xrtFutureWaitUntilCancel(pFuture, INFINITY, pToken) ==
 		XWAIT_CANCELLED, "future cancelled wait mismatch");
 	testRequire(xrtPromiseClose(pPromise), "future explicit close failed");
 	testRequire(xrtFutureWait(pFuture) == XWAIT_OK, "closed future wait mismatch");

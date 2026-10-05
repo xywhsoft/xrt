@@ -194,7 +194,7 @@ static bool exercise(unsigned scenario, xstrview fqdn, xstrview txt, bool fail)
 		memcpy(TcValue, txt.Data, txt.Size); TcValue[txt.Size] = '\0';
 		if(scenario == 3u || scenario == 5u) {
 			if(!xacmeDnsRecordRememberPair(records, zone, '|', "7", fqdn, txt)) return false;
-			tc.iDomainIds[0] = 101; tc.uCreatedAt[0] = xrtClock();
+			tc.iDomainIds[0] = 101; tc.uCreatedAt[0] = xrtTimer();
 		}
 	}
 	if(!xrtMutexInit(lock)) return false;

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -104,10 +105,10 @@ static void testDialFutureOomWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -117,12 +118,12 @@ static void testDialFutureOomWait(
 /* 在截止时间前拉取一个已接受 Stream。 */
 static xnetstream* testDialFutureOomAccept(xnetlistener* pListener)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 	xnetstream* pStream;
 
 	while ( (pStream = xrtNetListenerAccept(pListener)) == NULL ) {
 		xrtClearError();
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"dial Future OOM accept timed out");
 		xrtThreadYield();
 	}
@@ -134,7 +135,7 @@ static xnetstream* testDialFutureOomAccept(xnetlistener* pListener)
 /* 等待 Resolver 清空取消后的查询和回调资源。 */
 static void testDialFutureOomResolverIdle(xnetresolver* pResolver)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 	xnetresolverstats Stats;
 
 	for ( ;; ) {
@@ -145,7 +146,7 @@ static void testDialFutureOomResolverIdle(xnetresolver* pResolver)
 			 (Stats.ReadyCallbacks == 0) ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"dial Future OOM resolver did not become idle");
 		xrtThreadYield();
 	}
@@ -171,7 +172,7 @@ int main(void)
 	xfuture* pRecovery;
 	xfuture** pPending;
 	xnetaddr Address;
-	xdeadline iDeadline;
+	double iDeadline;
 	size_t iPending = 0;
 
 	memset(&Context, 0, sizeof(Context));
@@ -306,10 +307,10 @@ int main(void)
 	testRequire((pClient != NULL) && xrtNetStreamClose(pClient) &&
 		xrtNetStreamClose(pServer),
 		"dial Future OOM recovery close failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( (xrtNetStreamState(pClient) != XNET_STREAM_CLOSED) ||
 		 (xrtNetStreamState(pServer) != XNET_STREAM_CLOSED) ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"dial Future OOM recovery streams did not close");
 		xrtThreadYield();
 	}
@@ -324,10 +325,10 @@ int main(void)
 	xrtNetListenerDestroy(pListener);
 	testRequire(xrtNetResolverDestroy(pResolver),
 		"dial Future OOM resolver destroy failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"dial Future OOM retained an Engine resource");
 		xrtThreadYield();
 	}

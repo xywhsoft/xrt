@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../fixtures/http_origin.h"
 
 
@@ -44,7 +45,7 @@ static void testWsHttpFutureWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 
@@ -53,7 +54,7 @@ static void testWsHttpFutureWait(
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -98,7 +99,7 @@ static xfuture* testWsHttpFutureTakeServer(
 	test_ws_http_future* pTest
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 	xfuture* pFuture;
@@ -111,7 +112,7 @@ static xfuture* testWsHttpFutureTakeServer(
 		);
 		if ( pFuture == NULL ) {
 			testRequire(
-				!xrtDeadlineExpired(Deadline),
+				!__xrtWaitExpired(Deadline),
 				"WebSocket server Future was not published"
 			);
 			xrtThreadYield();
@@ -253,7 +254,7 @@ static void testWsHttpFutureConnectionsWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 
@@ -262,7 +263,7 @@ static void testWsHttpFutureConnectionsWait(
 		(xrtWsConnState(pServer) !=
 		 XWS_CONN_CLOSED) ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -1129,14 +1130,14 @@ static void testWsHttpFutureEngineDestroy(
 	xnetengine* pEngine
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"WebSocket Future retained an Engine object"
 		);
 		xrtThreadYield();

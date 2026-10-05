@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_sync.h"
 
 #include <errno.h>
@@ -163,7 +164,7 @@ XRT_API bool xrtSemDestroy(xsem* pSem)
 /* 等待并消费一个信号。 */
 XRT_API xwaitresult xrtSemWait(xsem* pSem)
 {
-	return xrtSemWaitUntil(pSem, XRT_DEADLINE_NEVER);
+	return __xrtSemWaitUntil(pSem, INFINITY);
 }
 
 
@@ -177,15 +178,15 @@ XRT_API xwaitresult xrtSemTryWait(xsem* pSem)
 
 
 /* 在相对微秒数内等待并消费一个信号。 */
-XRT_API xwaitresult xrtSemWaitFor(xsem* pSem, uint64 iTimeout)
+XRT_API xwaitresult xrtSemWaitFor(xsem* pSem, int64 iTimeout)
 {
-	return xrtSemWaitUntil(pSem, xrtDeadlineAfter(iTimeout));
+	return __xrtSemWaitUntil(pSem, __xrtWaitAfter(iTimeout));
 }
 
 
 
 /* 等待并消费一个信号到指定截止时间。 */
-XRT_API xwaitresult xrtSemWaitUntil(xsem* pSem, xdeadline iDeadline)
+XRT_API xwaitresult __xrtSemWaitUntil(xsem* pSem, double iDeadline)
 {
 	xrt_sem_impl* pImpl = __xrtSemRequire(pSem);
 
@@ -194,14 +195,14 @@ XRT_API xwaitresult xrtSemWaitUntil(xsem* pSem, xdeadline iDeadline)
 	}
 	#if defined(_WIN32) || defined(_WIN64)
 		for ( ;; ) {
-			uint64 iRemaining = xrtDeadlineRemaining(iDeadline);
+			int64 iRemaining = __xrtWaitRemaining(iDeadline);
 			DWORD iMilliseconds;
 			DWORD iResult;
 
 			if ( iRemaining == 0 ) {
 				iMilliseconds = 0;
 			} else {
-				iMilliseconds = iRemaining == UINT64_MAX ? INFINITE :
+				iMilliseconds = iRemaining == XRT_WAIT_FOREVER ? INFINITE :
 					(DWORD)__xrtWaitMilliseconds(iRemaining);
 			}
 			iResult = WaitForSingleObject(pImpl->Handle, iMilliseconds);
@@ -209,7 +210,7 @@ XRT_API xwaitresult xrtSemWaitUntil(xsem* pSem, xdeadline iDeadline)
 				return XWAIT_OK;
 			}
 			if ( iResult == WAIT_TIMEOUT ) {
-				if ( (iDeadline == XRT_DEADLINE_NEVER) || !xrtDeadlineExpired(iDeadline) ) {
+				if ( (iDeadline == INFINITY) || !__xrtWaitExpired(iDeadline) ) {
 					continue;
 				}
 				return XWAIT_TIMEOUT;
@@ -230,12 +231,12 @@ XRT_API xwaitresult xrtSemWaitUntil(xsem* pSem, xdeadline iDeadline)
 				return XWAIT_ERROR;
 			}
 			while ( pImpl->Value == 0 ) {
-				if ( iDeadline == XRT_DEADLINE_NEVER ) {
+				if ( iDeadline == INFINITY ) {
 					iResult = pthread_cond_wait(&pImpl->Condition, &pImpl->Lock);
 				} else {
 					struct timespec tDeadline;
 
-					if ( xrtDeadlineExpired(iDeadline) ) {
+					if ( __xrtWaitExpired(iDeadline) ) {
 						(void)pthread_mutex_unlock(&pImpl->Lock);
 						return XWAIT_TIMEOUT;
 					}

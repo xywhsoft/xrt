@@ -4,7 +4,7 @@
 #endif
 #define XRT_IMPLEMENTATION
 #define XRT_MODULE_MEMORY_DEBUG
-#include "../xoauth2-xrt.h"
+#include "support/runtime.h"
 
 /* 保留独立观察引用，避免 Destroy 隐式清理掩盖传输层遗漏的 Abort。 */
 static bool ObserveTransport;
@@ -28,7 +28,7 @@ static xnetretireresult observe_engine_retire(xnetengine* engine)
 }
 #define xrtTlsStreamRef observe_tls_ref
 #define xrtNetEngineTryDestroy observe_engine_retire
-#include "../xoauth2.c"
+#include "support/implementation.c"
 #undef xrtTlsStreamRef
 #undef xrtNetEngineTryDestroy
 

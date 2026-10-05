@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../fixtures/http_origin.h"
 
@@ -150,7 +151,7 @@ int main(void)
 	xhttpclientconfig ClientConfig;
 	xnetengine* pEngine;
 	xhttpclient* pClient;
-	xdeadline Deadline;
+	double Deadline;
 
 	xrtClearError();
 	testRequire(
@@ -184,11 +185,11 @@ int main(void)
 	testHttpEasyPostSync(pEngine, pClient);
 
 	xrtHttpClientDestroy(pClient);
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP easy Future Engine retained an object"
 		);
 		xrtThreadYield();

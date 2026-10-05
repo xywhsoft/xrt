@@ -1,5 +1,10 @@
 #define XACME_IMPLEMENTATION
-#include "../../single/xacme.h"
+#include "../../include/xacme/features.h"
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../../single/xrt.h"
+#include "../../../../single/extlibs/xacme.h"
 
 #include <string.h>
 

@@ -83,11 +83,11 @@ typedef struct xhttpserverconfig {
 	xnetserverconfig Network;
 	xhttp1serverconfig Http1;
 	size_t WriteSize;
-	uint64 HeaderTimeout;
-	uint64 BodyTimeout;
-	uint64 RequestTimeout;
-	uint64 IdleTimeout;
-	uint64 WriteTimeout;
+	int64 HeaderTimeout;
+	int64 BodyTimeout;
+	int64 RequestTimeout;
+	int64 IdleTimeout;
+	int64 WriteTimeout;
 	size_t MaxConnections;
 	size_t MaxInformations;
 } xhttpserverconfig;
@@ -158,7 +158,7 @@ typedef struct xhttpserverstats {
 	uint64 Informations;
 	uint64 Upgraded;
 	uint64 ProtocolErrors;
-	uint64 Timeouts;
+	int64 Timeouts;
 	size_t Connections;
 	size_t PeakConnections;
 	size_t Endpoints;

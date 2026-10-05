@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_process_pipeline.h"
 
 
@@ -229,7 +230,7 @@ static void __xrtProcessPipelineSignal(
 static bool __xrtProcessPipelineWaitAllUntil(
 	xprocess** pProcesses,
 	size_t iCount,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	bool bExited = true;
@@ -241,7 +242,7 @@ static bool __xrtProcessPipelineWaitAllUntil(
 			(xrtProcessState(pProcesses[i]) == XPROCESS_EXITED) ) {
 			continue;
 		}
-		Result = xrtProcessWaitUntil(pProcesses[i], iDeadline);
+		Result = __xrtProcessWaitUntil(pProcesses[i], iDeadline);
 		if ( Result != XWAIT_OK ) {
 			bExited = false;
 			if ( Result == XWAIT_ERROR ) {
@@ -269,7 +270,7 @@ static bool __xrtProcessPipelineStopAll(
 	if ( __xrtProcessPipelineWaitAllUntil(
 		pProcesses,
 		iCount,
-		xrtDeadlineAfter(iGrace)
+		__xrtWaitAfter(iGrace)
 	) ) {
 		return true;
 	}
@@ -281,7 +282,7 @@ static bool __xrtProcessPipelineStopAll(
 	if ( __xrtProcessPipelineWaitAllUntil(
 		pProcesses,
 		iCount,
-		xrtDeadlineAfter(iGrace)
+		__xrtWaitAfter(iGrace)
 	) ) {
 		return true;
 	}
@@ -348,7 +349,7 @@ XRT_API bool xrtProcessPipelineOptionsInit(
 		return false;
 	}
 	memset(pOptions, 0, sizeof(xprocesspipelineoptions));
-	pOptions->Deadline = XRT_DEADLINE_NEVER;
+	pOptions->Deadline = INFINITY;
 	pOptions->StopGrace = UINT64_C(250000);
 	pOptions->StdoutLimit = XPROCESS_CAPTURE_LIMIT_DEFAULT;
 	pOptions->StderrLimit = XPROCESS_CAPTURE_LIMIT_DEFAULT;
@@ -412,7 +413,7 @@ XRT_API bool xrtProcessPipeline(
 	xprocess** pProcesses = NULL;
 	xprocesspipe* pPipes = NULL;
 	xwaitresult Wait = XWAIT_OK;
-	uint64 iStart = 0u;
+	double iStart = 0u;
 	size_t iPumpCount = 0;
 	bool bNeedInput = false;
 	bool bLockReady = false;
@@ -513,7 +514,7 @@ XRT_API bool xrtProcessPipeline(
 		}
 	}
 
-	iStart = xrtClock();
+	iStart = xrtTimer();
 	for ( size_t i = 0u; i < iStageCount; i++ ) {
 		xprocessconfig Config = pStages[i];
 
@@ -597,7 +598,7 @@ XRT_API bool xrtProcessPipeline(
 	}
 
 	for ( size_t i = 0u; i < iStageCount; i++ ) {
-		Wait = xrtProcessWaitUntilCancel(
+		Wait = __xrtProcessWaitUntilCancel(
 			pProcesses[i],
 			Options.Deadline,
 			State.Control
@@ -649,7 +650,7 @@ XRT_API bool xrtProcessPipeline(
 	);
 	pResult->StdoutTruncated = pPumps[0].Truncated;
 	pResult->Wait = __xrtProcessPipelineFailed(&State) ? XWAIT_ERROR : Wait;
-	pResult->Duration = xrtClock() - iStart;
+	pResult->Duration = xrtTimer() - iStart;
 	pStageResults = NULL;
 	bOk = !__xrtProcessPipelineFailed(&State);
 	goto cleanup;

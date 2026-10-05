@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../bench_common.h"
 
 #define XRT_MODULE_COROUTINE_SCHEDULER
@@ -20,7 +21,7 @@ static ptr benchCoroutineTimerProc(ptr pData)
 	benchcoroutinetimer* pState = (benchcoroutinetimer*)pData;
 
 	while ( pState->Completed < pState->Target ) {
-		if ( xrtCoSleepUntil(xrtDeadlineAfter(0)) != XWAIT_OK ) {
+		if ( __xrtCoSleepUntil(__xrtWaitAfter(0)) != XWAIT_OK ) {
 			return NULL;
 		}
 		pState->Completed++;

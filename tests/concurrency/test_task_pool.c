@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -221,13 +222,13 @@ static void testTaskBarrierDestroy(ptr pValue, ptr pData)
 /* 等待任务数据析构进入测试屏障。 */
 static void testTaskBarrierWait(testtaskbarrier* pBarrier)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( xrtAtomic32Load(
 		&pBarrier->Destroying,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"task data destroy barrier did not start");
 		xrtThreadYield();
 	}

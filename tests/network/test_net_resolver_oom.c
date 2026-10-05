@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -277,7 +278,7 @@ static void testResolverOomWaitIdle(
 	uint32 iCallbacks
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	for ( ;; ) {
 		xnetresolverstats Stats;
@@ -295,7 +296,7 @@ static void testResolverOomWaitIdle(
 			 (Stats.ReadyCallbacks == 0) ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"resolver OOM work did not become idle");
 		xrtThreadYield();
 	}

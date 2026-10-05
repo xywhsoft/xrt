@@ -1,10 +1,11 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
 
 typedef struct testsmtpsubmitserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	cstr Message;
 	size_t MessageSize;
 	bool Success;
@@ -41,7 +42,7 @@ static xnetaddrlist* testSmtpSubmitResolve(
 static bool testSmtpSubmitServerSend(
 	xnetstream* pStream,
 	cstr sText,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iSize = strlen(sText);
@@ -52,7 +53,7 @@ static bool testSmtpSubmitServerSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -70,13 +71,13 @@ static bool testSmtpSubmitServerReceiveBytes(
 	xnetstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -105,7 +106,7 @@ static bool testSmtpSubmitServerReceiveBytes(
 static bool testSmtpSubmitServerReceive(
 	xnetstream* pStream,
 	cstr sExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return testSmtpSubmitServerReceiveBytes(
@@ -157,7 +158,7 @@ static bool testSmtpSubmitServerRejectData(
 /* DATA 命令被拒后必须显式 RSET，且原始错误不能被恢复回复覆盖。 */
 static bool testSmtpSubmitServerRejectDataBegin(
 	xnetstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return testSmtpSubmitServerReceive(pStream,
@@ -186,7 +187,7 @@ static bool testSmtpSubmitServerRejectDataBegin(
 static int32 testSmtpSubmitServer(ptr pData)
 {
 	testsmtpsubmitserver* pServer = (testsmtpsubmitserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -328,7 +329,7 @@ static int32 testSmtpSubmitServer(ptr pData)
 		pStream,
 		"221 closing\r\n",
 		pServer->Deadline
-	) && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+	) && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		pServer->Deadline,
@@ -345,7 +346,7 @@ static int32 testSmtpSubmitServer(ptr pData)
 static int32 testSmtpSubmitClosingServer(ptr pData)
 {
 	testsmtpsubmitserver* pServer = (testsmtpsubmitserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener, pServer->Deadline, NULL);
 	bool bSuccess;
 
@@ -362,7 +363,7 @@ static int32 testSmtpSubmitClosingServer(ptr pData)
 			"MAIL FROM:<sender@example.com>\r\n", pServer->Deadline) &&
 		testSmtpSubmitServerSend(pStream,
 			"421 service shutting down\r\n", pServer->Deadline) &&
-		xrtNetStreamClose(pStream) && xrtNetStreamWait(
+		xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 			pStream, XNET_STREAM_WAIT_CLOSE,
 			pServer->Deadline, NULL);
 	pServer->Success = bSuccess;
@@ -377,7 +378,7 @@ static int32 testSmtpSubmitClosingServer(ptr pData)
 static int32 testSmtpSubmitHelloClosingServer(ptr pData)
 {
 	testsmtpsubmitserver* pServer = (testsmtpsubmitserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener, pServer->Deadline, NULL);
 	bool bSuccess;
 
@@ -391,7 +392,7 @@ static int32 testSmtpSubmitHelloClosingServer(ptr pData)
 		testSmtpSubmitServerSend(pStream,
 			"421-service shutting down\r\n421 now\r\n",
 			pServer->Deadline) &&
-		xrtNetStreamClose(pStream) && xrtNetStreamWait(
+		xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 			pStream, XNET_STREAM_WAIT_CLOSE,
 			pServer->Deadline, NULL);
 	pServer->Success = bSuccess;
@@ -463,7 +464,7 @@ int main(void)
 	xnetlistener* pListener;
 	xsmtpclient* pClient;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 	str sMessage;
 	bytes pWireMessage;
 	size_t iMessageSize;
@@ -507,7 +508,7 @@ int main(void)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "SMTP submit resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Message = (cstr)pWireMessage;
@@ -521,14 +522,14 @@ int main(void)
 	ClientConfig.Net.Host = "submit.test";
 	ClientConfig.Net.Port = TestSmtpSubmitAddress.Port;
 	ClientConfig.Hello = (xstrview)XRT_STR_LITERAL("client.test");
-	pClient = xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire(pClient != NULL, "SMTP submit client open failed");
 
 	InvalidMessage = Message;
 	InvalidMessage.ToCount = 0;
 	InvalidMessage.CcCount = 0;
 	InvalidMessage.BccCount = 0;
-	testRequire(!xrtSmtpSubmit(
+	testRequire(!__xrtSmtpSubmit(
 		pClient,
 		&InvalidMessage,
 		Deadline,
@@ -547,7 +548,7 @@ int main(void)
 		&RejectRecipient,
 		1u
 	};
-	testRequire(!xrtSmtpSubmitEnvelope(
+	testRequire(!__xrtSmtpSubmitEnvelope(
 		pClient,
 		&Envelope,
 		&Message,
@@ -559,7 +560,7 @@ int main(void)
 		"SMTP submit did not preserve RCPT failure after RSET");
 	xrtClearError();
 
-	testRequire(xrtSmtpSubmit(pClient, &Message, Deadline, NULL) &&
+	testRequire(__xrtSmtpSubmit(pClient, &Message, Deadline, NULL) &&
 		(xrtSmtpClientState(pClient) == XSMTP_CLIENT_READY),
 		"SMTP submit automatic envelope failed");
 	AdvancedRecipient = (xsmtprecipient){
@@ -572,7 +573,7 @@ int main(void)
 		&AdvancedRecipient,
 		1u
 	};
-	testRequire(xrtSmtpSubmitEnvelope(
+	testRequire(__xrtSmtpSubmitEnvelope(
 		pClient,
 		&Envelope,
 		&Message,
@@ -580,7 +581,7 @@ int main(void)
 		NULL
 	), "SMTP submit independent envelope failed");
 	xrtClearError();
-	testRequire(!xrtSmtpSubmit(pClient, &Message, Deadline, NULL) &&
+	testRequire(!__xrtSmtpSubmit(pClient, &Message, Deadline, NULL) &&
 		(xrtSmtpClientState(pClient) == XSMTP_CLIENT_READY) &&
 		(xrtErrorKind(xrtGetError()) == XERR_PROTOCOL) &&
 		xrtSmtpClientLastReply(pClient, &Reply) &&
@@ -589,31 +590,31 @@ int main(void)
 			XRT_STR_LITERAL("message rejected")),
 		"SMTP submit lost final DATA rejection or READY state");
 	xrtClearError();
-	testRequire(!xrtSmtpSubmitEnvelope(
+	testRequire(!__xrtSmtpSubmitEnvelope(
 		pClient, &Envelope, &Message, Deadline, NULL
 	) && (xrtSmtpClientState(pClient) == XSMTP_CLIENT_READY) &&
 		(xrtErrorKind(xrtGetError()) == XERR_PROTOCOL),
 		"SMTP submit lost DATA command rejection after RSET");
 	xrtClearError();
-	testRequire(xrtSmtpClientQuit(pClient, Deadline, NULL),
+	testRequire(__xrtSmtpClientQuit(pClient, Deadline, NULL),
 		"SMTP submit QUIT failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"SMTP submit server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"SMTP submit server transcript mismatch");
 
 	xrtThreadDestroy(pThread);
 	xrtSmtpClientDestroy(pClient);
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Deadline = Deadline;
 	Server.Success = false;
 	pThread = xrtThreadCreate(testSmtpSubmitClosingServer, &Server, 0);
 	testRequire(pThread != NULL,
 		"SMTP closing server thread creation failed");
-	pClient = xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire(pClient != NULL, "SMTP closing scenario open failed");
 	xrtClearError();
-	testRequire(!xrtSmtpSubmit(pClient, &Message, Deadline, NULL) &&
+	testRequire(!__xrtSmtpSubmit(pClient, &Message, Deadline, NULL) &&
 		(xrtErrorKind(xrtGetError()) == XERR_CLOSED) &&
 		(xrtSmtpClientState(pClient) == XSMTP_CLIENT_FAILED) &&
 		xrtSmtpClientLastReply(pClient, &Reply) &&
@@ -622,15 +623,15 @@ int main(void)
 			XRT_STR_LITERAL("service shutting down")),
 		"SMTP 421 did not fail session or preserve reply");
 	xrtClearError();
-	testRequire(!xrtSmtpClientQuit(pClient, Deadline, NULL) &&
+	testRequire(!__xrtSmtpClientQuit(pClient, Deadline, NULL) &&
 		(xrtErrorKind(xrtGetError()) == XERR_STATE),
 		"SMTP sent a command after 421");
 	xrtSmtpClientDestroy(pClient);
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
 		Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"SMTP 421 server transcript mismatch");
 	xrtThreadDestroy(pThread);
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Deadline = Deadline;
 	Server.Success = false;
 	pThread = xrtThreadCreate(testSmtpSubmitHelloClosingServer,
@@ -638,11 +639,11 @@ int main(void)
 	testRequire(pThread != NULL,
 		"SMTP EHLO 421 server thread creation failed");
 	xrtClearError();
-	pClient = xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire((pClient == NULL) &&
 		(xrtErrorKind(xrtGetError()) == XERR_CLOSED),
 		"SMTP EHLO 421 was not a connection failure");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
 		Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"SMTP EHLO 421 server transcript mismatch");
 	xrtThreadDestroy(pThread);

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 #include "../../../tests/fixtures/tls_server.h"
 
@@ -16,7 +17,7 @@ typedef struct testpop3stlsupgrade {
 typedef struct testpop3stlsserver {
 	xnetlistener* Listener;
 	const xtlsserverconfig* Tls;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } testpop3stlsserver;
 
@@ -50,11 +51,11 @@ static xnetaddrlist* testPop3StlsResolve(
 /* 等待 TLS Future 成功完成。 */
 static bool testPop3StlsFuture(
 	xfuture* pFuture,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return (pFuture != NULL) &&
-		(xrtFutureWaitUntil(pFuture, iDeadline) == XWAIT_OK) &&
+		(__xrtFutureWaitUntil(pFuture, iDeadline) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED);
 }
 
@@ -96,7 +97,7 @@ static void testPop3StlsUpgradeTask(
 static xtlsstream* testPop3StlsUpgrade(
 	xnetstream** ppTcp,
 	const xtlsserverconfig* pServer,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	testpop3stlsupgrade Upgrade;
@@ -154,7 +155,7 @@ static bool testPop3StlsPlainSend(
 	xnetstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -163,7 +164,7 @@ static bool testPop3StlsPlainSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -181,13 +182,13 @@ static bool testPop3StlsPlainReceive(
 	xnetstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -217,7 +218,7 @@ static bool testPop3StlsSend(
 	xtlsstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xfuture* pFuture = xrtTlsStreamSendAsync(pStream, sText, iSize);
@@ -234,7 +235,7 @@ static bool testPop3StlsReceive(
 	xtlsstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
@@ -274,7 +275,7 @@ static bool testPop3StlsReceive(
 static int32 testPop3StlsServer(ptr pData)
 {
 	testpop3stlsserver* pServer = (testpop3stlsserver*)pData;
-	xnetstream* pTcp = xrtNetListenerAcceptWait(
+	xnetstream* pTcp = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -396,7 +397,7 @@ int main(void)
 	xnetlistener* pListener;
 	xpop3client* pClient;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 
 	pContext = testTlsServerContext();
 	pIdentity = testTlsServerIdentity();
@@ -434,7 +435,7 @@ int main(void)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "POP3 STLS resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Tls = &ServerConfig;
 	Server.Deadline = Deadline;
@@ -449,7 +450,7 @@ int main(void)
 	Config.Net.Security = XMAIL_SECURITY_STARTTLS;
 	Config.Net.Tls.Context = pContext;
 	Config.Net.Tls.Verifier = pVerifier;
-	pClient = xrtPop3ClientOpen(&Config, Deadline, NULL);
+	pClient = __xrtPop3ClientOpen(&Config, Deadline, NULL);
 	testRequire((pClient != NULL) &&
 		(xrtPop3ClientSecurity(pClient) == XMAIL_SECURITY_TLS) &&
 		((xrtPop3ClientCapabilities(pClient) & XPOP3_CAP_STLS) == 0) &&
@@ -457,7 +458,7 @@ int main(void)
 			(XPOP3_CAP_USER | XPOP3_CAP_UIDL)) ==
 			(XPOP3_CAP_USER | XPOP3_CAP_UIDL)),
 		"POP3 STLS open or post-upgrade CAPA failed");
-	testRequire(xrtPop3ClientLogin(
+	testRequire(__xrtPop3ClientLogin(
 		pClient,
 		XRT_STR_LITERAL("user"),
 		XRT_STR_LITERAL("pass"),
@@ -465,9 +466,9 @@ int main(void)
 		Deadline,
 		NULL
 	), "POP3 STLS USER/PASS failed");
-	testRequire(xrtPop3ClientQuit(pClient, Deadline, NULL),
+	testRequire(__xrtPop3ClientQuit(pClient, Deadline, NULL),
 		"POP3 STLS QUIT failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"POP3 STLS server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"POP3 STLS transcript mismatch");

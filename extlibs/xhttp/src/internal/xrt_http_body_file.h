@@ -13,7 +13,7 @@ typedef struct xrt_http_body_file_cursor {
 	xasyncfile* File;
 	xfuture* Pending;
 	uint64 Offset;
-	uint64 Remaining;
+	int64 Remaining;
 	size_t ReadSize;
 	size_t Requested;
 	size_t ReadyOffset;

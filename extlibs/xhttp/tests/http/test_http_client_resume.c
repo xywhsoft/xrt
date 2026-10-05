@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../fixtures/tls_server.h"
 
 
@@ -49,13 +50,13 @@ static void testHttpClientResumeWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(Deadline), sMessage);
+		testRequire(!__xrtWaitExpired(Deadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -67,7 +68,7 @@ static void testHttpClientResumeEngineDestroy(
 	xnetengine* pEngine
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		const xerror* pError = xrtGetError();
@@ -80,7 +81,7 @@ static void testHttpClientResumeEngineDestroy(
 		);
 		xrtClearError();
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP resume retained an Engine object"
 		);
 		xrtThreadYield();

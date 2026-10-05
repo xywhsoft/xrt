@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../src/internal/xrt_mail_net.h"
 #include "../test.h"
 #include "../test_tls.h"
@@ -9,13 +10,13 @@ typedef struct testmailtlsclosepark {
 	xatomic32 Entered;
 	xatomic32 Release;
 	xatomic32 Exited;
-	xdeadline Deadline;
+	double Deadline;
 } testmailtlsclosepark;
 
 typedef struct testmailtlscloseserver {
 	xnetlistener* Listener;
 	const xtlsserverconfig* Tls;
-	xdeadline Deadline;
+	double Deadline;
 	xatomic32 Returned;
 	bool Success;
 } testmailtlscloseserver;
@@ -39,7 +40,7 @@ static void testMailTlsCloseParkWorker(xnetworker* Worker, ptr Data)
 	(void)Worker;
 	xrtAtomic32Store(&Park->Entered, 1u, XMEMORY_RELEASE);
 	while ( !xrtAtomic32Load(&Park->Release, XMEMORY_ACQUIRE) ) {
-		testRequire(!xrtDeadlineExpired(Park->Deadline), "mail TLS close Worker park timed out");
+		testRequire(!__xrtWaitExpired(Park->Deadline), "mail TLS close Worker park timed out");
 		xrtThreadYield();
 	}
 	xrtAtomic32Store(&Park->Exited, 1u, XMEMORY_RELEASE);
@@ -48,7 +49,7 @@ static void testMailTlsCloseParkWorker(xnetworker* Worker, ptr Data)
 static int32 testMailTlsCloseServer(ptr Data)
 {
 	testmailtlscloseserver* Server = (testmailtlscloseserver*)Data;
-	xnetstream* Tcp = xrtNetListenerAcceptWait(Server->Listener, Server->Deadline, NULL);
+	xnetstream* Tcp = __xrtNetListenerAcceptWait(Server->Listener, Server->Deadline, NULL);
 	xtlsstream* Tls;
 	bool Success;
 	if ( Tcp == NULL ) return 1;
@@ -58,13 +59,13 @@ static int32 testMailTlsCloseServer(ptr Data)
 		testMailPartialWaitFlag(&Server->Returned, Server->Deadline);
 	if ( Success ) {
 		xfuture* Read = xrtTlsStreamRecvAsync(Tls, 1u);
-		Success = Read != NULL && xrtFutureWaitUntil(Read, Server->Deadline) == XWAIT_OK &&
+		Success = Read != NULL && __xrtFutureWaitUntil(Read, Server->Deadline) == XWAIT_OK &&
 			xrtFutureState(Read) == XFUTURE_FAILED && xrtTlsStreamState(Tls) == XTLS_STREAM_FAILED;
 		xrtFutureDestroy(Read);
 	}
 	(void)xrtTlsStreamAbort(Tls);
 	while ( xrtTlsStreamState(Tls) != XTLS_STREAM_FAILED && xrtTlsStreamState(Tls) != XTLS_STREAM_CLOSED ) {
-		if ( xrtDeadlineExpired(Server->Deadline) ) { Success = false; break; }
+		if ( __xrtWaitExpired(Server->Deadline) ) { Success = false; break; }
 		xrtThreadYield();
 	}
 	xrtTlsStreamDestroy(Tls);
@@ -122,7 +123,7 @@ int main(void)
 	memset(&Server, 0, sizeof(Server));
 	Server.Listener = Listener;
 	Server.Tls = &TlsServer;
-	Server.Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Server.Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	xrtAtomic32Init(&Server.Returned, 0u);
 	xthread* Thread = xrtThreadCreate(testMailTlsCloseServer, &Server, 0);
 	testRequire(Thread != NULL, "mail TLS close server thread creation failed");
@@ -142,7 +143,7 @@ int main(void)
 		"mail TLS close Worker park failed");
 	xrtClearError();
 	testRequire(xrtMemDebugFailAfter(0), "mail TLS close allocation injection failed");
-	bool Closed = __xrtMailTransportClose(&Transport, xrtDeadlineAfter(UINT64_C(1000000)));
+	bool Closed = __xrtMailTransportClose(&Transport, __xrtWaitAfter(UINT64_C(1000000)));
 	xerror* Failure = xrtTakeError();
 	xrtMemDebugFailClear();
 	bool Aborted = xrtAtomic32Load(&Observer->AbortGate, XMEMORY_ACQUIRE) != 0;
@@ -153,15 +154,15 @@ int main(void)
 	testRequire(Aborted, "mail TLS close allocation failure did not request Abort");
 	xrtErrorFree(Failure);
 	xrtAtomic32Store(&Server.Returned, 1u, XMEMORY_RELEASE);
-	testRequire(xrtThreadWaitUntil(Thread, Server.Deadline) == XWAIT_OK && Server.Success &&
+	testRequire(__xrtThreadWaitUntil(Thread, Server.Deadline) == XWAIT_OK && Server.Success &&
 		xrtThreadExitCode(Thread) == 0, "mail TLS close OOM did not abort before transport destruction");
 	xrtThreadDestroy(Thread);
 	__xrtMailTransportDestroy(&Transport);
 	xrtTlsStreamDestroy(Observer);
 	testRequire(xrtNetListenerClose(Listener), "mail TLS close listener close failed");
-	xdeadline Retire = xrtDeadlineAfter(UINT64_C(3000000));
+	double Retire = __xrtWaitAfter(UINT64_C(3000000));
 	while ( xrtNetListenerState(Listener) != XNET_LISTENER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(Retire), "mail TLS close listener did not close");
+		testRequire(!__xrtWaitExpired(Retire), "mail TLS close listener did not close");
 		xrtThreadYield();
 	}
 	xrtNetListenerDestroy(Listener);
@@ -172,7 +173,7 @@ int main(void)
 	for ( ;; ) {
 		xnetretireresult Result = xrtNetEngineTryDestroy(Engine);
 		if ( Result == XNET_RETIRE_READY ) break;
-		testRequire(Result != XNET_RETIRE_ERROR && !xrtDeadlineExpired(Retire),
+		testRequire(Result != XNET_RETIRE_ERROR && !__xrtWaitExpired(Retire),
 			"mail TLS close engine did not retire");
 		xrtThreadYield();
 	}

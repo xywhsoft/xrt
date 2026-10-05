@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/port_tour —— 事件端口：readiness 与 completion 双形态
  * ----------------------------------------------------------------
@@ -46,7 +47,7 @@ static size_t g_iPending = 0;
 
 /* 等待一个匹配 (Type, Id) 的端口事件；成功返回 true 并写出事件。 */
 static bool exampleWaitFor(xnetport* pPort, xnetporteventtype Type,
-	uint64 Id, xnetportevent* pEvent, uint64 iTimeoutUs)
+	uint64 Id, xnetportevent* pEvent, int64 iTimeoutUs)
 {
 	xnetportevent Events[8];
 	size_t iCount = 0;
@@ -64,8 +65,8 @@ static bool exampleWaitFor(xnetport* pPort, xnetporteventtype Type,
 				return true;
 			}
 		}
-		if ( xrtNetPortWait(pPort, Events, 8u,
-				xrtDeadlineAfter(iTimeoutUs / 100u),
+		if ( __xrtNetPortWait(pPort, Events, 8u,
+				__xrtWaitAfter(iTimeoutUs / 100u),
 				&iCount) != XNET_RESULT_OK ) {
 			continue;
 		}

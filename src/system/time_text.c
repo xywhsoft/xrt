@@ -262,7 +262,7 @@ static bool __xrtTimeWriteToken(__xrt_time_writer* pWriter,
 			break;
 		case 'M': __xrtTimeWriterUInt(pWriter, (uint64)pDateTime->Minute, iWidth, '0'); break;
 		case 'S': __xrtTimeWriterUInt(pWriter, (uint64)pDateTime->Second, iWidth, '0'); break;
-		case 'f': __xrtTimeWriterUInt(pWriter, (uint64)pDateTime->Microsecond, 6, '0'); break;
+		case 'f': __xrtTimeWriterUInt(pWriter, (uint64)pDateTime->Millisecond, 3, '0'); break;
 		case 'p': __xrtTimeWriterCStr(pWriter, pDateTime->Hour < 12 ? "AM" : "PM"); break;
 		case 'P': __xrtTimeWriterCStr(pWriter, pDateTime->Hour < 12 ? "am" : "pm"); break;
 		case 'a': __xrtTimeWriterCStr(pWriter, __xrtTimeWeekShort[pDateTime->Weekday]); break;
@@ -886,8 +886,8 @@ static bool __xrtTimeParseToken(xstrview Text, size_t* pTextPosition,
 			}
 			break;
 		case 'f':
-			if ( !__xrtTimeParseDigits(Text, pTextPosition, 6,
-				&pState->Value.Microsecond) ) {
+			if ( !__xrtTimeParseDigits(Text, pTextPosition, 3,
+				&pState->Value.Millisecond) ) {
 				return false;
 			}
 			break;
@@ -1172,8 +1172,8 @@ XRT_API size_t xrtTimeWriteRFC3339(char* sBuffer, size_t iCapacity,
 {
 	__xrt_time_writer tWriter;
 	xdatetime tDateTime;
-	char arrFraction[6];
-	int iFractionSize = 6;
+	char arrFraction[3];
+	int iFractionSize = 3;
 	int iFraction;
 
 	if ( (sBuffer != NULL) && (iCapacity != 0) ) {
@@ -1191,14 +1191,14 @@ XRT_API size_t xrtTimeWriteRFC3339(char* sBuffer, size_t iCapacity,
 	if ( !xrtTimeSplitAt(iTime, iOffset, &tDateTime) ) {
 		return XRT_NPOS;
 	}
-	if ( (tDateTime.Year < 0) || (tDateTime.Year > 9999) ) {
+	if ( (tDateTime.Year < -1) || (tDateTime.Year > 9999) ) {
 		__xrtTimeSetError(XERR_RANGE, XTIME_ERROR_RANGE, "rfc3339-format",
 			"RFC 3339 requires a four-digit non-negative year", 0);
 		return XRT_NPOS;
 	}
 
 	__xrtTimeWriterInit(&tWriter, sBuffer, iCapacity);
-	__xrtTimeWriterUInt(&tWriter, (uint64)tDateTime.Year, 4, '0');
+	__xrtTimeWriterUInt(&tWriter, tDateTime.Year == -1 ? 0 : (uint64)tDateTime.Year, 4, '0');
 	__xrtTimeWriterByte(&tWriter, '-');
 	__xrtTimeWriterUInt(&tWriter, (uint64)tDateTime.Month, 2, '0');
 	__xrtTimeWriterByte(&tWriter, '-');
@@ -1209,9 +1209,9 @@ XRT_API size_t xrtTimeWriteRFC3339(char* sBuffer, size_t iCapacity,
 	__xrtTimeWriterUInt(&tWriter, (uint64)tDateTime.Minute, 2, '0');
 	__xrtTimeWriterByte(&tWriter, ':');
 	__xrtTimeWriterUInt(&tWriter, (uint64)tDateTime.Second, 2, '0');
-	if ( tDateTime.Microsecond != 0 ) {
-		iFraction = tDateTime.Microsecond;
-		for ( int i = 5; i >= 0; i-- ) {
+	if ( tDateTime.Millisecond != 0 ) {
+		iFraction = tDateTime.Millisecond;
+		for ( int i = 2; i >= 0; i-- ) {
 			arrFraction[i] = (char)('0' + (iFraction % 10));
 			iFraction /= 10;
 		}
@@ -1260,14 +1260,14 @@ static bool __xrtTimeParseRFC3339Value(xstrview Text, xtime* pTime)
 	size_t iPosition = 0;
 	size_t iFractionDigits = 0;
 	int iValue;
-	int iMicrosecond = 0;
+	int iMillisecond = 0;
 	xtime iResult = 0;
 
 	memset(&tDateTime, 0, sizeof(tDateTime));
 	if ( !__xrtTimeParseDigits(Text, &iPosition, 4, &iValue) ) {
 		return false;
 	}
-	tDateTime.Year = iValue;
+	tDateTime.Year = iValue == 0 ? -1 : iValue;
 	if ( (iPosition >= Text.Size) || (Text.Data[iPosition++] != '-') ) {
 		return false;
 	}
@@ -1304,8 +1304,8 @@ static bool __xrtTimeParseRFC3339Value(xstrview Text, xtime* pTime)
 		iPosition++;
 		while ( (iPosition < Text.Size) && (Text.Data[iPosition] >= '0') &&
 			 (Text.Data[iPosition] <= '9') ) {
-			if ( iFractionDigits < 6 ) {
-				iMicrosecond = (iMicrosecond * 10) + (Text.Data[iPosition] - '0');
+			if ( iFractionDigits < 3 ) {
+				iMillisecond = (iMillisecond * 10) + (Text.Data[iPosition] - '0');
 			}
 			iFractionDigits++;
 			iPosition++;
@@ -1313,11 +1313,11 @@ static bool __xrtTimeParseRFC3339Value(xstrview Text, xtime* pTime)
 		if ( iFractionDigits == 0 ) {
 			return false;
 		}
-		while ( iFractionDigits < 6 ) {
-			iMicrosecond *= 10;
+		while ( iFractionDigits < 3 ) {
+			iMillisecond *= 10;
 			iFractionDigits++;
 		}
-		tDateTime.Microsecond = iMicrosecond;
+		tDateTime.Millisecond = iMillisecond;
 	}
 	if ( !__xrtTimeParseOffset(Text, &iPosition, true, &tDateTime.Offset) ||
 		 (iPosition != Text.Size) ||

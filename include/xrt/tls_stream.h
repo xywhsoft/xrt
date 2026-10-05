@@ -76,8 +76,8 @@ typedef struct xtlsstream xtlsstream;
 	AsyncBatch 限制一次 Worker 轮转完成的操作数。
 */
 typedef struct xtlsstreamconfig {
-	uint64 HandshakeTimeout;
-	uint64 CloseTimeout;
+	int64 HandshakeTimeout;
+	int64 CloseTimeout;
 	size_t AsyncBytesLimit;
 	uint32 AsyncCountLimit;
 	uint32 AsyncBatch;
@@ -152,7 +152,7 @@ typedef enum xtlsdialstate {
 typedef struct xtlsdialconfig {
 	xnetdialconfig Transport;
 	xtlsstreamconfig Stream;
-	uint64 Timeout;
+	int64 Timeout;
 	bool ServerNameFromHost;
 } xtlsdialconfig;
 
@@ -340,7 +340,7 @@ XRT_API xfuture* xrtTlsListenerAcceptAsync(xtlslistener* pListener);
 /* 阻塞接受一个已完成握手的 Stream；禁止从该 Engine 的 Worker 调用。 */
 XRT_API xtlsstream* xrtTlsListenerAcceptWait(
 	xtlslistener* pListener,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 #endif

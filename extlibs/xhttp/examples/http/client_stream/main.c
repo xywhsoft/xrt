@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
@@ -267,7 +268,7 @@ int main(void)
 	xnetlistenerevents ListenerEvents;
 	xnetstreamevents ClientEvents;
 	xnetaddr Address;
-	xdeadline iDeadline;
+	double iDeadline;
 	int iResult = 1;
 
 	memset(&Example, 0, sizeof(Example));
@@ -319,12 +320,12 @@ int main(void)
 		exampleHttpCallError("connect HTTP client");
 		goto Cleanup;
 	}
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( xrtAtomic32Load(
 		&Example.Done,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			fprintf(stderr, "HTTP call timed out\n");
 			goto Cleanup;
 		}
@@ -348,7 +349,7 @@ Cleanup:
 		 XNET_LISTENER_CLOSED) ) {
 		(void)xrtNetListenerClose(Example.Listener);
 	}
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( ((Example.Client != NULL) &&
 		  (xrtNetStreamState(Example.Client) !=
 		   XNET_STREAM_CLOSED)) ||
@@ -358,7 +359,7 @@ Cleanup:
 		 ((Example.Listener != NULL) &&
 		  (xrtNetListenerState(Example.Listener) !=
 		   XNET_LISTENER_CLOSED)) ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			iResult = 1;
 			break;
 		}

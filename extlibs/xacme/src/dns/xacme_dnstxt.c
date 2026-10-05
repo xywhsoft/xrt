@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xacme_dnstxt.h"
 
 #if defined(XACME_FEATURE_ACME_DNS)
@@ -68,13 +69,13 @@ bool xacmeDnsUnit(xacmedns* pDns)
 	pPrevious = xrtErrorRef(xrtGetError());
 	if(pDns->bEngineOwned && (pDns->pEngine != NULL))
 	{
-		xdeadline Deadline = xrtDeadlineAfter(UINT64_C(30000000));
+		double Deadline = __xrtWaitAfter(UINT64_C(30000000));
 		for(;;)
 		{
 			xnetretireresult Result = xrtNetEngineTryDestroy(pDns->pEngine);
 			if(Result == XNET_RETIRE_READY) break;
 			if(Result == XNET_RETIRE_ERROR) { bReady = false; break; }
-			if(xrtDeadlineExpired(Deadline))
+			if(__xrtWaitExpired(Deadline))
 			{
 				xacmeTxtError(XERR_TIMEOUT, XACME_TXT_ERROR_TIMEOUT,
 					"acme dns engine still has live objects during cleanup");
@@ -358,8 +359,8 @@ bool xacmeDnsTxtQuery(
 		bool bGot = false;
 		for(iAttempt = 0; (iAttempt < 2) && !bGot; iAttempt++)
 		{
-			pPacket = xrtNetUdpReceiveWait(
-				pUdp, xrtClock() + UINT64_C(2000000), NULL);
+			pPacket = __xrtNetUdpReceiveWait(
+				pUdp, xrtTimer() + UINT64_C(2000000), NULL);
 			if(pPacket == NULL)
 			{
 				if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) goto Done;
@@ -437,9 +438,9 @@ Protocol:
 
 bool xacmeDnsTxtWait(
 	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
-	cstr sExpected, uint64 uTimeoutMs)
+	cstr sExpected, int64 uTimeoutMs)
 {
-	uint64 uDeadline = xrtClock() + uTimeoutMs * 1000u;
+	uint64 uDeadline = xrtTimer() + uTimeoutMs * 1000u;
 	if((sExpected == NULL) || (sExpected[0] == '\0'))
 	{
 		xacmeTxtError(
@@ -447,7 +448,7 @@ bool xacmeDnsTxtWait(
 			"acme dns txt wait requires expected value");
 		return false;
 	}
-	while(xrtClock() < uDeadline)
+	while(xrtTimer() < uDeadline)
 	{
 		char sRecords[4][XACME_TXT_RECORD_MAX];
 		size_t iCount = 0u;

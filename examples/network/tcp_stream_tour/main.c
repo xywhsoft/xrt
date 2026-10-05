@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/tcp_stream_tour —— Stream 发送/读取/等待/流控全族
  * ----------------------------------------------------------------
@@ -10,7 +11,7 @@
  *   【读取族】    xrtNetStreamAvailable（并发快照）
  *                  xrtNetStreamBuffer / Read / Consume（仅 Worker 内，
  *                  经 xrtNetPost 投递到 Stream 所属 Worker 执行）
- *   【等待族】    xrtNetStreamWait / WaitAvailable（阻塞式）
+ *   【等待族】    __xrtNetStreamWait / WaitAvailable（阻塞式）
  *                  xrtNetStreamWaitAvailableAsync（Future 式）
  *   【流控】      xrtNetStreamPause / Resume
  *   【半关闭】    xrtNetStreamShutdownWrite（对端读到 EOF）
@@ -101,10 +102,10 @@ static void exampleStreamTask(xnetworker* pWorker, ptr pData)
 
 static bool exampleWaitDone(volatile bool* pFlag)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 	while ( !*pFlag ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -115,10 +116,10 @@ static bool exampleWaitDone(volatile bool* pFlag)
 static bool exampleWaitStreamState(xnetstream* pStream,
 	xnetstreamstate State)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 	while ( xrtNetStreamState(pStream) != State ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -175,11 +176,11 @@ int main(void)
 		goto Cleanup;
 	}
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+		double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 		while ( (pServer = xrtNetListenerAccept(pListener)) ==
 			NULL ) {
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				iResult = 4;
 				goto Cleanup;
 			}
@@ -249,15 +250,15 @@ int main(void)
 	File = NULL;
 
 	/* 对端整体核对 55 字节。 */
-	if ( !xrtNetStreamWaitAvailable(pServer, sizeof(sExpected) - 1u,
-		xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL) ) {
+	if ( !__xrtNetStreamWaitAvailable(pServer, sizeof(sExpected) - 1u,
+		__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL) ) {
 		iResult = 7;
 		goto Cleanup;
 	}
 	{
-		xnetbytes* pBytes = xrtNetStreamRecv(pServer,
+		xnetbytes* pBytes = __xrtNetStreamRecv(pServer,
 			sizeof(sExpected) - 1u,
-			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL);
+			__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL);
 		xbytesview View = xrtNetBytesView(pBytes);
 		bool bMatch = (View.Size == sizeof(sExpected) - 1u) &&
 			(memcmp(View.Data, sExpected, View.Size) == 0);
@@ -272,10 +273,10 @@ int main(void)
 		sizeof(sExpected) - 1u);
 	/* 发送队列排空：Pending 归零。 */
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+		double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 		while ( xrtNetStreamPending(pClient) != 0u ) {
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				iResult = 9;
 				goto Cleanup;
 			}
@@ -287,8 +288,8 @@ int main(void)
 	if ( xrtNetStreamSend(pClient, "buf-demo", 8) != XNET_RESULT_OK ) {
 		goto Cleanup;
 	}
-	if ( !xrtNetStreamWaitAvailable(pServer, 8u,
-		xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL) ) {
+	if ( !__xrtNetStreamWaitAvailable(pServer, 8u,
+		__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL) ) {
 		iResult = 10;
 		goto Cleanup;
 	}
@@ -319,15 +320,15 @@ int main(void)
 		goto Cleanup;
 	}
 	printf("waits: read=%d",
-		xrtNetStreamWait(pClient, XNET_STREAM_WAIT_READ,
-			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL) ? 1 : 0);
+		__xrtNetStreamWait(pClient, XNET_STREAM_WAIT_READ,
+			__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL) ? 1 : 0);
 	printf(" available=%d",
-		xrtNetStreamWaitAvailable(pClient, 4u,
-			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL) ? 1 : 0);
+		__xrtNetStreamWaitAvailable(pClient, 4u,
+			__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL) ? 1 : 0);
 	{
 		/* BytesRef：接收结果可共享持有——引用与原件各销毁一次。 */
-		xnetbytes* pBytes = xrtNetStreamRecv(pClient, 4,
-			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL);
+		xnetbytes* pBytes = __xrtNetStreamRecv(pClient, 4,
+			__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL);
 		xnetbytes* pShared = xrtNetBytesRef(pBytes);
 
 		xrtNetBytesDestroy(pShared);
@@ -342,14 +343,14 @@ int main(void)
 			(xrtFutureWaitFor(pAvailable, EXAMPLE_DEADLINE_US) ==
 			 XWAIT_OK) ? 1 : 0);
 	{
-		xnetbytes* pBytes = xrtNetStreamRecv(pClient, 4,
-			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL);
+		xnetbytes* pBytes = __xrtNetStreamRecv(pClient, 4,
+			__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL);
 
 		xrtNetBytesDestroy(pBytes);
 	}
 	printf(" write=%d\n",
-		xrtNetStreamWait(pClient, XNET_STREAM_WAIT_WRITE,
-			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL) ? 1 : 0);
+		__xrtNetStreamWait(pClient, XNET_STREAM_WAIT_WRITE,
+			__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL) ? 1 : 0);
 
 	/* 流控：Pause 后数据滞留内核，Resume 后到达。 */
 	xrtNetStreamPause(pServer);
@@ -357,10 +358,10 @@ int main(void)
 		goto Cleanup;
 	}
 	{
-		xdeadline iHold = xrtDeadlineAfter(200000u);
+		double iHold = __xrtWaitAfter(200000u);
 		bool bHeld = true;
 
-		while ( xrtDeadlineExpired(iHold) == false ) {
+		while ( __xrtWaitExpired(iHold) == false ) {
 			if ( xrtNetStreamAvailable(pServer) != 0u ) {
 				bHeld = false;
 				break;
@@ -370,14 +371,14 @@ int main(void)
 		printf("flow: pause=%s", bHeld ? "held" : "leaked");
 	}
 	if ( !xrtNetStreamResume(pServer) ||
-		 !xrtNetStreamWaitAvailable(pServer, 4u,
-			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL) ) {
+		 !__xrtNetStreamWaitAvailable(pServer, 4u,
+			__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL) ) {
 		iResult = 13;
 		goto Cleanup;
 	}
 	{
-		xnetbytes* pBytes = xrtNetStreamRecv(pServer, 4,
-			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL);
+		xnetbytes* pBytes = __xrtNetStreamRecv(pServer, 4,
+			__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL);
 
 		xrtNetBytesDestroy(pBytes);
 		printf(" resume=delivered\n");
@@ -389,8 +390,8 @@ int main(void)
 		goto Cleanup;
 	}
 	{
-		xnetbytes* pBytes = xrtNetStreamRecv(pServer, 0,
-			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL);
+		xnetbytes* pBytes = __xrtNetStreamRecv(pServer, 0,
+			__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL);
 		xbytesview View = xrtNetBytesView(pBytes);
 		int iEof = (View.Size == 0u);
 
@@ -429,12 +430,12 @@ Cleanup:
 		(void)exampleWaitStreamState(pServer, XNET_STREAM_CLOSED);
 	}
 	if ( pListener != NULL ) {
-		xdeadline iEnd = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 		(void)xrtNetListenerClose(pListener);
 		while ( xrtNetListenerState(pListener) !=
 			XNET_LISTENER_CLOSED ) {
-			if ( xrtDeadlineExpired(iEnd) ) {
+			if ( __xrtWaitExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();

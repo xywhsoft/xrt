@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../../../xhttp/src/internal/xrt_http_client.h"
 #include "../../../xhttp/src/internal/xrt_http_client_runtime.h"
@@ -52,7 +53,7 @@ static void testWsClientInvalidWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 
@@ -61,7 +62,7 @@ static void testWsClientInvalidWait(
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();

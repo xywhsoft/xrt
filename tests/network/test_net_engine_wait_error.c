@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -54,10 +55,10 @@ static void testEngineWaitErrorWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(5000000);
+	double Deadline = __xrtWaitAfter(5000000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) != iExpected ) {
-		testRequire(!xrtDeadlineExpired(Deadline), sMessage);
+		testRequire(!__xrtWaitExpired(Deadline), sMessage);
 		xrtSleepUs(1000);
 	}
 }
@@ -73,7 +74,7 @@ int main(void)
 	xnetworker* pWorker;
 	xnetworkerstats Before;
 	xnetworkerstats After;
-	xdeadline Deadline;
+	double Deadline;
 
 	memset(&Context, 0, sizeof(Context));
 	xrtAtomic32Init(&Context.Ready, 0);
@@ -98,14 +99,14 @@ int main(void)
 		"wait-error injection failed"
 	);
 
-	Deadline = xrtDeadlineAfter(5000000);
+	Deadline = __xrtWaitAfter(5000000);
 	for ( ;; ) {
 		testRequire(xrtNetWorkerStats(pWorker, &Before),
 			"wait-error worker stats failed");
 		if ( Before.WaitErrors != 0 ) {
 			break;
 		}
-		testRequire(!xrtDeadlineExpired(Deadline),
+		testRequire(!__xrtWaitExpired(Deadline),
 			"worker did not observe the injected wait error");
 		xrtSleepUs(1000);
 	}

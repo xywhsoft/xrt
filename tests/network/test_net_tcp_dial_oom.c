@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -132,7 +133,7 @@ int main(void)
 	xnetengine* pEngine;
 	xnetresolver* pResolver;
 	xnetdial* pDial;
-	xdeadline iDeadline;
+	double iDeadline;
 	char sLargeHost[TEST_DIAL_OOM_HOST_SIZE + 1u];
 
 	memset(&Context, 0, sizeof(Context));
@@ -194,9 +195,9 @@ int main(void)
 		&Context
 	);
 	testRequire(pDial != NULL, "dial OOM operation setup failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( xrtAtomic32Load(&Context.Done, XMEMORY_ACQUIRE) == 0 ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"dial OOM terminal callback timed out");
 		xrtThreadYield();
 	}
@@ -212,10 +213,10 @@ int main(void)
 	xrtNetDialDestroy(pDial);
 	testRequire(xrtNetResolverDestroy(pResolver),
 		"dial OOM resolver destroy failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"dial OOM retained an internal engine resource");
 		xrtThreadYield();
 	}

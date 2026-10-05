@@ -1,6 +1,11 @@
-/* 验证 xoauth2-xrt.h 的最小模块闭包可独立构建。 */
+/* 验证 xoauth2 模块清单的最小依赖闭包可独立构建。 */
+#if defined(XOAUTH2_FEATURE_XOAUTH2) || defined(XOAUTH2_SINGLE_HEADER)
+#include "../src/internal/xoauth2_internal.h"
+#else
 #define XRT_IMPLEMENTATION
-#include "../xoauth2.c"
+#include "support/runtime.h"
+#include "support/implementation.c"
+#endif
 
 int main(void)
 {

@@ -1,6 +1,11 @@
 #define XSSH_MODULE_XSSH
 #define XSSH_IMPLEMENTATION
-#include "../../single/xssh.h"
+#include "../../include/xssh/features.h"
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../../single/xrt.h"
+#include "../../../../single/extlibs/xssh.h"
 
 
 

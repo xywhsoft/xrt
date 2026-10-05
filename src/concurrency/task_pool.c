@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_task.h"
 
 
@@ -536,7 +537,7 @@ static xfuture* __xrtTaskPoolSubmitBody(
 	const xfuturepayloadownershipv1* pResultPolicy,
 	const xtaskdataownershipv1* pDataPolicy,
 	bool bWait,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pWaitCancel
 )
 {
@@ -626,11 +627,11 @@ static xfuture* __xrtTaskPoolSubmitBody(
 			Stop = XRT_TASK_SUBMIT_CANCELLED;
 			break;
 		}
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			Stop = XRT_TASK_SUBMIT_TIMEOUT;
 			break;
 		}
-		if ( xrtCondWaitUntil(
+		if ( __xrtCondWaitUntil(
 			&pPool->Space,
 			&pPool->Lock,
 			iDeadline
@@ -701,7 +702,7 @@ static xfuture* __xrtTaskPoolSubmitBody(
 static xfuture* __xrtTaskPoolSubmit(xtaskpool* pPool, xtaskproc pProc, ptr pData,
 	const xtaskargs* pArgs, xfutureownershiptrace pResultTrace,
 	const xfuturepayloadownershipv1* pResultPolicy, const xtaskdataownershipv1* pDataPolicy,
-	bool bWait, xdeadline iDeadline, xcancel* pWaitCancel)
+	bool bWait, double iDeadline, xcancel* pWaitCancel)
 {
 	if (!__xrtTaskPoolEnter(pPool, false)) return NULL;
 	xfuture* pFuture = __xrtTaskPoolSubmitBody(pPool, pProc, pData, pArgs,
@@ -728,7 +729,7 @@ XRT_API xfuture* xrtTaskSubmit(
 		NULL,
 		NULL,
 		false,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	);
 }
@@ -748,7 +749,7 @@ XRT_API xfuture* xrtTaskSubmitTraced(
 		return NULL;
 	}
 	return __xrtTaskPoolSubmit(pPool, pProc, pData, pArgs,
-		pResultTrace, NULL, NULL, false, XRT_DEADLINE_NEVER, NULL);
+		pResultTrace, NULL, NULL, false, INFINITY, NULL);
 }
 
 XRT_API xfuture* xrtTaskSubmitOwnedPolicyV1(xtaskpool* pPool, xtaskproc pProc,
@@ -758,7 +759,7 @@ XRT_API xfuture* xrtTaskSubmitOwnedPolicyV1(xtaskpool* pPool, xtaskproc pProc,
 		__xrtErrorSetInvalidArgument(); return NULL;
 	}
 	return __xrtTaskPoolSubmit(pPool, pProc, pData, pArgs,
-		pPolicy->Trace, pPolicy, NULL, false, XRT_DEADLINE_NEVER, NULL);
+		pPolicy->Trace, pPolicy, NULL, false, INFINITY, NULL);
 }
 
 XRT_API xfuture* xrtTaskSubmitOwnedJobV1(xtaskpool* pPool, ptr pData, xcancel* pCancel,
@@ -773,7 +774,7 @@ XRT_API xfuture* xrtTaskSubmitOwnedJobV1(xtaskpool* pPool, ptr pData, xcancel* p
 	}
 	xtaskargs Args = {pCancel, pDataPolicy->Drop, NULL};
 	return __xrtTaskPoolSubmit(pPool, pDataPolicy->Proc, pData, &Args,
-		pResultPolicy->Trace, pResultPolicy, pDataPolicy, false, XRT_DEADLINE_NEVER, NULL);
+		pResultPolicy->Trace, pResultPolicy, pDataPolicy, false, INFINITY, NULL);
 }
 
 
@@ -786,12 +787,12 @@ XRT_API xfuture* xrtTaskSubmitWait(
 	const xtaskargs* pArgs
 )
 {
-	return xrtTaskSubmitUntilCancel(
+	return __xrtTaskSubmitUntilCancel(
 		pPool,
 		pProc,
 		pData,
 		pArgs,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	);
 }
@@ -804,15 +805,15 @@ XRT_API xfuture* xrtTaskSubmitFor(
 	xtaskproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	return xrtTaskSubmitUntilCancel(
+	return __xrtTaskSubmitUntilCancel(
 		pPool,
 		pProc,
 		pData,
 		pArgs,
-		xrtDeadlineAfter(iTimeout),
+		__xrtWaitAfter(iTimeout),
 		NULL
 	);
 }
@@ -820,15 +821,15 @@ XRT_API xfuture* xrtTaskSubmitFor(
 
 
 /* 等待到指定截止时间后提交。 */
-XRT_API xfuture* xrtTaskSubmitUntil(
+XRT_API xfuture* __xrtTaskSubmitUntil(
 	xtaskpool* pPool,
 	xtaskproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
-	return xrtTaskSubmitUntilCancel(
+	return __xrtTaskSubmitUntilCancel(
 		pPool,
 		pProc,
 		pData,
@@ -841,12 +842,12 @@ XRT_API xfuture* xrtTaskSubmitUntil(
 
 
 /* 等待队列槽位、截止时间或调用方取消中的首个事件。 */
-XRT_API xfuture* xrtTaskSubmitUntilCancel(
+XRT_API xfuture* __xrtTaskSubmitUntilCancel(
 	xtaskpool* pPool,
 	xtaskproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -1014,9 +1015,9 @@ XRT_API bool xrtTaskPoolCancel(xtaskpool* pPool)
 /* 永久等待已关闭任务池排空。 */
 XRT_API xwaitresult xrtTaskPoolWait(xtaskpool* pPool)
 {
-	return xrtTaskPoolWaitUntilCancel(
+	return __xrtTaskPoolWaitUntilCancel(
 		pPool,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	);
 }
@@ -1024,11 +1025,11 @@ XRT_API xwaitresult xrtTaskPoolWait(xtaskpool* pPool)
 
 
 /* 在相对微秒数内等待已关闭任务池排空。 */
-XRT_API xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, uint64 iTimeout)
+XRT_API xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, int64 iTimeout)
 {
-	return xrtTaskPoolWaitUntilCancel(
+	return __xrtTaskPoolWaitUntilCancel(
 		pPool,
-		xrtDeadlineAfter(iTimeout),
+		__xrtWaitAfter(iTimeout),
 		NULL
 	);
 }
@@ -1036,9 +1037,9 @@ XRT_API xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, uint64 iTimeout)
 
 
 /* 等待已关闭任务池中的全部任务完成到指定截止时间。 */
-XRT_API xwaitresult xrtTaskPoolWaitUntil(xtaskpool* pPool, xdeadline iDeadline)
+XRT_API xwaitresult __xrtTaskPoolWaitUntil(xtaskpool* pPool, double iDeadline)
 {
-	return xrtTaskPoolWaitUntilCancel(pPool, iDeadline, NULL);
+	return __xrtTaskPoolWaitUntilCancel(pPool, iDeadline, NULL);
 }
 
 
@@ -1046,7 +1047,7 @@ XRT_API xwaitresult xrtTaskPoolWaitUntil(xtaskpool* pPool, xdeadline iDeadline)
 /* 等待排空、截止时间或调用方取消；已经排空时完成优先。 */
 static xwaitresult __xrtTaskPoolWaitUntilCancelBody(
 	xtaskpool* pPool,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -1084,11 +1085,11 @@ static xwaitresult __xrtTaskPoolWaitUntilCancelBody(
 			Result = XWAIT_CANCELLED;
 			break;
 		}
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			Result = XWAIT_TIMEOUT;
 			break;
 		}
-		Result = xrtCondWaitUntil(&pPool->Idle, &pPool->Lock, iDeadline);
+		Result = __xrtCondWaitUntil(&pPool->Idle, &pPool->Lock, iDeadline);
 		if ( Result == XWAIT_ERROR ) {
 			pWaitError = xrtTakeError();
 			break;
@@ -1111,7 +1112,7 @@ static xwaitresult __xrtTaskPoolWaitUntilCancelBody(
 	return Result;
 }
 
-XRT_API xwaitresult xrtTaskPoolWaitUntilCancel(xtaskpool* pPool, xdeadline iDeadline, xcancel* pCancel)
+XRT_API xwaitresult __xrtTaskPoolWaitUntilCancel(xtaskpool* pPool, double iDeadline, xcancel* pCancel)
 {
 	if (!__xrtTaskPoolEnter(pPool, false)) return XWAIT_ERROR;
 	xwaitresult Result = __xrtTaskPoolWaitUntilCancelBody(pPool, iDeadline, pCancel);
@@ -1193,7 +1194,7 @@ XRT_API bool xrtTaskPoolDestroy(xtaskpool* pPool)
 	if (!bReady) { __xrtTaskPoolLeave(pPool); __xrtErrorSetInvalidState(); return false; }
 	if (!bRetired) {
 		bReady = __xrtTaskPoolCloseBody(pPool) &&
-			__xrtTaskPoolWaitUntilCancelBody(pPool, XRT_DEADLINE_NEVER, NULL) == XWAIT_OK;
+			__xrtTaskPoolWaitUntilCancelBody(pPool, INFINITY, NULL) == XWAIT_OK;
 		__xrtTaskPoolOwnershipBegin(pPool, &Mutation);
 		bReady = bReady && pPool->Entries == 1 && !pPool->Resources;
 		if (bReady) pPool->Joining = true;
@@ -1344,4 +1345,29 @@ XRT_API const xrtownershipadapterv1* xrtTaskPoolOwnershipAdapterV1(
 	*ppPreparation = &Preparation; return &Adapter;
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_TASK_POOL))
+XRT_API xfuture* xrtTaskSubmitForCancel(
+	xtaskpool* pPool,
+	xtaskproc pProc,
+	ptr pData,
+	const xtaskargs* pArgs,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtTaskSubmitUntilCancel(pPool, pProc, pData, pArgs, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XRT_FEATURE_TASK_POOL))
+XRT_API xwaitresult xrtTaskPoolWaitForCancel(
+	xtaskpool* pPool,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtTaskPoolWaitUntilCancel(pPool, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

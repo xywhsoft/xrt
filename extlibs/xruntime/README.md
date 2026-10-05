@@ -16,16 +16,19 @@
 #include <xruntime.h>
 ```
 
-独立单头已经包含所需 XRT 实现和全部 xruntime 源码，功能仍按模块宏裁剪：
+单头只包含 xruntime 自身源码；调用方先提供所需 XRT，再启用扩展实现：
 
 ```c
+#define XRT_MODULE_ALL
+#define XRT_IMPLEMENTATION
+#include "single/xrt.h"
 #define XRUNTIME_MODULE_RUNTIME_TYPE
 #define XRUNTIME_IMPLEMENTATION
-#include "xruntime.h"
+#include "single/extlibs/xruntime.h"
 ```
 
-生成文件位于 `single/xruntime.h`，纯声明版本位于
-`single/xruntime_decl.h`。`XRUNTIME_IMPLEMENTATION` 只能在一个翻译单元定义。
+生成文件位于 `single/extlibs/xruntime.h`，纯声明版本位于
+`single/extlibs/xruntime_decl.h`。`XRUNTIME_IMPLEMENTATION` 只能在一个翻译单元定义。
 
 扩展直接复用 XRT 容器的内部快速路径，不复制底层实现。正式的静态库和动态库产物
 都包含当前 xruntime 所需的裁剪后 XRT 闭包；应用只链接 `libxruntime` 或

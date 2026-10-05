@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../../src/internal/xrt_http_server_runtime.h"
 
@@ -43,14 +44,14 @@ static void testHttpServerLifecycleWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -810,7 +811,7 @@ int main(void)
 		"HTTP lifecycle rejected client did not close"
 	);
 	{
-		xdeadline Deadline = xrtDeadlineAfter(5000000u);
+		double Deadline = __xrtWaitAfter(5000000u);
 
 		do {
 			testRequire(
@@ -824,7 +825,7 @@ int main(void)
 				break;
 			}
 			testRequire(
-				!xrtDeadlineExpired(Deadline),
+				!__xrtWaitExpired(Deadline),
 				"HTTP lifecycle rejection was not counted"
 			);
 			xrtThreadYield();

@@ -65,7 +65,7 @@ easy 调用前的固定三步：`xrtNetEngineConfigInit/Create/Start`（Engine�
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/client_easy/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_easy/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 usage: client_easy <http-url>
 ```
 
@@ -79,7 +79,7 @@ usage: client_easy <http-url>
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/client_future/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_future/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 usage: client_future <http-url>
 ```
 

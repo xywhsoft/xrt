@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -53,13 +54,13 @@ static void testHttpClientRaceWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(Deadline), sMessage);
+		testRequire(!__xrtWaitExpired(Deadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -400,7 +401,7 @@ static void testHttpClientRaceJoin(
 /* 等待取消命令、Timer 和网络对象全部离开 Engine。 */
 static void testHttpClientRaceWaitEngineIdle(xnetengine* pEngine)
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 	xnetenginestats Stats;
 
 	for ( ;; ) {
@@ -414,7 +415,7 @@ static void testHttpClientRaceWaitEngineIdle(xnetengine* pEngine)
 			return;
 		}
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP client race Engine resources did not drain"
 		);
 		xrtThreadYield();

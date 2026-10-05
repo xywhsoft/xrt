@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../../dev/bench/bench_common.h"
 
 #include <xhttp.h>
@@ -177,10 +178,10 @@ static bool benchHttpPath(
 /* 在截止时间内等待 HTTP Server 进入关闭态。 */
 static bool benchHttpWaitServerClosed(xhttpserver* pServer)
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
 
 	while ( xrtHttpServerState(pServer) != XHTTP_SERVER_CLOSED ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();

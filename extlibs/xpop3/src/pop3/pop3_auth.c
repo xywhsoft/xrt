@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <xrt/pop3_auth.h>
 
 #include "../internal/xrt_mail_auth.h"
@@ -39,14 +40,14 @@ static bool __xrtPop3AuthStatus(xstrview Line, xstrview Status)
 /* 读取 SASL continuation 或最终 POP3 状态，并稳定保存最终响应。 */
 static __xpop3authnext __xrtPop3AuthNext(
 	xpop3client* pClient,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
 	xstrview Line;
 	xpop3reply Reply;
 
-	if ( !xrtPop3ClientLine(pClient, &Line, iDeadline, pCancel) ) {
+	if ( !__xrtPop3ClientLine(pClient, &Line, iDeadline, pCancel) ) {
 		return __XPOP3_AUTH_ERROR;
 	}
 	if ( __xrtPop3AuthStatus(Line, XRT_STR_LITERAL("+OK")) ||
@@ -82,7 +83,7 @@ static bool __xrtPop3AuthCommand(
 	xstrview Prefix,
 	xstrview Credential,
 	xpop3reply* pReply,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -104,14 +105,14 @@ static bool __xrtPop3AuthCommand(
 	memcpy(sLine, Prefix.Data, Prefix.Size);
 	memcpy(sLine + Prefix.Size, Credential.Data, Credential.Size);
 	sLine[iSize] = 0;
-	bSuccess = xrtPop3ClientSend(
+	bSuccess = __xrtPop3ClientSend(
 		pClient,
 		(xstrview) { sLine, iSize },
 		iDeadline,
 		pCancel
 	);
 	__xrtMailAuthFree(sLine, iSize + 1u);
-	return bSuccess && xrtPop3ClientReceive(
+	return bSuccess && __xrtPop3ClientReceive(
 		pClient,
 		pReply,
 		iDeadline,
@@ -125,7 +126,7 @@ static bool __xrtPop3AuthCommand(
 static bool __xrtPop3AuthUserPass(
 	xpop3client* pClient,
 	const xpop3authconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -226,7 +227,7 @@ static bool __xrtPop3AuthStart(
 	xstrview Encoded,
 	bool bInitial,
 	bool* pInitialUsed,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -243,7 +244,7 @@ static bool __xrtPop3AuthStart(
 		memcpy(sLine + iSize, Encoded.Data, Encoded.Size);
 		iSize += Encoded.Size;
 	}
-	bSuccess = xrtPop3ClientAuthLine(
+	bSuccess = __xrtPop3ClientAuthLine(
 		pClient,
 		(xstrview) { sLine, iSize },
 		iDeadline,
@@ -260,7 +261,7 @@ static bool __xrtPop3AuthStart(
 static bool __xrtPop3AuthSasl(
 	xpop3client* pClient,
 	const xpop3authconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -312,7 +313,7 @@ static bool __xrtPop3AuthSasl(
 		pCancel
 	) : __XPOP3_AUTH_ERROR;
 	if ( (Next == __XPOP3_AUTH_CONTINUE) && !bInitialUsed ) {
-		bSuccess = xrtPop3ClientAuthLine(
+		bSuccess = __xrtPop3ClientAuthLine(
 			pClient,
 			(xstrview) { sEncoded, iEncoded },
 			iDeadline,
@@ -339,7 +340,7 @@ static bool __xrtPop3AuthSasl(
 	}
 	bBearer = (pConfig->Method == XPOP3_AUTH_XOAUTH2) ||
 		(pConfig->Method == XPOP3_AUTH_OAUTHBEARER);
-	bSuccess = xrtPop3ClientAuthLine(
+	bSuccess = __xrtPop3ClientAuthLine(
 		pClient,
 		bBearer ? XRT_STR_LITERAL("AQ==") : XRT_STR_LITERAL("*"),
 		iDeadline,
@@ -420,10 +421,10 @@ XRT_API bool xrtPop3AuthConfigValid(const xpop3authconfig* pConfig)
 
 
 /* 完成一次 POP3 认证。 */
-XRT_API bool xrtPop3ClientAuth(
+XRT_API bool __xrtPop3ClientAuth(
 	xpop3client* pClient,
 	const xpop3authconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -475,12 +476,12 @@ XRT_API bool xrtPop3ClientAuth(
 
 
 /* 使用传统 USER/PASS 的轻量便利入口。 */
-XRT_API bool xrtPop3ClientLogin(
+XRT_API bool __xrtPop3ClientLogin(
 	xpop3client* pClient,
 	xstrview Username,
 	xstrview Password,
 	bool AllowPlaintext,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -491,7 +492,7 @@ XRT_API bool xrtPop3ClientLogin(
 	Config.Username = Username;
 	Config.Secret = Password;
 	Config.AllowPlaintext = AllowPlaintext;
-	return xrtPop3ClientAuth(
+	return __xrtPop3ClientAuth(
 		pClient,
 		&Config,
 		iDeadline,
@@ -499,4 +500,30 @@ XRT_API bool xrtPop3ClientLogin(
 	);
 }
 
+#endif
+
+#if (defined(XPOP3_FEATURE_POP3_AUTH))
+XRT_API bool xrtPop3ClientAuth(
+	xpop3client* pClient,
+	const xpop3authconfig* pConfig,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtPop3ClientAuth(pClient, pConfig, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XPOP3_FEATURE_POP3_AUTH))
+XRT_API bool xrtPop3ClientLogin(
+	xpop3client* pClient,
+	xstrview Username,
+	xstrview Password,
+	bool AllowPlaintext,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtPop3ClientLogin(pClient, Username, Password, AllowPlaintext, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

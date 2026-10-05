@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -41,10 +42,10 @@ static void testUdpFutureWait(
 /* 等待 UDP 拉取队列达到指定长度。 */
 static void testUdpFutureWaitQueued(xnetudp* pUdp, size_t iCount)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(5000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(5000000));
 
 	while ( xrtNetUdpQueued(pUdp) < iCount ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"UDP Future receive queue timed out");
 		xrtThreadYield();
 	}
@@ -55,7 +56,7 @@ static void testUdpFutureWaitQueued(xnetudp* pUdp, size_t iCount)
 /* 等待消费式接收 Future 数量到达目标。 */
 static void testUdpFutureWaitWaiters(xnetudp* pUdp, size_t iCount)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(5000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(5000000));
 	xnetudpstats Stats;
 
 	for ( ;; ) {
@@ -64,7 +65,7 @@ static void testUdpFutureWaitWaiters(xnetudp* pUdp, size_t iCount)
 		if ( Stats.ReceiveWaiters == iCount ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"UDP Future waiter count timed out");
 		xrtThreadYield();
 	}

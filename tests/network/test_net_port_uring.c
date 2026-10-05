@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include <errno.h>
 #include <limits.h>
@@ -15,14 +16,14 @@ static void testUringWait(
 	size_t iExpected
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000000u);
 	size_t iCount = 0;
 
 	while ( iCount < iExpected ) {
 		size_t iReady = 0;
 
 		testRequire(
-			xrtNetPortWait(
+			__xrtNetPortWait(
 				pPort,
 				pEvents + iCount,
 				iExpected - iCount,
@@ -584,11 +585,11 @@ static void testUringDgramError(void)
 		"io_uring datagram error submission failed"
 	);
 	testRequire(
-		(xrtNetPortWait(
+		(__xrtNetPortWait(
 			pPort,
 			&Event,
 			1,
-			xrtDeadlineAfter(5000000u),
+			__xrtWaitAfter(5000000u),
 			&iCount
 		) == XNET_RESULT_OK) &&
 		(iCount == 1),
@@ -831,11 +832,11 @@ int main(void)
 		"io_uring coalesced wake failed"
 	);
 	testRequire(
-		(xrtNetPortWait(
+		(__xrtNetPortWait(
 			pPort,
 			&Event,
 			1,
-			xrtDeadlineAfter(1000000u),
+			__xrtWaitAfter(1000000u),
 			&iCount
 		) == XNET_RESULT_OK) &&
 		(iCount == 1) &&

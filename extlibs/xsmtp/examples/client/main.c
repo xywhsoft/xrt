@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <xsmtp.h>
 
 
@@ -15,7 +16,7 @@ bool submitMessage(
 	xsmtpclientconfig ClientConfig;
 	xsmtpauthconfig AuthConfig;
 	xsmtpclient* pClient;
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	bool bSuccess;
 
 	xrtSmtpClientConfigInit(&ClientConfig);
@@ -27,31 +28,31 @@ bool submitMessage(
 	ClientConfig.Net.Tls.Context = pTls;
 	ClientConfig.Net.Tls.Verifier = pVerifier;
 	ClientConfig.Hello = (xstrview)XRT_STR_LITERAL("client.example");
-	pClient = xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
 	if ( pClient == NULL ) {
 		return false;
 	}
 	xrtSmtpAuthConfigInit(&AuthConfig);
 	AuthConfig.Username = (xstrview)XRT_STR_LITERAL("user@example.com");
 	AuthConfig.Secret = (xstrview)XRT_STR_LITERAL("application-password");
-	bSuccess = xrtSmtpClientAuth(
+	bSuccess = __xrtSmtpClientAuth(
 		pClient,
 		&AuthConfig,
 		Deadline,
 		NULL
-	) && xrtSmtpClientMail(
+	) && __xrtSmtpClientMail(
 		pClient,
 		XRT_STR_LITERAL("sender@example.com"),
 		XRT_STR_LITERAL(""),
 		Deadline,
 		NULL
-	) && xrtSmtpClientRcpt(
+	) && __xrtSmtpClientRcpt(
 		pClient,
 		XRT_STR_LITERAL("target@example.net"),
 		XRT_STR_LITERAL(""),
 		Deadline,
 		NULL
-	) && xrtSmtpClientData(
+	) && __xrtSmtpClientData(
 		pClient,
 		XRT_STR_LITERAL(
 			"From: sender@example.com\r\n"
@@ -64,7 +65,7 @@ bool submitMessage(
 		NULL
 	);
 	if ( bSuccess ) {
-		bSuccess = xrtSmtpClientQuit(pClient, Deadline, NULL);
+		bSuccess = __xrtSmtpClientQuit(pClient, Deadline, NULL);
 	}
 	xrtSmtpClientDestroy(pClient);
 	return bSuccess;

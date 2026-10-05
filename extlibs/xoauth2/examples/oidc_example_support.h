@@ -2,7 +2,7 @@
 #ifndef XOAUTH2_OIDC_EXAMPLE_SUPPORT_H
 #define XOAUTH2_OIDC_EXAMPLE_SUPPORT_H
 
-#include "../xoauth2.h"
+#include <xoauth2.h>
 #include "xjwt.h"
 #include <string.h>
 

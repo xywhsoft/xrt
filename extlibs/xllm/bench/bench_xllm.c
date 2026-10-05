@@ -1,0 +1,18 @@
+#include <xllm.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char** argv)
+{
+    uint64_t count = argc > 1 ? strtoull(argv[1], NULL, 10) : 10000u;
+    double start = xrtTimer();
+    if (!count) return 1;
+    for (uint64_t i = 0; i < count; ++i) {
+        xllm_request request; xllmRequestInit(&request); xllmRequestUnit(&request);
+    }
+    double elapsed = xrtTimer() - start;
+    printf("ops_per_sec: %.3f\n", (double)count / (elapsed > 0.0 ? elapsed : 0.000001));
+    printf("checksum: %" PRIu64 "\n", count);
+    return 0;
+}

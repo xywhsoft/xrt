@@ -282,7 +282,7 @@ struct xhttp1serverresponse {
 	size_t WireRefIndex;
 	xerror* Error;
 	uint64 BodyLength;
-	uint64 BodyRemaining;
+	int64 BodyRemaining;
 	uint64 WireBytes;
 	size_t HeadOffset;
 	size_t PartOffset;

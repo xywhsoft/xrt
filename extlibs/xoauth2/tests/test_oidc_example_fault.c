@@ -1,6 +1,6 @@
 #define XRT_MODULE_ALL
 #define XRT_IMPLEMENTATION
-#include <xrt.h>
+#include "support/runtime.h"
 static const char* failResponse;
 static bool triggered;
 static str exampleDup(cstr text)

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/udp_introspect —— UDP 自省族全接口
  * ----------------------------------------------------------------
@@ -68,10 +69,10 @@ static void exampleWorkerTask(xnetworker* pWorker, ptr pData)
 /* 在截止时间内轮询条件。 */
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( !*pFlag ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -95,7 +96,7 @@ int main(void)
 	xnetaddr Local;
 	xnetaddr Peer;
 	xnetudpstats Stats;
-	xdeadline iDeadline;
+	double iDeadline;
 	int iResult = 1;
 
 	xrtNetEngineConfigInit(&EngineConfig);
@@ -116,9 +117,9 @@ int main(void)
 	if ( pUdp == NULL ) {
 		goto Cleanup;
 	}
-	iDeadline = xrtDeadlineAfter(3000000u);
+	iDeadline = __xrtWaitAfter(3000000u);
 	while ( xrtNetUdpState(pUdp) != XNET_UDP_OPEN ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			goto Cleanup;
 		}
 		xrtThreadYield();
@@ -164,9 +165,9 @@ int main(void)
 		  XNET_RESULT_OK) ) {
 		goto Cleanup;
 	}
-	iDeadline = xrtDeadlineAfter(3000000u);
+	iDeadline = __xrtWaitAfter(3000000u);
 	while ( xrtNetUdpQueued(pUdp) == 0 ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			goto Cleanup;
 		}
 		xrtThreadYield();
@@ -202,9 +203,9 @@ int main(void)
 		iResult = 8;
 		goto Cleanup;
 	}
-	iDeadline = xrtDeadlineAfter(3000000u);
+	iDeadline = __xrtWaitAfter(3000000u);
 	while ( xrtNetUdpState(pUdp) != XNET_UDP_CLOSED ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			iResult = 9;
 			goto Cleanup;
 		}
@@ -222,11 +223,11 @@ Cleanup:
 	xrtNetUdpDestroy(pRef);
 	xrtNetUdpDestroy(pUdp);
 	if ( pServer != NULL ) {
-		xdeadline iEnd = xrtDeadlineAfter(3000000u);
+		double iEnd = __xrtWaitAfter(3000000u);
 
 		(void)xrtNetUdpAbort(pServer);
 		while ( xrtNetUdpState(pServer) != XNET_UDP_CLOSED ) {
-			if ( xrtDeadlineExpired(iEnd) ) {
+			if ( __xrtWaitExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();

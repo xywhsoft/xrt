@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/tcp_dial_sync —— 同步主机名连接
  * ----------------------------------------------------------------
@@ -85,7 +86,7 @@ int main(void)
 	if ( pResolver == NULL ) {
 		return 3;
 	}
-	pClient = xrtNetConnect(
+	pClient = __xrtNetConnect(
 		pEngine,
 		pResolver,
 		"local.example",
@@ -93,12 +94,12 @@ int main(void)
 		NULL,
 		NULL,
 		NULL,
-		xrtDeadlineAfter(3000000u),
+		__xrtWaitAfter(3000000u),
 		NULL
 	);
-	pServer = xrtNetListenerAcceptWait(
+	pServer = __xrtNetListenerAcceptWait(
 		pListener,
-		xrtDeadlineAfter(3000000u),
+		__xrtWaitAfter(3000000u),
 		NULL
 	);
 	bConnected = (pClient != NULL) && (pServer != NULL);

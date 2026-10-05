@@ -5,8 +5,8 @@
 		"extlibs/xmail/config/modules.json"
 	],
 	"module_prefix": "XIMAP_MODULE_",
-	"single_header": "extlibs/ximap/single/ximap.h",
-	"declaration_header": "extlibs/ximap/single/ximap_decl.h",
+	"single_header": "single/extlibs/ximap.h",
+	"declaration_header": "single/extlibs/ximap_decl.h",
 	"implementation_macro": "XIMAP_IMPLEMENTATION",
 	"implementation_once_macro": "XIMAP_IMPLEMENTATION_ONCE",
 	"single_guard": "XIMAP_SINGLE_HEADER_H",

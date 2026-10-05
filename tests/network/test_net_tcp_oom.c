@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -85,10 +86,10 @@ static void testTcpOomWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -543,12 +544,12 @@ int main(void)
 		XMEMORY_ACQUIRE
 	) == 1, "TCP reentrant shutdown did not return from allocator");
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+		double iDeadline = __xrtWaitAfter(5000000u);
 
 		do {
 			testRequire(xrtNetStreamStats(pClient, &Stats),
 				"TCP reentrant shutdown stats failed");
-			testRequire(!xrtDeadlineExpired(iDeadline),
+			testRequire(!__xrtWaitExpired(iDeadline),
 				"TCP reentrant shutdown did not reach the Worker");
 			xrtThreadYield();
 		} while ( !Stats.WriteEnded );

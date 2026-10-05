@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../test_thread.h"
 
@@ -161,9 +162,9 @@ static int testFutureWaitCancelThread(ptr pData)
 	pContext->Entered = true;
 	(void)xrtCondBroadcast(&pContext->Ready);
 	(void)xrtMutexUnlock(&pContext->Lock);
-	pContext->WaitResult = xrtFutureWaitUntilCancel(
+	pContext->WaitResult = __xrtFutureWaitUntilCancel(
 		pContext->Future,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		pContext->Cancel
 	);
 	return 0;
@@ -230,9 +231,9 @@ static void testFutureWaitCancelFirstEvent(void)
 			"future completion-first resolve failed");
 		testRequire(xrtCancelRequest(pCancel),
 			"future completion-first cancel request failed");
-		testRequire(xrtFutureWaitUntilCancel(
+		testRequire(__xrtFutureWaitUntilCancel(
 			pFuture,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pCancel
 		) == XWAIT_OK,
 			"completed Future was rewritten by a later external cancellation");

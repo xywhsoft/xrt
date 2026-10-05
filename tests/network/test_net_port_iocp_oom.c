@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -95,8 +96,8 @@ int main(void)
 			XNET_RESULT_OK) && (iSent == 1),
 		"IOCP cache warmup submit failed");
 	iCount = 0;
-	testRequire((xrtNetPortWait(pPort, &Event, 1,
-		xrtDeadlineAfter(1000000), &iCount) == XNET_RESULT_OK) &&
+	testRequire((__xrtNetPortWait(pPort, &Event, 1,
+		__xrtWaitAfter(1000000), &iCount) == XNET_RESULT_OK) &&
 		(iCount == 1) && (Event.Id == 1) && (Event.Bytes == 1) &&
 		(Data[0] == 'A'), "IOCP cache warmup completion mismatch");
 
@@ -107,8 +108,8 @@ int main(void)
 			XNET_RESULT_OK) && (iSent == 1),
 		"IOCP cached operation requested new memory");
 	iCount = 0;
-	testRequire((xrtNetPortWait(pPort, &Event, 1,
-		xrtDeadlineAfter(1000000), &iCount) == XNET_RESULT_OK) &&
+	testRequire((__xrtNetPortWait(pPort, &Event, 1,
+		__xrtWaitAfter(1000000), &iCount) == XNET_RESULT_OK) &&
 		(iCount == 1) && (Event.Id == 2) && (Event.Bytes == 1) &&
 		(Data[0] == 'B'), "IOCP cached operation completion mismatch");
 
@@ -124,8 +125,8 @@ int main(void)
 		(xrtErrorKind(xrtGetError()) == XERR_MEMORY),
 		"IOCP operation OOM error mismatch");
 	xrtClearError();
-	testRequire((xrtNetPortWait(pPort, &Event, 1,
-		xrtDeadlineAfter(0), &iCount) == XNET_RESULT_TIMEOUT) &&
+	testRequire((__xrtNetPortWait(pPort, &Event, 1,
+		__xrtWaitAfter(0), &iCount) == XNET_RESULT_TIMEOUT) &&
 		(iCount == 0), "failed IOCP submit left a ghost completion");
 
 	/* 故障分配器只影响新内存，既有端口和 Socket 仍可完整销毁。 */

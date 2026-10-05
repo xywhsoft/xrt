@@ -57,7 +57,7 @@ The program below is from `examples/forward_message` — the local-forwarding ch
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/forward_message/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/forward_message/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 direct-tcpip open 报文构建的自检结果）
 ```
 
@@ -71,7 +71,7 @@ The second program is from `examples/client_forward` — the composition layer's
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/client_forward/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/client_forward/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出全局回复 FIFO 上限的配置自检结果）
 ```
 

@@ -1,6 +1,11 @@
 #define XHTTP_IMPLEMENTATION
 #define XHTTP_MODULE_HTTP_SSE_SERVER
-#include "../../single/xhttp.h"
+#include "../../include/xhttp/features.h"
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../../single/xrt.h"
+#include "../../../../single/extlibs/xhttp.h"
 
 
 

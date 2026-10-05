@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -70,7 +71,7 @@ int main(void)
 	xnetengine* pEngine;
 	xnetstream* pStream;
 	xnetaddr Address;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	memset(&Context, 0, sizeof(Context));
 	memset(&Events, 0, sizeof(Events));
@@ -98,9 +99,9 @@ int main(void)
 	);
 	testRequire(pStream != NULL,
 		"TCP connect timer stream create failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( xrtAtomic32Load(&Context.Closed, XMEMORY_ACQUIRE) == 0 ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP connect timer close callback timed out");
 		xrtThreadYield();
 	}

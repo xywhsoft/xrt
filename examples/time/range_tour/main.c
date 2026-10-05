@@ -7,7 +7,7 @@
  *   【区间判定】  xrtTimeIn（闭区间）/ xrtTimeOverlap（闭区间相交）
  *   【周期区间】  xrtMonthRange / xrtYearRange /
  *                  xrtWeekRange（可指定每周第一天）
- *   【单位差值】  xrtTimeDiff（起点到终点的完整单位数）
+ *   【单位差值】  xrtDateDiff（起点到终点的完整单位数）
  *   【微秒睡眠】  xrtSleepUs（单调时钟验证实际睡眠时长）
  * 模块宏：XRT_MODULE_TIME
  * 编译（单头形态，Windows）：
@@ -106,31 +106,31 @@ int main(void)
 		(long long)(End / XRT_TIME_SECOND));
 
 	/* Diff：完整单位计数（10 天 = 1 周余 3 天；90 秒 = 1 分余 30 秒）。 */
-	if ( !xrtTimeDiff(Base, Day10 + 10 * XRT_TIME_DAY,
+	if ( !xrtDateDiff(Base, Day10 + 10 * XRT_TIME_DAY,
 		XTIME_UNIT_DAY, &iDiff) || (iDiff != 10) ) {
 		return 6;
 	}
 	printf("diff: %lld days = ", (long long)iDiff);
-	(void)xrtTimeDiff(Base, Day10 + 10 * XRT_TIME_DAY,
+	(void)xrtDateDiff(Base, Day10 + 10 * XRT_TIME_DAY,
 		XTIME_UNIT_WEEK, &iDiff);
 	printf("%lld week + ", (long long)iDiff);
-	(void)xrtTimeDiff(Base, Day10 + 10 * XRT_TIME_DAY,
+	(void)xrtDateDiff(Base, Day10 + 10 * XRT_TIME_DAY,
 		XTIME_UNIT_DAY, &iDiff);
 	printf("%lld days, ", (long long)iDiff - 7);
-	(void)xrtTimeDiff(Base + 90 * XRT_TIME_SECOND, Base,
+	(void)xrtDateDiff(Base + 90 * XRT_TIME_SECOND, Base,
 		XTIME_UNIT_SECOND, &iDiff);
 	if ( iDiff != -90 ) {
 		return 7;
 	}
-	(void)xrtTimeDiff(Base, Base + 90 * XRT_TIME_SECOND,
+	(void)xrtDateDiff(Base, Base + 90 * XRT_TIME_SECOND,
 		XTIME_UNIT_MINUTE, &iDiff);
 	printf("90 sec = %lld minute + %lld\n",
 		(long long)iDiff, (long long)90 - iDiff * 60);
 
 	/* SleepUs：至少睡满 20ms（单调时钟度量，向下取整即失败）。 */
-	iBefore = xrtClock();
+	iBefore = xrtTimer();
 	xrtSleepUs(20000u);
-	iAfter = xrtClock();
+	iAfter = xrtTimer();
 	printf("sleep-us: 20000us floor %s\n",
 		(iAfter - iBefore) >= 20000u ? "reached" : "missed");
 	return (iAfter - iBefore) >= 20000u ? 0 : 8;

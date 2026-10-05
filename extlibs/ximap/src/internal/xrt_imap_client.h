@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifndef XRT_INTERNAL_IMAP_CLIENT_H
 #define XRT_INTERNAL_IMAP_CLIENT_H
 

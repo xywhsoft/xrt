@@ -55,10 +55,10 @@ static bool testSignalThreadWait(
 	uint32 iExpected
 )
 {
-	uint64 iDeadline = xrtClock() + UINT64_C(5000000);
+	uint64 iDeadline = xrtTimer() + UINT64_C(5000000);
 
 	while ( xrtAtomic32Load(&pState->Observed, XMEMORY_ACQUIRE) < iExpected ) {
-		if ( xrtClock() >= iDeadline ) {
+		if ( xrtTimer() >= iDeadline ) {
 			return false;
 		}
 		xrtSleep(1u);

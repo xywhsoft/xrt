@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_tcp.h"
 #include "../internal/xrt_net_sync.h"
 
@@ -6,7 +7,7 @@
 #if defined(XRT_FEATURE_NET_TCP_DIAL_SYNC)
 
 /* 阻塞完成受管 TCP Dial，并把成功 Stream 转换为调用方引用。 */
-XRT_API xnetstream* xrtNetConnect(
+XRT_API xnetstream* __xrtNetConnect(
 	xnetengine* pEngine,
 	xnetresolver* pResolver,
 	cstr sHost,
@@ -14,7 +15,7 @@ XRT_API xnetstream* xrtNetConnect(
 	const xnetdialconfig* pConfig,
 	const xnetstreamevents* pStreamEvents,
 	ptr pStreamData,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -50,4 +51,21 @@ XRT_API xnetstream* xrtNetConnect(
 	return pStream;
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_NET_TCP)) && (defined(XRT_FEATURE_NET_TCP_DIAL_SYNC))
+XRT_API xnetstream* xrtNetConnect(
+	xnetengine* pEngine,
+	xnetresolver* pResolver,
+	cstr sHost,
+	uint16 iPort,
+	const xnetdialconfig* pConfig,
+	const xnetstreamevents* pStreamEvents,
+	ptr pStreamData,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtNetConnect(pEngine, pResolver, sHost, iPort, pConfig, pStreamEvents, pStreamData, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

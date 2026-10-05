@@ -7,9 +7,7 @@ OIDC 辅助（nonce / JWKS 拉取 / userinfo）。
 2.0 更新扩充了公开的 `xoauth2client` / `xoauth2token` 结构（微信适配标记与
 `OpenId`）；从 1.x 升级时必须重新编译所有使用方。
 
-实现是 `xoauth2.c` 单一编译单元：把它加入构建（包含目录指向本目录），
-或单 TU 场景直接 `#include "xoauth2.c"`。依赖的 xrt 模块闭包见
-`xoauth2-xrt.h`（含 net/tls/http1 全套，供便捷传输使用）。
+依赖闭包由 `config/modules.json` 声明，公共入口是 `include/xoauth2.h`，实现位于 `src/`，每个 `.c` 独立编译。构建、测试、单头生成与 CI 均使用仓库根目录的统一工具；目录规范见 [扩展库开发说明](../README.md)。
 
 ## 与 xjwt 的关系：数据耦合，零依赖
 
@@ -60,14 +58,11 @@ nonce 在全部 ID token 检查通过后才消费；userinfo 校验失败仍须�
 `auth_time`、acr、加密 ID token 和动态注册不在此示例的支持范围内；需要这些
 能力时须扩展应用策略。参见 [刷新 ID token 的规则](https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokenResponse)。
 
-真实示例从仓库根目录构建（Windows 替换最后的链接库为
-`-lws2_32 -lbcrypt -ladvapi32 -liphlpapi`）：
+真实示例从仓库根目录构建；`--no-run` 保留程序供显式配置端点后运行：
 
 ```sh
-gcc -std=c11 -D_GNU_SOURCE -O2 -Wall -Wextra -Werror -I single -I extlibs/xjwt \
-  extlibs/xoauth2/examples/oidc_live.c extlibs/xoauth2/xoauth2.c extlibs/xjwt/xjwt.c \
-  -o oidc_live -pthread -lm
-./oidc_live https://issuer.example client-id https://app.example/callback ca.pem basic RS256
+python tools/build.py --manifest extlibs/xoauth2/config/modules.json --suite xoauth2_live --no-run --no-single --jobs 4
+out/gcc/native/xoauth2_live/oidc_live https://issuer.example client-id https://app.example/callback ca.pem basic RS256
 ```
 
 保密客户端的 secret 只从运行时环境变量 `XOAUTH2_CLIENT_SECRET` 读取；
@@ -85,6 +80,18 @@ CA 参数可为 PEM 文件或 `system`，TLS 始终验证证书与身份。issue
 
 密钥轮换重试 = 应用层 6 行（`xjwtLastError()==XJWT_ERROR_KEY_NOT_FOUND`
 时重拉 JWKS，参见 xjwt 示例）。
+
+## 构建
+
+从仓库根目录执行（Windows 与 POSIX 使用同一入口）：
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/xoauth2/config/modules.json --suite xoauth2,xoauth2_tests,xoauth2_oidc --jobs 4
+python tools/package.py --compiler gcc --manifest extlibs/xoauth2/config/modules.json --suite xoauth2 --kind static --verify
+python tools/amalgamate.py --manifest extlibs/xoauth2/config/modules.json
+```
+
+单头实现与声明分别生成到 `single/extlibs/xoauth2.h` 和 `single/extlibs/xoauth2_decl.h`，只包含本库代码。调用方先提供核心 XRT，再按依赖顺序提供扩展；见 [构建说明](../../docs/BUILD.md)。
 
 ## 用法（GitHub 登录）
 

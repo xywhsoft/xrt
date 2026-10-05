@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifndef XRT_TEST_MAIL_TLS_PARTIAL_H
 #define XRT_TEST_MAIL_TLS_PARTIAL_H
 
@@ -32,7 +33,7 @@ static inline void testMailPartialSocketTask(xnetworker* pWorker, ptr pData)
 	xrtAtomic32Store(&pJob->Done, 1u, XMEMORY_RELEASE);
 }
 
-static inline void testMailPartialSmallSocket(xnetstream* pTcp, xdeadline Deadline)
+static inline void testMailPartialSmallSocket(xnetstream* pTcp, double Deadline)
 {
 	testmailpartialsocket Job;
 	xnetworker* pWorker = xrtNetStreamWorker(pTcp);
@@ -43,16 +44,16 @@ static inline void testMailPartialSmallSocket(xnetstream* pTcp, xdeadline Deadli
 		xrtNetWorkerEngine(pWorker), xrtNetWorkerIndex(pWorker),
 		testMailPartialSocketTask, &Job), "mail TLS socket configuration post failed");
 	while ( !xrtAtomic32Load(&Job.Done, XMEMORY_ACQUIRE) ) {
-		testRequire(!xrtDeadlineExpired(Deadline), "mail TLS socket configuration stalled");
+		testRequire(!__xrtWaitExpired(Deadline), "mail TLS socket configuration stalled");
 		xrtThreadYield();
 	}
 	testRequire(Job.Success, "mail TLS socket buffer configuration failed");
 }
 
-static inline bool testMailPartialWaitFlag(const xatomic32* pFlag, xdeadline Deadline)
+static inline bool testMailPartialWaitFlag(const xatomic32* pFlag, double Deadline)
 {
 	while ( !xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) ) {
-		if ( xrtDeadlineExpired(Deadline) ) return false;
+		if ( __xrtWaitExpired(Deadline) ) return false;
 		xrtThreadYield();
 	}
 	return true;
@@ -75,7 +76,7 @@ static inline void testMailPartialSnapshotTask(xnetworker* pWorker, ptr pData)
 	xrtAtomic32Store(&pSnapshot->Done, 1u, XMEMORY_RELEASE);
 }
 
-static inline bool testMailPartialSnapshot(xtlsstream* pTls, xdeadline Deadline,
+static inline bool testMailPartialSnapshot(xtlsstream* pTls, double Deadline,
 	testmailpartialsnapshot* pSnapshot)
 {
 	xnetworker* pWorker = xrtNetStreamWorker(xrtTlsStreamTransport(pTls));
@@ -91,9 +92,9 @@ static inline bool testMailPartialSnapshot(xtlsstream* pTls, xdeadline Deadline,
 
 /* 第二轮的密文增加且唯一 Future 仍占完整预算，才算同次发送部分推进。 */
 static inline bool testMailPartialWaitProgress(xtlsstream* pTls, uint64 PrefixAccepted,
-	size_t AsyncBytes, const xatomic32* pReturned, xdeadline Deadline)
+	size_t AsyncBytes, const xatomic32* pReturned, double Deadline)
 {
-	while ( !xrtDeadlineExpired(Deadline) ) {
+	while ( !__xrtWaitExpired(Deadline) ) {
 		testmailpartialsnapshot Snapshot;
 		if ( !testMailPartialSnapshot(pTls, Deadline, &Snapshot) ) return false;
 		if ( Snapshot.AsyncBytes == AsyncBytes && Snapshot.AsyncCount == 1u &&
@@ -107,9 +108,9 @@ static inline bool testMailPartialWaitProgress(xtlsstream* pTls, uint64 PrefixAc
 /* 完整密文已收到、明文已取走且新接收仍待定时，客户端正在等缺少的线路结尾。
  * 调用方须在失败返回后另核对协议层待解析字节，确认它确实消费了该前缀。 */
 static inline bool testMailPartialWaitRead(xtlsstream* pTls, uint64 ExpectedReceived,
-	const xatomic32* pReturned, xdeadline Deadline)
+	const xatomic32* pReturned, double Deadline)
 {
-	while ( !xrtDeadlineExpired(Deadline) ) {
+	while ( !__xrtWaitExpired(Deadline) ) {
 		testmailpartialsnapshot Snapshot;
 		if ( !testMailPartialSnapshot(pTls, Deadline, &Snapshot) ) return false;
 		if ( Snapshot.Received >= ExpectedReceived && Snapshot.Available == 0 &&

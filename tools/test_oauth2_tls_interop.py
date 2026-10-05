@@ -38,7 +38,7 @@ def build_client(root: Path, compiler: str, sanitize: bool, *, ownership: bool =
     run_command(
         compiler, "-std=c11", "-D_GNU_SOURCE", "-O0" if coverage else "-O2", "-Wall", "-Wextra",
         "-Werror", *profile_flags, *sanitizer_flags, "-I", str(ROOT / "single"),
-        "-I", str(ROOT / "extlibs/xoauth2"), str(OWNERSHIP_CLIENT if ownership else CLIENT),
+        "-I", str(ROOT / "extlibs/xjwt/include"), "-I", str(ROOT / "extlibs/xoauth2/include"), str(OWNERSHIP_CLIENT if ownership else CLIENT),
         "-o", str(binary), *platform_libs, *sanitizer_flags,
     )
     return binary

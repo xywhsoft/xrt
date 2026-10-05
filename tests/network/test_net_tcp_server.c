@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -16,7 +17,7 @@ static void testTcpServerWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	for ( ;; ) {
 		bool bServerDone = (pServer == NULL) ||
@@ -29,7 +30,7 @@ static void testTcpServerWait(
 		if ( bServerDone && bFirstDone && bSecondDone ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -41,14 +42,14 @@ static void testTcpServerCloseWait(
 	const testtcpservercontext* pContext
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtAtomic32Load(
 		&pContext->Closed,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(iDeadline),
+			!__xrtWaitExpired(iDeadline),
 			"TCP server close callback missing"
 		);
 		xrtThreadYield();
@@ -60,7 +61,7 @@ static void testTcpServerCloseWait(
 /* 在截止时间前从聚合队列取走一个 Stream。 */
 static xnetstream* testTcpServerAccept(xnetserver* pServer)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 	xnetstream* pStream;
 
 	for ( ;; ) {
@@ -70,7 +71,7 @@ static xnetstream* testTcpServerAccept(xnetserver* pServer)
 		}
 		testRequire(xrtGetError() == NULL,
 			"TCP server pull accept returned an error");
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP server did not aggregate an accepted stream");
 		xrtThreadYield();
 	}

@@ -1,0 +1,66 @@
+/* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
+#ifndef XJWT_FEATURES_H
+#define XJWT_FEATURES_H
+
+/* xjwt 及其直接依赖。 */
+#if defined(XJWT_MODULE_ALL) || defined(XJWT_MODULE_XJWT)
+#ifndef XJWT_FEATURE_XJWT
+#define XJWT_FEATURE_XJWT
+#endif
+#ifndef XRT_MODULE_JSON_READ
+#define XRT_MODULE_JSON_READ
+#endif
+#ifndef XRT_MODULE_JSON_WRITE
+#define XRT_MODULE_JSON_WRITE
+#endif
+#ifndef XRT_MODULE_VALUE
+#define XRT_MODULE_VALUE
+#endif
+#ifndef XRT_MODULE_CODEC_BASE64
+#define XRT_MODULE_CODEC_BASE64
+#endif
+#ifndef XRT_MODULE_CRYPTO_CORE
+#define XRT_MODULE_CRYPTO_CORE
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA512
+#define XRT_MODULE_CRYPTO_SHA512
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA512
+#define XRT_MODULE_CRYPTO_HMAC_SHA512
+#endif
+#ifndef XRT_MODULE_CRYPTO_RSA
+#define XRT_MODULE_CRYPTO_RSA
+#endif
+#ifndef XRT_MODULE_CRYPTO_RSA_PRIVATE
+#define XRT_MODULE_CRYPTO_RSA_PRIVATE
+#endif
+#ifndef XRT_MODULE_CRYPTO_RSA_PKCS1_SIGN
+#define XRT_MODULE_CRYPTO_RSA_PKCS1_SIGN
+#endif
+#ifndef XRT_MODULE_CRYPTO_ECDSA_P256
+#define XRT_MODULE_CRYPTO_ECDSA_P256
+#endif
+#ifndef XRT_MODULE_CRYPTO_ECDSA_P256_SIGN
+#define XRT_MODULE_CRYPTO_ECDSA_P256_SIGN
+#endif
+#ifndef XRT_MODULE_PEM
+#define XRT_MODULE_PEM
+#endif
+#ifndef XRT_MODULE_ASN1_DER
+#define XRT_MODULE_ASN1_DER
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_STRING
+#define XRT_MODULE_STRING
+#endif
+#endif
+
+#endif /* XJWT_FEATURES_H */

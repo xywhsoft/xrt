@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
@@ -63,7 +64,7 @@ int main(void)
 	exampleresolver State;
 	xnetresolver* pResolver;
 	xnetresolveop* pOperation;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	memset(&State, 0, sizeof(State));
 	pResolver = xrtNetResolverCreate(NULL);
@@ -81,9 +82,9 @@ int main(void)
 		(void)xrtNetResolverDestroy(pResolver);
 		return 2;
 	}
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( xrtAtomic32Load(&State.Done, XMEMORY_ACQUIRE) == 0 ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			(void)xrtNetResolveOpCancel(pOperation);
 			break;
 		}

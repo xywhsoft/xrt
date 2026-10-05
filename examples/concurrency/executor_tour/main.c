@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：concurrency/executor_tour —— 执行器收口补集
  * ----------------------------------------------------------------
@@ -56,10 +57,10 @@ int main(void)
 	/* 等三个工作执行完（Wait 族只对已关闭执行器有意义——
 	 * 未关闭时调用返回 ERROR，不是等新工作的手段）。 */
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(3000000));
+		double iDeadline = __xrtWaitAfter(UINT64_C(3000000));
 
 		while ( g_Ran < 3 ) {
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				goto Cleanup;
 			}
 			xrtThreadYield();
@@ -80,8 +81,8 @@ int main(void)
 	if ( !xrtExecutorClose(pExecutor) ||
 		(xrtExecutorWaitFor(pExecutor,
 			UINT64_C(3000000)) != XWAIT_OK) ||
-		(xrtExecutorWaitUntil(pExecutor,
-			xrtDeadlineAfter(UINT64_C(3000000))) !=
+		(__xrtExecutorWaitUntil(pExecutor,
+			__xrtWaitAfter(UINT64_C(3000000))) !=
 			XWAIT_OK) ||
 		(xrtExecutorWait(pExecutor) != XWAIT_OK) ||
 		!xrtExecutorGet(pExecutor, &Stats) ||

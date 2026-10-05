@@ -233,7 +233,7 @@ struct __xrt_net_port_driver {
 		const __xrt_net_port_submit* pSubmit);
 	bool (*Cancel)(xnetport* pPort, uint64 Id);
 	xnetresult (*Wait)(xnetport* pPort, xnetportevent* pEvents,
-		size_t iCapacity, uint64 iTimeout, size_t* pCount);
+		size_t iCapacity, int64 iTimeout, size_t* pCount);
 	bool (*Wake)(xnetport* pPort);
 };
 

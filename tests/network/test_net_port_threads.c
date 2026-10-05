@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../test_thread.h"
 
@@ -62,8 +63,8 @@ int main(void)
 	while ( iReceived < (TEST_PORT_PRODUCERS * TEST_PORT_POSTS) ) {
 		size_t iCount = 0;
 
-		testRequire(xrtNetPortWait(pPort, Events, 64,
-			xrtDeadlineAfter(5000000), &iCount) == XNET_RESULT_OK,
+		testRequire(__xrtNetPortWait(pPort, Events, 64,
+			__xrtWaitAfter(5000000), &iCount) == XNET_RESULT_OK,
 			"threaded network port wait failed");
 		for ( size_t i = 0; i < iCount; i++ ) {
 			size_t iId;

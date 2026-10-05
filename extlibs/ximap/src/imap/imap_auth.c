@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <xrt/imap_auth.h>
 
 #include "../internal/xrt_imap_client.h"
@@ -28,7 +29,7 @@ static bool __xrtImapAuthError(xerrkind Kind, cstr sMessage)
 static __ximapauthnext __xrtImapAuthNext(
 	ximapclient* pClient,
 	ximapstatus* pStatus,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -36,7 +37,7 @@ static __ximapauthnext __xrtImapAuthNext(
 	xmailnext Next;
 
 	for ( ;; ) {
-		Next = xrtImapClientNext(
+		Next = __xrtImapClientNext(
 			pClient,
 			&Event,
 			iDeadline,
@@ -150,7 +151,7 @@ static char* __xrtImapAuthLoginArguments(
 static bool __xrtImapAuthLogin(
 	ximapclient* pClient,
 	const ximapauthconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -164,7 +165,7 @@ static bool __xrtImapAuthLogin(
 	if ( sArguments == NULL ) {
 		return false;
 	}
-	bStarted = xrtImapClientBegin(
+	bStarted = __xrtImapClientBegin(
 		pClient,
 		XRT_STR_LITERAL("LOGIN"),
 		(xstrview) { sArguments, iArguments },
@@ -177,7 +178,7 @@ static bool __xrtImapAuthLogin(
 	}
 	Next = __xrtImapAuthNext(pClient, &Status, iDeadline, pCancel);
 	if ( Next == __XIMAP_AUTH_CONTINUE ) {
-		if ( !xrtImapClientContinue(
+		if ( !__xrtImapClientContinue(
 			pClient,
 			XRT_STR_LITERAL("*"),
 			iDeadline,
@@ -231,7 +232,7 @@ static char* __xrtImapAuthArguments(
 static bool __xrtImapAuthSasl(
 	ximapclient* pClient,
 	const ximapauthconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -289,7 +290,7 @@ static bool __xrtImapAuthSasl(
 			return false;
 		}
 	}
-	bStarted = xrtImapClientBegin(
+	bStarted = __xrtImapClientBegin(
 		pClient,
 		XRT_STR_LITERAL("AUTHENTICATE"),
 		bInitial ? (xstrview) { sArguments, iArguments } : Mechanism,
@@ -312,7 +313,7 @@ static bool __xrtImapAuthSasl(
 			break;
 		}
 		if ( !bSent ) {
-			bStarted = xrtImapClientContinue(
+			bStarted = __xrtImapClientContinue(
 				pClient,
 				(xstrview) { sEncoded, iEncoded },
 				iDeadline,
@@ -321,7 +322,7 @@ static bool __xrtImapAuthSasl(
 			bSent = true;
 		} else if ( (pConfig->Method == XIMAP_AUTH_XOAUTH2) &&
 			!bFinalized ) {
-			bStarted = xrtImapClientContinue(
+			bStarted = __xrtImapClientContinue(
 				pClient,
 				XRT_STR_LITERAL(""),
 				iDeadline,
@@ -330,7 +331,7 @@ static bool __xrtImapAuthSasl(
 			bFinalized = true;
 		} else if ( (pConfig->Method == XIMAP_AUTH_OAUTHBEARER) &&
 			!bFinalized ) {
-			bStarted = xrtImapClientContinue(
+			bStarted = __xrtImapClientContinue(
 				pClient,
 				XRT_STR_LITERAL("AQ=="),
 				iDeadline,
@@ -338,7 +339,7 @@ static bool __xrtImapAuthSasl(
 			);
 			bFinalized = true;
 		} else {
-			bStarted = xrtImapClientContinue(
+			bStarted = __xrtImapClientContinue(
 				pClient,
 				XRT_STR_LITERAL("*"),
 				iDeadline,
@@ -422,10 +423,10 @@ XRT_API bool xrtImapAuthConfigValid(const ximapauthconfig* pConfig)
 
 
 /* 执行选定的 IMAP 认证机制。 */
-XRT_API bool xrtImapClientAuth(
+XRT_API bool __xrtImapClientAuth(
 	ximapclient* pClient,
 	const ximapauthconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -492,4 +493,16 @@ XRT_API bool xrtImapClientAuth(
 	return __xrtImapAuthSasl(pClient, pConfig, iDeadline, pCancel);
 }
 
+#endif
+
+#if (defined(XIMAP_FEATURE_IMAP_AUTH))
+XRT_API bool xrtImapClientAuth(
+	ximapclient* pClient,
+	const ximapauthconfig* pConfig,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtImapClientAuth(pClient, pConfig, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

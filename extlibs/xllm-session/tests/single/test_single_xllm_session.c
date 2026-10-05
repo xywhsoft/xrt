@@ -1,0 +1,9 @@
+#include "../../include/xllm-session/features.h"
+#include "../../../xllm/include/xllm/features.h"
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XLLM_IMPLEMENTATION
+#include "../../../../single/extlibs/xllm.h"
+#define XLLM_SESSION_IMPLEMENTATION
+#include "../../../../single/extlibs/xllm-session.h"
+#include "../test_xllm_session.c"

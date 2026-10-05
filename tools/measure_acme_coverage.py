@@ -87,7 +87,7 @@ def measure(args: argparse.Namespace) -> dict:
         "generate_extension_features.py", "test_acme_http_interop.py", "http_tls_test_fixture.py",
         "test_acme_mock.py", "test_acme_grant_verifier.py", "acme_mock_server.py", "test_acme_provider_wire.py")]
     dependencies += [ROOT / "single/xrt.h", ROOT / "single/xrt_decl.h", ROOT / "tests/test.h",
-                     ROOT / "extlibs/xacme/single/xacme.h", ROOT / "extlibs/xacme/single/xacme_decl.h"]
+                     ROOT / "single/extlibs/xacme.h", ROOT / "single/extlibs/xacme_decl.h"]
     inputs = source_hashes(dependencies)
     if not args.module_only:
         print("[coverage] verify matching generated Core and ACME runtimes", flush=True)

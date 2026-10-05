@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../bench_common.h"
 
 #define XRT_MODULE_TLS_STREAM
@@ -99,10 +100,10 @@ static bool benchTlsWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(BENCH_TLS_TIMEOUT);
+	double Deadline = __xrtWaitAfter(BENCH_TLS_TIMEOUT);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			fprintf(stderr, "tls benchmark timeout: %s\n", sMessage);
 			return false;
 		}

@@ -581,18 +581,15 @@ ops.pEvaluate 的数据面——注意 replay 不调 ops 函数，只复用其�
 
 ```text
 extlibs/xllm-session/
-├── xllm-session.h          公共 API（v2 + §9/§10 增量）
-├── xllm-session.c          unity 入口
-├── xllm-session-xrt.c/h    XRT 桥接（M0 收窄 + JSONL_READ）
-└── src/
-    ├── xllm_session_internal.h
-    ├── xllm_session_core.c     账本/轮次/克隆/fork/事件流分发（v2 继承+事件）
-    ├── xllm_session_render.c   渲染管线/渲染钩子接入/字节稳定性（v2 拆出）
-    ├── xllm_session_govern.c   精确占用/失效语义/有界增量/回环计数（新）
-    ├── xllm_session_compact.c  压缩管线驱动 + 默认 Pi ops 实现（ops 表即函数目录）
-    ├── xllm_session_journal.c  journal（追加维持 + 重放迁 xrtJsonl）
-    ├── xllm_session_persist.c  快照/恢复（v2 继承 + 新字段）
-    └── xllm_session_easy.c     便捷层 Send/Complete/MaybeCompact + pSummarize 默认实现（~170 行）
+├── config/modules.json             核心与 xllm 的依赖、源码和测试清单
+├── include/xllm-session.h          公共聚合入口
+├── include/xllm-session/api.h      公共 API
+├── include/xllm-session/features.h 生成的模块选择
+├── src/internal/                  本库私有声明
+├── src/session/                   独立编译的实现文件
+├── tests/                         模块化、单头和包消费测试
+├── bench/                         性能基准
+└── docs/api/reference.md           生成的 API 参考
 ```
 
 ## 14. 测试策略

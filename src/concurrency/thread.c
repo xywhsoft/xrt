@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_wait.h"
 
 #include <errno.h>
@@ -163,11 +164,11 @@ static void __xrtThreadCurrentSet(xthread* pThread)
 /* 把 XRT 截止时间转换为线程条件变量实际使用的绝对时钟。 */
 static bool __xrtThreadDeadlineTime(
 	const xthread* pThread,
-	xdeadline iDeadline,
+	double iDeadline,
 	struct timespec* pTime
 )
 {
-	uint64 iRemaining;
+	int64 iRemaining;
 	uint64 iNanoseconds;
 
 	if ( pThread->ConditionMonotonic ) {
@@ -175,7 +176,7 @@ static bool __xrtThreadDeadlineTime(
 		pTime->tv_nsec = (long)((iDeadline % UINT64_C(1000000)) * UINT64_C(1000));
 		return true;
 	}
-	iRemaining = xrtDeadlineRemaining(iDeadline);
+	iRemaining = __xrtWaitRemaining(iDeadline);
 	if ( clock_gettime(CLOCK_REALTIME, pTime) != 0 ) {
 		__xrtThreadSetSystemError("clock", errno, "realtime clock is unavailable");
 		return false;
@@ -309,18 +310,18 @@ static void* __xrtThreadEntry(void* pData)
 
 /* 在 Windows 条件变量上等待线程完成。 */
 #if defined(_WIN32) || defined(_WIN64)
-static xwaitresult __xrtThreadWaitDeadline(xthread* pThread, xdeadline iDeadline)
+static xwaitresult __xrtThreadWaitDeadline(xthread* pThread, double iDeadline)
 {
 	EnterCriticalSection(&pThread->Lock);
 	while ( pThread->State != XTHREAD_FINISHED ) {
-		uint64 iRemaining = xrtDeadlineRemaining(iDeadline);
+		int64 iRemaining = __xrtWaitRemaining(iDeadline);
 		DWORD iMilliseconds;
 
 		if ( iRemaining == 0 ) {
 			LeaveCriticalSection(&pThread->Lock);
 			return XWAIT_TIMEOUT;
 		}
-		iMilliseconds = iRemaining == UINT64_MAX ? INFINITE :
+		iMilliseconds = iRemaining == XRT_WAIT_FOREVER ? INFINITE :
 			(DWORD)__xrtWaitMilliseconds(iRemaining);
 		if ( !SleepConditionVariableCS(&pThread->Condition, &pThread->Lock, iMilliseconds) ) {
 			int iCode = (int)GetLastError();
@@ -337,7 +338,7 @@ static xwaitresult __xrtThreadWaitDeadline(xthread* pThread, xdeadline iDeadline
 }
 #else
 /* 在单调时钟条件变量上等待 POSIX 线程完成。 */
-static xwaitresult __xrtThreadWaitDeadline(xthread* pThread, xdeadline iDeadline)
+static xwaitresult __xrtThreadWaitDeadline(xthread* pThread, double iDeadline)
 {
 	int iResult;
 
@@ -347,12 +348,12 @@ static xwaitresult __xrtThreadWaitDeadline(xthread* pThread, xdeadline iDeadline
 		return XWAIT_ERROR;
 	}
 	while ( pThread->State != XTHREAD_FINISHED ) {
-		if ( iDeadline == XRT_DEADLINE_NEVER ) {
+		if ( iDeadline == INFINITY ) {
 			iResult = pthread_cond_wait(&pThread->Condition, &pThread->Lock);
 		} else {
 			struct timespec tDeadline;
 
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				(void)pthread_mutex_unlock(&pThread->Lock);
 				return XWAIT_TIMEOUT;
 			}
@@ -529,21 +530,21 @@ XRT_API void xrtThreadDestroy(xthread* pThread)
 /* 等待线程完成。 */
 XRT_API xwaitresult xrtThreadWait(xthread* pThread)
 {
-	return xrtThreadWaitUntil(pThread, XRT_DEADLINE_NEVER);
+	return __xrtThreadWaitUntil(pThread, INFINITY);
 }
 
 
 
 /* 在相对微秒数内等待线程完成。 */
-XRT_API xwaitresult xrtThreadWaitFor(xthread* pThread, uint64 iTimeout)
+XRT_API xwaitresult xrtThreadWaitFor(xthread* pThread, int64 iTimeout)
 {
-	return xrtThreadWaitUntil(pThread, xrtDeadlineAfter(iTimeout));
+	return __xrtThreadWaitUntil(pThread, __xrtWaitAfter(iTimeout));
 }
 
 
 
 /* 等待线程完成到指定截止时间。 */
-XRT_API xwaitresult xrtThreadWaitUntil(xthread* pThread, xdeadline iDeadline)
+XRT_API xwaitresult __xrtThreadWaitUntil(xthread* pThread, double iDeadline)
 {
 	if ( pThread == NULL ) {
 		__xrtErrorSetInvalidArgument();

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_mail_net.h"
 
 
@@ -37,12 +38,12 @@ static bool __xrtMailNetTlsHostIsIp(cstr sHost)
 /* 等待 TLS Future；只有关闭时的接收允许认证 EOF 的 CLOSED 终态。 */
 static bool __xrtMailNetTlsFutureResult(
 	xfuture* pFuture,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel,
 	bool bAllowClosed
 )
 {
-	xwaitresult Wait = xrtFutureWaitUntilCancel(
+	xwaitresult Wait = __xrtFutureWaitUntilCancel(
 		pFuture,
 		iDeadline,
 		pCancel
@@ -94,7 +95,7 @@ static bool __xrtMailNetTlsFutureResult(
 /* 一般 TLS 操作必须交付成功结果，不能把 EOF 当作成功。 */
 static bool __xrtMailNetTlsFuture(
 	xfuture* pFuture,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -174,7 +175,7 @@ static void __xrtMailNetTlsUpgradeTask(
 bool __xrtMailTransportTlsOpen(
 	__xmailtransport* pTransport,
 	const xmailnetconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -218,7 +219,7 @@ bool __xrtMailTransportTlsOpen(
 bool __xrtMailTransportStartTls(
 	__xmailtransport* pTransport,
 	const xmailnetconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -246,9 +247,9 @@ bool __xrtMailTransportStartTls(
 		);
 		return false;
 	}
-	if ( xrtDeadlineExpired(iDeadline) || xrtCancelRequested(pCancel) ) {
+	if ( __xrtWaitExpired(iDeadline) || xrtCancelRequested(pCancel) ) {
 		__xrtMailError(
-			xrtDeadlineExpired(iDeadline) ? XERR_TIMEOUT : XERR_CANCELLED,
+			__xrtWaitExpired(iDeadline) ? XERR_TIMEOUT : XERR_CANCELLED,
 			XMAIL_ERROR_PROTOCOL,
 			"mail STARTTLS was not started"
 		);
@@ -288,7 +289,7 @@ bool __xrtMailTransportStartTls(
 		xrtFree(pUpgrade);
 		return false;
 	}
-	Wait = xrtFutureWaitUntilCancel(pFuture, iDeadline, pCancel);
+	Wait = __xrtFutureWaitUntilCancel(pFuture, iDeadline, pCancel);
 	if ( Wait != XWAIT_OK ) {
 		iExpected = 0;
 		if ( xrtAtomic32CompareExchange(
@@ -373,7 +374,7 @@ bool __xrtMailTransportTlsSend(
 	__xmailtransport* pTransport,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -397,7 +398,7 @@ bool __xrtMailTransportTlsSend(
 /* 取得一块拥有型 TLS 明文。 */
 xnetbytes* __xrtMailTransportTlsRecv(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -424,7 +425,7 @@ xnetbytes* __xrtMailTransportTlsRecv(
 /* 按有界块消费剩余 TLS 明文，使读取背压不会挡住 close_notify。 */
 static bool __xrtMailTransportTlsDrainClose(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -457,7 +458,7 @@ static bool __xrtMailTransportTlsDrainClose(
 /* 请求认证关闭，消费协议结束后的残留明文并等待 Stream 关闭终态。 */
 bool __xrtMailTransportTlsClose(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xfuture* pFuture;

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
@@ -12,7 +13,7 @@ typedef enum testimapappendfaultmode {
 
 typedef struct testimapappendfaultserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	testimapappendfaultmode Mode;
 	xatomic32 Release;
 	xatomic32 Disconnected;
@@ -48,7 +49,7 @@ static xnetaddrlist* testImapAppendFaultResolve(
 static bool testImapAppendFaultSend(
 	xnetstream* pStream,
 	cstr sText,
-	xdeadline Deadline
+	double Deadline
 )
 {
 	for ( ;; ) {
@@ -57,7 +58,7 @@ static bool testImapAppendFaultSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			Deadline,
@@ -74,14 +75,14 @@ static bool testImapAppendFaultSend(
 static bool testImapAppendFaultReceive(
 	xnetstream* pStream,
 	cstr sExpected,
-	xdeadline Deadline
+	double Deadline
 )
 {
 	size_t iReceived = 0;
 	size_t iExpected = strlen(sExpected);
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			Deadline,
@@ -111,7 +112,7 @@ static bool testImapAppendFaultExchange(
 	xnetstream* pStream,
 	cstr sCommand,
 	cstr sResponse,
-	xdeadline Deadline
+	double Deadline
 )
 {
 	return testImapAppendFaultReceive(pStream, sCommand, Deadline) &&
@@ -125,7 +126,7 @@ static int32 testImapAppendFaultServer(ptr pData)
 {
 	testimapappendfaultserver* pServer =
 		(testimapappendfaultserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -190,10 +191,10 @@ static int32 testImapAppendFaultServer(ptr pData)
 			pServer->Deadline
 		);
 		if ( bSuccess ) {
-			pUnexpected = xrtNetStreamRecv(
+			pUnexpected = __xrtNetStreamRecv(
 				pStream,
 				1u,
-				xrtDeadlineAfter(UINT64_C(100000)),
+				__xrtWaitAfter(UINT64_C(100000)),
 				NULL
 			);
 			bSuccess = (pUnexpected == NULL) &&
@@ -209,7 +210,7 @@ static int32 testImapAppendFaultServer(ptr pData)
 		);
 		while ( bSuccess && !xrtAtomic32Load(&pServer->Release,
 			XMEMORY_ACQUIRE) ) {
-			if ( xrtDeadlineExpired(pServer->Deadline) ) {
+			if ( __xrtWaitExpired(pServer->Deadline) ) {
 				bSuccess = false;
 				break;
 			}
@@ -218,7 +219,7 @@ static int32 testImapAppendFaultServer(ptr pData)
 		bSuccess = bSuccess && xrtNetStreamAbort(pStream);
 		while ( bSuccess &&
 			(xrtNetStreamState(pStream) != XNET_STREAM_CLOSED) ) {
-			if ( xrtDeadlineExpired(pServer->Deadline) ) {
+			if ( __xrtWaitExpired(pServer->Deadline) ) {
 				bSuccess = false;
 				break;
 			}
@@ -231,7 +232,7 @@ static int32 testImapAppendFaultServer(ptr pData)
 	}
 	if ( bSuccess &&
 		(xrtNetStreamState(pStream) == XNET_STREAM_OPEN) ) {
-		bSuccess = xrtNetStreamClose(pStream) && xrtNetStreamWait(
+		bSuccess = xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_CLOSE,
 			pServer->Deadline,
@@ -308,7 +309,7 @@ int main(void)
 		ximapclient* pClient;
 		ximapappendconfig AppendConfig;
 		xthread* pThread;
-		xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+		double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 
 		Server.Deadline = Deadline;
 		Server.Mode = (testimapappendfaultmode)iMode;
@@ -318,7 +319,7 @@ int main(void)
 		pThread = xrtThreadCreate(testImapAppendFaultServer, &Server, 0);
 		testRequire(pThread != NULL,
 			"IMAP APPEND fault server thread failed");
-		pClient = xrtImapClientOpen(&ClientConfig, Deadline, NULL);
+		pClient = __xrtImapClientOpen(&ClientConfig, Deadline, NULL);
 		testRequire((pClient != NULL) &&
 			(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED),
 			"IMAP APPEND fault client open failed");
@@ -328,7 +329,7 @@ int main(void)
 		AppendConfig.Literal = XIMAP_LITERAL_SYNC;
 		if ( iMode == TEST_IMAP_APPEND_REJECTIONS ) {
 			xrtClearError();
-			testRequire(!xrtImapClientAppendBegin(
+			testRequire(!__xrtImapClientAppendBegin(
 				pClient, &AppendConfig, Deadline, NULL
 			) && (xrtErrorKind(xrtGetError()) == XERR_PERMISSION) &&
 				(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED) &&
@@ -336,7 +337,7 @@ int main(void)
 					XRT_STR_LITERAL("mailbox read-only")),
 				"IMAP APPEND early NO recovery failed");
 			xrtClearError();
-			testRequire(!xrtImapClientAppendBegin(
+			testRequire(!__xrtImapClientAppendBegin(
 				pClient, &AppendConfig, Deadline, NULL
 			) && (xrtErrorKind(xrtGetError()) == XERR_PROTOCOL) &&
 				(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED) &&
@@ -345,7 +346,7 @@ int main(void)
 				"IMAP APPEND early BAD recovery failed");
 			AppendConfig.Literal = XIMAP_LITERAL_NONSYNC;
 			xrtClearError();
-			testRequire(!xrtImapClientAppend(
+			testRequire(!__xrtImapClientAppend(
 				pClient, &AppendConfig, "hello", NULL, Deadline, NULL
 			) && (xrtErrorKind(xrtGetError()) == XERR_PERMISSION) &&
 				(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED) &&
@@ -353,18 +354,18 @@ int main(void)
 					XRT_STR_LITERAL("quota exceeded")),
 				"IMAP APPEND final NO recovery failed");
 			xrtClearError();
-			testRequire(!xrtImapClientAppend(
+			testRequire(!__xrtImapClientAppend(
 				pClient, &AppendConfig, "hello", NULL, Deadline, NULL
 			) && (xrtErrorKind(xrtGetError()) == XERR_PROTOCOL) &&
 				(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED) &&
 				testImapAppendFaultLast(pClient, XIMAP_STATUS_BAD,
 					XRT_STR_LITERAL("invalid message")),
 				"IMAP APPEND final BAD recovery failed");
-			testRequire(xrtImapClientLogout(pClient, Deadline, NULL),
+			testRequire(__xrtImapClientLogout(pClient, Deadline, NULL),
 				"IMAP APPEND rejection recovery LOGOUT failed");
 		} else if ( iMode == TEST_IMAP_APPEND_EARLY_OK ) {
 			xrtClearError();
-			testRequire(!xrtImapClientAppendBegin(
+			testRequire(!__xrtImapClientAppendBegin(
 				pClient, &AppendConfig, Deadline, NULL
 			) && (xrtErrorKind(xrtGetError()) == XERR_PROTOCOL) &&
 				(xrtImapClientState(pClient) == XIMAP_CLIENT_FAILED) &&
@@ -376,13 +377,13 @@ int main(void)
 
 			testRequire(pCancel != NULL,
 				"IMAP APPEND cancellation creation failed");
-			testRequire(xrtImapClientAppendBegin(
+			testRequire(__xrtImapClientAppendBegin(
 				pClient, &AppendConfig, Deadline, NULL
 			), "IMAP APPEND cancellation begin failed");
 			testRequire(xrtCancelRequest(pCancel),
 				"IMAP APPEND cancellation request failed");
 			xrtClearError();
-			testRequire(!xrtImapClientAppendWrite(
+			testRequire(!__xrtImapClientAppendWrite(
 				pClient, "hello", 5u, Deadline, pCancel
 			) && (xrtErrorKind(xrtGetError()) == XERR_CANCELLED) &&
 				(xrtImapClientState(pClient) == XIMAP_CLIENT_FAILED) &&
@@ -392,22 +393,22 @@ int main(void)
 		} else {
 			bool bAppendOk;
 
-			testRequire(xrtImapClientAppendBegin(
+			testRequire(__xrtImapClientAppendBegin(
 				pClient, &AppendConfig, Deadline, NULL
 			), "IMAP APPEND disconnect begin failed");
 			xrtAtomic32Store(&Server.Release, 1u, XMEMORY_RELEASE);
 			while ( !xrtAtomic32Load(&Server.Disconnected,
 				XMEMORY_ACQUIRE) ) {
-				testRequire(!xrtDeadlineExpired(Deadline),
+				testRequire(!__xrtWaitExpired(Deadline),
 					"IMAP APPEND server did not disconnect");
 				xrtThreadYield();
 			}
 			xrtClearError();
-			bAppendOk = xrtImapClientAppendWrite(
+			bAppendOk = __xrtImapClientAppendWrite(
 				pClient, "hello", 5u, Deadline, NULL
 			);
 			if ( bAppendOk ) {
-				bAppendOk = xrtImapClientAppendEnd(
+				bAppendOk = __xrtImapClientAppendEnd(
 					pClient, NULL, Deadline, NULL
 				);
 			}
@@ -417,12 +418,12 @@ int main(void)
 		}
 		if ( (iMode == TEST_IMAP_APPEND_CANCEL) ||
 			(iMode == TEST_IMAP_APPEND_DISCONNECT) ) {
-			testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+			testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 				"IMAP APPEND cancel server did not finish");
 			xrtImapClientDestroy(pClient);
 		} else {
 			xrtImapClientDestroy(pClient);
-			testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+			testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 				"IMAP APPEND fault server did not finish");
 		}
 		testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),

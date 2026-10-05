@@ -1,0 +1,46 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xjwt/config/modules.json",
+	"defaults": {
+		"repeats": 5,
+		"warmups": 1,
+		"timeout_seconds": 120,
+		"policy": "baseline-unpinned",
+		"cflags": [
+			"-O2"
+		],
+		"ldflags": [],
+		"max_relative_mad": 0.2,
+		"max_relative_central_range": 0.3,
+		"regression": {
+			"higher": 0.1,
+			"lower": 0.2
+		}
+	},
+	"profiles": [
+		{
+			"name": "xjwt",
+			"system": "jwt",
+			"description": "xjwt public operation",
+			"benchmarks": [
+				{
+					"name": "xjwt",
+					"source": "extlibs/xjwt/bench/bench_xjwt.c",
+					"suite": "xjwt",
+					"args": [
+						"10000"
+					],
+					"smoke_args": [
+						"100"
+					],
+					"metrics": {
+						"ops_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		}
+	]
+}

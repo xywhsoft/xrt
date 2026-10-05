@@ -309,7 +309,7 @@ static void testFileMetadataMutation(cstr sPath)
 				NULL, &BeforeEpoch) != 0,
 				"Windows timestamp boundary setup failed");
 			testRequire(xrtFileStat(File, &Info) && (Info.Modified == -1),
-				"Windows sub-microsecond time did not round down");
+				"Windows sub-millisecond time did not round down");
 			testRequire(xrtClose(File),
 				"Windows timestamp boundary file close failed");
 		}

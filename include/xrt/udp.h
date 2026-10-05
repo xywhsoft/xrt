@@ -630,7 +630,7 @@ XRT_API void xrtNetUdpBatchDestroy(xnetudpbatch* pBatch);
 XRT_API bool xrtNetUdpWait(
 	xnetudp* pUdp,
 	xnetudpwait Wait,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -640,7 +640,7 @@ XRT_API bool xrtNetUdpWait(
 XRT_API bool xrtNetUdpWritable(
 	xnetudp* pUdp,
 	size_t iSize,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -649,7 +649,7 @@ XRT_API bool xrtNetUdpWritable(
 /* 阻塞接收一个拥有型数据包。 */
 XRT_API xnetudppacket* xrtNetUdpReceiveWait(
 	xnetudp* pUdp,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -658,7 +658,7 @@ XRT_API xnetudppacket* xrtNetUdpReceiveWait(
 /* 阻塞接收一个拥有型结构化数据报错误。 */
 XRT_API xnetudperrorpacket* xrtNetUdpReceiveErrorWait(
 	xnetudp* pUdp,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -668,7 +668,7 @@ XRT_API xnetudperrorpacket* xrtNetUdpReceiveErrorWait(
 XRT_API xnetudpbatch* xrtNetUdpReceiveBatchWait(
 	xnetudp* pUdp,
 	size_t iCapacity,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 #endif

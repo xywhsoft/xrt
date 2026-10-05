@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_net_port.h"
 #include "../internal/xrt_atomic.h"
 
@@ -2150,19 +2151,11 @@ static bool __xrtNetUringWakeDrain(__xrt_net_uring_context* pContext)
 
 
 /* 把微秒等待向上取整为 poll 毫秒，并保留无限等待。 */
-static int __xrtNetUringTimeout(uint64 iTimeout)
+static int __xrtNetUringTimeout(int64 iTimeout)
 {
-	uint64 iMilliseconds;
-
-	if ( iTimeout == UINT64_MAX ) {
-		return -1;
-	}
-	iMilliseconds = (iTimeout / 1000u) +
-		(((iTimeout % 1000u) != 0) ? 1u : 0u);
-	if ( iMilliseconds > INT_MAX ) {
-		return INT_MAX;
-	}
-	return (int)iMilliseconds;
+    if ( iTimeout == XRT_WAIT_FOREVER ) { return -1; }
+    if ( iTimeout < 0 ) { return 0; }
+    return iTimeout > INT_MAX ? INT_MAX : (int)iTimeout;
 }
 
 
@@ -2172,15 +2165,15 @@ static xnetresult __xrtNetUringWait(
 	xnetport* pPort,
 	xnetportevent* pEvents,
 	size_t iCapacity,
-	uint64 iTimeout,
+	int64 iTimeout,
 	size_t* pCount
 )
 {
 	__xrt_net_uring_context* pContext =
 		(__xrt_net_uring_context*)pPort->Context;
 	struct pollfd Poll[2];
-	xdeadline Deadline = (iTimeout == UINT64_MAX) ?
-		XRT_DEADLINE_NEVER : xrtDeadlineAfter(iTimeout);
+	double Deadline = (iTimeout == XRT_WAIT_FOREVER) ?
+		INFINITY : __xrtWaitAfter(iTimeout);
 
 	*pCount = 0;
 	if ( !__xrtNetUringFlush(pContext) ) {
@@ -2212,13 +2205,13 @@ static xnetresult __xrtNetUringWait(
 	Poll[1].events = POLLIN;
 
 	for ( ;; ) {
-		uint64 iRemaining = (Deadline == XRT_DEADLINE_NEVER) ?
-			UINT64_MAX : xrtDeadlineRemaining(Deadline);
+		int64 iRemaining = (Deadline == INFINITY) ?
+			XRT_WAIT_FOREVER : __xrtWaitRemaining(Deadline);
 		int iResult = poll(Poll, 2, __xrtNetUringTimeout(iRemaining));
 
 		if ( iResult == 0 ) {
-			if ( (Deadline != XRT_DEADLINE_NEVER) &&
-				 !xrtDeadlineExpired(Deadline) ) {
+			if ( (Deadline != INFINITY) &&
+				 !__xrtWaitExpired(Deadline) ) {
 				continue;
 			}
 			return iTimeout == 0 ?
@@ -2226,8 +2219,8 @@ static xnetresult __xrtNetUringWait(
 		}
 		if ( iResult < 0 ) {
 			if ( errno == EINTR ) {
-				if ( (Deadline != XRT_DEADLINE_NEVER) &&
-					 xrtDeadlineExpired(Deadline) ) {
+				if ( (Deadline != INFINITY) &&
+					 __xrtWaitExpired(Deadline) ) {
 					return iTimeout == 0 ?
 						XNET_RESULT_OK : XNET_RESULT_TIMEOUT;
 				}

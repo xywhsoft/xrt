@@ -8,7 +8,7 @@ try {
     if (Test-Path -LiteralPath $outputPath) { throw 'Keep previous graph evidence; choose a fresh directory' }
     New-Item -ItemType Directory -Path $outputPath|Out-Null
     $files=@(Get-ChildItem src,include,single,config,extlibs/xruntime/src,extlibs/xruntime/include,
-        extlibs/xruntime/single,extlibs/xruntime/config -Recurse -File)
+        extlibs/xruntime/config -Recurse -File)
     $files+=@(Get-Item tests/value/test_ownership_graph.c,tests/single/test_single_ownership.c,
         extlibs/xruntime/tests/test_runtime_ownership.c,extlibs/xruntime/tests/single/test_single_runtime_ownership.c,
         tools/build.py,tools/amalgamate.py,$PSCommandPath)

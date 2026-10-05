@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_sync.h"
 
 #include <errno.h>
@@ -29,35 +30,27 @@ void __xrtSyncSetSystemError(cstr sOperation, int iCode, cstr sMessage)
 
 #if !defined(_WIN32) && !defined(_WIN64) && defined(XRT_FEATURE_WAIT)
 /* 把单调截止时间转换为条件变量配置的绝对时钟。 */
-bool __xrtSyncDeadlineTime(
-	xdeadline iDeadline,
-	bool bMonotonic,
-	struct timespec* pTime
-)
+bool __xrtSyncDeadlineTime(double iDeadline, bool bMonotonic, struct timespec* pTime)
 {
-	uint64 iRemaining;
-	uint64 iNanoseconds;
-
-	if ( pTime == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( bMonotonic ) {
-		pTime->tv_sec = (time_t)(iDeadline / UINT64_C(1000000));
-		pTime->tv_nsec = (long)((iDeadline % UINT64_C(1000000)) * UINT64_C(1000));
-		return true;
-	}
-	iRemaining = xrtDeadlineRemaining(iDeadline);
-	if ( clock_gettime(CLOCK_REALTIME, pTime) != 0 ) {
-		__xrtSyncSetSystemError("clock", errno, "realtime clock is unavailable");
-		return false;
-	}
-	iNanoseconds = (uint64)pTime->tv_nsec +
-		((iRemaining % UINT64_C(1000000)) * UINT64_C(1000));
-	pTime->tv_sec += (time_t)(iRemaining / UINT64_C(1000000));
-	pTime->tv_sec += (time_t)(iNanoseconds / UINT64_C(1000000000));
-	pTime->tv_nsec = (long)(iNanoseconds % UINT64_C(1000000000));
-	return true;
+    int64 Remaining;
+    int64 Seconds;
+    int64 Nanoseconds;
+    time_t NativeSeconds;
+    if ( pTime == NULL ) { __xrtErrorSetInvalidArgument(); return false; }
+    Remaining = __xrtWaitRemaining(iDeadline);
+    if ( Remaining < 0 ) { return false; }
+    if ( clock_gettime(bMonotonic ? CLOCK_MONOTONIC : CLOCK_REALTIME, pTime) != 0 ) {
+        __xrtSyncSetSystemError("timer", errno, "condition clock is unavailable"); return false;
+    }
+    /* Limit each native call to one day; callers recheck the shared budget. */
+    if ( Remaining > INT64_C(86400000) ) { Remaining = INT64_C(86400000); }
+    Nanoseconds = (int64)pTime->tv_nsec + (Remaining % 1000) * INT64_C(1000000);
+    Seconds = (int64)pTime->tv_sec + Remaining / 1000 + Nanoseconds / INT64_C(1000000000);
+    NativeSeconds = (time_t)Seconds;
+    if ( (int64)NativeSeconds != Seconds ) { __xrtErrorSetInvalidArgument(); return false; }
+    pTime->tv_sec = NativeSeconds;
+    pTime->tv_nsec = (long)(Nanoseconds % INT64_C(1000000000));
+    return true;
 }
 #endif
 

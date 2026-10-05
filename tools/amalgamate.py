@@ -226,7 +226,7 @@ def _validate_local_includes(
 def _selection_macros(paths: list[str]) -> list[str]:
 	"""收集完整声明临时启用并在包含结束后恢复的选择宏。"""
 
-	macros = {"XRT_MODULE_ALL"}
+	macros: set[str] = set()
 	for path in paths:
 		text = (ROOT / path).read_text(encoding="utf-8")
 		macros.update(SELECTION_MACRO.findall(text))
@@ -425,20 +425,59 @@ def _manifest_setting(
 
 
 
+
+def _product_layout(manifests: list[dict]) -> tuple[list[dict], list[dict], list[str], set[str]]:
+	"""依赖用于排序和 include 校验，只有当前产品的资产进入生成物。"""
+	all_modules = topological_modules([
+		module for manifest in manifests for module in manifest["modules"]
+	], all_platforms=True)
+	owned = {module["name"] for module in manifests[-1]["modules"]}
+	product_root = manifests[-1].get("product_root", ".").rstrip("/")
+	modules = []
+	for module in all_modules:
+		if module["name"] not in owned:
+			continue
+		copy = dict(module)
+		for field in ("public_headers", "internal_headers", "sources"):
+			copy[field] = [path for path in module[field]
+				if product_root == "." or path.startswith(product_root + "/")]
+		modules.append(copy)
+	include_dirs = list(dict.fromkeys([
+		"include", *(directory for manifest in manifests[1:]
+			for directory in manifest.get("include_dirs", [])),
+	]))
+	known_headers = {
+		path for module in all_modules
+		for field in ("public_headers", "internal_headers", "bridge_headers")
+		for path in module.get(field, [])
+	}
+	known_headers.add("include/xrt.h")
+	for manifest in manifests[1:]:
+		for directory in manifest.get("include_dirs", []):
+			umbrella = directory + "/" + manifest["product"] + ".h"
+			if (ROOT / umbrella).is_file():
+				known_headers.add(umbrella)
+	return modules, all_modules, include_dirs, known_headers
+
+
+def _dependency_notice(product: dict) -> str:
+	"""扩展调用方先提供核心声明及所选模块的依赖。"""
+	if product.get("product", "xrt") == "xrt":
+		return ""
+	return (
+		"/* Supply XRT and selected extension dependencies before this header. */\n"
+		"#if !defined(XRT_CORE_H)\n"
+		f'#error "{product["product"]} requires XRT; include xrt.h or xrt_decl.h first"\n'
+		"#endif\n"
+	)
+
+
 def _content(overlays: list[Path] | None = None) -> tuple[Path, str]:
 	"""从当前模块清单和已生成特性头构造单头文件内容。"""
 
 	manifests = _manifests(overlays)
 	product = manifests[-1]
-	modules = topological_modules([
-		module
-		for manifest in manifests
-		for module in manifest["modules"]
-	], all_platforms=True)
-	include_dirs = ["include"]
-	for manifest in manifests[1:]:
-		include_dirs.extend(manifest.get("include_dirs", []))
-	include_dirs = list(dict.fromkeys(include_dirs))
+	modules, all_modules, include_dirs, known_headers = _product_layout(manifests)
 	implementation_macro = _manifest_setting(
 		product,
 		"implementation_macro",
@@ -459,7 +498,7 @@ def _content(overlays: list[Path] | None = None) -> tuple[Path, str]:
 		"single_marker",
 		"XRT_SINGLE_HEADER",
 	)
-	implementation_guards = _implementation_guards(modules)
+	implementation_guards = _implementation_guards(all_modules)
 	public_seen: set[str] = set()
 	implementation_seen: set[str] = set()
 	public_headers: list[str] = []
@@ -469,6 +508,7 @@ def _content(overlays: list[Path] | None = None) -> tuple[Path, str]:
 		_license_banner(),
 		"\n",
 		"/* 此文件由 tools/amalgamate.py 生成，请勿直接修改。 */\n",
+		_dependency_notice(product),
 		f"#if defined({implementation_macro}) && defined(_MSC_VER) && \\\n\t!defined(_CRT_SECURE_NO_WARNINGS)\n",
 		"\t#define _CRT_SECURE_NO_WARNINGS\n",
 		"#endif\n",
@@ -488,28 +528,19 @@ def _content(overlays: list[Path] | None = None) -> tuple[Path, str]:
 		"#endif\n",
 		f"#ifndef {header_guard}\n",
 		f"#define {header_guard}\n",
-		"#define XRT_SINGLE_HEADER 1\n",
+		f"#define {single_marker} 1\n",
 	]
-	if single_marker != "XRT_SINGLE_HEADER":
-		parts.append(f"#define {single_marker} 1\n")
 
 	for module in modules:
 		public_headers.extend(module["public_headers"])
 		internal_headers.extend(module["internal_headers"])
 		sources.extend(module["sources"])
-	known_headers = set(public_headers + internal_headers)
-	known_headers.add("include/xrt.h")
 	_validate_local_includes(
 		public_headers + internal_headers + sources,
 		known_headers,
 		include_dirs,
 	)
-	feature_headers = [
-		manifest["features_header"]
-		for manifest in reversed(manifests[1:])
-		if "features_header" in manifest
-	]
-	feature_headers.append("include/xrt/features.h")
+	feature_headers = [product.get("features_header", "include/xrt/features.h")]
 	feature_headers = [
 		path for path in dict.fromkeys(feature_headers)
 		if path in known_headers
@@ -573,40 +604,26 @@ def _declaration_content(
 
 	manifests = _manifests(overlays)
 	product = manifests[-1]
-	modules = topological_modules([
-		module
-		for manifest in manifests
-		for module in manifest["modules"]
-	], all_platforms=True)
-	include_dirs = ["include"]
-	for manifest in manifests[1:]:
-		include_dirs.extend(manifest.get("include_dirs", []))
-	include_dirs = list(dict.fromkeys(include_dirs))
+	modules, all_modules, include_dirs, known_headers = _product_layout(manifests)
 	public_headers: list[str] = []
 	for module in modules:
 		public_headers.extend(module["public_headers"])
 	public_headers = list(dict.fromkeys(public_headers))
-	feature_headers = [
-		manifest["features_header"]
-		for manifest in reversed(manifests[1:])
-		if "features_header" in manifest
-	]
-	feature_headers.append("include/xrt/features.h")
+	feature_headers = [product.get("features_header", "include/xrt/features.h")]
 	feature_headers = [
 		path for path in dict.fromkeys(feature_headers)
 		if path in public_headers
 	]
-	feature_guards = [
-		manifest["features_guard"]
-		for manifest in reversed(manifests[1:])
-		if manifest.get("features_header") in feature_headers
-	] + ["XRT_FEATURES_H"]
+	feature_guards = [product.get("features_guard", "XRT_FEATURES_H")]
 	public_headers = _topological_parts(public_headers, include_dirs)
-	selection_macros = _selection_macros(public_headers)
-	all_macros = [
-		manifest.get("module_prefix", "XRT_MODULE_") + "ALL"
-		for manifest in manifests
-	]
+	# Complete extension declarations may mention unselected dependency types.
+	# Temporarily satisfy their feature assertions, without embedding dependency
+	# declarations or changing the caller's persistent selection.
+	owned = {module["name"] for module in modules}
+	external_features = sorted({module["feature"] for module in all_modules
+		if module["name"] not in owned and module.get("feature") is not None})
+	selection_macros = sorted(set(_selection_macros(public_headers)) | set(external_features))
+	all_macros = [product.get("module_prefix", "XRT_MODULE_") + "ALL", *external_features]
 	exclude_macros = sorted({
 		module["all_exclude_macro"]
 		for module in modules
@@ -623,17 +640,15 @@ def _declaration_content(
 			"declaration_marker",
 			"XRT_DECLARATIONS",
 		)
-		for manifest in manifests
+		for manifest in [product]
 	))
-	known_headers = set(public_headers)
-	# 扩展声明头已经内嵌核心公共声明；扩展聚合头中的 <xrt.h>
-	# 只是模块化布局桥接，不能残留到独立声明单头中。
-	known_headers.add("include/xrt.h")
+	_validate_local_includes(public_headers, known_headers, include_dirs)
 
 	parts = [
 		_license_banner(),
 		"\n",
 		"/* 此文件由 tools/amalgamate.py 生成，请勿直接修改。 */\n",
+		_dependency_notice(product),
 		f"#ifndef {guard}\n",
 		f"#define {guard}\n",
 		*(f"#define {marker} 1\n" for marker in declaration_markers),
@@ -715,6 +730,10 @@ def generate(overlays: list[Path] | None = None) -> Path:
 	"""生成特性头和单头文件，仅在内容变化时写入。"""
 
 	_generate_features(overlays)
+	if overlays:
+		generate()
+		for dependency in expand_manifest_paths(overlays)[:-1]:
+			generate([dependency])
 	output, content = _content(overlays)
 	declaration_output, declaration_content = _declaration_content(overlays)
 	for path, text in (
@@ -745,11 +764,30 @@ def check(overlays: list[Path] | None = None) -> bool:
 
 
 
+
+def generate_all() -> list[Path]:
+	"""按统一清单生成核心及全部扩展的独立单头。"""
+	outputs = [generate()]
+	for path in sorted((ROOT / "extlibs").glob("*/config/modules.json")):
+		outputs.append(generate([path]))
+	return outputs
+
+
+def check_all() -> bool:
+	if not check():
+		return False
+	for path in sorted((ROOT / "extlibs").glob("*/config/modules.json")):
+		if not check([path]):
+			return False
+	return True
+
+
 def main() -> int:
 	"""执行生成或只读一致性检查。"""
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--check", action="store_true")
+	parser.add_argument("--all", action="store_true", help="生成或校验核心及全部扩展单头")
 	parser.add_argument(
 		"--manifest",
 		action="append",
@@ -761,13 +799,19 @@ def main() -> int:
 		overlays = expand_manifest_paths([Path(path) for path in args.manifest])
 	except (OSError, ValueError) as error:
 		parser.error(str(error))
+	if args.all and args.manifest:
+		parser.error("--all and --manifest cannot be combined")
 	if args.check:
-		if not check(overlays):
+		if not (check_all() if args.all else check(overlays)):
 			print("single headers are stale")
 			return 1
 		print("single headers are current")
 		return 0
-	print(generate(overlays).relative_to(ROOT))
+	if args.all:
+		for output in generate_all():
+			print(output.relative_to(ROOT))
+	else:
+		print(generate(overlays).relative_to(ROOT))
 	return 0
 
 

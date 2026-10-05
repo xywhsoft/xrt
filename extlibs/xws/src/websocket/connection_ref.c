@@ -5,10 +5,10 @@
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_REF)
 
 /* 明文服务端仅为帧头分配一个最小所有权节点。 */
-typedef struct __xrt_ws_ref_head {
+typedef struct __xws_ref_head {
 	xnetworker* Worker;
 	uint8 Data[XWS_FRAME_HEAD_MAX];
-} __xrt_ws_ref_head;
+} __xws_ref_head;
 
 
 
@@ -22,7 +22,7 @@ static void __xrtWsConnRefHeadRelease(
 	(void)pData;
 	(void)iSize;
 	{
-		__xrt_ws_ref_head* pHead = (__xrt_ws_ref_head*)pContext;
+		__xws_ref_head* pHead = (__xws_ref_head*)pContext;
 
 		xrtNetWorkerFree(
 			pHead->Worker,
@@ -97,7 +97,7 @@ static xnetresult __xrtWsConnRefSubmit(
 	bool bFinal
 )
 {
-	__xrt_ws_ref_head* pHead;
+	__xws_ref_head* pHead;
 	xnetstream* pStream;
 	xnetref Refs[2];
 	size_t iHeadSize = 0;
@@ -107,7 +107,7 @@ static xnetresult __xrtWsConnRefSubmit(
 	Result = __xrtWsConnFrameBudget(
 		pConnection,
 		Payload.Size,
-		__XRT_WS_SEND_DATA,
+		__XWS_SEND_DATA,
 		&iWireSize
 	);
 	if ( Result != XNET_RESULT_OK ) {
@@ -123,7 +123,7 @@ static xnetresult __xrtWsConnRefSubmit(
 	) ) {
 		return XNET_RESULT_ERROR;
 	}
-	pHead = (__xrt_ws_ref_head*)xrtNetWorkerAlloc(
+	pHead = (__xws_ref_head*)xrtNetWorkerAlloc(
 		pConnection->Worker,
 		sizeof(*pHead)
 	);
@@ -224,13 +224,13 @@ xnetresult __xrtWsConnSendRefFrame(
 		立即完成来源所有权。只有未掩码明文服务端能够保留用户引用。
 	*/
 	if ( (pConnection->Config.Role == XWS_ROLE_CLIENT) ||
-		(pConnection->TransportKind != __XRT_WS_TRANSPORT_TCP) ) {
+		(pConnection->TransportKind != __XWS_TRANSPORT_TCP) ) {
 		Result = __xrtWsConnSendFrame(
 			pConnection,
 			Opcode,
 			Payload,
 			bFinal,
-			__XRT_WS_SEND_DATA,
+			__XWS_SEND_DATA,
 			false
 		);
 		if ( Result == XNET_RESULT_OK ) {

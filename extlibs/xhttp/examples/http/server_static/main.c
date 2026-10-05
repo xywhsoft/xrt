@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <string.h>
 #include <xhttp.h>
@@ -78,7 +79,7 @@ int main(int iArgc, char** ppArgv)
 	xnetengine* pEngine = NULL;
 	xhttpserver* pServer = NULL;
 	xnetaddr Address;
-	xdeadline Deadline;
+	double Deadline;
 	str sEndpoint = NULL;
 	int iResult = 1;
 
@@ -141,10 +142,10 @@ int main(int iArgc, char** ppArgv)
 	if ( !xrtHttpServerDrain(pServer) ) {
 		goto Cleanup;
 	}
-	Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(UINT64_C(5000000));
 	while ( xrtHttpServerState(pServer) !=
 		XHTTP_SERVER_CLOSED ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			(void)xrtHttpServerAbort(pServer);
 			break;
 		}
@@ -158,12 +159,12 @@ Cleanup:
 		(xrtHttpServerState(pServer) !=
 		 XHTTP_SERVER_CLOSED) ) {
 		(void)xrtHttpServerAbort(pServer);
-		Deadline = xrtDeadlineAfter(
+		Deadline = __xrtWaitAfter(
 			UINT64_C(5000000)
 		);
 		while ( xrtHttpServerState(pServer) !=
 			XHTTP_SERVER_CLOSED ) {
-			if ( xrtDeadlineExpired(Deadline) ) {
+			if ( __xrtWaitExpired(Deadline) ) {
 				iResult = 2;
 				break;
 			}

@@ -188,17 +188,13 @@ XRT_API xwaitresult xrtChannelSend(xchannel* pChannel, ptr pItem);
 XRT_API xwaitresult xrtChannelSendFor(
 	xchannel* pChannel,
 	ptr pItem,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 等待发送一个指针值到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtChannelSendUntil(
-	xchannel* pChannel,
-	ptr pItem,
-	xdeadline iDeadline
-);
+
 
 
 
@@ -219,17 +215,13 @@ XRT_API xwaitresult xrtChannelRecv(xchannel* pChannel, ptr* pItem);
 XRT_API xwaitresult xrtChannelRecvFor(
 	xchannel* pChannel,
 	ptr* pItem,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 等待接收一个指针值到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtChannelRecvUntil(
-	xchannel* pChannel,
-	ptr* pItem,
-	xdeadline iDeadline
-);
+
 
 
 
@@ -248,19 +240,14 @@ XRT_API xwaitresult xrtChannelSendCancel(
 XRT_API xwaitresult xrtChannelSendForCancel(
 	xchannel* pChannel,
 	ptr pItem,
-	uint64 iTimeout,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
 
 
 /* 等待发送到截止时间，并允许取消令牌中断尚未提交的操作。 */
-XRT_API xwaitresult xrtChannelSendUntilCancel(
-	xchannel* pChannel,
-	ptr pItem,
-	xdeadline iDeadline,
-	xcancel* pCancel
-);
+
 
 
 
@@ -277,19 +264,14 @@ XRT_API xwaitresult xrtChannelRecvCancel(
 XRT_API xwaitresult xrtChannelRecvForCancel(
 	xchannel* pChannel,
 	ptr* pItem,
-	uint64 iTimeout,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
 
 
 /* 等待接收到截止时间，并允许取消令牌中断尚未完成的操作。 */
-XRT_API xwaitresult xrtChannelRecvUntilCancel(
-	xchannel* pChannel,
-	ptr* pItem,
-	xdeadline iDeadline,
-	xcancel* pCancel
-);
+
 
 #endif
 
@@ -379,17 +361,13 @@ XRT_API xchannelselectresult xrtChannelSelect(
 XRT_API xchannelselectresult xrtChannelSelectFor(
 	const xchannelcase* pCases,
 	size_t iCount,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 等待任意一个 case 原子提交到指定单调时钟截止时间。 */
-XRT_API xchannelselectresult xrtChannelSelectUntil(
-	const xchannelcase* pCases,
-	size_t iCount,
-	xdeadline iDeadline
-);
+
 
 #endif
 
@@ -398,10 +376,10 @@ XRT_API xchannelselectresult xrtChannelSelectUntil(
 #if defined(XRT_FEATURE_CHANNEL_SELECT_CANCEL)
 
 /* 等待任意 case 提交，并允许取消令牌中断未提交的选择。 */
-XRT_API xchannelselectresult xrtChannelSelectUntilCancel(
+XRT_API xchannelselectresult xrtChannelSelectForCancel(
 	const xchannelcase* pCases,
 	size_t iCount,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -423,17 +401,13 @@ XRT_API xwaitresult xrtChannelSendAwait(
 XRT_API xwaitresult xrtChannelSendAwaitFor(
 	xchannel* pChannel,
 	ptr pItem,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 在当前调度协程中挂起发送，直到绝对截止时间。 */
-XRT_API xwaitresult xrtChannelSendAwaitUntil(
-	xchannel* pChannel,
-	ptr pItem,
-	xdeadline iDeadline
-);
+
 
 
 
@@ -449,17 +423,13 @@ XRT_API xwaitresult xrtChannelRecvAwait(
 XRT_API xwaitresult xrtChannelRecvAwaitFor(
 	xchannel* pChannel,
 	ptr* pItem,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 在当前调度协程中挂起接收，直到绝对截止时间。 */
-XRT_API xwaitresult xrtChannelRecvAwaitUntil(
-	xchannel* pChannel,
-	ptr* pItem,
-	xdeadline iDeadline
-);
+
 
 
 
@@ -475,17 +445,13 @@ XRT_API xchannelselectresult xrtChannelSelectAwait(
 XRT_API xchannelselectresult xrtChannelSelectAwaitFor(
 	const xchannelcase* pCases,
 	size_t iCount,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 在当前调度协程中挂起，直到任意 case 提交或到达截止时间。 */
-XRT_API xchannelselectresult xrtChannelSelectAwaitUntil(
-	const xchannelcase* pCases,
-	size_t iCount,
-	xdeadline iDeadline
-);
+
 
 #endif
 

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../test_thread.h"
 
@@ -74,18 +75,18 @@ static void testTaskWaitSignal(testtaskwait* pContext, uint32 iSignal)
 static bool testTaskWaitForSignal(
 	testtaskwait* pContext,
 	uint32 iSignal,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(iTimeout);
+	double iDeadline = __xrtWaitAfter(iTimeout);
 	bool bReady;
 
 	(void)xrtMutexLock(&pContext->Lock);
 	while (
 		((pContext->Signals & iSignal) == 0) &&
-		!xrtDeadlineExpired(iDeadline)
+		!__xrtWaitExpired(iDeadline)
 	) {
-		(void)xrtCondWaitUntil(&pContext->Changed, &pContext->Lock, iDeadline);
+		(void)__xrtCondWaitUntil(&pContext->Changed, &pContext->Lock, iDeadline);
 	}
 	bReady = (pContext->Signals & iSignal) != 0;
 	(void)xrtMutexUnlock(&pContext->Lock);
@@ -201,12 +202,12 @@ static int testTaskWaitThread(ptr pData)
 			&tArgs
 		);
 	} else if ( pContext->Mode == TEST_SUBMIT_CANCEL ) {
-		pFuture = xrtTaskSubmitUntilCancel(
+		pFuture = __xrtTaskSubmitUntilCancel(
 			pContext->Pool,
 			testTaskWaitQueued,
 			pContext,
 			&tArgs,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pContext->Cancel
 		);
 	} else if ( pContext->Mode == TEST_SUBMIT_TASK_CANCEL ) {
@@ -218,9 +219,9 @@ static int testTaskWaitThread(ptr pData)
 			&tArgs
 		);
 	} else {
-		Result = xrtTaskPoolWaitUntilCancel(
+		Result = __xrtTaskPoolWaitUntilCancel(
 			pContext->Pool,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pContext->Cancel
 		);
 	}

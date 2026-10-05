@@ -225,22 +225,19 @@ XRT_API xwaitresult xrtTaskGroupWait(xtaskgroup* pGroup);
 
 
 /* 关闭任务组并在相对微秒数内等待全部当前项。 */
-XRT_API xwaitresult xrtTaskGroupWaitFor(xtaskgroup* pGroup, uint64 iTimeout);
+XRT_API xwaitresult xrtTaskGroupWaitFor(xtaskgroup* pGroup, int64 iTimeout);
 
 
 
 /* 关闭任务组并等待到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtTaskGroupWaitUntil(
-	xtaskgroup* pGroup,
-	xdeadline iDeadline
-);
+
 
 
 
 /* 关闭任务组，并等待组完成、截止时间或调用方取消中的首个事件。 */
-XRT_API xwaitresult xrtTaskGroupWaitUntilCancel(
+XRT_API xwaitresult xrtTaskGroupWaitForCancel(
 	xtaskgroup* pGroup,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -406,29 +403,23 @@ XRT_API xfuture* xrtTaskSubmitFor(
 	xtaskproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 等待到指定单调时钟截止时间；槽位已经可用时成功优先于超时。 */
-XRT_API xfuture* xrtTaskSubmitUntil(
-	xtaskpool* pPool,
-	xtaskproc pProc,
-	ptr pData,
-	const xtaskargs* pArgs,
-	xdeadline iDeadline
-);
+
 
 
 
 /* 等待槽位、截止时间或调用方取消；等待取消不取消已经受理的任务。 */
-XRT_API xfuture* xrtTaskSubmitUntilCancel(
+XRT_API xfuture* xrtTaskSubmitForCancel(
 	xtaskpool* pPool,
 	xtaskproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -450,19 +441,19 @@ XRT_API xwaitresult xrtTaskPoolWait(xtaskpool* pPool);
 
 
 /* 在相对微秒数内等待已关闭任务池排空。 */
-XRT_API xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, uint64 iTimeout);
+XRT_API xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, int64 iTimeout);
 
 
 
 /* 等待已关闭任务池排空到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtTaskPoolWaitUntil(xtaskpool* pPool, xdeadline iDeadline);
+
 
 
 
 /* 等待池排空、截止时间或调用方取消中的首个事件。 */
-XRT_API xwaitresult xrtTaskPoolWaitUntilCancel(
+XRT_API xwaitresult xrtTaskPoolWaitForCancel(
 	xtaskpool* pPool,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -519,31 +510,24 @@ XRT_API xfuture* xrtTaskGroupSubmitFor(
 	xtaskproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 等待任务池槽位到指定单调时钟截止时间并原子纳入组。 */
-XRT_API xfuture* xrtTaskGroupSubmitUntil(
-	xtaskgroup* pGroup,
-	xtaskpool* pPool,
-	xtaskproc pProc,
-	ptr pData,
-	const xtaskargs* pArgs,
-	xdeadline iDeadline
-);
+
 
 
 
 /* 同时受截止时间、调用方取消和任务组取消约束地等待提交。 */
-XRT_API xfuture* xrtTaskGroupSubmitUntilCancel(
+XRT_API xfuture* xrtTaskGroupSubmitForCancel(
 	xtaskgroup* pGroup,
 	xtaskpool* pPool,
 	xtaskproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -8,7 +9,7 @@ static void testTcpServerReusePortWait(
 	xnetserver* pServer
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 	xnetenginestats Stats;
 
 	for ( ;; ) {
@@ -20,7 +21,7 @@ static void testTcpServerReusePortWait(
 		if ( bServerDone && (Stats.LiveObjects == 0) ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP server reuse-port cleanup timed out");
 		xrtThreadYield();
 	}

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_task.h"
 #include <xrt/future_bridge.h>
 
@@ -207,7 +208,7 @@ static xfuture* __xrtTaskNetSchedule(
 	xtasknetproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xrt_task_net_timer* pTimer;
@@ -232,7 +233,7 @@ static xfuture* __xrtTaskNetSchedule(
 	pTimer->Engine = pEngine;
 	pTimer->References = 2;
 	(void)xrtFutureBridgeInit(&pTimer->Bridge, pJob->Promise);
-	pTimer->Timer = xrtNetEngineSchedule(
+	pTimer->Timer = __xrtNetEngineSchedule(
 		pEngine,
 		iAffinity,
 		iDeadline,
@@ -313,7 +314,7 @@ XRT_API xfuture* xrtTaskNetAfter(
 	xtasknetproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
 	return __xrtTaskNetSchedule(
@@ -322,20 +323,20 @@ XRT_API xfuture* xrtTaskNetAfter(
 		pProc,
 		pData,
 		pArgs,
-		xrtDeadlineAfter(iTimeout)
+		__xrtWaitAfter(iTimeout)
 	);
 }
 
 
 
 /* 按单调截止时间调度网络任务。 */
-XRT_API xfuture* xrtTaskNetUntil(
+XRT_API xfuture* __xrtTaskNetUntil(
 	xnetengine* pEngine,
 	uint64 iAffinity,
 	xtasknetproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return __xrtTaskNetSchedule(
@@ -348,4 +349,18 @@ XRT_API xfuture* xrtTaskNetUntil(
 	);
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_TASK_NET))
+XRT_API xfuture* xrtTaskNetFor(
+	xnetengine* pEngine,
+	uint64 iAffinity,
+	xtasknetproc pProc,
+	ptr pData,
+	const xtaskargs* pArgs,
+	int64 iTimeout
+)
+{
+    return __xrtTaskNetUntil(pEngine, iAffinity, pProc, pData, pArgs, __xrtWaitAfter(iTimeout));
+}
 #endif

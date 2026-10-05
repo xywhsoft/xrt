@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_process_run.h"
 
 
@@ -55,9 +56,9 @@ static void __xrtProcessWaitCancel(ptr pData)
 
 
 /* 等待终态、Deadline 或取消，完成终态优先于同时发生的取消。 */
-XRT_API xwaitresult xrtProcessWaitUntilCancel(
+XRT_API xwaitresult __xrtProcessWaitUntilCancel(
 	xprocess* pProcess,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -66,7 +67,7 @@ XRT_API xwaitresult xrtProcessWaitUntilCancel(
 	xerror* pError = NULL;
 
 	if ( pCancel == NULL ) {
-		return xrtProcessWaitUntil(pProcess, iDeadline);
+		return __xrtProcessWaitUntil(pProcess, iDeadline);
 	}
 	if ( pProcess == NULL ) {
 		__xrtProcessErrorSet(
@@ -88,7 +89,7 @@ XRT_API xwaitresult xrtProcessWaitUntilCancel(
 			Result = XWAIT_CANCELLED;
 			break;
 		}
-		Result = xrtCondWaitUntil(
+		Result = __xrtCondWaitUntil(
 			&pProcess->Changed,
 			&pProcess->Lock,
 			iDeadline
@@ -446,7 +447,7 @@ XRT_API bool xrtProcessRunOptionsInit(xprocessrunoptions* pOptions)
 		return false;
 	}
 	memset(pOptions, 0, sizeof(xprocessrunoptions));
-	pOptions->Deadline = XRT_DEADLINE_NEVER;
+	pOptions->Deadline = INFINITY;
 	pOptions->StopGrace = UINT64_C(250000);
 	pOptions->StdoutLimit = XPROCESS_CAPTURE_LIMIT_DEFAULT;
 	pOptions->StderrLimit = XPROCESS_CAPTURE_LIMIT_DEFAULT;
@@ -491,7 +492,7 @@ XRT_API bool xrtProcessRun(
 	xprocessconfig Config;
 	xprocess* pProcess = NULL;
 	xwaitresult Wait;
-	uint64 iStart;
+	double iStart;
 	bool bNeedInput;
 	bool bOk = false;
 	bool bLockReady = false;
@@ -565,7 +566,7 @@ XRT_API bool xrtProcessRun(
 	if ( bNeedInput ) {
 		Config.Stdin.Mode = XPROCESS_IO_PIPE;
 	}
-	iStart = xrtClock();
+	iStart = xrtTimer();
 	pProcess = xrtProcessSpawn(&Config);
 	if ( pProcess == NULL ) {
 		goto cleanup;
@@ -601,7 +602,7 @@ XRT_API bool xrtProcessRun(
 		}
 	}
 	bThreadsReady = true;
-	Wait = xrtProcessWaitUntilCancel(
+	Wait = __xrtProcessWaitUntilCancel(
 		pProcess,
 		Options.Deadline,
 		State.Control
@@ -634,7 +635,7 @@ XRT_API bool xrtProcessRun(
 	);
 	pResult->StdoutTruncated = State.Stdout.Truncated;
 	pResult->StderrTruncated = State.Stderr.Truncated;
-	pResult->Duration = xrtClock() - iStart;
+	pResult->Duration = xrtTimer() - iStart;
 	bOk = !__xrtProcessRunFailed(&State);
 	goto cleanup;
 
@@ -723,4 +724,15 @@ XRT_API bool xrtProcessShell(
 	return xrtProcessRun(&Config, NULL, pResult);
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_PROCESS_RUN))
+XRT_API xwaitresult xrtProcessWaitForCancel(
+	xprocess* pProcess,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtProcessWaitUntilCancel(pProcess, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include <limits.h>
 
@@ -46,14 +47,14 @@ static void testIOCPRequire(bool bResult, cstr sMessage)
 static void testIOCPWait(xnetport* pPort,
 	xnetportevent* pEvents, size_t iExpected)
 {
-	xdeadline Deadline = xrtDeadlineAfter(5000000);
+	double Deadline = __xrtWaitAfter(5000000);
 	size_t iCount = 0;
 
 	while ( iCount < iExpected ) {
 		size_t iReady = 0;
 		xnetresult Result;
 
-		Result = xrtNetPortWait(pPort, pEvents + iCount,
+		Result = __xrtNetPortWait(pPort, pEvents + iCount,
 			iExpected - iCount, Deadline, &iReady);
 		if ( Result != XNET_RESULT_OK ) {
 			const xerror* pError = xrtGetError();
@@ -825,8 +826,8 @@ int main(void)
 	testRequire(xrtNetPortWake(pPort) &&
 		xrtNetPortWake(pPort) && xrtNetPortWake(pPort),
 		"IOCP coalesced wake failed");
-	testRequire((xrtNetPortWait(pPort, &Event, 1,
-		xrtDeadlineAfter(1000000), &iCount) == XNET_RESULT_OK) &&
+	testRequire((__xrtNetPortWait(pPort, &Event, 1,
+		__xrtWaitAfter(1000000), &iCount) == XNET_RESULT_OK) &&
 		(iCount == 1) && (Event.Type == XNET_PORT_EVENT_WAKE),
 		"IOCP wake event mismatch");
 	testRequire(xrtNetPortDestroy(pPort),

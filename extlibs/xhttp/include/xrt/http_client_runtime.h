@@ -476,7 +476,7 @@ typedef struct xhttpclientpoolconfig {
 	/* 单 Origin 可复用空闲连接上限；零表示不保留。 */
 	size_t MaxIdlePerOrigin;
 	/* 空闲连接保留时间，单位为微秒；零表示不按时间清扫。 */
-	uint64 IdleTimeout;
+	int64 IdleTimeout;
 } xhttpclientpoolconfig;
 
 
@@ -576,8 +576,8 @@ typedef struct xhttpclientconfig {
 	xnetdialconfig Dial;
 	xhttp1callconfig Call;
 	xhttp1exchangeconfig Exchange;
-	uint64 Timeout;
-	uint64 IdleTimeout;
+	int64 Timeout;
+	int64 IdleTimeout;
 	/* Client 创建时保留默认代理；空指针表示默认直连。 */
 	const xnetproxy* Proxy;
 	xhttpredirectconfig Redirect;
@@ -604,8 +604,8 @@ typedef struct xhttpcalloptions {
 	xhttp1requestoptions Request;
 	xhttpcallevents Events;
 	xcancel* Cancel;
-	uint64 Timeout;
-	uint64 IdleTimeout;
+	int64 Timeout;
+	int64 IdleTimeout;
 	/* 零值继承 Client；限制解码前表示正文，UINT64_MAX 允许无界流。 */
 	uint64 ResponseBodyLimit;
 	xhttpproxyoptions Proxy;

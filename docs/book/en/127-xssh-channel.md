@@ -64,7 +64,7 @@ The program below is from `examples/channel_window` — direct operation of the 
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/channel_window/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/channel_window/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 chunk=32768 remaining=100000 形态的发送限额自检结果）
 ```
 
@@ -78,7 +78,7 @@ The second program is from `examples/channel_core` — open and the budget decla
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/channel_core/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/channel_core/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 channel 结构尺寸、本地编号与阶段的自检结果）
 ```
 

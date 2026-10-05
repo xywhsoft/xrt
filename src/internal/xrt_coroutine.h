@@ -206,7 +206,7 @@ struct xcoro {
 		struct xcoro* JoinHead;
 		struct xcoro* JoinTail;
 		xcancelwatch* CancelWatch;
-		xdeadline Deadline;
+		double Deadline;
 		size_t TimerIndex;
 		volatile int32 WakePending;
 		volatile int32 PostQueued;
@@ -298,7 +298,7 @@ void __xrtCoWaitWake(ptr pData);
 
 
 /* 挂起当前资源等待到通知、通用唤醒、取消或截止时间。 */
-xwaitresult __xrtCoWaitParkUntil(ptr pData, xdeadline iDeadline);
+xwaitresult __xrtCoWaitParkUntil(ptr pData, double iDeadline);
 
 
 

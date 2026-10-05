@@ -14,18 +14,18 @@
 
 
 
-/* 把 xtime 拆成向负无穷取整的秒和非负秒内微秒。 */
-static void __xrtTimeSplitSecond(xtime iTime, int64* pSeconds, int* pMicrosecond)
+/* 把 xtime 拆成向负无穷取整的秒和非负秒内毫秒。 */
+static void __xrtTimeSplitSecond(xtime iTime, int64* pSeconds, int* pMillisecond)
 {
 	int64 iSeconds = iTime / XRT_TIME_SECOND;
-	int64 iMicrosecond = iTime % XRT_TIME_SECOND;
+	int64 iMillisecond = iTime % XRT_TIME_SECOND;
 
-	if ( iMicrosecond < 0 ) {
+	if ( iMillisecond < 0 ) {
 		iSeconds--;
-		iMicrosecond += XRT_TIME_SECOND;
+		iMillisecond += XRT_TIME_SECOND;
 	}
-	*pSeconds = iSeconds;
-	*pMicrosecond = (int)iMicrosecond;
+	*pSeconds = iSeconds - INT64_C(62135596800);
+	*pMillisecond = (int)iMillisecond;
 }
 
 
@@ -33,7 +33,7 @@ static void __xrtTimeSplitSecond(xtime iTime, int64* pSeconds, int* pMicrosecond
 /* 用已经确定的本地日期和原始 Unix 秒填写公共结构。 */
 static bool __xrtTimeFillLocal(xdatetime* pDateTime, int64 iUnixSeconds,
 	int64 iYear, int iMonth, int iDay, int iHour, int iMinute, int iSecond,
-	int iMicrosecond, int iIsDST)
+	int iMillisecond, int iIsDST)
 {
 	int64 iDays;
 	int64 iYearStart;
@@ -49,13 +49,14 @@ static bool __xrtTimeFillLocal(xdatetime* pDateTime, int64 iUnixSeconds,
 		 !__xrtTimeMulChecked((int64)iMinute, 60, &iComponentSeconds) ||
 		 !__xrtTimeAddChecked(iLocalSeconds, iComponentSeconds, &iLocalSeconds) ||
 		 !__xrtTimeAddChecked(iLocalSeconds, (int64)iSecond, &iLocalSeconds) ||
+		 !__xrtTimeSubChecked(iLocalSeconds, INT64_C(62135596800), &iLocalSeconds) ||
 		 !__xrtTimeSubChecked(iLocalSeconds, iUnixSeconds, &iOffset) ) {
 		return false;
 	}
 	if ( (iOffset <= -86400) || (iOffset >= 86400) ) {
 		return false;
 	}
-	iWeekday = (int)((iDays + 4) % 7);
+	iWeekday = (int)((iDays + 1) % 7);
 	if ( iWeekday < 0 ) {
 		iWeekday += 7;
 	}
@@ -70,7 +71,7 @@ static bool __xrtTimeFillLocal(xdatetime* pDateTime, int64 iUnixSeconds,
 	pDateTime->Hour = iHour;
 	pDateTime->Minute = iMinute;
 	pDateTime->Second = iSecond;
-	pDateTime->Microsecond = iMicrosecond;
+	pDateTime->Millisecond = iMillisecond;
 	pDateTime->Offset = (int)iOffset;
 	pDateTime->Weekday = iWeekday;
 	pDateTime->YearDay = (int)(iDays - iYearStart) + 1;
@@ -126,25 +127,25 @@ static bool __xrtTimeSystemToLocal(
 
 
 
-/* 把可表示的 Unix 微秒转换为 Windows FILETIME。 */
+/* 把可表示的 Unix 毫秒转换为 Windows FILETIME。 */
 static bool __xrtTimeToFileTime(xtime iTime, FILETIME* pFileTime)
 {
 	const int64 iEpochSeconds = INT64_C(11644473600);
 	int64 iSeconds;
-	int iMicrosecond;
+	int iMillisecond;
 	uint64 iFileSeconds;
 	uint64 iTicks;
 
-	__xrtTimeSplitSecond(iTime, &iSeconds, &iMicrosecond);
+	__xrtTimeSplitSecond(iTime, &iSeconds, &iMillisecond);
 	if ( iSeconds < -iEpochSeconds ) {
 		return false;
 	}
 	iFileSeconds = (uint64)(iSeconds + iEpochSeconds);
-	if ( iFileSeconds > (UINT64_MAX / UINT64_C(10000000)) ) {
+	if ( iFileSeconds > ((UINT64_MAX - (uint64)iMillisecond * UINT64_C(10000)) / UINT64_C(10000000)) ) {
 		return false;
 	}
 	iTicks = (iFileSeconds * UINT64_C(10000000)) +
-		((uint64)iMicrosecond * UINT64_C(10));
+		((uint64)iMillisecond * UINT64_C(10000));
 	pFileTime->dwLowDateTime = (DWORD)iTicks;
 	pFileTime->dwHighDateTime = (DWORD)(iTicks >> 32);
 	return true;
@@ -159,7 +160,7 @@ bool __xrtTimeLocalParts(xtime iTime, xdatetime* pDateTime, int* pSystemCode)
 	SYSTEMTIME tUTC;
 	SYSTEMTIME tLocal;
 	int64 iUnixSeconds;
-	int iMicrosecond;
+	int iMillisecond;
 
 	if ( !__xrtTimeToFileTime(iTime, &tFileTime) ) {
 		if ( pSystemCode != NULL ) {
@@ -176,11 +177,11 @@ bool __xrtTimeLocalParts(xtime iTime, xdatetime* pDateTime, int* pSystemCode)
 	if ( !__xrtTimeSystemToLocal(&tUTC, &tLocal, pSystemCode) ) {
 		return false;
 	}
-	__xrtTimeSplitSecond(iTime, &iUnixSeconds, &iMicrosecond);
+	__xrtTimeSplitSecond(iTime, &iUnixSeconds, &iMillisecond);
 	if ( !__xrtTimeFillLocal(pDateTime, iUnixSeconds,
 		(int64)tLocal.wYear, (int)tLocal.wMonth, (int)tLocal.wDay,
 		(int)tLocal.wHour, (int)tLocal.wMinute, (int)tLocal.wSecond,
-		iMicrosecond, -1) ) {
+		iMillisecond, -1) ) {
 		if ( pSystemCode != NULL ) {
 			*pSystemCode = ERROR_ARITHMETIC_OVERFLOW;
 		}
@@ -195,11 +196,11 @@ bool __xrtTimeLocalParts(xtime iTime, xdatetime* pDateTime, int* pSystemCode)
 bool __xrtTimeLocalParts(xtime iTime, xdatetime* pDateTime, int* pSystemCode)
 {
 	int64 iUnixSeconds;
-	int iMicrosecond;
+	int iMillisecond;
 	time_t iSystemTime;
 	struct tm tLocal;
 
-	__xrtTimeSplitSecond(iTime, &iUnixSeconds, &iMicrosecond);
+	__xrtTimeSplitSecond(iTime, &iUnixSeconds, &iMillisecond);
 	iSystemTime = (time_t)iUnixSeconds;
 	if ( ((int64)iSystemTime != iUnixSeconds) ||
 		 ((iUnixSeconds < 0) && (iSystemTime >= (time_t)0)) ) {
@@ -216,8 +217,8 @@ bool __xrtTimeLocalParts(xtime iTime, xdatetime* pDateTime, int* pSystemCode)
 		return false;
 	}
 	if ( !__xrtTimeFillLocal(pDateTime, iUnixSeconds,
-		(int64)tLocal.tm_year + 1900, tLocal.tm_mon + 1, tLocal.tm_mday,
-		tLocal.tm_hour, tLocal.tm_min, tLocal.tm_sec, iMicrosecond,
+		((int64)tLocal.tm_year + 1900 <= 0 ? (int64)tLocal.tm_year + 1899 : (int64)tLocal.tm_year + 1900), tLocal.tm_mon + 1, tLocal.tm_mday,
+		tLocal.tm_hour, tLocal.tm_min, tLocal.tm_sec, iMillisecond,
 		tLocal.tm_isdst > 0 ? 1 : 0) ) {
 		if ( pSystemCode != NULL ) {
 			*pSystemCode = EOVERFLOW;
@@ -262,7 +263,7 @@ static bool __xrtTimeLocalEqual(const xdatetime* pLeft, const xdatetime* pRight)
 		(pLeft->Hour == pRight->Hour) &&
 		(pLeft->Minute == pRight->Minute) &&
 		(pLeft->Second == pRight->Second) &&
-		(pLeft->Microsecond == pRight->Microsecond);
+		(pLeft->Millisecond == pRight->Millisecond);
 }
 
 

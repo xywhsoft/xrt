@@ -6,7 +6,7 @@
 #endif
 #define XRT_IMPLEMENTATION
 #define XRT_MODULE_MEMORY_DEBUG
-#include "../xoauth2-xrt.h"
+#include "support/runtime.h"
 
 static const char* Mode;
 static bool Tls;
@@ -120,7 +120,7 @@ static void tcp_destroy(xnetstream* Stream) { (void)Stream; Destroys++; }
 #define xrtNetStreamClose tcp_close
 #define xrtTlsStreamDestroy tls_destroy
 #define xrtNetStreamDestroy tcp_destroy
-#include "../xoauth2.c"
+#include "support/implementation.c"
 
 static void clean(void)
 {

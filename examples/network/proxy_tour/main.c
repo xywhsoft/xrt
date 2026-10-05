@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/proxy_tour —— 代理对象/握手自省/Dial 补集
  * ----------------------------------------------------------------
@@ -43,10 +44,10 @@ static void exampleDialDone(xnetproxydial* pDial,
 
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(EXAMPLE_TIMEOUT_US);
+	double iDeadline = __xrtWaitAfter(EXAMPLE_TIMEOUT_US);
 
 	while ( !*pFlag ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();

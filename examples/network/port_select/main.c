@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 
 #include <xrt.h>
@@ -47,8 +48,8 @@ int main(void)
 		 !xrtNetPortWatch(pPort, Server, 1, XNET_POLL_READ, NULL) ||
 		 (xrtNetSocketSendTo(Client, "event", 5,
 			&iSize, &Address) != XNET_RESULT_OK) ||
-		 (xrtNetPortWait(pPort, &Event, 1,
-			xrtDeadlineAfter(1000000), &iCount) != XNET_RESULT_OK) ||
+		 (__xrtNetPortWait(pPort, &Event, 1,
+			__xrtWaitAfter(1000000), &iCount) != XNET_RESULT_OK) ||
 		 (iCount != 1) ||
 		 ((Event.Flags & XNET_PORT_EVENT_READ) == 0) ||
 		 (xrtNetSocketRecvFrom(Server, sData, sizeof(sData) - 1,

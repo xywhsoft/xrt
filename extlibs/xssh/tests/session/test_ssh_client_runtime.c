@@ -290,7 +290,7 @@ static xsshcode testSshClientRuntimeServerSend(
 		pChannel != NULL ? &pChannel->Core : NULL,
 		NULL,
 		0u,
-		xrtClock() / 1000u,
+		xrtTimer() / 1000u,
 		&Kind
 	);
 }
@@ -676,7 +676,7 @@ static void testSshClientRuntimeServerAction(
 		Code = xrtSshSessionTcpAuthBegin(
 			pSession,
 			NULL,
-			xrtClock() / 1000u
+			xrtTimer() / 1000u
 		);
 	} else if ( Action == XSSH_SESSION_ACTION_WRITE_SERVICE_ACCEPT ) {
 		Code = !xrtSshWriterInit(

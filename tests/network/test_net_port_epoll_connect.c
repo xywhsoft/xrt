@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -76,11 +77,11 @@ int main(void)
 			"epoll failed-connect watch failed"
 		);
 		testRequire(
-			xrtNetPortWait(
+			__xrtNetPortWait(
 				pPort,
 				&Event,
 				1,
-				xrtDeadlineAfter(3000000),
+				__xrtWaitAfter(3000000),
 				&iCount
 			) == XNET_RESULT_OK,
 			"epoll failed-connect wait failed"

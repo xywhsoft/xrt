@@ -78,7 +78,7 @@ api: xws-websocket_server_router, xws-websocket_group, xhttp-http_server
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xws/single -include xws.h impl.c extlibs/xws/examples/websocket/group/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/group/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 WebSocket connection group is ready
 ```
 
@@ -92,7 +92,7 @@ WebSocket connection group is ready
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xws/single -include xws.h impl.c extlibs/xws/examples/websocket/group_future/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/group_future/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （空组广播操作完成自检通过后正常退出）
 ```
 

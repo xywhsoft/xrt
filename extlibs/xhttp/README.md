@@ -21,13 +21,16 @@ xhttp，底层能力不会被高级抽象遮蔽。
 单头模式在一个翻译单元中额外定义实现宏：
 
 ```c
+#define XRT_MODULE_ALL
+#define XRT_IMPLEMENTATION
+#include "single/xrt.h"
 #define XHTTP_MODULE_HTTP_CLIENT
 #define XHTTP_IMPLEMENTATION
-#include "xhttp.h"
+#include "single/extlibs/xhttp.h"
 ```
 
-`single/xhttp.h` 包含所需 XRT 实现，功能仍按模块宏裁剪；
-`single/xhttp_decl.h` 只提供声明。`XHTTP_IMPLEMENTATION` 只能定义一次。
+`single/extlibs/xhttp.h` 只包含 xhttp 自身代码；调用方必须先提供所需 XRT。
+`single/extlibs/xhttp_decl.h` 只提供声明。`XHTTP_IMPLEMENTATION` 只能定义一次。
 
 ## 发布门禁
 

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：xws/connection_tour —— 连接全接口：握手构建/自省/发送/关闭
  * ----------------------------------------------------------------
@@ -23,9 +24,11 @@
  *   【流控/关闭】  xrtWsConnPause / Resume / Close / CloseInfo
  * 模块宏：XWS_MODULE_ALL
  * 编译（单头形态，Windows，仓库根目录）：
- *   gcc -O1 -DXWS_MODULE_ALL -DXWS_IMPLEMENTATION -I extlibs/xws/single
+ *   gcc -O1 -DXRT_MODULE_ALL -DXRT_IMPLEMENTATION
+ *       -DXHTTP_MODULE_ALL -DXHTTP_IMPLEMENTATION -DXWS_MODULE_ALL -DXWS_IMPLEMENTATION
+ *       -I single -I single/extlibs -include xrt.h -include xhttp.h
  *       extlibs/xws/examples/websocket/connection_tour/main.c
- *       -lws2_32 -liphlpapi
+ *       -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
  * 预期输出：
  *   conn-tour: offline request builders ok
  *   conn-tour: live pair upgraded, introspection ok
@@ -263,10 +266,10 @@ static void tourRequest(xhttpserver* pServer, xhttpconn* pHttp,
 
 static bool tourWait32Min(xatomic32* pFlag, uint32 iMinimum)
 {
-	xdeadline iEnd = xrtDeadlineAfter(TOUR_DEADLINE_US);
+	double iEnd = __xrtWaitAfter(TOUR_DEADLINE_US);
 
 	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) < iMinimum ) {
-		if ( xrtDeadlineExpired(iEnd) ) {
+		if ( __xrtWaitExpired(iEnd) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -368,9 +371,9 @@ static bool tourFutureReady(xfuture* pFuture)
 /* 暂停断言必须失败可见，不能只打印“leaked”然后仍返回成功。 */
 static bool tourHeld(tourstate* pState, uint32 iMessages)
 {
-	xdeadline Deadline = xrtDeadlineAfter(200000u);
+	double Deadline = __xrtWaitAfter(200000u);
 
-	while ( !xrtDeadlineExpired(Deadline) ) {
+	while ( !__xrtWaitExpired(Deadline) ) {
 		if ( (xrtAtomic32Load(&pState->Messages, XMEMORY_ACQUIRE) != iMessages) ||
 			(xrtAtomic32Load(&pState->Errors, XMEMORY_ACQUIRE) != 0) ) return false;
 		xrtThreadYield();
@@ -414,7 +417,7 @@ int main(void)
 	char sKey[XWS_KEY_CAPACITY];
 	int iLength;
 	int iResult = 1;
-	xdeadline Deadline;
+	double Deadline;
 
 	memset(&State, 0, sizeof(State));
 	xrtAtomicPtrInit(&State.Client, NULL);
@@ -592,12 +595,12 @@ Cleanup:
 	if ( pServer != NULL ) (void)xrtHttpServerAbort(pServer);
 	xrtHttpServerDestroy(pServer);
 	/* main 内的 Send / State 在停止 Worker 的整个过程中保持有效。 */
-	Deadline = xrtDeadlineAfter(TOUR_DEADLINE_US);
+	Deadline = __xrtWaitAfter(TOUR_DEADLINE_US);
 	/* 上层 Destroy 会投递异步关闭；最后一个内部对象释放后才能 Stop。 */
 	while ( (pEngine != NULL) && !xrtNetEngineStop(pEngine) ) {
 		tourReleaseConnection(&State.Client);
 		tourReleaseConnection(&State.Server);
-		if ( xrtDeadlineExpired(Deadline) ) { iResult = 1; break; }
+		if ( __xrtWaitExpired(Deadline) ) { iResult = 1; break; }
 		xrtThreadYield();
 	}
 	tourReleaseConnection(&State.Client);

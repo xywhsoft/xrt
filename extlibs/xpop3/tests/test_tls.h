@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifndef XMAIL_TEST_TLS_H
 #define XMAIL_TEST_TLS_H
 
@@ -18,11 +19,11 @@ typedef struct testmailtlsupgrade {
 /* 等待 TLS Future 在截止时间内成功完成。 */
 static inline bool testMailTlsFuture(
 	xfuture* pFuture,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return (pFuture != NULL) &&
-		(xrtFutureWaitUntil(pFuture, iDeadline) == XWAIT_OK) &&
+		(__xrtFutureWaitUntil(pFuture, iDeadline) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED);
 }
 
@@ -64,7 +65,7 @@ static void testMailTlsUpgradeTask(
 static inline xtlsstream* testMailTlsUpgrade(
 	xnetstream** ppTcp,
 	const xtlsserverconfig* pServer,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	testmailtlsupgrade Upgrade;
@@ -96,7 +97,7 @@ static inline xtlsstream* testMailTlsUpgrade(
 		xrtFutureDestroy(pFuture);
 		return NULL;
 	}
-	if ( (xrtFutureWaitUntil(pFuture, iDeadline) != XWAIT_OK) ||
+	if ( (__xrtFutureWaitUntil(pFuture, iDeadline) != XWAIT_OK) ||
 		(xrtFutureState(pFuture) != XFUTURE_RESOLVED) ||
 		(Upgrade.Tls == NULL) ) {
 		xrtFutureDestroy(pFuture);
@@ -122,7 +123,7 @@ static inline bool testMailTcpSend(
 	xnetstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -131,7 +132,7 @@ static inline bool testMailTcpSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -149,13 +150,13 @@ static inline bool testMailTcpReceive(
 	xnetstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -185,7 +186,7 @@ static inline bool testMailTlsSend(
 	xtlsstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xfuture* pFuture = xrtTlsStreamSendAsync(pStream, sText, iSize);
@@ -202,7 +203,7 @@ static inline bool testMailTlsReceive(
 	xtlsstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;

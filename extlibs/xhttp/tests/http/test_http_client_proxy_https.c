@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../fixtures/http_connect_proxy.h"
 #include "../fixtures/tls_server.h"
 
@@ -57,14 +58,14 @@ static void testHttpProxyHttpsWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -76,7 +77,7 @@ static void testHttpProxyHttpsWait(
 /* 等待连接池和 TLS 认证关闭释放最后一个 Engine 对象。 */
 static void testHttpProxyHttpsEngineDestroy(xnetengine* pEngine)
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		const xerror* pError = xrtGetError();
@@ -89,7 +90,7 @@ static void testHttpProxyHttpsEngineDestroy(xnetengine* pEngine)
 		);
 		xrtClearError();
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTPS proxy retained an Engine object"
 		);
 		xrtThreadYield();

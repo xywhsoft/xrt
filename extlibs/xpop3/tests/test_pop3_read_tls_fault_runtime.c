@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 #include "test_tls.h"
 #include "../../../tests/fixtures/mail_tls_partial.h"
@@ -19,7 +20,7 @@ typedef enum testpop3tlsstage {
 typedef struct testpop3tlsserver {
 	xnetlistener* Listener;
 	const xtlsserverconfig* Tls;
-	xdeadline Deadline;
+	double Deadline;
 	testpop3tlsfault Fault;
 	testpop3tlsstage Stage;
 	xcancel* Cancel;
@@ -51,23 +52,23 @@ static xnetaddrlist* testPop3TlsResolve(cstr sHost, xnetfamily Family, ptr pData
 	return xrtNetAddrListCreate(&Address, 1u);
 }
 
-static bool testPop3TlsSend(xtlsstream* pTls, cstr Text, xdeadline Deadline)
+static bool testPop3TlsSend(xtlsstream* pTls, cstr Text, double Deadline)
 {
 	return testMailTlsSend(pTls, Text, strlen(Text), Deadline);
 }
 
-static bool testPop3TlsReceive(xtlsstream* pTls, cstr Text, xdeadline Deadline)
+static bool testPop3TlsReceive(xtlsstream* pTls, cstr Text, double Deadline)
 {
 	return testMailTlsReceive(pTls, Text, strlen(Text), Deadline);
 }
 
 /* 服务器必须在 Client Destroy 前收到异常关闭，且不能收到后续命令。 */
-static bool testPop3TlsPeerClosed(xtlsstream* pTls, xdeadline Deadline)
+static bool testPop3TlsPeerClosed(xtlsstream* pTls, double Deadline)
 {
 	xfuture* pRead = xrtTlsStreamRecvAsync(pTls, 1u);
 	bool Closed;
 	if ( pRead == NULL ) return xrtTlsStreamState(pTls) == XTLS_STREAM_FAILED;
-	Closed = xrtFutureWaitUntil(pRead, Deadline) == XWAIT_OK &&
+	Closed = __xrtFutureWaitUntil(pRead, Deadline) == XWAIT_OK &&
 		xrtFutureState(pRead) == XFUTURE_FAILED && xrtTlsStreamState(pTls) == XTLS_STREAM_FAILED;
 	xrtFutureDestroy(pRead);
 	return Closed;
@@ -97,7 +98,7 @@ static bool testPop3TlsPrefix(testpop3tlsserver* pServer, xtlsstream* pTls)
 static int32 testPop3TlsServer(ptr pData)
 {
 	testpop3tlsserver* pServer = (testpop3tlsserver*)pData;
-	xnetstream* pTcp = xrtNetListenerAcceptWait(pServer->Listener, pServer->Deadline, NULL);
+	xnetstream* pTcp = __xrtNetListenerAcceptWait(pServer->Listener, pServer->Deadline, NULL);
 	xtlsstream* pTls;
 	bool Success;
 	if ( pTcp == NULL ) return 1;
@@ -124,7 +125,7 @@ static int32 testPop3TlsServer(ptr pData)
 	(void)xrtTlsStreamAbort(pTls);
 	while ( xrtTlsStreamState(pTls) != XTLS_STREAM_FAILED &&
 		xrtTlsStreamState(pTls) != XTLS_STREAM_CLOSED ) {
-		if ( xrtDeadlineExpired(pServer->Deadline) ) { Success = false; break; }
+		if ( __xrtWaitExpired(pServer->Deadline) ) { Success = false; break; }
 		xrtThreadYield();
 	}
 	xrtTlsStreamDestroy(pTls);
@@ -200,7 +201,7 @@ int main(void)
 			Server.Tls = &TlsServer;
 			Server.Stage = (testpop3tlsstage)Stage;
 			Server.Fault = (testpop3tlsfault)Fault;
-			Server.Deadline = xrtDeadlineAfter(UINT64_C(15000000));
+			Server.Deadline = __xrtWaitAfter(UINT64_C(15000000));
 			Server.Cancel = xrtCancelCreate();
 			xrtAtomic32Init(&Server.ClientReady, 0u);
 			xrtAtomic32Init(&Server.Partial, 0u);
@@ -208,33 +209,33 @@ int main(void)
 			testRequire(Server.Cancel != NULL, "POP3 TLS fault cancel creation failed");
 			xthread* pThread = xrtThreadCreate(testPop3TlsServer, &Server, 0);
 			testRequire(pThread != NULL, "POP3 TLS fault server thread creation failed");
-			xpop3client* pClient = xrtPop3ClientOpen(&Config, Server.Deadline, NULL);
+			xpop3client* pClient = __xrtPop3ClientOpen(&Config, Server.Deadline, NULL);
 			testRequire(pClient != NULL && xrtPop3ClientSecurity(pClient) == XMAIL_SECURITY_TLS,
 				"POP3 TLS fault client open failed");
 			Server.ClientTls = xrtTlsStreamRef(pClient->Transport.Tls);
 			testRequire(Server.ClientTls != NULL, "POP3 TLS fault transport reference missing");
 			xrtAtomic32Store(&Server.ClientReady, 1u, XMEMORY_RELEASE);
-			testRequire(xrtPop3ClientLogin(pClient, XRT_STR_LITERAL("user"),
+			testRequire(__xrtPop3ClientLogin(pClient, XRT_STR_LITERAL("user"),
 				XRT_STR_LITERAL("pass"), false, Server.Deadline, NULL), "POP3 TLS fault login failed");
-			xdeadline Deadline = Fault == TEST_POP3_TLS_TIMEOUT ?
-				xrtDeadlineAfter(UINT64_C(2000000)) : Server.Deadline;
+			double Deadline = Fault == TEST_POP3_TLS_TIMEOUT ?
+				__xrtWaitAfter(UINT64_C(2000000)) : Server.Deadline;
 			xcancel* pCancel = Fault == TEST_POP3_TLS_CANCEL ? Server.Cancel : NULL;
 			bool Succeeded;
 			xrtClearError();
 			if ( Stage == TEST_POP3_TLS_STATUS ) {
-				Succeeded = xrtPop3ClientStat(pClient, &Stat, Deadline, pCancel);
+				Succeeded = __xrtPop3ClientStat(pClient, &Stat, Deadline, pCancel);
 			} else if ( Stage == TEST_POP3_TLS_NEXT ) {
-				testRequire(xrtPop3ClientRetr(pClient, 1u, Deadline, pCancel) &&
-					xrtPop3ClientNext(pClient, &Line, Deadline, pCancel) == XMAIL_NEXT_ITEM &&
+				testRequire(__xrtPop3ClientRetr(pClient, 1u, Deadline, pCancel) &&
+					__xrtPop3ClientNext(pClient, &Line, Deadline, pCancel) == XMAIL_NEXT_ITEM &&
 					testMailViewEqual(Line, XRT_STR_LITERAL(".first")),
 					"POP3 TLS fault lost a complete dot-transparent line");
 				Line = (xstrview){0};
-				Succeeded = xrtPop3ClientNext(pClient, &Line, Deadline, pCancel) != XMAIL_NEXT_ERROR;
+				Succeeded = __xrtPop3ClientNext(pClient, &Line, Deadline, pCancel) != XMAIL_NEXT_ERROR;
 			} else if ( Stage == TEST_POP3_TLS_WRITE ) {
-				Succeeded = xrtPop3ClientRetrWrite(pClient, 1u, 1024u, testPop3TlsWrite, &Sink,
+				Succeeded = __xrtPop3ClientRetrWrite(pClient, 1u, 1024u, testPop3TlsWrite, &Sink,
 					&OutputSize, Deadline, pCancel);
 			} else {
-				bytes pData = xrtPop3ClientRetrBytes(pClient, 1u, 1024u, &OutputSize, Deadline, pCancel);
+				bytes pData = __xrtPop3ClientRetrBytes(pClient, 1u, 1024u, &OutputSize, Deadline, pCancel);
 				Succeeded = pData != NULL;
 				xrtFree(pData);
 			}
@@ -274,10 +275,10 @@ int main(void)
 				testRequire(Sink.Calls == 2u && Sink.Size == sizeof(TestPop3TlsBodyComplete) - 1u &&
 					memcmp(Sink.Data, TestPop3TlsBodyComplete, Sink.Size) == 0,
 					"POP3 TLS streaming sink received partial data or lost a complete line");
-			testRequire(!xrtPop3ClientNoop(pClient, Server.Deadline, NULL) &&
+			testRequire(!__xrtPop3ClientNoop(pClient, Server.Deadline, NULL) &&
 				xrtErrorKind(xrtGetError()) == XERR_STATE, "POP3 TLS failed session allowed another command");
 			xrtAtomic32Store(&Server.Returned, 1u, XMEMORY_RELEASE);
-			testRequire(xrtThreadWaitUntil(pThread, Server.Deadline) == XWAIT_OK && Server.Success &&
+			testRequire(__xrtThreadWaitUntil(pThread, Server.Deadline) == XWAIT_OK && Server.Success &&
 				xrtThreadExitCode(pThread) == 0, "POP3 TLS failure did not close before client destruction");
 			xrtThreadDestroy(pThread);
 			xrtPop3ClientDestroy(pClient);
@@ -286,9 +287,9 @@ int main(void)
 		}
 	}
 	testRequire(xrtNetListenerClose(pListener), "POP3 TLS fault listener close failed");
-	xdeadline Retire = xrtDeadlineAfter(UINT64_C(3000000));
+	double Retire = __xrtWaitAfter(UINT64_C(3000000));
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(Retire), "POP3 TLS fault listener did not close");
+		testRequire(!__xrtWaitExpired(Retire), "POP3 TLS fault listener did not close");
 		xrtThreadYield();
 	}
 	xrtNetListenerDestroy(pListener);
@@ -299,7 +300,7 @@ int main(void)
 	for ( ;; ) {
 		xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
 		if ( Result == XNET_RETIRE_READY ) break;
-		testRequire(Result != XNET_RETIRE_ERROR && !xrtDeadlineExpired(Retire),
+		testRequire(Result != XNET_RETIRE_ERROR && !__xrtWaitExpired(Retire),
 			"POP3 TLS fault engine did not retire");
 		xrtThreadYield();
 	}

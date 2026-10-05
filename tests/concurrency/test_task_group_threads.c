@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../test_thread.h"
 #include "../test_thread_barrier.h"
@@ -141,12 +142,12 @@ static bool testTaskGroupStartWindowWait(
 	testtaskgroupstartwindow* pWindow
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
 	bool bEntered;
 
 	(void)xrtMutexLock(&pWindow->Lock);
-	while ( !pWindow->Entered && !xrtDeadlineExpired(iDeadline) ) {
-		(void)xrtCondWaitUntil(&pWindow->Changed, &pWindow->Lock, iDeadline);
+	while ( !pWindow->Entered && !__xrtWaitExpired(iDeadline) ) {
+		(void)__xrtCondWaitUntil(&pWindow->Changed, &pWindow->Lock, iDeadline);
 	}
 	bEntered = pWindow->Entered;
 	(void)xrtMutexUnlock(&pWindow->Lock);

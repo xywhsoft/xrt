@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifndef XMAIL_EXAMPLE_CLIENT_SETUP_H
 #define XMAIL_EXAMPLE_CLIENT_SETUP_H
 
@@ -24,9 +25,9 @@ static bool mailExamplePort(const char* text, uint16* port)
 	return true;
 }
 
-static bool mailExampleCleanupWait(xdeadline deadline)
+static bool mailExampleCleanupWait(double deadline)
 {
-	if ( xrtDeadlineExpired(deadline) ) {
+	if ( __xrtWaitExpired(deadline) ) {
 		xerror* timeout = xrtErrorCreate(XERR_TIMEOUT, "mail-example", 1,
 			"network cleanup still has live objects");
 		if ( timeout != NULL ) xrtSetErrorTake(timeout);
@@ -37,7 +38,7 @@ static bool mailExampleCleanupWait(xdeadline deadline)
 }
 
 /* 只在退休成功时清空拥有型指针；失败后调用方仍可重试。 */
-static bool mailExampleNetCleanup(mail_example_net* net, xdeadline deadline)
+static bool mailExampleNetCleanup(mail_example_net* net, double deadline)
 {
 	xerror* previous;
 	bool ready = true;
@@ -77,7 +78,7 @@ static bool mailExampleNetCleanup(mail_example_net* net, xdeadline deadline)
 
 static bool mailExampleNetUnit(mail_example_net* net)
 {
-	bool ready = mailExampleNetCleanup(net, xrtDeadlineAfter(UINT64_C(5000000)));
+	bool ready = mailExampleNetCleanup(net, __xrtWaitAfter(UINT64_C(5000000)));
 	if ( !ready ) fputs("Mail network cleanup incomplete; handles retained for retry\n", stderr);
 	return ready;
 }

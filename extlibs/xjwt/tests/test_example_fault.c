@@ -1,4 +1,5 @@
 /* Exercise the actual offline middleware, including its application ownership. */
+#define XRT_MODULE_MEMORY_DEBUG
 #define main jwtExampleMain
 #include "../examples/auth_middleware.c"
 #undef main

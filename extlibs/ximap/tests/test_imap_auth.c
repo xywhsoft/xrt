@@ -1,10 +1,11 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
 
 typedef struct testimapauthserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } testimapauthserver;
 
@@ -40,7 +41,7 @@ static bool testImapAuthSend(
 	xnetstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -49,7 +50,7 @@ static bool testImapAuthSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -67,13 +68,13 @@ static bool testImapAuthReceive(
 	xnetstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			1u,
 			iDeadline,
@@ -117,7 +118,7 @@ static bool testImapAuthCapability(
 	xnetstream* pStream,
 	cstr sCapabilities,
 	size_t iCapabilities,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return testImapAuthReceive(
@@ -138,7 +139,7 @@ static bool testImapAuthCapability(
 /* 完成固定 tag 的 LOGOUT 交换并关闭一条连接。 */
 static bool testImapAuthLogout(
 	xnetstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return testImapAuthReceive(
@@ -153,7 +154,7 @@ static bool testImapAuthLogout(
 			"* BYE signing off\r\nA00000003 OK logout complete\r\n"
 		) - 1u,
 		iDeadline
-	) && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+	) && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		iDeadline,
@@ -166,7 +167,7 @@ static bool testImapAuthLogout(
 /* 验证引号转义后的传统 LOGIN。 */
 static bool testImapAuthLoginSession(
 	xnetstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	static const char sCapabilities[] =
@@ -196,7 +197,7 @@ static bool testImapAuthLoginSession(
 /* 验证没有 SASL-IR 时的 PLAIN continuation。 */
 static bool testImapAuthPlainSession(
 	xnetstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	static const char sCapabilities[] =
@@ -236,7 +237,7 @@ static bool testImapAuthPlainSession(
 /* 验证 XOAUTH2 SASL-IR 失败 challenge 必须以空行收尾。 */
 static bool testImapAuthXoauth2Session(
 	xnetstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	static const char sCapabilities[] =
@@ -284,7 +285,7 @@ static int32 testImapAuthServer(ptr pData)
 	bool bSuccess = true;
 
 	for ( size_t i = 0; i < 3u; i++ ) {
-		xnetstream* pStream = xrtNetListenerAcceptWait(
+		xnetstream* pStream = __xrtNetListenerAcceptWait(
 			pServer->Listener,
 			pServer->Deadline,
 			NULL
@@ -324,7 +325,7 @@ static int32 testImapAuthServer(ptr pData)
 static ximapclient* testImapAuthOpen(
 	xnetengine* pEngine,
 	xnetresolver* pResolver,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	ximapclientconfig Config;
@@ -334,7 +335,7 @@ static ximapclient* testImapAuthOpen(
 	Config.Net.Resolver = pResolver;
 	Config.Net.Host = "imap-auth.test";
 	Config.Net.Port = TestImapAuthAddress.Port;
-	return xrtImapClientOpen(&Config, iDeadline, NULL);
+	return __xrtImapClientOpen(&Config, iDeadline, NULL);
 }
 
 
@@ -353,7 +354,7 @@ int main(void)
 	ximapclient* pClient;
 	ximapauthconfig Auth;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 
 	xrtImapAuthConfigInit(&Auth);
 	Auth.Method = XIMAP_AUTH_OAUTHBEARER;
@@ -394,7 +395,7 @@ int main(void)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "IMAP auth resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Success = false;
@@ -407,7 +408,7 @@ int main(void)
 	Auth.Method = XIMAP_AUTH_LOGIN;
 	Auth.Username = XRT_STR_LITERAL("u\"ser");
 	Auth.Secret = XRT_STR_LITERAL("p\\ass");
-	testRequire(!xrtImapClientAuth(
+	testRequire(!__xrtImapClientAuth(
 		pClient,
 		&Auth,
 		Deadline,
@@ -415,10 +416,10 @@ int main(void)
 	), "IMAP LOGIN sent plaintext credentials without opt-in");
 	xrtClearError();
 	Auth.AllowPlaintext = true;
-	testRequire(xrtImapClientAuth(pClient, &Auth, Deadline, NULL) &&
+	testRequire(__xrtImapClientAuth(pClient, &Auth, Deadline, NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED),
 		"IMAP LOGIN authentication failed");
-	testRequire(xrtImapClientLogout(pClient, Deadline, NULL),
+	testRequire(__xrtImapClientLogout(pClient, Deadline, NULL),
 		"IMAP LOGIN logout failed");
 	xrtImapClientDestroy(pClient);
 
@@ -428,10 +429,10 @@ int main(void)
 	Auth.Username = XRT_STR_LITERAL("user");
 	Auth.Secret = XRT_STR_LITERAL("pass");
 	Auth.AllowPlaintext = true;
-	testRequire(xrtImapClientAuth(pClient, &Auth, Deadline, NULL) &&
+	testRequire(__xrtImapClientAuth(pClient, &Auth, Deadline, NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED),
 		"IMAP PLAIN authentication failed");
-	testRequire(xrtImapClientLogout(pClient, Deadline, NULL),
+	testRequire(__xrtImapClientLogout(pClient, Deadline, NULL),
 		"IMAP PLAIN logout failed");
 	xrtImapClientDestroy(pClient);
 
@@ -442,20 +443,20 @@ int main(void)
 	Auth.Username = XRT_STR_LITERAL("user");
 	Auth.Secret = XRT_STR_LITERAL("token");
 	Auth.AllowPlaintext = true;
-	testRequire(!xrtImapClientAuth(pClient, &Auth, Deadline, NULL) &&
+	testRequire(!__xrtImapClientAuth(pClient, &Auth, Deadline, NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_NOT_AUTHENTICATED),
 		"IMAP OAUTHBEARER was allowed on a plaintext connection");
 	xrtClearError();
 	Auth.Method = XIMAP_AUTH_XOAUTH2;
-	testRequire(!xrtImapClientAuth(pClient, &Auth, Deadline, NULL) &&
+	testRequire(!__xrtImapClientAuth(pClient, &Auth, Deadline, NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_NOT_AUTHENTICATED),
 		"IMAP XOAUTH2 rejection did not preserve reusable state");
 	xrtClearError();
-	testRequire(xrtImapClientLogout(pClient, Deadline, NULL),
+	testRequire(__xrtImapClientLogout(pClient, Deadline, NULL),
 		"IMAP XOAUTH2 rejection logout failed");
 	xrtImapClientDestroy(pClient);
 
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"IMAP auth server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"IMAP auth server transcript mismatch");

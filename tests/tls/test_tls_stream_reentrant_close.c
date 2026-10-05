@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
 	确定性回归：Send 内同步重入 TransportClose 时不得提前释放运行时对象。
 
@@ -42,10 +43,10 @@ static void testReentrantWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(Deadline), sMessage);
+		testRequire(!__xrtWaitExpired(Deadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -308,13 +309,13 @@ int main(void)
 	}
 	xrtNetListenerDestroy(pListener);
 	{
-		xdeadline Drain = xrtDeadlineAfter(10000000000u);
+		double Drain = __xrtWaitAfter(10000000000u);
 
 		for ( ;; ) {
 			testRequire(xrtNetEngineStats(pEngine, &Stats),
 				"reentrant close stats query failed");
 			if ( ( Stats.LiveObjects == 0 ) ||
-				xrtDeadlineExpired(Drain) ) {
+				__xrtWaitExpired(Drain) ) {
 				break;
 			}
 			xrtThreadYield();

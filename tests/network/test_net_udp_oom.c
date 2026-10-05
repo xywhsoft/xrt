@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -78,10 +79,10 @@ static void testUdpOomWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -159,7 +160,7 @@ static void testUdpOomRawSend(
 	size_t iSize
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 	xnetresult Result;
 	size_t iSent;
 
@@ -172,7 +173,7 @@ static void testUdpOomRawSend(
 			pRemote
 		);
 		if ( Result == XNET_RESULT_AGAIN ) {
-			testRequire(!xrtDeadlineExpired(iDeadline),
+			testRequire(!__xrtWaitExpired(iDeadline),
 				"UDP OOM raw send timed out");
 			xrtThreadYield();
 		}
@@ -190,7 +191,7 @@ static void testUdpOomRawReceive(
 	size_t iExpected
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 	xnetaddr Remote;
 	xnetresult Result;
 	char sData[4096];
@@ -205,7 +206,7 @@ static void testUdpOomRawReceive(
 			&Remote
 		);
 		if ( Result == XNET_RESULT_AGAIN ) {
-			testRequire(!xrtDeadlineExpired(iDeadline),
+			testRequire(!__xrtWaitExpired(iDeadline),
 				"UDP OOM raw receive timed out");
 			xrtThreadYield();
 		}
@@ -395,10 +396,10 @@ int main(void)
 	xrtFree(pRejectedRef);
 	testUdpOomRawSend(Peer, &LocalAddress, "G", 1);
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+		double iDeadline = __xrtWaitAfter(5000000u);
 
 		while ( xrtNetUdpQueued(pUdp) == 0 ) {
-			testRequire(!xrtDeadlineExpired(iDeadline),
+			testRequire(!__xrtWaitExpired(iDeadline),
 				"UDP receive did not recover after OOM");
 			xrtThreadYield();
 		}

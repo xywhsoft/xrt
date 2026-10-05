@@ -51,7 +51,7 @@ XRT_API bool xrtImapClientCompressed(const ximapclient* pClient);
 XRT_API bool xrtImapClientCompress(
 	ximapclient* pClient,
 	const ximapcompressconfig* pConfig,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 

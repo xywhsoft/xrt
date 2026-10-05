@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：process/signal_tour —— 信号族补集（元数据/Owned/Once/收计数）
  * ----------------------------------------------------------------
@@ -52,10 +53,10 @@ static void exampleOnceCallback(xsignalwatch* pWatch,
 
 static bool exampleSpinFlag(volatile int* pFlag, int iExpect)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(3000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(3000000));
 
 	while ( *pFlag < iExpect ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();

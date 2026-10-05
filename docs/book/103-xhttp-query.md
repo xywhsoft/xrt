@@ -61,7 +61,7 @@ API 客户端的高频操作：翻页（`page=2` 改成 `page=3`）、加过滤�
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/url/query/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/query/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 tag = c
 tag = xlang
 debug = <missing>
@@ -78,7 +78,7 @@ empty =
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/url/query_params/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/query_params/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 page=2&tag=c&tag=network&tag=xlang
 ```
 

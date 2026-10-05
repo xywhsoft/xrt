@@ -57,7 +57,7 @@ SSH 最日常的用法不是开 shell，而是**挖隧道**：`ssh -L 8080:db:80
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/forward_message/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/forward_message/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 direct-tcpip open 报文构建的自检结果）
 ```
 
@@ -71,7 +71,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/client_forward/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/client_forward/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出全局回复 FIFO 上限的配置自检结果）
 ```
 

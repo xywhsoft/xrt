@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 #if defined(TEST_HTTP_CLIENT_STREAM_OOM)
@@ -174,14 +175,14 @@ static void testHttpClientStreamWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(iDeadline),
+			!__xrtWaitExpired(iDeadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -949,7 +950,7 @@ int main(void)
 	xnetlistenerevents ListenerEvents;
 	xnetstreamevents ClientEvents;
 	xnetaddr Address;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	memset(&State, 0, sizeof(State));
 	xrtAtomic32Init(&State.RequestDone, 0);
@@ -1311,7 +1312,7 @@ int main(void)
 	}
 	testRequire(xrtNetListenerClose(State.Listener),
 		"HTTP Listener close failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while (
 		#if TEST_HTTP_CLIENT_STREAM_TRANSFERS
 			(xrtNetStreamState(State.Returned) !=
@@ -1322,7 +1323,7 @@ int main(void)
 		(xrtNetListenerState(State.Listener) !=
 			XNET_LISTENER_CLOSED) ) {
 		testRequire(
-			!xrtDeadlineExpired(iDeadline),
+			!__xrtWaitExpired(iDeadline),
 			"HTTP test network objects did not close"
 		);
 		xrtThreadYield();

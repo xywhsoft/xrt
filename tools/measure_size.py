@@ -283,9 +283,18 @@ def _write_single_source(
 	"""生成单头实现对象使用的最小翻译单元。"""
 
 	single_header = single_header or (ROOT / "single" / "xrt.h")
-	lines = [*(f"#define {macro}" for macro in _module_macros(suite, overlays)),
-		f"#define {implementation_macro}",
-		f'#include "{single_header.name}"', ""]
+	lines = [*(f"#define {macro}" for macro in _module_macros(suite, overlays))]
+	manifests = [load_manifest(path) for path in overlays or []]
+	for manifest in reversed(manifests):
+		lines.append(f'#include "{(ROOT / manifest["features_header"]).as_posix()}"')
+	lines.extend(["#define XRT_IMPLEMENTATION",
+		f'#include "{(ROOT / "single/xrt.h").as_posix()}"'])
+	for manifest in manifests:
+		lines.extend([f'#define {manifest["implementation_macro"]}',
+			f'#include "{(ROOT / manifest["single_header"]).as_posix()}"'])
+	if not manifests and single_header != ROOT / "single/xrt.h":
+		lines.extend([f"#define {implementation_macro}", f'#include "{single_header.as_posix()}"'])
+	lines.append("")
 	content = "\n".join(lines)
 	path.parent.mkdir(parents=True, exist_ok=True)
 	if path.is_file() and path.read_text(encoding="utf-8") == content:
@@ -316,10 +325,11 @@ def _compile_single(
 		implementation_macro,
 		overlays,
 	)
-	latest_input = max(
-		source.stat().st_mtime_ns,
-		single_header.stat().st_mtime_ns,
-	)
+	inputs = [source, single_header, ROOT / "single/xrt.h"]
+	for overlay in overlays or []:
+		manifest = load_manifest(overlay)
+		inputs.extend(ROOT / manifest[field] for field in ("single_header", "features_header"))
+	latest_input = max(path.stat().st_mtime_ns for path in inputs)
 	if output.is_file() and not rebuild and output.stat().st_mtime_ns >= latest_input:
 		return None
 	if family == "msvc":

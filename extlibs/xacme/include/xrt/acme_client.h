@@ -43,7 +43,7 @@ typedef struct xacmeclientconfig {
 	const xacmeaccountconfig* pAccount;
 	cstr sCaPem;
 	struct xnetengine* pBorrowedEngine;
-	uint64 uTimeoutUs;
+	int64 uTimeoutUs;
 	const cstr* sPropagateResolvers;
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
@@ -52,7 +52,7 @@ typedef struct xacmeclientconfig {
 		finalize/证书下载的全部轮询与退避，超限以 XERR_TIMEOUT
 		失败。防病态 CA 把签发挂成小时级。
 	*/
-	uint64 uIssueTimeoutUs;
+	int64 uIssueTimeoutUs;
 	/*
 		宿主提供的证书私钥 PEM（可选；EC P-256 或 RSA-2048+）：
 		设置后每次签发复用同一证书密钥（含 RSA 证书场景）；

@@ -277,12 +277,12 @@ static bool __xrtNetSelectUnwatch(xnetport* pPort, xnetsocket Socket)
 
 
 /* 把微秒等待转换为 select timeval，NEVER 由空指针表达。 */
-static struct timeval* __xrtNetSelectTimeout(uint64 iTimeout,
+static struct timeval* __xrtNetSelectTimeout(int64 iTimeout,
 	struct timeval* pTimeout)
 {
 	uint64 iSeconds;
 
-	if ( iTimeout == UINT64_MAX ) {
+	if ( iTimeout == XRT_WAIT_FOREVER ) {
 		return NULL;
 	}
 	iSeconds = iTimeout / 1000000u;
@@ -326,7 +326,7 @@ static bool __xrtNetSelectDrainWake(__xrt_net_select_context* pContext)
 /* 等待 readiness；每个已报告方向自动清除，调用方显式重新观察。 */
 static xnetresult __xrtNetSelectWait(xnetport* pPort,
 	xnetportevent* pEvents, size_t iCapacity,
-	uint64 iTimeout, size_t* pCount)
+	int64 iTimeout, size_t* pCount)
 {
 	__xrt_net_select_context* pContext =
 		(__xrt_net_select_context*)pPort->Context;

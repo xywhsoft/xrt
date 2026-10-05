@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -53,10 +54,10 @@ static void testUdpFutureOomFree(ptr pData, ptr pMemory)
 /* 等待 UDP 状态推进到目标。 */
 static void testUdpFutureOomState(xnetudp* pUdp, xnetudpstate State)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(5000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(5000000));
 
 	while ( xrtNetUdpState(pUdp) != State ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"UDP Future OOM state timed out");
 		xrtThreadYield();
 	}
@@ -67,10 +68,10 @@ static void testUdpFutureOomState(xnetudp* pUdp, xnetudpstate State)
 /* 等待一个数据包进入拉取队列，避免故障注入测试在后端异常时永久阻塞。 */
 static void testUdpFutureOomQueued(xnetudp* pUdp)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(5000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(5000000));
 
 	while ( xrtNetUdpQueued(pUdp) == 0 ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"UDP Future OOM receive queue timed out");
 		xrtThreadYield();
 	}

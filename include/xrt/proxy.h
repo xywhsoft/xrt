@@ -163,7 +163,7 @@ typedef enum xnetproxydialstate {
 /* Timeout 覆盖 DNS、TCP 和代理握手全过程；零值保留各内层超时。 */
 typedef struct xnetproxydialconfig {
 	xnetdialconfig Transport;
-	uint64 Timeout;
+	int64 Timeout;
 	size_t ReceiveLimit;
 } xnetproxydialconfig;
 

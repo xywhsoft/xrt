@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifndef XRT_BENCH_NETWORK_COMMON_H
 #define XRT_BENCH_NETWORK_COMMON_H
 
@@ -78,10 +79,10 @@ static bool xbenchNetworkStreamDestroy(xnetstream* pStream, bool bAbort)
 		}
 		if (
 			bResult &&
-			!xrtNetStreamWait(
+			!__xrtNetStreamWait(
 				pStream,
 				XNET_STREAM_WAIT_CLOSE,
-				xrtDeadlineAfter(UINT64_C(5000000)),
+				__xrtWaitAfter(UINT64_C(5000000)),
 				NULL
 			)
 		) {
@@ -97,7 +98,7 @@ static bool xbenchNetworkStreamDestroy(xnetstream* pStream, bool bAbort)
 /* 关闭 Listener 并等待全部预投递 Accept 退出。 */
 static bool xbenchNetworkListenerDestroy(xnetlistener* pListener)
 {
-	xdeadline iDeadline;
+	double iDeadline;
 	bool bResult = true;
 
 	if ( pListener == NULL ) {
@@ -105,12 +106,12 @@ static bool xbenchNetworkListenerDestroy(xnetlistener* pListener)
 	}
 	if ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		bResult = xrtNetListenerClose(pListener);
-		iDeadline = xrtDeadlineAfter(UINT64_C(5000000));
+		iDeadline = __xrtWaitAfter(UINT64_C(5000000));
 		while (
 			bResult &&
 			(xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED)
 		) {
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				bResult = false;
 				break;
 			}

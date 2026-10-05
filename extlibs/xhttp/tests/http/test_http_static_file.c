@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -362,7 +363,7 @@ static void testHttpStaticFileFuturePath(xroot Root)
 	xfuture* pBlock;
 	xfuture* pFuture;
 	xhttpstaticfile* pFile;
-	xdeadline Deadline;
+	double Deadline;
 
 	xrtAtomic32Init(&Block.Started, 0);
 	xrtAtomic32Init(&Block.Release, 0);
@@ -381,13 +382,13 @@ static void testHttpStaticFileFuturePath(xroot Root)
 		pBlock != NULL,
 		"HTTP static file path copy blocker failed"
 	);
-	Deadline = xrtDeadlineAfter(UINT64_C(2000000));
+	Deadline = __xrtWaitAfter(UINT64_C(2000000));
 	while ( xrtAtomic32Load(
 		&Block.Started,
 		XMEMORY_ACQUIRE
 	) == 0u ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP static file path copy blocker did not start"
 		);
 		xrtThreadYield();
@@ -504,7 +505,7 @@ static void testHttpStaticFileCancel(
 	xfuture* pBlock;
 	xfuture* pFile;
 	xfuture* pReplacement;
-	xdeadline Deadline;
+	double Deadline;
 
 	xrtAtomic32Init(&Block.Started, 0);
 	xrtAtomic32Init(&Block.Release, 0);
@@ -523,7 +524,7 @@ static void testHttpStaticFileCancel(
 		pBlock != NULL,
 		"HTTP static file blocker submit failed"
 	);
-	Deadline = xrtDeadlineAfter(
+	Deadline = __xrtWaitAfter(
 		UINT64_C(2000000)
 	);
 	while ( xrtAtomic32Load(
@@ -531,7 +532,7 @@ static void testHttpStaticFileCancel(
 		XMEMORY_ACQUIRE
 	) == 0u ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP static file blocker did not start"
 		);
 		xrtThreadYield();

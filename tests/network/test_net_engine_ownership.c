@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifdef NET_ENGINE_OWNERSHIP_SINGLE
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
@@ -26,19 +27,19 @@ struct EngineCase {
 static unsigned idle_cases, queued_cases, internal_port_cases, opaque_cases, exit_cases, oom_budgets, oom_failures;
 static void wait_one(xatomic32* value)
 {
-    xdeadline deadline=xrtDeadlineAfter(5000000);
-    while(!xrtAtomic32Load(value,XMEMORY_ACQUIRE)){assert(!xrtDeadlineExpired(deadline));xrtThreadYield();}
+    double deadline=__xrtWaitAfter(5000000);
+    while(!xrtAtomic32Load(value,XMEMORY_ACQUIRE)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
 static void freeze_begin(xrtownershipscope* freeze)
 {
-    xdeadline deadline=xrtDeadlineAfter(5000000);
-    while(!xrtOwnershipFreezeTryBegin(freeze)){assert(!xrtDeadlineExpired(deadline));xrtThreadYield();}
+    double deadline=__xrtWaitAfter(5000000);
+    while(!xrtOwnershipFreezeTryBegin(freeze)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
 static void stable_freeze(xnetengine* engine,xrtownershipscope* freeze)
 {
-    xdeadline deadline=xrtDeadlineAfter(5000000);xrtownershipref ref=xrtNetEngineOwnership(engine);size_t count;
+    double deadline=__xrtWaitAfter(5000000);xrtownershipref ref=xrtNetEngineOwnership(engine);size_t count;
     for(;;){freeze_begin(freeze);if(ref.Ops->Count(ref.Data,&count))return;
-        assert(xrtOwnershipScopeEnd(freeze));assert(!xrtDeadlineExpired(deadline));xrtThreadYield();}
+        assert(xrtOwnershipScopeEnd(freeze));assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
 static void balanced(const xmemdebugsnapshot* before)
 {
@@ -136,10 +137,10 @@ static EngineData* item_new(EngineCase* test,int32 refs)
 }
 static void prepare(EngineCase* test)
 {
-    xdeadline deadline=xrtDeadlineAfter(5000000);
+    double deadline=__xrtWaitAfter(5000000);
     for(;;){xrtownershipprepareresult result=test->preparation->Prepare(test->engine,test);
         if(result==XRT_OWNERSHIP_PREPARE_READY)return;
-        assert(result==XRT_OWNERSHIP_PREPARE_BUSY&&!xrtDeadlineExpired(deadline));xrtThreadYield();}
+        assert(result==XRT_OWNERSHIP_PREPARE_BUSY&&!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
 static void idle(unsigned workers,bool destroy_first)
 {
@@ -164,7 +165,7 @@ static void queued(bool resurrect,bool cancel)
     xmemdebugsnapshot before;xrtClearError();xrtMemDebugSnapshot(&before);EngineCase test={0};test.resurrect=resurrect;test.probe=true;setup(&test,1,8);
     xrtownershipscope freeze={0};stable_freeze(test.engine,&freeze);EngineData* item=item_new(&test,2);
     assert(xrtNetEnginePostOwnedV1(test.engine,0,item,&task_policy));
-    uint64 id=xrtNetEngineScheduleOwnedV1(test.engine,0,xrtDeadlineAfter(3600000000ULL),item,&timer_policy);assert(id);
+    uint64 id=__xrtNetEngineScheduleOwnedV1(test.engine,0,__xrtWaitAfter(3600000000ULL),item,&timer_policy);assert(id);
     xrtownershipref ref=xrtNetEngineOwnership(test.engine);xrtownershipresult graph={0};
     assert(xrtOwnershipInspect(&ref,1,&ref,1,&graph));
     assert(graph.NodeCount==2&&graph.EdgeCount==4&&graph.ExternalRootCount==0);
@@ -211,7 +212,7 @@ static void opaque(unsigned kind)
     xmemdebugsnapshot before;xrtClearError();xrtMemDebugSnapshot(&before);EngineCase test={0};setup(&test,1,8);
     xrtownershipscope freeze={0};stable_freeze(test.engine,&freeze);xrtownershipref ref=xrtNetEngineOwnership(test.engine);size_t count=197;
     if(kind==0)assert(xrtNetEnginePost(test.engine,0,borrowed_task,&test));
-    else if(kind==1)assert(xrtNetEngineSchedule(test.engine,0,xrtDeadlineAfter(3600000000ULL),borrowed_timer,&test));
+    else if(kind==1)assert(__xrtNetEngineSchedule(test.engine,0,__xrtWaitAfter(3600000000ULL),borrowed_timer,&test));
     else{test.tail=true;assert(xrtNetEnginePost(test.engine,0,borrowed_task,&test));assert(xrtOwnershipScopeEnd(&freeze));wait_one(&test.tasks);freeze_begin(&freeze);}
     assert(!ref.Ops->Count(ref.Data,&count)&&count==197);assert(xrtOwnershipScopeEnd(&freeze));
     assert(xrtNetEngineStop(test.engine));stable_freeze(test.engine,&freeze);assert(ref.Ops->Count(ref.Data,&count)&&count==1);
@@ -241,7 +242,7 @@ static void submit_oom(bool is_timer)
     for(unsigned budget=0;budget<12;++budget){xmemdebugsnapshot before;xrtClearError();xrtMemDebugSnapshot(&before);EngineCase test={0};setup(&test,1,2);
         xrtownershipscope freeze={0};stable_freeze(test.engine,&freeze);EngineData* item=item_new(&test,1);
         assert(xrtMemDebugFailAfter(budget));++oom_budgets;
-        bool accepted=is_timer?xrtNetEngineScheduleOwnedV1(test.engine,0,xrtDeadlineAfter(3600000000ULL),item,&timer_policy)!=0:
+        bool accepted=is_timer?__xrtNetEngineScheduleOwnedV1(test.engine,0,__xrtWaitAfter(3600000000ULL),item,&timer_policy)!=0:
             xrtNetEnginePostOwnedV1(test.engine,0,item,&task_policy);
         bool failed=xrtMemDebugFailTriggered();xrtMemDebugFailClear();
         if(!accepted){assert(failed&&item->refs==1&&xrtAtomic32Load(&test.drops,XMEMORY_ACQUIRE)==0);++oom_failures;data_drop(item);}

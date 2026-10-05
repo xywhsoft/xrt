@@ -4,7 +4,12 @@
 它把账户、订单、dns-01 挑战与证书获取做成可组合的 C API：宿主传入
 CA directory、DNS provider 与凭据、存储位置，换取**证书链与配对私钥**。
 它不是工具：没有配置文件、没有定时器、没有 reload 钩子——一切由
-宿主经参数与回调组合。单头形态为 `single/xacme.h`。
+宿主经参数与回调组合。单头形态为 `single/extlibs/xacme.h`。
+
+单头实现与声明分别为仓库根目录的 `single/extlibs/xacme.h` 与
+`single/extlibs/xacme_decl.h`，均只包含 xacme 自身代码。使用前须按顺序提供
+XRT 的所需模块，再包含 xacme；实现宏为 `XACME_IMPLEMENTATION`。
+依赖选择与实现组合见 [构建说明](../../docs/BUILD.md#扩展单头与依赖顺序)。
 
 ## 最短路径（一站式申领）
 

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -129,14 +130,14 @@ int main(void)
 	/* 组取消必须传播到长 Timer 并等待其真实取消终态。 */
 	pGroup = xrtTaskGroupCreate(NULL);
 	testRequire(pGroup != NULL, "cancel network task group create failed");
-	pFirst = xrtTaskGroupNetUntil(
+	pFirst = __xrtTaskGroupNetUntil(
 		pGroup,
 		pEngine,
 		0,
 		testTaskGroupNetRun,
 		&Context,
 		&tArgs,
-		xrtDeadlineAfter(5000000u)
+		__xrtWaitAfter(5000000u)
 	);
 	testRequire(pFirst != NULL, "cancel network task group submit failed");
 	testRequire(xrtTaskGroupCancel(pGroup),

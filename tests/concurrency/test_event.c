@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../test_thread.h"
 
@@ -19,7 +20,7 @@ int main(void)
 	xevent tEvent;
 	xevent* pEvent;
 	testthread arrThreads[2];
-	xdeadline iDeadline;
+	double iDeadline;
 	uint64 iStarted;
 	uint64 iElapsed;
 	int iAutoWakeCount = 0;
@@ -68,13 +69,13 @@ int main(void)
 		testRequire(arrThreads[i].Result == 37, "manual event lost a waiter");
 	}
 	testRequire(xrtEventReset(pEvent), "manual event second reset failed");
-	iStarted = xrtClock();
-	iDeadline = xrtDeadlineAfter(UINT64_C(20000));
+	iStarted = xrtTimer();
+	iDeadline = __xrtWaitAfter(UINT64_C(20000));
 	testRequire(
-		xrtEventWaitUntil(pEvent, iDeadline) == XWAIT_TIMEOUT,
+		__xrtEventWaitUntil(pEvent, iDeadline) == XWAIT_TIMEOUT,
 		"event deadline result mismatch"
 	);
-	iElapsed = xrtClock() - iStarted;
+	iElapsed = xrtTimer() - iStarted;
 	testRequire(iElapsed >= UINT64_C(10000), "event deadline returned too early");
 	testRequire(iElapsed < UINT64_C(2000000), "event deadline returned too late");
 	testRequire(xrtEventDestroy(pEvent), "manual event destroy failed");

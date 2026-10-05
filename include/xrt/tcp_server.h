@@ -200,7 +200,7 @@ XRT_API xfuture* xrtNetServerAcceptAsync(xnetserver* pServer);
 /* 阻塞接受一个连接；禁止从任意 Engine Worker 调用。 */
 XRT_API xnetstream* xrtNetServerAcceptWait(
 	xnetserver* pServer,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 #endif

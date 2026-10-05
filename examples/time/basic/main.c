@@ -51,7 +51,7 @@ int main(void)
 	printf("unix_us=%lld\n", (long long)iNow);
 	printf("utc=%lld-%02d-%02d %02d:%02d:%02d.%06d\n",
 		(long long)tUTC.Year, tUTC.Month, tUTC.Day,
-		tUTC.Hour, tUTC.Minute, tUTC.Second, tUTC.Microsecond);
+		tUTC.Hour, tUTC.Minute, tUTC.Second, tUTC.Millisecond);
 	printf("utc+8=%lld-%02d-%02d %02d:%02d:%02d\n",
 		(long long)tLocalOffset.Year, tLocalOffset.Month, tLocalOffset.Day,
 		tLocalOffset.Hour, tLocalOffset.Minute, tLocalOffset.Second);

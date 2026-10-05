@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_tcp.h"
 #include "../internal/xrt_net_sync.h"
 
@@ -24,10 +25,10 @@ static int32 __xrtNetStreamWaitCode(xnetstreamwait Wait)
 
 
 /* 阻塞等待一个 Stream 条件，不复制底层状态机。 */
-XRT_API bool xrtNetStreamWait(
+XRT_API bool __xrtNetStreamWait(
 	xnetstream* pStream,
 	xnetstreamwait Wait,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -60,10 +61,10 @@ XRT_API bool xrtNetStreamWait(
 
 
 /* 阻塞等待拉取缓冲增长到指定字节数，不复制或消费现有前缀。 */
-XRT_API bool xrtNetStreamWaitAvailable(
+XRT_API bool __xrtNetStreamWaitAvailable(
 	xnetstream* pStream,
 	size_t iMinimum,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -96,9 +97,9 @@ XRT_API bool xrtNetStreamWaitAvailable(
 
 
 /* 阻塞接受一个连接，并把 Future 持有转换为调用方引用。 */
-XRT_API xnetstream* xrtNetListenerAcceptWait(
+XRT_API xnetstream* __xrtNetListenerAcceptWait(
 	xnetlistener* pListener,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -133,10 +134,10 @@ XRT_API xnetstream* xrtNetListenerAcceptWait(
 
 
 /* 阻塞接收一段拥有型字节，并把 Future 持有转换为调用方引用。 */
-XRT_API xnetbytes* xrtNetStreamRecv(
+XRT_API xnetbytes* __xrtNetStreamRecv(
 	xnetstream* pStream,
 	size_t iMaxBytes,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -168,4 +169,51 @@ XRT_API xnetbytes* xrtNetStreamRecv(
 	return pBytes;
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_NET_TCP)) && (defined(XRT_FEATURE_NET_TCP_SYNC))
+XRT_API bool xrtNetStreamWait(
+	xnetstream* pStream,
+	xnetstreamwait Wait,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtNetStreamWait(pStream, Wait, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XRT_FEATURE_NET_TCP)) && (defined(XRT_FEATURE_NET_TCP_SYNC))
+XRT_API bool xrtNetStreamWaitAvailable(
+	xnetstream* pStream,
+	size_t iMinimum,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtNetStreamWaitAvailable(pStream, iMinimum, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XRT_FEATURE_NET_TCP)) && (defined(XRT_FEATURE_NET_TCP_SYNC))
+XRT_API xnetstream* xrtNetListenerAcceptWait(
+	xnetlistener* pListener,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtNetListenerAcceptWait(pListener, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XRT_FEATURE_NET_TCP)) && (defined(XRT_FEATURE_NET_TCP_SYNC))
+XRT_API xnetbytes* xrtNetStreamRecv(
+	xnetstream* pStream,
+	size_t iMaxBytes,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtNetStreamRecv(pStream, iMaxBytes, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

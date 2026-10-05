@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../fixtures/tls_server.h"
 
 
@@ -39,10 +40,10 @@ static void testTlsDialWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(Deadline), sMessage);
+		testRequire(!__xrtWaitExpired(Deadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -52,13 +53,13 @@ static void testTlsDialWait(
 /* 等待服务端握手发布，并在超时时输出跨 Worker 调度状态。 */
 static void testTlsDialWaitServerOpen(test_tls_dial_context* pContext)
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(
 		&pContext->ServerOpen,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			xnetstream* pTransport = (pContext->Server != NULL) ?
 				xrtTlsStreamTransport(pContext->Server) : NULL;
 

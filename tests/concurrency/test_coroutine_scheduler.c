@@ -142,7 +142,7 @@ static int testCoSchedStressWake(ptr pData)
 typedef struct testcoschedjoin {
 	xcoro* Target;
 	xwaitresult Result;
-	uint64 Timeout;
+	int64 Timeout;
 } testcoschedjoin;
 
 

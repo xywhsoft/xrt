@@ -1445,16 +1445,8 @@ XRT_API bool xrtTell(xfile File, uint64* pPosition)
 /* 把 Windows FILETIME 转换为 Unix Epoch 微秒。 */
 xtime __xrtFileWindowsTime(FILETIME Time)
 {
-	const uint64 iEpoch = UINT64_C(116444736000000000);
-	uint64 iTicks = ((uint64)Time.dwHighDateTime << 32) | Time.dwLowDateTime;
-	uint64 iDifference;
-
-	if ( iTicks >= iEpoch ) {
-		return (xtime)((iTicks - iEpoch) / UINT64_C(10));
-	}
-	iDifference = iEpoch - iTicks;
-	return -(xtime)(iDifference / UINT64_C(10)) -
-		((iDifference % UINT64_C(10)) != 0u ? 1 : 0);
+    uint64 Ticks = ((uint64)Time.dwHighDateTime << 32) | Time.dwLowDateTime;
+    return (xtime)(Ticks / UINT64_C(10000)) + INT64_C(50491123200000);
 }
 
 
@@ -1462,29 +1454,21 @@ xtime __xrtFileWindowsTime(FILETIME Time)
 /* 把 Unix Epoch 微秒安全转换为 Windows FILETIME。 */
 static bool __xrtFileWindowsTimeValue(xtime Time, FILETIME* pValue)
 {
-	const uint64 iEpoch = UINT64_C(116444736000000000);
-	uint64 iTicks;
-
-	if ( Time >= 0 ) {
-		if ( (uint64)Time > ((UINT64_MAX - iEpoch) / UINT64_C(10)) ) {
-			__xrtFileError(XERR_RANGE, XFILE_ERROR_METADATA, "set-times",
-				"the timestamp is outside the Windows FILETIME range");
-			return false;
-		}
-		iTicks = iEpoch + ((uint64)Time * UINT64_C(10));
-	} else {
-		uint64 iMagnitude = (uint64)(-(Time + 1)) + 1u;
-
-		if ( iMagnitude > (iEpoch / UINT64_C(10)) ) {
-			__xrtFileError(XERR_RANGE, XFILE_ERROR_METADATA, "set-times",
-				"the timestamp is outside the Windows FILETIME range");
-			return false;
-		}
-		iTicks = iEpoch - (iMagnitude * UINT64_C(10));
-	}
-	pValue->dwLowDateTime = (DWORD)iTicks;
-	pValue->dwHighDateTime = (DWORD)(iTicks >> 32);
-	return true;
+    uint64 Milliseconds;
+    uint64 Ticks;
+    if ( Time < INT64_C(50491123200000) ) {
+        __xrtFileError(XERR_RANGE, XFILE_ERROR_METADATA, "set-times", "the timestamp is outside the Windows FILETIME range");
+        return false;
+    }
+    Milliseconds = (uint64)(Time - INT64_C(50491123200000));
+    if ( Milliseconds > UINT64_MAX / UINT64_C(10000) ) {
+        __xrtFileError(XERR_RANGE, XFILE_ERROR_METADATA, "set-times", "the timestamp is outside the Windows FILETIME range");
+        return false;
+    }
+    Ticks = Milliseconds * UINT64_C(10000);
+    pValue->dwLowDateTime = (DWORD)Ticks;
+    pValue->dwHighDateTime = (DWORD)(Ticks >> 32);
+    return true;
 }
 
 
@@ -1565,16 +1549,12 @@ bool __xrtFileWindowsStat(HANDLE hFile, xfileinfo* pInfo, bool bReport)
 /* 把纳秒精度系统时间安全转换为 Unix 微秒。 */
 static bool __xrtFileTime(int64 iSeconds, int64 iNanoseconds, xtime* pTime)
 {
-	int64 iValue;
-
-	if ( !__xrtTimeMulChecked(iSeconds, XRT_TIME_SECOND, &iValue) ||
-		 !__xrtTimeAddChecked(iValue, iNanoseconds / 1000, &iValue) ) {
-		__xrtFileError(XERR_RANGE, XFILE_ERROR_STAT, "stat",
-			"file timestamp is outside the supported range");
-		return false;
-	}
-	*pTime = iValue;
-	return true;
+    if ( iNanoseconds < 0 || iNanoseconds >= INT64_C(1000000000) ||
+         !__xrtTimeFromUnixParts(iSeconds, (int)(iNanoseconds / 1000000), pTime) ) {
+        __xrtFileError(XERR_RANGE, XFILE_ERROR_STAT, "stat", "file timestamp is outside the supported range");
+        return false;
+    }
+    return true;
 }
 
 
@@ -1582,23 +1562,17 @@ static bool __xrtFileTime(int64 iSeconds, int64 iNanoseconds, xtime* pTime)
 /* 把 Unix Epoch 微秒安全转换为 POSIX timespec。 */
 static bool __xrtFileTimeValue(xtime Time, struct timespec* pValue)
 {
-	int64 iSeconds = Time / XRT_TIME_SECOND;
-	int64 iMicros = Time % XRT_TIME_SECOND;
-	time_t Seconds;
-
-	if ( iMicros < 0 ) {
-		iSeconds--;
-		iMicros += XRT_TIME_SECOND;
-	}
-	Seconds = (time_t)iSeconds;
-	if ( (int64)Seconds != iSeconds ) {
-		__xrtFileError(XERR_RANGE, XFILE_ERROR_METADATA, "set-times",
-			"the timestamp is outside the platform time range");
-		return false;
-	}
-	pValue->tv_sec = Seconds;
-	pValue->tv_nsec = (long)(iMicros * 1000);
-	return true;
+    int64 Seconds = xrtTimeUnix(Time);
+    int64 Milliseconds = Time % XRT_TIME_SECOND;
+    time_t Native = (time_t)Seconds;
+    if ( Milliseconds < 0 ) { Milliseconds += XRT_TIME_SECOND; }
+    if ( (int64)Native != Seconds || (Seconds < 0 && Native >= (time_t)0) ) {
+        __xrtFileError(XERR_RANGE, XFILE_ERROR_METADATA, "set-times", "the timestamp is outside the platform time range");
+        return false;
+    }
+    pValue->tv_sec = Native;
+    pValue->tv_nsec = (long)(Milliseconds * 1000000);
+    return true;
 }
 
 

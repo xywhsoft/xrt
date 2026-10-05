@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_temp.h"
 
 
@@ -808,9 +809,9 @@ XRT_API bool xrtExecutorCancel(xexecutor* pExecutor)
 
 
 /* 等待已经关闭的执行器排空到指定截止时间。 */
-XRT_API xwaitresult xrtExecutorWaitUntil(
+XRT_API xwaitresult __xrtExecutorWaitUntil(
 	xexecutor* pExecutor,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xwaitresult Result = XWAIT_OK;
@@ -835,11 +836,11 @@ XRT_API xwaitresult xrtExecutorWaitUntil(
 		&pExecutor->Running,
 		XMEMORY_ACQUIRE
 	) != 0) ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			Result = XWAIT_TIMEOUT;
 			break;
 		}
-		Result = xrtCondWaitUntil(
+		Result = __xrtCondWaitUntil(
 			&pExecutor->Idle,
 			&pExecutor->SleepLock,
 			iDeadline
@@ -869,7 +870,7 @@ XRT_API xwaitresult xrtExecutorWaitUntil(
 /* 永久等待已经关闭的执行器排空。 */
 XRT_API xwaitresult xrtExecutorWait(xexecutor* pExecutor)
 {
-	return xrtExecutorWaitUntil(pExecutor, XRT_DEADLINE_NEVER);
+	return __xrtExecutorWaitUntil(pExecutor, INFINITY);
 }
 
 
@@ -877,12 +878,12 @@ XRT_API xwaitresult xrtExecutorWait(xexecutor* pExecutor)
 /* 在相对超时内等待已经关闭的执行器排空。 */
 XRT_API xwaitresult xrtExecutorWaitFor(
 	xexecutor* pExecutor,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	return xrtExecutorWaitUntil(
+	return __xrtExecutorWaitUntil(
 		pExecutor,
-		xrtDeadlineAfter(iTimeout)
+		__xrtWaitAfter(iTimeout)
 	);
 }
 

@@ -3,7 +3,7 @@
 此文件由 `tools/generate_example_index.py` 从 `config/modules.json` 生成，
 不要手工维护第二份示例清单。构建器会按所属模块的真实依赖闭包编译并运行示例。
 
-当前共登记 `413` 个可运行示例。
+当前共登记 `415` 个可运行示例。
 
 ## asn1 (5)
 
@@ -184,7 +184,7 @@
 
 - [error/tour](../examples/error/tour/main.c) - `core`
 
-## file (24)
+## file (25)
 
 - [file/async](../examples/file/async/main.c) - `file_async`
 - [file/async_manage](../examples/file/async_manage/main.c) - `file_async_manage`
@@ -208,6 +208,7 @@
 - [file/text](../examples/file/text/main.c) - `file_text`
 - [file/tree](../examples/file/tree/main.c) - `file_tree`
 - [file/tree_async](../examples/file/tree_async/main.c) - `file_tree_async`
+- [file/vfs](../examples/file/vfs/main.c) - `vfs_memory`
 - [file/walk](../examples/file/walk/main.c) - `file_walk`
 - [file/whole](../examples/file/whole/main.c) - `file_whole`
 
@@ -471,7 +472,7 @@
 - [tls/verify](../examples/tls/verify/main.c) - `tls_verify`
 - [tls/writer_tour](../examples/tls/writer_tour/main.c) - `tls_negotiate`
 
-## value (13)
+## value (14)
 
 - [value/array_tour](../examples/value/array_tour/main.c) - `value`
 - [value/basic](../examples/value/basic/main.c) - `value`
@@ -480,6 +481,7 @@
 - [value/containers/indexed](../examples/value/containers/indexed/main.c) - `value_container`
 - [value/containers/lifo](../examples/value/containers/lifo/main.c) - `value_container`
 - [value/containers](../examples/value/containers/main.c) - `value_container`
+- [value/discovery](../examples/value/discovery/main.c) - `value_object_discovery_tests`
 - [value/graph](../examples/value/graph/main.c) - `value_graph`
 - [value/handle](../examples/value/handle/main.c) - `value`
 - [value/iter_weak](../examples/value/iter_weak/main.c) - `value`

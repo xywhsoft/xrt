@@ -1,5 +1,5 @@
+#define XJWT_MODULE_XJWT
 #include "xjwt.h"
-#include "xjwt-xrt.h"
 #include <string.h>
 
 int test_jwt_package(void)

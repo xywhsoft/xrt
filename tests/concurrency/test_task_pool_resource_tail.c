@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifdef TASK_POOL_RESOURCE_TAIL_SINGLE
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
@@ -9,9 +10,9 @@ typedef struct ResourceTailCase {xtaskpool* pool;xfile native;xfuture* closed;} 
 static xtaskoutcome resource_tail(xcancel* cancel,ptr data,xtaskvalue* result)
 {
     ResourceTailCase* test=data;(void)cancel;(void)result;
-    xdeadline deadline=xrtDeadlineAfter(5000000);xtaskpoolstats stats={0};
+    double deadline=__xrtWaitAfter(5000000);xtaskpoolstats stats={0};
     do{assert(xrtTaskPoolGet(test->pool,&stats));if(stats.Closed)break;
-        assert(!xrtDeadlineExpired(deadline));xrtThreadYield();}while(true);
+        assert(!__xrtWaitExpired(deadline));xrtThreadYield();}while(true);
     /* Pool Destroy stops ordinary task admission, but accepted task code and
      * its existing native-resource cleanup are still allowed to finish. */
     xasyncfile* file=xrtAsyncFileAdopt(test->pool,test->native);
@@ -27,11 +28,11 @@ int main(void)
         ResourceTailCase test={0};xtaskpoolconfig config={2,2,0};test.pool=xrtTaskPoolCreate(&config);assert(test.pool);
         str path=NULL;test.native=xrtFileTemp(NULL,"xlir_pool_tail_",".tmp",&path);assert(test.native&&path);
         xfuture* task=xrtTaskSubmit(test.pool,resource_tail,&test,NULL);assert(task);
-        xdeadline deadline=xrtDeadlineAfter(5000000);
+        double deadline=__xrtWaitAfter(5000000);
         while(!xrtTaskPoolDestroy(test.pool)){
             /* An overlapping native stats entry may conservatively refuse
              * Destroy before it closes admission; the owner remains intact. */
-            xrtClearError();assert(!xrtDeadlineExpired(deadline));xrtThreadYield();
+            xrtClearError();assert(!__xrtWaitExpired(deadline));xrtThreadYield();
         }
         assert(!test.native&&test.closed&&xrtFutureState(task)==XFUTURE_RESOLVED&&xrtFutureState(test.closed)==XFUTURE_RESOLVED);
         xrtFutureDestroy(task);xrtFutureDestroy(test.closed);assert(xrtFileDelete(path));xrtFree(path);

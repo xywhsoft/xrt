@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -380,7 +381,7 @@ int main(int argc, char** argv)
 			);
 			Options.Input.Data = (cbytes)sInput;
 			Options.Input.Size = sizeof(sInput) - 1u;
-			Options.Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+			Options.Deadline = __xrtWaitAfter(UINT64_C(5000000));
 			memset(&Result, 0, sizeof(Result));
 			testRequire(
 				xrtProcessRun(&Config, &Options, &Result),

@@ -60,14 +60,15 @@ static void testTimeRFC3339Property(void)
 		memset(&tDateTime, 0, sizeof(tDateTime));
 		tDateTime.Year = (int64)(testTimeTextRandom(&iState) %
 			UINT64_C(10000));
+		if ( tDateTime.Year == 0 ) { tDateTime.Year = -1; }
 		tDateTime.Month = (int)(testTimeTextRandom(&iState) % 12u) + 1;
 		tDateTime.Day = (int)(testTimeTextRandom(&iState) %
 			(uint64)xrtDaysInMonth(tDateTime.Year, tDateTime.Month)) + 1;
 		tDateTime.Hour = (int)(testTimeTextRandom(&iState) % 24u);
 		tDateTime.Minute = (int)(testTimeTextRandom(&iState) % 60u);
 		tDateTime.Second = (int)(testTimeTextRandom(&iState) % 60u);
-		tDateTime.Microsecond =
-			(int)(testTimeTextRandom(&iState) % UINT64_C(1000000));
+		tDateTime.Millisecond =
+			(int)(testTimeTextRandom(&iState) % UINT64_C(1000));
 		tDateTime.Offset = iOffsetMinutes * 60;
 		testRequire(xrtTimeMake(&tDateTime, &iTime),
 			"random RFC 3339 source construction failed");
@@ -93,7 +94,7 @@ static void testTimeBoundedWriteProperty(void)
 	char sShort[64];
 	size_t iSize;
 
-	testRequire(xrtDateTime(2024, 2, 29, 23, 58, 57, 654321, &iTime),
+	testRequire(xrtDateTime(2024, 2, 29, 23, 58, 57, 654, &iTime),
 		"bounded-write source construction failed");
 	iSize = xrtTimeWrite(
 		sFull, sizeof(sFull), iTime, 8 * 3600, Format);
@@ -129,6 +130,7 @@ static void testTimeHTTPDateProperty(void)
 		memset(&tDateTime, 0, sizeof(tDateTime));
 		tDateTime.Year = (int64)(testTimeTextRandom(&iState) %
 			UINT64_C(10000));
+		if ( tDateTime.Year == 0 ) { tDateTime.Year = -1; }
 		tDateTime.Month = (int)(testTimeTextRandom(&iState) % 12u) + 1;
 		tDateTime.Day = (int)(testTimeTextRandom(&iState) %
 			(uint64)xrtDaysInMonth(tDateTime.Year, tDateTime.Month)) + 1;

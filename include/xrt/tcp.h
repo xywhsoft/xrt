@@ -163,7 +163,7 @@ typedef struct xnetstreamconfig {
 	size_t WriteHighWater;
 	size_t WriteLowWater;
 	size_t WriteLimit;
-	uint64 ConnectTimeout;
+	int64 ConnectTimeout;
 	xnetstreamreadmode ReadMode;
 	bool NoDelay;
 	bool KeepAlive;
@@ -214,7 +214,7 @@ typedef struct xnetdialconfig {
 	xnetstreamconfig Stream;
 	xnetfamily Family;
 	uint64 Affinity;
-	uint64 Timeout;
+	int64 Timeout;
 	uint64 FallbackDelay;
 	uint32 MaxAttempts;
 } xnetdialconfig;
@@ -663,7 +663,7 @@ XRT_API xfuture* xrtNetStreamRecvAsync(
 XRT_API bool xrtNetStreamWait(
 	xnetstream* pStream,
 	xnetstreamwait Wait,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -676,7 +676,7 @@ XRT_API bool xrtNetStreamWait(
 XRT_API bool xrtNetStreamWaitAvailable(
 	xnetstream* pStream,
 	size_t iMinimum,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -685,7 +685,7 @@ XRT_API bool xrtNetStreamWaitAvailable(
 /* 阻塞接受一个不继承 Listener 数据的连接并返回调用方引用；禁止从 Listener Worker 调用。 */
 XRT_API xnetstream* xrtNetListenerAcceptWait(
 	xnetlistener* pListener,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -695,7 +695,7 @@ XRT_API xnetstream* xrtNetListenerAcceptWait(
 XRT_API xnetbytes* xrtNetStreamRecv(
 	xnetstream* pStream,
 	size_t iMaxBytes,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 #endif
@@ -727,7 +727,7 @@ XRT_API xnetstream* xrtNetConnect(
 	const xnetdialconfig* pConfig,
 	const xnetstreamevents* pStreamEvents,
 	ptr pStreamData,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 #endif

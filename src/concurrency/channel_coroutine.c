@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_channel.h"
 #include "../internal/xrt_coroutine.h"
 
@@ -85,7 +86,7 @@ static void __xrtChannelAwaitWake(ptr pData)
 /* 通过当前 Await 的资源令牌挂起协程。 */
 static xwaitresult __xrtChannelAwaitPark(
 	ptr pData,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xrt_channel_await* pAwait = (xrt_channel_await*)pData;
@@ -114,10 +115,10 @@ static xcoro* __xrtChannelAwaitCurrent(void)
 
 
 /* 在当前协程中执行一次多路 Channel 等待。 */
-XRT_API xchannelselectresult xrtChannelSelectAwaitUntil(
+XRT_API xchannelselectresult __xrtChannelSelectAwaitUntil(
 	const xchannelcase* pCases,
 	size_t iCount,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xchannelselectresult tResult;
@@ -153,10 +154,10 @@ XRT_API xchannelselectresult xrtChannelSelectAwait(
 	size_t iCount
 )
 {
-	return xrtChannelSelectAwaitUntil(
+	return __xrtChannelSelectAwaitUntil(
 		pCases,
 		iCount,
-		XRT_DEADLINE_NEVER
+		INFINITY
 	);
 }
 
@@ -166,29 +167,29 @@ XRT_API xchannelselectresult xrtChannelSelectAwait(
 XRT_API xchannelselectresult xrtChannelSelectAwaitFor(
 	const xchannelcase* pCases,
 	size_t iCount,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	return xrtChannelSelectAwaitUntil(
+	return __xrtChannelSelectAwaitUntil(
 		pCases,
 		iCount,
-		xrtDeadlineAfter(iTimeout)
+		__xrtWaitAfter(iTimeout)
 	);
 }
 
 
 
 /* 在当前协程中发送一个可为空的指针值。 */
-XRT_API xwaitresult xrtChannelSendAwaitUntil(
+XRT_API xwaitresult __xrtChannelSendAwaitUntil(
 	xchannel* pChannel,
 	ptr pItem,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xchannelcase tCase = xrtChannelCaseSend(pChannel, pItem);
 
 	return __xrtChannelAwaitResult(
-		xrtChannelSelectAwaitUntil(&tCase, 1, iDeadline)
+		__xrtChannelSelectAwaitUntil(&tCase, 1, iDeadline)
 	);
 }
 
@@ -200,10 +201,10 @@ XRT_API xwaitresult xrtChannelSendAwait(
 	ptr pItem
 )
 {
-	return xrtChannelSendAwaitUntil(
+	return __xrtChannelSendAwaitUntil(
 		pChannel,
 		pItem,
-		XRT_DEADLINE_NEVER
+		INFINITY
 	);
 }
 
@@ -213,29 +214,29 @@ XRT_API xwaitresult xrtChannelSendAwait(
 XRT_API xwaitresult xrtChannelSendAwaitFor(
 	xchannel* pChannel,
 	ptr pItem,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	return xrtChannelSendAwaitUntil(
+	return __xrtChannelSendAwaitUntil(
 		pChannel,
 		pItem,
-		xrtDeadlineAfter(iTimeout)
+		__xrtWaitAfter(iTimeout)
 	);
 }
 
 
 
 /* 在当前协程中接收一个可为空的指针值。 */
-XRT_API xwaitresult xrtChannelRecvAwaitUntil(
+XRT_API xwaitresult __xrtChannelRecvAwaitUntil(
 	xchannel* pChannel,
 	ptr* pItem,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xchannelcase tCase = xrtChannelCaseRecv(pChannel, pItem);
 
 	return __xrtChannelAwaitResult(
-		xrtChannelSelectAwaitUntil(&tCase, 1, iDeadline)
+		__xrtChannelSelectAwaitUntil(&tCase, 1, iDeadline)
 	);
 }
 
@@ -247,10 +248,10 @@ XRT_API xwaitresult xrtChannelRecvAwait(
 	ptr* pItem
 )
 {
-	return xrtChannelRecvAwaitUntil(
+	return __xrtChannelRecvAwaitUntil(
 		pChannel,
 		pItem,
-		XRT_DEADLINE_NEVER
+		INFINITY
 	);
 }
 
@@ -260,13 +261,13 @@ XRT_API xwaitresult xrtChannelRecvAwait(
 XRT_API xwaitresult xrtChannelRecvAwaitFor(
 	xchannel* pChannel,
 	ptr* pItem,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	return xrtChannelRecvAwaitUntil(
+	return __xrtChannelRecvAwaitUntil(
 		pChannel,
 		pItem,
-		xrtDeadlineAfter(iTimeout)
+		__xrtWaitAfter(iTimeout)
 	);
 }
 

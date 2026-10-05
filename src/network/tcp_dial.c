@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_tcp.h"
 #include "../internal/xrt_net_resolver.h"
 
@@ -54,7 +55,7 @@ struct xnetdial {
 	ptr StreamData;
 	ptr DoneData;
 	uint16 Port;
-	xdeadline Deadline;
+	double Deadline;
 	xnetaddr* Addresses;
 	size_t Count;
 	size_t NextAddress;
@@ -1079,7 +1080,7 @@ static void __xrtNetDialStartTask(xnetworker* pWorker, ptr pData)
 	if ( __xrtNetDialCanDrive(pDial) &&
 		 (pDial->Config.Timeout != 0) ) {
 		if ( __xrtNetDialResourceAdd(pDial) ) {
-			pDial->DeadlineTimer = xrtNetEngineSchedule(
+			pDial->DeadlineTimer = __xrtNetEngineSchedule(
 				pDial->Engine,
 				pDial->Config.Affinity,
 				pDial->Deadline,
@@ -1326,7 +1327,7 @@ XRT_API xnetdial* xrtNetDial(
 		pDial->StreamEvents = *pStreamEvents;
 	}
 	if ( Config.Timeout != 0 ) {
-		pDial->Deadline = xrtDeadlineAfter(Config.Timeout);
+		pDial->Deadline = __xrtWaitAfter(Config.Timeout);
 	}
 	pDial->Resolve = xrtNetResolverResolve(
 		pResolver,

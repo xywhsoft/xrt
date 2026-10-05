@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -30,7 +31,7 @@ int main(void)
 	xnetportconfig Config;
 	xnetport* pPort;
 	xnetsocket Client;
-	xdeadline Deadline;
+	double Deadline;
 	size_t iCompleted = 0;
 
 	memset(Servers, 0, sizeof(Servers));
@@ -97,11 +98,11 @@ int main(void)
 			"readiness stress datagram send failed");
 	}
 
-	Deadline = xrtDeadlineAfter(5000000u);
+	Deadline = __xrtWaitAfter(5000000u);
 	while ( iCompleted < TEST_READINESS_WATCH_COUNT ) {
 		size_t iCount = 0;
 
-		testRequire(xrtNetPortWait(
+		testRequire(__xrtNetPortWait(
 			pPort,
 			Events,
 			sizeof(Events) / sizeof(Events[0]),

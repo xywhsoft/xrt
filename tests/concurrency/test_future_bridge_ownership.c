@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifdef FUTURE_BRIDGE_OWNERSHIP_SINGLE
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
@@ -14,8 +15,8 @@ typedef struct BridgeCase {
 static unsigned synchronous, races, pins;
 static void freeze_begin(xrtownershipscope* scope)
 {
-    xdeadline deadline=xrtDeadlineAfter(5000000);
-    while(!xrtOwnershipFreezeTryBegin(scope)){assert(!xrtDeadlineExpired(deadline));xrtThreadYield();}
+    double deadline=__xrtWaitAfter(5000000);
+    while(!xrtOwnershipFreezeTryBegin(scope)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
 static void balanced(const xmemdebugsnapshot* before)
 {

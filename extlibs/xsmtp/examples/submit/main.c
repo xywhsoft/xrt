@@ -1,10 +1,11 @@
+#include <xrt/detail/wait.h>
 #include <xsmtp.h>
 #include "../../../xmail/examples/mail_client_setup.h"
 
 
 
 /* 使用消息描述自动建立 envelope，并直接流式提交 MIME 内容。 */
-bool submitMessage(xsmtpclient* pClient, xdeadline iDeadline,
+bool submitMessage(xsmtpclient* pClient, double iDeadline,
 	cstr from, cstr to, cstr subject, cstr body)
 {
 	xmailmessage Message;
@@ -23,7 +24,7 @@ bool submitMessage(xsmtpclient* pClient, xdeadline iDeadline,
 	Message.ToCount = 1u;
 	Message.Subject = xrtStrView(subject);
 	Message.Text = xrtStrView(body);
-	return xrtSmtpSubmit(pClient, &Message, iDeadline, NULL);
+	return __xrtSmtpSubmit(pClient, &Message, iDeadline, NULL);
 }
 
 
@@ -38,7 +39,7 @@ int main(int argc, char** argv)
 	const char* user = getenv("XSMTP_USER");
 	const char* secret = getenv("XSMTP_PASSWORD");
 	uint16 port;
-	xdeadline deadline;
+	double deadline;
 	bool ok;
 	if ( argc == 1 ) {
 		puts("usage: submit host port ca.pem from to subject body [tls|starttls] (set XSMTP_USER and XSMTP_PASSWORD)");
@@ -52,7 +53,7 @@ int main(int argc, char** argv)
 		mailExampleDiagnostic("SMTP network initialization");
 		return 1;
 	}
-	deadline = xrtDeadlineAfter(UINT64_C(30000000));
+	deadline = __xrtWaitAfter(UINT64_C(30000000));
 	xrtSmtpClientConfigInit(&Config);
 	Config.Net.Engine = Net.Engine;
 	Config.Net.Resolver = Net.Resolver;
@@ -63,7 +64,7 @@ int main(int argc, char** argv)
 	Config.Net.Tls.Context = Net.Tls;
 	Config.Net.Tls.Verifier = Net.Verifier;
 	Config.Hello = (xstrview)XRT_STR_LITERAL("localhost");
-	client = xrtSmtpClientOpen(&Config, deadline, NULL);
+	client = __xrtSmtpClientOpen(&Config, deadline, NULL);
 	if ( client == NULL ) {
 		mailExampleDiagnostic("SMTP open");
 		(void)mailExampleNetUnit(&Net);
@@ -73,7 +74,7 @@ int main(int argc, char** argv)
 	Auth.Method = XSMTP_AUTH_PLAIN;
 	Auth.Username = xrtStrView(user);
 	Auth.Secret = xrtStrView(secret);
-	ok = xrtSmtpClientAuth(client, &Auth, deadline, NULL);
+	ok = __xrtSmtpClientAuth(client, &Auth, deadline, NULL);
 	if ( !ok ) mailExampleDiagnostic("SMTP authentication");
 	if ( ok ) {
 		ok = submitMessage(client, deadline, argv[4], argv[5], argv[6], argv[7]);
@@ -82,7 +83,7 @@ int main(int argc, char** argv)
 	if ( ok ) {
 		/* DATA's positive completion commits the submission. A later QUIT or
 		 * TLS shutdown failure must not report it as an unsent message. */
-		if ( !xrtSmtpClientQuit(client, deadline, NULL) )
+		if ( !__xrtSmtpClientQuit(client, deadline, NULL) )
 			mailExampleDiagnostic("SMTP submission completed; shutdown");
 	}
 	xrtSmtpClientDestroy(client);

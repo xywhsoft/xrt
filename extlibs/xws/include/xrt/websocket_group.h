@@ -328,23 +328,20 @@ XRT_API xwaitresult xrtWsGroupOpWait(xwsgroupop* pOperation);
 /* 在相对微秒数内等待全部已接纳操作进入终态。 */
 XRT_API xwaitresult xrtWsGroupOpWaitFor(
 	xwsgroupop* pOperation,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 等待全部已接纳操作到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtWsGroupOpWaitUntil(
-	xwsgroupop* pOperation,
-	xdeadline iDeadline
-);
+
 
 
 
 /* 等待批量操作、截止时间或调用方取消令牌中的首个事件。 */
-XRT_API xwaitresult xrtWsGroupOpWaitUntilCancel(
+XRT_API xwaitresult xrtWsGroupOpWaitForCancel(
 	xwsgroupop* pOperation,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 

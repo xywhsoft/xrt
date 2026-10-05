@@ -56,7 +56,7 @@ XRT_API bool xrtSmtpAuthConfigValid(const xsmtpauthconfig* pConfig);
 XRT_API bool xrtSmtpClientAuth(
 	xsmtpclient* pClient,
 	const xsmtpauthconfig* pConfig,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 

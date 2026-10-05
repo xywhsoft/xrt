@@ -47,7 +47,7 @@ static bool __xrtTerminalSystem(cstr Operation)
 }
 static uint64 __xrtTerminalNow(void)
 {
-    return xrtClock() / 1000u;
+    return xrtTimer() / 1000u;
 }
 static bool __xrtSessionCheck(const xconsolesession* Session)
 {
@@ -230,7 +230,7 @@ XRT_API xconsoleevent* xrtConsoleSessionRead(xconsolesession* Session, int Timeo
     if (TimeoutMs < -1) { (void)__xrtTerminalError(XERR_RANGE, "invalid event timeout"); return NULL; }
     Deadline = TimeoutMs >= 0 ? __xrtTerminalNow() + (uint64)TimeoutMs : 0;
     for (;;) {
-        uint64 Now = __xrtTerminalNow();
+        double Now = __xrtTerminalNow();
         DWORD Remaining = TimeoutMs < 0 ? INFINITE : Now >= Deadline ? 0 : (DWORD)(Deadline-Now);
         Wait = WaitForSingleObject(Session->In, Remaining);
         if (Wait == WAIT_TIMEOUT) return NULL;
@@ -408,7 +408,7 @@ XRT_API xconsoleevent* xrtConsoleSessionRead(xconsolesession* Session, int Timeo
     Deadline=TimeoutMs>=0?__xrtTerminalNow()+(uint64)TimeoutMs:0;
     for (;;) {
         struct pollfd Poll={STDIN_FILENO,POLLIN,0}; uint32 Columns,Rows; xconsoleevent* Event;
-        unsigned char Data[256]; ssize_t Read; int Status,Wait=50; uint64 Now=__xrtTerminalNow();
+        unsigned char Data[256]; ssize_t Read; int Status,Wait=50; double Now=__xrtTerminalNow();
         if (!xrtConsoleSize(XCONSOLE_STDOUT,&Columns,&Rows)) return NULL;
         if (Columns!=Session->Columns || Rows!=Session->Rows) {
             Event=__xrtConsoleEvent(XCONSOLE_EVENT_RESIZE); if (Event==NULL) return NULL;

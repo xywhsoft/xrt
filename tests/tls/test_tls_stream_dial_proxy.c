@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../fixtures/tls_server.h"
 
 
@@ -30,10 +31,10 @@ static void testTlsProxyWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(Deadline), sMessage);
+		testRequire(!__xrtWaitExpired(Deadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -45,7 +46,7 @@ static void testTlsProxyWait(
  * so teardown waits on the Engine's authoritative live-object count. */
 static void testTlsProxyWaitCleanup(xnetengine* pEngine)
 {
-	xdeadline Deadline = xrtDeadlineAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000000u);
 	xnetenginestats Stats;
 
 	for ( ;; ) {
@@ -54,7 +55,7 @@ static void testTlsProxyWaitCleanup(xnetengine* pEngine)
 		if ( Stats.LiveObjects == 0 ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(Deadline),
+		testRequire(!__xrtWaitExpired(Deadline),
 			"TLS proxy runtime owners did not drain");
 		xrtThreadYield();
 	}

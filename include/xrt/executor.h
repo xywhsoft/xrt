@@ -131,15 +131,12 @@ XRT_API xwaitresult xrtExecutorWait(xexecutor* pExecutor);
 
 
 /* 在相对微秒数内等待已经关闭的执行器排空。 */
-XRT_API xwaitresult xrtExecutorWaitFor(xexecutor* pExecutor, uint64 iTimeout);
+XRT_API xwaitresult xrtExecutorWaitFor(xexecutor* pExecutor, int64 iTimeout);
 
 
 
 /* 等待到指定单调时钟截止时间；已排空优先于超时。 */
-XRT_API xwaitresult xrtExecutorWaitUntil(
-	xexecutor* pExecutor,
-	xdeadline iDeadline
-);
+
 
 
 

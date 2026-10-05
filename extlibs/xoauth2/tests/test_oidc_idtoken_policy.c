@@ -2,9 +2,9 @@
 #define XRT_MODULE_ALL
 #define XRT_MODULE_MEMORY_DEBUG
 #define XRT_IMPLEMENTATION
-#include <xrt.h>
-#include "../xoauth2.h"
-#include "../../xjwt/xjwt.h"
+#include "support/runtime.h"
+#include <xoauth2.h>
+#include <xjwt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

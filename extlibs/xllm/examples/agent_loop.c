@@ -7,16 +7,13 @@
  *   pOnToolCall      流中改写工具参数（演示数据干涉，此处仅日志）
  * xllm_history 承担全部消息账本：深拷贝、工具配对入账、整灌请求。
  *
- * 构建（库目录内；先编 unity 目标文件）：
- *   gcc -std=c11 -Wall -Wextra -Werror -O2 -I. -I../../single -c xllm.c -o release/xllm.o
- *   gcc -std=c11 -Wall -Wextra -Werror -I. examples/agent_loop.c release/xllm.o \
- *       release/xllm-xrt.o -lWs2_32 -lIPHLPAPI -lBcrypt -lCrypt32 \
- *       -lSecur32 -lAdvapi32 -o build/agent_loop.exe
+ * 构建（仓库根目录）：
+ *   python tools/build.py --manifest extlibs/xllm/config/modules.json --suite xllm --jobs 4
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../xllm.h"
+#include <xllm.h>
 
 /* ---- 假模型：按调用序号回放 canned 响应 ---- */
 

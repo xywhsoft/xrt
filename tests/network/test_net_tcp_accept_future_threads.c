@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -39,10 +40,10 @@ static void testTcpAcceptThreadsWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(10000000u);
+	double iDeadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -102,7 +103,7 @@ int main(void)
 	xnetlistener* pListener;
 	size_t iCancelled = 0;
 	size_t iClosed = 0;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	memset(&Context, 0, sizeof(Context));
 	memset(Threads, 0, sizeof(Threads));
@@ -195,9 +196,9 @@ int main(void)
 	}
 	testRequire((iCancelled + iClosed) == TEST_TCP_ACCEPT_WAITER_COUNT,
 		"threaded TCP accept lost a terminal result");
-	iDeadline = xrtDeadlineAfter(10000000u);
+	iDeadline = __xrtWaitAfter(10000000u);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"threaded TCP accept listener close timed out");
 		xrtThreadYield();
 	}

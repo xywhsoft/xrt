@@ -1,7 +1,12 @@
 /* 使用完整单头实现验证 Linux io_uring 高层并发终态契约。 */
 #if defined(__linux__)
 	#define XHTTP_IMPLEMENTATION
-	#include "../../single/xhttp.h"
+	#include "../../include/xhttp/features.h"
+	#ifndef XRT_IMPLEMENTATION
+	#define XRT_IMPLEMENTATION
+	#endif
+	#include "../../../../single/xrt.h"
+	#include "../../../../single/extlibs/xhttp.h"
 
 
 

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -22,10 +23,10 @@ static void testUdpConcurrencyWaitState(
 	xnetudpstate State
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtNetUdpState(pUdp) != State ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"UDP send concurrency state timed out");
 		xrtThreadYield();
 	}
@@ -36,7 +37,7 @@ static void testUdpConcurrencyWaitState(
 /* 在截止时间内拉取一个数据报。 */
 static xnetudppacket* testUdpConcurrencyReceive(xnetudp* pUdp)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 	xnetudppacket* pPacket;
 
 	for ( ;; ) {
@@ -44,7 +45,7 @@ static xnetudppacket* testUdpConcurrencyReceive(xnetudp* pUdp)
 		if ( pPacket != NULL ) {
 			return pPacket;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"UDP concurrent receive timed out");
 		xrtThreadYield();
 	}
@@ -136,7 +137,7 @@ int main(void)
 		"UDP concurrent datagram set mismatch");
 
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+		double iDeadline = __xrtWaitAfter(5000000u);
 
 		for ( ;; ) {
 			testRequire(xrtNetUdpStats(pClient, &Stats),
@@ -146,7 +147,7 @@ int main(void)
 				 (Stats.ActiveSends == 0) ) {
 				break;
 			}
-			testRequire(!xrtDeadlineExpired(iDeadline),
+			testRequire(!__xrtWaitExpired(iDeadline),
 				"UDP concurrent sends did not drain");
 			xrtThreadYield();
 		}

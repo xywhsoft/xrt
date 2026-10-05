@@ -1,8 +1,9 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：concurrency/future_tour —— Future 延续/观察/Promise 补集
  * ----------------------------------------------------------------
  * 演示 API：
- *   【等待族】  xrtFutureWaitUntil / WaitUntilCancel /
+ *   【等待族】  __xrtFutureWaitUntil / WaitUntilCancel /
  *              AwaitUntil（协程挂起版）/ Done / Ref
  *   【Promise】 xrtPromiseRef / Reject / Forward / Done
  *   【延续族】  xrtFutureContinue / ContinueOwned /
@@ -100,8 +101,8 @@ static ptr exampleCoAwait(ptr pData)
 {
 	xfuture* pFuture = (xfuture*)pData;
 
-	return (ptr)(uintptr_t)xrtFutureAwaitUntil(pFuture,
-		xrtDeadlineAfter(EXAMPLE_TIMEOUT_US));
+	return (ptr)(uintptr_t)__xrtFutureAwaitUntil(pFuture,
+		__xrtWaitAfter(EXAMPLE_TIMEOUT_US));
 }
 
 /* 主协程：睡一小会儿再解析。 */
@@ -140,15 +141,15 @@ int main(void)
 	pPromise = xrtPromiseCreate(&pFut1, NULL);
 	if ( (pPromise == NULL) || (pFut1 == NULL) ||
 		xrtFutureDone(pFut1) ||
-		(xrtFutureWaitUntil(pFut1,
-			xrtDeadlineAfter(100000u)) != XWAIT_TIMEOUT) ) {
+		(__xrtFutureWaitUntil(pFut1,
+			__xrtWaitAfter(100000u)) != XWAIT_TIMEOUT) ) {
 		goto Cleanup;
 	}
 	pCancel = xrtCancelCreate();
 	if ( (pCancel == NULL) ||
 		!xrtCancelRequest(pCancel) ||
-		(xrtFutureWaitUntilCancel(pFut1,
-			xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
+		(__xrtFutureWaitUntilCancel(pFut1,
+			__xrtWaitAfter(EXAMPLE_TIMEOUT_US),
 			pCancel) != XWAIT_CANCELLED) ) {
 		goto Cleanup;
 	}
@@ -156,8 +157,8 @@ int main(void)
 	if ( (pRef != pFut1) || !xrtPromiseResolve(pPromise, (ptr)1) ) {
 		goto Cleanup;
 	}
-	if ( (xrtFutureWaitUntil(pFut1,
-			xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) !=
+	if ( (__xrtFutureWaitUntil(pFut1,
+			__xrtWaitAfter(EXAMPLE_TIMEOUT_US)) !=
 			XWAIT_OK) ||
 		!xrtFutureDone(pFut1) ) {
 		goto Cleanup;

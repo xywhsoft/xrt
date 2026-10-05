@@ -531,7 +531,7 @@ static bool xacmeTencentAddLocked(
 						(long long)iId);
 					bTracked = xacmeDnsCreateCommit(&pCtx->Records, pCtx->bUncertain,
 						iSlot, sZone, '|', sIdText);
-					if(bTracked) pCtx->uCreatedAt[iSlot] = xrtClock();
+					if(bTracked) pCtx->uCreatedAt[iSlot] = xrtTimer();
 				}
 			}
 		}
@@ -610,7 +610,7 @@ static int xacmeTencentCompareIds(const void* pLeft, const void* pRight)
 static void xacmeTencentInspectMissingCandidate(xacmednstencentcontext* pCtx,
 	size_t iSlot, cstr sZone, int64 iRecordId)
 {
-	uint64 uNow = xrtClock();
+	uint64 uNow = xrtTimer();
 	int64 iDomainId = pCtx->iDomainIds[iSlot], iTotal = -1, iListed = -1;
 	uint16 iStatus = 0u;
 	str sResp = NULL;

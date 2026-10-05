@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /* Actual synchronous Pipeline, not a mock. The setup-failure scan must neither
  * close an unrelated parent descriptor nor leave detached waiter allocations.
  * Current-thread logical allocation prefixes; worker allocations are not
@@ -63,7 +64,7 @@ static unsigned pipelinePrefix(const char* program,bool badLast)
     for(size_t point=0;point<512;++point) {
         xmemdebugsnapshot before; xrtMemDebugSnapshot(&before);
         xprocesspipelineresult result;
-        options.Deadline=xrtDeadlineAfter(UINT64_C(5000000));
+        options.Deadline=__xrtWaitAfter(UINT64_C(5000000));
         assert(xrtMemDebugFailAfter(point));
         bool ok=xrtProcessPipeline(stages,2,&options,&result);
         bool hit=xrtMemDebugFailTriggered(); xrtMemDebugFailClear();

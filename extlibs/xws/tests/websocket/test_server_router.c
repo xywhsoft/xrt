@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifndef TEST_WS_SERVER_ROUTER_TLS
 	#define TEST_WS_SERVER_ROUTER_TLS 0
 #endif
@@ -63,13 +64,13 @@ static void testWsServerRouterWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 
 	while ( xrtAtomic32Load(
 		pValue, XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../src/internal/xrt_mail_net.h"
 #include "../../../../tests/fixtures/tls_server.h"
 
@@ -43,9 +44,9 @@ static void testStartTlsBarrier(xnetworker* pWorker, ptr pData)
 
 static void testStartTlsWait(const xatomic32* pFlag, cstr sMessage)
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(3000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(3000000));
 	while ( !xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) ) {
-		testRequire(!xrtDeadlineExpired(Deadline), sMessage);
+		testRequire(!__xrtWaitExpired(Deadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -78,12 +79,12 @@ static void testStartTlsQueued(xnetengine* pEngine,
 	xthread* pReleaser;
 	xnetbytes* pBytes;
 	xbytesview Bytes;
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
 	bool bUpgraded;
 
 	testRequire(__xrtMailTransportOpen(&Transport, pConfig, Deadline, NULL),
 		"STARTTLS queue TCP dial failed");
-	pServer = xrtNetListenerAcceptWait(pListener, Deadline, NULL);
+	pServer = __xrtNetListenerAcceptWait(pListener, Deadline, NULL);
 	testRequire(pServer != NULL, "STARTTLS queue accept failed");
 	pWorker = xrtNetStreamWorker(Transport.Tcp);
 	testRequire(pWorker != NULL, "STARTTLS queue Worker missing");
@@ -101,7 +102,7 @@ static void testStartTlsQueued(xnetengine* pEngine,
 		"STARTTLS queue release thread creation failed");
 	xrtClearError();
 	bUpgraded = __xrtMailTransportStartTls(&Transport, pConfig,
-		bCancel ? Deadline : xrtDeadlineAfter(UINT64_C(80000)),
+		bCancel ? Deadline : __xrtWaitAfter(UINT64_C(80000)),
 		Park.Cancel);
 	testRequire(!bUpgraded && xrtGetError() != NULL &&
 		xrtErrorKind(xrtGetError()) ==
@@ -124,7 +125,7 @@ static void testStartTlsQueued(xnetengine* pEngine,
 	testRequire(Transport.Tcp != NULL && Transport.Tls == NULL &&
 		__xrtMailTransportSend(&Transport, "N", 1, Deadline, NULL),
 		"STARTTLS queue cancellation damaged plaintext TCP");
-	pBytes = xrtNetStreamRecv(pServer, 1, Deadline, NULL);
+	pBytes = __xrtNetStreamRecv(pServer, 1, Deadline, NULL);
 	testRequire(pBytes != NULL,
 		"STARTTLS queue server did not receive plaintext");
 	Bytes = xrtNetBytesView(pBytes);

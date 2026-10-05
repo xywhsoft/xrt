@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <string.h>
 #include <xhttp.h>
@@ -63,14 +64,14 @@ static void exampleHttpHttpsDone(
 /* 在截止时间内等待 Worker 发布终态。 */
 static bool exampleHttpHttpsWait(
 	example_http_https* pExample,
-	xdeadline Deadline
+	double Deadline
 )
 {
 	while ( xrtAtomic32Load(
 		&pExample->Done,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -93,7 +94,7 @@ int main(int argc, char** argv)
 	xhttpclient* pClient = NULL;
 	xhttprequest* pRequest = NULL;
 	xhttpcall* pCall = NULL;
-	xdeadline Deadline;
+	double Deadline;
 	int iResult = 1;
 
 	if ( argc != 2 ) {
@@ -146,12 +147,12 @@ int main(int argc, char** argv)
 	}
 
 	/* 超时后通过统一 Call 入口协作取消，再等待唯一终态。 */
-	Deadline = xrtDeadlineAfter(UINT64_C(35000000));
+	Deadline = __xrtWaitAfter(UINT64_C(35000000));
 	if ( !exampleHttpHttpsWait(&Example, Deadline) ) {
 		(void)xrtHttpCallCancel(pCall);
 		(void)exampleHttpHttpsWait(
 			&Example,
-			xrtDeadlineAfter(UINT64_C(5000000))
+			__xrtWaitAfter(UINT64_C(5000000))
 		);
 		goto Cleanup;
 	}

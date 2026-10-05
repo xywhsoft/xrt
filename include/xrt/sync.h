@@ -161,16 +161,12 @@ XRT_API xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex);
 
 
 /* 在相对微秒数内等待；允许虚假唤醒，超时和成功后都重新持有 mutex。 */
-XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout);
+XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, int64 iTimeout);
 
 
 
 /* 等待到单调时钟截止时间；允许虚假唤醒，应循环检查受 mutex 保护的谓词。 */
-XRT_API xwaitresult xrtCondWaitUntil(
-	xcond* pCond,
-	xmutex* pMutex,
-	xdeadline iDeadline
-);
+
 
 
 
@@ -217,12 +213,12 @@ XRT_API xwaitresult xrtSemTryWait(xsem* pSem);
 
 
 /* 在相对微秒数内等待并消费一个信号。 */
-XRT_API xwaitresult xrtSemWaitFor(xsem* pSem, uint64 iTimeout);
+XRT_API xwaitresult xrtSemWaitFor(xsem* pSem, int64 iTimeout);
 
 
 
 /* 等待并消费一个信号到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtSemWaitUntil(xsem* pSem, xdeadline iDeadline);
+
 
 
 
@@ -331,12 +327,12 @@ XRT_API xwaitresult xrtEventTryWait(xevent* pEvent);
 
 
 /* 在相对微秒数内等待事件。 */
-XRT_API xwaitresult xrtEventWaitFor(xevent* pEvent, uint64 iTimeout);
+XRT_API xwaitresult xrtEventWaitFor(xevent* pEvent, int64 iTimeout);
 
 
 
 /* 等待事件到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtEventWaitUntil(xevent* pEvent, xdeadline iDeadline);
+
 
 
 

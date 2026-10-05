@@ -1,6 +1,7 @@
+#include "../src/internal/xllm_internal.h"
+
 /* live_store_check — GLM 云验证：请求体携带 {"store":false} 是否被接受。
  * 用法：XLLM_LIVE_URL / XLLM_LIVE_KEY / XLLM_LIVE_MODEL 环境变量。 */
-#include "../xllm.c"
 
 int main(void)
 {

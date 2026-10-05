@@ -5,8 +5,8 @@
 		"extlibs/xmail/config/modules.json"
 	],
 	"module_prefix": "XPOP3_MODULE_",
-	"single_header": "extlibs/xpop3/single/xpop3.h",
-	"declaration_header": "extlibs/xpop3/single/xpop3_decl.h",
+	"single_header": "single/extlibs/xpop3.h",
+	"declaration_header": "single/extlibs/xpop3_decl.h",
 	"implementation_macro": "XPOP3_IMPLEMENTATION",
 	"implementation_once_macro": "XPOP3_IMPLEMENTATION_ONCE",
 	"single_guard": "XPOP3_SINGLE_HEADER_H",

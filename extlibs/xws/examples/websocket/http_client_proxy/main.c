@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -89,14 +90,14 @@ static void exampleWsProxyDone(
 /* 等待建连完成或关闭终态，不在网络 Worker 内阻塞。 */
 static bool exampleWsProxyWait(
 	const example_ws_proxy* pExample,
-	xdeadline Deadline
+	double Deadline
 )
 {
 	while ( xrtAtomic32Load(
 		&pExample->Done,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -121,7 +122,7 @@ int main(
 	xnetproxy* pProxy = NULL;
 	xhttpclient* pClient = NULL;
 	xhttpcall* pCall = NULL;
-	xdeadline Deadline;
+	double Deadline;
 	xstrview Protocol;
 	uint16 iProxyPort;
 	int iResult = 1;
@@ -184,12 +185,12 @@ int main(
 	}
 	if ( !exampleWsProxyWait(
 		&Example,
-		xrtDeadlineAfter(UINT64_C(35000000))
+		__xrtWaitAfter(UINT64_C(35000000))
 	) ) {
 		(void)xrtHttpCallCancel(pCall);
 		(void)exampleWsProxyWait(
 			&Example,
-			xrtDeadlineAfter(UINT64_C(5000000))
+			__xrtWaitAfter(UINT64_C(5000000))
 		);
 		goto Cleanup;
 	}
@@ -214,10 +215,10 @@ int main(
 	) != XNET_RESULT_OK ) {
 		goto Cleanup;
 	}
-	Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(UINT64_C(5000000));
 	while ( xrtWsConnState(Example.Connection) !=
 		XWS_CONN_CLOSED ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			(void)xrtWsConnAbort(Example.Connection);
 			goto Cleanup;
 		}

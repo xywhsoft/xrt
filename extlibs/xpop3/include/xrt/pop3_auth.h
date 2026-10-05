@@ -54,7 +54,7 @@ XRT_API bool xrtPop3AuthConfigValid(const xpop3authconfig* pConfig);
 XRT_API bool xrtPop3ClientAuth(
 	xpop3client* pClient,
 	const xpop3authconfig* pConfig,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -66,7 +66,7 @@ XRT_API bool xrtPop3ClientLogin(
 	xstrview Username,
 	xstrview Password,
 	bool AllowPlaintext,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 

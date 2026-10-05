@@ -302,7 +302,7 @@ static bool __xrtLogTextTime(
 			DateTime.Hour,
 			DateTime.Minute,
 			DateTime.Second,
-			DateTime.Microsecond
+			DateTime.Millisecond
 		);
 	} else {
 		iAbsolute = iOffset < 0 ? -iOffset : iOffset;
@@ -320,7 +320,7 @@ static bool __xrtLogTextTime(
 				DateTime.Hour,
 				DateTime.Minute,
 				DateTime.Second,
-				DateTime.Microsecond,
+				DateTime.Millisecond,
 				iOffset < 0 ? '-' : '+',
 				iOffsetHour,
 				iOffsetMinute
@@ -336,7 +336,7 @@ static bool __xrtLogTextTime(
 				DateTime.Hour,
 				DateTime.Minute,
 				DateTime.Second,
-				DateTime.Microsecond,
+				DateTime.Millisecond,
 				iOffset < 0 ? '-' : '+',
 				iOffsetHour,
 				iOffsetMinute,

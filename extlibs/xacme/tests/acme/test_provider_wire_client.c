@@ -40,7 +40,7 @@ static bool TencentDeletePresendFailure;
 static uint64 TencentTestClock;
 static bool DomainParseOom, DomainParseOomTriggered;
 static bool ListParseOom, ListParseOomTriggered;
-static uint64 tencent_clock(void) { return TencentTestClock != 0u ? TencentTestClock : xrtClock(); }
+static uint64 tencent_clock(void) { return TencentTestClock != 0u ? TencentTestClock : xrtTimer(); }
 static bool ali_secure_random(ptr data, size_t size)
 {
 	if(SigningFailure) { xrtSetErrorKind(XERR_MEMORY); return false; }

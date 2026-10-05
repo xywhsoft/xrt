@@ -38,7 +38,7 @@ int main(void)
 		}
 	}
 	printf(
-		"Retry-After: %.*s, wait %llu microseconds\n",
+		"Retry-After: %.*s, wait %llu milliseconds\n",
 		(int)iSize,
 		Value,
 		(unsigned long long)iDelay

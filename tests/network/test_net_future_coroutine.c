@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../test_thread.h"
 
@@ -55,10 +56,10 @@ typedef struct testnetfuturecancel {
 static void testNetFutureCoroutineStreamClose(xnetstream* pStream)
 {
 	if ( xrtNetStreamState(pStream) != XNET_STREAM_CLOSED ) {
-		testRequire(xrtNetStreamClose(pStream) && xrtNetStreamWait(
+		testRequire(xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_CLOSE,
-			xrtDeadlineAfter(UINT64_C(5000000)),
+			__xrtWaitAfter(UINT64_C(5000000)),
 			NULL
 		), "network Future coroutine TCP close failed");
 	}
@@ -71,10 +72,10 @@ static void testNetFutureCoroutineStreamClose(xnetstream* pStream)
 static void testNetFutureCoroutineUdpClose(xnetudp* pUdp)
 {
 	if ( xrtNetUdpState(pUdp) != XNET_UDP_CLOSED ) {
-		testRequire(xrtNetUdpClose(pUdp) && xrtNetUdpWait(
+		testRequire(xrtNetUdpClose(pUdp) && __xrtNetUdpWait(
 			pUdp,
 			XNET_UDP_WAIT_CLOSE,
-			xrtDeadlineAfter(UINT64_C(5000000)),
+			__xrtWaitAfter(UINT64_C(5000000)),
 			NULL
 		), "network Future coroutine UDP close failed");
 	}
@@ -339,7 +340,7 @@ int main(void)
 	xnetudp* pUdpClient;
 	xnetudp* pUdpServer;
 	xnetaddr Address;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = TEST_NET_FUTURE_COROUTINE_BACKEND;
@@ -365,16 +366,16 @@ int main(void)
 		NULL,
 		NULL
 	);
-	pTcpServer = xrtNetListenerAcceptWait(
+	pTcpServer = __xrtNetListenerAcceptWait(
 		pListener,
-		xrtDeadlineAfter(UINT64_C(5000000)),
+		__xrtWaitAfter(UINT64_C(5000000)),
 		NULL
 	);
 	testRequire((pTcpClient != NULL) && (pTcpServer != NULL) &&
-		xrtNetStreamWait(
+		__xrtNetStreamWait(
 			pTcpClient,
 			XNET_STREAM_WAIT_OPEN,
-			xrtDeadlineAfter(UINT64_C(5000000)),
+			__xrtWaitAfter(UINT64_C(5000000)),
 			NULL
 		), "network Future coroutine TCP setup failed");
 
@@ -400,15 +401,15 @@ int main(void)
 		NULL,
 		NULL
 	);
-	testRequire((pUdpClient != NULL) && xrtNetUdpWait(
+	testRequire((pUdpClient != NULL) && __xrtNetUdpWait(
 		pUdpServer,
 		XNET_UDP_WAIT_OPEN,
-		xrtDeadlineAfter(UINT64_C(5000000)),
+		__xrtWaitAfter(UINT64_C(5000000)),
 		NULL
-	) && xrtNetUdpWait(
+	) && __xrtNetUdpWait(
 		pUdpClient,
 		XNET_UDP_WAIT_OPEN,
-		xrtDeadlineAfter(UINT64_C(5000000)),
+		__xrtWaitAfter(UINT64_C(5000000)),
 		NULL
 	), "network Future coroutine UDP setup failed");
 
@@ -436,9 +437,9 @@ int main(void)
 	testNetFutureCoroutineUdpClose(pUdpServer);
 	testRequire(xrtNetListenerClose(pListener),
 		"network Future coroutine listener close failed");
-	iDeadline = xrtDeadlineAfter(UINT64_C(5000000));
+	iDeadline = __xrtWaitAfter(UINT64_C(5000000));
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"network Future coroutine listener close timed out");
 		xrtThreadYield();
 	}

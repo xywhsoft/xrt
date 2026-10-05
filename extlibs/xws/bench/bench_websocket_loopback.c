@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../../dev/bench/bench_common.h"
 
 #include <xws.h>
@@ -283,10 +284,10 @@ static void benchWsHttpError(
 /* 在截止时间内等待一个单调原子计数达到目标。 */
 static bool benchWsWaitCount(const xatomic32* pValue, uint32 iExpected)
 {
-	xdeadline Deadline = xrtDeadlineAfter(BENCH_WS_TIMEOUT);
+	double Deadline = __xrtWaitAfter(BENCH_WS_TIMEOUT);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -299,7 +300,7 @@ static bool benchWsWaitCount(const xatomic32* pValue, uint32 iExpected)
 /* 在截止时间内等待服务端 Upgrade 发布 Connection。 */
 static xwsconn* benchWsWaitServerConnection(benchwscontext* pContext)
 {
-	xdeadline Deadline = xrtDeadlineAfter(BENCH_WS_TIMEOUT);
+	double Deadline = __xrtWaitAfter(BENCH_WS_TIMEOUT);
 	xwsconn* pConnection;
 
 	for ( ;; ) {
@@ -310,7 +311,7 @@ static xwsconn* benchWsWaitServerConnection(benchwscontext* pContext)
 		if ( pConnection != NULL ) {
 			return pConnection;
 		}
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return NULL;
 		}
 		xrtThreadYield();
@@ -333,10 +334,10 @@ static bool benchWsFutureResolved(xfuture* pFuture)
 /* 在截止时间内等待 HTTP Server 进入关闭态。 */
 static bool benchWsWaitServerClosed(xhttpserver* pServer)
 {
-	xdeadline Deadline = xrtDeadlineAfter(BENCH_WS_TIMEOUT);
+	double Deadline = __xrtWaitAfter(BENCH_WS_TIMEOUT);
 
 	while ( xrtHttpServerState(pServer) != XHTTP_SERVER_CLOSED ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();

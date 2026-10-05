@@ -3,7 +3,15 @@
 #endif
 #define XPOP3_MODULE_POP3_AUTH
 #define XPOP3_IMPLEMENTATION
-#include "../../single/xpop3.h"
+#include "../../include/xpop3/features.h"
+#include "../../../xmail/include/xmail/features.h"
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../../single/xrt.h"
+#define XMAIL_IMPLEMENTATION
+#include "../../../../single/extlibs/xmail.h"
+#include "../../../../single/extlibs/xpop3.h"
 
 
 

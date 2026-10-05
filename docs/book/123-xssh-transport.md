@@ -56,7 +56,7 @@ SSH 协议的"序列化格式"就五种基本类型：`boolean`（1B）、`uint3
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/packet/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/packet/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 packet=16 payload=8 padding=7 形态的包框架自检结果）
 ```
 
@@ -70,7 +70,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/transport_core/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/transport_core/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 transport-core 结构尺寸与默认最大包长的自检结果）
 ```
 

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -324,7 +325,7 @@ int main(int argc, char** argv)
 
 	testProcessRunSelf(&Config, argv[0], "sleep");
 	testRequire(xrtProcessRunOptionsInit(&Options), "deadline options init failed");
-	Options.Deadline = xrtDeadlineAfter(20000u);
+	Options.Deadline = __xrtWaitAfter(20000u);
 	Options.StopGrace = 10000u;
 	testRequire(xrtProcessRun(&Config, &Options, &Result), "deadline run failed");
 	testRequire(Result.Wait == XWAIT_TIMEOUT, "deadline result mismatch");
@@ -361,9 +362,9 @@ int main(int argc, char** argv)
 	pProcess = xrtProcessSpawn(&Config);
 	testRequire(pProcess != NULL, "wait cancel spawn failed");
 	testRequire(
-		xrtProcessWaitUntilCancel(
+		__xrtProcessWaitUntilCancel(
 			pProcess,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pCancel
 		) == XWAIT_CANCELLED,
 		"wait cancel result mismatch"

@@ -67,7 +67,7 @@ The program below is from `examples/http/body_stream` — the minimal loop of a 
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/body_stream/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/body_stream/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 first chunk
 second chunk
 ```
@@ -82,7 +82,7 @@ The second program is from `examples/http/body_file` — the upload shape for la
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/body_file/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/body_file/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （示例校验文件正文创建与读回后正常退出）
 ```
 

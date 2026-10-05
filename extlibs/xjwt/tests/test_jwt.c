@@ -2,9 +2,14 @@
 #if !defined(_WIN32) && !defined(_GNU_SOURCE)
 #define _GNU_SOURCE 1
 #endif
-#define XRT_MODULE_ALL
+#if defined(XJWT_FEATURE_XJWT) || defined(XJWT_SINGLE_HEADER)
+#include "../src/internal/xjwt_internal.h"
+#else
+#define XRT_MODULE_MEMORY_DEBUG
 #define XRT_IMPLEMENTATION
-#include "../xjwt.c"
+#include "support/runtime.h"
+#include "support/implementation.c"
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -98,7 +103,7 @@ static bool ec_private_der_rejected(const char* sLabel,
 	str pem = xrtPemEncodeNew(sLabel, pDer, iSize);
 	unsigned char scalar[32];
 	bool encoded = pem != NULL;
-	bool accepted = pem != NULL && ecdsa_private_parse(pem, scalar);
+	bool accepted = pem != NULL && xjwt__ecdsa_private_parse(pem, scalar);
 	xrtSecureZero(scalar, sizeof(scalar));
 	xrtFree(pem);
 	return encoded && !accepted;

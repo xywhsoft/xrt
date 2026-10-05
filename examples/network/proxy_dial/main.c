@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/proxy_dial —— 真实代理隧道：托管 TCP + 完整回收
  * ----------------------------------------------------------------
@@ -123,11 +124,11 @@ static void exampleProxyDialDone(
 /* 等待原子终态，并在截止时间到达时返回失败。 */
 static bool exampleProxyDialWait(
 	const xatomic32* pValue,
-	xdeadline Deadline
+	double Deadline
 )
 {
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) == 0 ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -150,7 +151,7 @@ int main(int argc, char** argv)
 	xnetresolver* pResolver = NULL;
 	xnetproxy* pProxy = NULL;
 	xnetproxydial* pDial = NULL;
-	xdeadline Deadline;
+	double Deadline;
 	uint16 iProxyPort;
 	uint16 iTargetPort;
 	int iResult = 1;
@@ -214,7 +215,7 @@ int main(int argc, char** argv)
 	}
 
 	/* 成功回调把 Stream 所有权交给调用方，Dial 可以独立释放。 */
-	Deadline = xrtDeadlineAfter(15000000u);
+	Deadline = __xrtWaitAfter(15000000u);
 	if ( !exampleProxyDialWait(&Example.Done, Deadline) ) {
 		(void)xrtNetProxyDialCancel(pDial);
 		goto Cleanup;
@@ -239,13 +240,13 @@ Cleanup:
 	if ( (pDial != NULL) &&
 		(xrtAtomic32Load(&Example.Done, XMEMORY_ACQUIRE) == 0) ) {
 		(void)xrtNetProxyDialCancel(pDial);
-		Deadline = xrtDeadlineAfter(5000000u);
+		Deadline = __xrtWaitAfter(5000000u);
 		(void)exampleProxyDialWait(&Example.Done, Deadline);
 	}
 	if ( (Example.Stream != NULL) &&
 		(xrtNetStreamState(Example.Stream) != XNET_STREAM_CLOSED) ) {
 		(void)xrtNetStreamAbort(Example.Stream);
-		Deadline = xrtDeadlineAfter(5000000u);
+		Deadline = __xrtWaitAfter(5000000u);
 		(void)exampleProxyDialWait(&Example.Closed, Deadline);
 	}
 	xrtNetStreamDestroy(Example.Stream);
@@ -255,10 +256,10 @@ Cleanup:
 		iResult = 1;
 	}
 	if ( pEngine != NULL ) {
-		Deadline = xrtDeadlineAfter(5000000u);
+		Deadline = __xrtWaitAfter(5000000u);
 		while ( !xrtNetEngineDestroy(pEngine) ) {
 			xrtClearError();
-			if ( xrtDeadlineExpired(Deadline) ) {
+			if ( __xrtWaitExpired(Deadline) ) {
 				iResult = 1;
 				break;
 			}

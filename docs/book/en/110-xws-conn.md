@@ -57,7 +57,7 @@ The program below is from `examples/websocket/connection_tour` — a full-featur
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xws/single -include xws.h impl.c extlibs/xws/examples/websocket/connection_tour/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/connection_tour/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 conn-tour: offline request builders ok
 conn-tour: live pair upgraded, introspection ok
 conn-tour: sync send x9 + writer-take delivered ok
@@ -77,7 +77,7 @@ The second program is from `examples/websocket/connection_ref` — the ownership
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xws/single -include xws.h impl.c extlibs/xws/examples/websocket/connection_ref/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/connection_ref/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 WebSocket Connection reference example is ready
 ```
 

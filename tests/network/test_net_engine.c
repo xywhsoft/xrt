@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../../src/internal/xrt_net_engine.h"
 
@@ -27,10 +28,10 @@ typedef struct testenginecontext {
 /* 在测试截止时间前等待原子计数达到目标。 */
 static void testEngineWait(xatomic32* pValue, uint32 iExpected, cstr sMessage)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }

@@ -1,6 +1,9 @@
 /* Manual DNS-01 example: public ACME APIs, account/store reuse and explicit TXT confirmation. */
 #define XACME_MODULE_ACME_OBTAIN
 #if defined(ACME_EXAMPLE_SINGLE)
+#include <xacme/features.h>
+#define XRT_IMPLEMENTATION
+#include <xrt.h>
 #define XACME_IMPLEMENTATION
 #endif
 #include <xacme.h>

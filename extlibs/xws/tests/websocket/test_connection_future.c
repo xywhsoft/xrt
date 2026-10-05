@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 #include "../../src/internal/xrt_websocket.h"
@@ -165,7 +166,7 @@ static void testWsFutureWaitAtomic(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 
@@ -174,7 +175,7 @@ static void testWsFutureWaitAtomic(
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -2437,11 +2438,11 @@ static void testWsFutureGroupOperation(
 			pWrappingOperation,
 			1u
 		 ) == XWAIT_ERROR) &&
-		(xrtWsGroupOpWaitUntil(
+		(__xrtWsGroupOpWaitUntil(
 			pWrappingOperation,
 			0
 		 ) == XWAIT_ERROR) &&
-		(xrtWsGroupOpWaitUntilCancel(
+		(__xrtWsGroupOpWaitUntilCancel(
 			pWrappingOperation,
 			0,
 			NULL
@@ -2837,7 +2838,7 @@ int main(void)
 		xfuture* pDrain;
 		xfuture* pLate;
 	#endif
-	xdeadline AttachDeadline;
+	double AttachDeadline;
 	xallocator Allocator;
 
 	memset(&Test, 0, sizeof(Test));
@@ -2897,7 +2898,7 @@ int main(void)
 	);
 	xrtClearError();
 	testWsFutureConnect(&Test);
-	AttachDeadline = xrtDeadlineAfter(
+	AttachDeadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 	while ( ((pClient = (xwsconn*)xrtAtomicPtrLoad(
@@ -2908,7 +2909,7 @@ int main(void)
 		XMEMORY_ACQUIRE
 	)) == NULL) ) {
 		testRequire(
-			!xrtDeadlineExpired(AttachDeadline),
+			!__xrtWaitExpired(AttachDeadline),
 			"WebSocket Future connections were not attached"
 		);
 		xrtThreadYield();

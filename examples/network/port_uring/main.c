@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 
 #include <xrt.h>
@@ -67,11 +68,11 @@ int main(void)
 				2,
 				NULL
 			 ) ||
-			 (xrtNetPortWait(
+			 (__xrtNetPortWait(
 				pPort,
 				Events,
 				2,
-				xrtDeadlineAfter(1000000u),
+				__xrtWaitAfter(1000000u),
 				&iCount
 			 ) != XNET_RESULT_OK) ||
 			 (iCount != 2) ) {

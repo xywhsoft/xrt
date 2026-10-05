@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -28,7 +29,7 @@ static void testHttpServerFileWaitCount(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 
@@ -37,7 +38,7 @@ static void testHttpServerFileWaitCount(
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -212,7 +213,7 @@ static void testHttpServerFileCancellation(cstr sPath)
 {
 	xtaskpoolconfig Config = { 1, 8, 0 };
 	test_http_server_file_block Block;
-	xdeadline Deadline;
+	double Deadline;
 	xtaskpoolstats Stats;
 	xtaskpool* pPool;
 	xfuture* pBlockFuture;
@@ -236,13 +237,13 @@ static void testHttpServerFileCancellation(cstr sPath)
 		pBlockFuture != NULL,
 		"HTTP server file cancellation blocker submit failed"
 	);
-	Deadline = xrtDeadlineAfter(UINT64_C(2000000));
+	Deadline = __xrtWaitAfter(UINT64_C(2000000));
 	while ( xrtAtomic32Load(
 		&Block.Started,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP server file cancellation blocker did not start"
 		);
 		xrtThreadYield();

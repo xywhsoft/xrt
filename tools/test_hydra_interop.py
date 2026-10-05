@@ -173,8 +173,8 @@ def build(args, output):
         command = [args.compiler, '-std=c11', '-D_GNU_SOURCE', '-O1' if args.sanitize else '-O2',
                    '-Wall', '-Wextra', '-Werror',
                    *(['-g', '-fsanitize=address,undefined', '-fno-omit-frame-pointer'] if args.sanitize else []),
-                   '-I', str(ROOT / 'single'), '-I', str(ROOT / 'extlibs/xjwt'), str(ROOT / source),
-                   str(ROOT / 'extlibs/xoauth2/xoauth2.c'), str(ROOT / 'extlibs/xjwt/xjwt.c'),
+                   '-I', str(ROOT / 'single'), '-I', str(ROOT / 'extlibs/xjwt/include'), '-I', str(ROOT / 'extlibs/xoauth2/include'), str(ROOT / source),
+                   str(ROOT / 'extlibs/xoauth2/tests/support/implementation.c'), str(ROOT / 'extlibs/xjwt/tests/support/implementation.c'),
                    '-o', str(binary), '-pthread', '-lm']
         result = subprocess.run(command, capture_output=True, text=True, timeout=240)
         (output / (name + '-build.log')).write_text(result.stdout + result.stderr)

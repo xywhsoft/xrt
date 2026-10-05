@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../test_thread.h"
 
@@ -111,20 +112,20 @@ static bool testTaskGroupPoolWaitState(
 	testtaskgrouppool* pContext,
 	uint32 iSignal,
 	bool bStarted,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(iTimeout);
+	double iDeadline = __xrtWaitAfter(iTimeout);
 	bool bReady;
 
 	(void)xrtMutexLock(&pContext->Lock);
 	for ( ;; ) {
 		bReady = bStarted ? pContext->Started :
 			((pContext->Signals & iSignal) != 0);
-		if ( bReady || xrtDeadlineExpired(iDeadline) ) {
+		if ( bReady || __xrtWaitExpired(iDeadline) ) {
 			break;
 		}
-		(void)xrtCondWaitUntil(&pContext->Changed, &pContext->Lock, iDeadline);
+		(void)__xrtCondWaitUntil(&pContext->Changed, &pContext->Lock, iDeadline);
 	}
 	(void)xrtMutexUnlock(&pContext->Lock);
 	return bReady;
@@ -161,13 +162,13 @@ static int testTaskGroupPoolSubmitThread(ptr pData)
 	(void)xrtCondBroadcast(&pContext->Changed);
 	(void)xrtMutexUnlock(&pContext->Lock);
 	if ( pContext->UseCallerCancel ) {
-		pFuture = xrtTaskGroupSubmitUntilCancel(
+		pFuture = __xrtTaskGroupSubmitUntilCancel(
 			pContext->Group,
 			pContext->Pool,
 			testTaskGroupPoolRun,
 			pContext,
 			&tArgs,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pContext->CallerCancel
 		);
 	} else {
@@ -242,13 +243,13 @@ static void testTaskGroupPoolBasic(void)
 		NULL,
 		UINT64_C(2000000)
 	);
-	pSecond = xrtTaskGroupSubmitUntil(
+	pSecond = __xrtTaskGroupSubmitUntil(
 		tContext.Group,
 		tContext.Pool,
 		testTaskGroupPoolRun,
 		&tContext,
 		NULL,
-		xrtDeadlineAfter(UINT64_C(2000000))
+		__xrtWaitAfter(UINT64_C(2000000))
 	);
 	testRequire((pFirst != NULL) && (pSecond != NULL),
 		"task group pool basic submit failed");

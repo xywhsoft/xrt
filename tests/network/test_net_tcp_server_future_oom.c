@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -5,10 +6,10 @@
 /* 等待关闭回调完成 Server 的运行时引用释放。 */
 static void testTcpServerFutureOomClose(xnetserver* pServer)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtNetServerState(pServer) != XNET_SERVER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP server Future OOM close timed out");
 		xrtThreadYield();
 	}

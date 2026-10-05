@@ -57,7 +57,7 @@ typedef struct xacmeclient {
 	uint32 uPropagateTimeoutMs;
 	/* 单次签发的总预算（微秒；0 = 不限时）。Issue 入口打点，
 	   轮询/传播/退避逐段检查剩余时间。 */
-	uint64 uIssueTimeoutUs;
+	int64 uIssueTimeoutUs;
 	uint64 IssueDeadline;
 	bool bIssueDeadline;
 } xacmeclient;
@@ -79,7 +79,7 @@ bool xacmeClientInit(
 	struct xnetengine* pBorrowedEngine,
 	cstr sCaPem,
 	const xacmeaccountconfig* pAccount,
-	uint64 uTimeoutUs
+	int64 uTimeoutUs
 );
 
 /* false 时保留传输拥有者，只能继续清理。 */

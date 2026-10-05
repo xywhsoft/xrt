@@ -6,7 +6,7 @@ try {
     $outputPath=[IO.Path]::GetFullPath((Join-Path (Get-Location) $Directory))
     if (Test-Path -LiteralPath $outputPath) { throw 'Use a fresh evidence directory' }
     New-Item -ItemType Directory -Path $outputPath | Out-Null
-    $files=@(Get-ChildItem src,include,single,config,tests,extlibs/xruntime/src,extlibs/xruntime/include,extlibs/xruntime/single,extlibs/xruntime/config,extlibs/xruntime/tests -Recurse -File)
+    $files=@(Get-ChildItem src,include,single,config,tests,extlibs/xruntime/src,extlibs/xruntime/include,extlibs/xruntime/config,extlibs/xruntime/tests -Recurse -File)
     $files+=@(Get-Item tools/build.py,$PSCommandPath)
     $inputs=@($files|Sort-Object FullName -Unique|ForEach-Object { [pscustomobject]@{Path=$_.FullName;Sha256=(Get-FileHash $_.FullName).Hash} })
     $lanes=@()

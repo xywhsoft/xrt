@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <xrt.h>
 
@@ -37,10 +38,10 @@ int main(void)
 	pCancel = xrtCancelCreate();
 	if ( (pCancel != NULL) && xrtCancelRequest(pCancel) ) {
 		Case = xrtChannelCaseRecv(&Channel, &pValue);
-		Result = xrtChannelSelectUntilCancel(
+		Result = __xrtChannelSelectUntilCancel(
 			&Case,
 			1u,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pCancel
 		);
 		printf("select wait result: %d\n", (int)Result.Wait);

@@ -75,7 +75,7 @@ bool xacmeDnsTxtWait(
 	uint16 iPort,
 	cstr sFqdn,
 	cstr sExpected,
-	uint64 uTimeoutMs
+	int64 uTimeoutMs
 );
 
 #endif

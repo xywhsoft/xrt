@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../../src/internal/xrt_udp.h"
 
@@ -20,10 +21,10 @@ static void testUdpInvalidReceive(
 /* 等待 UDP 关闭。 */
 static void testUdpInvalidWaitClosed(xnetudp* pUdp)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( xrtNetUdpState(pUdp) != XNET_UDP_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"invalid UDP close timed out");
 		xrtThreadYield();
 	}

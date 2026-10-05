@@ -1,10 +1,11 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
 
 typedef struct testsmtpserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } testsmtpserver;
 
@@ -49,7 +50,7 @@ static bool testSmtpServerSend(
 	xnetstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -58,7 +59,7 @@ static bool testSmtpServerSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -76,7 +77,7 @@ static bool testSmtpServerReceive(
 	xnetstream* pStream,
 	const void* pExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	const unsigned char* pBytesExpected =
@@ -84,7 +85,7 @@ static bool testSmtpServerReceive(
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -116,10 +117,10 @@ static bool testSmtpServerReceive(
 /* 等待客户端以 FIN 或 RST 终止连接，不接受额外线路字节。 */
 static bool testSmtpServerPeerClosed(
 	xnetstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
-	xnetbytes* pBytes = xrtNetStreamRecv(
+	xnetbytes* pBytes = __xrtNetStreamRecv(
 		pStream,
 		0,
 		iDeadline,
@@ -136,7 +137,7 @@ static bool testSmtpServerPeerClosed(
 		!xrtNetStreamClose(pStream) ) {
 		return false;
 	}
-	bClosed = xrtNetStreamWait(
+	bClosed = __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		iDeadline,
@@ -152,7 +153,7 @@ static bool testSmtpServerPeerClosed(
 static int32 testSmtpServer(ptr pData)
 {
 	testsmtpserver* pServer = (testsmtpserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -347,7 +348,7 @@ static int32 testSmtpServer(ptr pData)
 		"221 closing\r\n",
 		13u,
 		pServer->Deadline
-	) && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+	) && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		pServer->Deadline,
@@ -364,7 +365,7 @@ static int32 testSmtpServer(ptr pData)
 static int32 testSmtpAbortServer(ptr pData)
 {
 	testsmtpserver* pServer = (testsmtpserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -415,7 +416,7 @@ int main(void)
 	xsmtpreply Reply;
 	xbytesview Chunk;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 
 	xrtSmtpClientConfigInit(&Config);
 	testRequire((Config.Net.Port == 25u) &&
@@ -456,7 +457,7 @@ int main(void)
 	testRequire(pResolver != NULL,
 		"SMTP client resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Success = false;
@@ -467,7 +468,7 @@ int main(void)
 	Config.Net.Host = "smtp.test";
 	Config.Net.Port = TestSmtpAddress.Port;
 	Config.Hello = (xstrview)XRT_STR_LITERAL("client.test");
-	pClient = xrtSmtpClientOpen(&Config, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&Config, Deadline, NULL);
 	testRequire(pClient != NULL, "SMTP client open failed");
 	testRequire((xrtSmtpClientCapabilities(pClient) &
 		(XSMTP_CAP_SIZE | XSMTP_CAP_PIPELINING |
@@ -482,7 +483,7 @@ int main(void)
 		testMailViewEqual(Reply.Text, XRT_STR_LITERAL("CHUNKING")),
 		"SMTP EHLO final reply mismatch");
 
-	testRequire(xrtSmtpClientMail(
+	testRequire(__xrtSmtpClientMail(
 		pClient,
 		XRT_STR_LITERAL("sender@test"),
 		XRT_STR_LITERAL("SIZE=36"),
@@ -490,7 +491,7 @@ int main(void)
 		NULL
 	) && (xrtSmtpClientState(pClient) == XSMTP_CLIENT_MAIL),
 		"SMTP MAIL transaction failed");
-	testRequire(xrtSmtpClientRcpt(
+	testRequire(__xrtSmtpClientRcpt(
 		pClient,
 		XRT_STR_LITERAL("target@test"),
 		XRT_STR_LITERAL("NOTIFY=SUCCESS"),
@@ -498,7 +499,7 @@ int main(void)
 		NULL
 	) && (xrtSmtpClientState(pClient) == XSMTP_CLIENT_RECIPIENT),
 		"SMTP RCPT transaction failed");
-	testRequire(xrtSmtpClientData(
+	testRequire(__xrtSmtpClientData(
 		pClient,
 		XRT_STR_LITERAL("Subject: test\r\n\r\n.first\r\nsecond\r\n"),
 		Deadline,
@@ -509,22 +510,22 @@ int main(void)
 		(Reply.Code == 250) &&
 		testMailViewEqual(Reply.Text, XRT_STR_LITERAL("queued")),
 		"SMTP DATA final reply mismatch");
-	testRequire(xrtSmtpClientNoop(pClient, Deadline, NULL),
+	testRequire(__xrtSmtpClientNoop(pClient, Deadline, NULL),
 		"SMTP NOOP failed");
-	testRequire(xrtSmtpClientMail(
+	testRequire(__xrtSmtpClientMail(
 		pClient,
 		XRT_STR_LITERAL("sender@test"),
 		XRT_STR_LITERAL("BODY=BINARYMIME"),
 		Deadline,
 		NULL
-	) && xrtSmtpClientRcpt(
+	) && __xrtSmtpClientRcpt(
 		pClient,
 		XRT_STR_LITERAL("binary@test"),
 		XRT_STR_LITERAL(""),
 		Deadline,
 		NULL
 	), "SMTP binary envelope failed");
-	testRequire(xrtSmtpClientBdatBegin(
+	testRequire(__xrtSmtpClientBdatBegin(
 		pClient,
 		sizeof(TestSmtpChunkFirst),
 		false,
@@ -532,13 +533,13 @@ int main(void)
 		NULL
 	) && (xrtSmtpClientState(pClient) == XSMTP_CLIENT_CHUNK),
 		"SMTP fragmented BDAT begin failed");
-	testRequire(!xrtSmtpClientNoop(pClient, Deadline, NULL) &&
+	testRequire(!__xrtSmtpClientNoop(pClient, Deadline, NULL) &&
 		(xrtErrorKind(xrtGetError()) == XERR_STATE),
 		"SMTP command was accepted inside an active BDAT block");
 	xrtClearError();
 	Chunk.Data = TestSmtpChunkFirst;
 	Chunk.Size = 2u;
-	testRequire(xrtSmtpClientBdatWrite(
+	testRequire(__xrtSmtpClientBdatWrite(
 		pClient,
 		Chunk,
 		Deadline,
@@ -546,16 +547,16 @@ int main(void)
 	), "SMTP first BDAT fragment failed");
 	Chunk.Data = TestSmtpChunkFirst + 2u;
 	Chunk.Size = sizeof(TestSmtpChunkFirst) - 2u;
-	testRequire(xrtSmtpClientBdatWrite(
+	testRequire(__xrtSmtpClientBdatWrite(
 		pClient,
 		Chunk,
 		Deadline,
 		NULL
-	) && xrtSmtpClientBdatEnd(pClient, Deadline, NULL),
+	) && __xrtSmtpClientBdatEnd(pClient, Deadline, NULL),
 		"SMTP fragmented BDAT completion failed");
 	Chunk.Data = TestSmtpChunkFirst;
 	Chunk.Size = 0;
-	testRequire(xrtSmtpClientBdat(
+	testRequire(__xrtSmtpClientBdat(
 		pClient,
 		Chunk,
 		false,
@@ -564,7 +565,7 @@ int main(void)
 	), "SMTP zero-length BDAT failed");
 	Chunk.Data = TestSmtpChunkLast;
 	Chunk.Size = sizeof(TestSmtpChunkLast);
-	testRequire(xrtSmtpClientBdat(
+	testRequire(__xrtSmtpClientBdat(
 		pClient,
 		Chunk,
 		true,
@@ -572,13 +573,13 @@ int main(void)
 		NULL
 	) && (xrtSmtpClientState(pClient) == XSMTP_CLIENT_READY),
 		"SMTP final binary BDAT failed");
-	testRequire(xrtSmtpClientMail(
+	testRequire(__xrtSmtpClientMail(
 		pClient,
 		XRT_STR_LITERAL("sender@test"),
 		XRT_STR_LITERAL(""),
 		Deadline,
 		NULL
-	) && xrtSmtpClientRcpt(
+	) && __xrtSmtpClientRcpt(
 		pClient,
 		XRT_STR_LITERAL("reject@test"),
 		XRT_STR_LITERAL(""),
@@ -587,7 +588,7 @@ int main(void)
 	), "SMTP rejected chunk envelope failed");
 	Chunk.Data = (const unsigned char*)"!";
 	Chunk.Size = 1u;
-	testRequire(!xrtSmtpClientBdat(
+	testRequire(!__xrtSmtpClientBdat(
 		pClient,
 		Chunk,
 		true,
@@ -597,30 +598,30 @@ int main(void)
 		xrtSmtpClientLastReply(pClient, &Reply) && (Reply.Code == 554),
 		"SMTP rejected BDAT state mismatch");
 	xrtClearError();
-	testRequire(xrtSmtpClientReset(pClient, Deadline, NULL),
+	testRequire(__xrtSmtpClientReset(pClient, Deadline, NULL),
 		"SMTP RSET after rejected BDAT failed");
-	testRequire(xrtSmtpClientQuit(pClient, Deadline, NULL) &&
+	testRequire(__xrtSmtpClientQuit(pClient, Deadline, NULL) &&
 		(xrtSmtpClientState(pClient) == XSMTP_CLIENT_CLOSED),
 		"SMTP QUIT failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"SMTP test server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"SMTP test server transcript mismatch");
 	xrtThreadDestroy(pThread);
 	xrtSmtpClientDestroy(pClient);
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Deadline = Deadline;
 	Server.Success = false;
 	pThread = xrtThreadCreate(testSmtpAbortServer, &Server, 0);
 	testRequire(pThread != NULL,
 		"SMTP abort server thread creation failed");
-	pClient = xrtSmtpClientOpen(&Config, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&Config, Deadline, NULL);
 	testRequire((pClient != NULL) && xrtSmtpClientAbort(pClient) &&
 		(xrtSmtpClientState(pClient) == XSMTP_CLIENT_CLOSED) &&
 		xrtSmtpClientAbort(pClient),
 		"SMTP active abort or idempotence failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"SMTP abort server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"SMTP abort server transcript mismatch");

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../fixtures/http_origin.h"
 
@@ -37,14 +38,14 @@ static void testHttpEasyDone(
 /* 在固定截止时间内等待便利 callback 发布结果。 */
 static void testHttpEasyWait(const xatomic32* pCompleted)
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 
 	while ( xrtAtomic32Load(
 		pCompleted,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP easy callback did not complete"
 		);
 		xrtThreadYield();
@@ -237,7 +238,7 @@ int main(void)
 	xhttpclientconfig ClientConfig;
 	xnetengine* pEngine;
 	xhttpclient* pClient;
-	xdeadline Deadline;
+	double Deadline;
 
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = XNET_PORT_SELECT;
@@ -285,11 +286,11 @@ int main(void)
 	);
 
 	xrtHttpClientDestroy(pClient);
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP easy Engine retained an object"
 		);
 		xrtThreadYield();

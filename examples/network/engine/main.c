@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
@@ -71,7 +72,7 @@ int main(void)
 	xnetengineconfig Config;
 	exampleengine State;
 	xnetengine* pEngine;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	memset(&State, 0, sizeof(State));
 	xrtNetEngineConfigInit(&Config);
@@ -91,9 +92,9 @@ int main(void)
 		(void)xrtNetEngineDestroy(pEngine);
 		return 2;
 	}
-	iDeadline = xrtDeadlineAfter(2000000u);
+	iDeadline = __xrtWaitAfter(2000000u);
 	while ( xrtAtomic32Load(&State.Done, XMEMORY_ACQUIRE) != 2 ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			(void)xrtNetEngineDestroy(pEngine);
 			return 3;
 		}

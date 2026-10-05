@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <xrt.h>
 
@@ -31,9 +32,9 @@ int main(void)
 		!xrtSemPost(&Semaphore) ) {
 		return 1;
 	}
-	Result = xrtSemWaitUntil(
+	Result = __xrtSemWaitUntil(
 		&Semaphore,
-		xrtDeadlineAfter(UINT64_C(1000000))
+		__xrtWaitAfter(UINT64_C(1000000))
 	);
 	printf("semaphore wait result: %d\n", (int)Result);
 	return xrtSemUnit(&Semaphore) &&

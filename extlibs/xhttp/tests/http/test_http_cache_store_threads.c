@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 #include <xrt/http_cache_store.h>
@@ -262,7 +263,7 @@ static void testHttpCacheRaceRun(
 {
 	test_http_cache_race_thread Contexts[2];
 	xthread* Threads[2];
-	xdeadline Deadline = xrtDeadlineAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000000u);
 	uint32 iReady = 0;
 	size_t i;
 
@@ -300,7 +301,7 @@ static void testHttpCacheRaceRun(
 			"HTTP cache race ready unlock failed"
 		);
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP cache race workers did not reach barrier"
 		);
 		xrtThreadYield();

@@ -61,7 +61,7 @@ The program below is from `examples/url/query/main.c` — four key-value shapes 
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/url/query/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/query/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 tag = c
 tag = xlang
 debug = <missing>
@@ -78,7 +78,7 @@ The second program is from `examples/url/query_params/main.c` — the parse, Set
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/url/query_params/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/query_params/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 page=2&tag=c&tag=network&tag=xlang
 ```
 

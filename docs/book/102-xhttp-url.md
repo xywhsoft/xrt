@@ -61,7 +61,7 @@ api: xhttp-url, xhttp-query, net
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/url/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 host: example.test
 target: /api/items?page=2
 resolved: https://example.test/api/health?full=1
@@ -77,7 +77,7 @@ resolved: https://example.test/api/health?full=1
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/url_param/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url_param/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 valid: yes
 ```
 

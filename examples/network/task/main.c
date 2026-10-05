@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/task —— 网络任务：Worker 上执行并取结果
  * ----------------------------------------------------------------
@@ -5,7 +6,7 @@
  *   网络任务提交（亲和 Worker 执行）
  *   统一 Future 等待立即任务
  *   xrtTaskNetAfter / Until（延迟与截止时间提交）
- *   xrtTaskGroupNetUntil（延迟任务原子纳入任务组）
+ *   __xrtTaskGroupNetUntil（延迟任务原子纳入任务组）
  * 模块宏：XRT_MODULE_TASK_NET
  * 编译（单头形态，Windows）：
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
@@ -82,8 +83,8 @@ int main(void)
 	}
 	printf("after: value=%d\n", *(int*)xrtFutureValue(pFuture));
 	xrtFutureDestroy(pFuture);
-	pFuture = xrtTaskNetUntil(pEngine, 0, buildValue, &iValue,
-		NULL, xrtDeadlineAfter(0u));
+	pFuture = __xrtTaskNetUntil(pEngine, 0, buildValue, &iValue,
+		NULL, __xrtWaitAfter(0u));
 	if ( (pFuture == NULL) ||
 		(xrtFutureWaitFor(pFuture, 3000000u) != XWAIT_OK) ) {
 		xrtFutureDestroy(pFuture);
@@ -99,9 +100,9 @@ int main(void)
 
 		pGroup = xrtTaskGroupCreate(NULL);
 		if ( (pGroup == NULL) ||
-			(xrtTaskGroupNetUntil(pGroup, pEngine, 0,
+			(__xrtTaskGroupNetUntil(pGroup, pEngine, 0,
 				buildValue, &iValue, NULL,
-				xrtDeadlineAfter(0u)) == NULL) ||
+				__xrtWaitAfter(0u)) == NULL) ||
 			!xrtTaskGroupClose(pGroup) ||
 			(xrtTaskGroupWaitFor(pGroup, 3000000u) !=
 				XWAIT_OK) ) {

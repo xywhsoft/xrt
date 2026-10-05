@@ -53,7 +53,7 @@ typedef enum xsshauthexhaustion {
 
 /* 零值单项限制表示禁用；时间统一使用单调毫秒。 */
 typedef struct xsshauthguardpolicy {
-	uint64 TimeoutMs;
+	int64 TimeoutMs;
 	uint64 ByteLimit;
 	uint32 AttemptLimit;
 	uint32 RoundLimit;

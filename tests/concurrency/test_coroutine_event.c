@@ -10,7 +10,7 @@ typedef struct testcoeventwait {
 	int* Order;
 	int* Completed;
 	volatile int Entered;
-	uint64 Timeout;
+	int64 Timeout;
 	xwaitresult Result;
 } testcoeventwait;
 

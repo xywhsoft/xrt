@@ -64,7 +64,7 @@ XRT_API void xrtImapAppendResultInit(ximapappendresult* pResult);
 XRT_API bool xrtImapClientAppendBegin(
 	ximapclient* pClient,
 	const ximapappendconfig* pConfig,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -80,7 +80,7 @@ XRT_API bool xrtImapClientAppendWrite(
 	ximapclient* pClient,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -90,7 +90,7 @@ XRT_API bool xrtImapClientAppendWrite(
 XRT_API bool xrtImapClientAppendEnd(
 	ximapclient* pClient,
 	ximapappendresult* pResult,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -102,7 +102,7 @@ XRT_API bool xrtImapClientAppend(
 	const ximapappendconfig* pConfig,
 	const void* pData,
 	ximapappendresult* pResult,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 

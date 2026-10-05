@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -209,7 +210,7 @@ int main(void)
 	xfileoptions Options;
 	testnetfile Test;
 	xnetengine* pEngine;
-	xdeadline Deadline;
+	double Deadline;
 	char Probe = 0;
 	size_t iRead = 0;
 
@@ -257,10 +258,10 @@ int main(void)
 			xrtNetEnginePost(pEngine, 0, testNetFileUnsupported, &Test),
 			"native file capability post failed"
 		);
-		Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+		Deadline = __xrtWaitAfter(UINT64_C(5000000));
 		while ( xrtAtomic32Load(&Test.Done, XMEMORY_ACQUIRE) == 0 ) {
 			testRequire(
-				!xrtDeadlineExpired(Deadline),
+				!__xrtWaitExpired(Deadline),
 				"native file capability check timed out"
 			);
 			xrtThreadYield();
@@ -278,10 +279,10 @@ int main(void)
 		xrtNetEnginePost(pEngine, 0, testNetFileStart, &Test),
 		"native file start post failed"
 	);
-	Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(UINT64_C(5000000));
 	while ( xrtAtomic32Load(&Test.Done, XMEMORY_ACQUIRE) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"native file completion timed out"
 		);
 		xrtThreadYield();

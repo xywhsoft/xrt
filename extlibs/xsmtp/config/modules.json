@@ -5,8 +5,8 @@
 		"extlibs/xmail/config/modules.json"
 	],
 	"module_prefix": "XSMTP_MODULE_",
-	"single_header": "extlibs/xsmtp/single/xsmtp.h",
-	"declaration_header": "extlibs/xsmtp/single/xsmtp_decl.h",
+	"single_header": "single/extlibs/xsmtp.h",
+	"declaration_header": "single/extlibs/xsmtp_decl.h",
 	"implementation_macro": "XSMTP_IMPLEMENTATION",
 	"implementation_once_macro": "XSMTP_IMPLEMENTATION_ONCE",
 	"single_guard": "XSMTP_SINGLE_HEADER_H",

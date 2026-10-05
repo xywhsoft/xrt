@@ -55,7 +55,7 @@ The program below is from `examples/http/client_retry` — default-off versus ex
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/client_retry/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_retry/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 retries=3 base=250000 max=5000000
 ```
 
@@ -69,7 +69,7 @@ The second program is from `examples/http/client_cookies` — the assembly face 
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/client_cookies/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_cookies/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （示例校验 Jar 挂载后 Set-Cookie 自动进罐与后续自动携带路径）
 ```
 

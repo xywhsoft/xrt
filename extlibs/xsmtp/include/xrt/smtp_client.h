@@ -78,7 +78,7 @@ XRT_API bool xrtSmtpClientConfigValid(const xsmtpclientconfig* pConfig);
 /* 建立连接，验证 220 banner 并完成 EHLO/可选 HELO 和 STARTTLS。 */
 XRT_API xsmtpclient* xrtSmtpClientOpen(
 	const xsmtpclientconfig* pConfig,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -121,7 +121,7 @@ XRT_API bool xrtSmtpClientLastReply(
 XRT_API bool xrtSmtpClientSend(
 	xsmtpclient* pClient,
 	xstrview Line,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -131,7 +131,7 @@ XRT_API bool xrtSmtpClientSend(
 XRT_API bool xrtSmtpClientAuthLine(
 	xsmtpclient* pClient,
 	xstrview Line,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -141,7 +141,7 @@ XRT_API bool xrtSmtpClientAuthLine(
 XRT_API bool xrtSmtpClientReceive(
 	xsmtpclient* pClient,
 	xsmtpreply* pReply,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -153,7 +153,7 @@ XRT_API bool xrtSmtpClientCommand(
 	xstrview Verb,
 	xstrview Arguments,
 	xsmtpreply* pReply,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -164,7 +164,7 @@ XRT_API bool xrtSmtpClientMail(
 	xsmtpclient* pClient,
 	xstrview ReversePath,
 	xstrview Parameters,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -175,7 +175,7 @@ XRT_API bool xrtSmtpClientRcpt(
 	xsmtpclient* pClient,
 	xstrview ForwardPath,
 	xstrview Parameters,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -184,7 +184,7 @@ XRT_API bool xrtSmtpClientRcpt(
 /* 进入 DATA 模式并验证 354 响应。 */
 XRT_API bool xrtSmtpClientDataBegin(
 	xsmtpclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -194,7 +194,7 @@ XRT_API bool xrtSmtpClientDataBegin(
 XRT_API bool xrtSmtpClientDataWrite(
 	xsmtpclient* pClient,
 	xbytesview Data,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -203,7 +203,7 @@ XRT_API bool xrtSmtpClientDataWrite(
 /* 补足 DATA 终止行、读取最终响应并回到 READY。 */
 XRT_API bool xrtSmtpClientDataEnd(
 	xsmtpclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -213,7 +213,7 @@ XRT_API bool xrtSmtpClientDataEnd(
 XRT_API bool xrtSmtpClientData(
 	xsmtpclient* pClient,
 	xstrview Message,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -224,7 +224,7 @@ XRT_API bool xrtSmtpClientBdatBegin(
 	xsmtpclient* pClient,
 	size_t iChunkSize,
 	bool Last,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -234,7 +234,7 @@ XRT_API bool xrtSmtpClientBdatBegin(
 XRT_API bool xrtSmtpClientBdatWrite(
 	xsmtpclient* pClient,
 	xbytesview Data,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -243,7 +243,7 @@ XRT_API bool xrtSmtpClientBdatWrite(
 /* 验证块长度、读取 250 响应，并进入下一块或结束当前 envelope。 */
 XRT_API bool xrtSmtpClientBdatEnd(
 	xsmtpclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -254,7 +254,7 @@ XRT_API bool xrtSmtpClientBdat(
 	xsmtpclient* pClient,
 	xbytesview Data,
 	bool Last,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -263,7 +263,7 @@ XRT_API bool xrtSmtpClientBdat(
 /* 取消当前 envelope 并回到 READY。 */
 XRT_API bool xrtSmtpClientReset(
 	xsmtpclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -272,7 +272,7 @@ XRT_API bool xrtSmtpClientReset(
 /* 验证连接仍可交换命令。 */
 XRT_API bool xrtSmtpClientNoop(
 	xsmtpclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -281,7 +281,7 @@ XRT_API bool xrtSmtpClientNoop(
 /* 发送 QUIT、验证 221 并认证关闭传输。 */
 XRT_API bool xrtSmtpClientQuit(
 	xsmtpclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -290,7 +290,7 @@ XRT_API bool xrtSmtpClientQuit(
 /* 不发送 QUIT，直接正常关闭传输。 */
 XRT_API bool xrtSmtpClientClose(
 	xsmtpclient* pClient,
-	xdeadline iDeadline
+	int64 iTimeout
 );
 
 

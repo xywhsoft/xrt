@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_future.h"
 #include "../internal/xrt_coroutine.h"
 
@@ -6,7 +7,7 @@
 #if defined(XRT_FEATURE_FUTURE_COROUTINE)
 
 /* 挂起当前调度协程，直到 Future 完成、超时或协程取消。 */
-XRT_API xwaitresult xrtFutureAwaitUntil(xfuture* pFuture, xdeadline iDeadline)
+XRT_API xwaitresult __xrtFutureAwaitUntil(xfuture* pFuture, double iDeadline)
 {
 	xrt_future_waiter tWaiter;
 	xrt_co_wait tWait;
@@ -64,15 +65,15 @@ XRT_API xwaitresult xrtFutureAwaitUntil(xfuture* pFuture, xdeadline iDeadline)
 /* 永久挂起当前调度协程等待 Future。 */
 XRT_API xwaitresult xrtFutureAwait(xfuture* pFuture)
 {
-	return xrtFutureAwaitUntil(pFuture, XRT_DEADLINE_NEVER);
+	return __xrtFutureAwaitUntil(pFuture, INFINITY);
 }
 
 
 
 /* 在相对微秒数内挂起当前调度协程等待 Future。 */
-XRT_API xwaitresult xrtFutureAwaitFor(xfuture* pFuture, uint64 iTimeout)
+XRT_API xwaitresult xrtFutureAwaitFor(xfuture* pFuture, int64 iTimeout)
 {
-	return xrtFutureAwaitUntil(pFuture, xrtDeadlineAfter(iTimeout));
+	return __xrtFutureAwaitUntil(pFuture, __xrtWaitAfter(iTimeout));
 }
 
 #endif

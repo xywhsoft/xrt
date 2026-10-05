@@ -52,7 +52,7 @@ int main(void)
 	iSize = xrtDateTimeWrite(Buffer, sizeof(Buffer), &(xdatetime){
 		.Year = 2024, .Month = 3, .Day = 10,
 		.Hour = 12, .Minute = 34, .Second = 56,
-		.Microsecond = 0, .Offset = 0
+		.Millisecond = 0, .Offset = 0
 	}, SV("%Y-%m-%d %H:%M:%S"));
 	if ( (iSize != 19u) ||
 		 (strcmp(Buffer, "2024-03-10 12:34:56") != 0) ) {
@@ -63,7 +63,7 @@ int main(void)
 	sFormatted = xrtDateTimeFormat(&(xdatetime){
 		.Year = 2024, .Month = 3, .Day = 10,
 		.Hour = 12, .Minute = 34, .Second = 56,
-		.Microsecond = 0, .Offset = 0
+		.Millisecond = 0, .Offset = 0
 	}, SV("%Y-%m-%d %H:%M:%S"));
 	printf("datetime: write=\"%s\" format=%s ",
 		Buffer, sFormatted ? "same" : "(null)");

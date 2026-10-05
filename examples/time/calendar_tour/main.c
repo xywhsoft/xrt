@@ -5,7 +5,7 @@
  *   【历法查询】  xrtIsLeapYear / xrtDaysInMonth / xrtDaysInYear
  *   【构造】      xrtDate（UTC 零点）/ xrtTimeMake（按分解结构）
  *   【字段提取】  xrtYear / Month / Day / Hour / Minute / Second /
- *                  Microsecond / Weekday / DayOfYear / Quarter /
+ *                  Millisecond / Weekday / DayOfYear / Quarter /
  *                  xrtDatePart（当日零点）/ xrtTimePart（日内微秒）
  *   【ISO 周历】  xrtISOWeek（周日为 7，跨年归上一周年）
  *   【Unix 换算】 xrtTimeFromUnix / xrtTimeUnix /
@@ -61,7 +61,7 @@ int main(void)
 	printf(" year=%d\n", xrtDaysInYear(2024));
 
 	/* 全微秒精度基准：直接按字段构造（FromUnix 只有秒精度）。 */
-	if ( !xrtDateTime(2024, 3, 10, 12, 34, 56, 789012, &Moment) ) {
+	if ( !xrtDateTime(2024, 3, 10, 12, 34, 56, 789, &Moment) ) {
 		return 1;
 	}
 
@@ -70,13 +70,13 @@ int main(void)
 		(long long)xrtYear(Moment),
 		xrtMonth(Moment), xrtDay(Moment),
 		xrtHour(Moment), xrtMinute(Moment),
-		xrtSecond(Moment), xrtMicrosecond(Moment));
+		xrtSecond(Moment), xrtMillisecond(Moment));
 	printf(" yday=%d q=%d\n", xrtDayOfYear(Moment), xrtQuarter(Moment));
 	if ( (xrtYear(Moment) != 2024) || (xrtMonth(Moment) != 3) ||
 		 (xrtDay(Moment) != 10) || (xrtWeekday(Moment) != 0) ||
 		 (xrtHour(Moment) != 12) || (xrtMinute(Moment) != 34) ||
 		 (xrtSecond(Moment) != 56) ||
-		 (xrtMicrosecond(Moment) != 789012) ||
+		 (xrtMillisecond(Moment) != 789) ||
 		 (xrtDayOfYear(Moment) != 70) ||
 		 (xrtQuarter(Moment) != 1) ) {
 		return 2;
@@ -123,7 +123,7 @@ int main(void)
 		Parts.Hour = 12;
 		Parts.Minute = 34;
 		Parts.Second = 56;
-		Parts.Microsecond = 789012;
+		Parts.Millisecond = 789;
 		Parts.Offset = 0;  /* UTC */
 		if ( !xrtTimeMake(&Parts, &Made) || (Made != Moment) ) {
 			return 6;

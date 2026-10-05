@@ -832,7 +832,7 @@ static xhttpcacheusedecision __xrtHttpClientCacheUse(
 		xrtHttpCacheRecordResponseClock(
 			pCall->CacheCandidate
 		),
-		xrtClock(),
+		xrtTimer(),
 		&Age
 	);
 	FreshnessResult = xrtHttpCacheFreshness(
@@ -1623,7 +1623,7 @@ static bool __xrtHttpClientCacheHeaders(
 	const xhttpheaders* pHeaders =
 		xrtHttpResponseHeaders(pResponse);
 
-	pCall->CacheResponseClock = xrtClock();
+	pCall->CacheResponseClock = xrtTimer();
 	pCall->CacheResponseTime = xrtNow();
 	if ( pCall->CacheValidating &&
 		(xrtHttpResponseStatus(pResponse) ==
@@ -3719,7 +3719,7 @@ static xhttpresponse* __xrtHttpClientCacheResponse(
 		xrtHttpCacheRecordResponseTime(pRecord),
 		xrtHttpCacheRecordRequestClock(pRecord),
 		xrtHttpCacheRecordResponseClock(pRecord),
-		xrtClock(),
+		xrtTimer(),
 		&Age
 	) == XHTTP_CACHE_CALC_READY) ) {
 		iAge = snprintf(
@@ -4318,7 +4318,7 @@ bool __xrtHttpClientCacheStart(
 	}
 	*pHandled = false;
 	if ( !pCall->CacheEnabled || !pCall->CacheReady ) {
-		pCall->CacheRequestClock = xrtClock();
+		pCall->CacheRequestClock = xrtTimer();
 		return true;
 	}
 	*pHandled = true;

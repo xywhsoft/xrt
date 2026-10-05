@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_udp.h"
 #include "../internal/xrt_net_sync.h"
 
@@ -24,10 +25,10 @@ static int32 __xrtNetUdpWaitCode(xnetudpwait Wait)
 
 
 /* 阻塞等待一个 UDP 条件，不复制底层状态机。 */
-XRT_API bool xrtNetUdpWait(
+XRT_API bool __xrtNetUdpWait(
 	xnetudp* pUdp,
 	xnetudpwait Wait,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -60,10 +61,10 @@ XRT_API bool xrtNetUdpWait(
 
 
 /* 阻塞等待一个数据报发送预算。 */
-XRT_API bool xrtNetUdpWritable(
+XRT_API bool __xrtNetUdpWritable(
 	xnetudp* pUdp,
 	size_t iSize,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -96,9 +97,9 @@ XRT_API bool xrtNetUdpWritable(
 
 
 /* 阻塞接收一个数据包，并把 Future 持有转换为调用方引用。 */
-XRT_API xnetudppacket* xrtNetUdpReceiveWait(
+XRT_API xnetudppacket* __xrtNetUdpReceiveWait(
 	xnetudp* pUdp,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -133,9 +134,9 @@ XRT_API xnetudppacket* xrtNetUdpReceiveWait(
 
 
 /* 阻塞接收一个数据报错误，并把 Future 持有转换为调用方引用。 */
-XRT_API xnetudperrorpacket* xrtNetUdpReceiveErrorWait(
+XRT_API xnetudperrorpacket* __xrtNetUdpReceiveErrorWait(
 	xnetudp* pUdp,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -172,10 +173,10 @@ XRT_API xnetudperrorpacket* xrtNetUdpReceiveErrorWait(
 
 
 /* 阻塞接收一个数据包批次，并把 Future 持有转换为调用方引用。 */
-XRT_API xnetudpbatch* xrtNetUdpReceiveBatchWait(
+XRT_API xnetudpbatch* __xrtNetUdpReceiveBatchWait(
 	xnetudp* pUdp,
 	size_t iCapacity,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -207,4 +208,62 @@ XRT_API xnetudpbatch* xrtNetUdpReceiveBatchWait(
 	return pBatch;
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_NET_UDP)) && (defined(XRT_FEATURE_NET_UDP_SYNC))
+XRT_API bool xrtNetUdpWait(
+	xnetudp* pUdp,
+	xnetudpwait Wait,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtNetUdpWait(pUdp, Wait, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XRT_FEATURE_NET_UDP)) && (defined(XRT_FEATURE_NET_UDP_SYNC))
+XRT_API bool xrtNetUdpWritable(
+	xnetudp* pUdp,
+	size_t iSize,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtNetUdpWritable(pUdp, iSize, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XRT_FEATURE_NET_UDP)) && (defined(XRT_FEATURE_NET_UDP_SYNC))
+XRT_API xnetudppacket* xrtNetUdpReceiveWait(
+	xnetudp* pUdp,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtNetUdpReceiveWait(pUdp, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XRT_FEATURE_NET_UDP)) && (defined(XRT_FEATURE_NET_UDP_SYNC))
+XRT_API xnetudperrorpacket* xrtNetUdpReceiveErrorWait(
+	xnetudp* pUdp,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtNetUdpReceiveErrorWait(pUdp, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XRT_FEATURE_NET_UDP)) && (defined(XRT_FEATURE_NET_UDP_SYNC))
+XRT_API xnetudpbatch* xrtNetUdpReceiveBatchWait(
+	xnetudp* pUdp,
+	size_t iCapacity,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtNetUdpReceiveBatchWait(pUdp, iCapacity, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

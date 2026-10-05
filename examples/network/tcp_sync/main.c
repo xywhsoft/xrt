@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
@@ -63,19 +64,19 @@ int main(void)
 		NULL,
 		NULL
 	);
-	pServer = xrtNetListenerAcceptWait(
+	pServer = __xrtNetListenerAcceptWait(
 		pListener,
-		xrtDeadlineAfter(3000000u),
+		__xrtWaitAfter(3000000u),
 		NULL
 	);
 	if ( (pClient == NULL) || (pServer == NULL) ||
 		 (xrtNetStreamSend(pClient, "hello", 5) != XNET_RESULT_OK) ) {
 		return 3;
 	}
-	pBytes = xrtNetStreamRecv(
+	pBytes = __xrtNetStreamRecv(
 		pServer,
 		0,
-		xrtDeadlineAfter(3000000u),
+		__xrtWaitAfter(3000000u),
 		NULL
 	);
 	View = xrtNetBytesView(pBytes);

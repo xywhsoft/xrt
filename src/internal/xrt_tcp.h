@@ -230,7 +230,7 @@ struct xnetlistener {
 	__xrt_net_accept_slot* AcceptSlots;
 	uint64 WatchId;
 	uint64 AcceptRetryTimer;
-	uint64 AcceptRetryDelay;
+	int64 AcceptRetryDelay;
 	uint64 NextAffinity;
 	xrt_spinlock AcceptLock;
 	xnetstream* AcceptHead;

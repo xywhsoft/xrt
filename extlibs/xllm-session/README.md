@@ -2,7 +2,7 @@
 
 `xllm-session` 是 xllm 之上的上下文治理层：轮次账本、输入预算、软裁剪、压缩事务与持久化。它不执行模型调用——那是 `xllm` 核心的职责。
 
-依赖：兄弟目录的 [`xllm`](../xllm)（核心调用层）与 XRT 单头（文件原子写、目录、JSON 读取、时间）。
+依赖：兄弟目录的 [`xllm`](../xllm)（核心调用层）与 XRT 核心公共 API（文件原子写、目录、JSON 读取、时间）。
 
 ## 当前能力
 
@@ -22,7 +22,17 @@
 
 ## 构建
 
-Windows 运行 `build.bat`，POSIX shell 运行 `./build.sh`（可经 `XLLM_DIR`/`XRT_DIR` 覆盖依赖位置）。
+依赖闭包由 `config/modules.json` 声明，公共入口是 `include/xllm-session.h`，实现位于 `src/`，每个 `.c` 独立编译。构建、测试、单头生成与 CI 均使用仓库根目录的统一工具；目录规范见 [扩展库开发说明](../README.md)。
+
+从仓库根目录执行（Windows 与 POSIX 使用同一入口）：
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/xllm-session/config/modules.json --suite xllm_session --jobs 4
+python tools/package.py --compiler gcc --manifest extlibs/xllm-session/config/modules.json --suite xllm_session --kind static --verify
+python tools/amalgamate.py --manifest extlibs/xllm-session/config/modules.json
+```
+
+单头实现与声明分别生成到 `single/extlibs/xllm-session.h` 和 `single/extlibs/xllm-session_decl.h`，只包含本库代码。调用方先提供核心 XRT，再按依赖顺序提供扩展；见 [构建说明](../../docs/BUILD.md)。
 
 ## 模块边界
 

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -35,13 +36,13 @@ typedef struct testnetsyncwaiter {
 /* 等待所有原生线程进入阻塞调用前的同步点。 */
 static void testNetSyncThreadsReady(testnetsyncthreads* pContext)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtAtomic32Load(
 		&pContext->Ready,
 		XMEMORY_ACQUIRE
 	) < TEST_NET_SYNC_THREAD_COUNT ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"network sync wait threads did not start");
 		xrtThreadYield();
 	}
@@ -65,19 +66,19 @@ static int32 testNetSyncThreadsWait(ptr pData)
 		xrtThreadYield();
 	}
 	if ( pContext->Datagram ) {
-		xnetudppacket* pPacket = xrtNetUdpReceiveWait(
+		xnetudppacket* pPacket = __xrtNetUdpReceiveWait(
 			pContext->Udp,
-			xrtDeadlineAfter(10000000u),
+			__xrtWaitAfter(10000000u),
 			pWaiter->Cancel
 		);
 
 		bUnexpected = pPacket != NULL;
 		xrtNetUdpPacketDestroy(pPacket);
 	} else {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pContext->Stream,
 			1,
-			xrtDeadlineAfter(10000000u),
+			__xrtWaitAfter(10000000u),
 			pWaiter->Cancel
 		);
 
@@ -181,7 +182,7 @@ int main(void)
 	xnetudp* pUdpServer;
 	xnetaddr Address;
 	xnetenginestats Stats;
-	xdeadline iDeadline;
+	double iDeadline;
 	bool bDestroyed;
 
 	memset(&TcpContext, 0, sizeof(TcpContext));
@@ -211,38 +212,38 @@ int main(void)
 		NULL,
 		NULL
 	);
-	pServer = xrtNetListenerAcceptWait(
+	pServer = __xrtNetListenerAcceptWait(
 		pListener,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
-	testRequire((pClient != NULL) && (pServer != NULL) && xrtNetStreamWait(
+	testRequire((pClient != NULL) && (pServer != NULL) && __xrtNetStreamWait(
 		pClient,
 		XNET_STREAM_WAIT_OPEN,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "network sync thread TCP setup failed");
 	TcpContext.Stream = pServer;
 	testNetSyncThreadsRun(&TcpContext, XNET_ERROR_STREAM_READ);
-	testRequire(xrtNetStreamWait(
+	testRequire(__xrtNetStreamWait(
 		pServer,
 		XNET_STREAM_WAIT_CLOSE,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "network sync thread TCP server close wait failed");
-	testRequire(xrtNetStreamClose(pClient) && xrtNetStreamWait(
+	testRequire(xrtNetStreamClose(pClient) && __xrtNetStreamWait(
 		pClient,
 		XNET_STREAM_WAIT_CLOSE,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "network sync thread TCP client close failed");
 	xrtNetStreamDestroy(pClient);
 	xrtNetStreamDestroy(pServer);
 	testRequire(xrtNetListenerClose(pListener),
 		"network sync thread listener close failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"network sync thread listener close timed out");
 		xrtThreadYield();
 	}
@@ -270,30 +271,30 @@ int main(void)
 		NULL,
 		NULL
 	);
-	testRequire((pUdpClient != NULL) && xrtNetUdpWait(
+	testRequire((pUdpClient != NULL) && __xrtNetUdpWait(
 		pUdpServer,
 		XNET_UDP_WAIT_OPEN,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
-	) && xrtNetUdpWait(
+	) && __xrtNetUdpWait(
 		pUdpClient,
 		XNET_UDP_WAIT_OPEN,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "network sync thread UDP setup failed");
 	UdpContext.Udp = pUdpServer;
 	UdpContext.Datagram = true;
 	testNetSyncThreadsRun(&UdpContext, XNET_ERROR_UDP_RECEIVE);
-	testRequire(xrtNetUdpWait(
+	testRequire(__xrtNetUdpWait(
 		pUdpServer,
 		XNET_UDP_WAIT_CLOSE,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "network sync thread UDP server close wait failed");
-	testRequire(xrtNetUdpClose(pUdpClient) && xrtNetUdpWait(
+	testRequire(xrtNetUdpClose(pUdpClient) && __xrtNetUdpWait(
 		pUdpClient,
 		XNET_UDP_WAIT_CLOSE,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "network sync thread UDP client close failed");
 	xrtNetUdpDestroy(pUdpClient);

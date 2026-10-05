@@ -1,5 +1,5 @@
+#define XOAUTH2_MODULE_XOAUTH2
 #include "xoauth2.h"
-#include "xoauth2-xrt.h"
 #include <string.h>
 
 int test_oauth2_package(void)

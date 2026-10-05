@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #if !defined(TEST_PORT_BACKEND)
 	#define TEST_PORT_BACKEND XNET_PORT_SELECT
 	#define TEST_PORT_AVAILABLE 1
@@ -144,8 +145,8 @@ int main(void)
 		(xrtErrorKind(xrtGetError()) == XERR_MEMORY),
 		"network port post OOM error mismatch");
 	xrtClearError();
-	testRequire((xrtNetPortWait(pPort, &Event, 1,
-		xrtDeadlineAfter(0), &iCount) == XNET_RESULT_TIMEOUT) &&
+	testRequire((__xrtNetPortWait(pPort, &Event, 1,
+		__xrtWaitAfter(0), &iCount) == XNET_RESULT_TIMEOUT) &&
 		(iCount == 0), "failed network port post left a ghost event");
 
 	State.Fail = false;

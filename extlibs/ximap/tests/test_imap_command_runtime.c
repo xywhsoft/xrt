@@ -1,10 +1,11 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
 
 typedef struct testimapcommandserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } testimapcommandserver;
 
@@ -40,7 +41,7 @@ static bool testImapCommandSend(
 	xnetstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -49,7 +50,7 @@ static bool testImapCommandSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -67,13 +68,13 @@ static bool testImapCommandReceive(
 	xnetstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -103,7 +104,7 @@ static bool testImapCommandExchange(
 	xnetstream* pStream,
 	cstr sCommand,
 	cstr sResponse,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return testImapCommandReceive(
@@ -125,7 +126,7 @@ static bool testImapCommandExchange(
 static int32 testImapCommandServer(ptr pData)
 {
 	testimapcommandserver* pServer = (testimapcommandserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -266,7 +267,7 @@ static int32 testImapCommandServer(ptr pData)
 		"A00000014 LOGOUT\r\n",
 		"* BYE signing off\r\nA00000014 OK logout complete\r\n",
 		pServer->Deadline
-	) && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+	) && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		pServer->Deadline,
@@ -285,14 +286,14 @@ static bool testImapCommandDrain(
 	char* sLiteral,
 	size_t iCapacity,
 	size_t* pLiteralSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iLiteral = 0;
 
 	for ( ;; ) {
 		ximapevent Event;
-		xmailnext Next = xrtImapClientNext(
+		xmailnext Next = __xrtImapClientNext(
 			pClient,
 			&Event,
 			iDeadline,
@@ -320,7 +321,7 @@ static bool testImapCommandDrain(
 				iCapacity - iLiteral;
 			size_t iRead;
 
-			if ( (iOutput == 0) || !xrtImapClientReadLiteral(
+			if ( (iOutput == 0) || !__xrtImapClientReadLiteral(
 				pClient,
 				pOutput,
 				iOutput,
@@ -353,7 +354,7 @@ int main(void)
 	xnetlistener* pListener;
 	ximapclient* pClient;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 	ximapevent Event;
 	char sLiteral[8];
 	size_t iLiteral;
@@ -382,7 +383,7 @@ int main(void)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "IMAP command resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Success = false;
@@ -393,11 +394,11 @@ int main(void)
 	Config.Net.Resolver = pResolver;
 	Config.Net.Host = "imap-command.test";
 	Config.Net.Port = TestImapCommandAddress.Port;
-	pClient = xrtImapClientOpen(&Config, Deadline, NULL);
+	pClient = __xrtImapClientOpen(&Config, Deadline, NULL);
 	testRequire((pClient != NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED),
 		"IMAP PREAUTH open failed");
-	testRequire(xrtImapClientSelect(
+	testRequire(__xrtImapClientSelect(
 		pClient,
 		XRT_STR_LITERAL("INBOX"),
 		&Info,
@@ -410,9 +411,9 @@ int main(void)
 		(Info.UidNext == UINT64_C(7)) &&
 		(Info.HighestModSeq == UINT64_C(9)) && !Info.ReadOnly,
 		"IMAP SELECT helper failed");
-	testRequire(xrtImapClientCheck(pClient, Deadline, NULL),
+	testRequire(__xrtImapClientCheck(pClient, Deadline, NULL),
 		"IMAP CHECK helper failed");
-	testRequire(xrtImapClientBeginSearch(
+	testRequire(__xrtImapClientBeginSearch(
 		pClient,
 		XRT_STR_LITERAL("UNSEEN"),
 		false,
@@ -420,7 +421,7 @@ int main(void)
 		NULL
 	) && testImapCommandDrain(pClient, NULL, 0, NULL, Deadline),
 		"IMAP SEARCH helper failed");
-	testRequire(xrtImapClientBeginSearch(
+	testRequire(__xrtImapClientBeginSearch(
 		pClient,
 		XRT_STR_LITERAL("ALL"),
 		true,
@@ -428,7 +429,7 @@ int main(void)
 		NULL
 	) && testImapCommandDrain(pClient, NULL, 0, NULL, Deadline),
 		"IMAP UID SEARCH helper failed");
-	testRequire(xrtImapClientBeginFetch(
+	testRequire(__xrtImapClientBeginFetch(
 		pClient,
 		XRT_STR_LITERAL("1:*"),
 		XRT_STR_LITERAL("BODY.PEEK[]"),
@@ -443,7 +444,7 @@ int main(void)
 		Deadline
 	) && (iLiteral == 5u) && (memcmp(sLiteral, "hello", 5u) == 0),
 		"IMAP UID FETCH literal helper failed");
-	testRequire(xrtImapClientBeginStore(
+	testRequire(__xrtImapClientBeginStore(
 		pClient,
 		XRT_STR_LITERAL("1"),
 		XIMAP_STORE_ADD_SILENT,
@@ -453,7 +454,7 @@ int main(void)
 		NULL
 	) && testImapCommandDrain(pClient, NULL, 0, NULL, Deadline),
 		"IMAP UID STORE helper failed");
-	testRequire(xrtImapClientBeginMove(
+	testRequire(__xrtImapClientBeginMove(
 		pClient,
 		XRT_STR_LITERAL("1"),
 		XRT_STR_LITERAL("Archive"),
@@ -462,54 +463,54 @@ int main(void)
 		NULL
 	) && testImapCommandDrain(pClient, NULL, 0, NULL, Deadline),
 		"IMAP UID MOVE helper failed");
-	testRequire(xrtImapClientBeginExpunge(
+	testRequire(__xrtImapClientBeginExpunge(
 		pClient,
 		XRT_STR_LITERAL("1"),
 		Deadline,
 		NULL
 	) && testImapCommandDrain(pClient, NULL, 0, NULL, Deadline),
 		"IMAP UID EXPUNGE helper failed");
-	testRequire(xrtImapClientBeginIdle(pClient, Deadline, NULL) &&
-		(xrtImapClientNext(pClient, &Event, Deadline, NULL) == XMAIL_NEXT_ITEM) &&
+	testRequire(__xrtImapClientBeginIdle(pClient, Deadline, NULL) &&
+		(__xrtImapClientNext(pClient, &Event, Deadline, NULL) == XMAIL_NEXT_ITEM) &&
 		(Event.Response.Kind == XIMAP_RESPONSE_CONTINUATION) &&
-		(xrtImapClientNext(pClient, &Event, Deadline, NULL) == XMAIL_NEXT_ITEM) &&
+		(__xrtImapClientNext(pClient, &Event, Deadline, NULL) == XMAIL_NEXT_ITEM) &&
 		testMailViewEqual(Event.Response.Text, XRT_STR_LITERAL("2 EXISTS")) &&
-		xrtImapClientEndIdle(pClient, Deadline, NULL) &&
-		(xrtImapClientNext(pClient, &Event, Deadline, NULL) == XMAIL_NEXT_END),
+		__xrtImapClientEndIdle(pClient, Deadline, NULL) &&
+		(__xrtImapClientNext(pClient, &Event, Deadline, NULL) == XMAIL_NEXT_END),
 		"IMAP IDLE helper failed");
-	testRequire(xrtImapClientUnselect(pClient, Deadline, NULL) &&
+	testRequire(__xrtImapClientUnselect(pClient, Deadline, NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED),
 		"IMAP UNSELECT helper failed");
-	testRequire(xrtImapClientCreateMailbox(
+	testRequire(__xrtImapClientCreateMailbox(
 		pClient,
 		XRT_STR_LITERAL("New \"Box"),
 		Deadline,
 		NULL
 	), "IMAP CREATE helper failed");
-	testRequire(xrtImapClientRenameMailbox(
+	testRequire(__xrtImapClientRenameMailbox(
 		pClient,
 		XRT_STR_LITERAL("New \"Box"),
 		XRT_STR_LITERAL("Renamed\\Box"),
 		Deadline,
 		NULL
 	), "IMAP RENAME helper failed");
-	testRequire(xrtImapClientSubscribe(
+	testRequire(__xrtImapClientSubscribe(
 		pClient,
 		XRT_STR_LITERAL("Renamed\\Box"),
 		Deadline,
 		NULL
-	) && xrtImapClientUnsubscribe(
+	) && __xrtImapClientUnsubscribe(
 		pClient,
 		XRT_STR_LITERAL("Renamed\\Box"),
 		Deadline,
 		NULL
-	) && xrtImapClientDeleteMailbox(
+	) && __xrtImapClientDeleteMailbox(
 		pClient,
 		XRT_STR_LITERAL("Renamed\\Box"),
 		Deadline,
 		NULL
 	), "IMAP mailbox management helper failed");
-	testRequire(xrtImapClientBeginList(
+	testRequire(__xrtImapClientBeginList(
 		pClient,
 		XRT_STR_LITERAL(""),
 		XRT_STR_LITERAL("*"),
@@ -517,7 +518,7 @@ int main(void)
 		NULL
 	) && testImapCommandDrain(pClient, NULL, 0, NULL, Deadline),
 		"IMAP LIST helper failed");
-	testRequire(xrtImapClientBeginStatus(
+	testRequire(__xrtImapClientBeginStatus(
 		pClient,
 		XRT_STR_LITERAL("INBOX"),
 		XRT_STR_LITERAL(""),
@@ -525,13 +526,13 @@ int main(void)
 		NULL
 	) && testImapCommandDrain(pClient, NULL, 0, NULL, Deadline),
 		"IMAP STATUS helper failed");
-	testRequire(xrtImapClientNoop(pClient, Deadline, NULL),
+	testRequire(__xrtImapClientNoop(pClient, Deadline, NULL),
 		"IMAP NOOP helper failed");
-	testRequire(xrtImapClientLogout(pClient, Deadline, NULL),
+	testRequire(__xrtImapClientLogout(pClient, Deadline, NULL),
 		"IMAP command LOGOUT failed");
 	xrtImapClientDestroy(pClient);
 
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"IMAP command server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"IMAP command transcript mismatch");

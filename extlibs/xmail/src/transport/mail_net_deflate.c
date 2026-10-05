@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_mail_net.h"
 
 
@@ -12,20 +13,20 @@
 /* Deflate 输出回调同步写入原始 TCP 或 TLS 传输。 */
 typedef struct __xmaildeflatesend {
 	__xmailtransport* Transport;
-	xdeadline Deadline;
+	double Deadline;
 	xcancel* Cancel;
 } __xmaildeflatesend;
 
 typedef struct __xmailinflateread {
 	__xmailtransport* Transport;
-	xdeadline Deadline;
+	double Deadline;
 	xcancel* Cancel;
 } __xmailinflateread;
 
 /* 编解码器可能只缓存数据；请求检查不能依赖网络回调。 */
-static bool __xrtMailDeflateRequestActive(xdeadline Deadline, xcancel* pCancel)
+static bool __xrtMailDeflateRequestActive(double Deadline, xcancel* pCancel)
 {
-	if ( xrtDeadlineExpired(Deadline) ) {
+	if ( __xrtWaitExpired(Deadline) ) {
 		__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
 			"compressed mail operation timed out");
 		return false;
@@ -145,7 +146,7 @@ bool __xrtMailTransportDeflateSend(
 	const void* pData,
 	size_t iSize,
 	bool bFlush,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -210,7 +211,7 @@ static void __xrtMailTransportDeflateInputConsume(
 /* 取得下一小块压缩输入，避免高压缩比正文一次性膨胀。 */
 static bool __xrtMailTransportDeflateInput(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel,
 	xbytesview* pInput
 )
@@ -277,7 +278,7 @@ static void __xrtMailTransportDeflateAdvance(
 /* 推进压缩输入，直到至少产生一块可消费明文。 */
 bool __xrtMailTransportDeflateFill(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {

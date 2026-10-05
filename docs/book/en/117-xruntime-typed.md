@@ -72,7 +72,7 @@ The program below is from `examples/runtime/typed_array` — the loop of Init/Pu
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xruntime/single -include xruntime.h impl.c extlibs/xruntime/examples/runtime/typed_array/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXRUNTIME_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xruntime.h impl.c extlibs/xruntime/examples/runtime/typed_array/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 count/joined/index 的数组操作自检行）
 ```
 
@@ -86,7 +86,7 @@ The second program is from `examples/runtime/typed_dict` — the dynamic-fields 
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xruntime/single -include xruntime.h impl.c extlibs/xruntime/examples/runtime/typed_dict/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXRUNTIME_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xruntime.h impl.c extlibs/xruntime/examples/runtime/typed_dict/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出文本键字典操作的自检行）
 ```
 

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -74,7 +75,7 @@ int main(void)
 	xthread* pWaiters[3];
 	testthreadwaiter arrWaiters[3];
 	uint64 iWorkerId = 0;
-	xdeadline iExpired;
+	double iExpired;
 
 	testRequire(xrtThreadCurrent() == NULL, "host thread exposed an XRT thread object");
 	testRequire(xrtThreadCurrentId() != 0, "host thread id was zero");
@@ -101,12 +102,12 @@ int main(void)
 	testRequire(xrtErrorKind(xrtGetError()) == XERR_STATE, "running exit code error mismatch");
 	xrtClearError();
 	testRequire(xrtThreadWaitFor(pThread, 0) == XWAIT_TIMEOUT, "zero timeout did not time out");
-	iExpired = xrtClock();
+	iExpired = xrtTimer();
 	if ( iExpired != 0 ) {
 		iExpired--;
 	}
 	testRequire(
-		xrtThreadWaitUntil(pThread, iExpired) == XWAIT_TIMEOUT,
+		__xrtThreadWaitUntil(pThread, iExpired) == XWAIT_TIMEOUT,
 		"expired thread deadline did not time out"
 	);
 	testRequire(xrtThreadStop(pThread), "thread stop request failed");

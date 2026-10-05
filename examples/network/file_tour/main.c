@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/file_tour —— 完成端口文件读写与取消
  * ----------------------------------------------------------------
@@ -47,10 +48,10 @@ static void exampleDone(xnetworker* pWorker,
 	pIo->bDone = true;
 }
 
-static bool exampleSpin(exampleio* pIo, xdeadline iEnd)
+static bool exampleSpin(exampleio* pIo, double iEnd)
 {
 	while ( !pIo->bDone ) {
-		if ( xrtDeadlineExpired(iEnd) ) {
+		if ( __xrtWaitExpired(iEnd) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -102,17 +103,17 @@ static bool examplePost(xnetengine* pEngine, xnetpost* pPost,
 {
 	return xrtNetEnginePost(pEngine, 0u, pProc, (ptr)pTask) &&
 		exampleSpin((exampleio*)pTask->pIo,
-			xrtDeadlineAfter(3000000ull)) &&
+			__xrtWaitAfter(3000000ull)) &&
 		((exampleio*)pTask->pIo)->bDone;
 }
 
 /* 等待任务提交本身完成（不含 IO 终态）。 */
 static bool exampleSpinUntilTask(exampletask* pTask)
 {
-	xdeadline iEnd = xrtDeadlineAfter(3000000ull);
+	double iEnd = __xrtWaitAfter(3000000ull);
 
 	while ( !pTask->bDone ) {
-		if ( xrtDeadlineExpired(iEnd) ) {
+		if ( __xrtWaitExpired(iEnd) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -221,7 +222,7 @@ int main(void)
 				if ( !xrtNetFileCancel(Task.pWorker,
 						iCancelId) ||
 					!exampleSpin(&CancelIo,
-						xrtDeadlineAfter(
+						__xrtWaitAfter(
 							3000000ull)) ) {
 					goto Cleanup;
 				}

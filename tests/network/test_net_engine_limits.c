@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -19,10 +20,10 @@ static void testEngineLimitsWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -93,7 +94,7 @@ static void testEngineLimitsTimer(
 /* 命令队列背压期间重试异步取消，直到目标 Worker 恢复消费。 */
 static void testEngineLimitsCancel(xnetengine* pEngine, uint64 Id)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	for ( ;; ) {
 		if ( xrtNetEngineTimerCancel(pEngine, Id) ) {
@@ -103,7 +104,7 @@ static void testEngineLimitsCancel(xnetengine* pEngine, uint64 Id)
 			(xrtErrorKind(xrtGetError()) == XERR_AGAIN),
 			"limited timer cancel returned an unexpected error");
 		xrtClearError();
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"limited timer cancel remained backpressured");
 		xrtThreadYield();
 	}

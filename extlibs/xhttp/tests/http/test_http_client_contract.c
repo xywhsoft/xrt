@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -133,14 +134,14 @@ static void testHttpClientContractWait(
 	const xatomic32* pCompleted
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
 
 	while ( xrtAtomic32Load(
 		pCompleted,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP client pre-cancel Call did not complete"
 		);
 		xrtThreadYield();

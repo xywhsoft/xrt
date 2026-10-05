@@ -15,7 +15,7 @@
 bool __xrtNetSyncWait(
 	xfuture* pFuture,
 	const xnetworker* pWorker,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel,
 	int32 iCode,
 	cstr sOperation,

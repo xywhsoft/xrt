@@ -62,7 +62,7 @@ The program below is from `examples/http/server_middleware` — a logging middle
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/server_middleware/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server_middleware/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 middleware: 1, routes: 1
 ```
 
@@ -76,7 +76,7 @@ The second program is from `examples/http/static_file` — the standard assembly
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/static_file/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/static_file/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出静态服务装配结果并正常退出）
 ```
 

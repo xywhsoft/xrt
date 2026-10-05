@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 #include "test_tls.h"
 #include "../../../tests/fixtures/mail_tls_partial.h"
@@ -16,7 +17,7 @@ typedef enum testsmtptlsfault {
 typedef struct testsmtptlsserver {
 	xnetlistener* Listener;
 	const xtlsserverconfig* Tls;
-	xdeadline Deadline;
+	double Deadline;
 	testsmtptlsfault Mode;
 	xcancel* Cancel;
 	xtlsstream* ClientTls;
@@ -60,11 +61,11 @@ static bool testSmtpTlsWaitPartial(testsmtptlsserver* pServer)
  * 或新命令。Abort 前已经进入内核的字节可能继续到达，不要求网络回滚。 */
 static bool testSmtpTlsDrain(testsmtptlsserver* pServer, xtlsstream* pTls)
 {
-	while ( !xrtDeadlineExpired(pServer->Deadline) ) {
+	while ( !__xrtWaitExpired(pServer->Deadline) ) {
 		xfuture* pRead = xrtTlsStreamRecvAsync(pTls, 0);
 		xfuturestate State;
 		if ( pRead == NULL ) return false;
-		if ( xrtFutureWaitUntil(pRead, pServer->Deadline) != XWAIT_OK ) {
+		if ( __xrtFutureWaitUntil(pRead, pServer->Deadline) != XWAIT_OK ) {
 			xrtFutureDestroy(pRead);
 			return false;
 		}
@@ -93,7 +94,7 @@ static bool testSmtpTlsDrain(testsmtptlsserver* pServer, xtlsstream* pTls)
 static int32 testSmtpTlsServer(ptr pData)
 {
 	testsmtptlsserver* pServer = (testsmtptlsserver*)pData;
-	xnetstream* pTcp = xrtNetListenerAcceptWait(pServer->Listener, pServer->Deadline, NULL);
+	xnetstream* pTcp = __xrtNetListenerAcceptWait(pServer->Listener, pServer->Deadline, NULL);
 	xtlsstream* pTls;
 	bool Success;
 	if ( pTcp == NULL ) return 1;
@@ -148,7 +149,7 @@ static int32 testSmtpTlsServer(ptr pData)
 	(void)xrtTlsStreamAbort(pTls);
 	while ( xrtTlsStreamState(pTls) != XTLS_STREAM_FAILED &&
 		xrtTlsStreamState(pTls) != XTLS_STREAM_CLOSED ) {
-		if ( xrtDeadlineExpired(pServer->Deadline) ) { Success = false; break; }
+		if ( __xrtWaitExpired(pServer->Deadline) ) { Success = false; break; }
 		xrtThreadYield();
 	}
 	xrtTlsStreamDestroy(pTls);
@@ -158,11 +159,11 @@ static int32 testSmtpTlsServer(ptr pData)
 
 /* DATA 编码器与 BDAT 原始块均须验证同一次底层 TLS Future。 */
 static bool testSmtpTlsWrite(xsmtpclient* pClient, bool Bdat, const void* pData,
-	size_t Size, xdeadline Deadline, xcancel* pCancel)
+	size_t Size, double Deadline, xcancel* pCancel)
 {
 	xbytesview Data = { (const unsigned char*)pData, Size };
-	return Bdat ? xrtSmtpClientBdatWrite(pClient, Data, Deadline, pCancel) :
-		xrtSmtpClientDataWrite(pClient, Data, Deadline, pCancel);
+	return Bdat ? __xrtSmtpClientBdatWrite(pClient, Data, Deadline, pCancel) :
+		__xrtSmtpClientDataWrite(pClient, Data, Deadline, pCancel);
 }
 
 int main(void)
@@ -238,7 +239,7 @@ int main(void)
 			Server.Tls = &TlsServer;
 			Server.Mode = (testsmtptlsfault)Mode;
 			Server.Bdat = Bdat != 0;
-			Server.Deadline = xrtDeadlineAfter(UINT64_C(15000000));
+			Server.Deadline = __xrtWaitAfter(UINT64_C(15000000));
 			Server.Cancel = xrtCancelCreate();
 			xrtAtomic32Init(&Server.ClientReady, 0u);
 			xrtAtomic32Init(&Server.PrefixReady, 0u);
@@ -247,19 +248,19 @@ int main(void)
 			testRequire(Server.Cancel != NULL, "SMTP TLS fault cancel creation failed");
 			xthread* pThread = xrtThreadCreate(testSmtpTlsServer, &Server, 0);
 			testRequire(pThread != NULL, "SMTP TLS fault server thread creation failed");
-			xsmtpclient* pClient = xrtSmtpClientOpen(&Config, Server.Deadline, NULL);
+			xsmtpclient* pClient = __xrtSmtpClientOpen(&Config, Server.Deadline, NULL);
 			testRequire(pClient != NULL && xrtSmtpClientState(pClient) == XSMTP_CLIENT_READY,
 				"SMTP TLS fault client open failed");
 			Server.ClientTls = xrtTlsStreamRef(pClient->Transport.Tls);
 			testRequire(Server.ClientTls != NULL, "SMTP TLS fault transport reference missing");
 			testMailPartialSmallSocket(xrtTlsStreamTransport(Server.ClientTls), Server.Deadline);
 			xrtAtomic32Store(&Server.ClientReady, 1u, XMEMORY_RELEASE);
-			testRequire(xrtSmtpClientMail(pClient, XRT_STR_LITERAL("sender@test"),
+			testRequire(__xrtSmtpClientMail(pClient, XRT_STR_LITERAL("sender@test"),
 				XRT_STR_LITERAL(""), Server.Deadline, NULL) &&
-				xrtSmtpClientRcpt(pClient, XRT_STR_LITERAL("target@test"), XRT_STR_LITERAL(""),
+				__xrtSmtpClientRcpt(pClient, XRT_STR_LITERAL("target@test"), XRT_STR_LITERAL(""),
 					Server.Deadline, NULL), "SMTP TLS fault envelope failed");
-			testRequire(Bdat ? xrtSmtpClientBdatBegin(pClient, TEST_SMTP_TLS_TOTAL, true,
-				Server.Deadline, NULL) : xrtSmtpClientDataBegin(pClient, Server.Deadline, NULL),
+			testRequire(Bdat ? __xrtSmtpClientBdatBegin(pClient, TEST_SMTP_TLS_TOTAL, true,
+				Server.Deadline, NULL) : __xrtSmtpClientDataBegin(pClient, Server.Deadline, NULL),
 				"SMTP TLS fault upload begin failed");
 			testRequire(testSmtpTlsWrite(pClient, Server.Bdat, pPayload, TEST_SMTP_TLS_PREFIX,
 				Server.Deadline, NULL), "SMTP TLS fault prefix write failed");
@@ -271,7 +272,7 @@ int main(void)
 			xrtClearError();
 			bool Written = testSmtpTlsWrite(pClient, Server.Bdat, pPayload + TEST_SMTP_TLS_PREFIX,
 				TEST_SMTP_TLS_WRITE, Mode == TEST_SMTP_TLS_TIMEOUT ?
-				xrtDeadlineAfter(UINT64_C(3000000)) : Server.Deadline,
+				__xrtWaitAfter(UINT64_C(3000000)) : Server.Deadline,
 				Mode == TEST_SMTP_TLS_CANCEL ? Server.Cancel : NULL);
 			xerror* pFailure = xrtTakeError();
 			xsmtpreply Last;
@@ -310,7 +311,7 @@ int main(void)
 				xrtErrorKind(xrtGetError()) == XERR_STATE,
 				"SMTP TLS failed upload session accepted another write");
 			xrtAtomic32Store(&Server.Returned, 1u, XMEMORY_RELEASE);
-			testRequire(xrtThreadWaitUntil(pThread, Server.Deadline) == XWAIT_OK &&
+			testRequire(__xrtThreadWaitUntil(pThread, Server.Deadline) == XWAIT_OK &&
 				Server.Success && xrtThreadExitCode(pThread) == 0,
 				"SMTP TLS partial write did not abort before client destruction");
 			xrtThreadDestroy(pThread);
@@ -321,9 +322,9 @@ int main(void)
 	}
 	xrtFree(pPayload);
 	testRequire(xrtNetListenerClose(pListener), "SMTP TLS fault listener close failed");
-	xdeadline Retire = xrtDeadlineAfter(UINT64_C(3000000));
+	double Retire = __xrtWaitAfter(UINT64_C(3000000));
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(Retire), "SMTP TLS fault listener did not close");
+		testRequire(!__xrtWaitExpired(Retire), "SMTP TLS fault listener did not close");
 		xrtThreadYield();
 	}
 	xrtNetListenerDestroy(pListener);
@@ -334,7 +335,7 @@ int main(void)
 	for ( ;; ) {
 		xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
 		if ( Result == XNET_RETIRE_READY ) break;
-		testRequire(Result != XNET_RETIRE_ERROR && !xrtDeadlineExpired(Retire),
+		testRequire(Result != XNET_RETIRE_ERROR && !__xrtWaitExpired(Retire),
 			"SMTP TLS fault engine did not retire");
 		xrtThreadYield();
 	}

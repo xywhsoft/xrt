@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../../src/internal/xrt_net_engine.h"
 
@@ -32,10 +33,10 @@ static void testEngineShutdownWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(TEST_ENGINE_SHUTDOWN_TIMEOUT);
+	double iDeadline = __xrtWaitAfter(TEST_ENGINE_SHUTDOWN_TIMEOUT);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -175,9 +176,9 @@ static void testEngineShutdownJoin(testengineshutdown* pState)
 	);
 
 	testRequire(pThread != NULL, "engine shutdown thread creation failed");
-	testRequire(xrtThreadWaitUntil(
+	testRequire(__xrtThreadWaitUntil(
 		pThread,
-		xrtDeadlineAfter(TEST_ENGINE_SHUTDOWN_TIMEOUT)
+		__xrtWaitAfter(TEST_ENGINE_SHUTDOWN_TIMEOUT)
 	) == XWAIT_OK, "engine shutdown did not terminate");
 	testRequire(xrtThreadExitCode(pThread) == 0,
 		"engine shutdown thread failed");

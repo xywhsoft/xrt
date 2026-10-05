@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifndef XRT_TEST_NET_PORT_SEND_MSG_CASES_H
 #define XRT_TEST_NET_PORT_SEND_MSG_CASES_H
 
@@ -53,7 +54,7 @@ static void testNetPortSendMsgCases(xnetportbackend Backend)
 				xnetportevent Events[2];
 				const xnetportevent* pReceive = NULL;
 				const xnetportevent* pSend = NULL;
-				xdeadline Deadline = xrtDeadlineAfter(5000000u);
+				double Deadline = __xrtWaitAfter(5000000u);
 				size_t iCount = 0;
 				char Data[5] = { 0 };
 				bool bSent;
@@ -69,7 +70,7 @@ static void testNetPortSendMsgCases(xnetportbackend Backend)
 				while ( iCount < 2 ) {
 					size_t iReady = 0;
 
-					testRequire(xrtNetPortWait(pPort, Events + iCount,
+					testRequire(__xrtNetPortWait(pPort, Events + iCount,
 						2u - iCount, Deadline, &iReady) == XNET_RESULT_OK,
 						"SendMsg event matrix wait failed");
 					testRequire(iReady != 0, "SendMsg event matrix timed out");

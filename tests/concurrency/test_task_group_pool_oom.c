@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -97,12 +98,12 @@ static bool testTaskGroupPoolOomWaitRunning(
 	testtaskgrouppooloom* pContext
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
 	bool bRunning;
 
 	(void)xrtMutexLock(&pContext->Lock);
-	while ( !pContext->Running && !xrtDeadlineExpired(iDeadline) ) {
-		(void)xrtCondWaitUntil(
+	while ( !pContext->Running && !__xrtWaitExpired(iDeadline) ) {
+		(void)__xrtCondWaitUntil(
 			&pContext->Changed,
 			&pContext->Lock,
 			iDeadline
@@ -165,13 +166,13 @@ int main(void)
 		testRequire(xrtMemDebugFailAfter((uint64)i),
 			"task group pool OOM injection setup failed");
 		xrtClearError();
-		pCandidate = xrtTaskGroupSubmitUntilCancel(
+		pCandidate = __xrtTaskGroupSubmitUntilCancel(
 			pGroup,
 			pPool,
 			testTaskGroupPoolOomCandidate,
 			&tContext,
 			&tArgs,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			NULL
 		);
 		bTriggered = xrtMemDebugFailTriggered();

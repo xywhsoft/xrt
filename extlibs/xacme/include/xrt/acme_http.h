@@ -80,7 +80,7 @@ XRT_EXTERN_C_BEGIN
 	有未完成对象时，新的私有引擎构造先尝试非阻塞清理，仍未完成
 	则以 XERR_STATE 拒绝；借用引擎的构造不受此限制。
 */
-XRT_API bool xrtAcmeCleanupPending(uint64 uTimeoutUs, size_t* piPending);
+XRT_API bool xrtAcmeCleanupPending(int64 uTimeoutUs, size_t* piPending);
 
 XRT_EXTERN_C_END
 

@@ -250,7 +250,7 @@ struct xhttpcall {
 		xatomic32 RetryTimerDone;
 		xatomic64 RetryTimer;
 	#endif
-	xdeadline TotalDeadline;
+	double TotalDeadline;
 	xatomic64 IdleDeadline;
 	__xrt_http_call_info Info;
 	xspinlock Lock;
@@ -282,8 +282,8 @@ struct xhttpcall {
 	str Host;
 	uint16 Port;
 	uint64 Affinity;
-	uint64 Timeout;
-	uint64 IdleTimeout;
+	int64 Timeout;
+	int64 IdleTimeout;
 	uint64 ResponseBodyLimit;
 	xhttprequest* Request;
 	xhttp1requestoptions RequestOptions;
@@ -318,7 +318,7 @@ struct xhttpcall {
 		xhttp1exchangeevents RetryNext;
 		xhttpretryconfig RetryConfig;
 		xrng RetryRng;
-		uint64 RetryDelay;
+		int64 RetryDelay;
 		uint64 RetryResponseWireStart;
 		uint32 RetryMax;
 		size_t Retries;

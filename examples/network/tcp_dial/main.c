@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/tcp_dial —— 托管拨号：DNS + TCP 生命周期托管
  * ----------------------------------------------------------------
@@ -118,10 +119,10 @@ static void exampleTcpDialClose(
 /* 等待示例原子条件，超时返回 false。 */
 static bool exampleTcpDialWait(const xatomic32* pValue, uint32 iExpected)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();

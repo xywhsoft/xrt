@@ -3,7 +3,15 @@
 #endif
 #define XIMAP_MODULE_IMAP
 #define XIMAP_IMPLEMENTATION
-#include "../../single/ximap.h"
+#include "../../include/ximap/features.h"
+#include "../../../xmail/include/xmail/features.h"
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../../single/xrt.h"
+#define XMAIL_IMPLEMENTATION
+#include "../../../../single/extlibs/xmail.h"
+#include "../../../../single/extlibs/ximap.h"
 
 
 

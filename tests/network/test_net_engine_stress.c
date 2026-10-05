@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -71,7 +72,7 @@ int main(void)
 	testenginetimerstate* pState;
 	xnetenginestats Stats;
 	xnetengine* pEngine;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	pState = (testenginetimerstate*)calloc(1, sizeof(*pState));
 	testRequire(pState != NULL, "stress timer state allocation failed");
@@ -84,12 +85,12 @@ int main(void)
 	testRequire(pEngine != NULL, "stress engine create failed");
 	testRequire(xrtNetEngineStart(pEngine), "stress engine start failed");
 
-	iDeadline = xrtDeadlineAfter(750000u);
+	iDeadline = __xrtWaitAfter(750000u);
 	for ( uint32 i = 0; i < TEST_ENGINE_TIMER_COUNT; i++ ) {
 		testenginetimeritem* pItem = &pState->Items[i];
 
 		pItem->State = pState;
-		pItem->Id = xrtNetEngineSchedule(
+		pItem->Id = __xrtNetEngineSchedule(
 			pEngine,
 			0,
 			iDeadline,
@@ -105,11 +106,11 @@ int main(void)
 		), "stress timer cancel request failed");
 	}
 
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( (xrtAtomic32Load(&pState->Fired, XMEMORY_ACQUIRE) +
 		xrtAtomic32Load(&pState->Cancelled, XMEMORY_ACQUIRE)) <
 		TEST_ENGINE_TIMER_COUNT ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"stress timers did not reach terminal states");
 		xrtThreadYield();
 	}

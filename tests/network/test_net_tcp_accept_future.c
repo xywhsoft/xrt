@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -22,7 +23,7 @@ static void testTcpAcceptStats(
 	uint32 iWaiters
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 	xnetlistenerstats Stats;
 
 	for ( ;; ) {
@@ -34,7 +35,7 @@ static void testTcpAcceptStats(
 			 (Stats.AcceptWaiters == iWaiters) ) {
 			return;
 		}
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			fprintf(
 				stderr,
 				"TCP accept stats expected %llu/%llu/%u/%u, got %llu/%llu/%u/%u\n",
@@ -88,14 +89,14 @@ static void testTcpAcceptReady(xfuture* pFuture, cstr sMessage)
 /* 正常关闭并释放一个调用方 Stream 引用。 */
 static void testTcpAcceptCloseStream(xnetstream* pStream)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	if ( xrtNetStreamState(pStream) != XNET_STREAM_CLOSED ) {
 		testRequire(xrtNetStreamClose(pStream),
 			"TCP accept Future stream close failed");
 	}
 	while ( xrtNetStreamState(pStream) != XNET_STREAM_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP accept Future stream close timed out");
 		xrtSleep(1);
 	}
@@ -135,7 +136,7 @@ int main(void)
 	xfuture* pServer1Open;
 	xfuture* pReceive;
 	xfuture* BurstAccepts[TEST_TCP_ACCEPT_BURST];
-	xdeadline iDeadline;
+	double iDeadline;
 	uint64 iNodeHits;
 	xnetbytes* pBytes;
 	xbytesview View;
@@ -346,9 +347,9 @@ int main(void)
 	testRequire((xrtFutureWaitFor(pPendingClose, 5000000u) == XWAIT_OK) &&
 		 (xrtFutureState(pPendingClose) == XFUTURE_CLOSED),
 		"TCP pending accept did not close with listener");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP accept Future listener close timed out");
 		xrtSleep(1);
 	}

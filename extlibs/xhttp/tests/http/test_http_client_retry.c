@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -55,14 +56,14 @@ static void testHttpRetryWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -78,7 +79,7 @@ static void testHttpRetryWaitPhase(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 	xhttpcallinfo Info;
 
 	for ( ;; ) {
@@ -93,7 +94,7 @@ static void testHttpRetryWaitPhase(
 			(Info.State != XHTTP_CALL_SUCCEEDED) &&
 			(Info.State != XHTTP_CALL_FAILED) &&
 			(Info.State != XHTTP_CALL_CANCELLED) &&
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();

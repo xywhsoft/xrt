@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../fixtures/tls_server.h"
 
 
@@ -34,15 +35,15 @@ static void testHttpServerUpgradeTlsWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline =
-		xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline =
+		__xrtWaitAfter(UINT64_C(10000000));
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();

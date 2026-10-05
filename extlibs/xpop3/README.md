@@ -1,6 +1,11 @@
 # xpop3
 
-xpop3 是构建在 xmail 邮件基座之上的 POP3 客户端扩展库：协议解析、同步客户端、STLS、SASL 认证与 RETR/TOP 到 MIME 树的桥接。通过 `XPOP3_MODULE_*` 宏裁剪，单头形态为 `single/xpop3.h`。
+xpop3 是构建在 xmail 邮件基座之上的 POP3 客户端扩展库：协议解析、同步客户端、STLS、SASL 认证与 RETR/TOP 到 MIME 树的桥接。通过 `XPOP3_MODULE_*` 宏裁剪，单头形态为 `single/extlibs/xpop3.h`。
+
+单头实现与声明分别为仓库根目录的 `single/extlibs/xpop3.h` 与
+`single/extlibs/xpop3_decl.h`，均只包含 xpop3 自身代码。使用前须按顺序提供
+XRT → xmail 的所需模块，再包含 xpop3；实现宏为 `XPOP3_IMPLEMENTATION`。
+依赖选择与实现组合见 [构建说明](../../docs/BUILD.md#扩展单头与依赖顺序)。
 
 ## 客户端范例
 

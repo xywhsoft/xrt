@@ -5,8 +5,8 @@
 		"extlibs/xhttp/config/modules.json"
 	],
 	"module_prefix": "XWS_MODULE_",
-	"single_header": "extlibs/xws/single/xws.h",
-	"declaration_header": "extlibs/xws/single/xws_decl.h",
+	"single_header": "single/extlibs/xws.h",
+	"declaration_header": "single/extlibs/xws_decl.h",
 	"implementation_macro": "XWS_IMPLEMENTATION",
 	"implementation_once_macro": "XWS_IMPLEMENTATION_ONCE",
 	"single_guard": "XWS_SINGLE_HEADER_H",

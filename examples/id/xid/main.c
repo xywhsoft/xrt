@@ -13,7 +13,7 @@
  *       examples/id/xid/main.c -lws2_32 -liphlpapi
  * 预期输出（时间随运行时刻变化，前缀递增有序）：
  *   XID: V-OPfAm6...（32 字符定长文本，示例）
- *   Unix microseconds: 17...(微秒时间戳)
+ *   Unix milliseconds: 17...(微秒时间戳)
  *
  * XID 结构（192 位 = 24 字节）：
  *   64 位微秒时间戳 + 48 位随机 + 80 位序列/主机相关位。
@@ -50,6 +50,6 @@ int main(void)
 	printf("XID: %s\n", arrText);
 
 	/* 时间提取：不需要查表或解码整个标识，O(1) 位运算。 */
-	printf("Unix microseconds: %lld\n", (long long)iTime);
+	printf("Unix milliseconds: %lld\n", (long long)iTime);
 	return 0;
 }

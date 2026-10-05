@@ -27,7 +27,7 @@ def inputs() -> dict[str, str]:
     files = [ROOT / 'single/xrt.h', ROOT / 'tools/test_oidc_example_policy.py']
     for name in ['xjwt', 'xoauth2']:
         library = ROOT / 'extlibs' / name
-        files += [*library.glob('*.h'), library / (name + '.c')]
+        files += [*(library / 'include').rglob('*.h'), *(library / 'tests/support').glob('*'), library / 'config/modules.json']
         files += [p for directory in ['src', 'examples'] for p in (library / directory).rglob('*') if p.suffix in {'.c', '.h'}]
     files += [ROOT / 'extlibs/xjwt/tests/test_keys.h', ROOT / 'extlibs/xoauth2/tests/oidc_keys.h', ROOT / 'extlibs/xoauth2/tests/test_oidc_idtoken_policy.c']
     return {path.relative_to(ROOT).as_posix(): sha(path) for path in sorted(set(files))}
@@ -133,9 +133,9 @@ def main() -> int:
     command = [args.compiler, '-std=c11', *([] if os.name == 'nt' else ['-D_GNU_SOURCE']),
         '-O1' if args.sanitize else '-O2', '-Wall', '-Wextra', '-Werror',
         *(['-g', '-fsanitize=address,undefined', '-fno-omit-frame-pointer'] if args.sanitize else []),
-        '-I', str(ROOT / 'single'), '-I', str(ROOT / 'extlibs/xjwt'),
+        '-I', str(ROOT / 'single'), '-I', str(ROOT / 'extlibs/xjwt/include'), '-I', str(ROOT / 'extlibs/xoauth2/include'),
         str(ROOT / 'extlibs/xoauth2/tests/test_oidc_idtoken_policy.c'),
-        str(ROOT / 'extlibs/xoauth2/xoauth2.c'), str(ROOT / 'extlibs/xjwt/xjwt.c'), '-o', str(binary),
+        str(ROOT / 'extlibs/xoauth2/tests/support/implementation.c'), str(ROOT / 'extlibs/xjwt/tests/support/implementation.c'), '-o', str(binary),
         *(['-lws2_32', '-lbcrypt', '-ladvapi32', '-liphlpapi'] if os.name == 'nt' else ['-pthread', '-lm'])]
     build = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
     (output / 'build.log').write_text(build.stdout + build.stderr, encoding='utf-8')

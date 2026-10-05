@@ -56,7 +56,7 @@ XRT_API bool xrtImapAuthConfigValid(const ximapauthconfig* pConfig);
 XRT_API bool xrtImapClientAuth(
 	ximapclient* pClient,
 	const ximapauthconfig* pConfig,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 

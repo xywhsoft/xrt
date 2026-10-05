@@ -8,7 +8,15 @@
 #define XRT_MODULE_TLS_IDENTITY_RSA
 #define XRT_MODULE_PEM
 #define XIMAP_IMPLEMENTATION
-#include "../../single/ximap.h"
+#include "../../include/ximap/features.h"
+#include "../../../xmail/include/xmail/features.h"
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../../single/xrt.h"
+#define XMAIL_IMPLEMENTATION
+#include "../../../../single/extlibs/xmail.h"
+#include "../../../../single/extlibs/ximap.h"
 #if !defined(XMAIL_FEATURE_MAIL_NET_DEFLATE) || !defined(XRT_FEATURE_MEMORY_DEBUG)
 #error "IMAP COMPRESS fault test dependency closure is incomplete"
 #endif

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -63,10 +64,10 @@ static void testEngineOomWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -208,7 +209,7 @@ int main(void)
 	xnetengineconfig Config;
 	xnetenginestats Stats;
 	xnetengine* pEngine;
-	xdeadline iTimerDeadline;
+	double iTimerDeadline;
 	uint64 iFailedTimer;
 	uint64 iCachedTimer;
 	uint64 iUncachedTimer;
@@ -296,9 +297,9 @@ int main(void)
 	testEngineOomWait(&Context.CacheCancelled, 1,
 		"engine cached timer was not cancelled");
 
-	iTimerDeadline = xrtDeadlineAfter(60000000u);
+	iTimerDeadline = __xrtWaitAfter(60000000u);
 	for ( uint32 i = 0; i < TEST_ENGINE_OOM_TIMER_COUNT; i++ ) {
-		testRequire(xrtNetEngineSchedule(
+		testRequire(__xrtNetEngineSchedule(
 			pEngine,
 			0,
 			iTimerDeadline,
@@ -324,7 +325,7 @@ int main(void)
 	), "engine OOM blocker post failed");
 	testEngineOomWait(&Context.Started, 1,
 		"engine OOM blocker did not start");
-	iFailedTimer = xrtNetEngineSchedule(
+	iFailedTimer = __xrtNetEngineSchedule(
 		pEngine,
 		0,
 		iTimerDeadline,

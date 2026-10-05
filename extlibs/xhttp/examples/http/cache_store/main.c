@@ -66,7 +66,7 @@ int main(void)
 	Input.PartCount = 1;
 	Input.Length = Part.Data.Size;
 	Input.ResponseTime = xrtNow();
-	Input.RequestClock = xrtClock();
+	Input.RequestClock = xrtTimer();
 	Input.ResponseClock = Input.RequestClock;
 	pRecord = xrtHttpCacheRecordCreate(&Input);
 	pCache = xrtHttpCacheCreate(NULL);
@@ -84,7 +84,7 @@ int main(void)
 	Input.Parts = &UpdatedPart;
 	Input.Length = UpdatedPart.Data.Size;
 	Input.ResponseTime = xrtNow();
-	Input.RequestClock = xrtClock();
+	Input.RequestClock = xrtTimer();
 	Input.ResponseClock = Input.RequestClock;
 	pUpdated = xrtHttpCacheRecordCreate(&Input);
 	if ( (pUpdated == NULL) ||

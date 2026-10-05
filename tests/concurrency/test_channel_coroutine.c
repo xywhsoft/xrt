@@ -11,7 +11,7 @@ typedef struct testchannelawait {
 	ptr Input;
 	ptr Output;
 	xwaitresult Result;
-	uint64 Timeout;
+	int64 Timeout;
 	bool Send;
 	bool CheckNextPark;
 } testchannelawait;
@@ -151,7 +151,7 @@ static ptr testCoWaitTokenProc(ptr pData)
 	__xrtCoWaitWake(&tWait);
 	pContext->Early = __xrtCoWaitParkUntil(
 		&tWait,
-		XRT_DEADLINE_NEVER
+		INFINITY
 	);
 	__xrtCoWaitClose(&tWait);
 
@@ -417,7 +417,7 @@ static void testChannelAwaitStop(xcosched* pSched)
 	memset(&tTimeout, 0, sizeof(tTimeout));
 	tTimeout.Channel = &tChannel;
 	tTimeout.Timeout = UINT64_C(20000);
-	iStarted = xrtClock();
+	iStarted = xrtTimer();
 	pTimeout = xrtCoSpawn(
 		pSched,
 		testChannelAwaitProc,
@@ -426,7 +426,7 @@ static void testChannelAwaitStop(xcosched* pSched)
 	);
 	testRequire(pTimeout != NULL, "channel await timeout spawn failed");
 	testRequire(xrtCoSchedRun(pSched), "channel await timeout run failed");
-	iElapsed = xrtClock() - iStarted;
+	iElapsed = xrtTimer() - iStarted;
 	testRequire(
 		(tTimeout.Result == XWAIT_TIMEOUT) &&
 		(iElapsed >= UINT64_C(10000)) &&

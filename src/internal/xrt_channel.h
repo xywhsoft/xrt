@@ -39,7 +39,7 @@ typedef void (*xrt_channel_select_wake_proc)(ptr pData);
 typedef bool (*xrt_channel_select_prepare_proc)(ptr pData);
 typedef xwaitresult (*xrt_channel_select_wait_proc)(
 	ptr pData,
-	xdeadline iDeadline
+	double iDeadline
 );
 
 
@@ -155,7 +155,7 @@ xchannelresult __xrtChannelTryRecvLocked(
 xchannelselectresult __xrtChannelSelectWait(
 	const xchannelcase* pCases,
 	size_t iCount,
-	xdeadline iDeadline,
+	double iDeadline,
 	ptr pCancel,
 	xrt_channel_select_wake_proc pWake,
 	xrt_channel_select_prepare_proc pPrepare,

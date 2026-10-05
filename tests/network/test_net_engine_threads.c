@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -119,7 +120,7 @@ int main(void)
 	xthread* Threads[TEST_ENGINE_PRODUCERS];
 	xthread* StatsThread;
 	xnetenginestats Stats;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	memset(&State, 0, sizeof(State));
 	memset(Threads, 0, sizeof(Threads));
@@ -160,7 +161,7 @@ int main(void)
 	}
 
 	/* 在生产者保持活跃时执行 Stop，放大提交侧生命周期竞态。 */
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( (xrtAtomic32Load(&State.Started, XMEMORY_ACQUIRE) <
 		TEST_ENGINE_PRODUCERS) ||
 		(xrtAtomic64Load(&State.Accepted, XMEMORY_ACQUIRE) <
@@ -169,7 +170,7 @@ int main(void)
 			&State.Failure,
 			XMEMORY_ACQUIRE
 		) == 0, "threaded engine producer failed before stop");
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"threaded engine producers made no progress");
 		xrtThreadYield();
 	}

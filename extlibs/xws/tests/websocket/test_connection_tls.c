@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../fixtures/tls_server.h"
 
 #include "../../src/internal/xrt_websocket.h"
@@ -65,7 +66,7 @@ static void testWsConnectionTlsWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(15000000)
 	);
 
@@ -74,7 +75,7 @@ static void testWsConnectionTlsWait(
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -447,7 +448,7 @@ static void testWsConnectionTlsRefRelease(
 /* TLS 短写余量必须按尚未生成的精确密文线路成本计入 Connection。 */
 static void testWsConnectionTlsBudget(xwsconn* pConnection)
 {
-	__xrt_ws_output* pOutput = pConnection->OutputHead;
+	__xws_output* pOutput = pConnection->OutputHead;
 	size_t iOutput = 0;
 
 	while ( pOutput != NULL ) {
@@ -686,7 +687,7 @@ int main(void)
 	xtlsstream* pServerTransport;
 	xwsconn* pClient;
 	xwsconn* pServer;
-	xdeadline AttachDeadline;
+	double AttachDeadline;
 	#if defined(TEST_WS_CONNECTION_TLS_FUTURE)
 		xfuture* pLargeFuture;
 		xfuture* pTailFuture;
@@ -829,7 +830,7 @@ int main(void)
 		"WebSocket TLS client connect failed"
 	);
 
-	AttachDeadline = xrtDeadlineAfter(
+	AttachDeadline = __xrtWaitAfter(
 		UINT64_C(15000000)
 	);
 	while ( ((pClient = (xwsconn*)xrtAtomicPtrLoad(
@@ -840,7 +841,7 @@ int main(void)
 		XMEMORY_ACQUIRE
 	)) == NULL) ) {
 		testRequire(
-			!xrtDeadlineExpired(AttachDeadline),
+			!__xrtWaitExpired(AttachDeadline),
 			"WebSocket TLS connections were not attached"
 		);
 		xrtThreadYield();

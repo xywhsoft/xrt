@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：tls/stream_tour —— TLS Stream 明文层全接口（两形态接入）
  * ----------------------------------------------------------------
@@ -78,10 +79,10 @@ static xtlsverifydecision exampleAcceptAll(
 
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 	while ( !*pFlag ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -340,10 +341,10 @@ static void exampleUpgradeClose(xtlsstream* pStream,
 /* 等一条 TCP Stream 进入 OPEN。 */
 static bool exampleWaitTcpOpen(xnetstream* pTcp)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 	while ( xrtNetStreamState(pTcp) != XNET_STREAM_OPEN ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -383,7 +384,7 @@ int main(void)
 	xnetaddr Address;
 	xnetspan AsyncVec[2];
 	size_t iBound = 0;
-	xdeadline iDeadline;
+	double iDeadline;
 	int iResult = 1;
 
 	memset(&ClientA, 0, sizeof(ClientA));
@@ -498,7 +499,7 @@ int main(void)
 
 	/* 取出两条服务端流：队列中的连接被 Accept 消费后才开始驱动回显。 */
 	{
-		xdeadline iEnd = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 		while ( (pServerA == NULL) || (pServerB == NULL) ) {
 			xtlsstream* pOne = xrtTlsListenerAccept(pListener);
@@ -510,11 +511,11 @@ int main(void)
 				else {
 					pServerB = pOne;
 				}
-				iEnd = xrtDeadlineAfter(
+				iEnd = __xrtWaitAfter(
 					EXAMPLE_DEADLINE_US);
 				continue;
 			}
-			if ( xrtDeadlineExpired(iEnd) ) {
+			if ( __xrtWaitExpired(iEnd) ) {
 				iResult = 6;
 				goto Cleanup;
 			}
@@ -523,9 +524,9 @@ int main(void)
 	}
 
 	/* 回显到达：Read 回调里完成 Pullup/Read/Consume 核对。 */
-	iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 	while ( ClientA.Received < 9u ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			iResult = 6;
 			goto Cleanup;
 		}
@@ -558,9 +559,9 @@ int main(void)
 		iResult = 7;
 		goto Cleanup;
 	}
-	iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 	while ( ClientB.Received < 9u ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			iResult = 7;
 			goto Cleanup;
 		}
@@ -569,9 +570,9 @@ int main(void)
 	printf("client(attach): async-vec=ok future-written=9");
 
 	/* Pending：发送队列排空。 */
-	iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 	while ( xrtTlsStreamPending(pClientB) != 0u ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			iResult = 8;
 			goto Cleanup;
 		}
@@ -600,9 +601,9 @@ int main(void)
 			goto Cleanup;
 		}
 	}
-	iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 	while ( !g_bHttpReqParsed || !g_bHttpRspParsed ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			iResult = 9;
 			goto Cleanup;
 		}
@@ -617,7 +618,7 @@ Cleanup:
 	 * 共享截止时间等终态，超时者 Abort 兜底。 */
 	{
 		xtlsstream* Streams[4];
-		xdeadline iEnd = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 		bool bSettled;
 
 		Streams[0] = pClientA;
@@ -641,7 +642,7 @@ Cleanup:
 					bSettled = false;
 				}
 			}
-			if ( bSettled || xrtDeadlineExpired(iEnd) ) {
+			if ( bSettled || __xrtWaitExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();
@@ -674,12 +675,12 @@ Cleanup:
 	xrtNetStreamDestroy(pTcpA);
 	xrtNetStreamDestroy(pTcpB);
 	if ( pListener != NULL ) {
-		xdeadline iEnd = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 		(void)xrtTlsListenerClose(pListener);
 		while ( xrtTlsListenerState(pListener) !=
 			XTLS_LISTENER_CLOSED ) {
-			if ( xrtDeadlineExpired(iEnd) ) {
+			if ( __xrtWaitExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();

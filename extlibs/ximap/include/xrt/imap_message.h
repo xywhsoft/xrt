@@ -39,7 +39,7 @@ XRT_API bool xrtImapClientBodyWrite(
 	xmailwriteproc pWrite,
 	ptr pUserData,
 	size_t* pWritten,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -54,7 +54,7 @@ XRT_API bytes xrtImapClientBodyBytes(
 	bool bPeek,
 	size_t iMaxBytes,
 	size_t* pOutputSize,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -68,7 +68,7 @@ XRT_API bool xrtImapClientMessageTree(
 	bool bPeek,
 	const xmailtreelimits* pLimits,
 	xmailtree* pTree,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 

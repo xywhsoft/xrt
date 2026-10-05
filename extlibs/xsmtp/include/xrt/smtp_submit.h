@@ -43,7 +43,7 @@ XRT_API bool xrtSmtpSubmitEnvelope(
 	xsmtpclient* pClient,
 	const xsmtpenvelope* pEnvelope,
 	const xmailmessage* pMessage,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -53,7 +53,7 @@ XRT_API bool xrtSmtpSubmitEnvelope(
 XRT_API bool xrtSmtpSubmit(
 	xsmtpclient* pClient,
 	const xmailmessage* pMessage,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 

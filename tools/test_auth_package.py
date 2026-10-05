@@ -1,7 +1,7 @@
 """Build real static/shared JWT and OAuth2 consumers with one shared Core runtime.
 
-The existing libraries remain source/unity distributions. These are delivery
-acceptance artifacts, not a new public packaging interface. Public auth symbols
+The libraries use the common module manifests and separate source translation
+units. These probes verify independent libraries sharing one Core runtime. Public auth symbols
 are selected from their headers; internal helpers are not exported by the DSOs.
 """
 
@@ -16,12 +16,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+import build as xrt_build
+from xrt_manifest import expand_manifest_paths
+
 ROOT = Path(__file__).resolve().parents[1]
 LIBRARIES = ('jwt', 'oauth2')
 
 
 def public_symbols(name: str) -> list[str]:
-    source = (ROOT / f'extlibs/x{name}/x{name}.h').read_text(encoding='utf-8')
+    source = (ROOT / f'extlibs/x{name}/include/x{name}/api.h').read_text(encoding='utf-8')
     masked = re.sub(r'/\*[\s\S]*?\*/|//[^\n]*|"(?:\\.|[^"\\])*"', ' ', source)
     symbols = re.findall(r'\b(x' + name + r'[A-Za-z_]\w*)\s*\([^;{}]*\)\s*;', masked)
     if not symbols or len(symbols) != len(set(symbols)):
@@ -33,7 +36,7 @@ def inputs() -> list[Path]:
     result = [ROOT / 'single/xrt.h', ROOT / 'tools/test_auth_package.py']
     for name in LIBRARIES:
         library = ROOT / f'extlibs/x{name}'
-        result += [*library.glob('*.h'), library / f'x{name}.c',
+        result += [*(library / 'include').rglob('*.h'), library / 'config/modules.json',
                    *[path for path in (library / 'src').rglob('*') if path.suffix in {'.c', '.h'}],
                    library / 'tests/package/test_consumer.c']
     return sorted(set(result))
@@ -51,9 +54,8 @@ def build(compiler: str, archiver: str) -> dict:
     report_path = output / 'delivery.json'
     report_path.unlink(missing_ok=True)
     before = hashes(inputs())
-    modules = sorted(set(module for name in LIBRARIES for module in re.findall(
-        r'^#define (XRT_MODULE_[A-Z0-9_]+)\s*$',
-        (ROOT / f'extlibs/x{name}/x{name}-xrt.h').read_text(encoding='utf-8'), re.M)))
+    overlays = expand_manifest_paths([ROOT / f'extlibs/x{name}/config/modules.json' for name in LIBRARIES])
+    _, _, _, _, modules, _, _, _, _, _ = xrt_build._load_modules('xjwt,xoauth2', overlays)
     config = output / 'modules.h'
     config.write_text(''.join('#define ' + module + '\n' for module in modules), encoding='utf-8')
     runtime = output / 'runtime.c'
@@ -63,7 +65,7 @@ def build(compiler: str, archiver: str) -> dict:
                         'int main(void) { return test_jwt_package() || test_oauth2_package(); }\n', encoding='utf-8')
     flags = ['-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
              *([] if os.name == 'nt' else ['-D_GNU_SOURCE']), '-include', str(config),
-             '-I', str(ROOT / 'single'), *[flag for name in LIBRARIES for flag in ('-I', str(ROOT / f'extlibs/x{name}'))]]
+             '-I', str(ROOT / 'single'), *[flag for name in LIBRARIES for flag in ('-I', str(ROOT / f'extlibs/x{name}/include'))]]
     system = ['-lws2_32', '-lbcrypt', '-ladvapi32', '-liphlpapi'] if os.name == 'nt' else ['-pthread', '-lm']
     symbols = {name: public_symbols(name) for name in LIBRARIES}
     executed, products = [], []
@@ -96,19 +98,24 @@ def build(compiler: str, archiver: str) -> dict:
         products.append(core_library)
         libraries = {}
         for name in LIBRARIES:
-            obj = directory / (name + '.o')
-            run(compiler, *flags, *(['-DXRT_USE_SHARED'] if shared else []),
-                *(['-fPIC'] if shared and os.name != 'nt' else []),
-                '-c', str(ROOT / f'extlibs/x{name}/x{name}.c'), '-o', str(obj))
+            manifest = json.loads((ROOT / f'extlibs/x{name}/config/modules.json').read_text(encoding='utf-8'))
+            objects = []
+            for source in manifest['modules'][0]['sources']:
+                obj = directory / (Path(source).stem + '.o')
+                # Separate DSOs export via the explicit public inventory. Their
+                # Core calls bind through the one runtime library's import stubs.
+                run(compiler, *flags, *(['-fPIC'] if shared and os.name != 'nt' else []),
+                    '-c', str(ROOT / source), '-o', str(obj))
+                objects.append(str(obj))
             if not shared:
                 library = directory / f'libx{name}.a'
                 library.unlink(missing_ok=True)
-                run(archiver, 'rcs', str(library), str(obj))
+                run(archiver, 'rcs', str(library), *objects)
             elif os.name == 'nt':
                 exports = directory / (name + '.def')
                 exports.write_text('EXPORTS\n' + ''.join('  ' + symbol + '\n' for symbol in symbols[name]), encoding='utf-8')
                 dso, library = directory / f'x{name}.dll', directory / f'libx{name}.dll.a'
-                run(compiler, '-shared', str(obj), str(exports), str(core_library), '-o', str(dso),
+                run(compiler, '-shared', *objects, str(exports), str(core_library), '-o', str(dso),
                     '-Wl,--out-implib,' + str(library), *system)
                 products.append(dso)
             else:
@@ -116,7 +123,7 @@ def build(compiler: str, archiver: str) -> dict:
                 exports.write_text('{ global:\n' + ''.join('  ' + symbol + ';\n' for symbol in symbols[name]) +
                                    'local: *; };\n', encoding='utf-8')
                 library = directory / f'libx{name}.so'
-                run(compiler, '-shared', str(obj), '-L', str(directory), '-lxrt_auth', '-o', str(library),
+                run(compiler, '-shared', *objects, '-L', str(directory), '-lxrt_auth', '-o', str(library),
                     '-Wl,--version-script=' + str(exports), '-Wl,-rpath,$ORIGIN', *system)
             libraries[name] = library
             products.append(library)

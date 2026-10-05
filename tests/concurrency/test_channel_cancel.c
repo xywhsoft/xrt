@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../src/internal/xrt_channel.h"
 #include "../test.h"
 #include "../test_thread.h"
@@ -21,17 +22,17 @@ static int testChannelCancelWorker(ptr pData)
 	testchannelcancelop* pOp = (testchannelcancelop*)pData;
 
 	if ( pOp->Send ) {
-		pOp->Result = xrtChannelSendUntilCancel(
+		pOp->Result = __xrtChannelSendUntilCancel(
 			pOp->Channel,
 			pOp->Item,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pOp->Cancel
 		);
 	} else {
-		pOp->Result = xrtChannelRecvUntilCancel(
+		pOp->Result = __xrtChannelRecvUntilCancel(
 			pOp->Channel,
 			&pOp->Item,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pOp->Cancel
 		);
 	}
@@ -48,7 +49,7 @@ static void testChannelCancelAwait(
 )
 {
 	xrt_channel_impl* pImpl = (xrt_channel_impl*)pChannel;
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
 
 	for ( ;; ) {
 		size_t iActualReaders;
@@ -71,7 +72,7 @@ static void testChannelCancelAwait(
 			return;
 		}
 		testRequire(
-			!xrtDeadlineExpired(iDeadline),
+			!__xrtWaitExpired(iDeadline),
 			"channel cancel waiter count did not converge"
 		);
 		xrtSleepUs(UINT64_C(1000));
@@ -188,19 +189,19 @@ static void testChannelCancelReady(void)
 	testRequire(xrtCancelRequest(pCancel), "ready cancel request failed");
 	testRequire(xrtChannelInit(&tChannel, 1u), "ready cancel channel init failed");
 	testRequire(
-		xrtChannelSendUntilCancel(
+		__xrtChannelSendUntilCancel(
 			&tChannel,
 			(ptr)(uintptr_t)21u,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pCancel
 		) == XWAIT_OK,
 		"ready send lost to pre-cancel token"
 	);
 	testRequire(
-		xrtChannelRecvUntilCancel(
+		__xrtChannelRecvUntilCancel(
 			&tChannel,
 			&pItem,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pCancel
 		) == XWAIT_OK,
 		"ready receive lost to pre-cancel token"
@@ -209,19 +210,19 @@ static void testChannelCancelReady(void)
 
 	xrtChannelClose(&tChannel);
 	testRequire(
-		xrtChannelRecvUntilCancel(
+		__xrtChannelRecvUntilCancel(
 			&tChannel,
 			&pItem,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pCancel
 		) == XWAIT_CLOSED,
 		"closed receive lost to cancellation"
 	);
 	testRequire(
-		xrtChannelSendUntilCancel(
+		__xrtChannelSendUntilCancel(
 			&tChannel,
 			NULL,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pCancel
 		) == XWAIT_CLOSED,
 		"closed send lost to cancellation"

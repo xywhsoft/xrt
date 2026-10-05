@@ -89,7 +89,7 @@ static void __xrtHttpRetryRng(xhttpcall* pCall)
 	}
 	xrtRngSeed(
 		&pCall->RetryRng,
-		xrtClock() ^ (uint64)(uintptr_t)pCall,
+		xrtTimer() ^ (uint64)(uintptr_t)pCall,
 		(uint64)(uintptr_t)pCall->Request
 	);
 	pCall->RetryRngReady = true;
@@ -310,8 +310,8 @@ bool __xrtHttpRetryPending(const xhttpcall* pCall)
 
 
 /* 计算不回绕的单调截止时间。 */
-static xdeadline __xrtHttpRetryDeadline(
-	uint64 iNow,
+static double __xrtHttpRetryDeadline(
+	double iNow,
 	uint64 iDelay
 )
 {
@@ -414,7 +414,7 @@ done:
 bool __xrtHttpRetrySchedule(xhttpcall* pCall)
 {
 	xerror* pCause;
-	uint64 iNow;
+	double iNow;
 	uint64 iIdle;
 	uint64 Id;
 
@@ -429,7 +429,7 @@ bool __xrtHttpRetrySchedule(xhttpcall* pCall)
 		XMEMORY_RELEASE
 	);
 	__xrtHttpCallSetPhase(pCall, XHTTP_CALL_PHASE_RETRY);
-	iNow = xrtClock();
+	iNow = xrtTimer();
 	if ( pCall->IdleTimeout != XHTTP_CLIENT_TIMEOUT_NONE ) {
 		iIdle = __xrtHttpRetryDeadline(
 			__xrtHttpRetryDeadline(iNow, pCall->RetryDelay),

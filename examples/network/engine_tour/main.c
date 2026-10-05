@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/engine_tour —— Engine/Worker 自省、任务与定时器
  * ----------------------------------------------------------------
@@ -6,7 +7,7 @@
  *                  Current / Stats / Pin / Unpin
  *   【任务】       xrtNetEnginePost（亲和 Worker）
  *                  xrtNetPostPending（嵌入式 Post 队列状态）
- *   【定时器】     xrtNetEngineSchedule（绝对截止时间）
+ *   【定时器】     __xrtNetEngineSchedule（绝对截止时间）
  *                  xrtNetEngineTimerCancel（异步取消）
  *                  xrtNetEngineTimerCancelCurrent（Worker 内取消）
  *   【Worker】     xrtNetWorkerEngine / Index / IsCurrent / Port /
@@ -249,10 +250,10 @@ int main(void)
 
 	/* ---- 定时器：绝对截止时间到期 + 异步取消长定时器。 ---- */
 	memset(&Timers, 0, sizeof(Timers));
-	IdFire = xrtNetEngineSchedule(pEngine, 0u,
-		xrtDeadlineAfter(0u), exampleFireTimer, (ptr)&Timers);
-	Timers.iLongId = xrtNetEngineSchedule(pEngine, 0u,
-		xrtDeadlineAfter(3600000000ull), exampleLongTimer,
+	IdFire = __xrtNetEngineSchedule(pEngine, 0u,
+		__xrtWaitAfter(0u), exampleFireTimer, (ptr)&Timers);
+	Timers.iLongId = __xrtNetEngineSchedule(pEngine, 0u,
+		__xrtWaitAfter(3600000000ull), exampleLongTimer,
 		(ptr)&Timers);
 	if ( (IdFire == 0u) || (Timers.iLongId == 0u) ||
 		!xrtNetEngineTimerCancel(pEngine, Timers.iLongId) ) {
@@ -272,11 +273,11 @@ int main(void)
 
 	/* ---- CancelCurrent：同 Worker 的载体定时器内取消长定时器。 ---- */
 	memset(&Timers, 0, sizeof(Timers));
-	Timers.iLongId = xrtNetEngineSchedule(pEngine, 1u,
-		xrtDeadlineAfter(3600000000ull), exampleLongTimer,
+	Timers.iLongId = __xrtNetEngineSchedule(pEngine, 1u,
+		__xrtWaitAfter(3600000000ull), exampleLongTimer,
 		(ptr)&Timers);
 	if ( (Timers.iLongId == 0u) ||
-		(xrtNetEngineSchedule(pEngine, 1u, xrtDeadlineAfter(0u),
+		(__xrtNetEngineSchedule(pEngine, 1u, __xrtWaitAfter(0u),
 			exampleCarrierTimer, (ptr)&Timers) == 0u) ||
 		!exampleSpinUntil(&Timers.bCancelCurrentOk, 2000u) ) {
 		goto Cleanup;

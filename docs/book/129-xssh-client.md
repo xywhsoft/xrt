@@ -55,7 +55,7 @@ SSH 系列收官——前六章的零件在此总装。`ssh_client` 在**调用�
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/client/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/client/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出初始状态与通道上限的自检结果）
 ```
 
@@ -69,7 +69,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/client_dial/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/client_dial/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出拨号超时、回退延迟与客户端状态的配置自检结果）
 ```
 

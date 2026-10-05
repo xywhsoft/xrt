@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../test_thread.h"
 
@@ -21,11 +22,11 @@ static int testPortForeignThread(ptr pData)
 		return 1;
 	}
 	xrtClearError();
-	if ( xrtNetPortWait(
+	if ( __xrtNetPortWait(
 		pOwner->Port,
 		&Event,
 		1,
-		xrtDeadlineAfter(0),
+		__xrtWaitAfter(0),
 		&iCount
 	) != XNET_RESULT_ERROR ) {
 		return 2;
@@ -101,11 +102,11 @@ int main(void)
 		testThreadsJoin(&Thread, 1);
 		testRequire(Thread.Result == 0,
 			"foreign port owner contract mismatch");
-		testRequire(xrtNetPortWait(
+		testRequire(__xrtNetPortWait(
 			pPort,
 			&Event,
 			1,
-			xrtDeadlineAfter(1000000),
+			__xrtWaitAfter(1000000),
 			&iCount
 		) == XNET_RESULT_OK && (iCount == 1) &&
 			(Event.Type == XNET_PORT_EVENT_WAKE),

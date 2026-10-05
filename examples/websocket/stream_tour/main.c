@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：websocket/stream_tour —— WebSocket Stream 回环双端
  * ----------------------------------------------------------------
@@ -71,10 +72,10 @@ static void exampleRelease(ptr pContext, cbytes pData, size_t iSize)
 
 static bool exampleWait(xatomic32* pValue, uint32 iMinimum)
 {
-	xdeadline Deadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	double Deadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iMinimum ) {
-		if ( xrtDeadlineExpired(Deadline) ) return false;
+		if ( __xrtWaitExpired(Deadline) ) return false;
 		xrtThreadYield();
 	}
 	return true;
@@ -345,7 +346,7 @@ int main(void)
 	xwsstream* pClientRef = NULL;
 	xnetaddr Address;
 	xwsstreamclose CloseInfo;
-	xdeadline Deadline;
+	double Deadline;
 	uint32 iExpected = (uint32)sizeof(Expected) - 1u;
 	int iResult = 1;
 
@@ -377,13 +378,13 @@ int main(void)
 	if ( (pListener == NULL) || !xrtNetListenerLocal(pListener, &Address) ) goto Cleanup;
 	Client.pTcp = xrtNetStreamConnect(pEngine, &Address, 0, &TcpConfig, NULL, NULL);
 	if ( Client.pTcp == NULL ) goto Cleanup;
-	Deadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	Deadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 	while ( (Server.pTcp = xrtNetListenerAccept(pListener)) == NULL ) {
-		if ( xrtDeadlineExpired(Deadline) ) goto Cleanup;
+		if ( __xrtWaitExpired(Deadline) ) goto Cleanup;
 		xrtThreadYield();
 	}
 	while ( xrtNetStreamState(Client.pTcp) != XNET_STREAM_OPEN ) {
-		if ( xrtDeadlineExpired(Deadline) ) goto Cleanup;
+		if ( __xrtWaitExpired(Deadline) ) goto Cleanup;
 		xrtThreadYield();
 	}
 	if ( !exampleAttach(pEngine, &Client) ||
@@ -405,8 +406,8 @@ int main(void)
 	xrtWsStreamPause(Client.pStream);
 	if ( !xrtWsStreamPaused(Client.pStream) ||
 		!exampleRun(pEngine, &Job, Server.pStream, exampleAfterTask) ) goto Cleanup;
-	Deadline = xrtDeadlineAfter(200000u);
-	while ( !xrtDeadlineExpired(Deadline) ) {
+	Deadline = __xrtWaitAfter(200000u);
+	while ( !__xrtWaitExpired(Deadline) ) {
 		if ( xrtAtomic32Load(&Client.Received, XMEMORY_ACQUIRE) != iExpected ) goto Cleanup;
 		xrtThreadYield();
 	}
@@ -432,10 +433,10 @@ int main(void)
 	}
 	printf("ws-stream: compressed trio echo verified\n");
 #endif
-	Deadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	Deadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 	while ( (xrtWsStreamPending(Client.pStream) != 0u) ||
 		(xrtWsStreamPending(Server.pStream) != 0u) ) {
-		if ( xrtDeadlineExpired(Deadline) ) goto Cleanup;
+		if ( __xrtWaitExpired(Deadline) ) goto Cleanup;
 		xrtThreadYield();
 	}
 	if ( (xrtWsStreamWritable(Client.pStream) == 0u) ||
@@ -464,17 +465,17 @@ Cleanup:
 	xrtWsStreamDestroy(pClientRef);
 	if ( pListener != NULL ) (void)xrtNetListenerClose(pListener);
 	/* ListenerClose 是异步请求；必须等关闭完成才能停止 Engine。 */
-	Deadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	Deadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 	while ( (pListener != NULL) &&
 		(xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED) &&
-		!xrtDeadlineExpired(Deadline) ) xrtThreadYield();
+		!__xrtWaitExpired(Deadline) ) xrtThreadYield();
 	xrtNetListenerDestroy(pListener);
 	/* Close 状态先于最后一个内部引用释放；等待 Worker 完成收尾。 */
 	while ( (pEngine != NULL) && !xrtNetEngineStop(pEngine) ) {
 		/* 超时的 Attach 若刚刚完成，也须先收回结果再尝试 Stop。 */
 		exampleEndpointRelease(&Client);
 		exampleEndpointRelease(&Server);
-		if ( xrtDeadlineExpired(Deadline) ) { iResult = 1; break; }
+		if ( __xrtWaitExpired(Deadline) ) { iResult = 1; break; }
 		xrtThreadYield();
 	}
 	exampleEndpointRelease(&Client);

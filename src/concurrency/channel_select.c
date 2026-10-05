@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_channel.h"
 
 
@@ -85,7 +86,7 @@ static bool __xrtChannelSelectStop(
 
 /* 检查取消和截止时间，但不覆盖已经提交的 case。 */
 static xwaitresult __xrtChannelSelectStopReason(
-	xdeadline iDeadline,
+	double iDeadline,
 	ptr pCancel
 )
 {
@@ -99,7 +100,7 @@ static xwaitresult __xrtChannelSelectStopReason(
 	#else
 		(void)pCancel;
 	#endif
-	return xrtDeadlineExpired(iDeadline) ?
+	return __xrtWaitExpired(iDeadline) ?
 		XWAIT_TIMEOUT : XWAIT_OK;
 }
 
@@ -447,7 +448,7 @@ static void __xrtChannelSelectCancelWake(ptr pData)
 xchannelselectresult __xrtChannelSelectWait(
 	const xchannelcase* pCases,
 	size_t iCount,
-	xdeadline iDeadline,
+	double iDeadline,
 	ptr pCancel,
 	xrt_channel_select_wake_proc pWake,
 	xrt_channel_select_prepare_proc pPrepare,
@@ -818,13 +819,13 @@ static bool __xrtChannelSelectEventPrepare(ptr pData)
 /* 在原生事件上等待到指定单调时钟截止时间。 */
 static xwaitresult __xrtChannelSelectEventWait(
 	ptr pData,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xrt_channel_select_event* pEvent =
 		(xrt_channel_select_event*)pData;
 
-	return xrtEventWaitUntil(&pEvent->Event, iDeadline);
+	return __xrtEventWaitUntil(&pEvent->Event, iDeadline);
 }
 
 
@@ -833,7 +834,7 @@ static xwaitresult __xrtChannelSelectEventWait(
 static xchannelselectresult __xrtChannelSelectEvent(
 	const xchannelcase* pCases,
 	size_t iCount,
-	xdeadline iDeadline,
+	double iDeadline,
 	ptr pCancel
 )
 {
@@ -879,7 +880,7 @@ XRT_API xchannelselectresult xrtChannelSelect(
 	return __xrtChannelSelectEvent(
 		pCases,
 		iCount,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	);
 }
@@ -890,23 +891,23 @@ XRT_API xchannelselectresult xrtChannelSelect(
 XRT_API xchannelselectresult xrtChannelSelectFor(
 	const xchannelcase* pCases,
 	size_t iCount,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	return xrtChannelSelectUntil(
+	return __xrtChannelSelectUntil(
 		pCases,
 		iCount,
-		xrtDeadlineAfter(iTimeout)
+		__xrtWaitAfter(iTimeout)
 	);
 }
 
 
 
 /* 等待任意一个 case 原子提交到指定截止时间。 */
-XRT_API xchannelselectresult xrtChannelSelectUntil(
+XRT_API xchannelselectresult __xrtChannelSelectUntil(
 	const xchannelcase* pCases,
 	size_t iCount,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return __xrtChannelSelectEvent(
@@ -922,15 +923,15 @@ XRT_API xchannelselectresult xrtChannelSelectUntil(
 #if defined(XRT_FEATURE_CHANNEL_SELECT_CANCEL)
 
 /* 等待任意 case 提交，并允许取消未提交的选择。 */
-XRT_API xchannelselectresult xrtChannelSelectUntilCancel(
+XRT_API xchannelselectresult __xrtChannelSelectUntilCancel(
 	const xchannelcase* pCases,
 	size_t iCount,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
 	if ( pCancel == NULL ) {
-		return xrtChannelSelectUntil(
+		return __xrtChannelSelectUntil(
 			pCases,
 			iCount,
 			iDeadline
@@ -948,4 +949,16 @@ XRT_API xchannelselectresult xrtChannelSelectUntilCancel(
 
 #endif
 
+#endif
+
+#if (defined(XRT_FEATURE_CHANNEL)) && (defined(XRT_FEATURE_CHANNEL_SELECT_CANCEL))
+XRT_API xchannelselectresult xrtChannelSelectForCancel(
+	const xchannelcase* pCases,
+	size_t iCount,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtChannelSelectUntilCancel(pCases, iCount, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

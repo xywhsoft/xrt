@@ -1272,19 +1272,11 @@ static bool __xrtNetIOCPCancel(xnetport* pPort, uint64 Id)
 
 
 /* 把微秒等待向上取整为毫秒，避免有限截止时间被提前截断。 */
-static DWORD __xrtNetIOCPTimeout(uint64 iTimeout)
+static DWORD __xrtNetIOCPTimeout(int64 iTimeout)
 {
-	uint64 iMilliseconds;
-
-	if ( iTimeout == UINT64_MAX ) {
-		return INFINITE;
-	}
-	iMilliseconds = (iTimeout / 1000u) +
-		((iTimeout % 1000u) != 0 ? 1u : 0u);
-	if ( iMilliseconds >= (uint64)INFINITE ) {
-		return INFINITE - 1u;
-	}
-	return (DWORD)iMilliseconds;
+    if ( iTimeout == XRT_WAIT_FOREVER ) { return INFINITE; }
+    if ( iTimeout < 0 ) { return 0; }
+    return iTimeout >= INFINITE ? INFINITE - 1u : (DWORD)iTimeout;
 }
 
 
@@ -1448,7 +1440,7 @@ static void __xrtNetIOCPEvent(__xrt_net_iocp_operation* pOperation,
 /* 等待并批量提取完成；后端唤醒包不伪装成公开完成事件。 */
 static xnetresult __xrtNetIOCPWait(xnetport* pPort,
 	xnetportevent* pEvents, size_t iCapacity,
-	uint64 iTimeout, size_t* pCount)
+	int64 iTimeout, size_t* pCount)
 {
 	__xrt_net_iocp_context* pContext =
 		(__xrt_net_iocp_context*)pPort->Context;

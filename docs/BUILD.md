@@ -111,6 +111,48 @@ python tools/amalgamate.py --check
 展开规则移除却没有登记进清单的本地头；生成物不含时间戳，相同输入必须逐字节一致。
 `--check` 不写文件，并先验证特性头，避免两份同时过期的生成物彼此掩盖。
 
+## 扩展单头与依赖顺序
+
+扩展实现头与声明头统一生成到仓库根目录的 `single/extlibs/`。
+每个扩展只包含自己的公共声明、内部头与源码；核心 XRT 和其他扩展由调用方提供。
+核心仍位于 `single/xrt.h`、`single/xrt_decl.h`。例如 xws 使用 xhttp 的能力时，
+包含顺序为 XRT → xhttp → xws；SMTP、POP3、IMAP 使用邮件基座时为 XRT → xmail → 协议扩展。
+声明模式同样按依赖顺序先包含核心和依赖产品的 `_decl.h`。
+
+生成或校验全部 14 个扩展及核心：
+
+```text
+python tools/amalgamate.py --all
+python tools/amalgamate.py --all --check
+```
+
+按清单生成一个产品时，也会生成其独立交付的依赖单头：
+
+```text
+python tools/amalgamate.py --manifest extlibs/xws/config/modules.json
+```
+
+以下在一个实现翻译单元中组合核心与 xhttp；其他翻译单元提供相同模块配置，
+只包含声明或不定义实现宏的单头。核心实现只能编译一次：
+
+```c
+#define XRT_MODULE_ALL
+#define XRT_IMPLEMENTATION
+#include "single/xrt.h"
+
+#define XHTTP_MODULE_HTTP_CLIENT
+#define XHTTP_IMPLEMENTATION
+#include "single/extlibs/xhttp.h"
+```
+
+示例使用完整核心便于接入。按需裁剪时，必须在核心声明与实现之前确定依赖闭包；
+源码仓库中可先定义扩展的 `*_MODULE_*`，按逆依赖顺序包含对应 `include/<产品>/features.h`，
+再包含核心和各扩展单头。也可由宿主显式选择所需核心模块。
+只依赖公开 API 的模块可以提供匹配配置的核心声明并链接独立核心库。
+部分现有 xhttp、xruntime 与邮件协议模块复用依赖内部的快速路径；这些模块当前采用
+同一翻译单元组合，必须先包含所需核心或邮件基座的实现，再包含扩展实现。
+扩展单头不会自动编译或复制核心，也不会展开兄弟扩展源码。
+
 ## 生成文档
 
 示例索引和大型 API 家族的公共符号参考都由清单与源码生成：

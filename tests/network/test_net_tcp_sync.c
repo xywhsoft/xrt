@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -23,10 +24,10 @@ static void testTcpSyncClose(xnetstream* pStream)
 	if ( xrtNetStreamState(pStream) != XNET_STREAM_CLOSED ) {
 		testRequire(xrtNetStreamClose(pStream),
 			"TCP sync close request failed");
-		testRequire(xrtNetStreamWait(
+		testRequire(__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_CLOSE,
-			xrtDeadlineAfter(5000000u),
+			__xrtWaitAfter(5000000u),
 			NULL
 		), "TCP sync close wait failed");
 	}
@@ -42,10 +43,10 @@ static void testTcpSyncWorker(xnetworker* pWorker, ptr pData)
 	bool bResult;
 
 	(void)pWorker;
-	bResult = xrtNetStreamWait(
+	bResult = __xrtNetStreamWait(
 		pContext->Stream,
 		XNET_STREAM_WAIT_READ,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	);
 	if ( !bResult && (xrtErrorKind(xrtGetError()) == XERR_STATE) &&
@@ -77,7 +78,7 @@ int main(void)
 	xcancel* pCancel;
 	xbytesview View;
 	xnetaddr Address;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = TEST_TCP_SYNC_BACKEND;
@@ -110,30 +111,30 @@ int main(void)
 		NULL
 	);
 	testRequire(pClient != NULL, "TCP sync client create failed");
-	pServer = xrtNetListenerAcceptWait(
+	pServer = __xrtNetListenerAcceptWait(
 		pListener,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	testRequire(pServer != NULL, "TCP sync accept failed");
-	testRequire(xrtNetStreamWait(
+	testRequire(__xrtNetStreamWait(
 		pClient,
 		XNET_STREAM_WAIT_OPEN,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "TCP sync client open failed");
-	testRequire(xrtNetStreamWait(
+	testRequire(__xrtNetStreamWait(
 		pClient,
 		XNET_STREAM_WAIT_WRITE,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "TCP sync writable deadline wait failed");
 
 	/* 超时和取消只撤销本次接收，不改变 Stream。 */
-	testRequire(xrtNetStreamRecv(
+	testRequire(__xrtNetStreamRecv(
 		pServer,
 		0,
-		xrtDeadlineAfter(1000u),
+		__xrtWaitAfter(1000u),
 		NULL
 	) == NULL, "TCP sync receive unexpectedly ignored timeout");
 	testRequire((xrtErrorKind(xrtGetError()) == XERR_TIMEOUT) &&
@@ -144,10 +145,10 @@ int main(void)
 	pCancel = xrtCancelCreate();
 	testRequire((pCancel != NULL) && xrtCancelRequest(pCancel),
 		"TCP sync cancel setup failed");
-	testRequire(xrtNetStreamRecv(
+	testRequire(__xrtNetStreamRecv(
 		pServer,
 		0,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		pCancel
 	) == NULL, "TCP sync receive ignored cancellation");
 	testRequire((xrtErrorKind(xrtGetError()) == XERR_CANCELLED) &&
@@ -162,10 +163,10 @@ int main(void)
 		"abc",
 		3
 	) == XNET_RESULT_OK, "TCP available prefix send failed");
-	testRequire(!xrtNetStreamWaitAvailable(
+	testRequire(!__xrtNetStreamWaitAvailable(
 		pServer,
 		4,
-		xrtDeadlineAfter(1000u),
+		__xrtWaitAfter(1000u),
 		NULL
 	), "TCP available wait accepted an incomplete prefix");
 	testRequire((xrtErrorKind(xrtGetError()) == XERR_TIMEOUT) &&
@@ -177,16 +178,16 @@ int main(void)
 		"d",
 		1
 	) == XNET_RESULT_OK, "TCP available suffix send failed");
-	testRequire(xrtNetStreamWaitAvailable(
+	testRequire(__xrtNetStreamWaitAvailable(
 		pServer,
 		4,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "TCP available wait did not observe buffer growth");
-	pBytes = xrtNetStreamRecv(
+	pBytes = __xrtNetStreamRecv(
 		pServer,
 		4,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	testRequire(pBytes != NULL, "TCP available payload receive failed");
@@ -205,9 +206,9 @@ int main(void)
 		testTcpSyncWorker,
 		&Worker
 	), "TCP sync worker rejection task failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( xrtAtomic32Load(&Worker.Done, XMEMORY_ACQUIRE) == 0 ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP sync worker rejection timed out");
 		xrtThreadYield();
 	}
@@ -222,10 +223,10 @@ int main(void)
 		"sync-bytes",
 		10
 	) == XNET_RESULT_OK, "TCP sync send failed");
-	pBytes = xrtNetStreamRecv(
+	pBytes = __xrtNetStreamRecv(
 		pServer,
 		0,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	testRequire(pBytes != NULL, "TCP sync receive failed");
@@ -243,9 +244,9 @@ int main(void)
 	testTcpSyncClose(pServer);
 	testRequire(xrtNetListenerClose(pListener),
 		"TCP sync listener close failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP sync listener close timed out");
 		xrtThreadYield();
 	}

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -57,7 +58,7 @@ static void testWsProtocolWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 
@@ -66,7 +67,7 @@ static void testWsProtocolWait(
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -625,7 +626,7 @@ static void testWsProtocolRun(
 	xnetstream* pConnected;
 	xnetstream* pRaw;
 	xwsstream* pConnection;
-	xdeadline AttachDeadline;
+	double AttachDeadline;
 
 	memset(&Test, 0, sizeof(Test));
 	memset(&ListenerEvents, 0, sizeof(ListenerEvents));
@@ -710,7 +711,7 @@ static void testWsProtocolRun(
 		"WebSocket protocol TCP connect failed"
 	);
 
-	AttachDeadline = xrtDeadlineAfter(
+	AttachDeadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 	while ( ((pConnection = (xwsstream*)
@@ -723,7 +724,7 @@ static void testWsProtocolRun(
 			XMEMORY_ACQUIRE
 		 )) == NULL) ) {
 		testRequire(
-			!xrtDeadlineExpired(AttachDeadline),
+			!__xrtWaitExpired(AttachDeadline),
 			"WebSocket protocol endpoints were not attached"
 		);
 		xrtThreadYield();

@@ -69,7 +69,7 @@ The program below is from `extlibs/xhttp/examples/http/static_file` — the mini
 
 ```
 ```
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/static_file/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/static_file/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出静态文件服务装配的自检结果）
 ```
 
@@ -83,7 +83,7 @@ The second program is from `examples/http/server_static` — a runnable static-s
 
 ```
 ```
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/server_static/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server_static/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （启动静态服务后按 Enter Drain 退出）
 ```
 
@@ -142,7 +142,7 @@ Cleanup:
 }
 ```
 ```
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c webserv.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c webserv.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 webserv listening on https://127.0.0.1:8443 (root=dist)
 ```
 

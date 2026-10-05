@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 #include "../../../tests/fixtures/tls_server.h"
 
@@ -25,7 +26,7 @@ typedef enum testsmtpstarttlsmode {
 typedef struct testsmtpstarttlsserver {
 	xnetlistener* Listener;
 	const xtlsserverconfig* Tls;
-	xdeadline Deadline;
+	double Deadline;
 	testsmtpstarttlsmode Mode;
 	bool Success;
 } testsmtpstarttlsserver;
@@ -60,11 +61,11 @@ static xnetaddrlist* testSmtpStartTlsResolve(
 /* 等待测试 Future 成功完成。 */
 static bool testSmtpStartTlsFuture(
 	xfuture* pFuture,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return (pFuture != NULL) &&
-		(xrtFutureWaitUntil(pFuture, iDeadline) == XWAIT_OK) &&
+		(__xrtFutureWaitUntil(pFuture, iDeadline) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED);
 }
 
@@ -107,7 +108,7 @@ static void testSmtpStartTlsUpgradeTask(
 static xtlsstream* testSmtpStartTlsUpgrade(
 	xnetstream** ppTcp,
 	const xtlsserverconfig* pServer,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	testsmtpstarttlsupgrade Upgrade;
@@ -165,7 +166,7 @@ static bool testSmtpStartTlsPlainSend(
 	xnetstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -174,7 +175,7 @@ static bool testSmtpStartTlsPlainSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -192,13 +193,13 @@ static bool testSmtpStartTlsPlainReceive(
 	xnetstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -228,7 +229,7 @@ static bool testSmtpStartTlsSend(
 	xtlsstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xfuture* pFuture = xrtTlsStreamSendAsync(pStream, sText, iSize);
@@ -245,7 +246,7 @@ static bool testSmtpStartTlsReceive(
 	xtlsstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
@@ -285,7 +286,7 @@ static bool testSmtpStartTlsReceive(
 static int32 testSmtpStartTlsServer(ptr pData)
 {
 	testsmtpstarttlsserver* pServer = (testsmtpstarttlsserver*)pData;
-	xnetstream* pTcp = xrtNetListenerAcceptWait(
+	xnetstream* pTcp = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -333,7 +334,7 @@ static int32 testSmtpStartTlsServer(ptr pData)
 			"454 TLS unavailable\r\n",
 			21u,
 			pServer->Deadline
-		) && xrtNetStreamWait(
+		) && __xrtNetStreamWait(
 			pTcp,
 			XNET_STREAM_WAIT_DRAIN,
 			pServer->Deadline,
@@ -441,7 +442,7 @@ int main(void)
 	xnetlistener* pListener;
 	xsmtpclient* pClient;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 
 	pContext = testTlsServerContext();
 	pIdentity = testTlsServerIdentity();
@@ -481,7 +482,7 @@ int main(void)
 	testRequire(pResolver != NULL,
 		"SMTP STARTTLS resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Tls = &ServerConfig;
 	Server.Deadline = Deadline;
@@ -499,7 +500,7 @@ int main(void)
 	Config.Net.Tls.Context = pContext;
 	Config.Net.Tls.Verifier = pVerifier;
 	Config.Hello = (xstrview)XRT_STR_LITERAL("client.test");
-	pClient = xrtSmtpClientOpen(&Config, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&Config, Deadline, NULL);
 	testRequire((pClient != NULL) &&
 		((xrtSmtpClientCapabilities(pClient) & XSMTP_CAP_SIZE) != 0) &&
 		((xrtSmtpClientCapabilities(pClient) &
@@ -512,13 +513,13 @@ int main(void)
 	Auth.Username = XRT_STR_LITERAL("user");
 	Auth.AuthorizationId = XRT_STR_LITERAL("u,s=e");
 	Auth.Secret = XRT_STR_LITERAL("token");
-	testRequire(!xrtSmtpClientAuth(pClient, &Auth, Deadline, NULL) &&
+	testRequire(!__xrtSmtpClientAuth(pClient, &Auth, Deadline, NULL) &&
 		!xrtSmtpClientAuthenticated(pClient),
 		"SMTP OAUTHBEARER rejection did not preserve reusable state");
 	xrtClearError();
-	testRequire(xrtSmtpClientQuit(pClient, Deadline, NULL),
+	testRequire(__xrtSmtpClientQuit(pClient, Deadline, NULL),
 		"SMTP STARTTLS QUIT failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"SMTP STARTTLS server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"SMTP STARTTLS transcript mismatch");
@@ -531,12 +532,12 @@ int main(void)
 	pThread = xrtThreadCreate(testSmtpStartTlsServer, &Server, 0);
 	testRequire(pThread != NULL,
 		"SMTP STARTTLS reject thread creation failed");
-	pClient = xrtSmtpClientOpen(&Config, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&Config, Deadline, NULL);
 	testRequire((pClient == NULL) && (xrtGetError() != NULL) &&
 		(xrtErrorKind(xrtGetError()) == XERR_PROTOCOL),
 		"SMTP STARTTLS rejection did not report protocol error");
 	xrtClearError();
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
 		Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"SMTP STARTTLS rejection transcript mismatch");
 	xrtThreadDestroy(pThread);
@@ -547,12 +548,12 @@ int main(void)
 	pThread = xrtThreadCreate(testSmtpStartTlsServer, &Server, 0);
 	testRequire(pThread != NULL,
 		"SMTP STARTTLS drop thread creation failed");
-	pClient = xrtSmtpClientOpen(&Config, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&Config, Deadline, NULL);
 	testRequire((pClient == NULL) && (xrtGetError() != NULL) &&
 		(xrtErrorKind(xrtGetError()) != XERR_PROTOCOL),
 		"SMTP STARTTLS drop was replaced by a stale reply error");
 	xrtClearError();
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK &&
 		Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"SMTP STARTTLS drop transcript mismatch");
 	xrtThreadDestroy(pThread);

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_coroutine.h"
 
 
@@ -312,7 +313,7 @@ static void __xrtCoTimerDown(xcosched* pSched, size_t iIndex)
 /* 将有限截止时间挂入定时器堆。 */
 static void __xrtCoTimerAttach(xcosched* pSched, xcoro* pCo)
 {
-	if ( (pCo->Deadline == XRT_DEADLINE_NEVER) ||
+	if ( (pCo->Deadline == INFINITY) ||
 		 (pCo->TimerIndex != SIZE_MAX) ) {
 		return;
 	}
@@ -582,7 +583,7 @@ static void __xrtCoWaitFinish(xcoro* pCo, xwaitresult Result)
 		__xrtCoJoinRemove(pCo);
 	}
 	pCo->WaitKind = XRT_CO_WAIT_NONE;
-	pCo->Deadline = XRT_DEADLINE_NEVER;
+	pCo->Deadline = INFINITY;
 	pCo->WaitResult = Result;
 	__xrtCoReadyPush(pSched, pCo);
 }
@@ -598,7 +599,7 @@ static void __xrtCoJoinWakeAll(xcoro* pTarget, xwaitresult Result)
 		__xrtCoJoinRemove(pWaiter);
 		__xrtCoTimerRemove(pWaiter->Scheduler, pWaiter);
 		pWaiter->WaitKind = XRT_CO_WAIT_NONE;
-		pWaiter->Deadline = XRT_DEADLINE_NEVER;
+		pWaiter->Deadline = INFINITY;
 		pWaiter->WaitResult = Result;
 		__xrtCoReadyPush(pWaiter->Scheduler, pWaiter);
 	}
@@ -628,7 +629,7 @@ static void __xrtCoWaitPrepare(xcoro* pCo)
 		__xrtCoWaitFinish(pCo, XWAIT_OK);
 		return;
 	}
-	if ( xrtDeadlineExpired(pCo->Deadline) ) {
+	if ( __xrtWaitExpired(pCo->Deadline) ) {
 		__xrtCoWaitFinish(pCo, XWAIT_TIMEOUT);
 		return;
 	}
@@ -788,7 +789,7 @@ static bool __xrtCoSchedWorkPending(xcosched* pSched)
 /* 把所有已经到期的挂起协程转回就绪队列。 */
 static void __xrtCoSchedExpireTimers(xcosched* pSched)
 {
-	uint64 iNow = xrtClock();
+	double iNow = xrtTimer();
 
 	while ( (pSched->TimerCount != 0) &&
 			(pSched->Timers[0]->Deadline <= iNow) ) {
@@ -810,9 +811,9 @@ static void __xrtCoSchedExpireTimers(xcosched* pSched)
 
 
 /* 返回用户期限和最近协程定时器中的较早者。 */
-static xdeadline __xrtCoSchedWaitDeadline(
+static double __xrtCoSchedWaitDeadline(
 	const xcosched* pSched,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	if ( (pSched->TimerCount != 0) &&
@@ -827,14 +828,14 @@ static xdeadline __xrtCoSchedWaitDeadline(
 /* 等待跨线程投递或当前最近期限。 */
 static xwaitresult __xrtCoSchedWait(
 	xcosched* pSched,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xwaitresult Result = XWAIT_OK;
 
 	(void)xrtMutexLock(&pSched->PostLock);
 	while ( (pSched->PostHead == NULL) && (pSched->WorkHead == NULL) ) {
-		Result = xrtCondWaitUntil(
+		Result = __xrtCondWaitUntil(
 			&pSched->PostReady,
 			&pSched->PostLock,
 			iDeadline
@@ -1054,7 +1055,7 @@ static xcoro* __xrtCoSchedSpawn(
 	}
 	pCo->Scheduler = pSched;
 	pCo->Detached = bDetached;
-	pCo->Deadline = XRT_DEADLINE_NEVER;
+	pCo->Deadline = INFINITY;
 	pCo->TimerIndex = SIZE_MAX;
 	__xrtCoActivePush(pSched, pCo);
 	__xrtCoReadyPush(pSched, pCo);
@@ -1128,9 +1129,9 @@ XRT_API bool xrtCoSchedClose(xcosched* pSched)
 
 
 /* 执行一次有截止时间的调度轮询。 */
-XRT_API xwaitresult xrtCoSchedPollUntil(
+XRT_API xwaitresult __xrtCoSchedPollUntil(
 	xcosched* pSched,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xwaitresult Result;
@@ -1145,7 +1146,7 @@ XRT_API xwaitresult xrtCoSchedPollUntil(
 	pSched->Running = true;
 	for ( ;; ) {
 		xcoro* pCo;
-		xdeadline iWaitDeadline;
+		double iWaitDeadline;
 		bool bWorked;
 
 		bWorked = __xrtCoSchedWorkRun(pSched);
@@ -1177,7 +1178,7 @@ XRT_API xwaitresult xrtCoSchedPollUntil(
 			Result = XWAIT_CLOSED;
 			break;
 		}
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			Result = XWAIT_TIMEOUT;
 			break;
 		}
@@ -1196,7 +1197,7 @@ XRT_API xwaitresult xrtCoSchedPollUntil(
 /* 非阻塞执行至多一个就绪协程。 */
 XRT_API xwaitresult xrtCoSchedStep(xcosched* pSched)
 {
-	return xrtCoSchedPollUntil(pSched, xrtClock());
+	return __xrtCoSchedPollUntil(pSched, xrtTimer());
 }
 
 
@@ -1204,10 +1205,10 @@ XRT_API xwaitresult xrtCoSchedStep(xcosched* pSched)
 /* 在相对期限内等待并执行至多一个就绪协程。 */
 XRT_API xwaitresult xrtCoSchedPollFor(
 	xcosched* pSched,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
-	return xrtCoSchedPollUntil(pSched, xrtDeadlineAfter(iTimeout));
+	return __xrtCoSchedPollUntil(pSched, __xrtWaitAfter(iTimeout));
 }
 
 
@@ -1219,7 +1220,7 @@ XRT_API bool xrtCoSchedRun(xcosched* pSched)
 		return false;
 	}
 	while ( (pSched->Alive != 0) || __xrtCoSchedWorkPending(pSched) ) {
-		if ( xrtCoSchedPollUntil(pSched, XRT_DEADLINE_NEVER) == XWAIT_ERROR ) {
+		if ( __xrtCoSchedPollUntil(pSched, INFINITY) == XWAIT_ERROR ) {
 			return false;
 		}
 	}
@@ -1267,7 +1268,7 @@ static xcoro* __xrtCoWaitCurrent(void)
 
 
 /* 挂起当前协程到唤醒、取消或截止时间。 */
-XRT_API xwaitresult xrtCoParkUntil(xdeadline iDeadline)
+XRT_API xwaitresult __xrtCoParkUntil(double iDeadline)
 {
 	xcoro* pCo = __xrtCoWaitCurrent();
 
@@ -1280,7 +1281,7 @@ XRT_API xwaitresult xrtCoParkUntil(xdeadline iDeadline)
 	if ( __xrtCoTakeWaitWake(pCo) ) {
 		return XWAIT_OK;
 	}
-	if ( xrtDeadlineExpired(iDeadline) ) {
+	if ( __xrtWaitExpired(iDeadline) ) {
 		return XWAIT_TIMEOUT;
 	}
 	pCo->WaitKind = XRT_CO_WAIT_PARK;
@@ -1296,7 +1297,7 @@ XRT_API xwaitresult xrtCoParkUntil(xdeadline iDeadline)
 
 
 /* 挂起当前资源等待到通知、通用唤醒、取消或截止时间。 */
-xwaitresult __xrtCoWaitParkUntil(ptr pData, xdeadline iDeadline)
+xwaitresult __xrtCoWaitParkUntil(ptr pData, double iDeadline)
 {
 	xrt_co_wait* pWait = (xrt_co_wait*)pData;
 	xcoro* pCo = __xrtCoWaitCurrent();
@@ -1311,7 +1312,7 @@ xwaitresult __xrtCoWaitParkUntil(ptr pData, xdeadline iDeadline)
 		__xrtErrorSetInvalidState();
 		return XWAIT_ERROR;
 	}
-	return xrtCoParkUntil(iDeadline);
+	return __xrtCoParkUntil(iDeadline);
 }
 
 
@@ -1319,23 +1320,23 @@ xwaitresult __xrtCoWaitParkUntil(ptr pData, xdeadline iDeadline)
 /* 无限期挂起当前调度协程。 */
 XRT_API xwaitresult xrtCoPark(void)
 {
-	return xrtCoParkUntil(XRT_DEADLINE_NEVER);
+	return __xrtCoParkUntil(INFINITY);
 }
 
 
 
 /* 在相对期限内挂起当前调度协程。 */
-XRT_API xwaitresult xrtCoParkFor(uint64 iTimeout)
+XRT_API xwaitresult xrtCoParkFor(int64 iTimeout)
 {
-	return xrtCoParkUntil(xrtDeadlineAfter(iTimeout));
+	return __xrtCoParkUntil(__xrtWaitAfter(iTimeout));
 }
 
 
 
 /* 让当前调度协程睡眠到指定截止时间。 */
-XRT_API xwaitresult xrtCoSleepUntil(xdeadline iDeadline)
+XRT_API xwaitresult __xrtCoSleepUntil(double iDeadline)
 {
-	xwaitresult Result = xrtCoParkUntil(iDeadline);
+	xwaitresult Result = __xrtCoParkUntil(iDeadline);
 
 	return Result == XWAIT_TIMEOUT ? XWAIT_OK : Result;
 }
@@ -1343,12 +1344,12 @@ XRT_API xwaitresult xrtCoSleepUntil(xdeadline iDeadline)
 
 
 /* 让当前调度协程睡眠指定微秒数，零值执行一次公平让出。 */
-XRT_API xwaitresult xrtCoSleep(uint64 iTimeout)
+XRT_API xwaitresult xrtCoSleep(int64 iTimeout)
 {
 	if ( iTimeout == 0 ) {
 		return xrtCoYield();
 	}
-	return xrtCoSleepUntil(xrtDeadlineAfter(iTimeout));
+	return __xrtCoSleepUntil(__xrtWaitAfter(iTimeout));
 }
 
 
@@ -1368,9 +1369,9 @@ static bool __xrtCoJoinCycle(xcoro* pCurrent, xcoro* pTarget)
 
 
 /* 在当前协程中等待同一调度器目标到指定截止时间。 */
-XRT_API xwaitresult xrtCoJoinUntil(
+XRT_API xwaitresult __xrtCoJoinUntil(
 	xcoro* pTarget,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xcoro* pCurrent = __xrtCoWaitCurrent();
@@ -1393,7 +1394,7 @@ XRT_API xwaitresult xrtCoJoinUntil(
 	if ( xrtCancelRequested(pCurrent->Cancel) ) {
 		return XWAIT_CANCELLED;
 	}
-	if ( xrtDeadlineExpired(iDeadline) ) {
+	if ( __xrtWaitExpired(iDeadline) ) {
 		return XWAIT_TIMEOUT;
 	}
 	pCurrent->WaitKind = XRT_CO_WAIT_JOIN;
@@ -1413,15 +1414,15 @@ XRT_API xwaitresult xrtCoJoinUntil(
 /* 无限期等待同一调度器目标。 */
 XRT_API xwaitresult xrtCoJoin(xcoro* pCo)
 {
-	return xrtCoJoinUntil(pCo, XRT_DEADLINE_NEVER);
+	return __xrtCoJoinUntil(pCo, INFINITY);
 }
 
 
 
 /* 在相对期限内等待同一调度器目标。 */
-XRT_API xwaitresult xrtCoJoinFor(xcoro* pCo, uint64 iTimeout)
+XRT_API xwaitresult xrtCoJoinFor(xcoro* pCo, int64 iTimeout)
 {
-	return xrtCoJoinUntil(pCo, xrtDeadlineAfter(iTimeout));
+	return __xrtCoJoinUntil(pCo, __xrtWaitAfter(iTimeout));
 }
 
 
@@ -1458,4 +1459,11 @@ bool __xrtCoSchedDestroyCoroutine(xcoro* pCo)
 	return true;
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_COROUTINE_SCHEDULER))
+XRT_API xwaitresult xrtCoSleepFor(int64 iTimeout)
+{
+    return __xrtCoSleepUntil(__xrtWaitAfter(iTimeout));
+}
 #endif

@@ -57,7 +57,7 @@ Future оборачивает только отправки, закрытия, d
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xws/single -include xws.h impl.c extlibs/xws/examples/websocket/connection_tour/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/connection_tour/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 conn-tour: offline request builders ok
 conn-tour: live pair upgraded, introspection ok
 conn-tour: sync send x9 + writer-take delivered ok
@@ -77,7 +77,7 @@ conn-tour: close handshake clean on both peers ok
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xws/single -include xws.h impl.c extlibs/xws/examples/websocket/connection_ref/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/connection_ref/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 WebSocket Connection reference example is ready
 ```
 

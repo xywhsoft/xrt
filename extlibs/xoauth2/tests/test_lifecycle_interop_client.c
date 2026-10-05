@@ -1,10 +1,11 @@
+#include <xrt/detail/wait.h>
 /* Actual core engines and pins; only startup/retirement faults and the rollback clock are controlled. */
 #if !defined(_WIN32) && !defined(_GNU_SOURCE)
 #define _GNU_SOURCE 1
 #endif
 #define XRT_IMPLEMENTATION
 #define XRT_MODULE_MEMORY_DEBUG
-#include "../xoauth2-xrt.h"
+#include "support/runtime.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,10 +27,10 @@ static bool start_engine(xnetengine* engine)
 	LastEngine = engine;
 	if (Fault != 0u && !xrtNetEnginePin(engine)) return false;
 	if (ConcurrentFactory) {
-		xdeadline deadline = xrtDeadlineAfter(5000000u);
+		double deadline = __xrtWaitAfter(5000000u);
 		xrtAtomic32FetchAdd(&FactoryBarrier, 1u, XMEMORY_ACQ_REL);
 		while (xrtAtomic32Load(&FactoryBarrier, XMEMORY_ACQUIRE) < 4u) {
-			if (xrtDeadlineExpired(deadline)) return false;
+			if (__xrtWaitExpired(deadline)) return false;
 			xrtSleep(1u);
 		}
 	}
@@ -40,13 +41,13 @@ static bool start_engine(xnetengine* engine)
 	return false;
 }
 
-static xdeadline rollback_deadline(uint64_t timeout)
+static double rollback_deadline(uint64_t timeout)
 {
 	if (ForceStartFailure && timeout >= 30000000u) {
 		RollbackBudget = timeout;
 		if (Fault != 0u) timeout = 20000u;
 	}
-	return xrtDeadlineAfter(timeout);
+	return __xrtWaitAfter(timeout);
 }
 
 static xnetretireresult retire_engine(xnetengine* engine)
@@ -55,9 +56,9 @@ static xnetretireresult retire_engine(xnetengine* engine)
 	Retires++;
 	if (xrtAtomic32CompareExchange(&HoldRetirement, &expected, 2u,
 		XMEMORY_ACQ_REL, XMEMORY_RELAXED)) {
-		xdeadline deadline = xrtDeadlineAfter(5000000u);
+		double deadline = __xrtWaitAfter(5000000u);
 		while (xrtAtomic32Load(&HoldRetirement, XMEMORY_ACQUIRE) == 2u) {
-			if (xrtDeadlineExpired(deadline)) {
+			if (__xrtWaitExpired(deadline)) {
 				xrtSetErrorInfo(XERR_STATE, "test", 3, "retirement barrier timed out");
 				return XNET_RETIRE_ERROR;
 			}
@@ -81,12 +82,12 @@ static xerror* wrap_error(const xerror* cause, xerrkind kind, cstr domain, int32
 
 #define xrtNetEngineStart start_engine
 #define xrtNetEngineTryDestroy retire_engine
-#define xrtDeadlineAfter rollback_deadline
+#define __xrtWaitAfter rollback_deadline
 #define xrtErrorWrap wrap_error
-#include "../xoauth2.c"
+#include "support/implementation.c"
 #undef xrtNetEngineStart
 #undef xrtNetEngineTryDestroy
-#undef xrtDeadlineAfter
+#undef __xrtWaitAfter
 #undef xrtErrorWrap
 
 static bool memory_empty(void)
@@ -285,7 +286,7 @@ typedef struct cleanup_task {
 static int32 cleanup_thread(ptr data)
 {
 	cleanup_task* task = data;
-	xdeadline deadline = xrtDeadlineAfter(5000000u);
+	double deadline = __xrtWaitAfter(5000000u);
 	if (task->factory) {
 		ForceStartFailure = ConcurrentFactory = true; Fault = 1u;
 		task->ready = xoauth2HttpXrtCreate(NULL, TestCa, 1u) == NULL &&
@@ -298,7 +299,7 @@ static int32 cleanup_thread(ptr data)
 		task->ready = xoauth2HttpXrtCleanupPending(0u, &task->pending);
 		if (!task->loop || task->ready) return 0;
 		xrtSleep(1u);
-	} while (!xrtDeadlineExpired(deadline));
+	} while (!__xrtWaitExpired(deadline));
 	return 1;
 }
 
@@ -316,7 +317,7 @@ static bool claimed_owner(void)
 	xnetengine *a, *b;
 	cleanup_task task = {0};
 	xthread* thread;
-	xdeadline deadline;
+	double deadline;
 	size_t pending = SIZE_MAX;
 	bool ok;
 	if (first == NULL || second == NULL) return false;
@@ -328,9 +329,9 @@ static bool claimed_owner(void)
 	xrtAtomic32Store(&HoldRetirement, 1u, XMEMORY_RELEASE);
 	thread = xrtThreadCreate(cleanup_thread, &task, 0u);
 	if (thread == NULL) return false;
-	deadline = xrtDeadlineAfter(5000000u);
+	deadline = __xrtWaitAfter(5000000u);
 	while (xrtAtomic32Load(&HoldRetirement, XMEMORY_ACQUIRE) != 2u &&
-		!xrtDeadlineExpired(deadline)) xrtSleep(1u);
+		!__xrtWaitExpired(deadline)) xrtSleep(1u);
 	ok = xrtAtomic32Load(&HoldRetirement, XMEMORY_ACQUIRE) == 2u &&
 		!xoauth2HttpXrtCleanupPending(0u, &pending) && pending == 1u;
 	if (xoauth2HttpXrtCleanup(second)) return false;
@@ -341,12 +342,12 @@ static bool claimed_owner(void)
 	xrtAtomic32Store(&HoldRetirement, 0u, XMEMORY_RELEASE);
 	ok = !task.ready && task.pending >= 1u && task.pending <= 2u && ok;
 	xrtClearError();
-	deadline = xrtDeadlineAfter(5000000u);
+	deadline = __xrtWaitAfter(5000000u);
 	do {
 		ok = !xoauth2HttpXrtCleanupPending(0u, &pending) && ok;
 		if (pending == 1u) break;
 		xrtSleep(1u);
-	} while (!xrtDeadlineExpired(deadline));
+	} while (!__xrtWaitExpired(deadline));
 	ok = pending == 1u && ok;
 	if (!xrtNetEngineUnpin(b)) return false;
 	ok = xoauth2HttpXrtCleanupPending(5000000u, &pending) && pending == 0u && ok;

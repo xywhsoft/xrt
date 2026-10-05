@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -69,13 +70,13 @@ static xnetaddrlist* testResolverFutureLookup(
 /* 等待阻塞查询进入自定义过程。 */
 static void testResolverFutureWaitEntered(testresolverfuture* pContext)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	testRequire(xrtMutexLock(&pContext->Lock),
 		"resolver Future wait lock failed");
 	while ( pContext->Entered == 0 ) {
 		testRequire(
-			xrtCondWaitUntil(
+			__xrtCondWaitUntil(
 				&pContext->Condition,
 				&pContext->Lock,
 				iDeadline

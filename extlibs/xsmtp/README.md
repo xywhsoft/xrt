@@ -3,7 +3,12 @@
 真实提交范例在网络清理未完成时返回失败，保留拥有型句柄和原始错误供重试；
 诊断只输出阶段、错误类别和错误码。共享实现见 `../xmail/examples/mail_client_setup.h`。
 
-xsmtp 是构建在 xmail 邮件基座（MIME 内容层与传输层）之上的 SMTP 客户端扩展库：协议解析、同步客户端、STARTTLS/隐式 TLS、SASL 认证与从 xmailmessage 派生的流式提交。通过 `XSMTP_MODULE_*` 宏裁剪，单头形态为 `single/xsmtp.h`。
+xsmtp 是构建在 xmail 邮件基座（MIME 内容层与传输层）之上的 SMTP 客户端扩展库：协议解析、同步客户端、STARTTLS/隐式 TLS、SASL 认证与从 xmailmessage 派生的流式提交。通过 `XSMTP_MODULE_*` 宏裁剪，单头形态为 `single/extlibs/xsmtp.h`。
+
+单头实现与声明分别为仓库根目录的 `single/extlibs/xsmtp.h` 与
+`single/extlibs/xsmtp_decl.h`，均只包含 xsmtp 自身代码。使用前须按顺序提供
+XRT → xmail 的所需模块，再包含 xsmtp；实现宏为 `XSMTP_IMPLEMENTATION`。
+依赖选择与实现组合见 [构建说明](../../docs/BUILD.md#扩展单头与依赖顺序)。
 
 ## 提交范例
 

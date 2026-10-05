@@ -209,7 +209,7 @@ void __xrtSyncSetSystemError(cstr sOperation, int iCode, cstr sMessage);
 #if !defined(_WIN32) && !defined(_WIN64) && defined(XRT_FEATURE_WAIT)
 /* 把 XRT 截止时间转换为条件变量实际使用的绝对时钟。 */
 bool __xrtSyncDeadlineTime(
-	xdeadline iDeadline,
+	double iDeadline,
 	bool bMonotonic,
 	struct timespec* pTime
 );

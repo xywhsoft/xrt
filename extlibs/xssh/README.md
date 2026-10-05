@@ -18,6 +18,11 @@ exit-signal、坏主机密钥拒绝、未决请求期间 RST 断线、发送硬�
 真实 OpenSSH 门禁已经提供可执行测试；未配置目标时明确 `SKIP`，password、Ed25519 identity、
 PTY 和 direct-tcpip 的运行方法见 [OpenSSH 互操作门禁](docs/design/openssh_interop.md)。
 
+单头实现与声明分别为仓库根目录的 `single/extlibs/xssh.h` 与
+`single/extlibs/xssh_decl.h`，均只包含 xssh 自身代码。使用前须按顺序提供
+XRT 的所需模块，再包含 xssh；实现宏为 `XSSH_IMPLEMENTATION`。
+依赖选择与实现组合见 [构建说明](../../docs/BUILD.md#扩展单头与依赖顺序)。
+
 ## 当前能力
 
 - 网络字节序 byte、boolean、uint32、uint64。

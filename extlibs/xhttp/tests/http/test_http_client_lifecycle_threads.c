@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../fixtures/http_origin.h"
 
@@ -72,7 +73,7 @@ int main(void)
 		TEST_HTTP_CLIENT_WAIT_THREADS
 	];
 	xthread* Threads[TEST_HTTP_CLIENT_WAIT_THREADS];
-	xdeadline Deadline;
+	double Deadline;
 	char Url[256];
 	int iLength;
 
@@ -155,13 +156,13 @@ int main(void)
 			"HTTP Client concurrent wait setup failed"
 		);
 	}
-	Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(UINT64_C(5000000));
 	while ( xrtAtomic32Load(
 		&Ready,
 		XMEMORY_ACQUIRE
 	) != TEST_HTTP_CLIENT_WAIT_THREADS ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP Client wait threads did not reach barrier"
 		);
 		xrtThreadYield();

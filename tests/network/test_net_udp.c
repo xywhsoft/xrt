@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -18,10 +19,10 @@
 /* 在截止时间内等待 UDP 进入指定状态。 */
 static void testUdpWaitState(xnetudp* pUdp, xnetudpstate State)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( xrtNetUdpState(pUdp) != State ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"UDP state transition timed out");
 		xrtThreadYield();
 	}
@@ -32,7 +33,7 @@ static void testUdpWaitState(xnetudp* pUdp, xnetudpstate State)
 /* 在截止时间内拉取一个 UDP 数据包。 */
 static xnetudppacket* testUdpReceive(xnetudp* pUdp)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 	xnetudppacket* pPacket;
 
 	for ( ;; ) {
@@ -40,7 +41,7 @@ static xnetudppacket* testUdpReceive(xnetudp* pUdp)
 		if ( pPacket != NULL ) {
 			return pPacket;
 		}
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			xnetudpstats Stats;
 			const xerror* pError = xrtNetUdpError(pUdp);
 
@@ -194,7 +195,7 @@ static void testUdpClosedPeerReset(xnetengine* pEngine)
 	xnetaddr ClosedPeer;
 	xnetaddr ServerAddress;
 	xnetaddr ClientAddress;
-	xdeadline Deadline;
+	double Deadline;
 	const char sPayload[] = "udp-still-open";
 
 	if ( TEST_UDP_BACKEND != XNET_PORT_IOCP ) {
@@ -238,9 +239,9 @@ static void testUdpClosedPeerReset(xnetengine* pEngine)
 			pServer, &ClosedPeer, &i, sizeof(i)
 		) == XNET_RESULT_OK, "UDP closed-peer burst send failed");
 	}
-	Deadline = xrtDeadlineAfter(3000000u);
+	Deadline = __xrtWaitAfter(3000000u);
 	while ( xrtNetUdpPending(pServer) != 0 ) {
-		testRequire(!xrtDeadlineExpired(Deadline),
+		testRequire(!__xrtWaitExpired(Deadline),
 			"UDP closed-peer burst did not drain");
 		xrtThreadYield();
 	}
@@ -287,7 +288,7 @@ static void testUdpErrors(xnetengine* pEngine)
 	const xnetdgramerror* pError;
 	xnetsocket Reserved;
 	xnetaddr Target;
-	xdeadline Deadline;
+	double Deadline;
 
 	if ( TEST_UDP_BACKEND != XNET_PORT_URING ) {
 		return;
@@ -326,14 +327,14 @@ static void testUdpErrors(xnetengine* pEngine)
 		xrtNetUdpSend(pUdp, "error", 5) == XNET_RESULT_OK,
 		"UDP error trigger send failed"
 	);
-	Deadline = xrtDeadlineAfter(5000000u);
+	Deadline = __xrtWaitAfter(5000000u);
 	for ( ;; ) {
 		pPacket = xrtNetUdpReceiveError(pUdp);
 		if ( pPacket != NULL ) {
 			break;
 		}
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"UDP asynchronous error timed out"
 		);
 		xrtThreadYield();
@@ -469,14 +470,14 @@ int main(void)
 	testRequire(xrtNetUdpSendVec(pClient, Spans, 2) == XNET_RESULT_OK,
 		"UDP vector send failed");
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+		double iDeadline = __xrtWaitAfter(3000000u);
 
 		for ( ;; ) {
 			(void)xrtNetUdpStats(pClient, &ClientStats);
 			if ( ClientStats.SentPackets == 3 ) {
 				break;
 			}
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				fprintf(
 					stderr,
 					"[UDP send timeout] state=%d sent=%llu "
@@ -552,10 +553,10 @@ int main(void)
 	) == XNET_RESULT_OK) && (iAccepted == 3),
 		"UDP batch send failed");
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+		double iDeadline = __xrtWaitAfter(3000000u);
 
 		while ( xrtNetUdpQueued(pServer) < 3 ) {
-			testRequire(!xrtDeadlineExpired(iDeadline),
+			testRequire(!__xrtWaitExpired(iDeadline),
 				"UDP batch receive timed out");
 			xrtThreadYield();
 		}

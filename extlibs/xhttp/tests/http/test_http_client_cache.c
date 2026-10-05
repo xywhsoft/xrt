@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 #include "../../src/internal/xrt_http_client_runtime.h"
@@ -567,14 +568,14 @@ static void testHttpClientCacheWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -3888,7 +3889,7 @@ static void testHttpClientCacheEncodedRange(void)
 	Input.PartCount = 1;
 	Input.Length = sizeof(Body);
 	Input.ResponseTime = xrtNow();
-	Input.RequestClock = xrtClock();
+	Input.RequestClock = xrtTimer();
 	Input.ResponseClock = Input.RequestClock;
 	Input.Flags = XHTTP_CACHE_RECORD_HAS_LENGTH |
 		XHTTP_CACHE_RECORD_COMPLETE;

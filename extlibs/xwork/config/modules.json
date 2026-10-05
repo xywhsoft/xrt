@@ -1,0 +1,98 @@
+{
+	"schema": 1,
+	"product": "xwork",
+	"module_prefix": "XWORK_MODULE_",
+	"single_header": "single/extlibs/xwork.h",
+	"declaration_header": "single/extlibs/xwork_decl.h",
+	"implementation_macro": "XWORK_IMPLEMENTATION",
+	"implementation_once_macro": "XWORK_IMPLEMENTATION_ONCE",
+	"single_guard": "XWORK_SINGLE_HEADER_H",
+	"single_marker": "XWORK_SINGLE_HEADER",
+	"declaration_guard": "XWORK_DECLARATIONS_H",
+	"declaration_marker": "XWORK_DECLARATIONS",
+	"package_consumer": "extlibs/xwork/tests/package/test_consumer.c",
+	"product_root": "extlibs/xwork",
+	"performance_config": "extlibs/xwork/config/performance_profiles.json",
+	"size_config": "extlibs/xwork/config/size_profiles.json",
+	"scope": {
+		"product": "xwork",
+		"external_integrations": [],
+		"systems": [
+			{
+				"name": "work",
+				"state": "retained",
+				"source_roots": [
+					"work"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xwork public API reference",
+		"function_prefix": "xwork",
+		"constant_prefix": "XWORK_",
+		"type_prefix": "xwork",
+		"guide": "../../README.md",
+		"output": "extlibs/xwork/docs/api/reference.md"
+	},
+	"features_guard": "XWORK_FEATURES_H",
+	"features_header": "extlibs/xwork/include/xwork/features.h",
+	"include_dirs": [
+		"extlibs/xwork/include"
+	],
+	"header_roots": [
+		"extlibs/xwork/include",
+		"extlibs/xwork/src/internal"
+	],
+	"modules": [
+		{
+			"name": "xwork",
+			"state": "implemented",
+			"feature": "XWORK_FEATURE_XWORK",
+			"depends": [
+				"xllm_session",
+				"json_write",
+				"regex",
+				"file_temp",
+				"file_tree",
+				"process_run"
+			],
+			"public_headers": [
+				"extlibs/xwork/include/xwork.h",
+				"extlibs/xwork/include/xwork/features.h",
+				"extlibs/xwork/include/xwork/api.h"
+			],
+			"internal_headers": [
+				"extlibs/xwork/src/internal/xwork_internal.h"
+			],
+			"sources": [
+				"extlibs/xwork/src/work/xwork_core.c",
+				"extlibs/xwork/src/work/xwork_tools.c",
+				"extlibs/xwork/src/work/xwork_mcp.c",
+				"extlibs/xwork/src/work/xwork_agent.c",
+				"extlibs/xwork/src/work/xwork_executor.c",
+				"extlibs/xwork/src/work/xwork_subagent.c",
+				"extlibs/xwork/src/work/xwork_explore.c",
+				"extlibs/xwork/src/work/xwork_python.c"
+			],
+			"tests": [
+				"extlibs/xwork/tests/test_xwork.c"
+			],
+			"single_tests": [
+				"extlibs/xwork/tests/single/test_single_xwork.c"
+			],
+			"examples": [],
+			"benchmarks": [
+				"extlibs/xwork/bench/bench_xwork.c"
+			],
+			"docs": [
+				"extlibs/xwork/README.md",
+				"extlibs/xwork/docs/api/reference.md"
+			]
+		}
+	],
+	"dependency_manifests": [
+		"extlibs/xllm-session/config/modules.json"
+	],
+	"umbrella_header": "xwork.h"
+}

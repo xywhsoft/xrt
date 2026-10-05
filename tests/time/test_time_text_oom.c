@@ -6,7 +6,7 @@
 int main(void)
 {
 	xdatetime tDateTime = {
-		2024, 2, 29, 23, 58, 57, 654321, 0, 4, 60, -1
+		2024, 2, 29, 23, 58, 57, 654, 0, 4, 60, -1
 	};
 
 	testRequire(testInstallFailAllocator(), "failure allocator install failed");

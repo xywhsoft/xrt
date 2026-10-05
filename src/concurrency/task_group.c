@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_future.h"
 
 
@@ -706,9 +707,9 @@ XRT_API xfuture* xrtTaskGroupFuture(const xtaskgroup* pGroup)
 /* 关闭并永久等待组完成。 */
 XRT_API xwaitresult xrtTaskGroupWait(xtaskgroup* pGroup)
 {
-	return xrtTaskGroupWaitUntilCancel(
+	return __xrtTaskGroupWaitUntilCancel(
 		pGroup,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	);
 }
@@ -716,11 +717,11 @@ XRT_API xwaitresult xrtTaskGroupWait(xtaskgroup* pGroup)
 
 
 /* 关闭并在相对微秒数内等待组完成。 */
-XRT_API xwaitresult xrtTaskGroupWaitFor(xtaskgroup* pGroup, uint64 iTimeout)
+XRT_API xwaitresult xrtTaskGroupWaitFor(xtaskgroup* pGroup, int64 iTimeout)
 {
-	return xrtTaskGroupWaitUntilCancel(
+	return __xrtTaskGroupWaitUntilCancel(
 		pGroup,
-		xrtDeadlineAfter(iTimeout),
+		__xrtWaitAfter(iTimeout),
 		NULL
 	);
 }
@@ -728,20 +729,20 @@ XRT_API xwaitresult xrtTaskGroupWaitFor(xtaskgroup* pGroup, uint64 iTimeout)
 
 
 /* 关闭并等待到指定截止时间。 */
-XRT_API xwaitresult xrtTaskGroupWaitUntil(
+XRT_API xwaitresult __xrtTaskGroupWaitUntil(
 	xtaskgroup* pGroup,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
-	return xrtTaskGroupWaitUntilCancel(pGroup, iDeadline, NULL);
+	return __xrtTaskGroupWaitUntilCancel(pGroup, iDeadline, NULL);
 }
 
 
 
 /* 关闭组，再复用 Future 的统一截止时间与调用方取消等待语义。 */
-XRT_API xwaitresult xrtTaskGroupWaitUntilCancel(
+XRT_API xwaitresult __xrtTaskGroupWaitUntilCancel(
 	xtaskgroup* pGroup,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -752,7 +753,7 @@ XRT_API xwaitresult xrtTaskGroupWaitUntilCancel(
 		return XWAIT_ERROR;
 	}
 	(void)xrtTaskGroupClose(pGroup);
-	Result = xrtFutureWaitUntilCancel(pFuture, iDeadline, pCancel);
+	Result = __xrtFutureWaitUntilCancel(pFuture, iDeadline, pCancel);
 	xrtFutureDestroy(pFuture);
 	return Result;
 }
@@ -835,4 +836,15 @@ XRT_API void xrtTaskGroupDestroy(xtaskgroup* pGroup)
 	__xrtTaskGroupRelease(pGroup);
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_TASK_GROUP))
+XRT_API xwaitresult xrtTaskGroupWaitForCancel(
+	xtaskgroup* pGroup,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtTaskGroupWaitUntilCancel(pGroup, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

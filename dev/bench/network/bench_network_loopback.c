@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../bench_common.h"
 
 #define XRT_MODULE_NET_TCP_SYNC
@@ -20,10 +21,10 @@ static bool benchNetworkRecvExact(
 	size_t iOffset = 0;
 
 	while ( iOffset < iSize ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iSize - iOffset,
-			xrtDeadlineAfter(5000000u),
+			__xrtWaitAfter(5000000u),
 			NULL
 		);
 		xbytesview View;
@@ -133,9 +134,9 @@ static bool benchNetworkTcp(uint32 iIterations, size_t iMessageSize)
 		goto cleanup;
 	}
 	sStage = "accept";
-	pServer = xrtNetListenerAcceptWait(
+	pServer = __xrtNetListenerAcceptWait(
 		pListener,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	if ( pServer == NULL ) {
@@ -143,10 +144,10 @@ static bool benchNetworkTcp(uint32 iIterations, size_t iMessageSize)
 	}
 	sStage = "open";
 	if (
-		!xrtNetStreamWait(
+		!__xrtNetStreamWait(
 			pClient,
 			XNET_STREAM_WAIT_OPEN,
-			xrtDeadlineAfter(5000000u),
+			__xrtWaitAfter(5000000u),
 			NULL
 		)
 	) {
@@ -281,10 +282,10 @@ static bool benchNetworkUdpDestroy(xnetudp* pUdp)
 		bResult = xrtNetUdpClose(pUdp);
 		if (
 			bResult &&
-			!xrtNetUdpWait(
+			!__xrtNetUdpWait(
 				pUdp,
 				XNET_UDP_WAIT_CLOSE,
-				xrtDeadlineAfter(5000000u),
+				__xrtWaitAfter(5000000u),
 				NULL
 			)
 		) {
@@ -417,16 +418,16 @@ static bool benchNetworkUdp(
 	);
 	if (
 		(pClient == NULL) ||
-		!xrtNetUdpWait(
+		!__xrtNetUdpWait(
 			pServer,
 			XNET_UDP_WAIT_OPEN,
-			xrtDeadlineAfter(5000000u),
+			__xrtWaitAfter(5000000u),
 			NULL
 		) ||
-		!xrtNetUdpWait(
+		!__xrtNetUdpWait(
 			pClient,
 			XNET_UDP_WAIT_OPEN,
-			xrtDeadlineAfter(5000000u),
+			__xrtWaitAfter(5000000u),
 			NULL
 		)
 	) {
@@ -458,10 +459,10 @@ static bool benchNetworkUdp(
 			}
 			if (
 				(Result != XNET_RESULT_AGAIN) ||
-				!xrtNetUdpWritable(
+				!__xrtNetUdpWritable(
 					pClient,
 					iPacketSize,
-					xrtDeadlineAfter(5000000u),
+					__xrtWaitAfter(5000000u),
 					NULL
 				)
 			) {
@@ -470,10 +471,10 @@ static bool benchNetworkUdp(
 		}
 		sStage = "receive";
 		while ( iReceived < iBatch ) {
-			xnetudpbatch* pBatch = xrtNetUdpReceiveBatchWait(
+			xnetudpbatch* pBatch = __xrtNetUdpReceiveBatchWait(
 				pServer,
 				iBatch - iReceived,
-				xrtDeadlineAfter(5000000u),
+				__xrtWaitAfter(5000000u),
 				NULL
 			);
 			size_t iStep = 0;
@@ -494,10 +495,10 @@ static bool benchNetworkUdp(
 		iCompleted += (uint32)iBatch;
 	}
 	sStage = "drain";
-	if ( !xrtNetUdpWait(
+	if ( !__xrtNetUdpWait(
 		pClient,
 		XNET_UDP_WAIT_DRAIN,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	) ) {
 		goto cleanup;

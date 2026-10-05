@@ -1,0 +1,115 @@
+{
+	"schema": 1,
+	"product": "xllm_session",
+	"module_prefix": "XLLM_SESSION_MODULE_",
+	"single_header": "single/extlibs/xllm-session.h",
+	"declaration_header": "single/extlibs/xllm-session_decl.h",
+	"implementation_macro": "XLLM_SESSION_IMPLEMENTATION",
+	"implementation_once_macro": "XLLM_SESSION_IMPLEMENTATION_ONCE",
+	"single_guard": "XLLM_SESSION_SINGLE_HEADER_H",
+	"single_marker": "XLLM_SESSION_SINGLE_HEADER",
+	"declaration_guard": "XLLM_SESSION_DECLARATIONS_H",
+	"declaration_marker": "XLLM_SESSION_DECLARATIONS",
+	"package_consumer": "extlibs/xllm-session/tests/package/test_consumer.c",
+	"product_root": "extlibs/xllm-session",
+	"performance_config": "extlibs/xllm-session/config/performance_profiles.json",
+	"size_config": "extlibs/xllm-session/config/size_profiles.json",
+	"scope": {
+		"product": "xllm_session",
+		"external_integrations": [],
+		"systems": [
+			{
+				"name": "session",
+				"state": "retained",
+				"source_roots": [
+					"session"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xllm-session public API reference",
+		"function_prefix": "xllmSession",
+		"constant_prefix": "XLLM_SESSION_",
+		"type_prefix": "xllm_",
+		"guide": "../../README.md",
+		"output": "extlibs/xllm-session/docs/api/reference.md"
+	},
+	"features_guard": "XLLM_SESSION_FEATURES_H",
+	"features_header": "extlibs/xllm-session/include/xllm-session/features.h",
+	"include_dirs": [
+		"extlibs/xllm-session/include"
+	],
+	"header_roots": [
+		"extlibs/xllm-session/include",
+		"extlibs/xllm-session/src/internal"
+	],
+	"modules": [
+		{
+			"name": "xllm_session",
+			"state": "implemented",
+			"feature": "XLLM_SESSION_FEATURE_XLLM_SESSION",
+			"depends": [
+				"xllm",
+				"jsonl_read",
+				"file_whole",
+				"dir",
+				"path",
+				"random_secure"
+			],
+			"public_headers": [
+				"extlibs/xllm-session/include/xllm-session.h",
+				"extlibs/xllm-session/include/xllm-session/features.h",
+				"extlibs/xllm-session/include/xllm-session/api.h"
+			],
+			"internal_headers": [
+				"extlibs/xllm-session/src/internal/xllm_session_internal.h"
+			],
+			"sources": [
+				"extlibs/xllm-session/src/session/xllm_session_core.c",
+				"extlibs/xllm-session/src/session/xllm_session_govern.c",
+				"extlibs/xllm-session/src/session/xllm_session_compact.c",
+				"extlibs/xllm-session/src/session/xllm_session_render.c",
+				"extlibs/xllm-session/src/session/xllm_session_easy.c",
+				"extlibs/xllm-session/src/session/xllm_session_run.c",
+				"extlibs/xllm-session/src/session/xllm_session_persist.c",
+				"extlibs/xllm-session/src/session/xllm_session_journal.c"
+			],
+			"tests": [
+				"extlibs/xllm-session/tests/test_xllm_session.c"
+			],
+			"single_tests": [
+				"extlibs/xllm-session/tests/single/test_single_xllm_session.c"
+			],
+			"examples": [],
+			"benchmarks": [
+				"extlibs/xllm-session/bench/bench_xllm_session.c"
+			],
+			"docs": [
+				"extlibs/xllm-session/README.md",
+				"extlibs/xllm-session/docs/api/reference.md"
+			]
+		},
+		{
+			"name": "xllm_session_live",
+			"state": "implemented",
+			"depends": [
+				"xllm_session"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xllm-session/tests/live_meta_check.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"benchmarks": [],
+			"docs": []
+		}
+	],
+	"dependency_manifests": [
+		"extlibs/xllm/config/modules.json"
+	],
+	"umbrella_header": "xllm-session.h"
+}

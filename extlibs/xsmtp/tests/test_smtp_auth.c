@@ -1,10 +1,11 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
 
 typedef struct testsmtpauthserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } testsmtpauthserver;
 
@@ -40,7 +41,7 @@ static bool testSmtpAuthSend(
 	xnetstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -49,7 +50,7 @@ static bool testSmtpAuthSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -67,13 +68,13 @@ static bool testSmtpAuthReceive(
 	xnetstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -102,13 +103,13 @@ static bool testSmtpAuthReceive(
 static bool testSmtpAuthReceiveLine(
 	xnetstream* pStream,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -153,7 +154,7 @@ static bool testSmtpAuthHello(
 	xnetstream* pStream,
 	cstr sCapabilities,
 	size_t iCapabilities,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return testSmtpAuthSend(
@@ -177,7 +178,7 @@ static bool testSmtpAuthHello(
 
 
 /* 完成一条认证测试连接的 QUIT 与有序关闭。 */
-static bool testSmtpAuthQuit(xnetstream* pStream, xdeadline iDeadline)
+static bool testSmtpAuthQuit(xnetstream* pStream, double iDeadline)
 {
 	return testSmtpAuthReceive(
 		pStream,
@@ -189,7 +190,7 @@ static bool testSmtpAuthQuit(xnetstream* pStream, xdeadline iDeadline)
 		"221 closing\r\n",
 		sizeof("221 closing\r\n") - 1u,
 		iDeadline
-	) && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+	) && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		iDeadline,
@@ -202,7 +203,7 @@ static bool testSmtpAuthQuit(xnetstream* pStream, xdeadline iDeadline)
 /* 验证 SMTP 原生 initial response，不依赖非标准 SASL-IR 能力。 */
 static bool testSmtpAuthPlainSession(
 	xnetstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	static const char sCapabilities[] =
@@ -231,7 +232,7 @@ static bool testSmtpAuthPlainSession(
 /* 验证 LOGIN 的 username 和 password 两阶段 challenge。 */
 static bool testSmtpAuthLoginSession(
 	xnetstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	static const char sCapabilities[] =
@@ -280,7 +281,7 @@ static bool testSmtpAuthLoginSession(
 /* 验证 XOAUTH2 失败 challenge 以空响应正常收尾。 */
 static bool testSmtpAuthXoauth2Session(
 	xnetstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	static const char sCapabilities[] =
@@ -321,7 +322,7 @@ static bool testSmtpAuthXoauth2Session(
 /* 验证超出普通命令上限的响应改走 SASL continuation 长行。 */
 static bool testSmtpAuthLongSession(
 	xnetstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	static const char sCapabilities[] =
@@ -363,7 +364,7 @@ static int32 testSmtpAuthServer(ptr pData)
 	bool bSuccess = true;
 
 	for ( size_t i = 0; i < 4u; i++ ) {
-		xnetstream* pStream = xrtNetListenerAcceptWait(
+		xnetstream* pStream = __xrtNetListenerAcceptWait(
 			pServer->Listener,
 			pServer->Deadline,
 			NULL
@@ -413,7 +414,7 @@ int main(void)
 	xsmtpclient* pClient;
 	xsmtpreply Reply;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 	char sLongSecret[500];
 
 	xrtSmtpAuthConfigInit(&AuthConfig);
@@ -464,7 +465,7 @@ int main(void)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "SMTP auth resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Success = false;
@@ -476,11 +477,11 @@ int main(void)
 	ClientConfig.Net.Host = "smtp.test";
 	ClientConfig.Net.Port = TestSmtpAuthAddress.Port;
 	ClientConfig.Hello = (xstrview)XRT_STR_LITERAL("client.test");
-	pClient = xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire((pClient != NULL) &&
 		(xrtSmtpClientSecurity(pClient) == XMAIL_SECURITY_PLAIN),
 		"SMTP auth client open failed");
-	testRequire(!xrtSmtpClientAuth(
+	testRequire(!__xrtSmtpClientAuth(
 		pClient,
 		&AuthConfig,
 		Deadline,
@@ -488,50 +489,50 @@ int main(void)
 	), "SMTP auth sent credentials without plaintext opt-in");
 	xrtClearError();
 	AuthConfig.AllowPlaintext = true;
-	testRequire(xrtSmtpClientAuth(
+	testRequire(__xrtSmtpClientAuth(
 		pClient,
 		&AuthConfig,
 		Deadline,
 		NULL
 	) && xrtSmtpClientAuthenticated(pClient),
 		"SMTP PLAIN authentication state mismatch");
-	testRequire(!xrtSmtpClientAuth(
+	testRequire(!__xrtSmtpClientAuth(
 		pClient,
 		&AuthConfig,
 		Deadline,
 		NULL
 	), "SMTP repeated authentication was accepted");
 	xrtClearError();
-	testRequire(xrtSmtpClientQuit(pClient, Deadline, NULL),
+	testRequire(__xrtSmtpClientQuit(pClient, Deadline, NULL),
 		"SMTP PLAIN QUIT failed");
 	xrtSmtpClientDestroy(pClient);
 
-	pClient = xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire(pClient != NULL, "SMTP LOGIN client open failed");
 	xrtSmtpAuthConfigInit(&AuthConfig);
 	AuthConfig.Method = XSMTP_AUTH_LOGIN;
 	AuthConfig.Username = XRT_STR_LITERAL("user");
 	AuthConfig.Secret = XRT_STR_LITERAL("pass");
 	AuthConfig.AllowPlaintext = true;
-	testRequire(xrtSmtpClientAuth(
+	testRequire(__xrtSmtpClientAuth(
 		pClient,
 		&AuthConfig,
 		Deadline,
 		NULL
 	) && xrtSmtpClientAuthenticated(pClient),
 		"SMTP LOGIN authentication failed");
-	testRequire(xrtSmtpClientQuit(pClient, Deadline, NULL),
+	testRequire(__xrtSmtpClientQuit(pClient, Deadline, NULL),
 		"SMTP LOGIN QUIT failed");
 	xrtSmtpClientDestroy(pClient);
 
-	pClient = xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire(pClient != NULL, "SMTP XOAUTH2 client open failed");
 	xrtSmtpAuthConfigInit(&AuthConfig);
 	AuthConfig.Method = XSMTP_AUTH_OAUTHBEARER;
 	AuthConfig.Username = XRT_STR_LITERAL("user");
 	AuthConfig.Secret = XRT_STR_LITERAL("token");
 	AuthConfig.AllowPlaintext = true;
-	testRequire(!xrtSmtpClientAuth(
+	testRequire(!__xrtSmtpClientAuth(
 		pClient,
 		&AuthConfig,
 		Deadline,
@@ -539,7 +540,7 @@ int main(void)
 	), "SMTP OAUTHBEARER was allowed on a plaintext connection");
 	xrtClearError();
 	AuthConfig.Method = XSMTP_AUTH_XOAUTH2;
-	testRequire(!xrtSmtpClientAuth(
+	testRequire(!__xrtSmtpClientAuth(
 		pClient,
 		&AuthConfig,
 		Deadline,
@@ -549,29 +550,29 @@ int main(void)
 		xrtSmtpClientLastReply(pClient, &Reply) &&
 		(Reply.Code == 535), "SMTP XOAUTH2 final rejection mismatch");
 	xrtClearError();
-	testRequire(xrtSmtpClientQuit(pClient, Deadline, NULL),
+	testRequire(__xrtSmtpClientQuit(pClient, Deadline, NULL),
 		"SMTP XOAUTH2 QUIT failed");
 	xrtSmtpClientDestroy(pClient);
 
-	pClient = xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire(pClient != NULL, "SMTP long PLAIN client open failed");
 	memset(sLongSecret, 'p', sizeof(sLongSecret));
 	xrtSmtpAuthConfigInit(&AuthConfig);
 	AuthConfig.Username = XRT_STR_LITERAL("u");
 	AuthConfig.Secret = (xstrview) { sLongSecret, sizeof(sLongSecret) };
 	AuthConfig.AllowPlaintext = true;
-	testRequire(xrtSmtpClientAuth(
+	testRequire(__xrtSmtpClientAuth(
 		pClient,
 		&AuthConfig,
 		Deadline,
 		NULL
 	) && xrtSmtpClientAuthenticated(pClient),
 		"SMTP long SASL response fallback failed");
-	testRequire(xrtSmtpClientQuit(pClient, Deadline, NULL),
+	testRequire(__xrtSmtpClientQuit(pClient, Deadline, NULL),
 		"SMTP long PLAIN QUIT failed");
 	xrtSmtpClientDestroy(pClient);
 
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"SMTP auth server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"SMTP auth transcript mismatch");

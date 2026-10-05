@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../../src/internal/xrt_net_engine.h"
 
@@ -28,10 +29,10 @@ typedef struct testenginefairness {
 /* 在有限截止时间内等待原子状态达到目标值。 */
 static bool testEngineFairnessWait(xatomic32* pValue, uint32 iExpected)
 {
-	xdeadline Deadline = xrtDeadlineAfter(5000000);
+	double Deadline = __xrtWaitAfter(5000000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) != iExpected ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/udp —— 事件驱动 UDP 回环（双形态同场）
  * ----------------------------------------------------------------
@@ -26,10 +27,10 @@
 /* 在截止时间内等待 UDP 状态转换。 */
 static bool exampleUdpWaitState(xnetudp* pUdp, xnetudpstate State)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( xrtNetUdpState(pUdp) != State ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -42,7 +43,7 @@ static bool exampleUdpWaitState(xnetudp* pUdp, xnetudpstate State)
 /* 在截止时间内拉取一个 UDP 包。 */
 static xnetudppacket* exampleUdpReceive(xnetudp* pUdp)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 	xnetudppacket* pPacket;
 
 	for ( ;; ) {
@@ -50,7 +51,7 @@ static xnetudppacket* exampleUdpReceive(xnetudp* pUdp)
 		if ( pPacket != NULL ) {
 			return pPacket;
 		}
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return NULL;
 		}
 		xrtThreadYield();

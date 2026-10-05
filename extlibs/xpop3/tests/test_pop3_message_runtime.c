@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
@@ -21,7 +22,7 @@ static const char TestPop3TopRaw[] =
 
 typedef struct testpop3messageserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } testpop3messageserver;
 
@@ -64,7 +65,7 @@ static xnetaddrlist* testPop3MessageResolve(
 static bool testPop3MessageSend(
 	xnetstream* pStream,
 	cstr sText,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iSize = strlen(sText);
@@ -75,7 +76,7 @@ static bool testPop3MessageSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -92,14 +93,14 @@ static bool testPop3MessageSend(
 static bool testPop3MessageReceive(
 	xnetstream* pStream,
 	cstr sExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iExpected = strlen(sExpected);
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -127,10 +128,10 @@ static bool testPop3MessageReceive(
 /* 通过 FIN 或异常复位终态验证对端已经停止传输。 */
 static bool testPop3MessagePeerClosed(
 	xnetstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
-	xnetbytes* pBytes = xrtNetStreamRecv(
+	xnetbytes* pBytes = __xrtNetStreamRecv(
 		pStream,
 		0,
 		iDeadline,
@@ -147,7 +148,7 @@ static bool testPop3MessagePeerClosed(
 		!xrtNetStreamClose(pStream) ) {
 		return false;
 	}
-	bClosed = xrtNetStreamWait(
+	bClosed = __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		iDeadline,
@@ -163,7 +164,7 @@ static bool testPop3MessagePeerClosed(
 static bool testPop3MessageResponse(
 	xnetstream* pStream,
 	bool bTop,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	if ( bTop ) {
@@ -199,7 +200,7 @@ static bool testPop3MessageResponse(
 static int32 testPop3MessageServer(ptr pData)
 {
 	testpop3messageserver* pServer = (testpop3messageserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -269,7 +270,7 @@ static int32 testPop3MessageServer(ptr pData)
 		pStream,
 		"+OK signing off\r\n",
 		pServer->Deadline
-	) && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+	) && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		pServer->Deadline,
@@ -286,7 +287,7 @@ static int32 testPop3MessageServer(ptr pData)
 static int32 testPop3MessageLimitServer(ptr pData)
 {
 	testpop3messageserver* pServer = (testpop3messageserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -366,7 +367,7 @@ int main(void)
 	xnetlistener* pListener;
 	xpop3client* pClient;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 	bytes pMessage;
 	bytes pTop;
 	size_t iWritten;
@@ -397,7 +398,7 @@ int main(void)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "POP3 message resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Success = false;
@@ -409,9 +410,9 @@ int main(void)
 	ClientConfig.Net.Host = "message.pop3.test";
 	ClientConfig.Net.Port = TestPop3MessageAddress.Port;
 	ClientConfig.ReadCapabilities = false;
-	pClient = xrtPop3ClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtPop3ClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire(pClient != NULL, "POP3 message client open failed");
-	testRequire(xrtPop3ClientLogin(
+	testRequire(__xrtPop3ClientLogin(
 		pClient,
 		XRT_STR_LITERAL("user"),
 		XRT_STR_LITERAL("pass"),
@@ -420,7 +421,7 @@ int main(void)
 		NULL
 	), "POP3 message login failed");
 
-	testRequire(xrtPop3ClientRetrWrite(
+	testRequire(__xrtPop3ClientRetrWrite(
 		pClient,
 		1u,
 		0,
@@ -433,7 +434,7 @@ int main(void)
 		(Sink.Size == iWritten) && (Sink.Calls > 5u) &&
 		(memcmp(Sink.Data, TestPop3MessageRaw, iWritten) == 0),
 		"POP3 streamed RETR output mismatch");
-	pMessage = xrtPop3ClientRetrBytes(
+	pMessage = __xrtPop3ClientRetrBytes(
 		pClient,
 		2u,
 		0,
@@ -447,7 +448,7 @@ int main(void)
 		(memcmp(pMessage, TestPop3MessageRaw, iMessageSize) == 0),
 		"POP3 owned RETR output mismatch");
 	xrtFree(pMessage);
-	pTop = xrtPop3ClientTopBytes(
+	pTop = __xrtPop3ClientTopBytes(
 		pClient,
 		3u,
 		1u,
@@ -461,7 +462,7 @@ int main(void)
 		(memcmp(pTop, TestPop3TopRaw, iTopSize) == 0),
 		"POP3 owned TOP output mismatch");
 	xrtFree(pTop);
-	testRequire(xrtPop3ClientRetrTree(
+	testRequire(__xrtPop3ClientRetrTree(
 		pClient,
 		4u,
 		NULL,
@@ -477,9 +478,9 @@ int main(void)
 		) == 0),
 		"POP3 RETR MIME tree mismatch");
 	xrtMailTreeFree(&Tree);
-	testRequire(xrtPop3ClientQuit(pClient, Deadline, NULL),
+	testRequire(__xrtPop3ClientQuit(pClient, Deadline, NULL),
 		"POP3 message QUIT failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"POP3 message server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"POP3 message server transcript mismatch");
@@ -487,14 +488,14 @@ int main(void)
 	xrtThreadDestroy(pThread);
 	xrtPop3ClientDestroy(pClient);
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Deadline = Deadline;
 	Server.Success = false;
 	pThread = xrtThreadCreate(testPop3MessageLimitServer, &Server, 0);
 	testRequire(pThread != NULL,
 		"POP3 message limit server thread creation failed");
-	pClient = xrtPop3ClientOpen(&ClientConfig, Deadline, NULL);
-	testRequire((pClient != NULL) && xrtPop3ClientLogin(
+	pClient = __xrtPop3ClientOpen(&ClientConfig, Deadline, NULL);
+	testRequire((pClient != NULL) && __xrtPop3ClientLogin(
 		pClient,
 		XRT_STR_LITERAL("user"),
 		XRT_STR_LITERAL("pass"),
@@ -502,7 +503,7 @@ int main(void)
 		Deadline,
 		NULL
 	), "POP3 message limit client login failed");
-	testRequire(xrtPop3ClientRetrBytes(
+	testRequire(__xrtPop3ClientRetrBytes(
 		pClient,
 		5u,
 		5u,
@@ -516,7 +517,7 @@ int main(void)
 	testRequire(xrtPop3ClientAbort(pClient) &&
 		(xrtPop3ClientState(pClient) == XPOP3_CLIENT_CLOSED),
 		"POP3 client abort was not idempotent");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"POP3 message limit server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"POP3 message limit server transcript mismatch");

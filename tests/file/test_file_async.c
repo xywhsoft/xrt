@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -72,11 +73,11 @@ static bool testAsyncFileRefWait(
 	uint32 iExpected
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(2000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(2000000));
 	bool bResult = xrtMutexLock(&pRef->Lock);
 
 	while ( bResult && (pRef->Releases != iExpected) ) {
-		bResult = xrtCondWaitUntil(
+		bResult = __xrtCondWaitUntil(
 			&pRef->Cond,
 			&pRef->Lock,
 			Deadline

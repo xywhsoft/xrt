@@ -62,7 +62,7 @@ The program below is from `examples/http/server` — the minimal complete servic
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/server/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 listening on http://127.0.0.1:52173/health
 press Enter to drain
 ```
@@ -77,7 +77,7 @@ The second program is from `examples/http/server_router` — routing plus direct
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/server_router/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server_router/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出路由装配计数并正常退出）
 ```
 

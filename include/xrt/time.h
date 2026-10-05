@@ -11,14 +11,15 @@
 
 
 
-/* xtime 和固定时长统一使用微秒，避免浮点计时和隐式单位换算。 */
-#define XRT_TIME_MICROSECOND	INT64_C(1)
-#define XRT_TIME_MILLISECOND	INT64_C(1000)
-#define XRT_TIME_SECOND		INT64_C(1000000)
-#define XRT_TIME_MINUTE		INT64_C(60000000)
-#define XRT_TIME_HOUR		INT64_C(3600000000)
-#define XRT_TIME_DAY			INT64_C(86400000000)
-#define XRT_TIME_WEEK		INT64_C(604800000000)
+/* 公元日期时间和固定日历时长统一使用整数毫秒。 */
+#define XRT_TIME_MILLISECOND	INT64_C(1)
+#define XRT_TIME_SECOND		INT64_C(1000)
+#define XRT_TIME_MINUTE		INT64_C(60000)
+#define XRT_TIME_HOUR		INT64_C(3600000)
+#define XRT_TIME_DAY			INT64_C(86400000)
+#define XRT_TIME_UNIX_EPOCH	INT64_C(62135596800000)
+
+#define XRT_TIME_WEEK		INT64_C(604800000)
 
 
 
@@ -37,8 +38,8 @@ typedef enum xtimeweekday {
 
 /* 日期计算单位；月、季度和年使用日历语义，其余单位使用固定时长。 */
 typedef enum xtimeunit {
-	XTIME_UNIT_MICROSECOND = 0,
-	XTIME_UNIT_MILLISECOND,
+
+	XTIME_UNIT_MILLISECOND = 0,
 	XTIME_UNIT_SECOND,
 	XTIME_UNIT_MINUTE,
 	XTIME_UNIT_HOUR,
@@ -81,7 +82,7 @@ typedef struct xdatetime {
 	int Hour;
 	int Minute;
 	int Second;
-	int Microsecond;
+	int Millisecond;
 	int Offset;
 	int Weekday;
 	int YearDay;
@@ -96,37 +97,22 @@ XRT_EXTERN_C_BEGIN
 
 #if defined(XRT_FEATURE_TIME)
 
-/* 返回单调递增时钟的微秒计数，只能用于测量间隔和截止时间。 */
-XRT_API uint64 xrtClock(void);
-
-
-
 /* 返回单调时钟的浮点秒数，供短小的性能测量代码使用。 */
 XRT_API double xrtTimer(void);
 
 
 
-/* 返回当前 Unix Epoch 微秒。 */
+/* 返回当前公元 UTC 毫秒。 */
 XRT_API xtime xrtNow(void);
 
 
 
 /* 至少睡眠指定毫秒；零表示让出当前执行时间片。 */
-XRT_API void xrtSleep(uint32 iMilliseconds);
+XRT_API void xrtSleep(int64 iMilliseconds);
 
 
 
-/* 至少睡眠指定微秒。 */
-XRT_API void xrtSleepUs(uint64 iMicroseconds);
-
-
-
-/* 睡眠到单调时钟截止点；截止点已到时立即返回。 */
-XRT_API void xrtSleepUntil(uint64 iDeadline);
-
-
-
-/* 判断 Gregorian 年份是否为闰年，支持负年份和零年。 */
+/* 判断公元年份是否为闰年；负数表示公元前，不接受零年。 */
 XRT_API bool xrtIsLeapYear(int64 iYear);
 
 
@@ -148,7 +134,7 @@ XRT_API bool xrtDate(int64 iYear, int iMonth, int iDay, xtime* pTime);
 
 /* 构造 UTC 日期时间。 */
 XRT_API bool xrtDateTime(int64 iYear, int iMonth, int iDay,
-	int iHour, int iMinute, int iSecond, int iMicrosecond, xtime* pTime);
+	int iHour, int iMinute, int iSecond, int iMillisecond, xtime* pTime);
 
 
 
@@ -183,7 +169,11 @@ XRT_API int64 xrtTimeUnix(xtime iTime);
 
 
 /* 返回向负无穷取整的 Unix 毫秒。 */
-XRT_API int64 xrtTimeUnixMs(xtime iTime);
+XRT_API bool xrtTimeToUnixMs(xtime iTime, int64* pMilliseconds);
+
+/* 32 位有符号 Unix 秒的安全双向转换。 */
+XRT_API bool xrtTimeFromUnix32(int32 iSeconds, xtime* pTime);
+XRT_API bool xrtTimeToUnix32(xtime iTime, int32* pSeconds);
 
 
 
@@ -217,8 +207,8 @@ XRT_API int xrtSecond(xtime iTime);
 
 
 
-/* 提取秒内微秒。 */
-XRT_API int xrtMicrosecond(xtime iTime);
+/* 提取秒内毫秒。 */
+XRT_API int xrtMillisecond(xtime iTime);
 
 
 
@@ -242,12 +232,12 @@ XRT_API xtime xrtDatePart(xtime iTime);
 
 
 
-/* 返回 UTC 当日已经经过的微秒，范围为 [0, XRT_TIME_DAY)。 */
+/* 返回 UTC 当日已经经过的毫秒，范围为 [0, XRT_TIME_DAY)。 */
 XRT_API xtime xrtTimePart(xtime iTime);
 
 
 
-/* 使用显式微秒容差比较两个时间，计算覆盖完整 int64 域。 */
+/* 使用显式毫秒容差比较两个时间，计算覆盖完整 int64 域。 */
 XRT_API bool xrtTimeNear(xtime iLeft, xtime iRight, uint64 iTolerance);
 
 
@@ -283,8 +273,8 @@ XRT_API bool xrtTimeAdd(xtime iTime, int64 iValue, xtimeunit Unit, xtime* pResul
 
 
 
-/* 计算从起点到终点经过的完整单位数量。 */
-XRT_API bool xrtTimeDiff(xtime iStart, xtime iEnd, xtimeunit Unit, int64* pResult);
+/* 按指定维度计算整数日期差；固定单位向零截断，年月按日历序号计算。 */
+XRT_API bool xrtDateDiff(xtime iStart, xtime iEnd, xtimeunit Unit, int64* pResult);
 
 
 
@@ -358,7 +348,7 @@ XRT_API bool xrtTimeParse(xstrview Text, xstrview Format, xtime* pTime);
 
 
 
-/* 写入 RFC 3339 文本；零偏移使用 Z，微秒末尾的零会被删除。 */
+/* 写入 RFC 3339 文本；零偏移使用 Z，毫秒末尾的零会被删除。 */
 XRT_API size_t xrtTimeWriteRFC3339(char* sBuffer, size_t iCapacity,
 	xtime iTime, int iOffset);
 
@@ -369,7 +359,7 @@ XRT_API str xrtTimeRFC3339(xtime iTime, int iOffset);
 
 
 
-/* 严格解析 RFC 3339；超过微秒精度的尾数会向零截断。 */
+/* 严格解析 RFC 3339；超过毫秒精度的尾数会向零截断。 */
 XRT_API bool xrtTimeParseRFC3339(xstrview Text, xtime* pTime);
 
 

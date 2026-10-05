@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -9,7 +10,7 @@ static void testWsFutureOomWaitBaseline(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 	xnetenginestats After;
@@ -26,7 +27,7 @@ static void testWsFutureOomWaitBaseline(
 			return;
 		}
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtClearError();
@@ -200,7 +201,7 @@ static void testWsFutureOomWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 
@@ -209,7 +210,7 @@ static void testWsFutureOomWait(
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -318,7 +319,7 @@ int main(void)
 	xhttpclientconfig ClientConfig;
 	xnetengine* pEngine;
 	xhttpclient* pClient;
-	xdeadline Deadline;
+	double Deadline;
 
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = XNET_PORT_SELECT;
@@ -351,11 +352,11 @@ int main(void)
 	);
 	xrtHttpClientDestroy(pClient);
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"WebSocket Future OOM retained an Engine object"
 		);
 		xrtThreadYield();

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -71,7 +72,7 @@ static void testTcpServerReentrantWait(
 	size_t iCount
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	for ( ;; ) {
 		bool bDone = xrtNetServerState(pServer) == XNET_SERVER_CLOSED;
@@ -83,7 +84,7 @@ static void testTcpServerReentrantWait(
 		if ( bDone ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP server reentrant wait timed out");
 		xrtThreadYield();
 	}
@@ -100,7 +101,7 @@ static void testTcpServerQueueLimit(xnetengine* pEngine)
 	xnetstream* aClients[TEST_TCP_SERVER_CLIENTS];
 	xnetstream* pAccepted;
 	xnetaddr Local;
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	memset(aClients, 0, sizeof(aClients));
 	xrtNetServerConfigInit(&Config);
@@ -133,7 +134,7 @@ static void testTcpServerQueueLimit(xnetengine* pEngine)
 			 TEST_TCP_SERVER_CLIENTS ) {
 			break;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP server queue accounting timed out");
 		xrtThreadYield();
 	}

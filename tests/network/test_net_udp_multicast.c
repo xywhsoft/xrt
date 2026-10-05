@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -45,10 +46,10 @@ static void testUdpMulticastOpen(xnetudp* pUdp, ptr pData)
 /* 等待 Worker 完成多播配置。 */
 static void testUdpMulticastWait(testudpmulticast* pTest)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( xrtAtomic32Load(&pTest->Done, XMEMORY_ACQUIRE) == 0 ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"UDP multicast worker test timed out");
 		xrtThreadYield();
 	}
@@ -59,10 +60,10 @@ static void testUdpMulticastWait(testudpmulticast* pTest)
 /* 等待 UDP 正常关闭。 */
 static void testUdpMulticastWaitClosed(xnetudp* pUdp)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( xrtNetUdpState(pUdp) != XNET_UDP_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"UDP multicast close timed out");
 		xrtThreadYield();
 	}

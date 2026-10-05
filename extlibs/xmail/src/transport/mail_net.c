@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_mail_net.h"
 
 
@@ -178,7 +179,7 @@ XRT_API bool xrtMailNetConfigValid(const xmailnetconfig* pConfig)
 bool __xrtMailTransportOpen(
 	__xmailtransport* pTransport,
 	const xmailnetconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -195,7 +196,7 @@ bool __xrtMailTransportOpen(
 	pTransport->WriteChunk = pConfig->WriteChunk;
 	pTransport->Security = pConfig->Security;
 	/* 已失效的调用不能先向 Engine 提交拨号任务。 */
-	if ( xrtDeadlineExpired(iDeadline) ) {
+	if ( __xrtWaitExpired(iDeadline) ) {
 		__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
 			"mail connection timed out before dialing");
 		return false;
@@ -217,7 +218,7 @@ bool __xrtMailTransportOpen(
 			return false;
 		#endif
 	} else {
-		pTransport->Tcp = xrtNetConnect(
+		pTransport->Tcp = __xrtNetConnect(
 			pConfig->Engine,
 			pConfig->Resolver,
 			pConfig->Host,
@@ -239,7 +240,7 @@ bool __xrtMailTransportRawSend(
 	__xmailtransport* pTransport,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -261,7 +262,7 @@ bool __xrtMailTransportRawSend(
 		size_t iChunk = iSize - iOffset;
 
 		/* 无需等待写就绪时也必须遵守取消和截止时间。 */
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
 				"mail send timed out");
 			return false;
@@ -291,7 +292,7 @@ bool __xrtMailTransportRawSend(
 
 			for ( ;; ) {
 				/* 写队列唤醒后再次检查，避免失效请求继续提交字节。 */
-				if ( xrtDeadlineExpired(iDeadline) ) {
+				if ( __xrtWaitExpired(iDeadline) ) {
 					__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
 						"mail send timed out");
 					return false;
@@ -310,7 +311,7 @@ bool __xrtMailTransportRawSend(
 					break;
 				}
 				if ( (Result != XNET_RESULT_AGAIN) ||
-					!xrtNetStreamWait(
+					!__xrtNetStreamWait(
 						pTransport->Tcp,
 						XNET_STREAM_WAIT_WRITE,
 						iDeadline,
@@ -335,7 +336,7 @@ bool __xrtMailTransportWrite(
 	const void* pData,
 	size_t iSize,
 	bool bFlush,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -369,7 +370,7 @@ bool __xrtMailTransportSend(
 	__xmailtransport* pTransport,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -388,7 +389,7 @@ bool __xrtMailTransportSend(
 /* 绕过可选内容解码，取得一块拥有型传输字节。 */
 xnetbytes* __xrtMailTransportRawRecv(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -401,7 +402,7 @@ xnetbytes* __xrtMailTransportRawRecv(
 			);
 		}
 	#endif
-	return xrtNetStreamRecv(
+	return __xrtNetStreamRecv(
 			pTransport->Tcp,
 			pTransport->ReadChunk,
 			iDeadline,
@@ -475,7 +476,7 @@ bool __xrtMailTransportReserve(
 bool __xrtMailTransportLine(
 	__xmailtransport* pTransport,
 	xstrview* pLine,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -563,7 +564,7 @@ bool __xrtMailTransportRead(
 	void* pBuffer,
 	size_t iCapacity,
 	size_t* pRead,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -657,7 +658,7 @@ bool __xrtMailTransportRead(
 /* 正常关闭传输；任一关闭失败均中止连接并保留原始错误。 */
 bool __xrtMailTransportClose(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	bool bSuccess = true;
@@ -673,7 +674,7 @@ bool __xrtMailTransportClose(
 	#endif
 	if ( pTransport->Tcp != NULL ) {
 		bSuccess = xrtNetStreamClose(pTransport->Tcp) &&
-			xrtNetStreamWait(
+			__xrtNetStreamWait(
 				pTransport->Tcp,
 				XNET_STREAM_WAIT_CLOSE,
 				iDeadline,

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 #include "test_tls.h"
 #include "../../../tests/fixtures/mail_tls_partial.h"
@@ -16,7 +17,7 @@ typedef enum testimaptlsfault {
 typedef struct testimaptlsserver {
 	xnetlistener* Listener;
 	const xtlsserverconfig* Tls;
-	xdeadline Deadline;
+	double Deadline;
 	testimaptlsfault Mode;
 	xcancel* Cancel;
 	xtlsstream* ClientTls;
@@ -58,11 +59,11 @@ static bool testImapTlsWaitPartial(testimaptlsserver* pServer)
  * 或新命令。Abort 前已经进入内核的字节可能继续到达，不要求网络回滚。 */
 static bool testImapTlsDrain(testimaptlsserver* pServer, xtlsstream* pTls)
 {
-	while ( !xrtDeadlineExpired(pServer->Deadline) ) {
+	while ( !__xrtWaitExpired(pServer->Deadline) ) {
 		xfuture* pRead = xrtTlsStreamRecvAsync(pTls, 0);
 		xfuturestate State;
 		if ( pRead == NULL ) return false;
-		if ( xrtFutureWaitUntil(pRead, pServer->Deadline) != XWAIT_OK ) {
+		if ( __xrtFutureWaitUntil(pRead, pServer->Deadline) != XWAIT_OK ) {
 			xrtFutureDestroy(pRead);
 			return false;
 		}
@@ -91,7 +92,7 @@ static bool testImapTlsDrain(testimaptlsserver* pServer, xtlsstream* pTls)
 static int32 testImapTlsServer(ptr pData)
 {
 	testimaptlsserver* pServer = (testimaptlsserver*)pData;
-	xnetstream* pTcp = xrtNetListenerAcceptWait(pServer->Listener, pServer->Deadline, NULL);
+	xnetstream* pTcp = __xrtNetListenerAcceptWait(pServer->Listener, pServer->Deadline, NULL);
 	xtlsstream* pTls;
 	bool Success;
 	if ( pTcp == NULL ) return 1;
@@ -133,7 +134,7 @@ static int32 testImapTlsServer(ptr pData)
 	(void)xrtTlsStreamAbort(pTls);
 	while ( xrtTlsStreamState(pTls) != XTLS_STREAM_FAILED &&
 		xrtTlsStreamState(pTls) != XTLS_STREAM_CLOSED ) {
-		if ( xrtDeadlineExpired(pServer->Deadline) ) { Success = false; break; }
+		if ( __xrtWaitExpired(pServer->Deadline) ) { Success = false; break; }
 		xrtThreadYield();
 	}
 	xrtTlsStreamDestroy(pTls);
@@ -204,7 +205,7 @@ int main(void)
 		Server.Listener = pListener;
 		Server.Tls = &TlsServer;
 		Server.Mode = (testimaptlsfault)Mode;
-		Server.Deadline = xrtDeadlineAfter(UINT64_C(15000000));
+		Server.Deadline = __xrtWaitAfter(UINT64_C(15000000));
 		Server.Cancel = xrtCancelCreate();
 		xrtAtomic32Init(&Server.ClientReady, 0u);
 		xrtAtomic32Init(&Server.PrefixReady, 0u);
@@ -213,7 +214,7 @@ int main(void)
 		testRequire(Server.Cancel != NULL, "IMAP TLS fault cancel creation failed");
 		xthread* pThread = xrtThreadCreate(testImapTlsServer, &Server, 0);
 		testRequire(pThread != NULL, "IMAP TLS fault server thread creation failed");
-		ximapclient* pClient = xrtImapClientOpen(&Config, Server.Deadline, NULL);
+		ximapclient* pClient = __xrtImapClientOpen(&Config, Server.Deadline, NULL);
 		testRequire(pClient != NULL && xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED,
 			"IMAP TLS fault client open failed");
 		Server.ClientTls = xrtTlsStreamRef(pClient->Transport.Tls);
@@ -225,9 +226,9 @@ int main(void)
 		Append.Mailbox = XRT_STR_LITERAL("INBOX");
 		Append.Size = TEST_IMAP_TLS_TOTAL;
 		Append.Literal = XIMAP_LITERAL_SYNC;
-		testRequire(xrtImapClientAppendBegin(pClient, &Append, Server.Deadline, NULL),
+		testRequire(__xrtImapClientAppendBegin(pClient, &Append, Server.Deadline, NULL),
 			"IMAP TLS fault APPEND begin failed");
-		testRequire(xrtImapClientAppendWrite(pClient, pPayload, TEST_IMAP_TLS_PREFIX,
+		testRequire(__xrtImapClientAppendWrite(pClient, pPayload, TEST_IMAP_TLS_PREFIX,
 			Server.Deadline, NULL), "IMAP TLS fault prefix write failed");
 		testmailpartialsnapshot Prefix;
 		testRequire(testMailPartialSnapshot(Server.ClientTls, Server.Deadline, &Prefix) &&
@@ -235,9 +236,9 @@ int main(void)
 		Server.PrefixAccepted = Prefix.Accepted;
 		xrtAtomic32Store(&Server.PrefixReady, 1u, XMEMORY_RELEASE);
 		xrtClearError();
-		bool Written = xrtImapClientAppendWrite(pClient, pPayload + TEST_IMAP_TLS_PREFIX,
+		bool Written = __xrtImapClientAppendWrite(pClient, pPayload + TEST_IMAP_TLS_PREFIX,
 			TEST_IMAP_TLS_WRITE, Mode == TEST_IMAP_TLS_TIMEOUT ?
-			xrtDeadlineAfter(UINT64_C(3000000)) : Server.Deadline,
+			__xrtWaitAfter(UINT64_C(3000000)) : Server.Deadline,
 			Mode == TEST_IMAP_TLS_CANCEL ? Server.Cancel : NULL);
 		xerror* pFailure = xrtTakeError();
 		ximapresponseview Last;
@@ -272,11 +273,11 @@ int main(void)
 				"IMAP TLS partial write lost the peer disconnect diagnostic");
 		}
 		xrtErrorFree(pFailure);
-		testRequire(!xrtImapClientAppendWrite(pClient, "X", 1u, Server.Deadline, NULL) &&
+		testRequire(!__xrtImapClientAppendWrite(pClient, "X", 1u, Server.Deadline, NULL) &&
 			xrtErrorKind(xrtGetError()) == XERR_STATE,
 			"IMAP TLS failed upload session accepted another write");
 		xrtAtomic32Store(&Server.Returned, 1u, XMEMORY_RELEASE);
-		testRequire(xrtThreadWaitUntil(pThread, Server.Deadline) == XWAIT_OK &&
+		testRequire(__xrtThreadWaitUntil(pThread, Server.Deadline) == XWAIT_OK &&
 			Server.Success && xrtThreadExitCode(pThread) == 0,
 			"IMAP TLS partial write did not abort before client destruction");
 		xrtThreadDestroy(pThread);
@@ -286,9 +287,9 @@ int main(void)
 	}
 	xrtFree(pPayload);
 	testRequire(xrtNetListenerClose(pListener), "IMAP TLS fault listener close failed");
-	xdeadline Retire = xrtDeadlineAfter(UINT64_C(3000000));
+	double Retire = __xrtWaitAfter(UINT64_C(3000000));
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(Retire), "IMAP TLS fault listener did not close");
+		testRequire(!__xrtWaitExpired(Retire), "IMAP TLS fault listener did not close");
 		xrtThreadYield();
 	}
 	xrtNetListenerDestroy(pListener);
@@ -299,7 +300,7 @@ int main(void)
 	for ( ;; ) {
 		xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
 		if ( Result == XNET_RETIRE_READY ) break;
-		testRequire(Result != XNET_RETIRE_ERROR && !xrtDeadlineExpired(Retire),
+		testRequire(Result != XNET_RETIRE_ERROR && !__xrtWaitExpired(Retire),
 			"IMAP TLS fault engine did not retire");
 		xrtThreadYield();
 	}

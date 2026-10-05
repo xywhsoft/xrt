@@ -18,7 +18,12 @@
 #endif
 #ifdef OWNERSHIP_SINGLE
 #define XRUNTIME_IMPLEMENTATION
-#include "../single/xruntime.h"
+#include <xruntime/features.h>
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../single/xrt.h"
+#include "../../../single/extlibs/xruntime.h"
 #endif
 #include "../../../tests/test.h"
 #include <xruntime.h>

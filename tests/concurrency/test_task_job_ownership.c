@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifdef TASK_JOB_SINGLE
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
@@ -32,8 +33,8 @@ static const xfuturepayloadownershipv1 result_policy={sizeof(result_policy),drop
 static const xfuturepayloadownershipv1* const results[]={&result_policy};
 static void freeze_begin(xrtownershipscope* scope)
 {
-    xdeadline deadline=xrtDeadlineAfter(5000000);
-    while(!xrtOwnershipFreezeTryBegin(scope)){assert(!xrtDeadlineExpired(deadline));xrtThreadYield();}
+    double deadline=__xrtWaitAfter(5000000);
+    while(!xrtOwnershipFreezeTryBegin(scope)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
 static int32 active_probe(ptr data)
 {
@@ -66,9 +67,9 @@ static void drop_data(ptr data,ptr unused)
 }
 static xtaskoutcome blocker(xcancel* cancel,ptr data,xtaskvalue* result)
 {
-    JobContext* context=data;xdeadline deadline=xrtDeadlineAfter(5000000);(void)cancel;(void)result;
+    JobContext* context=data;double deadline=__xrtWaitAfter(5000000);(void)cancel;(void)result;
     assert(xrtCancelRequest(context->started));
-    while(!xrtCancelRequested(context->gate)){assert(!xrtDeadlineExpired(deadline));xrtThreadYield();}
+    while(!xrtCancelRequested(context->gate)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     return XTASK_SUCCESS;
 }
 static bool find_job(xrtownershipref child,ptr data)
@@ -90,8 +91,8 @@ static void queued(unsigned mode,int fail_after)
     xtaskpoolconfig config={0};config.Threads=1;config.QueueLimit=1;
     xtaskpool* pool=xrtTaskPoolCreate(&config);assert(pool);
     xfuture* first=xrtTaskSubmit(pool,blocker,&context,NULL);assert(first);
-    xdeadline deadline=xrtDeadlineAfter(5000000);
-    while(!xrtCancelRequested(context.started)){assert(!xrtDeadlineExpired(deadline));xrtThreadYield();}
+    double deadline=__xrtWaitAfter(5000000);
+    while(!xrtCancelRequested(context.started)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     /* A legacy native job still has a real producer edge. It must be opaque,
      * never a producerless source that preparation can close underneath it. */
     const xfutureproducerownershipv1* producers[]={xrtTaskProducerPolicyV1Get()};

@@ -234,7 +234,7 @@ XRT_API void xrtFutureDestroy(xfuture* pFuture);
 
 /* Optional, leaf-only observation state owned by the physical Future, never
  * a second reference count or a strong Promise/Future edge. FirstObserved and
- * FirstTerminalObserved are monotonic microseconds of first observation, not
+ * FirstTerminalObserved are monotonic milliseconds of first observation, not
  * submission/completion timestamps. A terminal Future first observed now has
  * both times equal. PendingWatches counts linked public completion Watches,
  * including native producers/continuations, but not blocking internal waiters.
@@ -243,8 +243,8 @@ XRT_API void xrtFutureDestroy(xfuture* pFuture);
  * or code owner is stored in this leaf state. Claimed/cleared graphs refuse
  * observation/mutation. These calls do not grant lifetime or cancellation. */
 typedef struct xfuturedebugsnapshot {
-	uint64 FirstObserved;
-	uint64 FirstTerminalObserved;
+	xtime FirstObserved;
+	xtime FirstTerminalObserved;
 	size_t PendingWatches;
 } xfuturedebugsnapshot;
 XRT_API bool xrtFutureDebugSnapshot(xfuture* pFuture, xfuturedebugsnapshot* pOutput);
@@ -431,19 +431,19 @@ XRT_API xwaitresult xrtFutureWait(xfuture* pFuture);
 
 
 /* 在相对微秒数内等待 Future 进入任一终态。 */
-XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout);
+XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, int64 iTimeout);
 
 
 
 /* 等待 Future 到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtFutureWaitUntil(xfuture* pFuture, xdeadline iDeadline);
+
 
 
 
 /* 等待首个线性化事件；取消先取得等待锁后不会被迟到终态覆盖。 */
-XRT_API xwaitresult xrtFutureWaitUntilCancel(
+XRT_API xwaitresult xrtFutureWaitForCancel(
 	xfuture* pFuture,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -766,12 +766,12 @@ XRT_API xwaitresult xrtFutureAwait(xfuture* pFuture);
 
 
 /* 在相对微秒数内挂起当前调度协程等待 Future。 */
-XRT_API xwaitresult xrtFutureAwaitFor(xfuture* pFuture, uint64 iTimeout);
+XRT_API xwaitresult xrtFutureAwaitFor(xfuture* pFuture, int64 iTimeout);
 
 
 
 /* 挂起当前调度协程等待 Future 到指定截止时间。 */
-XRT_API xwaitresult xrtFutureAwaitUntil(xfuture* pFuture, xdeadline iDeadline);
+
 
 
 

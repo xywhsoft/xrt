@@ -1,4 +1,11 @@
-#include "../xllm.c"
+#include <xrt/detail/wait.h>
+#include "../src/internal/xllm_internal.h"
+
+static xbytesview test_bytes_view(const void* data, size_t size)
+{
+    return (xbytesview){ (const uint8*)data, size };
+}
+
 
 typedef struct test_events {
     int iStarts;
@@ -161,8 +168,8 @@ static bool test_server_send_all(xnetstream* pStream, const void* pData, size_t 
         if ( iChunk > 64u * 1024u ) iChunk = 64u * 1024u;
         eResult = xrtNetStreamSend(pStream, pBytes + iOffset, iChunk);
         if ( eResult == XNET_RESULT_AGAIN ) {
-            if ( !xrtNetStreamWait(pStream, XNET_STREAM_WAIT_WRITE,
-                    xrtDeadlineAfter(UINT64_C(1000000)), NULL) ) return false;
+            if ( !__xrtNetStreamWait(pStream, XNET_STREAM_WAIT_WRITE,
+                    __xrtWaitAfter(UINT64_C(1000000)), NULL) ) return false;
             continue;
         }
         if ( eResult != XNET_RESULT_OK ) return false;
@@ -183,23 +190,23 @@ static bool test_server_write_response(xnetstream* pStream, uint16_t uStatus,
     uint8_t* pHeader = NULL;
     bool bOk = false;
     (void)snprintf(sLength, sizeof(sLength), "%llu", (unsigned long long)iBodySize);
-    tFields[iFieldCount++] = (xhttpfield){ xllm__sv("Content-Type"), xllm__sv(sContentType) };
-    tFields[iFieldCount++] = (xhttpfield){ xllm__sv("X-Request-Id"), xllm__sv("request-local-1") };
-    tFields[iFieldCount++] = (xhttpfield){ xllm__sv("Connection"),
-        xllm__sv(bKeepAlive ? "keep-alive" : "close") };
+    tFields[iFieldCount++] = (xhttpfield){ xrtStrView("Content-Type"), xrtStrView(sContentType) };
+    tFields[iFieldCount++] = (xhttpfield){ xrtStrView("X-Request-Id"), xrtStrView("request-local-1") };
+    tFields[iFieldCount++] = (xhttpfield){ xrtStrView("Connection"),
+        xrtStrView(bKeepAlive ? "keep-alive" : "close") };
     if ( bChunked ) {
-        tFields[iFieldCount++] = (xhttpfield){ xllm__sv("Transfer-Encoding"), xllm__sv("chunked") };
+        tFields[iFieldCount++] = (xhttpfield){ xrtStrView("Transfer-Encoding"), xrtStrView("chunked") };
     } else {
-        tFields[iFieldCount++] = (xhttpfield){ xllm__sv("Content-Length"), xllm__sv(sLength) };
+        tFields[iFieldCount++] = (xhttpfield){ xrtStrView("Content-Length"), xrtStrView(sLength) };
     }
     if ( sRetryAfter ) {
-        tFields[iFieldCount++] = (xhttpfield){ xllm__sv("Retry-After-Ms"), xllm__sv(sRetryAfter) };
+        tFields[iFieldCount++] = (xhttpfield){ xrtStrView("Retry-After-Ms"), xrtStrView(sRetryAfter) };
     }
-    if ( !xrtHttp1ResponseWrite(XHTTP_VERSION_1_1, uStatus, xllm__sv(sReason),
+    if ( !xrtHttp1ResponseWrite(XHTTP_VERSION_1_1, uStatus, xrtStrView(sReason),
             tFields, iFieldCount, NULL, 0u, &iHeaderSize) ) goto done;
     pHeader = (uint8_t*)malloc(iHeaderSize);
     if ( !pHeader || !xrtHttp1ResponseWrite(XHTTP_VERSION_1_1, uStatus,
-            xllm__sv(sReason), tFields, iFieldCount, pHeader, iHeaderSize,
+            xrtStrView(sReason), tFields, iFieldCount, pHeader, iHeaderSize,
             &iHeaderSize) || !test_server_send_all(pStream, pHeader, iHeaderSize) ) goto done;
     if ( bChunked ) {
         size_t iOffset = 0u;
@@ -208,7 +215,7 @@ static bool test_server_write_response(xnetstream* pStream, uint16_t uStatus,
             size_t iPayload = iBodySize - iOffset;
             size_t iChunkSize = 0u;
             if ( iPayload > 239u ) iPayload = 239u;
-            if ( !xrtHttp1ChunkWrite(xllm__bv(sBody + iOffset, iPayload),
+            if ( !xrtHttp1ChunkWrite(test_bytes_view(sBody + iOffset, iPayload),
                     sChunk, sizeof(sChunk), &iChunkSize) ||
                  !test_server_send_all(pStream, sChunk, iChunkSize) ) goto done;
             iOffset += iPayload;
@@ -245,7 +252,7 @@ static bool test_server_route(test_server_ctx* pCtx, xnetstream* pStream,
     if ( !pCtx || !pStream || !pRequest ) return false;
     pCtx->bLastKeepAlive = false;
     ++pCtx->iRequests;
-    pAuth = xrtHttp1Field(pRequest, xllm__sv("Authorization"));
+    pAuth = xrtHttp1Field(pRequest, xrtStrView("Authorization"));
     if ( pAuth && test_view_equal(pAuth->Value, "Bearer test-key") ) pCtx->bSawAuth = true;
     if ( test_view_contains(tBody, "\"model\":\"glm-test\"") ) pCtx->bSawModel = true;
     if ( test_view_contains(tBody, "\"tools\":[") ) pCtx->bSawTools = true;
@@ -301,8 +308,8 @@ static void test_server_connection(test_server_ctx* pCtx, xnetstream* pStream)
     size_t iMessageSize = 0u;
     bool bReady = false;
     while ( !xrtCancelRequested(pCtx->pCancel) ) {
-        xnetbytes* pBytes = xrtNetStreamRecv(pStream, 64u * 1024u,
-            xrtDeadlineAfter(UINT64_C(2000000)), pCtx->pCancel);
+        xnetbytes* pBytes = __xrtNetStreamRecv(pStream, 64u * 1024u,
+            __xrtWaitAfter(UINT64_C(2000000)), pCtx->pCancel);
         xbytesview tBytes;
         xhttp1status eStatus;
         if ( !pBytes ) break;
@@ -314,7 +321,7 @@ static void test_server_connection(test_server_ctx* pCtx, xnetstream* pStream)
         xrtNetBytesDestroy(pBytes);
         xrtHttp1HeadInit(&tHead, tFields, 64u);
         memset(&tError, 0, sizeof(tError));
-        eStatus = xrtHttp1RequestParse(xllm__bv(tWire.pData, tWire.iLen),
+        eStatus = xrtHttp1RequestParse(test_bytes_view(tWire.pData, tWire.iLen),
             &tHead, &tLimits, &tError);
         if ( eStatus == XHTTP1_READY ) {
             if ( !xrtHttp1RequestBodyPlan(&tHead, &tPlan) ||
@@ -329,7 +336,7 @@ static void test_server_connection(test_server_ctx* pCtx, xnetstream* pStream)
     if ( bReady ) {
         xrtHttp1HeadInit(&tHead, tFields, 64u);
         memset(&tError, 0, sizeof(tError));
-        if ( xrtHttp1RequestParse(xllm__bv(tWire.pData, iMessageSize),
+        if ( xrtHttp1RequestParse(test_bytes_view(tWire.pData, iMessageSize),
                 &tHead, &tLimits, &tError) == XHTTP1_READY ) {
             (void)test_server_route(pCtx, pStream, &tHead,
                 (xstrview){ (const char*)tWire.pData + tHead.Bytes,
@@ -341,8 +348,8 @@ static void test_server_connection(test_server_ctx* pCtx, xnetstream* pStream)
     if ( tWire.pData ) tWire.pData[0] = 0;
     }
     (void)xrtNetStreamClose(pStream);
-    (void)xrtNetStreamWait(pStream, XNET_STREAM_WAIT_CLOSE,
-        xrtDeadlineAfter(UINT64_C(1000000)), NULL);
+    (void)__xrtNetStreamWait(pStream, XNET_STREAM_WAIT_CLOSE,
+        __xrtWaitAfter(UINT64_C(1000000)), NULL);
     xrtNetStreamDestroy(pStream);
     xllm__buf_reset(&tWire);
 }
@@ -351,8 +358,8 @@ static int32 test_server_thread(ptr pData)
 {
     test_server_ctx* pCtx = (test_server_ctx*)pData;
     while ( !xrtCancelRequested(pCtx->pCancel) ) {
-        xnetstream* pStream = xrtNetListenerAcceptWait(pCtx->pListener,
-            XRT_DEADLINE_NEVER, pCtx->pCancel);
+        xnetstream* pStream = __xrtNetListenerAcceptWait(pCtx->pListener,
+            INFINITY, pCtx->pCancel);
         if ( !pStream ) break;
         test_server_connection(pCtx, pStream);
     }
@@ -433,7 +440,7 @@ static void test_build_json(void)
     CHECK(xllmRequestAddToolResult(&tRequest, "call_old", "file contents"), "add tool result");
     CHECK(xllmRequestAddTool(&tRequest, "read_file", "Read one file", "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"}},\"required\":[\"path\"]}", true), "add strict tool schema");
     sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
-    CHECK(sJson != NULL && xrtJsonValid(xllm__sv(sJson)), "request JSON is valid");
+    CHECK(sJson != NULL && xrtJsonValid(xrtStrView(sJson)), "request JSON is valid");
     CHECK(sJson && strstr(sJson, "\"max_tokens\":131072"), "configured output token budget serialized");
     CHECK(sJson && strstr(sJson, "\"thinking\":{\"type\":\"enabled\",\"clear_thinking\":false}"), "GLM preserved thinking control serialized");
     CHECK(sJson && strstr(sJson, "\"tool_stream\":true"), "GLM streaming function calls enabled");
@@ -474,7 +481,7 @@ static void test_build_json(void)
         pNewApiClient = xllmClientCreate(&tConfig, &tError);
         CHECK(pNewApiClient != NULL, "new-model profile client created");
         sJson = pNewApiClient ? xllmClientBuildRequestJson(pNewApiClient, &tRequest, &tError) : NULL;
-        CHECK(sJson != NULL && xrtJsonValid(xllm__sv(sJson)), "new-model request JSON is valid");
+        CHECK(sJson != NULL && xrtJsonValid(xrtStrView(sJson)), "new-model request JSON is valid");
         CHECK(sJson && strstr(sJson, "\"max_completion_tokens\":128000") && strstr(sJson, "\"max_tokens\":") == NULL, "new-model dialect serializes max_completion_tokens only");
         CHECK(sJson && strstr(sJson, "\"role\":\"developer\"") && strstr(sJson, "\"role\":\"system\"") == NULL, "new-model dialect maps system to the developer role");
         CHECK(sJson && strstr(sJson, "reasoning_content") == NULL && strstr(sJson, "tool_stream") == NULL, "new-model dialect omits GLM-only history and tool fields");
@@ -516,7 +523,7 @@ static void test_v3_model(void)
         xllmMessageAddPart(&tVision, &tPart) &&
         xllmRequestAddMessage(&tRequest, &tVision), "vision message with image part");
     sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
-    CHECK(sJson != NULL && xrtJsonValid(xllm__sv(sJson)), "v3 request JSON is valid");
+    CHECK(sJson != NULL && xrtJsonValid(xrtStrView(sJson)), "v3 request JSON is valid");
     CHECK(sJson && strstr(sJson, "\"type\":\"image_url\"") && strstr(sJson, "data:image/png;base64,") != NULL,
         "image part serialized as a base64 image_url element");
     CHECK(sJson && strstr(sJson, "\"top_p\":0.5") && strstr(sJson, "\"stop\":\"END\"") &&
@@ -621,7 +628,7 @@ static void test_dialect_anthropic(void)
         xllmRequestAddTool(&tRequest, "read_file", "Read one file", "{\"type\":\"object\"}", false) &&
         xllmRequestSetStop(&tRequest, "END"), "anthropic request inputs");
     sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
-    CHECK(sJson != NULL && xrtJsonValid(xllm__sv(sJson)), "anthropic request JSON is valid");
+    CHECK(sJson != NULL && xrtJsonValid(xrtStrView(sJson)), "anthropic request JSON is valid");
     CHECK(sJson && strstr(sJson, "\"system\":\"Be terse.\"") && strstr(sJson, "\"max_tokens\":131072"),
         "anthropic system lift and required max_tokens");
     CHECK(sJson && strstr(sJson, "\"tool_use\",\"id\":\"tu_0\"") && strstr(sJson, "\"input\":{\"path\":\"a.c\"}"),
@@ -705,7 +712,7 @@ static void test_dialect_responses(void)
         xllmRequestAddTool(&tRequest, "read_file", "Read one file", "{\"type\":\"object\"}", true) &&
         xllmRequestSetReasoningEffort(&tRequest, "low"), "responses request inputs");
     sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
-    CHECK(sJson != NULL && xrtJsonValid(xllm__sv(sJson)), "responses request JSON is valid");
+    CHECK(sJson != NULL && xrtJsonValid(xrtStrView(sJson)), "responses request JSON is valid");
     CHECK(sJson && strstr(sJson, "\"instructions\":\"Be terse.\"") &&
         strstr(sJson, "\"max_output_tokens\":131072"), "responses instructions and max_output_tokens");
     CHECK(sJson && strstr(sJson, "\"input\":[") &&
@@ -1253,7 +1260,7 @@ static void test_oom_injection(void)
         sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
         if ( sJson ) {
             ++iSucceeded;
-            CHECK(xrtJsonValid(xllm__sv(sJson)) || k == 0, "oom survival keeps JSON valid");
+            CHECK(xrtJsonValid(xrtStrView(sJson)) || k == 0, "oom survival keeps JSON valid");
             xllmFree(sJson);
         } else {
             ++iFailed;
@@ -1265,7 +1272,7 @@ static void test_oom_injection(void)
     CHECK(iFailed > 0 && iSucceeded > 0, "allocation faults observed across the build path");
     CHECK(!g_bSawOomError, "every injected failure maps to an out-of-memory error");
     sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
-    CHECK(sJson != NULL && xrtJsonValid(xllm__sv(sJson)), "default allocator restored after injection");
+    CHECK(sJson != NULL && xrtJsonValid(xrtStrView(sJson)), "default allocator restored after injection");
     xllmFree(sJson);
     xllmMessageUnit(&tMessage);
     xllmRequestUnit(&tRequest);
@@ -1295,7 +1302,7 @@ static bool test_tls_send_all(xtlsstream* pStream, const void* pData, size_t iSi
         if ( iChunk > 16384u ) iChunk = 16384u;
         pFuture = xrtTlsStreamSendAsync(pStream, p + iOffset, iChunk);
         if ( !pFuture ) return false;
-        eWait = xrtFutureWaitFor(pFuture, xrtDeadlineAfter(UINT64_C(5000000)));
+        eWait = xrtFutureWaitFor(pFuture, __xrtWaitAfter(UINT64_C(5000000)));
         xrtFutureDestroy(pFuture);
         if ( eWait != XWAIT_OK ) return false;
         iOffset += iChunk;
@@ -1343,8 +1350,8 @@ static int32 test_tls_server_thread(ptr pData)
 {
     test_tls_server_ctx* pCtx = (test_tls_server_ctx*)pData;
     while ( !xrtCancelRequested(pCtx->pCancel) && pCtx->iRequests < 2 ) {
-        xtlsstream* pStream = xrtTlsListenerAcceptWait(pCtx->pListener,
-            xrtDeadlineAfter(UINT64_C(500000)), pCtx->pCancel);
+        xtlsstream* pStream = __xrtTlsListenerAcceptWait(pCtx->pListener,
+            __xrtWaitAfter(UINT64_C(500000)), pCtx->pCancel);
         if ( !pStream ) continue;
         test_tls_serve_one(pCtx, pStream);
         xrtTlsStreamDestroy(pStream);
@@ -1757,7 +1764,7 @@ static void test_audit_hardening(void)
             pClient = test_make_client(sSlowUrl, XLLM_PROVIDER_OPENAI_COMPAT);
             xllmRequestInit(&tRequest);
             (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "Ping");
-            xllmRequestSetDeadline(&tRequest, xrtDeadlineAfter(UINT64_C(2000000)));
+            xllmRequestSetDeadline(&tRequest, __xrtWaitAfter(UINT64_C(2000000)));
             pCall = xllmClientStart(pClient, &tRequest, NULL, &tError);
             CHECK(pCall != NULL && pCall->uTimerId != 0u,
                 "deadline call arms the watchdog timer");
@@ -1962,7 +1969,7 @@ static void test_transport(void)
     xrtCancelDestroy(pCancel);
     pCancel = NULL;
     xllmRequestSetCancel(&tRequest, NULL);
-    xllmRequestSetDeadline(&tRequest, xrtDeadlineAfter(UINT64_C(150000)));
+    xllmRequestSetDeadline(&tRequest, __xrtWaitAfter(UINT64_C(150000)));
     eResult = xllmClientComplete(pSlowClient, &tRequest, NULL, &pResponse, &tError);
     if ( !(eResult == XLLM_RESULT_TIMEOUT && tError.eCode == XLLM_ERROR_TIMEOUT &&
             tError.tDiagnostics.bContextAttached &&
@@ -1981,7 +1988,7 @@ static void test_transport(void)
         strcmp(tError.tDiagnostics.sTransportError, "deadline_exceeded") == 0 &&
         tError.tDiagnostics.uEffectiveTimeoutMs > 0u,
         "live model deadline propagates structured diagnostics");
-    xllmRequestSetDeadline(&tRequest, XRT_DEADLINE_NEVER);
+    xllmRequestSetDeadline(&tRequest, INFINITY);
     CHECK(tServerCtx.iRequests == 9 && tServerCtx.iSlowRequests == 1 &&
         tServerCtx.bSawAuth && tServerCtx.bSawModel && tServerCtx.bSawTools,
         "server observed auth, model, tools, retries, and one deadline request");

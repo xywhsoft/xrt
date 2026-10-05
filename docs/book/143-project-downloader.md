@@ -85,7 +85,7 @@ api: xhttp-http_client, xhttp-http_client_easy, file
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xhttp/single -include xhttp.h impl.c extlibs/xhttp/examples/http/client_easy/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_easy/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 usage: client_easy <http-url>
 ```
 

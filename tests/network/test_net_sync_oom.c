@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -40,10 +41,10 @@ static xnetaddrlist* testNetSyncOomLookup(
 /* 等待 TCP 拉取缓冲达到指定长度。 */
 static void testNetSyncOomAvailable(xnetstream* pStream, size_t iSize)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtNetStreamAvailable(pStream) < iSize ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"network sync OOM TCP buffer timed out");
 		xrtThreadYield();
 	}
@@ -54,10 +55,10 @@ static void testNetSyncOomAvailable(xnetstream* pStream, size_t iSize)
 /* 等待 UDP 拉取队列达到指定数据包数量。 */
 static void testNetSyncOomQueued(xnetudp* pUdp, size_t iCount)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	while ( xrtNetUdpQueued(pUdp) < iCount ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"network sync OOM UDP queue timed out");
 		xrtThreadYield();
 	}
@@ -69,10 +70,10 @@ static void testNetSyncOomQueued(xnetudp* pUdp, size_t iCount)
 static void testNetSyncOomStreamClose(xnetstream* pStream)
 {
 	if ( xrtNetStreamState(pStream) != XNET_STREAM_CLOSED ) {
-		testRequire(xrtNetStreamClose(pStream) && xrtNetStreamWait(
+		testRequire(xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_CLOSE,
-			xrtDeadlineAfter(5000000u),
+			__xrtWaitAfter(5000000u),
 			NULL
 		), "network sync OOM TCP close failed");
 	}
@@ -85,10 +86,10 @@ static void testNetSyncOomStreamClose(xnetstream* pStream)
 static void testNetSyncOomUdpClose(xnetudp* pUdp)
 {
 	if ( xrtNetUdpState(pUdp) != XNET_UDP_CLOSED ) {
-		testRequire(xrtNetUdpClose(pUdp) && xrtNetUdpWait(
+		testRequire(xrtNetUdpClose(pUdp) && __xrtNetUdpWait(
 			pUdp,
 			XNET_UDP_WAIT_CLOSE,
-			xrtDeadlineAfter(5000000u),
+			__xrtWaitAfter(5000000u),
 			NULL
 		), "network sync OOM UDP close failed");
 	}
@@ -119,7 +120,7 @@ int main(void)
 	xnetudpbatch* pBatch;
 	xbytesview View;
 	xnetaddr Address;
-	xdeadline iDeadline;
+	double iDeadline;
 	uint8* pPayload;
 	bool bTriggered;
 
@@ -160,15 +161,15 @@ int main(void)
 		NULL,
 		NULL
 	);
-	pServer = xrtNetListenerAcceptWait(
+	pServer = __xrtNetListenerAcceptWait(
 		pListener,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
-	testRequire((pClient != NULL) && (pServer != NULL) && xrtNetStreamWait(
+	testRequire((pClient != NULL) && (pServer != NULL) && __xrtNetStreamWait(
 		pClient,
 		XNET_STREAM_WAIT_OPEN,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "network sync OOM TCP setup failed");
 
@@ -183,10 +184,10 @@ int main(void)
 		xrtMemDebugFailAfter(0),
 		"network sync TCP OOM injection setup failed"
 	);
-	pBytes = xrtNetStreamRecv(
+	pBytes = __xrtNetStreamRecv(
 		pServer,
 		TEST_NET_SYNC_OOM_TCP_BYTES,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	bTriggered = xrtMemDebugFailTriggered();
@@ -210,10 +211,10 @@ int main(void)
 		(xrtNetStreamAvailable(pServer) == TEST_NET_SYNC_OOM_TCP_BYTES),
 		"network sync OOM TCP receive consumed bytes");
 	xrtClearError();
-	pBytes = xrtNetStreamRecv(
+	pBytes = __xrtNetStreamRecv(
 		pServer,
 		TEST_NET_SYNC_OOM_TCP_BYTES,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	View = xrtNetBytesView(pBytes);
@@ -245,15 +246,15 @@ int main(void)
 		NULL,
 		NULL
 	);
-	testRequire((pUdpClient != NULL) && xrtNetUdpWait(
+	testRequire((pUdpClient != NULL) && __xrtNetUdpWait(
 		pUdpServer,
 		XNET_UDP_WAIT_OPEN,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
-	) && xrtNetUdpWait(
+	) && __xrtNetUdpWait(
 		pUdpClient,
 		XNET_UDP_WAIT_OPEN,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	), "network sync OOM UDP setup failed");
 	testRequire(xrtNetUdpSend(pUdpClient, "U", 1) == XNET_RESULT_OK,
@@ -263,10 +264,10 @@ int main(void)
 		xrtMemDebugFailAfter(0),
 		"network sync UDP OOM injection setup failed"
 	);
-	pBatch = xrtNetUdpReceiveBatchWait(
+	pBatch = __xrtNetUdpReceiveBatchWait(
 		pUdpServer,
 		16,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	bTriggered = xrtMemDebugFailTriggered();
@@ -277,9 +278,9 @@ int main(void)
 		(xrtNetUdpQueued(pUdpServer) == 1),
 		"network sync OOM UDP batch consumed a packet");
 	xrtClearError();
-	pPacket = xrtNetUdpReceiveWait(
+	pPacket = __xrtNetUdpReceiveWait(
 		pUdpServer,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	testRequire((pPacket != NULL) &&
@@ -300,7 +301,7 @@ int main(void)
 		xrtMemDebugFailAfter(0),
 		"network sync Dial OOM injection setup failed"
 	);
-	pDialClient = xrtNetConnect(
+	pDialClient = __xrtNetConnect(
 		pEngine,
 		pResolver,
 		"sync-oom.test",
@@ -308,7 +309,7 @@ int main(void)
 		NULL,
 		NULL,
 		NULL,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	bTriggered = xrtMemDebugFailTriggered();
@@ -318,7 +319,7 @@ int main(void)
 		(xrtErrorKind(xrtGetError()) == XERR_MEMORY),
 		"network sync OOM Dial submission mismatch");
 	xrtClearError();
-	pDialClient = xrtNetConnect(
+	pDialClient = __xrtNetConnect(
 		pEngine,
 		pResolver,
 		"sync-oom.test",
@@ -326,12 +327,12 @@ int main(void)
 		NULL,
 		NULL,
 		NULL,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
-	pDialServer = xrtNetListenerAcceptWait(
+	pDialServer = __xrtNetListenerAcceptWait(
 		pListener,
-		xrtDeadlineAfter(5000000u),
+		__xrtWaitAfter(5000000u),
 		NULL
 	);
 	testRequire((pDialClient != NULL) && (pDialServer != NULL),
@@ -345,9 +346,9 @@ int main(void)
 	testNetSyncOomUdpClose(pUdpServer);
 	testRequire(xrtNetListenerClose(pListener),
 		"network sync OOM listener close failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"network sync OOM listener close timed out");
 		xrtThreadYield();
 	}

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -33,10 +34,10 @@ static void testTcpSlowWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(30000000u);
+	double iDeadline = __xrtWaitAfter(30000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtSleep(1);
 	}
 }
@@ -188,7 +189,7 @@ int main(void)
 	xnetlistener* pListener;
 	xnetsocket Peer;
 	xnetaddr Address;
-	xdeadline iDeadline;
+	double iDeadline;
 	char* pPayload;
 	char Buffer[16384];
 	size_t iReceived = 0;
@@ -268,7 +269,7 @@ int main(void)
 
 	testRequire(xrtNetSocketSet(Peer, XNET_OPTION_NONBLOCK, 1),
 		"TCP slow peer nonblocking setup failed");
-	iDeadline = xrtDeadlineAfter(30000000u);
+	iDeadline = __xrtWaitAfter(30000000u);
 	while ( iReceived < TEST_TCP_SLOW_PAYLOAD ) {
 		size_t iRead = 0;
 		xnetresult Result = xrtNetSocketRecv(
@@ -279,7 +280,7 @@ int main(void)
 		);
 
 		if ( Result == XNET_RESULT_AGAIN ) {
-			testRequire(!xrtDeadlineExpired(iDeadline),
+			testRequire(!__xrtWaitExpired(iDeadline),
 				"TCP slow peer receive timed out");
 			xrtSleep(1);
 			continue;

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -104,13 +105,13 @@ int main(void)
 	);
 	testTaskNetResolved(pFuture, &Context);
 	xrtFutureDestroy(pFuture);
-	pFuture = xrtTaskNetUntil(
+	pFuture = __xrtTaskNetUntil(
 		pEngine,
 		0,
 		testTaskNetRun,
 		&Context,
 		&tArgs,
-		xrtDeadlineAfter(1000u)
+		__xrtWaitAfter(1000u)
 	);
 	testTaskNetResolved(pFuture, &Context);
 	xrtFutureDestroy(pFuture);

@@ -1,10 +1,11 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
 
 typedef struct testpop3saslserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	xstrview LongResponse;
 	bool Success;
 } testpop3saslserver;
@@ -41,7 +42,7 @@ static bool testPop3SaslSend(
 	xnetstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -50,7 +51,7 @@ static bool testPop3SaslSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -68,13 +69,13 @@ static bool testPop3SaslReceive(
 	xnetstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -104,7 +105,7 @@ static bool testPop3SaslSession(
 	xnetstream* pStream,
 	size_t iMode,
 	xstrview LongResponse,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	static const char sCapabilities[] =
@@ -204,7 +205,7 @@ static int32 testPop3SaslServer(ptr pData)
 	bool bSuccess = true;
 
 	for ( size_t i = 0; i < 4u; i++ ) {
-		xnetstream* pStream = xrtNetListenerAcceptWait(
+		xnetstream* pStream = __xrtNetListenerAcceptWait(
 			pServer->Listener,
 			pServer->Deadline,
 			NULL
@@ -219,7 +220,7 @@ static int32 testPop3SaslServer(ptr pData)
 			i,
 			pServer->LongResponse,
 			pServer->Deadline
-		) && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+		) && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_CLOSE,
 			pServer->Deadline,
@@ -240,7 +241,7 @@ static int32 testPop3SaslServer(ptr pData)
 static xpop3client* testPop3SaslOpen(
 	xnetengine* pEngine,
 	xnetresolver* pResolver,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xpop3clientconfig Config;
@@ -250,7 +251,7 @@ static xpop3client* testPop3SaslOpen(
 	Config.Net.Resolver = pResolver;
 	Config.Net.Host = "pop3-sasl.test";
 	Config.Net.Port = TestPop3SaslAddress.Port;
-	return xrtPop3ClientOpen(&Config, iDeadline, NULL);
+	return __xrtPop3ClientOpen(&Config, iDeadline, NULL);
 }
 
 
@@ -268,7 +269,7 @@ int main(void)
 	xnetlistener* pListener;
 	xpop3client* pClient;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 	str sLongResponse;
 	char sPlain[606];
 	char sSecret[600];
@@ -312,7 +313,7 @@ int main(void)
 		(strlen(sLongResponse) > (XPOP3_COMMAND_MAX - 2u)),
 		"POP3 long SASL response setup failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.LongResponse = testMailView(sLongResponse);
@@ -329,7 +330,7 @@ int main(void)
 		Auth.Username = XRT_STR_LITERAL("user");
 		Auth.Secret = XRT_STR_LITERAL("token");
 		Auth.AllowPlaintext = true;
-		testRequire(!xrtPop3ClientAuth(
+		testRequire(!__xrtPop3ClientAuth(
 			pClient,
 			&Auth,
 			Deadline,
@@ -349,7 +350,7 @@ int main(void)
 			xpop3reply Last;
 
 			xrtClearError();
-			testRequire(!xrtPop3ClientAuth(pClient, &Auth, Deadline, NULL) &&
+			testRequire(!__xrtPop3ClientAuth(pClient, &Auth, Deadline, NULL) &&
 				(xrtErrorKind(xrtGetError()) != XERR_NONE) &&
 				(xrtPop3ClientState(pClient) == XPOP3_CLIENT_FAILED) &&
 				xrtPop3ClientLastReply(pClient, &Last) &&
@@ -357,24 +358,24 @@ int main(void)
 					XRT_STR_LITERAL("+OK capabilities")),
 				"POP3 SASL completion disconnect lost terminal state or prior reply");
 			xrtClearError();
-			testRequire(!xrtPop3ClientNoop(pClient, Deadline, NULL) &&
+			testRequire(!__xrtPop3ClientNoop(pClient, Deadline, NULL) &&
 				(xrtErrorKind(xrtGetError()) == XERR_STATE) &&
 				xrtPop3ClientAbort(pClient),
 				"POP3 SASL disconnect allowed reuse of a failed session");
 		} else {
-			testRequire(xrtPop3ClientAuth(
+			testRequire(__xrtPop3ClientAuth(
 				pClient,
 				&Auth,
 				Deadline,
 				NULL
 			) && (xrtPop3ClientState(pClient) == XPOP3_CLIENT_TRANSACTION),
 				"POP3 AUTH PLAIN exchange failed");
-			testRequire(xrtPop3ClientQuit(pClient, Deadline, NULL),
+			testRequire(__xrtPop3ClientQuit(pClient, Deadline, NULL),
 				"POP3 SASL QUIT failed");
 		}
 		xrtPop3ClientDestroy(pClient);
 	}
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"POP3 SASL server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"POP3 SASL server transcript mismatch");

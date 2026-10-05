@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：concurrency/sync_tour —— 同步原语堆形态全接口
  * ----------------------------------------------------------------
@@ -63,10 +64,10 @@ static int32 exampleCondThread(ptr pArg)
 
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(3000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(3000000));
 
 	while ( !*pFlag ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -183,8 +184,8 @@ int main(void)
 	if ( !xrtEventSet(&tManual) ||
 		(xrtEventWait(&tManual) != XWAIT_OK) ||
 		(xrtEventWaitFor(&tManual, UINT64_C(1)) != XWAIT_OK) ||
-		(xrtEventWaitUntil(&tManual,
-			xrtDeadlineAfter(UINT64_C(1))) != XWAIT_OK) ||
+		(__xrtEventWaitUntil(&tManual,
+			__xrtWaitAfter(UINT64_C(1))) != XWAIT_OK) ||
 		!xrtEventReset(&tManual) ||
 		(xrtEventTryWait(&tManual) != XWAIT_TIMEOUT) ) {
 		goto Cleanup;

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifndef XRT_MODULE_NET_ENGINE
 #define XRT_MODULE_NET_ENGINE
 #endif
@@ -32,9 +33,9 @@ typedef struct retirement {
 
 static void wait_for(xatomic32* value, uint32 count)
 {
-	xdeadline deadline = xrtDeadlineAfter(5000000u);
+	double deadline = __xrtWaitAfter(5000000u);
 	while ( xrtAtomic32Load(value, XMEMORY_ACQUIRE) < count ) {
-		testRequire(!xrtDeadlineExpired(deadline), "retirement test deadline");
+		testRequire(!__xrtWaitExpired(deadline), "retirement test deadline");
 		xrtThreadYield();
 	}
 }
@@ -50,24 +51,24 @@ static void thread_tail(ptr data)
 
 static void finish_engine(xnetengine* engine)
 {
-	xdeadline deadline = xrtDeadlineAfter(5000000u);
+	double deadline = __xrtWaitAfter(5000000u);
 	for ( ;; ) {
 		xnetretireresult result = xrtNetEngineTryDestroy(engine);
 		testRequire(result != XNET_RETIRE_ERROR, "engine retirement error");
 		if ( result == XNET_RETIRE_READY ) return;
-		testRequire(!xrtDeadlineExpired(deadline), "engine retirement deadline");
+		testRequire(!__xrtWaitExpired(deadline), "engine retirement deadline");
 		xrtThreadYield();
 	}
 }
 
 static void finish_resolver(xnetresolver* resolver)
 {
-	xdeadline deadline = xrtDeadlineAfter(5000000u);
+	double deadline = __xrtWaitAfter(5000000u);
 	for ( ;; ) {
 		xnetretireresult result = xrtNetResolverTryDestroy(resolver);
 		testRequire(result != XNET_RETIRE_ERROR, "resolver retirement error");
 		if ( result == XNET_RETIRE_READY ) return;
-		testRequire(!xrtDeadlineExpired(deadline), "resolver retirement deadline");
+		testRequire(!__xrtWaitExpired(deadline), "resolver retirement deadline");
 		xrtThreadYield();
 	}
 }
@@ -222,7 +223,7 @@ static void engine_error_retry(void)
 	retirement state = {0};
 	xnetenginestats stats;
 	xnetretireresult result;
-	xdeadline deadline = xrtDeadlineAfter(5000000u);
+	double deadline = __xrtWaitAfter(5000000u);
 	const xerror* error;
 	state.Engine = create_engine(true);
 	testRequire(xrtNetPostInit(&state.Post), "nonconvergent post init");
@@ -233,7 +234,7 @@ static void engine_error_retry(void)
 	xrtAtomic32Store(&state.Release, 1, XMEMORY_RELEASE);
 	do {
 		result = xrtNetEngineTryDestroy(state.Engine);
-		testRequire(!xrtDeadlineExpired(deadline), "nonconvergent retirement deadline");
+		testRequire(!__xrtWaitExpired(deadline), "nonconvergent retirement deadline");
 		if ( result == XNET_RETIRE_BUSY ) xrtThreadYield();
 	} while ( result == XNET_RETIRE_BUSY );
 	error = xrtGetError();

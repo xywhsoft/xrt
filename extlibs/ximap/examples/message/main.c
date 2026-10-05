@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <ximap.h>
 
 
@@ -7,7 +8,7 @@ bool fetchMessage(
 	ximapclient* pClient,
 	uint32 iUid,
 	xmailtree* pTree,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xmailtreelimits Limits;
@@ -15,7 +16,7 @@ bool fetchMessage(
 	xrtMailTreeLimitsInit(&Limits);
 	Limits.MaxSourceBytes = 16u * 1024u * 1024u;
 	Limits.MaxDecodedBytes = 32u * 1024u * 1024u;
-	return xrtImapClientMessageTree(
+	return __xrtImapClientMessageTree(
 		pClient,
 		iUid,
 		true,

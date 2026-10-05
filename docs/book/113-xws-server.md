@@ -59,7 +59,7 @@ WebSocket 服务端的“入口工程”比看起来多：请求到达时先过 
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xws/single -include xws.h impl.c extlibs/xws/examples/websocket/server_router/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/server_router/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 WebSocket route /chat is ready
 ```
 
@@ -73,7 +73,7 @@ WebSocket route /chat is ready
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xws/single -include xws.h impl.c extlibs/xws/examples/websocket/http_server/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/http_server/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （升级回调演示完成：连接发送-关闭-销毁路径执行后正常退出）
 ```
 

@@ -1,0 +1,126 @@
+{
+	"schema": 1,
+	"product": "xjwt",
+	"module_prefix": "XJWT_MODULE_",
+	"single_header": "single/extlibs/xjwt.h",
+	"declaration_header": "single/extlibs/xjwt_decl.h",
+	"implementation_macro": "XJWT_IMPLEMENTATION",
+	"implementation_once_macro": "XJWT_IMPLEMENTATION_ONCE",
+	"single_guard": "XJWT_SINGLE_HEADER_H",
+	"single_marker": "XJWT_SINGLE_HEADER",
+	"declaration_guard": "XJWT_DECLARATIONS_H",
+	"declaration_marker": "XJWT_DECLARATIONS",
+	"package_consumer": "extlibs/xjwt/tests/package/test_consumer.c",
+	"product_root": "extlibs/xjwt",
+	"performance_config": "extlibs/xjwt/config/performance_profiles.json",
+	"size_config": "extlibs/xjwt/config/size_profiles.json",
+	"scope": {
+		"product": "xjwt",
+		"external_integrations": [],
+		"systems": [
+			{
+				"name": "jwt",
+				"state": "retained",
+				"source_roots": [
+					"jwt"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xjwt public API reference",
+		"function_prefix": "xjwt",
+		"constant_prefix": "XJWT_",
+		"type_prefix": "xjwt",
+		"guide": "../../README.md",
+		"output": "extlibs/xjwt/docs/api/reference.md"
+	},
+	"features_guard": "XJWT_FEATURES_H",
+	"features_header": "extlibs/xjwt/include/xjwt/features.h",
+	"include_dirs": [
+		"extlibs/xjwt/include"
+	],
+	"header_roots": [
+		"extlibs/xjwt/include",
+		"extlibs/xjwt/src/internal"
+	],
+	"modules": [
+		{
+			"name": "xjwt",
+			"state": "implemented",
+			"feature": "XJWT_FEATURE_XJWT",
+			"depends": [
+				"json_read",
+				"json_write",
+				"value",
+				"codec_base64",
+				"crypto_core",
+				"crypto_sha256",
+				"crypto_sha512",
+				"crypto_hmac_sha256",
+				"crypto_hmac_sha512",
+				"crypto_rsa",
+				"crypto_rsa_private",
+				"crypto_rsa_pkcs1_sign",
+				"crypto_ecdsa_p256",
+				"crypto_ecdsa_p256_sign",
+				"pem",
+				"asn1_der",
+				"time",
+				"string"
+			],
+			"public_headers": [
+				"extlibs/xjwt/include/xjwt.h",
+				"extlibs/xjwt/include/xjwt/features.h",
+				"extlibs/xjwt/include/xjwt/api.h"
+			],
+			"internal_headers": [
+				"extlibs/xjwt/src/internal/xjwt_internal.h"
+			],
+			"sources": [
+				"extlibs/xjwt/src/jwt/xjwt_core.c",
+				"extlibs/xjwt/src/jwt/xjwt_sig.c",
+				"extlibs/xjwt/src/jwt/xjwt_main.c",
+				"extlibs/xjwt/src/jwt/xjwt_ext.c"
+			],
+			"tests": [
+				"extlibs/xjwt/tests/test_minimal.c"
+			],
+			"single_tests": [
+				"extlibs/xjwt/tests/single/test_single_xjwt.c"
+			],
+			"examples": [
+				"extlibs/xjwt/examples/auth_middleware.c"
+			],
+			"benchmarks": [
+				"extlibs/xjwt/bench/bench_xjwt.c"
+			],
+			"docs": [
+				"extlibs/xjwt/README.md",
+				"extlibs/xjwt/docs/api/reference.md"
+			]
+		},
+		{
+			"name": "xjwt_tests",
+			"state": "implemented",
+			"depends": [
+				"xjwt",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xjwt/tests/test_jwt.c",
+				"extlibs/xjwt/tests/test_time_bounds.c"
+			],
+			"single_tests": [
+				"extlibs/xjwt/tests/single/test_single_xjwt_full.c"
+			],
+			"examples": [],
+			"benchmarks": [],
+			"docs": []
+		}
+	],
+	"umbrella_header": "xjwt.h"
+}

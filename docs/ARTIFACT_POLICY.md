@@ -10,7 +10,7 @@
 
 ## 可再生发布资产
 
-`single/xrt.h`、`single/xrt_decl.h`、扩展单头与声明头、特性头、API reference 和示例索引虽然可以生成，但属于直接交付给使用方的 checkout-ready 产物，因此继续纳入版本控制。
+`single/xrt.h`、`single/xrt_decl.h`、`single/extlibs/` 下只含所属扩展代码的单头与声明头、特性头、API reference 和示例索引虽然可以生成，但属于直接交付给使用方的 checkout-ready 产物，因此继续纳入版本控制。
 
 修改其输入后必须运行相应生成器并提交结果。CI 使用 `--check` 做逐字节一致性验证，不自动提交生成结果。生成或校验命令见[构建与发布](BUILD.md)。
 

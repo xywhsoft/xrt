@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -76,14 +77,14 @@ static void testHttpClientWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	while ( xrtAtomic32Load(
 		pValue,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();
@@ -95,7 +96,7 @@ static void testHttpClientWait(
 /* 等待请求已完整发送并进入响应头阶段。 */
 static void testHttpClientWaitRequestSent(xhttpcall* pCall)
 {
-	xdeadline Deadline = xrtDeadlineAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000000u);
 
 	for ( ;; ) {
 		xhttpcallinfo Info;
@@ -109,7 +110,7 @@ static void testHttpClientWaitRequestSent(xhttpcall* pCall)
 			return;
 		}
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP client request did not enter response wait"
 		);
 		xrtThreadYield();

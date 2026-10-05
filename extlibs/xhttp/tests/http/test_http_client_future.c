@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include "../fixtures/http_origin.h"
 
@@ -908,12 +909,12 @@ static void testHttpFutureSync(xnetengine* pEngine)
 /* 等待全部异步析构退出 Engine，再验证最终对象计数归零。 */
 static void testHttpFutureEngineDestroy(xnetengine* pEngine)
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			"HTTP Future retained an Engine object"
 		);
 		xrtThreadYield();

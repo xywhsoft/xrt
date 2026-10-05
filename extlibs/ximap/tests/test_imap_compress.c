@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 
 
@@ -11,14 +12,14 @@ typedef struct testimapcompressbuffer {
 
 typedef struct testimapcompresssend {
 	xnetstream* Stream;
-	xdeadline Deadline;
+	double Deadline;
 } testimapcompresssend;
 
 
 
 typedef struct testimapcompressserver {
 	xnetlistener* Listener;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } testimapcompressserver;
 
@@ -54,7 +55,7 @@ static bool testImapCompressRawSend(
 	xnetstream* pStream,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -63,7 +64,7 @@ static bool testImapCompressRawSend(
 		if ( Result == XNET_RESULT_OK ) {
 			return true;
 		}
-		if ( (Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+		if ( (Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_WRITE,
 			iDeadline,
@@ -81,13 +82,13 @@ static bool testImapCompressRawReceive(
 	xnetstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	size_t iReceived = 0;
 
 	while ( iReceived < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iExpected - iReceived,
 			iDeadline,
@@ -150,7 +151,7 @@ static bool testImapCompressSend(
 	xnetstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	testimapcompresssend Send;
@@ -175,11 +176,11 @@ static bool testImapCompressReceive(
 	xnetstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	while ( pPlain->Size < iExpected ) {
-		xnetbytes* pBytes = xrtNetStreamRecv(
+		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			256u,
 			iDeadline,
@@ -220,7 +221,7 @@ static bool testImapCompressReceive(
 static int32 testImapCompressRejectServer(ptr pData)
 {
 	testimapcompressserver* pServer = (testimapcompressserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -272,7 +273,7 @@ static int32 testImapCompressRejectServer(ptr pData)
 			"A00000003 OK logout complete\r\n"
 		) - 1u,
 		pServer->Deadline
-	) && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+	) && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		pServer->Deadline,
@@ -289,7 +290,7 @@ static int32 testImapCompressRejectServer(ptr pData)
 static int32 testImapCompressServer(ptr pData)
 {
 	testimapcompressserver* pServer = (testimapcompressserver*)pData;
-	xnetstream* pStream = xrtNetListenerAcceptWait(
+	xnetstream* pStream = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -395,7 +396,7 @@ static int32 testImapCompressServer(ptr pData)
 			"A00000004 OK logout complete\r\n"
 		) - 1u,
 		pServer->Deadline
-	) && xrtNetStreamClose(pStream) && xrtNetStreamWait(
+	) && xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 		pStream,
 		XNET_STREAM_WAIT_CLOSE,
 		pServer->Deadline,
@@ -425,7 +426,7 @@ int main(void)
 	xnetlistener* pListener;
 	ximapclient* pClient;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 	ximapevent Event;
 
 	xrtImapCompressConfigInit(&CompressConfig);
@@ -467,7 +468,7 @@ int main(void)
 	testRequire(pResolver != NULL,
 		"IMAP COMPRESS resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Success = false;
@@ -479,12 +480,12 @@ int main(void)
 	ClientConfig.Net.Resolver = pResolver;
 	ClientConfig.Net.Host = "imap-compress.test";
 	ClientConfig.Net.Port = TestImapCompressAddress.Port;
-	pClient = xrtImapClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtImapClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire((pClient != NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED),
 		"IMAP COMPRESS reject client open failed");
 	xrtClearError();
-	testRequire(!xrtImapClientCompress(
+	testRequire(!__xrtImapClientCompress(
 		pClient,
 		&CompressConfig,
 		Deadline,
@@ -494,9 +495,9 @@ int main(void)
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED),
 		"rejected IMAP COMPRESS changed the transport state");
 	xrtClearError();
-	testRequire(xrtImapClientLogout(pClient, Deadline, NULL),
+	testRequire(__xrtImapClientLogout(pClient, Deadline, NULL),
 		"IMAP COMPRESS reject-session logout failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"IMAP COMPRESS reject server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"IMAP COMPRESS reject transcript mismatch");
@@ -512,14 +513,14 @@ int main(void)
 	ClientConfig.Net.Resolver = pResolver;
 	ClientConfig.Net.Host = "imap-compress.test";
 	ClientConfig.Net.Port = TestImapCompressAddress.Port;
-	pClient = xrtImapClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtImapClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire((pClient != NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED) &&
 		((xrtImapClientCapabilities(pClient) &
 		 XIMAP_CAP_COMPRESS_DEFLATE) != 0) &&
 		!xrtImapClientCompressed(pClient),
 		"IMAP COMPRESS client open failed");
-	testRequire(xrtImapClientCompress(
+	testRequire(__xrtImapClientCompress(
 		pClient,
 		&CompressConfig,
 		Deadline,
@@ -528,7 +529,7 @@ int main(void)
 		"IMAP COMPRESS negotiation failed");
 
 	xrtClearError();
-	testRequire(!xrtImapClientCompress(
+	testRequire(!__xrtImapClientCompress(
 		pClient,
 		&CompressConfig,
 		Deadline,
@@ -536,14 +537,14 @@ int main(void)
 	) && (xrtErrorKind(xrtGetError()) == XERR_STATE),
 		"IMAP COMPRESS allowed a second negotiation");
 	xrtClearError();
-	testRequire(xrtImapClientBegin(
+	testRequire(__xrtImapClientBegin(
 		pClient,
 		XRT_STR_LITERAL("NOOP"),
 		XRT_STR_LITERAL(""),
 		Deadline,
 		NULL
 	), "compressed IMAP NOOP send failed");
-	testRequire((xrtImapClientNext(
+	testRequire((__xrtImapClientNext(
 		pClient,
 		&Event,
 		Deadline,
@@ -554,16 +555,16 @@ int main(void)
 			Event.Response.Text,
 			XRT_STR_LITERAL("1 EXISTS")
 		), "prefetched compressed IMAP response mismatch");
-	testRequire(xrtImapClientNext(
+	testRequire(__xrtImapClientNext(
 		pClient,
 		&Event,
 		Deadline,
 		NULL
 	) == XMAIL_NEXT_END, "compressed IMAP NOOP completion failed");
-	testRequire(xrtImapClientLogout(pClient, Deadline, NULL) &&
+	testRequire(__xrtImapClientLogout(pClient, Deadline, NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_CLOSED),
 		"compressed IMAP LOGOUT failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"IMAP COMPRESS server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"IMAP COMPRESS transcript mismatch");

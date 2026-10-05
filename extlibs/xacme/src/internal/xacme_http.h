@@ -20,7 +20,7 @@ typedef struct xacmehttp {
 	bool bEngineOwned;
 	struct xnetresolver* pResolver;
 	struct xtlsverifier* pVerifier;
-	uint64 uTimeoutUs;
+	int64 uTimeoutUs;
 	/* Last exchange failed after a write began; independent of error allocation. */
 	bool bWriteUncertain;
 	/* 未交付的堆外壳可转移到退休队列；入列后仅由队列访问。 */
@@ -51,7 +51,7 @@ bool xacmeHttpInit(
 	xacmehttp* pHttp,
 	struct xnetengine* pBorrowedEngine,
 	cstr sCaPem,
-	uint64 uTimeoutUs
+	int64 uTimeoutUs
 );
 
 /* 等待自建引擎的异步关闭退休，保留调用前诊断。

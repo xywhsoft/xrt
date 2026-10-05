@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -312,7 +313,7 @@ int main(int argc, char** argv)
 
 	testPipelineStage(&Stages[0], argv[0], pSleep, 2u);
 	testRequire(xrtProcessPipelineOptionsInit(&Options), "deadline options init failed");
-	Options.Deadline = xrtDeadlineAfter(20000u);
+	Options.Deadline = __xrtWaitAfter(20000u);
 	Options.StopGrace = 10000u;
 	testRequire(
 		xrtProcessPipeline(Stages, 1u, &Options, &Result),

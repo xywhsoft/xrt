@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_mail.h"
 
 
@@ -7,7 +8,7 @@
 /* Compose sink 只借用客户端与本次统一等待上下文。 */
 typedef struct __xsmtpsubmitsink {
 	xsmtpclient* Client;
-	xdeadline Deadline;
+	double Deadline;
 	xcancel* Cancel;
 } __xsmtpsubmitsink;
 
@@ -66,7 +67,7 @@ static bool __xrtSmtpSubmitPath(
 /* 失败后恢复 envelope；DATA 已开始时关闭连接以保证半封消息不会提交。 */
 static bool __xrtSmtpSubmitRecover(
 	xsmtpclient* pClient,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -76,7 +77,7 @@ static bool __xrtSmtpSubmitRecover(
 
 	if ( (State == XSMTP_CLIENT_MAIL) ||
 		 (State == XSMTP_CLIENT_RECIPIENT) ) {
-		if ( !xrtSmtpClientReset(pClient, iDeadline, pCancel) ) {
+		if ( !__xrtSmtpClientReset(pClient, iDeadline, pCancel) ) {
 			(void)xrtSmtpClientAbort(pClient);
 		}
 	} else if ( (State == XSMTP_CLIENT_DATA) ||
@@ -100,7 +101,7 @@ static bool __xrtSmtpSubmitWrite(xbytesview Data, ptr pUserData)
 {
 	__xsmtpsubmitsink* pSink = (__xsmtpsubmitsink*)pUserData;
 
-	return xrtSmtpClientDataWrite(
+	return __xrtSmtpClientDataWrite(
 		pSink->Client,
 		Data,
 		pSink->Deadline,
@@ -114,14 +115,14 @@ static bool __xrtSmtpSubmitWrite(xbytesview Data, ptr pUserData)
 static bool __xrtSmtpSubmitData(
 	xsmtpclient* pClient,
 	const xmailmessage* pMessage,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
 	__xsmtpsubmitsink Sink;
 	size_t iWritten;
 
-	if ( !xrtSmtpClientDataBegin(pClient, iDeadline, pCancel) ) {
+	if ( !__xrtSmtpClientDataBegin(pClient, iDeadline, pCancel) ) {
 		return __xrtSmtpSubmitRecover(
 			pClient,
 			iDeadline,
@@ -144,7 +145,7 @@ static bool __xrtSmtpSubmitData(
 		);
 	}
 	(void)iWritten;
-	return xrtSmtpClientDataEnd(pClient, iDeadline, pCancel);
+	return __xrtSmtpClientDataEnd(pClient, iDeadline, pCancel);
 }
 
 
@@ -173,11 +174,11 @@ static bool __xrtSmtpSubmitEnvelopeValid(const xsmtpenvelope* pEnvelope)
 
 
 /* 使用独立 envelope 流式提交消息。 */
-XRT_API bool xrtSmtpSubmitEnvelope(
+XRT_API bool __xrtSmtpSubmitEnvelope(
 	xsmtpclient* pClient,
 	const xsmtpenvelope* pEnvelope,
 	const xmailmessage* pMessage,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -205,7 +206,7 @@ XRT_API bool xrtSmtpSubmitEnvelope(
 			return false;
 		}
 	}
-	if ( !xrtSmtpClientMail(
+	if ( !__xrtSmtpClientMail(
 		pClient,
 		pEnvelope->ReversePath,
 		pEnvelope->MailParameters,
@@ -215,7 +216,7 @@ XRT_API bool xrtSmtpSubmitEnvelope(
 		return false;
 	}
 	for ( size_t i = 0; i < pEnvelope->RecipientCount; i++ ) {
-		if ( !xrtSmtpClientRcpt(
+		if ( !__xrtSmtpClientRcpt(
 			pClient,
 			pEnvelope->Recipients[i].Address,
 			pEnvelope->Recipients[i].Parameters,
@@ -239,12 +240,12 @@ static bool __xrtSmtpSubmitAddresses(
 	xsmtpclient* pClient,
 	const xmailaddress* pAddresses,
 	size_t iCount,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
 	for ( size_t i = 0; i < iCount; i++ ) {
-		if ( !xrtSmtpClientRcpt(
+		if ( !__xrtSmtpClientRcpt(
 			pClient,
 			pAddresses[i].Address,
 			XRT_STR_LITERAL(""),
@@ -260,10 +261,10 @@ static bool __xrtSmtpSubmitAddresses(
 
 
 /* 从消息 From、To、Cc、Bcc 自动建立 envelope 并提交。 */
-XRT_API bool xrtSmtpSubmit(
+XRT_API bool __xrtSmtpSubmit(
 	xsmtpclient* pClient,
 	const xmailmessage* pMessage,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -274,7 +275,7 @@ XRT_API bool xrtSmtpSubmit(
 		}
 		return false;
 	}
-	if ( !xrtSmtpClientMail(
+	if ( !__xrtSmtpClientMail(
 		pClient,
 		pMessage->From.Address,
 		XRT_STR_LITERAL(""),
@@ -308,4 +309,29 @@ XRT_API bool xrtSmtpSubmit(
 	return __xrtSmtpSubmitData(pClient, pMessage, iDeadline, pCancel);
 }
 
+#endif
+
+#if (defined(XSMTP_FEATURE_SMTP_SUBMIT))
+XRT_API bool xrtSmtpSubmitEnvelope(
+	xsmtpclient* pClient,
+	const xsmtpenvelope* pEnvelope,
+	const xmailmessage* pMessage,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtSmtpSubmitEnvelope(pClient, pEnvelope, pMessage, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+
+#if (defined(XSMTP_FEATURE_SMTP_SUBMIT))
+XRT_API bool xrtSmtpSubmit(
+	xsmtpclient* pClient,
+	const xmailmessage* pMessage,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtSmtpSubmit(pClient, pMessage, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

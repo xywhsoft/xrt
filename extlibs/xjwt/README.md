@@ -8,8 +8,7 @@
 
 ## 用法
 
-实现是 `xjwt.c` 单一编译单元：把它加入构建（包含目录指向本目录），
-或单 TU 场景直接 `#include "xjwt.c"`。依赖的 xrt 模块闭包见 `xjwt-xrt.h`。
+依赖闭包由 `config/modules.json` 声明，公共入口是 `include/xjwt.h`，实现位于 `src/`，每个 `.c` 独立编译。构建、测试、单头生成与 CI 均使用仓库根目录的统一工具；目录规范见 [扩展库开发说明](../README.md)。
 
 ```c
 #include "xjwt.h"
@@ -61,12 +60,15 @@ version 1 的 `OneAsymmetricKey`。可带 `[0] IMPLICIT Attributes`；解析器�
 
 ## 构建
 
+从仓库根目录执行（Windows 与 POSIX 使用同一入口）：
+
 ```sh
-gcc -std=c11 -I<path-to-xjwt> -I<path-to-xrt>/single \
-    your_app.c xjwt.c
+python tools/build.py --compiler gcc --manifest extlibs/xjwt/config/modules.json --suite xjwt,xjwt_tests --jobs 4
+python tools/package.py --compiler gcc --manifest extlibs/xjwt/config/modules.json --suite xjwt --kind static --verify
+python tools/amalgamate.py --manifest extlibs/xjwt/config/modules.json
 ```
 
-`xjwt.c` 是 unity TU（内含 src/ 四个分片），无需单独编译 src/ 下的文件。
+单头实现与声明分别生成到 `single/extlibs/xjwt.h` 和 `single/extlibs/xjwt_decl.h`，只包含本库代码。调用方先提供核心 XRT，再按依赖顺序提供扩展；见 [构建说明](../../docs/BUILD.md)。
 
 ## 模块
 

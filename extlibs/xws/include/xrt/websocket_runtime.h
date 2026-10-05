@@ -152,7 +152,7 @@ typedef struct xwsconnconfig {
 	uint64 FrameLimit;
 	size_t SendLimit;
 	size_t ControlReserve;
-	uint64 CloseTimeout;
+	int64 CloseTimeout;
 	bool AutoPong;
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
 		size_t AsyncBytesLimit;

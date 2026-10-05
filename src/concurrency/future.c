@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_future.h"
 
 
@@ -16,8 +17,8 @@ struct xpromise {
 typedef struct xrt_future_debug {
 	char* Name;
 	size_t NameSize;
-	uint64 FirstObserved;
-	uint64 FirstTerminalObserved;
+	xtime FirstObserved;
+	xtime FirstTerminalObserved;
 	bool TerminalObserved;
 } xrt_future_debug;
 
@@ -54,13 +55,13 @@ struct xfuture {
 static bool __xrtFutureDebugPrepareLocked(xfuture* pFuture)
 {
 	xrt_future_debug* pDebug = pFuture->Debug;
-	uint64 Now; xerror* Previous; xerror* ClockError;
+	xtime Now; xerror* Previous; xerror* ClockError;
 	if (pFuture->OwnershipClaim != NULL || pFuture->OwnershipCleared) {
 		__xrtErrorSetInvalidState(); return false;
 	}
 	if (pDebug != NULL && (pFuture->State == XFUTURE_PENDING ||
 		pDebug->TerminalObserved)) return true;
-	Previous=xrtTakeError(); Now=xrtClock(); ClockError=xrtTakeError();
+	Previous=xrtTakeError(); Now=xrtNow(); ClockError=xrtTakeError();
 	if (ClockError != NULL) { xrtErrorFree(Previous); xrtSetErrorTake(ClockError); return false; }
 	xrtSetErrorTake(Previous);
 	if (pDebug == NULL) {
@@ -1604,31 +1605,31 @@ XRT_API xcancel* xrtPromiseCancelToken(const xpromise* pPromise)
 /* 永久等待 Future 进入任一终态。 */
 XRT_API xwaitresult xrtFutureWait(xfuture* pFuture)
 {
-	return xrtFutureWaitUntilCancel(pFuture, XRT_DEADLINE_NEVER, NULL);
+	return __xrtFutureWaitUntilCancel(pFuture, INFINITY, NULL);
 }
 
 
 
 /* 在相对微秒数内等待 Future。 */
-XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout)
+XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, int64 iTimeout)
 {
-	return xrtFutureWaitUntilCancel(pFuture, xrtDeadlineAfter(iTimeout), NULL);
+	return __xrtFutureWaitUntilCancel(pFuture, __xrtWaitAfter(iTimeout), NULL);
 }
 
 
 
 /* 等待 Future 到指定截止时间。 */
-XRT_API xwaitresult xrtFutureWaitUntil(xfuture* pFuture, xdeadline iDeadline)
+XRT_API xwaitresult __xrtFutureWaitUntil(xfuture* pFuture, double iDeadline)
 {
-	return xrtFutureWaitUntilCancel(pFuture, iDeadline, NULL);
+	return __xrtFutureWaitUntilCancel(pFuture, iDeadline, NULL);
 }
 
 
 
 /* 等待 Future、截止时间或外部取消令牌中的首个事件。 */
-XRT_API xwaitresult xrtFutureWaitUntilCancel(
+XRT_API xwaitresult __xrtFutureWaitUntilCancel(
 	xfuture* pFuture,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -1658,11 +1659,11 @@ XRT_API xwaitresult xrtFutureWaitUntilCancel(
 	} else {
 		while ( (pFuture->State == XFUTURE_PENDING) &&
 				 !CancelWait.Cancelled ) {
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				Result = XWAIT_TIMEOUT;
 				break;
 			}
-			Result = xrtCondWaitUntil(&pFuture->Ready, &pFuture->Lock, iDeadline);
+			Result = __xrtCondWaitUntil(&pFuture->Ready, &pFuture->Lock, iDeadline);
 			if ( Result == XWAIT_ERROR ) {
 				break;
 			}
@@ -1920,4 +1921,15 @@ XRT_API bool xrtPromiseDone(const xpromise* pPromise)
 	return xrtFutureDone(pPromise->Future);
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_FUTURE))
+XRT_API xwaitresult xrtFutureWaitForCancel(
+	xfuture* pFuture,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtFutureWaitUntilCancel(pFuture, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif

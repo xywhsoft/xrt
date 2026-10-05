@@ -1,4 +1,5 @@
 #include "../internal/xrt_time.h"
+#include <math.h>
 
 #include <errno.h>
 #include <time.h>
@@ -111,7 +112,7 @@ int64 __xrtTimeFloorDiv(int64 iValue, int64 iDivisor)
 
 
 
-/* 把 Unix 微秒拆成天数和非负当日微秒。 */
+/* 把 Unix 毫秒拆成天数和非负当日毫秒。 */
 void __xrtTimeSplitDay(xtime iTime, int64* pDays, int64* pDayTime)
 {
 	int64 iDays = iTime / XRT_TIME_DAY;
@@ -130,7 +131,12 @@ void __xrtTimeSplitDay(xtime iTime, int64* pDays, int64* pDayTime)
 /* 判断 Gregorian 年份是否为闰年。 */
 XRT_API bool xrtIsLeapYear(int64 iYear)
 {
-	return ((iYear % 4) == 0) && (((iYear % 100) != 0) || ((iYear % 400) == 0));
+    if ( iYear == 0 ) {
+        __xrtTimeSetError(XERR_RANGE, XTIME_ERROR_RANGE, "leap-year", "the civil calendar has no year zero", 0);
+        return false;
+    }
+    if ( iYear < 0 ) { iYear++; }
+    return ((iYear % 4) == 0) && (((iYear % 100) != 0) || ((iYear % 400) == 0));
 }
 
 
@@ -142,7 +148,7 @@ XRT_API int xrtDaysInMonth(int64 iYear, int iMonth)
 		31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 	};
 
-	if ( (iMonth < 1) || (iMonth > 12) ) {
+	if ( iYear == 0 || (iMonth < 1) || (iMonth > 12) ) {
 		__xrtErrorSetInvalidArgument();
 		return 0;
 	}
@@ -157,6 +163,7 @@ XRT_API int xrtDaysInMonth(int64 iYear, int iMonth)
 /* 返回指定年份的天数。 */
 XRT_API int xrtDaysInYear(int64 iYear)
 {
+	if ( iYear == 0 ) { (void)xrtIsLeapYear(iYear); return 0; }
 	return xrtIsLeapYear(iYear) ? 366 : 365;
 }
 
@@ -173,7 +180,7 @@ bool __xrtTimeDaysFromCivil(int64 iYear, int iMonth, int iDay, int64* pDays)
 	int iMarchMonth;
 	int iMonthDays;
 
-	if ( pDays == NULL ) {
+	if ( (pDays == NULL) || (iYear == 0) ) {
 		return false;
 	}
 	if ( (iMonth < 1) || (iMonth > 12) ) {
@@ -186,6 +193,7 @@ bool __xrtTimeDaysFromCivil(int64 iYear, int iMonth, int iDay, int64* pDays)
 		return false;
 	}
 
+	iYear = iYear < 0 ? iYear + 1 : iYear;
 	if ( iMonth <= 2 ) {
 		if ( iYear == INT64_MIN ) {
 			return false;
@@ -193,13 +201,14 @@ bool __xrtTimeDaysFromCivil(int64 iYear, int iMonth, int iDay, int64* pDays)
 		iYear--;
 	}
 	iEra = __xrtTimeFloorDiv(iYear, 400);
-	iYearOfEra = iYear - (iEra * 400);
+	iYearOfEra = iYear % 400;
+	if ( iYearOfEra < 0 ) { iYearOfEra += 400; }
 	iMarchMonth = iMonth + (iMonth > 2 ? -3 : 9);
 	iDayOfYear = ((153 * iMarchMonth) + 2) / 5 + iDay - 1;
 	iDayOfEra = (iYearOfEra * 365) + (iYearOfEra / 4) -
 		(iYearOfEra / 100) + iDayOfYear;
 	if ( !__xrtTimeMulChecked(iEra, 146097, &iEraDays) ||
-		 !__xrtTimeAddChecked(iEraDays, iDayOfEra - 719468, pDays) ) {
+		 !__xrtTimeAddChecked(iEraDays, iDayOfEra - 306, pDays) ) {
 		return false;
 	}
 	return true;
@@ -210,7 +219,7 @@ bool __xrtTimeDaysFromCivil(int64 iYear, int iMonth, int iDay, int64* pDays)
 /* 把 Unix Epoch 天数常数时间转换为 Gregorian 日期。 */
 void __xrtTimeCivilFromDays(int64 iDays, int64* pYear, int* pMonth, int* pDay)
 {
-	int64 iShifted = iDays + 719468;
+	int64 iShifted = iDays + 306;
 	int64 iEra = __xrtTimeFloorDiv(iShifted, 146097);
 	int64 iDayOfEra = iShifted - (iEra * 146097);
 	int64 iYearOfEra = (iDayOfEra - (iDayOfEra / 1460) +
@@ -223,7 +232,7 @@ void __xrtTimeCivilFromDays(int64 iDays, int64* pYear, int* pMonth, int* pDay)
 	int iMonth = iMarchMonth + (iMarchMonth < 10 ? 3 : -9);
 
 	iYear += iMonth <= 2 ? 1 : 0;
-	*pYear = iYear;
+	*pYear = iYear <= 0 ? iYear - 1 : iYear;
 	*pMonth = iMonth;
 	*pDay = iDay;
 }
@@ -238,7 +247,7 @@ static bool __xrtTimeOffsetValid(int iOffset)
 
 
 
-/* 从规范化的天数和当日微秒构造值，负极值不要求日期零点可表示。 */
+/* 从规范化的天数和当日毫秒构造值，负极值不要求日期零点可表示。 */
 static bool __xrtTimeComposeDay(int64 iDays, int64 iDayTime, xtime* pTime)
 {
 	int64 iDate;
@@ -268,6 +277,7 @@ __xrt_time_make_status __xrtTimeMakeValue(
 	int64 iCarry;
 	int iMonthDays;
 
+	if ( pDateTime->Year == 0 ) { return __XRT_TIME_MAKE_COMPONENT; }
 	if ( !__xrtTimeOffsetValid(pDateTime->Offset) ) {
 		return __XRT_TIME_MAKE_OFFSET;
 	}
@@ -279,7 +289,7 @@ __xrt_time_make_status __xrtTimeMakeValue(
 		 (pDateTime->Hour < 0) || (pDateTime->Hour > 23) ||
 		 (pDateTime->Minute < 0) || (pDateTime->Minute > 59) ||
 		 (pDateTime->Second < 0) || (pDateTime->Second > 59) ||
-		 (pDateTime->Microsecond < 0) || (pDateTime->Microsecond > 999999) ) {
+		 (pDateTime->Millisecond < 0) || (pDateTime->Millisecond > 999) ) {
 		return __XRT_TIME_MAKE_COMPONENT;
 	}
 	if ( !__xrtTimeDaysFromCivil(pDateTime->Year, pDateTime->Month,
@@ -289,7 +299,7 @@ __xrt_time_make_status __xrtTimeMakeValue(
 
 	iDayTime = ((int64)pDateTime->Hour * XRT_TIME_HOUR) +
 		((int64)pDateTime->Minute * XRT_TIME_MINUTE) +
-		((int64)pDateTime->Second * XRT_TIME_SECOND) + pDateTime->Microsecond;
+		((int64)pDateTime->Second * XRT_TIME_SECOND) + pDateTime->Millisecond;
 	iOffset = (int64)pDateTime->Offset * XRT_TIME_SECOND;
 	iAdjusted = iDayTime - iOffset;
 	iCarry = __xrtTimeFloorDiv(iAdjusted, XRT_TIME_DAY);
@@ -342,7 +352,7 @@ XRT_API bool xrtDate(int64 iYear, int iMonth, int iDay, xtime* pTime)
 
 /* 构造 UTC 日期时间。 */
 XRT_API bool xrtDateTime(int64 iYear, int iMonth, int iDay,
-	int iHour, int iMinute, int iSecond, int iMicrosecond, xtime* pTime)
+	int iHour, int iMinute, int iSecond, int iMillisecond, xtime* pTime)
 {
 	xdatetime tDateTime;
 
@@ -353,7 +363,7 @@ XRT_API bool xrtDateTime(int64 iYear, int iMonth, int iDay,
 	tDateTime.Hour = iHour;
 	tDateTime.Minute = iMinute;
 	tDateTime.Second = iSecond;
-	tDateTime.Microsecond = iMicrosecond;
+	tDateTime.Millisecond = iMillisecond;
 	return xrtTimeMake(&tDateTime, pTime);
 }
 
@@ -392,9 +402,9 @@ XRT_API bool xrtTimeSplitAt(xtime iTime, int iOffset, xdatetime* pDateTime)
 	pDateTime->Hour = (int)(iSecondOfDay / 3600);
 	pDateTime->Minute = (int)((iSecondOfDay % 3600) / 60);
 	pDateTime->Second = (int)(iSecondOfDay % 60);
-	pDateTime->Microsecond = (int)(iDayTime % XRT_TIME_SECOND);
+	pDateTime->Millisecond = (int)(iDayTime % XRT_TIME_SECOND);
 	pDateTime->Offset = iOffset;
-	pDateTime->Weekday = (int)((iDays + 4) % 7);
+	pDateTime->Weekday = (int)((iDays + 1) % 7);
 	if ( pDateTime->Weekday < 0 ) {
 		pDateTime->Weekday += 7;
 	}
@@ -423,17 +433,29 @@ XRT_API bool xrtTimeSplit(xtime iTime, xdatetime* pDateTime)
 
 
 /* 从 Unix 秒安全构造 xtime。 */
+bool __xrtTimeFromUnixParts(int64 iSeconds, int iMillisecond, xtime* pTime)
+{
+    int64 iCivilSeconds;
+    int64 iBase;
+    int64 iResult;
+    if ( pTime == NULL || iMillisecond < 0 || iMillisecond > 999 ) { return false; }
+    if ( !__xrtTimeAddChecked(iSeconds, INT64_C(62135596800), &iCivilSeconds) ) { return false; }
+    if ( iCivilSeconds >= 0 ) {
+        if ( !__xrtTimeMulChecked(iCivilSeconds, 1000, &iBase) ||
+             !__xrtTimeAddChecked(iBase, iMillisecond, &iResult) ) { return false; }
+    } else {
+        if ( !__xrtTimeMulChecked(iCivilSeconds + 1, 1000, &iBase) ||
+             !__xrtTimeAddChecked(iBase, iMillisecond - 1000, &iResult) ) { return false; }
+    }
+    *pTime = iResult;
+    return true;
+}
+
 XRT_API bool xrtTimeFromUnix(int64 iSeconds, xtime* pTime)
 {
-	if ( pTime == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !__xrtTimeMulChecked(iSeconds, XRT_TIME_SECOND, pTime) ) {
-		__xrtTimeSetOverflow("from-unix");
-		return false;
-	}
-	return true;
+    if ( pTime == NULL ) { __xrtErrorSetInvalidArgument(); return false; }
+    if ( !__xrtTimeFromUnixParts(iSeconds, 0, pTime) ) { __xrtTimeSetOverflow("from-unix"); return false; }
+    return true;
 }
 
 
@@ -441,15 +463,11 @@ XRT_API bool xrtTimeFromUnix(int64 iSeconds, xtime* pTime)
 /* 从 Unix 毫秒安全构造 xtime。 */
 XRT_API bool xrtTimeFromUnixMs(int64 iMilliseconds, xtime* pTime)
 {
-	if ( pTime == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !__xrtTimeMulChecked(iMilliseconds, XRT_TIME_MILLISECOND, pTime) ) {
-		__xrtTimeSetOverflow("from-unix-ms");
-		return false;
-	}
-	return true;
+    if ( pTime == NULL ) { __xrtErrorSetInvalidArgument(); return false; }
+    if ( !__xrtTimeAddChecked(iMilliseconds, XRT_TIME_UNIX_EPOCH, pTime) ) {
+        __xrtTimeSetOverflow("from-unix-ms"); return false;
+    }
+    return true;
 }
 
 
@@ -457,15 +475,36 @@ XRT_API bool xrtTimeFromUnixMs(int64 iMilliseconds, xtime* pTime)
 /* 返回向负无穷取整的 Unix 秒。 */
 XRT_API int64 xrtTimeUnix(xtime iTime)
 {
-	return __xrtTimeFloorDiv(iTime, XRT_TIME_SECOND);
+    return __xrtTimeFloorDiv(iTime, 1000) - INT64_C(62135596800);
 }
 
 
 
 /* 返回向负无穷取整的 Unix 毫秒。 */
-XRT_API int64 xrtTimeUnixMs(xtime iTime)
+XRT_API bool xrtTimeToUnixMs(xtime iTime, int64* pMilliseconds)
 {
-	return __xrtTimeFloorDiv(iTime, XRT_TIME_MILLISECOND);
+    if ( pMilliseconds == NULL ) { __xrtErrorSetInvalidArgument(); return false; }
+    if ( !__xrtTimeSubChecked(iTime, XRT_TIME_UNIX_EPOCH, pMilliseconds) ) {
+        __xrtTimeSetOverflow("to-unix-ms"); return false;
+    }
+    return true;
+}
+
+XRT_API bool xrtTimeFromUnix32(int32 iSeconds, xtime* pTime)
+{
+    return xrtTimeFromUnix((int64)iSeconds, pTime);
+}
+
+XRT_API bool xrtTimeToUnix32(xtime iTime, int32* pSeconds)
+{
+    int64 iSeconds;
+    if ( pSeconds == NULL ) { __xrtErrorSetInvalidArgument(); return false; }
+    iSeconds = xrtTimeUnix(iTime);
+    if ( iSeconds < INT32_MIN || iSeconds > INT32_MAX ) {
+        __xrtTimeSetOverflow("to-unix32"); return false;
+    }
+    *pSeconds = (int32)iSeconds;
+    return true;
 }
 
 
@@ -512,7 +551,7 @@ static uint64 __xrtTimeQpcFrequency(void)
 
 	if ( iCurrent == 0 ) {
 		if ( !QueryPerformanceFrequency(&tFrequency) || (tFrequency.QuadPart <= 0) ) {
-			tFrequency.QuadPart = 1;
+			tFrequency.QuadPart = 0;
 		}
 		InterlockedExchange(&iState, 2);
 	} else {
@@ -527,135 +566,98 @@ static uint64 __xrtTimeQpcFrequency(void)
 
 
 
-/* 返回单调时钟微秒。 */
-XRT_API uint64 xrtClock(void)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		LARGE_INTEGER tCounter;
-		uint64 iFrequency = __xrtTimeQpcFrequency();
-		uint64 iCounter;
+/* 返回单调时钟毫秒。 */
 
-		(void)QueryPerformanceCounter(&tCounter);
-		iCounter = (uint64)tCounter.QuadPart;
-		return ((iCounter / iFrequency) * UINT64_C(1000000)) +
-			(((iCounter % iFrequency) * UINT64_C(1000000)) / iFrequency);
-	#else
-		struct timespec tNow;
-
-		if ( clock_gettime(CLOCK_MONOTONIC, &tNow) != 0 ) {
-			__xrtTimeSetError(XERR_IO, XTIME_ERROR_LOCAL_UNSUPPORTED,
-				"clock", "monotonic clock is unavailable", errno);
-			return 0;
-		}
-		return ((uint64)tNow.tv_sec * UINT64_C(1000000)) +
-			((uint64)tNow.tv_nsec / UINT64_C(1000));
-	#endif
-}
 
 
 
 /* 返回单调时钟浮点秒数。 */
 XRT_API double xrtTimer(void)
 {
-	return (double)xrtClock() / 1000000.0;
+#if defined(_WIN32) || defined(_WIN64)
+    LARGE_INTEGER Counter;
+    uint64 Frequency = __xrtTimeQpcFrequency();
+    if ( Frequency == 0 || !QueryPerformanceCounter(&Counter) ) {
+        __xrtTimeSetError(XERR_IO, XTIME_ERROR_LOCAL_UNSUPPORTED, "timer", "monotonic timer is unavailable", (int)GetLastError());
+        return NAN;
+    }
+    return (double)(Counter.QuadPart / (int64)Frequency) +
+        (double)(Counter.QuadPart % (int64)Frequency) / (double)Frequency;
+#else
+    struct timespec Now;
+    if ( clock_gettime(CLOCK_MONOTONIC, &Now) != 0 ) {
+        __xrtTimeSetError(XERR_IO, XTIME_ERROR_LOCAL_UNSUPPORTED, "timer", "monotonic timer is unavailable", errno);
+        return NAN;
+    }
+    return (double)Now.tv_sec + (double)Now.tv_nsec * 1e-9;
+#endif
 }
 
 
 
-/* 返回当前 Unix Epoch 微秒。 */
+/* 返回当前 Unix Epoch 毫秒。 */
 XRT_API xtime xrtNow(void)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		FILETIME tFileTime;
-		uint64 iDifference;
-		uint64 iTicks;
-
-		__xrtTimeSystemFileTime(&tFileTime);
-		iTicks = ((uint64)tFileTime.dwHighDateTime << 32) |
-			(uint64)tFileTime.dwLowDateTime;
-		if ( iTicks < XRT_FILETIME_EPOCH_TICKS ) {
-			/* 纪元前不足一微秒的 100ns 余数必须向负无穷取整。 */
-			iDifference = XRT_FILETIME_EPOCH_TICKS - iTicks;
-			return -(xtime)(iDifference / 10) -
-				((iDifference % 10) != 0 ? 1 : 0);
-		}
-		return (xtime)((iTicks - XRT_FILETIME_EPOCH_TICKS) / 10);
-	#else
-		struct timespec tNow;
-		int64 iSeconds;
-		int64 iResult;
-
-		if ( clock_gettime(CLOCK_REALTIME, &tNow) != 0 ) {
-			__xrtTimeSetError(XERR_IO, XTIME_ERROR_LOCAL_UNSUPPORTED,
-				"now", "system clock is unavailable", errno);
-			return 0;
-		}
-		iSeconds = (int64)tNow.tv_sec;
-		if ( !__xrtTimeMulChecked(iSeconds, XRT_TIME_SECOND, &iResult) ||
-			 !__xrtTimeAddChecked(iResult, (int64)(tNow.tv_nsec / 1000), &iResult) ) {
-			__xrtTimeSetOverflow("now");
-			return 0;
-		}
-		return iResult;
-	#endif
+#if defined(_WIN32) || defined(_WIN64)
+    FILETIME FileTime;
+    uint64 Ticks;
+    __xrtTimeSystemFileTime(&FileTime);
+    Ticks = ((uint64)FileTime.dwHighDateTime << 32) | FileTime.dwLowDateTime;
+    /* FILETIME begins in 1601; this division is nonnegative and exact to ms. */
+    return (xtime)(Ticks / UINT64_C(10000)) + INT64_C(50491123200000);
+#else
+    struct timespec Now;
+    xtime Result;
+    if ( clock_gettime(CLOCK_REALTIME, &Now) != 0 ) {
+        __xrtTimeSetError(XERR_IO, XTIME_ERROR_LOCAL_UNSUPPORTED, "now", "system clock is unavailable", errno);
+        return 0;
+    }
+    if ( !__xrtTimeFromUnixParts((int64)Now.tv_sec, (int)(Now.tv_nsec / 1000000), &Result) ) {
+        __xrtTimeSetOverflow("now"); return 0;
+    }
+    return Result;
+#endif
 }
 
 
 
-/* 至少睡眠指定微秒，并在 POSIX 信号中断后继续剩余时长。 */
-XRT_API void xrtSleepUs(uint64 iMicroseconds)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		uint64 iMilliseconds;
+/* 至少睡眠指定毫秒，并在 POSIX 信号中断后继续剩余时长。 */
 
-		if ( iMicroseconds == 0 ) {
-			Sleep(0);
-			return;
-		}
-		iMilliseconds = (iMicroseconds / 1000) +
-			((iMicroseconds % 1000) != 0 ? 1 : 0);
-		while ( iMilliseconds >= UINT32_MAX ) {
-			Sleep(UINT32_MAX - 1u);
-			iMilliseconds -= UINT32_MAX - 1u;
-		}
-		Sleep((DWORD)iMilliseconds);
-	#else
-		while ( iMicroseconds != 0 ) {
-			uint64 iChunk = iMicroseconds > UINT64_C(86400000000) ?
-				UINT64_C(86400000000) : iMicroseconds;
-			struct timespec tRequest;
-
-			tRequest.tv_sec = (time_t)(iChunk / UINT64_C(1000000));
-			tRequest.tv_nsec = (long)((iChunk % UINT64_C(1000000)) * 1000);
-			while ( (nanosleep(&tRequest, &tRequest) != 0) && (errno == EINTR) ) {
-			}
-			iMicroseconds -= iChunk;
-		}
-	#endif
-}
 
 
 
 /* 至少睡眠指定毫秒。 */
-XRT_API void xrtSleep(uint32 iMilliseconds)
+XRT_API void xrtSleep(int64 iMilliseconds)
 {
-	xrtSleepUs((uint64)iMilliseconds * UINT64_C(1000));
+    if ( iMilliseconds < 0 ) { __xrtErrorSetInvalidArgument(); return; }
+#if defined(_WIN32) || defined(_WIN64)
+    while ( iMilliseconds >= UINT32_MAX ) {
+        Sleep(UINT32_MAX - 1u);
+        iMilliseconds -= UINT32_MAX - 1u;
+    }
+    Sleep((DWORD)iMilliseconds);
+#else
+    if ( iMilliseconds == 0 ) { sched_yield(); return; }
+    while ( iMilliseconds != 0 ) {
+        int64 Chunk = iMilliseconds > INT64_C(86400000) ? INT64_C(86400000) : iMilliseconds;
+        struct timespec Request;
+        Request.tv_sec = (time_t)(Chunk / 1000);
+        Request.tv_nsec = (long)((Chunk % 1000) * 1000000);
+        while ( nanosleep(&Request, &Request) != 0 ) {
+            if ( errno != EINTR ) {
+                __xrtTimeSetError(XERR_IO, XTIME_ERROR_LOCAL_UNSUPPORTED, "sleep", "sleep failed", errno);
+                return;
+            }
+        }
+        iMilliseconds -= Chunk;
+    }
+#endif
 }
 
 
 
 /* 睡眠到单调截止点，使用无符号差值并避免过期后回绕。 */
-XRT_API void xrtSleepUntil(uint64 iDeadline)
-{
-	for ( ;; ) {
-		uint64 iNow = xrtClock();
 
-		if ( iNow >= iDeadline ) {
-			return;
-		}
-		xrtSleepUs(iDeadline - iNow);
-	}
-}
 
 
 
@@ -725,13 +727,13 @@ XRT_API int xrtSecond(xtime iTime)
 
 
 
-/* 提取秒内微秒。 */
-XRT_API int xrtMicrosecond(xtime iTime)
+/* 提取秒内毫秒。 */
+XRT_API int xrtMillisecond(xtime iTime)
 {
 	xdatetime tDateTime;
 
 	(void)xrtTimeSplit(iTime, &tDateTime);
-	return tDateTime.Microsecond;
+	return tDateTime.Millisecond;
 }
 
 
@@ -783,7 +785,7 @@ XRT_API xtime xrtDatePart(xtime iTime)
 
 
 
-/* 返回非负当日微秒。 */
+/* 返回非负当日毫秒。 */
 XRT_API xtime xrtTimePart(xtime iTime)
 {
 	int64 iDays;
@@ -859,11 +861,10 @@ XRT_API bool xrtTimeOverlap(xtime iStart1, xtime iEnd1,
 
 
 
-/* 返回固定时长单位的微秒数。 */
+/* 返回固定时长单位的毫秒数。 */
 static bool __xrtTimeUnitDuration(xtimeunit Unit, int64* pDuration)
 {
 	switch ( Unit ) {
-		case XTIME_UNIT_MICROSECOND: *pDuration = XRT_TIME_MICROSECOND; return true;
 		case XTIME_UNIT_MILLISECOND: *pDuration = XRT_TIME_MILLISECOND; return true;
 		case XTIME_UNIT_SECOND: *pDuration = XRT_TIME_SECOND; return true;
 		case XTIME_UNIT_MINUTE: *pDuration = XRT_TIME_MINUTE; return true;
@@ -887,13 +888,14 @@ static bool __xrtTimeAddMonths(xtime iTime, int64 iMonths, xtime* pResult)
 	int iTargetDays;
 
 	(void)xrtTimeSplit(iTime, &tDateTime);
-	if ( !__xrtTimeMulChecked(tDateTime.Year, 12, &iMonthIndex) ||
+	if ( !__xrtTimeMulChecked(tDateTime.Year < 0 ? tDateTime.Year + 1 : tDateTime.Year, 12, &iMonthIndex) ||
 		 !__xrtTimeAddChecked(iMonthIndex, tDateTime.Month - 1, &iMonthIndex) ||
 		 !__xrtTimeAddChecked(iMonthIndex, iMonths, &iTarget) ) {
 		__xrtTimeSetOverflow("add");
 		return false;
 	}
 	iTargetYear = __xrtTimeFloorDiv(iTarget, 12);
+	if ( iTargetYear <= 0 ) { iTargetYear--; }
 	/* INT64_MIN 的向下整除商乘以 12 会越界；直接规范化余数。 */
 	iTargetMonth = (int)(iTarget % 12);
 	if ( iTargetMonth < 0 ) {
@@ -912,11 +914,25 @@ static bool __xrtTimeAddMonths(xtime iTime, int64 iMonths, xtime* pResult)
 
 
 
+static bool __xrtTimeAddScaled(xtime Time, int64 Value, int64 Scale, xtime* Result)
+{
+    bool Negative = Value < 0;
+    uint64 Magnitude = Negative ? UINT64_C(0) - (uint64)Value : (uint64)Value;
+    uint64 Capacity = Negative ? (uint64)Time - (uint64)INT64_MIN :
+        (uint64)INT64_MAX - (uint64)Time;
+    uint64 Bits;
+    if ( Magnitude > Capacity / (uint64)Scale ) { return false; }
+    Magnitude *= (uint64)Scale;
+    Bits = Negative ? (uint64)Time - Magnitude : (uint64)Time + Magnitude;
+    *Result = Bits <= (uint64)INT64_MAX ? (int64)Bits :
+        -INT64_C(1) - (int64)(UINT64_MAX - Bits);
+    return true;
+}
+
 /* 增加固定时长或日历单位。 */
 XRT_API bool xrtTimeAdd(xtime iTime, int64 iValue, xtimeunit Unit, xtime* pResult)
 {
 	int64 iDuration;
-	int64 iDelta;
 	int64 iMonths;
 
 	if ( pResult == NULL ) {
@@ -924,8 +940,7 @@ XRT_API bool xrtTimeAdd(xtime iTime, int64 iValue, xtimeunit Unit, xtime* pResul
 		return false;
 	}
 	if ( __xrtTimeUnitDuration(Unit, &iDuration) ) {
-		if ( !__xrtTimeMulChecked(iValue, iDuration, &iDelta) ||
-			 !__xrtTimeAddChecked(iTime, iDelta, pResult) ) {
+		if ( !__xrtTimeAddScaled(iTime, iValue, iDuration, pResult) ) {
 			__xrtTimeSetOverflow("add");
 			return false;
 		}
@@ -965,7 +980,8 @@ static bool __xrtTimeMonthDifference(xtime iStart, xtime iEnd, int64* pMonths)
 
 	(void)xrtTimeSplit(iStart, &tStart);
 	(void)xrtTimeSplit(iEnd, &tEnd);
-	if ( !__xrtTimeAddChecked(tEnd.Year, -tStart.Year, &iYears) ||
+	if ( !__xrtTimeSubChecked(tEnd.Year < 0 ? tEnd.Year + 1 : tEnd.Year,
+		tStart.Year < 0 ? tStart.Year + 1 : tStart.Year, &iYears) ||
 		 !__xrtTimeMulChecked(iYears, 12, &iMonths) ||
 		 !__xrtTimeAddChecked(iMonths, tEnd.Month - tStart.Month, pMonths) ) {
 		return false;
@@ -975,7 +991,7 @@ static bool __xrtTimeMonthDifference(xtime iStart, xtime iEnd, int64* pMonths)
 
 
 
-/* 在完整 int64 时间域上计算固定单位差，不要求原始微秒差可由 int64 表示。 */
+/* 在完整 int64 时间域上计算固定单位差，不要求原始毫秒差可由 int64 表示。 */
 static bool __xrtTimeFixedDifference(
 	xtime iStart,
 	xtime iEnd,
@@ -1007,49 +1023,34 @@ static bool __xrtTimeFixedDifference(
 
 
 /* 计算从起点到终点经过的完整单位数量。 */
-XRT_API bool xrtTimeDiff(xtime iStart, xtime iEnd, xtimeunit Unit, int64* pResult)
+XRT_API bool xrtDateDiff(xtime iStart, xtime iEnd, xtimeunit Unit, int64* pResult)
 {
-	int64 iDuration;
-	int64 iGuess;
-	int64 iMonths;
-	xtime iCandidate;
-
-	if ( pResult == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( __xrtTimeUnitDuration(Unit, &iDuration) ) {
-		if ( !__xrtTimeFixedDifference(
-				iStart, iEnd, iDuration, pResult) ) {
-			__xrtTimeSetOverflow("diff");
-			return false;
-		}
-		return true;
-	}
-	if ( !__xrtTimeMonthDifference(iStart, iEnd, &iMonths) ) {
-		__xrtTimeSetOverflow("diff");
-		return false;
-	}
-	if ( Unit == XTIME_UNIT_MONTH ) {
-		iGuess = iMonths;
-	} else if ( Unit == XTIME_UNIT_QUARTER ) {
-		iGuess = iMonths / 3;
-	} else if ( Unit == XTIME_UNIT_YEAR ) {
-		iGuess = iMonths / 12;
-	} else {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	if ( !xrtTimeAdd(iStart, iGuess, Unit, &iCandidate) ) {
-		return false;
-	}
-	if ( (iEnd >= iStart) && (iCandidate > iEnd) ) {
-		iGuess--;
-	} else if ( (iEnd < iStart) && (iCandidate < iEnd) ) {
-		iGuess++;
-	}
-	*pResult = iGuess;
-	return true;
+    int64 Duration;
+    int64 Months;
+    xdatetime Start;
+    xdatetime End;
+    if ( pResult == NULL ) { __xrtErrorSetInvalidArgument(); return false; }
+    if ( __xrtTimeUnitDuration(Unit, &Duration) ) {
+        if ( !__xrtTimeFixedDifference(iStart, iEnd, Duration, pResult) ) {
+            __xrtTimeSetOverflow("date-diff"); return false;
+        }
+        return true;
+    }
+    if ( Unit == XTIME_UNIT_YEAR ) {
+        (void)xrtTimeSplit(iStart, &Start);
+        (void)xrtTimeSplit(iEnd, &End);
+        *pResult = (End.Year < 0 ? End.Year + 1 : End.Year) -
+                   (Start.Year < 0 ? Start.Year + 1 : Start.Year);
+        return true;
+    }
+    if ( Unit != XTIME_UNIT_MONTH && Unit != XTIME_UNIT_QUARTER ) {
+        __xrtErrorSetInvalidArgument(); return false;
+    }
+    if ( !__xrtTimeMonthDifference(iStart, iEnd, &Months) ) {
+        __xrtTimeSetOverflow("date-diff"); return false;
+    }
+    *pResult = Unit == XTIME_UNIT_MONTH ? Months : Months / 3;
+    return true;
 }
 
 
@@ -1124,7 +1125,7 @@ XRT_API bool xrtWeekRange(xtime iTime, int iFirstWeekday, xtime* pStart, xtime* 
 		return false;
 	}
 	__xrtTimeSplitDay(iTime, &iDays, &iDayTime);
-	iWeekday = (int)((iDays + 4) % 7);
+	iWeekday = (int)((iDays + 1) % 7);
 	if ( iWeekday < 0 ) {
 		iWeekday += 7;
 	}
@@ -1167,7 +1168,7 @@ XRT_API bool xrtISOWeek(xtime iTime, int64* pWeekYear, int* pWeek, int* pWeekday
 		return false;
 	}
 	__xrtTimeSplitDay(iTime, &iDays, &iDayTime);
-	iSundayWeekday = (int)((iDays + 4) % 7);
+	iSundayWeekday = (int)((iDays + 1) % 7);
 	if ( iSundayWeekday < 0 ) {
 		iSundayWeekday += 7;
 	}
@@ -1179,7 +1180,7 @@ XRT_API bool xrtISOWeek(xtime iTime, int64* pWeekYear, int* pWeek, int* pWeekday
 		__xrtTimeSetOverflow("iso-week");
 		return false;
 	}
-	iJanuary4Weekday = (int)((iJanuary4 + 4) % 7);
+	iJanuary4Weekday = (int)((iJanuary4 + 1) % 7);
 	if ( iJanuary4Weekday < 0 ) {
 		iJanuary4Weekday += 7;
 	}

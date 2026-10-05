@@ -1,18 +1,13 @@
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
 
-
-
-/* 单头文件必须独立提供 Epoch 前后的 Gregorian 往返能力。 */
 int main(void)
 {
-	xtime iTime;
-	xdatetime tDateTime;
-
-	if ( !xrtDateTime(1969, 12, 31, 23, 59, 59, 999999, &iTime) ||
-		 (iTime != -1) || !xrtTimeSplit(iTime, &tDateTime) ) {
-		return 1;
-	}
-	return (tDateTime.Year == 1969) && (tDateTime.Month == 12) &&
-		(tDateTime.Day == 31) ? 0 : 1;
+    xtime Time;
+    xdatetime Parts;
+    int32 Seconds;
+    if ( !xrtDateTime(-1, 12, 31, 23, 59, 59, 999, &Time) || Time != -1 ||
+         !xrtTimeSplit(Time, &Parts) || Parts.Year != -1 || Parts.Millisecond != 999 ) { return 1; }
+    if ( !xrtTimeFromUnix32(INT32_MAX, &Time) || !xrtTimeToUnix32(Time, &Seconds) || Seconds != INT32_MAX ) { return 2; }
+    return xrtTimer() >= 0 ? 0 : 3;
 }

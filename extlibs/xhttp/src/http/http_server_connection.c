@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_http_server_runtime.h"
 
 
@@ -926,7 +927,7 @@ static void __xrtHttpConnTimer(
 {
 	xhttpconn* pConnection = (xhttpconn*)pData;
 	uint32 iKind = XRT_HTTP_SERVER_TIMER_NONE;
-	uint64 iRemaining = 0;
+	int64 iRemaining = 0;
 
 	(void)pWorker;
 	if ( pConnection->Timer == Id ) {
@@ -938,7 +939,7 @@ static void __xrtHttpConnTimer(
 	if ( (Result == XNET_RESULT_OK) &&
 		(iKind != XRT_HTTP_SERVER_TIMER_NONE) ) {
 		if ( iKind == XRT_HTTP_SERVER_TIMER_WRITE ) {
-			iRemaining = xrtDeadlineRemaining(
+			iRemaining = __xrtWaitRemaining(
 				pConnection->WriteDeadline
 			);
 			#if defined(XHTTP_FEATURE_HTTP_SERVER_TLS)
@@ -972,7 +973,7 @@ static void __xrtHttpConnTimer(
 						pConnection->WritePending =
 							iPending;
 						pConnection->WriteDeadline =
-							xrtDeadlineAfter(
+							__xrtWaitAfter(
 								pConnection->Server->
 									Config.WriteTimeout
 							);
@@ -1051,7 +1052,7 @@ static void __xrtHttpConnTimer(
 bool __xrtHttpConnArmTimer(
 	xhttpconn* pConnection,
 	uint32 iKind,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
 	uint64 Id;

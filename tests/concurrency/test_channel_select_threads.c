@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../src/internal/xrt_channel.h"
 #include "../test.h"
 #include "../test_thread.h"
@@ -58,7 +59,7 @@ static void testChannelSelectAwaitRegistered(
 	size_t iCount
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
 
 	for ( ;; ) {
 		size_t iReady = 0;
@@ -83,7 +84,7 @@ static void testChannelSelectAwaitRegistered(
 			return;
 		}
 		testRequire(
-			!xrtDeadlineExpired(iDeadline),
+			!__xrtWaitExpired(iDeadline),
 			"select registration did not converge"
 		);
 		xrtSleepUs(UINT64_C(1000));
@@ -321,13 +322,13 @@ static void testChannelSelectTimeout(void)
 
 	testRequire(xrtChannelInit(&tChannel, 0), "select timeout init failed");
 	tCase = xrtChannelCaseRecv(&tChannel, &pItem);
-	iStarted = xrtClock();
+	iStarted = xrtTimer();
 	tResult = xrtChannelSelectFor(
 		&tCase,
 		1u,
 		UINT64_C(20000)
 	);
-	iElapsed = xrtClock() - iStarted;
+	iElapsed = xrtTimer() - iStarted;
 	testRequire(
 		(tResult.Wait == XWAIT_TIMEOUT) &&
 		(tResult.Index == XCHANNEL_SELECT_NONE),

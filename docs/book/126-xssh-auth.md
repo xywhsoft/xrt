@@ -57,7 +57,7 @@ Request/Failure/Banner/Method 的视图**借用 packet、只在读提交前有�
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/auth_publickey/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/auth_publickey/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 algorithm=ssh-ed25519 与报文尺寸的自检结果）
 ```
 
@@ -71,7 +71,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/auth_session/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/auth_session/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出会话结构尺寸、service 请求报文尺寸与初始事件的自检结果）
 ```
 

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #ifndef TEST_WS_HTTP_TLS
 	#define TEST_WS_HTTP_TLS 0
 #endif
@@ -97,7 +98,7 @@ static void testWsHttpWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
+	double Deadline = __xrtWaitAfter(
 		UINT64_C(10000000)
 	);
 
@@ -106,7 +107,7 @@ static void testWsHttpWait(
 		XMEMORY_ACQUIRE
 	) < iExpected ) {
 		testRequire(
-			!xrtDeadlineExpired(Deadline),
+			!__xrtWaitExpired(Deadline),
 			sMessage
 		);
 		xrtThreadYield();

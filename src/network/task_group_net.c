@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_task.h"
 
 
@@ -11,7 +12,7 @@ typedef struct xrt_task_group_net_start {
 	xtasknetproc Proc;
 	ptr Data;
 	const xtaskargs* Args;
-	xdeadline Deadline;
+	double Deadline;
 	bool Delayed;
 } xrt_task_group_net_start;
 
@@ -24,7 +25,7 @@ static xfuture* __xrtTaskGroupNetStart(ptr pData)
 		(xrt_task_group_net_start*)pData;
 
 	if ( pStart->Delayed ) {
-		return xrtTaskNetUntil(
+		return __xrtTaskNetUntil(
 			pStart->Engine,
 			pStart->Affinity,
 			pStart->Proc,
@@ -52,7 +53,7 @@ static xfuture* __xrtTaskGroupNet(
 	xtasknetproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	xdeadline iDeadline,
+	double iDeadline,
 	bool bDelayed
 )
 {
@@ -111,7 +112,7 @@ XRT_API xfuture* xrtTaskGroupNetAfter(
 	xtasknetproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
 	return __xrtTaskGroupNet(
@@ -121,7 +122,7 @@ XRT_API xfuture* xrtTaskGroupNetAfter(
 		pProc,
 		pData,
 		pArgs,
-		xrtDeadlineAfter(iTimeout),
+		__xrtWaitAfter(iTimeout),
 		true
 	);
 }
@@ -129,14 +130,14 @@ XRT_API xfuture* xrtTaskGroupNetAfter(
 
 
 /* 按单调截止时间提交网络任务并原子纳入任务组。 */
-XRT_API xfuture* xrtTaskGroupNetUntil(
+XRT_API xfuture* __xrtTaskGroupNetUntil(
 	xtaskgroup* pGroup,
 	xnetengine* pEngine,
 	uint64 iAffinity,
 	xtasknetproc pProc,
 	ptr pData,
 	const xtaskargs* pArgs,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	return __xrtTaskGroupNet(
@@ -151,4 +152,19 @@ XRT_API xfuture* xrtTaskGroupNetUntil(
 	);
 }
 
+#endif
+
+#if (defined(XRT_FEATURE_TASK_GROUP_NET))
+XRT_API xfuture* xrtTaskGroupNetFor(
+	xtaskgroup* pGroup,
+	xnetengine* pEngine,
+	uint64 iAffinity,
+	xtasknetproc pProc,
+	ptr pData,
+	const xtaskargs* pArgs,
+	int64 iTimeout
+)
+{
+    return __xrtTaskGroupNetUntil(pGroup, pEngine, iAffinity, pProc, pData, pArgs, __xrtWaitAfter(iTimeout));
+}
 #endif

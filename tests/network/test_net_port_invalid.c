@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -23,14 +24,14 @@ int main(void)
 		1, 0x80000000u, NULL), "unknown watch mask was accepted");
 	testRequire(!xrtNetPortWatch(pPort, NULL,
 		1, XNET_POLL_READ, NULL), "null watch socket was accepted");
-	testRequire(xrtNetPortWait(pPort, &Event, 1,
-		XRT_DEADLINE_NEVER, NULL) == XNET_RESULT_ERROR,
+	testRequire(__xrtNetPortWait(pPort, &Event, 1,
+		INFINITY, NULL) == XNET_RESULT_ERROR,
 		"null wait count was accepted");
-	testRequire((xrtNetPortWait(pPort, NULL, 1,
-		XRT_DEADLINE_NEVER, &iCount) == XNET_RESULT_ERROR) &&
+	testRequire((__xrtNetPortWait(pPort, NULL, 1,
+		INFINITY, &iCount) == XNET_RESULT_ERROR) &&
 		(iCount == 0), "null wait events output mismatch");
-	testRequire((xrtNetPortWait(pPort, &Event, 0,
-		XRT_DEADLINE_NEVER, &iCount) == XNET_RESULT_ERROR) &&
+	testRequire((__xrtNetPortWait(pPort, &Event, 0,
+		INFINITY, &iCount) == XNET_RESULT_ERROR) &&
 		(iCount == 0), "zero wait capacity output mismatch");
 
 	testRequire(xrtNetPortUnwatch(pPort, Socket),

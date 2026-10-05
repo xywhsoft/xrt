@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -82,12 +83,12 @@ static xtaskoutcome testTaskCancelQueued(
 /* 等待首个任务已经占用唯一工作线程。 */
 static bool testTaskWaitStarted(testtaskcancel* pContext)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
 	bool bStarted;
 
 	(void)xrtMutexLock(&pContext->Lock);
-	while ( !pContext->Started && !xrtDeadlineExpired(iDeadline) ) {
-		(void)xrtCondWaitUntil(&pContext->Ready, &pContext->Lock, iDeadline);
+	while ( !pContext->Started && !__xrtWaitExpired(iDeadline) ) {
+		(void)__xrtCondWaitUntil(&pContext->Ready, &pContext->Lock, iDeadline);
 	}
 	bStarted = pContext->Started;
 	(void)xrtMutexUnlock(&pContext->Lock);

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -30,7 +31,7 @@ int main(void)
 	xnetenginestats Stats;
 	testnetstats State;
 	xnetengine* pEngine;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	memset(&State, 0, sizeof(State));
 	xrtNetEngineConfigInit(&Config);
@@ -45,9 +46,9 @@ int main(void)
 		xrtNetEnginePost(pEngine, 0, testNetStatsPost, &State),
 		"stats-level post failed"
 	);
-	iDeadline = xrtDeadlineAfter(2000000u);
+	iDeadline = __xrtWaitAfter(2000000u);
 	while ( xrtAtomic32Load(&State.Executed, XMEMORY_ACQUIRE) == 0 ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"stats-level post timed out");
 		xrtThreadYield();
 	}

@@ -151,12 +151,12 @@ typedef struct __xrt_ws_async __xrt_ws_async;
 	发送类别按协议存活优先级逐层使用预算：数据、手动控制、自动 Pong、Close。
 	较低优先级永远不能占用较高优先级的固定帧槽。
 */
-typedef enum __xrt_ws_send_class {
-	__XRT_WS_SEND_DATA = 0,
-	__XRT_WS_SEND_CONTROL,
-	__XRT_WS_SEND_AUTO_PONG,
-	__XRT_WS_SEND_CLOSE
-} __xrt_ws_send_class;
+typedef enum __xws_send_class {
+	__XWS_SEND_DATA = 0,
+	__XWS_SEND_CONTROL,
+	__XWS_SEND_AUTO_PONG,
+	__XWS_SEND_CLOSE
+} __xws_send_class;
 
 
 
@@ -211,7 +211,7 @@ void __xrtWsConnSendFailure(
 xnetresult __xrtWsConnFrameBudget(
 	xwsconn* pConnection,
 	size_t iPayload,
-	__xrt_ws_send_class Class,
+	__xws_send_class Class,
 	size_t* pWireSize
 );
 
@@ -223,7 +223,7 @@ xnetresult __xrtWsConnSendFrame(
 	xwsopcode Opcode,
 	xbytesview Payload,
 	bool bFinal,
-	__xrt_ws_send_class Class,
+	__xws_send_class Class,
 	bool bCompressed
 );
 
@@ -292,10 +292,10 @@ void __xrtWsConnFutureNotify(xwsconn* pConnection);
 
 
 
-typedef enum __xrt_ws_transport {
-	__XRT_WS_TRANSPORT_TCP = 1,
-	__XRT_WS_TRANSPORT_TLS
-} __xrt_ws_transport;
+typedef enum __xws_transport {
+	__XWS_TRANSPORT_TCP = 1,
+	__XWS_TRANSPORT_TLS
+} __xws_transport;
 
 
 
@@ -328,13 +328,13 @@ xwswriter* __xrtWsWriterCreate(
 
 
 /* TLS 短写后只保留尚未进入 TLS 会话的精确帧余量。 */
-typedef struct __xrt_ws_output {
-	struct __xrt_ws_output* Next;
+typedef struct __xws_output {
+	struct __xws_output* Next;
 	size_t Size;
 	size_t Offset;
 	size_t Pending;
 	uint8 Data[];
-} __xrt_ws_output;
+} __xws_output;
 
 
 
@@ -351,7 +351,7 @@ struct xwsconn {
 	/* 同步传输强引用与跨线程 Close 快照。 */
 	xspinlock TransportLock;
 	xnetworker* Worker;
-	__xrt_ws_transport TransportKind;
+	__xws_transport TransportKind;
 	xwsconnconfig Config;
 	size_t SendOverhead;
 	size_t ControlSlot;
@@ -369,7 +369,7 @@ struct xwsconn {
 	#endif
 	xwsframe Frame;
 	xwsmessageinfo MessageInfo;
-	uint64 FrameRemaining;
+	int64 FrameRemaining;
 	uint64 FrameOffset;
 	size_t ControlSize;
 	uint8 Control[XWS_CLOSE_PAYLOAD_MAX];
@@ -379,8 +379,8 @@ struct xwsconn {
 	uint16 RemoteReasonSize;
 	char RemoteReason[XWS_CLOSE_REASON_MAX + 1u];
 	xatomicptr Error;
-	__xrt_ws_output* OutputHead;
-	__xrt_ws_output* OutputTail;
+	__xws_output* OutputHead;
+	__xws_output* OutputTail;
 	xatomic64 OutputBytes;
 	xatomic32 ReadPaused;
 	xatomic32 DrivePosted;

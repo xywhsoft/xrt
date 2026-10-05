@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -17,7 +18,7 @@ static void testTcpPullStats(
 	xnetlistenerstats* pStats
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	for ( ;; ) {
 		testRequire(xrtNetListenerStats(pListener, pStats),
@@ -26,7 +27,7 @@ static void testTcpPullStats(
 			 (pStats->Rejected == iRejected) ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP pull listener stats timed out");
 		xrtSleep(1);
 	}
@@ -37,12 +38,12 @@ static void testTcpPullStats(
 /* 等待 Stream 进入唯一关闭终态。 */
 static void testTcpPullCloseStream(xnetstream* pStream)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000000u);
 
 	testRequire(xrtNetStreamClose(pStream),
 		"TCP pull stream close failed");
 	while ( xrtNetStreamState(pStream) != XNET_STREAM_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP pull stream close timed out");
 		xrtSleep(1);
 	}
@@ -63,7 +64,7 @@ int main(void)
 	xnetsocket First;
 	xnetsocket Second;
 	xnetaddr Address;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = TEST_TCP_PULL_BACKEND;
@@ -126,9 +127,9 @@ int main(void)
 		"TCP pull peers close failed");
 	testRequire(xrtNetListenerClose(pListener),
 		"TCP pull listener close failed");
-	iDeadline = xrtDeadlineAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000000u);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP pull listener close timed out");
 		xrtSleep(1);
 	}

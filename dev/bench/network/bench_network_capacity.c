@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../bench_common.h"
 
 #define XRT_MODULE_NET_TCP_SYNC
@@ -376,17 +377,17 @@ static bool benchNetworkCapacityPair(
 	if ( *pClient == NULL ) {
 		return false;
 	}
-	*pServer = xrtNetListenerAcceptWait(
+	*pServer = __xrtNetListenerAcceptWait(
 		*pListener,
-		xrtDeadlineAfter(UINT64_C(5000000)),
+		__xrtWaitAfter(UINT64_C(5000000)),
 		NULL
 	);
 	bOpen =
 		(*pServer != NULL) &&
-		xrtNetStreamWait(
+		__xrtNetStreamWait(
 			*pClient,
 			XNET_STREAM_WAIT_OPEN,
-			xrtDeadlineAfter(UINT64_C(5000000)),
+			__xrtWaitAfter(UINT64_C(5000000)),
 			NULL
 		);
 	if ( !bOpen || (pServerEvents == NULL) ) {
@@ -564,10 +565,10 @@ static bool benchNetworkCapacityFlow(
 		}
 		if (
 			(Result != XNET_RESULT_AGAIN) ||
-			!xrtNetStreamWait(
+			!__xrtNetStreamWait(
 				pClient,
 				XNET_STREAM_WAIT_WRITE,
-				xrtDeadlineAfter(UINT64_C(30000000)),
+				__xrtWaitAfter(UINT64_C(30000000)),
 				NULL
 			)
 		) {
@@ -575,10 +576,10 @@ static bool benchNetworkCapacityFlow(
 		}
 	}
 	sStage = "wait-drain";
-	if ( !xrtNetStreamWait(
+	if ( !__xrtNetStreamWait(
 		pClient,
 		XNET_STREAM_WAIT_DRAIN,
-		xrtDeadlineAfter(UINT64_C(30000000)),
+		__xrtWaitAfter(UINT64_C(30000000)),
 		NULL
 	) ) {
 		goto cleanup;
@@ -753,17 +754,17 @@ static bool benchNetworkCapacityIdle(uint32 iConnections)
 		if ( pClients[iCreated] == NULL ) {
 			goto cleanup;
 		}
-		pServers[iCreated] = xrtNetListenerAcceptWait(
+		pServers[iCreated] = __xrtNetListenerAcceptWait(
 			pListener,
-			xrtDeadlineAfter(UINT64_C(5000000)),
+			__xrtWaitAfter(UINT64_C(5000000)),
 			NULL
 		);
 		if (
 			(pServers[iCreated] == NULL) ||
-			!xrtNetStreamWait(
+			!__xrtNetStreamWait(
 				pClients[iCreated],
 				XNET_STREAM_WAIT_OPEN,
-				xrtDeadlineAfter(UINT64_C(5000000)),
+				__xrtWaitAfter(UINT64_C(5000000)),
 				NULL
 			)
 		) {

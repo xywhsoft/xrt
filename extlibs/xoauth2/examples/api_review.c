@@ -5,15 +5,13 @@
 	S3 token 生命周期（过期→刷新→替换）	S4 错误全景（错误码→HTTP 状态映射）
 	S5 会话重置（ClientUnit→重新预设复用）
 
-	mock 传输离线可跑。编译（在 extlibs/xoauth2 目录）：
-	  gcc -std=c11 -I. -I../xjwt -I../../single -o /tmp/oauth2_review \
-	      examples/api_review.c xoauth2.c ../xjwt/xjwt.c \
-	      -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+ * 构建入口见本库 README；使用根目录 tools/build.py。
 */
-#define XRT_MODULE_ALL
+#if !defined(XOAUTH2_FEATURE_XOAUTH2)
 #define XRT_IMPLEMENTATION
-#include <xrt.h>
-#include "../xoauth2.h"
+#include "../tests/support/runtime.h"
+#endif
+#include <xoauth2.h>
 #include "xjwt.h"
 #include <stdio.h>
 #include <string.h>

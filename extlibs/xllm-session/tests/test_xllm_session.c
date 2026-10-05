@@ -1,9 +1,6 @@
-/* The xllm unity's own bridge consumes <xrt.h> first; the session journal
- * additionally needs the JSONL module, so extend the module set before
- * that inclusion takes effect. */
-#define XRT_MODULE_JSONL_READ
-#include "../../xllm/xllm.c"
-#include "../xllm-session.c"
+#include "../../xllm/src/internal/xllm_internal.h"
+#include "../src/internal/xllm_session_internal.h"
+
 
 static int g_iSessionFailures = 0;
 
@@ -235,7 +232,7 @@ static void test_add_reference(void)
 
 static void test_budget_compaction_persistence(void)
 {
-    static const char sStatePath[] = "build/session_state_test.json";
+    static const char sStatePath[] = "out/xllm-session-tests/session_state_test.json";
     const char* sSummary =
         "## Goal\nContinue the code-agent implementation.\n"
         "## Constraints & Preferences\nPreserve the pinned contract, exact paths, and completed tool outcomes.\n"
@@ -392,8 +389,8 @@ static void test_budget_compaction_persistence(void)
 
 static void test_journal_checkpoint_recovery(void)
 {
-    static const char sSnapshotPath[] = "build/session_recovery_test.json";
-    static const char sJournalPath[] = "build/session_recovery_test.ndjson";
+    static const char sSnapshotPath[] = "out/xllm-session-tests/session_recovery_test.json";
+    static const char sJournalPath[] = "out/xllm-session-tests/session_recovery_test.ndjson";
     const char* sSummary =
         "## Goal\nPreserve a crash-safe coding session.\n"
         "## Constraints & Preferences\nJournal acknowledged mutations before exposing them to callers.\n"
@@ -1498,8 +1495,8 @@ static bool round_trip_requests_equal(const xllm_request* pA, const xllm_request
 
 static void test_journal_roundtrip_property(void)
 {
-    static const char sJournal[] = "build/rt_journal.jsonl";
-    static const char sSnapshot[] = "build/rt_snapshot.json";
+    static const char sJournal[] = "out/xllm-session-tests/rt_journal.jsonl";
+    static const char sSnapshot[] = "out/xllm-session-tests/rt_snapshot.json";
     static const char* sCorpus[] = {
         "plain text",
         "",
@@ -1566,7 +1563,7 @@ static void test_journal_roundtrip_property(void)
     /* Scenario A: journal-only recovery — the pure JSONL replay path
      * (the snapshot path names a file that does not exist, so the session
      * is created fresh and every entry comes back from the journal). */
-    pFromJournal = xllmSessionRecover("build/rt_absent.json", sJournal, NULL, &tError);
+    pFromJournal = xllmSessionRecover("out/xllm-session-tests/rt_absent.json", sJournal, NULL, &tError);
     SESSION_CHECK(pFromJournal != NULL, "journal-only recovery replays adversarial records");
     xllmRequestInit(&tGot);
     if ( pFromJournal && xllmSessionBuildRequest(pFromJournal, &tGot, &tError) ) {
@@ -1602,8 +1599,8 @@ static void test_journal_roundtrip_property(void)
 
 static void test_file_ledger(void)
 {
-    static const char sJournal[] = "build/ledger_journal.jsonl";
-    static const char sSnapshot[] = "build/ledger_snapshot.json";
+    static const char sJournal[] = "out/xllm-session-tests/ledger_journal.jsonl";
+    static const char sSnapshot[] = "out/xllm-session-tests/ledger_snapshot.json";
     xllm_session_config tConfig;
     xllm_session* pSession = NULL;
     xllm_session* pLoaded = NULL;
@@ -1699,7 +1696,7 @@ static void test_file_ledger(void)
         "fork carries the parent ledger");
 
     /* Journal-only replay restores the ledger (ledger records replay). */
-    pReplayed = xllmSessionRecover("build/ledger_absent.json", sJournal, NULL, &tError);
+    pReplayed = xllmSessionRecover("out/xllm-session-tests/ledger_absent.json", sJournal, NULL, &tError);
     SESSION_CHECK(pReplayed && xllmSessionGetFileLedger(pReplayed, &tLedger) &&
         tLedger.iReadFileCount == 2u && tLedger.iModifiedFileCount == 1u,
         "journal-only replay restores the ledger");
@@ -1776,19 +1773,19 @@ static void test_borrowed_view_render(void)
      * tolerant of fast machines via the >= 3x floor). */
     uOwnedMs = 0u;
     for ( i = 0u; i < 60u; ++i ) {
-        uint64_t uStart = xrtClock();
+        uint64_t uStart = xrtTimer();
         xllmRequestInit(&tOwned);
         if ( !xllmSessionBuildRequest(pSession, &tOwned, &tError) ) break;
         xllmRequestUnit(&tOwned);
-        uOwnedMs += (xrtClock() - uStart) / 1000u;
+        uOwnedMs += (xrtTimer() - uStart) / 1000u;
     }
     uViewMs = 0u;
     for ( i = 0u; i < 60u; ++i ) {
-        uint64_t uStart = xrtClock();
+        uint64_t uStart = xrtTimer();
         xllmRequestInit(&tView);
         if ( !xllmSessionBuildRequestView(pSession, &tView, &tError) ) break;
         xllmRequestUnit(&tView);
-        uViewMs += (xrtClock() - uStart) / 1000u;
+        uViewMs += (xrtTimer() - uStart) / 1000u;
     }
     SESSION_CHECK(uOwnedMs == 0u || (uViewMs < uOwnedMs && uViewMs * 3u <= uOwnedMs),
         "borrowed view renders a large ledger at least 3x faster when measurable");
@@ -1822,7 +1819,7 @@ static void test_borrowed_view_render(void)
 /* Wire-prefix cache (尾账 #3): the client's incremental serialization must
  * produce byte-identical bodies across growth (cache hit) and after stamp
  * invalidation (miss). Runs against a never-connected client through the
- * internal serialize path (the test TU includes the xllm unity). */
+ * internal serialize path (declared in the private xllm header). */
 static void test_wire_prefix_cache(void)
 {
     xllm_session_config tSessionConfig;
@@ -1917,6 +1914,7 @@ cleanup:
 
 int main(void)
 {
+    if ( !xrtDirCreateAll("out/xllm-session-tests") ) { return 1; }
     printf("xllm-session v3 tests\n");
     test_default_profile();
     test_compaction_user_bridge();

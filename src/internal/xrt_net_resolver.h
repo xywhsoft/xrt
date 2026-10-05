@@ -61,7 +61,7 @@ struct xrt_net_resolver_cache {
 	xrt_net_resolver_cache* LRUPrevious;
 	xrt_net_resolver_cache* LRUNext;
 	uint64 Hash;
-	uint64 Expires;
+	double Expires;
 	xnetfamily Family;
 	xnetaddrlist* Addresses;
 	xerror* Error;

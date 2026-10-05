@@ -55,7 +55,7 @@ api: xssh-ssh_hostkey, xssh-ssh_known_host_db, xssh-ssh_fingerprint
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/hostkey/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/hostkey/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 ed25519 公钥尺寸与 blob 尺寸的自检结果）
 ```
 
@@ -69,7 +69,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I extlibs/xssh/single -include xssh.h impl.c extlibs/xssh/examples/known_host_db/main.c -lws2_32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXSSH_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xssh.h impl.c extlibs/xssh/examples/known_host_db/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 （输出 trust=MATCH 与记录行号的自检结果）
 ```
 

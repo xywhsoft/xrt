@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../tls/common.h"
 
 
@@ -73,10 +74,10 @@ static void exampleHttpsError(
 /* 在截止时间内等待 Server 完全关闭。 */
 static bool exampleHttpsWaitClosed(xhttpserver* pServer)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(5000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(5000000));
 
 	while ( xrtHttpServerState(pServer) != XHTTP_SERVER_CLOSED ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();

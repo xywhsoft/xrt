@@ -95,7 +95,7 @@ typedef struct xwsstreamconfig {
 	uint64 FrameLimit;
 	size_t SendLimit;
 	size_t ControlReserve;
-	uint64 CloseTimeout;
+	int64 CloseTimeout;
 	bool AutoPong;
 	xwsdeflate Deflate;
 	xwsinflaterconfig Inflater;

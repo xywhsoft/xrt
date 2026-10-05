@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/udp_send_tour —— UDP 发送族全形态巡礼
  * ----------------------------------------------------------------
@@ -49,10 +50,10 @@ static void countRelease(ptr pContext, cbytes pData, size_t iSize)
 /* 在截止时间内等 UDP 进入指定状态。 */
 static bool exampleWaitState(xnetudp* pUdp, xnetudpstate State)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( xrtNetUdpState(pUdp) != State ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -71,7 +72,7 @@ static bool exampleDrain(
 {
 	size_t iMatched = 0;
 	size_t i;
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( iMatched < iTagCount ) {
 		xnetudppacket* pPacket = xrtNetUdpReceive(pUdp);
@@ -95,10 +96,10 @@ static bool exampleDrain(
 				return false;
 			}
 			++iMatched;
-			iDeadline = xrtDeadlineAfter(3000000u);
+			iDeadline = __xrtWaitAfter(3000000u);
 			continue;
 		}
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -132,7 +133,7 @@ int main(void)
 	ptr pTakeIn = NULL;
 	ptr pTakeOut = NULL;
 	uint32 iReleases = 0;
-	xdeadline iDeadline;
+	double iDeadline;
 	str sEndpoint = NULL;
 	int iResult = 1;
 
@@ -266,18 +267,18 @@ int main(void)
 	printf("vec/ref/take/msgref/batch = ok\n");
 
 	/* 等三份引用载荷全部离队：释放回调恰好执行三次。 */
-	iDeadline = xrtDeadlineAfter(3000000u);
+	iDeadline = __xrtWaitAfter(3000000u);
 	while ( iReleases < 3u ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			goto Cleanup;
 		}
 		xrtThreadYield();
 	}
 	/* 发送队列排空：Pending 归零（复制/接管形态无排队字节）。 */
-	iDeadline = xrtDeadlineAfter(3000000u);
+	iDeadline = __xrtWaitAfter(3000000u);
 	while ( (xrtNetUdpPending(pClient) != 0) ||
 			(xrtNetUdpPending(pServer) != 0) ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			goto Cleanup;
 		}
 		xrtThreadYield();

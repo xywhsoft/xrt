@@ -9,6 +9,11 @@ POP3、SMTP、IMAP 的真实客户端范例共享 `examples/mail_client_setup.h`
 （`dependency_manifests`）组合出完整邮件能力。正式实现不复刻 socket、TLS、压缩、取消或
 截止时间能力。
 
+单头实现与声明分别为仓库根目录的 `single/extlibs/xmail.h` 与
+`single/extlibs/xmail_decl.h`，均只包含 xmail 自身代码。使用前须按顺序提供
+XRT 的所需模块，再包含 xmail；实现宏为 `XMAIL_IMPLEMENTATION`。
+依赖选择与实现组合见 [构建说明](../../docs/BUILD.md#扩展单头与依赖顺序)。
+
 ## 分层
 
 - `mail_content`：CRLF、Quoted-Printable、MIME Base64、Header、编码词、地址、日期、

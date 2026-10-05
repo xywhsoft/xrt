@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/tcp_server_sync —— 双面 Accept：Future 与阻塞同场
  * ----------------------------------------------------------------
@@ -97,7 +98,7 @@ static bool exampleTcpServerWaitStop(example_tcp_server_wait* pState)
 		pState->ClientSync,
 		pState->AcceptedSync
 	};
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
 	bool bClosed = true;
 	size_t i;
 
@@ -120,7 +121,7 @@ static bool exampleTcpServerWaitStop(example_tcp_server_wait* pState)
 		if ( bDone ) {
 			break;
 		}
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			bClosed = false;
 			break;
 		}
@@ -174,9 +175,9 @@ int main(void)
 	if ( State.ClientSync == NULL ) {
 		goto Cleanup;
 	}
-	State.AcceptedSync = xrtNetServerAcceptWait(
+	State.AcceptedSync = __xrtNetServerAcceptWait(
 		State.Server,
-		xrtDeadlineAfter(UINT64_C(5000000)),
+		__xrtWaitAfter(UINT64_C(5000000)),
 		NULL
 	);
 	if ( State.AcceptedSync == NULL ) {

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_http_server_runtime.h"
 
 
@@ -322,7 +323,7 @@ static xnetresult __xrtHttpConnStartResponse(
 	__xrtHttpConnPauseInput(pConnection);
 	pConnection->WriteDeadline =
 		pConnection->Server->Config.WriteTimeout != 0 ?
-			xrtDeadlineAfter(
+			__xrtWaitAfter(
 				pConnection->Server->Config.WriteTimeout
 			) : 0;
 	if ( !__xrtHttpConnArmTimer(
@@ -1000,7 +1001,7 @@ static void __xrtHttpConnResponseDone(xhttpconn* pConnection)
 		xrtFree(pQueued);
 		pConnection->WriteDeadline =
 			pConnection->Server->Config.WriteTimeout != 0 ?
-				xrtDeadlineAfter(
+				__xrtWaitAfter(
 					pConnection->Server->
 						Config.WriteTimeout
 				) : 0;
@@ -1075,7 +1076,7 @@ static void __xrtHttpConnOutputRelease(
 			);
 			if ( pConnection->Server->Config.WriteTimeout != 0 ) {
 				pConnection->WriteDeadline =
-					xrtDeadlineAfter(
+					__xrtWaitAfter(
 						pConnection->Server->
 							Config.WriteTimeout
 					);
@@ -1153,7 +1154,7 @@ static bool __xrtHttpConnTlsOutputConsume(
 		XMEMORY_RELAXED
 	);
 	if ( pConnection->Server->Config.WriteTimeout != 0 ) {
-		pConnection->WriteDeadline = xrtDeadlineAfter(
+		pConnection->WriteDeadline = __xrtWaitAfter(
 			pConnection->Server->Config.WriteTimeout
 		);
 	}

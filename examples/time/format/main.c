@@ -34,7 +34,7 @@ int main(void)
 	str sAllocated;
 
 	/* 闰日 23:58:57.654321 —— 刻意选跨日场景（见文件头）。 */
-	if ( !xrtDateTime(2024, 2, 29, 23, 58, 57, 654321, &iTime) ) {
+	if ( !xrtDateTime(2024, 2, 29, 23, 58, 57, 654, &iTime) ) {
 		return 1;
 	}
 

@@ -263,7 +263,7 @@ static xnetresult __xrtWsWriterSend(
 				pWriter->Opcode,
 			Data,
 			bFinal,
-			__XRT_WS_SEND_DATA,
+			__XWS_SEND_DATA,
 			false
 		);
 	}

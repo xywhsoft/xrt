@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../common.h"
 
 
@@ -18,11 +19,11 @@ static void exampleTlsDialFutureError(cstr sPrefix, const xerror* pError)
 /* 等待主动中止的 TLS Stream 释放全部后台网络资源。 */
 static bool exampleTlsDialFutureClosed(xtlsstream* pStream)
 {
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
 
 	while ( (xrtTlsStreamState(pStream) != XTLS_STREAM_CLOSED) &&
 		(xrtTlsStreamState(pStream) != XTLS_STREAM_FAILED) ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_http_client_runtime.h"
 
 
@@ -53,7 +54,7 @@ struct __xrt_http_client_idle {
 	#if defined(XHTTP_FEATURE_HTTP_CLIENT_HTTPS)
 		xtlsstream* Tls;
 	#endif
-	xdeadline Deadline;
+	double Deadline;
 	__xrt_http_client_idle_state State;
 	bool Released;
 };
@@ -1016,7 +1017,7 @@ static bool __xrtHttpPoolTimerStart(
 	if ( __xrtHttpClientHold(pClient) == NULL ) {
 		return false;
 	}
-	Id = xrtNetEngineSchedule(
+	Id = __xrtNetEngineSchedule(
 		pClient->Engine,
 		pShard->Index % xrtNetEngineWorkerCount(pClient->Engine),
 		pShard->IdleTail->Deadline,
@@ -1393,7 +1394,7 @@ static void __xrtHttpPoolTimer(
 		(__xrt_http_client_pool_shard*)pData;
 	xhttpclient* pClient = pShard->Client;
 	__xrt_http_pool_batch Batch;
-	xdeadline iNow = xrtClock();
+	double iNow = xrtTimer();
 	bool bMatched;
 
 	(void)pWorker;
@@ -1569,7 +1570,7 @@ bool __xrtHttpPoolAcquire(xhttpcall* pCall, bool* pReady)
 	__xrt_http_pool_batch Batch;
 	__xrt_http_client_origin* pOrigin;
 	__xrt_http_client_idle* pIdle;
-	xdeadline iNow;
+	double iNow;
 	bool bResult = true;
 
 	memset(&Batch, 0, sizeof(Batch));
@@ -1596,7 +1597,7 @@ bool __xrtHttpPoolAcquire(xhttpcall* pCall, bool* pReady)
 	}
 	pCall->PoolOrigin = pOrigin;
 	if ( pClient->Config.Pool.IdleTimeout != 0 ) {
-		iNow = xrtClock();
+		iNow = xrtTimer();
 		while ( (pShard->IdleTail != NULL) &&
 			(pShard->IdleTail->Deadline <= iNow) ) {
 			__xrtHttpPoolEvict(
@@ -1960,8 +1961,8 @@ bool __xrtHttpPoolPut(
 		if ( bKeep ) {
 			pIdle->Deadline =
 				pClient->Config.Pool.IdleTimeout == 0 ?
-					XRT_DEADLINE_NEVER :
-					xrtDeadlineAfter(
+					INFINITY :
+					__xrtWaitAfter(
 						pClient->Config.Pool.IdleTimeout
 					);
 			__xrtHttpPoolIdleInsert(pShard, pIdle);

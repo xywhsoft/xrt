@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "test.h"
 #include "test_tls.h"
 
@@ -12,7 +13,7 @@ typedef struct testimapcompresstlsbuffer {
 
 typedef struct testimapcompresstlssend {
 	xtlsstream* Stream;
-	xdeadline Deadline;
+	double Deadline;
 } testimapcompresstlssend;
 
 
@@ -20,7 +21,7 @@ typedef struct testimapcompresstlssend {
 typedef struct testimapcompresstlsserver {
 	xnetlistener* Listener;
 	const xtlsserverconfig* Tls;
-	xdeadline Deadline;
+	double Deadline;
 	bool Success;
 } testimapcompresstlsserver;
 
@@ -88,7 +89,7 @@ static bool testImapCompressTlsStreamWrite(xbytesview Data, ptr pData)
 /* 从 TLS 应用数据中取得一块仍保持压缩格式的拥有型字节。 */
 static xnetbytes* testImapCompressTlsRawReceive(
 	xtlsstream* pStream,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xfuture* pFuture = xrtTlsStreamRecvAsync(pStream, 256u);
@@ -109,7 +110,7 @@ static bool testImapCompressTlsSend(
 	xtlsstream* pStream,
 	cstr sText,
 	size_t iSize,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	testimapcompresstlssend Send;
@@ -134,7 +135,7 @@ static bool testImapCompressTlsReceive(
 	xtlsstream* pStream,
 	cstr sExpected,
 	size_t iExpected,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	while ( pPlain->Size < iExpected ) {
@@ -178,7 +179,7 @@ static int32 testImapCompressTlsServer(ptr pData)
 {
 	testimapcompresstlsserver* pServer =
 		(testimapcompresstlsserver*)pData;
-	xnetstream* pTcp = xrtNetListenerAcceptWait(
+	xnetstream* pTcp = __xrtNetListenerAcceptWait(
 		pServer->Listener,
 		pServer->Deadline,
 		NULL
@@ -354,7 +355,7 @@ int main(void)
 	xnetlistener* pListener;
 	ximapclient* pClient;
 	xthread* pThread;
-	xdeadline Deadline;
+	double Deadline;
 	ximapevent Event;
 
 	pContext = testTlsServerContext();
@@ -395,7 +396,7 @@ int main(void)
 	testRequire(pResolver != NULL,
 		"IMAP COMPRESS TLS resolver creation failed");
 
-	Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	Server.Listener = pListener;
 	Server.Tls = &ServerConfig;
 	Server.Deadline = Deadline;
@@ -411,7 +412,7 @@ int main(void)
 	ClientConfig.Net.Security = XMAIL_SECURITY_STARTTLS;
 	ClientConfig.Net.Tls.Context = pContext;
 	ClientConfig.Net.Tls.Verifier = pVerifier;
-	pClient = xrtImapClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = __xrtImapClientOpen(&ClientConfig, Deadline, NULL);
 	testRequire((pClient != NULL) &&
 		(xrtImapClientSecurity(pClient) == XMAIL_SECURITY_TLS) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_NOT_AUTHENTICATED) &&
@@ -425,7 +426,7 @@ int main(void)
 	AuthConfig.Username = XRT_STR_LITERAL("user");
 	AuthConfig.Secret = XRT_STR_LITERAL("pass");
 	AuthConfig.InitialResponse = false;
-	testRequire(xrtImapClientAuth(
+	testRequire(__xrtImapClientAuth(
 		pClient,
 		&AuthConfig,
 		Deadline,
@@ -433,7 +434,7 @@ int main(void)
 	) && (xrtImapClientState(pClient) == XIMAP_CLIENT_AUTHENTICATED),
 		"IMAP COMPRESS TLS authentication failed");
 	xrtImapCompressConfigInit(&CompressConfig);
-	testRequire(xrtImapClientCompress(
+	testRequire(__xrtImapClientCompress(
 		pClient,
 		&CompressConfig,
 		Deadline,
@@ -441,23 +442,23 @@ int main(void)
 	) && xrtImapClientCompressed(pClient) &&
 		(xrtImapClientSecurity(pClient) == XMAIL_SECURITY_TLS),
 		"IMAP COMPRESS over TLS negotiation failed");
-	testRequire(xrtImapClientBegin(
+	testRequire(__xrtImapClientBegin(
 		pClient,
 		XRT_STR_LITERAL("NOOP"),
 		XRT_STR_LITERAL(""),
 		Deadline,
 		NULL
-	) && (xrtImapClientNext(
+	) && (__xrtImapClientNext(
 		pClient,
 		&Event,
 		Deadline,
 		NULL
 	) == XMAIL_NEXT_END),
 		"compressed IMAP command over TLS failed");
-	testRequire(xrtImapClientLogout(pClient, Deadline, NULL) &&
+	testRequire(__xrtImapClientLogout(pClient, Deadline, NULL) &&
 		(xrtImapClientState(pClient) == XIMAP_CLIENT_CLOSED),
 		"compressed IMAP LOGOUT over TLS failed");
-	testRequire(xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
+	testRequire(__xrtThreadWaitUntil(pThread, Deadline) == XWAIT_OK,
 		"IMAP COMPRESS TLS server did not finish");
 	testRequire(Server.Success && (xrtThreadExitCode(pThread) == 0),
 		"IMAP COMPRESS TLS transcript mismatch");

@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -63,10 +64,10 @@ static void testDialStressWait(
 	cstr sMessage
 )
 {
-	xdeadline iDeadline = xrtDeadlineAfter(15000000u);
+	double iDeadline = __xrtWaitAfter(15000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(iDeadline), sMessage);
+		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -296,11 +297,11 @@ static int32 testDialStressCancelThread(ptr pData)
 /* 重试 Engine 销毁，验证延迟 Resolver 回调和候选资源最终归零。 */
 static void testDialStressDestroyEngine(xnetengine* pEngine)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(15000000u);
+	double iDeadline = __xrtWaitAfter(15000000u);
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
-		testRequire(!xrtDeadlineExpired(iDeadline),
+		testRequire(!__xrtWaitExpired(iDeadline),
 			"dial stress retained an engine resource");
 		xrtThreadYield();
 	}

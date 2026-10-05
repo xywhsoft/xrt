@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_net_resolver.h"
 
 
@@ -509,7 +510,7 @@ static xrt_net_resolver_cache* __xrtNetResolverCacheFind(
 {
 	xrt_net_resolver_cache* pEntry;
 	size_t iBucket;
-	uint64 iNow;
+	double iNow;
 
 	if ( pResolver->CacheBucketCount == 0 ) {
 		return NULL;
@@ -521,7 +522,7 @@ static xrt_net_resolver_cache* __xrtNetResolverCacheFind(
 
 		if ( (pEntry->Hash == iHash) && (pEntry->Family == Family) &&
 			 (strcmp(pEntry->Host, sHost) == 0) ) {
-			iNow = xrtClock();
+			iNow = xrtTimer();
 			if ( pEntry->Expires <= iNow ) {
 				__xrtNetResolverCacheRemove(pResolver, pEntry);
 				return NULL;
@@ -538,11 +539,9 @@ static xrt_net_resolver_cache* __xrtNetResolverCacheFind(
 
 
 /* 计算单调缓存失效时间，溢出时饱和到最大刻度。 */
-static uint64 __xrtNetResolverExpires(uint64 iTTL)
+static double __xrtNetResolverExpires(int64 iTTL)
 {
-	uint64 iNow = xrtClock();
-
-	return iTTL > (UINT64_MAX - iNow) ? UINT64_MAX : iNow + iTTL;
+    return __xrtWaitAfter(iTTL);
 }
 
 
@@ -555,7 +554,7 @@ static void __xrtNetResolverCachePut(
 	xerror* pError
 )
 {
-	uint64 iTTL = pAddresses != NULL ?
+	int64 iTTL = pAddresses != NULL ?
 		pResolver->Config.SuccessTTL : pResolver->Config.FailureTTL;
 	xrt_net_resolver_cache* pEntry;
 	size_t iHostSize;

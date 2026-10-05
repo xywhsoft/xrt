@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/tcp_server_tour —— 多端点 Server 自省族
  * ----------------------------------------------------------------
@@ -33,10 +34,10 @@ static uint64 g_Tag = 0;
 static bool exampleWaitStreamState(xnetstream* pStream,
 	xnetstreamstate State)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 	while ( xrtNetStreamState(pStream) != State ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -106,7 +107,7 @@ int main(void)
 		xnetstream* pB = xrtNetStreamConnect(pEngine, &Addr1, 0,
 			NULL, NULL, NULL);
 		int iGot = 0;
-		xdeadline iDeadline = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+		double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 		if ( (pA == NULL) || (pB == NULL) ) {
 			xrtNetStreamDestroy(pA);
@@ -126,11 +127,11 @@ int main(void)
 					xrtNetStreamDestroy(pOne);
 				}
 				++iGot;
-				iDeadline = xrtDeadlineAfter(
+				iDeadline = __xrtWaitAfter(
 					EXAMPLE_DEADLINE_US);
 				continue;
 			}
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				break;
 			}
 			xrtThreadYield();
@@ -181,11 +182,11 @@ Cleanup:
 	xrtNetListenerDestroy(pListener0);
 	xrtNetListenerDestroy(pListener1);
 	if ( pServer != NULL ) {
-		xdeadline iEnd = xrtDeadlineAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
 
 		(void)xrtNetServerClose(pServer);
 		while ( xrtNetServerState(pServer) != XNET_SERVER_CLOSED ) {
-			if ( xrtDeadlineExpired(iEnd) ) {
+			if ( __xrtWaitExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();

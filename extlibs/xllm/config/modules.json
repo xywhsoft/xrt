@@ -1,0 +1,142 @@
+{
+	"schema": 1,
+	"product": "xllm",
+	"module_prefix": "XLLM_MODULE_",
+	"single_header": "single/extlibs/xllm.h",
+	"declaration_header": "single/extlibs/xllm_decl.h",
+	"implementation_macro": "XLLM_IMPLEMENTATION",
+	"implementation_once_macro": "XLLM_IMPLEMENTATION_ONCE",
+	"single_guard": "XLLM_SINGLE_HEADER_H",
+	"single_marker": "XLLM_SINGLE_HEADER",
+	"declaration_guard": "XLLM_DECLARATIONS_H",
+	"declaration_marker": "XLLM_DECLARATIONS",
+	"package_consumer": "extlibs/xllm/tests/package/test_consumer.c",
+	"product_root": "extlibs/xllm",
+	"performance_config": "extlibs/xllm/config/performance_profiles.json",
+	"size_config": "extlibs/xllm/config/size_profiles.json",
+	"scope": {
+		"product": "xllm",
+		"external_integrations": [],
+		"systems": [
+			{
+				"name": "llm",
+				"state": "retained",
+				"source_roots": [
+					"llm"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xllm public API reference",
+		"function_prefix": "xllm",
+		"constant_prefix": "XLLM_",
+		"type_prefix": "xllm",
+		"guide": "../../README.md",
+		"output": "extlibs/xllm/docs/api/reference.md"
+	},
+	"features_guard": "XLLM_FEATURES_H",
+	"features_header": "extlibs/xllm/include/xllm/features.h",
+	"include_dirs": [
+		"extlibs/xllm/include"
+	],
+	"header_roots": [
+		"extlibs/xllm/include",
+		"extlibs/xllm/src/internal"
+	],
+	"modules": [
+		{
+			"name": "xllm",
+			"state": "implemented",
+			"feature": "XLLM_FEATURE_XLLM",
+			"depends": [
+				"json_read",
+				"file_whole",
+				"dir",
+				"codec_base64",
+				"net_tcp_dial_sync",
+				"net_tcp_dial_future",
+				"net_proxy_dial",
+				"net_tcp_future",
+				"tls_stream_dial_future",
+				"tls_stream_future",
+				"tls_stream_listener",
+				"tls_stream_listener_sync",
+				"tls_client_verify",
+				"tls_record_aes",
+				"tls_schedule_sha256",
+				"tls_schedule_sha384",
+				"tls_key_exchange_x25519",
+				"tls_key_exchange_p256",
+				"tls_identity_rsa",
+				"tls_verify",
+				"x509_store_system",
+				"http1_body",
+				"thread",
+				"mutex",
+				"cancel",
+				"time"
+			],
+			"public_headers": [
+				"extlibs/xllm/include/xllm.h",
+				"extlibs/xllm/include/xllm/features.h",
+				"extlibs/xllm/include/xllm/api.h",
+				"extlibs/xllm/include/xllm/executor.h"
+			],
+			"internal_headers": [
+				"extlibs/xllm/src/internal/xllm_internal.h"
+			],
+			"sources": [
+				"extlibs/xllm/src/llm/xllm_core.c",
+				"extlibs/xllm/src/llm/xllm_profile.c",
+				"extlibs/xllm/src/llm/xllm_parts.c",
+				"extlibs/xllm/src/llm/xllm_history.c",
+				"extlibs/xllm/src/llm/xllm_sse.c",
+				"extlibs/xllm/src/llm/xllm_assemble.c",
+				"extlibs/xllm/src/llm/xllm_dialect.c",
+				"extlibs/xllm/src/llm/dialect_completions.c",
+				"extlibs/xllm/src/llm/dialect_anthropic.c",
+				"extlibs/xllm/src/llm/dialect_responses.c",
+				"extlibs/xllm/src/llm/xllm_transport.c",
+				"extlibs/xllm/src/llm/xllm_client.c"
+			],
+			"tests": [
+				"extlibs/xllm/tests/test_xllm.c"
+			],
+			"single_tests": [
+				"extlibs/xllm/tests/single/test_single_xllm.c"
+			],
+			"examples": [
+				"extlibs/xllm/examples/agent_loop.c"
+			],
+			"benchmarks": [
+				"extlibs/xllm/bench/bench_xllm.c"
+			],
+			"docs": [
+				"extlibs/xllm/README.md",
+				"extlibs/xllm/docs/api/reference.md"
+			]
+		},
+		{
+			"name": "xllm_live",
+			"state": "implemented",
+			"depends": [
+				"xllm"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xllm/tests/test_xllm_live.c",
+				"extlibs/xllm/tests/live_store_check.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xllm/examples/complete_stats.c"
+			],
+			"benchmarks": [],
+			"docs": []
+		}
+	],
+	"umbrella_header": "xllm.h"
+}

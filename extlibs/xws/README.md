@@ -44,13 +44,19 @@ Close、握手字段、子协议与扩展协商，以及流式压缩和解压。
 单头模式在一个翻译单元中额外定义实现宏：
 
 ```c
+#define XRT_MODULE_ALL
+#define XRT_IMPLEMENTATION
+#include "single/xrt.h"
+#define XHTTP_MODULE_ALL
+#define XHTTP_IMPLEMENTATION
+#include "single/extlibs/xhttp.h"
 #define XWS_MODULE_WEBSOCKET_CONNECTION
 #define XWS_IMPLEMENTATION
-#include "xws.h"
+#include "single/extlibs/xws.h"
 ```
 
-`single/xws.h` 包含所需 XRT 与 `xhttp` 实现，功能仍按模块宏裁剪；
-`single/xws_decl.h` 只提供声明。`XWS_IMPLEMENTATION` 只能定义一次。
+`single/extlibs/xws.h` 只包含 xws 自身代码；调用方必须先提供所需 XRT 与 xhttp。
+`single/extlibs/xws_decl.h` 只提供声明。`XWS_IMPLEMENTATION` 只能定义一次。
 
 ## 预编译 ABI
 

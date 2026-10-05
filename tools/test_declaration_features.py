@@ -45,6 +45,10 @@ class DeclarationFeatureTest(unittest.TestCase):
 
 
 	def preprocess(self, source: str) -> dict[str, str]:
+		if '#include "xruntime' in source:
+			source = source.replace('#include "xruntime',
+				'#undef XRUNTIME_FEATURES_H\n#include <xruntime/features.h>\n'
+				'#include "xrt_decl.h"\n#include "xruntime')
 		result = subprocess.run(
 			[self.compiler, "-E", "-dM", "-x", "c", "-I", str(self.root), "-"],
 			input=source, text=True, encoding="utf-8", capture_output=True, timeout=30,
@@ -99,17 +103,15 @@ class DeclarationFeatureTest(unittest.TestCase):
 
 
 
-	def test_core_and_runtime_include_order(self) -> None:
-		"""核心和扩展声明的包含顺序不能改变跨产品依赖。"""
-		prefix = '#define XRUNTIME_MODULE_RUNTIME_DYNAMIC_FIELD 1\n'
-		expected = self.preprocess(prefix + '#include "xruntime.h"\n')
-		for headers in (("xrt_decl.h", "xruntime_decl.h"),
-						("xruntime_decl.h", "xrt_decl.h")):
-			with self.subTest(headers=headers):
-				actual = self.preprocess(prefix + "".join(f'#include "{h}"\n' for h in headers))
-				self.assertEqual(actual, expected)
-
-
+	def test_extension_requires_core_first(self) -> None:
+		"""扩展声明必须由调用方先提供核心，不能隐式引入核心。"""
+		result = subprocess.run(
+			[self.compiler, "-E", "-x", "c", "-I", str(self.root), "-"],
+			input='#include "xruntime_decl.h"\n', text=True,
+			encoding="utf-8", capture_output=True, timeout=30,
+		)
+		self.assertNotEqual(result.returncode, 0)
+		self.assertIn("requires XRT", result.stderr)
 
 	def test_existing_feature_values_are_preserved(self) -> None:
 		prefix = '#define XRT_FEATURE_CODEC_PERCENT 23\n#define XRT_MODULE_DEFLATE 9\n'
@@ -130,6 +132,12 @@ class DeclarationFeatureTest(unittest.TestCase):
 				source = (f'#include "{product}_decl.h"\n#define {selection}\n'
 					f'#include "{product}_decl.h"\n#define {implementation}\n'
 					f'#include "{product}.h"\n')
+				if product == "xruntime":
+					source = ('#include "xrt_decl.h"\n' +
+						f'#include "{product}_decl.h"\n#define {selection}\n' +
+						f'#include "{product}_decl.h"\n#include "xrt_decl.h"\n' +
+						'#define XRT_IMPLEMENTATION\n#include "xrt.h"\n' +
+						f'#define {implementation}\n#include "{product}.h"\n')
 				result = subprocess.run(
 					[self.compiler, "-std=c11", "-fsyntax-only", "-x", "c", "-I", str(self.root), "-"],
 					input=source, text=True, encoding="utf-8", capture_output=True, timeout=60,
@@ -146,6 +154,8 @@ class DeclarationFeatureTest(unittest.TestCase):
 				source = (f'#define XRT_MODULE_CODEC_PERCENT 1\n#include <{product}/features.h>\n'
 					f'#include "{product}_decl.h"\n'
 					'void* sdk_complete_declaration_probe = (void*)&xrtDeflateAll;\n')
+				if product == "xruntime":
+					source = '#include "xrt_decl.h"\n' + source
 				result = subprocess.run(
 					[self.compiler, "-std=c11", "-Werror=implicit-function-declaration",
 					 "-fsyntax-only", "-x", "c", "-I", str(self.root), "-"],

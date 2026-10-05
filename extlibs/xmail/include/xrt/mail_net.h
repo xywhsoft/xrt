@@ -68,7 +68,7 @@ typedef struct xmailnetconfig {
 	#if defined(XMAIL_FEATURE_MAIL_NET_TLS)
 		xtlsclientconfig Tls;
 		xtlsstreamconfig TlsStream;
-		uint64 TlsTimeout;
+		int64 TlsTimeout;
 	#endif
 } xmailnetconfig;
 

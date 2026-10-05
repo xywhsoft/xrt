@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../src/internal/xrt_channel.h"
 #include "../test.h"
 #include "../test_thread.h"
@@ -43,7 +44,7 @@ static void testChannelAwaitWaiters(
 )
 {
 	xrt_channel_impl* pImpl = (xrt_channel_impl*)pChannel;
-	xdeadline iDeadline = xrtDeadlineAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
 
 	for ( ;; ) {
 		size_t iActualReaders;
@@ -66,7 +67,7 @@ static void testChannelAwaitWaiters(
 			return;
 		}
 		testRequire(
-			!xrtDeadlineExpired(iDeadline),
+			!__xrtWaitExpired(iDeadline),
 			"channel waiter count did not converge"
 		);
 		xrtSleepUs(UINT64_C(1000));
@@ -399,7 +400,7 @@ static void testChannelTimeout(void)
 	uint64 iElapsed;
 
 	testRequire(xrtChannelInit(&tChannel, 1u), "channel timeout init failed");
-	iStarted = xrtClock();
+	iStarted = xrtTimer();
 	testRequire(
 		xrtChannelRecvFor(
 			&tChannel,
@@ -408,7 +409,7 @@ static void testChannelTimeout(void)
 		) == XWAIT_TIMEOUT,
 		"channel receive timeout result mismatch"
 	);
-	iElapsed = xrtClock() - iStarted;
+	iElapsed = xrtTimer() - iStarted;
 	testRequire(iElapsed >= UINT64_C(10000), "channel timeout returned too early");
 	testRequire(iElapsed < UINT64_C(2000000), "channel timeout returned too late");
 	testRequire(xrtChannelUnit(&tChannel), "channel timeout unit failed");

@@ -80,7 +80,7 @@ struct __xrt_net_engine_command {
 struct __xrt_net_engine_timer {
 	__xrt_net_engine_timer* HashNext;
 	uint64 Id;
-	xdeadline Deadline;
+	double Deadline;
 	xnettimerproc Proc;
 	ptr Data;
 	size_t HeapIndex;

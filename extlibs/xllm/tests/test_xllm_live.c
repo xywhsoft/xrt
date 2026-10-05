@@ -1,3 +1,5 @@
+#include "../src/internal/xllm_internal.h"
+
 /*
  * Live smoke test against real LLM endpoints (local llama.cpp/qwen or the
  * GLM cloud); exercises all wire dialects over a real HTTP/TLS stack.
@@ -15,7 +17,6 @@
  *   rides the anthropic endpoint)
  */
 
-#include "../xllm.c"
 
 #include <stdio.h>
 

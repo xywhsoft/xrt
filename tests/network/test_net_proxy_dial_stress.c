@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -53,10 +54,10 @@ static void testProxyDialStressWait(
 	cstr sMessage
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(15000000u);
+	double Deadline = __xrtWaitAfter(15000000u);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!xrtDeadlineExpired(Deadline), sMessage);
+		testRequire(!__xrtWaitExpired(Deadline), sMessage);
 		xrtThreadYield();
 	}
 }
@@ -183,7 +184,7 @@ static void testProxyDialStressWaitResolver(
 	xnetresolverstats* pStats
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(15000000u);
+	double Deadline = __xrtWaitAfter(15000000u);
 
 	for ( ;; ) {
 		testRequire(xrtNetResolverStats(pResolver, pStats),
@@ -195,7 +196,7 @@ static void testProxyDialStressWaitResolver(
 			(pStats->ReadyCallbacks == 0) ) {
 			return;
 		}
-		testRequire(!xrtDeadlineExpired(Deadline),
+		testRequire(!__xrtWaitExpired(Deadline),
 			"proxy Dial stress resolver did not become idle");
 		xrtThreadYield();
 	}
@@ -206,11 +207,11 @@ static void testProxyDialStressWaitResolver(
 /* 重试 Engine 销毁，验证取消命令、Timer 和底层 Dial 引用最终归零。 */
 static void testProxyDialStressDestroyEngine(xnetengine* pEngine)
 {
-	xdeadline Deadline = xrtDeadlineAfter(15000000u);
+	double Deadline = __xrtWaitAfter(15000000u);
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
-		testRequire(!xrtDeadlineExpired(Deadline),
+		testRequire(!__xrtWaitExpired(Deadline),
 			"proxy Dial stress retained an engine resource");
 		xrtThreadYield();
 	}

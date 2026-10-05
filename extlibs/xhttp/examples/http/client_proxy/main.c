@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -88,14 +89,14 @@ static void exampleHttpProxyDone(
 /* 等待回调；超时由调用方通过统一 Call 取消入口收敛。 */
 static bool exampleHttpProxyWait(
 	example_http_proxy* pExample,
-	xdeadline Deadline
+	double Deadline
 )
 {
 	while ( xrtAtomic32Load(
 		&pExample->Done,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -124,7 +125,7 @@ int main(
 	xhttpclient* pClient = NULL;
 	xhttprequest* pRequest = NULL;
 	xhttpcall* pCall = NULL;
-	xdeadline Deadline;
+	double Deadline;
 	xnetproxytype ProxyType;
 	uint16 iProxyPort;
 	int iResult = 1;
@@ -236,12 +237,12 @@ int main(
 		goto Cleanup;
 	}
 
-	Deadline = xrtDeadlineAfter(35000000u);
+	Deadline = __xrtWaitAfter(35000000u);
 	if ( !exampleHttpProxyWait(&Example, Deadline) ) {
 		(void)xrtHttpCallCancel(pCall);
 		(void)exampleHttpProxyWait(
 			&Example,
-			xrtDeadlineAfter(5000000u)
+			__xrtWaitAfter(5000000u)
 		);
 		goto Cleanup;
 	}

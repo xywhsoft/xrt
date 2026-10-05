@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include <xpop3.h>
 #include "../../../xmail/examples/mail_client_setup.h"
 #include <errno.h>
@@ -25,7 +26,7 @@ bool fetchMessage(
 	xpop3clientconfig Config;
 	xpop3client* pClient;
 	xstrview Line;
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
 	xmailnext Next;
 	bool bSuccess = false;
 
@@ -38,19 +39,19 @@ bool fetchMessage(
 		XMAIL_SECURITY_STARTTLS;
 	Config.Net.Tls.Context = pTls;
 	Config.Net.Tls.Verifier = pVerifier;
-	pClient = xrtPop3ClientOpen(&Config, Deadline, NULL);
+	pClient = __xrtPop3ClientOpen(&Config, Deadline, NULL);
 	if ( pClient == NULL ) {
 		mailExampleDiagnostic("POP3 open");
 		return false;
 	}
-	if ( !xrtPop3ClientLogin(
+	if ( !__xrtPop3ClientLogin(
 		pClient,
 		User,
 		Secret,
 		false,
 		Deadline,
 		NULL
-	) || !xrtPop3ClientRetr(
+	) || !__xrtPop3ClientRetr(
 		pClient,
 		iMessage,
 		Deadline,
@@ -61,7 +62,7 @@ bool fetchMessage(
 		return false;
 	}
 	do {
-		Next = xrtPop3ClientNext(pClient, &Line, Deadline, NULL);
+		Next = __xrtPop3ClientNext(pClient, &Line, Deadline, NULL);
 		if ( Next == XMAIL_NEXT_ITEM ) {
 			if ( (Line.Size != 0u &&
 				fwrite(Line.Data, 1u, Line.Size, stdout) != Line.Size) ||
@@ -78,7 +79,7 @@ bool fetchMessage(
 	}
 	/* This example performs no DELE: the complete RETR is already delivered.
 	 * Keep a subsequent shutdown diagnostic separate from its result. */
-	if ( bSuccess && !xrtPop3ClientQuit(pClient, Deadline, NULL) )
+	if ( bSuccess && !__xrtPop3ClientQuit(pClient, Deadline, NULL) )
 		mailExampleDiagnostic("POP3 retrieval completed; shutdown");
 	if ( !bSuccess ) mailExampleDiagnostic("POP3 retrieval or quit");
 	xrtPop3ClientDestroy(pClient);

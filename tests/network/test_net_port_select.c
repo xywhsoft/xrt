@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -18,8 +19,8 @@ static void testPortWait(xnetport* pPort,
 {
 	size_t iCount = 0;
 
-	testRequire(xrtNetPortWait(pPort, pEvents, iCapacity,
-		xrtDeadlineAfter(1000000), &iCount) == XNET_RESULT_OK,
+	testRequire(__xrtNetPortWait(pPort, pEvents, iCapacity,
+		__xrtWaitAfter(1000000), &iCount) == XNET_RESULT_OK,
 		"readiness port wait failed");
 	testRequire(iCount == iExpected,
 		"readiness port event count mismatch");
@@ -55,8 +56,8 @@ static void testPortPosts(xnetport* pPort)
 		(Events[1].Id == 12) && (Events[1].User == &iSecond) &&
 		(Events[2].Type == XNET_PORT_EVENT_WAKE),
 		"readiness port post ordering or wake coalescing mismatch");
-	testRequire(xrtNetPortWait(pPort, Events, 4,
-		xrtDeadlineAfter(0), &iCount) == XNET_RESULT_TIMEOUT &&
+	testRequire(__xrtNetPortWait(pPort, Events, 4,
+		__xrtWaitAfter(0), &iCount) == XNET_RESULT_TIMEOUT &&
 		(iCount == 0), "empty readiness port did not time out");
 }
 
@@ -112,8 +113,8 @@ static void testPortReadiness(xnetport* pPort)
 		"readiness replacement identity mismatch");
 
 	/* 未重新观察时，即使数据仍未读取也不能重复报告。 */
-	testRequire(xrtNetPortWait(pPort, Events, 2,
-		xrtDeadlineAfter(0), &iCount) == XNET_RESULT_TIMEOUT &&
+	testRequire(__xrtNetPortWait(pPort, Events, 2,
+		__xrtWaitAfter(0), &iCount) == XNET_RESULT_TIMEOUT &&
 		(iCount == 0), "readiness one-shot watch repeated without rearm");
 	testRequire((xrtNetSocketRecvFrom(Server, sData, sizeof(sData),
 		&iSize, &Remote) == XNET_RESULT_OK) && (iSize == 5) &&

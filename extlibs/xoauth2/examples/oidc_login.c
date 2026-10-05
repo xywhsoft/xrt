@@ -6,15 +6,13 @@
 	本示例使用离线夹具，并执行授权码 ID token 的应用策略。
 	网络部署还须配置可信 discovery/注册算法、传输与回调会话管理。
 
-	编译（在 extlibs/xoauth2 目录）：
-	  gcc -std=c11 -I. -I../xjwt -I../../single \
-	      -o /tmp/oidc_demo examples/oidc_login.c xoauth2.c ../xjwt/xjwt.c \
-	      -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+ * 构建入口见本库 README；使用根目录 tools/build.py。
 */
-#define XRT_MODULE_ALL       /* 示例简化：全模块（工程中按需选闭包） */
-#define XRT_IMPLEMENTATION   /* xrt 实现集中在本 TU，两个库 TU 纯声明消费 */
-#include <xrt.h>
-#include "../xoauth2.h"
+#if !defined(XOAUTH2_FEATURE_XOAUTH2)
+#define XRT_IMPLEMENTATION
+#include "../tests/support/runtime.h"
+#endif
+#include <xoauth2.h>
 #include "xjwt.h"
 #include <stdio.h>
 #include <string.h>

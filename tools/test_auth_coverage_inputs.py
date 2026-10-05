@@ -18,11 +18,12 @@ class AuthenticationCoverageInputTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve()
         files = {
             "single/xrt.h": "/* fixture runtime */\n",
-            "extlibs/xjwt/xjwt.h": "int owned(int value);\n",
-            "extlibs/xjwt/xjwt.c": '#include "../../single/xrt.h"\n#include "src/xjwt_main.c"\n',
+            "extlibs/xjwt/config/modules.json": "{}\n",
+            "extlibs/xjwt/include/xjwt.h": "int owned(int value);\n",
+            "extlibs/xjwt/tests/support/implementation.c": '#include "../../../../single/xrt.h"\n#include "../../src/xjwt_main.c"\n',
             "extlibs/xjwt/src/xjwt_main.c": "int owned(int value) {\n    if (value > 0) return value;\n    return 0;\n}\n",
             "extlibs/xjwt/tests/test_keys.h": "#define EXPECTED_VALUE 2\n",
-            "extlibs/xjwt/tests/test_jwt.c": '#include "../xjwt.c"\n#include "test_keys.h"\nint main(void) { return owned(2) != EXPECTED_VALUE; }\n',
+            "extlibs/xjwt/tests/test_jwt.c": '#include "support/implementation.c"\n#include "test_keys.h"\nint main(void) { return owned(2) != EXPECTED_VALUE; }\n',
             "tools/measure_auth_coverage.py": "# fixture measurement orchestration\n",
             "tools/gcov_coverage.py": "# fixture counter aggregation\n",
         }

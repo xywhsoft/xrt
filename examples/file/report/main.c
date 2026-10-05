@@ -37,7 +37,7 @@ int main(void)
 	str sFilePath = NULL;
 	str sReadBack = NULL;
 	xtime iNow = xrtNow();
-	uint64 iStart = xrtClock();
+	double iStart = xrtTimer();
 	size_t iCreatedSize;
 	size_t iNameSize;
 	size_t iReadSize = 0;
@@ -103,7 +103,7 @@ int main(void)
 	printf("%.*s", (int)iReadSize, sReadBack);
 	printf(
 		"elapsed_us: %llu\n",
-		(unsigned long long)(xrtClock() - iStart)
+		(unsigned long long)(xrtTimer() - iStart)
 	);
 	bValid = true;
 

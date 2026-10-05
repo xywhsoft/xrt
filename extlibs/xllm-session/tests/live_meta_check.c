@@ -1,8 +1,9 @@
+#include "../../xllm/src/internal/xllm_internal.h"
+#include "../src/internal/xllm_session_internal.h"
+
 /* live_meta_check — 真网验证：压缩元调用携带 {"store":false} 被服务端接受
  * 且摘要正常提交。用法：XLLM_LIVE_URL/XLLM_LIVE_KEY/XLLM_LIVE_MODEL 环境变量。 */
 #define XRT_MODULE_JSONL_READ
-#include "../../xllm/xllm.c"
-#include "../xllm-session.c"
 
 int main(void)
 {

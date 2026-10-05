@@ -142,7 +142,7 @@ static xhttpcacherecord* testHttpClientCacheOomRecord(void)
 	Input.PartCount = 1;
 	Input.Length = sizeof(Body) - 1u;
 	Input.ResponseTime = xrtNow();
-	Input.RequestClock = xrtClock();
+	Input.RequestClock = xrtTimer();
 	Input.ResponseClock = Input.RequestClock;
 	Input.Flags = XHTTP_CACHE_RECORD_HAS_LENGTH |
 		XHTTP_CACHE_RECORD_COMPLETE;

@@ -7,16 +7,10 @@
  *   3. 响应所有权归调用方，xllmResponseDestroy 恰好释放一次；
  *   4. 失败路径打印结构化错误（类别名 + 诊断 + 服务端原文）。
  *
- * 编译（仓库根目录，Windows/GCC）：
- *   gcc -std=c11 -Wall -Wextra -Werror -O2 \
- *       -I extlibs/xllm -I single \
- *       extlibs/xllm/examples/complete_stats.c \
- *       extlibs/xllm/release/xllm.o extlibs/xllm/release/xllm-xrt.o \
- *       -lWs2_32 -lIPHLPAPI -lBcrypt -lCrypt32 -lSecur32 -lAdvapi32 \
- *       -o build/complete_stats
+ * 构建入口见本库 README；使用根目录 tools/build.py。
  *
  * 运行（环境变量均有默认值，密钥无默认）：
- *   XLLM_API_KEY=... ./build/complete_stats "你的提示词"
+ *   XLLM_API_KEY=... out/gcc/native/xllm_live/complete_stats "你的提示词"
  *   可选：XLLM_BASE_URL / XLLM_MODEL / XLLM_CONTEXT_WINDOW
  */
 

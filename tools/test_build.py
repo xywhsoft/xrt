@@ -383,28 +383,19 @@ class AmalgamateContractTest(unittest.TestCase):
 			"\tdefined(XRT_FEATURE_B)\n",
 		)
 
-	def test_extension_declaration_header_is_self_contained(self) -> None:
-		"""扩展声明单头不得残留对核心模块化聚合头的 include。"""
-
+	def test_extension_declarations_require_external_core(self) -> None:
+		"""扩展声明只包含自身公共头，核心声明必须预先提供。"""
 		output, content = xrt_amalgamate._declaration_content([
 			Path("extlibs/xruntime/config/modules.json"),
 		])
-
-		self.assertEqual(
-			output,
-			xrt_amalgamate.ROOT / "extlibs/xruntime/single/xruntime_decl.h",
-		)
+		self.assertEqual(output, xrt_amalgamate.ROOT / "single/extlibs/xruntime_decl.h")
 		self.assertNotIn("#include <xrt.h>", content)
-		self.assertIn("#define XRT_DECLARATIONS 1", content)
+		self.assertNotIn("#define XRT_DECLARATIONS 1", content)
+		self.assertNotIn("public: include/xrt/", content)
 		self.assertIn("#define XRUNTIME_DECLARATIONS 1", content)
-		self.assertLess(
-			content.index("#define XRT_DECLARATIONS 1"),
-			content.index("public: include/xrt/memory.h"),
-		)
-		self.assertLess(
-			content.index("feature selection: extlibs/xruntime/include/xruntime/features.h"),
-			content.index("public: extlibs/xruntime/include/xrt/runtime_call.h"),
-		)
+		self.assertIn("requires XRT", content)
+		self.assertLess(content.index("feature selection:"),
+			content.index("public: extlibs/xruntime/include/xrt/runtime_call.h"))
 
 	def test_core_implementation_is_unconditional(self) -> None:
 		"""Core 实现必须始终存在，不能要求调用方选择模块。"""
@@ -597,10 +588,10 @@ class AmalgamateContractTest(unittest.TestCase):
 		self.assertEqual(output.name, "xruntime.h")
 		self.assertIn("#define XRUNTIME_SINGLE_HEADER 1", content)
 		self.assertIn("#if defined(XRUNTIME_IMPLEMENTATION)", content)
-		self.assertLess(
-			content.index("xruntime/include/xruntime/features.h"),
-			content.index("include/xrt/features.h"),
-		)
+		self.assertNotIn("public: include/xrt/", content)
+		self.assertNotIn("source: src/", content)
+		self.assertNotIn("#define XRT_SINGLE_HEADER 1", content)
+		self.assertIn("requires XRT", content)
 		self.assertNotIn("../../../../src/internal", content)
 
 	def test_xruntime_single_owner_uses_extension_namespace(self) -> None:

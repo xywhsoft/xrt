@@ -1,9 +1,10 @@
+#include <xrt/detail/wait.h>
 /*
  * 范例：network/udp_batch —— 批量接收 + 截断包 + 队列条件
  * ----------------------------------------------------------------
  * 演示 API：
  *   【批量拉取】  xrtNetUdpReceiveBatch（一次锁内取一批）
- *                  xrtNetUdpReceiveBatchWait（阻塞批量）
+ *                  __xrtNetUdpReceiveBatchWait（阻塞批量）
  *                  xrtNetUdpReceiveBatchAsync（Future 批量）
  *   【批量结果】  xrtNetUdpBatchCount / xrtNetUdpBatchPacket（借用）
  *                  xrtNetUdpBatchTake（转移）/ xrtNetUdpBatchRef /
@@ -14,7 +15,7 @@
  *   【错误队列】  xrtNetUdpReceiveError / xrtNetUdpReceiveErrorBatch
  *                  （空队列的 NULL/0 路径）
  *                  xrtNetUdpReceiveErrorAsync（关闭使未决 Future 终结）
- *   【发送条件】  xrtNetUdpWritable / xrtNetUdpWritableAsync
+ *   【发送条件】  __xrtNetUdpWritable / xrtNetUdpWritableAsync
  *                  （队列空闲时立即可写）
  * 模块宏：XRT_MODULE_NET_UDP
  * 编译（单头形态，Windows）：
@@ -55,10 +56,10 @@ static bool exampleFutureWait(xfuture* pFuture)
 /* 在截止时间内等 UDP 进入指定状态。 */
 static bool exampleWaitState(xnetudp* pUdp, xnetudpstate State)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( xrtNetUdpState(pUdp) != State ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -72,7 +73,7 @@ static bool exampleWaitState(xnetudp* pUdp, xnetudpstate State)
 static size_t exampleDrainCount(xnetudp* pUdp, size_t iWant)
 {
 	size_t iGot = 0;
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000000u);
 
 	while ( iGot < iWant ) {
 		xnetudppacket* pPacket = xrtNetUdpReceive(pUdp);
@@ -80,10 +81,10 @@ static size_t exampleDrainCount(xnetudp* pUdp, size_t iWant)
 		if ( pPacket != NULL ) {
 			xrtNetUdpPacketDestroy(pPacket);
 			++iGot;
-			iDeadline = xrtDeadlineAfter(3000000u);
+			iDeadline = __xrtWaitAfter(3000000u);
 			continue;
 		}
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			break;
 		}
 		xrtThreadYield();
@@ -152,14 +153,14 @@ int main(void)
 	{
 		/* 重发一条并直接取包核对截断标志与前缀长度。 */
 		xnetudppacket* pPacket = NULL;
-		xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+		double iDeadline = __xrtWaitAfter(3000000u);
 
 		if ( xrtNetUdpSend(pClient, Big, sizeof(Big)) !=
 			 XNET_RESULT_OK ) {
 			goto Cleanup;
 		}
 		while ( (pPacket = xrtNetUdpReceive(pServer)) == NULL ) {
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				break;
 			}
 			xrtThreadYield();
@@ -183,10 +184,10 @@ int main(void)
 	}
 	memset(pPackets, 0, sizeof(pPackets));
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+		double iDeadline = __xrtWaitAfter(3000000u);
 
 		while ( xrtNetUdpQueued(pServer) < 3u ) {
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				iResult = 6;
 				goto Cleanup;
 			}
@@ -210,18 +211,18 @@ int main(void)
 		}
 	}
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+		double iDeadline = __xrtWaitAfter(3000000u);
 
 		while ( xrtNetUdpQueued(pServer) < 2u ) {
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				iResult = 7;
 				goto Cleanup;
 			}
 			xrtThreadYield();
 		}
 	}
-	pBatch = xrtNetUdpReceiveBatchWait(pServer, 4,
-		xrtDeadlineAfter(3000000u), NULL);
+	pBatch = __xrtNetUdpReceiveBatchWait(pServer, 4,
+		__xrtWaitAfter(3000000u), NULL);
 	if ( (pBatch == NULL) || (xrtNetUdpBatchCount(pBatch) < 1u) ) {
 		iResult = 7;
 		goto Cleanup;
@@ -253,10 +254,10 @@ int main(void)
 		}
 	}
 	{
-		xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+		double iDeadline = __xrtWaitAfter(3000000u);
 
 		while ( xrtNetUdpQueued(pServer) < 2u ) {
-			if ( xrtDeadlineExpired(iDeadline) ) {
+			if ( __xrtWaitExpired(iDeadline) ) {
 				iResult = 9;
 				goto Cleanup;
 			}
@@ -320,7 +321,7 @@ int main(void)
 
 	/* 发送条件：空闲队列立即可写（同步 + Future 双形态）。 */
 	printf("writable: sync=%d",
-		xrtNetUdpWritable(pClient, 64, xrtDeadlineAfter(3000000u),
+		__xrtNetUdpWritable(pClient, 64, __xrtWaitAfter(3000000u),
 			NULL) ? 1 : 0);
 	pWritable = xrtNetUdpWritableAsync(pClient, 64);
 	printf(" async=%d\n", exampleFutureWait(pWritable) ? 1 : 0);
