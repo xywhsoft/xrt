@@ -6,7 +6,7 @@
 
 1. 先阅读 [构建与发布](../BUILD.md)、[Core](../api/core.md)、[错误](../api/error.md) 和 [内存](../api/memory.md)，明确初始化、分配和失败模型。
 2. 通过 [时间、路径与文件](time-path-file.md) 建立系统边界，再进入字符串、字符集和数值处理。
-3. 按数据形态选择 Buffer、Array/Map/Set、Value、JSON 或 XSON，不让业务层反复实现容器和解析器。
+3. 按数据形态选择 Buffer、Array/Map/Set、Value、JSON 或 XLON，不让业务层反复实现容器和解析器。
 4. 按[并发、协程与任务选择指南](concurrency.md)理解 Thread、Channel、Future、
    Coroutine 与 Task 的职责，再进入单个模块契约。
 5. 网络应用先从 Engine、TCP/UDP、TLS 的等待、取消、背压和所有权开始，再进入 HTTP 与 WebSocket。

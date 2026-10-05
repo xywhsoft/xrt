@@ -10,7 +10,7 @@ XRT 是可组合的 C 运行时库，而不是应用框架。它提供可单独�
 
 | 任务 | 首选能力 |
 |---|---|
-| 文本、编码、容器与配置数据 | String、Codec、Array/Map、JSON/XSON |
+| 文本、编码、容器与配置数据 | String、Codec、Array/Map、JSON/XLON |
 | 并发工作与取消 | Task、Future、TaskGroup、Channel |
 | 文件、进程与日志 | File、Process、Logger |
 | 加密与安全传输 | Crypto、X509、TLS |

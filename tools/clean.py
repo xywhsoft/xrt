@@ -48,7 +48,7 @@ HISTORICAL_FILES = (
 	"dev/MODULE_ASSESSMENT.md",
 	"dev/XRT_API_FREEZE_PLAN.md",
 	"dev/XRT_ROADMAP_NEXT.md",
-	"dev/XSON_DESIGN_DRAFT.md",
+	"dev/XLON_DESIGN_DRAFT.md",
 	"dev/run_coroutine_test_linux_tcc.sh",
 	"dev/rwlock_api.h",
 	"dev/rwlock_impl.c",

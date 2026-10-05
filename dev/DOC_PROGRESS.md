@@ -83,18 +83,18 @@
 | 76 | websocket.md | 104 | **完成** | 104/104 全绿（G3 104 片段，2026-09-07）；帧/消息 12 + 握手 19 + 升级 9 + 压缩协商 30 + 流 34 五组；控制帧 125 字节上限、permessage-deflate 尾块约定入档；锚点 20 范例 |
 | 77 | x509.md | 89 | **完成** | 89/89 全绿（G3 89 片段，2026-09-07）；视图/算法/名称/扩展/名称约束/CRL 三层/策略/签名/身份/路径/信任库十三组；X509_DONE/VALUE/ERROR 三值逐函数成表；锚点 19 范例 |
 | 78 | xid.md | 11 | **完成** | 11/11 全绿（G3 11 片段，2026-09-07）；生成/文本/时间比较三组；系统随机源 IO、Write 容量 33 字节、ErrorOffset 定位器；锚点 xid/xid_batch |
-| 79 | xson.md | 35 | **完成** | 35/35 全绿（G3 35 片段，2026-09-07）；读取/DOM/事件/写出/writer 22/文件/错误八组；WriterTake 未 Finish = STATE；锚点 xson/xson_tour |
+| 79 | xlon.md | 35 | **完成** | 35/35 全绿（G3 35 片段，2026-09-07）；读取/DOM/事件/写出/writer 22/文件/错误八组；WriterTake 未 Finish = STATE；锚点 xlon/xlon_tour |
 
 ## 记录
 
-- 2026-09-14 JSONL/XSONL 新增模块配套文档已验证，随本次功能变更交付，尚未提交：
-  `jsonl.md`、`xsonl.md` 各 12 函数、5 类型；G1 签名各 12/12，G2 函数覆盖
+- 2026-09-14 JSONL/XLONL 新增模块配套文档已验证，随本次功能变更交付，尚未提交：
+  `jsonl.md`、`xlonl.md` 各 12 函数、5 类型；G1 签名各 12/12，G2 函数覆盖
   各 12/12，G3 可追溯片段各 12/12，G4 各 1 个已注册且实际运行的范例，
   G5 类型各 5/5。家族符号检查各 12 函数、9 枚举常量、5 类型，missing=0；
   doc_audit 全部 12 项审计 0 findings。默认忽略空白行、严格模式、逐行边界、
   Array 所有权、累计预算、配置快照、错误位置与 Cause、原子文件替换均成文。
   GCC x64 与 TCC x86 的模块化/单头测试、读写 OOM、两个范例及 10 个裁剪开关
-  （含逐项缺失直接依赖拒编译）通过；原有 JSON/XSON GCC 回归通过。
+  （含逐项缺失直接依赖拒编译）通过；原有 JSON/XLON GCC 回归通过。
 
 - 2026-09-07 Phase 0：DOC_SPEC v1.0-draft 定稿；两门禁工具上线
   （check_api_reference_detail.py / extract_doc_examples.py，验证于 array.md：改前 117 problem → 改后 0）；
@@ -719,7 +719,7 @@
   完成 API 2540→2623/3664（71.6%），63/79 文件。
 - 2026-09-07 周期全量复审 #4（63/79 节点）：(a) G1/G2/G4 --all
   63 文件 ok、16 待办文件（sync/task/tcp/temp/template/thread/thread-key/
-  time/tls/udp/value/wait/websocket/x509/xid/xson）问题数符合预期，零回归；
+  time/tls/udp/value/wait/websocket/x509/xid/xlon）问题数符合预期，零回归；
   (b) G3 --all 79 文件 2642 片段全绿；(c) 本轮 5 文件禁用词零命中；
   (d) 错误码抽检 3 项（栈固定族满=AGAIN/空弹=RANGE、signal 域码、
   Format 拒绝 %n）全部与源码一致；(e) 台账-门禁对账：63 完成行 =
@@ -777,21 +777,21 @@
   batch/introspect/multicast 三范例。
   完成 API 2968→3041/3664（83.0%），73/79 文件。
 - 2026-09-07 周期全量复审 #5（73/79 节点）：(a) G1/G2/G4 --all
-  73 文件 ok、6 待办文件（tls/value/websocket/x509/xid/xson）问题数
+  73 文件 ok、6 待办文件（tls/value/websocket/x509/xid/xlon）问题数
   符合预期，零回归；(b) G3 --all 79 文件 3060 片段全绿；(c) 本轮
   tcp/time/wait/udp 四文件禁用词零命中；(d) 错误码抽检（udp 批量
   容量 1–256 RANGE、组播 Worker 归属 STATE、tcp 背压 AGAIN）全部
   与源码一致；(e) 台账-门禁对账：73 完成行 = 73 gate-ok（零差异），
   API 求和 3041 = 记录值 3041/3664（83.0%）。结论：质量体系正常。
   剩余 6 文件中 tls(268) 为全任务最大，value(116)/websocket(104)/
-  x509(89) 次之；xid(11)/xson(35) 为小文件。
+  x509(89) 次之；xid(11)/xlon(35) 为小文件。
 - 2026-09-07 xid.md 完成（11/11，G3 11 片段全绿）：三组；Make 族
   系统安全随机源失败 = XERR_IO、Write 容量不足 = RANGE（须 33 字节）、
   Parse 失败不改输出且字节位置可由 ErrorOffset 读取、Compare/Equal/
   IsZero 纯比较不设错。
   完成 API 3041→3052/3664（83.4%），74/79 文件。
-- 2026-09-07 xson.md 完成（35/35，G3 35 片段全绿）：八组；契约——
-  Writer 族容器顺序/预算 = xrt.xson 域错误、Take 在未 Finish 或 sink
+- 2026-09-07 xlon.md 完成（35/35，G3 35 片段全绿）：八组；契约——
+  Writer 族容器顺序/预算 = xrt.xlon 域错误、Take 在未 Finish 或 sink
   写入器上 = XERR_STATE、StringifyFile/WriteFile 原子替换、文件族
   超输入上限 = xrt.file 域错误。
   完成 API 3052→3087/3664（84.3%），75/79 文件。
@@ -871,7 +871,7 @@
   零回归。全库公共类型 100% 成节、公共常量 100% 可检索。
 - 2026-09-07 周期全量复审 #7（阶段 3 后）：(a) CI 全门禁本地复跑——
   check_api_docs 12 个模块族（websocket/net/http/regex/value/future×2/
-  task/coroutine/tls/x509/xson）missing=0；check_release_maturity 通过
+  task/coroutine/tls/x509/xlon）missing=0；check_release_maturity 通过
   （477 模块 356 实现）；test_api_docs 4/4 OK；(b) 新增类型签名保真
   审计（1048 个类型节签名块 vs 头文件逐字符）：真差异 1 组——map.md
   三个 int-map 回调形参名 key/value/user_data → iKey/pValue/pUserData，
@@ -905,7 +905,7 @@
   已沉淀于记录，可随再生成复用）。
 - 2026-09-07 语义残留双清零：(a) 上一轮补入的 344 枚举行中 262 处
   「（见枚举语义）」占位逐条人工替换（按域分组：TLS 套件/告警/扩展、
-  HTTP 传输编码与连接语义、x509 密钥用途与曲线、JSON/XSON 事件、
+  HTTP 传输编码与连接语义、x509 密钥用途与曲线、JSON/XLON 事件、
   进程/日志/模板/树遍历等），现全库占位零残留；(b) 常量总表值列
   与头文件 #define 逐行对账（239 行），仅 1 处规范化差异
   （65536 → UINT32_C(65536)）已修正。门禁 G1/G5/G3 全绿。
@@ -995,7 +995,7 @@
   （21 处，error.h 从无 OVERFLOW 种类——pattern/queue/stack 等
   多文件污染）、XHTTP_EXPECT_100_CONTINUE→XHTTP_EXPECT_CONTINUE、
   XVALUE_ITER_OK→XVALUE_ITER_ITEM、XWS_FRAME_OK→READY、
-  XWS_CLIENT/SERVER→XWS_ROLE_*、XXSON_VISIT_OK→NEXT、
+  XWS_CLIENT/SERVER→XWS_ROLE_*、XXLON_VISIT_OK→NEXT、
   XRT_FEATURE_CORE（once.md 依赖表）→core 模块文字说明（该模块
   feature=null 无裁剪宏）。复扫幽灵零；G1+G5/G3 全绿。
   该审计脚本沉淀于本记录，可随任何表内容变更复跑。

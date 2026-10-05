@@ -10,7 +10,7 @@ api: string, codec
 
 ## Orientation
 
-Volume 4 answers "how does a program process arbitrary non-code data". It comes in two halves: the first (Chapters 25–29) is **text and byte infrastructure** — string views and builders, strict number parsing and formatting, charsets and Unicode, the codec trio, compression; the second (from Chapter 31) is **structured data** — dynamic values, JSON, XSON, line-delimited formats (JSONL/XSONL), templates, and regex. The first half is the second's foundation: parsers tokenize with the string family, convert with the numeric family, handle multilingual text with the charset family, and defend against bombs with resource limits — every chapter gets named and reclaimed in the second half.
+Volume 4 answers "how does a program process arbitrary non-code data". It comes in two halves: the first (Chapters 25–29) is **text and byte infrastructure** — string views and builders, strict number parsing and formatting, charsets and Unicode, the codec trio, compression; the second (from Chapter 31) is **structured data** — dynamic values, JSON, XLON, line-delimited formats (JSONL/XLONL), templates, and regex. The first half is the second's foundation: parsers tokenize with the string family, convert with the numeric family, handle multilingual text with the charset family, and defend against bombs with resource limits — every chapter gets named and reclaimed in the second half.
 
 ### One through-line: strictness at boundaries
 
@@ -22,7 +22,7 @@ If you can take away only one line, take this: **"views don't allocate, strictne
 
 ### The triple jump: bytes → text → structure
 
-Volume 4's knowledge stack is a triple jump. **Level one: bytes ↔ text** — views (Chapter 3) are the currency, the string family (Chapter 25) the operations, encodings (Chapters 27/28) the boundary translation. **Level two: text ↔ numbers** — parsing and formatting (Chapter 26), where strictness takes shape. **Level three: text ↔ structure** — the second half's JSON/XSON turning character streams into value trees, templates turning value trees back into text. Each level stands on the last; skipping levels (say, jumping straight to JSON without views and strict parsing) bills you the understanding cost at debugging time.
+Volume 4's knowledge stack is a triple jump. **Level one: bytes ↔ text** — views (Chapter 3) are the currency, the string family (Chapter 25) the operations, encodings (Chapters 27/28) the boundary translation. **Level two: text ↔ numbers** — parsing and formatting (Chapter 26), where strictness takes shape. **Level three: text ↔ structure** — the second half's JSON/XLON turning character streams into value trees, templates turning value trees back into text. Each level stands on the last; skipping levels (say, jumping straight to JSON without views and strict parsing) bills you the understanding cost at debugging time.
 
 ### Reading advice and self-checks
 
@@ -36,7 +36,7 @@ Reading in order is this volume's best path — the triple jump's order is the c
 - Charsets (27): UTF-8 mainline / all-direction transcoding / per-scalar operations
 - Codecs (28): Base64 / Hex / Percent three bridges; capacity always computable by pen
 - Compression (29): one-shot and streaming postures / deterministic artifacts / overhead ledger and decompression caps
-- Second half (from 31): dynamic values / JSON / XSON / JSONL and XSONL (line-delimited records) / templates / regex — all standing on the first five chapters
+- Second half (from 31): dynamic values / JSON / XLON / JSONL and XLONL (line-delimited records) / templates / regex — all standing on the first five chapters
 ```
 
 ### An intuition table of expansion and cost

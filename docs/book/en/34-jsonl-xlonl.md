@@ -1,20 +1,20 @@
 ---
 num: 34
-slug: jsonl-xsonl
-title: JSONL and XSONL: Line-Delimited Data
+slug: jsonl-xlonl
+title: JSONL and XLONL: Line-Delimited Data
 volume: 卷四 文本与结构化数据
 type: practice
 lead: The second shape after documents — a sequence of records, one per line: framing semantics, two-level budgets, global error locations, and atomic files.
-api: jsonl, xsonl
+api: jsonl, xlonl
 ---
 
 ## Orientation
 
-Chapters 32 and 33 solved how "**one document**" moves in and out of the value tree; engineering has an equally common second shape — "**a sequence of records**": server logs with one event per line, bulk imports with one record per line, inter-process exchange with one message per line. **JSONL (JSON Lines) turns each line into one complete JSON value; XSONL turns each line into one complete XSON value** — many lines together form an `xvalue` Array, while each line stays individually parseable, locatable, and skippable. This is not a new parser: per-record encoding rules, strictness, and error domains are **reused from Chapters 32/33 verbatim**; what is added is exactly three things — line framing semantics, cumulative budgets across records, and the translation of per-record error positions into global line numbers and record indices. When to use "one big document" versus "a sequence of records" — this chapter gives the decision rules.
+Chapters 32 and 33 solved how "**one document**" moves in and out of the value tree; engineering has an equally common second shape — "**a sequence of records**": server logs with one event per line, bulk imports with one record per line, inter-process exchange with one message per line. **JSONL (JSON Lines) turns each line into one complete JSON value; XLONL turns each line into one complete XLON value** — many lines together form an `xvalue` Array, while each line stays individually parseable, locatable, and skippable. This is not a new parser: per-record encoding rules, strictness, and error domains are **reused from Chapters 32/33 verbatim**; what is added is exactly three things — line framing semantics, cumulative budgets across records, and the translation of per-record error positions into global line numbers and record indices. When to use "one big document" versus "a sequence of records" — this chapter gives the decision rules.
 
 ## Introduction
 
-Three scenarios tell the same story: **the natural unit of the data is the line, not the document**. **Server logs**: each request appends one event line — replay and statistics parse line by line, bad lines are skipped with their position recorded, and line 4096's stray comma must never discard the whole file. **Bulk import**: ten million records, one per line — Chapter 32's DOM turns the whole file into one tree (memory multiplied several times over) and SAX streams but has no notion of "record N"; a line-delimited format makes "parse failed at record N" a first-class citizen. **Inter-process exchange**: internal pipes deliver messages line by line — JSON lines interoperate externally, XSON lines (Chapter 33's bytes/time/set/intmap) round-trip full types internally. All three hosts share one API surface: read into one Array, write as a sequence of lines, errors carry line numbers — **framing is the format's business; the semantics remain the value tree's semantics**.
+Three scenarios tell the same story: **the natural unit of the data is the line, not the document**. **Server logs**: each request appends one event line — replay and statistics parse line by line, bad lines are skipped with their position recorded, and line 4096's stray comma must never discard the whole file. **Bulk import**: ten million records, one per line — Chapter 32's DOM turns the whole file into one tree (memory multiplied several times over) and SAX streams but has no notion of "record N"; a line-delimited format makes "parse failed at record N" a first-class citizen. **Inter-process exchange**: internal pipes deliver messages line by line — JSON lines interoperate externally, XLON lines (Chapter 33's bytes/time/set/intmap) round-trip full types internally. All three hosts share one API surface: read into one Array, write as a sequence of lines, errors carry line numbers — **framing is the format's business; the semantics remain the value tree's semantics**.
 
 ## Concepts
 
@@ -39,7 +39,7 @@ The rule worth memorizing is the last one: **one line must be exactly one comple
 | Whole output | MaxOutputBytes | **Includes** each appended LF; excludes the trailing NUL |
 | Record count | MaxRecords | Non-blank records = upper bound on result Array elements |
 | Syntax values | MaxTotalValues | Cumulative across all records; includes values dropped by duplicate-key policy; excludes the synthesized Array |
-| Decoded bytes (XSONL only) | MaxTotalDecodedBytes | Cumulative built-in bytes-tag decoding, checked before allocation |
+| Decoded bytes (XLONL only) | MaxTotalDecodedBytes | Cumulative built-in bytes-tag decoding, checked before allocation |
 
 The two scopes that trip people most: the whole-output budget **counts the LF** (with `MaxOutputBytes=1`, the first record `"1"` commits, and its LF triggers LIMIT); the per-record budget **excludes separators** (a 1 MiB-max line is 1 MiB to `MaxInputBytes`). Defaults follow the library-wide convention: 64 MiB overall, 1000000 records and syntax values — tighten before exposing to untrusted input.
 
@@ -51,16 +51,16 @@ A per-record error (Chapters 32/33) carries in-record line/column; the line-deli
 
 Serialization writes each Array element as one compact line: the **callback form** (`xrtJsonlWrite`) hands chunks to a sink, borrowed bytes valid only during the callback — for streaming straight into a network writer; the **file form** (`xrtJsonlWriteFile`) completes the whole serialization in memory first and then **atomically replaces** the target file — on serialization failure the original file remains untouched. Shared semantics of both forms: compact + LF (PRETTY is rejected), the root must be `XVALUE_ARRAY`, and configurations are snapshotted by value (mutating the config inside a callback does not affect the in-flight call).
 
-### JSONL, XSONL, or neither
+### JSONL, XLONL, or neither
 
 | Scenario | Choice | Rationale |
 | --- | --- | --- |
 | External logs / open data | JSONL | Any `jq`/script/heterogeneous client consumes line by line |
-| Internal logs and pipes | XSONL | bytes/time/set land on lines as-is; replay with zero conversion |
+| Internal logs and pipes | XLONL | bytes/time/set land on lines as-is; replay with zero conversion |
 | One config, loaded whole | Chapters 32/33 documents | Document semantics (duplicate-key policy, full SAX/Writer paths) |
 | Single huge records (> a few MiB) | Documents + streaming | Line formats tightened per line get blown up by a single record |
 
-The decision variable is isomorphic to Chapter 33's: **receiver under your control → XSONL for full types; not under control → JSONL for interop**; if the data is really "one configuration", don't split it into lines — and if it is really "a stream of events", don't cram it into one big array.
+The decision variable is isomorphic to Chapter 33's: **receiver under your control → XLONL for full types; not under control → JSONL for interop**; if the data is really "one configuration", don't split it into lines — and if it is really "a stream of events", don't cram it into one big array.
 
 ## Examples
 
@@ -79,24 +79,24 @@ empty line: line=2 record=1
 
 **What just happened.** (1) Framing in evidence: the input mixes blank lines with CRLF/LF — all 3 records (object, array, null) arrive intact, and 20 bytes is the actual compact output size (LF included per record). (2) Blank-line policy: with skipping on by default, `Valid`/`Read` pass; turning on `XJSONL_READ_REJECT_EMPTY_LINES` makes `"{}\n\n"` fail immediately at the blank line before the second record. (3) Global location: the error gives `line=2 record=1` — the blank line is on line 2 and it cuts the position after record 1; the caller learns "which line to fix", not a byte range. (4) File loop: `StringifyFile` atomically replaces → `ParseFile` reads back → `WriteFile` (with config) replaces again → `ReadFile` reads again — any failed step leaves the file in its last complete state.
 
-### Complete program: XSONL line-by-line reading and writing
+### Complete program: XLONL line-by-line reading and writing
 
-From `examples/data/xsonl/main.c` — the same framing and budget machinery, with per-record rules swapped to XSON:
+From `examples/data/xlonl/main.c` — the same framing and budget machinery, with per-record rules swapped to XLON:
 
-```embed path="examples/data/xsonl/main.c" title="examples/data/xsonl/main.c"
+```embed path="examples/data/xlonl/main.c" title="examples/data/xlonl/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I single impl.c examples/data/xsonl/main.c -lws2_32 -liphlpapi
-XSONL: 3 records, 20 bytes
+$ gcc -O1 -DXRT_MODULE_ALL -I single impl.c examples/data/xlonl/main.c -lws2_32 -liphlpapi
+XLONL: 3 records, 20 bytes
 empty line: line=2 record=1
 ```
 
-**What just happened.** The flow is line-for-line isomorphic to the jsonl sample — not laziness but **a design promise made visible**: swap the format and the framing, budget structure, and error location all stay; the API shapes correspond one to one. The difference is per-record semantics: each line here is a complete XSON value, and Chapter 33's four extended types go straight into the line stream —
+**What just happened.** The flow is line-for-line isomorphic to the jsonl sample — not laziness but **a design promise made visible**: swap the format and the framing, budget structure, and error location all stay; the API shapes correspond one to one. The difference is per-record semantics: each line here is a complete XLON value, and Chapter 33's four extended types go straight into the line stream —
 
 ```c
-/* Full-type records in an XSONL line stream: after parsing, each lands in place in the value tree */
-xvalue* pLog = xrtXsonlParse(XRT_STR_LITERAL(
+/* Full-type records in an XLONL line stream: after parsing, each lands in place in the value tree */
+xvalue* pLog = xrtXlonlParse(XRT_STR_LITERAL(
     "{\"key\":bytes(\"AAEC/w==\"),\"at\":time(\"2026-07-31T00:00:00Z\")}\n"
     "set[80, 443]\n"));
 /* pLog[0] is an object (Bytes/Time fields), pLog[1] is a set container — line-by-line replay with zero conversion */
@@ -115,7 +115,7 @@ When the built-in bytes tag needs its own total cap, `MaxTotalDecodedBytes` inte
 
 ### From examples to engineering: three hosts of line-delimited data
 
-**Server logs** (most common): the writer `Stringify`-writes one line per event, appending or streaming via `Write` into a sink; the reader `Parse`-reads into an Array for offline statistics, sending bad lines to an audit log via `ErrorLocation` and carrying on. **Bulk import**: `Read` yields all valid records at once (any failure fails the whole batch, reported by line), or the text is chunked and `Parse`-processed per chunk for "skip bad chunks, keep importing" — both semantics stand on "the line is the boundary". **Inter-process line streams**: isomorphic to Chapter 33's rules — JSONL outside, XSONL inside; line streams naturally fit text pipelines (`grep`, redirection, line-oriented gateways), an operational property document formats cannot offer.
+**Server logs** (most common): the writer `Stringify`-writes one line per event, appending or streaming via `Write` into a sink; the reader `Parse`-reads into an Array for offline statistics, sending bad lines to an audit log via `ErrorLocation` and carrying on. **Bulk import**: `Read` yields all valid records at once (any failure fails the whole batch, reported by line), or the text is chunked and `Parse`-processed per chunk for "skip bad chunks, keep importing" — both semantics stand on "the line is the boundary". **Inter-process line streams**: isomorphic to Chapter 33's rules — JSONL outside, XLONL inside; line streams naturally fit text pipelines (`grep`, redirection, line-oriented gateways), an operational property document formats cannot offer.
 
 ### A contrast: the same batch of events, two ways on disk
 
@@ -136,8 +136,8 @@ xrtJsonlStringify(pArray, &Size);   /* whole call fails: an inexpressible root c
 
 ```c good
 /* Filter before writing: remove inexpressible records, or degrade them to placeholder objects by convention */
-/* External channel: all-JSON types; internal channel: just use XSONL — extended types are natively expressible */
-str Text = xrtXsonlStringify(pArray, &Size);
+/* External channel: all-JSON types; internal channel: just use XLONL — extended types are natively expressible */
+str Text = xrtXlonlStringify(pArray, &Size);
 ```
 
 ### Pitfall 2: assuming a failed callback write "rolls back" what was already written
@@ -182,5 +182,5 @@ Build a "skip bad chunks, keep importing" pipeline: `Parse` in N-line chunks; on
 | Location | Zero-based offset + one-based line/column + zero-based record index; blank-line errors point at the next pending record |
 | Reading | All-or-nothing (no partial Array); `Valid` is DOM-free and skips duplicate-key policy |
 | Writing | Compact + LF (PRETTY rejected); streaming callback / atomic file replacement; committed bytes cannot be rolled back |
-| Selection | Event streams → line-delimited (JSONL outside / XSONL inside); configurations → Chapters 32/33 documents |
-| XSONL delta | Per record = XSON rules; `MaxTotalDecodedBytes` caps built-in bytes decoding in aggregate |
+| Selection | Event streams → line-delimited (JSONL outside / XLONL inside); configurations → Chapters 32/33 documents |
+| XLONL delta | Per record = XLON rules; `MaxTotalDecodedBytes` caps built-in bytes decoding in aggregate |

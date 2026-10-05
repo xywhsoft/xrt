@@ -80,7 +80,7 @@ if ( !xrtDynamicFieldsSetTake(
 
 ## Value 转换
 
-`xrtDynamicFieldsToValue` 生成按字段插入顺序保存的独立 Value Object，`xrtDynamicFieldsFromValue` 从 Value Object 深复制名称和值并创建新的字段对象。两者用于 JSON、XSON、调试器和语言桥接，不改变字段对象或来源 Value；非 Object 输入会报告 `xrt.dynamic-field` 类型错误。
+`xrtDynamicFieldsToValue` 生成按字段插入顺序保存的独立 Value Object，`xrtDynamicFieldsFromValue` 从 Value Object 深复制名称和值并创建新的字段对象。两者用于 JSON、XLON、调试器和语言桥接，不改变字段对象或来源 Value；非 Object 输入会报告 `xrt.dynamic-field` 类型错误。
 
 ## API 索引
 

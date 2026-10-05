@@ -63,7 +63,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I single impl.c examples/template/core/main.c -lws2_
 xrt handled 42 requests on 2026-04-02
 ```
 
-**What just happened.** (1) The data side is built with Chapter 31's value tree: `ObjectNew` + `SetNew` (String/Int/Time fields of each type) — the template eats value trees, so the products of JSON/XSON parsing (Chapters 32/33) plug in directly, zero conversion. (2) `{$name}` outputs the string directly; `{%count:,d}` runs the number through Chapter 26's thousands formatting (42 without separators is still legal); `{&day:%F}` renders the time as an ISO date — the three prefixes each take one turn. (3) `Render` returns owning text, freed with `xrtFree`; the compiled object is returned with `Release`. Swap in another value tree and the same code produces another notification — the separation of template and data is at its most vivid here.
+**What just happened.** (1) The data side is built with Chapter 31's value tree: `ObjectNew` + `SetNew` (String/Int/Time fields of each type) — the template eats value trees, so the products of JSON/XLON parsing (Chapters 32/33) plug in directly, zero conversion. (2) `{$name}` outputs the string directly; `{%count:,d}` runs the number through Chapter 26's thousands formatting (42 without separators is still legal); `{&day:%F}` renders the time as an ISO date — the three prefixes each take one turn. (3) `Render` returns owning text, freed with `xrtFree`; the compiled object is returned with `Release`. Swap in another value tree and the same code produces another notification — the separation of template and data is at its most vivid here.
 
 ### Complete program: control structures and loops
 
@@ -83,7 +83,7 @@ Users: Alice,Bob; range: 13
 
 - **Two-layer model**: the compiled object is immutable and shared by reference counting; rendering only reads the template and runs at high frequency concurrently (each thread with its own value tree).
 - **Three prefixes**: `{$}` direct output / `{%:fmt}` Chapter 26 number format string / `{&:fmt}` time format string.
-- **Data is a value tree**: render input is xvalue — JSON/XSON products plug in with zero conversion.
+- **Data is a value tree**: render input is xvalue — JSON/XLON products plug in with zero conversion.
 - **Error location**: compile errors carry line numbers; render errors (path/type) are reported structurally.
 - **Boundary discipline**: templates make display decisions, not business computations — complex expressions move back to the data-preparation layer.
 - **Owning products**: render output is `str`, freed with `xrtFree`; streaming rendering can wire straight to a sink.
@@ -92,9 +92,9 @@ Users: Alice,Bob; range: 13
 
 **Notification/message generation** (most common): compile global templates at startup, build a value tree when events arrive, render and send — Pitfall 1's good form is exactly its skeleton; multilingual scenarios compile one per language and select by the user's language. **Reports and page skeletons**: data rows render in loops, headers branch on conditions — the main battleground of control structures; large reports use streaming renders wired to sinks (the tour sample's streamed form), a million rows never assembling a whole page in memory. **Config-driven UI copy**: copy templates stored as config (change copy without a release), fields fetched from the config value tree — both template and data become hot-updatable assets. The shared evolution path of the three hosts: template from code constant → config file → hot-updatable asset, each step leaning on the two-layer design of "compiled object replaceable, rendering stateless".
 
-### The division-of-labor map with JSON/XSON/regex
+### The division-of-labor map with JSON/XLON/regex
 
-The second half of Volume 4 has four modules (plus the value tree) frequently sharing the stage; one map prevents confusion. **JSON/XSON** (Chapters 32/33): structured data in and out — parse into value trees; serialization of value trees back out. **Value tree** (Chapter 31): the intermediate representation — the common currency of all modules. **Regex** (Chapter 30): **extracts** structure from unstructured text (log fields, config lines) → produces value trees. **Templates** (this chapter): **generates** text from value trees (notifications, reports) → produces strings. Extraction and generation run in opposite directions, mirrors of each other — Chapter 36's combination chapter chains "extract → value tree → template-generate" into a complete pipeline. On the map, every module does exactly one thing; composition goes through the value tree, the intermediate currency.
+The second half of Volume 4 has four modules (plus the value tree) frequently sharing the stage; one map prevents confusion. **JSON/XLON** (Chapters 32/33): structured data in and out — parse into value trees; serialization of value trees back out. **Value tree** (Chapter 31): the intermediate representation — the common currency of all modules. **Regex** (Chapter 30): **extracts** structure from unstructured text (log fields, config lines) → produces value trees. **Templates** (this chapter): **generates** text from value trees (notifications, reports) → produces strings. Extraction and generation run in opposite directions, mirrors of each other — Chapter 36's combination chapter chains "extract → value tree → template-generate" into a complete pipeline. On the map, every module does exactly one thing; composition goes through the value tree, the intermediate currency.
 
 ### A design view: templates are interfaces too
 
@@ -164,11 +164,11 @@ A JSON config (Chapter 32) defines report metadata (title, columns, data paths);
 | --- | --- |
 | Two-layer model | compile immutable and shareable (Retain/Release) / render read-only, high-frequency concurrent |
 | Three prefixes | `{$path}` direct output / `{%path:fmt}` number format string / `{&path:fmt}` time format string |
-| Data | value trees plug in — JSON/XSON products zero-conversion; the value tree is every module's common currency |
+| Data | value trees plug in — JSON/XLON products zero-conversion; the value tree is every module's common currency |
 | Control | loops walk arrays / conditionals branch / function calls (display logic to the template, business computation to code) |
 | Errors | compile errors carry line numbers; render errors structured (path/type) |
 | Performance discipline | compile once, share globally; hot paths only render; the same two-layer model as regex |
 | Boundary | display decisions to the template, business computation to the code layer |
 | Three hosts | notification generation / report pages (streaming renders) / config-driven copy — every evolution leans on the two-layer design |
-| Division map | JSON/XSON move structure in and out, the value tree is currency, regex extracts, templates generate |
+| Division map | JSON/XLON move structure in and out, the value tree is currency, regex extracts, templates generate |
 | Interface view | the paths and types a template references are an implicit interface — render smoke tests in CI prevent drift |

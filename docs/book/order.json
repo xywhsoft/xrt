@@ -225,16 +225,16 @@
   },
   {
     "num": 33,
-    "slug": "xson",
-    "file": "33-xson",
-    "title": "XSON 扩展序列化",
+    "slug": "xlon",
+    "file": "33-xlon",
+    "title": "XLON 扩展序列化",
     "volume": "卷四 文本与结构化数据"
   },
   {
     "num": 34,
-    "slug": "jsonl-xsonl",
-    "file": "34-jsonl-xsonl",
-    "title": "JSONL 与 XSONL：逐行数据",
+    "slug": "jsonl-xlonl",
+    "file": "34-jsonl-xlonl",
+    "title": "JSONL 与 XLONL：逐行数据",
     "volume": "卷四 文本与结构化数据"
   },
   {

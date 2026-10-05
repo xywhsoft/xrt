@@ -13,7 +13,7 @@
  *   limits: depth=128 entries=100000 input=268435456
  *
  * 资源边界是解析器防 DoS 的公共语言：嵌套深度、条目数、
- *   总字节数三道闸——XRT 内 JSON/XSON/HTTP 解析全部
+ *   总字节数三道闸——XRT 内 JSON/XLON/HTTP 解析全部
  *   消费同一组语义（值可能随版本调整，以运行输出为准）。
  */
 

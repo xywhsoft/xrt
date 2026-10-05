@@ -18,13 +18,13 @@
 
 | 批次 | 文档 | en | ru | 状态 |
 |---|---|---|---|---|
-| 批 0（试点） | jsonl、xsonl | ✅ | ✅ | 2026-09-14 完成，结构校验全绿 |
+| 批 0（试点） | jsonl、xlonl | ✅ | ✅ | 2026-09-14 完成，结构校验全绿 |
 
 **当前：2 / 87 文档已译（en 2、ru 2）。**
 
 ## 建议批次（按数据层→基础层→高频模块优先）
 
-- 批 1 数据层补全：value、json、xson（4,867 / 1,844 / 2,080 行，量大可再拆）
+- 批 1 数据层补全：value、json、xlon（4,867 / 1,844 / 2,080 行，量大可再拆）
 - 批 2 高频基础：string、error、memory、time、logger
 - 批 3 并发层：coroutine、future、channel、task、cancel、sync
 - 批 4 网络层：net、tcp、udp、http1、websocket、tls*

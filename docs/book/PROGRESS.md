@@ -522,7 +522,7 @@
   调度器族全面重写（SchedCreate→CoSchedCreate + CoGo/Post + Run/Poll/Step + Sleep/Park/Wake——
   泵族三形态按头文件实际划分）、Future 三态→四态（RESOLVED/FAILED/CANCELLED/CLOSED——
   Reject/Resolve/Close 三入口）、xchannelresult TrySend、
-  Spawn 签名(配置)、Line 返回 uint32、xson 品牌词。
+  Spawn 签名(配置)、Line 返回 uint32、xlon 品牌词。
 - 卷六主线确立：取消贯穿（53 立地基→58 各章方言）+ 三层装配线（原语/协作/结构化）。
 
 ## P7 阶段记录
@@ -546,11 +546,11 @@
 
 ## P5 阶段记录
 
-- 卷四后半 7 章：regex 归位卷四（原卷十一 ch88 → ch30）、value/json/xson/template 重写、
+- 卷四后半 7 章：regex 归位卷四（原卷十一 ch88 → ch30）、value/json/xlon/template 重写、
   新增组合章 ch35（composition 型首章：6000 字/2 程序/5 坑）。
 - 全书第四次重编号（77 文件）：regex 前插 + text-pipeline 尾插，卷四扩为 12 章。
 - 门禁拦下：xrtValueRef→xrtValueRetain、xrtValueObjectNew→xrtValueObject、
-  FindAdvance→Next、StringSub→String、模板 {+%}→真实语法、xson 补品牌词。
+  FindAdvance→Next、StringSub→String、模板 {+%}→真实语法、xlon 补品牌词。
 
 ## P4 阶段记录
 
@@ -603,8 +603,8 @@
 
 ## P28 阶段记录（2026-09-14）
 
-- 新增 ch34《JSONL 与 XSONL：逐行数据》（practice，4,758 字/2 程序/1 图示/2 坑 2 对照/
-  练习三级；api 认领 jsonl,xsonl），插位卷四 xson 之后——**全书第五次重编号**，144→145 章。
+- 新增 ch34《JSONL 与 XLONL：逐行数据》（practice，4,758 字/2 程序/1 图示/2 坑 2 对照/
+  练习三级；api 认领 jsonl,xlonl），插位卷四 xlon 之后——**全书第五次重编号**，144→145 章。
 - 重编号执行：order.json 插条目顺延；renumber_book.py 扩展两能力——en/ru 译文源同步
   重命名+num 同步、散文编号引用三语言扫描改号（第 N 章/第 N-M 章/第 N/M 章/（N-M 章）/
   Chapter(s) N/глава N，端点>=34 一律 +1；zh/en/ru 共 379 文件）。
@@ -612,7 +612,7 @@
   ch138 的 JSON Lines 指引改指新章 34。
 - 顺带修存量错引：ch33 四处与卷四导言一处（value=31/json=32 的 P27 时代遗留-1 错位）、
   en/ru 卷四导言同源错位（30→31）。
-- 示例程序 examples/data/{jsonl,xsonl}/main.c 补齐"预期输出"头注约定（term 门禁对齐）。
+- 示例程序 examples/data/{jsonl,xlonl}/main.c 补齐"预期输出"头注约定（term 门禁对齐）。
 - check_book 145/145 全绿；check_i18n 全绿（新增 G8 告警与存量各章同水位）；
   check_site 748 页 33,544 链接通过（21 个 #summary 存量锚点告警不变）。
 - 官网同步：三语言全量重建、en/ru 目录页条目/卷范围重建、孤儿页清理 222、

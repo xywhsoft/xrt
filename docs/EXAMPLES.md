@@ -172,9 +172,9 @@
 - [data/json](../examples/data/json/main.c) - `json`
 - [data/json_tour](../examples/data/json_tour/main.c) - `json`
 - [data/jsonl](../examples/data/jsonl/main.c) - `jsonl`
-- [data/xson](../examples/data/xson/main.c) - `xson`
-- [data/xson_tour](../examples/data/xson_tour/main.c) - `xson_core`
-- [data/xsonl](../examples/data/xsonl/main.c) - `xsonl`
+- [data/xlon](../examples/data/xlon/main.c) - `xlon`
+- [data/xlon_tour](../examples/data/xlon_tour/main.c) - `xlon_core`
+- [data/xlonl](../examples/data/xlonl/main.c) - `xlonl`
 
 ## environment (1)
 

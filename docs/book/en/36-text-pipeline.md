@@ -14,7 +14,7 @@ Volume 4's closing chapter does something different from the ones before: **it t
 
 ## Introduction
 
-A real need: an ops platform generates a "daily service report" from multiple sources. Source one: the service's JSON Lines logs (error counts and latency stats live in fields); source two: a stretch of semi-structured status text (version number and connection count in `key=value` form — regex territory); source three: the platform's default config (JSON) plus user overrides (XSON full types). Products: an HTML mail body (template rendering) + a plain-text summary (another template) + an archive copy (gzip-compressed to disk).
+A real need: an ops platform generates a "daily service report" from multiple sources. Source one: the service's JSON Lines logs (error counts and latency stats live in fields); source two: a stretch of semi-structured status text (version number and connection count in `key=value` form — regex territory); source three: the platform's default config (JSON) plus user overrides (XLON full types). Products: an HTML mail body (template rendering) + a plain-text summary (another template) + an archive copy (gzip-compressed to disk).
 
 Six stations, six tools; any single station looks "already learned", but connected they raise new questions: how do regex-extracted strings enter the value tree (where does type conversion happen)? How do three data sets merge into the template's input (Chapter 31 ObjectMerge's nested semantics)? Do two rendered templates need two data sets (one value tree, two templates)? At which step is archival compression done (after rendering, before writing to disk)? How do error reports locate "which field of which source"? — This chapter's body answers these station by station, along the pipeline.
 
@@ -25,7 +25,7 @@ Six stations, six tools; any single station looks "already learned", but connect
 ```diagram flow
 - Source A: JSON Lines logs -> per-line JSON parsing (SAX/DOM) -> statistics value tree
 - Source B: status text -> regex named-capture extraction -> into a value tree (string->number happens here)
-- Source C: default JSON + user XSON -> parse each -> ObjectMerge
+- Source C: default JSON + user XLON -> parse each -> ObjectMerge
 - Convergence: three value trees ObjectMerged into render data (one top-level key each, avoiding key conflicts)
 - Render: the HTML template and the plain-text template each render once (the same data)
 - Output: mail body sent directly; archive copy gzip-compressed (one-shot DeflateAll) to disk
@@ -343,7 +343,7 @@ Reproduce the composition chapter's convergence segment: hard-code three source 
 
 ### Challenge: the complete report pipeline
 
-Implement the introduction scenario's full pipeline: JSON Lines log statistics (SAX counting) + status-text extraction (regex) + config merging (JSON+XSON) + dual-template rendering + gzip archival. Acceptance criteria: five stations, each an independent function with its own unit test; fixed input produces deterministic text end-to-end (hash assertion); all three boundary gates in place; Chapter 6's statistics verify zero leaks; total code under 300 lines — the pipeline's meaning lives in that number.
+Implement the introduction scenario's full pipeline: JSON Lines log statistics (SAX counting) + status-text extraction (regex) + config merging (JSON+XLON) + dual-template rendering + gzip archival. Acceptance criteria: five stations, each an independent function with its own unit test; fixed input produces deterministic text end-to-end (hash assertion); all three boundary gates in place; Chapter 6's statistics verify zero leaks; total code under 300 lines — the pipeline's meaning lives in that number.
 
 ### From the composition chapter to Volume 4's close
 
@@ -351,7 +351,7 @@ This chapter closes Volume 4 and is also the debut of the new "composition chapt
 
 ### Volume 4 retrospective
 
-Ten chapters done; Volume 4's asset list: strings (view pipeline/builder), numbers (strict/shortest round-trip/format strings), charsets (transcoding/scalar operations), codecs (three bridges), compression (two postures/the ledger), regex (linear/two layers), value trees (currency/reference counting), JSON (three paths), XSON (full types), templates (compile-render separation) — ten modules plus this chapter's assembly skill close the loop on text and structured-data processing. The next volume enters system services (logging, IO, time, files, processes) — the layer above data; the pipeline's output end and config end will both find their home there.
+Ten chapters done; Volume 4's asset list: strings (view pipeline/builder), numbers (strict/shortest round-trip/format strings), charsets (transcoding/scalar operations), codecs (three bridges), compression (two postures/the ledger), regex (linear/two layers), value trees (currency/reference counting), JSON (three paths), XLON (full types), templates (compile-render separation) — ten modules plus this chapter's assembly skill close the loop on text and structured-data processing. The next volume enters system services (logging, IO, time, files, processes) — the layer above data; the pipeline's output end and config end will both find their home there.
 
 ## Cheat Sheet
 

@@ -1,20 +1,20 @@
 ---
 num: 34
-slug: jsonl-xsonl
-title: JSONL 与 XSONL：逐行数据
+slug: jsonl-xlonl
+title: JSONL 与 XLONL：逐行数据
 volume: 卷四 文本与结构化数据
 type: practice
 lead: 文档之后的第二种形态——一串记录、一行一条：分帧语义、双层预算、全局错误定位与原子文件。
-api: jsonl, xsonl
+api: jsonl, xlonl
 ---
 
 ## 导读
 
-第 32/33 章解决的是"**一个文档**怎么进出值树"；工程里还有第二种同样常见的形态——"**一串记录**"：服务日志一行一条事件、批量导入一行一条数据、进程间交换一行一条消息。**JSONL（JSON Lines）把每行变成一个完整 JSON 值，XSONL 把每行变成一个完整 XSON 值**——多行合起来是一个 `xvalue` Array，每行单独可解析、可定位、可跳过。它不是新解析器：单条记录的编解码规则、严格性与错误域**原样复用第 32/33 章**，新增的只有三件事——行分帧语义、跨记录的累计预算、把记录内错误位置换算成全局行号与记录下标。什么时候用"一个大文档"、什么时候用"一串记录"，本章给出选型规则。
+第 32/33 章解决的是"**一个文档**怎么进出值树"；工程里还有第二种同样常见的形态——"**一串记录**"：服务日志一行一条事件、批量导入一行一条数据、进程间交换一行一条消息。**JSONL（JSON Lines）把每行变成一个完整 JSON 值，XLONL 把每行变成一个完整 XLON 值**——多行合起来是一个 `xvalue` Array，每行单独可解析、可定位、可跳过。它不是新解析器：单条记录的编解码规则、严格性与错误域**原样复用第 32/33 章**，新增的只有三件事——行分帧语义、跨记录的累计预算、把记录内错误位置换算成全局行号与记录下标。什么时候用"一个大文档"、什么时候用"一串记录"，本章给出选型规则。
 
 ## 引入
 
-三个场景都在说同一件事：**数据的自然单位是行，不是文档**。**服务日志**：每个请求处理完追加一行事件——回放统计时逐行解析，坏行跳过并记下位置，绝不能因为第 4096 行多了个逗号丢掉整个文件。**批量导入**：千万条记录一行一条——第 32 章的 DOM 把整个文件变一棵树（内存翻几倍），SAX 能流式但没有"第几条记录"的概念；逐行格式让"解析到第 N 条失败"成为一等公民。**跨进程交换**：内部管道按行投递消息——JSON 行对外通用，XSON 行（第 33 章的 bytes/time/set/intmap）对内全类型往返。三种宿主共用同一个 API 面：读成一个 Array、写成一串行、错误带行号——**分帧是格式的事，语义还是值树的语义**。
+三个场景都在说同一件事：**数据的自然单位是行，不是文档**。**服务日志**：每个请求处理完追加一行事件——回放统计时逐行解析，坏行跳过并记下位置，绝不能因为第 4096 行多了个逗号丢掉整个文件。**批量导入**：千万条记录一行一条——第 32 章的 DOM 把整个文件变一棵树（内存翻几倍），SAX 能流式但没有"第几条记录"的概念；逐行格式让"解析到第 N 条失败"成为一等公民。**跨进程交换**：内部管道按行投递消息——JSON 行对外通用，XLON 行（第 33 章的 bytes/time/set/intmap）对内全类型往返。三种宿主共用同一个 API 面：读成一个 Array、写成一串行、错误带行号——**分帧是格式的事，语义还是值树的语义**。
 
 ## 概念
 
@@ -39,7 +39,7 @@ api: jsonl, xsonl
 | 整体输出 | MaxOutputBytes | **包含**每条追加的 LF，不含结尾 NUL |
 | 记录数 | MaxRecords | 非空记录数 = 结果 Array 元素数上限 |
 | 语法值数 | MaxTotalValues | 所有记录累计，含被重复键策略丢弃的值，不含合成的 Array |
-| 解码字节（仅 XSONL） | MaxTotalDecodedBytes | 内建 bytes 标签解码累计，分配前检查 |
+| 解码字节（仅 XLONL） | MaxTotalDecodedBytes | 内建 bytes 标签解码累计，分配前检查 |
 
 两个口径最容易踩：整体输出预算**算上 LF**（`MaxOutputBytes=1` 时第一条 `"1"` 已提交、它的 LF 就触发 LIMIT）；单条预算**不算分隔符**（一行最长 1 MiB 的配置对 `MaxInputBytes` 而言就是 1 MiB）。默认值沿用全库惯例：整体 64 MiB、记录数与语法值数 1000000——面向不可信输入时先收紧再上线。
 
@@ -51,16 +51,16 @@ api: jsonl, xsonl
 
 序列化把 Array 每个元素写成一行紧凑文本：**回调形态**（`xrtJsonlWrite`）逐块交给 sink，字节借用只在回调期间有效——适合直连网络流；**文件形态**（`xrtJsonlWriteFile`）先在内存完成全部序列化再**原子替换**目标文件——序列化失败时原文件分毫不动。两形态共用的语义边界：紧凑 + LF（PRETTY 被拒绝）、根必须是 `XVALUE_ARRAY`、配置按值快照（回调里改配置不影响进行中的调用）。
 
-### JSONL 还是 XSONL，还是不用逐行
+### JSONL 还是 XLONL，还是不用逐行
 
 | 场景 | 选择 | 理由 |
 | --- | --- | --- |
 | 对外日志 / 开放数据 | JSONL | 任何 `jq`/脚本/异构客户端都能逐行消费 |
-| 内部日志与管道 | XSONL | bytes/time/set 原样落行，回放零转换 |
+| 内部日志与管道 | XLONL | bytes/time/set 原样落行，回放零转换 |
 | 一份配置、整体加载 | 第 32/33 章文档 | 单文档语义（重复键策略、SAX/Writer 全路径） |
 | 单条巨大（>几 MiB） | 文档 + 流式 | 逐行格式的预算按"行"收紧时会被单条顶爆 |
 
-选型变量与第 33 章同构：**接收方可控 → XSONL 全类型；不可控 → JSONL 互操作**；数据本来是"一个配置"就别拆成行，本来是"一串事件"就别硬塞进一个大数组。
+选型变量与第 33 章同构：**接收方可控 → XLONL 全类型；不可控 → JSONL 互操作**；数据本来是"一个配置"就别拆成行，本来是"一串事件"就别硬塞进一个大数组。
 
 ## 示例
 
@@ -79,24 +79,24 @@ empty line: line=2 record=1
 
 **刚才发生了什么。** ① 分帧实证：输入混合了空行与 CRLF/LF——3 条记录（对象、数组、null）一条不少，20 字节是紧凑输出的实际大小（每条含 LF）。② 空行策略：默认跳过空行后 `Valid`/`Read` 全绿；把 `XJSONL_READ_REJECT_EMPTY_LINES` 打开，`"{}\n\n"` 立刻在第二条记录前的空行处失败。③ 全局定位：错误位置给出 `line=2 record=1`——空行在第 2 行、它截断的是第 1 条记录之后的位置；调用方拿到的是"改哪一行"而不是一段字节区间。④ 文件闭环：`StringifyFile` 原子替换 → `ParseFile` 读回 → `WriteFile`（带配置）再替换 → `ReadFile` 再读回——失败路径任一步出错原文件都保持上次完整状态。
 
-### 完整程序：XSONL 逐行读写
+### 完整程序：XLONL 逐行读写
 
-来自 `examples/data/xsonl/main.c`——同一套分帧与预算机器，单条规则换成 XSON：
+来自 `examples/data/xlonl/main.c`——同一套分帧与预算机器，单条规则换成 XLON：
 
-```embed path="examples/data/xsonl/main.c" title="examples/data/xsonl/main.c"
+```embed path="examples/data/xlonl/main.c" title="examples/data/xlonl/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -I single impl.c examples/data/xsonl/main.c -lws2_32 -liphlpapi
-XSONL: 3 records, 20 bytes
+$ gcc -O1 -DXRT_MODULE_ALL -I single impl.c examples/data/xlonl/main.c -lws2_32 -liphlpapi
+XLONL: 3 records, 20 bytes
 empty line: line=2 record=1
 ```
 
-**刚才发生了什么。** 流程与 jsonl 范例逐行同构——这不是偷懒，是**设计承诺的实证**：换格式不换分帧、不换预算结构、不换错误定位，API 形状一一对应。区别在单条语义：这里的每行是完整 XSON 值，第 33 章的四种扩展类型可以直接进出行流——
+**刚才发生了什么。** 流程与 jsonl 范例逐行同构——这不是偷懒，是**设计承诺的实证**：换格式不换分帧、不换预算结构、不换错误定位，API 形状一一对应。区别在单条语义：这里的每行是完整 XLON 值，第 33 章的四种扩展类型可以直接进出行流——
 
 ```c
-/* XSONL 行流里的全类型记录：解析回值树后各就各位 */
-xvalue* pLog = xrtXsonlParse(XRT_STR_LITERAL(
+/* XLONL 行流里的全类型记录：解析回值树后各就各位 */
+xvalue* pLog = xrtXlonlParse(XRT_STR_LITERAL(
     "{\"key\":bytes(\"AAEC/w==\"),\"at\":time(\"2026-07-31T00:00:00Z\")}\n"
     "set[80, 443]\n"));
 /* pLog[0] 是对象（Bytes/Time 字段），pLog[1] 是 set 容器——逐行回放零转换 */
@@ -115,7 +115,7 @@ xvalue* pLog = xrtXsonlParse(XRT_STR_LITERAL(
 
 ### 从示例到工程：逐行数据的三个宿主
 
-**服务日志**（最常见）：写侧每个事件 `Stringify` 一行追加或 `Write` 直连 sink；读侧 `Parse` 成 Array 做离线统计，坏行用 `ErrorLocation` 记进审计日志继续跑。**批量导入**：`Read` 一次拿到全部合法记录（失败即整体失败、报告到行），或按块切文本逐块 `Parse` 实现"跳过坏块继续导入"——两种语义都建立在"行即边界"上。**进程间行流**：与第 33 章选型规则同构——对外 JSONL、对内 XSONL；行流天然匹配文本管道（`grep`/重定向/逐行网关），这是文档格式给不了的运维性质。
+**服务日志**（最常见）：写侧每个事件 `Stringify` 一行追加或 `Write` 直连 sink；读侧 `Parse` 成 Array 做离线统计，坏行用 `ErrorLocation` 记进审计日志继续跑。**批量导入**：`Read` 一次拿到全部合法记录（失败即整体失败、报告到行），或按块切文本逐块 `Parse` 实现"跳过坏块继续导入"——两种语义都建立在"行即边界"上。**进程间行流**：与第 33 章选型规则同构——对外 JSONL、对内 XLONL；行流天然匹配文本管道（`grep`/重定向/逐行网关），这是文档格式给不了的运维性质。
 
 ### 一个对照：同一批事件的两种落盘
 
@@ -136,8 +136,8 @@ xrtJsonlStringify(pArray, &Size);   /* 整体失败：根值不可表达不能�
 
 ```c good
 /* 写前过滤：把不可表达的记录摘出去，或按约定降级成占位对象 */
-/* 对外通道全 JSON 类型；内部通道直接用 XSONL——扩展类型原生可表达 */
-str Text = xrtXsonlStringify(pArray, &Size);
+/* 对外通道全 JSON 类型；内部通道直接用 XLONL——扩展类型原生可表达 */
+str Text = xrtXlonlStringify(pArray, &Size);
 ```
 
 ### 坑 2：以为回调写出的失败能"回滚"已写内容
@@ -181,5 +181,5 @@ if ( !xrtJsonlWriteFile(Path, pArray, &Write) ) { /* 原文件未动，修数据
 | 定位 | 零基偏移 + 一基行列 + 零基记录下标；空行错误指向下一待接收记录 |
 | 读 | 全成或全败（不返回部分 Array）；`Valid` 无 DOM 校验不参与重复键策略 |
 | 写 | 紧凑 + LF（PRETTY 拒绝）；回调流式 / 文件原子替换；已提交字节不可撤回 |
-| 选型 | 事件流→逐行（外 JSONL / 内 XSONL）；配置→第 32/33 章文档 |
-| XSONL 差量 | 单条=XSON 规则；`MaxTotalDecodedBytes` 管内建 bytes 解码总量 |
+| 选型 | 事件流→逐行（外 JSONL / 内 XLONL）；配置→第 32/33 章文档 |
+| XLONL 差量 | 单条=XLON 规则；`MaxTotalDecodedBytes` 管内建 bytes 解码总量 |

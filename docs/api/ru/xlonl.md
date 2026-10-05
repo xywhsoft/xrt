@@ -1,18 +1,18 @@
-# XSONL
+# XLONL
 
-XSONL преобразует последовательность записей, разделённых по строкам, в Array xvalue и обратно — по одному элементу на запись; отдельные значения следуют правилам типов и кодирования XSON. Подходит для журналов, массового импорта и обмена файлами.
+XLONL преобразует последовательность записей, разделённых по строкам, в Array xvalue и обратно — по одному элементу на запись; отдельные значения следуют правилам типов и кодирования XLON. Подходит для журналов, массового импорта и обмена файлами.
 
 ## Обрезка и зависимости
 
 | Публичный макрос выбора | Макрос реализации | Прямые зависимости |
 |---|---|---|
-| `XRT_MODULE_XSONL_CORE` | `XRT_FEATURE_XSONL_CORE` | core |
-| `XRT_MODULE_XSONL_READ` | `XRT_FEATURE_XSONL_READ` | xsonl_core, xson_read |
-| `XRT_MODULE_XSONL_WRITE` | `XRT_FEATURE_XSONL_WRITE` | xsonl_core, xson_write |
-| `XRT_MODULE_XSONL_FILE` | `XRT_FEATURE_XSONL_FILE` | xsonl_read, xsonl_write, file_whole |
-| `XRT_MODULE_XSONL` | `XRT_FEATURE_XSONL` | xsonl_file |
+| `XRT_MODULE_XLONL_CORE` | `XRT_FEATURE_XLONL_CORE` | core |
+| `XRT_MODULE_XLONL_READ` | `XRT_FEATURE_XLONL_READ` | xlonl_core, xlon_read |
+| `XRT_MODULE_XLONL_WRITE` | `XRT_FEATURE_XLONL_WRITE` | xlonl_core, xlon_write |
+| `XRT_MODULE_XLONL_FILE` | `XRT_FEATURE_XLONL_FILE` | xlonl_read, xlonl_write, file_whole |
+| `XRT_MODULE_XLONL` | `XRT_FEATURE_XLONL` | xlonl_file |
 
-Заголовочный файл — `<xrt/xsonl.h>`, его можно подключить и через зонтичный `<xrt.h>`. Выбор только чтения или только записи не подключает файловый модуль.
+Заголовочный файл — `<xrt/xlonl.h>`, его можно подключить и через зонтичный `<xrt.h>`. Выбор только чтения или только записи не подключает файловый модуль.
 
 ## Стабильный контракт
 
@@ -23,10 +23,10 @@ XSONL преобразует последовательность записей
 - Десериализация передаёт владение Array только после успеха всех записей; при ошибке возвращается C NULL и освобождаются все частичные результаты.
 - Корнем сериализации должен быть `XVALUE_ARRAY`; null, пустая строка и пустые контейнеры — настоящие записи. Стратегия SKIP не может пропустить всю запись, она действует только внутри одного корневого значения.
 - Вывод компактный, к каждой записи добавляется LF, пустой Array даёт ноль байт. Конфигурация PRETTY отвергается. Конфигурация снимается по значению; изменение исходной конфигурации в обратном вызове не влияет на текущий вызов.
-- `Valid` повторяет синтаксическую проверку XSON без построения DOM: пустые строки игнорируются, проверяются накопительные бюджеты по умолчанию и встроенные теги, политика повторных ключей DOM не участвует.
+- `Valid` повторяет синтаксическую проверку XLON без построения DOM: пустые строки игнорируются, проверяются накопительные бюджеты по умолчанию и встроенные теги, политика повторных ключей DOM не участвует.
 - Файловая запись сначала полностью сериализует в памяти, затем атомарно заменяет файл; при ошибке сериализации цель не изменяется. Синхронный вывод через обратный вызов может успеть зафиксировать часть записей до ошибки; эти байты нельзя откатить.
 - Однострочные комментарии и висячие запятые — расширения совместимости, включаемые только внутри Record; они не могут продолжаться между физическими строками.
-- XSONL поддерживает теги bytes, time, set, intmap и не конечные float, а также явные пользовательские вызовы кодирования; объекты и побочные эффекты, созданные пользовательскими вызовами, лежат на ответственности вызывающего, накопительный бюджет значений считает входные синтаксические значения без обхода созданных вызовами объектов, а накопительный бюджет декодирования считает только встроенные теги bytes.
+- XLONL поддерживает теги bytes, time, set, intmap и не конечные float, а также явные пользовательские вызовы кодирования; объекты и побочные эффекты, созданные пользовательскими вызовами, лежат на ответственности вызывающего, накопительный бюджет значений считает входные синтаксические значения без обхода созданных вызовами объектов, а накопительный бюджет декодирования считает только встроенные теги bytes.
 
 Потоки и владение: API не содержит неявных блокировок; каждый вызов владеет независимым рабочим пространством, совместный изменяемый ввод синхронизирует вызывающий. Запись выполняется по снимку backing внешнего Array, поэтому во время обратных вызовов действуют правила владения поддеревом Value. Текст ввода и конфигурация заимствуются до возврата вызова; результирующий Array освобождается через `xrtValueRelease`, результирующая строка — через `xrtFree`. Выходной обратный вызов потребляет байты до возврата.
 
@@ -34,49 +34,49 @@ XSONL преобразует последовательность записей
 
 | Константа | Значение | Смысл |
 |---|---|---|
-| `XXSONL_READ_REJECT_EMPTY_LINES` | `UINT32_C(0x00000001)` | Пустые строки становятся ошибкой; по умолчанию выключено. |
+| `XXLONL_READ_REJECT_EMPTY_LINES` | `UINT32_C(0x00000001)` | Пустые строки становятся ошибкой; по умолчанию выключено. |
 
-Конфигурация обязана быть инициализирована через Init; все бюджеты ненулевые. Значения Record по умолчанию задают существующие функции инициализации XSON. Общий ввод/вывод по умолчанию 64 МиБ; количество записей и синтаксических значений — 1000000. Накопительный бюджет декодирования встроенных тегов bytes по умолчанию 64 МиБ.
+Конфигурация обязана быть инициализирована через Init; все бюджеты ненулевые. Значения Record по умолчанию задают существующие функции инициализации XLON. Общий ввод/вывод по умолчанию 64 МиБ; количество записей и синтаксических значений — 1000000. Накопительный бюджет декодирования встроенных тегов bytes по умолчанию 64 МиБ.
 
 ## Типы
 
-### `xxsonlerror`
+### `xxlonlerror`
 
 ```c
-typedef enum xxsonlerror {
-	XXSONL_ERROR_CONFIG = 1801,
-	XXSONL_ERROR_SYNTAX,
-	XXSONL_ERROR_LIMIT,
-	XXSONL_ERROR_RECORD,
-	XXSONL_ERROR_TYPE,
-	XXSONL_ERROR_OUTPUT,
-	XXSONL_ERROR_IO,
-	XXSONL_ERROR_STATE
-} xxsonlerror;
+typedef enum xxlonlerror {
+	XXLONL_ERROR_CONFIG = 1801,
+	XXLONL_ERROR_SYNTAX,
+	XXLONL_ERROR_LIMIT,
+	XXLONL_ERROR_RECORD,
+	XXLONL_ERROR_TYPE,
+	XXLONL_ERROR_OUTPUT,
+	XXLONL_ERROR_IO,
+	XXLONL_ERROR_STATE
+} xxlonlerror;
 ```
 
-Ошибки получаются через `xrtGetError()` с доменом формата `xrt.xsonl`; ошибки аргументов и нижележащий OOM могут напрямую возвращаться как ошибки Core. Обёртки RECORD/OUTPUT/IO сохраняют Kind причины. Если выделение памяти для самой обёртки не удалось, сохраняется исходная ошибка-причина; данные о позиции не гарантируются.
+Ошибки получаются через `xrtGetError()` с доменом формата `xrt.xlonl`; ошибки аргументов и нижележащий OOM могут напрямую возвращаться как ошибки Core. Обёртки RECORD/OUTPUT/IO сохраняют Kind причины. Если выделение памяти для самой обёртки не удалось, сохраняется исходная ошибка-причина; данные о позиции не гарантируются.
 
 | Значение | Смысл |
 |---|---|
-| `XXSONL_ERROR_CONFIG` | Конфигурация не инициализирована, ненулевые зарезервированные биты, нулевой бюджет или включён PRETTY. |
-| `XXSONL_ERROR_SYNTAX` | Пустая строка в строгом режиме пустых строк. |
-| `XXSONL_ERROR_LIMIT` | Исчерпан общий или одиночный бюджет. |
-| `XXSONL_ERROR_RECORD` | Ошибка кодирования/декодирования одного значения или добавления его в Array; Cause сохраняет конкретную причину. |
-| `XXSONL_ERROR_TYPE` | Корень сериализации не Array. |
-| `XXSONL_ERROR_OUTPUT` | Ошибка синхронного выходного обратного вызова. |
-| `XXSONL_ERROR_IO` | Ошибка чтения файла с лимитом или атомарной замены файла. |
-| `XXSONL_ERROR_STATE` | Зарезервированный код ошибки состояния построчной обработки. |
+| `XXLONL_ERROR_CONFIG` | Конфигурация не инициализирована, ненулевые зарезервированные биты, нулевой бюджет или включён PRETTY. |
+| `XXLONL_ERROR_SYNTAX` | Пустая строка в строгом режиме пустых строк. |
+| `XXLONL_ERROR_LIMIT` | Исчерпан общий или одиночный бюджет. |
+| `XXLONL_ERROR_RECORD` | Ошибка кодирования/декодирования одного значения или добавления его в Array; Cause сохраняет конкретную причину. |
+| `XXLONL_ERROR_TYPE` | Корень сериализации не Array. |
+| `XXLONL_ERROR_OUTPUT` | Ошибка синхронного выходного обратного вызова. |
+| `XXLONL_ERROR_IO` | Ошибка чтения файла с лимитом или атомарной замены файла. |
+| `XXLONL_ERROR_STATE` | Зарезервированный код ошибки состояния построчной обработки. |
 
-### `xxsonllocation`
+### `xxlonllocation`
 
 ```c
-typedef struct xxsonllocation {
+typedef struct xxlonllocation {
 	size_t Offset;
 	size_t Line;
 	size_t Column;
 	size_t RecordIndex;
-} xxsonllocation;
+} xxlonllocation;
 ```
 
 | Поле | Тип | Смысл |
@@ -86,70 +86,70 @@ typedef struct xxsonllocation {
 | `Column` | `size_t` | Номер байта UTF-8 в текущей физической строке, с единицы; не в символах Юникода. |
 | `RecordIndex` | `size_t` | Индекс записи с нуля; пустые строки его не увеличивают, ошибка пустой строки указывает на индекс следующей ожидаемой записи. |
 
-### `xxsonlreadflag`
+### `xxlonlreadflag`
 
 ```c
-typedef enum xxsonlreadflag {
-	XXSONL_READ_REJECT_EMPTY_LINES = UINT32_C(0x00000001)
-} xxsonlreadflag;
+typedef enum xxlonlreadflag {
+	XXLONL_READ_REJECT_EMPTY_LINES = UINT32_C(0x00000001)
+} xxlonlreadflag;
 ```
 
 | Значение | Смысл |
 |---|---|
-| `XXSONL_READ_REJECT_EMPTY_LINES` | Превращает игнорируемые по умолчанию пустые строки в синтаксические ошибки. |
+| `XXLONL_READ_REJECT_EMPTY_LINES` | Превращает игнорируемые по умолчанию пустые строки в синтаксические ошибки. |
 
-### `xxsonlreadconfig`
+### `xxlonlreadconfig`
 
 ```c
-typedef struct xxsonlreadconfig {
-	xxsonreadconfig Record;
+typedef struct xxlonlreadconfig {
+	xxlonreadconfig Record;
 	uint32 Flags;
 	size_t MaxInputBytes;
 	size_t MaxRecords;
 	size_t MaxTotalValues;
 	size_t MaxTotalDecodedBytes;
 	uint32 Reserved[4];
-} xxsonlreadconfig;
+} xxlonlreadconfig;
 ```
 
 | Поле | Тип | Смысл |
 |---|---|---|
-| `Record` | `xxsonreadconfig` | Конфигурация одной записи; MaxInputBytes/MaxOutputBytes не включают разделители CRLF/LF, глубина считается от корня каждой записи. |
-| `Flags` | `uint32` | По умолчанию 0; XXSONL_READ_REJECT_EMPTY_LINES включает ошибки пустых строк. |
+| `Record` | `xxlonreadconfig` | Конфигурация одной записи; MaxInputBytes/MaxOutputBytes не включают разделители CRLF/LF, глубина считается от корня каждой записи. |
+| `Flags` | `uint32` | По умолчанию 0; XXLONL_READ_REJECT_EMPTY_LINES включает ошибки пустых строк. |
 | `MaxInputBytes` | `size_t` | Предел всего исходного ввода, включая игнорируемые пустые строки и все разделители; по умолчанию 64 МиБ. |
 | `MaxRecords` | `size_t` | Предел числа непустых записей, равен максимальному числу элементов результирующего Array; по умолчанию 1000000. |
 | `MaxTotalValues` | `size_t` | Накопительный предел синтаксических значений по всем записям, включая отброшенные политикой повторных ключей и исключая синтезируемый Array; по умолчанию 1000000. |
 | `MaxTotalDecodedBytes` | `size_t` | Предел накопительных декодированных байт встроенных тегов bytes, проверяется перед выделением буфера; по умолчанию 64 МиБ. |
 | `Reserved` | `uint32[4]` | Зарезервированное место; должно быть целиком нулевым. |
 
-### `xxsonlwriteconfig`
+### `xxlonlwriteconfig`
 
 ```c
-typedef struct xxsonlwriteconfig {
-	xxsonwriteconfig Record;
+typedef struct xxlonlwriteconfig {
+	xxlonwriteconfig Record;
 	size_t MaxOutputBytes;
 	size_t MaxRecords;
 	uint32 Reserved[4];
-} xxsonlwriteconfig;
+} xxlonlwriteconfig;
 ```
 
 | Поле | Тип | Смысл |
 |---|---|---|
-| `Record` | `xxsonwriteconfig` | Конфигурация одной записи; MaxInputBytes/MaxOutputBytes не включают разделители CRLF/LF, глубина считается от корня каждой записи. |
+| `Record` | `xxlonwriteconfig` | Конфигурация одной записи; MaxInputBytes/MaxOutputBytes не включают разделители CRLF/LF, глубина считается от корня каждой записи. |
 | `MaxOutputBytes` | `size_t` | Предел всех выходных байт, включая каждый LF и исключая завершающий NUL результата; по умолчанию 64 МиБ. |
 | `MaxRecords` | `size_t` | Предел числа непустых записей, равен максимальному числу элементов результирующего Array; по умолчанию 1000000. |
 | `Reserved` | `uint32[4]` | Зарезервированное место; должно быть целиком нулевым. |
 
 ## Текст, конфигурация и файловые интерфейсы
 
-### `xrtXsonlErrorLocation`
+### `xrtXlonlErrorLocation`
 
 Читает глобальное байтовое смещение, физические строку/столбец с единицы и индекс записи с нуля; без позиции вывод не изменяется.
 
 ```c
-bool xrtXsonlErrorLocation(
+bool xrtXlonlErrorLocation(
 	const xerror* pError,
-	xxsonllocation* pLocation
+	xxlonllocation* pLocation
 );
 ```
 
@@ -173,19 +173,19 @@ bool xrtXsonlErrorLocation(
 
 #### Пример
 
-[xsonl](../../examples/data/xsonl/main.c) · Вызов xrtXsonlErrorLocation в полной программе; при ошибке переход к единой очистке.
+[xlonl](../../examples/data/xlonl/main.c) · Вызов xrtXlonlErrorLocation в полной программе; при ошибке переход к единой очистке.
 
 ```c
-if ( !xrtXsonlErrorLocation(xrtGetError(), &Location) ) goto done;
+if ( !xrtXlonlErrorLocation(xrtGetError(), &Location) ) goto done;
 ```
 
-### `xrtXsonlReadConfigInit`
+### `xrtXlonlReadConfigInit`
 
 Инициализирует пропуск пустых строк по умолчанию, строгий синтаксис одной записи и ограниченные накопительные бюджеты.
 
 ```c
-void xrtXsonlReadConfigInit(
-	xxsonlreadconfig* pConfig
+void xrtXlonlReadConfigInit(
+	xxlonlreadconfig* pConfig
 );
 ```
 
@@ -207,18 +207,18 @@ void xrtXsonlReadConfigInit(
 
 #### Пример
 
-[xsonl](../../examples/data/xsonl/main.c) · Вызов xrtXsonlReadConfigInit в полной программе; при ошибке переход к единой очистке.
+[xlonl](../../examples/data/xlonl/main.c) · Вызов xrtXlonlReadConfigInit в полной программе; при ошибке переход к единой очистке.
 
 ```c
-xrtXsonlReadConfigInit(&Read);
+xrtXlonlReadConfigInit(&Read);
 ```
 
-### `xrtXsonlParse`
+### `xrtXlonlParse`
 
 Разбирает последовательность записей с конфигурацией по умолчанию; при успехе возвращает Array во владение, пустой ввод даёт пустой Array.
 
 ```c
-xvalue* xrtXsonlParse(
+xvalue* xrtXlonlParse(
 	xstrview Text
 );
 ```
@@ -246,21 +246,21 @@ xvalue* xrtXsonlParse(
 
 #### Пример
 
-[xsonl](../../examples/data/xsonl/main.c) · Вызов xrtXsonlParse в полной программе; при ошибке переход к единой очистке.
+[xlonl](../../examples/data/xlonl/main.c) · Вызов xrtXlonlParse в полной программе; при ошибке переход к единой очистке.
 
 ```c
-pArray = xrtXsonlParse(XRT_STR_LITERAL("{\"id\":1}\n\n[2,3]\r\nnull\n"));
+pArray = xrtXlonlParse(XRT_STR_LITERAL("{\"id\":1}\n\n[2,3]\r\nnull\n"));
 if ( pArray == NULL ) goto done;
 ```
 
-### `xrtXsonlRead`
+### `xrtXlonlRead`
 
 Разбирает все записи по конфигурации; при ошибке освобождает частичные результаты и возвращает NULL. Результат освобождается через xrtValueRelease.
 
 ```c
-xvalue* xrtXsonlRead(
+xvalue* xrtXlonlRead(
 	xstrview Text,
-	const xxsonlreadconfig* pConfig
+	const xxlonlreadconfig* pConfig
 );
 ```
 
@@ -288,19 +288,19 @@ xvalue* xrtXsonlRead(
 
 #### Пример
 
-[xsonl](../../examples/data/xsonl/main.c) · Вызов xrtXsonlRead в полной программе; при ошибке переход к единой очистке.
+[xlonl](../../examples/data/xlonl/main.c) · Вызов xrtXlonlRead в полной программе; при ошибке переход к единой очистке.
 
 ```c
-pRead = xrtXsonlRead((xstrview){ Text, Size }, &Read);
+pRead = xrtXlonlRead((xstrview){ Text, Size }, &Read);
 if ( pRead == NULL ) goto done;
 ```
 
-### `xrtXsonlValid`
+### `xrtXlonlValid`
 
 По умолчанию игнорирует пустые строки и проверяет построчный синтаксис и накопительные бюджеты без построения DOM Value; политика повторных ключей не участвует.
 
 ```c
-bool xrtXsonlValid(
+bool xrtXlonlValid(
 	xstrview Text
 );
 ```
@@ -328,19 +328,19 @@ bool xrtXsonlValid(
 
 #### Пример
 
-[xsonl](../../examples/data/xsonl/main.c) · Вызов xrtXsonlValid в полной программе; при ошибке переход к единой очистке.
+[xlonl](../../examples/data/xlonl/main.c) · Вызов xrtXlonlValid в полной программе; при ошибке переход к единой очистке.
 
 ```c
-if ( !xrtXsonlValid((xstrview){ Text, Size }) ) goto done;
+if ( !xrtXlonlValid((xstrview){ Text, Size }) ) goto done;
 ```
 
-### `xrtXsonlWriteConfigInit`
+### `xrtXlonlWriteConfigInit`
 
 Инициализирует компактный построчный вывод, разделение LF и ограниченные накопительные бюджеты; конфигурация PRETTY недопустима.
 
 ```c
-void xrtXsonlWriteConfigInit(
-	xxsonlwriteconfig* pConfig
+void xrtXlonlWriteConfigInit(
+	xxlonlwriteconfig* pConfig
 );
 ```
 
@@ -362,18 +362,18 @@ void xrtXsonlWriteConfigInit(
 
 #### Пример
 
-[xsonl](../../examples/data/xsonl/main.c) · Вызов xrtXsonlWriteConfigInit в полной программе; при ошибке переход к единой очистке.
+[xlonl](../../examples/data/xlonl/main.c) · Вызов xrtXlonlWriteConfigInit в полной программе; при ошибке переход к единой очистке.
 
 ```c
-xrtXsonlWriteConfigInit(&Write);
+xrtXlonlWriteConfigInit(&Write);
 ```
 
-### `xrtXsonlStringify`
+### `xrtXlonlStringify`
 
 Записывает каждый элемент Array одной строкой; возвращает завершённый NUL текст, освобождаемый через xrtFree. При ошибке необязательный pSize не изменяется.
 
 ```c
-str xrtXsonlStringify(
+str xrtXlonlStringify(
 	const xvalue* pArray,
 	size_t* pSize
 );
@@ -404,22 +404,22 @@ str xrtXsonlStringify(
 
 #### Пример
 
-[xsonl](../../examples/data/xsonl/main.c) · Вызов xrtXsonlStringify в полной программе; при ошибке переход к единой очистке.
+[xlonl](../../examples/data/xlonl/main.c) · Вызов xrtXlonlStringify в полной программе; при ошибке переход к единой очистке.
 
 ```c
-Text = xrtXsonlStringify(pArray, &Size);
+Text = xrtXlonlStringify(pArray, &Size);
 if ( Text == NULL ) goto done;
 ```
 
-### `xrtXsonlWrite`
+### `xrtXlonlWrite`
 
 Выводит каждую запись и её LF в синхронный обратный вызов по кускам; заимствованные байты действительны только во время вызова, зафиксированные до ошибки байты откатить нельзя.
 
 ```c
-bool xrtXsonlWrite(
+bool xrtXlonlWrite(
 	const xvalue* pArray,
-	const xxsonlwriteconfig* pConfig,
-	xxsonwriteproc pWrite,
+	const xxlonlwriteconfig* pConfig,
+	xxlonwriteproc pWrite,
 	ptr pUserData
 );
 ```
@@ -452,18 +452,18 @@ bool xrtXsonlWrite(
 
 #### Пример
 
-[xsonl](../../examples/data/xsonl/main.c) · Вызов xrtXsonlWrite в полной программе; при ошибке переход к единой очистке.
+[xlonl](../../examples/data/xlonl/main.c) · Вызов xrtXlonlWrite в полной программе; при ошибке переход к единой очистке.
 
 ```c
-if ( !xrtXsonlWrite(pArray, &Write, discard, NULL) ) goto done;
+if ( !xrtXlonlWrite(pArray, &Write, discard, NULL) ) goto done;
 ```
 
-### `xrtXsonlParseFile`
+### `xrtXlonlParseFile`
 
 Читает файл с лимитом по умолчанию и возвращает Array во владение.
 
 ```c
-xvalue* xrtXsonlParseFile(
+xvalue* xrtXlonlParseFile(
 	cstr sPath
 );
 ```
@@ -492,21 +492,21 @@ xvalue* xrtXsonlParseFile(
 
 #### Пример
 
-[xsonl](../../examples/data/xsonl/main.c) · Вызов xrtXsonlParseFile в полной программе; при ошибке переход к единой очистке.
+[xlonl](../../examples/data/xlonl/main.c) · Вызов xrtXlonlParseFile в полной программе; при ошибке переход к единой очистке.
 
 ```c
-pRead = xrtXsonlParseFile(Path);
+pRead = xrtXlonlParseFile(Path);
 if ( pRead == NULL ) goto done;
 ```
 
-### `xrtXsonlReadFile`
+### `xrtXlonlReadFile`
 
 Читает файл с общим лимитом ввода и разбирает построчно; при ошибке частичный Array не возвращается.
 
 ```c
-xvalue* xrtXsonlReadFile(
+xvalue* xrtXlonlReadFile(
 	cstr sPath,
-	const xxsonlreadconfig* pConfig
+	const xxlonlreadconfig* pConfig
 );
 ```
 
@@ -535,19 +535,19 @@ xvalue* xrtXsonlReadFile(
 
 #### Пример
 
-[xsonl](../../examples/data/xsonl/main.c) · Вызов xrtXsonlReadFile в полной программе; при ошибке переход к единой очистке.
+[xlonl](../../examples/data/xlonl/main.c) · Вызов xrtXlonlReadFile в полной программе; при ошибке переход к единой очистке.
 
 ```c
-pRead = xrtXsonlReadFile(Path, &Read);
+pRead = xrtXlonlReadFile(Path, &Read);
 if ( pRead == NULL ) goto done;
 ```
 
-### `xrtXsonlStringifyFile`
+### `xrtXlonlStringifyFile`
 
 Полностью сериализует Array с конфигурацией по умолчанию, затем атомарно заменяет файл.
 
 ```c
-bool xrtXsonlStringifyFile(
+bool xrtXlonlStringifyFile(
 	cstr sPath,
 	const xvalue* pArray
 );
@@ -579,21 +579,21 @@ bool xrtXsonlStringifyFile(
 
 #### Пример
 
-[xsonl](../../examples/data/xsonl/main.c) · Вызов xrtXsonlStringifyFile в полной программе; при ошибке переход к единой очистке.
+[xlonl](../../examples/data/xlonl/main.c) · Вызов xrtXlonlStringifyFile в полной программе; при ошибке переход к единой очистке.
 
 ```c
-if ( !xrtXsonlStringifyFile(Path, pArray) ) goto done;
+if ( !xrtXlonlStringifyFile(Path, pArray) ) goto done;
 ```
 
-### `xrtXsonlWriteFile`
+### `xrtXlonlWriteFile`
 
 Полностью сериализует с расширенной конфигурацией, затем атомарно заменяет файл; при ошибке сериализации исходный файл сохраняется.
 
 ```c
-bool xrtXsonlWriteFile(
+bool xrtXlonlWriteFile(
 	cstr sPath,
 	const xvalue* pArray,
-	const xxsonlwriteconfig* pConfig
+	const xxlonlwriteconfig* pConfig
 );
 ```
 
@@ -624,9 +624,9 @@ bool xrtXsonlWriteFile(
 
 #### Пример
 
-[xsonl](../../examples/data/xsonl/main.c) · Вызов xrtXsonlWriteFile в полной программе; при ошибке переход к единой очистке.
+[xlonl](../../examples/data/xlonl/main.c) · Вызов xrtXlonlWriteFile в полной программе; при ошибке переход к единой очистке.
 
 ```c
-if ( !xrtXsonlWriteFile(Path, pArray, &Write) ) goto done;
+if ( !xrtXlonlWriteFile(Path, pArray, &Write) ) goto done;
 ```
 

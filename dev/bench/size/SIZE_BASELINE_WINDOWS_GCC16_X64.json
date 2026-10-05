@@ -307,8 +307,8 @@
       }
     },
     "data": {
-      "suite": "json,xson",
-      "description": "JSON、XSON 和动态值持久化",
+      "suite": "json,xlon",
+      "description": "JSON、XLON 和动态值持久化",
       "forbid_symbols": [],
       "kinds": {
         "single": {
@@ -327,7 +327,7 @@
           "members": 45,
           "load": 275780,
           "file": 474916,
-          "path": "release/gnu/x64/json,xson/static/libxrt.a"
+          "path": "release/gnu/x64/json,xlon/static/libxrt.a"
         },
         "shared": {
           "text": 368074,
@@ -336,7 +336,7 @@
           "members": 1,
           "load": 369930,
           "file": 495063,
-          "path": "release/gnu/x64/json,xson/shared/xrt.dll"
+          "path": "release/gnu/x64/json,xlon/shared/xrt.dll"
         }
       }
     },

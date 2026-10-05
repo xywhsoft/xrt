@@ -27,8 +27,8 @@
 - [设计总览](DESIGN.md)：选择模块、组织资源生命周期，并确定核心与扩展的边界。
 - [运行时架构](ARCHITECTURE.md)
 - [HTTP 运行时](design/http-runtime.md)
-- [JSON 与 XSON](design/json-xson.md)
-- [JSONL](api/jsonl.md) 与 [XSONL](api/xsonl.md)：逐行记录与 Array 转换。
+- [JSON 与 XLON](design/json-xlon.md)
+- [JSONL](api/jsonl.md) 与 [XLONL](api/xlonl.md)：逐行记录与 Array 转换。
 - [日志](design/logger.md)
 - [进程](design/process.md)
 - [Pattern](design/pattern.md)

@@ -43,7 +43,7 @@ The first and most important decision — **what configuration is in memory**:
 ```diagram flow
 - Source layer: files (Chapter 45 xfile reads) / HTTP (Chapters 98-100 xhttp client)
   - unified behind a "fetch a byte stream" interface: sources are pluggable
-- Parse layer: JSON (Chapter 32) -> an xvalue tree; XSON (Chapter 33) reserved as an extension
+- Parse layer: JSON (Chapter 32) -> an xvalue tree; XLON (Chapter 33) reserved as an extension
 - Merge layer: deep merge of two value trees (objects recurse / arrays replace - semantics explicit)
 - Template layer: environment-variable expansion of string values (Chapter 25 strings + Chapter 43 environment)
 - Validation layer: a rule set (required / type / range) -> errors with paths (Chapter 4)

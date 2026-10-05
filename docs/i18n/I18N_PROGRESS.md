@@ -54,7 +54,7 @@
 | 30 | en | 30-regex.md | 0.72 | 16/17 | I13 |
 | 31 | en | 31-value.md | 0.78 | 21/21 | I13 |
 | 32 | en | 32-json.md | 0.80 | 19/19 | I13 |
-| 33 | en | 33-xson.md | 0.76 | 19/20 | I13 |
+| 33 | en | 33-xlon.md | 0.76 | 19/20 | I13 |
 | 34 | en | 34-template.md | 0.72 | 14/15 | I13 |
 | 35 | en | 35-text-pipeline.md | 0.69 | 16/17 | I13 |
 | 24 | ru | 24-vol4-intro.md | 0.64 | 14/15 | I14 |
@@ -66,7 +66,7 @@
 | 30 | ru | 30-regex.md | 0.66 | 16/17 | I14 |
 | 31 | ru | 31-value.md | 0.72 | 20/21 | I14 |
 | 32 | ru | 32-json.md | 0.75 | 19/19 | I14 |
-| 33 | ru | 33-xson.md | 0.72 | 20/21 | I14 |
+| 33 | ru | 33-xlon.md | 0.72 | 20/21 | I14 |
 | 34 | ru | 34-template.md | 0.75 | 15/15 | I14 |
 | 35 | ru | 35-text-pipeline.md | 0.71 | 16/17 | I14 |
 | 36 | en | 36-vol5-intro.md | 0.67 | 18/18 | I15 |
@@ -689,7 +689,7 @@ en/ru 双语全部完成——首个单阶段双语言阶段：
   悬空 dangling、出参 out-param、二进制安全 binary-safe——en 侧与 ch13-16
   已用形态核对一致，无回改）。
 - 批 B（commit 2c30a9ae）：ch28-31（codec/压缩/regex/value）。
-- 批 C：ch32-35（json/xson/template/text-pipeline）；ch35 组合章两个完整
+- 批 C：ch32-35（json/xlon/template/text-pipeline）；ch35 组合章两个完整
   ```c 程序经 python 从 zh 源字节级拼接（/* */ 注释逐条翻译替换），
   遗漏的 2 个 term 块补齐后 G1 通过；term 块内中文输出行（你好/归档提示）字节原样。
 - 收尾：check en 全绿（54/143 章覆盖）；三语言链接校验 14,263 条 0 断链；

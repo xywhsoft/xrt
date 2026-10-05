@@ -10,7 +10,7 @@ api: value
 
 ## Orientation
 
-From this chapter we enter structured data. `xvalue` is XRT's dynamic type system: one opaque pointer can hold null/bool/int/float/string/bytes/time/array/object/set/map — everything JSON can express, plus XSON's extended types (Chapter 32) living here directly. Three designs decide the usage experience: **exact reads** (GetInt accepts only int; a type mismatch fails — the first gate against type confusion), a **reference-counted lifecycle** (the full flowering of Chapter 3's primitives), and **immutable sharing** (a value tree can be referenced from many places without copying). It is the parse product of Chapters 31/32/35 and the data source of templates — the foundation of this volume's second half.
+From this chapter we enter structured data. `xvalue` is XRT's dynamic type system: one opaque pointer can hold null/bool/int/float/string/bytes/time/array/object/set/map — everything JSON can express, plus XLON's extended types (Chapter 32) living here directly. Three designs decide the usage experience: **exact reads** (GetInt accepts only int; a type mismatch fails — the first gate against type confusion), a **reference-counted lifecycle** (the full flowering of Chapter 3's primitives), and **immutable sharing** (a value tree can be referenced from many places without copying). It is the parse product of Chapters 31/32/35 and the data source of templates — the foundation of this volume's second half.
 
 ## Introduction
 
