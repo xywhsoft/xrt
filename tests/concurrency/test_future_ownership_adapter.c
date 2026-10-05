@@ -36,6 +36,7 @@ static void cycle(void)
 {
     xmemdebugsnapshot before; xrtMemDebugSnapshot(&before);
     xfuture* future = NULL; xpromise* promise = xrtPromiseCreate(&future, NULL); assert(promise);
+    assert(xrtFutureDebugSetNameN(future,"cycle\0name",10));
     assert(xrtFutureOwnership(future).Data == xrtPromiseOwnership(promise).Data);
     assert(xrtPromiseResolveOwnedPolicyV1(promise, xrtFutureRef(future), &policy));
     xrtPromiseDestroy(promise); xrtFutureDestroy(future); /* The self slot remains. */
@@ -49,6 +50,9 @@ static void cycle(void)
     assert(!adapter->Claim(ref.Data, &count));
     adapter->Restore(ref.Data, &graph); assert(adapter->Claim(ref.Data, &graph));
     adapter->Clear(ref.Data, &graph);
+    xfuturedebugsnapshot debug, original; memset(&debug,0xA5,sizeof(debug)); original=debug;
+    assert(!xrtFutureDebugSnapshot(future,&debug) && memcmp(&debug,&original,sizeof(debug))==0);
+    assert(!xrtFutureDebugSetNameN(future,"cleared",7)); xrtClearError();
     assert(!xrtFutureOwnershipAdapterV1(ref, allowed, 1) && !ref.Ops->Count(ref.Data, &count));
     assert(!xrtFutureRef(future) && !xrtPromiseRef(promise)); xrtClearError();
     xfutureresult result = {0}; assert(!xrtFutureResult(future, &result)); xrtClearError();

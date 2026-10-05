@@ -337,6 +337,7 @@ static xrt_task_group_item* __xrtTaskGroupItemCreate(
 	pItem->Group = pGroup;
 	pItem->Child = pChild;
 	pItem->Waiter.Proc = __xrtTaskGroupSourceDone;
+	pItem->Waiter.PublicWatch = true;
 	pItem->Waiter.Release = __xrtTaskGroupWaiterRelease;
 	pItem->Waiter.Data = pItem;
 	if ( !__xrtTaskGroupRef(pGroup) ) {

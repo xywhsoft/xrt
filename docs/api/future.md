@@ -5095,3 +5095,25 @@ Data/Source 槽并归还引用。支持不同 Finish 顺序和重复 Finish。
 既有 `future_combine`、`future_map_ownership_tests`、`future_waiter_ownership_tests`
 和 `future_scope_tests` 继续运行，图结构断言按新增的真实 producer/CancelWatch
 拥有边及真实终态注销更新，原有行为和失败回滚用例不删除。
+
+### 可选调试观察状态
+
+`xrtFutureDebugSnapshot` 返回首次观察、首次观察到终态的单调微秒及当前注册的
+完成通知数量。时间不是任务实际提交/完成时间；首次观察一个已结束的 Future，
+两个时间相同。通知数包括原生 continuation、TaskGroup 及公共 Watch，不包括
+阻塞等待/协程等待的内部等待器；通知开始派发后不再计入挂接数量。
+
+`xrtFutureDebugSetNameN` 复制精确字节长度（包括内嵌 NUL）；`(NULL,0)` 置空。
+`xrtFutureDebugNameCopy` 返回独立、以 NUL 结尾的 `xstrview`，调用者用 `xrtFree`
+释放 `Data`。读取与替换在同一 Future 锁下准备，因此不暴露可能被并发替换的
+借用指针，也不为保持旧视图累积历史名称。复制失败输出不变，改名失败保留旧名。
+原生名称是任意字节；语言桥接自行验证 UTF-8。
+
+未使用调试观察的 Future 只增加一个空指针，不额外分配或读取时钟。第一次观察
+才分配叶状态；改名只有一个当前名称。叶状态没有第二套引用计数、Promise
+引用、代码拥有边或回调；随实际 Future 最后引用释放，也经过图 Clear/Finish
+的物理生命周期。claimed/cleared 图拒绝操作，这些接口不授予取消或回收权限。
+所有调用可失败，不能登记为 no-raise；调用期间必须持有真实 Future 引用。
+
+`future_debug_tests` 包含模块化/单头的实际分配账本、完整 OOM 前缀、并发改名、
+独立副本及 Watch 计数；已有 ownership adapter 环测试增加命名叶状态与 Clear 拒绝。

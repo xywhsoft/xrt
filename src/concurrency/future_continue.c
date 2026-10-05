@@ -164,6 +164,7 @@ static xfuture* __xrtOwnershipBody_FutureContinueCreate(
 	pContinue->DestroyData = pDestroyData;
 	pContinue->Mode = Mode;
 	pContinue->Waiter.Proc = __xrtFutureContinueRun;
+	pContinue->Waiter.PublicWatch = true;
 	pContinue->Waiter.Release = __xrtFutureContinueRelease;
 	pContinue->Waiter.Data = pContinue;
 	if ( pContinue->Cancel == NULL ) {
