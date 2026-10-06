@@ -47,7 +47,8 @@ typedef enum teststorefault {
     STORE_CURRENT_RENAME,
     STORE_ACCOUNT_RENAME,
     STORE_CURRENT_TRANSIENT,
-    STORE_CURRENT_AFTER_COMMIT
+    STORE_CURRENT_AFTER_COMMIT,
+    STORE_CURRENT_SUSTAINED
 } teststorefault;
 
 static teststorefault TestStoreFault;
@@ -139,6 +140,15 @@ static BOOL WINAPI testStoreRename(LPCWSTR Source, LPCWSTR Target, DWORD Flags)
             TestStoreHits++;
             if ( TestStoreFault == STORE_CURRENT_TRANSIENT && TestStoreHits > 2 )
                 return MoveFileExW(Source, Target, Flags);
+            if ( TestStoreFault == STORE_CURRENT_SUSTAINED && TestStoreHits > 12 )
+                return MoveFileExW(Source, Target, Flags);
+            if ( TestStoreFault == STORE_CURRENT_TRANSIENT || TestStoreFault == STORE_CURRENT_SUSTAINED ) {
+                static const DWORD Errors[] = {
+                    ERROR_ACCESS_DENIED, ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION
+                };
+                SetLastError(Errors[(TestStoreHits - 1u) % 3u]);
+                return FALSE;
+            }
             if ( TestStoreFault == STORE_CURRENT_AFTER_COMMIT && TestStoreHits == 1 ) {
                 testRequire(MoveFileExW(Source, Target, Flags), "Windows store committed fault setup failed");
                 return testStoreFailure();
@@ -199,13 +209,15 @@ static void testStoreWindowsCase(teststorefault Fault, bool Inject)
     printf("[diagnostic] STORE_WINDOWS fault=%u oom=%u saved=%u hits=%u kind=%u triggered=%u\n",
         (unsigned)Fault, (unsigned)Inject, (unsigned)Saved, TestStoreHits, (unsigned)Kind, (unsigned)Triggered);
     testRequire(TestStoreHits > 0 && Triggered == Inject, "Windows store fault did not reach its native/diagnostic call");
-    if ( Fault == STORE_CURRENT_TRANSIENT ) {
-        testRequire(Saved && TestStoreHits == 3 && Kind == XERR_NONE, "Windows store transient publish retry failed");
+    bool Transient = Fault == STORE_CURRENT_TRANSIENT || Fault == STORE_CURRENT_SUSTAINED;
+    if ( Transient ) {
+        unsigned ExpectedHits = Fault == STORE_CURRENT_TRANSIENT ? 3u : 13u;
+        testRequire(Saved && TestStoreHits == ExpectedHits && Kind == XERR_NONE, "Windows store transient publish retry failed");
     } else {
         testRequire(!Saved && Kind == (Inject ? XERR_MEMORY : XERR_IO), "Windows store lost the file fault diagnostic");
     }
     xrtClearError();
-    bool Committed = Fault == STORE_CURRENT_TRANSIENT || Fault == STORE_CURRENT_AFTER_COMMIT;
+    bool Committed = Transient || Fault == STORE_CURRENT_AFTER_COMMIT;
     testRequire(xrtAcmeStoreLoadGrant(Root, "io.example.com", &Loaded) &&
         strcmp(Loaded.sFullchainPem, Committed ? New.sFullchainPem : Old.sFullchainPem) == 0 &&
         strcmp(Loaded.sKeyPem, Committed ? New.sKeyPem : Old.sKeyPem) == 0, "Windows store fault lost the committed pair");
@@ -225,7 +237,7 @@ int main(int argc, char** argv)
     if ( argc == 3 ) {
         unsigned Fault = (unsigned)strtoul(argv[1], NULL, 10);
         bool Inject = strcmp(argv[2], "oom") == 0;
-        testRequire(Fault >= STORE_TEXT_WRITE && Fault <= STORE_CURRENT_AFTER_COMMIT &&
+        testRequire(Fault >= STORE_TEXT_WRITE && Fault <= STORE_CURRENT_SUSTAINED &&
             (Inject || strcmp(argv[2], "control") == 0), "Windows store fault usage: [number control|oom]");
         testStoreWindowsCase((teststorefault)Fault, Inject);
         return 0;
@@ -236,6 +248,7 @@ int main(int argc, char** argv)
         testStoreWindowsCase((teststorefault)Fault, true);
     }
     testStoreWindowsCase(STORE_CURRENT_TRANSIENT, false);
+    testStoreWindowsCase(STORE_CURRENT_SUSTAINED, false);
     testStoreWindowsCase(STORE_CURRENT_AFTER_COMMIT, false);
     testStoreWindowsCase(STORE_CURRENT_AFTER_COMMIT, true);
     return 0;

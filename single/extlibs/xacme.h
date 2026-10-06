@@ -7863,7 +7863,12 @@ void xrtAcmeGrantUnit(xacmeissuegrant* pGrant)
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-#if !defined(_WIN32) && !defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
+	#ifndef WIN32_LEAN_AND_MEAN
+		#define WIN32_LEAN_AND_MEAN
+	#endif
+	#include <windows.h>
+#else
 	#include <errno.h>
 	#include <fcntl.h>
 	#include <unistd.h>
@@ -8249,6 +8254,7 @@ static bool xacmeStoreWritePointer(cstr sPath, cstr sText,
 		xfile File;
 		bool bOk;
 		size_t iAttempt;
+		uint64 iDelay = 1u;
 		xerror* pRenameError = NULL;
 		if(sDirectory == NULL)
 			return false;
@@ -8264,8 +8270,11 @@ static bool xacmeStoreWritePointer(cstr sPath, cstr sText,
 		if(bOk)
 		{
 			*pbPublishAttempted = true;
-			for(iAttempt = 0u; iAttempt < 8u; iAttempt++)
+			/* 读者或文件扫描器的短暂占用可能超过一轮线程调度。
+			 * 仅重试原生占用错误，累计等待最多 447 毫秒。 */
+			for(iAttempt = 0u; iAttempt < 32u; iAttempt++)
 			{
+				int64 iSystemCode;
 				if(xrtPathRename(sTemporary, sPath, true))
 				{
 					xrtErrorFree(pRenameError);
@@ -8274,13 +8283,19 @@ static bool xacmeStoreWritePointer(cstr sPath, cstr sText,
 				}
 				if(pRenameError == NULL)
 					pRenameError = xrtErrorRef(xrtGetError());
-				if(iAttempt == 7u ||
+				iSystemCode = xrtErrorSystemCode(xrtGetError());
+				if(iAttempt == 31u ||
 					(xrtErrorKind(xrtGetError()) != XERR_IO &&
-					xrtErrorKind(xrtGetError()) != XERR_PERMISSION &&
-					xrtErrorKind(xrtGetError()) != XERR_AGAIN))
+						xrtErrorKind(xrtGetError()) != XERR_PERMISSION &&
+						xrtErrorKind(xrtGetError()) != XERR_AGAIN) ||
+					(iSystemCode != ERROR_ACCESS_DENIED &&
+						iSystemCode != ERROR_SHARING_VIOLATION &&
+						iSystemCode != ERROR_LOCK_VIOLATION))
 					break;
 				xrtClearError();
-				xrtSleep(1u);
+				xrtSleep(iDelay);
+				if(iDelay < 16u)
+					iDelay *= 2u;
 			}
 		}
 		{
