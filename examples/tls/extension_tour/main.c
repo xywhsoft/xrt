@@ -229,13 +229,14 @@ int main(void)
 	}
 	{
 		uint8 arrSigData[6];
+		xtlsids SignatureIds;
 
 		examplePut16(arrSigData, 4u);      /* 向量长 4 */
 		examplePut16(arrSigData + 2, 0x0804u);
 		examplePut16(arrSigData + 4, 0x0803u);
 		if ( !xrtTlsSignatures((xbytesview) { arrSigData, 6u },
-				&Ids) ||
-			(xrtTlsIdsCount(&Ids) != 2u) ) {
+				&SignatureIds) ||
+			(xrtTlsIdsCount(&SignatureIds) != 2u) ) {
 			goto Cleanup;
 		}
 	}
@@ -250,6 +251,7 @@ int main(void)
 	/* SignatureSelect：版本在前、偏好列表是签名枚举数组。 */
 	{
 		uint8 arrRaw[4];
+		xtlsids SignatureIds;
 		static const xtlssignature arrPref[2] = {
 			XTLS_SIGNATURE_RSA_PSS_RSAE_SHA384,
 			XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256
@@ -258,8 +260,8 @@ int main(void)
 
 		examplePut16(arrRaw, 0x0804u);
 		examplePut16(arrRaw + 2, 0x0803u);
-		Ids.Data = (xbytesview) { arrRaw, 4u };
-		if ( (xrtTlsSignatureSelect(XTLS_VERSION_13, &Ids,
+		SignatureIds.Data = (xbytesview) { arrRaw, 4u };
+		if ( (xrtTlsSignatureSelect(XTLS_VERSION_13, &SignatureIds,
 				XTLS_IDENTITY_RSA, arrPref, 2u,
 				&Picked) != XTLS_ITEM_VALUE) ||
 			(Picked !=

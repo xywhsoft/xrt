@@ -27,6 +27,7 @@ int main(void)
 	char sName[64];
 	char sText[64];
 	uint8 Hardware[16];
+	str sHost = NULL;
 	xnetaddr Address;
 	uint32 iIndex;
 	size_t iSize = 0;
@@ -107,16 +108,22 @@ int main(void)
 
 	/* ---- HostName：非空且可写入。 ---- */
 	iNeed = xrtNetHostName(NULL, 0u);
-	if ( (iNeed == 0u) || (iNeed >= sizeof(sName)) ) {
+	if ( (iNeed == 0u) || (iNeed == XRT_NPOS) ) {
 		goto Cleanup;
 	}
-	iSize = xrtNetHostName(sName, sizeof(sName));
+	/* 云端主机名可能超过接口名的固定缓冲；按查询长度分配。 */
+	sHost = (str)xrtMalloc(iNeed + 1u);
+	if ( sHost == NULL ) {
+		goto Cleanup;
+	}
+	iSize = xrtNetHostName(sHost, iNeed + 1u);
 	if ( (iSize == 0u) || (iSize != iNeed) ) {
 		goto Cleanup;
 	}
-	printf(" host=[%s] ok\n", sName);
+	printf(" host=[%s] ok\n", sHost);
 	iResult = 0;
 
 Cleanup:
+	xrtFree(sHost);
 	return iResult;
 }

@@ -47,11 +47,11 @@ static inline bool exampleTimerExpired(double Limit)
 /* 释放回调：统计数据报离队次数（SendRef 族终态各执行一次）。 */
 static void countRelease(ptr pContext, cbytes pData, size_t iSize)
 {
-	volatile uint32* pCount = (volatile uint32*)pContext;
+	xatomic32* pCount = (xatomic32*)pContext;
 
 	(void)pData;
 	(void)iSize;
-	*pCount = *pCount + 1u;
+	(void)xrtAtomic32FetchAdd(pCount, 1u, XMEMORY_RELEASE);
 }
 
 
@@ -141,7 +141,7 @@ int main(void)
 	xnetdgramsend Batch[3];
 	ptr pTakeIn = NULL;
 	ptr pTakeOut = NULL;
-	uint32 iReleases = 0;
+	xatomic32 iReleases = { 0 };
 	double iDeadline;
 	str sEndpoint = NULL;
 	int iResult = 1;
@@ -277,7 +277,7 @@ int main(void)
 
 	/* 等三份引用载荷全部离队：释放回调恰好执行三次。 */
 	iDeadline = exampleTimerLimit(3000);
-	while ( iReleases < 3u ) {
+	while ( xrtAtomic32Load(&iReleases, XMEMORY_ACQUIRE) < 3u ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			goto Cleanup;
 		}
@@ -292,7 +292,8 @@ int main(void)
 		}
 		xrtThreadYield();
 	}
-	printf("releases=%u pending=0\n", iReleases);
+	printf("releases=%u pending=0\n",
+		(unsigned)xrtAtomic32Load(&iReleases, XMEMORY_ACQUIRE));
 
 	if ( !exampleDrain(pServer, sServerTags, 7) ) {
 		iResult = 6;

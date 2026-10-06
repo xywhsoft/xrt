@@ -37,19 +37,50 @@
 
 #include <stdio.h>
 #include <string.h>
+#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__)
+		#include <winapi/winsock2.h>
+	#else
+		#include <winsock2.h>
+	#endif
+#else
+	#include <sys/select.h>
+#endif
 #include <xrt.h>
 
 /* 非阻塞连接轮询：FinishConnect 直到 OK/ERROR 或超时。 */
 static xnetresult exampleFinishConnect(xnetsocket Socket, int iSpinMs)
 {
 	xnetresult Result = XNET_RESULT_AGAIN;
+	intptr_t iNative = xrtNetSocketNative(Socket);
 
 	for ( int i = 0; i < iSpinMs; i++ ) {
+		fd_set WriteSet;
+		fd_set ErrorSet;
+		struct timeval Timeout;
+		int iReady;
+
+		FD_ZERO(&WriteSet);
+		FD_ZERO(&ErrorSet);
+		Timeout.tv_sec = 0;
+		Timeout.tv_usec = 1000;
+		#if defined(_WIN32) || defined(_WIN64)
+			FD_SET((SOCKET)iNative, &WriteSet);
+			FD_SET((SOCKET)iNative, &ErrorSet);
+			iReady = select(0, NULL, &WriteSet, &ErrorSet, &Timeout);
+		#else
+			FD_SET((int)iNative, &WriteSet);
+			FD_SET((int)iNative, &ErrorSet);
+			iReady = select((int)iNative + 1,
+				NULL, &WriteSet, &ErrorSet, &Timeout);
+		#endif
+		if ( iReady < 0 ) return XNET_RESULT_ERROR;
+		if ( iReady == 0 ) continue;
+		/* 仅在原生可写/错误事件到达后读取连接结果。 */
 		Result = xrtNetSocketFinishConnect(Socket);
 		if ( Result != XNET_RESULT_AGAIN ) {
 			return Result;
 		}
-		xrtSleep(1u);
 	}
 	return Result;
 }
@@ -60,6 +91,7 @@ int main(void)
 	xnetsocket B = 0;
 	xnetsocket L = 0;
 	xnetsocket C = 0;
+	xnetsocket M = 0;
 	xnetaddr AddrA;
 	xnetaddr AddrB;
 	xnetaddr DestB;
@@ -236,19 +268,22 @@ int main(void)
 	}
 	printf("socket: batch 2+2 datagrams ok\n");
 
-	/* ---- 多播自收：Loop+Hop+Iface+Join 全指环回（Windows 配方）。 ---- */
-	if ( !xrtNetAddrParse(&Group, "239.255.0.1", AddrB.Port) ||
+	/* 已连接的 A 保留其单播 Peer；多播使用独立的未连接发送端。 */
+	M = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_DGRAM, 0u);
+	/* ---- 多播自收：Loop+Hop+Iface+Join 全指环回。 ---- */
+	if ( (M == 0) ||
+		!xrtNetAddrParse(&Group, "239.255.0.1", AddrB.Port) ||
 		!xrtNetAddrLoopback(&Iface, XNET_FAMILY_IPV4, 0u) ||
-		!xrtNetSocketMulticastLoop(A, true) ||
-		!xrtNetSocketMulticastHopLimit(A, 1) ||
-		!xrtNetSocketMulticastInterface(A, &Iface) ||
+		!xrtNetSocketMulticastLoop(M, true) ||
+		!xrtNetSocketMulticastHopLimit(M, 1) ||
+		!xrtNetSocketMulticastInterface(M, &Iface) ||
 		!xrtNetSocketMulticastJoin(B, &Group, &Iface) ) {
 		goto Cleanup;
 	}
 	{
 		xnetresult McResult;
 
-		McResult = xrtNetSocketSendTo(A, "m", 1u, &iSent, &Group);
+		McResult = xrtNetSocketSendTo(M, "m", 1u, &iSent, &Group);
 		if ( (McResult == XNET_RESULT_OK) && (iSent == 1u) ) {
 			McResult = xrtNetSocketRecvFrom(B, arrBuf, 8u, &iGot,
 				&From);
@@ -259,7 +294,7 @@ int main(void)
 		}
 	}
 	if ( !xrtNetSocketMulticastLeave(B, &Group, &Iface) ||
-		!xrtNetSocketMulticastInterface(A, NULL) ) {
+		!xrtNetSocketMulticastInterface(M, NULL) ) {
 		goto Cleanup;
 	}
 	printf("socket: multicast loopback self-receive ok\n");
@@ -284,7 +319,8 @@ int main(void)
 			(ConnResult != XNET_RESULT_AGAIN) ) {
 			goto Cleanup;
 		}
-		if ( exampleFinishConnect(C, 2000) != XNET_RESULT_OK ) {
+		if ( (ConnResult == XNET_RESULT_AGAIN) &&
+			(exampleFinishConnect(C, 2000) != XNET_RESULT_OK) ) {
 			goto Cleanup;
 		}
 	}
@@ -310,6 +346,7 @@ int main(void)
 	iResult = 0;
 
 Cleanup:
+	xrtNetSocketClose(M);
 	xrtNetSocketClose(C);
 	xrtNetSocketClose(L);
 	xrtNetSocketClose(B);

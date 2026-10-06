@@ -39,7 +39,7 @@ static const char* sFile = "net_file_tour_tmp.bin";
 /* Completion 终态记录。 */
 typedef struct exampleio {
 	xnetcompletion Completion;
-	volatile bool bDone;
+	xatomic32 bDone;
 	xnetresult Result;
 	size_t iBytes;
 	uint64 iId;
@@ -54,12 +54,12 @@ static void exampleDone(xnetworker* pWorker,
 	pIo->Result = pEvent->Result;
 	pIo->iBytes = pEvent->Bytes;
 	pIo->iId = pEvent->Id;
-	pIo->bDone = true;
+	xrtAtomic32Store(&pIo->bDone, 1u, XMEMORY_RELEASE);
 }
 
 static bool exampleSpin(exampleio* pIo, double iEnd)
 {
-	while ( !pIo->bDone ) {
+	while ( xrtAtomic32Load(&pIo->bDone, XMEMORY_ACQUIRE) == 0u ) {
 		if ( exampleTimerExpired(iEnd) ) {
 			return false;
 		}
@@ -76,7 +76,7 @@ typedef struct exampletask {
 	const void* pData;
 	size_t iSize;
 	uint64 iOffset;
-	volatile bool bDone;
+	xatomic32 bDone;
 	bool bOk;
 	uint64 iId;
 } exampletask;
@@ -92,7 +92,7 @@ static void exampleWriteTask(xnetworker* pWorker, ptr pUserData)
 		pTask->iOffset, pTask->pData, pTask->iSize,
 		&pTask->pIo->Completion);
 	pTask->bOk = (pTask->iId != 0u);
-	pTask->bDone = true;
+	xrtAtomic32Store(&pTask->bDone, 1u, XMEMORY_RELEASE);
 }
 
 static void exampleReadTask(xnetworker* pWorker, ptr pUserData)
@@ -104,7 +104,7 @@ static void exampleReadTask(xnetworker* pWorker, ptr pUserData)
 		pTask->iOffset, (void*)pTask->pData, pTask->iSize,
 		&pTask->pIo->Completion);
 	pTask->bOk = (pTask->iId != 0u);
-	pTask->bDone = true;
+	xrtAtomic32Store(&pTask->bDone, 1u, XMEMORY_RELEASE);
 }
 
 static bool examplePost(xnetengine* pEngine, xnetpost* pPost,
@@ -112,9 +112,9 @@ static bool examplePost(xnetengine* pEngine, xnetpost* pPost,
 {
 	(void)pPost;
 	return xrtNetEnginePost(pEngine, 0u, pProc, (ptr)pTask) &&
+		exampleSpinUntilTask(pTask) &&
 		exampleSpin((exampleio*)pTask->pIo,
-			exampleTimerLimit(3000)) &&
-		((exampleio*)pTask->pIo)->bDone;
+			exampleTimerLimit(3000));
 }
 
 /* 等待任务提交本身完成（不含 IO 终态）。 */
@@ -122,7 +122,7 @@ static bool exampleSpinUntilTask(exampletask* pTask)
 {
 	double iEnd = exampleTimerLimit(3000);
 
-	while ( !pTask->bDone ) {
+	while ( xrtAtomic32Load(&pTask->bDone, XMEMORY_ACQUIRE) == 0u ) {
 		if ( exampleTimerExpired(iEnd) ) {
 			return false;
 		}
@@ -137,6 +137,7 @@ int main(void)
 	xnetpost Post;
 	xfile File = 0;
 	exampleio Io;
+	exampleio CancelIo;
 	exampletask Task;
 	uint8 arrRead[16];
 	int iResult = 1;
@@ -208,7 +209,6 @@ int main(void)
 	/* ---- 取消：提交一个大读后立即取消，仍收唯一终态。 ---- */
 	{
 		static uint8 arrBig[4096];
-		exampleio CancelIo;
 		uint64 iCancelId;
 
 		memset(&CancelIo, 0, sizeof(CancelIo));
@@ -234,10 +234,11 @@ int main(void)
 			int iSpin;
 
 			for ( iSpin = 0; (iSpin < 50) &&
-				!CancelIo.bDone; iSpin++ ) {
+				xrtAtomic32Load(&CancelIo.bDone, XMEMORY_ACQUIRE) == 0u;
+				iSpin++ ) {
 				xrtSleep(1u);
 			}
-			if ( !CancelIo.bDone ) {
+			if ( xrtAtomic32Load(&CancelIo.bDone, XMEMORY_ACQUIRE) == 0u ) {
 				if ( !xrtNetFileCancel(Task.pWorker,
 						iCancelId) ||
 					!exampleSpin(&CancelIo,

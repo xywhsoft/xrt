@@ -10,7 +10,7 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
  *       examples/network/proxy_tour/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   proxy: retain+info type=1 host=socks5.local port=1080
+ *   proxy: retain+info type=1 host=socks5.invalid port=1080
  *   proxy: handshake write-state output>0 bound/http=reject
  *   proxy: dial ref/state=4 stats error-path ok
  */
@@ -34,8 +34,8 @@ static inline bool exampleTimerExpired(double Limit)
 
 /* Dial 完成交接块。 */
 typedef struct examplepdial {
-	volatile xnetresult Result;
-	volatile bool bDone;
+	xnetresult Result;
+	xatomic32 bDone;
 } examplepdial;
 
 static void exampleDialDone(xnetproxydial* pDial,
@@ -48,14 +48,14 @@ static void exampleDialDone(xnetproxydial* pDial,
 	(void)pStream;
 	(void)pError;
 	pJob->Result = Result;
-	pJob->bDone = true;
+	xrtAtomic32Store(&pJob->bDone, 1u, XMEMORY_RELEASE);
 }
 
-static bool exampleSpinUntil(volatile bool* pFlag)
+static bool exampleSpinUntil(xatomic32* pFlag)
 {
 	double iDeadline = exampleTimerLimit(EXAMPLE_TIMEOUT_MS);
 
-	while ( !*pFlag ) {
+	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) == 0u ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
@@ -92,7 +92,7 @@ int main(void)
 	/* ---- 对象族：Create + Retain + Info ---- */
 	xrtNetProxyConfigInit(&ProxyConfig);
 	ProxyConfig.Type = XNET_PROXY_SOCKS5;
-	ProxyConfig.Host = SV("socks5.local");
+	ProxyConfig.Host = SV("socks5.invalid");
 	ProxyConfig.Port = 1080u;
 	pProxy = xrtNetProxyCreate(&ProxyConfig);
 	if ( (pProxy == NULL) ||
@@ -101,12 +101,12 @@ int main(void)
 	}
 	if ( !xrtNetProxyInfo(pProxy, &Info) ||
 		(Info.Type != XNET_PROXY_SOCKS5) ||
-		(Info.Host.Size != 12u) ||
-		(memcmp(Info.Host.Data, "socks5.local", 12u) != 0) ||
+		(Info.Host.Size != 14u) ||
+		(memcmp(Info.Host.Data, "socks5.invalid", 14u) != 0) ||
 		(Info.Port != 1080u) ) {
 		goto Cleanup;
 	}
-	printf("proxy: retain+info type=1 host=socks5.local port=1080\n");
+	printf("proxy: retain+info type=1 host=socks5.invalid port=1080\n");
 
 	/* ---- 握手自省：创建即 WRITE + 首段输出非空 ---- */
 	pEngine = xrtNetEngineCreate(&EngineConfig);
@@ -142,6 +142,8 @@ int main(void)
 
 	/* ---- Dial 补集：Ref/State/Stats/Error ---- */
 	xrtNetProxyDialConfigInit(&DialConfig);
+	/* 使用保留的无效域名，并限制慢 DNS 查询的全过程预算。 */
+	DialConfig.Timeout = INT64_C(1000);
 	pDial = xrtNetProxyDial(pEngine, pResolver, pProxy,
 		"example.org", 443u, &DialConfig, NULL, NULL,
 		exampleDialDone, &DialJob);
@@ -152,7 +154,7 @@ int main(void)
 	if ( (pDialRef != pDial) ||
 		!exampleSpinUntil(&DialJob.bDone) ||
 		(DialJob.Result == XNET_RESULT_OK) ) {
-		goto Cleanup;  /* socks5.local 不可解析：必然失败路径 */
+		goto Cleanup;  /* socks5.invalid 不可解析：必然失败路径 */
 	}
 	{
 		xnetproxydialstate State = xrtNetProxyDialState(pDial);
