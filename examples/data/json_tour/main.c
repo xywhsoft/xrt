@@ -62,7 +62,7 @@ int main(void)
 	xjsonlocation Location;
 	examplesink Sink;
 	size_t iWritten = 0;
-	FILE* pOut;
+	FILE* pOut = NULL;
 	int iResult = 1;
 
 	/* ---- Read（配置形态）+ Valid 正反 ---- */

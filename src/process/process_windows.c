@@ -390,7 +390,9 @@ static wchar_t* __xrtProcessProgramResolve(cstr sProgram)
 {
 	wchar_t* sInput = (wchar_t*)xrtUtf8To16(sProgram, NULL);
 	wchar_t* sOutput = NULL;
-	const wchar_t* pExtension = NULL;
+	/* Native Windows command lookup prefers name.exe over extensionless
+	 * shell wrappers that may be present on an MSYS2 PATH. */
+	const wchar_t* pExtension = L".exe";
 	DWORD iCapacity = MAX_PATH;
 
 	if ( sInput == NULL ) {
@@ -421,7 +423,7 @@ static wchar_t* __xrtProcessProgramResolve(cstr sProgram)
 			}
 			if ( iLength < iCapacity ) {
 				/* SearchPathW 会匹配同名目录（如 PATH 首段里的 git/ 子目录）——
-				 * 目录不可执行，视为未命中，继续下一轮（带 .exe）搜索。 */
+					 * 目录不可执行，视为未命中，继续下一轮搜索。 */
 				DWORD iAttributes = GetFileAttributesW(sOutput);
 				if ( iAttributes == INVALID_FILE_ATTRIBUTES ||
 					(iAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0u ) {
@@ -435,7 +437,7 @@ static wchar_t* __xrtProcessProgramResolve(cstr sProgram)
 			}
 			iCapacity = iLength + 1u;
 		}
-		pExtension = L".exe";
+		pExtension = NULL;
 	}
 
 cleanup:

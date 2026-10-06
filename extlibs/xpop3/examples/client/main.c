@@ -42,7 +42,7 @@ bool fetchMessage(
 	xpop3clientconfig Config;
 	xpop3client* pClient;
 	xstrview Line;
-	double Deadline = exampleTimerLimit(INT64_C(10000));
+	double Deadline = exampleTimerLimit(INT64_C(30000));
 	xmailnext Next;
 	bool bSuccess = false;
 

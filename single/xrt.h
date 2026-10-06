@@ -36239,8 +36239,9 @@ XRT_EXTERN_C_END
 	#error "XRT line readers require IO and buffer support"
 #endif
 
-#if defined(XRT_FEATURE_IO_STANDARD) && !defined(XRT_FEATURE_IO)
-	#error "XRT standard streams require IO support"
+#if defined(XRT_FEATURE_IO_STANDARD) && \
+	(!defined(XRT_FEATURE_IO) || !defined(XRT_FEATURE_ATOMIC))
+	#error "XRT standard streams require IO and atomic support"
 #endif
 
 
@@ -81534,7 +81535,15 @@ const __xrt_net_port_driver* __xrtNetPortSelectDriver(void)
 	#include <errno.h>
 	#include <fcntl.h>
 	#include <limits.h>
+	/* Older glibc headers erase packed attributes for non-GNU compilers.
+	 * TCC still supports pragma packing; preserve the Linux x86-64 epoll ABI. */
+	#if defined(__TINYC__) && defined(__x86_64__)
+		#pragma pack(push, 4)
+	#endif
 	#include <sys/epoll.h>
+	#if defined(__TINYC__) && defined(__x86_64__)
+		#pragma pack(pop)
+	#endif
 	#include <sys/eventfd.h>
 	#include <unistd.h>
 #endif
@@ -81542,6 +81551,13 @@ const __xrt_net_port_driver* __xrtNetPortSelectDriver(void)
 
 
 #if defined(XRT_FEATURE_NET_PORT_EPOLL) && defined(__linux__)
+
+#if defined(__x86_64__)
+typedef char __xrt_net_epoll_event_abi[
+	(sizeof(struct epoll_event) == 12u) &&
+	(offsetof(struct epoll_event, data) == 4u) ? 1 : -1
+];
+#endif
 
 #define XRT_NET_EPOLL_READY_MAX 256u
 #define XRT_NET_EPOLL_WAKE_TOKEN UINT64_C(0)
@@ -254487,12 +254503,14 @@ static void __xrtTlsDialFutureDone(
 	xrt_tls_dial_future* pContext =
 		(xrt_tls_dial_future*)pData;
 	xpromise* pPromise = xrtFutureBridgePromise(&pContext->Bridge);
-	xtlsdial* pHeld = pContext->Dial;
+	xtlsdial* pHeld;
 	xerror* pFailure = NULL;
 	bool bReady;
 
 	(void)pDial;
 	bReady = xrtFutureBridgeWait(&pContext->Bridge);
+	/* The submitter publishes Dial before releasing the setup gate. */
+	pHeld = pContext->Dial;
 	xrtFutureBridgeUnwatch(&pContext->Bridge);
 	if ( (Result != XNET_RESULT_OK) && (pError != NULL) ) {
 		pFailure = xrtErrorRef(pError);
@@ -254664,12 +254682,14 @@ static void __xrtNetDialFutureDone(
 	xrt_net_dial_future* pContext =
 		(xrt_net_dial_future*)pData;
 	xpromise* pPromise = xrtFutureBridgePromise(&pContext->Bridge);
-	xnetdial* pHeld = pContext->Dial;
+	xnetdial* pHeld;
 	xerror* pFailure = NULL;
 	bool bReady;
 
 	(void)pDial;
 	bReady = xrtFutureBridgeWait(&pContext->Bridge);
+	/* The submitter publishes Dial before releasing the setup gate. */
+	pHeld = pContext->Dial;
 	xrtFutureBridgeUnwatch(&pContext->Bridge);
 	if ( (Result != XNET_RESULT_OK) && (pError != NULL) ) {
 		pFailure = xrtErrorRef(pError);
@@ -309788,7 +309808,9 @@ static wchar_t* __xrtProcessProgramResolve(cstr sProgram)
 {
 	wchar_t* sInput = (wchar_t*)xrtUtf8To16(sProgram, NULL);
 	wchar_t* sOutput = NULL;
-	const wchar_t* pExtension = NULL;
+	/* Native Windows command lookup prefers name.exe over extensionless
+	 * shell wrappers that may be present on an MSYS2 PATH. */
+	const wchar_t* pExtension = L".exe";
 	DWORD iCapacity = MAX_PATH;
 
 	if ( sInput == NULL ) {
@@ -309819,7 +309841,7 @@ static wchar_t* __xrtProcessProgramResolve(cstr sProgram)
 			}
 			if ( iLength < iCapacity ) {
 				/* SearchPathW 会匹配同名目录（如 PATH 首段里的 git/ 子目录）——
-				 * 目录不可执行，视为未命中，继续下一轮（带 .exe）搜索。 */
+					 * 目录不可执行，视为未命中，继续下一轮搜索。 */
 				DWORD iAttributes = GetFileAttributesW(sOutput);
 				if ( iAttributes == INVALID_FILE_ATTRIBUTES ||
 					(iAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0u ) {
@@ -309833,7 +309855,7 @@ static wchar_t* __xrtProcessProgramResolve(cstr sProgram)
 			}
 			iCapacity = iLength + 1u;
 		}
-		pExtension = L".exe";
+		pExtension = NULL;
 	}
 
 cleanup:
@@ -322519,7 +322541,7 @@ typedef struct bbre_compcc_tree {
 /* Element of a character class, used when compiling charclasses. */
 typedef struct bbre_cc_elem {
   bbre_rune_range range; /* the rune range this describes */
-  size_t next_hdl; /* handle to the next range in this list (0 to denote the end
+  bbre_uint next_hdl; /* handle to the next range in this list (0 to denote the end
         of the list) */
 } bbre_cc_elem;
 
@@ -323064,10 +323086,11 @@ static bbre_alloc bbre_alloc_make(const bbre_alloc *input)
 }
 
 /* Make a byte range; more convenient than struct initialization in '89. */
-static bbre_byte_range bbre_byte_range_make(bbre_byte l, bbre_byte h)
+static bbre_byte_range bbre_byte_range_make(bbre_uint l, bbre_uint h)
 {
   bbre_byte_range out;
-  out.l = l, out.h = h;
+  assert(l <= 0xFF && h <= 0xFF);
+  out.l = (bbre_byte)l, out.h = (bbre_byte)h;
   return out;
 }
 
@@ -323182,7 +323205,7 @@ bbre_ast_make(bbre *r, bbre_uint *out_node_hdl, bbre_ast_type type, ...)
   va_start(in_args, type);
   if (!bbre_buf_size(r->ast))
     args[arg_idx++] = 0; /* sentinel */
-  *out_node_hdl = bbre_buf_size(r->ast) + arg_idx;
+  *out_node_hdl = (bbre_uint)bbre_buf_size(r->ast) + arg_idx;
   args[arg_idx++] = type;
   while (i < bbre_ast_type_infos[type].size)
     args[arg_idx++] = va_arg(in_args, bbre_uint), i++;
@@ -323521,7 +323544,7 @@ bbre_parse_escape(bbre *r, bbre_uint allowed_outputs, bbre_uint *out_node_hdl)
     /* Perl builtin character classes */
     int inverted =
         ch == 'D' || ch == 'S' || ch == 'W'; /* uppercase are inverted */
-    bbre_byte lower = inverted ? ch - 'A' + 'a' : ch; /* convert to lowercase */
+    bbre_byte lower = (bbre_byte)(inverted ? ch - 'A' + 'a' : ch);
     if (!(allowed_outputs & (1 << BBRE_AST_TYPE_CC_BUILTIN))) {
       err = bbre_err_parse(r, "cannot use a character class here");
       goto error;
@@ -324157,7 +324180,7 @@ static bbre_inst bbre_prog_get(const bbre_prog *prog, bbre_uint pc)
 /* Get the size (number of instructions) in the program. */
 static bbre_uint bbre_prog_size(const bbre_prog *prog)
 {
-  return bbre_buf_size(prog->insts);
+  return (bbre_uint)bbre_buf_size(prog->insts);
 }
 
 /* The maximum number ofinstructions allowed in a program. */
@@ -324375,7 +324398,7 @@ static void bbre_compile_ranges_normalize(bbre *r, bbre_compframe *frame)
     /* normalize ranges */
     bbre_compframe new_frame = *frame;
     bbre_rune_range next /* currently processed range */,
-        prev; /* previously processed range, yet to be added */
+        prev = {0, 0}; /* previously processed range, yet to be added */
     new_frame.head = new_frame.tail = BBRE_NIL;
     p = 0;
     while (frame->head) {
@@ -324441,7 +324464,7 @@ static int bbre_compcc_tree_new(
       goto error;
   }
   if (out_hdl)
-    *out_hdl = bbre_buf_size(*cc_out);
+    *out_hdl = (bbre_uint)bbre_buf_size(*cc_out);
   if ((err = bbre_buf_push(&r->alloc, cc_out, node)))
     goto error;
 error:
@@ -324599,8 +324622,8 @@ error:
 static int bbre_compcc_tree_build(
     bbre *r, bbre_compframe *frame_in, bbre_buf(bbre_compcc_tree) * cc_out)
 {
-  size_t len_idx = 0 /* current UTF-8 length */,
-         min_bound = 0 /* current UTF-8 length minimum bound */;
+  size_t len_idx = 0; /* current UTF-8 length */
+  bbre_uint min_bound = 0; /* current UTF-8 length minimum bound */
   bbre_uint root_hdl; /* tree root */
   bbre_uint in_hdl;
   bbre_compcc_tree root_node; /* the actual stored root node */
@@ -325641,7 +325664,7 @@ static int bbre_set_compile(bbre_set *set, const bbre **rs, size_t n)
       if ((err = bbre_prog_emit(
                &set->prog,
                bbre_inst_relocate(r->prog.insts[src_pc], src_pc, dst_pc),
-               i + 1)))
+               (bbre_uint)(i + 1))))
         goto error;
     }
     set->prog.npat++;
@@ -325652,7 +325675,7 @@ error:
   return err;
 }
 
-static int bbre_sset_reset(bbre_exec *exec, bbre_sset *s, size_t next_size)
+static int bbre_sset_reset(bbre_exec *exec, bbre_sset *s, bbre_uint next_size)
 {
   int err = 0;
   assert(next_size); /* programs are never of size 0 */
@@ -325719,7 +325742,7 @@ static void bbre_sset_add_kv(bbre_sset *s, bbre_nfa_thrd spec)
   return;
 }
 
-static bbre_nfa_thrd bbre_sset_get_pair(bbre_sset *s, bbre_uint i)
+static bbre_nfa_thrd bbre_sset_get_pair(bbre_sset *s, size_t i)
 {
   bbre_nfa_thrd thrd;
   thrd.pc = s->dense_pc[i], thrd.slot_hdl = s->dense_slot[i];
@@ -325758,7 +325781,7 @@ bbre_save_slots_new(bbre_exec *exec, bbre_save_slots *s, bbre_uint *next)
   assert(s->per_thrd);
   if (s->last_empty) {
     /* reclaim */
-    *next = s->last_empty;
+    *next = (bbre_uint)s->last_empty;
     s->last_empty = *bbre_save_slots_refcnt(s, *next);
   } else {
     size_t needed, new_alloc, old_bytes, new_bytes;
@@ -325855,7 +325878,7 @@ error:
   return err;
 }
 
-static bbre_uint bbre_save_slots_per_thrd(bbre_save_slots *s)
+static size_t bbre_save_slots_per_thrd(bbre_save_slots *s)
 {
   assert(s->per_thrd);
   return s->per_thrd - 1;
@@ -325870,7 +325893,7 @@ static int bbre_save_slots_set(
 }
 
 static size_t
-bbre_save_slots_get(bbre_save_slots *s, bbre_uint ref, bbre_uint idx)
+bbre_save_slots_get(bbre_save_slots *s, bbre_uint ref, size_t idx)
 {
   assert(idx < bbre_save_slots_per_thrd(s));
   return s->slots[ref * s->per_thrd + idx];
@@ -326217,7 +326240,7 @@ static bbre_uint *bbre_dfa_state_data(bbre_dfa_state *state)
 }
 
 static int bbre_dfa_table_cmp(
-    bbre_uint size_a, bbre_uint *a, bbre_uint size_b, bbre_uint *b)
+    size_t size_a, bbre_uint *a, size_t size_b, bbre_uint *b)
 {
   return (size_a == size_b) ? memcmp(a, b, sizeof(*a) * size_a) : 1;
 }
@@ -326255,7 +326278,7 @@ static int bbre_dfa_construct(
   /* check threads in n, and look them up in the dfa cache */
   hash = bbre_hash(prev_flag);
   hash = bbre_hash(hash + exec->src.dense_pc_size);
-  hash = bbre_hash(hash + bbre_buf_size(d->set_buf));
+  hash = bbre_hash(hash + (bbre_uint)bbre_buf_size(d->set_buf));
   for (i = 0; i < exec->src.dense_pc_size; i++)
     hash = bbre_hash(hash + exec->src.dense_pc[i]);
   for (i = 0; i < bbre_buf_size(d->set_buf); i++)
@@ -326327,7 +326350,7 @@ static int bbre_dfa_construct(
       bbre_uint prev_alloc =
           d->states[table_pos] ? d->states[table_pos]->alloc : 0;
       next_alloc = bbre_dfa_state_alloc(
-          exec->src.dense_pc_size, bbre_buf_size(d->set_buf));
+          exec->src.dense_pc_size, (bbre_uint)bbre_buf_size(d->set_buf));
       if (prev_alloc < next_alloc) {
         next_state = bbre_alloci(
             &exec->alloc, d->states[table_pos], prev_alloc, next_alloc);
@@ -326345,7 +326368,7 @@ static int bbre_dfa_construct(
     next_state->alloc = next_alloc;
     next_state->flags = prev_flag;
     next_state->num_state = exec->src.dense_pc_size;
-    next_state->num_set = bbre_buf_size(d->set_buf);
+    next_state->num_set = (bbre_uint)bbre_buf_size(d->set_buf);
     state_data = bbre_dfa_state_data(next_state);
     for (i = 0; i < exec->src.dense_pc_size; i++)
       state_data[i] = exec->src.dense_pc[i];
@@ -326772,7 +326795,7 @@ static int bbre_exec_set_match(
     /* boolean match */
     err = bbre_dfa_match(
         exec, (bbre_byte *)s, n, pos, NULL,
-        BBRE_DFA_MATCH_FLAG_EXIT_EARLY | BBRE_DFA_STATE_FLAG_PRI);
+        BBRE_DFA_MATCH_FLAG_EXIT_EARLY | BBRE_DFA_MATCH_FLAG_PRI);
   } else {
     bbre_uint i, j;
     size_t dummy;
@@ -326991,7 +327014,7 @@ int bbre_which_captures_at(
 
 unsigned int bbre_capture_count(const bbre *reg)
 {
-  return bbre_buf_size(reg->group_names) + 1;
+  return (bbre_uint)bbre_buf_size(reg->group_names) + 1;
 }
 
 const char *bbre_capture_name(
@@ -327240,10 +327263,6 @@ int bbre_set_clone(
 error:
   return err;
 }
-
-static const char *const bbre_version_str;
-
-const char *bbre_version(void) { return bbre_version_str; }
 
 /* Below is a UTF-8 decoder implemented as a compact DFA. This was heavily
  * inspired by Bjoern Hoehrmann's ubiquitous "Flexible and Economical UTF-8
@@ -328190,7 +328209,7 @@ static int bbre_builtin_cc_decode(
 {
   const bbre_uint *read; /* pointer to compressed data */
   bbre_uint i, bit_idx, prev = BBRE_UTF_MAX + 1, accum = 0, range[2] = {0, 0};
-  int err;
+  int err = 0;
   /* Start reading from the p->start offset in the compressed bit stream. */
   read = bbre_builtin_cc_data + start / BBRE_COMPRESSED_CC_BITS_PER_WORD,
   bit_idx = start % BBRE_COMPRESSED_CC_BITS_PER_WORD;
@@ -328262,6 +328281,8 @@ static int bbre_builtin_cc_perl(
 /*{ Generated by `versioner.py` */
 static const char *const bbre_version_str = "0.0.2";
 /*} Generated by `versioner.py` */
+
+const char *bbre_version(void) { return bbre_version_str; }
 
 #ifdef BBRE_DEBUG_UTILS
 /* Inject a header file after everything. This is used during development for

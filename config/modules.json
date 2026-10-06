@@ -9737,7 +9737,8 @@
 			"sources": [],
 			"tests": [
 				"tests/tls/test_tls_stream_dial_future.c",
-				"tests/tls/test_tls_stream_dial_future_edges.c"
+				"tests/tls/test_tls_stream_dial_future_edges.c",
+				"tests/tls/test_tls_stream_dial_future_publish.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_tls_stream_dial_future_transport.c",
@@ -10173,7 +10174,8 @@
 			],
 			"tests": [
 				"tests/network/test_net_tcp_dial_future.c",
-				"tests/network/test_net_tcp_dial_future_oom.c"
+				"tests/network/test_net_tcp_dial_future_oom.c",
+				"tests/network/test_net_tcp_dial_future_publish.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_net_tcp_dial_future.c"
@@ -14742,7 +14744,8 @@
 			],
 			"tests": [
 				"tests/process/test_process_run.c",
-				"tests/process/test_process_run_oom.c"
+				"tests/process/test_process_run_oom.c",
+				"tests/process/test_process_program_resolution.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_process_run.c"

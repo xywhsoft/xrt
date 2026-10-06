@@ -155,7 +155,7 @@ int main(void)
 	/* ---- 组提交族 ---- */
 	memset(&GroupConfig, 0, sizeof(GroupConfig));
 	pGroup = xrtTaskGroupCreate(&GroupConfig);
-	if ( (pGroup == NULL) ) {
+	if ( pGroup == NULL ) {
 		goto Cleanup;
 	}
 	(void)xrtCancelRequest(pCancel);

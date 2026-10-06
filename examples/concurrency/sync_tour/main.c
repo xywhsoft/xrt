@@ -38,13 +38,6 @@ static inline bool exampleTimerExpired(double Limit)
 {
     return xrtTimer() >= Limit;
 }
-static inline int64 exampleTimerRemaining(double Limit)
-{
-    double Ms;
-    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
-    Ms = ceil((Limit - xrtTimer()) * 1000.0);
-    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
-}
 
 #define EXAMPLE_TIMEOUT_MS	INT64_C(200)
 

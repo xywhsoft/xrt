@@ -51,6 +51,7 @@ int main(void)
 	xcancel* pCancel = NULL;
 	cstr arrArgs[2];
 	xprocessstatus Status;
+	cstr sStage = "run";
 	int iResult = 1;
 
 	/* ---- Run：输入回显 + 限长捕获 ---- */
@@ -71,6 +72,7 @@ int main(void)
 	xrtProcessResultUnit(&Result);
 
 	/* ---- Capture：默认策略直接执行 ---- */
+	sStage = "capture";
 	arrArgs[0] = EXAMPLE_SHELL_FLAG;
 	arrArgs[1] = EXAMPLE_CAPTURE_COMMAND;
 	if ( !xrtProcessCapture(EXAMPLE_SHELL, arrArgs, 2u, &Result) ||
@@ -83,6 +85,7 @@ int main(void)
 	xrtProcessResultUnit(&Result);
 
 	/* ---- 生命周期：长睡进程 + Id/Native/State/Status/Error ---- */
+	sStage = "spawn";
 		if ( !xrtProcessShellConfigInit(&Config,
 			EXAMPLE_SLEEP_COMMAND) ) {
 		goto Cleanup;
@@ -101,10 +104,12 @@ int main(void)
 		goto Cleanup;
 	}
 	/* WaitFor 短窗：长睡进程必然超时。 */
+	sStage = "wait timeout";
 	if ( xrtProcessWaitFor(pProcess, 100) != XWAIT_TIMEOUT ) {
 		goto Cleanup;
 	}
 	/* WaitUntilCancel：已触发令牌立即取消。 */
+	sStage = "wait cancellation";
 	pCancel = xrtCancelCreate();
 	if ( (pCancel == NULL) ||
 		!xrtCancelRequest(pCancel) ||
@@ -114,6 +119,7 @@ int main(void)
 	}
 	/* 停止族：Interrupt 是协作请求（Windows 重定向子进程可能
 	 * 不响应控制台事件），仅断言受理；实际终止用 Terminate。 */
+	sStage = "interrupt and kill";
 	if ( !xrtProcessInterrupt(pProcess) ) {
 		goto Cleanup;
 	}
@@ -133,6 +139,7 @@ int main(void)
 	printf("process: lifecycle id/native/state/wait ok\n");
 
 	/* ---- 停止族：Terminate 与 Kill 用独立短睡进程 ---- */
+	sStage = "stop";
 	{
 		xprocess* pVictim;
 
@@ -209,6 +216,7 @@ int main(void)
 	}
 
 	/* ---- PipelineOptions：配置初始化入口 ---- */
+	sStage = "pipeline options";
 	if ( !xrtProcessPipelineOptionsInit(&PipeOptions) ) {
 		goto Cleanup;
 	}
@@ -216,6 +224,10 @@ int main(void)
 	iResult = 0;
 
 Cleanup:
+	if ( iResult != 0 ) {
+		fprintf(stderr, "process: %s failed kind=%d code=%d\n", sStage,
+			(int)xrtErrorKind(xrtGetError()), (int)xrtErrorCode(xrtGetError()));
+	}
 	xrtCancelDestroy(pCancel);
 	xrtProcessDestroy(pRef);
 	xrtProcessDestroy(pProcess);

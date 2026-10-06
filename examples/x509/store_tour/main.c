@@ -106,7 +106,7 @@ int main(void)
 
 	/* ---- 路径策略默认值：初始化即可用于 PathBuild/Validate。 ---- */
 	xrtX509PathConfigInit(&PathConfig);
-	if ( (PathConfig.Time == 0) ) {
+	if ( PathConfig.Time == 0 ) {
 		goto Cleanup;
 	}
 	printf("store: path config defaults ok\n");

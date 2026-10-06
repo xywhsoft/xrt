@@ -43,6 +43,8 @@ static void testTlsRecordWithoutBackend(void)
 #endif
 
 	memset(&Key, 0xA5, sizeof(Key));
+	/* Keep the state discriminator valid while poisoning sensitive storage. */
+	Key.Ready = false;
 
 #if !defined(XRT_FEATURE_TLS_RECORD_AES)
 	Before = Key;

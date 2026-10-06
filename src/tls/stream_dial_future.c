@@ -64,12 +64,14 @@ static void __xrtTlsDialFutureDone(
 	xrt_tls_dial_future* pContext =
 		(xrt_tls_dial_future*)pData;
 	xpromise* pPromise = xrtFutureBridgePromise(&pContext->Bridge);
-	xtlsdial* pHeld = pContext->Dial;
+	xtlsdial* pHeld;
 	xerror* pFailure = NULL;
 	bool bReady;
 
 	(void)pDial;
 	bReady = xrtFutureBridgeWait(&pContext->Bridge);
+	/* The submitter publishes Dial before releasing the setup gate. */
+	pHeld = pContext->Dial;
 	xrtFutureBridgeUnwatch(&pContext->Bridge);
 	if ( (Result != XNET_RESULT_OK) && (pError != NULL) ) {
 		pFailure = xrtErrorRef(pError);

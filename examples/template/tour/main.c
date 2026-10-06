@@ -229,7 +229,7 @@ int main(void)
 	Extension.Data = &Context;
 	Extension.Drop = NULL;
 	pRegistry = xrtTemplateRegistryCreate(&Extension, 1u);
-	if ( (pRegistry == NULL) ) {
+	if ( pRegistry == NULL ) {
 		goto Cleanup;
 	}
 	/* RegistryRef：不可变共享。 */

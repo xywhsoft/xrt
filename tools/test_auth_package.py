@@ -33,7 +33,8 @@ def public_symbols(name: str) -> list[str]:
 
 
 def inputs() -> list[Path]:
-    result = [ROOT / 'single/xrt.h', ROOT / 'tools/test_auth_package.py']
+    result = [ROOT / 'single/xrt.h', ROOT / 'include/xrt/detail/wait.h',
+              ROOT / 'tools/test_auth_package.py']
     for name in LIBRARIES:
         library = ROOT / f'extlibs/x{name}'
         result += [*(library / 'include').rglob('*.h'), library / 'config/modules.json',
@@ -65,7 +66,8 @@ def build(compiler: str, archiver: str) -> dict:
                         'int main(void) { return test_jwt_package() || test_oauth2_package(); }\n', encoding='utf-8')
     flags = ['-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
              *([] if os.name == 'nt' else ['-D_GNU_SOURCE']), '-include', str(config),
-             '-I', str(ROOT / 'single'), *[flag for name in LIBRARIES for flag in ('-I', str(ROOT / f'extlibs/x{name}/include'))]]
+             '-I', str(ROOT / 'single'), '-I', str(ROOT / 'include'),
+             *[flag for name in LIBRARIES for flag in ('-I', str(ROOT / f'extlibs/x{name}/include'))]]
     system = ['-lws2_32', '-lbcrypt', '-ladvapi32', '-liphlpapi'] if os.name == 'nt' else ['-pthread', '-lm']
     symbols = {name: public_symbols(name) for name in LIBRARIES}
     executed, products = [], []

@@ -4,7 +4,15 @@
 	#include <errno.h>
 	#include <fcntl.h>
 	#include <limits.h>
+	/* Older glibc headers erase packed attributes for non-GNU compilers.
+	 * TCC still supports pragma packing; preserve the Linux x86-64 epoll ABI. */
+	#if defined(__TINYC__) && defined(__x86_64__)
+		#pragma pack(push, 4)
+	#endif
 	#include <sys/epoll.h>
+	#if defined(__TINYC__) && defined(__x86_64__)
+		#pragma pack(pop)
+	#endif
 	#include <sys/eventfd.h>
 	#include <unistd.h>
 #endif
@@ -12,6 +20,13 @@
 
 
 #if defined(XRT_FEATURE_NET_PORT_EPOLL) && defined(__linux__)
+
+#if defined(__x86_64__)
+typedef char __xrt_net_epoll_event_abi[
+	(sizeof(struct epoll_event) == 12u) &&
+	(offsetof(struct epoll_event, data) == 4u) ? 1 : -1
+];
+#endif
 
 #define XRT_NET_EPOLL_READY_MAX 256u
 #define XRT_NET_EPOLL_WAKE_TOKEN UINT64_C(0)

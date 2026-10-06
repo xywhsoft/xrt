@@ -92,7 +92,7 @@ int main(void)
 		goto Cleanup;
 	}
 	pTaken = xrtMalloc(2u);
-	if ( (pTaken == NULL) ) {
+	if ( pTaken == NULL ) {
 		goto Cleanup;
 	}
 	memcpy(pTaken, "or", 2u);

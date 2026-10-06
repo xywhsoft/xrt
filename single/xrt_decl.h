@@ -38547,8 +38547,9 @@ XRT_EXTERN_C_END
 	#error "XRT line readers require IO and buffer support"
 #endif
 
-#if defined(XRT_FEATURE_IO_STANDARD) && !defined(XRT_FEATURE_IO)
-	#error "XRT standard streams require IO support"
+#if defined(XRT_FEATURE_IO_STANDARD) && \
+	(!defined(XRT_FEATURE_IO) || !defined(XRT_FEATURE_ATOMIC))
+	#error "XRT standard streams require IO and atomic support"
 #endif
 
 

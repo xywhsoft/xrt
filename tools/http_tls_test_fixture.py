@@ -28,19 +28,23 @@ def certificates(root: Path) -> tuple[Path, Path, Path, Path, Path]:
     leaf_key = root / "leaf.key"
     request = root / "leaf.csr"
     extensions = root / "leaf.ext"
+    # A locally built oracle may have no system openssl.cnf at its prefix.
+    # Keep certificate generation independent of the runner's installation.
+    config = root / "openssl.cnf"
+    config.write_text("[req]\ndistinguished_name=dn\n[dn]\n", encoding="ascii")
     for name, cert, key in (
         ("xoauth2 loopback CA", ca, ca_key),
         ("untrusted loopback CA", other_ca, root / "other-ca.key"),
     ):
         run_command(
-            "openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+            "openssl", "req", "-config", str(config), "-x509", "-newkey", "rsa:2048", "-nodes",
             "-sha256", "-days", "2", "-subj", f"/CN={name}",
             "-addext", "basicConstraints=critical,CA:TRUE",
             "-addext", "keyUsage=critical,keyCertSign,cRLSign",
             "-keyout", str(key), "-out", str(cert),
         )
     run_command(
-        "openssl", "req", "-newkey", "rsa:2048", "-nodes", "-sha256",
+        "openssl", "req", "-config", str(config), "-newkey", "rsa:2048", "-nodes", "-sha256",
         "-subj", "/CN=localhost", "-keyout", str(leaf_key),
         "-out", str(request),
     )

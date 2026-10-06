@@ -121,7 +121,7 @@ int main(void)
 	pMulti = xrtPatternCompileManyConfig(Specs, 2u, &Config);
 	if ( (pMulti == NULL) ||
 		(xrtPatternCount(pMulti) != 2u) ||
-		(xrtPatternValue(pMulti, 0u) != (ptr)"Jane") ||
+		(xrtPatternValue(pMulti, 0u) != Specs[0].Value) ||
 		(xrtPatternId(pMulti, 1u) == XPATTERN_ID_INVALID) ) {
 		goto Cleanup;
 	}
@@ -132,7 +132,7 @@ int main(void)
 	if ( (xrtPatternMatch(pMulti, SV("amy@corp.io"), Captures, 4u,
 			&Match) != XPATTERN_MATCH) ||
 		(Match.PatternIndex != 0u) ||
-		(Match.Value != (ptr)"Jane") ||
+		(Match.Value != Specs[0].Value) ||
 		(Match.CaptureCount != 2u) ||
 		(Captures[0].Size != 3u) ||
 		(memcmp(Captures[0].Data, "amy", 3u) != 0) ) {
@@ -144,7 +144,7 @@ int main(void)
 	if ( (xrtPatternLookup(pMulti, SV("mail/hello"),
 			&Match) != XPATTERN_MATCH) ||
 		(Match.PatternIndex != 1u) ||
-		(Match.Value != (ptr)"Mailbox") ||
+		(Match.Value != Specs[1].Value) ||
 		(xrtPatternLookup(pMulti, SV("nothing"),
 			&Match) != XPATTERN_NONE) ) {
 		goto Cleanup;
