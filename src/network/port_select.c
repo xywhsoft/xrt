@@ -276,23 +276,16 @@ static bool __xrtNetSelectUnwatch(xnetport* pPort, xnetsocket Socket)
 
 
 
-/* 把微秒等待转换为 select timeval，NEVER 由空指针表达。 */
-static struct timeval* __xrtNetSelectTimeout(int64 iTimeout,
-	struct timeval* pTimeout)
+/* 把毫秒等待转换为 select timeval，NEVER 由空指针表达。 */
+static struct timeval* __xrtNetSelectTimeout(int64 iTimeout, struct timeval* pTimeout)
 {
-	uint64 iSeconds;
-
-	if ( iTimeout == XRT_WAIT_FOREVER ) {
-		return NULL;
-	}
-	iSeconds = iTimeout / 1000000u;
-	if ( iSeconds > (uint64)LONG_MAX ) {
-		iSeconds = (uint64)LONG_MAX;
-		iTimeout = iSeconds * 1000000u;
-	}
-	pTimeout->tv_sec = (long)iSeconds;
-	pTimeout->tv_usec = (long)(iTimeout % 1000000u);
-	return pTimeout;
+    int64 Seconds;
+    if ( iTimeout == XRT_WAIT_FOREVER ) { return NULL; }
+    if ( iTimeout < 0 ) { iTimeout = 0; }
+    Seconds = iTimeout / 1000;
+    if ( Seconds > LONG_MAX ) { pTimeout->tv_sec = LONG_MAX; pTimeout->tv_usec = 0; }
+    else { pTimeout->tv_sec = (long)Seconds; pTimeout->tv_usec = (long)((iTimeout % 1000) * 1000); }
+    return pTimeout;
 }
 
 

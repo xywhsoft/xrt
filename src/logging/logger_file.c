@@ -3,6 +3,7 @@
 #include <xrt/logger.h>
 
 #include <stdio.h>
+#include <math.h>
 
 
 
@@ -29,7 +30,7 @@ typedef struct xlogfilestate {
 	uint64 Rotations;
 	uint64 Reopens;
 	uint64 Syncs;
-	uint64 LastSync;
+	double LastSync;
 	char Text[];
 } xlogfilestate;
 
@@ -109,7 +110,7 @@ static bool __xrtLogFileOptionsValid(const xlogfileoptions* pOptions)
 		(pOptions->RecordLimit != 0u) &&
 		(
 			(pOptions->Sync != XLOG_FILE_SYNC_INTERVAL) ||
-			(pOptions->SyncInterval != 0u)
+			(pOptions->SyncInterval > 0)
 		);
 }
 
@@ -399,7 +400,7 @@ static bool __xrtLogFileSyncRecord(xlogfilestate* pState)
 		return __xrtLogFileSyncLocked(pState);
 	}
 	iNow = xrtTimer();
-	if ( (iNow == 0u) && (xrtGetError() != NULL) ) {
+	if ( !isfinite(iNow) ) {
 		__xrtLogFileWrap(
 			XERR_IO,
 			XLOG_ERROR_FILE_SYNC,
@@ -410,7 +411,7 @@ static bool __xrtLogFileSyncRecord(xlogfilestate* pState)
 	}
 	if (
 		(iNow >= pState->LastSync) &&
-		((iNow - pState->LastSync) < pState->Options.SyncInterval)
+		((iNow - pState->LastSync) * 1000.0 < pState->Options.SyncInterval)
 	) {
 		return true;
 	}

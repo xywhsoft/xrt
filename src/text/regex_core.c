@@ -1,3 +1,4 @@
+#include "../internal/xrt_internal.h"
 #include "../internal/xrt_regex.h"
 
 #include <stdio.h>

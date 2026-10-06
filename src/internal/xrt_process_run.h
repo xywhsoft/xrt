@@ -24,7 +24,7 @@ bool __xrtProcessCaptureAppend(
 /* 对单个仍在运行的进程执行 Interrupt、Terminate、KillTree 分级停止。 */
 bool __xrtProcessRunStop(
 	xprocess* pProcess,
-	uint64 iGrace
+	int64 iGrace
 );
 
 #endif

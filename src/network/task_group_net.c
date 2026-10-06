@@ -140,6 +140,8 @@ XRT_API xfuture* __xrtTaskGroupNetUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	return __xrtTaskGroupNet(
 		pGroup,
 		pEngine,

@@ -8,8 +8,8 @@
 
 #define XRT_NET_DIAL_ATTEMPTS_DEFAULT 8u
 #define XRT_NET_DIAL_ATTEMPTS_MAX 64u
-#define XRT_NET_DIAL_TIMEOUT_DEFAULT 30000000u
-#define XRT_NET_DIAL_FALLBACK_DEFAULT 250000u
+#define XRT_NET_DIAL_TIMEOUT_DEFAULT 30000
+#define XRT_NET_DIAL_FALLBACK_DEFAULT 250
 
 #define XRT_NET_DIAL_GATE_OPEN 0u
 #define XRT_NET_DIAL_GATE_CANCEL 1u
@@ -1219,6 +1219,8 @@ XRT_API bool xrtNetDialConfigValid(const xnetdialconfig* pConfig)
 		 ((pConfig->Family != XNET_FAMILY_UNSPEC) &&
 		  (pConfig->Family != XNET_FAMILY_IPV4) &&
 		  (pConfig->Family != XNET_FAMILY_IPV6)) ||
+		 (pConfig->Timeout < XRT_WAIT_FOREVER) ||
+        (pConfig->FallbackDelay < 0) ||
 		 (pConfig->MaxAttempts == 0) ||
 		 (pConfig->MaxAttempts > XRT_NET_DIAL_ATTEMPTS_MAX) ) {
 		__xrtNetDialSetConfigError(NULL, "invalid TCP dial policy");

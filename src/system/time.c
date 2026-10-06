@@ -112,7 +112,7 @@ int64 __xrtTimeFloorDiv(int64 iValue, int64 iDivisor)
 
 
 
-/* 把 Unix 毫秒拆成天数和非负当日毫秒。 */
+/* 把 公元毫秒拆成天数和非负当日毫秒。 */
 void __xrtTimeSplitDay(xtime iTime, int64* pDays, int64* pDayTime)
 {
 	int64 iDays = iTime / XRT_TIME_DAY;
@@ -169,7 +169,7 @@ XRT_API int xrtDaysInYear(int64 iYear)
 
 
 
-/* 把 Gregorian 日期转换为 Unix Epoch 天数。 */
+/* 把 Gregorian 日期转换为公元天数。 */
 bool __xrtTimeDaysFromCivil(int64 iYear, int iMonth, int iDay, int64* pDays)
 {
 	int64 iEra;
@@ -216,7 +216,7 @@ bool __xrtTimeDaysFromCivil(int64 iYear, int iMonth, int iDay, int64* pDays)
 
 
 
-/* 把 Unix Epoch 天数常数时间转换为 Gregorian 日期。 */
+/* 把 公元天数常数时间转换为 Gregorian 日期。 */
 void __xrtTimeCivilFromDays(int64 iDays, int64* pYear, int* pMonth, int* pDay)
 {
 	int64 iShifted = iDays + 306;
@@ -566,7 +566,6 @@ static uint64 __xrtTimeQpcFrequency(void)
 
 
 
-/* 返回单调时钟毫秒。 */
 
 
 
@@ -595,7 +594,7 @@ XRT_API double xrtTimer(void)
 
 
 
-/* 返回当前 Unix Epoch 毫秒。 */
+/* 返回当前公元 UTC 毫秒。 */
 XRT_API xtime xrtNow(void)
 {
 #if defined(_WIN32) || defined(_WIN64)

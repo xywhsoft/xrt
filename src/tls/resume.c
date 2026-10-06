@@ -142,7 +142,7 @@ static bool __xrtTlsResumeConfigValid(
 		);
 	}
 
-	iLifetime = (int64)pConfig->Lifetime * INT64_C(1000000);
+	iLifetime = (int64)pConfig->Lifetime * XRT_TIME_SECOND;
 	if ( pConfig->IssuedAt > (INT64_MAX - iLifetime) ) {
 		return __xrtTlsResumeError(
 			XERR_RANGE, XTLS_ERROR_RESUME,
@@ -368,7 +368,7 @@ XRT_API bool xrtTlsResumeTicketAge(
 	if ( !xrtTlsResumeValidAt(pResume, iNow) ) {
 		return false;
 	}
-	iMilliseconds = (uint64)(iNow - pResume->Info.IssuedAt) / 1000u;
+	iMilliseconds = (uint64)iNow - (uint64)pResume->Info.IssuedAt;
 	*pAge = (uint32)iMilliseconds + pResume->Info.AgeAdd;
 	return true;
 }

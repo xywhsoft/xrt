@@ -281,6 +281,8 @@ XRT_API xwaitresult __xrtCoEventAwaitUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xrt_co_event_impl* pImpl = __xrtCoEventRequire(pEvent);
 	xrt_co_event_waiter tWaiter;
 	xcoro* pCo;
@@ -377,7 +379,7 @@ XRT_API xwaitresult xrtCoEventTryAwait(xcoevent* pEvent)
 
 
 
-/* 在相对微秒数内等待事件置位。 */
+/* 在相对毫秒数内等待事件置位。 */
 XRT_API xwaitresult xrtCoEventAwaitFor(
 	xcoevent* pEvent,
 	int64 iTimeout

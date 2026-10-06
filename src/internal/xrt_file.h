@@ -173,7 +173,7 @@ bool __xrtFileWindowsStat(HANDLE hFile, xfileinfo* pInfo, bool bReport);
 
 
 
-/* 把 Windows FILETIME 转换为 Unix Epoch 微秒。 */
+/* 把 Windows FILETIME 转换为 公元 UTC 毫秒。 */
 xtime __xrtFileWindowsTime(FILETIME Time);
 
 

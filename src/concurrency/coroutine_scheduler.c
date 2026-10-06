@@ -1134,6 +1134,8 @@ XRT_API xwaitresult __xrtCoSchedPollUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xwaitresult Result;
 
 	if ( !__xrtCoSchedCheckOwner(pSched) ) {
@@ -1270,6 +1272,8 @@ static xcoro* __xrtCoWaitCurrent(void)
 /* 挂起当前协程到唤醒、取消或截止时间。 */
 XRT_API xwaitresult __xrtCoParkUntil(double iDeadline)
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xcoro* pCo = __xrtCoWaitCurrent();
 
 	if ( pCo == NULL ) {
@@ -1336,6 +1340,8 @@ XRT_API xwaitresult xrtCoParkFor(int64 iTimeout)
 /* 让当前调度协程睡眠到指定截止时间。 */
 XRT_API xwaitresult __xrtCoSleepUntil(double iDeadline)
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xwaitresult Result = __xrtCoParkUntil(iDeadline);
 
 	return Result == XWAIT_TIMEOUT ? XWAIT_OK : Result;
@@ -1343,7 +1349,7 @@ XRT_API xwaitresult __xrtCoSleepUntil(double iDeadline)
 
 
 
-/* 让当前调度协程睡眠指定微秒数，零值执行一次公平让出。 */
+/* 让当前调度协程睡眠指定毫秒数，零值执行一次公平让出。 */
 XRT_API xwaitresult xrtCoSleep(int64 iTimeout)
 {
 	if ( iTimeout == 0 ) {
@@ -1374,6 +1380,8 @@ XRT_API xwaitresult __xrtCoJoinUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xcoro* pCurrent = __xrtCoWaitCurrent();
 
 	if ( pCurrent == NULL ) {

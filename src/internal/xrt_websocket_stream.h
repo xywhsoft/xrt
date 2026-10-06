@@ -173,7 +173,7 @@ struct xwsstream {
 	#endif
 	xwsframe Frame;
 	xwsmessageinfo MessageInfo;
-	int64 FrameRemaining;
+	uint64 FrameRemaining;
 	uint64 FrameOffset;
 	size_t ControlSize;
 	uint8 Control[XWS_CLOSE_PAYLOAD_MAX];

@@ -32,6 +32,8 @@ XRT_API bool __xrtNetStreamWait(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xfuture* pFuture;
 	xfutureresult Result;
 	bool bReady;
@@ -68,6 +70,8 @@ XRT_API bool __xrtNetStreamWaitAvailable(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xfuture* pFuture;
 	xfutureresult Result;
 	bool bReady;
@@ -103,6 +107,8 @@ XRT_API xnetstream* __xrtNetListenerAcceptWait(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	xfuture* pFuture;
 	xfutureresult Result;
 	xnetstream* pStream = NULL;
@@ -141,6 +147,8 @@ XRT_API xnetbytes* __xrtNetStreamRecv(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	xfuture* pFuture;
 	xfutureresult Result;
 	xnetbytes* pBytes = NULL;

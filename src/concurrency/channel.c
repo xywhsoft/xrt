@@ -926,7 +926,7 @@ XRT_API xwaitresult xrtChannelSend(xchannel* pChannel, ptr pItem)
 
 
 
-/* 在相对微秒数内等待发送一个指针值。 */
+/* 在相对毫秒数内等待发送一个指针值。 */
 XRT_API xwaitresult xrtChannelSendFor(
 	xchannel* pChannel,
 	ptr pItem,
@@ -949,6 +949,8 @@ XRT_API xwaitresult __xrtChannelSendUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	return __xrtChannelSendWait(
 		pChannel,
 		pItem,
@@ -995,7 +997,7 @@ XRT_API xwaitresult xrtChannelRecv(xchannel* pChannel, ptr* pItem)
 
 
 
-/* 在相对微秒数内等待接收一个指针值。 */
+/* 在相对毫秒数内等待接收一个指针值。 */
 XRT_API xwaitresult xrtChannelRecvFor(
 	xchannel* pChannel,
 	ptr* pItem,
@@ -1018,6 +1020,8 @@ XRT_API xwaitresult __xrtChannelRecvUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	return __xrtChannelRecvWait(
 		pChannel,
 		pItem,
@@ -1047,7 +1051,7 @@ XRT_API xwaitresult xrtChannelSendCancel(
 
 
 
-/* 在相对微秒数内等待发送，并允许取消尚未提交的操作。 */
+/* 在相对毫秒数内等待发送，并允许取消尚未提交的操作。 */
 XRT_API xwaitresult xrtChannelSendForCancel(
 	xchannel* pChannel,
 	ptr pItem,
@@ -1073,6 +1077,8 @@ XRT_API xwaitresult __xrtChannelSendUntilCancel(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xcancelwatch* pWatch;
 	xrt_channel_impl* pImpl;
 	xchannelresult iTry;
@@ -1135,7 +1141,7 @@ XRT_API xwaitresult xrtChannelRecvCancel(
 
 
 
-/* 在相对微秒数内等待接收，并允许取消尚未完成的操作。 */
+/* 在相对毫秒数内等待接收，并允许取消尚未完成的操作。 */
 XRT_API xwaitresult xrtChannelRecvForCancel(
 	xchannel* pChannel,
 	ptr* pItem,
@@ -1161,6 +1167,8 @@ XRT_API xwaitresult __xrtChannelRecvUntilCancel(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xcancelwatch* pWatch;
 	xrt_channel_impl* pImpl;
 	xchannelresult iTry;

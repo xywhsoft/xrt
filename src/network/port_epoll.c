@@ -604,25 +604,12 @@ static bool __xrtNetEpollUnwatch(xnetport* pPort, xnetsocket Socket)
 
 
 
-/* 把微秒等待向上转换成 epoll 的毫秒精度。 */
+/* 把毫秒等待向上转换成 epoll 的毫秒精度。 */
 static int __xrtNetEpollTimeout(int64 iTimeout)
 {
-	uint64 iMilliseconds;
-
-	if ( iTimeout == XRT_WAIT_FOREVER ) {
-		return -1;
-	}
-	if ( iTimeout == 0 ) {
-		return 0;
-	}
-	iMilliseconds = iTimeout / 1000u;
-	if ( (iTimeout % 1000u) != 0 ) {
-		iMilliseconds++;
-	}
-	if ( iMilliseconds > (uint64)INT_MAX ) {
-		return INT_MAX;
-	}
-	return (int)iMilliseconds;
+    if ( iTimeout == XRT_WAIT_FOREVER ) { return -1; }
+    if ( iTimeout < 0 ) { return 0; }
+    return iTimeout > INT_MAX ? INT_MAX : (int)iTimeout;
 }
 
 

@@ -49,17 +49,17 @@ int64 __xrtTimeFloorDiv(int64 iValue, int64 iDivisor);
 
 
 
-/* 把 Unix 微秒拆成天数和当日微秒。 */
+/* 把 公元 UTC 毫秒拆成天数和当日毫秒。 */
 void __xrtTimeSplitDay(xtime iTime, int64* pDays, int64* pDayTime);
 
 
 
-/* 把 Unix Epoch 天数转换为 Gregorian 日期。 */
+/* 把 公元纪元天数转换为 Gregorian 日期。 */
 void __xrtTimeCivilFromDays(int64 iDays, int64* pYear, int* pMonth, int* pDay);
 
 
 
-/* 把 Gregorian 日期转换为 Unix Epoch 天数。 */
+/* 把 Gregorian 日期转换为 公元纪元天数。 */
 bool __xrtTimeDaysFromCivil(int64 iYear, int iMonth, int iDay, int64* pDays);
 
 

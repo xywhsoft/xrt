@@ -642,6 +642,8 @@ XRT_API xwaitresult __xrtProcessWaitUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xwaitresult Result = XWAIT_OK;
 	xerror* pError = NULL;
 
@@ -689,7 +691,7 @@ XRT_API xwaitresult xrtProcessWait(xprocess* pProcess)
 
 
 
-/* 从相对微秒数构造单调 Deadline。 */
+/* 从相对毫秒数构造单调 Deadline。 */
 XRT_API xwaitresult xrtProcessWaitFor(
 	xprocess* pProcess,
 	int64 iTimeout

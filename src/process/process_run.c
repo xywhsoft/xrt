@@ -62,6 +62,8 @@ XRT_API xwaitresult __xrtProcessWaitUntilCancel(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xcancelwatch* pWatch;
 	xwaitresult Result = XWAIT_OK;
 	xerror* pError = NULL;
@@ -377,7 +379,7 @@ static void __xrtProcessRunDiscardError(void)
 /* 在控制流超时、取消或内部失败后执行固定分级收口。 */
 bool __xrtProcessRunStop(
 	xprocess* pProcess,
-	uint64 iGrace
+	int64 iGrace
 )
 {
 	if ( xrtProcessState(pProcess) == XPROCESS_EXITED ) {
@@ -447,8 +449,8 @@ XRT_API bool xrtProcessRunOptionsInit(xprocessrunoptions* pOptions)
 		return false;
 	}
 	memset(pOptions, 0, sizeof(xprocessrunoptions));
-	pOptions->Deadline = INFINITY;
-	pOptions->StopGrace = UINT64_C(250000);
+	pOptions->Timeout = XRT_WAIT_FOREVER;
+	pOptions->StopGrace = INT64_C(250);
 	pOptions->StdoutLimit = XPROCESS_CAPTURE_LIMIT_DEFAULT;
 	pOptions->StderrLimit = XPROCESS_CAPTURE_LIMIT_DEFAULT;
 	pOptions->Overflow = XPROCESS_OVERFLOW_ERROR;
@@ -492,7 +494,7 @@ XRT_API bool xrtProcessRun(
 	xprocessconfig Config;
 	xprocess* pProcess = NULL;
 	xwaitresult Wait;
-	double iStart;
+	double iStart, Limit;
 	bool bNeedInput;
 	bool bOk = false;
 	bool bLockReady = false;
@@ -566,7 +568,10 @@ XRT_API bool xrtProcessRun(
 	if ( bNeedInput ) {
 		Config.Stdin.Mode = XPROCESS_IO_PIPE;
 	}
+	Limit = __xrtWaitAfter(Options.Timeout);
+	if ( !__xrtWaitValid(Limit) || Options.StopGrace < 0 ) { return false; }
 	iStart = xrtTimer();
+	if (!isfinite(iStart)) return false;
 	pProcess = xrtProcessSpawn(&Config);
 	if ( pProcess == NULL ) {
 		goto cleanup;
@@ -604,7 +609,7 @@ XRT_API bool xrtProcessRun(
 	bThreadsReady = true;
 	Wait = __xrtProcessWaitUntilCancel(
 		pProcess,
-		Options.Deadline,
+		Limit,
 		State.Control
 	);
 	if ( Wait == XWAIT_ERROR ) {
@@ -635,7 +640,7 @@ XRT_API bool xrtProcessRun(
 	);
 	pResult->StdoutTruncated = State.Stdout.Truncated;
 	pResult->StderrTruncated = State.Stderr.Truncated;
-	pResult->Duration = xrtTimer() - iStart;
+	pResult->Duration = __xrtWaitElapsedMs(iStart);
 	bOk = !__xrtProcessRunFailed(&State);
 	goto cleanup;
 

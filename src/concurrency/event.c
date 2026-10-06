@@ -160,7 +160,7 @@ XRT_API xwaitresult xrtEventTryWait(xevent* pEvent)
 
 
 
-/* 在相对微秒数内等待事件。 */
+/* 在相对毫秒数内等待事件。 */
 XRT_API xwaitresult xrtEventWaitFor(xevent* pEvent, int64 iTimeout)
 {
 	return __xrtEventWaitUntil(pEvent, __xrtWaitAfter(iTimeout));
@@ -171,6 +171,8 @@ XRT_API xwaitresult xrtEventWaitFor(xevent* pEvent, int64 iTimeout)
 /* 等待事件到指定单调时钟截止时间。 */
 XRT_API xwaitresult __xrtEventWaitUntil(xevent* pEvent, double iDeadline)
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xrt_event_impl* pImpl = __xrtEventRequire(pEvent);
 
 	if ( pImpl == NULL ) {
@@ -179,6 +181,7 @@ XRT_API xwaitresult __xrtEventWaitUntil(xevent* pEvent, double iDeadline)
 	#if defined(_WIN32) || defined(_WIN64)
 		for ( ;; ) {
 			int64 iRemaining = __xrtWaitRemaining(iDeadline);
+            if ( iRemaining < XRT_WAIT_FOREVER ) { return XWAIT_ERROR; }
 			DWORD iMilliseconds = iRemaining == 0 ? 0 :
 				(iRemaining == XRT_WAIT_FOREVER ? INFINITE :
 				 (DWORD)__xrtWaitMilliseconds(iRemaining));

@@ -1505,6 +1505,8 @@ XRT_API xnetresult __xrtNetPortWait(xnetport* pPort,
 	double iDeadline, size_t* pCount)
 {
 	if ( pCount != NULL ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return XNET_RESULT_ERROR; }
+
 		*pCount = 0;
 	}
 	if ( (pPort == NULL) || (pPort->Driver == NULL) ||

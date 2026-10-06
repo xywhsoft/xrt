@@ -1004,7 +1004,7 @@ static bool __xrtNetKqueueUnwatch(
 
 
 
-/* 把微秒等待转换为有界 timespec，无限等待返回空指针。 */
+/* 把毫秒等待转换为有界 timespec，无限等待返回空指针。 */
 static const struct timespec* __xrtNetKqueueTimeout(
 	int64 iTimeout,
 	struct timespec* pTimeout
@@ -1016,7 +1016,7 @@ static const struct timespec* __xrtNetKqueueTimeout(
 	if ( iTimeout == XRT_WAIT_FOREVER ) {
 		return NULL;
 	}
-	iSeconds = iTimeout / UINT64_C(1000000);
+	iSeconds = iTimeout / INT64_C(1000);
 	iMaximum = (sizeof(time_t) >= sizeof(int64)) ?
 		(uint64)INT64_MAX : (uint64)INT32_MAX;
 	if ( iSeconds > iMaximum ) {
@@ -1025,7 +1025,7 @@ static const struct timespec* __xrtNetKqueueTimeout(
 	} else {
 		pTimeout->tv_sec = (time_t)iSeconds;
 		pTimeout->tv_nsec = (long)(
-			(iTimeout % UINT64_C(1000000)) * UINT64_C(1000)
+			(iTimeout % INT64_C(1000)) * INT64_C(1000000)
 		);
 	}
 	return pTimeout;

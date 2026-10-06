@@ -273,7 +273,7 @@ static bool __xrtLogTextFloat(xlogtextwriter* pWriter, double fValue)
 
 
 
-/* 写出带微秒和固定 UTC 偏移的时间文本。 */
+/* 写出带毫秒和固定 UTC 偏移的时间文本。 */
 static bool __xrtLogTextTime(
 	xlogtextwriter* pWriter,
 	xtime iTime,
@@ -295,7 +295,7 @@ static bool __xrtLogTextTime(
 		iSize = snprintf(
 			arrText,
 			sizeof(arrText),
-			"%lld-%02d-%02dT%02d:%02d:%02d.%06dZ",
+			"%lld-%02d-%02dT%02d:%02d:%02d.%03dZ",
 			(long long)DateTime.Year,
 			DateTime.Month,
 			DateTime.Day,
@@ -313,7 +313,7 @@ static bool __xrtLogTextTime(
 			iSize = snprintf(
 				arrText,
 				sizeof(arrText),
-				"%lld-%02d-%02dT%02d:%02d:%02d.%06d%c%02d:%02d",
+				"%lld-%02d-%02dT%02d:%02d:%02d.%03d%c%02d:%02d",
 				(long long)DateTime.Year,
 				DateTime.Month,
 				DateTime.Day,
@@ -329,7 +329,7 @@ static bool __xrtLogTextTime(
 			iSize = snprintf(
 				arrText,
 				sizeof(arrText),
-				"%lld-%02d-%02dT%02d:%02d:%02d.%06d%c%02d:%02d:%02d",
+				"%lld-%02d-%02dT%02d:%02d:%02d.%03d%c%02d:%02d:%02d",
 				(long long)DateTime.Year,
 				DateTime.Month,
 				DateTime.Day,

@@ -177,7 +177,7 @@ XRT_API xwaitresult xrtSemTryWait(xsem* pSem)
 
 
 
-/* 在相对微秒数内等待并消费一个信号。 */
+/* 在相对毫秒数内等待并消费一个信号。 */
 XRT_API xwaitresult xrtSemWaitFor(xsem* pSem, int64 iTimeout)
 {
 	return __xrtSemWaitUntil(pSem, __xrtWaitAfter(iTimeout));
@@ -188,6 +188,8 @@ XRT_API xwaitresult xrtSemWaitFor(xsem* pSem, int64 iTimeout)
 /* 等待并消费一个信号到指定截止时间。 */
 XRT_API xwaitresult __xrtSemWaitUntil(xsem* pSem, double iDeadline)
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xrt_sem_impl* pImpl = __xrtSemRequire(pSem);
 
 	if ( pImpl == NULL ) {
@@ -196,6 +198,7 @@ XRT_API xwaitresult __xrtSemWaitUntil(xsem* pSem, double iDeadline)
 	#if defined(_WIN32) || defined(_WIN64)
 		for ( ;; ) {
 			int64 iRemaining = __xrtWaitRemaining(iDeadline);
+            if ( iRemaining < XRT_WAIT_FOREVER ) { return XWAIT_ERROR; }
 			DWORD iMilliseconds;
 			DWORD iResult;
 

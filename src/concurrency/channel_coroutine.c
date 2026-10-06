@@ -121,6 +121,8 @@ XRT_API xchannelselectresult __xrtChannelSelectAwaitUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return (xchannelselectresult){XWAIT_ERROR, SIZE_MAX, XCHANNEL_ERROR}; }
+
 	xchannelselectresult tResult;
 	xcoro* pCo = __xrtChannelAwaitCurrent();
 	xrt_channel_await tAwait;
@@ -186,6 +188,8 @@ XRT_API xwaitresult __xrtChannelSendAwaitUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xchannelcase tCase = xrtChannelCaseSend(pChannel, pItem);
 
 	return __xrtChannelAwaitResult(
@@ -233,6 +237,8 @@ XRT_API xwaitresult __xrtChannelRecvAwaitUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xchannelcase tCase = xrtChannelCaseRecv(pChannel, pItem);
 
 	return __xrtChannelAwaitResult(

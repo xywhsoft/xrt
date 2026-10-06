@@ -1271,7 +1271,7 @@ static bool __xrtNetIOCPCancel(xnetport* pPort, uint64 Id)
 
 
 
-/* 把微秒等待向上取整为毫秒，避免有限截止时间被提前截断。 */
+/* 把毫秒等待向上取整为毫秒，避免有限截止时间被提前截断。 */
 static DWORD __xrtNetIOCPTimeout(int64 iTimeout)
 {
     if ( iTimeout == XRT_WAIT_FOREVER ) { return INFINITE; }

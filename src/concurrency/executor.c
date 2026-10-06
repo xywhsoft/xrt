@@ -814,6 +814,8 @@ XRT_API xwaitresult __xrtExecutorWaitUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xwaitresult Result = XWAIT_OK;
 
 	if ( pExecutor == NULL ) {

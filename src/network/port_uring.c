@@ -2150,7 +2150,7 @@ static bool __xrtNetUringWakeDrain(__xrt_net_uring_context* pContext)
 
 
 
-/* 把微秒等待向上取整为 poll 毫秒，并保留无限等待。 */
+/* 把毫秒等待向上取整为 poll 毫秒，并保留无限等待。 */
 static int __xrtNetUringTimeout(int64 iTimeout)
 {
     if ( iTimeout == XRT_WAIT_FOREVER ) { return -1; }

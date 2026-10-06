@@ -5930,7 +5930,7 @@ static int bbre_builtin_cc_decode(
     bbre *r, bbre_uint start, bbre_uint num_range, bbre_compframe *frame)
 {
   const bbre_uint *read; /* pointer to compressed data */
-  bbre_uint i, bit_idx, prev = BBRE_UTF_MAX + 1, accum = 0, range[2];
+  bbre_uint i, bit_idx, prev = BBRE_UTF_MAX + 1, accum = 0, range[2] = {0, 0};
   int err;
   /* Start reading from the p->start offset in the compressed bit stream. */
   read = bbre_builtin_cc_data + start / BBRE_COMPRESSED_CC_BITS_PER_WORD,

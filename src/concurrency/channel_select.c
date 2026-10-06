@@ -887,7 +887,7 @@ XRT_API xchannelselectresult xrtChannelSelect(
 
 
 
-/* 在相对微秒数内等待任意一个 case 原子提交。 */
+/* 在相对毫秒数内等待任意一个 case 原子提交。 */
 XRT_API xchannelselectresult xrtChannelSelectFor(
 	const xchannelcase* pCases,
 	size_t iCount,
@@ -910,6 +910,8 @@ XRT_API xchannelselectresult __xrtChannelSelectUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return (xchannelselectresult){XWAIT_ERROR, SIZE_MAX, XCHANNEL_ERROR}; }
+
 	return __xrtChannelSelectEvent(
 		pCases,
 		iCount,
@@ -931,6 +933,8 @@ XRT_API xchannelselectresult __xrtChannelSelectUntilCancel(
 )
 {
 	if ( pCancel == NULL ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return (xchannelselectresult){XWAIT_ERROR, SIZE_MAX, XCHANNEL_ERROR}; }
+
 		return __xrtChannelSelectUntil(
 			pCases,
 			iCount,

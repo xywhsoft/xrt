@@ -616,7 +616,7 @@ XRT_API xvalue* xrtValueBytesTake(bytes* pData, size_t iSize)
 
 
 
-/* 创建使用 Unix Epoch 微秒表示的时间值。 */
+/* 创建使用 公元 UTC 毫秒表示的时间值。 */
 XRT_API xvalue* xrtValueTime(xtime Time)
 {
 	xvalue* pValue = __xrtValueCreate(XVALUE_TIME);

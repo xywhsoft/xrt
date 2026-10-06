@@ -1442,7 +1442,7 @@ XRT_API bool xrtTell(xfile File, uint64* pPosition)
 
 #if defined(_WIN32) || defined(_WIN64)
 
-/* 把 Windows FILETIME 转换为 Unix Epoch 微秒。 */
+/* 把 Windows FILETIME 转换为 公元 UTC 毫秒。 */
 xtime __xrtFileWindowsTime(FILETIME Time)
 {
     uint64 Ticks = ((uint64)Time.dwHighDateTime << 32) | Time.dwLowDateTime;
@@ -1451,7 +1451,7 @@ xtime __xrtFileWindowsTime(FILETIME Time)
 
 
 
-/* 把 Unix Epoch 微秒安全转换为 Windows FILETIME。 */
+/* 把 公元 UTC 毫秒安全转换为 Windows FILETIME。 */
 static bool __xrtFileWindowsTimeValue(xtime Time, FILETIME* pValue)
 {
     uint64 Milliseconds;
@@ -1546,7 +1546,7 @@ bool __xrtFileWindowsStat(HANDLE hFile, xfileinfo* pInfo, bool bReport)
 
 #else
 
-/* 把纳秒精度系统时间安全转换为 Unix 微秒。 */
+/* 把纳秒精度系统时间安全转换为 公元 UTC 毫秒。 */
 static bool __xrtFileTime(int64 iSeconds, int64 iNanoseconds, xtime* pTime)
 {
     if ( iNanoseconds < 0 || iNanoseconds >= INT64_C(1000000000) ||
@@ -1559,7 +1559,7 @@ static bool __xrtFileTime(int64 iSeconds, int64 iNanoseconds, xtime* pTime)
 
 
 
-/* 把 Unix Epoch 微秒安全转换为 POSIX timespec。 */
+/* 把 公元 UTC 毫秒安全转换为 POSIX timespec。 */
 static bool __xrtFileTimeValue(xtime Time, struct timespec* pValue)
 {
     int64 Seconds = xrtTimeUnix(Time);

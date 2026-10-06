@@ -388,7 +388,7 @@ static int32 __xrtLogRingWorker(ptr pData)
 		if ( pState->Config.IdleWait == 0u ) {
 			xrtThreadYield();
 		} else {
-			xrtSleepUs(pState->Config.IdleWait);
+			xrtSleep(pState->Config.IdleWait);
 		}
 	}
 
@@ -625,7 +625,7 @@ static bool __xrtLogRingFlush(ptr pUserData)
 		if ( pState->Config.IdleWait == 0u ) {
 			xrtThreadYield();
 		} else {
-			xrtSleepUs(pState->Config.IdleWait);
+			xrtSleep(pState->Config.IdleWait);
 		}
 	}
 
@@ -923,7 +923,7 @@ XRT_API bool xrtLogRingStop(xlogsink* pSink)
 		return false;
 	}
 	__xrtLogRingClose(pState);
-	while (!xrtAtomic32Load(&pState->WorkerDone, XMEMORY_ACQUIRE)) xrtSleepUs(100u);
+	while (!xrtAtomic32Load(&pState->WorkerDone, XMEMORY_ACQUIRE)) xrtSleep(1);
 	if (!xrtMutexLock(&pState->ErrorLock)) return false;
 	pError = xrtErrorRef(pState->LastError);
 	if (!xrtMutexUnlock(&pState->ErrorLock)) { xrtErrorFree(pError); return false; }

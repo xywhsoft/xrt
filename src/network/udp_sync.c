@@ -32,6 +32,8 @@ XRT_API bool __xrtNetUdpWait(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xfuture* pFuture;
 	xfutureresult Result;
 	bool bReady;
@@ -68,6 +70,8 @@ XRT_API bool __xrtNetUdpWritable(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xfuture* pFuture;
 	xfutureresult Result;
 	bool bReady;
@@ -103,6 +107,8 @@ XRT_API xnetudppacket* __xrtNetUdpReceiveWait(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	xfuture* pFuture;
 	xfutureresult Result;
 	xnetudppacket* pPacket = NULL;
@@ -140,6 +146,8 @@ XRT_API xnetudperrorpacket* __xrtNetUdpReceiveErrorWait(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	xfuture* pFuture;
 	xfutureresult Result;
 	xnetudperrorpacket* pPacket = NULL;
@@ -180,6 +188,8 @@ XRT_API xnetudpbatch* __xrtNetUdpReceiveBatchWait(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	xfuture* pFuture;
 	xfutureresult Result;
 	xnetudpbatch* pBatch = NULL;

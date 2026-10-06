@@ -154,7 +154,7 @@ XRT_API xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex)
 
 
 
-/* 在相对微秒数内等待通知。 */
+/* 在相对毫秒数内等待通知。 */
 XRT_API xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, int64 iTimeout)
 {
 	return __xrtCondWaitUntil(pCond, pMutex, __xrtWaitAfter(iTimeout));
@@ -169,6 +169,8 @@ XRT_API xwaitresult __xrtCondWaitUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xrt_cond_impl* pCondImpl = __xrtCondRequire(pCond);
 	xrt_mutex_impl* pMutexImpl = __xrtCondMutexRequire(pMutex);
 
@@ -176,8 +178,9 @@ XRT_API xwaitresult __xrtCondWaitUntil(
 		return XWAIT_ERROR;
 	}
 	#if defined(_WIN32) || defined(_WIN64)
-		{
+		for (;;) {
 			int64 iRemaining = __xrtWaitRemaining(iDeadline);
+            if ( iRemaining < XRT_WAIT_FOREVER ) { return XWAIT_ERROR; }
 			DWORD iMilliseconds;
 			BOOL bResult;
 			int iCode;
@@ -200,13 +203,14 @@ XRT_API xwaitresult __xrtCondWaitUntil(
 				return XWAIT_OK;
 			}
 			if ( iCode == ERROR_TIMEOUT ) {
+                if ( !__xrtWaitExpired(iDeadline) ) { continue; }
 				return XWAIT_TIMEOUT;
 			}
 			__xrtSyncSetSystemError("cond.wait", iCode, "condition wait failed");
 			return XWAIT_ERROR;
 		}
 	#else
-		{
+		for (;;) {
 			struct timespec tDeadline;
 			int iResult;
 
@@ -237,6 +241,7 @@ XRT_API xwaitresult __xrtCondWaitUntil(
 				return XWAIT_OK;
 			}
 			if ( iResult == ETIMEDOUT ) {
+                if ( !__xrtWaitExpired(iDeadline) ) { continue; }
 				return XWAIT_TIMEOUT;
 			}
 			if ( iResult == EPERM ) {

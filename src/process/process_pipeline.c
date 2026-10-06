@@ -259,7 +259,7 @@ static bool __xrtProcessPipelineWaitAllUntil(
 static bool __xrtProcessPipelineStopAll(
 	xprocess** pProcesses,
 	size_t iCount,
-	uint64 iGrace
+	int64 iGrace
 )
 {
 	__xrtProcessPipelineSignal(
@@ -349,8 +349,8 @@ XRT_API bool xrtProcessPipelineOptionsInit(
 		return false;
 	}
 	memset(pOptions, 0, sizeof(xprocesspipelineoptions));
-	pOptions->Deadline = INFINITY;
-	pOptions->StopGrace = UINT64_C(250000);
+	pOptions->Timeout = XRT_WAIT_FOREVER;
+	pOptions->StopGrace = INT64_C(250);
 	pOptions->StdoutLimit = XPROCESS_CAPTURE_LIMIT_DEFAULT;
 	pOptions->StderrLimit = XPROCESS_CAPTURE_LIMIT_DEFAULT;
 	pOptions->Overflow = XPROCESS_OVERFLOW_ERROR;
@@ -413,7 +413,7 @@ XRT_API bool xrtProcessPipeline(
 	xprocess** pProcesses = NULL;
 	xprocesspipe* pPipes = NULL;
 	xwaitresult Wait = XWAIT_OK;
-	double iStart = 0u;
+	double iStart = 0, Limit;
 	size_t iPumpCount = 0;
 	bool bNeedInput = false;
 	bool bLockReady = false;
@@ -514,7 +514,10 @@ XRT_API bool xrtProcessPipeline(
 		}
 	}
 
+	Limit = __xrtWaitAfter(Options.Timeout);
+	if ( !__xrtWaitValid(Limit) || Options.StopGrace < 0 ) { return false; }
 	iStart = xrtTimer();
+	if (!isfinite(iStart)) return false;
 	for ( size_t i = 0u; i < iStageCount; i++ ) {
 		xprocessconfig Config = pStages[i];
 
@@ -600,7 +603,7 @@ XRT_API bool xrtProcessPipeline(
 	for ( size_t i = 0u; i < iStageCount; i++ ) {
 		Wait = __xrtProcessWaitUntilCancel(
 			pProcesses[i],
-			Options.Deadline,
+			Limit,
 			State.Control
 		);
 		if ( Wait != XWAIT_OK ) {
@@ -650,7 +653,7 @@ XRT_API bool xrtProcessPipeline(
 	);
 	pResult->StdoutTruncated = pPumps[0].Truncated;
 	pResult->Wait = __xrtProcessPipelineFailed(&State) ? XWAIT_ERROR : Wait;
-	pResult->Duration = xrtTimer() - iStart;
+	pResult->Duration = __xrtWaitElapsedMs(iStart);
 	pStageResults = NULL;
 	bOk = !__xrtProcessPipelineFailed(&State);
 	goto cleanup;

@@ -87,6 +87,8 @@ XRT_API xtlsstream* __xrtTlsListenerAcceptWait(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	xfuture* pFuture;
 	xfutureresult Result;
 	xtlsstream* pStream = NULL;

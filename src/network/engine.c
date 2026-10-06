@@ -19,7 +19,7 @@
 #define XRT_NET_ENGINE_COMMAND_BUDGET 256u
 #define XRT_NET_ENGINE_SHUTDOWN_ROUNDS 1024u
 #define XRT_NET_ENGINE_TIMER_INITIAL 16u
-#define XRT_NET_ENGINE_IDLE_WAIT 1000000u
+#define XRT_NET_ENGINE_IDLE_WAIT 1000
 #define XRT_NET_ENGINE_SUBMIT_CLOSED UINT32_C(0x80000000)
 #define XRT_NET_ENGINE_SUBMIT_COUNT UINT32_C(0x7fffffff)
 #define XRT_NET_ENGINE_WAKE_RETRIES 3u
@@ -1026,7 +1026,7 @@ static int32 __xrtNetEngineWorkerMain(ptr pData)
 				iEventCount
 			);
 		} else if ( Result == XNET_RESULT_ERROR ) {
-			uint64 iDelay = pWorker->Engine->Config.IdleWait;
+			int64 iDelay = pWorker->Engine->Config.IdleWait;
 
 			#if XRT_NET_STATS_LEVEL >= XNET_STATS_BASIC
 				const xerror* pError = xrtGetError();
@@ -1048,12 +1048,12 @@ static int32 __xrtNetEngineWorkerMain(ptr pData)
 			#endif
 			__xrtNetEngineStatError(&pWorker->Stats.WaitErrors, 1);
 			xrtClearError();
-			if ( iDelay < 1000u ) {
-				iDelay = 1000u;
-			} else if ( iDelay > 10000u ) {
-				iDelay = 10000u;
+			if ( iDelay < 1 ) {
+				iDelay = 1;
+			} else if ( iDelay > 10 ) {
+				iDelay = 10;
 			}
-			xrtSleepUs(iDelay);
+			xrtSleep(iDelay);
 		}
 		__xrtNetEngineTimersExpire(pWorker);
 	}
@@ -1578,7 +1578,8 @@ static bool __xrtNetEngineConfigValid(const xnetengineconfig* pConfig)
 		 !__xrtNetBufPoolConfigValid(pConfig->BufferPool) ) {
 		return false;
 	}
-	if ( (pConfig->Backend < XNET_PORT_AUTO) ||
+	if ( (pConfig->IdleWait < XRT_WAIT_FOREVER) ||
+        (pConfig->Backend < XNET_PORT_AUTO) ||
 		 (pConfig->Backend > XNET_PORT_SELECT) ||
 		 (pConfig->Workers > XRT_NET_ENGINE_WORKERS_MAX) ||
 		 (pConfig->CommandCapacity < 2u) ||
@@ -2437,7 +2438,7 @@ XRT_API bool xrtNetPost(
 
 
 /* 按单调截止时间调度一个具有唯一终态的 Timer。 */
-static uint64 __xrtNetEngineSchedule(
+static uint64 __xrtNetEngineScheduleImpl(
 	xnetengine* pEngine,
 	uint64 iAffinity,
 	double iDeadline,
@@ -2586,21 +2587,25 @@ static uint64 __xrtNetEngineSchedule(
 XRT_API uint64 __xrtNetEngineSchedule(xnetengine* pEngine, uint64 iAffinity,
 	double iDeadline, xnettimerproc pProc, ptr pData)
 {
-	return __xrtNetEngineSchedule(pEngine, iAffinity, iDeadline, pProc, pData, NULL);
+    if ( !__xrtWaitValid(iDeadline) ) { return 0; }
+
+	return __xrtNetEngineScheduleImpl(pEngine, iAffinity, iDeadline, pProc, pData, NULL);
 }
 XRT_API uint64 __xrtNetEngineScheduleOwnedV1(xnetengine* pEngine, uint64 iAffinity,
 	double iDeadline, ptr pData, const xnettimerownershipv1* pPolicy)
 {
 	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) || !pPolicy->Proc ||
 		!pPolicy->Drop || !pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) {
+    if ( !__xrtWaitValid(iDeadline) ) { return 0; }
+
 		__xrtErrorSetInvalidArgument(); return 0;
 	}
-	return __xrtNetEngineSchedule(pEngine, iAffinity, iDeadline, pPolicy->Proc, pData, pPolicy);
+	return __xrtNetEngineScheduleImpl(pEngine, iAffinity, iDeadline, pPolicy->Proc, pData, pPolicy);
 }
 
 
 
-/* 按相对微秒数调度 Timer。 */
+/* 按相对毫秒数调度 Timer。 */
 XRT_API uint64 xrtNetEngineAfter(
 	xnetengine* pEngine,
 	uint64 iAffinity,

@@ -19,6 +19,8 @@ XRT_API xnetstream* __xrtNetConnect(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	xfuture* pFuture;
 	xfutureresult Result;
 	xnetstream* pStream = NULL;

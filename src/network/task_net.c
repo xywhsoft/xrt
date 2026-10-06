@@ -307,7 +307,7 @@ XRT_API xfuture* xrtTaskNet(
 
 
 
-/* 按相对微秒数调度网络任务。 */
+/* 按相对毫秒数调度网络任务。 */
 XRT_API xfuture* xrtTaskNetAfter(
 	xnetengine* pEngine,
 	uint64 iAffinity,
@@ -339,6 +339,8 @@ XRT_API xfuture* __xrtTaskNetUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	return __xrtTaskNetSchedule(
 		pEngine,
 		iAffinity,

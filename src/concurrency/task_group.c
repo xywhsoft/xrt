@@ -716,7 +716,7 @@ XRT_API xwaitresult xrtTaskGroupWait(xtaskgroup* pGroup)
 
 
 
-/* 关闭并在相对微秒数内等待组完成。 */
+/* 关闭并在相对毫秒数内等待组完成。 */
 XRT_API xwaitresult xrtTaskGroupWaitFor(xtaskgroup* pGroup, int64 iTimeout)
 {
 	return __xrtTaskGroupWaitUntilCancel(
@@ -734,6 +734,8 @@ XRT_API xwaitresult __xrtTaskGroupWaitUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	return __xrtTaskGroupWaitUntilCancel(pGroup, iDeadline, NULL);
 }
 
@@ -746,6 +748,8 @@ XRT_API xwaitresult __xrtTaskGroupWaitUntilCancel(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xfuture* pFuture = xrtTaskGroupFuture(pGroup);
 	xwaitresult Result;
 

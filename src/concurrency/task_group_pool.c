@@ -204,7 +204,7 @@ XRT_API xfuture* xrtTaskGroupSubmitWait(
 
 
 
-/* 在相对微秒数内等待任务池槽位并原子纳入任务组。 */
+/* 在相对毫秒数内等待任务池槽位并原子纳入任务组。 */
 XRT_API xfuture* xrtTaskGroupSubmitFor(
 	xtaskgroup* pGroup,
 	xtaskpool* pPool,
@@ -237,6 +237,8 @@ XRT_API xfuture* __xrtTaskGroupSubmitUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	return __xrtTaskGroupSubmitUntilCancel(
 		pGroup,
 		pPool,
@@ -261,6 +263,8 @@ XRT_API xfuture* __xrtTaskGroupSubmitUntilCancel(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	return __xrtTaskGroupPoolSubmit(
 		pGroup,
 		pPool,

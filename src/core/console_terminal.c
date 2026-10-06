@@ -3,6 +3,7 @@
 #include <xrt/thread.h>
 #include <xrt/time.h>
 #include <errno.h>
+#include <math.h>
 #include <stdlib.h>
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>
@@ -19,7 +20,7 @@ struct xconsolesession {
     uint32 Flags, Columns, Rows;
     bool Active, InputEnded, ClosedEvent, CursorChanged;
     xbuffer Output, Input;
-    uint64 EscapeSince;
+    double EscapeSince;
 #if defined(_WIN32) || defined(_WIN64)
     HANDLE In, Out;
     DWORD InputMode, OutputMode;
@@ -45,9 +46,9 @@ static bool __xrtTerminalSystem(cstr Operation)
     __xrtErrorSetSystem("xrt.console", XCONSOLE_ERROR_TERMINAL, Operation, Code, "terminal operation failed");
     return false;
 }
-static uint64 __xrtTerminalNow(void)
+static double __xrtTerminalNow(void)
 {
-    return xrtTimer() / 1000u;
+    return xrtTimer();
 }
 static bool __xrtSessionCheck(const xconsolesession* Session)
 {
@@ -225,13 +226,14 @@ static uint32 __xrtConsoleWindowsModifiers(DWORD State)
     (State & (LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED) ? 4u:0u); }
 XRT_API xconsoleevent* xrtConsoleSessionRead(xconsolesession* Session, int TimeoutMs)
 {
-    uint64 Deadline; INPUT_RECORD Record; DWORD Done, Wait; xconsoleevent* Event;
+    double Deadline; INPUT_RECORD Record; DWORD Done, Wait; xconsoleevent* Event;
     if (!__xrtSessionCheck(Session)) return NULL;
     if (TimeoutMs < -1) { (void)__xrtTerminalError(XERR_RANGE, "invalid event timeout"); return NULL; }
-    Deadline = TimeoutMs >= 0 ? __xrtTerminalNow() + (uint64)TimeoutMs : 0;
+    Deadline = TimeoutMs >= 0 ? __xrtTerminalNow() + (double)TimeoutMs / 1000.0 : 0;
     for (;;) {
         double Now = __xrtTerminalNow();
-        DWORD Remaining = TimeoutMs < 0 ? INFINITE : Now >= Deadline ? 0 : (DWORD)(Deadline-Now);
+        if (!isfinite(Now)) return NULL;
+        DWORD Remaining = TimeoutMs < 0 ? INFINITE : Now >= Deadline ? 0 : (DWORD)ceil((Deadline-Now)*1000.0);
         Wait = WaitForSingleObject(Session->In, Remaining);
         if (Wait == WAIT_TIMEOUT) return NULL;
         if (Wait != WAIT_OBJECT_0 || !ReadConsoleInputW(Session->In, &Record, 1, &Done)) {
@@ -373,14 +375,14 @@ static xconsoleevent* __xrtConsoleParseEvent(xconsolesession* Session)
                 default: break;
                 }
                 if (Key!=0) Count=End+1;
-            } else if (Size<64 && __xrtTerminalNow()-Session->EscapeSince<30) return NULL;
+            } else if (Size<64 && __xrtTerminalNow()-Session->EscapeSince<0.030) return NULL;
         } else if (Size>=2 && Data[1]!='[' && Data[1]!='O' && Data[1]!=0x1b) {
             size_t Bytes=Data[1]<0x80?1:Data[1]>=0xc2&&Data[1]<=0xdf?2:Data[1]>=0xe0&&Data[1]<=0xef?3:Data[1]>=0xf0&&Data[1]<=0xf4?4:0;
             if (Bytes==0) { (void)__xrtTerminalError(XERR_IO,"invalid Alt event UTF-8"); return NULL; }
             if (Size<Bytes+1) return NULL;
             TextOffset=1; Count=Bytes+1; Text=true; Modifiers=4;
         } else if ((Size==1 || (Size==2 && (Data[1]=='[' || Data[1]=='O'))) &&
-            __xrtTerminalNow()-Session->EscapeSince<30 && !Session->InputEnded) return NULL;
+            __xrtTerminalNow()-Session->EscapeSince<0.030 && !Session->InputEnded) return NULL;
         if (Key==0 && !Text) Key=XCONSOLE_KEY_ESCAPE;
     } else if (Data[0]<32 || Data[0]==127) {
         Key=Data[0]==13||Data[0]==10?XCONSOLE_KEY_ENTER:Data[0]==9?XCONSOLE_KEY_TAB:
@@ -402,13 +404,14 @@ static xconsoleevent* __xrtConsoleParseEvent(xconsolesession* Session)
 }
 XRT_API xconsoleevent* xrtConsoleSessionRead(xconsolesession* Session, int TimeoutMs)
 {
-    uint64 Deadline; bool First=true;
+    double Deadline; bool First=true;
     if (!__xrtSessionCheck(Session)) return NULL;
     if (TimeoutMs < -1) { (void)__xrtTerminalError(XERR_RANGE,"invalid event timeout"); return NULL; }
-    Deadline=TimeoutMs>=0?__xrtTerminalNow()+(uint64)TimeoutMs:0;
+    Deadline=TimeoutMs>=0?__xrtTerminalNow()+(double)TimeoutMs/1000.0:0;
     for (;;) {
         struct pollfd Poll={STDIN_FILENO,POLLIN,0}; uint32 Columns,Rows; xconsoleevent* Event;
         unsigned char Data[256]; ssize_t Read; int Status,Wait=50; double Now=__xrtTerminalNow();
+        if (!isfinite(Now)) return NULL;
         if (!xrtConsoleSize(XCONSOLE_STDOUT,&Columns,&Rows)) return NULL;
         if (Columns!=Session->Columns || Rows!=Session->Rows) {
             Event=__xrtConsoleEvent(XCONSOLE_EVENT_RESIZE); if (Event==NULL) return NULL;
@@ -422,7 +425,7 @@ XRT_API xconsoleevent* xrtConsoleSessionRead(xconsolesession* Session, int Timeo
             Event=__xrtConsoleEvent(XCONSOLE_EVENT_CLOSED); if (Event!=NULL) Session->ClosedEvent=true; return Event;
         }
         if (!First && TimeoutMs>=0 && Now>=Deadline) return NULL;
-        if (TimeoutMs>=0 && (uint64)Wait> (Deadline>Now?Deadline-Now:0)) Wait=(int)(Deadline>Now?Deadline-Now:0);
+        if (TimeoutMs>=0) { double Remaining=ceil((Deadline>Now?Deadline-Now:0)*1000.0); if (Wait>Remaining) Wait=(int)Remaining; }
         if (Session->EscapeSince!=0 && Wait>10) Wait=10;
         First=false;
         Status=poll(&Poll,1,Wait);

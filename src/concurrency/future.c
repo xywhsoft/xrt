@@ -1610,7 +1610,7 @@ XRT_API xwaitresult xrtFutureWait(xfuture* pFuture)
 
 
 
-/* 在相对微秒数内等待 Future。 */
+/* 在相对毫秒数内等待 Future。 */
 XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, int64 iTimeout)
 {
 	return __xrtFutureWaitUntilCancel(pFuture, __xrtWaitAfter(iTimeout), NULL);
@@ -1621,6 +1621,8 @@ XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, int64 iTimeout)
 /* 等待 Future 到指定截止时间。 */
 XRT_API xwaitresult __xrtFutureWaitUntil(xfuture* pFuture, double iDeadline)
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	return __xrtFutureWaitUntilCancel(pFuture, iDeadline, NULL);
 }
 
@@ -1633,6 +1635,8 @@ XRT_API xwaitresult __xrtFutureWaitUntilCancel(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xcancelwatch* pWatch = NULL;
 	xrt_future_cancel_wait CancelWait;
 	xwaitresult Result = XWAIT_OK;

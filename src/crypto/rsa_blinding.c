@@ -51,7 +51,7 @@ __xrtRsaDivNegate(uint32 *a, size_t len, uint32 ctl)
 	uint32 cc, xm;
 
 	cc = ctl;
-	xm = -ctl >> 1;
+	xm = (0u - ctl) >> 1;
 	for (k = 0; k < len; k ++) {
 		uint32 aw;
 
@@ -99,8 +99,8 @@ __xrtRsaDivFinish(uint32 *a, size_t len, const uint32 *m, uint32 neg)
 	 *   if neg = 0 and cc = 0, then we must subtract m
 	 *   if neg = 0 and cc = 1, then we must do nothing
 	 */
-	xm = -neg >> 1;
-	ym = -(neg | (1 - cc));
+	xm = (0u - neg) >> 1;
+	ym = 0u - (neg | (1u - cc));
 	cc = neg;
 	for (k = 0; k < len; k ++) {
 		uint32 aw, mw;

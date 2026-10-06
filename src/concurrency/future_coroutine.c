@@ -9,6 +9,8 @@
 /* 挂起当前调度协程，直到 Future 完成、超时或协程取消。 */
 XRT_API xwaitresult __xrtFutureAwaitUntil(xfuture* pFuture, double iDeadline)
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	xrt_future_waiter tWaiter;
 	xrt_co_wait tWait;
 	xcoro* pCurrent;
@@ -70,7 +72,7 @@ XRT_API xwaitresult xrtFutureAwait(xfuture* pFuture)
 
 
 
-/* 在相对微秒数内挂起当前调度协程等待 Future。 */
+/* 在相对毫秒数内挂起当前调度协程等待 Future。 */
 XRT_API xwaitresult xrtFutureAwaitFor(xfuture* pFuture, int64 iTimeout)
 {
 	return __xrtFutureAwaitUntil(pFuture, __xrtWaitAfter(iTimeout));

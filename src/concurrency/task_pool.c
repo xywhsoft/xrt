@@ -829,6 +829,8 @@ XRT_API xfuture* __xrtTaskSubmitUntil(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	return __xrtTaskSubmitUntilCancel(
 		pPool,
 		pProc,
@@ -851,6 +853,8 @@ XRT_API xfuture* __xrtTaskSubmitUntilCancel(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	return __xrtTaskPoolSubmit(
 		pPool,
 		pProc,
@@ -1024,7 +1028,7 @@ XRT_API xwaitresult xrtTaskPoolWait(xtaskpool* pPool)
 
 
 
-/* 在相对微秒数内等待已关闭任务池排空。 */
+/* 在相对毫秒数内等待已关闭任务池排空。 */
 XRT_API xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, int64 iTimeout)
 {
 	return __xrtTaskPoolWaitUntilCancel(
@@ -1039,6 +1043,8 @@ XRT_API xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, int64 iTimeout)
 /* 等待已关闭任务池中的全部任务完成到指定截止时间。 */
 XRT_API xwaitresult __xrtTaskPoolWaitUntil(xtaskpool* pPool, double iDeadline)
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	return __xrtTaskPoolWaitUntilCancel(pPool, iDeadline, NULL);
 }
 
@@ -1114,6 +1120,8 @@ static xwaitresult __xrtTaskPoolWaitUntilCancelBody(
 
 XRT_API xwaitresult __xrtTaskPoolWaitUntilCancel(xtaskpool* pPool, double iDeadline, xcancel* pCancel)
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 	if (!__xrtTaskPoolEnter(pPool, false)) return XWAIT_ERROR;
 	xwaitresult Result = __xrtTaskPoolWaitUntilCancelBody(pPool, iDeadline, pCancel);
 	__xrtTaskPoolLeave(pPool); return Result;

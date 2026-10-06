@@ -1139,7 +1139,7 @@ XRT_API bool xrtLogAsyncStop(xlogsink* pSink)
 	/* The sink reference keeps state alive. Completion is published after the
 	 * worker's final flush; joining/destroying the thread remains single-owner
 	 * destructor work, so concurrent stop callers never race a native join. */
-	while (!xrtAtomic32Load(&pState->WorkerDone, XMEMORY_ACQUIRE)) xrtSleepUs(100u);
+	while (!xrtAtomic32Load(&pState->WorkerDone, XMEMORY_ACQUIRE)) xrtSleep(1);
 	if (!xrtMutexLock(&pState->Lock)) return false;
 	pError = xrtErrorRef(pState->LastError);
 	if (!xrtMutexUnlock(&pState->Lock)) { xrtErrorFree(pError); return false; }

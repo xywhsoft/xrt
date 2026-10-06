@@ -100,7 +100,7 @@ static bool __xrtTlsServerResumeMatch(
 	) ) {
 		return false;
 	}
-	iActualAge = (uint64)(iNow - pInfo->IssuedAt) / 1000u;
+	iActualAge = (uint64)iNow - (uint64)pInfo->IssuedAt;
 	iClientAge = pPsk->ObfuscatedAge - pInfo->AgeAdd;
 	iDifference = iActualAge > iClientAge ?
 		iActualAge - iClientAge : iClientAge - iActualAge;

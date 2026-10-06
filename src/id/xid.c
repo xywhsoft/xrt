@@ -25,7 +25,7 @@ static xbase64config __xrtXidCodec(void)
 
 
 
-/* 把有符号 Unix 微秒映射为按字节递增的无符号值。 */
+/* 把有符号 公元 UTC 毫秒映射为按字节递增的无符号值。 */
 static uint64 __xrtXidOrderTime(xtime iTime)
 {
 	if ( iTime < 0 ) {
@@ -48,7 +48,7 @@ static void __xrtXidStoreTime(xid* pXid, xtime iTime)
 
 
 
-/* 从 XID 的有序前缀恢复完整有符号 Unix 微秒。 */
+/* 从 XID 的有序前缀恢复完整有符号 公元 UTC 毫秒。 */
 static xtime __xrtXidLoadTime(const xid* pXid)
 {
 	uint64 iOrdered = 0;

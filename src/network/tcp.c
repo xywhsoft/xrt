@@ -42,13 +42,13 @@ extern int sendfile(
 #define XRT_NET_STREAM_WRITE_HIGH_DEFAULT (256u * 1024u)
 #define XRT_NET_STREAM_WRITE_LOW_DEFAULT (64u * 1024u)
 #define XRT_NET_STREAM_WRITE_LIMIT_DEFAULT (1024u * 1024u)
-#define XRT_NET_STREAM_CONNECT_TIMEOUT_DEFAULT 30000000u
+#define XRT_NET_STREAM_CONNECT_TIMEOUT_DEFAULT 30000
 #define XRT_NET_LISTENER_ACCEPT_DEFAULT 16u
 #define XRT_NET_LISTENER_ACCEPT_MAX 1024u
 #define XRT_NET_LISTENER_QUEUE_DEFAULT 256u
 #define XRT_NET_LISTENER_BACKLOG_DEFAULT 256
-#define XRT_NET_LISTENER_RETRY_MIN 10000u
-#define XRT_NET_LISTENER_RETRY_MAX 1000000u
+#define XRT_NET_LISTENER_RETRY_MIN 10
+#define XRT_NET_LISTENER_RETRY_MAX 1000
 #define XRT_NET_STREAM_IO_BUDGET 16u
 #define XRT_NET_STREAM_CONTROL_RESUME 0x00000001u
 #define XRT_NET_STREAM_CONTROL_SHUTDOWN 0x00000002u
@@ -212,7 +212,8 @@ static void __xrtNetStreamEventError(
 /* 验证 Stream 的读取和写入硬边界。 */
 bool __xrtNetStreamConfigValid(const xnetstreamconfig* pConfig)
 {
-	if ( (pConfig->ReadSize == 0) ||
+	if ( (pConfig->ConnectTimeout < XRT_WAIT_FOREVER) ||
+        (pConfig->ReadSize == 0) ||
 		 (pConfig->ReadLimit < pConfig->ReadSize) ||
 		 (pConfig->ReadMode > XNET_STREAM_READ_PROBE) ||
 		 (pConfig->WriteLimit == 0) ||
@@ -4349,7 +4350,7 @@ static void __xrtNetListenerAcceptRetry(
 /* 暂停 accept 并使用 10 ms 到 1 s 的指数退避恢复。 */
 static bool __xrtNetListenerPauseAccept(xnetlistener* pListener)
 {
-	uint64 iDelay = pListener->AcceptRetryDelay;
+	int64 iDelay = pListener->AcceptRetryDelay;
 	uint64 Id;
 
 	if ( pListener->AcceptRetryTimer != 0 ) {
