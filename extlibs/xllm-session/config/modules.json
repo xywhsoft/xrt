@@ -1,6 +1,7 @@
 {
 	"schema": 1,
 	"product": "xllm_session",
+	"umbrella_header": "xllm-session.h",
 	"module_prefix": "XLLM_SESSION_MODULE_",
 	"single_header": "single/extlibs/xllm-session.h",
 	"declaration_header": "single/extlibs/xllm-session_decl.h",

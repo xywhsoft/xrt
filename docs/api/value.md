@@ -67,9 +67,27 @@ Release 若释放最后一份代码租约，Release 本身须常驻；XRT 不会
 xvalue* xrtValueChar(uint32 iValue);
 ```
 
-创建引用数为 1 的不可变 Unicode scalar；用后调用 `xrtValueRelease`。
-零和补充平面合法，代理项及大于 `0x10FFFF` 的输入返回 `NULL`/`XERR_VALUE`；
-分配失败返回 `NULL`/`XERR_MEMORY`。类别是 `XVALUE_CHAR`，不是整数隐式转换。
+创建不可变的 Unicode 标量值；代理项和超出 Unicode 范围的值失败。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `iValue` | `uint32` | 要增减的有符号单位数。 |
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xrtValueGetChar`
 
@@ -77,9 +95,33 @@ xvalue* xrtValueChar(uint32 iValue);
 bool xrtValueGetChar(const xvalue* pValue, uint32* pResult);
 ```
 
-精确读取 CHAR 的 scalar。整数 65 虽与字符 `'A'` 数值相等，却不能被此 Getter
-读取；类型不符报告 `XERR_TYPE`。失败不改输出，输出必须是独立有效槽，不能
-覆盖 Value 外壳或其拥有内存；同样遵守上述通用 Getter 别名规则。
+精确读取 Unicode 标量值，类型不匹配时失败。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pValue` | `const xvalue*` | 借用的 const xvalue* 对象或调用方结果槽，按上述操作契约使用。 |
+| `pResult` | `uint32*` | 调用方结果槽，按当前签名的类型交付结果。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xvalueownershiptrace`
 
@@ -92,6 +134,7 @@ typedef bool (*xvalueownershiptrace)(const xvalue* pValue,
 检查在整个图静止且由调用者保活的情况下进行，不以普通 Trace 回调自动授予
 收集资格；不透明 Handle 未提供完整适配时封闭拒绝。
 
+
 ### `xvalueobjectfinalizerrelease`
 
 ```c
@@ -102,15 +145,34 @@ typedef void (*xvalueobjectfinalizerrelease)(ptr pUserData);
 释放接管的上下文。若它释放最后一份代码租约，Release 自身必须常驻；XRT
 不隐式保活回调代码。失败的 BindOwned 不消费上下文，也不调用此回调。
 
+
 ### `xrtValueOwnership`
 
 ```c
 xrtownershipref xrtValueOwnership(const xvalue* pValue);
 ```
 
-返回检查用的借入身份，不增加引用。调用者必须保活并冻结完整传递拥有图。
-外壳拥有一个 backing 引用，backing 拥有元素槽，不将每个 COW 外壳重复算为
-元素所有者；普通标量是叶节点。此接口本身不是垃圾收集器。
+返回值的借用物理视图；必须冻结真实可达图，不把视图当成 Retain 或代码租约。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pValue` | `const xvalue*` | 借用的 const xvalue* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xrtValueObjectFinalizerOwnershipBind`
 
@@ -118,9 +180,36 @@ xrtownershipref xrtValueOwnership(const xvalue* pValue);
 bool xrtValueObjectFinalizerOwnershipBind(xvalue* pObject, xrtownershiptrace pTrace);
 ```
 
-为已绑定终结器的上下文登记实际强引用槽；在发布之前、外壳与 backing 都唯一
-时绑定一次。回调取得真实 `FinalizerUserData`，不是临时伪造的 Value 外壳。
-空上下文不需要适配器；登记的是边元数据，不是回调代码的生命周期租约。
+Describe the actual strong slots owned by the already-bound finalizer
+context. Bind once, before publication, with a unique shell AND backing.
+The callback receives FinalizerUserData, not a fabricated Value shell.
+A NULL context needs no adapter. This is metadata, not a code lifetime pin.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pObject` | `xvalue*` | 有效 Object；绑定前满足唯一 shell/backing 和发布顺序约束。 |
+| `pTrace` | `xrtownershiptrace` | 精确枚举实际强引用槽的回调；不能把借用指针或代码指针当成所有权边。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xrtValueCursorRCreate`
 
@@ -128,9 +217,27 @@ bool xrtValueObjectFinalizerOwnershipBind(xvalue* pObject, xrtownershiptrace pTr
 xvaluecursor* xrtValueCursorRCreate(const xvalue* pValue);
 ```
 
-创建拥有式反向快照游标，失败返回 `NULL` 并设置错误。游标保活 backing，
-对带终结器的身份对象还保活真实来源外壳；普通 COW 来源外壳不被保活。
-推进必须串行且调用期间持有引用；元素/键借入有效期到下次推进或最后释放。
+创建反向拥有型快照游标，生存期与正向游标相同。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pValue` | `const xvalue*` | 借用的 const xvalue* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xrtValueCursorRelease`
 
@@ -138,9 +245,27 @@ xvaluecursor* xrtValueCursorRCreate(const xvalue* pValue);
 void xrtValueCursorRelease(xvaluecursor* pCursor);
 ```
 
-释放一份游标引用，允许 `NULL`。最后释放结束快照并销毁游标；调用者不能
-在推进进行中释放最后引用，也不能在最后释放后使用借入元素或键。
-现有栈迭代器和独占堆迭代器的 ABI、生命周期不因此改变。
+释放一个游标拥有引用，最后释放结束快照及其实际源对象引用。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pCursor` | `xvaluecursor*` | 调用方持有引用的快照游标；推进操作需串行。 |
+
+#### 返回值
+
+无返回值。资源或引用的释放范围按上述契约执行。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ## 类型
 
@@ -209,6 +334,7 @@ typedef enum xvaluetype {
 | `XVALUE_UINT` | 无符号整数 |
 | `XVALUE_CHAR` | Unicode scalar |
 
+
 ### `xvaluehandleops`
 
 句柄策略是静态不可变描述，其生命周期必须覆盖全部关联值。
@@ -228,6 +354,7 @@ typedef struct xvaluehandleops {
 | `Drop` | `xvaluehandledrop` | Drop |
 | `Hash` | `xvaluehandlehash` | Hash |
 | `Equal` | `xvaluehandleequal` | Equal |
+
 
 ### `xvaluekeytype`
 
@@ -249,6 +376,7 @@ typedef enum xvaluekeytype {
 | `XVALUE_KEY_INT` | 有符号整数 |
 | `XVALUE_KEY_STRING` | 字符串键 |
 
+
 ### `xvalueiterresult`
 
 三态推进结果显式区分元素、正常结束和迭代错误。
@@ -266,6 +394,7 @@ typedef enum xvalueiterresult {
 | `XVALUE_ITER_ERROR` | 失败 |
 | `XVALUE_ITER_END` | END |
 | `XVALUE_ITER_ITEM` | 已产出 |
+
 
 ### `xvaluemergepolicy`
 
@@ -285,6 +414,7 @@ typedef enum xvaluemergepolicy {
 | `XVALUE_MERGE_REPLACE` | REPLACE |
 | `XVALUE_MERGE_ERROR` | 失败 |
 
+
 ### `xvalue`
 
 动态值结构保持不透明，所有权通过 Retain、Release 和 Take 系列表达。
@@ -295,6 +425,7 @@ typedef struct xvalue xvalue;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xvalueidentityhash`
 
 语义值哈希器只借用已经绑定 TypeId 的容器值。回调可以通过只读 Value API 观察该值及其字段，也可以递归哈希字段，但不得修改、保留或释放输入值。
@@ -304,6 +435,7 @@ typedef uint64 (*xvalueidentityhash)(const xvalue* pValue, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xvalueidentityequal`
 
@@ -319,6 +451,7 @@ typedef bool (*xvalueidentityequal)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xvaluehandleclone`
 
 句柄克隆器创建独立句柄；失败时必须设置错误且不得在输出中遗留资源。
@@ -328,6 +461,7 @@ typedef bool (*xvaluehandleclone)(ptr pHandle, ptr* pClone, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xvaluehandledrop`
 
@@ -339,6 +473,7 @@ typedef void (*xvaluehandledrop)(ptr pHandle, ptr pUserData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xvaluehandlehash`
 
 句柄哈希器必须与相等器成对提供、保持一致且不得重入父 Value。
@@ -348,6 +483,7 @@ typedef uint64 (*xvaluehandlehash)(ptr pHandle, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xvaluehandleequal`
 
@@ -359,6 +495,7 @@ typedef bool (*xvaluehandleequal)(ptr pLeft, ptr pRight, ptr pUserData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xvalueobjectfinalizer`
 
 Object finalizers borrow the last live object shell before its owned fields are released.  The callback may inspect or mutate fields, but it must not retain, clone or release the borrowed object itself.  A finalizer is attached to the shared object backing and therefore runs exactly once, when the final backing owner is released.
@@ -368,6 +505,7 @@ typedef void (*xvalueobjectfinalizer)(xvalue* pObject, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 标量
 
@@ -456,6 +594,7 @@ xvalue* xrtValueNull(void)
 		(xrtValueType(xrtValueNull()) != XVALUE_NULL)
 ```
 
+
 ### `xrtValueBool`
 
 返回进程期不可变的布尔单例。
@@ -487,6 +626,7 @@ xvalue* xrtValueBool(bool bValue)
 ```c
 	xvalue* pTrue = xrtValueBool(true);
 ```
+
 
 ### `xrtValueInt`
 
@@ -521,6 +661,7 @@ xvalue* xrtValueInt(int64 iValue)
 		xvalue* pA = xrtValueInt(1);
 ```
 
+
 ### `xrtValueUInt`
 
 创建不可变的 64 位无符号整数值。
@@ -553,6 +694,7 @@ xvalue* xrtValueUInt(uint64 iValue)
 ```c
 		xvalue* pU = xrtValueUInt(UINT64_C(4294967296));
 ```
+
 
 ### `xrtValueFloat`
 
@@ -587,6 +729,7 @@ xvalue* xrtValueFloat(double fValue)
 		xrtValueFloat(2.0),
 ```
 
+
 ### `xrtValueString`
 
 复制字节并创建带末尾零但允许内嵌零的字符串值。
@@ -620,6 +763,7 @@ xvalue* xrtValueString(xstrview Text)
 ```c
 	(void)xrtValueArrayAppendNew(pArray, xrtValueString(SV("a")));
 ```
+
 
 ### `xrtValueStringTake`
 
@@ -657,6 +801,7 @@ xvalue* xrtValueStringTake(str* pText, size_t iSize)
 	pText = xrtValueStringTake(&sText, 5);
 ```
 
+
 ### `xrtValueBytes`
 
 复制任意字节并创建二进制值。
@@ -690,6 +835,7 @@ xvalue* xrtValueBytes(xbytesview Data)
 ```c
 		xrtValueBytes((xbytesview){ arrBytes, sizeof(arrBytes) }),
 ```
+
 
 ### `xrtValueBytesTake`
 
@@ -727,6 +873,7 @@ xvalue* xrtValueBytesTake(bytes* pData, size_t iSize)
 	pBytes = xrtValueBytesTake(&pData, 3);
 ```
 
+
 ### `xrtValueTime`
 
 创建使用 公元 UTC 毫秒表示的时间值。
@@ -760,6 +907,7 @@ xvalue* xrtValueTime(xtime Time)
 		xrtValueTime((xtime)1234567),
 ```
 
+
 ### `xrtValuePointer`
 
 创建不拥有目标生命周期的裸指针值。
@@ -792,6 +940,7 @@ xvalue* xrtValuePointer(ptr pPointer)
 ```c
 		xrtValuePointer(&iMarker)
 ```
+
 
 ### `xrtValueGetBool`
 
@@ -828,6 +977,7 @@ bool xrtValueGetBool(const xvalue* pValue, bool* pResult)
 		!xrtValueGetBool(pTrue, &bTrue) ||
 ```
 
+
 ### `xrtValueGetInt`
 
 精确读取整数值，类型不匹配时失败。
@@ -862,6 +1012,7 @@ bool xrtValueGetInt(const xvalue* pValue, int64* pResult)
 ```c
 		!xrtValueGetInt(arrValues[0], &iVersion) ||
 ```
+
 
 ### `xrtValueGetUInt`
 
@@ -898,6 +1049,7 @@ bool xrtValueGetUInt(const xvalue* pValue, uint64* pResult)
 		(void)xrtValueGetUInt(pU, &uValue);
 ```
 
+
 ### `xrtValueGetFloat`
 
 精确读取浮点值，类型不匹配时失败。
@@ -932,6 +1084,7 @@ bool xrtValueGetFloat(const xvalue* pValue, double* pResult)
 ```c
 		!xrtValueGetFloat(arrValues[1], &fVersion) ||
 ```
+
 
 ### `xrtValueGetString`
 
@@ -968,6 +1121,7 @@ bool xrtValueGetString(const xvalue* pValue, xstrview* pResult)
 		(void)xrtValueGetString(xrtValueArrayGet(pArray, i), &Text);
 ```
 
+
 ### `xrtValueGetBytes`
 
 借用二进制视图，值释放后视图失效。
@@ -1002,6 +1156,7 @@ bool xrtValueGetBytes(const xvalue* pValue, xbytesview* pResult)
 ```c
 		!xrtValueGetBytes(arrValues[3], &Data) ||
 ```
+
 
 ### `xrtValueGetTime`
 
@@ -1038,6 +1193,7 @@ bool xrtValueGetTime(const xvalue* pValue, xtime* pResult)
 		!xrtValueGetTime(arrValues[4], &Time) ||
 ```
 
+
 ### `xrtValueGetPointer`
 
 精确读取不拥有目标的裸指针。
@@ -1073,6 +1229,7 @@ bool xrtValueGetPointer(const xvalue* pValue, ptr* pResult)
 		!xrtValueGetPointer(arrValues[5], &pPointer) ||
 ```
 
+
 ### `xrtValueTruthy`
 
 按 xlang 语义返回值的真值。
@@ -1105,6 +1262,7 @@ bool xrtValueTruthy(const xvalue* pValue)
 ```c
 		!xrtValueTruthy(arrValues[2]) ||
 ```
+
 
 ## Native Handle
 
@@ -1175,6 +1333,7 @@ xvalue* xrtValueHandleTake(ptr* pHandle, const xvaluehandleops* pOps, ptr pUserD
 	pValue = xrtValueHandleTake(&pHandle, &tOps, NULL);
 ```
 
+
 ### `xrtValueGetHandle`
 
 借用句柄及其策略数据。
@@ -1212,6 +1371,7 @@ bool xrtValueGetHandle(const xvalue* pValue, ptr* pHandle, const xvaluehandleops
 		!xrtValueGetHandle(pLeft, &pReadHandle, &pReadOps, NULL) ||
 ```
 
+
 ### `xrtValueTakeHandle`
 
 取走句柄资源并把所有共享外壳可见的资源状态清空；策略仍保留到值释放。
@@ -1246,6 +1406,7 @@ bool xrtValueTakeHandle(xvalue* pValue, ptr* pHandle)
 ```c
 			xrtValueTakeHandle(pHandleValue, (ptr*)&pBack) &&
 ```
+
 
 ## 容器与所有权
 
@@ -1406,6 +1567,7 @@ xvalue* xrtValueRetain(const xvalue* pValue)
 	pRetained = xrtValueRetain(pText);
 ```
 
+
 ### `xrtValueRelease`
 
 释放值外壳引用，允许传入空指针。
@@ -1437,6 +1599,7 @@ void xrtValueRelease(xvalue* pValue)
 ```c
 		xrtValueRelease(pOwned);
 ```
+
 
 ### `xrtValueClone`
 
@@ -1471,6 +1634,7 @@ xvalue* xrtValueClone(const xvalue* pValue)
 ```c
 	pMerged = xrtValueClone(pLeft);
 ```
+
 
 ### `xrtValueDeepClone`
 
@@ -1507,6 +1671,7 @@ xvalue* xrtValueDeepClone(const xvalue* pValue)
 	pCopy = xrtValueDeepClone(pRoot);
 ```
 
+
 ### `xrtValueClear`
 
 清空容器并释放其中持有的全部值引用。
@@ -1540,6 +1705,7 @@ bool xrtValueClear(xvalue* pValue)
 ```c
 	xrtValueClear(pArray);
 ```
+
 
 ### `xrtValueReserve`
 
@@ -1578,6 +1744,7 @@ bool xrtValueReserve(xvalue* pValue, size_t iCapacity)
 	(void)xrtValueReserve(pArray, 100u);
 ```
 
+
 ### `xrtValueTrim`
 
 释放容器多余容量，保留现有元素。
@@ -1612,6 +1779,7 @@ bool xrtValueTrim(xvalue* pValue)
 	(void)xrtValueTrim(pArray);
 ```
 
+
 ### `xrtValueCount`
 
 返回任一基础容器的元素数。
@@ -1644,6 +1812,7 @@ size_t xrtValueCount(const xvalue* pValue)
 ```c
 	for ( size_t i = 0; i < xrtValueCount(pArray); i++ ) {
 ```
+
 
 ### `xrtValueCapacity`
 
@@ -1678,6 +1847,7 @@ size_t xrtValueCapacity(const xvalue* pValue)
 	printf("reserved-cap>=%zu", xrtValueCapacity(pArray));
 ```
 
+
 ### `xrtValueArray`
 
 创建空的稠密动态值数组。
@@ -1710,6 +1880,7 @@ xvalue* xrtValueArray(void)
 ```c
 	xvalue* pArray = xrtValueArray();
 ```
+
 
 ### `xrtValueArrayResolve`
 
@@ -1748,6 +1919,7 @@ bool xrtValueArrayResolve(const xvalue* pArray, int64 iIndex, size_t* pResolved)
 		 !xrtValueArrayResolve(pMutableTags, -1, &iLast) ||
 ```
 
+
 ### `xrtValueArrayGet`
 
 返回数组指定 0 基索引处借用的值。
@@ -1783,6 +1955,7 @@ xvalue* xrtValueArrayGet(const xvalue* pArray, size_t iIndex)
 ```c
 		(void)xrtValueGetString(xrtValueArrayGet(pArray, i), &Text);
 ```
+
 
 ### `xrtValueArrayAt`
 
@@ -1820,6 +1993,7 @@ xvalue* xrtValueArrayAt(const xvalue* pArray, int64 iIndex)
 	(void)xrtValueGetString(xrtValueArrayAt(pArray, -1), &Text);
 ```
 
+
 ### `xrtValueArrayEdit`
 
 返回已经沿 COW 路径分离的可变子容器，标量子项报告类型错误。
@@ -1855,6 +2029,7 @@ xvalue* xrtValueArrayEdit(xvalue* pArray, size_t iIndex)
 ```c
 	pCopyChild = xrtValueArrayEdit(pCopy, 0);
 ```
+
 
 ### `xrtValueArrayAppend`
 
@@ -1892,6 +2067,7 @@ bool xrtValueArrayAppend(xvalue* pArray, const xvalue* pItem)
 		 !xrtValueArrayAppend(pRoot, pChild) ||
 ```
 
+
 ### `xrtValueArrayAppendTake`
 
 成功时把来源引用移交给数组并清空来源。
@@ -1928,6 +2104,7 @@ bool xrtValueArrayAppendTake(xvalue* pArray, xvalue** pItem)
 		(void)xrtValueArrayAppendTake(pArray, &pB);
 ```
 
+
 ### `xrtValueArrayAppendNew`
 
 无论成功失败都消费临时值，适合单行构造与加入。
@@ -1963,6 +2140,7 @@ bool xrtValueArrayAppendNew(xvalue* pArray, xvalue* pItem)
 ```c
 	(void)xrtValueArrayAppendNew(pArray, xrtValueString(SV("a")));
 ```
+
 
 ### `xrtValueArrayInsert`
 
@@ -2002,6 +2180,7 @@ bool xrtValueArrayInsert(xvalue* pArray, size_t iIndex, const xvalue* pItem)
 		(void)xrtValueArrayInsert(pArray, 1u, pOwned);   /* 借用 */
 ```
 
+
 ### `xrtValueArrayInsertTake`
 
 成功时把来源引用移交到指定插入位置。
@@ -2039,6 +2218,7 @@ bool xrtValueArrayInsertTake(xvalue* pArray, size_t iIndex, xvalue** pItem)
 ```c
 		(void)xrtValueArrayInsertTake(pArray, 1u, &pA);
 ```
+
 
 ### `xrtValueArrayInsertNew`
 
@@ -2078,6 +2258,7 @@ bool xrtValueArrayInsertNew(xvalue* pArray, size_t iIndex, xvalue* pItem)
 		(void)xrtValueArrayInsertNew(pArray, 0u, xrtValueInt(0));
 ```
 
+
 ### `xrtValueArraySet`
 
 增加引用后替换旧值；同一指针是引用平衡的成功无操作。
@@ -2116,6 +2297,7 @@ bool xrtValueArraySet(xvalue* pArray, size_t iIndex, const xvalue* pItem)
 		(void)xrtValueArraySet(pArray, 1u, pOwned);      /* 借用替换 */
 ```
 
+
 ### `xrtValueArraySetTake`
 
 成功时把来源引用移交到指定位置。
@@ -2153,6 +2335,7 @@ bool xrtValueArraySetTake(xvalue* pArray, size_t iIndex, xvalue** pItem)
 ```c
 		(void)xrtValueArraySetTake(pArray, 1u, &pOwned); /* 移交替换 */
 ```
+
 
 ### `xrtValueArraySetNew`
 
@@ -2196,6 +2379,7 @@ bool xrtValueArraySetNew(xvalue* pArray, size_t iIndex, xvalue* pItem)
 		 ) ) {
 ```
 
+
 ### `xrtValueArrayRemove`
 
 删除数组区间并释放其中的值。
@@ -2233,6 +2417,7 @@ bool xrtValueArrayRemove(xvalue* pArray, size_t iIndex, size_t iCount)
 	(void)xrtValueArrayRemove(pArray, 1u, 1u);          /* 删掉 x2 */
 ```
 
+
 ### `xrtValueArrayTake`
 
 从数组移交指定值，调用方获得一个引用。
@@ -2269,6 +2454,7 @@ xvalue* xrtValueArrayTake(xvalue* pArray, size_t iIndex)
 	pTaken = xrtValueArrayTake(pArray, 0u);
 ```
 
+
 ### `xrtValueArrayPop`
 
 从数组末尾移交一个值。
@@ -2303,6 +2489,7 @@ xvalue* xrtValueArrayPop(xvalue* pArray)
 ```c
 	pTaken = xrtValueArrayPop(pArray);
 ```
+
 
 ### `xrtValueArraySwap`
 
@@ -2341,6 +2528,7 @@ bool xrtValueArraySwap(xvalue* pArray, size_t iLeft, size_t iRight)
 	(void)xrtValueArraySwap(pArray, 2u, 3u);
 ```
 
+
 ### `xrtValueArrayExtend`
 
 失败原子地把来源数组全部追加到目标数组，允许来源与目标相同。
@@ -2378,6 +2566,7 @@ bool xrtValueArrayExtend(xvalue* pTarget, const xvalue* pSource)
 		 !xrtValueArrayExtend(pLeft, pRight) ) {
 ```
 
+
 ### `xrtValueArrayConcat`
 
 创建按左右顺序连接的新数组。
@@ -2414,6 +2603,7 @@ xvalue* xrtValueArrayConcat(const xvalue* pLeft, const xvalue* pRight)
 	pJoined = xrtValueArrayConcat(pLeft, pRight);
 ```
 
+
 ### `xrtValueObject`
 
 创建保持首次插入顺序的字符串键对象。
@@ -2447,6 +2637,7 @@ xvalue* xrtValueObject(void)
 	xvalue* pDefaults = xrtValueObject();
 ```
 
+
 ### `xrtValueObjectLifo`
 
 创建保持首次插入顺序、最终按逆插入顺序释放拥有值的字符串键对象。
@@ -2479,6 +2670,7 @@ xvalue* xrtValueObjectLifo(void)
 ```c
 	xvalue* pObject = xrtValueObjectLifo();
 ```
+
 
 ### `xrtValueObjectGet`
 
@@ -2519,6 +2711,7 @@ xvalue* xrtValueObjectGet(const xvalue* pObject, xstrview Key)
 			),
 ```
 
+
 ### `xrtValueObjectAt`
 
 按首次插入顺序返回借用的键和值；替换已有键不会改变顺序。
@@ -2555,6 +2748,7 @@ xvalue* xrtValueObjectAt(const xvalue* pObject, size_t iIndex, xstrview* pKey)
 ```c
 		 (xrtValueObjectAt(pObject, 0, &Key) == NULL) ) {
 ```
+
 
 ### `xrtValueObjectEdit`
 
@@ -2595,6 +2789,7 @@ xvalue* xrtValueObjectEdit(xvalue* pObject, xstrview Key)
 	);
 ```
 
+
 ### `xrtValueObjectHas`
 
 判断对象键是否存在。
@@ -2629,6 +2824,7 @@ bool xrtValueObjectHas(const xvalue* pObject, xstrview Key)
 ```c
 	printf("has=%d ", xrtValueObjectHas(pObject, SV("k")) ? 1 : 0);
 ```
+
 
 ### `xrtValueObjectSet`
 
@@ -2666,6 +2862,7 @@ bool xrtValueObjectSet(xvalue* pObject, xstrview Key, const xvalue* pItem)
 ```c
 		(void)xrtValueObjectSet(pObject, SV("k"), pOwned);
 ```
+
 
 ### `xrtValueObjectSetTake`
 
@@ -2708,6 +2905,7 @@ bool xrtValueObjectSetTake(xvalue* pObject, xstrview Key, xvalue** pItem)
 		 ) ) {
 ```
 
+
 ### `xrtValueObjectSetNew`
 
 无论成功失败都消费临时值并设置对象键。
@@ -2749,6 +2947,7 @@ bool xrtValueObjectSetNew(xvalue* pObject, xstrview Key, xvalue* pItem)
 		 ) ||
 ```
 
+
 ### `xrtValueObjectRemove`
 
 删除对象键并释放对应值。
@@ -2783,6 +2982,7 @@ bool xrtValueObjectRemove(xvalue* pObject, xstrview Key)
 	printf("removed=%d ", xrtValueObjectRemove(pObject, SV("k")) ? 1 : 0);
 ```
 
+
 ### `xrtValueObjectTake`
 
 移交对象键对应值，缺失时返回空指针。
@@ -2816,6 +3016,7 @@ xvalue* xrtValueObjectTake(xvalue* pObject, xstrview Key)
 ```c
 	pTaken = xrtValueObjectTake(pObject, SV("k2"));
 ```
+
 
 ### `xrtValueObjectMerge`
 
@@ -2859,18 +3060,41 @@ bool xrtValueObjectMerge(xvalue* pTarget, const xvalue* pSource, xvaluemergepoli
 		 ) ||
 ```
 
+
 ### `xrtValueObjectFinalizerBindTake`
 
-消耗一个对象拥有引用，成功绑定后返回同一引用，失败则释放输入并返回 NULL。
-失败不安装新回调，也不接管借用上下文；回滚可能执行对象原有的终结器和字段
-Drop，原始绑定错误（或调用前已经存在的主错误）不会被这些清理覆盖。
-接口不创建额外的上下文分配，也不提供回调代码保活或并发发布安全点。
-共享 backing 上的绑定仍按原合同拒绝；不能借此撤销调用方此前已经发布的别名。
-
 ```c
-xvalue* xrtValueObjectFinalizerBindTake(xvalue* object,
-    xvalueobjectfinalizer finalize, ptr context);
+xvalue* xrtValueObjectFinalizerBindTake(xvalue* pObject, xvalueobjectfinalizer pFinalizer, ptr pUserData);
 ```
+
+Consuming publication: success returns the same owned object; failure
+releases exactly the input owner and returns NULL. The proposed callback
+and borrowed context are never installed on failure. Any existing finalizer
+may run during rollback. Preserve the binding error (or preexisting primary
+error) across those callbacks. This does not pin callback code, allocate,
+undo earlier publication by the caller, or consume the borrowed context.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pObject` | `xvalue*` | 有效 Object；绑定前满足唯一 shell/backing 和发布顺序约束。 |
+| `pFinalizer` | `xvalueobjectfinalizer` | 终结回调；代码须覆盖最终清理，失败不安装新回调。 |
+| `pUserData` | `ptr` | 回调上下文；转移或借用规则见本接口的契约。 |
+
+#### 返回值
+
+成功为传入对象；失败为 NULL，且已经释放传入的一份对象拥有引用。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xrtValueObjectFinalizerBind`
 
@@ -2908,6 +3132,7 @@ bool xrtValueObjectFinalizerBind(xvalue* pObject, xvalueobjectfinalizer pFinaliz
 		(void)xrtValueObjectFinalizerBind(pObject, onFinalize, NULL);
 ```
 
+
 ### `xrtValueIntMap`
 
 创建空的 int64 键稀疏映射。
@@ -2940,6 +3165,7 @@ xvalue* xrtValueIntMap(void)
 ```c
 	xvalue* pDefaults = xrtValueIntMap();
 ```
+
 
 ### `xrtValueIntMapGet`
 
@@ -2977,6 +3203,7 @@ xvalue* xrtValueIntMapGet(const xvalue* pMap, int64 iKey)
 		 !xrtValueGetInt(xrtValueIntMapGet(pDefaults, 1), &iValue) ) {
 ```
 
+
 ### `xrtValueIntMapEdit`
 
 返回已经沿 COW 路径分离的可变子容器，标量子项报告类型错误。
@@ -3013,6 +3240,7 @@ xvalue* xrtValueIntMapEdit(xvalue* pMap, int64 iKey)
 		pSlot = xrtValueIntMapEdit(pMap, 3);
 ```
 
+
 ### `xrtValueIntMapHas`
 
 判断整数键是否存在。
@@ -3047,6 +3275,7 @@ bool xrtValueIntMapHas(const xvalue* pMap, int64 iKey)
 ```c
 	printf("set=%d ", xrtValueIntMapHas(pMap, 2) ? 1 : 0);
 ```
+
 
 ### `xrtValueIntMapSet`
 
@@ -3085,6 +3314,7 @@ bool xrtValueIntMapSet(xvalue* pMap, int64 iKey, const xvalue* pItem)
 		(void)xrtValueIntMapSet(pMap, 1, pOwned);
 ```
 
+
 ### `xrtValueIntMapSetTake`
 
 成功时把来源引用移交到整数键。
@@ -3121,6 +3351,7 @@ bool xrtValueIntMapSetTake(xvalue* pMap, int64 iKey, xvalue** pItem)
 ```c
 		(void)xrtValueIntMapSetTake(pMap, 2, &pOwned);       /* 移交 */
 ```
+
 
 ### `xrtValueIntMapSetNew`
 
@@ -3159,6 +3390,7 @@ bool xrtValueIntMapSetNew(xvalue* pMap, int64 iKey, xvalue* pItem)
 		 !xrtValueIntMapSetNew(pDefaults, 1, xrtValueInt(30)) ||
 ```
 
+
 ### `xrtValueIntMapRemove`
 
 删除整数键并释放对应值。
@@ -3193,6 +3425,7 @@ bool xrtValueIntMapRemove(xvalue* pMap, int64 iKey)
 	(void)xrtValueIntMapRemove(pMap, 1);
 ```
 
+
 ### `xrtValueIntMapTake`
 
 移交整数键对应值，缺失时返回空指针。
@@ -3226,6 +3459,7 @@ xvalue* xrtValueIntMapTake(xvalue* pMap, int64 iKey)
 ```c
 	pTaken = xrtValueIntMapTake(pMap, -7);
 ```
+
 
 ### `xrtValueIntMapMerge`
 
@@ -3269,6 +3503,7 @@ bool xrtValueIntMapMerge(xvalue* pTarget, const xvalue* pSource, xvaluemergepoli
 		 ) ||
 ```
 
+
 ### `xrtValueIntMapTrim`
 
 释放 IntMap 空闲节点池页并返回实际释放页数。
@@ -3302,6 +3537,7 @@ size_t xrtValueIntMapTrim(xvalue* pMap, size_t iRetainEmpty)
 ```c
 	printf("trim=%zu\n", xrtValueIntMapTrim(pMap, 0));
 ```
+
 
 ## COW 与线程
 
@@ -3382,6 +3618,7 @@ bool xrtValueIterBegin(const xvalue* pValue, xvalueiter* pIterator)
 	if ( !xrtValueIterBegin(pCopy, &tIterator) ) {
 ```
 
+
 ### `xrtValueIterRBegin`
 
 启动稳定逆序快照；输出不得覆盖 Value，且不能已处于活动状态。
@@ -3419,6 +3656,7 @@ bool xrtValueIterRBegin(const xvalue* pValue, xvalueiter* pIterator)
 		(void)xrtValueIterRBegin(pArray, &rIter);
 ```
 
+
 ### `xrtValueIterNext`
 
 返回下一借用值及其键；键输出不得覆盖迭代器，正常结束返回空指针。
@@ -3452,6 +3690,7 @@ xvalue* xrtValueIterNext(xvalueiter* pIterator, xvaluekey* pKey)
 ```c
 	while ( (pItem = xrtValueIterNext(&tIterator, &Key)) != NULL ) {
 ```
+
 
 ### `xrtValueIterAdvance`
 
@@ -3490,6 +3729,7 @@ xvalueiterresult xrtValueIterAdvance(xvalueiter* pIterator, xvaluekey* pKey, xva
 		while ( xrtValueIterAdvance(&rIter, &rKey, &pItem) == XVALUE_ITER_ITEM ) {
 ```
 
+
 ### `xrtValueIterEnd`
 
 结束迭代并释放 backing 快照。
@@ -3521,6 +3761,7 @@ void xrtValueIterEnd(xvalueiter* pIterator)
 ```c
 	xrtValueIterEnd(&tIterator);
 ```
+
 
 ### `xrtValueIterCreate`
 
@@ -3557,6 +3798,7 @@ xvalueiter* xrtValueIterCreate(const xvalue* pValue)
 		xvalueiter* pIter = xrtValueIterCreate(pArray);
 ```
 
+
 ### `xrtValueIterRCreate`
 
 创建按稳定逆序推进的拥有式快照迭代器；调用方必须 Destroy。
@@ -3592,6 +3834,7 @@ xvalueiter* xrtValueIterRCreate(const xvalue* pValue)
 		xvalueiter* pRIter = xrtValueIterRCreate(pArray);
 ```
 
+
 ### `xrtValueIterDestroy`
 
 结束并释放拥有式迭代器；允许传入空指针。
@@ -3623,6 +3866,7 @@ void xrtValueIterDestroy(xvalueiter* pIterator)
 ```c
 		xrtValueIterDestroy(pIter);
 ```
+
 
 ## 批量操作与集合代数
 
@@ -3714,6 +3958,7 @@ xvalue* xrtValueSet(void)
 	xvalue* pLeft = xrtValueSet();
 ```
 
+
 ### `xrtValueSetAdd`
 
 增加引用后把可哈希标量或显式身份容器加入集合。
@@ -3749,6 +3994,7 @@ bool xrtValueSetAdd(xvalue* pSet, const xvalue* pItem)
 ```c
 		 !xrtValueSetAdd(pSet, pQuery) ) {
 ```
+
 
 ### `xrtValueSetAddTake`
 
@@ -3786,6 +4032,7 @@ bool xrtValueSetAddTake(xvalue* pSet, xvalue** pItem)
 		(void)xrtValueSetAddTake(pA, &pOwned);
 ```
 
+
 ### `xrtValueSetAddNew`
 
 无论成功失败都消费临时值并尝试加入集合。
@@ -3822,6 +4069,7 @@ bool xrtValueSetAddNew(xvalue* pSet, xvalue* pItem)
 		 !xrtValueSetAddNew(pLeft, xrtValueString(XRT_STR_LITERAL("read"))) ||
 ```
 
+
 ### `xrtValueSetHas`
 
 判断等价值是否在集合中。
@@ -3857,6 +4105,7 @@ bool xrtValueSetHas(const xvalue* pSet, const xvalue* pItem)
 		 !xrtValueSetHas(pSet, pQuery) ) {
 ```
 
+
 ### `xrtValueSetRemove`
 
 删除等价值并释放集合持有的引用。
@@ -3891,6 +4140,7 @@ bool xrtValueSetRemove(xvalue* pSet, const xvalue* pItem)
 	printf("removed=%d\n", xrtValueSetRemove(pB, xrtValueInt(3)) ? 1 : 0);
 ```
 
+
 ### `xrtValueSetTake`
 
 移交集合中的规范值，缺失时返回空指针。
@@ -3924,6 +4174,7 @@ xvalue* xrtValueSetTake(xvalue* pSet, const xvalue* pItem)
 ```c
 	pTaken = xrtValueSetTake(pA, xrtValueInt(2));
 ```
+
 
 ### `xrtValueSetMerge`
 
@@ -3961,6 +4212,7 @@ bool xrtValueSetMerge(xvalue* pTarget, const xvalue* pSource)
 		 !xrtValueSetMerge(pMerged, pRight) ||
 ```
 
+
 ### `xrtValueSetEqual`
 
 判断两个集合是否拥有相同元素。
@@ -3995,6 +4247,7 @@ bool xrtValueSetEqual(const xvalue* pLeft, const xvalue* pRight)
 ```c
 		 !xrtValueSetEqual(pMerged, pUnion) ) {
 ```
+
 
 ### `xrtValueSetUnion`
 
@@ -4032,6 +4285,7 @@ xvalue* xrtValueSetUnion(const xvalue* pLeft, const xvalue* pRight)
 	pUnion = xrtValueSetUnion(pLeft, pRight);
 ```
 
+
 ### `xrtValueSetIntersection`
 
 创建两个集合的交集，结果保持左集合顺序。
@@ -4067,6 +4321,7 @@ xvalue* xrtValueSetIntersection(const xvalue* pLeft, const xvalue* pRight)
 ```c
 	pResult = xrtValueSetIntersection(pA, pB);
 ```
+
 
 ### `xrtValueSetDifference`
 
@@ -4104,6 +4359,7 @@ xvalue* xrtValueSetDifference(const xvalue* pLeft, const xvalue* pRight)
 	pResult = xrtValueSetDifference(pA, pB);
 ```
 
+
 ### `xrtValueSetSymmetricDifference`
 
 创建两个集合的对称差集，右侧独有元素追加在左侧独有元素之后。
@@ -4139,6 +4395,7 @@ xvalue* xrtValueSetSymmetricDifference(const xvalue* pLeft, const xvalue* pRight
 ```c
 	pResult = xrtValueSetSymmetricDifference(pA, pB);
 ```
+
 
 ### `xrtValueSetIsSubset`
 
@@ -4176,6 +4433,7 @@ bool xrtValueSetIsSubset(const xvalue* pLeft, const xvalue* pRight, bool bProper
 		xrtValueSetIsSubset(pA, pBig, false) ? 1 : 0,
 ```
 
+
 ### `xrtValueSetIsSuperset`
 
 判断左集合是否为右集合的超集，可选择严格超集。
@@ -4212,6 +4470,7 @@ bool xrtValueSetIsSuperset(const xvalue* pLeft, const xvalue* pRight, bool bProp
 		xrtValueSetIsSuperset(pBig, pSmall, false) ? 1 : 0);
 ```
 
+
 ### `xrtValueSetIsDisjoint`
 
 判断两个集合是否没有任何共同元素。
@@ -4246,6 +4505,7 @@ bool xrtValueSetIsDisjoint(const xvalue* pLeft, const xvalue* pRight)
 ```c
 		 !xrtValueSetIsDisjoint(pLeft, pRight) ) {
 ```
+
 
 ## 值图
 
@@ -4307,6 +4567,7 @@ xvaluetype xrtValueType(const xvalue* pValue)
 		(xrtValueType(arrValues[2]) != XVALUE_STRING) ||
 ```
 
+
 ### `xrtValueTypeName`
 
 返回稳定的类型名称。
@@ -4338,6 +4599,7 @@ cstr xrtValueTypeName(xvaluetype Type)
 ```c
 	printf("time type: %s\n", xrtValueTypeName(xrtValueType(arrValues[4])));
 ```
+
 
 ### `xrtValueIs`
 
@@ -4373,6 +4635,7 @@ bool xrtValueIs(const xvalue* pValue, xvaluetype Type)
 		!xrtValueIs(arrValues[2], XVALUE_STRING) ||
 ```
 
+
 ### `xrtValueIsNumber`
 
 判断值是否为整数或浮点数。
@@ -4405,6 +4668,7 @@ bool xrtValueIsNumber(const xvalue* pValue)
 ```c
 		!xrtValueIsNumber(arrValues[0]) ||
 ```
+
 
 ### `xrtValueIsContainer`
 
@@ -4439,6 +4703,7 @@ bool xrtValueIsContainer(const xvalue* pValue)
 		xrtValueIsContainer(arrValues[0]) ||
 ```
 
+
 ### `xrtValueIsWeakRef`
 
 判断值是否是由 `xrtValueWeakRef` 创建的弱引用。
@@ -4472,6 +4737,7 @@ bool xrtValueIsWeakRef(const xvalue* pValue)
 	printf("weak: is=%d", xrtValueIsWeakRef(pWeak) ? 1 : 0);
 ```
 
+
 ### `xrtValueTypeId`
 
 返回调用者绑定的不透明语义类型身份；未绑定或空指针返回零。
@@ -4503,6 +4769,7 @@ uint64 xrtValueTypeId(const xvalue* pValue)
 ```c
 			(unsigned long long)xrtValueTypeId(pObject));
 ```
+
 
 ### `xrtValueTypeIdBind`
 
@@ -4539,6 +4806,7 @@ bool xrtValueTypeIdBind(xvalue* pValue, uint64 iTypeId)
 		(void)xrtValueTypeIdBind(pObject, 77u);
 ```
 
+
 ### `xrtValueTypeIdRebind`
 
 仅在值外壳唯一拥有时，把既有语义类型身份替换为新的非零身份。
@@ -4574,6 +4842,7 @@ bool xrtValueTypeIdRebind(xvalue* pValue, uint64 iTypeId)
 ```c
 		(void)xrtValueTypeIdRebind(pObject, 88u);
 ```
+
 
 ### `xrtValueIdentityBind`
 
@@ -4613,6 +4882,7 @@ bool xrtValueIdentityBind(xvalue* pValue, xvalueidentityhash pHash, xvalueidenti
 				xrtValueIdentityBind(pSet, intHash, intEqual, NULL) ? 1 : 0);
 ```
 
+
 ### `xrtValueHash`
 
 为可哈希标量或显式身份容器计算一致哈希；指针和句柄哈希只在当前进程内有效。
@@ -4647,6 +4917,7 @@ bool xrtValueHash(const xvalue* pValue, uint64* pHash)
 ```c
 		!xrtValueHash(arrValues[0], &iIntHash) ||
 ```
+
 
 ### `xrtValueEqual`
 
@@ -4683,6 +4954,7 @@ bool xrtValueEqual(const xvalue* pLeft, const xvalue* pRight)
 		 !xrtValueEqual(pRoot, pCopy) ||
 ```
 
+
 ### `xrtValueScalarEqual`
 
 按标量数值判断相等。
@@ -4717,6 +4989,7 @@ bool xrtValueScalarEqual(const xvalue* pLeft, const xvalue* pRight)
 ```c
 		!xrtValueScalarEqual(arrValues[0], arrValues[1]) ||
 ```
+
 
 ### `xrtValueWeakRef`
 
@@ -4753,6 +5026,7 @@ xvalue* xrtValueWeakRef(const xvalue* pTarget)
 	pWeak = xrtValueWeakRef(pTarget);
 ```
 
+
 ### `xrtValueWeakRefExpired`
 
 判断弱引用目标是否已经结束强生命周期。
@@ -4787,6 +5061,7 @@ bool xrtValueWeakRefExpired(const xvalue* pWeak)
 		xrtValueWeakRefExpired(pWeak) ? 1 : 0);
 ```
 
+
 ### `xrtValueWeakRefLock`
 
 尝试提升弱引用；过期时返回进程期 null 单例。
@@ -4819,6 +5094,7 @@ xvalue* xrtValueWeakRefLock(const xvalue* pWeak)
 ```c
 	pLocked = xrtValueWeakRefLock(pWeak);
 ```
+
 
 ## 错误
 
@@ -4987,6 +5263,7 @@ typedef bool (*xvalueobjectownershipdiscoverv1)(xrtownershipref Reference,
 该 backing 共享的 lifetime 原始 UserData，最后一参是枚举调用方数据。
 true 继续，false 停止；不得把借用身份当作新的强拥有槽。
 
+
 ### `xrtValueObjectOwnershipDiscoverV1`
 
 ```c
@@ -5053,3 +5330,715 @@ visitor 的错误；调用者必须丢弃部分锚点列表。无效 policy 或 
 工厂/克隆的完整 OOM 前缀及四个原生线程对 freeze 的竞争。专项脚本保留
 既有 construction/copy/publication/finalizer/cursor/adapter 人口，不以原生
 测试替代 xlang 的宿主发现接入或实际 TCC 退役证明。
+
+
+### `xrtValueCursorAdvance`
+
+```c
+xvalueiterresult xrtValueCursorAdvance(xvaluecursor* pCursor, xvaluekey* pKey, xvalue** ppValue);
+```
+
+Caller owns a reference through the call and serializes advances. Item and
+key outputs borrow the snapshot, valid until next advance or last release.
+Count/Trace/admission refuse an in-flight advance, including its error tail.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pCursor` | `xvaluecursor*` | 调用方持有引用的快照游标；推进操作需串行。 |
+| `pKey` | `xvaluekey*` | 返回借用键，使用期截至下次推进或最后一次释放。 |
+| `ppValue` | `xvalue**` | 返回借用元素，使用期截至下次推进或最后一次释放。 |
+
+#### 返回值
+
+返回上述契约定义的计数、日历字段、状态或能力值；单位与当前函数签名一致。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueCursorCreate`
+
+```c
+xvaluecursor* xrtValueCursorCreate(const xvalue* pValue);
+```
+
+Managed snapshot cursors retain backing and, for finalizer-backed identity
+objects, the actual source shell. An ordinary COW source is not retained.
+Existing stack/unique-heap iterator ABI and lifecycle remain unchanged.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pValue` | `const xvalue*` | 借用的 const xvalue* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueCursorOwnership`
+
+```c
+xrtownershipref xrtValueCursorOwnership(const xvaluecursor* pCursor);
+```
+
+借用游标物理视图，包含快照 backing 及实际保留的终结对象 shell。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pCursor` | `const xvaluecursor*` | 调用方持有引用的快照游标；推进操作需串行。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueCursorOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtValueCursorOwnershipAdapterV1(xrtownershipref Reference);
+```
+
+Exact Ops identity is checked before data. Hold/Drop are actual references;
+Clear detaches only, Finish releases outside freeze. Children, including a
+finalizer-backed shell, still require independent lifecycle admission.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueCursorRetain`
+
+```c
+xvaluecursor* xrtValueCursorRetain(xvaluecursor* pCursor);
+```
+
+增加游标的真实拥有引用，返回同一个游标。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pCursor` | `xvaluecursor*` | 调用方持有引用的快照游标；推进操作需串行。 |
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueHandleOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtValueHandleOwnershipAdapterV1(xrtownershipref Reference, const xvaluehandleops* pExpectedOps, xvalueownershiptrace pExpectedTrace);
+```
+
+Authorize a known resident Handle bridge, before any policy callback. The
+expected immutable Ops/Trace must cover the complete coordinated payload;
+identity hooks and non-NULL UserData are independently refused. This does
+not authorize the child: the collector still admits its whole graph.
+Clear quarantines; Finish detaches and drops the actual payload outside
+Freeze/mutation. Unknown native policy must not be passed as "expected".
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pExpectedOps` | `const xvaluehandleops*` | 已认可的不可变 Handle 操作表；按精确身份检查。 |
+| `pExpectedTrace` | `xvalueownershiptrace` | 已认可的所有权枚举回调；覆盖完整 payload。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueHandleOwnershipBind`
+
+```c
+bool xrtValueHandleOwnershipBind(xvalue* pValue, xvalueownershiptrace pTrace);
+```
+
+在唯一 Handle 发布前绑定真实拥有槽的枚举回调；只描述边，不授权未知原生 payload 的回收。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pValue` | `xvalue*` | 借用的 xvalue* 对象或调用方结果槽，按上述操作契约使用。 |
+| `pTrace` | `xvalueownershiptrace` | 精确枚举实际强引用槽的回调；不能把借用指针或代码指针当成所有权边。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueHandleOwnershipBindPhased`
+
+```c
+bool xrtValueHandleOwnershipBindPhased(xvalue* pValue, xvalueownershiptrace pTrace);
+```
+
+Explicitly opt a privately owned handle into phased terminal Drop. Its
+immutable Ops/Trace and code lifetime must self-coordinate payload changes
+and activity: Drop runs after this shell reaches zero, outside this entry's
+mutation scope. An enclosing caller scope is never suspended. Clone carries
+the same contract. Trace-only Bind stays conservative; neither form grants
+graph collection admission or certifies an unknown native payload.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pValue` | `xvalue*` | 借用的 xvalue* 对象或调用方结果槽，按上述操作契约使用。 |
+| `pTrace` | `xvalueownershiptrace` | 精确枚举实际强引用槽的回调；不能把借用指针或代码指针当成所有权边。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueIterOwnership`
+
+```c
+xrtownershipref xrtValueIterOwnership(const xvalueiter* pIterator);
+```
+
+Borrowed physical ownership view of one uniquely owned iterator. Its one
+strong slot is the retained backing snapshot, NOT the source Value shell,
+current element or borrowed key. Stack and heap iterators have one owner;
+an active iterator must not be copied into another owning slot. NULL has an
+empty view; a zero-initialized/ended iterator is a unique empty node. The
+caller guarantees lifetime and whole-graph quiescence through inspection;
+concurrent advance/end/destroy and concurrent mutation are not supported.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pIterator` | `const xvalueiter*` | 唯一拥有的迭代器；不得复制活动迭代器形成新的拥有槽。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueObjectConstructionCommit`
+
+```c
+bool xrtValueObjectConstructionCommit(xvalue* pObject);
+```
+
+对已准备对象完成一次构造提交；允许提交准备之后产生的别名，不分配、不转移调用方对象引用。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pObject` | `xvalue*` | 有效 Object；绑定前满足唯一 shell/backing 和发布顺序约束。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/discovery/main.c](../../examples/value/discovery/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
+
+```c
+xrtValueObjectConstructionCommit(object)
+```
+### `xrtValueObjectConstructionPrepare`
+
+```c
+bool xrtValueObjectConstructionPrepare(xvalue* pObject);
+```
+
+Prepare construction without a user finalizer. The unique object remains
+an ordinary COW value; a split copies pending state into the new backing.
+This state owns no context: use LifetimeBindOwned for copyable capabilities.
+Commit accepts this preparation or FinalizerPrepareOwned, exactly once and
+without allocation, including after native aliases/cursors were published.
+Failed construction without a finalizer only releases fields and lifetime.
+FinalizerCommit remains strict: it requires an actual owned finalizer duty.
+All preparation/commit/field mutations are externally serialized.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pObject` | `xvalue*` | 有效 Object；绑定前满足唯一 shell/backing 和发布顺序约束。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/discovery/main.c](../../examples/value/discovery/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
+
+```c
+xrtValueObjectConstructionPrepare(object)
+```
+### `xrtValueObjectFinalizerBindOwned`
+
+```c
+bool xrtValueObjectFinalizerBindOwned(xvalue* pObject, xvalueobjectfinalizer pFinalizer, ptr pUserData, xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease);
+```
+
+Atomically bind a finalizer and transfer its context to a unique shell AND
+backing. No allocation. On failure the object is unchanged and the caller
+still owns context; no callback runs. A non-NULL context requires Trace.
+Release runs once, AFTER finalization and ALL backing field destruction.
+Callbacks are copied, not their descriptor storage. Release must itself be
+resident if it releases the last code lease; XRT never pins callback code.
+A NULL context is permitted and Release is still called exactly once.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pObject` | `xvalue*` | 有效 Object；绑定前满足唯一 shell/backing 和发布顺序约束。 |
+| `pFinalizer` | `xvalueobjectfinalizer` | 终结回调；代码须覆盖最终清理，失败不安装新回调。 |
+| `pUserData` | `ptr` | 回调上下文；转移或借用规则见本接口的契约。 |
+| `pTrace` | `xrtownershiptrace` | 精确枚举实际强引用槽的回调；不能把借用指针或代码指针当成所有权边。 |
+| `pRelease` | `xvalueobjectfinalizerrelease` | 上下文释放回调；在实际最后一份拥有关系结束后调用。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueObjectFinalizerCommit`
+
+```c
+bool xrtValueObjectFinalizerCommit(xvalue* pObject);
+```
+
+Commit exactly once after successful construction. Borrows one live object
+owner and permits shared shells/backings/cursors created after preparation.
+Failure leaves the pending/committed duty and all owners unchanged; nothing
+is consumed or invoked. Unprepared, repeated or finalizing commits fail.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pObject` | `xvalue*` | 有效 Object；绑定前满足唯一 shell/backing 和发布顺序约束。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueObjectFinalizerPrepareOwned`
+
+```c
+bool xrtValueObjectFinalizerPrepareOwned(xvalue* pObject, xvalueobjectfinalizer pFinalizer, ptr pUserData, xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease);
+```
+
+Prepare an owned lifecycle BEFORE publishing a new reference-identity
+object. The same unique-shell/backing and context-transfer rules as BindOwned
+apply. Context/Trace are owned immediately and Release still follows all
+fields, but Finalizer is disarmed until Commit. Releasing an uncommitted
+object (possibly through its last native alias/cursor) only drops fields and
+context. Clone/cursors keep the same duty; no COW split duplicates it.
+Both operations allocate nothing. This is NOT a concurrent mutation API or
+a graph collection safepoint; callers serialize lifecycle/field mutations.
+Concurrent Retain/Release of independently owned aliases remains valid.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pObject` | `xvalue*` | 有效 Object；绑定前满足唯一 shell/backing 和发布顺序约束。 |
+| `pFinalizer` | `xvalueobjectfinalizer` | 终结回调；代码须覆盖最终清理，失败不安装新回调。 |
+| `pUserData` | `ptr` | 回调上下文；转移或借用规则见本接口的契约。 |
+| `pTrace` | `xrtownershiptrace` | 精确枚举实际强引用槽的回调；不能把借用指针或代码指针当成所有权边。 |
+| `pRelease` | `xvalueobjectfinalizerrelease` | 上下文释放回调；在实际最后一份拥有关系结束后调用。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueObjectIdentityBindV1`
+
+```c
+bool xrtValueObjectIdentityBindV1(xvalue* pObject, xvalueidentityhash pHash, xvalueidentityequal pEqual, const xvalueobjectownershipv1* pExpectedPolicy);
+```
+
+Authorize the immutable, context-free identity callbacks while the matching
+class lifetime keeps their code. Ordinary IdentityBind alone is NOT enough
+for collector admission. COW/deep copies carry this backing certificate.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pObject` | `xvalue*` | 有效 Object；绑定前满足唯一 shell/backing 和发布顺序约束。 |
+| `pHash` | `xvalueidentityhash` | 上下文无关的身份哈希回调。 |
+| `pEqual` | `xvalueidentityequal` | 与哈希一致的身份相等回调。 |
+| `pExpectedPolicy` | `const xvalueobjectownershipv1*` | 已由调用方独立认可的常驻策略，不能认证任意未知原生资源。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtValueObjectLifetimeBindOwned`
+
+```c
+bool xrtValueObjectLifetimeBindOwned(xvalue* pObject, ptr pUserData, xrtownershiptrace pTrace, xvalueobjectfinalizerrelease pRelease);
+```
+
+Transfer an immutable, shareable lifetime context to a unique Object shell
+AND backing. This is independent of finalizer identity: shallow Clone keeps
+the backing, while COW/deep-clone backings retain one shared lifetime node.
+Its Count is the number of owning backings and Trace describes context's
+actual edges exactly once. No fields or finalization duties are duplicated.
+Release runs once after the last such backing's fields/finalizer context.
+A non-NULL context requires Trace; Release is mandatory even for NULL data.
+Callbacks must stay callable (Release must be resident if dropping code).
+Allocation/uniqueness failure leaves object/context unchanged, with no
+callback. A second binding refuses. Context mutation and graph inspection
+still require external synchronization; this does not add a safepoint.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pObject` | `xvalue*` | 有效 Object；绑定前满足唯一 shell/backing 和发布顺序约束。 |
+| `pUserData` | `ptr` | 回调上下文；转移或借用规则见本接口的契约。 |
+| `pTrace` | `xrtownershiptrace` | 精确枚举实际强引用槽的回调；不能把借用指针或代码指针当成所有权边。 |
+| `pRelease` | `xvalueobjectfinalizerrelease` | 上下文释放回调；在实际最后一份拥有关系结束后调用。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/discovery/main.c](../../examples/value/discovery/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
+
+```c
+xrtValueObjectLifetimeBindOwned(object,&marker,empty_trace,release_context)
+```
+### `xrtValueObjectOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtValueObjectOwnershipAdapterV1(xrtownershipref Reference, const xvalueobjectownershipv1* pExpectedPolicy);
+```
+
+在全图冻结下按精确策略身份准入对象；子节点仍必须独立准入。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pExpectedPolicy` | `const xvalueobjectownershipv1*` | 已由调用方独立认可的常驻策略，不能认证任意未知原生资源。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/value/discovery/main.c](../../examples/value/discovery/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
+
+```c
+xrtValueObjectOwnershipAdapterV1(ref,&policy)
+```
+### `xrtValueObjectOwnershipBindV1`
+
+```c
+bool xrtValueObjectOwnershipBindV1(xvalue* pObject, const xvalueobjectownershipv1* pPolicy);
+```
+
+给唯一对象绑定常驻的身份、终结与所有权认证策略；必须在发布对象前完成，不能以 Trace 代替策略认证。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pObject` | `xvalue*` | 有效 Object；绑定前满足唯一 shell/backing 和发布顺序约束。 |
+| `pPolicy` | `const xvalueobjectownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/discovery/main.c](../../examples/value/discovery/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
+
+```c
+xrtValueObjectOwnershipBindV1(object,&policy)
+```
+### `xrtValueOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtValueOwnershipAdapterV1(xrtownershipref Reference);
+```
+
+Under the caller's exclusive ownership freeze, recognize this XRT instance's
+ordinary Value shells/container backings, without invoking foreign callbacks.
+Returns a resident adapter or NULL (unknown/custom/unstable is refusal).
+Custom handle/identity/finalizer/lifetime policies and borrowed blob payloads
+are NOT certified here. Their code and hidden owning state need an explicit
+additional protocol; having a Trace callback is not certification.
+Claim temporarily makes WeakRefLock return null without declaring expiry;
+abort Restore permits promotion again. Clear commits that quarantine.
+Containers are cleared by physical backing, never by COW shell mutation.
+Caller must pin/admit the ENTIRE transitive graph before any Clear, even
+when only one of its nodes uses this adapter. Methods obey core's V1 rules.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/value/ownership/main.c](../../examples/value/ownership/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xvaluecursor`
+
+拥有型快照游标，推进必须串行；返回的键和元素只借用到下次推进或最后释放。普通 COW 源不由游标保活，终结型对象的实际 shell 则被保留。
+
+```c
+typedef struct xvaluecursor xvaluecursor;
+```
+
+
+### `xvalueobjectownershipv1`
+
+对象的精确身份、终结、终结上下文、共享 lifetime 与只读发现认证。绑定前保持唯一 shell/backing，回调代码和策略覆盖真实最后清理。
+
+```c
+typedef struct xvalueobjectownershipv1 {
+	size_t size;
+	xvalueobjectfinalizer Finalize;
+	xrtownershiptrace FinalizerTrace;
+	xvalueobjectfinalizerrelease FinalizerRelease;
+	xrtownershiptrace LifetimeTrace;
+	xvalueobjectfinalizerrelease LifetimeRelease;
+	bool (*FinalizeChecked)(xvalue* pObject, ptr pUserData);
+} xvalueobjectownershipv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `Finalize` | `xvalueobjectfinalizer` | 对象终结入口；整个终结生存期内必须常驻。 |
+| `FinalizerTrace` | `xrtownershiptrace` | 终结上下文的真实强引用槽枚举入口。 |
+| `FinalizerRelease` | `xvalueobjectfinalizerrelease` | 终结及全部字段销毁之后释放上下文。 |
+| `LifetimeTrace` | `xrtownershiptrace` | 共享 lifetime context 的实际拥有槽枚举入口。 |
+| `LifetimeRelease` | `xvalueobjectfinalizerrelease` | 最后一个拥有 backing 完成字段清理后释放共享 context。 |

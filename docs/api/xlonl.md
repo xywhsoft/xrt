@@ -68,6 +68,7 @@ typedef enum xxlonlerror {
 | `XXLONL_ERROR_IO` | 限额文件读取或原子文件替换失败。 |
 | `XXLONL_ERROR_STATE` | 逐行处理状态错误的保留代码。 |
 
+
 ### `xxlonllocation`
 
 ```c
@@ -86,6 +87,7 @@ typedef struct xxlonllocation {
 | `Column` | `size_t` | 当前物理行内一基 UTF-8 字节列，不按 Unicode 字符计数。 |
 | `RecordIndex` | `size_t` | 零基记录下标；空白行不递增，空行错误指向下一待接收记录下标。 |
 
+
 ### `xxlonlreadflag`
 
 ```c
@@ -97,6 +99,7 @@ typedef enum xxlonlreadflag {
 | 值 | 语义 |
 |---|---|
 | `XXLONL_READ_REJECT_EMPTY_LINES` | 将默认忽略的空白行改为语法错误。 |
+
 
 ### `xxlonlreadconfig`
 
@@ -122,6 +125,7 @@ typedef struct xxlonlreadconfig {
 | `MaxTotalDecodedBytes` | `size_t` | 内建 bytes 标签累计解码字节上限，检查在缓冲分配前；默认 64 MiB。 |
 | `Reserved` | `uint32[4]` | 保留空间，必须全部为零。 |
 
+
 ### `xxlonlwriteconfig`
 
 ```c
@@ -139,6 +143,7 @@ typedef struct xxlonlwriteconfig {
 | `MaxOutputBytes` | `size_t` | 全部输出字节上限，包含每条 LF，不包含结果末尾 NUL；默认 64 MiB。 |
 | `MaxRecords` | `size_t` | 非空记录数量上限，等于结果 Array 最大元素数；默认 1000000。 |
 | `Reserved` | `uint32[4]` | 保留空间，必须全部为零。 |
+
 
 ## 文本、配置与文件接口
 
@@ -179,6 +184,7 @@ bool xrtXlonlErrorLocation(
 if ( !xrtXlonlErrorLocation(xrtGetError(), &Location) ) goto done;
 ```
 
+
 ### `xrtXlonlReadConfigInit`
 
 初始化默认忽略空白行、严格单条语法和有限累计预算。
@@ -212,6 +218,7 @@ void xrtXlonlReadConfigInit(
 ```c
 xrtXlonlReadConfigInit(&Read);
 ```
+
 
 ### `xrtXlonlParse`
 
@@ -252,6 +259,7 @@ xvalue* xrtXlonlParse(
 pArray = xrtXlonlParse(XRT_STR_LITERAL("{\"id\":1}\n\n[2,3]\r\nnull\n"));
 if ( pArray == NULL ) goto done;
 ```
+
 
 ### `xrtXlonlRead`
 
@@ -295,6 +303,7 @@ pRead = xrtXlonlRead((xstrview){ Text, Size }, &Read);
 if ( pRead == NULL ) goto done;
 ```
 
+
 ### `xrtXlonlValid`
 
 默认忽略空白行，验证逐行语法和累计预算，不构造 Value DOM；重复键策略不参与验证。
@@ -334,6 +343,7 @@ bool xrtXlonlValid(
 if ( !xrtXlonlValid((xstrview){ Text, Size }) ) goto done;
 ```
 
+
 ### `xrtXlonlWriteConfigInit`
 
 初始化紧凑单行输出、LF 分隔及有限累计预算；PRETTY 配置非法。
@@ -367,6 +377,7 @@ void xrtXlonlWriteConfigInit(
 ```c
 xrtXlonlWriteConfigInit(&Write);
 ```
+
 
 ### `xrtXlonlStringify`
 
@@ -410,6 +421,7 @@ str xrtXlonlStringify(
 Text = xrtXlonlStringify(pArray, &Size);
 if ( Text == NULL ) goto done;
 ```
+
 
 ### `xrtXlonlWrite`
 
@@ -458,6 +470,7 @@ bool xrtXlonlWrite(
 if ( !xrtXlonlWrite(pArray, &Write, discard, NULL) ) goto done;
 ```
 
+
 ### `xrtXlonlParseFile`
 
 按默认配置限额读取文件并返回拥有的 Array。
@@ -498,6 +511,7 @@ xvalue* xrtXlonlParseFile(
 pRead = xrtXlonlParseFile(Path);
 if ( pRead == NULL ) goto done;
 ```
+
 
 ### `xrtXlonlReadFile`
 
@@ -542,6 +556,7 @@ pRead = xrtXlonlReadFile(Path, &Read);
 if ( pRead == NULL ) goto done;
 ```
 
+
 ### `xrtXlonlStringifyFile`
 
 按默认配置完整序列化 Array 后原子替换文件。
@@ -584,6 +599,7 @@ bool xrtXlonlStringifyFile(
 ```c
 if ( !xrtXlonlStringifyFile(Path, pArray) ) goto done;
 ```
+
 
 ### `xrtXlonlWriteFile`
 

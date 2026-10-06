@@ -61,6 +61,7 @@ if ( !xrtDerValidate(Document, sizeof(Document)) ||
 	!xrtDerInit(&Root, Document, sizeof(Document)) ||
 ```
 
+
 ### `xrtDerRead`
 
 读取下一项并推进游标；失败时游标和输出保持不变。
@@ -101,6 +102,7 @@ xderresult xrtDerRead(xdercursor* pCursor, xdervalue* pValue);
 !xrtDerUInt64(&Value, &iRight) ||
 ```
 
+
 ### `xrtDerPeek`
 
 查看下一项但不推进游标；失败时输出保持不变。
@@ -137,6 +139,7 @@ xderresult xrtDerPeek(const xdercursor* pCursor, xdervalue* pValue);
 printf("peek-tag=%u remaining-after-peek=%zu",
 	(unsigned)Value.Tag.Number, xrtDerRemaining(&Cursor));
 ```
+
 
 ### `xrtDerExpect`
 
@@ -186,6 +189,7 @@ bool xrtDerExpect(
 ) || !xrtDerEnter(&Value, &Items) ||
 ```
 
+
 ### `xrtDerEnter`
 
 从一个构造值的内容初始化子游标；不复制内容。
@@ -223,6 +227,7 @@ bool xrtDerEnter(const xdervalue* pValue, xdercursor* pCursor);
 ) || !xrtDerEnter(&Value, &Items) ||
 ```
 
+
 ### `xrtDerDone`
 
 返回游标是否已经恰好消费完全部内容。
@@ -256,6 +261,7 @@ bool xrtDerDone(const xdercursor* pCursor);
 /* Done 断言恰好消费完：多一个字节都算结构非法。 */
 !xrtDerDone(&Items) ) {
 ```
+
 
 ### `xrtDerRemaining`
 
@@ -291,6 +297,7 @@ size_t xrtDerRemaining(const xdercursor* pCursor);
 printf("peek-tag=%u remaining-after-peek=%zu",
 	(unsigned)Value.Tag.Number, xrtDerRemaining(&Cursor));
 ```
+
 
 ### `xrtDerIs`
 
@@ -333,6 +340,7 @@ bool xrtDerIs(
 printf(" is-bool=%d\n",
 	xrtDerIs(&Value, XASN1_UNIVERSAL, (uint32)XASN1_BOOLEAN, false) ? 1 : 0);
 ```
+
 
 ## 严格 DER
 
@@ -385,6 +393,7 @@ if ( !xrtDerValidate(Document, sizeof(Document)) ||
 	!xrtDerInit(&Root, Document, sizeof(Document)) ||
 ```
 
+
 ## 类型辅助层
 
 这些函数把 `xdervalue` 转换为具体类型的值或借用视图，全部要求 primitive Universal 类型且内容规范。`xrtDerUnsigned` 拒绝负整数并去除正数为避免符号歧义而使用的单个前导零；`xrtDerUInt64`/`xrtDerInt64` 额外检查范围；`xrtDerBitString` 单独返回未使用位数。
@@ -428,6 +437,7 @@ if ( xrtDerRead(&Cursor, &Value) == XDER_VALUE ) {
 }
 ```
 
+
 ### `xrtDerUnsigned`
 
 读取非负 DER INTEGER，并返回去除可选符号零后的借用字节。
@@ -469,6 +479,7 @@ if ( xrtDerRead(&Cursor, &Value) == XDER_VALUE ) {
 }
 ```
 
+
 ### `xrtDerUInt64`
 
 读取不超过 64 位的非负 DER INTEGER。
@@ -507,6 +518,7 @@ bool xrtDerUInt64(const xdervalue* pValue, uint64* pResult);
 !xrtDerUInt64(&Value, &iRight) ||
 ```
 
+
 ### `xrtDerInt64`
 
 读取不超过 64 位的有符号 DER INTEGER。
@@ -544,6 +556,7 @@ if ( xrtDerRead(&Cursor, &Value) == XDER_VALUE ) {
 	(void)xrtDerInt64(&Value, &iInt);
 	printf(" int=%lld", (long long)iInt);
 ```
+
 
 ### `xrtDerBitString`
 
@@ -590,6 +603,7 @@ if ( xrtDerRead(&Cursor, &Value) == XDER_VALUE ) {
 }
 ```
 
+
 ### `xrtDerOctets`
 
 读取 DER OCTET STRING 的借用内容。
@@ -628,6 +642,7 @@ if ( xrtDerRead(&Cursor, &Value) == XDER_VALUE ) {
 }
 ```
 
+
 ### `xrtDerOid`
 
 读取规范 OBJECT IDENTIFIER 的借用内容。
@@ -664,6 +679,7 @@ bool xrtDerOid(const xdervalue* pValue, xbytesview* pResult);
 if ( xrtDerOid(&Value, &OidContent) ) {
 	printf("der-oid-content=%zu\n", OidContent.Size);
 ```
+
 
 ### `xrtDerOidEqual`
 
@@ -707,6 +723,7 @@ printf(" equal=%d",
 		OidBytes, iOidSize) ? 0 : 0); /* 结构体零值仅演示签名 */
 ```
 
+
 ### `xasn1class`
 
 ASN.1 标签类别使用 X.690 的两位稳定值。
@@ -726,6 +743,7 @@ typedef enum xasn1class {
 | `XASN1_APPLICATION` | application 类 |
 | `XASN1_CONTEXT` | context 类 |
 | `XASN1_PRIVATE` | private 类（0xC0+） |
+
 
 ### `xasn1universal`
 
@@ -781,6 +799,7 @@ typedef enum xasn1universal {
 | `XASN1_UNIVERSAL_STRING` | UNIVERSAL字符串 |
 | `XASN1_BMP_STRING` | BMPString（UTF-16） |
 
+
 ### `xasn1tag`
 
 DER 标签保留类别、构造位和完整的高标签号。
@@ -798,6 +817,7 @@ typedef struct xasn1tag {
 | `Class` | `xasn1class` | Class |
 | `Number` | `uint32` | Number |
 | `Constructed` | `bool` | Constructed |
+
 
 ### `xdervalue`
 
@@ -819,6 +839,7 @@ typedef struct xdervalue {
 | `Value` | `xbytesview` | 值 |
 | `HeaderSize` | `size_t` | HeaderSize |
 
+
 ### `xdercursor`
 
 DER 游标保存不可变输入和下一项偏移，可安全复制后独立遍历。
@@ -837,6 +858,7 @@ typedef struct xdercursor {
 | `Size` | `size_t` | 字节数 |
 | `Offset` | `size_t` | 偏移量 |
 
+
 ### `xderresult`
 
 Read/Peek 把正常结束与协议错误分开表达。
@@ -854,6 +876,7 @@ typedef enum xderresult {
 | `XDER_ERROR` | 失败 |
 | `XDER_DONE` | 完成 |
 | `XDER_VALUE` | 已产出值 |
+
 
 ### `xasn1error`
 
@@ -885,6 +908,7 @@ typedef enum xasn1error {
 | `XASN1_ERROR_DEPTH` | 深度超限 |
 | `XASN1_ERROR_RANGE` | 范围越界 |
 
+
 ### `xbuffer`
 
 DER 写入接口只需要缓冲的不透明指针。
@@ -894,6 +918,7 @@ typedef struct xbuffer xbuffer;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ## 编码器
 
@@ -944,6 +969,7 @@ bool xrtDerAppend(
 	true, (xbytesview){ NULL, 0u });
 ```
 
+
 ### `xrtDerAppendBoolean`
 
 追加规范 DER BOOLEAN（`true → FF`、`false → 00`）。
@@ -978,6 +1004,7 @@ bool xrtDerAppendBoolean(xbuffer* pOutput, bool bValue);
 ```c
 (void)xrtDerAppendBoolean(&Buf, true);
 ```
+
 
 ### `xrtDerAppendUInt64`
 
@@ -1015,6 +1042,7 @@ bool xrtDerAppendUInt64(xbuffer* pOutput, uint64 iValue);
 (void)xrtDerAppendUInt64(&Buf, UINT64_C(4294967296));
 ```
 
+
 ### `xrtDerAppendInt64`
 
 追加有符号 DER INTEGER（最短补码形式）。
@@ -1051,6 +1079,7 @@ bool xrtDerAppendInt64(xbuffer* pOutput, int64 iValue);
 (void)xrtDerAppendUInt64(&Buf, UINT64_C(4294967296));
 ```
 
+
 ### `xrtDerAppendOctets`
 
 追加 DER OCTET STRING。
@@ -1086,6 +1115,7 @@ bool xrtDerAppendOctets(xbuffer* pOutput, xbytesview Content);
 (void)xrtDerAppendOctets(&Buf, XRT_BYTES_LITERAL("hello"));
 ```
 
+
 ### `xrtDerAppendNull`
 
 追加 DER NULL（2 字节：tag + 零长度）。
@@ -1119,6 +1149,7 @@ bool xrtDerAppendNull(xbuffer* pOutput);
 ```c
 (void)xrtDerAppendNull(&Buf);
 ```
+
 
 ### `xrtDerAppendBitString`
 
@@ -1160,6 +1191,7 @@ bool xrtDerAppendBitString(
 (void)xrtDerAppendBitString(&Buf, XRT_BYTES_LITERAL("\xA0"), 4u);
 ```
 
+
 ### `xrtDerAppendOid`
 
 把点分文本 OID 编码为内容八位组并追加为 OBJECT IDENTIFIER TLV。
@@ -1195,6 +1227,7 @@ bool xrtDerAppendOid(xbuffer* pOutput, xstrview Text);
 ```c
 (void)xrtDerAppendOid(&Buf, XRT_STR_LITERAL("2.5.4.3"));
 ```
+
 
 ### `xrtDerOidEncode`
 
@@ -1234,6 +1267,7 @@ if ( !xrtDerOidEncode(XRT_STR_LITERAL("2.5.4.3"), &OidBuf) ) {
 }
 ```
 
+
 ### `xrtDerOidDecode`
 
 把内容八位组解码为点分文本，追加到 Output 尾部；失败时不修改 Output。
@@ -1271,6 +1305,7 @@ if ( xrtDerOidDecode((xbytesview){ Buf.Data, 0u }, &OidBuf) ) {
 	printf(" decode=ok");
 }
 ```
+
 
 ## 错误
 

@@ -22,17 +22,21 @@ Temp 提供线程/协程绑定的临时内存 arena：作用域后进先出回�
 
 `BlockSize` 是新常规块容量，`SpillLimit` 是进入独立大块的阈值，`RetainLimit` 是 reset 后常规块保留上限。前两项必须非零，`RetainLimit` 可以为零。
 
+
 ### `xtemparena`
 
 可栈上分配的 arena 状态。显式调用 `xrtTempInit` 前无需预置字段；使用惰性 API 时必须零初始化。结束使用后调用 `xrtTempUnit`。
+
 
 ### `xtempmark`
 
 保存作用域回退位置和不可复用的作用域标识。作用域必须在同一 arena 上严格后进先出结束。复制 mark 不会复制结束权；旧 mark 即使遇到相同嵌套深度也不能结束后续作用域。重复结束已经成功结束的同一个 mark 是幂等操作。
 
+
 ### `xtempinfo`
 
 包含常规块数、spill 数、保留字节、当前/峰值用量、reset 次数和作用域深度。
+
 
 ### 常量总表
 
@@ -52,6 +56,7 @@ typedef struct xtempblock xtempblock;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ## 函数
 
@@ -89,6 +94,7 @@ bool xrtTempInit(xtemparena* pArena, const xtempconfig* pConfig)
 	if ( !xrtTempInit(&tArena, &tConfig) ) {
 ```
 
+
 ### `xrtTempUnit`
 
 释放 arena 持有的全部常规块和 spill 块。
@@ -121,6 +127,7 @@ void xrtTempUnit(xtemparena* pArena)
 		xrtTempUnit(&tArena);
 ```
 
+
 ### `xrtTempSecureUnit`
 
 安全擦除 arena 持有的全部用户区，再释放所有内存。
@@ -152,6 +159,7 @@ void xrtTempSecureUnit(xtemparena* pArena)
 ```c
 	xrtTempSecureUnit(&tArena);
 ```
+
 
 ### `xrtTempAlloc`
 
@@ -188,6 +196,7 @@ ptr xrtTempAlloc(xtemparena* pArena, size_t iSize)
 ```c
 	if ( xrtTempAlloc(&tArena, 64) == NULL ) {
 ```
+
 
 ### `xrtTempDup`
 
@@ -226,6 +235,7 @@ ptr xrtTempDup(xtemparena* pArena, const void* pData, size_t iSize)
 	pData = xrtTempDup(&tArena, arrData, sizeof(arrData));
 ```
 
+
 ### `xrtTempStr`
 
 把字符串视图复制为指定 arena 中的零结尾字符串。
@@ -262,6 +272,7 @@ str xrtTempStr(xtemparena* pArena, xstrview Text)
 	sInner = xrtTempStr(pArena, XRT_STR_LITERAL("promoted"));
 ```
 
+
 ### `xrtTempReset`
 
 回收全部临时分配并保留配置允许的常规块。
@@ -296,6 +307,7 @@ bool xrtTempReset(xtemparena* pArena)
 	if ( !xrtTempReset(&tArena) || !xrtTempTrim(&tArena, 0) ) {
 ```
 
+
 ### `xrtTempSecureReset`
 
 安全擦除 arena 持有的全部用户区，再执行普通重置。
@@ -329,6 +341,7 @@ bool xrtTempSecureReset(xtemparena* pArena)
 ```c
 	if ( !xrtTempSecureReset(&tArena) ) {
 ```
+
 
 ### `xrtTempTrim`
 
@@ -365,6 +378,7 @@ bool xrtTempTrim(xtemparena* pArena, size_t iRetainBytes)
 	if ( !xrtTempReset(&tArena) || !xrtTempTrim(&tArena, 0) ) {
 ```
 
+
 ### `xrtTempGet`
 
 获取 arena 当前状态。
@@ -397,6 +411,7 @@ void xrtTempGet(const xtemparena* pArena, xtempinfo* pInfo)
 ```c
 	xrtTempGet(&tArena, &tInfo);
 ```
+
 
 ### `xrtTempBegin`
 
@@ -431,6 +446,7 @@ xtempmark xrtTempBegin(xtemparena* pArena)
 	tScope = xrtTempBegin(pArena);
 ```
 
+
 ### `xrtTempEnd`
 
 回退作用域内产生的临时分配。
@@ -464,6 +480,7 @@ bool xrtTempEnd(xtempmark* pMark)
 ```c
 	if ( !xrtTempEnd(&tScope) ) {
 ```
+
 
 ### `xrtTempEndDup`
 
@@ -503,6 +520,7 @@ ptr xrtTempEndDup(xtempmark* pMark, const void* pData, size_t iSize)
 	pData = xrtTempEndDup(&tScope, arrData, sizeof(arrData));
 ```
 
+
 ### `xrtTempEndStr`
 
 结束作用域并把字符串结果复制到父作用域。
@@ -540,6 +558,7 @@ str xrtTempEndStr(xtempmark* pMark, xstrview Text)
 	sPromoted = xrtTempEndStr(&tScope, (xstrview){ sInner, 8 });
 ```
 
+
 ## 当前上下文便捷层
 
 ### `xrtTempCurrent`
@@ -574,6 +593,7 @@ xtemparena* xrtTempCurrent(void)
 ```c
 	xtemparena* pArena = xrtTempCurrent();   /* 线程默认 arena */
 ```
+
 
 ### `xrtTemp`
 
@@ -610,6 +630,7 @@ ptr xrtTemp(size_t iSize)
 	sOuter = (char*)xrtTemp(32);
 ```
 
+
 ### `xrtTempClear`
 
 重置当前执行上下文的默认 arena。
@@ -642,6 +663,7 @@ bool xrtTempClear(void)
 ```c
 	if ( !xrtTempClear() ) {
 ```
+
 
 ## 旧版资产决策
 

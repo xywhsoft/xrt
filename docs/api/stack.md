@@ -29,6 +29,7 @@ typedef struct xfixedstack {
 | `Count` | `size_t` | 数量 |
 | `Capacity` | `size_t` | 容量 |
 
+
 ### `xblockstack`
 
 * 分块栈只移动块索引，不移动块内元素。 * Blocks 的元素类型属于内部实现，调用方只能读取其 Count 和 Capacity 做诊断。
@@ -53,6 +54,7 @@ typedef struct xblockstack {
 | `BlockItems` | `size_t` | BlockItems |
 | `Alignment` | `size_t` | 对齐（二次幂） |
 
+
 ### `xptrfixedstack`
 
 固定指针栈只保存指针值，不拥有指针指向的对象。
@@ -62,6 +64,7 @@ typedef xfixedstack xptrfixedstack;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xstack`
 
@@ -73,6 +76,7 @@ typedef xarray xstack;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xptrstack`
 
 指针栈只保存指针值，不拥有指针指向的对象。
@@ -82,6 +86,7 @@ typedef xstack xptrstack;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### 常量总表
 
@@ -219,6 +224,7 @@ bool xrtFixedStackInit(
 	if ( !xrtFixedStackInit(&tFrames, pStorage, sizeof(pStorage), sizeof(exampleframe)) ) {
 ```
 
+
 ### `xrtFixedStackCreate`
 
 创建拥有固定容量缓冲的栈。
@@ -254,6 +260,7 @@ xfixedstack* xrtFixedStackCreate(size_t iCapacity, size_t iItemSize)
 		xfixedstack* pFixed = xrtFixedStackCreate(4u, sizeof(int));
 ```
 
+
 ### `xrtFixedStackUnit`
 
 释放创建时取得的固定缓冲，但不释放栈结构。
@@ -285,6 +292,7 @@ void xrtFixedStackUnit(xfixedstack* pStack)
 ```c
 	xrtFixedStackUnit(&tFrames);
 ```
+
 
 ### `xrtFixedStackDestroy`
 
@@ -318,6 +326,7 @@ void xrtFixedStackDestroy(xfixedstack* pStack)
 		xrtFixedStackDestroy(pFixed);
 ```
 
+
 ### `xrtFixedStackClear`
 
 清空栈内容并保留固定容量。
@@ -350,6 +359,7 @@ void xrtFixedStackClear(xfixedstack* pStack)
 		xrtFixedStackClear(pFixed);
 ```
 
+
 ### `xrtFixedStackSpace`
 
 返回剩余可压入元素数量。
@@ -381,6 +391,7 @@ size_t xrtFixedStackSpace(const xfixedstack* pStack)
 ```c
 		iSpace = xrtFixedStackSpace(pFixed);
 ```
+
 
 ### `xrtFixedStackGet`
 
@@ -417,6 +428,7 @@ ptr xrtFixedStackGet(xfixedstack* pStack, size_t iIndex)
 		(void)xrtFixedStackGet(pFixed, 0u);
 ```
 
+
 ### `xrtFixedStackConstGet`
 
 返回指定 0 基位置的只读元素借用地址。
@@ -452,6 +464,7 @@ const void* xrtFixedStackConstGet(const xfixedstack* pStack, size_t iIndex)
 		(void)xrtFixedStackConstGet(pFixed, 0u);
 ```
 
+
 ### `xrtFixedStackAdd`
 
 取得一个未初始化栈顶槽，栈满时失败。
@@ -485,6 +498,7 @@ ptr xrtFixedStackAdd(xfixedstack* pStack)
 ```c
 		pSlot = (int*)xrtFixedStackAdd(pFixed);
 ```
+
 
 ### `xrtFixedStackPush`
 
@@ -521,6 +535,7 @@ bool xrtFixedStackPush(xfixedstack* pStack, const void* pItem)
 		if ( !xrtFixedStackPush(&tFrames, &pInput[i]) ) {
 ```
 
+
 ### `xrtFixedStackPop`
 
 弹出栈顶元素，并可把内容复制到外部输出缓冲。
@@ -555,6 +570,7 @@ bool xrtFixedStackPop(xfixedstack* pStack, ptr pItem)
 ```c
 	while ( xrtFixedStackPop(&tFrames, &tFrame) ) {
 ```
+
 
 ### `xrtFixedStackPeek`
 
@@ -591,6 +607,7 @@ ptr xrtFixedStackPeek(xfixedstack* pStack, size_t iDepth)
 		(void)xrtFixedStackPeek(pFixed, 0u);
 ```
 
+
 ### `xrtFixedStackConstPeek`
 
 返回距栈顶指定深度的只读元素，深度 0 表示栈顶。
@@ -626,6 +643,7 @@ const void* xrtFixedStackConstPeek(const xfixedstack* pStack, size_t iDepth)
 			const int* pPeek = (const int*)xrtFixedStackConstPeek(pFixed, 1u);
 ```
 
+
 ### `xrtFixedStackTop`
 
 返回可写栈顶元素借用地址。
@@ -660,6 +678,7 @@ ptr xrtFixedStackTop(xfixedstack* pStack)
 			int* pTop = (int*)xrtFixedStackTop(pFixed);
 ```
 
+
 ### `xrtFixedStackConstTop`
 
 返回只读栈顶元素借用地址。
@@ -693,6 +712,7 @@ const void* xrtFixedStackConstTop(const xfixedstack* pStack)
 ```c
 		(void)xrtFixedStackConstTop(pFixed);
 ```
+
 
 ## PtrFixedStack
 
@@ -765,6 +785,7 @@ bool xrtPtrFixedStackInit(
 	if ( !xrtPtrFixedStackInit(&tCleanup, pStorage, 4) ) {
 ```
 
+
 ### `xrtPtrFixedStackCreate`
 
 创建拥有指定固定容量的指针栈。
@@ -799,6 +820,7 @@ xptrfixedstack* xrtPtrFixedStackCreate(size_t iCapacity)
 		xptrfixedstack* pPtr = xrtPtrFixedStackCreate(4u);
 ```
 
+
 ### `xrtPtrFixedStackUnit`
 
 释放拥有的指针存储区，但不释放任何指针目标或栈结构。
@@ -830,6 +852,7 @@ void xrtPtrFixedStackUnit(xptrfixedstack* pStack)
 ```c
 			xrtPtrFixedStackUnit(&tCleanup);
 ```
+
 
 ### `xrtPtrFixedStackDestroy`
 
@@ -863,6 +886,7 @@ void xrtPtrFixedStackDestroy(xptrfixedstack* pStack)
 		xrtPtrFixedStackDestroy(pPtr);
 ```
 
+
 ### `xrtPtrFixedStackClear`
 
 清空固定指针栈，但不释放任何指针目标。
@@ -895,6 +919,7 @@ void xrtPtrFixedStackClear(xptrfixedstack* pStack)
 		xrtPtrFixedStackClear(pPtr);
 ```
 
+
 ### `xrtPtrFixedStackSpace`
 
 返回固定指针栈剩余容量。
@@ -926,6 +951,7 @@ size_t xrtPtrFixedStackSpace(const xptrfixedstack* pStack)
 ```c
 		printf("ptrfixed: space=%zu", xrtPtrFixedStackSpace(pPtr));
 ```
+
 
 ### `xrtPtrFixedStackGet`
 
@@ -962,6 +988,7 @@ ptr xrtPtrFixedStackGet(const xptrfixedstack* pStack, size_t iIndex)
 		(void)xrtPtrFixedStackGet(pPtr, 0u);
 ```
 
+
 ### `xrtPtrFixedStackPush`
 
 压入一个可为空的指针值。
@@ -996,6 +1023,7 @@ bool xrtPtrFixedStackPush(xptrfixedstack* pStack, ptr pValue)
 ```c
 		if ( !xrtPtrFixedStackPush(&tCleanup, &pResources[i]) ) {
 ```
+
 
 ### `xrtPtrFixedStackPop`
 
@@ -1032,6 +1060,7 @@ bool xrtPtrFixedStackPop(xptrfixedstack* pStack, ptr* pValue)
 	while ( xrtPtrFixedStackPop(&tCleanup, &pResource) ) {
 ```
 
+
 ### `xrtPtrFixedStackPeek`
 
 返回距栈顶指定深度的指针值，深度 0 表示栈顶。
@@ -1067,6 +1096,7 @@ ptr xrtPtrFixedStackPeek(const xptrfixedstack* pStack, size_t iDepth)
 		(void)xrtPtrFixedStackPeek(pPtr, 0u);
 ```
 
+
 ### `xrtPtrFixedStackTop`
 
 返回栈顶指针值；合法空值与错误通过错误状态区分。
@@ -1100,6 +1130,7 @@ ptr xrtPtrFixedStackTop(const xptrfixedstack* pStack)
 ```c
 		(void)xrtPtrFixedStackTop(pPtr);
 ```
+
 
 ## Stack
 
@@ -1187,6 +1218,7 @@ bool xrtStackInit(xstack* pStack, size_t iItemSize)
 	if ( !xrtStackInit(&tValues, sizeof(int)) ) {
 ```
 
+
 ### `xrtStackInitAligned`
 
 初始化显式过对齐动态栈。
@@ -1225,6 +1257,7 @@ bool xrtStackInitAligned(xstack* pStack, size_t iItemSize, size_t iAlignment)
 		if ( !xrtStackInitAligned(&Aligned, sizeof(int), 4u) ) {
 ```
 
+
 ### `xrtStackCreate`
 
 创建使用默认对齐的空动态栈。
@@ -1260,6 +1293,7 @@ xstack* xrtStackCreate(size_t iItemSize)
 ```c
 		xstack* pStack = xrtStackCreate(sizeof(int));
 ```
+
 
 ### `xrtStackCreateAligned`
 
@@ -1298,6 +1332,7 @@ xstack* xrtStackCreateAligned(size_t iItemSize, size_t iAlignment)
 		xrtStackDestroy(xrtStackCreateAligned(sizeof(int), 4u));
 ```
 
+
 ### `xrtStackUnit`
 
 释放动态栈元素内存，但不释放栈结构。
@@ -1329,6 +1364,7 @@ void xrtStackUnit(xstack* pStack)
 ```c
 			xrtStackUnit(&tValues);
 ```
+
 
 ### `xrtStackDestroy`
 
@@ -1362,6 +1398,7 @@ void xrtStackDestroy(xstack* pStack)
 		xrtStackDestroy(pStack);
 ```
 
+
 ### `xrtStackClear`
 
 清空动态栈并保留容量。
@@ -1393,6 +1430,7 @@ void xrtStackClear(xstack* pStack)
 ```c
 		(void)xrtStackClear(pStack);
 ```
+
 
 ### `xrtStackReserve`
 
@@ -1430,6 +1468,7 @@ bool xrtStackReserve(xstack* pStack, size_t iCapacity)
 		(void)xrtStackReserve(pStack, 32u);
 ```
 
+
 ### `xrtStackTrim`
 
 将动态栈容量裁剪到当前深度。
@@ -1463,6 +1502,7 @@ bool xrtStackTrim(xstack* pStack)
 ```c
 		(void)xrtStackTrim(pStack);
 ```
+
 
 ### `xrtStackGet`
 
@@ -1499,6 +1539,7 @@ ptr xrtStackGet(xstack* pStack, size_t iIndex)
 		(void)xrtStackGet(pStack, 0u);
 ```
 
+
 ### `xrtStackConstGet`
 
 返回指定 0 基位置的只读元素借用地址。
@@ -1534,6 +1575,7 @@ const void* xrtStackConstGet(const xstack* pStack, size_t iIndex)
 			const int* pGet = (const int*)xrtStackConstGet(pStack, 0u);
 ```
 
+
 ### `xrtStackAdd`
 
 取得一个未初始化栈顶槽；容量不足时自动扩容。
@@ -1568,6 +1610,7 @@ ptr xrtStackAdd(xstack* pStack)
 ```c
 			int* pSlot = (int*)xrtStackAdd(pStack);
 ```
+
 
 ### `xrtStackPush`
 
@@ -1605,6 +1648,7 @@ bool xrtStackPush(xstack* pStack, const void* pItem)
 			if ( !xrtStackPush(pStack, &iValue) ) {
 ```
 
+
 ### `xrtStackPop`
 
 弹出栈顶元素，并可把内容复制到外部输出缓冲。
@@ -1639,6 +1683,7 @@ bool xrtStackPop(xstack* pStack, ptr pItem)
 ```c
 	while ( xrtStackPop(&tValues, &iValue) ) {
 ```
+
 
 ### `xrtStackPeek`
 
@@ -1675,6 +1720,7 @@ ptr xrtStackPeek(xstack* pStack, size_t iDepth)
 		(void)xrtStackPeek(pStack, 0u);
 ```
 
+
 ### `xrtStackConstPeek`
 
 返回距栈顶指定深度的只读元素，深度 0 表示栈顶。
@@ -1710,6 +1756,7 @@ const void* xrtStackConstPeek(const xstack* pStack, size_t iDepth)
 			const int* pPeek = (const int*)xrtStackConstPeek(pStack, 0u);
 ```
 
+
 ### `xrtStackTop`
 
 返回可写栈顶元素借用地址。
@@ -1744,6 +1791,7 @@ ptr xrtStackTop(xstack* pStack)
 			int* pTop = (int*)xrtStackTop(pStack);
 ```
 
+
 ### `xrtStackConstTop`
 
 返回只读栈顶元素借用地址。
@@ -1777,6 +1825,7 @@ const void* xrtStackConstTop(const xstack* pStack)
 ```c
 		(void)xrtStackConstTop(pStack);
 ```
+
 
 ## BlockStack
 
@@ -1890,6 +1939,7 @@ bool xrtBlockStackInit(xblockstack* pStack, size_t iItemSize)
 			(void)xrtBlockStackInit(&tInit, sizeof(int));
 ```
 
+
 ### `xrtBlockStackInitLayout`
 
 使用指定元素对齐和每块元素数初始化分块栈。
@@ -1934,6 +1984,7 @@ bool xrtBlockStackInitLayout(
 	if ( !xrtBlockStackInitLayout(&tFrames, sizeof(int), sizeof(int), 4) ) {
 ```
 
+
 ### `xrtBlockStackCreate`
 
 创建使用自动块尺寸的默认对齐分块栈。
@@ -1969,6 +2020,7 @@ xblockstack* xrtBlockStackCreate(size_t iItemSize)
 ```c
 		xblockstack* pBlock = xrtBlockStackCreate(sizeof(int));
 ```
+
 
 ### `xrtBlockStackCreateLayout`
 
@@ -2012,6 +2064,7 @@ xblockstack* xrtBlockStackCreateLayout(
 		xrtBlockStackDestroy(xrtBlockStackCreateLayout(sizeof(int), 4u, 8u));
 ```
 
+
 ### `xrtBlockStackUnit`
 
 释放全部数据块和块索引，但不释放栈结构。
@@ -2043,6 +2096,7 @@ void xrtBlockStackUnit(xblockstack* pStack)
 ```c
 		xrtBlockStackUnit(&tFrames);
 ```
+
 
 ### `xrtBlockStackDestroy`
 
@@ -2076,6 +2130,7 @@ void xrtBlockStackDestroy(xblockstack* pStack)
 		xrtBlockStackDestroy(xrtBlockStackCreateLayout(sizeof(int), 4u, 8u));
 ```
 
+
 ### `xrtBlockStackClear`
 
 清空分块栈并保留已经分配的数据块。
@@ -2107,6 +2162,7 @@ void xrtBlockStackClear(xblockstack* pStack)
 ```c
 		xrtBlockStackClear(pBlock);
 ```
+
 
 ### `xrtBlockStackReserve`
 
@@ -2144,6 +2200,7 @@ bool xrtBlockStackReserve(xblockstack* pStack, size_t iCapacity)
 		(void)xrtBlockStackReserve(pBlock, 16u);
 ```
 
+
 ### `xrtBlockStackTrim`
 
 释放当前深度不再需要的数据块，保留轻量块索引缓存。
@@ -2177,6 +2234,7 @@ bool xrtBlockStackTrim(xblockstack* pStack)
 ```c
 		(void)xrtBlockStackTrim(pBlock);
 ```
+
 
 ### `xrtBlockStackGet`
 
@@ -2213,6 +2271,7 @@ ptr xrtBlockStackGet(xblockstack* pStack, size_t iIndex)
 		xrtBlockStackGet(&tFrames, 0) == pRoot ? "yes" : "no"
 ```
 
+
 ### `xrtBlockStackConstGet`
 
 返回指定 0 基位置的只读元素借用地址。
@@ -2248,6 +2307,7 @@ const void* xrtBlockStackConstGet(const xblockstack* pStack, size_t iIndex)
 		(void)xrtBlockStackConstGet(pBlock, 0u);
 ```
 
+
 ### `xrtBlockStackAdd`
 
 取得一个未初始化栈顶槽，既有活动元素地址保持稳定。
@@ -2282,6 +2342,7 @@ ptr xrtBlockStackAdd(xblockstack* pStack)
 ```c
 	pRoot = (int*)xrtBlockStackAdd(&tFrames);
 ```
+
 
 ### `xrtBlockStackPush`
 
@@ -2319,6 +2380,7 @@ bool xrtBlockStackPush(xblockstack* pStack, const void* pItem)
 		if ( !xrtBlockStackPush(&tFrames, &i) ) {
 ```
 
+
 ### `xrtBlockStackPop`
 
 弹出栈顶元素；调用方必须保证可选输出不与该栈的任何数据块重叠。
@@ -2353,6 +2415,7 @@ bool xrtBlockStackPop(xblockstack* pStack, ptr pItem)
 ```c
 			(void)xrtBlockStackPop(pBlock, &iPop);
 ```
+
 
 ### `xrtBlockStackPeek`
 
@@ -2389,6 +2452,7 @@ ptr xrtBlockStackPeek(xblockstack* pStack, size_t iDepth)
 		(void)xrtBlockStackPeek(pBlock, 0u);
 ```
 
+
 ### `xrtBlockStackConstPeek`
 
 返回距栈顶指定深度的只读元素，深度 0 表示栈顶。
@@ -2424,6 +2488,7 @@ const void* xrtBlockStackConstPeek(const xblockstack* pStack, size_t iDepth)
 		(void)xrtBlockStackConstPeek(pBlock, 0u);
 ```
 
+
 ### `xrtBlockStackTop`
 
 返回可写栈顶元素借用地址。
@@ -2458,6 +2523,7 @@ ptr xrtBlockStackTop(xblockstack* pStack)
 		(void)xrtBlockStackTop(pBlock);
 ```
 
+
 ### `xrtBlockStackConstTop`
 
 返回只读栈顶元素借用地址。
@@ -2491,6 +2557,7 @@ const void* xrtBlockStackConstTop(const xblockstack* pStack)
 ```c
 			const int* pTop = (const int*)xrtBlockStackConstTop(pBlock);
 ```
+
 
 ## PtrStack
 
@@ -2554,6 +2621,7 @@ bool xrtPtrStackInit(xptrstack* pStack)
 	if ( !xrtPtrStackInit(&tResources) ) {
 ```
 
+
 ### `xrtPtrStackCreate`
 
 创建空指针栈。
@@ -2587,6 +2655,7 @@ xptrstack* xrtPtrStackCreate(void)
 		xptrstack* pPtr = xrtPtrStackCreate();
 ```
 
+
 ### `xrtPtrStackUnit`
 
 释放指针存储区但不释放指针目标。
@@ -2618,6 +2687,7 @@ void xrtPtrStackUnit(xptrstack* pStack)
 ```c
 			xrtPtrStackUnit(&tResources);
 ```
+
 
 ### `xrtPtrStackDestroy`
 
@@ -2651,6 +2721,7 @@ void xrtPtrStackDestroy(xptrstack* pStack)
 		xrtPtrStackDestroy(pPtr);
 ```
 
+
 ### `xrtPtrStackClear`
 
 清空指针栈并保留容量，但不释放指针目标。
@@ -2682,6 +2753,7 @@ void xrtPtrStackClear(xptrstack* pStack)
 ```c
 		xrtPtrStackClear(pPtr);
 ```
+
 
 ### `xrtPtrStackReserve`
 
@@ -2719,6 +2791,7 @@ bool xrtPtrStackReserve(xptrstack* pStack, size_t iCapacity)
 		(void)xrtPtrStackReserve(pPtr, 16u);
 ```
 
+
 ### `xrtPtrStackTrim`
 
 将指针栈容量裁剪到当前深度。
@@ -2752,6 +2825,7 @@ bool xrtPtrStackTrim(xptrstack* pStack)
 ```c
 		(void)xrtPtrStackTrim(pPtr);
 ```
+
 
 ### `xrtPtrStackGet`
 
@@ -2787,6 +2861,7 @@ ptr xrtPtrStackGet(const xptrstack* pStack, size_t iIndex)
 ```c
 		(void)xrtPtrStackGet(pPtr, 0u);
 ```
+
 
 ### `xrtPtrStackPush`
 
@@ -2824,6 +2899,7 @@ bool xrtPtrStackPush(xptrstack* pStack, ptr pValue)
 		if ( !xrtPtrStackPush(&tResources, &pValues[i]) ) {
 ```
 
+
 ### `xrtPtrStackPop`
 
 弹出指针值；输出为空表示只删除栈顶。
@@ -2858,6 +2934,7 @@ bool xrtPtrStackPop(xptrstack* pStack, ptr* pValue)
 ```c
 	while ( xrtPtrStackPop(&tResources, &pValue) ) {
 ```
+
 
 ### `xrtPtrStackPeek`
 
@@ -2894,6 +2971,7 @@ ptr xrtPtrStackPeek(const xptrstack* pStack, size_t iDepth)
 		(void)xrtPtrStackPeek(pPtr, 0u);
 ```
 
+
 ### `xrtPtrStackTop`
 
 返回栈顶指针值；合法空值与错误通过错误状态区分。
@@ -2927,6 +3005,7 @@ ptr xrtPtrStackTop(const xptrstack* pStack)
 ```c
 			ptr pTop = xrtPtrStackTop(pPtr);
 ```
+
 
 ## 错误与原子性
 

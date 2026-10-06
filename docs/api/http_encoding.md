@@ -26,6 +26,7 @@ typedef enum xhttpcoding {
 | `XHTTP_CODING_GZIP` | gzip 包装 |
 | `XHTTP_CODING_DEFLATE` | deflate |
 
+
 ### `xhttpacceptencodingflag`
 
 解析标志区分 Header 缺失与各个显式编码成员。
@@ -50,6 +51,7 @@ typedef enum xhttpacceptencodingflag {
 | `XHTTP_ACCEPT_ENCODING_IDENTITY` | 允许 identity |
 | `XHTTP_ACCEPT_ENCODING_WILDCARD` | * 通配 |
 
+
 ### `xhttpacceptencoding`
 
 质量值使用 0 到 1000 的定点表示。 同一编码重复出现时保留最高质量，Flags 记录是否显式出现。
@@ -71,6 +73,7 @@ typedef struct xhttpacceptencoding {
 | `Identity` | `uint16` | Identity |
 | `Wildcard` | `uint16` | Wildcard |
 | `Flags` | `uint32` | 标志位 |
+
 
 ### `xhttpcontentencodingflag`
 
@@ -94,6 +97,7 @@ typedef enum xhttpcontentencodingflag {
 | `XHTTP_CONTENT_ENCODING_UNKNOWN` | 未知 |
 | `XHTTP_CONTENT_ENCODING_LEGACY` | 传统别名（x-gzip） |
 
+
 ### `xhttpcontentencodingcursor`
 
 游标可在重复 Content-Encoding 字段之间无分配前向迭代。
@@ -110,6 +114,7 @@ typedef struct xhttpcontentencodingcursor {
 | `Field` | `size_t` | Field |
 | `Offset` | `size_t` | 偏移量 |
 
+
 ### `xhttpcontentencodingitem`
 
 每个成员保留原 token，并把内置编码映射到统一枚举。
@@ -125,6 +130,7 @@ typedef struct xhttpcontentencodingitem {
 |---|---|---|
 | `Token` | `xstrview` | Token |
 | `Coding` | `xhttpcoding` | Coding |
+
 
 ### `xhttpcontentencodingplan`
 
@@ -149,6 +155,7 @@ typedef struct xhttpcontentencodingplan {
 | `UnknownCount` | `size_t` | UnknownCount |
 | `JoinedSize` | `size_t` | JoinedSize |
 | `Flags` | `uint32` | 标志位 |
+
 
 ### 常量总表
 
@@ -265,6 +272,7 @@ xhttpcoding xrtHttpCodingParse(xstrview Token);
 				XHTTP_CODING_GZIP) ||
 ```
 
+
 ### `xrtHttpCodingName`
 
 返回 identity、gzip 或 deflate 的静态小写 token；NONE 返回空视图。
@@ -297,6 +305,7 @@ xstrview xrtHttpCodingName(xhttpcoding Coding);
 ```c
 	Name = xrtHttpCodingName(Coding);
 ```
+
 
 
 ### Accept-Encoding 协商
@@ -335,6 +344,7 @@ void xrtHttpAcceptEncodingInit(
 	xrtHttpAcceptEncodingInit(&Accept);
 ```
 
+
 ### `xrtHttpAcceptEncodingValid`
 
 判断公开协商状态字段是否自洽；纯查询不修改线程原有错误。
@@ -369,6 +379,7 @@ bool xrtHttpAcceptEncodingValid(
 ```c
 			!xrtHttpAcceptEncodingValid(&Accept) ) {
 ```
+
 
 ### `xrtHttpAcceptEncodingAdd`
 
@@ -411,6 +422,7 @@ bool xrtHttpAcceptEncodingAdd(
 		)
 	) ) {
 ```
+
 
 ### `xrtHttpAcceptEncodingParse`
 
@@ -456,6 +468,7 @@ bool xrtHttpAcceptEncodingParse(
 			!xrtHttpAcceptEncodingValid(&Accept) ) {
 ```
 
+
 ### `xrtHttpAcceptEncodingQuality`
 
 返回指定内置编码的有效质量；参数错误返回零并设置错误。
@@ -494,6 +507,7 @@ uint16 xrtHttpAcceptEncodingQuality(
 				XHTTP_CODING_GZIP) != 900u) ||
 			(xrtHttpAcceptEncodingQuality(&Accept,
 ```
+
 
 ### `xrtHttpAcceptEncodingSelect`
 
@@ -543,6 +557,7 @@ xhttpcoding xrtHttpAcceptEncodingSelect(
 ```
 
 
+
 ### Content-Encoding 响应链
 
 ### `xrtHttpContentEncodingCursorInit`
@@ -578,6 +593,7 @@ void xrtHttpContentEncodingCursorInit(
 ```c
 			xrtHttpContentEncodingCursorInit(&Cursor);
 ```
+
 
 ### `xrtHttpContentEncodingNext`
 
@@ -624,6 +640,7 @@ xhttpnext xrtHttpContentEncodingNext(
 				(Item.Coding != XHTTP_CODING_GZIP) ) {
 ```
 
+
 ### `xrtHttpContentEncodingPlan`
 
 无分配构建完整 Content-Encoding 计划；DecoderCount 只统计 gzip/deflate。
@@ -666,6 +683,7 @@ bool xrtHttpContentEncodingPlan(
 		&Plan
 	) ) {
 ```
+
 
 ### `xrtHttpContentEncodingWrite`
 
@@ -713,4 +731,3 @@ bool xrtHttpContentEncodingWrite(
 			(iCount != 8u) ||
 			(memcmp(Buffer, "gzip, br", 8u) != 0) ) {
 ```
-

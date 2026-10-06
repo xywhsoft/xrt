@@ -308,7 +308,7 @@
 
 ## network (50)
 
-- [network/addr_tour](../examples/network/addr_tour/main.c) - `net`
+- [network/addr_tour](../examples/network/addr_tour/main.c) - `net_addr_examples`
 - [network/address](../examples/network/address/main.c) - `net`
 - [network/buf_tour](../examples/network/buf_tour/main.c) - `net_buffer`
 - [network/buffer](../examples/network/buffer/main.c) - `net_buffer`

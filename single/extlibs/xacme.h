@@ -3314,7 +3314,7 @@ static void xacmePendingUnlock(void)
 	写入端点的重放安全性须由调用方及 provider 的幂等/去重语义保证。
 	全部尝试失败时保留首个根因。
 */
-#define XACME_HTTP_RETRY_MAX 1
+#define XACME_HTTP_RETRY_MAX 3
 #define XACME_HTTP_MAX_RESPONSE_BODY (4u * 1024u * 1024u)
 
 static bool xacmeHttpErrorRetryable(void)

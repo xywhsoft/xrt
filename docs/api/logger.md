@@ -30,6 +30,7 @@ typedef enum xloglevel {
 | `XLOG_FATAL` | 致命级别 |
 | `XLOG_OFF` | 关闭过滤 |
 
+
 ### `xlogresult`
 
 日志结果把正常过滤、成功写入、主动丢弃和真实错误分开表达。
@@ -49,6 +50,7 @@ typedef enum xlogresult {
 | `XLOG_RESULT_SKIPPED` | SKIPPED |
 | `XLOG_RESULT_WRITTEN` | WRITTEN |
 | `XLOG_RESULT_DROPPED` | 未写入但至少一个 Sink 主动丢弃 |
+
 
 ### `xlogerror`
 
@@ -122,6 +124,7 @@ typedef enum xlogerror {
 | `XLOG_ERROR_RING_FLUSH` | RING刷新 |
 | `XLOG_ERROR_RING_THREAD` | Ring 线程失败 |
 
+
 ### `xlogfieldtype`
 
 结构化字段类型不依赖 Value 容器，保持 Logger 核心轻量。
@@ -149,6 +152,7 @@ typedef enum xlogfieldtype {
 | `XLOG_FIELD_STRING` | 字符串 |
 | `XLOG_FIELD_TIME` | 时间 |
 | `XLOG_FIELD_ERROR` | 失败 |
+
 
 ### `xlogrecord`
 
@@ -182,6 +186,7 @@ typedef struct xlogrecord {
 | `Line` | `uint32` | 行号 |
 | `ThreadId` | `uint64` | 线程标识 |
 
+
 ### `xlogstats`
 
 统计按记录聚合；一个记录写到多个 Sink 仍只计一次 Logger 结果。
@@ -203,6 +208,7 @@ typedef struct xlogstats {
 | `Skipped` | `uint64` | Skipped |
 | `Dropped` | `uint64` | Dropped |
 | `Failed` | `uint64` | Failed |
+
 
 ### `xlogsinkconfig`
 
@@ -228,6 +234,7 @@ typedef struct xlogsinkconfig {
 | `Drop` | `xlogsinkdropproc` | Drop |
 | `UserData` | `ptr` | 用户数据 |
 
+
 ### `xlogtextstyle`
 
 三种预设只初始化配置，调用方仍可逐位调整输出组成。
@@ -245,6 +252,7 @@ typedef enum xlogtextstyle {
 | `XLOG_TEXT_FULL` | 已满 |
 | `XLOG_TEXT_SIMPLE` | 简单格式 |
 | `XLOG_TEXT_MESSAGE` | 仅输出消息本身 |
+
 
 ### `xlogtextflag`
 
@@ -274,6 +282,7 @@ typedef enum xlogtextflag {
 | `XLOG_TEXT_NEWLINE` | 换行 |
 | `XLOG_TEXT_RAW_MESSAGE` | 消息控制字符原样输出 |
 
+
 ### `xlogtextconfig`
 
 文本配置使用固定 UTC 偏移，默认完整格式为 UTC 单行文本。
@@ -290,6 +299,7 @@ typedef struct xlogtextconfig {
 | `Flags` | `uint32` | 标志位 |
 | `UtcOffset` | `int` | UTC 偏移（分钟） |
 
+
 ### `xlogjsonfieldstyle`
 
 JSON 字段默认写成对象，数组形式可无损保留重名和字段类型。
@@ -305,6 +315,7 @@ typedef enum xlogjsonfieldstyle {
 |---|---|
 | `XLOG_JSON_FIELDS_OBJECT` | XLOGJSON字段对象形态 |
 | `XLOG_JSON_FIELDS_ARRAY` | 数组形式字段 |
+
 
 ### `xlogjsonnonfinite`
 
@@ -323,6 +334,7 @@ typedef enum xlogjsonnonfinite {
 | `XLOG_JSON_NONFINITE_REJECT` | REJECT |
 | `XLOG_JSON_NONFINITE_NULL` | 空值 |
 | `XLOG_JSON_NONFINITE_STRING` | 字符串表示 |
+
 
 ### `xlogjsonflag`
 
@@ -352,6 +364,7 @@ typedef enum xlogjsonflag {
 | `XLOG_JSON_FIELDS` | 字段 |
 | `XLOG_JSON_NEWLINE` | 换行结束 |
 
+
 ### `xlogjsonconfig`
 
 JSON 配置独立约束转义、字段表示、非有限数和错误原因链。
@@ -374,6 +387,7 @@ typedef struct xlogjsonconfig {
 | `NonFinite` | `xlogjsonnonfinite` | NonFinite |
 | `MaxErrorDepth` | `size_t` | MaxErrorDepth |
 
+
 ### `xlogconsoletarget`
 
 控制台目标可固定到一个流，或按级别分流。
@@ -392,6 +406,7 @@ typedef enum xlogconsoletarget {
 | `XLOG_CONSOLE_STDERR` | 标准错误 |
 | `XLOG_CONSOLE_SPLIT` | 按级别分流 |
 
+
 ### `xlogconsolecolor`
 
 自动配色只对支持 ANSI 的交互终端生效，并尊重 NO_COLOR。
@@ -409,6 +424,7 @@ typedef enum xlogconsolecolor {
 | `XLOG_CONSOLE_COLOR_AUTO` | 自动 |
 | `XLOG_CONSOLE_COLOR_NEVER` | 永不 |
 | `XLOG_CONSOLE_COLOR_ALWAYS` | 始终着色 |
+
 
 ### `xlogconsoleconfig`
 
@@ -434,6 +450,7 @@ typedef struct xlogconsoleconfig {
 | `Flush` | `bool` | Flush |
 | `Text` | `xlogtextconfig` | 文本视图 |
 
+
 ### `xlogfilemode`
 
 启动模式只影响首次打开；reopen 和滚动后的文件始终按追加语义打开。
@@ -449,6 +466,7 @@ typedef enum xlogfilemode {
 |---|---|
 | `XLOG_FILE_APPEND` | XLOGFILE追加 |
 | `XLOG_FILE_TRUNCATE` | 创建时截断 |
+
 
 ### `xlogfilesync`
 
@@ -467,6 +485,7 @@ typedef enum xlogfilesync {
 | `XLOG_FILE_SYNC_MANUAL` | 手动 |
 | `XLOG_FILE_SYNC_RECORD` | RECORD |
 | `XLOG_FILE_SYNC_INTERVAL` | 按间隔落盘 |
+
 
 ### `xlogfileoptions`
 
@@ -498,6 +517,7 @@ typedef struct xlogfileoptions {
 | `BufferLimit` | `size_t` | 缓冲保留上限 |
 | `SyncInterval` | `uint64` | 同步间隔 |
 
+
 ### `xlogfileconfig`
 
 通用文件配置在创建成功后把格式器数据生命周期交给 Sink。
@@ -517,6 +537,7 @@ typedef struct xlogfileconfig {
 | `Format` | `xlogformatproc` | 格式 |
 | `Drop` | `xlogformatdropproc` | Drop |
 | `UserData` | `ptr` | 用户数据 |
+
 
 ### `xlogfilestats`
 
@@ -542,6 +563,7 @@ typedef struct xlogfilestats {
 | `Reopens` | `uint64` | Reopens |
 | `Syncs` | `uint64` | Syncs |
 
+
 ### `xlogasyncfull`
 
 队列满载策略明确区分业务背压、新记录丢弃和旧记录覆盖。
@@ -560,6 +582,7 @@ typedef enum xlogasyncfull {
 | `XLOG_ASYNC_DROP_NEWEST` | 丢弃策略NEWEST |
 | `XLOG_ASYNC_DROP_OLDEST` | 覆盖最旧记录 |
 
+
 ### `xlogasyncshutdown`
 
 最后一个 Async Sink 引用释放时可以排空队列，也可以显式放弃未处理记录。
@@ -575,6 +598,7 @@ typedef enum xlogasyncshutdown {
 |---|---|
 | `XLOG_ASYNC_DRAIN` | XLOGASYNC排空策略 |
 | `XLOG_ASYNC_DISCARD` | 放弃未处理记录 |
+
 
 ### `xlogasyncconfig`
 
@@ -603,6 +627,7 @@ typedef struct xlogasyncconfig {
 | `RecordLimit` | `size_t` | 单条上限 |
 | `ByteLimit` | `size_t` | ByteLimit |
 | `StackSize` | `size_t` | 栈大小 |
+
 
 ### `xlogasyncstats`
 
@@ -646,6 +671,7 @@ typedef struct xlogasyncstats {
 | `PeakQueued` | `size_t` | PeakQueued |
 | `PeakBytes` | `size_t` | PeakBytes |
 
+
 ### `xlogringconfig`
 
 Ring 预分配固定记录槽；满载和超长记录均立即丢弃，不反向阻塞业务线程。
@@ -671,6 +697,7 @@ typedef struct xlogringconfig {
 | `Batch` | `size_t` | 批量大小 |
 | `StackSize` | `size_t` | 栈大小 |
 | `IdleWait` | `uint64` | IdleWait |
+
 
 ### `xlogringstats`
 
@@ -712,6 +739,7 @@ typedef struct xlogringstats {
 | `PeakQueued` | `size_t` | PeakQueued |
 | `PeakBytes` | `size_t` | PeakBytes |
 
+
 ### `xlogger`
 
 Logger 和 Sink 都是线程安全的引用对象。
@@ -721,6 +749,7 @@ typedef struct xlogger xlogger;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xlogsink`
 
@@ -733,6 +762,7 @@ typedef struct xlogsink xlogsink;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xlogwriteproc`
 
 通用字节 Writer 必须在返回前消费借用数据。
@@ -742,6 +772,7 @@ typedef bool (*xlogwriteproc)(xbytesview Data, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xlogformatproc`
 
@@ -758,6 +789,7 @@ typedef bool (*xlogformatproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xlogformatdropproc`
 
 格式器数据释放回调只在成功创建的拥有者销毁时执行。
@@ -767,6 +799,7 @@ typedef void (*xlogformatdropproc)(ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xlogsinkwriteproc`
 
@@ -781,6 +814,7 @@ typedef xlogresult (*xlogsinkwriteproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xlogsinkflushproc`
 
 Flush 回调提交已经接受的内容；空回调等价于成功。
@@ -791,6 +825,7 @@ typedef bool (*xlogsinkflushproc)(ptr pUserData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xlogsinkdropproc`
 
 Drop 回调在最后一个 Sink 引用释放后接收用户数据。
@@ -800,6 +835,7 @@ typedef void (*xlogsinkdropproc)(ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -1065,6 +1101,7 @@ cstr xrtLogLevelName(xloglevel Level)
 ```
 
 
+
 ### `xrtLogRecordValidate`
 
 校验记录的级别、全部视图、字段范围和字段类型；所有提交入口内部先执行同一校验。
@@ -1099,6 +1136,7 @@ bool xrtLogRecordValidate(const xlogrecord* pRecord)
 ```
 
 
+
 ### `xrtLogFieldNull`
 
 构造显式 NULL 语义的字段；字段借用名称，不拥有任何数据。
@@ -1130,6 +1168,7 @@ xlogfield xrtLogFieldNull(xstrview Name)
 ```c
 		Fields[i++] = xrtLogFieldNull(SV("n"));
 ```
+
 
 
 ### `xrtLogFieldBool`
@@ -1166,6 +1205,7 @@ xlogfield xrtLogFieldBool(xstrview Name, bool bValue)
 ```
 
 
+
 ### `xrtLogFieldInt`
 
 构造 int64 字段。
@@ -1198,6 +1238,7 @@ xlogfield xrtLogFieldInt(xstrview Name, int64 iValue)
 ```c
 	Field = xrtLogFieldInt(XRT_STR_LITERAL("request_id"), 42);
 ```
+
 
 
 ### `xrtLogFieldUInt`
@@ -1234,6 +1275,7 @@ xlogfield xrtLogFieldUInt(xstrview Name, uint64 iValue)
 ```
 
 
+
 ### `xrtLogFieldFloat`
 
 构造 double 字段。
@@ -1266,6 +1308,7 @@ xlogfield xrtLogFieldFloat(xstrview Name, double fValue)
 ```c
 		Fields[i++] = xrtLogFieldFloat(SV("f"), 1.5);
 ```
+
 
 
 ### `xrtLogFieldString`
@@ -1302,6 +1345,7 @@ xlogfield xrtLogFieldString(xstrview Name, xstrview Value)
 ```
 
 
+
 ### `xrtLogFieldTime`
 
 构造 公元 UTC 毫秒时间字段。
@@ -1336,6 +1380,7 @@ xlogfield xrtLogFieldTime(xstrview Name, xtime iValue)
 ```
 
 
+
 ### `xrtLogFieldError`
 
 构造借用结构化错误的字段；异步层复制时会增加错误引用。
@@ -1368,6 +1413,7 @@ xlogfield xrtLogFieldError(xstrview Name, const xerror* pError)
 ```c
 		Fields[i++] = xrtLogFieldError(SV("e"), NULL);
 ```
+
 
 
 ## Logger 生命周期
@@ -1409,6 +1455,7 @@ xlogger* xrtLogCreate(xstrview Name, xloglevel Level)
 ```
 
 
+
 ### `xrtLogRef`
 
 增加 Logger 引用并返回原指针。
@@ -1444,6 +1491,7 @@ xlogger* xrtLogRef(xlogger* pLogger)
 ```
 
 
+
 ### `xrtLogFree`
 
 释放 Logger 引用；空指针不执行操作，归零时释放最终 Sink 快照。
@@ -1475,6 +1523,7 @@ void xrtLogFree(xlogger* pLogger)
 ```c
 		xrtLogFree(pLogger);
 ```
+
 
 
 ### `xrtLogName`
@@ -1509,6 +1558,7 @@ xstrview xrtLogName(const xlogger* pLogger)
 ```c
 			(int)xrtLogName(pDefault).Size, xrtLogName(pDefault).Data);
 ```
+
 
 
 ### `xrtLogLevel`
@@ -1550,6 +1600,7 @@ xloglevel xrtLogLevel(const xlogger* pLogger)
 ```
 
 
+
 ### `xrtLogSetLevel`
 
 原子调整 Logger 过滤阈值，立即对后续提交生效。
@@ -1583,6 +1634,7 @@ bool xrtLogSetLevel(xlogger* pLogger, xloglevel Level)
 ```c
 	printf("set-level=%d", xrtLogSetLevel(pLogger, XLOG_WARN) ? 1 : 0);
 ```
+
 
 
 ### `xrtLogDefault`
@@ -1619,6 +1671,7 @@ xlogger* xrtLogDefault(void)
 ```
 
 
+
 ### `xrtLogSetDefault`
 
 原子替换进程默认 Logger；保存新引用并释放旧引用，空指针用于清除。
@@ -1651,6 +1704,7 @@ bool xrtLogSetDefault(xlogger* pLogger)
 ```c
 		xrtLogSetDefault(pLogger) ? "ok" : "fail");
 ```
+
 
 
 ## Sink 生命周期与直连
@@ -1690,6 +1744,7 @@ xlogsink* xrtLogSinkCreate(const xlogsinkconfig* pConfig)
 ```
 
 
+
 ### `xrtLogSinkRef`
 
 增加 Sink 引用并返回原指针。
@@ -1725,6 +1780,7 @@ xlogsink* xrtLogSinkRef(xlogsink* pSink)
 ```
 
 
+
 ### `xrtLogSinkFree`
 
 释放 Sink 引用；空指针不执行操作，归零时调用 `Drop` 回调。
@@ -1756,6 +1812,7 @@ void xrtLogSinkFree(xlogsink* pSink)
 ```c
 		xrtLogSinkFree(pTarget);
 ```
+
 
 
 ### `xrtLogSinkName`
@@ -1790,6 +1847,7 @@ xstrview xrtLogSinkName(const xlogsink* pSink)
 ```c
 		(int)xrtLogSinkName(pConsole).Size, xrtLogSinkName(pConsole).Data);
 ```
+
 
 
 ### `xrtLogSinkLevel`
@@ -1831,6 +1889,7 @@ xloglevel xrtLogSinkLevel(const xlogsink* pSink)
 ```
 
 
+
 ### `xrtLogSinkSetLevel`
 
 原子调整 Sink 过滤阈值。
@@ -1864,6 +1923,7 @@ bool xrtLogSinkSetLevel(xlogsink* pSink, xloglevel Level)
 ```c
 	(void)xrtLogSinkSetLevel(pConsole, XLOG_WARN);
 ```
+
 
 
 ### `xrtLogSinkSubmit`
@@ -1908,6 +1968,7 @@ xlogresult xrtLogSinkSubmit(
 ```
 
 
+
 ### `xrtLogSinkFlush`
 
 提交 Sink 已经接受的内容；文件 Sink 落盘、异步 Sink 插入栅栏等待。
@@ -1943,6 +2004,7 @@ bool xrtLogSinkFlush(xlogsink* pSink)
 ```
 
 
+
 ### `xrtLogSinkStats`
 
 并发读取 Sink 的聚合统计快照。
@@ -1976,6 +2038,7 @@ bool xrtLogSinkStats(const xlogsink* pSink, xlogstats* pStats)
 ```c
 	if ( xrtLogSinkStats(pConsole, &Stats) ) {
 ```
+
 
 
 ## 附加与移除
@@ -2018,6 +2081,7 @@ bool xrtLogAttach(xlogger* pLogger, xlogsink* pSink)
 ```
 
 
+
 ### `xrtLogDetach`
 
 从 Logger 移除指定 Sink；未附加时返回失败且不设置错误。
@@ -2053,6 +2117,7 @@ bool xrtLogDetach(xlogger* pLogger, xlogsink* pSink)
 ```
 
 
+
 ### `xrtLogDetachAll`
 
 移除 Logger 的全部 Sink，并返回实际移除数量。
@@ -2086,6 +2151,7 @@ size_t xrtLogDetachAll(xlogger* pLogger)
 ```
 
 
+
 ### `xrtLogSinkCount`
 
 返回并发快照中的 Sink 数量。
@@ -2117,6 +2183,7 @@ size_t xrtLogSinkCount(xlogger* pLogger)
 ```c
 	printf(" count=%zu", xrtLogSinkCount(pLogger));
 ```
+
 
 
 ## 提交与统计
@@ -2163,6 +2230,7 @@ xlogresult xrtLogSubmit(
 ```
 
 
+
 ### `xrtLog`
 
 使用当前时间提交一条无字段文本记录。
@@ -2205,6 +2273,7 @@ xlogresult xrtLog(
 ```c
 	(void)xrtLog(pLogger, XLOG_INFO, XRT_STR_LITERAL("service started"));
 ```
+
 
 
 ### `xrtLogFields`
@@ -2259,6 +2328,7 @@ xlogresult xrtLogFields(
 			1u
 		) != XLOG_RESULT_WRITTEN
 ```
+
 
 
 ### `xrtLogSource`
@@ -2318,6 +2388,7 @@ xlogresult xrtLogSource(
 ```
 
 
+
 ### `xrtLogFlush`
 
 提交 Logger 全部 Sink 已经接受的内容。
@@ -2353,6 +2424,7 @@ bool xrtLogFlush(xlogger* pLogger)
 ```
 
 
+
 ### `xrtLogStats`
 
 并发读取 Logger 的聚合统计快照；写到多个 Sink 的一条记录只计一次 Logger 结果。
@@ -2386,6 +2458,7 @@ bool xrtLogStats(const xlogger* pLogger, xlogstats* pStats)
 ```c
 		printf("log-stats=%d\n", xrtLogStats(pLogger, &LogStats) ? 1 : 0);
 ```
+
 
 
 ## 文本格式化
@@ -2429,6 +2502,7 @@ bool xrtLogTextConfigInit(
 ```
 
 
+
 ### `xrtLogTextConfigValidate`
 
 校验文本标志组合和固定 UTC 偏移。
@@ -2461,6 +2535,7 @@ bool xrtLogTextConfigValidate(const xlogtextconfig* pConfig)
 ```c
 			xrtLogTextConfigValidate(&TextConfig) ? 1 : 0);
 ```
+
 
 
 ### `xrtLogTextWrite`
@@ -2509,6 +2584,7 @@ bool xrtLogTextWrite(
 ```
 
 
+
 ### `xrtLogText`
 
 创建由 `xrtFree` 释放的完整文本记录，并返回不含末尾零字节的长度。
@@ -2551,6 +2627,7 @@ str xrtLogText(
 ```
 
 
+
 ## JSON Lines 格式化
 
 ### `xrtLogJsonConfigInit`
@@ -2587,6 +2664,7 @@ bool xrtLogJsonConfigInit(xlogjsonconfig* pConfig)
 ```
 
 
+
 ### `xrtLogJsonConfigValidate`
 
 校验 JSON 标志、转义、字段表示、非有限数策略和错误原因深度。
@@ -2619,6 +2697,7 @@ bool xrtLogJsonConfigValidate(const xlogjsonconfig* pConfig)
 ```c
 			xrtLogJsonConfigValidate(&JsonConfig) ? 1 : 0);
 ```
+
 
 
 ### `xrtLogJsonWrite`
@@ -2674,6 +2753,7 @@ bool xrtLogJsonWrite(
 ```
 
 
+
 ### `xrtLogJson`
 
 创建由 `xrtFree` 释放的零结尾 JSON Lines 记录，并返回不含末尾零字节的长度。
@@ -2718,6 +2798,7 @@ str xrtLogJson(
 ```
 
 
+
 ## Console Sink
 
 ### `xrtLogConsoleConfigInit`
@@ -2754,6 +2835,7 @@ bool xrtLogConsoleConfigInit(xlogconsoleconfig* pConfig)
 ```
 
 
+
 ### `xrtLogConsole`
 
 创建调用方拥有的线程安全 Console Sink；配置在创建时完整复制。
@@ -2788,6 +2870,7 @@ xlogsink* xrtLogConsole(const xlogconsoleconfig* pConfig)
 ```c
 		xlogsink* pConsoleSink = xrtLogConsole(&ConsoleConfig);
 ```
+
 
 
 ### `xrtLogAddConsole`
@@ -2830,6 +2913,7 @@ bool xrtLogAddConsole(
 ```
 
 
+
 ## File Sink
 
 ### `xrtLogFileOptionsInit`
@@ -2870,6 +2954,7 @@ bool xrtLogFileOptionsInit(
 ```
 
 
+
 ### `xrtLogFile`
 
 创建通用文件 Sink；成功后接管格式器 `UserData`，失败时数据仍归调用方。
@@ -2908,6 +2993,7 @@ xlogsink* xrtLogFile(const xlogfileconfig* pConfig)
 ```
 
 
+
 ### `xrtLogFilePath`
 
 返回文件 Sink 生命周期内稳定的借用 UTF-8 路径。
@@ -2940,6 +3026,7 @@ cstr xrtLogFilePath(const xlogsink* pSink)
 ```c
 				cstr sPath = xrtLogFilePath(pTextFileSink);
 ```
+
 
 
 ### `xrtLogFileStats`
@@ -2980,6 +3067,7 @@ bool xrtLogFileStats(
 ```
 
 
+
 ### `xrtLogFileRotate`
 
 立即执行滚动流程；零备份配置到达阈值后直接截断当前路径。
@@ -3014,6 +3102,7 @@ bool xrtLogFileRotate(xlogsink* pSink)
 ```
 
 
+
 ### `xrtLogFileReopen`
 
 重新打开当前路径，供外部 `logrotate` 或路径替换后切换句柄；先开新句柄再关旧句柄。
@@ -3046,6 +3135,7 @@ bool xrtLogFileReopen(xlogsink* pSink)
 ```c
 				(void)xrtLogFileReopen(pTextFileSink);
 ```
+
 
 
 ## 文件组合层
@@ -3092,6 +3182,7 @@ xlogsink* xrtLogTextFile(
 ```
 
 
+
 ### `xrtLogAddTextFile`
 
 创建文本文件 Sink 并附加到 Logger；成功后由 Logger 独占该引用。
@@ -3136,6 +3227,7 @@ bool xrtLogAddTextFile(
 ```
 
 
+
 ### `xrtLogJsonFile`
 
 使用复制的 JSON 配置创建文件 Sink；空 JSON 配置使用完整 JSON Lines。
@@ -3176,6 +3268,7 @@ xlogsink* xrtLogJsonFile(
 ```c
 			xlogsink* pJsonSink = xrtLogJsonFile(&Options, NULL);
 ```
+
 
 
 ### `xrtLogAddJsonFile`
@@ -3222,6 +3315,7 @@ bool xrtLogAddJsonFile(
 ```
 
 
+
 ## Async Sink
 
 ### `xrtLogAsyncConfigInit`
@@ -3256,6 +3350,7 @@ bool xrtLogAsyncConfigInit(xlogasyncconfig* pConfig)
 ```c
 	if ( !xrtLogAsyncConfigInit(&AsyncConfig) ) {
 ```
+
 
 
 ### `xrtLogAsync`
@@ -3296,6 +3391,7 @@ xlogsink* xrtLogAsync(
 ```c
 	pAsync = xrtLogAsync(pTarget, &AsyncConfig);
 ```
+
 
 
 ### `xrtLogAddAsync`
@@ -3340,6 +3436,7 @@ bool xrtLogAddAsync(
 ```
 
 
+
 ### `xrtLogAsyncTarget`
 
 返回 Async Sink 生命周期内稳定的借用目标；错误类型的 Sink 返回空指针。
@@ -3372,6 +3469,7 @@ xlogsink* xrtLogAsyncTarget(const xlogsink* pSink)
 ```c
 				xlogsink* pInner = xrtLogAsyncTarget(pAsyncWrapper);
 ```
+
 
 
 ### `xrtLogAsyncStats`
@@ -3412,6 +3510,7 @@ bool xrtLogAsyncStats(
 ```
 
 
+
 ### `xrtLogAsyncLastError`
 
 返回后台最近一次目标或 Flush 错误的新引用；用后 `xrtErrorFree` 释放。
@@ -3444,6 +3543,7 @@ xerror* xrtLogAsyncLastError(const xlogsink* pSink)
 ```c
 		pLastError = xrtLogAsyncLastError(NULL);
 ```
+
 
 
 ## Ring Sink
@@ -3480,6 +3580,7 @@ bool xrtLogRingConfigInit(xlogringconfig* pConfig)
 ```c
 		(void)xrtLogRingConfigInit(&RingConfig);
 ```
+
 
 
 ### `xrtLogRing`
@@ -3520,6 +3621,7 @@ xlogsink* xrtLogRing(
 ```c
 				pWrapper = xrtLogRing(pTarget2, &RingConfig2);
 ```
+
 
 
 ### `xrtLogAddRing`
@@ -3564,6 +3666,7 @@ bool xrtLogAddRing(
 ```
 
 
+
 ### `xrtLogRingTarget`
 
 返回 Ring 生命周期内稳定的借用目标；错误类型 Sink 返回空。
@@ -3596,6 +3699,7 @@ xlogsink* xrtLogRingTarget(const xlogsink* pSink)
 ```c
 					xlogsink* pInner = xrtLogRingTarget(pWrapper);
 ```
+
 
 
 ### `xrtLogRingStats`
@@ -3636,6 +3740,7 @@ bool xrtLogRingStats(
 ```
 
 
+
 ### `xrtLogRingLastError`
 
 返回后台最近一次错误的新引用；用后 `xrtErrorFree` 释放。
@@ -3668,6 +3773,7 @@ xerror* xrtLogRingLastError(const xlogsink* pSink)
 ```c
 			pLastError = xrtLogRingLastError(NULL);
 ```
+
 
 
 ## printf 提交
@@ -3715,6 +3821,7 @@ xlogresult xrtLogPrintfV(
 ```c
 	Result = xrtLogPrintfV(pLogger, XLOG_INFO, sFmt, Args);
 ```
+
 
 
 ### `xrtLogPrintf`
@@ -3768,6 +3875,7 @@ xlogresult xrtLogPrintf(
 ```
 
 
+
 ### `xrtLogFieldsPrintfV`
 
 使用 printf 规则和已有参数列表提交带结构化字段的记录。
@@ -3815,6 +3923,7 @@ xlogresult xrtLogFieldsPrintfV(
 ```c
 	Result = xrtLogFieldsPrintfV(pLogger, XLOG_INFO, NULL, 0u, sFmt, Args);
 ```
+
 
 
 ### `xrtLogFieldsPrintf`
@@ -3865,6 +3974,7 @@ xlogresult xrtLogFieldsPrintf(
 		(void)xrtLogFieldsPrintf(pLogger, XLOG_ERROR, Fields, 1u,
 			"count=%d", 1);
 ```
+
 
 
 ### `xrtLogSourcePrintfV`
@@ -3924,6 +4034,7 @@ xlogresult xrtLogSourcePrintfV(
 ```
 
 
+
 ### `xrtLogSourcePrintf`
 
 使用 printf 规则提交带完整源码元数据的记录。
@@ -3980,3 +4091,133 @@ xlogresult xrtLogSourcePrintf(
 	(void)xrtLogSourcePrintf(pLogger, XLOG_WARN, NULL, 0u,
 		SV("demo.c"), SV("main"), 1u, 0u, "src=%s", "printf");
 ```
+
+
+### `xrtLogAsyncStop`
+
+```c
+bool xrtLogAsyncStop(xlogsink* pSink);
+```
+
+Close admission, apply Shutdown policy, wait for final target flush. Does not
+release the caller's sink reference. Rejects calls from its own worker.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSink` | `xlogsink*` | 调用方持有的目标引用；Stop/Close 不释放这份引用。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
+
+#### 范例
+
+参见已注册的 [examples/logging/core/main.c](../../examples/logging/core/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtLogFileClose`
+
+```c
+bool xrtLogFileClose(xlogsink* pSink);
+```
+
+Checked, idempotent close. Reopen is the only operation that re-enables writes.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSink` | `xlogsink*` | 调用方持有的目标引用；Stop/Close 不释放这份引用。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
+
+#### 范例
+
+参见已注册的 [examples/logging/core/main.c](../../examples/logging/core/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtLogRingStop`
+
+```c
+bool xrtLogRingStop(xlogsink* pSink);
+```
+
+Close admission and drain accepted records through the final target flush.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSink` | `xlogsink*` | 调用方持有的目标引用；Stop/Close 不释放这份引用。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
+
+#### 范例
+
+参见已注册的 [examples/logging/core/main.c](../../examples/logging/core/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtLogTakeDefaultIf`
+
+```c
+xlogger* xrtLogTakeDefaultIf(xlogger* pExpected);
+```
+
+Atomically remove and transfer the default's owning reference if it equals
+pExpected. NULL expected unconditionally takes the current default. A NULL
+result means no match, not failure. The caller owns the returned reference;
+no user callback is invoked while the default lock is held.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pExpected` | `xlogger*` | 要匹配的默认 logger；NULL 表示无条件取出。 |
+
+#### 返回值
+
+匹配时转移默认 logger 的拥有引用；不匹配或无默认对象返回 NULL，不是失败。
+
+#### 错误
+
+正常不匹配不设置新错误；TryParseHTTPDate 失败同时保持输出和已有线程错误。
+
+#### 范例
+
+参见已注册的 [examples/logging/core/main.c](../../examples/logging/core/main.c)，结合本节参数和生存期规则使用。

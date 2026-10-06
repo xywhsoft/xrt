@@ -49,6 +49,7 @@ typedef enum xpatternresult {
 | `XPATTERN_NONE` | 无 |
 | `XPATTERN_MATCH` | 命中 |
 
+
 ### `xpatternerror`
 
 pattern 模块错误代码在 xrt.pattern 域内保持稳定。
@@ -70,6 +71,7 @@ typedef enum xpatternerror {
 | `XPATTERN_ERROR_LIMIT` | 超限 |
 | `XPATTERN_ERROR_CONFLICT` | 冲突 |
 | `XPATTERN_ERROR_CAPACITY` | 捕获容量不足 |
+
 
 ### `xpatternconfig`
 
@@ -98,6 +100,7 @@ typedef struct xpatternconfig {
 | `MaxStates` | `size_t` | MaxStates |
 | `MaxCompiledBytes` | `size_t` | MaxCompiledBytes |
 
+
 ### `xpatternspec`
 
 Value 仅作为借用值随命中返回，XRT 不获取或释放其所有权。
@@ -117,6 +120,7 @@ typedef struct xpatternspec {
 | `Value` | `ptr` | 值 |
 | `Priority` | `int32` | 优先级 |
 | `Flags` | `uint32` | 标志位 |
+
 
 ### `xpatternmatch`
 
@@ -138,6 +142,7 @@ typedef struct xpatternmatch {
 | `Value` | `ptr` | 值 |
 | `CaptureCount` | `size_t` | CaptureCount |
 
+
 ### `xpatternid`
 
 零值永远不是有效的 Builder 条目句柄。
@@ -147,6 +152,7 @@ typedef uint64 xpatternid;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xpattern`
 
@@ -158,6 +164,7 @@ typedef struct xpattern xpattern;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xpatternbuilder`
 
 Builder 可变且不保证并发安全；成功编译不会清空其中的模式。
@@ -167,6 +174,7 @@ typedef struct xpatternbuilder xpatternbuilder;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### 常量总表
 
@@ -249,6 +257,7 @@ void xrtPatternConfigInit(xpatternconfig* pConfig)
 	xrtPatternConfigInit(&Config);
 ```
 
+
 ### `xrtPatternExtract`
 
 直接解析并完整匹配一条模式；模式、参数和捕获容量有效时不分配内存，捕获视图借用 `Text`。
@@ -302,6 +311,7 @@ xpatternresult xrtPatternExtract(
 		(memcmp(Captures[1].Data, "example.org", 11u) != 0) ) {
 ```
 
+
 ### `xrtPatternExtractConfig`
 
 使用自定义分隔符和预算执行一次性匹配。
@@ -353,6 +363,7 @@ xpatternresult xrtPatternExtractConfig(
 			&iNeeded) != XPATTERN_MATCH ) {
 ```
 
+
 ### `xrtPatternErrorOffset`
 
 从 `xrt.pattern` 错误的机器数据中读取模式内字节位置。
@@ -391,6 +402,7 @@ bool xrtPatternErrorOffset(
 			!xrtPatternErrorOffset(pError, &iOffset) ) {
 ```
 
+
 ### `xrtPatternErrorPattern`
 
 从批量编译错误的机器数据中读取失败模式索引。
@@ -428,6 +440,7 @@ bool xrtPatternErrorPattern(
 ```c
 			!xrtPatternErrorPattern(pError, &iBadIndex) ||
 ```
+
 
 ## 批量编译与匹配
 
@@ -476,6 +489,7 @@ xpattern* xrtPatternCompile(xstrview Pattern)
 		xpattern* pBad = xrtPatternCompile(SV("{a}{b}"));
 ```
 
+
 ### `xrtPatternCompileConfig`
 
 使用高级配置编译一条可重复匹配的模式。
@@ -515,6 +529,7 @@ xpattern* xrtPatternCompileConfig(
 ```c
 	pSingle = xrtPatternCompileConfig(SV("{user}@{host}"), &Config);
 ```
+
 
 ### `xrtPatternCompileMany`
 
@@ -556,6 +571,7 @@ xpattern* xrtPatternCompileMany(
 ```c
 		xpattern* pBadMany = xrtPatternCompileMany(BadSpecs, 2u);
 ```
+
 
 ### `xrtPatternCompileManyConfig`
 
@@ -601,6 +617,7 @@ xpattern* xrtPatternCompileManyConfig(
 	pMulti = xrtPatternCompileManyConfig(Specs, 2u, &Config);
 ```
 
+
 ### `xrtPatternRef`
 
 增加不可变编译对象引用并返回原指针。
@@ -634,6 +651,7 @@ xpattern* xrtPatternRef(xpattern* pPattern)
 		(xrtPatternRef(pSingle) != pSingle) ||
 ```
 
+
 ### `xrtPatternRelease`
 
 释放不可变编译对象引用；归零时释放单块存储。
@@ -665,6 +683,7 @@ void xrtPatternRelease(xpattern* pPattern)
 ```c
 	xrtPatternRelease(pPattern);
 ```
+
 
 ### `xrtPatternCount`
 
@@ -698,6 +717,7 @@ size_t xrtPatternCount(const xpattern* pPattern)
 		(xrtPatternCount(pSingle) != 1u) ||
 ```
 
+
 ### `xrtPatternCompiledBytes`
 
 返回编译对象实际占用的单块存储字节数。
@@ -729,6 +749,7 @@ size_t xrtPatternCompiledBytes(const xpattern* pPattern)
 ```c
 		(xrtPatternCompiledBytes(pSingle) == 0u) ||
 ```
+
 
 ### `xrtPatternSeparators`
 
@@ -762,6 +783,7 @@ xstrview xrtPatternSeparators(const xpattern* pPattern)
 ```c
 		(xrtPatternSeparators(pSingle).Size != 2u) ||
 ```
+
 
 ### `xrtPatternSource`
 
@@ -799,6 +821,7 @@ xstrview xrtPatternSource(
 ```c
 		(xrtPatternSource(pSingle, 0u).Size != 13u) ||
 ```
+
 
 ### `xrtPatternId`
 
@@ -838,6 +861,7 @@ xpatternid xrtPatternId(
 		(xrtPatternId(pSingle, 0u) == XPATTERN_ID_INVALID) ||
 ```
 
+
 ### `xrtPatternValue`
 
 返回指定模式携带的借用值。
@@ -876,6 +900,7 @@ ptr xrtPatternValue(
 		(xrtPatternValue(pMulti, 0u) != (ptr)"Jane") ||
 ```
 
+
 ### `xrtPatternCaptureCount`
 
 返回指定模式的捕获数量。
@@ -912,6 +937,7 @@ size_t xrtPatternCaptureCount(
 		(xrtPatternCaptureCount(pSingle, 0u) != 2u) ||
 ```
 
+
 ### `xrtPatternMaxCaptureCount`
 
 返回整个编译对象中单条模式所需的最大捕获数量。
@@ -943,6 +969,7 @@ size_t xrtPatternMaxCaptureCount(const xpattern* pPattern)
 ```c
 		(xrtPatternMaxCaptureCount(pSingle) != 2u) ||
 ```
+
 
 ### `xrtPatternCaptureName`
 
@@ -985,6 +1012,7 @@ bool xrtPatternCaptureName(
 		!xrtPatternCaptureName(pSingle, 0u, 0u, &Captures[2]) ||
 ```
 
+
 ### `xrtPatternCaptureIndex`
 
 按名称查找捕获索引，未找到时返回 `XRT_NPOS`。
@@ -1023,6 +1051,7 @@ size_t xrtPatternCaptureIndex(
 ```c
 		(xrtPatternCaptureIndex(pSingle, 0u, SV("host")) != 1u) ) {
 ```
+
 
 ### `xrtPatternLookup`
 
@@ -1068,6 +1097,7 @@ xpatternresult xrtPatternLookup(
 		(xrtPatternLookup(pMulti, SV("nothing"),
 			&Match) != XPATTERN_NONE) ) {
 ```
+
 
 ### `xrtPatternMatch`
 
@@ -1120,6 +1150,7 @@ xpatternresult xrtPatternMatch(
 	) == XPATTERN_MATCH ) {
 ```
 
+
 ### `xrtPatternTest`
 
 只判断是否有模式匹配，不返回模式或捕获。
@@ -1158,6 +1189,7 @@ xpatternresult xrtPatternTest(
 	if ( (xrtPatternTest(pMulti, SV("a@b")) != XPATTERN_MATCH) ||
 		(xrtPatternTest(pMulti, SV("-")) != XPATTERN_NONE) ) {
 ```
+
 
 ## 动态模式
 
@@ -1201,6 +1233,7 @@ xpatternbuilder* xrtPatternBuilderCreate(void)
 	xpatternbuilder* pBuilder = xrtPatternBuilderCreate();
 ```
 
+
 ### `xrtPatternBuilderCreateConfig`
 
 使用高级配置创建空 Builder；分隔符会立即被复制。
@@ -1237,6 +1270,7 @@ xpatternbuilder* xrtPatternBuilderCreateConfig(
 	pBuilder = xrtPatternBuilderCreateConfig(&Config);
 ```
 
+
 ### `xrtPatternBuilderFree`
 
 释放 Builder、其中复制的模式以及内部缓存的编译快照。
@@ -1269,6 +1303,7 @@ void xrtPatternBuilderFree(xpatternbuilder* pBuilder)
 		xrtPatternBuilderFree(pBuilder);
 ```
 
+
 ### `xrtPatternBuilderClear`
 
 清空全部条目并使已有 ID 失效，同时保留已分配槽容量。
@@ -1300,6 +1335,7 @@ void xrtPatternBuilderClear(xpatternbuilder* pBuilder)
 ```c
 	xrtPatternBuilderClear(pBuilder);
 ```
+
 
 ### `xrtPatternBuilderReserve`
 
@@ -1340,6 +1376,7 @@ bool xrtPatternBuilderReserve(
 		!xrtPatternBuilderReserve(pBuilder, 8u) ||
 ```
 
+
 ### `xrtPatternBuilderCount`
 
 返回 Builder 中的活动条目数量。
@@ -1371,6 +1408,7 @@ size_t xrtPatternBuilderCount(const xpatternbuilder* pBuilder)
 ```c
 		(xrtPatternBuilderCount(pBuilder) != 1u) ||
 ```
+
 
 ### `xrtPatternBuilderVersion`
 
@@ -1404,6 +1442,7 @@ uint64 xrtPatternBuilderVersion(const xpatternbuilder* pBuilder)
 	iVersion = xrtPatternBuilderVersion(pBuilder);
 ```
 
+
 ### `xrtPatternBuilderDirty`
 
 判断 Builder 是否存在尚未成功编译的结构修改。
@@ -1436,6 +1475,7 @@ bool xrtPatternBuilderDirty(const xpatternbuilder* pBuilder)
 ```c
 		!xrtPatternBuilderDirty(pBuilder) ) {
 ```
+
 
 ### `xrtPatternBuilderAdd`
 
@@ -1476,6 +1516,7 @@ xpatternid xrtPatternBuilderAdd(
 ```c
 		 (xrtPatternBuilderAdd(pBuilder, &Spec) == XPATTERN_ID_INVALID) ) {
 ```
+
 
 ### `xrtPatternBuilderAddMany`
 
@@ -1525,6 +1566,7 @@ bool xrtPatternBuilderAddMany(
 			(xrtPatternBuilderCount(pBuilder) != 3u) ) {
 ```
 
+
 ### `xrtPatternBuilderSet`
 
 替换有效 ID 的模式和值，同时保留 ID 与原始注册顺序。
@@ -1571,6 +1613,7 @@ bool xrtPatternBuilderSet(
 		xrtPatternBuilderRemove(pBuilder, Ids[1]) ) {
 ```
 
+
 ### `xrtPatternBuilderRemove`
 
 删除有效 ID；不存在或陈旧 ID 返回 `false`，但不属于执行错误。
@@ -1607,6 +1650,7 @@ bool xrtPatternBuilderRemove(
 ```c
 		!xrtPatternBuilderRemove(pBuilder, Ids[1]) ||
 ```
+
 
 ### `xrtPatternBuilderCompile`
 
@@ -1645,6 +1689,7 @@ xpattern* xrtPatternBuilderCompile(xpatternbuilder* pBuilder)
 	pPattern = xrtPatternBuilderCompile(pBuilder);
 ```
 
+
 ## 所有权
 
 - 编译对象通过 `xrtPatternRef`、`xrtPatternRelease` 管理。
@@ -1654,3 +1699,318 @@ xpattern* xrtPatternBuilderCompile(xpatternbuilder* pBuilder)
 - 捕获 `xstrview` 只在输入文本仍然有效时有效。
 
 完整函数列表见 [Pattern API reference](pattern-reference.md)。
+
+### `xrtPatternBuilderContains`
+
+```c
+bool xrtPatternBuilderContains(const xpatternbuilder* pBuilder, xpatternid Id);
+```
+
+判断 ID 是否仍为此 Builder 的活动条目；陈旧 ID 返回 false，不设置错误。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pBuilder` | `const xpatternbuilder*` | 调用方串行使用的匹配构建器；活动编辑期间禁止其他结构修改。 |
+| `Id` | `xpatternid` | 目标条目的稳定 ID；陈旧 ID 按接口契约处理。 |
+
+#### 返回值
+
+true 表示谓词成立，false 表示不成立；普通不成立不代表操作失败。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 谓词成立 | 按上述契约交付结果 |
+| `false` | 谓词不成立 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+正常不匹配不设置新错误；TryParseHTTPDate 失败同时保持输出和已有线程错误。
+
+#### 范例
+
+参见已注册的 [examples/text/pattern/main.c](../../examples/text/pattern/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPatternBuilderPrepareAdd`
+
+```c
+xpatternedit* xrtPatternBuilderPrepareAdd(xpatternbuilder* pBuilder, const xpatternspec* arrSpec, size_t iCount);
+```
+
+准备原子追加。复制/解析、预留槽和 ID 均在此阶段完成；失败不改变条目、
+版本、Dirty 或缓存（物理容量可增长）。成功后其他结构修改被拒绝，
+直至 Commit/Free。调用方可先准备关联元数据，再无分配提交。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pBuilder` | `xpatternbuilder*` | 调用方串行使用的匹配构建器；活动编辑期间禁止其他结构修改。 |
+| `arrSpec` | `const xpatternspec*` | 要复制、解析的匹配规则数组。 |
+| `iCount` | `size_t` | 输入数组元素数。 |
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+陈旧 ID、重复提交、已释放 Builder 或代际耗尽拒绝操作；无效状态为 StateError，索引越界为 RangeError，分配失败保持原有逻辑状态。
+
+#### 范例
+
+参见已注册的 [examples/text/pattern/main.c](../../examples/text/pattern/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPatternBuilderPrepareClear`
+
+```c
+xpatternedit* xrtPatternBuilderPrepareClear(xpatternbuilder* pBuilder);
+```
+
+准备清空；版本或代际耗尽报 StateError，空 Builder 的提交不增加版本。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pBuilder` | `xpatternbuilder*` | 调用方串行使用的匹配构建器；活动编辑期间禁止其他结构修改。 |
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+陈旧 ID、重复提交、已释放 Builder 或代际耗尽拒绝操作；无效状态为 StateError，索引越界为 RangeError，分配失败保持原有逻辑状态。
+
+#### 范例
+
+参见已注册的 [examples/text/pattern/main.c](../../examples/text/pattern/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPatternBuilderPrepareRemove`
+
+```c
+xpatternedit* xrtPatternBuilderPrepareRemove(xpatternbuilder* pBuilder, xpatternid Id);
+```
+
+准备删除；无效/陈旧 ID 或代际耗尽报 StateError，保持原状态不变。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pBuilder` | `xpatternbuilder*` | 调用方串行使用的匹配构建器；活动编辑期间禁止其他结构修改。 |
+| `Id` | `xpatternid` | 目标条目的稳定 ID；陈旧 ID 按接口契约处理。 |
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+陈旧 ID、重复提交、已释放 Builder 或代际耗尽拒绝操作；无效状态为 StateError，索引越界为 RangeError，分配失败保持原有逻辑状态。
+
+#### 范例
+
+参见已注册的 [examples/text/pattern/main.c](../../examples/text/pattern/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPatternBuilderPrepareSet`
+
+```c
+xpatternedit* xrtPatternBuilderPrepareSet(xpatternbuilder* pBuilder, xpatternid Id, const xpatternspec* pSpec);
+```
+
+准备保留 ID/注册顺序的替换；无效或陈旧 ID 报 StateError。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pBuilder` | `xpatternbuilder*` | 调用方串行使用的匹配构建器；活动编辑期间禁止其他结构修改。 |
+| `Id` | `xpatternid` | 目标条目的稳定 ID；陈旧 ID 按接口契约处理。 |
+| `pSpec` | `const xpatternspec*` | 要复制、解析的替换规则。 |
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+陈旧 ID、重复提交、已释放 Builder 或代际耗尽拒绝操作；无效状态为 StateError，索引越界为 RangeError，分配失败保持原有逻辑状态。
+
+#### 范例
+
+参见已注册的 [examples/text/pattern/main.c](../../examples/text/pattern/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPatternEditCommit`
+
+```c
+bool xrtPatternEditCommit(xpatternedit* pEdit);
+```
+
+有效且串行使用的编辑提交不分配、不失败；提交后不可重复提交。
+已提交或所属 Builder 已释放时报 StateError。释放 Builder 自动使编辑
+失效，但不释放调用方拥有的编辑，仍须 EditFree。整个 Builder/edit 家族
+须由调用方串行使用；这里不提供跨线程事务或回滚外部副作用。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pEdit` | `xpatternedit*` | 准备阶段返回的编辑；提交后仍需释放编辑元数据。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+陈旧 ID、重复提交、已释放 Builder 或代际耗尽拒绝操作；无效状态为 StateError，索引越界为 RangeError，分配失败保持原有逻辑状态。
+
+#### 范例
+
+参见已注册的 [examples/text/pattern/main.c](../../examples/text/pattern/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPatternEditCount`
+
+```c
+size_t xrtPatternEditCount(const xpatternedit* pEdit);
+```
+
+返回编辑的 ID 个数：Add 为批量长度，Set/Remove 为 1，Clear 为 0。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pEdit` | `const xpatternedit*` | 准备阶段返回的编辑；提交后仍需释放编辑元数据。 |
+
+#### 返回值
+
+返回上述契约定义的计数、日历字段、状态或能力值；单位与当前函数签名一致。
+
+#### 错误
+
+陈旧 ID、重复提交、已释放 Builder 或代际耗尽拒绝操作；无效状态为 StateError，索引越界为 RangeError，分配失败保持原有逻辑状态。
+
+#### 范例
+
+参见已注册的 [examples/text/pattern/main.c](../../examples/text/pattern/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPatternEditFree`
+
+```c
+void xrtPatternEditFree(xpatternedit* pEdit);
+```
+
+取消未提交的编辑并释放资源；已提交编辑仅释放元数据；NULL 安全。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pEdit` | `xpatternedit*` | 准备阶段返回的编辑；提交后仍需释放编辑元数据。 |
+
+#### 返回值
+
+无返回值。资源或引用的释放范围按上述契约执行。
+
+#### 错误
+
+陈旧 ID、重复提交、已释放 Builder 或代际耗尽拒绝操作；无效状态为 StateError，索引越界为 RangeError，分配失败保持原有逻辑状态。
+
+#### 范例
+
+参见已注册的 [examples/text/pattern/main.c](../../examples/text/pattern/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPatternEditId`
+
+```c
+xpatternid xrtPatternEditId(const xpatternedit* pEdit, size_t iIndex);
+```
+
+返回准备时确定的 ID，提交后仍可查询；越界报 RangeError。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pEdit` | `const xpatternedit*` | 准备阶段返回的编辑；提交后仍需释放编辑元数据。 |
+| `iIndex` | `size_t` | 以零为起点的元素序号。 |
+
+#### 返回值
+
+返回上述契约定义的计数、日历字段、状态或能力值；单位与当前函数签名一致。
+
+#### 错误
+
+陈旧 ID、重复提交、已释放 Builder 或代际耗尽拒绝操作；无效状态为 StateError，索引越界为 RangeError，分配失败保持原有逻辑状态。
+
+#### 范例
+
+参见已注册的 [examples/text/pattern/main.c](../../examples/text/pattern/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPatternEditReady`
+
+```c
+bool xrtPatternEditReady(const xpatternedit* pEdit);
+```
+
+是否仍可提交；NULL、已提交或所属 Builder 已释放均返回 false，不设置错误。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pEdit` | `const xpatternedit*` | 准备阶段返回的编辑；提交后仍需释放编辑元数据。 |
+
+#### 返回值
+
+true 表示谓词成立，false 表示不成立；普通不成立不代表操作失败。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 谓词成立 | 按上述契约交付结果 |
+| `false` | 谓词不成立 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+正常不匹配不设置新错误；TryParseHTTPDate 失败同时保持输出和已有线程错误。
+
+#### 范例
+
+参见已注册的 [examples/text/pattern/main.c](../../examples/text/pattern/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xpatternedit`
+
+准备完毕的原子编辑。准备阶段完成分配与规则解析，Commit 不分配；提交或放弃后均由 EditFree 释放元数据。
+
+```c
+typedef struct xpatternedit xpatternedit;
+```

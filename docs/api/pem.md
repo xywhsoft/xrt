@@ -22,6 +22,7 @@ typedef struct xpemblock {
 | `Body` | `xstrview` | 主体 |
 | `Raw` | `xstrview` | Raw |
 
+
 ### `xpemcursor`
 
 PEM 游标允许输入前后存在说明文本，并按出现顺序遍历多个块。
@@ -37,6 +38,7 @@ typedef struct xpemcursor {
 |---|---|---|
 | `Text` | `xstrview` | 文本视图 |
 | `Offset` | `size_t` | 偏移量 |
+
 
 ### `xpemresult`
 
@@ -55,6 +57,7 @@ typedef enum xpemresult {
 | `XPEM_ERROR` | 失败 |
 | `XPEM_DONE` | 完成 |
 | `XPEM_BLOCK` | 已读取一个块 |
+
 
 ### `xpemerror`
 
@@ -75,6 +78,7 @@ typedef enum xpemerror {
 | `XPEM_ERROR_LABEL` | 失败 |
 | `XPEM_ERROR_BODY` | 失败 |
 | `XPEM_ERROR_NOT_FOUND` | 无匹配块 |
+
 
 ## 裁剪
 
@@ -136,6 +140,7 @@ bool xrtPemInit(xpemcursor* pCursor, cstr sText, size_t iSize)
 	if ( !xrtPemInit(&Cursor, sText, sizeof(sText) - 1u) ) {
 ```
 
+
 ### `xrtPemRead`
 
 读取下一个 PEM 块；失败时游标和输出保持不变。
@@ -172,6 +177,7 @@ xpemresult xrtPemRead(xpemcursor* pCursor, xpemblock* pBlock)
 ```c
 	while ( xrtPemRead(&Cursor, &Block) == XPEM_BLOCK ) {
 ```
+
 
 ## 查找与解码
 
@@ -233,6 +239,7 @@ bool xrtPemFind(
 		!xrtPemFind(sText, strlen(sText), "XRT DATA", &Block) ) {
 ```
 
+
 ### `xrtPemDecode`
 
 解码 PEM 块正文；输出为空且容量为零时只验证并查询长度。
@@ -276,6 +283,7 @@ bool xrtPemDecode(
 		if ( xrtPemDecode(&Block, Data, sizeof(Data), &iDataSize) ) {
 ```
 
+
 ### `xrtPemDecodeNew`
 
 解码并返回由 `xrtFree` 释放的字节。
@@ -315,6 +323,7 @@ bytes xrtPemDecodeNew(
 ```c
 	pDecoded = xrtPemDecodeNew(&Block, &iDecodedSize);
 ```
+
 
 ## 规范编码
 
@@ -380,6 +389,7 @@ bool xrtPemEncode(
 		&iTextSize) ) {
 ```
 
+
 ### `xrtPemEncodeNew`
 
 生成并返回由 `xrtFree` 释放的 PEM 文本。
@@ -416,6 +426,7 @@ str xrtPemEncodeNew(cstr sLabel, const void* pData, size_t iSize)
 ```c
 	sText = xrtPemEncodeNew("XRT DATA", Data, sizeof(Data));
 ```
+
 
 ## 错误
 

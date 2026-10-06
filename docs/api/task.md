@@ -22,6 +22,7 @@ typedef enum xtaskoutcome {
 | `XTASK_FAILED` | 已失败 |
 | `XTASK_CANCELLED` | 已取消 |
 
+
 ### `xtaskvalue`
 
 成功结果可以借用值，也可以把值及其析构过程转移给 Future。
@@ -39,6 +40,7 @@ typedef struct xtaskvalue {
 | `Value` | `ptr` | 值 |
 | `Destroy` | `xfuturefreeproc` | Destroy |
 | `DestroyData` | `ptr` | DestroyData |
+
 
 ### `xtaskargs`
 
@@ -58,6 +60,7 @@ typedef struct xtaskargs {
 | `Destroy` | `xfuturefreeproc` | Destroy |
 | `DestroyData` | `ptr` | DestroyData |
 
+
 ### `xtaskgroupconfig`
 
 全零配置表示不限活动项数量、不自动取消兄弟项且使用独立取消源。
@@ -75,6 +78,7 @@ typedef struct xtaskgroupconfig {
 | `Cancel` | `xcancel*` | 取消令牌 |
 | `Limit` | `size_t` | 上限 |
 | `CancelOn` | `uint32` | CancelOn |
+
 
 ### `xtaskgroupstats`
 
@@ -112,6 +116,7 @@ typedef struct xtaskgroupstats {
 | `Accepting` | `bool` | Accepting |
 | `Cancelling` | `bool` | Cancelling |
 
+
 ### `xtaskpoolconfig`
 
 全零配置使用逻辑处理器数量、默认队列上限和平台默认线程栈。
@@ -129,6 +134,7 @@ typedef struct xtaskpoolconfig {
 | `Threads` | `uint32` | 线程数 |
 | `QueueLimit` | `size_t` | QueueLimit |
 | `StackSize` | `size_t` | 栈大小 |
+
 
 ### `xtaskpoolstats`
 
@@ -166,6 +172,7 @@ typedef struct xtaskpoolstats {
 | `Closed` | `bool` | Closed |
 | `Cancelling` | `bool` | Cancelling |
 
+
 ### `xtaskgroup`
 
 任务组跟踪一组 Future，并在关闭且全部完成后发布唯一 Done Future。
@@ -176,6 +183,7 @@ typedef struct xtaskgroup xtaskgroup;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xtaskpool`
 
 任务池对外保持不透明；销毁期间调用方必须停止其他并发访问。
@@ -185,6 +193,7 @@ typedef struct xtaskpool xtaskpool;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xtaskproc`
 
@@ -200,6 +209,7 @@ typedef xtaskoutcome (*xtaskproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xtaskgroupstartproc`
 
 Future 启动器同步返回一个新引用，返回空时保留自己的结构化错误。
@@ -209,6 +219,7 @@ typedef xfuture* (*xtaskgroupstartproc)(ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xtasknetproc`
 
@@ -224,6 +235,7 @@ typedef xtaskoutcome (*xtasknetproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 裁剪
 
@@ -339,6 +351,7 @@ xtaskgroup* xrtTaskGroupCreate(const xtaskgroupconfig* pConfig)
 	pGroup = xrtTaskGroupCreate(&GroupConfig);
 ```
 
+
 ### `xrtTaskGroupChild`
 
 创建由父组跟踪的子组；父关闭时关闭子组，父取消时取消子组。
@@ -373,6 +386,7 @@ xtaskgroup* xrtTaskGroupChild(xtaskgroup* pParent, const xtaskgroupconfig* pConf
 ```c
 	pChild = xrtTaskGroupChild(pParent, NULL);
 ```
+
 
 ### `xrtTaskGroupAdd`
 
@@ -409,6 +423,7 @@ bool xrtTaskGroupAdd(xtaskgroup* pGroup, xfuture* pFuture)
 ```c
 		!xrtTaskGroupAdd(pChild, pLeaf) ) {
 ```
+
 
 ### `xrtTaskGroupStart`
 
@@ -448,6 +463,7 @@ xfuture* xrtTaskGroupStart(xtaskgroup* pGroup, xtaskgroupstartproc pProc, ptr pD
 				exampleStarter, pPool2);
 ```
 
+
 ### `xrtTaskGroupFuture`
 
 返回增加引用后的 Done Future；它在组关闭且活动项归零时成功完成。
@@ -480,6 +496,7 @@ xfuture* xrtTaskGroupFuture(const xtaskgroup* pGroup)
 ```c
 	pDone = xrtTaskGroupFuture(pParent);
 ```
+
 
 ### `xrtTaskGroupClose`
 
@@ -514,6 +531,7 @@ bool xrtTaskGroupClose(xtaskgroup* pGroup)
 ```c
 			!xrtTaskGroupClose(pGroup) ||
 ```
+
 
 ### `xrtTaskGroupCancel`
 
@@ -552,6 +570,7 @@ bool xrtTaskGroupCancel(xtaskgroup* pGroup)
 		(xrtFutureWait(pDone) != XWAIT_OK) ) {
 ```
 
+
 ### `xrtTaskGroupCancelToken`
 
 返回增加引用后的组取消令牌。
@@ -584,6 +603,7 @@ xcancel* xrtTaskGroupCancelToken(const xtaskgroup* pGroup)
 ```c
 		if ( (xrtTaskGroupCancelToken(pGroup) == NULL) ) {
 ```
+
 
 ### `xrtTaskGroupGet`
 
@@ -619,6 +639,7 @@ bool xrtTaskGroupGet(const xtaskgroup* pGroup, xtaskgroupstats* pStats)
 		!xrtTaskGroupGet(pParent, &tStats) ) {
 ```
 
+
 ### `xrtTaskGroupError`
 
 返回首个失败项的借用结构化错误；任务组存活期间保持有效。
@@ -651,6 +672,7 @@ const xerror* xrtTaskGroupError(const xtaskgroup* pGroup)
 ```c
 		pError = xrtTaskGroupError(pGroup);
 ```
+
 
 ### `xrtTaskGroupWait`
 
@@ -688,6 +710,7 @@ xwaitresult xrtTaskGroupWait(xtaskgroup* pGroup)
 	if ( xrtTaskGroupWait(pGroup) != XWAIT_OK ) {
 ```
 
+
 ### `xrtTaskGroupWaitFor`
 
 关闭任务组并在相对毫秒数内等待全部当前项。
@@ -719,13 +742,11 @@ xwaitresult xrtTaskGroupWaitFor(xtaskgroup* pGroup, int64 iTimeout)
 
 #### 范例
 
-[task](../../examples/network/task/main.c) · 关闭并限时等待
+参见已注册的 [examples/network/task/main.c](../../examples/network/task/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-			(xrtTaskGroupWaitFor(pGroup, 3000000u) !=
-				XWAIT_OK) ) {
+xrtTaskGroupWaitFor(pGroup, 3000)
 ```
-
 ### `xrtTaskGroupWaitForCancel`
 
 关闭任务组，并等待组完成、截止时间或调用方取消中的首个事件。
@@ -766,6 +787,7 @@ xwaitresult xrtTaskGroupWaitForCancel(xtaskgroup* pGroup, int64 iTimeout, xcance
 				pCancel) != XWAIT_OK) ) {
 ```
 
+
 ### `xrtTaskGroupDestroy`
 
 关闭并取消仍活动的项，随后以延迟回收方式释放任务组。
@@ -797,6 +819,7 @@ void xrtTaskGroupDestroy(xtaskgroup* pGroup)
 ```c
 	xrtTaskGroupDestroy(pGroup);
 ```
+
 
 ## 有界任务池
 
@@ -862,6 +885,7 @@ xtaskpool* xrtTaskPoolCreate(const xtaskpoolconfig* pConfig)
 	pPool = xrtTaskPoolCreate(&PoolConfig);
 ```
 
+
 ### `xrtTaskSubmit`
 
 提交任务并返回其 Future；失败时任务数据所有权仍属于调用方。
@@ -902,25 +926,45 @@ xfuture* xrtTaskSubmit(xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtask
 		NULL);
 ```
 
+
 ### `xrtTaskSubmitTraced`
 
-在立即提交时提供不可变的 `xfutureownershiptrace`，成功拥有型结果的值、析构、
-析构上下文及 Trace 作为一个终态原子发布。Trace 在作业入队前固定，不能通过
-先提交、后改结果描述的方式接入。它必须描述 `xtaskvalue.Destroy` 释放的全部
-强拥有槽，包含重复的 Value/DestroyData 引用。Trace 不在任务提交或完成时调用。
-
 ```c
-xfuture* xrtTaskSubmitTraced(xtaskpool* pool, xtaskproc proc, ptr data,
-    const xtaskargs* args, xfutureownershiptrace resultTrace);
+xfuture* xrtTaskSubmitTraced(xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtaskargs* pArgs, xfutureownershiptrace pResultTrace);
 ```
 
-`resultTrace` 必须非空；提交失败不消费任务数据。失败/取消的任务按原合同释放
-未发布结果；借用成功值不产生拥有边。现有提交函数和 `xtaskargs` / `xtaskvalue`
-布局完全不变，旧 owned 结果没有完整适配器时继续拒绝拥有图检查。
+Submit with an immutable ownership adapter for successful owned results.
+pResultTrace is required and describes exactly the Value/DestroyData slots
+released by xtaskvalue.Destroy. It is installed before the job is visible
+to workers and published atomically with the result. Borrowed results and
+failed/cancelled tasks have no result adapter. Submission failure consumes
+no task data. This additive API does not change xtaskargs/xtaskvalue ABI.
+The adapter/destructor must remain resident for the result lifetime; this
+does not describe pending jobs or establish graph quiescence/code pinning.
 
-此接口只描述结果，不描述运行中的任务帧。Trace/析构代码仍须驻留到结果销毁；
-图检查要求调用方保证全图静止。Future 就绪不代表最后一个 worker 已返回，不能
-据此许可模块卸载。示例验收先销毁任务池并 join 工作线程，再检查结果图。
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pPool` | `xtaskpool*` | 借用的任务池；提交失败不消费任务数据。 |
+| `pProc` | `xtaskproc` | 任务入口；代码在任务和结果清理结束前保持可调用。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pArgs` | `const xtaskargs*` | 任务参数与输入清理规则。 |
+| `pResultTrace` | `xfutureownershiptrace` | 成功拥有型任务结果的真实所有权边枚举回调。 |
+
+#### 返回值
+
+成功交付调用方拥有的 Future 引用；提交或准备失败返回 NULL，尚未接受的数据仍归调用方。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/task_tour/main.c](../../examples/concurrency/task_tour/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xrtTaskSubmitWait`
 
@@ -962,6 +1006,7 @@ xfuture* xrtTaskSubmitWait(xtaskpool* pPool, xtaskproc pProc, ptr pData, const x
 			NULL, NULL)) == NULL) ||
 ```
 
+
 ### `xrtTaskSubmitFor`
 
 在相对毫秒数内等待任务池出现队列槽位并提交。
@@ -1002,6 +1047,7 @@ xfuture* xrtTaskSubmitFor(xtaskpool* pPool, xtaskproc pProc, ptr pData, const xt
 		((arrFutures[1] = xrtTaskSubmitFor(pPool, exampleTask,
 			NULL, NULL, EXAMPLE_TIMEOUT_MS)) == NULL) ||
 ```
+
 
 ### `xrtTaskSubmitForCancel`
 
@@ -1048,6 +1094,7 @@ xfuture* xrtTaskSubmitForCancel(xtaskpool* pPool, xtaskproc pProc, ptr pData, co
 			pCancel)) == NULL) ) {
 ```
 
+
 ### `xrtTaskPoolClose`
 
 停止接收普通任务，并让已经受理的任务与内部资源回收过程自然排空。
@@ -1088,6 +1135,7 @@ bool xrtTaskPoolClose(xtaskpool* pPool)
 		!Stats.Closed ) {
 ```
 
+
 ### `xrtTaskPoolCancel`
 
 停止接收新任务，取消排队任务并请求运行任务协作取消。
@@ -1121,6 +1169,7 @@ bool xrtTaskPoolCancel(xtaskpool* pPool)
 ```c
 				(xrtTaskPoolCancel(pFullPool) ) ) {
 ```
+
 
 ### `xrtTaskPoolWait`
 
@@ -1157,6 +1206,7 @@ xwaitresult xrtTaskPoolWait(xtaskpool* pPool)
 ```c
 		(void)xrtTaskPoolWait(pFullPool);
 ```
+
 
 ### `xrtTaskPoolWaitFor`
 
@@ -1195,6 +1245,7 @@ xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, int64 iTimeout)
 		(xrtTaskPoolWaitFor(pPool, EXAMPLE_TIMEOUT_MS) !=
 			XWAIT_OK) ||
 ```
+
 
 ### `xrtTaskPoolWaitForCancel`
 
@@ -1237,6 +1288,7 @@ xwaitresult xrtTaskPoolWaitForCancel(xtaskpool* pPool, int64 iTimeout, xcancel* 
 				pCancel);
 ```
 
+
 ### `xrtTaskPoolGet`
 
 复制任务池统计快照。
@@ -1271,6 +1323,7 @@ bool xrtTaskPoolGet(const xtaskpool* pPool, xtaskpoolstats* pStats)
 		!xrtTaskPoolGet(pPool, &Stats) ||
 ```
 
+
 ### `xrtTaskPoolDestroy`
 
 关闭、排空、终止工作线程并释放任务池；工作线程不能销毁自身所属的池。
@@ -1304,6 +1357,7 @@ bool xrtTaskPoolDestroy(xtaskpool* pPool)
 ```c
 		xrtTaskPoolDestroy(pPool2);
 ```
+
 
 ## 任务组与任务池
 
@@ -1363,6 +1417,7 @@ xfuture* xrtTaskGroupSubmit(xtaskgroup* pGroup, xtaskpool* pPool, xtaskproc pPro
 		);
 ```
 
+
 ### `xrtTaskGroupSubmitWait`
 
 等待任务池槽位后提交；组取消会中止尚未受理的容量等待。
@@ -1405,6 +1460,7 @@ xfuture* xrtTaskGroupSubmitWait(xtaskgroup* pGroup, xtaskpool* pPool, xtaskproc 
 				NULL) ||
 ```
 
+
 ### `xrtTaskGroupSubmitFor`
 
 在相对毫秒数内等待任务池槽位并原子纳入组。
@@ -1440,19 +1496,18 @@ xfuture* xrtTaskGroupSubmitFor(xtaskgroup* pGroup, xtaskpool* pPool, xtaskproc p
 
 #### 范例
 
-[task_group_pool](../../examples/concurrency/task_group_pool/main.c) · 组限时槽位提交
+参见已注册的 [examples/concurrency/task_group_pool/main.c](../../examples/concurrency/task_group_pool/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-		arrFuture[i] = xrtTaskGroupSubmitFor(
+xrtTaskGroupSubmitFor(
 			pGroup,
 			pPool,
 			groupedWork,
 			&arrValue[i],
 			NULL,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		);
 ```
-
 ### `xrtTaskGroupSubmitForCancel`
 
 同时受截止时间、调用方取消和任务组取消约束地等待提交。
@@ -1498,6 +1553,7 @@ xfuture* xrtTaskGroupSubmitForCancel(xtaskgroup* pGroup, xtaskpool* pPool, xtask
 				EXAMPLE_TIMEOUT_MS,
 				pCancel);
 ```
+
 
 ## 协程任务
 
@@ -1549,6 +1605,7 @@ xfuture* xrtTaskCo(struct xcosched* pSched, xtaskproc pProc, ptr pData, const xt
 	pFuture = xrtTaskCo(pSched, delayedValue, &iValue, NULL, 0);
 ```
 
+
 ### `xrtTaskGroupCo`
 
 向协程调度器提交任务，并在同一预留窗口内原子纳入任务组。
@@ -1595,6 +1652,7 @@ xfuture* xrtTaskGroupCo(xtaskgroup* pGroup, struct xcosched* pSched, xtaskproc p
 		0
 	);
 ```
+
 
 ## 网络 Engine 任务
 
@@ -1663,6 +1721,7 @@ xfuture* xrtTaskNet(xnetengine* pEngine, uint64 iAffinity, xtasknetproc pProc, p
 	);
 ```
 
+
 ### `xrtTaskNetAfter`
 
 在相对毫秒数到期后向指定亲和 Worker 提交任务。
@@ -1696,13 +1755,12 @@ xfuture* xrtTaskNetAfter(xnetengine* pEngine, uint64 iAffinity, xtasknetproc pPr
 
 #### 范例
 
-[task](../../examples/network/task/main.c) · 延迟网络任务
+参见已注册的 [examples/network/task/main.c](../../examples/network/task/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-	pFuture = xrtTaskNetAfter(pEngine, 0, buildValue, &iValue,
-		NULL, 0u);
+xrtTaskNetAfter(pEngine, 0, buildValue, &iValue,
+		NULL, 0);
 ```
-
 ### `xrtTaskNetFor`
 
 在指定单调时钟截止时间到期后向亲和 Worker 提交任务。
@@ -1742,6 +1800,7 @@ xfuture* xrtTaskNetFor(xnetengine* pEngine, uint64 iAffinity, xtasknetproc pProc
 	pFuture = xrtTaskNetFor(pEngine, 0, buildValue, &iValue,
 		NULL, 0);
 ```
+
 
 ### `xrtTaskGroupNet`
 
@@ -1790,6 +1849,7 @@ xfuture* xrtTaskGroupNet(xtaskgroup* pGroup, xnetengine* pEngine, uint64 iAffini
 		);
 ```
 
+
 ### `xrtTaskGroupNetAfter`
 
 延迟提交网络任务，并在同一预留窗口内原子纳入任务组。
@@ -1825,20 +1885,19 @@ xfuture* xrtTaskGroupNetAfter(xtaskgroup* pGroup, xnetengine* pEngine, uint64 iA
 
 #### 范例
 
-[task_group](../../examples/network/task_group/main.c) · 组延迟网络任务
+参见已注册的 [examples/network/task_group/main.c](../../examples/network/task_group/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-		pSecond = xrtTaskGroupNetAfter(
+xrtTaskGroupNetAfter(
 			pGroup,
 			pEngine,
 			0,
 			buildGroupValue,
 			&iSecond,
 			NULL,
-			1000u
+			1
 		);
 ```
-
 ### `xrtTaskGroupNetFor`
 
 按单调截止时间提交网络任务，并原子纳入任务组。
@@ -1881,6 +1940,7 @@ xfuture* xrtTaskGroupNetFor(xtaskgroup* pGroup, xnetengine* pEngine, uint64 iAff
 				buildValue, &iValue, NULL,
 				0) == NULL) ||
 ```
+
 
 ## 统计
 
@@ -1997,3 +2057,230 @@ finalizer 仍须满足原有 accepted-resource lifetime，不允许向已 join �
 内存数量/字节平衡。`test_task_pool_native_entry.c` 只使用原有公开 API，可直接
 对修正前的池实现复现重入销毁问题。这是原生拥有契约，不宣称语言模块 task
 pool 接线或 task/callback/native 混合依赖环已经完成。
+
+### `xrtTaskOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtTaskOwnershipAdapterV1(xrtownershipref Reference, const xtaskdataownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+Query under the caller's exclusive ownership freeze. Match an explicitly
+accepted Data policy identity BEFORE inspecting callbacks or traversing Data.
+Legacy jobs and active execution refuse admission. Preparation waits for the
+executor's real completion/release; it never cancels, steals or skips work.
+ppPreparation is written only on success. No callbacks are invoked here.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pPolicies` | `const xtaskdataownershipv1* const*` | 调用方认可的常驻、不可变策略指针白名单；按真实指针身份匹配。 |
+| `iPolicyCount` | `size_t` | 策略白名单元素数，零表示没有显式授权策略。 |
+| `ppPreparation` | `const xrtownershippreparationv1**` | 成功时交付语义准备协议；失败不修改。必须与生命周期适配器配套使用。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/task_tour/main.c](../../examples/concurrency/task_tour/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtTaskPoolOwnership`
+
+```c
+xrtownershipref xrtTaskPoolOwnership(const xtaskpool* pPool);
+```
+
+A borrowed view of the real pool owner slot. Create contributes one actual
+reference; successful Destroy consumes it once. Collector Hold/Release pins
+keep the terminal shell alive after joined worker resources are retired.
+Native entries, executing workers and opaque finalizers refuse inspection.
+Accepted opaque resources hold real pool references until their finalizers
+return; these remain external roots, even when the pool is otherwise idle.
+Parked worker/control storage is uniquely contained until join, not a fake
+RC node or a guessed subtraction from a live reference count.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pPool` | `const xtaskpool*` | 借用的任务池；提交失败不消费任务数据。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/task_tour/main.c](../../examples/concurrency/task_tour/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtTaskPoolOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtTaskPoolOwnershipAdapterV1(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+```
+
+Query under the caller's exclusive ownership freeze. Trace reports each
+accepted queued Job reference exactly once; each Job still needs independent
+admission through xrtTaskOwnershipAdapterV1 with explicit Data policies.
+Prepare is called only for an authorized unreachable claim, outside freeze:
+close new admission, let accepted work/cleanup finish, then nonblocking join.
+It never cancels, steals or skips work. Active native stacks remain roots.
+Clear requires completed joins; Finish retires worker resources, not the
+caller's owner reference. ppPreparation changes only on success.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `ppPreparation` | `const xrtownershippreparationv1**` | 成功时交付语义准备协议；失败不修改。必须与生命周期适配器配套使用。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/task_tour/main.c](../../examples/concurrency/task_tour/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtTaskProducerPolicyV1Get`
+
+```c
+const xfutureproducerownershipv1* xrtTaskProducerPolicyV1Get(void);
+```
+
+Every pending native task Future owns its actual Job, including legacy jobs.
+This policy identifies that physical edge, not certification of opaque Data.
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+借用的常驻策略指针，不释放、不修改。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/task_tour/main.c](../../examples/concurrency/task_tour/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtTaskSubmitOwnedJobV1`
+
+```c
+xfuture* xrtTaskSubmitOwnedJobV1(xtaskpool* pPool, ptr pData, xcancel* pCancel, const xtaskdataownershipv1* pDataPolicy, const xfuturepayloadownershipv1* pResultPolicy);
+```
+
+Immediate submit with separate certified Data and successful-result policies.
+Data must name one existing owned reference; no extra Data retain is hidden.
+The returned Future actually owns its Job, while the accepted executor owns
+another Job reference. Rejection consumes no Data and leaves no producer
+cycle. Both policies are required; void results remain valid. The executor
+drops Data before publishing the result, preserving existing task semantics.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pPool` | `xtaskpool*` | 借用的任务池；提交失败不消费任务数据。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pCancel` | `xcancel*` | 借用的取消令牌；返回对象按接口契约保留其实际引用。 |
+| `pDataPolicy` | `const xtaskdataownershipv1*` | 任务输入拥有型引用的认证策略；成功提交转移一个已有引用。 |
+| `pResultPolicy` | `const xfuturepayloadownershipv1*` | 成功结果的认证策略；Drop 身份和上下文必须符合约定。 |
+
+#### 返回值
+
+成功交付调用方拥有的 Future 引用；提交或准备失败返回 NULL，尚未接受的数据仍归调用方。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/task_tour/main.c](../../examples/concurrency/task_tour/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtTaskSubmitOwnedPolicyV1`
+
+```c
+xfuture* xrtTaskSubmitOwnedPolicyV1(xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtaskargs* pArgs, const xfuturepayloadownershipv1* pPolicy);
+```
+
+Select a certified result lifecycle BEFORE native admission. A successful
+owned result must return exactly this resident Drop and NULL context; a
+mismatch becomes FAILED while task data/code is still alive. A void result
+(all three fields NULL) is allowed. The immutable policy outlives every
+accepted result. Failure to submit consumes no task data. This certifies
+only the result, never pending jobs, waiters or arbitrary task callbacks.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pPool` | `xtaskpool*` | 借用的任务池；提交失败不消费任务数据。 |
+| `pProc` | `xtaskproc` | 任务入口；代码在任务和结果清理结束前保持可调用。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pArgs` | `const xtaskargs*` | 任务参数与输入清理规则。 |
+| `pPolicy` | `const xfuturepayloadownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+成功交付调用方拥有的 Future 引用；提交或准备失败返回 NULL，尚未接受的数据仍归调用方。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/task_tour/main.c](../../examples/concurrency/task_tour/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xtaskdataownershipv1`
+
+任务的显式输入上下文、入口和真实所有权策略；接受时转移一份已有数据引用，拒绝不消费。
+
+```c
+typedef struct xtaskdataownershipv1 {
+	size_t size;
+	xtaskproc Proc;
+	xfuturefreeproc Drop;
+	const xrtownershipops* Ops;
+} xtaskdataownershipv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `Proc` | `xtaskproc` | `Proc` 的 xtaskproc 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `Drop` | `xfuturefreeproc` | `Drop` 的 xfuturefreeproc 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `Ops` | `const xrtownershipops*` | 同一物理 Data 节点的计数和真实边枚举操作表。 |

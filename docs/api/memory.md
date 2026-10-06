@@ -43,6 +43,7 @@ typedef struct xallocator {
 | `Realloc` | `xreallocproc` | 重分配回调 |
 | `Free` | `xfreeproc` | 释放回调 |
 
+
 ### `xseek`
 
 通用 IO 与文件游标共享的移动基准。
@@ -60,6 +61,7 @@ typedef enum xseek {
 | `XSEEK_START` | 从文件起点 |
 | `XSEEK_CURRENT` | 从当前位置 |
 | `XSEEK_END` | 遍历结束 |
+
 
 ### `xrtresourcelimits`
 
@@ -96,6 +98,7 @@ typedef struct xrtresourcelimits {
 | `iFlags` | `uint32` | iFlags |
 | `iReserved` | `uint32` | iReserved |
 
+
 ### `xrtprogressflag`
 
 进度事件标志：`TOTAL_KNOWN` 表示总输入量已知，`FINAL` 表示本次事件为最后一次。
@@ -111,6 +114,7 @@ typedef enum xrtprogressflag {
 | 值 | 语义 |
 |---|---|
 | `XRT_PROGRESS_TOTAL_KNOWN` | XRTPROGRESSTOTALKNOWN |
+
 
 ### `xrtprogress`
 
@@ -139,6 +143,7 @@ typedef struct xrtprogress {
 | `iTotalInputBytes` | `uint64` | iTotalInputBytes |
 | `iOutputBytes` | `uint64` | iOutputBytes |
 
+
 ### `xbytesview`
 
 字节视图只借用内存，不拥有数据，也不要求末尾补零。
@@ -154,6 +159,7 @@ typedef struct xbytesview {
 |---|---|---|
 | `Data` | `cbytes` | 数据 |
 | `Size` | `size_t` | 字节数 |
+
 
 ### `xstrview`
 
@@ -171,6 +177,7 @@ typedef struct xstrview {
 | `Data` | `cstr` | 数据 |
 | `Size` | `size_t` | 字节数 |
 
+
 ### `xtime`
 
 绝对时间使用 公元 UTC 毫秒；该标量也是 xlang time 类型的底层表示。
@@ -181,6 +188,7 @@ typedef int64 xtime;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xrtprogressproc`
 
 返回 false 请求取消。实现不得在回调返回后继续保存 pProgress 或 pUserData。
@@ -190,6 +198,7 @@ typedef bool (*xrtprogressproc)(const xrtprogress* pProgress, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xerrkind`
 
@@ -239,6 +248,7 @@ typedef enum xerrkind {
 | `XERR_UNSUPPORTED` | 不支持 |
 | `XERR_INTERNAL` | 内部不变量破坏 |
 
+
 ### `xerrordesc`
 
 描述一个完整错误，所有字符串在创建时复制。
@@ -267,6 +277,7 @@ typedef struct xerrordesc {
 | `Data` | `cstr` | 数据 |
 | `Cause` | `const xerror*` | 原因链 |
 
+
 ### `xerrorlocation`
 
 可选的源码位置；零值表示调用方没有提供对应信息。
@@ -285,6 +296,7 @@ typedef struct xerrorlocation {
 | `Line` | `int32` | 行号 |
 | `Column` | `int32` | 列号 |
 
+
 ### `xerror`
 
 错误对象由 XRT 管理，对外保持不可变。
@@ -294,6 +306,7 @@ typedef struct xerror xerror;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xerrorhandler`
 
@@ -305,6 +318,7 @@ typedef void (*xerrorhandler)(const xerror* pError, ptr pUserData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xallocproc`
 
 自定义底层分配器回调。
@@ -314,6 +328,7 @@ typedef ptr (*xallocproc)(ptr pContext, size_t iSize);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xreallocproc`
 
@@ -326,6 +341,7 @@ typedef ptr (*xreallocproc)(ptr pContext, ptr pMemory, size_t iSize);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xfreeproc`
 
 底层分配器的释放回调：释放 `pMemory`；`pMemory == NULL` 应为空操作。
@@ -336,6 +352,7 @@ typedef void (*xfreeproc)(ptr pContext, ptr pMemory);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -398,6 +415,7 @@ if ( !xrtSetAllocator(&Custom) ) {
 }
 ```
 
+
 ### `xrtGetAllocator`
 
 读取当前进程分配器副本。
@@ -425,6 +443,7 @@ void xrtGetAllocator(xallocator* pAllocator);
 ```c
 xrtGetAllocator(&Default);
 ```
+
 
 ### `xrtMalloc`
 
@@ -459,6 +478,7 @@ ptr xrtMalloc(size_t iSize);
 example_object* pObject = (example_object*)xrtMalloc(sizeof(example_object));
 ```
 
+
 ### `xrtMallocAt`
 
 记录调用位置的 `Malloc`（`XRT_FEATURE_MEMORY_DEBUG`）；语义与 `xrtMalloc` 一致。
@@ -489,6 +509,7 @@ ptr xrtMallocAt(size_t iSize, cstr sFile, uint32 iLine);
 ```c
 pBlock = (uint8*)xrtMallocAt(4u, __FILE__, __LINE__);
 ```
+
 
 ### `xrtCalloc`
 
@@ -528,6 +549,7 @@ if ( pValues == NULL ) {
 }
 ```
 
+
 ### `xrtCallocAt`
 
 记录调用位置的 `Calloc`。
@@ -559,6 +581,7 @@ ptr xrtCallocAt(size_t iCount, size_t iSize, cstr sFile, uint32 iLine);
 ```c
 uint8* pZero = (uint8*)xrtCallocAt(2u, 4u, __FILE__, __LINE__);
 ```
+
 
 ### `xrtRealloc`
 
@@ -597,6 +620,7 @@ if ( pValues == NULL ) {
 }
 ```
 
+
 ### `xrtReallocAt`
 
 记录调用位置的 `Realloc`。
@@ -630,6 +654,7 @@ ptr xrtReallocAt(ptr pMemory, size_t iSize, cstr sFile, uint32 iLine);
 	__LINE__)) == NULL) ||
 ```
 
+
 ### `xrtFree`
 
 释放分配；空指针是空操作。
@@ -660,6 +685,7 @@ xrtFree(pValues);
 return 0;
 ```
 
+
 ### `xrtFreeAt`
 
 记录调用位置的 `Free`。
@@ -689,6 +715,7 @@ void xrtFreeAt(ptr pMemory, cstr sFile, uint32 iLine);
 ```c
 xrtFreeAt(pBlock, __FILE__, __LINE__);
 ```
+
 
 ### `xrtMemDup`
 
@@ -728,6 +755,7 @@ if ( pCopy == NULL ) {
 }
 ```
 
+
 ### `xrtMemDupAt`
 
 记录调用位置的 `MemDup`。
@@ -761,6 +789,7 @@ ptr xrtMemDupAt(const void* pData, size_t iSize, cstr sFile, uint32 iLine);
 	__LINE__)) == NULL) ||
 ```
 
+
 ### `xrtSecureZero`
 
 清零敏感内存；不会被编译器当作死存储删除。
@@ -790,6 +819,7 @@ void xrtSecureZero(ptr pData, size_t iSize);
 xrtSecureZero(pValues, 16);
 xrtSecureZero(pCopy, sizeof(Source));
 ```
+
 
 ## 引用计数与运行时信息
 
@@ -830,6 +860,7 @@ if ( (pObject == NULL) || (xrtRefRetain(&pObject->RefCount) < 0) ) {
 }
 ```
 
+
 ### `xrtRefRelease`
 
 原子减少引用计数并返回新值；返回零的线程负责析构。
@@ -864,6 +895,7 @@ int32 xrtRefRelease(volatile int32* pCount);
 if ( (pObject != NULL) && (xrtRefRelease(&pObject->RefCount) == 0) ) {
 ```
 
+
 ### `xrtOwnershipRefRetain`
 
 在 ownership mutation 域中原子增加一个独立、图可见的引用计数更新。
@@ -891,12 +923,11 @@ int32 xrtOwnershipRefRetain(volatile int32* pCount);
 
 #### 范例
 
-[core/reference · 引用管理](../../examples/core/reference/main.c) · 图节点显式准入
+参见已注册的 [examples/core/reference/main.c](../../examples/core/reference/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( xrtOwnershipRefRetain(&pLeaf->References) < 0 ) return NULL;
+xrtOwnershipRefRetain(&iGraphCount)
 ```
-
 ### `xrtOwnershipRefRelease`
 
 在 ownership mutation 域中原子减少一个独立、图可见的引用计数更新。
@@ -925,12 +956,11 @@ int32 xrtOwnershipRefRelease(volatile int32* pCount);
 
 #### 范例
 
-[core/reference · 析构判定](../../examples/core/reference/main.c) · 叶节点归零释放
+参见已注册的 [examples/core/reference/main.c](../../examples/core/reference/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( xrtOwnershipRefRelease(&pLeaf->References) == 0 ) xrtFree(pLeaf);
+xrtOwnershipRefRelease(&iGraphCount)
 ```
-
 ### `xrtVersion`
 
 返回当前 XRT 版本字符串。
@@ -958,6 +988,7 @@ cstr xrtVersion(void);
 ```c
 printf("version=%s\n", xrtVersion());
 ```
+
 
 ### `xrtResourceLimitsInit`
 
@@ -987,6 +1018,7 @@ void xrtResourceLimitsInit(xrtresourcelimits* pLimits);
 printf("version=%s\n", xrtVersion());
 xrtResourceLimitsInit(&Limits);
 ```
+
 
 ## 错误对象与线程错误
 
@@ -1028,6 +1060,7 @@ xerror* xrtErrorCreate(xerrkind Kind, cstr sDomain, int32 iCode, cstr sMessage);
 xerror* pCause = xrtErrorCreate(XERR_TIMEOUT, "example.net", 1, "connect timeout");
 ```
 
+
 ### `xrtErrorBuild`
 
 从完整描述创建一个错误对象。
@@ -1065,6 +1098,7 @@ if ( (pError == NULL) ||
 	(xrtErrorCode(pError) != 7) ||
 	(strcmp(xrtErrorDomain(pError), "demo") != 0) ||
 ```
+
 
 ### `xrtErrorBuildAt`
 
@@ -1106,6 +1140,7 @@ Location.Column = 2;
 pInner = xrtErrorBuildAt(&Desc, &Location);
 ```
 
+
 ### `xrtErrorRef`
 
 增加错误对象引用并返回原指针。
@@ -1143,6 +1178,7 @@ if ( (pRef != pError) ) {
 xrtErrorFree(pRef);  /* Ref 那份 */
 ```
 
+
 ### `xrtErrorFree`
 
 释放错误对象引用。
@@ -1172,6 +1208,7 @@ xrtSetError(pError);
 xrtErrorFree(pError);
 ```
 
+
 ### `xrtErrorKind`
 
 返回错误类别。
@@ -1199,6 +1236,7 @@ xerrkind xrtErrorKind(const xerror* pError);
 ```c
 (xrtErrorKind(pError) != XERR_ARGUMENT) ||
 ```
+
 
 ### `xrtErrorCode`
 
@@ -1228,6 +1266,7 @@ int32 xrtErrorCode(const xerror* pError);
 (xrtErrorCode(pError) != 7) ||
 ```
 
+
 ### `xrtErrorDomain`
 
 返回错误的稳定域字符串。
@@ -1255,6 +1294,7 @@ cstr xrtErrorDomain(const xerror* pError);
 ```c
 (strcmp(xrtErrorDomain(pError), "demo") != 0) ||
 ```
+
 
 ### `xrtErrorOperation`
 
@@ -1284,6 +1324,7 @@ cstr xrtErrorOperation(const xerror* pError);
 (strcmp(xrtErrorOperation(pError), "load") != 0) ||
 ```
 
+
 ### `xrtErrorMessage`
 
 返回人类可读消息；永不返回 `NULL`。
@@ -1311,6 +1352,7 @@ cstr xrtErrorMessage(const xerror* pError);
 ```c
 printf("error: %s\n", xrtErrorMessage(xrtGetError()));
 ```
+
 
 ### `xrtErrorData`
 
@@ -1340,6 +1382,7 @@ cstr xrtErrorData(const xerror* pError);
 (strcmp(xrtErrorData(pError), "ctx") != 0) ) {
 ```
 
+
 ### `xrtErrorFile`
 
 返回错误记录的源文件名。
@@ -1367,6 +1410,7 @@ cstr xrtErrorFile(const xerror* pError);
 ```c
 (strcmp(xrtErrorFile(pInner), "democ.c") != 0) ||
 ```
+
 
 ### `xrtErrorLine`
 
@@ -1396,6 +1440,7 @@ int32 xrtErrorLine(const xerror* pError);
 (xrtErrorLine(pInner) != 10) ||
 ```
 
+
 ### `xrtErrorColumn`
 
 返回错误记录的源码列号。
@@ -1424,6 +1469,7 @@ int32 xrtErrorColumn(const xerror* pError);
 (xrtErrorColumn(pInner) != 2) ) {
 ```
 
+
 ### `xrtErrorSystemCode`
 
 返回原生系统错误码（若错误由系统调用失败产生）。
@@ -1451,6 +1497,7 @@ int32 xrtErrorSystemCode(const xerror* pError);
 ```c
 pError != NULL ? xrtErrorSystemCode(pError) : 0
 ```
+
 
 ### `xrtErrorCause`
 
@@ -1483,6 +1530,7 @@ const xerror* xrtErrorCause(const xerror* pError);
 ```c
 pError = xrtErrorCause(pError);
 ```
+
 
 ### `xrtErrorFind`
 
@@ -1520,6 +1568,7 @@ pFound = (xerror*)xrtErrorFind(pError, "inner", 42);
 pMiss = xrtErrorFind(pError, "inner", 99);
 ```
 
+
 ### `xrtErrorIs`
 
 沿原因链查找指定类别，命中返回借用的错误。
@@ -1553,6 +1602,7 @@ const xerror* xrtErrorIs(const xerror* pError, xerrkind Kind);
 ```c
 xrtErrorIs(xrtGetError(), XERR_TIMEOUT) != NULL ? "yes" : "no");
 ```
+
 
 ### `xrtErrorWrap`
 
@@ -1592,6 +1642,7 @@ pError = xrtErrorWrap(pCause, XERR_IO, "example.client", 2, "request failed");
 xrtErrorFree(pCause);
 ```
 
+
 ### `xrtGetError`
 
 返回当前执行上下文借用的错误对象。
@@ -1625,6 +1676,7 @@ const xerror* xrtGetError(void);
 if ( (xrtGetError() == NULL) ||
 	(xrtErrorKind(xrtGetError()) != XERR_TIMEOUT) ) {
 ```
+
 
 ### `xrtTakeError`
 
@@ -1660,6 +1712,7 @@ xerror* xrtTakeError(void);
 !xrtJsonErrorLocation(pError, &Location) ||
 ```
 
+
 ### `xrtSetError`
 
 将错误对象设置到当前执行上下文，函数会增加引用。
@@ -1689,6 +1742,7 @@ xrtSetError(pError);
 xrtErrorFree(pError);
 ```
 
+
 ### `xrtSetErrorKind`
 
 设置无分配的通用错误；`NONE` 清除错误，无效类别设置参数错误。
@@ -1716,6 +1770,7 @@ void xrtSetErrorKind(xerrkind Kind);
 ```c
 xrtSetErrorKind(XERR_TIMEOUT);  /* 触发全局 Handler 一次 */
 ```
+
 
 ### `xrtSetErrorInfo`
 
@@ -1753,6 +1808,7 @@ void xrtSetErrorInfo(
 xrtSetErrorInfo(XERR_RANGE, "demo", 5, "out of range");
 ```
 
+
 ### `xrtSetErrorTake`
 
 将错误对象所有权转移到当前执行上下文，调用后不得继续使用原引用。
@@ -1782,6 +1838,7 @@ xrtSetErrorTake(pTaken);
 pTaken = NULL;  /* 所有权已转移，不得继续使用 */
 ```
 
+
 ### `xrtClearError`
 
 清除当前执行上下文的错误。
@@ -1810,6 +1867,7 @@ void xrtClearError(void);
 xrtClearError();
 xrtSetErrorInfo(XERR_RANGE, "demo", 5, "out of range");
 ```
+
 
 ### `xrtSetErrorHandler`
 
@@ -1841,6 +1899,7 @@ void xrtSetErrorHandler(xerrorhandler pHandler, ptr pUserData);
 xrtSetErrorKind(XERR_TIMEOUT);  /* 触发全局 Handler 一次 */
 ```
 
+
 ## 范例
 
 ```c
@@ -1866,3 +1925,614 @@ xrtFree(copy);
 旧 `test_base.h` 与 `test_memglobal_core.h` 的有效边界由 `test_memory`、
 `test_heap`、`test_heap_threads` 和 OOM 回归承接，并新增并发分配器冻结、
 32 位对齐、溢出原子失败、未附加原生线程、线程退出缓存归还和调试归属诊断。
+
+### `xrtErrorOwnership`
+
+```c
+xrtownershipref xrtErrorOwnership(const xerror* pError);
+```
+
+Borrowed physical ownership view. Immutable cause is one owning edge;
+inline diagnostic text is not a separate reference-counted node. Static
+immortal errors and NULL have an empty view. See xrtOwnershipInspect.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pError` | `const xerror*` | 借用的 const xerror* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/core/error/main.c](../../examples/core/error/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xrtErrorOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtErrorOwnershipAdapterV1(xrtownershipref Reference);
+```
+
+Exact resident immutable Error/Cause DAG, with real pins and no user code.
+Clear keeps immutable cause owners until last Drop. Static errors are empty
+references. Caller still needs whole-domain Freeze and child admission.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/core/error/main.c](../../examples/core/error/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xrtOwnershipFreezeTryBegin`
+
+```c
+bool xrtOwnershipFreezeTryBegin(xrtownershipscope* pScope);
+```
+
+Nonblocking exclusive admission. Busy returns false, leaves the zero scope
+and ambient error unchanged, and never waits for a reader (including self).
+Success freezes ONLY participating transitions until ScopeEnd. It is NOT
+whole-graph quiescence unless EVERY reachable adapter and mutation path is
+covered, nor is it a claim/commit operation or permission to unload code.
+Value, Future/Promise and Cancel ownership transitions participate, including
+complete waiter callbacks and combine/continuation assembly. Native blocking
+waits and coroutine parking do not keep an enclosing mutation active.
+User-owned callback payloads, native objects, task/transport state, other
+direct atomic counters and generated storage still need outer participation.
+The holder may nest balanced mutation scopes on the SAME native thread for
+inspection cursors/controlled commit. Do not wait for other threads, suspend
+fibers, or call arbitrary user callbacks while frozen. Keep code/data alive
+independently; do not acquire a lock held by a blocked participant.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pScope` | `xrtownershipscope*` | 零初始化的作用域；只在进入它的原生线程上结束，不复制活动作用域。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+忙碌返回 false，零作用域与已有线程错误保持不变；无效作用域或状态才设错。
+
+#### 范例
+
+参见已注册的 [examples/value/discovery/main.c](../../examples/value/discovery/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
+
+```c
+xrtOwnershipFreezeTryBegin(&freeze)
+```
+### `xrtOwnershipInspect`
+
+```c
+bool xrtOwnershipInspect(const xrtownershipref* pAnchors, size_t iAnchorCount, const xrtownershipref* pInternalSlots, size_t iInternalSlotCount, xrtownershipresult* pResult);
+```
+
+Discover from borrowed anchors AND internal owning slots. Internal slots
+are references held by an enclosing owner being retired (e.g. module
+globals), so each occurrence subtracts one real strong reference. Anchors
+only seed discovery and do NOT subtract references. Sharing is deduplicated
+globally by physical identity; edges retain their multiplicity.
+An external root has Count > internal incoming edges. Reachability from
+these roots determines ReachableAnchorCount (unique anchor identities).
+false leaves output and graph unchanged, including allocation/trace errors,
+inconsistent descriptors and overcounted edges. No destructor is invoked.
+This is NOT a concurrent collector, lifetime pin, or unload permission.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pAnchors` | `const xrtownershipref*` | 借用的发现起点数组；重复锚点不增加实际强引用。 |
+| `iAnchorCount` | `size_t` | 锚点数组元素数，也是可达性输出数组的长度。 |
+| `pInternalSlots` | `const xrtownershipref*` | 待退休所有者持有的真实强引用槽数组；每个槽保留独立的计数。 |
+| `iInternalSlotCount` | `size_t` | 内部所有权槽数，重复引用不能合并。 |
+| `pResult` | `xrtownershipresult*` | 调用方结果槽，按当前签名的类型交付结果。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/core/error/main.c](../../examples/core/error/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xrtOwnershipInspectReachable`
+
+```c
+bool xrtOwnershipInspectReachable(const xrtownershipref* pAnchors, size_t iAnchorCount, const xrtownershipref* pInternalSlots, size_t iInternalSlotCount, bool* pReachable, xrtownershipresult* pResult, xrtownershiprootproc pRootPolicy, ptr pRootContext);
+```
+
+Same snapshot, additionally returning one reachability bit per input
+anchor (NULL anchors are false; duplicate anchors have identical bits).
+pReachable has iAnchorCount elements and aliases neither input nor result.
+pRootPolicy may be NULL; otherwise it can force additional scope roots,
+for example native objects outside the domain being collected.
+On failure BOTH outputs remain unchanged. The caller still owns the
+quiescent point and every code/data lifetime through any later commit.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pAnchors` | `const xrtownershipref*` | 借用的发现起点数组；重复锚点不增加实际强引用。 |
+| `iAnchorCount` | `size_t` | 锚点数组元素数，也是可达性输出数组的长度。 |
+| `pInternalSlots` | `const xrtownershipref*` | 待退休所有者持有的真实强引用槽数组；每个槽保留独立的计数。 |
+| `iInternalSlotCount` | `size_t` | 内部所有权槽数，重复引用不能合并。 |
+| `pReachable` | `bool*` | 调用方提供的可达性布尔数组，不与输入或统计结果重叠。 |
+| `pResult` | `xrtownershipresult*` | 调用方结果槽，按当前签名的类型交付结果。 |
+| `pRootPolicy` | `xrtownershiprootproc` | 可选的额外根判定回调；只在调用方保证的静止点使用。 |
+| `pRootContext` | `ptr` | 根判定回调的借用上下文。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/core/error/main.c](../../examples/core/error/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xrtOwnershipMutationBegin`
+
+```c
+bool xrtOwnershipMutationBegin(xrtownershipscope* pScope);
+```
+
+Enter BEFORE any lock protecting participating edges/counts, leave AFTER
+the complete mutation. Concurrent and nested mutations are allowed. Only a
+currently frozen domain can delay entry; collectors never queue an upgrade
+behind an active mutator. Scope entry/end allocate no memory or TLS slots.
+xrtOwnershipRefRetain/Release can participate for one standalone atomic
+counter update. Generic xrtRefRetain/Release deliberately remain outside
+this domain. Neither pair covers an enclosing field update, callback, or
+destructor; graph adapters must guard each complete transition.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pScope` | `xrtownershipscope*` | 零初始化的作用域；只在进入它的原生线程上结束，不复制活动作用域。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/core/error/main.c](../../examples/core/error/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xrtOwnershipScopeEnd`
+
+```c
+bool xrtOwnershipScopeEnd(xrtownershipscope* pScope);
+```
+
+End either kind; a frozen parent cannot end with nested scopes outstanding.
+Invalid/copy/wrong-thread/double-end calls fail without releasing admission.
+Invalid arguments/state set an error; success preserves the ambient error.
+Closing a freeze is a release boundary for subsequent mutation admission.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pScope` | `xrtownershipscope*` | 零初始化的作用域；只在进入它的原生线程上结束，不复制活动作用域。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/value/discovery/main.c](../../examples/value/discovery/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
+
+```c
+xrtOwnershipScopeEnd(&freeze)
+```
+### `xrtOwnershipSnapshotCreate`
+
+```c
+bool xrtOwnershipSnapshotCreate(const xrtownershipref* pAnchors, size_t iAnchorCount, const xrtownershipref* pInternalSlots, size_t iInternalSlotCount, xrtownershipadmitproc pAdmit, ptr pAdmitContext, xrtownershipsnapshot** ppSnapshot);
+```
+
+在调用方提供的全图静止点发现并去重物理节点。记录强引用、内部引用和可达性，锚点仍为借用。快照不替代节点或代码的生存期保障。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pAnchors` | `const xrtownershipref*` | 借用的发现起点数组；重复锚点不增加实际强引用。 |
+| `iAnchorCount` | `size_t` | 锚点数组元素数，也是可达性输出数组的长度。 |
+| `pInternalSlots` | `const xrtownershipref*` | 待退休所有者持有的真实强引用槽数组；每个槽保留独立的计数。 |
+| `iInternalSlotCount` | `size_t` | 内部所有权槽数，重复引用不能合并。 |
+| `pAdmit` | `xrtownershipadmitproc` | 逐物理节点的准入回调；不能把未知原生资源假定为安全节点。 |
+| `pAdmitContext` | `ptr` | 准入回调的借用上下文。 |
+| `ppSnapshot` | `xrtownershipsnapshot**` | 成功时交付快照；快照不保活其中的节点或回调代码。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/core/error/main.c](../../examples/core/error/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xrtOwnershipSnapshotDestroy`
+
+```c
+void xrtOwnershipSnapshotDestroy(xrtownershipsnapshot* pSnapshot);
+```
+
+Frees only snapshot bookkeeping; it neither releases nor touches nodes.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSnapshot` | `xrtownershipsnapshot*` | 有效快照；节点本体及其 Ops 的生存期仍由调用方保证。 |
+
+#### 返回值
+
+无返回值。资源或引用的释放范围按上述契约执行。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/core/error/main.c](../../examples/core/error/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xrtOwnershipSnapshotNode`
+
+```c
+bool xrtOwnershipSnapshotNode(const xrtownershipsnapshot* pSnapshot, size_t iIndex, xrtownershipnode* pNode);
+```
+
+The output is unchanged for NULL/invalid arguments or an out-of-range index.
+A successful read allocates nothing and never calls an adapter again.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSnapshot` | `const xrtownershipsnapshot*` | 有效快照；节点本体及其 Ops 的生存期仍由调用方保证。 |
+| `iIndex` | `size_t` | 以零为起点的元素序号。 |
+| `pNode` | `xrtownershipnode*` | 成功时交付节点计数和可达性，失败保持原值。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/core/error/main.c](../../examples/core/error/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xrtOwnershipSnapshotNodeCount`
+
+```c
+size_t xrtOwnershipSnapshotNodeCount(const xrtownershipsnapshot* pSnapshot);
+```
+
+返回快照中去重后的物理节点数。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSnapshot` | `const xrtownershipsnapshot*` | 有效快照；节点本体及其 Ops 的生存期仍由调用方保证。 |
+
+#### 返回值
+
+返回上述契约定义的计数、日历字段、状态或能力值；单位与当前函数签名一致。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/core/error/main.c](../../examples/core/error/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xrtRuntimeRetireThreadStorage`
+
+```c
+bool xrtRuntimeRetireThreadStorage(void);
+```
+
+Terminal retirement of this runtime instance's internal Windows TLS/FLS.
+The host must first stop admission, join all XRT work, release all exported
+resources, clear dynamic thread keys on their owning threads, and unbind
+execution contexts. Native threads/fibers may remain alive but must not
+enter this instance again, including during retirement. Call outside
+DllMain/loader lock, while this instance and its allocator are still loaded.
+true permits unloading with respect to internal TLS/FLS callbacks only;
+it is NOT an object/code lease or a general resource ownership check.
+false keeps the code resident: retirement may be partial and may only be
+retried, never resumed. Successful calls are idempotent. No error TLS is
+accessed by this function. Unsupported platforms return false unchanged.
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+失败可能已部分退休，只能保持代码驻留并重试；不访问错误 TLS。不支持的平台返回 false，不修改线程错误。
+
+#### 范例
+
+参见已注册的 [examples/core/error/main.c](../../examples/core/error/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xrtownershipadapterv1`
+
+真实生命周期协议。Hold/Drop 必须对应实际引用；Claim、Restore、Clear 与 Finish 分别处理临时隔离、撤销、提交和冻结外清理。不能以 Trace 描述代替生命周期认证。
+
+```c
+typedef struct xrtownershipadapterv1 {
+	size_t size;
+	bool (*Hold)(const void* pData);
+	void (*Drop)(const void* pData);
+	bool (*Claim)(const void* pData, const void* pToken);
+	void (*Restore)(const void* pData, const void* pToken);
+	bool (*Finalize)(const void* pData, const void* pToken);
+	void (*Clear)(const void* pData, const void* pToken);
+	bool (*Finish)(const void* pData, const void* pToken);
+} xrtownershipadapterv1;
+```
+
+
+### `xrtownershipadmitproc`
+
+每个物理节点的显式准入回调。只认证调用方独立了解且驻留的操作表；不产生引用，也不授权卸载代码。
+
+```c
+typedef bool (*xrtownershipadmitproc)(xrtownershipref Reference, ptr pContext);
+```
+
+
+### `xrtownershipnode`
+
+快照节点记录：Reference 为借用身份，StrongCount 为真实强计数，InternalCount 为内部拥有边计数，Reachable 为外部根可达性。
+
+```c
+typedef struct xrtownershipnode {
+	xrtownershipref Reference;
+	size_t StrongCount;
+	size_t InternalCount;
+	bool Reachable;
+} xrtownershipnode;
+```
+
+
+### `xrtownershipops`
+
+物理对象的计数、边枚举和诊断操作表。Count 与 Trace 必须在同一个全图静止点运行，借用字段不能伪装成拥有边。
+
+```c
+typedef struct xrtownershipops xrtownershipops;
+```
+
+
+### `xrtownershippreparationv1`
+
+生命周期退休前的语义准备。准备在冻结外完成实际工作与回调；准备完成后必须重建并重新验证整个图。
+
+```c
+typedef struct xrtownershippreparationv1 {
+	size_t size;
+	const xrtownershipadapterv1* Adapter;
+	bool (*Ready)(const void* pData);
+	xrtownershipprepareresult (*Prepare)(const void* pData, const void* pToken);
+} xrtownershippreparationv1;
+```
+
+
+### `xrtownershipprepareresult`
+
+语义准备结果：区分完成、暂忙及失败；忙碌不授权跳过工作或强制清理。
+
+```c
+typedef enum xrtownershipprepareresult {
+	XRT_OWNERSHIP_PREPARE_FAILED = -1,
+	XRT_OWNERSHIP_PREPARE_BUSY = 0,
+	XRT_OWNERSHIP_PREPARE_READY = 1
+} xrtownershipprepareresult;
+```
+
+
+### `xrtownershipref`
+
+借用物理身份，由 Data 和 Ops 共同定义。视图本身没有 Retain，不保活对象或代码。
+
+```c
+typedef struct xrtownershipref {
+	const void* Data;
+	const xrtownershipops* Ops;
+} xrtownershipref;
+```
+
+
+### `xrtownershipresult`
+
+发现和可达性统计。物理节点去重，拥有边保持 multiplicity；外部根不能通过猜测计数排除。
+
+```c
+typedef struct xrtownershipresult {
+	size_t NodeCount;
+	size_t EdgeCount;
+	size_t ExternalRootCount;
+	size_t ReachableAnchorCount;
+} xrtownershipresult;
+```
+
+
+### `xrtownershiprootproc`
+
+额外根策略回调，可以强制把域外原生资源作为根。它不授予节点的生命周期准入。
+
+```c
+typedef bool (*xrtownershiprootproc)(xrtownershipref Reference, ptr pContext);
+```
+
+
+### `xrtownershipscope`
+
+零初始化后进入，在同一个原生线程上配对结束。活动作用域不可复制；冻结覆盖参与的完整变更，不能在冻结期间等待别的参与线程。
+
+```c
+typedef struct xrtownershipscope {
+	struct xrtownershipscope* Self;
+	struct xrtownershipscope* Parent;
+	uint64 Thread;
+	size_t Children;
+	uint32 Mode;
+} xrtownershipscope;
+```
+
+
+### `xrtownershipsnapshot`
+
+拥有型快照账本；Destroy 只释放账本，不释放节点。快照里记录的引用、代码仍由调用方独立保活。
+
+```c
+typedef struct xrtownershipsnapshot xrtownershipsnapshot;
+```
+
+
+### `xrtownershiptrace`
+
+枚举真实强引用槽的回调，保留重复槽，不能枚举只是借用的地址。
+
+```c
+typedef bool (*xrtownershiptrace)(const void* pData, xrtownershipvisitor pVisit, ptr pContext);
+```
+
+
+### `xrtownershipvisitor`
+
+接收每个真实拥有槽的访问回调；它的失败必须沿 Trace 调用链传播。
+
+```c
+typedef bool (*xrtownershipvisitor)(xrtownershipref Reference, ptr pContext);
+```

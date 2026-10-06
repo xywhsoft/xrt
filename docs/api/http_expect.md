@@ -25,6 +25,7 @@ typedef enum xhttpexpectflag {
 | `XHTTP_EXPECT_VALUE_QUOTED` | 值非法QUOTED |
 | `XHTTP_EXPECT_HAS_PARAMETERS` | 带参数 |
 
+
 ### `xhttpexpectation`
 
 Expectation 借用完整元素、名称、线路值和原始参数片段。
@@ -47,6 +48,7 @@ typedef struct xhttpexpectation {
 | `Parameters` | `xstrview` | Parameters |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xhttpexpectcursor`
 
 单字段游标由初始化函数建立，调用方不得直接修改。
@@ -62,6 +64,7 @@ typedef struct xhttpexpectcursor {
 |---|---|---|
 | `Offset` | `size_t` | 偏移量 |
 | `Validated` | `uint8` | 是否已校验 |
+
 
 ### `xhttpexpectfieldcursor`
 
@@ -80,6 +83,7 @@ typedef struct xhttpexpectfieldcursor {
 | `Field` | `size_t` | Field |
 | `Offset` | `size_t` | 偏移量 |
 | `Validated` | `uint8` | 是否已校验 |
+
 
 ### `xhttpexpectresult`
 
@@ -100,6 +104,7 @@ typedef enum xhttpexpectresult {
 | `XHTTP_EXPECT_NONE` | 无 |
 | `XHTTP_EXPECT_CONTINUE` | CONTINUE（100 继续） |
 | `XHTTP_EXPECT_UNSUPPORTED` | 不支持该期望 |
+
 
 ## 元素
 
@@ -178,6 +183,7 @@ void xrtHttpExpectCursorInit(
 		xrtHttpExpectCursorInit(&ExCursor);
 ```
 
+
 ### `xrtHttpExpectationParse`
 
 严格解析一个不含列表分隔逗号的 expectation。
@@ -219,6 +225,7 @@ bool xrtHttpExpectationParse(
 					12u) != 0) ) {
 ```
 
+
 ### `xrtHttpExpectValid`
 
 完整验证一个 Expect 字段值；空列表符合 HTTP 列表语法。
@@ -251,6 +258,7 @@ bool xrtHttpExpectValid(xstrview Value);
 ```c
 			!xrtHttpExpectValid(arrExpect[0].Value) ) {
 ```
+
 
 ### `xrtHttpExpectCount`
 
@@ -289,6 +297,7 @@ bool xrtHttpExpectCount(
 			!xrtHttpExpectCount(arrExpect[0].Value, &iCount) ||
 			(iCount != 2u) ||
 ```
+
 
 ### `xrtHttpExpectNext`
 
@@ -332,6 +341,7 @@ xhttpnext xrtHttpExpectNext(
 ```
 
 
+
 ### 跨字段与分类
 
 ### `xrtHttpExpectFieldCursorInit`
@@ -367,6 +377,7 @@ void xrtHttpExpectFieldCursorInit(
 ```c
 	xrtHttpExpectFieldCursorInit(&Cursor);
 ```
+
 
 ### `xrtHttpExpectFieldNext`
 
@@ -412,6 +423,7 @@ xhttpnext xrtHttpExpectFieldNext(
 	) == XHTTP_NEXT_ITEM ) {
 ```
 
+
 ### `xrtHttpExpectFields`
 
 分类全部重复 Expect 字段并完整验证所有元素。
@@ -451,6 +463,7 @@ xhttpexpectresult xrtHttpExpectFields(
 		xrtHttpExpectFields(Fields, 2u) ==
 			XHTTP_EXPECT_CONTINUE ? "yes" : "no"
 ```
+
 
 ## 模块契约：线程
 

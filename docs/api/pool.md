@@ -71,6 +71,7 @@ Pool 提供三种内存池：单页池、固定对象池与变长池；统一支
 
 单页支持的最大槽数，也是快捷单页入口的默认槽数，值为 256。
 
+
 ### `XRT_POOL_PAGE_BYTES_DEFAULT`
 
 多页固定池的默认目标页字节数，值为 65536。自动布局使用
@@ -78,17 +79,21 @@ Pool 提供三种内存池：单页池、固定对象池与变长池；统一支
 因此小对象保持 256 槽，大对象不会仅因进入固定池就预留 256 倍对象大小的首批内存。
 当单个槽已经超过 64 KiB 时，一页只包含一个槽。
 
+
 ### `XRT_POOL_ALIGNMENT_DEFAULT`
 
 默认对象对齐，值为 16。
+
 
 ### `XRT_MEMPOOL_CLASS_STEP`
 
 变长池的小块尺寸类步长，值为 16。
 
+
 ### `XRT_MEMPOOL_CUTOFF_DEFAULT`
 
 变长池默认小块分界，值为 1024。
+
 
 ### `xpoolerror`
 
@@ -118,6 +123,7 @@ typedef enum xpoolerror {
 | `XPOOL_ERROR_VISIT_ACTIVE` | 失败 |
 | `XPOOL_ERROR_INVALID_CAPACITY` | 容量参数非法 |
 
+
 ### `xmempoolbucket`
 
 变长池的 16 字节尺寸类内部桶结构（不透明，仅实现内部使用）。
@@ -128,6 +134,7 @@ typedef struct xmempoolbucket xmempoolbucket;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xmempoollarge`
 
@@ -140,15 +147,18 @@ typedef struct xmempoollarge xmempoollarge;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ## 单页池
 
 ### `xpoolpage`
 
 `Allocation` 和 `Memory` 分别是底层分配地址与对齐后的槽区；`ItemSize`、`Stride`、`Alignment`、`MemorySize` 和 `Capacity` 描述布局。`Used` 与 `Marked` 是外置位图，因而不占用户对象空间。`FreeList`、`LiveCount`、`NextIndex` 和 `FreeCount` 管理分配状态。四个链指针、`Parent` 和 `Flags` 供上层固定池维护页关系，不得由调用方修改。
 
+
 ### `xpoolpageinfo`
 
 `ItemSize` 是用户对象大小，`Stride` 是实际槽步长，`Alignment` 是对齐；`LiveCount`、`FreeCount` 和 `Capacity` 分别表示活动槽、可直接复用槽和总槽数。
+
 
 ### `xrtPoolPageInit`
 
@@ -187,6 +197,7 @@ bool xrtPoolPageInit(xpoolpage* pPage, size_t iItemSize)
 		if ( !xrtPoolPageInit(&DefaultPage, sizeof(uint64)) ) {
 ```
 
+
 ### `xrtPoolPageInitAligned`
 
 使用指定的二次幂对齐初始化一个空的 256 槽页。
@@ -224,6 +235,7 @@ bool xrtPoolPageInitAligned(xpoolpage* pPage, size_t iItemSize, size_t iAlignmen
 ```c
 	if ( !xrtPoolPageInitAligned(&tPage, sizeof(int), 32) ) {
 ```
+
 
 ### `xrtPoolPageInitLayout`
 
@@ -271,6 +283,7 @@ bool xrtPoolPageInitLayout(
 			(LayoutPage.Capacity != 8u) ) {
 ```
 
+
 ### `xrtPoolPageCreate`
 
 创建一个使用默认 16 字节对齐的 256 槽页。
@@ -306,6 +319,7 @@ xpoolpage* xrtPoolPageCreate(size_t iItemSize)
 ```c
 	pCreated = xrtPoolPageCreate(sizeof(uint64));
 ```
+
 
 ### `xrtPoolPageCreateAligned`
 
@@ -343,6 +357,7 @@ xpoolpage* xrtPoolPageCreateAligned(size_t iItemSize, size_t iAlignment)
 ```c
 		pAligned = xrtPoolPageCreateAligned(sizeof(uint64), 32u);
 ```
+
 
 ### `xrtPoolPageCreateLayout`
 
@@ -386,6 +401,7 @@ xpoolpage* xrtPoolPageCreateLayout(
 	pCompact = xrtPoolPageCreateLayout(8192, 64, 4);
 ```
 
+
 ### `xrtPoolPageUnit`
 
 释放页持有的槽内存，但不释放页结构。
@@ -418,6 +434,7 @@ void xrtPoolPageUnit(xpoolpage* pPage)
 		xrtPoolPageUnit(&tPage);
 ```
 
+
 ### `xrtPoolPageDestroy`
 
 释放页持有的全部资源和页结构。
@@ -449,6 +466,7 @@ void xrtPoolPageDestroy(xpoolpage* pPage)
 ```c
 		xrtPoolPageDestroy(pCompact);
 ```
+
 
 ### `xrtPoolPageAlloc`
 
@@ -484,6 +502,7 @@ ptr xrtPoolPageAlloc(xpoolpage* pPage)
 	pDrop = (int*)xrtPoolPageAlloc(&tPage);
 ```
 
+
 ### `xrtPoolPageCalloc`
 
 分配并清零一个槽，页满时返回空指针并设置 `XERR_AGAIN`。
@@ -517,6 +536,7 @@ ptr xrtPoolPageCalloc(xpoolpage* pPage)
 ```c
 	pKeep = (int*)xrtPoolPageCalloc(&tPage);
 ```
+
 
 ### `xrtPoolPageFree`
 
@@ -553,6 +573,7 @@ bool xrtPoolPageFree(xpoolpage* pPage, ptr pMemory)
 	if ( (pValue == NULL) || !xrtPoolPageFree(&tPage, pValue) ) {
 ```
 
+
 ### `xrtPoolPageFreeAt`
 
 按槽索引释放活动对象。
@@ -587,6 +608,7 @@ bool xrtPoolPageFreeAt(xpoolpage* pPage, size_t iIndex)
 		!xrtPoolPageFreeAt(&tPage, iIndex)
 ```
 
+
 ### `xrtPoolPageGet`
 
 返回指定索引处的活动对象，空闲或越界时返回空指针。
@@ -620,6 +642,7 @@ ptr xrtPoolPageGet(const xpoolpage* pPage, size_t iIndex)
 ```c
 		(xrtPoolPageGet(&tPage, iIndex) != pKeep)
 ```
+
 
 ### `xrtPoolPageIndex`
 
@@ -657,6 +680,7 @@ bool xrtPoolPageIndex(const xpoolpage* pPage, const void* pMemory, size_t* pInde
 		!xrtPoolPageIndex(&tPage, pKeep, &iIndex) ||
 ```
 
+
 ### `xrtPoolPageOwns`
 
 判断指针当前是否属于该页的活动槽。
@@ -690,6 +714,7 @@ bool xrtPoolPageOwns(const xpoolpage* pPage, const void* pMemory)
 ```c
 		!xrtPoolPageOwns(&tPage, pKeep) ||
 ```
+
 
 ### `xrtPoolPageMark`
 
@@ -726,6 +751,7 @@ bool xrtPoolPageMark(xpoolpage* pPage, ptr pMemory)
 	if ( !xrtPoolPageMark(&tPage, pKeep) || (xrtPoolPageSweep(&tPage) != 1) ) {
 ```
 
+
 ### `xrtPoolPageSweep`
 
 释放未标记槽，并清除幸存槽的标记。
@@ -757,6 +783,7 @@ size_t xrtPoolPageSweep(xpoolpage* pPage)
 ```c
 	if ( !xrtPoolPageMark(&tPage, pKeep) || (xrtPoolPageSweep(&tPage) != 1) ) {
 ```
+
 
 ### `xrtPoolPageFreeMarked`
 
@@ -790,6 +817,7 @@ size_t xrtPoolPageFreeMarked(xpoolpage* pPage)
 	if ( !xrtPoolPageMark(&tPage, pKeep) || (xrtPoolPageFreeMarked(&tPage) != 1) ) {
 ```
 
+
 ### `xrtPoolPageReset`
 
 将页内全部槽恢复为空闲状态并返回释放的活动槽数。
@@ -821,6 +849,7 @@ size_t xrtPoolPageReset(xpoolpage* pPage)
 ```c
 		(xrtPoolPageReset(&tPage) != 2)
 ```
+
 
 ### `xrtPoolPageGetInfo`
 
@@ -855,19 +884,23 @@ void xrtPoolPageGetInfo(const xpoolpage* pPage, xpoolpageinfo* pInfo)
 	xrtPoolPageGetInfo(&tPage, &tInfo);
 ```
 
+
 ## 固定对象池
 
 ### `xpool`
 
 `Pages` 是全部页链，`Available` 是可分配页链，`Index` 是按槽区地址排序的安全查找索引。`ItemSize`、`Alignment`、`PageCapacity`、`PageCount`、`EmptyPages`、`LiveCount`、`PeakCount`、`AllocCount`、`FreeCount` 和 `RetainEmpty` 提供布局、统计与保留策略。`IndexCapacity` 和 `Flags` 是内部状态。
 
+
 ### `xpoolinfo`
 
 包含对象大小、步长、对齐、每页槽数、页数、空页数、实时/峰值对象数、总容量和累计分配/释放次数。理论容量无法用 `size_t` 表示时，`Capacity` 饱和为 `SIZE_MAX`。
 
+
 ### `xpoolvisitor`
 
 签名为 `bool visitor(ptr object, size_t index, ptr userData)`。`index` 是本次遍历从零开始的连续序号，不是可持久化句柄。返回 `false` 提前停止。
+
 
 ### `xrtPoolInit`
 
@@ -906,6 +939,7 @@ bool xrtPoolInit(xpool* pPool, size_t iItemSize)
 		if ( !xrtPoolInit(&DefaultPool, sizeof(examplejob)) ) {
 ```
 
+
 ### `xrtPoolInitAligned`
 
 使用指定的二次幂对齐初始化固定对象池。
@@ -943,6 +977,7 @@ bool xrtPoolInitAligned(xpool* pPool, size_t iItemSize, size_t iAlignment)
 ```c
 	if ( !xrtPoolInitAligned(&tPool, sizeof(examplejob), 32) ) {
 ```
+
 
 ### `xrtPoolInitLayout`
 
@@ -990,6 +1025,7 @@ bool xrtPoolInitLayout(
 			(LayoutPool.PageCapacity != 64u) ) {
 ```
 
+
 ### `xrtPoolCreate`
 
 创建使用默认 16 字节对齐的固定对象池。
@@ -1025,6 +1061,7 @@ xpool* xrtPoolCreate(size_t iItemSize)
 ```c
 	pCompact = xrtPoolCreate(8192);
 ```
+
 
 ### `xrtPoolCreateAligned`
 
@@ -1062,6 +1099,7 @@ xpool* xrtPoolCreateAligned(size_t iItemSize, size_t iAlignment)
 ```c
 		pAligned = xrtPoolCreateAligned(sizeof(examplejob), 32u);
 ```
+
 
 ### `xrtPoolCreateLayout`
 
@@ -1105,6 +1143,7 @@ xpool* xrtPoolCreateLayout(
 	pCreated = xrtPoolCreateLayout(sizeof(examplejob), 32, 128);
 ```
 
+
 ### `xrtPoolUnit`
 
 释放池持有的全部页，但不释放池结构。
@@ -1137,6 +1176,7 @@ void xrtPoolUnit(xpool* pPool)
 			xrtPoolUnit(&tPool);
 ```
 
+
 ### `xrtPoolDestroy`
 
 释放池持有的全部资源和池结构。
@@ -1168,6 +1208,7 @@ void xrtPoolDestroy(xpool* pPool)
 ```c
 		xrtPoolDestroy(pCompact);
 ```
+
 
 ### `xrtPoolAlloc`
 
@@ -1203,6 +1244,7 @@ ptr xrtPoolAlloc(xpool* pPool)
 	pReused = (examplejob*)xrtPoolAlloc(&tPool);
 ```
 
+
 ### `xrtPoolCalloc`
 
 分配并清零一个对象；池需要新页时可能分配内存。
@@ -1236,6 +1278,7 @@ ptr xrtPoolCalloc(xpool* pPool)
 ```c
 		arrJob[i] = (examplejob*)xrtPoolCalloc(&tPool);
 ```
+
 
 ### `xrtPoolFree`
 
@@ -1272,6 +1315,7 @@ bool xrtPoolFree(xpool* pPool, ptr pObject)
 	if ( !xrtPoolFree(&tPool, pReleased) ) {
 ```
 
+
 ### `xrtPoolOwns`
 
 判断指针当前是否属于该池的活动对象。
@@ -1305,6 +1349,7 @@ bool xrtPoolOwns(const xpool* pPool, const void* pObject)
 ```c
 	if ( !xrtPoolOwns(&tPool, pReused) ) {
 ```
+
 
 ### `xrtPoolMark`
 
@@ -1341,6 +1386,7 @@ bool xrtPoolMark(xpool* pPool, ptr pObject)
 	if ( !xrtPoolMark(&tPool, arrJob[0]) || (xrtPoolSweep(&tPool) != 299) ) {
 ```
 
+
 ### `xrtPoolSweep`
 
 释放全部未标记对象，并清除幸存对象标记。
@@ -1372,6 +1418,7 @@ size_t xrtPoolSweep(xpool* pPool)
 ```c
 	if ( !xrtPoolMark(&tPool, arrJob[0]) || (xrtPoolSweep(&tPool) != 299) ) {
 ```
+
 
 ### `xrtPoolFreeMarked`
 
@@ -1405,6 +1452,7 @@ size_t xrtPoolFreeMarked(xpool* pPool)
 	if ( !xrtPoolMark(&tPool, arrJob[0]) || (xrtPoolFreeMarked(&tPool) != 1) ) {
 ```
 
+
 ### `xrtPoolReset`
 
 释放全部活动对象，并按保留策略回收空页。
@@ -1436,6 +1484,7 @@ size_t xrtPoolReset(xpool* pPool)
 ```c
 	if ( xrtPoolReset(&tPool) != 300 ) {
 ```
+
 
 ### `xrtPoolTrim`
 
@@ -1470,6 +1519,7 @@ size_t xrtPoolTrim(xpool* pPool, size_t iRetainEmpty)
 	if ( xrtPoolTrim(&tPool, 0) == 0 ) {
 ```
 
+
 ### `xrtPoolSetRetain`
 
 设置自动保留的空页数，并立即执行一次裁剪。
@@ -1503,6 +1553,7 @@ void xrtPoolSetRetain(xpool* pPool, size_t iRetainEmpty)
 	xrtPoolSetRetain(&tPool, 2);
 ```
 
+
 ### `xrtPoolGet`
 
 获取固定对象池当前状态。
@@ -1535,6 +1586,7 @@ void xrtPoolGet(const xpool* pPool, xpoolinfo* pInfo)
 ```c
 	xrtPoolGet(&tPool, &tInfo);
 ```
+
 
 ### `xrtPoolVisit`
 
@@ -1570,19 +1622,23 @@ size_t xrtPoolVisit(xpool* pPool, xpoolvisitor pVisitor, ptr pUserData)
 	if ( xrtPoolVisit(&tPool, exampleVisitJob, &iVisited) != 300 ) {
 ```
 
+
 ## 变长内存池
 
 ### `xmempool`
 
 `Buckets` 是 16 字节尺寸类数组，`Pages` 是所有小块页的有序查找索引，`Large` 是独立大块哈希登记表。`Cutoff`、`ClassCount`、`PageCount`、`LargeCount`、`LiveCount`、`PeakCount`、`LiveBytes`、`PeakBytes`、`AllocCount` 和 `FreeCount` 是配置与统计。其余容量、删除计数和 `Flags` 是内部状态。
 
+
 ### `xmempoolinfo`
 
 包含分界、尺寸类步长/数量、页数、小块/大块数量、实时/峰值块数、实时/峰值可用字节及累计操作次数。小块字节按尺寸类可用大小统计，不是原请求大小。
 
+
 ### `xmempoolvisitor`
 
 签名为 `bool visitor(ptr memory, size_t size, size_t alignment, ptr userData)`。`size` 是 `xrtMemPoolSize` 可查询的安全可用大小，返回 `false` 提前停止。
+
 
 ### `xrtMemPoolInit`
 
@@ -1618,6 +1674,7 @@ bool xrtMemPoolInit(xmempool* pPool, size_t iCutoff)
 	if ( !xrtMemPoolInit(&tPool, 128) ) {
 ```
 
+
 ### `xrtMemPoolCreate`
 
 创建变长池，`iCutoff` 为零时使用默认值 1024。
@@ -1652,6 +1709,7 @@ xmempool* xrtMemPoolCreate(size_t iCutoff)
 	pCreated = xrtMemPoolCreate(0);
 ```
 
+
 ### `xrtMemPoolUnit`
 
 释放池持有的全部资源，但不释放池结构；不调用块内对象析构器。
@@ -1684,6 +1742,7 @@ void xrtMemPoolUnit(xmempool* pPool)
 		xrtMemPoolUnit(&tPool);
 ```
 
+
 ### `xrtMemPoolDestroy`
 
 释放池持有的全部资源和池结构；不调用块内对象析构器。
@@ -1715,6 +1774,7 @@ void xrtMemPoolDestroy(xmempool* pPool)
 ```c
 	xrtMemPoolDestroy(pCreated);
 ```
+
 
 ### `xrtMemPoolAlloc`
 
@@ -1750,6 +1810,7 @@ ptr xrtMemPoolAlloc(xmempool* pPool, size_t iSize)
 ```c
 	pPacket = (bytes)xrtMemPoolAlloc(&tPool, 4096);
 ```
+
 
 ### `xrtMemPoolCalloc`
 
@@ -1788,6 +1849,7 @@ ptr xrtMemPoolCalloc(xmempool* pPool, size_t iCount, size_t iSize)
 	sText = (char*)xrtMemPoolCalloc(&tPool, 1, 24);
 ```
 
+
 ### `xrtMemPoolAllocAligned`
 
 按指定二次幂对齐分配，零大小仍有效，超过 16 字节对齐时走独立大块。
@@ -1824,6 +1886,7 @@ ptr xrtMemPoolAllocAligned(xmempool* pPool, size_t iSize, size_t iAlignment)
 ```c
 	pAligned = (bytes)xrtMemPoolAllocAligned(&tPool, 7, 64);
 ```
+
 
 ### `xrtMemPoolRealloc`
 
@@ -1863,6 +1926,7 @@ ptr xrtMemPoolRealloc(xmempool* pPool, ptr pMemory, size_t iSize)
 	sText = (char*)xrtMemPoolRealloc(&tPool, sText, 80);
 ```
 
+
 ### `xrtMemPoolFree`
 
 安全释放池内活动块，非法、跨池或重复释放均返回 `false`。
@@ -1898,6 +1962,7 @@ bool xrtMemPoolFree(xmempool* pPool, ptr pMemory)
 		!xrtMemPoolFree(&tPool, sText)
 ```
 
+
 ### `xrtMemPoolSize`
 
 返回活动块可安全使用的字节数，不属于该池时返回零。
@@ -1930,6 +1995,7 @@ size_t xrtMemPoolSize(const xmempool* pPool, const void* pMemory)
 ```c
 		(xrtMemPoolSize(&tPool, sText) < 80) ||
 ```
+
 
 ### `xrtMemPoolOwns`
 
@@ -1964,6 +2030,7 @@ bool xrtMemPoolOwns(const xmempool* pPool, const void* pMemory)
 ```c
 		!xrtMemPoolOwns(&tPool, sText) ||
 ```
+
 
 ### `xrtMemPoolMark`
 
@@ -2000,6 +2067,7 @@ bool xrtMemPoolMark(xmempool* pPool, ptr pMemory)
 		!xrtMemPoolMark(&tPool, sText) ||
 ```
 
+
 ### `xrtMemPoolSweep`
 
 释放全部未标记块，并清除幸存块标记。
@@ -2031,6 +2099,7 @@ size_t xrtMemPoolSweep(xmempool* pPool)
 ```c
 		(xrtMemPoolSweep(&tPool) != 1)
 ```
+
 
 ### `xrtMemPoolFreeMarked`
 
@@ -2064,6 +2133,7 @@ size_t xrtMemPoolFreeMarked(xmempool* pPool)
 		(xrtMemPoolFreeMarked(&tPool) != 1) ||
 ```
 
+
 ### `xrtMemPoolReset`
 
 释放全部活动块，并保留每个尺寸类的一个空页。
@@ -2095,6 +2165,7 @@ size_t xrtMemPoolReset(xmempool* pPool)
 ```c
 		(xrtMemPoolReset(&tPool) != 2)
 ```
+
 
 ### `xrtMemPoolTrim`
 
@@ -2129,6 +2200,7 @@ size_t xrtMemPoolTrim(xmempool* pPool, size_t iRetainEmptyPerClass)
 	(void)xrtMemPoolTrim(&tPool, 0);
 ```
 
+
 ### `xrtMemPoolGet`
 
 获取变长池当前状态。
@@ -2161,6 +2233,7 @@ void xrtMemPoolGet(const xmempool* pPool, xmempoolinfo* pInfo)
 ```c
 	xrtMemPoolGet(&tPool, &tInfo);
 ```
+
 
 ### `xrtMemPoolVisit`
 
@@ -2199,6 +2272,7 @@ size_t xrtMemPoolVisit(
 ```c
 	if ( xrtMemPoolVisit(&tPool, exampleVisitMemory, &iVisited) != 3 ) {
 ```
+
 
 ## 旧版资产复用
 

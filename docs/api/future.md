@@ -126,6 +126,7 @@ typedef enum xfuturestate {
 | `XFUTURE_CANCELLED` | 已取消 |
 | `XFUTURE_CLOSED` | 已关闭 |
 
+
 ### `xfutureresult`
 
 Future 结果只借用值和错误，其生命周期由 Future 引用保护。
@@ -144,6 +145,7 @@ typedef struct xfutureresult {
 | `Value` | `ptr` | 值 |
 | `Error` | `const xerror*` | 错误输出 |
 
+
 ### `xfuturewatch`
 
 Watch 的内部链表和并发状态保持不透明。
@@ -158,6 +160,7 @@ typedef union xfuturewatch {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Alignment` | `uint64` | 对齐（二次幂） |
+
 
 ### `xfuturewatchresult`
 
@@ -177,6 +180,7 @@ typedef enum xfuturewatchresult {
 | `XFUTURE_WATCH_READY` | 就绪 |
 | `XFUTURE_WATCH_PENDING` | 等待事件期间 |
 
+
 ### `xfuturepick`
 
 Any 与 Race 的结果借用胜出源 Future；组合 Future 负责保留该引用。
@@ -192,6 +196,7 @@ typedef struct xfuturepick {
 |---|---|---|
 | `Index` | `size_t` | 索引 |
 | `Future` | `xfuture*` | Future |
+
 
 ### `xfutureall`
 
@@ -209,6 +214,7 @@ typedef struct xfutureall {
 | `Count` | `size_t` | 数量 |
 | `Futures` | `xfuture* const*` | Futures |
 
+
 ### `xfuture`
 
 Future 是只读共享结果，Promise 是唯一终态写入端。
@@ -218,6 +224,7 @@ typedef struct xfuture xfuture;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xpromise`
 
@@ -230,6 +237,7 @@ typedef struct xpromise xpromise;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xfuturewatchproc`
 
 Watch 回调在线程安全的 Future 完成路径中执行，不得重入同一个 Watch。
@@ -239,6 +247,7 @@ typedef void (*xfuturewatchproc)(ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xfuturewatchreleaseproc`
 
@@ -250,6 +259,7 @@ typedef void (*xfuturewatchreleaseproc)(ptr pData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xfuturefreeproc`
 
 成功值析构过程接收创建者提供的值和上下文。
@@ -259,6 +269,7 @@ typedef void (*xfuturefreeproc)(ptr pValue, ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xfuturecontinueproc`
 
@@ -274,6 +285,7 @@ typedef void (*xfuturecontinueproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xfuturefinallyproc`
 
 Finally 过程只观察源结果，输出 Future 自动安全透传源终态。
@@ -283,6 +295,7 @@ typedef void (*xfuturefinallyproc)(const xfutureresult* pInput, ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xfuturebridge`
 
@@ -298,6 +311,7 @@ typedef union xfuturebridge {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Alignment` | `uint64` | 对齐（二次幂） |
+
 
 ### `xtlsstreamconfig`
 
@@ -320,6 +334,7 @@ typedef struct xtlsstreamconfig {
 | `AsyncBytesLimit` | `size_t` | AsyncBytesLimit |
 | `AsyncCountLimit` | `uint32` | AsyncCountLimit |
 | `AsyncBatch` | `uint32` | AsyncBatch |
+
 
 ### `xtlsstreamstate`
 
@@ -345,6 +360,7 @@ typedef enum xtlsstreamstate {
 | `XTLS_STREAM_CLOSED` | 已关闭 |
 | `XTLS_STREAM_FAILED` | 已失败 |
 
+
 ### `xtlsstreamwait`
 
 条件 Future 是水平条件；END 表示收到认证 close_notify， CLOSE 表示底层传输和 TLS 组合对象进入最终终态。
@@ -368,6 +384,7 @@ typedef enum xtlsstreamwait {
 | `XTLS_STREAM_WAIT_DRAIN` | 排空策略 |
 | `XTLS_STREAM_WAIT_END` | 等待关闭完成 |
 | `XTLS_STREAM_WAIT_CLOSE` | 等待关闭 |
+
 
 ### `xtlsdialstate`
 
@@ -393,6 +410,7 @@ typedef enum xtlsdialstate {
 | `XTLS_DIAL_FAILED` | 已失败 |
 | `XTLS_DIAL_CANCELLED` | 已取消 |
 
+
 ### `xtlsdialconfig`
 
 Timeout 覆盖 DNS、TCP 和 TLS 全过程；零值只保留各阶段超时。
@@ -412,6 +430,7 @@ typedef struct xtlsdialconfig {
 | `Stream` | `xtlsstreamconfig` | 流选择 |
 | `Timeout` | `int64` | 超时（毫秒） |
 | `ServerNameFromHost` | `bool` | ServerNameFromHost |
+
 
 ### `xtlsstreamevents`
 
@@ -444,6 +463,7 @@ typedef struct xtlsstreamevents {
 | `Drain` | `void (*Drain)(xtlsstream* pStream, ptr pData)` | 发送队列排空 |
 | `Close` | `void (*Close)(xtlsstream* pStream, xnetresult Result, const xerror* pError, ptr pData)` | 流关闭（含错误） |
 
+
 ### `xtlslistenerstate`
 
 Listener 只发布已经完成 TLS 握手的 Stream，关闭监听不会隐式关闭已发布连接。
@@ -461,6 +481,7 @@ typedef enum xtlslistenerstate {
 | `XTLS_LISTENER_OPEN` | 监听中 |
 | `XTLS_LISTENER_CLOSING` | 关闭中 |
 | `XTLS_LISTENER_CLOSED` | 已关闭 |
+
 
 ### `xtlslistenerevents`
 
@@ -483,6 +504,7 @@ typedef struct xtlslistenerevents {
 | `Accept` | `bool (*Accept)(xtlslistener* pListener, xtlsstream* pStream, ptr pData)` | 新 TLS 流就绪 |
 | `Close` | `void (*Close)(xtlslistener* pListener, ptr pData)` | 监听器关闭 |
 
+
 ### `xtlslistenerconfig`
 
 Listen 负责 TCP 接入，Tls 和 Stream 负责每条连接的 TLS 会话与组合层限制。 AcceptQueueLimit 只限制完成握手但尚未被 pull/Future 消费的连接； HandshakeLimit 在分配 TLS 会话前硬性限制并发握手数。 初始化默认完成队列 1024 条、并发握手 128 条，均可显式调整。
@@ -504,6 +526,7 @@ typedef struct xtlslistenerconfig {
 | `Stream` | `xtlsstreamconfig` | 流选择 |
 | `AcceptQueueLimit` | `uint32` | AcceptQueueLimit |
 | `HandshakeLimit` | `uint32` | HandshakeLimit |
+
 
 ### `xtlslistenerstats`
 
@@ -537,6 +560,7 @@ typedef struct xtlslistenerstats {
 | `PeakQueuedAccepts` | `uint32` | PeakQueuedAccepts |
 | `AcceptWaiters` | `uint32` | AcceptWaiters |
 
+
 ### `xtlsstream`
 
 公开句柄声明不随 TLS Stream 实现裁剪变化。
@@ -546,6 +570,7 @@ typedef struct xtlsstream xtlsstream;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xtlslistener`
 
@@ -561,6 +586,7 @@ typedef struct xtlslistener xtlslistener;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xtlsdial`
 
 托管 TLS 拨号对象（不透明）：串联 TCP 拨号与 TLS 握手。
@@ -574,6 +600,7 @@ typedef struct xtlsdial xtlsdial;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xtlsdialproc`
 
@@ -590,6 +617,7 @@ typedef void (*xtlsdialproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -677,6 +705,7 @@ xfuturestate xrtFutureState(const xfuture* pFuture);
 ```
 
 
+
 ### `xrtFutureDone`
 
 判断 Future 是否已经进入任一不可变终态。
@@ -710,6 +739,7 @@ bool xrtFutureDone(const xfuture* pFuture);
 	if ( (pPromise == NULL) || (pFut1 == NULL) ||
 		xrtFutureDone(pFut1) ||
 ```
+
 
 
 ## 创建与生命周期
@@ -761,6 +791,7 @@ xpromise* xrtPromiseCreate(xfuture** ppFuture, xcancel* pParentCancel);
 ```
 
 
+
 ### `xrtPromiseRef`
 
 增加 Promise 生产端引用并返回原指针。
@@ -799,6 +830,7 @@ xpromise* xrtPromiseRef(xpromise* pPromise);
 ```
 
 
+
 ### `xrtPromiseDestroy`
 
 释放生产端引用；最后一个未完成生产端会关闭 Future 并请求取消。
@@ -831,6 +863,7 @@ void xrtPromiseDestroy(xpromise* pPromise);
 	xrtPromiseDestroy(pPromise);
 	xrtFutureDestroy(pFuture);
 ```
+
 
 
 ### `xrtFutureRef`
@@ -868,6 +901,7 @@ xfuture* xrtFutureRef(xfuture* pFuture);
 ```
 
 
+
 ### `xrtFutureDestroy`
 
 释放 Future 消费端引用；空指针视为空操作。
@@ -899,6 +933,7 @@ void xrtFutureDestroy(xfuture* pFuture);
 ```c
 	xrtFutureDestroy(pRace);
 ```
+
 
 
 ## 无分配终态监听
@@ -966,6 +1001,7 @@ bool xrtPromiseResolve(xpromise* pPromise, ptr pValue);
 ```
 
 
+
 ### `xrtPromiseResolveOwned`
 
 转移成功值所有权；完成失败时所有权仍归调用方。
@@ -1013,6 +1049,7 @@ bool xrtPromiseResolveOwned(
 ```
 
 
+
 ### `xrtPromiseReject`
 
 以增加引用方式完成失败结果。
@@ -1050,6 +1087,7 @@ bool xrtPromiseReject(xpromise* pPromise, const xerror* pError);
 ```
 
 
+
 ### `xrtPromiseForward`
 
 把已进入终态的源 Future 结果安全透传到 Promise。
@@ -1085,6 +1123,7 @@ bool xrtPromiseForward(xpromise* pPromise, xfuture* pSource);
 			!xrtPromiseForward(pSource, pFailFut) ||
 			!xrtPromiseDone(pSource) ||
 ```
+
 
 
 ## 结果与所有权
@@ -1149,6 +1188,7 @@ bool xrtFutureResult(const xfuture* pFuture, xfutureresult* pResult);
 ```
 
 
+
 ### `xrtFutureValue`
 
 返回成功值；非成功终态会把对应错误设置到当前执行上下文。
@@ -1184,6 +1224,7 @@ ptr xrtFutureValue(const xfuture* pFuture);
 ```
 
 
+
 ### `xrtFutureError`
 
 返回失败终态借用的结构化错误，其他状态返回空指针。
@@ -1216,6 +1257,7 @@ const xerror* xrtFutureError(const xfuture* pFuture);
 ```c
 		const xerror* pError = xrtFutureError(pFuture);
 ```
+
 
 
 ## 取消
@@ -1266,6 +1308,7 @@ bool xrtFutureCancel(xfuture* pFuture);
 ```
 
 
+
 ### `xrtFutureCancelToken`
 
 返回增加引用后的取消令牌，调用方使用完毕后必须 `xrtCancelDestroy` 释放。
@@ -1298,6 +1341,7 @@ xcancel* xrtFutureCancelToken(const xfuture* pFuture);
 ```c
 	pFirstCancel = xrtFutureCancelToken(pFirst);
 ```
+
 
 
 ### `xrtPromiseCancelToken`
@@ -1334,6 +1378,7 @@ xcancel* xrtPromiseCancelToken(const xpromise* pPromise);
 ```
 
 
+
 ### `xrtPromiseCancel`
 
 完成取消终态；令牌请求通知结束后才向等待者发布取消终态。
@@ -1368,6 +1413,7 @@ bool xrtPromiseCancel(xpromise* pPromise);
 		!xrtPromiseCancel(pLeafPromise) ||
 		(xrtFutureWait(pDone) != XWAIT_OK) ) {
 ```
+
 
 
 ## 同步等待
@@ -1421,6 +1467,7 @@ bool xrtPromiseClose(xpromise* pPromise);
 ```
 
 
+
 ### `xrtPromiseDone`
 
 判断 Promise 对应的 Future 是否已经完成。
@@ -1454,6 +1501,7 @@ bool xrtPromiseDone(const xpromise* pPromise);
 			!xrtPromiseForward(pSource, pFailFut) ||
 			!xrtPromiseDone(pSource) ||
 ```
+
 
 
 ### `xrtFutureWatchInit`
@@ -1499,6 +1547,7 @@ bool xrtFutureWatchInit(
 ```
 
 
+
 ### `xrtFutureWatchAdd`
 
 Future 未完成时注册 Watch；`READY` 时 Watch 未被接管且不执行 Release。
@@ -1538,6 +1587,7 @@ xfuturewatchresult xrtFutureWatchAdd(
 			(xrtFutureWatchAdd(pWF, &Watch) !=
 				XFUTURE_WATCH_PENDING) ) {
 ```
+
 
 
 ## 协程等待
@@ -1591,6 +1641,7 @@ bool xrtFutureWatchDetach(
 ```
 
 
+
 ### `xrtFutureWatchRemove`
 
 摘除 Watch 并等待已经开始的通知结束；禁止从自身通知中调用。
@@ -1628,6 +1679,7 @@ void xrtFutureWatchRemove(
 ```
 
 
+
 ### `xrtFutureWait`
 
 等待 Future 进入任一终态。
@@ -1660,6 +1712,7 @@ xwaitresult xrtFutureWait(xfuture* pFuture);
 ```c
 	if ( xrtFutureWait(pFuture) != XWAIT_OK ) {
 ```
+
 
 
 
@@ -1698,6 +1751,7 @@ xwaitresult xrtFutureWaitFor(xfuture* pFuture, int64 iTimeout);
 				(xrtFutureWaitFor(pCatch,
 					EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ||
 ```
+
 
 
 ### `xrtFutureWaitForCancel`
@@ -1742,6 +1796,7 @@ xwaitresult xrtFutureWaitForCancel(
 			pCancel) != XWAIT_CANCELLED) ) {
 ```
 
+
 ### `xrtFutureAwait`
 
 在当前调度协程中挂起等待终态，不阻塞调度线程。
@@ -1777,6 +1832,7 @@ xwaitresult xrtFutureAwait(xfuture* pFuture);
 ```
 
 
+
 ### `xrtFutureAwaitFor`
 
 协程挂起到相对期限。
@@ -1806,13 +1862,11 @@ xwaitresult xrtFutureAwaitFor(xfuture* pFuture, int64 iTimeout);
 
 #### 范例
 
-[concurrency/report · 超时控制](../../examples/concurrency/report/main.c) · 观察
+参见已注册的 [examples/concurrency/report/main.c](../../examples/concurrency/report/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-	eWait = xrtFutureAwaitFor(pDone, UINT64_C(2000000));
+xrtFutureAwaitFor(pDone, INT64_C(2000));
 ```
-
-
 ### `xrtFutureContinue`
 
 对源的任意终态执行延续过程；过程负责完成或保留输出 Promise。
@@ -1853,6 +1907,7 @@ xfuture* xrtFutureContinue(
 			pAnyChain = xrtFutureContinue(pPlainF,
 				exampleContinueAny, NULL);
 ```
+
 
 
 ### `xrtFutureContinueOwned`
@@ -1899,6 +1954,7 @@ xfuture* xrtFutureContinueOwned(
 		pB = xrtFutureContinueOwned(pA, exampleContinueAny,
 			NULL, exampleDestroy, NULL);
 ```
+
 
 
 ### `xrtFutureContinueOwnedCancelSource`
@@ -1948,6 +2004,7 @@ xfuture* xrtFutureContinueOwnedCancelSource(
 ```
 
 
+
 ### `xrtFutureThen`
 
 仅在源成功时执行延续；其他终态自动透传。
@@ -1987,6 +2044,7 @@ xfuture* xrtFutureThen(
 ```c
 	pNext = xrtFutureThen(pSource, addFive, &iResult);
 ```
+
 
 
 ### `xrtFutureThenOwned`
@@ -2035,6 +2093,7 @@ xfuture* xrtFutureThenOwned(
 ```
 
 
+
 ### `xrtFutureThenOwnedCancelSource`
 
 仅在独占源成功时执行延续；取消输出时同时请求取消源。失败/取消/关闭仍按 Then 契约透传。
@@ -2081,6 +2140,7 @@ xfuture* xrtFutureThenOwnedCancelSource(
 ```
 
 
+
 ### `xrtFutureCatch`
 
 仅在源失败时执行延续；成功、取消和关闭终态自动透传。
@@ -2121,6 +2181,7 @@ xfuture* xrtFutureCatch(
 			pCatchChain = xrtFutureCatch(pPlainBad,
 				exampleContinueRescue, NULL);
 ```
+
 
 
 ### `xrtFutureCatchOwned`
@@ -2170,6 +2231,7 @@ xfuture* xrtFutureCatchOwned(
 ```
 
 
+
 ### `xrtFutureFinally`
 
 观察源的任意终态，再把原结果安全透传到输出 Future。
@@ -2210,6 +2272,7 @@ xfuture* xrtFutureFinally(
 			pFin = xrtFutureFinally(pFut2,
 				exampleFinallyObserve, NULL);
 ```
+
 
 
 ### `xrtFutureFinallyOwned`
@@ -2257,6 +2320,7 @@ xfuture* xrtFutureFinallyOwned(
 				exampleFinallyObserve, NULL,
 				exampleDestroy, NULL);
 ```
+
 
 
 ## 组合器
@@ -2314,6 +2378,7 @@ xfuture* xrtFutureAny(xfuture* const* pFutures, size_t iCount);
 ```
 
 
+
 ### `xrtFutureAll`
 
 在全部源进入终态后，以保序的 `xfutureall` 成功完成；空集合立即完成。
@@ -2350,6 +2415,7 @@ xfuture* xrtFutureAll(xfuture* const* pFutures, size_t iCount);
 ```
 
 
+
 ### `xrtFutureRace`
 
 在任一源进入终态后完成，并向其余未完成源发出协作取消请求。
@@ -2384,6 +2450,7 @@ xfuture* xrtFutureRace(xfuture* const* pFutures, size_t iCount);
 ```c
 	pRace = xrtFutureRace(arrFuture, 2);
 ```
+
 
 
 ## Future 桥
@@ -2428,6 +2495,7 @@ bool xrtFutureBridgeInit(
 ```
 
 
+
 ### `xrtFutureBridgeCreate`
 
 创建 Future/Promise 对并初始化桥；返回的 Future 由调用方持有。
@@ -2467,6 +2535,7 @@ xfuture* xrtFutureBridgeCreate(
 ```
 
 
+
 ### `xrtFutureBridgePromise`
 
 返回桥借用的 Promise；调用方负责按原有所有权契约销毁它。
@@ -2501,6 +2570,7 @@ xpromise* xrtFutureBridgePromise(
 ```c
 		((pBorrowed = xrtFutureBridgePromise(&Bridge)) == NULL) ) {
 ```
+
 
 
 ### `xrtFutureBridgeWatch`
@@ -2545,6 +2615,7 @@ bool xrtFutureBridgeWatch(
 ```
 
 
+
 ### `xrtFutureBridgeReady`
 
 发布装配成功，允许底层完成回调向 Promise 写入终态。
@@ -2577,6 +2648,7 @@ bool xrtFutureBridgeReady(xfuturebridge* pBridge);
 ```c
 		!xrtFutureBridgeReady(&Bridge) ||
 ```
+
 
 
 ### `xrtFutureBridgeFail`
@@ -2615,6 +2687,7 @@ bool xrtFutureBridgeFail(xfuturebridge* pBridge);
 ```
 
 
+
 ### `xrtFutureBridgeWait`
 
 等待极短的装配窗口，并返回底层结果能否写入 Promise。
@@ -2649,6 +2722,7 @@ bool xrtFutureBridgeWait(const xfuturebridge* pBridge);
 ```
 
 
+
 ### `xrtFutureBridgeUnwatch`
 
 注销取消监听，并与正在执行的取消回调汇合。
@@ -2680,6 +2754,7 @@ void xrtFutureBridgeUnwatch(xfuturebridge* pBridge);
 ```c
 	xrtFutureBridgeUnwatch(&Bridge);
 ```
+
 
 
 
@@ -2718,6 +2793,7 @@ void xrtTlsListenerConfigInit(xtlslistenerconfig* pConfig);
 ```c
 	xrtTlsListenerConfigInit(&ListenerConfig);
 ```
+
 
 
 ### `xrtTlsListenerStart`
@@ -2766,6 +2842,7 @@ xtlslistener* xrtTlsListenerStart(
 ```
 
 
+
 ### `xrtTlsListenerRef`
 
 增加 Listener 引用并返回原指针。
@@ -2798,6 +2875,7 @@ xtlslistener* xrtTlsListenerRef(xtlslistener* pListener);
 ```c
 	pListenerRef = xrtTlsListenerRef(pListener);
 ```
+
 
 
 ### `xrtTlsListenerDestroy`
@@ -2834,6 +2912,7 @@ void xrtTlsListenerDestroy(xtlslistener* pListener);
 ```
 
 
+
 ### `xrtTlsListenerAccept`
 
 pull 模式下非阻塞取得一个已完成握手的 Stream；空队列返回空指针。
@@ -2868,6 +2947,7 @@ xtlsstream* xrtTlsListenerAccept(xtlslistener* pListener);
 ```
 
 
+
 ### `xrtTlsListenerAcceptAsync`
 
 pull 模式下异步接受一个已完成握手的 Stream；Future 持有结果引用。
@@ -2900,6 +2980,7 @@ xfuture* xrtTlsListenerAcceptAsync(xtlslistener* pListener);
 ```c
 	pAcceptFuture = xrtTlsListenerAcceptAsync(pListener);
 ```
+
 
 
 ### `xrtTlsListenerAcceptWait`
@@ -2944,6 +3025,7 @@ xtlsstream* xrtTlsListenerAcceptWait(
 ```
 
 
+
 ### `xrtTlsListenerClose`
 
 原子停止接入并丢弃尚未交付的连接；已交付连接保持独立生命周期。
@@ -2981,6 +3063,7 @@ bool xrtTlsListenerClose(xtlslistener* pListener);
 ```
 
 
+
 ### `xrtTlsListenerState`
 
 返回 Listener 当前生命周期状态。
@@ -3015,6 +3098,7 @@ xtlslistenerstate xrtTlsListenerState(
 ```c
 		(xrtTlsListenerState(pListener) != XTLS_LISTENER_OPEN) ||
 ```
+
 
 
 ### `xrtTlsListenerLocal`
@@ -3056,6 +3140,7 @@ bool xrtTlsListenerLocal(
 ```
 
 
+
 ### `xrtTlsListenerData`
 
 返回创建时保存的用户数据快照。
@@ -3088,6 +3173,7 @@ ptr xrtTlsListenerData(const xtlslistener* pListener);
 ```c
 		(xrtTlsListenerData(pListener) != &EngineConfig) ) {
 ```
+
 
 
 ### `xrtTlsListenerStats`
@@ -3130,6 +3216,7 @@ bool xrtTlsListenerStats(
 
 
 
+
 ## TLS 拨号
 
 拨号把 DNS 解析、TCP 竞争连接与 TLS 握手组合为一次异步操作，提供回调式与 Future 式两个入口。
@@ -3165,6 +3252,7 @@ void xrtTlsDialConfigInit(xtlsdialconfig* pConfig);
 ```c
 	xrtTlsDialConfigInit(&DialConfig);
 ```
+
 
 
 ### `xrtTlsDial`
@@ -3227,6 +3315,7 @@ xtlsdial* xrtTlsDial(
 ```
 
 
+
 ### `xrtTlsDialProxy`
 
 经代理 CONNECT 隧道连接目标并继续同一个 TLS Dial 状态机；代理对象只在调用期间借用，成功提交后由组合拨号持有独立引用。
@@ -3276,17 +3365,13 @@ xtlsdial* xrtTlsDialProxy(
 
 #### 范例
 
-[tls/dial · TLS 状态机](../../examples/tls/dial/main.c) · [network/proxy_dial · 隧道](../../examples/network/proxy_dial/main.c)
+参见已注册的 [examples/tls/dial/main.c](../../examples/tls/dial/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-	pDial = xrtTlsDialProxy(
-		pEngine, pResolver, pProxy, sHost, (uint16)iPort,
-		&TlsConfig, &DialConfig, &Events, pStreamData,
-		onTlsDialDone, pDoneData
-	);
+xrtTlsDialProxy(pEngine, pResolver, pProxy, sHost,
+				(uint16)iPort, &TlsConfig, &DialConfig, &Events, &Example,
+				exampleTlsDialDone, &Example);
 ```
-
-
 ### `xrtTlsDialAsync`
 
 以 Future 接收完成握手的 TLS Stream；`Open` 先于成功终态发布。Future 持有一个 Stream 引用，取消请求协作终止当前阶段。
@@ -3346,6 +3431,7 @@ xfuture* xrtTlsDialAsync(
 ```
 
 
+
 ### `xrtTlsDialRef`
 
 增加 TLS Dial 引用并返回原指针。
@@ -3380,6 +3466,7 @@ xtlsdial* xrtTlsDialRef(xtlsdial* pDial);
 ```
 
 
+
 ### `xrtTlsDialDestroy`
 
 释放 TLS Dial 引用；空指针视为空操作。
@@ -3411,6 +3498,7 @@ void xrtTlsDialDestroy(xtlsdial* pDial);
 ```c
 	xrtTlsDialDestroy(pDial);
 ```
+
 
 
 ### `xrtTlsDialCancel`
@@ -3447,6 +3535,7 @@ bool xrtTlsDialCancel(xtlsdial* pDial);
 ```
 
 
+
 ### `xrtTlsDialState`
 
 返回当前拨号阶段或不可变终态。
@@ -3481,6 +3570,7 @@ xtlsdialstate xrtTlsDialState(const xtlsdial* pDial);
 ```
 
 
+
 ### `xrtTlsDialError`
 
 失败或取消后借用完整错误原因链。
@@ -3513,6 +3603,7 @@ const xerror* xrtTlsDialError(const xtlsdial* pDial);
 ```c
 		xrtTlsDialError(pDial) == NULL ? "(none)" : "err");
 ```
+
 
 
 ### `xrtTlsDialTransportStats`
@@ -3554,6 +3645,7 @@ bool xrtTlsDialTransportStats(
 
 
 
+
 ## TLS Stream
 
 TLS Stream 组合 TCP 传输与 TLS 会话为单一明文接口：Worker 专用同步收发（Send/Buffer/Pullup/Read/Consume）与任意线程 Future 收发（SendAsync/RecvAsync/WaitAsync）双模型。
@@ -3591,6 +3683,7 @@ void xrtTlsStreamConfigInit(xtlsstreamconfig* pConfig);
 ```c
 	xrtTlsStreamConfigInit(&Example.StreamConfig);
 ```
+
 
 
 ### `xrtTlsStreamConnect`
@@ -3644,6 +3737,7 @@ xtlsstream* xrtTlsStreamConnect(
 ```
 
 
+
 ### `xrtTlsStreamAttach`
 
 在已公开的 TCP Stream 所属 Worker 上接管 Transport 和 Session；失败时所有权与事件均保持不变、输出清空。
@@ -3693,6 +3787,7 @@ bool xrtTlsStreamAttach(
 ```
 
 
+
 ### `xrtTlsStreamClient`
 
 在已连接 TCP Stream 上创建 TLS 客户端；适用于代理隧道、STARTTLS 和自定义拨号，成功时接管 Transport 引用。
@@ -3738,6 +3833,7 @@ bool xrtTlsStreamClient(
 ```c
 		pTask->bOk = xrtTlsStreamClient(pTask->pTcp,
 ```
+
 
 
 ### `xrtTlsStreamAccept`
@@ -3791,6 +3887,7 @@ bool xrtTlsStreamAccept(
 ```
 
 
+
 ### 生命周期与查询
 
 ### `xrtTlsStreamRef`
@@ -3829,6 +3926,7 @@ xtlsstream* xrtTlsStreamRef(xtlsstream* pStream);
 ```
 
 
+
 ### `xrtTlsStreamDestroy`
 
 释放 TLS Stream 引用；关闭必须另行请求。
@@ -3860,6 +3958,7 @@ void xrtTlsStreamDestroy(xtlsstream* pStream);
 ```c
 		xrtTlsStreamDestroy(pStream);
 ```
+
 
 
 ### `xrtTlsStreamSetEvents`
@@ -3896,13 +3995,12 @@ bool xrtTlsStreamSetEvents(
 
 #### 范例
 
-[tls/stream_tour · 协议升级](../../examples/tls/stream_tour/main.c) · 观察
+参见已注册的 [examples/tls/stream_tour/main.c](../../examples/tls/stream_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-	pTask->bOk = xrtTlsStreamSetEvents(pTask->pStream,
+xrtTlsStreamSetEvents(pStream,
+		&g_SwappedEvents, pClient);
 ```
-
-
 ### `xrtTlsStreamState`
 
 返回组合 Stream 状态的并发快照。
@@ -3935,6 +4033,7 @@ xtlsstreamstate xrtTlsStreamState(const xtlsstream* pStream);
 ```c
 					xrtTlsStreamState(Streams[i]);
 ```
+
 
 
 ### `xrtTlsStreamTransport`
@@ -3971,6 +4070,7 @@ xnetstream* xrtTlsStreamTransport(const xtlsstream* pStream);
 ```
 
 
+
 ### `xrtTlsStreamSession`
 
 在所属 Worker 上借用协议会话，供 ALPN、票据等高级查询。
@@ -4003,6 +4103,7 @@ xtlssession* xrtTlsStreamSession(xtlsstream* pStream);
 ```c
 	pClient->bSessionOk = xrtTlsStreamSession(pStream) != NULL;
 ```
+
 
 
 ### `xrtTlsStreamData`
@@ -4039,6 +4140,7 @@ ptr xrtTlsStreamData(const xtlsstream* pStream);
 ```
 
 
+
 ### `xrtTlsStreamError`
 
 终态失败时借用保存的 TLS 或传输根因。
@@ -4073,6 +4175,7 @@ const xerror* xrtTlsStreamError(const xtlsstream* pStream);
 ```
 
 
+
 ### `xrtTlsStreamPending`
 
 返回 TLS 密文暂存与底层 TCP 队列的总待发字节并发快照。
@@ -4105,6 +4208,7 @@ size_t xrtTlsStreamPending(const xtlsstream* pStream);
 ```c
 	while ( xrtTlsStreamPending(pClientB) != 0u ) {
 ```
+
 
 
 ### Worker 专用收发
@@ -4154,6 +4258,7 @@ xtlsresult xrtTlsStreamSend(
 ```
 
 
+
 ### `xrtTlsStreamSendVec`
 
 在所属 Worker 上依次编码明文片段；返回跨片段的连续受理前缀。
@@ -4199,6 +4304,7 @@ xtlsresult xrtTlsStreamSendVec(
 ```
 
 
+
 ### `xrtTlsStreamSendBound`
 
 在所属 Worker 上返回一次明文发送的精确密文线路字节数（含记录头/nonce/标签）；失败不修改 `pBound`。
@@ -4240,6 +4346,7 @@ bool xrtTlsStreamSendBound(
 ```
 
 
+
 ### `xrtTlsStreamAvailable`
 
 返回当前待应用消费明文字节数的并发快照。
@@ -4272,6 +4379,7 @@ size_t xrtTlsStreamAvailable(const xtlsstream* pStream);
 ```c
 	while ( xrtTlsStreamAvailable(pStream) >= 3u ) {
 ```
+
 
 
 ### `xrtTlsStreamBuffer`
@@ -4307,6 +4415,7 @@ const xnetbuf* xrtTlsStreamBuffer(xtlsstream* pStream);
 ```c
 		const xnetbuf* pBuffer = xrtTlsStreamBuffer(pStream);
 ```
+
 
 
 ### `xrtTlsStreamPullup`
@@ -4351,6 +4460,7 @@ bool xrtTlsStreamPullup(
 ```
 
 
+
 ### `xrtTlsStreamReadMore`
 
 在 Read 回调保留现有明文时请求继续解密；累积受 PlainLimit 硬约束，重复请求幂等。
@@ -4384,6 +4494,7 @@ bool xrtTlsStreamReadMore(xtlsstream* pStream);
 ```c
 	pClient->bReadMore = xrtTlsStreamReadMore(pStream);
 ```
+
 
 
 ### `xrtTlsStreamRead`
@@ -4431,6 +4542,7 @@ xtlsresult xrtTlsStreamRead(
 ```
 
 
+
 ### `xrtTlsStreamConsume`
 
 在所属 Worker 上安全消费精确数量的明文。
@@ -4466,6 +4578,7 @@ bool xrtTlsStreamConsume(xtlsstream* pStream, size_t iSize);
 ```c
 		if ( !xrtTlsStreamConsume(pStream, 1u) ) {
 ```
+
 
 
 ### 关闭
@@ -4505,6 +4618,7 @@ bool xrtTlsStreamClose(xtlsstream* pStream);
 ```
 
 
+
 ### `xrtTlsStreamAbort`
 
 立即中止：不发送 close_notify，直接丢弃在途状态并触发底层 TCP 复位语义。
@@ -4538,6 +4652,7 @@ bool xrtTlsStreamAbort(xtlsstream* pStream);
 ```c
 			(void)xrtTlsStreamAbort(pStream);
 ```
+
 
 
 ### 异步观测与 Future 收发
@@ -4576,6 +4691,7 @@ size_t xrtTlsStreamAsyncBytes(const xtlsstream* pStream);
 ```
 
 
+
 ### `xrtTlsStreamAsyncCount`
 
 返回异步发送、接收和条件等待的合计操作数。
@@ -4608,6 +4724,7 @@ uint32 xrtTlsStreamAsyncCount(const xtlsstream* pStream);
 ```c
 	(void)xrtTlsStreamAsyncCount(pClientA);
 ```
+
 
 
 ### `xrtTlsStreamWaitAsync`
@@ -4651,6 +4768,7 @@ xfuture* xrtTlsStreamWaitAsync(
 ```
 
 
+
 ### `xrtTlsStreamRecvAsync`
 
 在拉取模式下复制并消费当前可用明文；成功值是由 Future 持有的 `xnetbytes`。
@@ -4690,6 +4808,7 @@ xfuture* xrtTlsStreamRecvAsync(
 		64u * 1024u
 	);
 ```
+
 
 
 ### `xrtTlsStreamSendAsync`
@@ -4736,6 +4855,7 @@ xfuture* xrtTlsStreamSendAsync(
 ```
 
 
+
 ### `xrtTlsStreamSendVecAsync`
 
 从任意线程复制片段并按 FIFO 提交为一段连续明文；全部片段在返回前完成校验和复制，失败不发布部分操作。
@@ -4774,6 +4894,7 @@ xfuture* xrtTlsStreamSendVecAsync(
 ```c
 	pSendFuture = xrtTlsStreamSendVecAsync(pClientB, AsyncVec, 2);
 ```
+
 
 
 
@@ -5024,3 +5145,1364 @@ Data/Source 槽并归还引用。支持不同 Finish 顺序和重复 Finish。
 
 `future_debug_tests` 包含模块化/单头的实际分配账本、完整 OOM 前缀、并发改名、
 独立副本及 Watch 计数；已有 ownership adapter 环测试增加命名叶状态与 Clear 拒绝。
+
+### `xrtFutureAllMapOwnedPolicyV1`
+
+```c
+xfuture* xrtFutureAllMapOwnedPolicyV1(xfuture* const* pFutures, size_t iCount, ptr pData, const xfuturecombineownershipv1* pPolicy);
+```
+
+在接受任务前选择常驻拥有型策略；拒绝时不消费输入上下文。成功时遵守同族接口的映射、取消和释放顺序。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pFutures` | `xfuture* const*` | 输入 Future 数组，重复元素保留顺序和独立输入槽。 |
+| `iCount` | `size_t` | 输入数组元素数。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pPolicy` | `const xfuturecombineownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+成功交付调用方拥有的 Future 引用；提交或准备失败返回 NULL，尚未接受的数据仍归调用方。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureAllMapOwnedTraced`
+
+```c
+xfuture* xrtFutureAllMapOwnedTraced(xfuture* const* pFutures, size_t iCount, xfutureallmapproc pMap, ptr pData, xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace);
+```
+
+All preparation succeeds before source notification/cancellation is possible.
+NULL return does not consume data, invoke map/destroy/trace, or cancel inputs.
+Non-NULL accepts data even if synchronous mapping fails: that failure is the
+returned Future's outcome. Destroy(data, destroyData) runs exactly once after
+mapping or cancellation and after the last source callback returns.
+Trace(data, destroyData) describes the exact strong slots Destroy releases;
+callbacks/code and borrowed pointers are not fictitious owning edges.
+Destroy and Trace are required, including for an empty context. The caller
+still supplies whole-graph quiescence and callback/code residency.
+Any/All/Race retain their existing selection/order/cancellation contracts.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pFutures` | `xfuture* const*` | 输入 Future 数组，重复元素保留顺序和独立输入槽。 |
+| `iCount` | `size_t` | 输入数组元素数。 |
+| `pMap` | `xfutureallmapproc` | 映射回调，及其代码必须覆盖已接受工作的整个生存期。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pDestroy` | `xfuturefreeproc` | 已接受上下文的释放回调；不在提交失败时消费调用方数据。 |
+| `pDestroyData` | `ptr` | 释放回调上下文；Trace 必须描述它实际释放的所有权槽。 |
+| `pTrace` | `xfutureownershiptrace` | 精确枚举实际强引用槽的回调；不能把借用指针或代码指针当成所有权边。 |
+
+#### 返回值
+
+成功交付调用方拥有的 Future 引用；提交或准备失败返回 NULL，尚未接受的数据仍归调用方。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureAnyMapOwnedPolicyV1`
+
+```c
+xfuture* xrtFutureAnyMapOwnedPolicyV1(xfuture* const* pFutures, size_t iCount, ptr pData, const xfuturecombineownershipv1* pPolicy);
+```
+
+在接受任务前选择常驻拥有型策略；拒绝时不消费输入上下文。成功时遵守同族接口的映射、取消和释放顺序。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pFutures` | `xfuture* const*` | 输入 Future 数组，重复元素保留顺序和独立输入槽。 |
+| `iCount` | `size_t` | 输入数组元素数。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pPolicy` | `const xfuturecombineownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+成功交付调用方拥有的 Future 引用；提交或准备失败返回 NULL，尚未接受的数据仍归调用方。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureAnyMapOwnedTraced`
+
+```c
+xfuture* xrtFutureAnyMapOwnedTraced(xfuture* const* pFutures, size_t iCount, xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace);
+```
+
+在接受工作前绑定精确枚举拥有槽的 Trace，与实际 Destroy 释放的引用一致。失败不消费输入，成功后保留同族选择和取消语义。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pFutures` | `xfuture* const*` | 输入 Future 数组，重复元素保留顺序和独立输入槽。 |
+| `iCount` | `size_t` | 输入数组元素数。 |
+| `pMap` | `xfuturepickmapproc` | 映射回调，及其代码必须覆盖已接受工作的整个生存期。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pDestroy` | `xfuturefreeproc` | 已接受上下文的释放回调；不在提交失败时消费调用方数据。 |
+| `pDestroyData` | `ptr` | 释放回调上下文；Trace 必须描述它实际释放的所有权槽。 |
+| `pTrace` | `xfutureownershiptrace` | 精确枚举实际强引用槽的回调；不能把借用指针或代码指针当成所有权边。 |
+
+#### 返回值
+
+成功交付调用方拥有的 Future 引用；提交或准备失败返回 NULL，尚未接受的数据仍归调用方。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureBridgeWatchOwnedV1`
+
+```c
+bool xrtFutureBridgeWatchOwnedV1(xfuturebridge* pBridge, ptr pData, const xcancelwatchownershipv1* pPolicy);
+```
+
+Same bridge storage and setup protocol; success consumes one real Data
+reference under the explicit resident cancel policy, failure consumes none.
+Notify/Drop and Unwatch waits run outside bridge-owned mutation scopes.
+The embedding owner coordinates its own activity, RC and code residency.
+As with the legacy bridge, mutating calls are owner-serialized; only Wait
+observes setup concurrently. Reentrant installation/unlink is rejected.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pBridge` | `xfuturebridge*` | 借用的 xfuturebridge* 对象或调用方结果槽，按上述操作契约使用。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pPolicy` | `const xcancelwatchownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureBridgeWatchOwnershipV1`
+
+```c
+bool xrtFutureBridgeWatchOwnershipV1(const xfuturebridge* pBridge, xrtownershipref* pReference);
+```
+
+Read-only under whole-graph freeze: the ONE actual owned Watch, never the
+borrowed Promise or a synthetic bridge node. Installation, unlink, unpublished
+setup and a live legacy borrowed-data Watch refuse without modifying output
+or diagnostics. A successful empty reference means no owned registration.
+The owner must separately trace its real Promise and independently admit
+Watch/context policy identities; this view is not lifecycle certification.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pBridge` | `const xfuturebridge*` | 借用的 const xfuturebridge* 对象或调用方结果槽，按上述操作契约使用。 |
+| `pReference` | `xrtownershipref*` | 借用的 xrtownershipref* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureCombineAllPayloadPolicyV1Get`
+
+```c
+const xfuturepayloadownershipv1* xrtFutureCombineAllPayloadPolicyV1Get(void);
+```
+
+返回该库实例的常驻、不可变策略描述。策略覆盖真实拥有槽，调用方仍须独立准入每个子节点并保证回调代码驻留。
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+借用的常驻策略指针，不释放、不修改。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureCombineCancelPolicyV1Get`
+
+```c
+const xcancelwatchownershipv1* xrtFutureCombineCancelPolicyV1Get(void);
+```
+
+返回该库实例的常驻、不可变策略描述。策略覆盖真实拥有槽，调用方仍须独立准入每个子节点并保证回调代码驻留。
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+借用的常驻策略指针，不释放、不修改。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureCombineOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtFutureCombineOwnershipAdapterV1(xrtownershipref Reference, const xfuturecombineownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+在调用方提供的全图冻结下，按精确描述符与策略身份查询生命周期适配器；未认证、活动或不稳定对象返回 NULL。返回描述符为借用，不能绕过子节点的独立准入。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pPolicies` | `const xfuturecombineownershipv1* const*` | 调用方认可的常驻、不可变策略指针白名单；按真实指针身份匹配。 |
+| `iPolicyCount` | `size_t` | 策略白名单元素数，零表示没有显式授权策略。 |
+| `ppPreparation` | `const xrtownershippreparationv1**` | 成功时交付语义准备协议；失败不修改。必须与生命周期适配器配套使用。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureCombinePickPayloadPolicyV1Get`
+
+```c
+const xfuturepayloadownershipv1* xrtFutureCombinePickPayloadPolicyV1Get(void);
+```
+
+返回该库实例的常驻、不可变策略描述。策略覆盖真实拥有槽，调用方仍须独立准入每个子节点并保证回调代码驻留。
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+借用的常驻策略指针，不释放、不修改。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureCombineProducerPolicyV1Get`
+
+```c
+const xfutureproducerownershipv1* xrtFutureCombineProducerPolicyV1Get(void);
+```
+
+These exact resident policies describe real producer, source-registration,
+cancellation and raw-result references. Their presence does not admit the
+group or its Data: the collector independently resolves every node.
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+借用的常驻策略指针，不释放、不修改。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureCombineWaitV1`
+
+```c
+bool xrtFutureCombineWaitV1(xrtownershipref Reference, const void* pToken, xfuturecombinewaitv1* pWait);
+```
+
+Borrowed semantic input slots, not arbitrary capture edges. The complete
+physical graph must be frozen and claimed unreachable by the same token.
+Only a stable pending group with real pending registrations is described;
+all completed slots are retained in order, including duplicates. ALL needs
+every input terminal; ANY/RACE need one, with Race alone cancelling losers.
+Output stays unchanged on refusal. This read-only fact is not cancellation
+authority, a deadlock proof, or permission to skip normal callbacks.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pToken` | `const void*` | 冻结并声明不可达图时使用的同一个独占 claim token。 |
+| `pWait` | `xfuturecombinewaitv1*` | 成功时交付组合输入等待关系；不授予取消或跳过回调的权限。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureCombineWatchPolicyV2Get`
+
+```c
+const xfuturewatchownershipv2* xrtFutureCombineWatchPolicyV2Get(void);
+```
+
+返回组合 Future 的真实 source Watch 策略，包含生命周期和语义准备；它不认证任意映射上下文。
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+借用的常驻策略指针，不释放、不修改。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureDebugNameCopy`
+
+```c
+bool xrtFutureDebugNameCopy(xfuture* pFuture, xstrview* pOutput);
+```
+
+Return an owned, byte-exact, NUL-terminated copy. Free Output.Data with
+xrtFree. Embedded NUL is data. Failure leaves Output unchanged. Keep an
+actual Future reference during this call, not for the returned copy.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pFuture` | `xfuture*` | 借用的 xfuture* 对象或调用方结果槽，按上述操作契约使用。 |
+| `pOutput` | `xstrview*` | 调用方输出槽；具体拥有型结果按下述契约释放。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureDebugSetNameN`
+
+```c
+bool xrtFutureDebugSetNameN(xfuture* pFuture, cstr Name, size_t Size);
+```
+
+Copy exactly Size bytes, including embedded NUL. (NULL,0) sets empty.
+Preparation failure preserves the current name and observation state.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pFuture` | `xfuture*` | 借用的 xfuture* 对象或调用方结果槽，按上述操作契约使用。 |
+| `Name` | `cstr` | 要复制的名字字节；允许内嵌 NUL，空名字可用 NULL、零长度。 |
+| `Size` | `size_t` | 精确字节长度，不靠终止 NUL 计算。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureDebugSnapshot`
+
+```c
+bool xrtFutureDebugSnapshot(xfuture* pFuture, xfuturedebugsnapshot* pOutput);
+```
+
+读取一致的 Future 状态与调试计数，不消费结果、不调用用户映射或释放回调。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pFuture` | `xfuture*` | 借用的 xfuture* 对象或调用方结果槽，按上述操作契约使用。 |
+| `pOutput` | `xfuturedebugsnapshot*` | 调用方输出槽；具体拥有型结果按下述契约释放。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureOwnership`
+
+```c
+xrtownershipref xrtFutureOwnership(const xfuture* pFuture);
+```
+
+Borrowed views of the SAME physical control block: every FutureRef and
+PromiseRef owns one reference. Do not invent a second Promise node.
+Trace includes cancellation parents, error causes, forwarded source and
+explicitly described owned payload/context. Unknown owned payloads and
+registered waiters fail closed unless their complete adapters are supplied.
+Pending with no waiters is inspectable; producer references remain roots.
+Whole-graph quiescence through any later commit and callback code residency
+remain the caller's responsibility; this API does not establish either.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pFuture` | `const xfuture*` | 借用的 const xfuture* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtFutureOwnershipAdapterV1(xrtownershipref Reference, const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount);
+```
+
+Query under whole-graph freeze before Count/Trace. Pending, forwarded and
+terminal control blocks share one physical adapter. Completing operations,
+all registered waiters, unrecognized owned policies and observed cancel
+tokens are refused without invoking any payload/waiter trace. An empty
+allowlist admits only results without an owned payload. Pending retirement
+preserves last-producer CLOSED/cancellation semantics at Clear, without
+notification. Finish releases actual retired slots outside freeze.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pPolicies` | `const xfuturepayloadownershipv1* const*` | 调用方认可的常驻、不可变策略指针白名单；按真实指针身份匹配。 |
+| `iPolicyCount` | `size_t` | 策略白名单元素数，零表示没有显式授权策略。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureOwnershipAdapterV2`
+
+```c
+const xrtownershipadapterv1* xrtFutureOwnershipAdapterV2(xrtownershipref Reference, const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount, const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount);
+```
+
+Add an explicit producer-policy allowlist. V1 continues to refuse any live
+producer edge. Neither entry admits registered waiters or an unknown child;
+identity is matched before reading a policy or invoking any child callback.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pPolicies` | `const xfuturepayloadownershipv1* const*` | 调用方认可的常驻、不可变策略指针白名单；按真实指针身份匹配。 |
+| `iPolicyCount` | `size_t` | 策略白名单元素数，零表示没有显式授权策略。 |
+| `pProducerPolicies` | `const xfutureproducerownershipv1* const*` | 真实 producer 边的策略白名单。 |
+| `iProducerPolicyCount` | `size_t` | producer 策略数量。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureOwnershipAdapterV3`
+
+```c
+const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref Reference, const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount, const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount, const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+V3 additionally admits exact Watch policies and returns mandatory semantic
+preparation alongside the SAME lifecycle adapter. Before object Finalize,
+prepare producerless pending sources through normal CLOSED notification,
+then rebuild the whole graph. Produced results defer to their real producer;
+never close an intermediate result before its source's catch/finally runs.
+Closed dependency cycles may require a further explicit shutdown protocol;
+BUSY does not authorize clearing a live Watch or skipping accepted work.
+Output is unchanged on refusal. Use both descriptors, never V1-only planning.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pPolicies` | `const xfuturepayloadownershipv1* const*` | 调用方认可的常驻、不可变策略指针白名单；按真实指针身份匹配。 |
+| `iPolicyCount` | `size_t` | 策略白名单元素数，零表示没有显式授权策略。 |
+| `pProducerPolicies` | `const xfutureproducerownershipv1* const*` | 真实 producer 边的策略白名单。 |
+| `iProducerPolicyCount` | `size_t` | producer 策略数量。 |
+| `pWatchPolicies` | `const xfuturewatchownershipv1* const*` | 已认证 Watch 策略白名单。 |
+| `iWatchPolicyCount` | `size_t` | Watch 策略数量。 |
+| `ppPreparation` | `const xrtownershippreparationv1**` | 成功时交付语义准备协议；失败不修改。必须与生命周期适配器配套使用。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureOwnershipAdapterV4`
+
+```c
+const xrtownershipadapterv1* xrtFutureOwnershipAdapterV4(xrtownershipref Reference, const xfutureownershipadmissionv1* pAdmission, const xrtownershippreparationv1** ppPreparation);
+```
+
+在调用方提供的全图冻结下，按精确描述符与策略身份查询生命周期适配器；未认证、活动或不稳定对象返回 NULL。返回描述符为借用，不能绕过子节点的独立准入。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pAdmission` | `const xfutureownershipadmissionv1*` | 包含 payload、producer 和 Watch 授权的不可变准入描述。 |
+| `ppPreparation` | `const xrtownershippreparationv1**` | 成功时交付语义准备协议；失败不修改。必须与生命周期适配器配套使用。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureRaceMapOwnedPolicyV1`
+
+```c
+xfuture* xrtFutureRaceMapOwnedPolicyV1(xfuture* const* pFutures, size_t iCount, ptr pData, const xfuturecombineownershipv1* pPolicy);
+```
+
+在接受任务前选择常驻拥有型策略；拒绝时不消费输入上下文。成功时遵守同族接口的映射、取消和释放顺序。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pFutures` | `xfuture* const*` | 输入 Future 数组，重复元素保留顺序和独立输入槽。 |
+| `iCount` | `size_t` | 输入数组元素数。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pPolicy` | `const xfuturecombineownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+成功交付调用方拥有的 Future 引用；提交或准备失败返回 NULL，尚未接受的数据仍归调用方。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureRaceMapOwnedTraced`
+
+```c
+xfuture* xrtFutureRaceMapOwnedTraced(xfuture* const* pFutures, size_t iCount, xfuturepickmapproc pMap, ptr pData, xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace);
+```
+
+在接受工作前绑定精确枚举拥有槽的 Trace，与实际 Destroy 释放的引用一致。失败不消费输入，成功后保留同族选择和取消语义。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pFutures` | `xfuture* const*` | 输入 Future 数组，重复元素保留顺序和独立输入槽。 |
+| `iCount` | `size_t` | 输入数组元素数。 |
+| `pMap` | `xfuturepickmapproc` | 映射回调，及其代码必须覆盖已接受工作的整个生存期。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pDestroy` | `xfuturefreeproc` | 已接受上下文的释放回调；不在提交失败时消费调用方数据。 |
+| `pDestroyData` | `ptr` | 释放回调上下文；Trace 必须描述它实际释放的所有权槽。 |
+| `pTrace` | `xfutureownershiptrace` | 精确枚举实际强引用槽的回调；不能把借用指针或代码指针当成所有权边。 |
+
+#### 返回值
+
+成功交付调用方拥有的 Future 引用；提交或准备失败返回 NULL，尚未接受的数据仍归调用方。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureWatchInitOwnershipV1`
+
+```c
+bool xrtFutureWatchInitOwnershipV1(xfuturewatch* pWatch, ptr pData, const xfuturewatchownershipv1* pPolicy);
+```
+
+Preserve 64-byte Watch storage and READY/PENDING/ERROR ownership rules.
+Initialization alone does not consume Data; registration commits the same
+caller-owned reference that Release returns. READY is still caller-driven.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pWatch` | `xfuturewatch*` | 有效注册；必须与派发、解绑和销毁串行。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pPolicy` | `const xfuturewatchownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureWatchInitOwnershipV2`
+
+```c
+bool xrtFutureWatchInitOwnershipV2(xfuturewatch* pWatch, ptr pData, const xfuturewatchownershipv2* pPolicy);
+```
+
+Same 64-byte storage and ERROR/READY/PENDING transfer rules as V1. No
+projection is invoked by initialization or adapter admission.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pWatch` | `xfuturewatch*` | 有效注册；必须与派发、解绑和销毁串行。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pPolicy` | `const xfuturewatchownershipv2*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureWatchInitPhased`
+
+```c
+bool xrtFutureWatchInitPhased(xfuturewatch* pWatch, xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData, xrtownershiptrace pTrace);
+```
+
+Explicit cooperative callback admission, not inferred from a Trace callback.
+Like InitTraced, but Notify/Release run outside the Future mutation domain.
+The resident callbacks must coordinate every count/edge/storage transition,
+reject inspection of active/private data, and independently pin their code.
+Detached notification/release callers retain their real ownership until the
+callback returns. No mutation scope may span a wait or arbitrary callback.
+Unphased Watch, internal waiters and payload finalizers keep conservative
+mutation scopes. Storage size, READY/PENDING/ERROR and release rules match
+InitTraced; READY still leaves Notify/Release to the registering caller.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pWatch` | `xfuturewatch*` | 有效注册；必须与派发、解绑和销毁串行。 |
+| `pNotify` | `xfuturewatchproc` | 借用的 xfuturewatchproc 对象或调用方结果槽，按上述操作契约使用。 |
+| `pRelease` | `xfuturewatchreleaseproc` | 上下文释放回调；在实际最后一份拥有关系结束后调用。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pTrace` | `xrtownershiptrace` | 精确枚举实际强引用槽的回调；不能把借用指针或代码指针当成所有权边。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFutureWatchInitTraced`
+
+```c
+bool xrtFutureWatchInitTraced(xfuturewatch* pWatch, xfuturewatchproc pNotify, xfuturewatchreleaseproc pRelease, ptr pData, xrtownershiptrace pTrace);
+```
+
+Initialize with an immutable description of the strong slots released by
+pRelease(pData). Both callbacks are required. Unique context storage is
+folded into the Future's edges; shared state is a physical node. Init is
+allocation-free and consumes nothing; only WatchAdd(PENDING) transfers the
+registration/release right. READY and ERROR keep it with the caller.
+Storage size and old Init semantics are unchanged. A linked adapter may be
+inspected only at a whole-graph quiescent point with callback code resident;
+this does not establish a safepoint or permit concurrent frame inspection.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pWatch` | `xfuturewatch*` | 有效注册；必须与派发、解绑和销毁串行。 |
+| `pNotify` | `xfuturewatchproc` | 借用的 xfuturewatchproc 对象或调用方结果槽，按上述操作契约使用。 |
+| `pRelease` | `xfuturewatchreleaseproc` | 上下文释放回调；在实际最后一份拥有关系结束后调用。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pTrace` | `xrtownershiptrace` | 精确枚举实际强引用槽的回调；不能把借用指针或代码指针当成所有权边。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPromiseOwnership`
+
+```c
+xrtownershipref xrtPromiseOwnership(const xpromise* pPromise);
+```
+
+Promise 与 Future 引用指向同一个物理控制块，不能凭两个视图制造第二个节点。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pPromise` | `const xpromise*` | 借用的 const xpromise* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPromiseProducerBindTakeV1`
+
+```c
+bool xrtPromiseProducerBindTakeV1(xpromise* pPromise, xrtownershipref Producer, const xfutureproducerownershipv1* pPolicy);
+```
+
+Bind once to a private, pending, newly created Future/Promise pair (one
+reference per endpoint, no waiters). No allocation or user callback.
+Success consumes ONE existing Producer reference; failure consumes nothing.
+The result traces that real edge until terminal publication detaches it;
+completion releases it exactly once outside lock/mutation before notifying
+the result's waiters. Merely dropping a Future observer does not cancel work.
+The caller keeps an independent activation/registration reference until
+its own callback and release tails finish. An enclosing caller-owned scope
+is never suspended. A trace-only or unknown policy is not collection proof.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pPromise` | `xpromise*` | 借用的 xpromise* 对象或调用方结果槽，按上述操作契约使用。 |
+| `Producer` | `xrtownershipref` | xrtownershipref 值；约束与效果见上述操作契约。 |
+| `pPolicy` | `const xfutureproducerownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPromiseProducerBindTakeV2`
+
+```c
+bool xrtPromiseProducerBindTakeV2(xpromise* pPromise, xrtownershipref Producer, const xfutureproducerownershipv1* pPolicy, const xfutureproducercancellationv1* pCancellation);
+```
+
+Same bind-once/private-pair/transfer rules as V1. The cancellation capability
+belongs to that exact producer. xrtFutureCancel requests its output token,
+then calls Request only for the first accepted explicit request. Terminal
+publication may race Request; the independently retained producer decides
+whether any activation remains. Merely dropping an observer still does not
+cancel work. Raw token requests and PromiseClose are not routed through it.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pPromise` | `xpromise*` | 借用的 xpromise* 对象或调用方结果槽，按上述操作契约使用。 |
+| `Producer` | `xrtownershipref` | xrtownershipref 值；约束与效果见上述操作契约。 |
+| `pPolicy` | `const xfutureproducerownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+| `pCancellation` | `const xfutureproducercancellationv1*` | 借用的 const xfutureproducercancellationv1* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPromiseResolveOwnedPolicyV1`
+
+```c
+bool xrtPromiseResolveOwnedPolicyV1(xpromise* pPromise, ptr pValue, const xfuturepayloadownershipv1* pPolicy);
+```
+
+Publish an explicitly certified owned result atomically. Failure does not
+consume the box. This does not authorize collection by itself: a resolver
+must recognize the exact policy identity and independently admit children.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pPromise` | `xpromise*` | 借用的 xpromise* 对象或调用方结果槽，按上述操作契约使用。 |
+| `pValue` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pPolicy` | `const xfuturepayloadownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtPromiseResolveOwnedTraced`
+
+```c
+bool xrtPromiseResolveOwnedTraced(xpromise* pPromise, ptr pValue, xfuturefreeproc pDestroy, ptr pDestroyData, xfutureownershiptrace pTrace);
+```
+
+Atomically publish value, destructor, context and non-NULL ownership trace.
+Success transfers the same ownership as ResolveOwned. Failure (including
+duplicate completion) transfers nothing and never calls Destroy/Trace.
+The immutable trace and destructor remain resident for the result lifetime;
+trace follows the read-only xrtOwnershipInspect callback contract.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pPromise` | `xpromise*` | 借用的 xpromise* 对象或调用方结果槽，按上述操作契约使用。 |
+| `pValue` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pDestroy` | `xfuturefreeproc` | 已接受上下文的释放回调；不在提交失败时消费调用方数据。 |
+| `pDestroyData` | `ptr` | 释放回调上下文；Trace 必须描述它实际释放的所有权槽。 |
+| `pTrace` | `xfutureownershiptrace` | 精确枚举实际强引用槽的回调；不能把借用指针或代码指针当成所有权边。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/future/main.c](../../examples/concurrency/future/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xfutureallmapproc`
+
+All 组合的映射入口；输入结果按原始顺序提供，重复输入保留，输出值按 payload 生命周期交付。
+
+```c
+typedef void (*xfutureallmapproc)(const xfutureall* pInput, xpromise* pOutput, ptr pData);
+```
+
+
+### `xfuturecombineownershipv1`
+
+认证组合映射上下文的不可变策略。映射与释放必须对应真实 Data 引用，不认证任意捕获或子节点。
+
+```c
+typedef struct xfuturecombineownershipv1 {
+	size_t size;
+	xfutureallmapproc AllMap;
+	xfuturepickmapproc PickMap;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xfuturecombineownershipv1;
+```
+
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `AllMap` | `xfutureallmapproc` | All 的有序结果映射入口。 |
+| `PickMap` | `xfuturepickmapproc` | Any/Race 的选中输入映射入口。 |
+| `Ops` | `const xrtownershipops*` | 同一物理 Data 节点的计数和真实边枚举操作表。 |
+
+### `xfuturecombinewaitv1`
+
+只读语义等待事实，包括原序输入与等待规则。必须在同 token 的冻结不可达声明下读取，不能据此取消输入。
+
+```c
+typedef struct xfuturecombinewaitv1 {
+	size_t size;
+	xpromise* Output;
+	xfuture* const* Sources;
+	size_t Count;
+	xfuturewaitrulev1 Rule;
+	bool CancelRemaining;
+} xfuturecombinewaitv1;
+```
+
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `Output` | `xpromise*` | `Output` 的 xpromise* 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `Sources` | `xfuture* const*` | `Sources` 的 xfuture* const* 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `Count` | `size_t` | `Count` 的 size_t 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `Rule` | `xfuturewaitrulev1` | `Rule` 的 xfuturewaitrulev1 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `CancelRemaining` | `bool` | `CancelRemaining` 的 bool 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+
+### `xfuturedebugsnapshot`
+
+一致的 Future 调试状态及计数快照；名字另由 NameCopy 取得拥有型字节副本。
+
+```c
+typedef struct xfuturedebugsnapshot {
+	xtime FirstObserved;
+	xtime FirstTerminalObserved;
+	size_t PendingWatches;
+} xfuturedebugsnapshot;
+```
+
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `FirstObserved` | `xtime` | `FirstObserved` 的 xtime 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `FirstTerminalObserved` | `xtime` | `FirstTerminalObserved` 的 xtime 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `PendingWatches` | `size_t` | `PendingWatches` 的 size_t 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+
+### `xfutureownershipadmissionv1`
+
+V4 的 payload、producer、Watch 及取消能力准入集合。列表按指针身份匹配，策略及回调代码必须常驻。
+
+```c
+typedef struct xfutureownershipadmissionv1 {
+	size_t size;
+	const xfuturepayloadownershipv1* const* PayloadPolicies;
+	size_t PayloadPolicyCount;
+	const xfutureproducerownershipv1* const* ProducerPolicies;
+	size_t ProducerPolicyCount;
+	const xfuturewatchownershipv1* const* WatchPolicies;
+	size_t WatchPolicyCount;
+	const xfuturewatchownershipv2* const* ProjectedWatchPolicies;
+	size_t ProjectedWatchPolicyCount;
+	const xcancelwatchownershipv1* const* CancelWatchPolicies;
+	size_t CancelWatchPolicyCount;
+} xfutureownershipadmissionv1;
+```
+
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `PayloadPolicies` | `const xfuturepayloadownershipv1* const*` | payload 策略白名单，按精确身份匹配。 |
+| `PayloadPolicyCount` | `size_t` | payload 策略白名单元素数。 |
+| `ProducerPolicies` | `const xfutureproducerownershipv1* const*` | producer 策略白名单。 |
+| `ProducerPolicyCount` | `size_t` | producer 策略数量。 |
+| `WatchPolicies` | `const xfuturewatchownershipv1* const*` | 真实注册 Watch 的策略白名单。 |
+| `WatchPolicyCount` | `size_t` | Watch 策略数量。 |
+| `ProjectedWatchPolicies` | `const xfuturewatchownershipv2* const*` | `ProjectedWatchPolicies` 的 const xfuturewatchownershipv2* const* 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `ProjectedWatchPolicyCount` | `size_t` | `ProjectedWatchPolicyCount` 的 size_t 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `CancelWatchPolicies` | `const xcancelwatchownershipv1* const*` | `CancelWatchPolicies` 的 const xcancelwatchownershipv1* const* 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `CancelWatchPolicyCount` | `size_t` | `CancelWatchPolicyCount` 的 size_t 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+
+### `xfutureownershiptrace`
+
+枚举结果或映射上下文里实际拥有槽的回调；与实际 Destroy 释放的槽一致。
+
+```c
+typedef bool (*xfutureownershiptrace)(const void* pValue, const void* pData,
+	xrtownershipvisitor pVisit, ptr pContext);
+```
+
+
+### `xfuturepayloadownershipv1`
+
+拥有型成功结果的不可变 Drop/Trace 策略；不认证 producer 或用户回调数据。
+
+```c
+typedef struct xfuturepayloadownershipv1 {
+	size_t size;
+	xfuturefreeproc Drop;
+	xfutureownershiptrace Trace;
+} xfuturepayloadownershipv1;
+```
+
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `Drop` | `xfuturefreeproc` | `Drop` 的 xfuturefreeproc 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `Trace` | `xfutureownershiptrace` | 精确枚举 Destroy/Drop 释放的所有强引用槽。 |
+
+### `xfuturepickmapproc`
+
+Any/Race 组合的选中输入映射入口；Race 的取消语义不能推广到 Any。
+
+```c
+typedef void (*xfuturepickmapproc)(const xfuturepick* pInput, xpromise* pOutput, ptr pData);
+```
+
+
+### `xfutureproducercancellationv1`
+
+同一真实 producer 节点的合作取消能力。Retain 只取得真实引用，Request 在 Future 锁和当前变更作用域外执行，不制造终态。
+
+```c
+typedef struct xfutureproducercancellationv1 {
+	size_t size;
+	bool (*Retain)(const void* pProducer);
+	void (*Request)(const void* pProducer);
+} xfutureproducercancellationv1;
+```
+
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+
+### `xfutureproducerownershipv1`
+
+结果实际持有的 producer 引用及驻留 Drop。不能跳过被接受工作的 finally、回调或代码生存期。
+
+```c
+typedef struct xfutureproducerownershipv1 {
+	size_t size;
+	void (*Drop)(const void* pProducer);
+} xfutureproducerownershipv1;
+```
+
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+
+### `xfuturewaitrulev1`
+
+组合等待规则：All 要求全部终态，Any/Race 要求一个；描述等待关系本身不执行取消。
+
+```c
+typedef enum xfuturewaitrulev1 {
+	XFUTURE_WAIT_ALL_TERMINAL = 1,
+	XFUTURE_WAIT_ANY_TERMINAL = 2
+} xfuturewaitrulev1;
+```
+
+
+| 值 | 语义 |
+|---|---|
+| `XFUTURE_WAIT_ALL_TERMINAL` | 全部输入终态才可继续。 |
+| `XFUTURE_WAIT_ANY_TERMINAL` | 任一输入终态即可继续，不自动取消其他输入。 |
+
+### `xfuturewatchownershipv1`
+
+注册持有一个实际 Data 节点引用；Release 对应这份引用，Data 子图必须独立准入。
+
+```c
+typedef struct xfuturewatchownershipv1 {
+	size_t size;
+	xfuturewatchproc Notify;
+	xfuturewatchreleaseproc Release;
+	const xrtownershipops* Ops;
+} xfuturewatchownershipv1;
+```
+
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `Notify` | `xfuturewatchproc` | 通知入口，代码覆盖已接受注册的全部生存期。 |
+| `Release` | `xfuturewatchreleaseproc` | 释放上下文实际拥有引用的回调。 |
+| `Ops` | `const xrtownershipops*` | 同一物理 Data 节点的计数和真实边枚举操作表。 |
+
+### `xfuturewatchownershipv2`
+
+在 V1 基础上支持从通知地址投影到实际物理所有者，并提供匹配的语义准备；不能制造额外引用。
+
+```c
+typedef struct xfuturewatchownershipv2 {
+	size_t size;
+	xfuturewatchproc Notify;
+	xfuturewatchreleaseproc Release;
+	xrtownershipref (*Reference)(const void* pData);
+} xfuturewatchownershipv2;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `Notify` | `xfuturewatchproc` | 通知入口，代码覆盖已接受注册的全部生存期。 |
+| `Release` | `xfuturewatchreleaseproc` | 释放上下文实际拥有引用的回调。 |

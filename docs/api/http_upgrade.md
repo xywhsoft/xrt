@@ -21,6 +21,7 @@ typedef struct xhttpupgradeitem {
 | `Protocol` | `xstrview` | Protocol |
 | `Version` | `xstrview` | 结构版本 |
 
+
 ### `xhttpupgradecursor`
 
 单字段游标由初始化函数建立，调用方不得直接修改。
@@ -36,6 +37,7 @@ typedef struct xhttpupgradecursor {
 |---|---|---|
 | `Offset` | `size_t` | 偏移量 |
 | `Validated` | `uint8` | 是否已校验 |
+
 
 ### `xhttpupgradefieldcursor`
 
@@ -54,6 +56,7 @@ typedef struct xhttpupgradefieldcursor {
 | `Field` | `size_t` | Field |
 | `Offset` | `size_t` | 偏移量 |
 | `Validated` | `uint8` | 是否已校验 |
+
 
 ## 语法与借用
 
@@ -134,6 +137,7 @@ void xrtHttpUpgradeCursorInit(
 		xrtHttpUpgradeCursorInit(&UpCursor);
 ```
 
+
 ### `xrtHttpUpgradeParse`
 
 严格解析一个 protocol-name[/protocol-version] 元素。
@@ -172,6 +176,7 @@ bool xrtHttpUpgradeParse(
 			(Upgrade.Protocol.Size != 9u) ) {
 ```
 
+
 ### `xrtHttpUpgradeValid`
 
 完整验证一个 Upgrade 字段值；空列表符合列表语法。
@@ -205,6 +210,7 @@ bool xrtHttpUpgradeValid(xstrview Value);
 			!xrtHttpUpgradeValid(SV("websocket")) ||
 			xrtHttpUpgradeValid(SV("bad token")) ) {
 ```
+
 
 ### `xrtHttpUpgradeCount`
 
@@ -244,6 +250,7 @@ bool xrtHttpUpgradeCount(
 				&iCount) ||
 			(iCount != 2u) ||
 ```
+
 
 ### `xrtHttpUpgradeNext`
 
@@ -287,6 +294,7 @@ xhttpnext xrtHttpUpgradeNext(
 ```
 
 
+
 ### 跨字段与写出
 
 ### `xrtHttpUpgradeFieldCursorInit`
@@ -322,6 +330,7 @@ void xrtHttpUpgradeFieldCursorInit(
 ```c
 	xrtHttpUpgradeFieldCursorInit(&Cursor);
 ```
+
 
 ### `xrtHttpUpgradeFieldNext`
 
@@ -366,6 +375,7 @@ xhttpnext xrtHttpUpgradeFieldNext(
 		Fields, 2u, &Cursor, &Upgrade
 	)) == XHTTP_NEXT_ITEM ) {
 ```
+
 
 ### `xrtHttpUpgradeWrite`
 
@@ -417,6 +427,7 @@ bool xrtHttpUpgradeWrite(
 		) ) {
 ```
 
+
 ### `xrtHttpUpgradeElementWrite`
 
 规范写出一个 Upgrade 协议元素。
@@ -463,6 +474,7 @@ bool xrtHttpUpgradeElementWrite(
 				(memcmp(Buffer, "h2c/v2", 6u) != 0) ) {
 ```
 
+
 ### `xrtHttpUpgradeBuild`
 
 构建零结尾 Upgrade 字段值，返回值由 `xrtFree` 释放。
@@ -502,6 +514,7 @@ str xrtHttpUpgradeBuild(
 ```c
 			str sBuilt = xrtHttpUpgradeBuild(arrUp, 2u, &iCount);
 ```
+
 
 ## 模块契约：错误
 

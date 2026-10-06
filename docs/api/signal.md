@@ -49,6 +49,7 @@ typedef enum xsignal {
 | `XSIGNAL_LOGOFF` | LOGOFF |
 | `XSIGNAL_SHUTDOWN` | 关闭调度 |
 
+
 ### `xsignalerror`
 
 信号错误代码在 xrt.signal 错误域内稳定。
@@ -68,6 +69,7 @@ typedef enum xsignalerror {
 | `XSIGNAL_ERROR_UNSUPPORTED` | 不支持 |
 | `XSIGNAL_ERROR_SYSTEM` | 失败 |
 | `XSIGNAL_ERROR_STATE` | 状态非法 |
+
 
 ### `xsignalevent`
 
@@ -93,6 +95,7 @@ typedef struct xsignalevent {
 | `Time` | `xtime` | 时间戳（公元 UTC 毫秒） |
 | `Name` | `cstr` | 名称 |
 
+
 ### `xsignalwatch`
 
 信号监听句柄由 XRT 引用计数管理，对外保持不透明。
@@ -102,6 +105,7 @@ typedef struct xsignalwatch xsignalwatch;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xsignalproc`
 
@@ -117,6 +121,7 @@ typedef void (*xsignalproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xsignalfreeproc`
 
 Owned 监听句柄最终释放时执行数据析构器。
@@ -126,6 +131,7 @@ typedef void (*xsignalfreeproc)(ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 信号代码
 
@@ -176,6 +182,7 @@ bool xrtSignalSupported(xsignal Code)
 		!xrtSignalHealthy() ) {
 ```
 
+
 ### `xrtSignalName`
 
 返回稳定信号名称；未知代码返回 `"UNKNOWN"`。
@@ -207,6 +214,7 @@ cstr xrtSignalName(xsignal Code)
 ```c
 		(xrtSignalName(XSIGNAL_INT) == NULL) ||
 ```
+
 
 ## 订阅
 
@@ -290,6 +298,7 @@ xsignalwatch* xrtSignalOn(
 	);
 ```
 
+
 ### `xrtSignalOnOwned`
 
 订阅信号并在句柄最终释放时析构用户数据；失败时数据所有权不转移。
@@ -336,6 +345,7 @@ xsignalwatch* xrtSignalOnOwned(
 		NULL, exampleFree);
 ```
 
+
 ### `xrtSignalOnce`
 
 订阅一次信号；第一次入选调度后先注销，再执行用户回调。
@@ -378,6 +388,7 @@ xsignalwatch* xrtSignalOnce(
 ```c
 	pOnce = xrtSignalOnce(XSIGNAL_INT, exampleOnceCallback, NULL);
 ```
+
 
 ### `xrtSignalOnceOwned`
 
@@ -424,6 +435,7 @@ xsignalwatch* xrtSignalOnceOwned(
 	pOnceOwned = xrtSignalOnceOwned(XSIGNAL_INT,
 		exampleOnceCallback, NULL, exampleFree);
 ```
+
 
 ## 句柄生命周期
 
@@ -473,6 +485,7 @@ xsignalwatch* xrtSignalRef(xsignalwatch* pWatch)
 	pRef = xrtSignalRef(pOwned);
 ```
 
+
 ### `xrtSignalOff`
 
 幂等注销监听；从其他线程调用时，返回前保证该句柄回调已经结束。
@@ -507,6 +520,7 @@ bool xrtSignalOff(xsignalwatch* pWatch)
 		xrtSignalActive(pOwned) ) {
 ```
 
+
 ### `xrtSignalFree`
 
 注销监听并释放一个调用方引用；空指针可安全传入。
@@ -538,6 +552,7 @@ void xrtSignalFree(xsignalwatch* pWatch)
 ```c
 		xrtSignalFree(pWatch);
 ```
+
 
 ### `xrtSignalActive`
 
@@ -572,6 +587,7 @@ bool xrtSignalActive(const xsignalwatch* pWatch)
 		!xrtSignalActive(pOwned) ||
 ```
 
+
 ### `xrtSignalCode`
 
 返回监听对应的信号代码；空指针返回 `XSIGNAL_NONE`。
@@ -604,6 +620,7 @@ xsignal xrtSignalCode(const xsignalwatch* pWatch)
 ```c
 		(xrtSignalCode(pOwned) != XSIGNAL_INT) ) {
 ```
+
 
 ## 原生处理方式
 
@@ -655,6 +672,7 @@ bool xrtSignalIgnore(xsignal Code)
 		!xrtSignalRestoreAll() ) {
 ```
 
+
 ### `xrtSignalRestore`
 
 注销指定代码的全部监听，并恢复 XRT 接管前的原生处理方式。
@@ -687,6 +705,7 @@ bool xrtSignalRestore(xsignal Code)
 ```c
 		!xrtSignalRestore(XSIGNAL_INT) ||
 ```
+
 
 ### `xrtSignalRestoreAll`
 
@@ -721,6 +740,7 @@ bool xrtSignalRestoreAll(void)
 		!xrtSignalRestoreAll() ) {
 ```
 
+
 ### `xrtSignalRaise`
 
 向当前进程发送原生信号；默认处理方式可能终止进程。
@@ -754,6 +774,7 @@ bool xrtSignalRaise(xsignal Code)
 ```c
 	if ( (pWatch == NULL) || !xrtSignalRaise(XSIGNAL_INT) ) {
 ```
+
 
 ## 计数与关闭
 
@@ -800,6 +821,7 @@ uint64 xrtSignalCount(xsignal Code)
 		uint64 iBefore = xrtSignalCount(XSIGNAL_INT);
 ```
 
+
 ### `xrtSignalReceived`
 
 判断指定信号自上次清零后是否至少接收过一次。
@@ -834,6 +856,7 @@ bool xrtSignalReceived(xsignal Code)
 			(xrtSignalCount(XSIGNAL_INT) < 2u) ||
 			(iBefore < 2u) ) {
 ```
+
 
 ### `xrtSignalClear`
 
@@ -870,6 +893,7 @@ bool xrtSignalClear(xsignal Code)
 			(xrtSignalCount(XSIGNAL_INT) != 0u) ) {
 ```
 
+
 ### `xrtSignalHealthy`
 
 判断调度后端是否健康；故障时重建前必须先调用 `xrtSignalShutdown`。
@@ -903,6 +927,7 @@ bool xrtSignalHealthy(void)
 		!xrtSignalHealthy() ) {
 ```
 
+
 ### `xrtSignalShutdown`
 
 停止调度线程、注销全部监听并恢复原生处理方式；回调线程内不可调用。
@@ -935,6 +960,7 @@ bool xrtSignalShutdown(void)
 ```c
 	return xrtSignalShutdown() ? 0 : 3;
 ```
+
 
 ## 错误
 

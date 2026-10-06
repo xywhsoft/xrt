@@ -31,6 +31,7 @@ typedef enum xenverror {
 | `XENV_ERROR_VALUE` | 值非法 |
 | `XENV_ERROR_SYSTEM` | 系统调用失败 |
 
+
 ## 错误代码
 
 `xenverror` 属于 `xrt.environment` 域：
@@ -84,6 +85,7 @@ if ( xrtEnvLookup("XRT_DEFINITELY_MISSING", &sValue) ) {
 xrtFree(sValue);
 ```
 
+
 ### `xrtEnvGet`
 
 常见路径的一行便捷入口；需要区分缺失和失败的代码应使用 `xrtEnvLookup`。
@@ -120,6 +122,7 @@ if ( sValue == NULL ) {
 }
 printf("value=%s\n", sValue);
 ```
+
 
 ### `xrtEnvSet`
 
@@ -159,6 +162,7 @@ if ( !xrtEnvSet("XRT_ENVIRONMENT_EXAMPLE", "hello") ) {
 }
 ```
 
+
 ### `xrtEnvRemove`
 
 幂等删除变量；变量原本不存在仍返回 `true`。
@@ -192,6 +196,7 @@ bool xrtEnvRemove(cstr sName);
 ```c
 return xrtEnvRemove("XRT_ENVIRONMENT_EXAMPLE") ? 0 : 3;
 ```
+
 
 ## 并发与外部修改
 

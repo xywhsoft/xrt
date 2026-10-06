@@ -22,6 +22,7 @@ typedef enum xnetframestatus {
 | `XNET_FRAME_MORE` | 需要更多输入 |
 | `XNET_FRAME_READY` | 已解析完整帧 |
 
+
 ### `xnetframe`
 
 所有偏移都相对当前输入头部，Declared 保存协议字段原值。
@@ -42,6 +43,7 @@ typedef struct xnetframe {
 | `FrameSize` | `size_t` | FrameSize |
 | `Declared` | `uint64` | Declared |
 
+
 ### `xnetlineconfig`
 
 分隔符只借用调用方字节，并且必须存活到 Framer 不再使用。
@@ -59,6 +61,7 @@ typedef struct xnetlineconfig {
 | `Delimiter` | `xbytesview` | 分隔符 |
 | `MaxPayload` | `size_t` | MaxPayload |
 | `IncludeDelimiter` | `bool` | IncludeDelimiter |
+
 
 ### `xnetlineframer`
 
@@ -86,6 +89,7 @@ typedef struct xnetlineframer {
 | `PreviousSize` | `size_t` | PreviousSize |
 | `Guard` | `uint32` | 守卫字（防误用） |
 
+
 ### `xnetframeorder`
 
 长度字段字节序独立于主机字节序。
@@ -101,6 +105,7 @@ typedef enum xnetframeorder {
 |---|---|
 | `XNET_FRAME_BIG_ENDIAN` | XNETFRAMEBIGENDIAN |
 | `XNET_FRAME_LITTLE_ENDIAN` | 小端字节序 |
+
 
 ### `xnetlengthconfig`
 
@@ -126,6 +131,7 @@ typedef struct xnetlengthconfig {
 | `MaxFrame` | `size_t` | MaxFrame |
 | `Order` | `xnetframeorder` | 字节序 |
 
+
 ### `xnetlengthframer`
 
 Length Framer 复制并验证配置，解析本身不保存输入状态。
@@ -141,6 +147,7 @@ typedef struct xnetlengthframer {
 |---|---|---|
 | `Config` | `xnetlengthconfig` | 配置 |
 | `Guard` | `uint32` | 守卫字（防误用） |
+
 
 ## 分层与裁剪
 
@@ -212,6 +219,7 @@ size_t xrtNetFrameCopy(
 		);
 ```
 
+
 ### `xrtNetFrameConsume`
 
 只有帧范围仍完整位于输入头部时才精确消费 `FrameSize` 字节。
@@ -249,6 +257,7 @@ bool xrtNetFrameConsume(
 ```c
 		if ( !xrtNetFrameConsume(&Input, &Frame) ) {
 ```
+
 
 ## 行分隔帧
 
@@ -298,6 +307,7 @@ void xrtNetLineConfigInit(xnetlineconfig* pConfig)
 	xrtNetLineConfigInit(&Config);
 ```
 
+
 ### `xrtNetLineInit`
 
 复制配置并开始一条新的增量行帧搜索。
@@ -337,6 +347,7 @@ bool xrtNetLineInit(
 		 !xrtNetBufAppend(&Input, "first\r", 6) ) {
 ```
 
+
 ### `xrtNetLineReset`
 
 保留配置并丢弃当前增量搜索进度。
@@ -369,6 +380,7 @@ bool xrtNetLineReset(xnetlineframer* pFramer)
 ```c
 	(void)xrtNetLineReset(&Framer);
 ```
+
 
 ### `xrtNetLineNext`
 
@@ -412,6 +424,7 @@ xnetframestatus xrtNetLineNext(
 	if ( xrtNetLineNext(&Framer, &Input, &Frame) != XNET_FRAME_MORE ||
 		 !xrtNetBufAppend(&Input, "\nsecond\r\n", 10) ) {
 ```
+
 
 ## 长度前缀帧
 
@@ -468,6 +481,7 @@ void xrtNetLengthConfigInit(xnetlengthconfig* pConfig)
 	xrtNetLengthConfigInit(&Config);
 ```
 
+
 ### `xrtNetLengthInit`
 
 复制并验证长度字段偏移、宽度、字节序、调整值、strip 和帧上限。
@@ -512,6 +526,7 @@ bool xrtNetLengthInit(
 		 ) != 5) ) {
 ```
 
+
 ### `xrtNetLengthNext`
 
 从输入头部解析下一条长度前缀帧。
@@ -554,6 +569,7 @@ xnetframestatus xrtNetLengthNext(
 		 (xrtNetLengthNext(&Framer, &Input, &Frame) !=
 			XNET_FRAME_READY) ||
 ```
+
 
 ## 模块契约：线程
 

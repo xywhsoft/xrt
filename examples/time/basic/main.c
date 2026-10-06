@@ -11,14 +11,14 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single impl.c \
  *       examples/time/basic/main.c -lws2_32 -liphlpapi
  * 预期输出（时间随运行时刻变化，格式如下）：
- *   unix_us=1788573693834602
- *   utc=2026-09-05 02:01:33.834602
+ *   utc_ms=63924170493834
+ *   utc=2026-09-05 02:01:33.834
  *   utc+8=2026-09-05 10:01:33
- *   next_month=1791165693834602
+ *   next_month=63926762493834
  *
  * xtime 设计要点：
  *   整数毫秒（非 double 秒）——比较/差值零浮点误差，
- *   与超时/deadline 体系（xwaitresult）无缝衔接。
+ *   等待接口用相对毫秒；耗时测量使用 xrtTimer 的单调 double 秒。
  *   日历加法按"日历语义"进位：8 月 31 日 +1 月 = 9 月 30 日，
  *   而不是简单加 30×86400 秒。
  */
@@ -48,8 +48,8 @@ int main(void)
 		 !xrtTimeAdd(iNow, 1, XTIME_UNIT_MONTH, &iNextMonth) ) {
 		return 1;
 	}
-	printf("unix_us=%lld\n", (long long)iNow);
-	printf("utc=%lld-%02d-%02d %02d:%02d:%02d.%06d\n",
+	printf("utc_ms=%lld\n", (long long)iNow);
+	printf("utc=%lld-%02d-%02d %02d:%02d:%02d.%03d\n",
 		(long long)tUTC.Year, tUTC.Month, tUTC.Day,
 		tUTC.Hour, tUTC.Minute, tUTC.Second, tUTC.Millisecond);
 	printf("utc+8=%lld-%02d-%02d %02d:%02d:%02d\n",

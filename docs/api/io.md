@@ -65,6 +65,7 @@ typedef enum xlineend {
 | `XLINE_END_LF` | LF |
 | `XLINE_END_CRLF` | CRLF 结尾 |
 
+
 ### `xlinenext`
 
 行迭代结果明确区分正常结束、有效行和失败。
@@ -83,6 +84,7 @@ typedef enum xlinenext {
 | `XLINE_NEXT_END` | END |
 | `XLINE_NEXT_LINE` | 已产出行 |
 
+
 ### `xlineview`
 
 行内容借用到下一次迭代或销毁，不执行编码检查且不保证补零。
@@ -98,6 +100,7 @@ typedef struct xlineview {
 |---|---|---|
 | `Text` | `xstrview` | 文本视图 |
 | `End` | `xlineend` | 结束 |
+
 
 ### `xioerror`
 
@@ -133,6 +136,7 @@ typedef enum xioerror {
 | `XIO_ERROR_LIMIT` | 超限 |
 | `XIO_ERROR_CALLBACK` | 回调失败 |
 
+
 ### `xreaderops`
 
 Reader 回调表会在创建时复制；只有 Read 是必需过程。
@@ -154,6 +158,7 @@ typedef struct xreaderops {
 | `Tell` | `xtellproc` | Tell |
 | `Size` | `xsizeproc` | 字节数 |
 | `Close` | `xcloseproc` | Close |
+
 
 ### `xwriterops`
 
@@ -179,6 +184,7 @@ typedef struct xwriterops {
 | `Flush` | `xflushproc` | Flush |
 | `Close` | `xcloseproc` | Close |
 
+
 ### `xreader`
 
 Reader 和 Writer 是同步字节 IO 对象；同一对象的操作必须由调用方串行化。
@@ -188,6 +194,7 @@ typedef struct xreader xreader;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xwriter`
 
@@ -200,6 +207,7 @@ typedef struct xwriter xwriter;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xlinereader`
 
 Line Reader 在通用 Reader 上提供有界流式行迭代。
@@ -209,6 +217,7 @@ typedef struct xlinereader xlinereader;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xreadproc`
 
@@ -224,6 +233,7 @@ typedef bool (*xreadproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xwriteproc`
 
@@ -241,6 +251,7 @@ typedef bool (*xwriteproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xseekproc`
 
 可选定位、查询、刷新和关闭过程失败时必须设置当前错误。
@@ -256,6 +267,7 @@ typedef bool (*xseekproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xtellproc`
 
 位置查询回调：返回 `pContext` 当前读写位置，`false` 表示对象不可寻址。
@@ -266,6 +278,7 @@ typedef bool (*xtellproc)(ptr pContext, uint64* pPosition);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xsizeproc`
 
@@ -278,6 +291,7 @@ typedef bool (*xsizeproc)(ptr pContext, uint64* pSize);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xflushproc`
 
 冲刷回调：把 `pContext` 已缓冲数据提交到后端，`false` 表示失败。
@@ -289,6 +303,7 @@ typedef bool (*xflushproc)(ptr pContext);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xcloseproc`
 
 关闭回调：释放 `pContext` 的后端资源；返回值保留供扩展，当前实现忽略。
@@ -299,6 +314,7 @@ typedef bool (*xcloseproc)(ptr pContext);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## Line Reader
 
@@ -384,6 +400,7 @@ xreader* xrtReaderCreate(
 ```
 
 
+
 ### `xrtReaderFromMemory`
 
 创建借用固定字节视图的可定位 Reader。
@@ -417,6 +434,7 @@ xreader* xrtReaderFromMemory(xbytesview Data);
 ```c
 	pReader = xrtReaderFromMemory(XRT_BYTES_LITERAL(sLog));
 ```
+
 
 
 ### `xrtReaderFromBuffer`
@@ -454,6 +472,7 @@ xreader* xrtReaderFromBuffer(const xbuffer* pBuffer);
 ```
 
 
+
 ### `xrtReaderTakeBuffer`
 
 接管 Buffer 并创建 Reader；成功时把调用方槽清空。
@@ -487,6 +506,7 @@ xreader* xrtReaderTakeBuffer(xbuffer** ppBuffer);
 ```c
 		xreader* pBufReader = xrtReaderTakeBuffer(&pBuffer);
 ```
+
 
 
 ### `xrtReaderFromFile`
@@ -524,6 +544,7 @@ xreader* xrtReaderFromFile(xfile File);
 ```
 
 
+
 ### `xrtReaderTakeFile`
 
 接管文件对象并创建 Reader；成功时把调用方槽清空。
@@ -559,6 +580,7 @@ xreader* xrtReaderTakeFile(xfile* pFile);
 ```
 
 
+
 ### `xrtReaderOpen`
 
 打开路径并创建拥有文件对象的 Reader。
@@ -592,6 +614,7 @@ xreader* xrtReaderOpen(cstr sPath);
 ```c
 	pReader = xrtReaderOpen(sPath);
 ```
+
 
 
 
@@ -639,6 +662,7 @@ bool xrtReaderRead(
 ```
 
 
+
 ### `xrtReaderReadFull`
 
 持续读取到填满缓冲；提前 EOF 返回失败并保留实际读取量。
@@ -681,6 +705,7 @@ bool xrtReaderReadFull(
 ```
 
 
+
 ### `xrtReaderCopy`
 
 持续复制到输入 EOF；使用固定大小栈缓冲且不随数据量分配。
@@ -719,6 +744,7 @@ bool xrtReaderCopy(
 ```c
 		 xrtReaderCopy(pReader, pWriter, &iCopied) ) {
 ```
+
 
 
 ### `xrtReaderCopyN`
@@ -761,6 +787,7 @@ bool xrtReaderCopyN(
 ```c
 		!xrtReaderCopyN(pReader, pWriter, 5u, &uCopied) ||
 ```
+
 
 
 ### `xrtReaderCopyLimit`
@@ -806,27 +833,68 @@ bool xrtReaderCopyLimit(
 ```
 
 
+
 ### `xrtReaderCopyUpTo`
 
 ```c
-bool xrtReaderCopyUpTo(xreader* Reader, xwriter* Writer, uint64 Limit, uint64* Copied);
+bool xrtReaderCopyUpTo(xreader* pReader, xwriter* pWriter, uint64 iLimit, uint64* pCopied);
 ```
 
-最多复制 Limit 个字节，正常提前 EOF 返回 true。与 CopyN 的“必须恰好”
-和 CopyLimit 的“完整流必须不超过”区分；零上限不消费输入，达到上限
-不探测下一字节。失败时 Copied 保留已经写入的数量；两端不关闭。
+复制至多指定字节数；提前 EOF 成功，达到上限后不探测下一字节。
 
-### `xrtReaderStdin` / `xrtWriterStdout` / `xrtWriterStderr`
+#### 参数
 
-`io_standard` 依赖 `io` 和 `atomic`，选择宏 `XRT_MODULE_IO_STANDARD`。
-三个无参数工厂返回受调用者拥有的 Reader/Writer；Destroy 不关闭原生
-标准句柄。输入不预读，输出按原始字节处理，不做换行、编码或 NUL
-转换。标准输出先 drain CRT 已缓冲输出以保持串行调用顺序，再写原始
-句柄。跨线程竞争同一输出不提供跨多个 Write 的事务保证。
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pReader` | `xreader*` | 借用读者，EOF 不代表复制失败。 |
+| `pWriter` | `xwriter*` | 借用写者；写者失败按其原始错误报告。 |
+| `iLimit` | `uint64` | 硬上限；不会为了判断 EOF 再读取超出上限的一个字节。 |
+| `pCopied` | `uint64*` | 交付实际复制的字节数。 |
 
-一个 stdin Reader 在完整生命周期内独占标准输入；第二个 stdin Reader、
-Console 输入或终端 Session 会得到 XERR_STATE，避免跳过 Reader 中未
-消费的上限探测缓存。销毁释放租约。直接使用 CRT/OS 输入绕过本合同。
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
+
+#### 范例
+
+参见已注册的 [examples/io/memory/main.c](../../examples/io/memory/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtReaderStdin`
+
+```c
+xreader* xrtReaderStdin(void);
+```
+
+标准流适配器借用进程标准句柄；销毁适配器不会关闭标准句柄。
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
+
+#### 范例
+
+参见已注册的 [examples/io/memory/main.c](../../examples/io/memory/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xrtReaderReadAll`
 
@@ -863,6 +931,7 @@ xbuffer* xrtReaderReadAll(xreader* pReader, size_t iLimit);
 ```c
 	pReadAll = xrtReaderReadAll(pReader, 64u);
 ```
+
 
 
 
@@ -915,6 +984,7 @@ bool xrtReaderSeek(
 ```
 
 
+
 ### `xrtReaderTell`
 
 查询 Reader 游标；不支持时返回 `XERR_UNSUPPORTED`。
@@ -949,6 +1019,7 @@ bool xrtReaderTell(xreader* pReader, uint64* pPosition);
 ```c
 		!xrtReaderTell(pReader, &uPos) || (uPos != 4u) ) {
 ```
+
 
 
 ### `xrtReaderSize`
@@ -987,6 +1058,7 @@ bool xrtReaderSize(xreader* pReader, uint64* pSize);
 ```
 
 
+
 ### `xrtReaderCanSeek`
 
 判断 Reader 是否提供定位能力。
@@ -1021,6 +1093,7 @@ bool xrtReaderCanSeek(const xreader* pReader);
 ```
 
 
+
 ### `xrtReaderCanSize`
 
 判断 Reader 是否提供大小查询能力。
@@ -1053,6 +1126,7 @@ bool xrtReaderCanSize(const xreader* pReader);
 ```c
 		!xrtReaderCanSize(pReader) ||
 ```
+
 
 
 ### `xrtReaderEOF`
@@ -1090,6 +1164,7 @@ bool xrtReaderEOF(const xreader* pReader);
 
 
 
+
 ### Reader 销毁
 
 ### `xrtReaderDestroy`
@@ -1124,6 +1199,7 @@ bool xrtReaderDestroy(xreader* pReader);
 ```c
 	xrtReaderDestroy(pReader);
 ```
+
 
 
 
@@ -1168,6 +1244,7 @@ xlinereader* xrtLineReaderCreate(
 ```
 
 
+
 ### `xrtLineReaderTake`
 
 原子接管 Reader 槽；成功时清空来源，失败时所有权保持不变。
@@ -1205,6 +1282,7 @@ xlinereader* xrtLineReaderTake(
 ```c
 	pLines = xrtLineReaderTake(&pReader, 1024u);
 ```
+
 
 
 ### `xrtLineReaderNext`
@@ -1246,6 +1324,7 @@ xlinenext xrtLineReaderNext(
 ```
 
 
+
 ### `xrtLineReaderDestroy`
 
 释放 Line Reader；接管模式同时销毁底层 Reader 并返回关闭结果。
@@ -1278,6 +1357,7 @@ bool xrtLineReaderDestroy(xlinereader* pLines);
 ```c
 	if ( !xrtLineReaderDestroy(pLines) ) {
 ```
+
 
 
 
@@ -1322,6 +1402,7 @@ xwriter* xrtWriterCreate(
 ```
 
 
+
 ### `xrtWriterFromMemory`
 
 创建借用固定容量的可定位 Writer；稀疏写入产生的空洞会填零。
@@ -1361,6 +1442,7 @@ xwriter* xrtWriterFromMemory(ptr pData, size_t iCapacity);
 ```
 
 
+
 ### `xrtWriterDiscard`
 
 创建只统计并丢弃全部输入的 Writer。
@@ -1393,6 +1475,7 @@ xwriter* xrtWriterDiscard(void);
 ```c
 			xwriter* pDiscard = xrtWriterDiscard();
 ```
+
 
 
 ### `xrtWriterFromBuffer`
@@ -1430,6 +1513,7 @@ xwriter* xrtWriterFromBuffer(xbuffer* pBuffer);
 ```
 
 
+
 ### `xrtWriterFromFile`
 
 创建借用文件对象的 Writer。
@@ -1463,6 +1547,7 @@ xwriter* xrtWriterFromFile(xfile File);
 ```c
 			xrtWriterFromFile(FileW) : NULL;
 ```
+
 
 
 ### `xrtWriterTakeFile`
@@ -1500,6 +1585,7 @@ xwriter* xrtWriterTakeFile(xfile* pFile);
 ```
 
 
+
 ### `xrtWriterOpen`
 
 创建或截断路径并创建拥有文件对象的 Writer。
@@ -1535,6 +1621,7 @@ xwriter* xrtWriterOpen(cstr sPath);
 ```
 
 
+
 ### `xrtWriterOpenAppend`
 
 以操作系统追加语义打开路径并创建拥有文件对象的 Writer。
@@ -1568,6 +1655,7 @@ xwriter* xrtWriterOpenAppend(cstr sPath);
 ```c
 	pAppend = xrtWriterOpenAppend("xrt-io-tour.tmp");
 ```
+
 
 
 
@@ -1615,6 +1703,7 @@ bool xrtWriterWrite(
 ```
 
 
+
 ### `xrtWriterWriteFull`
 
 持续写入到全部完成；失败时保留实际写入量。
@@ -1657,6 +1746,7 @@ bool xrtWriterWriteFull(
 ```
 
 
+
 ### `xrtWriterFlush`
 
 显式刷新 Writer；没有 Flush 回调时为空操作。
@@ -1689,6 +1779,7 @@ bool xrtWriterFlush(xwriter* pWriter);
 ```c
 		!xrtWriterFlush(pSink) || (Sink.Flushes != 1) ) {
 ```
+
 
 
 ### `xrtWriterWriteBuffer`
@@ -1729,6 +1820,7 @@ bool xrtWriterWriteBuffer(
 				!xrtWriterTell(pWriter, &uPos) ||
 				(uPos != 2u) ) {
 ```
+
 
 
 
@@ -1777,6 +1869,7 @@ bool xrtWriterSeek(
 ```
 
 
+
 ### `xrtWriterTell`
 
 查询 Writer 游标。
@@ -1811,6 +1904,7 @@ bool xrtWriterTell(xwriter* pWriter, uint64* pPosition);
 ```c
 				!xrtWriterTell(pWriter, &uPos) ||
 ```
+
 
 
 ### `xrtWriterSize`
@@ -1849,6 +1943,7 @@ bool xrtWriterSize(xwriter* pWriter, uint64* pSize);
 ```
 
 
+
 ### `xrtWriterCanSeek`
 
 判断 Writer 是否提供定位能力。
@@ -1881,6 +1976,7 @@ bool xrtWriterCanSeek(const xwriter* pWriter);
 ```c
 		!xrtWriterCanSeek(pAppend) ||
 ```
+
 
 
 ### `xrtWriterCanSize`
@@ -1917,6 +2013,7 @@ bool xrtWriterCanSize(const xwriter* pWriter);
 ```
 
 
+
 ### `xrtWriterDestroy`
 
 调用一次 Close 并销毁 Writer；不会隐式调用可能昂贵的 Flush。
@@ -1949,3 +2046,54 @@ bool xrtWriterDestroy(xwriter* pWriter);
 ```c
 	xrtWriterDestroy(pWriter);
 ```
+
+
+### `xrtWriterStderr`
+
+```c
+xwriter* xrtWriterStderr(void);
+```
+
+创建借用进程 stderr 原生句柄的写者；销毁适配器不关闭进程标准句柄。
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
+
+#### 范例
+
+参见已注册的 [examples/io/memory/main.c](../../examples/io/memory/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtWriterStdout`
+
+```c
+xwriter* xrtWriterStdout(void);
+```
+
+创建借用进程 stdout 原生句柄的写者；销毁适配器不关闭进程标准句柄。
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
+
+#### 范例
+
+参见已注册的 [examples/io/memory/main.c](../../examples/io/memory/main.c)，结合本节参数和生存期规则使用。

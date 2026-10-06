@@ -44,6 +44,7 @@ typedef struct xbuffer {
 | `Size` | `size_t` | 当前字节数 |
 | `Capacity` | `size_t` | 分配容量 |
 
+
 ## 生命周期
 
 ### `xrtBufferInit`
@@ -81,6 +82,7 @@ if ( !xrtBufferInit(&tBuffer) ) {
 }
 ```
 
+
 ### `xrtBufferCreate`
 
 创建空缓冲。
@@ -116,6 +118,7 @@ if ( (pBuffer == NULL) ||
 	!xrtBufferReserve(pBuffer, 16u) ||
 ```
 
+
 ### `xrtBufferUnit`
 
 释放缓冲持有的连续内存，但不释放缓冲结构。内嵌形态（`Init` 产物）的收尾。
@@ -145,6 +148,7 @@ xrtFree(pResult);
 xrtBufferUnit(&tBuffer);
 return 0;
 ```
+
 
 ### `xrtBufferDestroy`
 
@@ -176,6 +180,7 @@ xrtBufferDestroy(pTaken);
 xrtBufferDestroy(pBuffer);
 ```
 
+
 ### `xrtBufferClear`
 
 清空有效内容但保留容量。
@@ -206,6 +211,7 @@ if ( xrtBufferView(pBuffer).Size != 0u ) {
 	goto Cleanup;
 }
 ```
+
 
 ## 视图与容量
 
@@ -245,6 +251,7 @@ xbytesview xrtBufferView(const xbuffer* pBuffer);
 (xrtBufferView(pBuffer).Size != 4u) ) {
 ```
 
+
 ### `xrtBufferReserve`
 
 保证缓冲至少具有指定容量，实际容量可以按几何策略增长。
@@ -282,6 +289,7 @@ if ( (pBuffer == NULL) ||
 	!xrtBufferReserve(pBuffer, 16u) ||
 	!xrtBufferResize(pBuffer, 4u) ||
 ```
+
 
 ### `xrtBufferResize`
 
@@ -321,6 +329,7 @@ if ( !xrtBufferResize(pBuffer, 2u) ||
 }
 ```
 
+
 ### `xrtBufferTrim`
 
 把容量精确裁剪到有效长度，空缓冲会释放存储。
@@ -357,6 +366,7 @@ bool xrtBufferTrim(xbuffer* pBuffer);
 	goto Cleanup;
 }
 ```
+
 
 ## 直接写入
 
@@ -399,6 +409,7 @@ if ( (pWrite == NULL) ||
 }
 memcpy(pWrite, "gh", 2u);
 ```
+
 
 ### `xrtBufferInsertSpace`
 
@@ -447,6 +458,7 @@ if ( (pSpace == NULL) ||
 memcpy(pSpace, "ZZZ", 3u);
 ```
 
+
 ## 复制与编辑
 
 ### `xrtBufferAssign`
@@ -485,6 +497,7 @@ if ( !xrtBufferAssign(pBuffer, BV("abcdef")) ||
 	(xrtBufferView(pBuffer).Size != 6u) ||
 ```
 
+
 ### `xrtBufferAppend`
 
 复制追加字节视图，允许来源是缓冲自身的有效子视图。
@@ -521,6 +534,7 @@ bool xrtBufferAppend(xbuffer* pBuffer, xbytesview Data);
 !xrtBufferWrite(&tBuffer, 5, XRT_BYTES_LITERAL("z"))
 ```
 
+
 ### `xrtBufferAppendByte`
 
 追加一个字节。
@@ -556,6 +570,7 @@ bool xrtBufferAppendByte(xbuffer* pBuffer, uint8 iByte);
 if ( !xrtBufferAppendByte(pBuffer, '!') ||
 	(xrtBufferView(pBuffer).Size != 9u) ||
 ```
+
 
 ### `xrtBufferInsert`
 
@@ -599,6 +614,7 @@ if ( !xrtBufferInsert(pBuffer, 2u, BV("XY")) ||
 	(xrtBufferView(pBuffer).Size != 8u) ||
 ```
 
+
 ### `xrtBufferWrite`
 
 从指定位点覆盖字节；末端超出当前长度时扩展并把中间空洞填零。
@@ -641,6 +657,7 @@ bool xrtBufferWrite(
 !xrtBufferWrite(&tBuffer, 5, XRT_BYTES_LITERAL("z"))
 ```
 
+
 ### `xrtBufferRemove`
 
 删除完整有效区间，不会静默截断到末尾。
@@ -681,6 +698,7 @@ bool xrtBufferRemove(
 if ( !xrtBufferRemove(pBuffer, 2u, 2u) ||
 	(xrtBufferView(pBuffer).Size != 6u) ||
 ```
+
 
 ## 所有权
 
@@ -727,6 +745,7 @@ if ( !xrtBufferSetTake(pBuffer, &pSlot, 6u, 6u) ||
 	(xrtBufferView(pBuffer).Size != 6u) ||
 ```
 
+
 ### `xrtBufferTake`
 
 取走连续内存并把缓冲重置为空；空缓冲成功返回 `NULL`。
@@ -770,6 +789,7 @@ if ( (pResult == NULL) || (iSize != 6) ) {
 }
 ```
 
+
 ### `xrtBufferFrom`
 
 创建字节视图的独立副本。
@@ -805,6 +825,7 @@ pFrom = xrtBufferFrom(BV("cp"));
 if ( (pFrom == NULL) ||
 	(xrtBufferView(pFrom).Size != 2u) ||
 ```
+
 
 ### `xrtBufferCreateTake`
 
@@ -848,6 +869,7 @@ if ( (pTaken == NULL) ||
 	(pSlot != NULL) ||
 ```
 
+
 ## 编码构造器
 
 两者先完整验证输入和精确计算输出长度，再直接解码到最终缓冲，不建立中间副本。格式、规范性、空白、URL 字母表和填充规则完全继承相应 codec 契约。
@@ -890,6 +912,7 @@ xbuffer* pBuffer = xrtBufferFromHex(
 );
 ```
 
+
 ### `xrtBufferFromBase64`
 
 按 Base64 配置严格解码文本并创建缓冲。
@@ -930,6 +953,7 @@ xbuffer* pBuffer = xrtBufferFromBase64(
 	NULL
 );
 ```
+
 
 ## 示例
 

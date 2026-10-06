@@ -35,6 +35,7 @@ typedef struct xstrview {
 | `Data` | `str` | 起点指针 |
 | `Size` | `size_t` | 字节数 |
 
+
 ### `xstrbuf`
 
 ```c
@@ -55,9 +56,11 @@ typedef struct xstrbuf {
 | `Size` | `size_t` | 当前长度（不含末尾零） |
 | `Capacity` | `size_t` | 分配容量 |
 
+
 ### `xstrsplit`、`xstrlines`、`xstrfields` 与 `xstrlist`
 
 `xstrsplit`、`xstrlines` 和 `xstrfields` 是零分配迭代器，返回的片段借用输入数据。迭代器必须通过对应的 `Init` 函数初始化，公开字段只用于栈上存储，不应由调用方修改。`xstrfields` 跳过连续 ASCII 空白且不返回空字段。`xstrlist` 是便捷结果；结构、视图数组和所有零结尾片段位于同一个分配块中，只需调用一次 `xrtStrListFree`。
+
 
 ### `xstrerror`
 
@@ -74,6 +77,7 @@ typedef enum xstrerror {
 |---|---|
 | `XSTR_ERROR_FORMAT` | XSTR失败FORMAT |
 | `XSTR_ERROR_PATTERN` | 通配模式非法 |
+
 
 ### `xstrlines`
 
@@ -95,6 +99,7 @@ typedef struct xstrlines {
 | `State` | `uint32` | 状态 |
 | `Done` | `bool` | Done |
 
+
 ### `xstrfields`
 
 字段迭代器跳过连续 ASCII 空白且不返回空字段。
@@ -115,6 +120,7 @@ typedef struct xstrfields {
 | `State` | `uint32` | 状态 |
 | `Done` | `bool` | Done |
 
+
 ### `xstrlist`
 
 便捷拆分结果在一个分配块内保存视图和零结尾副本。
@@ -133,6 +139,7 @@ typedef struct xstrlist {
 | `Items` | `xstrview*` | 元素数组 |
 | `DataSize` | `size_t` | DataSize |
 
+
 ### `xstrglobflag`
 
 通配匹配可以选择只对 ASCII 字母忽略大小写。
@@ -146,6 +153,7 @@ typedef enum xstrglobflag {
 | 值 | 语义 |
 |---|---|
 | `XSTR_GLOB_CASE_ASCII` | ASCII 大小写不敏感 |
+
 
 ### `xstrsplit`
 
@@ -168,6 +176,7 @@ typedef struct xstrsplit {
 | `Position` | `size_t` | Position |
 | `State` | `uint32` | State |
 | `Done` | `bool` | Done |
+
 
 ## 视图函数
 
@@ -203,6 +212,7 @@ xstrview xrtStrView(cstr sText)
 	if ( !xrtPathIterInit(&Iterator, xrtStrView(sJoined), XPATH_NATIVE) ) {
 ```
 
+
 ### `xrtStrViewN`
 
 从明确长度创建借用视图。
@@ -235,6 +245,7 @@ xstrview xrtStrViewN(cstr sText, size_t iSize)
 ```c
 	pRegex = xrtRegexCompile(xrtStrViewN(sLiteral, iLiteralSize));
 ```
+
 
 ### `xrtStrEmpty`
 
@@ -269,6 +280,7 @@ bool xrtStrEmpty(xstrview Text)
 		xrtStrEmpty(SV("")) ? 1 : 0);
 ```
 
+
 ### `xrtStrBlank`
 
 判断字符串是否只包含 ASCII 空白。
@@ -301,6 +313,7 @@ bool xrtStrBlank(xstrview Text)
 ```c
 		xrtStrBlank(SV("  \t ")) ? 1 : 0,
 ```
+
 
 ### `xrtStrEqual`
 
@@ -336,6 +349,7 @@ bool xrtStrEqual(xstrview Left, xstrview Right)
 		xrtStrEqual(Hello, HelloUp) ? 1 : 0,
 ```
 
+
 ### `xrtStrCaseEqual`
 
 按 ASCII 大小写不敏感规则判断相等。
@@ -370,6 +384,7 @@ bool xrtStrCaseEqual(xstrview Left, xstrview Right)
 		xrtStrCaseEqual(Hello, HelloUp) ? 1 : 0);
 ```
 
+
 ### `xrtStrCompare`
 
 按无符号字节进行词典序比较。
@@ -403,6 +418,7 @@ int xrtStrCompare(xstrview Left, xstrview Right)
 	printf("cmp=%d\n", xrtStrCompare(Hello, HelloUp) > 0 ? 1 : -1);
 ```
 
+
 ### `xrtStrCaseCompare`
 
 按 ASCII 大小写不敏感规则进行词典序比较。
@@ -435,6 +451,7 @@ int xrtStrCaseCompare(xstrview Left, xstrview Right)
 ```c
 		xrtStrCaseCompare(Hello, HelloUp) == 0 ? 1 : -1);
 ```
+
 
 ### `xrtStrFind`
 
@@ -471,6 +488,7 @@ size_t xrtStrFind(xstrview Text, xstrview Part, size_t iStart)
 		(int)xrtStrFind(Path, SV("archive"), 0u),
 ```
 
+
 ### `xrtStrRFind`
 
 从右侧查找最后一个子串，未找到返回 `XRT_NPOS`。
@@ -504,6 +522,7 @@ size_t xrtStrRFind(xstrview Text, xstrview Part)
 ```c
 		(int)xrtStrRFind(Path, SV(".")),
 ```
+
 
 ### `xrtStrCaseFind`
 
@@ -540,6 +559,7 @@ size_t xrtStrCaseFind(xstrview Text, xstrview Part, size_t iStart)
 		(int)xrtStrCaseFind(SV("Xrt-Core"), SV("xrt"), 0u),
 ```
 
+
 ### `xrtStrCaseRFind`
 
 按 ASCII 大小写不敏感规则从右侧查找最后一个子串。
@@ -573,6 +593,7 @@ size_t xrtStrCaseRFind(xstrview Text, xstrview Part)
 ```c
 	(int)xrtStrCaseRFind(SV("a.Tar.GZ"), SV(".gz")),
 ```
+
 
 ### `xrtStrFindByte`
 
@@ -609,6 +630,7 @@ size_t xrtStrFindByte(xstrview Text, unsigned char iByte, size_t iStart)
 		(int)xrtStrFindByte(SV("a/b/c"), '/', 2u),
 ```
 
+
 ### `xrtStrFindAny`
 
 从指定字节位置查找属于集合的首个字节。
@@ -644,6 +666,7 @@ size_t xrtStrFindAny(xstrview Text, xstrview Set, size_t iStart)
 		(int)xrtStrFindAny(SV("host:8080"), SV(": /"), 0u));
 ```
 
+
 ### `xrtStrContains`
 
 判断字符串是否包含指定子串。
@@ -677,6 +700,7 @@ bool xrtStrContains(xstrview Text, xstrview Part)
 ```c
 		xrtStrContains(Hello, SV("lo X")) ? 1 : 0,
 ```
+
 
 ### `xrtStrCaseContains`
 
@@ -712,6 +736,7 @@ bool xrtStrCaseContains(xstrview Text, xstrview Part)
 		xrtStrCaseContains(SV("Config"), SV("FIG")) ? 1 : 0,
 ```
 
+
 ### `xrtStrContainsAny`
 
 判断字符串是否包含集合中的任意字节。
@@ -746,6 +771,7 @@ bool xrtStrContainsAny(xstrview Text, xstrview Set)
 		xrtStrContainsAny(SV("host:8080"), SV(";:/")) ? 1 : 0);
 ```
 
+
 ### `xrtStrCount`
 
 统计不重叠子串数量，空子串返回零。
@@ -779,6 +805,7 @@ size_t xrtStrCount(xstrview Text, xstrview Part)
 		(int)xrtStrCount(SV("ab aB ab"), SV("ab")),
 ```
 
+
 ### `xrtStrCaseCount`
 
 按 ASCII 大小写不敏感规则统计不重叠子串数量。
@@ -811,6 +838,7 @@ size_t xrtStrCaseCount(xstrview Text, xstrview Part)
 ```c
 		(int)xrtStrCaseCount(SV("Ab aB ab"), SV("ab")));
 ```
+
 
 ### `xrtStrStarts`
 
@@ -846,6 +874,7 @@ bool xrtStrStarts(xstrview Text, xstrview Part)
 		xrtStrStarts(HelloUp, SV("HELLO")) ? 1 : 0,
 ```
 
+
 ### `xrtStrEnds`
 
 判断字符串是否以指定子串结束。
@@ -879,6 +908,7 @@ bool xrtStrEnds(xstrview Text, xstrview Part)
 ```c
 		xrtStrEnds(Hello, SV("XRT")) ? 1 : 0);
 ```
+
 
 ### `xrtStrCaseStarts`
 
@@ -914,6 +944,7 @@ bool xrtStrCaseStarts(xstrview Text, xstrview Part)
 		xrtStrCaseStarts(Hello, SV("hello")) ? 1 : 0,
 ```
 
+
 ### `xrtStrCaseEnds`
 
 按 ASCII 大小写不敏感规则判断是否以子串结束。
@@ -947,6 +978,7 @@ bool xrtStrCaseEnds(xstrview Text, xstrview Part)
 ```c
 		xrtStrCaseEnds(Hello, SV("xrt")) ? 1 : 0,
 ```
+
 
 ### `xrtStrCut`
 
@@ -986,6 +1018,7 @@ bool xrtStrCut(xstrview Text, xstrview Separator, xstrview* pBefore, xstrview* p
 			sizeof(arrName), &iNameSize) ) {
 ```
 
+
 ### `xrtStrRCut`
 
 围绕最后一个分隔符切分借用视图，未找到时 Before 返回完整输入。
@@ -1022,6 +1055,7 @@ bool xrtStrRCut(xstrview Text, xstrview Separator, xstrview* pBefore, xstrview* 
 	(void)xrtStrRCut(SV("report.final.txt"), SV("."), NULL, &Name);
 ```
 
+
 ### `xrtStrCutPrefix`
 
 删除匹配的前缀并返回剩余借用视图。
@@ -1056,6 +1090,7 @@ bool xrtStrCutPrefix(xstrview Text, xstrview Prefix, xstrview* pRest)
 ```c
 	(void)xrtStrCutPrefix(Path, SV("/tmp/"), &Rest);
 ```
+
 
 ### `xrtStrCutSuffix`
 
@@ -1092,6 +1127,7 @@ bool xrtStrCutSuffix(xstrview Text, xstrview Suffix, xstrview* pRest)
 	(void)xrtStrCutSuffix(Rest, SV(".tar.gz"), &Rest);
 ```
 
+
 ### `xrtStrSlice`
 
 按字节截取借用视图，范围会钳制到源字符串。
@@ -1126,6 +1162,7 @@ xstrview xrtStrSlice(xstrview Text, size_t iStart, size_t iCount)
 	xstrview Part = xrtStrSlice(SV("abcd"), 1u, 2u);
 ```
 
+
 ### `xrtStrTrimLeft`
 
 删除左侧 ASCII 空白并返回借用视图。
@@ -1157,6 +1194,7 @@ xstrview xrtStrTrimLeft(xstrview Text)
 ```c
 	xstrview Trimmed = xrtStrTrimRight(xrtStrTrimLeft(SV("  mid  ")));
 ```
+
 
 ### `xrtStrTrimRight`
 
@@ -1190,6 +1228,7 @@ xstrview xrtStrTrimRight(xstrview Text)
 	xstrview Trimmed = xrtStrTrimRight(xrtStrTrimLeft(SV("  mid  ")));
 ```
 
+
 ### `xrtStrTrim`
 
 删除两侧 ASCII 空白并返回借用视图。
@@ -1221,6 +1260,7 @@ xstrview xrtStrTrim(xstrview Text)
 ```c
 	xstrview Text = xrtStrTrim(XRT_STR_LITERAL("  alpha/beta  "));
 ```
+
 
 ### `xrtStrTrimLeftSet`
 
@@ -1255,6 +1295,7 @@ xstrview xrtStrTrimLeftSet(xstrview Text, xstrview Set)
 	xstrview Hex = xrtStrTrimLeftSet(SV("0xFF00"), SV("0x"));
 ```
 
+
 ### `xrtStrTrimRightSet`
 
 删除右侧属于指定字节集合的内容。
@@ -1288,6 +1329,7 @@ xstrview xrtStrTrimRightSet(xstrview Text, xstrview Set)
 	xstrview Num = xrtStrTrimRightSet(SV("42 ms"), SV(" ms"));
 ```
 
+
 ### `xrtStrTrimSet`
 
 删除两侧属于指定字节集合的内容。
@@ -1320,6 +1362,7 @@ xstrview xrtStrTrimSet(xstrview Text, xstrview Set)
 ```c
 	xstrview Value = xrtStrTrimSet(SV("{ \"value\" }"), SV("{}\" "));
 ```
+
 
 ## 独立字符串
 
@@ -1358,6 +1401,7 @@ str xrtStrDup(cstr sText)
 	str sDup = xrtStrDup("hello");
 ```
 
+
 ### `xrtStrDupN`
 
 复制明确长度字符串并追加零结尾。
@@ -1394,6 +1438,7 @@ str xrtStrDupN(cstr sText, size_t iSize)
 	str sDupN = xrtStrDupN("world", 3u);
 ```
 
+
 ### `xrtStrDupView`
 
 复制字符串视图并追加零结尾。
@@ -1428,6 +1473,7 @@ str xrtStrDupView(xstrview Text)
 ```c
 	str sDupView = xrtStrDupView(Part);
 ```
+
 
 ### `xrtStrConcat`
 
@@ -1466,6 +1512,7 @@ str xrtStrConcat(xstrview Left, xstrview Right)
 		XRT_STR_LITERAL(".txt"));
 ```
 
+
 ### `xrtStrJoin`
 
 使用分隔符连接一组字符串视图。
@@ -1503,21 +1550,38 @@ str xrtStrJoin(xstrview Separator, const xstrview* arrText, size_t iCount)
 	str sJoin = xrtStrJoin(SV(", "), Parts, 3u);
 ```
 
+
 ### `xrtStrJoinSized`
 
 ```c
-str xrtStrJoinSized(xstrview Separator, const xstrview* arrText,
-    size_t iCount, size_t* pOutputSize);
+str xrtStrJoinSized(xstrview Separator, const xstrview* arrText, size_t iCount, size_t* pOutputSize);
 ```
 
-与 `xrtStrJoin` 共用唯一布局和写出实现，交付不含末尾零的实际字节数，
-保留分隔符和每个元素中的 NUL。不要求输入为 UTF-8，也不经 `strlen`。
-成功结果总是独立拥有的分配（包括零元素）；用 `xrtFree` 释放。
+共用连接实现，交付精确结果字节数（不含末尾零）。普通失败清零；
+输出槽不得重叠分隔符、视图表或任意输入字节，别名拒绝时不改槽。
 
-输出槽可为 `NULL`。普通失败清零；与分隔符、视图表或任意输入字节区域
-重叠则报 `XERR_ARGUMENT`，保持槽和输入不变。无效视图报 `XERR_ARGUMENT`，
-表/结果长度溢出报 `XERR_RANGE`，分配失败报 `XERR_MEMORY`。输入表和字节
-均只在调用期间借入；`iCount > 0` 时调用者须提供完整有效视图表。
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Separator` | `xstrview` | 连接分隔符的字节视图。 |
+| `arrText` | `const xstrview*` | 输入视图数组；其存储和各视图内容必须覆盖调用。 |
+| `iCount` | `size_t` | 输入数组元素数。 |
+| `pOutputSize` | `size_t*` | 可选精确结果字节数，不包含终止 NUL，不能与输入区域重叠。 |
+
+#### 返回值
+
+成功为拥有型缓冲，使用 xrtFree 释放；失败为 NULL。精确长度及输出槽规则见上述契约。
+
+#### 错误
+
+编码、范围、分配失败返回 NULL；普通失败清零非空长度槽，输入/输出别名拒绝不改长度槽或输入。
+
+#### 范例
+
+参见已注册的 [examples/string/basic/main.c](../../examples/string/basic/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xrtStrRepeat`
 
@@ -1554,6 +1618,7 @@ str xrtStrRepeat(xstrview Text, size_t iCount)
 ```c
 	str sRepeat = xrtStrRepeat(SV("ab-"), 3u);
 ```
+
 
 ### `xrtStrReplace`
 
@@ -1592,29 +1657,39 @@ str xrtStrReplace(xstrview Text, xstrview Part, xstrview Replacement)
 	showOwned("replace", xrtStrReplace(SV("a.b.c"), SV("."), SV("-")));
 ```
 
+
 ### `xrtStrReplaceSized`
 
-与 `xrtStrReplace` 使用同一替换实现，额外交付它已计算的实际字节长度，包含
-内嵌 NUL、不包含最后的零终止符；不额外计数输入或 `strlen` 扫描输出。
-
 ```c
-str xrtStrReplaceSized(xstrview Text, xstrview Part,
-    xstrview Replacement, size_t* pOutputSize)
+str xrtStrReplaceSized(xstrview Text, xstrview Part, xstrview Replacement, size_t* pOutputSize);
 ```
 
-前三个参数的借用、非重叠替换、空 Part 和错误合同与 xrtStrReplace 相同。
-成功结果为独立分配，由 `xrtFree` 释放。`pOutputSize` 可为 NULL；非空时须
-指向可写 size_t 且与三个输入字节区域不重叠。普通失败输出长度清零；拒绝
-重叠时不写输出指针，避免破坏输入。非法参数报 XERR_ARGUMENT，长度溢出
-报 XERR_RANGE，分配失败报 XERR_MEMORY；失败不返回部分结果。
+替换所有不重叠子串并返回精确字节长度（不含终止 NUL）。
+pOutputSize 可为 NULL；失败时非空输出长度清零，结果由 xrtFree 释放。
+输出长度指针必须与所有输入字节区域不重叠；拒绝重叠时不写输出指针。
 
-```c
-size_t size = 0;
-str text = xrtStrReplaceSized(XRT_STR_LITERAL("a\0b"),
-    XRT_STR_LITERAL("a"), XRT_STR_LITERAL("你"), &size);
-/* 成功时 size == 5，结果是 "你\0b"。 */
-xrtFree(text);
-```
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Text` | `xstrview` | 带精确长度的输入文本视图，允许内嵌 NUL。 |
+| `Part` | `xstrview` | 要匹配的不重叠子串。 |
+| `Replacement` | `xstrview` | 替换字节视图。 |
+| `pOutputSize` | `size_t*` | 可选精确结果字节数，不包含终止 NUL，不能与输入区域重叠。 |
+
+#### 返回值
+
+成功为拥有型缓冲，使用 xrtFree 释放；失败为 NULL。精确长度及输出槽规则见上述契约。
+
+#### 错误
+
+编码、范围、分配失败返回 NULL；普通失败清零非空长度槽，输入/输出别名拒绝不改长度槽或输入。
+
+#### 范例
+
+参见已注册的 [examples/string/basic/main.c](../../examples/string/basic/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xrtStrInsert`
 
@@ -1653,6 +1728,7 @@ str xrtStrInsert(xstrview Text, size_t iPosition, xstrview Part)
 	showOwned("insert", xrtStrInsert(SV("xrtcore"), 3u, SV("::")));
 ```
 
+
 ### `xrtStrRemove`
 
 按字节范围删除内容。
@@ -1690,6 +1766,7 @@ str xrtStrRemove(xstrview Text, size_t iPosition, size_t iCount)
 	showOwned("remove", xrtStrRemove(SV("xrt::core"), 3u, 2u));
 ```
 
+
 ### `xrtStrReverseBytes`
 
 按字节反转字符串。
@@ -1724,6 +1801,7 @@ str xrtStrReverseBytes(xstrview Text)
 ```c
 	showOwned("reverse", xrtStrReverseBytes(SV("abc")));
 ```
+
 
 ### `xrtStrReverseBytesTo`
 
@@ -1761,6 +1839,7 @@ bool xrtStrReverseBytesTo(xstrview Text, char* sOutput, size_t iCapacity)
 	if ( xrtStrReverseBytesTo(SV("cba"), Buffer, sizeof(Buffer)) ) {
 ```
 
+
 ### `xrtStrLower`
 
 复制字符串并把 ASCII 字母转换为小写。
@@ -1795,6 +1874,7 @@ str xrtStrLower(xstrview Text)
 ```c
 	printOwned("lower", xrtStrLower(SV("HELLO XRT")));
 ```
+
 
 ### `xrtStrLowerTo`
 
@@ -1832,6 +1912,7 @@ bool xrtStrLowerTo(xstrview Text, char* sOutput, size_t iCapacity)
 	if ( xrtStrLowerTo(SV("BUFFER-WAY"), Buffer, sizeof(Buffer)) ) {
 ```
 
+
 ### `xrtStrUpper`
 
 复制字符串并把 ASCII 字母转换为大写。
@@ -1866,6 +1947,7 @@ str xrtStrUpper(xstrview Text)
 ```c
 	printOwned("upper", xrtStrUpper(SV("hello xrt")));
 ```
+
 
 ### `xrtStrUpperTo`
 
@@ -1903,6 +1985,7 @@ bool xrtStrUpperTo(xstrview Text, char* sOutput, size_t iCapacity)
 	if ( xrtStrUpperTo(SV("buffer-way"), Buffer, sizeof(Buffer)) ) {
 ```
 
+
 ### `xrtStrFilter`
 
 删除集合中的全部字节并创建独立字符串。
@@ -1938,6 +2021,7 @@ str xrtStrFilter(xstrview Text, xstrview Set)
 ```c
 	str sFilter = xrtStrFilter(SV("xrt::core//"), SV(":/"));
 ```
+
 
 ### `xrtStrFilterTo`
 
@@ -1978,6 +2062,7 @@ bool xrtStrFilterTo(xstrview Text, xstrview Set, char* sOutput, size_t iCapacity
 			sizeof(arrName), &iNameSize) ) {
 ```
 
+
 ### `xrtStrPadLeft`
 
 按字节宽度在左侧重复填充字符串。
@@ -2014,6 +2099,7 @@ str xrtStrPadLeft(xstrview Text, size_t iWidth, xstrview Fill)
 ```c
 	showOwned("pad-left", xrtStrPadLeft(SV("id"), 5u, SV("*")));
 ```
+
 
 ### `xrtStrPadRight`
 
@@ -2052,6 +2138,7 @@ str xrtStrPadRight(xstrview Text, size_t iWidth, xstrview Fill)
 	showOwned("pad-right", xrtStrPadRight(SV("id"), 5u, SV("*")));
 ```
 
+
 ### `xrtStrPadCenter`
 
 按字节宽度在两侧重复填充字符串。
@@ -2089,6 +2176,7 @@ str xrtStrPadCenter(xstrview Text, size_t iWidth, xstrview Fill)
 	showOwned("pad-center", xrtStrPadCenter(SV("id"), 5u, SV("*")));
 ```
 
+
 ## 字符串构建器
 
 ### `xrtStrBufInit`
@@ -2123,6 +2211,7 @@ void xrtStrBufInit(xstrbuf* pBuffer)
 	xrtStrBufInit(&tBuffer);
 ```
 
+
 ### `xrtStrBufValid`
 
 检查字符串构建器的公开状态是否自洽。
@@ -2156,6 +2245,7 @@ bool xrtStrBufValid(const xstrbuf* pBuffer)
 	if ( !xrtStrBufReserve(&Buffer, 64u) || !xrtStrBufValid(&Buffer) ) {
 ```
 
+
 ### `xrtStrBufFree`
 
 释放字符串构建器持有的内存。
@@ -2187,6 +2277,7 @@ void xrtStrBufFree(xstrbuf* pBuffer)
 ```c
 		xrtStrBufFree(&tBuffer);
 ```
+
 
 ### `xrtStrBufClear`
 
@@ -2220,6 +2311,7 @@ void xrtStrBufClear(xstrbuf* pBuffer)
 	xrtStrBufClear(&Buffer);
 ```
 
+
 ### `xrtStrBufView`
 
 返回字符串构建器当前内容的借用视图。
@@ -2252,6 +2344,7 @@ xstrview xrtStrBufView(const xstrbuf* pBuffer)
 ```c
 	(void)xrtStrBufResize(&Buffer, xrtStrBufView(&Buffer).Size - 1u);
 ```
+
 
 ### `xrtStrBufAlias`
 
@@ -2289,6 +2382,7 @@ bool xrtStrBufAlias(const xstrbuf* pBuffer, xstrview Text, bool* pAlias, size_t*
 	(void)xrtStrBufAlias(&Buffer, View, &bAlias, &iAliasOffset);
 ```
 
+
 ### `xrtStrBufReserve`
 
 保证字符串构建器至少具有指定数据容量。
@@ -2325,6 +2419,7 @@ bool xrtStrBufReserve(xstrbuf* pBuffer, size_t iCapacity)
 	if ( !xrtStrBufReserve(&Buffer, 64u) || !xrtStrBufValid(&Buffer) ) {
 ```
 
+
 ### `xrtStrBufResize`
 
 调整字符串构建器长度，扩展区域填零。
@@ -2360,6 +2455,7 @@ bool xrtStrBufResize(xstrbuf* pBuffer, size_t iSize)
 ```c
 	(void)xrtStrBufResize(&Buffer, xrtStrBufView(&Buffer).Size - 1u);
 ```
+
 
 ### `xrtStrBufAppend`
 
@@ -2398,6 +2494,7 @@ bool xrtStrBufAppend(xstrbuf* pBuffer, xstrview Text)
 		 !xrtStrBufAppendRepeat(&tBuffer, XRT_STR_LITERAL("ab"), 3) ) {
 ```
 
+
 ### `xrtStrBufAppendByte`
 
 追加一个字节。
@@ -2435,6 +2532,7 @@ bool xrtStrBufAppendByte(xstrbuf* pBuffer, char iByte)
 		!xrtStrBufAppend(pBuffer, (xstrview){ sTag, strlen(sTag) }) ) {
 ```
 
+
 ### `xrtStrBufAppendRepeat`
 
 重复追加字符串视图。
@@ -2471,6 +2569,7 @@ bool xrtStrBufAppendRepeat(xstrbuf* pBuffer, xstrview Text, size_t iCount)
 ```c
 		 !xrtStrBufAppendRepeat(&tBuffer, XRT_STR_LITERAL("ab"), 3) ) {
 ```
+
 
 ### `xrtStrBufAppendFormat`
 
@@ -2510,6 +2609,7 @@ bool xrtStrBufAppendFormat(xstrbuf* pBuffer, cstr sFormat, ...)
 		 !xrtStrBufAppendFormat(&tBuffer, "%08X / %.2f", 255u, 3.5) ) {
 ```
 
+
 ### `xrtStrBufAppendFormatV`
 
 使用 printf 规则和已有参数列表直接追加到构建器。
@@ -2548,6 +2648,7 @@ bool xrtStrBufAppendFormatV(xstrbuf* pBuffer, cstr sFormat, va_list Args)
 	bool bOk = xrtStrBufAppendFormatV(pBuffer, "=%d", Args);
 ```
 
+
 ### `xrtStrBufTake`
 
 取走构建器内存并把构建器重置为空。
@@ -2580,6 +2681,7 @@ str xrtStrBufTake(xstrbuf* pBuffer)
 ```c
 	sResult = xrtStrBufTake(&tBuffer);
 ```
+
 
 ## 拆分与行处理
 
@@ -2618,6 +2720,7 @@ bool xrtStrSplitInit(xstrsplit* pSplit, xstrview Text, xstrview Separator)
 	if ( !xrtStrSplitInit(&tSplit, XRT_STR_LITERAL("alpha,beta,,gamma"), XRT_STR_LITERAL(",")) ) {
 ```
 
+
 ### `xrtStrSplitNext`
 
 返回下一个借用片段，结束时返回 `false`。
@@ -2651,6 +2754,7 @@ bool xrtStrSplitNext(xstrsplit* pSplit, xstrview* pItem)
 ```c
 	while ( xrtStrSplitNext(&tSplit, &Item) ) {
 ```
+
 
 ### `xrtStrFieldsInit`
 
@@ -2686,6 +2790,7 @@ bool xrtStrFieldsInit(xstrfields* pFields, xstrview Text)
 	if ( xrtStrFieldsInit(&Fields, SV("  user\tport  443 ")) ) {
 ```
 
+
 ### `xrtStrFieldsNext`
 
 返回下一个非空借用字段，结束时返回 `false`。
@@ -2719,6 +2824,7 @@ bool xrtStrFieldsNext(xstrfields* pFields, xstrview* pField)
 ```c
 		while ( xrtStrFieldsNext(&Fields, &Field) ) {
 ```
+
 
 ### `xrtStrLinesInit`
 
@@ -2754,6 +2860,7 @@ bool xrtStrLinesInit(xstrlines* pLines, xstrview Text)
 	if ( xrtStrLinesInit(&Lines, SV("first\nsecond\r\n")) ) {
 ```
 
+
 ### `xrtStrLinesNext`
 
 返回下一行借用视图，结束时返回 `false`。
@@ -2787,6 +2894,7 @@ bool xrtStrLinesNext(xstrlines* pLines, xstrview* pLine)
 ```c
 		while ( xrtStrLinesNext(&Lines, &Line) ) {
 ```
+
 
 ### `xrtStrSplit`
 
@@ -2824,6 +2932,7 @@ xstrlist* xrtStrSplit(xstrview Text, xstrview Separator)
 	xstrlist* pList = xrtStrSplit(SV("alpha,beta,gamma"), SV(","));
 ```
 
+
 ### `xrtStrSplitLines`
 
 一次性按行拆分字符串。
@@ -2858,6 +2967,7 @@ xstrlist* xrtStrSplitLines(xstrview Text)
 ```c
 	xstrlist* pList = xrtStrSplitLines(SV("a\nb\nc"));
 ```
+
 
 ### `xrtStrFields`
 
@@ -2894,6 +3004,7 @@ xstrlist* xrtStrFields(xstrview Text)
 	xstrlist* pFields = xrtStrFields(SV("one two  three"));
 ```
 
+
 ### `xrtStrListAlloc`
 
 为指定片段数量和零结尾数据容量分配单块字符串列表。
@@ -2929,6 +3040,7 @@ xstrlist* xrtStrListAlloc(size_t iCount, size_t iDataSize)
 ```c
 	xstrlist* pList = xrtStrListAlloc(3u, iDataSize);
 ```
+
 
 ### `xrtStrListWrite`
 
@@ -2967,6 +3079,7 @@ bool xrtStrListWrite(xstrlist* pList, size_t iIndex, xstrview Item, size_t* pOff
 		if ( !xrtStrListWrite(pList, i, Source[i], &iOffset) ) {
 ```
 
+
 ### `xrtStrListFree`
 
 释放便捷拆分结果。
@@ -2998,6 +3111,7 @@ void xrtStrListFree(xstrlist* pList)
 ```c
 			xrtStrListFree(pList);
 ```
+
 
 ## 格式化
 
@@ -3038,6 +3152,7 @@ str xrtFormat(cstr sFormat, ...)
 	str sDirect = xrtFormat("id=%d ok=%s", 7, "true");
 ```
 
+
 ### `xrtFormatV`
 
 使用 printf 规则和已有参数列表创建字符串。
@@ -3074,6 +3189,7 @@ str xrtFormatV(cstr sFormat, va_list Args)
 ```c
 	sBody = xrtFormatV("x=%s", Args);
 ```
+
 
 ## 通配匹配
 
@@ -3112,6 +3228,7 @@ bool xrtStrGlob(xstrview Text, xstrview Pattern, uint32 iFlags)
 	printf("%s\n", xrtStrGlob(Name, Pattern, XSTR_GLOB_CASE_ASCII) ?
 		"matched" : "not matched");
 ```
+
 
 ## 模块契约：线程
 

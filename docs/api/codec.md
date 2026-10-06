@@ -20,6 +20,7 @@ typedef enum xhexflag {
 | `XHEX_UPPER` | XHEX大写 |
 | `XHEX_IGNORE_SPACE` | 忽略空白 |
 
+
 ### `xbase64flag`
 
 Base64 配置标志；默认使用标准字母表、规范填充并严格拒绝空白。
@@ -40,6 +41,7 @@ typedef enum xbase64flag {
 | `XBASE64_IGNORE_SPACE` | IGNORESPACE |
 | `XBASE64_OPTIONAL_PADDING` | 允许省略填充 |
 
+
 ### `xbase64config`
 
 自定义字母表必须是 64 个互不重复的可见 ASCII 字符；空指针表示使用内置字母表。
@@ -55,6 +57,7 @@ typedef struct xbase64config {
 |---|---|---|
 | `Alphabet` | `cstr` | 字母表 |
 | `Flags` | `uint32` | 标志位 |
+
 
 ### `xcodecerror`
 
@@ -88,6 +91,7 @@ typedef enum xcodecerror {
 | `XCODEC_ERROR_PERCENT_CONFIG` | PERCENT配置非法 |
 | `XCODEC_ERROR_PERCENT_FORMAT` | 格式非法 |
 
+
 ### `xpercentnext`
 
 逐字节 percent 解码明确区分非法转义、输入结束和一个有效字节。
@@ -106,6 +110,7 @@ typedef enum xpercentnext {
 | `XPERCENT_NEXT_END` | END |
 | `XPERCENT_NEXT_BYTE` | 已产出字节 |
 
+
 ### `xpercentmap`
 
 预编译的 ASCII 安全字符集合。 该结构可按值复制，供大量字段编码时复用，避免反复构建字符位图。
@@ -119,6 +124,7 @@ typedef struct xpercentmap {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Bits` | `uint64[2]` | 256 位字符位图（每字节一位） |
+
 
 ## HEX Codec
 
@@ -185,6 +191,7 @@ if ( !xrtHexEncode("AB", 2u, NULL, 0u, &iSize, 0u) ||
 	(strcmp(Text, "4142") != 0) ) {
 ```
 
+
 ### `xrtHexDecode`
 
 严格解码 HEX 文本；输出为空且容量为零时只验证并查询字节数。输出可以与输入从同一地址开始，从而原地解码。
@@ -232,6 +239,7 @@ if ( !xrtHexDecode(SV("4142"), Text, 4u, &iSize, 0u) ||
 	(memcmp(Text, "AB", 2u) != 0) ) {
 ```
 
+
 ### `xrtHexEncodeNew`
 
 编码并返回由 `xrtFree` 释放的末尾补零文本；空输入仍返回独立可释放结果。
@@ -273,6 +281,7 @@ str xrtHexEncodeNew(
 str sText = xrtHexEncodeNew(arrData, sizeof(arrData), (uint32)XHEX_UPPER);
 ```
 
+
 ### `xrtHexDecodeNew`
 
 解码并返回由 `xrtFree` 释放的字节；额外末尾零字节不计入结果长度。
@@ -312,6 +321,7 @@ bytes xrtHexDecodeNew(
 ```c
 pData = xrtHexDecodeNew((xstrview){ sText, sizeof(arrData) * 2u }, &iSize, 0);
 ```
+
 
 
 ## Base64 Codec
@@ -388,6 +398,7 @@ if ( !xrtBase64Encode(
 }
 ```
 
+
 ### `xrtBase64Decode`
 
 严格解码 Base64 文本；输出为空且容量为零时只验证并查询字节数。
@@ -438,6 +449,7 @@ if ( !xrtBase64Decode("QUJD", 4u, NULL, 0u, &iSize, NULL) ||
 		NULL) ||
 ```
 
+
 ### `xrtBase64EncodeNew`
 
 编码并返回由 `xrtFree` 释放的末尾补零文本。
@@ -477,6 +489,7 @@ str xrtBase64EncodeNew(
 ```c
 sEncoded = xrtBase64EncodeNew("ABC", 3u, NULL);
 ```
+
 
 ### `xrtBase64DecodeNew`
 
@@ -522,6 +535,7 @@ pDecoded = xrtBase64DecodeNew(
 	Encoded, iEncodedSize, &iDecodedSize, NULL
 );
 ```
+
 
 
 ## Percent Codec
@@ -577,6 +591,7 @@ if ( !xrtPercentMapInit(&Map, SV(""), false) ||
 	!xrtPercentMeasure("A /", 3u, &Map, false, &iSize) ||
 ```
 
+
 ### `xrtPercentMeasure`
 
 计算指定字符集合和空格规则下的精确编码长度。
@@ -621,6 +636,7 @@ if ( !xrtPercentMapInit(&Map, SV(""), false) ||
 	!xrtPercentMeasure("A /", 3u, &Map, false, &iSize) ||
 	(iSize != 9u) ) {  /* 每个非安全字符 3 字节 */
 ```
+
 
 ### `xrtPercentWriteMeasured`
 
@@ -668,6 +684,7 @@ if ( (iWritten != 9u) ||
 	(memcmp(Text, "%41%20%2F", 9u) != 0) ) {
 ```
 
+
 ### `xrtPercentEncodeMeasured`
 
 把已经测量的输入编码到可同址扩张的输出，并可补写终止零。
@@ -713,6 +730,7 @@ if ( (memcmp(Text, "%41%20%2F", 9u) != 0) ||
 	(Text[9] != '\0') ) {
 ```
 
+
 ### `xrtPercentDecodeMeasure`
 
 严格验证全部 percent 转义并计算解码字节数。
@@ -755,6 +773,7 @@ if ( !xrtPercentDecodeMeasure(SV("%41%20%2F"), false,
 	(iSize != 3u) ) {
 ```
 
+
 ### `xrtPercentDecodeMeasured`
 
 把已经由 `xrtPercentDecodeMeasure` 预检的文本顺序解码到输出；输出可与输入同址。
@@ -796,6 +815,7 @@ size_t iDecoded = xrtPercentDecodeMeasured(
 if ( (iDecoded != 3u) ||
 	(memcmp(Raw, "A /", 3u) != 0) ) {
 ```
+
 
 ### `xrtPercentNext`
 
@@ -842,6 +862,7 @@ if ( (xrtPercentNext(SV("%41"), false, &iOffset, &uValue) !=
 	(xrtPercentNext(SV("%41"), false, &iOffset,
 		&uValue) != XPERCENT_NEXT_END) ) {
 ```
+
 
 ### `xrtPercentEncode`
 
@@ -892,6 +913,7 @@ if ( !xrtPercentEncode(
 ) ) {
 ```
 
+
 ### `xrtPercentWrite`
 
 按 RFC 3986 写出不带零结尾的编码片段；容量恰好等于返回长度即可。
@@ -940,6 +962,7 @@ if ( !xrtPercentWrite("/", 1u, SV(""), Text, sizeof(Text),
 	(memcmp(Text, "%2F", 3u) != 0) ||
 ```
 
+
 ### `xrtPercentDecode`
 
 严格解码百分号转义；加号保持不变，输出可以与输入从同一地址开始。
@@ -983,6 +1006,7 @@ bool xrtPercentDecode(
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtPercentEncodeNew`
 
@@ -1029,6 +1053,7 @@ if ( (sEncoded == NULL) || (iNew != 3u) ||
 	(strcmp(sEncoded, "%2F") != 0) ) {
 ```
 
+
 ### `xrtPercentDecodeNew`
 
 解码并返回由 `xrtFree` 释放的字节；末尾哨兵零不计入返回长度。
@@ -1068,6 +1093,7 @@ pDecoded = xrtPercentDecodeNew(
 	(xstrview){ Encoded, iEncodedSize }, &iDecodedSize
 );
 ```
+
 
 
 ## 模块契约：所有权

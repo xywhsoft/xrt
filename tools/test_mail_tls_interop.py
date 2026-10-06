@@ -61,7 +61,7 @@ def require_command(*args: str, timeout: int = 240) -> None:
     if result.returncode:
         raise AssertionError(
             f"{args[0]} exited {result.returncode}:\n{result.stdout[-3000:]}"
-            f"\n{result.stderr[-3000:]}"
+            f"\n{result.stderr[:6000]}\n{result.stderr[-3000:]}"
         )
 
 

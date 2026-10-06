@@ -142,7 +142,7 @@ static void testHttpModifiedSince(void)
 		"Sun, 06 Nov 1994 08:49:37 GMT"
 	);
 	xhttprepresentation Current =
-		testHttpRepresentation(iBase + INT64_C(999999));
+		testHttpRepresentation(iBase + INT64_C(999));
 	xhttpfield Field = {
 		XRT_STR_INIT("If-Modified-Since"),
 		XRT_STR_INIT("Sun, 06 Nov 1994 08:49:37 GMT")
@@ -258,7 +258,7 @@ static void testHttpIfRange(void)
 		"Sun, 06 Nov 1994 08:49:37 GMT"
 	);
 	xhttprepresentation Current =
-		testHttpRepresentation(iBase + INT64_C(700000));
+		testHttpRepresentation(iBase + INT64_C(700));
 
 	testRequire(xrtHttpIfRangeMatch(
 		XRT_STR_LITERAL("\"v1\""), &Current

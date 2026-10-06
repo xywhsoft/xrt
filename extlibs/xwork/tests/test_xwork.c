@@ -1,4 +1,5 @@
 #include <xrt/detail/wait.h>
+#include <inttypes.h>
 #include "../../xllm/src/internal/xllm_internal.h"
 #include "../../xllm-session/src/internal/xllm_session_internal.h"
 #include "../src/internal/xwork_internal.h"
@@ -975,13 +976,13 @@ static void test_task_system(void)
     CHECK(pSpawnTool && pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
         "{\"argv\":[\"ping\",\"-n\",\"1\",\"127.0.0.1\"],\"notify\":\"fast probe finished; collect its tail\"}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
-        tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uFast) == 1,
+        tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uFast) == 1,
         "spawn starts the fast task with a notify message");
 #else
     CHECK(pSpawnTool && pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
         "{\"argv\":[\"true\"],\"notify\":\"fast probe finished; collect its tail\"}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
-        tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uFast) == 1,
+        tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uFast) == 1,
         "spawn starts the fast task with a notify message");
 #endif
     xworkToolOutputUnit(&tOut);
@@ -990,13 +991,13 @@ static void test_task_system(void)
     CHECK(pSpawnTool && pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
         "{\"argv\":[\"ping\",\"-n\",\"30\",\"127.0.0.1\"],\"remind_after_ms\":100}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
-        tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uSlow) == 1,
+        tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uSlow) == 1,
         "spawn starts the slow task with a model-set reminder");
 #else
     CHECK(pSpawnTool && pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
         "{\"argv\":[\"sleep\",\"30\"],\"remind_after_ms\":100}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
-        tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uSlow) == 1,
+        tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uSlow) == 1,
         "spawn starts the slow task with a model-set reminder");
 #endif
     xworkToolOutputUnit(&tOut);
@@ -1005,7 +1006,7 @@ static void test_task_system(void)
     if ( uFast && uSlow && pWaitTool ) {
         xworkToolOutputInit(&tOut);
         (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
-            "{\"task_ids\":[%llu,%llu],\"mode\":\"any\",\"timeout_ms\":15000}", uFast, uSlow);
+            "{\"task_ids\":[%" PRIu64 ",%" PRIu64 "],\"mode\":\"any\",\"timeout_ms\":15000}", uFast, uSlow);
         CHECK(pWaitTool->OnExecute(pWaitTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
             == XWORK_RESULT_OK && tOut.bSuccess && tOut.sContent &&
             strstr(tOut.sContent, "state: exited") && strstr(tOut.sContent, "state: running"),
@@ -1038,7 +1039,7 @@ static void test_task_system(void)
     if ( uFast && pStopTool ) {
         xworkToolOutputInit(&tOut);
         (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
-            "{\"task_id\":%llu,\"release\":true}", uFast);
+            "{\"task_id\":%" PRIu64 ",\"release\":true}", uFast);
         CHECK(pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
             == XWORK_RESULT_OK, "fast task released after its notice");
         xworkToolOutputUnit(&tOut);
@@ -1046,7 +1047,7 @@ static void test_task_system(void)
     if ( uSlow && pStopTool ) {
         xworkToolOutputInit(&tOut);
         (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
-            "{\"task_id\":%llu,\"mode\":\"kill_tree\",\"release\":true}", uSlow);
+            "{\"task_id\":%" PRIu64 ",\"mode\":\"kill_tree\",\"release\":true}", uSlow);
         CHECK(pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
             == XWORK_RESULT_OK && tOut.bSuccess,
             "stop releases the stalled task");
@@ -1062,12 +1063,12 @@ static void test_task_system(void)
 #if defined(_WIN32)
         CHECK(pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
             "{\"argv\":[\"ping\",\"-n\",\"1\",\"127.0.0.1\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
-            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uA) == 1,
+            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uA) == 1,
             "wait-all fixture task A starts");
 #else
         CHECK(pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
             "{\"argv\":[\"true\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
-            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uA) == 1,
+            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uA) == 1,
             "wait-all fixture task A starts");
 #endif
         xworkToolOutputUnit(&tOut);
@@ -1075,29 +1076,29 @@ static void test_task_system(void)
 #if defined(_WIN32)
         CHECK(pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
             "{\"argv\":[\"ping\",\"-n\",\"2\",\"127.0.0.1\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
-            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uB) == 1,
+            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uB) == 1,
             "wait-all fixture task B starts");
 #else
         CHECK(pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
             "{\"argv\":[\"sleep\",\"1\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
-            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %llu", &uB) == 1,
+            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uB) == 1,
             "wait-all fixture task B starts");
 #endif
         xworkToolOutputUnit(&tOut);
         if ( uA && uB ) {
             xworkToolOutputInit(&tOut);
             (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
-                "{\"task_ids\":[%llu,%llu],\"mode\":\"all\",\"timeout_ms\":15000}", uA, uB);
+                "{\"task_ids\":[%" PRIu64 ",%" PRIu64 "],\"mode\":\"all\",\"timeout_ms\":15000}", uA, uB);
             CHECK(pWaitTool->OnExecute(pWaitTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
                 == XWORK_RESULT_OK && tOut.bSuccess && tOut.sContent &&
                 strstr(tOut.sContent, "state: exited"),
                 "wait(all) returns with both tasks exited");
             xworkToolOutputUnit(&tOut);
             (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
-                "{\"task_id\":%llu,\"release\":true}", uA);
+                "{\"task_id\":%" PRIu64 ",\"release\":true}", uA);
             if ( pStopTool ) (void)pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError);
             (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
-                "{\"task_id\":%llu,\"release\":true}", uB);
+                "{\"task_id\":%" PRIu64 ",\"release\":true}", uB);
             if ( pStopTool ) (void)pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError);
         }
     }

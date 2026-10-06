@@ -36,17 +36,21 @@ Memory Debug 在运行时跟踪每一次 XRT 分配：调用点登记、活动�
 
 `XRT_MEMDEBUG_EVENT_LIMIT` 是固定事件历史容量，当前为 512。
 
+
 ### `xmemdebugevent`
 
 `Sequence` 是严格递增序号；`Address`、`Size`、`File`、`Line` 描述事件现场。调用点字符串由 XRT 借用，直接调用 `At` API 时必须保证字符串在相关分配释放前有效。
+
 
 ### `xmemdebugallocation`
 
 描述调用开始时仍然活动的一项分配，字段为地址、请求大小和分配位置。
 
+
 ### `xmemdebugsnapshot`
 
 包含当前/峰值活动分配、隔离队列、各操作计数、各错误计数和当前事件数量。快照是同一锁临界区内的一致副本。
+
 
 ### `xmemdebugreportformat`
 
@@ -64,6 +68,7 @@ typedef enum xmemdebugreportformat {
 | `XMEMDEBUG_REPORT_TEXT` | XMEMDEBUGREPORT文本 |
 | `XMEMDEBUG_REPORT_JSON` | JSON 格式 |
 
+
 ### `xmemdebugvisitor`
 
 事件访问器返回 false 时停止遍历。
@@ -73,6 +78,7 @@ typedef bool (*xmemdebugvisitor)(const xmemdebugevent* pEvent, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xmemdebugallocationvisitor`
 
@@ -84,6 +90,7 @@ typedef bool (*xmemdebugallocationvisitor)(const xmemdebugallocation* pAllocatio
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xmemdebugwriteproc`
 
 报告写入器成功消费全部数据时返回 true。
@@ -93,6 +100,7 @@ typedef bool (*xmemdebugwriteproc)(xbytesview Data, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 函数
 
@@ -129,6 +137,7 @@ bool xrtMemDebugEnable(bool bEnable)
 	(void)xrtMemDebugEnable(true);
 ```
 
+
 ### `xrtMemDebugEnabled`
 
 原子读取运行时内存调试开关。
@@ -161,6 +170,7 @@ bool xrtMemDebugEnabled(void)
 ```c
 	printf("enabled=%d\n", xrtMemDebugEnabled() ? 1 : 0);
 ```
+
 
 ### `xrtMemDebugFailAfter`
 
@@ -195,6 +205,7 @@ bool xrtMemDebugFailAfter(uint64 iSuccessfulAllocations)
 	(void)xrtMemDebugFailAfter(1u);
 ```
 
+
 ### `xrtMemDebugFailClear`
 
 清除当前线程尚未触发的分配故障。
@@ -226,6 +237,7 @@ void xrtMemDebugFailClear(void)
 ```c
 	xrtMemDebugFailClear();
 ```
+
 
 ### `xrtMemDebugFailTriggered`
 
@@ -260,6 +272,7 @@ bool xrtMemDebugFailTriggered(void)
 		xrtMemDebugFailTriggered() ? 1 : 0);
 ```
 
+
 ### `xrtMemDebugReset`
 
 在没有活动分配时清空统计、事件和隔离队列。
@@ -293,6 +306,7 @@ bool xrtMemDebugReset(void)
 	(void)xrtMemDebugReset();
 ```
 
+
 ### `xrtMemDebugSnapshot`
 
 获取字段相互一致的内存调试统计快照。
@@ -324,6 +338,7 @@ void xrtMemDebugSnapshot(xmemdebugsnapshot* pSnapshot)
 ```c
 	xrtMemDebugSnapshot(&tSnapshot);
 ```
+
 
 ### `xrtMemDebugVisit`
 
@@ -360,6 +375,7 @@ size_t xrtMemDebugVisit(xmemdebugvisitor pVisitor, ptr pUserData)
 	(void)xrtMemDebugVisit(printEvent, &iEvents);
 ```
 
+
 ### `xrtMemDebugVisitLive`
 
 访问内部锁线性化点捕获的完整活动分配快照。
@@ -394,6 +410,7 @@ size_t xrtMemDebugVisitLive(xmemdebugallocationvisitor pVisitor, ptr pUserData)
 	(void)xrtMemDebugVisitLive(printAllocation, NULL);
 ```
 
+
 ### `xrtMemDebugEventName`
 
 返回调试事件种类的稳定小写名称。
@@ -426,6 +443,7 @@ cstr xrtMemDebugEventName(xmemdebugeventkind Kind)
 ```c
 			xrtMemDebugEventName(pEvent->Kind));
 ```
+
 
 ### `xrtMemDebugReport`
 
@@ -469,6 +487,7 @@ bool xrtMemDebugReport(
 ```
 
 调用点函数：`xrtMallocAt`、`xrtCallocAt`、`xrtReallocAt`、`xrtFreeAt`、`xrtMemDupAt` 是宏重定向的目标，也允许诊断工具直接调用；除调用点外，所有权和错误契约与普通函数一致（见 [memory.md](memory.md)）。
+
 
 ## 范例
 

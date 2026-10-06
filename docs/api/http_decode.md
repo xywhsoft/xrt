@@ -24,6 +24,7 @@ typedef enum xhttpdecodemode {
 | `XHTTP_DECODE_CONTENT` | 按内容编码解码 |
 | `XHTTP_DECODE_RAW` | 允许透传原始字节 |
 
+
 ### `xhttpdecodeflag`
 
 默认拒绝未知编码；调用方可显式选择保留整个原始表示。
@@ -37,6 +38,7 @@ typedef enum xhttpdecodeflag {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_DECODE_ALLOW_RAW` | 允许透传原始字节 |
+
 
 ### `xhttpdecodeerror`
 
@@ -64,6 +66,7 @@ typedef enum xhttpdecodeerror {
 | `XHTTP_DECODE_ERROR_LIMIT` | 超限 |
 | `XHTTP_DECODE_ERROR_OUTPUT` | 输出回调失败 |
 
+
 ### `xhttpdecodeconfig`
 
 每个解码层和最终明文都受同一个硬限额约束。
@@ -84,6 +87,7 @@ typedef struct xhttpdecodeconfig {
 | `MaxCodings` | `uint32` | MaxCodings |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xhttpdecode`
 
 HTTP 解码器拥有并复用底层 Inflate 状态。
@@ -94,6 +98,7 @@ typedef struct xhttpdecode xhttpdecode;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xhttpdecodeoutputproc`
 
 输出视图只在回调期间有效，返回 false 会终止当前解码器。
@@ -103,6 +108,7 @@ typedef bool (*xhttpdecodeoutputproc)(xbytesview Data, ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -194,6 +200,7 @@ void xrtHttpDecodeConfigInit(xhttpdecodeconfig* pConfig);
 	xrtHttpDecodeConfigInit(&Compat);
 ```
 
+
 ### `xrtHttpDecodeConfigInitSafe`
 
 初始化面向不可信对端的安全配置；明文最多 16 MiB，更大正文需显式修改 OutputLimit。
@@ -225,6 +232,7 @@ void xrtHttpDecodeConfigInitSafe(xhttpdecodeconfig* pConfig);
 ```c
 	xrtHttpDecodeConfigInitSafe(&Safe);
 ```
+
 
 ### `xrtHttpDecodeCreate`
 
@@ -265,6 +273,7 @@ xhttpdecode* xrtHttpDecodeCreate(
 ```c
 	xhttpdecode* pDecode = xrtHttpDecodeCreate(Fields, 1, NULL);
 ```
+
 
 ### `xrtHttpDecodeReset`
 
@@ -315,6 +324,7 @@ bool xrtHttpDecodeReset(
 		(xrtHttpDecodeInputSize(pDecode) != 4u) ) {
 ```
 
+
 ### `xrtHttpDecodeDestroy`
 
 销毁解码器；空指针是安全的空操作。
@@ -346,6 +356,7 @@ void xrtHttpDecodeDestroy(xhttpdecode* pDecode);
 ```c
 	xrtHttpDecodeDestroy(pDecode);
 ```
+
 
 
 ### 流式解码与观测
@@ -401,6 +412,7 @@ bool xrtHttpDecodeWrite(
 	) && xrtHttpDecodeDone(pDecode);
 ```
 
+
 ### `xrtHttpDecodeMode`
 
 返回当前消息的交付模式。
@@ -445,6 +457,7 @@ xhttpdecodemode xrtHttpDecodeMode(
 		(xrtHttpDecodeOutputSize(pDecode) != 26u) ) {
 ```
 
+
 ### `xrtHttpDecodeDone`
 
 判断最终正文边界和全部压缩流 trailer 均已验证。
@@ -477,6 +490,7 @@ bool xrtHttpDecodeDone(const xhttpdecode* pDecode);
 ```c
 	) && xrtHttpDecodeDone(pDecode);
 ```
+
 
 ### `xrtHttpDecodeInputSize`
 
@@ -512,6 +526,7 @@ uint64 xrtHttpDecodeInputSize(const xhttpdecode* pDecode);
 		(xrtHttpDecodeOutputSize(pDecode) != 26u) ) {
 ```
 
+
 ### `xrtHttpDecodeOutputSize`
 
 返回已经被输出回调接受或明确丢弃的正文总字节数。
@@ -544,4 +559,3 @@ uint64 xrtHttpDecodeOutputSize(const xhttpdecode* pDecode);
 ```c
 		(xrtHttpDecodeOutputSize(pDecode) != 26u) ) {
 ```
-

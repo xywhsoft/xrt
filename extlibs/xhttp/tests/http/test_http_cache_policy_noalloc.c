@@ -31,7 +31,7 @@ int main(void)
 	xrtHttpCacheControlInit(&Empty);
 	xrtHttpCacheTimeInit(&Time);
 	memset(&Age, 0, sizeof(Age));
-	Freshness.Lifetime = UINT64_C(60000000);
+	Freshness.Lifetime = UINT64_C(60000);
 	Freshness.Source = XHTTP_CACHE_FRESHNESS_MAX_AGE;
 	bPass = xrtHttpCacheControlParse(
 		Fields, 1, &Response

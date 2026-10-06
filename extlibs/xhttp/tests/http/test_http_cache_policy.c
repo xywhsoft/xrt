@@ -377,7 +377,7 @@ static void testHttpCachePolicyFreshUse(void)
 	);
 	testHttpCachePolicyAge(10, &Age);
 	Freshness.Lifetime =
-		UINT64_C(60000000);
+		UINT64_C(60000);
 	Freshness.Source =
 		XHTTP_CACHE_FRESHNESS_MAX_AGE;
 	testRequire(
@@ -462,7 +462,7 @@ static void testHttpCachePolicyStaleUse(void)
 
 	testHttpCachePolicyAge(70, &Age);
 	Freshness.Lifetime =
-		UINT64_C(60000000);
+		UINT64_C(60000);
 	Freshness.Source =
 		XHTTP_CACHE_FRESHNESS_MAX_AGE;
 	testHttpCachePolicyControl(
@@ -483,7 +483,7 @@ static void testHttpCachePolicyStaleUse(void)
 		((Plan.Actions &
 		  XHTTP_CACHE_USE_STALE) != 0) &&
 		(Plan.StaleBy ==
-		 UINT64_C(10000000)),
+		 UINT64_C(10000)),
 		"bounded max-stale did not permit boundary value"
 	);
 	testHttpCachePolicyControl(
@@ -562,7 +562,7 @@ static void testHttpCachePolicyUseEdges(void)
 	);
 	testHttpCachePolicyAge(10, &Age);
 	Freshness.Lifetime =
-		UINT64_C(60000000);
+		UINT64_C(60000);
 	Freshness.Source =
 		XHTTP_CACHE_FRESHNESS_HEURISTIC;
 	testRequire(
@@ -647,7 +647,7 @@ static void testHttpCachePolicyUseEdges(void)
 		) == XHTTP_CACHE_USE_GATEWAY_TIMEOUT,
 		"response without any lifetime was served stale"
 	);
-	Freshness.Lifetime = UINT64_C(60000000);
+	Freshness.Lifetime = UINT64_C(60000);
 	Freshness.Source =
 		XHTTP_CACHE_FRESHNESS_HEURISTIC;
 	Input.Flags =

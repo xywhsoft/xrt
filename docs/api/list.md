@@ -77,6 +77,7 @@ typedef struct xlistnode {
 | `Next` | `struct xlistnode*` | 后继 |
 | `Owner` | `xlist*` | Owner |
 
+
 ### `xlistiter`
 
 外置迭代器不分配内存，并允许通过专用操作删除当前节点。
@@ -99,6 +100,7 @@ typedef struct xlistiter {
 | `Version` | `uint64` | 结构版本 |
 | `Reverse` | `bool` | Reverse |
 
+
 ### `xlisterror`
 
 链表模块稳定错误代码。
@@ -119,6 +121,7 @@ typedef enum xlisterror {
 | `XLIST_ERROR_RANGE` | 范围越界 |
 | `XLIST_ERROR_MODIFIED` | 迭代期间被修改 |
 
+
 ### `xlist`
 
 侵入式链表不拥有节点内存；一个对象可嵌入多个独立节点。
@@ -128,6 +131,7 @@ typedef struct xlist xlist;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### 常量总表
 
@@ -285,6 +289,7 @@ void xrtListInit(xlist* pList);
 ```
 
 
+
 ### `xrtListNodeInit`
 
 初始化新的节点存储；不能用于仍然属于链表的节点。
@@ -316,6 +321,7 @@ void xrtListNodeInit(xlistnode* pNode);
 ```c
 		xrtListNodeInit(&Entries[i].Node);
 ```
+
 
 
 ### `xrtListReady`
@@ -359,6 +365,7 @@ bool xrtListReady(const xlist* pList);
 ```
 
 
+
 ### `xrtListValidate`
 
 完整验证节点所有权、双向链接、端点和计数（调试/断言用）。
@@ -392,6 +399,7 @@ bool xrtListValidate(const xlist* pList);
 ```c
 		!xrtListValidate(&List) ||
 ```
+
 
 
 ### `xrtListEmpty`
@@ -428,6 +436,7 @@ bool xrtListEmpty(const xlist* pList);
 ```
 
 
+
 ### `xrtListCount`
 
 返回当前节点数量。
@@ -459,6 +468,7 @@ size_t xrtListCount(const xlist* pList);
 ```c
 		(xrtListCount(&List) != 0u) ||
 ```
+
 
 
 ### `xrtListFirst`
@@ -497,6 +507,7 @@ xlistnode* xrtListFirst(const xlist* pList);
 ```
 
 
+
 ### `xrtListLast`
 
 返回尾节点；空链表返回空指针。
@@ -529,6 +540,7 @@ xlistnode* xrtListLast(const xlist* pList);
 ```c
 		(xrtListLast(&List) != NULL) ||
 ```
+
 
 
 ### `xrtListPrev`
@@ -565,6 +577,7 @@ xlistnode* xrtListPrev(const xlistnode* pNode);
 ```
 
 
+
 ### `xrtListNext`
 
 返回节点的后继。
@@ -599,6 +612,7 @@ xlistnode* xrtListNext(const xlistnode* pNode);
 ```
 
 
+
 ### `xrtListOwner`
 
 返回节点所属链表。
@@ -631,6 +645,7 @@ xlist* xrtListOwner(const xlistnode* pNode);
 ```c
 		(xrtListOwner(&Entries[2].Node) != &List) ||
 ```
+
 
 
 ### `xrtListContains`
@@ -676,6 +691,7 @@ bool xrtListContains(const xlist* pList, const xlistnode* pNode);
 ```
 
 
+
 ### `xrtListLinked`
 
 判断节点是否已连接到任意链表。
@@ -708,6 +724,7 @@ bool xrtListLinked(const xlistnode* pNode);
 ```c
 		!xrtListLinked(&Entries[2].Node) ||
 ```
+
 
 
 ### `xrtListPushFront`
@@ -744,6 +761,7 @@ bool xrtListPushFront(xlist* pList, xlistnode* pNode);
 ```c
 		if ( !xrtListPushFront(&Cache, &Items[i].Recent) ) {
 ```
+
 
 
 ### `xrtListPushBack`
@@ -792,6 +810,7 @@ bool xrtListPushBack(xlist* pList, xlistnode* pNode);
 ```
 
 
+
 ### `xrtListInsertBefore`
 
 在参考节点之前插入未连接节点。
@@ -832,6 +851,7 @@ bool xrtListInsertBefore(
 		!xrtListInsertBefore(&List, &Entries[1].Node,
 			&Entries[0].Node) ||
 ```
+
 
 
 ### `xrtListInsertAfter`
@@ -876,6 +896,7 @@ bool xrtListInsertAfter(
 ```
 
 
+
 ### `xrtListRemove`
 
 从指定链表移除节点，但不释放节点内存；节点恢复独立状态可再插入。
@@ -915,6 +936,7 @@ bool xrtListRemove(xlist* pList, xlistnode* pNode);
 ```
 
 
+
 ### `xrtListPopFront`
 
 移除并返回首节点；空链表是正常结果。
@@ -947,6 +969,7 @@ xlistnode* xrtListPopFront(xlist* pList);
 ```c
 		(xrtListPopFront(&List) != NULL) ||
 ```
+
 
 
 ### `xrtListPopBack`
@@ -983,6 +1006,7 @@ xlistnode* xrtListPopBack(xlist* pList);
 ```
 
 
+
 ### `xrtListMoveFront`
 
 把已有节点移动到链表首，不改变节点数量。
@@ -1017,6 +1041,7 @@ bool xrtListMoveFront(xlist* pList, xlistnode* pNode);
 ```c
 	if ( !xrtListMoveFront(&Cache, &Items[0].Recent) ) {
 ```
+
 
 
 ### `xrtListMoveBack`
@@ -1057,6 +1082,7 @@ bool xrtListMoveBack(xlist* pList, xlistnode* pNode);
 ```
 
 
+
 ### `xrtListClear`
 
 分离全部节点并保留可继续使用的空链表；各节点恢复独立状态。
@@ -1090,6 +1116,7 @@ bool xrtListClear(xlist* pList);
 ```c
 	if ( !xrtListClear(&Cache) ) {
 ```
+
 
 
 ### `xrtListIterBegin`
@@ -1127,6 +1154,7 @@ bool xrtListIterBegin(xlist* pList, xlistiter* pIterator);
 ```
 
 
+
 ### `xrtListIterRBegin`
 
 启动反向迭代（降序）。
@@ -1160,6 +1188,7 @@ bool xrtListIterRBegin(xlist* pList, xlistiter* pIterator);
 ```c
 	if ( !xrtListIterRBegin(&List, &Iter) ) {
 ```
+
 
 
 ### `xrtListIterNext`
@@ -1197,6 +1226,7 @@ xlistnode* xrtListIterNext(xlistiter* pIterator);
 ```
 
 
+
 ### `xrtListIterRemove`
 
 移除最近一次返回的节点，并让迭代器继续保持有效。
@@ -1232,6 +1262,7 @@ bool xrtListIterRemove(xlistiter* pIterator);
 ```
 
 
+
 ### `xrtListIterEnd`
 
 提前结束迭代；允许传入空指针。
@@ -1263,5 +1294,3 @@ void xrtListIterEnd(xlistiter* pIterator);
 ```c
 	xrtListIterEnd(&Iter);
 ```
-
-

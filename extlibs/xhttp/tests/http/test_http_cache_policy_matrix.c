@@ -161,7 +161,7 @@ int main(void)
 	xrtHttpCacheControlInit(&Empty);
 	xrtHttpCacheTimeInit(&Time);
 	memset(&Age, 0, sizeof(Age));
-	Freshness.Lifetime = UINT64_C(1000000);
+	Freshness.Lifetime = UINT64_C(1000);
 	Freshness.Source =
 		XHTTP_CACHE_FRESHNESS_HEURISTIC;
 	testHttpCachePolicyStoreMatrix(&Empty, &Time);

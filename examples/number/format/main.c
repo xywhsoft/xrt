@@ -24,6 +24,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 
 #include <xrt.h>
 
@@ -31,6 +32,20 @@
 
 int main(void)
 {
+	/* Sized 版本保留内嵌零；长度不能一律由 strlen 推断。 */
+	size_t iCharSize = 0, iHexSize = 0, iFloatSize = 0;
+	str sNul = xrtIntFormatSized(0, XRT_STR_LITERAL("4c"), &iCharSize);
+	str sWide = xrtUIntFormatSized(UINT64_MAX, XRT_STR_LITERAL("X"), &iHexSize);
+	str sZero = xrtNumFormatSized(-0.0, XRT_STR_LITERAL(".2f"), &iFloatSize);
+	bool bSizedOk = (sNul != NULL) && (iCharSize == 4u) &&
+		(memcmp(sNul, "   \0", 4u) == 0) &&
+		(sWide != NULL) && (iHexSize == 16u) &&
+		(sZero != NULL) && (iFloatSize == strlen(sZero));
+	xrtFree(sNul);
+	xrtFree(sWide);
+	xrtFree(sZero);
+	if ( !bSizedOk ) return 1;
+
 	str sInteger = xrtIntFormat(
 		INT64_C(-123456789), XRT_STR_LITERAL(",d"));
 	str sHex = xrtUIntFormat(

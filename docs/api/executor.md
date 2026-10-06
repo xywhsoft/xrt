@@ -25,6 +25,7 @@ typedef struct xexecutoritem {
 | `Destroy` | `xexecutorfreeproc` | Destroy |
 | `DestroyContext` | `ptr` | DestroyContext |
 
+
 ### `xexecutorconfig`
 
 QueueLimit 是每个 Worker 的硬队列上限；总排队容量等于 Threads 乘 QueueLimit。
@@ -42,6 +43,7 @@ typedef struct xexecutorconfig {
 | `Threads` | `uint32` | 线程数 |
 | `QueueLimit` | `size_t` | QueueLimit |
 | `StackSize` | `size_t` | 栈大小 |
+
 
 ### `xexecutorstats`
 
@@ -79,6 +81,7 @@ typedef struct xexecutorstats {
 | `Closed` | `bool` | Closed |
 | `Cancelling` | `bool` | Cancelling |
 
+
 ### `xexecutor`
 
 Executor 是无 Future 的有界高吞吐执行器，与传播结果和取消的 TaskPool 分工。
@@ -88,6 +91,7 @@ typedef struct xexecutor xexecutor;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xexecutorproc`
 
@@ -99,6 +103,7 @@ typedef void (*xexecutorproc)(ptr pData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xexecutorfreeproc`
 
 工作数据析构在过程返回或排队工作被取消后执行一次。
@@ -108,6 +113,7 @@ typedef void (*xexecutorfreeproc)(ptr pData, ptr pContext);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -166,6 +172,7 @@ xexecutor* xrtExecutorCreate(const xexecutorconfig* pConfig);
 xexecutorconfig Config = { 2, 8, 0 };
 ```
 
+
 ### `xrtExecutorSubmit`
 
 提交一个 detached 工作；成功后接管数据析构，失败时所有权仍属于调用方。
@@ -218,6 +225,7 @@ if ( !xrtExecutorSubmit(
 	(void)xrtExecutorCancel(pExecutor);
 ```
 
+
 ### `xrtExecutorSubmitBatch`
 
 原子提交一组 detached 工作；整组成功或整组失败，不保证执行顺序。
@@ -261,6 +269,7 @@ if ( !xrtExecutorSubmitBatch(pExecutor, Items, 3u) ) {
 }
 ```
 
+
 ### `xrtExecutorClose`
 
 停止受理新工作，并让已经受理的工作自然排空。
@@ -288,14 +297,11 @@ bool xrtExecutorClose(xexecutor* pExecutor);
 
 #### 范例
 
-[concurrency/executor_tour · 收口](../../examples/concurrency/executor_tour/main.c) · Close 后 Wait 族收口
+参见已注册的 [examples/concurrency/executor_tour/main.c](../../examples/concurrency/executor_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( !xrtExecutorClose(pExecutor) ||
-	(xrtExecutorWaitFor(pExecutor,
-		UINT64_C(3000000)) != XWAIT_OK) ||
+xrtExecutorClose(pExecutor)
 ```
-
 ### `xrtExecutorCancel`
 
 停止受理，丢弃尚未开始的工作并执行其数据析构；运行中工作不会被强停。
@@ -330,6 +336,7 @@ bool xrtExecutorCancel(xexecutor* pExecutor);
 	(void)xrtExecutorDestroy(pExecutor);
 	return 2;
 ```
+
 
 ### `xrtExecutorWait`
 
@@ -367,6 +374,7 @@ xwaitresult xrtExecutorWait(xexecutor* pExecutor);
 	!Stats.Closed ||
 ```
 
+
 ### `xrtExecutorWaitFor`
 
 在相对毫秒数内等待已经关闭的执行器排空。
@@ -396,13 +404,12 @@ xwaitresult xrtExecutorWaitFor(xexecutor* pExecutor, int64 iTimeout);
 
 #### 范例
 
-[concurrency/executor_tour · 收口](../../examples/concurrency/executor_tour/main.c) · 关闭后的限期等待
+参见已注册的 [examples/concurrency/executor_tour/main.c](../../examples/concurrency/executor_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-(xrtExecutorWaitFor(pExecutor,
-	UINT64_C(3000000)) != XWAIT_OK) ||
+xrtExecutorWaitFor(pExecutor,
+			INT64_C(3000))
 ```
-
 ### `xrtExecutorGet`
 
 复制当前负载和累计统计快照。
@@ -434,15 +441,11 @@ bool xrtExecutorGet(
 
 #### 范例
 
-[concurrency/executor_tour · 统计](../../examples/concurrency/executor_tour/main.c) · 受理/完成/线程数核对
+参见已注册的 [examples/concurrency/executor_tour/main.c](../../examples/concurrency/executor_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( !xrtExecutorGet(pExecutor, &Stats) ||
-	(Stats.Submitted < 3u) ||
-	(Stats.Completed != 3u) ||
-	(Stats.Threads != 2u) ) {
+xrtExecutorGet(pExecutor, &Stats)
 ```
-
 ### `xrtExecutorDestroy`
 
 关闭、排空、停止 Worker 并释放执行器；Worker 不能销毁自身执行器。
@@ -479,6 +482,7 @@ if ( !xrtExecutorDestroy(pExecutor) ) {
 }
 printf("completed: %u\n", xrtAtomic32Load(&Count, XMEMORY_ACQUIRE));
 ```
+
 
 ## 示例
 

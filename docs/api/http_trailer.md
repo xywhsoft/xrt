@@ -111,6 +111,7 @@ bool xrtHttpTrailerNameValid(xstrview Name);
 			xrtHttpTrailerNameValid(SV("Bad Name")) ) {
 ```
 
+
 ### `xrtHttpTrailerSectionValid`
 
 完整验证实际 trailer section 的字段名称和值。
@@ -148,6 +149,7 @@ bool xrtHttpTrailerSectionValid(
 			if ( !xrtHttpTrailerSectionValid(arrSection, 1u) ||
 				xrtHttpTrailerSectionValid(arrBad, 1u) ) {
 ```
+
 
 
 ### 声明生成与查询
@@ -198,6 +200,7 @@ bool xrtHttpTrailerCount(
 			xrtHttpTrailerNameValid(SV("Bad Name")) ) {
 ```
 
+
 ### `xrtHttpTrailerFind`
 
 查找已声明的 trailer 字段名；返回 ITEM、END 或 ERROR。
@@ -239,6 +242,7 @@ xhttpnext xrtHttpTrailerFind(
 				SV("X-Checksum")) ||
 			xrtHttpTrailerFind(arrTrailer, 2u,
 ```
+
 
 ### `xrtHttpTrailerNamesWrite`
 
@@ -288,6 +292,7 @@ bool xrtHttpTrailerNamesWrite(
 					19u) != 0) ) {
 ```
 
+
 ### `xrtHttpTrailerNamesBuild`
 
 构建零结尾的 Trailer 声明值，返回值由 `xrtFree` 释放。
@@ -327,6 +332,7 @@ str xrtHttpTrailerNamesBuild(
 ```c
 	sNames = xrtHttpTrailerNamesBuild(Trailers, 2u, NULL);
 ```
+
 
 ## 模块契约：线程
 

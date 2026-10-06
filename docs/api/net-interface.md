@@ -28,6 +28,7 @@ typedef enum xnetinterfaceflag {
 | `XNET_INTERFACE_POINT_TO_POINT` | 点对点链路 |
 | `XNET_INTERFACE_MULTICAST` | 支持多播 |
 
+
 ### `xnetinterfaceaddress`
 
 接口地址不带传输端口，PrefixLength 为网络前缀位数。
@@ -43,6 +44,7 @@ typedef struct xnetinterfaceaddress {
 |---|---|---|
 | `Address` | `xnetaddr` | 地址 |
 | `PrefixLength` | `uint8` | PrefixLength |
+
 
 ### `xnetinterface`
 
@@ -74,6 +76,7 @@ typedef struct xnetinterface {
 | `Addresses` | `const xnetinterfaceaddress*` | Addresses |
 | `AddressCount` | `size_t` | AddressCount |
 
+
 ### `xnetinterfacelist`
 
 接口列表拥有 Items 以及所有条目借用的存储。
@@ -89,6 +92,7 @@ typedef struct xnetinterfacelist {
 |---|---|---|
 | `Items` | `const xnetinterface*` | 元素数组 |
 | `Count` | `size_t` | 数量 |
+
 
 ## 分层
 
@@ -257,16 +261,11 @@ uint32 xrtNetInterfaceIndex(cstr sName, xnetfamily Family);
 
 #### 范例
 
-[network/interface_tour · 往返](../../examples/network/interface_tour/main.c) · 跨平台回环命名差异
+参见已注册的 [examples/network/interface_tour/main.c](../../examples/network/interface_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-iIndex = xrtNetInterfaceIndex("loopback4", XNET_FAMILY_IPV4);
-if ( iIndex == 0u ) {
-	iIndex = xrtNetInterfaceIndex(
-		"Loopback Pseudo-Interface 1", XNET_FAMILY_IPV4);
-}
+xrtNetInterfaceIndex("loopback4", XNET_FAMILY_IPV4);
 ```
-
 ### `xrtNetInterfaceName`
 输出指定接口索引的规范名称并返回所需长度。`UNSPEC` 同时匹配 IPv4 与 IPv6 索引；空输出可查询所需大小。
 
@@ -314,6 +313,7 @@ iSize = xrtNetInterfaceName(iIndex, XNET_FAMILY_IPV4, sName,
 	sizeof(sName));
 ```
 
+
 ### `xrtNetInterfaces`
 创建当前系统接口、地址和元数据的一致快照。
 
@@ -352,6 +352,7 @@ for ( i = 0; i < List.Count; i++ ) {
 	const xnetinterface* pInterface = &List.Items[i];
 ```
 
+
 ### `xrtNetInterfacesFree`
 释放接口快照拥有的全部存储并清零。
 
@@ -380,6 +381,7 @@ xrtNetInterfacesFree(&List);
 return 0;
 }
 ```
+
 
 ### `xrtNetLocalAddress`
 选择一个适合本机诊断的单播地址。这是确定性偏好查询，不代表公网出口、默认路由或服务监听策略。
@@ -421,6 +423,7 @@ if ( !xrtNetLocalAddress(&Address, XNET_FAMILY_IPV4) ||
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtNetLocalAddressText`
 输出首选本机地址文本并返回不含结尾零字节的所需长度。
@@ -465,6 +468,7 @@ iSize = xrtNetLocalAddressText(XNET_FAMILY_IPV4, sText,
 	sizeof(sText));
 ```
 
+
 ### `xrtNetLocalAddressString`
 分配并返回首选本机地址文本。
 
@@ -498,6 +502,7 @@ str sAddress = xrtNetLocalAddressString(XNET_FAMILY_UNSPEC);
 str sHost = xrtNetHostNameString();
 str sHardware = xrtNetLocalHardwareString();
 ```
+
 
 ### `xrtNetLocalHardware`
 输出首选活动接口的原始硬件地址并返回所需字节数。空输出可查询大小；缓冲不足时不写入并报告完整所需大小。
@@ -540,6 +545,7 @@ if ( (iNeed < 6u) || (iNeed > sizeof(Hardware)) ) {
 iSize = xrtNetLocalHardware(Hardware, sizeof(Hardware));
 ```
 
+
 ### `xrtNetLocalHardwareText`
 输出首选接口硬件地址的大写紧凑 HEX 文本。
 
@@ -581,6 +587,7 @@ if ( (iNeed < 12u) || (iNeed >= sizeof(sText)) ) {
 iSize = xrtNetLocalHardwareText(sText, sizeof(sText));
 ```
 
+
 ### `xrtNetLocalHardwareString`
 分配并返回首选接口硬件地址的大写紧凑 HEX 文本。
 
@@ -614,6 +621,7 @@ str sAddress = xrtNetLocalAddressString(XNET_FAMILY_UNSPEC);
 str sHost = xrtNetHostNameString();
 str sHardware = xrtNetLocalHardwareString();
 ```
+
 
 ### `xrtNetHostName`
 输出本机主机名并返回不含结尾零字节的所需长度。
@@ -655,6 +663,7 @@ if ( (iNeed == 0u) || (iNeed >= sizeof(sName)) ) {
 }
 iSize = xrtNetHostName(sName, sizeof(sName));
 ```
+
 
 ### `xrtNetHostNameString`
 分配并返回本机主机名。

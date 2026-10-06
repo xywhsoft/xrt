@@ -50,6 +50,7 @@ typedef struct xset {
 | `LifecycleUserData` | `ptr` | LifecycleUserData |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xsetiter`
 
 外置迭代器允许同一集合存在多个独立遍历状态。
@@ -70,6 +71,7 @@ typedef struct xsetiter {
 | `Version` | `uint64` | 结构版本 |
 | `Direction` | `int` | Direction |
 
+
 ### `xsetentry`
 
 Set 内部条目结构（不透明，仅实现内部使用）。
@@ -81,6 +83,7 @@ typedef struct xsetentry xsetentry;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xsethash`
 
 哈希器必须保证相等元素产生相同哈希值，回调中不得调用同一集合的 API。
@@ -90,6 +93,7 @@ typedef uint64 (*xsethash)(const void* pItem, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xsetequal`
 
@@ -105,6 +109,7 @@ typedef bool (*xsetequal)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xsetcopy`
 
 复制器成功时保持键等价，失败时不得在已清零目标槽遗留资源。
@@ -114,6 +119,7 @@ typedef bool (*xsetcopy)(ptr pTarget, const void* pSource, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xsetdrop`
 
@@ -125,6 +131,7 @@ typedef void (*xsetdrop)(ptr pItem, ptr pUserData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xsetvisitor`
 
 访问器可查询同一集合但不得修改、结束或再次访问，返回 false 时停止。
@@ -134,6 +141,7 @@ typedef bool (*xsetvisitor)(const void* pItem, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -244,6 +252,7 @@ bool xrtSetInit(xset* pSet, size_t iItemSize)
 	if ( !xrtSetInit(&tEnabled, sizeof(int)) ) {
 ```
 
+
 ### `xrtSetInitAligned`
 
 使用显式元素对齐初始化空集合。
@@ -289,6 +298,7 @@ bool xrtSetInitAligned(
 		(xrtSetCount(&tAligned) != 1u) ) {
 ```
 
+
 ### `xrtSetCreate`
 
 创建使用默认 16 字节对齐的空集合。
@@ -324,6 +334,7 @@ xset* xrtSetCreate(size_t iItemSize)
 ```c
 	pA = xrtSetCreate(sizeof(int));
 ```
+
 
 ### `xrtSetCreateAligned`
 
@@ -363,6 +374,7 @@ xset* xrtSetCreateAligned(size_t iItemSize, size_t iAlignment)
 			sizeof(int));
 ```
 
+
 ### `xrtSetUnit`
 
 释放全部元素和桶数组，但不释放集合结构。
@@ -395,6 +407,7 @@ void xrtSetUnit(xset* pSet)
 		xrtSetUnit(&tEnabled);
 ```
 
+
 ### `xrtSetDestroy`
 
 释放全部元素、桶数组和集合结构。
@@ -426,6 +439,7 @@ void xrtSetDestroy(xset* pSet)
 ```c
 		xrtSetDestroy(pAllowed);
 ```
+
 
 ## 键策略
 
@@ -491,6 +505,7 @@ bool xrtSetSetKeyPolicy(
 			NULL
 		) ||
 ```
+
 
 ## 资源生命周期
 
@@ -561,6 +576,7 @@ bool xrtSetSetLifecycle(
 			NULL
 		)
 ```
+
 
 ## 基础操作
 
@@ -660,6 +676,7 @@ const void* xrtSetGetOrAdd(
 	pSlot = xrtSetGetOrAdd(pA, &Values[0], &bNew);
 ```
 
+
 ### `xrtSetAdd`
 
 复制加入元素，已有等价元素时成功且不替换规范元素。
@@ -697,6 +714,7 @@ bool xrtSetAdd(xset* pSet, const void* pItem)
 			!xrtSetAdd(&tRequested, &arrRequested[i]) ) {
 ```
 
+
 ### `xrtSetGet`
 
 返回集合内部的规范元素，缺失是正常结果。
@@ -730,6 +748,7 @@ const void* xrtSetGet(const xset* pSet, const void* pItem)
 ```c
 	pStored = (const exampletag*)xrtSetGet(&tTags, &tDuplicate);
 ```
+
 
 ### `xrtSetHas`
 
@@ -765,6 +784,7 @@ bool xrtSetHas(const xset* pSet, const void* pItem)
 		!xrtSetHas(pA, &Values[0]) ) {
 ```
 
+
 ### `xrtSetRemove`
 
 删除等价元素并调用资源释放器。
@@ -798,6 +818,7 @@ bool xrtSetRemove(xset* pSet, const void* pItem)
 ```c
 		!xrtSetRemove(pA, &Values[2]) ||
 ```
+
 
 ### `xrtSetTake`
 
@@ -834,6 +855,7 @@ bool xrtSetTake(xset* pSet, const void* pItem, ptr pValue)
 	if ( !xrtSetTake(&tTags, &tPrimary, &tTaken) ) {
 ```
 
+
 ### `xrtSetVisit`
 
 按插入顺序访问元素，并返回实际访问数量。
@@ -868,6 +890,7 @@ size_t xrtSetVisit(xset* pSet, xsetvisitor pVisitor, ptr pUserData)
 	if ( (xrtSetVisit(pA, exampleVisitCount, &iSeen) != 2u) ||
 		(iSeen != 2u) ) {
 ```
+
 
 ## 容量
 
@@ -915,6 +938,7 @@ void xrtSetClear(xset* pSet)
 	xrtSetClear(&tAligned);
 ```
 
+
 ### `xrtSetReserve`
 
 确保集合无需扩容即可容纳指定数量的元素。
@@ -951,6 +975,7 @@ bool xrtSetReserve(xset* pSet, size_t iCapacity)
 		!xrtSetReserve(pA, 16u) ||
 ```
 
+
 ### `xrtSetTrim`
 
 把桶数组收缩到当前元素数需要的最小容量。
@@ -985,6 +1010,7 @@ bool xrtSetTrim(xset* pSet)
 		!xrtSetTrim(pA) ||
 ```
 
+
 ### `xrtSetCount`
 
 返回当前元素数，非法集合返回零。
@@ -1017,6 +1043,7 @@ size_t xrtSetCount(const xset* pSet)
 		(xrtSetCount(pA) != 2u) ||
 ```
 
+
 ### `xrtSetCapacity`
 
 返回再次扩容前可容纳的元素数。
@@ -1048,6 +1075,7 @@ size_t xrtSetCapacity(const xset* pSet)
 ```c
 		(xrtSetCapacity(pA) < 2u) ||
 ```
+
 
 ## 遍历
 
@@ -1126,6 +1154,7 @@ bool xrtSetIterBegin(xset* pSet, xsetiter* pIterator)
 	if ( !xrtSetIterBegin(pAllowed, &tIterator) ) {
 ```
 
+
 ### `xrtSetIterRBegin`
 
 启动按插入顺序逆序遍历的外置迭代器。
@@ -1160,6 +1189,7 @@ bool xrtSetIterRBegin(xset* pSet, xsetiter* pIterator)
 		if ( !xrtSetIterRBegin(pA, &Iter) ) {
 ```
 
+
 ### `xrtSetIterNext`
 
 返回下一规范元素，结构修改后报告状态错误。
@@ -1193,6 +1223,7 @@ const void* xrtSetIterNext(xsetiter* pIterator)
 	while ( (pPort = (const int*)xrtSetIterNext(&tIterator)) != NULL ) {
 ```
 
+
 ### `xrtSetIterEnd`
 
 提前结束迭代并清除借用状态。
@@ -1224,6 +1255,7 @@ void xrtSetIterEnd(xsetiter* pIterator)
 ```c
 	xrtSetIterEnd(&tIterator);
 ```
+
 
 ## 集合运算
 
@@ -1327,6 +1359,7 @@ xset* xrtSetClone(const xset* pSet)
 			xset* pClone = xrtSetClone(pA);
 ```
 
+
 ### `xrtSetMerge`
 
 事务合并缺失元素，失败不变且保留已有元素地址和相对顺序。
@@ -1362,6 +1395,7 @@ bool xrtSetMerge(xset* pTarget, const xset* pSource)
 ```c
 		!xrtSetMerge(pMerged, pB) ||
 ```
+
 
 ### `xrtSetUnion`
 
@@ -1399,6 +1433,7 @@ xset* xrtSetUnion(const xset* pLeft, const xset* pRight)
 	pUnion = xrtSetUnion(pA, pB);
 ```
 
+
 ### `xrtSetIntersection`
 
 创建两个兼容集合的交集。
@@ -1435,6 +1470,7 @@ xset* xrtSetIntersection(const xset* pLeft, const xset* pRight)
 	pAllowed = xrtSetIntersection(&tRequested, &tEnabled);
 ```
 
+
 ### `xrtSetDifference`
 
 创建左集合相对右集合的差集。
@@ -1470,6 +1506,7 @@ xset* xrtSetDifference(const xset* pLeft, const xset* pRight)
 ```c
 	pDiff = xrtSetDifference(pUnion, pB);
 ```
+
 
 ### `xrtSetSymmetricDifference`
 
@@ -1509,6 +1546,7 @@ xset* xrtSetSymmetricDifference(
 ```c
 		pSym = xrtSetSymmetricDifference(pThree, pB);
 ```
+
 
 ### `xrtSetIsSubset`
 
@@ -1556,6 +1594,7 @@ bool xrtSetIsSubset(
 			xrtSetIsDisjoint(pA, pThree) ) {
 ```
 
+
 ### `xrtSetIsSuperset`
 
 判断左集合是否为右集合的超集，可选择严格超集。
@@ -1596,6 +1635,7 @@ bool xrtSetIsSuperset(
 			!xrtSetIsSuperset(pThree, pA, false) ||
 ```
 
+
 ### `xrtSetIsDisjoint`
 
 判断两个兼容集合是否没有任何共同元素。
@@ -1634,6 +1674,7 @@ bool xrtSetIsDisjoint(
 		!xrtSetIsDisjoint(pA, pB) ) {
 ```
 
+
 ### `xrtSetEqual`
 
 判断两个兼容集合是否拥有相同元素。
@@ -1668,6 +1709,7 @@ bool xrtSetEqual(const xset* pLeft, const xset* pRight)
 ```c
 				!xrtSetEqual(pA, pClone) ) {
 ```
+
 
 ## 错误
 

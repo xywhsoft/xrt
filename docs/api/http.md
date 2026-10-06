@@ -45,6 +45,7 @@ typedef enum xhttpmethod {
 | `XHTTP_METHOD_TRACE` | 最详细级别 |
 | `XHTTP_METHOD_PATCH` | PATCH 方法 |
 
+
 ### `xhttpversion`
 
 HTTP 版本使用可直接比较的主次版本编码。
@@ -60,6 +61,7 @@ typedef enum xhttpversion {
 |---|---|
 | `XHTTP_VERSION_1_0` | HTTP/1.0 |
 | `XHTTP_VERSION_1_1` | HTTP/1.1 |
+
 
 ### `xhttpstatus`
 
@@ -204,6 +206,7 @@ typedef enum xhttpstatus {
 | `XHTTP_STATUS_NOT_EXTENDED` | 510 未扩展 |
 | `XHTTP_STATUS_NETWORK_AUTHENTICATION_REQUIRED` | 511 需网络认证 |
 
+
 ### `xhttpfield`
 
 字段名称和值都是借用视图，不要求零结尾。
@@ -219,6 +222,7 @@ typedef struct xhttpfield {
 |---|---|---|
 | `Name` | `xstrview` | 名称 |
 | `Value` | `xstrview` | 值 |
+
 
 ### `xhttpnext`
 
@@ -237,6 +241,7 @@ typedef enum xhttpnext {
 | `XHTTP_NEXT_ERROR` | 失败 |
 | `XHTTP_NEXT_END` | 遍历结束 |
 | `XHTTP_NEXT_ITEM` | 已产出一项 |
+
 
 ### `xhttpfieldtokencursor`
 
@@ -264,6 +269,7 @@ typedef struct xhttpfieldtokencursor {
 | `Validated` | `uint8` | 是否已校验 |
 | `Required` | `uint8` | 是否必需 |
 
+
 ### `xhttpweightedtoken`
 
 加权 token 借用原字段值，Quality 使用 0 到 1000 的无浮点定点值。
@@ -279,6 +285,7 @@ typedef struct xhttpweightedtoken {
 |---|---|---|
 | `Token` | `xstrview` | Token |
 | `Quality` | `uint16` | Quality |
+
 
 ### `xhttpauthority`
 
@@ -302,6 +309,7 @@ typedef struct xhttpauthority {
 | `Host` | `xstrview` | 主机名 |
 | `PortText` | `xstrview` | PortText |
 
+
 ### `xhttptargetform`
 
 Request-target 形式由方法与线路文本共同决定。
@@ -321,6 +329,7 @@ typedef enum xhttptargetform {
 | `XHTTP_TARGET_ABSOLUTE` | absolute-form（代理） |
 | `XHTTP_TARGET_AUTHORITY` | authority-form（CONNECT） |
 | `XHTTP_TARGET_ASTERISK` | asterisk-form（OPTIONS *） |
+
 
 ### `xhttptarget`
 
@@ -352,6 +361,7 @@ typedef struct xhttptarget {
 | `Query` | `xstrview` | 查询串 |
 | `Host` | `xhttpauthority` | 主机名 |
 
+
 ### `xhttpparamflags`
 
 参数值标志区分省略值、token 值和 quoted-string 值。
@@ -370,6 +380,7 @@ typedef enum xhttpparamflags {
 | `XHTTP_PARAM_HAS_VALUE` | HAS值非法 |
 | `XHTTP_PARAM_QUOTED` | 带引号 |
 
+
 ### `xhttpparam`
 
 参数名称和值借用原文本；quoted-string 值不含双引号，但保留反斜杠转义。
@@ -387,6 +398,7 @@ typedef struct xhttpparam {
 | `Name` | `xstrview` | 名称 |
 | `Value` | `xstrview` | 值 |
 | `Flags` | `uint32` | 标志位 |
+
 
 ### `xhttpparamvaluecursor`
 
@@ -412,6 +424,7 @@ typedef struct xhttpparamvaluecursor {
 | `Flags` | `uint32` | 标志位 |
 | `Validated` | `uint8` | 是否已校验 |
 
+
 ### `xhttp1status`
 
 HTTP/1 解析返回值区分数据不足、字段描述符不足和真正的协议错误。
@@ -432,6 +445,7 @@ typedef enum xhttp1status {
 | `XHTTP1_READY` | 就绪 |
 | `XHTTP1_FIELDS` | 已启用字段解析 |
 
+
 ### `xhttpkind`
 
 起始行决定消息方向，调用方不需要依赖启发式自动识别。
@@ -447,6 +461,7 @@ typedef enum xhttpkind {
 |---|---|
 | `XHTTP_REQUEST` | 请求方向 |
 | `XHTTP_RESPONSE` | 响应方向 |
+
 
 ### `xhttp1flag`
 
@@ -473,6 +488,7 @@ typedef enum xhttp1flag {
 | `XHTTP1_CHUNKED` | chunked |
 | `XHTTP1_TRANSFER_ENCODING` | TRANSFERENCODING |
 | `XHTTP1_TRANSFER_OTHER` | 未知传输编码 |
+
 
 ### `xhttp1error`
 
@@ -554,6 +570,7 @@ typedef enum xhttp1error {
 | `XHTTP1_ERROR_FORBIDDEN_TRAILER` | 失败 |
 | `XHTTP1_ERROR_UPGRADE` | 升级语法非法 |
 
+
 ### `xhttp1limits`
 
 默认限额面向公网协议输入，调用方可以按服务端路由或客户端策略收紧。
@@ -574,6 +591,7 @@ typedef struct xhttp1limits {
 | `MaxFieldLine` | `size_t` | MaxFieldLine |
 | `MaxFields` | `size_t` | MaxFields |
 
+
 ### `xhttp1errorinfo`
 
 解析错误位置从消息首字节开始计数，Line 从一开始计数。
@@ -592,6 +610,7 @@ typedef struct xhttp1errorinfo {
 | `Offset` | `size_t` | 偏移量 |
 | `Line` | `size_t` | 行号 |
 
+
 ### `xhttp1transfercoding`
 
 Transfer Coding 名称和原样参数都借用字段值，Parameters 不含首个分号。
@@ -607,6 +626,7 @@ typedef struct xhttp1transfercoding {
 |---|---|---|
 | `Name` | `xstrview` | 名称 |
 | `Parameters` | `xstrview` | Parameters |
+
 
 ### `xhttp1head`
 
@@ -646,6 +666,7 @@ typedef struct xhttp1head {
 | `FieldCapacity` | `size_t` | FieldCapacity |
 | `MethodCode` | `xhttpmethod` | MethodCode |
 
+
 ### `xhttp1bodymode`
 
 Body Plan 明确区分无正文、定长、分块、关闭定界和升级后的非 HTTP 字节。
@@ -667,6 +688,7 @@ typedef enum xhttp1bodymode {
 | `XHTTP1_BODY_CHUNKED` | CHUNKED |
 | `XHTTP1_BODY_CLOSE` | CLOSE |
 | `XHTTP1_BODY_TUNNEL` | 升级后的非 HTTP 字节流 |
+
 
 ### `xhttp1bodystatus`
 
@@ -690,6 +712,7 @@ typedef enum xhttp1bodystatus {
 | `XHTTP1_BODY_DONE` | 完成 |
 | `XHTTP1_BODY_FIELDS` | 字段体形态 |
 
+
 ### `xhttp1bodyplan`
 
 Body Plan 是 Header 事实结合请求方法和响应状态后的唯一分帧结论。
@@ -705,6 +728,7 @@ typedef struct xhttp1bodyplan {
 |---|---|---|
 | `Mode` | `xhttp1bodymode` | 模式 |
 | `Length` | `uint64` | 长度 |
+
 
 ### `xhttp1bodylimits`
 
@@ -727,6 +751,7 @@ typedef struct xhttp1bodylimits {
 | `MaxTrailer` | `size_t` | MaxTrailer |
 | `MaxTrailerLine` | `size_t` | MaxTrailerLine |
 | `MaxTrailers` | `size_t` | MaxTrailers |
+
 
 ### `xhttp1body`
 
@@ -762,6 +787,7 @@ typedef struct xhttp1body {
 | `ChunkLineBytes` | `size_t` | ChunkLineBytes |
 | `State` | `uint32` | 状态 |
 
+
 ### `xhttp1message`
 
 完整消息便利层借用连续输入、Header 和 trailer 描述符，不持有堆内存。 Wire 只覆盖第一条完整消息，BodyBytes 是移除 chunked 分帧后的正文长度。
@@ -790,6 +816,7 @@ typedef struct xhttp1message {
 | `TrailerCapacity` | `size_t` | TrailerCapacity |
 | `BodyBytes` | `size_t` | BodyBytes |
 
+
 ### `xhttpdecodemode`
 
 解码模式明确区分无编码、成功接管的内置编码和显式允许的原样回退。
@@ -808,6 +835,7 @@ typedef enum xhttpdecodemode {
 | `XHTTP_DECODE_CONTENT` | 按内容编码解码 |
 | `XHTTP_DECODE_RAW` | 允许透传原始字节 |
 
+
 ### `xhttpdecodeflag`
 
 默认拒绝未知编码；调用方可显式选择保留整个原始表示。
@@ -821,6 +849,7 @@ typedef enum xhttpdecodeflag {
 | 值 | 语义 |
 |---|---|
 | `XHTTP_DECODE_ALLOW_RAW` | 允许透传原始字节 |
+
 
 ### `xhttpdecodeerror`
 
@@ -848,6 +877,7 @@ typedef enum xhttpdecodeerror {
 | `XHTTP_DECODE_ERROR_LIMIT` | 超限 |
 | `XHTTP_DECODE_ERROR_OUTPUT` | 输出回调失败 |
 
+
 ### `xhttpdecodeconfig`
 
 每个解码层和最终明文都受同一个硬限额约束。
@@ -868,6 +898,7 @@ typedef struct xhttpdecodeconfig {
 | `MaxCodings` | `uint32` | MaxCodings |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xhttpdecode`
 
 HTTP 解码器拥有并复用底层 Inflate 状态。
@@ -878,6 +909,7 @@ typedef struct xhttpdecode xhttpdecode;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xhttpdecodeoutputproc`
 
 输出视图只在回调期间有效，返回 false 会终止当前解码器。
@@ -887,6 +919,7 @@ typedef bool (*xhttpdecodeoutputproc)(xbytesview Data, ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xhttpcoding`
 
@@ -907,6 +940,7 @@ typedef enum xhttpcoding {
 | `XHTTP_CODING_IDENTITY` | 无编码 |
 | `XHTTP_CODING_GZIP` | gzip 包装 |
 | `XHTTP_CODING_DEFLATE` | deflate |
+
 
 ### `xhttpacceptencodingflag`
 
@@ -932,6 +966,7 @@ typedef enum xhttpacceptencodingflag {
 | `XHTTP_ACCEPT_ENCODING_IDENTITY` | 允许 identity |
 | `XHTTP_ACCEPT_ENCODING_WILDCARD` | * 通配 |
 
+
 ### `xhttpacceptencoding`
 
 质量值使用 0 到 1000 的定点表示。 同一编码重复出现时保留最高质量，Flags 记录是否显式出现。
@@ -953,6 +988,7 @@ typedef struct xhttpacceptencoding {
 | `Identity` | `uint16` | Identity |
 | `Wildcard` | `uint16` | Wildcard |
 | `Flags` | `uint32` | 标志位 |
+
 
 ### `xhttpcontentencodingflag`
 
@@ -976,6 +1012,7 @@ typedef enum xhttpcontentencodingflag {
 | `XHTTP_CONTENT_ENCODING_UNKNOWN` | 未知 |
 | `XHTTP_CONTENT_ENCODING_LEGACY` | 传统别名（x-gzip） |
 
+
 ### `xhttpcontentencodingcursor`
 
 游标可在重复 Content-Encoding 字段之间无分配前向迭代。
@@ -992,6 +1029,7 @@ typedef struct xhttpcontentencodingcursor {
 | `Field` | `size_t` | Field |
 | `Offset` | `size_t` | 偏移量 |
 
+
 ### `xhttpcontentencodingitem`
 
 每个成员保留原 token，并把内置编码映射到统一枚举。
@@ -1007,6 +1045,7 @@ typedef struct xhttpcontentencodingitem {
 |---|---|---|
 | `Token` | `xstrview` | Token |
 | `Coding` | `xhttpcoding` | Coding |
+
 
 ### `xhttpcontentencodingplan`
 
@@ -1032,6 +1071,7 @@ typedef struct xhttpcontentencodingplan {
 | `JoinedSize` | `size_t` | JoinedSize |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xhttpexpectflag`
 
 Expectation 标志区分扩展值、quoted-string 和参数。
@@ -1051,6 +1091,7 @@ typedef enum xhttpexpectflag {
 | `XHTTP_EXPECT_HAS_VALUE` | HAS值非法 |
 | `XHTTP_EXPECT_VALUE_QUOTED` | 值非法QUOTED |
 | `XHTTP_EXPECT_HAS_PARAMETERS` | 带参数 |
+
 
 ### `xhttpexpectation`
 
@@ -1074,6 +1115,7 @@ typedef struct xhttpexpectation {
 | `Parameters` | `xstrview` | Parameters |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xhttpexpectcursor`
 
 单字段游标由初始化函数建立，调用方不得直接修改。
@@ -1089,6 +1131,7 @@ typedef struct xhttpexpectcursor {
 |---|---|---|
 | `Offset` | `size_t` | 偏移量 |
 | `Validated` | `uint8` | 是否已校验 |
+
 
 ### `xhttpexpectfieldcursor`
 
@@ -1107,6 +1150,7 @@ typedef struct xhttpexpectfieldcursor {
 | `Field` | `size_t` | Field |
 | `Offset` | `size_t` | 偏移量 |
 | `Validated` | `uint8` | 是否已校验 |
+
 
 ### `xhttpexpectresult`
 
@@ -1128,6 +1172,7 @@ typedef enum xhttpexpectresult {
 | `XHTTP_EXPECT_CONTINUE` | CONTINUE（100 继续） |
 | `XHTTP_EXPECT_UNSUPPORTED` | 不支持该期望 |
 
+
 ### `xhttptecodingflag`
 
 单个 TE 成员标志区分 trailers、传输参数和显式权重。
@@ -1147,6 +1192,7 @@ typedef enum xhttptecodingflag {
 | `XHTTP_TE_CODING_TRAILERS` | 支持 trailer |
 | `XHTTP_TE_CODING_HAS_PARAMETERS` | 带参数 |
 | `XHTTP_TE_CODING_HAS_WEIGHT` | 带 q 权重 |
+
 
 ### `xhttptecoding`
 
@@ -1172,6 +1218,7 @@ typedef struct xhttptecoding {
 | `Quality` | `uint16` | Quality |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xhttptecursor`
 
 单字段游标由初始化函数建立，调用方不得直接修改。
@@ -1187,6 +1234,7 @@ typedef struct xhttptecursor {
 |---|---|---|
 | `Offset` | `size_t` | 偏移量 |
 | `Validated` | `uint8` | 是否已校验 |
+
 
 ### `xhttptefieldcursor`
 
@@ -1205,6 +1253,7 @@ typedef struct xhttptefieldcursor {
 | `Field` | `size_t` | Field |
 | `Offset` | `size_t` | 偏移量 |
 | `Validated` | `uint8` | 是否已校验 |
+
 
 ### `xhttpteflag`
 
@@ -1226,6 +1275,7 @@ typedef enum xhttpteflag {
 | `XHTTP_TE_ACCEPTS_TRAILERS` | 接受 trailer |
 | `XHTTP_TE_HAS_TRANSFER_CODINGS` | 含传输编码 |
 
+
 ### `xhttpteinfo`
 
 TE 汇总保留字段、总成员和实际传输编码数量。
@@ -1246,6 +1296,7 @@ typedef struct xhttpteinfo {
 | `TransferCodingCount` | `size_t` | TransferCodingCount |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xhttpupgradeitem`
 
 一个 Upgrade 协议借用原字段值；空 Version 表示线路中没有版本。
@@ -1262,6 +1313,7 @@ typedef struct xhttpupgradeitem {
 | `Protocol` | `xstrview` | Protocol |
 | `Version` | `xstrview` | 结构版本 |
 
+
 ### `xhttpupgradecursor`
 
 单字段游标由初始化函数建立，调用方不得直接修改。
@@ -1277,6 +1329,7 @@ typedef struct xhttpupgradecursor {
 |---|---|---|
 | `Offset` | `size_t` | 偏移量 |
 | `Validated` | `uint8` | 是否已校验 |
+
 
 ### `xhttpupgradefieldcursor`
 
@@ -1296,6 +1349,7 @@ typedef struct xhttpupgradefieldcursor {
 | `Offset` | `size_t` | 偏移量 |
 | `Validated` | `uint8` | 是否已校验 |
 
+
 ### `xnetproxytype`
 
 代理类型只描述协议；TCP、TLS 和上层客户端决定如何承载协议。
@@ -1311,6 +1365,7 @@ typedef enum xnetproxytype {
 |---|---|
 | `XNET_PROXY_SOCKS5` | SOCKS5 代理 |
 | `XNET_PROXY_HTTP_CONNECT` | HTTP CONNECT |
+
 
 ### `xnetproxyauth`
 
@@ -1331,6 +1386,7 @@ typedef enum xnetproxyauth {
 | `XNET_PROXY_AUTH_NONE` | 无 |
 | `XNET_PROXY_AUTH_REQUIRED` | 需要代理认证 |
 | `XNET_PROXY_AUTH_OPTIONAL` | 可选认证 |
+
 
 ### `xnetproxyconfig`
 
@@ -1356,6 +1412,7 @@ typedef struct xnetproxyconfig {
 | `Username` | `xbytesview` | Username |
 | `Password` | `xbytesview` | Password |
 
+
 ### `xnetproxyinfo`
 
 信息视图由代理对象持有，只能在至少一个对象引用存活时借用。
@@ -1380,6 +1437,7 @@ typedef struct xnetproxyinfo {
 | `Username` | `xbytesview` | Username |
 | `Password` | `xbytesview` | Password |
 
+
 ### `xnetproxyhandshakestate`
 
 握手状态同时告诉传输层下一步应发送、接收还是发布隧道。
@@ -1400,6 +1458,7 @@ typedef enum xnetproxyhandshakestate {
 | `XNET_PROXY_HANDSHAKE_READY` | 就绪 |
 | `XNET_PROXY_HANDSHAKE_ERROR` | 失败 |
 
+
 ### `xnetproxyendpoint`
 
 域名端点使用 Host；数字端点使用 Address，端口始终保存在 Address.Port。
@@ -1415,6 +1474,7 @@ typedef struct xnetproxyendpoint {
 |---|---|---|
 | `Address` | `xnetaddr` | 地址 |
 | `Host` | `xstrview` | 主机名 |
+
 
 ### `xnetproxyhandshakeconfig`
 
@@ -1437,6 +1497,7 @@ typedef struct xnetproxyhandshakeconfig {
 | `TargetPort` | `uint16` | TargetPort |
 | `ReceiveLimit` | `size_t` | ReceiveLimit |
 | `Pool` | `xnetbufpool*` | Pool |
+
 
 ### `xnetsocks5reply`
 
@@ -1468,6 +1529,7 @@ typedef enum xnetsocks5reply {
 | `XNET_SOCKS5_COMMAND_UNSUPPORTED` | COMMAND不支持 |
 | `XNET_SOCKS5_ADDRESS_UNSUPPORTED` | 地址类型不支持 |
 
+
 ### `xnetproxydialstate`
 
 Proxy Dial 状态区分代理端点解析、TCP 连接和协议握手。
@@ -1492,6 +1554,7 @@ typedef enum xnetproxydialstate {
 | `XNET_PROXY_DIAL_FAILED` | 已失败 |
 | `XNET_PROXY_DIAL_CANCELLED` | 已取消 |
 
+
 ### `xnetproxydialconfig`
 
 Timeout 覆盖 DNS、TCP 和代理握手全过程；零值保留各内层超时。
@@ -1510,6 +1573,7 @@ typedef struct xnetproxydialconfig {
 | `Timeout` | `int64` | 超时（毫秒） |
 | `ReceiveLimit` | `size_t` | ReceiveLimit |
 
+
 ### `xnetproxydialstats`
 
 Proxy Dial 保持底层 TCP Dial 统计，并补充当前协议阶段。
@@ -1526,6 +1590,7 @@ typedef struct xnetproxydialstats {
 | `State` | `xnetproxydialstate` | 状态 |
 | `Transport` | `xnetdialstats` | Transport |
 
+
 ### `xnetproxy`
 
 不可变代理端点可以跨请求和线程共享。
@@ -1535,6 +1600,7 @@ typedef struct xnetproxy xnetproxy;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xnetproxyhandshake`
 
@@ -1546,6 +1612,7 @@ typedef struct xnetproxyhandshake xnetproxyhandshake;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xnetproxydial`
 
 托管代理拨号对象（不透明）：内部串联名称解析、TCP 连接与代理握手。
@@ -1556,6 +1623,7 @@ typedef struct xnetproxydial xnetproxydial;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xnetproxydialproc`
 
@@ -1572,6 +1640,7 @@ typedef void (*xnetproxydialproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -1792,6 +1861,7 @@ xhttpmethod xrtHttpMethodParse(xstrview Method);
 ```
 
 
+
 ### `xrtHttpMethodEqual`
 
 按 HTTP 大小写敏感规则比较两个合法方法名。
@@ -1830,6 +1900,7 @@ bool xrtHttpMethodEqual(
 ```
 
 
+
 ### `xrtHttpMethodSafe`
 
 判断方法是否只读取资源语义；GET、HEAD、OPTIONS 和 TRACE 属于安全方法。
@@ -1862,6 +1933,7 @@ bool xrtHttpMethodSafe(xstrview Method);
 ```c
 		printf(" safe=%d", xrtHttpMethodSafe(SV("GET")) ? 1
 ```
+
 
 
 ### `xrtHttpMethodIdempotent`
@@ -1898,6 +1970,7 @@ bool xrtHttpMethodIdempotent(xstrview Method);
 ```
 
 
+
 ### `xrtHttpStatusText`
 
 返回已注册状态码的标准原因短语；未知、临时或未分配状态返回空视图。
@@ -1930,6 +2003,7 @@ xstrview xrtHttpStatusText(uint16 iStatus);
 ```c
 		xstrview Text = xrtHttpStatusText(200);
 ```
+
 
 
 ### `xrtHttpResponseContentAllowed`
@@ -1971,6 +2045,7 @@ bool xrtHttpResponseContentAllowed(
 ```
 
 
+
 ## 令牌与 OWS
 
 ### `xrtHttpTokenValid`
@@ -2005,6 +2080,7 @@ bool xrtHttpTokenValid(xstrview Text);
 ```c
 		printf("valid=%d", xrtHttpTokenValid(SV("gzip")) ? 1
 ```
+
 
 
 ### `xrtHttpTokenEqual`
@@ -2042,6 +2118,7 @@ bool xrtHttpTokenEqual(xstrview Left, xstrview Right);
 ```
 
 
+
 ### `xrtHttpOwsTrim`
 
 剥离两端的可选空白（SP/HTAB）并返回剩余视图。
@@ -2073,6 +2150,7 @@ xstrview xrtHttpOwsTrim(xstrview Text);
 ```c
 	Trimmed = xrtHttpOwsTrim(SV("  value  "));
 ```
+
 
 
 ### `xrtHttpTokenNext`
@@ -2118,6 +2196,7 @@ xhttpnext xrtHttpTokenNext(
 ```
 
 
+
 ### `xrtHttpTokenListHas`
 
 判断完整 token-list 是否包含指定 token；非空元素语法错误仍返回 false 并设置错误。
@@ -2153,6 +2232,7 @@ bool xrtHttpTokenListHas(xstrview List, xstrview Token);
 ```
 
 
+
 ### `xrtHttpTokenListCount`
 
 统计 token-list 非空条目；空列表成功返回零。
@@ -2186,6 +2266,7 @@ bool xrtHttpTokenListCount(xstrview List, size_t* pCount);
 ```c
 		if ( xrtHttpTokenListCount(SV(sList), &iCount) ) {
 ```
+
 
 
 ### `xrtHttpTokenListWrite`
@@ -2233,6 +2314,7 @@ bool xrtHttpTokenListWrite(
 ```
 
 
+
 ### `xrtHttpTokenListBuild`
 
 构建零结尾 token-list，返回值由 `xrtFree` 释放。
@@ -2274,6 +2356,7 @@ str xrtHttpTokenListBuild(
 ```
 
 
+
 ## 权重与长度
 
 ### `xrtHttpQualityParse`
@@ -2313,6 +2396,7 @@ bool xrtHttpQualityParse(
 ```c
 		if ( !xrtHttpQualityParse(SV("0.5"), &iQuality) ) {
 ```
+
 
 
 ### `xrtHttpWeightedTokenNext`
@@ -2357,6 +2441,7 @@ xhttpnext xrtHttpWeightedTokenNext(
 ```
 
 
+
 ### `xrtHttpContentLengthParse`
 
 解析 Content-Length；逗号分隔的重复值只有完全一致时才成功。
@@ -2393,6 +2478,7 @@ bool xrtHttpContentLengthParse(
 ```c
 		if ( !xrtHttpContentLengthParse(SV("42"), &iLength) ) {
 ```
+
 
 
 ## Host 与 Authority
@@ -2437,6 +2523,7 @@ bool xrtHttpHostParse(
 ```
 
 
+
 ### `xrtHttpHostValid`
 
 验证 Host 字段值是单个、无 userinfo 的 URI authority。
@@ -2469,6 +2556,7 @@ bool xrtHttpHostValid(xstrview Value);
 ```c
 		xrtHttpHostValid(SV("example.com")) ? 1
 ```
+
 
 
 ### `xrtHttpIpv4Valid`
@@ -2505,6 +2593,7 @@ bool xrtHttpIpv4Valid(xstrview Value);
 ```
 
 
+
 ### `xrtHttpIpv6Valid`
 
 严格验证 IPv6 文本，支持压缩和嵌入式 IPv4，不接受 ZoneID。
@@ -2537,6 +2626,7 @@ bool xrtHttpIpv6Valid(xstrview Value);
 ```c
 		xrtHttpIpv6Valid(SV("
 ```
+
 
 
 ### `xrtHttpHostEqual`
@@ -2574,6 +2664,7 @@ bool xrtHttpHostEqual(xstrview Left, xstrview Right);
 ```
 
 
+
 ### `xrtHttpAuthorityValid`
 
 验证拆分后的 authority 字段、标志与端口数值保持一致。
@@ -2608,6 +2699,7 @@ bool xrtHttpAuthorityValid(
 ```c
 		xrtHttpAuthorityValid(&Auth) ? 1
 ```
+
 
 
 ### `xrtHttpAuthorityPort`
@@ -2648,6 +2740,7 @@ bool xrtHttpAuthorityPort(
 ```c
 	) || !xrtHttpAuthorityPort(&Host, 80u, &iPort) ) {
 ```
+
 
 
 ### `xrtHttpTargetParse`
@@ -2691,6 +2784,7 @@ bool xrtHttpTargetParse(
 		XRT_STR_LITERAL(
 			"https://example.test:8443/items?q=1"
 ```
+
 
 
 ## 编码枚举
@@ -2737,6 +2831,7 @@ bool xrtHttpTargetAuthority(
 ```
 
 
+
 ### `xrtHttpCodingParse`
 
 把编码 token 解析为内置枚举（identity/gzip/deflate，x-gzip 为 gzip 别名）；未知返回 NONE。
@@ -2772,6 +2867,7 @@ xhttpcoding xrtHttpCodingParse(xstrview Token);
 		if ( (xrtHttpCodingParse(SV("gzip")) !=
 				XHTTP_CODING_GZIP) ||
 ```
+
 
 
 
@@ -2811,6 +2907,7 @@ bool xrtHttpFieldValueValid(xstrview Value);
 ```
 
 
+
 ### `xrtHttpFieldParse`
 
 严格解析一行不含 CRLF 的 HTTP 字段；未对齐输出在返回前一次性发布。
@@ -2846,6 +2943,7 @@ bool xrtHttpFieldParse(xstrview Line, xhttpfield* pField);
 		XRT_STR_LITERAL("Connection: keep-alive, Upgrade"), &Field
 	) ) {
 ```
+
 
 
 ### `xrtHttpFieldNext`
@@ -2889,6 +2987,7 @@ xhttpnext xrtHttpFieldNext(
 ```
 
 
+
 ### `xrtHttpFieldBlockCount`
 
 严格统计完整字段块；空字段块成功返回零。
@@ -2925,6 +3024,7 @@ bool xrtHttpFieldBlockCount(
 ```c
 	if ( !xrtHttpFieldBlockCount(SV(sBlock), &iCount) || (iCount != 3u) ) {
 ```
+
 
 
 ### `xrtHttpFieldWrite`
@@ -2968,6 +3068,7 @@ bool xrtHttpFieldWrite(
 ```c
 		(void)xrtHttpFieldWrite(&Fields[0], Buffer, sizeof(Buffer), &iSize);
 ```
+
 
 
 ### `xrtHttpFieldBlockWrite`
@@ -3017,6 +3118,7 @@ bool xrtHttpFieldBlockWrite(
 ```
 
 
+
 ## 字段查找
 
 ### `xrtHttpFieldNameEqual`
@@ -3052,6 +3154,7 @@ bool xrtHttpFieldNameEqual(xstrview Left, xstrview Right);
 ```c
 		xrtHttpFieldNameEqual(SV("connection"), SV("Connection")) ? 1
 ```
+
 
 
 ### `xrtHttpFieldFind`
@@ -3096,6 +3199,7 @@ size_t xrtHttpFieldFind(
 ```
 
 
+
 ### `xrtHttpFieldGet`
 
 返回原数组中第一个同名字段的借用地址，未找到返回空指针。
@@ -3134,6 +3238,7 @@ const xhttpfield* xrtHttpFieldGet(
 ```c
 		const xhttpfield* pGet = xrtHttpFieldGet(Fields, 3u,
 ```
+
 
 
 ### `xrtHttpFieldGetUnique`
@@ -3179,6 +3284,7 @@ xhttpnext xrtHttpFieldGetUnique(
 ```
 
 
+
 ### `xrtHttpFieldCount`
 
 统计同名字段数量。
@@ -3218,6 +3324,7 @@ size_t xrtHttpFieldCount(
 ```
 
 
+
 ## 同名字段 token 游标
 
 ### `xrtHttpFieldTokenCursorInit`
@@ -3253,6 +3360,7 @@ void xrtHttpFieldTokenCursorInit(
 ```c
 		xrtHttpFieldTokenCursorInit(&Cursor);
 ```
+
 
 
 ### `xrtHttpFieldTokenNext`
@@ -3300,6 +3408,7 @@ xhttpnext xrtHttpFieldTokenNext(
 ```
 
 
+
 ### `xrtHttpFieldTokenCount`
 
 完整验证并统计全部重复同名字段中的非空 token 条目。
@@ -3340,6 +3449,7 @@ bool xrtHttpFieldTokenCount(
 ```c
 			(void)xrtHttpFieldTokenCount(Dup, 2u,
 ```
+
 
 
 ### `xrtHttpFieldTokenFind`
@@ -3385,6 +3495,7 @@ xhttpnext xrtHttpFieldTokenFind(
 ```
 
 
+
 ## quoted-string
 
 ### `xrtHttpQuotedValid`
@@ -3419,6 +3530,7 @@ bool xrtHttpQuotedValid(xstrview Quoted);
 ```c
 	(void)xrtHttpQuotedValid(SV("\"part;42\""));
 ```
+
 
 
 ### `xrtHttpQuotedRead`
@@ -3464,6 +3576,7 @@ bool xrtHttpQuotedRead(
 ```
 
 
+
 ### `xrtHttpQuotedWrite`
 
 写出带引号和必要转义的 quoted-string；不附加零字符。
@@ -3507,6 +3620,7 @@ bool xrtHttpQuotedWrite(
 ```
 
 
+
 ### `xrtHttpQuotedBuild`
 
 构建零结尾 quoted-string；返回值由 `xrtFree` 释放。
@@ -3544,6 +3658,7 @@ str xrtHttpQuotedBuild(
 ```c
 	sBuilt = xrtHttpQuotedBuild(SV("a\"b"), NULL);
 ```
+
 
 
 ## 参数
@@ -3591,6 +3706,7 @@ xhttpnext xrtHttpParamNext(
 ```
 
 
+
 ### `xrtHttpParamCount`
 
 严格统计完整参数列表；空列表或失败分别发布零。
@@ -3627,6 +3743,7 @@ bool xrtHttpParamCount(
 ```c
 	if ( !xrtHttpParamCount(SV(sParams), &iCount) || (iCount != 2u) ) {
 ```
+
 
 
 ### `xrtHttpParamFind`
@@ -3670,6 +3787,7 @@ xhttpnext xrtHttpParamFind(
 ```
 
 
+
 ### `xrtHttpParamTokenValid`
 
 判断参数是否带值且解码语义值为非空 token；不修改线程错误。
@@ -3702,6 +3820,7 @@ bool xrtHttpParamTokenValid(const xhttpparam* pParam);
 ```c
 		xrtHttpParamTokenValid(&TokenParam) ? 1
 ```
+
 
 
 ### `xrtHttpParamTokenEqual`
@@ -3742,6 +3861,7 @@ bool xrtHttpParamTokenEqual(
 ```
 
 
+
 ### `xrtHttpParamValueCursorInit`
 
 初始化参数值逐字节游标。
@@ -3775,6 +3895,7 @@ void xrtHttpParamValueCursorInit(
 ```c
 		xrtHttpParamValueCursorInit(&Cursor);
 ```
+
 
 
 ### `xrtHttpParamValueNext`
@@ -3816,6 +3937,7 @@ xhttpnext xrtHttpParamValueNext(
 ```c
 		while ( xrtHttpParamValueNext(&Param, &Cursor, &iByte) ==
 ```
+
 
 
 ### `xrtHttpParamValueWrite`
@@ -3861,6 +3983,7 @@ bool xrtHttpParamValueWrite(
 			&Param, Value, sizeof(Value), &iSize
 		) ) {
 ```
+
 
 
 ### `xrtHttpParamWrite`
@@ -3910,6 +4033,7 @@ bool xrtHttpParamWrite(
 ```
 
 
+
 ### `xrtHttpParamBuild`
 
 构建零结尾参数文本；返回值由 `xrtFree` 释放。
@@ -3953,6 +4077,7 @@ str xrtHttpParamBuild(
 ```
 
 
+
 ### `xrtHttpParamHostValid`
 
 判断参数解码值是否为合法 Host（用于 URI 解析层的 host 参数）。
@@ -3985,6 +4110,7 @@ bool xrtHttpParamHostValid(const xhttpparam* pParam);
 ```c
 		xrtHttpParamHostValid(&HostParam) ? 1
 ```
+
 
 
 ### `xrtHttpDirectiveNext`
@@ -4028,6 +4154,7 @@ xhttpnext xrtHttpDirectiveNext(
 ```
 
 
+
 ## 指令
 
 ### `xrtHttpDirectiveCount`
@@ -4066,6 +4193,7 @@ bool xrtHttpDirectiveCount(
 ```c
 		(void)xrtHttpDirectiveCount(SV(sDirectives), &iCount);
 ```
+
 
 
 ### `xrtHttpDirectiveFind`
@@ -4110,6 +4238,7 @@ xhttpnext xrtHttpDirectiveFind(
 
 
 
+
 ## TE 传输编码
 
 ### `xrtHttpTeCursorInit`
@@ -4145,6 +4274,7 @@ void xrtHttpTeCursorInit(xhttptecursor* pCursor);
 ```
 
 
+
 ### `xrtHttpTeFieldCursorInit`
 
 初始化跨重复 TE 字段游标。
@@ -4178,6 +4308,7 @@ void xrtHttpTeFieldCursorInit(
 ```c
 	xrtHttpTeFieldCursorInit(&TeFieldCursor);
 ```
+
 
 
 ### `xrtHttpTeCodingParse`
@@ -4221,6 +4352,7 @@ bool xrtHttpTeCodingParse(
 ```
 
 
+
 ### `xrtHttpTeValid`
 
 完整验证一个 TE 字段值；HTTP 列表空成员会被忽略。
@@ -4257,6 +4389,7 @@ bool xrtHttpTeValid(xstrview Value);
 		!xrtHttpTeCount(SV("gzip, deflate, br"), &iCount) ||
 		(iCount != 3u) ) {
 ```
+
 
 
 ### `xrtHttpTeCount`
@@ -4296,6 +4429,7 @@ bool xrtHttpTeCount(
 		!xrtHttpTeCount(SV("gzip, deflate, br"), &iCount) ||
 		(iCount != 3u) ) {
 ```
+
 
 
 ### `xrtHttpTeNext`
@@ -4338,6 +4472,7 @@ xhttpnext xrtHttpTeNext(
 	while ( xrtHttpTeNext(SV("gzip, trailers"), &TeCursor,
 			&TeCoding) == XHTTP_NEXT_ITEM ) {
 ```
+
 
 
 ### `xrtHttpTeFieldNext`
@@ -4384,6 +4519,7 @@ xhttpnext xrtHttpTeFieldNext(
 ```
 
 
+
 ### `xrtHttpTeParse`
 
 完整解析全部重复 TE 字段并发布零分配汇总。
@@ -4422,6 +4558,7 @@ bool xrtHttpTeParse(
 ```c
 	if ( !xrtHttpTeParse(Fields, 2u, &Info) ) {
 ```
+
 
 
 ### `xrtHttpTeQuality`
@@ -4467,6 +4604,7 @@ uint16 xrtHttpTeQuality(
 ```
 
 
+
 ### `xrtHttpTeAcceptsTrailers`
 
 完整验证并判断客户端是否声明不会丢弃 Trailer。
@@ -4507,6 +4645,7 @@ xhttpnext xrtHttpTeAcceptsTrailers(
 ```
 
 
+
 ## Expect
 
 ### `xrtHttpExpectCursorInit`
@@ -4544,6 +4683,7 @@ void xrtHttpExpectCursorInit(
 ```
 
 
+
 ### `xrtHttpExpectFieldCursorInit`
 
 初始化跨重复 Expect 字段游标。
@@ -4577,6 +4717,7 @@ void xrtHttpExpectFieldCursorInit(
 ```c
 	xrtHttpExpectFieldCursorInit(&Cursor);
 ```
+
 
 
 ### `xrtHttpExpectationParse`
@@ -4621,6 +4762,7 @@ bool xrtHttpExpectationParse(
 ```
 
 
+
 ### `xrtHttpExpectValid`
 
 完整验证一个 Expect 字段值；空列表符合 HTTP 列表语法。
@@ -4653,6 +4795,7 @@ bool xrtHttpExpectValid(xstrview Value);
 ```c
 			!xrtHttpExpectValid(arrExpect[0].Value) ) {
 ```
+
 
 
 ### `xrtHttpExpectCount`
@@ -4692,6 +4835,7 @@ bool xrtHttpExpectCount(
 			!xrtHttpExpectCount(arrExpect[0].Value, &iCount) ||
 			(iCount != 2u) ||
 ```
+
 
 
 ### `xrtHttpExpectNext`
@@ -4734,6 +4878,7 @@ xhttpnext xrtHttpExpectNext(
 		while ( xrtHttpExpectNext(arrExpect[0].Value, &ExCursor,
 				&Expectation) == XHTTP_NEXT_ITEM ) {
 ```
+
 
 
 ### `xrtHttpExpectFieldNext`
@@ -4781,6 +4926,7 @@ xhttpnext xrtHttpExpectFieldNext(
 ```
 
 
+
 ### `xrtHttpExpectFields`
 
 分类全部重复 Expect 字段并完整验证所有元素。
@@ -4822,6 +4968,7 @@ xhttpexpectresult xrtHttpExpectFields(
 ```
 
 
+
 ## Upgrade
 
 ### `xrtHttpUpgradeCursorInit`
@@ -4859,6 +5006,7 @@ void xrtHttpUpgradeCursorInit(
 ```
 
 
+
 ### `xrtHttpUpgradeFieldCursorInit`
 
 初始化跨重复 Upgrade 字段游标。
@@ -4892,6 +5040,7 @@ void xrtHttpUpgradeFieldCursorInit(
 ```c
 	xrtHttpUpgradeFieldCursorInit(&Cursor);
 ```
+
 
 
 ### `xrtHttpUpgradeParse`
@@ -4933,6 +5082,7 @@ bool xrtHttpUpgradeParse(
 ```
 
 
+
 ### `xrtHttpUpgradeValid`
 
 完整验证一个 Upgrade 字段值；空列表符合列表语法。
@@ -4966,6 +5116,7 @@ bool xrtHttpUpgradeValid(xstrview Value);
 			!xrtHttpUpgradeValid(SV("websocket")) ||
 			xrtHttpUpgradeValid(SV("bad token")) ) {
 ```
+
 
 
 ### `xrtHttpUpgradeCount`
@@ -5008,6 +5159,7 @@ bool xrtHttpUpgradeCount(
 ```
 
 
+
 ### `xrtHttpUpgradeNext`
 
 按线路顺序迭代一个完整 Upgrade 字段值。
@@ -5048,6 +5200,7 @@ xhttpnext xrtHttpUpgradeNext(
 		while ( xrtHttpUpgradeNext(SV("websocket, h2c"),
 				&UpCursor, &Upgrade) == XHTTP_NEXT_ITEM ) {
 ```
+
 
 
 ### `xrtHttpUpgradeFieldNext`
@@ -5093,6 +5246,7 @@ xhttpnext xrtHttpUpgradeFieldNext(
 		Fields, 2u, &Cursor, &Upgrade
 	)) == XHTTP_NEXT_ITEM ) {
 ```
+
 
 
 ### `xrtHttpUpgradeWrite`
@@ -5146,6 +5300,7 @@ bool xrtHttpUpgradeWrite(
 ```
 
 
+
 ### `xrtHttpUpgradeElementWrite`
 
 规范写出一个 Upgrade 协议元素。
@@ -5193,6 +5348,7 @@ bool xrtHttpUpgradeElementWrite(
 ```
 
 
+
 ### `xrtHttpUpgradeBuild`
 
 构建零结尾 Upgrade 字段值，返回值由 `xrtFree` 释放。
@@ -5234,6 +5390,7 @@ str xrtHttpUpgradeBuild(
 ```
 
 
+
 ## Trailer
 
 ### `xrtHttpTrailerNameValid`
@@ -5269,6 +5426,7 @@ bool xrtHttpTrailerNameValid(xstrview Name);
 			!xrtHttpTrailerNameValid(SV("X-Checksum")) ||
 			xrtHttpTrailerNameValid(SV("Bad Name")) ) {
 ```
+
 
 
 ### `xrtHttpTrailerSectionValid`
@@ -5308,6 +5466,7 @@ bool xrtHttpTrailerSectionValid(
 			if ( !xrtHttpTrailerSectionValid(arrSection, 1u) ||
 				xrtHttpTrailerSectionValid(arrBad, 1u) ) {
 ```
+
 
 
 ### `xrtHttpTrailerCount`
@@ -5357,6 +5516,7 @@ bool xrtHttpTrailerCount(
 ```
 
 
+
 ### `xrtHttpTrailerFind`
 
 查找已声明的 trailer 字段名；返回 ITEM、END 或 ERROR。
@@ -5398,6 +5558,7 @@ xhttpnext xrtHttpTrailerFind(
 				SV("X-Checksum")) ||
 			xrtHttpTrailerFind(arrTrailer, 2u,
 ```
+
 
 
 ### `xrtHttpTrailerNamesWrite`
@@ -5449,6 +5610,7 @@ bool xrtHttpTrailerNamesWrite(
 ```
 
 
+
 ### `xrtHttpTrailerNamesBuild`
 
 构建零结尾的 Trailer 声明值，返回值由 `xrtFree` 释放。
@@ -5490,6 +5652,7 @@ str xrtHttpTrailerNamesBuild(
 ```
 
 
+
 ## Accept-Encoding 协商
 
 ### `xrtHttpAcceptEncodingInit`
@@ -5527,6 +5690,7 @@ void xrtHttpAcceptEncodingInit(
 ```
 
 
+
 ### `xrtHttpAcceptEncodingValid`
 
 判断公开协商状态字段是否自洽；纯查询不修改线程原有错误。
@@ -5561,6 +5725,7 @@ bool xrtHttpAcceptEncodingValid(
 ```c
 			!xrtHttpAcceptEncodingValid(&Accept) ) {
 ```
+
 
 
 ### `xrtHttpAcceptEncodingAdd`
@@ -5604,6 +5769,7 @@ bool xrtHttpAcceptEncodingAdd(
 		)
 	) ) {
 ```
+
 
 
 ### `xrtHttpAcceptEncodingParse`
@@ -5651,6 +5817,7 @@ bool xrtHttpAcceptEncodingParse(
 ```
 
 
+
 ### `xrtHttpAcceptEncodingQuality`
 
 返回指定内置编码的有效质量；参数错误返回零并设置错误。
@@ -5689,6 +5856,7 @@ uint16 xrtHttpAcceptEncodingQuality(
 				XHTTP_CODING_GZIP) != 900u) ||
 			(xrtHttpAcceptEncodingQuality(&Accept,
 ```
+
 
 
 ### `xrtHttpAcceptEncodingSelect`
@@ -5739,6 +5907,7 @@ xhttpcoding xrtHttpAcceptEncodingSelect(
 ```
 
 
+
 ## Content-Encoding 响应链
 
 ### `xrtHttpContentEncodingCursorInit`
@@ -5774,6 +5943,7 @@ void xrtHttpContentEncodingCursorInit(
 ```c
 			xrtHttpContentEncodingCursorInit(&Cursor);
 ```
+
 
 
 ### `xrtHttpContentEncodingNext`
@@ -5822,6 +5992,7 @@ xhttpnext xrtHttpContentEncodingNext(
 ```
 
 
+
 ### `xrtHttpContentEncodingPlan`
 
 无分配构建完整 Content-Encoding 计划；DecoderCount 只统计 gzip/deflate。
@@ -5864,6 +6035,7 @@ bool xrtHttpContentEncodingPlan(
 		&Plan
 	) ) {
 ```
+
 
 
 ### `xrtHttpContentEncodingWrite`
@@ -5914,6 +6086,7 @@ bool xrtHttpContentEncodingWrite(
 ```
 
 
+
 ### `xrtHttpCodingName`
 
 返回 identity、gzip 或 deflate 的静态小写 token；NONE 返回空视图。
@@ -5946,6 +6119,7 @@ xstrview xrtHttpCodingName(xhttpcoding Coding);
 ```c
 	Name = xrtHttpCodingName(Coding);
 ```
+
 
 
 ## 正文解码器
@@ -5983,6 +6157,7 @@ void xrtHttpDecodeConfigInit(xhttpdecodeconfig* pConfig);
 ```
 
 
+
 ### `xrtHttpDecodeConfigInitSafe`
 
 初始化面向不可信对端的安全配置；明文最多 16 MiB，更大正文需显式修改 OutputLimit。
@@ -6014,6 +6189,7 @@ void xrtHttpDecodeConfigInitSafe(xhttpdecodeconfig* pConfig);
 ```c
 	xrtHttpDecodeConfigInitSafe(&Safe);
 ```
+
 
 
 ### `xrtHttpDecodeCreate`
@@ -6055,6 +6231,7 @@ xhttpdecode* xrtHttpDecodeCreate(
 ```c
 	xhttpdecode* pDecode = xrtHttpDecodeCreate(Fields, 1, NULL);
 ```
+
 
 
 ### `xrtHttpDecodeReset`
@@ -6105,6 +6282,7 @@ bool xrtHttpDecodeReset(
 		(Out.iBytes != 4u) ||
 		(xrtHttpDecodeInputSize(pDecode) != 4u) ) {
 ```
+
 
 
 ### `xrtHttpDecodeWrite`
@@ -6159,6 +6337,7 @@ bool xrtHttpDecodeWrite(
 ```
 
 
+
 ### `xrtHttpDecodeMode`
 
 返回当前消息的交付模式。
@@ -6204,6 +6383,7 @@ xhttpdecodemode xrtHttpDecodeMode(
 ```
 
 
+
 ### `xrtHttpDecodeDone`
 
 判断最终正文边界和全部压缩流 trailer 均已验证。
@@ -6236,6 +6416,7 @@ bool xrtHttpDecodeDone(const xhttpdecode* pDecode);
 ```c
 	) && xrtHttpDecodeDone(pDecode);
 ```
+
 
 
 ### `xrtHttpDecodeInputSize`
@@ -6273,6 +6454,7 @@ uint64 xrtHttpDecodeInputSize(const xhttpdecode* pDecode);
 ```
 
 
+
 ### `xrtHttpDecodeOutputSize`
 
 返回已经被输出回调接受或明确丢弃的正文总字节数。
@@ -6307,6 +6489,7 @@ uint64 xrtHttpDecodeOutputSize(const xhttpdecode* pDecode);
 ```
 
 
+
 ### `xrtHttpDecodeDestroy`
 
 销毁解码器；空指针是安全的空操作。
@@ -6338,6 +6521,7 @@ void xrtHttpDecodeDestroy(xhttpdecode* pDecode);
 ```c
 	xrtHttpDecodeDestroy(pDecode);
 ```
+
 
 
 
@@ -6377,6 +6561,7 @@ bool xrtHttp1TargetValid(xstrview Target);
 ```
 
 
+
 ### `xrtHttp1LimitsInit`
 
 初始化适合公网输入的限额：8 KiB 起始行、64 KiB Header、100 字段。
@@ -6408,6 +6593,7 @@ void xrtHttp1LimitsInit(xhttp1limits* pLimits);
 ```c
 	xrtHttp1LimitsInit(&Limits);
 ```
+
 
 
 ### `xrtHttp1HeadInit`
@@ -6447,6 +6633,7 @@ void xrtHttp1HeadInit(
 ```c
 	xrtHttp1HeadInit(&Head, Fields, 8);
 ```
+
 
 
 ### `xrtHttp1RequestParse`
@@ -6495,6 +6682,7 @@ xhttp1status xrtHttp1RequestParse(
 ```
 
 
+
 ### `xrtHttp1ResponseParse`
 
 严格增量解析 HTTP/1.0 或 HTTP/1.1 响应 Header。
@@ -6540,6 +6728,7 @@ xhttp1status xrtHttp1ResponseParse(
 		&Head, NULL, NULL
 	) != XHTTP1_READY ) {
 ```
+
 
 
 ### `xrtHttp1TransferCodingNext`
@@ -6592,6 +6781,7 @@ xhttpnext xrtHttp1TransferCodingNext(
 ```
 
 
+
 ### `xrtHttp1Field`
 
 返回第一个同名 Header，未找到返回空指针。
@@ -6629,6 +6819,7 @@ const xhttpfield* xrtHttp1Field(
 		((pField = xrtHttp1Field(&Head,
 			XRT_STR_LITERAL("host"))) == NULL) ||
 ```
+
 
 
 ### `xrtHttp1RequestWrite`
@@ -6681,6 +6872,7 @@ bool xrtHttp1RequestWrite(
 ```c
 		) || !xrtHttp1RequestWrite(
 ```
+
 
 
 ### `xrtHttp1ResponseWrite`
@@ -6737,6 +6929,7 @@ bool xrtHttp1ResponseWrite(
 ```
 
 
+
 ## HTTP/1 正文分帧
 
 ### `xrtHttp1BodyLimitsInit`
@@ -6770,6 +6963,7 @@ void xrtHttp1BodyLimitsInit(xhttp1bodylimits* pLimits);
 ```c
 	xrtHttp1BodyLimitsInit(&Limits);
 ```
+
 
 
 ### `xrtHttp1RequestBodyPlan`
@@ -6809,6 +7003,7 @@ bool xrtHttp1RequestBodyPlan(
 	if ( !xrtHttp1RequestBodyPlan(&Head, &Plan) ||
 		(Plan.Mode != XHTTP1_BODY_CHUNKED) ) {
 ```
+
 
 
 ### `xrtHttp1ResponseBodyPlan`
@@ -6851,6 +7046,7 @@ bool xrtHttp1ResponseBodyPlan(
 		&Head, XRT_STR_LITERAL("GET"), &Plan
 	) ) {
 ```
+
 
 
 ### `xrtHttp1BodyInit`
@@ -6899,6 +7095,7 @@ bool xrtHttp1BodyInit(
 ```
 
 
+
 ### `xrtHttp1BodyTrailers`
 
 在 FIELDS 状态后替换 trailer 描述符存储，不重置正文解码进度。
@@ -6938,6 +7135,7 @@ bool xrtHttp1BodyTrailers(
 ```c
 			!xrtHttp1BodyTrailers(&Body, Trailers, 4u) ) {
 ```
+
 
 
 ### `xrtHttp1TrailersParse`
@@ -6996,6 +7194,7 @@ xhttp1status xrtHttp1TrailersParse(
 ```
 
 
+
 ### `xrtHttp1ChunkLineWrite`
 
 写入十六进制 chunk-size 行；只写 size 行，正文可向量发送零复制。
@@ -7048,6 +7247,7 @@ bool xrtHttp1ChunkLineWrite(
 ```
 
 
+
 ### `xrtHttp1ChunkWrite`
 
 把一段非空正文封装为完整 chunk；空正文是成功空操作，不结束消息。
@@ -7097,6 +7297,7 @@ bool xrtHttp1ChunkWrite(
 ```
 
 
+
 ### `xrtHttp1ChunkEndWrite`
 
 写入 last-chunk、可选 trailer 和最终空行；调用方须确认字段定义明确允许 trailer。
@@ -7140,6 +7341,7 @@ bool xrtHttp1ChunkEndWrite(
 ```c
 	) || !xrtHttp1ChunkEndWrite(
 ```
+
 
 
 ### `xrtHttp1BodyRead`
@@ -7194,6 +7396,7 @@ xhttp1bodystatus xrtHttp1BodyRead(
 ```
 
 
+
 ### `xrtHttp1BodyDone`
 
 判断 Reader 是否已经完整消费 HTTP 正文与 trailer。
@@ -7226,6 +7429,7 @@ bool xrtHttp1BodyDone(const xhttp1body* pBody);
 ```c
 	while ( !xrtHttp1BodyDone(&Body) ) {
 ```
+
 
 
 ## HTTP/1 完整消息
@@ -7271,6 +7475,7 @@ void xrtHttp1MessageInit(
 ```c
 	xrtHttp1MessageInit(&Message, Fields, 8, Trailers, 4);
 ```
+
 
 
 ### `xrtHttp1RequestMessageParse`
@@ -7327,6 +7532,7 @@ xhttp1status xrtHttp1RequestMessageParse(
 ```
 
 
+
 ### `xrtHttp1ResponseMessageParse`
 
 扫描第一条完整响应；`RequestMethod` 用于 HEAD、CONNECT 和普通响应分帧。
@@ -7381,6 +7587,7 @@ xhttp1status xrtHttp1ResponseMessageParse(
 ```
 
 
+
 ### `xrtHttp1MessageBodyView`
 
 返回无需移除 chunked 分帧时的借用正文；chunked 或空正文返回空视图。
@@ -7413,6 +7620,7 @@ xbytesview xrtHttp1MessageBodyView(const xhttp1message* pMessage);
 ```c
 		((View = xrtHttp1MessageBodyView(&Message)).Size != 2u) ||
 ```
+
 
 
 ### `xrtHttp1MessageBodyCopy`
@@ -7458,6 +7666,7 @@ bool xrtHttp1MessageBodyCopy(
 		&Message, Body, sizeof(Body), &iSize
 	) ) {
 ```
+
 
 
 ## HTTP/1 缓冲链与 TLS 解析
@@ -7507,6 +7716,7 @@ xhttp1status xrtHttp1RequestParseBuffer(
 ```
 
 
+
 ### `xrtHttp1ResponseParseBuffer`
 
 从网络缓冲链严格解析响应 Header；Upgrade 后的任何余量保持在 Buffer 中。
@@ -7550,6 +7760,7 @@ xhttp1status xrtHttp1ResponseParseBuffer(
 		if ( xrtHttp1ResponseParseBuffer(&RspBuf, &Head, NULL, NULL) ==
 			XHTTP1_READY ) {
 ```
+
 
 
 ### `xrtHttp1RequestParseTls`
@@ -7605,6 +7816,7 @@ xhttp1status xrtHttp1RequestParseTls(
 ```
 
 
+
 ### `xrtHttp1ResponseParseTls`
 
 从当前 TLS 明文块链严格解析响应 Header，完整保留 Upgrade 后明文余量。
@@ -7652,6 +7864,7 @@ xhttp1status xrtHttp1ResponseParseTls(
 ```
 
 
+
 ## 代理对象
 
 ### `xrtNetProxyConfigInit`
@@ -7685,6 +7898,7 @@ void xrtNetProxyConfigInit(xnetproxyconfig* pConfig);
 ```c
 	xrtNetProxyConfigInit(&ProxyConfig);
 ```
+
 
 
 ### `xrtNetProxyCreate`
@@ -7722,6 +7936,7 @@ xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pConfig);
 ```
 
 
+
 ### `xrtNetProxyRetain`
 
 增加代理对象引用并返回原指针。
@@ -7756,6 +7971,7 @@ xnetproxy* xrtNetProxyRetain(const xnetproxy* pProxy);
 ```
 
 
+
 ### `xrtNetProxyRelease`
 
 释放代理对象引用；最后一个引用会清零整块配置存储。
@@ -7787,6 +8003,7 @@ void xrtNetProxyRelease(xnetproxy* pProxy);
 ```c
 	xrtNetProxyRelease(pRetained);
 ```
+
 
 
 ### `xrtNetProxyInfo`
@@ -7831,6 +8048,7 @@ bool xrtNetProxyInfo(
 ```
 
 
+
 ## 代理握手状态机
 
 ### `xrtNetProxyHandshakeConfigInit`
@@ -7866,6 +8084,7 @@ void xrtNetProxyHandshakeConfigInit(
 ```c
 	xrtNetProxyHandshakeConfigInit(&HandshakeConfig);
 ```
+
 
 
 ### `xrtNetProxyHandshakeCreate`
@@ -7904,6 +8123,7 @@ xnetproxyhandshake* xrtNetProxyHandshakeCreate(
 ```
 
 
+
 ### `xrtNetProxyHandshakeDestroy`
 
 销毁握手，并清零尚未发送的认证报文和内部目标信息。
@@ -7935,6 +8155,7 @@ void xrtNetProxyHandshakeDestroy(xnetproxyhandshake* pHandshake);
 ```c
 		xrtNetProxyHandshakeDestroy(pHandshake);
 ```
+
 
 
 ### `xrtNetProxyHandshakeState`
@@ -7974,6 +8195,7 @@ xnetproxyhandshakestate xrtNetProxyHandshakeState(
 		(xrtNetProxyHandshakeState(pHandshake) !=
 			XNET_PROXY_HANDSHAKE_WRITE) ||
 ```
+
 
 
 ### `xrtNetProxyHandshakeStep`
@@ -8017,6 +8239,7 @@ xnetproxyhandshakestate xrtNetProxyHandshakeStep(
 ```
 
 
+
 ### `xrtNetProxyHandshakeOutput`
 
 借用当前待发送的首段连续输出；失败时把非空输出规范化为空 Span。
@@ -8055,6 +8278,7 @@ bool xrtNetProxyHandshakeOutput(
 ```
 
 
+
 ### `xrtNetProxyHandshakeSent`
 
 确认已经发送的输出前缀；支持 Socket 部分写入。
@@ -8091,6 +8315,7 @@ size_t xrtNetProxyHandshakeSent(
 ```c
 	(void)xrtNetProxyHandshakeSent(pHandshake, Output.Size);
 ```
+
 
 
 ### `xrtNetProxyHandshakeBound`
@@ -8133,6 +8358,7 @@ bool xrtNetProxyHandshakeBound(
 ```
 
 
+
 ### `xrtNetProxyHandshakeError`
 
 返回协议失败时捕获的不可变错误；对象所有权仍属于握手。
@@ -8167,6 +8393,7 @@ const xerror* xrtNetProxyHandshakeError(
 ```c
 		(xrtNetProxyHandshakeError(pHandshake) != NULL) ) {
 ```
+
 
 
 ### `xrtNetProxyHandshakeCode`
@@ -8207,6 +8434,7 @@ bool xrtNetProxyHandshakeCode(
 ```
 
 
+
 ## 代理拨号
 
 ### `xrtNetProxyDialConfigInit`
@@ -8240,6 +8468,7 @@ void xrtNetProxyDialConfigInit(xnetproxydialconfig* pConfig);
 ```c
 	xrtNetProxyDialConfigInit(&DialConfig);
 ```
+
 
 
 ### `xrtNetProxyDial`
@@ -8306,6 +8535,7 @@ xnetproxydial* xrtNetProxyDial(
 ```
 
 
+
 ### `xrtNetProxyDialRef`
 
 增加 Proxy Dial 引用并返回原指针。
@@ -8340,6 +8570,7 @@ xnetproxydial* xrtNetProxyDialRef(xnetproxydial* pDial);
 ```
 
 
+
 ### `xrtNetProxyDialDestroy`
 
 释放 Proxy Dial 引用；空指针视为空操作。
@@ -8371,6 +8602,7 @@ void xrtNetProxyDialDestroy(xnetproxydial* pDial);
 ```c
 	xrtNetProxyDialDestroy(pDial);
 ```
+
 
 
 ### `xrtNetProxyDialCancel`
@@ -8407,6 +8639,7 @@ bool xrtNetProxyDialCancel(xnetproxydial* pDial);
 ```
 
 
+
 ### `xrtNetProxyDialState`
 
 返回当前拨号阶段或不可变终态。
@@ -8440,6 +8673,7 @@ xnetproxydialstate xrtNetProxyDialState(
 ```c
 		xnetproxydialstate State = xrtNetProxyDialState(pDial);
 ```
+
 
 
 ### `xrtNetProxyDialError`
@@ -8478,6 +8712,7 @@ const xerror* xrtNetProxyDialError(
 ```
 
 
+
 ### `xrtNetProxyDialStats`
 
 复制拨号统计快照（尝试次数等）。
@@ -8514,6 +8749,7 @@ bool xrtNetProxyDialStats(
 ```c
 			!xrtNetProxyDialStats(pDial, &DialStats) ||
 ```
+
 
 
 

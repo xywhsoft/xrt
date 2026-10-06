@@ -306,13 +306,16 @@ int_map -> avl_tree -> avl + pool -> core
 
 默认值对齐，当前为 16 字节。
 
+
 ### `xintmap`
 
 可以放在栈上、嵌入其他对象，或由 `xrtIntMapCreate` 在堆上创建。初始化后不应按字节复制或移动结构，因为内部 AVL 适配器保存了对映射结构的引用。
 
+
 ### `xintmapiter`
 
 零堆分配的外置迭代器。同一映射可同时存在多个读迭代器。
+
 
 ### `xintmapdrop`
 
@@ -329,6 +332,7 @@ typedef void (*xintmapdrop)(int64 iKey, ptr pValue, ptr pUserData);
 `Take` 和 `TakePtr` 是所有权移交路径，不调用释放器。释放回调执行期间，
 同一映射的全部 API 都会以 `XERR_STATE` 拒绝；回调只应处理当前值内部的资源。
 
+
 ### `xintmapinit`
 
 ```c
@@ -339,6 +343,7 @@ typedef bool (*xintmapinit)(int64 iKey, ptr pValue, ptr pUserData);
 已经取得的部分资源并设置错误；映射不会提交该条目，也不会再调用释放器。回调成功后，
 如果底层提交因内部状态失败，映射会用已经配置的 `xintmapdrop` 回滚完整值。
 
+
 ### `xintmapvisitor`
 
 ```c
@@ -347,6 +352,7 @@ typedef bool (*xintmapvisitor)(int64 iKey, ptr pValue, ptr pUserData);
 
 返回 `true` 继续遍历，返回 `false` 停止。回调可以查询同一映射并直接修改当前值槽，
 但不得插入、替换、删除、清空、裁剪、释放映射或嵌套调用 `Visit`。
+
 
 ### `xmap`
 
@@ -394,6 +400,7 @@ typedef struct xmap {
 | `DropUserData` | `ptr` | DropUserData |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xmapiter`
 
 外置迭代器允许同一映射存在多个独立遍历状态。
@@ -414,6 +421,7 @@ typedef struct xmapiter {
 | `Version` | `uint64` | 结构版本 |
 | `Direction` | `int` | Direction |
 
+
 ### `xmapentry`
 
 Map 内部条目结构（不透明，仅实现内部使用）。
@@ -425,6 +433,7 @@ typedef struct xmapentry xmapentry;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xmaphash`
 
 键哈希器必须保证相等键产生相同哈希值，且不得重入当前映射。
@@ -434,6 +443,7 @@ typedef uint64 (*xmaphash)(xbytesview Key, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xmapequal`
 
@@ -445,6 +455,7 @@ typedef bool (*xmapequal)(xbytesview Left, xbytesview Right, ptr pUserData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xmapdrop`
 
 映射释放器处理值内部的拥有资源，不释放值槽、键或重入当前映射。
@@ -454,6 +465,7 @@ typedef void (*xmapdrop)(xbytesview Key, ptr pValue, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xmapinit`
 
@@ -465,6 +477,7 @@ typedef bool (*xmapinit)(xbytesview Key, ptr pValue, ptr pUserData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xmapvisitor`
 
 访问器返回 false 时停止遍历；回调内允许查询，不允许结构修改。
@@ -474,6 +487,7 @@ typedef bool (*xmapvisitor)(xbytesview Key, ptr pValue, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 生命周期
 
@@ -637,6 +651,7 @@ bool xrtMapInit(xmap* pMap, size_t iValueSize);
 ```
 
 
+
 ### `xrtMapInitAligned`
 
 使用显式值对齐初始化空字节键映射。
@@ -677,6 +692,7 @@ bool xrtMapInitAligned(
 ```
 
 
+
 ### `xrtMapCreate`
 
 创建使用默认 16 字节值对齐的空字节键映射。
@@ -710,6 +726,7 @@ xmap* xrtMapCreate(size_t iValueSize);
 ```c
 	xmap* pMap = xrtMapCreate(sizeof(ptr));
 ```
+
 
 
 ### `xrtMapCreateAligned`
@@ -746,6 +763,7 @@ xmap* xrtMapCreateAligned(size_t iValueSize, size_t iAlignment);
 ```c
 		xmap* pAlignedHeap = xrtMapCreateAligned(sizeof(uint64), 64u);
 ```
+
 
 
 ### `xrtMapSetKeyPolicy`
@@ -791,6 +809,7 @@ bool xrtMapSetKeyPolicy(
 ```
 
 
+
 ### `xrtMapSetDrop`
 
 为仍为空的映射设置值资源释放器和独立用户数据。
@@ -827,6 +846,7 @@ bool xrtMapSetDrop(xmap* pMap, xmapdrop pDrop, ptr pUserData);
 ```
 
 
+
 ### `xrtMapUnit`
 
 释放全部键值和桶数组，但不释放映射结构（内嵌形态收尾）。
@@ -858,6 +878,7 @@ void xrtMapUnit(xmap* pMap);
 ```c
 		xrtMapUnit(&tRoutes);
 ```
+
 
 
 ### `xrtMapDestroy`
@@ -893,6 +914,7 @@ void xrtMapDestroy(xmap* pMap);
 ```
 
 
+
 ### `xrtMapClear`
 
 清空全部键值并保留桶数组供复用。
@@ -924,6 +946,7 @@ void xrtMapClear(xmap* pMap);
 ```c
 	xrtMapClear(pMap);
 ```
+
 
 
 ### `xrtMapReserve`
@@ -962,6 +985,7 @@ bool xrtMapReserve(xmap* pMap, size_t iCapacity);
 ```
 
 
+
 ### `xrtMapTrim`
 
 把桶数组收缩到当前键数所需的最小容量。
@@ -997,6 +1021,7 @@ bool xrtMapTrim(xmap* pMap);
 ```
 
 
+
 ### `xrtMapCount`
 
 返回当前键值数量，非法映射返回零。
@@ -1030,6 +1055,7 @@ size_t xrtMapCount(const xmap* pMap);
 ```
 
 
+
 ### `xrtMapCapacity`
 
 返回当前桶数组在再次扩容前可容纳的键数。
@@ -1061,6 +1087,7 @@ size_t xrtMapCapacity(const xmap* pMap);
 ```c
 	printf("count=%zu cap>=%zu ", xrtMapCount(pMap), xrtMapCapacity(pMap));
 ```
+
 
 
 ### `xrtMapGetOrAdd`
@@ -1098,6 +1125,7 @@ ptr xrtMapGetOrAdd(xmap* pMap, xbytesview Key, bool* pNew);
 ```c
 	pStat = (routestat*)xrtMapGetOrAdd(&tRoutes, XRT_BYTES_LITERAL("/health"), &bNew);
 ```
+
 
 
 ### `xrtMapGetOrInit`
@@ -1146,6 +1174,7 @@ ptr xrtMapGetOrInit(
 ```
 
 
+
 ### `xrtMapSet`
 
 复制插入或替换值；来源不得触及映射元数据或目标条目。
@@ -1181,6 +1210,7 @@ bool xrtMapSet(xmap* pMap, xbytesview Key, const void* pValue);
 ```c
 		if ( !xrtMapSet(pMap, SV("a"), &iZero) ) {
 ```
+
 
 
 ### `xrtMapGet`
@@ -1219,6 +1249,7 @@ ptr xrtMapGet(xmap* pMap, xbytesview Key);
 ```
 
 
+
 ### `xrtMapConstGet`
 
 返回指定键的只读值槽，未找到是正常结果。
@@ -1255,6 +1286,7 @@ const void* xrtMapConstGet(const xmap* pMap, xbytesview Key);
 ```
 
 
+
 ### `xrtMapHas`
 
 判断指定字节键是否存在。
@@ -1289,6 +1321,7 @@ bool xrtMapHas(const xmap* pMap, xbytesview Key);
 ```c
 			xrtMapHas(pMap, SV("a")) ? 1 : 0);
 ```
+
 
 
 ### `xrtMapStoredKey`
@@ -1332,6 +1365,7 @@ bool xrtMapStoredKey(
 ```
 
 
+
 ### `xrtMapRemove`
 
 删除指定键并调用值释放器。
@@ -1366,6 +1400,7 @@ bool xrtMapRemove(xmap* pMap, xbytesview Key);
 ```c
 		, xrtMapRemove(pMap, SV("c")) ? 1 : 0);
 ```
+
 
 
 ### `xrtMapTake`
@@ -1405,6 +1440,7 @@ bool xrtMapTake(xmap* pMap, xbytesview Key, ptr pValue);
 ```
 
 
+
 ### `xrtMapSetPtr`
 
 对 `sizeof(ptr)` 值映射执行指针类型友好的插入或替换。
@@ -1442,6 +1478,7 @@ bool xrtMapSetPtr(xmap* pMap, xbytesview Key, ptr pValue);
 ```
 
 
+
 ### `xrtMapGetPtr`
 
 返回 `sizeof(ptr)` 值映射中保存的指针；空值与缺失键用 `Has` 区分。
@@ -1476,6 +1513,7 @@ ptr xrtMapGetPtr(xmap* pMap, xbytesview Key);
 ```c
 		xrtMapGetPtr(pMap, SV("a")) == (ptr)0x10u ? "0x10" : "?");
 ```
+
 
 
 ### `xrtMapTakePtr`
@@ -1515,6 +1553,7 @@ bool xrtMapTakePtr(xmap* pMap, xbytesview Key, ptr* pValue);
 ```
 
 
+
 ### `xrtMapVisit`
 
 按插入顺序访问键值，并返回实际访问数量。
@@ -1548,6 +1587,7 @@ size_t xrtMapVisit(xmap* pMap, xmapvisitor pVisitor, ptr pUserData);
 ```c
 	(void)xrtMapVisit(pMap, visitPair, &iVisited);
 ```
+
 
 
 ### `xrtMapIterBegin`
@@ -1585,6 +1625,7 @@ bool xrtMapIterBegin(xmap* pMap, xmapiter* pIterator);
 ```
 
 
+
 ### `xrtMapIterRBegin`
 
 启动按插入顺序逆序遍历的外置迭代器。
@@ -1618,6 +1659,7 @@ bool xrtMapIterRBegin(xmap* pMap, xmapiter* pIterator);
 ```c
 	(void)xrtMapIterRBegin(pMap, &Iter);
 ```
+
 
 
 ### `xrtMapIterNext`
@@ -1656,6 +1698,7 @@ ptr xrtMapIterNext(xmapiter* pIterator, xbytesview* pKey);
 ```
 
 
+
 ### `xrtMapIterEnd`
 
 提前结束迭代并清除借用状态。
@@ -1687,6 +1730,7 @@ void xrtMapIterEnd(xmapiter* pIterator);
 ```c
 	xrtMapIterEnd(&tIterator);
 ```
+
 
 
 ### `xrtIntMapInit`
@@ -1722,6 +1766,7 @@ bool xrtIntMapInit(xintmap* pMap, size_t iValueSize);
 ```c
 	if ( !xrtIntMapInit(&tSessions, sizeof(sessionstate)) ) {
 ```
+
 
 
 
@@ -1767,6 +1812,7 @@ bool xrtIntMapInitAligned(
 ```
 
 
+
 ### `xrtIntMapCreate`
 
 创建使用默认 16 字节值对齐的空整数映射。
@@ -1800,6 +1846,7 @@ xintmap* xrtIntMapCreate(size_t iValueSize);
 ```c
 	xintmap* pMap = xrtIntMapCreate(sizeof(int64));
 ```
+
 
 
 ### `xrtIntMapCreateAligned`
@@ -1836,6 +1883,7 @@ xintmap* xrtIntMapCreateAligned(size_t iValueSize, size_t iAlignment);
 ```c
 		xintmap* pHeap = xrtIntMapCreateAligned(sizeof(ptr), 64u);
 ```
+
 
 
 ### `xrtIntMapSetDrop`
@@ -1878,6 +1926,7 @@ bool xrtIntMapSetDrop(
 ```
 
 
+
 ### `xrtIntMapUnit`
 
 释放全部值和池页，但不释放映射结构。
@@ -1909,6 +1958,7 @@ void xrtIntMapUnit(xintmap* pMap);
 ```c
 		xrtIntMapUnit(&tSessions);
 ```
+
 
 
 ### `xrtIntMapDestroy`
@@ -1944,6 +1994,7 @@ void xrtIntMapDestroy(xintmap* pMap);
 ```
 
 
+
 ### `xrtIntMapClear`
 
 清空全部值并保留固定池的复用能力。
@@ -1975,6 +2026,7 @@ void xrtIntMapClear(xintmap* pMap);
 ```c
 	xrtIntMapClear(pMap);
 ```
+
 
 
 ### `xrtIntMapTrim`
@@ -2011,6 +2063,7 @@ size_t xrtIntMapTrim(xintmap* pMap, size_t iRetainEmpty);
 ```
 
 
+
 ### `xrtIntMapCount`
 
 返回当前键值数量，非法映射返回零。
@@ -2042,6 +2095,7 @@ size_t xrtIntMapCount(const xintmap* pMap);
 ```c
 		xrtIntMapCount(pMap));
 ```
+
 
 
 ### `xrtIntMapGetOrAdd`
@@ -2079,6 +2133,7 @@ ptr xrtIntMapGetOrAdd(xintmap* pMap, int64 iKey, bool* pNew);
 ```c
 	pState = (sessionstate*)xrtIntMapGetOrAdd(&tSessions, 1000001, &bNew);
 ```
+
 
 
 ### `xrtIntMapGetOrInit`
@@ -2127,6 +2182,7 @@ ptr xrtIntMapGetOrInit(
 ```
 
 
+
 ### `xrtIntMapSet`
 
 复制插入或替换值；替换时先调用旧值释放器。
@@ -2162,6 +2218,7 @@ bool xrtIntMapSet(xintmap* pMap, int64 iKey, const void* pValue);
 ```c
 		if ( !xrtIntMapSet(pMap, Keys[i], &iValue) ) {
 ```
+
 
 
 ### `xrtIntMapGet`
@@ -2200,6 +2257,7 @@ ptr xrtIntMapGet(xintmap* pMap, int64 iKey);
 ```
 
 
+
 ### `xrtIntMapConstGet`
 
 返回指定键的只读值槽，未找到是正常结果。
@@ -2234,6 +2292,7 @@ const void* xrtIntMapConstGet(const xintmap* pMap, int64 iKey);
 ```c
 		(long long)*(const int64*)xrtIntMapConstGet(pMap, 10));
 ```
+
 
 
 ### `xrtIntMapHas`
@@ -2272,6 +2331,7 @@ bool xrtIntMapHas(const xintmap* pMap, int64 iKey);
 ```
 
 
+
 ### `xrtIntMapRemove`
 
 删除指定键并调用值释放器。
@@ -2306,6 +2366,7 @@ bool xrtIntMapRemove(xintmap* pMap, int64 iKey);
 ```c
 	printf("removed=%d ", xrtIntMapRemove(pMap, 30) ? 1 : 0);
 ```
+
 
 
 ### `xrtIntMapTake`
@@ -2345,6 +2406,7 @@ bool xrtIntMapTake(xintmap* pMap, int64 iKey, ptr pValue);
 ```
 
 
+
 ### `xrtIntMapSetPtr`
 
 对 `sizeof(ptr)` 值映射执行指针类型友好的插入或替换。
@@ -2382,6 +2444,7 @@ bool xrtIntMapSetPtr(xintmap* pMap, int64 iKey, ptr pValue);
 ```
 
 
+
 ### `xrtIntMapGetPtr`
 
 返回 `sizeof(ptr)` 值映射中保存的指针；空指针值与缺失键用 `Has` 区分。
@@ -2416,6 +2479,7 @@ ptr xrtIntMapGetPtr(xintmap* pMap, int64 iKey);
 ```c
 	printf("getptr=%p ", (void*)xrtIntMapGetPtr(pMap, 50));
 ```
+
 
 
 ### `xrtIntMapTakePtr`
@@ -2455,6 +2519,7 @@ bool xrtIntMapTakePtr(xintmap* pMap, int64 iKey, ptr* pValue);
 ```
 
 
+
 ### `xrtIntMapFirst`
 
 返回顺序第一项的值槽，并可选返回键。
@@ -2491,6 +2556,7 @@ ptr xrtIntMapFirst(xintmap* pMap, int64* pKey);
 ```
 
 
+
 ### `xrtIntMapLast`
 
 返回顺序最后一项的值槽，并可选返回键。
@@ -2525,6 +2591,7 @@ ptr xrtIntMapLast(xintmap* pMap, int64* pKey);
 ```c
 	(void)xrtIntMapLast(pMap, &iKey);
 ```
+
 
 
 ### `xrtIntMapLowerBound`
@@ -2564,6 +2631,7 @@ ptr xrtIntMapLowerBound(xintmap* pMap, int64 iKey, int64* pActualKey);
 ```
 
 
+
 ### `xrtIntMapUpperBound`
 
 返回第一个严格大于指定键的值槽和实际键。
@@ -2599,6 +2667,7 @@ ptr xrtIntMapUpperBound(xintmap* pMap, int64 iKey, int64* pActualKey);
 ```c
 	(void)xrtIntMapUpperBound(pMap, 25, &iKey);
 ```
+
 
 
 ### `xrtIntMapVisit`
@@ -2640,6 +2709,7 @@ size_t xrtIntMapVisit(
 ```
 
 
+
 ### `xrtIntMapIterBegin`
 
 启动按键升序的外置迭代器。
@@ -2675,6 +2745,7 @@ bool xrtIntMapIterBegin(xintmap* pMap, xintmapiter* pIterator);
 ```
 
 
+
 ### `xrtIntMapIterRBegin`
 
 启动按键降序的外置迭代器。
@@ -2708,6 +2779,7 @@ bool xrtIntMapIterRBegin(xintmap* pMap, xintmapiter* pIterator);
 ```c
 	(void)xrtIntMapIterRBegin(pMap, &Iter);
 ```
+
 
 
 ### `xrtIntMapIterFrom`
@@ -2750,6 +2822,7 @@ bool xrtIntMapIterFrom(
 ```
 
 
+
 ### `xrtIntMapIterRFrom`
 
 从第一个不大于指定键的项开始降序迭代。
@@ -2790,6 +2863,7 @@ bool xrtIntMapIterRFrom(
 ```
 
 
+
 ### `xrtIntMapIterNext`
 
 返回下一值槽并可选返回键；自然耗尽不设错。
@@ -2826,6 +2900,7 @@ ptr xrtIntMapIterNext(xintmapiter* pIterator, int64* pKey);
 ```
 
 
+
 ### `xrtIntMapIterEnd`
 
 提前结束迭代并清除借用状态。
@@ -2857,5 +2932,3 @@ void xrtIntMapIterEnd(xintmapiter* pIterator);
 ```c
 	xrtIntMapIterEnd(&tIterator);
 ```
-
-

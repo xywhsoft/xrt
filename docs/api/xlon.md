@@ -42,6 +42,7 @@ typedef enum xxlonerror {
 | `XXLON_ERROR_OUTPUT` | 输出失败 |
 | `XXLON_ERROR_IO` | 写出失败 |
 
+
 ### `xxlonlocation`
 
 文本位置使用零基字节偏移和一基行列。
@@ -59,6 +60,7 @@ typedef struct xxlonlocation {
 | `Offset` | `size_t` | 偏移量 |
 | `Line` | `size_t` | 行号 |
 | `Column` | `size_t` | 列号 |
+
 
 ### `xxlonreadflag`
 
@@ -78,6 +80,7 @@ typedef enum xxlonreadflag {
 | `XXLON_READ_TRAILING_COMMA` | 读方向 |
 | `XXLON_READ_CUSTOM` | 自定义标签解码 |
 
+
 ### `xxlonduplicate`
 
 对象和整数映射使用同一套明确的重复键策略。
@@ -96,6 +99,7 @@ typedef enum xxlonduplicate {
 | `XXLON_DUPLICATE_KEEP` | KEEP |
 | `XXLON_DUPLICATE_REPLACE` | 重名后者覆盖 |
 
+
 ### `xxlonbigint`
 
 超出 int64/uint64 的整数默认失败，可显式按 double 接收。
@@ -111,6 +115,7 @@ typedef enum xxlonbigint {
 |---|---|
 | `XXLON_BIGINT_REJECT` | XXLONBIGINTREJECT |
 | `XXLON_BIGINT_FLOAT` | 浮点形态（超精度可选） |
+
 
 ### `xxlonreadconfig`
 
@@ -146,6 +151,7 @@ typedef struct xxlonreadconfig {
 | `MaxDecodedBytes` | `size_t` | MaxDecodedBytes |
 | `Decode` | `xxlondecodeproc` | Decode |
 | `DecodeData` | `ptr` | DecodeData |
+
 
 ### `xxloneventtype`
 
@@ -195,6 +201,7 @@ typedef enum xxloneventtype {
 | `XXLON_EVENT_UINT` | 无符号整数事件 |
 | `XXLON_EVENT_CHAR` | Unicode 标量字符事件 |
 
+
 ### `xxlonvisitaction`
 
 回调可继续、正常提前停止或报告失败。
@@ -212,6 +219,7 @@ typedef enum xxlonvisitaction {
 | `XXLON_VISIT_NEXT` | NEXT |
 | `XXLON_VISIT_STOP` | STOP |
 | `XXLON_VISIT_FAIL` | 回调失败 |
+
 
 ### `xxlonvisitresult`
 
@@ -231,6 +239,7 @@ typedef enum xxlonvisitresult {
 | `XXLON_VISIT_DONE` | 完成 |
 | `XXLON_VISIT_STOPPED` | 回调请求停止 |
 
+
 ### `xxlontag`
 
 自定义标签保留名称和已经完成 JSON 反转义的字符串载荷。
@@ -246,6 +255,7 @@ typedef struct xxlontag {
 |---|---|---|
 | `Name` | `xstrview` | 名称 |
 | `Payload` | `xstrview` | 载荷 |
+
 
 ### `xxlonwriteflag`
 
@@ -267,6 +277,7 @@ typedef enum xxlonwriteflag {
 | `XXLON_WRITE_ESCAPE_HTML` | 写方向 |
 | `XXLON_WRITE_ESCAPE_NON_ASCII` | 转义非 ASCII |
 
+
 ### `xxlonunsupported`
 
 不可直接表示的值默认失败，也可显式跳过容器成员。
@@ -282,6 +293,7 @@ typedef enum xxlonunsupported {
 |---|---|
 | `XXLON_UNSUPPORTED_REJECT` | XXLON不支持REJECT |
 | `XXLON_UNSUPPORTED_SKIP` | 跳过 |
+
 
 ### `xxloncoderesult`
 
@@ -300,6 +312,7 @@ typedef enum xxloncoderesult {
 | `XXLON_CODE_ERROR` | 失败 |
 | `XXLON_CODE_UNSUPPORTED` | 不支持 |
 | `XXLON_CODE_OK` | 成功 |
+
 
 ### `xxlonwriteconfig`
 
@@ -328,6 +341,7 @@ typedef struct xxlonwriteconfig {
 | `Encode` | `xxlonencodeproc` | Encode |
 | `EncodeData` | `ptr` | EncodeData |
 
+
 ### `xxlonwriter`
 
 增量写入器保持不透明，所有方法都拒绝回调重入。
@@ -337,6 +351,7 @@ typedef struct xxlonwriter xxlonwriter;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xxlondecodeproc`
 
@@ -352,6 +367,7 @@ typedef xvalue* (*xxlondecodeproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xxlonvisitproc`
 
 XLON 访问器不得保存事件中的借用视图。
@@ -364,6 +380,7 @@ typedef xxlonvisitaction (*xxlonvisitproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xxlonencodeproc`
 
@@ -380,6 +397,7 @@ typedef xxloncoderesult (*xxlonencodeproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xxlonwriteproc`
 
 输出回调必须在返回前消费借用字节。
@@ -389,6 +407,7 @@ typedef bool (*xxlonwriteproc)(xbytesview Data, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -554,6 +573,7 @@ bool xrtXlonErrorLocation(const xerror* pError, xxlonlocation* pLocation)
 			!xrtXlonErrorLocation(pError, &Location) ||
 ```
 
+
 ## 读取配置
 
 ```c
@@ -639,6 +659,7 @@ void xrtXlonReadConfigInit(xxlonreadconfig* pConfig)
 	xrtXlonReadConfigInit(&ReadConfig);
 ```
 
+
 ## DOM 读取
 
 ```c
@@ -704,6 +725,7 @@ xvalue* xrtXlonParse(xstrview Text)
 	pRoot = xrtXlonParse((xstrview){ sInput, sizeof(sInput) - 1u });
 ```
 
+
 ### `xrtXlonRead`
 
 使用高级配置解析一个完整 XLON 文本。
@@ -741,6 +763,7 @@ xvalue* xrtXlonRead(xstrview Text, const xxlonreadconfig* pConfig)
 			"{\"n\":7}"), &ReadConfig)) == NULL) ) {
 ```
 
+
 ### `xrtXlonValid`
 
 验证默认 XLON 语法和内建标签，不构造 Value DOM。
@@ -777,6 +800,7 @@ bool xrtXlonValid(xstrview Text)
 		((pDom = xrtXlonRead(XRT_STR_LITERAL(
 			"{\"n\":7}"), &ReadConfig)) == NULL) ) {
 ```
+
 
 ## 事件访问
 
@@ -904,6 +928,7 @@ xxlonvisitresult xrtXlonVisit(xstrview Text, const xxlonreadconfig* pConfig, xxl
 		) != XXLON_VISIT_DONE
 ```
 
+
 ## 写出配置
 
 ```c
@@ -992,6 +1017,7 @@ void xrtXlonWriteConfigInit(xxlonwriteconfig* pConfig)
 	xrtXlonWriteConfigInit(&WriteConfig);
 ```
 
+
 ## DOM 与 sink 写出
 
 ```c
@@ -1054,6 +1080,7 @@ str xrtXlonStringify(const xvalue* pValue, bool bPretty, size_t* pSize)
 	sText = xrtXlonStringify(pRoot, true, &iSize);
 ```
 
+
 ### `xrtXlonWrite`
 
 使用高级配置把 Value 同步写入调用方输出回调。
@@ -1095,6 +1122,7 @@ bool xrtXlonWrite(const xvalue* pValue, const xxlonwriteconfig* pConfig, xxlonwr
 		(Sink.iBytes != 7u) ) { /* {"n":7} 恰七字节。 */
 ```
 
+
 ### `xrtXlonStringifyFile`
 
 紧凑或美化地序列化并原子替换 XLON 文件。
@@ -1131,6 +1159,7 @@ bool xrtXlonStringifyFile(cstr sPath, const xvalue* pValue, bool bPretty)
 ```c
 		!xrtXlonStringifyFile(sFile, pDom, true) ||
 ```
+
 
 ### `xrtXlonWriteFile`
 
@@ -1170,6 +1199,7 @@ bool xrtXlonWriteFile(cstr sPath, const xvalue* pValue, const xxlonwriteconfig* 
 		!xrtXlonStringifyFile(sFile, pDom, true) ||
 		(xrtXlonParseFile(sFile) == NULL) ) {
 ```
+
 
 ## 增量 writer
 
@@ -1252,6 +1282,7 @@ xxlonwriter* xrtXlonWriterCreate(const xxlonwriteconfig* pConfig)
 	pWriter = xrtXlonWriterCreate(&WriteConfig);
 ```
 
+
 ### `xrtXlonWriterCreateSink`
 
 创建把增量结果同步提交给回调的 XLON 写入器。
@@ -1289,6 +1320,7 @@ xxlonwriter* xrtXlonWriterCreateSink(const xxlonwriteconfig* pConfig, xxlonwrite
 		(ptr)&Sink);
 ```
 
+
 ### `xrtXlonWriterFree`
 
 销毁写入器和未移交的内存结果。
@@ -1320,6 +1352,7 @@ void xrtXlonWriterFree(xxlonwriter* pWriter)
 ```c
 		xrtXlonWriterFree(pWriter);
 ```
+
 
 ### `xrtXlonWriterObject`
 
@@ -1355,6 +1388,7 @@ bool xrtXlonWriterObject(xxlonwriter* pWriter)
 		!xrtXlonWriterObject(pWriter) ||
 ```
 
+
 ### `xrtXlonWriterArray`
 
 在当前位置开始数组。
@@ -1388,6 +1422,7 @@ bool xrtXlonWriterArray(xxlonwriter* pWriter)
 ```c
 		!xrtXlonWriterArray(pWriter) ||
 ```
+
 
 ### `xrtXlonWriterIntMap`
 
@@ -1423,6 +1458,7 @@ bool xrtXlonWriterIntMap(xxlonwriter* pWriter)
 		!xrtXlonWriterIntMap(pWriter) ||
 ```
 
+
 ### `xrtXlonWriterSet`
 
 在当前位置开始集合。
@@ -1457,6 +1493,7 @@ bool xrtXlonWriterSet(xxlonwriter* pWriter)
 		!xrtXlonWriterSet(pWriter) ||                     /* 开 set */
 ```
 
+
 ### `xrtXlonWriterEnd`
 
 结束最近开始的容器。
@@ -1489,6 +1526,7 @@ bool xrtXlonWriterEnd(xxlonwriter* pWriter)
 ```c
 		!xrtXlonWriterEnd(pWriter) ||                     /* 闭 set */
 ```
+
 
 ### `xrtXlonWriterName`
 
@@ -1525,6 +1563,7 @@ bool xrtXlonWriterName(xxlonwriter* pWriter, xstrview Name)
 		!xrtXlonWriterName(pWriter, XRT_STR_LITERAL("code")) ||
 ```
 
+
 ### `xrtXlonWriterKey`
 
 为整数映射中的下一个值写入 int64 键。
@@ -1560,6 +1599,7 @@ bool xrtXlonWriterKey(xxlonwriter* pWriter, int64 iKey)
 		!xrtXlonWriterKey(pWriter, 7) ||
 ```
 
+
 ### `xrtXlonWriterNull`
 
 写入 null。
@@ -1593,6 +1633,7 @@ bool xrtXlonWriterNull(xxlonwriter* pWriter)
 ```c
 		!xrtXlonWriterNull(pWriter) ||
 ```
+
 
 ### `xrtXlonWriterBool`
 
@@ -1629,6 +1670,7 @@ bool xrtXlonWriterBool(xxlonwriter* pWriter, bool bValue)
 		!xrtXlonWriterBool(pWriter, true) ||
 ```
 
+
 ### `xrtXlonWriterInt`
 
 写入 int64。
@@ -1664,48 +1706,75 @@ bool xrtXlonWriterInt(xxlonwriter* pWriter, int64 iValue)
 		!xrtXlonWriterInt(pWriter, 200) ||
 ```
 
+
 ### `xrtXlonWriterUInt`
+
+```c
+bool xrtXlonWriterUInt(xxlonwriter* pWriter, uint64 iValue);
+```
 
 写入 uint64。
 
-```c
-bool xrtXlonWriterUInt(xxlonwriter* pWriter, uint64 iValue)
-```
-
 #### 参数
 
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pWriter` | 输入 | 非空 | 目标写入器 |
-| `iValue` | 输入 | — | 无符号值 |
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pWriter` | `xxlonwriter*` | 借用写者；写者失败按其原始错误报告。 |
+| `iValue` | `uint64` | 要增减的有符号单位数。 |
 
 #### 返回值
 
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` | 已写出 | — |
-| `false` | 位置非法 | `xrt.xlon` 域错误 |
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
 
+#### 错误
+
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
+
+#### 范例
+
+参见已注册的 [examples/data/xlon_tour/main.c](../../examples/data/xlon_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
+
+```c
+xrtXlonWriterUInt(pWriter, 12u)
+```
 ### `xrtXlonWriterChar`
-
-写入保留字符身份的 Unicode 标量标签；非法标量或写入器状态错误时返回 `false`，并设置 `xrt.xlon` 错误。
 
 ```c
 bool xrtXlonWriterChar(xxlonwriter* pWriter, uint32 iValue);
 ```
 
+写入保留字符身份的 Unicode 标量标签。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pWriter` | `xxlonwriter*` | 借用写者；写者失败按其原始错误报告。 |
+| `iValue` | `uint32` | 要增减的有符号单位数。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
 #### 错误
 
-- `xrt.xlon` 域错误 — 容器顺序非法、根值重复或输出预算耗尽
-- `XERR_ARGUMENT` — 指针为空或参数非法
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
 
 #### 范例
 
-[xlon_tour](../../examples/data/xlon_tour/main.c) · 写 uint64
+参见已注册的 [examples/data/xlon_tour/main.c](../../examples/data/xlon_tour/main.c)，结合本节参数和生存期规则使用。
 
-```c
-		!xrtXlonWriterUInt(pWriter, 12u) ||
-```
+
 
 ### `xrtXlonWriterFloat`
 
@@ -1742,6 +1811,7 @@ bool xrtXlonWriterFloat(xxlonwriter* pWriter, double fValue)
 		!xrtXlonWriterFloat(pWriter, 0.5) ||
 ```
 
+
 ### `xrtXlonWriterString`
 
 写入严格 UTF-8 字符串。
@@ -1776,6 +1846,7 @@ bool xrtXlonWriterString(xxlonwriter* pWriter, xstrview Text)
 ```c
 		!xrtXlonWriterString(pWriter, XRT_STR_LITERAL("xrt")) ||
 ```
+
 
 ### `xrtXlonWriterBytes`
 
@@ -1813,6 +1884,7 @@ bool xrtXlonWriterBytes(xxlonwriter* pWriter, xbytesview Data)
 			(xbytesview) { (const uint8*)"xy", 2u }) ||
 ```
 
+
 ### `xrtXlonWriterTime`
 
 写入 UTC RFC 3339 时间标签。
@@ -1847,6 +1919,7 @@ bool xrtXlonWriterTime(xxlonwriter* pWriter, xtime Time)
 ```c
 		!xrtXlonWriterTime(pWriter, (xtime)1000000) ||
 ```
+
 
 ### `xrtXlonWriterTag`
 
@@ -1884,6 +1957,7 @@ bool xrtXlonWriterTag(xxlonwriter* pWriter, xstrview Tag, xstrview Payload)
 			XRT_STR_LITERAL("eHl6")) ||
 ```
 
+
 ### `xrtXlonWriterValue`
 
 在当前位置写入完整 Value 子树。
@@ -1919,6 +1993,7 @@ bool xrtXlonWriterValue(xxlonwriter* pWriter, const xvalue* pValue)
 		!xrtXlonWriterValue(pWriter, pSub) ||
 ```
 
+
 ### `xrtXlonWriterFinish`
 
 验证根值和容器已完整结束，并关闭写入器。
@@ -1951,6 +2026,7 @@ bool xrtXlonWriterFinish(xxlonwriter* pWriter)
 ```c
 		!xrtXlonWriterFinish(pWriter)
 ```
+
 
 ### `xrtXlonWriterTake`
 
@@ -1986,6 +2062,7 @@ str xrtXlonWriterTake(xxlonwriter* pWriter, size_t* pSize)
 ```c
 	sText = xrtXlonWriterTake(pWriter, &iSize);
 ```
+
 
 ## 文件
 
@@ -2049,6 +2126,7 @@ xvalue* xrtXlonParseFile(cstr sPath)
 ```c
 	pFileDom = xrtXlonParseFile(sFile);
 ```
+
 
 ### `xrtXlonReadFile`
 

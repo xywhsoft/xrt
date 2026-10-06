@@ -316,7 +316,7 @@ def upload_fault_case(client: Path, ca: Path, leaf: Path, key: Path, *,
     url = f"https://127.0.0.1:{listener.getsockname()[1]}/token"
     started = time.monotonic()
     process = subprocess.Popen(
-        [str(client), url, str(ca), "send-failure", "1000000"],
+        [str(client), url, str(ca), "send-failure", "1000"],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True,
     )
@@ -399,7 +399,7 @@ def handshake_fault_case(client: Path, ca: Path, *, label: str,
     started = time.monotonic()
     try:
         completed = subprocess.run(
-            [str(client), url, str(ca), "failure", "1000000"],
+            [str(client), url, str(ca), "failure", "1000"],
             capture_output=True, text=True, timeout=5,
         )
         elapsed = time.monotonic() - started

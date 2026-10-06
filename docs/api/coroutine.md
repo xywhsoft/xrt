@@ -24,6 +24,7 @@ typedef enum xcorostate {
 | `XCORO_SUSPENDED` | 已挂起 |
 | `XCORO_DONE` | 已完成 |
 
+
 ### `xcoroterm`
 
 协程终态区分正常返回、协作取消和未处理错误。
@@ -44,6 +45,7 @@ typedef enum xcoroterm {
 | `XCORO_TERM_CANCELLED` | 已取消 |
 | `XCORO_TERM_ERROR` | 失败 |
 
+
 ### `xcoroargs`
 
 创建配置只保存会改变核心执行契约的选项。
@@ -63,6 +65,7 @@ typedef struct xcoroargs {
 | `Cancel` | `xcancel*` | 取消令牌 |
 | `Finalize` | `xcorofinalproc` | Finalize |
 | `FinalizeData` | `ptr` | FinalizeData |
+
 
 ### `xcocleanup`
 
@@ -88,6 +91,7 @@ typedef struct xcocleanup {
 | `Active` | `bool` | Active |
 | `Managed` | `bool` | Managed |
 
+
 ### `xcoevent`
 
 协程事件允许嵌入调用方结构，不需要为对象本身分配内存。
@@ -103,6 +107,7 @@ typedef union xcoevent {
 |---|---|---|
 | `Alignment` | `uint64` | 对齐（二次幂） |
 
+
 ### `xcoro`
 
 协程对象对外保持不透明，并且固定归属于创建它的原生线程。
@@ -112,6 +117,7 @@ typedef struct xcoro xcoro;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xcosched`
 
@@ -123,6 +129,7 @@ typedef struct xcosched xcosched;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xcoroproc`
 
 协程过程返回的指针由调用方定义所有权。
@@ -133,6 +140,7 @@ typedef ptr (*xcoroproc)(ptr pData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xcocleanupproc`
 
 协程退出清理过程在所属协程的执行上下文中运行。
@@ -142,6 +150,7 @@ typedef void (*xcocleanupproc)(ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xcorofinalproc`
 
@@ -158,6 +167,7 @@ typedef void (*xcorofinalproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xcoschedpostproc`
 
 调度器投递过程运行在所属线程的普通调用栈中，适合短小的调度操作。
@@ -167,6 +177,7 @@ typedef void (*xcoschedpostproc)(xcosched* pSched, ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 执行契约
 
@@ -317,6 +328,7 @@ if ( pCo == NULL ) {
 (void)xrtCoResume(pCo);
 ```
 
+
 ### `xrtCoDestroy`
 
 销毁未启动或已完成对象；活跃对象失败且保持有效。
@@ -352,6 +364,7 @@ bool xrtCoDestroy(xcoro* pCo);
 (void)xrtCoThreadDetach();
 return 0;
 ```
+
 
 ### `xrtCoResume`
 
@@ -390,6 +403,7 @@ printf("after yield: %d\n", iValue);
 printf("result: %d\n", *(int*)xrtCoResult(pCo));
 ```
 
+
 ### `xrtCoYield`
 
 让出当前协程，并在恢复后返回取消状态。
@@ -426,6 +440,7 @@ if ( xrtCoYield() != XWAIT_OK ) {
 }
 ```
 
+
 ### `xrtCoCurrent`
 
 返回当前协程的借用句柄；普通调用栈返回空指针。
@@ -459,6 +474,7 @@ xcoro* xrtCoCurrent(void);
 xcoro* pSelf = xrtCoCurrent();
 ```
 
+
 ### `xrtCoState`
 
 返回可恢复状态快照。
@@ -490,6 +506,7 @@ xcorostate xrtCoState(const xcoro* pCo);
 ```c
 pJob->iRunning = xrtCoState(pSelf) == XCORO_RUNNING ? 1 : 0;
 ```
+
 
 ### `xrtCoTerm`
 
@@ -525,6 +542,7 @@ xcoroterm xrtCoTerm(const xcoro* pCo);
 (xrtCoTerm(pLife) != XCORO_TERM_RETURNED) ||
 ```
 
+
 ### `xrtCoResult`
 
 返回正常终态的借用结果。
@@ -557,6 +575,7 @@ ptr xrtCoResult(const xcoro* pCo);
 ```c
 printf("result: %d\n", *(int*)xrtCoResult(pCo));
 ```
+
 
 ### `xrtCoError`
 
@@ -592,6 +611,7 @@ const xerror* xrtCoError(const xcoro* pCo);
 (xrtCoResult(pLife) != (ptr)1) ) {
 ```
 
+
 ### `xrtCoCancel`
 
 线程安全且幂等地请求协作取消，并通知可选调度器。
@@ -624,6 +644,7 @@ bool xrtCoCancel(xcoro* pCo);
 ```c
 return xrtCoCancel(pContext->Worker) ? pContext : NULL;
 ```
+
 
 ### `xrtCoCancelToken`
 
@@ -659,6 +680,7 @@ xcancel* xrtCoCancelToken(const xcoro* pCo);
 pJob->pToken = xrtCoCancelToken(pSelf);
 ```
 
+
 ### `xrtCoStopping`
 
 查询当前协程是否收到取消请求。
@@ -691,6 +713,7 @@ bool xrtCoStopping(void);
 ```c
 pJob->iStopping = xrtCoStopping() ? 1 : 0;
 ```
+
 
 ### `xrtCoConfirmCancel`
 
@@ -728,6 +751,7 @@ if ( Result == XWAIT_CANCELLED ) {
 }
 ```
 
+
 ### `xrtCoThreadDetach`
 
 释放当前外部线程的惰性协程运行时。
@@ -762,6 +786,7 @@ bool xrtCoThreadDetach(void);
 (void)xrtCoThreadDetach();
 return 0;
 ```
+
 
 ### `xrtCoCleanupPush`
 
@@ -807,6 +832,7 @@ if ( !xrtCoCleanupPush(
 ) ) {
 ```
 
+
 ### `xrtCoDefer`
 
 分配并压入由协程管理存储期的清理节点。
@@ -844,6 +870,7 @@ if ( pDeferred == NULL ) {
 }
 ```
 
+
 ### `xrtCoCleanupPop`
 
 弹出栈顶节点，并可立即执行清理过程。
@@ -880,6 +907,7 @@ bool xrtCoCleanupPop(xcocleanup* pCleanup, bool bRun);
 return NULL;
 ```
 
+
 ### `xrtCoBackend`
 
 返回当前目标的静态后端名称。
@@ -911,6 +939,7 @@ cstr xrtCoBackend(void);
 ```c
 pJob->sBackend = xrtCoBackend();
 ```
+
 
 ## 调度器
 
@@ -951,6 +980,7 @@ if ( pSched == NULL ) {
 }
 ```
 
+
 ### `xrtCoSchedCreateLimit`
 
 创建时指定用户投递上限；0 使用默认 1024。
@@ -983,6 +1013,7 @@ xcosched* xrtCoSchedCreateLimit(size_t iPostLimit);
 ```c
 pStep = xrtCoSchedCreateLimit(16u);
 ```
+
 
 ### `xrtCoSchedDestroy`
 
@@ -1019,6 +1050,7 @@ bool xrtCoSchedDestroy(xcosched* pSched);
 }
 ```
 
+
 ### `xrtCoSchedCurrent`
 
 返回当前协程所属的借用调度器。
@@ -1051,6 +1083,7 @@ xcosched* xrtCoSchedCurrent(void);
 ```c
 pJob->pSched = xrtCoSchedCurrent();
 ```
+
 
 ### `xrtCoSchedPost`
 
@@ -1094,6 +1127,7 @@ bool xrtCoSchedPost(
 (xrtCoSchedAlive(pStep) != 0u) ||
 (xrtCoSchedStep(pStep) != XWAIT_OK) ||
 ```
+
 
 ### `xrtCoSchedPostOwned`
 
@@ -1139,6 +1173,7 @@ if ( !xrtCoSchedPostOwned(pSched, examplePostProc, (ptr)7,
 	(g_Destroyed != 1) ) {
 ```
 
+
 ### `xrtCoSpawn`
 
 创建由调度器管理且在完成后保留句柄的协程。
@@ -1183,6 +1218,7 @@ if ( (pLife == NULL) || !xrtCoSchedRun(pSched) ) {
 }
 ```
 
+
 ### `xrtCoGo`
 
 创建完成后由调度器自动回收的分离协程。
@@ -1225,6 +1261,7 @@ xrtCoGo(pSched, exampleCancel, &Context, NULL) &&
 xrtCoGo(pSched, exampleJoin, &Context, NULL) ) {
 ```
 
+
 ### `xrtCoSchedClose`
 
 请求取消全部活跃协程并停止接收新协程和新投递。
@@ -1258,6 +1295,7 @@ bool xrtCoSchedClose(xcosched* pSched);
 (void)xrtCoSchedClose(pSched);
 (void)xrtCoSchedRun(pSched);
 ```
+
 
 ### `xrtCoSchedStep`
 
@@ -1293,6 +1331,7 @@ xwaitresult xrtCoSchedStep(xcosched* pSched);
 ```c
 (xrtCoSchedStep(pStep) != XWAIT_OK) ||
 ```
+
 
 ### `xrtCoSchedPollFor`
 
@@ -1330,6 +1369,7 @@ xwaitresult xrtCoSchedPollFor(xcosched* pSched, int64 iTimeout);
 (xrtCoSchedPollFor(pStep, EXAMPLE_LONG_MS) !=
 	XWAIT_OK) ||
 ```
+
 
 ### `xrtCoSchedRun`
 
@@ -1369,6 +1409,7 @@ bOkay =
 	(xrtCoResult(pConsumer) == &tEvent) &&
 ```
 
+
 ### `xrtCoSchedAlive`
 
 在所属线程返回尚未完成的协程数量。
@@ -1401,6 +1442,7 @@ size_t xrtCoSchedAlive(const xcosched* pSched);
 ```c
 (xrtCoSchedAlive(pStep) != 0u) ||
 ```
+
 
 ### `xrtCoWake`
 
@@ -1435,6 +1477,7 @@ bool xrtCoWake(xcoro* pCo);
 ```c
 (void)xrtCoWake(pParker);
 ```
+
 
 ### `xrtCoPark`
 
@@ -1473,6 +1516,7 @@ if ( Result == XWAIT_CANCELLED ) {
 }
 ```
 
+
 ### `xrtCoParkFor`
 
 挂起到相对毫秒期限、wake 或取消。
@@ -1506,6 +1550,7 @@ xwaitresult xrtCoParkFor(int64 iTimeout);
 pJob->iForResult = (int)xrtCoParkFor(EXAMPLE_LONG_MS);
 ```
 
+
 ### `xrtCoSleep`
 
 睡眠相对毫秒数；自然到期或提前 wake 返回 `OK`。
@@ -1534,12 +1579,11 @@ xwaitresult xrtCoSleep(int64 iTimeout);
 
 #### 范例
 
-[concurrency/coroutine_event · 生产者](../../examples/concurrency/coroutine_event/main.c) · 短睡后置位事件
+参见已注册的 [examples/concurrency/coroutine_event/main.c](../../examples/concurrency/coroutine_event/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( xrtCoSleep(1000) != XWAIT_OK ) {
+xrtCoSleep(1)
 ```
-
 ### `xrtCoSleepFor`
 
 睡眠到绝对截止时间。
@@ -1572,6 +1616,7 @@ xwaitresult xrtCoSleepFor(int64 iTimeout);
 ```c
 (void)xrtCoSleepFor(EXAMPLE_SHORT_MS);
 ```
+
 
 ### `xrtCoJoin`
 
@@ -1608,6 +1653,7 @@ xwaitresult xrtCoJoin(xcoro* pCo);
 pContext->JoinResult = xrtCoJoin(pContext->Worker);
 ```
 
+
 ### `xrtCoJoinFor`
 
 在相对毫秒期限内等待目标完成。
@@ -1641,6 +1687,7 @@ xwaitresult xrtCoJoinFor(xcoro* pCo, int64 iTimeout);
 ```c
 pJob->iForResult = (int)xrtCoJoinFor(pJob->pTarget,
 ```
+
 
 ### `xrtCoEventInit`
 
@@ -1683,6 +1730,7 @@ if ( !xrtCoEventInit(&tEvent, false, false) ) {
 }
 ```
 
+
 ### `xrtCoEventUnit`
 
 释放协程事件；仍有尚未返回的等待者时失败并保持对象有效。
@@ -1718,6 +1766,7 @@ bool xrtCoEventUnit(xcoevent* pEvent);
 (void)xrtCoEventUnit(&tEvent);
 (void)xrtCoThreadDetach();
 ```
+
 
 ### `xrtCoEventCreate`
 
@@ -1759,6 +1808,7 @@ if ( (pAuto == NULL) || !xrtCoEventSet(pAuto) ) {
 }
 ```
 
+
 ### `xrtCoEventDestroy`
 
 释放 `Create` 返回的协程事件；仍有等待者时失败且不释放对象。
@@ -1795,6 +1845,7 @@ if ( (pWaiter == NULL) || (pEvtDriver == NULL) ||
 	!xrtCoEventDestroy(pAuto) ) {
 ```
 
+
 ### `xrtCoEventSet`
 
 置位事件；手动复位唤醒全部等待者，自动复位按 FIFO 唤醒一个。
@@ -1828,6 +1879,7 @@ bool xrtCoEventSet(xcoevent* pEvent);
 return xrtCoEventSet(pEvent) ? pEvent : NULL;
 ```
 
+
 ### `xrtCoEventReset`
 
 清除事件的信号态；已经获得信号的等待者不受影响。
@@ -1860,6 +1912,7 @@ bool xrtCoEventReset(xcoevent* pEvent);
 ```c
 (void)xrtCoEventReset(pJob->pAuto);  /* 清信号（覆盖点） */
 ```
+
 
 ### `xrtCoEventAwait`
 
@@ -1896,6 +1949,7 @@ xwaitresult xrtCoEventAwait(xcoevent* pEvent);
 if ( xrtCoEventAwait(pEvent) != XWAIT_OK ) {
 ```
 
+
 ### `xrtCoEventTryAwait`
 
 非阻塞地检查并消费自动复位事件。
@@ -1930,6 +1984,7 @@ xwaitresult xrtCoEventTryAwait(xcoevent* pEvent);
 ```c
 if ( xrtCoEventTryAwait(pJob->pAuto) == XWAIT_OK ) {
 ```
+
 
 ### `xrtCoEventAwaitFor`
 

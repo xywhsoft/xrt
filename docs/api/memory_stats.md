@@ -26,6 +26,7 @@ Memory Stats 提供进程级内存统计的开关、清零与一致性快照；�
 
 快照包含运行时开关、尺寸类元数据、公开 API 请求、临时内存请求、逻辑块流量、池化/直通通道、实际 backing 分配器请求，以及每个尺寸类的调用数和请求字节数。数组有效长度由 `ClassCount` 给出。
 
+
 ### 常量总表
 
 | 常量 | 值 | 语义 |
@@ -68,6 +69,7 @@ void xrtMemStatsEnable(bool bEnable)
 	xrtMemStatsEnable(true);
 ```
 
+
 ### `xrtMemStatsEnabled`
 
 原子读取进程级统计开关。
@@ -101,6 +103,7 @@ bool xrtMemStatsEnabled(void)
 	printf("before=%d\n", xrtMemStatsEnabled() ? 1 : 0);
 ```
 
+
 ### `xrtMemStatsReset`
 
 在线性化边界清空所有内存统计，但保留开关状态；返回后开始的操作不会被清除。
@@ -133,6 +136,7 @@ void xrtMemStatsReset(void)
 	xrtMemStatsReset();
 ```
 
+
 ### `xrtMemStatsGet`
 
 获取一份字段相互一致的内存统计快照。
@@ -164,6 +168,7 @@ void xrtMemStatsGet(xmemstats* pStats)
 ```c
 	xrtMemStatsGet(&tStats);
 ```
+
 
 ## 模块契约：错误
 

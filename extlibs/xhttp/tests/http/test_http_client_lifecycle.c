@@ -204,7 +204,7 @@ static void testHttpLifecycleDrain(xnetengine* pEngine)
 	testHttpOriginSplitResponse(
 		&Origin,
 		sizeof(Wire) - 3u,
-		UINT64_C(500000)
+		UINT64_C(500)
 	);
 	pClient = testHttpLifecycleClient(pEngine);
 	pRequest = testHttpLifecycleRequest(&Origin, "/drain");

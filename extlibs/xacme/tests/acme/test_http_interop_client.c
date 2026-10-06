@@ -118,7 +118,7 @@ static bool after_cleanup(const char* url, const char* ca)
 	xacmehttpresponse response;
 	xnetengine* engine;
 	bool ok;
-	if(!xacmeHttpInit(&http, NULL, ca, 20000u)) return false;
+	if(!xacmeHttpInit(&http, NULL, ca, 20u)) return false;
 	engine = http.pEngine;
 	if(!xrtNetEnginePin(engine)) return false;
 	xacmeHttpUnit(&http);
@@ -173,7 +173,7 @@ static bool lifecycle(const char* url, const char* ca)
 			borrowed = xrtNetEngineCreate(&config);
 			if(borrowed == NULL || !xrtNetEngineStart(borrowed)) return false;
 		}
-		if(!xacmeHttpInit(&http, borrowed, ca, 20000u)) return false;
+		if(!xacmeHttpInit(&http, borrowed, ca, 20u)) return false;
 		engine = http.pEngine;
 		pinned = scenario != 2u;
 		if(pinned && !xrtNetEnginePin(engine)) return false;
@@ -213,7 +213,7 @@ static bool lifecycle(const char* url, const char* ca)
 		printf("  %s: passed\n", labels[scenario]);
 	}
 	if(!init_failure() || !memory_empty()) return false;
-	puts("  failed initialization with a 1us deadline: passed");
+	puts("  failed initialization with a 1ms deadline: passed");
 	for(unsigned limit = 0u; limit < 512u; limit++) {
 		xacmehttp http;
 		bool created, triggered, clean;
@@ -352,7 +352,7 @@ int main(int argc, char** argv)
 	xacmehttpresponse response;
 	xmemdebugsnapshot before, memory;
 	char *ca, *upload = NULL;
-	uint64 timeout_us = 3000000;
+	int64 timeout_ms = 3000;
 	bool bounded, large_body, send_failure, head_failure, body_failure;
 	bool headers, header_oom, link_fields, expected, ok, result;
 	bool request_max, url_failure;
@@ -429,12 +429,12 @@ int main(int argc, char** argv)
 		parsed = strtoull(argv[4], &end, 10);
 		if(errno != 0 || argv[4][0] == '-' || end == argv[4] || *end != 0 || parsed == 0)
 			return 2;
-		timeout_us = (uint64)parsed;
+		timeout_ms = (int64)parsed;
 	}
 	if(!xrtMemDebugEnable(true)) return 3;
 	ca = read_ca(argv[2]);
 	if(ca == NULL) return 3;
-	ok = xacmeHttpInit(&http, NULL, ca, timeout_us);
+	ok = xacmeHttpInit(&http, NULL, ca, timeout_ms);
 	free(ca);
 	if(!ok) return 4;
 	xrtMemDebugSnapshot(&before);

@@ -67,6 +67,7 @@ typedef enum xjsonlerror {
 | `XJSONL_ERROR_IO` | 限额文件读取或原子文件替换失败。 |
 | `XJSONL_ERROR_STATE` | 逐行处理状态错误的保留代码。 |
 
+
 ### `xjsonllocation`
 
 ```c
@@ -85,6 +86,7 @@ typedef struct xjsonllocation {
 | `Column` | `size_t` | 当前物理行内一基 UTF-8 字节列，不按 Unicode 字符计数。 |
 | `RecordIndex` | `size_t` | 零基记录下标；空白行不递增，空行错误指向下一待接收记录下标。 |
 
+
 ### `xjsonlreadflag`
 
 ```c
@@ -96,6 +98,7 @@ typedef enum xjsonlreadflag {
 | 值 | 语义 |
 |---|---|
 | `XJSONL_READ_REJECT_EMPTY_LINES` | 将默认忽略的空白行改为语法错误。 |
+
 
 ### `xjsonlreadconfig`
 
@@ -119,6 +122,7 @@ typedef struct xjsonlreadconfig {
 | `MaxTotalValues` | `size_t` | 所有记录的语法值累计上限，包含被重复键策略丢弃的值，不计合成 Array；默认 1000000。 |
 | `Reserved` | `uint32[4]` | 保留空间，必须全部为零。 |
 
+
 ### `xjsonlwriteconfig`
 
 ```c
@@ -136,6 +140,7 @@ typedef struct xjsonlwriteconfig {
 | `MaxOutputBytes` | `size_t` | 全部输出字节上限，包含每条 LF，不包含结果末尾 NUL；默认 64 MiB。 |
 | `MaxRecords` | `size_t` | 非空记录数量上限，等于结果 Array 最大元素数；默认 1000000。 |
 | `Reserved` | `uint32[4]` | 保留空间，必须全部为零。 |
+
 
 ## 文本、配置与文件接口
 
@@ -176,6 +181,7 @@ bool xrtJsonlErrorLocation(
 if ( !xrtJsonlErrorLocation(xrtGetError(), &Location) ) goto done;
 ```
 
+
 ### `xrtJsonlReadConfigInit`
 
 初始化默认忽略空白行、严格单条语法和有限累计预算。
@@ -209,6 +215,7 @@ void xrtJsonlReadConfigInit(
 ```c
 xrtJsonlReadConfigInit(&Read);
 ```
+
 
 ### `xrtJsonlParse`
 
@@ -249,6 +256,7 @@ xvalue* xrtJsonlParse(
 pArray = xrtJsonlParse(XRT_STR_LITERAL("{\"id\":1}\n\n[2,3]\r\nnull\n"));
 if ( pArray == NULL ) goto done;
 ```
+
 
 ### `xrtJsonlRead`
 
@@ -292,6 +300,7 @@ pRead = xrtJsonlRead((xstrview){ Text, Size }, &Read);
 if ( pRead == NULL ) goto done;
 ```
 
+
 ### `xrtJsonlValid`
 
 默认忽略空白行，验证逐行语法和累计预算，不构造 Value DOM；重复键策略不参与验证。
@@ -331,6 +340,7 @@ bool xrtJsonlValid(
 if ( !xrtJsonlValid((xstrview){ Text, Size }) ) goto done;
 ```
 
+
 ### `xrtJsonlWriteConfigInit`
 
 初始化紧凑单行输出、LF 分隔及有限累计预算；PRETTY 配置非法。
@@ -364,6 +374,7 @@ void xrtJsonlWriteConfigInit(
 ```c
 xrtJsonlWriteConfigInit(&Write);
 ```
+
 
 ### `xrtJsonlStringify`
 
@@ -407,6 +418,7 @@ str xrtJsonlStringify(
 Text = xrtJsonlStringify(pArray, &Size);
 if ( Text == NULL ) goto done;
 ```
+
 
 ### `xrtJsonlWrite`
 
@@ -455,6 +467,7 @@ bool xrtJsonlWrite(
 if ( !xrtJsonlWrite(pArray, &Write, discard, NULL) ) goto done;
 ```
 
+
 ### `xrtJsonlParseFile`
 
 按默认配置限额读取文件并返回拥有的 Array。
@@ -495,6 +508,7 @@ xvalue* xrtJsonlParseFile(
 pRead = xrtJsonlParseFile(Path);
 if ( pRead == NULL ) goto done;
 ```
+
 
 ### `xrtJsonlReadFile`
 
@@ -539,6 +553,7 @@ pRead = xrtJsonlReadFile(Path, &Read);
 if ( pRead == NULL ) goto done;
 ```
 
+
 ### `xrtJsonlStringifyFile`
 
 按默认配置完整序列化 Array 后原子替换文件。
@@ -581,6 +596,7 @@ bool xrtJsonlStringifyFile(
 ```c
 if ( !xrtJsonlStringifyFile(Path, pArray) ) goto done;
 ```
+
 
 ### `xrtJsonlWriteFile`
 
@@ -626,5 +642,3 @@ bool xrtJsonlWriteFile(
 ```c
 if ( !xrtJsonlWriteFile(Path, pArray, &Write) ) goto done;
 ```
-
-

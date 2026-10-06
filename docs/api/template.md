@@ -38,6 +38,7 @@ typedef enum xtemplateerror {
 | `XTEMPLATE_ERROR_INCLUDE` | 失败 |
 | `XTEMPLATE_ERROR_CYCLE` | 包含环 |
 
+
 ### `xtemplatelocation`
 
 源码位置使用 0 基字节偏移和 1 基行列。
@@ -57,6 +58,7 @@ typedef struct xtemplatelocation {
 | `Size` | `size_t` | 字节数 |
 | `Line` | `size_t` | 行号 |
 | `Column` | `size_t` | 列号 |
+
 
 ### `xtemplatenodetype`
 
@@ -94,6 +96,7 @@ typedef enum xtemplatenodetype {
 | `XTEMPLATE_NODE_RAW` | 裸格式 |
 | `XTEMPLATE_NODE_EXTENSION` | 扩展调用节点 |
 
+
 ### `xtemplateoutputtype`
 
 输出类型决定动态值允许的类型与格式化规则。
@@ -111,6 +114,7 @@ typedef enum xtemplateoutputtype {
 | `XTEMPLATE_OUTPUT_TEXT` | 文本 |
 | `XTEMPLATE_OUTPUT_NUMBER` | 输出失败 |
 | `XTEMPLATE_OUTPUT_TIME` | 时间输出 |
+
 
 ### `xtemplatenodeview`
 
@@ -138,6 +142,7 @@ typedef struct xtemplatenodeview {
 | `Format` | `xstrview` | 格式 |
 | `Name` | `xstrview` | 名称 |
 
+
 ### `xtemplateextensiontype`
 
 扩展类型明确区分行内调用、解析主体和完全原样主体。
@@ -157,6 +162,7 @@ typedef enum xtemplateextensiontype {
 | `XTEMPLATE_EXTENSION_STATEMENT` | STATEMENT |
 | `XTEMPLATE_EXTENSION_BLOCK` | 阻塞策略 |
 | `XTEMPLATE_EXTENSION_RAW_BLOCK` | 原始块扩展 |
+
 
 ### `xtemplateextension`
 
@@ -184,6 +190,7 @@ typedef struct xtemplateextension {
 | `Data` | `ptr` | 数据 |
 | `Drop` | `xtemplateextensiondrop` | Drop |
 
+
 ### `xtemplateargview`
 
 参数视图借用模板源码，并以调用内相对索引作为稳定句柄。
@@ -201,6 +208,7 @@ typedef struct xtemplateargview {
 | `Index` | `size_t` | 索引 |
 | `Name` | `xstrview` | 名称 |
 | `Source` | `xstrview` | 源视图 |
+
 
 ### `xtemplatevalue`
 
@@ -229,6 +237,7 @@ typedef struct xtemplatevalue {
 | `Float` | `double` | Float |
 | `Text` | `xstrview` | 文本视图 |
 | `Time` | `xtime` | 时间戳（公元 UTC 毫秒） |
+
 
 ### `xtemplateconfig`
 
@@ -266,6 +275,7 @@ typedef struct xtemplateconfig {
 | `MaxArguments` | `size_t` | MaxArguments |
 | `MaxCallArguments` | `size_t` | MaxCallArguments |
 
+
 ### `xtemplaterenderflag`
 
 渲染标志可组合；HTML 转义只作用于动态 {$path} 输出，不改写模板文本。
@@ -281,6 +291,7 @@ typedef enum xtemplaterenderflag {
 |---|---|
 | `XTEMPLATE_STRICT_UNDEFINED` | XTEMPLATESTRICTUNDEFINED |
 | `XTEMPLATE_ESCAPE_HTML_TEXT` | HTML 文本转义 |
+
 
 ### `xtemplaterenderconfig`
 
@@ -316,6 +327,7 @@ typedef struct xtemplaterenderconfig {
 | `MaxIncludeDepth` | `size_t` | MaxIncludeDepth |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xtemplate`
 
 编译模板是不可变且可跨线程共享的对象。
@@ -325,6 +337,7 @@ typedef struct xtemplate xtemplate;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xtemplateregistry`
 
@@ -337,6 +350,7 @@ typedef struct xtemplateregistry xtemplateregistry;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xtemplatecall`
 
 扩展调用上下文（不透明）：渲染期间传给扩展回调，提供参数、作用域值与渲染出口。
@@ -348,6 +362,7 @@ typedef struct xtemplatecall xtemplatecall;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xtemplateextensionfn`
 
 扩展回调返回 false 时直接传播模板错误；其他错误会保留为 cause 并补充调用位置。
@@ -358,6 +373,7 @@ typedef bool (*xtemplateextensionfn)(xtemplatecall* pCall);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xtemplateextensiondrop`
 
 注册表释放时调用数据析构；每个描述项独立拥有自己的数据。
@@ -367,6 +383,7 @@ typedef void (*xtemplateextensiondrop)(ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xtemplateresolvefn`
 
@@ -382,6 +399,7 @@ typedef bool (*xtemplateresolvefn)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xtemplatewritefn`
 
 Writer 借用当前分片；返回 false 会停止渲染并保留回调设置的错误。
@@ -391,6 +409,7 @@ typedef bool (*xtemplatewritefn)(ptr pUserData, xstrview Text);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 模块
 
@@ -470,6 +489,7 @@ void xrtTemplateConfigInit(xtemplateconfig* pConfig)
 	xrtTemplateConfigInit(&Config);
 ```
 
+
 ### `xrtTemplateCompile`
 
 使用默认配置编译模板源码。
@@ -509,6 +529,7 @@ xtemplate* xrtTemplateCompile(xstrview Source)
 		"{#define:'user'}{$name}{#end}"
 	));
 ```
+
 
 ### `xrtTemplateCompileConfig`
 
@@ -550,6 +571,7 @@ xtemplate* xrtTemplateCompileConfig(xstrview Source, const xtemplateconfig* pCon
 	);
 ```
 
+
 ### `xrtTemplateCompileFile`
 
 使用默认模板配置读取并编译完整文件。
@@ -586,6 +608,7 @@ xtemplate* xrtTemplateCompileFile(cstr sPath)
 ```c
 	pTemplate = xrtTemplateCompileFile("examples/template/file/page.tpl");
 ```
+
 
 ### `xrtTemplateCompileFileConfig`
 
@@ -625,6 +648,7 @@ xtemplate* xrtTemplateCompileFileConfig(cstr sPath, const xtemplateconfig* pConf
 	pTemplate = xrtTemplateCompileFileConfig(sFile, &Config);
 ```
 
+
 ### `xrtTemplateRef`
 
 增加不可变模板引用并返回原指针。
@@ -658,6 +682,7 @@ xtemplate* xrtTemplateRef(xtemplate* pTemplate)
 		*pTemplate = xrtTemplateRef(pExternal);
 ```
 
+
 ### `xrtTemplateRelease`
 
 释放模板引用。
@@ -689,6 +714,7 @@ void xrtTemplateRelease(xtemplate* pTemplate)
 ```c
 	xrtTemplateRelease(pExternal);
 ```
+
 
 ### `xrtTemplateSource`
 
@@ -723,6 +749,7 @@ xstrview xrtTemplateSource(const xtemplate* pTemplate)
 		(xrtTemplateSource(pTemplate).Size != 14u) ) {
 ```
 
+
 ### `xrtTemplateNodeCount`
 
 返回模板中的全部编译节点数量，包括控制块内部节点。
@@ -754,6 +781,7 @@ size_t xrtTemplateNodeCount(const xtemplate* pTemplate)
 ```c
 	iNodes = xrtTemplateNodeCount(pTemplate);
 ```
+
 
 ### `xrtTemplateNode`
 
@@ -789,6 +817,7 @@ bool xrtTemplateNode(const xtemplate* pTemplate, size_t iIndex, xtemplatenodevie
 ```c
 			if ( !xrtTemplateNode(pTemplate, i, &Node) ) {
 ```
+
 
 ### `xrtTemplateRegistryCreate`
 
@@ -826,6 +855,7 @@ xtemplateregistry* xrtTemplateRegistryCreate(const xtemplateextension* pExtensio
 	xtemplateregistry* pRegistry = xrtTemplateRegistryCreate(&Extension, 1u);
 ```
 
+
 ### `xrtTemplateRegistryRef`
 
 增加不可变注册表引用并返回原指针。
@@ -859,6 +889,7 @@ xtemplateregistry* xrtTemplateRegistryRef(const xtemplateregistry* pRegistry)
 	pRegistryRef = xrtTemplateRegistryRef(pRegistry);
 ```
 
+
 ### `xrtTemplateRegistryRelease`
 
 释放注册表引用及其最终拥有的扩展用户数据。
@@ -890,6 +921,7 @@ void xrtTemplateRegistryRelease(const xtemplateregistry* pRegistry)
 ```c
 	xrtTemplateRegistryRelease(pRegistry);
 ```
+
 
 ## 基础语法
 
@@ -1022,6 +1054,7 @@ ptr xrtTemplateCallData(const xtemplatecall* pCall)
 	examplectx* pCtx = (examplectx*)xrtTemplateCallData(pCall);
 ```
 
+
 ### `xrtTemplateCallName`
 
 返回当前扩展调用的名称视图。
@@ -1058,6 +1091,7 @@ xstrview xrtTemplateCallName(const xtemplatecall* pCall)
 		(xrtTemplateCallArgumentCount(pCall) != 1u) ) {
 ```
 
+
 ### `xrtTemplateCallRaw`
 
 返回原样主体和当前、根、全局作用域的借用视图。
@@ -1090,6 +1124,7 @@ xstrview xrtTemplateCallRaw(const xtemplatecall* pCall)
 ```c
 	(void)xrtTemplateCallRaw(pCall);
 ```
+
 
 ### `xrtTemplateCallCurrent`
 
@@ -1124,6 +1159,7 @@ const xvalue* xrtTemplateCallCurrent(const xtemplatecall* pCall)
 		(xrtTemplateCallCurrent(pCall) == NULL) ) {
 ```
 
+
 ### `xrtTemplateCallRoot`
 
 返回根作用域的借用数据值。
@@ -1156,6 +1192,7 @@ const xvalue* xrtTemplateCallRoot(const xtemplatecall* pCall)
 ```c
 	pRoot = xrtTemplateCallRoot(pCall);
 ```
+
 
 ### `xrtTemplateCallGlobal`
 
@@ -1190,6 +1227,7 @@ const xvalue* xrtTemplateCallGlobal(const xtemplatecall* pCall)
 	pGlobal = xrtTemplateCallGlobal(pCall);
 ```
 
+
 ### `xrtTemplateCallArgumentCount`
 
 返回参数数量、指定位置参数或命名参数。
@@ -1221,6 +1259,7 @@ size_t xrtTemplateCallArgumentCount(const xtemplatecall* pCall)
 ```c
 		(xrtTemplateCallArgumentCount(pCall) != 1u) ) {
 ```
+
 
 ### `xrtTemplateCallArgument`
 
@@ -1259,6 +1298,7 @@ bool xrtTemplateCallArgument(const xtemplatecall* pCall, size_t iIndex, xtemplat
 		 (Value.Type != XVALUE_STRING) ) {
 ```
 
+
 ### `xrtTemplateCallFind`
 
 按名称查找实参视图。
@@ -1293,6 +1333,7 @@ bool xrtTemplateCallFind(const xtemplatecall* pCall, xstrview Name, xtemplatearg
 ```c
 		xrtTemplateCallFind(pCall, SV("nope"), &Argument) ||
 ```
+
 
 ### `xrtTemplateCallEval`
 
@@ -1332,6 +1373,7 @@ bool xrtTemplateCallEval(xtemplatecall* pCall, const xtemplateargview* pArgument
 		 !xrtTemplateCallEval(pCall, &Argument, &Value) ||
 ```
 
+
 ### `xrtTemplateCallWrite`
 
 在当前渲染作用域内写出文本分片。
@@ -1366,6 +1408,7 @@ bool xrtTemplateCallWrite(xtemplatecall* pCall, xstrview Text)
 ```c
 	return xrtTemplateCallWrite(pCall, XRT_STR_LITERAL("<a href=\"")) &&
 ```
+
 
 ### `xrtTemplateCallRender`
 
@@ -1403,6 +1446,7 @@ bool xrtTemplateCallRender(xtemplatecall* pCall)
 		xrtTemplateCallRender(pCall) &&
 ```
 
+
 ### `xrtTemplateCallRenderCurrent`
 
 临时替换当前值后渲染主体。
@@ -1439,6 +1483,7 @@ bool xrtTemplateCallRenderCurrent(xtemplatecall* pCall, const xvalue* pCurrent)
 ```c
 	return xrtTemplateCallRenderCurrent(pCall, pCtx->pAlt);
 ```
+
 
 ## 渲染
 
@@ -1486,6 +1531,7 @@ void xrtTemplateRenderConfigInit(xtemplaterenderconfig* pConfig)
 	xrtTemplateRenderConfigInit(&Render);
 ```
 
+
 ### `xrtTemplateRenderHtmlConfigInit`
 
 初始化 HTML 渲染配置（对动态输出执行 HTML 转义）。
@@ -1517,6 +1563,7 @@ void xrtTemplateRenderHtmlConfigInit(xtemplaterenderconfig* pConfig)
 ```c
 	xrtTemplateRenderHtmlConfigInit(&HtmlConfig);
 ```
+
 
 ### `xrtTemplateWrite`
 
@@ -1560,6 +1607,7 @@ bool xrtTemplateWrite(const xtemplate* pTemplate, const xtemplaterenderconfig* p
 		(iTotal != 10u) ) {  /* "Hello xrt!" 共 10 字节 */
 ```
 
+
 ### `xrtTemplateRenderTo`
 
 把渲染结果事务追加到字符串构建器。
@@ -1598,6 +1646,7 @@ bool xrtTemplateRenderTo(const xtemplate* pTemplate, const xtemplaterenderconfig
 ```c
 	if ( !xrtTemplateRenderTo(pTemplate, &Render, &Output) ) {
 ```
+
 
 ### `xrtTemplateRender`
 
@@ -1638,6 +1687,7 @@ str xrtTemplateRender(const xtemplate* pTemplate, const xvalue* pData, size_t* p
 	sOutput = xrtTemplateRender(pTemplate, pRoot, NULL);
 ```
 
+
 ### `xrtTemplateErrorLocation`
 
 从模板错误的数据字段读取源码位置。
@@ -1671,6 +1721,7 @@ bool xrtTemplateErrorLocation(const xerror* pError, xtemplatelocation* pLocation
 ```c
 			!xrtTemplateErrorLocation(pError, &Location) ||
 ```
+
 
 ## 检查
 

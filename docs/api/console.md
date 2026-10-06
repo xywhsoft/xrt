@@ -29,6 +29,7 @@ typedef enum xconsolestream {
 | `XCONSOLE_STDOUT` | XCONSOLE标准输出 |
 | `XCONSOLE_STDERR` | 标准错误流 |
 
+
 ### `xconsoleerror`
 
 Console 错误代码在 xrt.console 域内稳定。
@@ -56,6 +57,7 @@ typedef enum xconsoleerror {
 | `XCONSOLE_ERROR_LIMIT` | 输入超过限制 |
 | `XCONSOLE_ERROR_STATE` | 控制台状态非法 |
 | `XCONSOLE_ERROR_TERMINAL` | 终端操作失败 |
+
 
 ## 选择模块
 
@@ -120,6 +122,7 @@ bool xrtConsoleWrite(xconsolestream Stream, xstrview Text);
 bool bOk = xrtConsoleWrite(XCONSOLE_STDOUT, XRT_STR_LITERAL("write-ok"));
 ```
 
+
 ### `xrtConsoleWriteLine`
 
 在同一个标准流锁内写入文本并追加一个换行符。
@@ -164,6 +167,7 @@ if (
 	return 1;
 ```
 
+
 ## 刷新和终端判断
 
 ### `xrtConsoleFlush`
@@ -200,6 +204,7 @@ bool xrtConsoleFlush(xconsolestream Stream);
 return xrtConsoleFlush(XCONSOLE_STDERR) ? 0 : 2;
 ```
 
+
 ### `xrtConsoleIsTerminal`
 
 判断流当前是否交互终端。返回 `false` 可以表示普通文件或管道，不是错误。
@@ -234,6 +239,7 @@ printf("is-terminal=%d\n",
 	xrtConsoleIsTerminal(XCONSOLE_STDOUT) ? 1 : 0);
 ```
 
+
 ## 错误
 
 错误域固定为 `xrt.console`：
@@ -260,48 +266,156 @@ printf("is-terminal=%d\n",
 
 ### `xrtConsoleReadChar`
 
-`int xrtConsoleReadChar(uint32* Codepoint)`：1 为 Unicode scalar，0 为
-正常 EOF，-1 为错误；Codepoint 非空。Windows 原生输入严格组合 UTF-16
-代理对，重定向和 POSIX 输入严格验证 UTF-8。无效输入是 XERR_IO，
-不预读下一字符。调用期间独占标准输入，活动 raw Reader/Session
-造成 XERR_STATE；错误时已经消费的输入不回滚。
+```c
+int xrtConsoleReadChar(uint32* pCodepoint);
+```
+
+Strict Unicode scalar input: 1 value, 0 EOF, -1 error. No read-ahead.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pCodepoint` | `uint32*` | 成功读取的 Unicode 标量值，不接受代理项。 |
+
+#### 返回值
+
+1：读取一个 Unicode 标量；0：正常 EOF；-1：读取或编码错误。
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xrtConsoleReadLine`
 
-`xbuffer* xrtConsoleReadLine(size_t MaxBytes)`：去掉 LF/CRLF，裸 CR
-仍是内容，UTF-8 实际字节上限不计终止符。EOF 前没有字符返回正常
-NULL，空行返回独立空 Buffer；失败 NULL 并设错，调用者 Destroy
-返回值。NUL 原样保留；零上限允许空行，不允许非空内容。
+```c
+xbuffer* xrtConsoleReadLine(size_t iMaxBytes);
+```
 
-### `xrtConsoleSize` / `xrtConsoleColorMode` / `xrtConsoleWriteStyled`
+EOF before a character is a normal NULL result; an empty line owns an empty buffer.
 
-Size 接受 stdout/stderr 和非空的 uint32 列/行输出；非终端返回 true、
-0/0，查询不改模式。ColorMode 返回 0/1/2/3（none/basic/256/truecolor），
-尊重 NO_COLOR 和 TERM=dumb，非法 stream 返回 -1 并设错。
-WriteStyled 接受 xstrview、foreground/background/attributes，颜色 -1
-默认、0..255 色板、0x1000000|RGB 真实色；属性 bits1/2/4/8/16 为
-bold/dim/italic/underline/reverse。先验证样式和全文，重定向不插入
-ANSI；交互输出临时设置样式并恢复，Windows 同时恢复输出模式。
+#### 参数
 
-### `xrtConsoleSessionOpen` / `xrtConsoleSessionClose` / `xrtConsoleSessionDestroy`
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `iMaxBytes` | `size_t` | 一行输入最大 UTF-8 字节数。 |
 
-Open flags：raw1/mouse2/paste4/alternate-screen8，非法位拒绝；要求
-交互 stdin/stdout，同一进程只允许一个标准输入消费者。Open 返回
-拥有的 Session，普通操作限定创建线程。Close 幂等，输出失败仍继续
-恢复，释放租约；失败应由显式 Close 观察。Destroy 负责最后资源
-清理，允许最后拥有者在另一个线程执行，但禁止并发操作/析构。
-`xrtConsoleSessionClosed` 查询关闭状态，NULL 视为关闭。
+#### 返回值
 
-Windows 精确恢复 GetConsoleMode 和光标状态。POSIX 精确恢复 termios，
-关闭本 Session 启用的 ANSI 模式；若隐藏了光标则显示（无法查询此前
-可见状态）。不承诺与其他竞争终端库共存或强杀后的恢复。
+拥有型行缓冲；正常 EOF 且未读取字符返回 NULL。空行仍返回拥有型空缓冲。
 
-### `xrtConsoleSessionWrite` / `xrtConsoleSessionFlush`
+#### 错误
 
-Write 将严格 UTF-8 xstrview 加入队列（含 NUL），16 MiB 硬上限；
-Flush 写出一批并刷新。失败可能部分写出，批次被丢弃而不重放；不
-是“出错后恢复屏幕”的事务。Close 也提交剩余批次。模式切换只发生
-在 Open/Close，不为每个 write 反复设置模式。
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleSize`
+
+```c
+bool xrtConsoleSize(xconsolestream Stream, uint32* pColumns, uint32* pRows);
+```
+
+Queries never change terminal modes. Nonterminal size is 0,0.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Stream` | `xconsolestream` | 标准流选择：stdout 或 stderr。 |
+| `pColumns` | `uint32*` | 返回终端列数；非终端返回零。 |
+| `pRows` | `uint32*` | 返回终端行数；非终端返回零。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleSessionOpen`
+
+```c
+xconsolesession* xrtConsoleSessionOpen(uint32 Flags);
+```
+
+flags: raw=1, mouse=2, bracketed-paste=4, alternate-screen=8. Thread-affine, exclusive stdin.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Flags` | `uint32` | 会话选项位：raw=1、mouse=2、bracketed paste=4、alternate screen=8。 |
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleSessionWrite`
+
+```c
+bool xrtConsoleSessionWrite(xconsolesession* pSession, xstrview Text);
+```
+
+把精确长度的 UTF-8 文本写入当前会话。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSession` | `xconsolesession*` | 创建线程拥有的控制台会话；独占标准输入，在该线程上使用。 |
+| `Text` | `xstrview` | 带精确长度的输入文本视图，允许内嵌 NUL。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### 屏幕操作
 
@@ -310,26 +424,475 @@ Flush 写出一批并刷新。失败可能部分写出，批次被丢弃而不�
 - `xrtConsoleSessionCursor(Session,bool Visible)`：队列中显示/隐藏光标。
 - `xrtConsoleSessionStyle(Session,int32 Fg,int32 Bg,uint32 Attributes)`：样式同 WriteStyled。
 
-### `xrtConsoleSessionRead` / `xrtConsoleEventDestroy`
+### `xrtConsoleSessionRead`
 
-Read timeoutMs 为 -1 永久等待或非负毫秒；NULL 无错是 timeout。
-返回拥有的 Event，Destroy 释放独立 Text Buffer。Text/Key/Resize/
-Paste/Mouse/Closed kind 为 1..6；Closed 在 EOF 仅发一次。事件内容
-1 MiB 上限。Key 专用值从0x110000起，Text key 为 Unicode scalar；
-modifiers Shift/Ctrl/Alt/Meta=1/2/4/8，repeat/down 保留平台信息。
-Mouse key 按钮位左1/右2/中4，x/y 为零起点，wheel 带符号。未对应
-当前 kind 的字段无意义，不能当作跨事件状态。
+```c
+xconsoleevent* xrtConsoleSessionRead(xconsolesession* pSession, int TimeoutMs);
+```
 
-POSIX 普通按键没有 key-up，down=true；独立 Escape 最多约30 ms
-消歧义，resize 最多50 ms轮询。分段 UTF-8/转义保留到完整事件，未知
-序列保留字节回退；数字以受检十进制解析，禁止 scanf 溢出。支持
-bracketed paste（NUL 保留）和 SGR mouse。
-`xrtConsoleSessionPasteSupported` 只在活动 POSIX Session 开启 paste
-时为 true；Windows 原生输入不能区分粘贴与打字，返回 false，字符
-仍以 Text 提供，不伪造 Paste。
+NULL without error is timeout; CLOSED is emitted once. Returned event is owned.
 
-验收入口：console/input/screen/terminal 模块与单头测试；Windows
-terminal_windows 在 CREATE_NO_WINDOW 私有控制台注入事件并检查
-精确恢复。`python3 tools/check_console_terminal_pty.py` 在私有 PTY
-覆盖 Unicode、分段转义、数字边界、修饰键、NUL Paste、鼠标、resize、
-timeout、输入租约与恢复，绝不改变调用者终端。
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSession` | `xconsolesession*` | 创建线程拥有的控制台会话；独占标准输入，在该线程上使用。 |
+| `TimeoutMs` | `int` | 相对毫秒等待预算；超时属于普通空结果。 |
+
+#### 返回值
+
+拥有型事件，由 xrtConsoleEventDestroy 释放；超时为无错误 NULL，CLOSED 事件只交付一次。
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleColorMode`
+
+```c
+int xrtConsoleColorMode(xconsolestream Stream);
+```
+
+查询输出流颜色支持能力；普通管道不被当成可控制的终端。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Stream` | `xconsolestream` | 标准流选择：stdout 或 stderr。 |
+
+#### 返回值
+
+返回上述契约定义的计数、日历字段、状态或能力值；单位与当前函数签名一致。
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleEventDestroy`
+
+```c
+void xrtConsoleEventDestroy(xconsoleevent* pEvent);
+```
+
+释放事件及其拥有的文本、粘贴数据；NULL 安全。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pEvent` | `xconsoleevent*` | 读取所得拥有型事件，使用完通过本函数释放。 |
+
+#### 返回值
+
+无返回值。资源或引用的释放范围按上述契约执行。
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleSessionClear`
+
+```c
+bool xrtConsoleSessionClear(xconsolesession* pSession, int Mode);
+```
+
+清除当前会话显示区域，不关闭会话。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSession` | `xconsolesession*` | 创建线程拥有的控制台会话；独占标准输入，在该线程上使用。 |
+| `Mode` | `int` | 清除模式，按终端清屏约定选择当前位置或整个屏幕。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleSessionClose`
+
+```c
+bool xrtConsoleSessionClose(xconsolesession* pSession);
+```
+
+幂等结束会话并恢复创建时保存的终端状态。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSession` | `xconsolesession*` | 创建线程拥有的控制台会话；独占标准输入，在该线程上使用。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleSessionClosed`
+
+```c
+bool xrtConsoleSessionClosed(const xconsolesession* pSession);
+```
+
+查询会话是否已关闭，不执行读取或关闭操作。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSession` | `const xconsolesession*` | 创建线程拥有的控制台会话；独占标准输入，在该线程上使用。 |
+
+#### 返回值
+
+true 表示谓词成立，false 表示不成立；普通不成立不代表操作失败。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 谓词成立 | 按上述契约交付结果 |
+| `false` | 谓词不成立 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleSessionCursor`
+
+```c
+bool xrtConsoleSessionCursor(xconsolesession* pSession, bool Visible);
+```
+
+设置光标可见性。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSession` | `xconsolesession*` | 创建线程拥有的控制台会话；独占标准输入，在该线程上使用。 |
+| `Visible` | `bool` | 是否显示光标。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleSessionDestroy`
+
+```c
+void xrtConsoleSessionDestroy(xconsolesession* pSession);
+```
+
+关闭会话并释放其资源；会话须在创建线程上销毁。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSession` | `xconsolesession*` | 创建线程拥有的控制台会话；独占标准输入，在该线程上使用。 |
+
+#### 返回值
+
+无返回值。资源或引用的释放范围按上述契约执行。
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleSessionFlush`
+
+```c
+bool xrtConsoleSessionFlush(xconsolesession* pSession);
+```
+
+把已接受的输出刷新至底层终端。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSession` | `xconsolesession*` | 创建线程拥有的控制台会话；独占标准输入，在该线程上使用。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleSessionMove`
+
+```c
+bool xrtConsoleSessionMove(xconsolesession* pSession, uint32 X, uint32 Y);
+```
+
+把光标移动到给定的零起点行列。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSession` | `xconsolesession*` | 创建线程拥有的控制台会话；独占标准输入，在该线程上使用。 |
+| `X` | `uint32` | 光标目标列（以零为起点）。 |
+| `Y` | `uint32` | 光标目标行（以零为起点）。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleSessionPasteSupported`
+
+```c
+bool xrtConsoleSessionPasteSupported(const xconsolesession* pSession);
+```
+
+查询 bracketed paste 是否被当前会话支持。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSession` | `const xconsolesession*` | 创建线程拥有的控制台会话；独占标准输入，在该线程上使用。 |
+
+#### 返回值
+
+true 表示谓词成立，false 表示不成立；普通不成立不代表操作失败。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 谓词成立 | 按上述契约交付结果 |
+| `false` | 谓词不成立 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleSessionStyle`
+
+```c
+bool xrtConsoleSessionStyle(xconsolesession* pSession, int32 Foreground, int32 Background, uint32 Attributes);
+```
+
+设置当前会话后续输出的颜色及属性。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pSession` | `xconsolesession*` | 创建线程拥有的控制台会话；独占标准输入，在该线程上使用。 |
+| `Foreground` | `int32` | 前景色：-1 默认，0..255 调色板，0x1000000 OR RGB 真彩色。 |
+| `Background` | `int32` | 背景色，编码与前景色一致。 |
+| `Attributes` | `uint32` | 样式位：粗体、弱化、斜体、下划线、反色。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtConsoleWriteStyled`
+
+```c
+bool xrtConsoleWriteStyled(xconsolestream Stream, xstrview Text, int32 Foreground, int32 Background, uint32 Attributes);
+```
+
+-1 default, 0..255 palette, 0x1000000|RGB true color; attributes bits 1,2,4,8,16.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Stream` | `xconsolestream` | 标准流选择：stdout 或 stderr。 |
+| `Text` | `xstrview` | 带精确长度的输入文本视图，允许内嵌 NUL。 |
+| `Foreground` | `int32` | 前景色：-1 默认，0..255 调色板，0x1000000 OR RGB 真彩色。 |
+| `Background` | `int32` | 背景色，编码与前景色一致。 |
+| `Attributes` | `uint32` | 样式位：粗体、弱化、斜体、下划线、反色。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+参数、UTF-8、系统终端或会话线程/关闭状态错误会设错。ReadLine 的未读字符 EOF 和 SessionRead 的超时是正常空结果，应检查线程错误区分。
+
+#### 范例
+
+参见已注册的 [examples/console/output/main.c](../../examples/console/output/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xconsoleevent`
+
+读取交付的拥有型事件，包含输入、按键、鼠标、粘贴或关闭信息；通过 EventDestroy 释放其中的数据。
+
+```c
+typedef struct xconsoleevent {
+    xconsoleeventkind Kind;
+    uint32 Key, Modifiers, Repeat;
+    int32 X, Y, Wheel;
+    uint32 Columns, Rows;
+    bool Down;
+    xbuffer* Text; /* owned UTF-8; may contain NUL */
+} xconsoleevent;
+```
+
+
+### `xconsoleeventkind`
+
+事件类型枚举；关闭事件只发出一次。
+
+```c
+typedef enum xconsoleeventkind {
+    XCONSOLE_EVENT_TEXT = 1, XCONSOLE_EVENT_KEY, XCONSOLE_EVENT_RESIZE,
+    XCONSOLE_EVENT_PASTE, XCONSOLE_EVENT_MOUSE, XCONSOLE_EVENT_CLOSED
+} xconsoleeventkind;
+```
+
+
+### `xconsolekey`
+
+终端输入的稳定键编号；与 Unicode 字符输入分别表达。
+
+```c
+typedef enum xconsolekey {
+    XCONSOLE_KEY_ESCAPE = 0x110000, XCONSOLE_KEY_ENTER, XCONSOLE_KEY_TAB,
+    XCONSOLE_KEY_BACKSPACE, XCONSOLE_KEY_UP, XCONSOLE_KEY_DOWN,
+    XCONSOLE_KEY_LEFT, XCONSOLE_KEY_RIGHT, XCONSOLE_KEY_HOME,
+    XCONSOLE_KEY_END, XCONSOLE_KEY_INSERT, XCONSOLE_KEY_DELETE,
+    XCONSOLE_KEY_PAGE_UP, XCONSOLE_KEY_PAGE_DOWN, XCONSOLE_KEY_F1
+} xconsolekey;
+```
+
+
+### `xconsolesession`
+
+创建线程亲和的控制台会话，独占 stdin，Close 恢复终端状态，Destroy 释放资源。
+
+```c
+typedef struct xconsolesession xconsolesession;
+```

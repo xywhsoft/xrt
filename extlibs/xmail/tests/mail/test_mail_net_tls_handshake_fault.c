@@ -126,7 +126,7 @@ static void testMailHandshakeCase(
 	memset(&Dial, 0, sizeof(Dial));
 	Dial.Config = *pConfig;
 	Dial.Timeout = Mode == TEST_MAIL_HANDSHAKE_TIMEOUT ?
-		UINT64_C(2000000) : UINT64_C(5000000);
+		INT64_C(2000) : INT64_C(5000);
 	if ( Mode == TEST_MAIL_HANDSHAKE_CANCEL ) {
 		Dial.Cancel = xrtCancelCreate();
 		testRequire(Dial.Cancel != NULL,

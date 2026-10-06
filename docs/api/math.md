@@ -132,6 +132,7 @@ double xrtMathMin(double fLeft, double fRight);
 ```
 
 
+
 ### `xrtMathMax`
 
 返回两个浮点数中较大者。
@@ -164,6 +165,7 @@ double xrtMathMax(double fLeft, double fRight);
 ```c
 		(xrtMathMax(2.0, 3.0) != 3.0) ||
 ```
+
 
 
 ### `xrtMathClamp`
@@ -201,6 +203,7 @@ double xrtMathClamp(double fValue, double fMin, double fMax);
 ```
 
 
+
 ### `xrtMathSign`
 
 返回浮点数的符号：负数为 -1、零为 0、正数为 +1。
@@ -234,6 +237,7 @@ int xrtMathSign(double fValue);
 		(xrtMathSign(5.0) != 1) ||
 		(xrtMathSign(0.0) != 0) ) {
 ```
+
 
 
 ### `xrtMathTrunc`
@@ -270,6 +274,7 @@ double xrtMathTrunc(double fValue);
 ```
 
 
+
 ### `xrtMathFract`
 
 返回小数部分 `x - trunc(x)`，保持符号。
@@ -301,6 +306,7 @@ double xrtMathFract(double fValue);
 ```c
 	printf("fract: %.2f\n", xrtMathFract(-1.25));           /* -1.25→0.75 */
 ```
+
 
 
 ### `xrtMathMod`
@@ -338,6 +344,7 @@ double xrtMathMod(double fValue, double fDivisor);
 ```
 
 
+
 ### `xrtMathRad`
 
 角度转弧度。
@@ -371,6 +378,7 @@ double xrtMathRad(double fDegrees);
 ```
 
 
+
 ### `xrtMathDeg`
 
 弧度转角度。
@@ -402,6 +410,7 @@ double xrtMathDeg(double fRadians);
 ```c
 	printf("angle: %.1f\n", xrtMathDeg(XRT_PI));            /* π rad→180° */
 ```
+
 
 
 ### `xrtMathIsNaN`
@@ -446,6 +455,7 @@ bool xrtMathIsNaN(double fValue);
 ```
 
 
+
 ### `xrtMathIsInf`
 
 判断是否无穷大（正或负）。
@@ -480,6 +490,7 @@ bool xrtMathIsInf(double fValue);
 ```
 
 
+
 ### `xrtMathIsFinite`
 
 判断是否有限值（非 NaN 且非无穷）。
@@ -512,6 +523,7 @@ bool xrtMathIsFinite(double fValue);
 ```c
 			!xrtMathIsFinite(1.5) ||
 ```
+
 
 
 ### `xrtMathLog2`
@@ -553,6 +565,7 @@ double xrtMathLog2(double fValue);
 ```
 
 
+
 ### `xrtMathExp2`
 
 2 的幂；溢出返回无穷。
@@ -584,6 +597,7 @@ double xrtMathExp2(double fValue);
 ```c
 		!exampleNear(xrtMathExp2(10.0), 1024.0) ||
 ```
+
 
 
 ### `xrtMathLog1p`
@@ -619,6 +633,7 @@ double xrtMathLog1p(double fValue);
 ```
 
 
+
 ### `xrtMathExpm1`
 
 计算 `e^x - 1`，x 接近零时保持精度。
@@ -650,6 +665,7 @@ double xrtMathExpm1(double fValue);
 ```c
 		!exampleNear(xrtMathExpm1(0.0), 0.0) ||
 ```
+
 
 
 ### `xrtMathCbrt`
@@ -687,6 +703,7 @@ double xrtMathCbrt(double fValue);
 ```
 
 
+
 ### `xrtMathHypot`
 
 计算 `sqrt(x² + y²)`，中间过程不上溢。
@@ -719,6 +736,7 @@ double xrtMathHypot(double fX, double fY);
 ```c
 	printf("hypot: %.1f\n", xrtMathHypot(3.0, 4.0));        /* 勾股 3-4-5 */
 ```
+
 
 
 ### `xrtMathNear`
@@ -760,6 +778,7 @@ bool xrtMathNear(double fLeft, double fRight,
 ```
 
 
+
 ### `xrtMathIntNear`
 
 使用无符号绝对差容差比较两个 int64，计算过程不会溢出。
@@ -794,6 +813,7 @@ bool xrtMathIntNear(int64 iLeft, int64 iRight, uint64 iTolerance);
 ```c
 		xrtMathIntNear(1000, 1003, 5) ? "near" : "different");
 ```
+
 
 ## 模块契约：错误
 

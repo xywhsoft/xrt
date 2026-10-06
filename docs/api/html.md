@@ -21,6 +21,7 @@ typedef enum xhtmlescapemode {
 | `XHTML_ESCAPE_TEXT` | XHTMLESCAPE文本 |
 | `XHTML_ESCAPE_ATTRIBUTE` | 属性上下文转义 |
 
+
 ### `xhtmlerror`
 
 HTML 文本原语的稳定错误代码。
@@ -36,6 +37,7 @@ typedef enum xhtmlerror {
 |---|---|
 | `XHTML_ERROR_MODE` | XHTML失败MODE |
 | `XHTML_ERROR_UTF8` | 输入不是合法 UTF-8 |
+
 
 ## 裁剪
 
@@ -157,6 +159,7 @@ bool xrtHtmlEscapeSize(
 ```
 
 
+
 ### `xrtHtmlEscapeWrite`
 
 转义到调用方缓冲区；容量须含末尾零，空输出可只查询长度，同址扩张允许、部分重叠拒绝。
@@ -204,6 +207,7 @@ bool xrtHtmlEscapeWrite(
 ```
 
 
+
 ### `xrtHtmlEscape`
 
 创建由 `xrtFree` 释放的零结尾转义文本；空输入仍返回独立可释放的空字符串。
@@ -247,5 +251,3 @@ str xrtHtmlEscape(
 		NULL
 	);
 ```
-
-

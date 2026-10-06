@@ -163,6 +163,7 @@ static void exampleTlsDialDone(
  *       examples/tls/dial/main.c -lws2_32 -liphlpapi
  * 用法：
  *   dial <host> [port]
+ *   dial <host> <port> --proxy <proxy-host> <proxy-port>（HTTP CONNECT）
  * 预期输出（无参数时）：
  *   usage: dial <host> [port]
  *
@@ -189,6 +190,9 @@ int main(int argc, char** argv)
 	xnetengine* pEngine = NULL;
 	xnetresolver* pResolver = NULL;
 	xtlsdial* pDial = NULL;
+	#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+		xnetproxy* pProxy = NULL;
+	#endif
 	int iRequestSize;
 	int iResult = 1;
 
@@ -225,6 +229,35 @@ int main(int argc, char** argv)
 		goto Cleanup;
 	}
 	Example.RequestSize = (size_t)iRequestSize;
+	#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+		if ( argc > 3 ) {
+			xnetproxyconfig ProxyConfig;
+			char* pEnd = NULL;
+			unsigned long iProxyPort;
+
+			if ( (argc != 6) || (strcmp(argv[3], "--proxy") != 0) ) {
+				fprintf(stderr, "expected --proxy <host> <port>\n");
+				goto Cleanup;
+			}
+			iProxyPort = strtoul(argv[5], &pEnd, 10);
+			if ( (pEnd == argv[5]) || (*pEnd != 0) ||
+				(iProxyPort == 0) || (iProxyPort > 65535u) ) {
+				fprintf(stderr, "invalid proxy port\n");
+				goto Cleanup;
+			}
+			xrtNetProxyConfigInit(&ProxyConfig);
+			ProxyConfig.Type = XNET_PROXY_HTTP_CONNECT;
+			ProxyConfig.Host = (xstrview){ argv[4], strlen(argv[4]) };
+			ProxyConfig.Port = (uint16)iProxyPort;
+			pProxy = xrtNetProxyCreate(&ProxyConfig);
+			if ( pProxy == NULL ) goto Cleanup;
+		}
+	#else
+		if ( argc > 3 ) {
+			fprintf(stderr, "proxy support is not enabled\n");
+			goto Cleanup;
+		}
+	#endif
 
 	/* 验证器创建时复制系统信任快照，Store 随后即可释放。 */
 	pStore = xrtX509StoreSystem();
@@ -265,6 +298,14 @@ int main(int argc, char** argv)
 	TlsConfig.Verifier = pVerifier;
 	xrtTlsDialConfigInit(&DialConfig);
 	DialConfig.Timeout = 15000;
+	#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+		if ( pProxy != NULL ) {
+			pDial = xrtTlsDialProxy(pEngine, pResolver, pProxy, sHost,
+				(uint16)iPort, &TlsConfig, &DialConfig, &Events, &Example,
+				exampleTlsDialDone, &Example);
+		}
+		else
+	#endif
 	pDial = xrtTlsDial(
 		pEngine,
 		pResolver,
@@ -293,6 +334,9 @@ int main(int argc, char** argv)
 
 Cleanup:
 	xrtTlsDialDestroy(pDial);
+	#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+		xrtNetProxyRelease(pProxy);
+	#endif
 	xrtTlsStreamDestroy(Example.Stream);
 	if ( (pResolver != NULL) && !xrtNetResolverDestroy(pResolver) ) {
 		exampleTlsDialError("failed to destroy resolver", xrtGetError());

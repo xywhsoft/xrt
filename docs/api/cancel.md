@@ -71,9 +71,11 @@ scope 外请求取消；请求不伪造 Future 终态。正常 Promise close/can
 
 引用计数取消令牌。取消状态只能从“未请求”变为“已请求”，不能复位。子令牌持有父令牌引用，因此父链在子令牌存活期间保持有效。
 
+
 ### `xcancelwatch`
 
 一次监听句柄。它同时挂接到目标令牌及其全部祖先，任一节点首次取消时把监听标记为已触发。每个监听的回调至多执行一次。
+
 
 ### `xcancelproc`
 
@@ -82,6 +84,7 @@ typedef void (*xcancelproc)(ptr pData);
 ```
 
 回调由命中取消的线程同步执行。回调不得跨越 C 调用栈跳转，必须正常返回。耗时工作应由回调唤醒其他执行单元处理，避免延长 `xrtCancelRequest`。
+
 
 ## 核心契约
 
@@ -135,6 +138,7 @@ if ( pRequest == NULL ) {
 }
 ```
 
+
 ### `xrtCancelChild`
 
 创建子令牌并持有父引用；`pParent` 为空时等价于创建新的根令牌。
@@ -173,6 +177,7 @@ if ( pOperation == NULL ) {
 }
 ```
 
+
 ### `xrtCancelRef`
 
 增加取消令牌引用，供多个持有者共享同一取消源。
@@ -207,6 +212,7 @@ xcancel* xrtCancelRef(xcancel* pCancel);
 xcancel* pExtra = xrtCancelRef(pOperation);
 ```
 
+
 ### `xrtCancelDestroy`
 
 释放取消令牌引用，并顺着唯一父引用迭代回收。空指针是空操作。
@@ -236,6 +242,7 @@ xrtCancelDestroy(pOperation);
 xrtCancelDestroy(pRequest);
 return bStopped ? 0 : 1;
 ```
+
 
 ### `xrtCancelRequest`
 
@@ -271,6 +278,7 @@ bool xrtCancelRequest(xcancel* pCancel);
 printf("operation stopped: %s\n", bStopped ? "yes" : "no");
 ```
 
+
 ### `xrtCancelRequested`
 
 查询当前令牌或完整祖先链是否已取消。空指针表示没有取消源，返回 `false` 且不设置错误，便于可选取消参数直接使用。
@@ -305,6 +313,7 @@ if ( xrtCancelRequested(pCancel) ) {
 	return XTASK_CANCELLED;
 }
 ```
+
 
 ### `xrtCancelWatch`
 
@@ -352,6 +361,7 @@ if ( pWatch == NULL ) {
 }
 ```
 
+
 ### `xrtCancelTriggered`
 
 无锁查询监听是否已经命中取消。
@@ -385,6 +395,7 @@ bool xrtCancelTriggered(const xcancelwatch* pWatch);
 printf("watch-triggered=%d\n", xrtCancelTriggered(pWatch) ? 1 : 0);
 ```
 
+
 ### `xrtCancelUnwatch`
 
 注销并释放调用方拥有的监听。空指针是空操作。普通路径会保证返回时没有正在执行或未来可能执行的回调；回调自身注销使用延迟回收规则。
@@ -414,6 +425,7 @@ xrtCancelUnwatch(pWatch);
 xrtCancelDestroy(pOperation);
 xrtCancelDestroy(pRequest);
 ```
+
 
 ## 取消监听的拥有图
 
@@ -447,3 +459,216 @@ xrtCancelDestroy(pGroup);
 Drop，不通过估计引用数或提前释放父对象来消环。该接口不认证 CancelWatch。
 Future 回收中的无观察者生产端关闭仅修改当前令牌的取消状态，既不取消父令牌，
 也不在 freeze 中调用回调或等待原生锁。
+
+### `xrtCancelOwnership`
+
+```c
+xrtownershipref xrtCancelOwnership(const xcancel* pCancel);
+```
+
+Borrowed physical ownership view; the retained parent is one owning edge.
+Watch-list links borrow registration storage and are not strong references.
+Caller provides whole-graph quiescence and code residency.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pCancel` | `const xcancel*` | 借用的取消令牌；返回对象按接口契约保留其实际引用。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/cancel/main.c](../../examples/concurrency/cancel/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtCancelOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtCancelOwnershipAdapterV1(xrtownershipref Reference);
+```
+
+Explicit native adapter, queried under whole-graph freeze. Registered
+observers are refused before Trace, not treated as empty owning slots.
+The immutable parent tail remains owned through Finish and final Drop;
+each parent must independently be admitted. No CancelWatch certification.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/cancel/main.c](../../examples/concurrency/cancel/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtCancelOwnershipAdapterV2`
+
+```c
+const xrtownershipadapterv1* xrtCancelOwnershipAdapterV2(xrtownershipref Reference, const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+Whole-graph freeze queries, matching policy identity before dereferencing
+it or tracing Data. Both lifecycle AND semantic preparation are required.
+Token list nodes borrow Watch storage: V2 does not invent token->Watch RC
+edges. Watch owns its Cancel and its certified Data reference independently.
+Active dispatch, publication/unlink, legacy/unknown observers are refused.
+Prepare only waits for the owner's actual Unwatch; it never requests
+cancellation or silently removes an accepted callback. Output preparation
+remains unchanged on refusal. Data/parents must be independently admitted.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pPolicies` | `const xcancelwatchownershipv1* const*` | 调用方认可的常驻、不可变策略指针白名单；按真实指针身份匹配。 |
+| `iPolicyCount` | `size_t` | 策略白名单元素数，零表示没有显式授权策略。 |
+| `ppPreparation` | `const xrtownershippreparationv1**` | 成功时交付语义准备协议；失败不修改。必须与生命周期适配器配套使用。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/cancel/main.c](../../examples/concurrency/cancel/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtCancelWatchOwnedV1`
+
+```c
+xcancelwatch* xrtCancelWatchOwnedV1(xcancel* pCancel, ptr pData, const xcancelwatchownershipv1* pPolicy);
+```
+
+Failure consumes nothing. Success may notify synchronously if an ancestor
+is already cancelled, but retains Data until registration release. Legacy
+Watch remains borrowed/opaque and keeps its conservative callback scope.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pCancel` | `xcancel*` | 借用的取消令牌；返回对象按接口契约保留其实际引用。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pPolicy` | `const xcancelwatchownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/cancel/main.c](../../examples/concurrency/cancel/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtCancelWatchOwnership`
+
+```c
+xrtownershipref xrtCancelWatchOwnership(const xcancelwatch* pWatch);
+```
+
+Borrowed physical view: Unwatch owns this registration; it retains its
+Cancel (and thereby its parents). Proc/Data and linked cancellation nodes
+are borrowed, not additional owning slots. Active/destroying callbacks
+reject inspection. Whole-graph quiescence and code residency are required.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pWatch` | `const xcancelwatch*` | 有效注册；必须与派发、解绑和销毁串行。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/cancel/main.c](../../examples/concurrency/cancel/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtCancelWatchOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtCancelWatchOwnershipAdapterV1(xrtownershipref Reference, const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+在调用方提供的全图冻结下，按精确描述符与策略身份查询生命周期适配器；未认证、活动或不稳定对象返回 NULL。返回描述符为借用，不能绕过子节点的独立准入。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pPolicies` | `const xcancelwatchownershipv1* const*` | 调用方认可的常驻、不可变策略指针白名单；按真实指针身份匹配。 |
+| `iPolicyCount` | `size_t` | 策略白名单元素数，零表示没有显式授权策略。 |
+| `ppPreparation` | `const xrtownershippreparationv1**` | 成功时交付语义准备协议；失败不修改。必须与生命周期适配器配套使用。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/cancel/main.c](../../examples/concurrency/cancel/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xcancelwatchownershipv1`
+
+已认证取消注册上下文的不可变通知、释放及所有权策略。注册持有的 Cancel 与 Data 是独立的真实边；链表链接借用 Watch 存储。
+
+```c
+typedef struct xcancelwatchownershipv1 {
+	size_t size;
+	xcancelproc Notify;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xcancelwatchownershipv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `Notify` | `xcancelproc` | 通知入口，代码覆盖已接受注册的全部生存期。 |
+| `Ops` | `const xrtownershipops*` | 同一物理 Data 节点的计数和真实边枚举操作表。 |

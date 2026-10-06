@@ -16,6 +16,7 @@
 
 不透明的一次初始化对象。对象必须使用 `XRT_ONCE_INIT`、静态零初始化或完整清零初始化，初始化开始后不能复制、移动或再次清零。
 
+
 ### `xonceproc`
 
 ```c
@@ -24,9 +25,11 @@ typedef bool (*xonceproc)(ptr pData);
 
 初始化过程返回 `true` 表示永久完成；返回 `false` 表示本次失败，后续调用可以重新执行。过程应在失败前设置能够说明原因的线程错误。
 
+
 ### `XRT_ONCE_INIT`
 
 静态和自动对象的初始化值。`XRT_ONCE_STORAGE_SIZE` 表示公开不透明存储的字节数，不应依赖其内部布局。
+
 
 ### `xthreadstate`
 
@@ -44,6 +47,7 @@ typedef enum xthreadstate {
 | `XTHREAD_RUNNING` | XTHREAD运行中 |
 | `XTHREAD_FINISHED` | 已结束 |
 
+
 ### `xthreadkey`
 
 动态键按原生线程隔离，同一线程上的 Fiber 和协程共享其值。
@@ -53,6 +57,7 @@ typedef struct xthreadkey xthreadkey;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xthread`
 
@@ -64,6 +69,7 @@ typedef struct xthread xthread;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xthreadkeyproc`
 
 非空线程局部值在线程退出、显式清理或被替换时交给析构过程。
@@ -74,6 +80,7 @@ typedef void (*xthreadkeyproc)(ptr pValue);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xthreadproc`
 
 线程入口返回稳定的 32 位退出码。
@@ -83,6 +90,7 @@ typedef int32 (*xthreadproc)(ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 函数
 
@@ -123,6 +131,7 @@ bool xrtOnce(xonce* pOnce, xonceproc pProc, ptr pData)
 	if ( !xrtOnce(&tOnce, initializeConfig, &iConfig) ) {
 ```
 
+
 ## 原生线程
 
 ### `xrtThreadCreate`
@@ -162,6 +171,7 @@ xthread* xrtThreadCreate(xthreadproc pProc, ptr pData, size_t iStackSize)
 	pThread = xrtThreadCreate(exampleWorker, NULL, 0u);
 ```
 
+
 ### `xrtThreadRef`
 
 增加线程对象引用并返回原指针。
@@ -195,6 +205,7 @@ xthread* xrtThreadRef(xthread* pThread)
 	pRef = xrtThreadRef(pThread);
 ```
 
+
 ### `xrtThreadDestroy`
 
 释放线程对象引用；运行线程自持引用，因此允许用它安全分离线程。
@@ -226,6 +237,7 @@ void xrtThreadDestroy(xthread* pThread)
 ```c
 	xrtThreadDestroy(pRef);  /* Ref 那份 */
 ```
+
 
 ### `xrtThreadWait`
 
@@ -262,6 +274,7 @@ xwaitresult xrtThreadWait(xthread* pThread)
 	if ( (void)xrtThreadWait(pStop), false ) {
 ```
 
+
 ### `xrtThreadWaitFor`
 
 在相对毫秒数内等待线程执行体和 XRT 线程上下文清理完成。
@@ -292,12 +305,11 @@ xwaitresult xrtThreadWaitFor(xthread* pThread, int64 iTimeout)
 
 #### 范例
 
-[thread_tour](../../examples/concurrency/thread_tour/main.c) · 限时等待
+参见已注册的 [examples/concurrency/thread_tour/main.c](../../examples/concurrency/thread_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-		(xrtThreadWaitFor(pThread, 1000u) == XWAIT_OK) ) {
+xrtThreadWaitFor(pThread, 1)
 ```
-
 ### `xrtThreadStop`
 
 幂等地请求线程协作停止，不会强制终止执行。
@@ -330,6 +342,7 @@ bool xrtThreadStop(xthread* pThread)
 ```c
 	if ( !xrtThreadStop(pStop) ) {
 ```
+
 
 ### `xrtThreadStopRequested`
 
@@ -364,6 +377,7 @@ bool xrtThreadStopRequested(const xthread* pThread)
 				xrtThreadStopRequested(pJob->pSelf);
 ```
 
+
 ### `xrtThreadStopping`
 
 判断当前 XRT 线程是否收到停止请求。
@@ -397,6 +411,7 @@ bool xrtThreadStopping(void)
 		if ( xrtThreadStopping() ) {
 ```
 
+
 ### `xrtThreadState`
 
 返回线程状态快照；只有运行和完成两种可观测状态，停止请求不伪装成执行状态。
@@ -429,6 +444,7 @@ xthreadstate xrtThreadState(const xthread* pThread)
 ```c
 		(xrtThreadState(pThread) != XTHREAD_FINISHED) ||
 ```
+
 
 ### `xrtThreadExitCode`
 
@@ -464,6 +480,7 @@ int32 xrtThreadExitCode(const xthread* pThread)
 		(xrtThreadExitCode(pThread) != 42) ||
 ```
 
+
 ### `xrtThreadId`
 
 返回线程对象在进程内稳定的非零平台标识；线程结束后该标识可能被平台复用。
@@ -497,6 +514,7 @@ uint64 xrtThreadId(const xthread* pThread)
 		(xrtThreadId(pThread) == 0u) ) {
 ```
 
+
 ### `xrtThreadCurrentId`
 
 返回当前线程在进程内稳定的非零平台标识，外部创建的线程同样可用。
@@ -528,6 +546,7 @@ uint64 xrtThreadCurrentId(void)
 ```c
 		(unsigned long long)xrtThreadCurrentId());
 ```
+
 
 ### `xrtThreadCurrent`
 
@@ -562,6 +581,7 @@ xthread* xrtThreadCurrent(void)
 			pJob->bCurrentInside = xrtThreadCurrent() != NULL;
 ```
 
+
 ### `xrtThreadYield`
 
 主动让出当前线程的处理器时间片。
@@ -593,6 +613,7 @@ void xrtThreadYield(void)
 ```c
 		xrtThreadYield();
 ```
+
 
 ## 线程局部键
 
@@ -630,6 +651,7 @@ xthreadkey* xrtThreadKeyCreate(xthreadkeyproc pDestroy)
 	g_pKey = xrtThreadKeyCreate(NULL);
 ```
 
+
 ### `xrtThreadKeyDestroy`
 
 关闭键；其他线程不得再主动访问，已有线程槽会在退出时延迟释放。
@@ -664,6 +686,7 @@ bool xrtThreadKeyDestroy(xthreadkey* pKey)
 	xrtThreadKeyDestroy(g_pKey);
 ```
 
+
 ### `xrtThreadKeyGet`
 
 返回当前线程的借用值；当前线程尚未设置时返回空指针。
@@ -697,6 +720,7 @@ ptr xrtThreadKeyGet(const xthreadkey* pKey)
 ```c
 			(xrtThreadKeyGet(g_pKey) == NULL);
 ```
+
 
 ### `xrtThreadKeySet`
 
@@ -733,6 +757,7 @@ bool xrtThreadKeySet(xthreadkey* pKey, ptr pValue)
 	if ( xrtThreadKeySet(g_pKey, &g_Sentinel) ) {
 ```
 
+
 ### `xrtThreadKeyTake`
 
 取走当前线程的值但不执行析构；返回值所有权交给调用方。
@@ -767,6 +792,7 @@ ptr xrtThreadKeyTake(xthreadkey* pKey)
 		ptr pTaken = xrtThreadKeyTake(g_pKey);
 ```
 
+
 ### `xrtThreadKeysClear`
 
 析构并清除当前原生线程的全部动态键值；XRT 创建的线程退出时自动调用。
@@ -800,6 +826,7 @@ bool xrtThreadKeysClear(void)
 	xrtThreadKeysClear();
 ```
 
+
 ## 模块契约：所有权
 
 `xonce` 为固定存储对象，初始化开始后不可复制或移动；线程键为引用计数对象（`Create` 引用 1，`Ref` 递增，`Destroy` 递减）；`KeySet`/`KeyTake` 转移槽内值的所有权。
@@ -822,3 +849,42 @@ if ( !xrtOnce(&gOnce, initialize, &gValue) ) {
 ```
 
 完整示例位于 `examples/concurrency/once/main.c`。
+
+### `xrtThreadStateTry`
+
+```c
+bool xrtThreadStateTry(const xthread* pThread, xthreadstate* pState);
+```
+
+通过输出参数查询线程状态；避免将查询失败误认为某个有效状态。
+
+Nonblocking, read-only observation for frozen ownership graphs. It never
+waits for the state mutex (which a finishing thread may hold while entering
+the mutation domain), calls no callback and preserves the ambient error.
+False leaves output unchanged on contention or invalid input. FINISHED has
+the same body/XRT-context completion meaning as ThreadState/ThreadWait; this
+query does not consume a thread reference or itself authorize code unload.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pThread` | `const xthread*` | 借用的 const xthread* 对象或调用方结果槽，按上述操作契约使用。 |
+| `pState` | `xthreadstate*` | 借用的 xthreadstate* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
+
+#### 范例
+
+参见已注册的 [examples/concurrency/once/main.c](../../examples/concurrency/once/main.c)，结合本节参数和生存期规则使用。

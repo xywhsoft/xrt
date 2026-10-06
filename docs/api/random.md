@@ -18,6 +18,7 @@ typedef enum xrandomerror {
 |---|---|
 | `XRANDOM_ERROR_SYSTEM` | 系统随机源失败 |
 
+
 ## 设计契约
 
 XRT 把伪随机数分成两个可独立裁剪的层次：
@@ -120,6 +121,7 @@ bool xrtSecureRandom(ptr pData, size_t iSize)
 	if ( !xrtSecureRandom(arrId, sizeof(arrId)) ) {
 ```
 
+
 ### `xrtSecureText`
 
 使用操作系统安全随机源和自定义字母表写入随机文本并补零。
@@ -159,6 +161,7 @@ bool xrtSecureText(xstrview Alphabet,
 		!exampleInAlphabet(TextA, 8u, SV(sHex)) ) {
 ```
 
+
 ### `xrtSecureStringFrom`
 
 使用自定义字母表创建由 `xrtFree` 释放的密码安全随机字符串。
@@ -195,6 +198,7 @@ str xrtSecureStringFrom(xstrview Alphabet, size_t iLength)
 	sGenerated = xrtSecureStringFrom(SV(sHex), 8u);
 ```
 
+
 ### `xrtSecureString`
 
 使用 URL-safe 64 字符字母表创建密码安全随机字符串。
@@ -230,6 +234,7 @@ str xrtSecureString(size_t iLength)
 	str sToken = xrtSecureString(32);   /* 32 字符 ≈ 192 位熵 */
 ```
 
+
 ## 显式状态
 
 ### `xrng`
@@ -254,6 +259,7 @@ typedef struct xrng {
 | `Guard` | `uint32` | 守卫字（Ready 校验） |
 | `Reserved` | `uint32` | 保留字段，必须保持为零 |
 
+
 ### `XRT_RNG_INITIALIZER`
 
 ```c
@@ -261,6 +267,7 @@ xrng Rng = XRT_RNG_INITIALIZER;
 ```
 
 静态初始化得到固定有效状态，适合无需自定义 seed 的确定性路径。多数程序仍应调用 `xrtRngSeed`，明确记录 seed 与 stream。
+
 
 ## 有界整数
 
@@ -311,6 +318,7 @@ void xrtRngSeed(xrng* pRng, uint64 iSeed, uint64 iStream)
 	xrtRngSeed(&Rng, 2026, 7);       /* 种子 2026，流 7 */
 ```
 
+
 ### `xrtRngReady`
 
 判断显式随机数状态是否已经初始化且内部约束自洽。
@@ -345,6 +353,7 @@ bool xrtRngReady(const xrng* pRng)
 		(xrtRngReady(NULL)) ) {
 ```
 
+
 ### `xrtRng32`
 
 从显式状态生成一个 32 位伪随机数。
@@ -377,6 +386,7 @@ uint32 xrtRng32(xrng* pRng)
 	printf("explicit: %u\n", (unsigned int)xrtRng32(&Rng));
 ```
 
+
 ### `xrtRng64`
 
 从同一个显式状态连续生成并组合一个 64 位伪随机数。
@@ -408,6 +418,7 @@ uint64 xrtRng64(xrng* pRng)
 ```c
 		if ( xrtRng64(&RngA) != xrtRng64(&RngB) ) {
 ```
+
 
 ### `xrtRngBytes`
 
@@ -446,6 +457,7 @@ bool xrtRngBytes(xrng* pRng, ptr pData, size_t iSize)
 			sizeof(arrOrder) / sizeof(arrOrder[0]), sizeof(arrOrder[0])) ) {
 ```
 
+
 ### `xrtRngBelow32`
 
 无偏生成 `[0, iBound)` 内的 32 位整数。
@@ -479,6 +491,7 @@ uint32 xrtRngBelow32(xrng* pRng, uint32 iBound)
 ```c
 		uint32 uA = xrtRngBelow32(&RngA, 100u);
 ```
+
 
 ### `xrtRngBelow64`
 
@@ -515,6 +528,7 @@ uint64 xrtRngBelow64(xrng* pRng, uint64 iBound)
 				UINT64_C(1000000));
 ```
 
+
 ### `xrtRngRange`
 
 无偏生成半开区间 `[iMin, iMax)` 内的整数。
@@ -549,6 +563,7 @@ int64 xrtRngRange(xrng* pRng, int64 iMin, int64 iMax)
 ```c
 		int64 iA = xrtRngRange(&RngA, -100, 100);
 ```
+
 
 ### `xrtRngRangeClosed`
 
@@ -585,6 +600,7 @@ int64 xrtRngRangeClosed(xrng* pRng, int64 iMin, int64 iMax)
 	printf("dice    : %lld\n", (long long)xrtRngRangeClosed(&Rng, 1, 6));
 ```
 
+
 ### `xrtRngReal`
 
 生成半开区间 `[0.0, 1.0)` 内具有 53 位精度的双精度数。
@@ -616,6 +632,7 @@ double xrtRngReal(xrng* pRng)
 ```c
 	printf("real    : %.12f\n", xrtRngReal(&Rng));
 ```
+
 
 ### `xrtRngShuffle`
 
@@ -656,6 +673,7 @@ bool xrtRngShuffle(xrng* pRng,
 		 !xrtRngShuffle(&Rng, arrOrder,
 			sizeof(arrOrder) / sizeof(arrOrder[0]), sizeof(arrOrder[0])) ) {
 ```
+
 
 ### `xrtRngText`
 
@@ -698,6 +716,7 @@ bool xrtRngText(xrng* pRng, xstrview Alphabet,
 		!exampleInAlphabet(TextA, 8u, SV(sHex)) ) {
 ```
 
+
 ### `xrtRngStringFrom`
 
 使用自定义字母表创建由 `xrtFree` 释放的可复现随机字符串。
@@ -734,6 +753,7 @@ str xrtRngStringFrom(xrng* pRng, xstrview Alphabet, size_t iLength)
 	sGenerated = xrtRngStringFrom(&RngA, SV(sHex), 12u);
 ```
 
+
 ### `xrtRngString`
 
 使用 URL-safe 64 字符字母表创建可复现随机字符串。
@@ -768,6 +788,7 @@ str xrtRngString(xrng* pRng, size_t iLength)
 ```c
 	sText = xrtRngString(&Rng, 24);
 ```
+
 
 ## 当前线程便捷层
 
@@ -854,6 +875,7 @@ void xrtRandSeed(uint64 iSeed, uint64 iStream)
 	xrtRandSeed(2026, 7);             /* 重置本线程状态 → 序列可复现 */
 ```
 
+
 ### `xrtRand32`
 
 从当前线程状态生成一个非密码学 32 位伪随机数。
@@ -886,6 +908,7 @@ uint32 xrtRand32(void)
 	printf("value: %u\n", (unsigned int)xrtRand32());
 ```
 
+
 ### `xrtRand64`
 
 从当前线程状态生成一个非密码学 64 位伪随机数。
@@ -917,6 +940,7 @@ uint64 xrtRand64(void)
 ```c
 	(void)xrtRand64();
 ```
+
 
 ### `xrtRandBytes`
 
@@ -952,6 +976,7 @@ bool xrtRandBytes(ptr pData, size_t iSize)
 	if ( !xrtRandBytes(Buffer, sizeof(Buffer)) ) {
 ```
 
+
 ### `xrtRandBelow`
 
 从当前线程状态无偏生成 `[0, iBound)` 内的整数。
@@ -985,6 +1010,7 @@ uint64 xrtRandBelow(uint64 iBound)
 	if ( (xrtRandBelow(10u) >= 10u) ||
 		(xrtRandBelow(1u) != 0u) ) {
 ```
+
 
 ### `xrtRandRange`
 
@@ -1020,6 +1046,7 @@ int64 xrtRandRange(int64 iMin, int64 iMax)
 			iMax = xrtRandRange(-5, 5);
 ```
 
+
 ### `xrtRandRangeClosed`
 
 从当前线程状态无偏生成闭区间 `[iMin, iMax]` 内的整数。
@@ -1054,6 +1081,7 @@ int64 xrtRandRangeClosed(int64 iMin, int64 iMax)
 	printf("dice : %lld\n", (long long)xrtRandRangeClosed(1, 6));
 ```
 
+
 ### `xrtRandReal`
 
 从当前线程状态生成 `[0.0, 1.0)` 内的双精度数。
@@ -1085,6 +1113,7 @@ double xrtRandReal(void)
 ```c
 	printf("real : %.12f\n", xrtRandReal());
 ```
+
 
 ### `xrtRandShuffle`
 
@@ -1121,6 +1150,7 @@ bool xrtRandShuffle(ptr pData, size_t iCount, size_t iItemSize)
 ```c
 		if ( !xrtRandShuffle(Numbers, 6u, sizeof(int)) ) {
 ```
+
 
 ### `xrtRandText`
 
@@ -1160,6 +1190,7 @@ bool xrtRandText(xstrview Alphabet,
 		!exampleInAlphabet(TextA, 8u, SV(sHex)) ) {
 ```
 
+
 ### `xrtRandStringFrom`
 
 使用当前线程随机状态和自定义字母表创建随机字符串。
@@ -1195,6 +1226,7 @@ str xrtRandStringFrom(xstrview Alphabet, size_t iLength)
 	sGenerated = xrtRandStringFrom(SV(sHex), 16u);
 ```
 
+
 ### `xrtRandString`
 
 使用当前线程随机状态和默认字母表创建随机字符串。
@@ -1229,6 +1261,7 @@ str xrtRandString(size_t iLength)
 	sGenerated = xrtRandString(12u);
 ```
 
+
 ### `xrtFastRandSeed`
 
 重置当前线程的快速伪随机数状态；旧 `xrtRand*` 名称是本族的兼容别名。
@@ -1262,6 +1295,7 @@ void xrtFastRandSeed(uint64 iSeed, uint64 iStream)
 	xrtFastRandSeed(12345u, 67890u);
 ```
 
+
 ### `xrtFastRand32`
 
 从当前线程状态生成一个非密码学 32 位伪随机数。
@@ -1294,6 +1328,7 @@ uint32 xrtFastRand32(void)
 	(void)xrtFastRand32();
 ```
 
+
 ### `xrtFastRand64`
 
 从当前线程状态生成一个非密码学 64 位伪随机数。
@@ -1325,6 +1360,7 @@ uint64 xrtFastRand64(void)
 ```c
 	(void)xrtFastRand64();
 ```
+
 
 ### `xrtFastRandBytes`
 
@@ -1359,6 +1395,7 @@ bool xrtFastRandBytes(ptr pData, size_t iSize)
 ```c
 	if ( !xrtFastRandBytes(BytesA, sizeof(BytesA)) ) {
 ```
+
 
 ### `xrtFastRandBelow`
 
@@ -1395,6 +1432,7 @@ uint64 xrtFastRandBelow(uint64 iBound)
 			(xrtFastRandRangeClosed(1, 1) != 1) ) {
 ```
 
+
 ### `xrtFastRandRange`
 
 从当前线程状态无偏生成半开区间 `[iMin, iMax)` 内的整数。
@@ -1428,6 +1466,7 @@ int64 xrtFastRandRange(int64 iMin, int64 iMax)
 ```c
 		int64 iRange = xrtFastRandRange(-3, 3);
 ```
+
 
 ### `xrtFastRandRangeClosed`
 
@@ -1463,6 +1502,7 @@ int64 xrtFastRandRangeClosed(int64 iMin, int64 iMax)
 			(xrtFastRandRangeClosed(1, 1) != 1) ) {
 ```
 
+
 ### `xrtFastRandReal`
 
 从当前线程状态生成 `[0.0, 1.0)` 内的双精度数。
@@ -1494,6 +1534,7 @@ double xrtFastRandReal(void)
 ```c
 		double dReal = xrtFastRandReal();
 ```
+
 
 ### `xrtFastRandShuffle`
 
@@ -1530,6 +1571,7 @@ bool xrtFastRandShuffle(ptr pData, size_t iCount, size_t iItemSize)
 ```c
 		if ( !xrtFastRandShuffle(Numbers, 4u, sizeof(int)) ) {
 ```
+
 
 ## 完整示例
 

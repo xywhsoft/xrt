@@ -20,6 +20,7 @@ typedef struct xsipkey {
 | `Low` | `uint64` | Low |
 | `High` | `uint64` | High |
 
+
 ## 设计契约
 
 XRT 把“快速确定性哈希”和“哈希表抗碰撞攻击”拆成两个契约，不再把校验和、内容寻址、唯一 ID 或密码摘要混进 `hash`：
@@ -82,6 +83,7 @@ uint32 xrtHash32(const void* pData, size_t iSize);
 ```
 
 
+
 ### `xrtHash64`
 
 rapidhash v3.0 compact 一次性 64 位哈希（默认 seed 为零）；适合通用内存索引与低碰撞分桶。
@@ -115,6 +117,7 @@ uint64 xrtHash64(const void* pData, size_t iSize);
 ```c
 	uint64 iHash = xrtHash64(sKey, sizeof(sKey) - 1u);
 ```
+
 
 
 ### `xrtHash32Seed`
@@ -154,6 +157,7 @@ uint32 xrtHash32Seed(const void* pData, size_t iSize, uint32 iSeed);
 ```
 
 
+
 ### `xrtHash64Seed`
 
 带显式 seed 的 64 位哈希；跨节点分片时输入序列化与 seed 都必须固定。
@@ -188,6 +192,7 @@ uint64 xrtHash64Seed(const void* pData, size_t iSize, uint64 iSeed);
 ```c
 		(unsigned long long)xrtHash64Seed("user:42", 7u, UINT64_C(0x1234)));
 ```
+
 
 
 
@@ -230,6 +235,7 @@ uint64 xrtSipHash(const void* pData, size_t iSize, xsipkey Key);
 ```
 
 
+
 ### `xrtSipKey`
 
 组装 128 位 SipHash 密钥；只拼装调用方已有的两个字，不产生随机性。
@@ -265,11 +271,13 @@ xsipkey xrtSipKey(uint64 iLow, uint64 iHigh);
 
 
 
+
 ## 流式 SipHash
 
 ### `xsiphash`
 
 状态对象由调用方放在栈、对象或连接上下文中，不执行堆分配。字段公开是为了让 C 用户明确控制存储，不代表允许直接修改。状态可以按值复制，以便做分支计算或快照。
+
 
 ### `xrtSipHashInit`
 
@@ -303,6 +311,7 @@ void xrtSipHashInit(xsiphash* pState, xsipkey Key);
 ```c
 	xrtSipHashInit(&State, Key);
 ```
+
 
 
 ### `xrtSipHashUpdate`
@@ -344,6 +353,7 @@ bool xrtSipHashUpdate(xsiphash* pState, const void* pData, size_t iSize);
 ```
 
 
+
 ### `xrtSipHashFinal`
 
 在状态副本上终结并返回 64 位结果；可重复调用，也可观察中间结果后继续 Update。
@@ -377,6 +387,7 @@ uint64 xrtSipHashFinal(const xsiphash* pState);
 	iHash = xrtSipHashFinal(&State);
 	printf("%016llX\n", (unsigned long long)iHash);
 ```
+
 
 
 

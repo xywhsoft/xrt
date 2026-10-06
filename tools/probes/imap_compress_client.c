@@ -59,7 +59,7 @@ int main(int argc, char** argv)
 	const char* Scenario = argv[5];
 	if ( strcmp(Mode, "plain") && strcmp(Mode, "tls") && strcmp(Mode, "starttls") ) return 2;
 	if ( !mailExampleNetInit(&Net, argv[3]) ) return 1;
-	xdeadline Deadline = xrtDeadlineAfter(UINT64_C(20000000));
+	int64 Timeout = INT64_C(20000);
 	xrtImapClientConfigInit(&Config);
 	Config.Net.Engine = Net.Engine; Config.Net.Resolver = Net.Resolver;
 	Config.Net.Host = argv[1]; Config.Net.Port = Port; Config.Net.LineLimit = 1024u;
@@ -67,8 +67,8 @@ int main(int argc, char** argv)
 		strcmp(Mode, "tls") == 0 ? XMAIL_SECURITY_TLS : XMAIL_SECURITY_STARTTLS;
 	Config.Net.Tls.Context = Net.Tls; Config.Net.Tls.Verifier = Net.Verifier;
 	if ( strcmp(Scenario, "close-stall") == 0 )
-		Config.Net.TlsStream.CloseTimeout = UINT64_C(200000);
-	Client = xrtImapClientOpen(&Config, Deadline, NULL);
+		Config.Net.TlsStream.CloseTimeout = INT64_C(200);
+	Client = xrtImapClientOpen(&Config, Timeout, NULL);
 	if ( !probeRequire(Client != NULL, "open") ) goto done;
 	if ( !probeRequire(xrtImapClientSecurity(Client) ==
 		(strcmp(Mode, "plain") == 0 ? XMAIL_SECURITY_PLAIN : XMAIL_SECURITY_TLS),
@@ -78,11 +78,11 @@ int main(int argc, char** argv)
 	/* Only the local plaintext fixture opts in to unencrypted test credentials. */
 	Auth.AllowPlaintext = strcmp(Mode, "plain") == 0;
 	Auth.Username = XRT_STR_LITERAL("demo"); Auth.Secret = XRT_STR_LITERAL("secret");
-	if ( !probeRequire(xrtImapClientAuth(Client, &Auth, Deadline, NULL) &&
+	if ( !probeRequire(xrtImapClientAuth(Client, &Auth, Timeout, NULL) &&
 		(xrtImapClientCapabilities(Client) & XIMAP_CAP_COMPRESS_DEFLATE) != 0u,
 		"authentication and advertised compression") ) goto done;
 	xrtImapCompressConfigInit(&Compress);
-	bool Negotiated = xrtImapClientCompress(Client, &Compress, Deadline, NULL);
+	bool Negotiated = xrtImapClientCompress(Client, &Compress, Timeout, NULL);
 	bool Rejected = strncmp(Scenario, "reject-", 7u) == 0;
 	if ( Rejected ) {
 		if ( !probeRequire(!Negotiated && !xrtImapClientCompressed(Client) &&
@@ -96,7 +96,7 @@ int main(int argc, char** argv)
 	} else if ( !probeRequire(Negotiated && xrtImapClientCompressed(Client), "COMPRESS negotiation") ) goto done;
 	bool Fault = strcmp(Scenario, "invalid") == 0 || strcmp(Scenario, "wrapped") == 0 ||
 		strcmp(Scenario, "truncated") == 0 || strcmp(Scenario, "line-limit") == 0;
-	bool Noop = xrtImapClientNoop(Client, Deadline, NULL);
+	bool Noop = xrtImapClientNoop(Client, Timeout, NULL);
 	if ( Fault ) {
 		xerrkind Kind = xrtErrorKind(xrtGetError());
 		bool ErrorOk = strcmp(Scenario, "line-limit") == 0 ? Kind == XERR_RANGE :
@@ -106,7 +106,7 @@ int main(int argc, char** argv)
 			xrtImapClientLastResponse(Client, &Last) && Last.Status == XIMAP_STATUS_OK &&
 			probeText(Last.Text, "compression active"), "compressed read failure must preserve original diagnostics") ) goto done;
 		xrtClearError();
-		Ok = probeRequire(!xrtImapClientNoop(Client, Deadline, NULL) &&
+		Ok = probeRequire(!xrtImapClientNoop(Client, Timeout, NULL) &&
 			xrtErrorKind(xrtGetError()) == XERR_STATE, "failed session must reject another command");
 		xrtClearError();
 		goto done;
@@ -114,29 +114,29 @@ int main(int argc, char** argv)
 	if ( !probeRequire(Noop, "first command after COMPRESS") ) goto done;
 	ximapmailboxinfo Mailbox;
 	xrtImapMailboxInfoInit(&Mailbox);
-	if ( !probeRequire(xrtImapClientExamine(Client, XRT_STR_LITERAL("INBOX"), &Mailbox, Deadline, NULL) &&
+	if ( !probeRequire(xrtImapClientExamine(Client, XRT_STR_LITERAL("INBOX"), &Mailbox, Timeout, NULL) &&
 		Mailbox.Exists == 2u && Mailbox.ReadOnly, "compressed mailbox summary") ) goto done;
 	char Body[40000];
 	probePayload(Body, sizeof(Body));
 	ximapappendconfig Append;
 	xrtImapAppendConfigInit(&Append);
 	Append.Mailbox = XRT_STR_LITERAL("INBOX"); Append.Size = sizeof(Body); Append.Literal = XIMAP_LITERAL_SYNC;
-	if ( !probeRequire(xrtImapClientAppendBegin(Client, &Append, Deadline, NULL) &&
-		xrtImapClientAppendWrite(Client, Body, 7u, Deadline, NULL), "start streamed literal") ) goto done;
+	if ( !probeRequire(xrtImapClientAppendBegin(Client, &Append, Timeout, NULL) &&
+		xrtImapClientAppendWrite(Client, Body, 7u, Timeout, NULL), "start streamed literal") ) goto done;
 	xrtClearError();
-	if ( !probeRequire(!xrtImapClientAppendWrite(Client, NULL, 0u, Deadline, NULL) &&
+	if ( !probeRequire(!xrtImapClientAppendWrite(Client, NULL, 0u, Timeout, NULL) &&
 		xrtErrorKind(xrtGetError()) == XERR_STATE &&
 		xrtImapClientAppendRemaining(Client) == sizeof(Body) - 7u &&
 		xrtImapClientState(Client) == XIMAP_CLIENT_SELECTED, "empty chunk rejection must preserve literal state") ) goto done;
 	xrtClearError();
 	if ( !probeRequire(
-		xrtImapClientAppendWrite(Client, Body + 7u, 32770u, Deadline, NULL) &&
-		xrtImapClientAppendWrite(Client, Body + 32777u, 7223u, Deadline, NULL) &&
+		xrtImapClientAppendWrite(Client, Body + 7u, 32770u, Timeout, NULL) &&
+		xrtImapClientAppendWrite(Client, Body + 32777u, 7223u, Timeout, NULL) &&
 		xrtImapClientAppendRemaining(Client) == 0u &&
-		xrtImapClientAppendEnd(Client, NULL, Deadline, NULL), "streamed literal after rejected empty chunk") ) goto done;
+		xrtImapClientAppendEnd(Client, NULL, Timeout, NULL), "streamed literal after rejected empty chunk") ) goto done;
 	for ( unsigned i = 0; i < 3u; ++i )
-		if ( !probeRequire(xrtImapClientNoop(Client, Deadline, NULL), "continued DEFLATE stream") ) goto done;
-	bool Logout = xrtImapClientLogout(Client, Deadline, NULL);
+		if ( !probeRequire(xrtImapClientNoop(Client, Timeout, NULL), "continued DEFLATE stream") ) goto done;
+	bool Logout = xrtImapClientLogout(Client, Timeout, NULL);
 	if ( strcmp(Scenario, "close-truncated") == 0 || strcmp(Scenario, "close-stall") == 0 ) {
 		xerrkind Kind = xrtErrorKind(xrtGetError());
 		bool ErrorOk = strcmp(Scenario, "close-stall") == 0 ? Kind == XERR_TIMEOUT :
@@ -145,7 +145,7 @@ int main(int argc, char** argv)
 			xrtImapClientLastResponse(Client, &Last) && Last.Status == XIMAP_STATUS_OK &&
 			probeText(Last.Text, "logout complete"), "close failure must preserve final tagged OK") ) goto done;
 		xrtClearError();
-		Ok = probeRequire(!xrtImapClientNoop(Client, Deadline, NULL) &&
+		Ok = probeRequire(!xrtImapClientNoop(Client, Timeout, NULL) &&
 			xrtErrorKind(xrtGetError()) == XERR_STATE, "close failure must reject another command");
 		xrtClearError();
 		goto done;

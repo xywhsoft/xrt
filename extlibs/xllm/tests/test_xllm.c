@@ -893,7 +893,7 @@ typedef struct {
     bool bRejectRequest;
     bool bDropSecondTool;
     const char* sMarker;        /* appended as a system message */
-    const char* sBodySeen;      /* captured request body */
+    char* sBodySeen;      /* captured request body */
     const char* sRawReplace;    /* canned replacement for the response body */
     const char* sRawPre;        /* canned body injected before send (offline) */
     const char* sContentSeen;   /* captured response content */
@@ -918,7 +918,7 @@ static bool test_hook_on_body(xllm_client* pClient, xllm_wire* pWire, void* pUse
     (void)pClient;
     ++pState->iBodyFires;
     if ( !pState->sBodySeen ) {
-        pState->sBodySeen = pWire->sBody; /* borrowed capture for assertion */
+        pState->sBodySeen = xllm__strdup(pWire->sBody); /* retained beyond callback */
     }
     return true;
 }
@@ -1162,6 +1162,7 @@ static void test_lifecycle_hooks(void)
     }
 
 cleanup:
+    xrtFree(tState.sBodySeen);
     xllmClientDestroy(pClient);
     test_server_stop(&tServerCtx);
 }

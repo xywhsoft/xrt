@@ -58,9 +58,11 @@ typedef struct xstrview {
 | `Data` | `cstr` | 起点指针 |
 | `Size` | `size_t` | 字节数 |
 
+
 ### `xutf16view` 与 `xutf32view`
 
 `xutf16view.Size` 是 16 位码元数，`xutf32view.Size` 是 32 位码元数。`xrtUtf16View` 和 `xrtUtf32View` 只构造借用视图，不校验内容、不分配内存。
+
 
 ### `xutfpolicy`
 
@@ -69,11 +71,13 @@ typedef struct xstrview {
 
 协议字段、标识符、源代码和安全边界通常应使用严格模式。展示来源不可靠的普通文本时可以明确选择替换模式。
 
+
 ### `xencoding`
 
 编码方案包含 `XENCODING_UTF8`、`XENCODING_UTF16_LE`、`XENCODING_UTF16_BE`、`XENCODING_UTF32_LE`、`XENCODING_UTF32_BE` 和无法判断时使用的 `XENCODING_UNKNOWN`。
 
 这里没有含义随平台改变的 “OEM” 编码。Windows 代码页、GBK、Shift-JIS 等传统编码属于可选的平台/外部编解码边界，不能在非 Windows 平台静默等价为 UTF-8。
+
 
 ### `xutf32view`
 
@@ -90,6 +94,7 @@ typedef struct xutf32view {
 |---|---|---|
 | `Data` | `const uint32*` | 数据 |
 | `Size` | `size_t` | 字节数 |
+
 
 ### `xutfresult`
 
@@ -110,6 +115,7 @@ typedef struct xutfresult {
 | `Read` | `size_t` | Read |
 | `Written` | `size_t` | Written |
 | `Error` | `size_t` | 错误输出 |
+
 
 ### `xutf8state`
 
@@ -134,6 +140,7 @@ typedef struct xutf8state {
 | `PendingSize` | `uint8` | PendingSize |
 | `Failed` | `bool` | Failed |
 
+
 ### `xutferror`
 
 Unicode 模块的稳定错误代码。
@@ -149,6 +156,7 @@ typedef enum xutferror {
 |---|---|
 | `XUTF_ERROR_INVALID` | XUTF失败无效 |
 | `XUTF_ERROR_OVERFLOW` | 输出容量不足 |
+
 
 ### `xencodingguess`
 
@@ -168,6 +176,7 @@ typedef struct xencodingguess {
 | `BomSize` | `size_t` | BomSize |
 | `Confidence` | `uint8` | Confidence |
 
+
 ### `xutf16view`
 
 UTF-16 视图的 Size 表示 16 位码元数。
@@ -183,6 +192,7 @@ typedef struct xutf16view {
 |---|---|---|
 | `Data` | `const uint16*` | Data |
 | `Size` | `size_t` | Size |
+
 
 ### `xutfstatus`
 
@@ -205,6 +215,7 @@ typedef enum xutfstatus {
 | `XUTF_INVALID` | 无效 |
 | `XUTF_NO_SPACE` | NOSPACE |
 | `XUTF_OVERFLOW` | 结果长度无法由 `size_t` 表示 |
+
 
 ## 视图与宽字符串
 
@@ -237,6 +248,7 @@ xutf16view xrtUtf16View(const uint16* pText, size_t iSize);
 pUtf16Copy = xrtUtf16DupView(xrtUtf16View(pUtf16, iUnits));
 ```
 
+
 ### `xrtUtf32View`
 
 从明确码元数创建 UTF-32 借用视图。
@@ -266,6 +278,7 @@ xutf32view xrtUtf32View(const uint32* pText, size_t iSize);
 (void)xrtUtf32View(A32, 2u);
 printf(" u32len=%zu", xrtUtf32Len(A32));
 ```
+
 
 ### `xrtUtf16Len`
 
@@ -299,6 +312,7 @@ size_t xrtUtf16Len(const uint16* pText);
 printf("u16len=%zu", xrtUtf16Len(A16));
 ```
 
+
 ### `xrtUtf32Len`
 
 返回零结尾 UTF-32 字符串在第一个零码元前的码元数。空指针返回零。
@@ -331,6 +345,7 @@ size_t xrtUtf32Len(const uint32* pText);
 (void)xrtUtf32View(A32, 2u);
 printf(" u32len=%zu", xrtUtf32Len(A32));
 ```
+
 
 ### `xrtUtf16Dup`
 
@@ -367,6 +382,7 @@ uint32* pDup32 = xrtUtf32Dup(A32);
 uint32* pDup32V = xrtUtf32DupView((xutf32view){ A32, 2u });
 ```
 
+
 ### `xrtUtf32Dup`
 
 复制零结尾 UTF-32 字符串并返回独立的零结尾内存。
@@ -400,6 +416,7 @@ uint32* xrtUtf32Dup(const uint32* pText);
 uint16* pDup = xrtUtf16Dup(A16);
 uint32* pDup32 = xrtUtf32Dup(A32);
 ```
+
 
 ### `xrtUtf16DupView`
 
@@ -439,6 +456,7 @@ if ( pUtf16Copy == NULL ) {
 }
 ```
 
+
 ### `xrtUtf32DupView`
 
 复制明确长度 UTF-32 视图并追加一个零码元。
@@ -472,6 +490,7 @@ uint32* xrtUtf32DupView(xutf32view Text);
 ```c
 uint32* pDup32V = xrtUtf32DupView((xutf32view){ A32, 2u });
 ```
+
 
 ## 标量原语
 
@@ -507,6 +526,7 @@ bool xrtUnicodeScalar(uint32 iScalar);
 ```c
 printf(" scalar=%d\n", xrtUnicodeScalar(0x4F60) ? 1 : 0);
 ```
+
 
 ### `xrtUtf8Decode`
 
@@ -546,6 +566,7 @@ xutfstatus xrtUtf8Decode(xstrview Text, uint32* pScalar, size_t* pRead);
 printf("decode=U+%X", iScalar);
 iWrote = xrtUtf8Encode(iScalar, Out);
 ```
+
 
 ### `xrtUtf16Decode`
 
@@ -588,6 +609,7 @@ printf("encode=%zu", iWrote);
 printf(" decode=U+%X\n", iScalar);
 ```
 
+
 ### `xrtUtf8Encode`
 
 把单个标量写入调用方缓冲区，返回写入字节数。缓冲区至少 4 字节。
@@ -624,6 +646,7 @@ iWrote = xrtUtf8Encode(iScalar, Out);
 printf(" encode=%zu bytes", iWrote);
 ```
 
+
 ### `xrtUtf16Encode`
 
 把单个标量写入调用方缓冲区，返回写入码元数。缓冲区至少 2 个码元。
@@ -658,6 +681,7 @@ size_t xrtUtf16Encode(uint32 iScalar, uint16 arrOutput[2]);
 ```c
 size_t iWrote = xrtUtf16Encode(0x4F60, Out);
 ```
+
 
 ## 校验与计数
 
@@ -695,6 +719,7 @@ bool xrtUtf8Valid(xstrview Text, size_t* pError);
 printf("valid=%d", xrtUtf8Valid(SV("你好"), &iError) ? 1 : 0);
 ```
 
+
 ### `xrtUtf16Valid`
 
 严格校验完整 UTF-16 视图。
@@ -730,6 +755,7 @@ printf(" valid=%d", xrtUtf16Valid((xutf16view){ p16, iSize },
 	NULL) ? 1 : 0);
 ```
 
+
 ### `xrtUtf32Valid`
 
 严格校验完整 UTF-32 视图；码元必须直接是标量。
@@ -763,6 +789,7 @@ bool xrtUtf32Valid(xutf32view Text, size_t* pError);
 ```c
 printf(" u32valid=%d", xrtUtf32Valid((xutf32view){ A32, 2u }, NULL) ? 1 : 0);
 ```
+
 
 ### `xrtUtf8Count`
 
@@ -798,6 +825,7 @@ printf("count=%zu", xrtUtf8Count(Text));
 printf(" offset(1)=%zu", xrtUtf8Offset(Text, 1u));
 ```
 
+
 ### `xrtUtf16Count`
 
 返回 UTF-16 视图中的 Unicode 标量数。
@@ -830,6 +858,7 @@ size_t xrtUtf16Count(xutf16view Text);
 ```c
 printf(" count=%zu\n", xrtUtf16Count((xutf16view){ p16, iSize }));
 ```
+
 
 ### `xrtUtf8Offset`
 
@@ -866,6 +895,7 @@ size_t xrtUtf8Offset(xstrview Text, size_t iIndex);
 printf(" offset(1)=%zu", xrtUtf8Offset(Text, 1u));
 ```
 
+
 ### `xrtUtf8Index`
 
 把字节偏移转换为标量索引；偏移必须位于标量边界。
@@ -901,6 +931,7 @@ size_t xrtUtf8Index(xstrview Text, size_t iOffset);
 printf("case-rfind=%zu", xrtUtf8CaseRFind(Text, SV("B")));
 printf(" index(4)=%zu\n", xrtUtf8Index(Text, 4u));
 ```
+
 
 ### `xrtUtf8At`
 
@@ -939,6 +970,7 @@ bool xrtUtf8At(xstrview Text, size_t iIndex, uint32* pScalar);
 (void)xrtUtf8At(Text, 1u, &iScalar);
 printf(" at(1)=U+%X\n", iScalar);
 ```
+
 
 ### `xrtUtf8Slice`
 
@@ -981,6 +1013,7 @@ if ( !xrtUtf8Slice(Text, 4, 2, &Word) ) {
 	return 1;
 }
 ```
+
 
 ## 文本区间
 
@@ -1027,6 +1060,7 @@ if ( !xrtUtf8Range(XRT_STR_LITERAL("A你😀B"), -2, 1, &Range) ) {
 printf("%.*s\n", (int)Range.Size, Range.Data);
 ```
 
+
 ### `xrtUtf8Substr`
 
 按 Unicode 标量复制带负索引的范围，返回独立零结尾字符串。
@@ -1062,6 +1096,7 @@ str xrtUtf8Substr(xstrview Text, int64 iStart, int64 iCount);
 ```c
 show("substr", xrtUtf8Substr(SV("a你x"), 1, 2));
 ```
+
 
 ## 搜索
 
@@ -1104,6 +1139,7 @@ printf("find=%zu", xrtUtf8Find(Text, SV("你"), 0u));
 printf(" rfind=%zu", xrtUtf8RFind(Text, SV("你")));
 ```
 
+
 ### `xrtUtf8CaseFind`
 
 按 ASCII 大小写不敏感规则正向查找。
@@ -1139,6 +1175,7 @@ size_t xrtUtf8CaseFind(xstrview Text, xstrview Part, size_t iStart);
 printf(" case-find=%zu\n", xrtUtf8CaseFind(Text, SV("X"), 0u));
 ```
 
+
 ### `xrtUtf8RFind`
 
 从右侧查找子串并返回标量索引。
@@ -1172,6 +1209,7 @@ size_t xrtUtf8RFind(xstrview Text, xstrview Part);
 ```c
 printf(" rfind=%zu", xrtUtf8RFind(Text, SV("你")));
 ```
+
 
 ### `xrtUtf8CaseRFind`
 
@@ -1207,6 +1245,7 @@ size_t xrtUtf8CaseRFind(xstrview Text, xstrview Part);
 printf("case-rfind=%zu", xrtUtf8CaseRFind(Text, SV("B")));
 ```
 
+
 ### `xrtUtf8ContainsAny`
 
 判断文本是否包含集合中的任意 Unicode 标量。
@@ -1241,6 +1280,7 @@ bool xrtUtf8ContainsAny(xstrview Text, xstrview Set);
 printf("contains-any=%d\n",
 	xrtUtf8ContainsAny(Text, SV("你x")) ? 1 : 0);
 ```
+
 
 ## 集合裁剪
 
@@ -1286,6 +1326,7 @@ printf("trim=[%.*s]\n", (int)Trimmed.Size, Trimmed.Data);
 (void)xrtUtf8TrimRightSet(SV(" 你x"), SV(" x"), &Trimmed);
 ```
 
+
 ### `xrtUtf8TrimRightSet`
 
 删除右侧属于指定 Unicode 标量集合的内容并返回借用视图。
@@ -1323,6 +1364,7 @@ bool xrtUtf8TrimRightSet(xstrview Text, xstrview Set,
 (void)xrtUtf8TrimRightSet(SV(" 你x"), SV(" x"), &Trimmed);
 ```
 
+
 ### `xrtUtf8TrimSet`
 
 删除两侧属于指定 Unicode 标量集合的内容并返回借用视图。
@@ -1359,6 +1401,7 @@ bool xrtUtf8TrimSet(xstrview Text, xstrview Set,
 (void)xrtUtf8TrimSet(SV(" 你x"), SV(" x"), &Trimmed);
 printf("trim=[%.*s]\n", (int)Trimmed.Size, Trimmed.Data);
 ```
+
 
 ## 编辑与填充
 
@@ -1398,6 +1441,7 @@ str xrtUtf8Insert(xstrview Text, int64 iPosition, xstrview Part);
 show("insert", xrtUtf8Insert(SV("a你x"), 1, SV("X")));
 ```
 
+
 ### `xrtUtf8Remove`
 
 按 Unicode 标量范围删除内容，负数量表示一直删除到末尾。
@@ -1433,6 +1477,7 @@ str xrtUtf8Remove(xstrview Text, int64 iStart, int64 iCount);
 ```c
 show("remove", xrtUtf8Remove(SV("a你x"), 1, 1));
 ```
+
 
 ### `xrtUtf8PadLeft`
 
@@ -1471,6 +1516,7 @@ show("pad", xrtUtf8PadLeft(SV("a"), 3u, SV("*")));
 show("pad-r", xrtUtf8PadRight(SV("a"), 3u, SV("*")));
 ```
 
+
 ### `xrtUtf8PadRight`
 
 按 Unicode 标量宽度在右侧重复填充。
@@ -1505,6 +1551,7 @@ str xrtUtf8PadRight(xstrview Text, size_t iWidth, xstrview Fill);
 ```c
 show("pad-r", xrtUtf8PadRight(SV("a"), 3u, SV("*")));
 ```
+
 
 ### `xrtUtf8PadCenter`
 
@@ -1546,49 +1593,101 @@ if ( sPadded == NULL ) {
 printf("%s\n", sPadded);
 ```
 
+
 ### `xrtUtf8PadLeftSized`
 
 ```c
-str xrtUtf8PadLeftSized(xstrview Text, size_t iWidth,
-    xstrview Fill, size_t* pOutputSize);
+str xrtUtf8PadLeftSized(xstrview Text, size_t iWidth, xstrview Fill, size_t* pOutputSize);
 ```
 
-与 `xrtUtf8PadLeft` 共用同一验证、布局和写出实现。`iWidth` 是 Unicode
-标量数，`pOutputSize` 接收不含终止零的实际字节数，保留输入与填充模式的
-内嵌 NUL；不要用 `strlen` 恢复长度。宽度不足时也返回完整文本的独立副本。
-空填充模式使用空格，空结果仍拥有可释放的非空分配。
+与上述填充函数共用实现，交付包含内嵌 NUL 的精确结果字节数。
+pOutputSize 可为 NULL；普通失败清零。输出指针不得重叠输入字节区域，
+拒绝重叠时保持输入和输出原值。结果由 xrtFree 释放。
 
-`pOutputSize` 可以为 `NULL`。普通失败清零；若其内存区域与 Text/Fill 的
-输入字节区域重叠，则以 `XERR_ARGUMENT` 拒绝并保持输入和该输出槽原值。
-非法 UTF-8 报 `XERR_VALUE`，字节布局或终止零容量溢出报 `XERR_RANGE`，
-分配失败报 `XERR_MEMORY`。结果由 `xrtFree` 释放。
+#### 参数
 
-```c
-size_t size = 0;
-str padded = xrtUtf8PadLeftSized(XRT_STR_LITERAL("x\0"), 4,
-    XRT_STR_LITERAL("你\0"), &size);
-/* 成功时 size == 6，精确内容为 "你\0x\0"。 */
-xrtFree(padded);
-```
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Text` | `xstrview` | 带精确长度的输入文本视图，允许内嵌 NUL。 |
+| `iWidth` | `size_t` | 目标 Unicode 字符宽度；不是字节数。 |
+| `Fill` | `xstrview` | 有效 UTF-8 填充文本。 |
+| `pOutputSize` | `size_t*` | 可选精确结果字节数，不包含终止 NUL，不能与输入区域重叠。 |
+
+#### 返回值
+
+成功为拥有型缓冲，使用 xrtFree 释放；失败为 NULL。精确长度及输出槽规则见上述契约。
+
+#### 错误
+
+编码、范围、分配失败返回 NULL；普通失败清零非空长度槽，输入/输出别名拒绝不改长度槽或输入。
+
+#### 范例
+
+参见已注册的 [examples/string/distance/main.c](../../examples/string/distance/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xrtUtf8PadRightSized`
 
 ```c
-str xrtUtf8PadRightSized(xstrview Text, size_t iWidth,
-    xstrview Fill, size_t* pOutputSize);
+str xrtUtf8PadRightSized(xstrview Text, size_t iWidth, xstrview Fill, size_t* pOutputSize);
 ```
 
-右侧填充；精确长度、拥有关系、输出别名与失败合同同 `xrtUtf8PadLeftSized`。
+在文本右侧填充，长度及别名契约与 LeftSized 相同，结果使用 xrtFree 释放。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Text` | `xstrview` | 带精确长度的输入文本视图，允许内嵌 NUL。 |
+| `iWidth` | `size_t` | 目标 Unicode 字符宽度；不是字节数。 |
+| `Fill` | `xstrview` | 有效 UTF-8 填充文本。 |
+| `pOutputSize` | `size_t*` | 可选精确结果字节数，不包含终止 NUL，不能与输入区域重叠。 |
+
+#### 返回值
+
+成功为拥有型缓冲，使用 xrtFree 释放；失败为 NULL。精确长度及输出槽规则见上述契约。
+
+#### 错误
+
+编码、范围、分配失败返回 NULL；普通失败清零非空长度槽，输入/输出别名拒绝不改长度槽或输入。
+
+#### 范例
+
+参见已注册的 [examples/string/distance/main.c](../../examples/string/distance/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ### `xrtUtf8PadCenterSized`
 
 ```c
-str xrtUtf8PadCenterSized(xstrview Text, size_t iWidth,
-    xstrview Fill, size_t* pOutputSize);
+str xrtUtf8PadCenterSized(xstrview Text, size_t iWidth, xstrview Fill, size_t* pOutputSize);
 ```
 
-两侧填充；左侧取所需标量数的一半（向下取整），右侧取剩余数量，
-每侧独立从填充模式首标量开始循环。其他合同同 `xrtUtf8PadLeftSized`。
+按 Unicode 字符宽度在两侧填充，奇数额外填充位放在右侧；交付包含内嵌 NUL 的精确字节长度，结果使用 xrtFree 释放。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Text` | `xstrview` | 带精确长度的输入文本视图，允许内嵌 NUL。 |
+| `iWidth` | `size_t` | 目标 Unicode 字符宽度；不是字节数。 |
+| `Fill` | `xstrview` | 有效 UTF-8 填充文本。 |
+| `pOutputSize` | `size_t*` | 可选精确结果字节数，不包含终止 NUL，不能与输入区域重叠。 |
+
+#### 返回值
+
+成功为拥有型缓冲，使用 xrtFree 释放；失败为 NULL。精确长度及输出槽规则见上述契约。
+
+#### 错误
+
+编码、范围、分配失败返回 NULL；普通失败清零非空长度槽，输入/输出别名拒绝不改长度槽或输入。
+
+#### 范例
+
+参见已注册的 [examples/string/distance/main.c](../../examples/string/distance/main.c)，结合本节参数和生存期规则使用。
+
+
 
 ## 反转与过滤
 
@@ -1632,6 +1731,7 @@ if ( xrtUtf8ReverseTo(SV("ab"), Buffer, sizeof(Buffer)) ) {
 }
 ```
 
+
 ### `xrtUtf8Reverse`
 
 按 Unicode 标量反转并返回独立零结尾字符串。不执行字素簇分段。
@@ -1669,6 +1769,7 @@ if ( sText == NULL ) {
 }
 printf("%s\n", sText);
 ```
+
 
 ### `xrtUtf8FilterTo`
 
@@ -1714,6 +1815,7 @@ if ( xrtUtf8FilterTo(Text, SV("你"), Buffer, sizeof(Buffer),
 }
 ```
 
+
 ### `xrtUtf8Filter`
 
 按 Unicode 标量集合过滤并创建独立字符串。
@@ -1753,6 +1855,7 @@ if ( sFiltered == NULL ) {
 }
 printf("%s\n", sFiltered);
 ```
+
 
 ## 编辑距离
 
@@ -1797,6 +1900,7 @@ if ( (iDistance == XRT_NPOS) || (fSimilarity < 0.0) ) {
 }
 ```
 
+
 ### `xrtUtf8Similarity`
 
 按 Unicode 标量返回 0.0 至 1.0 的相似度；两个空字符串为 1.0。
@@ -1838,6 +1942,7 @@ printf("distance=%llu similarity=%.3f\n",
 	(unsigned long long)iDistance, fSimilarity);
 ```
 
+
 ## 流式 UTF-8 校验
 
 `xrtUtf8StateFeed` 接受任意分块，最后一块把 `bFinal` 设为 `true`。分块末尾最多保留 3 个合法前缀字节，因此不需要每连接固定分配大缓冲区。返回 `XUTF_MORE` 表示当前分块结束在合法前缀中间，不是错误。状态失败后保持失败，重新使用前必须再次初始化。
@@ -1869,6 +1974,7 @@ void xrtUtf8StateInit(xutf8state* pState);
 ```c
 xrtUtf8StateInit(&State);
 ```
+
 
 ### `xrtUtf8StateFeed`
 
@@ -1910,6 +2016,7 @@ xrtUtf8StateFeed(&State, (xstrview){ B, 2u }, true) ==
 XUTF_OK) ? "OK" : "FAIL");
 ```
 
+
 ### `xrtUtf8StateError`
 
 返回从整个流开头计算的绝对错误字节位置；从未失败时为 `XRT_NPOS`。
@@ -1946,6 +2053,7 @@ if ( iErr == XRT_NPOS ) {
 	printf(" error-pos=none\n");
 }
 ```
+
 
 ## 缓冲区转换
 
@@ -1991,6 +2099,7 @@ xutfresult xrtUtf8To16Buffer(xstrview Source, uint16* pTarget,
 xutfresult R = xrtUtf8To16Buffer(SV("a你"), A16, 8u, XUTF_REPLACE);
 ```
 
+
 ### `xrtUtf8To32Buffer`
 
 UTF-8 转 UTF-32；目标为空时只计算所需码元数。错误契约同 `xrtUtf8To16Buffer`。
@@ -2027,6 +2136,7 @@ xutfresult xrtUtf8To32Buffer(xstrview Source, uint32* pTarget,
 ```c
 xutfresult R32 = xrtUtf8To32Buffer(SV("a你"), A32, 8u, XUTF_REPLACE);
 ```
+
 
 ### `xrtUtf16To8Buffer`
 
@@ -2066,6 +2176,7 @@ xutfresult xrtUtf16To8Buffer(xutf16view Source, char* pTarget,
 	sizeof(Back), XUTF_REPLACE);
 ```
 
+
 ### `xrtUtf16To32Buffer`
 
 UTF-16 转 UTF-32；目标为空时只计算所需码元数。
@@ -2102,6 +2213,7 @@ xutfresult xrtUtf16To32Buffer(xutf16view Source, uint32* pTarget,
 ```c
 (void)xrtUtf16To32Buffer((xutf16view){ A16, 2u }, A32, 8u, XUTF_REPLACE);
 ```
+
 
 ### `xrtUtf32To8Buffer`
 
@@ -2141,6 +2253,7 @@ xutfresult xrtUtf32To8Buffer(xutf32view Source, char* pTarget,
 	sizeof(Back), XUTF_REPLACE);
 ```
 
+
 ### `xrtUtf32To16Buffer`
 
 UTF-32 转 UTF-16；目标为空时只计算所需码元数。
@@ -2177,6 +2290,7 @@ xutfresult xrtUtf32To16Buffer(xutf32view Source, uint16* pTarget,
 ```c
 (void)xrtUtf32To16Buffer((xutf32view){ A32, 2u }, A16, 8u, XUTF_REPLACE);
 ```
+
 
 ## 分配型转换
 
@@ -2221,6 +2335,7 @@ uint16* p16 = xrtUtf8To16("a你", &iSize);
 printf("u8→16: len=%zu", iSize);
 ```
 
+
 ### `xrtUtf8To32`
 
 严格转换零结尾 UTF-8 并分配零结尾 UTF-32 数组。
@@ -2256,6 +2371,7 @@ uint32* p32 = xrtUtf8To32("a你", &iSize);
 
 printf("u8→32: len=%zu", iSize);
 ```
+
 
 ### `xrtUtf16To8`
 
@@ -2293,6 +2409,7 @@ str s8 = xrtUtf16To8(A16, &iSize);
 printf("16→8: [%.*s]", (int)iSize, s8 ? s8 : "?");
 ```
 
+
 ### `xrtUtf16To32`
 
 严格转换零结尾 UTF-16 并分配 UTF-32 数组。
@@ -2328,6 +2445,7 @@ uint32* p32 = xrtUtf16To32(A16, &iSize);
 
 printf(" 16→32: %zu\n", iSize);
 ```
+
 
 ### `xrtUtf32To8`
 
@@ -2365,6 +2483,7 @@ str s8 = xrtUtf32To8(A32, &iSize);
 printf("32→8: [%.*s]", (int)iSize, s8 ? s8 : "?");
 ```
 
+
 ### `xrtUtf32To16`
 
 严格转换零结尾 UTF-32 并分配 UTF-16 数组。
@@ -2400,6 +2519,7 @@ uint16* p16 = xrtUtf32To16(A32, &iSize);
 
 printf(" 32→16: %zu\n", iSize);
 ```
+
 
 ### 明确长度与策略层
 
@@ -2444,6 +2564,7 @@ if ( pUtf16 == NULL ) {
 }
 ```
 
+
 ### `xrtUtf8ViewTo32`
 
 转换明确长度 UTF-8，可选择严格失败或替换错误输入。
@@ -2480,6 +2601,7 @@ uint32* p32 = xrtUtf8ViewTo32(SV("a你"), XUTF_REPLACE, &iSize);
 
 printf(" u8view-to32=%zu\n", iSize);
 ```
+
 
 ### `xrtUtf16ViewTo8`
 
@@ -2521,6 +2643,7 @@ if ( sUtf8 == NULL ) {
 }
 ```
 
+
 ### `xrtUtf16ViewTo32`
 
 转换明确长度 UTF-16，可选择错误策略。
@@ -2556,6 +2679,7 @@ uint32* xrtUtf16ViewTo32(xutf16view Source, xutfpolicy Policy, size_t* pSize);
 uint32* p32 = xrtUtf16ViewTo32((xutf16view){ A16, 2u },
 	XUTF_REPLACE, &iSize);
 ```
+
 
 ### `xrtUtf32ViewTo8`
 
@@ -2593,6 +2717,7 @@ str s8 = xrtUtf32ViewTo8((xutf32view){ A32, 2u },
 	XUTF_REPLACE, &iSize);
 ```
 
+
 ### `xrtUtf32ViewTo16`
 
 转换明确长度 UTF-32，可选择错误策略。
@@ -2629,6 +2754,7 @@ uint16* p16 = xrtUtf32ViewTo16((xutf32view){ A32, 2u },
 	XUTF_REPLACE, &iSize);
 ```
 
+
 ## BOM 与通用转码
 
 ### `xrtEncodingUnitSize`
@@ -2663,6 +2789,7 @@ size_t xrtEncodingUnitSize(xencoding Encoding);
 ```c
 printf(" unit=%zu\n", xrtEncodingUnitSize(XENCODING_UTF16_LE));
 ```
+
 
 ### `xrtEncodingBom`
 
@@ -2705,6 +2832,7 @@ xencoding Enc = xrtEncodingBom((xbytesview){ Bom, iSize }, &iBom);
 printf(" bom-encoding=%d", (int)Enc);
 ```
 
+
 ### `xrtEncodingWriteBom`
 
 写出指定编码的 BOM；目标为空时返回所需字节数。
@@ -2741,6 +2869,7 @@ size_t xrtEncodingWriteBom(xencoding Encoding, bytes pTarget, size_t iCapacity);
 iSize = xrtEncodingWriteBom(XENCODING_UTF8, Bom, sizeof(Bom));
 printf("bom-size=%zu", iSize);
 ```
+
 
 ### `xrtTranscode`
 
@@ -2787,6 +2916,7 @@ if ( pUtf16 == NULL ) {
 	return 1;
 }
 ```
+
 
 ## 编码检测
 
@@ -2837,6 +2967,7 @@ xencodingguess Guess = xrtEncodingGuess(
 printf("encoding=%d bom=%llu confidence=%u\n", (int)Guess.Encoding,
 	(unsigned long long)Guess.BomSize, (unsigned int)Guess.Confidence);
 ```
+
 
 ## 模块契约：线程
 

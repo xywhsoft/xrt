@@ -29,6 +29,7 @@ typedef enum xchannelresult {
 | `XCHANNEL_FULL` | 已满 |
 | `XCHANNEL_CLOSED` | 已关闭 |
 
+
 ### `xchannel`
 
 Channel 保存不透明同步状态，允许嵌入调用方结构。
@@ -43,6 +44,7 @@ typedef union xchannel {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Alignment` | `uint64` | 对齐（二次幂） |
+
 
 ### `xchannelop`
 
@@ -59,6 +61,7 @@ typedef enum xchannelop {
 |---|---|
 | `XCHANNEL_OP_RECV` | XCHANNELOPRECV |
 | `XCHANNEL_OP_SEND` | 发送方向 |
+
 
 ### `xchannelcase`
 
@@ -80,6 +83,7 @@ typedef struct xchannelcase {
 | `Value` | `ptr` | 值 |
 | `Output` | `ptr*` | 输出缓冲 |
 
+
 ### `xchannelselectresult`
 
 Select 结果同时表达等待状态、被选索引和该 Channel 操作结果。
@@ -98,6 +102,7 @@ typedef struct xchannelselectresult {
 | `Index` | `size_t` | 索引 |
 | `Result` | `xchannelresult` | 结果输出 |
 
+
 ### `xchanneldrainfn`
 
 排空回调接收已从 Channel 移除的指针值。
@@ -107,6 +112,7 @@ typedef void (*xchanneldrainfn)(ptr pItem, ptr pContext);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -181,6 +187,7 @@ if ( !xrtChannelInit(&tSilent, 0u) ) {
 }
 ```
 
+
 ### `xrtChannelInitBuffer`
 
 在调用方提供的精确容量指针环上初始化有缓冲 Channel。
@@ -223,6 +230,7 @@ if ( !xrtChannelInitBuffer(&tEmbedded, arrSlots, 2u) ||
 }
 ```
 
+
 ### `xrtChannelCreate`
 
 创建精确容量的 Channel；容量为零时不分配消息缓冲。
@@ -260,6 +268,7 @@ if ( (pHeap == NULL) ||
 	(xrtChannelSend(pHeap, (ptr)1) != XWAIT_OK) ||
 ```
 
+
 ### `xrtChannelUnit`
 
 释放 Channel 内部资源；仍有等待者或 rendezvous 消息时失败。
@@ -295,6 +304,7 @@ printf("channel: buffer count=1/2 recv=try-ok reset=ok\n");
 xrtChannelUnit(&tEmbedded);
 ```
 
+
 ### `xrtChannelDestroy`
 
 释放 `Create` 返回的 Channel；`Unit` 失败时保留对象。
@@ -327,6 +337,7 @@ bool xrtChannelDestroy(xchannel* pChannel);
 ```c
 return xrtChannelDestroy(pChannel) ? 0 : 3;
 ```
+
 
 ## 所有权
 
@@ -381,6 +392,7 @@ if ( (xrtChannelTrySend(&tEmbedded, (ptr)5) != XCHANNEL_OK) ||
 	(xrtChannelCount(&tEmbedded) != 1u) ||
 ```
 
+
 ### `xrtChannelTryRecv`
 
 非阻塞接收；输出必须对齐且不能覆盖 Channel 或内部指针环。
@@ -423,6 +435,7 @@ xchannelresult xrtChannelTryRecv(
 	goto Cleanup;
 }
 ```
+
 
 ## 等待操作
 
@@ -489,6 +502,7 @@ xwaitresult xrtChannelSend(xchannel* pChannel, ptr pItem);
 	EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ||
 ```
 
+
 ### `xrtChannelSendFor`
 
 在相对毫秒数内等待发送一个指针值。
@@ -534,6 +548,7 @@ xwaitresult xrtChannelSendFor(
 	XWAIT_TIMEOUT) ) {
 ```
 
+
 ### `xrtChannelRecv`
 
 等待接收一个指针值。
@@ -571,6 +586,7 @@ while ( xrtChannelRecv(pChannel, &pItem) == XWAIT_OK ) {
 	printf("%llu\n", (unsigned long long)(uintptr_t)pItem);
 }
 ```
+
 
 ### `xrtChannelRecvFor`
 
@@ -618,6 +634,7 @@ if ( (xrtChannelRecvFor(pHeap, &pItem,
 		XWAIT_OK) ||
 ```
 
+
 ### `xrtChannelSendCancel`
 
 无限等待发送，并允许取消令牌中断尚未提交的操作。
@@ -660,6 +677,7 @@ if ( (xrtChannelSendCancel(pHeap, (ptr)9,
 		SendJob.pCancel) != XWAIT_CANCELLED) ||
 ```
 
+
 ### `xrtChannelSendForCancel`
 
 在相对毫秒数内等待发送，并允许取消令牌中断尚未提交的操作。
@@ -698,13 +716,12 @@ xwaitresult xrtChannelSendForCancel(
 
 #### 范例
 
-[concurrency/channel_tour · 取消族](../../examples/concurrency/channel_tour/main.c) · 等待线程满通道上挂起
+参见已注册的 [examples/concurrency/channel_tour/main.c](../../examples/concurrency/channel_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-pJob->Result = xrtChannelSendForCancel(pJob->pChannel, (ptr)1,
-	UINT64_C(10000000), pJob->pCancel);
+xrtChannelSendForCancel(pJob->pChannel, (ptr)1,
+		INT64_C(10000), pJob->pCancel);
 ```
-
 ### `xrtChannelRecvCancel`
 
 无限等待接收，并允许取消令牌中断尚未完成的操作。
@@ -747,6 +764,7 @@ iResult = xrtChannelRecvCancel(&tChannel, &pItem, pCancel);
 printf("cancelled: %s\n", iResult == XWAIT_CANCELLED ? "yes" : "no");
 ```
 
+
 ### `xrtChannelRecvForCancel`
 
 在相对毫秒数内等待接收，并允许取消令牌中断尚未完成的操作。
@@ -785,14 +803,11 @@ xwaitresult xrtChannelRecvForCancel(
 
 #### 范例
 
-[concurrency/channel_tour · 取消族](../../examples/concurrency/channel_tour/main.c) · 已触发令牌的五变体之一
+参见已注册的 [examples/concurrency/channel_tour/main.c](../../examples/concurrency/channel_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-(xrtChannelRecvForCancel(pEmpty, &pOne,
-	UINT64_C(1000000), RecvJob.pCancel) !=
-	XWAIT_CANCELLED) ||
+xrtChannelRecvForCancel(pJob->pChannel, &pItem,INT64_C(10000), pJob->pCancel);
 ```
-
 ### `xrtChannelCount`
 
 返回有缓冲 Channel 的精确元素数量；同步 Channel 始终返回零。
@@ -829,6 +844,7 @@ if ( (pEmpty == NULL) ||
 }
 ```
 
+
 ### `xrtChannelCapacity`
 
 返回创建时指定的精确容量。
@@ -864,6 +880,7 @@ if ( !xrtChannelInitBuffer(&tEmbedded, arrSlots, 2u) ||
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtChannelIsClosed`
 
@@ -904,6 +921,7 @@ if ( !xrtChannelIsClosed(&tEmbedded) ||
 }
 ```
 
+
 ### `xrtChannelIsDrained`
 
 判断 Channel 是否已经关闭且没有可接收值。
@@ -939,6 +957,7 @@ if ( !xrtChannelIsClosed(&tEmbedded) ||
 	!xrtChannelIsDrained(&tEmbedded) ||
 ```
 
+
 ### `xrtChannelClose`
 
 幂等关闭发送端；已有缓冲值仍可继续接收。
@@ -969,6 +988,7 @@ while ( xrtChannelRecv(pChannel, &pItem) == XWAIT_OK ) {
 	printf("%llu\n", (unsigned long long)(uintptr_t)pItem);
 }
 ```
+
 
 ### `xrtChannelDrain`
 
@@ -1013,6 +1033,7 @@ if ( xrtThreadWait(pWorker) == XWAIT_OK ) {
 (void)xrtChannelDrain(pChannel, workerJobDrain, NULL);
 ```
 
+
 ### `xrtChannelReset`
 
 在独占、无等待者且为空时重置并重新开放 Channel。
@@ -1049,6 +1070,7 @@ xrtChannelIsClosed(&tEmbedded) ) {
 	goto Cleanup;
 }
 ```
+
 
 ## Select
 
@@ -1104,6 +1126,7 @@ Cases[0] = xrtChannelCaseSend(pHeap, (ptr)20);
 Cases[1] = xrtChannelCaseRecv(pEmpty, &pItem);
 ```
 
+
 ### `xrtChannelCaseRecv`
 
 构造一个接收 case。
@@ -1136,6 +1159,7 @@ xchannelcase xrtChannelCaseRecv(
 arrCase[0] = xrtChannelCaseRecv(&tFirst, &pFirst);
 arrCase[1] = xrtChannelCaseRecv(&tSecond, &pSecond);
 ```
+
 
 ### `xrtChannelSelectTry`
 
@@ -1178,6 +1202,7 @@ if ( (Select.Wait != XWAIT_OK) || (Select.Index != 0u) ||
 	(Select.Result != XCHANNEL_OK) ) {
 ```
 
+
 ### `xrtChannelSelect`
 
 等待任意一个 case 原子提交。
@@ -1218,6 +1243,7 @@ if (
 	(tResult.Index != 1u)
 ) {
 ```
+
 
 ### `xrtChannelSelectFor`
 
@@ -1262,6 +1288,7 @@ if ( Select.Wait != XWAIT_TIMEOUT ) {
 }
 ```
 
+
 ### `xrtChannelSelectForCancel`
 
 等待任意 case 提交，并允许取消令牌中断未提交的选择。
@@ -1299,18 +1326,15 @@ xchannelselectresult xrtChannelSelectForCancel(
 
 #### 范例
 
-[concurrency/channel_select_cancel · 可取消选择](../../examples/concurrency/channel_select_cancel/main.c) · 已触发令牌 + 永不超时
+参见已注册的 [examples/concurrency/channel_select_cancel/main.c](../../examples/concurrency/channel_select_cancel/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-Case = xrtChannelCaseRecv(&Channel, &pValue);
-Result = xrtChannelSelectForCancel(
-	&Case,
-	1u,
-	XRT_WAIT_FOREVER,
-	pCancel
-);
+xrtChannelSelectForCancel(
+			&Case,
+			1u,exampleTimerRemaining(INFINITY),
+			pCancel
+		);
 ```
-
 ## 协程等待
 
 `xrtChannelSendAwait` / `RecvAwait` 在当前调度协程中挂起，不会阻塞调度器所属
@@ -1377,6 +1401,7 @@ if (
 ) {
 ```
 
+
 ### `xrtChannelSendAwaitFor`
 
 在当前调度协程中挂起发送，直到相对期限结束。
@@ -1419,6 +1444,7 @@ return (ptr)(uintptr_t)xrtChannelSendAwaitFor(pChannel, (ptr)1,
 	EXAMPLE_TIMEOUT_MS);
 ```
 
+
 ### `xrtChannelRecvAwait`
 
 在当前调度协程中挂起接收，不阻塞调度线程。
@@ -1458,6 +1484,7 @@ if ( xrtChannelRecvAwait(pChannel, &pMessage) != XWAIT_OK ) {
 	return NULL;
 }
 ```
+
 
 ### `xrtChannelRecvAwaitFor`
 
@@ -1501,6 +1528,7 @@ return (ptr)(uintptr_t)xrtChannelRecvAwaitFor(pChannel, &pItem,
 	EXAMPLE_TIMEOUT_MS);
 ```
 
+
 ### `xrtChannelSelectAwait`
 
 在当前调度协程中挂起，直到任意一个 case 原子提交。
@@ -1542,6 +1570,7 @@ if ( Result.Wait == XWAIT_OK ) {
 }
 ```
 
+
 ### `xrtChannelSelectAwaitFor`
 
 在当前调度协程中挂起，直到任意 case 提交或相对期限结束。
@@ -1576,10 +1605,8 @@ xchannelselectresult xrtChannelSelectAwaitFor(
 
 #### 范例
 
-[concurrency/channel_tour · 协程三](../../examples/concurrency/channel_tour/main.c) · 两条接收通道间选择
+参见已注册的 [examples/concurrency/channel_tour/main.c](../../examples/concurrency/channel_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-Cases[0] = xrtChannelCaseRecv(&arrChannel[0], &pItem);
-Cases[1] = xrtChannelCaseRecv(&arrChannel[1], &pItem);
-Result = xrtChannelSelectAwaitFor(Cases, 2u, UINT64_C(3000000));
+xrtChannelSelectAwaitFor(Cases, 2u, INT64_C(3000));
 ```

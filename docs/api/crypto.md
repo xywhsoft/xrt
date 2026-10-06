@@ -30,6 +30,7 @@ typedef enum xcrypto_hash {
 | `XCRYPTO_HASH_SHA512_256` | SHA-512/256 |
 | `XCRYPTO_HASH_MD5` | MD5 |
 
+
 ### `xrsapublickey`
 
 RSA 公钥是对调用方持有的定宽大端模数和指数的只读视图。
@@ -49,6 +50,7 @@ typedef struct xrsa_public_key {
 | `ModulusSize` | `size_t` | ModulusSize |
 | `Exponent` | `const void*` | 指数 |
 | `ExponentSize` | `size_t` | ExponentSize |
+
 
 ### `xrsaprivatekey`
 
@@ -88,6 +90,7 @@ typedef struct xrsa_private_key {
 | `Coefficient` | `const void*` | Coefficient |
 | `CoefficientSize` | `size_t` | CoefficientSize |
 
+
 ### `xaes`
 
 AES 状态由调用方持有；RoundKey 保存标准正向轮密钥，Backend 仅供实现选择后端。
@@ -107,6 +110,7 @@ typedef struct xaes {
 | `Rounds` | `uint32` | Rounds |
 | `Backend` | `uint32` | Backend |
 
+
 ### `xaesgcm`
 
 AES-GCM 状态固定绑定一个 AES 密钥和标签长度，可供多个线程只读并发使用。
@@ -125,6 +129,7 @@ typedef struct xaesgcm {
 | `Cipher` | `xaes` | Cipher |
 | `Guard` | `uint32` | 守卫字（防误用） |
 | `TagSize` | `uint32` | TagSize |
+
 
 ### `xmd5`
 
@@ -146,6 +151,7 @@ typedef struct xmd5 {
 | `Guard` | `uint32` | 守卫字（防误用） |
 | `BufferSize` | `uint32` | BufferSize |
 
+
 ### `xsha1`
 
 SHA-1 流状态由调用方持有；字段公开只用于无分配存储。
@@ -166,6 +172,7 @@ typedef struct xsha1 {
 | `Guard` | `uint32` | 守卫字（防误用） |
 | `BufferSize` | `uint32` | BufferSize |
 
+
 ### `xsha256`
 
 SHA-256 流状态由调用方持有；字段公开只用于无分配存储。
@@ -185,6 +192,7 @@ typedef struct xsha256 {
 | `Size` | `uint64` | 字节数 |
 | `Guard` | `uint32` | 守卫字（防误用） |
 | `BufferSize` | `uint32` | BufferSize |
+
 
 ### `xsha512`
 
@@ -208,6 +216,7 @@ typedef struct xsha512 {
 | `Guard` | `uint32` | 守卫字（防误用） |
 | `BufferSize` | `uint32` | BufferSize |
 
+
 ### `xhmacsha256`
 
 HMAC-SHA256 保存预计算的 inner/outer 摘要状态。
@@ -225,6 +234,7 @@ typedef struct xhmacsha256 {
 | `Inner` | `xsha256` | Inner |
 | `Outer` | `xsha256` | Outer |
 | `Guard` | `uint32` | 守卫字（防误用） |
+
 
 ### `xhmacsha512`
 
@@ -244,6 +254,7 @@ typedef struct xhmacsha512 {
 | `Outer` | `xsha512` | Outer |
 | `Guard` | `uint32` | 守卫字（防误用） |
 
+
 ### `xed25519mode`
 
 RFC 8032 的纯消息、带上下文消息和预哈希消息三种互不兼容的域。
@@ -262,6 +273,7 @@ typedef enum xed25519_mode {
 | `XED25519_CONTEXT` | CONTEXT |
 | `XED25519_PREHASH` | 预哈希输入形态 |
 
+
 ### `xed25519key`
 
 展开的 Ed25519 签名密钥由调用方持有，避免重复派生公钥和私有前缀。
@@ -278,6 +290,7 @@ typedef struct xed25519_key {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Guard` | `uint32` | 守卫字（防误用） |
+
 
 ### `xpoly1305`
 
@@ -299,6 +312,7 @@ typedef struct xpoly1305 {
 | `Guard` | `uint32` | 守卫字（防误用） |
 | `BufferSize` | `uint32` | BufferSize |
 
+
 ### `xsha224`
 
 SHA-224 与 SHA-256 共享状态布局，但初始化标记严格区分算法。
@@ -308,6 +322,7 @@ typedef xsha256 xsha224;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xsha384`
 
@@ -320,6 +335,7 @@ typedef xsha512 xsha384;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xsha512_256`
 
 SHA-512/256 复用 SHA-512 状态布局，但使用独立初始向量和状态标记。
@@ -329,6 +345,7 @@ typedef xsha512 xsha512_256;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xhmacsha384`
 
@@ -340,6 +357,7 @@ typedef xhmacsha512 xhmacsha384;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### 常量总表
 
@@ -486,6 +504,7 @@ if ( xrtCryptoHashSize(XCRYPTO_HASH_SHA256) != sizeof(Left) ) {
 }
 ```
 
+
 ### `xrtConstTimeEqual`
 
 常量时间字节区间比较；不因首个不同字节提前退出。
@@ -524,6 +543,7 @@ xrtSecureZero(Right, sizeof(Right));
 ```
 
 公开枚举标签是 `xcrypto_hash`，常用类型名是 `xcryptohash`。两者表示同一组稳定算法标识。运行时间与公开的 `iSize` 成正比；不隐藏长度，也不等同于完整侧信道防护。
+
 
 ## `xrtSecureZero`
 
@@ -590,6 +610,7 @@ xrtMd5Init(&Md5State);
 ```
 
 
+
 ### `xrtMd5Update`
 
 向流状态追加一段输入；仅缓存不足一个块的尾部，失败时状态保持不变。
@@ -628,6 +649,7 @@ xrtMd5Init(&Md5State);
 if ( !xrtMd5Update(&Md5State, "hello ", 6u) ||
 	!xrtMd5Update(&Md5State, "world", 5u) ||
 ```
+
 
 
 ### `xrtMd5Final`
@@ -670,6 +692,7 @@ if ( !xrtMd5Update(&Md5State, "hello ", 6u) ||
 ```
 
 
+
 ### `xrtMd5`
 
 一次计算一段连续数据的 16 字节MD5 摘要。
@@ -706,6 +729,7 @@ bool xrtMd5(const void* pData, size_t iSize, void* pDigest);
 ```c
 if ( !xrtMd5("abc", 3u, Digest) ) {
 ```
+
 
 
 ## SHA-1
@@ -757,6 +781,7 @@ xrtSha1Init(&Sha1State);
 ```
 
 
+
 ### `xrtSha1Update`
 
 向流状态追加一段输入；仅缓存不足一个块的尾部，失败时状态保持不变。
@@ -795,6 +820,7 @@ xrtSha1Init(&Sha1State);
 if ( !xrtSha1Update(&Sha1State, "hello ", 6u) ||
 	!xrtSha1Update(&Sha1State, "world", 5u) ||
 ```
+
 
 
 ### `xrtSha1Final`
@@ -837,6 +863,7 @@ if ( !xrtSha1Update(&Sha1State, "hello ", 6u) ||
 ```
 
 
+
 ### `xrtSha1`
 
 一次计算一段连续数据的 20 字节SHA-1 摘要。
@@ -873,6 +900,7 @@ bool xrtSha1(const void* pData, size_t iSize, void* pDigest);
 ```c
 if ( !xrtSha1("hello", 5, arrDigest) ) {
 ```
+
 
 
 ## SHA-224 与 SHA-256
@@ -934,6 +962,7 @@ xrtSha224Init(&Sha224State);
 ```
 
 
+
 ### `xrtSha224Update`
 
 向流状态追加一段输入；仅缓存不足一个块的尾部，失败时状态保持不变。
@@ -972,6 +1001,7 @@ xrtSha224Init(&Sha224State);
 if ( !xrtSha224Update(&Sha224State, "hello ", 6u) ||
 	!xrtSha224Update(&Sha224State, "world", 5u) ||
 ```
+
 
 
 ### `xrtSha224Final`
@@ -1014,6 +1044,7 @@ if ( !xrtSha224Update(&Sha224State, "hello ", 6u) ||
 ```
 
 
+
 ### `xrtSha224`
 
 一次计算一段连续数据的 28 字节SHA-224 摘要。
@@ -1052,6 +1083,7 @@ if ( !xrtSha224("xrt", 3, Digest) ) {
 ```
 
 
+
 ### `xrtSha256Init`
 
 初始化 SHA-256 摘要的流式状态；不分配内存。
@@ -1083,6 +1115,7 @@ void xrtSha256Init(xsha256* pState);
 ```c
 xrtSha256Init(&State);
 ```
+
 
 
 ### `xrtSha256Update`
@@ -1126,6 +1159,7 @@ if ( !xrtSha256Update(&State, "hello ", 6) ||
 ```
 
 
+
 ### `xrtSha256Final`
 
 从状态快照输出 32 字节摘要；不结束或修改原状态，可重复调用并继续追加。
@@ -1166,6 +1200,7 @@ if ( !xrtSha256Update(&State, "hello ", 6) ||
 ```
 
 
+
 ### `xrtSha256`
 
 一次计算一段连续数据的 32 字节SHA-256 摘要。
@@ -1202,6 +1237,7 @@ bool xrtSha256(const void* pData, size_t iSize, void* pDigest);
 ```c
 if ( !xrtSha256(Message, sizeof(Message) - 1u, Hash) ||
 ```
+
 
 
 ## SHA-384、SHA-512 与 SHA-512/256
@@ -1279,6 +1315,7 @@ xrtSha384Init(&State);
 ```
 
 
+
 ### `xrtSha384Update`
 
 向流状态追加一段输入；仅缓存不足一个块的尾部，失败时状态保持不变。
@@ -1318,6 +1355,7 @@ if ( !xrtSha384Update(&State, "hello ", 6) ||
 	 !xrtSha384Update(&State, "world", 5) ||
 	 !xrtSha384Final(&State, arrDigest) ) {
 ```
+
 
 
 ### `xrtSha384Final`
@@ -1360,6 +1398,7 @@ if ( !xrtSha384Update(&State, "hello ", 6) ||
 ```
 
 
+
 ### `xrtSha384`
 
 一次计算一段连续数据的 48 字节SHA-384 摘要。
@@ -1398,6 +1437,7 @@ if ( !xrtSha384(Message, sizeof(Message) - 1u, Hash) ||
 ```
 
 
+
 ### `xrtSha512Init`
 
 初始化 SHA-512 摘要的流式状态；不分配内存。
@@ -1429,6 +1469,7 @@ void xrtSha512Init(xsha512* pState);
 ```c
 xrtSha512Init(&Sha512State);
 ```
+
 
 
 ### `xrtSha512Update`
@@ -1471,6 +1512,7 @@ if ( !xrtSha512Update(&Sha512State, "hello ", 6u) ||
 ```
 
 
+
 ### `xrtSha512Final`
 
 从状态快照输出 64 字节摘要；不结束或修改原状态，可重复调用并继续追加。
@@ -1511,6 +1553,7 @@ if ( !xrtSha512Update(&Sha512State, "hello ", 6u) ||
 ```
 
 
+
 ### `xrtSha512`
 
 一次计算一段连续数据的 64 字节SHA-512 摘要。
@@ -1549,6 +1592,7 @@ if ( !xrtSha512("hello world", 11, arrDigest) ) {
 ```
 
 
+
 ### `xrtSha512_256Init`
 
 初始化 SHA-512/256 摘要（32 字节）的流式状态；不分配内存。
@@ -1580,6 +1624,7 @@ void xrtSha512_256Init(xsha512_256* pState);
 ```c
 xrtSha512_256Init(&Sha512256State);
 ```
+
 
 
 ### `xrtSha512_256Update`
@@ -1626,6 +1671,7 @@ if ( !xrtSha512_256Update(&Sha512256State, "hello ", 6u) ||
 ```
 
 
+
 ### `xrtSha512_256Final`
 
 从状态快照输出 32 字节摘要；不结束或修改原状态，可重复调用并继续追加。
@@ -1669,6 +1715,7 @@ if ( !xrtSha512_256Update(&Sha512256State, "hello ", 6u) ||
 ```
 
 
+
 ### `xrtSha512_256`
 
 一次计算一段连续数据的 32 字节SHA-512/256 摘要。
@@ -1709,6 +1756,7 @@ bool xrtSha512_256(
 ```c
 if ( !xrtSha512_256("abc", 3u, Digest) ) {
 ```
+
 
 
 ## HMAC
@@ -1792,6 +1840,7 @@ if ( !xrtHmacSha256Init(&State, arrKey, sizeof(arrKey)) ||
 ```
 
 
+
 ### `xrtHmacSha256Update`
 
 向 HMAC 状态追加一段输入；失败时状态保持不变。
@@ -1834,6 +1883,7 @@ bool xrtHmacSha256Update(
 ```
 
 
+
 ### `xrtHmacSha256Final`
 
 从状态快照输出 32 字节 HMAC，不结束或修改原状态。
@@ -1869,6 +1919,7 @@ bool xrtHmacSha256Final(const xhmacsha256* pState, void* pMac);
 ```c
 !xrtHmacSha256Final(&State, arrStream) ||
 ```
+
 
 
 ### `xrtHmacSha256`
@@ -1918,6 +1969,7 @@ bool xrtHmacSha256(
 ```
 
 
+
 ### `xrtHmacSha384Init`
 
 以密钥初始化 HMAC 流状态；密钥短于块被填充，长于块先做哈希。
@@ -1958,6 +2010,7 @@ bool xrtHmacSha384Init(
 ```c
 if ( !xrtHmacSha384Init(&State, "secret", 6) ||
 ```
+
 
 
 ### `xrtHmacSha384Update`
@@ -2002,6 +2055,7 @@ bool xrtHmacSha384Update(
 ```
 
 
+
 ### `xrtHmacSha384Final`
 
 从状态快照输出 48 字节 HMAC，不结束或修改原状态。
@@ -2037,6 +2091,7 @@ bool xrtHmacSha384Final(const xhmacsha384* pState, void* pMac);
 ```c
 !xrtHmacSha384Final(&State, arrMac) ) {
 ```
+
 
 
 ### `xrtHmacSha384`
@@ -2086,6 +2141,7 @@ bool xrtHmacSha384(
 ```
 
 
+
 ### `xrtHmacSha512Init`
 
 以密钥初始化 HMAC 流状态；密钥短于块被填充，长于块先做哈希。
@@ -2126,6 +2182,7 @@ bool xrtHmacSha512Init(
 ```c
 if ( !xrtHmacSha512Init(&State, arrKey, sizeof(arrKey)) ||
 ```
+
 
 
 ### `xrtHmacSha512Update`
@@ -2170,6 +2227,7 @@ bool xrtHmacSha512Update(
 ```
 
 
+
 ### `xrtHmacSha512Final`
 
 从状态快照输出 64 字节 HMAC，不结束或修改原状态。
@@ -2205,6 +2263,7 @@ bool xrtHmacSha512Final(const xhmacsha512* pState, void* pMac);
 ```c
 !xrtHmacSha512Final(&State, arrStream) ||
 ```
+
 
 
 ### `xrtHmacSha512`
@@ -2252,6 +2311,7 @@ bool xrtHmacSha512(
 !xrtHmacSha512(arrKey, sizeof(arrKey), "hello world",
 			11u, arrOnce) ||
 ```
+
 
 
 ## PBKDF2
@@ -2326,6 +2386,7 @@ if ( !xrtPbkdf2Sha256(
 ```
 
 
+
 ### `xrtPbkdf2Sha384`
 
 从密码和 salt 派生任意合规长度的密钥；同参数派生逐位确定。
@@ -2376,6 +2437,7 @@ if ( !xrtPbkdf2Sha384("password", 8u, arrSalt, sizeof(arrSalt),
 ```
 
 
+
 ### `xrtPbkdf2Sha512`
 
 从密码和 salt 派生任意合规长度的密钥；同参数派生逐位确定。
@@ -2423,6 +2485,7 @@ bool xrtPbkdf2Sha512(
 ```c
 if ( !xrtPbkdf2Sha512(
 ```
+
 
 
 ## HKDF
@@ -2508,6 +2571,7 @@ if ( !xrtHkdfSha256Extract(arrSalt, sizeof(arrSalt),
 ```
 
 
+
 ### `xrtHkdfSha256Expand`
 
 从 PRK 和可选 info 展开最多 255 × 32 字节输出。
@@ -2553,6 +2617,7 @@ bool xrtHkdfSha256Expand(
 ```c
 !xrtHkdfSha256Expand(arrPrk, XRT_SHA256_SIZE,
 ```
+
 
 
 ### `xrtHkdfSha256`
@@ -2606,6 +2671,7 @@ bool xrtHkdfSha256(
 ```
 
 
+
 ### `xrtHkdfSha384Extract`
 
 从 salt 和输入密钥材料提取 48 字节 PRK。
@@ -2648,6 +2714,7 @@ bool xrtHkdfSha384Extract(
 ```c
 if ( !xrtHkdfSha384Extract("salt", 4, "ikm", 3, arrPrk) ||
 ```
+
 
 
 ### `xrtHkdfSha384Expand`
@@ -2697,6 +2764,7 @@ bool xrtHkdfSha384Expand(
 		arrPrk, sizeof(arrPrk), "context", 7, arrKey, sizeof(arrKey)
 	 ) ) {
 ```
+
 
 
 ### `xrtHkdfSha384`
@@ -2750,6 +2818,7 @@ bool xrtHkdfSha384(
 ```
 
 
+
 ### `xrtHkdfSha512Extract`
 
 从 salt 和输入密钥材料提取 64 字节 PRK。
@@ -2793,6 +2862,7 @@ bool xrtHkdfSha512Extract(
 if ( !xrtHkdfSha512Extract(arrSalt, sizeof(arrSalt),
 		arrIkm, sizeof(arrIkm), arrPrk) ||
 ```
+
 
 
 ### `xrtHkdfSha512Expand`
@@ -2840,6 +2910,7 @@ bool xrtHkdfSha512Expand(
 ```c
 !xrtHkdfSha512Expand(arrPrk, XRT_SHA512_SIZE,
 ```
+
 
 
 ### `xrtHkdfSha512`
@@ -2891,6 +2962,7 @@ bool xrtHkdfSha512(
 ```c
 !xrtHkdfSha512(arrSalt, sizeof(arrSalt), arrIkm,
 ```
+
 
 
 ## ChaCha20
@@ -2968,6 +3040,7 @@ if ( xrtChaCha20(
 ```
 
 
+
 ## Poly1305
 
 `XRT_FEATURE_CRYPTO_POLY1305` 同样独立裁剪，公开流式底层与一行便利函数：
@@ -3029,6 +3102,7 @@ if ( xrtPoly1305Init(&State, Key) &&
 ```
 
 
+
 ### `xrtPoly1305Update`
 
 向状态追加一段输入；失败时状态保持不变。
@@ -3069,6 +3143,7 @@ xrtPoly1305Update(&State, Message, 13u) &&
 ```
 
 
+
 ### `xrtPoly1305Final`
 
 从状态快照输出 16 字节标签，不结束或修改原状态。
@@ -3102,6 +3177,7 @@ bool xrtPoly1305Final(const xpoly1305* pState, void* pTag);
 ```c
 xrtPoly1305Final(&State, StreamTag) &&
 ```
+
 
 
 ### `xrtPoly1305`
@@ -3144,6 +3220,7 @@ bool xrtPoly1305(
 ```c
 xrtPoly1305(Key, Message, sizeof(Message) - 1u, OneShotTag) ) {
 ```
+
 
 
 ## ChaCha20-Poly1305
@@ -3243,6 +3320,7 @@ if ( !xrtChaCha20Poly1305Encrypt(arrKey32, arrNonce, arrAad,
 ```
 
 
+
 ### `xrtChaCha20Poly1305Decrypt`
 
 验证分离标签后解密；认证失败时不修改明文输出。
@@ -3293,6 +3371,7 @@ bool xrtChaCha20Poly1305Decrypt(
 !xrtChaCha20Poly1305Decrypt(arrKey32, arrNonce, arrAad,
 		sizeof(arrAad), arrCipher, 6u, arrTag, arrOut) ||
 ```
+
 
 
 ### `xrtChaCha20Poly1305Seal`
@@ -3349,6 +3428,7 @@ if ( !xrtChaCha20Poly1305Seal(
 ```
 
 
+
 ### `xrtChaCha20Poly1305Open`
 
 打开 cipher || tag；输出容量至少为输入长度减 16，认证失败不写明文。
@@ -3401,6 +3481,7 @@ bool xrtChaCha20Poly1305Open(
 		Message, iSealedSize, Message, sizeof(Message)
 	) ) {
 ```
+
 
 
 ## AES
@@ -3470,6 +3551,7 @@ if ( xrtAesInit(&State, Key, sizeof(Key)) &&
 ```
 
 
+
 ### `xrtAesEncrypt`
 
 加密一个 16 字节块；输入输出可完全相同。
@@ -3508,6 +3590,7 @@ bool xrtAesEncrypt(
 ```c
 xrtAesEncrypt(&State, Plain, Block) &&
 ```
+
 
 
 ### `xrtAesDecrypt`
@@ -3550,6 +3633,7 @@ xrtAesDecrypt(&State, Block, Block) ) {
 ```
 
 
+
 ### `xrtAesClear`
 
 清除 AES 轮密钥状态；空指针视为空操作。
@@ -3581,6 +3665,7 @@ void xrtAesClear(xaes* pState);
 ```c
 xrtAesClear(&State);
 ```
+
 
 
 ## AES-GCM 与 GMAC
@@ -3699,6 +3784,7 @@ if ( !xrtAesGcmInit(
 ```
 
 
+
 ### `xrtAesGcmTagSize`
 
 返回状态绑定的标签长度；无效状态返回 0 并设置错误。
@@ -3731,6 +3817,7 @@ size_t xrtAesGcmTagSize(const xaesgcm* pState);
 ```c
 (xrtAesGcmTagSize(&State) != 16u) ||
 ```
+
 
 
 ### `xrtAesGcmEncrypt`
@@ -3787,6 +3874,7 @@ bool xrtAesGcmEncrypt(
 ```
 
 
+
 ### `xrtAesGcmDecrypt`
 
 验证分离标签后解密；认证失败时不修改明文输出。
@@ -3840,6 +3928,7 @@ bool xrtAesGcmDecrypt(
 		arrAad, sizeof(arrAad), arrCipher, 6u, arrTag,
 		arrOut) ||
 ```
+
 
 
 ### `xrtAesGcmSeal`
@@ -3901,6 +3990,7 @@ if ( !xrtAesGcmSeal(
 ```
 
 
+
 ### `xrtAesGcmOpen`
 
 打开 cipher || tag；认证失败时不修改明文输出。
@@ -3960,6 +4050,7 @@ if ( !xrtAesGcmOpen(
 ```
 
 
+
 ### `xrtAesGcmClear`
 
 清除 AES-GCM 密钥、哈希子密钥及状态；空指针视为空操作。
@@ -3991,6 +4082,7 @@ void xrtAesGcmClear(xaesgcm* pState);
 ```c
 xrtAesGcmClear(&State);
 ```
+
 
 
 ### `xrtAesGmac`
@@ -4040,6 +4132,7 @@ bool xrtAesGmac(
 ```
 
 
+
 ### `xrtAesGmacVerify`
 
 以常量时间比较验证 GMAC 标签。
@@ -4086,6 +4179,7 @@ bool xrtAesGmacVerify(
 !xrtAesGmacVerify(&State, arrNonce, sizeof(arrNonce),
 		arrAad, sizeof(arrAad), arrTag) ) {
 ```
+
 
 
 ## X25519
@@ -4161,6 +4255,7 @@ bool xrtX25519(
 ```
 
 
+
 ### `xrtX25519Public`
 
 从 32 字节私钥导出 X25519 公钥，允许原位覆盖私钥。
@@ -4194,6 +4289,7 @@ bool xrtX25519Public(const void* pPrivate, void* pPublic);
 ```c
 !xrtX25519Public(arrSecretA, arrPubA) ||
 ```
+
 
 
 ### `xrtX25519Shared`
@@ -4237,6 +4333,7 @@ bool xrtX25519Shared(
 ```
 
 
+
 ### `xrtX25519KeyPair`
 
 使用操作系统安全随机源生成私钥和对应公钥；两个输出不得重叠。
@@ -4271,6 +4368,7 @@ bool xrtX25519KeyPair(void* pPrivate, void* pPublic);
 ```c
 !xrtX25519KeyPair(AlicePrivate, AlicePublic) ||
 ```
+
 
 
 ## X448
@@ -4345,6 +4443,7 @@ bool xrtX448Shared(
 ```
 
 
+
 ### `xrtX448KeyPair`
 
 使用操作系统安全随机源生成私钥和对应公钥；两个输出不得重叠。
@@ -4379,6 +4478,7 @@ bool xrtX448KeyPair(void* pPrivate, void* pPublic);
 ```c
 !xrtX448KeyPair(AlicePrivate, AlicePublic) ||
 ```
+
 
 
 ### `xrtX448`
@@ -4421,6 +4521,7 @@ if ( !xrtX448KeyPair(AlicePrivate, AlicePublic) ||
 ```
 
 
+
 ### `xrtX448Public`
 
 从 56 字节私钥导出 X448 公钥，允许原位覆盖私钥。
@@ -4454,6 +4555,7 @@ bool xrtX448Public(const void* pPrivate, void* pPublic);
 ```c
 !xrtX448Shared(AlicePrivate, BobPublic, AliceShared) ||
 ```
+
 
 
 ## P-256 与 P-384
@@ -4537,6 +4639,7 @@ xrtP256Valid(arrPoint) ||
 ```
 
 
+
 ### `xrtP256Multiply`
 
 计算 scalar * point；三个固定长度缓冲可任意重叠。
@@ -4576,6 +4679,7 @@ bool xrtP256Multiply(
 ```c
 !xrtP256Multiply(arrScalarTwo, arrPoint, arrDouble) ||
 ```
+
 
 
 ### `xrtP256Add`
@@ -4619,6 +4723,7 @@ bool xrtP256Add(
 ```
 
 
+
 ### `xrtP256Public`
 
 从 32 字节私钥派生未压缩 P-256 公钥。
@@ -4653,6 +4758,7 @@ bool xrtP256Public(const void* pPrivate, void* pPublic);
 ```c
 !xrtP256Public(arrPriv256, arrPub256) ||
 ```
+
 
 
 ### `xrtP256Shared`
@@ -4696,6 +4802,7 @@ bool xrtP256Shared(
 ```
 
 
+
 ### `xrtP256KeyPair`
 
 使用操作系统安全随机源生成 P-256 私钥和未压缩公钥。
@@ -4732,6 +4839,7 @@ bool xrtP256KeyPair(void* pPrivate, void* pPublic);
 ```
 
 
+
 ### `xrtP384Valid`
 
 验证 97 字节未压缩 SEC 1 公钥是否为有效 P-384 曲线点。
@@ -4765,6 +4873,7 @@ bool xrtP384Valid(const void* pPublic);
 ```c
 xrtP384Valid(arrPoint) ||
 ```
+
 
 
 ### `xrtP384Multiply`
@@ -4808,6 +4917,7 @@ bool xrtP384Multiply(
 ```
 
 
+
 ### `xrtP384Add`
 
 计算两个未压缩公共点之和；输入输出可任意重叠。
@@ -4849,6 +4959,7 @@ bool xrtP384Add(
 ```
 
 
+
 ### `xrtP384Public`
 
 从 48 字节私钥派生未压缩 P-384 公钥。
@@ -4883,6 +4994,7 @@ bool xrtP384Public(const void* pPrivate, void* pPublic);
 ```c
 !xrtP384KeyPair(PrivateA, PublicA) ||
 ```
+
 
 
 ### `xrtP384Shared`
@@ -4926,6 +5038,7 @@ bool xrtP384Shared(
 ```
 
 
+
 ### `xrtP384KeyPair`
 
 使用操作系统安全随机源生成 P-384 私钥和未压缩公钥。
@@ -4960,6 +5073,7 @@ bool xrtP384KeyPair(void* pPrivate, void* pPublic);
 ```c
 !xrtP384KeyPair(PrivateA, PublicA) ||
 ```
+
 
 
 ## ECDSA DER 表示层
@@ -5034,6 +5148,7 @@ if ( !xrtEcdsaDerEncode(arrSignature, 32u, NULL, 0u, &iDerSize) ||
 ```
 
 
+
 ### `xrtEcdsaDerDecode`
 
 严格解码规范 DER ECDSA 签名为定宽 raw r||s。
@@ -5076,6 +5191,7 @@ bool xrtEcdsaDerDecode(
 if ( !xrtEcdsaDerDecode(arrDer, iDerSize, arrRaw2, 48u) ||
 	(memcmp(arrRaw2, arrSignature, 96u) != 0) ||
 ```
+
 
 
 ## ECDSA 验签
@@ -5154,6 +5270,7 @@ bool xrtEcdsaP256Verify(
 ```
 
 
+
 ### `xrtEcdsaP384Verify`
 
 验证任意非空摘要上的定宽 P-384 ECDSA raw r||s 签名。
@@ -5196,6 +5313,7 @@ bool xrtEcdsaP384Verify(
 !xrtEcdsaP384Verify(arrDigest, XRT_SHA384_SIZE, arrSignature,
 		arrPub384) ||
 ```
+
 
 
 ### `xrtEcdsaP256VerifyDer`
@@ -5244,6 +5362,7 @@ bool xrtEcdsaP256VerifyDer(
 ```
 
 
+
 ### `xrtEcdsaP384VerifyDer`
 
 严格解码 DER 后验证任意非空摘要上的签名。
@@ -5288,6 +5407,7 @@ bool xrtEcdsaP384VerifyDer(
 !xrtEcdsaP384VerifyDer(arrDigest, XRT_SHA384_SIZE, arrDer,
 		iDerSize, arrPub384) ) {
 ```
+
 
 
 ## ECDSA 签名
@@ -5376,6 +5496,7 @@ bool xrtEcdsaP256Sign(
 ```
 
 
+
 ### `xrtEcdsaP384Sign`
 
 使用指定摘要算法的 RFC 6979 路径生成定宽 low-S P-384 ECDSA 签名。
@@ -5418,6 +5539,7 @@ bool xrtEcdsaP384Sign(
 !xrtEcdsaP384Sign(XCRYPTO_HASH_SHA384, arrDigest, arrPriv384,
 		arrSignature) ||
 ```
+
 
 
 ### `xrtEcdsaP256SignDer`
@@ -5471,6 +5593,7 @@ bool xrtEcdsaP256SignDer(
 ```
 
 
+
 ### `xrtEcdsaP384SignDer`
 
 生成确定性 low-S 签名并编码为规范 DER。
@@ -5517,6 +5640,7 @@ bool xrtEcdsaP384SignDer(
 ```c
 !xrtEcdsaP384SignDer(
 ```
+
 
 
 ## RSA 公钥、私钥与签名
@@ -5685,6 +5809,7 @@ if ( !__xrtExampleRsaInit(&Fixture) ||
 ```
 
 
+
 ### `xrtRsaPrivate`
 
 执行原始 RSA 私钥运算；优先使用 CRT，并用公钥重新验证结果。
@@ -5729,6 +5854,7 @@ xrtRsaPrivate(
 		&Fixture.Key, Cipher, sizeof(Cipher), Plain
 	 ) || !xrtConstTimeEqual(Raw, Plain, sizeof(Raw)) ) {
 ```
+
 
 
 ### `xrtRsaPssSignSalt`
@@ -5784,6 +5910,7 @@ if ( !xrtRsaPssSignSalt(
 ```
 
 
+
 ### `xrtRsaPssSign`
 
 使用与消息摘要等长的密码安全随机盐生成 EMSA-PSS 签名。
@@ -5833,6 +5960,7 @@ bool xrtRsaPssSign(
 		Signature
 	) || !xrtRsaPssVerify(
 ```
+
 
 
 ### `xrtRsaPssVerify`
@@ -5890,6 +6018,7 @@ bool xrtRsaPssVerify(
 ```
 
 
+
 ### `xrtRsaPkcs1Sign`
 
 使用规范 DigestInfo 生成 EMSA-PKCS1-v1_5 签名。
@@ -5936,6 +6065,7 @@ if ( __xrtExampleRsaInit(&Fixture) &&
 		Signature
 	 ) && xrtRsaPkcs1Verify(
 ```
+
 
 
 ### `xrtRsaPkcs1Verify`
@@ -5987,6 +6117,7 @@ bool xrtRsaPkcs1Verify(
 		sizeof(Signature)
 	 ) ) {
 ```
+
 
 
 ## Ed25519
@@ -6113,6 +6244,7 @@ if ( !xrtEd25519KeyInit(&Key, arrSeed) ||
 ```
 
 
+
 ### `xrtEd25519KeyClear`
 
 不可消除地清除展开后的私有标量、前缀和公钥。
@@ -6144,6 +6276,7 @@ void xrtEd25519KeyClear(xed25519key* pKey);
 ```c
 xrtEd25519KeyClear(&Key);
 ```
+
 
 
 ### `xrtEd25519KeyPair`
@@ -6182,6 +6315,7 @@ if ( !xrtEd25519KeyPair(Seed, Public) ||
 ```
 
 
+
 ### `xrtEd25519Public`
 
 从 32 字节种子导出规范 Ed25519 公钥，允许输出覆盖种子。
@@ -6218,6 +6352,7 @@ bool xrtEd25519Public(
 ```c
 if ( !xrtEd25519Public(arrSeed, arrPublic) ||
 ```
+
 
 
 ### `xrtEd25519Sign`
@@ -6263,6 +6398,7 @@ bool xrtEd25519Sign(
 ```
 
 
+
 ### `xrtEd25519SignKey`
 
 使用展开密钥签署纯 Ed25519 消息（一次展开多次签名）。
@@ -6304,6 +6440,7 @@ bool xrtEd25519SignKey(
 ```c
 if ( !xrtEd25519KeyInit(&Key, arrSeed) ||
 ```
+
 
 
 ### `xrtEd25519SignMode`
@@ -6357,6 +6494,7 @@ bool xrtEd25519SignMode(
 ```
 
 
+
 ### `xrtEd25519Verify`
 
 严格验证纯 Ed25519 签名、规范编码和主子群公钥。
@@ -6399,6 +6537,7 @@ bool xrtEd25519Verify(
 !xrtEd25519Verify(arrPublic, arrMessage,
 		sizeof(arrMessage) - 1u, arrSignature) ) {
 ```
+
 
 
 ### `xrtEd25519VerifyMode`

@@ -1,10 +1,10 @@
-#include <xrt/detail/wait.h>
 /* Actual modular implementations, with deterministic retirement faults. */
 #define XACME_MODULE_ALL
 #include <xacme/features.h>
 #define XRT_MODULE_MEMORY_DEBUG
 #define XRT_IMPLEMENTATION
 #include <xrt.h>
+#include <xrt/detail/wait.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,7 +48,7 @@ static bool start_engine(xnetengine* engine)
 
 static double rollback_deadline(uint64 timeout)
 {
-	if(RollbackFault != 0u && timeout > 20000u) timeout = 20000u;
+	if(RollbackFault != 0u && timeout > 20u) timeout = 20u;
 	return __xrtWaitAfter(timeout);
 }
 
@@ -523,7 +523,7 @@ static bool client_ownership(void)
 			xerror* previous;
 			bool ready, ok, pinned = scenario != 1u;
 			if(client == NULL || (scenario == 2u && borrowed == NULL)) return false;
-			if(!xacmeHttpInit(&client->Http, borrowed, TestCa, 20000u)) return false;
+			if(!xacmeHttpInit(&client->Http, borrowed, TestCa, 20u)) return false;
 			memset(&client->AccountKey, 0xa5, sizeof(client->AccountKey));
 			if(action > 0u) {
 				client->pCertKey = (xacmecertkey*)xrtCalloc(1u, sizeof(*client->pCertKey));

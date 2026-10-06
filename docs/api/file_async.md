@@ -24,6 +24,7 @@ typedef struct xfiledata {
 | `Offset` | `uint64` | 偏移量 |
 | `End` | `bool` | 结束 |
 
+
 ### `xfilechange`
 
 写入、查询大小和修改大小统一返回偏移与字节数。
@@ -40,6 +41,7 @@ typedef struct xfilechange {
 | `Offset` | `uint64` | 偏移量 |
 | `Size` | `uint64` | 字节数 |
 
+
 ### `xfilesize`
 
 文件或目录树大小查询使用独立结果，避免混入写入偏移语义。
@@ -54,6 +56,7 @@ typedef struct xfilesize {
 |---|---|---|
 | `Size` | `uint64` | 字节数 |
 
+
 ### `xdirquery`
 
 目录属性查询结果由 Future 拥有。
@@ -67,6 +70,7 @@ typedef struct xdirquery {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Empty` | `bool` | Empty |
+
 
 ### `xfileasyncerror`
 
@@ -108,6 +112,7 @@ typedef enum xfileasyncerror {
 | `XFILE_ASYNC_ERROR_TREE` | 失败 |
 | `XFILE_ASYNC_ERROR_QUERY` | 重叠查询非法 |
 
+
 ### `xasyncfile`
 
 异步文件对象绑定一个有界任务池，并在关闭前保留全部已受理操作。
@@ -117,6 +122,7 @@ typedef struct xasyncfile xasyncfile;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xfileasyncreleaseproc`
 
@@ -131,6 +137,7 @@ typedef void (*xfileasyncreleaseproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 裁剪层
 
@@ -233,6 +240,7 @@ xasyncfile* xrtAsyncFileOpen(
 ```
 
 
+
 ### `xrtAsyncFileAdopt`
 
 采用已经打开的文件，并把唯一关闭责任转交给异步文件对象；失败时调用方仍然拥有 `File`。
@@ -272,6 +280,7 @@ xasyncfile* xrtAsyncFileAdopt(
 ```
 
 
+
 ### `xrtAsyncFileFlags`
 
 返回异步文件采用时保存的打开标志；失败返回 0。
@@ -304,6 +313,7 @@ uint32 xrtAsyncFileFlags(const xasyncfile* pFile);
 ```c
 	iFlags = xrtAsyncFileFlags(pFile);
 ```
+
 
 
 ### `xrtAsyncFileClose`
@@ -341,6 +351,7 @@ xfuture* xrtAsyncFileClose(xasyncfile* pFile);
 		if ( pClosing == NULL ) goto Cleanup;
 		pFile = NULL;  /* Close 已受理并释放对象所有权。 */
 ```
+
 
 
 ## 定位读写
@@ -421,6 +432,7 @@ xfuture* xrtAsyncFileReadAt(
 ```
 
 
+
 ### `xrtAsyncFileWriteAt`
 
 从绝对偏移完整写入；提交前复制数据，返回后调用方可以立即释放或修改源缓冲。成功值为 `xfilechange`。
@@ -465,6 +477,7 @@ xfuture* xrtAsyncFileWriteAt(
 		XRT_BYTES_LITERAL("hello async file")
 	);
 ```
+
 
 
 ### `xrtAsyncFileWriteAtRef`
@@ -514,6 +527,7 @@ xfuture* xrtAsyncFileWriteAtRef(
 ```
 
 
+
 ### `xrtAsyncFileWriteAtTake`
 
 零复制接管由 `xrtMalloc` 家族分配的非空数据；终态后经 `xrtFree` 释放。提交失败时所有权仍归调用方；`NULL,0` 表示空写入。
@@ -557,6 +571,7 @@ xfuture* xrtAsyncFileWriteAtTake(
 ```
 
 
+
 ### `xrtAsyncFileFlush`
 
 把已受理写入提交到稳定存储；只读文件直接成功。
@@ -591,6 +606,7 @@ xfuture* xrtAsyncFileFlush(xasyncfile* pFile);
 ```c
 		!exampleWaitValue(&pFuture, xrtAsyncFileFlush(pFile), NULL) ) {
 ```
+
 
 
 ## 大小与刷新
@@ -635,6 +651,7 @@ xfuture* xrtAsyncFileSize(xasyncfile* pFile);
 ```
 
 
+
 ### `xrtAsyncFileResize`
 
 修改文件大小；成功值为 `xfilechange`（`Size` 为新大小）。
@@ -674,6 +691,7 @@ xfuture* xrtAsyncFileResize(
 		!exampleWaitValue(&pFuture, xrtAsyncFileResize(pFile, 16u),
 			&pValue) ) {
 ```
+
 
 
 ## 整文件
@@ -726,6 +744,7 @@ xfuture* xrtFileReadAllAsync(
 ```
 
 
+
 ### `xrtFileReadAllLimitAsync`
 
 在硬上限内读取整个文件；文件超限时 Future 失败。
@@ -767,6 +786,7 @@ xfuture* xrtFileReadAllLimitAsync(
 	if ( !exampleWaitValue(&pFuture, xrtFileReadAllLimitAsync(pPool,
 			"xrt-async-whole.tmp", 64u), &pValue) ||
 ```
+
 
 
 ### `xrtFileWriteAllAsync`
@@ -813,6 +833,7 @@ xfuture* xrtFileWriteAllAsync(
 ```
 
 
+
 ### `xrtFileAppendAsync`
 
 复制输入并使用操作系统追加语义完整写入。
@@ -854,6 +875,7 @@ xfuture* xrtFileAppendAsync(
 			"xrt-async-tour.tmp",
 			(xbytesview) { (cbytes)"tail", 4u }), NULL) ) {
 ```
+
 
 
 ### `xrtFileWriteAtomicAsync`
@@ -899,6 +921,7 @@ xfuture* xrtFileWriteAtomicAsync(
 		XRT_BYTES_LITERAL("hello async whole file")
 	);
 ```
+
 
 
 ## 文件管理
@@ -949,6 +972,7 @@ xfuture* xrtFileCopyAsync(
 ```
 
 
+
 ### `xrtFileMoveAsync`
 
 在任务池线程中移动文件；成功 Future 没有值。
@@ -995,6 +1019,7 @@ xfuture* xrtFileMoveAsync(
 ```
 
 
+
 ### `xrtFileDeleteAsync`
 
 在任务池线程中删除文件；成功 Future 没有值。
@@ -1033,6 +1058,7 @@ xfuture* xrtFileDeleteAsync(
 ```c
 	pDelete = xrtFileDeleteAsync(pPool, sTarget);
 ```
+
 
 
 ## 目录
@@ -1081,6 +1107,7 @@ xfuture* xrtDirCreateAsync(
 ```
 
 
+
 ### `xrtDirCreateModeAsync`
 
 在任务池线程中使用显式 POSIX 模式创建一个目录；Windows 接受但忽略模式。
@@ -1124,6 +1151,7 @@ xfuture* xrtDirCreateModeAsync(
 ```
 
 
+
 ### `xrtDirCreateAllAsync`
 
 在任务池线程中使用平台默认模式创建全部缺失目录。
@@ -1163,6 +1191,7 @@ xfuture* xrtDirCreateAllAsync(
 		!exampleWaitValue(&pFuture, xrtDirCreateAllAsync(pPool,
 			"xrt-async-deep/a/b"), NULL) ||
 ```
+
 
 
 ### `xrtDirCreateAllModeAsync`
@@ -1208,6 +1237,7 @@ xfuture* xrtDirCreateAllModeAsync(
 ```
 
 
+
 ### `xrtDirRemoveAsync`
 
 在任务池线程中删除一个空目录。
@@ -1246,6 +1276,7 @@ xfuture* xrtDirRemoveAsync(
 ```c
 	pRemove = xrtDirRemoveAsync(pPool, sPath);
 ```
+
 
 
 ### `xrtDirEmptyAsync`
@@ -1287,6 +1318,7 @@ xfuture* xrtDirEmptyAsync(
 		!exampleWaitValue(&pFuture, xrtDirEmptyAsync(pPool,
 			"xrt-async-deep/a/b"), NULL) ) {
 ```
+
 
 
 ## 目录树
@@ -1350,6 +1382,7 @@ xfuture* xrtFileTreeCopyAsync(
 ```
 
 
+
 ### `xrtDirCopyAsync`
 
 常用目录复制；`bReplace` 为真时合并目录并替换冲突对象。成功值为源树统计。
@@ -1392,6 +1425,7 @@ xfuture* xrtDirCopyAsync(
 ```c
 	pCopy = xrtDirCopyAsync(pPool, sSource, sTarget, false);
 ```
+
 
 
 ### `xrtFileTreeRemoveAsync`
@@ -1437,6 +1471,7 @@ xfuture* xrtFileTreeRemoveAsync(
 ```
 
 
+
 ### `xrtDirRemoveAllAsync`
 
 递归删除目录及全部内容；成功值为处理统计。
@@ -1475,6 +1510,7 @@ xfuture* xrtDirRemoveAllAsync(
 ```c
 	pRemove = xrtDirRemoveAllAsync(pPool, sTarget);
 ```
+
 
 
 ### `xrtDirCleanAsync`
@@ -1516,6 +1552,7 @@ xfuture* xrtDirCleanAsync(
 	if ( !exampleWaitValue(&pFuture, xrtDirCleanAsync(pPool,
 			"xrt-async-deep-moved"), NULL) ) {
 ```
+
 
 
 ### `xrtDirMoveAsync`
@@ -1564,6 +1601,7 @@ xfuture* xrtDirMoveAsync(
 ```
 
 
+
 ### `xrtDirStatsAsync`
 
 异步统计目录树；成功值为 `xwalkstats`。
@@ -1605,6 +1643,7 @@ xfuture* xrtDirStatsAsync(
 	if ( !exampleWaitValue(&pFuture, xrtDirStatsAsync(pPool,
 			"xrt-async-dir", true), &pValue) ||
 ```
+
 
 
 ### `xrtDirSizeAsync`
@@ -1650,6 +1689,7 @@ xfuture* xrtDirSizeAsync(
 ```
 
 
+
 ### `xrtDirEnsureEmptyAsync`
 
 异步创建缺失目录，或清空已有目录并保留根；成功 Future 没有值。
@@ -1687,6 +1727,7 @@ xfuture* xrtDirEnsureEmptyAsync(
 	if ( !exampleWaitValue(&pFuture, xrtDirEnsureEmptyAsync(pPool,
 			"xrt-async-dir"), NULL) ||
 ```
+
 
 ## 取消
 

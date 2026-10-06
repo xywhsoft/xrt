@@ -210791,7 +210791,7 @@ __xrtRsaModDivide(uint32 *x, const uint32 *y, const uint32 *m, uint32 m0i,
 			 * iteration, thus a division by 2 really is a
 			 * non-multiplication by 2.
 			 */
-			uint32 r, oa, ob, cAB, cBA, cA;
+			uint32 compare, oa, ob, cAB, cBA, cA;
 			uint64 rz;
 
 			/*
@@ -210800,7 +210800,7 @@ __xrtRsaModDivide(uint32 *x, const uint32 *y, const uint32 *m, uint32 m0i,
 			 * so we inline a 64-bit version here.
 			 */
 			rz = b_hi - a_hi;
-			r = (uint32)((rz ^ ((a_hi ^ b_hi)
+			compare = (uint32)((rz ^ ((a_hi ^ b_hi)
 				& (a_hi ^ rz))) >> 63);
 
 			/*
@@ -210815,19 +210815,19 @@ __xrtRsaModDivide(uint32 *x, const uint32 *y, const uint32 *m, uint32 m0i,
 			 */
 			oa = (a_lo >> i) & 1;
 			ob = (b_lo >> i) & 1;
-			cAB = oa & ob & r;
-			cBA = oa & ob & __xrtI31Not(r);
+			cAB = oa & ob & compare;
+			cBA = oa & ob & __xrtI31Not(compare);
 			cA = cAB | __xrtI31Not(oa);
 
 			/*
 			 * Conditional subtractions.
 			 */
-			a_lo -= b_lo & -cAB;
-			a_hi -= b_hi & -(uint64)cAB;
+			a_lo -= b_lo & (0u - cAB);
+			a_hi -= b_hi & (UINT64_C(0) - (uint64)cAB);
 			pa -= qa & -(int64)cAB;
 			pb -= qb & -(int64)cAB;
-			b_lo -= a_lo & -cBA;
-			b_hi -= a_hi & -(uint64)cBA;
+			b_lo -= a_lo & (0u - cBA);
+			b_hi -= a_hi & (UINT64_C(0) - (uint64)cBA);
 			qa -= pa & -(int64)cBA;
 			qb -= pb & -(int64)cBA;
 
@@ -210837,8 +210837,8 @@ __xrtRsaModDivide(uint32 *x, const uint32 *y, const uint32 *m, uint32 m0i,
 			a_lo += a_lo & (cA - 1);
 			pa += pa & ((int64)cA - 1);
 			pb += pb & ((int64)cA - 1);
-			a_hi ^= (a_hi ^ (a_hi >> 1)) & -(uint64)cA;
-			b_lo += b_lo & -cA;
+			a_hi ^= (a_hi ^ (a_hi >> 1)) & (UINT64_C(0) - (uint64)cA);
+			b_lo += b_lo & (0u - cA);
 			qa += qa & -(int64)cA;
 			qb += qb & -(int64)cA;
 			b_hi ^= (b_hi ^ (b_hi >> 1)) & ((uint64)cA - 1);

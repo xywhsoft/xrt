@@ -18,6 +18,7 @@ typedef struct xid {
 |---|---|---|
 | `Data` | `uint8[12]` | 24 字节 XID（4 字节时间 + 20 字节随机） |
 
+
 ### `xiderror`
 
 XID 文本解析错误使用稳定域 xrt.xid。
@@ -31,6 +32,7 @@ typedef enum xiderror {
 | 值 | 语义 |
 |---|---|
 | `XID_ERROR_FORMAT` | 文本格式非法 |
+
 
 ## 模块
 
@@ -108,6 +110,7 @@ bool xrtXidMake(xid* pXid)
 		 !xrtXidTime(&Parsed, &iTime) ) {
 ```
 
+
 ### `xrtXidMakeMany`
 
 批量生成 XID，一次取得整批安全随机字节以降低系统调用成本。
@@ -142,6 +145,7 @@ bool xrtXidMakeMany(xid* pXids, size_t iCount)
 ```c
 	if ( !xrtXidMakeMany(Values, 4u) || xrtXidIsZero(&Values[0]) ) {
 ```
+
 
 ## 文本
 
@@ -191,6 +195,7 @@ str xrtXidMakeString(void)
 	sGenerated = xrtXidMakeString();
 ```
 
+
 ### `xrtXidWrite`
 
 把 XID 写为 32 字符有序 URL-safe 文本，并在末尾补零。
@@ -227,6 +232,7 @@ bool xrtXidWrite(const xid* pXid, char* sOutput, size_t iCapacity)
 		 !xrtXidWrite(&Value, arrText, sizeof(arrText)) ||
 ```
 
+
 ### `xrtXidFormat`
 
 创建由 `xrtFree` 释放的 XID 文本。
@@ -260,6 +266,7 @@ str xrtXidFormat(const xid* pXid)
 ```c
 	sFormatted = xrtXidFormat(&Values[0]);
 ```
+
 
 ### `xrtXidParse`
 
@@ -296,6 +303,7 @@ bool xrtXidParse(xstrview Text, xid* pXid)
 		 !xrtXidParse((xstrview){ arrText, XID_TEXT_SIZE }, &Parsed) ||
 ```
 
+
 ### `xrtXidErrorOffset`
 
 从 `xrt.xid` 格式错误的机器数据中读取文本字节位置。
@@ -330,6 +338,7 @@ bool xrtXidErrorOffset(const xerror* pError, size_t* pOffset)
 ```c
 		 !xrtXidErrorOffset(xrtGetError(), &iOffset) ||
 ```
+
 
 ## 时间与比较
 
@@ -371,6 +380,7 @@ bool xrtXidTime(const xid* pXid, xtime* pTime)
 		 !xrtXidTime(&Parsed, &iTime) ) {
 ```
 
+
 ### `xrtXidCompare`
 
 按时间前缀和随机后缀执行三态字典序比较。
@@ -403,6 +413,7 @@ int xrtXidCompare(const xid* pLeft, const xid* pRight)
 ```c
 	printf("batch order: %d\n", xrtXidCompare(&Values[0], &Values[1]));
 ```
+
 
 ### `xrtXidEqual`
 
@@ -438,6 +449,7 @@ bool xrtXidEqual(const xid* pLeft, const xid* pRight)
 		 ) || !xrtXidEqual(&Values[0], &Parsed) ||
 ```
 
+
 ### `xrtXidIsZero`
 
 判断 XID 是否为全零值。
@@ -470,6 +482,7 @@ bool xrtXidIsZero(const xid* pXid)
 ```c
 	if ( !xrtXidMakeMany(Values, 4u) || xrtXidIsZero(&Values[0]) ) {
 ```
+
 
 ## 示例
 

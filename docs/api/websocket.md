@@ -32,6 +32,7 @@ typedef enum xwsopcode {
 | `XWS_OPCODE_PING` | Ping（0x9） |
 | `XWS_OPCODE_PONG` | Pong（0xA） |
 
+
 ### `xwsframeflag`
 
 帧标志使用逻辑位，调用方不需要了解线路字节布局。
@@ -54,6 +55,7 @@ typedef enum xwsframeflag {
 | `XWS_FRAME_RSV2` | RSV2（保留） |
 | `XWS_FRAME_RSV3` | RSV3（保留） |
 
+
 ### `xwsmaskpolicy`
 
 接收方向使用角色对应的掩码策略，ANY 仅适合协议工具和中间层。
@@ -72,6 +74,7 @@ typedef enum xwsmaskpolicy {
 | `XWS_MASK_REQUIRED` | 必须掩码（客户端） |
 | `XWS_MASK_FORBIDDEN` | 禁止掩码（服务端） |
 
+
 ### `xwsframestatus`
 
 帧头解析只区分协议错误、数据不足和头部就绪。
@@ -89,6 +92,7 @@ typedef enum xwsframestatus {
 | `XWS_FRAME_ERROR` | 失败 |
 | `XWS_FRAME_MORE` | 需要更多输入 |
 | `XWS_FRAME_READY` | 已解析完整帧 |
+
 
 ### `xwsframeerror`
 
@@ -120,6 +124,7 @@ typedef enum xwsframeerror {
 | `XWS_FRAME_ERROR_CLOSE` | 失败 |
 | `XWS_FRAME_ERROR_OUTPUT` | 输出回调失败 |
 
+
 ### `xwsframeconfig`
 
 帧配置不持有资源；AllowedRsv 使用 XWS_FRAME_RSV* 位。 AllowedOpcodes 的第 n 位表示是否允许操作码 n。
@@ -140,6 +145,7 @@ typedef struct xwsframeconfig {
 | `AllowedRsv` | `uint16` | AllowedRsv |
 | `Mask` | `xwsmaskpolicy` | Mask |
 
+
 ### `xwsframeerrorinfo`
 
 错误位置从帧头首字节开始计数。
@@ -155,6 +161,7 @@ typedef struct xwsframeerrorinfo {
 |---|---|---|
 | `Code` | `xwsframeerror` | 错误码 |
 | `Offset` | `size_t` | 偏移量 |
+
 
 ### `xwsframe`
 
@@ -176,6 +183,7 @@ typedef struct xwsframe {
 | `Opcode` | `uint8` | Opcode |
 | `PayloadSize` | `uint64` | PayloadSize |
 | `HeadSize` | `size_t` | HeadSize |
+
 
 ### `xwsclosecode`
 
@@ -219,6 +227,7 @@ typedef enum xwsclosecode {
 | `XWS_CLOSE_BAD_GATEWAY` | 1014 网关错误 |
 | `XWS_CLOSE_TLS` | TLS 关闭 |
 
+
 ### `xwscloseerror`
 
 Close 负载错误区分参数、协议状态码、UTF-8、长度和输出容量。
@@ -241,6 +250,7 @@ typedef enum xwscloseerror {
 | `XWS_CLOSE_ERROR_UTF8` | 失败 |
 | `XWS_CLOSE_ERROR_OUTPUT` | 写出失败 |
 
+
 ### `xwsclose`
 
 关闭原因直接借用原始负载；Code 为零表示负载为空。 结构不拥有内存，也不会把本地合成的 1005 写回线路。
@@ -256,6 +266,7 @@ typedef struct xwsclose {
 |---|---|---|
 | `Code` | `uint16` | 错误码 |
 | `Reason` | `xstrview` | 原因文本 |
+
 
 ### `xwsmessageflag`
 
@@ -278,6 +289,7 @@ typedef enum xwsmessageflag {
 | `XWS_MESSAGE_CONTROL` | 纯消息 |
 | `XWS_MESSAGE_EXTENDED` | 纯消息 |
 | `XWS_MESSAGE_COMPRESSED` | 消息已压缩 |
+
 
 ### `xwsmessageerror`
 
@@ -311,6 +323,7 @@ typedef enum xwsmessageerror {
 | `XWS_MESSAGE_ERROR_UTF8` | 失败 |
 | `XWS_MESSAGE_ERROR_CLOSE` | 失败即关闭 |
 
+
 ### `xwsmessageconfig`
 
 MaxSize 限制扩展解码后的单条消息字节数；零表示只允许空消息。 三个 RSV 位图分别描述扩展允许在哪类帧上出现，默认全部禁止。
@@ -332,6 +345,7 @@ typedef struct xwsmessageconfig {
 | `ContinuationRsv` | `uint16` | ContinuationRsv |
 | `ControlRsv` | `uint16` | ControlRsv |
 | `ValidateText` | `bool` | ValidateText |
+
 
 ### `xwsmessageinfo`
 
@@ -357,6 +371,7 @@ typedef struct xwsmessageinfo {
 | `PayloadSize` | `uint64` | PayloadSize |
 | `Offset` | `size_t` | 偏移量 |
 
+
 ### `xwsmessageerrorinfo`
 
 可选错误详情给出消息内偏移和须回发给对端的 Close 状态码。
@@ -374,6 +389,7 @@ typedef struct xwsmessageerrorinfo {
 | `Code` | `xwsmessageerror` | 错误码 |
 | `CloseCode` | `uint16` | CloseCode |
 | `Offset` | `size_t` | 偏移量 |
+
 
 ### `xwsmessagestate`
 
@@ -422,6 +438,7 @@ typedef struct xwsmessagestate {
 | `Failed` | `bool` | Failed |
 | `Closed` | `bool` | Closed |
 
+
 ### `xwshandshakeerror`
 
 握手错误码覆盖纯协议工具和后续 HTTP/1.1 Upgrade 层。
@@ -464,6 +481,7 @@ typedef enum xwshandshakeerror {
 | `XWS_HANDSHAKE_ERROR_OUTPUT` | 输出失败 |
 | `XWS_HANDSHAKE_ERROR_RANDOM` | 随机源失败 |
 
+
 ### `xwsrole`
 
 本地端点角色同时用于协议方向、掩码规则和扩展协商。
@@ -480,6 +498,7 @@ typedef enum xwsrole {
 | `XWS_ROLE_CLIENT` | XWSROLE客户端角色 |
 | `XWS_ROLE_SERVER` | 服务端角色 |
 
+
 ### `xwsextension`
 
 扩展名称和参数段都借用 Sec-WebSocket-Extensions 原字段值。 Parameters 不包含名称后的第一个分号，空视图表示没有参数。
@@ -495,6 +514,7 @@ typedef struct xwsextension {
 |---|---|---|
 | `Name` | `xstrview` | 名称 |
 | `Parameters` | `xstrview` | Parameters |
+
 
 ### `xwsdeflateflag`
 
@@ -517,6 +537,7 @@ typedef enum xwsdeflateflag {
 | `XWS_DEFLATE_SERVER_MAX_WINDOW` | 服务端角色上限WINDOW |
 | `XWS_DEFLATE_CLIENT_MAX_WINDOW` | 客户端角色上限WINDOW |
 | `XWS_DEFLATE_CLIENT_MAX_WINDOW_ANY` | 接受任意窗口 |
+
 
 ### `xwsdeflateerror`
 
@@ -554,6 +575,7 @@ typedef enum xwsdeflateerror {
 | `XWS_DEFLATE_ERROR_LIMIT` | 超限 |
 | `XWS_DEFLATE_ERROR_CODEC` | 压缩流损坏 |
 
+
 ### `xwsdeflate`
 
 配置不持有资源；Flags 表达参数是否存在。 窗口参数未出现，或 offer 的 client 窗口省略值时，对应字段保持 15。
@@ -572,6 +594,7 @@ typedef struct xwsdeflate {
 | `ServerMaxWindowBits` | `uint8` | ServerMaxWindowBits |
 | `ClientMaxWindowBits` | `uint8` | ClientMaxWindowBits |
 
+
 ### `xwsdeflatedirection`
 
 单向运行参数不持有资源，也不混淆客户端与服务端参数名。
@@ -587,6 +610,7 @@ typedef struct xwsdeflatedirection {
 |---|---|---|
 | `WindowBits` | `uint8` | WindowBits |
 | `NoContextTakeover` | `bool` | NoContextTakeover |
+
 
 ### `xwsinflaterconfig`
 
@@ -607,6 +631,7 @@ typedef struct xwsinflaterconfig {
 | `WindowBits` | `uint8` | WindowBits |
 | `NoContextTakeover` | `bool` | NoContextTakeover |
 | `Retain` | `bool` | Retain |
+
 
 ### `xwsdeflaterconfig`
 
@@ -632,6 +657,7 @@ typedef struct xwsdeflaterconfig {
 | `NoContextTakeover` | `bool` | NoContextTakeover |
 | `Retain` | `bool` | Retain |
 
+
 ### `xwsinflater`
 
 接收变换对象按需创建底层 Inflate，不缓存线路或解码后消息。
@@ -641,6 +667,7 @@ typedef struct xwsinflater xwsinflater;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xwsdeflater`
 
@@ -652,6 +679,7 @@ typedef struct xwsdeflater xwsdeflater;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xwsoutputproc`
 
 WebSocket 压缩变换的输出视图只在同步回调期间有效。
@@ -661,6 +689,7 @@ typedef bool (*xwsoutputproc)(xbytesview Data, ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xwsstreamstate`
 
@@ -679,6 +708,7 @@ typedef enum xwsstreamstate {
 | `XWS_STREAM_OPEN` | OPEN |
 | `XWS_STREAM_CLOSING` | 关闭中 |
 | `XWS_STREAM_CLOSED` | 已关闭 |
+
 
 ### `xwsstreamerror`
 
@@ -714,6 +744,7 @@ typedef enum xwsstreamerror {
 | `XWS_STREAM_ERROR_TRANSPORT` | 失败 |
 | `XWS_STREAM_ERROR_TIMEOUT` | 超时 |
 
+
 ### `xwsstreamcloseflag`
 
 Close 标志描述本地、远端和 RFC 6455 完整关闭结果。
@@ -733,6 +764,7 @@ typedef enum xwsstreamcloseflag {
 | `XWS_STREAM_CLOSE_RECEIVED` | RECEIVED |
 | `XWS_STREAM_CLOSE_CLEAN` | CLEAN |
 | `XWS_STREAM_CLOSE_REMOTE` | 对端发起关闭 |
+
 
 ### `xwsstreamconfig`
 
@@ -770,6 +802,7 @@ typedef struct xwsstreamconfig {
 | `Deflater` | `xwsdeflaterconfig` | Deflater |
 | `DeflateEnabled` | `bool` | DeflateEnabled |
 
+
 ### `xwsstreamclose`
 
 Reason 借用 Stream 内部不可变副本，至少保持到 Stream 销毁。
@@ -791,6 +824,7 @@ typedef struct xwsstreamclose {
 | `LocalCode` | `uint16` | LocalCode |
 | `RemoteCode` | `uint16` | RemoteCode |
 | `Reason` | `xstrview` | 原因文本 |
+
 
 ### `xwsstreamevents`
 
@@ -854,6 +888,7 @@ typedef struct xwsstreamevents {
 | `Drain` | `void (*Drain)(xwsstream* pStream, ptr pData)` | 发送队列排空 |
 | `Close` | `void (*Close)( xwsstream* pStream, const xwsstreamclose* pClose, ptr pData )` | 流关闭（含 Close 帧信息） |
 
+
 ### `xwsstream`
 
 WebSocket 流对象（不透明）：组合传输上的帧/消息层，绑定所属 Worker。
@@ -864,6 +899,7 @@ typedef struct xwsstream xwsstream;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xwsupgradeserverconfig`
 
@@ -887,6 +923,7 @@ typedef struct xwsupgradeserverconfig {
 | `EnableDeflate` | `bool` | EnableDeflate |
 | `RequireDeflate` | `bool` | RequireDeflate |
 
+
 ### `xwsupgradeclientconfig`
 
 客户端配置保存本次实际发出的子协议和压缩 offer。
@@ -906,6 +943,7 @@ typedef struct xwsupgradeclientconfig {
 | `Deflate` | `xwsdeflate` | Deflate |
 | `EnableDeflate` | `bool` | EnableDeflate |
 | `RequireDeflate` | `bool` | RequireDeflate |
+
 
 ### `xwsupgrade`
 
@@ -929,6 +967,7 @@ typedef struct xwsupgrade {
 | `ExtensionSize` | `size_t` | ExtensionSize |
 | `DeflateEnabled` | `bool` | DeflateEnabled |
 
+
 ### `xwsupgradeacceptproc`
 
 服务端压缩策略返回 true 表示接受并写回 Response。 返回 false 且不设置错误表示主动放弃，设置错误表示协商失败。
@@ -942,6 +981,7 @@ typedef bool (*xwsupgradeacceptproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -1038,6 +1078,7 @@ void xrtWsFrameConfigInit(xwsframeconfig* pConfig)
 	xrtWsFrameConfigInit(&Config);
 ```
 
+
 ### `xrtWsFrameInit`
 
 把帧结构初始化为可复用状态。
@@ -1069,6 +1110,7 @@ void xrtWsFrameInit(xwsframe* pFrame)
 ```c
 	xrtWsFrameInit(&Frame);
 ```
+
 
 ### `xrtWsFrameParse`
 
@@ -1111,6 +1153,7 @@ xwsframestatus xrtWsFrameParse(xbytesview Input, xwsframe* pFrame, const xwsfram
 	) != XWS_FRAME_READY ) {
 ```
 
+
 ### `xrtWsFrameWrite`
 
 把帧头按配置写入输出缓冲。
@@ -1152,6 +1195,7 @@ bool xrtWsFrameWrite(const xwsframe* pFrame, const xwsframeconfig* pConfig, void
 	) ) {
 ```
 
+
 ### `xrtWsMask`
 
 按偏移连续应用四字节掩码。
@@ -1188,6 +1232,7 @@ bool xrtWsMask(void* pData, size_t iSize, const uint8 pMask[XWS_MASK_SIZE], uint
 	if ( !xrtWsMask(Payload, sizeof(Payload), Mask, 0) ) {
 ```
 
+
 ### `xrtWsMessageConfigInit`
 
 初始化消息重组的默认配置。
@@ -1220,6 +1265,7 @@ void xrtWsMessageConfigInit(xwsmessageconfig* pConfig)
 	xrtWsMessageConfigInit(&MsgConfig);
 ```
 
+
 ### `xrtWsMessageConfigInitSafe`
 
 初始化更严格上限的安全消息配置。
@@ -1251,6 +1297,7 @@ void xrtWsMessageConfigInitSafe(xwsmessageconfig* pConfig)
 ```c
 	xrtWsMessageConfigInitSafe(&MsgSafe);
 ```
+
 
 ### `xrtWsMessageInit`
 
@@ -1285,6 +1332,7 @@ bool xrtWsMessageInit(xwsmessagestate* pState, const xwsmessageconfig* pConfig)
 ```c
 	(void)xrtWsMessageInit(&MsgState, &MsgConfig);
 ```
+
 
 ### `xrtWsMessageFrameBegin`
 
@@ -1330,6 +1378,7 @@ bool xrtWsMessageFrameBegin(xwsmessagestate* pState, const xwsframe* pFrame, xws
 		!xrtWsMessageFrameEnd(&State, NULL) ) {
 ```
 
+
 ### `xrtWsMessagePayload`
 
 把帧载荷字节数计入消息状态。
@@ -1370,6 +1419,7 @@ bool xrtWsMessagePayload(xwsmessagestate* pState, xbytesview Payload, xwsmessage
 		) ||
 ```
 
+
 ### `xrtWsMessageFrameEnd`
 
 结束当前帧并推进重组状态。
@@ -1405,6 +1455,7 @@ bool xrtWsMessageFrameEnd(xwsmessagestate* pState, xwsmessageerrorinfo* pError)
 		!xrtWsMessageFrameEnd(&State, NULL) ) {
 ```
 
+
 ### `xrtWsMessageReset`
 
 重置消息重组状态以便复用。
@@ -1436,6 +1487,7 @@ void xrtWsMessageReset(xwsmessagestate* pState)
 ```c
 	xrtWsMessageReset(&MsgState);  /* 复位后可复用于新连接 */
 ```
+
 
 ## 轻量 Stream
 
@@ -1520,6 +1572,7 @@ bool xrtWsKeyGenerate(char* sKey, size_t iCapacity)
 			XRT_STR_LITERAL("GET"),
 ```
 
+
 ### `xrtWsKeyValid`
 
 校验 Sec-WebSocket-Key 形态。
@@ -1559,6 +1612,7 @@ bool xrtWsKeyValid(xstrview Key)
 		xrtWsCloseCodeValid(999u) ||
 		xrtWsCloseCodeValid(1005u) ) {
 ```
+
 
 ### `xrtWsAccept`
 
@@ -1600,6 +1654,7 @@ bool xrtWsAccept(xstrview Key, char* sAccept, size_t iCapacity)
 	) ) {
 ```
 
+
 ### `xrtWsAcceptValid`
 
 校验服务端 Accept 值与密钥匹配。
@@ -1634,6 +1689,7 @@ bool xrtWsAcceptValid(xstrview Key, xstrview Accept)
 		!xrtWsAcceptValid(SV(EXAMPLE_KEY), SV(EXAMPLE_ACCEPT)) ||
 ```
 
+
 ### `xrtWsCloseCodeValid`
 
 判断关闭码是否在协议允许范围内。
@@ -1666,6 +1722,7 @@ bool xrtWsCloseCodeValid(uint16 iCode)
 ```c
 		!xrtWsCloseCodeValid(1000u) ||
 ```
+
 
 ### `xrtWsCloseParse`
 
@@ -1701,6 +1758,7 @@ bool xrtWsCloseParse(xbytesview Payload, xwsclose* pClose)
 ```c
 	if ( !xrtWsCloseParse(Input, &Close) ) {
 ```
+
 
 ### `xrtWsCloseWrite`
 
@@ -1747,6 +1805,7 @@ bool xrtWsCloseWrite(uint16 iCode, xstrview Reason, void* pOutput, size_t iCapac
 	) ) {
 ```
 
+
 ### `xrtWsProtocolNext`
 
 遍历逗号分隔的子协议列表。
@@ -1784,6 +1843,7 @@ xhttpnext xrtWsProtocolNext(xstrview Protocols, size_t* pOffset, xstrview* pProt
 	while ( xrtWsProtocolNext(SV("chat, superchat"), &iOffset,
 			&Protocol) == XHTTP_NEXT_ITEM ) {
 ```
+
 
 ### `xrtWsProtocolSelect`
 
@@ -1825,6 +1885,7 @@ bool xrtWsProtocolSelect(xstrview ClientProtocols, xstrview ServerProtocols, xst
 	) ) {
 ```
 
+
 ### `xrtWsProtocolsHas`
 
 判断列表是否包含指定子协议。
@@ -1858,6 +1919,7 @@ bool xrtWsProtocolsHas(xstrview Protocols, xstrview Protocol)
 ```c
 		!xrtWsProtocolsHas(SV("chat, superchat"), SV("superchat")) ||
 ```
+
 
 ### `xrtWsProtocolsValid`
 
@@ -1894,6 +1956,7 @@ bool xrtWsProtocolsValid(xstrview Protocols)
 		!xrtWsProtocolsHas(SV("chat, superchat"), SV("superchat")) ||
 		xrtWsProtocolsHas(SV("chat"), SV("super")) ) {
 ```
+
 
 ### `xrtWsExtensionCount`
 
@@ -1937,6 +2000,7 @@ bool xrtWsExtensionCount(xstrview Extensions, size_t* pCount)
 		(iSize >= sizeof(ExtText)) ) {
 ```
 
+
 ### `xrtWsExtensionNext`
 
 遍历扩展列表中的下一个扩展。
@@ -1977,6 +2041,7 @@ xhttpnext xrtWsExtensionNext(xstrview Extensions, size_t* pOffset, xwsextension*
 		&Extension
 	) != XHTTP_NEXT_ITEM ) {
 ```
+
 
 ### `xrtWsExtensionParamNext`
 
@@ -2019,6 +2084,7 @@ xhttpnext xrtWsExtensionParamNext(const xwsextension* pExtension, size_t* pOffse
 		) == XHTTP_NEXT_ITEM ) {
 ```
 
+
 ### `xrtWsExtensionWrite`
 
 把扩展名与参数写为列表片段。
@@ -2059,6 +2125,7 @@ bool xrtWsExtensionWrite(xstrview Name, xstrview Parameters, void* pOutput, size
 			SV("client_max_window_bits=12"),
 			ExtText, sizeof(ExtText), &iSize) ||
 ```
+
 
 ## 握手与扩展
 
@@ -2113,6 +2180,7 @@ void xrtWsUpgradeClientConfigInit(xwsupgradeclientconfig* pConfig)
 	xrtWsUpgradeClientConfigInit(&ClientConfig);
 ```
 
+
 ### `xrtWsUpgradeClientConfigValid`
 
 校验客户端升级配置自洽。
@@ -2150,6 +2218,7 @@ bool xrtWsUpgradeClientConfigValid(const xwsupgradeclientconfig* pConfig)
 			&(xwsupgradeclientconfig) { 0 }) ) {
 ```
 
+
 ### `xrtWsUpgradeServerConfigInit`
 
 初始化服务端升级默认配置。
@@ -2181,6 +2250,7 @@ void xrtWsUpgradeServerConfigInit(xwsupgradeserverconfig* pConfig)
 ```c
 	xrtWsUpgradeServerConfigInit(&ServerConfig);
 ```
+
 
 ### `xrtWsUpgradeServerConfigValid`
 
@@ -2214,6 +2284,7 @@ bool xrtWsUpgradeServerConfigValid(const xwsupgradeserverconfig* pConfig)
 ```c
 		!xrtWsUpgradeServerConfigValid(&ServerConfig) ||
 ```
+
 
 ### `xrtWsUpgradeRequestCheck`
 
@@ -2252,6 +2323,7 @@ bool xrtWsUpgradeRequestCheck(const xhttp1head* pRequest, const xwsupgradeserver
 			!xrtWsUpgradeRequestCheck(&Head, &ServerConfig,
 				&Upgrade) ) {
 ```
+
 
 ### `xrtWsUpgradeRequestFields`
 
@@ -2304,6 +2376,7 @@ bool xrtWsUpgradeRequestFields(xstrview Host, xstrview Key, xstrview Protocols, 
 			XRT_STR_LITERAL("/socket"),
 ```
 
+
 ### `xrtWsUpgradeResponseCheck`
 
 校验服务端 101 响应与密钥匹配并产出协商结果。
@@ -2342,6 +2415,7 @@ bool xrtWsUpgradeResponseCheck(const xhttp1head* pResponse, xstrview Key, const 
 				(xstrview) { arrKey, strlen(arrKey) },
 				&ClientConfig, &ClientUpgrade) ||
 ```
+
 
 ### `xrtWsUpgradeResponseFields`
 
@@ -2391,6 +2465,7 @@ bool xrtWsUpgradeResponseFields(xstrview Accept, xstrview Protocol, xstrview Ext
 			iCount)) == 0u) ) {
 ```
 
+
 ### `xrtWsUpgradeStreamConfig`
 
 把协商结果转换为对应角色的流配置。
@@ -2426,6 +2501,7 @@ bool xrtWsUpgradeStreamConfig(xwsstreamconfig* pConfig, xwsrole Role, const xwsu
 	if ( !xrtWsUpgradeStreamConfig(&StreamConfig, XWS_ROLE_CLIENT,
 			&ClientUpgrade) ) {
 ```
+
 
 ## permessage-deflate
 
@@ -2475,6 +2551,7 @@ void xrtWsDeflateInit(xwsdeflate* pConfig)
 	(void)xrtWsDeflateInit(&Offer);
 ```
 
+
 ### `xrtWsDeflateIs`
 
 判断扩展是否为 permessage-deflate。
@@ -2507,6 +2584,7 @@ bool xrtWsDeflateIs(const xwsextension* pExtension)
 ```c
 	if ( !xrtWsDeflateIs(&Extension) ) {
 ```
+
 
 ### `xrtWsDeflateOfferParse`
 
@@ -2553,6 +2631,7 @@ bool xrtWsDeflateOfferParse(const xwsextension* pExtension, xwsdeflate* pOffer)
 		&iSize
 ```
 
+
 ### `xrtWsDeflateOfferWrite`
 
 把提议参数写为扩展列表片段。
@@ -2593,6 +2672,7 @@ bool xrtWsDeflateOfferWrite(const xwsdeflate* pOffer, void* pOutput, size_t iCap
 			sizeof(OfferText), &iSize) ) {
 ```
 
+
 ### `xrtWsDeflateResponseParse`
 
 解析服务端响应参数。
@@ -2628,6 +2708,7 @@ bool xrtWsDeflateResponseParse(const xwsextension* pExtension, xwsdeflate* pResp
 		if ( !xrtWsDeflateResponseParse(&RespExt, &Parsed) ||
 			(Parsed.ServerMaxWindowBits != 10u) ) {
 ```
+
 
 ### `xrtWsDeflateResponseWrite`
 
@@ -2666,6 +2747,7 @@ bool xrtWsDeflateResponseWrite(const xwsdeflate* pResponse, void* pOutput, size_
 	) || !xrtWsDeflateResponseWrite(
 ```
 
+
 ### `xrtWsDeflateResponseCheck`
 
 校验服务端响应与客户端提议兼容。
@@ -2701,6 +2783,7 @@ bool xrtWsDeflateResponseCheck(const xwsdeflate* pOffer, const xwsdeflate* pResp
 	if ( !xrtWsDeflateResponseCheck(&Offer, &Response) ) {
 ```
 
+
 ### `xrtWsDeflateAccept`
 
 按提议生成兼容的服务端响应参数。
@@ -2735,6 +2818,7 @@ bool xrtWsDeflateAccept(const xwsdeflate* pOffer, xwsdeflate* pResponse)
 ```c
 	) || !xrtWsDeflateAccept(
 ```
+
 
 ### `xrtWsDeflateDirection`
 
@@ -2777,6 +2861,7 @@ bool xrtWsDeflateDirection(const xwsdeflate* pResponse, xwsrole Role, bool bSend
 		(RecvDir.WindowBits != 15u) ) {
 ```
 
+
 ### `xrtWsDeflaterConfigInit`
 
 初始化压缩器默认配置。
@@ -2808,6 +2893,7 @@ void xrtWsDeflaterConfigInit(xwsdeflaterconfig* pConfig)
 ```c
 	xrtWsDeflaterConfigInit(&Config);
 ```
+
 
 ### `xrtWsDeflaterConfigApply`
 
@@ -2844,6 +2930,7 @@ bool xrtWsDeflaterConfigApply(xwsdeflaterconfig* pConfig, const xwsdeflatedirect
 		!xrtWsDeflaterConfigApply(&DeflaterConfig, &SendDir) ) {
 ```
 
+
 ### `xrtWsDeflaterCreate`
 
 创建 permessage-deflate 压缩器。
@@ -2879,6 +2966,7 @@ xwsdeflater* xrtWsDeflaterCreate(const xwsdeflaterconfig* pConfig)
 	pDeflater = xrtWsDeflaterCreate(&Config);
 ```
 
+
 ### `xrtWsDeflaterDestroy`
 
 销毁压缩器及其上下文。
@@ -2910,6 +2998,7 @@ void xrtWsDeflaterDestroy(xwsdeflater* pDeflater)
 ```c
 		xrtWsDeflaterDestroy(pDeflater);
 ```
+
 
 ### `xrtWsDeflaterReset`
 
@@ -2945,6 +3034,7 @@ bool xrtWsDeflaterReset(xwsdeflater* pDeflater, const xwsdeflaterconfig* pConfig
 		!xrtWsDeflaterReset(pDeflater, &DeflaterConfig) ) {
 ```
 
+
 ### `xrtWsDeflaterBegin`
 
 开始一条（可压缩）消息。
@@ -2978,6 +3068,7 @@ bool xrtWsDeflaterBegin(xwsdeflater* pDeflater, bool bCompressed)
 ```c
 		!xrtWsDeflaterBegin(pDeflater, true) ||
 ```
+
 
 ### `xrtWsDeflaterWrite`
 
@@ -3022,6 +3113,7 @@ bool xrtWsDeflaterWrite(xwsdeflater* pDeflater, xbytesview Input, xwsoutputproc 
 		) ||
 ```
 
+
 ### `xrtWsDeflaterFlush`
 
 冲刷当前块并同步可用输出。
@@ -3057,6 +3149,7 @@ bool xrtWsDeflaterFlush(xwsdeflater* pDeflater, xwsoutputproc pOutput, ptr pData
 ```c
 		!xrtWsDeflaterFlush(pDeflater, exampleCollect, &Sink) ||
 ```
+
 
 ### `xrtWsDeflaterEnd`
 
@@ -3098,6 +3191,7 @@ bool xrtWsDeflaterEnd(xwsdeflater* pDeflater, xwsoutputproc pOutput, ptr pData)
 		) ) {
 ```
 
+
 ### `xrtWsDeflaterAbort`
 
 丢弃未完成消息的压缩状态。
@@ -3131,6 +3225,7 @@ bool xrtWsDeflaterAbort(xwsdeflater* pDeflater)
 	if ( !xrtWsDeflaterAbort(pDeflater) ) {
 ```
 
+
 ### `xrtWsDeflaterSize`
 
 返回压缩器累计输出字节数。
@@ -3163,6 +3258,7 @@ uint64 xrtWsDeflaterSize(const xwsdeflater* pDeflater)
 	if ( (xrtWsDeflaterSize(pDeflater) == 0u) ||
 		(xrtWsDeflaterSize(pDeflater) != (uint64)Sink.Size) ) {
 ```
+
 
 ### `xrtWsDeflaterBound`
 
@@ -3198,6 +3294,7 @@ bool xrtWsDeflaterBound(size_t iInputSize, size_t* pOutputSize)
 		!xrtWsDeflaterBound(64u, &iBound) ||
 ```
 
+
 ### `xrtWsInflaterConfigInit`
 
 初始化解压器默认配置。
@@ -3229,6 +3326,7 @@ void xrtWsInflaterConfigInit(xwsinflaterconfig* pConfig)
 ```c
 	(void)xrtWsInflaterConfigInit(&InflaterConfig);
 ```
+
 
 ### `xrtWsInflaterConfigApply`
 
@@ -3266,6 +3364,7 @@ bool xrtWsInflaterConfigApply(xwsinflaterconfig* pConfig, const xwsdeflatedirect
 		!xrtWsDeflaterConfigApply(&DeflaterConfig, &SendDir) ) {
 ```
 
+
 ### `xrtWsInflaterCreate`
 
 创建 permessage-deflate 解压器。
@@ -3301,6 +3400,7 @@ xwsinflater* xrtWsInflaterCreate(const xwsinflaterconfig* pConfig)
 	pInflater = xrtWsInflaterCreate(&InflaterConfig);
 ```
 
+
 ### `xrtWsInflaterDestroy`
 
 销毁解压器及其上下文。
@@ -3332,6 +3432,7 @@ void xrtWsInflaterDestroy(xwsinflater* pInflater)
 ```c
 	xrtWsInflaterDestroy(pInflater);
 ```
+
 
 ### `xrtWsInflaterReset`
 
@@ -3368,6 +3469,7 @@ bool xrtWsInflaterReset(xwsinflater* pInflater, const xwsinflaterconfig* pConfig
 		!xrtWsDeflaterReset(pDeflater, &DeflaterConfig) ) {
 ```
 
+
 ### `xrtWsInflaterBegin`
 
 开始一条（可能压缩）消息。
@@ -3401,6 +3503,7 @@ bool xrtWsInflaterBegin(xwsinflater* pInflater, bool bCompressed)
 ```c
 		!xrtWsInflaterBegin(pInflater, true) ||
 ```
+
 
 ### `xrtWsInflaterWrite`
 
@@ -3446,6 +3549,7 @@ bool xrtWsInflaterWrite(xwsinflater* pInflater, xbytesview Input, xwsoutputproc 
 		) ||
 ```
 
+
 ### `xrtWsInflaterEnd`
 
 结束消息并校验尾块。
@@ -3483,6 +3587,7 @@ bool xrtWsInflaterEnd(xwsinflater* pInflater, xwsoutputproc pOutput, ptr pData)
 		!xrtWsInflaterEnd(pInflater, onText, NULL) ) {
 ```
 
+
 ### `xrtWsInflaterSize`
 
 返回解压器累计输出字节数。
@@ -3514,6 +3619,7 @@ uint64 xrtWsInflaterSize(const xwsinflater* pInflater)
 ```c
 	if ( xrtWsInflaterSize(pInflater) != 0u ) {
 ```
+
 
 ## 所有权与错误
 
@@ -3566,6 +3672,7 @@ void xrtWsStreamConfigInit(xwsstreamconfig* pConfig)
 	xrtWsStreamConfigInit(&pEnd->Config);
 ```
 
+
 ### `xrtWsStreamConfigValid`
 
 校验流层配置自洽。
@@ -3598,6 +3705,7 @@ bool xrtWsStreamConfigValid(const xwsstreamconfig* pConfig)
 ```c
 	if ( !xrtWsStreamConfigValid(&Client.Config) ) goto Cleanup;
 ```
+
 
 ### `xrtWsStreamAttach`
 
@@ -3639,6 +3747,7 @@ xwsstream* xrtWsStreamAttach(xnetstream* pTransport, size_t iPrefix, const xwsst
 		&pEnd->Config, &Events, pEnd);
 ```
 
+
 ### `xrtWsStreamAttachTls`
 
 在已就绪的 TLS 流上挂接 WebSocket 流层。
@@ -3678,6 +3787,7 @@ xwsstream* xrtWsStreamAttachTls(xtlsstream* pTransport, size_t iPrefix, const xw
 			(xrtWsStreamAttachTls(NULL, 0, NULL, NULL, NULL) == NULL);
 ```
 
+
 ### `xrtWsStreamRef`
 
 增加流引用并返回原指针。
@@ -3711,6 +3821,7 @@ xwsstream* xrtWsStreamRef(xwsstream* pStream)
 	pClientRef = xrtWsStreamRef(Client.pStream);
 ```
 
+
 ### `xrtWsStreamDestroy`
 
 释放流引用；关闭必须另行请求。
@@ -3742,6 +3853,7 @@ void xrtWsStreamDestroy(xwsstream* pStream)
 ```c
 		xrtWsStreamDestroy(pEnd->pStream);
 ```
+
 
 ### `xrtWsStreamSend`
 
@@ -3787,6 +3899,7 @@ xnetresult xrtWsStreamSend(xwsstream* pStream, xwsopcode Opcode, xbytesview Payl
 			XNET_RESULT_OK) ) {
 ```
 
+
 ### `xrtWsStreamSendCompressed`
 
 按操作码压缩发送帧载荷。
@@ -3830,6 +3943,7 @@ xnetresult xrtWsStreamSendCompressed(xwsstream* pStream, xwsopcode Opcode, xbyte
 			(xbytesview) { (cbytes)"c-s", 3 }) == XNET_RESULT_OK);
 ```
 
+
 ### `xrtWsStreamSendRef`
 
 零复制发送帧载荷，离开队列时执行释放过程。
@@ -3872,6 +3986,7 @@ xnetresult xrtWsStreamSendRef(xwsstream* pStream, xwsopcode Opcode, const xnetre
 	if ( xrtWsStreamSendRef(pStream, XWS_OPCODE_BINARY, &Ref) !=
 		XNET_RESULT_OK ) goto Done;
 ```
+
 
 ### `xrtWsStreamSendTake`
 
@@ -3917,6 +4032,7 @@ xnetresult xrtWsStreamSendTake(xwsstream* pStream, xwsopcode Opcode, ptr pData, 
 	if ( xrtWsStreamSendTake(pStream, XWS_OPCODE_TEXT, pTake, 8) !=
 		XNET_RESULT_OK ) goto Done;
 ```
+
 
 ### `xrtWsStreamText`
 
@@ -3965,6 +4081,7 @@ xnetresult xrtWsStreamText(xwsstream* pStream, xstrview Text)
 			(xbytesview) { (cbytes)"plain-send", 10 }) != XNET_RESULT_OK) ) {
 ```
 
+
 ### `xrtWsStreamTextCompressed`
 
 压缩发送 UTF-8 文本消息。
@@ -4008,6 +4125,7 @@ xnetresult xrtWsStreamTextCompressed(xwsstream* pStream, xstrview Text)
 		XRT_STR_LITERAL("compressed")) == XNET_RESULT_OK) &&
 ```
 
+
 ### `xrtWsStreamTextRef`
 
 零复制发送文本消息。
@@ -4048,6 +4166,7 @@ xnetresult xrtWsStreamTextRef(xwsstream* pStream, const xnetref* pRef)
 ```c
 	if ( xrtWsStreamTextRef(pStream, &Ref) != XNET_RESULT_OK ) goto Done;
 ```
+
 
 ### `xrtWsStreamTextTake`
 
@@ -4092,6 +4211,7 @@ xnetresult xrtWsStreamTextTake(xwsstream* pStream, str sText, size_t iSize)
 	if ( xrtWsStreamTextTake(pStream, pTake, 9) != XNET_RESULT_OK ) goto Done;
 ```
 
+
 ### `xrtWsStreamBinary`
 
 发送二进制消息。
@@ -4133,6 +4253,7 @@ xnetresult xrtWsStreamBinary(xwsstream* pStream, xbytesview Data)
 		(xrtWsStreamBinary(pStream,
 			(xbytesview) { (cbytes)"\x01\x02\x03", 3 }) != XNET_RESULT_OK) ||
 ```
+
 
 ### `xrtWsStreamBinaryCompressed`
 
@@ -4176,6 +4297,7 @@ xnetresult xrtWsStreamBinaryCompressed(xwsstream* pStream, xbytesview Data)
 			(xbytesview) { (cbytes)"c-b", 3 }) == XNET_RESULT_OK) &&
 ```
 
+
 ### `xrtWsStreamBinaryRef`
 
 零复制发送二进制消息。
@@ -4216,6 +4338,7 @@ xnetresult xrtWsStreamBinaryRef(xwsstream* pStream, const xnetref* pRef)
 ```c
 	Result = xrtWsStreamBinaryRef(pConnection, &Ref);
 ```
+
 
 ### `xrtWsStreamBinaryTake`
 
@@ -4260,6 +4383,7 @@ xnetresult xrtWsStreamBinaryTake(xwsstream* pStream, bytes pData, size_t iSize)
 	if ( xrtWsStreamBinaryTake(pStream, pTake, 10) != XNET_RESULT_OK ) goto Done;
 ```
 
+
 ### `xrtWsStreamPing`
 
 发送 Ping 控制帧。
@@ -4303,6 +4427,7 @@ xnetresult xrtWsStreamPing(xwsstream* pStream, xbytesview Payload)
 		(xbytesview) { (cbytes)"ping", 4 }) == XNET_RESULT_OK) &&
 ```
 
+
 ### `xrtWsStreamPong`
 
 发送 Pong 控制帧。
@@ -4345,6 +4470,7 @@ xnetresult xrtWsStreamPong(xwsstream* pStream, xbytesview Payload)
 		(xrtWsStreamPong(pStream,
 			(xbytesview) { (cbytes)"manual", 6 }) == XNET_RESULT_OK);
 ```
+
 
 ### `xrtWsStreamClose`
 
@@ -4390,6 +4516,7 @@ xnetresult xrtWsStreamClose(xwsstream* pStream, uint16 iCode, xstrview Reason)
 		XRT_STR_LITERAL("done")) == XNET_RESULT_OK;
 ```
 
+
 ### `xrtWsStreamPause`
 
 暂停接收新数据。
@@ -4421,6 +4548,7 @@ void xrtWsStreamPause(xwsstream* pStream)
 ```c
 	xrtWsStreamPause(Client.pStream);
 ```
+
 
 ### `xrtWsStreamResume`
 
@@ -4458,6 +4586,7 @@ bool xrtWsStreamResume(xwsstream* pStream)
 		(memcmp(Client.Buffer + iExpected, "after-pause", 11u) != 0) ) goto Cleanup;
 ```
 
+
 ### `xrtWsStreamState`
 
 返回流当前生命周期状态。
@@ -4489,6 +4618,7 @@ xwsstreamstate xrtWsStreamState(const xwsstream* pStream)
 ```c
 		(xrtWsStreamState(Client.pStream) != XWS_STREAM_CLOSED) ||
 ```
+
 
 ### `xrtWsStreamRole`
 
@@ -4522,6 +4652,7 @@ xwsrole xrtWsStreamRole(const xwsstream* pStream)
 	if ( xrtWsStreamRole(pStream) == XWS_ROLE_SERVER ) pEnd->Size = 0;
 ```
 
+
 ### `xrtWsStreamProtocol`
 
 返回协商选中的子协议。
@@ -4554,6 +4685,7 @@ xstrview xrtWsStreamProtocol(const xwsstream* pStream)
 ```c
 		(xrtWsStreamProtocol(Client.pStream).Size != 0) ||
 ```
+
 
 ### `xrtWsStreamDeflate`
 
@@ -4592,6 +4724,7 @@ bool xrtWsStreamDeflate(const xwsstream* pStream, xwsdeflate* pDeflate)
 			(memcmp(Client.Buffer + iExpected, "compressedc-bc-s", 16u) != 0) ) goto Cleanup;
 ```
 
+
 ### `xrtWsStreamCloseInfo`
 
 复制对端 Close 帧信息。
@@ -4626,6 +4759,7 @@ bool xrtWsStreamCloseInfo(const xwsstream* pStream, xwsstreamclose* pClose)
 		!xrtWsStreamCloseInfo(Client.pStream, &CloseInfo) ||
 ```
 
+
 ### `xrtWsStreamError`
 
 返回导致流终止的借用错误。
@@ -4658,6 +4792,7 @@ const xerror* xrtWsStreamError(const xwsstream* pStream)
 ```c
 		(xrtWsStreamError(Client.pStream) != NULL) ||
 ```
+
 
 ### `xrtWsStreamAbort`
 
@@ -4693,6 +4828,7 @@ bool xrtWsStreamAbort(xwsstream* pStream)
 		(void)xrtWsStreamAbort(pStream);
 ```
 
+
 ### `xrtWsStreamPending`
 
 返回发送队列占用字节数。
@@ -4725,6 +4861,7 @@ size_t xrtWsStreamPending(const xwsstream* pStream)
 	while ( (xrtWsStreamPending(Client.pStream) != 0u) ||
 		(xrtWsStreamPending(Server.pStream) != 0u) ) {
 ```
+
 
 ### `xrtWsStreamWritable`
 
@@ -4768,6 +4905,7 @@ size_t xrtWsStreamWritable(const xwsstream* pStream)
 		(xrtWsStreamError(Server.pStream) != NULL) ||
 ```
 
+
 ### `xrtWsStreamPaused`
 
 判断是否处于暂停状态。
@@ -4802,6 +4940,7 @@ bool xrtWsStreamPaused(const xwsstream* pStream)
 		!exampleRun(pEngine, &Job, Server.pStream, exampleAfterTask) ) goto Cleanup;
 ```
 
+
 ### `xrtWsStreamWorker`
 
 返回流所属的借用 Worker。
@@ -4834,6 +4973,7 @@ xnetworker* xrtWsStreamWorker(const xwsstream* pStream)
 ```c
 		xrtNetWorkerIndex(xrtWsStreamWorker(pStream)), Proc, pJob) &&
 ```
+
 
 ### `xrtWsStreamTcp`
 
@@ -4868,6 +5008,7 @@ xnetstream* xrtWsStreamTcp(const xwsstream* pStream)
 	pJob->Ok = (pTcp != NULL) && (xrtWsStreamTcp(pJob->pStream) == pTcp);
 ```
 
+
 ### `xrtWsStreamTcpRef`
 
 返回底层 TCP 流并增加引用。
@@ -4900,6 +5041,7 @@ xnetstream* xrtWsStreamTcpRef(const xwsstream* pStream)
 ```c
 	xnetstream* pTcp = xrtWsStreamTcpRef(pJob->pStream);
 ```
+
 
 ### `xrtWsStreamTls`
 
@@ -4934,6 +5076,7 @@ xtlsstream* xrtWsStreamTls(const xwsstream* pStream)
 			(xrtWsStreamTls(pJob->pStream) == NULL) &&
 ```
 
+
 ### `xrtWsStreamTlsRef`
 
 返回底层 TLS 流并增加引用。
@@ -4966,6 +5109,7 @@ xtlsstream* xrtWsStreamTlsRef(const xwsstream* pStream)
 ```c
 		xtlsstream* pTls = xrtWsStreamTlsRef(pJob->pStream);
 ```
+
 
 ## 测试与示例
 

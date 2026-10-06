@@ -70,6 +70,7 @@ if ( !xrtAtomicIsLockFree(sizeof(uint32)) ||
 }
 ```
 
+
 ### `xrtAtomic32Init`
 
 把 32 位原子对象置为指定值。仅用于发布前的单线程初始化，不是并发操作。
@@ -99,6 +100,7 @@ void xrtAtomic32Init(xatomic32* pAtomic, uint32 iValue);
 xrtAtomic32Init(&A32, 0x0Fu);
 iOld32 = xrtAtomic32Exchange(&A32, 0x3Cu, XMEMORY_ACQ_REL);
 ```
+
 
 ### `xrtAtomic64Init`
 
@@ -131,6 +133,7 @@ iOld64 = xrtAtomic64Exchange(&A64, UINT64_C(50),
 	XMEMORY_ACQ_REL);
 ```
 
+
 ### `xrtAtomicPtrInit`
 
 把原子指针对象置为指定值。仅用于发布前的单线程初始化；空指针是合法值。
@@ -162,6 +165,7 @@ pOld = xrtAtomicPtrExchange(&APtr, (ptr)&s_Target[1],
 	XMEMORY_ACQ_REL);
 ```
 
+
 ### `xmemoryorder`
 
 原子操作的内存顺序与 C11 语义一致。
@@ -183,6 +187,7 @@ typedef enum xmemoryorder {
 | `XMEMORY_RELEASE` | RELEASE |
 | `XMEMORY_ACQ_REL` | ACQREL |
 | `XMEMORY_SEQ_CST` | 顺序一致（默认最强） |
+
 
 ### 常量总表
 
@@ -256,6 +261,7 @@ if ( (iOld32 != 0x0Fu) ||
 	(xrtAtomic32Load(&A32, XMEMORY_ACQUIRE) != 0x3Cu) ) {
 ```
 
+
 ### `xrtAtomic32Store`
 
 原子写入 32 位值。
@@ -286,6 +292,7 @@ void xrtAtomic32Store(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder);
 xrtAtomic32Store(&A32, 0x33u, XMEMORY_RELEASE);
 iOld32 = xrtAtomic32FetchAdd(&A32, 0x0Cu, XMEMORY_ACQ_REL);
 ```
+
 
 ### `xrtAtomic32Exchange`
 
@@ -321,6 +328,7 @@ uint32 xrtAtomic32Exchange(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrde
 xrtAtomic32Init(&A32, 0x0Fu);
 iOld32 = xrtAtomic32Exchange(&A32, 0x3Cu, XMEMORY_ACQ_REL);
 ```
+
 
 ### `xrtAtomic32CompareExchange`
 
@@ -370,6 +378,7 @@ if ( xrtAtomic32CompareExchange(&A32, &iExpected, 0x0Bu,
 }
 ```
 
+
 ### `xrtAtomic32FetchAdd`
 
 原子加并返回旧值；无符号按模 2^32 回绕。
@@ -405,6 +414,7 @@ iOld32 = xrtAtomic32FetchAdd(&A32, 0x0Cu, XMEMORY_ACQ_REL);
 if ( (iOld32 != 0x33u) ||
 	(xrtAtomic32Load(&A32, XMEMORY_ACQUIRE) != 0x3Fu) ) {
 ```
+
 
 ### `xrtAtomic32FetchSub`
 
@@ -442,6 +452,7 @@ if ( (iOld32 != 0x3Fu) ||
 	(xrtAtomic32Load(&A32, XMEMORY_ACQUIRE) != 0x30u) ) {
 ```
 
+
 ### `xrtAtomic32FetchAnd`
 
 原子按位与并返回旧值。
@@ -477,6 +488,7 @@ iOldAnd = xrtAtomic32FetchAnd(&A32, 0x0Fu, XMEMORY_ACQ_REL);
 if ( iOldAnd != 0x3Cu ) {
 ```
 
+
 ### `xrtAtomic32FetchOr`
 
 原子按位或并返回旧值。
@@ -511,6 +523,7 @@ uint32 xrtAtomic32FetchOr(xatomic32* pAtomic, uint32 iValue, xmemoryorder iOrder
 iOldOr = xrtAtomic32FetchOr(&A32, 0x06u, XMEMORY_ACQ_REL);
 if ( iOldOr != 0x0Cu ) {
 ```
+
 
 ### `xrtAtomic32FetchXor`
 
@@ -548,6 +561,7 @@ if ( (iOld32 != 0x0Eu) ||
 	(xrtAtomic32Load(&A32, XMEMORY_ACQUIRE) != 0x05u) ) {
 ```
 
+
 ### `xrtAtomic64Load`
 
 原子读取 64 位值。顺序与错误契约同 32 位形态。
@@ -581,6 +595,7 @@ uint64 xrtAtomic64Load(const xatomic64* pAtomic, xmemoryorder iOrder);
 printf("counter=%llu\n", (unsigned long long)xrtAtomic64Load(&Counter, XMEMORY_RELAXED));
 ```
 
+
 ### `xrtAtomic64Store`
 
 原子写入 64 位值。失败时不写入、不设置错误。
@@ -611,6 +626,7 @@ void xrtAtomic64Store(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrder);
 xrtAtomic64Store(&A64, UINT64_C(7), XMEMORY_RELEASE);
 if ( xrtAtomic64Load(&A64, XMEMORY_ACQUIRE) != UINT64_C(7) ) {
 ```
+
 
 ### `xrtAtomic64Exchange`
 
@@ -647,6 +663,7 @@ xrtAtomic64Init(&A64, UINT64_C(100));
 iOld64 = xrtAtomic64Exchange(&A64, UINT64_C(50),
 	XMEMORY_ACQ_REL);
 ```
+
 
 ### `xrtAtomic64CompareExchange`
 
@@ -699,6 +716,7 @@ if (
 ) {
 ```
 
+
 ### `xrtAtomic64FetchAdd`
 
 原子加并返回旧值；无符号按模 2^64 回绕。
@@ -732,6 +750,7 @@ uint64 xrtAtomic64FetchAdd(xatomic64* pAtomic, uint64 iValue, xmemoryorder iOrde
 ```c
 (void)xrtAtomic64FetchAdd(&Counter, 1u, XMEMORY_RELAXED);
 ```
+
 
 ### `xrtAtomic64FetchSub`
 
@@ -770,6 +789,7 @@ if ( (iOld64 != UINT64_C(50)) ||
 	(xrtAtomic64Load(&A64, XMEMORY_ACQUIRE) != UINT64_C(30)) ) {
 ```
 
+
 ### `xrtAtomic64FetchAnd`
 
 原子按位与并返回旧值。
@@ -806,6 +826,7 @@ iOld64 = xrtAtomic64FetchAnd(&A64, UINT64_C(0x1C),
 if ( (iOld64 != UINT64_C(30)) ||
 	(xrtAtomic64Load(&A64, XMEMORY_ACQUIRE) != UINT64_C(28)) ) {
 ```
+
 
 ### `xrtAtomic64FetchOr`
 
@@ -844,6 +865,7 @@ if ( (iOld64 != UINT64_C(28)) ||
 	(xrtAtomic64Load(&A64, XMEMORY_ACQUIRE) != UINT64_C(31)) ) {
 ```
 
+
 ### `xrtAtomic64FetchXor`
 
 原子按位异或并返回旧值。
@@ -880,6 +902,7 @@ iOld64 = xrtAtomic64FetchXor(&A64, UINT64_C(31),
 if ( (iOld64 != UINT64_C(31)) ||
 	(xrtAtomic64Load(&A64, XMEMORY_ACQUIRE) != 0u) ) {
 ```
+
 
 ## 原子指针
 
@@ -920,6 +943,7 @@ if ( (pOld != (ptr)&s_Target[0]) ||
 		(ptr)&s_Target[1]) ) {
 ```
 
+
 ### `xrtAtomicPtrStore`
 
 原子写入指针值。失败时不写入、不设置错误。
@@ -951,6 +975,7 @@ xrtAtomicPtrStore(&APtr, (ptr)&s_Target[1], XMEMORY_RELEASE);
 if ( xrtAtomicPtrLoad(&APtr, XMEMORY_ACQUIRE) !=
 	(ptr)&s_Target[1] ) {
 ```
+
 
 ### `xrtAtomicPtrExchange`
 
@@ -987,6 +1012,7 @@ xrtAtomicPtrInit(&APtr, (ptr)&s_Target[0]);
 pOld = xrtAtomicPtrExchange(&APtr, (ptr)&s_Target[1],
 	XMEMORY_ACQ_REL);
 ```
+
 
 ### `xrtAtomicPtrCompareExchange`
 
@@ -1037,6 +1063,7 @@ if ( xrtAtomicPtrCompareExchange(&APtr, &pExpected,
 }
 ```
 
+
 ## 栅栏与自旋
 
 ### `xrtAtomicThreadFence`
@@ -1069,6 +1096,7 @@ xrtAtomicSignalFence(XMEMORY_SEQ_CST);
 xrtAtomicPause();
 ```
 
+
 ### `xrtAtomicSignalFence`
 
 只约束编译器对当前线程与信号处理器可见访问的重排，不生成 CPU 栅栏。
@@ -1099,6 +1127,7 @@ xrtAtomicSignalFence(XMEMORY_SEQ_CST);
 xrtAtomicPause();
 ```
 
+
 ### `xrtAtomicPause`
 
 短自旋提示：不让出时间片、不等待事件，也不保证公平性。长等待应使用后续同步原语或任务等待源。
@@ -1128,6 +1157,7 @@ xrtAtomicThreadFence(XMEMORY_ACQ_REL);
 xrtAtomicSignalFence(XMEMORY_SEQ_CST);
 xrtAtomicPause();
 ```
+
 
 ## 错误
 

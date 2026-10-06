@@ -37,6 +37,7 @@ typedef enum xnumberparseflag {
 | `XNUMBER_PARSE_SEPARATOR` | SEPARATOR |
 | `XNUMBER_PARSE_SPECIAL` | 允许特殊值 |
 
+
 ### `xnumbererror`
 
 数值模块稳定错误码。
@@ -54,6 +55,7 @@ typedef enum xnumbererror {
 | `XNUMBER_ERROR_CONFIG` | 配置非法 |
 | `XNUMBER_ERROR_FORMAT` | 格式非法 |
 | `XNUMBER_ERROR_RANGE` | 范围越界 |
+
 
 ### `xnumberwriteflag`
 
@@ -73,6 +75,7 @@ typedef enum xnumberwriteflag {
 | `XNUMBER_PREFIX` | 前缀 |
 | `XNUMBER_PLUS` | 非负值输出 + 号 |
 
+
 ### `xnumberfloatflag`
 
 浮点文本输出标志。 默认保留整数型 double 的 .0；紧凑模式只保留数值往返所需字符。
@@ -86,6 +89,7 @@ typedef enum xnumberfloatflag {
 | 值 | 语义 |
 |---|---|
 | `XNUMBER_FLOAT_COMPACT` | 紧凑形式 |
+
 
 ## 选择边界
 
@@ -197,6 +201,7 @@ bool xrtUIntWrite(
 	if ( xrtUIntWrite(UINT64_C(300), 16u, Buffer, sizeof(Buffer), &iNeed, 0u) ) {
 ```
 
+
 ### `xrtIntWrite`
 
 按 2 到 36 进制写出有符号整数；负号位于进制前缀之前，`XNUMBER_PLUS` 只影响非负值。
@@ -244,6 +249,7 @@ bool xrtIntWrite(
 	(void)xrtIntWrite(-42, 10u, NULL, 0u, &iNeed, 0u);
 ```
 
+
 ### `xrtUIntString`
 
 写出无符号整数并返回由 `xrtFree` 释放的末尾补零文本。
@@ -284,6 +290,7 @@ str xrtUIntString(
 	str sText = xrtUIntString(UINT64_C(4294967296), 10u, 0u);
 ```
 
+
 ### `xrtIntString`
 
 写出有符号整数并返回由 `xrtFree` 释放的末尾补零文本。
@@ -323,6 +330,7 @@ str xrtIntString(
 ```c
 	sDecimal = xrtIntString(iValue, 10, 0);
 ```
+
 
 ### `xrtUIntParse`
 
@@ -369,6 +377,7 @@ bool xrtUIntParse(
 		10u, 0u, &iValue) ) {
 ```
 
+
 ### `xrtIntParse`
 
 严格解析有符号整数；正负号必须位于可选进制前缀之前，溢出时保持输出不变。
@@ -414,6 +423,7 @@ bool xrtIntParse(
 		10, (uint32)XNUMBER_PARSE_SPACE |
 		(uint32)XNUMBER_PARSE_SEPARATOR, &iValue) ) {
 ```
+
 
 ## 浮点
 
@@ -512,6 +522,7 @@ bool xrtNumWrite(
 	if ( xrtNumWrite(2.5, Buffer, sizeof(Buffer), &iNeed, 0u) ) {
 ```
 
+
 ### `xrtNumString`
 
 写出 double 并返回由 `xrtFree` 释放的末尾补零文本。
@@ -549,6 +560,7 @@ str xrtNumString(
 ```c
 	sText = xrtNumString(fValue, 0);
 ```
+
 
 ### `xrtNumParse`
 
@@ -596,6 +608,7 @@ bool xrtNumParse(
 		&fValue
 	) ) {
 ```
+
 
 ## 展示格式
 
@@ -723,6 +736,7 @@ bool xrtIntFormatTo(int64 iValue, xstrview Format,
 		Buffer, sizeof(Buffer), &iNeed) ) {
 ```
 
+
 ### `xrtUIntFormatTo`
 
 按照展示格式写出无符号整数。
@@ -764,6 +778,7 @@ bool xrtUIntFormatTo(uint64 iValue, xstrview Format,
 	if ( xrtUIntFormatTo(UINT64_C(255), XRT_STR_LITERAL("#X"),
 		Buffer, sizeof(Buffer), &iNeed) ) {
 ```
+
 
 ### `xrtNumFormatTo`
 
@@ -807,6 +822,7 @@ bool xrtNumFormatTo(double fValue, xstrview Format,
 		Buffer, sizeof(Buffer), &iNeed) ) {
 ```
 
+
 ### `xrtIntFormat`
 
 按照展示格式格式化有符号整数并返回由 `xrtFree` 释放的零结尾字符串。
@@ -843,6 +859,7 @@ str xrtIntFormat(int64 iValue, xstrview Format)
 	str sInteger = xrtIntFormat(
 		INT64_C(-123456789), XRT_STR_LITERAL(",d"));
 ```
+
 
 ### `xrtUIntFormat`
 
@@ -881,6 +898,7 @@ str xrtUIntFormat(uint64 iValue, xstrview Format)
 		UINT64_C(0xDEADBEEF), XRT_STR_LITERAL("#_X"));
 ```
 
+
 ### `xrtNumFormat`
 
 按照展示格式格式化 double 并返回由 `xrtFree` 释放的零结尾字符串。
@@ -918,6 +936,7 @@ str xrtNumFormat(double fValue, xstrview Format)
 		1234567.895, XRT_STR_LITERAL(",.2f"));
 ```
 
+
 ### `xrtIntFormatSized`
 
 分配有符号整数的精确字节结果，按 `xrtIntFormatTo` 的格式合同处理。
@@ -945,15 +964,11 @@ str xrtIntFormatSized(int64 iValue, xstrview Format, size_t* pOutputSize)
 
 #### 范例
 
-见 [format](../../examples/number/format/main.c)，以下示例保留精确长度：
+参见已注册的 [examples/number/format/main.c](../../examples/number/format/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-size_t size;
-str text = xrtIntFormatSized(0, XRT_STR_LITERAL("4c"), &size);
-/* 成功时 size == 4，text 是三个空格和 U+0000。 */
-xrtFree(text);
+xrtIntFormatSized(0, XRT_STR_LITERAL("4c"), &iCharSize);
 ```
-
 ### `xrtUIntFormatSized`
 
 无符号版本，所有权、精确长度、输出槽和失败合同与 `xrtIntFormatSized` 相同。
@@ -980,14 +995,11 @@ str xrtUIntFormatSized(uint64 iValue, xstrview Format, size_t* pOutputSize)
 
 #### 范例
 
-见 [format](../../examples/number/format/main.c)。
+参见已注册的 [examples/number/format/main.c](../../examples/number/format/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-size_t size;
-str text = xrtUIntFormatSized(UINT64_MAX, XRT_STR_LITERAL("X"), &size);
-xrtFree(text);
+xrtUIntFormatSized(UINT64_MAX, XRT_STR_LITERAL("X"), &iHexSize);
 ```
-
 ### `xrtNumFormatSized`
 
 double 版本，所有权、精确长度、输出槽和失败合同与 `xrtIntFormatSized` 相同。
@@ -1014,14 +1026,11 @@ str xrtNumFormatSized(double fValue, xstrview Format, size_t* pOutputSize)
 
 #### 范例
 
-见 [format](../../examples/number/format/main.c)。
+参见已注册的 [examples/number/format/main.c](../../examples/number/format/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-size_t size;
-str text = xrtNumFormatSized(-0.0, XRT_STR_LITERAL(".2f"), &size);
-xrtFree(text);
+xrtNumFormatSized(-0.0, XRT_STR_LITERAL(".2f"), &iFloatSize);
 ```
-
 ## 错误
 
 错误域为 `xrt.number`：

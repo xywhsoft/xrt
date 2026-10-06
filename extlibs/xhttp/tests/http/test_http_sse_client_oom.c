@@ -297,7 +297,7 @@ static void testHttpSseClientTailOom(void)
 	testHttpOriginSplitResponse(
 		&Origin,
 		(sizeof(Response) - 1u) - 18u,
-		UINT64_C(100000)
+		UINT64_C(100)
 	);
 	xrtHttpClientConfigInit(&HttpConfig);
 	HttpConfig.Resolver.Lookup =

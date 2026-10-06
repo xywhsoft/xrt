@@ -24,6 +24,7 @@ typedef enum xtlsresult {
 | `XTLS_AGAIN` | 暂不可推进 |
 | `XTLS_CLOSED` | 已关闭 |
 
+
 ### `xtlsversion`
 
 XRT 只协商 TLS 1.2 和 TLS 1.3。
@@ -39,6 +40,7 @@ typedef enum xtlsversion {
 |---|---|
 | `XTLS_VERSION_12` | TLS 1.2 |
 | `XTLS_VERSION_13` | TLS 1.3 |
+
 
 ### `xtlscipher`
 
@@ -70,6 +72,7 @@ typedef enum xtlscipher {
 | `XTLS_ECDHE_RSA_CHACHA20_POLY1305_SHA256` | ECDHERSACHACHA20POLY1305SHA256 |
 | `XTLS_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256` | ECDHE-ECDSA-CHACHA20 |
 
+
 ### `xtlshash`
 
 TLS 密码套件使用的摘要算法与密码后端解耦。
@@ -86,6 +89,7 @@ typedef enum xtlshash {
 | `XTLS_HASH_SHA256` | XTLSHASHSHA256 |
 | `XTLS_HASH_SHA384` | SHA-384 |
 
+
 ### `xtlsaead`
 
 TLS 记录保护当前只保留两类现代 AEAD。
@@ -101,6 +105,7 @@ typedef enum xtlsaead {
 |---|---|
 | `XTLS_AEAD_AES_GCM` | XTLSAEADAESGCM |
 | `XTLS_AEAD_CHACHA20_POLY1305` | ChaCha20-Poly1305 |
+
 
 ### `xtlscipherauth`
 
@@ -120,6 +125,7 @@ typedef enum xtlscipherauth {
 | `XTLS_CIPHER_AUTH_RSA` | RSA |
 | `XTLS_CIPHER_AUTH_ECDSA` | ECDSA 认证套件 |
 
+
 ### `xtlsrole`
 
 TLS 角色决定握手状态机的方向。
@@ -135,6 +141,7 @@ typedef enum xtlsrole {
 |---|---|
 | `XTLS_CLIENT` | XTLS客户端角色 |
 | `XTLS_SERVER` | 服务端角色 |
+
 
 ### `xtlsstate`
 
@@ -160,6 +167,7 @@ typedef enum xtlsstate {
 | `XTLS_STATE_CLOSED` | 已关闭 |
 | `XTLS_STATE_FAILED` | 已失败 |
 
+
 ### `xtlsrecordtype`
 
 TLS 记录内容类型使用协议规定的稳定数值。
@@ -179,6 +187,7 @@ typedef enum xtlsrecordtype {
 | `XTLS_RECORD_ALERT` | ALERT |
 | `XTLS_RECORD_HANDSHAKE` | 握手阶段 |
 | `XTLS_RECORD_APPLICATION_DATA` | 应用数据记录 |
+
 
 ### `xtlshandshaketype`
 
@@ -227,6 +236,7 @@ typedef enum xtlshandshaketype {
 | `XTLS_HANDSHAKE_KEY_UPDATE` | 握手阶段 |
 | `XTLS_HANDSHAKE_COMPRESSED_CERTIFICATE` | 握手阶段 |
 | `XTLS_HANDSHAKE_MESSAGE_HASH` | 完整握手消息哈希 |
+
 
 ### `xtlsextensiontype`
 
@@ -298,6 +308,7 @@ typedef enum xtlsextensiontype {
 | `XTLS_EXTENSION_KEY_SHARE` | KEYSHARE |
 | `XTLS_EXTENSION_RENEGOTIATION_INFO` | 重协商信息 |
 
+
 ### `xtlsnamedgroup`
 
 常用命名组保留 IANA 线路值，未知组仍可由 uint16 视图访问。
@@ -329,6 +340,7 @@ typedef enum xtlsnamedgroup {
 | `XTLS_GROUP_FFDHE4096` | FFDHE4096 |
 | `XTLS_GROUP_FFDHE6144` | FFDHE6144 |
 | `XTLS_GROUP_FFDHE8192` | ffdhe8192 组 |
+
 
 ### `xtlssignature`
 
@@ -370,6 +382,7 @@ typedef enum xtlssignature {
 | `XTLS_SIGNATURE_RSA_PSS_PSS_SHA384` | RSA-PSS（PSS）+ SHA-384 |
 | `XTLS_SIGNATURE_RSA_PSS_PSS_SHA512` | RSA-PSS（PSS 密钥）+ SHA-512 |
 
+
 ### `xtlsitemresult`
 
 TLS 游标把正常结束、读取到值和协议错误分开表达。
@@ -388,6 +401,7 @@ typedef enum xtlsitemresult {
 | `XTLS_ITEM_DONE` | 完成 |
 | `XTLS_ITEM_VALUE` | 已产出值 |
 
+
 ### `xtlskeyupdate`
 
 KeyUpdate 请求值保留 TLS 1.3 线路数值。
@@ -403,6 +417,7 @@ typedef enum xtlskeyupdate {
 |---|---|
 | `XTLS_KEY_UPDATE_NOT_REQUESTED` | XTLSKEYUPDATENOTREQUESTED |
 | `XTLS_KEY_UPDATE_REQUESTED` | 对端请求更新 |
+
 
 ### `xtlscertificatetype`
 
@@ -422,6 +437,7 @@ typedef enum xtlscertificatetype {
 | `XTLS_CERTIFICATE_DSS_SIGN` | DSSSIGN |
 | `XTLS_CERTIFICATE_ECDSA_SIGN` | 要求 ECDSA 签名 |
 
+
 ### `xtlscertificatestatustype`
 
 CertificateStatus 当前标准化的正文类型是 OCSP。
@@ -435,6 +451,7 @@ typedef enum xtlscertificatestatustype {
 | 值 | 语义 |
 |---|---|
 | `XTLS_CERTIFICATE_STATUS_OCSP` | OCSP 装订 |
+
 
 ### `xtlscertificatecompression`
 
@@ -454,6 +471,7 @@ typedef enum xtlscertificatecompression {
 | `XTLS_CERTIFICATE_COMPRESSION_BROTLI` | BROTLI |
 | `XTLS_CERTIFICATE_COMPRESSION_ZSTD` | zstd 压缩 |
 
+
 ### `xtlsalertlevel`
 
 Alert 级别保留 TLS 线上的稳定数值。
@@ -469,6 +487,7 @@ typedef enum xtlsalertlevel {
 |---|---|
 | `XTLS_ALERT_WARNING` | Warning |
 | `XTLS_ALERT_FATAL` | fatal 级 |
+
 
 ### `xtlsalert`
 
@@ -536,6 +555,7 @@ typedef enum xtlsalert {
 | `XTLS_ALERT_CERTIFICATE_REQUIRED` | 证书必需项 |
 | `XTLS_ALERT_NO_APPLICATION_PROTOCOL` | 无应用层协议 |
 
+
 ### `xtlserror`
 
 TLS 错误码稳定描述失败发生的协议阶段。
@@ -594,6 +614,7 @@ typedef enum xtlserror {
 | `XTLS_ERROR_TRUNCATED` | 已截断 |
 | `XTLS_ERROR_INTERNAL` | 内部错误 |
 
+
 ### `xtlsrecord`
 
 记录视图借用输入内存；EncodedSize 是头与负载的总长度。
@@ -613,6 +634,7 @@ typedef struct xtlsrecord {
 | `LegacyVersion` | `uint16` | LegacyVersion |
 | `Payload` | `xbytesview` | 载荷 |
 | `EncodedSize` | `size_t` | EncodedSize |
+
 
 ### `xtlscipherinfo`
 
@@ -646,6 +668,7 @@ typedef struct xtlscipherinfo {
 | `ExplicitNonceSize` | `uint8` | ExplicitNonceSize |
 | `TagSize` | `uint8` | TagSize |
 
+
 ### `xtlsgroupkind`
 
 命名组类型区分 Montgomery XDH 与未压缩短 Weierstrass ECDH 公钥。
@@ -661,6 +684,7 @@ typedef enum xtlsgroupkind {
 |---|---|
 | `XTLS_GROUP_KIND_XDH` | XTLSGROUPKINDXDH |
 | `XTLS_GROUP_KIND_ECDH` | 椭圆曲线 DH |
+
 
 ### `xtlsgroupinfo`
 
@@ -684,6 +708,7 @@ typedef struct xtlsgroupinfo {
 | `PublicSize` | `uint16` | PublicSize |
 | `SharedSize` | `uint16` | SharedSize |
 
+
 ### `xtlshandshake`
 
 握手消息视图借用输入，EncodedSize 包含 4 字节头和正文。
@@ -701,6 +726,7 @@ typedef struct xtlshandshake {
 | `Type` | `xtlshandshaketype` | 类型 |
 | `Body` | `xbytesview` | 主体 |
 | `EncodedSize` | `size_t` | EncodedSize |
+
 
 ### `xtlsextension`
 
@@ -720,6 +746,7 @@ typedef struct xtlsextension {
 | `Data` | `xbytesview` | 数据 |
 | `EncodedSize` | `size_t` | EncodedSize |
 
+
 ### `xtlsextensioncursor`
 
 扩展游标借用完整扩展向量，并用小型精确桶检测重复类型。
@@ -737,6 +764,7 @@ typedef struct xtlsextensioncursor {
 | `Data` | `xbytesview` | 数据 |
 | `Offset` | `size_t` | 偏移量 |
 
+
 ### `xtlsids`
 
 16 位标识列表借用去除线路长度前缀后的偶数字节序列。
@@ -750,6 +778,7 @@ typedef struct xtlsids {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Data` | `xbytesview` | 数据 |
+
 
 ### `xtlsservername`
 
@@ -766,6 +795,7 @@ typedef struct xtlsservername {
 |---|---|---|
 | `Type` | `uint8` | 类型 |
 | `Name` | `xbytesview` | 名称 |
+
 
 ### `xtlsservernamecursor`
 
@@ -784,6 +814,7 @@ typedef struct xtlsservernamecursor {
 | `Data` | `xbytesview` | 数据 |
 | `Offset` | `size_t` | 偏移量 |
 
+
 ### `xtlsprotocolcursor`
 
 ALPN 游标借用去除 16 位列表长度后的 ProtocolNameList。
@@ -799,6 +830,7 @@ typedef struct xtlsprotocolcursor {
 |---|---|---|
 | `Data` | `xbytesview` | 数据 |
 | `Offset` | `size_t` | 偏移量 |
+
 
 ### `xtlskeyshare`
 
@@ -816,6 +848,7 @@ typedef struct xtlskeyshare {
 | `Group` | `uint16` | Group |
 | `Key` | `xbytesview` | 键 |
 
+
 ### `xtlskeysharecursor`
 
 ClientHello 密钥共享游标借用列表并检测重复命名组。
@@ -832,6 +865,7 @@ typedef struct xtlskeysharecursor {
 |---|---|---|
 | `Data` | `xbytesview` | 数据 |
 | `Offset` | `size_t` | 偏移量 |
+
 
 ### `xtlsclienthello`
 
@@ -856,6 +890,7 @@ typedef struct xtlsclienthello {
 | `CipherSuites` | `xtlsids` | CipherSuites |
 | `CompressionMethods` | `xbytesview` | CompressionMethods |
 | `Extensions` | `xbytesview` | Extensions |
+
 
 ### `xtlsserverhello`
 
@@ -883,6 +918,7 @@ typedef struct xtlsserverhello {
 | `Extensions` | `xbytesview` | Extensions |
 | `Retry` | `bool` | Retry |
 
+
 ### `xtlspskmode`
 
 TLS 1.3 PSK 密钥交换模式保留标准线路值。
@@ -898,6 +934,7 @@ typedef enum xtlspskmode {
 |---|---|
 | `XTLS_PSK_KE` | XTLSPSKKE |
 | `XTLS_PSK_DHE_KE` | psk_dhe_ke 模式 |
+
 
 ### `xtlspsk`
 
@@ -916,6 +953,7 @@ typedef struct xtlspsk {
 | `Identity` | `xbytesview` | Identity |
 | `ObfuscatedAge` | `uint32` | ObfuscatedAge |
 | `Binder` | `xbytesview` | Binder |
+
 
 ### `xtlspskcursor`
 
@@ -936,6 +974,7 @@ typedef struct xtlspskcursor {
 | `Binders` | `xbytesview` | Binders |
 | `IdentityOffset` | `size_t` | IdentityOffset |
 | `BinderOffset` | `size_t` | BinderOffset |
+
 
 ### `xtlsidentitytype`
 
@@ -965,6 +1004,7 @@ typedef enum xtlsidentitytype {
 | `XTLS_IDENTITY_ED25519` | ED25519 |
 | `XTLS_IDENTITY_ED448` | Ed448 身份 |
 
+
 ### `xtlssignatureinfo`
 
 签名方案元数据描述线路方案要求的密钥身份、摘要长度和协议版本范围。
@@ -987,6 +1027,7 @@ typedef struct xtlssignatureinfo {
 | `Minimum` | `xtlsversion` | Minimum |
 | `Maximum` | `xtlsversion` | Maximum |
 
+
 ### `xtlskeysharepolicy`
 
 密钥共享策略可选择本地组优先级或避免 HelloRetryRequest。
@@ -1003,6 +1044,7 @@ typedef enum xtlskeysharepolicy {
 | `XTLS_KEY_SHARE_PREFER_GROUP` | XTLSKEYSHAREPREFERGROUP |
 | `XTLS_KEY_SHARE_PREFER_READY` | 优先已就绪份额（避免 HelloRetry） |
 
+
 ### `xtlskeyshareselection`
 
 密钥共享选择成功时发布借用公钥；Retry 时 Key 为空。
@@ -1018,6 +1060,7 @@ typedef struct xtlskeyshareselection {
 |---|---|---|
 | `Share` | `xtlskeyshare` | Share |
 | `Retry` | `bool` | Retry |
+
 
 ### `xtlspolicy`
 
@@ -1049,6 +1092,7 @@ typedef struct xtlspolicy {
 | `SignatureCount` | `size_t` | SignatureCount |
 | `KeySharePolicy` | `xtlskeysharepolicy` | KeySharePolicy |
 
+
 ### `xtlslimits`
 
 TLS 限制只描述硬上限与公平性预算，不会触发预分配。
@@ -1073,6 +1117,7 @@ typedef struct xtlslimits {
 | `RecordBudget` | `uint32` | RecordBudget |
 | `HandshakeBudget` | `uint32` | HandshakeBudget |
 
+
 ### `xtlscontextconfig`
 
 创建配置借用可选策略；创建成功后上下文持有独立快照。
@@ -1088,6 +1133,7 @@ typedef struct xtlscontextconfig {
 |---|---|---|
 | `Policy` | `const xtlspolicy*` | 策略 |
 | `Limits` | `xtlslimits` | Limits |
+
 
 ### `xtlswriter`
 
@@ -1107,6 +1153,7 @@ typedef struct xtlswriter {
 | `Capacity` | `size_t` | 容量 |
 | `Size` | `size_t` | 字节数 |
 
+
 ### `xtlshandshakereaderconfig`
 
 Reader 配置分开控制单消息硬上限和跨消息保留容量。
@@ -1122,6 +1169,7 @@ typedef struct xtlshandshakereaderconfig {
 |---|---|---|
 | `Limit` | `size_t` | 上限 |
 | `Retain` | `size_t` | Retain |
+
 
 ### `xtlshandshakereader`
 
@@ -1152,6 +1200,7 @@ typedef struct xtlshandshakereader {
 | `HeaderSize` | `uint8` | HeaderSize |
 | `Ready` | `bool` | Ready |
 
+
 ### `xtlscertificatemessage`
 
 Certificate 消息视图保留版本、请求上下文和完整条目向量。
@@ -1170,6 +1219,7 @@ typedef struct xtlscertificatemessage {
 | `RequestContext` | `xbytesview` | RequestContext |
 | `Entries` | `xbytesview` | 条目数组 |
 
+
 ### `xtlscertificateentry`
 
 证书条目借用 DER 数据；TLS 1.2 条目的 Extensions 为空。
@@ -1185,6 +1235,7 @@ typedef struct xtlscertificateentry {
 |---|---|---|
 | `Data` | `xbytesview` | 数据 |
 | `Extensions` | `xbytesview` | Extensions |
+
 
 ### `xtlscertificatecursor`
 
@@ -1204,6 +1255,7 @@ typedef struct xtlscertificatecursor {
 | `Data` | `xbytesview` | 数据 |
 | `Offset` | `size_t` | 偏移量 |
 
+
 ### `xtlscertificateverify`
 
 CertificateVerify 视图保留未知签名方案和签名字节。
@@ -1219,6 +1271,7 @@ typedef struct xtlscertificateverify {
 |---|---|---|
 | `Scheme` | `uint16` | 协议方案 |
 | `Signature` | `xbytesview` | Signature |
+
 
 ### `xtlssessionticket`
 
@@ -1244,6 +1297,7 @@ typedef struct xtlssessionticket {
 | `Ticket` | `xbytesview` | Ticket |
 | `Extensions` | `xbytesview` | Extensions |
 
+
 ### `xtlsauthoritycursor`
 
 证书颁发者游标借用去除外层 16 位长度后的名称条目。
@@ -1259,6 +1313,7 @@ typedef struct xtlsauthoritycursor {
 |---|---|---|
 | `Data` | `xbytesview` | 数据 |
 | `Offset` | `size_t` | 偏移量 |
+
 
 ### `xtls12certificaterequest`
 
@@ -1277,6 +1332,7 @@ typedef struct xtls12certificaterequest {
 | `CertificateTypes` | `xbytesview` | CertificateTypes |
 | `Signatures` | `xtlsids` | Signatures |
 | `AuthorityData` | `xbytesview` | AuthorityData |
+
 
 ### `xtls13certificaterequest`
 
@@ -1300,6 +1356,7 @@ typedef struct xtls13certificaterequest {
 | `CertificateSignatures` | `xtlsids` | CertificateSignatures |
 | `AuthorityData` | `xbytesview` | AuthorityData |
 
+
 ### `xtls12serverkeyexchange`
 
 TLS 1.2 ECDHE ServerKeyExchange 公开可直接参与验签的参数切片。
@@ -1320,6 +1377,7 @@ typedef struct xtls12serverkeyexchange {
 | `Parameters` | `xbytesview` | Parameters |
 | `Verify` | `xtlscertificateverify` | Verify |
 
+
 ### `xtlscertificatestatusmessage`
 
 CertificateStatus 保留状态类型和不透明响应。
@@ -1335,6 +1393,7 @@ typedef struct xtlscertificatestatusmessage {
 |---|---|---|
 | `Type` | `uint8` | 类型 |
 | `Response` | `xbytesview` | Response |
+
 
 ### `xtlscompressedcertificate`
 
@@ -1354,6 +1413,7 @@ typedef struct xtlscompressedcertificate {
 | `UncompressedSize` | `size_t` | UncompressedSize |
 | `Data` | `xbytesview` | 数据 |
 
+
 ### `xtlscontext`
 
 共享 TLS 上下文（不透明）：持有策略、身份与信任库，可跨线程复用。
@@ -1364,6 +1424,7 @@ typedef struct xtlscontext xtlscontext;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xtlsclientconfig`
 
@@ -1396,6 +1457,7 @@ typedef struct xtlsclientconfig {
 | `ResumeLimit` | `size_t` | ResumeLimit |
 | `ResumeOnly` | `bool` | ResumeOnly |
 
+
 ### `xtlsverifier`
 
 对端验证器（不透明）：持有信任库与主机名策略，可被多个握手共享。
@@ -1407,6 +1469,7 @@ typedef struct xtlsverifier xtlsverifier;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xtlsresume`
 
 会话恢复对象（不透明）：持有票据与参数，供客户端恢复握手。
@@ -1417,6 +1480,7 @@ typedef struct xtlsresume xtlsresume;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xtlsidentityconfig`
 
@@ -1444,6 +1508,7 @@ typedef struct xtlsidentityconfig {
 | `Release` | `xtlsidentityreleaseproc` | Release |
 | `Context` | `ptr` | 回调上下文 |
 
+
 ### `xtlsidentity`
 
 TLS 身份（不透明）：证书链 + 私钥 + 可签名方案。
@@ -1454,6 +1519,7 @@ typedef struct xtlsidentity xtlsidentity;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xtlsidentitysupportsproc`
 
@@ -1468,6 +1534,7 @@ typedef bool (*xtlsidentitysupportsproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xtlsidentitysignproc`
 
@@ -1487,6 +1554,7 @@ typedef bool (*xtlsidentitysignproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xtlsidentityreleaseproc`
 
 身份释放过程只管理外部签名器上下文，不管理已经深复制的证书链。
@@ -1496,6 +1564,7 @@ typedef void (*xtlsidentityreleaseproc)(ptr pContext);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xtlsresumeconfig`
 
@@ -1530,6 +1599,7 @@ typedef struct xtlsresumeconfig {
 | `AgeAdd` | `uint32` | AgeAdd |
 | `MaxEarlyData` | `uint32` | MaxEarlyData |
 | `IssuedAt` | `xtime` | IssuedAt |
+
 
 ### `xtlsresumeinfo`
 
@@ -1567,6 +1637,7 @@ typedef struct xtlsresumeinfo {
 | `IssuedAt` | `xtime` | IssuedAt |
 | `ExpiresAt` | `xtime` | ExpiresAt |
 
+
 ### `xtlsserverrequest`
 
 选择请求中的视图只在回调期间借用，Protocols 是完整 ALPN 扩展负载。
@@ -1582,6 +1653,7 @@ typedef struct xtlsserverrequest {
 |---|---|---|
 | `ServerName` | `xbytesview` | ServerName |
 | `Protocols` | `xbytesview` | Protocols |
+
 
 ### `xtlsserverchoice`
 
@@ -1600,6 +1672,7 @@ typedef struct xtlsserverchoice {
 | `Identity` | `const xtlsidentity*` | Identity |
 | `Protocol` | `size_t` | Protocol |
 | `Cookie` | `uint64` | Cookie |
+
 
 ### `xtlsserverresumerequest`
 
@@ -1620,6 +1693,7 @@ typedef struct xtlsserverresumerequest {
 | `Protocols` | `xbytesview` | Protocols |
 | `Ticket` | `xbytesview` | Ticket |
 | `Age` | `uint32` | Age |
+
 
 ### `xtlsserverconfig`
 
@@ -1653,6 +1727,7 @@ typedef struct xtlsserverconfig {
 | `ResumeContext` | `ptr` | ResumeContext |
 | `ResumeAgeTolerance` | `uint32` | ResumeAgeTolerance |
 
+
 ### `xtlsserverselectproc`
 
 同步选择器用于 SNI、多身份和租户路由；返回 false 会拒绝握手。
@@ -1667,6 +1742,7 @@ typedef bool (*xtlsserverselectproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xtlsserverresumeproc`
 
 返回借用恢复对象；服务器会在回调返回后立即 retain，再读取其不可变快照。
@@ -1679,6 +1755,7 @@ typedef const xtlsresume* (*xtlsserverresumeproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xtlswait`
 
@@ -1704,6 +1781,7 @@ typedef enum xtlswait {
 | `XTLS_WAIT_IDENTITY` | IDENTITY |
 | `XTLS_WAIT_VERIFY` | 等待对端验证 |
 
+
 ### `xtlssession`
 
 TLS 会话（不透明）：记录层与握手状态机载体。
@@ -1714,6 +1792,7 @@ typedef struct xtlssession xtlssession;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xtlsstreamconfig`
 
@@ -1736,6 +1815,7 @@ typedef struct xtlsstreamconfig {
 | `AsyncBytesLimit` | `size_t` | AsyncBytesLimit |
 | `AsyncCountLimit` | `uint32` | AsyncCountLimit |
 | `AsyncBatch` | `uint32` | AsyncBatch |
+
 
 ### `xtlsstreamstate`
 
@@ -1761,6 +1841,7 @@ typedef enum xtlsstreamstate {
 | `XTLS_STREAM_CLOSED` | 已关闭 |
 | `XTLS_STREAM_FAILED` | 已失败 |
 
+
 ### `xtlsstreamwait`
 
 条件 Future 是水平条件；END 表示收到认证 close_notify， CLOSE 表示底层传输和 TLS 组合对象进入最终终态。
@@ -1784,6 +1865,7 @@ typedef enum xtlsstreamwait {
 | `XTLS_STREAM_WAIT_DRAIN` | 排空策略 |
 | `XTLS_STREAM_WAIT_END` | 等待关闭完成 |
 | `XTLS_STREAM_WAIT_CLOSE` | 等待关闭 |
+
 
 ### `xtlsdialstate`
 
@@ -1809,6 +1891,7 @@ typedef enum xtlsdialstate {
 | `XTLS_DIAL_FAILED` | 已失败 |
 | `XTLS_DIAL_CANCELLED` | 已取消 |
 
+
 ### `xtlsdialconfig`
 
 Timeout 覆盖 DNS、TCP 和 TLS 全过程；零值只保留各阶段超时。
@@ -1828,6 +1911,7 @@ typedef struct xtlsdialconfig {
 | `Stream` | `xtlsstreamconfig` | 流选择 |
 | `Timeout` | `int64` | 超时（毫秒） |
 | `ServerNameFromHost` | `bool` | ServerNameFromHost |
+
 
 ### `xtlsstreamevents`
 
@@ -1860,6 +1944,7 @@ typedef struct xtlsstreamevents {
 | `Drain` | `void (*Drain)(xtlsstream* pStream, ptr pData)` | 发送队列排空 |
 | `Close` | `void (*Close)(xtlsstream* pStream, xnetresult Result, const xerror* pError, ptr pData)` | 流关闭（含错误） |
 
+
 ### `xtlslistenerstate`
 
 Listener 只发布已经完成 TLS 握手的 Stream，关闭监听不会隐式关闭已发布连接。
@@ -1877,6 +1962,7 @@ typedef enum xtlslistenerstate {
 | `XTLS_LISTENER_OPEN` | 监听中 |
 | `XTLS_LISTENER_CLOSING` | 关闭中 |
 | `XTLS_LISTENER_CLOSED` | 已关闭 |
+
 
 ### `xtlslistenerevents`
 
@@ -1901,6 +1987,7 @@ typedef struct xtlslistenerevents {
 | `Error` | `void (*Error)(xtlslistener* pListener, const xerror* pError, ptr pData)` | 监听级错误 |
 | `Close` | `void (*Close)(xtlslistener* pListener, ptr pData)` | 监听器关闭 |
 
+
 ### `xtlslistenerconfig`
 
 Listen 负责 TCP 接入，Tls 和 Stream 负责每条连接的 TLS 会话与组合层限制。 AcceptQueueLimit 只限制完成握手但尚未被 pull/Future 消费的连接； HandshakeLimit 在分配 TLS 会话前硬性限制并发握手数。 初始化默认完成队列 1024 条、并发握手 128 条，均可显式调整。
@@ -1922,6 +2009,7 @@ typedef struct xtlslistenerconfig {
 | `Stream` | `xtlsstreamconfig` | 流选择 |
 | `AcceptQueueLimit` | `uint32` | AcceptQueueLimit |
 | `HandshakeLimit` | `uint32` | HandshakeLimit |
+
 
 ### `xtlslistenerstats`
 
@@ -1955,6 +2043,7 @@ typedef struct xtlslistenerstats {
 | `PeakQueuedAccepts` | `uint32` | PeakQueuedAccepts |
 | `AcceptWaiters` | `uint32` | AcceptWaiters |
 
+
 ### `xtlsstream`
 
 公开句柄声明不随 TLS Stream 实现裁剪变化。
@@ -1964,6 +2053,7 @@ typedef struct xtlsstream xtlsstream;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xtlslistener`
 
@@ -1976,6 +2066,7 @@ typedef struct xtlslistener xtlslistener;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xtlsdial`
 
 托管 TLS 拨号对象（不透明）：串联 TCP 拨号与 TLS 握手。
@@ -1986,6 +2077,7 @@ typedef struct xtlsdial xtlsdial;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xtlsdialproc`
 
@@ -2002,6 +2094,7 @@ typedef void (*xtlsdialproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xtlsverifydecision`
 
@@ -2022,6 +2115,7 @@ typedef enum xtlsverifydecision {
 | `XTLS_VERIFY_DEFAULT` | 默认值 |
 | `XTLS_VERIFY_ACCEPT` | ACCEPT |
 | `XTLS_VERIFY_REJECT` | 拒绝 |
+
 
 ### `xtlspeer`
 
@@ -2045,6 +2139,7 @@ typedef struct xtlspeer {
 | `Certificates` | `const xx509cert*` | Certificates |
 | `CertificateCount` | `size_t` | CertificateCount |
 
+
 ### `xtlsverifiedpeer`
 
 已验证路径按叶到根排列但不包含独立 trust anchor，全部视图只在策略回调期间有效。
@@ -2064,6 +2159,7 @@ typedef struct xtlsverifiedpeer {
 | `Path` | `const xx509cert* const*` | 路径 |
 | `PathCount` | `size_t` | PathCount |
 | `Anchor` | `const xx509anchor*` | Anchor |
+
 
 ### `xtlsverifierconfig`
 
@@ -2092,6 +2188,7 @@ typedef struct xtlsverifierconfig {
 | `Context` | `ptr` | 回调上下文 |
 | `AllowSha1` | `bool` | AllowSha1 |
 
+
 ### `xtlsverifyproc`
 
 自定义验证过程必须允许并发调用，不负责 TLS 握手签名验证。
@@ -2104,6 +2201,7 @@ typedef xtlsverifydecision (*xtlsverifyproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xtlsverifypolicyproc`
 
@@ -2118,6 +2216,7 @@ typedef bool (*xtlsverifypolicyproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xtlsverifytimeproc`
 
 自定义时间源用于确定性测试、重放验证和受控时钟环境。
@@ -2128,6 +2227,7 @@ typedef xtime (*xtlsverifytimeproc)(ptr pContext);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xtlsverifyreleaseproc`
 
 最后一个验证器引用释放时清理调用方上下文。
@@ -2137,6 +2237,7 @@ typedef void (*xtlsverifyreleaseproc)(ptr pContext);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -2307,6 +2408,7 @@ bool xrtTlsRecordEncode(xtlsrecordtype Type, uint16 iLegacyVersion, xbytesview P
 	) ) {
 ```
 
+
 ### `xrtTlsRecordName`
 
 返回记录内容类型的稳定英文名称，未知值返回 unknown。
@@ -2338,6 +2440,7 @@ cstr xrtTlsRecordName(xtlsrecordtype Type)
 ```c
 		xrtTlsRecordName(Record.Type),
 ```
+
 
 ### `xrtTlsRecordParse`
 
@@ -2379,6 +2482,7 @@ xtlsresult xrtTlsRecordParse(xbytesview Input, xtlsrecord* pRecord, size_t* pReq
 	) != XTLS_OK ) {
 ```
 
+
 ### `xrtTlsRecordSize`
 
 返回给定负载所需的完整记录长度，负载越界时返回零并设置错误。
@@ -2410,6 +2514,7 @@ size_t xrtTlsRecordSize(size_t iPayloadSize)
 ```c
 	if ( (xrtTlsRecordSize(100u) != 105u) ) {
 ```
+
 
 ## 记录解析
 
@@ -2486,6 +2591,7 @@ bool xrtTlsHandshakeEncode(xtlshandshaketype Type, xbytesview Body, void* pOutpu
 			(xbytesview) { arrBody, 4u }, arrOut, 8u) ) {
 ```
 
+
 ### `xrtTlsHandshakeName`
 
 返回握手类型的稳定英文名称，未知线路值返回 unknown_handshake。
@@ -2518,6 +2624,7 @@ cstr xrtTlsHandshakeName(xtlshandshaketype Type)
 		(strcmp(xrtTlsHandshakeName((xtlshandshaketype)9999u),
 			"unknown_handshake") != 0) ||
 ```
+
 
 ### `xrtTlsHandshakeParse`
 
@@ -2560,6 +2667,7 @@ xtlsresult xrtTlsHandshakeParse(xbytesview Input, xtlshandshake* pHandshake, siz
 			(iRequired != 4u) ) {
 ```
 
+
 ### `xrtTlsHandshakeReaderConfigInit`
 
 填充安全的默认握手 reader 配置。
@@ -2591,6 +2699,7 @@ void xrtTlsHandshakeReaderConfigInit(xtlshandshakereaderconfig* pConfig)
 ```c
 	xrtTlsHandshakeReaderConfigInit(&ReaderConfig);
 ```
+
 
 ### `xrtTlsHandshakeReaderInit`
 
@@ -2626,6 +2735,7 @@ bool xrtTlsHandshakeReaderInit(xtlshandshakereader* pReader, const xtlshandshake
 ```c
 	if ( !xrtTlsHandshakeReaderInit(&Reader, &ReaderConfig) ) {
 ```
+
 
 ### `xrtTlsHandshakeReaderRead`
 
@@ -2670,6 +2780,7 @@ xtlsresult xrtTlsHandshakeReaderRead(xtlshandshakereader* pReader, xbytesview In
 		(xrtTlsHandshakeReaderRequired(&Reader) != 4u) ) {
 ```
 
+
 ### `xrtTlsHandshakeReaderRequired`
 
 返回完成当前消息所需的完整编码长度；只有部分头时返回 4。
@@ -2701,6 +2812,7 @@ size_t xrtTlsHandshakeReaderRequired(const xtlshandshakereader* pReader)
 ```c
 		(xrtTlsHandshakeReaderRequired(&Reader) != 4u) ) {
 ```
+
 
 ### `xrtTlsHandshakeReaderReset`
 
@@ -2735,6 +2847,7 @@ bool xrtTlsHandshakeReaderReset(xtlshandshakereader* pReader)
 	if ( !xrtTlsHandshakeReaderReset(&Reader) ) {
 ```
 
+
 ### `xrtTlsHandshakeReaderUnit`
 
 释放 reader 持有的重组缓冲并清零结构。
@@ -2766,6 +2879,7 @@ void xrtTlsHandshakeReaderUnit(xtlshandshakereader* pReader)
 ```c
 	xrtTlsHandshakeReaderUnit(&Reader);
 ```
+
 
 ### `xrtTlsHandshakeSize`
 
@@ -2799,6 +2913,7 @@ size_t xrtTlsHandshakeSize(size_t iBodySize)
 	if ( (xrtTlsHandshakeSize(4u) != 8u) ||
 		(xrtTlsHandshakeSize(SIZE_MAX) != 0u) ) {
 ```
+
 
 ## 握手与扩展 Framing
 
@@ -2888,6 +3003,7 @@ bool xrtTlsClientHelloEncode(const xtlsclienthello* pHello, void* pOutput, size_
 		(Parsed.Extensions.Size == 0u) ) {
 ```
 
+
 ### `xrtTlsClientHelloParse`
 
 严格解析一条 ClientHello 正文并发布零拷贝字段视图。
@@ -2924,6 +3040,7 @@ bool xrtTlsClientHelloParse(xbytesview Body, xtlsclienthello* pHello)
 			(xbytesview) { arrHelloBuf, iSize }, &Parsed) ||
 ```
 
+
 ### `xrtTlsClientHelloSize`
 
 返回编码 ClientHello 正文所需的精确长度。
@@ -2955,6 +3072,7 @@ size_t xrtTlsClientHelloSize(const xtlsclienthello* pHello)
 ```c
 	iSize = xrtTlsClientHelloSize(&ClientHello);
 ```
+
 
 ### `xrtTlsExtensionEncode`
 
@@ -2997,6 +3115,7 @@ bool xrtTlsExtensionEncode(xtlsextensiontype Type, xbytesview Data, void* pOutpu
 				7u) ||
 ```
 
+
 ### `xrtTlsExtensionName`
 
 返回扩展类型的稳定英文名称，未知线路值返回 unknown_extension。
@@ -3030,6 +3149,7 @@ cstr xrtTlsExtensionName(xtlsextensiontype Type)
 			XTLS_EXTENSION_SUPPORTED_GROUPS),
 			"supported_groups") != 0) ) {
 ```
+
 
 ### `xrtTlsExtensionParse`
 
@@ -3070,6 +3190,7 @@ xtlsresult xrtTlsExtensionParse(xbytesview Input, xtlsextension* pExtension, siz
 				(xbytesview) { arrOut, 2u },
 				&Extension, &iRequired) != XTLS_AGAIN) ||
 ```
+
 
 ### `xrtTlsExtensionSize`
 
@@ -3113,6 +3234,7 @@ size_t xrtTlsExtensionSize(size_t iDataSize)
 				(xbytesview) { arrOut, 5u },
 ```
 
+
 ### `xrtTlsExtensionsFind`
 
 完整验证后查找唯一扩展，未找到返回 XTLS_ITEM_DONE。
@@ -3151,6 +3273,7 @@ xtlsitemresult xrtTlsExtensionsFind(xbytesview Extensions, xtlsextensiontype Typ
 			&Extension) != XTLS_ITEM_VALUE) ||
 ```
 
+
 ### `xrtTlsExtensionsInit`
 
 初始化借用完整扩展向量的游标，不预先扫描输入。
@@ -3185,6 +3308,7 @@ bool xrtTlsExtensionsInit(xtlsextensioncursor* pCursor, xbytesview Extensions)
 	if ( !xrtTlsExtensionsInit(&ExtCursor,
 			(xbytesview) { arrExtBlock, 31u }) ) {
 ```
+
 
 ### `xrtTlsExtensionsRead`
 
@@ -3222,6 +3346,7 @@ xtlsitemresult xrtTlsExtensionsRead(xtlsextensioncursor* pCursor, xtlsextension*
 	while ( xrtTlsExtensionsRead(&ExtCursor, &Extension) ==
 		XTLS_ITEM_VALUE ) {
 ```
+
 
 ### `xrtTlsExtensionsValidate`
 
@@ -3261,6 +3386,7 @@ bool xrtTlsExtensionsValidate(xbytesview Extensions)
 			&Extension) != XTLS_ITEM_VALUE) ||
 		(Extension.Data.Size != 8u) ) {
 ```
+
 
 ### `xrtTlsServerHelloEncode`
 
@@ -3306,6 +3432,7 @@ bool xrtTlsServerHelloEncode(const xtlsserverhello* pHello, void* pOutput, size_
 		(ServerParsed.Extensions.Size == 0u) ) {
 ```
 
+
 ### `xrtTlsServerHelloParse`
 
 严格解析一条 ServerHello 或 HelloRetryRequest 正文。
@@ -3343,6 +3470,7 @@ bool xrtTlsServerHelloParse(xbytesview Body, xtlsserverhello* pHello)
 			&ServerParsed) ||
 ```
 
+
 ### `xrtTlsServerHelloSize`
 
 返回编码 ServerHello 或 HelloRetryRequest 正文所需的精确长度。
@@ -3374,6 +3502,7 @@ size_t xrtTlsServerHelloSize(const xtlsserverhello* pHello)
 ```c
 	iSize = xrtTlsServerHelloSize(&ServerHello);
 ```
+
 
 ## Hello 与核心扩展
 
@@ -3452,6 +3581,7 @@ bool xrtTls12CertificateRequestEncode(const xtls12certificaterequest* pRequest, 
 				arrOut, iSize) ||
 ```
 
+
 ### `xrtTls12CertificateRequestParse`
 
 严格解析 TLS 1.2 CertificateRequest 正文。
@@ -3489,6 +3619,7 @@ bool xrtTls12CertificateRequestParse(xbytesview Body, xtls12certificaterequest* 
 				&Req12Parsed) ||
 ```
 
+
 ### `xrtTls12CertificateRequestSize`
 
 返回编码 TLS 1.2 CertificateRequest 正文所需长度。
@@ -3520,6 +3651,7 @@ size_t xrtTls12CertificateRequestSize(const xtls12certificaterequest* pRequest)
 ```c
 		iSize = xrtTls12CertificateRequestSize(&Req12);
 ```
+
 
 ### `xrtTls12ClientKeyExchangeEncode`
 
@@ -3560,6 +3692,7 @@ bool xrtTls12ClientKeyExchangeEncode(xbytesview PublicKey, void* pOutput, size_t
 				5u) ||
 ```
 
+
 ### `xrtTls12ClientKeyExchangeParse`
 
 严格解析 TLS 1.2 ECDHE ClientKeyExchange 公钥。
@@ -3596,6 +3729,7 @@ bool xrtTls12ClientKeyExchangeParse(xbytesview Body, xbytesview* pPublicKey)
 				(xbytesview) { arrOut, 5u },
 				&PublicKey) ||
 ```
+
 
 ### `xrtTls12ClientKeyExchangeSize`
 
@@ -3636,6 +3770,7 @@ size_t xrtTls12ClientKeyExchangeSize(xbytesview PublicKey)
 				&PublicKey) ||
 			(PublicKey.Size != 4u) ) {
 ```
+
 
 ### `xrtTls12ServerKeyExchangeEncode`
 
@@ -3682,6 +3817,7 @@ bool xrtTls12ServerKeyExchangeEncode(uint16 iGroup, xbytesview PublicKey, const 
 	) ) {
 ```
 
+
 ### `xrtTls12ServerKeyExchangeParse`
 
 严格解析 TLS 1.2 ECDHE ServerKeyExchange 正文。
@@ -3716,6 +3852,7 @@ bool xrtTls12ServerKeyExchangeParse(xbytesview Body, xtls12serverkeyexchange* pE
 ```c
 	) || !xrtTls12ServerKeyExchangeParse(
 ```
+
 
 ### `xrtTls12ServerKeyExchangeSize`
 
@@ -3753,6 +3890,7 @@ size_t xrtTls12ServerKeyExchangeSize(uint16 iGroup, xbytesview PublicKey, const 
 		(xbytesview) { PublicKey, sizeof(PublicKey) }, &Verify
 	);
 ```
+
 
 ### `xrtTls12ServerKeyExchangeVerify`
 
@@ -3799,6 +3937,7 @@ bool xrtTls12ServerKeyExchangeVerify(xtlssignature Scheme, xbytesview ClientRand
 				&LeafKey) ) {
 ```
 
+
 ### `xrtTls13CertificateRequestEncode`
 
 失败原子地编码 TLS 1.3 CertificateRequest 正文。
@@ -3840,6 +3979,7 @@ bool xrtTls13CertificateRequestEncode(xbytesview RequestContext, xbytesview Exte
 				14u) ||
 ```
 
+
 ### `xrtTls13CertificateRequestParse`
 
 严格解析 TLS 1.3 CertificateRequest 正文和认证扩展。
@@ -3877,6 +4017,7 @@ bool xrtTls13CertificateRequestParse(xbytesview Body, xtls13certificaterequest* 
 				&Req13Parsed) ||
 ```
 
+
 ### `xrtTls13CertificateRequestSize`
 
 返回编码 TLS 1.3 CertificateRequest 正文所需长度。
@@ -3911,6 +4052,7 @@ size_t xrtTls13CertificateRequestSize(xbytesview RequestContext, xbytesview Exte
 			(xbytesview) { arrCtx, 1u },
 			(xbytesview) { arr13Ext, 10u });
 ```
+
 
 ### `xrtTlsAuthorities`
 
@@ -3948,6 +4090,7 @@ bool xrtTlsAuthorities(xbytesview Data, xtlsauthoritycursor* pCursor)
 				(xbytesview) { arrGood, 13u },
 				&AuthCursor) ) {
 ```
+
 
 ### `xrtTlsAuthoritiesEncode`
 
@@ -3988,6 +4131,7 @@ bool xrtTlsAuthoritiesEncode(const xbytesview* pNames, size_t iCount, void* pOut
 				arrOut, 13u) ||
 ```
 
+
 ### `xrtTlsAuthoritiesRead`
 
 读取下一项非空 DER DistinguishedName。
@@ -4024,6 +4168,7 @@ xtlsitemresult xrtTlsAuthoritiesRead(xtlsauthoritycursor* pCursor, xbytesview* p
 		while ( xrtTlsAuthoritiesRead(&AuthCursor,
 				&Name) == XTLS_ITEM_VALUE ) {
 ```
+
 
 ### `xrtTlsAuthoritiesSize`
 
@@ -4062,6 +4207,7 @@ size_t xrtTlsAuthoritiesSize(const xbytesview* pNames, size_t iCount)
 				(xbytesview) { arrOut, 13u }, &AuthCursor) ) {
 ```
 
+
 ### `xrtTlsCertificatesRead`
 
 读取下一证书条目；结束、值和错误使用三态结果区分。
@@ -4097,6 +4243,7 @@ xtlsitemresult xrtTlsCertificatesRead(xtlscertificatecursor* pCursor, xtlscertif
 		&Cursor, &Entry
 	)) == XTLS_ITEM_VALUE ) {
 ```
+
 
 ### `xrtTlsCompressedCertificateEncode`
 
@@ -4136,6 +4283,7 @@ bool xrtTlsCompressedCertificateEncode(const xtlscompressedcertificate* pCertifi
 			arrOut, 9u) ||
 ```
 
+
 ### `xrtTlsCompressedCertificateParse`
 
 严格解析 TLS 1.3 CompressedCertificate 正文。
@@ -4173,6 +4321,7 @@ bool xrtTlsCompressedCertificateParse(xbytesview Body, xtlscompressedcertificate
 			&CompressedParsed) ||
 ```
 
+
 ### `xrtTlsCompressedCertificateSize`
 
 返回编码 CompressedCertificate 正文所需长度。
@@ -4204,6 +4353,7 @@ size_t xrtTlsCompressedCertificateSize(const xtlscompressedcertificate* pCertifi
 ```c
 	iSize = xrtTlsCompressedCertificateSize(&Compressed);
 ```
+
 
 ### `xrtTlsEncryptedExtensionsEncode`
 
@@ -4243,6 +4393,7 @@ bool xrtTlsEncryptedExtensionsEncode(xbytesview Extensions, void* pOutput, size_
 				(xbytesview) { NULL, 0u }, arrOut, 2u) ||
 ```
 
+
 ### `xrtTlsEncryptedExtensionsParse`
 
 严格解析 TLS 1.3 EncryptedExtensions 正文。
@@ -4278,6 +4429,7 @@ bool xrtTlsEncryptedExtensionsParse(xbytesview Body, xbytesview* pExtensions)
 			!xrtTlsEncryptedExtensionsParse(
 				(xbytesview) { arrOut, 2u }, &Extensions) ||
 ```
+
 
 ### `xrtTlsEncryptedExtensionsSize`
 
@@ -4321,6 +4473,7 @@ size_t xrtTlsEncryptedExtensionsSize(xbytesview Extensions)
 				(xbytesview) { arrAck, 4u }, arrOut, 6u) ||
 ```
 
+
 ### `xrtTlsFinishedEncode`
 
 编码非空 Finished 验证数据正文。
@@ -4362,6 +4515,7 @@ bool xrtTlsFinishedEncode(xbytesview VerifyData, void* pOutput, size_t iOutputSi
 		(VerifyData.Size != 12u) ) {
 ```
 
+
 ### `xrtTlsFinishedParse`
 
 按调用方给出的协商长度严格解析 Finished 验证数据。
@@ -4399,6 +4553,7 @@ bool xrtTlsFinishedParse(xbytesview Body, size_t iExpectedSize, xbytesview* pVer
 			12u, &VerifyData) ||
 ```
 
+
 ### `xrtTlsWriterClientKeyShares`
 
 追加 ClientHello key_share 扩展，允许写出空列表以请求 Retry。
@@ -4434,6 +4589,7 @@ bool xrtTlsWriterClientKeyShares(xtlswriter* pWriter, const xtlskeyshare* pShare
 ```c
 	if ( !xrtTlsWriterClientKeyShares(&Writer, &Share, 1u) ) {
 ```
+
 
 ### `xrtTlsWriterClientPsks`
 
@@ -4471,6 +4627,7 @@ bool xrtTlsWriterClientPsks(xtlswriter* pWriter, const xtlspsk* pPsks, size_t iC
 		if ( !xrtTlsWriterClientPsks(&Writer, Psks, 1u) ) {
 ```
 
+
 ### `xrtTlsWriterClientVersions`
 
 追加 ClientHello supported_versions 扩展。
@@ -4507,6 +4664,7 @@ bool xrtTlsWriterClientVersions(xtlswriter* pWriter, const uint16* pVersions, si
 	if ( !xrtTlsWriterClientVersions(&Writer, arrGroups, 2u) ) {
 ```
 
+
 ### `xrtTlsWriterData`
 
 返回 writer 已完成区域的借用视图。
@@ -4538,6 +4696,7 @@ xbytesview xrtTlsWriterData(const xtlswriter* pWriter)
 ```c
 	Written = xrtTlsWriterData(&Writer);
 ```
+
 
 ### `xrtTlsWriterExtension`
 
@@ -4577,6 +4736,7 @@ bool xrtTlsWriterExtension(xtlswriter* pWriter, xtlsextensiontype Type, xbytesvi
 				(xbytesview) { arrStatus, 1u }) ) {
 ```
 
+
 ### `xrtTlsWriterHostName`
 
 追加只包含一个 host_name 的 SNI 扩展。
@@ -4611,6 +4771,7 @@ bool xrtTlsWriterHostName(xtlswriter* pWriter, xbytesview Host)
 	if ( !xrtTlsWriterHostName(&Writer,
 			(xbytesview) { (cbytes)"api", 3u }) ) {
 ```
+
 
 ### `xrtTlsWriterIds`
 
@@ -4650,6 +4811,7 @@ bool xrtTlsWriterIds(xtlswriter* pWriter, xtlsextensiontype Type, const uint16* 
 			XTLS_EXTENSION_SUPPORTED_GROUPS, arrGroups, 2u) ) {
 ```
 
+
 ### `xrtTlsWriterInit`
 
 初始化一个空的调用方缓冲 writer。
@@ -4685,6 +4847,7 @@ bool xrtTlsWriterInit(xtlswriter* pWriter, void* pData, size_t iCapacity)
 	if ( !xrtTlsWriterInit(&Writer, arrExtBuf, sizeof(arrExtBuf)) ) {
 ```
 
+
 ### `xrtTlsWriterProtocols`
 
 追加完整 ALPN 协议列表；协议名称按输入顺序保留。
@@ -4719,6 +4882,7 @@ bool xrtTlsWriterProtocols(xtlswriter* pWriter, const xbytesview* pProtocols, si
 ```c
 	if ( !xrtTlsWriterProtocols(&Writer, arrProtocols, 2u) ) {
 ```
+
 
 ### `xrtTlsWriterPskModes`
 
@@ -4756,6 +4920,7 @@ bool xrtTlsWriterPskModes(xtlswriter* pWriter, const uint8* pModes, size_t iCoun
 		if ( !xrtTlsWriterPskModes(&Writer, arrModes, 1u) ) {
 ```
 
+
 ### `xrtTlsWriterReset`
 
 清空 writer 的逻辑内容，不擦除调用方缓冲。
@@ -4788,6 +4953,7 @@ bool xrtTlsWriterReset(xtlswriter* pWriter)
 ```c
 	if ( !xrtTlsWriterReset(&Writer) ) {
 ```
+
 
 ### `xrtTlsWriterRetryCookie`
 
@@ -4824,6 +4990,7 @@ bool xrtTlsWriterRetryCookie(xtlswriter* pWriter, xbytesview Cookie)
 		!xrtTlsWriterRetryCookie(&Writer,
 			(xbytesview) { arrKey1, 4u }) ) {
 ```
+
 
 ### `xrtTlsWriterRetryGroup`
 
@@ -4862,6 +5029,7 @@ bool xrtTlsWriterRetryGroup(xtlswriter* pWriter, uint16 iGroup)
 			(xbytesview) { arrKey1, 4u }) ) {
 ```
 
+
 ### `xrtTlsWriterServerKeyShare`
 
 追加普通 ServerHello 的单个 key_share 扩展。
@@ -4896,6 +5064,7 @@ bool xrtTlsWriterServerKeyShare(xtlswriter* pWriter, const xtlskeyshare* pShare)
 ```c
 	if ( !xrtTlsWriterServerKeyShare(&Writer, &Share) ) {
 ```
+
 
 ### `xrtTlsWriterServerPsk`
 
@@ -4932,6 +5101,7 @@ bool xrtTlsWriterServerPsk(xtlswriter* pWriter, uint16 iSelected)
 		if ( !xrtTlsWriterServerPsk(&Writer, 0u) ) {
 ```
 
+
 ### `xrtTlsWriterServerVersion`
 
 追加 ServerHello 选择单一版本的 supported_versions 扩展。
@@ -4965,6 +5135,7 @@ bool xrtTlsWriterServerVersion(xtlswriter* pWriter, uint16 iVersion)
 ```c
 	if ( !xrtTlsWriterServerVersion(&Writer, 0x0304u) ) {
 ```
+
 
 ## 无状态协商
 
@@ -5048,6 +5219,7 @@ bool xrtTlsCipherCompatible(xtlsversion Version, xtlscipher Cipher, xtlsidentity
 			XTLS_ECDHE_RSA_AES_128_GCM_SHA256,
 ```
 
+
 ### `xrtTlsCipherInfo`
 
 返回只读密码套件元数据，未知套件返回空指针且不设置错误。
@@ -5083,6 +5255,7 @@ const xtlscipherinfo* xrtTlsCipherInfo(xtlscipher Cipher)
 		);
 ```
 
+
 ### `xrtTlsCipherName`
 
 返回密码套件的稳定英文名称，未知值返回 unknown。
@@ -5114,6 +5287,7 @@ cstr xrtTlsCipherName(xtlscipher Cipher)
 ```c
 			xrtTlsCipherName(Ciphers[i]),
 ```
+
 
 ### `xrtTlsCipherSelect`
 
@@ -5157,6 +5331,7 @@ xtlsitemresult xrtTlsCipherSelect(xtlsversion Version, const xtlsids* pOffered, 
 	) != XTLS_ITEM_VALUE ) {
 ```
 
+
 ### `xrtTlsGroupAvailable`
 
 判断命名组的密码后端是否已编译进当前 XRT。
@@ -5189,6 +5364,7 @@ bool xrtTlsGroupAvailable(uint16 iGroup)
 ```c
 		if ( xrtTlsGroupAvailable(Groups[i]) ) {
 ```
+
 
 ### `xrtTlsGroupInfo`
 
@@ -5223,6 +5399,7 @@ const xtlsgroupinfo* xrtTlsGroupInfo(uint16 iGroup)
 			return xrtTlsGroupInfo(Groups[i]);
 ```
 
+
 ### `xrtTlsGroups`
 
 严格解析 supported_groups 扩展数据。
@@ -5256,6 +5433,7 @@ bool xrtTlsGroups(xbytesview Data, xtlsids* pGroups)
 ```c
 		!xrtTlsGroups(Extension.Data, &Ids) ||
 ```
+
 
 ### `xrtTlsHostName`
 
@@ -5293,6 +5471,7 @@ xtlsitemresult xrtTlsHostName(xbytesview Data, xbytesview* pHost)
 			&Host) != XTLS_ITEM_VALUE) ||
 ```
 
+
 ### `xrtTlsIdsContain`
 
 判断 16 位标识列表是否包含给定线路值。
@@ -5326,6 +5505,7 @@ bool xrtTlsIdsContain(const xtlsids* pIds, uint16 iValue)
 ```c
 		!xrtTlsIdsContain(&Ids, 0x0017u) ||
 ```
+
 
 ### `xrtTlsIdsCount`
 
@@ -5364,6 +5544,7 @@ size_t xrtTlsIdsCount(const xtlsids* pIds)
 		xrtTlsIdsContain(&Ids, 0x00FFu) ) {
 ```
 
+
 ### `xrtTlsIdsGet`
 
 按索引读取 16 位标识；越界时不修改输出。
@@ -5398,6 +5579,7 @@ bool xrtTlsIdsGet(const xtlsids* pIds, size_t iIndex, uint16* pValue)
 ```c
 		!xrtTlsIdsGet(&Ids, 2u, &iValue) ||
 ```
+
 
 ### `xrtTlsIdsSelect`
 
@@ -5438,6 +5620,7 @@ xtlsitemresult xrtTlsIdsSelect(const xtlsids* pOffered, const uint16* pPreferred
 			(iPicked != 0x0017u) ) {
 ```
 
+
 ### `xrtTlsLimitsInit`
 
 初始化适合通用客户端和服务端的有界队列与驱动预算。
@@ -5469,6 +5652,7 @@ void xrtTlsLimitsInit(xtlslimits* pLimits)
 ```c
 	xrtTlsLimitsInit(&Limits);
 ```
+
 
 ### `xrtTlsLimitsValid`
 
@@ -5503,6 +5687,7 @@ bool xrtTlsLimitsValid(const xtlslimits* pLimits)
 	if ( !xrtTlsLimitsValid(&Limits) ) {
 ```
 
+
 ### `xrtTlsPolicyInit`
 
 初始化覆盖 TLS 1.3/1.2 的通用安全偏好；所有数组都可由调用方替换。
@@ -5534,6 +5719,7 @@ void xrtTlsPolicyInit(xtlspolicy* pPolicy)
 ```c
 	xrtTlsPolicyInit(&Policy);
 ```
+
 
 ### `xrtTlsPolicyValid`
 
@@ -5567,6 +5753,7 @@ bool xrtTlsPolicyValid(const xtlspolicy* pPolicy)
 ```c
 	if ( !xrtTlsPolicyValid(&Policy) ) {
 ```
+
 
 ### `xrtTlsProtocolFind`
 
@@ -5604,6 +5791,7 @@ xtlsitemresult xrtTlsProtocolFind(xbytesview Data, xbytesview Protocol)
 			(xbytesview) { (cbytes)"h2", 2u }) !=
 			XTLS_ITEM_VALUE) ) {
 ```
+
 
 ### `xrtTlsProtocolSelect`
 
@@ -5646,6 +5834,7 @@ xtlsitemresult xrtTlsProtocolSelect(xbytesview Offered, xbytesview Preferred, xb
 				(memcmp(Protocol.Data, "h2", 2u) != 0) ) {
 ```
 
+
 ### `xrtTlsProtocolSelected`
 
 严格读取服务端必须唯一选择的 ALPN 协议。
@@ -5683,6 +5872,7 @@ bool xrtTlsProtocolSelected(xbytesview Data, xbytesview* pProtocol)
 			(Protocol.Size != 1u) ) {
 ```
 
+
 ### `xrtTlsProtocols`
 
 严格解析 ALPN ProtocolNameList 并把游标重置到首项。
@@ -5717,6 +5907,7 @@ bool xrtTlsProtocols(xbytesview Data, xtlsprotocolcursor* pCursor)
 	if ( !xrtTlsProtocols((xbytesview) { arrAlpn, 15u },
 			&AlpnCursor) ) {
 ```
+
 
 ### `xrtTlsProtocolsRead`
 
@@ -5755,6 +5946,7 @@ xtlsitemresult xrtTlsProtocolsRead(xtlsprotocolcursor* pCursor, xbytesview* pPro
 		XTLS_ITEM_VALUE ) {
 ```
 
+
 ### `xrtTlsPskModes`
 
 严格解析非空且不重复的 PSK 密钥交换模式列表。
@@ -5792,6 +5984,7 @@ bool xrtTlsPskModes(xbytesview Data, xbytesview* pModes)
 			(Protocol.Size != 1u) ||
 			(Protocol.Data[0] != 1u) ) {
 ```
+
 
 ### `xrtTlsPsksRead`
 
@@ -5835,6 +6028,7 @@ xtlsitemresult xrtTlsPsksRead(xtlspskcursor* pCursor, xtlspsk* pPsk)
 				XTLS_ITEM_DONE) ) {
 ```
 
+
 ### `xrtTlsRetryCookie`
 
 严格解析 HelloRetryRequest cookie 的 16 位非空字节向量。
@@ -5870,6 +6064,7 @@ bool xrtTlsRetryCookie(xbytesview Data, xbytesview* pCookie)
 			!xrtTlsRetryCookie((xbytesview) { arrRetry + 2,
 				3u }, &Protocol) ||
 ```
+
 
 ### `xrtTlsRetryGroup`
 
@@ -5911,6 +6106,7 @@ bool xrtTlsRetryGroup(xbytesview Data, uint16* pGroup)
 			(Protocol.Size != 1u) ) {
 ```
 
+
 ### `xrtTlsSignatureCompatible`
 
 判断签名方案能否用于指定版本和握手身份。
@@ -5948,6 +6144,7 @@ bool xrtTlsSignatureCompatible(xtlsversion Version, xtlssignature Signature, xtl
 			XTLS_IDENTITY_RSA) ) {
 ```
 
+
 ### `xrtTlsSignatureInfo`
 
 返回签名方案的只读元数据；未知线路值返回 NULL 且不设置错误。
@@ -5980,6 +6177,7 @@ const xtlssignatureinfo* xrtTlsSignatureInfo(xtlssignature Signature)
 ```c
 	pSigInfo = xrtTlsSignatureInfo(XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256);
 ```
+
 
 ### `xrtTlsSignatureSelect`
 
@@ -6024,6 +6222,7 @@ xtlsitemresult xrtTlsSignatureSelect(xtlsversion Version, const xtlsids* pOffere
 				XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256) ) {
 ```
 
+
 ### `xrtTlsSignatures`
 
 严格解析 signature_algorithms 类扩展数据。
@@ -6060,6 +6259,7 @@ bool xrtTlsSignatures(xbytesview Data, xtlsids* pSignatures)
 			(xrtTlsIdsCount(&Ids) != 2u) ) {
 ```
 
+
 ### `xrtTlsVersionName`
 
 返回协议版本的稳定英文名称，未知值返回 unknown。
@@ -6091,6 +6291,7 @@ cstr xrtTlsVersionName(uint16 iVersion)
 ```c
 		xrtTlsVersionName(Version), xrtTlsCipherName(Cipher)
 ```
+
 
 ### `xrtTlsVersionSelect`
 
@@ -6130,6 +6331,7 @@ xtlsitemresult xrtTlsVersionSelect(const xtlsids* pOffered, const xtlsversion* p
 		&OfferedVersions, Versions, 2, &Version
 	) != XTLS_ITEM_VALUE ) {
 ```
+
 
 ## TLS 策略
 
@@ -6191,6 +6393,7 @@ void xrtTlsContextConfigInit(xtlscontextconfig* pConfig)
 	xrtTlsContextConfigInit(&Config);
 ```
 
+
 ### `xrtTlsContextCreate`
 
 创建可跨线程共享的只读 TLS 配置快照。
@@ -6224,6 +6427,7 @@ xtlscontext* xrtTlsContextCreate(const xtlscontextconfig* pConfig)
 ```c
 	pContext = xrtTlsContextCreate(&Config);
 ```
+
 
 ### `xrtTlsContextLimits`
 
@@ -6259,6 +6463,7 @@ const xtlslimits* xrtTlsContextLimits(const xtlscontext* pContext)
 		xrtTlsContextLimits(pContext)->PlainLimit
 ```
 
+
 ### `xrtTlsContextPolicy`
 
 返回生命周期不超过上下文的只读策略快照。
@@ -6293,6 +6498,7 @@ const xtlspolicy* xrtTlsContextPolicy(const xtlscontext* pContext)
 		xrtTlsContextPolicy(pContext)->VersionCount,
 ```
 
+
 ### `xrtTlsContextRelease`
 
 释放一个上下文引用，空指针无操作。
@@ -6324,6 +6530,7 @@ void xrtTlsContextRelease(xtlscontext* pContext)
 ```c
 	xrtTlsContextRelease(pContext);
 ```
+
 
 ### `xrtTlsContextRetain`
 
@@ -6358,6 +6565,7 @@ xtlscontext* xrtTlsContextRetain(const xtlscontext* pContext)
 		((pRetained = xrtTlsContextRetain(pContext)) ==
 			NULL) ) {
 ```
+
 
 ## 共享上下文
 
@@ -6426,6 +6634,7 @@ bool xrtTlsKeyShareDerive(uint16 iGroup, xbytesview Private, xbytesview PeerPubl
 	) || !xrtTlsKeyShareDerive(
 ```
 
+
 ### `xrtTlsKeyShareFind`
 
 从完整客户端 key_share 扩展负载查找指定组的借用公钥。
@@ -6463,6 +6672,7 @@ xtlsitemresult xrtTlsKeyShareFind(xbytesview KeyShares, uint16 iGroup, xtlskeysh
 				(xbytesview) { arrKsEmpty, 2u },
 				0x001Du, &Share) != XTLS_ITEM_DONE ) {
 ```
+
 
 ### `xrtTlsKeyShareGenerate`
 
@@ -6512,6 +6722,7 @@ bool xrtTlsKeyShareGenerate(uint16 iGroup, void* pPrivate, size_t iPrivateCapaci
 		(xbytesview) { ClientPrivate, pInfo->PrivateSize },
 ```
 
+
 ### `xrtTlsKeyShareSelect`
 
 选择可直接使用或需要 HelloRetryRequest 的共同密钥共享组。
@@ -6555,6 +6766,7 @@ xtlsitemresult xrtTlsKeyShareSelect(const xtlsids* pGroups, xbytesview KeyShares
 					&Selection) == XTLS_ITEM_ERROR ) {
 ```
 
+
 ### `xrtTlsKeySharesRead`
 
 读取下一项非空且命名组唯一的客户端密钥共享。
@@ -6591,6 +6803,7 @@ xtlsitemresult xrtTlsKeySharesRead(xtlskeysharecursor* pCursor, xtlskeyshare* pS
 			(xrtTlsKeySharesRead(&KsCursor, &Share) !=
 				XTLS_ITEM_DONE) ) {
 ```
+
 
 ### `xrtTlsKeyUpdateEncode`
 
@@ -6633,6 +6846,7 @@ bool xrtTlsKeyUpdateEncode(xtlskeyupdate Request, void* pOutput, size_t iOutputS
 		(KeyUpdate != XTLS_KEY_UPDATE_REQUESTED) ) {
 ```
 
+
 ### `xrtTlsKeyUpdateParse`
 
 严格解析 TLS 1.3 单字节 KeyUpdate 请求。
@@ -6668,6 +6882,7 @@ bool xrtTlsKeyUpdateParse(xbytesview Body, xtlskeyupdate* pRequest)
 		!xrtTlsKeyUpdateParse((xbytesview) { arrOut, 1u },
 			&KeyUpdate) ||
 ```
+
 
 ## 命名组与密钥交换
 
@@ -6771,6 +6986,7 @@ bool xrtTlsCertificateEncode(xtlsversion Version, xbytesview RequestContext, con
 	) || !xrtTlsCertificateEntries(&Message, &Cursor) ) {
 ```
 
+
 ### `xrtTlsCertificateEntries`
 
 从已验证的 Certificate 消息初始化零拷贝证书游标。
@@ -6805,6 +7021,7 @@ bool xrtTlsCertificateEntries(const xtlscertificatemessage* pMessage, xtlscertif
 ```c
 	) || !xrtTlsCertificateEntries(&Message, &Cursor) ) {
 ```
+
 
 ### `xrtTlsCertificateParse`
 
@@ -6841,6 +7058,7 @@ bool xrtTlsCertificateParse(xtlsversion Version, xbytesview Body, xtlscertificat
 ```c
 	) || !xrtTlsCertificateParse(
 ```
+
 
 ### `xrtTlsCertificateSize`
 
@@ -6879,6 +7097,7 @@ size_t xrtTlsCertificateSize(xtlsversion Version, xbytesview RequestContext, con
 	);
 ```
 
+
 ### `xrtTlsCertificateStatusEncode`
 
 编码 OCSP CertificateStatus，允许响应与输出重叠。
@@ -6916,6 +7135,7 @@ bool xrtTlsCertificateStatusEncode(const xtlscertificatestatusmessage* pStatus, 
 		!xrtTlsCertificateStatusEncode(&Status, arrOut, 8u) ||
 ```
 
+
 ### `xrtTlsCertificateStatusParse`
 
 严格解析 OCSP CertificateStatus 正文。
@@ -6952,6 +7172,7 @@ bool xrtTlsCertificateStatusParse(xbytesview Body, xtlscertificatestatusmessage*
 			(xbytesview) { arrOut, 8u }, &StatusParsed) ||
 ```
 
+
 ### `xrtTlsCertificateStatusSize`
 
 返回编码 OCSP CertificateStatus 正文所需长度。
@@ -6983,6 +7204,7 @@ size_t xrtTlsCertificateStatusSize(const xtlscertificatestatusmessage* pStatus)
 ```c
 	iSize = xrtTlsCertificateStatusSize(&Status);
 ```
+
 
 ### `xrtTlsCertificateVerifyEncode`
 
@@ -7021,6 +7243,7 @@ bool xrtTlsCertificateVerifyEncode(const xtlscertificateverify* pVerify, void* p
 		!xrtTlsCertificateVerifyEncode(&Verify, arrOut, 8u) ||
 ```
 
+
 ### `xrtTlsCertificateVerifyParse`
 
 严格解析 CertificateVerify 的方案与非空签名。
@@ -7057,6 +7280,7 @@ bool xrtTlsCertificateVerifyParse(xbytesview Body, xtlscertificateverify* pVerif
 			(xbytesview) { arrOut, 8u }, &VerifyParsed) ||
 ```
 
+
 ### `xrtTlsCertificateVerifySize`
 
 返回编码 CertificateVerify 正文所需长度。
@@ -7088,6 +7312,7 @@ size_t xrtTlsCertificateVerifySize(const xtlscertificateverify* pVerify)
 ```c
 	iSize = xrtTlsCertificateVerifySize(&Verify);
 ```
+
 
 ## 握手语义消息
 
@@ -7171,6 +7396,7 @@ bool xrtTlsAlertEncode(xtlsalertlevel Level, xtlsalert Alert, void* pOutput, siz
 		(Alert != XTLS_ALERT_CLOSE_NOTIFY) ) {
 ```
 
+
 ### `xrtTlsAlertName`
 
 返回 Alert 的稳定英文名称，未知值返回 unknown_alert。
@@ -7212,6 +7438,7 @@ cstr xrtTlsAlertName(xtlsalert Alert)
 			"supported_groups") != 0) ) {
 ```
 
+
 ### `xrtTlsAlertParse`
 
 解析恰好一个两字节 Alert 负载。
@@ -7249,6 +7476,7 @@ bool xrtTlsAlertParse(xbytesview Payload, xtlsalertlevel* pLevel, xtlsalert* pAl
 			&AlertLevel, &Alert) ||
 ```
 
+
 ### `xrtTlsSessionTicketEncode`
 
 失败原子地编码版本对应的 NewSessionTicket 正文。
@@ -7285,6 +7513,7 @@ bool xrtTlsSessionTicketEncode(const xtlssessionticket* pTicket, void* pOutput, 
 ```c
 		!xrtTlsSessionTicketEncode(&Ticket, arrOut, iSize) ||
 ```
+
 
 ### `xrtTlsSessionTicketParse`
 
@@ -7324,6 +7553,7 @@ bool xrtTlsSessionTicketParse(xtlsversion Version, xbytesview Body, xtlssessiont
 			&TicketParsed) ||
 ```
 
+
 ### `xrtTlsSessionTicketSize`
 
 返回编码 NewSessionTicket 正文所需长度。
@@ -7355,6 +7585,7 @@ size_t xrtTlsSessionTicketSize(const xtlssessionticket* pTicket)
 ```c
 	iSize = xrtTlsSessionTicketSize(&Ticket);
 ```
+
 
 ## 语义消息编码
 
@@ -7432,6 +7663,7 @@ bool xrtTls13CertificateVerifyContentEncode(xtlsrole Signer, xbytesview Transcri
 				(xbytesview) { arrHash, 32u },
 ```
 
+
 ### `xrtTls13CertificateVerifyContentSize`
 
 返回 TLS 1.3 CertificateVerify 待签内容的精确长度。
@@ -7465,6 +7697,7 @@ size_t xrtTls13CertificateVerifyContentSize(xtlsrole Signer, size_t iTranscriptH
 		size_t iCvc = xrtTls13CertificateVerifyContentSize(
 			XTLS_SERVER, 32u);
 ```
+
 
 ### `xrtTls13CertificateVerifySignature`
 
@@ -7507,6 +7740,7 @@ bool xrtTls13CertificateVerifySignature(xtlsrole Signer, xtlssignature Scheme, x
 				(xbytesview) { arrDer, iDerSize },
 				&LeafKey) ) {
 ```
+
 
 ## 认证消息
 
@@ -7677,6 +7911,7 @@ xtlscipher xrtTlsSessionCipher(const xtlssession* pSession)
 		(xrtTlsSessionCipher(pClient) == 0u) ||
 ```
 
+
 ### `xrtTlsSessionClose`
 
 排队一次 close_notify，并等待密文排空和对端认证关闭。
@@ -7714,6 +7949,7 @@ xtlsresult xrtTlsSessionClose(xtlssession* pSession)
 	if ( xrtTlsSessionClose(pClient) != XTLS_OK ) {
 ```
 
+
 ### `xrtTlsSessionContext`
 
 借用会话持有的只读上下文；返回值不得超过会话生命周期使用。
@@ -7748,6 +7984,7 @@ const xtlscontext* xrtTlsSessionContext(const xtlssession* pSession)
 		(xrtTlsSessionContext(pClient) == NULL) ||
 ```
 
+
 ### `xrtTlsSessionDestroy`
 
 销毁会话、释放队列并归还上下文引用；空指针无操作。
@@ -7779,6 +8016,7 @@ void xrtTlsSessionDestroy(xtlssession* pSession)
 ```c
 	xrtTlsSessionDestroy(pSession);
 ```
+
 
 ### `xrtTlsSessionEof`
 
@@ -7817,6 +8055,7 @@ xtlsresult xrtTlsSessionEof(xtlssession* pSession)
 			(Level != XTLS_ALERT_WARNING) ||
 			(Alert != XTLS_ALERT_CLOSE_NOTIFY) ) {
 ```
+
 
 ### `xrtTlsSessionFeed`
 
@@ -7861,6 +8100,7 @@ xtlsresult xrtTlsSessionFeed(xtlssession* pSession, const void* pData, size_t iS
 			) ) {
 ```
 
+
 ### `xrtTlsSessionFeedBorrow`
 
 借用一段收到的密文，调用方须保持其存活到会话消费或销毁。
@@ -7899,6 +8139,7 @@ xtlsresult xrtTlsSessionFeedBorrow(xtlssession* pSession, const void* pData, siz
 			Span.Size);
 ```
 
+
 ### `xrtTlsSessionFeedBuffer`
 
 零复制接管一条密文缓冲链；AGAIN 或失败时源缓冲保持不变。
@@ -7935,6 +8176,7 @@ xtlsresult xrtTlsSessionFeedBuffer(xtlssession* pSession, xnetbuf* pBuffer)
 				Result = xrtTlsSessionFeedBuffer(pTarget,
 					&Chain);
 ```
+
 
 ### `xrtTlsSessionFeedRef`
 
@@ -7977,6 +8219,7 @@ xtlsresult xrtTlsSessionFeedRef(xtlssession* pSession, const void* pData, size_t
 					exampleRelease, (ptr)pReleased);
 ```
 
+
 ### `xrtTlsSessionFeedSize`
 
 返回尚未由协议状态机消费的密文字节数。
@@ -8008,6 +8251,7 @@ size_t xrtTlsSessionFeedSize(const xtlssession* pSession)
 ```c
 		(xrtTlsSessionFeedSize(pClient) != 0u) ) {
 ```
+
 
 ### `xrtTlsSessionFeedTake`
 
@@ -8047,6 +8291,7 @@ xtlsresult xrtTlsSessionFeedTake(xtlssession* pSession, ptr pData, size_t iSize)
 					pCopy, Spans[0].Size);
 ```
 
+
 ### `xrtTlsSessionPeerAlert`
 
 查询最后收到的对端 Alert；尚未收到时返回 false 且不设置错误。
@@ -8083,6 +8328,7 @@ bool xrtTlsSessionPeerAlert(const xtlssession* pSession, xtlsalertlevel* pLevel,
 			!xrtTlsSessionPeerAlert(pServer, &Level, &Alert) ||
 ```
 
+
 ### `xrtTlsSessionPlainConsume`
 
 精确消费应用已经处理的明文字节，禁止静默过量消费。
@@ -8117,6 +8363,7 @@ bool xrtTlsSessionPlainConsume(xtlssession* pSession, size_t iSize)
 ```c
 				!xrtTlsSessionPlainConsume(pClient, 5u) ||
 ```
+
 
 ### `xrtTlsSessionPlainFront`
 
@@ -8153,6 +8400,7 @@ bool xrtTlsSessionPlainFront(const xtlssession* pSession, xnetspan* pSpan)
 			!xrtTlsSessionPlainFront(pClient, &Spans[0]) ||
 ```
 
+
 ### `xrtTlsSessionPlainSize`
 
 返回等待应用读取的明文字节数。
@@ -8185,6 +8433,7 @@ size_t xrtTlsSessionPlainSize(const xtlssession* pSession)
 		(xrtTlsSessionPlainSize(pServer) != 4u) ||
 ```
 
+
 ### `xrtTlsSessionPlainSpanCount`
 
 返回明文读取队列当前非空 Span 数。
@@ -8216,6 +8465,7 @@ size_t xrtTlsSessionPlainSpanCount(const xtlssession* pSession)
 ```c
 		iCount = xrtTlsSessionPlainSpanCount(pClient);
 ```
+
 
 ### `xrtTlsSessionPlainSpans`
 
@@ -8252,6 +8502,7 @@ size_t xrtTlsSessionPlainSpans(const xtlssession* pSession, xnetspan* pSpans, si
 				iCount) ) {
 ```
 
+
 ### `xrtTlsSessionProtocol`
 
 借用协商后的 ALPN 协议；尚未选择协议时返回 false 且不设置错误。
@@ -8285,6 +8536,7 @@ bool xrtTlsSessionProtocol(const xtlssession* pSession, xbytesview* pProtocol)
 ```c
 		!xrtTlsSessionProtocol(pServer, &Protocol) ) {
 ```
+
 
 ### `xrtTlsSessionRead`
 
@@ -8327,6 +8579,7 @@ xtlsresult xrtTlsSessionRead(xtlssession* pSession, void* pOutput, size_t iCapac
 	) == XTLS_OK) && (iRead == iSize) &&
 ```
 
+
 ### `xrtTlsSessionRole`
 
 返回会话的客户端或服务端角色；失败返回零并设置错误。
@@ -8358,6 +8611,7 @@ xtlsrole xrtTlsSessionRole(const xtlssession* pSession)
 ```c
 	return (xrtTlsSessionRole(pSession) == XTLS_SERVER) ?
 ```
+
 
 ### `xrtTlsSessionSendConsume`
 
@@ -8393,6 +8647,7 @@ bool xrtTlsSessionSendConsume(xtlssession* pSession, size_t iSize)
 ```c
 		if ( !xrtTlsSessionSendConsume(pSource, Span.Size) ) {
 ```
+
 
 ### `xrtTlsSessionSendFront`
 
@@ -8430,6 +8685,7 @@ bool xrtTlsSessionSendFront(const xtlssession* pSession, xnetspan* pSpan)
 			(Span.Size == 0u) ) {
 ```
 
+
 ### `xrtTlsSessionSendSize`
 
 返回等待底层传输发送的密文字节数。
@@ -8462,6 +8718,7 @@ size_t xrtTlsSessionSendSize(const xtlssession* pSession)
 		xrtTlsSessionSendSize(pSession),
 ```
 
+
 ### `xrtTlsSessionSendSpanCount`
 
 返回密文发送队列当前非空 Span 数。
@@ -8493,6 +8750,7 @@ size_t xrtTlsSessionSendSpanCount(const xtlssession* pSession)
 ```c
 		if ( (xrtTlsSessionSendSpanCount(pClient) != 0u) ) {
 ```
+
 
 ### `xrtTlsSessionSendSpans`
 
@@ -8529,6 +8787,7 @@ size_t xrtTlsSessionSendSpans(const xtlssession* pSession, xnetspan* pSpans, siz
 			(Spans[0].Size == 0u) ) {
 ```
 
+
 ### `xrtTlsSessionState`
 
 返回公开生命周期状态；空会话返回 FAILED 并设置错误。
@@ -8562,6 +8821,7 @@ xtlsstate xrtTlsSessionState(const xtlssession* pSession)
 			(xrtTlsSessionState(pServer) == XTLS_STATE_READY) ) {
 ```
 
+
 ### `xrtTlsSessionVersion`
 
 返回协商后的协议版本；握手尚未选定版本时返回零且不设置错误。
@@ -8594,6 +8854,7 @@ xtlsversion xrtTlsSessionVersion(const xtlssession* pSession)
 		(xrtTlsSessionVersion(pClient) != XTLS_VERSION_13) ||
 ```
 
+
 ### `xrtTlsSessionWait`
 
 返回当前等待原因位；没有等待原因时返回 XTLS_WAIT_NONE。
@@ -8625,6 +8886,7 @@ uint32 xrtTlsSessionWait(const xtlssession* pSession)
 ```c
 		(xrtTlsSessionWait(pClient) == 0u) ||
 ```
+
 
 ### `xrtTlsSessionWrite`
 
@@ -8668,6 +8930,7 @@ xtlsresult xrtTlsSessionWrite(xtlssession* pSession, const void* pData, size_t i
 	) != XTLS_OK) || (iWritten != iSize) ||
 		!exampleTlsMove(pSource, pTarget) ) {
 ```
+
 
 ## 公共会话底座
 
@@ -8727,6 +8990,7 @@ void xrtTlsResumeConfigInit(xtlsresumeconfig* pConfig)
 	xrtTlsResumeConfigInit(&ResumeConfig);
 ```
 
+
 ### `xrtTlsResumeCreate`
 
 创建单次精确分配、深拷贝且可跨线程共享的恢复对象。
@@ -8760,6 +9024,7 @@ xtlsresume* xrtTlsResumeCreate(const xtlsresumeconfig* pConfig)
 ```c
 	pResume = xrtTlsResumeCreate(&ResumeConfig);
 ```
+
 
 ### `xrtTlsResumeInfo`
 
@@ -8795,6 +9060,7 @@ bool xrtTlsResumeInfo(const xtlsresume* pResume, xtlsresumeinfo* pInfo)
 	if ( (pResume == NULL) || !xrtTlsResumeInfo(pResume, &Info) ) {
 ```
 
+
 ### `xrtTlsResumeRelease`
 
 释放恢复对象，并在最后一个引用结束时清除票据、PSK 与全部元数据。
@@ -8826,6 +9092,7 @@ void xrtTlsResumeRelease(xtlsresume* pResume)
 ```c
 	xrtTlsResumeRelease(pResume);
 ```
+
 
 ### `xrtTlsResumeRetain`
 
@@ -8859,6 +9126,7 @@ xtlsresume* xrtTlsResumeRetain(const xtlsresume* pResume)
 ```c
 		((pRetained = xrtTlsResumeRetain(pResume)) == NULL) ||
 ```
+
 
 ### `xrtTlsResumeTicketAge`
 
@@ -8896,6 +9164,7 @@ bool xrtTlsResumeTicketAge(const xtlsresume* pResume, xtime iNow, uint32* pAge)
 		!xrtTlsResumeTicketAge(pResume, xrtNow(), &iAge) ) {
 ```
 
+
 ### `xrtTlsResumeValidAt`
 
 判断给定墙钟时刻是否位于票据的半开有效区间内。
@@ -8930,6 +9199,7 @@ bool xrtTlsResumeValidAt(const xtlsresume* pResume, xtime iNow)
 ```c
 		!xrtTlsResumeValidAt(pResume, xrtNow()) ||
 ```
+
 
 ## TLS 会话恢复对象
 
@@ -9013,6 +9283,7 @@ const xx509cert* xrtTlsClientCertificate(const xtlssession* pSession, size_t iIn
 				NULL) ||
 ```
 
+
 ### `xrtTlsClientCertificateCount`
 
 返回完整握手中已经深复制并验证的对端证书数量。
@@ -9053,6 +9324,7 @@ size_t xrtTlsClientCertificateCount(const xtlssession* pSession)
 			(memcmp(ServerName.Data, "localhost", 9u) != 0) ) {
 ```
 
+
 ### `xrtTlsClientConfigInit`
 
 初始化使用默认共享策略、无 SNI 和无 ALPN 的客户端配置。
@@ -9084,6 +9356,7 @@ void xrtTlsClientConfigInit(xtlsclientconfig* pConfig)
 ```c
 	xrtTlsClientConfigInit(&ClientConfig);
 ```
+
 
 ### `xrtTlsClientCreate`
 
@@ -9119,6 +9392,7 @@ xtlssession* xrtTlsClientCreate(const xtlsclientconfig* pConfig, xnetbufpool* pP
 ```c
 	pSession = xrtTlsClientCreate(&ClientConfig, NULL);
 ```
+
 
 ### `xrtTlsClientDrive`
 
@@ -9156,6 +9430,7 @@ xtlsresult xrtTlsClientDrive(xtlssession* pSession)
 ```c
 		xrtTlsClientDrive(pSession);
 ```
+
 
 ### `xrtTlsClientKeyShares`
 
@@ -9196,6 +9471,7 @@ bool xrtTlsClientKeyShares(xbytesview Data, xtlskeysharecursor* pCursor)
 				XTLS_ITEM_DONE) ) {
 ```
 
+
 ### `xrtTlsClientKeyUpdate`
 
 用当前 TLS 1.3 写 epoch 排队 KeyUpdate；TLS 1.2 会话返回不支持。
@@ -9233,6 +9509,7 @@ xtlsresult xrtTlsClientKeyUpdate(xtlssession* pSession, xtlskeyupdate Request)
 			XTLS_KEY_UPDATE_REQUESTED) != XTLS_OK) ||
 ```
 
+
 ### `xrtTlsClientPsks`
 
 严格解析 ClientHello PSK 列表并重置同步游标。
@@ -9269,6 +9546,7 @@ bool xrtTlsClientPsks(xbytesview Data, xtlspskcursor* pCursor)
 				&PskCursor) ) {
 ```
 
+
 ### `xrtTlsClientResumeCount`
 
 返回等待调用方接管的恢复对象数量。
@@ -9300,6 +9578,7 @@ size_t xrtTlsClientResumeCount(const xtlssession* pSession)
 ```c
 		(xrtTlsClientResumeCount(pClient) == 0u); i++ ) {
 ```
+
 
 ### `xrtTlsClientResumeDropped`
 
@@ -9333,6 +9612,7 @@ uint64 xrtTlsClientResumeDropped(const xtlssession* pSession)
 			(xrtTlsClientResumeDropped(pClient2) !=
 				xrtTlsClientResumeDropped(pClient2)) ) {
 ```
+
 
 ### `xrtTlsClientResumed`
 
@@ -9368,6 +9648,7 @@ bool xrtTlsClientResumed(const xtlssession* pSession)
 		xrtTlsClientResumed(pSession) ? "yes" : "not yet"
 ```
 
+
 ### `xrtTlsClientTakeResume`
 
 从队首取出一张恢复票据并把唯一会话引用转移给调用方。
@@ -9401,6 +9682,7 @@ xtlsresume* xrtTlsClientTakeResume(xtlssession* pSession)
 ```c
 		((pResume = xrtTlsClientTakeResume(pClient)) == NULL) ||
 ```
+
 
 ### `xrtTlsClientVersionSelect`
 
@@ -9441,6 +9723,7 @@ xtlsitemresult xrtTlsClientVersionSelect(const xtlsclienthello* pHello, const xt
 			(Selected != XTLS_VERSION_13) ) {
 ```
 
+
 ### `xrtTlsClientVersions`
 
 严格解析 ClientHello supported_versions 扩展数据。
@@ -9478,6 +9761,7 @@ bool xrtTlsClientVersions(xbytesview Data, xtlsids* pVersions)
 				&Ids) ||
 			(xrtTlsIdsCount(&Ids) != 2u) ) {
 ```
+
 
 ## TLS 客户端
 
@@ -9572,6 +9856,7 @@ void xrtTlsServerConfigInit(xtlsserverconfig* pConfig)
 	xrtTlsServerConfigInit(&ServerConfig);
 ```
 
+
 ### `xrtTlsServerCookie`
 
 返回选择器为本次握手保存的不透明宿主 Cookie；未设置时返回零。
@@ -9607,6 +9892,7 @@ bool xrtTlsServerCookie(const xtlssession* pSession, uint64* pCookie)
 		(void)xrtTlsServerCookie(pServer, &Cookie);
 ```
 
+
 ### `xrtTlsServerCreate`
 
 创建等待 ClientHello 的服务端会话；必须提供静态身份或选择器。
@@ -9641,6 +9927,7 @@ xtlssession* xrtTlsServerCreate(const xtlsserverconfig* pConfig, xnetbufpool* pP
 ```c
 	pServer = xrtTlsServerCreate(&ServerConfig, NULL);
 ```
+
 
 ### `xrtTlsServerDrive`
 
@@ -9679,6 +9966,7 @@ xtlsresult xrtTlsServerDrive(xtlssession* pSession)
 		xrtTlsServerDrive(pSession) :
 ```
 
+
 ### `xrtTlsServerKeyShare`
 
 严格解析普通 ServerHello 中唯一的 key_share。
@@ -9716,6 +10004,7 @@ bool xrtTlsServerKeyShare(xbytesview Data, xtlskeyshare* pShare)
 			(Share.Group != 0x001Du) ||
 			(Share.Key.Size != 4u) ) {
 ```
+
 
 ### `xrtTlsServerKeyUpdate`
 
@@ -9758,6 +10047,7 @@ xtlsresult xrtTlsServerKeyUpdate(xtlssession* pSession, xtlskeyupdate Request)
 		!exampleMove(pClient, pServer) ) {
 ```
 
+
 ### `xrtTlsServerName`
 
 借用服务端从 ClientHello 深复制的 SNI；尚未收到名称时返回 false。
@@ -9791,6 +10081,7 @@ bool xrtTlsServerName(const xtlssession* pSession, xbytesview* pServerName)
 ```c
 			!xrtTlsServerName(pServer, &ServerName) ||
 ```
+
 
 ### `xrtTlsServerNames`
 
@@ -9837,6 +10128,7 @@ bool xrtTlsServerNames(xbytesview Data, xtlsservernamecursor* pCursor)
 			&Host) != XTLS_ITEM_VALUE) ||
 ```
 
+
 ### `xrtTlsServerNamesRead`
 
 读取下一 SNI 名称；失败时游标与输出保持不变。
@@ -9874,6 +10166,7 @@ xtlsitemresult xrtTlsServerNamesRead(xtlsservernamecursor* pCursor, xtlsserverna
 			XTLS_ITEM_VALUE) ||
 ```
 
+
 ### `xrtTlsServerPsk`
 
 严格解析 ServerHello 选择的 PSK identity 索引。
@@ -9910,6 +10203,7 @@ bool xrtTlsServerPsk(xbytesview Data, uint16* pSelected)
 				&iVersion) ) {
 ```
 
+
 ### `xrtTlsServerResumed`
 
 返回本次连接是否接受了客户端提供的 TLS 1.3 会话票据。
@@ -9943,6 +10237,7 @@ bool xrtTlsServerResumed(const xtlssession* pSession)
 ```c
 		if ( (Cookie != 0u) || xrtTlsServerResumed(pServer) ) {
 ```
+
 
 ### `xrtTlsServerTicket`
 
@@ -9986,6 +10281,7 @@ xtlsresult xrtTlsServerTicket(xtlssession* pSession, xbytesview Ticket, uint32 i
 			!xrtTlsResumeValidAt(pSecond, xrtNow()) ) {
 ```
 
+
 ### `xrtTlsServerTicketNew`
 
 使用默认随机票据和有效期完成一次 TLS 1.3 签发。
@@ -10024,6 +10320,7 @@ xtlsresult xrtTlsServerTicketNew(xtlssession* pSession, xtlsresume** ppResume)
 		!exampleMove(pServer, pClient) ) {
 ```
 
+
 ### `xrtTlsServerVersion`
 
 严格解析 ServerHello selected_version 扩展数据。
@@ -10059,6 +10356,7 @@ bool xrtTlsServerVersion(xbytesview Data, uint16* pVersion)
 				&iVersion) ||
 			(iVersion != 0x0304u) ) {
 ```
+
 
 ## TLS 服务端
 
@@ -10136,6 +10434,7 @@ bool xrtTlsPeerVerify(const xtlspeer* pPeer, const xx509store* pStore, xtlsverif
 		xrtTlsPeerVerify(pPeer, g_pPeerStore, NULL, NULL) ) {
 ```
 
+
 ### `xrtTlsVerifierConfigInit`
 
 初始化尚未绑定信任库、回调或自定义时钟的验证器配置。
@@ -10167,6 +10466,7 @@ void xrtTlsVerifierConfigInit(xtlsverifierconfig* pConfig)
 ```c
 	xrtTlsVerifierConfigInit(&VerifierConfig);
 ```
+
 
 ### `xrtTlsVerifierCreate`
 
@@ -10202,6 +10502,7 @@ xtlsverifier* xrtTlsVerifierCreate(const xtlsverifierconfig* pConfig)
 	pVerifier = xrtTlsVerifierCreate(&VerifierConfig);
 ```
 
+
 ### `xrtTlsVerifierRelease`
 
 释放验证器引用；空指针无操作。
@@ -10233,6 +10534,7 @@ void xrtTlsVerifierRelease(xtlsverifier* pVerifier)
 ```c
 	xrtTlsVerifierRelease(pVerifier);
 ```
+
 
 ### `xrtTlsVerifierRetain`
 
@@ -10267,6 +10569,7 @@ xtlsverifier* xrtTlsVerifierRetain(const xtlsverifier* pVerifier)
 		xtlsverifier* pRetainedVerifier = xrtTlsVerifierRetain(
 			pVerifier);
 ```
+
 
 ### `xrtTlsVerifierVerify`
 
@@ -10306,6 +10609,7 @@ bool xrtTlsVerifierVerify(const xtlsverifier* pVerifier, xtlsrole Role, xstrview
 			!xrtTlsVerifierVerify(pVerifier, XTLS_SERVER,
 				XRT_STR_LITERAL("localhost"), &Leaf, 1u) ) {
 ```
+
 
 ## TLS 对端验证
 
@@ -10378,6 +10682,7 @@ bool xrtTlsIdentityCanSign(const xtlsidentity* pIdentity, xtlsversion Version, x
 			XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256) ||
 ```
 
+
 ### `xrtTlsIdentityCertificate`
 
 借用指定位置的完整 DER 证书；视图随身份最后一个引用失效。
@@ -10414,6 +10719,7 @@ bool xrtTlsIdentityCertificate(const xtlsidentity* pIdentity, size_t iIndex, xby
 		!xrtTlsIdentityCertificate(pIdentity, 0u, &Stored) ||
 ```
 
+
 ### `xrtTlsIdentityCertificateCount`
 
 返回按 TLS 发送顺序保存的证书数量，第一张证书是叶证书。
@@ -10445,6 +10751,7 @@ size_t xrtTlsIdentityCertificateCount(const xtlsidentity* pIdentity)
 ```c
 		(xrtTlsIdentityCertificateCount(pIdentity) != 2u) ||
 ```
+
 
 ### `xrtTlsIdentityCreate`
 
@@ -10479,6 +10786,7 @@ xtlsidentity* xrtTlsIdentityCreate(const xtlsidentityconfig* pConfig)
 ```c
 	pIdentity = xrtTlsIdentityCreate(&IdentityConfig);
 ```
+
 
 ### `xrtTlsIdentityEd25519`
 
@@ -10516,6 +10824,7 @@ xtlsidentity* xrtTlsIdentityEd25519(const xbytesview* pCertificates, size_t iCer
 			pIdentity = xrtTlsIdentityEd25519(arrCertificates, 1u, PrivateKey);
 ```
 
+
 ### `xrtTlsIdentityP256`
 
 从原始标量、SEC1 或未加密 PKCS#8 私钥创建 P-256 身份。
@@ -10551,6 +10860,7 @@ xtlsidentity* xrtTlsIdentityP256(const xbytesview* pCertificates, size_t iCertif
 ```c
 			pIdentity = xrtTlsIdentityP256(arrCertificates, 1u, PrivateKey);
 ```
+
 
 ### `xrtTlsIdentityP384`
 
@@ -10588,6 +10898,7 @@ xtlsidentity* xrtTlsIdentityP384(const xbytesview* pCertificates, size_t iCertif
 			pIdentity = xrtTlsIdentityP384(arrCertificates, 1u, PrivateKey);
 ```
 
+
 ### `xrtTlsIdentityPublicKey`
 
 借用已经严格解析并与身份类型匹配的叶证书公钥。
@@ -10623,6 +10934,7 @@ bool xrtTlsIdentityPublicKey(const xtlsidentity* pIdentity, xx509pubkey* pPublic
 		!xrtTlsIdentityPublicKey(pIdentity, &LeafKey) ||
 ```
 
+
 ### `xrtTlsIdentityRelease`
 
 释放身份，并在最后一个引用结束时释放签名器和清除内部存储。
@@ -10654,6 +10966,7 @@ void xrtTlsIdentityRelease(xtlsidentity* pIdentity)
 ```c
 	xrtTlsIdentityRelease(pRetained);
 ```
+
 
 ### `xrtTlsIdentityRetain`
 
@@ -10687,6 +11000,7 @@ xtlsidentity* xrtTlsIdentityRetain(const xtlsidentity* pIdentity)
 ```c
 		((pRetained = xrtTlsIdentityRetain(pIdentity)) == NULL) ||
 ```
+
 
 ### `xrtTlsIdentityRsa`
 
@@ -10723,6 +11037,7 @@ xtlsidentity* xrtTlsIdentityRsa(const xbytesview* pCertificates, size_t iCertifi
 ```c
 			pIdentity = xrtTlsIdentityRsa(arrCertificates, 1u, PrivateKey);
 ```
+
 
 ### `xrtTlsIdentitySign`
 
@@ -10769,6 +11084,7 @@ bool xrtTlsIdentitySign(const xtlsidentity* pIdentity, xtlsversion Version, xtls
 	) ) {
 ```
 
+
 ### `xrtTlsIdentityType`
 
 返回叶证书对应的握手签名密钥类型。
@@ -10800,6 +11116,7 @@ xtlsidentitytype xrtTlsIdentityType(const xtlsidentity* pIdentity)
 ```c
 	switch ( xrtTlsIdentityType(pIdentity) ) {
 ```
+
 
 ## TLS 身份
 
@@ -10898,6 +11215,7 @@ xtlsdial* xrtTlsDial(xnetengine* pEngine, xnetresolver* pResolver, cstr sHost, u
 		&Example
 ```
 
+
 ### `xrtTlsDialProxy`
 
 经代理 CONNECT 隧道连接目标并继续同一个受管 TLS 状态机。代理对象只在调用期间借用；提交成功后，组合拨号持有其自己的代理引用。
@@ -10939,20 +11257,13 @@ xtlsdial* xrtTlsDialProxy(xnetengine* pEngine, xnetresolver* pResolver, const xn
 
 #### 范例
 
-[TLS 拨号](../../examples/tls/dial/main.c) · [代理拨号](../../examples/network/proxy_dial/main.c)
+参见已注册的 [examples/tls/dial/main.c](../../examples/tls/dial/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-pDial = xrtTlsDialProxy(
-	pEngine, pResolver, pProxy, sHost, iPort,
-	&TlsConfig, &DialConfig, &Events, pStreamData,
-	onTlsDialDone, pDoneData
-);
+xrtTlsDialProxy(pEngine, pResolver, pProxy, sHost,
+				(uint16)iPort, &TlsConfig, &DialConfig, &Events, &Example,
+				exampleTlsDialDone, &Example);
 ```
-
-该入口仅在启用 `XRT_FEATURE_TLS_STREAM_DIAL_PROXY` 时声明；该模块闭包会显式
-启用 TLS Stream Dial 与 Proxy Dial。`xtlsdialconfig` 不包含条件式代理字段，
-因此其公开布局不随代理功能宏改变；直连与代理拨号也不会因为裁剪组合而静默互换。
-
 ### `xrtTlsDialAsync`
 
 以 Future 接收完成握手的 TLS Stream；Open 先于成功终态发布。Future 持有一个 Stream 引用，取消请求协作终止 DNS、TCP 或 TLS 当前阶段。
@@ -11003,6 +11314,7 @@ xfuture* xrtTlsDialAsync(xnetengine* pEngine, xnetresolver* pResolver, cstr sHos
 	);
 ```
 
+
 ### `xrtTlsDialCancel`
 
 原子受理取消；返回真保证最终结果不会再变为成功。
@@ -11037,6 +11349,7 @@ bool xrtTlsDialCancel(xtlsdial* pDial)
 			bool bCancelled = xrtTlsDialCancel(pMidair);
 ```
 
+
 ### `xrtTlsDialConfigInit`
 
 初始化 TCP 拨号、TLS Stream 和总超时策略。
@@ -11069,6 +11382,7 @@ void xrtTlsDialConfigInit(xtlsdialconfig* pConfig)
 	xrtTlsDialConfigInit(&DialConfig);
 ```
 
+
 ### `xrtTlsDialDestroy`
 
 释放 TLS Dial 引用；空指针视为空操作。
@@ -11100,6 +11414,7 @@ void xrtTlsDialDestroy(xtlsdial* pDial)
 ```c
 	xrtTlsDialDestroy(pDial);
 ```
+
 
 ### `xrtTlsDialError`
 
@@ -11135,6 +11450,7 @@ const xerror* xrtTlsDialError(const xtlsdial* pDial)
 		xrtTlsDialError(pDial) == NULL ? "(none)" : "err");
 ```
 
+
 ### `xrtTlsDialRef`
 
 增加 TLS Dial 引用并返回原指针。
@@ -11168,6 +11484,7 @@ xtlsdial* xrtTlsDialRef(xtlsdial* pDial)
 		(xrtTlsDialRef(pDial) != pDial) ) {
 ```
 
+
 ### `xrtTlsDialState`
 
 返回当前拨号阶段或不可变终态。
@@ -11199,6 +11516,7 @@ xtlsdialstate xrtTlsDialState(const xtlsdial* pDial)
 ```c
 	pSlot->DialState = xrtTlsDialState(pDial);
 ```
+
 
 ### `xrtTlsDialTransportStats`
 
@@ -11236,6 +11554,7 @@ bool xrtTlsDialTransportStats(const xtlsdial* pDial, xnetdialstats* pStats)
 		(TransportStats.AttemptsStarted < 1u) ) {
 ```
 
+
 ### `xrtTlsListenerAccept`
 
 pull 模式下非阻塞取得一个已完成握手的 Stream；空队列返回空指针。
@@ -11270,6 +11589,7 @@ xtlsstream* xrtTlsListenerAccept(xtlslistener* pListener)
 		pServerA = xrtTlsListenerAccept(pListener);
 ```
 
+
 ### `xrtTlsListenerAcceptAsync`
 
 pull 模式下异步接受一个已完成握手的 Stream；Future 持有结果引用。
@@ -11303,6 +11623,7 @@ xfuture* xrtTlsListenerAcceptAsync(xtlslistener* pListener)
 ```c
 	pAcceptFuture = xrtTlsListenerAcceptAsync(pListener);
 ```
+
 
 ### `xrtTlsListenerAcceptWait`
 
@@ -11341,6 +11662,7 @@ xtlsstream* xrtTlsListenerAcceptWait(xtlslistener* pListener, int64 iTimeout, xc
 		EXAMPLE_DEADLINE_MS, NULL);
 ```
 
+
 ### `xrtTlsListenerClose`
 
 原子停止接入并丢弃尚未交付的连接；已交付连接保持独立生命周期。
@@ -11375,6 +11697,7 @@ bool xrtTlsListenerClose(xtlslistener* pListener)
 		(void)xrtTlsListenerClose(pListener);
 ```
 
+
 ### `xrtTlsListenerConfigInit`
 
 初始化单 IPv4 动态端口、有界握手与有界完成队列。
@@ -11406,6 +11729,7 @@ void xrtTlsListenerConfigInit(xtlslistenerconfig* pConfig)
 ```c
 	xrtTlsListenerConfigInit(&ListenerConfig);
 ```
+
 
 ### `xrtTlsListenerData`
 
@@ -11439,6 +11763,7 @@ ptr xrtTlsListenerData(const xtlslistener* pListener)
 		(xrtTlsListenerData(pListener) != &EngineConfig) ) {
 ```
 
+
 ### `xrtTlsListenerDestroy`
 
 释放 Listener 引用；不会隐式关闭仍在监听的对象。
@@ -11470,6 +11795,7 @@ void xrtTlsListenerDestroy(xtlslistener* pListener)
 ```c
 	xrtTlsListenerDestroy(pListenerRef);
 ```
+
 
 ### `xrtTlsListenerLocal`
 
@@ -11506,6 +11832,7 @@ bool xrtTlsListenerLocal(xtlslistener* pListener, xnetaddr* pAddress)
 		!xrtTlsListenerLocal(pListener, &Address) ||
 ```
 
+
 ### `xrtTlsListenerRef`
 
 增加 Listener 引用并返回原指针。
@@ -11538,6 +11865,7 @@ xtlslistener* xrtTlsListenerRef(xtlslistener* pListener)
 ```c
 	pListenerRef = xrtTlsListenerRef(pListener);
 ```
+
 
 ### `xrtTlsListenerStart`
 
@@ -11578,6 +11906,7 @@ xtlslistener* xrtTlsListenerStart(xnetengine* pEngine, const xtlslistenerconfig*
 		NULL, &EngineConfig);
 ```
 
+
 ### `xrtTlsListenerState`
 
 返回 Listener 当前生命周期状态。
@@ -11609,6 +11938,7 @@ xtlslistenerstate xrtTlsListenerState(const xtlslistener* pListener)
 ```c
 		(xrtTlsListenerState(pListener) != XTLS_LISTENER_OPEN) ||
 ```
+
 
 ### `xrtTlsListenerStats`
 
@@ -11647,6 +11977,7 @@ bool xrtTlsListenerStats(const xtlslistener* pListener, xtlslistenerstats* pStat
 		(ListenerStats.Handshakes < 3u) ) {
 ```
 
+
 ### `xrtTlsStreamAbort`
 
 从任意线程立即放弃 TLS 与 TCP 会话。失败收尾尚未完成时仍会中止 TCP，但不会覆盖已经保存的首个根因。
@@ -11680,6 +12011,7 @@ bool xrtTlsStreamAbort(xtlsstream* pStream)
 ```c
 			(void)xrtTlsStreamAbort(pStream);
 ```
+
 
 ### `xrtTlsStreamAccept`
 
@@ -11729,6 +12061,7 @@ bool xrtTlsStreamAccept(xnetstream* pTransport, const xtlsserverconfig* pTls, co
 	);
 ```
 
+
 ### `xrtTlsStreamAsyncBytes`
 
 返回尚未由所属 Worker 终结的异步发送负载字节数。
@@ -11761,6 +12094,7 @@ size_t xrtTlsStreamAsyncBytes(const xtlsstream* pStream)
 	(void)xrtTlsStreamAsyncBytes(pStream);
 ```
 
+
 ### `xrtTlsStreamAsyncCount`
 
 返回异步发送、接收和条件等待的合计操作数。
@@ -11792,6 +12126,7 @@ uint32 xrtTlsStreamAsyncCount(const xtlsstream* pStream)
 ```c
 	(void)xrtTlsStreamAsyncCount(pStream);
 ```
+
 
 ### `xrtTlsStreamAttach`
 
@@ -11834,6 +12169,7 @@ bool xrtTlsStreamAttach(xnetstream* pTransport, xtlssession* pSession, const xtl
 			pTask->pData, &pTask->pTls);
 ```
 
+
 ### `xrtTlsStreamAvailable`
 
 返回当前待应用消费明文字节数的并发快照。
@@ -11865,6 +12201,7 @@ size_t xrtTlsStreamAvailable(const xtlsstream* pStream)
 ```c
 	while ( xrtTlsStreamAvailable(pStream) != 0 ) {
 ```
+
 
 ### `xrtTlsStreamBuffer`
 
@@ -11899,6 +12236,7 @@ const xnetbuf* xrtTlsStreamBuffer(xtlsstream* pStream)
 ```c
 		const xnetbuf* pPlain = xrtTlsStreamBuffer(pStream);
 ```
+
 
 ### `xrtTlsStreamClient`
 
@@ -11941,6 +12279,7 @@ bool xrtTlsStreamClient(xnetstream* pTransport, const xtlsclientconfig* pTls, co
 			pTask->pData, &pTask->pTls);
 ```
 
+
 ### `xrtTlsStreamClose`
 
 从任意线程请求 close_notify、等待对端认证关闭并排空 TCP。调用前已接纳的异步发送会先按 FIFO 完成；调用后的新发送不再接纳。
@@ -11975,6 +12314,7 @@ bool xrtTlsStreamClose(xtlsstream* pStream)
 		if ( !xrtTlsStreamClose(pStream) ) {
 ```
 
+
 ### `xrtTlsStreamConfigInit`
 
 初始化握手与认证关闭超时。
@@ -12006,6 +12346,7 @@ void xrtTlsStreamConfigInit(xtlsstreamconfig* pConfig)
 ```c
 	xrtTlsStreamConfigInit(&Example.StreamConfig);
 ```
+
 
 ### `xrtTlsStreamConnect`
 
@@ -12051,6 +12392,7 @@ xtlsstream* xrtTlsStreamConnect(xnetengine* pEngine, const xnetaddr* pRemote, ui
 		&ClientConfigB, NULL, &ClientEvents, &ClientB);
 ```
 
+
 ### `xrtTlsStreamConsume`
 
 在所属 Worker 上安全消费精确数量的明文。
@@ -12086,6 +12428,7 @@ bool xrtTlsStreamConsume(xtlsstream* pStream, size_t iSize)
 		if ( !xrtTlsStreamConsume(pStream, Span.Size) ) {
 ```
 
+
 ### `xrtTlsStreamData`
 
 返回线程安全的用户数据指针快照，不延长目标生命周期。
@@ -12118,6 +12461,7 @@ ptr xrtTlsStreamData(const xtlsstream* pStream)
 	pClient->bDataOk = xrtTlsStreamData(pStream) == pClient;
 ```
 
+
 ### `xrtTlsStreamDestroy`
 
 释放 TLS Stream 引用；关闭必须另行请求。
@@ -12149,6 +12493,7 @@ void xrtTlsStreamDestroy(xtlsstream* pStream)
 ```c
 	xrtTlsStreamDestroy(Example.Stream);
 ```
+
 
 ### `xrtTlsStreamError`
 
@@ -12184,6 +12529,7 @@ const xerror* xrtTlsStreamError(const xtlsstream* pStream)
 		xrtTlsStreamError(pClientA) == NULL ? "(none)" : "err");
 ```
 
+
 ### `xrtTlsStreamPending`
 
 返回 TLS 密文暂存与底层 TCP 队列的总待发字节并发快照。
@@ -12215,6 +12561,7 @@ size_t xrtTlsStreamPending(const xtlsstream* pStream)
 ```c
 	while ( xrtTlsStreamPending(pClientB) != 0u ) {
 ```
+
 
 ### `xrtTlsStreamPullup`
 
@@ -12252,6 +12599,7 @@ bool xrtTlsStreamPullup(xtlsstream* pStream, size_t iSize, xnetspan* pSpan)
 		if ( !xrtTlsStreamPullup(pStream, 3u, &Span) ||
 			(Span.Size < 3u) ) {
 ```
+
 
 ### `xrtTlsStreamRead`
 
@@ -12294,6 +12642,7 @@ xtlsresult xrtTlsStreamRead(xtlsstream* pStream, void* pOutput, size_t iCapacity
 		&pClient->iRead);
 ```
 
+
 ### `xrtTlsStreamReadMore`
 
 在 Read 回调保留现有明文时，请求继续解密并在明文增长后再次发布 Read。累积量受 Context PlainLimit 硬约束，并必须为一条最大明文 record 留出空间。普通消费者无需调用，重复请求是幂等的；请求待完成时不能替换事件接收者。
@@ -12327,6 +12676,7 @@ bool xrtTlsStreamReadMore(xtlsstream* pStream)
 ```c
 		pClient->bReadMore = xrtTlsStreamReadMore(pStream);
 ```
+
 
 ### `xrtTlsStreamRecvAsync`
 
@@ -12366,6 +12716,7 @@ xfuture* xrtTlsStreamRecvAsync(xtlsstream* pStream, size_t iMaxBytes)
 	);
 ```
 
+
 ### `xrtTlsStreamRef`
 
 增加 TLS Stream 引用并返回原指针；引用耗尽时返回空并设置状态错误。
@@ -12400,6 +12751,7 @@ xtlsstream* xrtTlsStreamRef(xtlsstream* pStream)
 		(xtlsstream*)xrtFutureValue(pFuture)
 	);
 ```
+
 
 ### `xrtTlsStreamSend`
 
@@ -12447,6 +12799,7 @@ xtlsresult xrtTlsStreamSend(xtlsstream* pStream, const void* pData, size_t iSize
 		);
 ```
 
+
 ### `xrtTlsStreamSendAsync`
 
 从任意线程复制并按 FIFO 提交一段完整明文。Future 在全部明文被 TLS 会话受理时完成；排空必须另行等待 DRAIN。取消只在首个字节受理前有效，已开始的发送保持完整和有序。Close 线性化前已接纳的发送保证先完成，之后的发送以 STATE 拒绝。
@@ -12487,6 +12840,7 @@ xfuture* xrtTlsStreamSendAsync(xtlsstream* pStream, const void* pData, size_t iS
 	)) ) {
 ```
 
+
 ### `xrtTlsStreamSendBound`
 
 在所属 Worker 上返回一次明文发送产生的精确密文线路字节数。结果包含记录头、显式 nonce、内层类型和认证标签，失败不修改 pBound。pBound 不得与 Stream 或其 Session 对象存储重叠。
@@ -12522,6 +12876,7 @@ bool xrtTlsStreamSendBound(xtlsstream* pStream, size_t iPlainSize, size_t* pBoun
 ```c
 	(void)xrtTlsStreamSendBound(pStream, 64u, &pClient->iBound);
 ```
+
 
 ### `xrtTlsStreamSendVec`
 
@@ -12561,6 +12916,7 @@ xtlsresult xrtTlsStreamSendVec(xtlsstream* pStream, const xnetspan* pSpans, size
 	(void)xrtTlsStreamSendVec(pStream, Vec, 2, &iWritten);
 ```
 
+
 ### `xrtTlsStreamSendVecAsync`
 
 从任意线程复制片段并按 FIFO 提交为一段连续明文。全部片段在返回前完成校验和复制，失败不会发布部分操作。
@@ -12597,6 +12953,7 @@ xfuture* xrtTlsStreamSendVecAsync(xtlsstream* pStream, const xnetspan* pSpans, s
 	pSendFuture = xrtTlsStreamSendVecAsync(pClientB, AsyncVec, 2);
 ```
 
+
 ### `xrtTlsStreamSession`
 
 在所属 Worker 上借用协议会话，供 ALPN、票据等高级查询。
@@ -12631,6 +12988,7 @@ xtlssession* xrtTlsStreamSession(xtlsstream* pStream)
 	pClient->bSessionOk = xrtTlsStreamSession(pStream) != NULL;
 ```
 
+
 ### `xrtTlsStreamSetEvents`
 
 在所属 Worker 上替换已打开 TLS Stream 的事件与用户数据。不会自动重放当前明文缓冲，协议升级层必须显式处理已有后缀。
@@ -12661,13 +13019,12 @@ bool xrtTlsStreamSetEvents(xtlsstream* pStream, const xtlsstreamevents* pEvents,
 
 #### 范例
 
-[stream_tour](../../examples/tls/stream_tour/main.c) · stream tour
+参见已注册的 [examples/tls/stream_tour/main.c](../../examples/tls/stream_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-	pTask->bOk = xrtTlsStreamSetEvents(pTask->pStream,
-		pTask->pEvents, NULL);
+xrtTlsStreamSetEvents(pStream,
+		&g_SwappedEvents, pClient);
 ```
-
 ### `xrtTlsStreamState`
 
 返回组合 Stream 状态的并发快照。
@@ -12700,6 +13057,7 @@ xtlsstreamstate xrtTlsStreamState(const xtlsstream* pStream)
 	while ( (xrtTlsStreamState(pStream) != XTLS_STREAM_CLOSED) &&
 		(xrtTlsStreamState(pStream) != XTLS_STREAM_FAILED) ) {
 ```
+
 
 ### `xrtTlsStreamTransport`
 
@@ -12734,6 +13092,7 @@ xnetstream* xrtTlsStreamTransport(const xtlsstream* pStream)
 ```c
 		xrtNetStreamWorker(xrtTlsStreamTransport(pServerA)),
 ```
+
 
 ### `xrtTlsStreamWaitAsync`
 
@@ -12772,6 +13131,7 @@ xfuture* xrtTlsStreamWaitAsync(xtlsstream* pStream, xtlsstreamwait Wait)
 		XTLS_STREAM_WAIT_DRAIN
 	));
 ```
+
 
 ## TLS-over-TCP 组合流
 

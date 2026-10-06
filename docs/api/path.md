@@ -22,6 +22,7 @@ typedef enum xpathstyle {
 | `XPATH_POSIX` | POSIX 风格 |
 | `XPATH_WINDOWS` | Windows 风格 |
 
+
 ### `xpathroot`
 
 根类型明确区分 Windows 驱动器相对路径、根相对路径和完整绝对路径。
@@ -48,6 +49,7 @@ typedef enum xpathroot {
 | `XPATH_ROOT_UNC` | UNC 根（\\server\share） |
 | `XPATH_ROOT_DEVICE` | 设备命名空间根 |
 
+
 ### `xpathflag`
 
 路径分解标志。
@@ -65,6 +67,7 @@ typedef enum xpathflag {
 | `XPATH_FLAG_ROOTED` | ROOTED |
 | `XPATH_FLAG_ABSOLUTE` | ABSOLUTE |
 | `XPATH_FLAG_TRAILING_SEPARATOR` | 保留尾分隔符 |
+
 
 ### `xpathparts`
 
@@ -92,6 +95,7 @@ typedef struct xpathparts {
 | `RootKind` | `xpathroot` | RootKind |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xpathcomponentkind`
 
 路径组件类型；根、点、双点和普通名称保持明确语义。
@@ -112,6 +116,7 @@ typedef enum xpathcomponentkind {
 | `XPATH_COMPONENT_PARENT` | PARENT |
 | `XPATH_COMPONENT_NORMAL` | 常规段 |
 
+
 ### `xpathcomponent`
 
 路径组件借用输入文本。
@@ -127,6 +132,7 @@ typedef struct xpathcomponent {
 |---|---|---|
 | `Text` | `xstrview` | 文本视图 |
 | `Kind` | `xpathcomponentkind` | 错误种类 |
+
 
 ### `xpathiter`
 
@@ -150,6 +156,7 @@ typedef struct xpathiter {
 | `Style` | `xpathstyle` | 样式 |
 | `State` | `uint32` | 状态 |
 
+
 ### `xpatherror`
 
 路径模块稳定错误代码。
@@ -170,6 +177,7 @@ typedef enum xpatherror {
 | `XPATH_ERROR_ROOT` | 失败 |
 | `XPATH_ERROR_SYSTEM` | 系统调用失败 |
 
+
 ### `xpathsafesegment`
 
 固定存储只允许通过 Path Safe Segment API 访问。
@@ -184,6 +192,7 @@ typedef union xpathsafesegment {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Alignment` | `uint64` | 对齐（二次幂） |
+
 
 ### 常量总表
 
@@ -362,6 +371,7 @@ bool xrtPathParse(xstrview Path, xpathstyle Style, xpathparts* pParts)
 		(memcmp(Parts.Stem.Data, "file", 4u) != 0) ||
 ```
 
+
 ### `xrtPathIterInit`
 
 初始化零分配路径组件迭代器，成功后迭代器借用输入。
@@ -399,6 +409,7 @@ bool xrtPathIterInit(xpathiter* pIterator,
 	if ( !xrtPathIterInit(&Iterator, xrtStrView(sJoined), XPATH_NATIVE) ) {
 ```
 
+
 ### `xrtPathNext`
 
 返回下一个借用组件，遍历结束时返回 `false`。
@@ -433,6 +444,7 @@ bool xrtPathNext(xpathiter* pIterator, xpathcomponent* pComponent)
 	while ( xrtPathNext(&Iterator, &Component) ) {
 ```
 
+
 ### `xrtPathIsAbs`
 
 判断本机路径是否完整绝对；Windows 驱动器相对和根相对路径返回 `false`。
@@ -460,17 +472,11 @@ bool xrtPathIsAbs(cstr sPath)
 
 #### 范例
 
-[tour](../../examples/path/tour/main.c) · 完整绝对
+参见已注册的 [examples/path/tour/main.c](../../examples/path/tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-	if ( !xrtPathIsAbs("C:\\a") ||
-		xrtPathIsAbs("a\\b") ||
-		!xrtPathIsRoot("C:\\") ||
-		xrtPathIsRoot("C:\\a") ||
-		!xrtPathIsRooted("\\a") ||
-		xrtPathIsRooted("a") ) {
+xrtPathIsAbs(EXAMPLE_ABSOLUTE)
 ```
-
 ### `xrtPathIsRoot`
 
 判断本机路径词法上是否恰好为一个完整文件系统根。
@@ -498,12 +504,11 @@ bool xrtPathIsRoot(cstr sPath)
 
 #### 范例
 
-[tour](../../examples/path/tour/main.c) · 恰好为根
+参见已注册的 [examples/path/tour/main.c](../../examples/path/tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-		!xrtPathIsRoot("C:\\") ||
+xrtPathIsRoot(EXAMPLE_ROOT)
 ```
-
 ### `xrtPathIsRooted`
 
 判断本机路径是否带根；Windows 的 `C:foo` 和 `\foo` 也属于带根路径。
@@ -531,12 +536,11 @@ bool xrtPathIsRooted(cstr sPath)
 
 #### 范例
 
-[tour](../../examples/path/tour/main.c) · 带根判断
+参见已注册的 [examples/path/tour/main.c](../../examples/path/tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-		!xrtPathIsRooted("\\a") ||
+xrtPathIsRooted(EXAMPLE_ROOTED)
 ```
-
 ### `xrtPathIsLocal`
 
 判断路径是否能被安全拼入任意基目录；只做词法检查，不解析符号链接。
@@ -571,6 +575,7 @@ bool xrtPathIsLocal(xstrview Path, xpathstyle Style)
 ```c
 		xrtPathIsLocal(xrtStrView(sJoined), XPATH_NATIVE) ? 1 : 0);
 ```
+
 
 ## 常用分解函数
 
@@ -631,6 +636,7 @@ str xrtPathName(cstr sPath)
 	sName = xrtPathName(sJoined);
 ```
 
+
 ### `xrtPathStem`
 
 复制本机路径的末级名称，不包含最后一个扩展名。
@@ -664,6 +670,7 @@ str xrtPathStem(cstr sPath)
 ```c
 	sStem = xrtPathStem(sJoined);
 ```
+
 
 ### `xrtPathExt`
 
@@ -699,6 +706,7 @@ str xrtPathExt(cstr sPath)
 	sExt = xrtPathExt(sJoined);
 ```
 
+
 ### `xrtPathParent`
 
 复制本机路径的父路径；没有父路径时返回已分配的空字符串。
@@ -727,12 +735,11 @@ str xrtPathParent(cstr sPath)
 
 #### 范例
 
-[tour](../../examples/path/tour/main.c) · 父路径
+参见已注册的 [examples/path/tour/main.c](../../examples/path/tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-	sParent = xrtPathParent("C:\\dir\\file.txt");
+xrtPathParent(EXAMPLE_FILE);
 ```
-
 ## 清理和拼接
 
 ```c
@@ -802,6 +809,7 @@ str xrtPathJoin(cstr sLeft, cstr sRight)
 	sJoined = xrtPathJoin("project", "src/../include/xrt.h");
 ```
 
+
 ### `xrtPathBuild`
 
 按指定风格拼接并清理；Windows 根相对项保留已有卷前缀。
@@ -840,6 +848,7 @@ str xrtPathBuild(const xstrview* arrParts, size_t iCount, xpathstyle Style)
 	sBuilt = xrtPathBuild(arrParts, 3u, XPATH_WINDOWS);
 ```
 
+
 ### `xrtPathClean`
 
 纯词法清理分隔符、点和双点段，不访问文件系统或解析符号链接。
@@ -875,6 +884,7 @@ str xrtPathClean(xstrview Path, xpathstyle Style)
 	sClean = xrtPathClean(SV("C:\\a\\..\\b\\\\c\\"), XPATH_WINDOWS);
 ```
 
+
 ### `xrtPathSep`
 
 返回本机路径分隔符。
@@ -908,6 +918,7 @@ char xrtPathSep(void)
 		xrtPathListSep());
 ```
 
+
 ### `xrtPathListSep`
 
 返回本机路径列表分隔符，Windows 为分号，POSIX 为冒号。
@@ -939,6 +950,7 @@ char xrtPathListSep(void)
 ```c
 		xrtPathListSep());
 ```
+
 
 ## 相对路径
 
@@ -1002,6 +1014,7 @@ str xrtPathRelative(xstrview Base, xstrview Target, xpathstyle Style)
 		XPATH_WINDOWS);
 ```
 
+
 ### `xrtPathRel`
 
 把两个路径转为绝对路径后计算从 `Base` 到 `Target` 的相对路径。
@@ -1038,6 +1051,7 @@ str xrtPathRel(cstr sBase, cstr sTarget)
 ```c
 		str sRelSys = xrtPathRel("C:\\a\\b", "C:\\a\\c\\d");
 ```
+
 
 ## 修改名称
 
@@ -1091,6 +1105,7 @@ str xrtPathWithName(cstr sPath, cstr sName)
 	sRenamed = xrtPathWithName(sJoined, "runtime.h");
 ```
 
+
 ### `xrtPathWithExt`
 
 替换最后一个扩展名；空扩展名删除扩展名，非空值可省略前导点。
@@ -1122,12 +1137,11 @@ str xrtPathWithExt(cstr sPath, cstr sExtension)
 
 #### 范例
 
-[tour](../../examples/path/tour/main.c) · 替换扩展名
+参见已注册的 [examples/path/tour/main.c](../../examples/path/tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-	sExt = xrtPathWithExt("C:\\dir\\file", ".md");
+xrtPathWithExt(EXAMPLE_STEM, ".md");
 ```
-
 ## 系统路径
 
 启用 `XRT_FEATURE_PATH_SYSTEM` 后提供：
@@ -1191,6 +1205,7 @@ str xrtPathCwd(void)
 	sCwd = xrtPathCwd();
 ```
 
+
 ### `xrtPathSetCwd`
 
 修改进程当前工作目录；该操作影响进程内其他线程。
@@ -1225,6 +1240,7 @@ bool xrtPathSetCwd(cstr sPath)
 ```c
 	if ( !xrtPathSetCwd(sCwd) ) {  /* 切到当前目录（等价还原） */
 ```
+
 
 ### `xrtPathAbs`
 
@@ -1262,6 +1278,7 @@ str xrtPathAbs(cstr sPath)
 	sAbs = xrtPathAbs(".");
 ```
 
+
 ### `xrtPathReal`
 
 返回已存在路径跟随符号链接后的物理绝对路径。
@@ -1298,6 +1315,7 @@ str xrtPathReal(cstr sPath)
 	sReal = xrtPathReal(".");
 ```
 
+
 ### `xrtPathHome`
 
 返回当前用户主目录。
@@ -1331,6 +1349,7 @@ str xrtPathHome(void)
 ```c
 	sHome = xrtPathHome();
 ```
+
 
 ### `xrtPathTemp`
 
@@ -1366,6 +1385,7 @@ str xrtPathTemp(void)
 	sTemp = xrtPathTemp();
 ```
 
+
 ### `xrtPathExecutable`
 
 返回当前可执行文件的绝对 UTF-8 路径。
@@ -1400,6 +1420,7 @@ str xrtPathExecutable(void)
 	sExe = xrtPathExecutable();
 ```
 
+
 ### `xrtPathAppDir`
 
 返回当前可执行文件所在目录。
@@ -1433,6 +1454,7 @@ str xrtPathAppDir(void)
 ```c
 	sApp = xrtPathAppDir();
 ```
+
 
 ## 安全条目
 
@@ -1511,6 +1533,7 @@ void xrtPathSafeSegmentInit(xpathsafesegment* pState)
 	xrtPathSafeSegmentInit(&Safe);
 ```
 
+
 ### `xrtPathSafeSegmentFeed`
 
 加入一个已解码字节；一旦确定非法便返回 `false`。
@@ -1549,6 +1572,7 @@ bool xrtPathSafeSegmentFeed(
 					(uint8)sCheck[i]) ) {
 ```
 
+
 ### `xrtPathSafeSegmentFinish`
 
 完成空段、点段、尾部规则和 Windows 设备保留名检查。
@@ -1584,6 +1608,7 @@ bool xrtPathSafeSegmentFinish(
 		if ( !xrtPathSafeSegmentFinish(&Safe) ) {
 ```
 
+
 ### `xrtPathIsSafeEntry`
 
 检查归档条目是否为跨 Windows/POSIX 可移植的 UTF-8 相对路径。
@@ -1617,6 +1642,7 @@ bool xrtPathIsSafeEntry(xstrview Path, bool bDirectory)
 ```c
 			xrtPathIsSafeEntry(xrtStrView(arrEntries[i]), false) ?
 ```
+
 
 ## 错误
 

@@ -7440,8 +7440,7 @@
 				"tests/single/test_single_net.c"
 			],
 			"examples": [
-				"examples/network/address/main.c",
-				"examples/network/addr_tour/main.c"
+				"examples/network/address/main.c"
 			],
 			"docs": [
 				"docs/api/net.md",
@@ -15391,6 +15390,24 @@
 					"iphlpapi"
 				]
 			}
+		},
+		{
+			"name": "net_addr_examples",
+			"state": "implemented",
+			"depends": [
+				"net_dns"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"examples/network/addr_tour/main.c"
+			],
+			"docs": [
+				"docs/api/net.md"
+			]
 		}
 	]
 }

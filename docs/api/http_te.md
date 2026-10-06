@@ -25,6 +25,7 @@ typedef enum xhttptecodingflag {
 | `XHTTP_TE_CODING_HAS_PARAMETERS` | 带参数 |
 | `XHTTP_TE_CODING_HAS_WEIGHT` | 带 q 权重 |
 
+
 ### `xhttptecoding`
 
 TE 成员借用完整元素、编码名称和不含 q 权重的传输参数。
@@ -49,6 +50,7 @@ typedef struct xhttptecoding {
 | `Quality` | `uint16` | Quality |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xhttptecursor`
 
 单字段游标由初始化函数建立，调用方不得直接修改。
@@ -64,6 +66,7 @@ typedef struct xhttptecursor {
 |---|---|---|
 | `Offset` | `size_t` | 偏移量 |
 | `Validated` | `uint8` | 是否已校验 |
+
 
 ### `xhttptefieldcursor`
 
@@ -82,6 +85,7 @@ typedef struct xhttptefieldcursor {
 | `Field` | `size_t` | Field |
 | `Offset` | `size_t` | 偏移量 |
 | `Validated` | `uint8` | 是否已校验 |
+
 
 ### `xhttpteflag`
 
@@ -103,6 +107,7 @@ typedef enum xhttpteflag {
 | `XHTTP_TE_ACCEPTS_TRAILERS` | 接受 trailer |
 | `XHTTP_TE_HAS_TRANSFER_CODINGS` | 含传输编码 |
 
+
 ### `xhttpteinfo`
 
 TE 汇总保留字段、总成员和实际传输编码数量。
@@ -122,6 +127,7 @@ typedef struct xhttpteinfo {
 | `CodingCount` | `size_t` | CodingCount |
 | `TransferCodingCount` | `size_t` | TransferCodingCount |
 | `Flags` | `uint32` | 标志位 |
+
 
 ## 成员
 
@@ -195,6 +201,7 @@ void xrtHttpTeCursorInit(xhttptecursor* pCursor);
 	xrtHttpTeCursorInit(&TeCursor);
 ```
 
+
 ### `xrtHttpTeCodingParse`
 
 严格解析一个不含列表分隔逗号的 TE 成员。
@@ -235,6 +242,7 @@ bool xrtHttpTeCodingParse(
 		(TeCoding.Quality != 800u) ) {
 ```
 
+
 ### `xrtHttpTeValid`
 
 完整验证一个 TE 字段值；HTTP 列表空成员会被忽略。
@@ -271,6 +279,7 @@ bool xrtHttpTeValid(xstrview Value);
 		!xrtHttpTeCount(SV("gzip, deflate, br"), &iCount) ||
 		(iCount != 3u) ) {
 ```
+
 
 ### `xrtHttpTeCount`
 
@@ -309,6 +318,7 @@ bool xrtHttpTeCount(
 		!xrtHttpTeCount(SV("gzip, deflate, br"), &iCount) ||
 		(iCount != 3u) ) {
 ```
+
 
 ### `xrtHttpTeNext`
 
@@ -352,6 +362,7 @@ xhttpnext xrtHttpTeNext(
 ```
 
 
+
 ### 跨字段与汇总
 
 ### `xrtHttpTeFieldCursorInit`
@@ -387,6 +398,7 @@ void xrtHttpTeFieldCursorInit(
 ```c
 	xrtHttpTeFieldCursorInit(&TeFieldCursor);
 ```
+
 
 ### `xrtHttpTeFieldNext`
 
@@ -431,6 +443,7 @@ xhttpnext xrtHttpTeFieldNext(
 			&TeCoding) == XHTTP_NEXT_ITEM ) {
 ```
 
+
 ### `xrtHttpTeParse`
 
 完整解析全部重复 TE 字段并发布零分配汇总。
@@ -469,6 +482,7 @@ bool xrtHttpTeParse(
 ```c
 	if ( !xrtHttpTeParse(Fields, 2u, &Info) ) {
 ```
+
 
 ### `xrtHttpTeQuality`
 
@@ -512,6 +526,7 @@ uint16 xrtHttpTeQuality(
 		)
 ```
 
+
 ### `xrtHttpTeAcceptsTrailers`
 
 完整验证并判断客户端是否声明不会丢弃 Trailer。
@@ -550,6 +565,7 @@ xhttpnext xrtHttpTeAcceptsTrailers(
 	if ( xrtHttpTeAcceptsTrailers(arrTeFields, 2u) !=
 		XHTTP_NEXT_ITEM ) {
 ```
+
 
 ## 模块契约：线程
 

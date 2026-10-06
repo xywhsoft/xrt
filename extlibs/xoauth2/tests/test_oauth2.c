@@ -306,10 +306,10 @@ static void* posixLoopServer(void* pData)
 			if ( i == iReplies ) {
 				/* 每段间隔小于单次等待、总时间超过响应截止时间。 */
 				(void)posixLoopSend(iClient, "HTTP/1.1 200 OK\r\n");
-				usleep(180000);
+				xrtSleep(180);
 				(void)posixLoopSend(iClient,
 					"Content-Length: 2\r\nConnection: close\r\n\r\n");
-				usleep(180000);
+				xrtSleep(180);
 				(void)posixLoopSend(iClient, "ok");
 			} else {
 				bOk = posixLoopSend(iClient, s_PosixReplies[i]);

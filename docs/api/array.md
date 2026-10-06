@@ -46,6 +46,7 @@
 
 需要每个元素都按更大边界对齐时，使用 `xrtArrayInitAligned()` 或 `xrtArrayCreateAligned()`；此时元素大小必须是对齐值的倍数。
 
+
 ## 类型
 
 ### `xarraycompare`
@@ -55,6 +56,7 @@ typedef int (*xarraycompare)(const void* pLeft, const void* pRight);
 ```
 
 返回负数、零、正数分别表示左值小于、等于、大于右值。用于 `Sort` 时两个参数都是元素地址；用于 `FindBy` 和 `BSearch` 时第一个参数是 key，第二个参数是元素。
+
 
 ### `xarray`
 
@@ -89,6 +91,7 @@ typedef struct xarray {
 | `Capacity` | `size_t` | 当前容量 |
 | `Alignment` | `size_t` | 元素对齐（二次幂） |
 
+
 ### `xptrarray`
 
 ```c
@@ -96,6 +99,7 @@ typedef xarray xptrarray;
 ```
 
 指针数组与普通数组共享完全相同的存储结构，其 `ItemSize` 固定为 `sizeof(ptr)`。需要底层通用操作时，可以直接使用 `xrtArray*` API；常见代码应优先使用 `xrtPtrArray*` API，避免手工传递指针地址。指针数组 API 会拒绝 `ItemSize` 不是 `sizeof(ptr)` 的数组（防止普通元素数组被误当指针数组操作）。
+
 
 ## 生命周期
 
@@ -135,6 +139,7 @@ if ( !xrtArrayInit(&tRecords, sizeof(examplerecord)) ) {
 }
 ```
 
+
 ### `xrtArrayInitAligned`
 
 初始化显式过对齐数组，元素大小必须是对齐值的倍数。
@@ -172,6 +177,7 @@ if ( !xrtArrayInitAligned(&Array, sizeof(int),
 ```
 
 
+
 ### `xrtArrayCreate`
 
 在堆上创建使用默认对齐的空数组结构。
@@ -205,6 +211,7 @@ xarray* xrtArrayCreate(size_t iItemSize);
 ```c
 xarray* pArray = xrtArrayCreate(sizeof(int));
 ```
+
 
 ### `xrtArrayCreateAligned`
 
@@ -242,6 +249,7 @@ xarray* pAligned = xrtArrayCreateAligned(sizeof(int),
 	sizeof(int));
 ```
 
+
 ### `xrtArrayUnit`
 
 释放数组持有的元素内存并把结构重置为零，不释放数组结构本身。
@@ -270,6 +278,7 @@ void xrtArrayUnit(xarray* pArray);
 xrtArrayUnit(&Array);
 ```
 
+
 ### `xrtArrayDestroy`
 
 释放数组持有的全部资源和数组结构本身。
@@ -297,6 +306,7 @@ void xrtArrayDestroy(xarray* pArray);
 ```c
 xrtArrayDestroy(pArray);
 ```
+
 
 ### `xrtArrayClear`
 
@@ -328,6 +338,7 @@ if ( Array.Count != 0u ) {
 	return 9;
 }
 ```
+
 
 ## 容量
 
@@ -366,6 +377,7 @@ bool xrtArrayReserve(xarray* pArray, size_t iCapacity);
 !xrtArrayReserve(&Array, 8u) ) {
 ```
 
+
 ### `xrtArrayResize`
 
 调整元素数量：缩小只改 `Count`；增长时新增元素全部清零并保留容量。
@@ -401,6 +413,7 @@ bool xrtArrayResize(xarray* pArray, size_t iCount);
 if ( !xrtArrayResize(&Array, 3u) || (Array.Count != 3u) ||
 ```
 
+
 ### `xrtArrayTrim`
 
 将容量裁剪到当前元素数量；`Count == 0` 时直接释放存储块。
@@ -434,6 +447,7 @@ bool xrtArrayTrim(xarray* pArray);
 ```c
 !xrtArrayTrim(&Array) ) {
 ```
+
 
 ## 访问
 
@@ -472,6 +486,7 @@ ptr xrtArrayGet(xarray* pArray, size_t iIndex);
 examplerecord* pRecord = (examplerecord*)xrtArrayGet(&tRecords, i);
 ```
 
+
 ### `xrtArrayConstGet`
 
 返回指定 0 基索引处的只读元素地址。
@@ -506,6 +521,7 @@ const void* xrtArrayConstGet(const xarray* pArray, size_t iIndex);
 ```c
 (*(int*)xrtArrayConstGet(&Array, 1u) != 30) ||
 ```
+
 
 ### `xrtArrayAdd`
 
@@ -546,6 +562,7 @@ if ( pSlot == NULL ) {
 }
 *pSlot = i * 10;
 ```
+
 
 ### `xrtArrayInsertSpace`
 
@@ -590,6 +607,7 @@ pSlot[0] = 2;
 pSlot[1] = 2;
 ```
 
+
 ## 复制编辑
 
 ### `xrtArrayPush`
@@ -630,6 +648,7 @@ if ( !xrtArrayPush(&Array, &Out) ) {
 }
 ```
 
+
 ### `xrtArrayAppend`
 
 复制一段连续元素到数组末尾，允许来源是数组自身的有效元素区。
@@ -666,6 +685,7 @@ bool xrtArrayAppend(xarray* pArray, const void* pItems, size_t iCount);
 ```c
 if ( !xrtArrayAppend(pArray, Values, 5u) ||
 ```
+
 
 ### `xrtArrayInsert`
 
@@ -706,6 +726,7 @@ bool xrtArrayInsert(xarray* pArray, size_t iIndex, const void* pItems, size_t iC
 if ( !xrtArrayInsert(&Array, 2u, Values, 1u) ||
 ```
 
+
 ### `xrtArraySet`
 
 覆盖指定 0 基索引处的一个元素。
@@ -742,6 +763,7 @@ bool xrtArraySet(xarray* pArray, size_t iIndex, const void* pItem);
 ```c
 !xrtArraySet(&Array, 3u, Values) ) {
 ```
+
 
 ## 删除与重排
 
@@ -783,6 +805,7 @@ if ( !xrtArrayRemove(&Array, 2u, 1u) ) {
 }
 ```
 
+
 ### `xrtArrayRemoveSwap`
 
 用末尾元素覆盖指定元素并删除末尾；不保留元素顺序，O(1)。
@@ -817,6 +840,7 @@ bool xrtArrayRemoveSwap(xarray* pArray, size_t iIndex);
 ```c
 if ( !xrtArrayRemoveSwap(&Array, 1u) ||
 ```
+
 
 ### `xrtArrayPop`
 
@@ -856,6 +880,7 @@ if ( !xrtArrayPop(&Array, &Out) || (Out != 20) ) {
 }
 ```
 
+
 ### `xrtArraySwap`
 
 交换两个 0 基索引处的元素。
@@ -892,6 +917,7 @@ bool xrtArraySwap(xarray* pArray, size_t iLeft, size_t iRight);
 if ( !xrtArraySwap(&Array, 0u, 4u) ||
 ```
 
+
 ### `xrtArrayReverse`
 
 原地将元素顺序整体反转。
@@ -924,6 +950,7 @@ bool xrtArrayReverse(xarray* pArray);
 ```c
 !xrtArrayReverse(&Array) ||
 ```
+
 
 ### `xrtArraySort`
 
@@ -960,6 +987,7 @@ bool xrtArraySort(xarray* pArray, xarraycompare pCompare);
 if ( !xrtArrayAppend(pArray, Values, 5u) ||
 	!xrtArraySort(pArray, exampleCompareInt) ||
 ```
+
 
 ## 查找
 
@@ -998,6 +1026,7 @@ size_t xrtArrayFind(const xarray* pArray, const void* pItem);
 (xrtArrayFind(pArray, &Values[0]) != 2u) ||
 ```
 
+
 ### `xrtArrayFindBy`
 
 使用比较器线性查找第一个匹配元素，比较器第一个参数是 key。
@@ -1035,6 +1064,7 @@ if ( xrtArrayFindBy(pArray, &Values[1],
 		exampleCompareInt) != 0u ) {
 ```
 
+
 ### `xrtArrayBSearch`
 
 在已按同一比较器排序的数组中二分查找元素。
@@ -1071,6 +1101,7 @@ size_t xrtArrayBSearch(const xarray* pArray, const void* pKey, xarraycompare pCo
 (xrtArrayBSearch(pArray, &Values[0],
 	exampleCompareInt) != 2u) ) {
 ```
+
 
 ## 指针数组：生命周期
 
@@ -1111,6 +1142,7 @@ if ( !xrtPtrArrayInit(&Embedded) ) {
 }
 ```
 
+
 ### `xrtPtrArrayCreate`
 
 在堆上创建一个不拥有所存指针目标的空指针数组。
@@ -1144,6 +1176,7 @@ xptrarray* xrtPtrArrayCreate(void);
 xptrarray* pList = xrtPtrArrayCreate();
 ```
 
+
 ### `xrtPtrArrayUnit`
 
 释放指针存储区（不释放各指针指向的对象），并把结构重置为零。
@@ -1172,6 +1205,7 @@ void xrtPtrArrayUnit(xptrarray* pArray);
 xrtPtrArrayUnit(&Embedded);
 ```
 
+
 ### `xrtPtrArrayDestroy`
 
 释放指针数组结构及其存储区，不释放各指针指向的对象。
@@ -1199,6 +1233,7 @@ void xrtPtrArrayDestroy(xptrarray* pArray);
 ```c
 xrtPtrArrayDestroy(pList);
 ```
+
 
 ### `xrtPtrArrayClear`
 
@@ -1230,6 +1265,7 @@ if ( pList->Count != 0u ) {
 	return 25;
 }
 ```
+
 
 ### `xrtPtrArrayReserve`
 
@@ -1266,6 +1302,7 @@ bool xrtPtrArrayReserve(xptrarray* pArray, size_t iCapacity);
 ```c
 if ( (pList == NULL) || !xrtPtrArrayReserve(pList, 8u) ) {
 ```
+
 
 ### `xrtPtrArrayResize`
 
@@ -1304,6 +1341,7 @@ if ( !xrtPtrArrayResize(pList, 8u) ||
 	!xrtPtrArrayTrim(pList) ) {
 ```
 
+
 ### `xrtPtrArrayTrim`
 
 将容量裁剪到当前指针数量；委托 `xrtArrayTrim`。
@@ -1338,6 +1376,7 @@ bool xrtPtrArrayTrim(xptrarray* pArray);
 ```c
 !xrtPtrArrayTrim(pList) ) {
 ```
+
 
 ## 指针数组：访问与编辑
 
@@ -1375,6 +1414,7 @@ ptr* xrtPtrArrayData(xptrarray* pArray);
 if ( (xrtPtrArrayData(pList) == NULL) ||
 ```
 
+
 ### `xrtPtrArrayConstData`
 
 返回可直接遍历的只读指针槽位视图。
@@ -1408,6 +1448,7 @@ ptr const* xrtPtrArrayConstData(const xptrarray* pArray);
 ```c
 (xrtPtrArrayConstData(pList)[0] != (ptr)5) ) {
 ```
+
 
 ### `xrtPtrArrayGet`
 
@@ -1444,6 +1485,7 @@ ptr xrtPtrArrayGet(const xptrarray* pArray, size_t iIndex);
 ```c
 (xrtPtrArrayGet(pList, 2u) != (ptr)20) ||
 ```
+
 
 ### `xrtPtrArraySet`
 
@@ -1482,6 +1524,7 @@ bool xrtPtrArraySet(xptrarray* pArray, size_t iIndex, ptr pValue);
 !xrtPtrArraySet(pList, 2u, (ptr)25) ) {
 ```
 
+
 ### `xrtPtrArrayPush`
 
 向末尾追加一个指针值；委托 `xrtArrayPush`。
@@ -1518,6 +1561,7 @@ bool xrtPtrArrayPush(xptrarray* pArray, ptr pValue);
 if ( !xrtPtrArrayPush(pList, (ptr)30) ||
 	!xrtPtrArrayPush(pList, (ptr)10) ||
 ```
+
 
 ### `xrtPtrArrayAppend`
 
@@ -1556,6 +1600,7 @@ bool xrtPtrArrayAppend(xptrarray* pArray, ptr const* pValues, size_t iCount);
 if ( !xrtPtrArrayAppend(pList, Batch, 2u) ||
 ```
 
+
 ### `xrtPtrArrayInsert`
 
 在指定位点插入一个指针值；委托 `xrtArrayInsert`。
@@ -1593,6 +1638,7 @@ bool xrtPtrArrayInsert(xptrarray* pArray, size_t iIndex, ptr pValue);
 ```c
 !xrtPtrArrayInsert(pList, 1u, (ptr)12) ||
 ```
+
 
 ### `xrtPtrArrayInsertMany`
 
@@ -1633,6 +1679,7 @@ bool xrtPtrArrayInsertMany(xptrarray* pArray, size_t iIndex, ptr const* pValues,
 !xrtPtrArrayInsertMany(pList, 1u, Batch, 2u) ) {
 ```
 
+
 ### `xrtPtrArrayRemove`
 
 删除指定区间（保序）；委托 `xrtArrayRemove`。
@@ -1670,6 +1717,7 @@ bool xrtPtrArrayRemove(xptrarray* pArray, size_t iIndex, size_t iCount);
 if ( !xrtPtrArrayRemove(pList, 0u, 2u) ||
 ```
 
+
 ### `xrtPtrArrayRemoveSwap`
 
 用末尾指针覆盖指定位置并删除末尾；委托 `xrtArrayRemoveSwap`。
@@ -1705,6 +1753,7 @@ bool xrtPtrArrayRemoveSwap(xptrarray* pArray, size_t iIndex);
 ```c
 !xrtPtrArrayRemoveSwap(pList, 0u) ||
 ```
+
 
 ### `xrtPtrArrayPop`
 
@@ -1743,6 +1792,7 @@ if ( !xrtPtrArrayPop(pList, &Slot) ||
 	(Slot != (ptr)30) ) {
 ```
 
+
 ### `xrtPtrArraySwap`
 
 交换两个 0 基索引处的指针值。
@@ -1780,6 +1830,7 @@ bool xrtPtrArraySwap(xptrarray* pArray, size_t iLeft, size_t iRight);
 if ( !xrtPtrArraySwap(pList, 0u, 5u) ||
 ```
 
+
 ### `xrtPtrArrayReverse`
 
 原地反转指针顺序。
@@ -1813,6 +1864,7 @@ bool xrtPtrArrayReverse(xptrarray* pArray);
 ```c
 !xrtPtrArrayReverse(pList) ||
 ```
+
 
 ### `xrtPtrArraySort`
 
@@ -1850,6 +1902,7 @@ if ( !xrtPtrArraySort(pList, exampleCompareValue) ||
 	(xrtPtrArrayGet(pList, 0u) != (ptr)5) ||
 ```
 
+
 ### `xrtPtrArrayFind`
 
 按**指针值**查找第一个匹配槽位。
@@ -1884,6 +1937,7 @@ size_t xrtPtrArrayFind(const xptrarray* pArray, const void* pValue);
 ```c
 if ( xrtPtrArrayFind(pList, (const void*)(ptr)15) != 2u ) {
 ```
+
 
 ## 与其他容器的关系
 

@@ -22,6 +22,7 @@ typedef struct xavlnode {
 | `Right` | `struct xavlnode*` | 右操作数 |
 | `Height` | `uint8` | Height |
 
+
 ### `xavl`
 
 侵入式树不拥有节点内存，版本号用于检测遍历期结构修改。
@@ -39,6 +40,7 @@ typedef struct xavl {
 | `Root` | `xavlnode*` | Root |
 | `Count` | `size_t` | 数量 |
 | `Version` | `uint64` | 结构版本 |
+
 
 ### `xavliter`
 
@@ -62,6 +64,7 @@ typedef struct xavliter {
 | `Version` | `uint64` | 结构版本 |
 | `Reverse` | `bool` | Reverse |
 | `Active` | `bool` | Active |
+
 
 ### `xavltree`
 
@@ -93,6 +96,7 @@ typedef struct xavltree {
 | `UserData` | `ptr` | 用户数据 |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xavltreeiter`
 
 拥有式迭代器复用零分配侵入式路径栈。
@@ -109,6 +113,7 @@ typedef struct xavltreeiter {
 | `Tree` | `xavltree*` | Tree |
 | `Base` | `xavliter` | Base |
 
+
 ### `xavlcompare`
 
 比较器返回 key 与节点的顺序关系，并可通过用户数据恢复业务结构。
@@ -118,6 +123,7 @@ typedef int (*xavlcompare)(const void* pKey, const xavlnode* pNode, ptr pUserDat
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xavlvisitor`
 
@@ -129,6 +135,7 @@ typedef bool (*xavlvisitor)(xavlnode* pNode, ptr pUserData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xavltreecompare`
 
 拥有式树比较器返回 key 与对象的顺序关系，不得重入同一棵树。
@@ -138,6 +145,7 @@ typedef int (*xavltreecompare)(const void* pKey, const void* pItem, ptr pUserDat
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xavltreedrop`
 
@@ -149,6 +157,7 @@ typedef void (*xavltreedrop)(ptr pItem, ptr pUserData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xavltreevisitor`
 
 访问器可查询树和修改非键字段，不得修改结构或生命周期。
@@ -158,6 +167,7 @@ typedef bool (*xavltreevisitor)(ptr pItem, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 裁剪与依赖
 
@@ -241,6 +251,7 @@ for ( i = 0; i < 5; ++i ) {
 }
 ```
 
+
 ### `xrtAVLInit`
 
 初始化一棵不拥有节点内存的空树。
@@ -276,6 +287,7 @@ for ( i = 0; i < 5; ++i ) {
 	xrtAVLNodeInit(&Items[i].Node);
 ```
 
+
 ### `xrtAVLClear`
 
 忘记全部节点但不释放或逐个重置节点。适合外部对象整体失效或即将统一释放的场景；仍要复用旧节点时，调用方必须重新执行 `xrtAVLNodeInit()`。
@@ -306,6 +318,7 @@ if ( Tree.Count != 0u ) {
 	return 14;
 }
 ```
+
 
 ### 插入、删除与查找
 
@@ -358,6 +371,7 @@ if (
 	xrtAVLInsert(
 ```
 
+
 ### `xrtAVLRemove`
 
 删除指定键并返回已经恢复为独立状态的原节点。
@@ -402,6 +416,7 @@ if ( xrtAVLRemove(&Tree, &Probe, exampleCompareIntrusive,
 	return 12;
 }
 ```
+
 
 ### `xrtAVLFind`
 
@@ -448,6 +463,7 @@ if ( (xrtAVLFind(&Tree, &Probe,
 }
 ```
 
+
 ### 边界与首尾
 
 ### `xrtAVLLowerBound`
@@ -492,6 +508,7 @@ if ( (xrtAVLLowerBound(&Tree, &Probe,
 		exampleCompareIntrusive, NULL) !=
 		&Items[0].Node) ||
 ```
+
 
 ### `xrtAVLUpperBound`
 
@@ -539,6 +556,7 @@ if ( xrtAVLUpperBound(&Tree, &Probe,
 }
 ```
 
+
 ### `xrtAVLFirst`
 
 返回按比较器顺序排列的第一项。
@@ -575,6 +593,7 @@ if ( (xrtAVLFirst(&Tree) != &Items[3].Node) ||
 }
 ```
 
+
 ### `xrtAVLLast`
 
 返回按比较器顺序排列的最后一项。
@@ -610,6 +629,7 @@ if ( (xrtAVLFirst(&Tree) != &Items[3].Node) ||
 	return 5;
 }
 ```
+
 
 ### 访问与迭代
 
@@ -652,6 +672,7 @@ if ( (xrtAVLVisit(&Tree, exampleVisitCount, &iSeen) !=
 }
 ```
 
+
 ### `xrtAVLIterBegin`
 
 启动升序外置迭代器。
@@ -688,6 +709,7 @@ while ( true ) {
 	xavlnode* pNode = xrtAVLIterNext(&tIterator);
 ```
 
+
 ### `xrtAVLIterRBegin`
 
 启动降序外置迭代器。
@@ -722,6 +744,7 @@ bool xrtAVLIterRBegin(const xavl* pTree, xavliter* pIterator);
 if ( !xrtAVLIterRBegin(&Tree, &Iter) ||
 	((pNode = xrtAVLIterNext(&Iter)) == NULL) ||
 ```
+
 
 ### `xrtAVLIterFrom`
 
@@ -772,6 +795,7 @@ while ( (pNode = xrtAVLIterNext(&Iter)) != NULL ) {
 }
 ```
 
+
 ### `xrtAVLIterRFrom`
 
 从第一项不大于 key 的节点开始降序迭代。
@@ -821,6 +845,7 @@ while ( (pNode = xrtAVLIterNext(&Iter)) != NULL ) {
 }
 ```
 
+
 ### `xrtAVLIterNext`
 
 返回下一节点；正常结束或结构已修改时返回空指针。
@@ -858,6 +883,7 @@ while ( (pNode = xrtAVLIterNext(&Iter)) != NULL ) {
 xrtAVLIterEnd(&Iter);
 ```
 
+
 ### `xrtAVLIterEnd`
 
 提前结束迭代并清除它持有的借用状态。正常耗尽的迭代器已自动结束，再调用是无害的。
@@ -888,6 +914,7 @@ if ( iSeen != 4u ) {
 	return 11;
 }
 ```
+
 
 ## 拥有型 AVLTree
 
@@ -961,6 +988,7 @@ if ( !xrtAVLTreeInit(&tConfigs, sizeof(exampleconfig), exampleCompare, NULL) ) {
 }
 ```
 
+
 ### `xrtAVLTreeInitAligned`
 
 使用显式对象对齐初始化拥有式树。对齐必须是非零二次幂；对象大小不必是对齐的倍数（每个对象位于独立池槽内）。
@@ -1008,6 +1036,7 @@ if ( !xrtAVLTreeInitAligned(&Embedded, sizeof(int),
 }
 ```
 
+
 ### `xrtAVLTreeCreate`
 
 创建使用默认 16 字节对象对齐的拥有式树。
@@ -1052,6 +1081,7 @@ if ( pTree == NULL ) {
 	return 15;
 }
 ```
+
 
 ### `xrtAVLTreeCreateAligned`
 
@@ -1101,6 +1131,7 @@ if ( pAligned == NULL ) {
 xrtAVLTreeDestroy(pAligned);
 ```
 
+
 ### `xrtAVLTreeSetDrop`
 
 为仍为空的树设置对象资源释放器。
@@ -1139,6 +1170,7 @@ if ( !xrtAVLTreeSetDrop(pTree, exampleDrop) ) {
 }
 ```
 
+
 ### `xrtAVLTreeUnit`
 
 释放全部对象和池页，但不释放树结构。内嵌形态的收尾。
@@ -1166,6 +1198,7 @@ void xrtAVLTreeUnit(xavltree* pTree);
 ```c
 xrtAVLTreeUnit(&Embedded);
 ```
+
 
 ### `xrtAVLTreeDestroy`
 
@@ -1198,6 +1231,7 @@ if ( iDropped != 2u ) {
 }
 ```
 
+
 ### `xrtAVLTreeClear`
 
 清空全部对象并保留固定池的复用能力。
@@ -1227,6 +1261,7 @@ xrtAVLTreeClear(pTree);
 printf(" after-clear drop=%zu", iDropped);
 if ( (iDropped != 2u) || (xrtAVLTreeCount(pTree) != 0u) ) {
 ```
+
 
 ### `xrtAVLTreeCount`
 
@@ -1263,6 +1298,7 @@ if ( (xrtAVLTreeCount(pTree) != 3u) ) {
 	return 18;
 }
 ```
+
 
 ### 添加与所有权移交
 
@@ -1313,6 +1349,7 @@ if ( xrtAVLTreeAdd(pTree, &Keys[i], &Keys[i], NULL) ==
 }
 ```
 
+
 ### 查找、边界与删除
 
 ### `xrtAVLTreeFind`
@@ -1349,6 +1386,7 @@ ptr xrtAVLTreeFind(xavltree* pTree, const void* pKey);
 exampleconfig* pConfig = (exampleconfig*)xrtAVLTreeFind(&tConfigs, &iSearch);
 ```
 
+
 ### `xrtAVLTreeConstFind`
 
 查找只读对象，未找到是正常结果。
@@ -1383,6 +1421,7 @@ const void* xrtAVLTreeConstFind(const xavltree* pTree, const void* pKey);
 (*(const int*)xrtAVLTreeConstFind(pTree,
 	&Probe) != 20) ||
 ```
+
 
 ### `xrtAVLTreeHas`
 
@@ -1419,6 +1458,7 @@ if ( !xrtAVLTreeTake(pTree, &Probe, &Value) ||
 	(Value != 20) || xrtAVLTreeHas(pTree, &Probe) ) {
 ```
 
+
 ### `xrtAVLTreeRemove`
 
 删除对象并调用资源释放器。
@@ -1454,6 +1494,7 @@ Probe = 10;
 if ( !xrtAVLTreeRemove(pTree, &Probe) ||
 	(xrtAVLTreeCount(pTree) != 1u) ) {
 ```
+
 
 ### `xrtAVLTreeTake`
 
@@ -1492,6 +1533,7 @@ if ( !xrtAVLTreeTake(pTree, &Probe, &Value) ||
 	(Value != 20) || xrtAVLTreeHas(pTree, &Probe) ) {
 ```
 
+
 ### `xrtAVLTreeFirst`
 
 返回顺序第一项。
@@ -1525,6 +1567,7 @@ ptr xrtAVLTreeFirst(xavltree* pTree);
 if ( (*(int*)xrtAVLTreeFirst(pTree) != 10) ||
 	(*(int*)xrtAVLTreeLast(pTree) != 30) ||
 ```
+
 
 ### `xrtAVLTreeLast`
 
@@ -1560,6 +1603,7 @@ ptr xrtAVLTreeLast(xavltree* pTree);
 (*(int*)xrtAVLTreeLowerBound(pTree, &Probe) != 20) ||
 ```
 
+
 ### `xrtAVLTreeLowerBound`
 
 返回第一项不小于 key 的对象。
@@ -1594,6 +1638,7 @@ ptr xrtAVLTreeLowerBound(xavltree* pTree, const void* pKey);
 (*(int*)xrtAVLTreeLowerBound(pTree, &Probe) != 20) ||
 (*(int*)xrtAVLTreeUpperBound(pTree, &Probe) != 30) ) {
 ```
+
 
 ### `xrtAVLTreeUpperBound`
 
@@ -1631,6 +1676,7 @@ ptr xrtAVLTreeUpperBound(xavltree* pTree, const void* pKey);
 	return 20;
 }
 ```
+
 
 ### 访问与迭代
 
@@ -1676,6 +1722,7 @@ if ( (xrtAVLTreeVisit(pTree, exampleVisitOwned, &iSeen) !=
 	3u) || (iSeen != 3u) ) {
 ```
 
+
 ### `xrtAVLTreeIterBegin`
 
 启动拥有式树升序迭代。
@@ -1716,6 +1763,7 @@ while ( xrtAVLTreeIterNext(&Iter) != NULL ) {
 }
 ```
 
+
 ### `xrtAVLTreeIterRBegin`
 
 启动拥有式树降序迭代。
@@ -1751,6 +1799,7 @@ if ( xrtAVLTreeIterRBegin(pTree, &Iter) ) {
 	xrtAVLTreeIterEnd(&Iter);
 }
 ```
+
 
 ### `xrtAVLTreeIterFrom`
 
@@ -1793,6 +1842,7 @@ if ( xrtAVLTreeIterFrom(&tConfigs, &iSearch, &tIterator) ) {
 
 	while ( (pConfig = (exampleconfig*)xrtAVLTreeIterNext(&tIterator)) != NULL ) {
 ```
+
 
 ### `xrtAVLTreeIterRFrom`
 
@@ -1839,6 +1889,7 @@ while ( (pItem = xrtAVLTreeIterNext(&Iter)) != NULL ) {
 }
 ```
 
+
 ### `xrtAVLTreeIterNext`
 
 返回下一对象；正常结束或结构已修改时返回空指针。
@@ -1875,6 +1926,7 @@ while ( (pConfig = (exampleconfig*)xrtAVLTreeIterNext(&tIterator)) != NULL ) {
 }
 ```
 
+
 ### `xrtAVLTreeIterEnd`
 
 提前结束拥有式树迭代。
@@ -1906,6 +1958,7 @@ if ( iSeen != 3u ) {
 	return 23;
 }
 ```
+
 
 ## 错误
 

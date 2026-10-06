@@ -11,7 +11,8 @@ def snapshot(root: Path) -> dict[str, str]:
     files = [root / 'single/xrt.h']
     for library in ['xjwt', 'xoauth2']:
         directory = root / 'extlibs' / library
-        files += [*directory.glob('*.h'), directory / (library + '.c')]
+        files += [*(directory / 'include').rglob('*.h'),
+                  *(directory / 'tests/support').glob('*.c'), directory / 'config/modules.json']
         files += [p for folder in ['src', 'examples'] for p in (directory / folder).rglob('*')
                   if p.suffix in {'.c', '.h'}]
     files += [root / 'extlibs/xoauth2/tests/test_hydra_interop_client.c']

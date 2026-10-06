@@ -20,6 +20,7 @@ typedef enum xnetproxytype {
 | `XNET_PROXY_SOCKS5` | SOCKS5 代理 |
 | `XNET_PROXY_HTTP_CONNECT` | HTTP CONNECT |
 
+
 ### `xnetproxyauth`
 
 AUTO 在存在凭据时要求认证，否则只允许匿名；OPTIONAL 显式允许降级为匿名。
@@ -39,6 +40,7 @@ typedef enum xnetproxyauth {
 | `XNET_PROXY_AUTH_NONE` | 无 |
 | `XNET_PROXY_AUTH_REQUIRED` | 需要代理认证 |
 | `XNET_PROXY_AUTH_OPTIONAL` | 可选认证 |
+
 
 ### `xnetproxyconfig`
 
@@ -64,6 +66,7 @@ typedef struct xnetproxyconfig {
 | `Username` | `xbytesview` | Username |
 | `Password` | `xbytesview` | Password |
 
+
 ### `xnetproxyinfo`
 
 信息视图由代理对象持有，只能在至少一个对象引用存活时借用。
@@ -88,6 +91,7 @@ typedef struct xnetproxyinfo {
 | `Username` | `xbytesview` | Username |
 | `Password` | `xbytesview` | Password |
 
+
 ### `xnetproxyhandshakestate`
 
 握手状态同时告诉传输层下一步应发送、接收还是发布隧道。
@@ -108,6 +112,7 @@ typedef enum xnetproxyhandshakestate {
 | `XNET_PROXY_HANDSHAKE_READY` | 就绪 |
 | `XNET_PROXY_HANDSHAKE_ERROR` | 失败 |
 
+
 ### `xnetproxyendpoint`
 
 域名端点使用 Host；数字端点使用 Address，端口始终保存在 Address.Port。
@@ -123,6 +128,7 @@ typedef struct xnetproxyendpoint {
 |---|---|---|
 | `Address` | `xnetaddr` | 地址 |
 | `Host` | `xstrview` | 主机名 |
+
 
 ### `xnetproxyhandshakeconfig`
 
@@ -145,6 +151,7 @@ typedef struct xnetproxyhandshakeconfig {
 | `TargetPort` | `uint16` | TargetPort |
 | `ReceiveLimit` | `size_t` | ReceiveLimit |
 | `Pool` | `xnetbufpool*` | Pool |
+
 
 ### `xnetsocks5reply`
 
@@ -176,6 +183,7 @@ typedef enum xnetsocks5reply {
 | `XNET_SOCKS5_COMMAND_UNSUPPORTED` | COMMAND不支持 |
 | `XNET_SOCKS5_ADDRESS_UNSUPPORTED` | 地址类型不支持 |
 
+
 ### `xnetproxydialstate`
 
 Proxy Dial 状态区分代理端点解析、TCP 连接和协议握手。
@@ -200,6 +208,7 @@ typedef enum xnetproxydialstate {
 | `XNET_PROXY_DIAL_FAILED` | 已失败 |
 | `XNET_PROXY_DIAL_CANCELLED` | 已取消 |
 
+
 ### `xnetproxydialconfig`
 
 Timeout 覆盖 DNS、TCP 和代理握手全过程；零值保留各内层超时。
@@ -218,6 +227,7 @@ typedef struct xnetproxydialconfig {
 | `Timeout` | `int64` | 超时（毫秒） |
 | `ReceiveLimit` | `size_t` | ReceiveLimit |
 
+
 ### `xnetproxydialstats`
 
 Proxy Dial 保持底层 TCP Dial 统计，并补充当前协议阶段。
@@ -234,6 +244,7 @@ typedef struct xnetproxydialstats {
 | `State` | `xnetproxydialstate` | 状态 |
 | `Transport` | `xnetdialstats` | Transport |
 
+
 ### `xnetproxy`
 
 不可变代理端点可以跨请求和线程共享。
@@ -244,6 +255,7 @@ typedef struct xnetproxy xnetproxy;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xnetproxyhandshake`
 
 单个握手由一个传输执行上下文独占驱动。
@@ -253,6 +265,7 @@ typedef struct xnetproxyhandshake xnetproxyhandshake;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xnetproxydial`
 
@@ -267,6 +280,7 @@ typedef struct xnetproxydial xnetproxydial;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xnetproxydialproc`
 
@@ -283,6 +297,7 @@ typedef void (*xnetproxydialproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xnetstreamstate`
 
@@ -304,6 +319,7 @@ typedef enum xnetstreamstate {
 | `XNET_STREAM_CLOSING` | 关闭中 |
 | `XNET_STREAM_CLOSED` | 已关闭 |
 
+
 ### `xnetlistenerstate`
 
 Listener 状态只向前推进，关闭后不能重新监听。
@@ -322,6 +338,7 @@ typedef enum xnetlistenerstate {
 | `XNET_LISTENER_CLOSING` | 关闭中 |
 | `XNET_LISTENER_CLOSED` | 已关闭 |
 
+
 ### `xnetacceptdistribution`
 
 接受结果可以跨 Worker 轮转，也可以固定留在 Listener 所属 Worker。
@@ -337,6 +354,7 @@ typedef enum xnetacceptdistribution {
 |---|---|
 | `XNET_ACCEPT_ROUND_ROBIN` | XNETACCEPTROUNDROBIN |
 | `XNET_ACCEPT_LOCAL` | 固定留在监听器所属 Worker（不轮转） |
+
 
 ### `xnetdialstate`
 
@@ -360,6 +378,7 @@ typedef enum xnetdialstate {
 | `XNET_DIAL_FAILED` | 已失败 |
 | `XNET_DIAL_CANCELLED` | 已取消 |
 
+
 ### `xnetstreamwait`
 
 Stream 等待条件是水平条件；Future 只表示本次等待，不接管 Stream。
@@ -381,6 +400,7 @@ typedef enum xnetstreamwait {
 | `XNET_STREAM_WAIT_WRITE` | 写方向 |
 | `XNET_STREAM_WAIT_DRAIN` | 排空策略 |
 | `XNET_STREAM_WAIT_CLOSE` | 等待关闭 |
+
 
 ### `xnetstreamevents`
 
@@ -409,6 +429,7 @@ typedef struct xnetstreamevents {
 | `Drain` | `void (*Drain)(xnetstream* pStream, ptr pData)` | 发送队列排空 |
 | `Close` | `void (*Close)(xnetstream* pStream, xnetresult Result, const xerror* pError, ptr pData)` | 流关闭（含终态结果与错误） |
 
+
 ### `xnetlistenerevents`
 
 Accept 成功返回 true 并接管一个 Stream 引用，返回 false 会立即拒绝连接。
@@ -429,6 +450,7 @@ typedef struct xnetlistenerevents {
 | `Error` | `void (*Error)(xnetlistener* pListener, const xerror* pError, ptr pData)` | 监听级错误 |
 | `Close` | `void (*Close)(xnetlistener* pListener, ptr pData)` | 监听器关闭 |
 
+
 ### `xnetstreamreadmode`
 
 完成式读取可在吞吐、空闲内存和两者自适应之间选择。
@@ -446,6 +468,7 @@ typedef enum xnetstreamreadmode {
 | `XNET_STREAM_READ_ADAPTIVE` | 读方向 |
 | `XNET_STREAM_READ_DIRECT` | 读方向 |
 | `XNET_STREAM_READ_PROBE` | 探测模式（低内存优先） |
+
 
 ### `xnetstreamconfig`
 
@@ -476,6 +499,7 @@ typedef struct xnetstreamconfig {
 | `ReadMode` | `xnetstreamreadmode` | ReadMode |
 | `NoDelay` | `bool` | NoDelay |
 | `KeepAlive` | `bool` | KeepAlive |
+
 
 ### `xnetlistenconfig`
 
@@ -510,6 +534,7 @@ typedef struct xnetlistenconfig {
 | `ReusePort` | `bool` | ReusePort |
 | `ExclusiveAddress` | `bool` | ExclusiveAddress |
 | `IPv6Only` | `bool` | IPv6Only |
+
 
 ### `xnetstreamstats`
 
@@ -551,6 +576,7 @@ typedef struct xnetstreamstats {
 | `WriteEnded` | `bool` | WriteEnded |
 | `WriteBackpressured` | `bool` | WriteBackpressured |
 
+
 ### `xnetdialconfig`
 
 Timeout 和 FallbackDelay 使用毫秒；MaxAttempts 是解析结果的硬上限。
@@ -574,6 +600,7 @@ typedef struct xnetdialconfig {
 | `Timeout` | `int64` | 超时（毫秒） |
 | `FallbackDelay` | `uint64` | FallbackDelay |
 | `MaxAttempts` | `uint32` | MaxAttempts |
+
 
 ### `xnetdialstats`
 
@@ -602,6 +629,7 @@ typedef struct xnetdialstats {
 | `PeakAttempts` | `uint32` | PeakAttempts |
 | `WinnerIndex` | `size_t` | WinnerIndex |
 | `HasWinner` | `bool` | HasWinner |
+
 
 ### `xnetlistenerstats`
 
@@ -633,6 +661,7 @@ typedef struct xnetlistenerstats {
 | `PeakQueuedAccepts` | `uint32` | PeakQueuedAccepts |
 | `AcceptWaiters` | `uint32` | AcceptWaiters |
 
+
 ### `xnetstream`
 
 TCP 流对象（不透明）：绑定所属 Worker 的有界双向字节流。
@@ -643,6 +672,7 @@ typedef struct xnetstream xnetstream;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xnetlistener`
 
@@ -655,6 +685,7 @@ typedef struct xnetlistener xnetlistener;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xnetdial`
 
 托管主机拨号对象（不透明）：内部完成名称解析、候选竞速与连接。
@@ -665,6 +696,7 @@ typedef struct xnetdial xnetdial;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xnetdialproc`
 
@@ -681,6 +713,7 @@ typedef void (*xnetdialproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xnetserverstate`
 
@@ -702,6 +735,7 @@ typedef enum xnetserverstate {
 | `XNET_SERVER_CLOSING` | 关闭中 |
 | `XNET_SERVER_CLOSED` | 已关闭 |
 
+
 ### `xnetservermode`
 
 SHARED 每端点使用一个 Listener，REUSE_PORT 为每个 Worker 建立一份。
@@ -717,6 +751,7 @@ typedef enum xnetservermode {
 |---|---|
 | `XNET_SERVER_SHARED` | XNET服务端角色SHARED |
 | `XNET_SERVER_REUSE_PORT` | 重用端口分担 |
+
 
 ### `xnetserverevents`
 
@@ -737,6 +772,7 @@ typedef struct xnetserverevents {
 | `Accept` | `bool (*Accept)(xnetserver* pServer, size_t iEndpoint, xnetstream* pStream, ptr pData)` | 新流被接受（返回是否保留） |
 | `Error` | `void (*Error)(xnetserver* pServer, size_t iEndpoint, const xerror* pError, ptr pData)` | 端点级错误 |
 | `Close` | `void (*Close)(xnetserver* pServer, ptr pData)` | 服务器关闭 |
+
 
 ### `xnetserverconfig`
 
@@ -761,6 +797,7 @@ typedef struct xnetserverconfig {
 | `AcceptQueueLimit` | `uint32` | AcceptQueueLimit |
 | `Mode` | `xnetservermode` | 模式 |
 | `SharedPort` | `bool` | SharedPort |
+
 
 ### `xnetserverstats`
 
@@ -794,6 +831,7 @@ typedef struct xnetserverstats {
 | `PeakQueuedAccepts` | `uint32` | PeakQueuedAccepts |
 | `AcceptWaiters` | `uint32` | AcceptWaiters |
 
+
 ### `xnetserver`
 
 TCP Server（不透明）：多端点监听的组合服务对象，聚合 Listener 与 Accept 队列。
@@ -804,6 +842,7 @@ typedef struct xnetserver xnetserver;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ## 分层
 
@@ -978,6 +1017,7 @@ void xrtNetStreamConfigInit(xnetstreamconfig* pConfig)
 	xrtNetStreamConfigInit(&StreamConfig);
 ```
 
+
 ### `xrtNetListenConfigInit`
 
 初始化 IPv4 动态端口 Listener 及其默认 Stream 配置。
@@ -1010,6 +1050,7 @@ void xrtNetListenConfigInit(xnetlistenconfig* pConfig)
 	xrtNetListenConfigInit(&ListenConfig);
 ```
 
+
 ### `xrtNetDialConfigInit`
 
 初始化双栈交错、总超时和单地址 Stream 的默认策略。
@@ -1041,6 +1082,7 @@ void xrtNetDialConfigInit(xnetdialconfig* pConfig)
 ```c
 	xrtNetDialConfigInit(&DialConfig);
 ```
+
 
 ### `xrtNetDialConfigValid`
 
@@ -1076,6 +1118,7 @@ bool xrtNetDialConfigValid(const xnetdialconfig* pConfig)
 		1 : 0);
 ```
 
+
 ### `xrtNetServerConfigInit`
 
 初始化单 IPv4 动态端口、共享 Listener 和有界 Accept 队列。
@@ -1107,6 +1150,7 @@ void xrtNetServerConfigInit(xnetserverconfig* pConfig)
 ```c
 	xrtNetServerConfigInit(&ServerConfig);
 ```
+
 
 ## 连接与监听
 
@@ -1190,6 +1234,7 @@ xnetstream* xrtNetStreamConnect(xnetengine* pEngine, const xnetaddr* pRemote, ui
 	);
 ```
 
+
 ### `xrtNetListen`
 
 同步完成创建、选项、绑定和监听，再异步预投递 Accept。
@@ -1235,6 +1280,7 @@ xnetlistener* xrtNetListen(xnetengine* pEngine, const xnetlistenconfig* pConfig,
 	);
 ```
 
+
 ### `xrtNetStreamRef`
 
 线程安全地增加 Stream 引用；无效计数或溢出时返回空。
@@ -1271,6 +1317,7 @@ xnetstream* xrtNetStreamRef(xnetstream* pStream)
 	);
 ```
 
+
 ### `xrtNetStreamDestroy`
 
 释放 Stream 引用；空指针视为空操作。
@@ -1302,6 +1349,7 @@ void xrtNetStreamDestroy(xnetstream* pStream)
 ```c
 	xrtNetStreamDestroy(Example.Client);
 ```
+
 
 ### `xrtNetListenerRef`
 
@@ -1337,6 +1385,7 @@ xnetlistener* xrtNetListenerRef(xnetlistener* pListener)
 	pListenerRef = xrtNetListenerRef(pListener);
 ```
 
+
 ### `xrtNetListenerDestroy`
 
 释放 Listener 引用；关闭操作必须另行请求。
@@ -1368,6 +1417,7 @@ void xrtNetListenerDestroy(xnetlistener* pListener)
 ```c
 	xrtNetListenerDestroy(pListener);
 ```
+
 
 ### `xrtNetListenerClose`
 
@@ -1403,6 +1453,7 @@ bool xrtNetListenerClose(xnetlistener* pListener)
 	(void)xrtNetListenerClose(pListener);
 ```
 
+
 ### `xrtNetListenerState`
 
 返回 Listener 当前状态的并发快照。
@@ -1434,6 +1485,7 @@ xnetlistenerstate xrtNetListenerState(const xnetlistener* pListener)
 ```c
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 ```
+
 
 ### `xrtNetListenerStats`
 
@@ -1469,6 +1521,7 @@ bool xrtNetListenerStats(const xnetlistener* pListener, xnetlistenerstats* pStat
 		 !xrtNetListenerStats(pListener, &ListenStats) ||
 ```
 
+
 ### `xrtNetListenerLocal`
 
 复制 Listener 实际绑定地址，支持查询动态端口。
@@ -1503,6 +1556,7 @@ bool xrtNetListenerLocal(const xnetlistener* pListener, xnetaddr* pAddress)
 		 !xrtNetListenerLocal(pListener, &Address) ) {
 ```
 
+
 ### `xrtNetListenerWorker`
 
 返回 Listener 所属的借用 Worker。
@@ -1535,6 +1589,7 @@ xnetworker* xrtNetListenerWorker(const xnetlistener* pListener)
 ```c
 		 (xrtNetListenerWorker(pListener) == NULL) ) {
 ```
+
 
 ### `xrtNetListenerData`
 
@@ -1569,6 +1624,7 @@ ptr xrtNetListenerData(const xnetlistener* pListener)
 	(void)xrtNetListenerData(pListener);
 ```
 
+
 ### `xrtNetListenerAccept`
 
 拉取模式下非阻塞取走一个已接受 Stream；空队列返回空指针，Stream 不继承 Listener 数据。
@@ -1601,6 +1657,7 @@ xnetstream* xrtNetListenerAccept(xnetlistener* pListener)
 ```c
 		xnetstream* pStream = xrtNetListenerAccept(pListener);
 ```
+
 
 ### `xrtNetListenerAcceptAsync`
 
@@ -1635,6 +1692,7 @@ xfuture* xrtNetListenerAcceptAsync(xnetlistener* pListener)
 ```c
 	pAccept = xrtNetListenerAcceptAsync(pListener);
 ```
+
 
 ### `xrtNetListenerAcceptWait`
 
@@ -1677,6 +1735,7 @@ xnetstream* xrtNetListenerAcceptWait(xnetlistener* pListener, int64 iTimeout, xc
 		NULL
 	);
 ```
+
 
 ## 文件区间发送
 
@@ -1746,6 +1805,7 @@ xnetresult xrtNetStreamSendFile(xnetstream* pStream, xfile File, uint64 iOffset,
 		 (xrtNetStreamSendFile(pClient, File, 0, 10) !=
 		  XNET_RESULT_OK) ) {
 ```
+
 
 ## TCP Server
 
@@ -1859,6 +1919,7 @@ xnetserver* xrtNetServerStart(xnetengine* pEngine, const xnetserverconfig* pConf
 	);
 ```
 
+
 ### `xrtNetServerRef`
 
 线程安全地增加 Server 引用；无效计数或溢出时返回空。
@@ -1893,6 +1954,7 @@ xnetserver* xrtNetServerRef(xnetserver* pServer)
 	pServerRef = xrtNetServerRef(pServer);
 ```
 
+
 ### `xrtNetServerDestroy`
 
 释放 Server 引用；不会隐式关闭仍在运行的 Server。
@@ -1924,6 +1986,7 @@ void xrtNetServerDestroy(xnetserver* pServer)
 ```c
 	xrtNetServerDestroy(pServer);
 ```
+
 
 ### `xrtNetServerAccept`
 
@@ -1958,6 +2021,7 @@ xnetstream* xrtNetServerAccept(xnetserver* pServer)
 			xnetstream* pOne = xrtNetServerAccept(pServer);
 ```
 
+
 ### `xrtNetServerAcceptAsync`
 
 拉取模式下异步接受一个连接；成功值由 Future 持有一个 Stream 引用。
@@ -1991,6 +2055,7 @@ xfuture* xrtNetServerAcceptAsync(xnetserver* pServer)
 ```c
 	pAccept = xrtNetServerAcceptAsync(State.Server);
 ```
+
 
 ### `xrtNetServerAcceptWait`
 
@@ -2034,6 +2099,7 @@ xnetstream* xrtNetServerAcceptWait(xnetserver* pServer, int64 iTimeout, xcancel*
 	);
 ```
 
+
 ### `xrtNetServerClose`
 
 原子停止全部 Listener，并丢弃尚未交给调用方的排队 Stream。
@@ -2068,6 +2134,7 @@ bool xrtNetServerClose(xnetserver* pServer)
 	(void)xrtNetServerClose(pServer);
 ```
 
+
 ### `xrtNetServerState`
 
 返回 Server 当前生命周期状态。
@@ -2099,6 +2166,7 @@ xnetserverstate xrtNetServerState(const xnetserver* pServer)
 ```c
 	while ( xrtNetServerState(pServer) != XNET_SERVER_CLOSED ) {
 ```
+
 
 ### `xrtNetServerEndpointCount`
 
@@ -2136,6 +2204,7 @@ size_t xrtNetServerEndpointCount(const xnetserver* pServer)
 		 (Addr0.Port == 0u) || (Addr0.Port != Addr1.Port) ) {
 ```
 
+
 ### `xrtNetServerLocal`
 
 复制指定逻辑端点的实际地址，支持共享动态端口。
@@ -2171,6 +2240,7 @@ bool xrtNetServerLocal(const xnetserver* pServer, size_t iEndpoint, xnetaddr* pA
 		!xrtNetServerLocal(pServer, 0, &Address) ) {
 ```
 
+
 ### `xrtNetServerListenerCount`
 
 返回实际 Listener 数量；reuse-port 模式通常是端点数乘 Worker 数。
@@ -2202,6 +2272,7 @@ size_t xrtNetServerListenerCount(const xnetserver* pServer)
 ```c
 		 (xrtNetServerListenerCount(pServer) != 2u) ||
 ```
+
 
 ### `xrtNetServerListener`
 
@@ -2237,6 +2308,7 @@ xnetlistener* xrtNetServerListener(xnetserver* pServer, size_t iListener)
 	pListener0 = xrtNetServerListener(pServer, 0);
 ```
 
+
 ### `xrtNetServerData`
 
 返回创建时保存的用户数据，不延长目标生命周期。
@@ -2269,6 +2341,7 @@ ptr xrtNetServerData(const xnetserver* pServer)
 ```c
 		 (xrtNetServerData(pServer) != &g_Tag) ) {
 ```
+
 
 ### `xrtNetServerStats`
 
@@ -2305,6 +2378,7 @@ bool xrtNetServerStats(const xnetserver* pServer, xnetserverstats* pStats)
 		 (Stats.Accepted < 2u) ||
 		 (xrtNetServerData(pServer) != &g_Tag) ) {
 ```
+
 
 ## 托管主机连接
 
@@ -2427,6 +2501,7 @@ xnetstream* xrtNetConnect(xnetengine* pEngine, xnetresolver* pResolver, cstr sHo
 	);
 ```
 
+
 ### `xrtNetDial`
 
 发起托管主机拨号；成功时 Stream 引用转移给完成回调，非 Worker 提交者可能与回调并发。
@@ -2470,6 +2545,7 @@ xnetdial* xrtNetDial(xnetengine* pEngine, xnetresolver* pResolver, cstr sHost, u
 	pDial = xrtNetDial(pEngine, pResolver, "127.0.0.1", Address.Port,
 		&DialConfig, NULL, NULL, exampleDialDone, &Task);
 ```
+
 
 ### `xrtNetDialAsync`
 
@@ -2519,6 +2595,7 @@ xfuture* xrtNetDialAsync(xnetengine* pEngine, xnetresolver* pResolver, cstr sHos
 	);
 ```
 
+
 ### `xrtNetDialRef`
 
 增加 Dial 引用并返回原指针。
@@ -2552,6 +2629,7 @@ xnetdial* xrtNetDialRef(xnetdial* pDial)
 		 (xrtNetDialRef(pDial) != pDial) ) {  /* 引用配对在收尾多一次 Destroy */
 ```
 
+
 ### `xrtNetDialDestroy`
 
 释放 Dial 引用；空指针视为空操作。
@@ -2583,6 +2661,7 @@ void xrtNetDialDestroy(xnetdial* pDial)
 ```c
 	xrtNetDialDestroy(pDial);
 ```
+
 
 ### `xrtNetDialCancel`
 
@@ -2617,6 +2696,7 @@ bool xrtNetDialCancel(xnetdial* pDial)
 		bool bCancelled = xrtNetDialCancel(pCancelDial);
 ```
 
+
 ### `xrtNetDialState`
 
 返回 Dial 当前状态的原子快照。
@@ -2648,6 +2728,7 @@ xnetdialstate xrtNetDialState(const xnetdial* pDial)
 ```c
 	pTask->State = xrtNetDialState(pDial);
 ```
+
 
 ### `xrtNetDialError`
 
@@ -2681,6 +2762,7 @@ const xerror* xrtNetDialError(const xnetdial* pDial)
 ```c
 	(void)xrtNetDialError(pBadDial);
 ```
+
 
 ### `xrtNetDialStats`
 
@@ -2718,6 +2800,7 @@ bool xrtNetDialStats(const xnetdial* pDial, xnetdialstats* pStats)
 		 (DialStats.AttemptsStarted < 1u) ||
 		 (DialStats.WinnerIndex != 0u) ) {
 ```
+
 
 ## 发送与背压
 
@@ -2811,6 +2894,7 @@ xnetresult xrtNetStreamSend(xnetstream* pStream, const void* pData, size_t iSize
 	) != XNET_RESULT_OK ) {
 ```
 
+
 ### `xrtNetStreamSendVec`
 
 有界聚集复制发送；所有片段在返回前完成复制。
@@ -2852,6 +2936,7 @@ xnetresult xrtNetStreamSendVec(xnetstream* pStream, const xnetspan* pSpans, size
 ```c
 	if ( xrtNetStreamSendVec(pClient, Vec, 2) != XNET_RESULT_OK ) {
 ```
+
 
 ### `xrtNetStreamSendRef`
 
@@ -2898,6 +2983,7 @@ xnetresult xrtNetStreamSendRef(xnetstream* pStream, const void* pData, size_t iS
 		exampleCountRelease, &g_Releases) != XNET_RESULT_OK ) {
 ```
 
+
 ### `xrtNetStreamSendRefs`
 
 原子受理一组零复制引用；失败时全部所有权仍归调用方。
@@ -2939,6 +3025,7 @@ xnetresult xrtNetStreamSendRefs(xnetstream* pStream, const xnetref* pRefs, size_
 ```c
 	if ( xrtNetStreamSendRefs(pClient, Refs, 2) != XNET_RESULT_OK ) {
 ```
+
 
 ### `xrtNetStreamSendTake`
 
@@ -2984,6 +3071,7 @@ xnetresult xrtNetStreamSendTake(xnetstream* pStream, ptr pData, size_t iSize)
 		 XNET_RESULT_OK ) {
 ```
 
+
 ### `xrtNetStreamSendBuffer`
 
 在所属 Worker 上零复制接管缓冲链；失败时源缓冲保持不变。
@@ -3024,6 +3112,7 @@ xnetresult xrtNetStreamSendBuffer(xnetstream* pStream, xnetbuf* pBuffer)
 ```c
 		(void)xrtNetStreamSendBuffer(pStream, pBuffer);
 ```
+
 
 ## 读取控制与关闭
 
@@ -3080,6 +3169,7 @@ void xrtNetStreamPause(xnetstream* pStream)
 	xrtNetStreamPause(pServer);
 ```
 
+
 ### `xrtNetStreamResume`
 
 无分配恢复读取，并把并发请求合并后唤醒所属 Worker。
@@ -3116,6 +3206,7 @@ bool xrtNetStreamResume(xnetstream* pStream)
 			EXAMPLE_DEADLINE_MS, NULL) ) {
 ```
 
+
 ### `xrtNetStreamShutdownWrite`
 
 排空发送队列后执行 TCP 写半关闭，读取方向继续工作。
@@ -3149,6 +3240,7 @@ bool xrtNetStreamShutdownWrite(xnetstream* pStream)
 ```c
 	if ( !xrtNetStreamShutdownWrite(pClient) ) {
 ```
+
 
 ### `xrtNetStreamClose`
 
@@ -3184,6 +3276,7 @@ bool xrtNetStreamClose(xnetstream* pStream)
 	(void)xrtNetStreamClose(Example.Client);
 ```
 
+
 ### `xrtNetStreamAbort`
 
 取消在途 IO、丢弃发送队列并立即异常关闭。
@@ -3217,6 +3310,7 @@ bool xrtNetStreamAbort(xnetstream* pStream)
 ```c
 		(void)xrtNetStreamAbort(Example.Client);
 ```
+
 
 ## 拉取读取与 Future
 
@@ -3317,6 +3411,7 @@ const xnetbuf* xrtNetStreamBuffer(xnetstream* pStream)
 	pBuffer = xrtNetStreamBuffer(pTask->pStream);
 ```
 
+
 ### `xrtNetStreamAvailable`
 
 返回当前累积的可读字节数；该并发快照不会借出缓冲。
@@ -3348,6 +3443,7 @@ size_t xrtNetStreamAvailable(const xnetstream* pStream)
 ```c
 			if ( xrtNetStreamAvailable(pServer) != 0u ) {
 ```
+
 
 ### `xrtNetStreamConsume`
 
@@ -3384,6 +3480,7 @@ size_t xrtNetStreamConsume(xnetstream* pStream, size_t iSize)
 	pTask->iConsume = xrtNetStreamConsume(pTask->pStream, 4u);
 ```
 
+
 ### `xrtNetStreamRead`
 
 在所属 Worker 内复制并消费最多指定字节。
@@ -3419,6 +3516,7 @@ size_t xrtNetStreamRead(xnetstream* pStream, void* pOutput, size_t iSize)
 	pTask->iRead = xrtNetStreamRead(pTask->pStream,
 		pTask->ReadOut, 4u);
 ```
+
 
 ### `xrtNetStreamWait`
 
@@ -3460,6 +3558,7 @@ bool xrtNetStreamWait(xnetstream* pStream, xnetstreamwait Wait, int64 iTimeout, 
 			EXAMPLE_DEADLINE_MS, NULL) ? 1 : 0);
 ```
 
+
 ### `xrtNetStreamWaitAsync`
 
 异步等待 Stream 条件；成功、失败、取消和关闭映射到统一 Future 终态。
@@ -3494,6 +3593,7 @@ xfuture* xrtNetStreamWaitAsync(xnetstream* pStream, xnetstreamwait Wait)
 ```c
 	pOpen = xrtNetStreamWaitAsync(pClient, XNET_STREAM_WAIT_OPEN);
 ```
+
 
 ### `xrtNetStreamWaitAvailable`
 
@@ -3533,6 +3633,7 @@ bool xrtNetStreamWaitAvailable(xnetstream* pStream, size_t iMinimum, int64 iTime
 		EXAMPLE_DEADLINE_MS, NULL) ) {
 ```
 
+
 ### `xrtNetStreamWaitAvailableAsync`
 
 异步等待至少指定数量的可读字节。
@@ -3568,6 +3669,7 @@ xfuture* xrtNetStreamWaitAvailableAsync(xnetstream* pStream, size_t iMinimum)
 	pAvailable = xrtNetStreamWaitAvailableAsync(pClient, 4u);
 ```
 
+
 ### `xrtNetStreamRecvAsync`
 
 拉取模式下异步接收当前可用字节；成功值是借用的 `xnetbytes`。
@@ -3602,6 +3704,7 @@ xfuture* xrtNetStreamRecvAsync(xnetstream* pStream, size_t iMaxBytes)
 ```c
 	pRequest = xrtNetStreamRecvAsync(pServer, 0);
 ```
+
 
 ## 阻塞便利层
 
@@ -3670,6 +3773,7 @@ xnetbytes* xrtNetStreamRecv(xnetstream* pStream, size_t iMaxBytes, int64 iTimeou
 			EXAMPLE_DEADLINE_MS, NULL);
 ```
 
+
 ### `xrtNetStreamState`
 
 返回 Stream 当前状态的并发快照。
@@ -3701,6 +3805,7 @@ xnetstreamstate xrtNetStreamState(const xnetstream* pStream)
 ```c
 		 (xrtNetStreamState(Example.Client) != XNET_STREAM_CLOSED) ) {
 ```
+
 
 ### `xrtNetStreamError`
 
@@ -3734,6 +3839,7 @@ const xerror* xrtNetStreamError(const xnetstream* pStream)
 ```c
 		xrtNetStreamError(pClient) == NULL ? "(none)" : "err");
 ```
+
 
 ### `xrtNetStreamStats`
 
@@ -3770,6 +3876,7 @@ bool xrtNetStreamStats(const xnetstream* pStream, xnetstreamstats* pStats)
 		 (Stats.SentBytes < 63u) ) {
 ```
 
+
 ### `xrtNetStreamLocal`
 
 复制 Stream 本地地址，成功才修改输出。
@@ -3803,6 +3910,7 @@ bool xrtNetStreamLocal(const xnetstream* pStream, xnetaddr* pAddress)
 ```c
 	(void)xrtNetStreamLocal(pClient, &Address);
 ```
+
 
 ### `xrtNetStreamRemote`
 
@@ -3845,6 +3953,7 @@ bool xrtNetStreamRemote(const xnetstream* pStream, xnetaddr* pAddress)
 	) ) {
 ```
 
+
 ### `xrtNetStreamPending`
 
 返回已经占用发送预算但尚未离开队列的字节数。
@@ -3876,6 +3985,7 @@ size_t xrtNetStreamPending(const xnetstream* pStream)
 ```c
 		while ( xrtNetStreamPending(pClient) != 0u ) {
 ```
+
 
 ### `xrtNetStreamWriteLimit`
 
@@ -3909,6 +4019,7 @@ size_t xrtNetStreamWriteLimit(const xnetstream* pStream)
 		xrtNetStreamWriteLimit(pClient) >= 65536u ? "64k" : "?",
 ```
 
+
 ### `xrtNetStreamWritable`
 
 返回当前仍可受理的发送硬预算快照。
@@ -3940,6 +4051,7 @@ size_t xrtNetStreamWritable(const xnetstream* pStream)
 ```c
 		xrtNetStreamWritable(pClient) > 0u ? "0" : "?");
 ```
+
 
 ### `xrtNetStreamSocket`
 
@@ -3975,6 +4087,7 @@ xnetsocket xrtNetStreamSocket(xnetstream* pStream)
 	pTask->bSocket = xrtNetStreamSocket(pTask->pStream) != NULL;
 ```
 
+
 ### `xrtNetStreamWorker`
 
 返回 Stream 所属的借用 Worker。
@@ -4008,6 +4121,7 @@ xnetworker* xrtNetStreamWorker(const xnetstream* pStream)
 		xrtNetStreamWorker(pServer), &Post, exampleStreamTask,
 ```
 
+
 ### `xrtNetStreamData`
 
 返回线程安全的 Stream 用户数据指针快照，不延长目标生命周期。
@@ -4040,6 +4154,7 @@ ptr xrtNetStreamData(const xnetstream* pStream)
 ```c
 		 (xrtNetStreamData(pServer) != NULL)) ? "ok" : "fail");
 ```
+
 
 ### `xrtNetStreamSetData`
 
@@ -4075,6 +4190,7 @@ bool xrtNetStreamSetData(xnetstream* pStream, ptr pData)
 ```c
 	(void)xrtNetStreamSetData(pStream, pExample);
 ```
+
 
 ### `xrtNetStreamSetEvents`
 
@@ -4112,6 +4228,7 @@ bool xrtNetStreamSetEvents(xnetstream* pStream, const xnetstreamevents* pEvents,
 	pTask->bSetEvents = xrtNetStreamSetEvents(pTask->pStream,
 		&s_Events, NULL);
 ```
+
 
 ## 查询与统计
 
@@ -4186,6 +4303,7 @@ void xrtNetProxyConfigInit(xnetproxyconfig* pConfig)
 	xrtNetProxyConfigInit(&ProxyConfig);
 ```
 
+
 ### `xrtNetProxyCreate`
 
 深拷贝代理端点和凭据，创建可跨线程共享的不可变对象。
@@ -4220,6 +4338,7 @@ xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pConfig)
 	pProxy = xrtNetProxyCreate(&ProxyConfig);
 ```
 
+
 ### `xrtNetProxyRetain`
 
 增加代理对象引用并返回原指针。
@@ -4253,6 +4372,7 @@ xnetproxy* xrtNetProxyRetain(const xnetproxy* pProxy)
 		((pRetained = xrtNetProxyRetain(pProxy)) != pProxy) ) {
 ```
 
+
 ### `xrtNetProxyRelease`
 
 释放代理对象引用；最后一个引用会清零整块配置存储。
@@ -4284,6 +4404,7 @@ void xrtNetProxyRelease(xnetproxy* pProxy)
 ```c
 	xrtNetProxyRelease(pRetained);
 ```
+
 
 ### `xrtNetProxyInfo`
 
@@ -4326,6 +4447,7 @@ bool xrtNetProxyInfo(
 		(Info.Port != 1080u) ) {
 ```
 
+
 ### `xrtNetProxyHandshakeConfigInit`
 
 初始化握手配置；64 KiB 上限主要约束后续 HTTP CONNECT Header。
@@ -4359,6 +4481,7 @@ void xrtNetProxyHandshakeConfigInit(
 ```c
 	xrtNetProxyHandshakeConfigInit(&HsConfig);
 ```
+
 
 ### `xrtNetProxyHandshakeCreate`
 
@@ -4397,6 +4520,7 @@ xnetproxyhandshake* xrtNetProxyHandshakeCreate(
 	pHandshake = xrtNetProxyHandshakeCreate(&HsConfig);
 ```
 
+
 ### `xrtNetProxyHandshakeDestroy`
 
 销毁握手，并清零尚未发送的认证报文和内部目标信息。
@@ -4428,6 +4552,7 @@ void xrtNetProxyHandshakeDestroy(xnetproxyhandshake* pHandshake)
 ```c
 	xrtNetProxyHandshakeDestroy(pHandshake);
 ```
+
 
 ### `xrtNetProxyHandshakeState`
 
@@ -4466,6 +4591,7 @@ xnetproxyhandshakestate xrtNetProxyHandshakeState(
 		(xrtNetProxyHandshakeState(pHandshake) !=
 			XNET_PROXY_HANDSHAKE_WRITE) ||
 ```
+
 
 ### `xrtNetProxyHandshakeStep`
 
@@ -4509,6 +4635,7 @@ xnetproxyhandshakestate xrtNetProxyHandshakeStep(
 		 XNET_PROXY_HANDSHAKE_WRITE) ||
 ```
 
+
 ### `xrtNetProxyHandshakeOutput`
 
 借用当前待发送的首段连续输出；失败时把非空输出规范化为空 Span。
@@ -4547,6 +4674,7 @@ bool xrtNetProxyHandshakeOutput(
 		!xrtNetProxyHandshakeOutput(pHandshake, &Output) ||
 ```
 
+
 ### `xrtNetProxyHandshakeSent`
 
 确认已经发送的输出前缀；支持 Socket 部分写入。
@@ -4584,6 +4712,7 @@ size_t xrtNetProxyHandshakeSent(
 ```c
 	(void)xrtNetProxyHandshakeSent(pHandshake, Output.Size);
 ```
+
 
 ### `xrtNetProxyHandshakeBound`
 
@@ -4626,6 +4755,7 @@ bool xrtNetProxyHandshakeBound(
 		(xrtNetProxyHandshakeError(pHandshake) != NULL) ) {
 ```
 
+
 ### `xrtNetProxyHandshakeError`
 
 返回协议失败时捕获的不可变错误；对象所有权仍属于握手。
@@ -4660,6 +4790,7 @@ const xerror* xrtNetProxyHandshakeError(
 ```c
 		(xrtNetProxyHandshakeError(pHandshake) != NULL) ) {
 ```
+
 
 ### `xrtNetProxyHandshakeCode`
 
@@ -4698,6 +4829,7 @@ bool xrtNetProxyHandshakeCode(
 		xrtNetProxyHandshakeCode(pHandshake, &iCode) ||
 ```
 
+
 ### `xrtNetProxyDialConfigInit`
 
 初始化 TCP 拨号、64 KiB 协议上限和 30 秒全过程超时。
@@ -4729,6 +4861,7 @@ void xrtNetProxyDialConfigInit(xnetproxydialconfig* pConfig)
 ```c
 	xrtNetProxyDialConfigInit(&DialConfig);
 ```
+
 
 ### `xrtNetProxyDial`
 
@@ -4797,6 +4930,7 @@ xnetproxydial* xrtNetProxyDial(
 		&Example
 ```
 
+
 ### `xrtNetProxyDialRef`
 
 增加 Proxy Dial 引用并返回原指针。
@@ -4830,6 +4964,7 @@ xnetproxydial* xrtNetProxyDialRef(xnetproxydial* pDial)
 	pDialRef = xrtNetProxyDialRef(pDial);
 ```
 
+
 ### `xrtNetProxyDialDestroy`
 
 释放 Proxy Dial 引用；空指针视为空操作。
@@ -4861,6 +4996,7 @@ void xrtNetProxyDialDestroy(xnetproxydial* pDial)
 ```c
 	xrtNetProxyDialDestroy(pDialRef);
 ```
+
 
 ### `xrtNetProxyDialCancel`
 
@@ -4894,6 +5030,7 @@ bool xrtNetProxyDialCancel(xnetproxydial* pDial)
 ```c
 		(void)xrtNetProxyDialCancel(pDial);
 ```
+
 
 ### `xrtNetProxyDialState`
 
@@ -4930,6 +5067,7 @@ xnetproxydialstate xrtNetProxyDialState(
 		xnetproxydialstate State = xrtNetProxyDialState(pDial);
 ```
 
+
 ### `xrtNetProxyDialError`
 
 失败或取消后借用完整错误原因链。
@@ -4964,6 +5102,7 @@ const xerror* xrtNetProxyDialError(
 ```c
 			(xrtNetProxyDialError(pDial) == NULL) ||
 ```
+
 
 ### `xrtNetProxyDialStats`
 
@@ -5001,6 +5140,7 @@ bool xrtNetProxyDialStats(
 ```c
 			!xrtNetProxyDialStats(pDial, &DialStats) ||
 ```
+
 
 ## 示例与发布门槛
 

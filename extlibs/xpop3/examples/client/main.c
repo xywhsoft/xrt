@@ -4,6 +4,7 @@
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
+#endif
 
 #include <math.h>
 static inline double exampleTimerLimit(int64 Timeout)
@@ -21,7 +22,6 @@ static inline int64 exampleTimerRemaining(double Limit)
     Ms = ceil((Limit - xrtTimer()) * 1000.0);
     return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
 }
-#endif
 
 
 

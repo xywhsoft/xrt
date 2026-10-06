@@ -76,7 +76,7 @@ static void scenario(unsigned kind,bool reverse)
 	xrtValueRelease(source);
 	xrtownershipref ref=xrtValueCursorOwnership(cursor);xrtownershipresult graph={0};xrtownershipscope scope={0};freeze(&scope);
 	testRequire(xrtOwnershipInspect(&ref,1,&ref,1,&graph)&&graph.NodeCount==4&&graph.EdgeCount==4&&graph.ExternalRootCount==0,"complete physical snapshot graph");++graphs;
-	const xrtownershipadapterv1* adapter=xrtValueCursorOwnershipAdapterV1(ref);size_t count=0;int firstToken,secondToken;
+	const xrtownershipadapterv1* adapter=xrtValueCursorOwnershipAdapterV1(ref);size_t count=0;int firstToken=0,secondToken=0;
 	testRequire(adapter&&ref.Ops->Count(ref.Data,&count)&&count==1,"one actual initial owner");
 	xvalueiter legacy={0};
 	testRequire(!xrtValueCursorOwnershipAdapterV1(xrtValueIterOwnership(&legacy))&&

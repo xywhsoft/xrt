@@ -48,6 +48,7 @@ typedef enum xprocesserror {
 | `XPROCESS_ERROR_THREAD` | 线程标识 |
 | `XPROCESS_ERROR_LIMIT` | 缓冲上限 |
 
+
 ### `xprocesstarget`
 
 直接执行不经过命令解释器；Shell 模式只用于明确需要解释语法的命令。
@@ -63,6 +64,7 @@ typedef enum xprocesstarget {
 |---|---|
 | `XPROCESS_EXEC` | 直接执行形态 |
 | `XPROCESS_SHELL` | 系统 Shell 形态 |
+
 
 ### `xprocessiomode`
 
@@ -86,6 +88,7 @@ typedef enum xprocessiomode {
 | `XPROCESS_IO_HANDLE` | 系统 IO 失败 |
 | `XPROCESS_IO_MERGE` | 合并到另一管道（仅 STDERR 可选） |
 
+
 ### `xprocessstream`
 
 标准流标识同时用于读写、关闭、原生句柄和输出回调。
@@ -104,6 +107,7 @@ typedef enum xprocessstream {
 | `XPROCESS_STDOUT` | 标准输出 |
 | `XPROCESS_STDERR` | 标准错误流 |
 
+
 ### `xprocessstate`
 
 成功启动后的进程只有运行与退出两种公共状态。
@@ -119,6 +123,7 @@ typedef enum xprocessstate {
 |---|---|
 | `XPROCESS_RUNNING` | XPROCESS运行中 |
 | `XPROCESS_EXITED` | 已退出 |
+
 
 ### `xprocessexitkind`
 
@@ -139,6 +144,7 @@ typedef enum xprocessexitkind {
 | `XPROCESS_EXIT_CODE` | 退出码终态 |
 | `XPROCESS_EXIT_SIGNAL` | 信号终态 |
 | `XPROCESS_EXIT_LOST` | 退出码丢失 |
+
 
 ### `xprocessstop`
 
@@ -162,6 +168,7 @@ typedef enum xprocessstop {
 | `XPROCESS_STOP_KILL` | 强制结束 |
 | `XPROCESS_STOP_KILL_TREE` | 结束进程树 |
 
+
 ### `xprocessio`
 
 HANDLE 模式借用原生句柄，Spawn 在返回前完成复制，不接管调用方句柄。
@@ -178,6 +185,7 @@ typedef struct xprocessio {
 | `Mode` | `xprocessiomode` | 模式 |
 | `Handle` | `intptr_t` | 平台句柄 |
 
+
 ### `xprocessenv`
 
 Value 为空表示从子进程环境删除变量，非空值允许为空字符串。
@@ -193,6 +201,7 @@ typedef struct xprocessenv {
 |---|---|---|
 | `Name` | `cstr` | 名称 |
 | `Value` | `cstr` | 值 |
+
 
 ### `xprocessstatus`
 
@@ -215,6 +224,7 @@ typedef struct xprocessstatus {
 | `Signal` | `int32` | Signal |
 | `Stop` | `xprocessstop` | Stop |
 | `CoreDumped` | `bool` | CoreDumped |
+
 
 ### `xprocessconfig`
 
@@ -266,6 +276,7 @@ typedef struct xprocessconfig {
 | `Stdout` | `xprocessio` | Stdout |
 | `Stderr` | `xprocessio` | Stderr |
 
+
 ### `xprocessoverflow`
 
 捕获达到上限时可以失败、保留开头或保留结尾。
@@ -283,6 +294,7 @@ typedef enum xprocessoverflow {
 | `XPROCESS_OVERFLOW_ERROR` | 失败 |
 | `XPROCESS_OVERFLOW_KEEP_FIRST` | 溢出 |
 | `XPROCESS_OVERFLOW_KEEP_LAST` | 保留上一次 |
+
 
 ### `xprocessrunoptions`
 
@@ -313,6 +325,7 @@ typedef struct xprocessrunoptions {
 | `Overflow` | `xprocessoverflow` | Overflow |
 | `Output` | `xprocessoutputproc` | 输出缓冲 |
 | `UserData` | `ptr` | 用户数据 |
+
 
 ### `xprocessresult`
 
@@ -346,6 +359,7 @@ typedef struct xprocessresult {
 | `StderrTruncated` | `bool` | StderrTruncated |
 | `Duration` | `uint64` | Duration |
 
+
 ### `xprocesspipelineoptions`
 
 Pipeline 选项独立表达首段输入、共享等待控制和逐流捕获边界。
@@ -376,6 +390,7 @@ typedef struct xprocesspipelineoptions {
 | `Output` | `xprocesspipelineoutputproc` | 输出缓冲 |
 | `UserData` | `ptr` | 用户数据 |
 
+
 ### `xprocessstageresult`
 
 每段结果独立拥有 stderr，避免跨阶段拼接后丢失错误归属。
@@ -395,6 +410,7 @@ typedef struct xprocessstageresult {
 | `Stderr` | `bytes` | Stderr |
 | `StderrSize` | `size_t` | StderrSize |
 | `StderrTruncated` | `bool` | StderrTruncated |
+
 
 ### `xprocesspipelineresult`
 
@@ -424,6 +440,7 @@ typedef struct xprocesspipelineresult {
 | `Wait` | `xwaitresult` | Wait |
 | `Duration` | `uint64` | Duration |
 
+
 ### `xprocess`
 
 进程对象使用引用计数；内部等待引用保证提前释放调用方引用仍可安全回收。
@@ -433,6 +450,7 @@ typedef struct xprocess xprocess;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xprocessoutputproc`
 
@@ -448,6 +466,7 @@ typedef bool (*xprocessoutputproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xprocesspipelineoutputproc`
 
 Pipeline 流式回调携带阶段索引；不同阶段与流可能并发调用。
@@ -462,6 +481,7 @@ typedef bool (*xprocesspipelineoutputproc)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 快速开始
 
@@ -660,6 +680,7 @@ bool xrtProcessConfigInit(xprocessconfig* pConfig)
 	if ( !xrtProcessConfigInit(&Config) ) {
 ```
 
+
 ### `xrtProcessShellConfigInit`
 
 初始化系统 Shell 配置；`Command` 只借用到 Spawn 返回。
@@ -697,6 +718,7 @@ bool xrtProcessShellConfigInit(
 		if ( !xrtProcessShellConfigInit(&Config, "echo redirected output") ) {
 ```
 
+
 ### `xrtProcessSpawn`
 
 启动子进程；失败不返回半初始化对象，详情写入当前结构化错误。
@@ -729,6 +751,7 @@ xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
 ```c
 	pProcess = xrtProcessSpawn(&Config);
 ```
+
 
 ### `xrtProcessRef`
 
@@ -763,6 +786,7 @@ xprocess* xrtProcessRef(xprocess* pProcess)
 	pRef = xrtProcessRef(pProcess);
 ```
 
+
 ### `xrtProcessDestroy`
 
 释放进程对象引用；最后一个调用方引用可在进程运行时释放，此时关闭父端标准流并由内部等待者回收子进程，不隐式杀死子进程。
@@ -794,6 +818,7 @@ void xrtProcessDestroy(xprocess* pProcess)
 ```c
 		xrtProcessDestroy(pProcess);
 ```
+
 
 ### `xrtProcessState`
 
@@ -828,6 +853,7 @@ xprocessstate xrtProcessState(const xprocess* pProcess)
 		(xrtProcessState(pProcess) != XPROCESS_RUNNING) ||
 ```
 
+
 ### `xrtProcessId`
 
 返回平台进程标识，失败返回零。
@@ -861,6 +887,7 @@ uint64 xrtProcessId(const xprocess* pProcess)
 		(xrtProcessId(pProcess) == 0u) ||
 ```
 
+
 ### `xrtProcessNative`
 
 返回借用的原生进程句柄；POSIX 返回 pid，Windows 返回 HANDLE。
@@ -893,6 +920,7 @@ intptr_t xrtProcessNative(const xprocess* pProcess)
 ```c
 		(xrtProcessNative(pProcess) == 0) ||
 ```
+
 
 ### `xrtProcessStreamNative`
 
@@ -936,6 +964,7 @@ intptr_t xrtProcessStreamNative(
 			XPROCESS_STDOUT) == 0) ) {
 ```
 
+
 ### `xrtProcessStatus`
 
 复制退出状态；进程尚未退出时返回 `false` 并设置状态错误。
@@ -973,6 +1002,7 @@ bool xrtProcessStatus(
 		!xrtProcessStatus(pProcess, &Status) ||
 ```
 
+
 ### `xrtProcessError`
 
 返回进程后台等待失败的新错误引用，没有后台错误时返回空；用后 `xrtErrorFree` 释放。
@@ -1005,6 +1035,7 @@ xerror* xrtProcessError(const xprocess* pProcess)
 ```c
 		(xrtProcessError(pProcess) != NULL) ) {
 ```
+
 
 ### `xrtProcessRead`
 
@@ -1058,6 +1089,7 @@ int64 xrtProcessRead(
 	)) > 0 ) {
 ```
 
+
 ### `xrtProcessWrite`
 
 向 stdin 管道同步写入，返回实际写入字节数，负数表示错误。函数可能部分写入；同一时刻只允许一个写入者。
@@ -1101,6 +1133,7 @@ int64 xrtProcessWrite(
 ```c
 	if ( xrtProcessWrite(pProcess, sInput, sizeof(sInput) - 1u) <= 0 ) {
 ```
+
 
 ### `xrtProcessClose`
 
@@ -1146,6 +1179,7 @@ bool xrtProcessClose(
 	(void)xrtProcessClose(pProcess, XPROCESS_STDIN);
 ```
 
+
 ### `xrtProcessWait`
 
 等待进程退出。
@@ -1181,6 +1215,7 @@ xwaitresult xrtProcessWait(xprocess* pProcess)
 	if ( xrtProcessWait(pProcess) != XWAIT_OK ) {
 ```
 
+
 ### `xrtProcessWaitFor`
 
 在相对毫秒数内等待进程退出。
@@ -1214,12 +1249,11 @@ xwaitresult xrtProcessWaitFor(
 
 #### 范例
 
-[tour](../../examples/process/tour/main.c) · 限时等待
+参见已注册的 [examples/process/tour/main.c](../../examples/process/tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-	if ( xrtProcessWaitFor(pProcess, 100000u) != XWAIT_TIMEOUT ) {
+xrtProcessWaitFor(pProcess, 100)
 ```
-
 ### `xrtProcessWaitForCancel`
 
 等待进程、Deadline 或取消令牌中的首个事件。
@@ -1264,6 +1298,7 @@ xwaitresult xrtProcessWaitForCancel(
 			pCancel) != XWAIT_CANCELLED) ) {
 ```
 
+
 ### `xrtProcessInterrupt`
 
 请求控制台中断或 POSIX SIGINT，不等待进程退出。
@@ -1296,6 +1331,7 @@ bool xrtProcessInterrupt(xprocess* pProcess)
 ```c
 	if ( !xrtProcessInterrupt(pProcess) ) {
 ```
+
 
 ### `xrtProcessTerminate`
 
@@ -1334,6 +1370,7 @@ bool xrtProcessTerminate(xprocess* pProcess)
 			XWAIT_OK) ) {
 ```
 
+
 ### `xrtProcessKill`
 
 强制结束根进程，不等待进程退出。
@@ -1366,6 +1403,7 @@ bool xrtProcessKill(xprocess* pProcess)
 ```c
 		!xrtProcessKill(pProcess) ||
 ```
+
 
 ### `xrtProcessKillTree`
 
@@ -1400,6 +1438,7 @@ bool xrtProcessKillTree(xprocess* pProcess)
 			xrtProcessKillTree(pVictim) &&
 ```
 
+
 ### `xrtProcessOpen`
 
 请求系统使用默认关联程序打开 UTF-8 文件路径或 URI；返回 `true` 只表示系统接受请求，不表示目标应用已经完成展示。
@@ -1432,6 +1471,7 @@ bool xrtProcessOpen(cstr sTarget)
 ```c
 	if ( !xrtProcessOpen(argv[1]) ) {
 ```
+
 
 ### `xrtProcessFile`
 
@@ -1466,6 +1506,7 @@ xprocessio xrtProcessFile(xfile File)
 	Config.Stdout = xrtProcessFile(File);
 ```
 
+
 ### `xrtProcessTerminalSupported`
 
 判断当前系统是否具备 ConPTY 或 POSIX PTY 支持。
@@ -1498,6 +1539,7 @@ bool xrtProcessTerminalSupported(void)
 ```c
 	if ( !xrtProcessTerminalSupported() ) {
 ```
+
 
 ### `xrtProcessResize`
 
@@ -1538,6 +1580,7 @@ bool xrtProcessResize(
 				(void)xrtProcessResize(pTerm, 120u, 30u);
 ```
 
+
 ### `xrtProcessRunOptionsInit`
 
 初始化有界捕获、无限等待和 250 ms 分级停止宽限。
@@ -1575,6 +1618,7 @@ bool xrtProcessRunOptionsInit(xprocessrunoptions* pOptions)
 		(Result.Stdout == NULL) ) {
 ```
 
+
 ### `xrtProcessResultUnit`
 
 释放结果持有的输出并恢复为空结果。
@@ -1606,6 +1650,7 @@ void xrtProcessResultUnit(xprocessresult* pResult)
 ```c
 	xrtProcessResultUnit(&Result);
 ```
+
 
 ### `xrtProcessResultSuccess`
 
@@ -1639,6 +1684,7 @@ bool xrtProcessResultSuccess(const xprocessresult* pResult)
 ```c
 	bOk = xrtProcessResultSuccess(&Result);
 ```
+
 
 ### `xrtProcessRun`
 
@@ -1680,6 +1726,7 @@ bool xrtProcessRun(
 		!xrtProcessRun(&Config, &RunOptions, &Result) ||
 ```
 
+
 ### `xrtProcessCapture`
 
 直接执行程序并使用默认有界捕获策略。
@@ -1716,14 +1763,11 @@ bool xrtProcessCapture(
 
 #### 范例
 
-[tour](../../examples/process/tour/main.c) · 直接执行捕获
+参见已注册的 [examples/process/tour/main.c](../../examples/process/tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-	if ( !xrtProcessCapture("cmd", arrArgs, 1u, &Result) ||
-		!xrtProcessResultSuccess(&Result) ||
-		(Result.StderrSize != 0u) ) {
+xrtProcessCapture(EXAMPLE_SHELL, arrArgs, 2u, &Result)
 ```
-
 ### `xrtProcessShell`
 
 通过系统 Shell 执行命令并使用默认有界捕获策略。
@@ -1762,6 +1806,7 @@ bool xrtProcessShell(
 		bOk = xrtProcessShell("echo captured output", &Result);
 ```
 
+
 ### `xrtProcessPipelineOptionsInit`
 
 初始化 Pipeline 的有界捕获、无限等待和 250 ms 停止宽限。
@@ -1797,6 +1842,7 @@ bool xrtProcessPipelineOptionsInit(
 	if ( !xrtProcessPipelineOptionsInit(&PipeOptions) ) {
 ```
 
+
 ### `xrtProcessPipelineResultUnit`
 
 释放 Pipeline 结果持有的状态数组和输出。
@@ -1828,6 +1874,7 @@ void xrtProcessPipelineResultUnit(xprocesspipelineresult* pResult)
 ```c
 	xrtProcessPipelineResultUnit(&Result);
 ```
+
 
 ### `xrtProcessPipelineSuccess`
 
@@ -1863,6 +1910,7 @@ bool xrtProcessPipelineSuccess(
 ```c
 	bOk = xrtProcessPipelineSuccess(&Result);
 ```
+
 
 ### `xrtProcessPipeline`
 
@@ -1907,6 +1955,7 @@ bool xrtProcessPipeline(
 	bOk = xrtProcessPipeline(Stages, 2u, NULL, &Result);
 ```
 
+
 ### `xrtProcessWaitAsync`
 
 返回以 Future 形式等待进程退出的对象；成功值是由 Future 自身拥有的只读 `xprocessstatus` 快照。
@@ -1940,6 +1989,7 @@ xfuture* xrtProcessWaitAsync(xprocess* pProcess)
 ```c
 	pFuture = xrtProcessWaitAsync(pProcess);
 ```
+
 
 ## 公共类型索引
 

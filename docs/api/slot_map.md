@@ -52,6 +52,7 @@
 
 所有失败的插入返回该值。
 
+
 ### `XRT_SLOT_INDEX_INVALID`
 
 ```c
@@ -61,6 +62,7 @@
 `xrtSlotIndex()` 无法解码句柄时返回该值。有效内部索引最大为
 `UINT32_MAX - 1`。
 
+
 ### `xslot`
 
 ```c
@@ -69,6 +71,7 @@ typedef uint64 xslot;
 
 句柄可复制、比较和作为语言层整数保存，但不得自行拆位或构造。使用
 `xrtSlotIndex()` 和 `xrtSlotGeneration()` 做诊断。
+
 
 ### `xslotmap`
 
@@ -101,6 +104,7 @@ typedef struct xslotmap {
 | `FreeSlot` | `uint32` | 空闲链头 |
 | `Reserved` | `uint32` | 保留字段，必须保持为零 |
 
+
 ### `xslotmapiter`
 
 ```c
@@ -118,6 +122,7 @@ typedef struct xslotmapiter {
 | `Map` | `const xslotmap*` | 目标槽表借用 |
 | `Next` | `size_t` | 下一扫描槽位 |
 | `Version` | `uint64` | 启动时代际 |
+
 
 ## 句柄诊断
 
@@ -154,6 +159,7 @@ uint32 xrtSlotIndex(xslot Slot)
 		xrtSlotIndex(First) == xrtSlotIndex(Replacement) ? "yes" : "no",
 ```
 
+
 ### `xrtSlotGeneration`
 
 返回句柄中的代际，无效句柄返回零。
@@ -186,6 +192,7 @@ uint32 xrtSlotGeneration(xslot Slot)
 ```c
 		(xrtSlotGeneration(SlotA) != 1u) ||
 ```
+
 
 ## 生命周期与容量
 
@@ -222,6 +229,7 @@ bool xrtSlotMapInit(xslotmap* pMap)
 	if ( !xrtSlotMapInit(&tConnections) ) {
 ```
 
+
 ### `xrtSlotMapCreate`
 
 创建堆上的空槽表。
@@ -255,6 +263,7 @@ xslotmap* xrtSlotMapCreate(void)
 	pMap = xrtSlotMapCreate();
 ```
 
+
 ### `xrtSlotMapUnit`
 
 释放槽表存储，但不释放槽内指针指向的对象。
@@ -286,6 +295,7 @@ void xrtSlotMapUnit(xslotmap* pMap)
 ```c
 		xrtSlotMapUnit(&tConnections);
 ```
+
 
 ### `xrtSlotMapDestroy`
 
@@ -319,6 +329,7 @@ void xrtSlotMapDestroy(xslotmap* pMap)
 	xrtSlotMapDestroy(pMap);
 ```
 
+
 ### `xrtSlotMapClear`
 
 清空全部活动槽并使已有句柄失效，同时保留已分配容量。
@@ -350,6 +361,7 @@ void xrtSlotMapClear(xslotmap* pMap)
 ```c
 	xrtSlotMapClear(pMap);
 ```
+
 
 ### `xrtSlotMapReserve`
 
@@ -386,6 +398,7 @@ bool xrtSlotMapReserve(xslotmap* pMap, size_t iCapacity)
 ```c
 		!xrtSlotMapReserve(pMap, 8u) ) {
 ```
+
 
 ## 基本操作
 
@@ -425,6 +438,7 @@ xslot xrtSlotMapInsert(xslotmap* pMap, ptr pValue)
 	First = xrtSlotMapInsert(&tConnections, &tFirst);
 ```
 
+
 ### `xrtSlotMapGet`
 
 返回有效句柄对应的指针，陈旧或不存在的句柄返回空指针。
@@ -459,6 +473,7 @@ ptr xrtSlotMapGet(const xslotmap* pMap, xslot Slot)
 		(xrtSlotMapGet(pMap, SlotA) != (ptr)1) ||
 ```
 
+
 ### `xrtSlotMapContains`
 
 判断句柄当前是否仍指向活动槽，句柄失效不是错误。
@@ -492,6 +507,7 @@ bool xrtSlotMapContains(const xslotmap* pMap, xslot Slot)
 ```c
 		xrtSlotMapContains(&tConnections, First) ? "yes" : "no"
 ```
+
 
 ### `xrtSlotMapSet`
 
@@ -529,6 +545,7 @@ bool xrtSlotMapSet(xslotmap* pMap, xslot Slot, ptr pValue)
 		!xrtSlotMapSet(pMap, SlotA, (ptr)11) ||
 ```
 
+
 ### `xrtSlotMapRemove`
 
 删除有效槽并可返回原指针，删除后旧句柄永久失效。
@@ -565,6 +582,7 @@ bool xrtSlotMapRemove(xslotmap* pMap, xslot Slot, ptr* pValue)
 ```c
 	if ( !xrtSlotMapRemove(&tConnections, First, NULL) ) {
 ```
+
 
 ## 迭代
 
@@ -614,6 +632,7 @@ bool xrtSlotMapIterBegin(const xslotmap* pMap, xslotmapiter* pIterator)
 	if ( !xrtSlotMapIterBegin(pMap, &Iter) ) {
 ```
 
+
 ### `xrtSlotMapIterNext`
 
 返回下一个活动指针，并可返回与其匹配的稳定句柄。
@@ -649,6 +668,7 @@ ptr xrtSlotMapIterNext(xslotmapiter* pIterator, xslot* pSlot)
 		NULL ) {
 ```
 
+
 ### `xrtSlotMapIterEnd`
 
 提前结束迭代并清除借用状态。
@@ -680,6 +700,7 @@ void xrtSlotMapIterEnd(xslotmapiter* pIterator)
 ```c
 	xrtSlotMapIterEnd(&Iter);
 ```
+
 
 ## 示例
 

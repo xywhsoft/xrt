@@ -84,6 +84,13 @@ static void exampleFree(example_object* pObject)
 
 int main(void)
 {
+	/* 图可见计数的单次原子变更；拥有槽的复合变更需要完整 mutation scope。 */
+	volatile int32 iGraphCount = 1;
+	if ( (xrtOwnershipRefRetain(&iGraphCount) != 2) ||
+		(xrtOwnershipRefRelease(&iGraphCount) != 1) ) {
+		return 1;
+	}
+
 	/* 第一个持有者：计数 1。 */
 	example_object* pFirst = exampleCreate(42);
 

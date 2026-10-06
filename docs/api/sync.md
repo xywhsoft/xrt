@@ -20,6 +20,7 @@ typedef union xmutex {
 |---|---|---|
 | `Alignment` | `uint64` | 对齐（二次幂） |
 
+
 ### `xcond`
 
 条件变量必须和 XRT mutex 配合使用。
@@ -34,6 +35,7 @@ typedef union xcond {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Alignment` | `uint64` | 对齐（二次幂） |
+
 
 ### `xsem`
 
@@ -50,6 +52,7 @@ typedef union xsem {
 |---|---|---|
 | `Alignment` | `uint64` | 对齐（二次幂） |
 
+
 ### `xrwlock`
 
 读写锁采用写者优先策略并支持升级和降级。
@@ -65,6 +68,7 @@ typedef union xrwlock {
 |---|---|---|
 | `Alignment` | `uint64` | 对齐（二次幂） |
 
+
 ### `xevent`
 
 事件保存显式信号状态，可选择自动或手动复位。
@@ -79,6 +83,7 @@ typedef union xevent {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Alignment` | `uint64` | 对齐（二次幂） |
+
 
 ## 裁剪宏
 
@@ -165,6 +170,7 @@ bool xrtMutexInit(xmutex* pMutex)
 	if ( !xrtMutexInit(&tMutex) ) {
 ```
 
+
 ### `xrtMutexUnit`
 
 释放互斥锁平台资源；仍被持有时失败且保持对象有效。
@@ -199,6 +205,7 @@ bool xrtMutexUnit(xmutex* pMutex)
 	(void)xrtMutexUnit(&tMutex);
 ```
 
+
 ### `xrtMutexCreate`
 
 创建一个非递归互斥锁。
@@ -230,6 +237,7 @@ xmutex* xrtMutexCreate(void)
 ```c
 	pMutex = xrtMutexCreate();
 ```
+
 
 ### `xrtMutexDestroy`
 
@@ -265,6 +273,7 @@ bool xrtMutexDestroy(xmutex* pMutex)
 	xrtMutexDestroy(pMutex);
 ```
 
+
 ### `xrtMutexLock`
 
 阻塞到获得互斥锁；同线程递归加锁返回错误。
@@ -299,6 +308,7 @@ bool xrtMutexLock(xmutex* pMutex)
 	(void)xrtMutexLock(pJob->pMutex);
 ```
 
+
 ### `xrtMutexTryLock`
 
 尝试获得互斥锁；锁正忙时返回 `false` 且不设置错误。
@@ -331,6 +341,7 @@ bool xrtMutexTryLock(xmutex* pMutex)
 ```c
 		xrtMutexTryLock(pMutex) ||  /* 已持有：Try 必失败 */
 ```
+
 
 ### `xrtMutexUnlock`
 
@@ -365,6 +376,7 @@ bool xrtMutexUnlock(xmutex* pMutex)
 ```c
 	(void)xrtMutexUnlock(pJob->pMutex);
 ```
+
 
 ## Condition
 
@@ -439,6 +451,7 @@ bool xrtCondInit(xcond* pCond)
 	if ( !xrtCondInit(&Cond) ) {
 ```
 
+
 ### `xrtCondUnit`
 
 释放条件变量平台资源。
@@ -473,6 +486,7 @@ bool xrtCondUnit(xcond* pCond)
 		(void)xrtCondUnit(&Cond);
 ```
 
+
 ### `xrtCondCreate`
 
 创建条件变量。
@@ -504,6 +518,7 @@ xcond* xrtCondCreate(void)
 ```c
 	pCond = xrtCondCreate();
 ```
+
 
 ### `xrtCondDestroy`
 
@@ -538,6 +553,7 @@ bool xrtCondDestroy(xcond* pCond)
 ```c
 	xrtCondDestroy(pCond);
 ```
+
 
 ### `xrtCondWait`
 
@@ -576,6 +592,7 @@ xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex)
 		pJob->iWaitResult = xrtCondWait(pJob->pCond,
 			pJob->pMutex);
 ```
+
 
 ### `xrtCondWaitFor`
 
@@ -616,6 +633,7 @@ xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, int64 iTimeout)
 		EXAMPLE_TIMEOUT_MS);  /* 无人 Signal：到期 */
 ```
 
+
 ### `xrtCondSignal`
 
 唤醒一个等待者；通知本身不保存状态。
@@ -649,6 +667,7 @@ bool xrtCondSignal(xcond* pCond)
 ```c
 	(void)xrtCondSignal(pCond);
 ```
+
 
 ### `xrtCondBroadcast`
 
@@ -684,6 +703,7 @@ bool xrtCondBroadcast(xcond* pCond)
 	if ( !xrtCondSignal(&Cond) || !xrtCondBroadcast(&Cond) ||
 		!xrtMutexLock(&Mutex) ) {
 ```
+
 
 ## Semaphore
 
@@ -749,6 +769,7 @@ bool xrtSemInit(xsem* pSem, uint32 iInitial, uint32 iMaximum)
 		!xrtSemPost(&Semaphore) ) {
 ```
 
+
 ### `xrtSemUnit`
 
 释放信号量平台资源。
@@ -782,6 +803,7 @@ bool xrtSemUnit(xsem* pSem)
 ```c
 	return xrtSemUnit(&Semaphore) &&
 ```
+
 
 ### `xrtSemCreate`
 
@@ -818,6 +840,7 @@ xsem* xrtSemCreate(uint32 iInitial, uint32 iMaximum)
 	pSem = xrtSemCreate(0u, 4u);
 ```
 
+
 ### `xrtSemDestroy`
 
 释放 Create 返回的信号量。
@@ -851,6 +874,7 @@ bool xrtSemDestroy(xsem* pSem)
 ```c
 	xrtSemDestroy(pSem);
 ```
+
 
 ### `xrtSemWait`
 
@@ -887,6 +911,7 @@ xwaitresult xrtSemWait(xsem* pSem)
 		(xrtSemWait(pSem) != XWAIT_OK) ||
 ```
 
+
 ### `xrtSemTryWait`
 
 非阻塞地尝试消费一个信号。
@@ -921,6 +946,7 @@ xwaitresult xrtSemTryWait(xsem* pSem)
 ```c
 		(xrtSemTryWait(pSem) != XWAIT_TIMEOUT) ) {
 ```
+
 
 ### `xrtSemWaitFor`
 
@@ -958,6 +984,7 @@ xwaitresult xrtSemWaitFor(xsem* pSem, int64 iTimeout)
 		(xrtSemWaitFor(pSem, EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ) {
 ```
 
+
 ### `xrtSemPost`
 
 发布一个信号；达到上限时失败且计数不变。
@@ -991,6 +1018,7 @@ bool xrtSemPost(xsem* pSem)
 ```c
 		!xrtSemPost(&Semaphore) ) {
 ```
+
 
 ### `xrtSemPostMany`
 
@@ -1029,6 +1057,7 @@ bool xrtSemPostMany(xsem* pSem, uint32 iCount)
 		(xrtSemWait(pSem) != XWAIT_OK) ||
 		(xrtSemWaitFor(pSem, EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ) {
 ```
+
 
 ## RWLock
 
@@ -1100,6 +1129,7 @@ bool xrtRWLockInit(xrwlock* pLock)
 	if ( !xrtRWLockInit(&Lock) ) {
 ```
 
+
 ### `xrtRWLockUnit`
 
 释放读写锁平台资源；仍被持有或等待时失败。
@@ -1134,6 +1164,7 @@ bool xrtRWLockUnit(xrwlock* pLock)
 	return xrtRWLockUnit(&Lock) && bOkay && (iValue == 15) ? 0 : 2;
 ```
 
+
 ### `xrtRWLockCreate`
 
 创建写者优先的读写锁。
@@ -1165,6 +1196,7 @@ xrwlock* xrtRWLockCreate(void)
 ```c
 	pLock = xrtRWLockCreate();
 ```
+
 
 ### `xrtRWLockDestroy`
 
@@ -1200,6 +1232,7 @@ bool xrtRWLockDestroy(xrwlock* pLock)
 	xrtRWLockDestroy(pLock);
 ```
 
+
 ### `xrtRWLockRead`
 
 获得非递归共享读锁；读锁所有权由调用方保证。
@@ -1234,6 +1267,7 @@ bool xrtRWLockRead(xrwlock* pLock)
 		!xrtRWLockRead(pLock) ||
 ```
 
+
 ### `xrtRWLockTryRead`
 
 尝试获得共享读锁；写者存在或等待时返回 `false`。
@@ -1266,6 +1300,7 @@ bool xrtRWLockTryRead(xrwlock* pLock)
 ```c
 		!xrtRWLockTryRead(&Lock) ) {
 ```
+
 
 ### `xrtRWLockReadUnlock`
 
@@ -1301,6 +1336,7 @@ bool xrtRWLockReadUnlock(xrwlock* pLock)
 		!xrtRWLockReadUnlock(pLock) ||
 ```
 
+
 ### `xrtRWLockWrite`
 
 获得独占写锁。
@@ -1335,6 +1371,7 @@ bool xrtRWLockWrite(xrwlock* pLock)
 		!xrtRWLockWrite(&Lock) ) {
 ```
 
+
 ### `xrtRWLockTryWrite`
 
 尝试获得独占写锁。
@@ -1367,6 +1404,7 @@ bool xrtRWLockTryWrite(xrwlock* pLock)
 ```c
 		xrtRWLockTryWrite(pLock) ||  /* 读持有时写必失败 */
 ```
+
 
 ### `xrtRWLockWriteUnlock`
 
@@ -1401,6 +1439,7 @@ bool xrtRWLockWriteUnlock(xrwlock* pLock)
 ```c
 		!xrtRWLockWriteUnlock(pLock) ) {
 ```
+
 
 ### `xrtRWLockDowngrade`
 
@@ -1438,6 +1477,7 @@ bool xrtRWLockDowngrade(xrwlock* pLock)
 		!xrtRWLockWrite(&Lock) ) {
 ```
 
+
 ### `xrtRWLockUpgrade`
 
 当前线程只持有一个读锁时，释放它并排队获得写锁。
@@ -1471,6 +1511,7 @@ bool xrtRWLockUpgrade(xrwlock* pLock)
 ```c
 		!xrtRWLockUpgrade(&Lock) ) {
 ```
+
 
 ## Event
 
@@ -1539,6 +1580,7 @@ bool xrtEventInit(xevent* pEvent, bool bManualReset, bool bSignaled)
 	if ( !xrtEventInit(&tManual, true, false) ) {
 ```
 
+
 ### `xrtEventUnit`
 
 释放事件平台资源。
@@ -1572,6 +1614,7 @@ bool xrtEventUnit(xevent* pEvent)
 ```c
 	xrtEventUnit(&tManual);
 ```
+
 
 ### `xrtEventCreate`
 
@@ -1608,6 +1651,7 @@ xevent* xrtEventCreate(bool bManualReset, bool bSignaled)
 	pAuto = xrtEventCreate(false, false);
 ```
 
+
 ### `xrtEventDestroy`
 
 释放 Create 返回的事件。
@@ -1641,6 +1685,7 @@ bool xrtEventDestroy(xevent* pEvent)
 ```c
 	xrtEventDestroy(pAuto);
 ```
+
 
 ### `xrtEventWait`
 
@@ -1678,6 +1723,7 @@ xwaitresult xrtEventWait(xevent* pEvent)
 		(xrtEventWait(&tManual) != XWAIT_OK) ||
 ```
 
+
 ### `xrtEventTryWait`
 
 非阻塞地检查并消费自动复位事件。
@@ -1712,6 +1758,7 @@ xwaitresult xrtEventTryWait(xevent* pEvent)
 ```c
 		(xrtEventTryWait(pAuto) != XWAIT_TIMEOUT) ||
 ```
+
 
 ### `xrtEventWaitFor`
 
@@ -1750,6 +1797,7 @@ xwaitresult xrtEventWaitFor(xevent* pEvent, int64 iTimeout)
 			XWAIT_TIMEOUT) ) {
 ```
 
+
 ### `xrtEventSet`
 
 设置事件；手动复位唤醒全部等待者，自动复位唤醒一个等待者。
@@ -1784,6 +1832,7 @@ bool xrtEventSet(xevent* pEvent)
 		!xrtEventSet(pAuto) ||
 ```
 
+
 ### `xrtEventReset`
 
 清除事件信号态。
@@ -1817,6 +1866,7 @@ bool xrtEventReset(xevent* pEvent)
 ```c
 		!xrtEventReset(&tManual) ||
 ```
+
 
 ## 错误口径
 

@@ -133,7 +133,7 @@ def main() -> int:
     command = [args.compiler, '-std=c11', *([] if os.name == 'nt' else ['-D_GNU_SOURCE']),
         '-O1' if args.sanitize else '-O2', '-Wall', '-Wextra', '-Werror',
         *(['-g', '-fsanitize=address,undefined', '-fno-omit-frame-pointer'] if args.sanitize else []),
-        '-I', str(ROOT / 'single'), '-I', str(ROOT / 'extlibs/xjwt/include'), '-I', str(ROOT / 'extlibs/xoauth2/include'),
+        '-I', str(ROOT / 'single'), '-I', str(ROOT / 'include'), '-I', str(ROOT / 'extlibs/xjwt/include'), '-I', str(ROOT / 'extlibs/xoauth2/include'),
         str(ROOT / 'extlibs/xoauth2/tests/test_oidc_idtoken_policy.c'),
         str(ROOT / 'extlibs/xoauth2/tests/support/implementation.c'), str(ROOT / 'extlibs/xjwt/tests/support/implementation.c'), '-o', str(binary),
         *(['-lws2_32', '-lbcrypt', '-ladvapi32', '-liphlpapi'] if os.name == 'nt' else ['-pthread', '-lm'])]

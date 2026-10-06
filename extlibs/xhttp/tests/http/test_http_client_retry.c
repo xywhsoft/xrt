@@ -588,13 +588,13 @@ static void testHttpRetryStart(
 		XHTTP_RETRY_TRANSPORT |
 		XHTTP_RETRY_RESPECT_AFTER;
 	ClientConfig.Retry.BaseDelay = 0;
-	ClientConfig.Retry.MaxDelay = 300000u;
+	ClientConfig.Retry.MaxDelay = 300u;
 	ClientConfig.Retry.MaxRetries =
 		(Scenario == TEST_HTTP_RETRY_DISABLED) ||
 		(Scenario == TEST_HTTP_RETRY_CALL_ENABLED) ? 0u : 2u;
 	if ( (Scenario == TEST_HTTP_RETRY_CANCEL_WAIT) ||
 		(Scenario == TEST_HTTP_RETRY_TOTAL_TIMEOUT) ) {
-		ClientConfig.Retry.BaseDelay = 300000u;
+		ClientConfig.Retry.BaseDelay = 300u;
 	}
 	pState->Client = xrtHttpClientCreate(
 		pState->Engine,
@@ -789,5 +789,4 @@ int main(void)
 	printf("[PASS] HTTP client retry lifecycle (select)\n");
 	return 0;
 }
-
 

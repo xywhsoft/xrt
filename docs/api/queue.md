@@ -26,6 +26,7 @@ typedef enum xqueueresult {
 | `XQUEUE_FULL` | 已满 |
 | `XQUEUE_CLOSED` | 已关闭 |
 
+
 ### `xqueuebatchresult`
 
 批量操作同时返回流控状态和实际处理数量。
@@ -42,6 +43,7 @@ typedef struct xqueuebatchresult {
 | `Result` | `xqueueresult` | 结果输出 |
 | `Count` | `size_t` | 数量 |
 
+
 ### `xqueuecursor32`
 
 32 位游标独占一个架构隔离跨度，避免生产者和消费者伪共享。
@@ -56,6 +58,7 @@ typedef struct xqueuecursor32 {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Position` | `xatomic32` | 位置 |
+
 
 ### `xqueueslot`
 
@@ -72,6 +75,7 @@ typedef struct xqueueslot {
 |---|---|---|
 | `Sequence` | `xatomic32` | Sequence |
 | `Item` | `ptr` | Item |
+
 
 ### `xspscqueue`
 
@@ -99,6 +103,7 @@ typedef struct xspscqueue {
 | `Tail` | `xqueuecursor32` | 尾指针 |
 | `Head` | `xqueuecursor32` | 头指针 |
 
+
 ### `xmpscqueue`
 
 MPSC 允许多个生产者并发写入，只允许一个消费者读取。
@@ -124,6 +129,7 @@ typedef struct xmpscqueue {
 | `Closed` | `xatomic32` | Closed |
 | `Tail` | `xqueuecursor32` | 尾指针 |
 | `Head` | `xqueuecursor32` | 头指针 |
+
 
 ### `xmpmcqueue`
 
@@ -151,6 +157,7 @@ typedef struct xmpmcqueue {
 | `Tail` | `xqueuecursor32` | 尾指针 |
 | `Head` | `xqueuecursor32` | 头指针 |
 
+
 ### `xqueuedrainfn`
 
 排空回调接收已从队列移除的指针值。
@@ -160,6 +167,7 @@ typedef void (*xqueuedrainfn)(ptr pItem, ptr pContext);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 裁剪与依赖
 
@@ -225,6 +233,7 @@ size_t xrtQueueCapacity(size_t iMinimum)
 ```c
 		xrtQueueCapacity(3u), xrtQueueCapacity(16u));
 ```
+
 
 ## SPSC
 
@@ -296,6 +305,7 @@ bool xrtSPSCQueueInit(xspscqueue* pQueue, size_t iCapacity)
 		if ( !xrtSPSCQueueInit(&Queue, 4u) ) {
 ```
 
+
 ### `xrtSPSCQueueInitBuffer`
 
 在调用方提供的 2 的幂指针环上初始化 SPSC 队列。
@@ -336,6 +346,7 @@ bool xrtSPSCQueueInitBuffer(
 	if ( !xrtSPSCQueueInitBuffer(&Queue, Storage, 8u) ) {
 ```
 
+
 ### `xrtSPSCQueueCreate`
 
 创建拥有结构和内部指针环的 SPSC 队列。
@@ -371,6 +382,7 @@ xspscqueue* xrtSPSCQueueCreate(size_t iCapacity)
 			xspscqueue* pHeap = xrtSPSCQueueCreate(8u);
 ```
 
+
 ### `xrtSPSCQueueUnit`
 
 释放拥有的指针环，但不释放队列结构或指针目标。
@@ -403,6 +415,7 @@ void xrtSPSCQueueUnit(xspscqueue* pQueue)
 			xrtSPSCQueueUnit(&Queue);
 ```
 
+
 ### `xrtSPSCQueueDestroy`
 
 释放 Create 返回的队列结构和内部指针环。
@@ -434,6 +447,7 @@ void xrtSPSCQueueDestroy(xspscqueue* pQueue)
 ```c
 			xrtSPSCQueueDestroy(pHeap);
 ```
+
 
 ### `xrtSPSCQueueTryPush`
 
@@ -473,6 +487,7 @@ xqueueresult xrtSPSCQueueTryPush(xspscqueue* pQueue, ptr pItem)
 			(xrtSPSCQueueTryPush(&Queue, (ptr)2) != XQUEUE_OK) ||
 			(xrtSPSCQueueCount(&Queue) != 2u) ) {
 ```
+
 
 ### `xrtSPSCQueuePushBatch`
 
@@ -515,6 +530,7 @@ xqueuebatchresult xrtSPSCQueuePushBatch(
 		Batch = xrtSPSCQueuePushBatch(&Queue, Items, 3u);
 ```
 
+
 ### `xrtSPSCQueueTryPop`
 
 尝试弹出一个指针值；输出必须对齐且不与队列对象或内部环重叠。
@@ -552,6 +568,7 @@ xqueueresult xrtSPSCQueueTryPop(xspscqueue* pQueue, ptr* pItem)
 			if ( (xrtSPSCQueueTryPop(&Queue, &Value) !=
 				XQUEUE_OK) || ((intptr_t)Value != 1) ) {
 ```
+
 
 ### `xrtSPSCQueuePopBatch`
 
@@ -594,6 +611,7 @@ xqueuebatchresult xrtSPSCQueuePopBatch(
 		Batch = xrtSPSCQueuePopBatch(&Queue, Out, 4u);
 ```
 
+
 ### `xrtSPSCQueueCount`
 
 返回并发快照下的近似元素数量。
@@ -626,6 +644,7 @@ size_t xrtSPSCQueueCount(const xspscqueue* pQueue)
 			(xrtSPSCQueueCount(&Queue) != 2u) ) {
 ```
 
+
 ### `xrtSPSCQueueClose`
 
 由唯一生产者幂等关闭写入端，并允许消费者继续排空已有元素。
@@ -657,6 +676,7 @@ void xrtSPSCQueueClose(xspscqueue* pQueue)
 ```c
 		xrtSPSCQueueClose(&Queue);
 ```
+
 
 ### `xrtSPSCQueueIsClosed`
 
@@ -691,6 +711,7 @@ bool xrtSPSCQueueIsClosed(const xspscqueue* pQueue)
 			XQUEUE_CLOSED) || !xrtSPSCQueueIsClosed(&Queue) ||
 ```
 
+
 ### `xrtSPSCQueueIsDrained`
 
 判断队列是否已经关闭且排空。
@@ -723,6 +744,7 @@ bool xrtSPSCQueueIsDrained(const xspscqueue* pQueue)
 ```c
 			!xrtSPSCQueueIsDrained(&Queue) ||
 ```
+
 
 ### `xrtSPSCQueueDrain`
 
@@ -764,6 +786,7 @@ size_t xrtSPSCQueueDrain(
 			(xrtAtomic64Load(&Sum.Total, XMEMORY_RELAXED) != 7) ) {
 ```
 
+
 ### `xrtSPSCQueueReset`
 
 在调用方独占且队列为空时重置游标并重新开放。
@@ -799,6 +822,7 @@ bool xrtSPSCQueueReset(xspscqueue* pQueue)
 				XQUEUE_OK) ||
 			xrtSPSCQueueIsClosed(&Queue) ) {
 ```
+
 
 ## MPSC
 
@@ -866,6 +890,7 @@ bool xrtMPSCQueueInit(xmpscqueue* pQueue, size_t iCapacity)
 				XQUEUE_OK) ) {
 ```
 
+
 ### `xrtMPSCQueueInitBuffer`
 
 在调用方提供的 2 的幂序列槽环上初始化 MPSC 队列。
@@ -906,6 +931,7 @@ bool xrtMPSCQueueInitBuffer(
 	if ( !xrtMPSCQueueInitBuffer(&Queue, Storage, 8u) ) {
 ```
 
+
 ### `xrtMPSCQueueCreate`
 
 创建拥有结构和内部序列槽环的 MPSC 队列。
@@ -941,6 +967,7 @@ xmpscqueue* xrtMPSCQueueCreate(size_t iCapacity)
 		xmpscqueue* pQueue = xrtMPSCQueueCreate(64u);
 ```
 
+
 ### `xrtMPSCQueueUnit`
 
 释放拥有的序列槽环，但不释放队列结构或指针目标。
@@ -973,6 +1000,7 @@ void xrtMPSCQueueUnit(xmpscqueue* pQueue)
 		xrtMPSCQueueUnit(&Queue);
 ```
 
+
 ### `xrtMPSCQueueDestroy`
 
 释放 Create 返回的队列结构和内部序列槽环。
@@ -1004,6 +1032,7 @@ void xrtMPSCQueueDestroy(xmpscqueue* pQueue)
 ```c
 		xrtMPSCQueueDestroy(pQueue);
 ```
+
 
 ### `xrtMPSCQueueTryPush`
 
@@ -1042,6 +1071,7 @@ xqueueresult xrtMPSCQueueTryPush(xmpscqueue* pQueue, ptr pItem)
 		while ( xrtMPSCQueueTryPush(pJob->pQueue, Value) ==
 			XQUEUE_FULL ) {
 ```
+
 
 ### `xrtMPSCQueuePushBatch`
 
@@ -1084,6 +1114,7 @@ xqueuebatchresult xrtMPSCQueuePushBatch(
 	if ( xrtMPSCQueuePushBatch(&Queue, pFirstBatch, 2u).Count != 2u ) {
 ```
 
+
 ### `xrtMPSCQueueTryPop`
 
 尝试弹出一个指针值；输出必须对齐且不与队列对象或内部环重叠。
@@ -1121,6 +1152,7 @@ xqueueresult xrtMPSCQueueTryPop(xmpscqueue* pQueue, ptr* pItem)
 			while ( xrtMPSCQueueTryPop(pQueue, &Value) ==
 				XQUEUE_OK ) {
 ```
+
 
 ### `xrtMPSCQueuePopBatch`
 
@@ -1163,6 +1195,7 @@ xqueuebatchresult xrtMPSCQueuePopBatch(
 	Batch = xrtMPSCQueuePopBatch(&Queue, pOutput, 4u);
 ```
 
+
 ### `xrtMPSCQueueCount`
 
 返回并发快照下的近似元素数量。
@@ -1195,6 +1228,7 @@ size_t xrtMPSCQueueCount(const xmpscqueue* pQueue)
 			(xrtMPSCQueueCount(pQueue) != 0u) ) {
 ```
 
+
 ### `xrtMPSCQueueClose`
 
 由唯一生产者幂等关闭写入端，并允许消费者继续排空已有元素。
@@ -1226,6 +1260,7 @@ void xrtMPSCQueueClose(xmpscqueue* pQueue)
 ```c
 		xrtMPSCQueueClose(&Queue);
 ```
+
 
 ### `xrtMPSCQueueIsClosed`
 
@@ -1262,6 +1297,7 @@ bool xrtMPSCQueueIsClosed(const xmpscqueue* pQueue)
 			!xrtMPSCQueueReset(pQueue) ) {
 ```
 
+
 ### `xrtMPSCQueueIsDrained`
 
 判断队列是否已经关闭且排空。
@@ -1294,6 +1330,7 @@ bool xrtMPSCQueueIsDrained(const xmpscqueue* pQueue)
 ```c
 			!xrtMPSCQueueIsDrained(pQueue) ||
 ```
+
 
 ### `xrtMPSCQueueDrain`
 
@@ -1333,6 +1370,7 @@ size_t xrtMPSCQueueDrain(
 		(void)xrtMPSCQueueDrain(&Queue, exampleDrainAdd, &Sum);
 ```
 
+
 ### `xrtMPSCQueueReset`
 
 在调用方独占且队列为空时重置游标并重新开放。
@@ -1365,6 +1403,7 @@ bool xrtMPSCQueueReset(xmpscqueue* pQueue)
 ```c
 		if ( (Sum.Count != 1u) || !xrtMPSCQueueReset(&Queue) ) {
 ```
+
 
 ## MPMC
 
@@ -1434,6 +1473,7 @@ bool xrtMPMCQueueInit(xmpmcqueue* pQueue, size_t iCapacity)
 				XQUEUE_OK) ) {
 ```
 
+
 ### `xrtMPMCQueueInitBuffer`
 
 在调用方提供的 2 的幂序列槽环上初始化 MPMC 队列。
@@ -1474,6 +1514,7 @@ bool xrtMPMCQueueInitBuffer(
 	if ( !xrtMPMCQueueInitBuffer(&Queue, Storage, 8u) ) {
 ```
 
+
 ### `xrtMPMCQueueCreate`
 
 创建拥有结构和内部序列槽环的 MPMC 队列。
@@ -1509,6 +1550,7 @@ xmpmcqueue* xrtMPMCQueueCreate(size_t iCapacity)
 		xmpmcqueue* pQueue = xrtMPMCQueueCreate(64u);
 ```
 
+
 ### `xrtMPMCQueueUnit`
 
 释放拥有的序列槽环，但不释放队列结构或指针目标。
@@ -1541,6 +1583,7 @@ void xrtMPMCQueueUnit(xmpmcqueue* pQueue)
 		xrtMPMCQueueUnit(&Queue);
 ```
 
+
 ### `xrtMPMCQueueDestroy`
 
 释放 Create 返回的队列结构和内部序列槽环。
@@ -1572,6 +1615,7 @@ void xrtMPMCQueueDestroy(xmpmcqueue* pQueue)
 ```c
 		xrtMPMCQueueDestroy(NULL);  /* 空指针是空操作 */
 ```
+
 
 ### `xrtMPMCQueueTryPush`
 
@@ -1610,6 +1654,7 @@ xqueueresult xrtMPMCQueueTryPush(xmpmcqueue* pQueue, ptr pItem)
 		while ( xrtMPMCQueueTryPush(pJob->pQueue, Value) ==
 			XQUEUE_FULL ) {
 ```
+
 
 ### `xrtMPMCQueuePushBatch`
 
@@ -1652,6 +1697,7 @@ xqueuebatchresult xrtMPMCQueuePushBatch(
 	if ( xrtMPMCQueuePushBatch(&Queue, pFirstBatch, 2u).Count != 2u ) {
 ```
 
+
 ### `xrtMPMCQueueTryPop`
 
 尝试弹出一个指针值；输出必须对齐且不与队列对象或内部环重叠。
@@ -1689,6 +1735,7 @@ xqueueresult xrtMPMCQueueTryPop(xmpmcqueue* pQueue, ptr* pItem)
 		if ( xrtMPMCQueueTryPop(pJob->pQueue, &Value) ==
 			XQUEUE_OK ) {
 ```
+
 
 ### `xrtMPMCQueuePopBatch`
 
@@ -1731,6 +1778,7 @@ xqueuebatchresult xrtMPMCQueuePopBatch(
 	Batch = xrtMPMCQueuePopBatch(&Queue, pOutput, 4u);
 ```
 
+
 ### `xrtMPMCQueueCount`
 
 返回并发快照下的近似元素数量。
@@ -1763,6 +1811,7 @@ size_t xrtMPMCQueueCount(const xmpmcqueue* pQueue)
 			(xrtMPMCQueueCount(pJob->pQueue) == 0u) ) {
 ```
 
+
 ### `xrtMPMCQueueClose`
 
 由唯一生产者幂等关闭写入端，并允许消费者继续排空已有元素。
@@ -1794,6 +1843,7 @@ void xrtMPMCQueueClose(xmpmcqueue* pQueue)
 ```c
 		xrtMPMCQueueClose(pQueue);
 ```
+
 
 ### `xrtMPMCQueueIsClosed`
 
@@ -1829,6 +1879,7 @@ bool xrtMPMCQueueIsClosed(const xmpmcqueue* pQueue)
 			(xrtMPMCQueueCount(pJob->pQueue) == 0u) ) {
 ```
 
+
 ### `xrtMPMCQueueIsDrained`
 
 判断队列是否已经关闭且排空。
@@ -1861,6 +1912,7 @@ bool xrtMPMCQueueIsDrained(const xmpmcqueue* pQueue)
 ```c
 			!xrtMPMCQueueIsDrained(pQueue) ) {
 ```
+
 
 ### `xrtMPMCQueueDrain`
 
@@ -1903,6 +1955,7 @@ size_t xrtMPMCQueueDrain(
 			!xrtMPMCQueueReset(&Queue) ) {
 ```
 
+
 ### `xrtMPMCQueueReset`
 
 在调用方独占且队列为空时重置游标并重新开放。
@@ -1935,6 +1988,7 @@ bool xrtMPMCQueueReset(xmpmcqueue* pQueue)
 ```c
 			!xrtMPMCQueueReset(&Queue) ) {
 ```
+
 
 ## 示例
 

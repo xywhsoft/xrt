@@ -24,6 +24,7 @@ typedef enum xregexflag {
 | `XREGEX_DOT_ALL` | DOT全部 |
 | `XREGEX_UNGREEDY` | 非贪婪 |
 
+
 ### `xregexresult`
 
 所有匹配入口使用同一三态结果，未匹配不属于错误。
@@ -41,6 +42,7 @@ typedef enum xregexresult {
 | `XREGEX_ERROR` | 失败 |
 | `XREGEX_NONE` | 无 |
 | `XREGEX_MATCH` | 命中 |
+
 
 ### `xregexerror`
 
@@ -66,6 +68,7 @@ typedef enum xregexerror {
 | `XREGEX_ERROR_REPLACEMENT` | 失败 |
 | `XREGEX_ERROR_CALLBACK` | 回调失败 |
 
+
 ### `xregexconfig`
 
 编译配置同时控制语义标志与可由调用方收紧的资源预算。
@@ -85,6 +88,7 @@ typedef struct xregexconfig {
 | `MaxPatternBytes` | `size_t` | MaxPatternBytes |
 | `MaxCaptures` | `size_t` | MaxCaptures |
 
+
 ### `xregexspan`
 
 匹配范围使用零基半开字节区间 [Begin, End)。
@@ -100,6 +104,7 @@ typedef struct xregexspan {
 |---|---|---|
 | `Begin` | `size_t` | Begin |
 | `End` | `size_t` | 结束 |
+
 
 ### `xregexcapture`
 
@@ -119,6 +124,7 @@ typedef struct xregexcapture {
 | `Span` | `xregexspan` | Span |
 | `Text` | `xstrview` | 文本视图 |
 
+
 ### `xregexsplitflag`
 
 拆分标志控制捕获输出和空项过滤。
@@ -134,6 +140,7 @@ typedef enum xregexsplitflag {
 |---|---|
 | `XREGEX_SPLIT_CAPTURES` | XREGEX按级别分流CAPTURES |
 | `XREGEX_SPLIT_SKIP_EMPTY` | 跳过空字段 |
+
 
 ### `xregexsplitconfig`
 
@@ -151,6 +158,7 @@ typedef struct xregexsplitconfig {
 |---|---|---|
 | `Limit` | `size_t` | 上限 |
 | `Flags` | `uint32` | 标志位 |
+
 
 ### `xregexsplitpart`
 
@@ -170,6 +178,7 @@ typedef struct xregexsplitpart {
 | `Capture` | `size_t` | Capture |
 | `Matched` | `bool` | Matched |
 
+
 ### `xregex`
 
 编译对象不可变、可跨线程共享并通过引用计数管理。
@@ -179,6 +188,7 @@ typedef struct xregex xregex;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xregexmatcher`
 
@@ -190,6 +200,7 @@ typedef struct xregexmatcher xregexmatcher;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xregexsplitter`
 
 流式拆分器借用输入，并独占一个可重用 matcher。
@@ -199,6 +210,7 @@ typedef struct xregexsplitter xregexsplitter;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xregexset`
 
@@ -210,6 +222,7 @@ typedef struct xregexset xregexset;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xregexsetmatcher`
 
 集合 matcher 独占执行缓存和本轮命中索引。
@@ -219,6 +232,7 @@ typedef struct xregexsetmatcher xregexsetmatcher;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xregexreplacefn`
 
@@ -233,6 +247,7 @@ typedef bool (*xregexreplacefn)(
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -289,6 +304,7 @@ bool xrtRegexEscapeSize(xstrview Text, size_t* pOutputSize)
 		(strcmp(Escape, "a\\.b\\*c") != 0) ) {
 ```
 
+
 ### `xrtRegexEscapeWrite`
 
 将字面量文本转义到调用方缓冲区；容量必须包含末尾零。
@@ -332,6 +348,7 @@ bool xrtRegexEscapeWrite(
 			sizeof(Escape), &iSize) ||
 ```
 
+
 ### `xrtRegexEscape`
 
 创建由 `xrtFree` 释放的零结尾正则字面量，长度输出可以为空。
@@ -367,6 +384,7 @@ str xrtRegexEscape(xstrview Text, size_t* pOutputSize)
 	sLiteral = xrtRegexEscape(XRT_STR_LITERAL("file[1].txt"), &iLiteralSize);
 ```
 
+
 ### `xrtRegexConfigInit`
 
 初始化默认编译标志和有限资源预算。
@@ -398,6 +416,7 @@ void xrtRegexConfigInit(xregexconfig* pConfig)
 ```c
 	xrtRegexConfigInit(&Config);
 ```
+
 
 ### `xrtRegexCompile`
 
@@ -444,6 +463,7 @@ xregex* xrtRegexCompile(xstrview Pattern)
 	if ( !xrtRegexEscapeSize(SV("a.b*c"), &iSize) ||
 ```
 
+
 ### `xrtRegexCompileConfig`
 
 使用高级配置编译正则表达式。
@@ -485,6 +505,7 @@ xregex* xrtRegexCompileConfig(
 		&Config);
 ```
 
+
 ### `xrtRegexValid`
 
 验证表达式能否使用默认配置完成编译。
@@ -519,6 +540,7 @@ bool xrtRegexValid(xstrview Pattern)
 		!xrtRegexValid(SV("\\d+")) ||
 ```
 
+
 ### `xrtRegexRef`
 
 增加编译对象引用并返回原指针。
@@ -552,6 +574,7 @@ xregex* xrtRegexRef(xregex* pRegex)
 		(xrtRegexRef(pDate) != pDate) ||
 ```
 
+
 ### `xrtRegexRelease`
 
 释放编译对象引用。
@@ -583,6 +606,7 @@ void xrtRegexRelease(xregex* pRegex)
 ```c
 		xrtRegexRelease(pComma);
 ```
+
 
 ### `xrtRegexPattern`
 
@@ -617,6 +641,7 @@ xstrview xrtRegexPattern(const xregex* pRegex)
 		(xrtRegexPattern(pDate).Size == 0u) ||
 ```
 
+
 ### `xrtRegexFlags`
 
 返回编译时使用的标志。
@@ -649,6 +674,7 @@ uint32 xrtRegexFlags(const xregex* pRegex)
 		(xrtRegexFlags(pDate) != XREGEX_IGNORE_CASE) ||
 ```
 
+
 ### `xrtRegexCaptureCount`
 
 返回包含组 0 在内的捕获数量。
@@ -680,6 +706,7 @@ size_t xrtRegexCaptureCount(const xregex* pRegex)
 ```c
 		(xrtRegexCaptureCount(pDate) != 3u) ) {
 ```
+
 
 ### `xrtRegexCaptureName`
 
@@ -725,6 +752,7 @@ bool xrtRegexCaptureName(
 				XRT_NPOS) ) {
 ```
 
+
 ### `xrtRegexCaptureIndex`
 
 按名称查找捕获索引，未找到时返回 `XRT_NPOS`。
@@ -761,6 +789,7 @@ size_t xrtRegexCaptureIndex(
 ```c
 			(xrtRegexCaptureIndex(pDate, SV("year")) != 1u) ||
 ```
+
 
 ### `xrtRegexErrorOffset`
 
@@ -799,6 +828,7 @@ bool xrtRegexErrorOffset(
 ```c
 		!xrtRegexErrorOffset(pError, &iOffset) ||
 ```
+
 
 ## 编译
 
@@ -900,6 +930,7 @@ xregexmatcher* xrtRegexMatcherCreate(xregex* pRegex)
 	pMatcher = xrtRegexMatcherCreate(pRegex);
 ```
 
+
 ### `xrtRegexMatcherFree`
 
 释放 matcher、执行缓存和持有的编译对象引用。
@@ -931,6 +962,7 @@ void xrtRegexMatcherFree(xregexmatcher* pMatcher)
 ```c
 			xrtRegexMatcherFree(pMatcher);
 ```
+
 
 ### `xrtRegexMatcherFind`
 
@@ -976,6 +1008,7 @@ xregexresult xrtRegexMatcherFind(
 		 Result = xrtRegexMatcherNext(pMatcher) ) {
 ```
 
+
 ### `xrtRegexMatcherAt`
 
 要求首个匹配恰好从指定字节位置开始。
@@ -1018,6 +1051,7 @@ xregexresult xrtRegexMatcherAt(
 		xrtRegexMatcherAt(pMatcher, SV("2024-05!"), 0u) ==
 ```
 
+
 ### `xrtRegexMatcherFull`
 
 要求表达式覆盖完整输入。
@@ -1058,6 +1092,7 @@ xregexresult xrtRegexMatcherFull(
 		xrtRegexMatcherFull(pMatcher, SV("2024-05")) ==
 ```
 
+
 ### `xrtRegexMatcherNext`
 
 继续查找下一项，空匹配会按一个 UTF-8 标量向前推进。
@@ -1094,6 +1129,7 @@ xregexresult xrtRegexMatcherNext(xregexmatcher* pMatcher)
 		 Result = xrtRegexMatcherNext(pMatcher) ) {
 ```
 
+
 ### `xrtRegexMatcherMatched`
 
 返回 matcher 当前是否持有一次成功匹配。
@@ -1127,6 +1163,7 @@ bool xrtRegexMatcherMatched(const xregexmatcher* pMatcher)
 		!xrtRegexMatcherMatched(pMatcher) ||
 ```
 
+
 ### `xrtRegexMatcherText`
 
 返回当前输入的借用视图。
@@ -1159,6 +1196,7 @@ xstrview xrtRegexMatcherText(const xregexmatcher* pMatcher)
 ```c
 		(xrtRegexMatcherText(pMatcher).Size != 13u) ||
 ```
+
 
 ### `xrtRegexMatcherCapture`
 
@@ -1201,6 +1239,7 @@ bool xrtRegexMatcherCapture(
 	if ( !xrtRegexMatcherCapture(pMatcher, 0u, &Capture) ) {
 ```
 
+
 ### `xrtRegexMatcherCaptureNamed`
 
 按名称返回当前捕获。
@@ -1240,6 +1279,7 @@ bool xrtRegexMatcherCaptureNamed(
 		if ( !xrtRegexMatcherCaptureNamed(pMatcher, XRT_STR_LITERAL("name"), &Name) ||
 			 !xrtRegexMatcherCaptureNamed(pMatcher, XRT_STR_LITERAL("value"), &Value) ) {
 ```
+
 
 ### `xrtRegexTest`
 
@@ -1284,6 +1324,7 @@ xregexresult xrtRegexTest(
 			XREGEX_NONE) ) {
 ```
 
+
 ### `xrtRegexFullTest`
 
 使用临时 matcher 检查编译表达式是否覆盖完整输入。
@@ -1323,6 +1364,7 @@ xregexresult xrtRegexFullTest(
 ```c
 	if ( xrtRegexFullTest(pRegex, XRT_STR_LITERAL("file[1].txt")) != XREGEX_MATCH ) {
 ```
+
 
 ### `xrtRegexMatch`
 
@@ -1371,6 +1413,7 @@ xregexresult xrtRegexMatch(
 			XREGEX_NONE) ) {
 ```
 
+
 ### `xrtRegexFullMatch`
 
 编译默认表达式并执行一次完整匹配。
@@ -1412,6 +1455,7 @@ xregexresult xrtRegexFullMatch(
 		(xrtRegexFullMatch(SV("\\d+"), SV("123")) !=
 			XREGEX_MATCH) ||
 ```
+
 
 ### `xrtRegexReplaceTo`
 
@@ -1466,6 +1510,7 @@ bool xrtRegexReplaceTo(
 			11u) != 0) ) {
 ```
 
+
 ### `xrtRegexReplaceFuncTo`
 
 由回调生成每次替换内容，失败时撤销本次调用追加的全部数据。
@@ -1518,6 +1563,7 @@ bool xrtRegexReplaceFuncTo(
 			exampleUpperReplace, &iHits, &Output, &iCount) ||
 ```
 
+
 ### `xrtRegexReplace`
 
 替换全部匹配并返回零结尾独立字符串。
@@ -1565,6 +1611,7 @@ str xrtRegexReplace(
 	);
 ```
 
+
 ### `xrtRegexReplaceFirst`
 
 只替换第一个匹配并返回零结尾独立字符串。
@@ -1609,6 +1656,7 @@ str xrtRegexReplaceFirst(
 		SV("[x]"));
 ```
 
+
 ### `xrtRegexSplitConfigInit`
 
 初始化不限制分隔次数且保留空字段的拆分配置。
@@ -1640,6 +1688,7 @@ void xrtRegexSplitConfigInit(xregexsplitconfig* pConfig)
 ```c
 	xrtRegexSplitConfigInit(&Config);
 ```
+
 
 ### `xrtRegexSplitterCreate`
 
@@ -1685,6 +1734,7 @@ xregexsplitter* xrtRegexSplitterCreate(
 	);
 ```
 
+
 ### `xrtRegexSplitterFree`
 
 释放拆分器、matcher 和持有的正则引用。
@@ -1716,6 +1766,7 @@ void xrtRegexSplitterFree(xregexsplitter* pSplitter)
 ```c
 	xrtRegexSplitterFree(pSplitter);
 ```
+
 
 ### `xrtRegexSplitterNext`
 
@@ -1756,6 +1807,7 @@ xregexresult xrtRegexSplitterNext(
 ```c
 	while ( (Result = xrtRegexSplitterNext(pSplitter, &Part)) == XREGEX_MATCH ) {
 ```
+
 
 ### `xrtRegexSplit`
 
@@ -1798,6 +1850,7 @@ xstrlist* xrtRegexSplit(
 				SV("ab,cd,ef"))) == NULL) ) {
 ```
 
+
 ### `xrtRegexSetCreate`
 
 从已有编译对象创建集合，各模式可以使用不同标志。
@@ -1835,6 +1888,7 @@ xregexset* xrtRegexSetCreate(
 ```c
 	pSet = xrtRegexSetCreate(arrRegex, 2u);
 ```
+
 
 ### `xrtRegexSetCompile`
 
@@ -1875,6 +1929,7 @@ xregexset* xrtRegexSetCompile(
 ```c
 	xregexset* pSet = xrtRegexSetCompile(arrPattern, 3u);
 ```
+
 
 ### `xrtRegexSetCompileConfig`
 
@@ -1919,6 +1974,7 @@ xregexset* xrtRegexSetCompileConfig(
 		pBroken = xrtRegexSetCompileConfig(Patterns, 2u, &Config);
 ```
 
+
 ### `xrtRegexSetRef`
 
 增加集合引用并返回原指针。
@@ -1952,6 +2008,7 @@ xregexset* xrtRegexSetRef(xregexset* pSet)
 		(xrtRegexSetRef(pSet) != pSet) ||
 ```
 
+
 ### `xrtRegexSetRelease`
 
 释放集合引用。
@@ -1984,6 +2041,7 @@ void xrtRegexSetRelease(xregexset* pSet)
 	xrtRegexSetRelease(pSet);
 ```
 
+
 ### `xrtRegexSetCount`
 
 返回集合中的模式数量。
@@ -2015,6 +2073,7 @@ size_t xrtRegexSetCount(const xregexset* pSet)
 ```c
 		(xrtRegexSetCount(pSet) != 2u) ||
 ```
+
 
 ### `xrtRegexSetRegex`
 
@@ -2052,6 +2111,7 @@ const xregex* xrtRegexSetRegex(
 ```c
 		(xrtRegexSetRegex(pSet, 1u) != pWord) ||
 ```
+
 
 ### `xrtRegexSetErrorIndex`
 
@@ -2091,6 +2151,7 @@ bool xrtRegexSetErrorIndex(
 			!xrtRegexSetErrorIndex(pError, &iErrorIndex) ||
 ```
 
+
 ### `xrtRegexSetMatcherCreate`
 
 为不可变集合创建可复用 matcher。
@@ -2125,6 +2186,7 @@ xregexsetmatcher* xrtRegexSetMatcherCreate(xregexset* pSet)
 	pMatcher = xrtRegexSetMatcherCreate(pSet);
 ```
 
+
 ### `xrtRegexSetMatcherFree`
 
 释放集合 matcher 及其命中索引。
@@ -2156,6 +2218,7 @@ void xrtRegexSetMatcherFree(xregexsetmatcher* pMatcher)
 ```c
 	xrtRegexSetMatcherFree(pMatcher);
 ```
+
 
 ### `xrtRegexSetMatcherMatch`
 
@@ -2203,6 +2266,7 @@ xregexresult xrtRegexSetMatcherMatch(
 	);
 ```
 
+
 ### `xrtRegexSetMatcherCount`
 
 返回本轮命中的模式数量。
@@ -2234,6 +2298,7 @@ size_t xrtRegexSetMatcherCount(const xregexsetmatcher* pMatcher)
 ```c
 		for ( size_t i = 0; i < xrtRegexSetMatcherCount(pMatcher); i++ ) {
 ```
+
 
 ### `xrtRegexSetMatcherIndex`
 
@@ -2272,6 +2337,7 @@ size_t xrtRegexSetMatcherIndex(
 			printf("matched rule %zu\n", xrtRegexSetMatcherIndex(pMatcher, i));
 ```
 
+
 ### `xrtRegexSetMatcherMatched`
 
 判断指定模式是否在本轮命中。
@@ -2309,6 +2375,7 @@ bool xrtRegexSetMatcherMatched(
 		!xrtRegexSetMatcherMatched(pSetMatcher, 0u) ||
 ```
 
+
 ### `xrtRegexSetMatcherFirst`
 
 返回本轮最小的命中模式索引，未命中时返回 `XRT_NPOS`。
@@ -2341,6 +2408,7 @@ size_t xrtRegexSetMatcherFirst(const xregexsetmatcher* pMatcher)
 ```c
 		(xrtRegexSetMatcherFirst(pSetMatcher) > 1u) ) {
 ```
+
 
 ### `xrtRegexSetTest`
 
@@ -2382,6 +2450,7 @@ xregexresult xrtRegexSetTest(
 		(xrtRegexSetTest(pSet, SV("hello 2024-01 world")) !=
 			XREGEX_MATCH) ) {
 ```
+
 
 ## 语法与保证
 

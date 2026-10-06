@@ -36,6 +36,7 @@ typedef enum xrooterror {
 | `XROOT_ERROR_REMOVE` | 失败 |
 | `XROOT_ERROR_LINK` | 链接解析失败 |
 
+
 ### `xfileflag`
 
 打开标志允许组合；至少指定 READ 或 WRITE。
@@ -67,6 +68,7 @@ typedef enum xfileflag {
 | `XFILE_SYNC` | 落盘方式 |
 | `XFILE_ASYNC` | 异步标志 |
 
+
 ### `xfileshare`
 
 Windows 共享策略；POSIX 接受这些字段但没有对应打开限制。
@@ -87,6 +89,7 @@ typedef enum xfileshare {
 | `XFILE_SHARE_DELETE` | DELETE 方法 |
 | `XFILE_SHARE_ALL` | 共享全部（读+写+删除） |
 
+
 ### `xfileoptions`
 
 高级打开选项；Mode 只使用 POSIX 权限低 12 位。
@@ -104,6 +107,7 @@ typedef struct xfileoptions {
 | `Flags` | `uint32` | 标志位 |
 | `Mode` | `uint32` | 模式 |
 | `Share` | `uint32` | Share |
+
 
 ### `xfiletype`
 
@@ -133,6 +137,7 @@ typedef enum xfiletype {
 | `XFILE_TYPE_DEVICE` | 设备文件 |
 | `XFILE_TYPE_OTHER` | 其他（设备/管道等） |
 
+
 ### `xfileinfoflag`
 
 元数据可用位避免用零伪装平台不提供的时间或身份。
@@ -160,6 +165,7 @@ typedef enum xfileinfoflag {
 | `XFILE_INFO_CHANGE_TIME` | CHANGE时间 |
 | `XFILE_INFO_IDENTITY` | 文件标识（设备+inode） |
 | `XFILE_INFO_LINK_COUNT` | 硬链接数 |
+
 
 ### `xfileinfo`
 
@@ -196,6 +202,7 @@ typedef struct xfileinfo {
 | `Modified` | `xtime` | Modified |
 | `Created` | `xtime` | Created |
 | `Changed` | `xtime` | Changed |
+
 
 ### `xfileerror`
 
@@ -247,6 +254,7 @@ typedef enum xfileerror {
 | `XFILE_ERROR_LOCK` | 失败 |
 | `XFILE_ERROR_MAP` | 内存映射失败 |
 
+
 ### `xfilelock`
 
 文件锁支持共享读和排他写两种跨进程模式。
@@ -262,6 +270,7 @@ typedef enum xfilelock {
 |---|---|
 | `XFILE_LOCK_SHARED` | 共享锁 |
 | `XFILE_LOCK_EXCLUSIVE` | 独占创建 |
+
 
 ### `xfilemapflag`
 
@@ -281,6 +290,7 @@ typedef enum xfilemapflag {
 | `XFILE_MAP_WRITE` | 写方向 |
 | `XFILE_MAP_COPY` | 写时复制映射 |
 
+
 ### `xdirflag`
 
 完整元数据可能增加每个条目一次系统查询，默认只返回枚举器已有信息。
@@ -298,6 +308,7 @@ typedef enum xdirflag {
 | `XDIR_STAT` | stat 信息 |
 | `XDIR_FOLLOW_LINKS` | 跟随符号链接 |
 | `XDIR_INCLUDE_DOTS` | 包含 . 与 .. 项 |
+
 
 ### `xdirnext`
 
@@ -317,6 +328,7 @@ typedef enum xdirnext {
 | `XDIR_NEXT_END` | END |
 | `XDIR_NEXT_ITEM` | 已产出条目 |
 
+
 ### `xdirentryflag`
 
 POSIX 文件名允许原始字节；该标志表示名称已经通过严格 UTF-8 检查。
@@ -330,6 +342,7 @@ typedef enum xdirentryflag {
 | 值 | 语义 |
 |---|---|
 | `XDIR_ENTRY_UTF8` | 名称为 UTF-8 |
+
 
 ### `xdirentry`
 
@@ -349,6 +362,7 @@ typedef struct xdirentry {
 | `Info` | `xfileinfo` | 信息输出 |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xdirroots`
 
 系统根目录列表拥有每个字符串以及指针数组。
@@ -364,6 +378,7 @@ typedef struct xdirroots {
 |---|---|---|
 | `Items` | `str*` | 元素数组 |
 | `Count` | `size_t` | 数量 |
+
 
 ### `xdirerror`
 
@@ -393,6 +408,7 @@ typedef enum xdirerror {
 | `XDIR_ERROR_ENTRY` | 失败 |
 | `XDIR_ERROR_TEMP` | 临时路径不可用 |
 
+
 ### `xtreecopyflag`
 
 目录树复制默认要求目标不存在并保留符号链接。
@@ -419,6 +435,7 @@ typedef enum xtreecopyflag {
 | `XTREE_COPY_SKIP_SPECIAL` | 跳过SPECIAL |
 | `XTREE_COPY_METADATA` | 复制元数据 |
 
+
 ### `xtreecopyoptions`
 
 高级目录树复制选项。
@@ -432,6 +449,7 @@ typedef struct xtreecopyoptions {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Flags` | `uint32` | 标志位 |
+
 
 ### `xtreeerror`
 
@@ -459,6 +477,7 @@ typedef enum xtreeerror {
 | `XTREE_ERROR_SPECIAL` | 失败 |
 | `XTREE_ERROR_ROOT` | 根操作非法 |
 
+
 ### `xlinkerror`
 
 链接模块稳定错误代码。
@@ -479,6 +498,7 @@ typedef enum xlinkerror {
 | `XLINK_ERROR_DELETE` | Delete失败 |
 | `XLINK_ERROR_FORMAT` | 链接格式非法 |
 
+
 ### `xfifoerror`
 
 FIFO 模块稳定错误代码。
@@ -492,6 +512,7 @@ typedef enum xfifoerror {
 | 值 | 语义 |
 |---|---|
 | `XFIFO_ERROR_CREATE` | 管道创建失败 |
+
 
 ### `xwalkflag`
 
@@ -508,6 +529,7 @@ typedef enum xwalkflag {
 |---|---|
 | `XWALK_FOLLOW_LINKS` | XWALKFOLLOWLINKS |
 | `XWALK_ONE_FILESYSTEM` | 限制在根文件系统内 |
+
 
 ### `xwalkevent`
 
@@ -526,6 +548,7 @@ typedef enum xwalkevent {
 | `XWALK_ENTER` | ENTER |
 | `XWALK_ITEM` | ITEM |
 | `XWALK_LEAVE` | 离开目录 |
+
 
 ### `xwalkentryflag`
 
@@ -547,6 +570,7 @@ typedef enum xwalkentryflag {
 | `XWALK_ENTRY_CYCLE` | CYCLE |
 | `XWALK_ENTRY_CROSS_FILESYSTEM` | 进入新文件系统 |
 
+
 ### `xwalkcontrol`
 
 回调可继续、跳过当前目录、成功停止或报告失败。
@@ -567,6 +591,7 @@ typedef enum xwalkcontrol {
 | `XWALK_STOP` | STOP |
 | `XWALK_ERROR` | 失败 |
 
+
 ### `xwalkerroraction`
 
 遍历系统错误可终止、跳过当前路径，或成功停止。
@@ -585,6 +610,7 @@ typedef enum xwalkerroraction {
 | `XWALK_ERROR_SKIP` | 跳过 |
 | `XWALK_ERROR_STOP` | 停止 |
 
+
 ### `xwalkoptions`
 
 遍历选项为空时等价于不跟随链接且深度无限。
@@ -602,6 +628,7 @@ typedef struct xwalkoptions {
 | `Flags` | `uint32` | 标志位 |
 | `MaxDepth` | `size_t` | MaxDepth |
 | `OnError` | `xwalkerrorproc` | OnError |
+
 
 ### `xwalkentry`
 
@@ -629,6 +656,7 @@ typedef struct xwalkentry {
 | `Flags` | `uint32` | 标志位 |
 | `Depth` | `size_t` | Depth |
 
+
 ### `xwalkstats`
 
 遍历统计按对象计数，目录只在进入时计一次。
@@ -655,6 +683,7 @@ typedef struct xwalkstats {
 | `Bytes` | `uint64` | Bytes |
 | `Stopped` | `bool` | Stopped |
 
+
 ### `xwalkerror`
 
 遍历模块稳定错误代码。
@@ -675,6 +704,7 @@ typedef enum xwalkerror {
 | `XWALK_ERROR_IDENTITY` | 失败 |
 | `XWALK_ERROR_OVERFLOW` | 深度超限 |
 
+
 ### `xwalkerrorproc`
 
 错误和路径只在回调期间借用；用户数据与条目回调共用。
@@ -686,6 +716,7 @@ typedef xwalkerroraction (*xwalkerrorproc)(cstr sPath,
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xwalkproc`
 
 遍历回调不拥有条目，返回错误时应先设置结构化错误。
@@ -695,6 +726,7 @@ typedef xwalkcontrol (*xwalkproc)(const xwalkentry* pEntry, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ## 设计契约
 
@@ -811,6 +843,7 @@ void xrtFileOptionsInit(xfileoptions* pOptions);
 ```
 
 
+
 ### `xrtFileOpen`
 
 使用完整选项（标志/权限/共享/临时语义）打开文件。
@@ -851,6 +884,7 @@ xfile xrtFileOpen(cstr sPath, const xfileoptions* pOptions);
 ```
 
 
+
 ### `xrtOpen`
 
 使用默认权限和共享策略按标志打开文件的便捷入口。
@@ -885,6 +919,7 @@ xfile xrtOpen(cstr sPath, uint32 iFlags);
 	xfile File = xrtOpen("xrt-file-example.tmp",
 		XFILE_READ | XFILE_WRITE | XFILE_CREATE | XFILE_TRUNCATE);
 ```
+
 
 
 ## 二进制 IO
@@ -958,6 +993,7 @@ bool xrtClose(xfile File);
 ```
 
 
+
 ### `xrtRead`
 
 单次读取，成功读取零字节表示 EOF。
@@ -994,6 +1030,7 @@ bool xrtRead(xfile File, ptr pBuffer, size_t iRequest, size_t* pRead);
 ```c
 	if ( !xrtRead(File, Buffer, sizeof(Buffer), &iDone) || (iDone != 4u) ) {
 ```
+
 
 
 ### `xrtWrite`
@@ -1035,6 +1072,7 @@ bool xrtWrite(xfile File, const void* pBuffer,
 ```
 
 
+
 ### `xrtReadFull`
 
 持续读取到填满缓冲；提前 EOF 返回失败并保留实际读取量。
@@ -1073,6 +1111,7 @@ bool xrtReadFull(xfile File, ptr pBuffer,
 ```
 
 
+
 ### `xrtWriteFull`
 
 持续写入到全部完成；失败时保留实际写入量。
@@ -1109,6 +1148,7 @@ bool xrtWriteFull(xfile File, const void* pBuffer,
 ```c
 	if ( !xrtWriteFull(File, sText, sizeof(sText), NULL) ||
 ```
+
 
 
 ### `xrtReadAt`
@@ -1151,6 +1191,7 @@ bool xrtReadAt(xfile File, uint64 iOffset,
 ```
 
 
+
 ### `xrtWriteAt`
 
 向绝对偏移单次写入，不改变共享文件游标。
@@ -1189,6 +1230,7 @@ bool xrtWriteAt(xfile File, uint64 iOffset,
 ```c
 	(void)xrtWriteAt(File, 0u, "AB", 2u, NULL);
 ```
+
 
 
 ### `xrtReadAtFull`
@@ -1230,6 +1272,7 @@ bool xrtReadAtFull(xfile File, uint64 iOffset,
 ```
 
 
+
 ### `xrtWriteAtFull`
 
 向绝对偏移持续写入到全部完成。
@@ -1267,6 +1310,7 @@ bool xrtWriteAtFull(xfile File, uint64 iOffset,
 ```c
 	if ( !xrtWriteAtFull(File, 4u, "efgh", 4u, NULL) ) {
 ```
+
 
 
 ## 定位和大小
@@ -1330,6 +1374,7 @@ bool xrtSeek(xfile File, int64 iOffset, xseek Origin, uint64* pPosition);
 ```
 
 
+
 ### `xrtTell`
 
 返回共享文件游标位置。
@@ -1366,6 +1411,7 @@ bool xrtTell(xfile File, uint64* pPosition);
 ```
 
 
+
 ### `xrtFlush`
 
 把文件数据和必要元数据提交到稳定存储。
@@ -1398,6 +1444,7 @@ bool xrtFlush(xfile File);
 ```c
 	if ( !xrtFlush(File) ) {
 ```
+
 
 
 ### `xrtFileSize`
@@ -1436,6 +1483,7 @@ bool xrtFileSize(xfile File, uint64* pSize);
 ```
 
 
+
 ### `xrtFileResize`
 
 修改打开文件的大小（截断或扩展，扩展区为零填充）。
@@ -1469,6 +1517,7 @@ bool xrtFileResize(xfile File, uint64 iSize);
 ```c
 	if ( !xrtFileResize(File, 4u) || !xrtFileSize(File, &iSize) ||
 ```
+
 
 
 ### `xrtFileSetSize`
@@ -1506,6 +1555,7 @@ if ( !xrtFileSetSize(sPath, 2u) ) {
 		goto cleanup;
 	}
 ```
+
 
 
 ## 文件锁
@@ -1567,6 +1617,7 @@ bool xrtFileLock(xfile File, xfilelock Mode, bool bWait);
 ```
 
 
+
 ### `xrtFileUnlock`
 
 解除整个文件锁。
@@ -1599,6 +1650,7 @@ bool xrtFileUnlock(xfile File);
 ```c
 	if ( !xrtFileUnlock(File) || !xrtClose(File) ) {
 ```
+
 
 
 ### `xrtFileLockRange`
@@ -1640,6 +1692,7 @@ bool xrtFileLockRange(xfile File, xfilelock Mode,
 ```
 
 
+
 ### `xrtFileUnlockRange`
 
 解除完全相同的字节区间锁（参数必须与加锁时逐项一致）。
@@ -1675,6 +1728,7 @@ bool xrtFileUnlockRange(xfile File,
 ```c
 	if ( !xrtFileUnlockRange(File, 0u, 4u) ) {
 ```
+
 
 
 ## 文件映射
@@ -1741,6 +1795,7 @@ xfilemap xrtFileMap(xfile File, uint64 iOffset,
 ```
 
 
+
 ### `xrtFileMapData`
 
 返回借用的映射数据；空映射返回空指针。
@@ -1776,6 +1831,7 @@ ptr xrtFileMapData(xfilemap Map);
 ```
 
 
+
 ### `xrtFileMapSize`
 
 返回调用方可访问的映射字节数。
@@ -1808,6 +1864,7 @@ size_t xrtFileMapSize(xfilemap Map);
 ```c
 		printf("%.*s\n", (int)xrtFileMapSize(Map),
 ```
+
 
 
 ### `xrtFileMapFlush`
@@ -1848,6 +1905,7 @@ bool xrtFileMapFlush(xfilemap Map,
 ```
 
 
+
 ### `xrtFileUnmap`
 
 解除映射并销毁映射对象。
@@ -1880,6 +1938,7 @@ bool xrtFileUnmap(xfilemap Map);
 ```c
 		if ( xrtFileUnmap(Map) && xrtClose(File) &&
 ```
+
 
 
 ## 元数据
@@ -1975,6 +2034,7 @@ uint32 xrtFileFlags(xfile File);
 ```
 
 
+
 ### `xrtFileNative`
 
 返回 HANDLE 或文件描述符的整数表示；失败返回 -1。调用方不得关闭它。
@@ -2007,6 +2067,7 @@ intptr_t xrtFileNative(xfile File);
 ```c
 		intptr_t Native = xrtFileNative(File);
 ```
+
 
 
 ### `xrtFileStat`
@@ -2045,6 +2106,7 @@ bool xrtFileStat(xfile File, xfileinfo* pInfo);
 ```
 
 
+
 ### `xrtFileExists`
 
 判断路径是否存在且为普通文件。
@@ -2077,6 +2139,7 @@ bool xrtFileExists(cstr sPath);
 ```c
 	if ( xrtFileExists(sSource) && !xrtFileDelete(sSource) ) {
 ```
+
 
 
 ### `xrtFileTouch`
@@ -2113,6 +2176,7 @@ bool xrtFileTouch(cstr sPath);
 ```
 
 
+
 ### `xrtFileDelete`
 
 删除普通文件或空目录占位的文件路径。
@@ -2145,6 +2209,7 @@ bool xrtFileDelete(cstr sPath);
 ```c
 	return xrtFileDelete("xrt-file-example.tmp") ? 0 : 1;
 ```
+
 
 
 ### `xrtPathRename`
@@ -2183,6 +2248,7 @@ bool xrtPathRename(cstr sSource, cstr sTarget, bool bReplace);
 ```
 
 
+
 ### `xrtFileCopy`
 
 流式复制普通文件；不跟随末级链接，`bReplace` 控制是否替换普通文件目标。
@@ -2219,6 +2285,7 @@ bool xrtFileCopy(cstr sSource, cstr sTarget, bool bReplace);
 ```
 
 
+
 ### `xrtFileMove`
 
 移动普通文件；优先改名，跨卷时复制成功后删除源文件。
@@ -2253,6 +2320,7 @@ bool xrtFileMove(cstr sSource, cstr sTarget, bool bReplace);
 ```c
 		 !xrtFileMove(sCopy, sMoved, false) ) {
 ```
+
 
 
 ### `xrtPathStat`
@@ -2292,6 +2360,7 @@ bool xrtPathStat(cstr sPath, bool bFollowLink, xfileinfo* pInfo);
 ```
 
 
+
 ### `xrtPathExists`
 
 判断任意路径是否存在（文件/目录/链接均算存在）。
@@ -2324,6 +2393,7 @@ bool xrtPathExists(cstr sPath);
 ```c
 	printf("exists=%d", xrtPathExists(sOrigin) ? 1 : 0);
 ```
+
 
 
 ### `xrtPathSetTimes`
@@ -2365,6 +2435,7 @@ bool xrtPathSetTimes(cstr sPath, bool bFollowLink,
 ```
 
 
+
 ### `xrtPathSetMode`
 
 设置 POSIX 权限模式；Windows 明确返回不支持。
@@ -2402,6 +2473,7 @@ bool xrtPathSetMode(cstr sPath, bool bFollowLink, uint32 iMode);
 ```
 
 
+
 ### `xrtPathSetAttributes`
 
 设置 Windows 原生属性；POSIX 明确返回不支持。
@@ -2436,6 +2508,7 @@ bool xrtPathSetAttributes(cstr sPath, uint32 iAttributes);
 ```c
 	} else if ( xrtPathSetAttributes(sRenamed, 0u) ) {
 ```
+
 
 
 ## 基础路径操作
@@ -2522,6 +2595,7 @@ xfile xrtFileTemp(cstr sDirectory, cstr sPrefix,
 ```
 
 
+
 ### `xrtDirTemp`
 
 排他创建临时目录并返回拥有路径；目录为空指针时使用系统临时目录。
@@ -2556,6 +2630,7 @@ str xrtDirTemp(cstr sDirectory, cstr sPrefix, cstr sSuffix);
 ```c
 	str sPath = xrtDirTemp(NULL, "xrt-example-dir-", NULL);
 ```
+
 
 
 ## 整文件
@@ -2629,6 +2704,7 @@ bytes xrtFileReadAll(cstr sPath, size_t* pSize);
 ```
 
 
+
 ### `xrtFileReadAllLimit`
 
 在硬上限内读取完整文件；增长越过上限时失败。
@@ -2668,6 +2744,7 @@ bytes pAll = xrtFileReadAllLimit(sPath, 16u, &iDone);
 ```
 
 
+
 ### `xrtFileWriteAll`
 
 创建或截断文件并完整写入全部字节。
@@ -2701,6 +2778,7 @@ bool xrtFileWriteAll(cstr sPath, xbytesview Data);
 ```c
 	if ( !xrtFileWriteAll(sSource, XRT_BYTES_LITERAL("first")) ||
 ```
+
 
 
 ### `xrtFileAppend`
@@ -2738,6 +2816,7 @@ bool xrtFileAppend(cstr sPath, xbytesview Data);
 ```
 
 
+
 ### `xrtFileWriteAtomic`
 
 在同目录完整写入排他临时文件，再原子替换目标；读者永远见不到半个文件。
@@ -2771,6 +2850,7 @@ bool xrtFileWriteAtomic(cstr sPath, xbytesview Data);
 ```c
 		 !xrtFileWriteAtomic(sSource, XRT_BYTES_LITERAL("published")) ||
 ```
+
 
 
 ## 文本文件
@@ -2834,6 +2914,7 @@ str xrtFileReadText(cstr sPath, xencoding Encoding,
 ```
 
 
+
 ### `xrtFileReadTextLimit`
 
 在源文件字节硬上限内读取并转换为 UTF-8。
@@ -2877,6 +2958,7 @@ str xrtFileReadTextLimit(cstr sPath, xencoding Encoding,
 ```
 
 
+
 ### `xrtFileWriteText`
 
 把 UTF-8 文本转换为目标编码后完整写入。
@@ -2915,6 +2997,7 @@ bool xrtFileWriteText(cstr sPath, xstrview Text,
 ```c
 	if ( !xrtFileWriteText(sPath, XRT_STR_LITERAL("Hello, XRT"),
 ```
+
 
 
 ### `xrtFileWriteTextAtomic`
@@ -2961,6 +3044,7 @@ bool xrtFileWriteTextAtomic(cstr sPath, xstrview Text,
 			false
 		 ) ) {
 ```
+
 
 
 ## 目录枚举
@@ -3054,6 +3138,7 @@ xdir xrtDirOpen(cstr sPath, uint32 iFlags);
 ```
 
 
+
 ### `xrtDirNext`
 
 读取下一条目录项；失败时不修改输出。
@@ -3090,6 +3175,7 @@ xdirnext xrtDirNext(xdir Dir, xdirentry* pEntry);
 ```
 
 
+
 ### `xrtDirClose`
 
 关闭并销毁目录迭代器。
@@ -3122,6 +3208,7 @@ bool xrtDirClose(xdir Dir);
 ```c
 	xrtDirClose(Dir);
 ```
+
 
 
 ### `xrtDirPath`
@@ -3158,6 +3245,7 @@ cstr xrtDirPath(xdir Dir);
 ```
 
 
+
 ### `xrtDirEntryPath`
 
 把迭代器目录与条目名称拼成拥有路径。
@@ -3192,6 +3280,7 @@ str xrtDirEntryPath(xdir Dir, const xdirentry* pEntry);
 ```c
 			str sFull = xrtDirEntryPath(Dir, &Entry);
 ```
+
 
 
 ## 目录基础操作
@@ -3250,6 +3339,7 @@ bool xrtDirExists(cstr sPath);
 ```
 
 
+
 ### `xrtDirCreate`
 
 使用平台默认模式创建一个目录。
@@ -3283,6 +3373,7 @@ bool xrtDirCreate(cstr sPath);
 ```c
 	if ( !xrtDirCreate(sSource) ) {
 ```
+
 
 
 ### `xrtDirCreateMode`
@@ -3321,6 +3412,7 @@ bool xrtDirCreateMode(cstr sPath, uint32 iMode);
 ```
 
 
+
 ### `xrtDirCreateAll`
 
 使用平台默认模式递归创建全部缺失目录。
@@ -3353,6 +3445,7 @@ bool xrtDirCreateAll(cstr sPath);
 ```c
 	if ( !xrtDirCreateAll(sDeep) ) {
 ```
+
 
 
 ### `xrtDirCreateAllMode`
@@ -3390,6 +3483,7 @@ bool xrtDirCreateAllMode(cstr sPath, uint32 iMode);
 ```
 
 
+
 ### `xrtDirRemove`
 
 删除一个空目录，不递归删除其内容。
@@ -3425,6 +3519,7 @@ bool xrtDirRemove(cstr sPath);
 ```
 
 
+
 ### `xrtDirRemoveAll`
 
 递归删除整棵目录树（含根目录）。
@@ -3457,6 +3552,7 @@ bool xrtDirRemoveAll(cstr sPath);
 ```c
 		(void)xrtDirRemoveAll(sSource);
 ```
+
 
 
 ### `xrtDirEmpty`
@@ -3494,6 +3590,7 @@ bool xrtDirEmpty(cstr sPath, bool* pEmpty);
 ```
 
 
+
 ### `xrtDirEnsureEmpty`
 
 确保目录存在且为空：不存在则创建，存在则清空内容但保留目录。
@@ -3528,6 +3625,7 @@ bool xrtDirEnsureEmpty(cstr sPath);
 ```
 
 
+
 ### `xrtDirClean`
 
 删除目录全部内容但保留目录自身。
@@ -3560,6 +3658,7 @@ bool xrtDirClean(cstr sPath);
 ```c
 	if ( !xrtDirClean(sDeep) ) {
 ```
+
 
 
 ### `xrtDirMove`
@@ -3598,6 +3697,7 @@ bool xrtDirMove(cstr sSource, cstr sTarget, bool bReplace);
 ```
 
 
+
 ### `xrtDirCopy`
 
 递归复制目录树；`bReplace` 控制目标冲突。
@@ -3632,6 +3732,7 @@ bool xrtDirCopy(cstr sSource, cstr sTarget, bool bReplace);
 ```c
 		xrtClose(File) && xrtDirCopy(sSource, sTarget, false) ) {
 ```
+
 
 
 ### `xrtDirStats`
@@ -3670,6 +3771,7 @@ bool xrtDirStats(cstr sPath, bool bRecursive, xwalkstats* pStats);
 ```
 
 
+
 ### `xrtDirSize`
 
 统计目录总字节数；`bRecursive` 控制是否深入子目录。
@@ -3706,6 +3808,7 @@ bool xrtDirSize(cstr sPath, bool bRecursive, uint64* pSize);
 ```
 
 
+
 ### `xrtDirRoots`
 
 查询当前系统可枚举的文件系统根目录。
@@ -3740,6 +3843,7 @@ bool xrtDirRoots(xdirroots* pRoots);
 ```
 
 
+
 ### `xrtDirRootsFree`
 
 释放系统根目录列表并清零。
@@ -3771,6 +3875,7 @@ void xrtDirRootsFree(xdirroots* pRoots);
 ```c
 	xrtDirRootsFree(&Roots);
 ```
+
 
 
 ## 深度优先遍历
@@ -3889,6 +3994,7 @@ void xrtWalkOptionsInit(xwalkoptions* pOptions);
 ```
 
 
+
 ### `xrtFileWalk`
 
 深度优先遍历一个文件系统对象；回调为空时只计算统计。
@@ -3927,6 +4033,7 @@ bool xrtFileWalk(cstr sPath, const xwalkoptions* pOptions,
 ```c
 	if ( !xrtFileWalk(".", &Options, printEntry, NULL, &Stats) ) {
 ```
+
 
 
 ## 链接和 FIFO
@@ -3979,6 +4086,7 @@ bool xrtLinkCreate(cstr sTarget, cstr sLink, bool bDirectory);
 ```
 
 
+
 ### `xrtLinkHard`
 
 为已存在文件创建硬链接。
@@ -4012,6 +4120,7 @@ bool xrtLinkHard(cstr sExisting, cstr sLink);
 ```c
 		 !xrtClose(File) || !xrtLinkHard(sSource, sLink) ||
 ```
+
 
 
 ### `xrtLinkRead`
@@ -4049,6 +4158,7 @@ str xrtLinkRead(cstr sLink);
 ```
 
 
+
 ### `xrtLinkDelete`
 
 删除符号链接自身，不跟随也不删除目标。
@@ -4081,6 +4191,7 @@ bool xrtLinkDelete(cstr sLink);
 ```c
 	if ( !xrtLinkDelete(sLink) ) {
 ```
+
 
 
 ### `xrtFifoCreate`
@@ -4120,6 +4231,7 @@ bool xrtFifoCreate(cstr sPath, uint32 iMode);
 			(xrtGetError() != NULL) &&
 			(xrtErrorKind(xrtGetError()) == XERR_UNSUPPORTED) ) {
 ```
+
 
 
 ## 目录能力
@@ -4211,6 +4323,7 @@ xroot xrtRootOpen(cstr sPath);
 ```
 
 
+
 ### `xrtRootOpenIn`
 
 在已有根内打开并锚定一个子目录。
@@ -4247,6 +4360,7 @@ xroot xrtRootOpenIn(xroot Root, cstr sPath);
 ```
 
 
+
 ### `xrtRootClose`
 
 关闭原生目录句柄并销毁根对象；关闭不得与其他根操作并发。
@@ -4279,6 +4393,7 @@ bool xrtRootClose(xroot Root);
 ```c
 		 !xrtRootClose(Root) ||
 ```
+
 
 
 ### `xrtRootPath`
@@ -4315,6 +4430,7 @@ cstr xrtRootPath(xroot Root);
 ```
 
 
+
 ### `xrtRootNative`
 
 返回根目录 HANDLE 或文件描述符的整数表示，所有权仍属于根对象。
@@ -4347,6 +4463,7 @@ intptr_t xrtRootNative(xroot Root);
 ```c
 		xrtRootNative(Root) != 0 ? 1 : 0);
 ```
+
 
 
 ### `xrtRootFileOpen`
@@ -4390,6 +4507,7 @@ xfile xrtRootFileOpen(xroot Root, cstr sPath,
 ```
 
 
+
 ### `xrtRootStat`
 
 查询根内对象元数据；`bFollowLink` 决定是否解析末级链接。
@@ -4429,6 +4547,7 @@ bool xrtRootStat(xroot Root, cstr sPath,
 ```
 
 
+
 ### `xrtRootDirCreate`
 
 在根内创建一个目录；POSIX 使用显式模式，Windows 接受但忽略模式。
@@ -4464,6 +4583,7 @@ bool xrtRootDirCreate(xroot Root, cstr sPath, uint32 iMode);
 ```c
 	if ( !xrtRootDirCreate(Parent, sDirectory, 0700u) ) {
 ```
+
 
 
 ### `xrtRootRemove`
@@ -4502,6 +4622,7 @@ bool xrtRootRemove(xroot Root, cstr sPath);
 ```
 
 
+
 ### `xrtRootLinkRead`
 
 读取根内末级符号链接或受支持重解析点保存的目标文本。
@@ -4536,6 +4657,7 @@ str xrtRootLinkRead(xroot Root, cstr sPath);
 ```c
 		sTarget = xrtRootLinkRead(Root, "xrt-root-tour-link");
 ```
+
 
 
 ### `xrtRootLinkCreate`
@@ -4576,6 +4698,7 @@ bool xrtRootLinkCreate(xroot Root, cstr sTarget,
 ```
 
 
+
 ### `xrtRootLinkHard`
 
 在同一根内为普通文件创建硬链接，源和目标路径都经过根解析。
@@ -4610,6 +4733,7 @@ bool xrtRootLinkHard(xroot Root, cstr sExisting, cstr sLink);
 ```c
 	bOk = xrtRootLinkHard(Root, "xrt-root-tour-target.tmp",
 ```
+
 
 
 ### `xrtRootFifoCreate`
@@ -4647,6 +4771,7 @@ bool xrtRootFifoCreate(xroot Root, cstr sPath, uint32 iMode);
 ```c
 	bOk = xrtRootFifoCreate(Root, "xrt-root-tour-fifo", 0600u);
 ```
+
 
 
 ### `xrtRootSetMode`
@@ -4687,6 +4812,7 @@ bool xrtRootSetMode(xroot Root, cstr sPath,
 ```c
 	bOk = xrtRootSetMode(Root, "xrt-root-tour-target.tmp", true, 0600u);
 ```
+
 
 
 ## 目录树
@@ -4821,6 +4947,7 @@ void xrtTreeCopyOptionsInit(xtreecopyoptions* pOptions);
 ```
 
 
+
 ### `xrtFileTreeCopy`
 
 使用高级选项复制目录树，统计成功时返回源树对象数量。
@@ -4860,6 +4987,7 @@ bool xrtFileTreeCopy(cstr sSource, cstr sTarget,
 ```
 
 
+
 ### `xrtFileTreeRemove`
 
 后序删除目录树；`bKeepRoot` 为真时只清空内容。
@@ -4895,6 +5023,7 @@ bool xrtFileTreeRemove(cstr sPath, bool bKeepRoot,
 ```c
 	if ( !xrtFileTreeRemove(sRoot, true, &Stats) ) {
 ```
+
 
 
 ## 错误域
@@ -5006,3 +5135,122 @@ typedef enum xtreeerror {
 - `examples/file/root/main.c`：锚定目录、打开子根和处理不可信相对路径。
 - `examples/file/tree/main.c`：目录树复制、统计和递归清理。
 - `examples/file/fifo/main.c`：POSIX FIFO 创建及 Windows 不支持分支。
+
+### `xrtFileCapabilities`
+
+```c
+uint64 xrtFileCapabilities(xfile File);
+```
+
+Zero-allocation capability query; NULL is an error, not an empty mask.
+Async-only handles suppress synchronous operations but retain metadata.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `File` | `xfile` | 有效且由调用方继续持有的文件句柄。 |
+
+#### 返回值
+
+返回上述契约定义的计数、日历字段、状态或能力值；单位与当前函数签名一致。
+
+#### 错误
+
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
+
+#### 范例
+
+参见已注册的 [examples/file/basic/main.c](../../examples/file/basic/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtFileDeleteOpen`
+
+```c
+bool xrtFileDeleteOpen(xfile File, cstr sPath);
+```
+
+Remove an open native non-directory file without allocating on success.
+The caller retains File and must close it. Windows marks the opened object
+for deletion on last close; sPath is the POSIX name to unlink. POSIX checks
+device/inode before unlink, but the caller must serialize namespace changes.
+A missing POSIX name is success; a replaced name is never knowingly removed.
+Virtual files are unsupported.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `File` | `xfile` | 有效且由调用方继续持有的文件句柄。 |
+| `sPath` | `cstr` | 路径文本；根目录接口要求路径留在锚定根内。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
+
+#### 范例
+
+参见已注册的 [examples/file/basic/main.c](../../examples/file/basic/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtRootDirOpen`
+
+```c
+xdir xrtRootDirOpen(xroot Root, cstr sPath, uint32 iFlags);
+```
+
+从锚定目录句柄打开根内目录迭代器，不重新按诊断路径查找。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Root` | `xroot` | 已锚定的目录根句柄。 |
+| `sPath` | `cstr` | 路径文本；根目录接口要求路径留在锚定根内。 |
+| `iFlags` | `uint32` | 接口选项位；未知或不支持的位被拒绝。 |
+
+#### 返回值
+
+成功交付调用方拥有的句柄；失败为空句柄。按对应 Destroy/Close 释放，mount 的卸载须另调 Unmount。
+
+#### 错误
+
+无效参数、底层 I/O、状态或分配失败按当前模块错误模型报告；成功、正常 EOF 或谓词不成立按上述契约区分。
+
+#### 范例
+
+参见已注册的 [examples/file/basic/main.c](../../examples/file/basic/main.c)，结合本节参数和生存期规则使用。
+
+
+
+
+### `xfilecapability`
+
+文件能力位。异步专用句柄隐藏同步 I/O 能力，元数据能力仍可查询；不支持的操作不得凭原生句柄存在而推断可用。
+
+```c
+typedef enum xfilecapability {
+    XFILE_CAP_READ = 0x001,
+    XFILE_CAP_WRITE = 0x002,
+    XFILE_CAP_READ_AT = 0x004,
+    XFILE_CAP_WRITE_AT = 0x008,
+    XFILE_CAP_SEEK = 0x010,
+    XFILE_CAP_STAT = 0x020,
+    XFILE_CAP_RESIZE = 0x040,
+    XFILE_CAP_FLUSH = 0x080,
+    XFILE_CAP_NATIVE = 0x100,
+    XFILE_CAP_NATIVE_CONTROL = 0x200,
+    XFILE_CAP_ASYNC_BIND = 0x400
+} xfilecapability;
+```

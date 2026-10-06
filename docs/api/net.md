@@ -25,6 +25,7 @@ typedef enum xnetfamily {
 | `XNET_FAMILY_IPV4` | IPv4 |
 | `XNET_FAMILY_IPV6` | IPv6 |
 
+
 ### `xnetaddr`
 
 端口使用主机字节序，地址字节始终使用网络字节序。
@@ -43,6 +44,7 @@ typedef struct xnetaddr {
 | `Family` | `uint16` | 地址族 |
 | `Port` | `uint16` | 端口 |
 | `Scope` | `uint32` | 作用域标识 |
+
 
 ### `xnetresult`
 
@@ -69,6 +71,7 @@ typedef enum xnetresult {
 | `XNET_RESULT_TRUNCATED` | 已截断 |
 | `XNET_RESULT_TIMEOUT` | 超时 |
 | `XNET_RESULT_CANCELLED` | 已取消 |
+
 
 ### `xneterror`
 
@@ -240,6 +243,7 @@ typedef enum xneterror {
 | `XNET_ERROR_PROXY_LIMIT` | PROXY超限 |
 | `XNET_ERROR_PROXY_UNSUPPORTED` | 代理协议不支持 |
 
+
 ### `xnetspan`
 
 只读 Span 借用调用方内存，不拥有数据。
@@ -256,6 +260,7 @@ typedef struct xnetspan {
 | `Data` | `cbytes` | 数据 |
 | `Size` | `size_t` | 字节数 |
 
+
 ### `xnetwspan`
 
 可写 Span 借用调用方内存，不拥有数据。
@@ -271,6 +276,7 @@ typedef struct xnetwspan {
 |---|---|---|
 | `Data` | `bytes` | 数据 |
 | `Size` | `size_t` | 字节数 |
+
 
 ### `xnetresolveopstate`
 
@@ -293,6 +299,7 @@ typedef enum xnetresolveopstate {
 | `XNET_RESOLVE_RESOLVED` | 已解析 |
 | `XNET_RESOLVE_FAILED` | 已失败 |
 | `XNET_RESOLVE_CANCELLED` | 已取消 |
+
 
 ### `xnetresolverconfig`
 
@@ -325,6 +332,7 @@ typedef struct xnetresolverconfig {
 | `ThreadStack` | `size_t` | ThreadStack |
 | `Lookup` | `xnetresolverlookup` | Lookup |
 | `LookupData` | `ptr` | LookupData |
+
 
 ### `xnetresolverstats`
 
@@ -370,6 +378,7 @@ typedef struct xnetresolverstats {
 | `ReadyCallbacks` | `size_t` | ReadyCallbacks |
 | `CachedResults` | `size_t` | CachedResults |
 
+
 ### `xnetsockettype`
 
 Socket 类型使用稳定值，不直接暴露平台 SOCK_* 常量。
@@ -385,6 +394,7 @@ typedef enum xnetsockettype {
 |---|---|
 | `XNET_SOCKET_STREAM` | 流式（TCP） |
 | `XNET_SOCKET_DGRAM` | 数据报（UDP） |
+
 
 ### `xnetdgrammetaflag`
 
@@ -412,6 +422,7 @@ typedef enum xnetdgrammetaflag {
 | `XNET_DGRAM_META_SEGMENT_SIZE` | SEGMENT尺寸 |
 | `XNET_DGRAM_META_TRUNCATED` | 元数据被截断 |
 
+
 ### `xnetdgrammeta`
 
 Destination 的端口恒为零；Flags 决定其余字段是否有效。
@@ -436,6 +447,7 @@ typedef struct xnetdgrammeta {
 | `TrafficClass` | `int` | TrafficClass |
 | `SegmentSize` | `uint32` | SegmentSize |
 
+
 ### `xnetdgramcontrolflag`
 
 逐数据报发送控制位与接收元数据分离，避免 Source 和 Destination 语义混淆。
@@ -458,6 +470,7 @@ typedef enum xnetdgramcontrolflag {
 | `XNET_DGRAM_CONTROL_HOP_LIMIT` | HOP超限 |
 | `XNET_DGRAM_CONTROL_TRAFFIC_CLASS` | 指定流量类别 |
 | `XNET_DGRAM_CONTROL_SEGMENT_SIZE` | 指定 UDP 分段大小 |
+
 
 ### `xnetdgramcontrol`
 
@@ -483,6 +496,7 @@ typedef struct xnetdgramcontrol {
 | `TrafficClass` | `int` | TrafficClass |
 | `SegmentSize` | `uint32` | SegmentSize |
 
+
 ### `xnetdgramcap`
 
 数据报高级能力按当前平台和 Socket 类型查询，不能用编译平台作运行时假设。
@@ -505,6 +519,7 @@ typedef enum xnetdgramcap {
 | `XNET_DGRAM_CAP_SEGMENT_SEND` | 发送方向 |
 | `XNET_DGRAM_CAP_SEGMENT_RECEIVE` | 接收方向 |
 
+
 ### `xnetpmtumode`
 
 SYSTEM 保留平台默认；DISCOVER 禁止 IP 分片；FRAGMENT 允许分片；PROBE 忽略路径缓存。
@@ -525,6 +540,7 @@ typedef enum xnetpmtumode {
 | `XNET_PMTU_FRAGMENT` | 禁用（允许分片） |
 | `XNET_PMTU_PROBE` | 探测模式 |
 
+
 ### `xnetdgramerrororigin`
 
 错误来源独立于 ICMP Type/Code，LOCAL 也可以携带路径 MTU。
@@ -544,6 +560,7 @@ typedef enum xnetdgramerrororigin {
 | `XNET_DGRAM_ERROR_LOCAL` | 失败 |
 | `XNET_DGRAM_ERROR_ICMP` | 失败 |
 | `XNET_DGRAM_ERROR_ICMP6` | ICMPv6 错误 |
+
 
 ### `xnetdgramerrorflag`
 
@@ -566,6 +583,7 @@ typedef enum xnetdgramerrorflag {
 | `XNET_DGRAM_ERROR_PATH_MTU` | 失败 |
 | `XNET_DGRAM_ERROR_PAYLOAD_TRUNCATED` | 已截断 |
 | `XNET_DGRAM_ERROR_META_TRUNCATED` | 元数据被截断 |
+
 
 ### `xnetdgramerror`
 
@@ -601,6 +619,7 @@ typedef struct xnetdgramerror {
 | `Remote` | `xnetaddr` | Remote |
 | `Offender` | `xnetaddr` | Offender |
 
+
 ### `xnetdgramrecv`
 
 批量接收项由调用方提供缓冲，函数写入来源、可见长度和单报文结果。
@@ -625,6 +644,7 @@ typedef struct xnetdgramrecv {
 | `Size` | `size_t` | 字节数 |
 | `Result` | `xnetresult` | 结果输出 |
 
+
 ### `xnetdgramsend`
 
 批量发送项在调用期间借用数据；空远端表示使用连接式 UDP 的固定 Peer。
@@ -643,6 +663,7 @@ typedef struct xnetdgramsend {
 | `Data` | `const void*` | 数据 |
 | `Size` | `size_t` | 字节数 |
 
+
 ### `xnetsocketflag`
 
 Socket 打开标志可以组合；系统句柄始终禁止被子进程继承。
@@ -656,6 +677,7 @@ typedef enum xnetsocketflag {
 | 值 | 语义 |
 |---|---|
 | `XNET_SOCKET_NONBLOCK` | 非阻塞模式 |
+
 
 ### `xnetshutdown`
 
@@ -674,6 +696,7 @@ typedef enum xnetshutdown {
 | `XNET_SHUTDOWN_READ` | 读方向 |
 | `XNET_SHUTDOWN_WRITE` | 写方向 |
 | `XNET_SHUTDOWN_BOTH` | 双向关断 |
+
 
 ### `xnetoption`
 
@@ -721,6 +744,7 @@ typedef enum xnetoption {
 | `XNET_OPTION_DGRAM_ERRORS` | ICMP 错误投递 |
 | `XNET_OPTION_ERROR` | 失败 |
 
+
 ### `xnetportbackend`
 
 AUTO 选择当前平台最优后端，显式值用于测试、降级和部署控制。
@@ -744,6 +768,7 @@ typedef enum xnetportbackend {
 | `XNET_PORT_EPOLL` | Linux epoll |
 | `XNET_PORT_KQUEUE` | BSD kqueue |
 | `XNET_PORT_SELECT` | select 就绪 |
+
 
 ### `xnetportcap`
 
@@ -781,6 +806,7 @@ typedef enum xnetportcap {
 | `XNET_PORT_CAP_SEND_FILE` | 发送方向 |
 | `XNET_PORT_CAP_FILE_IO` | 原生文件 I/O |
 
+
 ### `xnetpoll`
 
 readiness 关注位；错误与挂断始终隐式观察。
@@ -796,6 +822,7 @@ typedef enum xnetpoll {
 |---|---|
 | `XNET_POLL_READ` | XNETPOLL读方向 |
 | `XNET_POLL_WRITE` | 可写 |
+
 
 ### `xnetporteventtype`
 
@@ -841,6 +868,7 @@ typedef enum xnetporteventtype {
 | `XNET_PORT_EVENT_USER` | 用户唤醒 |
 | `XNET_PORT_EVENT_WAKE` | 用户唤醒 |
 
+
 ### `xnetporteventflag`
 
 事件标志表达 readiness 方向及完成式 EOF、错误等稳定状态。
@@ -864,6 +892,7 @@ typedef enum xnetporteventflag {
 | `XNET_PORT_EVENT_HANGUP` | 对端关闭 |
 | `XNET_PORT_EVENT_EOF` | 读到末尾 |
 | `XNET_PORT_EVENT_MORE` | 需要更多输入 |
+
 
 ### `xnetportconfig`
 
@@ -889,6 +918,7 @@ typedef struct xnetportconfig {
 | `WatchLimit` | `size_t` | WatchLimit |
 | `OperationLimit` | `size_t` | OperationLimit |
 | `OperationCache` | `size_t` | OperationCache |
+
 
 ### `xnetportevent`
 
@@ -926,6 +956,7 @@ typedef struct xnetportevent {
 | `DgramError` | `xnetdgramerror` | DgramError |
 | `User` | `ptr` | User |
 
+
 ### `xnetenginestate`
 
 Engine 生命周期状态可安全地跨线程查询。
@@ -948,6 +979,7 @@ typedef enum xnetenginestate {
 | `XNET_ENGINE_STOPPING` | 停止中 |
 | `XNET_ENGINE_DESTROYING` | 销毁中 |
 
+
 ### `xnetpost`
 
 Post 的队列节点与并发门保持不透明，允许嵌入网络对象。
@@ -962,6 +994,7 @@ typedef union xnetpost {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Alignment` | `uint64` | 对齐（二次幂） |
+
 
 ### `xnetcompletion`
 
@@ -978,6 +1011,7 @@ typedef struct xnetcompletion {
 |---|---|---|
 | `Proc` | `xnetcompletionproc` | 过程指针 |
 | `Data` | `ptr` | 数据 |
+
 
 ### `xnetengineconfig`
 
@@ -1017,6 +1051,7 @@ typedef struct xnetengineconfig {
 | `PortOperationCache` | `size_t` | PortOperationCache |
 | `IdleWait` | `uint64` | IdleWait |
 | `ThreadStack` | `size_t` | ThreadStack |
+
 
 ### `xnetworkerstats`
 
@@ -1071,6 +1106,7 @@ typedef struct xnetworkerstats {
 | `PendingCommands` | `size_t` | PendingCommands |
 | `ActiveTimers` | `size_t` | ActiveTimers |
 | `NodeCachedBytes` | `size_t` | NodeCachedBytes |
+
 
 ### `xnetenginestats`
 
@@ -1127,6 +1163,7 @@ typedef struct xnetenginestats {
 | `NodeCachedBytes` | `size_t` | NodeCachedBytes |
 | `LiveObjects` | `size_t` | LiveObjects |
 
+
 ### `xnetref`
 
 引用 Span 在受理后转移释放责任，零长度 Span 不转移所有权。
@@ -1146,6 +1183,7 @@ typedef struct xnetref {
 | `Size` | `size_t` | 字节数 |
 | `Release` | `xnetreleaseproc` | Release |
 | `Context` | `ptr` | 回调上下文 |
+
 
 ### `xnetbufpoolinfo`
 
@@ -1179,6 +1217,7 @@ typedef struct xnetbufpoolinfo {
 | `DynamicCount` | `uint64` | DynamicCount |
 | `RefCount` | `uint64` | RefCount |
 
+
 ### `xnetbuf`
 
 缓冲链可栈上使用；字段用于零分配查询，调用方不得直接修改。
@@ -1205,6 +1244,7 @@ typedef struct xnetbuf {
 | `Blocks` | `size_t` | Blocks |
 | `ReservedNew` | `bool` | ReservedNew |
 
+
 ### `xnetaddrlist`
 
 地址列表是不可变共享结果，解析器缓存和调用方可以独立持有引用。
@@ -1215,6 +1255,7 @@ typedef struct xnetaddrlist xnetaddrlist;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xnetresolver`
 
 Resolver 与解析操作均保持不透明，解析操作可以独立于调用方引用继续执行。
@@ -1224,6 +1265,7 @@ typedef struct xnetresolver xnetresolver;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xnetresolveop`
 
@@ -1236,6 +1278,7 @@ typedef struct xnetresolveop xnetresolveop;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xnetport`
 
 网络端口隐藏平台事件对象、注册表和跨线程唤醒资源。
@@ -1245,6 +1288,7 @@ typedef struct xnetport_impl xnetport;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xnetbufpoolconfig`
 
@@ -1257,6 +1301,7 @@ typedef struct xnetbufpoolconfig xnetbufpoolconfig;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xnetbufpool`
 
 网络缓冲池（不透明）：进程内共享的按类缓冲池，降低热路径分配。
@@ -1267,6 +1312,7 @@ typedef struct xnetbufpool xnetbufpool;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xnetbytes`
 
@@ -1279,6 +1325,7 @@ typedef struct xnetbytes xnetbytes;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xnetengine`
 
 Engine 与 Worker 对外保持不透明，所有 Worker 资源都归所属 Engine 管理。
@@ -1288,6 +1335,7 @@ typedef struct xnetengine xnetengine;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xnetworker`
 
@@ -1300,6 +1348,7 @@ typedef struct xnetworker xnetworker;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xnetblock`
 
 网络分块借用（opaque 由 net.md 正文描述）：面向 Completion 的零拷贝视图单元。
@@ -1310,6 +1359,7 @@ typedef struct xnetblock xnetblock;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xnetresolverlookup`
 
@@ -1325,6 +1375,7 @@ typedef xnetaddrlist* (*xnetresolverlookup)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xnetresolveproc`
 
 完成回调借用操作对象；保留到回调之后时必须显式增加引用。
@@ -1335,6 +1386,7 @@ typedef void (*xnetresolveproc)(xnetresolveop* pOperation, ptr pData);
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xnettaskproc`
 
 Engine 任务始终在选定 Worker 上串行执行。
@@ -1344,6 +1396,7 @@ typedef void (*xnettaskproc)(xnetworker* pWorker, ptr pData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xnettimerproc`
 
@@ -1356,6 +1409,7 @@ typedef void (*xnettimerproc)(xnetworker* pWorker,
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xnetcompletionproc`
 
 Engine 内的端口事件通过 Completion 回到所属 Worker。
@@ -1367,6 +1421,7 @@ typedef void (*xnetcompletionproc)(xnetworker* pWorker,
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xnetreleaseproc`
 
 外部引用的释放过程在最后一段数据离开缓冲时执行一次。
@@ -1376,6 +1431,7 @@ typedef void (*xnetreleaseproc)(ptr pContext, cbytes pData, size_t iSize);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### `xnetinterfaceflag`
 
@@ -1401,6 +1457,7 @@ typedef enum xnetinterfaceflag {
 | `XNET_INTERFACE_POINT_TO_POINT` | 点对点链路 |
 | `XNET_INTERFACE_MULTICAST` | 支持多播 |
 
+
 ### `xnetinterfaceaddress`
 
 接口地址不带传输端口，PrefixLength 为网络前缀位数。
@@ -1416,6 +1473,7 @@ typedef struct xnetinterfaceaddress {
 |---|---|---|
 | `Address` | `xnetaddr` | 地址 |
 | `PrefixLength` | `uint8` | PrefixLength |
+
 
 ### `xnetinterface`
 
@@ -1447,6 +1505,7 @@ typedef struct xnetinterface {
 | `Addresses` | `const xnetinterfaceaddress*` | Addresses |
 | `AddressCount` | `size_t` | AddressCount |
 
+
 ### `xnetinterfacelist`
 
 接口列表拥有 Items 以及所有条目借用的存储。
@@ -1462,6 +1521,7 @@ typedef struct xnetinterfacelist {
 |---|---|---|
 | `Items` | `const xnetinterface*` | 元素数组 |
 | `Count` | `size_t` | 数量 |
+
 
 ### 常量总表
 
@@ -1535,6 +1595,7 @@ bool xrtNetAddrAny(xnetaddr* pAddr, xnetfamily Family, uint16 iPort);
 if ( !xrtNetAddrAny(&Any, XNET_FAMILY_IPV4, 0u) ||
 ```
 
+
 ### `xrtNetAddrLoopback`
 
 构造指定族的回环地址（IPv4 `127.0.0.1` 或 IPv6 `::1`）。
@@ -1569,6 +1630,7 @@ bool xrtNetAddrLoopback(xnetaddr* pAddr, xnetfamily Family, uint16 iPort);
 ```c
 if ( !xrtNetAddrParse(&Loopback, "127.0.0.1", 8080u) ||
 ```
+
 
 ### `xrtNetAddrParse`
 
@@ -1607,6 +1669,7 @@ if ( !xrtNetAddrParse(&Loopback, "127.0.0.1", 8080u) ||
 	!xrtNetAddrParse(&Private, "10.0.0.5", 8080u) ||
 ```
 
+
 ### `xrtNetAddrParseEndpoint`
 
 解析 `IPv4:port`、`[IPv6]:port` 或使用默认端口的裸地址。
@@ -1644,6 +1707,7 @@ if ( !xrtNetAddrParseEndpoint(&Addr, "[fe80::1%3]:8080", 0) ) {
 	return 1;
 }
 ```
+
 
 ## 文本输出
 
@@ -1685,6 +1749,7 @@ if ( xrtNetAddrText(
 ) == XRT_NPOS ) {
 ```
 
+
 ### `xrtNetAddrEndpointText`
 
 输出带端口的规范端点文本，IPv6 始终使用方括号。
@@ -1723,6 +1788,7 @@ if ( xrtNetAddrText(
 ) == XRT_NPOS ) {
 ```
 
+
 ### `xrtNetAddrString`
 
 分配并返回规范 IP 文本。
@@ -1756,6 +1822,7 @@ str xrtNetAddrString(const xnetaddr* pAddr);
 ```c
 str sEndpoint = xrtNetAddrEndpointString(
 ```
+
 
 ### `xrtNetAddrEndpointString`
 
@@ -1793,6 +1860,7 @@ if ( sEndpoint == NULL ) {
 	return 1;
 }
 ```
+
 
 ## 比较与分类
 
@@ -1832,6 +1900,7 @@ if ( xrtNetAddrEqual(&Loopback, &Private) ||
 	xrtNetAddrEqual(&Private, &Other) ||
 ```
 
+
 ### `xrtNetAddrSameIP`
 
 只比较地址族、地址与 IPv6 Scope，不比较端口。
@@ -1867,6 +1936,7 @@ xrtNetAddrSameIP(&Loopback, &Private) ||
 	!xrtNetAddrSameIP(&Private, &Other) ) {
 ```
 
+
 ### `xrtNetAddrCompare`
 
 为 Map、排序和稳定去重提供完整端点全序。
@@ -1898,6 +1968,7 @@ int xrtNetAddrCompare(const xnetaddr* pLeft, const xnetaddr* pRight);
 if ( (xrtNetAddrCompare(&Private, &Private) != 0) ||
 	(xrtNetAddrCompare(&Private, &Loopback) >= 0) ||
 ```
+
 
 ### `xrtNetAddrIsUnspecified`
 
@@ -1933,6 +2004,7 @@ xrtNetAddrIsUnspecified(&Loopback) ||
 	!xrtNetAddrIsUnspecified(&Any) ||
 ```
 
+
 ### `xrtNetAddrIsLoopback`
 
 判断地址是否属于 IPv4 `127/8` 或 IPv6 `::1`。
@@ -1966,6 +2038,7 @@ bool xrtNetAddrIsLoopback(const xnetaddr* pAddr);
 !xrtNetAddrIsLoopback(&Loopback) ||
 	xrtNetAddrIsLoopback(&Private) ||
 ```
+
 
 ### `xrtNetAddrIsMulticast`
 
@@ -2001,6 +2074,7 @@ bool xrtNetAddrIsMulticast(const xnetaddr* pAddr);
 	!xrtNetAddrIsMulticast(&Other) ||
 ```
 
+
 ### `xrtNetAddrIsLinkLocal`
 
 判断地址是否属于 IPv4 `169.254/16` 或 IPv6 `fe80::/10`。
@@ -2033,6 +2107,7 @@ bool xrtNetAddrIsLinkLocal(const xnetaddr* pAddr);
 ```c
 xrtNetAddrIsLinkLocal(&Addr) ? "yes" : "no");
 ```
+
 
 ### `xrtNetAddrIsPrivate`
 
@@ -2069,6 +2144,7 @@ bool xrtNetAddrIsPrivate(const xnetaddr* pAddr);
 	!xrtNetAddrIsPrivate(&Private) ||
 ```
 
+
 ### `xrtNetAddrIsMapped`
 
 判断 IPv6 地址是否为 `::ffff:0:0/96` IPv4 映射地址。
@@ -2102,6 +2178,7 @@ bool xrtNetAddrIsMapped(const xnetaddr* pAddr);
 if ( !xrtNetAddrParse(&Mapped, "::ffff:192.168.0.1", 443u) ||
 	!xrtNetAddrIsMapped(&Mapped) ||
 ```
+
 
 ### `xrtNetAddrUnmap`
 
@@ -2138,6 +2215,7 @@ bool xrtNetAddrUnmap(const xnetaddr* pAddr, xnetaddr* pResult);
 	!xrtNetAddrParse(&Other, "192.168.0.1", 443u) ||
 	!xrtNetAddrEqual(&Unmapped, &Other) ||
 ```
+
 
 ## Native 逃生口
 
@@ -2176,6 +2254,7 @@ bool xrtNetAddrToNative(const xnetaddr* pAddr, void* pNative, size_t* pSize);
 ```c
 if ( !xrtNetAddrToNative(&Loopback, NULL, &iSize) ||
 ```
+
 
 ### `xrtNetAddrFromNative`
 
@@ -2218,6 +2297,7 @@ bool xrtNetAddrFromNative(xnetaddr* pAddr, const void* pNative, size_t iSize);
 
 主机名与服务名解析属于独立 DNS 模块，不塞进地址语法函数。这组 Native 接口是有意保留的底层扩展路径：自定义 Socket 选项、第三方事件循环和上层协议可以直接连接平台 API，不需要复制 XRT 内部实现，也不会迫使公开地址结构绑定平台头文件。
 
+
 ## 网络缓冲
 
 `XRT_FEATURE_NET_BUFFER` 依赖 `XRT_FEATURE_NET`，提供 TCP、UDP、TLS、HTTP 和 WebSocket 共用的可变尺寸缓冲底座。缓冲只在实际收到或排队数据时持有块；默认池尺寸类为 512、2048、8192、32768 字节，超过最大类的请求按实际大小单独分配；默认总缓存硬上限 2 MiB 且缓存属于 Worker 而非连接——一万个空闲连接不会因此各自占用 8K。
@@ -2255,6 +2335,7 @@ xrtNetBufPoolConfigInit(&Config);
 pPool = xrtNetBufPoolCreate(&Config);
 ```
 
+
 ### `xrtNetBufPoolCreate`
 
 创建一个缓冲池；空配置使用默认值。
@@ -2289,6 +2370,7 @@ if ( (pPool == NULL) ||
 	!xrtNetBufInit(&BufA, pPool) ||
 	!xrtNetBufInit(&BufB, pPool) ) {
 ```
+
 
 ### `xrtNetBufPoolDestroy`
 
@@ -2325,6 +2407,7 @@ if ( pPool != NULL ) {
 }
 ```
 
+
 ### `xrtNetBufPoolTrim`
 
 把缓存裁剪到不超过指定字节数，返回真正释放的块数。
@@ -2359,6 +2442,7 @@ iGot = xrtNetBufPoolTrim(pPool, 0u);
 if ( iGot < 1u ) {
 ```
 
+
 ### `xrtNetBufPoolGet`
 
 复制缓冲池当前统计，不分配内存。
@@ -2389,6 +2473,7 @@ xrtNetBufPoolGet(pPool, &Info);
 if ( (Info.LiveBlocks != 0u) ||
 	(Info.AllocCount != 0u) ) {
 ```
+
 
 ### `xrtNetBufInit`
 
@@ -2424,6 +2509,7 @@ bool xrtNetBufInit(xnetbuf* pBuffer, xnetbufpool* pPool);
 !xrtNetBufInit(&BufA, pPool) ||
 ```
 
+
 ### `xrtNetBufClear`
 
 释放全部块并放弃尚未提交的写入预留。
@@ -2454,6 +2540,7 @@ xrtNetBufClear(&BufB);
 if ( iReleased != 1 ) {
 ```
 
+
 ### `xrtNetBufSize`
 
 返回缓冲链总字节数。
@@ -2481,6 +2568,7 @@ size_t xrtNetBufSize(const xnetbuf* pBuffer);
 ```c
 iSize = xrtNetBufSize(&BufA);
 ```
+
 
 ### `xrtNetBufEmpty`
 
@@ -2516,6 +2604,7 @@ bool xrtNetBufEmpty(const xnetbuf* pBuffer);
 	!xrtNetBufEmpty(&BufB) ||
 ```
 
+
 ### `xrtNetBufSpanCount`
 
 返回当前缓冲链的只读 Span 总数。
@@ -2543,6 +2632,7 @@ size_t xrtNetBufSpanCount(const xnetbuf* pBuffer);
 ```c
 iSpans = xrtNetBufSpanCount(&BufA);
 ```
+
 
 ### `xrtNetBufSpans`
 
@@ -2579,6 +2669,7 @@ size_t xrtNetBufSpans(const xnetbuf* pBuffer, xnetspan* pSpans, size_t iCapacity
 	(Spans[0].Size != 5u) ||
 ```
 
+
 ### `xrtNetBufFront`
 
 借用明文队列的第一个连续 Span；空缓冲返回假。
@@ -2613,6 +2704,7 @@ bool xrtNetBufFront(const xnetbuf* pBuffer, xnetspan* pSpan);
 if ( !xrtNetBufCommit(&Buffer, 6) ||
 	!xrtNetBufFront(&Buffer, &Read) ) {
 ```
+
 
 ### `xrtNetBufAppend`
 
@@ -2651,6 +2743,7 @@ if ( !xrtNetBufAppend(&BufA, "hello", 5u) ||
 	!xrtNetBufAppendBorrow(&BufA, arrBorrow, 2u) ) {
 ```
 
+
 ### `xrtNetBufAppendBorrow`
 
 追加借用数据；调用方保证数据存活到该段被消费或清除。
@@ -2686,6 +2779,7 @@ bool xrtNetBufAppendBorrow(xnetbuf* pBuffer, const void* pData, size_t iSize);
 ```c
 !xrtNetBufAppendBorrow(&BufA, arrBorrow, 2u) ) {
 ```
+
 
 ### `xrtNetBufAppendTake`
 
@@ -2723,6 +2817,7 @@ bool xrtNetBufAppendTake(xnetbuf* pBuffer, ptr pData, size_t iSize);
 if ( !xrtNetBufAppendTake(&BufA, pTaken, 2u) ) {
 	xrtFree(pTaken);
 ```
+
 
 ### `xrtNetBufAppendRef`
 
@@ -2762,6 +2857,7 @@ if ( !xrtNetBufAppendRef(&BufA, arrRef, 2u,
 		exampleRelease, (ptr)&iReleased) ) {
 ```
 
+
 ### `xrtNetBufPrepend`
 
 把一段数据复制到新首块；不移动已有负载块。
@@ -2798,6 +2894,7 @@ bool xrtNetBufPrepend(xnetbuf* pBuffer, const void* pData, size_t iSize);
 if ( !xrtNetBufPrepend(&BufA, ">> ", 3u) ||
 	(xrtNetBufSize(&BufA) != 14u) ||
 ```
+
 
 ### `xrtNetBufReserve`
 
@@ -2837,6 +2934,7 @@ if ( (pPool == NULL) || !xrtNetBufInit(&Buffer, pPool) ||
 	!xrtNetBufReserve(&Buffer, 6, &Write) ) {
 ```
 
+
 ### `xrtNetBufCommit`
 
 提交预留空间中已经写入的字节数。
@@ -2874,6 +2972,7 @@ memcpy(Write.Data, "packet", 6);
 if ( !xrtNetBufCommit(&Buffer, 6) ||
 ```
 
+
 ### `xrtNetBufCancel`
 
 放弃当前写入预留，缓冲内容保持不变。
@@ -2907,6 +3006,7 @@ bool xrtNetBufCancel(xnetbuf* pBuffer);
 if ( !xrtNetBufReserve(&BufA, 8u, &Reserve) ||
 	!xrtNetBufCancel(&BufA) ||
 ```
+
 
 ### `xrtNetBufMove`
 
@@ -2942,6 +3042,7 @@ bool xrtNetBufMove(xnetbuf* pTarget, xnetbuf* pSource);
 if ( !xrtNetBufAppend(&BufB, "!", 1u) ||
 	!xrtNetBufMove(&BufA, &BufB) ||
 ```
+
 
 ### `xrtNetBufPullup`
 
@@ -2982,6 +3083,7 @@ bool xrtNetBufPullup(xnetbuf* pBuffer, size_t iSize, xnetspan* pSpan);
 	(Span.Size < 5u) ||
 ```
 
+
 ### `xrtNetBufPeek`
 
 从指定偏移复制最多给定字节；不消费。
@@ -3017,6 +3119,7 @@ size_t xrtNetBufPeek(const xnetbuf* pBuffer, size_t iOffset, void* pOutput, size
 (xrtNetBufPeek(&BufA, 8u, arrText, 3u) != 3u) ||
 ```
 
+
 ### `xrtNetBufRead`
 
 复制并消费：从链首取走最多给定字节。
@@ -3051,6 +3154,7 @@ size_t xrtNetBufRead(xnetbuf* pBuffer, void* pOutput, size_t iSize);
 iSize = xrtNetBufRead(pBuffer, Data, sizeof(Data));
 ```
 
+
 ### `xrtNetBufFind`
 
 从指定偏移查找一个字节，未找到返回 `XRT_NPOS`。
@@ -3082,6 +3186,7 @@ size_t xrtNetBufFind(const xnetbuf* pBuffer, uint8 iByte, size_t iOffset);
 (xrtNetBufFind(&BufA, 'w', 0u) != 9u) ||
 	(xrtNetBufFind(&BufA, 'z', 0u) != XRT_NPOS) ||
 ```
+
 
 ### `xrtNetBufConsume`
 
@@ -3115,6 +3220,7 @@ size_t xrtNetBufConsume(xnetbuf* pBuffer, size_t iSize);
 ```c
 (xrtNetBufConsume(&BufA, 3u) != 3u) ||
 ```
+
 
 ## 拥有型字节结果
 
@@ -3151,6 +3257,7 @@ xnetbytes* xrtNetBytesRef(xnetbytes* pBytes);
 xnetbytes* pShared = xrtNetBytesRef(pBytes);
 ```
 
+
 ### `xrtNetBytesDestroy`
 
 释放拥有型网络字节结果；空指针视为空操作。
@@ -3179,6 +3286,7 @@ void xrtNetBytesDestroy(xnetbytes* pBytes);
 xrtNetBytesDestroy(pBytes);
 ```
 
+
 ### `xrtNetBytesView`
 
 返回拥有型网络字节结果的借用视图。
@@ -3206,6 +3314,7 @@ xbytesview xrtNetBytesView(const xnetbytes* pBytes);
 ```c
 xbytesview View = xrtNetBytesView(pBytes);
 ```
+
 
 
 ## 地址列表与 DNS
@@ -3249,6 +3358,7 @@ if ( (pList == NULL) ||
 	(xrtNetAddrListCount(pList) != 2u) ) {
 ```
 
+
 ### `xrtNetAddrListWithPort`
 
 复制列表并统一替换端口；端口已一致时只增加引用。
@@ -3287,6 +3397,7 @@ if ( (pPortList == NULL) ||
 	(xrtNetAddrListGet(pPortList, 0u)->Port != 443u) ||
 ```
 
+
 ### `xrtNetAddrListRef`
 
 增加不可变列表引用并返回原指针。
@@ -3321,6 +3432,7 @@ pRef = xrtNetAddrListRef(pPortList);
 if ( pRef != pPortList ) {
 ```
 
+
 ### `xrtNetAddrListDestroy`
 
 释放列表引用；空指针是空操作。
@@ -3350,6 +3462,7 @@ xrtNetAddrListDestroy(pRef);
 xrtNetAddrListDestroy(pPortList);
 ```
 
+
 ### `xrtNetAddrListCount`
 
 返回地址数量；空列表返回零。
@@ -3377,6 +3490,7 @@ size_t xrtNetAddrListCount(const xnetaddrlist* pList);
 ```c
 (xrtNetAddrListCount(pList) != 2u) ) {
 ```
+
 
 ### `xrtNetAddrListGet`
 
@@ -3413,6 +3527,7 @@ const xnetaddr* xrtNetAddrListGet(const xnetaddrlist* pList, size_t iIndex);
 (xrtNetAddrListGet(pPortList, 0u)->Port != 443u) ||
 ```
 
+
 ### `xrtNetLookup`
 
 解析主机的全部地址；保留系统顺序、去重、端口为零。
@@ -3448,6 +3563,7 @@ xnetaddrlist* xrtNetLookup(cstr sHost, xnetfamily Family);
 xnetaddrlist* pLocal = xrtNetLookup("localhost",
 	XNET_FAMILY_IPV4);
 ```
+
 
 ### `xrtNetResolve`
 
@@ -3488,6 +3604,7 @@ xnetaddrlist* pList = xrtNetResolve(
 );
 ```
 
+
 ### `xrtNetResolveOne`
 
 解析并复制系统顺序中的第一个地址；单地址场景无需管理列表。
@@ -3525,6 +3642,7 @@ if ( !xrtNetResolveOne(&Resolved, "localhost", 80u,
 		XNET_FAMILY_IPV4) ||
 ```
 
+
 ### `xrtNetReverse`
 
 反向解析一个数字地址；成功返回调用方拥有的主机名。
@@ -3559,6 +3677,7 @@ str xrtNetReverse(const xnetaddr* pAddr);
 sHost = xrtNetReverse(&Loopback);
 if ( sHost == NULL ) {
 ```
+
 
 ## 错误
 
@@ -3754,6 +3873,7 @@ A = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_DGRAM, 0u);
 B = xrtNetSocketOpen(XNET_FAMILY_IPV4, XNET_SOCKET_DGRAM, 0u);
 ```
 
+
 ### `xrtNetSocketClose`
 
 关闭原生句柄并销毁对象；即使系统关闭失败，对象也立即失效。
@@ -3788,6 +3908,7 @@ xrtNetSocketClose(C);
 xrtNetSocketClose(L);
 ```
 
+
 ### `xrtNetSocketNative`
 
 返回借用的原生句柄，调用方不得自行关闭。
@@ -3815,6 +3936,7 @@ intptr_t xrtNetSocketNative(xnetsocket Socket);
 ```c
 (xrtNetSocketNative(A) == 0) ||
 ```
+
 
 ### `xrtNetSocketFamily`
 
@@ -3844,6 +3966,7 @@ xnetfamily xrtNetSocketFamily(xnetsocket Socket);
 (xrtNetSocketFamily(A) != XNET_FAMILY_IPV4) ||
 ```
 
+
 ### `xrtNetSocketType`
 
 返回 Socket 创建时确定的类型。
@@ -3871,6 +3994,7 @@ xnetsockettype xrtNetSocketType(xnetsocket Socket);
 ```c
 (xrtNetSocketType(A) != XNET_SOCKET_DGRAM) ||
 ```
+
 
 ### `xrtNetSocketSet`
 
@@ -3910,6 +4034,7 @@ bool xrtNetSocketSet(xnetsocket Socket, xnetoption Option, int64 iValue);
 	!xrtNetSocketGet(A, XNET_OPTION_RECEIVE_BUFFER, &iValue) ||
 ```
 
+
 ### `xrtNetSocketGet`
 
 查询一个通用 Socket 选项。
@@ -3948,6 +4073,7 @@ bool xrtNetSocketGet(xnetsocket Socket, xnetoption Option, int64* pValue);
 	(iValue <= 0) ||
 ```
 
+
 ### `xrtNetSocketAvailable`
 
 查询当前可立即读取的字节数；成功才修改输出。
@@ -3984,6 +4110,7 @@ bool xrtNetSocketAvailable(xnetsocket Socket, size_t* pSize);
 	(iGot != 0u) ) {
 ```
 
+
 ### `xrtNetSocketBind`
 
 把 Socket 绑定到本地地址；端口为零时由系统分配。
@@ -4019,6 +4146,7 @@ bool xrtNetSocketBind(xnetsocket Socket, const xnetaddr* pAddress);
 	!xrtNetSocketLocal(A, &AddrA) ||
 ```
 
+
 ### `xrtNetSocketListen`
 
 把已绑定的流式 Socket 转为监听状态。
@@ -4052,6 +4180,7 @@ bool xrtNetSocketListen(xnetsocket Socket, int iBacklog);
 ```c
 !xrtNetSocketListen(Listener, 16) ||
 ```
+
 
 ### `xrtNetSocketAccept`
 
@@ -4095,6 +4224,7 @@ xnetresult xrtNetSocketAccept(xnetsocket Socket, xnetsocket* pClient, xnetaddr* 
 	&Accepted, &Remote) != XNET_RESULT_OK) ||
 ```
 
+
 ### `xrtNetSocketConnect`
 
 发起连接；非阻塞连接尚未完成时返回 `AGAIN`。
@@ -4137,6 +4267,7 @@ if ( (ConnResult != XNET_RESULT_OK) &&
 	(ConnResult != XNET_RESULT_AGAIN) ) {
 ```
 
+
 ### `xrtNetSocketFinishConnect`
 
 在可写事件到达后读取 `SO_ERROR`，完成非阻塞连接判定。
@@ -4172,6 +4303,7 @@ xnetresult xrtNetSocketFinishConnect(xnetsocket Socket);
 Result = xrtNetSocketFinishConnect(Socket);
 ```
 
+
 ### `xrtNetSocketShutdown`
 
 半关闭指定方向，不销毁 Socket 对象。
@@ -4205,6 +4337,7 @@ bool xrtNetSocketShutdown(xnetsocket Socket, xnetshutdown Direction);
 ```c
 if ( !xrtNetSocketShutdown(Client, XNET_SHUTDOWN_WRITE) ) {
 ```
+
 
 ### `xrtNetSocketLocal`
 
@@ -4242,6 +4375,7 @@ bool xrtNetSocketLocal(xnetsocket Socket, xnetaddr* pAddress);
 	(AddrA.Port == 0u) ||
 ```
 
+
 ### `xrtNetSocketRemote`
 
 查询已连接的对端地址。
@@ -4277,6 +4411,7 @@ bool xrtNetSocketRemote(xnetsocket Socket, xnetaddr* pAddress);
 !xrtNetSocketRemote(A, &Remote) ||
 	!xrtNetAddrEqual(&Remote, &DestB) ) {
 ```
+
 
 ### `xrtNetSocketSend`
 
@@ -4316,6 +4451,7 @@ xnetresult xrtNetSocketSend(xnetsocket Socket, const void* pData, size_t iSize, 
 (xrtNetSocketSend(Client, "hello", 5,
 	&iSize) != XNET_RESULT_OK) ||
 ```
+
 
 ### `xrtNetSocketRecv`
 
@@ -4357,6 +4493,7 @@ xnetresult xrtNetSocketRecv(xnetsocket Socket, void* pData, size_t iSize, size_t
 	&iSize) != XNET_RESULT_OK) ) {
 ```
 
+
 ### `xrtNetSocketSendVec`
 
 单次聚集发送；Span 数量不能超过 64。
@@ -4393,6 +4530,7 @@ xnetresult xrtNetSocketSendVec(xnetsocket Socket, const xnetspan* pSpans, size_t
 (xrtNetSocketSendVec(A, Out, 2u, &iSent) != XNET_RESULT_OK) ||
 ```
 
+
 ### `xrtNetSocketRecvVec`
 
 单次分散接收；Span 数量不能超过 64。
@@ -4428,6 +4566,7 @@ xnetresult xrtNetSocketRecvVec(xnetsocket Socket, xnetwspan* pSpans, size_t iCou
 ```c
 (xrtNetSocketRecvVec(B, In, 2u, &iGot) != XNET_RESULT_OK) ||
 ```
+
 
 ### `xrtNetSocketSendTo`
 
@@ -4466,6 +4605,7 @@ xnetresult xrtNetSocketSendTo(xnetsocket Socket, const void* pData, size_t iSize
 (xrtNetSocketSendTo(A, "msg", 3u, &iSent, &DestB) !=
 		XNET_RESULT_OK) ||
 ```
+
 
 ### `xrtNetSocketRecvFrom`
 
@@ -4508,6 +4648,7 @@ McResult = xrtNetSocketRecvFrom(B, arrBuf, 8u, &iGot,
 	&From);
 ```
 
+
 ### `xrtNetSocketSendToVec`
 
 单次聚集发送数据报；Span 数量不能超过 64。
@@ -4545,6 +4686,7 @@ xnetresult xrtNetSocketSendToVec(xnetsocket Socket, const xnetspan* pSpans, size
 if ( (xrtNetSocketSendToVec(A, Out, 2u, &iSent, &DestB) !=
 		XNET_RESULT_OK) ||
 ```
+
 
 ### `xrtNetSocketRecvFromVec`
 
@@ -4584,6 +4726,7 @@ xnetresult xrtNetSocketRecvFromVec(xnetsocket Socket, xnetwspan* pSpans, size_t 
 		XNET_RESULT_OK) ||
 ```
 
+
 ### `xrtNetSocketSendMsg`
 
 发送数据报并覆盖本包源地址、接口、Hop Limit 或 Traffic Class。
@@ -4621,6 +4764,7 @@ xnetresult xrtNetSocketSendMsg(xnetsocket Socket, const void* pData, size_t iSiz
 ```c
 McResult = xrtNetSocketSendTo(A, "m", 1u, &iSent, &Group);
 ```
+
 
 ### `xrtNetSocketSendMsgVec`
 
@@ -4660,6 +4804,7 @@ xnetresult xrtNetSocketSendMsgVec(xnetsocket Socket, const xnetspan* pSpans, siz
 if ( (xrtNetSocketSendMsgVec(A, Out, 2u, &iSent, &DestB,
 		&Control) != XNET_RESULT_OK) ||
 ```
+
 
 ### `xrtNetSocketRecvMsg`
 
@@ -4701,6 +4846,7 @@ xnetresult xrtNetSocketRecvMsg(xnetsocket Socket, void* pData, size_t iSize, siz
 	(iGot != 3u) ||
 ```
 
+
 ### `xrtNetSocketRecvMsgVec`
 
 分散接收数据报及元数据，Span 数量不能超过 64。
@@ -4740,6 +4886,7 @@ xnetresult xrtNetSocketRecvMsgVec(xnetsocket Socket, xnetwspan* pSpans, size_t i
 		XNET_RESULT_OK) ||
 ```
 
+
 ### `xrtNetSocketRecvBatch`
 
 接收最多 64 个数据报；返回已消费前缀，每项独立记录 `XNET_RESULT_OK` 或 `XNET_RESULT_TRUNCATED`。
@@ -4778,6 +4925,7 @@ if ( (xrtNetSocketSendBatch(A, Send, 2u, &iSent) != XNET_RESULT_OK) ||
 	(xrtNetSocketRecvBatch(B, Recv, 2u, &iGot) != XNET_RESULT_OK) ) {
 ```
 
+
 ### `xrtNetSocketSendBatch`
 
 发送最多 64 个数据报；返回已经完整发送的输入前缀。
@@ -4815,6 +4963,7 @@ xnetresult xrtNetSocketSendBatch(xnetsocket Socket, const xnetdgramsend* pItems,
 if ( (xrtNetSocketSendBatch(A, Send, 2u, &iSent) != XNET_RESULT_OK) ||
 ```
 
+
 ### `xrtNetSocketDgramMetaAvailable`
 
 返回当前平台和地址族可能提供的数据报接收元数据位。
@@ -4847,6 +4996,7 @@ uint32 xrtNetSocketDgramMetaAvailable(xnetsocket Socket);
 (xrtNetSocketDgramMetaEnabled(A) != 0u) ||
 ```
 
+
 ### `xrtNetSocketDgramMetaEnabled`
 
 返回 Socket 当前已经启用的数据报接收元数据位。
@@ -4874,6 +5024,7 @@ uint32 xrtNetSocketDgramMetaEnabled(xnetsocket Socket);
 ```c
 (xrtNetSocketDgramMetaEnabled(A) != 0u) ||
 ```
+
 
 ### `xrtNetSocketDgramMetaSet`
 
@@ -4912,6 +5063,7 @@ bool xrtNetSocketDgramMetaSet(xnetsocket Socket, uint32 iFlags);
 if ( !xrtNetSocketDgramMetaSet(B, XNET_DGRAM_META_HOP_LIMIT) ||
 ```
 
+
 ### `xrtNetSocketDgramControlAvailable`
 
 返回当前平台、地址族和 Socket Provider 可用的逐数据报发送控制位。
@@ -4944,6 +5096,7 @@ uint32 xrtNetSocketDgramControlAvailable(xnetsocket Socket);
 (xrtNetSocketDgramMetaEnabled(A) != 0u) ||
 ```
 
+
 ### `xrtNetSocketDgramCapabilities`
 
 返回 PMTU、错误队列及后续高级数据报能力。
@@ -4975,6 +5128,7 @@ uint32 xrtNetSocketDgramCapabilities(xnetsocket Socket);
 ```c
 (xrtNetSocketDgramMetaEnabled(A) != 0u) ||
 ```
+
 
 ### `xrtNetSocketDgramRecvError`
 
@@ -5017,6 +5171,7 @@ xnetresult ErrResult = xrtNetSocketDgramRecvError(A,
 if ( ErrResult == XNET_RESULT_OK ) {
 ```
 
+
 ### `xrtNetSocketMulticastJoin`
 
 将数据报 Socket 加入一个同地址族多播组。
@@ -5052,6 +5207,7 @@ bool xrtNetSocketMulticastJoin(xnetsocket Socket, const xnetaddr* pGroup, const 
 ```c
 !xrtNetSocketMulticastJoin(B, &Group, &Iface) ) {
 ```
+
 
 ### `xrtNetSocketMulticastLeave`
 
@@ -5090,6 +5246,7 @@ if ( !xrtNetSocketMulticastLeave(B, &Group, &Iface) ||
 	!xrtNetSocketMulticastInterface(A, NULL) ) {
 ```
 
+
 ### `xrtNetSocketMulticastLoop`
 
 设置数据报 Socket 是否接收自己发出的多播报文。
@@ -5123,6 +5280,7 @@ bool xrtNetSocketMulticastLoop(xnetsocket Socket, bool bEnabled);
 ```c
 !xrtNetSocketMulticastLoop(A, true) ||
 ```
+
 
 ### `xrtNetSocketMulticastHopLimit`
 
@@ -5158,6 +5316,7 @@ bool xrtNetSocketMulticastHopLimit(xnetsocket Socket, int iHopLimit);
 !xrtNetSocketMulticastHopLimit(A, 1) ||
 ```
 
+
 ### `xrtNetSocketMulticastInterface`
 
 选择多播发送接口；空接口恢复系统默认。
@@ -5192,6 +5351,7 @@ bool xrtNetSocketMulticastInterface(xnetsocket Socket, const xnetaddr* pInterfac
 ```c
 !xrtNetSocketMulticastInterface(A, &Iface) ||
 ```
+
 
 ## 网络事件端口
 
@@ -5260,6 +5420,7 @@ Config.Backend = XNET_PORT_SELECT;
 pSelect = xrtNetPortCreate(&Config);
 ```
 
+
 ### `xrtNetPortCreate`
 
 创建事件端口。`AUTO` 在当前已编译后端中选择最高能力实现：Windows 优先 IOCP，Linux 优先 epoll，Darwin/BSD 优先 kqueue，其他平台使用 select；显式指定的后端不可用时返回 `XERR_UNSUPPORTED`，不会静默换后端。
@@ -5299,6 +5460,7 @@ xrtNetPortConfigInit(&Config);
 Config.Backend = XNET_PORT_SELECT;
 pSelect = xrtNetPortCreate(&Config);
 ```
+
 
 ### `xrtNetPortDestroy`
 
@@ -5340,6 +5502,7 @@ if ( pIocp != NULL ) {
 }
 ```
 
+
 ### `xrtNetPortBackend`
 
 返回端口实际启用的后端。
@@ -5376,6 +5539,7 @@ if ( (pIocp == NULL) || (pSelect == NULL) ||
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtNetPortGetConfig`
 
@@ -5421,6 +5585,7 @@ bool xrtNetPortGetConfig(
 }
 ```
 
+
 ### `xrtNetPortName`
 
 返回静态后端名称（如 `"iocp"`、`"select"`），字符串存活期与进程相同。
@@ -5454,6 +5619,7 @@ cstr xrtNetPortName(const xnetport* pPort);
 printf("backend=%s bytes=%zu data=%s\n",
 	xrtNetPortName(pPort), Events[i].Bytes, sData);
 ```
+
 
 ### `xrtNetPortCapabilities`
 
@@ -5491,6 +5657,7 @@ if ( ((iCaps & XNET_PORT_CAP_COMPLETION) == 0u) ||
 	goto Cleanup;
 }
 ```
+
 
 ### 配置与容量解析
 
@@ -5540,21 +5707,11 @@ bool xrtNetPortAccept(xnetport* pPort,
 
 #### 范例
 
-[network/port_tour · TCP](../../examples/network/port_tour/main.c) · `Event.Accepted` 是新 Socket
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-!xrtNetPortConnect(pIocp, Client, &AddrListen, 201u, NULL) ||
-!xrtNetPortAccept(pIocp, Listener, 202u, NULL) ||
-!exampleWaitFor(pIocp, XNET_PORT_EVENT_CONNECT, 201u,
-	&Event, 2000000ull) ||
-(Event.Result != XNET_RESULT_OK) ||
-!exampleWaitFor(pIocp, XNET_PORT_EVENT_ACCEPT, 202u,
-	&Event, 2000000ull) ||
-(Event.Accepted == 0) ) {
-	goto Cleanup;
-}
+xrtNetPortAccept(pIocp, Listener, 202u, NULL)
 ```
-
 ### `xrtNetPortConnect`
 
 异步连接远端地址。终态事件（`CONNECT`）到达前 Socket 必须保持有效。
@@ -5590,16 +5747,11 @@ bool xrtNetPortConnect(xnetport* pPort, xnetsocket Socket,
 
 #### 范例
 
-[network/port_tour · TCP](../../examples/network/port_tour/main.c) · 连接结果在终态事件的 `Result` 字段
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-!xrtNetPortConnect(pIocp, Client, &AddrListen, 201u, NULL) ||
-!xrtNetPortAccept(pIocp, Listener, 202u, NULL) ||
-!exampleWaitFor(pIocp, XNET_PORT_EVENT_CONNECT, 201u,
-	&Event, 2000000ull) ||
-(Event.Result != XNET_RESULT_OK) ||
+xrtNetPortConnect(pIocp, Client, &AddrListen, 201u, NULL)
 ```
-
 ### `xrtNetPortReadProbe`
 
 异步等待流 Socket 可读；不借用数据缓冲，终态（`READ_PROBE`，`Bytes == 0`）到达后再提交 `Recv` 才读取数据或确认 EOF。适合 TLS 等由上层状态机驱动读取的场景。
@@ -5634,18 +5786,11 @@ bool xrtNetPortReadProbe(xnetport* pPort,
 
 #### 范例
 
-[network/port_tour · TCP](../../examples/network/port_tour/main.c) · 探针终态后再提交 `Recv`
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( !xrtNetPortReadProbe(pIocp, Server, 203u, NULL) ||
-	(xrtNetSocketSend(Client, "hi", 2u, &iSent) !=
-		XNET_RESULT_OK) ||
-	!exampleWaitFor(pIocp, XNET_PORT_EVENT_READ_PROBE, 203u,
-		&Event, 2000000ull) ) {
-	goto Cleanup;
-}
+xrtNetPortReadProbe(pIocp, Server, 203u, NULL)
 ```
-
 ### `xrtNetPortRecv`
 
 异步接收到调用方缓冲；支持流和已连接数据报，单次最多 `INT_MAX` 字节。等价于单跨度 `RecvVec`，错误集与之相同。
@@ -5683,16 +5828,11 @@ bool xrtNetPortRecv(xnetport* pPort, xnetsocket Socket,
 
 #### 范例
 
-[network/port_tour · TCP](../../examples/network/port_tour/main.c) · 实际读取量在 `Event.Bytes`
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( !xrtNetPortRecv(pIocp, Server, arrBuf, 8u, 204u, NULL) ||
-	!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV, 204u,
-		&Event, 2000000ull) ||
-	(Event.Bytes != 2u) ||
-	(memcmp(arrBuf, "hi", 2u) != 0) ||
+xrtNetPortRecv(pIocp, Server, arrBuf, 8u, 204u, NULL)
 ```
-
 ### `xrtNetPortRecvVec`
 
 异步分散接收；支持流和已连接数据报，Span 总长度最多 `INT_MAX` 字节。
@@ -5730,17 +5870,11 @@ bool xrtNetPortRecvVec(xnetport* pPort, xnetsocket Socket,
 
 #### 范例
 
-[network/port_tour · 流向量](../../examples/network/port_tour/main.c) · 两段分散接收
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( !xrtNetPortRecvVec(pIocp, Server, In, 2u, 210u, NULL) ||
-	(xrtNetSocketSendVec(Client, Out, 2u, &iSent) !=
-		XNET_RESULT_OK) ||
-	!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV, 210u,
-		&Event, 2000000ull) ||
-	(Event.Bytes != 4u) ||
+xrtNetPortRecvVec(pIocp, Server, In, 2u, 210u, NULL)
 ```
-
 ### `xrtNetPortSend`
 
 异步发送调用方缓冲；支持流和已连接数据报，单次最多 `INT_MAX` 字节。等价于单跨度 `SendVec`，错误集与之相同。
@@ -5778,16 +5912,11 @@ bool xrtNetPortSend(xnetport* pPort, xnetsocket Socket,
 
 #### 范例
 
-[network/port_tour · TCP](../../examples/network/port_tour/main.c) · 发送完成即缓冲可复用
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-!xrtNetPortSend(pIocp, Server, "ok", 2u, 205u, NULL) ||
-!exampleWaitFor(pIocp, XNET_PORT_EVENT_SEND, 205u,
-	&Event, 2000000ull) ) {
-	goto Cleanup;
-}
+xrtNetPortSend(pIocp, Server, "ok", 2u, 205u, NULL)
 ```
-
 ### `xrtNetPortSendVec`
 
 异步聚集发送；支持流和已连接数据报，Span 总长度最多 `INT_MAX` 字节。
@@ -5825,16 +5954,11 @@ bool xrtNetPortSendVec(xnetport* pPort, xnetsocket Socket,
 
 #### 范例
 
-[network/port_tour · 流向量](../../examples/network/port_tour/main.c) · 两段聚集发送
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-!xrtNetPortSendVec(pIocp, Server, Out, 2u, 211u, NULL) ||
-!exampleWaitFor(pIocp, XNET_PORT_EVENT_SEND, 211u,
-	&Event, 2000000ull) ) {
-	goto Cleanup;
-}
+xrtNetPortSendVec(pIocp, Server, Out, 2u, 211u, NULL)
 ```
-
 ### `xrtNetPortRecvFrom`
 
 异步接收数据报；远端地址由终态事件（`RECV_FROM`）的 `Address` 字段返回。等价于单跨度 `RecvFromVec`，错误集与之相同。
@@ -5879,6 +6003,7 @@ bool xrtNetPortRecvFrom(xnetport* pPort, xnetsocket Socket,
 	sData, sizeof(sData) - 1, 1, NULL) ||
 ```
 
+
 ### `xrtNetPortRecvFromVec`
 
 异步分散接收数据报；缓冲不足由终态事件返回 `TRUNCATED`，`Bytes` 保留实际写入长度。
@@ -5916,16 +6041,11 @@ bool xrtNetPortRecvFromVec(xnetport* pPort, xnetsocket Socket,
 
 #### 范例
 
-[network/port_tour · 数据报](../../examples/network/port_tour/main.c) · 来源端口在 `Event.Address.Port`
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( !xrtNetPortRecvFromVec(pIocp, UdpA, In, 2u, 220u, NULL) ||
-	(xrtNetSocketSendTo(UdpB, "d1", 2u, &iSent, &DestUdpA) !=
-		XNET_RESULT_OK) ||
-	!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV_FROM, 220u,
-		&Event, 2000000ull) ||
+xrtNetPortRecvFromVec(pIocp, UdpA, In, 2u, 220u, NULL)
 ```
-
 ### `xrtNetPortRecvMsg`
 
 异步接收数据报及 Socket 已启用的元数据；终态事件（`RECV_MSG`）同时返回 `Address` 与 `Meta`。等价于单跨度 `RecvMsgVec`，错误集与之相同。
@@ -5961,17 +6081,11 @@ bool xrtNetPortRecvMsg(xnetport* pPort, xnetsocket Socket,
 
 #### 范例
 
-[network/port_tour · 数据报](../../examples/network/port_tour/main.c) · 终态事件携带已启用的元数据位
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( !xrtNetPortRecvMsg(pIocp, UdpA, arrBuf, 16u, 221u, NULL) ||
-	(xrtNetSocketSendTo(UdpB, "d2", 2u, &iSent, &DestUdpA) !=
-		XNET_RESULT_OK) ||
-	!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV_MSG, 221u,
-		&Event, 2000000ull) ||
-	(Event.Bytes != 2u) ||
+xrtNetPortRecvMsg(pIocp, UdpA, arrBuf, 16u, 221u, NULL)
 ```
-
 ### `xrtNetPortRecvMsgVec`
 
 异步分散接收数据报及元数据；终态事件同时返回 `Address` 和 `Meta`。
@@ -6010,16 +6124,11 @@ bool xrtNetPortRecvMsgVec(xnetport* pPort, xnetsocket Socket,
 
 #### 范例
 
-[network/port_tour · 数据报](../../examples/network/port_tour/main.c) · 分散接收第三形态
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( !xrtNetPortRecvMsgVec(pIocp, UdpA, In, 2u, 222u, NULL) ||
-	(xrtNetSocketSendTo(UdpB, "d3", 2u, &iSent, &DestUdpA) !=
-		XNET_RESULT_OK) ||
-	!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV_MSG, 222u,
-		&Event, 2000000ull) ||
+xrtNetPortRecvMsgVec(pIocp, UdpA, In, 2u, 222u, NULL)
 ```
-
 ### `xrtNetPortRecvError`
 
 异步等待并读取一个数据报错误；终态（`RECV_ERROR`）同时返回原负载前缀和 `DgramError`。要求 Socket 已启用数据报错误队列，且后端支持等待该队列。
@@ -6065,6 +6174,7 @@ if ( xrtNetPortRecvError(pIocp, UdpA, arrBuf, 16u, 300u, NULL) ) {
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtNetPortSendTo`
 
@@ -6119,6 +6229,7 @@ bool xrtNetPortSendTo(xnetport* pPort, xnetsocket Socket,
  ) ||
 ```
 
+
 ### `xrtNetPortSendToVec`
 
 异步聚集发送数据报；远端地址和 Span 描述符在提交时复制。
@@ -6158,16 +6269,12 @@ bool xrtNetPortSendToVec(xnetport* pPort, xnetsocket Socket,
 
 #### 范例
 
-[network/port_tour · 数据报发送](../../examples/network/port_tour/main.c) · 两段聚集发送
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( !xrtNetPortSendToVec(pIocp, UdpB, Out, 2u, &DestUdpA,
-		230u, NULL) ||
-	!exampleWaitFor(pIocp, XNET_PORT_EVENT_SEND_TO, 230u,
-		&Event, 2000000ull) ||
-	(Event.Result != XNET_RESULT_OK) ||
+xrtNetPortSendToVec(pIocp, UdpB, Out, 2u, &DestUdpA,
+			230u, NULL)
 ```
-
 ### `xrtNetPortSendMsg`
 
 异步发送带逐包控制的数据报；地址和控制值在提交时复制。非零控制 `Flags` 的终态为 `SEND_MSG`；空控制或零 `Flags` 走普通发送路径，有 `pRemote` 时终态为 `SEND_TO`，否则为 `SEND`（Socket 须已连接）。等价于单跨度 `SendMsgVec`，错误集与之相同。
@@ -6215,6 +6322,7 @@ bool xrtNetPortSendMsg(xnetport* pPort, xnetsocket Socket,
 	"completion", 10, &Address, &Control, 2, NULL) ||
 ```
 
+
 ### `xrtNetPortSendMsgVec`
 
 异步聚集发送带逐包控制的数据报；Span 描述符、地址和控制值在提交时复制。终态类型与 `SendMsg` 相同。
@@ -6255,18 +6363,12 @@ bool xrtNetPortSendMsgVec(xnetport* pPort, xnetsocket Socket,
 
 #### 范例
 
-[network/port_tour · 数据报发送](../../examples/network/port_tour/main.c) · 零 `Flags` 控制走 `SEND_TO` 路径
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-!xrtNetPortSendMsgVec(pIocp, UdpB, Out, 2u, &DestUdpA,
-	&Control, 231u, NULL) ||
-!exampleWaitFor(pIocp, XNET_PORT_EVENT_SEND_TO, 231u,
-	&Event, 2000000ull) ||
-(Event.Result != XNET_RESULT_OK) ) {
-	goto Cleanup;
-}
+xrtNetPortSendMsgVec(pIocp, UdpB, Out, 2u, &DestUdpA,
+			&Control, 231u, NULL)
 ```
-
 ### `xrtNetPortCancel`
 
 请求取消指定 `Id` 的在途操作。操作仍以一个终态事件结束：取消成功时为 `CANCELLED`，完成先于取消发生时仍是原完成。
@@ -6297,16 +6399,11 @@ bool xrtNetPortCancel(xnetport* pPort, uint64 Id);
 
 #### 范例
 
-[network/port_tour · 取消](../../examples/network/port_tour/main.c) · 在途 `Recv` 以 `CANCELLED` 终结
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( !xrtNetPortRecv(pIocp, UdpA, arrBuf, 8u, 600u, NULL) ||
-	!xrtNetPortCancel(pIocp, 600u) ||
-	!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV, 600u,
-		&Event, 2000000ull) ||
-	(Event.Result != XNET_RESULT_CANCELLED) ) {
+xrtNetPortCancel(pIocp, 600u)
 ```
-
 ### 观察与等待（readiness）
 
 一个端口对一个 Socket 保留一份 readiness 观察。`Watch` 替换关注位和事件身份，零关注位等价于 `Unwatch`；`Unwatch` 幂等。`Id` 与 `User` 原样进入事件，端口不拥有用户上下文。错误和挂断由后端隐式观察，不需要加入关注掩码。
@@ -6350,20 +6447,12 @@ bool xrtNetPortWatch(xnetport* pPort, xnetsocket Socket,
 
 #### 范例
 
-[network/port_tour · readiness](../../examples/network/port_tour/main.c) · SELECT 端口上观察读方向
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( !xrtNetPortWatch(pSelect, UdpA, 100u, XNET_PORT_EVENT_READ,
-		NULL) ||
-	(xrtNetSocketSendTo(UdpB, "r", 1u, &iSent, &DestUdpA) !=
-		XNET_RESULT_OK) ||
-	!exampleWaitFor(pSelect, XNET_PORT_EVENT_READY, 100u,
-		&Event, 2000000ull) ||
-	!xrtNetPortUnwatch(pSelect, UdpA) ) {
-	goto Cleanup;
-}
+xrtNetPortWatch(pSelect, UdpA, 100u, XNET_PORT_EVENT_READ,
+			NULL)
 ```
-
 ### `xrtNetPortUnwatch`
 
 幂等移除观察。失败也会退休用户身份，调用方随后必须关闭该 Socket，不能继续观察或执行 IO。
@@ -6394,16 +6483,11 @@ bool xrtNetPortUnwatch(xnetport* pPort, xnetsocket Socket);
 
 #### 范例
 
-[network/port_tour · readiness](../../examples/network/port_tour/main.c) · 消费事件后移除观察
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-!exampleWaitFor(pSelect, XNET_PORT_EVENT_READY, 100u,
-	&Event, 2000000ull) ||
-!xrtNetPortUnwatch(pSelect, UdpA) ) {
-	goto Cleanup;
-}
+xrtNetPortUnwatch(pSelect, UdpA)
 ```
-
 ### `xrtNetPortWait`
 
 等待到事件、截止时间或错误；成功和超时都会先清零 `*pCount`。只能由拥有线程调用。
@@ -6444,16 +6528,12 @@ xnetresult xrtNetPortWait(xnetport* pPort,
 
 #### 范例
 
-[network/port_tour · 等待辅助](../../examples/network/port_tour/main.c) · 截止时间分片轮询
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( xrtNetPortWait(pPort, Events, 8u,
-		iTimeoutUs / 100u,
-		&iCount) != XNET_RESULT_OK ) {
-	continue;
-}
+xrtNetPortWait(pPort, Events, 8u,iTimeoutMs / 100u,
+				&iCount)
 ```
-
 ### 用户事件与唤醒
 
 每次成功 `Post` 产生一个 FIFO `USER` 事件，不会合并。`Wake` 只请求一个可合并的 `WAKE` 事件，适合“命令队列已有工作”通知；连续 Wake 不会让 worker 重复空转。端口会合并底层通知而不合并用户事件，因此突发的数千次 `Post` 不需要执行同等数量的唤醒系统调用。事件入队与首次底层通知在同一临界区原子成立，`Post` 返回 `false` 时不会留下随后仍可提取的幽灵事件。select 后端使用两个非阻塞 UDP Socket 形成全平台唤醒通道；epoll 使用 `EFD_NONBLOCK|EFD_CLOEXEC` eventfd，并为不支持原子标志的旧内核补设 `O_NONBLOCK` 与 `FD_CLOEXEC`；kqueue 使用可合并的 `EVFILT_USER/NOTE_TRIGGER`，不再创建旧版 pipe。三者都只承载通知，不承载用户事件本体。
@@ -6489,14 +6569,11 @@ bool xrtNetPortPost(xnetport* pPort, uint64 Id, ptr pUser);
 
 #### 范例
 
-[network/port_tour · 用户事件](../../examples/network/port_tour/main.c) · `USER` 事件携带 `Id`
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( !xrtNetPortPost(pIocp, 777u, NULL) ||
-	!exampleWaitFor(pIocp, XNET_PORT_EVENT_USER, 777u,
-		&Event, 2000000ull) ||
+xrtNetPortPost(pIocp, 777u, NULL)
 ```
-
 ### `xrtNetPortWake`
 
 跨线程请求一个可合并的 `WAKE` 事件；连续请求只产生一个事件。适合“命令队列已有工作”式通知。
@@ -6525,16 +6602,11 @@ bool xrtNetPortWake(xnetport* pPort);
 
 #### 范例
 
-[network/port_tour · 唤醒](../../examples/network/port_tour/main.c) · `WAKE` 事件 `Id` 为零
+参见已注册的 [examples/network/port_tour/main.c](../../examples/network/port_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-!xrtNetPortWake(pIocp) ||
-!exampleWaitFor(pIocp, XNET_PORT_EVENT_WAKE, 0u,
-	&Event, 2000000ull) ) {
-	goto Cleanup;
-}
+xrtNetPortWake(pIocp)
 ```
-
 ### Io_uring 边界
 
 io_uring 是 Linux 原生 completion 后端，能力为 completion、原生取消、read probe、batch completion、wake 和 post。它直接映射稳定 Linux UAPI，不依赖 liburing；在提交时复制 `iovec`、地址描述符和显式发送控制值，载荷始终借用调用方内存。接收和发送统一使用 `RECVMSG`/`SENDMSG`，读探针使用 `POLL_ADD`，因此流、未连接 UDP、已连接 UDP、零长度报文、逐包发送控制与截断共用一套完成映射，不引入固定 2K 流缓冲或固定 64K 数据报缓冲。
@@ -6616,6 +6688,7 @@ if ( !xrtNetPostInit(&Post) ||
 }
 ```
 
+
 ### `xrtNetPostPending`
 
 判断嵌入式 Post 是否仍在 Worker 队列中等待执行；执行完成后清除。
@@ -6655,6 +6728,7 @@ if ( !exampleSpinUntil(&bTaskDone, 2000u) ||
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtNetPost`
 
@@ -6702,6 +6776,7 @@ if ( !xrtNetPostInit(&Post) ||
 	goto Cleanup;
 }
 ```
+
 
 ## 网络 Engine
 
@@ -6804,6 +6879,7 @@ Config.Workers = 2;
 pEngine = xrtNetEngineCreate(&Config);
 ```
 
+
 ### `xrtNetEngineCreate`
 
 创建停止状态的 Engine；Worker 线程和端口在 `Start` 时建立。`BufferPool` 指向的配置在返回前完整复制。
@@ -6842,6 +6918,7 @@ if ( (pEngine == NULL) ||
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtNetEngineStart`
 
@@ -6883,6 +6960,7 @@ while ( xrtNetEngineState(pEngine) != XNET_ENGINE_RUNNING ) {
 }
 ```
 
+
 ### `xrtNetEngineStop`
 
 排空任务并释放运行资源。任务链不收敛或仍有外借池块时返回失败，但 Engine 仍进入可重启的停止状态。
@@ -6921,6 +6999,7 @@ bool xrtNetEngineStop(xnetengine* pEngine);
 }
 ```
 
+
 ### `xrtNetEngineDestroy`
 
 停止并销毁 Engine；仍有高层对象或外借池块时失败并保留对象。
@@ -6958,6 +7037,7 @@ if ( pEngine != NULL ) {
 }
 ```
 
+
 ### `xrtNetEngineState`
 
 返回当前生命周期状态，可安全跨线程查询。
@@ -6991,6 +7071,7 @@ while ( xrtNetEngineState(pEngine) != XNET_ENGINE_RUNNING ) {
 	xrtSleep(1u);
 }
 ```
+
 
 ### `xrtNetEnginePin`
 
@@ -7028,6 +7109,7 @@ if ( !xrtNetEnginePin(pEngine) ||
 }
 ```
 
+
 ### `xrtNetEngineUnpin`
 
 释放一次 Engine 生命周期占用；没有匹配占用时返回状态错误。
@@ -7064,6 +7146,7 @@ if ( !xrtNetEnginePin(pEngine) ||
 	goto Cleanup;
 }
 ```
+
 
 ### Worker 与任务
 
@@ -7131,6 +7214,7 @@ if ( (xrtNetEngineWorkerCount(pEngine) != 2u) ||
 	((pWorker0 = xrtNetEngineWorker(pEngine, 0u)) == NULL) ||
 ```
 
+
 ### `xrtNetEngineWorker`
 
 返回借用的指定 Worker；索引越界时返回空指针。
@@ -7166,6 +7250,7 @@ xnetworker* xrtNetEngineWorker(xnetengine* pEngine, uint32 iIndex);
 ((pWorker1 = xrtNetEngineWorker(pEngine, 1u)) == NULL) ||
 (xrtNetEngineWorker(pEngine, 99u) != NULL) ||
 ```
+
 
 ### `xrtNetEngineCurrent`
 
@@ -7204,6 +7289,7 @@ xnetworker* xrtNetEngineCurrent(xnetengine* pEngine);
 }
 ```
 
+
 ### `xrtNetWorkerEngine`
 
 返回 Worker 所属的借用 Engine。
@@ -7238,6 +7324,7 @@ pTask->bEngineOk =
 	(xrtNetWorkerEngine(pWorker) == pTask->pEngine);
 ```
 
+
 ### `xrtNetWorkerIndex`
 
 返回 Worker 在所属 Engine 内的稳定索引。
@@ -7270,6 +7357,7 @@ uint32 xrtNetWorkerIndex(const xnetworker* pWorker);
 ```c
 pTask->bIndexOk = (xrtNetWorkerIndex(pWorker) == 0u);
 ```
+
 
 ### `xrtNetWorkerIsCurrent`
 
@@ -7304,6 +7392,7 @@ bool xrtNetWorkerIsCurrent(const xnetworker* pWorker);
 pTask->bIsCurrent = xrtNetWorkerIsCurrent(pWorker);
 ```
 
+
 ### `xrtNetWorkerPort`
 
 返回运行期间借用的端口；调用方必须保证借用操作先于 Stop 结束。
@@ -7336,6 +7425,7 @@ xnetport* xrtNetWorkerPort(xnetworker* pWorker);
 ```c
 pTask->bPortOk = (xrtNetWorkerPort(pWorker) != NULL);
 ```
+
 
 ### `xrtNetWorkerBufPool`
 
@@ -7372,6 +7462,7 @@ xnetbufpool* xrtNetWorkerBufPool(xnetworker* pWorker);
 pPool = xrtNetWorkerBufPool(pWorker);
 pTask->bBufPoolOk = (pPool != NULL);
 ```
+
 
 ### `xrtNetWorkerAlloc`
 
@@ -7412,6 +7503,7 @@ pTask->bAllocOk = (pBlock != NULL) &&
 xrtNetWorkerFree(pWorker, pBlock, 32u);
 ```
 
+
 ### `xrtNetWorkerFree`
 
 把 Worker 分配的内存归还同一 Worker；空指针可以直接释放。
@@ -7446,6 +7538,7 @@ void xrtNetWorkerFree(
 xrtNetWorkerFree(pWorker, pBlock, 32u);
 pTask->bFreeOk = true;
 ```
+
 
 ### `xrtNetWorkerOperationId`
 
@@ -7484,6 +7577,7 @@ if ( (IdOpA == 0u) || (IdOpB == 0u) || (IdOpA == IdOpB) ) {
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtNetEnginePost`
 
@@ -7526,6 +7620,7 @@ if ( !xrtNetEnginePost(pEngine, 0u, exampleWorkerTask,
 		(ptr)&Task) ||
 	!exampleSpinUntil(&Task.bDone, 2000u) ||
 ```
+
 
 ### Timer
 
@@ -7604,6 +7699,7 @@ Timers.iLongId = xrtNetEngineSchedule(pEngine, 0u,
 	(ptr)&Timers);
 ```
 
+
 ### `xrtNetEngineAfter`
 
 按相对毫秒数调度 Timer；零表示在下一次 Worker 循环到期。等价于 `Schedule` + `relative milliseconds`，错误集与之相同。
@@ -7637,18 +7733,17 @@ uint64 xrtNetEngineAfter(xnetengine* pEngine,
 
 #### 范例
 
-[network/engine · 延迟任务](../../examples/network/engine/main.c) · 100 毫秒后触发
+参见已注册的 [examples/network/engine/main.c](../../examples/network/engine/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-(xrtNetEngineAfter(
-	pEngine,
-	1,
-	100000u,
-	exampleTimer,
-	&State
-) == 0) ) {
+xrtNetEngineAfter(
+			pEngine,
+			1,
+			100,
+			exampleTimer,
+			&State
+		)
 ```
-
 ### `xrtNetEngineTimerCancel`
 
 异步请求取消 Timer；成功只表示取消命令已进入目标 Worker。
@@ -7689,6 +7784,7 @@ if ( (IdFire == 0u) || (Timers.iLongId == 0u) ||
 }
 ```
 
+
 ### `xrtNetEngineTimerCancelCurrent`
 
 只在 Timer 所属 Worker 上立即取消且不分配内存。不在所属 Worker、Timer 尚未入堆或已经终结时返回 `false`，且不修改线程错误。
@@ -7726,6 +7822,7 @@ bool xrtNetEngineTimerCancelCurrent(
 pTimers->bCancelCurrentOk = xrtNetEngineTimerCancelCurrent(
 	xrtNetWorkerEngine(pWorker), pTimers->iLongId);
 ```
+
 
 ### Completion
 
@@ -7773,6 +7870,7 @@ void xrtNetCompletionInit(xnetcompletion* pCompletion,
 xrtNetCompletionInit(&Completion, exampleCompletionProc,
 	(ptr)&bTaskDone);
 ```
+
 
 ### 统计
 
@@ -7826,6 +7924,7 @@ if ( !xrtNetWorkerStats(pWorker0, &WorkerStats) ||
 }
 ```
 
+
 ### `xrtNetEngineStats`
 
 聚合全部 Worker 的统计快照。
@@ -7865,6 +7964,7 @@ if ( !xrtNetEngineStats(pEngine, &EngineStats) ||
 }
 ```
 
+
 ## 名称解析（Resolver）
 
 Resolver 提供独立于 Engine 的异步名称解析：自带工作线程池、成功/失败结果缓存与并发上限。同一规范化主机与地址族只执行一次底层查询，并发请求共享同一查询组。`xrtNetResolveAsync` 把查询包装为 Future。Op（`xnetresolveop`）是引用计数对象：回调在 Resolver Worker 上恰好执行一次，回调后仍可查询状态与结果，跨线程保留须先 `xrtNetResolveOpRef`。
@@ -7897,6 +7997,7 @@ void xrtNetResolverConfigInit(xnetresolverconfig* pConfig);
 xrtNetResolverConfigInit(&Config);
 pResolver = xrtNetResolverCreate(&Config);
 ```
+
 
 ### `xrtNetResolverCreate`
 
@@ -7939,6 +8040,7 @@ if ( (pResolver == NULL) ||
 }
 ```
 
+
 ### `xrtNetResolverDestroy`
 
 排空已受理请求并等待全部回调；必须与其他 Resolver 所有者操作串行，返回后指针失效。
@@ -7974,6 +8076,7 @@ if ( (pResolver != NULL) &&
 	iResult = 2;
 }
 ```
+
 
 ### `xrtNetResolverResolve`
 
@@ -8023,6 +8126,7 @@ pOperation = xrtNetResolverResolve(pResolver, "localhost",
 	XNET_FAMILY_IPV4, exampleResolveDone, (ptr)&State);
 ```
 
+
 ### `xrtNetResolverClear`
 
 清空成功和失败缓存；已经运行或排队的查询不受影响。
@@ -8058,6 +8162,7 @@ if ( !xrtNetResolverClear(pResolver) ) {
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtNetResolverStats`
 
@@ -8100,6 +8205,7 @@ if ( !xrtNetResolverStats(pResolver, &Stats) ||
 }
 ```
 
+
 ### `xrtNetResolveOpRef`
 
 增加解析操作引用并返回原指针。跨线程保留 Op（回调后仍要查询）必须先取引用。
@@ -8138,6 +8244,7 @@ xrtNetResolveOpDestroy(pRef);
 xrtNetResolveOpDestroy(pOperation);
 ```
 
+
 ### `xrtNetResolveOpDestroy`
 
 释放解析操作引用；空指针视为空操作。归零时释放操作与关联结果。
@@ -8167,6 +8274,7 @@ xrtNetResolveOpDestroy(pRef);
 xrtNetResolveOpDestroy(pOperation);
 ```
 
+
 ### `xrtNetResolveOpCancel`
 
 协作取消尚未进入终态的操作；回调仍在 Resolver Worker 上执行一次（以 `CANCELLED` 终态）。
@@ -8195,15 +8303,11 @@ bool xrtNetResolveOpCancel(xnetresolveop* pOperation);
 
 #### 范例
 
-[network/resolver · 超时取消](../../examples/network/resolver/main.c) · 等待截止后协作取消
+参见已注册的 [examples/network/resolver/main.c](../../examples/network/resolver/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-if ( (xrtTimer() >= iDeadline) ) {
-	(void)xrtNetResolveOpCancel(pOperation);
-	break;
-}
+xrtNetResolveOpCancel(pOperation);
 ```
-
 ### `xrtNetResolveOpState`
 
 返回解析操作当前状态的原子快照。
@@ -8241,6 +8345,7 @@ if ( (pOperation == NULL) ||
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtNetResolveOpResult`
 
@@ -8284,6 +8389,7 @@ if ( (pList == NULL) ||
 xrtNetAddrListDestroy(pList);
 ```
 
+
 ### `xrtNetResolveOpError`
 
 失败或取消时返回借用的结构化错误，其他状态返回空指针。
@@ -8321,6 +8427,7 @@ const xerror* pError = xrtNetResolveOpError(pOperation);
 fprintf(stderr, "%s\n", pError != NULL ?
 	xrtErrorMessage(pError) : "resolve failed");
 ```
+
 
 ### `xrtNetResolveAsync`
 
@@ -8366,6 +8473,7 @@ pFuture = xrtNetResolveAsync(
 );
 ```
 
+
 ## 网络接口与本机信息
 
 接口族回答三类问题：名字与接口索引互查（`InterfaceIndex`/`InterfaceName`）、整机一致快照（`Interfaces`）、本机诊断偏好（`LocalAddress`/`LocalHardware`/`HostName` 及其文本形态）。本机诊断函数是确定性偏好查询，不代表公网出口、默认路由或服务监听策略。缓冲输出统一采用两段式：空缓冲查询所需大小，缓冲不足不写入并报告完整所需大小。
@@ -8399,16 +8507,11 @@ uint32 xrtNetInterfaceIndex(cstr sName, xnetfamily Family);
 
 #### 范例
 
-[network/interface_tour · 往返](../../examples/network/interface_tour/main.c) · 跨平台回环命名差异
+参见已注册的 [examples/network/interface_tour/main.c](../../examples/network/interface_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-iIndex = xrtNetInterfaceIndex("loopback4", XNET_FAMILY_IPV4);
-if ( iIndex == 0u ) {
-	iIndex = xrtNetInterfaceIndex(
-		"Loopback Pseudo-Interface 1", XNET_FAMILY_IPV4);
-}
+xrtNetInterfaceIndex("loopback4", XNET_FAMILY_IPV4);
 ```
-
 ### `xrtNetInterfaceName`
 
 输出指定接口索引的规范名称并返回所需长度。`UNSPEC` 同时匹配 IPv4 与 IPv6 索引；空输出可查询所需大小。
@@ -8457,6 +8560,7 @@ iSize = xrtNetInterfaceName(iIndex, XNET_FAMILY_IPV4, sName,
 	sizeof(sName));
 ```
 
+
 ### `xrtNetInterfaces`
 
 创建当前系统接口、地址和元数据的一致快照。
@@ -8496,6 +8600,7 @@ for ( i = 0; i < List.Count; i++ ) {
 	const xnetinterface* pInterface = &List.Items[i];
 ```
 
+
 ### `xrtNetInterfacesFree`
 
 释放接口快照拥有的全部存储并清零。
@@ -8525,6 +8630,7 @@ xrtNetInterfacesFree(&List);
 return 0;
 }
 ```
+
 
 ### `xrtNetLocalAddress`
 
@@ -8567,6 +8673,7 @@ if ( !xrtNetLocalAddress(&Address, XNET_FAMILY_IPV4) ||
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtNetLocalAddressText`
 
@@ -8612,6 +8719,7 @@ iSize = xrtNetLocalAddressText(XNET_FAMILY_IPV4, sText,
 	sizeof(sText));
 ```
 
+
 ### `xrtNetLocalAddressString`
 
 分配并返回首选本机地址文本。
@@ -8646,6 +8754,7 @@ str sAddress = xrtNetLocalAddressString(XNET_FAMILY_UNSPEC);
 str sHost = xrtNetHostNameString();
 str sHardware = xrtNetLocalHardwareString();
 ```
+
 
 ### `xrtNetLocalHardware`
 
@@ -8689,6 +8798,7 @@ if ( (iNeed < 6u) || (iNeed > sizeof(Hardware)) ) {
 iSize = xrtNetLocalHardware(Hardware, sizeof(Hardware));
 ```
 
+
 ### `xrtNetLocalHardwareText`
 
 输出首选接口硬件地址的大写紧凑 HEX 文本。
@@ -8731,6 +8841,7 @@ if ( (iNeed < 12u) || (iNeed >= sizeof(sText)) ) {
 iSize = xrtNetLocalHardwareText(sText, sizeof(sText));
 ```
 
+
 ### `xrtNetLocalHardwareString`
 
 分配并返回首选接口硬件地址的大写紧凑 HEX 文本。
@@ -8765,6 +8876,7 @@ str sAddress = xrtNetLocalAddressString(XNET_FAMILY_UNSPEC);
 str sHost = xrtNetHostNameString();
 str sHardware = xrtNetLocalHardwareString();
 ```
+
 
 ### `xrtNetHostName`
 
@@ -8808,6 +8920,7 @@ if ( (iNeed == 0u) || (iNeed >= sizeof(sName)) ) {
 iSize = xrtNetHostName(sName, sizeof(sName));
 ```
 
+
 ### `xrtNetHostNameString`
 
 分配并返回本机主机名。
@@ -8842,3 +8955,692 @@ str sAddress = xrtNetLocalAddressString(XNET_FAMILY_UNSPEC);
 str sHost = xrtNetHostNameString();
 str sHardware = xrtNetLocalHardwareString();
 ```
+
+
+### `xrtNetAddrListOwnership`
+
+```c
+xrtownershipref xrtNetAddrListOwnership(const xnetaddrlist* pList);
+```
+
+Immutable leaf: exact physical RC, no outgoing ownership or user callbacks.
+Borrowed view and adapter query require whole-graph freeze/code residency.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pList` | `const xnetaddrlist*` | 借用的 const xnetaddrlist* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetAddrListOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtNetAddrListOwnershipAdapterV1(xrtownershipref Reference);
+```
+
+在调用方提供的全图冻结下，按精确描述符与策略身份查询生命周期适配器；未认证、活动或不稳定对象返回 NULL。返回描述符为借用，不能绕过子节点的独立准入。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetEngineOwnership`
+
+```c
+xrtownershipref xrtNetEngineOwnership(const xnetengine* pEngine);
+```
+
+Whole-domain freeze is required for views/adapter resolution. The physical
+RC counts the creator, actual object/Pin owners and independent plan holds;
+LiveObjects and embedded workers are NOT invented references. Trace visits
+one owned context per accepted command/timer, not borrowed heap/hash links.
+Running callbacks, partial submissions, legacy pending work, exposed raw
+port duties and live pool blocks conservatively refuse inspection. This does
+not yet certify arbitrary transport objects or complete native service graphs.
+Exact policy identities must be admitted before inspecting context code.
+Prepare drains callbacks and joins XRT thread cleanup without consuming the
+creator or freeing worker resources; Clear/Finish keep counted shells alive.
+Native OS exit/code-unload proof remains a separate host responsibility.
+Rejection leaves the preparation output and ambient error unchanged.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pEngine` | `const xnetengine*` | 借用的 const xnetengine* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetEngineOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtNetEngineOwnershipAdapterV1(xrtownershipref Reference, const xnettaskownershipv1* const* pTaskPolicies, size_t iTaskPolicyCount, const xnettimerownershipv1* const* pTimerPolicies, size_t iTimerPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+在调用方提供的全图冻结下，按精确描述符与策略身份查询生命周期适配器；未认证、活动或不稳定对象返回 NULL。返回描述符为借用，不能绕过子节点的独立准入。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pTaskPolicies` | `const xnettaskownershipv1* const*` | 借用的 const xnettaskownershipv1* const* 对象或调用方结果槽，按上述操作契约使用。 |
+| `iTaskPolicyCount` | `size_t` | 对应拥有槽的常驻认证策略；身份与回调在对象生存期内保持不变。 |
+| `pTimerPolicies` | `const xnettimerownershipv1* const*` | 借用的 const xnettimerownershipv1* const* 对象或调用方结果槽，按上述操作契约使用。 |
+| `iTimerPolicyCount` | `size_t` | 对应拥有槽的常驻认证策略；身份与回调在对象生存期内保持不变。 |
+| `ppPreparation` | `const xrtownershippreparationv1**` | 成功时交付语义准备协议；失败不修改。必须与生命周期适配器配套使用。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetEnginePostOwnedV1`
+
+```c
+bool xrtNetEnginePostOwnedV1(xnetengine* pEngine, uint64 iAffinity, ptr pData, const xnettaskownershipv1* pPolicy);
+```
+
+向亲和 Worker 投递认证上下文。接受时拥有数据引用，执行并 Drop；失败不消费数据。策略必须含 Task、Drop、Count 和 Trace。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pEngine` | `xnetengine*` | 借用的 xnetengine* 对象或调用方结果槽，按上述操作契约使用。 |
+| `iAffinity` | `uint64` | uint64 值；约束与效果见上述操作契约。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pPolicy` | `const xnettaskownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+true 表示完成，false 表示拒绝或失败；失败时的输出及数据所有权按上述契约处理。
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作完成 | 按上述契约交付结果 |
+| `false` | 拒绝、忙碌或失败 | 正常不成立及忙碌按本节错误契约区分；其余失败状态见上述契约 |
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetEngineScheduleOwnedV1`
+
+```c
+uint64 xrtNetEngineScheduleOwnedV1(xnetengine* pEngine, uint64 iAffinity, int64 iTimeout, ptr pData, const xnettimerownershipv1* pPolicy);
+```
+
+按相对毫秒调度认证 Timer，成功返回非零 timer ID；失败返回零且不消费数据。策略须覆盖 Proc、Drop 和真实拥有槽。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pEngine` | `xnetengine*` | 借用的 xnetengine* 对象或调用方结果槽，按上述操作契约使用。 |
+| `iAffinity` | `uint64` | uint64 值；约束与效果见上述操作契约。 |
+| `iTimeout` | `int64` | int64 值；约束与效果见上述操作契约。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pPolicy` | `const xnettimerownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+返回上述契约定义的计数、日历字段、状态或能力值；单位与当前函数签名一致。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetEngineTryDestroy`
+
+```c
+xnetretireresult xrtNetEngineTryDestroy(xnetengine* pEngine);
+```
+
+与 Start/Stop/Destroy 及其他 TryDestroy 串行，不等待提交者、Worker 或线程清理。
+活动对象/Pin 保留运行态并返回 BUSY；否则关闭接纳并进入不可重启的 DESTROYING。
+自身 Worker、尚未退出的线程或外借池块返回 BUSY，保留创建者拥有权供稍后重试。
+只有 READY 消费拥有权；ERROR 保留指针。Destroy 也可完成已开始的退休。
+空指针为 READY，BUSY/READY 保留调用前诊断；不表示完整对象拥有图已经可追踪。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pEngine` | `xnetengine*` | 借用的 xnetengine* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+返回上述契约定义的计数、日历字段、状态或能力值；单位与当前函数签名一致。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetResolveOpOwnership`
+
+```c
+xrtownershipref xrtNetResolveOpOwnership(const xnetresolveop* pOperation);
+```
+
+提供真实物理所有权协议；调用方必须保持节点、策略和回调代码驻留，并使所有参与的强引用变更处于同一个冻结协议。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pOperation` | `const xnetresolveop*` | 借用的 const xnetresolveop* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetResolveOpOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtNetResolveOpOwnershipAdapterV1(xrtownershipref Reference, const xnetresolveownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+在调用方提供的全图冻结下，按精确描述符与策略身份查询生命周期适配器；未认证、活动或不稳定对象返回 NULL。返回描述符为借用，不能绕过子节点的独立准入。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pPolicies` | `const xnetresolveownershipv1* const*` | 调用方认可的常驻、不可变策略指针白名单；按真实指针身份匹配。 |
+| `iPolicyCount` | `size_t` | 策略白名单元素数，零表示没有显式授权策略。 |
+| `ppPreparation` | `const xrtownershippreparationv1**` | 成功时交付语义准备协议；失败不修改。必须与生命周期适配器配套使用。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetResolverCreateOwnedV1`
+
+```c
+xnetresolver* xrtNetResolverCreateOwnedV1(const xnetresolverconfig* pConfig, ptr pData, const xnetresolverlookupownershipv1* pPolicy);
+```
+
+Config must leave Lookup/LookupData empty. The explicit policy supplies both.
+Ordinary Create remains borrowed/opaque for custom lookup callbacks.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pConfig` | `const xnetresolverconfig*` | 借用的 const xnetresolverconfig* 对象或调用方结果槽，按上述操作契约使用。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pPolicy` | `const xnetresolverlookupownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetResolverFutureCancelPolicyV1Get`
+
+```c
+const xcancelwatchownershipv1* xrtNetResolverFutureCancelPolicyV1Get(void);
+```
+
+返回该库实例的常驻、不可变策略描述。策略覆盖真实拥有槽，调用方仍须独立准入每个子节点并保证回调代码驻留。
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+借用的常驻策略指针，不释放、不修改。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetResolverFutureOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtNetResolverFutureOwnershipAdapterV1(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+```
+
+在调用方提供的全图冻结下，按精确描述符与策略身份查询生命周期适配器；未认证、活动或不稳定对象返回 NULL。返回描述符为借用，不能绕过子节点的独立准入。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `ppPreparation` | `const xrtownershippreparationv1**` | 成功时交付语义准备协议；失败不修改。必须与生命周期适配器配套使用。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetResolverFuturePayloadPolicyV1Get`
+
+```c
+const xfuturepayloadownershipv1* xrtNetResolverFuturePayloadPolicyV1Get(void);
+```
+
+返回该库实例的常驻、不可变策略描述。策略覆盖真实拥有槽，调用方仍须独立准入每个子节点并保证回调代码驻留。
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+借用的常驻策略指针，不释放、不修改。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetResolverFutureProducerPolicyV1Get`
+
+```c
+const xfutureproducerownershipv1* xrtNetResolverFutureProducerPolicyV1Get(void);
+```
+
+Resident identities for the actual ResolveAsync transport. The producer
+owns Promise, Operation and the bridge's certified cancellation Watch.
+Promise and Future identify the SAME physical node. The success payload
+owns one immutable AddrList. Independently admit each policy on its actual
+participant; these identities do not certify arbitrary native callbacks or
+the complete network graph. Prepare waits for accepted work, never cancels
+it or closes its Future to manufacture a collectible intermediate graph.
+Query under freeze; failure leaves the preparation output unchanged.
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+借用的常驻策略指针，不释放、不修改。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetResolverFutureRequestPolicyV1Get`
+
+```c
+const xnetresolveownershipv1* xrtNetResolverFutureRequestPolicyV1Get(void);
+```
+
+返回该库实例的常驻、不可变策略描述。策略覆盖真实拥有槽，调用方仍须独立准入每个子节点并保证回调代码驻留。
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+借用的常驻策略指针，不释放、不修改。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetResolverOwnership`
+
+```c
+xrtownershipref xrtNetResolverOwnership(const xnetresolver* pResolver);
+```
+
+Actual creator/operation/plan RC, not worker counts or inferred liveness.
+Each queued request is one service-owned edge; hash/queue links are borrowed.
+Operations own their service, result/error, and certified callback context.
+Running lookup/dispatch, joining and construction reject inspection. Parked
+workers own no fabricated RC nodes; preparation drains accepted work and
+proves native thread/TLS join before Clear. No cancellation is synthesized.
+Query adapters under freeze; unknown policy identities reject BEFORE context
+Count/Trace. Output preparation remains unchanged on rejection. Legacy custom
+lookup/request callbacks stay opaque until they have actually been retired.
+This certifies resolver nodes only, not the entire native network graph.
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pResolver` | `const xnetresolver*` | 借用的 const xnetresolver* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+借用的物理视图；空视图不产生拥有引用，检查前仍需保证全图静止。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetResolverOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtNetResolverOwnershipAdapterV1(xrtownershipref Reference, const xnetresolverlookupownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+在调用方提供的全图冻结下，按精确描述符与策略身份查询生命周期适配器；未认证、活动或不稳定对象返回 NULL。返回描述符为借用，不能绕过子节点的独立准入。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `Reference` | `xrtownershipref` | 借用的物理所有权视图；查询前保证整个可达图静止及代码驻留。 |
+| `pPolicies` | `const xnetresolverlookupownershipv1* const*` | 调用方认可的常驻、不可变策略指针白名单；按真实指针身份匹配。 |
+| `iPolicyCount` | `size_t` | 策略白名单元素数，零表示没有显式授权策略。 |
+| `ppPreparation` | `const xrtownershippreparationv1**` | 成功时交付语义准备协议；失败不修改。必须与生命周期适配器配套使用。 |
+
+#### 返回值
+
+借用的常驻适配器；不满足完整准入协议返回 NULL。拒绝不等于空图。
+
+#### 错误
+
+NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生命周期或代码卸载权限。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetResolverResolveOwnedV1`
+
+```c
+xnetresolveop* xrtNetResolverResolveOwnedV1(xnetresolver* pResolver, cstr sHost, xnetfamily Family, ptr pData, const xnetresolveownershipv1* pPolicy);
+```
+
+提交主机解析，并以显式策略描述已接受请求的回调及真实上下文引用。拒绝时不消费 Data；结果、错误及服务引用由实际操作对象持有。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pResolver` | `xnetresolver*` | 借用的 xnetresolver* 对象或调用方结果槽，按上述操作契约使用。 |
+| `sHost` | `cstr` | cstr 值；约束与效果见上述操作契约。 |
+| `Family` | `xnetfamily` | xnetfamily 值；约束与效果见上述操作契约。 |
+| `pData` | `ptr` | 借用的 ptr 对象或调用方结果槽，按上述操作契约使用。 |
+| `pPolicy` | `const xnetresolveownershipv1*` | 不可变、常驻的认证策略；必须覆盖实际回调和强引用槽。 |
+
+#### 返回值
+
+成功交付结果指针，拥有或借用规则见上述契约；拒绝或失败为 NULL。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xrtNetResolverTryDestroy`
+
+```c
+xnetretireresult xrtNetResolverTryDestroy(xnetresolver* pResolver);
+```
+
+关闭接纳并推进销毁，不等待查询、回调或线程退出；自身 Worker 调用返回 BUSY。
+与其他所有者操作串行。BUSY 不设置错误，保留指针并允许稍后重试（或 Destroy）。
+READY 表示所有 Worker 及线程清理已结束并消费创建者拥有权；独立操作引用仍有效。
+ERROR 同样保留拥有权。空指针为 READY，BUSY/READY 保留调用前诊断。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pResolver` | `xnetresolver*` | 借用的 xnetresolver* 对象或调用方结果槽，按上述操作契约使用。 |
+
+#### 返回值
+
+返回上述契约定义的计数、日历字段、状态或能力值；单位与当前函数签名一致。
+
+#### 错误
+
+无效参数、生命周期状态或内存不足按当前模块错误模型报告。尚未接受的数据和未提交的拥有关系保持调用方所有；策略身份不匹配拒绝调用未知回调。详见上述逐接口契约。
+
+#### 范例
+
+参见已注册的 [examples/network/address/main.c](../../examples/network/address/main.c)，结合本节参数和生存期规则使用。
+
+
+
+### `xnetresolveownershipv1`
+
+认证解析请求上下文和完成回调的不可变策略，描述请求真正持有的引用。
+
+```c
+typedef struct xnetresolveownershipv1 {
+	size_t size;
+	xnetresolveproc Done;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xnetresolveownershipv1;
+```
+
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `Done` | `xnetresolveproc` | `Done` 的 xnetresolveproc 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `Ops` | `const xrtownershipops*` | 同一物理 Data 节点的计数和真实边枚举操作表。 |
+
+### `xnetresolverlookupownershipv1`
+
+认证自定义 lookup 上下文。Config 的 Lookup/LookupData 保持空，由策略显式提供。
+
+```c
+typedef struct xnetresolverlookupownershipv1 {
+	size_t size;
+	xnetresolverlookup Lookup;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xnetresolverlookupownershipv1;
+```
+
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `Lookup` | `xnetresolverlookup` | `Lookup` 的 xnetresolverlookup 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `Ops` | `const xrtownershipops*` | 同一物理 Data 节点的计数和真实边枚举操作表。 |
+
+### `xnetretireresult`
+
+非阻塞退休结果。Busy 保留创建者拥有引用并允许重试，Done 才消费创建者；失败不能卸载代码。
+
+```c
+typedef enum xnetretireresult {
+	XNET_RETIRE_ERROR = -1,
+	XNET_RETIRE_BUSY = 0,
+	XNET_RETIRE_READY = 1
+} xnetretireresult;
+```
+
+
+| 值 | 语义 |
+|---|---|
+| `XNET_RETIRE_ERROR` | 退休失败，保持代码和资源驻留，不消费创建者。 |
+| `XNET_RETIRE_BUSY` | 仍有实际工作或拥有引用，非阻塞返回并允许重试。 |
+| `XNET_RETIRE_READY` | 退休已完成，消费创建者拥有引用。 |
+
+### `xnettaskownershipv1`
+
+认证 Worker 已接受任务的数据生命周期，Task、Drop、Ops 必须完整且常驻。
+
+```c
+typedef struct xnettaskownershipv1 {
+	size_t size;
+	xnettaskproc Task;
+	void (*Drop)(ptr pData);
+	const xrtownershipops* Ops;
+} xnettaskownershipv1;
+```
+
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `Task` | `xnettaskproc` | `Task` 的 xnettaskproc 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `Ops` | `const xrtownershipops*` | 同一物理 Data 节点的计数和真实边枚举操作表。 |
+
+### `xnettimerownershipv1`
+
+认证 Timer 已接受上下文的 Proc、Drop 与真实拥有边，不把调度链接当成额外拥有引用。
+
+```c
+typedef struct xnettimerownershipv1 {
+	size_t size;
+	xnettimerproc Proc;
+	void (*Drop)(ptr pData);
+	const xrtownershipops* Ops;
+} xnettimerownershipv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
+| `Proc` | `xnettimerproc` | `Proc` 的 xnettimerproc 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
+| `Ops` | `const xrtownershipops*` | 同一物理 Data 节点的计数和真实边枚举操作表。 |

@@ -24,6 +24,7 @@ typedef enum xnetudpstate {
 | `XNET_UDP_CLOSING` | 关闭中 |
 | `XNET_UDP_CLOSED` | 已关闭 |
 
+
 ### `xnetudpwait`
 
 UDP 等待条件是水平条件；Future 只表示本次等待，不接管 UDP 对象。
@@ -46,6 +47,7 @@ typedef enum xnetudpwait {
 | `XNET_UDP_WAIT_DRAIN` | 排空策略 |
 | `XNET_UDP_WAIT_CLOSE` | 等待关闭 |
 
+
 ### `xnetudpoverflow`
 
 拉取队列满时绝不阻塞 Worker，由调用方明确选择丢弃策略。
@@ -63,6 +65,7 @@ typedef enum xnetudpoverflow {
 | `XNET_UDP_DROP_NEWEST` | NEWEST |
 | `XNET_UDP_DROP_OLDEST` | OLDEST |
 | `XNET_UDP_DROP_ERROR` | 失败 |
+
 
 ### `xnetudptruncation`
 
@@ -82,6 +85,7 @@ typedef enum xnetudptruncation {
 | `XNET_UDP_TRUNCATE_DROP` | 丢弃策略 |
 | `XNET_UDP_TRUNCATE_ERROR` | 失败 |
 
+
 ### `xnetudpflag`
 
 消息标志在推送消息和拥有型数据包之间保持一致。
@@ -95,6 +99,7 @@ typedef enum xnetudpflag {
 | 值 | 语义 |
 |---|---|
 | `XNET_UDP_MESSAGE_TRUNCATED` | 报文被截断 |
+
 
 ### `xnetudpmessage`
 
@@ -118,6 +123,7 @@ typedef struct xnetudpmessage {
 | `Size` | `size_t` | 字节数 |
 | `Flags` | `uint32` | 标志位 |
 
+
 ### `xnetudperrormessage`
 
 数据报协议错误只在 DatagramError 回调期间借用负载前缀。
@@ -135,6 +141,7 @@ typedef struct xnetudperrormessage {
 | `Error` | `xnetdgramerror` | 错误输出 |
 | `Data` | `cbytes` | 数据 |
 | `Size` | `size_t` | 字节数 |
+
 
 ### `xnetudpevents`
 
@@ -165,6 +172,7 @@ typedef struct xnetudpevents {
 | `DatagramError` | `void (*DatagramError)(xnetudp* pUdp, const xnetudperrormessage* pMessage, ptr pData)` | ICMP/配额错误到达 |
 | `Error` | `void (*Error)(xnetudp* pUdp, const xerror* pError, ptr pData)` | 对象级错误 |
 | `Close` | `void (*Close)(xnetudp* pUdp, xnetresult Result, const xerror* pError, ptr pData)` | 对象关闭 |
+
 
 ### `xnetudpconfig`
 
@@ -234,6 +242,7 @@ typedef struct xnetudpconfig {
 | `Broadcast` | `bool` | Broadcast |
 | `IPv6Only` | `bool` | IPv6Only |
 | `ReceiveErrors` | `bool` | ReceiveErrors |
+
 
 ### `xnetudpstats`
 
@@ -316,6 +325,7 @@ typedef struct xnetudpstats {
 | `PeakActiveSends` | `uint32` | PeakActiveSends |
 | `Connected` | `bool` | Connected |
 
+
 ### `xnetudp`
 
 UDP 对象（不透明）：绑定 Engine Worker 的有界收发队列载体。
@@ -326,6 +336,7 @@ typedef struct xnetudp xnetudp;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xnetudppacket`
 
@@ -338,6 +349,7 @@ typedef struct xnetudppacket xnetudppacket;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xnetudperrorpacket`
 
 拥有型数据报错误包（不透明）：含结构化错误与原负载前缀，用后销毁。
@@ -349,6 +361,7 @@ typedef struct xnetudperrorpacket xnetudperrorpacket;
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
 
+
 ### `xnetudpbatch`
 
 拥有型批量接收结果（不透明）：持有最多 256 个数据包，可逐个转移。
@@ -359,6 +372,7 @@ typedef struct xnetudpbatch xnetudpbatch;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### 常量总表
 
@@ -514,6 +528,7 @@ void xrtNetUdpConfigInit(xnetudpconfig* pConfig)
 	xrtNetUdpConfigInit(&UdpConfig);
 ```
 
+
 ### `xrtNetUdpOpen`
 
 打开、绑定并可选连接 UDP；至少一个地址必须确定地址族。
@@ -556,6 +571,7 @@ xnetudp* xrtNetUdpOpen(xnetengine* pEngine, const xnetaddr* pLocal, const xnetad
 		NULL, NULL);
 ```
 
+
 ### `xrtNetUdpBind`
 
 打开未连接 UDP，适合服务器、多对端客户端和多播接收。
@@ -596,6 +612,7 @@ xnetudp* xrtNetUdpBind(xnetengine* pEngine, const xnetaddr* pLocal, uint64 iAffi
 	pServer = xrtNetUdpBind(pEngine, &Address, 0,
 		&UdpConfig, NULL, NULL);
 ```
+
 
 ### `xrtNetUdpConnect`
 
@@ -638,6 +655,7 @@ xnetudp* xrtNetUdpConnect(xnetengine* pEngine, const xnetaddr* pPeer, uint64 iAf
 		NULL, NULL, NULL);
 ```
 
+
 ### `xrtNetUdpRef`
 
 增加 UDP 引用并返回原指针。
@@ -671,6 +689,7 @@ xnetudp* xrtNetUdpRef(xnetudp* pUdp)
 	pRef = xrtNetUdpRef(pUdp);
 ```
 
+
 ### `xrtNetUdpDestroy`
 
 释放 UDP 引用；关闭操作必须另行请求。
@@ -702,6 +721,7 @@ void xrtNetUdpDestroy(xnetudp* pUdp)
 ```c
 	xrtNetUdpDestroy(pClient);
 ```
+
 
 ## 接收模式
 
@@ -769,6 +789,7 @@ xnetudppacket* xrtNetUdpReceive(xnetudp* pUdp)
 		pPacket = xrtNetUdpReceive(pUdp);
 ```
 
+
 ### `xrtNetUdpReceiveBatch`
 
 未设置 Receive 回调时，在一次锁内取出最多指定数量的数据包。
@@ -802,6 +823,7 @@ size_t xrtNetUdpReceiveBatch(xnetudp* pUdp, xnetudppacket** pPackets, size_t iCa
 ```c
 		iCount = xrtNetUdpReceiveBatch(pServer, pPackets, 8);
 ```
+
 
 ### `xrtNetUdpReceiveError`
 
@@ -837,6 +859,7 @@ xnetudperrorpacket* xrtNetUdpReceiveError(xnetudp* pUdp)
 				1u : 0u),
 ```
 
+
 ### `xrtNetUdpReceiveErrorBatch`
 
 未设置 DatagramError 回调时，在一次锁内取出一批错误包。
@@ -870,6 +893,7 @@ size_t xrtNetUdpReceiveErrorBatch(xnetudp* pUdp, xnetudperrorpacket** pPackets, 
 ```c
 			xrtNetUdpReceiveErrorBatch(pServer, pErrors, 4));
 ```
+
 
 ### `xrtNetUdpReceiveWait`
 
@@ -911,6 +935,7 @@ xnetudppacket* xrtNetUdpReceiveWait(xnetudp* pUdp, int64 iTimeout, xcancel* pCan
 	);
 ```
 
+
 ### `xrtNetUdpReceiveErrorWait`
 
 阻塞接收一个拥有型结构化数据报错误。
@@ -951,6 +976,7 @@ xnetudperrorpacket* xrtNetUdpReceiveErrorWait(xnetudp* pUdp, int64 iTimeout, xca
 	);
 ```
 
+
 ### `xrtNetUdpReceiveBatchWait`
 
 阻塞接收一个拥有型批量结果。
@@ -989,6 +1015,7 @@ xnetudpbatch* xrtNetUdpReceiveBatchWait(xnetudp* pUdp, size_t iCapacity, int64 i
 	pBatch = xrtNetUdpReceiveBatchWait(pServer, 4,
 		3000, NULL);
 ```
+
 
 ## PMTU、异步错误与分段合并
 
@@ -1046,6 +1073,7 @@ xnetudperrorpacket* xrtNetUdpErrorPacketRef(xnetudperrorpacket* pPacket)
 		xnetudperrorpacket* pRef = xrtNetUdpErrorPacketRef(pPacket);
 ```
 
+
 ### `xrtNetUdpErrorPacketDestroy`
 
 销毁拥有型数据报错误包；空指针视为空操作。
@@ -1077,6 +1105,7 @@ void xrtNetUdpErrorPacketDestroy(xnetudperrorpacket* pPacket)
 ```c
 		xrtNetUdpErrorPacketDestroy(pRef);
 ```
+
 
 ### `xrtNetUdpErrorPacketInfo`
 
@@ -1111,6 +1140,7 @@ const xnetdgramerror* xrtNetUdpErrorPacketInfo(const xnetudperrorpacket* pPacket
 	pError = xrtNetUdpErrorPacketInfo(pPacket);
 ```
 
+
 ### `xrtNetUdpErrorPacketData`
 
 返回错误包内原数据报负载前缀。
@@ -1144,6 +1174,7 @@ cbytes xrtNetUdpErrorPacketData(const xnetudperrorpacket* pPacket)
 			 (xrtNetUdpErrorPacketData(pRef) != NULL) ) {
 ```
 
+
 ### `xrtNetUdpErrorPacketSize`
 
 返回错误包负载前缀长度。
@@ -1175,6 +1206,7 @@ size_t xrtNetUdpErrorPacketSize(const xnetudperrorpacket* pPacket)
 ```c
 		xrtNetUdpErrorPacketSize(pPacket)
 ```
+
 
 ## Future 与协程
 
@@ -1282,6 +1314,7 @@ xfuture* xrtNetUdpReceiveAsync(xnetudp* pUdp)
 	pRequest = xrtNetUdpReceiveAsync(pServer);
 ```
 
+
 ### `xrtNetUdpReceiveErrorAsync`
 
 拉取模式下异步接收一个结构化数据报错误；成功值由 Future 持有引用。
@@ -1315,6 +1348,7 @@ xfuture* xrtNetUdpReceiveErrorAsync(xnetudp* pUdp)
 ```c
 	pErrorFuture = xrtNetUdpReceiveErrorAsync(pServer);
 ```
+
 
 ### `xrtNetUdpReceiveBatchAsync`
 
@@ -1352,6 +1386,7 @@ xfuture* xrtNetUdpReceiveBatchAsync(xnetudp* pUdp, size_t iCapacity)
 	pFuture = xrtNetUdpReceiveBatchAsync(pServer, 4);
 ```
 
+
 ### `xrtNetUdpWaitAsync`
 
 异步等待 UDP 条件；成功、失败、取消和关闭映射到统一 Future 终态。
@@ -1386,6 +1421,7 @@ xfuture* xrtNetUdpWaitAsync(xnetudp* pUdp, xnetudpwait Wait)
 ```c
 	pServerOpen = xrtNetUdpWaitAsync(pServer, XNET_UDP_WAIT_OPEN);
 ```
+
 
 ### `xrtNetUdpWritableAsync`
 
@@ -1422,6 +1458,7 @@ xfuture* xrtNetUdpWritableAsync(xnetudp* pUdp, size_t iSize)
 	pWritable = xrtNetUdpWritableAsync(pClient, 64);
 ```
 
+
 ### `xrtNetUdpBatchRef`
 
 增加批量结果引用并返回原指针。
@@ -1455,6 +1492,7 @@ xnetudpbatch* xrtNetUdpBatchRef(xnetudpbatch* pBatch)
 	pBatchRef = xrtNetUdpBatchRef(pBatch);
 ```
 
+
 ### `xrtNetUdpBatchCount`
 
 返回 Future 批量结果中的数据包数量。
@@ -1486,6 +1524,7 @@ size_t xrtNetUdpBatchCount(const xnetudpbatch* pBatch)
 ```c
 	if ( (pBatch == NULL) || (xrtNetUdpBatchCount(pBatch) < 1u) ) {
 ```
+
 
 ### `xrtNetUdpBatchPacket`
 
@@ -1520,6 +1559,7 @@ xnetudppacket* xrtNetUdpBatchPacket(const xnetudpbatch* pBatch, size_t iIndex)
 ```c
 		xnetudppacket* pBorrowed = xrtNetUdpBatchPacket(pBatch, 0);
 ```
+
 
 ### `xrtNetUdpBatchTake`
 
@@ -1556,6 +1596,7 @@ xnetudppacket* xrtNetUdpBatchTake(xnetudpbatch* pBatch, size_t iIndex)
 			xrtNetUdpBatchCount(pBatch) - 1u);
 ```
 
+
 ### `xrtNetUdpBatchDestroy`
 
 销毁批量结果及其中仍未转移的数据包。
@@ -1587,6 +1628,7 @@ void xrtNetUdpBatchDestroy(xnetudpbatch* pBatch)
 ```c
 	xrtNetUdpBatchDestroy(pBatch);
 ```
+
 
 ### `xrtNetUdpPacketRef`
 
@@ -1621,6 +1663,7 @@ xnetudppacket* xrtNetUdpPacketRef(xnetudppacket* pPacket)
 	pKept = xrtNetUdpPacketRef(xrtNetUdpBatchPacket(pBatch, 0));
 ```
 
+
 ### `xrtNetUdpPacketDestroy`
 
 销毁拥有型数据包；空指针视为空操作。
@@ -1652,6 +1695,7 @@ void xrtNetUdpPacketDestroy(xnetudppacket* pPacket)
 ```c
 	xrtNetUdpPacketDestroy(pPacket);
 ```
+
 
 ### `xrtNetUdpPacketRemote`
 
@@ -1685,6 +1729,7 @@ const xnetaddr* xrtNetUdpPacketRemote(const xnetudppacket* pPacket)
 ```c
 		xrtNetUdpPacketRemote(pPacket),
 ```
+
 
 ### `xrtNetUdpPacketMeta`
 
@@ -1722,6 +1767,7 @@ const xnetdgrammeta* xrtNetUdpPacketMeta(const xnetudppacket* pPacket)
 		  XNET_DGRAM_CONTROL_SOURCE) == 0) ) {
 ```
 
+
 ### `xrtNetUdpPacketData`
 
 返回数据包的借用连续载荷。
@@ -1755,6 +1801,7 @@ cbytes xrtNetUdpPacketData(const xnetudppacket* pPacket)
 		(cstr)xrtNetUdpPacketData(pPacket));
 ```
 
+
 ### `xrtNetUdpPacketSize`
 
 返回数据包载荷长度。
@@ -1786,6 +1833,7 @@ size_t xrtNetUdpPacketSize(const xnetudppacket* pPacket)
 ```c
 		(int)xrtNetUdpPacketSize(pPacket),
 ```
+
 
 ### `xrtNetUdpPacketTruncated`
 
@@ -1820,6 +1868,7 @@ bool xrtNetUdpPacketTruncated(const xnetudppacket* pPacket)
 		if ( (pPacket == NULL) || !xrtNetUdpPacketTruncated(pPacket) ||
 			 (xrtNetUdpPacketSize(pPacket) != 16u) ) {
 ```
+
 
 ## 发送、所有权与背压
 
@@ -1915,6 +1964,7 @@ xnetresult xrtNetUdpSend(xnetudp* pUdp, const void* pData, size_t iSize)
 		 XNET_RESULT_OK ) {
 ```
 
+
 ### `xrtNetUdpSendTo`
 
 复制发送到指定对端；空对端使用连接式 UDP 的固定 Peer。
@@ -1963,6 +2013,7 @@ xnetresult xrtNetUdpSendTo(xnetudp* pUdp, const xnetaddr* pRemote, const void* p
 	) != XNET_RESULT_OK) || !exampleUdpFutureWait(pReply) ) {
 ```
 
+
 ### `xrtNetUdpSendVec`
 
 聚集复制为一个数据报后发送，所有 Span 在返回前完成复制。
@@ -2004,6 +2055,7 @@ xnetresult xrtNetUdpSendVec(xnetudp* pUdp, const xnetspan* pSpans, size_t iCount
 ```c
 	if ( xrtNetUdpSendVec(pClient, VecIn, 2) != XNET_RESULT_OK ) {
 ```
+
 
 ### `xrtNetUdpSendVecTo`
 
@@ -2049,6 +2101,7 @@ xnetresult xrtNetUdpSendVecTo(xnetudp* pUdp, const xnetaddr* pRemote, const xnet
 		 XNET_RESULT_OK ) {
 ```
 
+
 ### `xrtNetUdpSendRef`
 
 零复制发送；成功受理后在数据报离开队列时执行一次释放过程。
@@ -2093,6 +2146,7 @@ xnetresult xrtNetUdpSendRef(xnetudp* pUdp, const void* pData, size_t iSize, xnet
 	if ( xrtNetUdpSendRef(pClient, "ref-zero-copy", 13,
 		countRelease, &iReleases) != XNET_RESULT_OK ) {
 ```
+
 
 ### `xrtNetUdpSendRefTo`
 
@@ -2140,6 +2194,7 @@ xnetresult xrtNetUdpSendRefTo(xnetudp* pUdp, const xnetaddr* pRemote, const void
 		countRelease, &iReleases) != XNET_RESULT_OK ) {
 ```
 
+
 ### `xrtNetUdpSendTake`
 
 接管 XRT 分配的数据并发送；失败时所有权仍属于调用方。
@@ -2182,6 +2237,7 @@ xnetresult xrtNetUdpSendTake(xnetudp* pUdp, ptr pData, size_t iSize)
 ```c
 	if ( xrtNetUdpSendTake(pClient, pTakeIn, 10) == XNET_RESULT_OK ) {
 ```
+
 
 ### `xrtNetUdpSendTakeTo`
 
@@ -2227,6 +2283,7 @@ xnetresult xrtNetUdpSendTakeTo(xnetudp* pUdp, const xnetaddr* pRemote, ptr pData
 	if ( xrtNetUdpSendTakeTo(pServer, &ClientAddress, pTakeOut, 11) ==
 		 XNET_RESULT_OK ) {
 ```
+
 
 ### `xrtNetUdpSendMsg`
 
@@ -2278,6 +2335,7 @@ xnetresult xrtNetUdpSendMsg(xnetudp* pUdp, const xnetaddr* pRemote, const xnetdg
 	) != XNET_RESULT_OK ) {
 ```
 
+
 ### `xrtNetUdpSendMsgRef`
 
 引用发送带逐包控制的数据报，终态执行一次释放过程。
@@ -2325,6 +2383,7 @@ xnetresult xrtNetUdpSendMsgRef(xnetudp* pUdp, const xnetaddr* pRemote, const xne
 		countRelease, &iReleases) != XNET_RESULT_OK ) {
 ```
 
+
 ### `xrtNetUdpSendMsgTake`
 
 接管 XRT 分配的数据并按逐包控制发送；失败时所有权不转移。
@@ -2371,6 +2430,7 @@ xnetresult xrtNetUdpSendMsgTake(xnetudp* pUdp, const xnetaddr* pRemote, const xn
 		pTakeOut, 9) == XNET_RESULT_OK ) {
 ```
 
+
 ### `xrtNetUdpSendBatch`
 
 按前缀批量受理复制发送；受理计数输出不能为空。
@@ -2415,6 +2475,7 @@ xnetresult xrtNetUdpSendBatch(xnetudp* pUdp, const xnetdgramsend* pItems, size_t
 			  XNET_RESULT_OK) || (iAccepted != 3) ) {
 ```
 
+
 ### `xrtNetUdpSendControlAvailable`
 
 返回此 UDP 对象可用于 `SendMsg` 的逐数据报发送控制位。
@@ -2447,6 +2508,7 @@ uint32 xrtNetUdpSendControlAvailable(const xnetudp* pUdp)
 		 ((xrtNetUdpSendControlAvailable(pServer) &
 		  XNET_DGRAM_CONTROL_SOURCE) == 0) ) {
 ```
+
 
 ## 组播与底层逃生口
 
@@ -2502,6 +2564,7 @@ bool xrtNetUdpJoin(xnetudp* pUdp, const xnetaddr* pGroup, const xnetaddr* pInter
 		&pTask->Iface);
 ```
 
+
 ### `xrtNetUdpLeave`
 
 只在 UDP Worker 内离开多播组。
@@ -2532,12 +2595,11 @@ bool xrtNetUdpLeave(xnetudp* pUdp, const xnetaddr* pGroup, const xnetaddr* pInte
 
 #### 范例
 
-[udp_multicast](../../examples/network/udp_multicast/main.c) · 离开组播组
+参见已注册的 [examples/network/udp_multicast/main.c](../../examples/network/udp_multicast/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-	pTask->bLeave = xrtNetUdpLeave(pTask->pUdp, &pTask->Group, NULL);
+xrtNetUdpLeave(pTask->pUdp, &pTask->Group, &pTask->Iface);
 ```
-
 ### `xrtNetUdpMulticastLoop`
 
 只在 UDP Worker 内设置多播回环。
@@ -2572,6 +2634,7 @@ bool xrtNetUdpMulticastLoop(xnetudp* pUdp, bool bEnabled)
 ```c
 	pTask->bLoop = xrtNetUdpMulticastLoop(pTask->pUdp, true);
 ```
+
 
 ### `xrtNetUdpMulticastHopLimit`
 
@@ -2608,6 +2671,7 @@ bool xrtNetUdpMulticastHopLimit(xnetudp* pUdp, int iHopLimit)
 	pTask->bHop = xrtNetUdpMulticastHopLimit(pTask->pUdp, 1);
 ```
 
+
 ### `xrtNetUdpMulticastInterface`
 
 只在 UDP Worker 内选择多播发送接口，空接口恢复系统默认。
@@ -2643,6 +2707,7 @@ bool xrtNetUdpMulticastInterface(xnetudp* pUdp, const xnetaddr* pInterface)
 	pTask->bIface = xrtNetUdpMulticastInterface(pTask->pUdp,
 		&pTask->Iface);
 ```
+
 
 ## 关闭、错误与统计
 
@@ -2686,6 +2751,7 @@ bool xrtNetUdpClose(xnetudp* pUdp)
 		(void)xrtNetUdpClose(pClient);
 ```
 
+
 ### `xrtNetUdpAbort`
 
 取消在途 IO、丢弃发送队列并尽快关闭。
@@ -2720,6 +2786,7 @@ bool xrtNetUdpAbort(xnetudp* pUdp)
 	(void)xrtNetUdpAbort(pServer);
 ```
 
+
 ### `xrtNetUdpState`
 
 返回 UDP 当前状态的并发快照。
@@ -2751,6 +2818,7 @@ xnetudpstate xrtNetUdpState(const xnetudp* pUdp)
 ```c
 	while ( xrtNetUdpState(pUdp) != State ) {
 ```
+
 
 ### `xrtNetUdpLocal`
 
@@ -2785,6 +2853,7 @@ bool xrtNetUdpLocal(const xnetudp* pUdp, xnetaddr* pAddress)
 ```c
 	if ( (pServer == NULL) || !xrtNetUdpLocal(pServer, &Address) ) {
 ```
+
 
 ### `xrtNetUdpPeer`
 
@@ -2821,6 +2890,7 @@ bool xrtNetUdpPeer(const xnetudp* pUdp, xnetaddr* pAddress)
 	if ( !xrtNetUdpPeer(pUdp, &Peer) || !xrtNetUdpConnected(pUdp) ) {
 ```
 
+
 ### `xrtNetUdpConnected`
 
 返回 UDP 是否具有固定 Peer。
@@ -2853,6 +2923,7 @@ bool xrtNetUdpConnected(const xnetudp* pUdp)
 ```c
 		xrtNetUdpConnected(pUdp) ? 1 : 0);
 ```
+
 
 ### `xrtNetUdpError`
 
@@ -2887,6 +2958,7 @@ const xerror* xrtNetUdpError(const xnetudp* pUdp)
 		xrtNetUdpError(pUdp) == NULL ? "(none)" : "err");
 ```
 
+
 ### `xrtNetUdpQueued`
 
 返回当前拉取接收队列中的数据包数量。
@@ -2918,6 +2990,7 @@ size_t xrtNetUdpQueued(const xnetudp* pUdp)
 ```c
 		while ( xrtNetUdpQueued(pServer) < 3u ) {
 ```
+
 
 ### `xrtNetUdpQueuedBytes`
 
@@ -2951,6 +3024,7 @@ size_t xrtNetUdpQueuedBytes(const xnetudp* pUdp)
 		xrtNetUdpQueued(pUdp), xrtNetUdpQueuedBytes(pUdp),
 ```
 
+
 ### `xrtNetUdpQueuedErrors`
 
 返回当前拉取错误队列中的条目数量。
@@ -2983,6 +3057,7 @@ size_t xrtNetUdpQueuedErrors(const xnetudp* pUdp)
 		xrtNetUdpQueuedErrors(pUdp), xrtNetUdpQueuedErrorBytes(pUdp),
 ```
 
+
 ### `xrtNetUdpQueuedErrorBytes`
 
 返回当前拉取错误队列中的负载前缀字节数。
@@ -3014,6 +3089,7 @@ size_t xrtNetUdpQueuedErrorBytes(const xnetudp* pUdp)
 ```c
 		xrtNetUdpQueuedErrors(pUdp), xrtNetUdpQueuedErrorBytes(pUdp),
 ```
+
 
 ### `xrtNetUdpPending`
 
@@ -3048,6 +3124,7 @@ size_t xrtNetUdpPending(const xnetudp* pUdp)
 			(xrtNetUdpPending(pServer) != 0) ) {
 ```
 
+
 ### `xrtNetUdpPathMtu`
 
 返回最近一次错误队列确认的路径 MTU，未知时为零。
@@ -3079,6 +3156,7 @@ size_t xrtNetUdpPathMtu(const xnetudp* pUdp)
 ```c
 		xrtNetUdpPathMtu(pUdp),
 ```
+
 
 ### `xrtNetUdpStats`
 
@@ -3114,6 +3192,7 @@ bool xrtNetUdpStats(const xnetudp* pUdp, xnetudpstats* pStats)
 	if ( !xrtNetUdpStats(pUdp, &Stats) ||
 		 (Stats.SentPackets < 1u) || (Stats.ReceivedPackets < 1u) ) {
 ```
+
 
 ### `xrtNetUdpWait`
 
@@ -3157,6 +3236,7 @@ bool xrtNetUdpWait(xnetudp* pUdp, xnetudpwait Wait, int64 iTimeout, xcancel* pCa
 	) ) {
 ```
 
+
 ### `xrtNetUdpWritable`
 
 阻塞等待发送队列能够原子接纳指定大小的数据报。
@@ -3195,6 +3275,7 @@ bool xrtNetUdpWritable(xnetudp* pUdp, size_t iSize, int64 iTimeout, xcancel* pCa
 			NULL) ? 1 : 0);
 ```
 
+
 ### `xrtNetUdpWorker`
 
 返回 UDP 所属的借用 Worker。
@@ -3227,6 +3308,7 @@ xnetworker* xrtNetUdpWorker(const xnetudp* pUdp)
 ```c
 		xrtNetUdpWorker(pUdp), &Post, exampleWorkerTask, &Task) ||
 ```
+
 
 ### `xrtNetUdpSocket`
 
@@ -3261,6 +3343,7 @@ xnetsocket xrtNetUdpSocket(xnetudp* pUdp)
 	pTask->bSocketOk = xrtNetUdpSocket(pTask->pUdp) != NULL;
 ```
 
+
 ### `xrtNetUdpData`
 
 原子读取借用的用户数据快照，不延长指针目标生命周期。
@@ -3293,6 +3376,7 @@ ptr xrtNetUdpData(const xnetudp* pUdp)
 ```c
 	pTask->bWorkerDataOk = xrtNetUdpData(pTask->pUdp) == &g_Tag;
 ```
+
 
 ### `xrtNetUdpSetData`
 
@@ -3327,6 +3411,7 @@ bool xrtNetUdpSetData(xnetudp* pUdp, ptr pData)
 ```c
 	pTask->bSetDataOk = xrtNetUdpSetData(pTask->pUdp, &g_Tag);
 ```
+
 
 ## 示例与发布门禁
 

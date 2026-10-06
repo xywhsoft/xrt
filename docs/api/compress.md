@@ -76,6 +76,7 @@ typedef enum xdeflatestrategy {
 | `XDEFLATE_STRATEGY_RLE` | 侧重游程匹配 |
 | `XDEFLATE_STRATEGY_FIXED` | 使用固定霍夫曼码表 |
 
+
 ### `xinflateformat`
 
 ```c
@@ -95,6 +96,7 @@ Inflate 支持原始 DEFLATE、zlib、兼容 HTTP deflate 和 gzip 数据流。
 | `XINFLATE_ZLIB` | zlib 包装流 |
 | `XINFLATE_DEFLATE` | HTTP `deflate` 内容编码兼容形态 |
 | `XINFLATE_GZIP` | gzip member 流 |
+
 
 ### `xinflateerror`
 
@@ -120,6 +122,7 @@ Inflate 错误码区分配置、状态、数据、限额和输出消费者失败
 | `XINFLATE_ERROR_LIMIT` | 超出输出或头部限额 |
 | `XINFLATE_ERROR_OUTPUT` | 输出回调失败 |
 
+
 ### `xinflateconfig`
 
 ```c
@@ -138,6 +141,7 @@ typedef struct xinflateconfig {
 | `GzipHeaderLimit` | `uint32` | 单个 gzip member 头部字节上限 |
 | `WindowBits` | `uint8` | 8–15；严格限制允许引用的历史距离 |
 
+
 ### `xinflate`
 
 ```c
@@ -146,6 +150,7 @@ typedef struct xinflate xinflate;
 
 不透明 Inflate 对象；按需拥有一个算法必需的 32 KiB 滑动窗口，并可复位复用。
 
+
 ### `xinflateoutputproc`
 
 ```c
@@ -153,6 +158,7 @@ typedef bool (*xinflateoutputproc)(xbytesview Data, ptr pData);
 ```
 
 输出视图只在回调期间有效；返回 `false` 会使当前 Inflate 进入失败终态。回调可设置更具体的当前错误，未设置时由 Inflate 建立输出错误。
+
 
 ### `xdeflateformat`
 
@@ -171,6 +177,7 @@ Deflate 输出可选择原始数据流、zlib 包装或确定性 gzip member。
 | `XDEFLATE_RAW` | 裸 DEFLATE 流 |
 | `XDEFLATE_ZLIB` | zlib 包装流 |
 | `XDEFLATE_GZIP` | 确定性 gzip member |
+
 
 ### `xdeflateflush`
 
@@ -191,6 +198,7 @@ Flush 决定是否只推进、同步边界、清空历史匹配或结束完整�
 | `XDEFLATE_FLUSH_SYNC` | 同步边界（可分段解码） |
 | `XDEFLATE_FLUSH_FULL` | 清空历史匹配状态 |
 | `XDEFLATE_FLUSH_FINISH` | 结束完整数据流 |
+
 
 ### `xdeflateerror`
 
@@ -214,6 +222,7 @@ typedef enum xdeflateerror {
 | `XDEFLATE_ERROR_OUTPUT` | 输出回调失败 |
 | `XDEFLATE_ERROR_CODEC` | 内部编解码失败 |
 
+
 ### `xdeflateconfig`
 
 ```c
@@ -236,6 +245,7 @@ Level 接受 0 到 10；WindowBits 接受 8 到 15。OutputLimit 包含 zlib 或
 | `OutputLimit` | `uint64` | 输出总量上限（含包装字节） |
 | `WindowBits` | `uint8` | 滑动窗口位数 8–15 |
 
+
 ### `xdeflate`
 
 ```c
@@ -244,6 +254,7 @@ typedef struct xdeflate xdeflate;
 
 不透明 Deflate 对象；按需拥有算法字典和编码表，并可复位复用。
 
+
 ### `xdeflateoutputproc`
 
 ```c
@@ -251,6 +262,7 @@ typedef bool (*xdeflateoutputproc)(xbytesview Data, ptr pData);
 ```
 
 输出视图只在回调期间有效；返回 `false` 会使当前 Deflate 进入失败终态。回调可设置更具体的当前错误，未设置时由 Deflate 建立输出错误。
+
 
 ## Inflate 解码 API
 
@@ -282,6 +294,7 @@ void xrtInflateConfigInit(xinflateconfig* pConfig);
 xrtInflateConfigInit(&Config);
 Config.Format = XINFLATE_GZIP;
 ```
+
 
 ### `xrtInflateConfigValid`
 
@@ -321,6 +334,7 @@ if ( xrtInflateConfigValid(&BadI) ) {
 }
 ```
 
+
 ### `xrtInflateCreate`
 
 创建流式解码器；配置为空时使用默认值，否则立即复制配置快照。
@@ -349,14 +363,11 @@ xinflate* xrtInflateCreate(const xinflateconfig* pConfig);
 
 #### 范例
 
-[compress/stream_tour · 流式](../../examples/compress/stream_tour/main.c) · 配对 GZIP 格式后创建
+参见已注册的 [examples/compress/stream_tour/main.c](../../examples/compress/stream_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-pInflate = xrtInflateCreate(&InflateConfig);
-Plain.Size = 0;
-if ( (pInflate == NULL) ||
+xrtInflateCreate(&InflateConfig);
 ```
-
 ### `xrtInflateReset`
 
 失败原子地复位解码器并保留已经分配的滑动窗口。
@@ -398,6 +409,7 @@ if ( !xrtInflateReset(pInflate, &InflateConfig) ||
 	goto Cleanup;  /* 复位后未完成 */
 }
 ```
+
 
 ### `xrtInflateWrite`
 
@@ -451,6 +463,7 @@ bool xrtInflateWrite(
 }
 ```
 
+
 ### `xrtInflateDone`
 
 判断解码器是否已经完整结束；失败状态返回 false。
@@ -487,6 +500,7 @@ bool xrtInflateDone(const xinflate* pInflate);
 }
 ```
 
+
 ### `xrtInflateOutputSize`
 
 返回当前流已经产生的解码字节总数。
@@ -522,6 +536,7 @@ if ( xrtInflateOutputSize(pInflate) != iOriginal ) {
 }
 ```
 
+
 ### `xrtInflateDestroy`
 
 销毁解码器；空指针为空操作，输出回调中的同对象销毁会被拒绝。
@@ -551,6 +566,7 @@ xrtInflateDestroy(pInflate);
 xrtDeflateDestroy(pDeflate);
 return iResult;
 ```
+
 
 ### `xrtInflateAll`
 
@@ -598,6 +614,7 @@ if ( pText == NULL ) {
 }
 ```
 
+
 ## Deflate 编码 API
 
 Flush 语义：
@@ -637,6 +654,7 @@ void xrtDeflateConfigInit(xdeflateconfig* pConfig);
 xrtDeflateConfigInit(&Config);
 ```
 
+
 ### `xrtDeflateConfigValid`
 
 验证 Deflate 配置；输入只需是有效连续存储。
@@ -674,6 +692,7 @@ if ( xrtDeflateConfigValid(&Bad) ) {
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtDeflateCreate`
 
@@ -713,6 +732,7 @@ if ( pDeflate == NULL ) {
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtDeflateReset`
 
@@ -754,6 +774,7 @@ if ( !xrtDeflateReset(pDeflate, &DeflateConfig) ||
 	goto Cleanup;
 }
 ```
+
 
 ### `xrtDeflateWrite`
 
@@ -809,6 +830,7 @@ if ( !xrtDeflateWrite(pDeflate,
 		XDEFLATE_FLUSH_FINISH, exampleStore, &Coded) ||
 ```
 
+
 ### `xrtDeflateDone`
 
 判断编码器是否已经通过 FINISH 完整结束；失败状态返回 false。
@@ -844,6 +866,7 @@ xrtDeflateWrite(pDeflate,
 	XDEFLATE_FLUSH_SYNC, exampleStore, &Coded) ||
 	xrtDeflateDone(pDeflate) ||
 ```
+
 
 ### `xrtDeflateOutputSize`
 
@@ -881,6 +904,7 @@ uint64 xrtDeflateOutputSize(
 (Coded.Size == 0u) ) {
 ```
 
+
 ### `xrtDeflateDestroy`
 
 销毁编码器；空指针为空操作，输出回调中的同对象销毁会被拒绝。
@@ -910,6 +934,7 @@ xrtInflateDestroy(pInflate);
 xrtDeflateDestroy(pDeflate);
 return iResult;
 ```
+
 
 ### `xrtDeflateAll`
 
@@ -956,6 +981,7 @@ if ( pGzip == NULL ) {
 	return 1;
 }
 ```
+
 
 ## 模块契约：线程
 

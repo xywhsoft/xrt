@@ -255,7 +255,7 @@ static void testStringConvertFloats(void)
 static void testStringConvertTime(void)
 {
 	str sInput = "2024-01-02T03:04:05Z";
-	xtime Time = 0;
+	xtime Time = XRT_TIME_UNIX_EPOCH;
 	str sOutput = xrtStrDup("old");
 
 	testRequire(sOutput != NULL, "time string fixture allocation failed");
@@ -307,7 +307,7 @@ static void testStringConvertFormat(void)
 	uint64 iType = UINT64_C(42);
 	float fFloat32 = 1.25f;
 	double fFloat64 = 1.5;
-	xtime Time = 0;
+	xtime Time = XRT_TIME_UNIX_EPOCH;
 	ptr pValue = (ptr)(uintptr_t)UINT64_C(1);
 	ptr pNull = NULL;
 

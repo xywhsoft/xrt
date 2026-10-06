@@ -23,6 +23,7 @@ typedef enum xhttpconnectionstatus {
 | `XHTTP_CONNECTION_CLOSE` | 协商了 close |
 | `XHTTP_CONNECTION_PERSIST` | 协商持久连接 |
 
+
 ### `xhttpconnectionflag`
 
 HTTP/1.0 持久性判断所需的消息方向、接收角色和本地策略。
@@ -40,6 +41,7 @@ typedef enum xhttpconnectionflag {
 | `XHTTP_CONNECTION_RESPONSE` | 响应保留连接 |
 | `XHTTP_CONNECTION_PROXY` | 代理保留连接 |
 | `XHTTP_CONNECTION_ALLOW_HTTP10_KEEP_ALIVE` | 允许 HTTP/1.0 保活 |
+
 
 ## 裁剪
 
@@ -151,6 +153,7 @@ void xrtHttpConnectionCursorInit(
 ```
 
 
+
 ### `xrtHttpConnectionNext`
 
 跨重复 Connection 字段行按线路顺序迭代连接选项；首次发布前完整验证所有字段，选项借用原字段值。
@@ -196,6 +199,7 @@ xhttpnext xrtHttpConnectionNext(
 ```
 
 
+
 ### `xrtHttpConnectionCount`
 
 完整验证并统计全部重复 Connection 字段中的非空选项。
@@ -236,6 +240,7 @@ bool xrtHttpConnectionCount(
 		Fields, 2u, &iCount
 	) || (iCount != 2u) ||
 ```
+
 
 
 ### `xrtHttpConnectionFind`
@@ -279,6 +284,7 @@ xhttpnext xrtHttpConnectionFind(
 		Fields, 2u, XRT_STR_LITERAL("te")
 	) != XHTTP_NEXT_ITEM ) {
 ```
+
 
 
 ### `xrtHttpConnectionPersistence`
@@ -326,6 +332,7 @@ xhttpconnectionstatus xrtHttpConnectionPersistence(
 		XHTTP_VERSION_1_1, Fields, 2u, 0
 	);
 ```
+
 
 
 

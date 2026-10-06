@@ -149,8 +149,9 @@ class Chapter(object):
                             key = alias_map[key]
                             break
                     if key not in CANON_SECTIONS:
-                        # 非规范节： tolerated in front matter area? 拒绝
-                        raise ValueError("%s: 非法 h2 节 %r（规范八节之外）" % (self.path, key))
+                        # 非规范 h2：按原文收录为普通节，保持文档顺序渲染
+                        # （主线书稿已出现自由节结构，如 42-time 的“时间表示”）。
+                        pass
                     cur_sec = key
                     if key not in self.sections:
                         self.sections[key] = []
@@ -655,7 +656,8 @@ def build_page(ch, entry, order, known_types, repo, api_counts, total_chapters,
     body = []
     sec_no = 0
     anchor = {"导读": "intro", "避坑": "pits", "练习": "exercise", "速查": "summary"}
-    for key in CANON_SECTIONS:
+    # 按文档实际节序渲染：规范章等于固定序，自由节结构章（如 42-time）原序输出
+    for key in list(ch.section_order) + [k for k in CANON_SECTIONS if k not in ch.section_order]:
         blocks = ch.sections.get(key)
         if blocks is None:
             continue

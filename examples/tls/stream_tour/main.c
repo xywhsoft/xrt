@@ -516,7 +516,7 @@ int main(void)
 
 	/* 回显到达：Read 回调里完成 Pullup/Read/Consume 核对。 */
 	iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
-	while ( ClientA.Received < 9u ) {
+	while ( (ClientA.Received < 9u) || (ClientB.Received < 9u) ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 6;
 			goto Cleanup;
@@ -551,7 +551,7 @@ int main(void)
 		goto Cleanup;
 	}
 	iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
-	while ( ClientB.Received < 9u ) {
+	while ( ClientB.Received < 18u ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 7;
 			goto Cleanup;

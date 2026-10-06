@@ -133,7 +133,7 @@ static unsigned ResolverQueries;
 static unsigned CertificateDecodes, AlternateRequests;
 static bool AlternateResponse;
 static char ResolverTxt[256];
-static uint64 ResolverClock;
+static double ResolverClock;
 static cstr LastJson;
 static xerror* FirstError;
 static char LastNonce[512], Contact[401];
@@ -206,10 +206,11 @@ static xx509result flow_name_equal(xbytesview Left,xbytesview Right) {
     arm("certificate-name"); xx509result Result=xrtX509NameEqual(Left,Right); if(Result==X509_ERROR) remember(); return Result;
 }
 /* Resolver fault controls must not depend on OS scheduling or wall time. */
-static uint64 flow_clock(void) { return selected("resolver")?ResolverClock:xrtTimer(); }
-static void flow_sleep(uint32 Ms) { Sleeps++; if(selected("resolver")) ResolverClock+=(uint64)Ms*UINT64_C(1000); }
+static double flow_clock(void) { return selected("resolver")?ResolverClock:xrtTimer(); }
+static double flow_after(int64 Ms) { return Ms == XRT_WAIT_FOREVER ? INFINITY : nextafter(flow_clock() + (double)Ms / 1000.0, INFINITY); }
+static void flow_sleep(int64 Ms) { Sleeps++; if(selected("resolver")) ResolverClock+=(double)Ms/1000.0; }
 static bool flow_init(xacmehttp* Http,struct xnetengine* Engine,cstr Ca,int64 Timeout) {
-    (void)Engine; (void)Ca; memset(Http,0,sizeof(*Http)); Http->uTimeoutUs=Timeout; return true;
+    (void)Engine; (void)Ca; memset(Http,0,sizeof(*Http)); Http->uTimeoutMs=Timeout; return true;
 }
 static str duplicate(cstr Text) {
     if(!Text) return NULL;
@@ -387,6 +388,7 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #define xrtX509NameEqual flow_name_equal
 #define xrtSleep flow_sleep
 #define xrtTimer flow_clock
+#define __xrtWaitAfter flow_after
 #define xrtAcmeStoreNeedRenew flow_need_renew
 #define xrtAcmeStoreSaveGrant flow_save_grant
 #define xrtAcmeStoreSaveAccount flow_save_account
@@ -410,6 +412,7 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #undef xrtX509NameEqual
 #undef xrtSleep
 #undef xrtTimer
+#undef __xrtWaitAfter
 #undef xrtAcmeStoreNeedRenew
 #undef xrtAcmeStoreSaveGrant
 #undef xrtAcmeStoreSaveAccount
@@ -447,7 +450,7 @@ static struct xacmeclient* create_client(bool Special) {
         static const cstr Resolvers[]={"127.0.0.1:1","127.0.0.1:2","127.0.0.1:3"};
         Config.sPropagateResolvers=Resolvers; Config.iPropagateResolverCount=3u; Config.uPropagateTimeoutMs=1u;
     }
-    Config.pAccount=&Account; Config.uIssueTimeoutUs=UINT64_C(10000000); return xrtAcmeClientCreate(&Config);
+    Config.pAccount=&Account; Config.uIssueTimeoutMs=INT64_C(10000); return xrtAcmeClientCreate(&Config);
 }
 static bool operation(struct xacmeclient* Client) {
     InOperation=true;

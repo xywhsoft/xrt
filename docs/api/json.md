@@ -34,6 +34,7 @@ typedef enum xjsonerror {
 | `XJSON_ERROR_OUTPUT` | 输出失败 |
 | `XJSON_ERROR_IO` | 写出失败 |
 
+
 ### `xjsonlocation`
 
 文本位置使用零基字节偏移和一基行列；列按 UTF-8 字节计算。
@@ -52,6 +53,7 @@ typedef struct xjsonlocation {
 | `Line` | `size_t` | 行号 |
 | `Column` | `size_t` | 列号 |
 
+
 ### `xjsonreadflag`
 
 非标准读取能力默认全部关闭，只能由调用方逐项开启。
@@ -67,6 +69,7 @@ typedef enum xjsonreadflag {
 |---|---|
 | `XJSON_READ_COMMENTS` | XJSON读方向COMMENTS |
 | `XJSON_READ_TRAILING_COMMA` | 允许尾随逗号 |
+
 
 ### `xjsonduplicate`
 
@@ -86,6 +89,7 @@ typedef enum xjsonduplicate {
 | `XJSON_DUPLICATE_KEEP` | KEEP |
 | `XJSON_DUPLICATE_REPLACE` | 重名成员后者覆盖 |
 
+
 ### `xjsonbigint`
 
 超出 int64/uint64 的整数字面量默认失败，显式浮点策略允许有损接收。
@@ -101,6 +105,7 @@ typedef enum xjsonbigint {
 |---|---|
 | `XJSON_BIGINT_REJECT` | XJSONBIGINTREJECT |
 | `XJSON_BIGINT_FLOAT` | 浮点形态（超精度可选） |
+
 
 ### `xjsonreadconfig`
 
@@ -130,6 +135,7 @@ typedef struct xjsonreadconfig {
 | `MaxStringBytes` | `size_t` | MaxStringBytes |
 | `MaxValues` | `size_t` | MaxValues |
 | `MaxContainerItems` | `size_t` | MaxContainerItems |
+
 
 ### `xjsoneventtype`
 
@@ -163,6 +169,7 @@ typedef enum xjsoneventtype {
 | `XJSON_EVENT_OBJECT_END` | 对象形态END |
 | `XJSON_EVENT_UINT` | 无符号整数事件 |
 
+
 ### `xjsonvisitaction`
 
 回调可继续、正常提前停止或报告失败。
@@ -181,6 +188,7 @@ typedef enum xjsonvisitaction {
 | `XJSON_VISIT_STOP` | STOP |
 | `XJSON_VISIT_FAIL` | 回调失败 |
 
+
 ### `xjsonvisitresult`
 
 访问结果明确区分完整完成、调用方停止和解析失败。
@@ -198,6 +206,7 @@ typedef enum xjsonvisitresult {
 | `XJSON_VISIT_ERROR` | 失败 |
 | `XJSON_VISIT_DONE` | 完成 |
 | `XJSON_VISIT_STOPPED` | 回调请求停止 |
+
 
 ### `xjsonwriteflag`
 
@@ -221,6 +230,7 @@ typedef enum xjsonwriteflag {
 | `XJSON_WRITE_ESCAPE_NON_ASCII` | 写方向 |
 | `XJSON_WRITE_CONTAINER_COMPAT` | 容器兼容模式 |
 
+
 ### `xjsonnonfinite`
 
 非有限浮点默认失败，也可显式写成 null 或字符串。
@@ -239,6 +249,7 @@ typedef enum xjsonnonfinite {
 | `XJSON_NONFINITE_NULL` | 空值 |
 | `XJSON_NONFINITE_STRING` | 字符串表示 |
 
+
 ### `xjsonunsupported`
 
 不受 JSON 表达的 Value 默认失败，也可显式写 null 或跳过成员。
@@ -256,6 +267,7 @@ typedef enum xjsonunsupported {
 | `XJSON_UNSUPPORTED_REJECT` | 不支持 |
 | `XJSON_UNSUPPORTED_NULL` | 空值 |
 | `XJSON_UNSUPPORTED_SKIP` | 跳过 |
+
 
 ### `xjsonwriteconfig`
 
@@ -282,6 +294,7 @@ typedef struct xjsonwriteconfig {
 | `Indent` | `uint32` | Indent |
 | `MaxOutputBytes` | `size_t` | MaxOutputBytes |
 
+
 ### `xjsonwriter`
 
 增量写入器保持不透明，写入方法不可从输出回调重入。
@@ -291,6 +304,7 @@ typedef struct xjsonwriter xjsonwriter;
 ```
 
 不透明句柄或别名；生命周期与所有权见各使用方 API 节。
+
 
 ### `xjsonvisitproc`
 
@@ -305,6 +319,7 @@ typedef xjsonvisitaction (*xjsonvisitproc)(
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
 
+
 ### `xjsonwriteproc`
 
 输出回调必须在返回前消费借用字节，失败时应设置具体错误。
@@ -314,6 +329,7 @@ typedef bool (*xjsonwriteproc)(xbytesview Data, ptr pUserData);
 ```
 
 回调类型；参数与返回语义见签名及各使用方 API 节。
+
 
 ### 常量总表
 
@@ -760,6 +776,7 @@ void xrtJsonReadConfigInit(xjsonreadconfig* pConfig);
 ```
 
 
+
 ### `xrtJsonParse`
 
 使用默认严格配置解析一个完整 JSON 文本。
@@ -795,6 +812,7 @@ xvalue* xrtJsonParse(xstrview Text);
 		"{\"name\":\"xrt\",\"features\":[\"json\",\"http\"]}"
 	));
 ```
+
 
 
 ### `xrtJsonRead`
@@ -836,6 +854,7 @@ xvalue* xrtJsonRead(
 ```
 
 
+
 ### `xrtJsonValid`
 
 使用默认严格配置验证一个完整 JSON 文本，不构造 Value DOM。
@@ -868,6 +887,7 @@ bool xrtJsonValid(xstrview Text);
 ```c
 		!xrtJsonValid(SV(sText)) ||
 ```
+
 
 
 ### `xrtJsonVisit`
@@ -917,6 +937,7 @@ xjsonvisitresult xrtJsonVisit(
 ```
 
 
+
 ### `xrtJsonErrorLocation`
 
 从 `xrt.json` 错误的机器数据中读取文本位置。
@@ -955,6 +976,7 @@ bool xrtJsonErrorLocation(
 ```
 
 
+
 ### `xrtJsonWriterCreate`
 
 创建把增量结果保存在内存中的 JSON 写入器。
@@ -990,6 +1012,7 @@ xjsonwriter* xrtJsonWriterCreate(
 ```c
 	pWriter = xrtJsonWriterCreate(&WriteConfig);
 ```
+
 
 
 ### `xrtJsonWriterCreateSink`
@@ -1034,6 +1057,7 @@ xjsonwriter* xrtJsonWriterCreateSink(
 ```
 
 
+
 ### `xrtJsonWriterObject`
 
 在当前位置开始对象；对象中必须先写 Name，数组中直接写值。
@@ -1066,6 +1090,7 @@ bool xrtJsonWriterObject(xjsonwriter* pWriter);
 ```c
 		!xrtJsonWriterObject(pWriter) ||                     /* 开对象 */
 ```
+
 
 
 ### `xrtJsonWriterArray`
@@ -1102,6 +1127,7 @@ bool xrtJsonWriterArray(xjsonwriter* pWriter);
 ```
 
 
+
 ### `xrtJsonWriterEnd`
 
 结束最近开始的对象或数组。
@@ -1134,6 +1160,7 @@ bool xrtJsonWriterEnd(xjsonwriter* pWriter);
 ```c
 		!xrtJsonWriterEnd(pWriter) ||                       /* 闭对象 */
 ```
+
 
 
 ### `xrtJsonWriterName`
@@ -1171,6 +1198,7 @@ bool xrtJsonWriterName(xjsonwriter* pWriter, xstrview Name);
 ```
 
 
+
 ### `xrtJsonWriterNull`
 
 写入 null。
@@ -1203,6 +1231,7 @@ bool xrtJsonWriterNull(xjsonwriter* pWriter);
 ```c
 		!xrtJsonWriterNull(pWriter) ||
 ```
+
 
 
 ### `xrtJsonWriterBool`
@@ -1240,6 +1269,7 @@ bool xrtJsonWriterBool(xjsonwriter* pWriter, bool bValue);
 ```
 
 
+
 ### `xrtJsonWriterInt`
 
 写入 int64。
@@ -1273,6 +1303,7 @@ bool xrtJsonWriterInt(xjsonwriter* pWriter, int64 iValue);
 ```c
 		!xrtJsonWriterInt(pWriter, 200) ||
 ```
+
 
 
 ### `xrtJsonWriterUInt`
@@ -1310,6 +1341,7 @@ bool xrtJsonWriterUInt(xjsonwriter* pWriter, uint64 iValue);
 ```
 
 
+
 ### `xrtJsonWriterFloat`
 
 按配置写入 double。
@@ -1345,6 +1377,7 @@ bool xrtJsonWriterFloat(xjsonwriter* pWriter, double fValue);
 ```
 
 
+
 ### `xrtJsonWriterString`
 
 写入严格 UTF-8 字符串。
@@ -1378,6 +1411,7 @@ bool xrtJsonWriterString(xjsonwriter* pWriter, xstrview Text);
 ```c
 		!xrtJsonWriterString(pWriter, XRT_STR_LITERAL("OK")) ||
 ```
+
 
 
 ### `xrtJsonWriterValue`
@@ -1418,6 +1452,7 @@ bool xrtJsonWriterValue(
 ```
 
 
+
 ### `xrtJsonWriterFinish`
 
 验证根值和容器已经完整结束，并封闭写入器。
@@ -1450,6 +1485,7 @@ bool xrtJsonWriterFinish(xjsonwriter* pWriter);
 ```c
 		!xrtJsonWriterFinish(pWriter)                       /* 完整性校验 */
 ```
+
 
 
 ### `xrtJsonWriterTake`
@@ -1488,6 +1524,7 @@ str xrtJsonWriterTake(xjsonwriter* pWriter, size_t* pSize);
 ```
 
 
+
 ### `xrtJsonWriterFree`
 
 释放写入器；空指针是空操作。未 Take 的内存结果一并释放。
@@ -1521,6 +1558,7 @@ void xrtJsonWriterFree(xjsonwriter* pWriter);
 ```
 
 
+
 ### `xrtJsonWriteConfigInit`
 
 初始化紧凑输出、严格类型和有限输出预算的写入配置。
@@ -1552,6 +1590,7 @@ void xrtJsonWriteConfigInit(xjsonwriteconfig* pConfig);
 ```c
 	xrtJsonWriteConfigInit(&WriteConfig);
 ```
+
 
 
 ### `xrtJsonStringify`
@@ -1593,6 +1632,7 @@ str xrtJsonStringify(
 ```c
 	sText = xrtJsonStringify(pRoot, true, &iSize);
 ```
+
 
 
 ### `xrtJsonWrite`
@@ -1638,6 +1678,7 @@ bool xrtJsonWrite(
 		(memcmp(Sink.Buffer, sText,
 			sizeof(sText) - 1u) != 0) ) {
 ```
+
 
 
 ### `xrtJsonQuoteWrite`
@@ -1687,6 +1728,7 @@ bool xrtJsonQuoteWrite(
 ```
 
 
+
 ### `xrtJsonParseFile`
 
 使用默认严格配置读取并解析 JSON 文件。
@@ -1721,6 +1763,7 @@ xvalue* xrtJsonParseFile(cstr sPath);
 ```c
 	pFileDom = xrtJsonParseFile(sFile);
 ```
+
 
 
 ### `xrtJsonReadFile`
@@ -1759,6 +1802,7 @@ xvalue* xrtJsonReadFile(
 ```c
 	pReadDom = xrtJsonReadFile(sFile, &ReadConfig);
 ```
+
 
 
 ### `xrtJsonWriteFile`
@@ -1802,6 +1846,7 @@ bool xrtJsonWriteFile(
 ```
 
 
+
 ### `xrtJsonStringifyFile`
 
 紧凑或美化地序列化并原子替换 JSON 文件。
@@ -1840,5 +1885,3 @@ bool xrtJsonStringifyFile(
 ```c
 	if ( !xrtJsonStringifyFile(sFile, pDom, true) ) {
 ```
-
-

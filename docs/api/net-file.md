@@ -53,6 +53,7 @@ xfile xrtNetFileOpen(
 		File = xrtNetFileOpen(sFile, &Options);
 ```
 
+
 ### `xrtNetFileRead`
 
 从绝对偏移读取到调用方缓冲，返回非零操作标识；只能在所属 Worker 执行。
@@ -102,6 +103,7 @@ uint64 xrtNetFileRead(
 		pTask->iOffset, (void*)pTask->pData, pTask->iSize,
 		&pTask->pIo->Completion);
 ```
+
 
 ### `xrtNetFileWrite`
 
@@ -153,6 +155,7 @@ uint64 xrtNetFileWrite(
 		&pTask->pIo->Completion);
 ```
 
+
 ### `xrtNetFileCancel`
 
 在所属 Worker 请求取消操作；原操作仍通过 Completion 产生唯一终态。
@@ -185,16 +188,12 @@ bool xrtNetFileCancel(
 
 #### 范例
 
-[file_tour](../../examples/network/file_tour/main.c) · 请求取消
+参见已注册的 [examples/network/file_tour/main.c](../../examples/network/file_tour/main.c)；下面调用摘自该完整程序，初始化、返回值处理和清理见原文件。
 
 ```c
-				if ( !xrtNetFileCancel(Task.pWorker,
-						iCancelId) ||
-					!exampleSpin(&CancelIo,
-
-							3000) ) {
+xrtNetFileCancel(Task.pWorker,
+						iCancelId)
 ```
-
 ## 示例
 
 ```c

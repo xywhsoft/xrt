@@ -20,6 +20,7 @@ typedef struct xspinlock {
 | `State` | `xatomic32` | 状态 |
 | `Magic` | `uint32` | 魔数 |
 
+
 ### 常量总表
 
 | 常量 | 值 | 语义 |
@@ -91,6 +92,7 @@ bool xrtSpinInit(xspinlock* pSpin)
 	if ( !xrtSpinInit(&Spin) ) {
 ```
 
+
 ### `xrtSpinUnit`
 
 释放自旋锁状态；锁仍被持有时失败。
@@ -125,6 +127,7 @@ bool xrtSpinUnit(xspinlock* pSpin)
 	if ( !xrtSpinUnlock(&Spin) || !xrtSpinUnit(&Spin) ) {
 ```
 
+
 ### `xrtSpinCreate`
 
 创建一个动态分配的自旋锁。
@@ -158,6 +161,7 @@ xspinlock* xrtSpinCreate(void)
 		xspinlock* pHeap = xrtSpinCreate();
 ```
 
+
 ### `xrtSpinDestroy`
 
 释放动态自旋锁；空指针视为空操作。
@@ -190,6 +194,7 @@ bool xrtSpinDestroy(xspinlock* pSpin)
 ```c
 			!xrtSpinDestroy(pHeap) ) {
 ```
+
 
 ### `xrtSpinLock`
 
@@ -225,6 +230,7 @@ bool xrtSpinLock(xspinlock* pSpin)
 	if ( !xrtSpinLock(&Spin) ) {
 ```
 
+
 ### `xrtSpinTryLock`
 
 尝试进入短临界区；锁繁忙时不设置错误。
@@ -257,6 +263,7 @@ bool xrtSpinTryLock(xspinlock* pSpin)
 ```c
 			xrtSpinTryLock(pHeap) ||  /* 已持有：Try 必失败 */
 ```
+
 
 ### `xrtSpinUnlock`
 
