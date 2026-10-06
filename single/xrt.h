@@ -106667,19 +106667,19 @@ static void __xrtValueBackingReleaseView(xvaluebacking* pBacking, xvalue* pView,
 			 * its final End then releases fields and the owned context. */
 			pBacking->RefCount = 1;
 			pBacking->Flags |= XRT_VALUE_BACKING_FINALIZING;
-			pView->Flags &= (uint16)~XRT_VALUE_FLAG_BUSY;
+			pView->Flags &= (uint16)(UINT16_MAX ^ XRT_VALUE_FLAG_BUSY);
 			pView->Flags |= XRT_VALUE_FLAG_FINALIZING;
 			if (bPhased && !xrtOwnershipScopeEnd(pMutation)) abort();
 			pFinalizer(pView, pObject->FinalizerUserData);
 			if (bPhased && !xrtOwnershipMutationBegin(pMutation)) abort();
-			pView->Flags &= (uint16)~XRT_VALUE_FLAG_FINALIZING;
+			pView->Flags &= (uint16)(UINT16_MAX ^ XRT_VALUE_FLAG_FINALIZING);
 			pView->Flags |= XRT_VALUE_FLAG_BUSY;
 			if ( pObject->FinalizerRelease == NULL ) {
 				/* Legacy finalizers dispose their own borrowed context. */
 				pObject->FinalizerUserData = NULL;
 				pObject->FinalizerTrace = NULL;
 			}
-			pBacking->Flags &= (uint16)~XRT_VALUE_BACKING_FINALIZING;
+			pBacking->Flags &= (uint16)(UINT16_MAX ^ XRT_VALUE_BACKING_FINALIZING);
 			if ( xrtRefRelease(&pBacking->RefCount) != 0 ) return;
 
 		}
@@ -106848,8 +106848,8 @@ static bool __xrtValueObjectAdapterFinalize(const void* pData, const void* pToke
 	pFailure = xrtTakeError();
 	bOk = bOk && pFailure == NULL;
 	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
-	pReceiver->Flags &= (uint16)~XRT_VALUE_FLAG_FINALIZING;
-	pObject->Base.Flags &= (uint16)~XRT_VALUE_BACKING_FINALIZING;
+	pReceiver->Flags &= (uint16)(UINT16_MAX ^ XRT_VALUE_FLAG_FINALIZING);
+	pObject->Base.Flags &= (uint16)(UINT16_MAX ^ XRT_VALUE_BACKING_FINALIZING);
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if (pPrior != NULL) { xrtSetErrorTake(pPrior); xrtErrorFree(pFailure); }
 	else xrtSetErrorTake(pFailure);
@@ -149166,7 +149166,8 @@ static bool __xrtInflateFeedCodec(
 		}
 		Status = tinfl_decompress(
 			&pInflate->Codec,
-			pData != NULL ? pData + iOffset : NULL,
+			/* miniz performs pointer arithmetic even for a zero-length input. */
+			pData != NULL ? pData + iOffset : (cbytes)"",
 			&iInput,
 			pInflate->Dictionary,
 			pInflate->Dictionary +

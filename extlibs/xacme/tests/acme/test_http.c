@@ -178,7 +178,7 @@ int main(void)
 				strcmp(sKind, "timeout") == 0);
 			xerrkind Actual;
 			Http.uTimeoutMs = bStalled ?
-				UINT64_C(1000000) : UINT64_C(5000000);
+				INT64_C(1000) : INT64_C(5000);
 			xrtClearError();
 			testRequire(!xacmeHttpExchange(
 				&Http, "GET", sFault, NULL,

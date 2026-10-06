@@ -74,6 +74,7 @@ def main() -> int:
             *(["-g", "-fsanitize=address,undefined",
                "-fno-omit-frame-pointer"] if args.sanitize else []),
             "-I", str(ROOT / "single"),
+            "-I", str(ROOT / "include"),
             "-I", str(ROOT / "extlibs" / "xjwt" / "include"),
             "-I", str(ROOT / "extlibs" / "xoauth2" / "include"),
             *(str(ROOT / source) for source in CASES[name]),

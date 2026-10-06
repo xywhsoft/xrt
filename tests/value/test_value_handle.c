@@ -275,7 +275,7 @@ int main(void)
 	ptr pReadHandle;
 	ptr pReadUser;
 	ptr pOverlapped;
-	ptr pTaken;
+	ptr pTaken = NULL;
 	uint64 iHash;
 
 	testValueHandlePolicy();

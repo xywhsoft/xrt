@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 #include "../bench_common.h"
 
 #define XRT_MODULE_TLS_STREAM
@@ -12,6 +11,7 @@
 #define XRT_MODULE_PEM
 #define XRT_IMPLEMENTATION
 #include "../../../single/xrt.h"
+#include <xrt/detail/wait.h>
 #include "../network/bench_network_common.h"
 #include "bench_tls_fixture.h"
 

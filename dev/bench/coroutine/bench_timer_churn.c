@@ -1,9 +1,9 @@
-#include <xrt/detail/wait.h>
 #include "../bench_common.h"
 
 #define XRT_MODULE_COROUTINE_SCHEDULER
 #define XRT_IMPLEMENTATION
 #include "../../../single/xrt.h"
+#include <xrt/detail/wait.h>
 
 
 

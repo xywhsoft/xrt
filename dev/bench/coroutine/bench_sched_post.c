@@ -34,13 +34,19 @@ static int32 benchCoroutinePostThread(ptr pData)
 	benchcoroutinepost* pState = (benchcoroutinepost*)pData;
 
 	for ( uint64 i = 0; i < pState->Target; i++ ) {
-		if ( !xrtCoSchedPost(
+		while ( !xrtCoSchedPost(
 			pState->Scheduler,
 			benchCoroutinePostProc,
 			pState
 		) ) {
-			(void)xbenchAtomicInc(&pState->Failed);
-			return 1;
+			if ( (xbenchAtomicLoad(&pState->Failed) != 0) ||
+				(xrtErrorKind(xrtGetError()) != XERR_AGAIN) ) {
+				(void)xbenchAtomicInc(&pState->Failed);
+				return 1;
+			}
+			/* The bounded queue may fill before the owner consumes a batch. */
+			xrtClearError();
+			xrtThreadYield();
 		}
 		(void)xbenchAtomicInc(&pState->Submitted);
 	}
@@ -81,6 +87,7 @@ int main(int argc, char** argv)
 			(Result == XWAIT_ERROR) ||
 			(xbenchAtomicLoad(&State.Failed) != 0)
 		) {
+			(void)xbenchAtomicInc(&State.Failed);
 			goto Join;
 		}
 	}
@@ -96,6 +103,10 @@ Join:
 		iResult = 4;
 	}
 	xrtThreadDestroy(pThread);
+	/* Drain accepted posts even when the producer stopped after an error. */
+	if ( !xrtCoSchedRun(State.Scheduler) ) {
+		iResult = 6;
+	}
 	if ( iResult == 0 ) {
 		xbenchPrintMetricU64(
 			"coroutine_post_processed",

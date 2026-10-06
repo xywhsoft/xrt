@@ -26,7 +26,7 @@ int main(void)
 	bPass = xrtHttpRetryAfterParse(
 		XRT_STR_LITERAL("2"), &Retry
 	) && xrtHttpRetryAfterDelay(&Retry, 0, &iDelay) &&
-		(iDelay == UINT64_C(2000000)) &&
+		(iDelay == UINT64_C(2000)) &&
 		xrtHttpRetryAfterWrite(
 			&Retry, Text, sizeof(Text), &iSize
 		) && (iSize == 1u) && (Text[0] == '2') &&
@@ -38,5 +38,4 @@ int main(void)
 	);
 	return bPass ? 0 : 1;
 }
-
 

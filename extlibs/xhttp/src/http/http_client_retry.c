@@ -413,7 +413,7 @@ bool __xrtHttpRetrySchedule(xhttpcall* pCall)
 {
 	xerror* pCause;
 	double iNow;
-	uint64 iIdle;
+	double iIdle;
 	uint64 Id;
 
 	if ( (pCall == NULL) || !__xrtHttpRetryAvailable(pCall) ) {
@@ -435,7 +435,7 @@ bool __xrtHttpRetrySchedule(xhttpcall* pCall)
 		);
 		xrtAtomic64Store(
 			&pCall->IdleDeadline,
-			iIdle,
+			__xrtWaitTimerBits(iIdle),
 			XMEMORY_RELEASE
 		);
 	}

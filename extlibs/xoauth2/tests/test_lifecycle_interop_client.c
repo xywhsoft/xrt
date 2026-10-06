@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /* Actual core engines and pins; only startup/retirement faults and the rollback clock are controlled. */
 #if !defined(_WIN32) && !defined(_GNU_SOURCE)
 #define _GNU_SOURCE 1
@@ -6,6 +5,7 @@
 #define XRT_IMPLEMENTATION
 #define XRT_MODULE_MEMORY_DEBUG
 #include "support/runtime.h"
+#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

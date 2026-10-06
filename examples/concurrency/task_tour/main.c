@@ -118,19 +118,18 @@ int main(void)
 			!xrtCancelRequest(pCancel) ) {
 			goto Cleanup;
 		}
-		/* 两个任务占满线程+队列。 */
-		(void)xrtTaskSubmit(pFullPool, exampleTask, NULL, NULL);
-		(void)xrtTaskSubmit(pFullPool, exampleTask, NULL, NULL);
-		/* 第三个：已触发令牌让容量等待立即取消。 */
+		/* 提交引用用后释放；即时任务可能在下一次提交前已完成。 */
+		xrtFutureDestroy(xrtTaskSubmit(pFullPool, exampleTask, NULL, NULL));
+		xrtFutureDestroy(xrtTaskSubmit(pFullPool, exampleTask, NULL, NULL));
+		/* 第三个：容量等待可取消；已有容量时也可能直接受理。 */
 		{
 			xfuture* pThird = xrtTaskSubmitForCancel(
 				pFullPool, exampleTask, NULL, NULL,EXAMPLE_TIMEOUT_MS,
 				pCancel);
 
-			if ( (pThird != NULL) ||
-				(xrtTaskPoolCancel(pFullPool) ) ) {
-				/* 取消后池进入 Cancelling。 */
-			}
+			xrtFutureDestroy(pThird);
+			/* 无论第三项是否被受理，都必须收口这个池。 */
+			if ( !xrtTaskPoolCancel(pFullPool) ) goto Cleanup;
 		}
 		if ( (xrtTaskPoolWaitFor(pFullPool,EXAMPLE_TIMEOUT_MS) !=
 				XWAIT_OK) ||

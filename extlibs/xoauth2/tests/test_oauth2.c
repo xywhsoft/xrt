@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /* xoauth2 测试：单 TU（XRT_IMPLEMENTATION 只定义一次）。
  * 覆盖：PKCE/state/URL 编码/预设/授权 URL/CSRF/请求构造（三种
  * AuthStyle）/响应解析/token 时间戳/错误码/泄漏实测/fuzz。 */
@@ -13,6 +12,7 @@
 #include "support/runtime.h"
 #include "support/implementation.c"
 #endif
+#include <xrt/detail/wait.h>
 
 #include <stdio.h>
 #include <stdlib.h>

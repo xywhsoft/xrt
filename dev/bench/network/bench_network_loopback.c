@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 #include "../bench_common.h"
 
 #define XRT_MODULE_NET_TCP_SYNC
@@ -6,6 +5,7 @@
 #define XRT_MODULE_NET_UDP_SYNC
 #define XRT_IMPLEMENTATION
 #include "../../../single/xrt.h"
+#include <xrt/detail/wait.h>
 #define XRT_BENCH_NETWORK_DESTROY_HELPERS
 #include "bench_network_common.h"
 

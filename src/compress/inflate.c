@@ -250,7 +250,8 @@ static bool __xrtInflateFeedCodec(
 		}
 		Status = tinfl_decompress(
 			&pInflate->Codec,
-			pData != NULL ? pData + iOffset : NULL,
+			/* miniz performs pointer arithmetic even for a zero-length input. */
+			pData != NULL ? pData + iOffset : (cbytes)"",
 			&iInput,
 			pInflate->Dictionary,
 			pInflate->Dictionary +

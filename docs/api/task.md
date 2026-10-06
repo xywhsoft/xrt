@@ -1167,7 +1167,7 @@ bool xrtTaskPoolCancel(xtaskpool* pPool)
 [task_tour](../../examples/concurrency/task_tour/main.c) · 取消
 
 ```c
-				(xrtTaskPoolCancel(pFullPool) ) ) {
+if ( !xrtTaskPoolCancel(pFullPool) ) goto Cleanup;
 ```
 
 

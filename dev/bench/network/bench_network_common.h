@@ -1,6 +1,6 @@
-#include <xrt/detail/wait.h>
 #ifndef XRT_BENCH_NETWORK_COMMON_H
 #define XRT_BENCH_NETWORK_COMMON_H
+#include <xrt/detail/wait.h>
 
 
 
