@@ -75,6 +75,7 @@ typedef struct testwsfutureproducer {
 typedef struct testwsfuturestress {
 	xwsconn* Connection;
 	xatomic32* Failed;
+	xatomic32* Sent;
 	size_t Rounds;
 } testwsfuturestress;
 
@@ -1005,6 +1006,13 @@ static int32 testWsFutureStressProc(ptr pData)
 			);
 			return 1;
 		}
+		if ( State == XFUTURE_RESOLVED ) {
+			(void)xrtAtomic32FetchAdd(
+				pStress->Sent,
+				1,
+				XMEMORY_RELEASE
+			);
+		}
 		i++;
 	}
 	return 0;
@@ -1013,22 +1021,26 @@ static int32 testWsFutureStressProc(ptr pData)
 
 
 /* 多线程反复穿过空负载计数门禁，确保字节预算不能旁路操作数上限。 */
-static void testWsFutureStress(xwsconn* pClient)
+static void testWsFutureStress(testwsfuture* pTest, xwsconn* pClient)
 {
 	testwsfuturestress Stress[
 		TEST_WS_FUTURE_STRESS_THREADS
 	];
 	xthread* Threads[TEST_WS_FUTURE_STRESS_THREADS];
 	xatomic32 Failed;
+	xatomic32 Sent;
+	uint32 iMessages = xrtAtomic32Load(&pTest->Messages, XMEMORY_ACQUIRE);
 
 	memset(Stress, 0, sizeof(Stress));
 	memset(Threads, 0, sizeof(Threads));
 	xrtAtomic32Init(&Failed, 0);
+	xrtAtomic32Init(&Sent, 0);
 	for ( size_t i = 0;
 		i < TEST_WS_FUTURE_STRESS_THREADS;
 		i++ ) {
 		Stress[i].Connection = pClient;
 		Stress[i].Failed = &Failed;
+		Stress[i].Sent = &Sent;
 		Stress[i].Rounds =
 			TEST_WS_FUTURE_STRESS_ROUNDS;
 		Threads[i] = xrtThreadCreate(
@@ -1059,6 +1071,18 @@ static void testWsFutureStress(xwsconn* pClient)
 		(xrtWsConnAsyncCount(pClient) == 0) &&
 		(xrtWsConnAsyncBytes(pClient) == 0),
 		"WebSocket Future stress leaked queue state"
+	);
+	/* 发送 Future 只确认本端接管；等待接收端处理完所有成功发送的
+	 * 空消息，再让后续 Ref 测试取得稳定的消息计数基线。 */
+	iMessages += xrtAtomic32Load(&Sent, XMEMORY_ACQUIRE);
+	testWsFutureWaitAtomic(
+		&pTest->Messages,
+		iMessages,
+		"WebSocket Future stress messages did not arrive"
+	);
+	testRequire(
+		xrtAtomic32Load(&pTest->Messages, XMEMORY_ACQUIRE) == iMessages,
+		"WebSocket Future stress delivered a cancelled message"
 	);
 }
 
@@ -2998,7 +3022,7 @@ int main(void)
 	xrtFutureDestroy(pFirst);
 	xrtFutureDestroy(pSecond);
 
-	testWsFutureStress(pClient);
+	testWsFutureStress(&Test, pClient);
 	#if defined(TEST_WS_FUTURE_GROUP)
 		testWsFutureGroup(pClient, pServer);
 	#endif
