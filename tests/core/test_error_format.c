@@ -30,6 +30,20 @@ int main(void)
 			sizeof(sLongMessage) - 1u) &&
 		(strcmp(xrtErrorMessage(xrtGetError()), sLongMessage) == 0),
 		"long formatted error setting mismatch");
+	xrtSetErrorFormat(XERR_IO, "test.format", 13, "a%c%s", 0, "suffix");
+	{
+		xstrview Message = xrtErrorMessageView(xrtGetError());
+		testRequire(Message.Size == sizeof("a\0suffix") - 1u &&
+			memcmp(Message.Data, "a\0suffix", Message.Size) == 0,
+			"stack formatted error lost an embedded NUL");
+	}
+	xrtSetErrorFormat(XERR_IO, "test.format", 14, "%c%s", 0, sLongMessage);
+	{
+		xstrview Message = xrtErrorMessageView(xrtGetError());
+		testRequire(Message.Size == sizeof(sLongMessage) && Message.Data[0] == '\0' &&
+			memcmp(Message.Data + 1, sLongMessage, sizeof(sLongMessage) - 1u) == 0,
+			"heap formatted error lost an embedded NUL");
+	}
 
 	xrtSetErrorFormat(XERR_IO, "test.format", 11, "%n", &iWritten);
 	testRequire(iWritten == 0, "unsafe format modified caller memory");

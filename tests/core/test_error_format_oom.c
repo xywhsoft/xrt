@@ -10,6 +10,16 @@ int main(void)
 	memset(sLongMessage, 'x', sizeof(sLongMessage) - 1u);
 	sLongMessage[sizeof(sLongMessage) - 1u] = '\0';
 	testRequire(testInstallFailAllocator(), "failure allocator install failed");
+	{
+		xerrordescview Desc = { 0 };
+		Desc.Kind = XERR_IO;
+		Desc.Message = (xstrview){ "a\0suffix", sizeof("a\0suffix") - 1u };
+		testRequire(xrtErrorBuildView(&Desc) == NULL &&
+			xrtErrorKind(xrtGetError()) == XERR_MEMORY &&
+			xrtErrorMessageView(xrtGetError()).Size == sizeof("memory allocation failed") - 1u,
+			"exact error OOM must preserve an allocation-free static message");
+		xrtClearError();
+	}
 	xrtSetErrorFormat(XERR_IO, "test.format", 1, "%s", sLongMessage);
 	testRequire(xrtErrorKind(xrtGetError()) == XERR_MEMORY,
 		"error format OOM mismatch");

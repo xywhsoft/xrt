@@ -2,6 +2,50 @@
 
 Error 是全库统一的结构化错误对象与线程错误报告机制；本文件同时收录 core 并集的公共函数，与 [memory.md](memory.md)、[core.md](core.md) 共享头文件。
 
+## 精确诊断文本
+
+`xerrordescview` 与 `xerrorlocationview` 是 `xerrordesc` / `xerrorlocation`
+的长度明确版本。Domain、Operation、Message、Data、File 都是 `xstrview`，
+接受内嵌 NUL；NULL/0 表示空文本，NULL/非零是参数错误。创建时借用输入，
+在一次分配中复制全部内容并增加 Cause 引用，不保存调用方缓冲区或描述地址。
+尺寸与终止符的总和在分配/复制前检查溢出；失败不取得任何输入的所有权。
+错误保持不可变，视图访问不分配，静态 OOM 错误也有完整的长度。
+
+### `xrtErrorBuildView`
+
+`xerror* xrtErrorBuildView(const xerrordescview* pDesc)`：返回 owned 错误，
+失败返回 NULL 并设置当前错误。数值字段和原因链语义与 `xrtErrorBuild` 相同。
+
+### `xrtErrorBuildViewAt`
+
+`xerror* xrtErrorBuildViewAt(const xerrordescview*, const xerrorlocationview*)`：
+同时复制可选的精确文件名；行列不能为负。旧 C 字符串构造函数只测量一次，
+随后调用这个共同实现。printf 错误格式化保留其返回的实际长度，包括 `%c` 的 NUL。
+
+### `xrtErrorDomainView`
+
+返回完整 Domain 的借用 `xstrview`；`xrtErrorFind` 的 C 字符串域必须与完整视图
+等长且逐字节相等，不能只匹配内嵌 NUL 前缀。
+
+### `xrtErrorOperationView`
+
+返回完整 Operation 的借用 `xstrview`。
+
+### `xrtErrorMessageView`
+
+返回完整 Message 的借用 `xstrview`，包括 NUL 后缀。
+
+### `xrtErrorDataView`
+
+返回完整 Data 的借用 `xstrview`。
+
+### `xrtErrorFileView`
+
+返回完整 File 的借用 `xstrview`。五个访问器对 NULL 错误返回空视图；视图仅在
+错误仍存活时有效。旧 `cstr` 访问器是显式 C 互操入口，按 C 规则只观察到首个
+NUL 之前的前缀；完整内容必须使用 View。text/JSON 日志格式器使用精确视图，
+输出相应的控制字符转义，不把任意诊断文本作为裸 JSON 或格式串执行。
+
 ## 类型与常量
 
 ### `xseek`

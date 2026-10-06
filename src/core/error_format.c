@@ -70,7 +70,13 @@ XRT_API void xrtSetErrorFormat(
 		return;
 	}
 	va_end(Args);
-	xrtSetErrorInfo(Kind, sDomain, iCode, sMessage);
+	{
+		xerrordescview Desc = { Kind, iCode, 0,
+			{ sDomain != NULL ? sDomain : "", sDomain != NULL ? strlen(sDomain) : 0 },
+			{ "", 0 }, { sMessage, (size_t)iLength }, { "", 0 }, NULL };
+		xerror* pError = xrtErrorBuildView(&Desc);
+		if (pError != NULL) xrtSetErrorTake(pError);
+	}
 	if ( sMessage != arrLocal ) {
 		xrtFree(sMessage);
 	}

@@ -106,14 +106,6 @@ static bool __xrtLogTextView(xlogtextwriter* pWriter, xstrview Text)
 
 
 
-/* 把保证非空的错误文本转换为借用视图。 */
-static xstrview __xrtLogTextCString(cstr sText)
-{
-	return (xstrview){ sText, strlen(sText) };
-}
-
-
-
 /* 把控制字节和反斜杠转义为稳定单行文本。 */
 static bool __xrtLogTextEscape(
 	xlogtextwriter* pWriter,
@@ -396,7 +388,7 @@ static bool __xrtLogTextFieldValue(
 		__xrtLogTextAscii(pWriter, ",domain=") &&
 		__xrtLogTextEscape(
 			pWriter,
-			__xrtLogTextCString(xrtErrorDomain(pField->Value.Error)),
+			xrtErrorDomainView(pField->Value.Error),
 			true
 		) &&
 		__xrtLogTextAscii(pWriter, ",code=") &&
@@ -407,7 +399,7 @@ static bool __xrtLogTextFieldValue(
 		__xrtLogTextAscii(pWriter, ",message=") &&
 		__xrtLogTextEscape(
 			pWriter,
-			__xrtLogTextCString(xrtErrorMessage(pField->Value.Error)),
+			xrtErrorMessageView(pField->Value.Error),
 			true
 		) &&
 		__xrtLogTextAscii(pWriter, "}");

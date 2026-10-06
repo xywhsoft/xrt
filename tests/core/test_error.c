@@ -1,5 +1,72 @@
 #include "../test.h"
 
+static void testErrorViews(void)
+{
+	char Input[] = { 'a', '\0', (char)0xe4, (char)0xbd, (char)0xa0 };
+	const char Expected[] = { 'a', '\0', (char)0xe4, (char)0xbd, (char)0xa0 };
+	xstrview Text = { Input, sizeof(Input) };
+	xerrordescview Desc = { XERR_VALUE, 71, 72, Text, Text, Text, Text, NULL };
+	xerrorlocationview Location = { Text, 3, 4 };
+	xstrview (*Getters[])(const xerror*) = {
+		xrtErrorDomainView, xrtErrorOperationView, xrtErrorMessageView,
+		xrtErrorDataView, xrtErrorFileView
+	};
+	xerror* Cause = xrtErrorBuildViewAt(&Desc, &Location);
+	xerror* Error;
+	size_t i;
+	testRequire(Cause != NULL, "exact error creation failed");
+	memset(Input, 'z', sizeof(Input));
+	for (i = 0; i < sizeof(Getters) / sizeof(Getters[0]); ++i) {
+		xstrview Copy = Getters[i](Cause);
+		testRequire(Copy.Size == sizeof(Expected) && Copy.Data != Input &&
+			memcmp(Copy.Data, Expected, sizeof(Expected)) == 0 &&
+			Copy.Data[Copy.Size] == '\0', "error view was borrowed, truncated or unterminated");
+		testRequire(Getters[i](NULL).Size == 0, "NULL error view must be empty");
+	}
+	testRequire(strcmp(xrtErrorMessage(Cause), "a") == 0, "C-string interop changed");
+	testRequire(xrtErrorFind(Cause, "a", 71) == NULL, "embedded domain suffix was ignored");
+	testRequire(xrtErrorCode(Cause) == 71 && xrtErrorSystemCode(Cause) == 72 &&
+		xrtErrorLine(Cause) == 3 && xrtErrorColumn(Cause) == 4, "exact error metadata changed");
+	Desc.Cause = Cause;
+	Error = xrtErrorBuildView(&Desc);
+	testRequire(Error != NULL && xrtErrorCause(Error) == Cause, "exact cause ownership failed");
+	xrtErrorFree(Cause);
+	testRequire(xrtErrorMessageView(xrtErrorCause(Error)).Size == sizeof(Expected) &&
+		memcmp(xrtErrorMessageView(xrtErrorCause(Error)).Data, Expected, sizeof(Expected)) == 0,
+		"cause text did not survive releasing its source owner");
+	xrtErrorFree(Error);
+	Desc.Cause = NULL;
+	{
+		xstrview* Fields[] = { &Desc.Domain, &Desc.Operation, &Desc.Message, &Desc.Data, &Location.File };
+		for (i = 0; i < sizeof(Fields) / sizeof(Fields[0]); ++i) {
+			xstrview Saved = *Fields[i];
+			*Fields[i] = (xstrview){ NULL, 1 };
+			testRequire(xrtErrorBuildViewAt(&Desc, &Location) == NULL &&
+				xrtErrorKind(xrtGetError()) == XERR_ARGUMENT, "NULL/nonzero error span accepted");
+			xrtClearError();
+			*Fields[i] = (xstrview){ Input, SIZE_MAX };
+			testRequire(xrtErrorBuildViewAt(&Desc, &Location) == NULL &&
+				xrtErrorKind(xrtGetError()) == XERR_RANGE, "error size overflow accepted");
+			xrtClearError(); *Fields[i] = Saved;
+		}
+	}
+	Desc.Domain = (xstrview){ Input, SIZE_MAX / 2 };
+	Desc.Operation = Desc.Domain;
+	testRequire(xrtErrorBuildView(&Desc) == NULL &&
+		xrtErrorKind(xrtGetError()) == XERR_RANGE, "combined error spans overflowed");
+	xrtClearError();
+	Desc = (xerrordescview){ 0 };
+	Desc.Kind = XERR_STATE;
+	Error = xrtErrorBuildView(&Desc);
+	testRequire(Error != NULL && xrtErrorMessageView(Error).Size == 0 &&
+		xrtErrorMessage(Error)[0] == '\0', "NULL/zero span must be an owned empty text");
+	xrtErrorFree(Error);
+	Location.Line = -1;
+	testRequire(xrtErrorBuildViewAt(&Desc, &Location) == NULL &&
+		xrtErrorKind(xrtGetError()) == XERR_ARGUMENT, "exact negative location accepted");
+	xrtClearError();
+}
+
 
 
 #define TEST_ERROR_CHAIN_DEPTH 32768
@@ -65,6 +132,7 @@ int main(void)
 
 	memset(&tHandler, 0, sizeof(tHandler));
 	testRequire(xrtGetError() == NULL, "new thread must not have an error");
+	testErrorViews();
 	pCause = xrtErrorCreate(XERR_TIMEOUT, "test.net", 7, "deadline reached");
 	testRequire(pCause != NULL, "cause creation failed");
 

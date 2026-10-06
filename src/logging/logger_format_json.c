@@ -317,8 +317,8 @@ static bool __xrtLogJsonErrorValue(
 )
 {
 	bool bAny = false;
-	cstr sOperation;
-	cstr sData;
+	xstrview Operation;
+	xstrview Data;
 	const xerror* pCause;
 
 	if ( pError == NULL ) {
@@ -334,8 +334,8 @@ static bool __xrtLogJsonErrorValue(
 		pWriter->Failed = true;
 		return false;
 	}
-	sOperation = xrtErrorOperation(pError);
-	sData = xrtErrorData(pError);
+	Operation = xrtErrorOperationView(pError);
+	Data = xrtErrorDataView(pError);
 	pCause = xrtErrorCause(pError);
 	return
 		__xrtLogJsonAscii(pWriter, "{") &&
@@ -344,7 +344,7 @@ static bool __xrtLogJsonErrorValue(
 		__xrtLogJsonMember(pWriter, &bAny, "domain") &&
 		__xrtLogJsonQuote(
 			pWriter,
-			__xrtLogJsonCString(xrtErrorDomain(pError))
+			xrtErrorDomainView(pError)
 		) &&
 		__xrtLogJsonMember(pWriter, &bAny, "code") &&
 		__xrtLogJsonInt(pWriter, (int64)xrtErrorCode(pError)) &&
@@ -359,25 +359,25 @@ static bool __xrtLogJsonErrorValue(
 			)
 		) &&
 		(
-			(sOperation[0] == 0) ||
+			(Operation.Size == 0) ||
 			(
 				__xrtLogJsonMember(pWriter, &bAny, "operation") &&
 				__xrtLogJsonQuote(
 					pWriter,
-					__xrtLogJsonCString(sOperation)
+					Operation
 				)
 			)
 		) &&
 		__xrtLogJsonMember(pWriter, &bAny, "message") &&
 		__xrtLogJsonQuote(
 			pWriter,
-			__xrtLogJsonCString(xrtErrorMessage(pError))
+			xrtErrorMessageView(pError)
 		) &&
 		(
-			(sData[0] == 0) ||
+			(Data.Size == 0) ||
 			(
 				__xrtLogJsonMember(pWriter, &bAny, "data") &&
-				__xrtLogJsonQuote(pWriter, __xrtLogJsonCString(sData))
+				__xrtLogJsonQuote(pWriter, Data)
 			)
 		) &&
 		(

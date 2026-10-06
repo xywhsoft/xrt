@@ -282,8 +282,32 @@ static void testLogTextErrors(void)
 
 
 /* 执行流式文本格式器完整回归。 */
+static void testLogTextErrorView(void)
+{
+	testlogtextoutput Output = { 0 };
+	xlogtextconfig Config;
+	xlogrecord Record = { 0 };
+	xerrordescview Desc = { 0 };
+	xlogfield Field;
+	xerror* Error;
+	Desc.Kind = XERR_VALUE;
+	Desc.Domain = XRT_STR_LITERAL("d\0omain");
+	Desc.Message = XRT_STR_LITERAL("m\0suffix");
+	Error = xrtErrorBuildView(&Desc);
+	testRequire(Error != NULL, "exact text log fixture failed");
+	Field = xrtLogFieldError(XRT_STR_LITERAL("error"), Error);
+	Record.Level = XLOG_INFO; Record.Fields = &Field; Record.FieldCount = 1;
+	testRequire(xrtLogTextConfigInit(&Config, XLOG_TEXT_SIMPLE) &&
+		xrtLogTextWrite(&Record, &Config, testLogTextWrite, &Output, NULL) &&
+		testLogTextContains(&Output, "d\\x00omain", sizeof("d\\x00omain") - 1u) &&
+		testLogTextContains(&Output, "m\\x00suffix", sizeof("m\\x00suffix") - 1u),
+		"text error field truncated an exact diagnostic span");
+	xrtErrorFree(Error);
+}
+
 int main(void)
 {
+	testLogTextErrorView();
 	testLogTextLayouts();
 	testLogTextValues();
 	testLogTextErrors();

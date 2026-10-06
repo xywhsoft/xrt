@@ -388,8 +388,37 @@ static void testLogJsonErrors(void)
 
 
 /* 执行流式 JSON Lines 格式器完整回归。 */
+static void testLogJsonErrorView(void)
+{
+	testlogjsonoutput Output = { 0 };
+	xlogjsonconfig Config;
+	xlogrecord Record = { 0 };
+	xerrordescview Desc = { 0 };
+	xlogfield Field;
+	xerror* Error;
+	Desc.Kind = XERR_VALUE;
+	Desc.Domain = XRT_STR_LITERAL("d\0omain");
+	Desc.Operation = XRT_STR_LITERAL("\0op");
+	Desc.Message = XRT_STR_LITERAL("m\0suffix");
+	Desc.Data = XRT_STR_LITERAL("\0data");
+	Error = xrtErrorBuildView(&Desc);
+	testRequire(Error != NULL, "exact JSON log fixture failed");
+	Field = xrtLogFieldError(XRT_STR_LITERAL("error"), Error);
+	Record.Level = XLOG_INFO; Record.Fields = &Field; Record.FieldCount = 1;
+	testRequire(xrtLogJsonConfigInit(&Config), "exact JSON log config failed");
+	Config.Flags = XLOG_JSON_FIELDS;
+	testRequire(xrtLogJsonWrite(&Record, &Config, testLogJsonWrite, &Output, NULL),
+		"exact JSON error field formatting failed");
+	testLogJsonEqual(&Output,
+		"{\"fields\":{\"error\":{\"kind\":3,\"domain\":\"d\\u0000omain\",\"code\":0,"
+		"\"operation\":\"\\u0000op\",\"message\":\"m\\u0000suffix\",\"data\":\"\\u0000data\"}}}",
+		"JSON error field truncated an exact diagnostic span");
+	xrtErrorFree(Error);
+}
+
 int main(void)
 {
+	testLogJsonErrorView();
 	testLogJsonLayout();
 	testLogJsonFieldArray();
 	testLogJsonPolicies();
