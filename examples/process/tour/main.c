@@ -117,17 +117,23 @@ int main(void)
 			pCancel) != XWAIT_CANCELLED) ) {
 		goto Cleanup;
 	}
-	/* 停止族：Interrupt 是协作请求（Windows 重定向子进程可能
-	 * 不响应控制台事件），仅断言受理；实际终止用 Terminate。 */
-	sStage = "interrupt and kill";
+	/* 先等待 Interrupt 的退出终态；Windows 重定向子进程可能
+	 * 不响应控制台事件，超时后再用 Kill。其余停止方式各用独立进程。 */
+	sStage = "interrupt and wait";
 	if ( !xrtProcessInterrupt(pProcess) ) {
 		goto Cleanup;
 	}
-	if ( !xrtProcessTerminate(pProcess) ||
-		!xrtProcessKill(pProcess) ||
-		(xrtProcessWaitFor(pProcess,INT64_C(2000)) !=
-			XWAIT_OK) ) {
-		goto Cleanup;
+	{
+		xwaitresult Wait = xrtProcessWaitFor(pProcess, INT64_C(1000));
+		if ( Wait == XWAIT_TIMEOUT ) {
+			if ( !xrtProcessKill(pProcess) ) {
+				goto Cleanup;
+			}
+			Wait = xrtProcessWaitFor(pProcess, INT64_C(2000));
+		}
+		if ( Wait != XWAIT_OK ) {
+			goto Cleanup;
+		}
 	}
 	if ( (xrtProcessState(pProcess) != XPROCESS_EXITED) ||
 		!xrtProcessStatus(pProcess, &Status) ||
@@ -225,8 +231,10 @@ int main(void)
 
 Cleanup:
 	if ( iResult != 0 ) {
-		fprintf(stderr, "process: %s failed kind=%d code=%d\n", sStage,
-			(int)xrtErrorKind(xrtGetError()), (int)xrtErrorCode(xrtGetError()));
+		cstr sOperation = xrtErrorOperation(xrtGetError());
+		fprintf(stderr, "process: %s failed kind=%d code=%d system=%d operation=%s\n", sStage,
+			(int)xrtErrorKind(xrtGetError()), (int)xrtErrorCode(xrtGetError()),
+			(int)xrtErrorSystemCode(xrtGetError()), sOperation != NULL ? sOperation : "");
 	}
 	xrtCancelDestroy(pCancel);
 	xrtProcessDestroy(pRef);
