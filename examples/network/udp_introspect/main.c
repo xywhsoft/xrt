@@ -48,7 +48,7 @@ static inline bool exampleTimerExpired(double Limit)
 /* 自省任务上下文：跨线程收集 Worker 内调用的结果。 */
 typedef struct exampletask {
 	xnetudp* pUdp;
-	volatile bool bDone;
+	xatomic32 Done;
 	bool bSocketOk;
 	bool bSetDataOk;
 	bool bWorkerDataOk;
@@ -70,17 +70,17 @@ static void exampleWorkerTask(xnetworker* pWorker, ptr pData)
 	pTask->bSocketOk = xrtNetUdpSocket(pTask->pUdp) != NULL;
 	pTask->bSetDataOk = xrtNetUdpSetData(pTask->pUdp, &g_Tag);
 	pTask->bWorkerDataOk = xrtNetUdpData(pTask->pUdp) == &g_Tag;
-	pTask->bDone = true;
+	xrtAtomic32Store(&pTask->Done, 1u, XMEMORY_RELEASE);
 }
 
 
 
 /* 在截止时间内轮询条件。 */
-static bool exampleSpinUntil(volatile bool* pFlag)
+static bool exampleSpinUntil(const xatomic32* pFlag)
 {
 	double iDeadline = exampleTimerLimit(3000);
 
-	while ( !*pFlag ) {
+	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) == 0u ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
@@ -152,7 +152,7 @@ int main(void)
 	Task.pUdp = pUdp;
 	if ( !xrtNetPostInit(&Post) || !xrtNetPost(
 		xrtNetUdpWorker(pUdp), &Post, exampleWorkerTask, &Task) ||
-		 !exampleSpinUntil(&Task.bDone) ) {
+		 !exampleSpinUntil(&Task.Done) ) {
 		iResult = 4;
 		goto Cleanup;
 	}

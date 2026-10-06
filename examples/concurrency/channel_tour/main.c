@@ -51,22 +51,8 @@ static inline bool exampleTimerExpired(double Limit)
 typedef struct examplecancel {
 	xchannel* pChannel;
 	xcancel* pCancel;
-	volatile xwaitresult Result;
-	volatile bool bDone;
+	xwaitresult Result;
 } examplecancel;
-
-static bool exampleSpinUntil(volatile bool* pFlag)
-{
-	double iDeadline = exampleTimerLimit(INT64_C(3000));
-
-	while ( !*pFlag ) {
-		if ( exampleTimerExpired(iDeadline) ) {
-			return false;
-		}
-		xrtThreadYield();
-	}
-	return true;
-}
 
 /* 发送端线程：满通道上 SendForCancel 挂起直到令牌触发。 */
 static int32 exampleSendWaiter(ptr pArg)
@@ -75,7 +61,6 @@ static int32 exampleSendWaiter(ptr pArg)
 
 	pJob->Result = xrtChannelSendForCancel(pJob->pChannel, (ptr)1,
 		INT64_C(10000), pJob->pCancel);
-	pJob->bDone = true;
 	return 0;
 }
 
@@ -86,7 +71,6 @@ static int32 exampleRecvWaiter(ptr pArg)
 	ptr pItem = NULL;
 
 	pJob->Result = xrtChannelRecvForCancel(pJob->pChannel, &pItem,INT64_C(10000), pJob->pCancel);
-	pJob->bDone = true;
 	return 0;
 }
 
@@ -283,7 +267,8 @@ int main(void)
 	{
 		double iGrace = exampleTimerLimit(INT64_C(300));
 
-		while ( (SendJob.bDone || RecvJob.bDone) == false ) {
+		while ( (xrtThreadState(pSendThread) != XTHREAD_FINISHED) &&
+			(xrtThreadState(pRecvThread) != XTHREAD_FINISHED) ) {
 			if ( exampleTimerExpired(iGrace) ) {
 				break;
 			}
@@ -292,8 +277,8 @@ int main(void)
 	}
 	(void)xrtCancelRequest(SendJob.pCancel);
 	(void)xrtCancelRequest(RecvJob.pCancel);
-	if ( !exampleSpinUntil(&SendJob.bDone) ||
-		!exampleSpinUntil(&RecvJob.bDone) ||
+	if ( (xrtThreadWaitFor(pSendThread, INT64_C(3000)) != XWAIT_OK) ||
+		(xrtThreadWaitFor(pRecvThread, INT64_C(3000)) != XWAIT_OK) ||
 		(SendJob.Result != XWAIT_CANCELLED) ||
 		(RecvJob.Result != XWAIT_CANCELLED) ) {
 		goto Cleanup;

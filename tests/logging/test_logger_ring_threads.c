@@ -146,8 +146,26 @@ int main(void)
 		Collector.Count == iWritten,
 		"Logger ring accepted record count mismatch"
 	);
+	testRequire(xrtLogRingStats(pRing, &Stats), "Logger ring stats failed");
+	if ( (Stats.Enqueued != iWritten) || (Stats.Processed != iWritten) ||
+		(Stats.Written != iWritten) || (Stats.Dropped != iDropped) ||
+		(Stats.Failed != 0u) || (Stats.Queued != 0u) ||
+		(Stats.QueueBytes != 0u) || (Stats.PeakQueued > Config.Capacity) ) {
+		fprintf(stderr,
+			"ring stats accepted=%zu dropped=%zu enqueued=%llu processed=%llu "
+			"written=%llu dropped-stat=%llu failed=%llu queued=%zu bytes=%zu peak=%zu\n",
+			iWritten, iDropped, (unsigned long long)Stats.Enqueued,
+			(unsigned long long)Stats.Processed, (unsigned long long)Stats.Written,
+			(unsigned long long)Stats.Dropped, (unsigned long long)Stats.Failed,
+			Stats.Queued, Stats.QueueBytes, Stats.PeakQueued);
+		if ( Stats.Failed != 0u ) {
+			xerror* pError = xrtLogRingLastError(pRing);
+			fprintf(stderr, "ring error operation=%s message=%s\n",
+				xrtErrorOperation(pError), xrtErrorMessage(pError));
+			xrtErrorFree(pError);
+		}
+	}
 	testRequire(
-		xrtLogRingStats(pRing, &Stats) &&
 		(Stats.Enqueued == iWritten) &&
 		(Stats.Processed == iWritten) &&
 		(Stats.Written == iWritten) &&

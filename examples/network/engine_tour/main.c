@@ -39,7 +39,7 @@
 /* Worker 内自省结果：主线程核对。 */
 typedef struct exampletask {
 	xnetengine* pEngine;
-	volatile bool bDone;
+	xatomic32 Done;
 	bool bCurrent;
 	bool bIsCurrent;
 	bool bEngineOk;
@@ -54,11 +54,27 @@ typedef struct exampletask {
 
 /* 定时器结果收集：区分到期/取消。 */
 typedef struct exampletimers {
-	volatile int iFired;
-	volatile int iCancelled;
-	volatile bool bCancelCurrentOk;
+	xatomic32 Fired;
+	xatomic32 Cancelled;
+	xatomic32 CancelCurrentOk;
 	uint64 iLongId;
 } exampletimers;
+
+/* Hold one Worker so Pending can be observed before the posted task runs. */
+typedef struct examplepostbarrier {
+	xatomic32 Entered;
+	xatomic32 Release;
+} examplepostbarrier;
+
+static void examplePostBarrier(xnetworker* pWorker, ptr pData)
+{
+	examplepostbarrier* pBarrier = (examplepostbarrier*)pData;
+	(void)pWorker;
+	xrtAtomic32Store(&pBarrier->Entered, 1u, XMEMORY_RELEASE);
+	while ( xrtAtomic32Load(&pBarrier->Release, XMEMORY_ACQUIRE) == 0u ) {
+		xrtThreadYield();
+	}
+}
 
 /* 前置声明：最简任务与 Completion 过程定义在 main 之后。 */
 static void exampleSimpleTask(xnetworker* pWorker, ptr pData);
@@ -98,7 +114,7 @@ static void exampleWorkerTask(xnetworker* pWorker, ptr pData)
 	pTask->bIdOk = (IdA != 0u) && (IdB != 0u) && (IdA != IdB);
 	pTask->IdInWorker = IdB;
 	/* Worker 统计快照可从任意线程读取。 */
-	pTask->bDone = true;
+	xrtAtomic32Store(&pTask->Done, 1u, XMEMORY_RELEASE);
 	(void)Stats;
 }
 
@@ -111,7 +127,7 @@ static void exampleFireTimer(xnetworker* pWorker, uint64 Id,
 	(void)pWorker;
 	(void)Id;
 	if ( Result == XNET_RESULT_OK ) {
-		++pTimers->iFired;
+		(void)xrtAtomic32FetchAdd(&pTimers->Fired, 1u, XMEMORY_RELEASE);
 	}
 }
 
@@ -124,7 +140,7 @@ static void exampleLongTimer(xnetworker* pWorker, uint64 Id,
 	(void)pWorker;
 	(void)Id;
 	if ( Result == XNET_RESULT_CANCELLED ) {
-		++pTimers->iCancelled;
+		(void)xrtAtomic32FetchAdd(&pTimers->Cancelled, 1u, XMEMORY_RELEASE);
 	}
 }
 
@@ -139,20 +155,21 @@ static void exampleCarrierTimer(xnetworker* pWorker, uint64 Id,
 		return;
 	}
 	/* CancelCurrent 只在本 Worker（同亲和）上立即生效。 */
-	pTimers->bCancelCurrentOk = xrtNetEngineTimerCancelCurrent(
-		xrtNetWorkerEngine(pWorker), pTimers->iLongId);
+	xrtAtomic32Store(&pTimers->CancelCurrentOk,
+		xrtNetEngineTimerCancelCurrent(xrtNetWorkerEngine(pWorker), pTimers->iLongId)
+			? 1u : 0u, XMEMORY_RELEASE);
 }
 
-/* 自旋等待辅助：有界轮询 volatile 条件。 */
-static bool exampleSpinUntil(volatile bool* pFlag, uint32 iTimeoutMs)
+/* 自旋等待辅助：有界轮询完成标志并获取回调结果。 */
+static bool exampleSpinUntil(const xatomic32* pFlag, uint32 iTimeoutMs)
 {
 	for ( uint32 i = 0; i < iTimeoutMs; i++ ) {
-		if ( *pFlag ) {
+		if ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) != 0u ) {
 			return true;
 		}
 		xrtSleep(1u);
 	}
-	return *pFlag;
+	return xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) != 0u;
 }
 
 int main(void)
@@ -166,10 +183,12 @@ int main(void)
 	xnetcompletion Completion;
 	exampletask Task;
 	exampletimers Timers;
+	examplepostbarrier Barrier = { XRT_ATOMIC32_INIT(0), XRT_ATOMIC32_INIT(0) };
+	xnetpost BarrierPost;
 	uint64 IdOpA;
 	uint64 IdOpB;
 	uint64 IdFire;
-	volatile bool bTaskDone = false;
+	xatomic32 TaskDone = XRT_ATOMIC32_INIT(0);
 	int iResult = 1;
 
 	/* ---- 生命周期：创建即 STOPPED，Start 后 RUNNING。 ---- */
@@ -211,7 +230,7 @@ int main(void)
 	Task.pEngine = pEngine;
 	if ( !xrtNetEnginePost(pEngine, 0u, exampleWorkerTask,
 			(ptr)&Task) ||
-		!exampleSpinUntil(&Task.bDone, 2000u) ||
+		!exampleSpinUntil(&Task.Done, 2000u) ||
 		!Task.bCurrent || !Task.bIsCurrent ||
 		!Task.bEngineOk || !Task.bIndexOk || !Task.bPortOk ||
 		!Task.bBufPoolOk || !Task.bAllocOk || !Task.bFreeOk ||
@@ -231,16 +250,22 @@ int main(void)
 	{
 		xnetpost Post;
 
-		if ( !xrtNetPostInit(&Post) ||
-			!xrtNetPost(pWorker0, &Post,
-				exampleSimpleTask, (ptr)&bTaskDone) ) {
+		if ( !xrtNetPostInit(&BarrierPost) ||
+			!xrtNetPost(pWorker0, &BarrierPost, examplePostBarrier, &Barrier) ||
+			!exampleSpinUntil(&Barrier.Entered, 2000u) ) {
 			goto Cleanup;
 		}
-		/* 受理瞬间在队列中——立即查询应为真。 */
+		if ( !xrtNetPostInit(&Post) ||
+			!xrtNetPost(pWorker0, &Post,
+				exampleSimpleTask, (ptr)&TaskDone) ) {
+			goto Cleanup;
+		}
+		/* Worker 在屏障中，Post 此时仍在队列内。 */
 		if ( !xrtNetPostPending(&Post) ) {
 			goto Cleanup;
 		}
-		if ( !exampleSpinUntil(&bTaskDone, 2000u) ||
+		xrtAtomic32Store(&Barrier.Release, 1u, XMEMORY_RELEASE);
+		if ( !exampleSpinUntil(&TaskDone, 2000u) ||
 			xrtNetPostPending(&Post) ) {
 			goto Cleanup;
 		}
@@ -258,12 +283,12 @@ int main(void)
 	}
 	/* 自旋等两个回调都终结：一个 OK 一个 CANCELLED。 */
 	for ( uint32 i = 0; i < 3000u; i++ ) {
-		if ( (Timers.iFired >= 1) && (Timers.iCancelled >= 1) ) {
+		if ( (xrtAtomic32Load(&Timers.Fired, XMEMORY_ACQUIRE) >= 1) && (xrtAtomic32Load(&Timers.Cancelled, XMEMORY_ACQUIRE) >= 1) ) {
 			break;
 		}
 		xrtSleep(1u);
 	}
-	if ( (Timers.iFired < 1) || (Timers.iCancelled < 1) ) {
+	if ( (xrtAtomic32Load(&Timers.Fired, XMEMORY_ACQUIRE) < 1) || (xrtAtomic32Load(&Timers.Cancelled, XMEMORY_ACQUIRE) < 1) ) {
 		goto Cleanup;
 	}
 	printf("engine: schedule fire + async cancel ok\n");
@@ -275,17 +300,17 @@ int main(void)
 	if ( (Timers.iLongId == 0u) ||
 		(xrtNetEngineSchedule(pEngine, 1u,0,
 			exampleCarrierTimer, (ptr)&Timers) == 0u) ||
-		!exampleSpinUntil(&Timers.bCancelCurrentOk, 2000u) ) {
+		!exampleSpinUntil(&Timers.CancelCurrentOk, 2000u) ) {
 		goto Cleanup;
 	}
 	/* 长定时器以 CANCELLED 终结。 */
 	for ( uint32 i = 0; i < 3000u; i++ ) {
-		if ( Timers.iCancelled >= 1 ) {
+		if ( xrtAtomic32Load(&Timers.Cancelled, XMEMORY_ACQUIRE) >= 1 ) {
 			break;
 		}
 		xrtSleep(1u);
 	}
-	if ( !Timers.bCancelCurrentOk || (Timers.iCancelled < 1) ) {
+	if ( xrtAtomic32Load(&Timers.CancelCurrentOk, XMEMORY_ACQUIRE) == 0u || (xrtAtomic32Load(&Timers.Cancelled, XMEMORY_ACQUIRE) < 1) ) {
 		goto Cleanup;
 	}
 	printf("engine: timer-cancel-current inside callback ok\n");
@@ -298,11 +323,12 @@ int main(void)
 	}
 	/* CompletionInit：借用过程与数据的初始化形态。 */
 	xrtNetCompletionInit(&Completion, exampleCompletionProc,
-		(ptr)&bTaskDone);
+		(ptr)&TaskDone);
 	printf("engine: stats aggregate posts>=2 timers>=2 ok\n");
 	iResult = 0;
 
 Cleanup:
+	xrtAtomic32Store(&Barrier.Release, 1u, XMEMORY_RELEASE);
 	if ( (pEngine != NULL) &&
 		(xrtNetEngineState(pEngine) != XNET_ENGINE_STOPPED) ) {
 		xrtNetEngineStop(pEngine);
@@ -313,13 +339,13 @@ Cleanup:
 	return iResult;
 }
 
-/* 最简任务：置一个 volatile 标志。 */
+/* 最简任务：发布一个完成标志。 */
 static void exampleSimpleTask(xnetworker* pWorker, ptr pData)
 {
-	volatile bool* pFlag = (volatile bool*)pData;
+	xatomic32* pFlag = (xatomic32*)pData;
 
 	(void)pWorker;
-	*pFlag = true;
+	xrtAtomic32Store(pFlag, 1u, XMEMORY_RELEASE);
 }
 
 /* Completion 过程：本例不触发端口事件，仅演示初始化形态。 */

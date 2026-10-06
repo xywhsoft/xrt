@@ -22,7 +22,9 @@ int main(void)
 		iStreamSizeLimit += 40u;
 	#endif
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
-		iStreamSizeLimit += 64u;
+		/* TinyCC POSIX uses a pthread mutex for WaitLock. Account for that
+		 * fixed platform storage while keeping the remaining Future budget. */
+		iStreamSizeLimit += (56u + sizeof(xrt_spinlock) + 7u) & ~(size_t)7u;
 	#endif
 	testRequire(sizeof(xnetstream) <= iStreamSizeLimit,
 		"TCP stream fixed object is too large");

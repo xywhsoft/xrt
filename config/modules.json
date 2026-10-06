@@ -14478,7 +14478,8 @@
 			"tests": [
 				"tests/logging/test_logger_ring.c",
 				"tests/logging/test_logger_ring_oom.c",
-				"tests/logging/test_logger_ring_threads.c"
+				"tests/logging/test_logger_ring_threads.c",
+				"tests/logging/test_logger_ring_return.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_logger_ring.c"

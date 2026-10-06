@@ -47,9 +47,9 @@ static inline bool exampleTimerExpired(double Limit)
 
 /* 客户端上下文：Open/Read 回调与主线程交接。 */
 typedef struct example_tls_upgrade {
-	volatile bool bOpen;
-	volatile bool bClosed;
-	volatile size_t Received;
+	xatomic32 Open;
+	xatomic32 Closed;
+	xatomic64 Received;
 	size_t iPullup;
 	size_t iRead;
 	size_t iConsume;
@@ -70,13 +70,12 @@ typedef struct example_upgrade_task {
 	const xtlsstreamevents* pEvents;
 	ptr pData;
 	xtlsstream* pTls;
-	volatile bool bDone;
+	xatomic32 Done;
 	bool bOk;
 } example_upgrade_task;
 
-/* 客户端事件集与热替换副本：文件级存储保证回调期间存活。 */
+/* 不可变客户端事件集；SetEvents 会复制回调内的替换副本。 */
 static xtlsstreamevents g_ClientEvents;
-static xtlsstreamevents g_SwappedEvents;
 
 static xtlsverifydecision exampleAcceptAll(
 	const xtlspeer* pPeer, ptr pContext)
@@ -86,11 +85,11 @@ static xtlsverifydecision exampleAcceptAll(
 	return XTLS_VERIFY_ACCEPT;
 }
 
-static bool exampleSpinUntil(volatile bool* pFlag)
+static bool exampleSpinUntil(const xatomic32* pFlag)
 {
 	double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
-	while ( !*pFlag ) {
+	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) == 0u ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
@@ -100,14 +99,14 @@ static bool exampleSpinUntil(volatile bool* pFlag)
 }
 
 /* ---- HTTP over TLS 段：ParseTls 双向解析。 ---- */
-static volatile bool g_bHttpReqParsed;
-static volatile bool g_bHttpRspParsed;
-static volatile bool g_bHttpMode;
+static xatomic32 HttpReqParsed;
+static xatomic32 HttpRspParsed;
+static xatomic32 HttpMode;
 
 /* Worker 任务：热替换事件集 / 发送请求。 */
 typedef struct example_http_task {
 	xtlsstream* pStream;
-	volatile bool bDone;
+	xatomic32 Done;
 	bool bOk;
 } example_http_task;
 
@@ -126,7 +125,7 @@ static void exampleHttpSendTask(xnetworker* pWorker, ptr pUserData)
 		sizeof(arrRequest) - 1u,
 		&iWritten) == XTLS_OK) &&
 		(iWritten == sizeof(arrRequest) - 1u);
-	pTask->bDone = true;
+	xrtAtomic32Store(&pTask->Done, 1u, XMEMORY_RELEASE);
 }
 
 /* Worker 任务：StreamClient（pSession == NULL）或 StreamAttach。 */
@@ -145,7 +144,7 @@ static void exampleUpgradeTask(xnetworker* pWorker, ptr pUserData)
 			pTask->pClient, pTask->pStream, pTask->pEvents,
 			pTask->pData, &pTask->pTls);
 	}
-	pTask->bDone = true;
+	xrtAtomic32Store(&pTask->Done, 1u, XMEMORY_RELEASE);
 }
 
 /* 服务端 Read 回调（Worker）：从 TLS 明文块链解析请求并应答。 */
@@ -189,7 +188,7 @@ static void exampleHttpServerRead(xtlsstream* pStream,
 		(iWritten != sizeof(arrResponse) - 1u) ) {
 		return;
 	}
-	g_bHttpReqParsed = true;
+	xrtAtomic32Store(&HttpReqParsed, 1u, XMEMORY_RELEASE);
 }
 
 /* 客户端 Read 回调（Worker）：从明文块链解析响应。 */
@@ -209,7 +208,7 @@ static void exampleHttpClientRead(xtlsstream* pStream,
 			&Error) == XHTTP1_READY) &&
 		(Head.Status == 200u) &&
 		(Head.ContentLength == 2u) ) {
-		g_bHttpRspParsed = true;
+		xrtAtomic32Store(&HttpRspParsed, 1u, XMEMORY_RELEASE);
 	}
 }
 
@@ -219,7 +218,7 @@ static void exampleServerRead(xtlsstream* pStream,
 {
 	(void)pBuffer;
 	(void)pData;
-	if ( g_bHttpMode ) {
+	if ( xrtAtomic32Load(&HttpMode, XMEMORY_ACQUIRE) != 0u ) {
 		exampleHttpServerRead(pStream, NULL, NULL);
 		return;
 	}
@@ -251,6 +250,7 @@ static void exampleUpgradeOpen(xtlsstream* pStream, ptr pData)
 	example_tls_upgrade* pClient = (example_tls_upgrade*)pData;
 	xnetspan Vec[2];
 	size_t iWritten = 0;
+	xtlsstreamevents SwappedEvents = g_ClientEvents;
 
 	/* Open 回调（Worker 上）：聚集发送一条 9 字节明文。 */
 	Vec[0].Data = (cbytes)"vec-";
@@ -260,20 +260,19 @@ static void exampleUpgradeOpen(xtlsstream* pStream, ptr pData)
 	(void)xrtTlsStreamSendVec(pStream, Vec, 2, &iWritten);
 	/* SendBound 是 Worker 专用：明文尺寸 → 密文上界。 */
 	(void)xrtTlsStreamSendBound(pStream, 64u, &pClient->iBound);
-	/* SetEvents：Open 回调内热替换为同一事件集的文件级副本
-	 * （先复制处理器再替换，语义等价但演示了热替换入口）。 */
-	g_SwappedEvents = g_ClientEvents;
+	/* SetEvents：Open 回调内热替换为同一事件集的局部副本。
+	 * API 复制事件表，两条连接的 Worker 不共享可写副本。 */
 	pClient->bEventsSwapped = xrtTlsStreamSetEvents(pStream,
-		&g_SwappedEvents, pClient);
+		&SwappedEvents, pClient);
 	pClient->bSessionOk = xrtTlsStreamSession(pStream) != NULL;
 	pClient->bDataOk = xrtTlsStreamData(pStream) == pClient;
-	pClient->bOpen = true;
+	xrtAtomic32Store(&pClient->Open, 1u, XMEMORY_RELEASE);
 }
 
 static void exampleUpgradeRead(xtlsstream* pStream,
 	const xnetbuf* pBuffer, ptr pData)
 {
-	if ( g_bHttpMode ) {
+	if ( xrtAtomic32Load(&HttpMode, XMEMORY_ACQUIRE) != 0u ) {
 		exampleHttpClientRead(pStream, NULL, NULL);
 		return;
 	}
@@ -308,7 +307,7 @@ static void exampleUpgradeRead(xtlsstream* pStream,
 	if ( xrtTlsStreamConsume(pStream, 5u) ) {
 		pClient->iConsume = 5u;
 	}
-	pClient->Received = pClient->Received + 9u;
+	(void)xrtAtomic64FetchAdd(&pClient->Received, 9u, XMEMORY_RELEASE);
 }
 
 static void exampleUpgradeClose(xtlsstream* pStream,
@@ -319,7 +318,7 @@ static void exampleUpgradeClose(xtlsstream* pStream,
 	(void)pStream;
 	(void)Result;
 	(void)pError;
-	pClient->bClosed = true;
+	xrtAtomic32Store(&pClient->Closed, 1u, XMEMORY_RELEASE);
 }
 
 /* 等一条 TCP Stream 进入 OPEN。 */
@@ -440,7 +439,7 @@ int main(void)
 	TaskA.pData = &ClientA;
 	if ( !xrtNetPostInit(&Post) || !xrtNetPost(
 		xrtNetStreamWorker(pTcpA), &Post, exampleUpgradeTask,
-		&TaskA) || !exampleSpinUntil(&TaskA.bDone) ||
+		&TaskA) || !exampleSpinUntil(&TaskA.Done) ||
 		!TaskA.bOk ) {
 		iResult = 3;
 		goto Cleanup;
@@ -464,7 +463,7 @@ int main(void)
 	TaskB.pData = &ClientB;
 	if ( !xrtNetPostInit(&Post) || !xrtNetPost(
 		xrtNetStreamWorker(pTcpB), &Post, exampleUpgradeTask,
-		&TaskB) || !exampleSpinUntil(&TaskB.bDone) ||
+		&TaskB) || !exampleSpinUntil(&TaskB.Done) ||
 		!TaskB.bOk ) {
 		iResult = 4;
 		goto Cleanup;
@@ -474,8 +473,8 @@ int main(void)
 	pSessionB = NULL;
 
 	/* 两个客户端都握手完成。 */
-	if ( !exampleSpinUntil(&ClientA.bOpen) ||
-		!exampleSpinUntil(&ClientB.bOpen) ) {
+	if ( !exampleSpinUntil(&ClientA.Open) ||
+		!exampleSpinUntil(&ClientB.Open) ) {
 		iResult = 5;
 		goto Cleanup;
 	}
@@ -509,7 +508,8 @@ int main(void)
 
 	/* 回显到达：Read 回调里完成 Pullup/Read/Consume 核对。 */
 	iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
-	while ( (ClientA.Received < 9u) || (ClientB.Received < 9u) ) {
+	while ( (xrtAtomic64Load(&ClientA.Received, XMEMORY_ACQUIRE) < 9u) ||
+		(xrtAtomic64Load(&ClientB.Received, XMEMORY_ACQUIRE) < 9u) ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 6;
 			goto Cleanup;
@@ -544,7 +544,7 @@ int main(void)
 		goto Cleanup;
 	}
 	iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
-	while ( ClientB.Received < 18u ) {
+	while ( xrtAtomic64Load(&ClientB.Received, XMEMORY_ACQUIRE) < 18u ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 7;
 			goto Cleanup;
@@ -572,7 +572,7 @@ int main(void)
 	(void)xrtTlsStreamAsyncCount(pClientA);
 	/* ---- HTTP over TLS：切换回调分流模式后经客户端发请求，
 	 * 双方 Read 回调内用 ParseTls 从明文块链解析。 ---- */
-	g_bHttpMode = true;
+	xrtAtomic32Store(&HttpMode, 1u, XMEMORY_RELEASE);
 	{
 		example_http_task Send;
 
@@ -580,13 +580,14 @@ int main(void)
 		Send.pStream = pClientB;
 		if ( !xrtNetPost(xrtNetStreamWorker(pTcpB), &Post,
 				exampleHttpSendTask, &Send) ||
-			!exampleSpinUntil(&Send.bDone) || !Send.bOk ) {
+			!exampleSpinUntil(&Send.Done) || !Send.bOk ) {
 			iResult = 9;
 			goto Cleanup;
 		}
 	}
 	iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
-	while ( !g_bHttpReqParsed || !g_bHttpRspParsed ) {
+	while ( (xrtAtomic32Load(&HttpReqParsed, XMEMORY_ACQUIRE) == 0u) ||
+		(xrtAtomic32Load(&HttpRspParsed, XMEMORY_ACQUIRE) == 0u) ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 9;
 			goto Cleanup;
@@ -642,8 +643,8 @@ Cleanup:
 				}
 			}
 		}
-		(void)exampleSpinUntil(&ClientA.bClosed);
-		(void)exampleSpinUntil(&ClientB.bClosed);
+		(void)exampleSpinUntil(&ClientA.Closed);
+		(void)exampleSpinUntil(&ClientB.Closed);
 	}
 	xrtTlsStreamDestroy(pClientA);
 	xrtTlsStreamDestroy(pClientB);

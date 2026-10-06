@@ -44,7 +44,7 @@ def measurement_dependencies(name: str, *, include_interop: bool) -> list[Path]:
     dependencies = [*(library / "include").rglob("*.h"), *(library / "src").rglob("*.h"),
                     *(library / "tests").rglob("*.h"), library / "tests/support/implementation.c",
                     library / "config/modules.json",
-                    ROOT / "single/xrt.h", ROOT / SOURCES[name],
+                    ROOT / "single/xrt.h", ROOT / "include/xrt/detail/wait.h", ROOT / SOURCES[name],
                     ROOT / "tools/measure_auth_coverage.py", ROOT / "tools/gcov_coverage.py"]
     if name == "oauth2":
         dependencies += [ROOT / "extlibs/xjwt/include/xjwt/features.h", ROOT / "extlibs/xjwt/config/modules.json"]
@@ -74,6 +74,7 @@ def measure(name: str, compiler: str, gcov: str | None = None,
         compiler, "-std=c11", "-D_GNU_SOURCE", "-O0", "--coverage",
         "-fprofile-update=atomic", "-Wall", "-Wextra", "-Werror",
         "-I", str(ROOT / "single"),
+        "-I", str(ROOT / "include"),
         "-I", str(ROOT / "extlibs" / "xjwt" / "include"),
         "-I", str(ROOT / "extlibs" / "xoauth2" / "include"),
         str(ROOT / source), "-o", str(binary),

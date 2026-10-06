@@ -48,17 +48,17 @@ static inline bool exampleTimerExpired(double Limit)
 
 /* 完成交接块：Dial 回调与主线程之间。 */
 typedef struct example_tlssession_slot {
-	volatile xtlsdialstate DialState;
+	xtlsdialstate DialState;
 	xnetresult Result;
 	xtlsstream* pStream;
-	volatile bool bDone;
+	xatomic32 Done;
 } example_tlssession_slot;
 
 /* 客户端流事件上下文：统计明文到达并在 Close 时收尾。 */
 typedef struct example_tls_client {
-	volatile size_t Received;
-	volatile bool bOpen;
-	volatile bool bClosed;
+	xatomic64 Received;
+	xatomic32 Open;
+	xatomic32 Closed;
 } example_tls_client;
 
 /* 演示用"全盘接受"验证回调——仅回环自签名场景。 */
@@ -80,7 +80,7 @@ static void exampleDialDone(xtlsdial* pDial, xnetresult Result,
 	pSlot->Result = Result;
 	pSlot->pStream = pStream;
 	pSlot->DialState = xrtTlsDialState(pDial);
-	pSlot->bDone = true;
+	xrtAtomic32Store(&pSlot->Done, 1u, XMEMORY_RELEASE);
 }
 
 static void exampleClientOpen(xtlsstream* pStream, ptr pData)
@@ -88,7 +88,7 @@ static void exampleClientOpen(xtlsstream* pStream, ptr pData)
 	example_tls_client* pClient = (example_tls_client*)pData;
 
 	(void)pStream;
-	pClient->bOpen = true;
+	xrtAtomic32Store(&pClient->Open, 1u, XMEMORY_RELEASE);
 }
 
 static void exampleClientRead(xtlsstream* pStream,
@@ -97,7 +97,8 @@ static void exampleClientRead(xtlsstream* pStream,
 	example_tls_client* pClient = (example_tls_client*)pData;
 
 	(void)pStream;
-	pClient->Received = pClient->Received + xrtNetBufSize(pBuffer);
+	(void)xrtAtomic64FetchAdd(&pClient->Received,
+		(uint64)xrtNetBufSize(pBuffer), XMEMORY_RELEASE);
 }
 
 static void exampleClientClose(xtlsstream* pStream,
@@ -108,14 +109,14 @@ static void exampleClientClose(xtlsstream* pStream,
 	(void)pStream;
 	(void)Result;
 	(void)pError;
-	pClient->bClosed = true;
+	xrtAtomic32Store(&pClient->Closed, 1u, XMEMORY_RELEASE);
 }
 
-static bool exampleSpinUntil(volatile bool* pFlag)
+static bool exampleSpinUntil(const xatomic32* pFlag)
 {
 	double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
-	while ( !*pFlag ) {
+	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) == 0u ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
@@ -236,7 +237,7 @@ int main(void)
 	pDial = xrtTlsDial(pEngine, pResolver, "127.0.0.1", Address.Port,
 		&ClientConfig, &DialConfig, &ClientEvents, &ClientA,
 		exampleDialDone, &Slot);
-	if ( (pDial == NULL) || !exampleSpinUntil(&Slot.bDone) ||
+	if ( (pDial == NULL) || !exampleSpinUntil(&Slot.Done) ||
 		(Slot.Result != XNET_RESULT_OK) ||
 		(Slot.pStream == NULL) ||
 		(xrtTlsDialRef(pDial) != pDial) ) {
@@ -244,7 +245,7 @@ int main(void)
 		goto Cleanup;
 	}
 	pClientA = Slot.pStream;
-	if ( !exampleSpinUntil(&ClientA.bOpen) ) {
+	if ( !exampleSpinUntil(&ClientA.Open) ) {
 		iResult = 3;
 		goto Cleanup;
 	}
@@ -282,7 +283,7 @@ int main(void)
 	{
 		double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
-		while ( ClientA.Received < 9u ) {
+		while ( xrtAtomic64Load(&ClientA.Received, XMEMORY_ACQUIRE) < 9u ) {
 			if ( exampleTimerExpired(iDeadline) ) {
 				iResult = 4;
 				goto Cleanup;
@@ -290,7 +291,7 @@ int main(void)
 			xrtThreadYield();
 		}
 		printf("greet: client received %zu bytes\n",
-			ClientA.Received);
+			(size_t)xrtAtomic64Load(&ClientA.Received, XMEMORY_ACQUIRE));
 	}
 
 	/* 连接二：xrtTlsStreamConnect 直连 + AcceptAsync（Future）。
@@ -302,7 +303,7 @@ int main(void)
 		&ClientConfigB, NULL, &ClientEvents, &ClientB);
 	pAcceptFuture = xrtTlsListenerAcceptAsync(pListener);
 	if ( (pClientB == NULL) || (pAcceptFuture == NULL) ||
-		!exampleSpinUntil(&ClientB.bOpen) ||
+		!exampleSpinUntil(&ClientB.Open) ||
 		(xrtFutureWaitFor(pAcceptFuture, EXAMPLE_DEADLINE_MS) !=
 			XWAIT_OK) ||
 		(xrtFutureState(pAcceptFuture) != XFUTURE_RESOLVED) ) {
@@ -324,13 +325,13 @@ int main(void)
 	pCancelDial = xrtTlsDial(pEngine, pResolver, "127.0.0.1",
 		Address.Port, &ClientConfig, &DialConfig, &ClientEvents,
 		&ClientC, exampleDialDone, &Slot);
-	if ( (pCancelDial == NULL) || !exampleSpinUntil(&Slot.bDone) ) {
+	if ( (pCancelDial == NULL) || !exampleSpinUntil(&Slot.Done) ) {
 		iResult = 6;
 		goto Cleanup;
 	}
 	pClientC = Slot.pStream;
 	pServerC = xrtTlsListenerAcceptWait(pListener,EXAMPLE_DEADLINE_MS, NULL);
-	if ( (pServerC == NULL) || !exampleSpinUntil(&ClientC.bOpen) ) {
+	if ( (pServerC == NULL) || !exampleSpinUntil(&ClientC.Open) ) {
 		iResult = 6;
 		goto Cleanup;
 	}
@@ -352,7 +353,7 @@ int main(void)
 	pFailDial = xrtTlsDial(pEngine, pResolver, "127.0.0.1", 1,
 		&ClientConfig, &DialConfig, NULL, NULL, exampleDialDone,
 		&Slot);
-	if ( (pFailDial == NULL) || !exampleSpinUntil(&Slot.bDone) ||
+	if ( (pFailDial == NULL) || !exampleSpinUntil(&Slot.Done) ||
 		(Slot.Result == XNET_RESULT_OK) ) {
 		iResult = 8;
 		goto Cleanup;
@@ -371,7 +372,7 @@ int main(void)
 		if ( pMidair != NULL ) {
 			bool bCancelled = xrtTlsDialCancel(pMidair);
 
-			if ( bCancelled && exampleSpinUntil(&Slot.bDone) &&
+			if ( bCancelled && exampleSpinUntil(&Slot.Done) &&
 				(Slot.Result == XNET_RESULT_CANCELLED) ) {
 				printf("dial-cancel: midair state=%d\n",
 					(int)xrtTlsDialState(pMidair));
@@ -438,9 +439,9 @@ Cleanup:
 			}
 		}
 	}
-	(void)exampleSpinUntil(&ClientA.bClosed);
-	(void)exampleSpinUntil(&ClientB.bClosed);
-	(void)exampleSpinUntil(&ClientC.bClosed);
+	(void)exampleSpinUntil(&ClientA.Closed);
+	(void)exampleSpinUntil(&ClientB.Closed);
+	(void)exampleSpinUntil(&ClientC.Closed);
 	xrtTlsStreamDestroy(pClientA);
 	xrtTlsStreamDestroy(pClientB);
 	xrtTlsStreamDestroy(pClientC);

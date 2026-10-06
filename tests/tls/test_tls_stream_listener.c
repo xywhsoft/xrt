@@ -260,8 +260,19 @@ int main(void)
 		0,
 		"TLS Listener close left an active handshake"
 	);
-	testRequire(xrtTlsListenerStats(pListener, &Stats) &&
-		(Stats.Handshakes == 2) &&
+	/* The reservation counter can reach zero before the managed Close hook
+	 * accounts for its rejection. The public Stream Close event follows that
+	 * hook and publishes the completed statistics to this observer. */
+	testTlsListenerWait(&State.Closed, 1,
+		"TLS Listener stalled handshake close event missing");
+	testRequire(xrtTlsListenerStats(pListener, &Stats), "TLS Listener close stats failed");
+	if ( (Stats.Handshakes != 2) || (Stats.Accepted != 1) ||
+		(Stats.Rejected != 1) || (Stats.HandshakeErrors != 0) ) {
+		fprintf(stderr, "listener close stats handshakes=%llu accepted=%llu rejected=%llu errors=%llu\n",
+			(unsigned long long)Stats.Handshakes, (unsigned long long)Stats.Accepted,
+			(unsigned long long)Stats.Rejected, (unsigned long long)Stats.HandshakeErrors);
+	}
+	testRequire((Stats.Handshakes == 2) &&
 		(Stats.Accepted == 1) &&
 		(Stats.Rejected == 1) &&
 		(Stats.HandshakeErrors == 0),

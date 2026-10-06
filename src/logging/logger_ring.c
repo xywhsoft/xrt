@@ -145,6 +145,27 @@ static xlogringslot* __xrtLogRingSlot(
 
 
 
+/* A producer may have reserved the Free queue's next slot but not yet
+ * published its release sequence. We still own a record slot, so Free cannot
+ * be physically full; retain it until that transient reservation completes. */
+static xqueueresult __xrtLogRingSlotReturn(
+	xlogringstate* pState,
+	xlogringslot* pSlot
+)
+{
+	xqueueresult Result;
+
+	do {
+		Result = xrtMPMCQueueTryPush(&pState->Free, pSlot);
+		if ( Result == XQUEUE_FULL ) {
+			xrtThreadYield();
+		}
+	} while ( Result == XQUEUE_FULL );
+	return Result;
+}
+
+
+
 /* 尝试进入生产者区；关闭位一旦发布，后续生产者立即失败。 */
 static bool __xrtLogRingWriterEnter(xlogringstate* pState)
 {
@@ -292,7 +313,7 @@ static void __xrtLogRingProcessRecord(
 	(void)xrtAtomic64FetchAdd(&pState->Processed, 1u, XMEMORY_RELEASE);
 	(void)xrtAtomic64FetchSub(&pState->Queued, 1u, XMEMORY_RELAXED);
 	(void)xrtAtomic64FetchSub(&pState->QueueBytes, iSize, XMEMORY_RELAXED);
-	if ( xrtMPMCQueueTryPush(&pState->Free, pSlot) != XQUEUE_OK ) {
+	if ( __xrtLogRingSlotReturn(pState, pSlot) != XQUEUE_OK ) {
 		pError = __xrtLogErrorCreate(
 			XERR_STATE,
 			XLOG_ERROR_RING_QUEUE,
@@ -496,7 +517,7 @@ static xlogresult __xrtLogRingWrite(
 			pState->Config.RecordLimit
 		)
 	) {
-		(void)xrtMPMCQueueTryPush(&pState->Free, pSlot);
+		(void)__xrtLogRingSlotReturn(pState, pSlot);
 		__xrtLogRingWriterLeave(pState);
 		return XLOG_RESULT_ERROR;
 	}
@@ -521,7 +542,7 @@ static xlogresult __xrtLogRingWrite(
 		__xrtLogOwnedClear(__xrtLogRingSlotRecord(pSlot));
 		pSlot->Owned = false;
 		pSlot->Size = 0u;
-		(void)xrtMPMCQueueTryPush(&pState->Free, pSlot);
+		(void)__xrtLogRingSlotReturn(pState, pSlot);
 		if ( Queue == XQUEUE_ERROR ) {
 			__xrtLogRingWriterLeave(pState);
 			return XLOG_RESULT_ERROR;

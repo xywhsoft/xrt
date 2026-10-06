@@ -50,10 +50,9 @@ static int32 exampleWorker(ptr pData)
 /* 停止协作线程：轮询 StopRequested，自检 Stopping 与 Current。 */
 typedef struct examplestop {
 	xthread* pSelf;
-	volatile bool bStopped;
-	volatile bool bStoppingInside;
-	volatile bool bCurrentInside;
-	volatile bool bDone;
+	bool bStopped;
+	bool bStoppingInside;
+	bool bCurrentInside;
 } examplestop;
 
 static int32 exampleStopWorker(ptr pData)
@@ -69,7 +68,6 @@ static int32 exampleStopWorker(ptr pData)
 				xrtThreadStopRequested(pJob->pSelf);
 			pJob->bStoppingInside = xrtThreadStopping();
 			pJob->bCurrentInside = xrtThreadCurrent() != NULL;
-			pJob->bDone = true;
 			return 7;
 		}
 		xrtThreadYield();
@@ -145,17 +143,7 @@ int main(void)
 	if ( !xrtThreadStop(pStop) ) {
 		goto Cleanup;
 	}
-	{
-		double iDeadline = exampleTimerLimit(INT64_C(3000));
-
-		while ( StopJob.bDone == false ) {
-			if ( exampleTimerExpired(iDeadline) ) {
-				goto Cleanup;
-			}
-			xrtThreadYield();
-		}
-	}
-	if ( (void)xrtThreadWait(pStop), false ) {
+	if ( xrtThreadWaitFor(pStop, INT64_C(3000)) != XWAIT_OK ) {
 		goto Cleanup;
 	}
 	if ( !StopJob.bStopped || !StopJob.bStoppingInside ||

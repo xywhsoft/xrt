@@ -251,10 +251,10 @@ static bool url_vectors(void)
 	for ( size_t i = 0; i < sizeof(vectors) / sizeof(vectors[0]); i++ ) {
 		xtlsclientconfig tls;
 		xtlsdialconfig dial;
-		if ( !url_parse(vectors[i].url, &url) ) { ok = false; break; }
+		if ( !xoauth2__url_parse(vectors[i].url, &url) ) { ok = false; break; }
 		xrtTlsClientConfigInit(&tls);
 		xrtTlsDialConfigInit(&dial);
-		url_tls_names(&url, &tls, &dial);
+		xoauth2__url_tls_names(&url, &tls, &dial);
 		ok = ok && strcmp(url.sHost, vectors[i].host) == 0 &&
 			strcmp(url.sPath, vectors[i].target) == 0 && url.iPort == vectors[i].port &&
 			url.bTls == vectors[i].tls && url.bIpLiteral == vectors[i].ip &&
@@ -266,29 +266,29 @@ static bool url_vectors(void)
 	}
 	tail[0] = '/'; memset(tail + 1, 'x', 1022u); tail[1023] = 0;
 	snprintf(text, sizeof(text), "https://localhost%s", tail);
-	ok = url_parse(text, &url) && strlen(url.sPath) == 1023u && ok;
+	ok = xoauth2__url_parse(text, &url) && strlen(url.sPath) == 1023u && ok;
 	tail[1023] = 'x'; tail[1024] = 0;
 	snprintf(text, sizeof(text), "https://localhost%s", tail);
-	ok = !url_parse(text, &url) && ok;
+	ok = !xoauth2__url_parse(text, &url) && ok;
 	tail[0] = '?'; tail[1022] = 0;
 	snprintf(text, sizeof(text), "https://localhost%s", tail);
-	ok = url_parse(text, &url) && strlen(url.sPath) == 1023u &&
+	ok = xoauth2__url_parse(text, &url) && strlen(url.sPath) == 1023u &&
 		url.sPath[0] == '/' && url.sPath[1] == '?' && ok;
 	tail[1022] = 'x'; tail[1023] = 0;
 	snprintf(text, sizeof(text), "https://localhost%s", tail);
-	ok = !url_parse(text, &url) && ok;
+	ok = !xoauth2__url_parse(text, &url) && ok;
 	strcpy(text, "https://localhost/#");
 	memset(text + strlen(text), 'f', 4096u);
 	text[strlen("https://localhost/#") + 4096u] = 0;
-	ok = url_parse(text, &url) && strcmp(url.sPath, "/") == 0 && ok;
+	ok = xoauth2__url_parse(text, &url) && strcmp(url.sPath, "/") == 0 && ok;
 	tail[0] = '/'; memset(tail + 1, 'x', 1022u); tail[1023] = 0;
 	snprintf(text, sizeof(text), "https://localhost%s#fragment?value=%%23", tail);
-	ok = url_parse(text, &url) && strlen(url.sPath) == 1023u && ok;
+	ok = xoauth2__url_parse(text, &url) && strlen(url.sPath) == 1023u && ok;
 	for ( unsigned i = 1u; i <= 255u; i++ ) {
 		bool allowed = i < 128u &&
 			strchr("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+,;=:@/?", (int)i) != NULL;
 		snprintf(text, sizeof(text), "https://localhost/#x%c", (int)i);
-		ok = (url_parse(text, &url) == allowed) && ok;
+		ok = (xoauth2__url_parse(text, &url) == allowed) && ok;
 	}
 	xrtClearError();
 	xrtMemDebugSnapshot(&memory);

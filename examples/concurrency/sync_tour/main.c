@@ -45,11 +45,10 @@ static inline bool exampleTimerExpired(double Limit)
 typedef struct examplecond {
 	xmutex* pMutex;
 	xcond* pCond;
-	volatile xwaitresult iForResult;
-	volatile xwaitresult iWaitResult;
-	volatile bool bPhase2;
-	volatile bool bDone;
-	volatile bool bSignaled;  /* 谓词：防丢失唤醒 */
+	xwaitresult iForResult;
+	xwaitresult iWaitResult;
+	bool bPhase2;
+	bool bSignaled;  /* 谓词由 pMutex 保护：防丢失唤醒 */
 } examplecond;
 
 static int32 exampleCondThread(ptr pArg)
@@ -67,21 +66,24 @@ static int32 exampleCondThread(ptr pArg)
 			pJob->pMutex);
 	}
 	(void)xrtMutexUnlock(pJob->pMutex);
-	pJob->bDone = true;
 	return 0;
 }
 
-static bool exampleSpinUntil(volatile bool* pFlag)
+static bool exampleWaitPhase2(examplecond* pJob)
 {
 	double iDeadline = exampleTimerLimit(INT64_C(3000));
 
-	while ( !*pFlag ) {
+	for ( ;; ) {
+		bool bReady;
+		if ( !xrtMutexLock(pJob->pMutex) ) return false;
+		bReady = pJob->bPhase2;
+		(void)xrtMutexUnlock(pJob->pMutex);
+		if ( bReady ) return true;
 		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
 	}
-	return true;
 }
 
 int main(void)
@@ -122,7 +124,7 @@ int main(void)
 	CondJob.pCond = pCond;
 	pThread = xrtThreadCreate(exampleCondThread, &CondJob, 0u);
 	if ( (pThread == NULL) ||
-		!exampleSpinUntil(&CondJob.bPhase2) ) {
+		!exampleWaitPhase2(&CondJob) ) {
 		goto Cleanup;  /* 第一相到期，线程已进入第二相 */
 	}
 	/* 在互斥锁内改谓词再 Signal：与工作线程的先查后等
@@ -133,7 +135,7 @@ int main(void)
 	CondJob.bSignaled = true;
 	(void)xrtMutexUnlock(pMutex);
 	(void)xrtCondSignal(pCond);
-	if ( !exampleSpinUntil(&CondJob.bDone) ||
+	if ( (xrtThreadWaitFor(pThread, INT64_C(3000)) != XWAIT_OK) ||
 		(CondJob.iForResult != XWAIT_TIMEOUT) ||
 		(CondJob.iWaitResult != XWAIT_OK) ) {
 		goto Cleanup;

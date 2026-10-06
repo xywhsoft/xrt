@@ -47,10 +47,10 @@ static inline bool exampleTimerExpired(double Limit)
 
 /* Dial 完成上下文：回调与主线程之间的交接。 */
 typedef struct exampledial {
-	volatile xnetdialstate State;
+	xnetdialstate State;
 	xnetstream* pStream;
 	xnetresult Result;
-	bool bDone;
+	xatomic32 Done;
 } exampledial;
 
 
@@ -66,17 +66,17 @@ static void exampleDialDone(xnetdial* pDial, xnetresult Result,
 	pTask->Result = Result;
 	pTask->pStream = pStream;
 	pTask->State = xrtNetDialState(pDial);
-	pTask->bDone = true;
+	xrtAtomic32Store(&pTask->Done, 1u, XMEMORY_RELEASE);
 }
 
 
 
 /* 轮询等待完成标志。 */
-static bool exampleWaitDone(volatile bool* pFlag)
+static bool exampleWaitDone(const xatomic32* pFlag)
 {
 	double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
-	while ( !*pFlag ) {
+	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) == 0u ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
@@ -176,7 +176,7 @@ int main(void)
 	memset(&Task, 0, sizeof(Task));
 	pDial = xrtNetDial(pEngine, pResolver, "127.0.0.1", Address.Port,
 		&DialConfig, NULL, NULL, exampleDialDone, &Task);
-	if ( (pDial == NULL) || !exampleWaitDone(&Task.bDone) ||
+	if ( (pDial == NULL) || !exampleWaitDone(&Task.Done) ||
 		 (Task.Result != XNET_RESULT_OK) ||
 		 (Task.State != XNET_DIAL_CONNECTED) ||
 		 (Task.pStream == NULL) ||
@@ -253,7 +253,7 @@ int main(void)
 	memset(&Task, 0, sizeof(Task));
 	pBadDial = xrtNetDial(pEngine, pResolver, "127.0.0.1", 1,
 		&DialConfig, NULL, NULL, exampleDialDone, &Task);
-	if ( (pBadDial == NULL) || !exampleWaitDone(&Task.bDone) ||
+	if ( (pBadDial == NULL) || !exampleWaitDone(&Task.Done) ||
 		 (Task.Result == XNET_RESULT_OK) ) {
 		iResult = 11;
 		goto Cleanup;
@@ -270,7 +270,7 @@ int main(void)
 	if ( pCancelDial != NULL ) {
 		bool bCancelled = xrtNetDialCancel(pCancelDial);
 
-		if ( bCancelled && exampleWaitDone(&Task.bDone) &&
+		if ( bCancelled && exampleWaitDone(&Task.Done) &&
 			 (Task.Result == XNET_RESULT_CANCELLED) ) {
 			printf(" midair=cancelled");
 		}

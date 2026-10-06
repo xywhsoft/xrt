@@ -30,7 +30,7 @@
 
 /* 回调与主线程共享的状态。 */
 typedef struct examplestate {
-	volatile bool bDone;
+	xatomic32 Done;
 	xnetresolveopstate StateInCallback;
 } examplestate;
 
@@ -40,7 +40,7 @@ static void exampleResolveDone(xnetresolveop* pOperation, ptr pData)
 	examplestate* pState = (examplestate*)pData;
 
 	pState->StateInCallback = xrtNetResolveOpState(pOperation);
-	pState->bDone = true;
+	xrtAtomic32Store(&pState->Done, 1u, XMEMORY_RELEASE);
 }
 
 int main(void)
@@ -68,15 +68,14 @@ int main(void)
 	memset(&State, 0, sizeof(State));
 	pOperation = xrtNetResolverResolve(pResolver, "localhost",
 		XNET_FAMILY_IPV4, exampleResolveDone, (ptr)&State);
-	if ( (pOperation == NULL) ||
-		(xrtNetResolveOpState(pOperation) ==
-			XNET_RESOLVE_RESOLVED) ) {
+	if ( pOperation == NULL ) {
 		goto Cleanup;
 	}
-	for ( int i = 0; (i < 3000) && !State.bDone; i++ ) {
+	for ( int i = 0; (i < 3000) &&
+		xrtAtomic32Load(&State.Done, XMEMORY_ACQUIRE) == 0u; i++ ) {
 		xrtSleep(1u);
 	}
-	if ( !State.bDone ||
+	if ( xrtAtomic32Load(&State.Done, XMEMORY_ACQUIRE) == 0u ||
 		(State.StateInCallback != XNET_RESOLVE_RESOLVED) ||
 		(xrtNetResolveOpState(pOperation) != XNET_RESOLVE_RESOLVED) ) {
 		goto Cleanup;

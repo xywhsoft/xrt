@@ -66,7 +66,7 @@ static void exampleCountRelease(ptr pContext, cbytes pData,
 /* Worker 任务上下文。 */
 typedef struct examplestreamtask {
 	xnetstream* pStream;
-	volatile bool bDone;
+	xatomic32 Done;
 	size_t iBufferSize;
 	size_t iRead;
 	size_t iConsume;
@@ -106,14 +106,14 @@ static void exampleStreamTask(xnetworker* pWorker, ptr pData)
 	pTask->bSetEvents = xrtNetStreamSetEvents(pTask->pStream,
 		&s_Events, NULL);
 	pTask->bSetData = xrtNetStreamSetData(pTask->pStream, &s_Tag);
-	pTask->bDone = true;
+	xrtAtomic32Store(&pTask->Done, 1u, XMEMORY_RELEASE);
 }
 
-static bool exampleWaitDone(volatile bool* pFlag)
+static bool exampleWaitDone(const xatomic32* pFlag)
 {
 	double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
-	while ( !*pFlag ) {
+	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) == 0u ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
@@ -303,7 +303,7 @@ int main(void)
 	Task.pStream = pServer;
 	if ( !xrtNetPostInit(&Post) || !xrtNetPost(
 		xrtNetStreamWorker(pServer), &Post, exampleStreamTask,
-		&Task) || !exampleWaitDone(&Task.bDone) ) {
+		&Task) || !exampleWaitDone(&Task.Done) ) {
 		iResult = 11;
 		goto Cleanup;
 	}

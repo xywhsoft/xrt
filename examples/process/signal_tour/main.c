@@ -35,13 +35,13 @@ static inline bool exampleTimerExpired(double Limit)
     return xrtTimer() >= Limit;
 }
 
-static volatile int g_Destroyed = 0;
-static volatile int g_Fired = 0;
+static xatomic32 g_Destroyed;
+static xatomic32 g_Fired;
 
 static void exampleFree(ptr pData)
 {
 	(void)pData;
-	g_Destroyed = g_Destroyed + 1;
+	(void)xrtAtomic32FetchAdd(&g_Destroyed, 1u, XMEMORY_RELEASE);
 }
 
 static void exampleOnCallback(xsignalwatch* pWatch,
@@ -50,7 +50,7 @@ static void exampleOnCallback(xsignalwatch* pWatch,
 	(void)pWatch;
 	(void)pData;
 	(void)pEvent;
-	g_Fired = g_Fired + 1;
+	(void)xrtAtomic32FetchAdd(&g_Fired, 1u, XMEMORY_RELEASE);
 }
 
 static void exampleOnceCallback(xsignalwatch* pWatch,
@@ -59,14 +59,14 @@ static void exampleOnceCallback(xsignalwatch* pWatch,
 	(void)pWatch;
 	(void)pData;
 	(void)pEvent;
-	g_Fired = g_Fired + 1;
+	(void)xrtAtomic32FetchAdd(&g_Fired, 1u, XMEMORY_RELEASE);
 }
 
-static bool exampleSpinFlag(volatile int* pFlag, int iExpect)
+static bool exampleSpinFlag(const xatomic32* pFlag, uint32 iExpect)
 {
 	double iDeadline = exampleTimerLimit(INT64_C(3000));
 
-	while ( *pFlag < iExpect ) {
+	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) < iExpect ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
@@ -95,8 +95,8 @@ int main(void)
 		xrtSignalName(XSIGNAL_INT));
 
 	/* ---- OnOwned：投递一次并等回调 + 析构恰好一次 ---- */
-	g_Fired = 0;
-	g_Destroyed = 0;
+	xrtAtomic32Store(&g_Fired, 0u, XMEMORY_RELAXED);
+	xrtAtomic32Store(&g_Destroyed, 0u, XMEMORY_RELAXED);
 	pOwned = xrtSignalOnOwned(XSIGNAL_INT, exampleOnCallback,
 		NULL, exampleFree);
 	if ( (pOwned == NULL) ||
@@ -122,19 +122,20 @@ int main(void)
 	 * 再释放 Ref 那份（最后一个 → 恰好析构一次）。 */
 	xrtSignalFree(pOwned);
 	pOwned = NULL;
-	if ( g_Destroyed != 0 ) {
+	if ( xrtAtomic32Load(&g_Destroyed, XMEMORY_ACQUIRE) != 0u ) {
 		goto Cleanup;
 	}
 	xrtSignalFree(pRef);
 	pRef = NULL;
-	if ( g_Destroyed != 1 ) {
+	if ( !exampleSpinFlag(&g_Destroyed, 1u) ) {
 		goto Cleanup;
 	}
-	printf("signal: owned-on fired=%d destroyed=%d\n", g_Fired,
-		g_Destroyed);
+	printf("signal: owned-on fired=%u destroyed=%u\n",
+		(unsigned)xrtAtomic32Load(&g_Fired, XMEMORY_ACQUIRE),
+		(unsigned)xrtAtomic32Load(&g_Destroyed, XMEMORY_ACQUIRE));
 
 	/* ---- Once：第一次投递触发后自动注销 ---- */
-	g_Fired = 0;
+	xrtAtomic32Store(&g_Fired, 0u, XMEMORY_RELAXED);
 	pOnce = xrtSignalOnce(XSIGNAL_INT, exampleOnceCallback, NULL);
 	if ( (pOnce == NULL) ||
 		!xrtSignalActive(pOnce) ||
@@ -145,7 +146,7 @@ int main(void)
 	xrtSignalFree(pOnce);
 	pOnce = NULL;
 	/* OnceOwned：一次性 + 析构器（fired 从上一段的 1 续计）。 */
-	g_Destroyed = 0;
+	xrtAtomic32Store(&g_Destroyed, 0u, XMEMORY_RELAXED);
 	pOnceOwned = xrtSignalOnceOwned(XSIGNAL_INT,
 		exampleOnceCallback, NULL, exampleFree);
 	if ( (pOnceOwned == NULL) ||
@@ -156,11 +157,12 @@ int main(void)
 	/* Once 在首次调度时已自动注销：无需再 Off，直接释放。 */
 	xrtSignalFree(pOnceOwned);
 	pOnceOwned = NULL;
-	if ( g_Destroyed != 1 ) {
+	if ( !exampleSpinFlag(&g_Destroyed, 1u) ) {
 		goto Cleanup;
 	}
-	printf("signal: once fired=%d destroyed=%d\n", g_Fired,
-		g_Destroyed);
+	printf("signal: once fired=%u destroyed=%u\n",
+		(unsigned)xrtAtomic32Load(&g_Fired, XMEMORY_ACQUIRE),
+		(unsigned)xrtAtomic32Load(&g_Destroyed, XMEMORY_ACQUIRE));
 
 	/* ---- Count / Received / Clear ---- */
 	{

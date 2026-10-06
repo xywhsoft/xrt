@@ -12,7 +12,7 @@
 
 static const char* TestCa;
 static _Thread_local unsigned Fault, Starts, Retires;
-static _Thread_local uint64_t RollbackBudget;
+static _Thread_local int64 RollbackBudget;
 static _Thread_local bool ForceStartFailure, ConcurrentFactory, WrapOom;
 static _Thread_local bool InjectRetirementError, SlowRetirement;
 static _Thread_local xnetengine* LastEngine;
@@ -41,11 +41,11 @@ static bool start_engine(xnetengine* engine)
 	return false;
 }
 
-static double rollback_deadline(uint64_t timeout)
+static double rollback_deadline(int64 timeout)
 {
-	if (ForceStartFailure && timeout >= 30000000u) {
+	if (ForceStartFailure && timeout >= INT64_C(30000)) {
 		RollbackBudget = timeout;
-		if (Fault != 0u) timeout = 20000u;
+		if (Fault != 0u) timeout = INT64_C(20);
 	}
 	return __xrtWaitAfter(timeout);
 }
@@ -150,7 +150,7 @@ static bool factory_failures(void)
 			(xoauth2HttpXrtCreate(NULL, TestCa, 1) != NULL)) return false;
 		ForceStartFailure = false;
 		original = xrtErrorRef(xrtGetError());
-		ok = LastEngine != NULL && original != NULL && RollbackBudget >= 30000000u &&
+		ok = LastEngine != NULL && original != NULL && RollbackBudget >= INT64_C(30000) &&
 			xoauth2LastError() == XOAUTH2_ERROR_NETWORK &&
 			error_contains(original, "injected partial startup failure") &&
 			xrtNetEngineState(LastEngine) == XNET_ENGINE_RUNNING;

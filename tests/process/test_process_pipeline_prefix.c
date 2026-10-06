@@ -47,6 +47,15 @@ static void prefixBalanced(const xmemdebugsnapshot* before)
     assert(after.InvalidFreeCount==before->InvalidFreeCount && after.DoubleFreeCount==before->DoubleFreeCount);
     assert(after.UseAfterFreeCount==before->UseAfterFreeCount);
 }
+/* A failed exec can precede an injected allocation failure in best-effort
+ * termination. The collector must preserve that exact primary error. */
+static void prefixObserveError(const xerror* error,ptr data)
+{
+    xerror** primary=(xerror**)data;
+    if(!*primary && xrtErrorKind(error)==XERR_NOT_FOUND &&
+        !xrtMemDebugFailTriggered())
+        *primary=xrtErrorRef((xerror*)error);
+}
 static unsigned pipelinePrefix(const char* program,bool badLast)
 {
     const cstr args[]={"--pipeline-prefix-child"};
@@ -64,9 +73,12 @@ static unsigned pipelinePrefix(const char* program,bool badLast)
     for(size_t point=0;point<512;++point) {
         xmemdebugsnapshot before; xrtMemDebugSnapshot(&before);
         xprocesspipelineresult result;
+        xerror* primary=NULL;
         options.Timeout=INT64_C(5000);
         assert(xrtMemDebugFailAfter(point));
+        if(badLast) xrtSetErrorHandler(prefixObserveError,&primary);
         bool ok=xrtProcessPipeline(stages,2,&options,&result);
+        if(badLast) xrtSetErrorHandler(NULL,NULL);
         bool hit=xrtMemDebugFailTriggered(); xrtMemDebugFailClear();
         const xerror* error=xrtGetError();
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -76,9 +88,14 @@ static unsigned pipelinePrefix(const char* program,bool badLast)
         assert(fcntl(0,F_GETFD)!=-1);
 #endif
         if(hit) {
-            if(ok || xrtErrorKind(error)!=XERR_MEMORY)
-                fprintf(stderr,"pipeline OOM category badLast=%d point=%zu ok=%d kind=%d\n",badLast,point,ok,(int)xrtErrorKind(error));
-            assert(!ok && xrtErrorKind(error)==XERR_MEMORY);
+            if(primary) {
+                assert(badLast && !ok && error==primary &&
+                    xrtErrorKind(error)==XERR_NOT_FOUND);
+            } else {
+                if(ok || xrtErrorKind(error)!=XERR_MEMORY)
+                    fprintf(stderr,"pipeline OOM category badLast=%d point=%zu ok=%d kind=%d\n",badLast,point,ok,(int)xrtErrorKind(error));
+                assert(!ok && xrtErrorKind(error)==XERR_MEMORY);
+            }
         } else if(badLast) {
             assert(!ok && error && xrtErrorKind(error)!=XERR_MEMORY);
             assert(result.Wait==XWAIT_ERROR && !result.Stages && result.StageCount==0 && !result.Stdout);
@@ -91,6 +108,7 @@ static unsigned pipelinePrefix(const char* program,bool badLast)
                 assert(result.Stages[i].StderrSize==3 && !memcmp(result.Stages[i].Stderr,"E\0R",3));
             }
         }
+        xrtErrorFree(primary);
         xrtProcessPipelineResultUnit(&result); xrtClearError(); prefixBalanced(&before);
         if(!hit) return (unsigned)point;
     }

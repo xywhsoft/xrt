@@ -18,6 +18,7 @@ class AuthenticationCoverageInputTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve()
         files = {
             "single/xrt.h": "/* fixture runtime */\n",
+            "include/xrt/detail/wait.h": "/* fixture wait dependency */\n",
             "extlibs/xjwt/config/modules.json": "{}\n",
             "extlibs/xjwt/include/xjwt.h": "int owned(int value);\n",
             "extlibs/xjwt/tests/support/implementation.c": '#include "../../../../single/xrt.h"\n#include "../../src/xjwt_main.c"\n',

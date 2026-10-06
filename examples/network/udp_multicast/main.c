@@ -49,7 +49,7 @@ typedef struct examplemcast {
 	xnetudp* pUdp;
 	xnetaddr Group;
 	xnetaddr Iface;
-	volatile bool bDone;
+	xatomic32 Done;
 	bool bLoop;
 	bool bHop;
 	bool bIface;
@@ -71,7 +71,7 @@ static void exampleJoinTask(xnetworker* pWorker, ptr pData)
 		&pTask->Iface);
 	pTask->bJoin = xrtNetUdpJoin(pTask->pUdp, &pTask->Group,
 		&pTask->Iface);
-	pTask->bDone = true;
+	xrtAtomic32Store(&pTask->Done, 1u, XMEMORY_RELEASE);
 }
 
 
@@ -83,17 +83,17 @@ static void exampleLeaveTask(xnetworker* pWorker, ptr pData)
 
 	(void)pWorker;
 	pTask->bLeave = xrtNetUdpLeave(pTask->pUdp, &pTask->Group, &pTask->Iface);
-	pTask->bDone = true;
+	xrtAtomic32Store(&pTask->Done, 1u, XMEMORY_RELEASE);
 }
 
 
 
 /* 在截止时间内轮询标志。 */
-static bool exampleSpinUntil(volatile bool* pFlag)
+static bool exampleSpinUntil(const xatomic32* pFlag)
 {
 	double iDeadline = exampleTimerLimit(3000);
 
-	while ( !*pFlag ) {
+	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) == 0u ) {
 		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
@@ -141,14 +141,14 @@ int main(void)
 	Task.Group.Port = iPort;
 	(void)xrtNetAddrLoopback(&Task.Iface, XNET_FAMILY_IPV4, 0);
 	Task.pUdp = pUdp;
-	Task.bDone = false;
+	xrtAtomic32Store(&Task.Done, 0u, XMEMORY_RELEASE);
 	printf("multicast: group=%s:%u\n", EXAMPLE_GROUP_TEXT,
 		(unsigned)iPort);
 
 	/* 任务一（Worker 内）：Loop / HopLimit / Interface / Join。 */
 	if ( !xrtNetPostInit(&Post) || !xrtNetPost(
 		xrtNetUdpWorker(pUdp), &Post, exampleJoinTask, &Task) ||
-		 !exampleSpinUntil(&Task.bDone) ) {
+		 !exampleSpinUntil(&Task.Done) ) {
 		iResult = 4;
 		goto Cleanup;
 	}
@@ -194,10 +194,10 @@ int main(void)
 	pPacket = NULL;
 
 	/* 任务二（Worker 内）：Leave。 */
-	Task.bDone = false;
+	xrtAtomic32Store(&Task.Done, 0u, XMEMORY_RELEASE);
 	if ( !xrtNetPostInit(&Post) || !xrtNetPost(
 		xrtNetUdpWorker(pUdp), &Post, exampleLeaveTask, &Task) ||
-		 !exampleSpinUntil(&Task.bDone) ) {
+		 !exampleSpinUntil(&Task.Done) ) {
 		iResult = 5;
 		goto Cleanup;
 	}
