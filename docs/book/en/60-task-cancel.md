@@ -30,7 +30,7 @@ The task group folds those forty lines into one concept. The greater value is **
 - Statistics: xtaskgroupstats - the final-state tally in one take
 ```
 
-**Two registration ways**: `Add` tracks an existing Future (the group holds the reference to its final state — reference balancing is the group's); `Start` reserves a slot first, then invokes the launching procedure (which returns the Future — on failure no unregistered entry remains; registration and launch are atomic).**Two closing grades**: `Close` for a natural finish (the backlog runs out), `Cancel` for cooperative cancellation (Chapter 54's cancellation tree's big button — sends the request to current items and child groups).**Four join shapes**: Wait (unbounded), For/Until (timed), WaitCancel (cancellable by the caller — the transitive form of nested waiting, xrtTaskGroupWaitUntilCancel).
+**Two registration ways**: `Add` tracks an existing Future (the group holds the reference to its final state — reference balancing is the group's); `Start` reserves a slot first, then invokes the launching procedure (which returns the Future — on failure no unregistered entry remains; registration and launch are atomic).**Two closing grades**: `Close` for a natural finish (the backlog runs out), `Cancel` for cooperative cancellation (Chapter 54's cancellation tree's big button — sends the request to current items and child groups).**Four join shapes**: Wait (unbounded), For/Until (timed), WaitCancel (cancellable by the caller — the transitive form of nested waiting, xrtTaskGroupWaitForCancel).
 
 ### Final-state statistics: the whole tally in one take
 

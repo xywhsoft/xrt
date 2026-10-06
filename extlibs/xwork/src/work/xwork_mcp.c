@@ -37,7 +37,7 @@ struct xwork_mcp_client {
     bool bConnected;
     bool bServerSupportsToolListChanges;
     xcancel* pCancel;
-    uint64_t uDeadline;
+    double uDeadline;
     xprocess* pProcess;
     xwork_process_capture* pCapture;
     uint64_t uStdoutOffset;
@@ -96,7 +96,7 @@ static void xwork__mcp_process_unit(xwork_mcp_client* pClient)
 {
     if ( !pClient || !pClient->pProcess ) return;
     (void)xrtProcessClose(pClient->pProcess, XPROCESS_STDIN);
-    if ( xrtProcessWaitFor(pClient->pProcess, UINT64_C(200000)) == XWAIT_TIMEOUT ) {
+    if ( xrtProcessWaitFor(pClient->pProcess, INT64_C(200)) == XWAIT_TIMEOUT ) {
         (void)xrtProcessKillTree(pClient->pProcess);
         (void)xrtProcessWait(pClient->pProcess);
     }
@@ -119,7 +119,7 @@ static void xwork__mcp_set_context_error(xwork_error* pError, xwork_operation_st
 static xwork_operation_status xwork__mcp_context_status(
     const xwork_mcp_client* pClient,
     const xcancel* pOperationCancel,
-    uint64_t uOperationDeadline
+    double uOperationDeadline
 )
 {
     if ( pOperationCancel && xrtCancelRequested(pOperationCancel) )
@@ -208,8 +208,8 @@ static char* xwork__mcp_stderr_tail(xwork_mcp_client* pClient)
 static char* xwork__mcp_read_message(
     xwork_mcp_client* pClient,
     const xcancel* pOperationCancel,
-    uint64_t uOperationDeadline,
-    uint64_t uDeadlineMs,
+    double uOperationDeadline,
+    double uDeadlineMs,
     xwork_error* pError
 )
 {
@@ -265,7 +265,7 @@ static char* xwork__mcp_read_message(
             xwork__mcp_set_context_error(pError, eContextStatus);
             return NULL;
         }
-        if ( xrtTimer() / UINT64_C(1000) >= uDeadlineMs ) {
+        if ( xrtTimer() >= uDeadlineMs ) {
             xwork__set_error(pError, XWORK_ERROR_TIMEOUT, "MCP request timed out");
             return NULL;
         }
@@ -299,15 +299,15 @@ static xvalue* xwork__mcp_request(
     const char* sMethod,
     const char* sParamsJson,
     const xcancel* pOperationCancel,
-    uint64_t uOperationDeadline,
+    double uOperationDeadline,
     bool bCancellable,
     xwork_error* pError
 )
 {
     xwork_buf tWire = {0};
     uint64_t uRequestId = ++pClient->uNextRequestId;
-    uint64_t uStartedMs = xrtTimer() / UINT64_C(1000);
-    uint64_t uDeadlineMs = uStartedMs + pClient->uRequestTimeoutMs;
+    double uStartedMs = xrtTimer();
+    double uDeadlineMs = uStartedMs + pClient->uRequestTimeoutMs / 1000.0;
     xwork_operation_status eContextStatus = xwork__mcp_context_status(
         pClient, pOperationCancel, uOperationDeadline);
     if ( eContextStatus != XWORK_OPERATION_ACTIVE ) {
@@ -625,11 +625,11 @@ static xwork_result xwork__mcp_tool_execute(
     xwork_mcp_tool_proxy* pProxy = (xwork_mcp_tool_proxy*)pUserData;
     xcancel* pOperationCancel = pContext && pContext->pAgent
         ? pContext->pAgent->pCancel : NULL;
-    uint64_t uOperationDeadline = pContext && pContext->pAgent
+    double uOperationDeadline = pContext && pContext->pAgent
         ? pContext->pAgent->uDeadline : INFINITY;
     return xworkMcpClientCallTool(
         pProxy->pClient, pProxy->sRemoteName, sArgumentsJson,
-        pOperationCancel, uOperationDeadline, pOutput, pError);
+        pOperationCancel, __xrtWaitRemaining(uOperationDeadline), pOutput, pError);
 }
 
 void xworkMcpStdioConfigInit(xwork_mcp_stdio_config* pConfig)
@@ -641,7 +641,7 @@ void xworkMcpStdioConfigInit(xwork_mcp_stdio_config* pConfig)
     pConfig->iMaxMessageBytes = XWORK_MCP_MESSAGE_DEFAULT;
     pConfig->iMaxTools = XWORK_MCP_TOOLS_DEFAULT;
     pConfig->eDefaultToolEffect = XWORK_TOOL_EFFECT_PROCESS;
-    pConfig->uDeadline = INFINITY;
+    pConfig->iTimeout = XRT_WAIT_FOREVER;
 }
 
 xwork_mcp_client* xworkMcpClientCreate(
@@ -696,7 +696,7 @@ xwork_mcp_client* xworkMcpClientCreate(
     pClient->eDefaultToolEffect = pConfig->eDefaultToolEffect;
     pClient->bTrustReadOnlyAnnotations = pConfig->bTrustReadOnlyAnnotations;
     pClient->pCancel = pConfig->pCancel;
-    pClient->uDeadline = pConfig->uDeadline;
+    pClient->uDeadline = __xrtWaitAfter(pConfig->iTimeout);
     if ( !pClient->sServerName || !pClient->sProgram || !pClient->sRequestedProtocolVersion ||
          !pClient->sToolSource ||
          (pConfig->sWorkingDirectory && pConfig->sWorkingDirectory[0] && !pClient->sWorkingDirectory) ||
@@ -885,11 +885,12 @@ xwork_result xworkMcpClientCallTool(
     const char* sRemoteToolName,
     const char* sArgumentsJson,
     xcancel* pCancel,
-    uint64_t uDeadline,
+    int64_t iTimeout,
     xwork_tool_output* pOutput,
     xwork_error* pError
 )
 {
+    double uDeadline = __xrtWaitAfter(iTimeout);
     xvalue* tArguments = NULL;
     xvalue* tRoot = NULL;
     xvalue* tResult;

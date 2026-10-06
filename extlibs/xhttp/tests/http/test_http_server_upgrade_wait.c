@@ -23,7 +23,7 @@ static void testHttpServerUpgradeWaitValue(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -290,7 +290,7 @@ int main(void)
 	testRequire(
 		(xrtFutureWaitFor(
 			pWait,
-			UINT64_C(250000)
+			INT64_C(250)
 		 ) == XWAIT_TIMEOUT) &&
 		(xrtAtomic32Load(
 			&State.Shutdown,
@@ -302,7 +302,7 @@ int main(void)
 	testRequire(
 		(xrtFutureWaitFor(
 			pWait,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pWait) == XFUTURE_RESOLVED) &&
 		(xrtAtomic32Load(

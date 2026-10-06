@@ -52,8 +52,8 @@ int main(void)
 		33u, 34u, 35u, 36u, 37u, 38u, 39u, 40u,
 		41u, 42u, 43u, 44u, 45u, 46u, 47u, 0xD0u
 	};
-	static const uint8 arrContext[4] = "ctx1";
-	uint8 arrMessage[13] = "payload-bytes";
+	static const uint8 arrContext[4] = { 0x63u, 0x74u, 0x78u, 0x31u };
+	uint8 arrMessage[13] = { 0x70u, 0x61u, 0x79u, 0x6Cu, 0x6Fu, 0x61u, 0x64u, 0x2Du, 0x62u, 0x79u, 0x74u, 0x65u, 0x73u };
 	uint8 arrPublic[64];
 	uint8 arrSignature[96];
 	uint8 arrSignature2[128]; /* 第二次 DER 编码输出（约 102 字节）。 */

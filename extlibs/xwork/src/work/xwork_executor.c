@@ -73,8 +73,7 @@ static bool xwork__executor_execute(void* pUserData, const xllm_tool_call* pCall
                 "executor refused a tool call after cancellation");
             return false;
         }
-        if ( pCtx->uDeadline != 0u && pCtx->uDeadline != INFINITY &&
-             __xrtWaitExpired(pCtx->uDeadline) ) {
+        if ( pCtx->iTimeout == 0 ) {
             xworkErrorInit(&tError);
             xwork__set_error(&tError, XWORK_ERROR_TIMEOUT,
                 "executor refused a tool call after the operation deadline");

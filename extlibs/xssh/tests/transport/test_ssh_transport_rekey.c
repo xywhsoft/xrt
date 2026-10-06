@@ -1,3 +1,4 @@
+#include <math.h>
 #include "../test.h"
 
 
@@ -18,8 +19,8 @@ static void testSshRekeyDefaults(void)
 		(Policy.TimeLimitMs == XSSH_REKEY_DEFAULT_TIME_LIMIT_MS) &&
 		(Policy.HardPacketLimit == XSSH_REKEY_HARD_PACKET_LIMIT),
 		"ssh rekey default policy mismatch");
-	testRequire(xrtSshRekeyInit(&State, NULL, 100u) &&
-		(xrtSshRekeyCheck(&State, 100u, &Decision) == XSSH_OK) &&
+	testRequire(xrtSshRekeyInit(&State, NULL, ((double)(100u)) / 1000.0) &&
+		(xrtSshRekeyCheck(&State, ((double)(100u)) / 1000.0, &Decision) == XSSH_OK) &&
 		(Decision == XSSH_REKEY_NONE), "ssh rekey default init failed");
 	testRequire((xrtSshRekeyCheck(
 		&State,
@@ -45,13 +46,12 @@ static void testSshRekeySoftLimits(void)
 	Policy.BlockLimit = 10u;
 	Policy.TimeLimitMs = 1000u;
 	Policy.HardPacketLimit = 8u;
-	testRequire(xrtSshRekeyInit(&State, &Policy, 10u),
+	testRequire(xrtSshRekeyInit(&State, &Policy, ((double)(10u)) / 1000.0),
 		"ssh rekey custom init failed");
 	testRequire((xrtSshRekeyReserveSend(
 		&State,
 		40u,
-		3u,
-		20u,
+		3u, ((double)(20u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (Decision == XSSH_REKEY_NONE) &&
 		(State.Sent.Packets == 1u) && (State.Sent.Bytes == 40u),
@@ -59,27 +59,25 @@ static void testSshRekeySoftLimits(void)
 	testRequire((xrtSshRekeyReserveReceive(
 		&State,
 		60u,
-		4u,
-		30u,
+		4u, ((double)(30u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (Decision == XSSH_REKEY_NONE),
 		"ssh rekey first receive failed");
 	testRequire((xrtSshRekeyReserveReceive(
 		&State,
 		1u,
-		1u,
-		40u,
+		1u, ((double)(40u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (Decision == XSSH_REKEY_RECOMMENDED),
 		"ssh rekey receive packet threshold failed");
 	testRequire(xrtSshRekeyRequest(&State) &&
-		(xrtSshRekeyCheck(&State, 40u, &Decision) == XSSH_OK) &&
+		(xrtSshRekeyCheck(&State, ((double)(40u)) / 1000.0, &Decision) == XSSH_OK) &&
 		(Decision == XSSH_REKEY_RECOMMENDED),
 		"ssh rekey manual request failed");
-	testRequire(xrtSshRekeyReset(&State, 500u) &&
+	testRequire(xrtSshRekeyReset(&State, ((double)(500u)) / 1000.0) &&
 		(State.Sent.Packets == 0u) && (State.Received.Packets == 0u) &&
 		!State.Requested && (State.Policy.ByteLimit == 100u) &&
-		(xrtSshRekeyCheck(&State, 500u, &Decision) == XSSH_OK) &&
+		(xrtSshRekeyCheck(&State, ((double)(500u)) / 1000.0, &Decision) == XSSH_OK) &&
 		(Decision == XSSH_REKEY_NONE), "ssh rekey reset failed");
 }
 
@@ -95,49 +93,44 @@ static void testSshRekeyDirectionalReset(void)
 	memset(&Policy, 0, sizeof(Policy));
 	Policy.TimeLimitMs = 100u;
 	Policy.HardPacketLimit = 10u;
-	testRequire(xrtSshRekeyInit(&State, &Policy, 10u) &&
+	testRequire(xrtSshRekeyInit(&State, &Policy, ((double)(10u)) / 1000.0) &&
 		(xrtSshRekeyReserveSend(
 			&State,
 			20u,
-			2u,
-			20u,
+			2u, ((double)(20u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (xrtSshRekeyReserveReceive(
 			&State,
 			30u,
-			3u,
-			30u,
+			3u, ((double)(30u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && xrtSshRekeyRequest(&State),
 		"ssh rekey directional setup failed");
-	testRequire(xrtSshRekeyResetSend(&State, 50u) &&
+	testRequire(xrtSshRekeyResetSend(&State, ((double)(50u)) / 1000.0) &&
 		(State.Sent.Packets == 0u) &&
 		(State.Received.Packets == 1u) &&
-		(State.SendStartedMs == 50u) &&
-		(State.ReceiveStartedMs == 10u) && State.Requested &&
+		(State.SendStartedTimer == 0.05) &&
+		(State.ReceiveStartedTimer == 0.01) && State.Requested &&
 		(xrtSshRekeyReserveSend(
 			&State,
 			40u,
-			4u,
-			55u,
+			4u, ((double)(55u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (State.Sent.Packets == 1u),
 		"ssh rekey send reset damaged receive generation");
-	testRequire(xrtSshRekeyResetReceive(&State, 60u) &&
+	testRequire(xrtSshRekeyResetReceive(&State, ((double)(60u)) / 1000.0) &&
 		(State.Sent.Packets == 1u) &&
 		(State.Received.Packets == 0u) &&
-		(State.SendStartedMs == 50u) &&
-		(State.ReceiveStartedMs == 60u) && State.Requested &&
+		(State.SendStartedTimer == 0.05) &&
+		(State.ReceiveStartedTimer == 0.06) && State.Requested &&
 		xrtSshRekeyComplete(&State) && !State.Requested,
 		"ssh rekey receive reset damaged send generation");
 	testRequire((xrtSshRekeyCheck(
-		&State,
-		149u,
+		&State, ((double)(149u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (Decision == XSSH_REKEY_NONE) &&
 		(xrtSshRekeyCheck(
-			&State,
-			150u,
+			&State, nextafter(0.150, INFINITY),
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_REKEY_RECOMMENDED),
 		"ssh rekey directional time generation failed");
@@ -156,14 +149,13 @@ static void testSshRekeyHardLimit(void)
 
 	memset(&Policy, 0, sizeof(Policy));
 	Policy.HardPacketLimit = 3u;
-	testRequire(xrtSshRekeyInit(&State, &Policy, 0u),
+	testRequire(xrtSshRekeyInit(&State, &Policy, ((double)(0u)) / 1000.0),
 		"ssh rekey hard init failed");
 	for ( i = 0u; i < 3u; ++i ) {
 		testRequire((xrtSshRekeyReserveSend(
 			&State,
 			1u,
-			0u,
-			0u,
+			0u, ((double)(0u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && ((i < 2u) ?
 			(Decision == XSSH_REKEY_NONE) :
@@ -174,8 +166,7 @@ static void testSshRekeyHardLimit(void)
 	testRequire((xrtSshRekeyReserveSend(
 		&State,
 		1u,
-		0u,
-		0u,
+		0u, ((double)(0u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (Decision == XSSH_REKEY_REQUIRED) &&
 		(memcmp(&State, &Keep, sizeof(State)) == 0),
@@ -197,12 +188,11 @@ static void testSshRekeyBoundary(void)
 	Policy.ByteLimit = UINT64_MAX;
 	Policy.BlockLimit = UINT64_MAX;
 	Policy.HardPacketLimit = 4u;
-	testRequire(xrtSshRekeyInit(&State, &Policy, 0u) &&
+	testRequire(xrtSshRekeyInit(&State, &Policy, ((double)(0u)) / 1000.0) &&
 		(xrtSshRekeyReserveSend(
 			&State,
 			UINT64_MAX,
-			UINT64_MAX,
-			0u,
+			UINT64_MAX, ((double)(0u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_REKEY_RECOMMENDED) &&
 		(State.Sent.Bytes == UINT64_MAX) &&
@@ -211,8 +201,7 @@ static void testSshRekeyBoundary(void)
 	testRequire((xrtSshRekeyReserveSend(
 		&State,
 		1u,
-		1u,
-		0u,
+		1u, ((double)(0u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (State.Sent.Bytes == UINT64_MAX) &&
 		(State.Sent.Blocks == UINT64_MAX),
@@ -221,15 +210,14 @@ static void testSshRekeyBoundary(void)
 	Policy.HardPacketLimit = XSSH_REKEY_HARD_PACKET_LIMIT + 1u;
 	Keep = State;
 	Decision = KeepDecision;
-	testRequire(!xrtSshRekeyInit(&State, &Policy, 0u) &&
+	testRequire(!xrtSshRekeyInit(&State, &Policy, ((double)(0u)) / 1000.0) &&
 		(memcmp(&State, &Keep, sizeof(State)) == 0),
 		"ssh rekey invalid policy changed state");
-	testRequire((xrtSshRekeyCheck(NULL, 0u, &Decision) ==
+	testRequire((xrtSshRekeyCheck(NULL, ((double)(0u)) / 1000.0, &Decision) ==
 		XSSH_ERROR_ARGUMENT) && (Decision == KeepDecision),
 		"ssh rekey invalid check changed output");
 	testRequire(xrtSshRekeyCheck(
-		&State,
-		0u,
+		&State, ((double)(0u)) / 1000.0,
 		(xsshrekeydecision*)&State.Sent
 	) == XSSH_ERROR_ARGUMENT, "ssh rekey accepted overlapping output");
 }

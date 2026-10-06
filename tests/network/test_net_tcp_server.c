@@ -17,7 +17,7 @@ static void testTcpServerWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	for ( ;; ) {
 		bool bServerDone = (pServer == NULL) ||
@@ -42,7 +42,7 @@ static void testTcpServerCloseWait(
 	const testtcpservercontext* pContext
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(
 		&pContext->Closed,
@@ -61,7 +61,7 @@ static void testTcpServerCloseWait(
 /* 在截止时间前从聚合队列取走一个 Stream。 */
 static xnetstream* testTcpServerAccept(xnetserver* pServer)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 	xnetstream* pStream;
 
 	for ( ;; ) {

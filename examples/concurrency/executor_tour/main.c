@@ -1,10 +1,9 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：concurrency/executor_tour —— 执行器收口补集
  * ----------------------------------------------------------------
  * 演示 API：
  *   【提交】    xrtExecutorSubmitBatch（原子批量受理）
- *   【收口】    xrtExecutorClose / Wait / WaitFor / WaitUntil
+ *   【收口】    xrtExecutorClose / Wait / WaitFor
  *   【统计】    xrtExecutorGet（快照六计数字段）
  * 模块宏：XRT_MODULE_EXECUTOR
  * 编译（单头形态，Windows）：
@@ -22,12 +21,29 @@
 #include <string.h>
 #include <xrt.h>
 
-static volatile int g_Ran = 0;
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
+static xatomic32 g_Ran;
 
 static void exampleJob(ptr pData)
 {
 	(void)pData;
-	g_Ran = g_Ran + 1;
+	(void)xrtAtomic32FetchAdd(&g_Ran, 1u, XMEMORY_RELAXED);
 }
 
 int main(void)
@@ -50,17 +66,23 @@ int main(void)
 	Items[0].DestroyContext = NULL;
 	Items[1] = Items[0];
 	Items[2] = Items[0];
-	g_Ran = 0;
+	xrtAtomic32Init(&g_Ran, 0u);
 	if ( !xrtExecutorSubmitBatch(pExecutor, Items, 3u) ) {
 		goto Cleanup;
 	}
 	/* 等三个工作执行完（Wait 族只对已关闭执行器有意义——
 	 * 未关闭时调用返回 ERROR，不是等新工作的手段）。 */
 	{
-		double iDeadline = __xrtWaitAfter(UINT64_C(3000000));
+		double iDeadline = exampleTimerLimit(INT64_C(3000));
 
-		while ( g_Ran < 3 ) {
-			if ( __xrtWaitExpired(iDeadline) ) {
+		while ( true ) {
+			if ( !xrtExecutorGet(pExecutor, &Stats) ) {
+				goto Cleanup;
+			}
+			if ( Stats.Completed == 3u ) {
+				break;
+			}
+			if ( exampleTimerExpired(iDeadline) ) {
 				goto Cleanup;
 			}
 			xrtThreadYield();
@@ -70,6 +92,7 @@ int main(void)
 	if ( !xrtExecutorGet(pExecutor, &Stats) ||
 		(Stats.Submitted < 3u) ||
 		(Stats.Completed != 3u) ||
+		(xrtAtomic32Load(&g_Ran, XMEMORY_RELAXED) != 3u) ||
 		(Stats.Threads != 2u) ) {
 		goto Cleanup;
 	}
@@ -77,13 +100,10 @@ int main(void)
 		" ok\n",
 		(unsigned long long)Stats.Submitted,
 		(unsigned long long)Stats.Completed);
-	/* Close → WaitFor（短窗）与 WaitUntil 双形态收口。 */
+	/* Close → WaitFor（有界等待）与 Wait 收口。 */
 	if ( !xrtExecutorClose(pExecutor) ||
 		(xrtExecutorWaitFor(pExecutor,
-			UINT64_C(3000000)) != XWAIT_OK) ||
-		(__xrtExecutorWaitUntil(pExecutor,
-			__xrtWaitAfter(UINT64_C(3000000))) !=
-			XWAIT_OK) ||
+			INT64_C(3000)) != XWAIT_OK) ||
 		(xrtExecutorWait(pExecutor) != XWAIT_OK) ||
 		!xrtExecutorGet(pExecutor, &Stats) ||
 		!Stats.Closed ||

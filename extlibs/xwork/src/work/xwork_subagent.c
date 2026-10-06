@@ -75,7 +75,7 @@ typedef struct xwork_delegate_args {
                                          * delegation thread is in flight */
     char* sPrompt;                      /* owned */
     xcancel* pCancel;                   /* delegation cancel (child of parent) */
-    uint64_t uDeadline;
+    double uDeadline;
     uint64_t uParentTurn;               /* delegation origin turn (event tags) */
     char* sFinal;                       /* owned result */
     bool bSuccess;
@@ -187,7 +187,7 @@ static bool xwork__delegate_compose(xwork_delegate_args* pArgs, xwork_error* pEr
     tPolicy.uMaxRounds = pArgs->tType.uMaxTurns ? pArgs->tType.uMaxTurns : 8u;
     tPolicy.sModel = pArgs->tType.sModel;
     tPolicy.pCancel = pArgs->pCancel;
-    tPolicy.uDeadline = pArgs->uDeadline;
+    tPolicy.iTimeout = __xrtWaitRemaining(pArgs->uDeadline);
     memset(&tSummary, 0, sizeof(tSummary));
     if ( !xworkAgentRunBegin(pChild, pError) ) goto cleanup;
     {
@@ -342,14 +342,9 @@ xwork_result xworkAgentRunReadOnlySubagent(
     tAgentConfig.sModel = pParent->sModel;
     tAgentConfig.sReasoningEffort = pParent->sReasoningEffort;
     tAgentConfig.pCancel = pParent->pCancel;
-    tAgentConfig.uDeadline = pConfig->uTimeoutMs
-        ? __xrtWaitAfter((uint64_t)pConfig->uTimeoutMs * UINT64_C(1000))
-        : pParent->uDeadline;
-    if ( pParent->uDeadline != INFINITY &&
-         (tAgentConfig.uDeadline == INFINITY ||
-          pParent->uDeadline < tAgentConfig.uDeadline) ) {
-        tAgentConfig.uDeadline = pParent->uDeadline;
-    }
+    { double ChildLimit = pConfig->uTimeoutMs ? __xrtWaitAfter(pConfig->uTimeoutMs) : INFINITY;
+      if (pParent->uDeadline < ChildLimit) ChildLimit = pParent->uDeadline;
+      tAgentConfig.iTimeout = __xrtWaitRemaining(ChildLimit); }
     tAgentConfig.eApprovalMode = XWORK_APPROVAL_READ_ONLY;
     tAgentConfig.OnPermission = xwork__subagent_permission;
     tAgentConfig.pPermissionUserData = &tPolicy;
@@ -448,7 +443,7 @@ static xwork_result xwork__tool_agent(
     uint64_t uRemindMs;
     xwork_delegate_args* pDelegate = NULL;
     xcancel* pCancel = NULL;
-    uint64_t uDeadline;
+    double uDeadline;
     xwork_buf tOutput = {0};
     xwork_result eResult = XWORK_RESULT_ERROR;
     (void)pContext;
@@ -485,7 +480,7 @@ static xwork_result xwork__tool_agent(
     pCancel = xrtCancelChild(pAgent->pCancel);
     if ( !pCancel ) goto oom;
     uDeadline = pType->uTimeoutMs
-        ? __xrtWaitAfter((uint64_t)pType->uTimeoutMs * UINT64_C(1000))
+        ? __xrtWaitAfter(pType->uTimeoutMs)
         : INFINITY;
     if ( pAgent->uDeadline != INFINITY &&
          (uDeadline == INFINITY || pAgent->uDeadline < uDeadline) ) {

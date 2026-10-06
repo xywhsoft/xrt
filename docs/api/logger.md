@@ -171,7 +171,7 @@ typedef struct xlogrecord {
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Time` | `xtime` | 时间戳（Unix 微秒） |
+| `Time` | `xtime` | 时间戳（公元 UTC 毫秒） |
 | `Level` | `xloglevel` | 级别 |
 | `Logger` | `xstrview` | Logger |
 | `Message` | `xstrview` | 消息文本 |
@@ -810,7 +810,7 @@ typedef void (*xlogsinkdropproc)(ptr pUserData);
 | `XLOG_RING_RECORD_LIMIT_DEFAULT` | `4096u` | RINGRECORD超限默认值 |
 | `XLOG_RING_BATCH_DEFAULT` | `64u` | RINGBATCH默认值 |
 | `XLOG_RING_BATCH_MAX` | `256u` | RINGBATCH上限 |
-| `XLOG_RING_IDLE_WAIT_DEFAULT` | `100u` | RINGIDLEWAIT默认值 |
+| `XLOG_RING_IDLE_WAIT_DEFAULT` | `1` | RINGIDLEWAIT默认值 |
 
 ## 最小用法
 
@@ -859,7 +859,7 @@ xrtLogFree(pLogger);
 
 `logger_format_json` 提供 `xrtLogJsonConfigInit` 和 `xrtLogJsonWrite`。基础入口直接向同步 Writer 分段写入，不创建 `xvalue`、JSON DOM、完整 JSON Writer 或中间整行缓冲；它只依赖共享 JSON 转义、整数和浮点格式化底座。
 
-默认输出顺序稳定：`time`、`level`、`logger`、`message`、`source`、`thread`、`fields`。时间使用 Unix 微秒整数，避免格式化损耗和精度丢失；不存在的源码和线程元数据不会写出。默认以换行结束，可直接组成 JSON Lines 文件或流。
+默认输出顺序稳定：`time`、`level`、`logger`、`message`、`source`、`thread`、`fields`。时间使用 公元 UTC 毫秒整数，避免格式化损耗和精度丢失；不存在的源码和线程元数据不会写出。默认以换行结束，可直接组成 JSON Lines 文件或流。
 
 `FieldStyle` 有两种契约：
 
@@ -935,7 +935,7 @@ JSON Lines 路径可以直接使用 `xrtLogAddJsonFile(pLogger, &File, NULL)`；
 
 - `XLOG_FILE_SYNC_MANUAL`：默认高吞吐模式；只有 `xrtLogSinkFlush` / `xrtLogFlush` 显式调用 `xrtFlush`。
 - `XLOG_FILE_SYNC_RECORD`：每条成功写入后提交到稳定存储，延迟最高但崩溃窗口最小。
-- `XLOG_FILE_SYNC_INTERVAL`：写入记录时按 `xrtClock` 单调时间检查 `SyncInterval`。它没有后台线程，空闲期间不会为了计时单独唤醒。
+- `XLOG_FILE_SYNC_INTERVAL`：写入记录时按 `xrtTimer` 单调时间检查 `SyncInterval`。它没有后台线程，空闲期间不会为了计时单独唤醒。
 
 Unix `logrotate` 或 Windows 外部路径替换完成后调用 `xrtLogFileReopen`，Sink 会先打开当前路径的新追加句柄，成功切换后再关闭旧句柄。`xrtLogFilePath` 返回稳定借用路径，`xrtLogFileStats` 返回当前大小、累计写入字节、记录、滚动、reopen 和持久化次数。
 
@@ -1304,7 +1304,7 @@ xlogfield xrtLogFieldString(xstrview Name, xstrview Value)
 
 ### `xrtLogFieldTime`
 
-构造 Unix Epoch 微秒时间字段。
+构造 公元 UTC 毫秒时间字段。
 
 ```c
 xlogfield xrtLogFieldTime(xstrview Name, xtime iValue)
@@ -1315,7 +1315,7 @@ xlogfield xrtLogFieldTime(xstrview Name, xtime iValue)
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `Name` | 输入 | 借用 | 字段名视图 |
-| `iValue` | 输入 | — | Unix Epoch 微秒 |
+| `iValue` | 输入 | — | 公元 UTC 毫秒 |
 
 #### 返回值
 

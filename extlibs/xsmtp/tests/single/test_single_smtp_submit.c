@@ -33,5 +33,5 @@ int main(void)
 	#endif
 
 	xrtMailMessageInit(&Message);
-	return xrtSmtpSubmit(NULL, &Message, 0, NULL) ? 1 : 0;
+	return __xrtSmtpSubmit(NULL, &Message, 0, NULL) ? 1 : 0;
 }

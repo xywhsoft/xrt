@@ -8,7 +8,7 @@ static ptr producer(ptr pData)
 {
 	xcoevent* pEvent = (xcoevent*)pData;
 
-	if ( xrtCoSleep(1000) != XWAIT_OK ) {
+	if ( xrtCoSleep(1) != XWAIT_OK ) {
 		return NULL;
 	}
 	return xrtCoEventSet(pEvent) ? pEvent : NULL;

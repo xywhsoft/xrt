@@ -152,7 +152,7 @@ typedef struct xhttpcacheuseinput {
 
 
 
-/* StaleBy 使用微秒；新鲜命中和非复用结果均为零。 */
+/* StaleBy 使用毫秒；新鲜命中和非复用结果均为零。 */
 typedef struct xhttpcacheuseplan {
 	uint64 StaleBy;
 	xhttpcacheusedecision Decision;

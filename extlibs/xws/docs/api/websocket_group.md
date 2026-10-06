@@ -73,7 +73,7 @@ xrtWsGroupDestroy(pGroup);
 
 `xwsgroupopstate` 的逐成员状态为 `XWS_GROUP_OP_REJECTED`、`XWS_GROUP_OP_PENDING`、`XWS_GROUP_OP_RESOLVED`、`XWS_GROUP_OP_FAILED`、`XWS_GROUP_OP_CANCELLED` 和 `XWS_GROUP_OP_CLOSED`。同步拒绝没有 Future；其余状态与对应成员 Future 的生命周期一致。
 
-`xrtWsGroupOpWait`、`xrtWsGroupOpWaitFor`、`xrtWsGroupOpWaitUntil` 和 `xrtWsGroupOpWaitUntilCancel` 是完成 Future 的同步便利层。不得从这些 Connection 所属的网络 Worker 上执行阻塞等待。
+`xrtWsGroupOpWait`、`xrtWsGroupOpWaitFor`、`xrtWsGroupOpWaitFor` 和 `xrtWsGroupOpWaitForCancel` 是完成 Future 的同步便利层。不得从这些 Connection 所属的网络 Worker 上执行阻塞等待。
 
 ## 批量示例
 

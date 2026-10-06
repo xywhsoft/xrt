@@ -161,7 +161,7 @@ int main(void)
 	}
 
 	/* 在生产者保持活跃时执行 Stop，放大提交侧生命周期竞态。 */
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( (xrtAtomic32Load(&State.Started, XMEMORY_ACQUIRE) <
 		TEST_ENGINE_PRODUCERS) ||
 		(xrtAtomic64Load(&State.Accepted, XMEMORY_ACQUIRE) <

@@ -381,15 +381,15 @@ bool xrtMutexUnlock(xmutex* pMutex)
 | `xrtCondCreate()` | 创建 condition。 |
 | `xrtCondDestroy(pCond)` | 释放拥有式 condition。 |
 | `xrtCondWait(pCond, pMutex)` | 无限等待通知。 |
-| `xrtCondWaitFor(pCond, pMutex, iTimeout)` | 最多等待相对微秒数。 |
-| `xrtCondWaitUntil(pCond, pMutex, iDeadline)` | 等待到绝对单调 deadline。 |
+| `xrtCondWaitFor(pCond, pMutex, iTimeout)` | 最多等待相对毫秒数。 |
+| `xrtCondWaitFor(pCond, pMutex, iDeadline)` | 等待到绝对单调 deadline。 |
 | `xrtCondSignal(pCond)` | 唤醒一个当前等待者。 |
 | `xrtCondBroadcast(pCond)` | 唤醒全部当前等待者。 |
 
 ```c
 xrtMutexLock(&tState.Mutex);
 while ( !tState.Ready ) {
-	xwaitresult Result = xrtCondWaitUntil(
+	xwaitresult Result = xrtCondWaitFor(
 		&tState.Cond,
 		&tState.Mutex,
 		iDeadline
@@ -579,10 +579,10 @@ xwaitresult xrtCondWait(xcond* pCond, xmutex* pMutex)
 
 ### `xrtCondWaitFor`
 
-在相对微秒数内等待；超时和成功后都重新持有 mutex。
+在相对毫秒数内等待；超时和成功后都重新持有 mutex。
 
 ```c
-xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout)
+xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, int64 iTimeout)
 ```
 
 #### 参数
@@ -591,7 +591,7 @@ xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout)
 |---|---|---|---|
 | `pCond` | 输入 | 非空 | 目标条件变量 |
 | `pMutex` | 输入 | 非空、本线程持有 | 配对互斥锁 |
-| `iTimeout` | 输入 | — | 相对微秒数 |
+| `iTimeout` | 输入 | — | 相对毫秒数 |
 
 #### 返回值
 
@@ -613,49 +613,7 @@ xwaitresult xrtCondWaitFor(xcond* pCond, xmutex* pMutex, uint64 iTimeout)
 
 ```c
 	pJob->iForResult = xrtCondWaitFor(pJob->pCond, pJob->pMutex,
-		EXAMPLE_TIMEOUT_US);  /* 无人 Signal：到期 */
-```
-
-### `xrtCondWaitUntil`
-
-等待到单调时钟截止时间；允许虚假唤醒。
-
-```c
-xwaitresult xrtCondWaitUntil(xcond* pCond, xmutex* pMutex, xdeadline iDeadline)
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pCond` | 输入 | 非空 | 目标条件变量 |
-| `pMutex` | 输入 | 非空、本线程持有 | 配对互斥锁 |
-| `iDeadline` | 输入 | — | 截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 获得/等到 | — |
-| `XWAIT_TIMEOUT` | 期限或截止时间先到达 | 不设错误 |
-| `XWAIT_ERROR` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
-
-#### 错误
-
-- `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_STATE` — 对象仍被持有、等待或状态非法
-- 允许虚假唤醒，应循环检查受 mutex 保护的谓词
-
-#### 范例
-
-[condition](../../examples/concurrency/condition/main.c) · 限期等待
-
-```c
-	Result = xrtCondWaitUntil(
-		&Cond,
-		&Mutex,
-		xrtDeadlineAfter(UINT64_C(1000))
-	);
+		EXAMPLE_TIMEOUT_MS);  /* 无人 Signal：到期 */
 ```
 
 ### `xrtCondSignal`
@@ -740,8 +698,8 @@ bool xrtCondBroadcast(xcond* pCond)
 | `xrtSemDestroy(pSem)` | 释放拥有式 semaphore。 |
 | `xrtSemWait(pSem)` | 无限等待并消费一个计数。 |
 | `xrtSemTryWait(pSem)` | 非阻塞尝试消费，空时返回 `XWAIT_TIMEOUT`。 |
-| `xrtSemWaitFor(pSem, iTimeout)` | 在相对微秒数内等待。 |
-| `xrtSemWaitUntil(pSem, iDeadline)` | 等待到绝对单调 deadline。 |
+| `xrtSemWaitFor(pSem, iTimeout)` | 在相对毫秒数内等待。 |
+| `xrtSemWaitFor(pSem, iDeadline)` | 等待到绝对单调 deadline。 |
 | `xrtSemPost(pSem)` | 发布一个计数。 |
 | `xrtSemPostMany(pSem, iCount)` | 原子发布多个计数；`0` 成功且无操作。 |
 
@@ -966,10 +924,10 @@ xwaitresult xrtSemTryWait(xsem* pSem)
 
 ### `xrtSemWaitFor`
 
-在相对微秒数内等待并消费一个信号。
+在相对毫秒数内等待并消费一个信号。
 
 ```c
-xwaitresult xrtSemWaitFor(xsem* pSem, uint64 iTimeout)
+xwaitresult xrtSemWaitFor(xsem* pSem, int64 iTimeout)
 ```
 
 #### 参数
@@ -977,7 +935,7 @@ xwaitresult xrtSemWaitFor(xsem* pSem, uint64 iTimeout)
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pSem` | 输入 | 非空 | 目标信号量 |
-| `iTimeout` | 输入 | — | 相对微秒数 |
+| `iTimeout` | 输入 | — | 相对毫秒数 |
 
 #### 返回值
 
@@ -997,46 +955,7 @@ xwaitresult xrtSemWaitFor(xsem* pSem, uint64 iTimeout)
 [sync_tour](../../examples/concurrency/sync_tour/main.c) · 限时等待
 
 ```c
-		(xrtSemWaitFor(pSem, EXAMPLE_TIMEOUT_US) != XWAIT_OK) ) {
-```
-
-### `xrtSemWaitUntil`
-
-等待并消费一个信号到指定单调时钟截止时间。
-
-```c
-xwaitresult xrtSemWaitUntil(xsem* pSem, xdeadline iDeadline)
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pSem` | 输入 | 非空 | 目标信号量 |
-| `iDeadline` | 输入 | — | 截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 获得/等到 | — |
-| `XWAIT_TIMEOUT` | 期限或截止时间先到达 | 不设错误 |
-| `XWAIT_ERROR` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
-
-#### 错误
-
-- `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_STATE` — 对象仍被持有、等待或状态非法
-
-#### 范例
-
-[semaphore](../../examples/concurrency/semaphore/main.c) · 限期等待
-
-```c
-	Result = xrtSemWaitUntil(
-		&Semaphore,
-		xrtDeadlineAfter(UINT64_C(1000000))
-	);
+		(xrtSemWaitFor(pSem, EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ) {
 ```
 
 ### `xrtSemPost`
@@ -1108,7 +1027,7 @@ bool xrtSemPostMany(xsem* pSem, uint32 iCount)
 	if ( !xrtSemPostMany(pSem, 3u) ||
 		(xrtSemTryWait(pSem) != XWAIT_OK) ||
 		(xrtSemWait(pSem) != XWAIT_OK) ||
-		(xrtSemWaitFor(pSem, EXAMPLE_TIMEOUT_US) != XWAIT_OK) ) {
+		(xrtSemWaitFor(pSem, EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ) {
 ```
 
 ## RWLock
@@ -1566,8 +1485,8 @@ bool xrtRWLockUpgrade(xrwlock* pLock)
 | `xrtEventDestroy(pEvent)` | 释放拥有式事件。 |
 | `xrtEventWait(pEvent)` | 无限等待信号。 |
 | `xrtEventTryWait(pEvent)` | 非阻塞检查；自动复位事件成功时消费信号。 |
-| `xrtEventWaitFor(pEvent, iTimeout)` | 在相对微秒数内等待。 |
-| `xrtEventWaitUntil(pEvent, iDeadline)` | 等待到绝对单调 deadline。 |
+| `xrtEventWaitFor(pEvent, iTimeout)` | 在相对毫秒数内等待。 |
+| `xrtEventWaitFor(pEvent, iDeadline)` | 等待到绝对单调 deadline。 |
 | `xrtEventSet(pEvent)` | 设置有信号状态并按复位方式唤醒等待者。 |
 | `xrtEventReset(pEvent)` | 清除有信号状态。 |
 
@@ -1796,10 +1715,10 @@ xwaitresult xrtEventTryWait(xevent* pEvent)
 
 ### `xrtEventWaitFor`
 
-在相对微秒数内等待事件。
+在相对毫秒数内等待事件。
 
 ```c
-xwaitresult xrtEventWaitFor(xevent* pEvent, uint64 iTimeout)
+xwaitresult xrtEventWaitFor(xevent* pEvent, int64 iTimeout)
 ```
 
 #### 参数
@@ -1807,7 +1726,7 @@ xwaitresult xrtEventWaitFor(xevent* pEvent, uint64 iTimeout)
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pEvent` | 输入 | 非空 | 目标事件 |
-| `iTimeout` | 输入 | — | 相对微秒数 |
+| `iTimeout` | 输入 | — | 相对毫秒数 |
 
 #### 返回值
 
@@ -1827,45 +1746,8 @@ xwaitresult xrtEventWaitFor(xevent* pEvent, uint64 iTimeout)
 [sync_tour](../../examples/concurrency/sync_tour/main.c) · 限时等待
 
 ```c
-		(xrtEventWaitFor(pAuto, EXAMPLE_TIMEOUT_US) !=
+		(xrtEventWaitFor(pAuto, EXAMPLE_TIMEOUT_MS) !=
 			XWAIT_TIMEOUT) ) {
-```
-
-### `xrtEventWaitUntil`
-
-等待事件到指定单调时钟截止时间。
-
-```c
-xwaitresult xrtEventWaitUntil(xevent* pEvent, xdeadline iDeadline)
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pEvent` | 输入 | 非空 | 目标事件 |
-| `iDeadline` | 输入 | — | 截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 获得/等到 | — |
-| `XWAIT_TIMEOUT` | 期限或截止时间先到达 | 不设错误 |
-| `XWAIT_ERROR` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
-
-#### 错误
-
-- `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_STATE` — 对象仍被持有、等待或状态非法
-
-#### 范例
-
-[sync_tour](../../examples/concurrency/sync_tour/main.c) · 限期等待
-
-```c
-		(xrtEventWaitUntil(&tManual,
-			xrtDeadlineAfter(UINT64_C(1))) != XWAIT_OK) ||
 ```
 
 ### `xrtEventSet`

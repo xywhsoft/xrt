@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：xws/connection_tour —— 连接全接口：握手构建/自省/发送/关闭
  * ----------------------------------------------------------------
@@ -47,8 +46,25 @@
 #include <string.h>
 #include <xws.h>
 
-/* 等待上限（微秒）。 */
-#define TOUR_DEADLINE_US 10000000ull
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
+/* 等待上限（毫秒）。 */
+#define TOUR_DEADLINE_MS INT64_C(10000)
 #ifndef TOUR_BACKEND
 #define TOUR_BACKEND XNET_PORT_AUTO
 #endif
@@ -266,10 +282,10 @@ static void tourRequest(xhttpserver* pServer, xhttpconn* pHttp,
 
 static bool tourWait32Min(xatomic32* pFlag, uint32 iMinimum)
 {
-	double iEnd = __xrtWaitAfter(TOUR_DEADLINE_US);
+	double iEnd = exampleTimerLimit(TOUR_DEADLINE_MS);
 
 	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) < iMinimum ) {
-		if ( __xrtWaitExpired(iEnd) ) {
+		if ( exampleTimerExpired(iEnd) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -364,16 +380,16 @@ static void tourCloseTask(xnetworker* pWorker, ptr pData)
 static bool tourFutureReady(xfuture* pFuture)
 {
 	return (pFuture != NULL) &&
-		(xrtFutureWaitFor(pFuture, TOUR_DEADLINE_US) == XWAIT_OK) &&
+		(xrtFutureWaitFor(pFuture, TOUR_DEADLINE_MS) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED);
 }
 
 /* 暂停断言必须失败可见，不能只打印“leaked”然后仍返回成功。 */
 static bool tourHeld(tourstate* pState, uint32 iMessages)
 {
-	double Deadline = __xrtWaitAfter(200000u);
+	double Deadline = exampleTimerLimit(200);
 
-	while ( !__xrtWaitExpired(Deadline) ) {
+	while ( !exampleTimerExpired(Deadline) ) {
 		if ( (xrtAtomic32Load(&pState->Messages, XMEMORY_ACQUIRE) != iMessages) ||
 			(xrtAtomic32Load(&pState->Errors, XMEMORY_ACQUIRE) != 0) ) return false;
 		xrtThreadYield();
@@ -595,12 +611,12 @@ Cleanup:
 	if ( pServer != NULL ) (void)xrtHttpServerAbort(pServer);
 	xrtHttpServerDestroy(pServer);
 	/* main 内的 Send / State 在停止 Worker 的整个过程中保持有效。 */
-	Deadline = __xrtWaitAfter(TOUR_DEADLINE_US);
+	Deadline = exampleTimerLimit(TOUR_DEADLINE_MS);
 	/* 上层 Destroy 会投递异步关闭；最后一个内部对象释放后才能 Stop。 */
 	while ( (pEngine != NULL) && !xrtNetEngineStop(pEngine) ) {
 		tourReleaseConnection(&State.Client);
 		tourReleaseConnection(&State.Server);
-		if ( __xrtWaitExpired(Deadline) ) { iResult = 1; break; }
+		if ( exampleTimerExpired(Deadline) ) { iResult = 1; break; }
 		xrtThreadYield();
 	}
 	tourReleaseConnection(&State.Client);

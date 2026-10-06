@@ -12,10 +12,10 @@
 /* 在有限时间内等待 UDP 进入指定状态。 */
 static bool testSingleUdpWaitState(xnetudp* pUdp, xnetudpstate State)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000);
 
 	while ( xrtNetUdpState(pUdp) != State ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -28,7 +28,7 @@ static bool testSingleUdpWaitState(xnetudp* pUdp, xnetudpstate State)
 /* 在有限时间内从拉取队列取出一个包。 */
 static xnetudppacket* testSingleUdpReceive(xnetudp* pUdp)
 {
-	xdeadline iDeadline = xrtDeadlineAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000);
 	xnetudppacket* pPacket;
 
 	for ( ;; ) {
@@ -36,7 +36,7 @@ static xnetudppacket* testSingleUdpReceive(xnetudp* pUdp)
 		if ( pPacket != NULL ) {
 			return pPacket;
 		}
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return NULL;
 		}
 		xrtThreadYield();

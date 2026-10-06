@@ -1,3 +1,4 @@
+#include <math.h>
 #include <string.h>
 
 #include <xrt/ssh_transport_core.h>
@@ -213,9 +214,10 @@ bool xrtSshTransportCoreInit(
 	xsshrole Role,
 	uint32 iMaxPacketSize,
 	const xsshrekeypolicy* pRekeyPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	xsshtransportcore Core;
 
 	if ( !xrtMemRangeValid(pCore, sizeof(*pCore)) ) {
@@ -226,7 +228,7 @@ bool xrtSshTransportCoreInit(
 		&Core.Codec,
 		iMaxPacketSize
 	) != XSSH_OK) || !xrtSshTransportStateInit(&Core.State, Role) ||
-		!xrtSshRekeyInit(&Core.Rekey, pRekeyPolicy, iNowMs) ) {
+		!xrtSshRekeyInit(&Core.Rekey, pRekeyPolicy, Timer) ) {
 		xrtSshPacketCodecClear(&Core.Codec);
 		xrtSecureZero(&Core, sizeof(Core));
 		return false;
@@ -332,10 +334,11 @@ bool xrtSshTransportCoreRekeyRequest(xsshtransportcore* pCore)
 /* 查询操作保持 core 不变。 */
 xsshcode xrtSshTransportCoreRekeyCheck(
 	const xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	if ( !xsshTransportCoreValid(pCore) ) {
 		return XSSH_ERROR_STATE;
 	}
@@ -348,7 +351,7 @@ xsshcode xrtSshTransportCoreRekeyCheck(
 	) ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
-	return xrtSshRekeyCheck(&pCore->Rekey, iNowMs, pDecision);
+	return xrtSshRekeyCheck(&pCore->Rekey, Timer, pDecision);
 }
 
 
@@ -391,9 +394,10 @@ xsshcode xrtSshTransportCoreWritePrepareWithPadding(
 	xbytesview Payload,
 	xsshpaddingproc pPadding,
 	ptr pUserData,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshtransportpending Pending;
 	xsshrekeydecision Decision;
 	size_t iStart;
@@ -439,7 +443,7 @@ xsshcode xrtSshTransportCoreWritePrepareWithPadding(
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
-	Code = xrtSshRekeyCheck(&pCore->Rekey, iNowMs, &Decision);
+	Code = xrtSshRekeyCheck(&pCore->Rekey, Timer, &Decision);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -475,10 +479,11 @@ xsshcode xrtSshTransportCoreWritePrepareWithPadding(
 /* 可靠入队后按 codec、协议和预算三个边界一次提交。 */
 xsshcode xrtSshTransportCoreWriteCommit(
 	xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshrekeydecision Decision;
 	uint32 iActions;
 	xsshcode Code;
@@ -505,7 +510,7 @@ xsshcode xrtSshTransportCoreWriteCommit(
 			&pCore->Rekey,
 			pCore->Write.WireBytes,
 			pCore->Write.CipherBlocks,
-			iNowMs,
+			Timer,
 			&Decision
 		);
 	}
@@ -564,9 +569,10 @@ xsshcode xrtSshTransportCoreReadPrepare(
 	xsshpacketview* pPacket,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshtransportpending Pending;
 	xsshrekeydecision Decision;
 	xsshpacketneed Need;
@@ -616,7 +622,7 @@ xsshcode xrtSshTransportCoreReadPrepare(
 	if ( xrtSshReaderRemaining(pReader) < Need.WireSize ) {
 		return XSSH_NEED_MORE;
 	}
-	Code = xrtSshRekeyCheck(&pCore->Rekey, iNowMs, &Decision);
+	Code = xrtSshRekeyCheck(&pCore->Rekey, Timer, &Decision);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -671,10 +677,11 @@ xsshcode xrtSshTransportCoreReadPrepare(
 /* 已认证包只在上层解析接受后登记预算并推进协议。 */
 xsshcode xrtSshTransportCoreReadCommit(
 	xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshrekeydecision Decision;
 	uint32 iActions;
 	xsshcode Code;
@@ -701,7 +708,7 @@ xsshcode xrtSshTransportCoreReadCommit(
 			&pCore->Rekey,
 			pCore->Read.WireBytes,
 			pCore->Read.CipherBlocks,
-			iNowMs,
+			Timer,
 			&Decision
 		);
 	}
@@ -766,9 +773,10 @@ xsshcode xrtSshTransportCoreSetWriteAesGcm(
 	xsshtransportcore* pCore,
 	xbytesview Key,
 	xbytesview InitialIV,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshrekeydecision Decision;
 	uint32 iActions;
 	xsshcode Code;
@@ -777,7 +785,7 @@ xsshcode xrtSshTransportCoreSetWriteAesGcm(
 		(pCore->WriteKeyActions == 0u) ) {
 		return XSSH_ERROR_STATE;
 	}
-	Code = xrtSshRekeyCheck(&pCore->Rekey, iNowMs, &Decision);
+	Code = xrtSshRekeyCheck(&pCore->Rekey, Timer, &Decision);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -794,7 +802,7 @@ xsshcode xrtSshTransportCoreSetWriteAesGcm(
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
-	if ( !xrtSshRekeyResetSend(&pCore->Rekey, iNowMs) ) {
+	if ( !xrtSshRekeyResetSend(&pCore->Rekey, Timer) ) {
 		xsshTransportCoreFail(pCore);
 		return XSSH_ERROR_STATE;
 	}
@@ -813,9 +821,10 @@ xsshcode xrtSshTransportCoreSetReadAesGcm(
 	xsshtransportcore* pCore,
 	xbytesview Key,
 	xbytesview InitialIV,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshrekeydecision Decision;
 	uint32 iActions;
 	xsshcode Code;
@@ -824,7 +833,7 @@ xsshcode xrtSshTransportCoreSetReadAesGcm(
 		(pCore->ReadKeyActions == 0u) ) {
 		return XSSH_ERROR_STATE;
 	}
-	Code = xrtSshRekeyCheck(&pCore->Rekey, iNowMs, &Decision);
+	Code = xrtSshRekeyCheck(&pCore->Rekey, Timer, &Decision);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -841,7 +850,7 @@ xsshcode xrtSshTransportCoreSetReadAesGcm(
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
-	if ( !xrtSshRekeyResetReceive(&pCore->Rekey, iNowMs) ) {
+	if ( !xrtSshRekeyResetReceive(&pCore->Rekey, Timer) ) {
 		xsshTransportCoreFail(pCore);
 		return XSSH_ERROR_STATE;
 	}

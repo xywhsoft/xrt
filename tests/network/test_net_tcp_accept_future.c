@@ -23,7 +23,7 @@ static void testTcpAcceptStats(
 	uint32 iWaiters
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 	xnetlistenerstats Stats;
 
 	for ( ;; ) {
@@ -65,7 +65,7 @@ static xnetstream* testTcpAcceptValue(
 	xnetstream* pStream;
 
 	testRequire((pFuture != NULL) &&
-		 (xrtFutureWaitFor(pFuture, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pFuture, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 		sMessage);
 	pStream = (xnetstream*)xrtFutureValue(pFuture);
@@ -79,7 +79,7 @@ static xnetstream* testTcpAcceptValue(
 static void testTcpAcceptReady(xfuture* pFuture, cstr sMessage)
 {
 	testRequire((pFuture != NULL) &&
-		 (xrtFutureWaitFor(pFuture, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pFuture, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 		sMessage);
 }
@@ -89,7 +89,7 @@ static void testTcpAcceptReady(xfuture* pFuture, cstr sMessage)
 /* 正常关闭并释放一个调用方 Stream 引用。 */
 static void testTcpAcceptCloseStream(xnetstream* pStream)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	if ( xrtNetStreamState(pStream) != XNET_STREAM_CLOSED ) {
 		testRequire(xrtNetStreamClose(pStream),
@@ -172,7 +172,7 @@ int main(void)
 	pCancelled = xrtNetListenerAcceptAsync(pListener);
 	testTcpAcceptStats(pListener, 0, 0, 0, 1);
 	testRequire((pCancelled != NULL) && xrtFutureCancel(pCancelled) &&
-		 (xrtFutureWaitFor(pCancelled, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pCancelled, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pCancelled) == XFUTURE_CANCELLED),
 		"TCP accept Future cancellation failed");
 	testTcpAcceptStats(pListener, 0, 0, 0, 0);
@@ -182,7 +182,7 @@ int main(void)
 	pCacheCancelled = xrtNetListenerAcceptAsync(pListener);
 	testRequire((pCacheCancelled != NULL) &&
 		 xrtFutureCancel(pCacheCancelled) &&
-		 (xrtFutureWaitFor(pCacheCancelled, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pCacheCancelled, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pCacheCancelled) == XFUTURE_CANCELLED) &&
 		 xrtNetEngineStats(pEngine, &EngineStats) &&
 		 (EngineStats.NodeCacheHits > iNodeHits) &&
@@ -228,7 +228,7 @@ int main(void)
 	pReceive = xrtNetStreamRecvAsync(pServer1, 0);
 	testRequire((pReceive != NULL) &&
 		 (xrtNetStreamSend(pClient1, "pull", 4) == XNET_RESULT_OK) &&
-		 (xrtFutureWaitFor(pReceive, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pReceive, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pReceive) == XFUTURE_RESOLVED),
 		"TCP accepted stream receive failed");
 	pBytes = (xnetbytes*)xrtFutureValue(pReceive);
@@ -344,10 +344,10 @@ int main(void)
 	);
 	testRequire(xrtNetListenerClose(pListener),
 		"TCP accept Future listener close failed");
-	testRequire((xrtFutureWaitFor(pPendingClose, 5000000u) == XWAIT_OK) &&
+	testRequire((xrtFutureWaitFor(pPendingClose, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pPendingClose) == XFUTURE_CLOSED),
 		"TCP pending accept did not close with listener");
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP accept Future listener close timed out");
@@ -375,12 +375,12 @@ int main(void)
 		"TCP accept Future engine destroy failed");
 	pLateClose = xrtNetListenerAcceptAsync(pListener);
 	testRequire((pLateClose != NULL) &&
-		 (xrtFutureWaitFor(pLateClose, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pLateClose, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pLateClose) == XFUTURE_CLOSED),
 		"TCP late accept Future used a destroyed Engine");
 	pLateClose2 = xrtNetListenerAcceptAsync(pListener);
 	testRequire((pLateClose2 != NULL) &&
-		 (xrtFutureWaitFor(pLateClose2, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pLateClose2, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pLateClose2) == XFUTURE_CLOSED),
 		"TCP repeated late accept Future used a destroyed Engine");
 	xrtFutureDestroy(pLateClose);

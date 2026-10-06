@@ -55,8 +55,8 @@ typedef struct xwork_process_entry {
     /* Model-driven timing and notifications. */
     char* sNotify;             /* message delivered with the completion notice */
     uint64_t uRemindAfterMs;   /* model-set soft deadline; 0 = none */
-    uint64_t uStartedUs;       /* xrtTimer() at start */
-    uint64_t uExitedUs;        /* first observed exit; 0 while running */
+    double uStartedUs;       /* xrtTimer() at start */
+    double uExitedUs;        /* first observed exit; 0 while running */
     bool bNoticeTaken;         /* completion notice consumed by the host */
     bool bNudged;              /* uncollected-notice nudge already sent */
     /* Agent-task fields (eKind == XWORK_TASK_AGENT). The delegate thread
@@ -103,7 +103,7 @@ struct xwork_agent {
     char* sModel;
     char* sReasoningEffort;
     xcancel* pCancel;
-    uint64_t uDeadline;
+    double uDeadline;
 
     xwork_approval_mode eApprovalMode;
     xwork_approval_fn OnApproval;

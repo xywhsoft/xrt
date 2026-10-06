@@ -46,7 +46,7 @@ static void testUdpMulticastOpen(xnetudp* pUdp, ptr pData)
 /* 等待 Worker 完成多播配置。 */
 static void testUdpMulticastWait(testudpmulticast* pTest)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000);
 
 	while ( xrtAtomic32Load(&pTest->Done, XMEMORY_ACQUIRE) == 0 ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
@@ -60,7 +60,7 @@ static void testUdpMulticastWait(testudpmulticast* pTest)
 /* 等待 UDP 正常关闭。 */
 static void testUdpMulticastWaitClosed(xnetudp* pUdp)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000);
 
 	while ( xrtNetUdpState(pUdp) != XNET_UDP_CLOSED ) {
 		testRequire(!__xrtWaitExpired(iDeadline),

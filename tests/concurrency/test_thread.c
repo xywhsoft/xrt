@@ -114,7 +114,7 @@ int main(void)
 	testRequire(xrtThreadStop(pThread), "repeated thread stop request failed");
 	testRequire(xrtThreadStopRequested(pThread), "thread stop request was not visible");
 	testRequire(
-		xrtThreadWaitFor(pThread, UINT64_C(2000000)) == XWAIT_OK,
+		xrtThreadWaitFor(pThread, INT64_C(2000)) == XWAIT_OK,
 		"thread wait timed out"
 	);
 	testRequire(xrtThreadWait(pThread) == XWAIT_OK, "repeated thread wait failed");

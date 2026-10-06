@@ -54,6 +54,10 @@ int main(void)
 	testHttpSseFuzzSeed("id: 42\rretry: 1000\rdata: x\r\r");
 	testHttpSseFuzzSeed(": ping\r\nevent: update\r\ndata:\r\n\r\n");
 	testHttpSseFuzzSeed("retry: invalid\ndata: incomplete");
+	/* A full-width data line must fit after the writer adds "data: ". */
+	memset(Data, '7', XRT_HTTP_SSE_FUZZ_DATA_MAX);
+	testRequire(xrtHttpSseFuzzerTestOneInput(Data, XRT_HTTP_SSE_FUZZ_DATA_MAX) == 0,
+		"HTTP SSE maximum data line roundtrip failed");
 	for ( iRound = 0; iRound < XRT_HTTP_SSE_FUZZ_ROUNDS; iRound++ ) {
 		size_t iSize = (size_t)(
 			testHttpSseFuzzNext(&iState) %

@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/task —— 网络任务：Worker 上执行并取结果
  * ----------------------------------------------------------------
@@ -63,7 +62,7 @@ int main(void)
 		NULL
 	);
 	if ( (pFuture == NULL) ||
-		(xrtFutureWaitFor(pFuture, 3000000u) != XWAIT_OK) ||
+		(xrtFutureWaitFor(pFuture, 3000) != XWAIT_OK) ||
 		(xrtFutureState(pFuture) != XFUTURE_RESOLVED) ) {
 		xrtFutureDestroy(pFuture);
 		(void)xrtNetEngineDestroy(pEngine);
@@ -74,19 +73,19 @@ int main(void)
 
 	/* ---- After / Until：延迟与截止时间两种提交形态。 ---- */
 	pFuture = xrtTaskNetAfter(pEngine, 0, buildValue, &iValue,
-		NULL, 0u);
+		NULL, 0);
 	if ( (pFuture == NULL) ||
-		(xrtFutureWaitFor(pFuture, 3000000u) != XWAIT_OK) ) {
+		(xrtFutureWaitFor(pFuture, 3000) != XWAIT_OK) ) {
 		xrtFutureDestroy(pFuture);
 		(void)xrtNetEngineDestroy(pEngine);
 		return 2;
 	}
 	printf("after: value=%d\n", *(int*)xrtFutureValue(pFuture));
 	xrtFutureDestroy(pFuture);
-	pFuture = __xrtTaskNetUntil(pEngine, 0, buildValue, &iValue,
-		NULL, __xrtWaitAfter(0u));
+	pFuture = xrtTaskNetFor(pEngine, 0, buildValue, &iValue,
+		NULL,0);
 	if ( (pFuture == NULL) ||
-		(xrtFutureWaitFor(pFuture, 3000000u) != XWAIT_OK) ) {
+		(xrtFutureWaitFor(pFuture, 3000) != XWAIT_OK) ) {
 		xrtFutureDestroy(pFuture);
 		(void)xrtNetEngineDestroy(pEngine);
 		return 3;
@@ -100,11 +99,10 @@ int main(void)
 
 		pGroup = xrtTaskGroupCreate(NULL);
 		if ( (pGroup == NULL) ||
-			(__xrtTaskGroupNetUntil(pGroup, pEngine, 0,
-				buildValue, &iValue, NULL,
-				__xrtWaitAfter(0u)) == NULL) ||
+			(xrtTaskGroupNetFor(pGroup, pEngine, 0,
+				buildValue, &iValue, NULL,0) == NULL) ||
 			!xrtTaskGroupClose(pGroup) ||
-			(xrtTaskGroupWaitFor(pGroup, 3000000u) !=
+			(xrtTaskGroupWaitFor(pGroup, 3000) !=
 				XWAIT_OK) ) {
 			xrtTaskGroupDestroy(pGroup);
 			(void)xrtNetEngineDestroy(pEngine);

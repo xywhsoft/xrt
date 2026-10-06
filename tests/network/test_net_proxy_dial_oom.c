@@ -279,7 +279,7 @@ static void testProxyDialOomPrintError(const xerror* pError)
 /* 等待上一轮取消遗留的查询与回调全部离开 Resolver。 */
 static void testProxyDialOomWaitResolverIdle(xnetresolver* pResolver)
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 	xnetresolverstats Stats;
 
 	for ( ;; ) {
@@ -391,7 +391,7 @@ int main(void)
 	);
 	testRequire(pSetupThread != NULL,
 		"proxy Dial setup thread create failed");
-	Deadline = __xrtWaitAfter(5000000u);
+	Deadline = __xrtWaitAfter(5000);
 	while ( xrtAtomic64Load(
 		&Context.BlockThread,
 		XMEMORY_ACQUIRE
@@ -419,13 +419,13 @@ int main(void)
 	xrtAtomic32Store(&Context.BlockRelease, 1, XMEMORY_RELEASE);
 	testRequire(xrtThreadWaitFor(
 		pSetupThread,
-		UINT64_C(5000000)
+		INT64_C(5000)
 	) == XWAIT_OK, "proxy Dial setup thread timed out");
 	testRequire((xrtThreadExitCode(pSetupThread) == 0) &&
 		(Setup.Dial != NULL),
 		"proxy Dial setup did not return a managed object");
 	(void)xrtNetProxyDialCancel(Setup.Dial);
-	Deadline = __xrtWaitAfter(5000000u);
+	Deadline = __xrtWaitAfter(5000);
 	while ( xrtAtomic32Load(&Setup.Done, XMEMORY_ACQUIRE) == 0 ) {
 		testRequire(!__xrtWaitExpired(Deadline),
 			"proxy Dial setup cancellation did not complete");
@@ -486,7 +486,7 @@ int main(void)
 	);
 	testRequire(pDial != NULL,
 		"proxy Dial asynchronous OOM setup failed");
-	Deadline = __xrtWaitAfter(5000000u);
+	Deadline = __xrtWaitAfter(5000);
 	while ( xrtAtomic32Load(&Context.Done, XMEMORY_ACQUIRE) == 0 ) {
 		if ( __xrtWaitExpired(Deadline) ) {
 			xnetresolverstats ResolverStats;
@@ -573,7 +573,7 @@ int main(void)
 	xrtNetProxyRelease(pProxy);
 	testRequire(xrtNetResolverDestroy(pResolver),
 		"proxy Dial OOM resolver destroy failed");
-	Deadline = __xrtWaitAfter(5000000u);
+	Deadline = __xrtWaitAfter(5000);
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(!__xrtWaitExpired(Deadline),

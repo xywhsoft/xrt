@@ -84,7 +84,7 @@ static void testHttpServerStaticBodyWait(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK),
 		"HTTP static server body wait failed"
 	);
@@ -166,7 +166,7 @@ static xhttpreply* testHttpServerStaticFutureValue(
 	}
 	Wait = xrtFutureWaitFor(
 		pFuture,
-		UINT64_C(3000000)
+		INT64_C(3000)
 	);
 	State = xrtFutureState(pFuture);
 	if ( (Wait != XWAIT_OK) ||

@@ -20,7 +20,7 @@ static xhttpclient* testHttpFutureClient(xnetengine* pEngine)
 	xrtHttpClientConfigInit(&Config);
 	Config.Dial.Family = XNET_FAMILY_IPV4;
 	Config.Dial.MaxAttempts = 1;
-	Config.Timeout = UINT64_C(5000000);
+	Config.Timeout = INT64_C(5000);
 	pClient = xrtHttpClientCreate(pEngine, &Config);
 	testRequire(
 		pClient != NULL,
@@ -154,7 +154,7 @@ static void testHttpFutureSuccess(xnetengine* pEngine)
 	testRequire(
 		xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK,
 		"HTTP Future success wait failed"
 	);
@@ -309,7 +309,7 @@ static void testHttpFutureStream(xnetengine* pEngine)
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 		"HTTP Future stream completion failed"
@@ -516,7 +516,7 @@ static void testHttpFutureChunkedRequest(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 		"HTTP Future chunked completion failed"
@@ -593,7 +593,7 @@ static void testHttpFutureCancel(xnetengine* pEngine)
 	testRequire(
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_CANCELLED),
 		"HTTP Future cancelled terminal mismatch"
@@ -647,7 +647,7 @@ static void testHttpFutureParentCancel(xnetengine* pEngine)
 	testRequire(
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_CANCELLED),
 		"HTTP Future parent cancellation terminal mismatch"
@@ -698,7 +698,7 @@ static void testHttpFutureUpgrade(xnetengine* pEngine)
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 		"HTTP Future Upgrade completion failed"
@@ -773,7 +773,7 @@ static void testHttpFutureUpgradeCleanup(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 		"HTTP Future unclaimed Upgrade completion failed"
@@ -909,7 +909,7 @@ static void testHttpFutureSync(xnetengine* pEngine)
 /* 等待全部异步析构退出 Engine，再验证最终对象计数归零。 */
 static void testHttpFutureEngineDestroy(xnetengine* pEngine)
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();

@@ -59,7 +59,8 @@
 				"extlibs/ximap/include/xrt/imap.h"
 			],
 			"internal_headers": [
-				"extlibs/ximap/src/internal/xrt_mail.h"
+				"extlibs/ximap/src/internal/xrt_mail.h",
+				"extlibs/ximap/include/xrt/detail/ximap_wait.h"
 			],
 			"sources": [
 				"extlibs/ximap/src/imap/imap.c"
@@ -517,12 +518,19 @@
 			"name": "imap_data_error_tests",
 			"state": "implemented",
 			"feature": null,
-			"depends": ["imap_data", "memory_debug"],
+			"depends": [
+				"imap_data",
+				"memory_debug"
+			],
 			"public_headers": [],
 			"internal_headers": [],
 			"sources": [],
-			"tests": ["extlibs/ximap/tests/test_imap_data_error.c"],
-			"single_tests": ["extlibs/ximap/tests/single/test_single_imap_data_error.c"],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_data_error.c"
+			],
+			"single_tests": [
+				"extlibs/ximap/tests/single/test_single_imap_data_error.c"
+			],
 			"examples": [],
 			"docs": [],
 			"legacy": []
@@ -531,12 +539,21 @@
 			"name": "imap_body_error_tests",
 			"state": "implemented",
 			"feature": null,
-			"depends": ["imap_body", "memory_debug"],
+			"depends": [
+				"imap_body",
+				"memory_debug"
+			],
 			"public_headers": [],
 			"internal_headers": [],
 			"sources": [],
-			"tests": ["extlibs/ximap/tests/test_imap_body_error.c", "extlibs/ximap/tests/test_imap_body_semantics.c"],
-			"single_tests": ["extlibs/ximap/tests/single/test_single_imap_body_error.c", "extlibs/ximap/tests/single/test_single_imap_body_semantics.c"],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_body_error.c",
+				"extlibs/ximap/tests/test_imap_body_semantics.c"
+			],
+			"single_tests": [
+				"extlibs/ximap/tests/single/test_single_imap_body_error.c",
+				"extlibs/ximap/tests/single/test_single_imap_body_semantics.c"
+			],
 			"examples": [],
 			"docs": [],
 			"legacy": []

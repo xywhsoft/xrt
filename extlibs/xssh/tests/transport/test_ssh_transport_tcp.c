@@ -99,7 +99,7 @@ static void testSshTransportTcpWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -133,9 +133,7 @@ static void testSshTransportTcpBufferRead(void)
 	) && xrtSshTransportTcpInit(
 		&Transport,
 		NULL,
-		&Config,
-		0u
-	) && xrtNetBufInit(&Input, NULL),
+		&Config, ((double)(0u)) / 1000.0) && xrtNetBufInit(&Input, NULL),
 		"ssh TCP buffer-read setup failed");
 	testRequire(xrtSshTransportCoreIdentificationCommit(
 		xrtSshTransportTcpCore(&Transport),
@@ -162,8 +160,7 @@ static void testSshTransportTcpBufferRead(void)
 			Banner,
 			XRT_STR_LITERAL("SSH-2.0-peer")
 		) && (xrtSshTransportTcpReadCommit(
-			&Transport,
-			0u,
+			&Transport, ((double)(0u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_REKEY_NONE) &&
 		(xrtNetBufSize(&Input) == 4u),
@@ -210,12 +207,9 @@ static void testSshTransportTcpBufferRead(void)
 			&Input,
 			&Packet,
 			NULL,
-			0u,
-			1u
-		) == XSSH_OK) && testSshBytesEqual(Packet.Payload, Payload) &&
+			0u, ((double)(1u)) / 1000.0) == XSSH_OK) && testSshBytesEqual(Packet.Payload, Payload) &&
 		(xrtSshTransportTcpReadCommit(
-			&Transport,
-			1u,
+			&Transport, ((double)(1u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (xrtNetBufSize(&Input) == 4u),
 		"ssh TCP fragmented packet read failed");
@@ -249,9 +243,7 @@ static void testSshTransportTcpInvalid(void)
 	) && xrtSshTransportTcpInit(
 		&Transport,
 		NULL,
-		&Config,
-		0u
-	) && xrtNetBufInit(&Input, NULL) && xrtNetBufAppend(
+		&Config, ((double)(0u)) / 1000.0) && xrtNetBufInit(&Input, NULL) && xrtNetBufAppend(
 		&Input,
 		arrBadBanner,
 		sizeof(arrBadBanner)
@@ -268,9 +260,7 @@ static void testSshTransportTcpInvalid(void)
 	testRequire(xrtSshTransportTcpInit(
 		&Transport,
 		NULL,
-		&Config,
-		0u
-	) && (xrtSshTransportCoreIdentificationCommit(
+		&Config, ((double)(0u)) / 1000.0) && (xrtSshTransportCoreIdentificationCommit(
 		&Transport.Core,
 		XSSH_TRANSPORT_LOCAL
 	) == XSSH_OK) && (xrtSshTransportCoreIdentificationCommit(
@@ -292,9 +282,7 @@ static void testSshTransportTcpInvalid(void)
 			&Input,
 			&Packet,
 			NULL,
-			0u,
-			0u
-		) == XSSH_ERROR_PROTOCOL) &&
+			0u, ((double)(0u)) / 1000.0) == XSSH_ERROR_PROTOCOL) &&
 		(Transport.Core.State.Phase == XSSH_TRANSPORT_CLOSED) &&
 		(xrtSshTransportTcpReadInspect(
 			&Transport,
@@ -366,9 +354,7 @@ static void testSshTransportTcpOpen(xnetstream* pStream, ptr pData)
 		) && xrtSshTransportTcpInit(
 			&pContext->Transport,
 			xrtNetWorkerBufPool(xrtNetStreamWorker(pStream)),
-			&Config,
-			0u
-		), "ssh TCP worker transport setup failed");
+			&Config, ((double)(0u)) / 1000.0), "ssh TCP worker transport setup failed");
 		testRequire(xrtSshTransportTcpIdentificationPrepare(
 			&pContext->Transport,
 			XRT_STR_LITERAL("SSH-2.0-xssh_tcp")
@@ -378,8 +364,7 @@ static void testSshTransportTcpOpen(xnetstream* pStream, ptr pData)
 		);
 		testRequire((xrtSshTransportTcpWriteSubmit(
 			&pContext->Transport,
-			pStream,
-			0u,
+			pStream, ((double)(0u)) / 1000.0,
 			&Decision
 		) == XNET_RESULT_OK) && (Decision == XSSH_REKEY_NONE) &&
 			xrtNetBufEmpty(&pContext->Transport.Output) &&
@@ -397,14 +382,11 @@ static void testSshTransportTcpOpen(xnetstream* pStream, ptr pData)
 			&pContext->Transport,
 			Large,
 			testSshTransportTcpPadding,
-			&iPadding,
-			1u
-		) == XSSH_OK) &&
+			&iPadding, ((double)(1u)) / 1000.0) == XSSH_OK) &&
 		(xrtSshTransportTcpWriteSize(&pContext->Transport) > 512u) &&
 		(xrtSshTransportTcpWriteSubmit(
 			&pContext->Transport,
-			pStream,
-			1u,
+			pStream, ((double)(1u)) / 1000.0,
 			&Decision
 		) == XNET_RESULT_AGAIN) &&
 		(pContext->Transport.Core.Codec.WriteSequence == 0u) &&
@@ -424,15 +406,12 @@ static void testSshTransportTcpOpen(xnetstream* pStream, ptr pData)
 			&pContext->Transport,
 			Normal,
 			testSshTransportTcpPadding,
-			&iPadding,
-			2u
-		) == XSSH_OK), "ssh TCP normal packet prepare failed");
+			&iPadding, ((double)(2u)) / 1000.0) == XSSH_OK), "ssh TCP normal packet prepare failed");
 		iPacketSize = xrtSshTransportTcpWriteSize(&pContext->Transport);
 		testRequire((iPacketSize < 512u) &&
 			(xrtSshTransportTcpWriteSubmit(
 				&pContext->Transport,
-				pStream,
-				2u,
+				pStream, ((double)(2u)) / 1000.0,
 				&Decision
 			) == XNET_RESULT_OK) &&
 			(pContext->Transport.Core.Codec.WriteSequence == 1u) &&

@@ -24,7 +24,7 @@ python tools/measure_performance.py --profiles coroutine --check --baseline <同
 
 ## Notes
 
-- `bench_timer_churn.c` 使用 `xrtDeadlineAfter(0)` 覆盖即时定时器插入、摘除和恢复。
+- `bench_timer_churn.c` 使用 零毫秒相对等待 覆盖即时定时器插入、摘除和恢复。
 - `bench_sched_post.c` 测量 scheduler post，不代表 Channel 或 Future 的消息吞吐。
 - Before treating any result as a baseline, rerun with larger iteration counts and
   pin down CPU/power-management noise on the target machine.

@@ -91,7 +91,7 @@ static void testWsProxyWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -683,7 +683,7 @@ int main(void)
 	);
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup = testWsProxyLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	ClientConfig.Proxy = pProxy;
 	State.Client = xrtHttpClientCreate(

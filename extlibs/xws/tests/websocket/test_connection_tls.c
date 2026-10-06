@@ -67,7 +67,7 @@ static void testWsConnectionTlsWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(15000000)
+		INT64_C(15000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -831,7 +831,7 @@ int main(void)
 	);
 
 	AttachDeadline = __xrtWaitAfter(
-		UINT64_C(15000000)
+		INT64_C(15000)
 	);
 	while ( ((pClient = (xwsconn*)xrtAtomicPtrLoad(
 		&Test.Client.Connection,
@@ -884,13 +884,13 @@ int main(void)
 			(pCloseFuture != NULL) &&
 			(xrtFutureWaitFor(
 				pLargeFuture,
-				UINT64_C(15000000)
+				INT64_C(15000)
 			 ) == XWAIT_OK) &&
 			(xrtFutureState(pLargeFuture) ==
 			 XFUTURE_RESOLVED) &&
 			(xrtFutureWaitFor(
 				pTailFuture,
-				UINT64_C(15000000)
+				INT64_C(15000)
 			 ) == XWAIT_OK) &&
 			(xrtFutureState(pTailFuture) ==
 			 XFUTURE_RESOLVED),
@@ -957,13 +957,13 @@ int main(void)
 		testRequire(
 			(xrtFutureWaitFor(
 				pDrainFuture,
-				UINT64_C(15000000)
+				INT64_C(15000)
 			 ) == XWAIT_OK) &&
 			(xrtFutureState(pDrainFuture) ==
 			 XFUTURE_RESOLVED) &&
 			(xrtFutureWaitFor(
 				pCloseFuture,
-				UINT64_C(15000000)
+				INT64_C(15000)
 			 ) == XWAIT_OK) &&
 			(xrtFutureState(pCloseFuture) ==
 			 XFUTURE_RESOLVED),

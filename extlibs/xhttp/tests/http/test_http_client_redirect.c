@@ -139,7 +139,7 @@ static void testHttpRedirectWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -1246,7 +1246,7 @@ static void testHttpRedirectStart(
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup =
 		testHttpRedirectLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	if ( Scenario == TEST_HTTP_REDIRECT_LIMIT ) {
 		ClientConfig.Redirect.MaxHops = 2;

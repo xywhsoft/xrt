@@ -38,7 +38,7 @@ static void testHttpEasyDone(
 /* 在固定截止时间内等待便利 callback 发布结果。 */
 static void testHttpEasyWait(const xatomic32* pCompleted)
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(
 		pCompleted,
@@ -286,7 +286,7 @@ int main(void)
 	);
 
 	xrtHttpClientDestroy(pClient);
-	Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(INT64_C(10000));
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(

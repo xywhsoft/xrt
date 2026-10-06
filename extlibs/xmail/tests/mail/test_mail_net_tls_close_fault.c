@@ -123,7 +123,7 @@ int main(void)
 	memset(&Server, 0, sizeof(Server));
 	Server.Listener = Listener;
 	Server.Tls = &TlsServer;
-	Server.Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Server.Deadline = __xrtWaitAfter(INT64_C(10000));
 	xrtAtomic32Init(&Server.Returned, 0u);
 	xthread* Thread = xrtThreadCreate(testMailTlsCloseServer, &Server, 0);
 	testRequire(Thread != NULL, "mail TLS close server thread creation failed");
@@ -143,7 +143,7 @@ int main(void)
 		"mail TLS close Worker park failed");
 	xrtClearError();
 	testRequire(xrtMemDebugFailAfter(0), "mail TLS close allocation injection failed");
-	bool Closed = __xrtMailTransportClose(&Transport, __xrtWaitAfter(UINT64_C(1000000)));
+	bool Closed = __xrtMailTransportClose(&Transport, __xrtWaitAfter(INT64_C(1000)));
 	xerror* Failure = xrtTakeError();
 	xrtMemDebugFailClear();
 	bool Aborted = xrtAtomic32Load(&Observer->AbortGate, XMEMORY_ACQUIRE) != 0;
@@ -160,7 +160,7 @@ int main(void)
 	__xrtMailTransportDestroy(&Transport);
 	xrtTlsStreamDestroy(Observer);
 	testRequire(xrtNetListenerClose(Listener), "mail TLS close listener close failed");
-	double Retire = __xrtWaitAfter(UINT64_C(3000000));
+	double Retire = __xrtWaitAfter(INT64_C(3000));
 	while ( xrtNetListenerState(Listener) != XNET_LISTENER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(Retire), "mail TLS close listener did not close");
 		xrtThreadYield();

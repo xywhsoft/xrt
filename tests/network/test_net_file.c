@@ -258,7 +258,7 @@ int main(void)
 			xrtNetEnginePost(pEngine, 0, testNetFileUnsupported, &Test),
 			"native file capability post failed"
 		);
-		Deadline = __xrtWaitAfter(UINT64_C(5000000));
+		Deadline = __xrtWaitAfter(INT64_C(5000));
 		while ( xrtAtomic32Load(&Test.Done, XMEMORY_ACQUIRE) == 0 ) {
 			testRequire(
 				!__xrtWaitExpired(Deadline),
@@ -279,7 +279,7 @@ int main(void)
 		xrtNetEnginePost(pEngine, 0, testNetFileStart, &Test),
 		"native file start post failed"
 	);
-	Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(INT64_C(5000));
 	while ( xrtAtomic32Load(&Test.Done, XMEMORY_ACQUIRE) == 0 ) {
 		testRequire(
 			!__xrtWaitExpired(Deadline),
@@ -287,7 +287,7 @@ int main(void)
 		);
 		xrtThreadYield();
 	}
-	xrtSleepUs(50000);
+	xrtSleep(50);
 	testRequire(
 		xrtAtomic32Load(&Test.CancelTerminals, XMEMORY_ACQUIRE) == 1,
 		"native file cancel produced multiple terminals"

@@ -29,7 +29,7 @@ typedef struct testenginefairness {
 /* 在有限截止时间内等待原子状态达到目标值。 */
 static bool testEngineFairnessWait(xatomic32* pValue, uint32 iExpected)
 {
-	double Deadline = __xrtWaitAfter(5000000);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) != iExpected ) {
 		if ( __xrtWaitExpired(Deadline) ) {

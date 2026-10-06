@@ -142,7 +142,7 @@ static bool testTaskGroupStartWindowWait(
 	testtaskgroupstartwindow* pWindow
 )
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(2000));
 	bool bEntered;
 
 	(void)xrtMutexLock(&pWindow->Lock);
@@ -230,7 +230,7 @@ static void testTaskGroupStartWindow(bool bCancel)
 		testRequire(xrtPromiseResolve(tWindow.Promise, NULL),
 			"closed reserved Future completion failed");
 	}
-	testRequire(xrtFutureWaitFor(pDone, UINT64_C(2000000)) == XWAIT_OK,
+	testRequire(xrtFutureWaitFor(pDone, INT64_C(2000)) == XWAIT_OK,
 		"task group start window did not complete");
 	testRequire(xrtTaskGroupGet(tWindow.Group, &tStats) &&
 		(tStats.Active == 0) && (tStats.Added == 1) &&
@@ -306,7 +306,7 @@ static void testTaskGroupCompletionStress(void)
 		}
 		testRequire(xrtTaskGroupWaitFor(
 			pGroup,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK, "task group completion stress wait failed");
 		testRequire(xrtTaskGroupGet(pGroup, &tStats) &&
 			(tStats.Added == 4) && (tStats.Completed == 4) &&
@@ -369,7 +369,7 @@ static void testTaskGroupCloseStress(void)
 		}
 		testRequire(xrtTaskGroupWaitFor(
 			pGroup,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK, "task group close stress wait failed");
 		testRequire(xrtTaskGroupGet(pGroup, &tStats) &&
 			(tStats.Added == iAccepted) &&
@@ -427,7 +427,7 @@ static void testTaskGroupDestroyStress(void)
 			"task group destroy stress worker failed");
 		testRequire(xrtFutureWaitFor(
 			pDone,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK, "task group destroy stress Done wait failed");
 
 		testThreadBarrierUnit(&tBarrier);

@@ -50,7 +50,7 @@ static xtaskoutcome testHttpServerFutureSourceRun(
 		return XTASK_CANCELLED;
 	}
 	if ( xrtCoCurrent() != NULL ) {
-		if ( xrtCoSleep(UINT64_C(1000)) ==
+		if ( xrtCoSleep(INT64_C(1)) ==
 			XWAIT_CANCELLED ) {
 			return XTASK_CANCELLED;
 		}
@@ -245,7 +245,7 @@ static void testHttpServerFutureSourceWait(
 )
 {
 	double Deadline =
-		__xrtWaitAfter(UINT64_C(10000000));
+		__xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(
 		pValue,

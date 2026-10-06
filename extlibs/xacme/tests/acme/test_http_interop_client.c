@@ -106,7 +106,7 @@ static bool init_failure(void)
 	if(!ok) fprintf(stderr, "failed initialization retained resources: live=%zu bytes=%zu engine=%p\n",
 		memory.LiveCount, memory.LiveBytes, (void*)http.pEngine);
 	/* Keep the failing probe itself from orphaning its retained engine. */
-	http.uTimeoutUs = 5000000u;
+	http.uTimeoutMs = 5000u;
 	xacmeHttpUnit(&http);
 	xrtClearError();
 	return ok;
@@ -132,7 +132,7 @@ static bool after_cleanup(const char* url, const char* ca)
 		(unsigned)response.iStatus, xrtErrorCode(xrtGetError()), xrtErrorMessage(xrtGetError()));
 	xacmeHttpResponseUnit(&response);
 	xrtNetEngineUnpin(engine);
-	http.uTimeoutUs = 5000000u;
+	http.uTimeoutMs = 5000u;
 	xacmeHttpUnit(&http);
 	xrtClearError();
 	return ok;
@@ -205,7 +205,7 @@ static bool lifecycle(const char* url, const char* ca)
 		}
 		xrtClearError();
 		if(pinned && !xrtNetEngineUnpin(engine)) return false;
-		http.uTimeoutUs = 5000000u;
+		http.uTimeoutMs = 5000u;
 		ok = xacmeHttpUnit(&http) && ok;
 		ok = xacmeHttpUnit(&http) && ok;
 		if(borrowed != NULL && !xrtNetEngineDestroy(borrowed)) return false;
@@ -225,7 +225,7 @@ static bool lifecycle(const char* url, const char* ca)
 		/* A failing constructor must already have released its complete dependency graph. */
 		clean = created || (http.pEngine == NULL && !http.bEngineOwned &&
 			http.pResolver == NULL && http.pVerifier == NULL);
-		http.uTimeoutUs = 5000000u;
+		http.uTimeoutMs = 5000u;
 		clean = xacmeHttpUnit(&http) && clean;
 		if(!memory_empty() || !clean) {
 			fprintf(stderr, "constructor allocation fault %u: failed\n", limit); return false;
@@ -360,7 +360,16 @@ int main(int argc, char** argv)
 	char names[94][24];
 	const xerror* error;
 	xerror* preserved;
+	char url_input[8192];
+	const char* url = argc > 1 ? argv[1] : NULL;
 	if(argc < 4 || argc > 5) return 2;
+	if ( strcmp(url, "--url-stdin") == 0 ) {
+		size_t length = fread(url_input, 1u, sizeof(url_input) - 1u, stdin);
+		if ( ferror(stdin) || !feof(stdin) ) return 2;
+		url_input[length] = 0;
+		url = url_input;
+	}
+
 	if(strcmp(argv[3], "init-failure") == 0) {
 		if(!xrtMemDebugEnable(true)) return 3;
 		return init_failure() ? 0 : 1;
@@ -369,7 +378,7 @@ int main(int argc, char** argv)
 		if(!xrtMemDebugEnable(true)) return 3;
 		ca = read_ca(argv[2]);
 		if(ca == NULL) return 3;
-		result = after_cleanup(argv[1], ca);
+		result = after_cleanup(url, ca);
 		free(ca);
 		return result ? 0 : 1;
 	}
@@ -377,7 +386,7 @@ int main(int argc, char** argv)
 		if(!xrtMemDebugEnable(true)) return 3;
 		ca = read_ca(argv[2]);
 		if(ca == NULL) return 3;
-		result = lifecycle(argv[1], ca);
+		result = lifecycle(url, ca);
 		free(ca);
 		return result ? 0 : 1;
 	}
@@ -444,7 +453,7 @@ int main(int argc, char** argv)
 		}
 	}
 	xrtClearError();
-	ok = xacmeHttpExchangeOnceV(&http, send_failure || request_max ? "POST" : "GET", argv[1],
+	ok = xacmeHttpExchangeOnceV(&http, send_failure || request_max ? "POST" : "GET", url,
 		send_failure || request_max ? "text/plain" : NULL,
 		request_max ? XRT_STR_LITERAL("request") :
 		(xstrview){ upload, send_failure ? 8u * 1024u * 1024u : 0u },

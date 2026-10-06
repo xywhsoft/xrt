@@ -54,7 +54,7 @@ static void testProxyDialStressWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(15000000u);
+	double Deadline = __xrtWaitAfter(15000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -184,7 +184,7 @@ static void testProxyDialStressWaitResolver(
 	xnetresolverstats* pStats
 )
 {
-	double Deadline = __xrtWaitAfter(15000000u);
+	double Deadline = __xrtWaitAfter(15000);
 
 	for ( ;; ) {
 		testRequire(xrtNetResolverStats(pResolver, pStats),
@@ -207,7 +207,7 @@ static void testProxyDialStressWaitResolver(
 /* 重试 Engine 销毁，验证取消命令、Timer 和底层 Dial 引用最终归零。 */
 static void testProxyDialStressDestroyEngine(xnetengine* pEngine)
 {
-	double Deadline = __xrtWaitAfter(15000000u);
+	double Deadline = __xrtWaitAfter(15000);
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
@@ -266,7 +266,7 @@ int main(void)
 	/* 提交同一代理主机的全部请求，使 Resolver 形成单一查询组。 */
 	xrtNetProxyDialConfigInit(&DialConfig);
 	DialConfig.Transport.Family = XNET_FAMILY_IPV4;
-	DialConfig.Transport.Timeout = 10000000u;
+	DialConfig.Transport.Timeout = 10000;
 	DialConfig.Transport.MaxAttempts = 1;
 	DialConfig.Timeout = 0;
 	for ( uint32 i = 0; i < TEST_PROXY_DIAL_STRESS_COUNT; i++ ) {

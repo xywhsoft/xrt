@@ -99,7 +99,7 @@ static xoauth2token* xoauth2__parse_token_response_mode(
 		}
 	}
 	/* 时间戳：获取时刻 + 过期时刻（TokenExpiring 的依据） */
-	pToken->ObtainedAt = (int64_t)(xrtTimeUnix(xrtNow());
+	pToken->ObtainedAt = (int64_t)xrtTimeUnix(xrtNow());
 	if((pToken->ExpiresIn > 0 &&
 		pToken->ObtainedAt > INT64_MAX - pToken->ExpiresIn) ||
 		(pToken->ExpiresIn < 0 &&

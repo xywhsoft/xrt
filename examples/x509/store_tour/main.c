@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
-#include "fixture.h"
+#include "../fixture.h"
 
 /* 把 PEM 行数组拼回完整文本（含结尾换行）。 */
 static size_t examplePemJoin(char* sText, size_t iCapacity)

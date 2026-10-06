@@ -39,7 +39,7 @@ static void testHttpClientTlsWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(10000000u);
+	double iDeadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -491,7 +491,7 @@ int main(void)
 		&State.ServerClosed,
 		"HTTPS server TLS Stream did not close"
 	);
-	iDeadline = __xrtWaitAfter(10000000u);
+	iDeadline = __xrtWaitAfter(10000);
 	while ( (xrtTlsStreamState(State.Returned) !=
 		XTLS_STREAM_CLOSED) ) {
 		testRequire(
@@ -581,7 +581,7 @@ int main(void)
 		xrtNetListenerClose(State.Listener),
 		"HTTPS Listener close failed"
 	);
-	iDeadline = __xrtWaitAfter(10000000u);
+	iDeadline = __xrtWaitAfter(10000);
 	while ( xrtNetListenerState(State.Listener) !=
 		XNET_LISTENER_CLOSED ) {
 		testRequire(

@@ -156,7 +156,7 @@ typedef enum xnetstreamreadmode {
 
 
 
-/* 所有字节容量都是硬边界，ConnectTimeout 使用微秒。 */
+/* 所有字节容量都是硬边界，ConnectTimeout 使用毫秒。 */
 typedef struct xnetstreamconfig {
 	size_t ReadSize;
 	size_t ReadLimit;
@@ -209,13 +209,13 @@ typedef struct xnetstreamstats {
 
 
 #if defined(XRT_FEATURE_NET_TCP_DIAL)
-/* Timeout 和 FallbackDelay 使用微秒；MaxAttempts 是解析结果的硬上限。 */
+/* Timeout 和 FallbackDelay 使用毫秒；MaxAttempts 是解析结果的硬上限。 */
 typedef struct xnetdialconfig {
 	xnetstreamconfig Stream;
 	xnetfamily Family;
 	uint64 Affinity;
 	int64 Timeout;
-	uint64 FallbackDelay;
+	int64 FallbackDelay;
 	uint32 MaxAttempts;
 } xnetdialconfig;
 

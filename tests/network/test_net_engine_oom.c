@@ -64,7 +64,7 @@ static void testEngineOomWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -157,7 +157,7 @@ static void testEngineOomNodeCache(
 		iNext = xrtNetEngineAfter(
 			xrtNetWorkerEngine(pWorker),
 			xrtNetWorkerIndex(pWorker),
-			60000000u,
+			60000,
 			testEngineOomNodeCache,
 			pContext
 		);
@@ -272,7 +272,7 @@ int main(void)
 	testRequire(xrtNetEngineAfter(
 		pEngine,
 		0,
-		1000u,
+		1,
 		testEngineOomNodeCache,
 		&Context
 	) != 0, "engine timer cache warmup failed");
@@ -297,7 +297,7 @@ int main(void)
 	testEngineOomWait(&Context.CacheCancelled, 1,
 		"engine cached timer was not cancelled");
 
-	iTimerDeadline = __xrtWaitAfter(60000000u);
+	iTimerDeadline = __xrtWaitAfter(60000);
 	for ( uint32 i = 0; i < TEST_ENGINE_OOM_TIMER_COUNT; i++ ) {
 		testRequire(__xrtNetEngineSchedule(
 			pEngine,
@@ -379,7 +379,7 @@ int main(void)
 	iUncachedTimer = xrtNetEngineAfter(
 		pEngine,
 		0,
-		60000000u,
+		60000,
 		testEngineOomTimer,
 		&Context
 	);

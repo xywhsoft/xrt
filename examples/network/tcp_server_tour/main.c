@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/tcp_server_tour —— 多端点 Server 自省族
  * ----------------------------------------------------------------
@@ -19,7 +18,7 @@
  *   listener[0]/[1]: ok
  *
  * 双端点共享动态端口（SharedPort）：第零端点端口零由系统分配，
- *   附加端点继承同一端口——两个 Listener 同地址同时监听，
+ *   附加端点继承同一端口——两个 Listener 分别监听 IPv4 和 IPv6 环回，
  *   EndpointCount=2、ListenerCount=2、两个 Local 地址端口一致。
  */
 
@@ -27,17 +26,34 @@
 #include <string.h>
 #include <xrt.h>
 
-#define EXAMPLE_DEADLINE_US	UINT64_C(3000000)
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
+#define EXAMPLE_DEADLINE_MS	INT64_C(3000)
 
 static uint64 g_Tag = 0;
 
 static bool exampleWaitStreamState(xnetstream* pStream,
 	xnetstreamstate State)
 {
-	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 	while ( xrtNetStreamState(pStream) != State ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -67,11 +83,13 @@ int main(void)
 	(void)xrtNetAddrLoopback(&ServerConfig.Listen.Address,
 		XNET_FAMILY_IPV4, 0);
 	ServerConfig.SharedPort = true;
-	/* 同地址同端口需 ReuseAddress（并清除默认 ExclusiveAddress），
+	/* 两个地址族共享端口（清除默认 ExclusiveAddress），
 	 * SharedPort 让端口零的附加端点继承首端点的系统分配端口。 */
 	ServerConfig.Listen.ReuseAddress = true;
 	ServerConfig.Listen.ExclusiveAddress = false;
 	Extra = ServerConfig.Listen;
+	(void)xrtNetAddrLoopback(&Extra.Address, XNET_FAMILY_IPV6, 0);
+	Extra.IPv6Only = true;
 	Extra.ReuseAddress = true;
 	Extra.ExclusiveAddress = false;
 	ServerConfig.Additional = &Extra;
@@ -100,14 +118,14 @@ int main(void)
 	pServerRef = xrtNetServerRef(pServer);
 	printf("\n");
 
-	/* 拉取接受：向两个端点各拨一条（同端口两个 Listener 分摊）。 */
+	/* 拉取接受：向两个端点各拨一条（同端口的 IPv4 和 IPv6 Listener 各一条）。 */
 	{
 		xnetstream* pA = xrtNetStreamConnect(pEngine, &Addr0, 0,
 			NULL, NULL, NULL);
 		xnetstream* pB = xrtNetStreamConnect(pEngine, &Addr1, 0,
 			NULL, NULL, NULL);
 		int iGot = 0;
-		double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+		double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 		if ( (pA == NULL) || (pB == NULL) ) {
 			xrtNetStreamDestroy(pA);
@@ -127,11 +145,11 @@ int main(void)
 					xrtNetStreamDestroy(pOne);
 				}
 				++iGot;
-				iDeadline = __xrtWaitAfter(
-					EXAMPLE_DEADLINE_US);
+				iDeadline = exampleTimerLimit(
+					EXAMPLE_DEADLINE_MS);
 				continue;
 			}
-			if ( __xrtWaitExpired(iDeadline) ) {
+			if ( exampleTimerExpired(iDeadline) ) {
 				break;
 			}
 			xrtThreadYield();
@@ -182,11 +200,11 @@ Cleanup:
 	xrtNetListenerDestroy(pListener0);
 	xrtNetListenerDestroy(pListener1);
 	if ( pServer != NULL ) {
-		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 		(void)xrtNetServerClose(pServer);
 		while ( xrtNetServerState(pServer) != XNET_SERVER_CLOSED ) {
-			if ( __xrtWaitExpired(iEnd) ) {
+			if ( exampleTimerExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();

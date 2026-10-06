@@ -1,3 +1,4 @@
+#include <xrt/detail/ximap_wait.h>
 #include <xrt/detail/wait.h>
 #include "../internal/xrt_mail.h"
 
@@ -337,6 +338,8 @@ XRT_API bool __xrtImapClientBodyWrite(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	__ximapmessageitems Items;
 	char sMessage[10];
 	xstrview Message;
@@ -454,6 +457,8 @@ XRT_API bytes __xrtImapClientBodyBytes(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	__ximapmessagebuffer Buffer;
 	bytes pData;
 	size_t iSize;
@@ -504,6 +509,8 @@ XRT_API bool __xrtImapClientMessageTree(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xmailtreelimits Limits;
 	bytes pData;
 	size_t iSize;

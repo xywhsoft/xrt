@@ -298,6 +298,8 @@ int main(void)
 	xvalue* pEmpty;
 	size_t iFailures = 0;
 	size_t iSuccesses = 0;
+	size_t iAllocationLimit;
+	size_t iRequiredFailures;
 
 	testRequire(
 		xrtSetAllocator(&tAllocator),
@@ -319,8 +321,20 @@ int main(void)
 	testValueCollectionArrayOom(&tState);
 	testValueCollectionSetOom(&tState);
 
+	/* 先测量真实分配数，避免缓存和平台差异让固定 96 次扫描永远失败。 */
+	{
+		xvalue* pProbe = xrtValueClone(pTarget);
+		testRequire(pProbe != NULL, "collection allocation-count clone");
+		tState.Calls = 0;
+		testRequire(xrtValueObjectMerge(pProbe, pSource, XVALUE_MERGE_REPLACE),
+			"collection allocation-count merge");
+		iRequiredFailures = tState.Calls < 4u ? tState.Calls : 4u;
+		testRequire(iRequiredFailures != 0u, "collection fixture must allocate");
+		iAllocationLimit = tState.Calls + 4u;
+		xrtValueRelease(pProbe);
+	}
 	/* 每次从同一 COW 快照起步，失败后目标必须仍只有原始键。 */
-	for ( size_t iFailAt = 1; iFailAt <= 96; iFailAt++ ) {
+	for ( size_t iFailAt = 1; iFailAt <= iAllocationLimit; iFailAt++ ) {
 		xvalue* pAttempt;
 		bool bResult;
 
@@ -359,12 +373,12 @@ int main(void)
 		}
 		tState.FailAt = 0;
 		xrtValueRelease(pAttempt);
-		if ( (iFailures >= 4) && (iSuccesses >= 4) ) {
+		if ( (iFailures >= iRequiredFailures) && (iSuccesses >= 4) ) {
 			break;
 		}
 	}
 	testRequire(
-		(iFailures >= 4) && (iSuccesses >= 4),
+		(iFailures >= iRequiredFailures) && (iSuccesses >= 4),
 		"collection OOM sweep missed failure or success paths"
 	);
 	xrtValueRelease(pEmpty);

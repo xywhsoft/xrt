@@ -1,9 +1,25 @@
-#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
 
 #include "../common/async_body.h"
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -320,12 +336,12 @@ int main(void)
 		exampleHttpCallError("connect HTTP client");
 		goto Cleanup;
 	}
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = exampleTimerLimit(5000);
 	while ( xrtAtomic32Load(
 		&Example.Done,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			fprintf(stderr, "HTTP call timed out\n");
 			goto Cleanup;
 		}
@@ -349,7 +365,7 @@ Cleanup:
 		 XNET_LISTENER_CLOSED) ) {
 		(void)xrtNetListenerClose(Example.Listener);
 	}
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = exampleTimerLimit(5000);
 	while ( ((Example.Client != NULL) &&
 		  (xrtNetStreamState(Example.Client) !=
 		   XNET_STREAM_CLOSED)) ||
@@ -359,7 +375,7 @@ Cleanup:
 		 ((Example.Listener != NULL) &&
 		  (xrtNetListenerState(Example.Listener) !=
 		   XNET_LISTENER_CLOSED)) ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 1;
 			break;
 		}

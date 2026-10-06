@@ -35,7 +35,7 @@ static int testChannelSelectCancelWorker(ptr pData)
 static void testChannelSelectCancelAwait(xchannel* pChannel)
 {
 	xrt_channel_impl* pImpl = (xrt_channel_impl*)pChannel;
-	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(2000));
 
 	for ( ;; ) {
 		bool bRegistered;
@@ -56,7 +56,7 @@ static void testChannelSelectCancelAwait(xchannel* pChannel)
 			!__xrtWaitExpired(iDeadline),
 			"select cancel registration did not converge"
 		);
-		xrtSleepUs(UINT64_C(1000));
+		xrtSleep(1);
 	}
 }
 

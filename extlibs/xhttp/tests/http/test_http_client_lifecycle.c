@@ -19,7 +19,7 @@ static xhttpclient* testHttpLifecycleClient(xnetengine* pEngine)
 	xrtHttpClientConfigInit(&Config);
 	Config.Dial.Family = XNET_FAMILY_IPV4;
 	Config.Dial.MaxAttempts = 1;
-	Config.Timeout = UINT64_C(5000000);
+	Config.Timeout = INT64_C(5000);
 	pClient = xrtHttpClientCreate(pEngine, &Config);
 	testRequire(
 		pClient != NULL,
@@ -113,7 +113,7 @@ static void testHttpLifecycleIdle(xnetengine* pEngine)
 		xrtFutureCancel(pCancelled) &&
 		(xrtFutureWaitFor(
 			pCancelled,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pCancelled) == XFUTURE_CANCELLED) &&
 		(xrtHttpClientState(pClient) == XHTTP_CLIENT_RUNNING) &&
@@ -125,7 +125,7 @@ static void testHttpLifecycleIdle(xnetengine* pEngine)
 		xrtHttpClientDrain(pClient) &&
 		(xrtFutureWaitFor(
 			pPending,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pPending) == XFUTURE_RESOLVED) &&
 		(xrtHttpClientState(pClient) == XHTTP_CLIENT_CLOSED),
@@ -238,7 +238,7 @@ static void testHttpLifecycleDrain(xnetengine* pEngine)
 	testRequire(
 		(xrtFutureWaitFor(
 			pCall,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pCall) == XFUTURE_RESOLVED),
 		"HTTP draining Call did not complete naturally"
@@ -251,7 +251,7 @@ static void testHttpLifecycleDrain(xnetengine* pEngine)
 		 ) == 200) &&
 		(xrtFutureWaitFor(
 			pClosed,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pClosed) == XFUTURE_RESOLVED) &&
 		(xrtHttpClientState(pClient) == XHTTP_CLIENT_CLOSED),
@@ -356,7 +356,7 @@ static void testHttpLifecycleAbort(xnetengine* pEngine)
 	testRequire(
 		(xrtFutureWaitFor(
 			pClosed,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pClosed) == XFUTURE_RESOLVED) &&
 		(xrtHttpClientState(pClient) == XHTTP_CLIENT_CLOSED) &&
@@ -452,7 +452,7 @@ static void testHttpLifecyclePool(xnetengine* pEngine)
 	xrtHttpClientConfigInit(&Config);
 	Config.Dial.Family = XNET_FAMILY_IPV4;
 	Config.Dial.MaxAttempts = 1;
-	Config.Pool.IdleTimeout = UINT64_C(10000000);
+	Config.Pool.IdleTimeout = INT64_C(10000);
 	pClient = xrtHttpClientCreate(pEngine, &Config);
 	testRequire(
 		pClient != NULL,
@@ -503,7 +503,7 @@ static void testHttpLifecyclePool(xnetengine* pEngine)
 	testRequire(
 		(xrtFutureWaitFor(
 			pClosed,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pClosed) == XFUTURE_RESOLVED) &&
 		(xrtHttpClientState(pClient) == XHTTP_CLIENT_CLOSED) &&

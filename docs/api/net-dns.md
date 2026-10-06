@@ -293,7 +293,7 @@ typedef enum xnetresolveopstate {
 
 ### `xnetresolverconfig`
 
-所有限额都是硬边界；TTL 使用单调微秒，零值关闭对应缓存。
+所有限额都是硬边界；TTL 使用单调秒，零值关闭对应缓存。
 
 ```c
 typedef struct xnetresolverconfig {
@@ -5984,7 +5984,7 @@ bool xrtNetPortUnwatch(xnetport* pPort, xnetsocket Socket);
 ```c
 xnetresult xrtNetPortWait(xnetport* pPort,
 	xnetportevent* pEvents, size_t iCapacity,
-	xdeadline iDeadline, size_t* pCount);
+	int64 iTimeout, size_t* pCount);
 ```
 
 #### 参数
@@ -5994,7 +5994,7 @@ xnetresult xrtNetPortWait(xnetport* pPort,
 | `pPort` | 输入 | 非空 | 端口指针 |
 | `pEvents` | 输出 | 非空数组 | 事件输出缓冲 |
 | `iCapacity` | 输入 | `> 0` | 输出容量；后端一次最多写入这么多事件 |
-| `iDeadline` | 输入 | 单调微秒 | `xrtClock` 截止时间；`xrtDeadlineAfter`/`xrtDeadlineNever` |
+| `iTimeout` | 输入 | 相对毫秒 | 零表示不等待，`XRT_WAIT_FOREVER` 表示无限等待 |
 | `pCount` | 输出 | 非空 | 实际写入事件数；进入时即清零 |
 
 #### 返回值
@@ -6021,7 +6021,7 @@ xnetresult xrtNetPortWait(xnetport* pPort,
 
 ```c
 if ( xrtNetPortWait(pPort, Events, 8u,
-		xrtDeadlineAfter(iTimeoutUs / 100u),
+		iTimeoutUs / 100u,
 		&iCount) != XNET_RESULT_OK ) {
 	continue;
 }
@@ -6929,7 +6929,7 @@ if ( !xrtNetEnginePost(pEngine, 0u, exampleWorkerTask,
 
 ```c
 uint64 xrtNetEngineSchedule(xnetengine* pEngine,
-	uint64 iAffinity, xdeadline iDeadline,
+	uint64 iAffinity, int64 iTimeout,
 	xnettimerproc pProc, ptr pData);
 ```
 
@@ -6939,7 +6939,7 @@ uint64 xrtNetEngineSchedule(xnetengine* pEngine,
 |---|---|---|---|
 | `pEngine` | 输入 | 非空 | 运行中的 Engine |
 | `iAffinity` | 输入 | 任意值 | 亲和键；Timer 归属该 Worker |
-| `iDeadline` | 输入 | 单调微秒 | `xrtClock` 绝对截止时间 |
+| `iTimeout` | 输入 | 相对毫秒 | 零表示不等待，`XRT_WAIT_FOREVER` 表示无限等待 |
 | `pProc` | 输入 | 非空 | 终态回调（四种结果见上表） |
 | `pData` | 输入 | 任意值 | 原样传给回调 |
 
@@ -6964,18 +6964,18 @@ uint64 xrtNetEngineSchedule(xnetengine* pEngine,
 
 ```c
 IdFire = xrtNetEngineSchedule(pEngine, 0u,
-	xrtDeadlineAfter(0u), exampleFireTimer, (ptr)&Timers);
+	0, exampleFireTimer, (ptr)&Timers);
 Timers.iLongId = xrtNetEngineSchedule(pEngine, 0u,
-	xrtDeadlineAfter(3600000000ull), exampleLongTimer,
+	3600000, exampleLongTimer,
 	(ptr)&Timers);
 ```
 
 ### `xrtNetEngineAfter`
-按相对微秒数调度 Timer；零表示在下一次 Worker 循环到期。等价于 `Schedule` + `xrtDeadlineAfter`，错误集与之相同。
+按相对毫秒数调度 Timer；零表示在下一次 Worker 循环到期。与 `Schedule` 一样接收相对毫秒时长，错误集与之相同。
 
 ```c
 uint64 xrtNetEngineAfter(xnetengine* pEngine,
-	uint64 iAffinity, uint64 iTimeout,
+	uint64 iAffinity, int64 iTimeout,
 	xnettimerproc pProc, ptr pData);
 ```
 
@@ -6985,7 +6985,7 @@ uint64 xrtNetEngineAfter(xnetengine* pEngine,
 |---|---|---|---|
 | `pEngine` | 输入 | 非空 | 运行中的 Engine |
 | `iAffinity` | 输入 | 任意值 | 亲和键 |
-| `iTimeout` | 输入 | 微秒 | 相对延迟；零表示尽快到期 |
+| `iTimeout` | 输入 | 毫秒 | 相对延迟；零表示尽快到期 |
 | `pProc` | 输入 | 非空 | 终态回调 |
 | `pData` | 输入 | 任意值 | 原样传给回调 |
 
@@ -7522,7 +7522,7 @@ bool xrtNetResolveOpCancel(xnetresolveop* pOperation);
 [network/resolver · 超时取消](../../examples/network/resolver/main.c) · 等待截止后协作取消
 
 ```c
-if ( xrtDeadlineExpired(iDeadline) ) {
+if ( (xrtTimer() >= iDeadline) ) {
 	(void)xrtNetResolveOpCancel(pOperation);
 	break;
 }

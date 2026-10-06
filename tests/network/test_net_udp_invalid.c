@@ -21,7 +21,7 @@ static void testUdpInvalidReceive(
 /* 等待 UDP 关闭。 */
 static void testUdpInvalidWaitClosed(xnetudp* pUdp)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000);
 
 	while ( xrtNetUdpState(pUdp) != XNET_UDP_CLOSED ) {
 		testRequire(!__xrtWaitExpired(iDeadline),

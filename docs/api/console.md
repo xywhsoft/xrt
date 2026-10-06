@@ -52,6 +52,10 @@ typedef enum xconsoleerror {
 | `XCONSOLE_ERROR_UTF8` | 失败 |
 | `XCONSOLE_ERROR_WRITE` | 写方向 |
 | `XCONSOLE_ERROR_FLUSH` | 刷新失败 |
+| `XCONSOLE_ERROR_READ` | 读取失败 |
+| `XCONSOLE_ERROR_LIMIT` | 输入超过限制 |
+| `XCONSOLE_ERROR_STATE` | 控制台状态非法 |
+| `XCONSOLE_ERROR_TERMINAL` | 终端操作失败 |
 
 ## 选择模块
 

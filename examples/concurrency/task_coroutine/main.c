@@ -11,7 +11,7 @@ static xtaskoutcome delayedValue(
 	xtaskvalue* pResult
 )
 {
-	if ( xrtCoSleep(10000) == XWAIT_CANCELLED || xrtCancelRequested(pCancel) ) {
+	if ( xrtCoSleep(10) == XWAIT_CANCELLED || xrtCancelRequested(pCancel) ) {
 		return XTASK_CANCELLED;
 	}
 	pResult->Value = pData;

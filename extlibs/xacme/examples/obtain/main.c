@@ -84,7 +84,7 @@ int main(int argc, char** argv)
     config.pAccount = &account; config.sCaPem = ca;
     config.sStoreRoot = argv[4]; config.iRenewalDays = 30;
     resolver = argv[3]; config.sPropagateResolvers = &resolver; config.iPropagateResolverCount = 1u;
-    config.uTimeoutUs = UINT64_C(10000000); config.uIssueTimeoutUs = UINT64_C(120000000);
+    config.uTimeoutMs = UINT64_C(10000); config.uIssueTimeoutMs = UINT64_C(120000);
     config.uPropagateTimeoutMs = 30000u;
     provider.sId = "manual"; provider.pContext = &dns; provider.Add = dns_add; provider.Remove = dns_remove;
     domain = (xstrview){ argv[5], strlen(argv[5]) };
@@ -105,7 +105,7 @@ Done:
         xrtErrorCode(xrtGetError()), xrtErrorMessage(xrtGetError()) ? xrtErrorMessage(xrtGetError()) : "", dns.pending);
     xrtAcmeGrantUnit(&first); xrtAcmeGrantUnit(&cached); xrtAcmeGrantUnit(&stored);
     xrtFree(account_pem); xrtFree(ca);
-    if(!xrtAcmeCleanupPending(UINT64_C(30000000), &pending)) {
+    if(!xrtAcmeCleanupPending(INT64_C(30), &pending)) {
         fprintf(stderr, "ACME cleanup incomplete: pending=%zu\n", pending);
         ok = false;
     }

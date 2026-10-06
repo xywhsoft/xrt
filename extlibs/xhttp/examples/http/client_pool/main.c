@@ -26,7 +26,7 @@ int main(void)
 	ClientConfig.Pool.MaxWaitingPerOrigin = 128;
 	ClientConfig.Pool.MaxIdle = 64;
 	ClientConfig.Pool.MaxIdlePerOrigin = 8;
-	ClientConfig.Pool.IdleTimeout = UINT64_C(30000000);
+	ClientConfig.Pool.IdleTimeout = INT64_C(30000);
 	pClient = xrtHttpClientCreate(pEngine, &ClientConfig);
 	if ( pClient == NULL ) {
 		xrtNetEngineDestroy(pEngine);

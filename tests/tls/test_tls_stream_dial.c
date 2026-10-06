@@ -40,7 +40,7 @@ static void testTlsDialWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -53,7 +53,7 @@ static void testTlsDialWait(
 /* 等待服务端握手发布，并在超时时输出跨 Worker 调度状态。 */
 static void testTlsDialWaitServerOpen(test_tls_dial_context* pContext)
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		&pContext->ServerOpen,
@@ -388,9 +388,9 @@ int main(void)
 		"TLS dial listener creation failed");
 	xrtTlsDialConfigInit(&DialConfig);
 	DialConfig.Transport.Affinity = 1u;
-	DialConfig.Transport.FallbackDelay = 1000u;
+	DialConfig.Transport.FallbackDelay = 1;
 	DialConfig.Transport.MaxAttempts = 2u;
-	DialConfig.Timeout = 10000000u;
+	DialConfig.Timeout = 10000;
 	pDial = xrtTlsDial(
 		pEngine,
 		pResolver,

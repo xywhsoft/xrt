@@ -19,7 +19,7 @@
 /* 在截止时间内等待 UDP 进入指定状态。 */
 static void testUdpWaitState(xnetudp* pUdp, xnetudpstate State)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000);
 
 	while ( xrtNetUdpState(pUdp) != State ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
@@ -33,7 +33,7 @@ static void testUdpWaitState(xnetudp* pUdp, xnetudpstate State)
 /* 在截止时间内拉取一个 UDP 数据包。 */
 static xnetudppacket* testUdpReceive(xnetudp* pUdp)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000);
 	xnetudppacket* pPacket;
 
 	for ( ;; ) {
@@ -239,13 +239,13 @@ static void testUdpClosedPeerReset(xnetengine* pEngine)
 			pServer, &ClosedPeer, &i, sizeof(i)
 		) == XNET_RESULT_OK, "UDP closed-peer burst send failed");
 	}
-	Deadline = __xrtWaitAfter(3000000u);
+	Deadline = __xrtWaitAfter(3000);
 	while ( xrtNetUdpPending(pServer) != 0 ) {
 		testRequire(!__xrtWaitExpired(Deadline),
 			"UDP closed-peer burst did not drain");
 		xrtThreadYield();
 	}
-	xrtSleepUs(250000u);
+	xrtSleep(250);
 	testRequire(xrtNetUdpState(pServer) == XNET_UDP_OPEN,
 		"closed peer terminated unconnected UDP");
 	testRequire(xrtNetUdpSend(
@@ -327,7 +327,7 @@ static void testUdpErrors(xnetengine* pEngine)
 		xrtNetUdpSend(pUdp, "error", 5) == XNET_RESULT_OK,
 		"UDP error trigger send failed"
 	);
-	Deadline = __xrtWaitAfter(5000000u);
+	Deadline = __xrtWaitAfter(5000);
 	for ( ;; ) {
 		pPacket = xrtNetUdpReceiveError(pUdp);
 		if ( pPacket != NULL ) {
@@ -470,7 +470,7 @@ int main(void)
 	testRequire(xrtNetUdpSendVec(pClient, Spans, 2) == XNET_RESULT_OK,
 		"UDP vector send failed");
 	{
-		double iDeadline = __xrtWaitAfter(3000000u);
+		double iDeadline = __xrtWaitAfter(3000);
 
 		for ( ;; ) {
 			(void)xrtNetUdpStats(pClient, &ClientStats);
@@ -553,7 +553,7 @@ int main(void)
 	) == XNET_RESULT_OK) && (iAccepted == 3),
 		"UDP batch send failed");
 	{
-		double iDeadline = __xrtWaitAfter(3000000u);
+		double iDeadline = __xrtWaitAfter(3000);
 
 		while ( xrtNetUdpQueued(pServer) < 3 ) {
 			testRequire(!__xrtWaitExpired(iDeadline),

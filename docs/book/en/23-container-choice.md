@@ -53,7 +53,7 @@ Five frequent misconceptions, each worth calling out; they also make review mant
 
 ### How to adjudicate constant-factor disputes
 
-Complexity gives the magnitude; constants decide the winner; the only adjudication tool is measurement — and the measurement's verdict belongs to your load and your machine; change the mix and you must re-measure. The method: fix the data scale (say a million elements), fix the operation mix (say 90% traversal + 10% insert-delete), time with `xrtNow` (returning microseconds as `xtime`, Chapter 3), run each candidate three times and take the median — Chapter 10's `Near` tolerance thinking applies to reading performance numbers too. Chapter 6's statistics add the memory-side evidence: allocation counts and the cache-hit proxy (throughput per second) read together; time alone misleads about causes.
+Complexity gives the magnitude; constants decide the winner; the only adjudication tool is measurement — and the measurement's verdict belongs to your load and your machine; change the mix and you must re-measure. The method: fix the data scale (say a million elements), fix the operation mix (say 90% traversal + 10% insert-delete), time with `xrtNow` (returning milliseconds as `xtime`, Chapter 3), run each candidate three times and take the median — Chapter 10's `Near` tolerance thinking applies to reading performance numbers too. Chapter 6's statistics add the memory-side evidence: allocation counts and the cache-hit proxy (throughput per second) read together; time alone misleads about causes.
 
 ## Examples
 

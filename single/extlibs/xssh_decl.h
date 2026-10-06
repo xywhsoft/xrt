@@ -6119,13 +6119,14 @@ typedef struct xsshrekeystate {
 	xsshrekeypolicy Policy;
 	xsshrekeycounter Sent;
 	xsshrekeycounter Received;
-	uint64 SendStartedMs;
-	uint64 ReceiveStartedMs;
+	double SendStartedTimer;
+	double ReceiveStartedTimer;
 	bool Requested;
 } xsshrekeystate;
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -6139,7 +6140,7 @@ XRT_API void xrtSshRekeyPolicyInit(xsshrekeypolicy* pPolicy);
 XRT_API bool xrtSshRekeyInit(
 	xsshrekeystate* pState,
 	const xsshrekeypolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -6147,7 +6148,7 @@ XRT_API bool xrtSshRekeyInit(
 /* 同时清空双向计数并开始新一代，适用于两方向具有同一提交边界的驱动。 */
 XRT_API bool xrtSshRekeyReset(
 	xsshrekeystate* pState,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -6155,7 +6156,7 @@ XRT_API bool xrtSshRekeyReset(
 /* 写密钥生效后只清空发送方向计数和时间。 */
 XRT_API bool xrtSshRekeyResetSend(
 	xsshrekeystate* pState,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -6163,7 +6164,7 @@ XRT_API bool xrtSshRekeyResetSend(
 /* 读密钥生效后只清空接收方向计数和时间。 */
 XRT_API bool xrtSshRekeyResetReceive(
 	xsshrekeystate* pState,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -6181,7 +6182,7 @@ XRT_API bool xrtSshRekeyRequest(xsshrekeystate* pState);
 /* 查询当前计数、主动请求和时间阈值产生的决策。 */
 XRT_API xsshcode xrtSshRekeyCheck(
 	const xsshrekeystate* pState,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -6192,7 +6193,7 @@ XRT_API xsshcode xrtSshRekeyReserveSend(
 	xsshrekeystate* pState,
 	uint64 iWireBytes,
 	uint64 iCipherBlocks,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -6203,7 +6204,7 @@ XRT_API xsshcode xrtSshRekeyReserveReceive(
 	xsshrekeystate* pState,
 	uint64 iWireBytes,
 	uint64 iCipherBlocks,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -6543,6 +6544,7 @@ typedef struct xsshtransportcore {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -6553,7 +6555,7 @@ XRT_API bool xrtSshTransportCoreInit(
 	xsshrole Role,
 	uint32 iMaxPacketSize,
 	const xsshrekeypolicy* pRekeyPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -6605,7 +6607,7 @@ XRT_API bool xrtSshTransportCoreRekeyRequest(xsshtransportcore* pCore);
 /* 查询当前双向预算和时间产生的 rekey 决策。 */
 XRT_API xsshcode xrtSshTransportCoreRekeyCheck(
 	const xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -6630,7 +6632,7 @@ XRT_API xsshcode xrtSshTransportCoreWritePrepareWithPadding(
 	xbytesview Payload,
 	xsshpaddingproc pPadding,
 	ptr pUserData,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -6638,7 +6640,7 @@ XRT_API xsshcode xrtSshTransportCoreWritePrepareWithPadding(
 /* 线路包可靠入队后提交写事务并返回更新后的 rekey 决策。 */
 XRT_API xsshcode xrtSshTransportCoreWriteCommit(
 	xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -6659,7 +6661,7 @@ XRT_API xsshcode xrtSshTransportCoreReadPrepare(
 	xsshpacketview* pPacket,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -6667,7 +6669,7 @@ XRT_API xsshcode xrtSshTransportCoreReadPrepare(
 /* 接收包完成协议处理后提交状态和 rekey 预算。 */
 XRT_API xsshcode xrtSshTransportCoreReadCommit(
 	xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -6697,7 +6699,7 @@ XRT_API xsshcode xrtSshTransportCoreSetWriteAesGcm(
 	xsshtransportcore* pCore,
 	xbytesview Key,
 	xbytesview InitialIV,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -6707,7 +6709,7 @@ XRT_API xsshcode xrtSshTransportCoreSetReadAesGcm(
 	xsshtransportcore* pCore,
 	xbytesview Key,
 	xbytesview InitialIV,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -6849,6 +6851,7 @@ typedef struct xsshkexsession {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -7029,7 +7032,7 @@ XRT_API xsshcode xrtSshKexSessionReadAbort(xsshkexsession* pSession);
 XRT_API xsshcode xrtSshKexSessionActivateWrite(
 	xsshkexsession* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -7038,7 +7041,7 @@ XRT_API xsshcode xrtSshKexSessionActivateWrite(
 XRT_API xsshcode xrtSshKexSessionActivateRead(
 	xsshkexsession* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -7403,6 +7406,7 @@ typedef struct xsshtransporttcp {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -7420,7 +7424,7 @@ XRT_API bool xrtSshTransportTcpInit(
 	xsshtransporttcp* pTransport,
 	xnetbufpool* pPool,
 	const xsshtransporttcpconfig* pConfig,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -7458,7 +7462,7 @@ XRT_API xsshcode xrtSshTransportTcpWritePrepareWithPadding(
 	xbytesview Payload,
 	xsshpaddingproc pPadding,
 	ptr pUserData,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -7470,7 +7474,7 @@ XRT_API xsshcode xrtSshTransportTcpWritePrepareWithPadding(
 XRT_API xnetresult xrtSshTransportTcpWriteSubmit(
 	xsshtransporttcp* pTransport,
 	xnetstream* pStream,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -7515,7 +7519,7 @@ XRT_API xsshcode xrtSshTransportTcpReadPrepare(
 	xsshpacketview* pPacket,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -7523,7 +7527,7 @@ XRT_API xsshcode xrtSshTransportTcpReadPrepare(
 /* 提交上层已经接受的输入并从原 TCP 缓冲精确消费。 */
 XRT_API xsshcode xrtSshTransportTcpReadCommit(
 	xsshtransporttcp* pTransport,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -7563,6 +7567,7 @@ XRT_EXTERN_C_END
 
 #if defined(XSSH_FEATURE_TRANSPORT_TCP_RANDOM)
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -7571,7 +7576,7 @@ XRT_EXTERN_C_BEGIN
 XRT_API xsshcode xrtSshTransportTcpWritePrepare(
 	xsshtransporttcp* pTransport,
 	xbytesview Payload,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -8205,7 +8210,7 @@ typedef enum xsshauthexhaustion {
 
 /* 零值单项限制表示禁用；时间统一使用单调毫秒。 */
 typedef struct xsshauthguardpolicy {
-	uint64 TimeoutMs;
+	int64 TimeoutMs;
 	uint64 ByteLimit;
 	uint32 AttemptLimit;
 	uint32 RoundLimit;
@@ -8217,7 +8222,7 @@ typedef struct xsshauthguardpolicy {
 /* Guard 只保存会话总预算，不保存用户名、凭据或报文借用视图。 */
 typedef struct xsshauthguard {
 	xsshauthguardpolicy Policy;
-	uint64 StartedMs;
+	double StartedTimer;
 	uint64 Bytes;
 	uint32 Attempts;
 	uint32 Rounds;
@@ -8229,6 +8234,7 @@ typedef struct xsshauthguard {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -8242,7 +8248,7 @@ XRT_API void xrtSshAuthGuardPolicyInit(xsshauthguardpolicy* pPolicy);
 XRT_API bool xrtSshAuthGuardInit(
 	xsshauthguard* pGuard,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -8250,7 +8256,7 @@ XRT_API bool xrtSshAuthGuardInit(
 /* 查询当前时间、完成状态和已有预算产生的决策。 */
 XRT_API xsshcode xrtSshAuthGuardCheck(
 	xsshauthguard* pGuard,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 );
 
@@ -8261,7 +8267,7 @@ XRT_API xsshcode xrtSshAuthGuardReserve(
 	xsshauthguard* pGuard,
 	xsshauthevent Event,
 	uint64 iMessageBytes,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 );
 
@@ -8368,6 +8374,7 @@ typedef struct xsshauthsession {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -8390,7 +8397,7 @@ XRT_API xsshcode xrtSshAuthSessionBegin(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -8413,7 +8420,7 @@ XRT_API xsshcode xrtSshAuthSessionBudget(
 /* 检查认证超时和资源预算；耗尽时会话进入失败状态。 */
 XRT_API xsshcode xrtSshAuthSessionCheck(
 	xsshauthsession* pSession,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 );
 
@@ -8427,7 +8434,7 @@ XRT_API xsshcode xrtSshAuthSessionWritePrepare(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	xbytesview Payload,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -8453,7 +8460,7 @@ XRT_API xsshcode xrtSshAuthSessionReadPrepare(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	xbytesview Payload,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthsessionpacket* pPacket
 );
 
@@ -10759,6 +10766,7 @@ typedef struct xsshsessioncore {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -10879,7 +10887,7 @@ XRT_API xsshcode xrtSshSessionCoreAuthBegin(
 	xsshsessioncore* pSession,
 	const xsshtransportcore* pCore,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -10895,7 +10903,7 @@ XRT_API xsshcode xrtSshSessionCoreWritePrepare(
 	xsshchannelcore* pChannel,
 	xsshreplyqueue* pReplies,
 	uint64 iReplyToken,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 );
 
@@ -10914,7 +10922,7 @@ XRT_API xsshcode xrtSshSessionCoreWriteBind(
 XRT_API xsshcode xrtSshSessionCoreWriteCommit(
 	xsshsessioncore* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -10938,7 +10946,7 @@ XRT_API xsshcode xrtSshSessionCoreReadPrepare(
 	void* pHostKeyStorage,
 	size_t iHostKeyCapacity,
 	size_t* pHostKeySize,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacket* pPacket
 );
 
@@ -10948,7 +10956,7 @@ XRT_API xsshcode xrtSshSessionCoreReadPrepare(
 XRT_API xsshcode xrtSshSessionCoreReadCommit(
 	xsshsessioncore* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -11064,6 +11072,7 @@ typedef struct xsshsessiontcp {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -11081,7 +11090,7 @@ XRT_API bool xrtSshSessionTcpInit(
 	xsshsessiontcp* pSession,
 	xnetbufpool* pPool,
 	const xsshsessiontcpconfig* pConfig,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -11144,7 +11153,7 @@ XRT_API xsshcode xrtSshSessionTcpKexBeginWithPrivate(
 XRT_API xsshcode xrtSshSessionTcpAuthBegin(
 	xsshsessiontcp* pSession,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -11166,7 +11175,7 @@ XRT_API xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 	uint64 iReplyToken,
 	xsshpaddingproc pPadding,
 	ptr pPaddingData,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 );
 
@@ -11179,7 +11188,7 @@ XRT_API xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 XRT_API xnetresult xrtSshSessionTcpWriteSubmit(
 	xsshsessiontcp* pSession,
 	xnetstream* pStream,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -11227,7 +11236,7 @@ XRT_API xsshcode xrtSshSessionTcpReadPrepare(
 	void* pHostKeyStorage,
 	size_t iHostKeyCapacity,
 	size_t* pHostKeySize,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessiontcppacket* pPacket
 );
 
@@ -11236,7 +11245,7 @@ XRT_API xsshcode xrtSshSessionTcpReadPrepare(
 /* 先消费并提交 transport，再提交版本或协议事务并按需切换读密钥。 */
 XRT_API xsshcode xrtSshSessionTcpReadCommit(
 	xsshsessiontcp* pSession,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -11304,6 +11313,7 @@ typedef struct xsshsessionreader {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -11350,7 +11360,7 @@ XRT_API xsshsessionreaderstate xrtSshSessionReaderState(
 XRT_API xsshcode xrtSshSessionReaderPrepare(
 	xsshsessionreader* pReader,
 	xnetbuf* pInput,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessiontcppacket* pPacket
 );
 
@@ -11359,7 +11369,7 @@ XRT_API xsshcode xrtSshSessionReaderPrepare(
 /* 提交已接受 packet，释放临时明文并发布本轮主机公钥存储。 */
 XRT_API xsshcode xrtSshSessionReaderCommit(
 	xsshsessionreader* pReader,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -11637,6 +11647,7 @@ XRT_EXTERN_C_END
 
 #if defined(XSSH_FEATURE_SESSION_TCP_RANDOM)
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -11656,7 +11667,7 @@ XRT_API xsshcode xrtSshSessionTcpWritePrepare(
 	xsshchannelcore* pChannel,
 	xsshreplyqueue* pReplies,
 	uint64 iReplyToken,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 );
 
@@ -11801,6 +11812,7 @@ struct xsshclientcore {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -11831,7 +11843,7 @@ XRT_API xsshcode xrtSshClientCoreNext(
 	xsshclientcore* pClient,
 	xsshsessiontcp* pSession,
 	const xsshsessionreader* pReader,
-	uint64 iNowMs,
+	double Timer,
 	xsshclientnext* pNext
 );
 
@@ -11949,8 +11961,8 @@ XRT_EXTERN_C_END
 #define XSSH_CLIENT_CONTROL_INITIAL_DEFAULT 4096u
 #define XSSH_CLIENT_CONTROL_LIMIT_DEFAULT 1048576u
 #define XSSH_CLIENT_GLOBAL_REPLY_LIMIT_DEFAULT 64u
-/* TCP 建连后到 Ready 的默认截止时间，单位为微秒；配置为零时禁用。 */
-#define XSSH_CLIENT_READY_TIMEOUT_DEFAULT UINT64_C(30000000)
+/* TCP 建连后到 Ready 的默认截止时间，单位为毫秒；配置为零时禁用。 */
+#define XSSH_CLIENT_READY_TIMEOUT_DEFAULT INT64_C(30000)
 
 
 
@@ -12101,7 +12113,7 @@ typedef struct xsshclientevents {
 typedef struct xsshclientconfig {
 	xsshclientcoreconfig Core;
 	xsshchannelsconfig Channels;
-	uint64 ReadyTimeout;
+	int64 ReadyTimeout;
 	size_t ControlInitial;
 	size_t ControlLimit;
 	size_t GlobalReplyLimit;

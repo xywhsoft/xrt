@@ -52,7 +52,7 @@ static void testHttpServerFutureWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -497,7 +497,7 @@ int main(void)
 		),
 		"HTTP server Future address setup failed"
 	);
-	ServerConfig.RequestTimeout = UINT64_C(1000000);
+	ServerConfig.RequestTimeout = INT64_C(1000);
 	xrtHttpServerEventsInit(&Events);
 	Events.Request = testHttpServerFutureRequest;
 	Events.Error = testHttpServerFutureError;

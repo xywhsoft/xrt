@@ -16,9 +16,7 @@ int main(void)
 	) || !xrtSshSessionTcpInit(
 		&Session,
 		NULL,
-		&Config,
-		0u
-	) ) {
+		&Config, ((double)(0u)) / 1000.0) ) {
 		return 1;
 	}
 	printf(

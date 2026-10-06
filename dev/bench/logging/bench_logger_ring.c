@@ -82,7 +82,7 @@ int main(int argc, char** argv)
 	RingConfig.Capacity = iCapacity;
 	RingConfig.RecordLimit = 256u;
 	RingConfig.Batch = XLOG_RING_BATCH_MAX;
-	RingConfig.IdleWait = 0u;
+	RingConfig.IdleWait = 0;
 	pRing = xrtLogRing(pTarget, &RingConfig);
 	if ( pRing == NULL ) {
 		xrtLogSinkFree(pTarget);

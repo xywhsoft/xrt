@@ -9,7 +9,7 @@
 
 #define INTEROP_PROTOCOL "xrt.interop"
 #define INTEROP_ORIGIN "https://interop.test"
-#define INTEROP_TIMEOUT UINT64_C(10000000)
+#define INTEROP_TIMEOUT INT64_C(10000)
 #define INTEROP_TEXT_CAPACITY ((size_t)2048u)
 #define INTEROP_BINARY_CAPACITY ((size_t)64u)
 #define INTEROP_REASON_CAPACITY ((size_t)124u)

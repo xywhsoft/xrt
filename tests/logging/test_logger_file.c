@@ -281,10 +281,10 @@ static void testLogFileBasic(void)
 	);
 
 	Options.Sync = XLOG_FILE_SYNC_INTERVAL;
-	Options.SyncInterval = 1u;
+	Options.SyncInterval = 1;
 	pSink = testLogFileCreate(&Options);
 	testRequire(pSink != NULL, "Logger interval file creation failed");
-	xrtSleepUs(10u);
+	xrtSleep(1);
 	Record = testLogFileRecord(XRT_STR_LITERAL("tick"));
 	testRequire(
 		(xrtLogSinkSubmit(pSink, &Record) == XLOG_RESULT_WRITTEN) &&

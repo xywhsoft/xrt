@@ -28,13 +28,13 @@ int main(void)
 	int iResult = 1;
 
 	pFuture = (pPool != NULL) && (pGroup != NULL) ?
-		xrtTaskGroupSubmitUntilCancel(
+		__xrtTaskGroupSubmitUntilCancel(
 			pGroup,
 			pPool,
 			testSingleTaskGroupPoolRun,
 			&iValue,
 			NULL,
-			xrtDeadlineAfter(UINT64_C(2000000)),
+			__xrtWaitAfter(INT64_C(2000)),
 			NULL
 		) : NULL;
 	if (

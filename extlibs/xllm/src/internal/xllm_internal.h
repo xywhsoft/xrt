@@ -43,13 +43,13 @@ typedef enum xllm_transport_result {
 typedef struct xllm_transport_diagnostics {
     xllm_transport_result eResult;
     int32_t iSystemError;
-    uint64_t uStartedMs;
-    uint64_t uConnectedMs;
-    uint64_t uRequestSentMs;
-    uint64_t uFirstByteMs;
-    uint64_t uFirstTokenMs;
-    uint64_t uHeadersMs;
-    uint64_t uCompletedMs;
+    double uStartedMs;
+    double uConnectedMs;
+    double uRequestSentMs;
+    double uFirstByteMs;
+    double uFirstTokenMs;
+    double uHeadersMs;
+    double uCompletedMs;
     uint64_t uRequestBytes;
     uint64_t uResponseBodyBytes;
     int64 uEffectiveTimeoutMs;
@@ -180,8 +180,8 @@ struct xllm_call {
     char* sRequestBody;
     char* sRequestHeader;
     size_t iRequestHeaderSize;
-    uint64_t uDeadline;
-    uint64_t uScopeDeadline;
+    double uDeadline;
+    double uScopeDeadline;
     bool bScopeAttached;
     bool bStreamWanted;
     xllm_transport_result eTransportResult;

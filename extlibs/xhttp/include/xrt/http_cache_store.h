@@ -86,8 +86,8 @@ typedef struct xhttpcacherecordinput {
 	size_t PartCount;
 	uint64 Length;
 	xtime ResponseTime;
-	uint64 RequestClock;
-	uint64 ResponseClock;
+	double RequestClock;
+	double ResponseClock;
 } xhttpcacherecordinput;
 
 
@@ -375,14 +375,14 @@ XRT_API xtime xrtHttpCacheRecordResponseTime(
 
 
 /* 返回发出请求时的单调时钟。 */
-XRT_API uint64 xrtHttpCacheRecordRequestClock(
+XRT_API double xrtHttpCacheRecordRequestClock(
 	const xhttpcacherecord* pRecord
 );
 
 
 
 /* 返回收到响应时的单调时钟。 */
-XRT_API uint64 xrtHttpCacheRecordResponseClock(
+XRT_API double xrtHttpCacheRecordResponseClock(
 	const xhttpcacherecord* pRecord
 );
 

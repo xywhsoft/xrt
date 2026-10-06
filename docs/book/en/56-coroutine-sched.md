@@ -25,7 +25,7 @@ The standard shape assembled from these mechanisms is **one scheduler per thread
 ```diagram flow
 - Instance: xrtCoSchedCreate() -> scheduler (CreateLimit can cap submissions - the backpressure valve)
 - Start: xrtCoGo(scheduler, proc, data, params) - create and enqueue in one step; Post submits ordinary functions
-- Time/suspend: xrtCoSleep(microseconds) timed yield; the xrtCoPark family suspends until Wake/cancel/deadline
+- Time/suspend: xrtCoSleep(milliseconds) timed yield; the xrtCoPark family suspends until Wake/cancel/deadline
 - Pump: xrtCoSchedRun runs until all finish; Step/PollFor/PollUntil single-step and time-bounded event waits
 ```
 

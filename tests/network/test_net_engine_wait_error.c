@@ -55,11 +55,11 @@ static void testEngineWaitErrorWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(5000000);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) != iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
-		xrtSleepUs(1000);
+		xrtSleep(1);
 	}
 }
 
@@ -82,7 +82,7 @@ int main(void)
 	xrtNetEngineConfigInit(&Config);
 	Config.Backend = XNET_PORT_SELECT;
 	Config.Workers = 1;
-	Config.IdleWait = 10000;
+	Config.IdleWait = 10;
 	pEngine = xrtNetEngineCreate(&Config);
 	testRequire((pEngine != NULL) && xrtNetEngineStart(pEngine),
 		"wait-error engine start failed");
@@ -99,7 +99,7 @@ int main(void)
 		"wait-error injection failed"
 	);
 
-	Deadline = __xrtWaitAfter(5000000);
+	Deadline = __xrtWaitAfter(5000);
 	for ( ;; ) {
 		testRequire(xrtNetWorkerStats(pWorker, &Before),
 			"wait-error worker stats failed");
@@ -108,7 +108,7 @@ int main(void)
 		}
 		testRequire(!__xrtWaitExpired(Deadline),
 			"worker did not observe the injected wait error");
-		xrtSleepUs(1000);
+		xrtSleep(1);
 	}
 	testRequire((Before.LastWaitError == XNET_ERROR_PORT_WAIT) &&
 		(Before.LastWaitSystemCode != 0),
@@ -125,7 +125,7 @@ int main(void)
 		1,
 		"terminal port error blocked worker commands"
 	);
-	xrtSleepUs(50000);
+	xrtSleep(50);
 	testRequire(xrtNetWorkerStats(pWorker, &After),
 		"wait-error final stats failed");
 	testRequire((After.WaitErrors >= Before.WaitErrors) &&

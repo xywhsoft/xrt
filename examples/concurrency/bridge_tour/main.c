@@ -61,7 +61,7 @@ int main(void)
 		!xrtFutureBridgeReady(&Bridge) ||
 		!xrtFutureBridgeWait(&Bridge) ||
 		!xrtPromiseResolve(pBorrowed, (ptr)42) ||
-		(xrtFutureWaitFor(pFuture, 1000000ull) != XWAIT_OK) ||
+		(xrtFutureWaitFor(pFuture, 1000) != XWAIT_OK) ||
 		(xrtFutureValue(pFuture) != (ptr)42) ) {
 		goto Cleanup;
 	}
@@ -81,7 +81,7 @@ int main(void)
 	/* Fail 只约束"底层完成回调回收结果"——Promise 归调用方
 	 * 所有，终态写入仍然合法（此处用 Resolve 收口 Future）。 */
 	if ( !xrtPromiseResolve(pPromise2, (ptr)1) ||
-		(xrtFutureWaitFor(pFuture2, 1000000ull) != XWAIT_OK) ) {
+		(xrtFutureWaitFor(pFuture2, 1000) != XWAIT_OK) ) {
 		goto Cleanup;
 	}
 	printf("bridge: init on own promise + fail -> wait false ok\n");

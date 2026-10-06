@@ -16,6 +16,7 @@
 
 #if defined(XSSH_FEATURE_TRANSPORT_TCP_RANDOM)
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -24,7 +25,7 @@ XRT_EXTERN_C_BEGIN
 XRT_API xsshcode xrtSshTransportTcpWritePrepare(
 	xsshtransporttcp* pTransport,
 	xbytesview Payload,
-	uint64 iNowMs
+	double Timer
 );
 
 

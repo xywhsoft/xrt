@@ -75,7 +75,7 @@ typedef enum xhttpservererror {
 
 
 /*
-	全部超时使用微秒，零表示关闭对应保护。
+	全部超时使用毫秒，零表示关闭对应保护。
 	WriteSize 只限制单次零复制发送租约，不建立每连接固定缓冲。
 	MaxConnections 为零时不限制，仍受系统和 Engine 硬边界约束。
 */

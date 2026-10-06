@@ -27,10 +27,10 @@ int main(void)
 		(xrtHttpRetryAfterFields(
 			Fields,
 			1,
-			INT64_C(784111776000000),
+			(XRT_TIME_UNIX_EPOCH + INT64_C(784111776) * XRT_TIME_SECOND),
 			&iDelay
 		 ) == XHTTP_NEXT_ITEM) &&
-		(iDelay == UINT64_C(1000000)) &&
+		(iDelay == UINT64_C(1000)) &&
 		xrtHttpRetryAfterWrite(
 			&Retry, Text, sizeof(Text), &iSize
 		) && (iSize == 29u) &&

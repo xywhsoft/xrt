@@ -1,3 +1,4 @@
+#include <xrt/detail/ximap_wait.h>
 #include <xrt/detail/wait.h>
 #include "test.h"
 #include "test_tls.h"
@@ -357,7 +358,7 @@ static void testCompressCase(xnetengine* pEngine, xnetresolver* pResolver,
 	memset(&Server, 0, sizeof(Server));
 	Server.Listener = pListener; Server.Tls = pTls; Server.Fault = Fault;
 	Server.NoFault = !Inject;
-	Server.Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Server.Deadline = __xrtWaitAfter(INT64_C(10000));
 	Server.Cancel = xrtCancelCreate();
 	testRequire(Server.Cancel != NULL, "COMPRESS fault cancel create failed");
 	xrtAtomic32Init(&Server.ReadStarted, 0u);
@@ -524,7 +525,7 @@ static void testCompressCase(xnetengine* pEngine, xnetresolver* pResolver,
 			xrtClearError();
 			xrtAtomic32Store(&Server.ReadStarted, 1u, XMEMORY_RELEASE);
 			Result = __xrtImapClientNext(pClient, &Event,
-				Fault == TEST_COMPRESS_READ_TIMEOUT ? __xrtWaitAfter(UINT64_C(100000)) :
+				Fault == TEST_COMPRESS_READ_TIMEOUT ? __xrtWaitAfter(INT64_C(100)) :
 				Server.Deadline, Server.Cancel) != XMAIL_NEXT_ERROR;
 			Expected = Fault == TEST_COMPRESS_READ_CANCEL ? XERR_CANCELLED :
 				Fault == TEST_COMPRESS_READ_TIMEOUT ? XERR_TIMEOUT :
@@ -603,7 +604,7 @@ int main(int argc, char** argv)
 					tls != 0 ? &Tls : NULL, (testcompressfault)fault, true);
 			}
 	testRequire(xrtNetListenerClose(pListener), "COMPRESS listener close failed");
-	double Retire = __xrtWaitAfter(UINT64_C(5000000));
+	double Retire = __xrtWaitAfter(INT64_C(5000));
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(Retire), "COMPRESS listener did not retire");
 		xrtThreadYield();

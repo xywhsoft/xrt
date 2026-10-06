@@ -22,7 +22,7 @@
  *
  * XLON 是 JSON 的严格超集，多出四种一等类型：
  *   bytes("...")   二进制（内联 Base64，免外部引用）
- *   time("...")    时间戳（解析时归一为 UTC；事件里给微秒整数）
+ *   time("...")    时间戳（解析时归一为 UTC；事件里给毫秒整数）
  *   set[...]       去重集合
  *   intmap{...}    整数键映射
  * JSON 文档天然是合法 XLON——解析器同一套，配置互不干扰。
@@ -39,7 +39,7 @@
 /*
  * SAX 回调：只关心扩展类型——
  *   BYTES 事件带字节视图（本例打印长度 4）；
- *   TIME   事件带 Unix 微秒整数（时区在解析时已归一）。
+ *   TIME   事件带 公元 UTC 毫秒整数（时区在解析时已归一）。
  */
 static xxlonvisitaction printXlonEvent(
 	const xxlonevent* pEvent,

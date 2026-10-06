@@ -23,7 +23,7 @@ xnetstream -> xsshsessionstream -> xssh client driver -> xsshchannels -> applica
    cancel、统计和结构化错误；核心客户端仍可接管代理、Unix socket 或应用自行建立的 Stream。
 5. `ssh_client_future`：已把 Ready、channel open/request、read/write/drain/close 的单次等待桥接为
    Future；不拥有第二套协议状态，取消只移除本次 waiter。
-6. 同步与协程不形成 SSH 重复模块：线程使用 `xrtFutureWaitUntilCancel`，协程使用
+6. 同步与协程不形成 SSH 重复模块：线程使用 `xrtFutureWaitForCancel`，协程使用
    `xrtFutureAwait` 等待同一个 Future，成功、失败、取消和关闭语义完全相同。
 7. `ssh_forward`：组合 XRT listener/stream 与 direct/forwarded-tcpip channel，负责双向背压、
    半关闭和连接级预算，不使用旧版 `select` 轮询泵。

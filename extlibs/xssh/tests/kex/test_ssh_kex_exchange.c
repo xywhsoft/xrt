@@ -157,9 +157,7 @@ static void testSshKexExchangeTransfer(
 		&Writer,
 		Payload,
 		testSshKexExchangePadding,
-		pPadding,
-		0u
-	) == XSSH_OK), "ssh KEX exchange sender prepare failed");
+		pPadding, ((double)(0u)) / 1000.0) == XSSH_OK), "ssh KEX exchange sender prepare failed");
 	if ( bTestAbort ) {
 		testRequire((xrtSshKexExchangeKexInitAbort(
 			pSenderExchange,
@@ -180,16 +178,13 @@ static void testSshKexExchangeTransfer(
 			&Writer,
 			Payload,
 			testSshKexExchangePadding,
-			pPadding,
-			0u
-		) == XSSH_OK), "ssh KEX exchange sender retry failed");
+			pPadding, ((double)(0u)) / 1000.0) == XSSH_OK), "ssh KEX exchange sender retry failed");
 	}
 	testRequire((xrtSshKexExchangeKexInitCommit(
 		pSenderExchange,
 		pSenderCore
 	) == XSSH_ERROR_STATE) && (xrtSshTransportCoreWriteCommit(
-		pSenderCore,
-		0u,
+		pSenderCore, ((double)(0u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (xrtSshKexExchangeKexInitCommit(
 		pSenderExchange,
@@ -203,16 +198,13 @@ static void testSshKexExchangeTransfer(
 		&Reader,
 		&Packet,
 		arrPlain,
-		sizeof(arrPlain),
-		0u
-	) == XSSH_OK) && (xrtSshKexExchangeKexInitPrepare(
+		sizeof(arrPlain), ((double)(0u)) / 1000.0) == XSSH_OK) && (xrtSshKexExchangeKexInitPrepare(
 		pReceiverExchange,
 		pReceiverCore,
 		XSSH_TRANSPORT_PEER,
 		Packet.Payload
 	) == XSSH_OK) && (xrtSshTransportCoreReadCommit(
-		pReceiverCore,
-		0u,
+		pReceiverCore, ((double)(0u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (xrtSshKexExchangeKexInitCommit(
 		pReceiverExchange,
@@ -270,15 +262,11 @@ int main(void)
 		&ClientCore,
 		XSSH_ROLE_CLIENT,
 		0u,
-		NULL,
-		0u
-	) && xrtSshTransportCoreInit(
+		NULL, ((double)(0u)) / 1000.0) && xrtSshTransportCoreInit(
 		&ServerCore,
 		XSSH_ROLE_SERVER,
 		0u,
-		NULL,
-		0u
-	) && xrtSshKexExchangeInit(
+		NULL, ((double)(0u)) / 1000.0) && xrtSshKexExchangeInit(
 		&Client,
 		pPool,
 		XSSH_ROLE_CLIENT

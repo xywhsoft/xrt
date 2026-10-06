@@ -34,7 +34,7 @@ static void testHttpServerWriteWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -58,7 +58,7 @@ static void testHttpServerWriteWaitConnections(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	for ( ;; ) {
@@ -292,8 +292,8 @@ int main(void)
 	ServerConfig.Network.Listen.Stream.WriteLimit =
 		64u * 1024u;
 	ServerConfig.WriteSize = 16u * 1024u;
-	ServerConfig.WriteTimeout = UINT64_C(100000);
-	ServerConfig.RequestTimeout = UINT64_C(2000000);
+	ServerConfig.WriteTimeout = INT64_C(100);
+	ServerConfig.RequestTimeout = INT64_C(2000);
 	xrtHttpServerEventsInit(&Events);
 	Events.Request = testHttpServerWriteRequest;
 	Events.Error = testHttpServerWriteError;

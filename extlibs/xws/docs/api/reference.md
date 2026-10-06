@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `133` 个函数、`76` 个常量或宏、
+当前登记 `132` 个函数、`76` 个常量或宏、
 `37` 个公共类型。
 
 ## `extlibs/xws/include/xrt/websocket_group.h`
 
 [查看带契约注释的公共头](../../include/xrt/websocket_group.h)
 
-### 函数 (39)
+### 函数 (38)
 
 - `xrtWsGroupAdd`
 - `xrtWsGroupBinaryAsync`
@@ -35,8 +35,7 @@
 - `xrtWsGroupOpResult`
 - `xrtWsGroupOpWait`
 - `xrtWsGroupOpWaitFor`
-- `xrtWsGroupOpWaitUntil`
-- `xrtWsGroupOpWaitUntilCancel`
+- `xrtWsGroupOpWaitForCancel`
 - `xrtWsGroupPingAsync`
 - `xrtWsGroupPongAsync`
 - `xrtWsGroupRef`

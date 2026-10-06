@@ -301,12 +301,12 @@ typedef union xfuturebridge {
 
 ### `xtlsstreamconfig`
 
-两个超时都使用微秒；零值显式关闭对应计时器。 AsyncBytesLimit 和 AsyncCountLimit 是未完成操作的独立硬边界， AsyncBatch 限制一次 Worker 轮转完成的操作数。
+两个超时都使用毫秒；零值显式关闭对应计时器。 AsyncBytesLimit 和 AsyncCountLimit 是未完成操作的独立硬边界， AsyncBatch 限制一次 Worker 轮转完成的操作数。
 
 ```c
 typedef struct xtlsstreamconfig {
-	uint64 HandshakeTimeout;
-	uint64 CloseTimeout;
+	int64 HandshakeTimeout;
+	int64 CloseTimeout;
 	size_t AsyncBytesLimit;
 	uint32 AsyncCountLimit;
 	uint32 AsyncBatch;
@@ -401,7 +401,7 @@ Timeout 覆盖 DNS、TCP 和 TLS 全过程；零值只保留各阶段超时。
 typedef struct xtlsdialconfig {
 	xnetdialconfig Transport;
 	xtlsstreamconfig Stream;
-	uint64 Timeout;
+	int64 Timeout;
 	bool ServerNameFromHost;
 } xtlsdialconfig;
 ```
@@ -410,7 +410,7 @@ typedef struct xtlsdialconfig {
 |---|---|---|
 | `Transport` | `xnetdialconfig` | Transport |
 | `Stream` | `xtlsstreamconfig` | 流选择 |
-| `Timeout` | `uint64` | 超时（微秒） |
+| `Timeout` | `int64` | 超时（毫秒） |
 | `ServerNameFromHost` | `bool` | ServerNameFromHost |
 
 ### `xtlsstreamevents`
@@ -595,8 +595,8 @@ typedef void (*xtlsdialproc)(
 
 | 常量 | 值 | 语义 |
 |---|---|---|
-| `XTLS_STREAM_HANDSHAKE_TIMEOUT_DEFAULT` | `UINT64_C(10000000)` | 握手阶段超时默认值 |
-| `XTLS_STREAM_CLOSE_TIMEOUT_DEFAULT` | `UINT64_C(5000000)` | CLOSE超时默认值 |
+| `XTLS_STREAM_HANDSHAKE_TIMEOUT_DEFAULT` | `INT64_C(10000)` | 握手阶段超时默认值 |
+| `XTLS_STREAM_CLOSE_TIMEOUT_DEFAULT` | `INT64_C(5000)` | CLOSE超时默认值 |
 | `XTLS_STREAM_ASYNC_BYTES_DEFAULT` | `((size_t)1048576u)` | ASYNCBYTES默认值 |
 | `XTLS_STREAM_ASYNC_COUNT_DEFAULT` | `UINT32_C(1024)` | ASYNC数量默认值 |
 | `XTLS_STREAM_ASYNC_BATCH_DEFAULT` | `UINT32_C(64)` | ASYNCBATCH默认值 |
@@ -1374,16 +1374,16 @@ bool xrtPromiseCancel(xpromise* pPromise);
 
 ```c
 xwaitresult xrtFutureWait(xfuture* pFuture);
-xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout);
-xwaitresult xrtFutureWaitUntil(xfuture* pFuture, xdeadline iDeadline);
-xwaitresult xrtFutureWaitUntilCancel(
+xwaitresult xrtFutureWaitFor(xfuture* pFuture, int64 iTimeout);
+xwaitresult xrtFutureWaitFor(xfuture* pFuture, int64 iTimeout);
+xwaitresult xrtFutureWaitForCancel(
 	xfuture* pFuture,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 ```
 
-时间单位统一为微秒，截止时间使用单调时钟。等待支持任意数量线程，并对虚假唤醒、完成与超时竞争、取消监听注销竞争进行循环检查。Future 终态与外部取消回调在同一把 Future 锁下线性化：终态先取得锁时返回 `XWAIT_OK`；取消先取得锁时，本次等待固定返回 `XWAIT_CANCELLED`，即使 Future 在等待线程恢复前已经完成也不会覆盖该结果。截止时间在相同循环边界检查，Future 尚未终结时到期返回 `XWAIT_TIMEOUT`。调用方取消只停止当前等待，不取消 Future；需要同时取消生产过程时另行调用 `xrtFutureCancel`。
+时间单位统一为毫秒，截止时间使用单调时钟。等待支持任意数量线程，并对虚假唤醒、完成与超时竞争、取消监听注销竞争进行循环检查。Future 终态与外部取消回调在同一把 Future 锁下线性化：终态先取得锁时返回 `XWAIT_OK`；取消先取得锁时，本次等待固定返回 `XWAIT_CANCELLED`，即使 Future 在等待线程恢复前已经完成也不会覆盖该结果。截止时间在相同循环边界检查，Future 尚未终结时到期返回 `XWAIT_TIMEOUT`。调用方取消只停止当前等待，不取消 Future；需要同时取消生产过程时另行调用 `xrtFutureCancel`。
 
 ### `xrtPromiseClose`
 
@@ -1544,8 +1544,8 @@ xfuturewatchresult xrtFutureWatchAdd(
 
 ```c
 xwaitresult xrtFutureAwait(xfuture* pFuture);
-xwaitresult xrtFutureAwaitFor(xfuture* pFuture, uint64 iTimeout);
-xwaitresult xrtFutureAwaitUntil(xfuture* pFuture, xdeadline iDeadline);
+xwaitresult xrtFutureAwaitFor(xfuture* pFuture, int64 iTimeout);
+xwaitresult xrtFutureAwaitFor(xfuture* pFuture, int64 iTimeout);
 ```
 
 这些函数只能在 `xcosched` 管理的协程中调用。等待节点由当前协程栈保存，不产生每次 await 堆分配；Future 可由任意线程完成，完成通知通过内部代际令牌投递回所属调度器。通知早于真正 park 时不会丢失，等待退出后也不会污染下一次 park；独立的公共 `xrtCoWake` 不会被 Await 清理过程误消费。提前唤醒、超时和协程取消都会安全摘除等待节点。
@@ -1665,10 +1665,10 @@ xwaitresult xrtFutureWait(xfuture* pFuture);
 
 ### `xrtFutureWaitFor`
 
-在相对微秒数内等待终态。
+在相对毫秒数内等待终态。
 
 ```c
-xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout);
+xwaitresult xrtFutureWaitFor(xfuture* pFuture, int64 iTimeout);
 ```
 
 #### 参数
@@ -1676,7 +1676,7 @@ xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout);
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pFuture` | 输入 | 非空 | 目标 Future |
-| `iTimeout` | 输入 | 微秒 | 相对时限 |
+| `iTimeout` | 输入 | 毫秒 | 相对时限 |
 
 #### 返回值
 
@@ -1696,53 +1696,18 @@ xwaitresult xrtFutureWaitFor(xfuture* pFuture, uint64 iTimeout);
 
 ```c
 				(xrtFutureWaitFor(pCatch,
-					EXAMPLE_TIMEOUT_US) != XWAIT_OK) ||
+					EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ||
 ```
 
 
-### `xrtFutureWaitUntil`
-
-等待到指定单调时钟截止时间。
-
-```c
-xwaitresult xrtFutureWaitUntil(xfuture* pFuture, xdeadline iDeadline);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pFuture` | 输入 | 非空 | 目标 Future |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_ERROR` | 同 `WaitFor` 口径 | — |
-
-#### 错误
-
-- `XERR_ARGUMENT` — 指针为空或参数非法
-
-#### 范例
-
-[concurrency/future_tour · 等待族](../../examples/concurrency/future_tour/main.c) · 观察
-
-```c
-		(xrtFutureWaitUntil(pFut1,
-			xrtDeadlineAfter(100000u)) != XWAIT_TIMEOUT) ) {
-```
-
-
-### `xrtFutureWaitUntilCancel`
+### `xrtFutureWaitForCancel`
 
 等待首个线性化事件；取消先取得等待锁后不会被迟到终态覆盖。
 
 ```c
-xwaitresult xrtFutureWaitUntilCancel(
+xwaitresult xrtFutureWaitForCancel(
 	xfuture* pFuture,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 ```
@@ -1752,7 +1717,7 @@ xwaitresult xrtFutureWaitUntilCancel(
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pFuture` | 输入 | 非空 | 目标 Future |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止 |
+| `iTimeout` | 输入 | 单调时钟 | 绝对截止 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -1772,8 +1737,8 @@ xwaitresult xrtFutureWaitUntilCancel(
 [concurrency/future_tour · 等待族](../../examples/concurrency/future_tour/main.c) · 观察
 
 ```c
-		(xrtFutureWaitUntilCancel(pFut1,
-			xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
+		(xrtFutureWaitForCancel(pFut1,
+			EXAMPLE_TIMEOUT_MS,
 			pCancel) != XWAIT_CANCELLED) ) {
 ```
 
@@ -1817,7 +1782,7 @@ xwaitresult xrtFutureAwait(xfuture* pFuture);
 协程挂起到相对期限。
 
 ```c
-xwaitresult xrtFutureAwaitFor(xfuture* pFuture, uint64 iTimeout);
+xwaitresult xrtFutureAwaitFor(xfuture* pFuture, int64 iTimeout);
 ```
 
 #### 参数
@@ -1825,7 +1790,7 @@ xwaitresult xrtFutureAwaitFor(xfuture* pFuture, uint64 iTimeout);
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pFuture` | 输入 | 非空 | 目标 Future |
-| `iTimeout` | 输入 | 微秒 | 相对期限 |
+| `iTimeout` | 输入 | 毫秒 | 相对期限 |
 
 #### 返回值
 
@@ -1847,64 +1812,6 @@ xwaitresult xrtFutureAwaitFor(xfuture* pFuture, uint64 iTimeout);
 	eWait = xrtFutureAwaitFor(pDone, UINT64_C(2000000));
 ```
 
-
-### `xrtFutureAwaitUntil`
-
-协程挂起到绝对截止时间。
-
-```c
-xwaitresult xrtFutureAwaitUntil(xfuture* pFuture, xdeadline iDeadline);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pFuture` | 输入 | 非空 | 目标 Future |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` / `XWAIT_TIMEOUT` | 终态/到期 | — |
-| `XWAIT_ERROR` | 参数/上下文错误 | 错误经 `xrtGetError()` 报告 |
-
-#### 错误
-
-- `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_STATE` — 不在协程调度器内
-
-#### 范例
-
-[concurrency/future_tour · 协程](../../examples/concurrency/future_tour/main.c) · 观察
-
-```c
-	return (ptr)(uintptr_t)xrtFutureAwaitUntil(pFuture,
-		xrtDeadlineAfter(EXAMPLE_TIMEOUT_US));
-```
-
-
-## 延续
-
-```c
-xfuture* xrtFutureContinue(xfuture* pSource, xfuturecontinueproc pProc, ptr pData);
-xfuture* xrtFutureThen(xfuture* pSource, xfuturecontinueproc pProc, ptr pData);
-xfuture* xrtFutureCatch(xfuture* pSource, xfuturecontinueproc pProc, ptr pData);
-xfuture* xrtFutureFinally(xfuture* pSource, xfuturefinallyproc pProc, ptr pData);
-```
-
-延续返回一个独立输出 Future。`Continue` 对全部终态执行；`Then` 只处理 `RESOLVED`；`Catch` 只处理 `FAILED`，不会吞掉 `CANCELLED` 或 `CLOSED`；`Finally` 观察任意终态并自动透传原结果。未命中的条件延续也自动透传。
-
-尚未完成的源在完成 Promise 的线程或 Fiber 中执行短回调；已经完成的源在注册延续的执行上下文中同步执行。内部按注册顺序派发，深链迭代排空，不需要 current-thread pump。回调属于完成路径，不得阻塞、挂起协程或执行长时间 CPU 工作；这些工作应显式提交到任务池、协程调度器或上层网络 worker。
-
-`xfuturecontinueproc` 借用输入结果和输出 Promise。回调必须在返回前完成输出 Promise，或者先调用 `xrtPromiseRef` 保留它并转交异步路径；如果两者都不做，运行库释放最后一个生产端后，输出 Future 进入 `CLOSED`。回调不得释放借用的 Promise 引用。
-
-每个延续都有对应的 `xrtFutureContinueOwned`、`xrtFutureThenOwned`、`xrtFutureCatchOwned` 或 `xrtFutureFinallyOwned` 入口。调用成功后，运行库接管 `pData`，并在回调执行、条件跳过或输出取消后调用一次析构过程；调用失败时所有权仍属于调用方。析构在回调返回后执行，因此异步带走 Promise 时，回调也必须自行转移异步工作所需的数据。
-
-输出 Future 的取消请求会使尚未开始的 `Continue`、`Then` 或 `Catch` 跳过用户回调，并在源进入终态后确认输出取消。`Finally` 仍观察源终态，但输出结果改为取消。取消输出不会伪造或强制改变共享源 Future 的终态。
-
-`xrtFutureContinueOwnedCancelSource` 与 `xrtFutureThenOwnedCancelSource` 用于调用方明确拥有完整生产链的组合层。它们保持对应延续的选择和透传语义，但输出被取消时也向源发出协作取消请求，使文件读取、网络操作或任务能够尽早停止。普通共享源不得使用这两个入口，否则一个消费者会意外取消其他消费者仍需等待的工作。
 
 ### `xrtFutureContinue`
 
@@ -3002,7 +2909,7 @@ xfuture* xrtTlsListenerAcceptAsync(xtlslistener* pListener);
 ```c
 xtlsstream* xrtTlsListenerAcceptWait(
 	xtlslistener* pListener,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 ```
@@ -3012,7 +2919,7 @@ xtlsstream* xrtTlsListenerAcceptWait(
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pListener` | 输入 | 非空 | 监听器 |
-| `iDeadline` | 输入 | 单调时钟 | 截止时间 |
+| `iTimeout` | 输入 | 单调时钟 | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -3033,7 +2940,7 @@ xtlsstream* xrtTlsListenerAcceptWait(
 
 ```c
 	pServerC = xrtTlsListenerAcceptWait(pListener,
-		xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL);
+		EXAMPLE_DEADLINE_MS, NULL);
 ```
 
 
@@ -5098,7 +5005,7 @@ Data/Source 槽并归还引用。支持不同 Finish 顺序和重复 Finish。
 
 ### 可选调试观察状态
 
-`xrtFutureDebugSnapshot` 返回首次观察、首次观察到终态的单调微秒及当前注册的
+`xrtFutureDebugSnapshot` 返回首次观察、首次观察到终态的单调秒及当前注册的
 完成通知数量。时间不是任务实际提交/完成时间；首次观察一个已结束的 Future，
 两个时间相同。通知数包括原生 continuation、TaskGroup 及公共 Watch，不包括
 阻塞等待/协程等待的内部等待器；通知开始派发后不再计入挂接数量。

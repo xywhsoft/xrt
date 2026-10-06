@@ -195,7 +195,7 @@ int main(void)
 		&Context
 	);
 	testRequire(pDial != NULL, "dial OOM operation setup failed");
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( xrtAtomic32Load(&Context.Done, XMEMORY_ACQUIRE) == 0 ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
 			"dial OOM terminal callback timed out");
@@ -213,7 +213,7 @@ int main(void)
 	xrtNetDialDestroy(pDial);
 	testRequire(xrtNetResolverDestroy(pResolver),
 		"dial OOM resolver destroy failed");
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(!__xrtWaitExpired(iDeadline),

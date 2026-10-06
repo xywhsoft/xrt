@@ -40,7 +40,7 @@ static bool TencentDeletePresendFailure;
 static uint64 TencentTestClock;
 static bool DomainParseOom, DomainParseOomTriggered;
 static bool ListParseOom, ListParseOomTriggered;
-static uint64 tencent_clock(void) { return TencentTestClock != 0u ? TencentTestClock : xrtTimer(); }
+static double tencent_clock(void) { return TencentTestClock != 0u ? TencentTestClock / 1000000.0 : xrtTimer(); }
 static bool ali_secure_random(ptr data, size_t size)
 {
 	if(SigningFailure) { xrtSetErrorKind(XERR_MEMORY); return false; }
@@ -146,9 +146,9 @@ static bool rest_exchange(xacmehttp* http, cstr method, cstr url, cstr type,
 }
 #define xacmeHttpExchangeV rest_exchange
 #include "../../src/dns/xacme_dns_cf.c"
-#define xrtClock tencent_clock
+#define xrtTimer tencent_clock
 #include "../../src/dns/xacme_dns_tencent.c"
-#undef xrtClock
+#undef xrtTimer
 #include "../../src/dns/xacme_dns_huawei.c"
 #undef xacmeHttpExchangeV
 #undef xrtJsonParse
@@ -555,7 +555,7 @@ static bool exercise(xacmednsprovider* p, bool aws, const char* mode)
 		xrtAtomic32Store(&start, 1u, XMEMORY_RELEASE);
 		ok = count == XACME_DNS_RECORD_MAX;
 		for(unsigned i = 0u; i < count; i++) {
-			if(xrtThreadWaitFor(threads[i], 60000000u) != XWAIT_OK) _Exit(2);
+			if(xrtThreadWaitFor(threads[i], 60000) != XWAIT_OK) _Exit(2);
 			ok = ok && tasks[i].ok; xrtThreadDestroy(threads[i]);
 		}
 		if(same) ok = ok && (aws ? ((xacmednsawscontext*)p->pContext)->iRecordCount :
@@ -823,7 +823,7 @@ static bool exercise_rest(xacmednsprovider* p, cstr name, cstr mode)
 			xrtAtomic32Store(&start, 1u, XMEMORY_RELEASE);
 			ok = count == 8u;
 			for(size_t i = 0u; i < count; i++) {
-				if(xrtThreadWaitFor(threads[i], 60000000u) != XWAIT_OK) _Exit(2);
+				if(xrtThreadWaitFor(threads[i], 60000) != XWAIT_OK) _Exit(2);
 				if(!tasks[i].ok) ok = false;
 				xrtThreadDestroy(threads[i]);
 			}
@@ -1199,7 +1199,7 @@ static bool exercise_rest(xacmednsprovider* p, cstr name, cstr mode)
 		}
 		xrtAtomic32Store(&start, 1u, XMEMORY_RELEASE);
 		for(unsigned i = 0u; i < 2u; i++) {
-			if(xrtThreadWaitFor(threads[i], 60000000u) != XWAIT_OK) _Exit(2);
+			if(xrtThreadWaitFor(threads[i], 60000) != XWAIT_OK) _Exit(2);
 			xrtThreadDestroy(threads[i]);
 		}
 		return !tasks[0].ok && !tasks[1].ok && records->iCount == 1u && rest_blocked(p, owner, value);
@@ -1363,7 +1363,7 @@ int main(int argc, char** argv)
 		ok = false;
 	}
 	xrtClearError(); free(TestCa);
-	if(!xrtAcmeCleanupPending(2000000u, &pending)) {
+	if(!xrtAcmeCleanupPending(2, &pending)) {
 		fprintf(stderr, "provider=%s mode=%s exit pending cleanup: count=%zu error kind=%d domain=%s code=%d\n",
 			argv[3], argv[4], pending, (int)xrtErrorKind(xrtGetError()), xrtErrorDomain(xrtGetError()),
 			(int)xrtErrorCode(xrtGetError()));

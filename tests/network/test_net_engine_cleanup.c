@@ -18,7 +18,7 @@ static void testEngineCleanupWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) == 0 ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);

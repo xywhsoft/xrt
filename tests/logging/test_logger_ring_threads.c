@@ -121,7 +121,7 @@ int main(void)
 	Config.Capacity = 1024u;
 	Config.RecordLimit = 256u;
 	Config.Batch = 128u;
-	Config.IdleWait = 0u;
+	Config.IdleWait = 0;
 	pRing = xrtLogRing(pTarget, &Config);
 	testRequire(pRing != NULL, "Logger ring thread sink create failed");
 

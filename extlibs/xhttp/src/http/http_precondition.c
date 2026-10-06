@@ -196,7 +196,7 @@ static bool __xrtHttpDateConditionRead(
 
 
 
-/* 把微秒时间向负无穷取整为整秒，避免负时间比较偏差。 */
+/* 把毫秒时间向负无穷取整为整秒，避免负时间比较偏差。 */
 static int64 __xrtHttpTimeSecond(xtime iTime)
 {
 	return xrtTimeUnix(iTime);

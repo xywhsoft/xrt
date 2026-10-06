@@ -83,7 +83,7 @@ static void testTcpEdgeWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(10000000u);
+	double iDeadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -96,7 +96,7 @@ static void testTcpEdgeWait(
 /* 在测试截止时间前等待 Stream 进入关闭终态。 */
 static void testTcpEdgeWaitClosed(xnetstream* pStream, cstr sMessage)
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetStreamState(pStream) != XNET_STREAM_CLOSED ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);

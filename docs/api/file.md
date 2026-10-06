@@ -163,7 +163,7 @@ typedef enum xfileinfoflag {
 
 ### `xfileinfo`
 
-文件元数据时间统一使用 Unix Epoch 微秒。
+文件元数据时间统一使用 公元 UTC 毫秒。
 
 ```c
 typedef struct xfileinfo {
@@ -1923,7 +1923,7 @@ typedef struct xfileinfo {
 } xfileinfo;
 ```
 
-只有 `Available` 中对应位有效的字段才能读取。时间统一为 Unix Epoch 微秒；原生时间精度高于微秒时向负无穷方向取整，因此纪元前不足一微秒的时间表示为 `-1`，不会错误折叠成 `0`。`Device` 与 `Identity` 只用于同一运行平台内判断对象身份，不是可持久化 ID。`Attributes` 保存 Windows 原生属性；`Mode` 保存 POSIX 模式。平台不提供的创建时间、变更时间或链接数不会用零伪装成有效值。
+只有 `Available` 中对应位有效的字段才能读取。时间统一为 公元 UTC 毫秒；原生时间精度高于毫秒时向负无穷方向取整，因此纪元前不足一毫秒的时间表示为 `-1`，不会错误折叠成 `0`。`Device` 与 `Identity` 只用于同一运行平台内判断对象身份，不是可持久化 ID。`Attributes` 保存 Windows 原生属性；`Mode` 保存 POSIX 模式。平台不提供的创建时间、变更时间或链接数不会用零伪装成有效值。
 
 ```c
 bool xrtPathStat(cstr sPath, bool bFollowLink, xfileinfo* pInfo);

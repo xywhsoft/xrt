@@ -115,7 +115,7 @@ static bool xwork__explore_external(xwork_agent* pAgent, const char* const* pArg
             sBody = pNew;
         }
     }
-    eWait = xrtProcessWaitFor(pProc, 20u * 1000u * 1000u);
+    eWait = xrtProcessWaitFor(pProc, 20000);
     xrtProcessDestroy(pProc);
     if ( eWait != XWAIT_OK ) { free(sBody); return false; }   /* 超时回落 */
     if ( iLen == 0 ) { free(sBody); return false; }

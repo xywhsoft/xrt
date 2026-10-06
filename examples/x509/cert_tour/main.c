@@ -37,7 +37,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
-#include "fixture.h"
+#include "../fixture.h"
 
 /* keyUsage OID：2.5.29.15。 */
 static const uint8 arrOidKeyUsage[3] = { 0x55u, 0x1Du, 0x0Fu };

@@ -306,7 +306,7 @@ void xllmRequestInit(xllm_request* pRequest)
     pRequest->eToolChoice = XLLM_TOOL_CHOICE_AUTO;
     pRequest->eJsonMode = XLLM_JSON_NONE;
     pRequest->bStream = true;
-    pRequest->uDeadline = UINT64_MAX;
+    pRequest->iTimeout = XRT_WAIT_FOREVER;
 }
 
 void xllmRequestUnit(xllm_request* pRequest)
@@ -363,9 +363,9 @@ void xllmRequestSetCancel(xllm_request* pRequest, xcancel* pCancel)
     if ( pRequest ) { pRequest->pCancel = pCancel; }
 }
 
-void xllmRequestSetDeadline(xllm_request* pRequest, uint64_t uDeadline)
+void xllmRequestSetTimeout(xllm_request* pRequest, int64_t iTimeout)
 {
-    if ( pRequest ) { pRequest->uDeadline = uDeadline; }
+    if ( pRequest ) { pRequest->iTimeout = iTimeout; }
 }
 
 bool xllmRequestSetToolChoice(xllm_request* pRequest, xllm_tool_choice eChoice, const char* sNamedTool)

@@ -24,7 +24,7 @@ api: xhttp-http_server, xhttp-http_server_router, net
 
 `xrtHttpServerStart(Engine, 配置, 事件表)` 创建并立即启动；**启动失败不留部分可用的 Server**——全部逻辑端点要么都绑定成功要么整体失败（多端点配置见 Network 节）。配置要点：
 
-- **五段超时**（微秒）：`HeaderTimeout`（读头阶段）、`BodyTimeout`（读正文）、`RequestTimeout`（应用处理时长）、`IdleTimeout`（keep-alive 空闲）、`WriteTimeout`（响应无进展）——零值关闭对应保护。慢速攻击的每一段都有闸。
+- **五段超时**（毫秒）：`HeaderTimeout`（读头阶段）、`BodyTimeout`（读正文）、`RequestTimeout`（应用处理时长）、`IdleTimeout`（keep-alive 空闲）、`WriteTimeout`（响应无进展）——零值关闭对应保护。慢速攻击的每一段都有闸。
 - **连接与限额**：`MaxConnections`（零=不加应用层上限）、`MaxInformations`（单请求排队的信息响应数）、`WriteSize`（一次零复制发送租约——**不为每连接预留固定发送缓冲**）；接收内存由 TCP 的按需 `xnetbuf` 与硬限额管理。
 - **Network**：完整暴露 TCP Server 的多端点、共享动态端口、accept 队列、reuse-port——`xrtHttpServerLocal` 取真实端点（监听端口填 0 的标准姿势，与第 67 章同款）；`xrtHttpServerNetwork` 借出底层 `xnetserver` 引用（特殊场景用低层统计，用完 `xrtNetServerDestroy`）。
 
@@ -86,7 +86,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 ## 契约
 
 - **启动原子性**：全部逻辑端点同时绑定成功，失败不留部分 Server；地址范围打开前验证；限额静态无分配验证。
-- **五段超时**：Header/Body/Request/Idle/Write 各护一段，微秒单位，零值关闭；慢速攻击每段有闸。
+- **五段超时**：Header/Body/Request/Idle/Write 各护一段，毫秒单位，零值关闭；慢速攻击每段有闸。
 - **事件串行**：全部应用事件在连接所属 Worker 串行执行；Error 至多一次（稳定错误+cause 链）、Close 恰一次；传输失败固定 Error→Close 顺序。
 - **Headers 策略**：缓冲/流式/丢弃/拒绝/直接响应五选；正文限额路由级（SetRequestBodyLimit 改当前 Exchange 唯一硬上限）。
 - **Body 背压**：Pause 仅 Body 回调内；片段回调返回即失效；Resume 任意线程（内嵌命令零分配）；暂停期 BodyTimeout 计时。
@@ -180,7 +180,7 @@ Headers 回调按路由设置正文限额（`/avatar` 2 MB、`/video` 200 MB、�
 | 知识点 | 速查 |
 | --- | --- |
 | 启动 | Start 一步建明文服务；失败不留部分 Server；Local 取动态端口端点 |
-| 五段超时 | Header/Body/Request/Idle/Write 各护一段；微秒；零值关 |
+| 五段超时 | Header/Body/Request/Idle/Write 各护一段；毫秒；零值关 |
 | 事件链 | Open→Headers（策略点）→Body（流式片段）→Request→Error/Close；Worker 串行 |
 | Headers 五策 | 缓冲/流式/丢弃/拒绝/直接响应；限额路由级 |
 | Body 背压 | Pause 仅回调内、片段即失效；Resume 任意线程零分配；暂停期超时计 |

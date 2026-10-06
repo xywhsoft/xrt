@@ -77,7 +77,7 @@ int main(int argc, char** argv)
     char discovery_url[4096];
     if ( !xrtMemDebugEnable(true) ) return 3;
     ca = read_ca(argv[4]);
-    if ( ca == NULL || (http = xoauth2HttpXrtCreate(NULL, ca, 10000000u)) == NULL ) goto done;
+    if ( ca == NULL || (http = xoauth2HttpXrtCreate(NULL, ca, 10000)) == NULL ) goto done;
     xoauth2ConfigInit(&config); config.Http = counted_http; config.HttpContext = http;
     xoauth2UseCustom(&oauth, &config);
     stage = "discovery";
@@ -178,7 +178,7 @@ done:
     xrtFree(tampered); xrtFree(json); xrtFree(url); xoauth2ClientUnit(&oauth);
     if ( !xoauth2HttpXrtCleanup(http) ) result = 1;
     xoauth2HttpXrtDestroy(http);
-    if ( !xoauth2HttpXrtCleanupPending(10000000u, NULL) ) result = 1;
+    if ( !xoauth2HttpXrtCleanupPending(10000, NULL) ) result = 1;
     xrtFree(ca); xrtClearError();
     xmemdebugsnapshot memory; xrtMemDebugSnapshot(&memory);
     if ( memory.LiveCount || memory.LiveBytes || memory.InvalidFreeCount || memory.DoubleFreeCount ) {

@@ -277,7 +277,7 @@ static void testCancelConcurrentUnwatch(void)
 		);
 	}
 	if ( !tState.Unwatched ) {
-		tWait = xrtCondWaitFor(&tState.Cond, &tState.Lock, 20000);
+		tWait = xrtCondWaitFor(&tState.Cond, &tState.Lock, 20);
 		testRequire(tWait == XWAIT_TIMEOUT, "unwatch returned before callback completion");
 	}
 	tState.Release = true;

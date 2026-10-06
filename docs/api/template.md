@@ -228,7 +228,7 @@ typedef struct xtemplatevalue {
 | `Unsigned` | `uint64` | Unsigned |
 | `Float` | `double` | Float |
 | `Text` | `xstrview` | 文本视图 |
-| `Time` | `xtime` | 时间戳（Unix 微秒） |
+| `Time` | `xtime` | 时间戳（公元 UTC 毫秒） |
 
 ### `xtemplateconfig`
 

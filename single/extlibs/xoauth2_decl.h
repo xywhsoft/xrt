@@ -2878,17 +2878,17 @@ XRT_API int xoauth2LastError(void);
 typedef struct xoauth2httpxrt xoauth2httpxrt;
 
 /* 零值可用；pBorrowedEngine 借用宿主 net engine（NULL 则自建），
- * sCaPem 为 NULL 时用系统证书库，uTimeoutUs 为 0 时默认 15s。
+ * sCaPem 为 NULL 时用系统证书库，uTimeoutMs 为 0 时默认 15s。
  * 此超时分别约束连接、整次发送及完整响应，不会逐分片重置。
  * Init 仅用于首次或已成功清理的外壳；失败回滚至少有 30 秒预算，与请求
  * 时限分开。失败后仍须清理外壳，清理未完成时只能重试 Cleanup/Unit/Destroy。
  * 未交付的堆构造由 CleanupPending 清理；有待清理对象时新建私有引擎
  * 会先非阻塞轮询，仍未完成则拒绝，借用引擎不受该限制。 */
 XRT_API bool xoauth2HttpXrtInit(xoauth2httpxrt* pHttp, void* pBorrowedEngine,
-                        const char* sCaPem, uint64_t uTimeoutUs);
+                        const char* sCaPem, int64 uTimeoutMs);
 XRT_API void xoauth2HttpXrtUnit(xoauth2httpxrt* pHttp);
 
-/* 与请求串行调用；等待自建 engine 的异步 Close/Abort，最多 uTimeoutUs。
+/* 与请求串行调用；等待自建 engine 的异步 Close/Abort，最多 uTimeoutMs。
  * 成功释放内部资源（不释放句柄），重复调用或 NULL 均成功；不停止借用 engine。
  * 失败保留自建 engine 的拥有权，句柄仅可用于再次 Cleanup/Unit/Destroy。
  * 保留调用前的非空错误；需判断清理结果时使用此返回值。 */
@@ -2898,17 +2898,17 @@ XRT_API bool xoauth2HttpXrtCleanup(xoauth2httpxrt* pHttp);
  * Destroy 清理成功才释放整个句柄；失败保留句柄供重试。
  * 需要确认成功时先调用 Cleanup，成功后再 Destroy。参数语义与 Init 相同。 */
 XRT_API xoauth2httpxrt* xoauth2HttpXrtCreate(void* pBorrowedEngine,
-                                     const char* sCaPem, uint64_t uTimeoutUs);
+                                     const char* sCaPem, int64 uTimeoutMs);
 XRT_API void            xoauth2HttpXrtDestroy(xoauth2httpxrt* pHttp);
 
 /* 重试未交付失败堆构造的引擎退休；并发可用，入列不分配且不启动后台线程。
  * 宿主停止新调用、等待在途调用结束并清理已交付实例后，在退出/卸载前
  * 调用至 true；false 时保留库及运行环境并稍后重试。
- * uTimeoutUs == 0 为一次非阻塞轮询；非零为等待预算，退休 ERROR 提前结束。
+ * uTimeoutMs == 0 为一次非阻塞轮询；非零为等待预算，退休 ERROR 提前结束。
  * true 表示队列及其他清理调用正在处理的对象全部释放；piPending 可空，
  * 非空时返回尚未完成数量。保留已有错误；无旧错误时报告退休错误或 XERR_TIMEOUT，
  * 非阻塞 BUSY 不制造错误。已交付句柄仍由 Cleanup/Unit/Destroy 清理。 */
-XRT_API bool xoauth2HttpXrtCleanupPending(uint64_t uTimeoutUs, size_t* piPending);
+XRT_API bool xoauth2HttpXrtCleanupPending(int64 uTimeoutMs, size_t* piPending);
 
 /* 交付最多 1 MiB 的 C 字符串正文（拒绝原始 NUL），调用方用 xrtFree 释放。
  * 响应头与 trailer 各限 100 字段；HTTPS 关闭定界正文须认证 close_notify。

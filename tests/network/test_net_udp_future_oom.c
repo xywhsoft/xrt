@@ -54,7 +54,7 @@ static void testUdpFutureOomFree(ptr pData, ptr pMemory)
 /* 等待 UDP 状态推进到目标。 */
 static void testUdpFutureOomState(xnetudp* pUdp, xnetudpstate State)
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(5000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(5000));
 
 	while ( xrtNetUdpState(pUdp) != State ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
@@ -68,7 +68,7 @@ static void testUdpFutureOomState(xnetudp* pUdp, xnetudpstate State)
 /* 等待一个数据包进入拉取队列，避免故障注入测试在后端异常时永久阻塞。 */
 static void testUdpFutureOomQueued(xnetudp* pUdp)
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(5000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(5000));
 
 	while ( xrtNetUdpQueued(pUdp) == 0 ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
@@ -163,7 +163,7 @@ int main(void)
 		testRequire(xrtFutureCancel(pPending[i]) &&
 			 (xrtFutureWaitFor(
 				pPending[i],
-				UINT64_C(5000000)
+				INT64_C(5000)
 			 ) == XWAIT_OK) &&
 			 (xrtFutureState(pPending[i]) == XFUTURE_CANCELLED),
 			"UDP Future OOM retained a malformed waiter");
@@ -190,7 +190,7 @@ int main(void)
 	testRequire((pRecovered != NULL) &&
 		 (xrtFutureWaitFor(
 			pRecovered,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		 (xrtFutureState(pRecovered) == XFUTURE_RESOLVED),
 		"UDP receive Future did not recover after OOM");

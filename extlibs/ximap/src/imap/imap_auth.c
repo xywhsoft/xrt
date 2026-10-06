@@ -1,3 +1,4 @@
+#include <xrt/detail/ximap_wait.h>
 #include <xrt/detail/wait.h>
 #include <xrt/imap_auth.h>
 
@@ -430,6 +431,8 @@ XRT_API bool __xrtImapClientAuth(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	uint64 iCapability;
 
 	if ( pClient == NULL ) {

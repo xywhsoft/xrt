@@ -1,3 +1,4 @@
+#include <xrt/detail/xpop3_wait.h>
 #include <xrt/detail/wait.h>
 #include <xrt/pop3_client.h>
 
@@ -234,6 +235,8 @@ XRT_API xpop3client* __xrtPop3ClientOpen(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	xpop3client* pClient;
 	xpop3reply Reply;
 
@@ -452,6 +455,8 @@ XRT_API bool __xrtPop3ClientSend(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtPop3ClientSendLine(
 		pClient,
 		Line,
@@ -472,6 +477,8 @@ XRT_API bool __xrtPop3ClientAuthLine(
 )
 {
 	if ( pClient == NULL ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		__xrtMailSetInvalidArgument();
 		return false;
 	}
@@ -501,6 +508,8 @@ XRT_API bool __xrtPop3ClientLine(
 )
 {
 	if ( !__xrtPop3ClientUsable(pClient) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		return false;
 	}
 	if ( pClient->State == XPOP3_CLIENT_MULTILINE ) {
@@ -534,6 +543,8 @@ XRT_API bool __xrtPop3ClientReceive(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xstrview Line;
 
 	if ( !xrtMemRangeValid(pReply, sizeof(*pReply)) ) {
@@ -563,6 +574,8 @@ XRT_API bool __xrtPop3ClientCommand(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	char sCommand[XPOP3_COMMAND_MAX + 1u];
 	size_t iSize;
 
@@ -616,6 +629,8 @@ XRT_API bool __xrtPop3ClientBegin(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xpop3reply Reply;
 
 	if ( !__xrtPop3ClientCommand(
@@ -646,6 +661,8 @@ XRT_API xmailnext __xrtPop3ClientNext(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XMAIL_NEXT_ERROR; }
+
 	xstrview Line;
 	xmailnext Next;
 
@@ -740,6 +757,8 @@ XRT_API bool __xrtPop3ClientStat(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xpop3reply Reply;
 
 	if ( !__xrtPop3ClientTransaction(pClient) ) {
@@ -779,6 +798,8 @@ XRT_API bool __xrtPop3ClientList(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	char sNumber[21];
 	xpop3reply Reply;
 
@@ -817,6 +838,8 @@ XRT_API bool __xrtPop3ClientListAll(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtPop3ClientTransaction(pClient) && __xrtPop3ClientBegin(
 		pClient,
 		XRT_STR_LITERAL("LIST"),
@@ -837,6 +860,8 @@ XRT_API bool __xrtPop3ClientUidl(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	char sNumber[21];
 	xpop3reply Reply;
 
@@ -875,6 +900,8 @@ XRT_API bool __xrtPop3ClientUidlAll(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtPop3ClientTransaction(pClient) && __xrtPop3ClientBegin(
 		pClient,
 		XRT_STR_LITERAL("UIDL"),
@@ -894,6 +921,8 @@ XRT_API bool __xrtPop3ClientRetr(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	char sNumber[21];
 
 	if ( !__xrtPop3ClientTransaction(pClient) ) {
@@ -923,6 +952,8 @@ XRT_API bool __xrtPop3ClientTop(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	char sNumbers[42];
 
 	if ( !__xrtPop3ClientTransaction(pClient) ) {
@@ -951,6 +982,8 @@ XRT_API bool __xrtPop3ClientDelete(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	char sNumber[21];
 	xpop3reply Reply;
 
@@ -983,6 +1016,8 @@ XRT_API bool __xrtPop3ClientReset(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtPop3ClientSimple(
 		pClient,
 		XRT_STR_LITERAL("RSET"),
@@ -1000,6 +1035,8 @@ XRT_API bool __xrtPop3ClientNoop(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtPop3ClientSimple(
 		pClient,
 		XRT_STR_LITERAL("NOOP"),
@@ -1017,6 +1054,8 @@ XRT_API bool __xrtPop3ClientQuit(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xpop3reply Reply;
 
 	if ( !__xrtPop3ClientUsable(pClient) ||
@@ -1047,6 +1086,8 @@ XRT_API bool __xrtPop3ClientClose(
 )
 {
 	if ( !__xrtPop3ClientUsable(pClient) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		return false;
 	}
 	if ( !__xrtMailTransportClose(&pClient->Transport, iDeadline) ) {

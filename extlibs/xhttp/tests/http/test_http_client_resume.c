@@ -50,7 +50,7 @@ static void testHttpClientResumeWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -68,7 +68,7 @@ static void testHttpClientResumeEngineDestroy(
 	xnetengine* pEngine
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		const xerror* pError = xrtGetError();
@@ -564,7 +564,7 @@ int main(void)
 
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup = testHttpClientResumeLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1u;
 	ClientConfig.TlsContext = pContext;
 	ClientConfig.TlsVerifier = pVerifier;

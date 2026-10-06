@@ -6,7 +6,7 @@
 /* 等待失败回滚释放全部 Listener Engine 占用。 */
 static void testTcpServerRollback(xnetengine* pEngine)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 	xnetenginestats Stats;
 
 	for ( ;; ) {

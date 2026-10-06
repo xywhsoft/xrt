@@ -254,7 +254,7 @@ static ptr sessionConsume(ptr pData)
 		if ( pFuture != NULL ) {
 			(void)xrtFutureAwaitFor(
 				pFuture,
-				UINT64_C(5000000)
+				INT64_C(5000)
 			);
 			xrtFutureDestroy(pFuture);
 		}

@@ -25,7 +25,7 @@ SSH 系列收官——前六章的零件在此总装。`ssh_client` 在**调用�
 ```diagram flow
 - 装配：ConfigInit+ClientInit → 事件表交给 NetStreamConnect（或 Attach 已建流）
 - TCP 打开：Worker 绑定（channel/控制报文 scratch 此时才接缓冲池）
-- ReadyTimeout（默认 30s，微秒）覆盖：版本交换→KEX→主机信任→认证
+- ReadyTimeout（默认 30s，毫秒）覆盖：版本交换→KEX→主机信任→认证
 - Ready：SSH 可用——通道/转发的起点
 - 错误/超时：结构化错误（XSSH_ERROR_TIMEOUT/XERR_TIMEOUT/域）同达 Error/Close/全部未决 Future
 - TCP 侧：DNS/建连截止归 xnetdialconfig.Timeout（独立控制）

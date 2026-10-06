@@ -18,7 +18,7 @@ static void testTcpPullStats(
 	xnetlistenerstats* pStats
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	for ( ;; ) {
 		testRequire(xrtNetListenerStats(pListener, pStats),
@@ -38,7 +38,7 @@ static void testTcpPullStats(
 /* 等待 Stream 进入唯一关闭终态。 */
 static void testTcpPullCloseStream(xnetstream* pStream)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	testRequire(xrtNetStreamClose(pStream),
 		"TCP pull stream close failed");
@@ -127,7 +127,7 @@ int main(void)
 		"TCP pull peers close failed");
 	testRequire(xrtNetListenerClose(pListener),
 		"TCP pull listener close failed");
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP pull listener close timed out");

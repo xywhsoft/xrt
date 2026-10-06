@@ -37,7 +37,7 @@ int main(void)
 		XNET_FAMILY_UNSPEC
 	);
 	if ( (pFuture == NULL) ||
-		 (xrtFutureWaitFor(pFuture, 5000000u) != XWAIT_OK) ) {
+		 (xrtFutureWaitFor(pFuture, 5000) != XWAIT_OK) ) {
 		xrtFutureDestroy(pFuture);
 		(void)xrtNetResolverDestroy(pResolver);
 		return 2;

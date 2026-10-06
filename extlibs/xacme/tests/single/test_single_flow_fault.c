@@ -206,9 +206,9 @@ static xx509result flow_name_equal(xbytesview Left,xbytesview Right) {
     arm("certificate-name"); xx509result Result=xrtX509NameEqual(Left,Right); if(Result==X509_ERROR) remember(); return Result;
 }
 /* Resolver fault controls must not depend on OS scheduling or wall time. */
-static uint64 flow_clock(void) { return selected("resolver")?ResolverClock:xrtClock(); }
+static uint64 flow_clock(void) { return selected("resolver")?ResolverClock:xrtTimer(); }
 static void flow_sleep(uint32 Ms) { Sleeps++; if(selected("resolver")) ResolverClock+=(uint64)Ms*UINT64_C(1000); }
-static bool flow_init(xacmehttp* Http,struct xnetengine* Engine,cstr Ca,uint64 Timeout) {
+static bool flow_init(xacmehttp* Http,struct xnetengine* Engine,cstr Ca,int64 Timeout) {
     (void)Engine; (void)Ca; memset(Http,0,sizeof(*Http)); Http->uTimeoutUs=Timeout; return true;
 }
 static str duplicate(cstr Text) {
@@ -386,7 +386,7 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #define xrtPemDecodeNew flow_decode
 #define xrtX509NameEqual flow_name_equal
 #define xrtSleep flow_sleep
-#define xrtClock flow_clock
+#define xrtTimer flow_clock
 #define xrtAcmeStoreNeedRenew flow_need_renew
 #define xrtAcmeStoreSaveGrant flow_save_grant
 #define xrtAcmeStoreSaveAccount flow_save_account
@@ -409,7 +409,7 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #undef xrtPemDecodeNew
 #undef xrtX509NameEqual
 #undef xrtSleep
-#undef xrtClock
+#undef xrtTimer
 #undef xrtAcmeStoreNeedRenew
 #undef xrtAcmeStoreSaveGrant
 #undef xrtAcmeStoreSaveAccount
@@ -498,7 +498,7 @@ static bool operation(struct xacmeclient* Client) {
 static void run_case(const flowcase* Case,bool Oom) {
     Active=Case; Enabled=Case->Op==FLOW_CREATE; Inject=Oom; Armed=FirstReply=Finalized=false;
     Requests=NonceRequests=AuthzRequests=OrderRequests=LookupRequests=KeyChangeRequests=Sleeps=Adds=Removes=0; LastJson=NULL; FirstError=NULL;
-    ResolverQueries=0u; ResolverClock=xrtClock();
+    ResolverQueries=0u; ResolverClock=xrtTimer();
     CertificateDecodes=AlternateRequests=0u; AlternateResponse=false;
     xrtClearError(); struct xacmeclient* Client=create_client(Enabled || strcmp(Case->Name,"host-cert-key")==0);
     bool Result=Client!=NULL;

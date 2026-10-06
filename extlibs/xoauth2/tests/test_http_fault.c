@@ -134,7 +134,7 @@ static void run(const char* Name, bool UseTls)
     Mode = Name; Tls = UseTls; Dials = Sends = Recvs = Ends = Aborts = Closes = Destroys = 0;
     xoauth2httpxrt Http; memset(&Http, 0, sizeof(Http));
     Http.pEngine = (xnetengine*)&RoutingToken; Http.pResolver = (xnetresolver*)&RoutingToken;
-    Http.pVerifier = &RoutingToken; Http.uTimeoutUs = suffix("pending") ? 5000u : 1000000u;
+    Http.pVerifier = &RoutingToken; Http.uTimeoutMs = suffix("pending") ? 5u : 1000u;
     char* Response = (char*)&RoutingToken; int Status = 999;
     /* An old caller error must not turn the next IO failure into MEMORY. */
     if (suffix("io")) xrtSetErrorInfo(XERR_MEMORY, "test.caller", 2803, "stale caller error");
@@ -158,7 +158,7 @@ static void run(const char* Name, bool UseTls)
     clean();
     if (!stage("control")) {
         Mode = "control"; Dials = Sends = Recvs = Ends = Aborts = Closes = Destroys = 0;
-        Http.uTimeoutUs = 1000000u;
+        Http.uTimeoutMs = 1000u;
         require(xoauth2HttpXrt("POST", Tls ? "https://idp.example/token" : "http://idp.example/token", "code=new", NULL, &Response, &Status, &Http), "same context accepts a separately requested operation");
         require(Status == 200 && Response != NULL && strcmp(Response, "{}") == 0 && Dials == 1 && Sends == 1 && Closes == 1 && Destroys == 1, "recovery has its own single attempt and cleanup");
         xrtFree(Response); clean(); Mode = Name;

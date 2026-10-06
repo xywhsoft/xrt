@@ -15,7 +15,7 @@ int test_oauth2_package(void)
 	}
 	xrtFree(url);
 	xoauth2ClientUnit(&client);
-	if ( !xoauth2HttpXrtCleanupPending(0u, &pending) || (pending != 0u) ) return 3;
+	if ( !xoauth2HttpXrtCleanupPending(0, &pending) || (pending != 0u) ) return 3;
 	return 0;
 }
 

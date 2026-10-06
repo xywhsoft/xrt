@@ -1117,7 +1117,7 @@ XRT_API xtime xrtHttpCacheRecordResponseTime(
 
 
 /* 返回发出请求时的单调时钟。 */
-XRT_API uint64 xrtHttpCacheRecordRequestClock(
+XRT_API double xrtHttpCacheRecordRequestClock(
 	const xhttpcacherecord* pRecord
 )
 {
@@ -1127,7 +1127,7 @@ XRT_API uint64 xrtHttpCacheRecordRequestClock(
 
 
 /* 返回收到响应时的单调时钟。 */
-XRT_API uint64 xrtHttpCacheRecordResponseClock(
+XRT_API double xrtHttpCacheRecordResponseClock(
 	const xhttpcacherecord* pRecord
 )
 {

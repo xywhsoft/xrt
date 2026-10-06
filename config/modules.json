@@ -271,48 +271,6 @@
 			]
 		},
 		{
-			"name": "xllm_examples",
-			"state": "implemented",
-			"feature": null,
-			"depends": [
-				"json_read",
-				"file_whole",
-				"dir",
-				"codec_base64",
-				"net_tcp_dial_sync",
-				"net_tcp_dial_future",
-				"net_tcp_future",
-				"tls_stream_dial_future",
-				"tls_stream_future",
-				"tls_stream_listener",
-				"tls_stream_listener_sync",
-				"tls_client_verify",
-				"tls_record_aes",
-				"tls_schedule_sha256",
-				"tls_schedule_sha384",
-				"tls_key_exchange_x25519",
-				"tls_key_exchange_p256",
-				"tls_identity_rsa",
-				"tls_verify",
-				"x509_store_system",
-				"http1_body",
-				"thread",
-				"mutex",
-				"cancel",
-				"time"
-			],
-			"public_headers": [],
-			"internal_headers": [],
-			"sources": [],
-			"tests": [],
-			"single_tests": [],
-			"examples": [
-				"examples/xllm/complete_stats/main.c"
-			],
-			"benchmarks": [],
-			"docs": []
-		},
-		{
 			"name": "future_ownership_adapter_tests",
 			"state": "implemented",
 			"feature": null,
@@ -4682,11 +4640,30 @@
 				"tests/single/test_single_crypto_aes_gcm.c"
 			],
 			"examples": [
-				"examples/crypto/aes_gcm/main.c",
-				"examples/crypto/aead_tour/main.c"
+				"examples/crypto/aes_gcm/main.c"
 			],
 			"benchmarks": [
 				"dev/bench/crypto/bench_aes_gcm.c"
+			],
+			"docs": [
+				"docs/api/crypto.md"
+			]
+		},
+		{
+			"name": "crypto_aead_examples",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"crypto_aes_gcm",
+				"crypto_chacha20_poly1305"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"examples/crypto/aead_tour/main.c"
 			],
 			"docs": [
 				"docs/api/crypto.md"
@@ -6575,7 +6552,13 @@
 			],
 			"docs": [
 				"docs/api/wait.md"
-			]
+			],
+			"link_libraries": {
+				"posix": [
+					"m"
+				],
+				"windows": []
+			}
 		},
 		{
 			"name": "once",
@@ -8830,12 +8813,34 @@
 				"tests/network/test_net_port_config.c"
 			],
 			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/net.md"
+			]
+		},
+		{
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
 			"examples": [
 				"examples/network/port_tour/main.c"
 			],
 			"docs": [
 				"docs/api/net.md"
-			]
+			],
+			"benchmarks": [],
+			"name": "net_port_iocp_examples",
+			"feature": null,
+			"depends": [
+				"net_port_iocp",
+				"net_port_select"
+			],
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented"
 		},
 		{
 			"name": "net_port_select",
@@ -13407,7 +13412,7 @@
 				"dev/bench/bench_common.h",
 				"dev/bench/xlon/bench_xlon.c",
 				"dev/bench/xlon/README.md",
-				"dev/bench/xlon/XLON_BENCH_20260731.md"
+				"dev/bench/xlon/xlon_BENCH_20260731.md"
 			],
 			"docs": [
 				"docs/api/xlon.md",

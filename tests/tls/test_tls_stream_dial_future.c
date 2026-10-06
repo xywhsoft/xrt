@@ -47,7 +47,7 @@ static ptr testTlsDialFutureAwaitProc(ptr pData)
 
 	pAwait->Result = xrtFutureAwaitFor(
 		pAwait->Future,
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 	return pAwait;
 }
@@ -89,7 +89,7 @@ static void testTlsDialFutureWaitFuture(xfuture* pFuture)
 {
 	testRequire(xrtFutureWaitFor(
 		pFuture,
-		UINT64_C(10000000)
+		INT64_C(10000)
 	) == XWAIT_OK, "TLS Dial Future wait timed out");
 }
 
@@ -104,7 +104,7 @@ static void testTlsDialFutureWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -383,9 +383,9 @@ int main(void)
 
 	xrtTlsDialConfigInit(&DialConfig);
 	DialConfig.Transport.Affinity = 1u;
-	DialConfig.Transport.FallbackDelay = 1000u;
+	DialConfig.Transport.FallbackDelay = 1;
 	DialConfig.Transport.MaxAttempts = 2u;
-	DialConfig.Timeout = UINT64_C(10000000);
+	DialConfig.Timeout = INT64_C(10000);
 	pFuture = xrtTlsDialAsync(
 		pEngine,
 		pResolver,

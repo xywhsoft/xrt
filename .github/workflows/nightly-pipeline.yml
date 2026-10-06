@@ -291,8 +291,8 @@ jobs:
         run: python tools/build.py --compiler tcc --suite all --trim-only --no-examples
 
   compat-macos-intel:
-    name: macOS 13 Intel cc
-    runs-on: macos-13
+    name: macOS 15 Intel cc
+    runs-on: macos-15-intel
     timeout-minutes: 60
     steps:
       - name: Checkout
@@ -316,9 +316,11 @@ jobs:
         include:
           - arch: aarch64
             prefix: aarch64-linux-gnu
+            libc: libc6-dev-arm64-cross
             qemu: qemu-aarch64
           - arch: riscv64
             prefix: riscv64-linux-gnu
+            libc: libc6-dev-riscv64-cross
             qemu: qemu-riscv64
     steps:
       - name: Checkout
@@ -334,7 +336,7 @@ jobs:
           set -eu
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            "gcc-${{ matrix.prefix }}" qemu-user
+            "gcc-${{ matrix.prefix }}" "${{ matrix.libc }}" qemu-user
 
       - name: Build core and network tests
         run: |

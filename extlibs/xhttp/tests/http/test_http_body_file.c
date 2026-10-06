@@ -62,7 +62,7 @@ static xhttpbody* testHttpBodyFilePrepared(
 	testRequire(
 		xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		sMessage
 	);
@@ -92,7 +92,7 @@ static void testHttpBodyFileWait(
 	testRequire(
 		xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		sMessage
 	);
@@ -338,7 +338,7 @@ static void testHttpBodyFileReadSize(
 		(pClose != NULL) &&
 		(xrtFutureWaitFor(
 			pClose,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK),
 		"invalid-config HTTP file body consumed its source"
 	);
@@ -426,7 +426,7 @@ static void testHttpBodyFileErrors(
 	testRequire(
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_FAILED),
 		"missing HTTP file body did not fail"
@@ -472,7 +472,7 @@ static void testHttpBodyFileErrors(
 	testRequire(
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_FAILED),
 		"invalid HTTP file range did not fail"
@@ -512,7 +512,7 @@ static void testHttpBodyFileErrors(
 		(pClose != NULL) &&
 		(xrtFutureWaitFor(
 			pClose,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK),
 		"failed HTTP file body adoption consumed its source"
 	);
@@ -564,7 +564,7 @@ static bool testHttpBodyFileBlockStarted(
 		bResult = xrtCondWaitFor(
 			&pBlock->Cond,
 			&pBlock->Lock,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK;
 	}
 	(void)xrtMutexUnlock(&pBlock->Lock);
@@ -647,11 +647,11 @@ static void testHttpBodyFileBackpressure(cstr sPath)
 	testRequire(
 		(xrtFutureWaitFor(
 			pBlock,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK) &&
 		(xrtFutureWaitFor(
 			pQueued,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pQueued) == XFUTURE_CANCELLED),
 		"queued HTTP file body cancellation did not complete"

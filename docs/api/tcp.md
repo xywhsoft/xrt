@@ -207,7 +207,7 @@ Timeout 覆盖 DNS、TCP 和代理握手全过程；零值保留各内层超时�
 ```c
 typedef struct xnetproxydialconfig {
 	xnetdialconfig Transport;
-	uint64 Timeout;
+	int64 Timeout;
 	size_t ReceiveLimit;
 } xnetproxydialconfig;
 ```
@@ -215,7 +215,7 @@ typedef struct xnetproxydialconfig {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Transport` | `xnetdialconfig` | Transport |
-| `Timeout` | `uint64` | 超时（微秒） |
+| `Timeout` | `int64` | 超时（毫秒） |
 | `ReceiveLimit` | `size_t` | ReceiveLimit |
 
 ### `xnetproxydialstats`
@@ -449,7 +449,7 @@ typedef enum xnetstreamreadmode {
 
 ### `xnetstreamconfig`
 
-所有字节容量都是硬边界，ConnectTimeout 使用微秒。
+所有字节容量都是硬边界，ConnectTimeout 使用毫秒。
 
 ```c
 typedef struct xnetstreamconfig {
@@ -458,7 +458,7 @@ typedef struct xnetstreamconfig {
 	size_t WriteHighWater;
 	size_t WriteLowWater;
 	size_t WriteLimit;
-	uint64 ConnectTimeout;
+	int64 ConnectTimeout;
 	xnetstreamreadmode ReadMode;
 	bool NoDelay;
 	bool KeepAlive;
@@ -553,14 +553,14 @@ typedef struct xnetstreamstats {
 
 ### `xnetdialconfig`
 
-Timeout 和 FallbackDelay 使用微秒；MaxAttempts 是解析结果的硬上限。
+Timeout 和 FallbackDelay 使用毫秒；MaxAttempts 是解析结果的硬上限。
 
 ```c
 typedef struct xnetdialconfig {
 	xnetstreamconfig Stream;
 	xnetfamily Family;
 	uint64 Affinity;
-	uint64 Timeout;
+	int64 Timeout;
 	uint64 FallbackDelay;
 	uint32 MaxAttempts;
 } xnetdialconfig;
@@ -571,7 +571,7 @@ typedef struct xnetdialconfig {
 | `Stream` | `xnetstreamconfig` | 流选择 |
 | `Family` | `xnetfamily` | 地址族 |
 | `Affinity` | `uint64` | 亲和 Worker |
-| `Timeout` | `uint64` | 超时（微秒） |
+| `Timeout` | `int64` | 超时（毫秒） |
 | `FallbackDelay` | `uint64` | FallbackDelay |
 | `MaxAttempts` | `uint32` | MaxAttempts |
 
@@ -903,7 +903,7 @@ typedef struct xnetstreamconfig {
 	size_t WriteHighWater;
 	size_t WriteLowWater;
 	size_t WriteLimit;
-	uint64 ConnectTimeout;
+	int64 ConnectTimeout;
 	xnetstreamreadmode ReadMode;
 	bool NoDelay;
 	bool KeepAlive;
@@ -1641,7 +1641,7 @@ xfuture* xrtNetListenerAcceptAsync(xnetlistener* pListener)
 阻塞接受一个不继承 Listener 数据的连接并返回调用方引用；禁止从 Listener Worker 调用。
 
 ```c
-xnetstream* xrtNetListenerAcceptWait(xnetlistener* pListener, xdeadline iDeadline, xcancel* pCancel)
+xnetstream* xrtNetListenerAcceptWait(xnetlistener* pListener, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -1649,7 +1649,7 @@ xnetstream* xrtNetListenerAcceptWait(xnetlistener* pListener, xdeadline iDeadlin
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pListener` | 输入 | 非空 | 目标 Listener |
-| `iDeadline` | 输入 | — | 截止时间 |
+| `iTimeout` | 输入 | — | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -1673,7 +1673,7 @@ xnetstream* xrtNetListenerAcceptWait(xnetlistener* pListener, xdeadline iDeadlin
 ```c
 	pServer = xrtNetListenerAcceptWait(
 		pListener,
-		xrtDeadlineAfter(3000000u),
+		3000,
 		NULL
 	);
 ```
@@ -1997,7 +1997,7 @@ xfuture* xrtNetServerAcceptAsync(xnetserver* pServer)
 阻塞接受一个连接；禁止从任意 Engine Worker 调用。
 
 ```c
-xnetstream* xrtNetServerAcceptWait(xnetserver* pServer, xdeadline iDeadline, xcancel* pCancel)
+xnetstream* xrtNetServerAcceptWait(xnetserver* pServer, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -2005,7 +2005,7 @@ xnetstream* xrtNetServerAcceptWait(xnetserver* pServer, xdeadline iDeadline, xca
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pServer` | 输入 | 非空 | 目标 Server |
-| `iDeadline` | 输入 | — | 截止时间 |
+| `iTimeout` | 输入 | — | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -2029,7 +2029,7 @@ xnetstream* xrtNetServerAcceptWait(xnetserver* pServer, xdeadline iDeadline, xca
 ```c
 	State.AcceptedSync = xrtNetServerAcceptWait(
 		State.Server,
-		xrtDeadlineAfter(UINT64_C(5000000)),
+		INT64_C(5000),
 		NULL
 	);
 ```
@@ -2315,7 +2315,7 @@ typedef struct xnetdialconfig {
 	xnetstreamconfig Stream;
 	xnetfamily Family;
 	uint64 Affinity;
-	uint64 Timeout;
+	int64 Timeout;
 	uint64 FallbackDelay;
 	uint32 MaxAttempts;
 } xnetdialconfig;
@@ -2378,7 +2378,7 @@ bool xrtNetDialStats(const xnetdial* pDial, xnetdialstats* pStats);
 阻塞完成主机解析、候选竞速与连接，并返回调用方 Stream 引用。
 
 ```c
-xnetstream* xrtNetConnect(xnetengine* pEngine, xnetresolver* pResolver, cstr sHost, uint16 iPort, const xnetdialconfig* pConfig, const xnetstreamevents* pStreamEvents, ptr pStreamData, xdeadline iDeadline, xcancel* pCancel)
+xnetstream* xrtNetConnect(xnetengine* pEngine, xnetresolver* pResolver, cstr sHost, uint16 iPort, const xnetdialconfig* pConfig, const xnetstreamevents* pStreamEvents, ptr pStreamData, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -2392,7 +2392,7 @@ xnetstream* xrtNetConnect(xnetengine* pEngine, xnetresolver* pResolver, cstr sHo
 | `pConfig` | 输入 | 允许空 | Dial 配置 |
 | `pStreamEvents` | 输入 | 允许空 | Stream 事件表 |
 | `pStreamData` | 输入 | 任意值 | Stream 数据 |
-| `iDeadline` | 输入 | — | 截止时间 |
+| `iTimeout` | 输入 | — | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -2422,7 +2422,7 @@ xnetstream* xrtNetConnect(xnetengine* pEngine, xnetresolver* pResolver, cstr sHo
 		NULL,
 		NULL,
 		NULL,
-		xrtDeadlineAfter(3000000u),
+		3000,
 		NULL
 	);
 ```
@@ -3113,7 +3113,7 @@ bool xrtNetStreamResume(xnetstream* pStream)
 ```c
 	if ( !xrtNetStreamResume(pServer) ||
 		 !xrtNetStreamWaitAvailable(pServer, 4u,
-			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL) ) {
+			EXAMPLE_DEADLINE_MS, NULL) ) {
 ```
 
 ### `xrtNetStreamShutdownWrite`
@@ -3425,7 +3425,7 @@ size_t xrtNetStreamRead(xnetstream* pStream, void* pOutput, size_t iSize)
 阻塞等待一个 Stream 条件；禁止从该 Stream 所属 Worker 调用。
 
 ```c
-bool xrtNetStreamWait(xnetstream* pStream, xnetstreamwait Wait, xdeadline iDeadline, xcancel* pCancel)
+bool xrtNetStreamWait(xnetstream* pStream, xnetstreamwait Wait, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -3434,7 +3434,7 @@ bool xrtNetStreamWait(xnetstream* pStream, xnetstreamwait Wait, xdeadline iDeadl
 |---|---|---|---|
 | `pStream` | 输入 | 非空 | 目标 Stream |
 | `Wait` | 输入 | — | 等待条件 |
-| `iDeadline` | 输入 | — | 截止时间 |
+| `iTimeout` | 输入 | — | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -3457,7 +3457,7 @@ bool xrtNetStreamWait(xnetstream* pStream, xnetstreamwait Wait, xdeadline iDeadl
 
 ```c
 		xrtNetStreamWait(pClient, XNET_STREAM_WAIT_READ,
-			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL) ? 1 : 0);
+			EXAMPLE_DEADLINE_MS, NULL) ? 1 : 0);
 ```
 
 ### `xrtNetStreamWaitAsync`
@@ -3500,7 +3500,7 @@ xfuture* xrtNetStreamWaitAsync(xnetstream* pStream, xnetstreamwait Wait)
 阻塞等待至少指定数量的可读字节。
 
 ```c
-bool xrtNetStreamWaitAvailable(xnetstream* pStream, size_t iMinimum, xdeadline iDeadline, xcancel* pCancel)
+bool xrtNetStreamWaitAvailable(xnetstream* pStream, size_t iMinimum, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -3509,7 +3509,7 @@ bool xrtNetStreamWaitAvailable(xnetstream* pStream, size_t iMinimum, xdeadline i
 |---|---|---|---|
 | `pStream` | 输入 | 非空 | 目标 Stream |
 | `iMinimum` | 输入 | — | 最少字节数 |
-| `iDeadline` | 输入 | — | 截止时间 |
+| `iTimeout` | 输入 | — | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -3530,7 +3530,7 @@ bool xrtNetStreamWaitAvailable(xnetstream* pStream, size_t iMinimum, xdeadline i
 
 ```c
 	if ( !xrtNetStreamWaitAvailable(pServer, sizeof(sExpected) - 1u,
-		xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL) ) {
+		EXAMPLE_DEADLINE_MS, NULL) ) {
 ```
 
 ### `xrtNetStreamWaitAvailableAsync`
@@ -3609,11 +3609,11 @@ xfuture* xrtNetStreamRecvAsync(xnetstream* pStream, size_t iMaxBytes)
 
 ```c
 bool xrtNetStreamWait(xnetstream* pStream, xnetstreamwait Wait,
-	xdeadline iDeadline, xcancel* pCancel);
+	int64 iTimeout, xcancel* pCancel);
 xnetstream* xrtNetListenerAcceptWait(xnetlistener* pListener,
-	xdeadline iDeadline, xcancel* pCancel);
+	int64 iTimeout, xcancel* pCancel);
 xnetbytes* xrtNetStreamRecv(xnetstream* pStream, size_t iMaxBytes,
-	xdeadline iDeadline, xcancel* pCancel);
+	int64 iTimeout, xcancel* pCancel);
 ```
 
 这些函数不能从目标 Stream 或 Listener 所属 Worker 调用，否则在阻塞事件循环前以 `XERR_STATE` 失败并撤销刚建立的 Future。成功接受返回调用方 Stream 引用；成功接收返回调用方 `xnetbytes` 引用，两者都独立于内部 Future，分别使用 `xrtNetStreamDestroy` 与 `xrtNetBytesDestroy` 释放。创建 Future、复制结果或增加结果引用发生 OOM 时不消费连接或接收字节。
@@ -3626,7 +3626,7 @@ xnetbytes* xrtNetStreamRecv(xnetstream* pStream, size_t iMaxBytes,
 xnetstream* xrtNetConnect(xnetengine* pEngine, xnetresolver* pResolver,
 	cstr sHost, uint16 iPort, const xnetdialconfig* pConfig,
 	const xnetstreamevents* pStreamEvents, ptr pStreamData,
-	xdeadline iDeadline, xcancel* pCancel);
+	int64 iTimeout, xcancel* pCancel);
 ```
 
 它不创建默认 Resolver 或隐藏 Engine。截止时间和外部取消结束本次阻塞连接并取消整个 Dial；成功返回已经 `OPEN` 的调用方 Stream 引用。Resolver、候选连接和系统错误的原因链与 `xrtNetDialAsync` 完全一致。
@@ -3636,7 +3636,7 @@ xnetstream* xrtNetConnect(xnetengine* pEngine, xnetresolver* pResolver,
 阻塞接收一段拥有型字节；零上限表示读取全部当前缓冲。
 
 ```c
-xnetbytes* xrtNetStreamRecv(xnetstream* pStream, size_t iMaxBytes, xdeadline iDeadline, xcancel* pCancel)
+xnetbytes* xrtNetStreamRecv(xnetstream* pStream, size_t iMaxBytes, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -3645,7 +3645,7 @@ xnetbytes* xrtNetStreamRecv(xnetstream* pStream, size_t iMaxBytes, xdeadline iDe
 |---|---|---|---|
 | `pStream` | 输入 | 非空 | 目标 Stream |
 | `iMaxBytes` | 输入 | — | 最多字节数，0 = 全部 |
-| `iDeadline` | 输入 | — | 截止时间 |
+| `iTimeout` | 输入 | — | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -3667,7 +3667,7 @@ xnetbytes* xrtNetStreamRecv(xnetstream* pStream, size_t iMaxBytes, xdeadline iDe
 
 ```c
 		xnetbytes* pBytes = xrtNetStreamRecv(pServer, 4,
-			xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL);
+			EXAMPLE_DEADLINE_MS, NULL);
 ```
 
 ### `xrtNetStreamState`

@@ -43,7 +43,7 @@ static void testHttpProxyFailureWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -379,10 +379,10 @@ static void testHttpProxyFailureRun(
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup =
 		testHttpProxyFailureLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	ClientConfig.Proxy = pProxy;
-	ClientConfig.Timeout = 2000000u;
+	ClientConfig.Timeout = 2000;
 	State.Client = xrtHttpClientCreate(
 		State.Engine,
 		&ClientConfig
@@ -405,7 +405,7 @@ static void testHttpProxyFailureRun(
 	);
 	xrtHttpCallOptionsInit(&CallOptions);
 	if ( Mode == TEST_HTTP_PROXY_TIMEOUT ) {
-		CallOptions.Timeout = 50000u;
+		CallOptions.Timeout = 50;
 	}
 	State.Call = xrtHttpClientDo(
 		State.Client,

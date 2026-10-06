@@ -182,7 +182,7 @@ typedef enum xfileinfoflag {
 
 
 
-/* 文件元数据时间统一使用 Unix Epoch 微秒。 */
+/* 文件元数据时间统一使用 Unix Epoch 毫秒。 */
 typedef struct xfileinfo {
 	xfiletype Type;
 	uint32 Available;

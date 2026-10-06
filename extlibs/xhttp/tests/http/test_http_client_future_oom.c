@@ -302,7 +302,7 @@ int main(void)
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 		"HTTP Future did not recover after OOM"
@@ -320,7 +320,7 @@ int main(void)
 	xrtHttpClientDestroy(pClient);
 	testHttpOriginStop(&Origin);
 
-	Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(INT64_C(10000));
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(

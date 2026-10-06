@@ -66,7 +66,7 @@ struct xhttp1exchange {
 	xrt_http_exchange_output OutputState;
 	xhttpbodyreader* Reader;
 	xhttpbodychunk Chunk;
-	int64 BodyRemaining;
+	uint64 BodyRemaining;
 	uint64 RequestWireBytes;
 	size_t HeadOffset;
 	size_t PartOffset;

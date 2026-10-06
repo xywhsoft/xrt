@@ -31,7 +31,7 @@ static void testTlsProxyWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -46,7 +46,7 @@ static void testTlsProxyWait(
  * so teardown waits on the Engine's authoritative live-object count. */
 static void testTlsProxyWaitCleanup(xnetengine* pEngine)
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 	xnetenginestats Stats;
 
 	for ( ;; ) {
@@ -206,7 +206,7 @@ int main(void)
 	ClientConfig.Verifier = pVerifier;
 	xrtTlsDialConfigInit(&DialConfig);
 	DialConfig.Stream.HandshakeTimeout = 0;
-	DialConfig.Timeout = TEST_TLS_PROXY_TIMEOUT ? 1000000u : 0;
+	DialConfig.Timeout = TEST_TLS_PROXY_TIMEOUT ? 1000 : 0;
 
 	xrtClearError();
 	testRequire((xrtTlsDialProxy(

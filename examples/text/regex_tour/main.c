@@ -72,7 +72,6 @@ int main(void)
 	xregex* pBad = NULL;
 	xregex* arrRegex[2];
 	xregexset* pSet = NULL;
-	xregexset* pSetRef = NULL;
 	xregexset* pBroken = NULL;
 	xregexmatcher* pMatcher = NULL;
 	xregexsetmatcher* pSetMatcher = NULL;

@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/proxy_tour —— 代理对象/握手自省/Dial 补集
  * ----------------------------------------------------------------
@@ -20,8 +19,25 @@
 #include <string.h>
 #include <xrt.h>
 
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
 #define SV(x) XRT_STR_LITERAL(x)
-#define EXAMPLE_TIMEOUT_US	UINT64_C(5000000)
+#define EXAMPLE_TIMEOUT_MS	INT64_C(5000)
 
 /* Dial 完成交接块。 */
 typedef struct examplepdial {
@@ -44,10 +60,10 @@ static void exampleDialDone(xnetproxydial* pDial,
 
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	double iDeadline = __xrtWaitAfter(EXAMPLE_TIMEOUT_US);
+	double iDeadline = exampleTimerLimit(EXAMPLE_TIMEOUT_MS);
 
 	while ( !*pFlag ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();

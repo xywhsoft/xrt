@@ -30,7 +30,7 @@ static bool exampleTlsFutureResolved(xfuture* pFuture)
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED);
 
@@ -76,7 +76,7 @@ static bool exampleTlsFutureReceive(xtlsstream* pStream)
 	if ( (pFuture == NULL) ||
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) != XWAIT_OK) ||
 		(xrtFutureState(pFuture) != XFUTURE_RESOLVED) ) {
 		xrtFutureDestroy(pFuture);

@@ -174,27 +174,27 @@ static void testHttpCacheCurrentAge(void)
 		xrtHttpCacheCurrentAge(
 			&Time,
 			iResponseTime,
-			UINT64_C(1000000),
-			UINT64_C(3000000),
-			UINT64_C(8000000),
+			1.0,
+			3.0,
+			8.0,
 			&Age
 		) == XHTTP_CACHE_CALC_READY &&
 		(Age.ApparentAge ==
-		 UINT64_C(4000000)) &&
+		 UINT64_C(4000)) &&
 		(Age.ResponseDelay ==
-		 UINT64_C(2000000)) &&
+		 UINT64_C(2000)) &&
 		(Age.CorrectedAgeValue ==
-		 UINT64_C(12000000)) &&
+		 UINT64_C(12000)) &&
 		(Age.CorrectedInitialAge ==
-		 UINT64_C(12000000)) &&
+		 UINT64_C(12000)) &&
 		(Age.ResidentTime ==
-		 UINT64_C(5000000)) &&
+		 UINT64_C(5000)) &&
 		(Age.CurrentAge ==
-		 UINT64_C(17000000)) &&
+		 UINT64_C(17000)) &&
 		(Age.CurrentAgeSeconds == 17),
 		"RFC current age formula mismatch"
 	);
-	Freshness.Lifetime = UINT64_C(17000000);
+	Freshness.Lifetime = UINT64_C(17000);
 	Freshness.Source = XHTTP_CACHE_FRESHNESS_MAX_AGE;
 	testRequire(
 		!xrtHttpCacheFresh(&Age, &Freshness),
@@ -222,12 +222,12 @@ static void testHttpCacheCurrentAge(void)
 		(xrtHttpCacheCurrentAge(
 			&Time,
 			0,
-			UINT64_C(1000000),
-			UINT64_C(3000000),
-			UINT64_C(8000000),
+			1.0,
+			3.0,
+			8.0,
 			&Age
 		 ) == XHTTP_CACHE_CALC_READY) &&
-		(Age.CurrentAge == UINT64_C(7000000)),
+		(Age.CurrentAge == UINT64_C(7000)),
 		"invalid Age was not ignored"
 	);
 	testRequire(
@@ -235,10 +235,10 @@ static void testHttpCacheCurrentAge(void)
 			InvalidDate, 1, &Time
 		) &&
 		(xrtHttpCacheCurrentAge(
-			&Time, 99, 1, 2, 3, &Age
+			&Time, 99, 1e-06, 2e-06, 3e-06, &Age
 		 ) == XHTTP_CACHE_CALC_READY) &&
 		(Age.ApparentAge == 0) &&
-		(Age.CurrentAge == 2),
+		(Age.CurrentAge == 0),
 		"invalid Date did not use response time"
 	);
 	testRequire(
@@ -251,7 +251,7 @@ static void testHttpCacheCurrentAge(void)
 	Age = Before;
 	testRequire(
 		(xrtHttpCacheCurrentAge(
-			&Time, 0, 1, 2, 3, &Age
+			&Time, 0, 1e-06, 2e-06, 3e-06, &Age
 		 ) == XHTTP_CACHE_CALC_INVALID) &&
 		(memcmp(&Age, &Before, sizeof(Age)) == 0),
 		"duplicate Date changed age output"
@@ -260,7 +260,7 @@ static void testHttpCacheCurrentAge(void)
 	Age = Before;
 	testRequire(
 		(xrtHttpCacheCurrentAge(
-			&Time, 0, 3, 2, 4, &Age
+			&Time, 0, 3e-06, 2e-06, 4e-06, &Age
 		 ) == XHTTP_CACHE_CALC_ERROR) &&
 		(memcmp(&Age, &Before, sizeof(Age)) == 0),
 		"out-of-order cache clocks changed output"
@@ -271,7 +271,7 @@ static void testHttpCacheCurrentAge(void)
 		(xrtHttpCacheCurrentAge(
 			&Time,
 			0,
-			0,
+			0.0,
 			UINT64_MAX,
 			UINT64_MAX,
 			&Age
@@ -291,9 +291,9 @@ static void testHttpCacheCurrentAge(void)
 		(xrtHttpCacheCurrentAge(
 			&Time,
 			INT64_MAX,
-			0,
-			0,
-			0,
+			0.0,
+			0.0,
+			0.0,
 			&Age
 		 ) == XHTTP_CACHE_CALC_READY) &&
 		(Age.ApparentAge == UINT64_MAX) &&
@@ -386,7 +386,7 @@ static void testHttpCacheFreshness(void)
 		(Freshness.Source ==
 		 XHTTP_CACHE_FRESHNESS_S_MAXAGE) &&
 		(Freshness.Lifetime ==
-		 UINT64_C(30000000)),
+		 UINT64_C(30000)),
 		"shared cache s-maxage precedence mismatch"
 	);
 	testRequire(
@@ -397,7 +397,7 @@ static void testHttpCacheFreshness(void)
 		(Freshness.Source ==
 		 XHTTP_CACHE_FRESHNESS_MAX_AGE) &&
 		(Freshness.Lifetime ==
-		 UINT64_C(60000000)),
+		 UINT64_C(60000)),
 		"private cache max-age precedence mismatch"
 	);
 	testRequire(
@@ -412,7 +412,7 @@ static void testHttpCacheFreshness(void)
 			&Freshness
 		 ) == XHTTP_CACHE_CALC_READY) &&
 		(Freshness.Lifetime ==
-		 UINT64_C(20000000)),
+		 UINT64_C(20000)),
 		"irrelevant invalid max-age polluted s-maxage"
 	);
 	Before = Freshness;
@@ -453,7 +453,7 @@ static void testHttpCacheFreshness(void)
 		(Freshness.Source ==
 		 XHTTP_CACHE_FRESHNESS_EXPIRES) &&
 		(Freshness.Lifetime ==
-		 UINT64_C(60000000)),
+		 UINT64_C(60000)),
 		"Expires lifetime mismatch"
 	);
 	testRequire(
@@ -469,7 +469,7 @@ static void testHttpCacheFreshness(void)
 			&Freshness
 		 ) == XHTTP_CACHE_CALC_READY) &&
 		(Freshness.Lifetime ==
-		 UINT64_C(45000000)),
+		 UINT64_C(45000)),
 		"missing Date response-time fallback mismatch"
 	);
 	testRequire(
@@ -525,7 +525,7 @@ static void testHttpCacheFreshness(void)
 		(Freshness.Source ==
 		 XHTTP_CACHE_FRESHNESS_EXPIRES) &&
 		(Freshness.Lifetime ==
-		 UINT64_C(45000000)),
+		 UINT64_C(45000)),
 		"invalid Date did not use response time"
 	);
 	xrtHttpCacheControlInit(&Control);

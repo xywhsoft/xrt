@@ -47,7 +47,7 @@ static void testTcpServerSyncWait(
 	xnetstream* pAccepted
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	for ( ;; ) {
 		bool bWorkerDone = (pWorker == NULL) ||
@@ -113,7 +113,7 @@ int main(void)
 
 	testRequire(__xrtNetServerAcceptWait(
 		pServer,
-		__xrtWaitAfter(1000u),
+		__xrtWaitAfter(1),
 		NULL
 	) == NULL, "TCP server sync Accept ignored timeout");
 	testRequire((xrtErrorKind(xrtGetError()) == XERR_TIMEOUT) &&
@@ -159,7 +159,7 @@ int main(void)
 		"TCP server sync client connect failed");
 	pAccepted = __xrtNetServerAcceptWait(
 		pServer,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	testRequire(pAccepted != NULL,

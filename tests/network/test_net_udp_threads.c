@@ -68,7 +68,7 @@ static void testUdpThreadsWait32(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(15000000u);
+	double iDeadline = __xrtWaitAfter(15000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -85,7 +85,7 @@ static void testUdpThreadsWait64(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(15000000u);
+	double iDeadline = __xrtWaitAfter(15000);
 
 	while ( xrtAtomic64Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);

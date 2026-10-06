@@ -34,7 +34,7 @@ int main(void)
 		#error "XIMAP_MODULE_IMAP_MESSAGE retained unrelated features"
 	#endif
 
-	return xrtImapClientBodyBytes(
+	return __xrtImapClientBodyBytes(
 		NULL,
 		1u,
 		XRT_STR_LITERAL(""),

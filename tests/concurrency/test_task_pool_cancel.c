@@ -83,7 +83,7 @@ static xtaskoutcome testTaskCancelQueued(
 /* 等待首个任务已经占用唯一工作线程。 */
 static bool testTaskWaitStarted(testtaskcancel* pContext)
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(2000));
 	bool bStarted;
 
 	(void)xrtMutexLock(&pContext->Lock);
@@ -131,7 +131,7 @@ int main(void)
 	testRequire(tContext.Destroyed == 0, "rejected task data ownership was consumed");
 
 	testRequire(xrtTaskPoolCancel(pPool), "task pool cancel failed");
-	testRequire(xrtTaskPoolWaitFor(pPool, UINT64_C(2000000)) == XWAIT_OK,
+	testRequire(xrtTaskPoolWaitFor(pPool, INT64_C(2000)) == XWAIT_OK,
 		"cancelled task pool did not drain");
 	testRequire(xrtFutureState(pRunning) == XFUTURE_CANCELLED,
 		"running task cancel state mismatch");
@@ -174,7 +174,7 @@ int main(void)
 	tContext.Released = true;
 	(void)xrtMutexUnlock(&tContext.Lock);
 	testRequire(xrtTaskPoolClose(pPool), "cancel reclaim task pool close failed");
-	testRequire(xrtTaskPoolWaitFor(pPool, UINT64_C(2000000)) == XWAIT_OK,
+	testRequire(xrtTaskPoolWaitFor(pPool, INT64_C(2000)) == XWAIT_OK,
 		"cancel reclaim task pool did not drain");
 	testRequire(
 		(xrtFutureState(pRunning) == XFUTURE_RESOLVED) &&

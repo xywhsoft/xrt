@@ -225,7 +225,7 @@ static bool testHttpServerStaticOomBlockStarted(
 		bResult = xrtCondWaitFor(
 			&pBlock->Cond,
 			&pBlock->Lock,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK;
 	}
 	(void)xrtMutexUnlock(&pBlock->Lock);
@@ -442,18 +442,18 @@ static void testHttpServerStaticFutureCancel(xroot Root)
 		testHttpServerStaticOomBlockRelease(&Block) &&
 		(xrtFutureWaitFor(
 			pBlockFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureWaitFor(
 			pReplyFuture,
-			UINT64_C(3000000)
+			INT64_C(3000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pReplyFuture) ==
 		 XFUTURE_CANCELLED) &&
 		xrtTaskPoolClose(pPool) &&
 		(xrtTaskPoolWaitFor(
 			pPool,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		 ) == XWAIT_OK) &&
 		xrtTaskPoolGet(pPool, &Stats) &&
 		(Stats.Submitted == 2) &&
@@ -563,7 +563,7 @@ static bool testHttpServerStaticFutureOomAttempt(
 		testHttpServerStaticOomBlockRelease(&Block) &&
 		(xrtFutureWaitFor(
 			pBlockFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		 ) == XWAIT_OK),
 		"HTTP static server Future OOM blocker release failed"
 	);
@@ -571,7 +571,7 @@ static bool testHttpServerStaticFutureOomAttempt(
 		testRequire(
 			(xrtFutureWaitFor(
 				pReplyFuture,
-				UINT64_C(3000000)
+				INT64_C(3000)
 			 ) == XWAIT_OK) &&
 			(xrtFutureState(pReplyFuture) ==
 			 XFUTURE_RESOLVED),

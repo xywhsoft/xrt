@@ -10,7 +10,7 @@ int main(void)
 	str sDirectory = NULL;
 	str sPath = NULL;
 	str sText = NULL;
-	uint64 iStart = xrtClock();
+	double iStart = xrtTimer();
 	size_t iSize = 0;
 	size_t iTimeSize;
 	bool bValid = false;
@@ -40,7 +40,7 @@ int main(void)
 	);
 	bValid = (sText != NULL) && (iSize == iTimeSize) &&
 		(memcmp(sText, arrTime, iSize) == 0) &&
-		(xrtClock() >= iStart);
+		(xrtTimer() >= iStart);
 
 cleanup:
 	if ( (sPath != NULL) && xrtFileExists(sPath) &&

@@ -346,7 +346,7 @@ typedef struct xnetresolveownershipv1 {
 
 
 
-/* 所有限额都是硬边界；TTL 使用单调微秒，零值关闭对应缓存。 */
+/* 所有限额都是硬边界；TTL 使用单调毫秒，零值关闭对应缓存。 */
 typedef struct xnetresolverconfig {
 	uint32 Workers;
 	size_t RequestLimit;
@@ -1792,7 +1792,7 @@ XRT_API uint64 xrtNetEngineSchedule(xnetengine* pEngine,
 
 
 
-/* 按相对微秒数调度 Timer；零表示在下一次 Worker 循环到期。 */
+/* 按相对毫秒数调度 Timer；零表示在下一次 Worker 循环到期。 */
 XRT_API uint64 xrtNetEngineAfter(xnetengine* pEngine,
 	uint64 iAffinity, int64 iTimeout,
 	xnettimerproc pProc, ptr pData);

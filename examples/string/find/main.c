@@ -14,7 +14,7 @@
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c \
  *       examples/string/find/main.c -lws2_32 -liphlpapi
  * 预期输出：
- *   find=5 case-find=0 rfind=16 miss=5
+ *   find=5 case-find=0 rfind=16 case-rfind=5 miss=1
  *   byte=3 any=4
  *   prefix=archive.tar.gz
  *   suffix=archive
@@ -36,11 +36,11 @@ int main(void)
 	xstrview Path = SV("/tmp/archive.tar.gz");
 
 	/* 正向与大小写不敏感：'a' 在第 5 字节（0 基），忽略大小写后首命中提前。 */
-	printf("find=%d case-find=%d rfind=%d miss=%d\n",
+	printf("find=%d case-find=%d rfind=%d case-rfind=%d miss=%d\n",
 		(int)xrtStrFind(Path, SV("archive"), 0u),
 		(int)xrtStrCaseFind(SV("Xrt-Core"), SV("xrt"), 0u),
 		(int)xrtStrRFind(Path, SV(".")),
-	(int)xrtStrCaseRFind(SV("a.Tar.GZ"), SV(".gz")),
+		(int)xrtStrCaseRFind(SV("a.Tar.GZ"), SV(".gz")),
 		xrtStrFind(Path, SV("nope"), 0u) == XRT_NPOS ? 1 : 0);
 
 	/* 单字节查找：从偏移 4 起 '/' 命中在 4；集合查找 ':' 命中在 6。 */

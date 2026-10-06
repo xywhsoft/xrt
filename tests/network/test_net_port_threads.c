@@ -64,7 +64,7 @@ int main(void)
 		size_t iCount = 0;
 
 		testRequire(__xrtNetPortWait(pPort, Events, 64,
-			__xrtWaitAfter(5000000), &iCount) == XNET_RESULT_OK,
+			__xrtWaitAfter(5000), &iCount) == XNET_RESULT_OK,
 			"threaded network port wait failed");
 		for ( size_t i = 0; i < iCount; i++ ) {
 			size_t iId;

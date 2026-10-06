@@ -41,7 +41,7 @@ static int32 testHttpServerWaitThread(ptr pData)
 	}
 	if ( xrtFutureWaitFor(
 		pContext->Future,
-		UINT64_C(5000000)
+		INT64_C(5000)
 	) == XWAIT_OK ) {
 		State = xrtFutureState(pContext->Future);
 	}
@@ -129,7 +129,7 @@ int main(void)
 			"HTTP server concurrent wait setup failed"
 		);
 	}
-	Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(INT64_C(5000));
 	while ( xrtAtomic32Load(
 		&Ready,
 		XMEMORY_ACQUIRE
@@ -154,7 +154,7 @@ int main(void)
 		testRequire(
 			xrtThreadWaitFor(
 				Threads[i],
-				UINT64_C(5000000)
+				INT64_C(5000)
 			) == XWAIT_OK,
 			"HTTP server wait thread did not finish"
 		);
@@ -173,7 +173,7 @@ int main(void)
 	testRequire(
 		(xrtFutureWaitFor(
 			pClosed,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pClosed) == XFUTURE_RESOLVED) &&
 		(xrtHttpServerState(pServer) == XHTTP_SERVER_CLOSED),

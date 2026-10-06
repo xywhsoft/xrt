@@ -71,7 +71,7 @@ static void testHttpEasyGetAsync(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 		"HTTP easy GET Async failed"
@@ -185,7 +185,7 @@ int main(void)
 	testHttpEasyPostSync(pEngine, pClient);
 
 	xrtHttpClientDestroy(pClient);
-	Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(INT64_C(10000));
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(

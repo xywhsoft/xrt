@@ -1361,7 +1361,7 @@ int main(void)
 		return 2;
 	}
 	xrtNetDialConfigInit(&DialConfig);
-	DialConfig.Timeout = (uint64)iTimeoutMs * 1000u;
+	DialConfig.Timeout = iTimeoutMs;
 	DialConfig.Stream.ReadLimit = 1048576u;
 	DialConfig.Stream.WriteLimit = 1048576u;
 	Live.Dial = xrtSshClientDial(

@@ -18,9 +18,7 @@ int main(void)
 	) && xrtSshTransportTcpInit(
 		&Transport,
 		NULL,
-		&TransportConfig,
-		0u
-	) && (xrtSshTransportCoreIdentificationCommit(
+		&TransportConfig, ((double)(0u)) / 1000.0) && (xrtSshTransportCoreIdentificationCommit(
 		&Transport.Core,
 		XSSH_TRANSPORT_LOCAL
 	) == XSSH_OK) && (xrtSshTransportCoreIdentificationCommit(

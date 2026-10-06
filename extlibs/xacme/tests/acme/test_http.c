@@ -95,7 +95,7 @@ int main(void)
 	testUrlArguments(&Http);
 	if(getenv("XACME_TEST_LOCAL_TIMEOUT") != NULL)
 	{
-		Http.uTimeoutUs = UINT64_C(1000000);
+		Http.uTimeoutMs = UINT64_C(1000);
 	}
 	xrtClearError();
 	testRequire(
@@ -177,7 +177,7 @@ int main(void)
 			bool bStalled = (sKind != NULL &&
 				strcmp(sKind, "timeout") == 0);
 			xerrkind Actual;
-			Http.uTimeoutUs = bStalled ?
+			Http.uTimeoutMs = bStalled ?
 				UINT64_C(1000000) : UINT64_C(5000000);
 			xrtClearError();
 			testRequire(!xacmeHttpExchange(
@@ -212,7 +212,7 @@ int main(void)
 		{
 			bool bOnce = getenv("XACME_TEST_POST_DROP_ONCE") != NULL;
 			bool bOk;
-			Http.uTimeoutUs = UINT64_C(1000000);
+			Http.uTimeoutMs = UINT64_C(1000);
 			xrtClearError();
 			bOk = bOnce ? xacmeHttpExchangeOnceV(
 				&Http, "POST", sDrop, "text/plain",
@@ -244,7 +244,7 @@ int main(void)
 			char* sBody = (char*)xrtMalloc(iSize);
 			testRequire(sBody != NULL, "acme slow-send body allocated");
 			memset(sBody, 'x', iSize);
-			Http.uTimeoutUs = UINT64_C(1000000);
+			Http.uTimeoutMs = UINT64_C(1000);
 			xrtClearError();
 			testRequire(!xacmeHttpExchangeOnceV(
 				&Http, "POST", sSlow, "text/plain",

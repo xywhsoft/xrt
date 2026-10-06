@@ -10,7 +10,7 @@ api: atomic, spin, wait
 
 ## Orientation
 
-Volume 1 closes with this chapter. The previous eight chapters built the foundation of the single-threaded world: types and views (Chapter 3), the error model (Chapter 4), memory management (Chapters 5–6), temporary arenas (Chapter 7), versions and trimming (Chapter 8). This chapter adds the last piece: **what keeps things sane when multiple execution flows touch the same data at the lowest level**. It climbs three steps: **atomic operations** (`xatomic32/64/ptr` — interleaving-free load, store, and read-modify-write on a single variable); **spinlocks** (`xspinlock` — protecting critical sections a few instructions long); **waiting primitives** (`xdeadline` and `xwaitresult` — the mathematics of timeouts and a unified vocabulary for wait outcomes).
+Volume 1 closes with this chapter. The previous eight chapters built the foundation of the single-threaded world: types and views (Chapter 3), the error model (Chapter 4), memory management (Chapters 5–6), temporary arenas (Chapter 7), versions and trimming (Chapter 8). This chapter adds the last piece: **what keeps things sane when multiple execution flows touch the same data at the lowest level**. It climbs three steps: **atomic operations** (`xatomic32/64/ptr` — interleaving-free load, store, and read-modify-write on a single variable); **spinlocks** (`xspinlock` — protecting critical sections a few instructions long); **waiting primitives** (`int64` and `xwaitresult` — the mathematics of timeouts and a unified vocabulary for wait outcomes).
 
 This is a classic foundation chapter. Chapter 8 mentioned that the atomic-operations header is one of the first consumers of compile-time feature dispatch — the same header walks an internal implementation on platforms without atomic instructions and an inline path where they exist, thanks to the feature closure right here. Looking forward, Chapter 53's thread synchronization (synchronous coordination), Chapter 54's cancellation system, and the config center's "atomically swap the global pointer" (Chapters 139–140) all stand on this chapter's primitives; this chapter teaches only the **primitive layer** — single-machine, single-variable, tangible small pieces, leaving systematic concurrency design to Volume 6. After reading it you should be able to answer three questions: when you **don't need a lock** (a single variable suffices); when a lock **shouldn't be heavy either** (the orders-of-magnitude account of spin versus mutex); and why "wait for something until timeout" must use an **absolute deadline** rather than a relative timeout reset every round.
 
@@ -56,12 +56,12 @@ The three lifecycle shapes are isomorphic to Chapter 53's four-piece set: stack 
 - Single-variable sharing (counter / flag / pointer) -> atomics: lock-free, single-step interleave-safe
 - Multi-variable invariants (fields must change together) -> locks: spin (a few instructions) or mutex (longer)
 - Passing pointer ownership between threads -> queues (Chapter 21): already lock-free inside, no outer lock
-- Waiting with a budget -> xdeadline absolute cutoff + xwaitresult unified outcome (systematized in Chapters 53-54)
+- Waiting with a budget -> int64 absolute cutoff + xwaitresult unified outcome (systematized in Chapters 53-54)
 ```
 
 ### Waiting primitives: deadline mathematics and the five-state result
 
-The wait module has three functions and one enum, yet it is the unified exit for the whole library's timeout semantics. `xdeadline` is an absolute point in time as `uint64` (monotonic-clock microseconds, Chapter 42): `xrtDeadlineAfter(相对微秒)` (relative microseconds) builds the cutoff from now (overflow returns `XRT_DEADLINE_NEVER`, i.e. never times out); `xrtDeadlineExpired` says whether it has arrived; `xrtDeadlineRemaining` returns the microseconds left. It solves the third incident: **constructed once, passed everywhere, never reset** — a retry loop waits with `Remaining` each round, and the total budget is exactly that first number.
+Wait APIs take `int64` relative milliseconds; `XRT_WAIT_FOREVER` disables expiry. Use differences between double `xrtTimer()` readings to share a total budget across steps.
 
 `xwaitresult` splits "the outcome of waiting" into five mutually exclusive values: `XWAIT_ERROR` (genuine failure), `XWAIT_OK` (success), `XWAIT_TIMEOUT` (time is up), `XWAIT_CANCELLED` (cancelled — Chapter 54's tokens end here), `XWAIT_CLOSED` (the awaited object closed). The intent: **separate normal control flow from errors** — timeout and cancellation are expected branches the caller handles, not "exceptions" stuffed into the error chain. From Chapter 53's `xrtThreadWait` to the network stack's connection waits, this enum is what comes back — learn the semantics here; the systematized waiting and cancellation unfold in Volume 6.
 
@@ -115,11 +115,10 @@ heap try=0/1 destroy ok
 
 ```term
 $ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/concurrency/deadline/main.c -lws2_32 -liphlpapi
-remaining: 50000 us
-expired: yes
+elapsed_s=0.050000 forever_ms=-1
 ```
 
-**What just happened.** (1) `xrtDeadlineAfter(50000)` builds an absolute cutoff 50 ms out; `Remaining` immediately reads back about 50000 microseconds (monotonic-clock microsecond scale). (2) `xrtSleepUntil` (Chapter 42's time module) sleeps to the cutoff, after which `Expired` returns true — the three functions act out the closed loop of construct-wait-decide. (3) Note that `SleepUntil` eats the same deadline mathematics: timeout parameters across the library's waiting APIs convert through here — constructed once, passed everywhere.
+`xrtSleep(50)` waits for at least 50 milliseconds; subtract `xrtTimer()` readings to measure elapsed seconds.
 
 ## Contracts
 
@@ -130,7 +129,7 @@ expired: yes
 - **Ordering floor promise**: implementations may only be stronger than the documented ordering, never weaker — write against the documentation, not against a specific platform.
 - **Default rule**: SEQ_CST until proven relaxable; downgrades require profiling evidence (Chapter 136) and a written justification.
 - **Spinlock lifecycle**: stack Init/Unit, static `XRT_SPIN_INIT`, heap Create/Destroy; **destroying a still-held lock fails with `XERR_STATE`**; TryLock is non-blocking and returns false while held.
-- **deadline is a pure value**: no ownership, passed by value; `After` overflow returns `XRT_DEADLINE_NEVER`; `NEVER` never expires and `Remaining` returns `UINT64_MAX`.
+- **Wait argument**: an `int64` millisecond value is passed by value and owns no resources; `0` tries once, `XRT_WAIT_FOREVER` waits indefinitely, and other negative values are invalid.
 - **xwaitresult, five exclusive states**: ERROR/OK/TIMEOUT/CANCELLED/CLOSED; timeout and cancellation are control flow, not errors — they do not enter the error chain.
 - **Thread rules**: atomic objects have no partially-updated state (any observation sees either old or new); fences and Pause are portable across all platforms.
 
@@ -186,10 +185,10 @@ for ( i = 0; i < 100; i++ ) {
 ```
 
 ```c good
-xdeadline D = xrtDeadlineAfter(UINT64_C(10000000));   /* construct once, outside the loop */
+double D = xrtTimer() + 10.0;   /* construct once, outside the loop */
 while ( !TryOnce() ) {
-	if ( xrtDeadlineExpired(D) ) { return XWAIT_TIMEOUT; }
-	WaitOnce(xrtDeadlineRemaining(D));                 /* remaining shrinks, never resets */
+	if ( (xrtTimer() >= D) ) { return XWAIT_TIMEOUT; }
+	WaitOnce(((int64)ceil(fmax(0.0, D - xrtTimer()) * 1000.0)));                 /* remaining shrinks, never resets */
 }
 return XWAIT_OK;
 ```
@@ -220,6 +219,6 @@ The same counting task in three implementations: atomic, spinlock, and mutex (Ch
 | Publish-acquire | RELEASE on the writer, ACQUIRE on the reader; either side RELAXED voids the promise |
 | Helpers | ThreadFence/SignalFence/Pause/IsLockFree |
 | Spinlock | for few-instruction critical sections only; destroying a held lock → `XERR_STATE`; TryLock non-blocking |
-| deadline | absolute cutoff (monotonic microseconds); After once outside the loop, Remaining inside |
+| deadline | absolute cutoff (monotonic milliseconds); After once outside the loop, Remaining inside |
 | xwaitresult | five states ERROR/OK/TIMEOUT/CANCELLED/CLOSED; timeout and cancellation are control flow |
 | Division | single variable → atomics; invariants → locks; passing pointers → queues (Chapter 21) |

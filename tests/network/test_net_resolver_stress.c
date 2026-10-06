@@ -212,7 +212,7 @@ static void testResolverStressWaitIdle(
 	xnetresolverstats* pStats
 )
 {
-	double iDeadline = __xrtWaitAfter(10000000u);
+	double iDeadline = __xrtWaitAfter(10000);
 
 	for ( ;; ) {
 		uint32 iAccepted = xrtAtomic32Load(
@@ -292,7 +292,7 @@ int main(void)
 		testRequire(Threads[i] != NULL,
 			"resolver stress producer create failed");
 	}
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( xrtAtomic32Load(&pState->Ready, XMEMORY_ACQUIRE) <
 		TEST_RESOLVER_STRESS_PRODUCERS ) {
 		testRequire(!__xrtWaitExpired(iDeadline),

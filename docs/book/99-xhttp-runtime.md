@@ -10,7 +10,7 @@ api: xhttp-http_client, xhttp-http_client_runtime, net
 
 ## 导读
 
-easy 层（第 98 章）折叠了什么？本章展开给你看。**请求构建器**（`xhttprequest`）：方法/URL/Header/正文/认证的显式装配，`Do` 提交时冻结快照——调用方可立即修改或销毁原请求；**调用层**：`xhttpcalloptions` 的两类截止时间（总超时覆盖全链、空闲超时只看无进展时长）、取消令牌、响应体限额；**诊断**：`xhttpcallresult.Info` 的状态机与时间戳（单调时钟微秒）——`RequestWireBytes`/`ResponseWireBytes` 累计整条重定向链；**连接池**：按 origin 分片（最多 32 片）、每片独立等待 FIFO 与空闲 LRU、全局原子配额——复用是性能的根。四个齿轮合起来就是"运行时"——easy 的每一行都在这上面跑。
+easy 层（第 98 章）折叠了什么？本章展开给你看。**请求构建器**（`xhttprequest`）：方法/URL/Header/正文/认证的显式装配，`Do` 提交时冻结快照——调用方可立即修改或销毁原请求；**调用层**：`xhttpcalloptions` 的两类截止时间（总超时覆盖全链、空闲超时只看无进展时长）、取消令牌、响应体限额；**诊断**：`xhttpcallresult.Info` 的状态机与时间戳（单调时钟毫秒）——`RequestWireBytes`/`ResponseWireBytes` 累计整条重定向链；**连接池**：按 origin 分片（最多 32 片）、每片独立等待 FIFO 与空闲 LRU、全局原子配额——复用是性能的根。四个齿轮合起来就是"运行时"——easy 的每一行都在这上面跑。
 
 ## 引入
 
@@ -38,7 +38,7 @@ easy 层（第 98 章）折叠了什么？本章展开给你看。**请求构建
 
 ### 诊断快照：Info 的全部字段
 
-`xhttpcallresult.Info`（完成回调携带，也可任意线程复制运行中快照）：`State`（排队/执行/**不可变终态**——终态发布后所有字段冻结，迟到的取消改写不了已发布结果）、`Phase`（实际结束阶段保留）、微秒时间戳（`TransportReady`/`RequestSent`/`FirstByte`/`Headers`——单调时钟，未到为零）、字节统计（`RequestWireBytes`/`ResponseWireBytes` **累计整条重定向链**；`ResponseBodyBytes` 是最终交付正文——自动解压时记明文）、`ReusedConnection`（任一跳复用过）、`Secure`（当前/最终跳加密）。这套字段就是"慢在哪一跳"的体检表——第 137 章性能分析会回来用它。
+`xhttpcallresult.Info`（完成回调携带，也可任意线程复制运行中快照）：`State`（排队/执行/**不可变终态**——终态发布后所有字段冻结，迟到的取消改写不了已发布结果）、`Phase`（实际结束阶段保留）、毫秒时间戳（`TransportReady`/`RequestSent`/`FirstByte`/`Headers`——单调时钟，未到为零）、字节统计（`RequestWireBytes`/`ResponseWireBytes` **累计整条重定向链**；`ResponseBodyBytes` 是最终交付正文——自动解压时记明文）、`ReusedConnection`（任一跳复用过）、`Secure`（当前/最终跳加密）。这套字段就是"慢在哪一跳"的体检表——第 137 章性能分析会回来用它。
 
 ### 连接池：origin 分片与公平等待
 
@@ -90,7 +90,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 - **两类截止**：`Timeout` 提交起全链；`IdleTimeout` 执行起无进展时长（收发刷新）；零值继承 Client、`TIMEOUT_NONE` 显式关；同刻到达稳定报 TOTAL。
 - **取消**：`CallCancel` 任意线程；提交前已取消不装 Timer 不启 DNS 直接终态；终态发布后不可改写。
 - **双限额**：`ResponseBodyLimit`（表示正文、解码前、缓存同预算）+ `Decompress.MaxBody`（明文）——高压缩比绕不过预算；SSE 用结构化限额替代下载限额。
-- **Info 冻结**：终态字段冻结；时间单调时钟微秒、未到为零；Wire 字段累计重定向链；Body 记最终明文。
+- **Info 冻结**：终态字段冻结；时间单调时钟毫秒、未到为零；Wire 字段累计重定向链；Body 记最终明文。
 - **池分片**：≤32 片固定、片内 FIFO/LRU/Timer、跨片原子配额；回池四条件；无 pipelining；默认 128/8/90s。
 - **池运维**：CloseIdle 不打断活动；Stats 松一致可并发；Drain/Abort 走同一路径并等异步收尾。
 - **提交验证**：配置范围回绕同步拒绝不发布回调；创建期验 Dial/Stream/Exchange 静态配置。
@@ -173,7 +173,7 @@ double reuse_rate = (double)Stats.ReusedConnections /
 | 两类截止 | Timeout 全链（提交起）；IdleTimeout 无进展（收发刷新）；零继承/NONE 关 |
 | 取消 | 任意线程；提交前取消直接终态；终态冻结不可改写 |
 | 双限额 | 表示正文（解码前，缓存同预算）+ 明文（解压后）——炸弹两道闸 |
-| Info | 终态冻结；微秒单调钟；Wire 累计重定向链；Body 记明文字节 |
+| Info | 终态冻结；毫秒单调钟；Wire 累计重定向链；Body 记明文字节 |
 | 池分片 | ≤32 固定片；片内 FIFO/LRU/Timer；跨片原子配额无热锁 |
 | 回池条件 | 边界完整+无 close+无升级+健康；无 pipelining；默认 128/8/90s |
 | 运维口 | CloseIdle 不打断活动；Stats 松一致——容量看单调计数 |

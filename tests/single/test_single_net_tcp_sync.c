@@ -50,16 +50,16 @@ int main(void)
 		NULL,
 		NULL
 	);
-	pServer = xrtNetListenerAcceptWait(
+	pServer = __xrtNetListenerAcceptWait(
 		pListener,
-		xrtDeadlineAfter(3000000u),
+		__xrtWaitAfter(3000),
 		NULL
 	);
 	if ( (pClient == NULL) || (pServer == NULL) ||
-		 !xrtNetStreamWait(
+		 !__xrtNetStreamWait(
 			pClient,
 			XNET_STREAM_WAIT_OPEN,
-			xrtDeadlineAfter(3000000u),
+			__xrtWaitAfter(3000),
 			NULL
 		 ) || (xrtNetStreamSend(
 			pClient,
@@ -68,10 +68,10 @@ int main(void)
 		 ) != XNET_RESULT_OK) ) {
 		return 4;
 	}
-	pBytes = xrtNetStreamRecv(
+	pBytes = __xrtNetStreamRecv(
 		pServer,
 		0,
-		xrtDeadlineAfter(3000000u),
+		__xrtWaitAfter(3000),
 		NULL
 	);
 	View = xrtNetBytesView(pBytes);

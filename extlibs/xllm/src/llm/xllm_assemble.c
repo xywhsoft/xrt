@@ -72,7 +72,7 @@ bool xllm__assemble_native(xllm_call* pCall, xllm_block_kind eKind, xstrview tNa
 void xllm__assemble_first_token(xllm_call* pCall)
 {
     if ( pCall && !pCall->tHttpDiagnostics.uFirstTokenMs ) {
-        pCall->tHttpDiagnostics.uFirstTokenMs = xrtTimer() / UINT64_C(1000);
+        pCall->tHttpDiagnostics.uFirstTokenMs = xrtTimer();
     }
 }
 

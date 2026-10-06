@@ -150,7 +150,7 @@ typedef enum xcookiestorestatus {
 #define XCOOKIE_INFO_PERSISTENT		UINT32_C(0x00000008)
 #define XCOOKIE_INFO_PARTITIONED	UINT32_C(0x00000010)
 
-/* CookieInfo 只借用所属快照，时间使用与 xrt 时间模块一致的微秒。 */
+/* CookieInfo 只借用所属快照，时间使用与 xrt 时间模块一致的毫秒。 */
 typedef struct xcookieinfo {
 	uint32 Flags;
 	xcookiesamesite SameSite;

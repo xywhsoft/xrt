@@ -39,7 +39,9 @@ jobs:
         if: always()
         run: |
           mkdir -p out/mail-real-service-records
-          if [ -d /var/tmp/xrt-mail-test ]; then cp /var/tmp/xrt-mail-test/*.log /var/tmp/xrt-mail-test/*.json out/mail-real-service-records/; fi
+          if [ -d /var/tmp/xrt-mail-test ]; then
+            find /var/tmp/xrt-mail-test -maxdepth 1 -type f \( -name '*.log' -o -name '*.json' \) -exec cp {} out/mail-real-service-records/ \;
+          fi
           if [ -f /var/tmp/xrt-mail-runtime/runtime.json ]; then cp /var/tmp/xrt-mail-runtime/runtime.json out/mail-real-service-records/runtime.json; fi
 
       - name: Preserve records

@@ -90,7 +90,7 @@ typedef struct xsignalevent {
 | `SystemCode` | `int32` | 平台错误码 |
 | `Count` | `uint32` | 数量 |
 | `Total` | `uint64` | 总量 |
-| `Time` | `xtime` | 时间戳（Unix 微秒） |
+| `Time` | `xtime` | 时间戳（公元 UTC 毫秒） |
 | `Name` | `cstr` | 名称 |
 
 ### `xsignalwatch`

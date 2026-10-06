@@ -34,7 +34,7 @@ static void testTcpSlowWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(30000000u);
+	double iDeadline = __xrtWaitAfter(30000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -269,7 +269,7 @@ int main(void)
 
 	testRequire(xrtNetSocketSet(Peer, XNET_OPTION_NONBLOCK, 1),
 		"TCP slow peer nonblocking setup failed");
-	iDeadline = __xrtWaitAfter(30000000u);
+	iDeadline = __xrtWaitAfter(30000);
 	while ( iReceived < TEST_TCP_SLOW_PAYLOAD ) {
 		size_t iRead = 0;
 		xnetresult Result = xrtNetSocketRecv(

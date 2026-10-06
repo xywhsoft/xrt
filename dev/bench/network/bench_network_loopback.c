@@ -24,7 +24,7 @@ static bool benchNetworkRecvExact(
 		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pStream,
 			iSize - iOffset,
-			__xrtWaitAfter(5000000u),
+			__xrtWaitAfter(5000),
 			NULL
 		);
 		xbytesview View;
@@ -136,7 +136,7 @@ static bool benchNetworkTcp(uint32 iIterations, size_t iMessageSize)
 	sStage = "accept";
 	pServer = __xrtNetListenerAcceptWait(
 		pListener,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	if ( pServer == NULL ) {
@@ -147,7 +147,7 @@ static bool benchNetworkTcp(uint32 iIterations, size_t iMessageSize)
 		!__xrtNetStreamWait(
 			pClient,
 			XNET_STREAM_WAIT_OPEN,
-			__xrtWaitAfter(5000000u),
+			__xrtWaitAfter(5000),
 			NULL
 		)
 	) {
@@ -285,7 +285,7 @@ static bool benchNetworkUdpDestroy(xnetudp* pUdp)
 			!__xrtNetUdpWait(
 				pUdp,
 				XNET_UDP_WAIT_CLOSE,
-				__xrtWaitAfter(5000000u),
+				__xrtWaitAfter(5000),
 				NULL
 			)
 		) {
@@ -421,13 +421,13 @@ static bool benchNetworkUdp(
 		!__xrtNetUdpWait(
 			pServer,
 			XNET_UDP_WAIT_OPEN,
-			__xrtWaitAfter(5000000u),
+			__xrtWaitAfter(5000),
 			NULL
 		) ||
 		!__xrtNetUdpWait(
 			pClient,
 			XNET_UDP_WAIT_OPEN,
-			__xrtWaitAfter(5000000u),
+			__xrtWaitAfter(5000),
 			NULL
 		)
 	) {
@@ -462,7 +462,7 @@ static bool benchNetworkUdp(
 				!__xrtNetUdpWritable(
 					pClient,
 					iPacketSize,
-					__xrtWaitAfter(5000000u),
+					__xrtWaitAfter(5000),
 					NULL
 				)
 			) {
@@ -474,7 +474,7 @@ static bool benchNetworkUdp(
 			xnetudpbatch* pBatch = __xrtNetUdpReceiveBatchWait(
 				pServer,
 				iBatch - iReceived,
-				__xrtWaitAfter(5000000u),
+				__xrtWaitAfter(5000),
 				NULL
 			);
 			size_t iStep = 0;
@@ -498,7 +498,7 @@ static bool benchNetworkUdp(
 	if ( !__xrtNetUdpWait(
 		pClient,
 		XNET_UDP_WAIT_DRAIN,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	) ) {
 		goto cleanup;

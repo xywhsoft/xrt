@@ -25,7 +25,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
-#include "embedded_identity.h"
+#include "../embedded_identity.h"
 
 /* 验证器回调：接受。 */
 static xtlsverifydecision exampleAccept(
@@ -180,7 +180,7 @@ int main(void)
 
 	/* ---- ServerTicket：调用方自定义票据 + 有效期再签一张。 ---- */
 	{
-		static const uint8 arrTicket[16] = "custom-ticket-01";
+		static const uint8 arrTicket[16] = { 0x63u, 0x75u, 0x73u, 0x74u, 0x6Fu, 0x6Du, 0x2Du, 0x74u, 0x69u, 0x63u, 0x6Bu, 0x65u, 0x74u, 0x2Du, 0x30u, 0x31u };
 		xtlsresume* pSecond = NULL;
 
 		if ( (xrtTlsServerTicket(pServer,

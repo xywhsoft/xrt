@@ -170,7 +170,7 @@ parent completed = 1, cancelled = 1
 
 ### 网络任务组（task_net）：卷六到卷七的桥
 
-骨架与网络引擎之间有一座现成的桥：**任务体系到网络 Engine 的可选桥接**（`XRT_FEATURE_TASK_NET`——方向单向，网络不反向侵入 Future/Task 核心）。`xrtTaskNet` 把任务提交到指定亲和 Worker：过程签名 `xtasknetproc` 在普通任务参数之前**借用** `xnetworker`——直接访问 Worker 缓冲池与 Engine 上下文，取消、任务值、结构化错误、临时 arena 的合同与普通任务完全相同；`After/Until` 两个变体把"延迟/截止"交给 Engine 的 Timer（第 9 章 deadline 数学的引擎版）。组形态 `xrtTaskGroupNetUntil` 先预留任务组活动槽位再提交——**组已关闭或达到上限时任务根本不启动**，组取消传播到 Future 并等 Timer 真实取消完成。两条硬约束：**网络任务跑在事件循环线程——不得阻塞或长计算**（重活提交 `xtaskpool`，这正是骨架"泵零阻塞"纪律的模块化表达）；Engine 停止时立即任务在排空阶段仍会执行、延迟任务以 `XERR_CLOSED` 结构化失败——终态发布之前，Timer、取消监听、数据析构全部完成（消费者不会看到还在被 Worker 使用的上下文）。
+骨架与网络引擎之间有一座现成的桥：**任务体系到网络 Engine 的可选桥接**（`XRT_FEATURE_TASK_NET`——方向单向，网络不反向侵入 Future/Task 核心）。`xrtTaskNet` 把任务提交到指定亲和 Worker：过程签名 `xtasknetproc` 在普通任务参数之前**借用** `xnetworker`——直接访问 Worker 缓冲池与 Engine 上下文，取消、任务值、结构化错误、临时 arena 的合同与普通任务完全相同；`After/Until` 两个变体把"延迟/截止"交给 Engine 的 Timer（第 9 章 deadline 数学的引擎版）。组形态 `xrtTaskGroupNetFor` 先预留任务组活动槽位再提交——**组已关闭或达到上限时任务根本不启动**，组取消传播到 Future 并等 Timer 真实取消完成。两条硬约束：**网络任务跑在事件循环线程——不得阻塞或长计算**（重活提交 `xtaskpool`，这正是骨架"泵零阻塞"纪律的模块化表达）；Engine 停止时立即任务在排空阶段仍会执行、延迟任务以 `XERR_CLOSED` 结构化失败——终态发布之前，Timer、取消监听、数据析构全部完成（消费者不会看到还在被 Worker 使用的上下文）。
 
 来自仓库范例 `examples/network/task/main.c`——立即/延迟/截止/组四种提交一巡：
 
@@ -189,7 +189,7 @@ worker=0
 group-until: done
 ```
 
-**刚才发生了什么。** ① `xrtTaskNet` 提交立即任务——`xrtFutureWaitFor` 用第 9 章的 deadline 语义等待，值经 `xrtFutureValue` 借用读取（第 58 章纪律）。② `After`/`Until` 演示 Timer 提交——两者只差"相对微秒"还是"绝对截止"的入参，输出证明任务确实在到期后执行。③ `GroupNetUntil` 把延迟任务原子纳入任务组——组取消与上限保护的语义由组的预留槽位保证。④ 四段全部打印 `worker=0`——亲和提交落同一个 Worker，正是"IO 线程上的小活"的形态。
+**刚才发生了什么。** ① `xrtTaskNet` 提交立即任务——`xrtFutureWaitFor` 用第 9 章的 deadline 语义等待，值经 `xrtFutureValue` 借用读取（第 58 章纪律）。② `After`/`Until` 演示 Timer 提交——两者只差"相对毫秒"还是"绝对截止"的入参，输出证明任务确实在到期后执行。③ `GroupNetUntil` 把延迟任务原子纳入任务组——组取消与上限保护的语义由组的预留槽位保证。④ 四段全部打印 `worker=0`——亲和提交落同一个 Worker，正是"IO 线程上的小活"的形态。
 
 ### 全卷总回顾：卷六资产清单
 

@@ -36,7 +36,7 @@ typedef struct testnetsyncwaiter {
 /* 等待所有原生线程进入阻塞调用前的同步点。 */
 static void testNetSyncThreadsReady(testnetsyncthreads* pContext)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(
 		&pContext->Ready,
@@ -68,7 +68,7 @@ static int32 testNetSyncThreadsWait(ptr pData)
 	if ( pContext->Datagram ) {
 		xnetudppacket* pPacket = __xrtNetUdpReceiveWait(
 			pContext->Udp,
-			__xrtWaitAfter(10000000u),
+			__xrtWaitAfter(10000),
 			pWaiter->Cancel
 		);
 
@@ -78,7 +78,7 @@ static int32 testNetSyncThreadsWait(ptr pData)
 		xnetbytes* pBytes = __xrtNetStreamRecv(
 			pContext->Stream,
 			1,
-			__xrtWaitAfter(10000000u),
+			__xrtWaitAfter(10000),
 			pWaiter->Cancel
 		);
 
@@ -137,7 +137,7 @@ static void testNetSyncThreadsRun(
 
 		testRequire((xrtThreadWaitFor(
 			Threads[i],
-			10000000u
+			10000
 		) == XWAIT_OK) && (xrtThreadExitCode(Threads[i]) == 0),
 			"network sync wait thread did not finish");
 		if ( Waiters[i].ErrorKind != ExpectedKind ) {
@@ -214,13 +214,13 @@ int main(void)
 	);
 	pServer = __xrtNetListenerAcceptWait(
 		pListener,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	testRequire((pClient != NULL) && (pServer != NULL) && __xrtNetStreamWait(
 		pClient,
 		XNET_STREAM_WAIT_OPEN,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	), "network sync thread TCP setup failed");
 	TcpContext.Stream = pServer;
@@ -228,20 +228,20 @@ int main(void)
 	testRequire(__xrtNetStreamWait(
 		pServer,
 		XNET_STREAM_WAIT_CLOSE,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	), "network sync thread TCP server close wait failed");
 	testRequire(xrtNetStreamClose(pClient) && __xrtNetStreamWait(
 		pClient,
 		XNET_STREAM_WAIT_CLOSE,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	), "network sync thread TCP client close failed");
 	xrtNetStreamDestroy(pClient);
 	xrtNetStreamDestroy(pServer);
 	testRequire(xrtNetListenerClose(pListener),
 		"network sync thread listener close failed");
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
 			"network sync thread listener close timed out");
@@ -274,12 +274,12 @@ int main(void)
 	testRequire((pUdpClient != NULL) && __xrtNetUdpWait(
 		pUdpServer,
 		XNET_UDP_WAIT_OPEN,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	) && __xrtNetUdpWait(
 		pUdpClient,
 		XNET_UDP_WAIT_OPEN,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	), "network sync thread UDP setup failed");
 	UdpContext.Udp = pUdpServer;
@@ -288,13 +288,13 @@ int main(void)
 	testRequire(__xrtNetUdpWait(
 		pUdpServer,
 		XNET_UDP_WAIT_CLOSE,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	), "network sync thread UDP server close wait failed");
 	testRequire(xrtNetUdpClose(pUdpClient) && __xrtNetUdpWait(
 		pUdpClient,
 		XNET_UDP_WAIT_CLOSE,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	), "network sync thread UDP client close failed");
 	xrtNetUdpDestroy(pUdpClient);

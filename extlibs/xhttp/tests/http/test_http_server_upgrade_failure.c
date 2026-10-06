@@ -147,7 +147,7 @@ static void testHttpServerUpgradeFailureWait(
 )
 {
 	double Deadline =
-		__xrtWaitAfter(UINT64_C(10000000));
+		__xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(
 		pValue,

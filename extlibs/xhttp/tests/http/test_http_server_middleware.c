@@ -310,7 +310,7 @@ static void testHttpServerMiddlewareRoundTrip(
 		xrtNetSocketClose(Socket),
 		"HTTP server middleware socket close failed"
 	);
-	Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(INT64_C(5000));
 	while ( xrtAtomic32Load(
 		&pContext->Completed, XMEMORY_ACQUIRE
 	) != iCompleted ) {
@@ -463,7 +463,7 @@ int main(void)
 		xrtHttpServerDrain(pServer),
 		"HTTP server middleware drain failed"
 	);
-	Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(INT64_C(5000));
 	while ( xrtHttpServerState(pServer) !=
 		XHTTP_SERVER_CLOSED ) {
 		testRequire(

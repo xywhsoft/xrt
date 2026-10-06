@@ -27,7 +27,7 @@ static void testTlsDialTimerWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -173,7 +173,7 @@ int main(void)
 	iReserved = xrtNetEngineAfter(
 		pEngine,
 		0,
-		60000000u,
+		60000,
 		testTlsDialReservedTimer,
 		&Test
 	);
@@ -181,7 +181,7 @@ int main(void)
 		"TLS dial Timer slot reservation failed");
 	xrtTlsDialConfigInit(&DialConfig);
 	DialConfig.Transport.Timeout = 0;
-	DialConfig.Timeout = 1000000u;
+	DialConfig.Timeout = 1000;
 	xrtClearError();
 	testRequire((xrtTlsDial(
 		pEngine,

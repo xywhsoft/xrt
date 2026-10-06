@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `457` 个函数、`125` 个常量或宏、
-`74` 个公共类型。
+当前登记 `458` 个函数、`125` 个常量或宏、
+`75` 个公共类型。
 
 ## `extlibs/xruntime/include/xrt/runtime_call.h`
 
@@ -447,7 +447,7 @@
 
 [查看带契约注释的公共头](../../include/xrt/typed_array.h)
 
-### 函数 (33)
+### 函数 (34)
 
 - `xrtTypedArrayAppend`
 - `xrtTypedArrayCapacity`
@@ -473,6 +473,7 @@
 - `xrtTypedArrayRemove`
 - `xrtTypedArrayReserve`
 - `xrtTypedArrayResize`
+- `xrtTypedArrayResizeWithInitializer`
 - `xrtTypedArrayReverse`
 - `xrtTypedArraySet`
 - `xrtTypedArraySlice`
@@ -491,8 +492,9 @@
 - `XTYPED_ARRAY_ERROR_STATE`
 - `XTYPED_ARRAY_ERROR_TYPE`
 
-### 类型 (2)
+### 类型 (3)
 
+- `xrttypedarrayinitializer`
 - `xtypedarray`
 - `xtypedarrayerror`
 

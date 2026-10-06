@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/file_tour —— 完成端口文件读写与取消
  * ----------------------------------------------------------------
@@ -24,6 +23,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 static const char* sFile = "net_file_tour_tmp.bin";
 
@@ -51,7 +67,7 @@ static void exampleDone(xnetworker* pWorker,
 static bool exampleSpin(exampleio* pIo, double iEnd)
 {
 	while ( !pIo->bDone ) {
-		if ( __xrtWaitExpired(iEnd) ) {
+		if ( exampleTimerExpired(iEnd) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -101,19 +117,20 @@ static void exampleReadTask(xnetworker* pWorker, ptr pUserData)
 static bool examplePost(xnetengine* pEngine, xnetpost* pPost,
 	void (*pProc)(xnetworker*, ptr), exampletask* pTask)
 {
+	(void)pPost;
 	return xrtNetEnginePost(pEngine, 0u, pProc, (ptr)pTask) &&
 		exampleSpin((exampleio*)pTask->pIo,
-			__xrtWaitAfter(3000000ull)) &&
+			exampleTimerLimit(3000)) &&
 		((exampleio*)pTask->pIo)->bDone;
 }
 
 /* 等待任务提交本身完成（不含 IO 终态）。 */
 static bool exampleSpinUntilTask(exampletask* pTask)
 {
-	double iEnd = __xrtWaitAfter(3000000ull);
+	double iEnd = exampleTimerLimit(3000);
 
 	while ( !pTask->bDone ) {
-		if ( __xrtWaitExpired(iEnd) ) {
+		if ( exampleTimerExpired(iEnd) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -128,7 +145,6 @@ int main(void)
 	xfile File = 0;
 	exampleio Io;
 	exampletask Task;
-	uint8 arrData[16];
 	uint8 arrRead[16];
 	int iResult = 1;
 
@@ -139,6 +155,16 @@ int main(void)
 		goto Cleanup;
 	}
 
+    /* Native file completion requires IOCP or an available io_uring port. */
+    {
+        xnetport* pPort = xrtNetWorkerPort(xrtNetEngineWorker(pEngine, 0u));
+        if (pPort == NULL) goto Cleanup;
+        if ((xrtNetPortCapabilities(pPort) & XNET_PORT_CAP_FILE_IO) == 0u) {
+            printf("file: native file completion unavailable on this backend\n");
+            iResult = 0;
+            goto Cleanup;
+        }
+    }
 	/* ---- 打开 + 写：绝对偏移 0 写 8 字节。 ---- */
 	{
 		xfileoptions Options;
@@ -222,8 +248,8 @@ int main(void)
 				if ( !xrtNetFileCancel(Task.pWorker,
 						iCancelId) ||
 					!exampleSpin(&CancelIo,
-						__xrtWaitAfter(
-							3000000ull)) ) {
+						exampleTimerLimit(
+							3000)) ) {
 					goto Cleanup;
 				}
 			}

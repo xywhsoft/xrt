@@ -2,8 +2,8 @@
  * 范例：time/basic —— xtime 主线：当前时刻、分解、偏移与日历运算
  * ----------------------------------------------------------------
  * 演示 API：
- *   xrtNow          当前 Unix 微秒（xtime 即 int64 微秒，全库统一）
- *   xrtTimeSplit    按 UTC 分解为日历字段（年月日时分秒微秒）
+ *   xrtNow          当前 公元 UTC 毫秒（xtime 即 int64 毫秒，全库统一）
+ *   xrtTimeSplit    按 UTC 分解为日历字段（年月日时分秒毫秒）
  *   xrtTimeSplitAt  按固定秒偏移分解（+8×3600 即东八区，无 DST）
  *   xrtTimeAdd      日历加法（月/日/时等单位，处理月末进位）
  * 模块宏：XRT_MODULE_TIME
@@ -17,7 +17,7 @@
  *   next_month=1791165693834602
  *
  * xtime 设计要点：
- *   整数微秒（非 double 秒）——比较/差值零浮点误差，
+ *   整数毫秒（非 double 秒）——比较/差值零浮点误差，
  *   与超时/deadline 体系（xwaitresult）无缝衔接。
  *   日历加法按"日历语义"进位：8 月 31 日 +1 月 = 9 月 30 日，
  *   而不是简单加 30×86400 秒。

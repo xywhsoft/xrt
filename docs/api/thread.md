@@ -125,8 +125,8 @@ typedef int32 (*xthreadproc)(ptr pData);
 | `xrtThreadRef(pThread)` | 增加拥有引用并返回原指针；无效对象返回 `NULL`。 |
 | `xrtThreadDestroy(pThread)` | 释放一个拥有引用；传入 `NULL` 无操作，不等待也不强制停止线程。 |
 | `xrtThreadWait(pThread)` | 无限等待线程执行体和 XRT 线程上下文清理完成，返回 `xwaitresult`。 |
-| `xrtThreadWaitFor(pThread, iTimeout)` | 最多等待相对微秒数。`0` 是非阻塞状态检查。 |
-| `xrtThreadWaitUntil(pThread, iDeadline)` | 等待线程执行体和 XRT 线程上下文清理完成到单调时钟 deadline。 |
+| `xrtThreadWaitFor(pThread, iTimeout)` | 最多等待相对毫秒数。`0` 是非阻塞状态检查。 |
+| `xrtThreadWaitFor(pThread, iDeadline)` | 等待线程执行体和 XRT 线程上下文清理完成到单调时钟 deadline。 |
 | `xrtThreadStop(pThread)` | 幂等地发布协作停止请求。 |
 | `xrtThreadStopRequested(pThread)` | 查询指定线程是否收到停止请求。 |
 | `xrtThreadStopping()` | 在线程入口内查询当前线程的停止请求；外部线程返回 `false`。 |
@@ -137,7 +137,7 @@ typedef int32 (*xthreadproc)(ptr pData);
 | `xrtThreadCurrent()` | 返回当前 XRT 线程的借用对象；外部线程返回 `NULL`。 |
 | `xrtThreadYield()` | 主动让出当前处理器时间片。 |
 
-`xrtThreadWait()`、`xrtThreadWaitFor()` 和 `xrtThreadWaitUntil()` 可以重复调用，
+`xrtThreadWait()`、`xrtThreadWaitFor()` 和 `xrtThreadWaitFor()` 可以重复调用，
 超时不会改变对象状态，也不会消费后续等待机会。线程等待自己会返回 `XWAIT_ERROR`
 并设置状态错误。成功返回时，线程入口已经返回，线程键、协程及当前错误等 XRT
 线程上下文已经清理，内部运行引用也已经释放。
@@ -398,10 +398,10 @@ xwaitresult xrtThreadWait(xthread* pThread)
 
 ### `xrtThreadWaitFor`
 
-在相对微秒数内等待线程执行体和 XRT 线程上下文清理完成。
+在相对毫秒数内等待线程执行体和 XRT 线程上下文清理完成。
 
 ```c
-xwaitresult xrtThreadWaitFor(xthread* pThread, uint64 iTimeout)
+xwaitresult xrtThreadWaitFor(xthread* pThread, int64 iTimeout)
 ```
 
 #### 参数
@@ -409,7 +409,7 @@ xwaitresult xrtThreadWaitFor(xthread* pThread, uint64 iTimeout)
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pThread` | 输入 | 非空、非自身 | 目标线程 |
-| `iTimeout` | 输入 | — | 相对等待微秒数 |
+| `iTimeout` | 输入 | — | 相对等待毫秒数 |
 
 #### 返回值
 
@@ -430,47 +430,6 @@ xwaitresult xrtThreadWaitFor(xthread* pThread, uint64 iTimeout)
 
 ```c
 		(xrtThreadWaitFor(pThread, 1000u) == XWAIT_OK) ) {
-```
-
-### `xrtThreadWaitUntil`
-
-等待线程执行体和 XRT 线程上下文清理完成到指定单调时钟截止时间。
-
-```c
-xwaitresult xrtThreadWaitUntil(xthread* pThread, xdeadline iDeadline)
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pThread` | 输入 | 非空、非自身 | 目标线程 |
-| `iDeadline` | 输入 | — | 单调时钟截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 线程执行体和上下文清理完成 | — |
-| `XWAIT_TIMEOUT` | 相对期限或截止时间先到达 | 不设错误 |
-| `XWAIT_ERROR` | 参数非法或等待自身线程 | `XERR_ARGUMENT` / `XERR_STATE` |
-
-#### 错误
-
-- `XERR_ARGUMENT` — `pThread` 为空
-- `XERR_STATE` — 等待调用方所在的同一线程（自等待）
-
-#### 范例
-
-[thread_tour](../../examples/concurrency/thread_tour/main.c) · 限期等待
-
-```c
-	if ( (xrtThreadWaitUntil(pThread,
-			xrtDeadlineAfter(UINT64_C(3000000))) !=
-			XWAIT_OK) ||
-		(xrtThreadState(pThread) != XTHREAD_FINISHED) ||
-		(xrtThreadExitCode(pThread) != 42) ||
-		(xrtThreadId(pThread) == 0u) ) {
 ```
 
 ### `xrtThreadStop`

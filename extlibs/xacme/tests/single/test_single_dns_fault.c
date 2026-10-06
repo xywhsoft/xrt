@@ -51,12 +51,12 @@ static xnetresult dns_send(xnetudp* udp, const void* data, size_t size)
     if(result != XNET_RESULT_OK) remember();
     return result;
 }
-static xnetudppacket* dns_receive(xnetudp* udp, xdeadline deadline, xcancel* cancel)
+static xnetudppacket* dns_receive(xnetudp* udp, double deadline, xcancel* cancel)
 {
     ReceiveCalls++;
     if(Enabled && Inject && Active == DNS_RECEIVE && !Armed) {
         arm();
-        xnetudppacket* result = xrtNetUdpReceiveWait(udp, deadline, cancel);
+        xnetudppacket* result = __xrtNetUdpReceiveWait(udp, deadline, cancel);
         if(result == NULL) remember();
         return result;
     }
@@ -66,22 +66,22 @@ static xnetudppacket* dns_receive(xnetudp* udp, xdeadline deadline, xcancel* can
 #define xrtBufferAppend dns_append
 #define xrtNetUdpConnect dns_open
 #define xrtNetUdpSend dns_send
-#define xrtNetUdpReceiveWait dns_receive
+#define __xrtNetUdpReceiveWait dns_receive
 #include "../../src/dns/xacme_dnstxt.c"
 #undef xrtBufferAppend
 #undef xrtNetUdpConnect
 #undef xrtNetUdpSend
-#undef xrtNetUdpReceiveWait
+#undef __xrtNetUdpReceiveWait
 
 static void wait_objects(xnetengine* engine, size_t expected)
 {
     xnetenginestats stats;
-    xdeadline deadline = xrtDeadlineAfter(UINT64_C(5000000));
+    double deadline = __xrtWaitAfter(INT64_C(5000));
     do {
         testRequire(xrtNetEngineStats(engine, &stats), "DNS engine stats failed");
         if(stats.LiveObjects == expected) return;
         xrtSleep(1u);
-    } while(!xrtDeadlineExpired(deadline));
+    } while(!__xrtWaitExpired(deadline));
     fprintf(stderr, "DNS objects live=%zu expected=%zu\n", stats.LiveObjects, expected);
     testRequire(false, "DNS query retained UDP objects");
 }

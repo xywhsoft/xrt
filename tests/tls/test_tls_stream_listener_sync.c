@@ -46,7 +46,7 @@ int main(void)
 
 	pStream = __xrtTlsListenerAcceptWait(
 		pListener,
-		__xrtWaitAfter(UINT64_C(1000)),
+		__xrtWaitAfter(INT64_C(1)),
 		NULL
 	);
 	testRequire((pStream == NULL) &&

@@ -59,7 +59,8 @@
 				"extlibs/xsmtp/include/xrt/smtp.h"
 			],
 			"internal_headers": [
-				"extlibs/xsmtp/src/internal/xrt_mail.h"
+				"extlibs/xsmtp/src/internal/xrt_mail.h",
+				"extlibs/xsmtp/include/xrt/detail/xsmtp_wait.h"
 			],
 			"sources": [
 				"extlibs/xsmtp/src/smtp/smtp.c"

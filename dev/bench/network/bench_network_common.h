@@ -82,7 +82,7 @@ static bool xbenchNetworkStreamDestroy(xnetstream* pStream, bool bAbort)
 			!__xrtNetStreamWait(
 				pStream,
 				XNET_STREAM_WAIT_CLOSE,
-				__xrtWaitAfter(UINT64_C(5000000)),
+				__xrtWaitAfter(INT64_C(5000)),
 				NULL
 			)
 		) {
@@ -106,7 +106,7 @@ static bool xbenchNetworkListenerDestroy(xnetlistener* pListener)
 	}
 	if ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		bResult = xrtNetListenerClose(pListener);
-		iDeadline = __xrtWaitAfter(UINT64_C(5000000));
+		iDeadline = __xrtWaitAfter(INT64_C(5000));
 		while (
 			bResult &&
 			(xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED)

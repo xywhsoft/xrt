@@ -129,7 +129,7 @@ int main(void)
 	Config.Capacity = 2u;
 	Config.RecordLimit = 192u;
 	Config.Batch = 2u;
-	Config.IdleWait = 0u;
+	Config.IdleWait = 0;
 	pRing = xrtLogRing(pTarget, &Config);
 	testRequire(pRing != NULL, "Logger ring create failed");
 	Target.Ring = pRing;

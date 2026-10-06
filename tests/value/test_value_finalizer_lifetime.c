@@ -198,7 +198,7 @@ static void concurrent(void)
 	}
 	xrtValueRelease(object); testRequire(!state.calls, "all clone owners initially alive");
 	xrtAtomic32Store(&start, 1, XMEMORY_RELEASE);
-	for (unsigned i = 0; i < 4; ++i) { testRequire(xrtThreadWaitFor(threads[i], 5000000) == XWAIT_OK, "release thread join"); xrtThreadDestroy(threads[i]); }
+	for (unsigned i = 0; i < 4; ++i) { testRequire(xrtThreadWaitFor(threads[i], 5000) == XWAIT_OK, "release thread join"); xrtThreadDestroy(threads[i]); }
 	testRequire(state.calls == 1 && state.releases == 1 && state.drops == 2, "concurrent last backing finalizes exactly once"); balanced(&before);
 }
 int main(void)

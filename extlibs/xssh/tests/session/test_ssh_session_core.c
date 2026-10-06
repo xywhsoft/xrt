@@ -178,7 +178,7 @@ static xsshsessionpacketkind testSshSessionCoreTransfer(
 	void* pHostKeyStorage,
 	size_t iHostKeyCapacity,
 	size_t* pHostKeySize,
-	uint64 iNowMs,
+	double Timer,
 	bool bAbortFirst,
 	uint8* pPadding
 )
@@ -200,7 +200,7 @@ static xsshsessionpacketkind testSshSessionCoreTransfer(
 		pChannel,
 		pReplies,
 		iReplyToken,
-		iNowMs,
+		Timer,
 		&WriteKind
 	) == XSSH_OK) && xrtSshWriterInit(
 		&Writer,
@@ -212,7 +212,7 @@ static xsshsessionpacketkind testSshSessionCoreTransfer(
 		Payload,
 		testSshSessionCorePadding,
 		pPadding,
-		iNowMs
+		Timer
 	) == XSSH_OK) && (xrtSshSessionCoreAction(
 		pSender,
 		pSenderCore
@@ -230,7 +230,7 @@ static xsshsessionpacketkind testSshSessionCoreTransfer(
 	) == XSSH_OK) && (xrtSshSessionCoreWriteCommit(
 		pSender,
 		pSenderCore,
-		iNowMs
+		Timer
 	) == XSSH_ERROR_STATE), "ssh session write binding was not strict");
 	if ( bAbortFirst ) {
 		testRequire((xrtSshSessionCoreWriteAbort(
@@ -245,7 +245,7 @@ static xsshsessionpacketkind testSshSessionCoreTransfer(
 			pChannel,
 			pReplies,
 			iReplyToken,
-			iNowMs,
+			Timer,
 			&WriteKind
 		) == XSSH_OK) && xrtSshWriterInit(
 			&Writer,
@@ -257,7 +257,7 @@ static xsshsessionpacketkind testSshSessionCoreTransfer(
 			Payload,
 			testSshSessionCorePadding,
 			pPadding,
-			iNowMs
+			Timer
 		) == XSSH_OK) && (xrtSshSessionCoreWriteBind(
 			pSender,
 			pSenderCore,
@@ -266,13 +266,13 @@ static xsshsessionpacketkind testSshSessionCoreTransfer(
 	}
 	testRequire((xrtSshTransportCoreWriteCommit(
 		pSenderCore,
-		iNowMs,
+		Timer,
 		&Decision
 	) == XSSH_OK) && (Decision != XSSH_REKEY_REQUIRED) &&
 		(xrtSshSessionCoreWriteCommit(
 			pSender,
 			pSenderCore,
-			iNowMs
+			Timer
 		) == XSSH_OK), "ssh session sender commit failed");
 
 	testRequire(xrtSshReaderInit(
@@ -284,7 +284,7 @@ static xsshsessionpacketkind testSshSessionCoreTransfer(
 		&CorePacket,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	) == XSSH_OK) && (xrtSshSessionCoreReadPrepare(
 		pReceiver,
 		pReceiverCore,
@@ -292,7 +292,7 @@ static xsshsessionpacketkind testSshSessionCoreTransfer(
 		pHostKeyStorage,
 		iHostKeyCapacity,
 		pHostKeySize,
-		iNowMs,
+		Timer,
 		&Packet
 	) == XSSH_OK) && (xrtSshSessionCoreAction(
 		pReceiver,
@@ -301,13 +301,13 @@ static xsshsessionpacketkind testSshSessionCoreTransfer(
 		(Packet.Kind == WriteKind) &&
 		(Packet.Number == Payload.Data[0]) && (xrtSshTransportCoreReadCommit(
 			pReceiverCore,
-			iNowMs,
+			Timer,
 			&Decision
 		) == XSSH_OK) && (Decision != XSSH_REKEY_REQUIRED) &&
 		(xrtSshSessionCoreReadCommit(
 			pReceiver,
 			pReceiverCore,
-			iNowMs
+			Timer
 		) == XSSH_OK), "ssh session receiver transaction failed");
 	return Packet.Kind;
 }
@@ -387,7 +387,7 @@ static void testSshSessionCoreKex(
 	bool bInitial,
 	uint8 iClientCookie,
 	uint8 iServerCookie,
-	uint64 iNowMs,
+	double Timer,
 	uint8* pPadding
 )
 {
@@ -430,7 +430,7 @@ static void testSshSessionCoreKex(
 		NULL,
 		0u,
 		NULL,
-		iNowMs,
+		Timer,
 		true,
 		pPadding
 	) == XSSH_SESSION_PACKET_KEXINIT, "ssh session client KEXINIT failed");
@@ -446,7 +446,7 @@ static void testSshSessionCoreKex(
 		NULL,
 		0u,
 		NULL,
-		iNowMs,
+		Timer,
 		false,
 		pPadding
 	) == XSSH_SESSION_PACKET_KEXINIT, "ssh session server KEXINIT failed");
@@ -500,7 +500,7 @@ static void testSshSessionCoreKex(
 		NULL,
 		0u,
 		NULL,
-		iNowMs + 1u,
+		Timer + 1u,
 		false,
 		pPadding
 	) == XSSH_SESSION_PACKET_KEX && (xrtSshSessionCoreAction(
@@ -532,7 +532,7 @@ static void testSshSessionCoreKex(
 		arrClientHostKey,
 		sizeof(arrClientHostKey),
 		&iHostKeySize,
-		iNowMs + 2u,
+		Timer + 2u,
 		false,
 		pPadding
 	) == XSSH_SESSION_PACKET_KEX && (xrtSshSessionCoreAction(
@@ -567,7 +567,7 @@ static void testSshSessionCoreKex(
 		NULL,
 		0u,
 		NULL,
-		iNowMs + 3u,
+		Timer + 3u,
 		false,
 		pPadding
 	) == XSSH_SESSION_PACKET_KEX, "ssh session server NEWKEYS failed");
@@ -589,7 +589,7 @@ static void testSshSessionCoreKex(
 		NULL,
 		0u,
 		NULL,
-		iNowMs + 4u,
+		Timer + 4u,
 		false,
 		pPadding
 	) == XSSH_SESSION_PACKET_KEX, "ssh session client NEWKEYS failed");
@@ -624,14 +624,10 @@ static void testSshSessionCoreApplication(
 	testRequire((xrtSshSessionCoreAuthBegin(
 		pClient,
 		pClientCore,
-		NULL,
-		5u
-	) == XSSH_OK) && (xrtSshSessionCoreAuthBegin(
+		NULL, ((double)(5u)) / 1000.0) == XSSH_OK) && (xrtSshSessionCoreAuthBegin(
 		pServer,
 		pServerCore,
-		NULL,
-		5u
-	) == XSSH_OK) && (xrtSshSessionCoreAction(
+		NULL, ((double)(5u)) / 1000.0) == XSSH_OK) && (xrtSshSessionCoreAction(
 		pClient,
 		pClientCore
 	) == XSSH_SESSION_ACTION_WRITE_SERVICE_REQUEST) &&
@@ -657,8 +653,7 @@ static void testSshSessionCoreApplication(
 		0u,
 		NULL,
 		0u,
-		NULL,
-		5u,
+		NULL, ((double)(5u)) / 1000.0,
 		true,
 		pPadding
 	) == XSSH_SESSION_PACKET_AUTH, "ssh session service request failed");
@@ -670,7 +665,7 @@ static void testSshSessionCoreApplication(
 	Payload = testSshSessionCorePayload(&Writer, arrPayload);
 	(void)testSshSessionCoreTransfer(
 		pServer, pServerCore, pClient, pClientCore, Payload,
-		NULL, NULL, 0u, NULL, 0u, NULL, 6u, false, pPadding
+		NULL, NULL, 0u, NULL, 0u, NULL, ((double)(6u)) / 1000.0, false, pPadding
 	);
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshAuthNoneWrite(
@@ -680,7 +675,7 @@ static void testSshSessionCoreApplication(
 	Payload = testSshSessionCorePayload(&Writer, arrPayload);
 	(void)testSshSessionCoreTransfer(
 		pClient, pClientCore, pServer, pServerCore, Payload,
-		NULL, NULL, 0u, NULL, 0u, NULL, 7u, false, pPadding
+		NULL, NULL, 0u, NULL, 0u, NULL, ((double)(7u)) / 1000.0, false, pPadding
 	);
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshAuthSuccessWrite(&Writer) == XSSH_OK),
@@ -697,8 +692,7 @@ static void testSshSessionCoreApplication(
 		0u,
 		NULL,
 		0u,
-		NULL,
-		8u,
+		NULL, ((double)(8u)) / 1000.0,
 		false,
 		pPadding
 	) == XSSH_SESSION_PACKET_AUTH, "ssh session auth success failed");
@@ -732,8 +726,7 @@ static void testSshSessionCoreApplication(
 		0u,
 		NULL,
 		0u,
-		NULL,
-		9u,
+		NULL, ((double)(9u)) / 1000.0,
 		false,
 		pPadding
 	) == XSSH_SESSION_PACKET_CONNECTION,
@@ -755,8 +748,7 @@ static void testSshSessionCoreApplication(
 		0u,
 		NULL,
 		0u,
-		NULL,
-		10u,
+		NULL, ((double)(10u)) / 1000.0,
 		false,
 		pPadding
 	) == XSSH_SESSION_PACKET_IGNORE, "ssh session control routing failed");
@@ -775,8 +767,7 @@ static void testSshSessionCoreApplication(
 		0u,
 		NULL,
 		0u,
-		NULL,
-		11u,
+		NULL, ((double)(11u)) / 1000.0,
 		false,
 		pPadding
 	) == XSSH_SESSION_PACKET_EXTENSION,
@@ -807,15 +798,11 @@ int main(void)
 		&ClientCore,
 		XSSH_ROLE_CLIENT,
 		0u,
-		NULL,
-		0u
-	) && xrtSshTransportCoreInit(
+		NULL, ((double)(0u)) / 1000.0) && xrtSshTransportCoreInit(
 		&ServerCore,
 		XSSH_ROLE_SERVER,
 		0u,
-		NULL,
-		0u
-	) && xrtSshSessionCoreInit(
+		NULL, ((double)(0u)) / 1000.0) && xrtSshSessionCoreInit(
 		&Client,
 		pPool,
 		XSSH_ROLE_CLIENT,
@@ -880,8 +867,7 @@ int main(void)
 		},
 		true,
 		0x00u,
-		0x10u,
-		0u,
+		0x10u, ((double)(0u)) / 1000.0,
 		&iPadding
 	);
 	testSshSessionCoreApplication(
@@ -920,8 +906,7 @@ int main(void)
 		},
 		false,
 		0x40u,
-		0x50u,
-		20u,
+		0x50u, ((double)(20u)) / 1000.0,
 		&iPadding
 	);
 	testRequire(xrtSshConnectionSessionActive(

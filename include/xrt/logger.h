@@ -757,7 +757,7 @@ typedef struct xlogfileoptions {
 	uint32 BackupCount;
 	size_t RecordLimit;
 	size_t BufferLimit;
-	uint64 SyncInterval;
+	int64 SyncInterval;
 } xlogfileoptions;
 
 
@@ -1007,7 +1007,7 @@ XRT_EXTERN_C_END
 #define XLOG_RING_RECORD_LIMIT_DEFAULT 4096u
 #define XLOG_RING_BATCH_DEFAULT 64u
 #define XLOG_RING_BATCH_MAX 256u
-#define XLOG_RING_IDLE_WAIT_DEFAULT 100u
+#define XLOG_RING_IDLE_WAIT_DEFAULT 1
 
 
 

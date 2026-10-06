@@ -16,7 +16,7 @@ The previous chapter wrote every part of a custom Sink; this chapter assembles t
 
 Three hurdles when logging goes live. Hurdle one: logs must reach the collection pipeline as JSON (ELK/Loki eat structured data) — hand-writing JSON assembly in a custom Sink? Field escaping, time formats, nested error chains — pits everywhere. Hurdle two: log files grow without bound — the disk fills in three months; you need rotation by size, compressed archival, and the ability to resume writing after logrotate truncates externally. Hurdle three: at peak, tens of thousands of records per second, and the disk-write IO latency lands directly on request latency — logging becomes a performance tax.
 
-The three hurdles map to three answer sets: the JSON Sink works out of the box (fields auto-collected into the object, error chains auto-expanded, microsecond timestamps); the file family's Rotate/Reopen/Stats (built-in rotation semantics + external-truncation recovery); and the async Sink moving disk writes off the submit path (queue buffering + a dedicated flushing thread). Their shared precondition is Chapter 38's foundation — every Sink implements the same write-function contract.
+The three hurdles map to three answer sets: the JSON Sink works out of the box (fields auto-collected into the object, error chains auto-expanded, millisecond timestamps); the file family's Rotate/Reopen/Stats (built-in rotation semantics + external-truncation recovery); and the async Sink moving disk writes off the submit path (queue buffering + a dedicated flushing thread). Their shared precondition is Chapter 38's foundation — every Sink implements the same write-function contract.
 
 ## Concepts
 
@@ -30,7 +30,7 @@ The three hurdles map to three answer sets: the JSON Sink works out of the box (
 | JSON formatting | the json configurator | collection pipelines, structured retrieval |
 | Async wrapping | the async configurator | hot-path submission without blocking |
 
-The configurator style is uniform library-wide: `ConfigInit` fills defaults → change fields as needed → create in one step. The JSON Sink's output shape (visible in the json sample): top-level `time` (microseconds)/`level`/`logger`/`message` plus a `fields` object collecting structured fields — names and types preserved as-is, zero parsing cost for the pipeline.
+The configurator style is uniform library-wide: `ConfigInit` fills defaults → change fields as needed → create in one step. The JSON Sink's output shape (visible in the json sample): top-level `time` (milliseconds)/`level`/`logger`/`message` plus a `fields` object collecting structured fields — names and types preserved as-is, zero parsing cost for the pipeline.
 
 ### The file-operations trio
 
@@ -44,7 +44,7 @@ Rotation triggers come in a built-in policy (automatic by size) and manual firin
 
 ### The async Sink: queue + dedicated thread
 
-The truth of the submit path: with a synchronous file Sink, every record's IO latency (milliseconds) lands directly on the business call. The async Sink's structure: the **submitting thread** only does "format into the queue" (microseconds; the lock-free queue's batch interface — Chapter 21's MPMC is exactly its foundation); a **dedicated thread** dequeues in batches and writes (amortized efficiency at batch size 32). The costs and disciplines: shutdown must Flush (`xrtLogFlush` — a clean exit means the queued records have reached disk; what you lose is the last few hundred milliseconds before a crash); queue capacity is the backpressure valve (when full, drop or block per policy — drop counts go into Stats; "a log flood sacrificing logs" is the correct trade).
+The truth of the submit path: with a synchronous file Sink, every record's IO latency (milliseconds) lands directly on the business call. The async Sink's structure: the **submitting thread** only does "format into the queue" (milliseconds; the lock-free queue's batch interface — Chapter 21's MPMC is exactly its foundation); a **dedicated thread** dequeues in batches and writes (amortized efficiency at batch size 32). The costs and disciplines: shutdown must Flush (`xrtLogFlush` — a clean exit means the queued records have reached disk; what you lose is the last few hundred milliseconds before a crash); queue capacity is the backpressure valve (when full, drop or block per policy — drop counts go into Stats; "a log flood sacrificing logs" is the correct trade).
 
 ### Formatting reuse: TextWrite and field printf
 
@@ -65,7 +65,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I single impl.c examples/logging/json/main.c -lws2_3
  "message":"request completed","fields":{"request_id":42,"cached":false}}
 ```
 
-**What just happened.** (1) One `LogFields` submission (integer field 42, boolean field false) — the JSON Sink automatically collects them into the `fields` object: **fields delivered typed and intact** (42 is a number, not `"42"`; false is a boolean), zero parsing cost for the pipeline. (2) `time` is Unix microseconds (Chapter 3's xtime measure) — machine-sortable, human-formattable; the format choice belongs to the consumer. (3) message and fields are separate in the output — the human-facing message and the machine-searchable fields each in their place; that is the very meaning of "structured logging". Contrast Chapter 38's text Sink (which ignored fields and printed only the message): hang both Sinks on one Logger — text to the console, JSON to the pipeline — dual-format in parallel is precisely this model's value.
+**What just happened.** (1) One `LogFields` submission (integer field 42, boolean field false) — the JSON Sink automatically collects them into the `fields` object: **fields delivered typed and intact** (42 is a number, not `"42"`; false is a boolean), zero parsing cost for the pipeline. (2) `time` is Unix milliseconds (Chapter 3's xtime measure) — machine-sortable, human-formattable; the format choice belongs to the consumer. (3) message and fields are separate in the output — the human-facing message and the machine-searchable fields each in their place; that is the very meaning of "structured logging". Contrast Chapter 38's text Sink (which ignored fields and printed only the message): hang both Sinks on one Logger — text to the console, JSON to the pipeline — dual-format in parallel is precisely this model's value.
 
 ### Complete program: the async Sink
 
@@ -84,10 +84,10 @@ asynchronous sink ready
 ## Contracts
 
 - **Uniform configurators**: `ConfigInit` → customize → create; validators guard the config gate.
-- **JSON shape**: time in microseconds / level / logger / message + the fields object — fields typed, time machine-ordered.
+- **JSON shape**: time in milliseconds / level / logger / message + the fields object — fields typed, time machine-ordered.
 - **Rotation semantics**: Rotate renames to archive and opens a new file; automatic by size plus manual triggers; Path queries the current path.
 - **Truncation recovery**: Reopen reopens after an external move/truncate — built-in support for logrotate cooperation.
-- **Async discipline**: Flush at shutdown; queue capacity is the backpressure valve, drop counts go into Stats; submission in microseconds, flushing amortized in batches.
+- **Async discipline**: Flush at shutdown; queue capacity is the backpressure valve, drop counts go into Stats; submission in milliseconds, flushing amortized in batches.
 - **Formatting reuse**: custom destinations use the TextWrite family; machine-bound fields still go LogFields.
 
 ### From examples to engineering: three Sink-assembly patterns
@@ -159,8 +159,8 @@ Construct a load of a hundred thousand submissions per second: run a synchronous
 | Topic | Quick reference |
 | --- | --- |
 | Five Sinks | console / file (text/JSON) / formatting reuse / async wrapping |
-| JSON shape | time microseconds + level + logger + message + fields object (fields typed) |
+| JSON shape | time milliseconds + level + logger + message + fields object (fields typed) |
 | Operations trio | Rotate / Reopen after truncation / Stats; Path queries the current path |
-| Async discipline | Flush at shutdown; queue = backpressure valve; submit in microseconds, flush in batches |
+| Async discipline | Flush at shutdown; queue = backpressure valve; submit in milliseconds, flush in batches |
 | Assembly discipline | Sinks assembled once at startup, reused globally; business code only submits |
 | Validators | guarding the config-loading gate - format errors surface at startup |

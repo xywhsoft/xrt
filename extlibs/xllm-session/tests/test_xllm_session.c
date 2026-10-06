@@ -1773,19 +1773,19 @@ static void test_borrowed_view_render(void)
      * tolerant of fast machines via the >= 3x floor). */
     uOwnedMs = 0u;
     for ( i = 0u; i < 60u; ++i ) {
-        uint64_t uStart = xrtTimer();
+        double uStart = xrtTimer();
         xllmRequestInit(&tOwned);
         if ( !xllmSessionBuildRequest(pSession, &tOwned, &tError) ) break;
         xllmRequestUnit(&tOwned);
-        uOwnedMs += (xrtTimer() - uStart) / 1000u;
+        uOwnedMs += (uint64_t)((xrtTimer() - uStart) * 1000.0);
     }
     uViewMs = 0u;
     for ( i = 0u; i < 60u; ++i ) {
-        uint64_t uStart = xrtTimer();
+        double uStart = xrtTimer();
         xllmRequestInit(&tView);
         if ( !xllmSessionBuildRequestView(pSession, &tView, &tError) ) break;
         xllmRequestUnit(&tView);
-        uViewMs += (xrtTimer() - uStart) / 1000u;
+        uViewMs += (uint64_t)((xrtTimer() - uStart) * 1000.0);
     }
     SESSION_CHECK(uOwnedMs == 0u || (uViewMs < uOwnedMs && uViewMs * 3u <= uOwnedMs),
         "borrowed view renders a large ledger at least 3x faster when measurable");

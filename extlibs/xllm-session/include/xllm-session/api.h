@@ -450,7 +450,7 @@ typedef struct xllm_run_policy {
      * 0 and UINT64_MAX mean none). Applied to every model request and
      * forwarded to each executor context so one tree governs the run. */
     xcancel* pCancel;
-    uint64_t uDeadline;
+    int64_t iTimeout;
     /* Guard seam: invoked after each assistant response is recorded and
      * before its tool calls execute. Return false to stop the run; the
      * unresolved tool calls stay pending in the ledger for a later resume. */

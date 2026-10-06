@@ -144,7 +144,7 @@ XRT_API xwaitresult xrtThreadWait(xthread* pThread);
 
 
 
-/* 在相对微秒数内等待线程执行体和 XRT 线程上下文清理完成。 */
+/* 在相对毫秒数内等待线程执行体和 XRT 线程上下文清理完成。 */
 XRT_API xwaitresult xrtThreadWaitFor(xthread* pThread, int64 iTimeout);
 
 

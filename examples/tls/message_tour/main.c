@@ -58,19 +58,6 @@
 #include <string.h>
 #include <xrt.h>
 
-static void examplePut16(uint8* p, uint16 v)
-{
-	p[0] = (uint8)(v >> 8);
-	p[1] = (uint8)(v & 0xFFu);
-}
-
-static void examplePut24(uint8* p, size_t v)
-{
-	p[0] = (uint8)(v >> 16);
-	p[1] = (uint8)(v >> 8);
-	p[2] = (uint8)v;
-}
-
 int main(void)
 {
 	static uint8 arrOut[512];

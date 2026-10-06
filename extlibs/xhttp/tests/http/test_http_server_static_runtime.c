@@ -23,7 +23,7 @@ static void testHttpServerStaticRuntimeWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(3000000)
+		INT64_C(3000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -382,7 +382,7 @@ int main(void)
 		"HTTP static runtime address setup failed"
 	);
 	ServerConfig.RequestTimeout =
-		UINT64_C(5000000);
+		INT64_C(5000);
 	xrtHttpServerEventsInit(&Events);
 	Events.Request =
 		testHttpServerStaticRuntimeRequest;

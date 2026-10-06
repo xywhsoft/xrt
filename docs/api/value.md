@@ -155,7 +155,7 @@ void xrtValueCursorRelease(xvaluecursor* pCursor);
 | `XVALUE_FLOAT` | 双精度浮点数。 |
 | `XVALUE_STRING` | 允许内嵌零、带额外末尾零的字节字符串。 |
 | `XVALUE_BYTES` | 不附加文本语义的二进制块。 |
-| `XVALUE_TIME` | Unix Epoch 微秒时间。 |
+| `XVALUE_TIME` | 公元 UTC 毫秒时间。 |
 | `XVALUE_POINTER` | 不拥有目标的裸指针。 |
 | `XVALUE_HANDLE` | 由 `xvaluehandleops` 管理的原生句柄。 |
 | `XVALUE_ARRAY` | 0 基稠密数组。 |
@@ -729,7 +729,7 @@ xvalue* xrtValueBytesTake(bytes* pData, size_t iSize)
 
 ### `xrtValueTime`
 
-创建使用 Unix Epoch 微秒表示的时间值。
+创建使用 公元 UTC 毫秒表示的时间值。
 
 ```c
 xvalue* xrtValueTime(xtime Time)
@@ -739,7 +739,7 @@ xvalue* xrtValueTime(xtime Time)
 
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
-| `Time` | 输入 | — | Unix 微秒 |
+| `Time` | 输入 | — | 公元 UTC 毫秒 |
 
 #### 返回值
 
@@ -5004,7 +5004,10 @@ bool xrtValueObjectOwnershipDiscoverV1(const xvalueobjectownershipv1* pExpectedP
 
 #### 返回值
 
-true 表示完整枚举；false 表示参数非法、登记状态不一致或 visitor 拒绝。
+| 返回值 | 说明 |
+|---|---|
+| `true` | 完整枚举符合指定 policy 的所有 backing |
+| `false` | 参数非法、登记状态不一致或 visitor 拒绝 |
 已调用 visitor 的效果不回滚；失败时必须丢弃部分锚点列表。
 
 #### 错误

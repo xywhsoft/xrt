@@ -82,7 +82,7 @@ static ptr testChannelAwaitOomProc(ptr pData)
 	pContext->InlineResult = xrtChannelSelectAwaitFor(
 		arrCase,
 		8u,
-		UINT64_C(1000)
+		INT64_C(1)
 	);
 	pContext->HeapResult = xrtChannelSelectAwait(
 		arrCase,

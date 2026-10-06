@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：concurrency/sync_tour —— 同步原语堆形态全接口
  * ----------------------------------------------------------------
@@ -30,7 +29,24 @@
 #include <string.h>
 #include <xrt.h>
 
-#define EXAMPLE_TIMEOUT_US	UINT64_C(200000)
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
+#define EXAMPLE_TIMEOUT_MS	INT64_C(200)
 
 /* 条件变量工作线程：先短窗 WaitFor 到期，再无限 Wait 等 Signal。 */
 typedef struct examplecond {
@@ -49,7 +65,7 @@ static int32 exampleCondThread(ptr pArg)
 
 	(void)xrtMutexLock(pJob->pMutex);
 	pJob->iForResult = xrtCondWaitFor(pJob->pCond, pJob->pMutex,
-		EXAMPLE_TIMEOUT_US);  /* 无人 Signal：到期 */
+		EXAMPLE_TIMEOUT_MS);  /* 无人 Signal：到期 */
 	pJob->bPhase2 = true;
 	/* 谓词循环：先查后等——即使 Signal 先于 Wait 到达也不丢失。 */
 	pJob->iWaitResult = XWAIT_OK;
@@ -64,10 +80,10 @@ static int32 exampleCondThread(ptr pArg)
 
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(3000000));
+	double iDeadline = exampleTimerLimit(INT64_C(3000));
 
 	while ( !*pFlag ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -85,7 +101,6 @@ int main(void)
 	xevent tManual;
 	xthread* pThread = NULL;
 	examplecond CondJob;
-	xwaitresult Wait;
 	int iResult = 1;
 
 	memset(&CondJob, 0, sizeof(CondJob));
@@ -144,7 +159,7 @@ int main(void)
 	if ( !xrtSemPostMany(pSem, 3u) ||
 		(xrtSemTryWait(pSem) != XWAIT_OK) ||
 		(xrtSemWait(pSem) != XWAIT_OK) ||
-		(xrtSemWaitFor(pSem, EXAMPLE_TIMEOUT_US) != XWAIT_OK) ) {
+		(xrtSemWaitFor(pSem, EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ) {
 		goto Cleanup;  /* 3 枚：Try + Wait + WaitFor 各消耗一枚 */
 	}
 	printf("sync: sem try=1 post-many=3 wait=0\n");
@@ -168,12 +183,12 @@ int main(void)
 		!xrtEventSet(pAuto) ||
 		(xrtEventTryWait(pAuto) != XWAIT_OK) ||  /* 消费信号 */
 		(xrtEventTryWait(pAuto) != XWAIT_TIMEOUT) ||
-		(xrtEventWaitFor(pAuto, EXAMPLE_TIMEOUT_US) !=
+		(xrtEventWaitFor(pAuto, EXAMPLE_TIMEOUT_MS) !=
 			XWAIT_TIMEOUT) ) {
 		goto Cleanup;
 	}
 	if ( !xrtEventSet(pAuto) ||
-		(xrtEventWaitFor(pAuto, EXAMPLE_TIMEOUT_US) !=
+		(xrtEventWaitFor(pAuto, EXAMPLE_TIMEOUT_MS) !=
 			XWAIT_OK) ) {
 		goto Cleanup;
 	}
@@ -183,9 +198,8 @@ int main(void)
 	/* 手动复位：Set 后多次 Wait 都立即通过，Reset 后恢复阻塞。 */
 	if ( !xrtEventSet(&tManual) ||
 		(xrtEventWait(&tManual) != XWAIT_OK) ||
-		(xrtEventWaitFor(&tManual, UINT64_C(1)) != XWAIT_OK) ||
-		(__xrtEventWaitUntil(&tManual,
-			__xrtWaitAfter(UINT64_C(1))) != XWAIT_OK) ||
+		(xrtEventWaitFor(&tManual, INT64_C(1)) != XWAIT_OK) ||
+		(xrtEventWaitFor(&tManual,INT64_C(1)) != XWAIT_OK) ||
 		!xrtEventReset(&tManual) ||
 		(xrtEventTryWait(&tManual) != XWAIT_TIMEOUT) ) {
 		goto Cleanup;

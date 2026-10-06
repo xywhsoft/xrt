@@ -60,9 +60,9 @@ int main(void)
 	}
 	pClientOpen = xrtNetUdpWaitAsync(pClient, XNET_UDP_WAIT_OPEN);
 	if ( (pServerOpen == NULL) || (pClientOpen == NULL) ||
-		 (xrtFutureWaitFor(pServerOpen, UINT64_C(3000000)) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pServerOpen, INT64_C(3000)) != XWAIT_OK) ||
 		 (xrtFutureState(pServerOpen) != XFUTURE_RESOLVED) ||
-		 (xrtFutureWaitFor(pClientOpen, UINT64_C(3000000)) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pClientOpen, INT64_C(3000)) != XWAIT_OK) ||
 		 (xrtFutureState(pClientOpen) != XFUTURE_RESOLVED) ) {
 		return 6;
 	}
@@ -74,7 +74,7 @@ int main(void)
 	) != XNET_RESULT_OK) ) {
 		return 7;
 	}
-	if ( (xrtFutureWaitFor(pReceive, UINT64_C(3000000)) != XWAIT_OK) ||
+	if ( (xrtFutureWaitFor(pReceive, INT64_C(3000)) != XWAIT_OK) ||
 		 (xrtFutureState(pReceive) != XFUTURE_RESOLVED) ) {
 		return 8;
 	}
@@ -97,9 +97,9 @@ int main(void)
 	pClientClose = xrtNetUdpWaitAsync(pClient, XNET_UDP_WAIT_CLOSE);
 	if ( (pServerClose == NULL) || (pClientClose == NULL) ||
 		 !xrtNetUdpClose(pServer) || !xrtNetUdpClose(pClient) ||
-		 (xrtFutureWaitFor(pServerClose, UINT64_C(3000000)) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pServerClose, INT64_C(3000)) != XWAIT_OK) ||
 		 (xrtFutureState(pServerClose) != XFUTURE_RESOLVED) ||
-		 (xrtFutureWaitFor(pClientClose, UINT64_C(3000000)) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pClientClose, INT64_C(3000)) != XWAIT_OK) ||
 		 (xrtFutureState(pClientClose) != XFUTURE_RESOLVED) ) {
 		return 10;
 	}

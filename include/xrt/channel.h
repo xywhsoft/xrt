@@ -184,7 +184,7 @@ XRT_API xwaitresult xrtChannelSend(xchannel* pChannel, ptr pItem);
 
 
 
-/* 在相对微秒数内等待发送一个指针值。 */
+/* 在相对毫秒数内等待发送一个指针值。 */
 XRT_API xwaitresult xrtChannelSendFor(
 	xchannel* pChannel,
 	ptr pItem,
@@ -211,7 +211,7 @@ XRT_API xwaitresult xrtChannelRecv(xchannel* pChannel, ptr* pItem);
 
 
 
-/* 在相对微秒数内等待接收一个指针值。 */
+/* 在相对毫秒数内等待接收一个指针值。 */
 XRT_API xwaitresult xrtChannelRecvFor(
 	xchannel* pChannel,
 	ptr* pItem,
@@ -236,7 +236,7 @@ XRT_API xwaitresult xrtChannelSendCancel(
 
 
 
-/* 在相对微秒数内等待发送，并允许取消令牌中断尚未提交的操作。 */
+/* 在相对毫秒数内等待发送，并允许取消令牌中断尚未提交的操作。 */
 XRT_API xwaitresult xrtChannelSendForCancel(
 	xchannel* pChannel,
 	ptr pItem,
@@ -260,7 +260,7 @@ XRT_API xwaitresult xrtChannelRecvCancel(
 
 
 
-/* 在相对微秒数内等待接收，并允许取消令牌中断尚未完成的操作。 */
+/* 在相对毫秒数内等待接收，并允许取消令牌中断尚未完成的操作。 */
 XRT_API xwaitresult xrtChannelRecvForCancel(
 	xchannel* pChannel,
 	ptr* pItem,
@@ -357,7 +357,7 @@ XRT_API xchannelselectresult xrtChannelSelect(
 
 
 
-/* 在相对微秒数内等待任意一个 case 原子提交。 */
+/* 在相对毫秒数内等待任意一个 case 原子提交。 */
 XRT_API xchannelselectresult xrtChannelSelectFor(
 	const xchannelcase* pCases,
 	size_t iCount,

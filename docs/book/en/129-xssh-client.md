@@ -25,7 +25,7 @@ Backpressure's **two-layer chaining** deserves a first look: when the TCP queue 
 ```diagram flow
 - Assembly: ConfigInit + ClientInit -> the event table goes to NetStreamConnect (or Attach on an already-built stream)
 - TCP opens: Worker binding (the channel/control-message scratch only now joins the buffer pool)
-- ReadyTimeout (default 30s, microseconds) covers: version exchange -> KEX -> host trust -> authentication
+- ReadyTimeout (default 30s, milliseconds) covers: version exchange -> KEX -> host trust -> authentication
 - Ready: SSH usable - the starting point for channels/forwarding
 - Error/timeout: structured errors (XSSH_ERROR_TIMEOUT/XERR_TIMEOUT/domain) reach Error/Close/all pending Futures together
 - TCP side: DNS/connect deadline belongs to xnetdialconfig.Timeout (independently controlled)

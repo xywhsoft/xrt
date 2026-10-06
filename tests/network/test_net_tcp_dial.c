@@ -35,7 +35,7 @@ static void testDialWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -258,7 +258,7 @@ int main(void)
 		"dial listener create failed");
 	xrtNetDialConfigInit(&DialConfig);
 	DialConfig.Affinity = 0;
-	DialConfig.FallbackDelay = 1000u;
+	DialConfig.FallbackDelay = 1;
 	DialConfig.MaxAttempts = 2;
 	pDial = xrtNetDial(
 		pEngine,

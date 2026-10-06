@@ -467,7 +467,7 @@ bool xoauth2TokenExpiring(const xoauth2token* pToken, int leewaySeconds)
 	if ( pToken->ExpiresIn == 0 ) return false;
 	/* 剩余时间 = ExpiresAt - 当前；ExpiresIn 是签发时的总有效期，
 	 * 不反映流逝，必须用获取时刻换算 */
-	int64_t now = (int64_t)(xrtTimeUnix(xrtNow());
+	int64_t now = (int64_t)xrtTimeUnix(xrtNow());
 	int64_t leeway = leewaySeconds > 0 ? (int64_t)leewaySeconds : 0;
 	if ( now > INT64_MAX - leeway ) return true;
 	return pToken->ExpiresAt <= now + leeway;

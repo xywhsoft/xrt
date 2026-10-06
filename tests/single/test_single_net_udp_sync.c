@@ -14,9 +14,9 @@ int main(void)
 	xnetudppacket* pPacket;
 	xnetaddr Address;
 
-	if ( xrtNetUdpReceiveErrorWait(
+	if ( __xrtNetUdpReceiveErrorWait(
 		NULL,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	) != NULL ) {
 		return 1;
@@ -50,17 +50,17 @@ int main(void)
 		NULL,
 		NULL
 	);
-	if ( (pClient == NULL) || !xrtNetUdpWait(
+	if ( (pClient == NULL) || !__xrtNetUdpWait(
 		pClient,
 		XNET_UDP_WAIT_OPEN,
-		xrtDeadlineAfter(3000000u),
+		__xrtWaitAfter(3000),
 		NULL
 	) || (xrtNetUdpSend(pClient, "udp", 3) != XNET_RESULT_OK) ) {
 		return 4;
 	}
-	pPacket = xrtNetUdpReceiveWait(
+	pPacket = __xrtNetUdpReceiveWait(
 		pServer,
-		xrtDeadlineAfter(3000000u),
+		__xrtWaitAfter(3000),
 		NULL
 	);
 	if ( (pPacket == NULL) || (xrtNetUdpPacketSize(pPacket) != 3) ||

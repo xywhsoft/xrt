@@ -54,7 +54,7 @@ static void testNetPortSendMsgCases(xnetportbackend Backend)
 				xnetportevent Events[2];
 				const xnetportevent* pReceive = NULL;
 				const xnetportevent* pSend = NULL;
-				double Deadline = __xrtWaitAfter(5000000u);
+				double Deadline = __xrtWaitAfter(5000);
 				size_t iCount = 0;
 				char Data[5] = { 0 };
 				bool bSent;

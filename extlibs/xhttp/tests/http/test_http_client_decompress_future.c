@@ -24,7 +24,7 @@ static xhttpclient* testHttpDecompressFutureClient(
 	xrtHttpClientConfigInit(&Config);
 	Config.Dial.Family = XNET_FAMILY_IPV4;
 	Config.Dial.MaxAttempts = 1;
-	Config.Timeout = UINT64_C(5000000);
+	Config.Timeout = INT64_C(5000);
 	pClient = xrtHttpClientCreate(pEngine, &Config);
 	testRequire(
 		pClient != NULL,
@@ -76,7 +76,7 @@ static void testHttpDecompressFutureEngineDestroy(
 	xnetengine* pEngine
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
@@ -149,7 +149,7 @@ int main(void)
 	testRequire(
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 		"HTTP decompression Future did not resolve"

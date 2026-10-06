@@ -46,7 +46,7 @@ int main(void)
 		xrtNetEnginePost(pEngine, 0, testNetStatsPost, &State),
 		"stats-level post failed"
 	);
-	iDeadline = __xrtWaitAfter(2000000u);
+	iDeadline = __xrtWaitAfter(2000);
 	while ( xrtAtomic32Load(&State.Executed, XMEMORY_ACQUIRE) == 0 ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
 			"stats-level post timed out");

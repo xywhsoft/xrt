@@ -72,7 +72,7 @@ static void testProxyDialWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -88,7 +88,7 @@ static void testProxyDialWaitClosed(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetStreamState(pStream) != XNET_STREAM_CLOSED ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -104,7 +104,7 @@ static void testProxyDialWaitBytes(
 	uint32 iExpected
 )
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 	uint32 iReceived;
 
 	for ( ;; ) {
@@ -631,9 +631,9 @@ static void testProxyDialRun(
 	DialConfig.Transport.Stream.WriteHighWater = 2;
 	DialConfig.Transport.Stream.WriteLowWater = 1;
 	DialConfig.Transport.Stream.WriteLimit = 3;
-	DialConfig.Transport.Timeout = 2000000u;
+	DialConfig.Transport.Timeout = 2000;
 	DialConfig.Timeout = Mode == TEST_PROXY_STALL ?
-		(bCancel ? 2000000u : 50000u) : 2000000u;
+		(bCancel ? 2000 : 50) : 2000;
 	DialConfig.ReceiveLimit = 512;
 	pDial = xrtNetProxyDial(
 		pEngine,

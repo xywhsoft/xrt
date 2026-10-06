@@ -12,8 +12,8 @@ int main(void)
 	xsshclient Client;
 
 	xrtNetDialConfigInit(&DialConfig);
-	DialConfig.Timeout = 10000000u;
-	DialConfig.FallbackDelay = 250000u;
+	DialConfig.Timeout = 10000;
+	DialConfig.FallbackDelay = 250;
 	if ( !xrtSshClientConfigInit(&ClientConfig) ||
 		!xrtSshClientInit(&Client, &ClientConfig, NULL, NULL) ) {
 		return 1;

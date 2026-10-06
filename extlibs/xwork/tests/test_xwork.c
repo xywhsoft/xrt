@@ -214,7 +214,7 @@ static xllm_result mock_complete(
     size_t i;
     (void)pError;
     *ppResponse = NULL;
-    if ( pRequest->pCancel || pRequest->uDeadline != INFINITY )
+    if ( pRequest->pCancel || pRequest->iTimeout != XRT_WAIT_FOREVER )
         pMock->bSawContext = true;
     if ( pRequest->iToolCount == 0u ) {
         ++pMock->uCompactionCalls;
@@ -563,14 +563,13 @@ static void test_agent_loop(void)
             strcmp(tMcpInfo.sProtocolVersion, "2025-06-18") == 0,
             "MCP diagnostics expose negotiated version, tool count, and request count");
         {
-            uint64_t uStartedMs = xrtTimer() / UINT64_C(1000);
+            double uStartedMs = xrtTimer();
             xwork_result eMcpDeadlineResult;
             uint64_t uElapsedMs;
             xworkToolOutputInit(&tMcpOutput);
             eMcpDeadlineResult = xworkMcpClientCallTool(
-                pMcpClient, "echo", "{\"delay\":true}", NULL,
-                __xrtWaitAfter(UINT64_C(100000)), &tMcpOutput, &tError);
-            uElapsedMs = xrtTimer() / UINT64_C(1000) - uStartedMs;
+                pMcpClient, "echo", "{\"delay\":true}", NULL,INT64_C(100), &tMcpOutput, &tError);
+            uElapsedMs = (xrtTimer() - uStartedMs) * 1000.0;
             if ( eMcpDeadlineResult != XWORK_RESULT_TIMEOUT ||
                  tError.eCode != XWORK_ERROR_TIMEOUT || uElapsedMs >= 2000u ) {
                 fprintf(stderr, "MCP deadline: result=%d error=%d elapsed=%llu message=%s\n",
@@ -894,7 +893,7 @@ static void test_agent_context_deadline(void)
     pSession = xllmSessionCreate(&tSessionConfig, &tLlmError);
     xworkAgentConfigInit(&tAgentConfig);
     tAgentConfig.pSession = pSession;
-    tAgentConfig.uDeadline = __xrtWaitAfter(0u);
+    tAgentConfig.iTimeout = 0;
     tAgentConfig.sWorkspaceRoot = sWorkspace;
     tAgentConfig.OnModelComplete = mock_complete;
     tAgentConfig.pModelUserData = &tMock;
@@ -1215,7 +1214,7 @@ static void test_command_context_deadline(void)
     xwork_tool_context tToolContext;
     xwork_tool_output tOutput;
     xwork_result eResult = XWORK_RESULT_ERROR;
-    uint64_t uStartedMs;
+    double uStartedMs;
     uint64_t uElapsedMs;
     memset(&tMock, 0, sizeof(tMock));
     memset(&tToolContext, 0, sizeof(tToolContext));
@@ -1225,7 +1224,7 @@ static void test_command_context_deadline(void)
     pSession = xllmSessionCreate(&tSessionConfig, &tLlmError);
     xworkAgentConfigInit(&tAgentConfig);
     tAgentConfig.pSession = pSession;
-    tAgentConfig.uDeadline = __xrtWaitAfter(UINT64_C(300000));
+    tAgentConfig.iTimeout = INT64_C(300);
     tAgentConfig.sWorkspaceRoot = sWorkspace;
     tAgentConfig.OnModelComplete = mock_complete;
     tAgentConfig.pModelUserData = &tMock;
@@ -1234,7 +1233,7 @@ static void test_command_context_deadline(void)
     tToolContext.pAgent = pAgent;
     tToolContext.sWorkspaceRoot = sWorkspace;
     xworkToolOutputInit(&tOutput);
-    uStartedMs = xrtTimer() / UINT64_C(1000);
+    uStartedMs = xrtTimer();
 #if defined(_WIN32)
     if ( pExecTool ) eResult = pExecTool->OnExecute(pExecTool->pUserData, &tToolContext,
         "{\"argv\":[\"ping\",\"-n\",\"6\",\"127.0.0.1\"],\"timeout_ms\":5000}", &tOutput, &tError);
@@ -1242,7 +1241,7 @@ static void test_command_context_deadline(void)
     if ( pExecTool ) eResult = pExecTool->OnExecute(pExecTool->pUserData, &tToolContext,
         "{\"argv\":[\"sleep\",\"5\"],\"timeout_ms\":5000}", &tOutput, &tError);
 #endif
-    uElapsedMs = xrtTimer() / UINT64_C(1000) - uStartedMs;
+    uElapsedMs = (xrtTimer() - uStartedMs) * 1000.0;
     CHECK(pAgent && pExecTool && eResult == XWORK_RESULT_TIMEOUT &&
         tError.eCode == XWORK_ERROR_TIMEOUT && uElapsedMs < 3000u,
         "operation deadline interrupts a long command without waiting for tool timeout");
@@ -1300,7 +1299,7 @@ static void test_executor_bind(void)
         "{\"path\":\"note.txt\",\"content\":\"executor wrote this\",\"mode\":\"create\"}";
     memset(&tCtx, 0, sizeof(tCtx));
     tCtx.uRound = 1u;
-    tCtx.uDeadline = INFINITY;
+    tCtx.iTimeout = XRT_WAIT_FOREVER;
     memset(&tOut, 0, sizeof(tOut));
     CHECK(tExecutor.pExecute && tExecutor.pExecute(tExecutor.pUserData, &tCall, &tCtx, &tOut) &&
         tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "status: success"),
@@ -1474,6 +1473,7 @@ static void test_image_passthrough(void)
         tCall.sName = (char*)"read";
         tCall.sArgumentsJson = (char*)"{\"path\":\"pic.dat\"}";
         memset(&tECtx, 0, sizeof(tECtx));
+        tECtx.iTimeout = XRT_WAIT_FOREVER;
         memset(&tEResult, 0, sizeof(tEResult));
         CHECK(tExecutor.pExecute(tExecutor.pUserData, &tCall, &tECtx, &tEResult) &&
             tEResult.pImageBytes && tEResult.iImageSize == sizeof(sPng) &&

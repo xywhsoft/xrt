@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/tcp_dial_tour —— Dial 对象族 + Listener 拉取族
  * ----------------------------------------------------------------
@@ -30,9 +29,26 @@
 #include <string.h>
 #include <xrt.h>
 
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
 #define SV(x) XRT_STR_LITERAL(x)
 
-#define EXAMPLE_DEADLINE_US	UINT64_C(3000000)
+#define EXAMPLE_DEADLINE_MS	INT64_C(3000)
 
 
 
@@ -65,10 +81,10 @@ static void exampleDialDone(xnetdial* pDial, xnetresult Result,
 /* 轮询等待完成标志。 */
 static bool exampleWaitDone(volatile bool* pFlag)
 {
-	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 	while ( !*pFlag ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -82,10 +98,10 @@ static bool exampleWaitDone(volatile bool* pFlag)
 static bool exampleWaitStreamState(xnetstream* pStream,
 	xnetstreamstate State)
 {
-	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 	while ( xrtNetStreamState(pStream) != State ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -98,7 +114,7 @@ static bool exampleWaitStreamState(xnetstream* pStream,
 /* 拉取等待 Listener 交出一个 Stream。 */
 static xnetstream* exampleWaitAccept(xnetlistener* pListener)
 {
-	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 	for ( ;; ) {
 		xnetstream* pStream = xrtNetListenerAccept(pListener);
@@ -106,7 +122,7 @@ static xnetstream* exampleWaitAccept(xnetlistener* pListener)
 		if ( pStream != NULL ) {
 			return pStream;
 		}
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return NULL;
 		}
 		xrtThreadYield();
@@ -213,8 +229,7 @@ int main(void)
 		goto Cleanup;
 	}
 	{
-		xnetbytes* pBytes = __xrtNetStreamRecv(pServer, 4,
-			__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL);
+		xnetbytes* pBytes = xrtNetStreamRecv(pServer, 4,EXAMPLE_DEADLINE_MS, NULL);
 		xbytesview View = xrtNetBytesView(pBytes);
 
 		if ( (View.Size != 4u) || (memcmp(View.Data, "ping", 4) != 0) ) {
@@ -229,8 +244,7 @@ int main(void)
 		goto Cleanup;
 	}
 	{
-		xnetbytes* pBytes = __xrtNetStreamRecv(Task.pStream, 4,
-			__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL);
+		xnetbytes* pBytes = xrtNetStreamRecv(Task.pStream, 4,EXAMPLE_DEADLINE_MS, NULL);
 		xbytesview View = xrtNetBytesView(pBytes);
 
 		if ( (View.Size != 4u) || (memcmp(View.Data, "pong", 4) != 0) ) {
@@ -289,12 +303,12 @@ Cleanup:
 		(void)exampleWaitStreamState(pServer, XNET_STREAM_CLOSED);
 	}
 	if ( pListener != NULL ) {
-		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 		(void)xrtNetListenerClose(pListener);
 		while ( xrtNetListenerState(pListener) !=
 			XNET_LISTENER_CLOSED ) {
-			if ( __xrtWaitExpired(iEnd) ) {
+			if ( exampleTimerExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();

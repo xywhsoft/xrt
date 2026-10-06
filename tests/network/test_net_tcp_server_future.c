@@ -10,7 +10,7 @@ static void testTcpServerFutureClose(
 	xnetstream* pAccepted
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( (xrtNetServerState(pServer) != XNET_SERVER_CLOSED) ||
 		 (xrtNetStreamState(pClient) != XNET_STREAM_CLOSED) ||
@@ -79,7 +79,7 @@ int main(void)
 	);
 	testRequire(pClient != NULL,
 		"TCP server Future client connect failed");
-	testRequire((xrtFutureWaitFor(pAccept, 5000000u) == XWAIT_OK) &&
+	testRequire((xrtFutureWaitFor(pAccept, 5000) == XWAIT_OK) &&
 		 xrtFutureResult(pAccept, &Result) &&
 		 (Result.State == XFUTURE_RESOLVED) &&
 		 (Result.Value != NULL),
@@ -91,7 +91,7 @@ int main(void)
 
 	pCancel = xrtNetServerAcceptAsync(pServer);
 	testRequire((pCancel != NULL) && xrtFutureCancel(pCancel) &&
-		 (xrtFutureWaitFor(pCancel, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pCancel, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pCancel) == XFUTURE_CANCELLED),
 		"TCP server Accept Future cancellation failed");
 	xrtFutureDestroy(pCancel);
@@ -101,7 +101,7 @@ int main(void)
 
 	pClose = xrtNetServerAcceptAsync(pServer);
 	testRequire((pClose != NULL) && xrtNetServerClose(pServer) &&
-		 (xrtFutureWaitFor(pClose, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pClose, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pClose) == XFUTURE_CLOSED),
 		"TCP server close did not finish its Accept Future");
 	xrtFutureDestroy(pClose);

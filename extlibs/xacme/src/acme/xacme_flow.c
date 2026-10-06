@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xacme_flow.h"
 
 #if defined(XACME_FEATURE_ACME_FLOW)
@@ -623,7 +624,7 @@ static bool xacmeFlowAlternateUrl(cstr sBase, cstr sReference,
 static bool xacmeFlowDeadlineHit(const xacmeclient* pClient)
 {
 	return pClient->bIssueDeadline &&
-		(xrtTimer() >= (uint64)pClient->IssueDeadline);
+		(xrtTimer() >= pClient->IssueDeadline);
 }
 
 /* ---------------- nonce 与 POST ---------------- */
@@ -1034,7 +1035,7 @@ static void xacmeFlowWaitPropagate(
 	cstr sFqdn, cstr sTxt)
 {
 	xacmedns Probe;
-	uint64 uDeadline;
+	double uDeadline;
 	if(((pDns->iCaps & XACME_DNS_CAP_PROPAGATE) != 0u) &&
 		(pDns->Propagate != NULL))
 	{
@@ -1047,10 +1048,9 @@ static void xacmeFlowWaitPropagate(
 	{
 		return;
 	}
-	uDeadline = xrtTimer() +
-		(uint64)pClient->uPropagateTimeoutMs * UINT64_C(1000);
+	uDeadline = __xrtWaitAfter(pClient->uPropagateTimeoutMs);
 	if(pClient->bIssueDeadline &&
-		((uint64)pClient->IssueDeadline < uDeadline))
+		(pClient->IssueDeadline < uDeadline))
 	{
 		uDeadline = pClient->IssueDeadline;
 	}
@@ -1136,7 +1136,7 @@ static void xacmeFlowChallengeDetail(
 
 bool xacmeClientInit(
 	xacmeclient* pClient, struct xnetengine* pBorrowedEngine,
-	cstr sCaPem, const xacmeaccountconfig* pAccount, int64 uTimeoutUs)
+	cstr sCaPem, const xacmeaccountconfig* pAccount, int64 uTimeoutMs)
 {
 	xacmehttpresponse R;
 	xvalue* pRoot = NULL;
@@ -1165,7 +1165,7 @@ bool xacmeClientInit(
 			"acme client directory url too long");
 		return false;
 	}
-	if(!xacmeHttpInit(&pClient->Http, pBorrowedEngine, sCaPem, uTimeoutUs))
+	if(!xacmeHttpInit(&pClient->Http, pBorrowedEngine, sCaPem, uTimeoutMs))
 	{
 		goto Done;
 	}
@@ -1399,8 +1399,8 @@ Done:
 		/* 先保留首个根因，再拆传输（Unit 可能覆盖线程错误）。 */
 		xerror* pFirst = xrtErrorRef(xrtGetError());
 		/* 失败构造尚未交付拥有者，回滚不复用已经耗尽的请求预算。 */
-		if(pClient->Http.uTimeoutUs < UINT64_C(30000000))
-			pClient->Http.uTimeoutUs = UINT64_C(30000000);
+		if(pClient->Http.uTimeoutMs < INT64_C(30000))
+			pClient->Http.uTimeoutMs = INT64_C(30000);
 		xacmeHttpUnit(&pClient->Http);
 		if(pFirst != NULL)
 		{
@@ -1473,9 +1473,9 @@ bool xacmeClientIssue(
 			"acme certificate key must differ from the account key");
 		return false;
 	}
-	/* 总预算打点：uIssueTimeoutUs 非零时本次 Issue 全程受限。 */
-	pClient->bIssueDeadline = (pClient->uIssueTimeoutUs != 0u);
-	pClient->IssueDeadline = xrtTimer() + pClient->uIssueTimeoutUs;
+	/* 总预算打点：uIssueTimeoutMs 非零时本次 Issue 全程受限。 */
+	pClient->bIssueDeadline = (pClient->uIssueTimeoutMs != 0u);
+	pClient->IssueDeadline = __xrtWaitAfter(pClient->uIssueTimeoutMs);
 
 	/* 1. 新订单；identifier 用完整域名（通配符原样：*.example.com 是
 	   独立 identifier，CA 依此返回通配符授权）。去重按完整字符串——
@@ -2725,7 +2725,7 @@ struct xacmeclient* xrtAcmeClientCreate(
 	}
 	if(!xacmeClientInit(
 			pClient, pConfig->pBorrowedEngine, pConfig->sCaPem,
-			pConfig->pAccount, pConfig->uTimeoutUs))
+			pConfig->pAccount, pConfig->uTimeoutMs))
 	{
 		xacmeClientDiscard(pClient);
 		return NULL;
@@ -2742,8 +2742,8 @@ struct xacmeclient* xrtAcmeClientCreate(
 			xacmeCertKeyUnit(pClient->pCertKey);
 			xrtFree(pClient->pCertKey);
 			pClient->pCertKey = NULL;
-			if(pClient->Http.uTimeoutUs < UINT64_C(30000000))
-				pClient->Http.uTimeoutUs = UINT64_C(30000000);
+			if(pClient->Http.uTimeoutMs < INT64_C(30000))
+				pClient->Http.uTimeoutMs = INT64_C(30000);
 			xacmeClientDiscard(pClient);
 			return NULL;
 		}
@@ -2767,7 +2767,7 @@ struct xacmeclient* xrtAcmeClientCreate(
 	}
 	pClient->uPropagateTimeoutMs = (pConfig->uPropagateTimeoutMs != 0u) ?
 		pConfig->uPropagateTimeoutMs : XACME_FLOW_PROPAGATE_TIMEOUT_MS;
-	pClient->uIssueTimeoutUs = pConfig->uIssueTimeoutUs;
+	pClient->uIssueTimeoutMs = pConfig->uIssueTimeoutMs;
 	return pClient;
 }
 

@@ -102,7 +102,7 @@ static void testStringFilter(void)
 /* 验证视图、查找、变换和所有权边界。 */
 static void testStringJoinSized(void)
 {
-	xstrview Items[] = {XRT_STR_LITERAL("你\0"), XRT_STR_LITERAL("x\0y"), XRT_STR_LITERAL("")};
+	xstrview Items[] = {{"你\0", sizeof("你\0") - 1u}, {"x\0y", 3u}, {"", 0u}};
 	size_t iSize = SIZE_MAX;
 	str sResult = xrtStrJoinSized(XRT_STR_LITERAL("\0|"), Items, 3, &iSize);
 	testRequire(sResult != NULL && iSize == 11 &&

@@ -171,6 +171,5 @@
 	],
 	"dependency_manifests": [
 		"extlibs/xjwt/config/modules.json"
-	],
-	"umbrella_header": "xoauth2.h"
+	]
 }

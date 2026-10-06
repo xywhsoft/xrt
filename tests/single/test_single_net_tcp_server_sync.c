@@ -13,7 +13,7 @@ int main(void)
 	xnetstream* pClient;
 	xnetstream* pAccepted;
 	xnetaddr Address;
-	xdeadline Deadline;
+	double Deadline;
 
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = XNET_PORT_SELECT;
@@ -47,9 +47,9 @@ int main(void)
 		NULL,
 		NULL
 	);
-	pAccepted = xrtNetServerAcceptWait(
+	pAccepted = __xrtNetServerAcceptWait(
 		pServer,
-		xrtDeadlineAfter(3000000u),
+		__xrtWaitAfter(3000),
 		NULL
 	);
 	if ( (pClient == NULL) || (pAccepted == NULL) ) {
@@ -58,11 +58,11 @@ int main(void)
 	(void)xrtNetStreamAbort(pClient);
 	(void)xrtNetStreamAbort(pAccepted);
 	(void)xrtNetServerClose(pServer);
-	Deadline = xrtDeadlineAfter(3000000u);
+	Deadline = __xrtWaitAfter(3000);
 	while ( (xrtNetStreamState(pClient) != XNET_STREAM_CLOSED) ||
 		(xrtNetStreamState(pAccepted) != XNET_STREAM_CLOSED) ||
 		(xrtNetServerState(pServer) != XNET_SERVER_CLOSED) ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return 4;
 		}
 		xrtThreadYield();

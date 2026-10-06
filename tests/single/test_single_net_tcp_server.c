@@ -118,7 +118,7 @@ int main(void)
 	xnetengine* pEngine;
 	xnetserver* pServer;
 	xnetaddr Address;
-	xdeadline Deadline;
+	double Deadline;
 
 	memset(&State, 0, sizeof(State));
 	memset(&ServerEvents, 0, sizeof(ServerEvents));
@@ -163,12 +163,12 @@ int main(void)
 	if ( State.Client == NULL ) {
 		return 3;
 	}
-	Deadline = xrtDeadlineAfter(3000000u);
+	Deadline = __xrtWaitAfter(3000);
 	while ( xrtAtomic32Load(
 		&State.AcceptedCount,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return 4;
 		}
 		xrtThreadYield();
@@ -184,7 +184,7 @@ int main(void)
 		&State.Echoed,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return 6;
 		}
 		xrtThreadYield();
@@ -201,7 +201,7 @@ int main(void)
 		&State.ServerClosed,
 		XMEMORY_ACQUIRE
 	) ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return 8;
 		}
 		xrtThreadYield();

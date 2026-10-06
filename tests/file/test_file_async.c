@@ -73,7 +73,7 @@ static bool testAsyncFileRefWait(
 	uint32 iExpected
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(2000000));
+	double Deadline = __xrtWaitAfter(INT64_C(2000));
 	bool bResult = xrtMutexLock(&pRef->Lock);
 
 	while ( bResult && (pRef->Releases != iExpected) ) {
@@ -121,7 +121,7 @@ static ptr testAsyncFileValue(xfuture* pFuture, cstr sMessage)
 	testRequire(
 		xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		sMessage
 	);
@@ -175,7 +175,7 @@ static bool testAsyncFileBlockStarted(
 		bResult = xrtCondWaitFor(
 			&pBlock->Cond,
 			&pBlock->Lock,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK;
 	}
 	(void)xrtMutexUnlock(&pBlock->Lock);
@@ -574,14 +574,14 @@ static void testAsyncFileCloseOrdering(cstr sPath)
 	testRequire(
 			xrtFutureWaitFor(
 			pBlockFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		"async file blocker wait failed"
 	);
 	testRequire(
 		xrtFutureWaitFor(
 			pReadFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		"cancelled async file reference write wait failed"
 	);

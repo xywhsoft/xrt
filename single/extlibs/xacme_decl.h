@@ -3226,7 +3226,7 @@ XRT_EXTERN_C_BEGIN
 	入列不分配内存；宿主须先停止新调用、等待在途调用结束，清理
 	已交付实例，再于退出或卸载库前调用至 true。false 时保留库及
 	相关运行环境，稍后重试；不启动后台清理线程。
-	uTimeoutUs == 0 为一次非阻塞轮询；非零为本次等待预算，退休
+	uTimeoutMs == 0 为一次非阻塞轮询；非零为本次等待预算，退休
 	错误会提前结束。true 表示队列及其他清理调用正在处理的对象全部
 	释放；false 表示仍有对象。piPending 可为空，否则返回未完成数量。
 	保留调用前已有诊断；无旧诊断时报告退休错误或等待超时，非阻塞
@@ -3235,7 +3235,7 @@ XRT_EXTERN_C_BEGIN
 	有未完成对象时，新的私有引擎构造先尝试非阻塞清理，仍未完成
 	则以 XERR_STATE 拒绝；借用引擎的构造不受此限制。
 */
-XRT_API bool xrtAcmeCleanupPending(uint64 uTimeoutUs, size_t* piPending);
+XRT_API bool xrtAcmeCleanupPending(int64 uTimeoutMs, size_t* piPending);
 
 XRT_EXTERN_C_END
 
@@ -3837,16 +3837,16 @@ typedef struct xacmeclientconfig {
 	const xacmeaccountconfig* pAccount;
 	cstr sCaPem;
 	struct xnetengine* pBorrowedEngine;
-	uint64 uTimeoutUs;
+	int64 uTimeoutMs;
 	const cstr* sPropagateResolvers;
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
 	/*
-		单次签发的总预算（微秒；0 = 不限时）：覆盖订单/挑战/
+		单次签发的总预算（毫秒；0 = 不限时）：覆盖订单/挑战/
 		finalize/证书下载的全部轮询与退避，超限以 XERR_TIMEOUT
 		失败。防病态 CA 把签发挂成小时级。
 	*/
-	uint64 uIssueTimeoutUs;
+	int64 uIssueTimeoutMs;
 	/*
 		宿主提供的证书私钥 PEM（可选；EC P-256 或 RSA-2048+）：
 		设置后每次签发复用同一证书密钥（含 RSA 证书场景）；
@@ -4343,12 +4343,12 @@ typedef struct xacmeobtainconfig {
 	const xacmeaccountconfig* pAccount;
 	cstr sCaPem;
 	struct xnetengine* pBorrowedEngine;
-	uint64 uTimeoutUs;
+	int64 uTimeoutMs;
 	const cstr* sPropagateResolvers;
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
-	/* 单次签发总预算（微秒；0 = 不限时），透传给客户端。 */
-	uint64 uIssueTimeoutUs;
+	/* 单次签发总预算（毫秒；0 = 不限时），透传给客户端。 */
+	int64 uIssueTimeoutMs;
 	/* 宿主提供的证书私钥 PEM（可选，EC/RSA），透传给客户端。 */
 	cstr sCertKeyPem;
 	cstr sStoreRoot;

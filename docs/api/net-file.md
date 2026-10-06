@@ -191,8 +191,8 @@ bool xrtNetFileCancel(
 				if ( !xrtNetFileCancel(Task.pWorker,
 						iCancelId) ||
 					!exampleSpin(&CancelIo,
-						xrtDeadlineAfter(
-							3000000ull)) ) {
+
+							3000) ) {
 ```
 
 ## 示例

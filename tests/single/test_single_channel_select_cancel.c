@@ -25,10 +25,10 @@ int main(void)
 		iResult = 3;
 	} else {
 		tCase = xrtChannelCaseRecv(&tChannel, &pItem);
-		tResult = xrtChannelSelectUntilCancel(
+		tResult = __xrtChannelSelectUntilCancel(
 			&tCase,
 			1u,
-			XRT_DEADLINE_NEVER,
+			INFINITY,
 			pCancel
 		);
 		if ( tResult.Wait != XWAIT_CANCELLED ) {

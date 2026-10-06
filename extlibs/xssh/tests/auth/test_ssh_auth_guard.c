@@ -16,8 +16,8 @@ static void testSshAuthGuardDefaults(void)
 		(Policy.RoundLimit == XSSH_AUTH_DEFAULT_ROUND_LIMIT) &&
 		(Policy.MessageLimit == XSSH_AUTH_DEFAULT_MESSAGE_LIMIT),
 		"ssh auth guard defaults mismatch");
-	testRequire(xrtSshAuthGuardInit(&Guard, NULL, 1000u) &&
-		(xrtSshAuthGuardCheck(&Guard, 999u, &Decision) == XSSH_OK) &&
+	testRequire(xrtSshAuthGuardInit(&Guard, NULL, ((double)(1000u)) / 1000.0) &&
+		(xrtSshAuthGuardCheck(&Guard, ((double)(999u)) / 1000.0, &Decision) == XSSH_OK) &&
 		(Decision == XSSH_AUTH_GUARD_ALLOW),
 		"ssh auth guard rejected monotonic clock rollback");
 }
@@ -32,28 +32,25 @@ static void testSshAuthGuardAttempts(void)
 	xsshauthguarddecision Decision;
 
 	Policy.AttemptLimit = 2u;
-	testRequire(xrtSshAuthGuardInit(&Guard, &Policy, 0u),
+	testRequire(xrtSshAuthGuardInit(&Guard, &Policy, ((double)(0u)) / 1000.0),
 		"ssh auth attempt guard init failed");
 	testRequire((xrtSshAuthGuardReserve(
 		&Guard,
 		XSSH_AUTH_EVENT_ATTEMPT,
-		10u,
-		1u,
+		10u, ((double)(1u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (Decision == XSSH_AUTH_GUARD_ALLOW) &&
 		(xrtSshAuthGuardReserve(
 			&Guard,
 			XSSH_AUTH_EVENT_ATTEMPT,
-			20u,
-			2u,
+			20u, ((double)(2u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_AUTH_GUARD_ALLOW),
 		"ssh auth guard rejected allowed attempts");
 	testRequire((xrtSshAuthGuardReserve(
 		&Guard,
 		XSSH_AUTH_EVENT_ATTEMPT,
-		30u,
-		3u,
+		30u, ((double)(3u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (Decision == XSSH_AUTH_GUARD_DISCONNECT) &&
 		(Guard.Exhaustion == XSSH_AUTH_EXHAUST_ATTEMPTS) &&
@@ -76,27 +73,24 @@ static void testSshAuthGuardResources(void)
 	Policy.RoundLimit = 1u;
 	Policy.MessageLimit = 2u;
 	Policy.ByteLimit = 8u;
-	testRequire(xrtSshAuthGuardInit(&Guard, &Policy, 0u) &&
+	testRequire(xrtSshAuthGuardInit(&Guard, &Policy, ((double)(0u)) / 1000.0) &&
 		(xrtSshAuthGuardReserve(
 			&Guard,
 			XSSH_AUTH_EVENT_ROUND,
-			3u,
-			0u,
+			3u, ((double)(0u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_AUTH_GUARD_ALLOW) &&
 		(xrtSshAuthGuardReserve(
 			&Guard,
 			XSSH_AUTH_EVENT_MESSAGE,
-			5u,
-			0u,
+			5u, ((double)(0u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_AUTH_GUARD_ALLOW),
 		"ssh auth resource guard rejected exact limits");
 	testRequire((xrtSshAuthGuardReserve(
 		&Guard,
 		XSSH_AUTH_EVENT_MESSAGE,
-		0u,
-		0u,
+		0u, ((double)(0u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (Decision == XSSH_AUTH_GUARD_DISCONNECT) &&
 		(Guard.Exhaustion == XSSH_AUTH_EXHAUST_MESSAGES),
@@ -105,12 +99,11 @@ static void testSshAuthGuardResources(void)
 	Policy.MessageLimit = 0u;
 	Policy.RoundLimit = 0u;
 	Policy.ByteLimit = 8u;
-	testRequire(xrtSshAuthGuardInit(&Guard, &Policy, 0u) &&
+	testRequire(xrtSshAuthGuardInit(&Guard, &Policy, ((double)(0u)) / 1000.0) &&
 		(xrtSshAuthGuardReserve(
 			&Guard,
 			XSSH_AUTH_EVENT_MESSAGE,
-			9u,
-			0u,
+			9u, ((double)(0u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_AUTH_GUARD_DISCONNECT) &&
 		(Guard.Exhaustion == XSSH_AUTH_EXHAUST_BYTES),
@@ -128,35 +121,33 @@ static void testSshAuthGuardState(void)
 	xsshauthguarddecision Decision;
 
 	Policy.TimeoutMs = 100u;
-	testRequire(xrtSshAuthGuardInit(&Guard, &Policy, 1000u) &&
-		(xrtSshAuthGuardCheck(&Guard, 1099u, &Decision) == XSSH_OK) &&
+	testRequire(xrtSshAuthGuardInit(&Guard, &Policy, ((double)(1000u)) / 1000.0) &&
+		(xrtSshAuthGuardCheck(&Guard, ((double)(1099u)) / 1000.0, &Decision) == XSSH_OK) &&
 		(Decision == XSSH_AUTH_GUARD_ALLOW) &&
-		(xrtSshAuthGuardCheck(&Guard, 1100u, &Decision) == XSSH_OK) &&
+		(xrtSshAuthGuardCheck(&Guard, ((double)(1100u)) / 1000.0, &Decision) == XSSH_OK) &&
 		(Decision == XSSH_AUTH_GUARD_DISCONNECT) &&
 		(Guard.Exhaustion == XSSH_AUTH_EXHAUST_TIMEOUT),
 		"ssh auth timeout boundary mismatch");
 
 	Policy.TimeoutMs = 0u;
-	testRequire(xrtSshAuthGuardInit(&Guard, &Policy, 0u) &&
+	testRequire(xrtSshAuthGuardInit(&Guard, &Policy, ((double)(0u)) / 1000.0) &&
 		xrtSshAuthGuardComplete(&Guard) &&
 		(xrtSshAuthGuardReserve(
 			&Guard,
 			XSSH_AUTH_EVENT_ATTEMPT,
-			100u,
-			UINT64_MAX,
+			100u, ((double)(UINT64_MAX)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_AUTH_GUARD_IGNORE) &&
 		(Guard.Messages == 0u),
 		"ssh auth completed guard did not ignore message");
 
-	testRequire(xrtSshAuthGuardInit(&Guard, &Policy, 0u),
+	testRequire(xrtSshAuthGuardInit(&Guard, &Policy, ((double)(0u)) / 1000.0),
 		"ssh auth invalid-event setup failed");
 	Snapshot = Guard;
 	testRequire((xrtSshAuthGuardReserve(
 		&Guard,
 		(xsshauthevent)99,
-		1u,
-		0u,
+		1u, ((double)(0u)) / 1000.0,
 		&Decision
 	) == XSSH_ERROR_ARGUMENT) &&
 		(memcmp(&Guard, &Snapshot, sizeof(Guard)) == 0),

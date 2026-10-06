@@ -1,3 +1,4 @@
+#include <xrt/detail/ximap_wait.h>
 #include <xrt/detail/wait.h>
 #include "test.h"
 
@@ -213,7 +214,7 @@ int main(void)
 		ximapevent Event;
 		ximapresponseview Last;
 
-		Deadline = __xrtWaitAfter(UINT64_C(10000000));
+		Deadline = __xrtWaitAfter(INT64_C(10000));
 		Server.Deadline = Deadline;
 		Server.Mode = (testimapbyemode)iMode;
 		Server.Success = false;

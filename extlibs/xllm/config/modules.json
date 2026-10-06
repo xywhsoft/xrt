@@ -137,6 +137,5 @@
 			"benchmarks": [],
 			"docs": []
 		}
-	],
-	"umbrella_header": "xllm.h"
+	]
 }

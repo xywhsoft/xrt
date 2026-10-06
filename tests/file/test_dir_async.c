@@ -24,7 +24,7 @@ static ptr testDirAsyncValue(xfuture* pFuture, cstr sMessage)
 	testRequire(
 		xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		sMessage
 	);
@@ -106,7 +106,7 @@ int main(void)
 	pFuture = xrtDirEmptyAsync(pPool, sRoot);
 	testRequire(pFuture != NULL, "missing async directory query submit failed");
 	testRequire(
-		(xrtFutureWaitFor(pFuture, UINT64_C(2000000)) == XWAIT_OK) &&
+		(xrtFutureWaitFor(pFuture, INT64_C(2000)) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_FAILED),
 		"missing async directory query did not fail"
 	);

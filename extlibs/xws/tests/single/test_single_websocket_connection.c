@@ -429,8 +429,8 @@ static bool testSingleWsWait(
 	uint32 iExpected
 )
 {
-	xdeadline Deadline = xrtDeadlineAfter(
-		UINT64_C(5000000)
+	double Deadline = __xrtWaitAfter(
+		INT64_C(5000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -440,7 +440,7 @@ static bool testSingleWsWait(
 		if ( xrtAtomic32Load(
 			&pTest->Failed,
 			XMEMORY_ACQUIRE
-		) || xrtDeadlineExpired(Deadline) ) {
+		) || __xrtWaitExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -462,7 +462,7 @@ int main(void)
 	xnetstream* pStream;
 	xwsconn* pClient;
 	xwsconn* pServer;
-	xdeadline Deadline;
+	double Deadline;
 
 	memset(&Test, 0, sizeof(Test));
 	memset(&ListenerEvents, 0, sizeof(ListenerEvents));
@@ -524,7 +524,7 @@ int main(void)
 		return 3;
 	}
 
-	Deadline = xrtDeadlineAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(INT64_C(5000));
 	while ( ((pClient = (xwsconn*)xrtAtomicPtrLoad(
 		&Test.Client,
 		XMEMORY_ACQUIRE
@@ -535,7 +535,7 @@ int main(void)
 		if ( xrtAtomic32Load(
 			&Test.Failed,
 			XMEMORY_ACQUIRE
-		) || xrtDeadlineExpired(Deadline) ) {
+		) || __xrtWaitExpired(Deadline) ) {
 			return 4;
 		}
 		xrtThreadYield();

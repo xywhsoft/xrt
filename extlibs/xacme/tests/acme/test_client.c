@@ -19,7 +19,7 @@ int main(void)
 	testRequire(
 		(Config.pAccount == NULL) && (Config.sCaPem == NULL) &&
 			(Config.pBorrowedEngine == NULL) &&
-			(Config.uTimeoutUs == 0u) &&
+			(Config.uTimeoutMs == 0u) &&
 			(Config.sPropagateResolvers == NULL) &&
 			(Config.iPropagateResolverCount == 0u) &&
 			(Config.uPropagateTimeoutMs == 0u),
@@ -61,7 +61,7 @@ int main(void)
 	{
 		size_t Pending = SIZE_MAX;
 		xerror* Previous = xrtErrorRef(xrtGetError());
-		testRequire(xrtAcmeCleanupPending(0u, &Pending) && Pending == 0u &&
+		testRequire(xrtAcmeCleanupPending(0, &Pending) && Pending == 0u &&
 			xrtGetError() == Previous, "acme empty pending cleanup must preserve the error");
 		xrtErrorFree(Previous);
 	}

@@ -66,7 +66,7 @@ static void testFutureCombineRaceStress(void)
 		testThreadsJoin(arrThread, 2);
 		testRequire((arrThread[0].Result == 0) &&
 			(arrThread[1].Result == 0), "future Race stress worker failed");
-		testRequire(xrtFutureWaitFor(pRace, UINT64_C(2000000)) == XWAIT_OK,
+		testRequire(xrtFutureWaitFor(pRace, INT64_C(2000)) == XWAIT_OK,
 			"future Race stress wait failed");
 		pPick = (const xfuturepick*)xrtFutureValue(pRace);
 		testRequire((pPick != NULL) && (pPick->Index < 2) &&
@@ -121,7 +121,7 @@ static void testFutureCombineCancelStress(void)
 		testThreadsJoin(arrThread, 2);
 		testRequire((arrThread[0].Result == 0) &&
 			(arrThread[1].Result == 0), "future cancel stress worker failed");
-		testRequire(xrtFutureWaitFor(pAny, UINT64_C(2000000)) == XWAIT_OK,
+		testRequire(xrtFutureWaitFor(pAny, INT64_C(2000)) == XWAIT_OK,
 			"future cancel stress wait failed");
 		State = xrtFutureState(pAny);
 		testRequire((State == XFUTURE_RESOLVED) ||
@@ -199,7 +199,7 @@ static void testFutureCombineAllStress(void)
 		);
 		testRequire(xrtFutureWaitFor(
 			pAll,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK, "future All stress wait failed");
 		pResult = (const xfutureall*)xrtFutureValue(pAll);
 		testRequire((pResult != NULL) &&

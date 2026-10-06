@@ -32,7 +32,7 @@ static void testUringDatagrams(void)
 	size_t iReceiveCount = 0;
 	size_t iSendCount = 0;
 	size_t iSubmitted = 0;
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	xrtNetPortConfigInit(&Config);
 	Config.Backend = XNET_PORT_URING;
@@ -177,7 +177,7 @@ static void testUringCancellations(void)
 	xnetsocket Listener;
 	xnetaddr Address;
 	size_t iCompleted = 0;
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	xrtNetPortConfigInit(&Config);
 	Config.Backend = XNET_PORT_URING;

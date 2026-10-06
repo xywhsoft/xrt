@@ -316,7 +316,7 @@ XRT_API xwaitresult xrtCoSchedStep(xcosched* pSched);
 
 
 
-/* 在相对微秒数内等待事件并执行至多一个就绪协程。 */
+/* 在相对毫秒数内等待事件并执行至多一个就绪协程。 */
 XRT_API xwaitresult xrtCoSchedPollFor(xcosched* pSched, int64 iTimeout);
 
 
@@ -346,7 +346,7 @@ XRT_API xwaitresult xrtCoPark(void);
 
 
 
-/* 在相对微秒数内挂起当前调度协程。 */
+/* 在相对毫秒数内挂起当前调度协程。 */
 XRT_API xwaitresult xrtCoParkFor(int64 iTimeout);
 
 
@@ -356,7 +356,7 @@ XRT_API xwaitresult xrtCoParkFor(int64 iTimeout);
 
 
 
-/* 睡眠相对微秒数；自然到期或提前唤醒返回 OK。 */
+/* 睡眠相对毫秒数；自然到期或提前唤醒返回 OK。 */
 XRT_API xwaitresult xrtCoSleep(int64 iTimeout);
 
 
@@ -371,7 +371,7 @@ XRT_API xwaitresult xrtCoJoin(xcoro* pCo);
 
 
 
-/* 在相对微秒数内等待同一调度器的目标结束。 */
+/* 在相对毫秒数内等待同一调度器的目标结束。 */
 XRT_API xwaitresult xrtCoJoinFor(xcoro* pCo, int64 iTimeout);
 
 
@@ -460,7 +460,7 @@ XRT_API xwaitresult xrtCoEventTryAwait(xcoevent* pEvent);
 
 
 
-/* 在相对微秒数内等待事件置位。 */
+/* 在相对毫秒数内等待事件置位。 */
 XRT_API xwaitresult xrtCoEventAwaitFor(
 	xcoevent* pEvent,
 	int64 iTimeout

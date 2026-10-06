@@ -528,8 +528,8 @@ typedef struct xllm_request {
     char* sExtraBodyJson;              /* owned raw JSON object, shallow-merged */
     /* Borrowed cancellation token; it must outlive this request's model call. */
     xcancel* pCancel;
-    /* Absolute xrtTimer() deadline in milliseconds; UINT64_MAX disables it. */
-    uint64_t uDeadline;
+    /* Relative milliseconds; XRT_WAIT_FOREVER disables the timeout. */
+    int64_t iTimeout;
     /* Borrowed per-call lifecycle hooks; replaces the client-level set. */
     const xllm_hooks* pHooks;
     /* Wire-prefix cache stamp (set by borrowed-view renders only): the
@@ -555,7 +555,7 @@ XRT_API bool xllmRequestSetReasoningEffort(xllm_request* pRequest, const char* s
 XRT_API bool xllmRequestSetStop(xllm_request* pRequest, const char* sStop);
 XRT_API bool xllmRequestSetExtraBody(xllm_request* pRequest, const char* sJsonObject);
 XRT_API void xllmRequestSetCancel(xllm_request* pRequest, xcancel* pCancel);
-XRT_API void xllmRequestSetDeadline(xllm_request* pRequest, uint64_t uDeadline);
+XRT_API void xllmRequestSetTimeout(xllm_request* pRequest, int64_t iTimeout);
 XRT_API bool xllmRequestSetToolChoice(xllm_request* pRequest, xllm_tool_choice eChoice, const char* sNamedTool);
 XRT_API bool xllmRequestAddMessage(xllm_request* pRequest, const xllm_message* pMessage);
 XRT_API bool xllmRequestAddTextMessage(xllm_request* pRequest, xllm_role eRole, const char* sContent);

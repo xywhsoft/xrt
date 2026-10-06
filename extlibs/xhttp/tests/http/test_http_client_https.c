@@ -61,7 +61,7 @@ static void testHttpClientHttpsWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -83,7 +83,7 @@ static void testHttpClientHttpsEngineDestroy(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
@@ -620,7 +620,7 @@ int main(void)
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup =
 		testHttpClientHttpsLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	ClientConfig.TlsContext = pContext;
 	ClientConfig.TlsVerifier = pVerifier;
@@ -708,7 +708,7 @@ int main(void)
 		testRequire(
 			(xrtFutureWaitFor(
 				pFuture,
-				UINT64_C(10000000)
+				INT64_C(10000)
 			) == XWAIT_OK) &&
 			(xrtFutureState(pFuture) ==
 			 XFUTURE_RESOLVED),

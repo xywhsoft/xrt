@@ -19,7 +19,7 @@
 /* 等待 UDP 拉取队列达到指定长度。 */
 static void testUdpSyncQueued(xnetudp* pUdp, size_t iCount)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetUdpQueued(pUdp) < iCount ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
@@ -39,7 +39,7 @@ static void testUdpSyncClose(xnetudp* pUdp)
 		testRequire(__xrtNetUdpWait(
 			pUdp,
 			XNET_UDP_WAIT_CLOSE,
-			__xrtWaitAfter(5000000u),
+			__xrtWaitAfter(5000),
 			NULL
 		), "UDP sync close wait failed");
 	}
@@ -95,14 +95,14 @@ static void testUdpSyncErrors(xnetengine* pEngine)
 	testRequire(__xrtNetUdpWait(
 		pUdp,
 		XNET_UDP_WAIT_OPEN,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	), "UDP sync error object open failed");
 
 	/* 超时只撤销内部 Future，不关闭对象也不遗留错误消费者。 */
 	pPacket = __xrtNetUdpReceiveErrorWait(
 		pUdp,
-		__xrtWaitAfter(1000u),
+		__xrtWaitAfter(1),
 		NULL
 	);
 	testRequire(
@@ -121,7 +121,7 @@ static void testUdpSyncErrors(xnetengine* pEngine)
 	);
 	pPacket = __xrtNetUdpReceiveErrorWait(
 		pUdp,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	pError = xrtNetUdpErrorPacketInfo(pPacket);
@@ -208,25 +208,25 @@ int main(void)
 	testRequire(__xrtNetUdpWait(
 		pServer,
 		XNET_UDP_WAIT_OPEN,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	) && __xrtNetUdpWait(
 		pClient,
 		XNET_UDP_WAIT_OPEN,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	), "UDP sync open wait failed");
 	testRequire(__xrtNetUdpWritable(
 		pClient,
 		16,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	), "UDP sync writable wait failed");
 
 	/* 超时和取消只撤销本次接收，不关闭 UDP。 */
 	testRequire(__xrtNetUdpReceiveWait(
 		pServer,
-		__xrtWaitAfter(1000u),
+		__xrtWaitAfter(1),
 		NULL
 	) == NULL, "UDP sync receive unexpectedly ignored timeout");
 	testRequire((xrtErrorKind(xrtGetError()) == XERR_TIMEOUT) &&
@@ -256,7 +256,7 @@ int main(void)
 	) == XNET_RESULT_OK, "UDP sync single send failed");
 	pPacket = __xrtNetUdpReceiveWait(
 		pServer,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	testRequire((pPacket != NULL) &&
@@ -274,7 +274,7 @@ int main(void)
 	pBatch = __xrtNetUdpReceiveBatchWait(
 		pServer,
 		3,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	testRequire((pBatch != NULL) &&

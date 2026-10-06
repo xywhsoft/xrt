@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/udp_send_tour —— UDP 发送族全形态巡礼
  * ----------------------------------------------------------------
@@ -33,6 +32,23 @@
 #include <string.h>
 #include <xrt.h>
 
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
 
 
 /* 释放回调：统计数据报离队次数（SendRef 族终态各执行一次）。 */
@@ -50,10 +66,10 @@ static void countRelease(ptr pContext, cbytes pData, size_t iSize)
 /* 在截止时间内等 UDP 进入指定状态。 */
 static bool exampleWaitState(xnetudp* pUdp, xnetudpstate State)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = exampleTimerLimit(3000);
 
 	while ( xrtNetUdpState(pUdp) != State ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -72,7 +88,7 @@ static bool exampleDrain(
 {
 	size_t iMatched = 0;
 	size_t i;
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = exampleTimerLimit(3000);
 
 	while ( iMatched < iTagCount ) {
 		xnetudppacket* pPacket = xrtNetUdpReceive(pUdp);
@@ -96,10 +112,10 @@ static bool exampleDrain(
 				return false;
 			}
 			++iMatched;
-			iDeadline = __xrtWaitAfter(3000000u);
+			iDeadline = exampleTimerLimit(3000);
 			continue;
 		}
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -180,9 +196,9 @@ int main(void)
 	Control.Source.Port = 0;
 
 	/* 客户端方向（连接式，固定 Peer）：Vec / Ref / Take / MsgRef。 */
-	VecIn[0].Data = "vec-";
+	VecIn[0].Data = (cbytes)"vec-";
 	VecIn[0].Size = 4;
-	VecIn[1].Data = "gather";
+	VecIn[1].Data = (cbytes)"gather";
 	VecIn[1].Size = 6;
 	if ( xrtNetUdpSendVec(pClient, VecIn, 2) != XNET_RESULT_OK ) {
 		goto Cleanup;
@@ -227,9 +243,9 @@ int main(void)
 	}
 
 	/* 服务端方向（无连接，显式远端）：VecTo / RefTo / TakeTo / MsgTake。 */
-	VecOut[0].Data = "svto-";
+	VecOut[0].Data = (cbytes)"svto-";
 	VecOut[0].Size = 5;
-	VecOut[1].Data = "gather";
+	VecOut[1].Data = (cbytes)"gather";
 	VecOut[1].Size = 6;
 	if ( xrtNetUdpSendVecTo(pServer, &ClientAddress, VecOut, 2) !=
 		 XNET_RESULT_OK ) {
@@ -267,18 +283,18 @@ int main(void)
 	printf("vec/ref/take/msgref/batch = ok\n");
 
 	/* 等三份引用载荷全部离队：释放回调恰好执行三次。 */
-	iDeadline = __xrtWaitAfter(3000000u);
+	iDeadline = exampleTimerLimit(3000);
 	while ( iReleases < 3u ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			goto Cleanup;
 		}
 		xrtThreadYield();
 	}
 	/* 发送队列排空：Pending 归零（复制/接管形态无排队字节）。 */
-	iDeadline = __xrtWaitAfter(3000000u);
+	iDeadline = exampleTimerLimit(3000);
 	while ( (xrtNetUdpPending(pClient) != 0) ||
 			(xrtNetUdpPending(pServer) != 0) ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			goto Cleanup;
 		}
 		xrtThreadYield();

@@ -46,7 +46,7 @@ static void testWsHttpFutureWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -100,7 +100,7 @@ static xfuture* testWsHttpFutureTakeServer(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 	xfuture* pFuture;
 
@@ -255,7 +255,7 @@ static void testWsHttpFutureConnectionsWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( (xrtWsConnState(pClient) !=
@@ -373,7 +373,7 @@ static void testWsHttpFutureOpen(
 	testRequire(
 		(xrtFutureWaitFor(
 			pServerFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pServerFuture) ==
 		 XFUTURE_RESOLVED),
@@ -386,7 +386,7 @@ static void testWsHttpFutureOpen(
 		testRequire(
 			(xrtFutureWaitFor(
 				pClientFuture,
-				UINT64_C(10000000)
+				INT64_C(10000)
 			 ) == XWAIT_OK) &&
 			(xrtFutureState(pClientFuture) ==
 			 XFUTURE_RESOLVED),
@@ -499,7 +499,7 @@ static ptr testWsHttpFutureCoroutineProc(ptr pData)
 	);
 	pState->Wait = xrtFutureAwaitFor(
 		pFuture,
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 	pState->State = xrtFutureState(pFuture);
 	if ( (pState->Wait == XWAIT_OK) &&
@@ -556,7 +556,7 @@ static void testWsHttpFutureCoroutine(
 		(State.Result != NULL) &&
 		(xrtFutureWaitFor(
 			pServerFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pServerFuture) ==
 		 XFUTURE_RESOLVED),
@@ -629,13 +629,13 @@ static void testWsHttpFutureUnclaimed(
 	testRequire(
 		(xrtFutureWaitFor(
 			pClientFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pClientFuture) ==
 		 XFUTURE_RESOLVED) &&
 		(xrtFutureWaitFor(
 			pServerFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pServerFuture) ==
 		 XFUTURE_RESOLVED),
@@ -717,7 +717,7 @@ static void testWsHttpFutureRejected(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_FAILED),
 		"WebSocket rejected Future terminal mismatch"
@@ -799,7 +799,7 @@ static void testWsHttpFutureParentCancel(
 	testRequire(
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) ==
 		 XFUTURE_CANCELLED),
@@ -845,7 +845,7 @@ static void testWsHttpFutureServerCancel(
 	testRequire(
 		(xrtFutureWaitFor(
 			pServerFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pServerFuture) ==
 		 XFUTURE_CANCELLED),
@@ -854,7 +854,7 @@ static void testWsHttpFutureServerCancel(
 	testRequire(
 		xrtFutureWaitFor(
 			pClientFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK,
 		"WebSocket cancelled peer did not finish"
 	);
@@ -1131,7 +1131,7 @@ static void testWsHttpFutureEngineDestroy(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {

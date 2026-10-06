@@ -78,13 +78,13 @@ static bool mailExampleNetCleanup(mail_example_net* net, double deadline)
 
 static bool mailExampleNetUnit(mail_example_net* net)
 {
-	bool ready = mailExampleNetCleanup(net, __xrtWaitAfter(UINT64_C(5000000)));
+	bool ready = mailExampleNetCleanup(net, __xrtWaitAfter(INT64_C(5000)));
 	if ( !ready ) fputs("Mail network cleanup incomplete; handles retained for retry\n", stderr);
 	return ready;
 }
 
 /* 不输出认证材料或服务器返回的任意文本。 */
-static void mailExampleDiagnostic(const char* stage)
+static inline void mailExampleDiagnostic(const char* stage)
 {
 	fprintf(stderr, "%s failed: kind=%d code=%d\n", stage,
 		(int)xrtErrorKind(xrtGetError()), (int)xrtErrorCode(xrtGetError()));

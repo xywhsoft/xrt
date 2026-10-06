@@ -171,7 +171,7 @@ xrtNetEngineDestroy(pEngine);
 
 ### Basic: minimal HTTPS GET
 
-Run `dial <某真实站点>` (some real site) and watch the output: request sent, response printed span by span, authenticated close. Set `DialConfig.Timeout` to 1 microsecond to verify the total-timeout path and error message. Acceptance: the normal path prints the full response and exits 0; the timeout path's error message carries stage information.
+Run `dial <某真实站点>` (some real site) and watch the output: request sent, response printed span by span, authenticated close. Set `DialConfig.Timeout` to 1 millisecond to verify the total-timeout path and error message. Acceptance: the normal path prints the full response and exits 0; the timeout path's error message carries stage information.
 
 ### Advanced: ALPN negotiation probing
 

@@ -99,7 +99,7 @@ static void testWsHttpWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -1256,7 +1256,7 @@ int main(void)
 
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup = testWsHttpLookup;
-	ClientConfig.Dial.FallbackDelay = 1000;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	#if TEST_WS_HTTP_TLS
 		ClientConfig.TlsContext = pTlsContext;

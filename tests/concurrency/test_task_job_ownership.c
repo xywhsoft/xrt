@@ -1,8 +1,8 @@
-#include <xrt/detail/wait.h>
 #ifdef TASK_JOB_SINGLE
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
 #endif
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include <assert.h>
 
@@ -33,7 +33,7 @@ static const xfuturepayloadownershipv1 result_policy={sizeof(result_policy),drop
 static const xfuturepayloadownershipv1* const results[]={&result_policy};
 static void freeze_begin(xrtownershipscope* scope)
 {
-    double deadline=__xrtWaitAfter(5000000);
+    double deadline=__xrtWaitAfter(5000);
     while(!xrtOwnershipFreezeTryBegin(scope)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
 static int32 active_probe(ptr data)
@@ -47,7 +47,7 @@ static int32 active_probe(ptr data)
 static void probe(JobContext* context)
 {
     xthread* thread=xrtThreadCreate(active_probe,context,0);assert(thread);
-    assert(xrtThreadWaitFor(thread,5000000)==XWAIT_OK);xrtThreadDestroy(thread);++context->probes;
+    assert(xrtThreadWaitFor(thread,5000)==XWAIT_OK);xrtThreadDestroy(thread);++context->probes;
 }
 static xtaskoutcome run(xcancel* cancel,ptr data,xtaskvalue* result)
 {
@@ -67,7 +67,7 @@ static void drop_data(ptr data,ptr unused)
 }
 static xtaskoutcome blocker(xcancel* cancel,ptr data,xtaskvalue* result)
 {
-    JobContext* context=data;double deadline=__xrtWaitAfter(5000000);(void)cancel;(void)result;
+    JobContext* context=data;double deadline=__xrtWaitAfter(5000);(void)cancel;(void)result;
     assert(xrtCancelRequest(context->started));
     while(!xrtCancelRequested(context->gate)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     return XTASK_SUCCESS;
@@ -91,7 +91,7 @@ static void queued(unsigned mode,int fail_after)
     xtaskpoolconfig config={0};config.Threads=1;config.QueueLimit=1;
     xtaskpool* pool=xrtTaskPoolCreate(&config);assert(pool);
     xfuture* first=xrtTaskSubmit(pool,blocker,&context,NULL);assert(first);
-    double deadline=__xrtWaitAfter(5000000);
+    double deadline=__xrtWaitAfter(5000);
     while(!xrtCancelRequested(context.started)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     /* A legacy native job still has a real producer edge. It must be opaque,
      * never a producerless source that preparation can close underneath it. */
@@ -139,7 +139,7 @@ static void queued(unsigned mode,int fail_after)
         future=xrtFutureRef((xfuture*)root.Data);assert(future);
         if(mode==2)assert(xrtFutureCancel(future));
         assert(xrtCancelRequest(context.gate));
-        assert(xrtFutureWaitFor(future,5000000)==XWAIT_OK&&xrtFutureWaitFor(first,5000000)==XWAIT_OK);
+        assert(xrtFutureWaitFor(future,5000)==XWAIT_OK&&xrtFutureWaitFor(first,5000)==XWAIT_OK);
         assert(xrtTaskPoolDestroy(pool));pool=NULL;
         assert(context.drops==1&&context.runs==(mode==2?0u:1u)&&context.probes==(mode==2?1u:2u));
         xfutureresult result={0};assert(xrtFutureResult(future,&result));

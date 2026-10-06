@@ -14,9 +14,7 @@ int main(void)
 		&Core,
 		XSSH_ROLE_CLIENT,
 		0u,
-		NULL,
-		0u
-	) || !xrtSshSessionCoreInit(
+		NULL, ((double)(0u)) / 1000.0) || !xrtSshSessionCoreInit(
 		&Session,
 		NULL,
 		XSSH_ROLE_CLIENT,

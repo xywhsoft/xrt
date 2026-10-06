@@ -114,12 +114,12 @@ python tools/amalgamate.py --manifest extlibs/xllm/config/modules.json
 
 ## 诊断与重试
 
-调用方可通过 `xllmRequestSetCancel()` 与 `xllmRequestSetDeadline()` 为一次完整调用（包括重试退避）绑定借用式取消令牌和绝对 `xrtClock()` 截止时间。取消令牌必须存活到 `xllmClientComplete()` 返回，或异步 call 完成并销毁。取消返回 `XLLM_RESULT_CANCELLED`；deadline 返回 `XLLM_RESULT_TIMEOUT`，不会继续自动重试。
+调用方可通过 `xllmRequestSetCancel()` 与 `xllmRequestSetTimeout()` 为一次完整调用（包括重试退避）绑定借用式取消令牌和`int64` 相对毫秒总预算。取消令牌必须存活到 `xllmClientComplete()` 返回，或异步 call 完成并销毁。取消返回 `XLLM_RESULT_CANCELLED`；deadline 返回 `XLLM_RESULT_TIMEOUT`，不会继续自动重试。
 
 ```c
 xcancel* operation = xrtCancelCreate();
 xllmRequestSetCancel(&request, operation);
-xllmRequestSetDeadline(&request, xrtDeadlineAfter(UINT64_C(120000000)));
+xllmRequestSetTimeout(&request, INT64_C(120000));
 result = xllmClientComplete(client, &request, NULL, &response, &error);
 xrtCancelDestroy(operation);
 ```

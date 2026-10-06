@@ -2,13 +2,13 @@
  * 范例：time/range_tour —— 区间比较族 + 单位差值
  * ----------------------------------------------------------------
  * 演示 API：
- *   【容差比较】  xrtTimeNear（显式微秒容差）
+ *   【容差比较】  xrtTimeNear（显式毫秒容差）
  *   【同期判断】  xrtTimeSameDay / SameMonth / SameYear
  *   【区间判定】  xrtTimeIn（闭区间）/ xrtTimeOverlap（闭区间相交）
  *   【周期区间】  xrtMonthRange / xrtYearRange /
  *                  xrtWeekRange（可指定每周第一天）
  *   【单位差值】  xrtDateDiff（起点到终点的完整单位数）
- *   【微秒睡眠】  xrtSleepUs（单调时钟验证实际睡眠时长）
+ *   【毫秒睡眠】  xrtSleep（单调时钟验证实际睡眠时长）
  * 模块宏：XRT_MODULE_TIME
  * 编译（单头形态，Windows）：
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
@@ -20,7 +20,7 @@
  *   ranges: month=[1709251200,1711929600) year=[1704067200,1735689600)
  *   week(sun-first)=[1710028800,1710633600) week(mon-first)=[1709510400,1710115200)
  *   diff: 10 days = 1 week + 3 days, 90 sec = 1 minute + 30
- *   sleep-us: 20000us floor reached
+ *   sleep-ms: 20ms floor reached
  *
  * 基准仍取 2024-03-10（周日），让"每周第一天"的
  *   差异恰好偏移一整天——周日开周的区间比周一开周早一天。
@@ -42,8 +42,8 @@ int main(void)
 	xtime Start;
 	xtime End;
 	int64 iDiff;
-	uint64 iBefore;
-	uint64 iAfter;
+	double iBefore;
+	double iAfter;
 
 	/* 基准：2024-03-10（周日）与相邻两天、跨月/跨年锚点。 */
 	if ( !xrtDate(2024, 3, 10, &Base) ||
@@ -127,11 +127,11 @@ int main(void)
 	printf("90 sec = %lld minute + %lld\n",
 		(long long)iDiff, (long long)90 - iDiff * 60);
 
-	/* SleepUs：至少睡满 20ms（单调时钟度量，向下取整即失败）。 */
+	/* Sleep：至少睡满 20ms（单调时钟度量，向下取整即失败）。 */
 	iBefore = xrtTimer();
-	xrtSleepUs(20000u);
+	xrtSleep(20);
 	iAfter = xrtTimer();
-	printf("sleep-us: 20000us floor %s\n",
-		(iAfter - iBefore) >= 20000u ? "reached" : "missed");
-	return (iAfter - iBefore) >= 20000u ? 0 : 8;
+	printf("sleep-ms: 20ms floor %s\n",
+		(iAfter - iBefore) >= 0.020 ? "reached" : "missed");
+	return (iAfter - iBefore) >= 0.020 ? 0 : 8;
 }

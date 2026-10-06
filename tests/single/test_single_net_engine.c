@@ -47,7 +47,7 @@ int main(void)
 	xnetengineconfig Config;
 	testsingleengine State;
 	xnetengine* pEngine;
-	xdeadline iDeadline;
+	double iDeadline;
 
 	memset(&State, 0, sizeof(State));
 	xrtNetEngineConfigInit(&Config);
@@ -67,10 +67,10 @@ int main(void)
 		) == 0) ) {
 		return 1;
 	}
-	iDeadline = xrtDeadlineAfter(2000000u);
+	iDeadline = __xrtWaitAfter(2000);
 	while ( (xrtAtomic32Load(&State.Posts, XMEMORY_ACQUIRE) != 1) ||
 		 (xrtAtomic32Load(&State.Timers, XMEMORY_ACQUIRE) != 1) ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			return 2;
 		}
 		xrtThreadYield();

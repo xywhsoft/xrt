@@ -10,12 +10,11 @@ int main(void)
 	xsshauthguard Guard;
 	xsshauthguarddecision Decision;
 
-	if ( !xrtSshAuthGuardInit(&Guard, NULL, 1000u) ||
+	if ( !xrtSshAuthGuardInit(&Guard, NULL, ((double)(1000u)) / 1000.0) ||
 		(xrtSshAuthGuardReserve(
 			&Guard,
 			XSSH_AUTH_EVENT_ATTEMPT,
-			128u,
-			1001u,
+			128u, ((double)(1001u)) / 1000.0,
 			&Decision
 		) != XSSH_OK) ) {
 		return 1;

@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/udp_multicast —— 多播成员族（Worker 内调用范式）
  * ----------------------------------------------------------------
@@ -30,6 +29,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 #define EXAMPLE_GROUP_TEXT "239.255.0.1"
 
@@ -73,7 +89,7 @@ static void exampleLeaveTask(xnetworker* pWorker, ptr pData)
 	examplemcast* pTask = (examplemcast*)pData;
 
 	(void)pWorker;
-	pTask->bLeave = xrtNetUdpLeave(pTask->pUdp, &pTask->Group, NULL);
+	pTask->bLeave = xrtNetUdpLeave(pTask->pUdp, &pTask->Group, &pTask->Iface);
 	pTask->bDone = true;
 }
 
@@ -82,10 +98,10 @@ static void exampleLeaveTask(xnetworker* pWorker, ptr pData)
 /* 在截止时间内轮询标志。 */
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = exampleTimerLimit(3000);
 
 	while ( !*pFlag ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -158,13 +174,13 @@ int main(void)
 		 XNET_RESULT_OK ) {
 		goto Cleanup;
 	}
-	iDeadline = __xrtWaitAfter(3000000u);
+	iDeadline = exampleTimerLimit(3000);
 	for ( ;; ) {
 		pPacket = xrtNetUdpReceive(pUdp);
 		if ( pPacket != NULL ) {
 			break;
 		}
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			break;
 		}
 		xrtThreadYield();
@@ -197,11 +213,11 @@ int main(void)
 
 Cleanup:
 	if ( pUdp != NULL ) {
-		double iEnd = __xrtWaitAfter(3000000u);
+		double iEnd = exampleTimerLimit(3000);
 
 		(void)xrtNetUdpAbort(pUdp);
 		while ( xrtNetUdpState(pUdp) != XNET_UDP_CLOSED ) {
-			if ( __xrtWaitExpired(iEnd) ) {
+			if ( exampleTimerExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();

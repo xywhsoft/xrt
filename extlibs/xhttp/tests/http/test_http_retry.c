@@ -35,7 +35,7 @@ static void testHttpRetryAfterParse(void)
 			&Retry
 		) && (Retry.Kind == XHTTP_RETRY_AFTER_DATE) &&
 		(Retry.Seconds == 0) &&
-		(Retry.Date == INT64_C(784111777000000)),
+		(Retry.Date == (XRT_TIME_UNIX_EPOCH + INT64_C(784111777) * XRT_TIME_SECOND)),
 		"Retry-After HTTP-date parse mismatch"
 	);
 	testRequire(
@@ -45,14 +45,14 @@ static void testHttpRetryAfterParse(void)
 			),
 			&Retry
 		) && (Retry.Kind == XHTTP_RETRY_AFTER_DATE) &&
-		(Retry.Date == INT64_C(784111777000000)) &&
+		(Retry.Date == (XRT_TIME_UNIX_EPOCH + INT64_C(784111777) * XRT_TIME_SECOND)) &&
 		xrtHttpRetryAfterParse(
 			XRT_STR_LITERAL(
 				"Sun Nov  6 08:49:37 1994"
 			),
 			&Retry
 		) && (Retry.Kind == XHTTP_RETRY_AFTER_DATE) &&
-		(Retry.Date == INT64_C(784111777000000)),
+		(Retry.Date == (XRT_TIME_UNIX_EPOCH + INT64_C(784111777) * XRT_TIME_SECOND)),
 		"Retry-After obsolete HTTP-date compatibility mismatch"
 	);
 	for ( i = 0; i < (sizeof(Invalid) / sizeof(Invalid[0])); i++ ) {
@@ -69,7 +69,7 @@ static void testHttpRetryAfterParse(void)
 
 
 
-/* 验证墙钟换算、过去日期和秒到微秒的溢出保护。 */
+/* 验证墙钟换算、过去日期和秒到毫秒的溢出保护。 */
 static void testHttpRetryAfterDelay(void)
 {
 	xhttpretryafter Retry;
@@ -80,20 +80,20 @@ static void testHttpRetryAfterDelay(void)
 	Retry.Date = 0;
 	testRequire(
 		xrtHttpRetryAfterDelay(&Retry, 0, &iDelay) &&
-		(iDelay == UINT64_C(2000000)),
+		(iDelay == UINT64_C(2000)),
 		"Retry-After relative delay mismatch"
 	);
 	Retry.Kind = XHTTP_RETRY_AFTER_DATE;
-	Retry.Date = INT64_C(784111777000000);
+	Retry.Date = (XRT_TIME_UNIX_EPOCH + INT64_C(784111777) * XRT_TIME_SECOND);
 	testRequire(
 		xrtHttpRetryAfterDelay(
-			&Retry, INT64_C(784111772000000), &iDelay
-		) && (iDelay == UINT64_C(5000000)),
+			&Retry, (XRT_TIME_UNIX_EPOCH + INT64_C(784111772) * XRT_TIME_SECOND), &iDelay
+		) && (iDelay == UINT64_C(5000)),
 		"Retry-After future date delay mismatch"
 	);
 	testRequire(
 		xrtHttpRetryAfterDelay(
-			&Retry, INT64_C(784111778000000), &iDelay
+			&Retry, (XRT_TIME_UNIX_EPOCH + INT64_C(784111778) * XRT_TIME_SECOND), &iDelay
 		) && (iDelay == 0),
 		"Retry-After past date was not immediate"
 	);
@@ -159,7 +159,7 @@ static void testHttpRetryAfterFields(void)
 		(xrtHttpRetryAfterFields(
 			Valid, 2, 0, &iDelay
 		 ) == XHTTP_NEXT_ITEM) &&
-		(iDelay == UINT64_C(3000000)),
+		(iDelay == UINT64_C(3000)),
 		"Retry-After unique field mismatch"
 	);
 	iDelay = UINT64_C(99);
@@ -240,7 +240,7 @@ static void testHttpRetryAfterWrite(void)
 
 	Retry.Kind = XHTTP_RETRY_AFTER_DATE;
 	Retry.Seconds = 0;
-	Retry.Date = INT64_C(784111777000000);
+	Retry.Date = (XRT_TIME_UNIX_EPOCH + INT64_C(784111777) * XRT_TIME_SECOND);
 	testRequire(
 		xrtHttpRetryAfterWrite(
 			&Retry, Output, sizeof(Output), &iSize
@@ -292,7 +292,7 @@ static void testHttpRetryBoundaries(void)
 	);
 	memcpy(&iDelay, DelayStorage.Bytes + 1u, sizeof(iDelay));
 	testRequire(
-		(iDelay == UINT64_C(2000000)),
+		(iDelay == UINT64_C(2000)),
 		"Retry-After unaligned result mismatch"
 	);
 

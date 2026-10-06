@@ -72,7 +72,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/concurrency/
 cancelled: yes
 ```
 
-**刚才发生了什么。** ① 接收线程在 `xrtChannelRecvCancel` 上等待——**一次等待同时盯着两个事件**（数据到达 / 取消命中），先到者胜；这不是轮询——是内核级的多路等待。② 主线程发令 Request 后，接收立即以 `XWAIT_CANCELLED` 返回——`cancelled: yes` 的判定来源；没有数据丢失风险（取消先到就当没等到）。③ 对比"超时轮询方案"：RecvCancel 无延迟（取消即醒）、无空转（不烧 CPU）、无侵入（等待代码一处改）。deadline 范例是同一思想的姊妹篇——`xrtDeadlineAfter/Expired` 与取消令牌组合成"等数据、或取消、或超时"的三路等待（并发等待的标准完全体）。
+**刚才发生了什么。** ① 接收线程在 `xrtChannelRecvCancel` 上等待——**一次等待同时盯着两个事件**（数据到达 / 取消命中），先到者胜；这不是轮询——是内核级的多路等待。② 主线程发令 Request 后，接收立即以 `XWAIT_CANCELLED` 返回——`cancelled: yes` 的判定来源；没有数据丢失风险（取消先到就当没等到）。③ 对比"超时轮询方案"：RecvCancel 无延迟（取消即醒）、无空转（不烧 CPU）、无侵入（等待代码一处改）。deadline 范例是同一思想的姊妹篇——`relative milliseconds/Expired` 与取消令牌组合成"等数据、或取消、或超时"的三路等待（并发等待的标准完全体）。
 
 ## 契约
 

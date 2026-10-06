@@ -421,7 +421,7 @@ SSE Client 会明确选择无界表示正文，再依靠 Parser 的单行、事�
   终态字段全部冻结，较晚到达的取消、超时或传输失败不能改写已发布结果。
 - `Error` 是高层 Client 分类；成功为 `XHTTP_CLIENT_ERROR_NONE`，失败、取消
   和超时与完成回调观察到的 `Result` 保持一致。
-- 时间均来自单调时钟、单位为微秒，未到达的时间点为零。
+- 时间均来自单调时钟、单位为毫秒，未到达的时间点为零。
 - `RequestWireBytes` 与 `ResponseWireBytes` 累计整个重定向链的线上字节。
 - `ResponseBodyBytes` 是最终可见响应交付的正文大小；自动解压时记录明文，
   流式消费也会计数。

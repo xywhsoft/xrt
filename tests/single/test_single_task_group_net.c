@@ -39,11 +39,11 @@ int main(void)
 			testSingleTaskGroupNet,
 			&iValue,
 			NULL,
-			1000u
+			1
 		);
 	}
 	if ( (pFuture != NULL) &&
-		(xrtTaskGroupWaitFor(pGroup, 3000000u) == XWAIT_OK) &&
+		(xrtTaskGroupWaitFor(pGroup, 3000) == XWAIT_OK) &&
 		(xrtFutureValue(pFuture) == &iValue) ) {
 		iResult = 0;
 	}

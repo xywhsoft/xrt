@@ -1,5 +1,21 @@
-#include <xrt/detail/wait.h>
 #include "../common.h"
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -19,11 +35,11 @@ static void exampleTlsDialFutureError(cstr sPrefix, const xerror* pError)
 /* 等待主动中止的 TLS Stream 释放全部后台网络资源。 */
 static bool exampleTlsDialFutureClosed(xtlsstream* pStream)
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	double Deadline = exampleTimerLimit(INT64_C(5000));
 
 	while ( (xrtTlsStreamState(pStream) != XTLS_STREAM_CLOSED) &&
 		(xrtTlsStreamState(pStream) != XTLS_STREAM_FAILED) ) {
-		if ( __xrtWaitExpired(Deadline) ) {
+		if ( exampleTimerExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -131,7 +147,7 @@ int main(int argc, char** argv)
 	xrtTlsClientConfigInit(&TlsConfig);
 	TlsConfig.Verifier = pVerifier;
 	xrtTlsDialConfigInit(&DialConfig);
-	DialConfig.Timeout = UINT64_C(15000000);
+	DialConfig.Timeout = INT64_C(15000);
 	pFuture = xrtTlsDialAsync(
 		pEngine,
 		pResolver,
@@ -151,7 +167,7 @@ int main(int argc, char** argv)
 	}
 	if ( xrtFutureWaitFor(
 		pFuture,
-		UINT64_C(16000000)
+		INT64_C(16000)
 	) != XWAIT_OK ) {
 		(void)xrtFutureCancel(pFuture);
 		exampleTlsDialFutureError(

@@ -54,6 +54,6 @@ int main(void)
 	if ( !xrtHttpQualityParse(SV("0.5"), &iQuality) ) {
 		return 2;
 	}
-	printf(" q=%zu\n", iQuality);
+	printf(" q=%u\n", (unsigned)iQuality);
 	return 0;
 }

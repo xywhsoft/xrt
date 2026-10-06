@@ -110,6 +110,5 @@
 	],
 	"dependency_manifests": [
 		"extlibs/xllm/config/modules.json"
-	],
-	"umbrella_header": "xllm-session.h"
+	]
 }

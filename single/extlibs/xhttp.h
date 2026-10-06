@@ -3874,7 +3874,7 @@ typedef enum xhttpcachetimeflag {
 
 /*
 	缓存时间元数据独立于存储和网络。
-	Date 与 Expires 使用 Unix Epoch 微秒，Age 使用线路秒数。
+	Date 与 Expires 使用 Unix Epoch 毫秒，Age 使用线路秒数。
 */
 typedef struct xhttpcachetime {
 	xtime Date;
@@ -3901,7 +3901,7 @@ typedef enum xhttpcachecalc {
 
 /*
 	年龄结果保留 RFC 9111 公式的全部中间量。
-	除 CurrentAgeSeconds 使用线路秒数外，其余成员均使用微秒。
+	除 CurrentAgeSeconds 使用线路秒数外，其余成员均使用毫秒。
 */
 typedef struct xhttpcacheage {
 	uint64 ApparentAge;
@@ -3927,7 +3927,7 @@ typedef enum xhttpcachefreshnesssource {
 
 
 
-/* 显式新鲜寿命使用微秒，不包含站点自定义的启发式策略。 */
+/* 显式新鲜寿命使用毫秒，不包含站点自定义的启发式策略。 */
 typedef struct xhttpcachefreshness {
 	uint64 Lifetime;
 	xhttpcachefreshnesssource Source;
@@ -3977,9 +3977,9 @@ XRT_API bool xrtHttpCacheTimeParse(
 XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 	const xhttpcachetime* pTime,
 	xtime ResponseTime,
-	uint64 RequestClock,
-	uint64 ResponseClock,
-	uint64 NowClock,
+	double RequestClock,
+	double ResponseClock,
+	double NowClock,
 	xhttpcacheage* pAge
 );
 
@@ -4189,7 +4189,7 @@ typedef struct xhttpcacheuseinput {
 
 
 
-/* StaleBy 使用微秒；新鲜命中和非复用结果均为零。 */
+/* StaleBy 使用毫秒；新鲜命中和非复用结果均为零。 */
 typedef struct xhttpcacheuseplan {
 	uint64 StaleBy;
 	xhttpcacheusedecision Decision;
@@ -4835,7 +4835,7 @@ typedef struct xhttpetagitem {
 
 #if defined(XHTTP_FEATURE_HTTP_PRECONDITION)
 
-/* 当前选定表示的验证器；时间使用 Unix Epoch 微秒。 */
+/* 当前选定表示的验证器；时间使用 Unix Epoch 毫秒。 */
 typedef struct xhttprepresentation {
 	bool Exists;
 	bool HasETag;
@@ -6085,8 +6085,8 @@ typedef struct xhttpcacherecordinput {
 	size_t PartCount;
 	uint64 Length;
 	xtime ResponseTime;
-	uint64 RequestClock;
-	uint64 ResponseClock;
+	double RequestClock;
+	double ResponseClock;
 } xhttpcacherecordinput;
 
 
@@ -6374,14 +6374,14 @@ XRT_API xtime xrtHttpCacheRecordResponseTime(
 
 
 /* 返回发出请求时的单调时钟。 */
-XRT_API uint64 xrtHttpCacheRecordRequestClock(
+XRT_API double xrtHttpCacheRecordRequestClock(
 	const xhttpcacherecord* pRecord
 );
 
 
 
 /* 返回收到响应时的单调时钟。 */
-XRT_API uint64 xrtHttpCacheRecordResponseClock(
+XRT_API double xrtHttpCacheRecordResponseClock(
 	const xhttpcacherecord* pRecord
 );
 
@@ -12834,7 +12834,7 @@ XRT_API bool xrtHttpRetryAfterParse(
 
 
 /*
-	把 Retry-After 转换为当前应等待的微秒数。
+	把 Retry-After 转换为当前应等待的毫秒数。
 	过去的绝对日期得到零；转换溢出时不修改输出。
 */
 XRT_API bool xrtHttpRetryAfterDelay(
@@ -12846,7 +12846,7 @@ XRT_API bool xrtHttpRetryAfterDelay(
 
 
 /*
-	读取唯一 Retry-After 字段并转换为微秒数。
+	读取唯一 Retry-After 字段并转换为毫秒数。
 	缺失返回 END，唯一有效值返回 ITEM，重复或非法值返回 ERROR。
 	缺失和错误都把输出清零。
 */
@@ -13563,7 +13563,7 @@ typedef enum xcookiestorestatus {
 #define XCOOKIE_INFO_PERSISTENT		UINT32_C(0x00000008)
 #define XCOOKIE_INFO_PARTITIONED	UINT32_C(0x00000010)
 
-/* CookieInfo 只借用所属快照，时间使用与 xrt 时间模块一致的微秒。 */
+/* CookieInfo 只借用所属快照，时间使用与 xrt 时间模块一致的毫秒。 */
 typedef struct xcookieinfo {
 	uint32 Flags;
 	xcookiesamesite SameSite;
@@ -13872,9 +13872,9 @@ XRT_EXTERN_C_END
 
 #if defined(XHTTP_FEATURE_HTTP_CLIENT)
 
-#define XHTTP_CLIENT_TIMEOUT_DEFAULT UINT64_C(30000000)
-#define XHTTP_CLIENT_IDLE_TIMEOUT_DEFAULT UINT64_C(30000000)
-#define XHTTP_CLIENT_TIMEOUT_NONE UINT64_MAX
+#define XHTTP_CLIENT_TIMEOUT_DEFAULT INT64_C(30000)
+#define XHTTP_CLIENT_IDLE_TIMEOUT_DEFAULT INT64_C(30000)
+#define XHTTP_CLIENT_TIMEOUT_NONE XRT_WAIT_FOREVER
 
 
 
@@ -14072,7 +14072,7 @@ typedef enum xhttpclienterror {
 
 
 /*
-	Info 是可并发读取的单调时钟快照，时间单位均为微秒。
+	Info 是可并发读取的单调时钟快照，时间单位均为毫秒。
 	未到达的时间点为零；Result 在运行期间为 AGAIN，终态后不再变化。
 */
 typedef struct xhttpcallinfo {
@@ -14082,15 +14082,15 @@ typedef struct xhttpcallinfo {
 	xnetresult Result;
 	xhttpclienterror Error;
 
-	/* 完整 Call 的单调时间点。 */
-	uint64 Submitted;
-	uint64 Started;
-	uint64 TransportReady;
-	uint64 RequestSent;
-	uint64 FirstByte;
-	uint64 Headers;
-	uint64 LastProgress;
-	uint64 Completed;
+	/* 完整 Call 的公元 UTC 毫秒事件时间。 */
+	xtime Submitted;
+	xtime Started;
+	xtime TransportReady;
+	xtime RequestSent;
+	xtime FirstByte;
+	xtime Headers;
+	xtime LastProgress;
+	xtime Completed;
 
 	/* 线路累计量与最终可见响应正文量。 */
 	uint64 RequestWireBytes;
@@ -14157,8 +14157,8 @@ typedef enum xhttpredirectmode {
 
 
 #define XHTTP_RETRY_MAX_DEFAULT UINT32_C(2)
-#define XHTTP_RETRY_BASE_DEFAULT UINT64_C(250000)
-#define XHTTP_RETRY_DELAY_MAX_DEFAULT UINT64_C(30000000)
+#define XHTTP_RETRY_BASE_DEFAULT INT64_C(250)
+#define XHTTP_RETRY_DELAY_MAX_DEFAULT INT64_C(30000)
 
 #define XHTTP_RETRY_STATUS UINT32_C(0x00000001)
 #define XHTTP_RETRY_TRANSPORT UINT32_C(0x00000002)
@@ -14171,7 +14171,7 @@ typedef enum xhttpredirectmode {
 
 /*
 	MaxRetries 为零时关闭 Client 默认重试。
-	BaseDelay 与 MaxDelay 使用微秒；Flags 分别控制状态、传输、服务端建议和抖动。
+	BaseDelay 与 MaxDelay 使用毫秒；Flags 分别控制状态、传输、服务端建议和抖动。
 */
 typedef struct xhttpretryconfig {
 	uint64 BaseDelay;
@@ -14233,8 +14233,8 @@ typedef struct xhttpclientpoolconfig {
 	size_t MaxIdle;
 	/* 单 Origin 可复用空闲连接上限；零表示不保留。 */
 	size_t MaxIdlePerOrigin;
-	/* 空闲连接保留时间，单位为微秒；零表示不按时间清扫。 */
-	uint64 IdleTimeout;
+	/* 空闲连接保留时间，单位为毫秒；零表示不按时间清扫。 */
+	int64 IdleTimeout;
 } xhttpclientpoolconfig;
 
 
@@ -14326,7 +14326,7 @@ typedef struct xhttpdecompressconfig {
 
 /*
 	Timeout 覆盖排队、DNS、TCP、代理、TLS 和 HTTP I/O 的总时长。
-	IdleTimeout 限制没有传输进度的连续时长；两者单位均为微秒。
+	IdleTimeout 限制没有传输进度的连续时长；两者单位均为毫秒。
 	Resolver 只在 xrtHttpClientCreate 创建私有解析器时使用。
 */
 typedef struct xhttpclientconfig {
@@ -14334,8 +14334,8 @@ typedef struct xhttpclientconfig {
 	xnetdialconfig Dial;
 	xhttp1callconfig Call;
 	xhttp1exchangeconfig Exchange;
-	uint64 Timeout;
-	uint64 IdleTimeout;
+	int64 Timeout;
+	int64 IdleTimeout;
 	/* Client 创建时保留默认代理；空指针表示默认直连。 */
 	const xnetproxy* Proxy;
 	xhttpredirectconfig Redirect;
@@ -14362,8 +14362,8 @@ typedef struct xhttpcalloptions {
 	xhttp1requestoptions Request;
 	xhttpcallevents Events;
 	xcancel* Cancel;
-	uint64 Timeout;
-	uint64 IdleTimeout;
+	int64 Timeout;
+	int64 IdleTimeout;
 	/* 零值继承 Client；限制解码前表示正文，UINT64_MAX 允许无界流。 */
 	uint64 ResponseBodyLimit;
 	xhttpproxyoptions Proxy;
@@ -18123,7 +18123,7 @@ typedef enum xhttpservererror {
 
 
 /*
-	全部超时使用微秒，零表示关闭对应保护。
+	全部超时使用毫秒，零表示关闭对应保护。
 	WriteSize 只限制单次零复制发送租约，不建立每连接固定缓冲。
 	MaxConnections 为零时不限制，仍受系统和 Engine 硬边界约束。
 */
@@ -18131,11 +18131,11 @@ typedef struct xhttpserverconfig {
 	xnetserverconfig Network;
 	xhttp1serverconfig Http1;
 	size_t WriteSize;
-	uint64 HeaderTimeout;
-	uint64 BodyTimeout;
-	uint64 RequestTimeout;
-	uint64 IdleTimeout;
-	uint64 WriteTimeout;
+	int64 HeaderTimeout;
+	int64 BodyTimeout;
+	int64 RequestTimeout;
+	int64 IdleTimeout;
+	int64 WriteTimeout;
 	size_t MaxConnections;
 	size_t MaxInformations;
 } xhttpserverconfig;
@@ -18206,7 +18206,7 @@ typedef struct xhttpserverstats {
 	uint64 Informations;
 	uint64 Upgraded;
 	uint64 ProtocolErrors;
-	uint64 Timeouts;
+	int64 Timeouts;
 	size_t Connections;
 	size_t PeakConnections;
 	size_t Endpoints;
@@ -21011,7 +21011,7 @@ uint64 __xrtHttpCacheTimeAdd(
 
 
 
-/* 把线路秒数转换为内部微秒，溢出时保持饱和。 */
+/* 把线路秒数转换为内部毫秒，溢出时保持饱和。 */
 uint64 __xrtHttpCacheTimeSeconds(uint64 iSeconds);
 
 #endif
@@ -21446,8 +21446,8 @@ struct xhttpcacherecord {
 	uint64 BodyBytes;
 	uint64 Length;
 	xtime ResponseTime;
-	uint64 RequestClock;
-	uint64 ResponseClock;
+	double RequestClock;
+	double ResponseClock;
 	xtime SelectionTime;
 	xrt_http_cache_vary* Vary;
 	size_t VaryCount;
@@ -22928,7 +22928,7 @@ struct xhttpcall {
 		xatomic32 RetryTimerDone;
 		xatomic64 RetryTimer;
 	#endif
-	xdeadline TotalDeadline;
+	double TotalDeadline;
 	xatomic64 IdleDeadline;
 	__xrt_http_call_info Info;
 	xspinlock Lock;
@@ -22960,8 +22960,8 @@ struct xhttpcall {
 	str Host;
 	uint16 Port;
 	uint64 Affinity;
-	uint64 Timeout;
-	uint64 IdleTimeout;
+	int64 Timeout;
+	int64 IdleTimeout;
 	uint64 ResponseBodyLimit;
 	xhttprequest* Request;
 	xhttp1requestoptions RequestOptions;
@@ -23028,8 +23028,8 @@ struct xhttpcall {
 		size_t CachePartitionSize;
 		xhttpbyterange* CacheRanges;
 		size_t CacheRangeCount;
-		uint64 CacheRequestClock;
-		uint64 CacheResponseClock;
+		double CacheRequestClock;
+		double CacheResponseClock;
 		uint64 CacheRangeBodyLength;
 		xtime CacheResponseTime;
 		xhttpbyterange CacheRange;
@@ -24905,7 +24905,7 @@ void __xrtHttpConnProtocolFail(
 bool __xrtHttpConnArmTimer(
 	xhttpconn* pConnection,
 	uint32 iKind,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
@@ -33709,6 +33709,7 @@ XRT_API bool xrtHttpCacheControlParse(
 
 #if defined(XHTTP_FEATURE_HTTP_CACHE_TIME)
 
+#include <math.h>
 
 
 
@@ -33741,7 +33742,7 @@ uint64 __xrtHttpCacheTimeAdd(
 
 
 
-/* 把线路秒数转换为微秒，溢出时保持饱和。 */
+/* 把线路秒数转换为毫秒，溢出时保持饱和。 */
 uint64 __xrtHttpCacheTimeSeconds(uint64 iSeconds)
 {
 	const uint64 iUnit = (uint64)XRT_TIME_SECOND;
@@ -34091,9 +34092,9 @@ XRT_API bool xrtHttpCacheTimeParse(
 XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 	const xhttpcachetime* pTime,
 	xtime ResponseTime,
-	uint64 RequestClock,
-	uint64 ResponseClock,
-	uint64 NowClock,
+	double RequestClock,
+	double ResponseClock,
+	double NowClock,
 	xhttpcacheage* pAge
 )
 {
@@ -34102,7 +34103,7 @@ XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 	uint64 iAgeValue;
 
 	if ( !xrtHttpCacheTimeValid(pTime) ||
-		(pAge == NULL) ||
+		(pAge == NULL) || !isfinite(RequestClock) || !isfinite(ResponseClock) || !isfinite(NowClock) || RequestClock < 0 ||
 		(RequestClock > ResponseClock) ||
 		(ResponseClock > NowClock) ||
 		__xrtRangesOverlap(
@@ -34133,7 +34134,8 @@ XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 			iDate, ResponseTime
 		);
 	}
-	Age.ResponseDelay = ResponseClock - RequestClock;
+	{ double Milliseconds = (ResponseClock - RequestClock) * 1000.0;
+        Age.ResponseDelay = Milliseconds >= 0x1p64 ? UINT64_MAX : (uint64)Milliseconds; }
 	Age.CorrectedAgeValue = __xrtHttpCacheTimeAdd(
 		iAgeValue, Age.ResponseDelay
 	);
@@ -34141,7 +34143,8 @@ XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 		Age.ApparentAge > Age.CorrectedAgeValue ?
 		Age.ApparentAge :
 		Age.CorrectedAgeValue;
-	Age.ResidentTime = NowClock - ResponseClock;
+	{ double Milliseconds = (NowClock - ResponseClock) * 1000.0;
+        Age.ResidentTime = Milliseconds >= 0x1p64 ? UINT64_MAX : (uint64)Milliseconds; }
 	Age.CurrentAge = __xrtHttpCacheTimeAdd(
 		Age.CorrectedInitialAge, Age.ResidentTime
 	);
@@ -38590,7 +38593,7 @@ static bool __xrtHttpDateConditionRead(
 
 
 
-/* 把微秒时间向负无穷取整为整秒，避免负时间比较偏差。 */
+/* 把毫秒时间向负无穷取整为整秒，避免负时间比较偏差。 */
 static int64 __xrtHttpTimeSecond(xtime iTime)
 {
 	return xrtTimeUnix(iTime);
@@ -45005,7 +45008,7 @@ XRT_API xtime xrtHttpCacheRecordResponseTime(
 
 
 /* 返回发出请求时的单调时钟。 */
-XRT_API uint64 xrtHttpCacheRecordRequestClock(
+XRT_API double xrtHttpCacheRecordRequestClock(
 	const xhttpcacherecord* pRecord
 )
 {
@@ -45015,7 +45018,7 @@ XRT_API uint64 xrtHttpCacheRecordRequestClock(
 
 
 /* 返回收到响应时的单调时钟。 */
-XRT_API uint64 xrtHttpCacheRecordResponseClock(
+XRT_API double xrtHttpCacheRecordResponseClock(
 	const xhttpcacherecord* pRecord
 )
 {
@@ -67486,7 +67489,7 @@ XRT_API bool xrtHttpRetryAfterParse(
 
 
 
-/* 把线路秒数或绝对墙钟时间安全转换为微秒延迟。 */
+/* 把线路秒数或绝对墙钟时间安全转换为毫秒延迟。 */
 XRT_API bool xrtHttpRetryAfterDelay(
 	const xhttpretryafter* pRetry,
 	xtime iNow,
@@ -72049,8 +72052,8 @@ XRT_API const xerror* xrtHttp1CallError(
 #if defined(XHTTP_FEATURE_HTTP_CLIENT)
 
 /* HTTP Client 默认把一次完整请求限制在三十秒内。 */
-#define XRT_HTTP_CLIENT_TIMEOUT_DEFAULT_VALUE UINT64_C(30000000)
-#define XRT_HTTP_CLIENT_IDLE_TIMEOUT_DEFAULT_VALUE UINT64_C(30000000)
+#define XRT_HTTP_CLIENT_TIMEOUT_DEFAULT_VALUE INT64_C(30000)
+#define XRT_HTTP_CLIENT_IDLE_TIMEOUT_DEFAULT_VALUE INT64_C(30000)
 
 #define XRT_HTTP_TIMEOUT_NONE	UINT32_C(0)
 #define XRT_HTTP_TIMEOUT_TOTAL	UINT32_C(1)
@@ -72251,7 +72254,7 @@ static bool __xrtHttpClientConfigFailure(cstr sMessage)
 /* 只写入尚未到达的第一个时间点。 */
 static bool __xrtHttpCallFirstTime(
 	xatomic64* pTime,
-	uint64 iNow
+	xtime iNow
 )
 {
 	uint64 iExpected = 0;
@@ -72259,7 +72262,7 @@ static bool __xrtHttpCallFirstTime(
 	return xrtAtomic64CompareExchange(
 		pTime,
 		&iExpected,
-		iNow,
+		(uint64)iNow,
 		XMEMORY_RELEASE,
 		XMEMORY_RELAXED
 	);
@@ -72268,16 +72271,12 @@ static bool __xrtHttpCallFirstTime(
 
 
 /* 把有限相对时长转换为 Engine 可调度的最大有限 deadline。 */
-static xdeadline __xrtHttpCallDeadline(
-	uint64 iNow,
-	uint64 iTimeout
-)
+static double __xrtHttpCallDeadline(double iNow, int64 iTimeout)
 {
-	if ( iNow >=
-		((XRT_DEADLINE_NEVER - 1u) - iTimeout) ) {
-		return XRT_DEADLINE_NEVER - 1u;
-	}
-	return iNow + iTimeout;
+    if (iTimeout == XRT_WAIT_FOREVER) return INFINITY;
+    if (iTimeout < 0 || !isfinite(iNow)) { __xrtWaitInvalid(); return NAN; }
+    if (iTimeout == 0) return iNow;
+    return nextafter(iNow + (double)(iTimeout / 1000) + (double)(iTimeout % 1000) * 0.001, INFINITY);
 }
 
 
@@ -72285,14 +72284,14 @@ static xdeadline __xrtHttpCallDeadline(
 /* 按最后一次真实进度刷新 idle deadline，不创建新 Timer。 */
 static void __xrtHttpCallProgressAt(
 	xhttpcall* pCall,
-	uint64 iNow
+	double iNow
 )
 {
-	uint64 iDeadline;
+	double iDeadline;
 
 	xrtAtomic64Store(
 		&pCall->Info.LastProgress,
-		iNow,
+		(uint64)xrtNow(),
 		XMEMORY_RELEASE
 	);
 	if ( pCall->IdleTimeout == XHTTP_CLIENT_TIMEOUT_NONE ) {
@@ -72304,7 +72303,7 @@ static void __xrtHttpCallProgressAt(
 	);
 	xrtAtomic64Store(
 		&pCall->IdleDeadline,
-		iDeadline,
+		__xrtWaitTimerBits(iDeadline),
 		XMEMORY_RELEASE
 	);
 }
@@ -72331,15 +72330,15 @@ void __xrtHttpCallSetPhase(
 /* 标记当前 Hop 的传输已经可以承载 HTTP。 */
 void __xrtHttpCallTransportReady(xhttpcall* pCall)
 {
-	uint64 iNow;
+	double iNow;
 
 	if ( pCall == NULL ) {
 		return;
 	}
-	iNow = xrtClock();
+	iNow = xrtTimer();
 	(void)__xrtHttpCallFirstTime(
 		&pCall->Info.TransportReady,
-		iNow
+		(uint64)xrtNow()
 	);
 	__xrtHttpCallProgressAt(pCall, iNow);
 	__xrtHttpCallSetPhase(
@@ -72373,7 +72372,7 @@ static void __xrtHttpCallStreamProgress(
 )
 {
 	xhttpcall* pCall = (xhttpcall*)pData;
-	uint64 iNow = xrtClock();
+	double iNow = xrtTimer();
 
 	(void)pStreamCall;
 	__xrtHttpCallProgressAt(pCall, iNow);
@@ -72391,7 +72390,7 @@ static void __xrtHttpCallStreamProgress(
 		);
 		if ( __xrtHttpCallFirstTime(
 			&pCall->Info.FirstByte,
-			iNow
+			(uint64)xrtNow()
 		) ) {
 			__xrtHttpCallSetPhase(
 				pCall,
@@ -72402,7 +72401,7 @@ static void __xrtHttpCallStreamProgress(
 		XHTTP1_PROGRESS_REQUEST_DONE ) {
 		(void)__xrtHttpCallFirstTime(
 			&pCall->Info.RequestSent,
-			iNow
+			(uint64)xrtNow()
 		);
 		if ( xrtAtomic64Load(
 			&pCall->Info.FirstByte,
@@ -72532,7 +72531,9 @@ static bool __xrtHttpClientConfigValid(
 {
 	if ( (pConfig == NULL) ||
 		(pConfig->Timeout == 0) ||
-		(pConfig->IdleTimeout == 0) ) {
+		(pConfig->IdleTimeout == 0) ||
+        (pConfig->Timeout < XRT_WAIT_FOREVER) ||
+        (pConfig->IdleTimeout < XRT_WAIT_FOREVER) ) {
 		__xrtHttpClientSetError(
 			XERR_ARGUMENT,
 			XHTTP_CLIENT_ERROR_CONFIG,
@@ -73269,12 +73270,12 @@ static void __xrtHttpCallResultDestroy(
 /* 初始化 Call 的无锁诊断快照和绝对截止时间。 */
 static void __xrtHttpCallInfoInit(
 	xhttpcall* pCall,
-	uint64 iNow
+	double iNow
 )
 {
-	uint64 iTotalDeadline = 0;
-	uint64 iIdleDeadline = 0;
-	uint64 iCandidate;
+	double iTotalDeadline = 0;
+	double iIdleDeadline = 0;
+	double iCandidate;
 
 	if ( pCall->Timeout != XHTTP_CLIENT_TIMEOUT_NONE ) {
 		iTotalDeadline = __xrtHttpCallDeadline(
@@ -73311,13 +73312,13 @@ static void __xrtHttpCallInfoInit(
 			XHTTP_CLIENT_CACHE_NONE
 		);
 	#endif
-	xrtAtomic64Init(&pCall->Info.Submitted, iNow);
+	xrtAtomic64Init(&pCall->Info.Submitted, (uint64)xrtNow());
 	xrtAtomic64Init(&pCall->Info.Started, 0);
 	xrtAtomic64Init(&pCall->Info.TransportReady, 0);
 	xrtAtomic64Init(&pCall->Info.RequestSent, 0);
 	xrtAtomic64Init(&pCall->Info.FirstByte, 0);
 	xrtAtomic64Init(&pCall->Info.Headers, 0);
-	xrtAtomic64Init(&pCall->Info.LastProgress, iNow);
+	xrtAtomic64Init(&pCall->Info.LastProgress, (uint64)xrtNow());
 	xrtAtomic64Init(&pCall->Info.Completed, 0);
 	xrtAtomic64Init(&pCall->Info.RequestWireBytes, 0);
 	xrtAtomic64Init(&pCall->Info.ResponseWireBytes, 0);
@@ -73326,7 +73327,7 @@ static void __xrtHttpCallInfoInit(
 	#if defined(XHTTP_FEATURE_HTTP_CLIENT_RETRY)
 		xrtAtomic64Init(&pCall->Info.Retries, 0);
 	#endif
-	xrtAtomic64Init(&pCall->IdleDeadline, iIdleDeadline);
+	xrtAtomic64Init(&pCall->IdleDeadline, __xrtWaitTimerBits(iIdleDeadline));
 }
 
 
@@ -73581,7 +73582,7 @@ static void __xrtHttpCallFinish(
 	);
 	xrtAtomic64Store(
 		&pCall->Info.Completed,
-		xrtClock(),
+		(uint64)xrtNow(),
 		XMEMORY_RELEASE
 	);
 	iDeliveredBody = xrtAtomic64Load(
@@ -73804,7 +73805,7 @@ static void __xrtHttpCallTotalTimer(
 /* 为现有 idle Timer 引用重新安排下一次 deadline。 */
 static bool __xrtHttpCallIdleTimerAgain(
 	xhttpcall* pCall,
-	xdeadline iDeadline
+	double iDeadline
 );
 
 
@@ -73821,8 +73822,8 @@ static void __xrtHttpCallIdleTimer(
 )
 {
 	xhttpcall* pCall = (xhttpcall*)pData;
-	xdeadline iDeadline;
-	uint64 iNow;
+	double iDeadline;
+	double iNow;
 	uint32 iCause;
 
 	(void)pWorker;
@@ -73842,11 +73843,11 @@ static void __xrtHttpCallIdleTimer(
 			&pCall->FinishGate,
 			XMEMORY_ACQUIRE
 		) ) {
-		iDeadline = xrtAtomic64Load(
+		iDeadline = __xrtWaitTimerFromBits(xrtAtomic64Load(
 			&pCall->IdleDeadline,
 			XMEMORY_ACQUIRE
-		);
-		iNow = xrtClock();
+		));
+		iNow = xrtTimer();
 		if ( iDeadline > iNow ) {
 			if ( __xrtHttpCallIdleTimerAgain(
 				pCall,
@@ -73895,7 +73896,7 @@ static void __xrtHttpCallIdleTimer(
 /* 把当前 Timer 持有的 Call 引用转移给下一次 idle deadline。 */
 static bool __xrtHttpCallIdleTimerAgain(
 	xhttpcall* pCall,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	uint64 Id;
@@ -73905,7 +73906,7 @@ static bool __xrtHttpCallIdleTimerAgain(
 		0,
 		XMEMORY_RELEASE
 	);
-	Id = xrtNetEngineSchedule(
+	Id = __xrtNetEngineSchedule(
 		pCall->Client->Engine,
 		pCall->Affinity,
 		iDeadline,
@@ -74182,7 +74183,7 @@ static void __xrtHttpCallStart(
 {
 	xhttpcall* pCall = (xhttpcall*)pData;
 	xerror* pCause;
-	uint64 iNow;
+	double iNow;
 	uint64 Id;
 
 	(void)pWorker;
@@ -74222,10 +74223,10 @@ static void __xrtHttpCallStart(
 			return;
 		}
 	}
-	iNow = xrtClock();
+	iNow = xrtTimer();
 	(void)__xrtHttpCallFirstTime(
 		&pCall->Info.Started,
-		iNow
+		(uint64)xrtNow()
 	);
 	__xrtHttpCallProgressAt(pCall, iNow);
 	if ( pCall->Timeout != XHTTP_CLIENT_TIMEOUT_NONE ) {
@@ -74246,7 +74247,7 @@ static void __xrtHttpCallStart(
 			0,
 			XMEMORY_RELEASE
 		);
-		Id = xrtNetEngineSchedule(
+		Id = __xrtNetEngineSchedule(
 			pCall->Client->Engine,
 			pCall->Affinity,
 			pCall->TotalDeadline,
@@ -74288,10 +74289,10 @@ static void __xrtHttpCallStart(
 		XHTTP_CLIENT_TIMEOUT_NONE) &&
 		((pCall->Timeout ==
 		  XHTTP_CLIENT_TIMEOUT_NONE) ||
-		 (xrtAtomic64Load(
+		 (__xrtWaitTimerFromBits(xrtAtomic64Load(
 			&pCall->IdleDeadline,
 			XMEMORY_ACQUIRE
-		  ) < pCall->TotalDeadline)) ) {
+		  )) < pCall->TotalDeadline)) ) {
 		if ( xrtHttpCallRef(pCall) == NULL ) {
 			__xrtHttpCallFail(
 				pCall,
@@ -74309,13 +74310,13 @@ static void __xrtHttpCallStart(
 			0,
 			XMEMORY_RELEASE
 		);
-		Id = xrtNetEngineSchedule(
+		Id = __xrtNetEngineSchedule(
 			pCall->Client->Engine,
 			pCall->Affinity,
-			xrtAtomic64Load(
+			__xrtWaitTimerFromBits(xrtAtomic64Load(
 				&pCall->IdleDeadline,
 				XMEMORY_ACQUIRE
-			),
+			)),
 			__xrtHttpCallIdleTimer,
 			pCall
 		);
@@ -74392,7 +74393,7 @@ static bool __xrtHttpCallInfoInformational(
 
 	(void)__xrtHttpCallFirstTime(
 		&pCall->Info.FirstByte,
-		xrtClock()
+		xrtTimer()
 	);
 	__xrtHttpCallSetPhase(
 		pCall,
@@ -74417,15 +74418,14 @@ static bool __xrtHttpCallInfoHeaders(
 )
 {
 	xhttpcall* pCall = (xhttpcall*)pData;
-	uint64 iNow = xrtClock();
 
 	(void)__xrtHttpCallFirstTime(
 		&pCall->Info.FirstByte,
-		iNow
+		(uint64)xrtNow()
 	);
 	(void)__xrtHttpCallFirstTime(
 		&pCall->Info.Headers,
-		iNow
+		(uint64)xrtNow()
 	);
 	__xrtHttpCallSetPhase(
 		pCall,
@@ -74670,7 +74670,7 @@ XRT_API xhttpcall* xrtHttpClientDo(
 	xhttpclient* pClientRef;
 	xhttpcall* pCall;
 	uint64 iAffinity;
-	uint64 iNow;
+	double iNow;
 	uint32 iWorkers;
 
 	if ( (pClient == NULL) || (pRequest == NULL) ||
@@ -74711,6 +74711,11 @@ XRT_API xhttpcall* xrtHttpClientDo(
 		}
 		memcpy(&Options, pOptions, sizeof(Options));
 	}
+    if (Options.Timeout < XRT_WAIT_FOREVER || Options.IdleTimeout < XRT_WAIT_FOREVER) {
+        __xrtHttpClientSetError(XERR_ARGUMENT, XHTTP_CLIENT_ERROR_ARGUMENT,
+            "run-http-client", "invalid millisecond timeout", NULL);
+        return NULL;
+    }
 	pClientRef = __xrtHttpClientHold(pClient);
 	if ( pClientRef == NULL ) {
 		return NULL;
@@ -74744,7 +74749,7 @@ XRT_API xhttpcall* xrtHttpClientDo(
 		xrtAtomic32Init(&pCall->RetryTimerDone, 0);
 		xrtAtomic64Init(&pCall->RetryTimer, 0);
 	#endif
-	iNow = xrtClock();
+	iNow = xrtTimer();
 	__xrtHttpCallInfoInit(pCall, iNow);
 	if ( !xrtSpinInit(&pCall->Lock) ) {
 		__xrtHttpClientRelease(pCall->Client);
@@ -77181,7 +77186,7 @@ static void __xrtHttpRetryRng(xhttpcall* pCall)
 	}
 	xrtRngSeed(
 		&pCall->RetryRng,
-		xrtClock() ^ (uint64)(uintptr_t)pCall,
+		(uint64)xrtNow() ^ (uint64)(uintptr_t)pCall,
 		(uint64)(uintptr_t)pCall->Request
 	);
 	pCall->RetryRngReady = true;
@@ -77402,13 +77407,10 @@ bool __xrtHttpRetryPending(const xhttpcall* pCall)
 
 
 /* 计算不回绕的单调截止时间。 */
-static xdeadline __xrtHttpRetryDeadline(
-	uint64 iNow,
-	uint64 iDelay
-)
+static double __xrtHttpRetryDeadline(double iNow, uint64 iDelay)
 {
-	return iDelay > (UINT64_MAX - iNow) ?
-		UINT64_MAX : iNow + iDelay;
+    uint64 Milliseconds = iDelay > (uint64)INT64_MAX ? (uint64)INT64_MAX : iDelay;
+    return nextafter(iNow + (double)(Milliseconds / 1000) + (double)(Milliseconds % 1000) * 0.001, INFINITY);
 }
 
 
@@ -77506,7 +77508,7 @@ done:
 bool __xrtHttpRetrySchedule(xhttpcall* pCall)
 {
 	xerror* pCause;
-	uint64 iNow;
+	double iNow;
 	uint64 iIdle;
 	uint64 Id;
 
@@ -77521,7 +77523,7 @@ bool __xrtHttpRetrySchedule(xhttpcall* pCall)
 		XMEMORY_RELEASE
 	);
 	__xrtHttpCallSetPhase(pCall, XHTTP_CALL_PHASE_RETRY);
-	iNow = xrtClock();
+	iNow = xrtTimer();
 	if ( pCall->IdleTimeout != XHTTP_CLIENT_TIMEOUT_NONE ) {
 		iIdle = __xrtHttpRetryDeadline(
 			__xrtHttpRetryDeadline(iNow, pCall->RetryDelay),
@@ -80751,7 +80753,7 @@ bool __xrtHttpCallStartProxy(xhttpcall* pCall)
 
 #define XHTTP_POOL_IDLE_DEFAULT 128u
 #define XHTTP_POOL_IDLE_ORIGIN_DEFAULT 8u
-#define XHTTP_POOL_IDLE_TIMEOUT_DEFAULT UINT64_C(90000000)
+#define XHTTP_POOL_IDLE_TIMEOUT_DEFAULT INT64_C(90000)
 #define XHTTP_POOL_SHARDS_MAX 32u
 
 
@@ -80798,7 +80800,7 @@ struct __xrt_http_client_idle {
 	#if defined(XHTTP_FEATURE_HTTP_CLIENT_HTTPS)
 		xtlsstream* Tls;
 	#endif
-	xdeadline Deadline;
+	double Deadline;
 	__xrt_http_client_idle_state State;
 	bool Released;
 };
@@ -81761,7 +81763,7 @@ static bool __xrtHttpPoolTimerStart(
 	if ( __xrtHttpClientHold(pClient) == NULL ) {
 		return false;
 	}
-	Id = xrtNetEngineSchedule(
+	Id = __xrtNetEngineSchedule(
 		pClient->Engine,
 		pShard->Index % xrtNetEngineWorkerCount(pClient->Engine),
 		pShard->IdleTail->Deadline,
@@ -82138,7 +82140,7 @@ static void __xrtHttpPoolTimer(
 		(__xrt_http_client_pool_shard*)pData;
 	xhttpclient* pClient = pShard->Client;
 	__xrt_http_pool_batch Batch;
-	xdeadline iNow = xrtClock();
+	double iNow = xrtTimer();
 	bool bMatched;
 
 	(void)pWorker;
@@ -82314,7 +82316,7 @@ bool __xrtHttpPoolAcquire(xhttpcall* pCall, bool* pReady)
 	__xrt_http_pool_batch Batch;
 	__xrt_http_client_origin* pOrigin;
 	__xrt_http_client_idle* pIdle;
-	xdeadline iNow;
+	double iNow;
 	bool bResult = true;
 
 	memset(&Batch, 0, sizeof(Batch));
@@ -82341,7 +82343,7 @@ bool __xrtHttpPoolAcquire(xhttpcall* pCall, bool* pReady)
 	}
 	pCall->PoolOrigin = pOrigin;
 	if ( pClient->Config.Pool.IdleTimeout != 0 ) {
-		iNow = xrtClock();
+		iNow = xrtTimer();
 		while ( (pShard->IdleTail != NULL) &&
 			(pShard->IdleTail->Deadline <= iNow) ) {
 			__xrtHttpPoolEvict(
@@ -82705,8 +82707,8 @@ bool __xrtHttpPoolPut(
 		if ( bKeep ) {
 			pIdle->Deadline =
 				pClient->Config.Pool.IdleTimeout == 0 ?
-					XRT_DEADLINE_NEVER :
-					xrtDeadlineAfter(
+					INFINITY :
+					__xrtWaitAfter(
 						pClient->Config.Pool.IdleTimeout
 					);
 			__xrtHttpPoolIdleInsert(pShard, pIdle);
@@ -91246,7 +91248,7 @@ static xhttpcacheusedecision __xrtHttpClientCacheUse(
 		xrtHttpCacheRecordResponseClock(
 			pCall->CacheCandidate
 		),
-		xrtClock(),
+		xrtTimer(),
 		&Age
 	);
 	FreshnessResult = xrtHttpCacheFreshness(
@@ -92037,7 +92039,7 @@ static bool __xrtHttpClientCacheHeaders(
 	const xhttpheaders* pHeaders =
 		xrtHttpResponseHeaders(pResponse);
 
-	pCall->CacheResponseClock = xrtClock();
+	pCall->CacheResponseClock = xrtTimer();
 	pCall->CacheResponseTime = xrtNow();
 	if ( pCall->CacheValidating &&
 		(xrtHttpResponseStatus(pResponse) ==
@@ -94133,7 +94135,7 @@ static xhttpresponse* __xrtHttpClientCacheResponse(
 		xrtHttpCacheRecordResponseTime(pRecord),
 		xrtHttpCacheRecordRequestClock(pRecord),
 		xrtHttpCacheRecordResponseClock(pRecord),
-		xrtClock(),
+		xrtTimer(),
 		&Age
 	) == XHTTP_CACHE_CALC_READY) ) {
 		iAge = snprintf(
@@ -94732,7 +94734,7 @@ bool __xrtHttpClientCacheStart(
 	}
 	*pHandled = false;
 	if ( !pCall->CacheEnabled || !pCall->CacheReady ) {
-		pCall->CacheRequestClock = xrtClock();
+		pCall->CacheRequestClock = xrtTimer();
 		return true;
 	}
 	*pHandled = true;
@@ -108110,7 +108112,7 @@ static bool __xrtHttpSseClientRememberRequest(
 
 
 
-/* 把服务端毫秒重连值裁剪到本地策略并安全转换为微秒。 */
+/* 把服务端毫秒重连值裁剪到本地策略并安全转换为毫秒。 */
 static uint64 __xrtHttpSseClientDelay(
 	const xhttpsseclient* pClient
 )
@@ -108125,8 +108127,7 @@ static uint64 __xrtHttpSseClientDelay(
 	if ( iDelay > pClient->Config.RetryMax ) {
 		iDelay = pClient->Config.RetryMax;
 	}
-	return iDelay > (UINT64_MAX / UINT64_C(1000)) ?
-		UINT64_MAX : iDelay * UINT64_C(1000);
+	return iDelay > (uint64)INT64_MAX ? (uint64)INT64_MAX : iDelay;
 }
 
 
@@ -108235,7 +108236,7 @@ static bool __xrtHttpSseClientReconnect(
 		pClient->Events.Retrying(
 			pClient,
 			(size_t)iReconnect,
-			iDelay / UINT64_C(1000),
+			iDelay,
 			pError,
 			pClient->Events.Data
 		);
@@ -123869,11 +123870,11 @@ XRT_API cstr xrtMime(
 #if defined(XHTTP_FEATURE_HTTP_SERVER)
 
 #define XRT_HTTP_SERVER_WRITE_DEFAULT ((size_t)16384)
-#define XRT_HTTP_SERVER_HEADER_TIMEOUT_DEFAULT UINT64_C(10000000)
-#define XRT_HTTP_SERVER_BODY_TIMEOUT_DEFAULT UINT64_C(30000000)
-#define XRT_HTTP_SERVER_REQUEST_TIMEOUT_DEFAULT UINT64_C(30000000)
-#define XRT_HTTP_SERVER_IDLE_TIMEOUT_DEFAULT UINT64_C(60000000)
-#define XRT_HTTP_SERVER_WRITE_TIMEOUT_DEFAULT UINT64_C(30000000)
+#define XRT_HTTP_SERVER_HEADER_TIMEOUT_DEFAULT INT64_C(10000)
+#define XRT_HTTP_SERVER_BODY_TIMEOUT_DEFAULT INT64_C(30000)
+#define XRT_HTTP_SERVER_REQUEST_TIMEOUT_DEFAULT INT64_C(30000)
+#define XRT_HTTP_SERVER_IDLE_TIMEOUT_DEFAULT INT64_C(60000)
+#define XRT_HTTP_SERVER_WRITE_TIMEOUT_DEFAULT INT64_C(30000)
 #define XRT_HTTP_SERVER_INFORMATION_DEFAULT ((size_t)16)
 
 
@@ -126108,7 +126109,7 @@ static void __xrtHttpConnTimer(
 {
 	xhttpconn* pConnection = (xhttpconn*)pData;
 	uint32 iKind = XRT_HTTP_SERVER_TIMER_NONE;
-	uint64 iRemaining = 0;
+	int64 iRemaining = 0;
 
 	(void)pWorker;
 	if ( pConnection->Timer == Id ) {
@@ -126120,7 +126121,7 @@ static void __xrtHttpConnTimer(
 	if ( (Result == XNET_RESULT_OK) &&
 		(iKind != XRT_HTTP_SERVER_TIMER_NONE) ) {
 		if ( iKind == XRT_HTTP_SERVER_TIMER_WRITE ) {
-			iRemaining = xrtDeadlineRemaining(
+			iRemaining = __xrtWaitRemaining(
 				pConnection->WriteDeadline
 			);
 			#if defined(XHTTP_FEATURE_HTTP_SERVER_TLS)
@@ -126154,7 +126155,7 @@ static void __xrtHttpConnTimer(
 						pConnection->WritePending =
 							iPending;
 						pConnection->WriteDeadline =
-							xrtDeadlineAfter(
+							__xrtWaitAfter(
 								pConnection->Server->
 									Config.WriteTimeout
 							);
@@ -126233,7 +126234,7 @@ static void __xrtHttpConnTimer(
 bool __xrtHttpConnArmTimer(
 	xhttpconn* pConnection,
 	uint32 iKind,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
 	uint64 Id;
@@ -127767,7 +127768,7 @@ static xnetresult __xrtHttpConnStartResponse(
 	__xrtHttpConnPauseInput(pConnection);
 	pConnection->WriteDeadline =
 		pConnection->Server->Config.WriteTimeout != 0 ?
-			xrtDeadlineAfter(
+			__xrtWaitAfter(
 				pConnection->Server->Config.WriteTimeout
 			) : 0;
 	if ( !__xrtHttpConnArmTimer(
@@ -128445,7 +128446,7 @@ static void __xrtHttpConnResponseDone(xhttpconn* pConnection)
 		xrtFree(pQueued);
 		pConnection->WriteDeadline =
 			pConnection->Server->Config.WriteTimeout != 0 ?
-				xrtDeadlineAfter(
+				__xrtWaitAfter(
 					pConnection->Server->
 						Config.WriteTimeout
 				) : 0;
@@ -128520,7 +128521,7 @@ static void __xrtHttpConnOutputRelease(
 			);
 			if ( pConnection->Server->Config.WriteTimeout != 0 ) {
 				pConnection->WriteDeadline =
-					xrtDeadlineAfter(
+					__xrtWaitAfter(
 						pConnection->Server->
 							Config.WriteTimeout
 					);
@@ -128598,7 +128599,7 @@ static bool __xrtHttpConnTlsOutputConsume(
 		XMEMORY_RELAXED
 	);
 	if ( pConnection->Server->Config.WriteTimeout != 0 ) {
-		pConnection->WriteDeadline = xrtDeadlineAfter(
+		pConnection->WriteDeadline = __xrtWaitAfter(
 			pConnection->Server->Config.WriteTimeout
 		);
 	}

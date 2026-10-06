@@ -91,7 +91,7 @@ static bool testSshTransportCoreLocalWrite(
 	xbytesview Payload,
 	void* pWire,
 	size_t iCapacity,
-	uint64 iNowMs,
+	double Timer,
 	uint8* pPadding
 )
 {
@@ -105,10 +105,10 @@ static bool testSshTransportCoreLocalWrite(
 			Payload,
 			testSshTransportCorePadding,
 			pPadding,
-			iNowMs
+			Timer
 		) == XSSH_OK) && (xrtSshTransportCoreWriteCommit(
 			pCore,
-			iNowMs,
+			Timer,
 			&Decision
 		) == XSSH_OK) && (Decision != XSSH_REKEY_REQUIRED);
 }
@@ -122,7 +122,7 @@ static bool testSshTransportCorePeerRead(
 	size_t iWireSize,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs,
+	double Timer,
 	xsshpacketview* pPacket
 )
 {
@@ -138,11 +138,11 @@ static bool testSshTransportCorePeerRead(
 		pPacket,
 		pPlain,
 		iPlainCapacity,
-		iNowMs
+		Timer
 	) == XSSH_OK) && (Reader.Position == iWireSize) &&
 		(xrtSshTransportCoreReadCommit(
 			pCore,
-			iNowMs,
+			Timer,
 			&Decision
 		) == XSSH_OK) && (Decision != XSSH_REKEY_REQUIRED);
 }
@@ -179,9 +179,7 @@ static void testSshTransportCoreOpen(
 		pCore,
 		XSSH_ROLE_CLIENT,
 		0u,
-		NULL,
-		0u
-	), "ssh transport core init failed");
+		NULL, ((double)(0u)) / 1000.0), "ssh transport core init failed");
 	testRequire(xrtSshPacketCodecInit(pPeer, 0u) == XSSH_OK,
 		"ssh transport peer codec init failed");
 	testRequire(testSshTransportCoreKexInit(
@@ -209,8 +207,7 @@ static void testSshTransportCoreOpen(
 		pCore,
 		LocalPayload,
 		arrWire,
-		sizeof(arrWire),
-		1u,
+		sizeof(arrWire), ((double)(1u)) / 1000.0,
 		&iPadding
 	) && testSshTransportCorePeerWrite(
 		pPeer,
@@ -224,8 +221,7 @@ static void testSshTransportCoreOpen(
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		2u,
+		sizeof(arrPlain), ((double)(2u)) / 1000.0,
 		&Packet
 	), "ssh transport core KEXINIT exchange failed");
 	testRequire((xrtSshKexNegotiate(
@@ -254,8 +250,7 @@ static void testSshTransportCoreOpen(
 		pCore,
 		(xbytesview){ arrMethodInit, sizeof(arrMethodInit) },
 		arrWire,
-		sizeof(arrWire),
-		3u,
+		sizeof(arrWire), ((double)(3u)) / 1000.0,
 		&iPadding
 	) && testSshTransportCorePeerWrite(
 		pPeer,
@@ -269,8 +264,7 @@ static void testSshTransportCoreOpen(
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		4u,
+		sizeof(arrPlain), ((double)(4u)) / 1000.0,
 		&Packet
 	), "ssh transport core KEX methods failed");
 	testRequire(xrtSshWriterInit(&Writer, arrNewKeys, sizeof(arrNewKeys)) &&
@@ -279,8 +273,7 @@ static void testSshTransportCoreOpen(
 			pCore,
 			(xbytesview){ arrNewKeys, Writer.Size },
 			arrWire,
-			sizeof(arrWire),
-			5u,
+			sizeof(arrWire), ((double)(5u)) / 1000.0,
 			&iPadding
 		) && xrtSshTransportCoreWriteKeysPending(pCore) &&
 		!xrtSshTransportCoreCanApplication(
@@ -289,9 +282,7 @@ static void testSshTransportCoreOpen(
 		) && (xrtSshTransportCoreSetWriteAesGcm(
 			pCore,
 			(xbytesview){ arrKey, sizeof(arrKey) },
-			(xbytesview){ arrIV, sizeof(arrIV) },
-			6u
-		) == XSSH_OK) && (pCore->Codec.WriteSequence == 0u),
+			(xbytesview){ arrIV, sizeof(arrIV) }, ((double)(6u)) / 1000.0) == XSSH_OK) && (pCore->Codec.WriteSequence == 0u),
 		"ssh transport core write NEWKEYS failed");
 	testRequire(testSshTransportCorePeerWrite(
 		pPeer,
@@ -305,16 +296,13 @@ static void testSshTransportCoreOpen(
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		7u,
+		sizeof(arrPlain), ((double)(7u)) / 1000.0,
 		&Packet
 	) && xrtSshTransportCoreReadKeysPending(pCore) &&
 		(xrtSshTransportCoreSetReadAesGcm(
 			pCore,
 			(xbytesview){ arrKey, sizeof(arrKey) },
-			(xbytesview){ arrIV, sizeof(arrIV) },
-			8u
-		) == XSSH_OK) && (pCore->Codec.ReadSequence == 0u) &&
+			(xbytesview){ arrIV, sizeof(arrIV) }, ((double)(8u)) / 1000.0) == XSSH_OK) && (pCore->Codec.ReadSequence == 0u) &&
 		xrtSshTransportCoreKexComplete(pCore) &&
 		(xrtSshPacketCodecSetWriteAesGcm(
 			pPeer,
@@ -351,9 +339,7 @@ static void testSshTransportCoreDataPath(void)
 			&Writer,
 			(xbytesview){ arrLocalPayload, sizeof(arrLocalPayload) },
 			testSshTransportCorePadding,
-			&iPadding,
-			9u
-		) == XSSH_OK) && Core.Write.Active && Core.Codec.WritePending &&
+			&iPadding, ((double)(9u)) / 1000.0) == XSSH_OK) && Core.Write.Active && Core.Codec.WritePending &&
 		(Core.Codec.WriteSequence == 0u) &&
 		(Core.Rekey.Sent.Packets == 0u) &&
 		(xrtSshTransportCoreWriteAbort(&Core) == XSSH_OK) &&
@@ -367,11 +353,8 @@ static void testSshTransportCoreDataPath(void)
 			&Writer,
 			(xbytesview){ arrLocalPayload, sizeof(arrLocalPayload) },
 			testSshTransportCorePadding,
-			&iPadding,
-			10u
-		) == XSSH_OK) && (xrtSshTransportCoreWriteCommit(
-			&Core,
-			10u,
+			&iPadding, ((double)(10u)) / 1000.0) == XSSH_OK) && (xrtSshTransportCoreWriteCommit(
+			&Core, ((double)(10u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (Core.Codec.WriteSequence == 1u) &&
 		(Core.Rekey.Sent.Packets == 1u),
@@ -391,9 +374,7 @@ static void testSshTransportCoreDataPath(void)
 		&Reader,
 		&Packet,
 		arrPlain,
-		sizeof(arrPlain),
-		11u
-	) == XSSH_NEED_MORE) && !Core.Read.Active &&
+		sizeof(arrPlain), ((double)(11u)) / 1000.0) == XSSH_NEED_MORE) && !Core.Read.Active &&
 		xrtSshReaderInit(
 			&Reader,
 			(xbytesview){ arrFirst, iWireSize }
@@ -402,14 +383,11 @@ static void testSshTransportCoreDataPath(void)
 			&Reader,
 			&Packet,
 			arrPlain,
-			sizeof(arrPlain),
-			11u
-		) == XSSH_OK) && testSshBytesEqual(
+			sizeof(arrPlain), ((double)(11u)) / 1000.0) == XSSH_OK) && testSshBytesEqual(
 			Packet.Payload,
 			(xbytesview){ arrPeerPayload, sizeof(arrPeerPayload) }
 		) && (xrtSshTransportCoreReadCommit(
-			&Core,
-			11u,
+			&Core, ((double)(11u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (Core.Codec.ReadSequence == 1u) &&
 		(Core.Rekey.Received.Packets == 1u),
@@ -449,9 +427,7 @@ static void testSshTransportCoreReadAbortClose(void)
 		&Reader,
 		&Packet,
 		arrPlain,
-		sizeof(arrPlain),
-		9u
-	) == XSSH_OK) && (xrtSshTransportCoreReadAbort(&Core) == XSSH_OK) &&
+		sizeof(arrPlain), ((double)(9u)) / 1000.0) == XSSH_OK) && (xrtSshTransportCoreReadAbort(&Core) == XSSH_OK) &&
 		(Core.State.Phase == XSSH_TRANSPORT_CLOSED) &&
 		!xrtSshTransportCoreCanApplication(
 			&Core,
@@ -495,9 +471,7 @@ static void testSshTransportCoreFatalInput(void)
 		&Reader,
 		&Packet,
 		arrPlain,
-		sizeof(arrPlain),
-		9u
-	) == XSSH_ERROR_AUTHENTICATION) &&
+		sizeof(arrPlain), ((double)(9u)) / 1000.0) == XSSH_ERROR_AUTHENTICATION) &&
 		(Core.State.Phase == XSSH_TRANSPORT_CLOSED),
 		"ssh transport core authentication failure remained open");
 	xrtSshPacketCodecClear(&Peer);
@@ -519,9 +493,7 @@ static void testSshTransportCoreFatalInput(void)
 		&Reader,
 		&Packet,
 		arrPlain,
-		sizeof(arrPlain),
-		9u
-	) == XSSH_ERROR_PROTOCOL) && (Reader.Position == 0u) &&
+		sizeof(arrPlain), ((double)(9u)) / 1000.0) == XSSH_ERROR_PROTOCOL) && (Reader.Position == 0u) &&
 		(Core.State.Phase == XSSH_TRANSPORT_CLOSED),
 		"ssh transport core malformed auth success remained open");
 	xrtSshPacketCodecClear(&Peer);

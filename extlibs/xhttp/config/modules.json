@@ -2215,7 +2215,9 @@
 		},
 		{
 			"name": "http_client_redirect_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -2327,7 +2329,9 @@
 		},
 		{
 			"name": "http_client_resume_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -2632,7 +2636,9 @@
 		},
 		{
 			"name": "http_client_proxy_http_connect_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -2672,7 +2678,9 @@
 		},
 		{
 			"name": "http_client_proxy_socks5_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -2717,7 +2725,9 @@
 		},
 		{
 			"name": "http_client_proxy_https_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -2828,7 +2838,9 @@
 		},
 		{
 			"name": "http_client_pool_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -2850,7 +2862,9 @@
 		},
 		{
 			"name": "http_client_pool_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -2896,7 +2910,9 @@
 		},
 		{
 			"name": "http_client_pool_https_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -3081,7 +3097,9 @@
 		},
 		{
 			"name": "http_client_decompress_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -3101,7 +3119,9 @@
 		},
 		{
 			"name": "http_client_decompress_future_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -5457,7 +5477,9 @@
 		},
 		{
 			"name": "http_client_stream_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -5484,7 +5506,9 @@
 		},
 		{
 			"name": "http_client_stream_async_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -5508,7 +5532,9 @@
 		},
 		{
 			"name": "http_client_stream_async_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -5583,7 +5609,9 @@
 		},
 		{
 			"name": "http_client_tls_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -6331,7 +6359,9 @@
 		},
 		{
 			"name": "http_client_future_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -6376,7 +6406,9 @@
 		},
 		{
 			"name": "http_client_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -6403,7 +6435,9 @@
 		},
 		{
 			"name": "http_client_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -6491,7 +6525,9 @@
 		},
 		{
 			"name": "http_client_https_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -6579,7 +6615,9 @@
 		},
 		{
 			"name": "http_server_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -6602,7 +6640,9 @@
 		},
 		{
 			"name": "http_server_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -6686,7 +6726,9 @@
 		},
 		{
 			"name": "http_server_tls_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -6710,7 +6752,9 @@
 		},
 		{
 			"name": "http_server_tls_uring_tests",
-			"asset_platforms": ["linux"],
+			"asset_platforms": [
+				"linux"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -6791,7 +6835,9 @@
 		},
 		{
 			"name": "http_server_body_async_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -6849,7 +6895,9 @@
 		},
 		{
 			"name": "http_server_raw_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -6904,7 +6952,9 @@
 		},
 		{
 			"name": "http_server_upgrade_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -7002,7 +7052,9 @@
 		},
 		{
 			"name": "http_server_future_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -7099,7 +7151,9 @@
 		},
 		{
 			"name": "http_server_file_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -7180,7 +7234,9 @@
 		},
 		{
 			"name": "http_server_static_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [

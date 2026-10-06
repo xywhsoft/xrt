@@ -137,6 +137,7 @@ typedef struct xsshsessioncore {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -257,7 +258,7 @@ XRT_API xsshcode xrtSshSessionCoreAuthBegin(
 	xsshsessioncore* pSession,
 	const xsshtransportcore* pCore,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -273,7 +274,7 @@ XRT_API xsshcode xrtSshSessionCoreWritePrepare(
 	xsshchannelcore* pChannel,
 	xsshreplyqueue* pReplies,
 	uint64 iReplyToken,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 );
 
@@ -292,7 +293,7 @@ XRT_API xsshcode xrtSshSessionCoreWriteBind(
 XRT_API xsshcode xrtSshSessionCoreWriteCommit(
 	xsshsessioncore* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -316,7 +317,7 @@ XRT_API xsshcode xrtSshSessionCoreReadPrepare(
 	void* pHostKeyStorage,
 	size_t iHostKeyCapacity,
 	size_t* pHostKeySize,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacket* pPacket
 );
 
@@ -326,7 +327,7 @@ XRT_API xsshcode xrtSshSessionCoreReadPrepare(
 XRT_API xsshcode xrtSshSessionCoreReadCommit(
 	xsshsessioncore* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 );
 
 

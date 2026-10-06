@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -68,8 +67,7 @@ int main(void)
 				sData, sizeof(sData) - 1, 1, NULL) ||
 			 !xrtNetPortSendMsg(pPort, Client,
 				"completion", 10, &Address, &Control, 2, NULL) ||
-			 (__xrtNetPortWait(pPort, Events, 2,
-				__xrtWaitAfter(1000000), &iCount) != XNET_RESULT_OK) ||
+			 (xrtNetPortWait(pPort, Events, 2,1000, &iCount) != XNET_RESULT_OK) ||
 			 (iCount != 2) ) {
 			goto Cleanup;
 		}

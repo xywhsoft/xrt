@@ -10,14 +10,14 @@ uint64 delay;
 
 if ( xrtHttpRetryAfterParse(value, &retry) &&
 	xrtHttpRetryAfterDelay(&retry, xrtNow(), &delay) ) {
-	/* delay 使用微秒，可交给单调计时器等待。 */
+	/* delay 使用毫秒，可交给单调计时器等待。 */
 }
 ```
 
 - `xrtHttpRetryAfterParse` 严格接受完整非负十进制 `delay-seconds` 或 HTTP-date，两端 OWS 可以省略。
 - 接收端兼容 IMF-fixdate、RFC 850 和 ANSI C asctime 三种 HTTP 日期；写出端始终生成 IMF-fixdate。
-- 十进制值保留为 `uint64` 秒，不会提前截断；转换为微秒时若溢出则明确失败。
-- HTTP-date 使用 Unix Epoch 微秒。过去的日期表示立即可重试，得到零延迟。
+- 十进制值保留为 `uint64` 秒，不会提前截断；转换为毫秒时若溢出则明确失败。
+- HTTP-date 使用 公元 UTC 毫秒。过去的日期表示立即可重试，得到零延迟。
 - `xrtHttpRetryAfterFields` 要求字段唯一。缺失、有效、重复或非法分别通过 `XHTTP_NEXT_END`、`XHTTP_NEXT_ITEM`、`XHTTP_NEXT_ERROR` 表达，重复值不会被静默挑选。
 
 ## 直接写出

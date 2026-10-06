@@ -33,11 +33,11 @@ int main(void)
 			testSingleTask,
 			&iValue,
 			NULL,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) : NULL;
 	if (
 		(pFuture != NULL) &&
-		(xrtFutureWaitFor(pFuture, UINT64_C(2000000)) == XWAIT_OK) &&
+		(xrtFutureWaitFor(pFuture, INT64_C(2000)) == XWAIT_OK) &&
 		(xrtFutureValue(pFuture) == &iValue) &&
 		xrtTaskPoolDestroy(pPool)
 	) {

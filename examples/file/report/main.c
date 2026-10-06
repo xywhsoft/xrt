@@ -102,8 +102,8 @@ int main(void)
 	}
 	printf("%.*s", (int)iReadSize, sReadBack);
 	printf(
-		"elapsed_us: %llu\n",
-		(unsigned long long)(xrtTimer() - iStart)
+		"elapsed_ms: %llu\n",
+		(unsigned long long)((xrtTimer() - iStart) * 1000.0)
 	);
 	bValid = true;
 

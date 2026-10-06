@@ -47,7 +47,7 @@ static void testTcpDialSyncClose(xnetstream* pStream)
 		testRequire(__xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_CLOSE,
-			__xrtWaitAfter(5000000u),
+			__xrtWaitAfter(5000),
 			NULL
 		), "TCP Dial sync close wait failed");
 	}
@@ -113,7 +113,7 @@ int main(void)
 		&DialConfig,
 		NULL,
 		NULL,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	if ( pClient == NULL ) {
@@ -134,7 +134,7 @@ int main(void)
 	testRequire(pClient != NULL, "TCP Dial sync connect failed");
 	pServer = __xrtNetListenerAcceptWait(
 		pListener,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	testRequire(pServer != NULL, "TCP Dial sync accept failed");
@@ -146,7 +146,7 @@ int main(void)
 	pBytes = __xrtNetStreamRecv(
 		pServer,
 		0,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	testRequire(pBytes != NULL, "TCP Dial sync receive failed");
@@ -160,7 +160,7 @@ int main(void)
 	testTcpDialSyncClose(pServer);
 	testRequire(xrtNetListenerClose(pListener),
 		"TCP Dial sync listener close failed");
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP Dial sync listener close timed out");

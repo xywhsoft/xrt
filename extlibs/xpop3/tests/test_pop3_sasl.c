@@ -1,3 +1,4 @@
+#include <xrt/detail/xpop3_wait.h>
 #include <xrt/detail/wait.h>
 #include "test.h"
 
@@ -313,7 +314,7 @@ int main(void)
 		(strlen(sLongResponse) > (XPOP3_COMMAND_MAX - 2u)),
 		"POP3 long SASL response setup failed");
 
-	Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(INT64_C(10000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.LongResponse = testMailView(sLongResponse);

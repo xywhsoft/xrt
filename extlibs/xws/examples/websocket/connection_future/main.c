@@ -11,7 +11,7 @@ static bool waitResolved(xfuture* pFuture)
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) ==
 		 XFUTURE_RESOLVED);

@@ -169,7 +169,7 @@ static bool test_server_send_all(xnetstream* pStream, const void* pData, size_t 
         eResult = xrtNetStreamSend(pStream, pBytes + iOffset, iChunk);
         if ( eResult == XNET_RESULT_AGAIN ) {
             if ( !__xrtNetStreamWait(pStream, XNET_STREAM_WAIT_WRITE,
-                    __xrtWaitAfter(UINT64_C(1000000)), NULL) ) return false;
+                    __xrtWaitAfter(INT64_C(1000)), NULL) ) return false;
             continue;
         }
         if ( eResult != XNET_RESULT_OK ) return false;
@@ -309,7 +309,7 @@ static void test_server_connection(test_server_ctx* pCtx, xnetstream* pStream)
     bool bReady = false;
     while ( !xrtCancelRequested(pCtx->pCancel) ) {
         xnetbytes* pBytes = __xrtNetStreamRecv(pStream, 64u * 1024u,
-            __xrtWaitAfter(UINT64_C(2000000)), pCtx->pCancel);
+            __xrtWaitAfter(INT64_C(2000)), pCtx->pCancel);
         xbytesview tBytes;
         xhttp1status eStatus;
         if ( !pBytes ) break;
@@ -349,7 +349,7 @@ static void test_server_connection(test_server_ctx* pCtx, xnetstream* pStream)
     }
     (void)xrtNetStreamClose(pStream);
     (void)__xrtNetStreamWait(pStream, XNET_STREAM_WAIT_CLOSE,
-        __xrtWaitAfter(UINT64_C(1000000)), NULL);
+        __xrtWaitAfter(INT64_C(1000)), NULL);
     xrtNetStreamDestroy(pStream);
     xllm__buf_reset(&tWire);
 }
@@ -1302,7 +1302,7 @@ static bool test_tls_send_all(xtlsstream* pStream, const void* pData, size_t iSi
         if ( iChunk > 16384u ) iChunk = 16384u;
         pFuture = xrtTlsStreamSendAsync(pStream, p + iOffset, iChunk);
         if ( !pFuture ) return false;
-        eWait = xrtFutureWaitFor(pFuture, __xrtWaitAfter(UINT64_C(5000000)));
+        eWait = xrtFutureWaitFor(pFuture,INT64_C(5000));
         xrtFutureDestroy(pFuture);
         if ( eWait != XWAIT_OK ) return false;
         iOffset += iChunk;
@@ -1325,7 +1325,7 @@ static void test_tls_serve_one(test_tls_server_ctx* pCtx, xtlsstream* pStream)
     while ( iQuiet < 2u && !xrtCancelRequested(pCtx->pCancel) ) {
         xfuture* pFuture = xrtTlsStreamRecvAsync(pStream, 16384u);
         xwaitresult eWait = pFuture ?
-            xrtFutureWaitFor(pFuture, UINT64_C(300000)) : XWAIT_ERROR;
+            xrtFutureWaitFor(pFuture, INT64_C(300)) : XWAIT_ERROR;
         xnetbytes* pBytes = ( eWait == XWAIT_OK ) ? (xnetbytes*)xrtFutureValue(pFuture) : NULL;
         xbytesview tView = pBytes ? xrtNetBytesView(pBytes) : (xbytesview){0};
         if ( pBytes ) xrtNetBytesDestroy(pBytes);
@@ -1351,7 +1351,7 @@ static int32 test_tls_server_thread(ptr pData)
     test_tls_server_ctx* pCtx = (test_tls_server_ctx*)pData;
     while ( !xrtCancelRequested(pCtx->pCancel) && pCtx->iRequests < 2 ) {
         xtlsstream* pStream = __xrtTlsListenerAcceptWait(pCtx->pListener,
-            __xrtWaitAfter(UINT64_C(500000)), pCtx->pCancel);
+            __xrtWaitAfter(INT64_C(500)), pCtx->pCancel);
         if ( !pStream ) continue;
         test_tls_serve_one(pCtx, pStream);
         xrtTlsStreamDestroy(pStream);
@@ -1764,7 +1764,7 @@ static void test_audit_hardening(void)
             pClient = test_make_client(sSlowUrl, XLLM_PROVIDER_OPENAI_COMPAT);
             xllmRequestInit(&tRequest);
             (void)xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "Ping");
-            xllmRequestSetDeadline(&tRequest, __xrtWaitAfter(UINT64_C(2000000)));
+            xllmRequestSetTimeout(&tRequest, INT64_C(2000));
             pCall = xllmClientStart(pClient, &tRequest, NULL, &tError);
             CHECK(pCall != NULL && pCall->uTimerId != 0u,
                 "deadline call arms the watchdog timer");
@@ -1969,7 +1969,7 @@ static void test_transport(void)
     xrtCancelDestroy(pCancel);
     pCancel = NULL;
     xllmRequestSetCancel(&tRequest, NULL);
-    xllmRequestSetDeadline(&tRequest, __xrtWaitAfter(UINT64_C(150000)));
+    xllmRequestSetTimeout(&tRequest, INT64_C(150));
     eResult = xllmClientComplete(pSlowClient, &tRequest, NULL, &pResponse, &tError);
     if ( !(eResult == XLLM_RESULT_TIMEOUT && tError.eCode == XLLM_ERROR_TIMEOUT &&
             tError.tDiagnostics.bContextAttached &&
@@ -1988,7 +1988,7 @@ static void test_transport(void)
         strcmp(tError.tDiagnostics.sTransportError, "deadline_exceeded") == 0 &&
         tError.tDiagnostics.uEffectiveTimeoutMs > 0u,
         "live model deadline propagates structured diagnostics");
-    xllmRequestSetDeadline(&tRequest, INFINITY);
+    xllmRequestSetTimeout(&tRequest, XRT_WAIT_FOREVER);
     CHECK(tServerCtx.iRequests == 9 && tServerCtx.iSlowRequests == 1 &&
         tServerCtx.bSawAuth && tServerCtx.bSawModel && tServerCtx.bSawTools,
         "server observed auth, model, tools, retries, and one deadline request");

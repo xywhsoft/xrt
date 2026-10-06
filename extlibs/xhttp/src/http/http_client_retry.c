@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../internal/xrt_http_client_runtime.h"
 
 #include <xrt/http_retry.h>
@@ -89,7 +90,7 @@ static void __xrtHttpRetryRng(xhttpcall* pCall)
 	}
 	xrtRngSeed(
 		&pCall->RetryRng,
-		xrtTimer() ^ (uint64)(uintptr_t)pCall,
+		(uint64)xrtNow() ^ (uint64)(uintptr_t)pCall,
 		(uint64)(uintptr_t)pCall->Request
 	);
 	pCall->RetryRngReady = true;
@@ -310,13 +311,10 @@ bool __xrtHttpRetryPending(const xhttpcall* pCall)
 
 
 /* 计算不回绕的单调截止时间。 */
-static double __xrtHttpRetryDeadline(
-	double iNow,
-	uint64 iDelay
-)
+static double __xrtHttpRetryDeadline(double iNow, uint64 iDelay)
 {
-	return iDelay > (UINT64_MAX - iNow) ?
-		UINT64_MAX : iNow + iDelay;
+    uint64 Milliseconds = iDelay > (uint64)INT64_MAX ? (uint64)INT64_MAX : iDelay;
+    return nextafter(iNow + (double)(Milliseconds / 1000) + (double)(Milliseconds % 1000) * 0.001, INFINITY);
 }
 
 

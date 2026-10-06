@@ -1,7 +1,23 @@
-#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -48,7 +64,7 @@ static void exampleTimer(
  *   xrtNetEngineConfigInit + Workers   引擎配置
  *   xrtNetEngineCreate / Start / Destroy   生命周期
  *   xrtNetEnginePost        向指定 Worker 投递任务
- *   xrtNetEngineAfter       延迟任务（微秒定时器）
+ *   xrtNetEngineAfter       延迟任务（毫秒定时器）
  *   xrtNetWorkerIndex       回调里查自己跑在哪个 Worker
  * 模块宏：XRT_MODULE_NET
  * 编译（单头形态，Windows）：
@@ -85,16 +101,16 @@ int main(void)
 		 (xrtNetEngineAfter(
 			pEngine,
 			1,
-			100000u,
+			100,
 			exampleTimer,
 			&State
 		) == 0) ) {
 		(void)xrtNetEngineDestroy(pEngine);
 		return 2;
 	}
-	iDeadline = __xrtWaitAfter(2000000u);
+	iDeadline = exampleTimerLimit(2000);
 	while ( xrtAtomic32Load(&State.Done, XMEMORY_ACQUIRE) != 2 ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			(void)xrtNetEngineDestroy(pEngine);
 			return 3;
 		}

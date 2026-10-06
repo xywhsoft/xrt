@@ -44,7 +44,7 @@ static void testStartTlsBarrier(xnetworker* pWorker, ptr pData)
 
 static void testStartTlsWait(const xatomic32* pFlag, cstr sMessage)
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	double Deadline = __xrtWaitAfter(INT64_C(3000));
 	while ( !xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
 		xrtThreadYield();
@@ -79,7 +79,7 @@ static void testStartTlsQueued(xnetengine* pEngine,
 	xthread* pReleaser;
 	xnetbytes* pBytes;
 	xbytesview Bytes;
-	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	double Deadline = __xrtWaitAfter(INT64_C(5000));
 	bool bUpgraded;
 
 	testRequire(__xrtMailTransportOpen(&Transport, pConfig, Deadline, NULL),
@@ -102,7 +102,7 @@ static void testStartTlsQueued(xnetengine* pEngine,
 		"STARTTLS queue release thread creation failed");
 	xrtClearError();
 	bUpgraded = __xrtMailTransportStartTls(&Transport, pConfig,
-		bCancel ? Deadline : __xrtWaitAfter(UINT64_C(80000)),
+		bCancel ? Deadline : __xrtWaitAfter(INT64_C(80)),
 		Park.Cancel);
 	testRequire(!bUpgraded && xrtGetError() != NULL &&
 		xrtErrorKind(xrtGetError()) ==
@@ -110,7 +110,7 @@ static void testStartTlsQueued(xnetengine* pEngine,
 		!xrtAtomic32Load(&Park.Exited, XMEMORY_ACQUIRE) &&
 		Transport.Tcp != NULL && Transport.Tls == NULL,
 		"STARTTLS queue did not stop before Worker takeover");
-	testRequire(xrtThreadWaitFor(pReleaser, UINT64_C(3000000)) ==
+	testRequire(xrtThreadWaitFor(pReleaser, INT64_C(3000)) ==
 		XWAIT_OK && xrtThreadExitCode(pReleaser) == 0,
 		"STARTTLS queue release thread failed");
 	xrtThreadDestroy(pReleaser);

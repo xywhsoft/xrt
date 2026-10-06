@@ -411,7 +411,7 @@ LiveDone:
 	}
 	xrtAcmeDnsAliProviderUnit(&Provider);
 	if(Provider.pContext != NULL ||
-		!xrtAcmeCleanupPending(UINT64_C(30000000), &pending) || pending != 0u)
+		!xrtAcmeCleanupPending(INT64_C(30), &pending) || pending != 0u)
 		ok = false;
 	testRequire(ok, "acme dns_ali live acceptance failed");
 	puts("[PASS] acme dns_ali live");

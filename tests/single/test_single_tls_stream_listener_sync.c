@@ -7,9 +7,9 @@
 int main(void)
 {
 	xrtClearError();
-	if ( (xrtTlsListenerAcceptWait(
+	if ( (__xrtTlsListenerAcceptWait(
 		NULL,
-		XRT_DEADLINE_NEVER,
+		INFINITY,
 		NULL
 	) != NULL) ||
 		(xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) ) {

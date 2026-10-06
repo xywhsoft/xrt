@@ -44,7 +44,7 @@ static void testTcpFutureThreadsWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(10000000u);
+	double iDeadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -271,15 +271,15 @@ int main(void)
 			"threaded TCP Future cancel thread failed");
 		xrtThreadDestroy(Threads[i]);
 	}
-	testRequire((xrtFutureWaitFor(pClientClose, 10000000u) == XWAIT_OK) &&
+	testRequire((xrtFutureWaitFor(pClientClose, 10000) == XWAIT_OK) &&
 		 (xrtFutureState(pClientClose) == XFUTURE_RESOLVED) &&
-		 (xrtFutureWaitFor(pServerClose, 10000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pServerClose, 10000) == XWAIT_OK) &&
 		 (xrtFutureState(pServerClose) == XFUTURE_RESOLVED),
 		"threaded TCP Future close waits failed");
 	testTcpFutureThreadsWait(&Context.Closed, 2,
 		"threaded TCP Future close callbacks missing");
 	for ( size_t i = 0; i < TEST_TCP_FUTURE_WAITER_COUNT; i++ ) {
-		testRequire(xrtFutureWaitFor(Futures[i], 10000000u) == XWAIT_OK,
+		testRequire(xrtFutureWaitFor(Futures[i], 10000) == XWAIT_OK,
 			"threaded TCP Future receive did not finish");
 		if ( xrtFutureState(Futures[i]) == XFUTURE_CANCELLED ) {
 			iCancelled++;

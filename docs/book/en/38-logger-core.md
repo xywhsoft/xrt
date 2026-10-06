@@ -41,7 +41,7 @@ The four elements of `xlogsinkconfig`: a **name** (operations-readable), a **lev
 | --- | --- |
 | `xrtLogFieldInt` / `Float` | numeric fields |
 | `xrtLogFieldString` | string field (view) |
-| `xrtLogFieldTime` | time field (microsecond value) |
+| `xrtLogFieldTime` | time field (millisecond value) |
 | `xrtLogFieldError` | **error field** — Chapter 4's xerror delivered straight into the log |
 | `xrtLogFieldNull` | null sentinel |
 

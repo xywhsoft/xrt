@@ -49,7 +49,7 @@ int main(void)
 	if ( (pWrite == NULL) ||
 		(xrtFutureWaitFor(
 			pWrite,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) != XWAIT_OK) ||
 		(xrtFutureState(pWrite) != XFUTURE_RESOLVED) ) {
 		goto Exit;
@@ -58,7 +58,7 @@ int main(void)
 	if ( (pRead == NULL) ||
 		(xrtFutureWaitFor(
 			pRead,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) != XWAIT_OK) ||
 		(xrtFutureState(pRead) != XFUTURE_RESOLVED) ) {
 		goto Exit;
@@ -75,7 +75,7 @@ int main(void)
 	if ( (pClose == NULL) ||
 		(xrtFutureWaitFor(
 			pClose,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) != XWAIT_OK) ||
 		(xrtFutureState(pClose) != XFUTURE_RESOLVED) ) {
 		goto Exit;
@@ -89,7 +89,7 @@ Exit:
 		if ( pPending != NULL ) {
 			(void)xrtFutureWaitFor(
 				pPending,
-				UINT64_C(2000000)
+				INT64_C(2000)
 			);
 			xrtFutureDestroy(pPending);
 		}

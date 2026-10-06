@@ -1,3 +1,4 @@
+#include <xrt/detail/ximap_wait.h>
 #include <xrt/detail/wait.h>
 #include "test.h"
 
@@ -194,7 +195,7 @@ static int32 testImapAppendFaultServer(ptr pData)
 			pUnexpected = __xrtNetStreamRecv(
 				pStream,
 				1u,
-				__xrtWaitAfter(UINT64_C(100000)),
+				__xrtWaitAfter(INT64_C(100)),
 				NULL
 			);
 			bSuccess = (pUnexpected == NULL) &&
@@ -309,7 +310,7 @@ int main(void)
 		ximapclient* pClient;
 		ximapappendconfig AppendConfig;
 		xthread* pThread;
-		double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+		double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 		Server.Deadline = Deadline;
 		Server.Mode = (testimapappendfaultmode)iMode;

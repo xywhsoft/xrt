@@ -6,7 +6,7 @@
 
 
 
-#define BENCH_WS_TIMEOUT UINT64_C(5000000)
+#define BENCH_WS_TIMEOUT INT64_C(5000)
 
 
 

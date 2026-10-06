@@ -10,7 +10,7 @@ api: xhttp-http_client, xhttp-http_client_runtime, net
 
 ## Orientation
 
-What did the easy layer (Chapter 98) fold away? This chapter unfolds it.**The request builder** (`xhttprequest`): explicit assembly of method/URL/Headers/body/auth; `Do` freezes a snapshot at submission — the caller may modify or destroy the original request immediately;**the call layer**: `xhttpcalloptions`' two kinds of deadlines (a total timeout covering the whole chain, an idle timeout watching only time without progress), cancellation tokens, and response-body caps;**diagnostics**: `xhttpcallresult.Info`'s state machine and timestamps (monotonic-clock microseconds) — `RequestWireBytes`/`ResponseWireBytes` accumulate across the entire redirect chain;**the connection pool**: sharded by origin (at most 32 shards), each with its own waiting FIFO and idle LRU, a global atomic quota — reuse is the root of performance. Four gears together are "the runtime" — every easy line runs on top of them.
+What did the easy layer (Chapter 98) fold away? This chapter unfolds it.**The request builder** (`xhttprequest`): explicit assembly of method/URL/Headers/body/auth; `Do` freezes a snapshot at submission — the caller may modify or destroy the original request immediately;**the call layer**: `xhttpcalloptions`' two kinds of deadlines (a total timeout covering the whole chain, an idle timeout watching only time without progress), cancellation tokens, and response-body caps;**diagnostics**: `xhttpcallresult.Info`'s state machine and timestamps (monotonic-clock milliseconds) — `RequestWireBytes`/`ResponseWireBytes` accumulate across the entire redirect chain;**the connection pool**: sharded by origin (at most 32 shards), each with its own waiting FIFO and idle LRU, a global atomic quota — reuse is the root of performance. Four gears together are "the runtime" — every easy line runs on top of them.
 
 ## Introduction
 
@@ -38,7 +38,7 @@ The layering of the two caps must be kept clear: `ResponseBodyLimit` acts on the
 
 ### The diagnostic snapshot: every Info field
 
-`xhttpcallresult.Info` (carried by the completion callback; a running snapshot may also be copied from any thread): `State` (queued/executing/**immutable final state** — once the final state is published, every field freezes; a late cancellation cannot rewrite a published result), `Phase` (the actual ending phase retained), microsecond timestamps (`TransportReady`/`RequestSent`/`FirstByte`/`Headers` — monotonic clock, zero if not reached), byte accounting (`RequestWireBytes`/`ResponseWireBytes` **accumulate across the entire redirect chain**; `ResponseBodyBytes` is the finally delivered body — plaintext when auto-decompressed), `ReusedConnection` (any hop reused), `Secure` (current/final hop encryption). This field set is the "which hop is slow" checkup sheet — Chapter 137's performance analysis will return to use it.
+`xhttpcallresult.Info` (carried by the completion callback; a running snapshot may also be copied from any thread): `State` (queued/executing/**immutable final state** — once the final state is published, every field freezes; a late cancellation cannot rewrite a published result), `Phase` (the actual ending phase retained), millisecond timestamps (`TransportReady`/`RequestSent`/`FirstByte`/`Headers` — monotonic clock, zero if not reached), byte accounting (`RequestWireBytes`/`ResponseWireBytes` **accumulate across the entire redirect chain**; `ResponseBodyBytes` is the finally delivered body — plaintext when auto-decompressed), `ReusedConnection` (any hop reused), `Secure` (current/final hop encryption). This field set is the "which hop is slow" checkup sheet — Chapter 137's performance analysis will return to use it.
 
 ### The connection pool: origin shards and fair waiting
 
@@ -90,7 +90,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 - **Two deadlines**: `Timeout` spans the whole chain from submission; `IdleTimeout` measures no-progress from execution (send/receive refresh); zero inherits from Client, `TIMEOUT_NONE` disables; simultaneous expiry reliably reports TOTAL.
 - **Cancellation**: `CallCancel` from any thread; already-cancelled before submission installs no Timer and starts no DNS, going straight to the final state; a published final state is immutable.
 - **Dual caps**: `ResponseBodyLimit` (representation body, pre-decode, cache shares the budget) + `Decompress.MaxBody` (plaintext) — high compression cannot bypass the budget; SSE replaces the download cap with structured caps.
-- **Info freeze**: final-state fields frozen; timestamps monotonic-clock microseconds, zero if unreached; Wire fields accumulate the redirect chain; Body records the final plaintext.
+- **Info freeze**: final-state fields frozen; timestamps monotonic-clock milliseconds, zero if unreached; Wire fields accumulate the redirect chain; Body records the final plaintext.
 - **Pool sharding**: ≤32 fixed shards; per-shard FIFO/LRU/Timer; cross-shard atomic quota; four return conditions; no pipelining; defaults 128/8/90s.
 - **Pool operations**: CloseIdle interrupts nothing active; Stats loosely consistent, concurrently readable; Drain/Abort share one path and wait for asynchronous teardown.
 - **Submission validation**: configuration-range wraparound rejected synchronously without publishing a callback; creation validates the Dial/Stream/Exchange static configuration.
@@ -173,7 +173,7 @@ Fire 100 requests at the same origin (concurrency 8); from Stats' lifecycle coun
 | Two deadlines | Timeout whole chain (from submission); IdleTimeout no-progress (send/receive refresh); zero inherits/NONE disables |
 | Cancellation | any thread; pre-submission cancellation goes straight to the final state; the published final state is immutable |
 | Dual caps | representation body (pre-decode, cache shares the budget) + plaintext (post-decompression) - two gates against bombs |
-| Info | final state frozen; microsecond monotonic clock; Wire accumulates the redirect chain; Body records plaintext bytes |
+| Info | final state frozen; millisecond monotonic clock; Wire accumulates the redirect chain; Body records plaintext bytes |
 | Pool sharding | ≤32 fixed shards; per-shard FIFO/LRU/Timer; cross-shard atomic quota, no hot lock |
 | Return conditions | boundary complete + no close + no upgrade + healthy; no pipelining; defaults 128/8/90s |
 | Operations | CloseIdle interrupts nothing active; Stats loosely consistent - capacity reads the monotonic counters |

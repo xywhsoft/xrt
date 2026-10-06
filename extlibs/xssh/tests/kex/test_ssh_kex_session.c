@@ -146,7 +146,7 @@ static void testSshKexSessionCoreInit(
 	xsshrole Role
 )
 {
-	testRequire(xrtSshTransportCoreInit(pCore, Role, 0u, NULL, 0u) &&
+	testRequire(xrtSshTransportCoreInit(pCore, Role, 0u, NULL, ((double)(0u)) / 1000.0) &&
 		(xrtSshTransportCoreIdentificationCommit(
 			pCore,
 			XSSH_TRANSPORT_LOCAL
@@ -172,7 +172,7 @@ static size_t testSshKexSessionCoreWrite(
 	xbytesview Payload,
 	void* pWire,
 	size_t iCapacity,
-	uint64 iNowMs,
+	double Timer,
 	uint8* pPadding
 )
 {
@@ -186,10 +186,10 @@ static size_t testSshKexSessionCoreWrite(
 			Payload,
 			testSshKexSessionPadding,
 			pPadding,
-			iNowMs
+			Timer
 		) == XSSH_OK) && (xrtSshTransportCoreWriteCommit(
 			pCore,
-			iNowMs,
+			Timer,
 			&Decision
 		) == XSSH_OK) && (Decision != XSSH_REKEY_REQUIRED),
 		"ssh KEX session core write failed");
@@ -205,7 +205,7 @@ static xsshpacketview testSshKexSessionCoreReadPrepare(
 	size_t iWireSize,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 )
 {
 	xsshreader Reader;
@@ -221,7 +221,7 @@ static xsshpacketview testSshKexSessionCoreReadPrepare(
 		&Packet,
 		pPlain,
 		iPlainCapacity,
-		iNowMs
+		Timer
 	) == XSSH_OK) && (Reader.Position == iWireSize),
 		"ssh KEX session core read prepare failed");
 	return Packet;
@@ -232,14 +232,14 @@ static xsshpacketview testSshKexSessionCoreReadPrepare(
 /* 提交已经由 KEX session 接受的 core 输入。 */
 static void testSshKexSessionCoreReadCommit(
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 )
 {
 	xsshrekeydecision Decision;
 
 	testRequire((xrtSshTransportCoreReadCommit(
 		pCore,
-		iNowMs,
+		Timer,
 		&Decision
 	) == XSSH_OK) && (Decision != XSSH_REKEY_REQUIRED),
 		"ssh KEX session core read commit failed");
@@ -252,7 +252,7 @@ static void testSshKexSessionCoreTransfer(
 	xsshtransportcore* pSender,
 	xsshtransportcore* pReceiver,
 	xbytesview Payload,
-	uint64 iNowMs,
+	double Timer,
 	uint8* pPadding
 )
 {
@@ -266,7 +266,7 @@ static void testSshKexSessionCoreTransfer(
 		Payload,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs,
+		Timer,
 		pPadding
 	);
 	Packet = testSshKexSessionCoreReadPrepare(
@@ -275,11 +275,11 @@ static void testSshKexSessionCoreTransfer(
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire(testSshBytesEqual(Packet.Payload, Payload),
 		"ssh KEX core transfer payload mismatch");
-	testSshKexSessionCoreReadCommit(pReceiver, iNowMs);
+	testSshKexSessionCoreReadCommit(pReceiver, Timer);
 }
 
 
@@ -293,7 +293,7 @@ static void testSshKexSessionTransfer(
 	xbytesview Payload,
 	void* pHostKeyStorage,
 	size_t iHostKeyCapacity,
-	uint64 iNowMs,
+	double Timer,
 	uint8* pPadding
 )
 {
@@ -307,7 +307,7 @@ static void testSshKexSessionTransfer(
 		Payload,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs,
+		Timer,
 		pPadding
 	);
 	testRequire((xrtSshKexSessionWriteCommit(
@@ -320,7 +320,7 @@ static void testSshKexSessionTransfer(
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire((xrtSshKexSessionReadPrepare(
 		pReceiverSession,
@@ -330,7 +330,7 @@ static void testSshKexSessionTransfer(
 		iHostKeyCapacity,
 		NULL
 	) == XSSH_OK), "ssh KEX receiver session prepare failed");
-	testSshKexSessionCoreReadCommit(pReceiverCore, iNowMs);
+	testSshKexSessionCoreReadCommit(pReceiverCore, Timer);
 	testRequire((xrtSshKexSessionReadCommit(
 		pReceiverSession,
 		pReceiverCore
@@ -487,8 +487,7 @@ static void testSshKexSessionInitial(void)
 		&ClientCore,
 		(xbytesview){ arrPayload, Writer.Size },
 		arrWire,
-		sizeof(arrWire),
-		1u,
+		sizeof(arrWire), ((double)(1u)) / 1000.0,
 		&iPadding
 	);
 	testRequire((xrtSshKexSessionWriteCommit(
@@ -500,9 +499,7 @@ static void testSshKexSessionInitial(void)
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		1u
-	);
+		sizeof(arrPlain), ((double)(1u)) / 1000.0);
 	testRequire((xrtSshKexSessionReadPrepare(
 		&Server,
 		&ServerCore,
@@ -511,7 +508,7 @@ static void testSshKexSessionInitial(void)
 		0u,
 		NULL
 	) == XSSH_OK), "ssh KEX server init parse failed");
-	testSshKexSessionCoreReadCommit(&ServerCore, 1u);
+	testSshKexSessionCoreReadCommit(&ServerCore, ((double)(1u)) / 1000.0);
 	testRequire(xrtSshKexSessionReadCommit(
 		&Server,
 		&ServerCore
@@ -548,8 +545,7 @@ static void testSshKexSessionInitial(void)
 		&ServerCore,
 		(xbytesview){ arrPayload, Writer.Size },
 		arrWire,
-		sizeof(arrWire),
-		2u,
+		sizeof(arrWire), ((double)(2u)) / 1000.0,
 		&iPadding
 	);
 	testRequire((xrtSshKexSessionWriteCommit(
@@ -561,9 +557,7 @@ static void testSshKexSessionInitial(void)
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		2u
-	);
+		sizeof(arrPlain), ((double)(2u)) / 1000.0);
 	iHostKeySize = 0u;
 	testRequire((xrtSshKexSessionReadPrepare(
 		&Client,
@@ -583,7 +577,7 @@ static void testSshKexSessionInitial(void)
 		sizeof(arrClientHostKey),
 		&iHostKeySize
 	) == XSSH_OK), "ssh KEX client reply parse failed");
-	testSshKexSessionCoreReadCommit(&ClientCore, 2u);
+	testSshKexSessionCoreReadCommit(&ClientCore, ((double)(2u)) / 1000.0);
 	testRequire((xrtSshKexSessionReadCommit(
 		&Client,
 		&ClientCore
@@ -610,8 +604,7 @@ static void testSshKexSessionInitial(void)
 		&ServerCore,
 		(xbytesview){ arrPayload, Writer.Size },
 		arrWire,
-		sizeof(arrWire),
-		3u,
+		sizeof(arrWire), ((double)(3u)) / 1000.0,
 		&iPadding
 	);
 	testRequire((xrtSshKexSessionWriteCommit(
@@ -619,17 +612,13 @@ static void testSshKexSessionInitial(void)
 		&ServerCore
 	) == XSSH_OK) && (xrtSshKexSessionActivateWrite(
 		&Server,
-		&ServerCore,
-		3u
-	) == XSSH_OK), "ssh KEX server write key activation failed");
+		&ServerCore, ((double)(3u)) / 1000.0) == XSSH_OK), "ssh KEX server write key activation failed");
 	Packet = testSshKexSessionCoreReadPrepare(
 		&ClientCore,
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		3u
-	);
+		sizeof(arrPlain), ((double)(3u)) / 1000.0);
 	testRequire((xrtSshKexSessionReadPrepare(
 		&Client,
 		&ClientCore,
@@ -638,15 +627,13 @@ static void testSshKexSessionInitial(void)
 		0u,
 		NULL
 	) == XSSH_OK), "ssh KEX client NEWKEYS parse failed");
-	testSshKexSessionCoreReadCommit(&ClientCore, 3u);
+	testSshKexSessionCoreReadCommit(&ClientCore, ((double)(3u)) / 1000.0);
 	testRequire((xrtSshKexSessionReadCommit(
 		&Client,
 		&ClientCore
 	) == XSSH_OK) && (xrtSshKexSessionActivateRead(
 		&Client,
-		&ClientCore,
-		3u
-	) == XSSH_OK), "ssh KEX client read key activation failed");
+		&ClientCore, ((double)(3u)) / 1000.0) == XSSH_OK), "ssh KEX client read key activation failed");
 
 	/* client NEWKEYS 仍由旧写方向编码，提交后再切换新写密钥。 */
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
@@ -658,8 +645,7 @@ static void testSshKexSessionInitial(void)
 		&ClientCore,
 		(xbytesview){ arrPayload, Writer.Size },
 		arrWire,
-		sizeof(arrWire),
-		4u,
+		sizeof(arrWire), ((double)(4u)) / 1000.0,
 		&iPadding
 	);
 	testRequire((xrtSshKexSessionWriteCommit(
@@ -667,17 +653,13 @@ static void testSshKexSessionInitial(void)
 		&ClientCore
 	) == XSSH_OK) && (xrtSshKexSessionActivateWrite(
 		&Client,
-		&ClientCore,
-		4u
-	) == XSSH_OK), "ssh KEX client write key activation failed");
+		&ClientCore, ((double)(4u)) / 1000.0) == XSSH_OK), "ssh KEX client write key activation failed");
 	Packet = testSshKexSessionCoreReadPrepare(
 		&ServerCore,
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		4u
-	);
+		sizeof(arrPlain), ((double)(4u)) / 1000.0);
 	testRequire((xrtSshKexSessionReadPrepare(
 		&Server,
 		&ServerCore,
@@ -686,15 +668,13 @@ static void testSshKexSessionInitial(void)
 		0u,
 		NULL
 	) == XSSH_OK), "ssh KEX server NEWKEYS parse failed");
-	testSshKexSessionCoreReadCommit(&ServerCore, 4u);
+	testSshKexSessionCoreReadCommit(&ServerCore, ((double)(4u)) / 1000.0);
 	testRequire((xrtSshKexSessionReadCommit(
 		&Server,
 		&ServerCore
 	) == XSSH_OK) && (xrtSshKexSessionActivateRead(
 		&Server,
-		&ServerCore,
-		4u
-	) == XSSH_OK) && xrtSshKexSessionComplete(
+		&ServerCore, ((double)(4u)) / 1000.0) == XSSH_OK) && xrtSshKexSessionComplete(
 		&Client,
 		&ClientCore
 	) && xrtSshKexSessionComplete(
@@ -721,8 +701,7 @@ static void testSshKexSessionInitial(void)
 		&ClientCore,
 		(xbytesview){ arrApplication, sizeof(arrApplication) },
 		arrWire,
-		sizeof(arrWire),
-		5u,
+		sizeof(arrWire), ((double)(5u)) / 1000.0,
 		&iPadding
 	);
 	testRequire(xrtSshReaderInit(
@@ -733,14 +712,11 @@ static void testSshKexSessionInitial(void)
 		&Reader,
 		&Packet,
 		arrPlain,
-		sizeof(arrPlain),
-		5u
-	) == XSSH_OK) && testSshBytesEqual(
+		sizeof(arrPlain), ((double)(5u)) / 1000.0) == XSSH_OK) && testSshBytesEqual(
 		Packet.Payload,
 		(xbytesview){ arrApplication, sizeof(arrApplication) }
 	) && (xrtSshTransportCoreReadCommit(
-		&ServerCore,
-		5u,
+		&ServerCore, ((double)(5u)) / 1000.0,
 		&Decision
 	) == XSSH_OK), "ssh KEX encrypted data path failed");
 
@@ -779,15 +755,13 @@ static void testSshKexSessionInitial(void)
 	testSshKexSessionCoreTransfer(
 		&ClientCore,
 		&ServerCore,
-		ClientKex,
-		6u,
+		ClientKex, ((double)(6u)) / 1000.0,
 		&iPadding
 	);
 	testSshKexSessionCoreTransfer(
 		&ServerCore,
 		&ClientCore,
-		ServerKex,
-		7u,
+		ServerKex, ((double)(7u)) / 1000.0,
 		&iPadding
 	);
 	testRequire((xrtSshKexSessionBeginWithPrivate(
@@ -823,8 +797,7 @@ static void testSshKexSessionInitial(void)
 		&ServerCore,
 		(xbytesview){ arrPayload, Writer.Size },
 		NULL,
-		0u,
-		8u,
+		0u, ((double)(8u)) / 1000.0,
 		&iPadding
 	);
 	testRequire((xrtSshKexSessionExchangeHash(
@@ -863,8 +836,7 @@ static void testSshKexSessionInitial(void)
 		&ClientCore,
 		(xbytesview){ arrPayload, Writer.Size },
 		arrClientHostKey,
-		sizeof(arrClientHostKey),
-		9u,
+		sizeof(arrClientHostKey), ((double)(9u)) / 1000.0,
 		&iPadding
 	);
 	testRequire((xrtSshKexSessionEvent(&Client) ==
@@ -885,19 +857,14 @@ static void testSshKexSessionInitial(void)
 		&ClientCore,
 		(xbytesview){ arrPayload, Writer.Size },
 		NULL,
-		0u,
-		10u,
+		0u, ((double)(10u)) / 1000.0,
 		&iPadding
 	);
 	testRequire((xrtSshKexSessionActivateWrite(
 		&Server,
-		&ServerCore,
-		10u
-	) == XSSH_OK) && (xrtSshKexSessionActivateRead(
+		&ServerCore, ((double)(10u)) / 1000.0) == XSSH_OK) && (xrtSshKexSessionActivateRead(
 		&Client,
-		&ClientCore,
-		10u
-	) == XSSH_OK), "ssh rekey server direction activation failed");
+		&ClientCore, ((double)(10u)) / 1000.0) == XSSH_OK), "ssh rekey server direction activation failed");
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshKexSessionNewKeysPrepare(
 			&Client,
@@ -910,19 +877,14 @@ static void testSshKexSessionInitial(void)
 		&ServerCore,
 		(xbytesview){ arrPayload, Writer.Size },
 		NULL,
-		0u,
-		11u,
+		0u, ((double)(11u)) / 1000.0,
 		&iPadding
 	);
 	testRequire((xrtSshKexSessionActivateWrite(
 		&Client,
-		&ClientCore,
-		11u
-	) == XSSH_OK) && (xrtSshKexSessionActivateRead(
+		&ClientCore, ((double)(11u)) / 1000.0) == XSSH_OK) && (xrtSshKexSessionActivateRead(
 		&Server,
-		&ServerCore,
-		11u
-	) == XSSH_OK), "ssh rekey client direction activation failed");
+		&ServerCore, ((double)(11u)) / 1000.0) == XSSH_OK), "ssh rekey client direction activation failed");
 
 	/* SessionId 保留首轮哈希，当前 exchange hash 和数据面使用第二轮结果。 */
 	testRequire(xrtSshKexSessionComplete(&Client, &ClientCore) &&
@@ -949,8 +911,7 @@ static void testSshKexSessionInitial(void)
 	testSshKexSessionCoreTransfer(
 		&ServerCore,
 		&ClientCore,
-		(xbytesview){ arrApplication, sizeof(arrApplication) },
-		12u,
+		(xbytesview){ arrApplication, sizeof(arrApplication) }, ((double)(12u)) / 1000.0,
 		&iPadding
 	);
 

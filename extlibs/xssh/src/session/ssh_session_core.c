@@ -1,3 +1,4 @@
+#include <math.h>
 #include <string.h>
 
 #include <xrt/ssh_session_core.h>
@@ -595,9 +596,10 @@ xsshcode xrtSshSessionCoreAuthBegin(
 	xsshsessioncore* pSession,
 	const xsshtransportcore* pCore,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	if ( !xsshSessionCoreValid(pSession) || pSession->Failed ||
 		!xsshSessionCoreTransportValid(pSession, pCore) ||
 		(pSession->Kex.Phase != XSSH_KEX_EXCHANGE_COMPLETE) ||
@@ -609,7 +611,7 @@ xsshcode xrtSshSessionCoreAuthBegin(
 		&pSession->Auth,
 		pCore,
 		pPolicy,
-		iNowMs
+		Timer
 	);
 }
 
@@ -623,10 +625,11 @@ xsshcode xrtSshSessionCoreWritePrepare(
 	xsshchannelcore* pChannel,
 	xsshreplyqueue* pReplies,
 	uint64 iReplyToken,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshsessionpacket Packet;
 	bool bRecognized;
 	uint8 iMessage;
@@ -712,7 +715,7 @@ xsshcode xrtSshSessionCoreWritePrepare(
 				&pSession->Auth,
 				pCore,
 				Payload,
-				iNowMs
+				Timer
 			);
 			if ( Code == XSSH_OK ) {
 				Packet.Kind = XSSH_SESSION_PACKET_AUTH;
@@ -800,9 +803,10 @@ xsshcode xrtSshSessionCoreWriteBind(
 xsshcode xrtSshSessionCoreWriteCommit(
 	xsshsessioncore* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshcode Code = XSSH_OK;
 
 	if ( !xsshSessionCoreValid(pSession) || pSession->Failed ||
@@ -821,7 +825,7 @@ xsshcode xrtSshSessionCoreWriteCommit(
 			Code = xrtSshKexSessionActivateWrite(
 				&pSession->Kex.Session,
 				pCore,
-				iNowMs
+				Timer
 			);
 		}
 		if ( Code == XSSH_OK ) {
@@ -889,10 +893,11 @@ xsshcode xrtSshSessionCoreReadPrepare(
 	void* pHostKeyStorage,
 	size_t iHostKeyCapacity,
 	size_t* pHostKeySize,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacket* pPacket
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshsessionpacket Packet;
 	xsshauthsessionpacket AuthPacket;
 	bool bRecognized;
@@ -976,7 +981,7 @@ xsshcode xrtSshSessionCoreReadPrepare(
 				&pSession->Auth,
 				pCore,
 				Payload,
-				iNowMs,
+				Timer,
 				&AuthPacket
 			);
 			if ( Code == XSSH_OK ) {
@@ -1022,9 +1027,10 @@ xsshcode xrtSshSessionCoreReadPrepare(
 xsshcode xrtSshSessionCoreReadCommit(
 	xsshsessioncore* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshcode Code = XSSH_OK;
 
 	if ( !xsshSessionCoreValid(pSession) || pSession->Failed ||
@@ -1043,7 +1049,7 @@ xsshcode xrtSshSessionCoreReadCommit(
 			Code = xrtSshKexSessionActivateRead(
 				&pSession->Kex.Session,
 				pCore,
-				iNowMs
+				Timer
 			);
 		}
 		if ( Code == XSSH_OK ) {

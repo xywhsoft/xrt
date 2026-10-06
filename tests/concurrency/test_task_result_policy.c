@@ -1,15 +1,15 @@
-#include <xrt/detail/wait.h>
 #ifdef TASK_POLICY_SINGLE
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
 #endif
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include <assert.h>
 typedef struct PolicyJob { unsigned kind; bool destroyed; } PolicyJob;
 static unsigned drops, mismatches;
 static void drop_value(ptr value,ptr data)
 {
-    xrtownershipscope freeze={0}; double deadline=__xrtWaitAfter(1000000);
+    xrtownershipscope freeze={0}; double deadline=__xrtWaitAfter(1000);
     while(!xrtOwnershipFreezeTryBegin(&freeze)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     assert(xrtOwnershipScopeEnd(&freeze));
     if(data){assert(!((PolicyJob*)data)->destroyed);++mismatches;}
@@ -39,7 +39,7 @@ int main(void)
     for(unsigned round=0;round<50;++round)for(unsigned kind=0;kind<4;++kind){
         PolicyJob job={kind,false};xtaskargs args={0};args.Destroy=destroy_job;
         xfuture* future=xrtTaskSubmitOwnedPolicyV1(pool,run,&job,&args,&policy);assert(future);
-        assert(xrtFutureWaitFor(future,1000000)==XWAIT_OK && job.destroyed);
+        assert(xrtFutureWaitFor(future,1000)==XWAIT_OK && job.destroyed);
         xfutureresult result={0};assert(xrtFutureResult(future,&result));
         assert(result.State==(kind==1 || kind==2?XFUTURE_FAILED:XFUTURE_RESOLVED));
         if(kind==1 || kind==2)assert(xrtErrorKind(result.Error)==XERR_STATE);

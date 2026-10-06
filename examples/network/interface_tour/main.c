@@ -34,7 +34,13 @@ int main(void)
 	int iResult = 1;
 
 	/* ---- InterfaceIndex / InterfaceName：回环往返 ---- */
-	iIndex = xrtNetInterfaceIndex("loopback4", XNET_FAMILY_IPV4);
+	#if defined(_WIN32) || defined(_WIN64)
+    iIndex = xrtNetInterfaceIndex("loopback4", XNET_FAMILY_IPV4);
+#elif defined(__APPLE__)
+    iIndex = xrtNetInterfaceIndex("lo0", XNET_FAMILY_IPV4);
+#else
+    iIndex = xrtNetInterfaceIndex("lo", XNET_FAMILY_IPV4);
+#endif
 	if ( iIndex == 0u ) {
 		/* Windows 命名不同：回环显示名 "Loopback Pseudo-Interface 1"。 */
 		iIndex = xrtNetInterfaceIndex(

@@ -85,7 +85,7 @@ static void testMailHandshakeHello(xnetstream* pServer)
 {
 	uint8 Header[5];
 	size_t iOffset = 0;
-	double Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	double Deadline = __xrtWaitAfter(INT64_C(3000));
 
 	while ( iOffset < sizeof(Header) ) {
 		xnetbytes* pBytes = __xrtNetStreamRecv(
@@ -121,7 +121,7 @@ static void testMailHandshakeCase(
 	testmailhandshakedial Dial;
 	xthread* pThread;
 	xnetstream* pServer;
-	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	double Deadline = __xrtWaitAfter(INT64_C(5000));
 
 	memset(&Dial, 0, sizeof(Dial));
 	Dial.Config = *pConfig;
@@ -146,7 +146,7 @@ static void testMailHandshakeCase(
 		testRequire(xrtNetStreamAbort(pServer),
 			"mail TLS handshake server abort failed");
 	}
-	testRequire(xrtThreadWaitFor(pThread, UINT64_C(5000000)) ==
+	testRequire(xrtThreadWaitFor(pThread, INT64_C(5000)) ==
 		XWAIT_OK && xrtThreadExitCode(pThread) == 0,
 		"mail TLS handshake dial did not finish");
 	testRequire(!Dial.Opened && !Dial.Active && Dial.HasError &&

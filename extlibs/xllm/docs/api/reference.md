@@ -72,11 +72,11 @@
 - `xllmRequestAddToolResult`
 - `xllmRequestInit`
 - `xllmRequestSetCancel`
-- `xllmRequestSetDeadline`
 - `xllmRequestSetExtraBody`
 - `xllmRequestSetModel`
 - `xllmRequestSetReasoningEffort`
 - `xllmRequestSetStop`
+- `xllmRequestSetTimeout`
 - `xllmRequestSetToolChoice`
 - `xllmRequestSetToolsView`
 - `xllmRequestUnit`

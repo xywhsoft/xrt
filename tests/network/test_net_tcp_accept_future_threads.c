@@ -40,7 +40,7 @@ static void testTcpAcceptThreadsWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(10000000u);
+	double iDeadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -182,7 +182,7 @@ int main(void)
 		xrtThreadDestroy(Threads[i]);
 	}
 	for ( size_t i = 0; i < TEST_TCP_ACCEPT_WAITER_COUNT; i++ ) {
-		testRequire(xrtFutureWaitFor(Futures[i], 10000000u) == XWAIT_OK,
+		testRequire(xrtFutureWaitFor(Futures[i], 10000) == XWAIT_OK,
 			"threaded TCP accept Future did not finish");
 		if ( xrtFutureState(Futures[i]) == XFUTURE_CANCELLED ) {
 			iCancelled++;
@@ -196,7 +196,7 @@ int main(void)
 	}
 	testRequire((iCancelled + iClosed) == TEST_TCP_ACCEPT_WAITER_COUNT,
 		"threaded TCP accept lost a terminal result");
-	iDeadline = __xrtWaitAfter(10000000u);
+	iDeadline = __xrtWaitAfter(10000);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
 			"threaded TCP accept listener close timed out");

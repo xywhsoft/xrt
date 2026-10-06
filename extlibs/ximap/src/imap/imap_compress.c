@@ -1,3 +1,4 @@
+#include <xrt/detail/ximap_wait.h>
 #include <xrt/detail/wait.h>
 #include <xrt/imap_compress.h>
 
@@ -87,6 +88,8 @@ XRT_API bool __xrtImapClientCompress(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xdeflateconfig Deflate;
 	xinflateconfig Inflate;
 	ximapclientstate State;

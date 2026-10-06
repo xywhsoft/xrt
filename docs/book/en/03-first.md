@@ -36,10 +36,10 @@ XRT unifies type spelling with a set of short aliases, all defined in core.h:
 | `ptr` | `void*` | Generic pointer; the user-data parameter of callbacks is always this |
 | `str` / `cstr` | `char*` / `const char*` | Zero-terminated strings; `str` usually means "you own it, `xrtFree` when done" |
 | `bytes` / `cbytes` | `unsigned char*` and const version | Pointers to binary data |
-| `xtime` | `int64` | Unix Epoch microseconds, absolute time (expanded in Chapter 41) |
+| `xtime` | `int64` | Civil UTC milliseconds since January 1 of year 1 (expanded in Chapter 41) |
 | `xseek` | enum | `XSEEK_START` / `XSEEK_CURRENT` / `XSEEK_END`, the seek origin shared by files and generic IO |
 
-Two details that experienced C hands tend to miss. First, `ptr` rather than a literal `void*` appears in every callback signature — the user-data parameter is uniformly this type, round-tripped with explicit casts. Second, `xtime` uses **microseconds** — not seconds or milliseconds — and is an absolute timestamp: this aligns with syscall precision and avoids the chaos of multiplying and dividing by 1000 everywhere. The time system (clocks, time zones, sleeping) is expanded in Chapter 41; for this chapter it is enough to remember "see `xtime`, think microseconds".
+Two details that experienced C programmers can overlook. First, `ptr` appears in callback signatures instead of a literal `void*`: user data uses this type consistently, with explicit casts when needed. Second, `xtime` stores **civil UTC milliseconds**, measured from January 1 of year 1; `xrtTimer()` returns double seconds, and subtracting two readings gives elapsed time. Chapter 41 explains clocks, time zones, and sleeping. For this chapter, remember: when you see `xtime`, think milliseconds.
 
 Two accompanying "non-existences": there is no "tri-state boolean" — truth is plain C `bool`; and there is no string type hierarchy — text is either a zero-terminated `str` or a length-carrying view (coming up next).
 
@@ -135,7 +135,7 @@ Two design choices are worth chewing on. First, the primitives return **the new 
 - **Reference counting**: the count is embedded as the first `volatile int32` field; creation returns count 1; Retain returning -1 is overflow protection; whoever's Release reaches zero destroys; destruction mirrors creation (`xrtMalloc` against `xrtFree`).
 - **Sentinel**: find misses return `XRT_NPOS`; test with `== XRT_NPOS`, never by sign or magnitude comparison.
 - **No side effects on failure**: failure paths do not write output parameters and there are no hidden allocations; results requiring allocation are carried by the return value with explicit ownership.
-- **Time convention**: `xtime` is an absolute microsecond timestamp; seeking uses the three `xseek` origins uniformly.
+- **Time convention**: `xtime` is an absolute millisecond timestamp; seeking uses the three `xseek` origins uniformly.
 
 ## Pitfalls
 
@@ -224,7 +224,7 @@ Add multi-threaded stress to the object in `examples/core/reference/main.c`: 4 t
 
 | Topic | Quick reference |
 | --- | --- |
-| Type aliases | `int8..uint64` / `ptr` / `str,cstr` / `bytes,cbytes` / `xtime` (microseconds) / `xseek` |
+| Type aliases | `int8..uint64` / `ptr` / `str,cstr` / `bytes,cbytes` / `xtime` (milliseconds) / `xseek` |
 | View contract | Borrow only, no zero terminator, may contain zero bytes; print with `%.*s`; construct with `XRT_STR_LITERAL`; never store beyond the source's lifetime |
 | Sentinel | Find misses return `XRT_NPOS` (`(size_t)-1`); test with `== XRT_NPOS`; sign comparison forbidden |
 | Resource limits | `xrtResourceLimitsInit` three gates: depth/entries/bytes; tighten to business specs; exceeding a limit fails the whole parse |

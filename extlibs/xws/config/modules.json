@@ -65,7 +65,8 @@
 			],
 			"internal_headers": [
 				"extlibs/xws/src/internal/xrt_websocket_http.h",
-				"extlibs/xws/src/internal/xrt_websocket_http_future.h"
+				"extlibs/xws/src/internal/xrt_websocket_http_future.h",
+				"extlibs/xws/include/xrt/detail/xws_wait.h"
 			],
 			"sources": [
 				"extlibs/xws/src/websocket/http_future.c"
@@ -445,7 +446,9 @@
 		},
 		{
 			"name": "websocket_http_future_tls_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -467,7 +470,9 @@
 		},
 		{
 			"name": "websocket_http_future_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -567,7 +572,9 @@
 		},
 		{
 			"name": "websocket_http_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -637,7 +644,9 @@
 		},
 		{
 			"name": "websocket_http_proxy_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -685,7 +694,9 @@
 		},
 		{
 			"name": "websocket_http_deflate_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -737,7 +748,9 @@
 		},
 		{
 			"name": "websocket_http_tls_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -783,7 +796,9 @@
 		},
 		{
 			"name": "websocket_http_tls_deflate_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -845,7 +860,9 @@
 		},
 		{
 			"name": "websocket_reconnect_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -892,7 +909,9 @@
 			"single_tests": [
 				"extlibs/xws/tests/single/test_single_websocket_connection.c"
 			],
-			"examples": ["extlibs/xws/examples/websocket/connection_tour/main.c"],
+			"examples": [
+				"extlibs/xws/examples/websocket/connection_tour/main.c"
+			],
 			"docs": [
 				"extlibs/xws/docs/api/websocket.md",
 				"extlibs/xws/docs/design/websocket-runtime.md"
@@ -901,7 +920,9 @@
 		},
 		{
 			"name": "websocket_connection_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -923,7 +944,9 @@
 		},
 		{
 			"name": "websocket_connection_protocol_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -976,7 +999,9 @@
 		},
 		{
 			"name": "websocket_connection_ref_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1063,7 +1088,9 @@
 		},
 		{
 			"name": "websocket_writer_deflate_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1085,7 +1112,9 @@
 		},
 		{
 			"name": "websocket_writer_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1138,7 +1167,9 @@
 		},
 		{
 			"name": "websocket_writer_ref_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1415,7 +1446,9 @@
 		},
 		{
 			"name": "websocket_connection_future_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1460,7 +1493,9 @@
 		},
 		{
 			"name": "websocket_writer_future_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1599,7 +1634,9 @@
 		},
 		{
 			"name": "websocket_connection_tls_ref_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1643,7 +1680,9 @@
 		},
 		{
 			"name": "websocket_writer_tls_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1687,7 +1726,9 @@
 		},
 		{
 			"name": "websocket_writer_deflate_tls_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1731,7 +1772,9 @@
 		},
 		{
 			"name": "websocket_writer_deflate_ref_tls_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1775,7 +1818,9 @@
 		},
 		{
 			"name": "websocket_writer_ref_tls_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [
@@ -1819,7 +1864,9 @@
 		},
 		{
 			"name": "websocket_connection_tls_future_iocp_tests",
-			"asset_platforms": ["windows"],
+			"asset_platforms": [
+				"windows"
+			],
 			"state": "implemented",
 			"feature": null,
 			"depends": [

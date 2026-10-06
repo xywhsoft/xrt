@@ -44,7 +44,7 @@ static void testChannelAwaitWaiters(
 )
 {
 	xrt_channel_impl* pImpl = (xrt_channel_impl*)pChannel;
-	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(2000));
 
 	for ( ;; ) {
 		size_t iActualReaders;
@@ -70,7 +70,7 @@ static void testChannelAwaitWaiters(
 			!__xrtWaitExpired(iDeadline),
 			"channel waiter count did not converge"
 		);
-		xrtSleepUs(UINT64_C(1000));
+		xrtSleep(1);
 	}
 }
 
@@ -396,8 +396,8 @@ static void testChannelTimeout(void)
 {
 	xchannel tChannel;
 	ptr pItem = NULL;
-	uint64 iStarted;
-	uint64 iElapsed;
+	double iStarted;
+	double iElapsed;
 
 	testRequire(xrtChannelInit(&tChannel, 1u), "channel timeout init failed");
 	iStarted = xrtTimer();
@@ -405,13 +405,13 @@ static void testChannelTimeout(void)
 		xrtChannelRecvFor(
 			&tChannel,
 			&pItem,
-			UINT64_C(20000)
+			INT64_C(20)
 		) == XWAIT_TIMEOUT,
 		"channel receive timeout result mismatch"
 	);
 	iElapsed = xrtTimer() - iStarted;
-	testRequire(iElapsed >= UINT64_C(10000), "channel timeout returned too early");
-	testRequire(iElapsed < UINT64_C(2000000), "channel timeout returned too late");
+	testRequire(iElapsed >= 0.01, "channel timeout returned too early");
+	testRequire(iElapsed < 2, "channel timeout returned too late");
 	testRequire(xrtChannelUnit(&tChannel), "channel timeout unit failed");
 }
 

@@ -2514,7 +2514,7 @@ static void testTlsClientSessionTicketDrive(void)
 			(Info.Lifetime == 3600u) &&
 			(Info.AgeAdd == UINT32_C(0x01020304)) &&
 			(Info.MaxEarlyData == 4096u) &&
-			(Info.ExpiresAt - Info.IssuedAt == INT64_C(3600000000)) &&
+			(Info.ExpiresAt - Info.IssuedAt == INT64_C(3600000)) &&
 			xrtTlsResumeValidAt(pResume, Info.IssuedAt),
 			"TLS client exported incorrect resume metadata");
 		testRequire(

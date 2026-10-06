@@ -481,17 +481,17 @@ XRT_API int xoauth2LastError(void);
 typedef struct xoauth2httpxrt xoauth2httpxrt;
 
 /* 零值可用；pBorrowedEngine 借用宿主 net engine（NULL 则自建），
- * sCaPem 为 NULL 时用系统证书库，uTimeoutUs 为 0 时默认 15s。
+ * sCaPem 为 NULL 时用系统证书库，uTimeoutMs 为 0 时默认 15s。
  * 此超时分别约束连接、整次发送及完整响应，不会逐分片重置。
  * Init 仅用于首次或已成功清理的外壳；失败回滚至少有 30 秒预算，与请求
  * 时限分开。失败后仍须清理外壳，清理未完成时只能重试 Cleanup/Unit/Destroy。
  * 未交付的堆构造由 CleanupPending 清理；有待清理对象时新建私有引擎
  * 会先非阻塞轮询，仍未完成则拒绝，借用引擎不受该限制。 */
 XRT_API bool xoauth2HttpXrtInit(xoauth2httpxrt* pHttp, void* pBorrowedEngine,
-                        const char* sCaPem, uint64_t uTimeoutUs);
+                        const char* sCaPem, int64 uTimeoutMs);
 XRT_API void xoauth2HttpXrtUnit(xoauth2httpxrt* pHttp);
 
-/* 与请求串行调用；等待自建 engine 的异步 Close/Abort，最多 uTimeoutUs。
+/* 与请求串行调用；等待自建 engine 的异步 Close/Abort，最多 uTimeoutMs。
  * 成功释放内部资源（不释放句柄），重复调用或 NULL 均成功；不停止借用 engine。
  * 失败保留自建 engine 的拥有权，句柄仅可用于再次 Cleanup/Unit/Destroy。
  * 保留调用前的非空错误；需判断清理结果时使用此返回值。 */
@@ -501,17 +501,17 @@ XRT_API bool xoauth2HttpXrtCleanup(xoauth2httpxrt* pHttp);
  * Destroy 清理成功才释放整个句柄；失败保留句柄供重试。
  * 需要确认成功时先调用 Cleanup，成功后再 Destroy。参数语义与 Init 相同。 */
 XRT_API xoauth2httpxrt* xoauth2HttpXrtCreate(void* pBorrowedEngine,
-                                     const char* sCaPem, uint64_t uTimeoutUs);
+                                     const char* sCaPem, int64 uTimeoutMs);
 XRT_API void            xoauth2HttpXrtDestroy(xoauth2httpxrt* pHttp);
 
 /* 重试未交付失败堆构造的引擎退休；并发可用，入列不分配且不启动后台线程。
  * 宿主停止新调用、等待在途调用结束并清理已交付实例后，在退出/卸载前
  * 调用至 true；false 时保留库及运行环境并稍后重试。
- * uTimeoutUs == 0 为一次非阻塞轮询；非零为等待预算，退休 ERROR 提前结束。
+ * uTimeoutMs == 0 为一次非阻塞轮询；非零为等待预算，退休 ERROR 提前结束。
  * true 表示队列及其他清理调用正在处理的对象全部释放；piPending 可空，
  * 非空时返回尚未完成数量。保留已有错误；无旧错误时报告退休错误或 XERR_TIMEOUT，
  * 非阻塞 BUSY 不制造错误。已交付句柄仍由 Cleanup/Unit/Destroy 清理。 */
-XRT_API bool xoauth2HttpXrtCleanupPending(uint64_t uTimeoutUs, size_t* piPending);
+XRT_API bool xoauth2HttpXrtCleanupPending(int64 uTimeoutMs, size_t* piPending);
 
 /* 交付最多 1 MiB 的 C 字符串正文（拒绝原始 NUL），调用方用 xrtFree 释放。
  * 响应头与 trailer 各限 100 字段；HTTPS 关闭定界正文须认证 close_notify。
@@ -563,7 +563,7 @@ struct xoauth2httpxrt {
 	bool        bEngineOwned;
 	xnetresolver* pResolver;
 	void*       pVerifier;    /* xtlsverifier*（ opaque 存放，Unit 释放） */
-	uint64_t    uTimeoutUs;
+	int64 uTimeoutMs;
 	struct xoauth2httpxrt* pPendingNext; /* 只用于未交付的失败堆构造。 */
 };
 
@@ -580,7 +580,7 @@ void xoauth2__url_tls_names(const xoauth2url* pUrl,
 	xtlsclientconfig* pTls, xtlsdialconfig* pDial);
 
 bool xoauth2__url_parse(const char* sUrl, xoauth2url* pOut);
-bool xoauth2__future_wait(xfuture* pFuture, xdeadline Deadline);
+bool xoauth2__future_wait(xfuture* pFuture, double Deadline);
 
 #include <string.h>
 #include <stdlib.h>
@@ -1095,7 +1095,7 @@ bool xoauth2TokenExpiring(const xoauth2token* pToken, int leewaySeconds)
 	if ( pToken->ExpiresIn == 0 ) return false;
 	/* 剩余时间 = ExpiresAt - 当前；ExpiresIn 是签发时的总有效期，
 	 * 不反映流逝，必须用获取时刻换算 */
-	int64_t now = (int64_t)(xrtNow() / 1000000);
+	int64_t now = (int64_t)xrtTimeUnix(xrtNow());
 	int64_t leeway = leewaySeconds > 0 ? (int64_t)leewaySeconds : 0;
 	if ( now > INT64_MAX - leeway ) return true;
 	return pToken->ExpiresAt <= now + leeway;
@@ -1230,7 +1230,7 @@ static xoauth2token* xoauth2__parse_token_response_mode(
 		}
 	}
 	/* 时间戳：获取时刻 + 过期时刻（TokenExpiring 的依据） */
-	pToken->ObtainedAt = (int64_t)(xrtNow() / 1000000);
+	pToken->ObtainedAt = (int64_t)xrtTimeUnix(xrtNow());
 	if((pToken->ExpiresIn > 0 &&
 		pToken->ObtainedAt > INT64_MAX - pToken->ExpiresIn) ||
 		(pToken->ExpiresIn < 0 &&
@@ -1776,8 +1776,8 @@ Done:
 
 #define XOAUTH2_HTTP_FIELD_MAX 100u
 #define XOAUTH2_HTTP_IO_CHUNK 16384u
-#define XOAUTH2_HTTP_TIMEOUT_DEFAULT 15000000ull  /* 15s */
-#define XOAUTH2_HTTP_ROLLBACK_TIMEOUT_MIN 30000000ull
+#define XOAUTH2_HTTP_TIMEOUT_DEFAULT 15000  /* 15s */
+#define XOAUTH2_HTTP_ROLLBACK_TIMEOUT_MIN 30000
 /* 响应体上限：token/JWKS/userinfo 响应远小于 1MB；
  * 防 malformed Content-Length / 无限 chunked 把内存吃光 */
 #define XOAUTH2_HTTP_MAX_BODY (1024u * 1024u)
@@ -1815,11 +1815,11 @@ static void http_defer_owner(xoauth2httpxrt* pHttp)
 	http_pending_unlock();
 }
 
-bool xoauth2HttpXrtCleanupPending(uint64_t uTimeoutUs, size_t* piPending)
+bool xoauth2HttpXrtCleanupPending(int64 uTimeoutMs, size_t* piPending)
 {
 	xerror* pPrevious = xrtErrorRef(xrtGetError());
 	xerror* pFirst = NULL;
-	xdeadline deadline = xrtDeadlineAfter(uTimeoutUs);
+	double deadline = __xrtWaitAfter(uTimeoutMs);
 	size_t iPending;
 	bool bError = false;
 	for (;;) {
@@ -1851,7 +1851,7 @@ bool xoauth2HttpXrtCleanupPending(uint64_t uTimeoutUs, size_t* piPending)
 			}
 			pList = pNext;
 			if ( pList != NULL && (bError ||
-				(uTimeoutUs != 0u && xrtDeadlineExpired(deadline))) ) {
+				(uTimeoutMs != 0u && __xrtWaitExpired(deadline))) ) {
 				/* Preserve the unvisited tail after ERROR or budget exhaustion. */
 				if ( pWaitTail != NULL ) pWaitTail->pPendingNext = pList;
 				else pWait = pList;
@@ -1867,8 +1867,8 @@ bool xoauth2HttpXrtCleanupPending(uint64_t uTimeoutUs, size_t* piPending)
 		}
 		iPending = __xoauth2PendingCount;
 		http_pending_unlock();
-		if ( iPending == 0u || bError || uTimeoutUs == 0u ) break;
-		if ( xrtDeadlineExpired(deadline) ) {
+		if ( iPending == 0u || bError || uTimeoutMs == 0u ) break;
+		if ( __xrtWaitExpired(deadline) ) {
 			xrtSetErrorInfo(XERR_TIMEOUT, "xrt.oauth2", XOAUTH2_ERROR_NETWORK,
 				"http pending cleanup still has live objects");
 			break;
@@ -2084,13 +2084,13 @@ void xoauth2__url_tls_names(const xoauth2url* pUrl,
 /* 初始化 / 释放                                                         */
 /* ------------------------------------------------------------------ */
 bool xoauth2HttpXrtInit(xoauth2httpxrt* pHttp, void* pBorrowedEngine,
-                        const char* sCaPem, uint64_t uTimeoutUs)
+                        const char* sCaPem, int64 uTimeoutMs)
 {
 	if ( pHttp == NULL ) return false;
 	memset(pHttp, 0, sizeof(*pHttp));
-	pHttp->uTimeoutUs = (uTimeoutUs != 0) ? uTimeoutUs
+	pHttp->uTimeoutMs = (uTimeoutMs != 0) ? uTimeoutMs
 	                                      : XOAUTH2_HTTP_TIMEOUT_DEFAULT;
-	if ( pBorrowedEngine == NULL && !xoauth2HttpXrtCleanupPending(0u, NULL) ) {
+	if ( pBorrowedEngine == NULL && !xoauth2HttpXrtCleanupPending(0, NULL) ) {
 		xoauth2__error(XOAUTH2_ERROR_NETWORK,
 			"http pending cleanup must finish before creating a private engine");
 		return false;
@@ -2138,11 +2138,11 @@ bool xoauth2HttpXrtInit(xoauth2httpxrt* pHttp, void* pBorrowedEngine,
 fail:
 	{
 		xerror* pCause = xrtErrorRef(xrtGetError());
-		uint64_t uRequestTimeout = pHttp->uTimeoutUs;
-		if ( pHttp->uTimeoutUs < XOAUTH2_HTTP_ROLLBACK_TIMEOUT_MIN )
-			pHttp->uTimeoutUs = XOAUTH2_HTTP_ROLLBACK_TIMEOUT_MIN;
+		int64 uRequestTimeout = pHttp->uTimeoutMs;
+		if ( pHttp->uTimeoutMs < XOAUTH2_HTTP_ROLLBACK_TIMEOUT_MIN )
+			pHttp->uTimeoutMs = XOAUTH2_HTTP_ROLLBACK_TIMEOUT_MIN;
 		(void)xoauth2HttpXrtCleanup(pHttp);
-		pHttp->uTimeoutUs = uRequestTimeout;
+		pHttp->uTimeoutMs = uRequestTimeout;
 		if ( pCause != NULL ) {
 			xerror* pFailure = xrtErrorWrap(pCause, XERR_STATE, "xrt.oauth2",
 				XOAUTH2_ERROR_NETWORK, "http transport init failed");
@@ -2156,11 +2156,11 @@ fail:
 }
 
 xoauth2httpxrt* xoauth2HttpXrtCreate(void* pBorrowedEngine,
-                                     const char* sCaPem, uint64_t uTimeoutUs)
+                                     const char* sCaPem, int64 uTimeoutMs)
 {
 	xoauth2httpxrt* pHttp = (xoauth2httpxrt*)xrtMalloc(sizeof(xoauth2httpxrt));
 	if ( pHttp == NULL ) return NULL;
-	if ( !xoauth2HttpXrtInit(pHttp, pBorrowedEngine, sCaPem, uTimeoutUs) ) {
+	if ( !xoauth2HttpXrtInit(pHttp, pBorrowedEngine, sCaPem, uTimeoutMs) ) {
 		if ( pHttp->bEngineOwned && pHttp->pEngine != NULL ) http_defer_owner(pHttp);
 		else xrtFree(pHttp);
 		return NULL;
@@ -2190,7 +2190,7 @@ bool xoauth2HttpXrtCleanup(xoauth2httpxrt* pHttp)
 		pHttp->pResolver = NULL;
 	}
 	if ( pHttp->bEngineOwned && pHttp->pEngine != NULL ) {
-		xdeadline Deadline = xrtDeadlineAfter(pHttp->uTimeoutUs);
+		double Deadline = __xrtWaitAfter(pHttp->uTimeoutMs);
 		for (;;) {
 			xnetretireresult Result = xrtNetEngineTryDestroy(pHttp->pEngine);
 			if ( Result == XNET_RETIRE_READY ) {
@@ -2199,7 +2199,7 @@ bool xoauth2HttpXrtCleanup(xoauth2httpxrt* pHttp)
 				break;
 			}
 			if ( Result == XNET_RETIRE_ERROR ) { bReady = false; break; }
-			if ( xrtDeadlineExpired(Deadline) ) {
+			if ( __xrtWaitExpired(Deadline) ) {
 				xoauth2__error(XOAUTH2_ERROR_NETWORK,
 					"http transport engine still has live objects during cleanup");
 				bReady = false;
@@ -2228,7 +2228,7 @@ typedef struct xoauth2stream {
 	xnetstream* pTcp;
 } xoauth2stream;
 
-static bool future_resolved_for(xfuture* pFuture, uint64 uRemaining)
+static bool future_resolved_for(xfuture* pFuture, int64 uRemaining)
 {
 	return uRemaining != 0u &&
 		xrtFutureWaitFor(pFuture, uRemaining) == XWAIT_OK &&
@@ -2258,9 +2258,9 @@ static void transport_error(const char* sMessage)
 		xoauth2__error(XOAUTH2_ERROR_NETWORK, sMessage);
 }
 
-bool xoauth2__future_wait(xfuture* pFuture, xdeadline Deadline)
+bool xoauth2__future_wait(xfuture* pFuture, double Deadline)
 {
-	uint64 uRemaining = xrtDeadlineRemaining(Deadline);
+	int64 uRemaining = __xrtWaitRemaining(Deadline);
 	bool bResolved = future_resolved_for(pFuture, uRemaining);
 	future_finish(pFuture, bResolved);
 	return bResolved;
@@ -2270,10 +2270,10 @@ static bool stream_send_all(xoauth2stream* pStream, const void* pData,
                             size_t iSize, uint64_t uUs)
 {
 	size_t iOffset = 0;
-	xdeadline Deadline = xrtDeadlineAfter(uUs);
+	double Deadline = __xrtWaitAfter(uUs);
 	while ( iOffset < iSize ) {
 		size_t iChunk = iSize - iOffset;
-		if ( xrtDeadlineExpired(Deadline) ) return false;
+		if ( __xrtWaitExpired(Deadline) ) return false;
 		if ( iChunk > XOAUTH2_HTTP_IO_CHUNK ) iChunk = XOAUTH2_HTTP_IO_CHUNK;
 		if ( pStream->pTls != NULL ) {
 			xfuture* pF = xrtTlsStreamSendAsync(
@@ -2286,7 +2286,7 @@ static bool stream_send_all(xoauth2stream* pStream, const void* pData,
 			while ( (eResult = xrtNetStreamSend(
 				pStream->pTcp, (const uint8*)pData + iOffset, iChunk))
 				== XNET_RESULT_AGAIN ) {
-				if ( xrtDeadlineExpired(Deadline) ) return false;
+				if ( __xrtWaitExpired(Deadline) ) return false;
 				pF = xrtNetStreamWaitAsync(
 					pStream->pTcp, XNET_STREAM_WAIT_WRITE);
 				if ( pF == NULL || !xoauth2__future_wait(pF, Deadline) ) return false;
@@ -2304,12 +2304,12 @@ static bool stream_send_all(xoauth2stream* pStream, const void* pData,
 
 /* 返回 1=有数据，0=流结束，-1=超时，-2=I/O 失败。 */
 static int stream_recv(xoauth2stream* pStream, uint8* pBuffer,
-                       size_t iCapacity, size_t* pRead, xdeadline Deadline)
+                       size_t iCapacity, size_t* pRead, double Deadline)
 {
 	xfuture* pFuture;
 	xnetbytes* pBytes;
 	xwaitresult eWait;
-	uint64 uRemaining = xrtDeadlineRemaining(Deadline);
+	int64 uRemaining = __xrtWaitRemaining(Deadline);
 	if ( uRemaining == 0u ) return -1;
 	if ( pStream->pTls != NULL )
 		pFuture = xrtTlsStreamRecvAsync(pStream->pTls, iCapacity);
@@ -2324,7 +2324,7 @@ static int stream_recv(xoauth2stream* pStream, uint8* pBuffer,
 			bool bEnd;
 			pFuture = xrtTlsStreamWaitAsync(pStream->pTls, XTLS_STREAM_WAIT_END);
 			if ( pFuture == NULL ) return -2;
-			eWait = xrtFutureWaitFor(pFuture, xrtDeadlineRemaining(Deadline));
+			eWait = xrtFutureWaitFor(pFuture, __xrtWaitRemaining(Deadline));
 			bEnd = eWait == XWAIT_OK &&
 				xrtFutureState(pFuture) == XFUTURE_RESOLVED;
 			future_finish(pFuture, bEnd);
@@ -2406,7 +2406,7 @@ bool xoauth2HttpXrt(const char* sMethod, const char* sUrl, const char* sBody,
 	xerror* pFailure = NULL;
 	bool bOk = false, bHeadDone = false, bStreamEnd = false;
 	size_t iField = 0;
-	xdeadline ResponseDeadline;
+	double ResponseDeadline;
 
 	if ( pHttp == NULL || sUrl == NULL || psResponseBody == NULL ||
 	     piStatus == NULL || sMethod == NULL ) {
@@ -2482,19 +2482,19 @@ bool xoauth2HttpXrt(const char* sMethod, const char* sUrl, const char* sBody,
 		Tls.Verifier = (xtlsverifier*)pHttp->pVerifier;
 		xrtTlsDialConfigInit(&Dial);
 		xoauth2__url_tls_names(&Url, &Tls, &Dial);
-		Dial.Timeout = pHttp->uTimeoutUs;
+		Dial.Timeout = pHttp->uTimeoutMs;
 		pFuture = xrtTlsDialAsync(pHttp->pEngine, pHttp->pResolver,
 			Url.sHost, Url.iPort, &Tls, &Dial, NULL, NULL);
 	}
 	else {
 		xnetdialconfig Dial;
 		xrtNetDialConfigInit(&Dial);
-		Dial.Timeout = pHttp->uTimeoutUs;
+		Dial.Timeout = pHttp->uTimeoutMs;
 		pFuture = xrtNetDialAsync(pHttp->pEngine, pHttp->pResolver,
 			Url.sHost, Url.iPort, &Dial, NULL, NULL);
 	}
 	if ( pFuture == NULL ) goto connect_fail;
-	if ( xrtFutureWaitFor(pFuture, pHttp->uTimeoutUs) != XWAIT_OK ||
+	if ( xrtFutureWaitFor(pFuture, pHttp->uTimeoutMs) != XWAIT_OK ||
 	     xrtFutureState(pFuture) != XFUTURE_RESOLVED )
 		goto connect_fail;
 	if ( Url.bTls ) {
@@ -2509,11 +2509,11 @@ bool xoauth2HttpXrt(const char* sMethod, const char* sUrl, const char* sBody,
 	pFuture = NULL;
 
 	/* ---- 发送 ---- */
-	if ( !stream_send_all(&Stream, Request.Data, Request.Size, pHttp->uTimeoutUs) ) {
+	if ( !stream_send_all(&Stream, Request.Data, Request.Size, pHttp->uTimeoutMs) ) {
 		transport_error("http transport send failed");
 		goto done;
 	}
-	ResponseDeadline = xrtDeadlineAfter(pHttp->uTimeoutUs);
+	ResponseDeadline = __xrtWaitAfter(pHttp->uTimeoutMs);
 
 	/* ---- 接收头 ---- */
 	xrtHttp1LimitsInit(&Limits);

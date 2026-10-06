@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../../src/internal/xrt_channel.h"
 #include "../../src/internal/xrt_coroutine.h"
 #include "../test.h"
@@ -70,7 +71,7 @@ static ptr testChannelAwaitProc(ptr pData)
 	testchannelawait* pContext = (testchannelawait*)pData;
 
 	if ( pContext->Send ) {
-		pContext->Result = pContext->Timeout == UINT64_MAX ?
+		pContext->Result = pContext->Timeout == XRT_WAIT_FOREVER ?
 			xrtChannelSendAwait(
 				pContext->Channel,
 				pContext->Input
@@ -81,7 +82,7 @@ static ptr testChannelAwaitProc(ptr pData)
 				pContext->Timeout
 			);
 	} else {
-		pContext->Result = pContext->Timeout == UINT64_MAX ?
+		pContext->Result = pContext->Timeout == XRT_WAIT_FOREVER ?
 			xrtChannelRecvAwait(
 				pContext->Channel,
 				&pContext->Output
@@ -94,7 +95,7 @@ static ptr testChannelAwaitProc(ptr pData)
 	}
 	if ( pContext->CheckNextPark ) {
 		testRequire(
-			xrtCoParkFor(UINT64_C(1000)) == XWAIT_TIMEOUT,
+			xrtCoParkFor(INT64_C(1)) == XWAIT_TIMEOUT,
 			"channel await leaked a wake into the next park"
 		);
 	}
@@ -161,7 +162,7 @@ static ptr testCoWaitTokenProc(ptr pData)
 	);
 	__xrtCoWaitWake(&tWait);
 	__xrtCoWaitClose(&tWait);
-	pContext->AfterClose = xrtCoParkFor(UINT64_C(1000));
+	pContext->AfterClose = xrtCoParkFor(INT64_C(1));
 
 	testRequire(
 		__xrtCoWaitOpen(pCurrent, &tWait),
@@ -172,8 +173,8 @@ static ptr testCoWaitTokenProc(ptr pData)
 		"resource wait generic wake failed"
 	);
 	__xrtCoWaitClose(&tWait);
-	pContext->Generic = xrtCoParkFor(UINT64_C(1000));
-	pContext->Final = xrtCoParkFor(UINT64_C(1000));
+	pContext->Generic = xrtCoParkFor(INT64_C(1));
+	pContext->Final = xrtCoParkFor(INT64_C(1));
 	return pContext;
 }
 
@@ -200,7 +201,7 @@ static void testChannelAwaitBasic(xcosched* pSched)
 	);
 	memset(&tContext, 0, sizeof(tContext));
 	tContext.Channel = &tChannel;
-	tContext.Timeout = UINT64_MAX;
+	tContext.Timeout = XRT_WAIT_FOREVER;
 	tContext.CheckNextPark = true;
 	pCo = xrtCoSpawn(pSched, testChannelAwaitProc, &tContext, NULL);
 	testRequire(pCo != NULL, "channel await basic spawn failed");
@@ -215,7 +216,7 @@ static void testChannelAwaitBasic(xcosched* pSched)
 	xrtChannelClose(&tChannel);
 	memset(&tContext, 0, sizeof(tContext));
 	tContext.Channel = &tChannel;
-	tContext.Timeout = UINT64_MAX;
+	tContext.Timeout = XRT_WAIT_FOREVER;
 	pCo = xrtCoSpawn(pSched, testChannelAwaitProc, &tContext, NULL);
 	testRequire(pCo != NULL, "closed channel await spawn failed");
 	testRequire(xrtCoSchedRun(pSched), "closed channel await run failed");
@@ -261,10 +262,10 @@ static void testChannelAwaitRendezvous(xcosched* pSched)
 	memset(&tRecv, 0, sizeof(tRecv));
 	memset(&tSend, 0, sizeof(tSend));
 	tRecv.Channel = &tChannel;
-	tRecv.Timeout = UINT64_MAX;
+	tRecv.Timeout = XRT_WAIT_FOREVER;
 	tSend.Channel = &tChannel;
 	tSend.Input = (ptr)(uintptr_t)33u;
-	tSend.Timeout = UINT64_MAX;
+	tSend.Timeout = XRT_WAIT_FOREVER;
 	tSend.Send = true;
 	pRecv = xrtCoSpawn(pSched, testChannelAwaitProc, &tRecv, NULL);
 	pSend = xrtCoSpawn(pSched, testChannelAwaitProc, &tSend, NULL);
@@ -313,7 +314,7 @@ static void testChannelAwaitSelect(xcosched* pSched)
 	tSelect.Count = 2u;
 	tSend.Channel = &tSecond;
 	tSend.Input = (ptr)(uintptr_t)72u;
-	tSend.Timeout = UINT64_MAX;
+	tSend.Timeout = XRT_WAIT_FOREVER;
 	tSend.Send = true;
 	pSelect = xrtCoSpawn(
 		pSched,
@@ -360,7 +361,7 @@ static void testChannelAwaitThread(xcosched* pSched)
 	memset(&tContext, 0, sizeof(tContext));
 	tContext.Channel = &tChannel;
 	tContext.Input = (ptr)(uintptr_t)88u;
-	tContext.Timeout = UINT64_MAX;
+	tContext.Timeout = XRT_WAIT_FOREVER;
 	pCo = xrtCoSpawn(pSched, testChannelAwaitProc, &tContext, NULL);
 	testRequire(pCo != NULL, "channel await thread spawn failed");
 	(void)xrtCoSchedStep(pSched);
@@ -407,8 +408,8 @@ static void testChannelAwaitStop(xcosched* pSched)
 	xchannel tChannel;
 	xcoro* pTimeout;
 	xcoro* pCancel;
-	uint64 iStarted;
-	uint64 iElapsed;
+	double iStarted;
+	double iElapsed;
 
 	testRequire(
 		xrtChannelInit(&tChannel, 1u),
@@ -416,7 +417,7 @@ static void testChannelAwaitStop(xcosched* pSched)
 	);
 	memset(&tTimeout, 0, sizeof(tTimeout));
 	tTimeout.Channel = &tChannel;
-	tTimeout.Timeout = UINT64_C(20000);
+	tTimeout.Timeout = INT64_C(20);
 	iStarted = xrtTimer();
 	pTimeout = xrtCoSpawn(
 		pSched,
@@ -429,8 +430,8 @@ static void testChannelAwaitStop(xcosched* pSched)
 	iElapsed = xrtTimer() - iStarted;
 	testRequire(
 		(tTimeout.Result == XWAIT_TIMEOUT) &&
-		(iElapsed >= UINT64_C(10000)) &&
-		(iElapsed < UINT64_C(2000000)),
+		(iElapsed >= 0.01) &&
+		(iElapsed < 2),
 		"channel await timeout mismatch"
 	);
 	testRequire(xrtCoDestroy(pTimeout), "channel await timeout destroy failed");
@@ -438,7 +439,7 @@ static void testChannelAwaitStop(xcosched* pSched)
 	memset(&tCancel, 0, sizeof(tCancel));
 	memset(&tHelper, 0, sizeof(tHelper));
 	tCancel.Channel = &tChannel;
-	tCancel.Timeout = UINT64_MAX;
+	tCancel.Timeout = XRT_WAIT_FOREVER;
 	pCancel = xrtCoSpawn(pSched, testChannelAwaitProc, &tCancel, NULL);
 	testRequire(pCancel != NULL, "channel await cancel spawn failed");
 	tHelper.Target = pCancel;

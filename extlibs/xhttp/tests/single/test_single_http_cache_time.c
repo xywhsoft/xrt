@@ -44,7 +44,7 @@ int main(void)
 	) && xrtHttpCacheTimeParse(
 		Fields, 3, &Time
 	) && (xrtHttpCacheCurrentAge(
-		&Time, Time.Date, 1, 2, 3, &Age
+		&Time, Time.Date, 1e-06, 2e-06, 3e-06, &Age
 	) == XHTTP_CACHE_CALC_READY) &&
 		(xrtHttpCacheFreshness(
 			&Control,
@@ -54,7 +54,7 @@ int main(void)
 			&Freshness
 		 ) == XHTTP_CACHE_CALC_READY) &&
 		(Freshness.Lifetime ==
-		 UINT64_C(60000000)) &&
+		 UINT64_C(60000)) &&
 		xrtHttpCacheFresh(&Age, &Freshness);
 	printf(
 		"%s single-http-cache-time\n",

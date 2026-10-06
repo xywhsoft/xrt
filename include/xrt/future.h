@@ -234,7 +234,7 @@ XRT_API void xrtFutureDestroy(xfuture* pFuture);
 
 /* Optional, leaf-only observation state owned by the physical Future, never
  * a second reference count or a strong Promise/Future edge. FirstObserved and
- * FirstTerminalObserved are monotonic milliseconds of first observation, not
+ * FirstTerminalObserved are civil UTC milliseconds of first observation, not
  * submission/completion timestamps. A terminal Future first observed now has
  * both times equal. PendingWatches counts linked public completion Watches,
  * including native producers/continuations, but not blocking internal waiters.
@@ -430,7 +430,7 @@ XRT_API xwaitresult xrtFutureWait(xfuture* pFuture);
 
 
 
-/* 在相对微秒数内等待 Future 进入任一终态。 */
+/* 在相对毫秒数内等待 Future 进入任一终态。 */
 XRT_API xwaitresult xrtFutureWaitFor(xfuture* pFuture, int64 iTimeout);
 
 
@@ -765,7 +765,7 @@ XRT_API xwaitresult xrtFutureAwait(xfuture* pFuture);
 
 
 
-/* 在相对微秒数内挂起当前调度协程等待 Future。 */
+/* 在相对毫秒数内挂起当前调度协程等待 Future。 */
 XRT_API xwaitresult xrtFutureAwaitFor(xfuture* pFuture, int64 iTimeout);
 
 

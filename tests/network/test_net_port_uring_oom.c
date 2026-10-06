@@ -159,7 +159,7 @@ int main(void)
 			pPort,
 			&Event,
 			1,
-			__xrtWaitAfter(1000000),
+			__xrtWaitAfter(1000),
 			&iCount
 		) == XNET_RESULT_OK) &&
 		(iCount == 1) && (Event.Id == 1) && (Event.Bytes == 1) &&
@@ -181,7 +181,7 @@ int main(void)
 			pPort,
 			&Event,
 			1,
-			__xrtWaitAfter(1000000),
+			__xrtWaitAfter(1000),
 			&iCount
 		) == XNET_RESULT_OK) &&
 		(iCount == 1) && (Event.Id == 2) && (Event.Bytes == 1) &&

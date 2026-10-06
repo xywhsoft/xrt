@@ -10,7 +10,7 @@ int main(void)
 	} Cases[] = {
 		{ INT64_MAX, 1, XTIME_UNIT_MONTH },
 		{ INT64_MIN, -1, XTIME_UNIT_MONTH },
-		{ 0, INT64_C(4000000), XTIME_UNIT_MONTH },
+		{ 0, INT64_C(4000000000), XTIME_UNIT_MONTH },
 		{ 0, INT64_MAX, XTIME_UNIT_MONTH },
 		{ 0, INT64_MAX, XTIME_UNIT_QUARTER },
 		{ 0, INT64_MIN, XTIME_UNIT_YEAR },
@@ -18,9 +18,9 @@ int main(void)
 	};
 	size_t iFailures = 0;
 
-	/* 年零的一月对应月份索引零，极小增量能直接到达 INT64_MIN 索引。 */
-	testRequire(xrtDate(0, 1, 1, &Cases[6].Time),
-		"year-zero arithmetic boundary fixture failed");
+	/* 公元前一年对应天文年零，月份索引零能到达 INT64_MIN 索引。 */
+	testRequire(xrtDate(-1, 1, 1, &Cases[6].Time),
+		"BCE arithmetic boundary fixture failed");
 	for ( size_t i = 0; i < sizeof(Cases) / sizeof(Cases[0]); i++ ) {
 		xtime Result = 123;
 

@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：concurrency/task_tour —— 任务池/任务组提交与等待补集
  * ----------------------------------------------------------------
@@ -31,7 +30,7 @@
 #include <string.h>
 #include <xrt.h>
 
-#define EXAMPLE_TIMEOUT_US	UINT64_C(3000000)
+#define EXAMPLE_TIMEOUT_MS	INT64_C(3000)
 
 /* 标准任务：返回值 7。 */
 static xtaskoutcome exampleTask(xcancel* pCancel, ptr pData,
@@ -72,10 +71,9 @@ int main(void)
 		((arrFutures[0] = xrtTaskSubmitWait(pPool, exampleTask,
 			NULL, NULL)) == NULL) ||
 		((arrFutures[1] = xrtTaskSubmitFor(pPool, exampleTask,
-			NULL, NULL, EXAMPLE_TIMEOUT_US)) == NULL) ||
-		((arrFutures[2] = __xrtTaskSubmitUntil(pPool, exampleTask,
-			NULL, NULL,
-			__xrtWaitAfter(EXAMPLE_TIMEOUT_US))) == NULL) ||
+			NULL, NULL, EXAMPLE_TIMEOUT_MS)) == NULL) ||
+		((arrFutures[2] = xrtTaskSubmitFor(pPool, exampleTask,
+			NULL, NULL,EXAMPLE_TIMEOUT_MS)) == NULL) ||
 		((arrFutures[3] = xrtTaskSubmit(pPool, exampleTask,
 			NULL, NULL)) == NULL) ) {
 		goto Cleanup;
@@ -83,16 +81,15 @@ int main(void)
 	/* SubmitUntilCancel：未触发令牌正常提交。 */
 	pCancel = xrtCancelCreate();
 	if ( (pCancel == NULL) ||
-		((arrFutures[4] = __xrtTaskSubmitUntilCancel(pPool,
-			exampleTask, NULL, NULL,
-			__xrtWaitAfter(EXAMPLE_TIMEOUT_US),
+		((arrFutures[4] = xrtTaskSubmitForCancel(pPool,
+			exampleTask, NULL, NULL,EXAMPLE_TIMEOUT_MS,
 			pCancel)) == NULL) ) {
 		goto Cleanup;
 	}
 	/* 逐个收割：值都是 7。 */
 	for ( i = 0; i < 5u; ++i ) {
 		if ( (xrtFutureWaitFor(arrFutures[i],
-				EXAMPLE_TIMEOUT_US) != XWAIT_OK) ||
+				EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ||
 			((uintptr_t)xrtFutureValue(arrFutures[i]) != 7u) ) {
 			goto Cleanup;
 		}
@@ -101,7 +98,7 @@ int main(void)
 
 	/* ---- 池收口：Close → Wait + 统计 ---- */
 	if ( !xrtTaskPoolClose(pPool) ||
-		(xrtTaskPoolWaitFor(pPool, EXAMPLE_TIMEOUT_US) !=
+		(xrtTaskPoolWaitFor(pPool, EXAMPLE_TIMEOUT_MS) !=
 			XWAIT_OK) ||
 		!xrtTaskPoolGet(pPool, &Stats) ||
 		(Stats.Completed < 5u) ||
@@ -126,9 +123,8 @@ int main(void)
 		(void)xrtTaskSubmit(pFullPool, exampleTask, NULL, NULL);
 		/* 第三个：已触发令牌让容量等待立即取消。 */
 		{
-			xfuture* pThird = __xrtTaskSubmitUntilCancel(
-				pFullPool, exampleTask, NULL, NULL,
-				__xrtWaitAfter(EXAMPLE_TIMEOUT_US),
+			xfuture* pThird = xrtTaskSubmitForCancel(
+				pFullPool, exampleTask, NULL, NULL,EXAMPLE_TIMEOUT_MS,
 				pCancel);
 
 			if ( (pThird != NULL) ||
@@ -136,8 +132,7 @@ int main(void)
 				/* 取消后池进入 Cancelling。 */
 			}
 		}
-		if ( (__xrtTaskPoolWaitUntil(pFullPool,
-				__xrtWaitAfter(EXAMPLE_TIMEOUT_US)) !=
+		if ( (xrtTaskPoolWaitFor(pFullPool,EXAMPLE_TIMEOUT_MS) !=
 				XWAIT_OK) ||
 			!xrtTaskPoolGet(pFullPool, &Stats) ) {
 			goto Cleanup;
@@ -145,9 +140,8 @@ int main(void)
 		/* WaitUntilCancel：空池返回 ERROR（等价演示调用形态），
 		 * Wait 单独收口。 */
 		{
-			xwaitresult iWait = __xrtTaskPoolWaitUntilCancel(
-				pFullPool,
-				__xrtWaitAfter(EXAMPLE_TIMEOUT_US),
+			xwaitresult iWait = xrtTaskPoolWaitForCancel(
+				pFullPool,EXAMPLE_TIMEOUT_MS,
 				pCancel);
 
 			if ( (iWait != XWAIT_OK) &&
@@ -184,17 +178,15 @@ int main(void)
 			((arrFutures[5] = xrtTaskGroupSubmitWait(pGroup,
 				pPool2, exampleTask, NULL, NULL)) ==
 				NULL) ||
-			((arrFutures[6] = __xrtTaskGroupSubmitUntil(pGroup,
-				pPool2, exampleTask, NULL, NULL,
-				__xrtWaitAfter(EXAMPLE_TIMEOUT_US))) ==
+			((arrFutures[6] = xrtTaskGroupSubmitFor(pGroup,
+				pPool2, exampleTask, NULL, NULL,EXAMPLE_TIMEOUT_MS)) ==
 				NULL) ) {
 			goto Cleanup;
 		}
 		/* GroupSubmitUntilCancel：未触发令牌正常纳入。 */
 		{
-			xfuture* pThird = __xrtTaskGroupSubmitUntilCancel(
-				pGroup, pPool2, exampleTask, NULL, NULL,
-				__xrtWaitAfter(EXAMPLE_TIMEOUT_US),
+			xfuture* pThird = xrtTaskGroupSubmitForCancel(
+				pGroup, pPool2, exampleTask, NULL, NULL,EXAMPLE_TIMEOUT_MS,
 				pCancel);
 
 			if ( pThird == NULL ) {
@@ -209,17 +201,15 @@ int main(void)
 
 			if ( (pStarted == NULL) ||
 				(xrtFutureWaitFor(pStarted,
-					EXAMPLE_TIMEOUT_US) != XWAIT_OK) ) {
+					EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ) {
 				goto Cleanup;
 			}
 			xrtFutureDestroy(pStarted);
 		}
 		/* 组等待族。 */
-		if ( (__xrtTaskGroupWaitUntil(pGroup,
-				__xrtWaitAfter(EXAMPLE_TIMEOUT_US)) !=
+		if ( (xrtTaskGroupWaitFor(pGroup,EXAMPLE_TIMEOUT_MS) !=
 				XWAIT_OK) ||
-			(__xrtTaskGroupWaitUntilCancel(pGroup,
-				__xrtWaitAfter(EXAMPLE_TIMEOUT_US),
+			(xrtTaskGroupWaitForCancel(pGroup,EXAMPLE_TIMEOUT_MS,
 				pCancel) != XWAIT_OK) ) {
 			goto Cleanup;
 		}

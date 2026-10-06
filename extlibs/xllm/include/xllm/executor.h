@@ -36,9 +36,8 @@ typedef struct xllm_executor xllm_executor;
 typedef struct xllm_executor_ctx {
     /* Borrowed cooperative cancel token; NULL when the host has none. */
     xcancel* pCancel;
-    /* Absolute xrtTimer() deadline in milliseconds; 0 and UINT64_MAX both
-     * mean "no deadline" so a zero-initialized context is valid. */
-    uint64_t uDeadline;
+    /* Relative milliseconds; XRT_WAIT_FOREVER disables the timeout. */
+    int64_t iTimeout;
     /* 1-based model round within the current run. */
     uint64_t uRound;
     /* Session turn the call belongs to. */

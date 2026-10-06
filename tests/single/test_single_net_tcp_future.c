@@ -61,9 +61,9 @@ int main(void)
 	}
 	pOpen = xrtNetStreamWaitAsync(pClient, XNET_STREAM_WAIT_OPEN);
 	if ( (pOpen == NULL) ||
-		 (xrtFutureWaitFor(pAccept, 3000000u) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pAccept, 3000) != XWAIT_OK) ||
 		 (xrtFutureState(pAccept) != XFUTURE_RESOLVED) ||
-		 (xrtFutureWaitFor(pOpen, 3000000u) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pOpen, 3000) != XWAIT_OK) ||
 		 (xrtFutureState(pOpen) != XFUTURE_RESOLVED) ) {
 		return 4;
 	}
@@ -81,7 +81,7 @@ int main(void)
 	) != XNET_RESULT_OK) ) {
 		return 6;
 	}
-	if ( (xrtFutureWaitFor(pReceive, 3000000u) != XWAIT_OK) ||
+	if ( (xrtFutureWaitFor(pReceive, 3000) != XWAIT_OK) ||
 		 (xrtFutureState(pReceive) != XFUTURE_RESOLVED) ) {
 		return 7;
 	}
@@ -103,9 +103,9 @@ int main(void)
 		 !xrtNetStreamClose(pClient) || !xrtNetStreamClose(pServer) ) {
 		return 9;
 	}
-	if ( (xrtFutureWaitFor(pClientClose, 3000000u) != XWAIT_OK) ||
+	if ( (xrtFutureWaitFor(pClientClose, 3000) != XWAIT_OK) ||
 		 (xrtFutureState(pClientClose) != XFUTURE_RESOLVED) ||
-		 (xrtFutureWaitFor(pServerClose, 3000000u) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pServerClose, 3000) != XWAIT_OK) ||
 		 (xrtFutureState(pServerClose) != XFUTURE_RESOLVED) ) {
 		return 10;
 	}

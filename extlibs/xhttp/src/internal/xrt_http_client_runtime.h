@@ -318,7 +318,7 @@ struct xhttpcall {
 		xhttp1exchangeevents RetryNext;
 		xhttpretryconfig RetryConfig;
 		xrng RetryRng;
-		int64 RetryDelay;
+		uint64 RetryDelay;
 		uint64 RetryResponseWireStart;
 		uint32 RetryMax;
 		size_t Retries;
@@ -350,8 +350,8 @@ struct xhttpcall {
 		size_t CachePartitionSize;
 		xhttpbyterange* CacheRanges;
 		size_t CacheRangeCount;
-		uint64 CacheRequestClock;
-		uint64 CacheResponseClock;
+		double CacheRequestClock;
+		double CacheResponseClock;
 		uint64 CacheRangeBodyLength;
 		xtime CacheResponseTime;
 		xhttpbyterange CacheRange;

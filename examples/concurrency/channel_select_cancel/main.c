@@ -1,6 +1,22 @@
-#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <xrt.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -38,10 +54,9 @@ int main(void)
 	pCancel = xrtCancelCreate();
 	if ( (pCancel != NULL) && xrtCancelRequest(pCancel) ) {
 		Case = xrtChannelCaseRecv(&Channel, &pValue);
-		Result = __xrtChannelSelectUntilCancel(
+		Result = xrtChannelSelectForCancel(
 			&Case,
-			1u,
-			INFINITY,
+			1u,exampleTimerRemaining(INFINITY),
 			pCancel
 		);
 		printf("select wait result: %d\n", (int)Result.Wait);

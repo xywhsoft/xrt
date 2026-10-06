@@ -31,6 +31,6 @@ int main(void)
 		#error "XPOP3_MODULE_POP3_MESSAGE retained unrelated features"
 	#endif
 
-	return xrtPop3ClientRetrBytes(NULL, 1u, 1024u, NULL, 0, NULL) == NULL ?
+	return __xrtPop3ClientRetrBytes(NULL, 1u, 1024u, NULL, 0, NULL) == NULL ?
 		0 : 1;
 }

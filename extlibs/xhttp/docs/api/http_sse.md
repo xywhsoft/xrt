@@ -233,7 +233,7 @@ typedef struct xhttpsseclientconfig {
 毫秒本地重连范围和无限重连次数。`MaxReconnects` 只计算首次请求之后实际安排的
 重连；零表示首次尝试结束后立即以 `RECONNECT_LIMIT` 关闭。`RetryMin`、`RetryMax`
 和服务端 `retry` 字段的单位都是毫秒；`Http.Timeout` 与 `Http.IdleTimeout` 仍使用
-HTTP Client 的微秒单位。
+HTTP Client 的毫秒单位。
 
 配置和事件表都是调用期间立即复制的固定值，允许位于完整但未对齐的存储中；入口
 返回后可以立即修改或释放。Cookie 与 Cache 分区键会深复制，取消令牌、代理和 HTTP

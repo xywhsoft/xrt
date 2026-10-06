@@ -57,13 +57,14 @@ typedef struct xsshrekeystate {
 	xsshrekeypolicy Policy;
 	xsshrekeycounter Sent;
 	xsshrekeycounter Received;
-	uint64 SendStartedMs;
-	uint64 ReceiveStartedMs;
+	double SendStartedTimer;
+	double ReceiveStartedTimer;
 	bool Requested;
 } xsshrekeystate;
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -77,7 +78,7 @@ XRT_API void xrtSshRekeyPolicyInit(xsshrekeypolicy* pPolicy);
 XRT_API bool xrtSshRekeyInit(
 	xsshrekeystate* pState,
 	const xsshrekeypolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -85,7 +86,7 @@ XRT_API bool xrtSshRekeyInit(
 /* 同时清空双向计数并开始新一代，适用于两方向具有同一提交边界的驱动。 */
 XRT_API bool xrtSshRekeyReset(
 	xsshrekeystate* pState,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -93,7 +94,7 @@ XRT_API bool xrtSshRekeyReset(
 /* 写密钥生效后只清空发送方向计数和时间。 */
 XRT_API bool xrtSshRekeyResetSend(
 	xsshrekeystate* pState,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -101,7 +102,7 @@ XRT_API bool xrtSshRekeyResetSend(
 /* 读密钥生效后只清空接收方向计数和时间。 */
 XRT_API bool xrtSshRekeyResetReceive(
 	xsshrekeystate* pState,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -119,7 +120,7 @@ XRT_API bool xrtSshRekeyRequest(xsshrekeystate* pState);
 /* 查询当前计数、主动请求和时间阈值产生的决策。 */
 XRT_API xsshcode xrtSshRekeyCheck(
 	const xsshrekeystate* pState,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -130,7 +131,7 @@ XRT_API xsshcode xrtSshRekeyReserveSend(
 	xsshrekeystate* pState,
 	uint64 iWireBytes,
 	uint64 iCipherBlocks,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -141,7 +142,7 @@ XRT_API xsshcode xrtSshRekeyReserveReceive(
 	xsshrekeystate* pState,
 	uint64 iWireBytes,
 	uint64 iCipherBlocks,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 

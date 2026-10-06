@@ -30,7 +30,7 @@ static void testHttpServerFileWaitCount(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -108,7 +108,7 @@ static xhttpreply* testHttpServerFileReply(
 	testRequire(
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 		sMessage
@@ -148,7 +148,7 @@ static size_t testHttpServerFileBodyRead(
 				(pWait != NULL) &&
 				(xrtFutureWaitFor(
 					pWait,
-					UINT64_C(2000000)
+					INT64_C(2000)
 				 ) == XWAIT_OK),
 				"HTTP server file body wait failed"
 			);
@@ -237,7 +237,7 @@ static void testHttpServerFileCancellation(cstr sPath)
 		pBlockFuture != NULL,
 		"HTTP server file cancellation blocker submit failed"
 	);
-	Deadline = __xrtWaitAfter(UINT64_C(2000000));
+	Deadline = __xrtWaitAfter(INT64_C(2000));
 	while ( xrtAtomic32Load(
 		&Block.Started,
 		XMEMORY_ACQUIRE
@@ -267,20 +267,20 @@ static void testHttpServerFileCancellation(cstr sPath)
 	testRequire(
 		(xrtFutureWaitFor(
 			pBlockFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pBlockFuture) ==
 		 XFUTURE_RESOLVED) &&
 		(xrtFutureWaitFor(
 			pReplyFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pReplyFuture) ==
 		 XFUTURE_CANCELLED) &&
 		xrtTaskPoolClose(pPool) &&
 		(xrtTaskPoolWaitFor(
 			pPool,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		 ) == XWAIT_OK) &&
 		xrtTaskPoolGet(pPool, &Stats) &&
 		(Stats.Submitted == 2) &&
@@ -382,7 +382,7 @@ static void testHttpServerFileBuilder(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_FAILED) &&
 		(strcmp(
@@ -688,7 +688,7 @@ int main(void)
 		"HTTP server file address setup failed"
 	);
 	ServerConfig.RequestTimeout =
-		UINT64_C(5000000);
+		INT64_C(5000);
 	xrtHttpServerEventsInit(&Events);
 	Events.Request = testHttpServerFileRequest;
 	Events.Error = testHttpServerFileError;

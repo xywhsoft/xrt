@@ -218,7 +218,7 @@ int main(void)
 	}
 	if ( (xrtFutureWaitFor(
 		pShutdown,
-		UINT64_C(5000000)
+		INT64_C(5000)
 	) != XWAIT_OK) ||
 		(xrtFutureState(pShutdown) != XFUTURE_RESOLVED) ) {
 		goto Cleanup;
@@ -237,7 +237,7 @@ Cleanup:
 			(pShutdown == NULL) ||
 			(xrtFutureWaitFor(
 				pShutdown,
-				UINT64_C(5000000)
+				INT64_C(5000)
 			 ) != XWAIT_OK) ||
 			(xrtFutureState(pShutdown) !=
 			 XFUTURE_RESOLVED) ) {

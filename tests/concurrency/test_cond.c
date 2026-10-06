@@ -26,7 +26,7 @@ static int testCondWaiter(ptr pData)
 		xwaitresult Result = xrtCondWaitFor(
 			&pState->Cond,
 			&pState->Mutex,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		);
 
 		if ( Result != XWAIT_OK ) {
@@ -69,7 +69,7 @@ int main(void)
 	testRequire(xrtMutexInit(&tState.Mutex), "condition mutex init failed");
 	testRequire(xrtCondInit(&tState.Cond), "condition init failed");
 	testRequire(
-		xrtCondWaitFor(&tState.Cond, &tState.Mutex, UINT64_C(1000)) == XWAIT_ERROR,
+		xrtCondWaitFor(&tState.Cond, &tState.Mutex, INT64_C(1)) == XWAIT_ERROR,
 		"condition wait without mutex ownership succeeded"
 	);
 	testRequire(
@@ -79,7 +79,7 @@ int main(void)
 	xrtClearError();
 	testRequire(xrtMutexLock(&tState.Mutex), "condition timeout lock failed");
 	testRequire(
-		xrtCondWaitFor(&tState.Cond, &tState.Mutex, UINT64_C(10000)) == XWAIT_TIMEOUT,
+		xrtCondWaitFor(&tState.Cond, &tState.Mutex, INT64_C(10)) == XWAIT_TIMEOUT,
 		"condition timeout result mismatch"
 	);
 	testRequire(xrtMutexUnlock(&tState.Mutex), "condition timeout unlock failed");

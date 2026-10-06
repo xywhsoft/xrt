@@ -65,7 +65,7 @@ int main(void)
 	pFuture = xrtTaskSubmit(pPool, squareRun, &tTask, NULL);
 	if (
 		(pFuture != NULL) &&
-		(xrtFutureWaitFor(pFuture, UINT64_C(2000000)) == XWAIT_OK) &&
+		(xrtFutureWaitFor(pFuture, INT64_C(2000)) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED)
 	) {
 		printf("square = %d\n", *(int*)xrtFutureValue(pFuture));

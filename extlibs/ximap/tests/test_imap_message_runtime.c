@@ -1,3 +1,4 @@
+#include <xrt/detail/ximap_wait.h>
 #include <xrt/detail/wait.h>
 #include "test.h"
 
@@ -442,7 +443,7 @@ int main(void)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "IMAP message resolver creation failed");
 
-	Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(INT64_C(10000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Success = false;
@@ -553,7 +554,7 @@ int main(void)
 	xrtThreadDestroy(pThread);
 	xrtImapClientDestroy(pClient);
 
-	Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(INT64_C(10000));
 	Server.Deadline = Deadline;
 	Server.Success = false;
 	pThread = xrtThreadCreate(testImapMessageLimitServer, &Server, 0);

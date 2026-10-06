@@ -55,10 +55,10 @@ typedef struct xacmeclient {
 	char sPropagateResolvers[XACME_FLOW_RESOLVER_MAX][64];
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
-	/* 单次签发的总预算（微秒；0 = 不限时）。Issue 入口打点，
+	/* 单次签发的总预算（毫秒；0 = 不限时）。Issue 入口打点，
 	   轮询/传播/退避逐段检查剩余时间。 */
-	int64 uIssueTimeoutUs;
-	uint64 IssueDeadline;
+	int64 uIssueTimeoutMs;
+	double IssueDeadline;
 	bool bIssueDeadline;
 } xacmeclient;
 
@@ -72,14 +72,14 @@ XRT_EXTERN_C_BEGIN
 	初始化：建传输（pBorrowedEngine 为空则自建）、解析 directory、
 	注册或复用账户（kid 来自 Location 头）。pAccount 携带 directory、
 	账户密钥、EAB 与联系方式（借用视图，宿主保证存活至返回）。
-	uTimeoutUs 为 0 时取传输默认（30 秒）。失败设置线程错误。
+	uTimeoutMs 为 0 时取传输默认（30 秒）。失败设置线程错误。
 */
 bool xacmeClientInit(
 	xacmeclient* pClient,
 	struct xnetengine* pBorrowedEngine,
 	cstr sCaPem,
 	const xacmeaccountconfig* pAccount,
-	int64 uTimeoutUs
+	int64 uTimeoutMs
 );
 
 /* false 时保留传输拥有者，只能继续清理。 */

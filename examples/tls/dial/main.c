@@ -264,7 +264,7 @@ int main(int argc, char** argv)
 	xrtTlsClientConfigInit(&TlsConfig);
 	TlsConfig.Verifier = pVerifier;
 	xrtTlsDialConfigInit(&DialConfig);
-	DialConfig.Timeout = 15000000u;
+	DialConfig.Timeout = 15000;
 	pDial = xrtTlsDial(
 		pEngine,
 		pResolver,

@@ -49,7 +49,7 @@ static void testChannelCancelAwait(
 )
 {
 	xrt_channel_impl* pImpl = (xrt_channel_impl*)pChannel;
-	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(2000));
 
 	for ( ;; ) {
 		size_t iActualReaders;
@@ -75,7 +75,7 @@ static void testChannelCancelAwait(
 			!__xrtWaitExpired(iDeadline),
 			"channel cancel waiter count did not converge"
 		);
-		xrtSleepUs(UINT64_C(1000));
+		xrtSleep(1);
 	}
 }
 

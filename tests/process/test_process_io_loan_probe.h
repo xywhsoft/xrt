@@ -1,3 +1,19 @@
+/* Configure libc before the OS-call interception declarations. */
+#if !defined(_WIN32) && !defined(_WIN64)
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE 1
+#endif
+#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
+#define _DARWIN_C_SOURCE 1
+#endif
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#endif
+#endif
+
 /* Deterministic close/IO race at the OS-call boundary; the native process
  * implementation is real. Private pipes/socketpairs replace child endpoints,
  * not the process algorithm. No scheduling sleeps or GUI launches. */
@@ -26,8 +42,12 @@ static int loanClose(int);
 #define fcntl loanFcntl
 #define close loanClose
 #endif
+#ifndef XRT_MODULE_PROCESS
 #define XRT_MODULE_PROCESS
+#endif
+#ifndef XRT_MODULE_MEMORY_DEBUG
 #define XRT_MODULE_MEMORY_DEBUG
+#endif
 #define XRT_IMPLEMENTATION
 #include XRT_PROCESS_IO_LOAN_HEADER
 #if defined(_WIN32)
@@ -72,7 +92,7 @@ static void operationBoundary(loanhandle handle,int mode)
     probe.flags=(fcntl(handle,F_GETFD)&FD_CLOEXEC)!=0;
 #endif
     probe.stopped=true;assert(xrtCondBroadcast(&probe.changed));
-    while(!probe.go)assert(xrtCondWaitFor(&probe.changed,&probe.lock,UINT64_C(10000000))==XWAIT_OK);
+    while(!probe.go)assert(xrtCondWaitFor(&probe.changed,&probe.lock,INT64_C(10000))==XWAIT_OK);
     assert(xrtMutexUnlock(&probe.lock));
 }
 #if defined(_WIN32)
@@ -207,7 +227,7 @@ static bool closeRace(xprocessstream stream)
     operation op={.process=&process,.stream=stream,.writing=writing,.byte='R'};
     xthread* thread=xrtThreadCreate(perform,&op,0);assert(thread);
     assert(xrtMutexLock(&probe.lock));
-    while(!probe.stopped)assert(xrtCondWaitFor(&probe.changed,&probe.lock,UINT64_C(10000000))==XWAIT_OK);
+    while(!probe.stopped)assert(xrtCondWaitFor(&probe.changed,&probe.lock,INT64_C(10000))==XWAIT_OK);
     assert(xrtMutexUnlock(&probe.lock));
     assert(xrtProcessClose(&process,stream));assert(xrtProcessClose(&process,stream));
 #if !defined(_WIN32)

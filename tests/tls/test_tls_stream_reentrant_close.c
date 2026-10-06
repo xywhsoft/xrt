@@ -43,7 +43,7 @@ static void testReentrantWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -309,7 +309,7 @@ int main(void)
 	}
 	xrtNetListenerDestroy(pListener);
 	{
-		double Drain = __xrtWaitAfter(10000000000u);
+		double Drain = __xrtWaitAfter(10000);
 
 		for ( ;; ) {
 			testRequire(xrtNetEngineStats(pEngine, &Stats),

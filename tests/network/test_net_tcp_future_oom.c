@@ -65,7 +65,7 @@ static void testTcpFutureOomWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -82,7 +82,7 @@ static void testTcpFutureOomAvailable(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetStreamAvailable(pStream) != iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -275,7 +275,7 @@ int main(void)
 		"TCP Future OOM receive was not accepted before failure");
 	xrtAtomic32Store(&Context.Fail, 1, XMEMORY_RELEASE);
 	xrtAtomic32Store(&Context.BarrierRelease, 1, XMEMORY_RELEASE);
-	testRequire((xrtFutureWaitFor(pFailed, 5000000u) == XWAIT_OK) &&
+	testRequire((xrtFutureWaitFor(pFailed, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pFailed) == XFUTURE_FAILED) &&
 		 (xrtErrorKind(xrtFutureError(pFailed)) == XERR_MEMORY) &&
 		 (xrtNetStreamAvailable(pServer) ==
@@ -286,7 +286,7 @@ int main(void)
 	xrtAtomic32Store(&Context.Fail, 0, XMEMORY_RELEASE);
 	pRecovered = xrtNetStreamRecvAsync(pServer, 0);
 	testRequire((pRecovered != NULL) &&
-		 (xrtFutureWaitFor(pRecovered, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pRecovered, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pRecovered) == XFUTURE_RESOLVED),
 		"TCP Future receive did not recover after result OOM");
 	{
@@ -333,7 +333,7 @@ int main(void)
 	xrtAtomic32Store(&Context.BarrierRelease, 1, XMEMORY_RELEASE);
 	for ( size_t i = 0; i < iPending; i++ ) {
 		testRequire(xrtFutureCancel(pPending[i]) &&
-			 (xrtFutureWaitFor(pPending[i], 5000000u) == XWAIT_OK) &&
+			 (xrtFutureWaitFor(pPending[i], 5000) == XWAIT_OK) &&
 			 (xrtFutureState(pPending[i]) == XFUTURE_CANCELLED),
 			"TCP Future OOM retained a malformed pending waiter");
 		xrtFutureDestroy(pPending[i]);
@@ -367,7 +367,7 @@ int main(void)
 	xrtAtomic32Store(&Context.Fail, 0, XMEMORY_RELEASE);
 	for ( size_t i = 0; i < iPending; i++ ) {
 		testRequire(xrtFutureCancel(pPending[i]) &&
-			 (xrtFutureWaitFor(pPending[i], 5000000u) == XWAIT_OK) &&
+			 (xrtFutureWaitFor(pPending[i], 5000) == XWAIT_OK) &&
 			 (xrtFutureState(pPending[i]) == XFUTURE_CANCELLED),
 			"TCP accept Future OOM retained a malformed waiter");
 		xrtFutureDestroy(pPending[i]);
@@ -378,7 +378,7 @@ int main(void)
 	pAcceptRecovered = xrtNetListenerAcceptAsync(pPullListener);
 	testRequire((pAcceptRecovered != NULL) &&
 		 xrtFutureCancel(pAcceptRecovered) &&
-		 (xrtFutureWaitFor(pAcceptRecovered, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pAcceptRecovered, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pAcceptRecovered) == XFUTURE_CANCELLED),
 		"TCP accept Future did not recover after OOM");
 	xrtFutureDestroy(pAcceptRecovered);

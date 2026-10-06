@@ -180,7 +180,7 @@ static void testSshClientRuntimeVersions(
 static size_t testSshClientRuntimeWire(
 	xsshsessiontcp* pSender,
 	xbytesview Payload,
-	uint64 iNowMs,
+	double Timer,
 	uint8* pPadding,
 	void* pOutput,
 	size_t iCapacity,
@@ -202,7 +202,7 @@ static size_t testSshClientRuntimeWire(
 			NULL,
 			NULL,
 			0u,
-			iNowMs,
+			Timer,
 			pKind
 		) == XSSH_OK) && xrtSshWriterInit(
 			&Writer,
@@ -214,20 +214,20 @@ static size_t testSshClientRuntimeWire(
 			Payload,
 			testSshClientRuntimePadding,
 			pPadding,
-			iNowMs
+			Timer
 		) == XSSH_OK) && (xrtSshSessionCoreWriteBind(
 			pCore,
 			pTransport,
 			Payload
 		) == XSSH_OK) && (xrtSshTransportCoreWriteCommit(
 			pTransport,
-			iNowMs,
+			Timer,
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_REKEY_NONE) &&
 		(xrtSshSessionCoreWriteCommit(
 			pCore,
 			pTransport,
-			iNowMs
+			Timer
 		) == XSSH_OK), "ssh client runtime wire build failed");
 	return Writer.Size;
 }
@@ -239,7 +239,7 @@ static void testSshClientRuntimeTransfer(
 	xsshsessiontcp* pSender,
 	xsshsessiontcp* pReceiver,
 	xbytesview Payload,
-	uint64 iNowMs,
+	double Timer,
 	uint8* pPadding
 )
 {
@@ -259,7 +259,7 @@ static void testSshClientRuntimeTransfer(
 	iWireSize = testSshClientRuntimeWire(
 		pSender,
 		Payload,
-		iNowMs,
+		Timer,
 		pPadding,
 		arrWire,
 		sizeof(arrWire),
@@ -274,7 +274,7 @@ static void testSshClientRuntimeTransfer(
 		&Packet,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	) == XSSH_OK) && (xrtSshSessionCoreReadPrepare(
 		pCore,
 		pTransport,
@@ -282,18 +282,18 @@ static void testSshClientRuntimeTransfer(
 		NULL,
 		0u,
 		NULL,
-		iNowMs,
+		Timer,
 		&SessionPacket
 	) == XSSH_OK) && (SessionPacket.Kind == Kind) &&
 		(xrtSshTransportCoreReadCommit(
 			pTransport,
-			iNowMs,
+			Timer,
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_REKEY_NONE) &&
 		(xrtSshSessionCoreReadCommit(
 			pCore,
 			pTransport,
-			iNowMs
+			Timer
 		) == XSSH_OK), "ssh client runtime transfer failed");
 }
 
@@ -306,7 +306,7 @@ static void testSshClientRuntimeReceive(
 	xsshsessionreader* pReader,
 	xnetbuf* pInput,
 	xbytesview Payload,
-	uint64 iNowMs,
+	double Timer,
 	uint8* pPadding
 )
 {
@@ -319,7 +319,7 @@ static void testSshClientRuntimeReceive(
 	iWireSize = testSshClientRuntimeWire(
 		pServer,
 		Payload,
-		iNowMs,
+		Timer,
 		pPadding,
 		arrWire,
 		sizeof(arrWire),
@@ -329,7 +329,7 @@ static void testSshClientRuntimeReceive(
 		(xrtSshSessionReaderPrepare(
 			pReader,
 			pInput,
-			iNowMs,
+			Timer,
 			&Packet
 		) == XSSH_OK) && (Packet.Session.Kind == Kind) &&
 		(xrtSshClientCoreObserve(
@@ -338,7 +338,7 @@ static void testSshClientRuntimeReceive(
 			&Packet
 		) == XSSH_OK) && (xrtSshSessionReaderCommit(
 			pReader,
-			iNowMs,
+			Timer,
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_REKEY_NONE) &&
 		xrtNetBufEmpty(pInput), "ssh client runtime receive failed");
@@ -424,14 +424,10 @@ int main(void)
 	testRequire((pPool != NULL) && xrtSshSessionTcpInit(
 		&Client,
 		pPool,
-		&ClientConfig,
-		0u
-	) && xrtSshSessionTcpInit(
+		&ClientConfig, ((double)(0u)) / 1000.0) && xrtSshSessionTcpInit(
 		&Server,
 		pPool,
-		&ServerConfig,
-		0u
-	) && xrtSshSessionReaderInit(
+		&ServerConfig, ((double)(0u)) / 1000.0) && xrtSshSessionReaderInit(
 		&ClientReader,
 		pPool,
 		&Client
@@ -465,15 +461,13 @@ int main(void)
 	testSshClientRuntimeTransfer(
 		&Client,
 		&Server,
-		ClientKex,
-		0u,
+		ClientKex, ((double)(0u)) / 1000.0,
 		&iPadding
 	);
 	testSshClientRuntimeTransfer(
 		&Server,
 		&Client,
-		ServerKex,
-		0u,
+		ServerKex, ((double)(0u)) / 1000.0,
 		&iPadding
 	);
 	testSshClientRuntimeHostMaterial(
@@ -498,16 +492,14 @@ int main(void)
 	testRequire((xrtSshClientCoreNext(
 		&ClientCore,
 		&Client,
-		&ClientReader,
-		1u,
+		&ClientReader, ((double)(1u)) / 1000.0,
 		&Next
 	) == XSSH_OK) && (Next.Kind == XSSH_CLIENT_NEXT_PAYLOAD),
 		"ssh client runtime ECDH action failed");
 	testSshClientRuntimeTransfer(
 		&Client,
 		&Server,
-		Next.Data,
-		1u,
+		Next.Data, ((double)(1u)) / 1000.0,
 		&iPadding
 	);
 	pServerKex = xrtSshKexExchangeSession(
@@ -528,23 +520,20 @@ int main(void)
 		&ClientCore,
 		&ClientReader,
 		&Input,
-		Payload,
-		2u,
+		Payload, ((double)(2u)) / 1000.0,
 		&iPadding
 	);
 	testRequire((xrtSshClientCoreNext(
 		&ClientCore,
 		&Client,
-		&ClientReader,
-		2u,
+		&ClientReader, ((double)(2u)) / 1000.0,
 		&Next
 	) == XSSH_OK) && (Next.Kind == XSSH_CLIENT_NEXT_PAYLOAD) &&
 		(HostState.Calls == 1u), "ssh client runtime host trust failed");
 	testSshClientRuntimeTransfer(
 		&Client,
 		&Server,
-		Next.Data,
-		3u,
+		Next.Data, ((double)(3u)) / 1000.0,
 		&iPadding
 	);
 	testRequire(xrtSshWriterInit(
@@ -561,28 +550,23 @@ int main(void)
 		&ClientCore,
 		&ClientReader,
 		&Input,
-		Payload,
-		4u,
+		Payload, ((double)(4u)) / 1000.0,
 		&iPadding
 	);
 
 	testRequire((xrtSshSessionTcpAuthBegin(
 		&Server,
-		NULL,
-		5u
-	) == XSSH_OK) && (xrtSshClientCoreNext(
+		NULL, ((double)(5u)) / 1000.0) == XSSH_OK) && (xrtSshClientCoreNext(
 		&ClientCore,
 		&Client,
-		&ClientReader,
-		5u,
+		&ClientReader, ((double)(5u)) / 1000.0,
 		&Next
 	) == XSSH_OK) && (Next.Kind == XSSH_CLIENT_NEXT_PAYLOAD),
 		"ssh client runtime service action failed");
 	testSshClientRuntimeTransfer(
 		&Client,
 		&Server,
-		Next.Data,
-		5u,
+		Next.Data, ((double)(5u)) / 1000.0,
 		&iPadding
 	);
 	testRequire(xrtSshWriterInit(
@@ -599,23 +583,20 @@ int main(void)
 		&ClientCore,
 		&ClientReader,
 		&Input,
-		Payload,
-		6u,
+		Payload, ((double)(6u)) / 1000.0,
 		&iPadding
 	);
 	testRequire((xrtSshClientCoreNext(
 		&ClientCore,
 		&Client,
-		&ClientReader,
-		7u,
+		&ClientReader, ((double)(7u)) / 1000.0,
 		&Next
 	) == XSSH_OK) && (Next.Kind == XSSH_CLIENT_NEXT_PAYLOAD),
 		"ssh client runtime none probe failed");
 	testSshClientRuntimeTransfer(
 		&Client,
 		&Server,
-		Next.Data,
-		7u,
+		Next.Data, ((double)(7u)) / 1000.0,
 		&iPadding
 	);
 	testRequire(xrtSshWriterInit(
@@ -633,8 +614,7 @@ int main(void)
 		&ClientCore,
 		&ClientReader,
 		&Input,
-		Payload,
-		8u,
+		Payload, ((double)(8u)) / 1000.0,
 		&iPadding
 	);
 	Methods = xrtSshClientCoreAuthMethods(
@@ -648,8 +628,7 @@ int main(void)
 	testRequire((xrtSshClientCoreNext(
 		&ClientCore,
 		&Client,
-		&ClientReader,
-		9u,
+		&ClientReader, ((double)(9u)) / 1000.0,
 		&Next
 	) == XSSH_OK) && (Next.Kind == XSSH_CLIENT_NEXT_PAYLOAD) &&
 		(xrtSshAuthPasswordRead(
@@ -665,8 +644,7 @@ int main(void)
 	testSshClientRuntimeTransfer(
 		&Client,
 		&Server,
-		Next.Data,
-		9u,
+		Next.Data, ((double)(9u)) / 1000.0,
 		&iPadding
 	);
 	testRequire(xrtSshWriterInit(
@@ -681,15 +659,13 @@ int main(void)
 		&ClientCore,
 		&ClientReader,
 		&Input,
-		Payload,
-		10u,
+		Payload, ((double)(10u)) / 1000.0,
 		&iPadding
 	);
 	testRequire((xrtSshClientCoreNext(
 		&ClientCore,
 		&Client,
-		&ClientReader,
-		10u,
+		&ClientReader, ((double)(10u)) / 1000.0,
 		&Next
 	) == XSSH_OK) && (Next.Kind == XSSH_CLIENT_NEXT_READY) &&
 		(xrtSshSessionTcpPhase(&Client) == XSSH_SESSION_CONNECTION),

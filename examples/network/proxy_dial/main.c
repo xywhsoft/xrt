@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/proxy_dial —— 真实代理隧道：托管 TCP + 完整回收
  * ----------------------------------------------------------------
@@ -25,6 +24,23 @@
 #include <stdlib.h>
 #include <string.h>
 #include <xrt.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -128,7 +144,7 @@ static bool exampleProxyDialWait(
 )
 {
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) == 0 ) {
-		if ( __xrtWaitExpired(Deadline) ) {
+		if ( exampleTimerExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -197,7 +213,7 @@ int main(int argc, char** argv)
 		goto Cleanup;
 	}
 	xrtNetProxyDialConfigInit(&DialConfig);
-	DialConfig.Timeout = 10000000u;
+	DialConfig.Timeout = 10000;
 	pDial = xrtNetProxyDial(
 		pEngine,
 		pResolver,
@@ -215,7 +231,7 @@ int main(int argc, char** argv)
 	}
 
 	/* 成功回调把 Stream 所有权交给调用方，Dial 可以独立释放。 */
-	Deadline = __xrtWaitAfter(15000000u);
+	Deadline = exampleTimerLimit(15000);
 	if ( !exampleProxyDialWait(&Example.Done, Deadline) ) {
 		(void)xrtNetProxyDialCancel(pDial);
 		goto Cleanup;
@@ -240,13 +256,13 @@ Cleanup:
 	if ( (pDial != NULL) &&
 		(xrtAtomic32Load(&Example.Done, XMEMORY_ACQUIRE) == 0) ) {
 		(void)xrtNetProxyDialCancel(pDial);
-		Deadline = __xrtWaitAfter(5000000u);
+		Deadline = exampleTimerLimit(5000);
 		(void)exampleProxyDialWait(&Example.Done, Deadline);
 	}
 	if ( (Example.Stream != NULL) &&
 		(xrtNetStreamState(Example.Stream) != XNET_STREAM_CLOSED) ) {
 		(void)xrtNetStreamAbort(Example.Stream);
-		Deadline = __xrtWaitAfter(5000000u);
+		Deadline = exampleTimerLimit(5000);
 		(void)exampleProxyDialWait(&Example.Closed, Deadline);
 	}
 	xrtNetStreamDestroy(Example.Stream);
@@ -256,10 +272,10 @@ Cleanup:
 		iResult = 1;
 	}
 	if ( pEngine != NULL ) {
-		Deadline = __xrtWaitAfter(5000000u);
+		Deadline = exampleTimerLimit(5000);
 		while ( !xrtNetEngineDestroy(pEngine) ) {
 			xrtClearError();
-			if ( __xrtWaitExpired(Deadline) ) {
+			if ( exampleTimerExpired(Deadline) ) {
 				iResult = 1;
 				break;
 			}

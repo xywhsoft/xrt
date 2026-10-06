@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：tls/stream_tour —— TLS Stream 明文层全接口（两形态接入）
  * ----------------------------------------------------------------
@@ -29,12 +28,29 @@
  *   http1-tls: request+response parsed on stream ok
  */
 
-#include "embedded_identity.h"
+#include "../embedded_identity.h"
 
 #include <stdio.h>
 #include <string.h>
 
-#define EXAMPLE_DEADLINE_US	UINT64_C(5000000)
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
+#define EXAMPLE_DEADLINE_MS	INT64_C(5000)
 
 /* 客户端上下文：Open/Read 回调与主线程交接。 */
 typedef struct example_tls_upgrade {
@@ -79,10 +95,10 @@ static xtlsverifydecision exampleAcceptAll(
 
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 	while ( !*pFlag ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -91,8 +107,6 @@ static bool exampleSpinUntil(volatile bool* pFlag)
 }
 
 /* ---- HTTP over TLS 段：ParseTls 双向解析。 ---- */
-static xtlsstreamevents g_HttpServerEvents;
-static xtlsstreamevents g_HttpClientEvents;
 static volatile bool g_bHttpReqParsed;
 static volatile bool g_bHttpRspParsed;
 static volatile bool g_bHttpMode;
@@ -100,20 +114,9 @@ static volatile bool g_bHttpMode;
 /* Worker 任务：热替换事件集 / 发送请求。 */
 typedef struct example_http_task {
 	xtlsstream* pStream;
-	const xtlsstreamevents* pEvents;
 	volatile bool bDone;
 	bool bOk;
 } example_http_task;
-
-static void exampleHttpSwapTask(xnetworker* pWorker, ptr pUserData)
-{
-	example_http_task* pTask = (example_http_task*)pUserData;
-
-	(void)pWorker;
-	pTask->bOk = xrtTlsStreamSetEvents(pTask->pStream,
-		pTask->pEvents, NULL);
-	pTask->bDone = true;
-}
 
 /* 请求与应答全文用 sizeof 定长——少一字节 Header 即不完整。 */
 static const char arrRequest[] = "GET /x HTTP/1.1\r\nHost: h\r\n\r\n";
@@ -131,19 +134,6 @@ static void exampleHttpSendTask(xnetworker* pWorker, ptr pUserData)
 		&iWritten) == XTLS_OK) &&
 		(iWritten == sizeof(arrRequest) - 1u);
 	pTask->bDone = true;
-}
-
-static bool exampleStreamSwap(xnetstream* pTcp, xtlsstream* pStream,
-	const xtlsstreamevents* pEvents, xnetpost* pPost)
-{
-	example_http_task Task;
-
-	memset(&Task, 0, sizeof(Task));
-	Task.pStream = pStream;
-	Task.pEvents = pEvents;
-	return xrtNetPost(xrtNetStreamWorker(pTcp), pPost,
-		exampleHttpSwapTask, &Task) &&
-		exampleSpinUntil(&Task.bDone) && Task.bOk;
 }
 
 /* Worker 任务：StreamClient（pSession == NULL）或 StreamAttach。 */
@@ -235,6 +225,7 @@ static void exampleServerRead(xtlsstream* pStream,
 	const xnetbuf* pBuffer, ptr pData)
 {
 	(void)pBuffer;
+	(void)pData;
 	if ( g_bHttpMode ) {
 		exampleHttpServerRead(pStream, NULL, NULL);
 		return;
@@ -269,9 +260,9 @@ static void exampleUpgradeOpen(xtlsstream* pStream, ptr pData)
 	size_t iWritten = 0;
 
 	/* Open 回调（Worker 上）：聚集发送一条 9 字节明文。 */
-	Vec[0].Data = "vec-";
+	Vec[0].Data = (cbytes)"vec-";
 	Vec[0].Size = 4;
-	Vec[1].Data = "gather";
+	Vec[1].Data = (cbytes)"gather";
 	Vec[1].Size = 5;
 	(void)xrtTlsStreamSendVec(pStream, Vec, 2, &iWritten);
 	/* SendBound 是 Worker 专用：明文尺寸 → 密文上界。 */
@@ -341,10 +332,10 @@ static void exampleUpgradeClose(xtlsstream* pStream,
 /* 等一条 TCP Stream 进入 OPEN。 */
 static bool exampleWaitTcpOpen(xnetstream* pTcp)
 {
-	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 	while ( xrtNetStreamState(pTcp) != XNET_STREAM_OPEN ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -499,7 +490,7 @@ int main(void)
 
 	/* 取出两条服务端流：队列中的连接被 Accept 消费后才开始驱动回显。 */
 	{
-		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 		while ( (pServerA == NULL) || (pServerB == NULL) ) {
 			xtlsstream* pOne = xrtTlsListenerAccept(pListener);
@@ -511,11 +502,11 @@ int main(void)
 				else {
 					pServerB = pOne;
 				}
-				iEnd = __xrtWaitAfter(
-					EXAMPLE_DEADLINE_US);
+				iEnd = exampleTimerLimit(
+					EXAMPLE_DEADLINE_MS);
 				continue;
 			}
-			if ( __xrtWaitExpired(iEnd) ) {
+			if ( exampleTimerExpired(iEnd) ) {
 				iResult = 6;
 				goto Cleanup;
 			}
@@ -524,9 +515,9 @@ int main(void)
 	}
 
 	/* 回显到达：Read 回调里完成 Pullup/Read/Consume 核对。 */
-	iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+	iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 	while ( ClientA.Received < 9u ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 6;
 			goto Cleanup;
 		}
@@ -547,21 +538,21 @@ int main(void)
 		(ClientA.bSessionOk && ClientA.bDataOk) ? "ok" : "fail");
 
 	/* Attach 客户端：SendVecAsync（Future 式聚集发送）。 */
-	AsyncVec[0].Data = "asy-";
+	AsyncVec[0].Data = (cbytes)"asy-";
 	AsyncVec[0].Size = 4;
-	AsyncVec[1].Data = "ncvec";
+	AsyncVec[1].Data = (cbytes)"ncvec";
 	AsyncVec[1].Size = 5;
 	pSendFuture = xrtTlsStreamSendVecAsync(pClientB, AsyncVec, 2);
 	if ( (pSendFuture == NULL) ||
-		(xrtFutureWaitFor(pSendFuture, EXAMPLE_DEADLINE_US) !=
+		(xrtFutureWaitFor(pSendFuture, EXAMPLE_DEADLINE_MS) !=
 			XWAIT_OK) ||
 		(xrtFutureState(pSendFuture) != XFUTURE_RESOLVED) ) {
 		iResult = 7;
 		goto Cleanup;
 	}
-	iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+	iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 	while ( ClientB.Received < 9u ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 7;
 			goto Cleanup;
 		}
@@ -570,9 +561,9 @@ int main(void)
 	printf("client(attach): async-vec=ok future-written=9");
 
 	/* Pending：发送队列排空。 */
-	iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+	iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 	while ( xrtTlsStreamPending(pClientB) != 0u ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 8;
 			goto Cleanup;
 		}
@@ -601,9 +592,9 @@ int main(void)
 			goto Cleanup;
 		}
 	}
-	iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+	iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 	while ( !g_bHttpReqParsed || !g_bHttpRspParsed ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 9;
 			goto Cleanup;
 		}
@@ -618,7 +609,7 @@ Cleanup:
 	 * 共享截止时间等终态，超时者 Abort 兜底。 */
 	{
 		xtlsstream* Streams[4];
-		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 		bool bSettled;
 
 		Streams[0] = pClientA;
@@ -642,7 +633,7 @@ Cleanup:
 					bSettled = false;
 				}
 			}
-			if ( bSettled || __xrtWaitExpired(iEnd) ) {
+			if ( bSettled || exampleTimerExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();
@@ -675,12 +666,12 @@ Cleanup:
 	xrtNetStreamDestroy(pTcpA);
 	xrtNetStreamDestroy(pTcpB);
 	if ( pListener != NULL ) {
-		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 		(void)xrtTlsListenerClose(pListener);
 		while ( xrtTlsListenerState(pListener) !=
 			XTLS_LISTENER_CLOSED ) {
-			if ( __xrtWaitExpired(iEnd) ) {
+			if ( exampleTimerExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();

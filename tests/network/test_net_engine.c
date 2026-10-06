@@ -28,7 +28,7 @@ typedef struct testenginecontext {
 /* 在测试截止时间前等待原子计数达到目标。 */
 static void testEngineWait(xatomic32* pValue, uint32 iExpected, cstr sMessage)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -233,7 +233,7 @@ static void testEngineTimerCancelInside(
 	uint64 Id = xrtNetEngineAfter(
 		pContext->Engine,
 		xrtNetWorkerIndex(pWorker),
-		5000000u,
+		5000,
 		testEngineTimer,
 		pContext
 	);
@@ -426,7 +426,7 @@ int main(void)
 	iCancelTimer = xrtNetEngineAfter(
 		pEngine,
 		1,
-		5000000u,
+		5000,
 		testEngineTimer,
 		&Context
 	);
@@ -459,7 +459,7 @@ int main(void)
 	iCloseTimer = xrtNetEngineAfter(
 		pEngine,
 		0,
-		5000000u,
+		5000,
 		testEngineTimer,
 		&Context
 	);

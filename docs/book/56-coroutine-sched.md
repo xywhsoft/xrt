@@ -25,7 +25,7 @@ api: coroutine
 ```diagram flow
 - 建例：xrtCoSchedCreate() → 调度器（CreateLimit 可限投递量——背压阀）
 - 启动：xrtCoGo(调度器, 过程, 数据, 参数)——一步创建并入队；Post 投普通函数
-- 定时/挂起：xrtCoSleep(微秒) 定时让出；xrtCoPark 族挂起直到 Wake/取消/时限
+- 定时/挂起：xrtCoSleep(毫秒) 定时让出；xrtCoPark 族挂起直到 Wake/取消/时限
 - 泵：xrtCoSchedRun 跑到全部结束；Step/PollFor/PollUntil 单步与限时事件等待
 ```
 

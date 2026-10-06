@@ -349,8 +349,8 @@ xllm_result xllmComplete(client, request, callbacks, &response, &error);
 
 ### 经验教训（API 使用备忘）
 
-- **`xrtFutureWaitFor(future, 相对微秒)` vs `xrtFutureWaitUntilCancel
-  (future, 绝对 deadline, cancel)`**：曾把 `xrtDeadlineAfter()` 的绝对
+- **`xrtFutureWaitFor(future, 相对毫秒)` vs `xrtFutureWaitForCancel
+  (future, 绝对 deadline, cancel)`**：曾把 `` 的绝对
   截止当相对时长传给 `WaitFor`，300ms 静默读变成约 2.8 天等待，表象为
   "TLS 接收永久卡顿"。排查路径：最小复现 → gdb 栈（本例行号不可靠）→
   库内插桩打印实参。凡新增等待调用，先确认参数语义再写。

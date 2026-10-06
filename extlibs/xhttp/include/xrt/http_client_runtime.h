@@ -114,9 +114,9 @@
 
 #if defined(XHTTP_FEATURE_HTTP_CLIENT)
 
-#define XHTTP_CLIENT_TIMEOUT_DEFAULT UINT64_C(30000000)
-#define XHTTP_CLIENT_IDLE_TIMEOUT_DEFAULT UINT64_C(30000000)
-#define XHTTP_CLIENT_TIMEOUT_NONE UINT64_MAX
+#define XHTTP_CLIENT_TIMEOUT_DEFAULT INT64_C(30000)
+#define XHTTP_CLIENT_IDLE_TIMEOUT_DEFAULT INT64_C(30000)
+#define XHTTP_CLIENT_TIMEOUT_NONE XRT_WAIT_FOREVER
 
 
 
@@ -314,7 +314,7 @@ typedef enum xhttpclienterror {
 
 
 /*
-	Info 是可并发读取的单调时钟快照，时间单位均为微秒。
+	Info 是可并发读取的单调时钟快照，时间单位均为毫秒。
 	未到达的时间点为零；Result 在运行期间为 AGAIN，终态后不再变化。
 */
 typedef struct xhttpcallinfo {
@@ -324,15 +324,15 @@ typedef struct xhttpcallinfo {
 	xnetresult Result;
 	xhttpclienterror Error;
 
-	/* 完整 Call 的单调时间点。 */
-	uint64 Submitted;
-	uint64 Started;
-	uint64 TransportReady;
-	uint64 RequestSent;
-	uint64 FirstByte;
-	uint64 Headers;
-	uint64 LastProgress;
-	uint64 Completed;
+	/* 完整 Call 的公元 UTC 毫秒事件时间。 */
+	xtime Submitted;
+	xtime Started;
+	xtime TransportReady;
+	xtime RequestSent;
+	xtime FirstByte;
+	xtime Headers;
+	xtime LastProgress;
+	xtime Completed;
 
 	/* 线路累计量与最终可见响应正文量。 */
 	uint64 RequestWireBytes;
@@ -399,8 +399,8 @@ typedef enum xhttpredirectmode {
 
 
 #define XHTTP_RETRY_MAX_DEFAULT UINT32_C(2)
-#define XHTTP_RETRY_BASE_DEFAULT UINT64_C(250000)
-#define XHTTP_RETRY_DELAY_MAX_DEFAULT UINT64_C(30000000)
+#define XHTTP_RETRY_BASE_DEFAULT INT64_C(250)
+#define XHTTP_RETRY_DELAY_MAX_DEFAULT INT64_C(30000)
 
 #define XHTTP_RETRY_STATUS UINT32_C(0x00000001)
 #define XHTTP_RETRY_TRANSPORT UINT32_C(0x00000002)
@@ -413,7 +413,7 @@ typedef enum xhttpredirectmode {
 
 /*
 	MaxRetries 为零时关闭 Client 默认重试。
-	BaseDelay 与 MaxDelay 使用微秒；Flags 分别控制状态、传输、服务端建议和抖动。
+	BaseDelay 与 MaxDelay 使用毫秒；Flags 分别控制状态、传输、服务端建议和抖动。
 */
 typedef struct xhttpretryconfig {
 	uint64 BaseDelay;
@@ -475,7 +475,7 @@ typedef struct xhttpclientpoolconfig {
 	size_t MaxIdle;
 	/* 单 Origin 可复用空闲连接上限；零表示不保留。 */
 	size_t MaxIdlePerOrigin;
-	/* 空闲连接保留时间，单位为微秒；零表示不按时间清扫。 */
+	/* 空闲连接保留时间，单位为毫秒；零表示不按时间清扫。 */
 	int64 IdleTimeout;
 } xhttpclientpoolconfig;
 
@@ -568,7 +568,7 @@ typedef struct xhttpdecompressconfig {
 
 /*
 	Timeout 覆盖排队、DNS、TCP、代理、TLS 和 HTTP I/O 的总时长。
-	IdleTimeout 限制没有传输进度的连续时长；两者单位均为微秒。
+	IdleTimeout 限制没有传输进度的连续时长；两者单位均为毫秒。
 	Resolver 只在 xrtHttpClientCreate 创建私有解析器时使用。
 */
 typedef struct xhttpclientconfig {

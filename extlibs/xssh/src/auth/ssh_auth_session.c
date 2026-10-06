@@ -1,3 +1,4 @@
+#include <math.h>
 #include <string.h>
 
 #include <xrt/ssh_auth_session.h>
@@ -276,7 +277,7 @@ static xsshcode xsshAuthSessionBudgetPrepare(
 	xsshauthsessionpacket Packet,
 	bool bServerMessage,
 	size_t iPayloadSize,
-	uint64 iNowMs
+	double Timer
 )
 {
 	xsshauthguarddecision Decision;
@@ -292,7 +293,7 @@ static xsshcode xsshAuthSessionBudgetPrepare(
 		&Budget,
 		xsshAuthSessionBudgetEvent(Packet, bServerMessage),
 		(uint64)iPayloadSize,
-		iNowMs,
+		Timer,
 		&Decision
 	);
 	if ( Code != XSSH_OK ) {
@@ -488,9 +489,10 @@ xsshcode xrtSshAuthSessionBegin(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshauthsession Session;
 
 	if ( !xsshAuthSessionValid(pSession) ||
@@ -518,7 +520,7 @@ xsshcode xrtSshAuthSessionBegin(
 		return XSSH_ERROR_STATE;
 	}
 	Session = *pSession;
-	if ( !xrtSshAuthGuardInit(&Session.Budget, pPolicy, iNowMs) ) {
+	if ( !xrtSshAuthGuardInit(&Session.Budget, pPolicy, Timer) ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
 	Session.Active = true;
@@ -570,10 +572,11 @@ xsshcode xrtSshAuthSessionBudget(
 /* 检查无外部时钟依赖的认证预算。 */
 xsshcode xrtSshAuthSessionCheck(
 	xsshauthsession* pSession,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshauthguarddecision Decision;
 	xsshcode Code;
 
@@ -590,7 +593,7 @@ xsshcode xrtSshAuthSessionCheck(
 		) ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
-	Code = xrtSshAuthGuardCheck(&pSession->Budget, iNowMs, &Decision);
+	Code = xrtSshAuthGuardCheck(&pSession->Budget, Timer, &Decision);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -608,9 +611,10 @@ xsshcode xrtSshAuthSessionWritePrepare(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	xbytesview Payload,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshauthsessionpacket Packet = XSSH_AUTH_SESSION_PACKET_NONE;
 	xsshauthrequest Request;
 	xsshauthfailure Failure;
@@ -662,7 +666,7 @@ xsshcode xrtSshAuthSessionWritePrepare(
 		Packet,
 		pSession->Role == XSSH_ROLE_SERVER,
 		Payload.Size,
-		iNowMs
+		Timer
 	);
 	if ( Code != XSSH_OK ) {
 		return Code;
@@ -727,10 +731,11 @@ xsshcode xrtSshAuthSessionReadPrepare(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	xbytesview Payload,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthsessionpacket* pPacket
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshauthsessionpacket Packet = XSSH_AUTH_SESSION_PACKET_NONE;
 	xsshauthrequest Request;
 	xsshauthfailure Failure;
@@ -811,7 +816,7 @@ xsshcode xrtSshAuthSessionReadPrepare(
 		Packet,
 		pSession->Role == XSSH_ROLE_CLIENT,
 		Payload.Size,
-		iNowMs
+		Timer
 	);
 	if ( Code != XSSH_OK ) {
 		return Code;

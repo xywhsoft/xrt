@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/udp_batch —— 批量接收 + 截断包 + 队列条件
  * ----------------------------------------------------------------
@@ -41,13 +40,30 @@
 #include <string.h>
 #include <xrt.h>
 
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
 
 
 /* 等 Future 成功解析。 */
 static bool exampleFutureWait(xfuture* pFuture)
 {
 	return (pFuture != NULL) &&
-		(xrtFutureWaitFor(pFuture, UINT64_C(3000000)) == XWAIT_OK) &&
+		(xrtFutureWaitFor(pFuture, INT64_C(3000)) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED);
 }
 
@@ -56,10 +72,10 @@ static bool exampleFutureWait(xfuture* pFuture)
 /* 在截止时间内等 UDP 进入指定状态。 */
 static bool exampleWaitState(xnetudp* pUdp, xnetudpstate State)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = exampleTimerLimit(3000);
 
 	while ( xrtNetUdpState(pUdp) != State ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -73,7 +89,7 @@ static bool exampleWaitState(xnetudp* pUdp, xnetudpstate State)
 static size_t exampleDrainCount(xnetudp* pUdp, size_t iWant)
 {
 	size_t iGot = 0;
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = exampleTimerLimit(3000);
 
 	while ( iGot < iWant ) {
 		xnetudppacket* pPacket = xrtNetUdpReceive(pUdp);
@@ -81,10 +97,10 @@ static size_t exampleDrainCount(xnetudp* pUdp, size_t iWant)
 		if ( pPacket != NULL ) {
 			xrtNetUdpPacketDestroy(pPacket);
 			++iGot;
-			iDeadline = __xrtWaitAfter(3000000u);
+			iDeadline = exampleTimerLimit(3000);
 			continue;
 		}
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			break;
 		}
 		xrtThreadYield();
@@ -153,14 +169,14 @@ int main(void)
 	{
 		/* 重发一条并直接取包核对截断标志与前缀长度。 */
 		xnetudppacket* pPacket = NULL;
-		double iDeadline = __xrtWaitAfter(3000000u);
+		double iDeadline = exampleTimerLimit(3000);
 
 		if ( xrtNetUdpSend(pClient, Big, sizeof(Big)) !=
 			 XNET_RESULT_OK ) {
 			goto Cleanup;
 		}
 		while ( (pPacket = xrtNetUdpReceive(pServer)) == NULL ) {
-			if ( __xrtWaitExpired(iDeadline) ) {
+			if ( exampleTimerExpired(iDeadline) ) {
 				break;
 			}
 			xrtThreadYield();
@@ -184,10 +200,10 @@ int main(void)
 	}
 	memset(pPackets, 0, sizeof(pPackets));
 	{
-		double iDeadline = __xrtWaitAfter(3000000u);
+		double iDeadline = exampleTimerLimit(3000);
 
 		while ( xrtNetUdpQueued(pServer) < 3u ) {
-			if ( __xrtWaitExpired(iDeadline) ) {
+			if ( exampleTimerExpired(iDeadline) ) {
 				iResult = 6;
 				goto Cleanup;
 			}
@@ -211,18 +227,17 @@ int main(void)
 		}
 	}
 	{
-		double iDeadline = __xrtWaitAfter(3000000u);
+		double iDeadline = exampleTimerLimit(3000);
 
 		while ( xrtNetUdpQueued(pServer) < 2u ) {
-			if ( __xrtWaitExpired(iDeadline) ) {
+			if ( exampleTimerExpired(iDeadline) ) {
 				iResult = 7;
 				goto Cleanup;
 			}
 			xrtThreadYield();
 		}
 	}
-	pBatch = __xrtNetUdpReceiveBatchWait(pServer, 4,
-		__xrtWaitAfter(3000000u), NULL);
+	pBatch = xrtNetUdpReceiveBatchWait(pServer, 4,3000, NULL);
 	if ( (pBatch == NULL) || (xrtNetUdpBatchCount(pBatch) < 1u) ) {
 		iResult = 7;
 		goto Cleanup;
@@ -254,10 +269,10 @@ int main(void)
 		}
 	}
 	{
-		double iDeadline = __xrtWaitAfter(3000000u);
+		double iDeadline = exampleTimerLimit(3000);
 
 		while ( xrtNetUdpQueued(pServer) < 2u ) {
-			if ( __xrtWaitExpired(iDeadline) ) {
+			if ( exampleTimerExpired(iDeadline) ) {
 				iResult = 9;
 				goto Cleanup;
 			}
@@ -315,13 +330,13 @@ int main(void)
 		goto Cleanup;
 	}
 	/* 关闭使未决错误 Future 进入终态（RESOLVED=1..CLOSED=4）。 */
-	(void)xrtFutureWaitFor(pErrorFuture, UINT64_C(3000000));
+	(void)xrtFutureWaitFor(pErrorFuture, INT64_C(3000));
 	printf(", async terminal=%d\n",
 		(int)xrtFutureState(pErrorFuture));
 
 	/* 发送条件：空闲队列立即可写（同步 + Future 双形态）。 */
 	printf("writable: sync=%d",
-		__xrtNetUdpWritable(pClient, 64, __xrtWaitAfter(3000000u),
+		xrtNetUdpWritable(pClient, 64,3000,
 			NULL) ? 1 : 0);
 	pWritable = xrtNetUdpWritableAsync(pClient, 64);
 	printf(" async=%d\n", exampleFutureWait(pWritable) ? 1 : 0);

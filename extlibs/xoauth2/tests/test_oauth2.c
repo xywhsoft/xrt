@@ -483,7 +483,7 @@ static void test_http_future_terminal_states(void)
 		else bDone = xrtPromiseClose(pPromise);
 		CHECK(bDone, "HTTP future terminal state published");
 		if ( bDone )
-			CHECK(xoauth2__future_wait(pFuture, __xrtWaitAfter(1000000u)) == (i == 0),
+			CHECK(xoauth2__future_wait(pFuture, __xrtWaitAfter(1000)) == (i == 0),
 				labels[i]);
 		else xrtFutureDestroy(pFuture);
 		xrtErrorFree(pError);
@@ -501,7 +501,7 @@ int main(void)
 		xerror* previous;
 		xoauth2__error(XOAUTH2_ERROR_TOKEN_DENIED, "previous operation error");
 		previous = xrtErrorRef(xrtGetError());
-		CHECK(xoauth2HttpXrtCleanupPending(0u, &pending) && pending == 0u &&
+		CHECK(xoauth2HttpXrtCleanupPending(0, &pending) && pending == 0u &&
 			xrtGetError() == previous, "HTTP pending cleanup on empty queue retains diagnostic");
 		xrtErrorFree(previous);
 		xrtClearError();
@@ -1510,7 +1510,7 @@ int main(void)
 
 		/* xrt 传输初始化（自建 engine，3s 超时） */
 		xoauth2httpxrt httpxrt;
-		CHECK(xoauth2HttpXrtInit(&httpxrt, NULL, NULL, 3000000),
+		CHECK(xoauth2HttpXrtInit(&httpxrt, NULL, NULL, 3000),
 			"p2 xrt transport init");
 
 		xoauth2ConfigInit(&cfg);
@@ -1619,7 +1619,7 @@ int main(void)
 
 		/* ---- 评审⑤：HttpXrtCreate/Destroy 堆版本端到端 ---- */
 		{
-			xoauth2httpxrt* pHeap = xoauth2HttpXrtCreate(NULL, NULL, 3000000);
+			xoauth2httpxrt* pHeap = xoauth2HttpXrtCreate(NULL, NULL, 3000);
 			CHECK(pHeap != NULL, "p4b HttpXrtCreate");
 			if ( pHeap != NULL ) {
 				xoauth2client hc = {0};
@@ -1645,7 +1645,7 @@ int main(void)
 			int iSlowStatus = 123;
 			InterlockedExchange(&g_ServerSlowDone, 0);
 			InterlockedExchange(&g_ServerSlow, 1);
-			httpxrt.uTimeoutUs = 300000u;
+			httpxrt.uTimeoutMs = 300u;
 			xrtClearError();
 			bool bSlow = xoauth2HttpXrt("GET", aTokenUrl, NULL,
 				NULL, &sSlowBody, &iSlowStatus, &httpxrt);
@@ -1657,7 +1657,7 @@ int main(void)
 				Sleep(10);
 			CHECK(InterlockedCompareExchange(&g_ServerSlowDone, 0, 0) != 0,
 				"p2 windows slow server completed");
-			httpxrt.uTimeoutUs = 3000000u;
+			httpxrt.uTimeoutMs = 3000u;
 		}
 
 		/* 保留便捷传输对非法配置给出的 ARGUMENT 诊断。 */
@@ -1682,7 +1682,7 @@ int main(void)
 			xoauth2httpxrt Http;
 			char sTokenUrl[128];
 			char* sUrl;
-			bool bHttp = xoauth2HttpXrtInit(&Http, NULL, NULL, 3000000);
+			bool bHttp = xoauth2HttpXrtInit(&Http, NULL, NULL, 3000);
 			CHECK(bHttp, "p2 posix transport init");
 			if ( bHttp ) {
 				xoauth2ConfigInit(&cfg);
@@ -1762,7 +1762,7 @@ int main(void)
 
 				{
 					xoauth2httpxrt* pHeap = xoauth2HttpXrtCreate(
-						NULL, NULL, 3000000);
+						NULL, NULL, 3000);
 					CHECK(pHeap != NULL, "p2 posix heap transport created");
 					if ( pHeap != NULL ) {
 						xoauth2client HeapClient = {0};
@@ -1783,7 +1783,7 @@ int main(void)
 				{
 					char* sSlowBody = NULL;
 					int iSlowStatus = 123;
-					Http.uTimeoutUs = 300000u;
+					Http.uTimeoutMs = 300u;
 					xrtClearError();
 					bool bSlow = xoauth2HttpXrt("GET", sTokenUrl,
 						NULL, NULL, &sSlowBody, &iSlowStatus, &Http);
@@ -1791,7 +1791,7 @@ int main(void)
 						iSlowStatus == 0 &&
 						xoauth2LastError() == XOAUTH2_ERROR_NETWORK,
 						"p2 posix slow response obeys total deadline");
-					Http.uTimeoutUs = 3000000u;
+					Http.uTimeoutMs = 3000u;
 				}
 
 				cfg.TokenUrl = "ftp://bad";

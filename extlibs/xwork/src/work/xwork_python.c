@@ -140,7 +140,7 @@ static bool xwork__py_spawn_locked(xwork_agent* pAgent, xwork_error* pError)
         return false;
     }
     {   /* 等 bootstrap 哨兵，见到后清缓冲：首次调用输出不被引导输出污染 */
-        uint64_t uBootDeadline = xrtTimer() + 10u * 1000u * 1000u;
+        double uBootDeadline = xrtTimer() + 10.0;
         for ( ; ; ) {
             if ( pAgent->pPyBuf != NULL && strstr(pAgent->pPyBuf, "MDODONE0") != NULL ) {
                 xwork__py_buf_reset(pAgent);
@@ -151,7 +151,7 @@ static bool xwork__py_spawn_locked(xwork_agent* pAgent, xwork_error* pError)
                 xwork__set_error(pError, XWORK_ERROR_CONTEXT, "python interpreter did not respond to bootstrap");
                 return false;
             }
-            xrtCondWaitFor(pAgent->pPyCond, pAgent->pPyLock, XWORK_PY_SLICE_MS * 1000u);
+            xrtCondWaitFor(pAgent->pPyCond, pAgent->pPyLock, XWORK_PY_SLICE_MS);
         }
     }
     return true;
@@ -172,7 +172,7 @@ void xwork__python_unit(xwork_agent* pAgent)
     xwork__py_buf_reset(pAgent);
     xrtMutexUnlock(pAgent->pPyLock);
     if ( pAgent->pPyReader != NULL ) {
-        xrtThreadWaitFor(pAgent->pPyReader, 500u * 1000u);
+        xrtThreadWaitFor(pAgent->pPyReader, 500);
         pAgent->pPyReader = NULL;
     }
     if ( pAgent->pPyLock != NULL ) { xrtMutexDestroy(pAgent->pPyLock); pAgent->pPyLock = NULL; }
@@ -253,7 +253,7 @@ static xwork_result xwork__tool_python(
     bReset = xwork__json_bool(tArgs, "reset", false, &bValid);
     bBackground = xwork__json_bool(tArgs, "background", false, &bValid);
     uTimeout = xwork__json_u64(tArgs, "timeout_ms", 120000u, &bValid);
-    if ( !bValid || uTimeout < 1000u || uTimeout > 600000u ) uTimeout = 120000u;
+    if ( !bValid || uTimeout < 1000u || uTimeout > 600000u ) uTimeout = 120000;
 
     /* ---- background：全新独立解释器，复用 spawn 任务表 ---- */
     if ( bBackground ) {
@@ -313,7 +313,7 @@ static xwork_result xwork__tool_python(
         char sLineB[48];
         size_t iMark = pAgent->iPyLen;
         char* pHit = NULL;
-        uint64_t uDeadline;
+        double uDeadline;
 
         snprintf(aSentinel, sizeof(aSentinel), "MDODONE%u", (unsigned)uSeq);
         if ( !sB64 ) {
@@ -339,7 +339,7 @@ static xwork_result xwork__tool_python(
         }
 
         /* 等哨兵（只认本次序列号；deadline 由 harness 机械收走） */
-        uDeadline = xrtTimer() + uTimeout * 1000u;
+        uDeadline = __xrtWaitAfter(uTimeout);
         for ( ; ; ) {
             if ( pAgent->pPyBuf != NULL && iMark <= pAgent->iPyLen )
                 pHit = strstr(pAgent->pPyBuf + iMark, aSentinel);
@@ -357,7 +357,7 @@ static xwork_result xwork__tool_python(
                 return xwork__tool_fail(pOutput,
                     "timeout: code did not finish; interpreter was reset (state lost)");
             }
-            xrtCondWaitFor(pAgent->pPyCond, pAgent->pPyLock, XWORK_PY_SLICE_MS * 1000u);
+            xrtCondWaitFor(pAgent->pPyCond, pAgent->pPyLock, XWORK_PY_SLICE_MS);
         }
 
         /* 哨兵前即本次输出（iMark 后算起；Windows \r 折叠） */

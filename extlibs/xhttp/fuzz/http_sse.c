@@ -254,7 +254,8 @@ static void __xrtHttpSseFuzzRoundTrip(
 		abort();
 	}
 	xrtHttpSseParserConfigInit(&Config);
-	Config.LineLimit = XRT_HTTP_SSE_FUZZ_DATA_MAX;
+	/* LineLimit includes the encoded "data: " field prefix. */
+	Config.LineLimit = XRT_HTTP_SSE_FUZZ_DATA_MAX + 6u;
 	Config.DataLimit = XRT_HTTP_SSE_FUZZ_DATA_MAX;
 	Config.EmitRetry = false;
 	if ( !xrtHttpSseParserInit(&Parser, &Config) ) {

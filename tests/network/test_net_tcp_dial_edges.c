@@ -43,7 +43,7 @@ static void testDialEdgeWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -221,7 +221,7 @@ static uint16 testDialEdgeUnusedPort(void)
 /* 重试无副作用的活动对象检查，确保异步取消资源已经真正排空。 */
 static void testDialEdgeDestroyEngine(xnetengine* pEngine)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
@@ -281,7 +281,7 @@ int main(void)
 	);
 	DialConfig.Family = XNET_FAMILY_IPV4;
 	DialConfig.MaxAttempts = 1;
-	DialConfig.Stream.ConnectTimeout = 1000000u;
+	DialConfig.Stream.ConnectTimeout = 1000;
 	pFailure = xrtNetDial(
 		pEngine,
 		pFailureResolver,
@@ -360,7 +360,7 @@ int main(void)
 
 	xrtNetDialConfigInit(&DialConfig);
 	DialConfig.Family = XNET_FAMILY_IPV4;
-	DialConfig.Timeout = 20000u;
+	DialConfig.Timeout = 20;
 	pTimeout = xrtNetDial(
 		pEngine,
 		pTimeoutResolver,

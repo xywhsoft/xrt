@@ -65,7 +65,7 @@ static void testWsProtocolWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -891,7 +891,7 @@ static void testWsProtocolRun(
 	);
 
 	AttachDeadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 	while ( ((pConnection = (xwsconn*)
 		xrtAtomicPtrLoad(

@@ -1,3 +1,4 @@
+#include <math.h>
 #include <string.h>
 
 #include <xrt/ssh_transport_rekey.h>
@@ -41,21 +42,21 @@ static bool xsshRekeyLimit(uint64 iValue, uint64 iLimit)
 /* 合并手动、时间和双向计数产生的当前决策。 */
 static xsshrekeydecision xsshRekeyCurrent(
 	const xsshrekeystate* pState,
-	uint64 iNowMs
+	double Timer
 )
 {
-	uint64 iSendElapsed = iNowMs >= pState->SendStartedMs ?
-		iNowMs - pState->SendStartedMs : 0u;
-	uint64 iReceiveElapsed = iNowMs >= pState->ReceiveStartedMs ?
-		iNowMs - pState->ReceiveStartedMs : 0u;
+	double iSendElapsed = Timer >= pState->SendStartedTimer ?
+		Timer - pState->SendStartedTimer : 0u;
+	double iReceiveElapsed = Timer >= pState->ReceiveStartedTimer ?
+		Timer - pState->ReceiveStartedTimer : 0u;
 
 	if ( (pState->Sent.Packets >= pState->Policy.HardPacketLimit) ||
 		(pState->Received.Packets >= pState->Policy.HardPacketLimit) ) {
 		return XSSH_REKEY_REQUIRED;
 	}
 	if ( pState->Requested ||
-		xsshRekeyLimit(iSendElapsed, pState->Policy.TimeLimitMs) ||
-		xsshRekeyLimit(iReceiveElapsed, pState->Policy.TimeLimitMs) ||
+		(pState->Policy.TimeLimitMs != 0 && iSendElapsed >= (double)pState->Policy.TimeLimitMs / 1000.0) ||
+		(pState->Policy.TimeLimitMs != 0 && iReceiveElapsed >= (double)pState->Policy.TimeLimitMs / 1000.0) ||
 		xsshRekeyLimit(pState->Sent.Bytes, pState->Policy.ByteLimit) ||
 		xsshRekeyLimit(pState->Received.Bytes, pState->Policy.ByteLimit) ||
 		xsshRekeyLimit(pState->Sent.Blocks, pState->Policy.BlockLimit) ||
@@ -80,7 +81,7 @@ static xsshcode xsshRekeyReserve(
 	xsshrekeycounter* pCounter,
 	uint64 iWireBytes,
 	uint64 iCipherBlocks,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
@@ -97,7 +98,7 @@ static xsshcode xsshRekeyReserve(
 		) ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
-	if ( xsshRekeyCurrent(pState, iNowMs) == XSSH_REKEY_REQUIRED ) {
+	if ( xsshRekeyCurrent(pState, Timer) == XSSH_REKEY_REQUIRED ) {
 		*pDecision = XSSH_REKEY_REQUIRED;
 		return XSSH_OK;
 	}
@@ -106,7 +107,7 @@ static xsshcode xsshRekeyReserve(
 	Counter.Bytes = xsshRekeyAdd(Counter.Bytes, iWireBytes);
 	Counter.Blocks = xsshRekeyAdd(Counter.Blocks, iCipherBlocks);
 	*pCounter = Counter;
-	Decision = xsshRekeyCurrent(pState, iNowMs);
+	Decision = xsshRekeyCurrent(pState, Timer);
 	if ( Decision == XSSH_REKEY_REQUIRED ) {
 		Decision = XSSH_REKEY_RECOMMENDED;
 	}
@@ -136,9 +137,10 @@ void xrtSshRekeyPolicyInit(xsshrekeypolicy* pPolicy)
 bool xrtSshRekeyInit(
 	xsshrekeystate* pState,
 	const xsshrekeypolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	xsshrekeypolicy Policy;
 	xsshrekeystate State;
 
@@ -154,8 +156,8 @@ bool xrtSshRekeyInit(
 	}
 	memset(&State, 0, sizeof(State));
 	State.Policy = *pPolicy;
-	State.SendStartedMs = iNowMs;
-	State.ReceiveStartedMs = iNowMs;
+	State.SendStartedTimer = Timer;
+	State.ReceiveStartedTimer = Timer;
 	*pState = State;
 	return true;
 }
@@ -163,8 +165,9 @@ bool xrtSshRekeyInit(
 
 
 /* 保留策略并重置新一代密钥的全部运行计数。 */
-bool xrtSshRekeyReset(xsshrekeystate* pState, uint64 iNowMs)
+bool xrtSshRekeyReset(xsshrekeystate* pState, double Timer)
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	xsshrekeypolicy Policy;
 
 	if ( (pState == NULL) || !xsshRekeyPolicyValid(&pState->Policy) ) {
@@ -173,34 +176,36 @@ bool xrtSshRekeyReset(xsshrekeystate* pState, uint64 iNowMs)
 	Policy = pState->Policy;
 	memset(pState, 0, sizeof(*pState));
 	pState->Policy = Policy;
-	pState->SendStartedMs = iNowMs;
-	pState->ReceiveStartedMs = iNowMs;
+	pState->SendStartedTimer = Timer;
+	pState->ReceiveStartedTimer = Timer;
 	return true;
 }
 
 
 
 /* 写密钥提交只开始新的发送代，不影响已先行收到的新密钥数据。 */
-bool xrtSshRekeyResetSend(xsshrekeystate* pState, uint64 iNowMs)
+bool xrtSshRekeyResetSend(xsshrekeystate* pState, double Timer)
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	if ( (pState == NULL) || !xsshRekeyPolicyValid(&pState->Policy) ) {
 		return false;
 	}
 	memset(&pState->Sent, 0, sizeof(pState->Sent));
-	pState->SendStartedMs = iNowMs;
+	pState->SendStartedTimer = Timer;
 	return true;
 }
 
 
 
 /* 读密钥提交只开始新的接收代，不影响已先行发送的新密钥数据。 */
-bool xrtSshRekeyResetReceive(xsshrekeystate* pState, uint64 iNowMs)
+bool xrtSshRekeyResetReceive(xsshrekeystate* pState, double Timer)
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	if ( (pState == NULL) || !xsshRekeyPolicyValid(&pState->Policy) ) {
 		return false;
 	}
 	memset(&pState->Received, 0, sizeof(pState->Received));
-	pState->ReceiveStartedMs = iNowMs;
+	pState->ReceiveStartedTimer = Timer;
 	return true;
 }
 
@@ -233,10 +238,11 @@ bool xrtSshRekeyRequest(xsshrekeystate* pState)
 /* 读取当前决策，不改变计数状态。 */
 xsshcode xrtSshRekeyCheck(
 	const xsshrekeystate* pState,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	if ( (pState == NULL) || (pDecision == NULL) ||
 		!xsshRekeyPolicyValid(&pState->Policy) ||
 		xrtMemRangesOverlap(
@@ -247,7 +253,7 @@ xsshcode xrtSshRekeyCheck(
 		) ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
-	*pDecision = xsshRekeyCurrent(pState, iNowMs);
+	*pDecision = xsshRekeyCurrent(pState, Timer);
 	return XSSH_OK;
 }
 
@@ -258,10 +264,11 @@ xsshcode xrtSshRekeyReserveSend(
 	xsshrekeystate* pState,
 	uint64 iWireBytes,
 	uint64 iCipherBlocks,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	if ( pState == NULL ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
@@ -270,7 +277,7 @@ xsshcode xrtSshRekeyReserveSend(
 		&pState->Sent,
 		iWireBytes,
 		iCipherBlocks,
-		iNowMs,
+		Timer,
 		pDecision
 	);
 }
@@ -282,10 +289,11 @@ xsshcode xrtSshRekeyReserveReceive(
 	xsshrekeystate* pState,
 	uint64 iWireBytes,
 	uint64 iCipherBlocks,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	if ( pState == NULL ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
@@ -294,7 +302,7 @@ xsshcode xrtSshRekeyReserveReceive(
 		&pState->Received,
 		iWireBytes,
 		iCipherBlocks,
-		iNowMs,
+		Timer,
 		pDecision
 	);
 }

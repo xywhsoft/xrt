@@ -51,7 +51,7 @@ static xnetaddrlist* testDialFutureLookup(
 /* 在截止时间内轮询拉取一个已接受 Stream。 */
 static xnetstream* testDialFutureAccept(xnetlistener* pListener)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 	xnetstream* pStream;
 
 	while ( (pStream = xrtNetListenerAccept(pListener)) == NULL ) {
@@ -72,7 +72,7 @@ static void testDialFutureWaitClosed(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( ((pStream != NULL) &&
 		  (xrtNetStreamState(pStream) != XNET_STREAM_CLOSED)) ||
@@ -141,7 +141,7 @@ int main(void)
 		NULL
 	);
 	testRequire(pConnect != NULL, "dial Future submit failed");
-	testRequire(xrtFutureWaitFor(pConnect, 5000000u) == XWAIT_OK &&
+	testRequire(xrtFutureWaitFor(pConnect, 5000) == XWAIT_OK &&
 		(xrtFutureState(pConnect) == XFUTURE_RESOLVED),
 		"dial Future did not resolve");
 	pClient = (xnetstream*)xrtFutureValue(pConnect);
@@ -175,7 +175,7 @@ int main(void)
 		NULL
 	);
 	testRequire(pCancel != NULL, "cancelled dial Future submit failed");
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( xrtAtomic32Load(&Context.Entered, XMEMORY_ACQUIRE) == 0 ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
 			"cancelled dial Future lookup did not start");
@@ -183,7 +183,7 @@ int main(void)
 	}
 	testRequire(xrtFutureCancel(pCancel),
 		"dial Future cancellation request failed");
-	testRequire(xrtFutureWaitFor(pCancel, 5000000u) == XWAIT_OK &&
+	testRequire(xrtFutureWaitFor(pCancel, 5000) == XWAIT_OK &&
 		(xrtFutureState(pCancel) == XFUTURE_CANCELLED),
 		"dial Future cancellation was not confirmed");
 	xrtAtomic32Store(&Context.Gate, 1, XMEMORY_RELEASE);
@@ -199,7 +199,7 @@ int main(void)
 	xrtNetListenerDestroy(pListener);
 	testRequire(xrtNetResolverDestroy(pResolver),
 		"dial Future resolver destroy failed");
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(!__xrtWaitExpired(iDeadline),

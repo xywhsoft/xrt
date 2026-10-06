@@ -1,3 +1,4 @@
+#include <math.h>
 #include <xrt/ssh_kex_session.h>
 #include <string.h>
 
@@ -1388,9 +1389,10 @@ xsshcode xrtSshKexSessionReadAbort(xsshkexsession* pSession)
 xsshcode xrtSshKexSessionActivateWrite(
 	xsshkexsession* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xbytesview Key;
 	xbytesview IV;
 	xsshcode Code;
@@ -1426,7 +1428,7 @@ xsshcode xrtSshKexSessionActivateWrite(
 			sizeof(pSession->ServerToClientIV)
 		};
 	}
-	Code = xrtSshTransportCoreSetWriteAesGcm(pCore, Key, IV, iNowMs);
+	Code = xrtSshTransportCoreSetWriteAesGcm(pCore, Key, IV, Timer);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -1447,9 +1449,10 @@ xsshcode xrtSshKexSessionActivateWrite(
 xsshcode xrtSshKexSessionActivateRead(
 	xsshkexsession* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xbytesview Key;
 	xbytesview IV;
 	xsshcode Code;
@@ -1485,7 +1488,7 @@ xsshcode xrtSshKexSessionActivateRead(
 			sizeof(pSession->ClientToServerIV)
 		};
 	}
-	Code = xrtSshTransportCoreSetReadAesGcm(pCore, Key, IV, iNowMs);
+	Code = xrtSshTransportCoreSetReadAesGcm(pCore, Key, IV, Timer);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}

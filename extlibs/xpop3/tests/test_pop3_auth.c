@@ -1,3 +1,4 @@
+#include <xrt/detail/xpop3_wait.h>
 #include <xrt/detail/wait.h>
 #include "test.h"
 
@@ -332,7 +333,7 @@ static int32 testPop3FaultServer(ptr pData)
 	}
 	if ( bOk && (pServer->Mode >= 10u) ) {
 		xnetbytes* pUnexpected = __xrtNetStreamRecv(
-			pStream, 1u, __xrtWaitAfter(UINT64_C(100000)), NULL);
+			pStream, 1u, __xrtWaitAfter(INT64_C(100)), NULL);
 
 		bOk = (pUnexpected == NULL) &&
 			(xrtNetStreamState(pStream) != XNET_STREAM_OPEN);
@@ -448,7 +449,7 @@ int main(void)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "POP3 client resolver creation failed");
 
-	Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(INT64_C(10000));
 	Server.Listener = pListener;
 	Server.Deadline = Deadline;
 	Server.Success = false;
@@ -550,7 +551,7 @@ int main(void)
 		bool bCommandOk;
 		xpop3reply Last;
 
-		Deadline = __xrtWaitAfter(UINT64_C(10000000));
+		Deadline = __xrtWaitAfter(INT64_C(10000));
 		Fault.Listener = pListener;
 		Fault.Deadline = Deadline;
 		Fault.Mode = iMode;
@@ -575,7 +576,7 @@ int main(void)
 		}
 		xrtClearError();
 		CommandDeadline = (iMode == 5u || iMode == 7u) ?
-			__xrtWaitAfter(UINT64_C(100000)) : Deadline;
+			__xrtWaitAfter(INT64_C(100)) : Deadline;
 		if ( iMode == 10u ) {
 			testRequire(xrtCancelRequest(pCancel),
 				"POP3 send cancellation request failed");

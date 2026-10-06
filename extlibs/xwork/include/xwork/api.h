@@ -298,7 +298,7 @@ typedef struct xwork_agent_config {
     const char* sModel;
     const char* sReasoningEffort;
     xcancel* pCancel;
-    uint64_t uDeadline;
+    int64_t iTimeout;
 
     xwork_approval_mode eApprovalMode;
     xwork_approval_fn OnApproval;
@@ -403,7 +403,7 @@ typedef struct xwork_mcp_stdio_config {
     xwork_tool_effect eDefaultToolEffect;
     bool bTrustReadOnlyAnnotations;
     xcancel* pCancel;
-    uint64_t uDeadline;
+    int64_t iTimeout;
 } xwork_mcp_stdio_config;
 
 typedef struct xwork_mcp_info {
@@ -425,7 +425,7 @@ XRT_API xwork_result xworkMcpClientCallTool(
     const char* sRemoteToolName,
     const char* sArgumentsJson,
     xcancel* pCancel,
-    uint64_t uDeadline,
+    int64_t iTimeout,
     xwork_tool_output* pOutput,
     xwork_error* pError
 );

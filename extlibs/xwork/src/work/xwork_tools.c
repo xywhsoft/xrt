@@ -1,3 +1,4 @@
+#include <math.h>
 #include <xrt/detail/wait.h>
 #include "../internal/xwork_internal.h"
 
@@ -815,7 +816,7 @@ static void xwork__process_entry_close(xwork_process_entry* pEntry)
     if ( pEntry->pProcess ) {
         if ( xwork__process_running(pEntry->pProcess) ) {
             (void)xrtProcessKillTree(pEntry->pProcess);
-            if ( xrtProcessWaitFor(pEntry->pProcess, UINT64_C(3000000)) != XWAIT_OK ) {
+            if ( xrtProcessWaitFor(pEntry->pProcess, INT64_C(3000)) != XWAIT_OK ) {
                 (void)xrtProcessKill(pEntry->pProcess);
                 (void)xrtProcessWait(pEntry->pProcess);
             }
@@ -858,7 +859,7 @@ xwork_process_entry* xwork__task_add(xwork_agent* pAgent, xwork_task_kind eKind)
 /* Wait up to uWaitMs for a task of either kind to finish. */
 static bool xwork__wait_task(xwork_agent* pAgent, xwork_process_entry* pEntry, uint64_t uWaitMs)
 {
-    uint64_t uDeadline = __xrtWaitAfter(uWaitMs * UINT64_C(1000));
+    double uDeadline = __xrtWaitAfter(uWaitMs);
     while ( xwork__task_entry_running(pEntry) ) {
         if ( __xrtWaitExpired(uDeadline) ) return false;
         if ( xwork__is_cancelled(pAgent) ) return false;
@@ -1128,7 +1129,7 @@ static char* xwork__argv_preview(char** psArgv, size_t iArgvCount)
 static bool xwork__process_wait_all_ready(xwork_agent* pAgent,
     const uint64_t* puIds, size_t iCount, bool bAll, uint32_t uTimeoutMs)
 {
-    uint64_t uDeadline = __xrtWaitAfter((uint64_t)uTimeoutMs * UINT64_C(1000));
+    double uDeadline = __xrtWaitAfter(uTimeoutMs);
     for ( ; ; ) {
         xwork_process_entry* pEntry;
         size_t iReady = 0u;
@@ -1181,8 +1182,8 @@ size_t xworkAgentTakeTaskNotices(xwork_agent* pAgent,
 bool xworkTaskWatchdog(xwork_agent* pAgent, xwork_watchdog_digest* pDigest)
 {
     static const uint64_t uUncollectedNudgeMs = 60000u;
-    uint64_t uNow = xrtTimer();
-    uint64_t uNextWakeUs = 0u;
+    double uNow = xrtTimer();
+    double uNextWakeUs = 0.0;
     size_t i;
     if ( !pDigest ) { return false; }
     memset(pDigest, 0, sizeof(*pDigest));
@@ -1193,13 +1194,13 @@ bool xworkTaskWatchdog(xwork_agent* pAgent, xwork_watchdog_digest* pDigest)
         if ( bRunning ) {
             ++pDigest->iRunningTasks;
             if ( pEntry->uRemindAfterMs != 0u ) {
-                uint64_t uElapsedUs = uNow - pEntry->uStartedUs;
-                uint64_t uRemindUs = pEntry->uRemindAfterMs * UINT64_C(1000);
+                double uElapsedUs = uNow - pEntry->uStartedUs;
+                double uRemindUs = pEntry->uRemindAfterMs / 1000.0;
                 if ( uElapsedUs >= uRemindUs ) {
                     ++pDigest->iStalledTasks;
                     pDigest->bShouldWake = true;
                 } else {
-                    uint64_t uDue = uRemindUs - uElapsedUs;
+                    double uDue = uRemindUs - uElapsedUs;
                     if ( uNextWakeUs == 0u || uDue < uNextWakeUs ) uNextWakeUs = uDue;
                 }
             }
@@ -1208,17 +1209,17 @@ bool xworkTaskWatchdog(xwork_agent* pAgent, xwork_watchdog_digest* pDigest)
             if ( !pEntry->bNoticeTaken ) {
                 ++pDigest->iUncollectedNotices;
                 /* One gentle nudge per task; the model decides after that. */
-                if ( !pEntry->bNudged && uNow - pEntry->uExitedUs >= uUncollectedNudgeMs * UINT64_C(1000) ) {
+                if ( !pEntry->bNudged && (uNow - pEntry->uExitedUs) * 1000.0 >= uUncollectedNudgeMs ) {
                     pEntry->bNudged = true;
                     pDigest->bShouldWake = true;
                 } else if ( !pEntry->bNudged ) {
-                    uint64_t uDue = uUncollectedNudgeMs * UINT64_C(1000) - (uNow - pEntry->uExitedUs);
+                    double uDue = uUncollectedNudgeMs / 1000.0 - (uNow - pEntry->uExitedUs);
                     if ( uNextWakeUs == 0u || uDue < uNextWakeUs ) uNextWakeUs = uDue;
                 }
             }
         }
     }
-    pDigest->uNextWakeMs = uNextWakeUs != 0u ? (uNextWakeUs + 999u) / 1000u : 0u;
+    pDigest->uNextWakeMs = uNextWakeUs != 0u ? (uint64_t)ceil(uNextWakeUs * 1000.0) : 0u;
     return true;
 }
 
@@ -1534,9 +1535,9 @@ static bool xwork__exec_capture_scoped(
         return true;
     }
     if ( !xrtProcessRunOptionsInit(&tOptions) ) return false;
-    uCommandDeadline = __xrtWaitAfter((uint64_t)uTimeoutMs * UINT64_C(1000));
-    tOptions.Deadline = pAgent->uDeadline != INFINITY &&
-        pAgent->uDeadline < uCommandDeadline ? pAgent->uDeadline : uCommandDeadline;
+    uCommandDeadline = __xrtWaitAfter(uTimeoutMs);
+    tOptions.Timeout = __xrtWaitRemaining(pAgent->uDeadline != INFINITY &&
+        pAgent->uDeadline < uCommandDeadline ? pAgent->uDeadline : uCommandDeadline);
     tOptions.Cancel = pAgent->pCancel;
     tOptions.StdoutLimit = pAgent->iMaxCapturedCommandBytes;
     tOptions.StderrLimit = pAgent->iMaxCapturedCommandBytes;

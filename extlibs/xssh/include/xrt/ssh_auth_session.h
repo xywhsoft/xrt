@@ -86,6 +86,7 @@ typedef struct xsshauthsession {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -108,7 +109,7 @@ XRT_API xsshcode xrtSshAuthSessionBegin(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -131,7 +132,7 @@ XRT_API xsshcode xrtSshAuthSessionBudget(
 /* 检查认证超时和资源预算；耗尽时会话进入失败状态。 */
 XRT_API xsshcode xrtSshAuthSessionCheck(
 	xsshauthsession* pSession,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 );
 
@@ -145,7 +146,7 @@ XRT_API xsshcode xrtSshAuthSessionWritePrepare(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	xbytesview Payload,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -171,7 +172,7 @@ XRT_API xsshcode xrtSshAuthSessionReadPrepare(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	xbytesview Payload,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthsessionpacket* pPacket
 );
 

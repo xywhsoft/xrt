@@ -54,7 +54,7 @@ int main(void)
 	testRequire(xrtFutureCancel(pCancel) &&
 		(xrtFutureWaitFor(
 			pCancel,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pCancel) == XFUTURE_CANCELLED),
 		"TLS Listener Future cancellation failed");
@@ -67,7 +67,7 @@ int main(void)
 	testRequire((pClose != NULL) && xrtTlsListenerClose(pListener) &&
 		(xrtFutureWaitFor(
 			pClose,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pClose) == XFUTURE_CLOSED),
 		"TLS Listener close did not finish accept Future");

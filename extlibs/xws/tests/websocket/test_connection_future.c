@@ -1,3 +1,4 @@
+#include <xrt/detail/xws_wait.h>
 #include <xrt/detail/wait.h>
 #include "../test.h"
 
@@ -167,7 +168,7 @@ static void testWsFutureWaitAtomic(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -195,7 +196,7 @@ static void testWsFutureState(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == State),
 		sMessage
@@ -983,7 +984,7 @@ static int32 testWsFutureStressProc(ptr pData)
 		}
 		if ( xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) != XWAIT_OK ) {
 			xrtFutureDestroy(pFuture);
 			xrtAtomic32Store(
@@ -2436,7 +2437,7 @@ static void testWsFutureGroupOperation(
 		(xrtWsGroupOpWait(pWrappingOperation) == XWAIT_ERROR) &&
 		(xrtWsGroupOpWaitFor(
 			pWrappingOperation,
-			1u
+			1
 		 ) == XWAIT_ERROR) &&
 		(__xrtWsGroupOpWaitUntil(
 			pWrappingOperation,
@@ -2520,7 +2521,7 @@ static void testWsFutureGroupOperation(
 		(xrtWsGroupOpRejected(pOperation) == 0) &&
 		(xrtWsGroupOpWaitFor(
 			pOperation,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtWsGroupOpDoneCount(pOperation) == 2u),
 		"WebSocket group broadcast completion failed"
@@ -2601,7 +2602,7 @@ static void testWsFutureGroupOperation(
 		testRequire(
 			(xrtWsGroupOpWaitFor(
 				Operations[i],
-				UINT64_C(10000000)
+				INT64_C(10000)
 			 ) == XWAIT_OK) &&
 			(xrtWsGroupOpDoneCount(Operations[i]) == 2u),
 			"WebSocket group concurrent completion count mismatch"
@@ -2670,7 +2671,7 @@ static void testWsFutureGroupOperation(
 	testRequire(
 		(xrtWsGroupOpWaitFor(
 			pOperation,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		xrtWsGroupOpResult(pOperation, 1, &Result) &&
 		(Result.State == XWS_GROUP_OP_RESOLVED),
@@ -2708,7 +2709,7 @@ static void testWsFutureGroupOperation(
 		(xrtWsGroupOpAccepted(pOperation) == 2u) &&
 		(xrtWsGroupOpWaitFor(
 			pOperation,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK),
 		"WebSocket group shared Ref operation failed"
 	);
@@ -2747,7 +2748,7 @@ static void testWsFutureGroupOperation(
 		(pOperation != NULL) &&
 		(xrtWsGroupOpWaitFor(
 			pOperation,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(RefStorage[0] == 0xA5) &&
 		(RefStorage[sizeof(RefStorage) - 1u] == 0xA5),
@@ -2768,7 +2769,7 @@ static void testWsFutureGroupOperation(
 		(pOperation != NULL) &&
 		(xrtWsGroupOpWaitFor(
 			pOperation,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtWsGroupOpDoneCount(pOperation) == 2u),
 		"WebSocket group Drain operation failed"
@@ -2899,7 +2900,7 @@ int main(void)
 	xrtClearError();
 	testWsFutureConnect(&Test);
 	AttachDeadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 	while ( ((pClient = (xwsconn*)xrtAtomicPtrLoad(
 		&Test.Client,

@@ -56,7 +56,7 @@ int main(void)
 		exampleSignal,
 		&Received
 	);
-	uint64 iDeadline = xrtTimer() + UINT64_C(3000000);
+	double iDeadline = xrtTimer() + 3;
 
 	if ( (pWatch == NULL) || !xrtSignalRaise(XSIGNAL_INT) ) {
 		xrtSignalFree(pWatch);

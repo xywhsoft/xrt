@@ -34,6 +34,24 @@
 
 #define SV(x) XRT_STR_LITERAL(x)
 
+#if defined(_WIN32) || defined(_WIN64)
+#define EXAMPLE_ROOT "C:\\"
+#define EXAMPLE_ABSOLUTE "C:\\a"
+#define EXAMPLE_ROOTED "\\a"
+#define EXAMPLE_PARENT "C:\\dir"
+#define EXAMPLE_FILE "C:\\dir\\file.txt"
+#define EXAMPLE_STEM "C:\\dir\\file"
+#define EXAMPLE_MARKDOWN "C:\\dir\\file.md"
+#else
+#define EXAMPLE_ROOT "/"
+#define EXAMPLE_ABSOLUTE "/a"
+#define EXAMPLE_ROOTED "/a"
+#define EXAMPLE_PARENT "/dir"
+#define EXAMPLE_FILE "/dir/file.txt"
+#define EXAMPLE_STEM "/dir/file"
+#define EXAMPLE_MARKDOWN "/dir/file.md"
+#endif
+
 int main(void)
 {
 	static const xstrview arrParts[3] = {
@@ -80,11 +98,11 @@ int main(void)
 	printf("path: parse root=win flags=5 stem=file ext=.txt\n");
 
 	/* ---- IsAbs / IsRoot / IsRooted ---- */
-	if ( !xrtPathIsAbs("C:\\a") ||
+	if ( !xrtPathIsAbs(EXAMPLE_ABSOLUTE) ||
 		xrtPathIsAbs("a\\b") ||
-		!xrtPathIsRoot("C:\\") ||
-		xrtPathIsRoot("C:\\a") ||
-		!xrtPathIsRooted("\\a") ||
+		!xrtPathIsRoot(EXAMPLE_ROOT) ||
+		xrtPathIsRoot(EXAMPLE_ABSOLUTE) ||
+		!xrtPathIsRooted(EXAMPLE_ROOTED) ||
 		xrtPathIsRooted("a") ) {
 		goto Cleanup;
 	}
@@ -101,14 +119,14 @@ int main(void)
 		(strcmp(sClean, "C:\\b\\c") != 0) ) {
 		goto Cleanup;
 	}
-	sParent = xrtPathParent("C:\\dir\\file.txt");
+	sParent = xrtPathParent(EXAMPLE_FILE);
 	if ( (sParent == NULL) ||
-		(strcmp(sParent, "C:\\dir") != 0) ) {
+		(strcmp(sParent, EXAMPLE_PARENT) != 0) ) {
 		goto Cleanup;
 	}
-	sExt = xrtPathWithExt("C:\\dir\\file", ".md");
+	sExt = xrtPathWithExt(EXAMPLE_STEM, ".md");
 	if ( (sExt == NULL) ||
-		(strcmp(sExt, "C:\\dir\\file.md") != 0) ) {
+		(strcmp(sExt, EXAMPLE_MARKDOWN) != 0) ) {
 		goto Cleanup;
 	}
 	printf("path: build/clean parent+ext ok\n");
@@ -121,9 +139,15 @@ int main(void)
 		goto Cleanup;
 	}
 	{
-		str sRelSys = xrtPathRel("C:\\a\\b", "C:\\a\\c\\d");
+		#if defined(_WIN32) || defined(_WIN64)
+        str sRelSys = xrtPathRel("C:\\a\\b", "C:\\a\\c\\d");
+        cstr sExpected = sRel;
+#else
+        str sRelSys = xrtPathRel("/a/b", "/a/c/d");
+        cstr sExpected = "../c/d";
+#endif
 
-		if ( (sRelSys == NULL) || (strcmp(sRelSys, sRel) != 0) ) {
+		if ( (sRelSys == NULL) || (strcmp(sRelSys, sExpected) != 0) ) {
 			xrtFree(sRelSys);
 			goto Cleanup;
 		}

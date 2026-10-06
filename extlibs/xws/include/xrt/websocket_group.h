@@ -325,7 +325,7 @@ XRT_API xwaitresult xrtWsGroupOpWait(xwsgroupop* pOperation);
 
 
 
-/* 在相对微秒数内等待全部已接纳操作进入终态。 */
+/* 在相对毫秒数内等待全部已接纳操作进入终态。 */
 XRT_API xwaitresult xrtWsGroupOpWaitFor(
 	xwsgroupop* pOperation,
 	int64 iTimeout

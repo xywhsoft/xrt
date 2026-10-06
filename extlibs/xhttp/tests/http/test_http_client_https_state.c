@@ -31,7 +31,7 @@ static void testHttpClientHttpsStateWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -304,7 +304,7 @@ int main(void)
 		&State.Accepted,
 		"HTTPS state connection was not accepted"
 	);
-	Deadline = __xrtWaitAfter(5000000u);
+	Deadline = __xrtWaitAfter(5000);
 	while ( xrtHttpCallState(State.Call) !=
 		XHTTP_CALL_HANDSHAKING ) {
 		testRequire(

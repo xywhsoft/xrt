@@ -122,7 +122,7 @@ int main(void)
 		xrtFutureCancel(pCancelled) &&
 		(xrtFutureWaitFor(
 			pCancelled,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pCancelled) == XFUTURE_CANCELLED) &&
 		(xrtHttpServerState(pServer) == XHTTP_SERVER_RUNNING) &&
@@ -136,7 +136,7 @@ int main(void)
 	testRequire(
 		(xrtFutureWaitFor(
 			pPending,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pPending) == XFUTURE_RESOLVED) &&
 		(xrtHttpServerState(pServer) == XHTTP_SERVER_CLOSED) &&

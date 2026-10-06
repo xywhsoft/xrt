@@ -1,3 +1,4 @@
+#include <math.h>
 #include <xrt/ssh_session_tcp_random.h>
 
 
@@ -41,10 +42,11 @@ xsshcode xrtSshSessionTcpWritePrepare(
 	xsshchannelcore* pChannel,
 	xsshreplyqueue* pReplies,
 	uint64 iReplyToken,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	return xrtSshSessionTcpWritePrepareWithPadding(
 		pSession,
 		Payload,
@@ -53,7 +55,7 @@ xsshcode xrtSshSessionTcpWritePrepare(
 		iReplyToken,
 		xrtSshSecurePadding,
 		NULL,
-		iNowMs,
+		Timer,
 		pKind
 	);
 }

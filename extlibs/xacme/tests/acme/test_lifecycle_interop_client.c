@@ -303,7 +303,7 @@ static bool provider_ownership(void)
 			context = provider.pContext;
 			http = provider_http(kind, &provider);
 			engine = http->pEngine;
-			http->uTimeoutUs = 20000u;
+			http->uTimeoutMs = 20u;
 			if(pinned && !xrtNetEnginePin(engine)) return false;
 			xrtSetErrorInfo(XERR_PROTOCOL, "test", 2, "original operation error");
 			previous = xrtErrorRef(xrtGetError());
@@ -324,7 +324,7 @@ static bool provider_ownership(void)
 				xrtNetEngineState(engine) == XNET_ENGINE_RUNNING;
 			xrtClearError();
 			if(pinned && !xrtNetEngineUnpin(engine)) return false;
-			if(scenario < 2u) http->uTimeoutUs = 5000000u;
+			if(scenario < 2u) http->uTimeoutMs = 5000u;
 			units[kind](&provider);
 			units[kind](&provider);
 			ok = ok && provider.pContext == NULL;
@@ -466,7 +466,7 @@ static bool provider_callback_guards(void)
 				}
 				if(!xrtNetEnginePin(engine)) return false;
 			}
-			http->uTimeoutUs = 20000u;
+			http->uTimeoutMs = 20u;
 			xrtSetErrorInfo(XERR_IO, "test.guard.cleanup", 92, "original cleanup diagnosis");
 			previous = xrtErrorRef(xrtGetError());
 			InjectRetirementError = scenario == 1u;
@@ -477,7 +477,7 @@ static bool provider_callback_guards(void)
 				if(provider.pContext != context || !allocation_live(context)) return false;
 				ok = provider_guard_preserves(kind, &provider) && ok;
 				if(scenario == 0u && !xrtNetEngineUnpin(engine)) return false;
-				http->uTimeoutUs = 5000000u;
+				http->uTimeoutMs = 5000u;
 				xrtClearError();
 				units[kind](&provider);
 			}
@@ -552,7 +552,7 @@ static bool client_ownership(void)
 			} else ok = ok && xrtNetEngineState(engine) == XNET_ENGINE_RUNNING;
 			xrtClearError();
 			if(pinned && !xrtNetEngineUnpin(engine)) return false;
-			if(scenario < 2u) client->Http.uTimeoutUs = 5000000u;
+			if(scenario < 2u) client->Http.uTimeoutMs = 5000u;
 			if(action != 2u || scenario < 2u) {
 				ok = xrtAcmeClientCleanup(client) && ok;
 				ok = xrtAcmeClientCleanup(client) && ok;
@@ -584,7 +584,7 @@ static bool failed_client_create(void)
 		account.sAccountKeyPem = "invalid account private key";
 		config.pAccount = &account;
 		config.sCaPem = scenario == 0u ? "invalid CA" : TestCa;
-		config.uTimeoutUs = 1u;
+		config.uTimeoutMs = 1u;
 		client = xrtAcmeClientCreate(&config);
 		if(client != NULL) { xrtAcmeClientDestroy(client); return false; }
 		if(scenario >= 2u && xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return false;
@@ -642,7 +642,7 @@ static bool rollback_failures(void)
 		xrtAcmeClientConfigInit(&config);
 		account.sDirectoryUrl = "https://localhost:9/directory";
 		account.sAccountKeyPem = "invalid account private key";
-		config.pAccount = &account; config.sCaPem = TestCa; config.uTimeoutUs = 1u;
+		config.pAccount = &account; config.sCaPem = TestCa; config.uTimeoutMs = 1u;
 		RollbackEngine = NULL; RollbackPinned = false; RollbackFault = fault;
 		ForceStartFailure = kind < 5u;
 		if(kind < 5u) {
@@ -655,7 +655,7 @@ static bool rollback_failures(void)
 		if(kind < 5u && !error_contains(original, "injected partial start failure")) {
 			fprintf(stderr, "factory discarded original start error kind=%u\n", kind); return false;
 		}
-		retired = xrtAcmeCleanupPending(0u, &pending);
+		retired = xrtAcmeCleanupPending(0, &pending);
 		ok = ok && !retired && pending == 1u && xrtGetError() == original &&
 			xrtNetEngineState(RollbackEngine) == XNET_ENGINE_RUNNING;
 		check = (rollback_owner_check){ RollbackEngine, NULL, sizes[kind] };
@@ -680,7 +680,7 @@ static bool rollback_failures(void)
 			if(!xrtNetEngineDestroy(borrowed)) return false;
 		}
 		xrtClearError();
-		retired = xrtAcmeCleanupPending(fault == 1u ? 5000000u : 20000u, &pending);
+		retired = xrtAcmeCleanupPending(fault == 1u ? 5000u : 20u, &pending);
 		ok = ok && !retired && pending == 1u &&
 			(fault == 1u ? strcmp(xrtErrorMessage(xrtGetError()), "persistent retirement error") == 0 :
 			 xrtErrorKind(xrtGetError()) == XERR_TIMEOUT &&
@@ -688,10 +688,10 @@ static bool rollback_failures(void)
 		xrtSetError(original);
 		RollbackFault = 0u;
 		if(RollbackPinned && !xrtNetEngineUnpin(RollbackEngine)) return false;
-		ok = xrtAcmeCleanupPending(5000000u, &pending) && ok;
+		ok = xrtAcmeCleanupPending(5, &pending) && ok;
 		ok = ok && pending == 0u && xrtGetError() == original;
 		xrtErrorFree(original);
-		ok = xrtAcmeCleanupPending(0u, NULL) && ok;
+		ok = xrtAcmeCleanupPending(0, NULL) && ok;
 		if(!memory_empty() || !ok) {
 			fprintf(stderr, "factory deferred owner kind=%u fault=%u failed\n", kind, fault); return false;
 		}
@@ -724,12 +724,12 @@ static bool deferred_no_allocation(void)
 	if(original == NULL || xrtAcmeClientCleanup(client)) return false;
 	if(!xrtMemDebugFailAfter(0u)) return false;
 	xacmeHttpDeferOwner(&client->Http, sizeof(*client));
-	ok = !xrtAcmeCleanupPending(0u, &pending) && pending == 1u &&
+	ok = !xrtAcmeCleanupPending(0, &pending) && pending == 1u &&
 		!xrtMemDebugFailTriggered() && xrtGetError() == original &&
 		bytes_zero((uint8*)client + sizeof(xacmehttp), sizeof(*client) - sizeof(xacmehttp));
 	xrtMemDebugFailClear();
 	if(!xrtNetEngineUnpin(engine)) return false;
-	ok = xrtAcmeCleanupPending(5000000u, &pending) && pending == 0u &&
+	ok = xrtAcmeCleanupPending(5, &pending) && pending == 0u &&
 		xrtGetError() == original && ok;
 	xrtErrorFree(original);
 	if(!memory_empty() || !ok) return false;
@@ -747,13 +747,13 @@ typedef struct cleanup_task {
 static int32 cleanup_thread(ptr data)
 {
 	cleanup_task* task = (cleanup_task*)data;
-	double deadline = __xrtWaitAfter(5000000u);
+	double deadline = __xrtWaitAfter(5000);
 	if(task->client != NULL) {
 		xacmeClientDiscard(task->client);
 		return 0;
 	}
 	do {
-		task->ready = xrtAcmeCleanupPending(0u, &task->pending);
+		task->ready = xrtAcmeCleanupPending(0, &task->pending);
 		if(!task->loop || task->ready) return 0;
 		xrtSleep(1u);
 	} while(!__xrtWaitExpired(deadline));
@@ -763,7 +763,7 @@ static int32 cleanup_thread(ptr data)
 static bool join_thread(xthread* thread)
 {
 	/* Leave room for the worker's own 5s failure deadline and context teardown. */
-	xwaitresult result = thread != NULL ? xrtThreadWaitFor(thread, 8000000u) : XWAIT_ERROR;
+	xwaitresult result = thread != NULL ? xrtThreadWaitFor(thread, 8000) : XWAIT_ERROR;
 	bool ok = result == XWAIT_OK;
 	if(!ok) fprintf(stderr, "ownership thread wait=%d error=%s\n", (int)result,
 		xrtErrorMessage(xrtGetError()));
@@ -789,29 +789,29 @@ static bool deferred_claimed_owner(void)
 	xrtAtomic32Store(&HoldRetirement, 1u, XMEMORY_RELEASE);
 	thread = xrtThreadCreate(cleanup_thread, &task, 0u);
 	if(thread == NULL) return false;
-	deadline = __xrtWaitAfter(5000000u);
+	deadline = __xrtWaitAfter(5000);
 	while(xrtAtomic32Load(&HoldRetirement, XMEMORY_ACQUIRE) != 2u &&
 		!__xrtWaitExpired(deadline)) xrtSleep(1u);
 	ok = xrtAtomic32Load(&HoldRetirement, XMEMORY_ACQUIRE) == 2u &&
-		!xrtAcmeCleanupPending(0u, &pending) && pending == 1u;
+		!xrtAcmeCleanupPending(0, &pending) && pending == 1u;
 	/* This enqueue occurs while another cleanup owns the detached first item. */
 	xacmeClientDiscard(second);
-	ok = !xrtAcmeCleanupPending(0u, &pending) && pending == 2u && ok;
+	ok = !xrtAcmeCleanupPending(0, &pending) && pending == 2u && ok;
 	xrtAtomic32Store(&HoldRetirement, 3u, XMEMORY_RELEASE);
 	if(!join_thread(thread)) return false;
 	xrtAtomic32Store(&HoldRetirement, 0u, XMEMORY_RELEASE);
 	/* TryDestroy may need another worker turn even after the pin is released. */
 	ok = !task.ready && task.pending >= 1u && task.pending <= 2u && ok;
 	xrtClearError();
-	deadline = __xrtWaitAfter(5000000u);
+	deadline = __xrtWaitAfter(5000);
 	do {
-		ok = !xrtAcmeCleanupPending(0u, &pending) && ok;
+		ok = !xrtAcmeCleanupPending(0, &pending) && ok;
 		if(pending == 1u) break;
 		xrtSleep(1u);
 	} while(!__xrtWaitExpired(deadline));
 	ok = pending == 1u && ok;
 	if(!xrtNetEngineUnpin(second_engine)) return false;
-	ok = xrtAcmeCleanupPending(5000000u, &pending) && pending == 0u && ok;
+	ok = xrtAcmeCleanupPending(5, &pending) && pending == 0u && ok;
 	if(!memory_empty() || !ok) {
 		fprintf(stderr, "claimed ownership ready=%d count=%zu final=%zu\n",
 			(int)task.ready, task.pending, pending);
@@ -841,10 +841,10 @@ static bool deferred_concurrent(void)
 	xrtClearError();
 	/* First ERROR must retain every unvisited node of the detached batch. */
 	InjectRetirementError = true;
-	ok = !xrtAcmeCleanupPending(0u, &pending) && pending == 4u &&
+	ok = !xrtAcmeCleanupPending(0, &pending) && pending == 4u &&
 		strcmp(xrtErrorMessage(xrtGetError()), "injected retirement error") == 0;
 	xrtClearError();
-	ok = !xrtAcmeCleanupPending(2000u, &pending) && pending == 4u &&
+	ok = !xrtAcmeCleanupPending(2, &pending) && pending == 4u &&
 		xrtErrorKind(xrtGetError()) == XERR_TIMEOUT && ok;
 	xrtClearError();
 	for(unsigned i = 0u; i < 4u; i++) {
@@ -857,7 +857,7 @@ static bool deferred_concurrent(void)
 		if(!join_thread(threads[i])) return false;
 		ok = tasks[i].ready && tasks[i].pending == 0u && ok;
 	}
-	ok = xrtAcmeCleanupPending(0u, &pending) && pending == 0u && ok;
+	ok = xrtAcmeCleanupPending(0, &pending) && pending == 0u && ok;
 	if(!memory_empty() || !ok) {
 		fprintf(stderr, "concurrent deferred ownership final=%zu failed\n", pending); return false;
 	}
@@ -869,7 +869,7 @@ static xacmeclient* obtain_client(const xacmeclientconfig* config)
 {
 	xacmeclient* client = (xacmeclient*)xrtCalloc(1u, sizeof(*client));
 	if(client == NULL || !xacmeHttpInit(&client->Http, config->pBorrowedEngine,
-		config->sCaPem, config->uTimeoutUs)) return NULL;
+		config->sCaPem, config->uTimeoutMs)) return NULL;
 	memset(&client->AccountKey, 0xa5, sizeof(client->AccountKey));
 	return client;
 }
@@ -908,7 +908,7 @@ static bool deferred_obtain(void)
 		xrtAcmeAccountConfigInit(&account); xrtAcmeObtainConfigInit(&config);
 		account.sDirectoryUrl = "https://localhost:9/directory";
 		config.pAccount = &account; config.sStoreRoot = "unused-test-store";
-		config.sCaPem = TestCa; config.uTimeoutUs = 1u;
+		config.sCaPem = TestCa; config.uTimeoutMs = 1u;
 		ObtainSuccess = success != 0u;
 		RollbackEngine = NULL; RollbackPinned = false; RollbackFault = fault;
 		xrtClearError();
@@ -917,11 +917,11 @@ static bool deferred_obtain(void)
 		if(success == 0u) ok = ok && grant.sFullchainPem == NULL && grant.sKeyPem == NULL &&
 			strcmp(xrtErrorMessage(xrtGetError()), "original issue error") == 0;
 		else ok = ok && grant.sFullchainPem != NULL && grant.sKeyPem != NULL;
-		ok = !xrtAcmeCleanupPending(0u, &pending) && pending == 1u && ok;
+		ok = !xrtAcmeCleanupPending(0, &pending) && pending == 1u && ok;
 		xrtAcmeGrantUnit(&grant);
 		RollbackFault = 0u;
 		if(RollbackPinned && !xrtNetEngineUnpin(RollbackEngine)) return false;
-		ok = xrtAcmeCleanupPending(5000000u, &pending) && pending == 0u && ok;
+		ok = xrtAcmeCleanupPending(5, &pending) && pending == 0u && ok;
 		if(!memory_empty() || !ok) {
 			fprintf(stderr, "Obtain deferred ownership success=%u fault=%u failed\n", success, fault);
 			return false;
@@ -1003,7 +1003,7 @@ static bool dns_query_lifecycle(uint16 port)
 			xrtErrorCode(xrtGetError()) == XACME_TXT_ERROR_PROTOCOL;
 		original = xrtErrorRef(xrtGetError());
 		/* UDP Close/Abort is asynchronous; wait for the borrowed engine's live objects. */
-		deadline = __xrtWaitAfter(5000000u);
+		deadline = __xrtWaitAfter(5000);
 		do {
 			if(!xrtNetEngineStats(engine, &stats)) return false;
 			if(stats.LiveObjects == 0u) break;
@@ -1039,7 +1039,7 @@ static bool constructor_faults(void)
 			triggered = xrtMemDebugFailTriggered();
 			xrtMemDebugFailClear();
 			if(created) {
-				provider_http(kind, &provider)->uTimeoutUs = 5000000u;
+				provider_http(kind, &provider)->uTimeoutMs = 5000u;
 				switch(kind) {
 				case 0: xrtAcmeDnsAliProviderUnit(&provider); break;
 				case 1: xrtAcmeDnsCfProviderUnit(&provider); break;
@@ -1068,7 +1068,7 @@ static bool constructor_faults(void)
 		xrtAcmeClientConfigInit(&config);
 		account.sDirectoryUrl = "https://localhost:9/directory";
 		account.sAccountKeyPem = "invalid account private key";
-		config.pAccount = &account; config.sCaPem = TestCa; config.uTimeoutUs = 1u;
+		config.pAccount = &account; config.sCaPem = TestCa; config.uTimeoutMs = 1u;
 		xrtClearError();
 		if(!xrtMemDebugFailAfter(limit)) return false;
 		client = xrtAcmeClientCreate(&config);

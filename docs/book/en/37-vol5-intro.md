@@ -16,7 +16,7 @@ Volume 5 answers "how does a program deal with the operating system". The earlie
 
 ```diagram flow
 - Observation group: two logging chapters (Logger/Sink separation) + console (stream routing and degradation)
-- Foundation group: IO stream abstraction (Full semantics) + time (microseconds/UTC/calendar) + environment variables (three states/layering)
+- Foundation group: IO stream abstraction (Full semantics) + time (milliseconds/UTC/calendar) + environment variables (three states/layering)
 - Persistence group: paths (lexical/safety checks) + three file chapters (handles/mapping-lock-atomic/directory sandbox)
 - Advanced group: asynchronous files (submit-complete/Future) + signals (observers/three main entrances)
 - Finale: the debugging and diagnostics composition chapter - fault injection, statistics, and logging in joint action
@@ -40,7 +40,7 @@ Looking back: Volume 1's error model (the skeleton of every failure path here), 
 
 ### Performance view: the economics of system calls
 
-This volume's performance theme is **the economics of system calls** — every user-kernel crossing costs (microseconds), and many "strange" module designs are really saving on this bill. Directory enumeration's "zero extra stat" (one call carries out the type) turns 2N into N; IO's Full semantics tuck the retry loop into the library while also cutting round trips; memory mapping simply abolishes per-call cost (in-page access, zero crossings); async files' batch submission lets N IOs run in parallel on the pool. Once you can read this ledger, you can judge for yourself "cache this query here" versus "merge these calls here" — Chapter 137's performance-analysis file-and-IO installment will return with measuring tools to settle the accounts precisely.
+This volume's performance theme is **the economics of system calls** — every user-kernel crossing costs (milliseconds), and many "strange" module designs are really saving on this bill. Directory enumeration's "zero extra stat" (one call carries out the type) turns 2N into N; IO's Full semantics tuck the retry loop into the library while also cutting round trips; memory mapping simply abolishes per-call cost (in-page access, zero crossings); async files' batch submission lets N IOs run in parallel on the pool. Once you can read this ledger, you can judge for yourself "cache this query here" versus "merge these calls here" — Chapter 137's performance-analysis file-and-IO installment will return with measuring tools to settle the accounts precisely.
 
 ### A reminder: this volume is the antidote to "conventional wisdom"
 

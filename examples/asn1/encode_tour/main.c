@@ -62,7 +62,6 @@ int main(void)
 	/* OID 工具：Encode → Decode 往返 + Equal + xrtDerOid。 */
 	{
 		xbuffer OidBuf;
-		str sText;
 
 		xrtBufferInit(&OidBuf);
 		if ( !xrtDerOidEncode(XRT_STR_LITERAL("2.5.4.3"), &OidBuf) ) {

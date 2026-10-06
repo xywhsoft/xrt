@@ -87,7 +87,7 @@ int main(void)
 		"TCP connect timer engine start failed");
 	testTcpConnectTimerUnusedAddress(&Address);
 	xrtNetStreamConfigInit(&StreamConfig);
-	StreamConfig.ConnectTimeout = 30000000u;
+	StreamConfig.ConnectTimeout = 30000;
 	Events.Close = testTcpConnectTimerClose;
 	pStream = xrtNetStreamConnect(
 		pEngine,
@@ -99,7 +99,7 @@ int main(void)
 	);
 	testRequire(pStream != NULL,
 		"TCP connect timer stream create failed");
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( xrtAtomic32Load(&Context.Closed, XMEMORY_ACQUIRE) == 0 ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
 			"TCP connect timer close callback timed out");

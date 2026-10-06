@@ -1,8 +1,8 @@
-#include <xrt/detail/wait.h>
 #ifdef TASK_POOL_OWNERSHIP_SINGLE
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
 #endif
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #ifndef TASK_POOL_OWNERSHIP_SINGLE
 #include "../../src/internal/xrt_task.h"
@@ -29,12 +29,12 @@ static xtaskoutcome pool_run(xcancel*, ptr, xtaskvalue*);
 static void pool_drop(ptr, ptr);
 static void freeze_begin(xrtownershipscope* scope)
 {
-    double deadline=__xrtWaitAfter(5000000);
+    double deadline=__xrtWaitAfter(5000);
     while(!xrtOwnershipFreezeTryBegin(scope)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
 static void idle_freeze(xtaskpool* pool,xrtownershipscope* freeze)
 {
-    double deadline=__xrtWaitAfter(5000000);xrtownershipref ref=xrtTaskPoolOwnership(pool);size_t refs;
+    double deadline=__xrtWaitAfter(5000);xrtownershipref ref=xrtTaskPoolOwnership(pool);size_t refs;
     for(;;){freeze_begin(freeze);if(ref.Ops->Count(ref.Data,&refs))return;
         assert(xrtOwnershipScopeEnd(freeze));assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
@@ -85,7 +85,7 @@ static void active_probe(PoolCase* test)
     /* A separate thread must acquire freeze while run/drop/native bodies are
      * active. Success proves no shared mutation was held around user code. */
     xthread* thread=xrtThreadCreate(refuse_active,test,0);assert(thread);
-    assert(xrtThreadWaitFor(thread,5000000)==XWAIT_OK);xrtThreadDestroy(thread);++test->probes;
+    assert(xrtThreadWaitFor(thread,5000)==XWAIT_OK);xrtThreadDestroy(thread);++test->probes;
     assert(!xrtTaskPoolDestroy(test->pool));xrtClearError();
 }
 static xtaskoutcome pool_run(xcancel* cancel,ptr data,xtaskvalue* result)
@@ -124,7 +124,7 @@ static bool exact_job_edge(xrtownershipref ref,ptr data)
 }
 static void prepare_pool(PoolCase* test,const xrtownershippreparationv1* preparation)
 {
-    double deadline=__xrtWaitAfter(5000000);
+    double deadline=__xrtWaitAfter(5000);
     for(;;){xrtownershipprepareresult result=preparation->Prepare(test->pool,test);
         if(result==XRT_OWNERSHIP_PREPARE_READY)return;
         assert(result==XRT_OWNERSHIP_PREPARE_BUSY&&!__xrtWaitExpired(deadline));xrtThreadYield();}
@@ -216,7 +216,7 @@ static void queued(unsigned count,unsigned mode,bool oom)
 static xtaskoutcome blocker(xcancel* cancel,ptr data,xtaskvalue* result)
 {
     PoolCase* test=data;(void)cancel;(void)result;active_probe(test);
-    assert(xrtCancelRequest(test->started));double deadline=__xrtWaitAfter(5000000);
+    assert(xrtCancelRequest(test->started));double deadline=__xrtWaitAfter(5000);
     while(!xrtCancelRequested(test->gate)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     return XTASK_SUCCESS;
 }
@@ -230,7 +230,7 @@ static void opaque(void)
     xrtownershipsnapshot* snapshot=NULL;
     assert(!xrtOwnershipSnapshotCreate(&pool,1,NULL,0,admit,&test,&snapshot)&&!snapshot);xrtClearError();
     assert(xrtOwnershipScopeEnd(&freeze));
-    double deadline=__xrtWaitAfter(5000000);
+    double deadline=__xrtWaitAfter(5000);
     while(!xrtCancelRequested(test.started)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     (void)refuse_active(&test);assert(xrtCancelRequest(test.gate));
     assert(xrtTaskPoolDestroy(test.pool));xrtFutureDestroy(future);
@@ -253,7 +253,7 @@ static void reentrant_entry(void)
 static void finalizer_run(ptr data)
 {
     PoolCase* test=data;active_probe(test);assert(xrtCancelRequest(test->started));
-    double deadline=__xrtWaitAfter(5000000);
+    double deadline=__xrtWaitAfter(5000);
     while(!xrtCancelRequested(test->gate)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     ++test->drops;
 }
@@ -269,7 +269,7 @@ static void opaque_finalizer(void)
     assert(!pool.Ops->Count(pool.Data,&refs)&&refs==43);
     assert(!xrtTaskPoolOwnershipAdapterV1(pool,&preparation)&&preparation==(const xrtownershippreparationv1*)&test);
     assert(xrtOwnershipScopeEnd(&freeze));
-    double deadline=__xrtWaitAfter(5000000);
+    double deadline=__xrtWaitAfter(5000);
     while(!xrtCancelRequested(test.started)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     (void)refuse_active(&test);assert(xrtCancelRequest(test.gate));
     assert(xrtTaskPoolDestroy(test.pool)&&test.drops==1&&test.probes==1);
@@ -307,7 +307,7 @@ static void delayed_resource(bool destroy_attempt)
         assert(preparation->Prepare(pool.Data,&test)==XRT_OWNERSHIP_PREPARE_BUSY);
         xtaskpoolstats stats={0};assert(xrtTaskPoolGet(test.pool,&stats)&&!stats.Closed);
     }
-    xfuture* closed=xrtAsyncFileClose(file);assert(closed&&xrtFutureWaitFor(closed,5000000)==XWAIT_OK);
+    xfuture* closed=xrtAsyncFileClose(file);assert(closed&&xrtFutureWaitFor(closed,5000)==XWAIT_OK);
     idle_freeze(test.pool,&freeze);assert(pool.Ops->Count(pool.Data,&refs)&&refs==2);
     assert(test.adapter->Claim(pool.Data,&test));assert(xrtOwnershipScopeEnd(&freeze));
     prepare_pool(&test,preparation);idle_freeze(test.pool,&freeze);

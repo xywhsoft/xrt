@@ -286,12 +286,12 @@ typedef enum xprocessoverflow {
 
 ### `xprocessrunoptions`
 
-Run 选项把等待控制、输入、捕获边界和流式观察集中在一个稳定结构中。 Deadline 为 NEVER 时不超时；Cancel 只借用到 Run 返回。
+Run 选项把等待控制、输入、捕获边界和流式观察集中在一个稳定结构中。 Timeout 为 XRT_WAIT_FOREVER 时不超时；Cancel 只借用到 Run 返回。
 
 ```c
 typedef struct xprocessrunoptions {
 	xbytesview Input;
-	xdeadline Deadline;
+	int64 Timeout;
 	xcancel* Cancel;
 	uint64 StopGrace;
 	size_t StdoutLimit;
@@ -305,7 +305,7 @@ typedef struct xprocessrunoptions {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Input` | `xbytesview` | 输入视图 |
-| `Deadline` | `xdeadline` | 截止时间 |
+| `Timeout` | `int64` | 相对毫秒时限；`XRT_WAIT_FOREVER` 表示无限等待 |
 | `Cancel` | `xcancel*` | 取消令牌 |
 | `StopGrace` | `uint64` | StopGrace |
 | `StdoutLimit` | `size_t` | StdoutLimit |
@@ -353,7 +353,7 @@ Pipeline 选项独立表达首段输入、共享等待控制和逐流捕获边�
 ```c
 typedef struct xprocesspipelineoptions {
 	xbytesview Input;
-	xdeadline Deadline;
+	int64 Timeout;
 	xcancel* Cancel;
 	uint64 StopGrace;
 	size_t StdoutLimit;
@@ -367,7 +367,7 @@ typedef struct xprocesspipelineoptions {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Input` | `xbytesview` | 输入视图 |
-| `Deadline` | `xdeadline` | 截止时间 |
+| `Timeout` | `int64` | 相对毫秒时限；`XRT_WAIT_FOREVER` 表示无限等待 |
 | `Cancel` | `xcancel*` | 取消令牌 |
 | `StopGrace` | `uint64` | StopGrace |
 | `StdoutLimit` | `size_t` | StdoutLimit |
@@ -576,7 +576,7 @@ if ( xrtProcessCapture("git", args, 1u, &result) ) {
 
 `xprocessresult.InputWritten` 表示 stdin 在子进程提前关闭前实际写入的字节数。基础设施成功与退出码为零是两个概念：`xrtProcessRun()` 的 true 只表示运行与收口成功，使用 `xrtProcessResultSuccess()` 判断正常零退出。
 
-`xrtProcessWaitUntilCancel()` 在进程退出、绝对 Deadline 或取消令牌中等待第一个事件；进程退出与取消同时可见时，退出优先。超时与取消不会由该等待函数隐式停止进程。
+`xrtProcessWaitForCancel()` 在进程退出、绝对 Deadline 或取消令牌中等待第一个事件；进程退出与取消同时可见时，退出优先。超时与取消不会由该等待函数隐式停止进程。
 
 
 
@@ -599,8 +599,8 @@ setup 不获取或关闭无关父进程描述符。所有返回路径仍需调�
 ## 等待与状态
 
 - `xrtProcessWait()`：无限等待。
-- `xrtProcessWaitFor()`：相对微秒数。
-- `xrtProcessWaitUntil()`：绝对单调 Deadline。
+- `xrtProcessWaitFor()`：相对毫秒数。
+- `xrtProcessWaitFor()`：绝对单调 Deadline。
 - `xrtProcessStatus()`：成功等待后复制不可变状态。
 
 超时不会自动杀死进程。调用方可以继续等待，或依次调用 Interrupt、Terminate、KillTree。发送请求和观察退出是两个独立步骤。
@@ -1183,12 +1183,12 @@ xwaitresult xrtProcessWait(xprocess* pProcess)
 
 ### `xrtProcessWaitFor`
 
-在相对微秒数内等待进程退出。
+在相对毫秒数内等待进程退出。
 
 ```c
 xwaitresult xrtProcessWaitFor(
 	xprocess* pProcess,
-	uint64 iTimeout
+	int64 iTimeout
 )
 ```
 
@@ -1197,7 +1197,7 @@ xwaitresult xrtProcessWaitFor(
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pProcess` | 输入 | 非空 | 目标进程 |
-| `iTimeout` | 输入 | — | 相对等待微秒数 |
+| `iTimeout` | 输入 | — | 相对等待毫秒数 |
 
 #### 返回值
 
@@ -1220,55 +1220,14 @@ xwaitresult xrtProcessWaitFor(
 	if ( xrtProcessWaitFor(pProcess, 100000u) != XWAIT_TIMEOUT ) {
 ```
 
-### `xrtProcessWaitUntil`
-
-等待进程退出到指定单调时钟截止时间。
-
-```c
-xwaitresult xrtProcessWaitUntil(
-	xprocess* pProcess,
-	xdeadline iDeadline
-)
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pProcess` | 输入 | 非空 | 目标进程 |
-| `iDeadline` | 输入 | — | 截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 进程已退出，状态可读 | — |
-| `XWAIT_TIMEOUT` | 期限或截止时间先到达 | 不设错误 |
-| `XWAIT_ERROR` | 参数或等待失败 | `XERR_ARGUMENT` / `xrt.process` 域错误 |
-
-#### 错误
-
-- `XERR_ARGUMENT` — 句柄为空
-- `xrt.process` / `XPROCESS_ERROR_WAIT` — 平台等待失败
-
-#### 范例
-
-[tour](../../examples/process/tour/main.c) · 限期等待
-
-```c
-		(xrtProcessWaitUntil(pProcess,
-			xrtDeadlineAfter(UINT64_C(2000000))) !=
-			XWAIT_OK) ) {
-```
-
-### `xrtProcessWaitUntilCancel`
+### `xrtProcessWaitForCancel`
 
 等待进程、Deadline 或取消令牌中的首个事件。
 
 ```c
-xwaitresult xrtProcessWaitUntilCancel(
+xwaitresult xrtProcessWaitForCancel(
 	xprocess* pProcess,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 )
 ```
@@ -1278,7 +1237,7 @@ xwaitresult xrtProcessWaitUntilCancel(
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pProcess` | 输入 | 非空 | 目标进程 |
-| `iDeadline` | 输入 | — | 截止时间 |
+| `iTimeout` | 输入 | — | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -1300,8 +1259,8 @@ xwaitresult xrtProcessWaitUntilCancel(
 [tour](../../examples/process/tour/main.c) · 可取消等待
 
 ```c
-		(xrtProcessWaitUntilCancel(pProcess,
-			xrtDeadlineAfter(UINT64_C(3000000)),
+		(xrtProcessWaitForCancel(pProcess,
+			INT64_C(3000),
 			pCancel) != XWAIT_CANCELLED) ) {
 ```
 
@@ -1370,8 +1329,8 @@ bool xrtProcessTerminate(xprocess* pProcess)
 ```c
 	if ( !xrtProcessTerminate(pProcess) ||
 		!xrtProcessKill(pProcess) ||
-		(xrtProcessWaitUntil(pProcess,
-			xrtDeadlineAfter(UINT64_C(2000000))) !=
+		(xrtProcessWaitFor(pProcess,
+			INT64_C(2000)) !=
 			XWAIT_OK) ) {
 ```
 

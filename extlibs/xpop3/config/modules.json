@@ -59,7 +59,8 @@
 				"extlibs/xpop3/include/xrt/pop3.h"
 			],
 			"internal_headers": [
-				"extlibs/xpop3/src/internal/xrt_mail.h"
+				"extlibs/xpop3/src/internal/xrt_mail.h",
+				"extlibs/xpop3/include/xrt/detail/xpop3_wait.h"
 			],
 			"sources": [
 				"extlibs/xpop3/src/pop3/pop3.c"

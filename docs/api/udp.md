@@ -876,7 +876,7 @@ size_t xrtNetUdpReceiveErrorBatch(xnetudp* pUdp, xnetudperrorpacket** pPackets, 
 阻塞接收一个拥有型数据包。
 
 ```c
-xnetudppacket* xrtNetUdpReceiveWait(xnetudp* pUdp, xdeadline iDeadline, xcancel* pCancel)
+xnetudppacket* xrtNetUdpReceiveWait(xnetudp* pUdp, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -884,7 +884,7 @@ xnetudppacket* xrtNetUdpReceiveWait(xnetudp* pUdp, xdeadline iDeadline, xcancel*
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pUdp` | 输入 | 非空 | 目标 UDP |
-| `iDeadline` | 输入 | — | 截止时间 |
+| `iTimeout` | 输入 | — | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -906,7 +906,7 @@ xnetudppacket* xrtNetUdpReceiveWait(xnetudp* pUdp, xdeadline iDeadline, xcancel*
 ```c
 	pPacket = xrtNetUdpReceiveWait(
 		pServer,
-		xrtDeadlineAfter(3000000u),
+		3000,
 		NULL
 	);
 ```
@@ -916,7 +916,7 @@ xnetudppacket* xrtNetUdpReceiveWait(xnetudp* pUdp, xdeadline iDeadline, xcancel*
 阻塞接收一个拥有型结构化数据报错误。
 
 ```c
-xnetudperrorpacket* xrtNetUdpReceiveErrorWait(xnetudp* pUdp, xdeadline iDeadline, xcancel* pCancel)
+xnetudperrorpacket* xrtNetUdpReceiveErrorWait(xnetudp* pUdp, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -924,7 +924,7 @@ xnetudperrorpacket* xrtNetUdpReceiveErrorWait(xnetudp* pUdp, xdeadline iDeadline
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pUdp` | 输入 | 非空 | 目标 UDP |
-| `iDeadline` | 输入 | — | 截止时间 |
+| `iTimeout` | 输入 | — | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -946,7 +946,7 @@ xnetudperrorpacket* xrtNetUdpReceiveErrorWait(xnetudp* pUdp, xdeadline iDeadline
 ```c
 	pPacket = xrtNetUdpReceiveErrorWait(
 		pUdp,
-		xrtDeadlineAfter(3000000u),
+		3000,
 		NULL
 	);
 ```
@@ -956,7 +956,7 @@ xnetudperrorpacket* xrtNetUdpReceiveErrorWait(xnetudp* pUdp, xdeadline iDeadline
 阻塞接收一个拥有型批量结果。
 
 ```c
-xnetudpbatch* xrtNetUdpReceiveBatchWait(xnetudp* pUdp, size_t iCapacity, xdeadline iDeadline, xcancel* pCancel)
+xnetudpbatch* xrtNetUdpReceiveBatchWait(xnetudp* pUdp, size_t iCapacity, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -965,7 +965,7 @@ xnetudpbatch* xrtNetUdpReceiveBatchWait(xnetudp* pUdp, size_t iCapacity, xdeadli
 |---|---|---|---|
 | `pUdp` | 输入 | 非空 | 目标 UDP |
 | `iCapacity` | 输入 | 1–256 | 批量容量 |
-| `iDeadline` | 输入 | — | 截止时间 |
+| `iTimeout` | 输入 | — | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -987,7 +987,7 @@ xnetudpbatch* xrtNetUdpReceiveBatchWait(xnetudp* pUdp, size_t iCapacity, xdeadli
 
 ```c
 	pBatch = xrtNetUdpReceiveBatchWait(pServer, 4,
-		xrtDeadlineAfter(3000000u), NULL);
+		3000, NULL);
 ```
 
 ## PMTU、异步错误与分段合并
@@ -1233,15 +1233,15 @@ UDP Future 等待节点保持在 128 字节尺寸类以内，并共享所属 Wor
 
 ```c
 bool xrtNetUdpWait(xnetudp* pUdp, xnetudpwait Wait,
-	xdeadline iDeadline, xcancel* pCancel);
+	int64 iTimeout, xcancel* pCancel);
 bool xrtNetUdpWritable(xnetudp* pUdp, size_t iSize,
-	xdeadline iDeadline, xcancel* pCancel);
+	int64 iTimeout, xcancel* pCancel);
 xnetudppacket* xrtNetUdpReceiveWait(xnetudp* pUdp,
-	xdeadline iDeadline, xcancel* pCancel);
+	int64 iTimeout, xcancel* pCancel);
 xnetudperrorpacket* xrtNetUdpReceiveErrorWait(xnetudp* pUdp,
-	xdeadline iDeadline, xcancel* pCancel);
+	int64 iTimeout, xcancel* pCancel);
 xnetudpbatch* xrtNetUdpReceiveBatchWait(xnetudp* pUdp, size_t iCapacity,
-	xdeadline iDeadline, xcancel* pCancel);
+	int64 iTimeout, xcancel* pCancel);
 ```
 
 这些函数不能从目标 UDP 所属 Worker 调用。成功接收返回调用方拥有的普通包、错误包或批量结果，分别使用 `xrtNetUdpPacketDestroy`、`xrtNetUdpErrorPacketDestroy`、`xrtNetUdpBatchDestroy` 释放。批量构造 OOM 不会取走已排队数据包；同步 Future 构造失败也不会留下等待节点。
@@ -3120,7 +3120,7 @@ bool xrtNetUdpStats(const xnetudp* pUdp, xnetudpstats* pStats)
 阻塞等待一个 UDP 条件；禁止从该 UDP 所属 Worker 调用。
 
 ```c
-bool xrtNetUdpWait(xnetudp* pUdp, xnetudpwait Wait, xdeadline iDeadline, xcancel* pCancel)
+bool xrtNetUdpWait(xnetudp* pUdp, xnetudpwait Wait, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -3129,7 +3129,7 @@ bool xrtNetUdpWait(xnetudp* pUdp, xnetudpwait Wait, xdeadline iDeadline, xcancel
 |---|---|---|---|
 | `pUdp` | 输入 | 非空 | 目标 UDP |
 | `Wait` | 输入 | — | 等待条件 |
-| `iDeadline` | 输入 | — | 截止时间 |
+| `iTimeout` | 输入 | — | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -3152,7 +3152,7 @@ bool xrtNetUdpWait(xnetudp* pUdp, xnetudpwait Wait, xdeadline iDeadline, xcancel
 	if ( (pUdp == NULL) || !xrtNetUdpWait(
 		pUdp,
 		XNET_UDP_WAIT_OPEN,
-		xrtDeadlineAfter(3000000u),
+		3000,
 		NULL
 	) ) {
 ```
@@ -3162,7 +3162,7 @@ bool xrtNetUdpWait(xnetudp* pUdp, xnetudpwait Wait, xdeadline iDeadline, xcancel
 阻塞等待发送队列能够原子接纳指定大小的数据报。
 
 ```c
-bool xrtNetUdpWritable(xnetudp* pUdp, size_t iSize, xdeadline iDeadline, xcancel* pCancel)
+bool xrtNetUdpWritable(xnetudp* pUdp, size_t iSize, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -3171,7 +3171,7 @@ bool xrtNetUdpWritable(xnetudp* pUdp, size_t iSize, xdeadline iDeadline, xcancel
 |---|---|---|---|
 | `pUdp` | 输入 | 非空 | 目标 UDP |
 | `iSize` | 输入 | — | 数据报字节数 |
-| `iDeadline` | 输入 | — | 截止时间 |
+| `iTimeout` | 输入 | — | 截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -3191,7 +3191,7 @@ bool xrtNetUdpWritable(xnetudp* pUdp, size_t iSize, xdeadline iDeadline, xcancel
 [udp_batch](../../examples/network/udp_batch/main.c) · 阻塞等待可写
 
 ```c
-		xrtNetUdpWritable(pClient, 64, xrtDeadlineAfter(3000000u),
+		xrtNetUdpWritable(pClient, 64, 3000,
 			NULL) ? 1 : 0);
 ```
 

@@ -1,3 +1,4 @@
+#include <xrt/detail/ximap_wait.h>
 #include <xrt/detail/wait.h>
 #include <xrt/imap_client.h>
 
@@ -438,6 +439,8 @@ XRT_API ximapclient* __xrtImapClientOpen(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	ximapclient* pClient;
 	ximapevent Event;
 	ximapstatus Status = XIMAP_STATUS_NONE;
@@ -678,6 +681,8 @@ XRT_API bool __xrtImapClientSend(
 )
 {
 	if ( !__xrtImapClientWritable(pClient) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		return false;
 	}
 	if ( pClient->Active || (pClient->LiteralRemaining != 0) ||
@@ -711,6 +716,8 @@ XRT_API bool __xrtImapClientSendParts(
 )
 {
 	if ( !__xrtImapClientWritable(pClient) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		return false;
 	}
 	if ( pClient->Active || (pClient->LiteralRemaining != 0) ||
@@ -743,6 +750,8 @@ XRT_API bool __xrtImapClientWrite(
 )
 {
 	if ( !__xrtImapClientWritable(pClient) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		return false;
 	}
 	if ( !xrtMemRangeValid(pData, iSize) ) {
@@ -790,6 +799,8 @@ XRT_API bool __xrtImapClientContinue(
 	if ( !__xrtMailViewValid(Data) ||
 		(Data.Size > (pClient != NULL ?
 		 pClient->CommandLineLimit - 2u : 0)) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		__xrtMailSetInvalidArgument();
 		return false;
 	}
@@ -829,6 +840,8 @@ XRT_API bool __xrtImapClientReceive(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xstrview Line;
 	xmailnext Literal;
 
@@ -907,6 +920,8 @@ XRT_API bool __xrtImapClientReadLiteral(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	size_t iRequest;
 	size_t iRead;
 
@@ -963,6 +978,8 @@ XRT_API bool __xrtImapClientBegin(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xstrview Tag;
 
 	if ( !__xrtImapClientWritable(pClient) ) {
@@ -1003,6 +1020,8 @@ XRT_API bool __xrtImapClientBeginParts(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xstrview Tag;
 
 	if ( !__xrtImapClientWritable(pClient) ) {
@@ -1042,6 +1061,8 @@ XRT_API xmailnext __xrtImapClientNext(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return XMAIL_NEXT_ERROR; }
+
 	xstrview Active;
 
 	if ( !__xrtImapClientUsable(pClient) || !pClient->Active ||
@@ -1113,7 +1134,7 @@ size_t __xrtImapClientAppendRemaining(const ximapclient* pClient)
 
 
 /* 在 literal 完整写入后关闭 APPEND 写阶段。 */
-bool __xrtImapClientAppendEnd(ximapclient* pClient)
+bool __xrtImapClientAppendFinish(ximapclient* pClient)
 {
 	if ( !__xrtImapClientUsable(pClient) || !pClient->Active ||
 		!pClient->Append ) {
@@ -1208,6 +1229,8 @@ XRT_API bool __xrtImapClientRefresh(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	uint64 iCapabilities = 0;
 	uint64 iAppendLimit = XIMAP_APPEND_LIMIT_UNKNOWN;
 	bool bSeen = false;
@@ -1254,6 +1277,8 @@ XRT_API bool __xrtImapClientLogout(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	bool bBye = false;
 	ximapstatus Status = XIMAP_STATUS_NONE;
 	bool bSuccess;
@@ -1297,6 +1322,8 @@ XRT_API bool __xrtImapClientClose(
 	double iDeadline
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	bool bSuccess;
 
 	if ( !__xrtImapClientUsable(pClient) ) {

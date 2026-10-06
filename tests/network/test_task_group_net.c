@@ -93,7 +93,7 @@ int main(void)
 		testTaskGroupNetRun,
 		&Context,
 		&tArgs,
-		1000u
+		1
 	);
 	testRequire((pFirst != NULL) && (pSecond != NULL),
 		"network task group submission failed");
@@ -137,12 +137,12 @@ int main(void)
 		testTaskGroupNetRun,
 		&Context,
 		&tArgs,
-		__xrtWaitAfter(5000000u)
+		__xrtWaitAfter(5000)
 	);
 	testRequire(pFirst != NULL, "cancel network task group submit failed");
 	testRequire(xrtTaskGroupCancel(pGroup),
 		"network task group cancel failed");
-	testRequire(xrtTaskGroupWaitFor(pGroup, 3000000u) == XWAIT_OK,
+	testRequire(xrtTaskGroupWaitFor(pGroup, 3000) == XWAIT_OK,
 		"cancelled network task group did not drain");
 	testRequire(xrtFutureState(pFirst) == XFUTURE_CANCELLED,
 		"cancelled group network task state mismatch");

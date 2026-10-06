@@ -38,7 +38,7 @@ static void testUdpEdgeWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -51,7 +51,7 @@ static void testUdpEdgeWait(
 /* 等待 UDP 关闭。 */
 static void testUdpEdgeWaitClosed(xnetudp* pUdp)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetUdpState(pUdp) != XNET_UDP_CLOSED ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
@@ -65,7 +65,7 @@ static void testUdpEdgeWaitClosed(xnetudp* pUdp)
 /* 等待拉取队列达到目标包数。 */
 static void testUdpEdgeWaitQueued(xnetudp* pUdp, size_t iExpected)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetUdpQueued(pUdp) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
@@ -292,7 +292,7 @@ static void testUdpTruncation(
 	testUdpEdgeRawSend(Sender, &Address, "12345678", 8);
 	pPacket = NULL;
 	{
-		double iDeadline = __xrtWaitAfter(5000000u);
+		double iDeadline = __xrtWaitAfter(5000);
 
 		while ( pPacket == NULL ) {
 			pPacket = xrtNetUdpReceive(pUdp);
@@ -390,7 +390,7 @@ static void testUdpOverflow(
 	testUdpEdgeRawSend(Sender, &Address, "2", 1);
 	testUdpEdgeRawSend(Sender, &Address, "3", 1);
 	{
-		double iDeadline = __xrtWaitAfter(5000000u);
+		double iDeadline = __xrtWaitAfter(5000);
 
 		for ( ;; ) {
 			(void)xrtNetUdpStats(pUdp, &Stats);
@@ -404,7 +404,7 @@ static void testUdpOverflow(
 	}
 	testUdpEdgeWaitQueued(pUdp, 2);
 	{
-		double iDeadline = __xrtWaitAfter(5000000u);
+		double iDeadline = __xrtWaitAfter(5000);
 
 		for ( ;; ) {
 			(void)xrtNetUdpStats(pUdp, &Stats);
@@ -499,7 +499,7 @@ static void testUdpReceiveByteLimit(
 	testUdpEdgeRawSend(Sender, &Address, "bb", 2);
 	testUdpEdgeRawSend(Sender, &Address, "cccc", 4);
 	testUdpEdgeRawSend(Sender, &Address, "12345", 5);
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	for ( ;; ) {
 		testRequire(xrtNetUdpStats(pUdp, &Stats),
 			"UDP receive byte limit stats failed");
@@ -603,7 +603,7 @@ static void testUdpReleaseAbort(
 		XMEMORY_ACQUIRE
 	) == 1, "UDP release callback Abort failed");
 	for ( uint32 i = 0; i < iExpected; i++ ) {
-		double iDeadline = __xrtWaitAfter(5000000u);
+		double iDeadline = __xrtWaitAfter(5000);
 
 		do {
 			Result = xrtNetSocketRecvFrom(
@@ -707,7 +707,7 @@ static void testUdpBatchAbort(
 	) == 1, "UDP batch low-water Abort failed");
 
 	for ( uint32 i = 0; i < 2; i++ ) {
-		double iDeadline = __xrtWaitAfter(5000000u);
+		double iDeadline = __xrtWaitAfter(5000);
 
 		do {
 			Result = xrtNetSocketRecvFrom(
@@ -830,7 +830,7 @@ static void testUdpSendBudget(
 	testUdpEdgeWait(&Edge.Close, 1, "UDP close event missing");
 
 	for ( size_t i = 0; i < 2; i++ ) {
-		double iDeadline = __xrtWaitAfter(5000000u);
+		double iDeadline = __xrtWaitAfter(5000);
 		size_t iPart = 0;
 
 		for ( ;; ) {

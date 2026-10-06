@@ -245,7 +245,7 @@ int main(int argc, char** argv)
 		testRequire(xrtProcessId(pProcess) != 0u, "process id is zero");
 		testRequire(xrtProcessNative(pProcess) != -1, "process native handle missing");
 		testRequire(
-			xrtProcessWaitFor(pProcess, 0u) == XWAIT_TIMEOUT,
+			xrtProcessWaitFor(pProcess, 0) == XWAIT_TIMEOUT,
 			"zero process wait did not time out"
 		);
 		pRef = xrtProcessRef(pProcess);
@@ -410,7 +410,7 @@ int main(int argc, char** argv)
 		pProcess = xrtProcessSpawn(&Config);
 		testRequire(pProcess != NULL, "kill process spawn failed");
 		testRequire(
-			xrtProcessWaitFor(pProcess, 10000u) == XWAIT_TIMEOUT,
+			xrtProcessWaitFor(pProcess, 10) == XWAIT_TIMEOUT,
 			"long process did not time out"
 		);
 		testRequire(xrtProcessKillTree(pProcess), "process tree kill failed");

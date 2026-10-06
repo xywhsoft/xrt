@@ -46,7 +46,7 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 生成一个使用当前 Unix 微秒和 128 位系统安全随机数的 XID。 */
+/* 生成一个使用当前 Unix 毫秒和 128 位系统安全随机数的 XID。 */
 XRT_API bool xrtXidMake(xid* pXid);
 
 

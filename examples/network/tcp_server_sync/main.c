@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/tcp_server_sync —— 双面 Accept：Future 与阻塞同场
  * ----------------------------------------------------------------
@@ -19,6 +18,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -98,7 +114,7 @@ static bool exampleTcpServerWaitStop(example_tcp_server_wait* pState)
 		pState->ClientSync,
 		pState->AcceptedSync
 	};
-	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	double Deadline = exampleTimerLimit(INT64_C(5000));
 	bool bClosed = true;
 	size_t i;
 
@@ -121,7 +137,7 @@ static bool exampleTcpServerWaitStop(example_tcp_server_wait* pState)
 		if ( bDone ) {
 			break;
 		}
-		if ( __xrtWaitExpired(Deadline) ) {
+		if ( exampleTimerExpired(Deadline) ) {
 			bClosed = false;
 			break;
 		}
@@ -156,7 +172,7 @@ int main(void)
 	if ( (pAccept == NULL) || (State.ClientFuture == NULL) ||
 		(xrtFutureWaitFor(
 			pAccept,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) != XWAIT_OK) ||
 		!xrtFutureResult(pAccept, &Result) ||
 		(Result.State != XFUTURE_RESOLVED) ) {
@@ -175,9 +191,8 @@ int main(void)
 	if ( State.ClientSync == NULL ) {
 		goto Cleanup;
 	}
-	State.AcceptedSync = __xrtNetServerAcceptWait(
-		State.Server,
-		__xrtWaitAfter(UINT64_C(5000000)),
+	State.AcceptedSync = xrtNetServerAcceptWait(
+		State.Server,INT64_C(5000),
 		NULL
 	);
 	if ( State.AcceptedSync == NULL ) {
@@ -193,7 +208,7 @@ Cleanup:
 	if ( (pAccept != NULL) &&
 		(xrtFutureState(pAccept) == XFUTURE_PENDING) ) {
 		(void)xrtFutureCancel(pAccept);
-		(void)xrtFutureWaitFor(pAccept, UINT64_C(5000000));
+		(void)xrtFutureWaitFor(pAccept, INT64_C(5000));
 	}
 	xrtFutureDestroy(pAccept);
 	if ( !exampleTcpServerWaitStop(&State) && (iResult == 0) ) {

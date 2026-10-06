@@ -1,3 +1,4 @@
+#include <xrt/detail/xsmtp_wait.h>
 #include <xrt/detail/wait.h>
 #include <xrt/smtp_client.h>
 
@@ -379,6 +380,8 @@ XRT_API xsmtpclient* __xrtSmtpClientOpen(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	xsmtpclient* pClient;
 	xsmtpreply Reply;
 	bool bOpened;
@@ -614,6 +617,8 @@ XRT_API bool __xrtSmtpClientSend(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtSmtpClientSendLine(
 		pClient,
 		Line,
@@ -633,6 +638,8 @@ XRT_API bool __xrtSmtpClientAuthLine(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtSmtpClientSendLine(
 		pClient,
 		Line,
@@ -653,6 +660,8 @@ XRT_API bool __xrtSmtpClientReceive(
 )
 {
 	if ( !__xrtSmtpClientCommandMode(pClient, false) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		return false;
 	}
 	return __xrtSmtpClientReceiveMode(
@@ -677,6 +686,8 @@ XRT_API bool __xrtSmtpClientCommand(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	char sCommand[XSMTP_COMMAND_MAX + 1u];
 	size_t iSize;
 	bool bReset;
@@ -727,6 +738,8 @@ XRT_API bool __xrtSmtpClientMail(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	char sArguments[XSMTP_COMMAND_MAX + 1u];
 	size_t iSize;
 	xsmtpreply Reply;
@@ -772,6 +785,8 @@ XRT_API bool __xrtSmtpClientRcpt(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	char sArguments[XSMTP_COMMAND_MAX + 1u];
 	size_t iSize;
 	xsmtpreply Reply;
@@ -820,6 +835,8 @@ XRT_API bool __xrtSmtpClientDataBegin(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xsmtpreply Reply;
 
 	if ( !__xrtSmtpClientUsable(pClient) ||
@@ -860,6 +877,8 @@ XRT_API bool __xrtSmtpClientDataWrite(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	__xsmtpclientdatasink Sink;
 
 	if ( !__xrtSmtpClientUsable(pClient) ||
@@ -890,6 +909,8 @@ XRT_API bool __xrtSmtpClientDataEnd(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	__xsmtpclientdatasink Sink;
 	xsmtpreply Reply;
 
@@ -932,6 +953,8 @@ XRT_API bool __xrtSmtpClientData(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xbytesview Data;
 	size_t iEncoded;
 
@@ -957,6 +980,8 @@ XRT_API bool __xrtSmtpClientBdatBegin(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	char sLine[5u + (sizeof(size_t) * 3u) + 5u];
 	size_t iSize;
 
@@ -1013,6 +1038,8 @@ XRT_API bool __xrtSmtpClientBdatWrite(
 	if ( !__xrtSmtpClientUsable(pClient) ||
 		(pClient->State != XSMTP_CLIENT_CHUNK) ||
 		!pClient->ChunkActive ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		__xrtSmtpClientError(XERR_STATE, "SMTP BDAT write requires a block");
 		return false;
 	}
@@ -1046,6 +1073,8 @@ XRT_API bool __xrtSmtpClientBdatEnd(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xsmtpreply Reply;
 	bool bLast;
 
@@ -1092,6 +1121,8 @@ XRT_API bool __xrtSmtpClientBdat(
 )
 {
 	if ( !xrtMemRangeValid(Data.Data, Data.Size) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		__xrtMailSetInvalidArgument();
 		return false;
 	}
@@ -1118,6 +1149,8 @@ XRT_API bool __xrtSmtpClientReset(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xsmtpreply Reply;
 
 	if ( !__xrtSmtpClientCommand(
@@ -1150,6 +1183,8 @@ XRT_API bool __xrtSmtpClientNoop(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xsmtpreply Reply;
 
 	return __xrtSmtpClientCommand(
@@ -1171,6 +1206,8 @@ XRT_API bool __xrtSmtpClientQuit(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xsmtpreply Reply;
 
 	if ( !__xrtSmtpClientCommand(
@@ -1198,6 +1235,8 @@ XRT_API bool __xrtSmtpClientClose(
 )
 {
 	if ( !__xrtSmtpClientUsable(pClient) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		return false;
 	}
 	if ( !__xrtMailTransportClose(&pClient->Transport, iDeadline) ) {

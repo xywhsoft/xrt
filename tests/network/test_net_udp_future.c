@@ -33,7 +33,7 @@ static void testUdpFutureWait(
 )
 {
 	testRequire((pFuture != NULL) &&
-		 (xrtFutureWaitFor(pFuture, UINT64_C(5000000)) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pFuture, INT64_C(5000)) == XWAIT_OK) &&
 		 (xrtFutureState(pFuture) == State), sMessage);
 }
 
@@ -42,7 +42,7 @@ static void testUdpFutureWait(
 /* 等待 UDP 拉取队列达到指定长度。 */
 static void testUdpFutureWaitQueued(xnetudp* pUdp, size_t iCount)
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(5000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(5000));
 
 	while ( xrtNetUdpQueued(pUdp) < iCount ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
@@ -56,7 +56,7 @@ static void testUdpFutureWaitQueued(xnetudp* pUdp, size_t iCount)
 /* 等待消费式接收 Future 数量到达目标。 */
 static void testUdpFutureWaitWaiters(xnetudp* pUdp, size_t iCount)
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(5000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(5000));
 	xnetudpstats Stats;
 
 	for ( ;; ) {
@@ -345,7 +345,7 @@ int main(void)
 	iNodeHits = EngineStats.NodeCacheHits;
 	pCacheOpen = xrtNetUdpWaitAsync(pClient, XNET_UDP_WAIT_OPEN);
 	testRequire((pCacheOpen != NULL) &&
-		 (xrtFutureWaitFor(pCacheOpen, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pCacheOpen, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pCacheOpen) == XFUTURE_RESOLVED) &&
 		 xrtNetEngineStats(pEngine, &EngineStats) &&
 		 (EngineStats.NodeCacheHits > iNodeHits) &&
@@ -368,7 +368,7 @@ int main(void)
 	testRequire(pReceive != NULL, "UDP receive cancellation Future failed");
 	testRequire((xrtFutureWaitFor(
 		pReceive,
-		UINT64_C(1000)
+		INT64_C(1)
 	) == XWAIT_TIMEOUT) && !xrtFutureDone(pReceive),
 		"UDP receive Future timeout changed the operation state");
 	testRequire(xrtFutureCancel(pReceive),
@@ -540,12 +540,12 @@ int main(void)
 		"UDP Future engine destroy failed");
 	pLateClose = xrtNetUdpWaitAsync(pClient, XNET_UDP_WAIT_CLOSE);
 	testRequire((pLateClose != NULL) &&
-		 (xrtFutureWaitFor(pLateClose, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pLateClose, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pLateClose) == XFUTURE_RESOLVED),
 		"UDP late close Future used a destroyed Engine");
 	pLateClose2 = xrtNetUdpWaitAsync(pClient, XNET_UDP_WAIT_CLOSE);
 	testRequire((pLateClose2 != NULL) &&
-		 (xrtFutureWaitFor(pLateClose2, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pLateClose2, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pLateClose2) == XFUTURE_RESOLVED),
 		"UDP repeated late Future used a destroyed Engine");
 	xrtFutureDestroy(pLateClose);

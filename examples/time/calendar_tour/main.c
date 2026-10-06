@@ -6,22 +6,22 @@
  *   【构造】      xrtDate（UTC 零点）/ xrtTimeMake（按分解结构）
  *   【字段提取】  xrtYear / Month / Day / Hour / Minute / Second /
  *                  Millisecond / Weekday / DayOfYear / Quarter /
- *                  xrtDatePart（当日零点）/ xrtTimePart（日内微秒）
+ *                  xrtDatePart（当日零点）/ xrtTimePart（日内毫秒）
  *   【ISO 周历】  xrtISOWeek（周日为 7，跨年归上一周年）
  *   【Unix 换算】 xrtTimeFromUnix / xrtTimeUnix /
- *                  xrtTimeFromUnixMs / xrtTimeUnixMs
+ *                  xrtTimeFromUnixMs / xrtTimeToUnixMs
  * 模块宏：XRT_MODULE_TIME
  * 编译（单头形态，Windows）：
  *   gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c ${BS}
  *       examples/time/calendar_tour/main.c
  * 预期输出：
  *   calendar: leap(2000=1 1900=0 2024=1) feb(2024=29 2023=28) year=366
- *   fields: 2024-03-10 Sun 12:34:56.789012 yday=70 q=1
- *   parts: date-part=1710028800 time-part=45296789012
+ *   fields: 2024-03-10 Sun 12:34:56.789 yday=70 q=1
+ *   parts: date-part=1710028800 time-part=45296789
  *   iso-week: 2024-W10-7, 2023-01-01 -> 2022-W52-7
  *   unix: 1710074096 / 1710074096789 roundtrip=ok
  *
- * 基准时刻取 2024-03-10T12:34:56.789012Z（周日、闰年、
+ * 基准时刻取 2024-03-10T12:34:56.789Z（周日、闰年、
  *   第 70 天、Q1、ISO 第 10 周）——一个把所有字段都
  *   撑出非平凡值的时间点，断言全部对齐预先算好的常数。
  */
@@ -31,12 +31,11 @@
 
 #define SV(x) XRT_STR_LITERAL(x)
 
-/* 基准时刻 2024-03-10T12:34:56.789012Z 的预先计算常数。 */
-#define EXAMPLE_EPOCH_US	INT64_C(1710074096789012)
+/* 基准时刻 2024-03-10T12:34:56.789Z 的预先计算常数。 */
 #define EXAMPLE_EPOCH_S	INT64_C(1710074096)
 #define EXAMPLE_EPOCH_MS	INT64_C(1710074096789)
-#define EXAMPLE_MIDNIGHT	INT64_C(1710028800000000)
-#define EXAMPLE_TIME_PART	INT64_C(45296789012)
+#define EXAMPLE_MIDNIGHT	(XRT_TIME_UNIX_EPOCH + INT64_C(1710028800000))
+#define EXAMPLE_TIME_PART	INT64_C(45296789)
 
 
 
@@ -50,6 +49,7 @@ int main(void)
 	int64 iWeekYear;
 	int iWeek;
 	int iWeekday;
+	int64 UnixMs, RoundtripMs;
 
 	/* 历法查询：整除规则 1900 不闰、2000/2024 闰；闰年二月 29 天。 */
 	printf("calendar: leap(2000=%d 1900=%d 2024=%d)",
@@ -60,13 +60,13 @@ int main(void)
 		xrtDaysInMonth(2024, 2), xrtDaysInMonth(2023, 2));
 	printf(" year=%d\n", xrtDaysInYear(2024));
 
-	/* 全微秒精度基准：直接按字段构造（FromUnix 只有秒精度）。 */
+	/* 全毫秒精度基准：直接按字段构造（FromUnix 只有秒精度）。 */
 	if ( !xrtDateTime(2024, 3, 10, 12, 34, 56, 789, &Moment) ) {
 		return 1;
 	}
 
-	/* 字段提取：年月日时分秒微秒 + 星期 + 年内日 + 季度。 */
-	printf("fields: %lld-%02d-%02d Sun %02d:%02d:%02d.%06d",
+	/* 字段提取：年月日时分秒毫秒 + 星期 + 年内日 + 季度。 */
+	printf("fields: %lld-%02d-%02d Sun %02d:%02d:%02d.%03d",
 		(long long)xrtYear(Moment),
 		xrtMonth(Moment), xrtDay(Moment),
 		xrtHour(Moment), xrtMinute(Moment),
@@ -85,7 +85,7 @@ int main(void)
 	/* DatePart / TimePart：零点与日内偏移拼回原时刻。 */
 	Midnight = xrtDatePart(Moment);
 	printf("parts: date-part=%lld",
-		(long long)xrtTimeUnixMs(Midnight) / 1000);
+		(long long)xrtTimeUnix(Midnight));
 	printf(" time-part=%lld\n", (long long)xrtTimePart(Moment));
 	if ( (Midnight != EXAMPLE_MIDNIGHT) ||
 		 (xrtTimePart(Moment) != EXAMPLE_TIME_PART) ) {
@@ -130,19 +130,20 @@ int main(void)
 		}
 	}
 
-	/* Unix 秒/毫秒双精度换算：毫秒精度只能还原毫秒（.789012 → .789000）。 */
+	/* Unix 秒/毫秒双精度换算：毫秒精度只能还原毫秒（.789 → .789000）。 */
 	if ( !xrtTimeFromUnixMs(EXAMPLE_EPOCH_MS, &FromMs) ||
-		 (xrtTimeUnixMs(FromMs) != EXAMPLE_EPOCH_MS) ||
-		 (xrtTimeUnixMs(Moment) != EXAMPLE_EPOCH_MS) ) {
+        !xrtTimeToUnixMs(FromMs, &RoundtripMs) || !xrtTimeToUnixMs(Moment, &UnixMs) ||
+		 (RoundtripMs != EXAMPLE_EPOCH_MS) ||
+		 (UnixMs != EXAMPLE_EPOCH_MS) ) {
 		return 7;
 	}
 	FromS = Moment;
 	(void)xrtTimeFromUnix(xrtTimeUnix(Moment), &FromS);
 	printf("unix: %lld / %lld roundtrip=%s\n",
 		(long long)xrtTimeUnix(Moment),
-		(long long)xrtTimeUnixMs(Moment),
+		(long long)UnixMs,
 		(xrtTimeUnix(FromS) == EXAMPLE_EPOCH_S &&
-		 xrtTimeUnixMs(FromMs) == EXAMPLE_EPOCH_MS) ? "ok" : "fail");
+		 RoundtripMs == EXAMPLE_EPOCH_MS) ? "ok" : "fail");
 	return (xrtTimeUnix(FromS) == EXAMPLE_EPOCH_S &&
-		xrtTimeUnixMs(FromMs) == EXAMPLE_EPOCH_MS) ? 0 : 8;
+		RoundtripMs == EXAMPLE_EPOCH_MS) ? 0 : 8;
 }

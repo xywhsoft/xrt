@@ -14,8 +14,8 @@
 
 | 成员 | 含义 |
 | --- | --- |
-| `Date` | 第一个 `Date` 在有效时的值，Unix Epoch 微秒 |
-| `Expires` | 第一个 `Expires` 在有效时的值，Unix Epoch 微秒 |
+| `Date` | 第一个 `Date` 在有效时的值，公元 UTC 毫秒 |
+| `Expires` | 第一个 `Expires` 在有效时的值，公元 UTC 毫秒 |
 | `Age` | 合并 `Age` 列表的第一个非空成员，单位为秒 |
 | `DateCount` | `Date` 字段行数 |
 | `AgeCount` | `Age` 字段行数 |
@@ -47,11 +47,11 @@ resident_time = now_clock - response_clock
 current_age = corrected_initial_age + resident_time
 ```
 
-`ResponseTime` 是收到响应时的 Unix Epoch 微秒墙钟。`RequestClock`、
-`ResponseClock` 和 `NowClock` 必须来自同一个 `xrtClock()` 单调时钟，且保持
+`ResponseTime` 是收到响应时的 公元 UTC 毫秒墙钟。`RequestClock`、
+`ResponseClock` 和 `NowClock` 必须来自同一个 `xrtTimer()` 单调时钟，且保持
 非递减顺序。分开两个时钟域可以避免系统时间校准使驻留时间变负。
 
-`xhttpcacheage` 公开公式的全部中间量，单位均为微秒。`CurrentAgeSeconds` 是可用于
+`xhttpcacheage` 公开公式的全部中间量，单位均为毫秒。`CurrentAgeSeconds` 是可用于
 生成 `Age` 字段的饱和秒数。所有累加都检测溢出并饱和，不会回绕为较年轻的响应。
 
 不存在 `Date` 或单个 `Date` 非法时使用 `ResponseTime`。非法或重复 `Age`

@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：concurrency/coroutine_tour —— 协程全接口（调度/生命周期/事件）
  * ----------------------------------------------------------------
@@ -33,8 +32,8 @@
 #include <string.h>
 #include <xrt.h>
 
-#define EXAMPLE_SHORT_US	UINT64_C(100000)
-#define EXAMPLE_LONG_US	UINT64_C(3000000)
+#define EXAMPLE_SHORT_MS	INT64_C(100)
+#define EXAMPLE_LONG_MS	UINT64_C(3000000)
 
 /* PostOwned 析构计数。 */
 static volatile int g_Destroyed = 0;
@@ -70,7 +69,7 @@ static ptr exampleCoLife(ptr pData)
 	pJob->iStopping = xrtCoStopping() ? 1 : 0;
 	pJob->pToken = xrtCoCancelToken(pSelf);
 	pJob->pSched = xrtCoSchedCurrent();
-	(void)__xrtCoSleepUntil(__xrtWaitAfter(EXAMPLE_SHORT_US));
+	(void)xrtCoSleepFor(EXAMPLE_SHORT_MS);
 	return (ptr)1;
 }
 
@@ -78,7 +77,7 @@ static ptr exampleCoLife(ptr pData)
 static ptr exampleCoSleeper(ptr pData)
 {
 	(void)pData;
-	(void)xrtCoSleep(EXAMPLE_SHORT_US);
+	(void)xrtCoSleep(EXAMPLE_SHORT_MS);
 	return (ptr)2;
 }
 
@@ -95,10 +94,9 @@ static ptr exampleCoJoiner(ptr pData)
 
 	/* 目标在睡：短窗口必然 TIMEOUT。 */
 	pJob->iForResult = (int)xrtCoJoinFor(pJob->pTarget,
-		UINT64_C(1));
+		INT64_C(1));
 	/* 目标很快完成：长截止必然 OK。 */
-	pJob->iUntilResult = (int)__xrtCoJoinUntil(pJob->pTarget,
-		__xrtWaitAfter(EXAMPLE_LONG_US));
+	pJob->iUntilResult = (int)xrtCoJoinFor(pJob->pTarget,EXAMPLE_LONG_MS);
 	return NULL;
 }
 
@@ -113,10 +111,9 @@ static ptr exampleCoParker(ptr pData)
 	exampleparkjob* pJob = (exampleparkjob*)pData;
 
 	/* 长超时 Park，由唤醒协程 Wake。 */
-	pJob->iForResult = (int)xrtCoParkFor(EXAMPLE_LONG_US);
+	pJob->iForResult = (int)xrtCoParkFor(EXAMPLE_LONG_MS);
 	/* 已过期截止：立即 TIMEOUT（无人唤醒）。 */
-	pJob->iUntilResult = (int)__xrtCoParkUntil(
-		__xrtWaitAfter(UINT64_C(1)));
+	pJob->iUntilResult = (int)xrtCoParkFor(INT64_C(1));
 	return NULL;
 }
 
@@ -125,7 +122,7 @@ static ptr exampleCoWaker(ptr pData)
 {
 	xcoro* pParker = (xcoro*)pData;
 
-	(void)xrtCoSleep(EXAMPLE_SHORT_US);
+	(void)xrtCoSleep(EXAMPLE_SHORT_MS);
 	(void)xrtCoWake(pParker);
 	return NULL;
 }
@@ -143,12 +140,11 @@ static ptr exampleCoWaiter(ptr pData)
 	if ( xrtCoEventTryAwait(pJob->pAuto) == XWAIT_OK ) {
 		pJob->iWoken = pJob->iWoken + 1;
 	}
-	if ( xrtCoEventAwaitFor(pJob->pAuto, EXAMPLE_LONG_US) ==
+	if ( xrtCoEventAwaitFor(pJob->pAuto, EXAMPLE_LONG_MS) ==
 		XWAIT_OK ) {
 		pJob->iWoken = pJob->iWoken + 1;
 	}
-	if ( __xrtCoEventAwaitUntil(pJob->pAuto,
-			__xrtWaitAfter(EXAMPLE_LONG_US)) == XWAIT_OK ) {
+	if ( xrtCoEventAwaitFor(pJob->pAuto,EXAMPLE_LONG_MS) == XWAIT_OK ) {
 		pJob->iWoken = pJob->iWoken + 1;
 	}
 	return NULL;
@@ -205,11 +201,10 @@ int main(void)
 		(xrtCoSchedAlive(pStep) != 0u) ||
 		(xrtCoSchedStep(pStep) != XWAIT_OK) ||
 		!xrtCoSchedPost(pStep, examplePostProc, NULL) ||
-		(xrtCoSchedPollFor(pStep, EXAMPLE_LONG_US) !=
+		(xrtCoSchedPollFor(pStep, EXAMPLE_LONG_MS) !=
 			XWAIT_OK) ||
 		!xrtCoSchedPost(pStep, examplePostProc, NULL) ||
-		(__xrtCoSchedPollUntil(pStep,
-			__xrtWaitAfter(EXAMPLE_LONG_US)) !=
+		(xrtCoSchedPollFor(pStep,EXAMPLE_LONG_MS) !=
 			XWAIT_OK) ||
 		!xrtCoSchedDestroy(pStep) ) {
 		goto Cleanup;

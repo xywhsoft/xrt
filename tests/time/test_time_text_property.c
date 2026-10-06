@@ -129,8 +129,7 @@ static void testTimeHTTPDateProperty(void)
 
 		memset(&tDateTime, 0, sizeof(tDateTime));
 		tDateTime.Year = (int64)(testTimeTextRandom(&iState) %
-			UINT64_C(10000));
-		if ( tDateTime.Year == 0 ) { tDateTime.Year = -1; }
+			UINT64_C(9999)) + 1;
 		tDateTime.Month = (int)(testTimeTextRandom(&iState) % 12u) + 1;
 		tDateTime.Day = (int)(testTimeTextRandom(&iState) %
 			(uint64)xrtDaysInMonth(tDateTime.Year, tDateTime.Month)) + 1;

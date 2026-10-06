@@ -426,8 +426,8 @@ xchannelresult xrtChannelTryRecv(
 
 ## 等待操作
 
-`xrtChannelSend` / `Recv` 无限等待。`SendFor` / `RecvFor` 接收相对微秒数，
-`SendUntil` / `RecvUntil` 接收由单调时钟构造的 `xdeadline`。可取消层保持
+`xrtChannelSend` / `Recv` 无限等待。`SendFor` / `RecvFor` 接收相对毫秒数，
+`SendUntil` / `RecvUntil` 接收由单调时钟构造的 `int64`。可取消层保持
 同一口径：`SendCancel` / `RecvCancel` 无限等待，`SendForCancel` /
 `RecvForCancel` 使用相对时限，`SendUntilCancel` / `RecvUntilCancel` 使用
 绝对截止时间。传入空取消令牌时，行为与对应的普通 deadline API 一致。
@@ -486,18 +486,18 @@ xwaitresult xrtChannelSend(xchannel* pChannel, ptr pItem);
 ```c
 (xrtChannelSend(pHeap, (ptr)1) != XWAIT_OK) ||
 (xrtChannelSendFor(pHeap, (ptr)2,
-	EXAMPLE_TIMEOUT_US) != XWAIT_OK) ||
+	EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ||
 ```
 
 ### `xrtChannelSendFor`
 
-在相对微秒数内等待发送一个指针值。
+在相对毫秒数内等待发送一个指针值。
 
 ```c
 xwaitresult xrtChannelSendFor(
 	xchannel* pChannel,
 	ptr pItem,
-	uint64 iTimeout
+	int64 iTimeout
 );
 ```
 
@@ -507,7 +507,7 @@ xwaitresult xrtChannelSendFor(
 |---|---|---|---|
 | `pChannel` | 输入/输出 | 非空 | 目标 Channel |
 | `pItem` | 输入 | 允许空 | 要发送的指针值 |
-| `iTimeout` | 输入 | 微秒 | 相对时限；零等价 try 语义 |
+| `iTimeout` | 输入 | 毫秒 | 相对时限；零等价 try 语义 |
 
 #### 返回值
 
@@ -528,54 +528,10 @@ xwaitresult xrtChannelSendFor(
 
 ```c
 (xrtChannelSendFor(pHeap, (ptr)4,
-	EXAMPLE_TIMEOUT_US) != XWAIT_TIMEOUT) ||
-(xrtChannelSendUntil(pHeap, (ptr)4,
-	xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) !=
+	EXAMPLE_TIMEOUT_MS) != XWAIT_TIMEOUT) ||
+(xrtChannelSendFor(pHeap, (ptr)4,
+	EXAMPLE_TIMEOUT_MS) !=
 	XWAIT_TIMEOUT) ) {
-```
-
-### `xrtChannelSendUntil`
-
-等待发送一个指针值到指定单调时钟截止时间。
-
-```c
-xwaitresult xrtChannelSendUntil(
-	xchannel* pChannel,
-	ptr pItem,
-	xdeadline iDeadline
-);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pChannel` | 输入/输出 | 非空 | 目标 Channel |
-| `pItem` | 输入 | 允许空 | 要发送的指针值 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 已提交 | — |
-| `XWAIT_TIMEOUT` | 到期未提交 | 不设置错误 |
-| `XWAIT_CLOSED` | 发送端已关闭 | 不设置错误 |
-| `XWAIT_ERROR` | 参数或状态错误 | 错误经 `xrtGetError()` 报告 |
-
-#### 错误
-
-- `XERR_ARGUMENT` / `XERR_STATE` — 同 `xrtChannelSend`
-
-#### 范例
-
-[concurrency/channel_tour · 阻塞族](../../examples/concurrency/channel_tour/main.c) · 空通道 + 远期截止的正常路径
-
-```c
-if ( xrtChannelSendUntil(pHeap, (ptr)3,
-		xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) != XWAIT_OK ) {
-	goto Cleanup;
-}
 ```
 
 ### `xrtChannelRecv`
@@ -618,13 +574,13 @@ while ( xrtChannelRecv(pChannel, &pItem) == XWAIT_OK ) {
 
 ### `xrtChannelRecvFor`
 
-在相对微秒数内等待接收一个指针值。
+在相对毫秒数内等待接收一个指针值。
 
 ```c
 xwaitresult xrtChannelRecvFor(
 	xchannel* pChannel,
 	ptr* pItem,
-	uint64 iTimeout
+	int64 iTimeout
 );
 ```
 
@@ -634,7 +590,7 @@ xwaitresult xrtChannelRecvFor(
 |---|---|---|---|
 | `pChannel` | 输入/输出 | 非空 | 目标 Channel |
 | `pItem` | 输出 | 非空、独立 | 接收输出 |
-| `iTimeout` | 输入 | 微秒 | 相对时限 |
+| `iTimeout` | 输入 | 毫秒 | 相对时限 |
 
 #### 返回值
 
@@ -655,60 +611,12 @@ xwaitresult xrtChannelRecvFor(
 
 ```c
 if ( (xrtChannelRecvFor(pHeap, &pItem,
-		EXAMPLE_TIMEOUT_US) != XWAIT_OK) ||
+		EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ||
 	(pItem != (ptr)1) ||
-	(xrtChannelRecvUntil(pHeap, &pItem,
-		xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) !=
+	(xrtChannelRecvFor(pHeap, &pItem,
+		EXAMPLE_TIMEOUT_MS) !=
 		XWAIT_OK) ||
 ```
-
-### `xrtChannelRecvUntil`
-
-等待接收一个指针值到指定单调时钟截止时间。
-
-```c
-xwaitresult xrtChannelRecvUntil(
-	xchannel* pChannel,
-	ptr* pItem,
-	xdeadline iDeadline
-);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pChannel` | 输入/输出 | 非空 | 目标 Channel |
-| `pItem` | 输出 | 非空、独立 | 接收输出 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 已取得值 | — |
-| `XWAIT_TIMEOUT` | 到期无值 | 不设置错误 |
-| `XWAIT_CLOSED` | 已关闭且已排空 | 不设置错误 |
-| `XWAIT_ERROR` | 参数或状态错误 | 输出未写入；错误经 `xrtGetError()` 报告 |
-
-#### 错误
-
-- `XERR_ARGUMENT` / `XERR_STATE` — 同 `xrtChannelRecv`
-
-#### 范例
-
-[concurrency/channel_tour · 阻塞族](../../examples/concurrency/channel_tour/main.c) · Until 形态取第二个值
-
-```c
-(xrtChannelRecvUntil(pHeap, &pItem,
-	xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) !=
-	XWAIT_OK) ||
-(pItem != (ptr)2) ||
-```
-
-## 可取消等待
-
-可取消层在 deadline 语义之上增加取消令牌中断：令牌触发时，尚未提交的操作返回 `XWAIT_CANCELLED`。空令牌等价于对应的普通 deadline API。
 
 ### `xrtChannelSendCancel`
 
@@ -754,13 +662,13 @@ if ( (xrtChannelSendCancel(pHeap, (ptr)9,
 
 ### `xrtChannelSendForCancel`
 
-在相对微秒数内等待发送，并允许取消令牌中断尚未提交的操作。
+在相对毫秒数内等待发送，并允许取消令牌中断尚未提交的操作。
 
 ```c
 xwaitresult xrtChannelSendForCancel(
 	xchannel* pChannel,
 	ptr pItem,
-	uint64 iTimeout,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 ```
@@ -771,7 +679,7 @@ xwaitresult xrtChannelSendForCancel(
 |---|---|---|---|
 | `pChannel` | 输入/输出 | 非空 | 目标 Channel |
 | `pItem` | 输入 | 允许空 | 要发送的指针值 |
-| `iTimeout` | 输入 | 微秒 | 相对时限 |
+| `iTimeout` | 输入 | 毫秒 | 相对时限 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -795,52 +703,6 @@ xwaitresult xrtChannelSendForCancel(
 ```c
 pJob->Result = xrtChannelSendForCancel(pJob->pChannel, (ptr)1,
 	UINT64_C(10000000), pJob->pCancel);
-```
-
-### `xrtChannelSendUntilCancel`
-
-等待发送到截止时间，并允许取消令牌中断尚未提交的操作。
-
-```c
-xwaitresult xrtChannelSendUntilCancel(
-	xchannel* pChannel,
-	ptr pItem,
-	xdeadline iDeadline,
-	xcancel* pCancel
-);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pChannel` | 输入/输出 | 非空 | 目标 Channel |
-| `pItem` | 输入 | 允许空 | 要发送的指针值 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-| `pCancel` | 输入 | 允许空 | 取消令牌 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 已提交 | — |
-| `XWAIT_TIMEOUT` | 到期未提交 | 不设置错误 |
-| `XWAIT_CANCELLED` | 提交前被令牌中断 | 不设置错误 |
-| `XWAIT_CLOSED` | 发送端已关闭 | 不设置错误 |
-| `XWAIT_ERROR` | 参数或状态错误 | 错误经 `xrtGetError()` 报告 |
-
-#### 错误
-
-- `XERR_ARGUMENT` / `XERR_STATE` — 同 `xrtChannelSend`
-
-#### 范例
-
-[concurrency/channel_tour · 取消族](../../examples/concurrency/channel_tour/main.c) · 已触发令牌的立即路径
-
-```c
-(xrtChannelSendUntilCancel(pHeap, (ptr)9,
-	xrtDeadlineAfter(UINT64_C(1000000)),
-	SendJob.pCancel) != XWAIT_CANCELLED) ||
 ```
 
 ### `xrtChannelRecvCancel`
@@ -887,13 +749,13 @@ printf("cancelled: %s\n", iResult == XWAIT_CANCELLED ? "yes" : "no");
 
 ### `xrtChannelRecvForCancel`
 
-在相对微秒数内等待接收，并允许取消令牌中断尚未完成的操作。
+在相对毫秒数内等待接收，并允许取消令牌中断尚未完成的操作。
 
 ```c
 xwaitresult xrtChannelRecvForCancel(
 	xchannel* pChannel,
 	ptr* pItem,
-	uint64 iTimeout,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 ```
@@ -904,7 +766,7 @@ xwaitresult xrtChannelRecvForCancel(
 |---|---|---|---|
 | `pChannel` | 输入/输出 | 非空 | 目标 Channel |
 | `pItem` | 输出 | 非空、独立 | 接收输出 |
-| `iTimeout` | 输入 | 微秒 | 相对时限 |
+| `iTimeout` | 输入 | 毫秒 | 相对时限 |
 | `pCancel` | 输入 | 允许空 | 取消令牌 |
 
 #### 返回值
@@ -930,53 +792,6 @@ xwaitresult xrtChannelRecvForCancel(
 	UINT64_C(1000000), RecvJob.pCancel) !=
 	XWAIT_CANCELLED) ||
 ```
-
-### `xrtChannelRecvUntilCancel`
-
-等待接收到截止时间，并允许取消令牌中断尚未完成的操作。
-
-```c
-xwaitresult xrtChannelRecvUntilCancel(
-	xchannel* pChannel,
-	ptr* pItem,
-	xdeadline iDeadline,
-	xcancel* pCancel
-);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pChannel` | 输入/输出 | 非空 | 目标 Channel |
-| `pItem` | 输出 | 非空、独立 | 接收输出 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-| `pCancel` | 输入 | 允许空 | 取消令牌 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 已取得值 | — |
-| `XWAIT_TIMEOUT` | 到期无值 | 不设置错误 |
-| `XWAIT_CANCELLED` | 完成前被令牌中断 | 不设置错误 |
-| `XWAIT_CLOSED` | 已关闭且已排空 | 不设置错误 |
-| `XWAIT_ERROR` | 参数或状态错误 | 输出未写入；错误经 `xrtGetError()` 报告 |
-
-#### 错误
-
-- `XERR_ARGUMENT` / `XERR_STATE` — 同 `xrtChannelRecv`
-
-#### 范例
-
-[concurrency/channel_tour · 取消族](../../examples/concurrency/channel_tour/main.c) · 等待线程空通道上挂起
-
-```c
-pJob->Result = xrtChannelRecvUntilCancel(pJob->pChannel, &pItem,
-	xrtDeadlineAfter(UINT64_C(10000000)), pJob->pCancel);
-```
-
-## 查询、关闭与重置
 
 ### `xrtChannelCount`
 
@@ -1406,13 +1221,13 @@ if (
 
 ### `xrtChannelSelectFor`
 
-在相对微秒数内等待任意一个 case 原子提交。
+在相对毫秒数内等待任意一个 case 原子提交。
 
 ```c
 xchannelselectresult xrtChannelSelectFor(
 	const xchannelcase* pCases,
 	size_t iCount,
-	uint64 iTimeout
+	int64 iTimeout
 );
 ```
 
@@ -1422,7 +1237,7 @@ xchannelselectresult xrtChannelSelectFor(
 |---|---|---|---|
 | `pCases` | 输入 | 非空 | case 数组 |
 | `iCount` | 输入 | `> 0` | case 数量 |
-| `iTimeout` | 输入 | 微秒 | 相对时限 |
+| `iTimeout` | 输入 | 毫秒 | 相对时限 |
 
 #### 返回值
 
@@ -1441,64 +1256,21 @@ xchannelselectresult xrtChannelSelectFor(
 [concurrency/channel_tour · Select 族](../../examples/concurrency/channel_tour/main.c) · 两侧都不就绪必然超时
 
 ```c
-Select = xrtChannelSelectFor(Cases, 2u, EXAMPLE_TIMEOUT_US);
+Select = xrtChannelSelectFor(Cases, 2u, EXAMPLE_TIMEOUT_MS);
 if ( Select.Wait != XWAIT_TIMEOUT ) {
 	goto Cleanup;
 }
 ```
 
-### `xrtChannelSelectUntil`
-
-等待任意一个 case 原子提交到指定单调时钟截止时间。
-
-```c
-xchannelselectresult xrtChannelSelectUntil(
-	const xchannelcase* pCases,
-	size_t iCount,
-	xdeadline iDeadline
-);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pCases` | 输入 | 非空 | case 数组 |
-| `iCount` | 输入 | `> 0` | case 数量 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `Wait == XWAIT_OK` | 某 case 已提交 | — |
-| `Wait == XWAIT_TIMEOUT` | 到期无 case 提交 | 不设置错误 |
-| `Wait == XWAIT_ERROR` | 参数或状态错误 | 错误经 `xrtGetError()` 报告 |
-
-#### 错误
-
-- `XERR_ARGUMENT` / `XERR_STATE` — 同 `xrtChannelSelectTry`
-
-#### 范例
-
-[concurrency/channel_tour · Select 族](../../examples/concurrency/channel_tour/main.c) · 放入一条后选中接收 case
-
-```c
-Select = xrtChannelSelectUntil(Cases, 2u,
-	xrtDeadlineAfter(UINT64_C(1000000)));
-if ( (Select.Wait != XWAIT_OK) || (Select.Index != 1u) ||
-	(pItem != (ptr)30) ) {
-```
-
-### `xrtChannelSelectUntilCancel`
+### `xrtChannelSelectForCancel`
 
 等待任意 case 提交，并允许取消令牌中断未提交的选择。
 
 ```c
-xchannelselectresult xrtChannelSelectUntilCancel(
+xchannelselectresult xrtChannelSelectForCancel(
 	const xchannelcase* pCases,
 	size_t iCount,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 ```
@@ -1509,7 +1281,7 @@ xchannelselectresult xrtChannelSelectUntilCancel(
 |---|---|---|---|
 | `pCases` | 输入 | 非空 | case 数组 |
 | `iCount` | 输入 | `> 0` | case 数量 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
+| `iTimeout` | 输入 | 单调时钟 | 绝对截止时间 |
 | `pCancel` | 输入 | 允许空 | 取消令牌；空走普通 Until 语义 |
 
 #### 返回值
@@ -1531,10 +1303,10 @@ xchannelselectresult xrtChannelSelectUntilCancel(
 
 ```c
 Case = xrtChannelCaseRecv(&Channel, &pValue);
-Result = xrtChannelSelectUntilCancel(
+Result = xrtChannelSelectForCancel(
 	&Case,
 	1u,
-	XRT_DEADLINE_NEVER,
+	XRT_WAIT_FOREVER,
 	pCancel
 );
 ```
@@ -1542,7 +1314,7 @@ Result = xrtChannelSelectUntilCancel(
 ## 协程等待
 
 `xrtChannelSendAwait` / `RecvAwait` 在当前调度协程中挂起，不会阻塞调度器所属
-原生线程。`AwaitFor` 与 `AwaitUntil` 分别接收相对微秒数和单调时钟截止时间。
+原生线程。`AwaitFor` 与 `AwaitUntil` 分别接收相对毫秒数和单调时钟截止时间。
 它们自动响应当前协程的取消请求，不需要另传一个取消令牌。
 
 `xrtChannelSelectAwait`、`SelectAwaitFor` 和 `SelectAwaitUntil` 是同一原子选择
@@ -1613,7 +1385,7 @@ if (
 xwaitresult xrtChannelSendAwaitFor(
 	xchannel* pChannel,
 	ptr pItem,
-	uint64 iTimeout
+	int64 iTimeout
 );
 ```
 
@@ -1623,7 +1395,7 @@ xwaitresult xrtChannelSendAwaitFor(
 |---|---|---|---|
 | `pChannel` | 输入/输出 | 非空 | 目标 Channel |
 | `pItem` | 输入 | 允许空 | 要发送的指针值 |
-| `iTimeout` | 输入 | 微秒 | 相对期限 |
+| `iTimeout` | 输入 | 毫秒 | 相对期限 |
 
 #### 返回值
 
@@ -1644,49 +1416,7 @@ xwaitresult xrtChannelSendAwaitFor(
 
 ```c
 return (ptr)(uintptr_t)xrtChannelSendAwaitFor(pChannel, (ptr)1,
-	EXAMPLE_TIMEOUT_US);
-```
-
-### `xrtChannelSendAwaitUntil`
-
-在当前调度协程中挂起发送，直到绝对截止时间。
-
-```c
-xwaitresult xrtChannelSendAwaitUntil(
-	xchannel* pChannel,
-	ptr pItem,
-	xdeadline iDeadline
-);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pChannel` | 输入/输出 | 非空 | 目标 Channel |
-| `pItem` | 输入 | 允许空 | 要发送的指针值 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 已提交 | — |
-| `XWAIT_TIMEOUT` | 到期未提交 | 不设置错误 |
-| `XWAIT_CLOSED` | 发送端已关闭 | 不设置错误 |
-| `XWAIT_ERROR` | 参数/状态错误或非协程上下文 | 错误经 `xrtGetError()` 报告 |
-
-#### 错误
-
-- `XERR_ARGUMENT` / `XERR_STATE` — 同 `xrtChannelSendAwait`
-
-#### 范例
-
-[concurrency/channel_tour · 协程二](../../examples/concurrency/channel_tour/main.c) · 由接收协程唤醒
-
-```c
-return (ptr)(uintptr_t)xrtChannelSendAwaitUntil(pChannel,
-	(ptr)77, xrtDeadlineAfter(UINT64_C(3000000)));
+	EXAMPLE_TIMEOUT_MS);
 ```
 
 ### `xrtChannelRecvAwait`
@@ -1737,7 +1467,7 @@ if ( xrtChannelRecvAwait(pChannel, &pMessage) != XWAIT_OK ) {
 xwaitresult xrtChannelRecvAwaitFor(
 	xchannel* pChannel,
 	ptr* pItem,
-	uint64 iTimeout
+	int64 iTimeout
 );
 ```
 
@@ -1747,7 +1477,7 @@ xwaitresult xrtChannelRecvAwaitFor(
 |---|---|---|---|
 | `pChannel` | 输入/输出 | 非空 | 目标 Channel |
 | `pItem` | 输出 | 非空、独立 | 接收输出 |
-| `iTimeout` | 输入 | 微秒 | 相对期限 |
+| `iTimeout` | 输入 | 毫秒 | 相对期限 |
 
 #### 返回值
 
@@ -1768,49 +1498,7 @@ xwaitresult xrtChannelRecvAwaitFor(
 
 ```c
 return (ptr)(uintptr_t)xrtChannelRecvAwaitFor(pChannel, &pItem,
-	EXAMPLE_TIMEOUT_US);
-```
-
-### `xrtChannelRecvAwaitUntil`
-
-在当前调度协程中挂起接收，直到绝对截止时间。
-
-```c
-xwaitresult xrtChannelRecvAwaitUntil(
-	xchannel* pChannel,
-	ptr* pItem,
-	xdeadline iDeadline
-);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pChannel` | 输入/输出 | 非空 | 目标 Channel |
-| `pItem` | 输出 | 非空、独立 | 接收输出 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 已取得值 | — |
-| `XWAIT_TIMEOUT` | 到期无值 | 不设置错误 |
-| `XWAIT_CLOSED` | 已关闭且已排空 | 不设置错误 |
-| `XWAIT_ERROR` | 参数/状态错误或非协程上下文 | 输出未写入；错误经 `xrtGetError()` 报告 |
-
-#### 错误
-
-- `XERR_ARGUMENT` / `XERR_STATE` — 同 `xrtChannelSendAwait`
-
-#### 范例
-
-[concurrency/channel_tour · 协程五](../../examples/concurrency/channel_tour/main.c) · 过期截止立即超时
-
-```c
-return (ptr)(uintptr_t)xrtChannelRecvAwaitUntil(pChannel, &pItem,
-	xrtDeadlineAfter(UINT64_C(1)));
+	EXAMPLE_TIMEOUT_MS);
 ```
 
 ### `xrtChannelSelectAwait`
@@ -1862,7 +1550,7 @@ if ( Result.Wait == XWAIT_OK ) {
 xchannelselectresult xrtChannelSelectAwaitFor(
 	const xchannelcase* pCases,
 	size_t iCount,
-	uint64 iTimeout
+	int64 iTimeout
 );
 ```
 
@@ -1872,7 +1560,7 @@ xchannelselectresult xrtChannelSelectAwaitFor(
 |---|---|---|---|
 | `pCases` | 输入 | 非空 | case 数组 |
 | `iCount` | 输入 | `> 0` | case 数量 |
-| `iTimeout` | 输入 | 微秒 | 相对期限 |
+| `iTimeout` | 输入 | 毫秒 | 相对期限 |
 
 #### 返回值
 
@@ -1895,89 +1583,3 @@ Cases[0] = xrtChannelCaseRecv(&arrChannel[0], &pItem);
 Cases[1] = xrtChannelCaseRecv(&arrChannel[1], &pItem);
 Result = xrtChannelSelectAwaitFor(Cases, 2u, UINT64_C(3000000));
 ```
-
-### `xrtChannelSelectAwaitUntil`
-
-在当前调度协程中挂起，直到任意 case 提交或到达截止时间。
-
-```c
-xchannelselectresult xrtChannelSelectAwaitUntil(
-	const xchannelcase* pCases,
-	size_t iCount,
-	xdeadline iDeadline
-);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pCases` | 输入 | 非空 | case 数组 |
-| `iCount` | 输入 | `> 0` | case 数量 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `Wait == XWAIT_OK` | 某 case 已提交 | — |
-| `Wait == XWAIT_TIMEOUT` | 到期无 case 提交 | 不设置错误 |
-| `Wait == XWAIT_ERROR` | 参数/状态错误或非协程上下文 | 错误经 `xrtGetError()` 报告 |
-
-#### 错误
-
-- `XERR_ARGUMENT` / `XERR_STATE` — 同 `xrtChannelSelectAwait`
-
-#### 范例
-
-[concurrency/channel_tour · 协程七](../../examples/concurrency/channel_tour/main.c) · 专用空通道必然到期
-
-```c
-Cases[0] = xrtChannelCaseRecv(pEmpty, &pItem);
-Cases[1] = xrtChannelCaseSend(pEmpty, (ptr)1);
-Result = xrtChannelSelectAwaitUntil(Cases, 2u,
-	xrtDeadlineAfter(UINT64_C(1)));
-```
-
-## 示例
-
-可取消等待示例位于 `examples/concurrency/channel_cancel/main.c`。
-
-```c
-xchannel* pChannel = xrtChannelCreate(16u);
-ptr pMessage = NULL;
-
-xrtChannelSend(pChannel, message);
-xrtChannelClose(pChannel);
-
-while ( xrtChannelRecv(pChannel, &pMessage) == XWAIT_OK ) {
-	handle(pMessage);
-}
-xrtChannelDestroy(pChannel);
-```
-
-无缓冲同步通道：
-
-```c
-xchannel tChannel;
-
-xrtChannelInit(&tChannel, 0);
-/* 一个线程 Send，另一个线程 Recv。 */
-xrtChannelUnit(&tChannel);
-```
-
-协程通道：
-
-```c
-static ptr consume(ptr pData)
-{
-	ptr pItem = NULL;
-
-	return xrtChannelRecvAwait((xchannel*)pData, &pItem) ==
-		XWAIT_OK ? pItem : NULL;
-}
-```
-
-其余可运行示例：`examples/concurrency/channel`（基础收发）、`channel_select`
-（双通道选择）、`channel_select_cancel`（可取消选择）、`channel_coroutine`
-（协程 rendezvous）、`channel_tour`（全接口巡览）。

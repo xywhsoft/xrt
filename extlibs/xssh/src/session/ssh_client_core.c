@@ -1,3 +1,4 @@
+#include <math.h>
 #include <string.h>
 
 #include <xrt/ssh_client_core.h>
@@ -321,10 +322,11 @@ xsshcode xrtSshClientCoreNext(
 	xsshclientcore* pClient,
 	xsshsessiontcp* pSession,
 	const xsshsessionreader* pReader,
-	uint64 iNowMs,
+	double Timer,
 	xsshclientnext* pNext
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshclientnext Next;
 	uint32 iSteps;
 
@@ -469,7 +471,7 @@ xsshcode xrtSshClientCoreNext(
 			Code = xrtSshSessionTcpAuthBegin(
 				pSession,
 				&pClient->Config.AuthGuard,
-				iNowMs
+				Timer
 			);
 			if ( Code != XSSH_OK ) {
 				return Code;

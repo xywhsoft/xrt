@@ -1,3 +1,4 @@
+#include <xrt/detail/ximap_wait.h>
 #include <xrt/detail/wait.h>
 #include <xrt/imap_command.h>
 
@@ -451,6 +452,8 @@ XRT_API bool __xrtImapClientNoop(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtImapCommandSimple(
 		pClient,
 		XRT_STR_LITERAL("NOOP"),
@@ -528,6 +531,8 @@ XRT_API bool __xrtImapClientSelect(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtImapCommandSelect(
 		pClient,
 		Mailbox,
@@ -549,6 +554,8 @@ XRT_API bool __xrtImapClientExamine(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtImapCommandSelect(
 		pClient,
 		Mailbox,
@@ -568,6 +575,8 @@ XRT_API bool __xrtImapClientCheck(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtImapCommandSelected(pClient) && __xrtImapCommandSimple(
 		pClient,
 		XRT_STR_LITERAL("CHECK"),
@@ -585,6 +594,8 @@ XRT_API bool __xrtImapClientUnselect(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	uint64 iCapabilities;
 
 	if ( !__xrtImapCommandSelected(pClient) ) {
@@ -618,6 +629,8 @@ XRT_API bool __xrtImapClientCloseMailbox(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtImapCommandSelected(pClient) && __xrtImapCommandSimple(
 		pClient,
 		XRT_STR_LITERAL("CLOSE"),
@@ -639,6 +652,8 @@ XRT_API bool __xrtImapClientCreateMailbox(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtImapCommandMailboxSimple(
 		pClient,
 		XRT_STR_LITERAL("CREATE"),
@@ -658,6 +673,8 @@ XRT_API bool __xrtImapClientDeleteMailbox(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtImapCommandMailboxSimple(
 		pClient,
 		XRT_STR_LITERAL("DELETE"),
@@ -678,6 +695,8 @@ XRT_API bool __xrtImapClientRenameMailbox(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	str sSource;
 	str sTarget;
 	xstrview Parts[2];
@@ -725,6 +744,8 @@ XRT_API bool __xrtImapClientSubscribe(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtImapCommandMailboxSimple(
 		pClient,
 		XRT_STR_LITERAL("SUBSCRIBE"),
@@ -744,6 +765,8 @@ XRT_API bool __xrtImapClientUnsubscribe(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtImapCommandMailboxSimple(
 		pClient,
 		XRT_STR_LITERAL("UNSUBSCRIBE"),
@@ -764,6 +787,8 @@ XRT_API bool __xrtImapClientBeginList(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	str sReference;
 	str sPattern;
 	xstrview Parts[2];
@@ -811,6 +836,8 @@ XRT_API bool __xrtImapClientBeginStatus(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	str sMailbox;
 	xstrview Parts[2];
 	bool bSuccess;
@@ -853,6 +880,8 @@ XRT_API bool __xrtImapClientBeginSearch(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xstrview Parts[2];
 
 	if ( !__xrtImapCommandSelected(pClient) ||
@@ -896,6 +925,8 @@ XRT_API bool __xrtImapClientBeginFetch(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xstrview Parts[3];
 
 	if ( !__xrtImapCommandSelected(pClient) || !__xrtImapCommandSet(Set) ||
@@ -963,6 +994,8 @@ XRT_API bool __xrtImapClientBeginStore(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xstrview Operation = __xrtImapCommandStoreMode(Mode);
 	xstrview Parts[4];
 
@@ -1076,6 +1109,8 @@ XRT_API bool __xrtImapClientBeginCopy(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtImapCommandBeginCopyMove(
 		pClient,
 		Set,
@@ -1099,6 +1134,8 @@ XRT_API bool __xrtImapClientBeginMove(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtImapCommandBeginCopyMove(
 		pClient,
 		Set,
@@ -1120,6 +1157,8 @@ XRT_API bool __xrtImapClientBeginExpunge(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xstrview Parts[2];
 
 	if ( !__xrtImapCommandSelected(pClient) ) {
@@ -1173,6 +1212,8 @@ XRT_API bool __xrtImapClientBeginIdle(
 )
 {
 	if ( !__xrtImapCommandSelected(pClient) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		return false;
 	}
 	if ( (xrtImapClientCapabilities(pClient) & XIMAP_CAP_IDLE) == 0 ) {
@@ -1200,6 +1241,8 @@ XRT_API bool __xrtImapClientEndIdle(
 )
 {
 	if ( !__xrtImapCommandSelected(pClient) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		return false;
 	}
 	return __xrtImapClientIdleEnd(pClient) && __xrtImapClientContinue(

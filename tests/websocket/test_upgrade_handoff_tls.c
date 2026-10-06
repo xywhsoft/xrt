@@ -56,7 +56,7 @@ static void testWsUpgradeTlsWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(15000000));
+	double Deadline = __xrtWaitAfter(INT64_C(15000));
 
 	while ( xrtAtomic32Load(
 		pValue,

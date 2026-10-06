@@ -24,7 +24,7 @@ The `Reply` direct path deserves its own sentence: fixed JSON/text responses **c
 
 `xrtHttpServerStart(Engine, 配置, 事件表)` (Engine, config, event table) creates and starts immediately;**a failed startup leaves no partially usable Server** — all logical endpoints either all bind successfully or fail as a whole (multi-endpoint configuration in the Network section). Configuration essentials:
 
-- **Five-segment timeouts** (microseconds): `HeaderTimeout` (header-reading stage), `BodyTimeout` (body reading), `RequestTimeout` (application processing time), `IdleTimeout` (keep-alive idleness), `WriteTimeout` (response without progress) — zero disables the corresponding protection. Every segment of a slow attack has its gate.
+- **Five-segment timeouts** (milliseconds): `HeaderTimeout` (header-reading stage), `BodyTimeout` (body reading), `RequestTimeout` (application processing time), `IdleTimeout` (keep-alive idleness), `WriteTimeout` (response without progress) — zero disables the corresponding protection. Every segment of a slow attack has its gate.
 - **Connections and caps**: `MaxConnections` (zero = no application-layer cap), `MaxInformations` (queued informational responses per request), `WriteSize` (a zero-copy send lease at a time — **no fixed send buffer reserved per connection**); receive memory is managed by TCP's on-demand `xnetbuf` and hard limits.
 - **Network**: fully exposes the TCP Server's multi-endpoints, shared dynamic ports, accept queue, reuse-port — `xrtHttpServerLocal` fetches the real endpoint (the standard posture for a zero listen port, same as Chapter 67); `xrtHttpServerNetwork` lends the underlying `xnetserver` reference (for special scenarios wanting low-level statistics; `xrtNetServerDestroy` when done).
 
@@ -86,7 +86,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 ## Contracts
 
 - **Startup atomicity**: all logical endpoints bind together; failure leaves no partial Server; addresses validated before range opening; caps statically validated without allocation.
-- **Five-segment timeouts**: Header/Body/Request/Idle/Write each guard one stage, microsecond units, zero disables; every slow-attack segment has a gate.
+- **Five-segment timeouts**: Header/Body/Request/Idle/Write each guard one stage, millisecond units, zero disables; every slow-attack segment has a gate.
 - **Event serialization**: all application events execute serially on the connection's Worker; Error at most once (stable error + cause chain), Close exactly once; transport failures follow the fixed Error→Close order.
 - **Headers policy**: buffer/stream/discard/reject/respond-directly, five choices; body caps are routing-level (SetRequestBodyLimit sets the current Exchange's only hard cap).
 - **Body backpressure**: Pause only inside the Body callback; expires on fragment-callback return; Resume from any thread (embedded command, zero allocation); BodyTimeout keeps counting during the pause.
@@ -180,7 +180,7 @@ The Headers callback sets body caps per route (`/avatar` 2 MB, `/video` 200 MB, 
 | Topic | Quick reference |
 | --- | --- |
 | Startup | Start builds the plaintext service in one step; failure leaves no partial Server; Local fetches the dynamic-port endpoint |
-| Five timeouts | Header/Body/Request/Idle/Write each guard one segment; microseconds; zero disables |
+| Five timeouts | Header/Body/Request/Idle/Write each guard one segment; milliseconds; zero disables |
 | Event chain | Open→Headers (policy point)→Body (streaming fragments)→Request→Error/Close; Worker serial |
 | Headers five policies | buffer/stream/discard/reject/respond directly; caps at routing level |
 | Body backpressure | Pause only inside the callback, expires per fragment; Resume from any thread, zero allocation; timeout counts during the pause |

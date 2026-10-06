@@ -53,7 +53,7 @@ static void testHttpClientStreamRaceWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(10000000u);
+	double iDeadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -450,7 +450,7 @@ static void testHttpClientStreamRaceWaitEngineIdle(
 	xnetengine* pEngine
 )
 {
-	double iDeadline = __xrtWaitAfter(10000000u);
+	double iDeadline = __xrtWaitAfter(10000);
 	xnetenginestats Stats;
 
 	for ( ;; ) {

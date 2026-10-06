@@ -65,7 +65,7 @@ static void testHttpStaticMultipartBodyWait(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK),
 		"HTTP static multipart body wait failed"
 	);
@@ -413,7 +413,7 @@ static void testHttpStaticMultipartBodyAdoptFailure(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK),
 		"HTTP static multipart failed adoption consumed file"
 	);
@@ -428,7 +428,7 @@ static void testHttpStaticMultipartBodyAdoptFailure(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK),
 		"HTTP static multipart retained file close failed"
 	);

@@ -38,7 +38,7 @@ static void testUdpFutureGateWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(5000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(5000));
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -187,7 +187,7 @@ int main(void)
 	testUdpFutureInvalidState("UDP direct batch conflict error mismatch");
 	testRequire(xrtFutureCancel(pFuture),
 		"UDP consuming Future cancellation failed");
-	testRequire(xrtFutureWaitFor(pFuture, UINT64_C(1000000)) == XWAIT_OK,
+	testRequire(xrtFutureWaitFor(pFuture, INT64_C(1000)) == XWAIT_OK,
 		"UDP consuming Future cancellation wait failed");
 	xrtFutureDestroy(pFuture);
 
@@ -205,7 +205,7 @@ int main(void)
 	testRequire(pPush != NULL, "UDP invalid Future push object failed");
 	pFuture = xrtNetUdpWaitAsync(pPush, XNET_UDP_WAIT_OPEN);
 	testRequire((pFuture != NULL) &&
-		 (xrtFutureWaitFor(pFuture, UINT64_C(1000000)) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pFuture, INT64_C(1000)) == XWAIT_OK) &&
 		 (xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 		"UDP push object open Future failed");
 	xrtFutureDestroy(pFuture);
@@ -250,7 +250,7 @@ int main(void)
 		testRequire(
 			xrtFutureWaitFor(
 				GateFutures[i],
-				UINT64_C(5000000)
+				INT64_C(5000)
 			) == XWAIT_OK &&
 			(xrtFutureState(GateFutures[i]) == XFUTURE_CANCELLED),
 			"UDP Future abort terminal mismatch"

@@ -12,9 +12,7 @@ int main(void)
 		&Core,
 		XSSH_ROLE_CLIENT,
 		0u,
-		NULL,
-		0u
-	) && xrtSshKexExchangeInit(
+		NULL, ((double)(0u)) / 1000.0) && xrtSshKexExchangeInit(
 		&Exchange,
 		NULL,
 		XSSH_ROLE_CLIENT

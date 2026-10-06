@@ -76,9 +76,7 @@ static void testSshClientCoreNext(void)
 	) && xrtSshSessionTcpInit(
 		&Session,
 		pPool,
-		&SessionConfig,
-		0u
-	) && xrtSshSessionReaderInit(
+		&SessionConfig, ((double)(0u)) / 1000.0) && xrtSshSessionReaderInit(
 		&Reader,
 		pPool,
 		&Session
@@ -91,8 +89,7 @@ static void testSshClientCoreNext(void)
 	testRequire((xrtSshClientCoreNext(
 		&Client,
 		&Session,
-		&Reader,
-		0u,
+		&Reader, ((double)(0u)) / 1000.0,
 		&Next
 	) == XSSH_OK) && (Next.Kind == XSSH_CLIENT_NEXT_IDENTIFICATION) &&
 		testSshTextEqual(Next.Text, ClientConfig.Version) &&
@@ -102,8 +99,7 @@ static void testSshClientCoreNext(void)
 	testRequire((xrtSshClientCoreNext(
 		&Client,
 		&Session,
-		&Reader,
-		1u,
+		&Reader, ((double)(1u)) / 1000.0,
 		&Next
 	) == XSSH_OK) && (Next.Kind == XSSH_CLIENT_NEXT_PAYLOAD) &&
 		(Next.Data.Data == Client.Output) &&

@@ -58,6 +58,7 @@ typedef struct xsshtransportcore {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -68,7 +69,7 @@ XRT_API bool xrtSshTransportCoreInit(
 	xsshrole Role,
 	uint32 iMaxPacketSize,
 	const xsshrekeypolicy* pRekeyPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -120,7 +121,7 @@ XRT_API bool xrtSshTransportCoreRekeyRequest(xsshtransportcore* pCore);
 /* 查询当前双向预算和时间产生的 rekey 决策。 */
 XRT_API xsshcode xrtSshTransportCoreRekeyCheck(
 	const xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -145,7 +146,7 @@ XRT_API xsshcode xrtSshTransportCoreWritePrepareWithPadding(
 	xbytesview Payload,
 	xsshpaddingproc pPadding,
 	ptr pUserData,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -153,7 +154,7 @@ XRT_API xsshcode xrtSshTransportCoreWritePrepareWithPadding(
 /* 线路包可靠入队后提交写事务并返回更新后的 rekey 决策。 */
 XRT_API xsshcode xrtSshTransportCoreWriteCommit(
 	xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -174,7 +175,7 @@ XRT_API xsshcode xrtSshTransportCoreReadPrepare(
 	xsshpacketview* pPacket,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -182,7 +183,7 @@ XRT_API xsshcode xrtSshTransportCoreReadPrepare(
 /* 接收包完成协议处理后提交状态和 rekey 预算。 */
 XRT_API xsshcode xrtSshTransportCoreReadCommit(
 	xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -212,7 +213,7 @@ XRT_API xsshcode xrtSshTransportCoreSetWriteAesGcm(
 	xsshtransportcore* pCore,
 	xbytesview Key,
 	xbytesview InitialIV,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -222,7 +223,7 @@ XRT_API xsshcode xrtSshTransportCoreSetReadAesGcm(
 	xsshtransportcore* pCore,
 	xbytesview Key,
 	xbytesview InitialIV,
-	uint64 iNowMs
+	double Timer
 );
 
 

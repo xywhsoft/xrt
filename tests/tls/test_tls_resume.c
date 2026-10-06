@@ -21,7 +21,7 @@ static void testTlsResumeConfig(
 	pConfig->Lifetime = 60u;
 	pConfig->AgeAdd = UINT32_C(0x10203040);
 	pConfig->MaxEarlyData = 4096u;
-	pConfig->IssuedAt = INT64_C(1700000000000000);
+	pConfig->IssuedAt = (XRT_TIME_UNIX_EPOCH + INT64_C(1700000000000));
 }
 
 
@@ -54,7 +54,7 @@ static void testTlsResumeSnapshot(void)
 		(Info.AgeAdd == UINT32_C(0x10203040)) &&
 		(Info.MaxEarlyData == 4096u) &&
 		(Info.IssuedAt == Config.IssuedAt) &&
-		(Info.ExpiresAt == Config.IssuedAt + INT64_C(60000000)),
+		(Info.ExpiresAt == Config.IssuedAt + INT64_C(60000)),
 		"TLS resume metadata changed during snapshot creation");
 	testRequire((Info.Ticket.Size == 5u) &&
 		(Info.Ticket.Data[0] == 1u) &&
@@ -100,16 +100,16 @@ static void testTlsResumeAge(void)
 	testRequire(!xrtTlsResumeValidAt(pResume, Config.IssuedAt - 1) &&
 		xrtTlsResumeValidAt(pResume, Config.IssuedAt) &&
 		xrtTlsResumeValidAt(
-			pResume, Config.IssuedAt + INT64_C(999999)
+			pResume, Config.IssuedAt + INT64_C(999)
 		) && !xrtTlsResumeValidAt(
-			pResume, Config.IssuedAt + INT64_C(1000000)
+			pResume, Config.IssuedAt + INT64_C(1000)
 		), "TLS resume validity boundary is incorrect");
 	testRequire(xrtTlsResumeTicketAge(
-		pResume, Config.IssuedAt + 1999, &iAge
+		pResume, Config.IssuedAt + 1, &iAge
 	) && (iAge == 0u), "TLS resume ticket age did not wrap modulo 32 bits");
 	iAge = 77u;
 	testRequire(!xrtTlsResumeTicketAge(
-		pResume, Config.IssuedAt + INT64_C(1000000), &iAge
+		pResume, Config.IssuedAt + INT64_C(1000), &iAge
 	) && (iAge == 77u), "expired TLS resume changed ticket age output");
 	xrtTlsResumeRelease(pResume);
 }

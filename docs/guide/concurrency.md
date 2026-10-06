@@ -65,13 +65,9 @@ TaskGroup 与 TaskPool、Coroutine、Network 的组合入口，不要先启动�
 
 ## 共用控制口径
 
-### Deadline
+### 相对毫秒时限
 
-[Wait](../api/wait.md) 定义所有模块共用的单调微秒 deadline：
-
-- `For` 接收相对时长；
-- `Until` 接收绝对 `xdeadline`；
-- 多次重试时只在循环外调用一次 `xrtDeadlineAfter()`。
+[Wait](../api/wait.md) 统一使用 `int64` 相对毫秒：零表示不等待，正数表示有限等待，`XRT_WAIT_FOREVER` 表示无限等待。多次重试或多阶段操作用 `xrtTimer()` 的 double 秒差计算剩余预算，确保总时长不会随重试次数增加。
 
 等待超时只停止当前等待者，不会自动取消线程、任务、Future、网络操作或任务组。
 需要同时停止底层工作时，必须显式请求取消，并继续等待生产端发布真实终态。

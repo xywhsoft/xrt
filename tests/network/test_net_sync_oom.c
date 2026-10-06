@@ -41,7 +41,7 @@ static xnetaddrlist* testNetSyncOomLookup(
 /* 等待 TCP 拉取缓冲达到指定长度。 */
 static void testNetSyncOomAvailable(xnetstream* pStream, size_t iSize)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetStreamAvailable(pStream) < iSize ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
@@ -55,7 +55,7 @@ static void testNetSyncOomAvailable(xnetstream* pStream, size_t iSize)
 /* 等待 UDP 拉取队列达到指定数据包数量。 */
 static void testNetSyncOomQueued(xnetudp* pUdp, size_t iCount)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetUdpQueued(pUdp) < iCount ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
@@ -73,7 +73,7 @@ static void testNetSyncOomStreamClose(xnetstream* pStream)
 		testRequire(xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_CLOSE,
-			__xrtWaitAfter(5000000u),
+			__xrtWaitAfter(5000),
 			NULL
 		), "network sync OOM TCP close failed");
 	}
@@ -89,7 +89,7 @@ static void testNetSyncOomUdpClose(xnetudp* pUdp)
 		testRequire(xrtNetUdpClose(pUdp) && __xrtNetUdpWait(
 			pUdp,
 			XNET_UDP_WAIT_CLOSE,
-			__xrtWaitAfter(5000000u),
+			__xrtWaitAfter(5000),
 			NULL
 		), "network sync OOM UDP close failed");
 	}
@@ -163,13 +163,13 @@ int main(void)
 	);
 	pServer = __xrtNetListenerAcceptWait(
 		pListener,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	testRequire((pClient != NULL) && (pServer != NULL) && __xrtNetStreamWait(
 		pClient,
 		XNET_STREAM_WAIT_OPEN,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	), "network sync OOM TCP setup failed");
 
@@ -187,7 +187,7 @@ int main(void)
 	pBytes = __xrtNetStreamRecv(
 		pServer,
 		TEST_NET_SYNC_OOM_TCP_BYTES,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	bTriggered = xrtMemDebugFailTriggered();
@@ -214,7 +214,7 @@ int main(void)
 	pBytes = __xrtNetStreamRecv(
 		pServer,
 		TEST_NET_SYNC_OOM_TCP_BYTES,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	View = xrtNetBytesView(pBytes);
@@ -249,12 +249,12 @@ int main(void)
 	testRequire((pUdpClient != NULL) && __xrtNetUdpWait(
 		pUdpServer,
 		XNET_UDP_WAIT_OPEN,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	) && __xrtNetUdpWait(
 		pUdpClient,
 		XNET_UDP_WAIT_OPEN,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	), "network sync OOM UDP setup failed");
 	testRequire(xrtNetUdpSend(pUdpClient, "U", 1) == XNET_RESULT_OK,
@@ -267,7 +267,7 @@ int main(void)
 	pBatch = __xrtNetUdpReceiveBatchWait(
 		pUdpServer,
 		16,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	bTriggered = xrtMemDebugFailTriggered();
@@ -280,7 +280,7 @@ int main(void)
 	xrtClearError();
 	pPacket = __xrtNetUdpReceiveWait(
 		pUdpServer,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	testRequire((pPacket != NULL) &&
@@ -309,7 +309,7 @@ int main(void)
 		NULL,
 		NULL,
 		NULL,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	bTriggered = xrtMemDebugFailTriggered();
@@ -327,12 +327,12 @@ int main(void)
 		NULL,
 		NULL,
 		NULL,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	pDialServer = __xrtNetListenerAcceptWait(
 		pListener,
-		__xrtWaitAfter(5000000u),
+		__xrtWaitAfter(5000),
 		NULL
 	);
 	testRequire((pDialClient != NULL) && (pDialServer != NULL),
@@ -346,7 +346,7 @@ int main(void)
 	testNetSyncOomUdpClose(pUdpServer);
 	testRequire(xrtNetListenerClose(pListener),
 		"network sync OOM listener close failed");
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
 			"network sync OOM listener close timed out");

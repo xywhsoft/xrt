@@ -92,7 +92,7 @@ static void testHttpPoolPublicContract(void)
 		(Config.MaxWaitingPerOrigin == 0) &&
 		(Config.MaxIdle == 128u) &&
 		(Config.MaxIdlePerOrigin == 8u) &&
-		(Config.IdleTimeout == UINT64_C(90000000)),
+		(Config.IdleTimeout == INT64_C(90000)),
 		"HTTP pool public defaults changed"
 	);
 	memset(ConfigStorage, 0xA5, sizeof(ConfigStorage));
@@ -107,7 +107,7 @@ static void testHttpPoolPublicContract(void)
 		(Config.MaxWaitingPerOrigin == 0) &&
 		(Config.MaxIdle == 128u) &&
 		(Config.MaxIdlePerOrigin == 8u) &&
-		(Config.IdleTimeout == UINT64_C(90000000)) &&
+		(Config.IdleTimeout == INT64_C(90000)) &&
 		(ConfigStorage[0] == 0xA5) &&
 		(ConfigStorage[sizeof(ConfigStorage) - 1u] == 0xA5),
 		"HTTP pool config init did not support unaligned storage"

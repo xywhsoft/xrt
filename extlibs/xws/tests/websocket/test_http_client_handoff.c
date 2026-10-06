@@ -41,7 +41,7 @@ static void testWsHttpClientHandoffWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -59,7 +59,7 @@ static void testWsHttpClientHandoffWaitClient(
 	const xhttpclient* pClient
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtHttpClientState(pClient) !=
 		XHTTP_CLIENT_CLOSED ) {
@@ -487,7 +487,7 @@ int main(void)
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup =
 		testWsHttpClientHandoffLookup;
-	ClientConfig.Dial.FallbackDelay = 1000;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	State.Client = xrtHttpClientCreate(
 		State.Engine,
@@ -552,7 +552,7 @@ int main(void)
 		testRequire(
 			(xrtFutureWaitFor(
 				pFuture,
-				UINT64_C(10000000)
+				INT64_C(10000)
 			 ) == XWAIT_OK) &&
 			(xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 			"WebSocket HTTP client Future did not resolve"

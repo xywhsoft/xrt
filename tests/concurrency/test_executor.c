@@ -106,7 +106,7 @@ int main(void)
 	}
 	testRequire(xrtExecutorClose(pExecutor), "executor close failed");
 	testRequire(
-		xrtExecutorWaitFor(pExecutor, UINT64_C(3000000)) == XWAIT_OK,
+		xrtExecutorWaitFor(pExecutor, INT64_C(3000)) == XWAIT_OK,
 		"executor drain failed"
 	);
 	testRequire(
@@ -184,7 +184,7 @@ int main(void)
 	testRequire(xrtExecutorCancel(pExecutor), "executor cancel failed");
 	xrtAtomic32Store(&Context.Gate, 1, XMEMORY_RELEASE);
 	testRequire(
-		xrtExecutorWaitFor(pExecutor, UINT64_C(3000000)) == XWAIT_OK,
+		xrtExecutorWaitFor(pExecutor, INT64_C(3000)) == XWAIT_OK,
 		"cancelled executor drain failed"
 	);
 	testRequire(

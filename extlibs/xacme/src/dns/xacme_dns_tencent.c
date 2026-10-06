@@ -39,7 +39,7 @@ typedef struct xacmednstencentcontext {
 	xacmednsrecords Records;
 	bool bUncertain[XACME_DNS_RECORD_MAX];
 	int64 iDomainIds[XACME_DNS_RECORD_MAX];
-	uint64 uCreatedAt[XACME_DNS_RECORD_MAX];
+	double uCreatedAt[XACME_DNS_RECORD_MAX];
 	bool bDeletePending[XACME_DNS_RECORD_MAX];
 } xacmednstencentcontext;
 
@@ -610,7 +610,7 @@ static int xacmeTencentCompareIds(const void* pLeft, const void* pRight)
 static void xacmeTencentInspectMissingCandidate(xacmednstencentcontext* pCtx,
 	size_t iSlot, cstr sZone, int64 iRecordId)
 {
-	uint64 uNow = xrtTimer();
+	double uNow = xrtTimer();
 	int64 iDomainId = pCtx->iDomainIds[iSlot], iTotal = -1, iListed = -1;
 	uint16 iStatus = 0u;
 	str sResp = NULL;
@@ -621,7 +621,7 @@ static void xacmeTencentInspectMissingCandidate(xacmednstencentcontext* pCtx,
 	xvalue* pResponse = NULL;
 	xvalue* pList;
 	bool bValid = false, bPresent = false;
-	if(uNow < pCtx->uCreatedAt[iSlot] || uNow - pCtx->uCreatedAt[iSlot] < 30000000u) {
+	if(uNow < pCtx->uCreatedAt[iSlot] || uNow - pCtx->uCreatedAt[iSlot] < 30.0) {
 		xrtSetErrorInfo(XERR_AGAIN, "xrt.acme.dns", XACME_DNS_ERROR_NETWORK,
 			"acme dns_tencent record absence cannot be checked during the create index delay"); return;
 	}

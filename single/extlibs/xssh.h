@@ -3365,13 +3365,14 @@ typedef struct xsshrekeystate {
 	xsshrekeypolicy Policy;
 	xsshrekeycounter Sent;
 	xsshrekeycounter Received;
-	uint64 SendStartedMs;
-	uint64 ReceiveStartedMs;
+	double SendStartedTimer;
+	double ReceiveStartedTimer;
 	bool Requested;
 } xsshrekeystate;
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -3385,7 +3386,7 @@ XRT_API void xrtSshRekeyPolicyInit(xsshrekeypolicy* pPolicy);
 XRT_API bool xrtSshRekeyInit(
 	xsshrekeystate* pState,
 	const xsshrekeypolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -3393,7 +3394,7 @@ XRT_API bool xrtSshRekeyInit(
 /* 同时清空双向计数并开始新一代，适用于两方向具有同一提交边界的驱动。 */
 XRT_API bool xrtSshRekeyReset(
 	xsshrekeystate* pState,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -3401,7 +3402,7 @@ XRT_API bool xrtSshRekeyReset(
 /* 写密钥生效后只清空发送方向计数和时间。 */
 XRT_API bool xrtSshRekeyResetSend(
 	xsshrekeystate* pState,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -3409,7 +3410,7 @@ XRT_API bool xrtSshRekeyResetSend(
 /* 读密钥生效后只清空接收方向计数和时间。 */
 XRT_API bool xrtSshRekeyResetReceive(
 	xsshrekeystate* pState,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -3427,7 +3428,7 @@ XRT_API bool xrtSshRekeyRequest(xsshrekeystate* pState);
 /* 查询当前计数、主动请求和时间阈值产生的决策。 */
 XRT_API xsshcode xrtSshRekeyCheck(
 	const xsshrekeystate* pState,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -3438,7 +3439,7 @@ XRT_API xsshcode xrtSshRekeyReserveSend(
 	xsshrekeystate* pState,
 	uint64 iWireBytes,
 	uint64 iCipherBlocks,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -3449,7 +3450,7 @@ XRT_API xsshcode xrtSshRekeyReserveReceive(
 	xsshrekeystate* pState,
 	uint64 iWireBytes,
 	uint64 iCipherBlocks,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -3789,6 +3790,7 @@ typedef struct xsshtransportcore {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -3799,7 +3801,7 @@ XRT_API bool xrtSshTransportCoreInit(
 	xsshrole Role,
 	uint32 iMaxPacketSize,
 	const xsshrekeypolicy* pRekeyPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -3851,7 +3853,7 @@ XRT_API bool xrtSshTransportCoreRekeyRequest(xsshtransportcore* pCore);
 /* 查询当前双向预算和时间产生的 rekey 决策。 */
 XRT_API xsshcode xrtSshTransportCoreRekeyCheck(
 	const xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -3876,7 +3878,7 @@ XRT_API xsshcode xrtSshTransportCoreWritePrepareWithPadding(
 	xbytesview Payload,
 	xsshpaddingproc pPadding,
 	ptr pUserData,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -3884,7 +3886,7 @@ XRT_API xsshcode xrtSshTransportCoreWritePrepareWithPadding(
 /* 线路包可靠入队后提交写事务并返回更新后的 rekey 决策。 */
 XRT_API xsshcode xrtSshTransportCoreWriteCommit(
 	xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -3905,7 +3907,7 @@ XRT_API xsshcode xrtSshTransportCoreReadPrepare(
 	xsshpacketview* pPacket,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -3913,7 +3915,7 @@ XRT_API xsshcode xrtSshTransportCoreReadPrepare(
 /* 接收包完成协议处理后提交状态和 rekey 预算。 */
 XRT_API xsshcode xrtSshTransportCoreReadCommit(
 	xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -3943,7 +3945,7 @@ XRT_API xsshcode xrtSshTransportCoreSetWriteAesGcm(
 	xsshtransportcore* pCore,
 	xbytesview Key,
 	xbytesview InitialIV,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -3953,7 +3955,7 @@ XRT_API xsshcode xrtSshTransportCoreSetReadAesGcm(
 	xsshtransportcore* pCore,
 	xbytesview Key,
 	xbytesview InitialIV,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -4095,6 +4097,7 @@ typedef struct xsshkexsession {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -4275,7 +4278,7 @@ XRT_API xsshcode xrtSshKexSessionReadAbort(xsshkexsession* pSession);
 XRT_API xsshcode xrtSshKexSessionActivateWrite(
 	xsshkexsession* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -4284,7 +4287,7 @@ XRT_API xsshcode xrtSshKexSessionActivateWrite(
 XRT_API xsshcode xrtSshKexSessionActivateRead(
 	xsshkexsession* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -4649,6 +4652,7 @@ typedef struct xsshtransporttcp {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -4666,7 +4670,7 @@ XRT_API bool xrtSshTransportTcpInit(
 	xsshtransporttcp* pTransport,
 	xnetbufpool* pPool,
 	const xsshtransporttcpconfig* pConfig,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -4704,7 +4708,7 @@ XRT_API xsshcode xrtSshTransportTcpWritePrepareWithPadding(
 	xbytesview Payload,
 	xsshpaddingproc pPadding,
 	ptr pUserData,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -4716,7 +4720,7 @@ XRT_API xsshcode xrtSshTransportTcpWritePrepareWithPadding(
 XRT_API xnetresult xrtSshTransportTcpWriteSubmit(
 	xsshtransporttcp* pTransport,
 	xnetstream* pStream,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -4761,7 +4765,7 @@ XRT_API xsshcode xrtSshTransportTcpReadPrepare(
 	xsshpacketview* pPacket,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -4769,7 +4773,7 @@ XRT_API xsshcode xrtSshTransportTcpReadPrepare(
 /* 提交上层已经接受的输入并从原 TCP 缓冲精确消费。 */
 XRT_API xsshcode xrtSshTransportTcpReadCommit(
 	xsshtransporttcp* pTransport,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -4809,6 +4813,7 @@ XRT_EXTERN_C_END
 
 #if defined(XSSH_FEATURE_TRANSPORT_TCP_RANDOM)
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -4817,7 +4822,7 @@ XRT_EXTERN_C_BEGIN
 XRT_API xsshcode xrtSshTransportTcpWritePrepare(
 	xsshtransporttcp* pTransport,
 	xbytesview Payload,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -5451,7 +5456,7 @@ typedef enum xsshauthexhaustion {
 
 /* 零值单项限制表示禁用；时间统一使用单调毫秒。 */
 typedef struct xsshauthguardpolicy {
-	uint64 TimeoutMs;
+	int64 TimeoutMs;
 	uint64 ByteLimit;
 	uint32 AttemptLimit;
 	uint32 RoundLimit;
@@ -5463,7 +5468,7 @@ typedef struct xsshauthguardpolicy {
 /* Guard 只保存会话总预算，不保存用户名、凭据或报文借用视图。 */
 typedef struct xsshauthguard {
 	xsshauthguardpolicy Policy;
-	uint64 StartedMs;
+	double StartedTimer;
 	uint64 Bytes;
 	uint32 Attempts;
 	uint32 Rounds;
@@ -5475,6 +5480,7 @@ typedef struct xsshauthguard {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -5488,7 +5494,7 @@ XRT_API void xrtSshAuthGuardPolicyInit(xsshauthguardpolicy* pPolicy);
 XRT_API bool xrtSshAuthGuardInit(
 	xsshauthguard* pGuard,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -5496,7 +5502,7 @@ XRT_API bool xrtSshAuthGuardInit(
 /* 查询当前时间、完成状态和已有预算产生的决策。 */
 XRT_API xsshcode xrtSshAuthGuardCheck(
 	xsshauthguard* pGuard,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 );
 
@@ -5507,7 +5513,7 @@ XRT_API xsshcode xrtSshAuthGuardReserve(
 	xsshauthguard* pGuard,
 	xsshauthevent Event,
 	uint64 iMessageBytes,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 );
 
@@ -5614,6 +5620,7 @@ typedef struct xsshauthsession {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -5636,7 +5643,7 @@ XRT_API xsshcode xrtSshAuthSessionBegin(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -5659,7 +5666,7 @@ XRT_API xsshcode xrtSshAuthSessionBudget(
 /* 检查认证超时和资源预算；耗尽时会话进入失败状态。 */
 XRT_API xsshcode xrtSshAuthSessionCheck(
 	xsshauthsession* pSession,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 );
 
@@ -5673,7 +5680,7 @@ XRT_API xsshcode xrtSshAuthSessionWritePrepare(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	xbytesview Payload,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -5699,7 +5706,7 @@ XRT_API xsshcode xrtSshAuthSessionReadPrepare(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	xbytesview Payload,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthsessionpacket* pPacket
 );
 
@@ -8005,6 +8012,7 @@ typedef struct xsshsessioncore {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -8125,7 +8133,7 @@ XRT_API xsshcode xrtSshSessionCoreAuthBegin(
 	xsshsessioncore* pSession,
 	const xsshtransportcore* pCore,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -8141,7 +8149,7 @@ XRT_API xsshcode xrtSshSessionCoreWritePrepare(
 	xsshchannelcore* pChannel,
 	xsshreplyqueue* pReplies,
 	uint64 iReplyToken,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 );
 
@@ -8160,7 +8168,7 @@ XRT_API xsshcode xrtSshSessionCoreWriteBind(
 XRT_API xsshcode xrtSshSessionCoreWriteCommit(
 	xsshsessioncore* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -8184,7 +8192,7 @@ XRT_API xsshcode xrtSshSessionCoreReadPrepare(
 	void* pHostKeyStorage,
 	size_t iHostKeyCapacity,
 	size_t* pHostKeySize,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacket* pPacket
 );
 
@@ -8194,7 +8202,7 @@ XRT_API xsshcode xrtSshSessionCoreReadPrepare(
 XRT_API xsshcode xrtSshSessionCoreReadCommit(
 	xsshsessioncore* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -8310,6 +8318,7 @@ typedef struct xsshsessiontcp {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -8327,7 +8336,7 @@ XRT_API bool xrtSshSessionTcpInit(
 	xsshsessiontcp* pSession,
 	xnetbufpool* pPool,
 	const xsshsessiontcpconfig* pConfig,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -8390,7 +8399,7 @@ XRT_API xsshcode xrtSshSessionTcpKexBeginWithPrivate(
 XRT_API xsshcode xrtSshSessionTcpAuthBegin(
 	xsshsessiontcp* pSession,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -8412,7 +8421,7 @@ XRT_API xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 	uint64 iReplyToken,
 	xsshpaddingproc pPadding,
 	ptr pPaddingData,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 );
 
@@ -8425,7 +8434,7 @@ XRT_API xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 XRT_API xnetresult xrtSshSessionTcpWriteSubmit(
 	xsshsessiontcp* pSession,
 	xnetstream* pStream,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -8473,7 +8482,7 @@ XRT_API xsshcode xrtSshSessionTcpReadPrepare(
 	void* pHostKeyStorage,
 	size_t iHostKeyCapacity,
 	size_t* pHostKeySize,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessiontcppacket* pPacket
 );
 
@@ -8482,7 +8491,7 @@ XRT_API xsshcode xrtSshSessionTcpReadPrepare(
 /* 先消费并提交 transport，再提交版本或协议事务并按需切换读密钥。 */
 XRT_API xsshcode xrtSshSessionTcpReadCommit(
 	xsshsessiontcp* pSession,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -8550,6 +8559,7 @@ typedef struct xsshsessionreader {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -8596,7 +8606,7 @@ XRT_API xsshsessionreaderstate xrtSshSessionReaderState(
 XRT_API xsshcode xrtSshSessionReaderPrepare(
 	xsshsessionreader* pReader,
 	xnetbuf* pInput,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessiontcppacket* pPacket
 );
 
@@ -8605,7 +8615,7 @@ XRT_API xsshcode xrtSshSessionReaderPrepare(
 /* 提交已接受 packet，释放临时明文并发布本轮主机公钥存储。 */
 XRT_API xsshcode xrtSshSessionReaderCommit(
 	xsshsessionreader* pReader,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -8883,6 +8893,7 @@ XRT_EXTERN_C_END
 
 #if defined(XSSH_FEATURE_SESSION_TCP_RANDOM)
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -8902,7 +8913,7 @@ XRT_API xsshcode xrtSshSessionTcpWritePrepare(
 	xsshchannelcore* pChannel,
 	xsshreplyqueue* pReplies,
 	uint64 iReplyToken,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 );
 
@@ -9047,6 +9058,7 @@ struct xsshclientcore {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -9077,7 +9089,7 @@ XRT_API xsshcode xrtSshClientCoreNext(
 	xsshclientcore* pClient,
 	xsshsessiontcp* pSession,
 	const xsshsessionreader* pReader,
-	uint64 iNowMs,
+	double Timer,
 	xsshclientnext* pNext
 );
 
@@ -9195,8 +9207,8 @@ XRT_EXTERN_C_END
 #define XSSH_CLIENT_CONTROL_INITIAL_DEFAULT 4096u
 #define XSSH_CLIENT_CONTROL_LIMIT_DEFAULT 1048576u
 #define XSSH_CLIENT_GLOBAL_REPLY_LIMIT_DEFAULT 64u
-/* TCP 建连后到 Ready 的默认截止时间，单位为微秒；配置为零时禁用。 */
-#define XSSH_CLIENT_READY_TIMEOUT_DEFAULT UINT64_C(30000000)
+/* TCP 建连后到 Ready 的默认截止时间，单位为毫秒；配置为零时禁用。 */
+#define XSSH_CLIENT_READY_TIMEOUT_DEFAULT INT64_C(30000)
 
 
 
@@ -9347,7 +9359,7 @@ typedef struct xsshclientevents {
 typedef struct xsshclientconfig {
 	xsshclientcoreconfig Core;
 	xsshchannelsconfig Channels;
-	uint64 ReadyTimeout;
+	int64 ReadyTimeout;
 	size_t ControlInitial;
 	size_t ControlLimit;
 	size_t GlobalReplyLimit;
@@ -17928,6 +17940,7 @@ xsshcode xrtSshNewCompressRead(xbytesview Payload)
 /* ========================================================================== */
 
 #if defined(XSSH_FEATURE_TRANSPORT_REKEY)
+#include <math.h>
 #include <string.h>
 
 
@@ -17970,21 +17983,21 @@ static bool xsshRekeyLimit(uint64 iValue, uint64 iLimit)
 /* 合并手动、时间和双向计数产生的当前决策。 */
 static xsshrekeydecision xsshRekeyCurrent(
 	const xsshrekeystate* pState,
-	uint64 iNowMs
+	double Timer
 )
 {
-	uint64 iSendElapsed = iNowMs >= pState->SendStartedMs ?
-		iNowMs - pState->SendStartedMs : 0u;
-	uint64 iReceiveElapsed = iNowMs >= pState->ReceiveStartedMs ?
-		iNowMs - pState->ReceiveStartedMs : 0u;
+	double iSendElapsed = Timer >= pState->SendStartedTimer ?
+		Timer - pState->SendStartedTimer : 0u;
+	double iReceiveElapsed = Timer >= pState->ReceiveStartedTimer ?
+		Timer - pState->ReceiveStartedTimer : 0u;
 
 	if ( (pState->Sent.Packets >= pState->Policy.HardPacketLimit) ||
 		(pState->Received.Packets >= pState->Policy.HardPacketLimit) ) {
 		return XSSH_REKEY_REQUIRED;
 	}
 	if ( pState->Requested ||
-		xsshRekeyLimit(iSendElapsed, pState->Policy.TimeLimitMs) ||
-		xsshRekeyLimit(iReceiveElapsed, pState->Policy.TimeLimitMs) ||
+		(pState->Policy.TimeLimitMs != 0 && iSendElapsed >= (double)pState->Policy.TimeLimitMs / 1000.0) ||
+		(pState->Policy.TimeLimitMs != 0 && iReceiveElapsed >= (double)pState->Policy.TimeLimitMs / 1000.0) ||
 		xsshRekeyLimit(pState->Sent.Bytes, pState->Policy.ByteLimit) ||
 		xsshRekeyLimit(pState->Received.Bytes, pState->Policy.ByteLimit) ||
 		xsshRekeyLimit(pState->Sent.Blocks, pState->Policy.BlockLimit) ||
@@ -18009,7 +18022,7 @@ static xsshcode xsshRekeyReserve(
 	xsshrekeycounter* pCounter,
 	uint64 iWireBytes,
 	uint64 iCipherBlocks,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
@@ -18026,7 +18039,7 @@ static xsshcode xsshRekeyReserve(
 		) ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
-	if ( xsshRekeyCurrent(pState, iNowMs) == XSSH_REKEY_REQUIRED ) {
+	if ( xsshRekeyCurrent(pState, Timer) == XSSH_REKEY_REQUIRED ) {
 		*pDecision = XSSH_REKEY_REQUIRED;
 		return XSSH_OK;
 	}
@@ -18035,7 +18048,7 @@ static xsshcode xsshRekeyReserve(
 	Counter.Bytes = xsshRekeyAdd(Counter.Bytes, iWireBytes);
 	Counter.Blocks = xsshRekeyAdd(Counter.Blocks, iCipherBlocks);
 	*pCounter = Counter;
-	Decision = xsshRekeyCurrent(pState, iNowMs);
+	Decision = xsshRekeyCurrent(pState, Timer);
 	if ( Decision == XSSH_REKEY_REQUIRED ) {
 		Decision = XSSH_REKEY_RECOMMENDED;
 	}
@@ -18065,9 +18078,10 @@ void xrtSshRekeyPolicyInit(xsshrekeypolicy* pPolicy)
 bool xrtSshRekeyInit(
 	xsshrekeystate* pState,
 	const xsshrekeypolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	xsshrekeypolicy Policy;
 	xsshrekeystate State;
 
@@ -18083,8 +18097,8 @@ bool xrtSshRekeyInit(
 	}
 	memset(&State, 0, sizeof(State));
 	State.Policy = *pPolicy;
-	State.SendStartedMs = iNowMs;
-	State.ReceiveStartedMs = iNowMs;
+	State.SendStartedTimer = Timer;
+	State.ReceiveStartedTimer = Timer;
 	*pState = State;
 	return true;
 }
@@ -18092,8 +18106,9 @@ bool xrtSshRekeyInit(
 
 
 /* 保留策略并重置新一代密钥的全部运行计数。 */
-bool xrtSshRekeyReset(xsshrekeystate* pState, uint64 iNowMs)
+bool xrtSshRekeyReset(xsshrekeystate* pState, double Timer)
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	xsshrekeypolicy Policy;
 
 	if ( (pState == NULL) || !xsshRekeyPolicyValid(&pState->Policy) ) {
@@ -18102,34 +18117,36 @@ bool xrtSshRekeyReset(xsshrekeystate* pState, uint64 iNowMs)
 	Policy = pState->Policy;
 	memset(pState, 0, sizeof(*pState));
 	pState->Policy = Policy;
-	pState->SendStartedMs = iNowMs;
-	pState->ReceiveStartedMs = iNowMs;
+	pState->SendStartedTimer = Timer;
+	pState->ReceiveStartedTimer = Timer;
 	return true;
 }
 
 
 
 /* 写密钥提交只开始新的发送代，不影响已先行收到的新密钥数据。 */
-bool xrtSshRekeyResetSend(xsshrekeystate* pState, uint64 iNowMs)
+bool xrtSshRekeyResetSend(xsshrekeystate* pState, double Timer)
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	if ( (pState == NULL) || !xsshRekeyPolicyValid(&pState->Policy) ) {
 		return false;
 	}
 	memset(&pState->Sent, 0, sizeof(pState->Sent));
-	pState->SendStartedMs = iNowMs;
+	pState->SendStartedTimer = Timer;
 	return true;
 }
 
 
 
 /* 读密钥提交只开始新的接收代，不影响已先行发送的新密钥数据。 */
-bool xrtSshRekeyResetReceive(xsshrekeystate* pState, uint64 iNowMs)
+bool xrtSshRekeyResetReceive(xsshrekeystate* pState, double Timer)
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	if ( (pState == NULL) || !xsshRekeyPolicyValid(&pState->Policy) ) {
 		return false;
 	}
 	memset(&pState->Received, 0, sizeof(pState->Received));
-	pState->ReceiveStartedMs = iNowMs;
+	pState->ReceiveStartedTimer = Timer;
 	return true;
 }
 
@@ -18162,10 +18179,11 @@ bool xrtSshRekeyRequest(xsshrekeystate* pState)
 /* 读取当前决策，不改变计数状态。 */
 xsshcode xrtSshRekeyCheck(
 	const xsshrekeystate* pState,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	if ( (pState == NULL) || (pDecision == NULL) ||
 		!xsshRekeyPolicyValid(&pState->Policy) ||
 		xrtMemRangesOverlap(
@@ -18176,7 +18194,7 @@ xsshcode xrtSshRekeyCheck(
 		) ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
-	*pDecision = xsshRekeyCurrent(pState, iNowMs);
+	*pDecision = xsshRekeyCurrent(pState, Timer);
 	return XSSH_OK;
 }
 
@@ -18187,10 +18205,11 @@ xsshcode xrtSshRekeyReserveSend(
 	xsshrekeystate* pState,
 	uint64 iWireBytes,
 	uint64 iCipherBlocks,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	if ( pState == NULL ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
@@ -18199,7 +18218,7 @@ xsshcode xrtSshRekeyReserveSend(
 		&pState->Sent,
 		iWireBytes,
 		iCipherBlocks,
-		iNowMs,
+		Timer,
 		pDecision
 	);
 }
@@ -18211,10 +18230,11 @@ xsshcode xrtSshRekeyReserveReceive(
 	xsshrekeystate* pState,
 	uint64 iWireBytes,
 	uint64 iCipherBlocks,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	if ( pState == NULL ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
@@ -18223,7 +18243,7 @@ xsshcode xrtSshRekeyReserveReceive(
 		&pState->Received,
 		iWireBytes,
 		iCipherBlocks,
-		iNowMs,
+		Timer,
 		pDecision
 	);
 }
@@ -19332,6 +19352,7 @@ void xrtSshTransportClose(xsshtransportstate* pState)
 /* ========================================================================== */
 
 #if defined(XSSH_FEATURE_TRANSPORT_CORE)
+#include <math.h>
 #include <string.h>
 
 
@@ -19546,9 +19567,10 @@ bool xrtSshTransportCoreInit(
 	xsshrole Role,
 	uint32 iMaxPacketSize,
 	const xsshrekeypolicy* pRekeyPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	xsshtransportcore Core;
 
 	if ( !xrtMemRangeValid(pCore, sizeof(*pCore)) ) {
@@ -19559,7 +19581,7 @@ bool xrtSshTransportCoreInit(
 		&Core.Codec,
 		iMaxPacketSize
 	) != XSSH_OK) || !xrtSshTransportStateInit(&Core.State, Role) ||
-		!xrtSshRekeyInit(&Core.Rekey, pRekeyPolicy, iNowMs) ) {
+		!xrtSshRekeyInit(&Core.Rekey, pRekeyPolicy, Timer) ) {
 		xrtSshPacketCodecClear(&Core.Codec);
 		xrtSecureZero(&Core, sizeof(Core));
 		return false;
@@ -19665,10 +19687,11 @@ bool xrtSshTransportCoreRekeyRequest(xsshtransportcore* pCore)
 /* 查询操作保持 core 不变。 */
 xsshcode xrtSshTransportCoreRekeyCheck(
 	const xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	if ( !xsshTransportCoreValid(pCore) ) {
 		return XSSH_ERROR_STATE;
 	}
@@ -19681,7 +19704,7 @@ xsshcode xrtSshTransportCoreRekeyCheck(
 	) ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
-	return xrtSshRekeyCheck(&pCore->Rekey, iNowMs, pDecision);
+	return xrtSshRekeyCheck(&pCore->Rekey, Timer, pDecision);
 }
 
 
@@ -19724,9 +19747,10 @@ xsshcode xrtSshTransportCoreWritePrepareWithPadding(
 	xbytesview Payload,
 	xsshpaddingproc pPadding,
 	ptr pUserData,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshtransportpending Pending;
 	xsshrekeydecision Decision;
 	size_t iStart;
@@ -19772,7 +19796,7 @@ xsshcode xrtSshTransportCoreWritePrepareWithPadding(
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
-	Code = xrtSshRekeyCheck(&pCore->Rekey, iNowMs, &Decision);
+	Code = xrtSshRekeyCheck(&pCore->Rekey, Timer, &Decision);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -19808,10 +19832,11 @@ xsshcode xrtSshTransportCoreWritePrepareWithPadding(
 /* 可靠入队后按 codec、协议和预算三个边界一次提交。 */
 xsshcode xrtSshTransportCoreWriteCommit(
 	xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshrekeydecision Decision;
 	uint32 iActions;
 	xsshcode Code;
@@ -19838,7 +19863,7 @@ xsshcode xrtSshTransportCoreWriteCommit(
 			&pCore->Rekey,
 			pCore->Write.WireBytes,
 			pCore->Write.CipherBlocks,
-			iNowMs,
+			Timer,
 			&Decision
 		);
 	}
@@ -19897,9 +19922,10 @@ xsshcode xrtSshTransportCoreReadPrepare(
 	xsshpacketview* pPacket,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshtransportpending Pending;
 	xsshrekeydecision Decision;
 	xsshpacketneed Need;
@@ -19949,7 +19975,7 @@ xsshcode xrtSshTransportCoreReadPrepare(
 	if ( xrtSshReaderRemaining(pReader) < Need.WireSize ) {
 		return XSSH_NEED_MORE;
 	}
-	Code = xrtSshRekeyCheck(&pCore->Rekey, iNowMs, &Decision);
+	Code = xrtSshRekeyCheck(&pCore->Rekey, Timer, &Decision);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -20004,10 +20030,11 @@ xsshcode xrtSshTransportCoreReadPrepare(
 /* 已认证包只在上层解析接受后登记预算并推进协议。 */
 xsshcode xrtSshTransportCoreReadCommit(
 	xsshtransportcore* pCore,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshrekeydecision Decision;
 	uint32 iActions;
 	xsshcode Code;
@@ -20034,7 +20061,7 @@ xsshcode xrtSshTransportCoreReadCommit(
 			&pCore->Rekey,
 			pCore->Read.WireBytes,
 			pCore->Read.CipherBlocks,
-			iNowMs,
+			Timer,
 			&Decision
 		);
 	}
@@ -20099,9 +20126,10 @@ xsshcode xrtSshTransportCoreSetWriteAesGcm(
 	xsshtransportcore* pCore,
 	xbytesview Key,
 	xbytesview InitialIV,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshrekeydecision Decision;
 	uint32 iActions;
 	xsshcode Code;
@@ -20110,7 +20138,7 @@ xsshcode xrtSshTransportCoreSetWriteAesGcm(
 		(pCore->WriteKeyActions == 0u) ) {
 		return XSSH_ERROR_STATE;
 	}
-	Code = xrtSshRekeyCheck(&pCore->Rekey, iNowMs, &Decision);
+	Code = xrtSshRekeyCheck(&pCore->Rekey, Timer, &Decision);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -20127,7 +20155,7 @@ xsshcode xrtSshTransportCoreSetWriteAesGcm(
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
-	if ( !xrtSshRekeyResetSend(&pCore->Rekey, iNowMs) ) {
+	if ( !xrtSshRekeyResetSend(&pCore->Rekey, Timer) ) {
 		xsshTransportCoreFail(pCore);
 		return XSSH_ERROR_STATE;
 	}
@@ -20146,9 +20174,10 @@ xsshcode xrtSshTransportCoreSetReadAesGcm(
 	xsshtransportcore* pCore,
 	xbytesview Key,
 	xbytesview InitialIV,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshrekeydecision Decision;
 	uint32 iActions;
 	xsshcode Code;
@@ -20157,7 +20186,7 @@ xsshcode xrtSshTransportCoreSetReadAesGcm(
 		(pCore->ReadKeyActions == 0u) ) {
 		return XSSH_ERROR_STATE;
 	}
-	Code = xrtSshRekeyCheck(&pCore->Rekey, iNowMs, &Decision);
+	Code = xrtSshRekeyCheck(&pCore->Rekey, Timer, &Decision);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -20174,7 +20203,7 @@ xsshcode xrtSshTransportCoreSetReadAesGcm(
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
-	if ( !xrtSshRekeyResetReceive(&pCore->Rekey, iNowMs) ) {
+	if ( !xrtSshRekeyResetReceive(&pCore->Rekey, Timer) ) {
 		xsshTransportCoreFail(pCore);
 		return XSSH_ERROR_STATE;
 	}
@@ -20218,6 +20247,7 @@ void xrtSshTransportCoreClose(xsshtransportcore* pCore)
 /* ========================================================================== */
 
 #if defined(XSSH_FEATURE_KEX_SESSION)
+#include <math.h>
 #include <string.h>
 
 
@@ -21607,9 +21637,10 @@ xsshcode xrtSshKexSessionReadAbort(xsshkexsession* pSession)
 xsshcode xrtSshKexSessionActivateWrite(
 	xsshkexsession* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xbytesview Key;
 	xbytesview IV;
 	xsshcode Code;
@@ -21645,7 +21676,7 @@ xsshcode xrtSshKexSessionActivateWrite(
 			sizeof(pSession->ServerToClientIV)
 		};
 	}
-	Code = xrtSshTransportCoreSetWriteAesGcm(pCore, Key, IV, iNowMs);
+	Code = xrtSshTransportCoreSetWriteAesGcm(pCore, Key, IV, Timer);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -21666,9 +21697,10 @@ xsshcode xrtSshKexSessionActivateWrite(
 xsshcode xrtSshKexSessionActivateRead(
 	xsshkexsession* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xbytesview Key;
 	xbytesview IV;
 	xsshcode Code;
@@ -21704,7 +21736,7 @@ xsshcode xrtSshKexSessionActivateRead(
 			sizeof(pSession->ClientToServerIV)
 		};
 	}
-	Code = xrtSshTransportCoreSetReadAesGcm(pCore, Key, IV, iNowMs);
+	Code = xrtSshTransportCoreSetReadAesGcm(pCore, Key, IV, Timer);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -22635,6 +22667,7 @@ xsshcode xrtSshKexExchangeBegin(
 /* ========================================================================== */
 
 #if defined(XSSH_FEATURE_TRANSPORT_TCP)
+#include <math.h>
 #include <string.h>
 
 
@@ -22828,9 +22861,10 @@ bool xrtSshTransportTcpInit(
 	xsshtransporttcp* pTransport,
 	xnetbufpool* pPool,
 	const xsshtransporttcpconfig* pConfig,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	xsshtransporttcp Transport;
 	xsshtransporttcpconfig Config;
 
@@ -22849,7 +22883,7 @@ bool xrtSshTransportTcpInit(
 			Config.Role,
 			Config.MaxPacketSize,
 			&Config.Rekey,
-			iNowMs
+			Timer
 		) ) {
 		xrtNetBufClear(&Transport.Output);
 		xrtSshTransportCoreClear(&Transport.Core);
@@ -22966,9 +23000,10 @@ xsshcode xrtSshTransportTcpWritePrepareWithPadding(
 	xbytesview Payload,
 	xsshpaddingproc pPadding,
 	ptr pUserData,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshpacketneed Need;
 	xnetwspan Span;
 	xsshwriter Writer;
@@ -23013,7 +23048,7 @@ xsshcode xrtSshTransportTcpWritePrepareWithPadding(
 		Payload,
 		pPadding,
 		pUserData,
-		iNowMs
+		Timer
 	);
 	if ( Code != XSSH_OK ) {
 		(void)xrtNetBufCancel(&pTransport->Output);
@@ -23037,7 +23072,7 @@ xsshcode xrtSshTransportTcpWritePrepareWithPadding(
 xnetresult xrtSshTransportTcpWriteSubmit(
 	xsshtransporttcp* pTransport,
 	xnetstream* pStream,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
@@ -23076,7 +23111,7 @@ xnetresult xrtSshTransportTcpWriteSubmit(
 	} else {
 		Code = xrtSshTransportCoreWriteCommit(
 			&pTransport->Core,
-			iNowMs,
+			Timer,
 			&Decision
 		);
 	}
@@ -23249,9 +23284,10 @@ xsshcode xrtSshTransportTcpReadPrepare(
 	xsshpacketview* pPacket,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshpacketneed Need;
 	xnetspan Span;
 	xsshreader Reader;
@@ -23309,7 +23345,7 @@ xsshcode xrtSshTransportTcpReadPrepare(
 		pPacket,
 		pPlain,
 		iPlainCapacity,
-		iNowMs
+		Timer
 	);
 	if ( Code != XSSH_OK ) {
 		return Code;
@@ -23329,10 +23365,11 @@ xsshcode xrtSshTransportTcpReadPrepare(
 /* Core 先提交，随后底层链必须精确消费同一借用前缀。 */
 xsshcode xrtSshTransportTcpReadCommit(
 	xsshtransporttcp* pTransport,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshrekeydecision Decision = XSSH_REKEY_NONE;
 	xsshcode Code;
 	size_t iConsumed;
@@ -23357,7 +23394,7 @@ xsshcode xrtSshTransportTcpReadCommit(
 	} else {
 		Code = xrtSshTransportCoreReadCommit(
 			&pTransport->Core,
-			iNowMs,
+			Timer,
 			&Decision
 		);
 	}
@@ -23421,6 +23458,7 @@ xsshcode xrtSshTransportTcpReadAbort(xsshtransporttcp* pTransport)
 /* ========================================================================== */
 
 #if defined(XSSH_FEATURE_TRANSPORT_TCP_RANDOM)
+#include <math.h>
 
 
 
@@ -23430,15 +23468,16 @@ xsshcode xrtSshTransportTcpReadAbort(xsshtransporttcp* pTransport)
 xsshcode xrtSshTransportTcpWritePrepare(
 	xsshtransporttcp* pTransport,
 	xbytesview Payload,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	return xrtSshTransportTcpWritePrepareWithPadding(
 		pTransport,
 		Payload,
 		xrtSshSecurePadding,
 		NULL,
-		iNowMs
+		Timer
 	);
 }
 
@@ -25899,6 +25938,7 @@ xsshcode xrtSshAuthHostBasedSignDataWrite(
 /* ========================================================================== */
 
 #if defined(XSSH_FEATURE_AUTH_GUARD)
+#include <math.h>
 #include <string.h>
 
 
@@ -25952,17 +25992,17 @@ static bool xsshAuthGuardLimit32(uint32 iValue, uint32 iLimit)
 /* 按稳定优先级返回当前首个资源耗尽原因。 */
 static xsshauthexhaustion xsshAuthGuardCurrent(
 	const xsshauthguard* pGuard,
-	uint64 iNowMs
+	double Timer
 )
 {
-	uint64 iElapsed = iNowMs >= pGuard->StartedMs ?
-		iNowMs - pGuard->StartedMs : 0u;
+	double iElapsed = Timer >= pGuard->StartedTimer ?
+		Timer - pGuard->StartedTimer : 0u;
 
 	if ( pGuard->Exhaustion != XSSH_AUTH_EXHAUST_NONE ) {
 		return pGuard->Exhaustion;
 	}
 	if ( (pGuard->Policy.TimeoutMs != 0u) &&
-		(iElapsed >= pGuard->Policy.TimeoutMs) ) {
+		(iElapsed >= (double)pGuard->Policy.TimeoutMs / 1000.0) ) {
 		return XSSH_AUTH_EXHAUST_TIMEOUT;
 	}
 	if ( xsshAuthGuardLimit32(
@@ -26013,13 +26053,14 @@ void xrtSshAuthGuardPolicyInit(xsshauthguardpolicy* pPolicy)
 bool xrtSshAuthGuardInit(
 	xsshauthguard* pGuard,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	xsshauthguardpolicy Policy;
 	xsshauthguard Guard;
 
-	if ( pGuard == NULL ) {
+	if ( pGuard == NULL || (pPolicy != NULL && pPolicy->TimeoutMs < 0) ) {
 		return false;
 	}
 	if ( pPolicy == NULL ) {
@@ -26036,7 +26077,7 @@ bool xrtSshAuthGuardInit(
 	}
 	memset(&Guard, 0, sizeof(Guard));
 	Guard.Policy = *pPolicy;
-	Guard.StartedMs = iNowMs;
+	Guard.StartedTimer = Timer;
 	Guard.Initialized = true;
 	*pGuard = Guard;
 	return true;
@@ -26047,10 +26088,11 @@ bool xrtSshAuthGuardInit(
 /* 查询当前认证预算，不增加任何计数。 */
 xsshcode xrtSshAuthGuardCheck(
 	xsshauthguard* pGuard,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshauthexhaustion Exhaustion;
 
 	if ( !xsshAuthGuardValid(pGuard) || (pDecision == NULL) ||
@@ -26066,7 +26108,7 @@ xsshcode xrtSshAuthGuardCheck(
 		*pDecision = XSSH_AUTH_GUARD_IGNORE;
 		return XSSH_OK;
 	}
-	Exhaustion = xsshAuthGuardCurrent(pGuard, iNowMs);
+	Exhaustion = xsshAuthGuardCurrent(pGuard, Timer);
 	if ( Exhaustion != XSSH_AUTH_EXHAUST_NONE ) {
 		pGuard->Exhaustion = Exhaustion;
 		*pDecision = XSSH_AUTH_GUARD_DISCONNECT;
@@ -26083,10 +26125,11 @@ xsshcode xrtSshAuthGuardReserve(
 	xsshauthguard* pGuard,
 	xsshauthevent Event,
 	uint64 iMessageBytes,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshauthguard Guard;
 	xsshauthguarddecision Decision;
 	xsshcode Code;
@@ -26102,7 +26145,7 @@ xsshcode xrtSshAuthGuardReserve(
 		) ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
-	Code = xrtSshAuthGuardCheck(pGuard, iNowMs, &Decision);
+	Code = xrtSshAuthGuardCheck(pGuard, Timer, &Decision);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -26118,7 +26161,7 @@ xsshcode xrtSshAuthGuardReserve(
 	} else if ( Event == XSSH_AUTH_EVENT_ROUND ) {
 		Guard.Rounds = xsshAuthGuardIncrement(Guard.Rounds);
 	}
-	Guard.Exhaustion = xsshAuthGuardCurrent(&Guard, iNowMs);
+	Guard.Exhaustion = xsshAuthGuardCurrent(&Guard, Timer);
 	*pGuard = Guard;
 	*pDecision = Guard.Exhaustion == XSSH_AUTH_EXHAUST_NONE ?
 		XSSH_AUTH_GUARD_ALLOW : XSSH_AUTH_GUARD_DISCONNECT;
@@ -26147,6 +26190,7 @@ bool xrtSshAuthGuardComplete(xsshauthguard* pGuard)
 /* ========================================================================== */
 
 #if defined(XSSH_FEATURE_AUTH_SESSION)
+#include <math.h>
 #include <string.h>
 
 
@@ -26424,7 +26468,7 @@ static xsshcode xsshAuthSessionBudgetPrepare(
 	xsshauthsessionpacket Packet,
 	bool bServerMessage,
 	size_t iPayloadSize,
-	uint64 iNowMs
+	double Timer
 )
 {
 	xsshauthguarddecision Decision;
@@ -26440,7 +26484,7 @@ static xsshcode xsshAuthSessionBudgetPrepare(
 		&Budget,
 		xsshAuthSessionBudgetEvent(Packet, bServerMessage),
 		(uint64)iPayloadSize,
-		iNowMs,
+		Timer,
 		&Decision
 	);
 	if ( Code != XSSH_OK ) {
@@ -26636,9 +26680,10 @@ xsshcode xrtSshAuthSessionBegin(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshauthsession Session;
 
 	if ( !xsshAuthSessionValid(pSession) ||
@@ -26666,7 +26711,7 @@ xsshcode xrtSshAuthSessionBegin(
 		return XSSH_ERROR_STATE;
 	}
 	Session = *pSession;
-	if ( !xrtSshAuthGuardInit(&Session.Budget, pPolicy, iNowMs) ) {
+	if ( !xrtSshAuthGuardInit(&Session.Budget, pPolicy, Timer) ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
 	Session.Active = true;
@@ -26718,10 +26763,11 @@ xsshcode xrtSshAuthSessionBudget(
 /* 检查无外部时钟依赖的认证预算。 */
 xsshcode xrtSshAuthSessionCheck(
 	xsshauthsession* pSession,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshauthguarddecision Decision;
 	xsshcode Code;
 
@@ -26738,7 +26784,7 @@ xsshcode xrtSshAuthSessionCheck(
 		) ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
-	Code = xrtSshAuthGuardCheck(&pSession->Budget, iNowMs, &Decision);
+	Code = xrtSshAuthGuardCheck(&pSession->Budget, Timer, &Decision);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -26756,9 +26802,10 @@ xsshcode xrtSshAuthSessionWritePrepare(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	xbytesview Payload,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshauthsessionpacket Packet = XSSH_AUTH_SESSION_PACKET_NONE;
 	xsshauthrequest Request;
 	xsshauthfailure Failure;
@@ -26810,7 +26857,7 @@ xsshcode xrtSshAuthSessionWritePrepare(
 		Packet,
 		pSession->Role == XSSH_ROLE_SERVER,
 		Payload.Size,
-		iNowMs
+		Timer
 	);
 	if ( Code != XSSH_OK ) {
 		return Code;
@@ -26875,10 +26922,11 @@ xsshcode xrtSshAuthSessionReadPrepare(
 	xsshauthsession* pSession,
 	const xsshtransportcore* pCore,
 	xbytesview Payload,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthsessionpacket* pPacket
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshauthsessionpacket Packet = XSSH_AUTH_SESSION_PACKET_NONE;
 	xsshauthrequest Request;
 	xsshauthfailure Failure;
@@ -26959,7 +27007,7 @@ xsshcode xrtSshAuthSessionReadPrepare(
 		Packet,
 		pSession->Role == XSSH_ROLE_CLIENT,
 		Payload.Size,
-		iNowMs
+		Timer
 	);
 	if ( Code != XSSH_OK ) {
 		return Code;
@@ -33458,6 +33506,7 @@ XRT_API void xrtSshChannelsIterEnd(xsshchannelsiter* pIterator)
 /* ========================================================================== */
 
 #if defined(XSSH_FEATURE_SESSION_CORE)
+#include <math.h>
 #include <string.h>
 
 
@@ -34054,9 +34103,10 @@ xsshcode xrtSshSessionCoreAuthBegin(
 	xsshsessioncore* pSession,
 	const xsshtransportcore* pCore,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	if ( !xsshSessionCoreValid(pSession) || pSession->Failed ||
 		!xsshSessionCoreTransportValid(pSession, pCore) ||
 		(pSession->Kex.Phase != XSSH_KEX_EXCHANGE_COMPLETE) ||
@@ -34068,7 +34118,7 @@ xsshcode xrtSshSessionCoreAuthBegin(
 		&pSession->Auth,
 		pCore,
 		pPolicy,
-		iNowMs
+		Timer
 	);
 }
 
@@ -34082,10 +34132,11 @@ xsshcode xrtSshSessionCoreWritePrepare(
 	xsshchannelcore* pChannel,
 	xsshreplyqueue* pReplies,
 	uint64 iReplyToken,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshsessionpacket Packet;
 	bool bRecognized;
 	uint8 iMessage;
@@ -34171,7 +34222,7 @@ xsshcode xrtSshSessionCoreWritePrepare(
 				&pSession->Auth,
 				pCore,
 				Payload,
-				iNowMs
+				Timer
 			);
 			if ( Code == XSSH_OK ) {
 				Packet.Kind = XSSH_SESSION_PACKET_AUTH;
@@ -34259,9 +34310,10 @@ xsshcode xrtSshSessionCoreWriteBind(
 xsshcode xrtSshSessionCoreWriteCommit(
 	xsshsessioncore* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshcode Code = XSSH_OK;
 
 	if ( !xsshSessionCoreValid(pSession) || pSession->Failed ||
@@ -34280,7 +34332,7 @@ xsshcode xrtSshSessionCoreWriteCommit(
 			Code = xrtSshKexSessionActivateWrite(
 				&pSession->Kex.Session,
 				pCore,
-				iNowMs
+				Timer
 			);
 		}
 		if ( Code == XSSH_OK ) {
@@ -34348,10 +34400,11 @@ xsshcode xrtSshSessionCoreReadPrepare(
 	void* pHostKeyStorage,
 	size_t iHostKeyCapacity,
 	size_t* pHostKeySize,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacket* pPacket
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshsessionpacket Packet;
 	xsshauthsessionpacket AuthPacket;
 	bool bRecognized;
@@ -34435,7 +34488,7 @@ xsshcode xrtSshSessionCoreReadPrepare(
 				&pSession->Auth,
 				pCore,
 				Payload,
-				iNowMs,
+				Timer,
 				&AuthPacket
 			);
 			if ( Code == XSSH_OK ) {
@@ -34481,9 +34534,10 @@ xsshcode xrtSshSessionCoreReadPrepare(
 xsshcode xrtSshSessionCoreReadCommit(
 	xsshsessioncore* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshcode Code = XSSH_OK;
 
 	if ( !xsshSessionCoreValid(pSession) || pSession->Failed ||
@@ -34502,7 +34556,7 @@ xsshcode xrtSshSessionCoreReadCommit(
 			Code = xrtSshKexSessionActivateRead(
 				&pSession->Kex.Session,
 				pCore,
-				iNowMs
+				Timer
 			);
 		}
 		if ( Code == XSSH_OK ) {
@@ -34610,6 +34664,7 @@ xsshcode xrtSshSessionCoreKexBegin(
 /* ========================================================================== */
 
 #if defined(XSSH_FEATURE_SESSION_TCP)
+#include <math.h>
 #include <string.h>
 
 
@@ -34789,9 +34844,10 @@ bool xrtSshSessionTcpInit(
 	xsshsessiontcp* pSession,
 	xnetbufpool* pPool,
 	const xsshsessiontcpconfig* pConfig,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	xsshsessiontcp Session;
 	xsshsessiontcpconfig Config;
 	size_t iReplyBytes = 0u;
@@ -34835,7 +34891,7 @@ bool xrtSshSessionTcpInit(
 		&Session.Transport,
 		pPool,
 		&Config.Transport,
-		iNowMs
+		Timer
 	) || !xrtSshSessionCoreInit(
 		&Session.Session,
 		pPool,
@@ -34975,9 +35031,10 @@ xsshcode xrtSshSessionTcpKexBeginWithPrivate(
 xsshcode xrtSshSessionTcpAuthBegin(
 	xsshsessiontcp* pSession,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	if ( !xsshSessionTcpValid(pSession) ) {
 		return XSSH_ERROR_STATE;
 	}
@@ -34995,7 +35052,7 @@ xsshcode xrtSshSessionTcpAuthBegin(
 		&pSession->Session,
 		&pSession->Transport.Core,
 		pPolicy,
-		iNowMs
+		Timer
 	);
 }
 
@@ -35054,10 +35111,11 @@ xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 	uint64 iReplyToken,
 	xsshpaddingproc pPadding,
 	ptr pPaddingData,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshcode Code;
 
 	if ( !xsshSessionTcpValid(pSession) ) {
@@ -35085,7 +35143,7 @@ xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 		pChannel,
 		pReplies,
 		iReplyToken,
-		iNowMs,
+		Timer,
 		pKind
 	);
 	if ( Code != XSSH_OK ) {
@@ -35096,7 +35154,7 @@ xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 		Payload,
 		pPadding,
 		pPaddingData,
-		iNowMs
+		Timer
 	);
 	if ( Code != XSSH_OK ) {
 		(void)xrtSshSessionCoreWriteAbort(
@@ -35126,7 +35184,7 @@ xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 xnetresult xrtSshSessionTcpWriteSubmit(
 	xsshsessiontcp* pSession,
 	xnetstream* pStream,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
@@ -35172,7 +35230,7 @@ xnetresult xrtSshSessionTcpWriteSubmit(
 	Result = xrtSshTransportTcpWriteSubmit(
 		&pSession->Transport,
 		pStream,
-		iNowMs,
+		Timer,
 		pDecision
 	);
 	if ( Result != XNET_RESULT_OK ) {
@@ -35187,7 +35245,7 @@ xnetresult xrtSshSessionTcpWriteSubmit(
 		Code = xrtSshSessionCoreWriteCommit(
 			&pSession->Session,
 			&pSession->Transport.Core,
-			iNowMs
+			Timer
 		);
 	}
 	if ( Code != XSSH_OK ) {
@@ -35364,10 +35422,11 @@ xsshcode xrtSshSessionTcpReadPrepare(
 	void* pHostKeyStorage,
 	size_t iHostKeyCapacity,
 	size_t* pHostKeySize,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessiontcppacket* pPacket
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshsessionpacket SessionPacket;
 	xsshpacketview TransportPacket;
 	xsshcode Code;
@@ -35402,7 +35461,7 @@ xsshcode xrtSshSessionTcpReadPrepare(
 			&TransportPacket,
 			pPlain,
 			iPlainCapacity,
-			iNowMs
+			Timer
 		);
 		if ( Code != XSSH_OK ) {
 			if ( (pSession->Transport.Core.State.Phase ==
@@ -35425,7 +35484,7 @@ xsshcode xrtSshSessionTcpReadPrepare(
 		pHostKeyStorage,
 		iHostKeyCapacity,
 		pHostKeySize,
-		iNowMs,
+		Timer,
 		&SessionPacket
 	);
 	if ( Code == XSSH_OK ) {
@@ -35449,10 +35508,11 @@ xsshcode xrtSshSessionTcpReadPrepare(
 /* transport 消费成功后才发布版本或连接级协议状态。 */
 xsshcode xrtSshSessionTcpReadCommit(
 	xsshsessiontcp* pSession,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshtransporttcppending Pending;
 	xsshcode Code;
 
@@ -35480,7 +35540,7 @@ xsshcode xrtSshSessionTcpReadCommit(
 	}
 	Code = xrtSshTransportTcpReadCommit(
 		&pSession->Transport,
-		iNowMs,
+		Timer,
 		pDecision
 	);
 	if ( Code != XSSH_OK ) {
@@ -35497,7 +35557,7 @@ xsshcode xrtSshSessionTcpReadCommit(
 		Code = xrtSshSessionCoreReadCommit(
 			&pSession->Session,
 			&pSession->Transport.Core,
-			iNowMs
+			Timer
 		);
 	}
 	xsshSessionTcpReadClear(pSession);
@@ -35554,6 +35614,7 @@ xsshcode xrtSshSessionTcpReadAbort(xsshsessiontcp* pSession)
 /* ========================================================================== */
 
 #if defined(XSSH_FEATURE_SESSION_READER)
+#include <math.h>
 #include <string.h>
 
 
@@ -35732,7 +35793,7 @@ static xsshcode xsshSessionReaderHostKeyPrepare(
 /* 使用当前动态空间重试同一未消费 packet 的上层解析。 */
 static xsshcode xsshSessionReaderPacketPrepare(
 	xsshsessionreader* pReader,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessiontcppacket* pPacket
 )
 {
@@ -35751,7 +35812,7 @@ static xsshcode xsshSessionReaderPacketPrepare(
 		pReader->HostKey.Reserved != NULL ?
 			pReader->HostKeySpan.Size : 0u,
 		&iHostKeySize,
-		iNowMs,
+		Timer,
 		&Packet
 	);
 	pReader->HostKeySize = iHostKeySize;
@@ -35861,10 +35922,11 @@ xsshsessionreaderstate xrtSshSessionReaderState(
 xsshcode xrtSshSessionReaderPrepare(
 	xsshsessionreader* pReader,
 	xnetbuf* pInput,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessiontcppacket* pPacket
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshcode Code;
 
 	if ( !xsshSessionReaderValid(pReader) ||
@@ -35891,7 +35953,7 @@ xsshcode xrtSshSessionReaderPrepare(
 		}
 		Code = xsshSessionReaderPacketPrepare(
 			pReader,
-			iNowMs,
+			Timer,
 			pPacket
 		);
 		if ( (Code == XSSH_ERROR_SPACE) &&
@@ -35910,10 +35972,11 @@ xsshcode xrtSshSessionReaderPrepare(
 /* 发布可持久借用的主机公钥，再提交唯一 packet 并释放明文工作区。 */
 xsshcode xrtSshSessionReaderCommit(
 	xsshsessionreader* pReader,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	bool bHostKey;
 	xsshcode Code;
 	xnetbufpool* pPool;
@@ -35943,7 +36006,7 @@ xsshcode xrtSshSessionReaderCommit(
 	}
 	Code = xrtSshSessionTcpReadCommit(
 		pReader->Session,
-		iNowMs,
+		Timer,
 		pDecision
 	);
 	if ( Code != XSSH_OK ) {
@@ -36109,10 +36172,10 @@ static bool xsshSessionStreamCurrent(const xsshsessionstream* pSession)
 
 
 
-/* SSH rekey 时钟使用毫秒，XRT 单调时钟使用微秒。 */
-static uint64 xsshSessionStreamNow(void)
+/* SSH rekey 和等待统一使用 Timer 的 double 秒数。 */
+static double xsshSessionStreamNow(void)
 {
-	return xrtClock() / 1000u;
+	return xrtTimer();
 }
 
 
@@ -37108,6 +37171,7 @@ static void xsshSessionStreamClose(
 /* ========================================================================== */
 
 #if defined(XSSH_FEATURE_SESSION_TCP_RANDOM)
+#include <math.h>
 
 
 
@@ -37150,10 +37214,11 @@ xsshcode xrtSshSessionTcpWritePrepare(
 	xsshchannelcore* pChannel,
 	xsshreplyqueue* pReplies,
 	uint64 iReplyToken,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	return xrtSshSessionTcpWritePrepareWithPadding(
 		pSession,
 		Payload,
@@ -37162,7 +37227,7 @@ xsshcode xrtSshSessionTcpWritePrepare(
 		iReplyToken,
 		xrtSshSecurePadding,
 		NULL,
-		iNowMs,
+		Timer,
 		pKind
 	);
 }
@@ -37176,6 +37241,7 @@ xsshcode xrtSshSessionTcpWritePrepare(
 /* ========================================================================== */
 
 #if defined(XSSH_FEATURE_CLIENT_CORE)
+#include <math.h>
 #include <string.h>
 
 
@@ -37497,10 +37563,11 @@ xsshcode xrtSshClientCoreNext(
 	xsshclientcore* pClient,
 	xsshsessiontcp* pSession,
 	const xsshsessionreader* pReader,
-	uint64 iNowMs,
+	double Timer,
 	xsshclientnext* pNext
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshclientnext Next;
 	uint32 iSteps;
 
@@ -37645,7 +37712,7 @@ xsshcode xrtSshClientCoreNext(
 			Code = xrtSshSessionTcpAuthBegin(
 				pSession,
 				&pClient->Config.AuthGuard,
-				iNowMs
+				Timer
 			);
 			if ( Code != XSSH_OK ) {
 				return Code;
@@ -39123,7 +39190,7 @@ static xsshcode xsshClientAdvance(xsshclient* pClient)
 		&pClient->Core,
 		pSession,
 		pReader,
-		xrtClock() / 1000u,
+		xrtTimer(),
 		&Next
 	);
 	if ( Code != XSSH_OK ) {
@@ -39142,7 +39209,7 @@ static xsshcode xsshClientAdvance(xsshclient* pClient)
 			NULL,
 			NULL,
 			0u,
-			xrtClock() / 1000u,
+			xrtTimer(),
 			&Kind
 		);
 	}
@@ -40080,7 +40147,7 @@ xsshcode xrtSshClientSend(
 		pChannel != NULL ? &pChannel->Core : NULL,
 		pReplies,
 		iReplyToken,
-		xrtClock() / 1000u,
+		xrtTimer(),
 		&Kind
 	);
 	if ( Code != XSSH_OK ) {

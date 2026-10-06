@@ -205,7 +205,7 @@ typedef struct xstrview {
 
 ### `xtime`
 
-绝对时间使用 Unix Epoch 微秒；该标量也是 xlang time 类型的底层表示。
+绝对时间使用 公元 UTC 毫秒；该标量也是 xlang time 类型的底层表示。
 
 ```c
 typedef int64 xtime;
@@ -442,7 +442,7 @@ printf("version=%s\n", xrtVersion());
 固定宽度。`ptr` 是可写无类型指针，`str` / `cstr` 是可写和只读 UTF-8
 零结尾字符串，`bytes` / `cbytes` 是可写和只读字节指针。
 
-`xtime` 是有符号 64 位 Unix Epoch 微秒，可直接用作 FFI 和跨模块时间标量。
+`xtime` 是有符号 64 位 公元 UTC 毫秒，可直接用作 FFI 和跨模块时间标量。
 单调时钟不使用该类型，避免把持续时间误当成绝对日期。
 
 ## 资源边界
@@ -2082,7 +2082,7 @@ FAILED 是显式失败，即使没有诊断对象也不能当作成功。上层�
 
 ## 旧版资产决策
 
-新版保留旧 `xrt.h` / `base.h` 中简短类型名称、微秒 `xtime`、原子引用及
+新版保留旧 `xrt.h` / `base.h` 中简短类型名称、毫秒 `xtime`、原子引用及
 无需复杂对象即可使用的风格，并补齐固定宽度、只读指针和显式借用 View。
 旧 `test_base.h` 的有效引用边界由核心单元测试和并发测试承接；可变全局状态、
 隐式字符串所有权和初始化引用计数被明确退役。

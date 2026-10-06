@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/port_tour —— 事件端口：readiness 与 completion 双形态
  * ----------------------------------------------------------------
@@ -47,7 +46,7 @@ static size_t g_iPending = 0;
 
 /* 等待一个匹配 (Type, Id) 的端口事件；成功返回 true 并写出事件。 */
 static bool exampleWaitFor(xnetport* pPort, xnetporteventtype Type,
-	uint64 Id, xnetportevent* pEvent, int64 iTimeoutUs)
+	uint64 Id, xnetportevent* pEvent, int64 iTimeoutMs)
 {
 	xnetportevent Events[8];
 	size_t iCount = 0;
@@ -65,8 +64,7 @@ static bool exampleWaitFor(xnetport* pPort, xnetporteventtype Type,
 				return true;
 			}
 		}
-		if ( __xrtNetPortWait(pPort, Events, 8u,
-				__xrtWaitAfter(iTimeoutUs / 100u),
+		if ( xrtNetPortWait(pPort, Events, 8u,iTimeoutMs / 100u,
 				&iCount) != XNET_RESULT_OK ) {
 			continue;
 		}
@@ -171,7 +169,7 @@ int main(void)
 		(xrtNetSocketSendTo(UdpB, "r", 1u, &iSent, &DestUdpA) !=
 			XNET_RESULT_OK) ||
 		!exampleWaitFor(pSelect, XNET_PORT_EVENT_READY, 100u,
-			&Event, 2000000ull) ||
+			&Event, INT64_C(2000)) ||
 		!xrtNetPortUnwatch(pSelect, UdpA) ) {
 		goto Cleanup;
 	}
@@ -192,10 +190,10 @@ int main(void)
 		!xrtNetPortConnect(pIocp, Client, &AddrListen, 201u, NULL) ||
 		!xrtNetPortAccept(pIocp, Listener, 202u, NULL) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_CONNECT, 201u,
-			&Event, 2000000ull) ||
+			&Event, INT64_C(2000)) ||
 		(Event.Result != XNET_RESULT_OK) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_ACCEPT, 202u,
-			&Event, 2000000ull) ||
+			&Event, INT64_C(2000)) ||
 		(Event.Accepted == 0) ) {
 		goto Cleanup;
 	}
@@ -205,17 +203,17 @@ int main(void)
 		(xrtNetSocketSend(Client, "hi", 2u, &iSent) !=
 			XNET_RESULT_OK) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_READ_PROBE, 203u,
-			&Event, 2000000ull) ) {
+			&Event, INT64_C(2000)) ) {
 		goto Cleanup;
 	}
 	if ( !xrtNetPortRecv(pIocp, Server, arrBuf, 8u, 204u, NULL) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV, 204u,
-			&Event, 2000000ull) ||
+			&Event, INT64_C(2000)) ||
 		(Event.Bytes != 2u) ||
 		(memcmp(arrBuf, "hi", 2u) != 0) ||
 		!xrtNetPortSend(pIocp, Server, "ok", 2u, 205u, NULL) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_SEND, 205u,
-			&Event, 2000000ull) ) {
+			&Event, INT64_C(2000)) ) {
 		goto Cleanup;
 	}
 	(void)xrtNetSocketRecv(Client, arrBuf, sizeof(arrBuf), &iSent);
@@ -234,12 +232,12 @@ int main(void)
 		(xrtNetSocketSendVec(Client, Out, 2u, &iSent) !=
 			XNET_RESULT_OK) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV, 210u,
-			&Event, 2000000ull) ||
+			&Event, INT64_C(2000)) ||
 		(Event.Bytes != 4u) ||
 		(memcmp(arrBuf, "v1v2", 4u) != 0) ||
 		!xrtNetPortSendVec(pIocp, Server, Out, 2u, 211u, NULL) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_SEND, 211u,
-			&Event, 2000000ull) ) {
+			&Event, INT64_C(2000)) ) {
 		goto Cleanup;
 	}
 	(void)xrtNetSocketRecv(Client, arrBuf, sizeof(arrBuf), &iSent);
@@ -255,7 +253,7 @@ int main(void)
 		(xrtNetSocketSendTo(UdpB, "d1", 2u, &iSent, &DestUdpA) !=
 			XNET_RESULT_OK) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV_FROM, 220u,
-			&Event, 2000000ull) ||
+			&Event, INT64_C(2000)) ||
 		(Event.Bytes != 2u) ||
 		(memcmp(arrBuf, "d1", 2u) != 0) ||
 		(Event.Address.Port != AddrUdpB.Port) ) {
@@ -265,7 +263,7 @@ int main(void)
 		(xrtNetSocketSendTo(UdpB, "d2", 2u, &iSent, &DestUdpA) !=
 			XNET_RESULT_OK) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV_MSG, 221u,
-			&Event, 2000000ull) ||
+			&Event, INT64_C(2000)) ||
 		(Event.Bytes != 2u) ||
 		(memcmp(arrBuf, "d2", 2u) != 0) ||
 		/* 终态事件携带已启用的元数据位。 */
@@ -276,7 +274,7 @@ int main(void)
 		(xrtNetSocketSendTo(UdpB, "d3", 2u, &iSent, &DestUdpA) !=
 			XNET_RESULT_OK) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV_MSG, 222u,
-			&Event, 2000000ull) ||
+			&Event, INT64_C(2000)) ||
 		(Event.Bytes != 2u) ||
 		(memcmp(arrBuf, "d3", 2u) != 0) ) {
 		goto Cleanup;
@@ -294,12 +292,12 @@ int main(void)
 	if ( !xrtNetPortSendToVec(pIocp, UdpB, Out, 2u, &DestUdpA,
 			230u, NULL) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_SEND_TO, 230u,
-			&Event, 2000000ull) ||
+			&Event, INT64_C(2000)) ||
 		(Event.Result != XNET_RESULT_OK) ||
 		!xrtNetPortSendMsgVec(pIocp, UdpB, Out, 2u, &DestUdpA,
 			&Control, 231u, NULL) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_SEND_TO, 231u,
-			&Event, 2000000ull) ||
+			&Event, INT64_C(2000)) ||
 		(Event.Result != XNET_RESULT_OK) ) {
 		goto Cleanup;
 	}
@@ -313,7 +311,7 @@ int main(void)
 	if ( !xrtNetPortRecv(pIocp, UdpA, arrBuf, 8u, 600u, NULL) ||
 		!xrtNetPortCancel(pIocp, 600u) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_RECV, 600u,
-			&Event, 2000000ull) ||
+			&Event, INT64_C(2000)) ||
 		(Event.Result != XNET_RESULT_CANCELLED) ) {
 		goto Cleanup;
 	}
@@ -322,10 +320,10 @@ int main(void)
 	/* ---- Post 与 Wake：USER 事件携带 Id，WAKE 事件可合并。 ---- */
 	if ( !xrtNetPortPost(pIocp, 777u, NULL) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_USER, 777u,
-			&Event, 2000000ull) ||
+			&Event, INT64_C(2000)) ||
 		!xrtNetPortWake(pIocp) ||
 		!exampleWaitFor(pIocp, XNET_PORT_EVENT_WAKE, 0u,
-			&Event, 2000000ull) ) {
+			&Event, INT64_C(2000)) ) {
 		goto Cleanup;
 	}
 	printf("port: post USER + wake WAKE ok\n");

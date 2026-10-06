@@ -82,14 +82,14 @@ int main(void)
 			testTaskNetOomRun,
 			&Context,
 			&tArgs,
-			60000000u
+			60000
 		);
 		bTriggered = xrtMemDebugFailTriggered();
 		xrtMemDebugFailClear();
 		if ( pFuture != NULL ) {
 			testRequire(!bTriggered && xrtFutureCancel(pFuture),
 				"network task OOM success cleanup failed");
-			testRequire(xrtFutureWaitFor(pFuture, 3000000u) == XWAIT_OK,
+			testRequire(xrtFutureWaitFor(pFuture, 3000) == XWAIT_OK,
 				"network task OOM success did not cancel");
 			testRequire(xrtFutureState(pFuture) == XFUTURE_CANCELLED,
 				"network task OOM success state mismatch");

@@ -34,7 +34,7 @@ static void testResolverWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	testRequire(xrtMutexLock(&pContext->Lock),
 		"resolver test lock failed");
@@ -192,7 +192,7 @@ static void testResolverWaitIdle(
 	xnetresolverstats* pStats
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	for ( ;; ) {
 		testRequire(xrtNetResolverStats(pResolver, pStats),

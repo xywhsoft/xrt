@@ -59,7 +59,7 @@ static void testNetFutureCoroutineStreamClose(xnetstream* pStream)
 		testRequire(xrtNetStreamClose(pStream) && __xrtNetStreamWait(
 			pStream,
 			XNET_STREAM_WAIT_CLOSE,
-			__xrtWaitAfter(UINT64_C(5000000)),
+			__xrtWaitAfter(INT64_C(5000)),
 			NULL
 		), "network Future coroutine TCP close failed");
 	}
@@ -75,7 +75,7 @@ static void testNetFutureCoroutineUdpClose(xnetudp* pUdp)
 		testRequire(xrtNetUdpClose(pUdp) && __xrtNetUdpWait(
 			pUdp,
 			XNET_UDP_WAIT_CLOSE,
-			__xrtWaitAfter(UINT64_C(5000000)),
+			__xrtWaitAfter(INT64_C(5000)),
 			NULL
 		), "network Future coroutine UDP close failed");
 	}
@@ -98,7 +98,7 @@ static ptr testNetFutureCoroutineAwait(ptr pData)
 	pContext->Entered = true;
 	pContext->Wait = xrtFutureAwaitFor(
 		pFuture,
-		UINT64_C(5000000)
+		INT64_C(5000)
 	);
 	if ( pContext->Wait == XWAIT_CANCELLED ) {
 		pContext->SourceCancelled = xrtFutureCancel(pFuture);
@@ -368,14 +368,14 @@ int main(void)
 	);
 	pTcpServer = __xrtNetListenerAcceptWait(
 		pListener,
-		__xrtWaitAfter(UINT64_C(5000000)),
+		__xrtWaitAfter(INT64_C(5000)),
 		NULL
 	);
 	testRequire((pTcpClient != NULL) && (pTcpServer != NULL) &&
 		__xrtNetStreamWait(
 			pTcpClient,
 			XNET_STREAM_WAIT_OPEN,
-			__xrtWaitAfter(UINT64_C(5000000)),
+			__xrtWaitAfter(INT64_C(5000)),
 			NULL
 		), "network Future coroutine TCP setup failed");
 
@@ -404,12 +404,12 @@ int main(void)
 	testRequire((pUdpClient != NULL) && __xrtNetUdpWait(
 		pUdpServer,
 		XNET_UDP_WAIT_OPEN,
-		__xrtWaitAfter(UINT64_C(5000000)),
+		__xrtWaitAfter(INT64_C(5000)),
 		NULL
 	) && __xrtNetUdpWait(
 		pUdpClient,
 		XNET_UDP_WAIT_OPEN,
-		__xrtWaitAfter(UINT64_C(5000000)),
+		__xrtWaitAfter(INT64_C(5000)),
 		NULL
 	), "network Future coroutine UDP setup failed");
 
@@ -437,7 +437,7 @@ int main(void)
 	testNetFutureCoroutineUdpClose(pUdpServer);
 	testRequire(xrtNetListenerClose(pListener),
 		"network Future coroutine listener close failed");
-	iDeadline = __xrtWaitAfter(UINT64_C(5000000));
+	iDeadline = __xrtWaitAfter(INT64_C(5000));
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
 			"network Future coroutine listener close timed out");

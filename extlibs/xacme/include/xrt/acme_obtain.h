@@ -42,12 +42,12 @@ typedef struct xacmeobtainconfig {
 	const xacmeaccountconfig* pAccount;
 	cstr sCaPem;
 	struct xnetengine* pBorrowedEngine;
-	int64 uTimeoutUs;
+	int64 uTimeoutMs;
 	const cstr* sPropagateResolvers;
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
-	/* 单次签发总预算（微秒；0 = 不限时），透传给客户端。 */
-	int64 uIssueTimeoutUs;
+	/* 单次签发总预算（毫秒；0 = 不限时），透传给客户端。 */
+	int64 uIssueTimeoutMs;
 	/* 宿主提供的证书私钥 PEM（可选，EC/RSA），透传给客户端。 */
 	cstr sCertKeyPem;
 	cstr sStoreRoot;

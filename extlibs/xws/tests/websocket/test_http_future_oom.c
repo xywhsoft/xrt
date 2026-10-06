@@ -11,7 +11,7 @@ static void testWsFutureOomWaitBaseline(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 	xnetenginestats After;
 
@@ -89,7 +89,7 @@ static void testWsFutureOomClient(
 			testRequire(
 				xrtFutureWaitFor(
 					pFuture,
-					UINT64_C(10000000)
+					INT64_C(10000)
 				) == XWAIT_OK,
 				"WebSocket Future OOM cancellation did not finish"
 			);
@@ -202,7 +202,7 @@ static void testWsFutureOomWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -290,7 +290,7 @@ static void testWsFutureOomServer(
 	testRequire(
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) ==
 		 XFUTURE_FAILED),
@@ -352,7 +352,7 @@ int main(void)
 	);
 	xrtHttpClientDestroy(pClient);
 
-	Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(INT64_C(10000));
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(

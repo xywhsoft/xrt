@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/udp_errors —— 异步错误接收与 PMTU 策略
  * ----------------------------------------------------------------
@@ -83,10 +82,9 @@ int main(void)
 		NULL,
 		NULL
 	);
-	if ( (pUdp == NULL) || !__xrtNetUdpWait(
+	if ( (pUdp == NULL) || !xrtNetUdpWait(
 		pUdp,
-		XNET_UDP_WAIT_OPEN,
-		__xrtWaitAfter(3000000u),
+		XNET_UDP_WAIT_OPEN,3000,
 		NULL
 	) ) {
 		iResult = 4;
@@ -96,9 +94,8 @@ int main(void)
 		iResult = 5;
 		goto Cleanup;
 	}
-	pPacket = __xrtNetUdpReceiveErrorWait(
-		pUdp,
-		__xrtWaitAfter(3000000u),
+	pPacket = xrtNetUdpReceiveErrorWait(
+		pUdp,3000,
 		NULL
 	);
 	if ( pPacket == NULL ) {
@@ -126,10 +123,9 @@ int main(void)
 	}
 	xrtNetUdpErrorPacketDestroy(pPacket);
 	pPacket = NULL;
-	if ( !xrtNetUdpClose(pUdp) || !__xrtNetUdpWait(
+	if ( !xrtNetUdpClose(pUdp) || !xrtNetUdpWait(
 		pUdp,
-		XNET_UDP_WAIT_CLOSE,
-		__xrtWaitAfter(3000000u),
+		XNET_UDP_WAIT_CLOSE,3000,
 		NULL
 	) ) {
 		iResult = 7;
@@ -144,10 +140,9 @@ Cleanup:
 	xrtNetUdpErrorPacketDestroy(pPacket);
 	if ( pUdp != NULL ) {
 		(void)xrtNetUdpAbort(pUdp);
-		(void)__xrtNetUdpWait(
+		(void)xrtNetUdpWait(
 			pUdp,
-			XNET_UDP_WAIT_CLOSE,
-			__xrtWaitAfter(3000000u),
+			XNET_UDP_WAIT_CLOSE,3000,
 			NULL
 		);
 		xrtNetUdpDestroy(pUdp);

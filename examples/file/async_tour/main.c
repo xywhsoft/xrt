@@ -33,7 +33,7 @@
 #include <string.h>
 #include <xrt.h>
 
-#define EXAMPLE_TIMEOUT_US	UINT64_C(5000000)
+#define EXAMPLE_TIMEOUT_MS	INT64_C(5000)
 
 static xatomic32 g_Released;
 
@@ -53,7 +53,7 @@ static bool exampleWaitValue(xfuture** ppCurrent, xfuture* pFuture, ptr* pValue)
 	*ppCurrent = pFuture;
 	if ( pValue != NULL ) *pValue = NULL;
 	if ( (pFuture == NULL) ||
-		(xrtFutureWaitFor(pFuture, EXAMPLE_TIMEOUT_US) !=
+		(xrtFutureWaitFor(pFuture, EXAMPLE_TIMEOUT_MS) !=
 			XWAIT_OK) ||
 		(xrtFutureState(pFuture) != XFUTURE_RESOLVED) ) {
 		return false;

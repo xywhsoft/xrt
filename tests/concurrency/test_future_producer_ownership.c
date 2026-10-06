@@ -41,7 +41,7 @@ static void drop(const void* data)
      * this actual producer release is on the stack. No enclosing scope is
      * suspended. The endpoint/pin still owns the Future through this tail. */
     xthread* worker=xrtThreadCreate(probe,p,0); assert(worker);
-    assert(xrtThreadWaitFor(worker,UINT64_C(5000000))==XWAIT_OK); xrtThreadDestroy(worker); ++probes;
+    assert(xrtThreadWaitFor(worker,INT64_C(5000))==XWAIT_OK); xrtThreadDestroy(worker); ++probes;
     xrtPromiseDestroy(owned);
     xrtSetErrorKind(XERR_ARGUMENT); /* Mechanical Drop must not replace caller error. */
 }
@@ -162,7 +162,7 @@ static void certified_notify(ptr data)
     Producer* p=data;assert(p->refs==2&&!p->notifications&&!p->releases);
     assert(xrtFutureState(p->borrowedFuture)==XFUTURE_CLOSED);++p->notifications;
     xthread* worker=xrtThreadCreate(probe,p,0);assert(worker);
-    assert(xrtThreadWaitFor(worker,5000000)==XWAIT_OK);xrtThreadDestroy(worker);++watch_probes;
+    assert(xrtThreadWaitFor(worker,5000)==XWAIT_OK);xrtThreadDestroy(worker);++watch_probes;
 }
 static void certified_release(ptr data)
 {

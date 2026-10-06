@@ -37,7 +37,7 @@ static xtaskoutcome testTaskCoSuccess(
 	(void)pCancel;
 	pContext->Hits++;
 	pContext->RunThreadId = xrtThreadCurrentId();
-	pContext->Wait = xrtCoSleep(1000);
+	pContext->Wait = xrtCoSleep(1);
 	pResult->Value = &pContext->Value;
 	return pContext->Wait == XWAIT_OK ? XTASK_SUCCESS : XTASK_FAILED;
 }

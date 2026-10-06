@@ -20,7 +20,7 @@ static void testEngineLimitsWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -94,7 +94,7 @@ static void testEngineLimitsTimer(
 /* 命令队列背压期间重试异步取消，直到目标 Worker 恢复消费。 */
 static void testEngineLimitsCancel(xnetengine* pEngine, uint64 Id)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000);
 
 	for ( ;; ) {
 		if ( xrtNetEngineTimerCancel(pEngine, Id) ) {
@@ -177,14 +177,14 @@ int main(void)
 	iTimerOne = xrtNetEngineAfter(
 		pEngine,
 		0,
-		5000000u,
+		5000,
 		testEngineLimitsTimer,
 		&Context
 	);
 	iTimerTwo = xrtNetEngineAfter(
 		pEngine,
 		0,
-		5000000u,
+		5000,
 		testEngineLimitsTimer,
 		&Context
 	);
@@ -193,7 +193,7 @@ int main(void)
 	testRequire(xrtNetEngineAfter(
 		pEngine,
 		0,
-		5000000u,
+		5000,
 		testEngineLimitsTimer,
 		&Context
 	) == 0, "timer hard limit accepted an extra timer");

@@ -36,7 +36,7 @@ static void testHttpEasyOomDone(
 /* 在固定截止时间内等待预取消调用释放其异步内部引用。 */
 static void testHttpEasyOomWait(const xatomic32* pCompleted)
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(
 		pCompleted,
@@ -159,7 +159,7 @@ int main(void)
 
 	xrtCancelDestroy(pCancel);
 	xrtHttpClientDestroy(pClient);
-	Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(INT64_C(10000));
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
 		testRequire(

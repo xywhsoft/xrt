@@ -64,7 +64,7 @@ static unsigned pipelinePrefix(const char* program,bool badLast)
     for(size_t point=0;point<512;++point) {
         xmemdebugsnapshot before; xrtMemDebugSnapshot(&before);
         xprocesspipelineresult result;
-        options.Deadline=__xrtWaitAfter(UINT64_C(5000000));
+        options.Timeout=INT64_C(5000);
         assert(xrtMemDebugFailAfter(point));
         bool ok=xrtProcessPipeline(stages,2,&options,&result);
         bool hit=xrtMemDebugFailTriggered(); xrtMemDebugFailClear();

@@ -40,8 +40,8 @@ struct xhttpcacherecord {
 	uint64 BodyBytes;
 	uint64 Length;
 	xtime ResponseTime;
-	uint64 RequestClock;
-	uint64 ResponseClock;
+	double RequestClock;
+	double ResponseClock;
 	xtime SelectionTime;
 	xrt_http_cache_vary* Vary;
 	size_t VaryCount;

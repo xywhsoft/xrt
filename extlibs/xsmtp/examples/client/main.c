@@ -1,5 +1,21 @@
-#include <xrt/detail/wait.h>
 #include <xsmtp.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -16,7 +32,7 @@ bool submitMessage(
 	xsmtpclientconfig ClientConfig;
 	xsmtpauthconfig AuthConfig;
 	xsmtpclient* pClient;
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = exampleTimerLimit(INT64_C(10000));
 	bool bSuccess;
 
 	xrtSmtpClientConfigInit(&ClientConfig);
@@ -28,31 +44,28 @@ bool submitMessage(
 	ClientConfig.Net.Tls.Context = pTls;
 	ClientConfig.Net.Tls.Verifier = pVerifier;
 	ClientConfig.Hello = (xstrview)XRT_STR_LITERAL("client.example");
-	pClient = __xrtSmtpClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = xrtSmtpClientOpen(&ClientConfig,exampleTimerRemaining(Deadline), NULL);
 	if ( pClient == NULL ) {
 		return false;
 	}
 	xrtSmtpAuthConfigInit(&AuthConfig);
 	AuthConfig.Username = (xstrview)XRT_STR_LITERAL("user@example.com");
 	AuthConfig.Secret = (xstrview)XRT_STR_LITERAL("application-password");
-	bSuccess = __xrtSmtpClientAuth(
+	bSuccess = xrtSmtpClientAuth(
 		pClient,
-		&AuthConfig,
-		Deadline,
+		&AuthConfig,exampleTimerRemaining(Deadline),
 		NULL
-	) && __xrtSmtpClientMail(
+	) && xrtSmtpClientMail(
 		pClient,
 		XRT_STR_LITERAL("sender@example.com"),
-		XRT_STR_LITERAL(""),
-		Deadline,
+		XRT_STR_LITERAL(""),exampleTimerRemaining(Deadline),
 		NULL
-	) && __xrtSmtpClientRcpt(
+	) && xrtSmtpClientRcpt(
 		pClient,
 		XRT_STR_LITERAL("target@example.net"),
-		XRT_STR_LITERAL(""),
-		Deadline,
+		XRT_STR_LITERAL(""),exampleTimerRemaining(Deadline),
 		NULL
-	) && __xrtSmtpClientData(
+	) && xrtSmtpClientData(
 		pClient,
 		XRT_STR_LITERAL(
 			"From: sender@example.com\r\n"
@@ -60,12 +73,11 @@ bool submitMessage(
 			"Subject: xmail\r\n"
 			"\r\n"
 			"message body\r\n"
-		),
-		Deadline,
+		),exampleTimerRemaining(Deadline),
 		NULL
 	);
 	if ( bSuccess ) {
-		bSuccess = __xrtSmtpClientQuit(pClient, Deadline, NULL);
+		bSuccess = xrtSmtpClientQuit(pClient,exampleTimerRemaining(Deadline), NULL);
 	}
 	xrtSmtpClientDestroy(pClient);
 	return bSuccess;

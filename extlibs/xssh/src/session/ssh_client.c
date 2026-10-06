@@ -1127,7 +1127,7 @@ static xsshcode xsshClientAdvance(xsshclient* pClient)
 		&pClient->Core,
 		pSession,
 		pReader,
-		xrtTimer() / 1000u,
+		xrtTimer(),
 		&Next
 	);
 	if ( Code != XSSH_OK ) {
@@ -1146,7 +1146,7 @@ static xsshcode xsshClientAdvance(xsshclient* pClient)
 			NULL,
 			NULL,
 			0u,
-			xrtTimer() / 1000u,
+			xrtTimer(),
 			&Kind
 		);
 	}
@@ -2084,7 +2084,7 @@ xsshcode xrtSshClientSend(
 		pChannel != NULL ? &pChannel->Core : NULL,
 		pReplies,
 		iReplyToken,
-		xrtTimer() / 1000u,
+		xrtTimer(),
 		&Kind
 	);
 	if ( Code != XSSH_OK ) {

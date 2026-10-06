@@ -59,7 +59,7 @@ static void testChannelSelectAwaitRegistered(
 	size_t iCount
 )
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(2000));
 
 	for ( ;; ) {
 		size_t iReady = 0;
@@ -87,7 +87,7 @@ static void testChannelSelectAwaitRegistered(
 			!__xrtWaitExpired(iDeadline),
 			"select registration did not converge"
 		);
-		xrtSleepUs(UINT64_C(1000));
+		xrtSleep(1);
 	}
 }
 
@@ -194,7 +194,7 @@ static void testChannelSelectRendezvous(void)
 		xrtChannelRecvFor(
 			&tSecond,
 			&pItem,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		"normal receiver did not pair with Select sender"
 	);
@@ -317,8 +317,8 @@ static void testChannelSelectTimeout(void)
 	xchannelselectresult tResult;
 	xrt_channel_impl* pImpl;
 	ptr pItem = (ptr)(uintptr_t)1u;
-	uint64 iStarted;
-	uint64 iElapsed;
+	double iStarted;
+	double iElapsed;
 
 	testRequire(xrtChannelInit(&tChannel, 0), "select timeout init failed");
 	tCase = xrtChannelCaseRecv(&tChannel, &pItem);
@@ -326,7 +326,7 @@ static void testChannelSelectTimeout(void)
 	tResult = xrtChannelSelectFor(
 		&tCase,
 		1u,
-		UINT64_C(20000)
+		INT64_C(20)
 	);
 	iElapsed = xrtTimer() - iStarted;
 	testRequire(
@@ -335,8 +335,8 @@ static void testChannelSelectTimeout(void)
 		"select timeout result mismatch"
 	);
 	testRequire((uintptr_t)pItem == 1u, "timeout modified receive output");
-	testRequire(iElapsed >= UINT64_C(10000), "select timeout returned too early");
-	testRequire(iElapsed < UINT64_C(2000000), "select timeout returned too late");
+	testRequire(iElapsed >= 0.01, "select timeout returned too early");
+	testRequire(iElapsed < 2, "select timeout returned too late");
 	pImpl = (xrt_channel_impl*)&tChannel;
 	testRequire(
 		pImpl->SelectWaiters == NULL,

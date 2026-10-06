@@ -72,7 +72,7 @@ static void testTcpServerReentrantWait(
 	size_t iCount
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	for ( ;; ) {
 		bool bDone = xrtNetServerState(pServer) == XNET_SERVER_CLOSED;
@@ -101,7 +101,7 @@ static void testTcpServerQueueLimit(xnetengine* pEngine)
 	xnetstream* aClients[TEST_TCP_SERVER_CLIENTS];
 	xnetstream* pAccepted;
 	xnetaddr Local;
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	memset(aClients, 0, sizeof(aClients));
 	xrtNetServerConfigInit(&Config);

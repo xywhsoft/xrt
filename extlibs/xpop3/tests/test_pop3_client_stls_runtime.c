@@ -1,3 +1,4 @@
+#include <xrt/detail/xpop3_wait.h>
 #include <xrt/detail/wait.h>
 #include "test.h"
 #include "../../../tests/fixtures/tls_server.h"
@@ -435,7 +436,7 @@ int main(void)
 	pResolver = xrtNetResolverCreate(&ResolverConfig);
 	testRequire(pResolver != NULL, "POP3 STLS resolver creation failed");
 
-	Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(INT64_C(10000));
 	Server.Listener = pListener;
 	Server.Tls = &ServerConfig;
 	Server.Deadline = Deadline;

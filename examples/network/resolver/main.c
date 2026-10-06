@@ -1,16 +1,3 @@
-#include <xrt/detail/wait.h>
-#include <stdio.h>
-#include <string.h>
-#include <xrt.h>
-
-
-
-typedef struct exampleresolver {
-	xatomic32 Done;
-} exampleresolver;
-
-
-
 /*
  * 范例：network/resolver —— 异步 DNS：引擎亲和的解析入口
  * ----------------------------------------------------------------
@@ -27,6 +14,34 @@ typedef struct exampleresolver {
  * 与 dns（同步版）对照：解析完成回调跑在引擎
  *   Worker 上——与后续连接操作同线程，天然免锁。
  */
+
+#include <stdio.h>
+#include <string.h>
+#include <xrt.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
+
+
+typedef struct exampleresolver {
+	xatomic32 Done;
+} exampleresolver;
+
 
 
 /* 输出异步查询得到的全部地址。 */
@@ -82,9 +97,9 @@ int main(void)
 		(void)xrtNetResolverDestroy(pResolver);
 		return 2;
 	}
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = exampleTimerLimit(5000);
 	while ( xrtAtomic32Load(&State.Done, XMEMORY_ACQUIRE) == 0 ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			(void)xrtNetResolveOpCancel(pOperation);
 			break;
 		}

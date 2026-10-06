@@ -1,8 +1,8 @@
-#include <xrt/detail/wait.h>
 #ifdef NET_RESOLVER_OWNERSHIP_SINGLE
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
 #endif
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include <assert.h>
 
@@ -25,12 +25,12 @@ struct ResolverCase {
 static unsigned idle_cases, queue_cases, opaque_cases, active_cases, oom_cases, oom_failures, resurrect_cases;
 static void freeze_begin(xrtownershipscope* scope)
 {
-    double deadline=__xrtWaitAfter(5000000);
+    double deadline=__xrtWaitAfter(5000);
     while(!xrtOwnershipFreezeTryBegin(scope)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
 static void idle_freeze(xnetresolver* resolver,xrtownershipscope* scope)
 {
-    double deadline=__xrtWaitAfter(5000000);xrtownershipref ref=xrtNetResolverOwnership(resolver);size_t count;
+    double deadline=__xrtWaitAfter(5000);xrtownershipref ref=xrtNetResolverOwnership(resolver);size_t count;
     for(;;){freeze_begin(scope);if(ref.Ops->Count(ref.Data,&count))return;
         assert(xrtOwnershipScopeEnd(scope));assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
@@ -64,7 +64,7 @@ static int32 probe_thread(ptr data)
 static void probe(ResolverData* item)
 {
     xthread* thread=xrtThreadCreate(probe_thread,item,0);assert(thread);
-    assert(xrtThreadWaitFor(thread,5000000)==XWAIT_OK);xrtThreadDestroy(thread);++item->test->probes;
+    assert(xrtThreadWaitFor(thread,5000)==XWAIT_OK);xrtThreadDestroy(thread);++item->test->probes;
 }
 static void data_drop(const void* data)
 {
@@ -84,7 +84,7 @@ static xnetaddrlist* lookup(cstr host,xnetfamily family,ptr data)
     ResolverData* item=data;ResolverCase* test=item->test;(void)host;(void)family;++test->lookups;
     if(test->probe)probe(item);
     xrtAtomic32Store(&test->entered,1,XMEMORY_RELEASE);
-    if(test->block){double deadline=__xrtWaitAfter(5000000);
+    if(test->block){double deadline=__xrtWaitAfter(5000);
         while(!xrtAtomic32Load(&test->release,XMEMORY_ACQUIRE)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}}
     xnetaddr address;assert(xrtNetAddrLoopback(&address,XNET_FAMILY_IPV4,0));
     return xrtNetAddrListCreate(&address,1);
@@ -120,7 +120,7 @@ static bool admit(xrtownershipref ref,ptr data)
 }
 static void prepare(const xrtownershippreparationv1* preparation,const void* data,const void* token)
 {
-    double deadline=__xrtWaitAfter(5000000);
+    double deadline=__xrtWaitAfter(5000);
     for(;;){xrtownershipprepareresult result=preparation->Prepare(data,token);if(result==XRT_OWNERSHIP_PREPARE_READY)return;
         assert(result==XRT_OWNERSHIP_PREPARE_BUSY&&!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
@@ -249,7 +249,7 @@ static void active(void)
     const xnetresolverlookupownershipv1* lookups[]={&lookup_policy};test.adapter=xrtNetResolverOwnershipAdapterV1(xrtNetResolverOwnership(test.resolver),lookups,1,&preparation);assert(test.adapter);
     assert(test.adapter->Hold(test.resolver));owner->resolver=test.resolver;assert(xrtOwnershipScopeEnd(&freeze));
     xnetresolveop* operation=xrtNetResolverResolve(test.resolver,"blocked.test",XNET_FAMILY_IPV4,NULL,NULL);assert(operation);
-    double deadline=__xrtWaitAfter(5000000);while(!xrtAtomic32Load(&test.entered,XMEMORY_ACQUIRE)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
+    double deadline=__xrtWaitAfter(5000);while(!xrtAtomic32Load(&test.entered,XMEMORY_ACQUIRE)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
     freeze_begin(&freeze);size_t count=91;xrtownershipref ref=xrtNetResolverOwnership(test.resolver);
     assert(!ref.Ops->Count(ref.Data,&count)&&count==91);assert(xrtOwnershipScopeEnd(&freeze));
     xerror* error=xrtErrorCreate(XERR_STATE,"ownership",7,"preserve");assert(error);xrtSetError(error);
@@ -299,7 +299,7 @@ static void cache_shared(void)
     xmemdebugsnapshot before;xrtClearError();xrtMemDebugSnapshot(&before);
     xnetresolver* resolver=xrtNetResolverCreate(NULL);assert(resolver);xnetresolveop* operations[2]={0};xnetaddrlist* lists[2]={0};
     for(unsigned i=0;i<2;++i){operations[i]=xrtNetResolverResolve(resolver,"127.0.0.1",XNET_FAMILY_IPV4,NULL,NULL);assert(operations[i]);
-        double deadline=__xrtWaitAfter(5000000);
+        double deadline=__xrtWaitAfter(5000);
         for(;;){xrtownershipscope freeze={0};idle_freeze(resolver,&freeze);xnetresolverstats stats;assert(xrtNetResolverStats(resolver,&stats));
             bool ready=stats.Outstanding==0;assert(xrtOwnershipScopeEnd(&freeze));if(ready)break;assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
         lists[i]=xrtNetResolveOpResult(operations[i]);assert(lists[i]);}

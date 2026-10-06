@@ -1189,7 +1189,7 @@ static bool __xrtHttpSseClientRememberRequest(
 
 
 
-/* 把服务端毫秒重连值裁剪到本地策略并安全转换为微秒。 */
+/* 把服务端毫秒重连值裁剪到本地策略并安全转换为毫秒。 */
 static uint64 __xrtHttpSseClientDelay(
 	const xhttpsseclient* pClient
 )
@@ -1204,8 +1204,7 @@ static uint64 __xrtHttpSseClientDelay(
 	if ( iDelay > pClient->Config.RetryMax ) {
 		iDelay = pClient->Config.RetryMax;
 	}
-	return iDelay > (UINT64_MAX / UINT64_C(1000)) ?
-		UINT64_MAX : iDelay * UINT64_C(1000);
+	return iDelay > (uint64)INT64_MAX ? (uint64)INT64_MAX : iDelay;
 }
 
 
@@ -1314,7 +1313,7 @@ static bool __xrtHttpSseClientReconnect(
 		pClient->Events.Retrying(
 			pClient,
 			(size_t)iReconnect,
-			iDelay / UINT64_C(1000),
+			iDelay,
 			pError,
 			pClient->Events.Data
 		);

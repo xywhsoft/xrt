@@ -746,7 +746,7 @@ typedef struct xwsstreamconfig {
 	uint64 FrameLimit;
 	size_t SendLimit;
 	size_t ControlReserve;
-	uint64 CloseTimeout;
+	int64 CloseTimeout;
 	bool AutoPong;
 	xwsdeflate Deflate;
 	xwsinflaterconfig Inflater;
@@ -967,7 +967,7 @@ typedef bool (*xwsupgradeacceptproc)(
 | `XWS_STREAM_FRAME_LIMIT_DEFAULT` | `UINT64_C(1048576)` | STREAMFRAME超限默认值 |
 | `XWS_STREAM_SEND_LIMIT_DEFAULT` | `((size_t)1048576u)` | STREAMSEND超限默认值 |
 | `XWS_STREAM_CONTROL_RESERVE_DEFAULT` | `((size_t)512u)` | STREAMCONTROLRESERVE默认值 |
-| `XWS_STREAM_CLOSE_TIMEOUT_DEFAULT` | `UINT64_C(5000000)` | STREAMCLOSE超时默认值 |
+| `XWS_STREAM_CLOSE_TIMEOUT_DEFAULT` | `INT64_C(5000)` | STREAMCLOSE超时默认值 |
 | `XWS_UPGRADE_REQUEST_FIELDS_MAX` | `7u` | UPGRADEREQUEST字段上限 |
 | `XWS_UPGRADE_RESPONSE_FIELDS_MAX` | `5u` | UPGRADERESPONSE字段上限 |
 

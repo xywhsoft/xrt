@@ -79,7 +79,7 @@ static ptr reportRun(ptr pData)
 
 	/* Close 只停止新增；超时路径再显式请求取消并等待真实终态。 */
 	(void)xrtTaskGroupClose(pGroup);
-	eWait = xrtFutureAwaitFor(pDone, UINT64_C(2000000));
+	eWait = xrtFutureAwaitFor(pDone, INT64_C(2000));
 	if ( eWait == XWAIT_TIMEOUT ) {
 		pContext->TimedOut = true;
 		(void)xrtTaskGroupCancel(pGroup);

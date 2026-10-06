@@ -24,7 +24,7 @@ static void testAsyncManageWait(xfuture* pFuture, cstr sMessage)
 	testRequire(
 		xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		sMessage
 	);
@@ -120,7 +120,7 @@ static void testAsyncManageErrors(
 	testRequire(
 		xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		"failing async file copy wait failed"
 	);

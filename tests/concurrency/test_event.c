@@ -9,7 +9,7 @@ static int testEventWaiter(ptr pData)
 {
 	xevent* pEvent = (xevent*)pData;
 
-	return xrtEventWaitFor(pEvent, UINT64_C(500000)) == XWAIT_OK ? 37 : 1;
+	return xrtEventWaitFor(pEvent, INT64_C(500)) == XWAIT_OK ? 37 : 1;
 }
 
 
@@ -21,8 +21,8 @@ int main(void)
 	xevent* pEvent;
 	testthread arrThreads[2];
 	double iDeadline;
-	uint64 iStarted;
-	uint64 iElapsed;
+	double iStarted;
+	double iElapsed;
 	int iAutoWakeCount = 0;
 
 	memset(&tEvent, 0, sizeof(tEvent));
@@ -70,14 +70,23 @@ int main(void)
 	}
 	testRequire(xrtEventReset(pEvent), "manual event second reset failed");
 	iStarted = xrtTimer();
-	iDeadline = __xrtWaitAfter(UINT64_C(20000));
+	iDeadline = __xrtWaitAfter(INT64_C(20));
 	testRequire(
 		__xrtEventWaitUntil(pEvent, iDeadline) == XWAIT_TIMEOUT,
 		"event deadline result mismatch"
 	);
 	iElapsed = xrtTimer() - iStarted;
-	testRequire(iElapsed >= UINT64_C(10000), "event deadline returned too early");
-	testRequire(iElapsed < UINT64_C(2000000), "event deadline returned too late");
+	testRequire(iElapsed >= 0.01, "event deadline returned too early");
+	testRequire(iElapsed < 2, "event deadline returned too late");
+    testRequire(xrtEventSet(pEvent), "boundary event signal failed");
+    testRequire(xrtEventWaitFor(pEvent, -2) == XWAIT_ERROR,
+        "invalid negative timeout was accepted by a ready event");
+    xrtClearError();
+    testRequire(xrtEventWaitFor(pEvent, INT64_MAX) == XWAIT_OK,
+        "largest finite millisecond timeout failed on a ready event");
+    testRequire(xrtEventReset(pEvent) && xrtEventWaitFor(pEvent, 0) == XWAIT_TIMEOUT,
+        "zero millisecond wait did not poll");
+
 	testRequire(xrtEventDestroy(pEvent), "manual event destroy failed");
 
 	printf("[PASS] event\n");

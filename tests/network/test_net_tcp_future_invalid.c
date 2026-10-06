@@ -79,7 +79,7 @@ static void testTcpFutureInvalidWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -269,7 +269,7 @@ int main(void)
 	xrtClearError();
 	pWrite = xrtNetStreamWaitAsync(pServer, XNET_STREAM_WAIT_WRITE);
 	testRequire((pWrite != NULL) &&
-		 (xrtFutureWaitFor(pWrite, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pWrite, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pWrite) == XFUTURE_RESOLVED),
 		"push-mode Stream rejected a non-read wait");
 
@@ -291,7 +291,7 @@ int main(void)
 		"TCP Future pending read allowed a push consumer"
 	);
 	testRequire(xrtFutureCancel(pReadMode) &&
-		(xrtFutureWaitFor(pReadMode, 5000000u) == XWAIT_OK) &&
+		(xrtFutureWaitFor(pReadMode, 5000) == XWAIT_OK) &&
 		(xrtFutureState(pReadMode) == XFUTURE_CANCELLED),
 		"TCP Future read-mode cancellation failed");
 	xrtFutureDestroy(pReadMode);

@@ -568,7 +568,7 @@ static void testHttpClientCacheWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -1468,7 +1468,7 @@ static void testHttpClientCacheOpen(
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup =
 		testHttpClientCacheLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	ClientConfig.Cache.Store = pState->Cache;
 	ClientConfig.Cache.Strict = bStrict;

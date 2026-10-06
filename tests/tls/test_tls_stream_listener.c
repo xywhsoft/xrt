@@ -84,7 +84,7 @@ static void testTlsListenerWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -101,7 +101,7 @@ static void testTlsListenerWaitHandshakes(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 	xtlslistenerstats Stats;
 
 	for ( ;; ) {
@@ -215,7 +215,7 @@ int main(void)
 	testRequire((pClientOpen != NULL) &&
 		(xrtFutureWaitFor(
 			pClientOpen,
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pClientOpen) == XFUTURE_RESOLVED),
 		"TLS Listener client handshake failed");

@@ -169,6 +169,7 @@ TARGETS = {
 		"output": "http_sse_fuzz",
 		"adapter": "XRT_HTTP_SSE_FUZZ_LIBFUZZER",
 		"seeds": {
+			"max-data-line": b"7" * 256,
 			"empty": b"",
 			"message": b"data: hello\n\n",
 			"metadata": (

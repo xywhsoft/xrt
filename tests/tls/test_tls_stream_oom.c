@@ -110,7 +110,7 @@ static void testTlsStreamOomWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -476,7 +476,7 @@ int main(void)
 	iReservedTimer = xrtNetEngineAfter(
 		pEngine,
 		1,
-		60000000u,
+		60000,
 		testTlsStreamOomReservedTimer,
 		&Test
 	);

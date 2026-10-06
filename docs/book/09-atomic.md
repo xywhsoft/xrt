@@ -10,7 +10,7 @@ api: atomic, spin, wait
 
 ## 导读
 
-卷一到此收官。前面八章打的是"单线程世界的地基"：类型与视图（第 3 章）、错误模型（第 4 章）、内存管理（第 5、6 章）、临时区（第 7 章）、版本与裁剪（第 8 章）。本章补上最后一块：**多个执行流同时触碰同一份数据时，最底层靠什么不乱**。它由三层递进组成：**原子操作**（`xatomic32/64/ptr`——单变量的读、写、读改写无交错）；**自旋锁**（`xspinlock`——几条指令长度的临界区保护）；**等待原语**（`xdeadline` 与 `xwaitresult`——超时的数学与等待结果的统一口径）。
+卷一到此收官。前面八章打的是"单线程世界的地基"：类型与视图（第 3 章）、错误模型（第 4 章）、内存管理（第 5、6 章）、临时区（第 7 章）、版本与裁剪（第 8 章）。本章补上最后一块：**多个执行流同时触碰同一份数据时，最底层靠什么不乱**。它由三层递进组成：**原子操作**（`xatomic32/64/ptr`——单变量的读、写、读改写无交错）；**自旋锁**（`xspinlock`——几条指令长度的临界区保护）；**等待原语**（`int64` 与 `xwaitresult`——超时的数学与等待结果的统一口径）。
 
 这一章是典型的"地基章"：第 8 章说过，原子操作的头文件是特性宏编译期分派的首批消费者之一——同一份头文件在无原子指令的平台上走内部实现，在支持的平台上走内联路径，靠的就是这里的特性闭包。往后看，第 53 章的线程同步、第 54 章的取消体系、第 139–140 章配置中心的"原子替换全局指针"，全部站在本章原语之上；本章只教**原语层**——单机、单变量、看得见摸得着的小件，体系化的并发设计留给卷六。读完你应当能回答三个问题：什么场景**不需要锁**（单变量就够时）；什么时候锁也**不该太重**（自旋与互斥的数量级账）；以及"等待一个东西直到超时"为什么必须用**绝对截止**而不是每轮重设的相对超时。
 
@@ -56,12 +56,12 @@ CAS 的经典用途是"改结构体里的一个字段，但不想锁整个结构
 - 单变量共享（计数/标志/指针）→ 原子操作：无锁，单步交错安全
 - 多变量不变式（字段必须一起变）→ 锁：自旋（临界区几条指令）或互斥（更长）
 - 线程间传递指针所有权 → 队列（第 21 章）：内部已无锁，外层不加锁
-- 等待带期限 → xdeadline 绝对截止 + xwaitresult 统一结果（第 53-54 章体系化）
+- 等待带期限 → int64 绝对截止 + xwaitresult 统一结果（第 53-54 章体系化）
 ```
 
 ### 等待原语：deadline 数学与五态结果
 
-等待模块只有三个函数和一个枚举，却是全库超时语义的统一出口。`xdeadline` 是 `uint64` 的绝对时刻（单调时钟微秒刻度，第 42 章）：`xrtDeadlineAfter(相对微秒)` 从当前时刻构造截止（溢出返回 `XRT_DEADLINE_NEVER`，即永不超时）；`xrtDeadlineExpired` 判断是否到达；`xrtDeadlineRemaining` 返回剩余微秒。它解决的是引入里的第三段事故：**一处构造、多处传递、绝不重置**——重试循环每轮用 `Remaining` 等待，总预算就是最初那个数。
+等待接口使用 `int64` 相对毫秒，`XRT_WAIT_FOREVER` 表示无限等待。跨步骤总预算可用 `xrtTimer()` 的 double 秒差计算剩余毫秒；不再定义独立截止时间类型。
 
 `xwaitresult` 把"等待的结果"拆成五个互斥的值：`XWAIT_ERROR`（真正失败）、`XWAIT_OK`（成功）、`XWAIT_TIMEOUT`（到时）、`XWAIT_CANCELLED`（被取消——第 54 章的取消令牌会走到这）、`XWAIT_CLOSED`（等待的对象已关闭）。设计意图是**把正常控制流与错误分开**：超时与取消是调用方应当处理的预期分支，不是塞进错误链的"异常"。从第 53 章的 `xrtThreadWait` 到网络库的连接等待，返回的都是这个枚举——本章先把语义记住，体系化的等待与取消在卷六展开。
 
@@ -115,11 +115,10 @@ heap try=0/1 destroy ok
 
 ```term
 $ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/concurrency/deadline/main.c -lws2_32 -liphlpapi
-remaining: 50000 us
-expired: yes
+elapsed_s=0.050000 forever_ms=-1
 ```
 
-**刚才发生了什么。** ① `xrtDeadlineAfter(50000)` 构造 50 毫秒后的绝对截止，`Remaining` 立即读回约 50000 微秒（单调时钟微秒刻度）；② `xrtSleepUntil`（第 42 章时间模块）睡到截止，随后 `Expired` 返回真——三个函数合演"构造—等待—判定"的闭环；③ 注意 `SleepUntil` 吃的也是这套 deadline 数学：全库等待类 API 的超时参数统一从这里换算，一处构造、处处传递。
+`xrtSleep(50)` 等待至少 50 毫秒；前后 `xrtTimer()` 相减得到 double 秒耗时。
 
 ## 契约
 
@@ -130,7 +129,7 @@ expired: yes
 - **顺序下限承诺**：实现只允许强于文档顺序、不允许弱化——依赖文档写作，不为具体平台写作。
 - **默认纪律**：未证明可放宽前用 SEQ_CST；降级须有性能依据（第 136 章方法）并注释理由。
 - **自旋锁生命周期**：栈 Init/Unit、静态 `XRT_SPIN_INIT`、堆 Create/Destroy；**释放仍被持有的锁失败并置 `XERR_STATE`**；TryLock 非阻塞、已持有返回假。
-- **deadline 纯值**：无所有权、按值传递；`After` 溢出返回 `XRT_DEADLINE_NEVER`；`NEVER` 永不过期、`Remaining` 返回 `UINT64_MAX`。
+- **等待参数**：`int64` 毫秒值按值传递，无所有权；`0` 表示只尝试一次，`XRT_WAIT_FOREVER` 表示无限等待，其他负数无效。
 - **xwaitresult 五态互斥**：ERROR/OK/TIMEOUT/CANCELLED/CLOSED；超时与取消是控制流不是错误，不进错误链。
 - **线程规则**：原子对象无部分更新状态（任何观测要么旧要么新）；栅栏与 Pause 对所有平台可移植。
 
@@ -186,10 +185,10 @@ for ( i = 0; i < 100; i++ ) {
 ```
 
 ```c good
-xdeadline D = xrtDeadlineAfter(UINT64_C(10000000));   /* 循环外一次构造 */
+double D = xrtTimer() + 10.0;   /* 循环外一次构造 */
 while ( !TryOnce() ) {
-	if ( xrtDeadlineExpired(D) ) { return XWAIT_TIMEOUT; }
-	WaitOnce(xrtDeadlineRemaining(D));                 /* 剩余量递减，绝不重置 */
+	if ( (xrtTimer() >= D) ) { return XWAIT_TIMEOUT; }
+	WaitOnce(((int64)ceil(fmax(0.0, D - xrtTimer()) * 1000.0)));                 /* 剩余量递减，绝不重置 */
 }
 return XWAIT_OK;
 ```
@@ -220,6 +219,6 @@ return XWAIT_OK;
 | 发布—获取 | 写侧 RELEASE、读侧 ACQUIRE 配对；任一 RELAXED 即失效 |
 | 辅助件 | ThreadFence/SignalFence/Pause/IsLockFree |
 | 自旋锁 | 几条指令临界区专用；释放持锁 → `XERR_STATE`；TryLock 非阻塞 |
-| deadline | 绝对截止（单调微秒）；循环外 After 一次、循环内 Remaining |
+| deadline | 绝对截止（单调秒）；循环外 After 一次、循环内 Remaining |
 | xwaitresult | ERROR/OK/TIMEOUT/CANCELLED/CLOSED 五态；超时取消是控制流 |
 | 分工线 | 单变量→原子；不变式→锁；传指针→队列（第 21 章） |

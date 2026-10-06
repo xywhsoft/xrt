@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：process/tour —— 进程生命周期/等待/停止/Run 一把抓补集
  * ----------------------------------------------------------------
@@ -27,6 +26,20 @@
 #include <string.h>
 #include <xrt.h>
 
+#if defined(_WIN32) || defined(_WIN64)
+#define EXAMPLE_ECHO_COMMAND "cmd /c echo ping"
+#define EXAMPLE_SLEEP_COMMAND "cmd /c ping -n 30 127.0.0.1 > nul"
+#define EXAMPLE_SHELL "cmd"
+#define EXAMPLE_SHELL_FLAG "/c"
+#define EXAMPLE_CAPTURE_COMMAND "echo ok"
+#else
+#define EXAMPLE_ECHO_COMMAND "printf 'ping\\r\\n'"
+#define EXAMPLE_SLEEP_COMMAND "exec sleep 30"
+#define EXAMPLE_SHELL "sh"
+#define EXAMPLE_SHELL_FLAG "-c"
+#define EXAMPLE_CAPTURE_COMMAND "printf ok"
+#endif
+
 int main(void)
 {
 	xprocessconfig Config;
@@ -42,7 +55,7 @@ int main(void)
 
 	/* ---- Run：输入回显 + 限长捕获 ---- */
 	if ( !xrtProcessShellConfigInit(&Config,
-			"cmd /c echo ping") ) {
+			EXAMPLE_ECHO_COMMAND) ) {
 		goto Cleanup;
 	}
 	if ( !xrtProcessRunOptionsInit(&RunOptions) ||
@@ -58,8 +71,9 @@ int main(void)
 	xrtProcessResultUnit(&Result);
 
 	/* ---- Capture：默认策略直接执行 ---- */
-	arrArgs[0] = "/c echo ok";
-	if ( !xrtProcessCapture("cmd", arrArgs, 1u, &Result) ||
+	arrArgs[0] = EXAMPLE_SHELL_FLAG;
+	arrArgs[1] = EXAMPLE_CAPTURE_COMMAND;
+	if ( !xrtProcessCapture(EXAMPLE_SHELL, arrArgs, 2u, &Result) ||
 		!xrtProcessResultSuccess(&Result) ||
 		(Result.StderrSize != 0u) ) {
 		goto Cleanup;
@@ -70,7 +84,7 @@ int main(void)
 
 	/* ---- 生命周期：长睡进程 + Id/Native/State/Status/Error ---- */
 		if ( !xrtProcessShellConfigInit(&Config,
-			"cmd /c ping -n 30 127.0.0.1 > nul") ) {
+			EXAMPLE_SLEEP_COMMAND) ) {
 		goto Cleanup;
 	}
 	pProcess = xrtProcessSpawn(&Config);
@@ -87,15 +101,14 @@ int main(void)
 		goto Cleanup;
 	}
 	/* WaitFor 短窗：长睡进程必然超时。 */
-	if ( xrtProcessWaitFor(pProcess, 100000u) != XWAIT_TIMEOUT ) {
+	if ( xrtProcessWaitFor(pProcess, 100) != XWAIT_TIMEOUT ) {
 		goto Cleanup;
 	}
 	/* WaitUntilCancel：已触发令牌立即取消。 */
 	pCancel = xrtCancelCreate();
 	if ( (pCancel == NULL) ||
 		!xrtCancelRequest(pCancel) ||
-		(__xrtProcessWaitUntilCancel(pProcess,
-			__xrtWaitAfter(UINT64_C(3000000)),
+		(xrtProcessWaitForCancel(pProcess,INT64_C(3000),
 			pCancel) != XWAIT_CANCELLED) ) {
 		goto Cleanup;
 	}
@@ -106,14 +119,14 @@ int main(void)
 	}
 	if ( !xrtProcessTerminate(pProcess) ||
 		!xrtProcessKill(pProcess) ||
-		(__xrtProcessWaitUntil(pProcess,
-			__xrtWaitAfter(UINT64_C(2000000))) !=
+		(xrtProcessWaitFor(pProcess,INT64_C(2000)) !=
 			XWAIT_OK) ) {
 		goto Cleanup;
 	}
 	if ( (xrtProcessState(pProcess) != XPROCESS_EXITED) ||
 		!xrtProcessStatus(pProcess, &Status) ||
-		(Status.Kind != XPROCESS_EXIT_CODE) ||
+		((Status.Kind != XPROCESS_EXIT_CODE) &&
+		 (Status.Kind != XPROCESS_EXIT_SIGNAL)) ||
 		(xrtProcessError(pProcess) != NULL) ) {
 		goto Cleanup;
 	}
@@ -124,14 +137,14 @@ int main(void)
 		xprocess* pVictim;
 
 		if ( !xrtProcessShellConfigInit(&Config,
-			"cmd /c ping -n 30 127.0.0.1 > nul") ) {
+			EXAMPLE_SLEEP_COMMAND) ) {
 			goto Cleanup;
 		}
 		pVictim = xrtProcessSpawn(&Config);
 		if ( (pVictim != NULL) &&
 			xrtProcessTerminate(pVictim) &&
 			(xrtProcessWaitFor(pVictim,
-				UINT64_C(3000000)) == XWAIT_OK) ) {
+				INT64_C(3000)) == XWAIT_OK) ) {
 			printf("process: stop terminate ok");
 		}
 		else {
@@ -140,14 +153,14 @@ int main(void)
 		xrtProcessDestroy(pVictim);
 
 		if ( !xrtProcessShellConfigInit(&Config,
-			"cmd /c ping -n 30 127.0.0.1 > nul") ) {
+			EXAMPLE_SLEEP_COMMAND) ) {
 			goto Cleanup;
 		}
 		pVictim = xrtProcessSpawn(&Config);
 		if ( (pVictim != NULL) &&
 			xrtProcessKill(pVictim) &&
 			(xrtProcessWaitFor(pVictim,
-				UINT64_C(3000000)) == XWAIT_OK) ) {
+				INT64_C(3000)) == XWAIT_OK) ) {
 			printf(" kill ok");
 		}
 		else {
@@ -156,14 +169,14 @@ int main(void)
 		xrtProcessDestroy(pVictim);
 
 		if ( !xrtProcessShellConfigInit(&Config,
-			"cmd /c ping -n 30 127.0.0.1 > nul") ) {
+			EXAMPLE_SLEEP_COMMAND) ) {
 			goto Cleanup;
 		}
 		pVictim = xrtProcessSpawn(&Config);
 		if ( (pVictim != NULL) &&
 			xrtProcessKillTree(pVictim) &&
 			(xrtProcessWaitFor(pVictim,
-				UINT64_C(3000000)) == XWAIT_OK) ) {
+				INT64_C(3000)) == XWAIT_OK) ) {
 			printf(" kill-tree ok\n");
 		}
 		else {
@@ -176,7 +189,7 @@ int main(void)
 	 * 范例失败——能力探测与 file/fifo 范例一致）。 */
 	{
 		if ( !xrtProcessShellConfigInit(&Config,
-				"cmd /c ping -n 30 127.0.0.1 > nul") ) {
+				EXAMPLE_SLEEP_COMMAND) ) {
 			goto Cleanup;
 		}
 		/* Config.Terminal 需要终端标志；借用 Terminal 范例配置。 */
@@ -189,7 +202,7 @@ int main(void)
 				(void)xrtProcessResize(pTerm, 120u, 30u);
 				(void)xrtProcessKill(pTerm);
 				(void)xrtProcessWaitFor(pTerm,
-					UINT64_C(2000000));
+					INT64_C(2000));
 				xrtProcessDestroy(pTerm);
 			}
 		}

@@ -32,7 +32,7 @@
 #include <string.h>
 #include <xrt.h>
 
-#define SV(x) ((xbytesview){ x, sizeof(x) - 1u })
+#define SV(x) XRT_BYTES_LITERAL(x)
 
 /* 访问器：打印每个键；返回 false 可提前停止（本例走满）。 */
 static bool visitPair(xbytesview Key, ptr pValue, ptr pUserData)

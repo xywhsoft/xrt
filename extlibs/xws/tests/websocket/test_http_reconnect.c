@@ -18,7 +18,7 @@
 #define TEST_WS_RECONNECT_PROTOCOL "xrt.stress"
 #define TEST_WS_RECONNECT_LIMIT ((size_t)1024u)
 #define TEST_WS_RECONNECT_OVERSIZE ((size_t)1536u)
-#define TEST_WS_RECONNECT_TIMEOUT UINT64_C(10000000)
+#define TEST_WS_RECONNECT_TIMEOUT INT64_C(10000)
 
 
 
@@ -393,7 +393,7 @@ static void testWsReconnectRequest(
 		TEST_WS_RECONNECT_LIMIT;
 	Config.Connection.FrameLimit =
 		TEST_WS_RECONNECT_OVERSIZE;
-	Config.Connection.CloseTimeout = UINT64_C(1000000);
+	Config.Connection.CloseTimeout = INT64_C(1000);
 	testRequire(
 		xrtWsUpgrade(
 		pHttp,
@@ -742,7 +742,7 @@ static void testWsReconnectRun(uint32 iRounds)
 		WsConfig.Deflate.Flags =
 			XWS_DEFLATE_SERVER_NO_CONTEXT;
 		WsConfig.Connection.CloseTimeout =
-			UINT64_C(1000000);
+			INT64_C(1000);
 		Round.Call = xrtWsConnect(
 			Test.Client,
 			(xstrview) { sUrl, (size_t)iLength },

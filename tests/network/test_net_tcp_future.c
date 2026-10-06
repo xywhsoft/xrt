@@ -27,7 +27,7 @@ static void testTcpFutureWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -44,7 +44,7 @@ static void testTcpFutureAvailable(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetStreamAvailable(pStream) != iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -137,7 +137,7 @@ static void testTcpFutureBytes(
 	xnetbytes* pBytes;
 	xbytesview View;
 
-	testRequire(xrtFutureWaitFor(pFuture, 5000000u) == XWAIT_OK,
+	testRequire(xrtFutureWaitFor(pFuture, 5000) == XWAIT_OK,
 		sMessage);
 	if ( xrtFutureState(pFuture) != XFUTURE_RESOLVED ) {
 		const xerror* pError = xrtFutureError(pFuture);
@@ -254,7 +254,7 @@ int main(void)
 
 	pWrite = xrtNetStreamWaitAsync(pClient, XNET_STREAM_WAIT_WRITE);
 	testRequire((pWrite != NULL) &&
-		 (xrtFutureWaitFor(pWrite, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pWrite, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pWrite) == XFUTURE_RESOLVED),
 		"TCP writable Future failed");
 	testRequire(xrtNetEngineStats(pEngine, &EngineStats),
@@ -265,7 +265,7 @@ int main(void)
 		XNET_STREAM_WAIT_OPEN
 	);
 	testRequire((pCacheOpen != NULL) &&
-		 (xrtFutureWaitFor(pCacheOpen, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pCacheOpen, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pCacheOpen) == XFUTURE_RESOLVED) &&
 		 xrtNetEngineStats(pEngine, &EngineStats) &&
 		 (EngineStats.NodeCacheHits > iNodeHits) &&
@@ -282,7 +282,7 @@ int main(void)
 		XNET_RESULT_OK, "TCP Future initial send failed");
 	testTcpFutureBytes(pFirst, "hel", 3,
 		"TCP first receive Future timed out");
-	testRequire((xrtFutureWaitFor(pReadable, 5000000u) == XWAIT_OK) &&
+	testRequire((xrtFutureWaitFor(pReadable, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pReadable) == XFUTURE_RESOLVED),
 		"TCP readable Future failed");
 	testTcpFutureAvailable(pServer, 2,
@@ -296,12 +296,12 @@ int main(void)
 		"TCP minimum readable Future create failed");
 	testRequire(xrtNetStreamSend(pClient, "abc", 3) ==
 		XNET_RESULT_OK, "TCP minimum readable prefix send failed");
-	testRequire((xrtFutureWaitFor(pMinimum, 1000u) == XWAIT_TIMEOUT) &&
+	testRequire((xrtFutureWaitFor(pMinimum, 1) == XWAIT_TIMEOUT) &&
 		(xrtFutureState(pMinimum) == XFUTURE_PENDING),
 		"TCP minimum readable Future accepted an incomplete prefix");
 	testRequire(xrtNetStreamSend(pClient, "d", 1) ==
 		XNET_RESULT_OK, "TCP minimum readable suffix send failed");
-	testRequire((xrtFutureWaitFor(pMinimum, 5000000u) == XWAIT_OK) &&
+	testRequire((xrtFutureWaitFor(pMinimum, 5000) == XWAIT_OK) &&
 		(xrtFutureState(pMinimum) == XFUTURE_RESOLVED),
 		"TCP minimum readable Future did not observe buffer growth");
 	pMinimumBytes = xrtNetStreamRecvAsync(pServer, 4);
@@ -317,7 +317,7 @@ int main(void)
 
 	pCancelled = xrtNetStreamRecvAsync(pServer, 1);
 	testRequire((pCancelled != NULL) && xrtFutureCancel(pCancelled) &&
-		 (xrtFutureWaitFor(pCancelled, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pCancelled, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pCancelled) == XFUTURE_CANCELLED) &&
 		 (xrtNetStreamState(pServer) == XNET_STREAM_OPEN),
 		"TCP receive Future cancellation affected Stream");
@@ -329,7 +329,7 @@ int main(void)
 	) == XNET_RESULT_OK, "TCP Future window send failed");
 	pDrain = xrtNetStreamWaitAsync(pClient, XNET_STREAM_WAIT_DRAIN);
 	testRequire((pDrain != NULL) &&
-		 (xrtFutureWaitFor(pDrain, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pDrain, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pDrain) == XFUTURE_RESOLVED),
 		"TCP drain Future failed");
 	testTcpFutureAvailable(pServer, 8,
@@ -358,7 +358,7 @@ int main(void)
 	pEof = xrtNetStreamRecvAsync(pServer, 0);
 	testRequire((pEof != NULL) && xrtNetStreamShutdownWrite(pClient),
 		"TCP EOF receive setup failed");
-	testRequire((xrtFutureWaitFor(pEof, 5000000u) == XWAIT_OK) &&
+	testRequire((xrtFutureWaitFor(pEof, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pEof) == XFUTURE_CLOSED),
 		"TCP EOF did not close pending receive Future");
 	testTcpFutureWait(&Context.Ended, 1,
@@ -375,9 +375,9 @@ int main(void)
 	testRequire((pClientClose != NULL) && (pServerClose != NULL) &&
 		 xrtNetStreamClose(pClient) && xrtNetStreamClose(pServer),
 		"TCP close Future setup failed");
-	testRequire((xrtFutureWaitFor(pClientClose, 5000000u) == XWAIT_OK) &&
+	testRequire((xrtFutureWaitFor(pClientClose, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pClientClose) == XFUTURE_RESOLVED) &&
-		 (xrtFutureWaitFor(pServerClose, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pServerClose, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pServerClose) == XFUTURE_RESOLVED),
 		"TCP close Futures failed");
 	testTcpFutureWait(&Context.Closed, 2,
@@ -410,12 +410,12 @@ int main(void)
 		XNET_STREAM_WAIT_CLOSE
 	);
 	testRequire((pClosedClose != NULL) &&
-		 (xrtFutureWaitFor(pClosedClose, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pClosedClose, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pClosedClose) == XFUTURE_RESOLVED),
 		"TCP closed Stream close Future used a destroyed Engine");
 	pClosedRecv = xrtNetStreamRecvAsync(pServer, 0);
 	testRequire((pClosedRecv != NULL) &&
-		 (xrtFutureWaitFor(pClosedRecv, 5000000u) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pClosedRecv, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pClosedRecv) == XFUTURE_CLOSED),
 		"TCP closed Stream receive Future used a destroyed Engine");
 	xrtFutureDestroy(pClosedClose);

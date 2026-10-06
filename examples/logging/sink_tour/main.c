@@ -137,7 +137,6 @@ int main(void)
 
 	/* 文本格式化缓冲版 + 三种校验器。 */
 	{
-		char Text[128];
 		size_t iSize = 0;
 		xlogtextconfig TextConfig;
 		xlogjsonconfig JsonConfig;

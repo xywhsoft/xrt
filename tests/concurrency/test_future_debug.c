@@ -135,8 +135,8 @@ int main(void)
     a=xrtThreadCreate(concurrent,xrtFutureRef(future),0);
     b=xrtThreadCreate(concurrent,xrtFutureRef(future),0);
     testRequire(a && b,"concurrent threads");
-    testRequire(xrtThreadWaitFor(a,UINT64_C(10000000))==XWAIT_OK &&
-        xrtThreadWaitFor(b,UINT64_C(10000000))==XWAIT_OK,"concurrent deadline");
+    testRequire(xrtThreadWaitFor(a,INT64_C(10000))==XWAIT_OK &&
+        xrtThreadWaitFor(b,INT64_C(10000))==XWAIT_OK,"concurrent deadline");
     xrtThreadDestroy(a); xrtThreadDestroy(b); xrtPromiseDestroy(promise); xrtFutureDestroy(future); balance(&before);
     printf("[PASS] Future debug: 1000 physical lifetimes, bounded rename storage, exact owned names, 5 complete OOM prefixes/%u positions, 2000 concurrent copies, actual Watches\n",attempts);
     return 0;

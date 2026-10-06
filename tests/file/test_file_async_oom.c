@@ -191,7 +191,7 @@ static bool testAsyncFileOomBlockStarted(
 		bResult = xrtCondWaitFor(
 			&pBlock->Cond,
 			&pBlock->Lock,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK;
 	}
 	(void)xrtMutexUnlock(&pBlock->Lock);
@@ -227,7 +227,7 @@ static void testAsyncFileOomCloseFixture(xasyncfile* pFile)
 	testRequire(
 		xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		"async file OOM fixture close wait failed"
 	);
@@ -286,7 +286,7 @@ int main(void)
 	testRequire(
 		xrtFutureWaitFor(
 			pWarmFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		"async file OOM worker warm wait failed"
 	);
@@ -408,7 +408,7 @@ int main(void)
 	testRequire(
 		xrtFutureWaitFor(
 			pReadFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		"async file result OOM wait failed"
 	);
@@ -431,7 +431,7 @@ int main(void)
 	testRequire(
 		xrtFutureWaitFor(
 			pCloseFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK,
 		"async file OOM close wait failed"
 	);

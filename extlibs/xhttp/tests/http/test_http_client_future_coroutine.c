@@ -36,7 +36,7 @@ static ptr testHttpFutureCoroutineProc(ptr pData)
 	);
 	pState->Wait = xrtFutureAwaitFor(
 		pFuture,
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 	pState->State = xrtFutureState(pFuture);
 	if ( (pState->Wait == XWAIT_OK) &&
@@ -63,7 +63,7 @@ static xhttpclient* testHttpFutureCoroutineClient(
 	xrtHttpClientConfigInit(&Config);
 	Config.Dial.Family = XNET_FAMILY_IPV4;
 	Config.Dial.MaxAttempts = 1;
-	Config.Timeout = UINT64_C(5000000);
+	Config.Timeout = INT64_C(5000);
 	pClient = xrtHttpClientCreate(pEngine, &Config);
 	testRequire(
 		pClient != NULL,
@@ -111,7 +111,7 @@ static void testHttpFutureCoroutineEngineDestroy(
 	xnetengine* pEngine
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();

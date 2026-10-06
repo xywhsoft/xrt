@@ -110,7 +110,7 @@ static void testHttpDecompressWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -793,7 +793,7 @@ static void testHttpDecompressRun(
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup =
 		testHttpDecompressLookup;
-	ClientConfig.Dial.FallbackDelay = 1000;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	if ( Scenario == TEST_HTTP_DECOMPRESS_LIMIT ) {
 		ClientConfig.Decompress.MaxBody = 64;

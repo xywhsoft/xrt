@@ -3,7 +3,7 @@
 此文件由 `tools/generate_example_index.py` 从 `config/modules.json` 生成，
 不要手工维护第二份示例清单。构建器会按所属模块的真实依赖闭包编译并运行示例。
 
-当前共登记 `415` 个可运行示例。
+当前共登记 `414` 个可运行示例。
 
 ## asn1 (5)
 
@@ -129,7 +129,7 @@
 
 ## crypto (35)
 
-- [crypto/aead_tour](../examples/crypto/aead_tour/main.c) - `crypto_aes_gcm`
+- [crypto/aead_tour](../examples/crypto/aead_tour/main.c) - `crypto_aead_examples`
 - [crypto/aes](../examples/crypto/aes/main.c) - `crypto_aes`
 - [crypto/aes_gcm](../examples/crypto/aes_gcm/main.c) - `crypto_aes_gcm`
 - [crypto/chacha20](../examples/crypto/chacha20/main.c) - `crypto_chacha20`
@@ -325,7 +325,7 @@
 - [network/port_iocp](../examples/network/port_iocp/main.c) - `net_port_iocp`
 - [network/port_kqueue](../examples/network/port_kqueue/main.c) - `net_port_kqueue`
 - [network/port_select](../examples/network/port_select/main.c) - `net_port_select`
-- [network/port_tour](../examples/network/port_tour/main.c) - `net_port`
+- [network/port_tour](../examples/network/port_tour/main.c) - `net_port_iocp_examples`
 - [network/port_uring](../examples/network/port_uring/main.c) - `net_port_uring`
 - [network/proxy_dial](../examples/network/proxy_dial/main.c) - `net_proxy_dial_socks5_tests`
 - [network/proxy_dial_http_connect](../examples/network/proxy_dial_http_connect/main.c) - `net_proxy_dial_http_connect_tests`
@@ -526,7 +526,3 @@
 - [x509/store_system](../examples/x509/store_system/main.c) - `x509_store_system`
 - [x509/store_tour](../examples/x509/store_tour/main.c) - `x509_store`
 - [x509/verify](../examples/x509/verify/main.c) - `x509_verify_rsa`
-
-## xllm (1)
-
-- [xllm/complete_stats](../examples/xllm/complete_stats/main.c) - `xllm_examples`

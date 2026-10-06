@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：tls/listener_tour —— TLS Listener 全接口 + 回调式 Dial 自省
  * ----------------------------------------------------------------
@@ -35,7 +34,24 @@
 #include <stdio.h>
 #include <string.h>
 
-#define EXAMPLE_DEADLINE_US	UINT64_C(5000000)
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
+#define EXAMPLE_DEADLINE_MS	INT64_C(5000)
 
 /* 完成交接块：Dial 回调与主线程之间。 */
 typedef struct example_tlssession_slot {
@@ -104,10 +120,10 @@ static void exampleClientClose(xtlsstream* pStream,
 
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+	double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 	while ( !*pFlag ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -244,8 +260,8 @@ int main(void)
 		if ( pServerA != NULL ) {
 			break;
 		}
-		if ( __xrtWaitExpired(__xrtWaitAfter(
-				EXAMPLE_DEADLINE_US)) ) {
+		if ( exampleTimerExpired(exampleTimerLimit(
+				EXAMPLE_DEADLINE_MS)) ) {
 			iResult = 4;
 			goto Cleanup;
 		}
@@ -271,10 +287,10 @@ int main(void)
 		goto Cleanup;
 	}
 	{
-		double iDeadline = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+		double iDeadline = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 		while ( ClientA.Received < 9u ) {
-			if ( __xrtWaitExpired(iDeadline) ) {
+			if ( exampleTimerExpired(iDeadline) ) {
 				iResult = 4;
 				goto Cleanup;
 			}
@@ -294,7 +310,7 @@ int main(void)
 	pAcceptFuture = xrtTlsListenerAcceptAsync(pListener);
 	if ( (pClientB == NULL) || (pAcceptFuture == NULL) ||
 		!exampleSpinUntil(&ClientB.bOpen) ||
-		(xrtFutureWaitFor(pAcceptFuture, EXAMPLE_DEADLINE_US) !=
+		(xrtFutureWaitFor(pAcceptFuture, EXAMPLE_DEADLINE_MS) !=
 			XWAIT_OK) ||
 		(xrtFutureState(pAcceptFuture) != XFUTURE_RESOLVED) ) {
 		iResult = 5;
@@ -320,8 +336,7 @@ int main(void)
 		goto Cleanup;
 	}
 	pClientC = Slot.pStream;
-	pServerC = __xrtTlsListenerAcceptWait(pListener,
-		__xrtWaitAfter(EXAMPLE_DEADLINE_US), NULL);
+	pServerC = xrtTlsListenerAcceptWait(pListener,EXAMPLE_DEADLINE_MS, NULL);
 	if ( (pServerC == NULL) || !exampleSpinUntil(&ClientC.bOpen) ) {
 		iResult = 6;
 		goto Cleanup;
@@ -387,7 +402,7 @@ Cleanup:
 	 * 避免逐条串行等待把最坏退出时间放大到数倍截止时间。 */
 	{
 		xtlsstream* Streams[6];
-		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 		bool bSettled;
 
 		Streams[0] = pClientA;
@@ -413,7 +428,7 @@ Cleanup:
 					bSettled = false;
 				}
 			}
-			if ( bSettled || __xrtWaitExpired(iEnd) ) {
+			if ( bSettled || exampleTimerExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();
@@ -440,12 +455,12 @@ Cleanup:
 	xrtTlsStreamDestroy(pServerB);
 	xrtTlsStreamDestroy(pServerC);
 	if ( pListener != NULL ) {
-		double iEnd = __xrtWaitAfter(EXAMPLE_DEADLINE_US);
+		double iEnd = exampleTimerLimit(EXAMPLE_DEADLINE_MS);
 
 		(void)xrtTlsListenerClose(pListener);
 		while ( xrtTlsListenerState(pListener) !=
 			XTLS_LISTENER_CLOSED ) {
-			if ( __xrtWaitExpired(iEnd) ) {
+			if ( exampleTimerExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();

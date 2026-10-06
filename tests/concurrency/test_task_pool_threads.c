@@ -60,7 +60,7 @@ static int testTaskProducerRun(ptr pData)
 		if ( pFuture == NULL ) {
 			return 1;
 		}
-		if ( xrtFutureWaitFor(pFuture, UINT64_C(5000000)) != XWAIT_OK ) {
+		if ( xrtFutureWaitFor(pFuture, INT64_C(5000)) != XWAIT_OK ) {
 			xrtFutureDestroy(pFuture);
 			return 2;
 		}
@@ -104,7 +104,7 @@ int main(void)
 		testRequire(arrThread[i].Result == 0, "concurrent task producer failed");
 	}
 	testRequire(xrtTaskPoolClose(tShared.Pool), "concurrent task pool close failed");
-	testRequire(xrtTaskPoolWaitFor(tShared.Pool, UINT64_C(5000000)) == XWAIT_OK,
+	testRequire(xrtTaskPoolWaitFor(tShared.Pool, INT64_C(5000)) == XWAIT_OK,
 		"concurrent task pool drain failed");
 	testRequire(xrtTaskPoolGet(tShared.Pool, &tStats), "concurrent task stats failed");
 	testRequire(

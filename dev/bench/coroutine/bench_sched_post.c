@@ -75,7 +75,7 @@ int main(int argc, char** argv)
 
 	xbenchTimerStart(&Timer);
 	while ( (uint64)xbenchAtomicLoad(&State.Processed) < iTarget ) {
-		xwaitresult Result = xrtCoSchedPollFor(State.Scheduler, 1000000u);
+		xwaitresult Result = xrtCoSchedPollFor(State.Scheduler, 1000);
 
 		if (
 			(Result == XWAIT_ERROR) ||

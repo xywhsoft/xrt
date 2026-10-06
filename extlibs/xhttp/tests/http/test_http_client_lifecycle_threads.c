@@ -42,7 +42,7 @@ static int32 testHttpClientWaitThread(ptr pData)
 	}
 	if ( xrtFutureWaitFor(
 		pContext->Future,
-		UINT64_C(5000000)
+		INT64_C(5000)
 	) == XWAIT_OK ) {
 		State = xrtFutureState(pContext->Future);
 	}
@@ -93,7 +93,7 @@ int main(void)
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Dial.Family = XNET_FAMILY_IPV4;
 	ClientConfig.Dial.MaxAttempts = 1;
-	ClientConfig.Timeout = UINT64_C(5000000);
+	ClientConfig.Timeout = INT64_C(5000);
 	pClient = xrtHttpClientCreate(pEngine, &ClientConfig);
 	testRequire(
 		pClient != NULL,
@@ -156,7 +156,7 @@ int main(void)
 			"HTTP Client concurrent wait setup failed"
 		);
 	}
-	Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(INT64_C(5000));
 	while ( xrtAtomic32Load(
 		&Ready,
 		XMEMORY_ACQUIRE
@@ -181,7 +181,7 @@ int main(void)
 		testRequire(
 			xrtThreadWaitFor(
 				Threads[i],
-				UINT64_C(5000000)
+				INT64_C(5000)
 			) == XWAIT_OK,
 			"HTTP Client wait thread did not finish"
 		);
@@ -200,12 +200,12 @@ int main(void)
 	testRequire(
 		(xrtFutureWaitFor(
 			pCall,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pCall) == XFUTURE_CANCELLED) &&
 		(xrtFutureWaitFor(
 			pClosed,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pClosed) == XFUTURE_RESOLVED) &&
 		(xrtHttpClientState(pClient) == XHTTP_CLIENT_CLOSED),

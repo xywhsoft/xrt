@@ -206,7 +206,7 @@ static void testTlsStreamFutureWaitCount(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -223,7 +223,7 @@ static void testTlsStreamFutureWaitAvailable(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtTlsStreamAvailable(pStream) != iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -239,7 +239,7 @@ static void testTlsStreamFutureWaitReadable(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtTlsStreamAvailable(pStream) == 0 ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -515,7 +515,7 @@ static void testTlsStreamFutureState(
 	xwaitresult WaitResult;
 
 	testRequire(pFuture != NULL, sMessage);
-	WaitResult = xrtFutureWaitFor(pFuture, 10000000u);
+	WaitResult = xrtFutureWaitFor(pFuture, 10000);
 	if ( WaitResult != XWAIT_OK ) {
 		pError = xrtFutureError(pFuture);
 		fprintf(
@@ -965,7 +965,7 @@ int main(void)
 	);
 	testRequire(
 		(pCacheOpen != NULL) &&
-		(xrtFutureWaitFor(pCacheOpen, 5000000u) == XWAIT_OK) &&
+		(xrtFutureWaitFor(pCacheOpen, 5000) == XWAIT_OK) &&
 		(xrtFutureState(pCacheOpen) == XFUTURE_RESOLVED) &&
 		xrtNetEngineStats(pEngine, &EngineStats) &&
 		(EngineStats.NodeCacheHits > iNodeHits) &&
@@ -1217,7 +1217,7 @@ int main(void)
 		xbytesview View;
 
 		pChunk = xrtTlsStreamRecvAsync(Test.Server.Stream, 0);
-		ChunkWait = xrtFutureWaitFor(pChunk, 10000000u);
+		ChunkWait = xrtFutureWaitFor(pChunk, 10000);
 		if ( ChunkWait != XWAIT_OK ) {
 			fprintf(
 				stderr,

@@ -54,7 +54,7 @@ static void testHttpClientRaceWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -401,7 +401,7 @@ static void testHttpClientRaceJoin(
 /* 等待取消命令、Timer 和网络对象全部离开 Engine。 */
 static void testHttpClientRaceWaitEngineIdle(xnetengine* pEngine)
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 	xnetenginestats Stats;
 
 	for ( ;; ) {
@@ -477,7 +477,7 @@ int main(void)
 	);
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup = testHttpClientRaceLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	State.Client = xrtHttpClientCreate(
 		State.Engine,
@@ -532,7 +532,7 @@ int main(void)
 		testRequire(pRequest != NULL,
 			"HTTP client race request creation failed");
 		xrtHttpCallOptionsInit(&Options);
-		Options.Timeout = UINT64_MAX - 1u;
+		Options.Timeout = INT64_MAX;
 		Options.IdleTimeout = XHTTP_CLIENT_TIMEOUT_NONE;
 		pCall = xrtHttpClientDo(
 			State.Client,

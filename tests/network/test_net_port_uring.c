@@ -16,7 +16,7 @@ static void testUringWait(
 	size_t iExpected
 )
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 	size_t iCount = 0;
 
 	while ( iCount < iExpected ) {
@@ -589,7 +589,7 @@ static void testUringDgramError(void)
 			pPort,
 			&Event,
 			1,
-			__xrtWaitAfter(5000000u),
+			__xrtWaitAfter(5000),
 			&iCount
 		) == XNET_RESULT_OK) &&
 		(iCount == 1),
@@ -836,7 +836,7 @@ int main(void)
 			pPort,
 			&Event,
 			1,
-			__xrtWaitAfter(1000000u),
+			__xrtWaitAfter(1000),
 			&iCount
 		) == XNET_RESULT_OK) &&
 		(iCount == 1) &&

@@ -8,7 +8,7 @@ static int testSemWaiter(ptr pData)
 {
 	xsem* pSem = (xsem*)pData;
 
-	return xrtSemWaitFor(pSem, UINT64_C(2000000)) == XWAIT_OK ? 29 : 1;
+	return xrtSemWaitFor(pSem, INT64_C(2000)) == XWAIT_OK ? 29 : 1;
 }
 
 
@@ -17,7 +17,7 @@ static int testSemWaiter(ptr pData)
 static int testSemBatchWaiter(ptr pData)
 {
 	xsem* pSem = (xsem*)pData;
-	xwaitresult Result = xrtSemWaitFor(pSem, UINT64_C(200000));
+	xwaitresult Result = xrtSemWaitFor(pSem, INT64_C(200));
 
 	return Result == XWAIT_OK ? 1 : (Result == XWAIT_TIMEOUT ? 0 : -1);
 }

@@ -1,3 +1,4 @@
+#include <xrt/detail/xpop3_wait.h>
 #include <xrt/detail/wait.h>
 #include "test.h"
 

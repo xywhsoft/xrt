@@ -34,7 +34,7 @@ static void testHttpServerTlsWriteWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -354,8 +354,8 @@ int main(void)
 	ServerConfig.Network.Listen.Stream.WriteLimit =
 		XTLS_SEND_LIMIT_DEFAULT;
 	ServerConfig.WriteSize = 16u * 1024u;
-	ServerConfig.WriteTimeout = UINT64_C(500000);
-	ServerConfig.RequestTimeout = UINT64_C(2000000);
+	ServerConfig.WriteTimeout = INT64_C(500);
+	ServerConfig.RequestTimeout = INT64_C(2000);
 	xrtHttpServerTlsConfigInit(&TlsConfig);
 	TlsConfig.Handshake.Context = pServerContext;
 	TlsConfig.Handshake.Identity = pIdentity;

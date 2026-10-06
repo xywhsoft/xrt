@@ -86,7 +86,7 @@ static void testTcpOomWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -544,7 +544,7 @@ int main(void)
 		XMEMORY_ACQUIRE
 	) == 1, "TCP reentrant shutdown did not return from allocator");
 	{
-		double iDeadline = __xrtWaitAfter(5000000u);
+		double iDeadline = __xrtWaitAfter(5000);
 
 		do {
 			testRequire(xrtNetStreamStats(pClient, &Stats),

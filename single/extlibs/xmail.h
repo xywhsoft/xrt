@@ -2193,7 +2193,7 @@ typedef struct xmailnetconfig {
 	#if defined(XMAIL_FEATURE_MAIL_NET_TLS)
 		xtlsclientconfig Tls;
 		xtlsstreamconfig TlsStream;
-		uint64 TlsTimeout;
+		int64 TlsTimeout;
 	#endif
 } xmailnetconfig;
 
@@ -2630,7 +2630,7 @@ void __xrtMailTextDestroy(__xmailtext* pText);
 bool __xrtMailTransportOpen(
 	__xmailtransport* pTransport,
 	const xmailnetconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2640,7 +2640,7 @@ bool __xrtMailTransportSend(
 	__xmailtransport* pTransport,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2651,7 +2651,7 @@ bool __xrtMailTransportWrite(
 	const void* pData,
 	size_t iSize,
 	bool bFlush,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2659,7 +2659,7 @@ bool __xrtMailTransportWrite(
 
 xnetbytes* __xrtMailTransportRawRecv(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2669,7 +2669,7 @@ bool __xrtMailTransportRawSend(
 	__xmailtransport* pTransport,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2689,7 +2689,7 @@ void __xrtMailTransportConsume(__xmailtransport* pTransport);
 bool __xrtMailTransportLine(
 	__xmailtransport* pTransport,
 	xstrview* pLine,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2700,7 +2700,7 @@ bool __xrtMailTransportRead(
 	void* pBuffer,
 	size_t iCapacity,
 	size_t* pRead,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2708,7 +2708,7 @@ bool __xrtMailTransportRead(
 
 bool __xrtMailTransportClose(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline
+	double iDeadline
 );
 
 
@@ -2740,7 +2740,7 @@ bool __xrtMailTransportDeflateSend(
 	const void* pData,
 	size_t iSize,
 	bool bFlush,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2748,7 +2748,7 @@ bool __xrtMailTransportDeflateSend(
 
 bool __xrtMailTransportDeflateFill(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2767,7 +2767,7 @@ void __xrtMailTransportDeflateDestroy(__xmailtransport* pTransport);
 bool __xrtMailTransportTlsOpen(
 	__xmailtransport* pTransport,
 	const xmailnetconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2776,7 +2776,7 @@ bool __xrtMailTransportTlsOpen(
 bool __xrtMailTransportStartTls(
 	__xmailtransport* pTransport,
 	const xmailnetconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2786,7 +2786,7 @@ bool __xrtMailTransportTlsSend(
 	__xmailtransport* pTransport,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2794,7 +2794,7 @@ bool __xrtMailTransportTlsSend(
 
 xnetbytes* __xrtMailTransportTlsRecv(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 );
 
@@ -2802,7 +2802,7 @@ xnetbytes* __xrtMailTransportTlsRecv(
 
 bool __xrtMailTransportTlsClose(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline
+	double iDeadline
 );
 
 
@@ -13940,7 +13940,7 @@ XRT_API bool xrtMailNetConfigValid(const xmailnetconfig* pConfig)
 bool __xrtMailTransportOpen(
 	__xmailtransport* pTransport,
 	const xmailnetconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -13957,7 +13957,7 @@ bool __xrtMailTransportOpen(
 	pTransport->WriteChunk = pConfig->WriteChunk;
 	pTransport->Security = pConfig->Security;
 	/* 已失效的调用不能先向 Engine 提交拨号任务。 */
-	if ( xrtDeadlineExpired(iDeadline) ) {
+	if ( __xrtWaitExpired(iDeadline) ) {
 		__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
 			"mail connection timed out before dialing");
 		return false;
@@ -13979,7 +13979,7 @@ bool __xrtMailTransportOpen(
 			return false;
 		#endif
 	} else {
-		pTransport->Tcp = xrtNetConnect(
+		pTransport->Tcp = __xrtNetConnect(
 			pConfig->Engine,
 			pConfig->Resolver,
 			pConfig->Host,
@@ -14001,7 +14001,7 @@ bool __xrtMailTransportRawSend(
 	__xmailtransport* pTransport,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -14023,7 +14023,7 @@ bool __xrtMailTransportRawSend(
 		size_t iChunk = iSize - iOffset;
 
 		/* 无需等待写就绪时也必须遵守取消和截止时间。 */
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
 				"mail send timed out");
 			return false;
@@ -14053,7 +14053,7 @@ bool __xrtMailTransportRawSend(
 
 			for ( ;; ) {
 				/* 写队列唤醒后再次检查，避免失效请求继续提交字节。 */
-				if ( xrtDeadlineExpired(iDeadline) ) {
+				if ( __xrtWaitExpired(iDeadline) ) {
 					__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
 						"mail send timed out");
 					return false;
@@ -14072,7 +14072,7 @@ bool __xrtMailTransportRawSend(
 					break;
 				}
 				if ( (Result != XNET_RESULT_AGAIN) ||
-					!xrtNetStreamWait(
+					!__xrtNetStreamWait(
 						pTransport->Tcp,
 						XNET_STREAM_WAIT_WRITE,
 						iDeadline,
@@ -14097,7 +14097,7 @@ bool __xrtMailTransportWrite(
 	const void* pData,
 	size_t iSize,
 	bool bFlush,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -14131,7 +14131,7 @@ bool __xrtMailTransportSend(
 	__xmailtransport* pTransport,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -14150,7 +14150,7 @@ bool __xrtMailTransportSend(
 /* 绕过可选内容解码，取得一块拥有型传输字节。 */
 xnetbytes* __xrtMailTransportRawRecv(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -14163,7 +14163,7 @@ xnetbytes* __xrtMailTransportRawRecv(
 			);
 		}
 	#endif
-	return xrtNetStreamRecv(
+	return __xrtNetStreamRecv(
 			pTransport->Tcp,
 			pTransport->ReadChunk,
 			iDeadline,
@@ -14237,7 +14237,7 @@ bool __xrtMailTransportReserve(
 bool __xrtMailTransportLine(
 	__xmailtransport* pTransport,
 	xstrview* pLine,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -14325,7 +14325,7 @@ bool __xrtMailTransportRead(
 	void* pBuffer,
 	size_t iCapacity,
 	size_t* pRead,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -14419,7 +14419,7 @@ bool __xrtMailTransportRead(
 /* 正常关闭传输；任一关闭失败均中止连接并保留原始错误。 */
 bool __xrtMailTransportClose(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	bool bSuccess = true;
@@ -14435,7 +14435,7 @@ bool __xrtMailTransportClose(
 	#endif
 	if ( pTransport->Tcp != NULL ) {
 		bSuccess = xrtNetStreamClose(pTransport->Tcp) &&
-			xrtNetStreamWait(
+			__xrtNetStreamWait(
 				pTransport->Tcp,
 				XNET_STREAM_WAIT_CLOSE,
 				iDeadline,
@@ -14818,12 +14818,12 @@ static bool __xrtMailNetTlsHostIsIp(cstr sHost)
 /* 等待 TLS Future；只有关闭时的接收允许认证 EOF 的 CLOSED 终态。 */
 static bool __xrtMailNetTlsFutureResult(
 	xfuture* pFuture,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel,
 	bool bAllowClosed
 )
 {
-	xwaitresult Wait = xrtFutureWaitUntilCancel(
+	xwaitresult Wait = __xrtFutureWaitUntilCancel(
 		pFuture,
 		iDeadline,
 		pCancel
@@ -14875,7 +14875,7 @@ static bool __xrtMailNetTlsFutureResult(
 /* 一般 TLS 操作必须交付成功结果，不能把 EOF 当作成功。 */
 static bool __xrtMailNetTlsFuture(
 	xfuture* pFuture,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -14955,7 +14955,7 @@ static void __xrtMailNetTlsUpgradeTask(
 bool __xrtMailTransportTlsOpen(
 	__xmailtransport* pTransport,
 	const xmailnetconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -14999,7 +14999,7 @@ bool __xrtMailTransportTlsOpen(
 bool __xrtMailTransportStartTls(
 	__xmailtransport* pTransport,
 	const xmailnetconfig* pConfig,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -15027,9 +15027,9 @@ bool __xrtMailTransportStartTls(
 		);
 		return false;
 	}
-	if ( xrtDeadlineExpired(iDeadline) || xrtCancelRequested(pCancel) ) {
+	if ( __xrtWaitExpired(iDeadline) || xrtCancelRequested(pCancel) ) {
 		__xrtMailError(
-			xrtDeadlineExpired(iDeadline) ? XERR_TIMEOUT : XERR_CANCELLED,
+			__xrtWaitExpired(iDeadline) ? XERR_TIMEOUT : XERR_CANCELLED,
 			XMAIL_ERROR_PROTOCOL,
 			"mail STARTTLS was not started"
 		);
@@ -15069,7 +15069,7 @@ bool __xrtMailTransportStartTls(
 		xrtFree(pUpgrade);
 		return false;
 	}
-	Wait = xrtFutureWaitUntilCancel(pFuture, iDeadline, pCancel);
+	Wait = __xrtFutureWaitUntilCancel(pFuture, iDeadline, pCancel);
 	if ( Wait != XWAIT_OK ) {
 		iExpected = 0;
 		if ( xrtAtomic32CompareExchange(
@@ -15154,7 +15154,7 @@ bool __xrtMailTransportTlsSend(
 	__xmailtransport* pTransport,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -15178,7 +15178,7 @@ bool __xrtMailTransportTlsSend(
 /* 取得一块拥有型 TLS 明文。 */
 xnetbytes* __xrtMailTransportTlsRecv(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -15205,7 +15205,7 @@ xnetbytes* __xrtMailTransportTlsRecv(
 /* 按有界块消费剩余 TLS 明文，使读取背压不会挡住 close_notify。 */
 static bool __xrtMailTransportTlsDrainClose(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	for ( ;; ) {
@@ -15238,7 +15238,7 @@ static bool __xrtMailTransportTlsDrainClose(
 /* 请求认证关闭，消费协议结束后的残留明文并等待 Stream 关闭终态。 */
 bool __xrtMailTransportTlsClose(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	xfuture* pFuture;
@@ -15295,20 +15295,20 @@ void __xrtMailTransportTlsDestroy(__xmailtransport* pTransport)
 /* Deflate 输出回调同步写入原始 TCP 或 TLS 传输。 */
 typedef struct __xmaildeflatesend {
 	__xmailtransport* Transport;
-	xdeadline Deadline;
+	double Deadline;
 	xcancel* Cancel;
 } __xmaildeflatesend;
 
 typedef struct __xmailinflateread {
 	__xmailtransport* Transport;
-	xdeadline Deadline;
+	double Deadline;
 	xcancel* Cancel;
 } __xmailinflateread;
 
 /* 编解码器可能只缓存数据；请求检查不能依赖网络回调。 */
-static bool __xrtMailDeflateRequestActive(xdeadline Deadline, xcancel* pCancel)
+static bool __xrtMailDeflateRequestActive(double Deadline, xcancel* pCancel)
 {
-	if ( xrtDeadlineExpired(Deadline) ) {
+	if ( __xrtWaitExpired(Deadline) ) {
 		__xrtMailError(XERR_TIMEOUT, XMAIL_ERROR_PROTOCOL,
 			"compressed mail operation timed out");
 		return false;
@@ -15428,7 +15428,7 @@ bool __xrtMailTransportDeflateSend(
 	const void* pData,
 	size_t iSize,
 	bool bFlush,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -15493,7 +15493,7 @@ static void __xrtMailTransportDeflateInputConsume(
 /* 取得下一小块压缩输入，避免高压缩比正文一次性膨胀。 */
 static bool __xrtMailTransportDeflateInput(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel,
 	xbytesview* pInput
 )
@@ -15560,7 +15560,7 @@ static void __xrtMailTransportDeflateAdvance(
 /* 推进压缩输入，直到至少产生一块可消费明文。 */
 bool __xrtMailTransportDeflateFill(
 	__xmailtransport* pTransport,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {

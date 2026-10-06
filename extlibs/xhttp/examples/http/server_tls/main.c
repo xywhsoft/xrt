@@ -1,5 +1,21 @@
-#include <xrt/detail/wait.h>
 #include "../../tls/common.h"
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -74,10 +90,10 @@ static void exampleHttpsError(
 /* 在截止时间内等待 Server 完全关闭。 */
 static bool exampleHttpsWaitClosed(xhttpserver* pServer)
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(5000000));
+	double iDeadline = exampleTimerLimit(INT64_C(5000));
 
 	while ( xrtHttpServerState(pServer) != XHTTP_SERVER_CLOSED ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();

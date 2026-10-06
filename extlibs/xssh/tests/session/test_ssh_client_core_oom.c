@@ -66,9 +66,7 @@ int main(void)
 	) && xrtSshSessionTcpInit(
 		&Session,
 		pPool,
-		&SessionConfig,
-		0u
-	) && xrtSshSessionReaderInit(
+		&SessionConfig, ((double)(0u)) / 1000.0) && xrtSshSessionReaderInit(
 		&Reader,
 		pPool,
 		&Session
@@ -87,8 +85,7 @@ int main(void)
 	testRequire((xrtSshClientCoreNext(
 		&Client,
 		&Session,
-		&Reader,
-		0u,
+		&Reader, ((double)(0u)) / 1000.0,
 		&Next
 	) == XSSH_ERROR_SPACE) && State.Hit &&
 		(Client.Output == NULL) && (Client.OutputCapacity == 0u) &&
@@ -101,8 +98,7 @@ int main(void)
 	testRequire((xrtSshClientCoreNext(
 		&Client,
 		&Session,
-		&Reader,
-		0u,
+		&Reader, ((double)(0u)) / 1000.0,
 		&Next
 	) == XSSH_OK) && (Next.Kind == XSSH_CLIENT_NEXT_PAYLOAD) &&
 		(Next.Data.Size > ClientConfig.OutputInitial) &&

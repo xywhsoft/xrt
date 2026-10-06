@@ -24,7 +24,7 @@ static ptr testTreeAsyncValue(xfuture* pFuture, cstr sMessage)
 	testRequire(
 		xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(3000000)
+			INT64_C(3000)
 		) == XWAIT_OK,
 		sMessage
 	);
@@ -140,7 +140,7 @@ int main(void)
 	pFuture = xrtDirStatsAsync(pPool, sMoved, true);
 	testRequire(pFuture != NULL, "missing async tree stats submit failed");
 	testRequire(
-		(xrtFutureWaitFor(pFuture, UINT64_C(3000000)) == XWAIT_OK) &&
+		(xrtFutureWaitFor(pFuture, INT64_C(3000)) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_FAILED),
 		"missing async tree stats did not fail"
 	);

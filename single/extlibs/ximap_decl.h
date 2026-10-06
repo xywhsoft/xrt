@@ -3464,7 +3464,7 @@ XRT_API bool xrtImapClientConfigValid(const ximapclientconfig* pConfig);
 /* 建立连接，读取 greeting，完成 CAPABILITY 和可选 STARTTLS。 */
 XRT_API ximapclient* xrtImapClientOpen(
 	const ximapclientconfig* pConfig,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3522,7 +3522,7 @@ XRT_API bool xrtImapClientSend(
 	xstrview Tag,
 	xstrview Command,
 	xstrview Arguments,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3538,7 +3538,7 @@ XRT_API bool xrtImapClientSendParts(
 	xstrview Command,
 	const xstrview* pArguments,
 	size_t iCount,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3549,7 +3549,7 @@ XRT_API bool xrtImapClientWrite(
 	ximapclient* pClient,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3559,7 +3559,7 @@ XRT_API bool xrtImapClientWrite(
 XRT_API bool xrtImapClientContinue(
 	ximapclient* pClient,
 	xstrview Data,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3573,7 +3573,7 @@ XRT_API bool xrtImapClientContinue(
 XRT_API bool xrtImapClientReceive(
 	ximapclient* pClient,
 	ximapevent* pEvent,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3585,7 +3585,7 @@ XRT_API bool xrtImapClientReadLiteral(
 	void* pBuffer,
 	size_t iCapacity,
 	size_t* pRead,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3596,7 +3596,7 @@ XRT_API bool xrtImapClientBegin(
 	ximapclient* pClient,
 	xstrview Command,
 	xstrview Arguments,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3608,7 +3608,7 @@ XRT_API bool xrtImapClientBeginParts(
 	xstrview Command,
 	const xstrview* pArguments,
 	size_t iCount,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3621,7 +3621,7 @@ XRT_API bool xrtImapClientBeginParts(
 XRT_API xmailnext xrtImapClientNext(
 	ximapclient* pClient,
 	ximapevent* pEvent,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3630,7 +3630,7 @@ XRT_API xmailnext xrtImapClientNext(
 /* 在没有活动顺序命令时重新获取并替换 CAPABILITY 快照。 */
 XRT_API bool xrtImapClientRefresh(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3639,7 +3639,7 @@ XRT_API bool xrtImapClientRefresh(
 /* 发送 LOGOUT，消费 BYE 和 tagged completion，并正常关闭传输。 */
 XRT_API bool xrtImapClientLogout(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3648,7 +3648,7 @@ XRT_API bool xrtImapClientLogout(
 /* 不发送 LOGOUT，直接正常关闭传输。 */
 XRT_API bool xrtImapClientClose(
 	ximapclient* pClient,
-	xdeadline iDeadline
+	int64 iTimeout
 );
 
 
@@ -3730,7 +3730,7 @@ XRT_API bool xrtImapAuthConfigValid(const ximapauthconfig* pConfig);
 XRT_API bool xrtImapClientAuth(
 	ximapclient* pClient,
 	const ximapauthconfig* pConfig,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3818,7 +3818,7 @@ XRT_API xmailnext xrtImapMailboxInfoUpdate(
 /* 执行 NOOP 并消费命令期间的未请求响应。 */
 XRT_API bool xrtImapClientNoop(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3829,7 +3829,7 @@ XRT_API bool xrtImapClientSelect(
 	ximapclient* pClient,
 	xstrview Mailbox,
 	ximapmailboxinfo* pInfo,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3840,7 +3840,7 @@ XRT_API bool xrtImapClientExamine(
 	ximapclient* pClient,
 	xstrview Mailbox,
 	ximapmailboxinfo* pInfo,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3849,7 +3849,7 @@ XRT_API bool xrtImapClientExamine(
 /* 对当前选中邮箱执行 CHECK。 */
 XRT_API bool xrtImapClientCheck(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3858,7 +3858,7 @@ XRT_API bool xrtImapClientCheck(
 /* 不执行隐式 EXPUNGE 地离开当前邮箱。 */
 XRT_API bool xrtImapClientUnselect(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3867,7 +3867,7 @@ XRT_API bool xrtImapClientUnselect(
 /* 执行 CLOSE，提交删除标记并离开当前邮箱。 */
 XRT_API bool xrtImapClientCloseMailbox(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3877,14 +3877,14 @@ XRT_API bool xrtImapClientCloseMailbox(
 XRT_API bool xrtImapClientCreateMailbox(
 	ximapclient* pClient,
 	xstrview Mailbox,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
 XRT_API bool xrtImapClientDeleteMailbox(
 	ximapclient* pClient,
 	xstrview Mailbox,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3892,21 +3892,21 @@ XRT_API bool xrtImapClientRenameMailbox(
 	ximapclient* pClient,
 	xstrview Source,
 	xstrview Target,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
 XRT_API bool xrtImapClientSubscribe(
 	ximapclient* pClient,
 	xstrview Mailbox,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
 XRT_API bool xrtImapClientUnsubscribe(
 	ximapclient* pClient,
 	xstrview Mailbox,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3917,7 +3917,7 @@ XRT_API bool xrtImapClientBeginList(
 	ximapclient* pClient,
 	xstrview Reference,
 	xstrview Pattern,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3925,7 +3925,7 @@ XRT_API bool xrtImapClientBeginStatus(
 	ximapclient* pClient,
 	xstrview Mailbox,
 	xstrview Items,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3933,7 +3933,7 @@ XRT_API bool xrtImapClientBeginSearch(
 	ximapclient* pClient,
 	xstrview Criteria,
 	bool bUid,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3942,7 +3942,7 @@ XRT_API bool xrtImapClientBeginFetch(
 	xstrview Set,
 	xstrview Items,
 	bool bUid,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3952,7 +3952,7 @@ XRT_API bool xrtImapClientBeginStore(
 	ximapstoremode Mode,
 	xstrview Flags,
 	bool bUid,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3961,7 +3961,7 @@ XRT_API bool xrtImapClientBeginCopy(
 	xstrview Set,
 	xstrview Mailbox,
 	bool bUid,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3970,7 +3970,7 @@ XRT_API bool xrtImapClientBeginMove(
 	xstrview Set,
 	xstrview Mailbox,
 	bool bUid,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3978,20 +3978,20 @@ XRT_API bool xrtImapClientBeginMove(
 XRT_API bool xrtImapClientBeginExpunge(
 	ximapclient* pClient,
 	xstrview UidSet,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
 /* 开始 IDLE；收到 continuation 后可读取事件，结束时发送 DONE。 */
 XRT_API bool xrtImapClientBeginIdle(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
 XRT_API bool xrtImapClientEndIdle(
 	ximapclient* pClient,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -4045,7 +4045,7 @@ XRT_API bool xrtImapClientBodyWrite(
 	xmailwriteproc pWrite,
 	ptr pUserData,
 	size_t* pWritten,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -4060,7 +4060,7 @@ XRT_API bytes xrtImapClientBodyBytes(
 	bool bPeek,
 	size_t iMaxBytes,
 	size_t* pOutputSize,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -4074,7 +4074,7 @@ XRT_API bool xrtImapClientMessageTree(
 	bool bPeek,
 	const xmailtreelimits* pLimits,
 	xmailtree* pTree,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -4156,7 +4156,7 @@ XRT_API void xrtImapAppendResultInit(ximapappendresult* pResult);
 XRT_API bool xrtImapClientAppendBegin(
 	ximapclient* pClient,
 	const ximapappendconfig* pConfig,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -4172,7 +4172,7 @@ XRT_API bool xrtImapClientAppendWrite(
 	ximapclient* pClient,
 	const void* pData,
 	size_t iSize,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -4182,7 +4182,7 @@ XRT_API bool xrtImapClientAppendWrite(
 XRT_API bool xrtImapClientAppendEnd(
 	ximapclient* pClient,
 	ximapappendresult* pResult,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -4194,7 +4194,7 @@ XRT_API bool xrtImapClientAppend(
 	const ximapappendconfig* pConfig,
 	const void* pData,
 	ximapappendresult* pResult,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -4262,7 +4262,7 @@ XRT_API bool xrtImapClientCompressed(const ximapclient* pClient);
 XRT_API bool xrtImapClientCompress(
 	ximapclient* pClient,
 	const ximapcompressconfig* pConfig,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 

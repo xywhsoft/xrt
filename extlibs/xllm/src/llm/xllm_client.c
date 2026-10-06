@@ -60,21 +60,21 @@ static void xllm__capture_diagnostics(xllm_call* pCall, xllm_diagnostics* pOut)
     pOut->bContextAttached = pCall->bScopeAttached;
     pOut->iTransportStatus = (int32_t)pHttp->eResult;
     pOut->iSystemError = pHttp->iSystemError;
-    pOut->uStartedMs = pHttp->uStartedMs;
-    pOut->uConnectedMs = pHttp->uConnectedMs;
-    pOut->uRequestSentMs = pHttp->uRequestSentMs;
-    pOut->uFirstByteMs = pHttp->uFirstByteMs;
+    pOut->uStartedMs = 0;
+    pOut->uConnectedMs = pHttp->uConnectedMs > pHttp->uStartedMs ? (uint64_t)((pHttp->uConnectedMs - pHttp->uStartedMs) * 1000.0) : 0;
+    pOut->uRequestSentMs = pHttp->uRequestSentMs > pHttp->uStartedMs ? (uint64_t)((pHttp->uRequestSentMs - pHttp->uStartedMs) * 1000.0) : 0;
+    pOut->uFirstByteMs = pHttp->uFirstByteMs > pHttp->uStartedMs ? (uint64_t)((pHttp->uFirstByteMs - pHttp->uStartedMs) * 1000.0) : 0;
     pOut->uFirstTokenMs = pHttp->uFirstTokenMs > pHttp->uStartedMs ?
-        pHttp->uFirstTokenMs - pHttp->uStartedMs : 0u;
-    pOut->uHeadersMs = pHttp->uHeadersMs;
-    pOut->uCompletedMs = pHttp->uCompletedMs;
-    pOut->uConnectDurationMs = pHttp->uConnectedMs > pHttp->uStartedMs ? pHttp->uConnectedMs - pHttp->uStartedMs : 0u;
-    pOut->uTimeToFirstByteMs = pHttp->uFirstByteMs > pHttp->uStartedMs ? pHttp->uFirstByteMs - pHttp->uStartedMs : 0u;
-    pOut->uTransferDurationMs = pHttp->uCompletedMs > pHttp->uHeadersMs ? pHttp->uCompletedMs - pHttp->uHeadersMs : 0u;
-    pOut->uTotalDurationMs = pHttp->uCompletedMs > pHttp->uStartedMs ? pHttp->uCompletedMs - pHttp->uStartedMs : 0u;
+        (pHttp->uFirstTokenMs - pHttp->uStartedMs) * 1000.0 : 0u;
+    pOut->uHeadersMs = pHttp->uHeadersMs > pHttp->uStartedMs ? (uint64_t)((pHttp->uHeadersMs - pHttp->uStartedMs) * 1000.0) : 0;
+    pOut->uCompletedMs = pHttp->uCompletedMs > pHttp->uStartedMs ? (uint64_t)((pHttp->uCompletedMs - pHttp->uStartedMs) * 1000.0) : 0;
+    pOut->uConnectDurationMs = pHttp->uConnectedMs > pHttp->uStartedMs ? (pHttp->uConnectedMs - pHttp->uStartedMs) * 1000.0 : 0u;
+    pOut->uTimeToFirstByteMs = pHttp->uFirstByteMs > pHttp->uStartedMs ? (pHttp->uFirstByteMs - pHttp->uStartedMs) * 1000.0 : 0u;
+    pOut->uTransferDurationMs = pHttp->uCompletedMs > pHttp->uHeadersMs ? (pHttp->uCompletedMs - pHttp->uHeadersMs) * 1000.0 : 0u;
+    pOut->uTotalDurationMs = pHttp->uCompletedMs > pHttp->uStartedMs ? (pHttp->uCompletedMs - pHttp->uStartedMs) * 1000.0 : 0u;
     pOut->uRequestBytes = pHttp->uRequestBytes;
     pOut->uResponseBodyBytes = pHttp->uResponseBodyBytes;
-    pOut->uContextDeadlineMs = pCall->uScopeDeadline == INFINITY ? 0u : pCall->uScopeDeadline / UINT64_C(1000);
+    pOut->uContextDeadlineMs = pCall->uScopeDeadline == INFINITY ? 0u : (uint64_t)__xrtWaitRemaining(pCall->uScopeDeadline);
     pOut->uEffectiveTimeoutMs = pHttp->uEffectiveTimeoutMs;
     xllm__copy_text(pOut->sTransportError, sizeof(pOut->sTransportError), pHttp->sError);
     if ( pCall->bScopeAttached && pHttp->eResult == XLLM_TRANSPORT_TIMEOUT ) {
@@ -99,14 +99,14 @@ static void xllm__capture_stats(xllm_call* pCall, xllm_response* pResponse)
     pStats = &pResponse->tStats;
     pHttp = &pCall->tHttpDiagnostics;
     pStats->tUsage = pResponse->tUsage;
-    pStats->uConnectMs = pHttp->uConnectedMs > pHttp->uStartedMs ? pHttp->uConnectedMs - pHttp->uStartedMs : 0u;
-    pStats->uFirstByteMs = pHttp->uFirstByteMs > pHttp->uStartedMs ? pHttp->uFirstByteMs - pHttp->uStartedMs : 0u;
-    pStats->uFirstTokenMs = pHttp->uFirstTokenMs > pHttp->uStartedMs ? pHttp->uFirstTokenMs - pHttp->uStartedMs : 0u;
-    pStats->uTotalMs = pHttp->uCompletedMs > pHttp->uStartedMs ? pHttp->uCompletedMs - pHttp->uStartedMs : 0u;
+    pStats->uConnectMs = pHttp->uConnectedMs > pHttp->uStartedMs ? (pHttp->uConnectedMs - pHttp->uStartedMs) * 1000.0 : 0u;
+    pStats->uFirstByteMs = pHttp->uFirstByteMs > pHttp->uStartedMs ? (pHttp->uFirstByteMs - pHttp->uStartedMs) * 1000.0 : 0u;
+    pStats->uFirstTokenMs = pHttp->uFirstTokenMs > pHttp->uStartedMs ? (pHttp->uFirstTokenMs - pHttp->uStartedMs) * 1000.0 : 0u;
+    pStats->uTotalMs = pHttp->uCompletedMs > pHttp->uStartedMs ? (pHttp->uCompletedMs - pHttp->uStartedMs) * 1000.0 : 0u;
     pStats->fOutputTokensPerSec = 0.0;
     if ( pResponse->tUsage.uOutputTokens && pHttp->uFirstTokenMs &&
          pHttp->uCompletedMs > pHttp->uFirstTokenMs ) {
-        double fSeconds = (double)(pHttp->uCompletedMs - pHttp->uFirstTokenMs) / 1000.0;
+        double fSeconds = pHttp->uCompletedMs - pHttp->uFirstTokenMs;
         if ( fSeconds > 0.0 ) { pStats->fOutputTokensPerSec = (double)pResponse->tUsage.uOutputTokens / fSeconds; }
     }
     pStats->uRequestBytes = pHttp->uRequestBytes;
@@ -115,11 +115,11 @@ static void xllm__capture_stats(xllm_call* pCall, xllm_response* pResponse)
     pStats->bReusedConnection = pHttp->bReusedConnection;
 }
 
-static xllm_result xllm__scope_result(xcancel* pCancel, uint64_t uDeadline, xllm_error* pError)
+static xllm_result xllm__scope_result(xcancel* pCancel, double uDeadline, xllm_error* pError)
 {
     if ( pError && (pCancel || uDeadline != INFINITY) ) {
         pError->tDiagnostics.bContextAttached = true;
-        pError->tDiagnostics.uContextDeadlineMs = uDeadline == INFINITY ? 0u : uDeadline / UINT64_C(1000);
+        pError->tDiagnostics.uContextDeadlineMs = uDeadline == INFINITY ? 0u : (uint64_t)__xrtWaitRemaining(uDeadline);
         xllm__copy_text(pError->tDiagnostics.sTransportPhase,
             sizeof(pError->tDiagnostics.sTransportPhase), "prepare");
     }
@@ -146,19 +146,20 @@ static xllm_result xllm__scope_result(xcancel* pCancel, uint64_t uDeadline, xllm
     return XLLM_RESULT_OK;
 }
 
-static bool xllm__scope_sleep(xcancel* pCancel, uint64_t uDeadline, uint32_t uDelayMs)
+static bool xllm__scope_sleep(xcancel* pCancel, double uDeadline, uint32_t uDelayMs)
 {
-    uint64_t uEnd = xrtTimer() + (uint64_t)uDelayMs * UINT64_C(1000);
+    double uEnd = __xrtWaitAfter(uDelayMs);
     if ( uDeadline != INFINITY && uEnd > uDeadline ) uEnd = uDeadline;
     for ( ;; ) {
-        uint64_t uNow;
+        double uNow;
         int64 uRemaining;
         uint32_t uSlice;
         if ( pCancel && xrtCancelRequested(pCancel) ) return false;
         uNow = xrtTimer();
         if ( uNow >= uEnd ) { return true; }
-        uRemaining = uEnd - uNow;
-        uSlice = uRemaining > UINT64_C(20000) ? 20u : (uint32_t)((uRemaining + 999u) / 1000u);
+        uRemaining = __xrtWaitRemaining(uEnd);
+        if (uRemaining < 0) return false;
+        uSlice = uRemaining > 20 ? 20u : (uint32_t)uRemaining;
         if ( !uSlice ) { uSlice = 1u; }
         xrtSleep(uSlice);
     }
@@ -486,7 +487,7 @@ bool xllm__request_clone(xllm_request* pDst, const xllm_request* pSrc)
     pDst->pExtraHeaders = pSrc->pExtraHeaders;
     pDst->iExtraHeaderCount = pSrc->iExtraHeaderCount;
     pDst->pCancel = pSrc->pCancel;
-    pDst->uDeadline = pSrc->uDeadline;
+    pDst->iTimeout = pSrc->iTimeout;
     pDst->pHooks = pSrc->pHooks;
     if ( (pSrc->sModel && !(pDst->sModel = xllm__strdup(pSrc->sModel))) ||
          (pSrc->sReasoningEffort && !(pDst->sReasoningEffort = xllm__strdup(pSrc->sReasoningEffort))) ||
@@ -516,7 +517,7 @@ static bool xllm__wire_valid(const xllm_wire* pWire)
 
 static xllm_call* xllm__client_start(xllm_client* pClient,
     const xllm_request* pRequest, const xllm_stream_callbacks* pCallbacks,
-    uint32_t uAttempt, xllm_error* pError);
+    uint32_t uAttempt, double Scope, xllm_error* pError);
 
 /* Wire-prefix serialization (尾账 #3): with a stamped view request and a
  * prefix-safe dialect, the cached messages-array bytes are reused and only
@@ -575,14 +576,16 @@ xllm_call* xllmClientStart(
     xllm_error* pError
 )
 {
-    return xllm__client_start(pClient, pRequest, pCallbacks, 1u, pError);
+    return xllm__client_start(pClient, pRequest, pCallbacks, 1u, __xrtWaitAfter(pRequest ? pRequest->iTimeout : 0), pError);
 }
 
 static xllm_call* xllm__client_start(
     xllm_client* pClient, const xllm_request* pRequest,
-    const xllm_stream_callbacks* pCallbacks, uint32_t uAttempt, xllm_error* pError
+    const xllm_stream_callbacks* pCallbacks, uint32_t uAttempt, double Scope, xllm_error* pError
 )
 {
+    if (!__xrtWaitValid(Scope)) { xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "invalid timeout"); return NULL; }
+
     xllm_call* pCall = NULL;
     char* sBody = NULL;
     const char* sModel;
@@ -658,20 +661,20 @@ static xllm_call* xllm__client_start(
     pCall->sSelectedModel = xllm__strdup(sModel);
     pCall->sRequestBody = sBody;
     sBody = NULL;
-    pCall->uScopeDeadline = pEffective->uDeadline;
+    pCall->uScopeDeadline = Scope;
     pCall->bScopeAttached = pEffective->pCancel != NULL ||
-        pEffective->uDeadline != INFINITY;
+        Scope != INFINITY;
     pCall->pCancel = xrtCancelChild(pEffective->pCancel);
     if ( pClient->uTimeoutMs ) {
-        tTimeout = __xrtWaitAfter((uint64)pClient->uTimeoutMs * UINT64_C(1000));
+        tTimeout = __xrtWaitAfter(pClient->uTimeoutMs);
     }
-    pCall->uDeadline = pEffective->uDeadline;
+    pCall->uDeadline = Scope;
     if ( tTimeout != INFINITY &&
          (pCall->uDeadline == INFINITY || tTimeout < pCall->uDeadline) ) {
         pCall->uDeadline = tTimeout;
     }
     if ( pCall->uDeadline != INFINITY ) {
-        pCall->tHttpDiagnostics.uEffectiveTimeoutMs = __xrtWaitRemaining(pCall->uDeadline) / UINT64_C(1000);
+        pCall->tHttpDiagnostics.uEffectiveTimeoutMs = __xrtWaitRemaining(pCall->uDeadline);
     }
     if ( !pCall->sSelectedModel || !pCall->pCancel ||
          !xllm__call_copy_extra_headers(pCall, pEffective) ) goto oom;
@@ -956,23 +959,26 @@ xllm_result xllmClientComplete(
     xllm_result eResult = XLLM_RESULT_ERROR;
     uint32_t uAttempt;
     uint32_t uMaxAttempts;
+    double Scope;
     if ( ppResponse ) { *ppResponse = NULL; }
     if ( pError ) { xllmErrorInit(pError); }
     if ( !pClient || !pRequest || !ppResponse ) {
         xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "client, request, and response output are required");
         return XLLM_RESULT_ERROR;
     }
+    Scope = __xrtWaitAfter(pRequest->iTimeout);
+    if (!__xrtWaitValid(Scope)) { xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "invalid timeout"); return XLLM_RESULT_ERROR; }
     uMaxAttempts = pClient->uMaxAttempts ? pClient->uMaxAttempts : 1u;
     for ( uAttempt = 1u; uAttempt <= uMaxAttempts; ++uAttempt ) {
         uint32_t uDelayMs;
         bool bCanRetry;
         bool bWillRetry;
         xllmErrorInit(&tAttemptError);
-        if ( xllm__scope_result(pRequest->pCancel, pRequest->uDeadline, &tAttemptError) != XLLM_RESULT_OK ) {
+        if ( xllm__scope_result(pRequest->pCancel, Scope, &tAttemptError) != XLLM_RESULT_OK ) {
             xllm__error_copy(pError, &tAttemptError);
             return tAttemptError.eCode == XLLM_ERROR_CANCELLED ? XLLM_RESULT_CANCELLED : XLLM_RESULT_TIMEOUT;
         }
-        pCall = xllm__client_start(pClient, pRequest, pCallbacks, uAttempt, &tAttemptError);
+        pCall = xllm__client_start(pClient, pRequest, pCallbacks, uAttempt, Scope, &tAttemptError);
         if ( !pCall ) {
             xllm__error_copy(pError, &tAttemptError);
             return XLLM_RESULT_ERROR;
@@ -985,12 +991,12 @@ xllm_result xllmClientComplete(
             return eResult;
         }
         if ( (pRequest->pCancel && xrtCancelRequested(pRequest->pCancel)) ||
-             (pRequest->uDeadline != INFINITY &&
-              __xrtWaitExpired(pRequest->uDeadline)) ) {
+             (Scope != INFINITY &&
+              __xrtWaitExpired(Scope)) ) {
             tAttemptError.tDiagnostics.bContextAttached = true;
             tAttemptError.tDiagnostics.uContextDeadlineMs =
-                pRequest->uDeadline == INFINITY ? 0u :
-                pRequest->uDeadline / UINT64_C(1000);
+                Scope == INFINITY ? 0u :
+                (uint64_t)__xrtWaitRemaining(Scope);
             xllm__copy_text(tAttemptError.tDiagnostics.sContextStatus,
                 sizeof(tAttemptError.tDiagnostics.sContextStatus),
                 pRequest->pCancel && xrtCancelRequested(pRequest->pCancel) ?
@@ -1020,8 +1026,8 @@ xllm_result xllmClientComplete(
             return eResult;
         }
         uDelayMs = xllm__retry_delay_ms(pClient, uAttempt, tAttemptError.tDiagnostics.uRetryAfterMs);
-        if ( uDelayMs > 0u && !xllm__scope_sleep(pRequest->pCancel, pRequest->uDeadline, uDelayMs) ) {
-            eResult = xllm__scope_result(pRequest->pCancel, pRequest->uDeadline, &tAttemptError);
+        if ( uDelayMs > 0u && !xllm__scope_sleep(pRequest->pCancel, Scope, uDelayMs) ) {
+            eResult = xllm__scope_result(pRequest->pCancel, Scope, &tAttemptError);
             xllm__error_copy(pError, &tAttemptError);
             return eResult;
         }

@@ -1,3 +1,4 @@
+#include <math.h>
 #include <string.h>
 
 #include <xrt/ssh_transport_tcp.h>
@@ -192,9 +193,10 @@ bool xrtSshTransportTcpInit(
 	xsshtransporttcp* pTransport,
 	xnetbufpool* pPool,
 	const xsshtransporttcpconfig* pConfig,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	xsshtransporttcp Transport;
 	xsshtransporttcpconfig Config;
 
@@ -213,7 +215,7 @@ bool xrtSshTransportTcpInit(
 			Config.Role,
 			Config.MaxPacketSize,
 			&Config.Rekey,
-			iNowMs
+			Timer
 		) ) {
 		xrtNetBufClear(&Transport.Output);
 		xrtSshTransportCoreClear(&Transport.Core);
@@ -330,9 +332,10 @@ xsshcode xrtSshTransportTcpWritePrepareWithPadding(
 	xbytesview Payload,
 	xsshpaddingproc pPadding,
 	ptr pUserData,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshpacketneed Need;
 	xnetwspan Span;
 	xsshwriter Writer;
@@ -377,7 +380,7 @@ xsshcode xrtSshTransportTcpWritePrepareWithPadding(
 		Payload,
 		pPadding,
 		pUserData,
-		iNowMs
+		Timer
 	);
 	if ( Code != XSSH_OK ) {
 		(void)xrtNetBufCancel(&pTransport->Output);
@@ -401,7 +404,7 @@ xsshcode xrtSshTransportTcpWritePrepareWithPadding(
 xnetresult xrtSshTransportTcpWriteSubmit(
 	xsshtransporttcp* pTransport,
 	xnetstream* pStream,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
@@ -440,7 +443,7 @@ xnetresult xrtSshTransportTcpWriteSubmit(
 	} else {
 		Code = xrtSshTransportCoreWriteCommit(
 			&pTransport->Core,
-			iNowMs,
+			Timer,
 			&Decision
 		);
 	}
@@ -613,9 +616,10 @@ xsshcode xrtSshTransportTcpReadPrepare(
 	xsshpacketview* pPacket,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshpacketneed Need;
 	xnetspan Span;
 	xsshreader Reader;
@@ -673,7 +677,7 @@ xsshcode xrtSshTransportTcpReadPrepare(
 		pPacket,
 		pPlain,
 		iPlainCapacity,
-		iNowMs
+		Timer
 	);
 	if ( Code != XSSH_OK ) {
 		return Code;
@@ -693,10 +697,11 @@ xsshcode xrtSshTransportTcpReadPrepare(
 /* Core 先提交，随后底层链必须精确消费同一借用前缀。 */
 xsshcode xrtSshTransportTcpReadCommit(
 	xsshtransporttcp* pTransport,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshrekeydecision Decision = XSSH_REKEY_NONE;
 	xsshcode Code;
 	size_t iConsumed;
@@ -721,7 +726,7 @@ xsshcode xrtSshTransportTcpReadCommit(
 	} else {
 		Code = xrtSshTransportCoreReadCommit(
 			&pTransport->Core,
-			iNowMs,
+			Timer,
 			&Decision
 		);
 	}

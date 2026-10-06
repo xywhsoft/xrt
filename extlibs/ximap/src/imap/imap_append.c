@@ -1,3 +1,4 @@
+#include <xrt/detail/ximap_wait.h>
 #include <xrt/detail/wait.h>
 #include <xrt/imap_append.h>
 
@@ -260,6 +261,8 @@ XRT_API bool __xrtImapClientAppendBegin(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	char sMarker[(sizeof(size_t) * 3u) + 4u];
 	xstrview Parts[4];
 	str sMailbox = NULL;
@@ -360,6 +363,8 @@ XRT_API bool __xrtImapClientAppendWrite(
 {
 	if ( (__xrtImapClientAppendRemaining(pClient) == 0) ||
 		(iSize == 0) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		return __xrtImapAppendError(
 			XERR_STATE,
 			"IMAP APPEND has no remaining literal bytes"
@@ -384,13 +389,15 @@ XRT_API bool __xrtImapClientAppendEnd(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	ximapappendresult Result;
 
 	xrtImapAppendResultInit(&Result);
 	if ( !xrtMemRangeValid(
 		pResult,
 		pResult != NULL ? sizeof(*pResult) : 0
-	) || !__xrtImapClientAppendEnd(pClient) ||
+	) || !__xrtImapClientAppendFinish(pClient) ||
 		!__xrtImapClientWrite(pClient, "\r\n", 2u, iDeadline, pCancel) ) {
 		return false;
 	}
@@ -460,6 +467,8 @@ XRT_API bool __xrtImapClientAppend(
 {
 	if ( !xrtMemRangeValid(pConfig, sizeof(*pConfig)) ||
 		!xrtMemRangeValid(pData, pConfig != NULL ? pConfig->Size : 0) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 		__xrtMailSetInvalidArgument();
 		return false;
 	}

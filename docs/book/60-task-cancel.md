@@ -30,7 +30,7 @@ api: task, future, cancel
 - 统计：xtaskgroupstats——终态口径一次拿全
 ```
 
-**登记的两种方式**：`Add` 跟踪已有 Future（组保留引用到终态——引用配平由组管）；`Start` 先预留槽位再调用启动过程（过程返回 Future——失败时不留未登记项，登记与启动的原子性）。**关闭的两档**：`Close` 自然收尾（存量跑完）、`Cancel` 协作取消（第 54 章取消树的大按钮——向当前项及子组发请求）。**汇合的四形态**：Wait（无限等）、For/Until（限时）、WaitCancel（可被调用方取消——嵌套等待的传递形态，xrtTaskGroupWaitUntilCancel）。
+**登记的两种方式**：`Add` 跟踪已有 Future（组保留引用到终态——引用配平由组管）；`Start` 先预留槽位再调用启动过程（过程返回 Future——失败时不留未登记项，登记与启动的原子性）。**关闭的两档**：`Close` 自然收尾（存量跑完）、`Cancel` 协作取消（第 54 章取消树的大按钮——向当前项及子组发请求）。**汇合的四形态**：Wait（无限等）、For/Until（限时）、WaitCancel（可被调用方取消——嵌套等待的传递形态，xrtTaskGroupWaitForCancel）。
 
 ### 终态统计：一次拿全的口径
 

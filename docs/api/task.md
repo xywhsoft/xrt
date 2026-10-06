@@ -290,7 +290,7 @@ xfuture* pFuture = xrtTaskGroupStart(pGroup, startRequest, pRequest);
 - `xrtTaskGroupClose` 停止接纳新项，让当前项自然结束；重复关闭返回 `false`。
 - `xrtTaskGroupCancel` 同时关闭组，并向当前项发出协作取消请求；源生产端仍决定各自最终状态。
 - `xrtTaskGroupFuture` 返回稳定的 Done Future。只有组已关闭且活动项归零时，它才成功完成；子项失败不会被冒充为 Done Future 自身失败。
-- `xrtTaskGroupWait`、`xrtTaskGroupWaitFor`、`xrtTaskGroupWaitUntil` 和 `xrtTaskGroupWaitUntilCancel` 会先关闭组，再复用 Future 的统一等待语义。
+- `xrtTaskGroupWait`、`xrtTaskGroupWaitFor`、`xrtTaskGroupWaitFor` 和 `xrtTaskGroupWaitForCancel` 会先关闭组，再复用 Future 的统一等待语义。
 - `xrtTaskGroupCancelToken` 返回组取消令牌的新增引用，调用方负责释放。
 - `xrtTaskGroupDestroy` 会关闭并取消仍活动的项，但不伪造完成；活动监听持有内部引用，允许源稍后安全确认终态并完成延迟回收。
 
@@ -690,10 +690,10 @@ xwaitresult xrtTaskGroupWait(xtaskgroup* pGroup)
 
 ### `xrtTaskGroupWaitFor`
 
-关闭任务组并在相对微秒数内等待全部当前项。
+关闭任务组并在相对毫秒数内等待全部当前项。
 
 ```c
-xwaitresult xrtTaskGroupWaitFor(xtaskgroup* pGroup, uint64 iTimeout)
+xwaitresult xrtTaskGroupWaitFor(xtaskgroup* pGroup, int64 iTimeout)
 ```
 
 #### 参数
@@ -701,7 +701,7 @@ xwaitresult xrtTaskGroupWaitFor(xtaskgroup* pGroup, uint64 iTimeout)
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pGroup` | 输入 | 非空 | 目标任务组 |
-| `iTimeout` | 输入 | — | 相对微秒数 |
+| `iTimeout` | 输入 | — | 相对毫秒数 |
 
 #### 返回值
 
@@ -726,54 +726,12 @@ xwaitresult xrtTaskGroupWaitFor(xtaskgroup* pGroup, uint64 iTimeout)
 				XWAIT_OK) ) {
 ```
 
-### `xrtTaskGroupWaitUntil`
-
-关闭任务组并等待到指定单调时钟截止时间。
-
-```c
-xwaitresult xrtTaskGroupWaitUntil(xtaskgroup* pGroup, xdeadline iDeadline)
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pGroup` | 输入 | 非空 | 目标任务组 |
-| `iDeadline` | 输入 | — | 单调时钟截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 全部项进入终态 | — |
-| `XWAIT_TIMEOUT` | 期限或截止时间先到达 | 不设错误 |
-| `XWAIT_CANCELLED` | 调用方取消触发 | 不设错误 |
-| `XWAIT_ERROR` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
-
-#### 错误
-
-- `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_STATE` — 组已销毁
-
-#### 范例
-
-[task_tour](../../examples/concurrency/task_tour/main.c) · 关闭并限期等待
-
-```c
-		if ( (xrtTaskGroupWaitUntil(pGroup,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) !=
-				XWAIT_OK) ||
-			(xrtTaskGroupWaitUntilCancel(pGroup,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
-				pCancel) != XWAIT_OK) ) {
-```
-
-### `xrtTaskGroupWaitUntilCancel`
+### `xrtTaskGroupWaitForCancel`
 
 关闭任务组，并等待组完成、截止时间或调用方取消中的首个事件。
 
 ```c
-xwaitresult xrtTaskGroupWaitUntilCancel(xtaskgroup* pGroup, xdeadline iDeadline, xcancel* pCancel)
+xwaitresult xrtTaskGroupWaitForCancel(xtaskgroup* pGroup, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -781,7 +739,7 @@ xwaitresult xrtTaskGroupWaitUntilCancel(xtaskgroup* pGroup, xdeadline iDeadline,
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pGroup` | 输入 | 非空 | 目标任务组 |
-| `iDeadline` | 输入 | — | 单调时钟截止时间 |
+| `iTimeout` | 输入 | — | 单调时钟截止时间 |
 | `pCancel` | 输入 | 允许空 | 调用方取消令牌 |
 
 #### 返回值
@@ -803,8 +761,8 @@ xwaitresult xrtTaskGroupWaitUntilCancel(xtaskgroup* pGroup, xdeadline iDeadline,
 [task_tour](../../examples/concurrency/task_tour/main.c) · 关闭并可取消等待
 
 ```c
-			(xrtTaskGroupWaitUntilCancel(pGroup,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
+			(xrtTaskGroupWaitForCancel(pGroup,
+				EXAMPLE_TIMEOUT_MS,
 				pCancel) != XWAIT_OK) ) {
 ```
 
@@ -848,13 +806,13 @@ void xrtTaskGroupDestroy(xtaskgroup* pGroup)
 
 - `xrtTaskSubmit`：立即尝试，队列已满时返回空并设置 `XERR_AGAIN`。
 - `xrtTaskSubmitWait`：一直等待槽位。
-- `xrtTaskSubmitFor`：在相对微秒数内等待槽位。
-- `xrtTaskSubmitUntil`：等待到指定单调时钟截止时间。
-- `xrtTaskSubmitUntilCancel`：同时等待槽位、截止时间或调用方取消。
+- `xrtTaskSubmitFor`：在相对毫秒数内等待槽位。
+- `xrtTaskSubmitFor`：等待到指定单调时钟截止时间。
+- `xrtTaskSubmitForCancel`：同时等待槽位、截止时间或调用方取消。
 
 槽位已经可用时，受理成功优先于同时到达的超时或等待取消。等待调用尚未受理任务时，超时设置 `XERR_TIMEOUT`，调用方取消设置 `XERR_CANCELLED`，任务池关闭设置 `XERR_CLOSED`。关闭和整体取消都会唤醒全部容量等待者。
 
-`xrtTaskSubmitUntilCancel` 的取消令牌只约束当前容量等待，不会成为任务的父令牌，也不会取消已经受理的任务。任务执行期取消必须通过 `xtaskargs.Cancel` 或 `xrtFutureCancel` 表达。任务池工作线程可以在槽位立即可用时提交到所属池，但队列已满时不得等待自身释放槽位，运行库返回 `XERR_STATE`，从契约上阻止自锁。
+`xrtTaskSubmitForCancel` 的取消令牌只约束当前容量等待，不会成为任务的父令牌，也不会取消已经受理的任务。任务执行期取消必须通过 `xtaskargs.Cancel` 或 `xrtFutureCancel` 表达。任务池工作线程可以在槽位立即可用时提交到所属池，但队列已满时不得等待自身释放槽位，运行库返回 `XERR_STATE`，从契约上阻止自锁。
 
 生命周期分为：
 
@@ -863,7 +821,7 @@ void xrtTaskGroupDestroy(xtaskgroup* pGroup)
 - `xrtTaskPoolCancel`：停止接收普通任务，取消排队任务，并向运行任务发出协作取消请求；资源回收过程不会被取消。
 - `xrtTaskPoolDestroy`：等待普通任务和资源回收过程全部结束，再终止工作线程并释放任务池。
 
-`xrtTaskPoolWait`、`xrtTaskPoolWaitFor`、`xrtTaskPoolWaitUntil` 和 `xrtTaskPoolWaitUntilCancel` 只接受已经关闭的池。`xrtTaskPoolWaitUntilCancel` 的令牌只中止调用方等待，不改变池或池内任务状态；池已经排空时完成优先于同时到达的超时或取消。任务池自己的工作线程不能等待或销毁所属池，否则返回 `XERR_STATE`。`xrtTaskPoolDestroy` 默认关闭并自然排空；需要快速停止时先调用 `xrtTaskPoolCancel`。
+`xrtTaskPoolWait`、`xrtTaskPoolWaitFor`、`xrtTaskPoolWaitFor` 和 `xrtTaskPoolWaitForCancel` 只接受已经关闭的池。`xrtTaskPoolWaitForCancel` 的令牌只中止调用方等待，不改变池或池内任务状态；池已经排空时完成优先于同时到达的超时或取消。任务池自己的工作线程不能等待或销毁所属池，否则返回 `XERR_STATE`。`xrtTaskPoolDestroy` 默认关闭并自然排空；需要快速停止时先调用 `xrtTaskPoolCancel`。
 
 内部资源回收通道只接收已经由运行库受理的资源，节点嵌入资源对象，不发生投递分配，也不占用 `QueueLimit`。它不是第二条用户任务队列，公共代码不能用它绕过背压。
 
@@ -1006,10 +964,10 @@ xfuture* xrtTaskSubmitWait(xtaskpool* pPool, xtaskproc pProc, ptr pData, const x
 
 ### `xrtTaskSubmitFor`
 
-在相对微秒数内等待任务池出现队列槽位并提交。
+在相对毫秒数内等待任务池出现队列槽位并提交。
 
 ```c
-xfuture* xrtTaskSubmitFor(xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtaskargs* pArgs, uint64 iTimeout)
+xfuture* xrtTaskSubmitFor(xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtaskargs* pArgs, int64 iTimeout)
 ```
 
 #### 参数
@@ -1020,7 +978,7 @@ xfuture* xrtTaskSubmitFor(xtaskpool* pPool, xtaskproc pProc, ptr pData, const xt
 | `pProc` | 输入 | 非空 | 任务过程 |
 | `pData` | 输入 | 任意值 | 任务数据，受理后所有权转移 |
 | `pArgs` | 输入 | 允许空 | 任务参数 |
-| `iTimeout` | 输入 | — | 相对微秒数 |
+| `iTimeout` | 输入 | — | 相对毫秒数 |
 
 #### 返回值
 
@@ -1042,57 +1000,15 @@ xfuture* xrtTaskSubmitFor(xtaskpool* pPool, xtaskproc pProc, ptr pData, const xt
 
 ```c
 		((arrFutures[1] = xrtTaskSubmitFor(pPool, exampleTask,
-			NULL, NULL, EXAMPLE_TIMEOUT_US)) == NULL) ||
+			NULL, NULL, EXAMPLE_TIMEOUT_MS)) == NULL) ||
 ```
 
-### `xrtTaskSubmitUntil`
-
-等待到指定单调时钟截止时间；槽位已经可用时成功优先于超时。
-
-```c
-xfuture* xrtTaskSubmitUntil(xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtaskargs* pArgs, xdeadline iDeadline)
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pPool` | 输入 | 非空 | 目标任务池 |
-| `pProc` | 输入 | 非空 | 任务过程 |
-| `pData` | 输入 | 任意值 | 任务数据，受理后所有权转移 |
-| `pArgs` | 输入 | 允许空 | 任务参数 |
-| `iDeadline` | 输入 | — | 单调时钟截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| 非空 | 任务 Future（引用 1） | — |
-| `NULL` | 提交失败 | 见错误 |
-
-#### 错误
-
-- `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_TIMEOUT` — 槽位等待超时
-- `XERR_CLOSED` — 组或池已关闭，不再接纳新项
-- `XERR_MEMORY` — 对象或槽位分配失败
-
-#### 范例
-
-[task_tour](../../examples/concurrency/task_tour/main.c) · 限期槽位提交
-
-```c
-		((arrFutures[2] = xrtTaskSubmitUntil(pPool, exampleTask,
-			NULL, NULL,
-			xrtDeadlineAfter(EXAMPLE_TIMEOUT_US))) == NULL) ||
-```
-
-### `xrtTaskSubmitUntilCancel`
+### `xrtTaskSubmitForCancel`
 
 等待槽位、截止时间或调用方取消；等待取消不取消已经受理的任务。
 
 ```c
-xfuture* xrtTaskSubmitUntilCancel(xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtaskargs* pArgs, xdeadline iDeadline, xcancel* pCancel)
+xfuture* xrtTaskSubmitForCancel(xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtaskargs* pArgs, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -1103,7 +1019,7 @@ xfuture* xrtTaskSubmitUntilCancel(xtaskpool* pPool, xtaskproc pProc, ptr pData, 
 | `pProc` | 输入 | 非空 | 任务过程 |
 | `pData` | 输入 | 任意值 | 任务数据，受理后所有权转移 |
 | `pArgs` | 输入 | 允许空 | 任务参数 |
-| `iDeadline` | 输入 | — | 单调时钟截止时间 |
+| `iTimeout` | 输入 | — | 单调时钟截止时间 |
 | `pCancel` | 输入 | 允许空 | 调用方取消令牌 |
 
 #### 返回值
@@ -1126,9 +1042,9 @@ xfuture* xrtTaskSubmitUntilCancel(xtaskpool* pPool, xtaskproc pProc, ptr pData, 
 [task_tour](../../examples/concurrency/task_tour/main.c) · 可取消槽位提交
 
 ```c
-		((arrFutures[4] = xrtTaskSubmitUntilCancel(pPool,
+		((arrFutures[4] = xrtTaskSubmitForCancel(pPool,
 			exampleTask, NULL, NULL,
-			xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
+			EXAMPLE_TIMEOUT_MS,
 			pCancel)) == NULL) ) {
 ```
 
@@ -1164,7 +1080,7 @@ bool xrtTaskPoolClose(xtaskpool* pPool)
 
 ```c
 	if ( !xrtTaskPoolClose(pPool) ||
-		(xrtTaskPoolWaitFor(pPool, EXAMPLE_TIMEOUT_US) !=
+		(xrtTaskPoolWaitFor(pPool, EXAMPLE_TIMEOUT_MS) !=
 			XWAIT_OK) ||
 		!xrtTaskPoolGet(pPool, &Stats) ||
 		(Stats.Completed < 5u) ||
@@ -1244,10 +1160,10 @@ xwaitresult xrtTaskPoolWait(xtaskpool* pPool)
 
 ### `xrtTaskPoolWaitFor`
 
-在相对微秒数内等待已关闭任务池排空。
+在相对毫秒数内等待已关闭任务池排空。
 
 ```c
-xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, uint64 iTimeout)
+xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, int64 iTimeout)
 ```
 
 #### 参数
@@ -1255,7 +1171,7 @@ xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, uint64 iTimeout)
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pPool` | 输入 | 非空 | 目标任务池 |
-| `iTimeout` | 输入 | — | 相对微秒数 |
+| `iTimeout` | 输入 | — | 相对毫秒数 |
 
 #### 返回值
 
@@ -1276,56 +1192,16 @@ xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, uint64 iTimeout)
 [task_tour](../../examples/concurrency/task_tour/main.c) · 限时等待排空
 
 ```c
-		(xrtTaskPoolWaitFor(pPool, EXAMPLE_TIMEOUT_US) !=
+		(xrtTaskPoolWaitFor(pPool, EXAMPLE_TIMEOUT_MS) !=
 			XWAIT_OK) ||
 ```
 
-### `xrtTaskPoolWaitUntil`
-
-等待已关闭任务池排空到指定单调时钟截止时间。
-
-```c
-xwaitresult xrtTaskPoolWaitUntil(xtaskpool* pPool, xdeadline iDeadline)
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pPool` | 输入 | 非空 | 目标任务池 |
-| `iDeadline` | 输入 | — | 单调时钟截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` | 全部项进入终态 | — |
-| `XWAIT_TIMEOUT` | 期限或截止时间先到达 | 不设错误 |
-| `XWAIT_CANCELLED` | 调用方取消触发 | 不设错误 |
-| `XWAIT_ERROR` | 参数或状态非法 | `XERR_ARGUMENT` / `XERR_STATE` |
-
-#### 错误
-
-- `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_STATE` — 池未关闭或已销毁
-
-#### 范例
-
-[task_tour](../../examples/concurrency/task_tour/main.c) · 限期等待排空
-
-```c
-		if ( (xrtTaskPoolWaitUntil(pFullPool,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US)) !=
-				XWAIT_OK) ||
-			!xrtTaskPoolGet(pFullPool, &Stats) ) {
-```
-
-### `xrtTaskPoolWaitUntilCancel`
+### `xrtTaskPoolWaitForCancel`
 
 等待池排空、截止时间或调用方取消中的首个事件。
 
 ```c
-xwaitresult xrtTaskPoolWaitUntilCancel(xtaskpool* pPool, xdeadline iDeadline, xcancel* pCancel)
+xwaitresult xrtTaskPoolWaitForCancel(xtaskpool* pPool, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -1333,7 +1209,7 @@ xwaitresult xrtTaskPoolWaitUntilCancel(xtaskpool* pPool, xdeadline iDeadline, xc
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pPool` | 输入 | 非空 | 目标任务池 |
-| `iDeadline` | 输入 | — | 单调时钟截止时间 |
+| `iTimeout` | 输入 | — | 单调时钟截止时间 |
 | `pCancel` | 输入 | 允许空 | 调用方取消令牌 |
 
 #### 返回值
@@ -1355,9 +1231,9 @@ xwaitresult xrtTaskPoolWaitUntilCancel(xtaskpool* pPool, xdeadline iDeadline, xc
 [task_tour](../../examples/concurrency/task_tour/main.c) · 可取消等待排空
 
 ```c
-			xwaitresult iWait = xrtTaskPoolWaitUntilCancel(
+			xwaitresult iWait = xrtTaskPoolWaitForCancel(
 				pFullPool,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
+				EXAMPLE_TIMEOUT_MS,
 				pCancel);
 ```
 
@@ -1435,9 +1311,9 @@ bool xrtTaskPoolDestroy(xtaskpool* pPool)
 
 - `xrtTaskGroupSubmit`：立即尝试任务池提交。
 - `xrtTaskGroupSubmitWait`：永久等待任务池槽位。
-- `xrtTaskGroupSubmitFor`：在相对微秒数内等待。
-- `xrtTaskGroupSubmitUntil`：等待到单调时钟截止时间。
-- `xrtTaskGroupSubmitUntilCancel`：再叠加调用方取消。
+- `xrtTaskGroupSubmitFor`：在相对毫秒数内等待。
+- `xrtTaskGroupSubmitFor`：等待到单调时钟截止时间。
+- `xrtTaskGroupSubmitForCancel`：再叠加调用方取消。
 
 可等待版本会自动把组取消合并到容量等待。组在任务尚未受理时取消，提交返回 `XERR_CANCELLED`、组预留回滚且数据仍归调用方；任务已经受理时，Future 正常纳入组并收到协作取消请求。正常 `Close` 不取消容量等待，因为 Close 的含义是停止新增预留并自然等待已经预留的操作。
 
@@ -1531,10 +1407,10 @@ xfuture* xrtTaskGroupSubmitWait(xtaskgroup* pGroup, xtaskpool* pPool, xtaskproc 
 
 ### `xrtTaskGroupSubmitFor`
 
-在相对微秒数内等待任务池槽位并原子纳入组。
+在相对毫秒数内等待任务池槽位并原子纳入组。
 
 ```c
-xfuture* xrtTaskGroupSubmitFor(xtaskgroup* pGroup, xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtaskargs* pArgs, uint64 iTimeout)
+xfuture* xrtTaskGroupSubmitFor(xtaskgroup* pGroup, xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtaskargs* pArgs, int64 iTimeout)
 ```
 
 #### 参数
@@ -1546,7 +1422,7 @@ xfuture* xrtTaskGroupSubmitFor(xtaskgroup* pGroup, xtaskpool* pPool, xtaskproc p
 | `pProc` | 输入 | 非空 | 任务过程 |
 | `pData` | 输入 | 任意值 | 任务数据，受理后所有权转移 |
 | `pArgs` | 输入 | 允许空 | 任务参数（名称、取消令牌等） |
-| `iTimeout` | 输入 | — | 相对微秒数 |
+| `iTimeout` | 输入 | — | 相对毫秒数 |
 
 #### 返回值
 
@@ -1577,56 +1453,12 @@ xfuture* xrtTaskGroupSubmitFor(xtaskgroup* pGroup, xtaskpool* pPool, xtaskproc p
 		);
 ```
 
-### `xrtTaskGroupSubmitUntil`
-
-等待任务池槽位到指定单调时钟截止时间并原子纳入组。
-
-```c
-xfuture* xrtTaskGroupSubmitUntil(xtaskgroup* pGroup, xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtaskargs* pArgs, xdeadline iDeadline)
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pGroup` | 输入 | 非空 | 目标任务组 |
-| `pPool` | 输入 | 非空 | 目标任务池 |
-| `pProc` | 输入 | 非空 | 任务过程 |
-| `pData` | 输入 | 任意值 | 任务数据，受理后所有权转移 |
-| `pArgs` | 输入 | 允许空 | 任务参数（名称、取消令牌等） |
-| `iDeadline` | 输入 | — | 单调时钟截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| 非空 | 任务 Future（引用 1） | — |
-| `NULL` | 提交失败 | 见错误 |
-
-#### 错误
-
-- `XERR_ARGUMENT` — 指针为空或参数非法
-- `XERR_TIMEOUT` — 槽位等待超时
-- `XERR_CLOSED` — 组或池已关闭，不再接纳新项
-- `XERR_MEMORY` — 对象或槽位分配失败
-
-#### 范例
-
-[task_tour](../../examples/concurrency/task_tour/main.c) · 组限期槽位提交
-
-```c
-			((arrFutures[6] = xrtTaskGroupSubmitUntil(pGroup,
-				pPool2, exampleTask, NULL, NULL,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US))) ==
-				NULL) ) {
-```
-
-### `xrtTaskGroupSubmitUntilCancel`
+### `xrtTaskGroupSubmitForCancel`
 
 同时受截止时间、调用方取消和任务组取消约束地等待提交。
 
 ```c
-xfuture* xrtTaskGroupSubmitUntilCancel(xtaskgroup* pGroup, xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtaskargs* pArgs, xdeadline iDeadline, xcancel* pCancel)
+xfuture* xrtTaskGroupSubmitForCancel(xtaskgroup* pGroup, xtaskpool* pPool, xtaskproc pProc, ptr pData, const xtaskargs* pArgs, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -1638,7 +1470,7 @@ xfuture* xrtTaskGroupSubmitUntilCancel(xtaskgroup* pGroup, xtaskpool* pPool, xta
 | `pProc` | 输入 | 非空 | 任务过程 |
 | `pData` | 输入 | 任意值 | 任务数据，受理后所有权转移 |
 | `pArgs` | 输入 | 允许空 | 任务参数（名称、取消令牌等） |
-| `iDeadline` | 输入 | — | 单调时钟截止时间 |
+| `iTimeout` | 输入 | — | 单调时钟截止时间 |
 | `pCancel` | 输入 | 允许空 | 调用方取消令牌 |
 
 #### 返回值
@@ -1661,9 +1493,9 @@ xfuture* xrtTaskGroupSubmitUntilCancel(xtaskgroup* pGroup, xtaskpool* pPool, xta
 [task_tour](../../examples/concurrency/task_tour/main.c) · 组可取消槽位提交
 
 ```c
-			xfuture* pThird = xrtTaskGroupSubmitUntilCancel(
+			xfuture* pThird = xrtTaskGroupSubmitForCancel(
 				pGroup, pPool2, exampleTask, NULL, NULL,
-				xrtDeadlineAfter(EXAMPLE_TIMEOUT_US),
+				EXAMPLE_TIMEOUT_MS,
 				pCancel);
 ```
 
@@ -1772,8 +1604,8 @@ TaskGroup 核心反向依赖网络。`xtasknetproc` 在普通任务参数之前�
 `xcancel`、`xtaskvalue`、结构化错误、临时 arena 和数据所有权合同。
 
 - `xrtTaskNet`：尽快在指定亲和 Worker 上执行。
-- `xrtTaskNetAfter`：在相对微秒数到期后执行。
-- `xrtTaskNetUntil`：在单调时钟截止时间到期后执行。
+- `xrtTaskNetAfter`：在相对毫秒数到期后执行。
+- `xrtTaskNetFor`：在单调时钟截止时间到期后执行。
 
 网络任务运行在事件循环线程，不得执行阻塞系统调用或长时间 CPU 工作；这些工作应
 提交到 `xtaskpool`。立即任务一旦受理，即使 Engine 随后停止也会在排空阶段执行。
@@ -1783,7 +1615,7 @@ TaskGroup 核心反向依赖网络。`xtasknetproc` 在普通任务参数之前�
 先于 Future 终态发布，因此消费者不会观察到仍被 Worker 使用的任务上下文。
 
 `XRT_FEATURE_TASK_GROUP_NET` 提供 `xrtTaskGroupNet`、
-`xrtTaskGroupNetAfter` 和 `xrtTaskGroupNetUntil`。这些函数先预留 TaskGroup 活动槽位，
+`xrtTaskGroupNetAfter` 和 `xrtTaskGroupNetFor`。这些函数先预留 TaskGroup 活动槽位，
 再提交 Engine 操作；组已关闭、达到活动上限或预留 OOM 时不会启动网络任务，也不会
 接管用户数据。组取消会传播到任务 Future，并等待 Timer 的真实取消回调完成。
 
@@ -1833,10 +1665,10 @@ xfuture* xrtTaskNet(xnetengine* pEngine, uint64 iAffinity, xtasknetproc pProc, p
 
 ### `xrtTaskNetAfter`
 
-在相对微秒数到期后向指定亲和 Worker 提交任务。
+在相对毫秒数到期后向指定亲和 Worker 提交任务。
 
 ```c
-xfuture* xrtTaskNetAfter(xnetengine* pEngine, uint64 iAffinity, xtasknetproc pProc, ptr pData, const xtaskargs* pArgs, uint64 iTimeout)
+xfuture* xrtTaskNetAfter(xnetengine* pEngine, uint64 iAffinity, xtasknetproc pProc, ptr pData, const xtaskargs* pArgs, int64 iTimeout)
 ```
 
 #### 参数
@@ -1848,7 +1680,7 @@ xfuture* xrtTaskNetAfter(xnetengine* pEngine, uint64 iAffinity, xtasknetproc pPr
 | `pProc` | 输入 | 非空 | 任务过程 |
 | `pData` | 输入 | 任意值 | 任务数据，受理后所有权转移 |
 | `pArgs` | 输入 | 允许空 | 任务参数 |
-| `iTimeout` | 输入 | — | 相对微秒数 |
+| `iTimeout` | 输入 | — | 相对毫秒数 |
 
 #### 返回值
 
@@ -1871,12 +1703,12 @@ xfuture* xrtTaskNetAfter(xnetengine* pEngine, uint64 iAffinity, xtasknetproc pPr
 		NULL, 0u);
 ```
 
-### `xrtTaskNetUntil`
+### `xrtTaskNetFor`
 
 在指定单调时钟截止时间到期后向亲和 Worker 提交任务。
 
 ```c
-xfuture* xrtTaskNetUntil(xnetengine* pEngine, uint64 iAffinity, xtasknetproc pProc, ptr pData, const xtaskargs* pArgs, xdeadline iDeadline)
+xfuture* xrtTaskNetFor(xnetengine* pEngine, uint64 iAffinity, xtasknetproc pProc, ptr pData, const xtaskargs* pArgs, int64 iTimeout)
 ```
 
 #### 参数
@@ -1888,7 +1720,7 @@ xfuture* xrtTaskNetUntil(xnetengine* pEngine, uint64 iAffinity, xtasknetproc pPr
 | `pProc` | 输入 | 非空 | 任务过程 |
 | `pData` | 输入 | 任意值 | 任务数据，受理后所有权转移 |
 | `pArgs` | 输入 | 允许空 | 任务参数 |
-| `iDeadline` | 输入 | — | 单调时钟截止时间 |
+| `iTimeout` | 输入 | — | 单调时钟截止时间 |
 
 #### 返回值
 
@@ -1907,8 +1739,8 @@ xfuture* xrtTaskNetUntil(xnetengine* pEngine, uint64 iAffinity, xtasknetproc pPr
 [task](../../examples/network/task/main.c) · 限期网络任务
 
 ```c
-	pFuture = xrtTaskNetUntil(pEngine, 0, buildValue, &iValue,
-		NULL, xrtDeadlineAfter(0u));
+	pFuture = xrtTaskNetFor(pEngine, 0, buildValue, &iValue,
+		NULL, 0);
 ```
 
 ### `xrtTaskGroupNet`
@@ -1963,7 +1795,7 @@ xfuture* xrtTaskGroupNet(xtaskgroup* pGroup, xnetengine* pEngine, uint64 iAffini
 延迟提交网络任务，并在同一预留窗口内原子纳入任务组。
 
 ```c
-xfuture* xrtTaskGroupNetAfter(xtaskgroup* pGroup, xnetengine* pEngine, uint64 iAffinity, xtasknetproc pProc, ptr pData, const xtaskargs* pArgs, uint64 iTimeout)
+xfuture* xrtTaskGroupNetAfter(xtaskgroup* pGroup, xnetengine* pEngine, uint64 iAffinity, xtasknetproc pProc, ptr pData, const xtaskargs* pArgs, int64 iTimeout)
 ```
 
 #### 参数
@@ -1976,7 +1808,7 @@ xfuture* xrtTaskGroupNetAfter(xtaskgroup* pGroup, xnetengine* pEngine, uint64 iA
 | `pProc` | 输入 | 非空 | 任务过程 |
 | `pData` | 输入 | 任意值 | 任务数据，受理后所有权转移 |
 | `pArgs` | 输入 | 允许空 | 任务参数 |
-| `iTimeout` | 输入 | — | 相对微秒数 |
+| `iTimeout` | 输入 | — | 相对毫秒数 |
 
 #### 返回值
 
@@ -2007,12 +1839,12 @@ xfuture* xrtTaskGroupNetAfter(xtaskgroup* pGroup, xnetengine* pEngine, uint64 iA
 		);
 ```
 
-### `xrtTaskGroupNetUntil`
+### `xrtTaskGroupNetFor`
 
 按单调截止时间提交网络任务，并原子纳入任务组。
 
 ```c
-xfuture* xrtTaskGroupNetUntil(xtaskgroup* pGroup, xnetengine* pEngine, uint64 iAffinity, xtasknetproc pProc, ptr pData, const xtaskargs* pArgs, xdeadline iDeadline)
+xfuture* xrtTaskGroupNetFor(xtaskgroup* pGroup, xnetengine* pEngine, uint64 iAffinity, xtasknetproc pProc, ptr pData, const xtaskargs* pArgs, int64 iTimeout)
 ```
 
 #### 参数
@@ -2025,7 +1857,7 @@ xfuture* xrtTaskGroupNetUntil(xtaskgroup* pGroup, xnetengine* pEngine, uint64 iA
 | `pProc` | 输入 | 非空 | 任务过程 |
 | `pData` | 输入 | 任意值 | 任务数据，受理后所有权转移 |
 | `pArgs` | 输入 | 允许空 | 任务参数 |
-| `iDeadline` | 输入 | — | 单调时钟截止时间 |
+| `iTimeout` | 输入 | — | 单调时钟截止时间 |
 
 #### 返回值
 
@@ -2045,9 +1877,9 @@ xfuture* xrtTaskGroupNetUntil(xtaskgroup* pGroup, xnetengine* pEngine, uint64 iA
 [task](../../examples/network/task/main.c) · 组限期网络任务
 
 ```c
-			(xrtTaskGroupNetUntil(pGroup, pEngine, 0,
+			(xrtTaskGroupNetFor(pGroup, pEngine, 0,
 				buildValue, &iValue, NULL,
-				xrtDeadlineAfter(0u)) == NULL) ||
+				0) == NULL) ||
 ```
 
 ## 统计

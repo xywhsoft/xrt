@@ -9,7 +9,7 @@ struct xoauth2httpxrt {
 	bool        bEngineOwned;
 	xnetresolver* pResolver;
 	void*       pVerifier;    /* xtlsverifier*（ opaque 存放，Unit 释放） */
-	int64 uTimeoutUs;
+	int64 uTimeoutMs;
 	struct xoauth2httpxrt* pPendingNext; /* 只用于未交付的失败堆构造。 */
 };
 

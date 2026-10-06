@@ -71,7 +71,7 @@
 typedef struct xtlsstream xtlsstream;
 
 /*
-	两个超时都使用微秒；零值显式关闭对应计时器。
+	两个超时都使用毫秒；零值显式关闭对应计时器。
 	AsyncBytesLimit 和 AsyncCountLimit 是未完成操作的独立硬边界，
 	AsyncBatch 限制一次 Worker 轮转完成的操作数。
 */
@@ -87,8 +87,8 @@ typedef struct xtlsstreamconfig {
 
 #if defined(XRT_FEATURE_TLS_STREAM)
 
-#define XTLS_STREAM_HANDSHAKE_TIMEOUT_DEFAULT UINT64_C(10000000)
-#define XTLS_STREAM_CLOSE_TIMEOUT_DEFAULT UINT64_C(5000000)
+#define XTLS_STREAM_HANDSHAKE_TIMEOUT_DEFAULT INT64_C(10000)
+#define XTLS_STREAM_CLOSE_TIMEOUT_DEFAULT INT64_C(5000)
 
 #define XTLS_STREAM_ASYNC_BYTES_DEFAULT ((size_t)1048576u)
 #define XTLS_STREAM_ASYNC_COUNT_DEFAULT UINT32_C(1024)

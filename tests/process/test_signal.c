@@ -16,7 +16,7 @@ typedef struct testsignalstate {
 /* 在有界时间内等待原子计数达到目标。 */
 static bool testSignalWait(const xatomic32* pValue, uint32 iExpected)
 {
-	uint64 iDeadline = xrtTimer() + UINT64_C(3000000);
+	double iDeadline = xrtTimer() + 3;
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		if ( xrtTimer() >= iDeadline ) {

@@ -1,3 +1,4 @@
+#include <xrt/detail/xsmtp_wait.h>
 #include <xrt/detail/wait.h>
 #include "test.h"
 #include "test_tls.h"
@@ -239,7 +240,7 @@ int main(void)
 			Server.Tls = &TlsServer;
 			Server.Mode = (testsmtptlsfault)Mode;
 			Server.Bdat = Bdat != 0;
-			Server.Deadline = __xrtWaitAfter(UINT64_C(15000000));
+			Server.Deadline = __xrtWaitAfter(INT64_C(15000));
 			Server.Cancel = xrtCancelCreate();
 			xrtAtomic32Init(&Server.ClientReady, 0u);
 			xrtAtomic32Init(&Server.PrefixReady, 0u);
@@ -272,7 +273,7 @@ int main(void)
 			xrtClearError();
 			bool Written = testSmtpTlsWrite(pClient, Server.Bdat, pPayload + TEST_SMTP_TLS_PREFIX,
 				TEST_SMTP_TLS_WRITE, Mode == TEST_SMTP_TLS_TIMEOUT ?
-				__xrtWaitAfter(UINT64_C(3000000)) : Server.Deadline,
+				__xrtWaitAfter(INT64_C(3000)) : Server.Deadline,
 				Mode == TEST_SMTP_TLS_CANCEL ? Server.Cancel : NULL);
 			xerror* pFailure = xrtTakeError();
 			xsmtpreply Last;
@@ -322,7 +323,7 @@ int main(void)
 	}
 	xrtFree(pPayload);
 	testRequire(xrtNetListenerClose(pListener), "SMTP TLS fault listener close failed");
-	double Retire = __xrtWaitAfter(UINT64_C(3000000));
+	double Retire = __xrtWaitAfter(INT64_C(3000));
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(Retire), "SMTP TLS fault listener did not close");
 		xrtThreadYield();

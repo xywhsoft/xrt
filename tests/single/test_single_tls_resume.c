@@ -21,11 +21,11 @@ int main(void)
 	Config.Secret = (xbytesview) { Secret, sizeof(Secret) };
 	Config.Lifetime = 60u;
 	Config.AgeAdd = 7u;
-	Config.IssuedAt = 1000000;
+	Config.IssuedAt = 1000;
 	pResume = xrtTlsResumeCreate(&Config);
 	if ( (pResume == NULL) || !xrtTlsResumeInfo(pResume, &Info) ||
-		(Info.ExpiresAt != 61000000) || !xrtTlsResumeTicketAge(
-			pResume, 1001000, &iAge
+		(Info.ExpiresAt != 61000) || !xrtTlsResumeTicketAge(
+			pResume, 1001, &iAge
 		) || (iAge != 8u) ) {
 		xrtTlsResumeRelease(pResume);
 		return 1;

@@ -20,7 +20,7 @@ static ptr testFutureAwaitProc(ptr pData)
 {
 	testfutureawait* pContext = (testfutureawait*)pData;
 
-	pContext->Result = pContext->Timeout == UINT64_MAX ?
+	pContext->Result = pContext->Timeout == XRT_WAIT_FOREVER ?
 		xrtFutureAwait(pContext->Future) :
 		xrtFutureAwaitFor(pContext->Future, pContext->Timeout);
 	if ( (pContext->Result == XWAIT_OK) &&
@@ -98,7 +98,7 @@ int main(void)
 
 	tCross.Promise = xrtPromiseCreate(&tCross.Future, NULL);
 	testRequire(tCross.Promise != NULL, "cross-thread future pair create failed");
-	tCross.Timeout = UINT64_MAX;
+	tCross.Timeout = XRT_WAIT_FOREVER;
 	tCross.Value = &iValue;
 	pCross = xrtCoSpawn(pSched, testFutureAwaitProc, &tCross, NULL);
 	testRequire(pCross != NULL, "cross-thread future await spawn failed");
@@ -129,7 +129,7 @@ int main(void)
 
 	tCancel.Promise = xrtPromiseCreate(&tCancel.Future, NULL);
 	testRequire(tCancel.Promise != NULL, "cancel future pair create failed");
-	tCancel.Timeout = UINT64_MAX;
+	tCancel.Timeout = XRT_WAIT_FOREVER;
 	pCancel = xrtCoSpawn(pSched, testFutureAwaitProc, &tCancel, NULL);
 	testRequire(pCancel != NULL, "cancel future await spawn failed");
 	tCancelHelper.Target = pCancel;
@@ -146,7 +146,7 @@ int main(void)
 	tConfirmed.Promise = xrtPromiseCreate(&tConfirmed.Future, NULL);
 	testRequire(tConfirmed.Promise != NULL,
 		"confirmed cancel future pair create failed");
-	tConfirmed.Timeout = UINT64_MAX;
+	tConfirmed.Timeout = XRT_WAIT_FOREVER;
 	tConfirmed.Confirm = true;
 	pConfirmed = xrtCoSpawn(pSched, testFutureAwaitProc, &tConfirmed, NULL);
 	testRequire(pConfirmed != NULL,

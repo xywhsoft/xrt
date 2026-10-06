@@ -98,8 +98,8 @@ int main(void)
 	account.sAccountKeyPem = account_pem;
 	xrtAcmeClientConfigInit(&config);
 	config.pAccount = &account;
-	config.uTimeoutUs = UINT64_C(30000000);
-	config.uIssueTimeoutUs = UINT64_C(300000000);
+	config.uTimeoutMs = UINT64_C(30000);
+	config.uIssueTimeoutMs = UINT64_C(300000);
 	config.uPropagateTimeoutMs = 120000u;
 	stage = "CA client construction";
 	client = xrtAcmeClientCreate(&config);
@@ -150,7 +150,7 @@ Done:
 		fputs("[FAIL] DNS provider cleanup incomplete\n", stderr);
 		ok = false;
 	}
-	if(!xrtAcmeCleanupPending(UINT64_C(30000000), &pending) || pending != 0u)
+	if(!xrtAcmeCleanupPending(INT64_C(30), &pending) || pending != 0u)
 	{
 		fputs("[FAIL] pending ACME cleanup incomplete\n", stderr);
 		ok = false;

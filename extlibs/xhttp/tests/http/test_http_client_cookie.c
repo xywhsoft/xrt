@@ -87,7 +87,7 @@ static void testHttpCookieWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -701,7 +701,7 @@ static void testHttpCookieRun(
 
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup = testHttpCookieLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	ClientConfig.Cookies = State.Cookies;
 	State.Client = xrtHttpClientCreate(

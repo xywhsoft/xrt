@@ -37,7 +37,7 @@ static void testHttpServerRouterWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(
 		pValue, XMEMORY_ACQUIRE
@@ -544,9 +544,9 @@ static xhttpserver* testHttpServerRouterStart(
 		"HTTP server router loopback address failed"
 	);
 	Config.Network.Listen.AcceptConcurrency = 1u;
-	Config.HeaderTimeout = UINT64_C(10000000);
-	Config.RequestTimeout = UINT64_C(10000000);
-	Config.IdleTimeout = UINT64_C(10000000);
+	Config.HeaderTimeout = INT64_C(10000);
+	Config.RequestTimeout = INT64_C(10000);
+	Config.IdleTimeout = INT64_C(10000);
 	xrtHttpServerEventsInit(&Events);
 	Events.Request = bFallback ?
 		testHttpServerRouterFallback : NULL;

@@ -129,7 +129,7 @@ static void testHttpPoolWaitValue(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -155,7 +155,7 @@ static xhttpclientstats testHttpPoolWaitStats(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 	xhttpclientstats Stats;
 
 	for ( ;; ) {
@@ -185,7 +185,7 @@ static void testHttpPoolWaitEngineIdle(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 	xnetenginestats Stats;
 
 	for ( ;; ) {
@@ -663,7 +663,7 @@ static xnetaddr testHttpPoolStart(
 
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup = testHttpPoolLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	ClientConfig.Pool = *pPool;
 	pState->Client = xrtHttpClientCreate(
@@ -1329,7 +1329,7 @@ static void testHttpPoolIdleTimeout(void)
 	Pool.MaxConnectionsPerOrigin = 1;
 	Pool.MaxIdle = 1;
 	Pool.MaxIdlePerOrigin = 1;
-	Pool.IdleTimeout = 30000u;
+	Pool.IdleTimeout = 30;
 	Address = testHttpPoolStart(&State, &Pool);
 	testHttpPoolCall(
 		&State,

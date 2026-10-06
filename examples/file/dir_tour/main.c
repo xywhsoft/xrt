@@ -28,7 +28,6 @@ int main(void)
 	static const char sRoot[] = "xrt-dir-tour";
 	static const char sDeep[] = "xrt-dir-tour/a/b/c";
 	static const char sFile[] = "xrt-dir-tour/a/b/c/data.txt";
-	xfileinfo Info;
 	xwalkstats Stats;
 	xdirroots Roots;
 	xdir Dir;

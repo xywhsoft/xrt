@@ -26,7 +26,7 @@
 static xnetbytes* exampleTcpFutureBytes(xfuture* pFuture)
 {
 	if ( (pFuture == NULL) ||
-		 (xrtFutureWaitFor(pFuture, 3000000u) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pFuture, 3000) != XWAIT_OK) ||
 		 (xrtFutureState(pFuture) != XFUTURE_RESOLVED) ) {
 		return NULL;
 	}
@@ -96,9 +96,9 @@ int main(void)
 	}
 	pOpen = xrtNetStreamWaitAsync(pClient, XNET_STREAM_WAIT_OPEN);
 	if ( (pOpen == NULL) ||
-		 (xrtFutureWaitFor(pAccept, 3000000u) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pAccept, 3000) != XWAIT_OK) ||
 		 (xrtFutureState(pAccept) != XFUTURE_RESOLVED) ||
-		 (xrtFutureWaitFor(pOpen, 3000000u) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pOpen, 3000) != XWAIT_OK) ||
 		 (xrtFutureState(pOpen) != XFUTURE_RESOLVED) ) {
 		return 4;
 	}
@@ -128,9 +128,9 @@ int main(void)
 		XNET_STREAM_WAIT_DRAIN
 	);
 	if ( (pDrain == NULL) ||
-		(xrtFutureWaitFor(pReadable, 3000000u) != XWAIT_OK) ||
+		(xrtFutureWaitFor(pReadable, 3000) != XWAIT_OK) ||
 		(xrtFutureState(pReadable) != XFUTURE_RESOLVED) ||
-		(xrtFutureWaitFor(pDrain, 3000000u) != XWAIT_OK) ||
+		(xrtFutureWaitFor(pDrain, 3000) != XWAIT_OK) ||
 		(xrtFutureState(pDrain) != XFUTURE_RESOLVED) ) {
 		return 6;
 	}
@@ -171,8 +171,8 @@ int main(void)
 	);
 	if ( (pClientClose == NULL) || (pServerClose == NULL) ||
 		 !xrtNetStreamClose(pClient) || !xrtNetStreamClose(pServer) ||
-		 (xrtFutureWaitFor(pClientClose, 3000000u) != XWAIT_OK) ||
-		 (xrtFutureWaitFor(pServerClose, 3000000u) != XWAIT_OK) ) {
+		 (xrtFutureWaitFor(pClientClose, 3000) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pServerClose, 3000) != XWAIT_OK) ) {
 		return 10;
 	}
 	(void)xrtNetListenerClose(pListener);

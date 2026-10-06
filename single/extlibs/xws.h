@@ -456,7 +456,7 @@
 #define XWS_CONN_FRAME_LIMIT_DEFAULT UINT64_C(1048576)
 #define XWS_CONN_SEND_LIMIT_DEFAULT ((size_t)1048576u)
 #define XWS_CONN_CONTROL_RESERVE_DEFAULT ((size_t)512u)
-#define XWS_CONN_CLOSE_TIMEOUT_DEFAULT UINT64_C(5000000)
+#define XWS_CONN_CLOSE_TIMEOUT_DEFAULT INT64_C(5000)
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
 	#define XWS_CONN_ASYNC_BYTES_DEFAULT ((size_t)1048576u)
 	#define XWS_CONN_ASYNC_COUNT_DEFAULT UINT32_C(1024)
@@ -528,7 +528,7 @@ typedef struct xwsconnconfig {
 	uint64 FrameLimit;
 	size_t SendLimit;
 	size_t ControlReserve;
-	uint64 CloseTimeout;
+	int64 CloseTimeout;
 	bool AutoPong;
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
 		size_t AsyncBytesLimit;
@@ -2287,26 +2287,23 @@ XRT_API xwaitresult xrtWsGroupOpWait(xwsgroupop* pOperation);
 
 
 
-/* 在相对微秒数内等待全部已接纳操作进入终态。 */
+/* 在相对毫秒数内等待全部已接纳操作进入终态。 */
 XRT_API xwaitresult xrtWsGroupOpWaitFor(
 	xwsgroupop* pOperation,
-	uint64 iTimeout
+	int64 iTimeout
 );
 
 
 
 /* 等待全部已接纳操作到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtWsGroupOpWaitUntil(
-	xwsgroupop* pOperation,
-	xdeadline iDeadline
-);
+
 
 
 
 /* 等待批量操作、截止时间或调用方取消令牌中的首个事件。 */
-XRT_API xwaitresult xrtWsGroupOpWaitUntilCancel(
+XRT_API xwaitresult xrtWsGroupOpWaitForCancel(
 	xwsgroupop* pOperation,
-	xdeadline iDeadline,
+	int64 iTimeout,
 	xcancel* pCancel
 );
 
@@ -3236,6 +3233,33 @@ static inline xerror* __xrtWsOpenErrorCreate(
 
 #endif
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xws/include/xrt/detail/xws_wait.h */
+/* ========================================================================== */
+
+#if defined(XWS_FEATURE_WEBSOCKET_HTTP_FUTURE)
+#ifndef XRT_DETAIL_XWS_WAIT_H
+#define XRT_DETAIL_XWS_WAIT_H
+
+XRT_EXTERN_C_BEGIN
+#if (defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE))
+XRT_API xwaitresult __xrtWsGroupOpWaitUntil(
+	xwsgroupop* pOperation,
+	double iDeadline
+);
+#endif
+#if (defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE))
+XRT_API xwaitresult __xrtWsGroupOpWaitUntilCancel(
+	xwsgroupop* pOperation,
+	double iDeadline,
+	xcancel* pCancel
+);
+#endif
+XRT_EXTERN_C_END
 #endif
 #endif
 
@@ -16588,10 +16612,10 @@ XRT_API xwaitresult xrtWsGroupOpWait(xwsgroupop* pOperation)
 
 
 
-/* 在相对微秒数内等待全部已接纳操作进入终态。 */
+/* 在相对毫秒数内等待全部已接纳操作进入终态。 */
 XRT_API xwaitresult xrtWsGroupOpWaitFor(
 	xwsgroupop* pOperation,
-	uint64 iTimeout
+	int64 iTimeout
 )
 {
 	if ( !__xrtWsGroupOpCheck(
@@ -16607,9 +16631,9 @@ XRT_API xwaitresult xrtWsGroupOpWaitFor(
 
 
 /* 等待全部已接纳操作到指定单调时钟截止时间。 */
-XRT_API xwaitresult xrtWsGroupOpWaitUntil(
+XRT_API xwaitresult __xrtWsGroupOpWaitUntil(
 	xwsgroupop* pOperation,
-	xdeadline iDeadline
+	double iDeadline
 )
 {
 	if ( !__xrtWsGroupOpCheck(
@@ -16617,17 +16641,19 @@ XRT_API xwaitresult xrtWsGroupOpWaitUntil(
 		"websocket-group.operation-wait",
 		NULL
 	) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 		return XWAIT_ERROR;
 	}
-	return xrtFutureWaitUntil(pOperation->Completion, iDeadline);
+	return __xrtFutureWaitUntil(pOperation->Completion, iDeadline);
 }
 
 
 
 /* 等待批量操作、截止时间或调用方取消令牌中的首个事件。 */
-XRT_API xwaitresult xrtWsGroupOpWaitUntilCancel(
+XRT_API xwaitresult __xrtWsGroupOpWaitUntilCancel(
 	xwsgroupop* pOperation,
-	xdeadline iDeadline,
+	double iDeadline,
 	xcancel* pCancel
 )
 {
@@ -16636,15 +16662,28 @@ XRT_API xwaitresult xrtWsGroupOpWaitUntilCancel(
 		"websocket-group.operation-wait",
 		NULL
 	) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 		return XWAIT_ERROR;
 	}
-	return xrtFutureWaitUntilCancel(
+	return __xrtFutureWaitUntilCancel(
 		pOperation->Completion,
 		iDeadline,
 		pCancel
 	);
 }
 
+#endif
+
+#if (defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE))
+XRT_API xwaitresult xrtWsGroupOpWaitForCancel(
+	xwsgroupop* pOperation,
+	int64 iTimeout,
+	xcancel* pCancel
+)
+{
+    return __xrtWsGroupOpWaitUntilCancel(pOperation, __xrtWaitAfter(iTimeout), pCancel);
+}
 #endif
 #endif
 

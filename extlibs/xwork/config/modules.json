@@ -93,6 +93,5 @@
 	],
 	"dependency_manifests": [
 		"extlibs/xllm-session/config/modules.json"
-	],
-	"umbrella_header": "xwork.h"
+	]
 }

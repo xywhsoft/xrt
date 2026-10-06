@@ -56,6 +56,7 @@ typedef struct xsshtransporttcp {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -73,7 +74,7 @@ XRT_API bool xrtSshTransportTcpInit(
 	xsshtransporttcp* pTransport,
 	xnetbufpool* pPool,
 	const xsshtransporttcpconfig* pConfig,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -111,7 +112,7 @@ XRT_API xsshcode xrtSshTransportTcpWritePrepareWithPadding(
 	xbytesview Payload,
 	xsshpaddingproc pPadding,
 	ptr pUserData,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -123,7 +124,7 @@ XRT_API xsshcode xrtSshTransportTcpWritePrepareWithPadding(
 XRT_API xnetresult xrtSshTransportTcpWriteSubmit(
 	xsshtransporttcp* pTransport,
 	xnetstream* pStream,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -168,7 +169,7 @@ XRT_API xsshcode xrtSshTransportTcpReadPrepare(
 	xsshpacketview* pPacket,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -176,7 +177,7 @@ XRT_API xsshcode xrtSshTransportTcpReadPrepare(
 /* 提交上层已经接受的输入并从原 TCP 缓冲精确消费。 */
 XRT_API xsshcode xrtSshTransportTcpReadCommit(
 	xsshtransporttcp* pTransport,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 

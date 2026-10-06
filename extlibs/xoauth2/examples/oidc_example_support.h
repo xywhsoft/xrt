@@ -168,7 +168,7 @@ static inline xvalue* oidcExampleVerifyIdToken(xoauth2client* oauth,
     if ( algorithm != policy->SigningAlg ) {
         oidcExampleFail(OIDC_EXAMPLE_ALGORITHM, "ID token algorithm differs from registration"); return NULL;
     }
-    int64_t now = policy->NowOverride != 0 ? policy->NowOverride : (int64_t)(xrtNow() / 1000000u);
+    int64_t now = policy->NowOverride != 0 ? policy->NowOverride : (int64_t)xrtTimeUnix(xrtNow());
     xjwtcheck check; xjwtCheckInit(&check);
     check.Issuer = oauth->Config.Issuer; check.Audience = oauth->Config.ClientId;
     check.NowOverride = now; check.ClockLeeway = policy->ClockLeeway;

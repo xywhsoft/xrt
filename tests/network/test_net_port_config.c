@@ -106,7 +106,7 @@ int main(void)
 			pPort,
 			&Event,
 			1,
-			__xrtWaitAfter(1000000),
+			__xrtWaitAfter(1000),
 			&iCount
 		) == XNET_RESULT_OK && (iCount == 1) &&
 			(Event.Type == XNET_PORT_EVENT_WAKE),

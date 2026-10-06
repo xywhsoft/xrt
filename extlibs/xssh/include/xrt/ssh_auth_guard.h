@@ -65,7 +65,7 @@ typedef struct xsshauthguardpolicy {
 /* Guard 只保存会话总预算，不保存用户名、凭据或报文借用视图。 */
 typedef struct xsshauthguard {
 	xsshauthguardpolicy Policy;
-	uint64 StartedMs;
+	double StartedTimer;
 	uint64 Bytes;
 	uint32 Attempts;
 	uint32 Rounds;
@@ -77,6 +77,7 @@ typedef struct xsshauthguard {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -90,7 +91,7 @@ XRT_API void xrtSshAuthGuardPolicyInit(xsshauthguardpolicy* pPolicy);
 XRT_API bool xrtSshAuthGuardInit(
 	xsshauthguard* pGuard,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -98,7 +99,7 @@ XRT_API bool xrtSshAuthGuardInit(
 /* 查询当前时间、完成状态和已有预算产生的决策。 */
 XRT_API xsshcode xrtSshAuthGuardCheck(
 	xsshauthguard* pGuard,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 );
 
@@ -109,7 +110,7 @@ XRT_API xsshcode xrtSshAuthGuardReserve(
 	xsshauthguard* pGuard,
 	xsshauthevent Event,
 	uint64 iMessageBytes,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 );
 

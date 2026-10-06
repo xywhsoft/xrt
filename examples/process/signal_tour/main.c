@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：process/signal_tour —— 信号族补集（元数据/Owned/Once/收计数）
  * ----------------------------------------------------------------
@@ -26,6 +25,23 @@
 #include <stdio.h>
 #include <xrt.h>
 
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
 static volatile int g_Destroyed = 0;
 static volatile int g_Fired = 0;
 
@@ -39,6 +55,7 @@ static void exampleOnCallback(xsignalwatch* pWatch,
 	const xsignalevent* pEvent, ptr pData)
 {
 	(void)pWatch;
+	(void)pData;
 	(void)pEvent;
 	g_Fired = g_Fired + 1;
 }
@@ -47,16 +64,17 @@ static void exampleOnceCallback(xsignalwatch* pWatch,
 	const xsignalevent* pEvent, ptr pData)
 {
 	(void)pWatch;
+	(void)pData;
 	(void)pEvent;
 	g_Fired = g_Fired + 1;
 }
 
 static bool exampleSpinFlag(volatile int* pFlag, int iExpect)
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(3000000));
+	double iDeadline = exampleTimerLimit(INT64_C(3000));
 
 	while ( *pFlag < iExpect ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();

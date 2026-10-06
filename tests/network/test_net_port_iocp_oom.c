@@ -97,7 +97,7 @@ int main(void)
 		"IOCP cache warmup submit failed");
 	iCount = 0;
 	testRequire((__xrtNetPortWait(pPort, &Event, 1,
-		__xrtWaitAfter(1000000), &iCount) == XNET_RESULT_OK) &&
+		__xrtWaitAfter(1000), &iCount) == XNET_RESULT_OK) &&
 		(iCount == 1) && (Event.Id == 1) && (Event.Bytes == 1) &&
 		(Data[0] == 'A'), "IOCP cache warmup completion mismatch");
 
@@ -109,7 +109,7 @@ int main(void)
 		"IOCP cached operation requested new memory");
 	iCount = 0;
 	testRequire((__xrtNetPortWait(pPort, &Event, 1,
-		__xrtWaitAfter(1000000), &iCount) == XNET_RESULT_OK) &&
+		__xrtWaitAfter(1000), &iCount) == XNET_RESULT_OK) &&
 		(iCount == 1) && (Event.Id == 2) && (Event.Bytes == 1) &&
 		(Data[0] == 'B'), "IOCP cached operation completion mismatch");
 

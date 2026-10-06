@@ -55,7 +55,7 @@ XRT_API bool xrtHttpRetryAfterParse(
 
 
 /*
-	把 Retry-After 转换为当前应等待的微秒数。
+	把 Retry-After 转换为当前应等待的毫秒数。
 	过去的绝对日期得到零；转换溢出时不修改输出。
 */
 XRT_API bool xrtHttpRetryAfterDelay(
@@ -67,7 +67,7 @@ XRT_API bool xrtHttpRetryAfterDelay(
 
 
 /*
-	读取唯一 Retry-After 字段并转换为微秒数。
+	读取唯一 Retry-After 字段并转换为毫秒数。
 	缺失返回 END，唯一有效值返回 ITEM，重复或非法值返回 ERROR。
 	缺失和错误都把输出清零。
 */

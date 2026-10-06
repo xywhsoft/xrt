@@ -311,7 +311,7 @@ XRT_API xwaitresult xrtProcessWait(xprocess* pProcess);
 
 
 
-/* 在相对微秒数内等待进程退出。 */
+/* 在相对毫秒数内等待进程退出。 */
 XRT_API xwaitresult xrtProcessWaitFor(
 	xprocess* pProcess,
 	int64 iTimeout
@@ -397,13 +397,13 @@ typedef bool (*xprocessoutputproc)(
 
 /*
 	Run 选项把等待控制、输入、捕获边界和流式观察集中在一个稳定结构中。
-	Deadline 为 NEVER 时不超时；Cancel 只借用到 Run 返回。
+	Timeout 为 XRT_WAIT_FOREVER 时不超时；Cancel 只借用到 Run 返回。
 */
 typedef struct xprocessrunoptions {
 	xbytesview Input;
-	double Deadline;
+	int64 Timeout;
 	xcancel* Cancel;
-	uint64 StopGrace;
+	int64 StopGrace;
 	size_t StdoutLimit;
 	size_t StderrLimit;
 	xprocessoverflow Overflow;
@@ -424,7 +424,7 @@ typedef struct xprocessresult {
 	size_t StderrSize;
 	bool StdoutTruncated;
 	bool StderrTruncated;
-	uint64 Duration;
+	int64 Duration;
 } xprocessresult;
 
 
@@ -438,7 +438,7 @@ XRT_API bool xrtProcessRunOptionsInit(xprocessrunoptions* pOptions);
 
 
 
-/* 等待进程、Deadline 或取消令牌中的首个事件。 */
+/* 在相对毫秒预算内等待进程结束或取消。 */
 XRT_API xwaitresult xrtProcessWaitForCancel(
 	xprocess* pProcess,
 	int64 iTimeout,
@@ -508,9 +508,9 @@ typedef bool (*xprocesspipelineoutputproc)(
 /* Pipeline 选项独立表达首段输入、共享等待控制和逐流捕获边界。 */
 typedef struct xprocesspipelineoptions {
 	xbytesview Input;
-	double Deadline;
+	int64 Timeout;
 	xcancel* Cancel;
-	uint64 StopGrace;
+	int64 StopGrace;
 	size_t StdoutLimit;
 	size_t StderrLimit;
 	xprocessoverflow Overflow;
@@ -539,7 +539,7 @@ typedef struct xprocesspipelineresult {
 	size_t StdoutSize;
 	bool StdoutTruncated;
 	xwaitresult Wait;
-	uint64 Duration;
+	int64 Duration;
 } xprocesspipelineresult;
 
 

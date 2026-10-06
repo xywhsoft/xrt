@@ -8,7 +8,7 @@
 
 `xsmtpclientconfig` 只在 `xrtSmtpClientOpen` 期间借用。Client 持有自己的传输和最后响应
 文本，但借用调用方的 `xnetengine`、`xnetresolver`、TLS Context 与 Verifier。销毁 Client
-不会销毁这些共享对象。所有阻塞操作都接受同一个绝对 `xdeadline` 和可选 `xcancel`，且
+不会销毁这些共享对象。所有阻塞操作都接受同一个相对毫秒 `int64` 和可选 `xcancel`，且
 不能从 Client 所属 Engine 的 Worker 回调中调用。单个 Client 不支持并发命令。
 
 ## 会话状态

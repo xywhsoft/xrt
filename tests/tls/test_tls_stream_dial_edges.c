@@ -29,7 +29,7 @@ static void testTlsDialEdgeWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -148,7 +148,7 @@ static uint16 testTlsDialEdgeUnusedPort(void)
 /* 重试活动对象检查，确保取消后的 Resolver 和 Timer 已经排空。 */
 static void testTlsDialEdgeDestroyEngine(xnetengine* pEngine)
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
@@ -231,7 +231,7 @@ int main(void)
 	xrtTlsDialConfigInit(&DialConfig);
 	DialConfig.Transport.Family = XNET_FAMILY_IPV4;
 	DialConfig.Transport.MaxAttempts = 1u;
-	DialConfig.Transport.Stream.ConnectTimeout = 1000000u;
+	DialConfig.Transport.Stream.ConnectTimeout = 1000;
 	pFailure = xrtTlsDial(
 		pEngine,
 		pFailureResolver,
@@ -310,7 +310,7 @@ int main(void)
 	xrtTlsDialConfigInit(&DialConfig);
 	DialConfig.Transport.Family = XNET_FAMILY_IPV4;
 	DialConfig.Transport.Timeout = 0;
-	DialConfig.Timeout = 20000u;
+	DialConfig.Timeout = 20;
 	pTimeout = xrtTlsDial(
 		pEngine,
 		pTimeoutResolver,

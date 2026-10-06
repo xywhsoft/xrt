@@ -110,9 +110,7 @@ static void testSshConnectionCoreOpen(
 		pCore,
 		Role,
 		0u,
-		NULL,
-		0u
-	) && (xrtSshTransportCoreIdentificationCommit(
+		NULL, ((double)(0u)) / 1000.0) && (xrtSshTransportCoreIdentificationCommit(
 		pCore,
 		XSSH_TRANSPORT_LOCAL
 	) == XSSH_OK) && (xrtSshTransportCoreIdentificationCommit(
@@ -268,7 +266,7 @@ static size_t testSshConnectionSend(
 	uint64 iToken,
 	void* pWire,
 	size_t iWireCapacity,
-	uint64 iNowMs
+	double Timer
 )
 {
 	xsshrekeydecision Decision;
@@ -292,10 +290,10 @@ static size_t testSshConnectionSend(
 		Payload,
 		testSshConnectionPadding,
 		&iPadding,
-		iNowMs
+		Timer
 	) == XSSH_OK) && (xrtSshTransportCoreWriteCommit(
 		pCore,
-		iNowMs,
+		Timer,
 		&Decision
 	) == XSSH_OK) && (Decision != XSSH_REKEY_REQUIRED) &&
 		(xrtSshConnectionSessionWriteCommit(
@@ -313,7 +311,7 @@ static size_t testSshConnectionTransportSend(
 	xbytesview Payload,
 	void* pWire,
 	size_t iWireCapacity,
-	uint64 iNowMs
+	double Timer
 )
 {
 	xsshrekeydecision Decision;
@@ -327,10 +325,10 @@ static size_t testSshConnectionTransportSend(
 			Payload,
 			testSshConnectionPadding,
 			&iPadding,
-			iNowMs
+			Timer
 		) == XSSH_OK) && (xrtSshTransportCoreWriteCommit(
 			pCore,
-			iNowMs,
+			Timer,
 			&Decision
 		) == XSSH_OK) && (Decision != XSSH_REKEY_REQUIRED),
 		"ssh connection raw transport send failed");
@@ -347,7 +345,7 @@ static xsshconnectionpacket testSshConnectionReceivePrepare(
 	size_t iWireSize,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 )
 {
 	xsshconnectionpacket ConnectionPacket;
@@ -364,7 +362,7 @@ static xsshconnectionpacket testSshConnectionReceivePrepare(
 		&Packet,
 		pPlain,
 		iPlainCapacity,
-		iNowMs
+		Timer
 	) == XSSH_OK, "ssh connection transport receive prepare failed");
 	testRequire(Reader.Position == iWireSize,
 		"ssh connection transport packet was not fully consumed");
@@ -383,14 +381,14 @@ static xsshconnectionpacket testSshConnectionReceivePrepare(
 static void testSshConnectionReceiveCommit(
 	xsshconnectionsession* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 )
 {
 	xsshrekeydecision Decision;
 
 	testRequire((xrtSshTransportCoreReadCommit(
 		pCore,
-		iNowMs,
+		Timer,
 		&Decision
 	) == XSSH_OK) && (Decision != XSSH_REKEY_REQUIRED) &&
 		(xrtSshConnectionSessionReadCommit(
@@ -435,7 +433,7 @@ static void testSshConnectionSessionFlow(void)
 	xsshwriter Writer;
 	xbytesview Payload;
 	size_t iWireSize;
-	uint64 iNowMs = 1u;
+	double Timer = 0.001;
 
 	testSshConnectionPairOpen(
 		&ClientCore,
@@ -481,7 +479,7 @@ static void testSshConnectionSessionFlow(void)
 		0u,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs++
+		(Timer += 0.001)
 	);
 	Packet = testSshConnectionReceivePrepare(
 		&Server,
@@ -490,7 +488,7 @@ static void testSshConnectionSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire((Packet.Kind == XSSH_CONNECTION_PACKET_CHANNEL_OPEN) &&
 		testSshTextEqual(
@@ -502,7 +500,7 @@ static void testSshConnectionSessionFlow(void)
 	OpenValues.Sender = Packet.Message.ChannelOpen.Sender;
 	OpenValues.Window = Packet.Message.ChannelOpen.Window;
 	OpenValues.MaxPacket = Packet.Message.ChannelOpen.MaxPacket;
-	testSshConnectionReceiveCommit(&Server, &ServerCore, iNowMs++);
+	testSshConnectionReceiveCommit(&Server, &ServerCore, (Timer += 0.001));
 	testRequire(xrtSshChannelCoreAcceptInit(
 		&ServerRegistry.Channels[2],
 		2u,
@@ -536,7 +534,7 @@ static void testSshConnectionSessionFlow(void)
 		0u,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs++
+		(Timer += 0.001)
 	);
 	Packet = testSshConnectionReceivePrepare(
 		&Client,
@@ -545,12 +543,12 @@ static void testSshConnectionSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire(Packet.Kind ==
 		XSSH_CONNECTION_PACKET_CHANNEL_CONFIRMATION,
 		"ssh connection confirmation kind mismatch");
-	testSshConnectionReceiveCommit(&Client, &ClientCore, iNowMs++);
+	testSshConnectionReceiveCommit(&Client, &ClientCore, (Timer += 0.001));
 	testRequire(xrtSshChannelCoreOpen(&ClientRegistry.Channels[1]) &&
 		xrtSshChannelCoreOpen(&ServerRegistry.Channels[2]),
 		"ssh connection channel did not open");
@@ -577,7 +575,7 @@ static void testSshConnectionSessionFlow(void)
 		77u,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs++
+		(Timer += 0.001)
 	);
 	testRequire(xrtSshReplyQueueCount(
 		&ClientRegistry.Replies[1]
@@ -589,14 +587,14 @@ static void testSshConnectionSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire((Packet.Kind == XSSH_CONNECTION_PACKET_CHANNEL_REQUEST) &&
 		Packet.Message.ChannelRequest.WantReply && testSshTextEqual(
 			Packet.Message.ChannelRequest.Type,
 			XRT_STR_LITERAL("exec")
 		), "ssh connection request view mismatch");
-	testSshConnectionReceiveCommit(&Server, &ServerCore, iNowMs++);
+	testSshConnectionReceiveCommit(&Server, &ServerCore, (Timer += 0.001));
 
 	testRequire(xrtSshWriterInit(
 		&Writer,
@@ -616,7 +614,7 @@ static void testSshConnectionSessionFlow(void)
 		0u,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs++
+		(Timer += 0.001)
 	);
 	Packet = testSshConnectionReceivePrepare(
 		&Client,
@@ -625,12 +623,12 @@ static void testSshConnectionSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire((Packet.Kind == XSSH_CONNECTION_PACKET_CHANNEL_SUCCESS) &&
 		Packet.HasReplyToken && (Packet.ReplyToken == 77u),
 		"ssh connection response token mismatch");
-	testSshConnectionReceiveCommit(&Client, &ClientCore, iNowMs++);
+	testSshConnectionReceiveCommit(&Client, &ClientCore, (Timer += 0.001));
 	testRequire(xrtSshReplyQueueCount(
 		&ClientRegistry.Replies[1]
 	) == 0u, "ssh connection response token not consumed");
@@ -655,7 +653,7 @@ static void testSshConnectionSessionFlow(void)
 		0u,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs++
+		(Timer += 0.001)
 	);
 	testRequire(ClientRegistry.Channels[1].Window.SendWindow == 120u,
 		"ssh connection send window mismatch");
@@ -666,14 +664,14 @@ static void testSshConnectionSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire((Packet.Kind == XSSH_CONNECTION_PACKET_CHANNEL_DATA) &&
 		testSshBytesEqual(
 			Packet.Message.ChannelData.Data,
 			(xbytesview){ arrData, sizeof(arrData) }
 		), "ssh connection data view mismatch");
-	testSshConnectionReceiveCommit(&Server, &ServerCore, iNowMs++);
+	testSshConnectionReceiveCommit(&Server, &ServerCore, (Timer += 0.001));
 	testRequire((ServerRegistry.Channels[2].Window.ReceiveWindow == 120u) &&
 		(ServerRegistry.Channels[2].Window.ReceiveBuffered == 40u) &&
 		(xrtSshChannelCoreDataConsume(
@@ -702,7 +700,7 @@ static void testSshConnectionSessionFlow(void)
 		0u,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs++
+		(Timer += 0.001)
 	);
 	Packet = testSshConnectionReceivePrepare(
 		&Client,
@@ -711,11 +709,11 @@ static void testSshConnectionSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire(Packet.Kind == XSSH_CONNECTION_PACKET_CHANNEL_ADJUST,
 		"ssh connection adjust kind mismatch");
-	testSshConnectionReceiveCommit(&Client, &ClientCore, iNowMs++);
+	testSshConnectionReceiveCommit(&Client, &ClientCore, (Timer += 0.001));
 	testRequire((ClientRegistry.Channels[1].Window.SendWindow == 160u) &&
 		(ServerRegistry.Channels[2].Window.ReceiveWindow == 160u),
 		"ssh connection adjust commit mismatch");
@@ -741,7 +739,7 @@ static void testSshConnectionSessionFlow(void)
 		99u,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs++
+		(Timer += 0.001)
 	);
 	testRequire(xrtSshReplyQueueCount(&ClientGlobal) == 1u,
 		"ssh connection global token not queued");
@@ -752,12 +750,12 @@ static void testSshConnectionSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire((Packet.Kind == XSSH_CONNECTION_PACKET_GLOBAL_REQUEST) &&
 		Packet.Message.GlobalRequest.WantReply,
 		"ssh connection global request mismatch");
-	testSshConnectionReceiveCommit(&Server, &ServerCore, iNowMs++);
+	testSshConnectionReceiveCommit(&Server, &ServerCore, (Timer += 0.001));
 
 	testRequire(xrtSshWriterInit(
 		&Writer,
@@ -777,7 +775,7 @@ static void testSshConnectionSessionFlow(void)
 		0u,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs++
+		(Timer += 0.001)
 	);
 	Packet = testSshConnectionReceivePrepare(
 		&Client,
@@ -786,7 +784,7 @@ static void testSshConnectionSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire((Packet.Kind == XSSH_CONNECTION_PACKET_GLOBAL_SUCCESS) &&
 		Packet.HasReplyToken && (Packet.ReplyToken == 99u) &&
@@ -794,7 +792,7 @@ static void testSshConnectionSessionFlow(void)
 			Packet.Message.GlobalSuccess,
 			(xbytesview){ arrGlobalFields, sizeof(arrGlobalFields) }
 		), "ssh connection global response mismatch");
-	testSshConnectionReceiveCommit(&Client, &ClientCore, iNowMs++);
+	testSshConnectionReceiveCommit(&Client, &ClientCore, (Timer += 0.001));
 	testRequire(xrtSshReplyQueueCount(&ClientGlobal) == 0u,
 		"ssh connection global token not consumed");
 
@@ -817,7 +815,7 @@ static void testSshConnectionSessionFlow(void)
 		0u,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs++
+		(Timer += 0.001)
 	);
 	Packet = testSshConnectionReceivePrepare(
 		&Server,
@@ -826,11 +824,11 @@ static void testSshConnectionSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire(Packet.Kind == XSSH_CONNECTION_PACKET_CHANNEL_EOF,
 		"ssh connection EOF kind mismatch");
-	testSshConnectionReceiveCommit(&Server, &ServerCore, iNowMs++);
+	testSshConnectionReceiveCommit(&Server, &ServerCore, (Timer += 0.001));
 
 	testRequire(xrtSshWriterInit(
 		&Writer,
@@ -850,7 +848,7 @@ static void testSshConnectionSessionFlow(void)
 		0u,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs++
+		(Timer += 0.001)
 	);
 	Packet = testSshConnectionReceivePrepare(
 		&Server,
@@ -859,11 +857,11 @@ static void testSshConnectionSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire(Packet.Kind == XSSH_CONNECTION_PACKET_CHANNEL_CLOSE,
 		"ssh connection close receive mismatch");
-	testSshConnectionReceiveCommit(&Server, &ServerCore, iNowMs++);
+	testSshConnectionReceiveCommit(&Server, &ServerCore, (Timer += 0.001));
 
 	testRequire(xrtSshWriterInit(
 		&Writer,
@@ -883,7 +881,7 @@ static void testSshConnectionSessionFlow(void)
 		0u,
 		arrWire,
 		sizeof(arrWire),
-		iNowMs++
+		(Timer += 0.001)
 	);
 	Packet = testSshConnectionReceivePrepare(
 		&Client,
@@ -892,11 +890,11 @@ static void testSshConnectionSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	);
 	testRequire(Packet.Kind == XSSH_CONNECTION_PACKET_CHANNEL_CLOSE,
 		"ssh connection close reply mismatch");
-	testSshConnectionReceiveCommit(&Client, &ClientCore, iNowMs);
+	testSshConnectionReceiveCommit(&Client, &ClientCore, Timer);
 	testRequire(xrtSshChannelCoreClosed(&ClientRegistry.Channels[1]) &&
 		xrtSshChannelCoreClosed(&ServerRegistry.Channels[2]),
 		"ssh connection channels not reclaimable");
@@ -998,18 +996,14 @@ static void testSshConnectionSessionAbort(void)
 		NULL,
 		0u,
 		arrWire,
-		sizeof(arrWire),
-		1u
-	);
+		sizeof(arrWire), ((double)(1u)) / 1000.0);
 	Packet = testSshConnectionReceivePrepare(
 		&Server,
 		&ServerCore,
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		1u
-	);
+		sizeof(arrPlain), ((double)(1u)) / 1000.0);
 	testRequire((Packet.Kind == XSSH_CONNECTION_PACKET_GLOBAL_REQUEST) &&
 		(xrtSshConnectionSessionReadAbort(&Server) == XSSH_OK) &&
 		(xrtSshTransportCoreReadAbort(&ServerCore) == XSSH_OK) &&
@@ -1061,9 +1055,7 @@ static void testSshConnectionSessionRouting(void)
 		&ClientCore,
 		(xbytesview){ arrUnknown, sizeof(arrUnknown) },
 		arrWire,
-		sizeof(arrWire),
-		1u
-	);
+		sizeof(arrWire), ((double)(1u)) / 1000.0);
 	testRequire(xrtSshReaderInit(
 		&Reader,
 		(xbytesview){ arrWire, iWireSize }
@@ -1072,9 +1064,7 @@ static void testSshConnectionSessionRouting(void)
 		&Reader,
 		&Packet,
 		arrPlain,
-		sizeof(arrPlain),
-		1u
-	) == XSSH_OK) && (xrtSshConnectionSessionReadPrepare(
+		sizeof(arrPlain), ((double)(1u)) / 1000.0) == XSSH_OK) && (xrtSshConnectionSessionReadPrepare(
 		&Server,
 		&ServerCore,
 		Packet.Payload,
@@ -1082,8 +1072,7 @@ static void testSshConnectionSessionRouting(void)
 	) == XSSH_ERROR_UNSUPPORTED) && xrtSshConnectionSessionActive(
 		&Server
 	) && (xrtSshTransportCoreReadCommit(
-		&ServerCore,
-		1u,
+		&ServerCore, ((double)(1u)) / 1000.0,
 		&Decision
 	) == XSSH_OK), "ssh connection unknown message was not routable");
 
@@ -1091,9 +1080,7 @@ static void testSshConnectionSessionRouting(void)
 		&ClientCore,
 		(xbytesview){ arrMalformed, sizeof(arrMalformed) },
 		arrWire,
-		sizeof(arrWire),
-		2u
-	);
+		sizeof(arrWire), ((double)(2u)) / 1000.0);
 	testRequire(xrtSshReaderInit(
 		&Reader,
 		(xbytesview){ arrWire, iWireSize }
@@ -1102,9 +1089,7 @@ static void testSshConnectionSessionRouting(void)
 		&Reader,
 		&Packet,
 		arrPlain,
-		sizeof(arrPlain),
-		2u
-	) == XSSH_OK) && (xrtSshConnectionSessionReadPrepare(
+		sizeof(arrPlain), ((double)(2u)) / 1000.0) == XSSH_OK) && (xrtSshConnectionSessionReadPrepare(
 		&Server,
 		&ServerCore,
 		Packet.Payload,

@@ -76,10 +76,10 @@ static bool xsshSessionStreamCurrent(const xsshsessionstream* pSession)
 
 
 
-/* SSH rekey 时钟使用毫秒，XRT 单调时钟使用微秒。 */
-static uint64 xsshSessionStreamNow(void)
+/* SSH rekey 和等待统一使用 Timer 的 double 秒数。 */
+static double xsshSessionStreamNow(void)
 {
-	return xrtTimer() / 1000u;
+	return xrtTimer();
 }
 
 

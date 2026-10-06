@@ -122,7 +122,7 @@ XRT_API bool xrtHttpRetryAfterParse(
 
 
 
-/* 把线路秒数或绝对墙钟时间安全转换为微秒延迟。 */
+/* 把线路秒数或绝对墙钟时间安全转换为毫秒延迟。 */
 XRT_API bool xrtHttpRetryAfterDelay(
 	const xhttpretryafter* pRetry,
 	xtime iNow,

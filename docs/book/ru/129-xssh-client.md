@@ -25,7 +25,7 @@ api: xssh-ssh_client, xssh-ssh_client_core, xssh-ssh_session_stream
 ```diagram flow
 - Сборка: ConfigInit + ClientInit -> таблица событий уходит в NetStreamConnect (или Attach на готовом потоке)
 - TCP открыт: привязка Worker (scratch каналов/управляющих сообщений подключается к пулу буферов только теперь)
-- ReadyTimeout (умолчание 30с, микросекунды) покрывает: обмен версиями -> KEX -> доверие хоста -> аутентификацию
+- ReadyTimeout (умолчание 30с, миллисекунды) покрывает: обмен версиями -> KEX -> доверие хоста -> аутентификацию
 - Ready: SSH пригоден - стартовая точка каналов/переадресации
 - Ошибка/тайм-аут: структурированная ошибка (XSSH_ERROR_TIMEOUT/XERR_TIMEOUT/домен) достигает Error/Close/всех ожидающих Future одновременно
 - Сторона TCP: дедлайн DNS/установления - в xnetdialconfig.Timeout (управляется независимо)

@@ -449,7 +449,7 @@ void xworkAgentConfigInit(xwork_agent_config* pConfig)
 {
     if ( !pConfig ) return;
     memset(pConfig, 0, sizeof(*pConfig));
-    pConfig->uDeadline = INFINITY;
+    pConfig->iTimeout = XRT_WAIT_FOREVER;
     pConfig->eApprovalMode = XWORK_APPROVAL_AUTO;
     pConfig->uCommandTimeoutMs = 120000u;
     pConfig->uMaxAgentTurns = 0u;
@@ -627,7 +627,7 @@ xwork_agent* xworkAgentCreate(const xwork_agent_config* pConfig, xwork_error* pE
     pAgent->sModel = pConfig->sModel ? xwork__strdup(pConfig->sModel) : NULL;
     pAgent->sReasoningEffort = pConfig->sReasoningEffort ? xwork__strdup(pConfig->sReasoningEffort) : NULL;
     pAgent->pCancel = xrtCancelChild(pConfig->pCancel);
-    pAgent->uDeadline = pConfig->uDeadline;
+    pAgent->uDeadline = __xrtWaitAfter(pConfig->iTimeout);
     xrtFree(sRoot);
     if ( !pAgent->sWorkspaceRoot || !pAgent->sSystemPrompt || !pAgent->sArtifactDirectory ||
          (pConfig->sSessionPath && !pAgent->sSessionPath) ||

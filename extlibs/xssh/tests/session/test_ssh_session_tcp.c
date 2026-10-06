@@ -134,8 +134,7 @@ static void testSshSessionTcpSendKexInit(
 		NULL,
 		0u,
 		testSshSessionTcpPadding,
-		&iPadding,
-		1u,
+		&iPadding, ((double)(1u)) / 1000.0,
 		&Kind
 	) == XSSH_OK) && (Kind == XSSH_SESSION_PACKET_KEXINIT) &&
 		(xrtSshSessionTcpWriteAbort(
@@ -147,13 +146,11 @@ static void testSshSessionTcpSendKexInit(
 		NULL,
 		0u,
 		testSshSessionTcpPadding,
-		&iPadding,
-		2u,
+		&iPadding, ((double)(2u)) / 1000.0,
 		&Kind
 	) == XSSH_OK) && (xrtSshSessionTcpWriteSubmit(
 		&pEndpoint->Session,
-		pEndpoint->Stream,
-		2u,
+		pEndpoint->Stream, ((double)(2u)) / 1000.0,
 		&Decision
 	) == XNET_RESULT_OK) && (Decision == XSSH_REKEY_NONE),
 		"ssh TCP session KEXINIT transaction failed");
@@ -196,8 +193,7 @@ static void testSshSessionTcpRead(
 					"SSH-2.0-",
 					8u
 			) == 0) && (xrtSshSessionTcpReadCommit(
-				&pEndpoint->Session,
-				0u,
+				&pEndpoint->Session, ((double)(0u)) / 1000.0,
 				&Decision
 			) == XSSH_OK) && (Decision == XSSH_REKEY_NONE),
 				"ssh TCP session identification read failed");
@@ -236,16 +232,14 @@ static void testSshSessionTcpRead(
 					sizeof(arrPlain),
 					NULL,
 					0u,
-					NULL,
-					2u,
+					NULL, ((double)(2u)) / 1000.0,
 					&Packet
 				) == XSSH_OK) &&
 				(Packet.Session.Kind == XSSH_SESSION_PACKET_KEXINIT) &&
 				(Packet.Transport.Payload.Data ==
 				 Packet.Session.Payload.Data) &&
 				(xrtSshSessionTcpReadCommit(
-					&pEndpoint->Session,
-					2u,
+					&pEndpoint->Session, ((double)(2u)) / 1000.0,
 					&Decision
 				) == XSSH_OK), "ssh TCP session packet read failed");
 			(void)xrtAtomic32FetchAdd(
@@ -277,9 +271,7 @@ static void testSshSessionTcpOpen(xnetstream* pStream, ptr pData)
 	) && xrtSshSessionTcpInit(
 		&pEndpoint->Session,
 		xrtNetWorkerBufPool(xrtNetStreamWorker(pStream)),
-		&Config,
-		0u
-	) && (xrtSshSessionTcpIdentificationWritePrepare(
+		&Config, ((double)(0u)) / 1000.0) && (xrtSshSessionTcpIdentificationWritePrepare(
 		&pEndpoint->Session,
 		Version
 	) == XSSH_OK) && (xrtSshSessionTcpWriteSize(
@@ -291,8 +283,7 @@ static void testSshSessionTcpOpen(xnetstream* pStream, ptr pData)
 		Version
 	) == XSSH_OK) && (xrtSshSessionTcpWriteSubmit(
 		&pEndpoint->Session,
-		pStream,
-		0u,
+		pStream, ((double)(0u)) / 1000.0,
 		&Decision
 	) == XNET_RESULT_OK) && (Decision == XSSH_REKEY_NONE),
 		"ssh TCP session open transaction failed");
@@ -406,9 +397,7 @@ static void testSshSessionTcpState(void)
 	) && xrtSshSessionTcpInit(
 		&Session,
 		NULL,
-		&Config,
-		0u
-	) && (sizeof(Session) < 3072u) &&
+		&Config, ((double)(0u)) / 1000.0) && (sizeof(Session) < 3072u) &&
 		(xrtSshSessionTcpTransport(&Session) == &Session.Transport) &&
 		(xrtSshSessionTcpCore(&Session) == &Session.Session) &&
 		(xrtSshSessionTcpPhase(&Session) == XSSH_SESSION_IDENTIFICATION) &&
@@ -434,9 +423,7 @@ static void testSshSessionTcpState(void)
 	testRequire(xrtSshSessionTcpInit(
 		&Session,
 		NULL,
-		&Config,
-		0u
-	) && xrtNetBufInit(&Input, NULL) && xrtNetBufAppend(
+		&Config, ((double)(0u)) / 1000.0) && xrtNetBufInit(&Input, NULL) && xrtNetBufAppend(
 		&Input,
 		arrInvalidVersion,
 		sizeof(arrInvalidVersion) - 1u

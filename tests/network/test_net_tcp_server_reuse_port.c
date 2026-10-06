@@ -9,7 +9,7 @@ static void testTcpServerReusePortWait(
 	xnetserver* pServer
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 	xnetenginestats Stats;
 
 	for ( ;; ) {

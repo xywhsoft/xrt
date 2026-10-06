@@ -7351,7 +7351,7 @@ typedef enum xhttpcachetimeflag {
 
 /*
 	缓存时间元数据独立于存储和网络。
-	Date 与 Expires 使用 Unix Epoch 微秒，Age 使用线路秒数。
+	Date 与 Expires 使用 Unix Epoch 毫秒，Age 使用线路秒数。
 */
 typedef struct xhttpcachetime {
 	xtime Date;
@@ -7378,7 +7378,7 @@ typedef enum xhttpcachecalc {
 
 /*
 	年龄结果保留 RFC 9111 公式的全部中间量。
-	除 CurrentAgeSeconds 使用线路秒数外，其余成员均使用微秒。
+	除 CurrentAgeSeconds 使用线路秒数外，其余成员均使用毫秒。
 */
 typedef struct xhttpcacheage {
 	uint64 ApparentAge;
@@ -7404,7 +7404,7 @@ typedef enum xhttpcachefreshnesssource {
 
 
 
-/* 显式新鲜寿命使用微秒，不包含站点自定义的启发式策略。 */
+/* 显式新鲜寿命使用毫秒，不包含站点自定义的启发式策略。 */
 typedef struct xhttpcachefreshness {
 	uint64 Lifetime;
 	xhttpcachefreshnesssource Source;
@@ -7454,9 +7454,9 @@ XRT_API bool xrtHttpCacheTimeParse(
 XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 	const xhttpcachetime* pTime,
 	xtime ResponseTime,
-	uint64 RequestClock,
-	uint64 ResponseClock,
-	uint64 NowClock,
+	double RequestClock,
+	double ResponseClock,
+	double NowClock,
 	xhttpcacheage* pAge
 );
 
@@ -7666,7 +7666,7 @@ typedef struct xhttpcacheuseinput {
 
 
 
-/* StaleBy 使用微秒；新鲜命中和非复用结果均为零。 */
+/* StaleBy 使用毫秒；新鲜命中和非复用结果均为零。 */
 typedef struct xhttpcacheuseplan {
 	uint64 StaleBy;
 	xhttpcacheusedecision Decision;
@@ -8312,7 +8312,7 @@ typedef struct xhttpetagitem {
 
 #if defined(XHTTP_FEATURE_HTTP_PRECONDITION)
 
-/* 当前选定表示的验证器；时间使用 Unix Epoch 微秒。 */
+/* 当前选定表示的验证器；时间使用 Unix Epoch 毫秒。 */
 typedef struct xhttprepresentation {
 	bool Exists;
 	bool HasETag;
@@ -9562,8 +9562,8 @@ typedef struct xhttpcacherecordinput {
 	size_t PartCount;
 	uint64 Length;
 	xtime ResponseTime;
-	uint64 RequestClock;
-	uint64 ResponseClock;
+	double RequestClock;
+	double ResponseClock;
 } xhttpcacherecordinput;
 
 
@@ -9851,14 +9851,14 @@ XRT_API xtime xrtHttpCacheRecordResponseTime(
 
 
 /* 返回发出请求时的单调时钟。 */
-XRT_API uint64 xrtHttpCacheRecordRequestClock(
+XRT_API double xrtHttpCacheRecordRequestClock(
 	const xhttpcacherecord* pRecord
 );
 
 
 
 /* 返回收到响应时的单调时钟。 */
-XRT_API uint64 xrtHttpCacheRecordResponseClock(
+XRT_API double xrtHttpCacheRecordResponseClock(
 	const xhttpcacherecord* pRecord
 );
 
@@ -16311,7 +16311,7 @@ XRT_API bool xrtHttpRetryAfterParse(
 
 
 /*
-	把 Retry-After 转换为当前应等待的微秒数。
+	把 Retry-After 转换为当前应等待的毫秒数。
 	过去的绝对日期得到零；转换溢出时不修改输出。
 */
 XRT_API bool xrtHttpRetryAfterDelay(
@@ -16323,7 +16323,7 @@ XRT_API bool xrtHttpRetryAfterDelay(
 
 
 /*
-	读取唯一 Retry-After 字段并转换为微秒数。
+	读取唯一 Retry-After 字段并转换为毫秒数。
 	缺失返回 END，唯一有效值返回 ITEM，重复或非法值返回 ERROR。
 	缺失和错误都把输出清零。
 */
@@ -17040,7 +17040,7 @@ typedef enum xcookiestorestatus {
 #define XCOOKIE_INFO_PERSISTENT		UINT32_C(0x00000008)
 #define XCOOKIE_INFO_PARTITIONED	UINT32_C(0x00000010)
 
-/* CookieInfo 只借用所属快照，时间使用与 xrt 时间模块一致的微秒。 */
+/* CookieInfo 只借用所属快照，时间使用与 xrt 时间模块一致的毫秒。 */
 typedef struct xcookieinfo {
 	uint32 Flags;
 	xcookiesamesite SameSite;
@@ -17349,9 +17349,9 @@ XRT_EXTERN_C_END
 
 #if defined(XHTTP_FEATURE_HTTP_CLIENT)
 
-#define XHTTP_CLIENT_TIMEOUT_DEFAULT UINT64_C(30000000)
-#define XHTTP_CLIENT_IDLE_TIMEOUT_DEFAULT UINT64_C(30000000)
-#define XHTTP_CLIENT_TIMEOUT_NONE UINT64_MAX
+#define XHTTP_CLIENT_TIMEOUT_DEFAULT INT64_C(30000)
+#define XHTTP_CLIENT_IDLE_TIMEOUT_DEFAULT INT64_C(30000)
+#define XHTTP_CLIENT_TIMEOUT_NONE XRT_WAIT_FOREVER
 
 
 
@@ -17549,7 +17549,7 @@ typedef enum xhttpclienterror {
 
 
 /*
-	Info 是可并发读取的单调时钟快照，时间单位均为微秒。
+	Info 是可并发读取的单调时钟快照，时间单位均为毫秒。
 	未到达的时间点为零；Result 在运行期间为 AGAIN，终态后不再变化。
 */
 typedef struct xhttpcallinfo {
@@ -17559,15 +17559,15 @@ typedef struct xhttpcallinfo {
 	xnetresult Result;
 	xhttpclienterror Error;
 
-	/* 完整 Call 的单调时间点。 */
-	uint64 Submitted;
-	uint64 Started;
-	uint64 TransportReady;
-	uint64 RequestSent;
-	uint64 FirstByte;
-	uint64 Headers;
-	uint64 LastProgress;
-	uint64 Completed;
+	/* 完整 Call 的公元 UTC 毫秒事件时间。 */
+	xtime Submitted;
+	xtime Started;
+	xtime TransportReady;
+	xtime RequestSent;
+	xtime FirstByte;
+	xtime Headers;
+	xtime LastProgress;
+	xtime Completed;
 
 	/* 线路累计量与最终可见响应正文量。 */
 	uint64 RequestWireBytes;
@@ -17634,8 +17634,8 @@ typedef enum xhttpredirectmode {
 
 
 #define XHTTP_RETRY_MAX_DEFAULT UINT32_C(2)
-#define XHTTP_RETRY_BASE_DEFAULT UINT64_C(250000)
-#define XHTTP_RETRY_DELAY_MAX_DEFAULT UINT64_C(30000000)
+#define XHTTP_RETRY_BASE_DEFAULT INT64_C(250)
+#define XHTTP_RETRY_DELAY_MAX_DEFAULT INT64_C(30000)
 
 #define XHTTP_RETRY_STATUS UINT32_C(0x00000001)
 #define XHTTP_RETRY_TRANSPORT UINT32_C(0x00000002)
@@ -17648,7 +17648,7 @@ typedef enum xhttpredirectmode {
 
 /*
 	MaxRetries 为零时关闭 Client 默认重试。
-	BaseDelay 与 MaxDelay 使用微秒；Flags 分别控制状态、传输、服务端建议和抖动。
+	BaseDelay 与 MaxDelay 使用毫秒；Flags 分别控制状态、传输、服务端建议和抖动。
 */
 typedef struct xhttpretryconfig {
 	uint64 BaseDelay;
@@ -17710,8 +17710,8 @@ typedef struct xhttpclientpoolconfig {
 	size_t MaxIdle;
 	/* 单 Origin 可复用空闲连接上限；零表示不保留。 */
 	size_t MaxIdlePerOrigin;
-	/* 空闲连接保留时间，单位为微秒；零表示不按时间清扫。 */
-	uint64 IdleTimeout;
+	/* 空闲连接保留时间，单位为毫秒；零表示不按时间清扫。 */
+	int64 IdleTimeout;
 } xhttpclientpoolconfig;
 
 
@@ -17803,7 +17803,7 @@ typedef struct xhttpdecompressconfig {
 
 /*
 	Timeout 覆盖排队、DNS、TCP、代理、TLS 和 HTTP I/O 的总时长。
-	IdleTimeout 限制没有传输进度的连续时长；两者单位均为微秒。
+	IdleTimeout 限制没有传输进度的连续时长；两者单位均为毫秒。
 	Resolver 只在 xrtHttpClientCreate 创建私有解析器时使用。
 */
 typedef struct xhttpclientconfig {
@@ -17811,8 +17811,8 @@ typedef struct xhttpclientconfig {
 	xnetdialconfig Dial;
 	xhttp1callconfig Call;
 	xhttp1exchangeconfig Exchange;
-	uint64 Timeout;
-	uint64 IdleTimeout;
+	int64 Timeout;
+	int64 IdleTimeout;
 	/* Client 创建时保留默认代理；空指针表示默认直连。 */
 	const xnetproxy* Proxy;
 	xhttpredirectconfig Redirect;
@@ -17839,8 +17839,8 @@ typedef struct xhttpcalloptions {
 	xhttp1requestoptions Request;
 	xhttpcallevents Events;
 	xcancel* Cancel;
-	uint64 Timeout;
-	uint64 IdleTimeout;
+	int64 Timeout;
+	int64 IdleTimeout;
 	/* 零值继承 Client；限制解码前表示正文，UINT64_MAX 允许无界流。 */
 	uint64 ResponseBodyLimit;
 	xhttpproxyoptions Proxy;
@@ -21600,7 +21600,7 @@ typedef enum xhttpservererror {
 
 
 /*
-	全部超时使用微秒，零表示关闭对应保护。
+	全部超时使用毫秒，零表示关闭对应保护。
 	WriteSize 只限制单次零复制发送租约，不建立每连接固定缓冲。
 	MaxConnections 为零时不限制，仍受系统和 Engine 硬边界约束。
 */
@@ -21608,11 +21608,11 @@ typedef struct xhttpserverconfig {
 	xnetserverconfig Network;
 	xhttp1serverconfig Http1;
 	size_t WriteSize;
-	uint64 HeaderTimeout;
-	uint64 BodyTimeout;
-	uint64 RequestTimeout;
-	uint64 IdleTimeout;
-	uint64 WriteTimeout;
+	int64 HeaderTimeout;
+	int64 BodyTimeout;
+	int64 RequestTimeout;
+	int64 IdleTimeout;
+	int64 WriteTimeout;
 	size_t MaxConnections;
 	size_t MaxInformations;
 } xhttpserverconfig;
@@ -21683,7 +21683,7 @@ typedef struct xhttpserverstats {
 	uint64 Informations;
 	uint64 Upgraded;
 	uint64 ProtocolErrors;
-	uint64 Timeouts;
+	int64 Timeouts;
 	size_t Connections;
 	size_t PeakConnections;
 	size_t Endpoints;

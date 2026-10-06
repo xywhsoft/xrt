@@ -15,8 +15,8 @@ int main(void)
 	Config.Backend = XNET_PORT_SELECT;
 	pPort = xrtNetPortCreate(&Config);
 	if ( (pPort == NULL) || !xrtNetPortWake(pPort) ||
-		 (xrtNetPortWait(pPort, &Event, 1,
-		xrtDeadlineAfter(1000000), &iCount) != XNET_RESULT_OK) ||
+		 (__xrtNetPortWait(pPort, &Event, 1,
+		__xrtWaitAfter(1000), &iCount) != XNET_RESULT_OK) ||
 		 (iCount != 1) || (Event.Type != XNET_PORT_EVENT_WAKE) ) {
 		if ( pPort != NULL ) { (void)xrtNetPortDestroy(pPort); }
 		return 1;

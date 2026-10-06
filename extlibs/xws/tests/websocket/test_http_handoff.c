@@ -35,7 +35,7 @@ static void testWsHttpHandoffWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -179,7 +179,7 @@ static xfuture* testWsHttpHandoffFutureTake(
 	test_ws_http_handoff* pState
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 	xfuture* pFuture;
 
 	do {
@@ -206,7 +206,7 @@ static void testWsHttpHandoffFutureClosed(
 	xwsconn* pConnection
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtWsConnState(pConnection) != XWS_CONN_CLOSED ) {
 		testRequire(
@@ -782,7 +782,7 @@ int main(void)
 		testRequire(
 			(xrtFutureWaitFor(
 				pFuture,
-				UINT64_C(10000000)
+				INT64_C(10000)
 			 ) == XWAIT_OK) &&
 			(xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 			"WebSocket server Future did not resolve"
@@ -825,7 +825,7 @@ int main(void)
 		testRequire(
 			(xrtFutureWaitFor(
 				pFuture,
-				UINT64_C(10000000)
+				INT64_C(10000)
 			 ) == XWAIT_OK) &&
 			(xrtFutureState(pFuture) == XFUTURE_CANCELLED),
 			"WebSocket server Future cancellation mismatch"

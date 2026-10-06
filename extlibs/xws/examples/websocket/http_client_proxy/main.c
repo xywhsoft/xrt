@@ -1,9 +1,25 @@
-#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <xws.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -97,7 +113,7 @@ static bool exampleWsProxyWait(
 		&pExample->Done,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
-		if ( __xrtWaitExpired(Deadline) ) {
+		if ( exampleTimerExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -185,12 +201,12 @@ int main(
 	}
 	if ( !exampleWsProxyWait(
 		&Example,
-		__xrtWaitAfter(UINT64_C(35000000))
+		exampleTimerLimit(INT64_C(35000))
 	) ) {
 		(void)xrtHttpCallCancel(pCall);
 		(void)exampleWsProxyWait(
 			&Example,
-			__xrtWaitAfter(UINT64_C(5000000))
+			exampleTimerLimit(INT64_C(5000))
 		);
 		goto Cleanup;
 	}
@@ -215,10 +231,10 @@ int main(
 	) != XNET_RESULT_OK ) {
 		goto Cleanup;
 	}
-	Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	Deadline = exampleTimerLimit(INT64_C(5000));
 	while ( xrtWsConnState(Example.Connection) !=
 		XWS_CONN_CLOSED ) {
-		if ( __xrtWaitExpired(Deadline) ) {
+		if ( exampleTimerExpired(Deadline) ) {
 			(void)xrtWsConnAbort(Example.Connection);
 			goto Cleanup;
 		}

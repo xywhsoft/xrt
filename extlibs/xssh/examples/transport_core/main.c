@@ -12,9 +12,7 @@ int main(void)
 		&Core,
 		XSSH_ROLE_CLIENT,
 		0u,
-		NULL,
-		0u
-	) ) {
+		NULL, ((double)(0u)) / 1000.0) ) {
 		return 1;
 	}
 	printf("transport-core=%zu max-packet=%u\n",

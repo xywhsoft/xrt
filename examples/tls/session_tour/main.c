@@ -31,7 +31,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
-#include "embedded_identity.h"
+#include "../embedded_identity.h"
 
 /* FeedRef 的释放回调：记录次数。 */
 static void exampleRelease(ptr pContext, cbytes pData, size_t iSize)

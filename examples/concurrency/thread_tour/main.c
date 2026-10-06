@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：concurrency/thread_tour —— 线程生命周期/TLS/停止协作补集
  * ----------------------------------------------------------------
@@ -27,6 +26,23 @@
 #include <string.h>
 #include <xrt.h>
 
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
+
 /* TLS 值哨兵。 */
 static uint64 g_Sentinel = 0xABCD;
 
@@ -50,9 +66,9 @@ typedef struct examplestop {
 static int32 exampleStopWorker(ptr pData)
 {
 	examplestop* pJob = (examplestop*)pData;
-	double iDeadline = __xrtWaitAfter(UINT64_C(3000000));
+	double iDeadline = exampleTimerLimit(INT64_C(3000));
 
-	while ( __xrtWaitExpired(iDeadline) == false ) {
+	while ( exampleTimerExpired(iDeadline) == false ) {
 		/* StopRequested(NULL) 恒为假——线程内自检必须用
 		 * Stopping()（等价于当前对象的 StopRequested）。 */
 		if ( xrtThreadStopping() ) {
@@ -99,11 +115,10 @@ int main(void)
 	/* ---- 生命周期：WaitFor 超时 → WaitUntil 成功 ---- */
 	pThread = xrtThreadCreate(exampleWorker, NULL, 0u);
 	if ( (pThread == NULL) ||
-		(xrtThreadWaitFor(pThread, 1000u) == XWAIT_OK) ) {
+		(xrtThreadWaitFor(pThread, 1) == XWAIT_OK) ) {
 		goto Cleanup;  /* 50ms 睡眠：1ms 窗口内必未完成 */
 	}
-	if ( (__xrtThreadWaitUntil(pThread,
-			__xrtWaitAfter(UINT64_C(3000000))) !=
+	if ( (xrtThreadWaitFor(pThread,INT64_C(3000)) !=
 			XWAIT_OK) ||
 		(xrtThreadState(pThread) != XTHREAD_FINISHED) ||
 		(xrtThreadExitCode(pThread) != 42) ||
@@ -128,9 +143,9 @@ int main(void)
 	}
 	StopJob.pSelf = pStop;
 	{
-		double iGrace = __xrtWaitAfter(UINT64_C(100000));
+		double iGrace = exampleTimerLimit(INT64_C(100));
 
-		while ( __xrtWaitExpired(iGrace) == false ) {
+		while ( exampleTimerExpired(iGrace) == false ) {
 			xrtThreadYield();
 		}
 	}
@@ -138,10 +153,10 @@ int main(void)
 		goto Cleanup;
 	}
 	{
-		double iDeadline = __xrtWaitAfter(UINT64_C(3000000));
+		double iDeadline = exampleTimerLimit(INT64_C(3000));
 
 		while ( StopJob.bDone == false ) {
-			if ( __xrtWaitExpired(iDeadline) ) {
+			if ( exampleTimerExpired(iDeadline) ) {
 				goto Cleanup;
 			}
 			xrtThreadYield();

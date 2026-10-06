@@ -150,9 +150,7 @@ int main(void)
 	testRequire(xrtSshSessionTcpInit(
 		&Session,
 		pPool,
-		&Config,
-		0u
-	), "ssh reader OOM session initialization failed");
+		&Config, ((double)(0u)) / 1000.0), "ssh reader OOM session initialization failed");
 	testRequire(xrtSshSessionReaderInit(
 		&Reader,
 		pPool,
@@ -173,8 +171,7 @@ int main(void)
 	State.Hit = false;
 	Code = xrtSshSessionReaderPrepare(
 		&Reader,
-		&Input,
-		0u,
+		&Input, ((double)(0u)) / 1000.0,
 		&Packet
 	);
 	testRequire(State.Hit && (Code == XSSH_ERROR_SPACE) &&
@@ -188,14 +185,12 @@ int main(void)
 	State.FailAt = SIZE_MAX;
 	testRequire((xrtSshSessionReaderPrepare(
 		&Reader,
-		&Input,
-		0u,
+		&Input, ((double)(0u)) / 1000.0,
 		&Packet
 	) == XSSH_OK) &&
 		(Packet.Session.Kind == XSSH_SESSION_PACKET_KEXINIT) &&
 		(xrtSshSessionReaderCommit(
-			&Reader,
-			0u,
+			&Reader, ((double)(0u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && xrtNetBufEmpty(&Input) &&
 		(xrtSshSessionReaderState(&Reader) ==

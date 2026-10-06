@@ -53,8 +53,12 @@ PASSWORD = secrets.token_urlsafe(24)
 records = []
 OUT.mkdir(exist_ok=False)
 os.chmod(OUT, 0o755)
-upper = OUT / 'lib-upper'; upper.mkdir()
-work = OUT / 'lib-work'; work.mkdir()
+# Docker's overlay root cannot serve as the writable upper filesystem.
+# Keep both OverlayFS work directories on a private tmpfs in this namespace.
+lib_overlay = OUT / 'lib-overlay'; lib_overlay.mkdir()
+subprocess.run(['mount', '-t', 'tmpfs', '-o', 'mode=755', 'tmpfs', str(lib_overlay)], check=True)
+upper = lib_overlay / 'upper'; upper.mkdir()
+work = lib_overlay / 'work'; work.mkdir()
 subprocess.run(['mount', '-t', 'overlay', 'overlay', '-o', f'lowerdir=/usr/lib,upperdir={upper},workdir={work}', '/usr/lib'], check=True)
 Path('/usr/lib/dovecot').mkdir(exist_ok=True)
 subprocess.run(['mount', '--bind', str(RUNTIME / 'usr/lib/dovecot'), '/usr/lib/dovecot'], check=True)

@@ -98,7 +98,7 @@ int main(void)
 			"readiness stress datagram send failed");
 	}
 
-	Deadline = __xrtWaitAfter(5000000u);
+	Deadline = __xrtWaitAfter(5000);
 	while ( iCompleted < TEST_READINESS_WATCH_COUNT ) {
 		size_t iCount = 0;
 

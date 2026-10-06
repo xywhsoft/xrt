@@ -325,8 +325,8 @@ int main(int argc, char** argv)
 
 	testProcessRunSelf(&Config, argv[0], "sleep");
 	testRequire(xrtProcessRunOptionsInit(&Options), "deadline options init failed");
-	Options.Deadline = __xrtWaitAfter(20000u);
-	Options.StopGrace = 10000u;
+	Options.Timeout = 20;
+	Options.StopGrace = 10;
 	testRequire(xrtProcessRun(&Config, &Options, &Result), "deadline run failed");
 	testRequire(Result.Wait == XWAIT_TIMEOUT, "deadline result mismatch");
 	testRequire(Result.Status.Stop != XPROCESS_STOP_NONE, "deadline stop missing");
@@ -341,7 +341,7 @@ int main(int argc, char** argv)
 	testProcessRunSelf(&Config, argv[0], "sleep");
 	testRequire(xrtProcessRunOptionsInit(&Options), "cancel options init failed");
 	Options.Cancel = pCancel;
-	Options.StopGrace = 10000u;
+	Options.StopGrace = 10;
 	testRequire(xrtProcessRun(&Config, &Options, &Result), "cancel run failed");
 	testRequire(Result.Wait == XWAIT_CANCELLED, "cancel result mismatch");
 	testRequire(xrtThreadWait(pThread) == XWAIT_OK, "cancel thread wait failed");

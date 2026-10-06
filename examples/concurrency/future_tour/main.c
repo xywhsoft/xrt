@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：concurrency/future_tour —— Future 延续/观察/Promise 补集
  * ----------------------------------------------------------------
@@ -35,7 +34,7 @@
 #include <string.h>
 #include <xrt.h>
 
-#define EXAMPLE_TIMEOUT_US	UINT64_C(3000000)
+#define EXAMPLE_TIMEOUT_MS	INT64_C(3000)
 
 static volatile int g_Destroyed = 0;
 static volatile int g_WatchFired = 0;
@@ -101,8 +100,7 @@ static ptr exampleCoAwait(ptr pData)
 {
 	xfuture* pFuture = (xfuture*)pData;
 
-	return (ptr)(uintptr_t)__xrtFutureAwaitUntil(pFuture,
-		__xrtWaitAfter(EXAMPLE_TIMEOUT_US));
+	return (ptr)(uintptr_t)xrtFutureAwaitFor(pFuture,EXAMPLE_TIMEOUT_MS);
 }
 
 /* 主协程：睡一小会儿再解析。 */
@@ -110,7 +108,7 @@ static ptr exampleCoResolver(ptr pData)
 {
 	xpromise* pPromise = (xpromise*)pData;
 
-	(void)xrtCoSleep(100000u);
+	(void)xrtCoSleep(100);
 	(void)xrtPromiseResolve(pPromise, (ptr)7);
 	return NULL;
 }
@@ -141,15 +139,13 @@ int main(void)
 	pPromise = xrtPromiseCreate(&pFut1, NULL);
 	if ( (pPromise == NULL) || (pFut1 == NULL) ||
 		xrtFutureDone(pFut1) ||
-		(__xrtFutureWaitUntil(pFut1,
-			__xrtWaitAfter(100000u)) != XWAIT_TIMEOUT) ) {
+		(xrtFutureWaitFor(pFut1,100) != XWAIT_TIMEOUT) ) {
 		goto Cleanup;
 	}
 	pCancel = xrtCancelCreate();
 	if ( (pCancel == NULL) ||
 		!xrtCancelRequest(pCancel) ||
-		(__xrtFutureWaitUntilCancel(pFut1,
-			__xrtWaitAfter(EXAMPLE_TIMEOUT_US),
+		(xrtFutureWaitForCancel(pFut1,EXAMPLE_TIMEOUT_MS,
 			pCancel) != XWAIT_CANCELLED) ) {
 		goto Cleanup;
 	}
@@ -157,8 +153,7 @@ int main(void)
 	if ( (pRef != pFut1) || !xrtPromiseResolve(pPromise, (ptr)1) ) {
 		goto Cleanup;
 	}
-	if ( (__xrtFutureWaitUntil(pFut1,
-			__xrtWaitAfter(EXAMPLE_TIMEOUT_US)) !=
+	if ( (xrtFutureWaitFor(pFut1,EXAMPLE_TIMEOUT_MS) !=
 			XWAIT_OK) ||
 		!xrtFutureDone(pFut1) ) {
 		goto Cleanup;
@@ -224,7 +219,7 @@ int main(void)
 
 			if ( (pCatch == NULL) ||
 				(xrtFutureWaitFor(pCatch,
-					EXAMPLE_TIMEOUT_US) != XWAIT_OK) ||
+					EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ||
 				((uintptr_t)xrtFutureValue(pCatch) != 99u) ) {
 				goto Cleanup;
 			}
@@ -239,7 +234,7 @@ int main(void)
 				exampleFinallyObserve, NULL);
 			if ( (pFin == NULL) ||
 				(xrtFutureWaitFor(pFin,
-					EXAMPLE_TIMEOUT_US) != XWAIT_OK) ||
+					EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ||
 				((uintptr_t)xrtFutureValue(pFin) != 5u) ) {
 				goto Cleanup;
 			}
@@ -257,7 +252,7 @@ int main(void)
 				exampleContinueAny, NULL);
 			if ( (pAnyChain == NULL) ||
 				(xrtFutureWaitFor(pAnyChain,
-					EXAMPLE_TIMEOUT_US) != XWAIT_OK) ||
+					EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ||
 				((uintptr_t)xrtFutureValue(pAnyChain) !=
 					(uintptr_t)XFUTURE_RESOLVED) ) {
 				goto Cleanup;
@@ -277,7 +272,7 @@ int main(void)
 				exampleContinueRescue, NULL);
 			if ( (pCatchChain == NULL) ||
 				(xrtFutureWaitFor(pCatchChain,
-					EXAMPLE_TIMEOUT_US) != XWAIT_OK) ||
+					EXAMPLE_TIMEOUT_MS) != XWAIT_OK) ||
 				((uintptr_t)xrtFutureValue(pCatchChain) !=
 					99u) ) {
 				goto Cleanup;
@@ -288,7 +283,7 @@ int main(void)
 		}
 		/* ThenOwned 链核对。 */
 		if ( (pChain == NULL) ||
-			(xrtFutureWaitFor(pChain, EXAMPLE_TIMEOUT_US) !=
+			(xrtFutureWaitFor(pChain, EXAMPLE_TIMEOUT_MS) !=
 				XWAIT_OK) ||
 			((uintptr_t)xrtFutureValue(pChain) != 11u) ) {
 			goto Cleanup;
@@ -333,7 +328,7 @@ int main(void)
 				exampleFinallyObserve, NULL,
 				exampleDestroy, NULL);
 
-			(void)xrtFutureWaitFor(pF, EXAMPLE_TIMEOUT_US);
+			(void)xrtFutureWaitFor(pF, EXAMPLE_TIMEOUT_MS);
 			xrtFutureDestroy(pF);
 		}
 		{
@@ -344,7 +339,7 @@ int main(void)
 			(void)pG;
 		}
 		/* 五个 Owned 注册（B/D/E/F/G）析构受理数据。 */
-		(void)xrtFutureWaitFor(pB, EXAMPLE_TIMEOUT_US);
+		(void)xrtFutureWaitFor(pB, EXAMPLE_TIMEOUT_MS);
 		xrtFutureDestroy(pB);
 		if ( pD != NULL ) {
 			xrtFutureDestroy(pD);

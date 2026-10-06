@@ -381,7 +381,7 @@ int main(int argc, char** argv)
 			);
 			Options.Input.Data = (cbytes)sInput;
 			Options.Input.Size = sizeof(sInput) - 1u;
-			Options.Deadline = __xrtWaitAfter(UINT64_C(5000000));
+			Options.Timeout = INT64_C(5000);
 			memset(&Result, 0, sizeof(Result));
 			testRequire(
 				xrtProcessRun(&Config, &Options, &Result),

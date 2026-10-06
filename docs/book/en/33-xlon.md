@@ -16,7 +16,7 @@ JSON can't express far too much: binary needs hand-rolled Base64, timestamps nee
 
 The true shape of one internal config: the certificate key is binary (in JSON, only a Base64 string — the consumer must know "this string needs decoding"); the expiry is a timestamp (string or number? whose timezone?); the allowed ports are a set (what about duplicates in a JSON array? does the consumer deduplicate?); the connection parameters are a port-number-to-description map (JSON object keys can only be strings — who converts between "80" and 80?). Four fields, four conventions, two pages of documentation — and someone still got it wrong.
 
-XLON's answer is to make these four shapes **first-class types**: `bytes("AAEC...")` carries its own encoding declaration, `time("2026-07-31T00:00:00Z")` unifies on UTC microseconds, `set[80, 443]` deduplicates by semantics, `intmap{80: "http"}` maps with native integer keys — the value tree's `xvalue` (Chapter 30) already has these four types; XLON simply stops serialization from flattening them. The **superset design** guarantees smoothness: existing JSON toolchains keep working, and the JSON portions of an XLON document are legal to any JSON parser.
+XLON's answer is to make these four shapes **first-class types**: `bytes("AAEC...")` carries its own encoding declaration, `time("2026-07-31T00:00:00Z")` unifies on UTC milliseconds, `set[80, 443]` deduplicates by semantics, `intmap{80: "http"}` maps with native integer keys — the value tree's `xvalue` (Chapter 30) already has these four types; XLON simply stops serialization from flattening them. The **superset design** guarantees smoothness: existing JSON toolchains keep working, and the JSON portions of an XLON document are legal to any JSON parser.
 
 ## Concepts
 
@@ -24,7 +24,7 @@ XLON's answer is to make these four shapes **first-class types**: `bytes("AAEC..
 
 ```diagram flow
 - bytes("AAEC/w=="): binary inlined as Base64 - no external references; reads back as a bytes value
-- time("2026-07-31T00:00:00Z"): ISO 8601 - parsing normalizes to UTC, events carry a microsecond integer
+- time("2026-07-31T00:00:00Z"): ISO 8601 - parsing normalizes to UTC, events carry a millisecond integer
 - set[...]: deduplicated set - semantics as in Chapter 19's sets, serialized round-trips as-is
 - intmap{ 80: "http" }: integer-keyed map - keys no longer forced into strings
 ```
@@ -42,7 +42,7 @@ Three properties, worth stating separately. **Forward compatible**: any legal JS
 | Public-facing APIs | JSON | the lingua franca, any client can parse |
 | Internal configs | XLON | binary/time/sets expressed natively, zero conventions |
 | Data between internal services | XLON | both ends controllable, full-type round trip |
-| Human-edited configs | JSON or XLON | humans write ISO timestamp strings more kindly than microsecond numbers |
+| Human-edited configs | JSON or XLON | humans write ISO timestamp strings more kindly than millisecond numbers |
 
 The rule's core variable is **whether the receiver is controllable**: controllable → XLON for full types; not → JSON for interoperability. Mixed shapes are common too: the public API's fields use JSON types while the internal processing representation uses value trees (which always carry full types) — convert at the boundary, don't compromise inside.
 
@@ -72,7 +72,7 @@ time = 1785456000000000
 {"code":200,"tags":set["xrt"]}
 ```
 
-**What just happened.** (1) Serialization segment: the value tree's four types written out as-is — `bytes("AAEC/w==")` with its encoding declaration, `time(...)` as an ISO string, `set[...]` and `intmap{...}` each with their own bracket semantics. **Type information is visible in the text** — readers of the document need no convention table. (2) Parsing segment: `bytes = 4` — Base64 decoded back to 4 binary bytes; `time = 1785456000000000` — the ISO string normalized to a UTC microsecond integer (Chapter 3's `xtime` measure). (3) The last line is compact serialization (not pretty) — the shape of `set["xrt"]` on one line; machine channels use compact, on-disk review uses pretty, the same choice as JSON's.
+**What just happened.** (1) Serialization segment: the value tree's four types written out as-is — `bytes("AAEC/w==")` with its encoding declaration, `time(...)` as an ISO string, `set[...]` and `intmap{...}` each with their own bracket semantics. **Type information is visible in the text** — readers of the document need no convention table. (2) Parsing segment: `bytes = 4` — Base64 decoded back to 4 binary bytes; `time = 1785456000000000` — the ISO string normalized to a UTC millisecond integer (Chapter 3's `xtime` measure). (3) The last line is compact serialization (not pretty) — the shape of `set["xrt"]` on one line; machine channels use compact, on-disk review uses pretty, the same choice as JSON's.
 
 ### Complete program: file round trip and error location
 
@@ -96,7 +96,7 @@ xlon: sink writer full value domain ok
 
 - **Strict superset**: legal JSON is necessarily legal XLON; one parser suite; JSON documents contain no extended types.
 - **Four-type round trip**: bytes/time/set/intmap serialize and parse back as-is, at zero convention cost.
-- **Time normalization**: `time(...)` parses to normalized UTC microseconds (the `xtime` measure); serialization writes ISO 8601.
+- **Time normalization**: `time(...)` parses to normalized UTC milliseconds (the `xtime` measure); serialization writes ISO 8601.
 - **Selection rule**: receiver controllable → XLON for full types; not → JSON for interoperability; convert at boundaries, don't compromise inside.
 - **Inherited strictness**: three gates, duplicate-key rejection, line/column error location — fully consistent with JSON.
 - **Compact and pretty**: compact for machine channels, pretty for on-disk review — the same selection rule as JSON's.
@@ -142,7 +142,7 @@ xrtValueGetString(pUpdated, &When);   /* the type is Time - the exact read fails
 
 ```c good
 xtime When;
-xrtValueGetTime(pUpdated, &When);     /* GetTime reads the microsecond integer */
+xrtValueGetTime(pUpdated, &When);     /* GetTime reads the millisecond integer */
 /* for display formatting: format it yourself (Chapter 42's time module) */
 ```
 
@@ -165,8 +165,8 @@ Implement `export(值树, 格式)` (value tree, format): XLON output keeps full 
 | Topic | Quick reference |
 | --- | --- |
 | Superset relation | legal JSON ⊂ legal XLON; the same parser suite and strictness |
-| Four types | bytes inline Base64 / time ISO normalized to UTC microseconds / set deduplicated / intmap integer keys |
+| Four types | bytes inline Base64 / time ISO normalized to UTC milliseconds / set deduplicated / intmap integer keys |
 | Selection | receiver controllable → XLON; not → JSON; convert at boundaries, don't compromise inside |
-| Reading time | `GetTime` reads the microsecond integer — time is a first-class type, not a string |
+| Reading time | `GetTime` reads the millisecond integer — time is a first-class type, not a string |
 | Error location | line/column positions from the same source as JSON — `line=1`-grade precision |
 | Channel shapes | compact for machine channels / pretty for on-disk review / callback streaming writes |

@@ -98,7 +98,7 @@ static bool testTaskGroupPoolOomWaitRunning(
 	testtaskgrouppooloom* pContext
 )
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(2000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(2000));
 	bool bRunning;
 
 	(void)xrtMutexLock(&pContext->Lock);

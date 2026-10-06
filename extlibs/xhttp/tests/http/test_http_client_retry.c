@@ -56,7 +56,7 @@ static void testHttpRetryWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -79,7 +79,7 @@ static void testHttpRetryWaitPhase(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 	xhttpcallinfo Info;
 
 	for ( ;; ) {
@@ -581,7 +581,7 @@ static void testHttpRetryStart(
 
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup = testHttpRetryLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	ClientConfig.Retry.Flags =
 		XHTTP_RETRY_STATUS |
@@ -652,8 +652,8 @@ static void testHttpRetryCall(test_http_retry* pState)
 	Options.Events.Headers = testHttpRetryHeaders;
 	Options.Events.Body = testHttpRetryBody;
 	Options.Events.Data = pState;
-	Options.Timeout = 5000000u;
-	Options.IdleTimeout = 1000000u;
+	Options.Timeout = 5000;
+	Options.IdleTimeout = 1000;
 	if ( pState->Scenario == TEST_HTTP_RETRY_POST_UNSAFE ) {
 		Options.Retry.Flags = XHTTP_RETRY_UNSAFE;
 	} else if ( pState->Scenario ==
@@ -665,8 +665,8 @@ static void testHttpRetryCall(test_http_retry* pState)
 	} else if (
 		pState->Scenario == TEST_HTTP_RETRY_TOTAL_TIMEOUT
 	) {
-		Options.Timeout = 80000u;
-		Options.IdleTimeout = 10000u;
+		Options.Timeout = 80;
+		Options.IdleTimeout = 10;
 	}
 	pState->Call = xrtHttpClientDo(
 		pState->Client,

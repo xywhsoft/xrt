@@ -41,7 +41,7 @@ api: logger, error
 | --- | --- |
 | `xrtLogFieldInt` / `Float` | числовые поля |
 | `xrtLogFieldString` | строковое поле (представление) |
-| `xrtLogFieldTime` | поле времени (значение в микросекундах) |
+| `xrtLogFieldTime` | поле времени (значение в миллисекундах) |
 | `xrtLogFieldError` | **поле ошибки** — xerror главы 4 доставляется прямо в журнал |
 | `xrtLogFieldNull` | сигнальное значение пустоты |
 

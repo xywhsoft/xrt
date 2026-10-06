@@ -22,7 +22,7 @@ static ptr testCoEventWaitProc(ptr pData)
 	testcoeventwait* pWait = (testcoeventwait*)pData;
 
 	pWait->Entered = 1;
-	pWait->Result = pWait->Timeout == UINT64_MAX ?
+	pWait->Result = pWait->Timeout == XRT_WAIT_FOREVER ?
 		xrtCoEventAwait(pWait->Event) :
 		xrtCoEventAwaitFor(pWait->Event, pWait->Timeout);
 	if ( pWait->Result == XWAIT_OK ) {
@@ -140,7 +140,7 @@ static void testCoEventStartWaiters(
 		pWaits[i].Index = (int)i + 1;
 		pWaits[i].Order = pOrder;
 		pWaits[i].Completed = pCompleted;
-		pWaits[i].Timeout = UINT64_MAX;
+		pWaits[i].Timeout = XRT_WAIT_FOREVER;
 		pWaits[i].Result = XWAIT_ERROR;
 		pCoroutines[i] = xrtCoSpawn(
 			pSched,
@@ -369,7 +369,7 @@ static void testCoroutineEventOutcomes(void)
 	tWait.Event = &tEvent;
 	tWait.Order = arrOrder;
 	tWait.Completed = &iCompleted;
-	tWait.Timeout = 1000;
+	tWait.Timeout = 1;
 	tWait.Result = XWAIT_ERROR;
 	pCo = xrtCoSpawn(pSched, testCoEventWaitProc, &tWait, NULL);
 	testRequire(pCo != NULL, "timeout event waiter spawn failed");
@@ -381,7 +381,7 @@ static void testCoroutineEventOutcomes(void)
 	tWait.Event = &tEvent;
 	tWait.Order = arrOrder;
 	tWait.Completed = &iCompleted;
-	tWait.Timeout = UINT64_MAX;
+	tWait.Timeout = XRT_WAIT_FOREVER;
 	tWait.Result = XWAIT_ERROR;
 	pCo = xrtCoSpawn(pSched, testCoEventWaitProc, &tWait, NULL);
 	testRequire(pCo != NULL, "cancel event waiter spawn failed");

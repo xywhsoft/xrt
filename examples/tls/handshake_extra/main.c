@@ -31,7 +31,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
-#include "../x509/fixture.h"
+#include "../../x509/fixture.h"
 
 /* 信任库与默认路径验证结果（验证器回调内填充）。 */
 static xx509store* g_pPeerStore;

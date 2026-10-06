@@ -20,7 +20,7 @@ int main(void)
 		XNET_FAMILY_IPV4
 	);
 	if ( (pFuture == NULL) ||
-		 (xrtFutureWaitFor(pFuture, 2000000u) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pFuture, 2000) != XWAIT_OK) ||
 		 (xrtFutureState(pFuture) != XFUTURE_RESOLVED) ) {
 		xrtFutureDestroy(pFuture);
 		(void)xrtNetResolverDestroy(pResolver);

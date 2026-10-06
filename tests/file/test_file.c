@@ -268,8 +268,8 @@ static void testFileMetadata(cstr sPath)
 /* 元数据修改必须支持时间、平台属性或权限以及 Touch 语义。 */
 static void testFileMetadataMutation(cstr sPath)
 {
-	const xtime Accessed = (xtime)946684800000000LL;
-	const xtime Modified = (xtime)946684801234567LL;
+	const xtime Accessed = XRT_TIME_UNIX_EPOCH + INT64_C(946684800000);
+	const xtime Modified = XRT_TIME_UNIX_EPOCH + INT64_C(946684801234);
 	xfileinfo Info;
 	str sTouched = testFilePath("xrt-file-base-touched.tmp");
 
@@ -308,7 +308,7 @@ static void testFileMetadataMutation(cstr sPath)
 			testRequire(SetFileTime((HANDLE)xrtFileNative(File), NULL,
 				NULL, &BeforeEpoch) != 0,
 				"Windows timestamp boundary setup failed");
-			testRequire(xrtFileStat(File, &Info) && (Info.Modified == -1),
+			testRequire(xrtFileStat(File, &Info) && (Info.Modified == XRT_TIME_UNIX_EPOCH - 1),
 				"Windows sub-millisecond time did not round down");
 			testRequire(xrtClose(File),
 				"Windows timestamp boundary file close failed");

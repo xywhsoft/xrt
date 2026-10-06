@@ -100,7 +100,7 @@ static inline bool testMailPartialWaitProgress(xtlsstream* pTls, uint64 PrefixAc
 		if ( Snapshot.AsyncBytes == AsyncBytes && Snapshot.AsyncCount == 1u &&
 			Snapshot.Accepted > PrefixAccepted ) return true;
 		if ( xrtAtomic32Load(pReturned, XMEMORY_ACQUIRE) ) return false;
-		xrtSleepUs(1000u);
+		xrtSleep(1);
 	}
 	return false;
 }
@@ -116,7 +116,7 @@ static inline bool testMailPartialWaitRead(xtlsstream* pTls, uint64 ExpectedRece
 		if ( Snapshot.Received >= ExpectedReceived && Snapshot.Available == 0 &&
 			Snapshot.AsyncCount == 1u && Snapshot.AsyncBytes == 0 ) return true;
 		if ( xrtAtomic32Load(pReturned, XMEMORY_ACQUIRE) ) return false;
-		xrtSleepUs(1000u);
+		xrtSleep(1);
 	}
 	return false;
 }

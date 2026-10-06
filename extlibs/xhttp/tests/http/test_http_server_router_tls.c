@@ -41,7 +41,7 @@ static void testHttpServerRouterTlsWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(
 		pValue, XMEMORY_ACQUIRE

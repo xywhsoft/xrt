@@ -41,7 +41,7 @@ static void testUdpFutureThreadsWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(UINT64_C(10000000));
+	double iDeadline = __xrtWaitAfter(INT64_C(10000));
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -126,7 +126,7 @@ static void testUdpFutureThreadsRound(
 		"threaded UDP Future bind failed");
 	pOpen = xrtNetUdpWaitAsync(pUdp, XNET_UDP_WAIT_OPEN);
 	testRequire((pOpen != NULL) &&
-		 (xrtFutureWaitFor(pOpen, UINT64_C(10000000)) == XWAIT_OK) &&
+		 (xrtFutureWaitFor(pOpen, INT64_C(10000)) == XWAIT_OK) &&
 		 (xrtFutureState(pOpen) == XFUTURE_RESOLVED),
 		"threaded UDP Future open wait failed");
 	xrtFutureDestroy(pOpen);
@@ -185,13 +185,13 @@ static void testUdpFutureThreadsRound(
 	}
 	testRequire((xrtFutureWaitFor(
 		pClose,
-		UINT64_C(10000000)
+		INT64_C(10000)
 	) == XWAIT_OK) && (xrtFutureState(pClose) == XFUTURE_RESOLVED),
 		"threaded UDP Future close wait failed");
 	for ( size_t i = 0; i < TEST_UDP_FUTURE_WAITER_COUNT; i++ ) {
 		testRequire(xrtFutureWaitFor(
 			Futures[i],
-			UINT64_C(10000000)
+			INT64_C(10000)
 		) == XWAIT_OK, "threaded UDP Future receive did not finish");
 		if ( xrtFutureState(Futures[i]) == XFUTURE_CANCELLED ) {
 			(*pCancelled)++;

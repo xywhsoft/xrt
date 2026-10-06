@@ -369,10 +369,10 @@ xwaitresult xrtExecutorWait(xexecutor* pExecutor);
 
 ### `xrtExecutorWaitFor`
 
-在相对微秒数内等待已经关闭的执行器排空。
+在相对毫秒数内等待已经关闭的执行器排空。
 
 ```c
-xwaitresult xrtExecutorWaitFor(xexecutor* pExecutor, uint64 iTimeout);
+xwaitresult xrtExecutorWaitFor(xexecutor* pExecutor, int64 iTimeout);
 ```
 
 #### 参数
@@ -380,7 +380,7 @@ xwaitresult xrtExecutorWaitFor(xexecutor* pExecutor, uint64 iTimeout);
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pExecutor` | 输入 | 非空 | 目标执行器 |
-| `iTimeout` | 输入 | 微秒 | 相对时限 |
+| `iTimeout` | 输入 | 毫秒 | 相对时限 |
 
 #### 返回值
 
@@ -401,44 +401,6 @@ xwaitresult xrtExecutorWaitFor(xexecutor* pExecutor, uint64 iTimeout);
 ```c
 (xrtExecutorWaitFor(pExecutor,
 	UINT64_C(3000000)) != XWAIT_OK) ||
-```
-
-### `xrtExecutorWaitUntil`
-
-等待到指定单调时钟截止时间；已排空优先于超时。
-
-```c
-xwaitresult xrtExecutorWaitUntil(
-	xexecutor* pExecutor,
-	xdeadline iDeadline
-);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pExecutor` | 输入 | 非空 | 目标执行器 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_ERROR` | 同 `xrtExecutorWaitFor` 口径 | — |
-
-#### 错误
-
-- 同 `xrtExecutorWait`
-
-#### 范例
-
-[concurrency/executor_tour · 收口](../../examples/concurrency/executor_tour/main.c) · 截止形态
-
-```c
-(xrtExecutorWaitUntil(pExecutor,
-	xrtDeadlineAfter(UINT64_C(3000000))) !=
-	XWAIT_OK) ||
 ```
 
 ### `xrtExecutorGet`

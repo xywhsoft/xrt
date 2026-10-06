@@ -33,7 +33,7 @@ bool xjwtClaimsValid(const xvalue* claims, const xjwtcheck* check)
 		return false;
 	}
 	int64_t now = check && check->NowOverride != 0 ? check->NowOverride
-		: (int64_t)(xrtTimeUnix(xrtNow());
+		: (int64_t)xrtTimeUnix(xrtNow());
 	int leeway = check ? check->ClockLeeway : 0;
 	if ( leeway < 0 ) {
 		xjwt__error(XJWT_ERROR_ARGUMENT, "clock leeway must be nonnegative");
@@ -176,7 +176,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	}
 	/* 自动注入标准 claims；成功或失败都不改变调用方对象。 */
 	{
-		int64_t now = (int64_t)(xrtTimeUnix(xrtNow());
+		int64_t now = (int64_t)xrtTimeUnix(xrtNow());
 		if ( (pConfig->ExpireSeconds != 0 &&
 			  !xjwtSignSet(pClaims, "exp", xrtValueInt(now + pConfig->ExpireSeconds))) ||
 			 (pConfig->Issuer != NULL &&

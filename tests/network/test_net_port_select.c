@@ -20,7 +20,7 @@ static void testPortWait(xnetport* pPort,
 	size_t iCount = 0;
 
 	testRequire(__xrtNetPortWait(pPort, pEvents, iCapacity,
-		__xrtWaitAfter(1000000), &iCount) == XNET_RESULT_OK,
+		__xrtWaitAfter(1000), &iCount) == XNET_RESULT_OK,
 		"readiness port wait failed");
 	testRequire(iCount == iExpected,
 		"readiness port event count mismatch");

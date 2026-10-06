@@ -55,7 +55,7 @@ static xtaskoutcome testTaskNetRun(
 static void testTaskNetResolved(xfuture* pFuture, testtasknet* pContext)
 {
 	testRequire(pFuture != NULL, "network task submission failed");
-	testRequire(xrtFutureWaitFor(pFuture, 3000000u) == XWAIT_OK,
+	testRequire(xrtFutureWaitFor(pFuture, 3000) == XWAIT_OK,
 		"network task did not complete");
 	testRequire(xrtFutureState(pFuture) == XFUTURE_RESOLVED,
 		"network task did not resolve");
@@ -101,7 +101,7 @@ int main(void)
 		testTaskNetRun,
 		&Context,
 		&tArgs,
-		1000u
+		1
 	);
 	testTaskNetResolved(pFuture, &Context);
 	xrtFutureDestroy(pFuture);
@@ -111,7 +111,7 @@ int main(void)
 		testTaskNetRun,
 		&Context,
 		&tArgs,
-		__xrtWaitAfter(1000u)
+		__xrtWaitAfter(1)
 	);
 	testTaskNetResolved(pFuture, &Context);
 	xrtFutureDestroy(pFuture);
@@ -123,12 +123,12 @@ int main(void)
 		testTaskNetRun,
 		&Context,
 		&tArgs,
-		5000000u
+		5000
 	);
 	testRequire(pFuture != NULL, "cancelled network task submit failed");
 	testRequire(xrtFutureCancel(pFuture),
 		"network task cancel request failed");
-	testRequire(xrtFutureWaitFor(pFuture, 3000000u) == XWAIT_OK,
+	testRequire(xrtFutureWaitFor(pFuture, 3000) == XWAIT_OK,
 		"cancelled network task did not finish promptly");
 	testRequire(xrtFutureState(pFuture) == XFUTURE_CANCELLED,
 		"cancelled network task terminal state mismatch");
@@ -145,10 +145,10 @@ int main(void)
 		testTaskNetRun,
 		&Context,
 		&tArgs,
-		5000000u
+		5000
 	);
 	testRequire(pFuture != NULL, "pre-cancelled network task submit failed");
-	testRequire(xrtFutureWaitFor(pFuture, 3000000u) == XWAIT_OK,
+	testRequire(xrtFutureWaitFor(pFuture, 3000) == XWAIT_OK,
 		"pre-cancelled network task did not finish");
 	testRequire(xrtFutureState(pFuture) == XFUTURE_CANCELLED,
 		"pre-cancelled network task state mismatch");
@@ -163,12 +163,12 @@ int main(void)
 		testTaskNetRun,
 		&Context,
 		&tArgs,
-		5000000u
+		5000
 	);
 	testRequire(pFuture != NULL, "closing network task submit failed");
 	testRequire(xrtNetEngineStop(pEngine),
 		"network task engine stop failed");
-	testRequire(xrtFutureWaitFor(pFuture, 3000000u) == XWAIT_OK,
+	testRequire(xrtFutureWaitFor(pFuture, 3000) == XWAIT_OK,
 		"closed network task did not finish");
 	testRequire(xrtFutureState(pFuture) == XFUTURE_FAILED,
 		"closed network task did not fail");

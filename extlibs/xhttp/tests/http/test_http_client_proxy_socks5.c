@@ -51,7 +51,7 @@ static void testHttpSocks5Wait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -514,7 +514,7 @@ int main(void)
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup = testHttpSocks5Lookup;
 	ClientConfig.Resolver.LookupData = &State;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	ClientConfig.Proxy = pProxy;
 	State.Client = xrtHttpClientCreate(
@@ -538,7 +538,7 @@ int main(void)
 		"HTTP SOCKS5 request creation failed"
 	);
 	xrtHttpCallOptionsInit(&Options);
-	Options.Timeout = 5000000u;
+	Options.Timeout = 5000;
 	State.Call = xrtHttpClientDo(
 		State.Client,
 		pRequest,

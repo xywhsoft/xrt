@@ -1,3 +1,4 @@
+#include <math.h>
 #include <string.h>
 
 #include <xrt/ssh_auth_guard.h>
@@ -52,17 +53,17 @@ static bool xsshAuthGuardLimit32(uint32 iValue, uint32 iLimit)
 /* 按稳定优先级返回当前首个资源耗尽原因。 */
 static xsshauthexhaustion xsshAuthGuardCurrent(
 	const xsshauthguard* pGuard,
-	uint64 iNowMs
+	double Timer
 )
 {
-	uint64 iElapsed = iNowMs >= pGuard->StartedMs ?
-		iNowMs - pGuard->StartedMs : 0u;
+	double iElapsed = Timer >= pGuard->StartedTimer ?
+		Timer - pGuard->StartedTimer : 0u;
 
 	if ( pGuard->Exhaustion != XSSH_AUTH_EXHAUST_NONE ) {
 		return pGuard->Exhaustion;
 	}
 	if ( (pGuard->Policy.TimeoutMs != 0u) &&
-		(iElapsed >= pGuard->Policy.TimeoutMs) ) {
+		(iElapsed >= (double)pGuard->Policy.TimeoutMs / 1000.0) ) {
 		return XSSH_AUTH_EXHAUST_TIMEOUT;
 	}
 	if ( xsshAuthGuardLimit32(
@@ -113,13 +114,14 @@ void xrtSshAuthGuardPolicyInit(xsshauthguardpolicy* pPolicy)
 bool xrtSshAuthGuardInit(
 	xsshauthguard* pGuard,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	xsshauthguardpolicy Policy;
 	xsshauthguard Guard;
 
-	if ( pGuard == NULL ) {
+	if ( pGuard == NULL || (pPolicy != NULL && pPolicy->TimeoutMs < 0) ) {
 		return false;
 	}
 	if ( pPolicy == NULL ) {
@@ -136,7 +138,7 @@ bool xrtSshAuthGuardInit(
 	}
 	memset(&Guard, 0, sizeof(Guard));
 	Guard.Policy = *pPolicy;
-	Guard.StartedMs = iNowMs;
+	Guard.StartedTimer = Timer;
 	Guard.Initialized = true;
 	*pGuard = Guard;
 	return true;
@@ -147,10 +149,11 @@ bool xrtSshAuthGuardInit(
 /* 查询当前认证预算，不增加任何计数。 */
 xsshcode xrtSshAuthGuardCheck(
 	xsshauthguard* pGuard,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshauthexhaustion Exhaustion;
 
 	if ( !xsshAuthGuardValid(pGuard) || (pDecision == NULL) ||
@@ -166,7 +169,7 @@ xsshcode xrtSshAuthGuardCheck(
 		*pDecision = XSSH_AUTH_GUARD_IGNORE;
 		return XSSH_OK;
 	}
-	Exhaustion = xsshAuthGuardCurrent(pGuard, iNowMs);
+	Exhaustion = xsshAuthGuardCurrent(pGuard, Timer);
 	if ( Exhaustion != XSSH_AUTH_EXHAUST_NONE ) {
 		pGuard->Exhaustion = Exhaustion;
 		*pDecision = XSSH_AUTH_GUARD_DISCONNECT;
@@ -183,10 +186,11 @@ xsshcode xrtSshAuthGuardReserve(
 	xsshauthguard* pGuard,
 	xsshauthevent Event,
 	uint64 iMessageBytes,
-	uint64 iNowMs,
+	double Timer,
 	xsshauthguarddecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshauthguard Guard;
 	xsshauthguarddecision Decision;
 	xsshcode Code;
@@ -202,7 +206,7 @@ xsshcode xrtSshAuthGuardReserve(
 		) ) {
 		return XSSH_ERROR_ARGUMENT;
 	}
-	Code = xrtSshAuthGuardCheck(pGuard, iNowMs, &Decision);
+	Code = xrtSshAuthGuardCheck(pGuard, Timer, &Decision);
 	if ( Code != XSSH_OK ) {
 		return Code;
 	}
@@ -218,7 +222,7 @@ xsshcode xrtSshAuthGuardReserve(
 	} else if ( Event == XSSH_AUTH_EVENT_ROUND ) {
 		Guard.Rounds = xsshAuthGuardIncrement(Guard.Rounds);
 	}
-	Guard.Exhaustion = xsshAuthGuardCurrent(&Guard, iNowMs);
+	Guard.Exhaustion = xsshAuthGuardCurrent(&Guard, Timer);
 	*pGuard = Guard;
 	*pDecision = Guard.Exhaustion == XSSH_AUTH_EXHAUST_NONE ?
 		XSSH_AUTH_GUARD_ALLOW : XSSH_AUTH_GUARD_DISCONNECT;

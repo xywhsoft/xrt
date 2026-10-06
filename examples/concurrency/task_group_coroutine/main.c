@@ -10,7 +10,7 @@ static xtaskoutcome groupedCoroutine(
 	xtaskvalue* pResult
 )
 {
-	if ( (xrtCoSleep(1000) == XWAIT_CANCELLED) ||
+	if ( (xrtCoSleep(1) == XWAIT_CANCELLED) ||
 		xrtCancelRequested(pCancel) ) {
 		return XTASK_CANCELLED;
 	}

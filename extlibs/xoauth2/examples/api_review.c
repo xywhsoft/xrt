@@ -227,6 +227,6 @@ int main(void)
         }
     }
     size_t pending=SIZE_MAX;
-    if(!xoauth2HttpXrtCleanupPending(5000000u,&pending) || pending!=0u) result=1;
+    if(!xoauth2HttpXrtCleanupPending(5,&pending) || pending!=0u) result=1;
     return result;
 }

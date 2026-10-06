@@ -54,7 +54,7 @@ static void testWsClientInvalidWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -548,7 +548,7 @@ static void testWsClientInvalidRun(
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup =
 		testWsClientInvalidLookup;
-	ClientConfig.Dial.FallbackDelay = 1000;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	Test.Client = xrtHttpClientCreate(
 		Test.Engine,

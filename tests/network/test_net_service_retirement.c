@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 #ifndef XRT_MODULE_NET_ENGINE
 #define XRT_MODULE_NET_ENGINE
 #endif
@@ -15,6 +14,7 @@
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
 #endif
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #ifndef NET_SERVICE_RETIREMENT_SINGLE
 #include "../../src/internal/xrt_net_engine.h"
@@ -33,7 +33,7 @@ typedef struct retirement {
 
 static void wait_for(xatomic32* value, uint32 count)
 {
-	double deadline = __xrtWaitAfter(5000000u);
+	double deadline = __xrtWaitAfter(5000);
 	while ( xrtAtomic32Load(value, XMEMORY_ACQUIRE) < count ) {
 		testRequire(!__xrtWaitExpired(deadline), "retirement test deadline");
 		xrtThreadYield();
@@ -51,7 +51,7 @@ static void thread_tail(ptr data)
 
 static void finish_engine(xnetengine* engine)
 {
-	double deadline = __xrtWaitAfter(5000000u);
+	double deadline = __xrtWaitAfter(5000);
 	for ( ;; ) {
 		xnetretireresult result = xrtNetEngineTryDestroy(engine);
 		testRequire(result != XNET_RETIRE_ERROR, "engine retirement error");
@@ -63,7 +63,7 @@ static void finish_engine(xnetengine* engine)
 
 static void finish_resolver(xnetresolver* resolver)
 {
-	double deadline = __xrtWaitAfter(5000000u);
+	double deadline = __xrtWaitAfter(5000);
 	for ( ;; ) {
 		xnetretireresult result = xrtNetResolverTryDestroy(resolver);
 		testRequire(result != XNET_RETIRE_ERROR, "resolver retirement error");
@@ -159,7 +159,7 @@ static void engine_active(bool self, bool synchronous_finish)
 	if ( !self ) {
 		for ( unsigned i = 0; i < 16; ++i )
 			testRequire(xrtNetEnginePost(state.Engine, 0, engine_post, &state), "accepted queued post");
-		testRequire(xrtNetEngineAfter(state.Engine, 0, 60000000u, engine_timer, &state) != 0,
+		testRequire(xrtNetEngineAfter(state.Engine, 0, 60000, engine_timer, &state) != 0,
 			"accepted future timer");
 	}
 	for ( unsigned i = 0; i < 64; ++i )
@@ -223,7 +223,7 @@ static void engine_error_retry(void)
 	retirement state = {0};
 	xnetenginestats stats;
 	xnetretireresult result;
-	double deadline = __xrtWaitAfter(5000000u);
+	double deadline = __xrtWaitAfter(5000);
 	const xerror* error;
 	state.Engine = create_engine(true);
 	testRequire(xrtNetPostInit(&state.Post), "nonconvergent post init");
@@ -381,7 +381,9 @@ int main(void)
 		}
 	}
 	xrtClearError();
+	#if defined(_WIN32) || defined(_WIN64)
 	testRequire(xrtRuntimeRetireThreadStorage(), "terminal thread storage retirement after all services");
+#endif
 	balanced(&before);
 	printf("[PASS] service retirement: 240 service owners; 96 callback drains; 72 real TLS tails; "
 		"24 external pins; 24 borrowed pools; blocked lookup, accepted queues, diagnostic identity, "

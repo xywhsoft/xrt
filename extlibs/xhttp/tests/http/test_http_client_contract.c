@@ -134,7 +134,7 @@ static void testHttpClientContractWait(
 	const xatomic32* pCompleted
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	double Deadline = __xrtWaitAfter(INT64_C(5000));
 
 	while ( xrtAtomic32Load(
 		pCompleted,

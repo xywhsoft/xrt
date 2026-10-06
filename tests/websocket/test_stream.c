@@ -233,7 +233,7 @@ static void testWsConnWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -2796,7 +2796,7 @@ int main(void)
 		"WebSocket client TCP connect failed"
 	);
 	AttachDeadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 	while ( ((pClient = (xwsstream*)xrtAtomicPtrLoad(
 		&Test.Client,
@@ -3051,7 +3051,7 @@ int main(void)
 	#endif
 	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_REF)
 		AttachDeadline = __xrtWaitAfter(
-			UINT64_C(10000000)
+			INT64_C(10000)
 		);
 		while ( xrtWsStreamPending(pServer) != 0 ) {
 			testRequire(

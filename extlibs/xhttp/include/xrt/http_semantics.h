@@ -59,7 +59,7 @@ typedef struct xhttpetagitem {
 
 #if defined(XHTTP_FEATURE_HTTP_PRECONDITION)
 
-/* 当前选定表示的验证器；时间使用 Unix Epoch 微秒。 */
+/* 当前选定表示的验证器；时间使用 Unix Epoch 毫秒。 */
 typedef struct xhttprepresentation {
 	bool Exists;
 	bool HasETag;

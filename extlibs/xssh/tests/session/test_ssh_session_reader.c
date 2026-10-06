@@ -194,8 +194,7 @@ static void testSshSessionReaderTransfer(
 		Payload,
 		NULL,
 		NULL,
-		0u,
-		0u,
+		0u, ((double)(0u)) / 1000.0,
 		&Kind
 	) == XSSH_OK) && xrtSshWriterInit(
 		&Writer,
@@ -206,21 +205,16 @@ static void testSshSessionReaderTransfer(
 		&Writer,
 		Payload,
 		testSshSessionReaderPadding,
-		pPadding,
-		0u
-	) == XSSH_OK) && (xrtSshSessionCoreWriteBind(
+		pPadding, ((double)(0u)) / 1000.0) == XSSH_OK) && (xrtSshSessionCoreWriteBind(
 		&pSender->Session,
 		&pSender->Transport.Core,
 		Payload
 	) == XSSH_OK) && (xrtSshTransportCoreWriteCommit(
-		&pSender->Transport.Core,
-		0u,
+		&pSender->Transport.Core, ((double)(0u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (xrtSshSessionCoreWriteCommit(
 		&pSender->Session,
-		&pSender->Transport.Core,
-		0u
-	) == XSSH_OK), "ssh reader sender transfer failed");
+		&pSender->Transport.Core, ((double)(0u)) / 1000.0) == XSSH_OK), "ssh reader sender transfer failed");
 	testRequire(xrtSshReaderInit(
 		&Reader,
 		(xbytesview){ arrWire, Writer.Size }
@@ -229,27 +223,21 @@ static void testSshSessionReaderTransfer(
 		&Reader,
 		&Packet,
 		arrPlain,
-		sizeof(arrPlain),
-		0u
-	) == XSSH_OK) && (xrtSshSessionCoreReadPrepare(
+		sizeof(arrPlain), ((double)(0u)) / 1000.0) == XSSH_OK) && (xrtSshSessionCoreReadPrepare(
 		&pReceiver->Session,
 		&pReceiver->Transport.Core,
 		Packet.Payload,
 		NULL,
 		0u,
-		NULL,
-		0u,
+		NULL, ((double)(0u)) / 1000.0,
 		&SessionPacket
 	) == XSSH_OK) && (SessionPacket.Kind == Kind) &&
 		(xrtSshTransportCoreReadCommit(
-			&pReceiver->Transport.Core,
-			0u,
+			&pReceiver->Transport.Core, ((double)(0u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (xrtSshSessionCoreReadCommit(
 		&pReceiver->Session,
-		&pReceiver->Transport.Core,
-		0u
-	) == XSSH_OK), "ssh reader receiver transfer failed");
+		&pReceiver->Transport.Core, ((double)(0u)) / 1000.0) == XSSH_OK), "ssh reader receiver transfer failed");
 }
 
 
@@ -273,8 +261,7 @@ static size_t testSshSessionReaderPacketWire(
 		Payload,
 		NULL,
 		NULL,
-		0u,
-		0u,
+		0u, ((double)(0u)) / 1000.0,
 		&Kind
 	) == XSSH_OK) &&
 		xrtSshWriterInit(&WireWriter, pOutput, iCapacity) &&
@@ -283,21 +270,16 @@ static size_t testSshSessionReaderPacketWire(
 			&WireWriter,
 			Payload,
 			testSshSessionReaderPadding,
-			pPadding,
-			0u
-		) == XSSH_OK) && (xrtSshSessionCoreWriteBind(
+			pPadding, ((double)(0u)) / 1000.0) == XSSH_OK) && (xrtSshSessionCoreWriteBind(
 		&pSender->Session,
 		&pSender->Transport.Core,
 		Payload
 	) == XSSH_OK) && (xrtSshTransportCoreWriteCommit(
-		&pSender->Transport.Core,
-		0u,
+		&pSender->Transport.Core, ((double)(0u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (xrtSshSessionCoreWriteCommit(
 		&pSender->Session,
-		&pSender->Transport.Core,
-		0u
-	) == XSSH_OK), "ssh reader packet wire failed");
+		&pSender->Transport.Core, ((double)(0u)) / 1000.0) == XSSH_OK), "ssh reader packet wire failed");
 	return WireWriter.Size;
 }
 
@@ -385,14 +367,10 @@ int main(void)
 	) && xrtSshSessionTcpInit(
 		&Client,
 		pPool,
-		&ClientConfig,
-		0u
-	) && xrtSshSessionTcpInit(
+		&ClientConfig, ((double)(0u)) / 1000.0) && xrtSshSessionTcpInit(
 		&Server,
 		pPool,
-		&ServerConfig,
-		0u
-	) && xrtSshSessionReaderInit(
+		&ServerConfig, ((double)(0u)) / 1000.0) && xrtSshSessionReaderInit(
 		&Reader,
 		pPool,
 		&Client
@@ -480,8 +458,7 @@ int main(void)
 		"ssh reader partial packet append failed");
 	PrepareCode = xrtSshSessionReaderPrepare(
 		&Reader,
-		&Input,
-		0u,
+		&Input, ((double)(0u)) / 1000.0,
 		&Packet
 	);
 	testRequire((PrepareCode == XSSH_NEED_MORE) &&
@@ -494,8 +471,7 @@ int main(void)
 	), "ssh reader remaining packet append failed");
 	PrepareCode = xrtSshSessionReaderPrepare(
 		&Reader,
-		&Input,
-		0u,
+		&Input, ((double)(0u)) / 1000.0,
 		&Packet
 	);
 	testRequire((PrepareCode == XSSH_OK) &&
@@ -509,8 +485,7 @@ int main(void)
 		(Reader.PlainSpan.Size >= Reader.Need.PlainSize) &&
 		(Reader.HostKeySize == HostKey.Size) &&
 		(xrtSshSessionReaderCommit(
-			&Reader,
-			0u,
+			&Reader, ((double)(0u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_REKEY_NONE) &&
 		xrtNetBufEmpty(&Input) &&
@@ -562,8 +537,7 @@ int main(void)
 	testRequire(xrtNetBufAppend(&Input, arrWire, iWireSize) &&
 		(xrtSshSessionReaderPrepare(
 			&Reader,
-			&Input,
-			1u,
+			&Input, ((double)(1u)) / 1000.0,
 			&Packet
 		) == XSSH_OK) &&
 		(Packet.Session.Kind == XSSH_SESSION_PACKET_IGNORE) &&
@@ -572,13 +546,11 @@ int main(void)
 		(Reader.PlainSpan.Size >= Reader.Need.PlainSize) &&
 		(xrtSshSessionReaderPrepare(
 			&Reader,
-			&Input,
-			1u,
+			&Input, ((double)(1u)) / 1000.0,
 			&Packet
 		) == XSSH_ERROR_STATE) &&
 		(xrtSshSessionReaderCommit(
-			&Reader,
-			1u,
+			&Reader, ((double)(1u)) / 1000.0,
 			&Decision
 		) == XSSH_OK) && xrtNetBufEmpty(&Input) &&
 		(Reader.Plain.Reserved == NULL) &&

@@ -47,7 +47,7 @@ static void testMailNetParkWorker(xnetworker* pWorker, ptr pData)
 
 static void testMailNetWaitFlag(const xatomic32* pFlag, cstr sMessage)
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	double Deadline = __xrtWaitAfter(INT64_C(3000));
 
 	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) == 0 ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -58,7 +58,7 @@ static void testMailNetWaitFlag(const xatomic32* pFlag, cstr sMessage)
 /* 取消后拨号对象仍由 Worker 异步释放，须有界等待退休。 */
 static void testMailNetDestroyEngine(xnetengine* pEngine)
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	double Deadline = __xrtWaitAfter(INT64_C(3000));
 
 	for ( ;; ) {
 		xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
@@ -98,7 +98,7 @@ static int32 testMailNetReleaseAfterDelay(ptr pData)
 static int32 testMailNetReleaseLookupAfterReturn(ptr pData)
 {
 	testmailnetlookup* pLookup = (testmailnetlookup*)pData;
-	double Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	double Deadline = __xrtWaitAfter(INT64_C(3000));
 
 	while ( xrtAtomic32Load(&pLookup->Entered, XMEMORY_ACQUIRE) == 0 &&
 		!__xrtWaitExpired(Deadline) ) {
@@ -134,7 +134,7 @@ static void testMailNetExpectBytes(
 	size_t iExpected
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	double Deadline = __xrtWaitAfter(INT64_C(3000));
 	size_t iOffset = 0;
 
 	while ( iOffset < iExpected ) {
@@ -190,7 +190,7 @@ static xnetaddrlist* testMailNetResolve(
 /* 等待 Stream 进入最终关闭状态。 */
 static bool testMailNetClosed(xnetstream* pStream)
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	double Deadline = __xrtWaitAfter(INT64_C(3000));
 
 	while ( xrtNetStreamState(pStream) != XNET_STREAM_CLOSED ) {
 		if ( __xrtWaitExpired(Deadline) ) {
@@ -261,7 +261,7 @@ int main(void)
 		"mail network cancel fixture failed");
 	xrtClearError();
 	testRequire(!__xrtMailTransportOpen(
-		&Transport, &Config, __xrtWaitAfter(UINT64_C(3000000)), pCancel
+		&Transport, &Config, __xrtWaitAfter(INT64_C(3000)), pCancel
 	) && xrtGetError() != NULL &&
 		xrtErrorKind(xrtGetError()) == XERR_CANCELLED &&
 		Transport.Tcp == NULL &&
@@ -288,17 +288,17 @@ int main(void)
 		&TestMailNetLookup, 0);
 	testRequire(pCanceller != NULL, "mail stalled lookup helper creation failed");
 	{
-		double Quick = __xrtWaitAfter(UINT64_C(500000));
+		double Quick = __xrtWaitAfter(INT64_C(500));
 		xrtClearError();
 		testRequire(!__xrtMailTransportOpen(
-			&Transport, &Config, __xrtWaitAfter(UINT64_C(3000000)), pCancel
+			&Transport, &Config, __xrtWaitAfter(INT64_C(3000)), pCancel
 		) && xrtGetError() != NULL &&
 			xrtErrorKind(xrtGetError()) == XERR_CANCELLED &&
 			!__xrtWaitExpired(Quick) && Transport.Tcp == NULL,
 			"mail in-flight lookup cancellation did not return promptly");
 	}
 	xrtAtomic32Store(&TestMailNetLookup.Returned, 1, XMEMORY_RELEASE);
-	testRequire(xrtThreadWaitFor(pCanceller, UINT64_C(3000000)) ==
+	testRequire(xrtThreadWaitFor(pCanceller, INT64_C(3000)) ==
 		XWAIT_OK && xrtThreadExitCode(pCanceller) == 0,
 		"mail stalled lookup cancel helper did not finish");
 	xrtThreadDestroy(pCanceller);
@@ -307,7 +307,7 @@ int main(void)
 	__xrtMailTransportDestroy(&Transport);
 	xrtCancelDestroy(pCancel);
 	pServer = __xrtNetListenerAcceptWait(
-		pListener, __xrtWaitAfter(UINT64_C(200000)), NULL);
+		pListener, __xrtWaitAfter(INT64_C(200)), NULL);
 	testRequire(pServer == NULL,
 		"mail cancelled lookup caused a late connection");
 	xrtClearError();
@@ -318,17 +318,17 @@ int main(void)
 		&TestMailNetLookup, 0);
 	testRequire(pCanceller != NULL, "mail stalled timeout helper creation failed");
 	{
-		double Quick = __xrtWaitAfter(UINT64_C(700000));
+		double Quick = __xrtWaitAfter(INT64_C(700));
 		xrtClearError();
 		testRequire(!__xrtMailTransportOpen(
-			&Transport, &Config, __xrtWaitAfter(UINT64_C(200000)), NULL
+			&Transport, &Config, __xrtWaitAfter(INT64_C(200)), NULL
 		) && xrtGetError() != NULL &&
 			xrtErrorKind(xrtGetError()) == XERR_TIMEOUT &&
 			!__xrtWaitExpired(Quick) && Transport.Tcp == NULL,
 			"mail in-flight lookup timeout did not return promptly");
 	}
 	xrtAtomic32Store(&TestMailNetLookup.Returned, 1, XMEMORY_RELEASE);
-	testRequire(xrtThreadWaitFor(pCanceller, UINT64_C(3000000)) ==
+	testRequire(xrtThreadWaitFor(pCanceller, INT64_C(3000)) ==
 		XWAIT_OK && xrtThreadExitCode(pCanceller) == 0,
 		"mail stalled timeout helper did not finish");
 	xrtThreadDestroy(pCanceller);
@@ -336,13 +336,13 @@ int main(void)
 		"mail timed-out lookup did not release");
 	__xrtMailTransportDestroy(&Transport);
 	pServer = __xrtNetListenerAcceptWait(
-		pListener, __xrtWaitAfter(UINT64_C(200000)), NULL);
+		pListener, __xrtWaitAfter(INT64_C(200)), NULL);
 	testRequire(pServer == NULL,
 		"mail timed-out lookup caused a late connection");
 	xrtClearError();
 	Config.Host = "mail.test";
 
-	Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	Deadline = __xrtWaitAfter(INT64_C(3000));
 	testRequire(__xrtMailTransportOpen(
 		&Transport,
 		&Config,
@@ -395,7 +395,7 @@ int main(void)
 	xrtNetStreamDestroy(pServer);
 
 	/* 对端在 CRLF 前关闭，不能把未完成的回复当作完整线路。 */
-	Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	Deadline = __xrtWaitAfter(INT64_C(3000));
 	testRequire(__xrtMailTransportOpen(
 		&Transport, &Config, Deadline, NULL
 	), "mail network truncated-line transport open failed");
@@ -421,7 +421,7 @@ int main(void)
 	Config.Dial.Stream.WriteLowWater = 0;
 	Config.Dial.Stream.WriteLimit = 4;
 	Config.WriteChunk = 4;
-	Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	Deadline = __xrtWaitAfter(INT64_C(3000));
 	testRequire(__xrtMailTransportOpen(&Transport, &Config, Deadline, NULL),
 		"mail backpressure transport open failed");
 	pServer = __xrtNetListenerAcceptWait(pListener, Deadline, NULL);
@@ -442,7 +442,7 @@ int main(void)
 		"mail backpressure first send did not fill queue");
 	xrtClearError();
 	testRequire(!__xrtMailTransportRawSend(
-		&Transport, "B", 1, __xrtWaitAfter(UINT64_C(20000)), NULL
+		&Transport, "B", 1, __xrtWaitAfter(INT64_C(20)), NULL
 	) && xrtGetError() != NULL &&
 		xrtErrorKind(xrtGetError()) == XERR_TIMEOUT &&
 		xrtNetStreamPending(Transport.Tcp) == 4,
@@ -480,7 +480,7 @@ int main(void)
 		xrtErrorKind(xrtGetError()) == XERR_CANCELLED &&
 		xrtNetStreamPending(Transport.Tcp) == 4,
 		"mail backpressure wait ignored cancellation or queued extra bytes");
-	testRequire(xrtThreadWaitFor(pCanceller, UINT64_C(3000000)) ==
+	testRequire(xrtThreadWaitFor(pCanceller, INT64_C(3000)) ==
 		XWAIT_OK && xrtThreadExitCode(pCanceller) == 0,
 		"mail backpressure canceller did not finish");
 	xrtThreadDestroy(pCanceller);
@@ -493,7 +493,7 @@ int main(void)
 		"mail backpressure queue did not drain");
 	xrtClearError();
 	testRequire(__xrtNetStreamRecv(
-		pServer, 1, __xrtWaitAfter(UINT64_C(20000)), NULL
+		pServer, 1, __xrtWaitAfter(INT64_C(20)), NULL
 	) == NULL && xrtGetError() != NULL &&
 		xrtErrorKind(xrtGetError()) == XERR_TIMEOUT,
 		"mail backpressure sent bytes after timeout or cancellation");
@@ -518,9 +518,9 @@ int main(void)
 		"mail backpressure worker release thread creation failed");
 	xrtClearError();
 	testRequire(__xrtMailTransportRawSend(
-		&Transport, "F", 1, __xrtWaitAfter(UINT64_C(3000000)), NULL
+		&Transport, "F", 1, __xrtWaitAfter(INT64_C(3000)), NULL
 	), "mail backpressure did not recover after write became ready");
-	testRequire(xrtThreadWaitFor(pCanceller, UINT64_C(3000000)) ==
+	testRequire(xrtThreadWaitFor(pCanceller, INT64_C(3000)) ==
 		XWAIT_OK && xrtThreadExitCode(pCanceller) == 0,
 		"mail backpressure worker release thread did not finish");
 	xrtThreadDestroy(pCanceller);

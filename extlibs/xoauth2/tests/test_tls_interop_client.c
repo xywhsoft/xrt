@@ -101,7 +101,7 @@ static bool lifecycle(const char* ca)
 			borrowed = xrtNetEngineCreate(&config);
 			if ( borrowed == NULL || !xrtNetEngineStart(borrowed) ) return false;
 		}
-		http = xoauth2HttpXrtCreate(borrowed, ca, 20000u);
+		http = xoauth2HttpXrtCreate(borrowed, ca, 20);
 		if ( http == NULL ) return false;
 		engine = http->pEngine;
 		if ( scenario < 3u || scenario == 4u ) {
@@ -176,7 +176,7 @@ static bool lifecycle(const char* ca)
 	}
 	{
 		xmemdebugsnapshot memory;
-		xoauth2httpxrt* failed = xoauth2HttpXrtCreate(NULL, "invalid CA", 1u);
+		xoauth2httpxrt* failed = xoauth2HttpXrtCreate(NULL, "invalid CA", 1);
 		result = result && failed == NULL &&
 			xoauth2LastError() == XOAUTH2_ERROR_NETWORK;
 		xoauth2HttpXrtDestroy(failed);
@@ -198,12 +198,12 @@ static bool lifecycle(const char* ca)
 			bool triggered;
 			xrtClearError();
 			if ( !xrtMemDebugFailAfter(limit) ) return false;
-			http = xoauth2HttpXrtCreate(NULL, ca, 1u);
+			http = xoauth2HttpXrtCreate(NULL, ca, 1);
 			triggered = xrtMemDebugFailTriggered();
 			xrtMemDebugFailClear();
-			if ( http != NULL ) http->uTimeoutUs = 5000000u;
+			if ( http != NULL ) http->uTimeoutMs = 5000u;
 			xoauth2HttpXrtDestroy(http);
-			if (!xoauth2HttpXrtCleanupPending(5000000u, NULL)) return false;
+			if (!xoauth2HttpXrtCleanupPending(5000, NULL)) return false;
 			xrtClearError();
 			xrtMemDebugSnapshot(&memory);
 			if ( memory.LiveCount != 0u || memory.LiveBytes != 0u ||
@@ -325,6 +325,15 @@ int main(int argc, char** argv)
 		if ( !xrtMemDebugEnable(true) ) return 3;
 		return url_vectors() ? 0 : 1;
 	}
+	char url_input[8192];
+	const char* url = argc > 1 ? argv[1] : NULL;
+
+	if ( strcmp(url, "--url-stdin") == 0 ) {
+		size_t length = fread(url_input, 1u, sizeof(url_input) - 1u, stdin);
+		if ( ferror(stdin) || !feof(stdin) ) return 2;
+		url_input[length] = 0;
+		url = url_input;
+	}
 	if ( argc == 5 ) {
 		char* end = NULL;
 		unsigned long long parsed;
@@ -361,7 +370,7 @@ int main(int argc, char** argv)
 		upload[8u * 1024u * 1024u] = 0;
 	}
 	xrtClearError();
-	ok = xoauth2HttpXrt(send_failure ? "POST" : "GET", argv[1], upload,
+	ok = xoauth2HttpXrt(send_failure ? "POST" : "GET", url, upload,
 		NULL, &body, &status, http);
 	free(upload);
 	result = expected ?
@@ -408,7 +417,7 @@ int main(int argc, char** argv)
 	{
 		xerror* previous = xrtErrorRef(xrtGetError());
 		xoauth2HttpXrtDestroy(http);
-		if (!xoauth2HttpXrtCleanupPending(5000000u, NULL)) result = 0;
+		if (!xoauth2HttpXrtCleanupPending(5000, NULL)) result = 0;
 		if ( previous != NULL && xrtGetError() != previous ) {
 			fprintf(stderr, "HTTP cleanup replaced the operation error\n");
 			result = 0;

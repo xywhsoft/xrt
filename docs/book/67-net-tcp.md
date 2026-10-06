@@ -71,7 +71,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -I single -include xrt.h impl.c examples/network/tcp_
 received: hello
 ```
 
-**刚才发生了什么。** 六个节点值得注意。① `Workers = 2`——工具程序给两个 Worker 就够，Engine 本身不做业务。② 监听地址用 `xrtNetAddrLoopback` 生成回环地址，**端口填 0**，随后 `xrtNetListenerLocal` 取回系统分配的真实端口——这是并发测试不互相冲突的标准姿势。③ 客户端 `xrtNetStreamConnect` 的第 3 个参数 `1` 是地址数量；同步面下连接由 Engine 在后台完成。④ `xrtNetListenerAcceptWait` 带一个 `xrtDeadlineAfter` 截止时间，到点没连接就返回 `NULL` 并在线程错误槽留下超时类别（第 4 章的模型在这里兑现）。⑤ `xrtNetStreamRecv` 返回**拥有式**的 `xnetbytes`，用 `xrtNetBytesView` 借出视图读取，读完 `xrtNetBytesDestroy` 释放。⑥ 收尾段先 `Abort` 两条流与监听器，**自旋等三者都到 `CLOSED`**，再逐个 `Destroy`，最后 `xrtNetEngineDestroy`。
+**刚才发生了什么。** 六个节点值得注意。① `Workers = 2`——工具程序给两个 Worker 就够，Engine 本身不做业务。② 监听地址用 `xrtNetAddrLoopback` 生成回环地址，**端口填 0**，随后 `xrtNetListenerLocal` 取回系统分配的真实端口——这是并发测试不互相冲突的标准姿势。③ 客户端 `xrtNetStreamConnect` 的第 3 个参数 `1` 是地址数量；同步面下连接由 Engine 在后台完成。④ `xrtNetListenerAcceptWait` 带一个 `relative milliseconds` 截止时间，到点没连接就返回 `NULL` 并在线程错误槽留下超时类别（第 4 章的模型在这里兑现）。⑤ `xrtNetStreamRecv` 返回**拥有式**的 `xnetbytes`，用 `xrtNetBytesView` 借出视图读取，读完 `xrtNetBytesDestroy` 释放。⑥ 收尾段先 `Abort` 两条流与监听器，**自旋等三者都到 `CLOSED`**，再逐个 `Destroy`，最后 `xrtNetEngineDestroy`。
 
 ### 事件面完整形态：回调驱动的回显服务
 

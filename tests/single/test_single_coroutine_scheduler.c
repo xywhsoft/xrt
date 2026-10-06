@@ -6,7 +6,7 @@
 /* 单头文件调度协程执行一次异步睡眠。 */
 static ptr testSingleCoSchedProc(ptr pData)
 {
-	return xrtCoSleep(100) == XWAIT_OK ? pData : NULL;
+	return xrtCoSleep(1) == XWAIT_OK ? pData : NULL;
 }
 
 

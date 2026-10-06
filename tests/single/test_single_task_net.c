@@ -39,7 +39,7 @@ int main(void)
 		);
 	}
 	if ( (pFuture != NULL) &&
-		(xrtFutureWaitFor(pFuture, 3000000u) == XWAIT_OK) &&
+		(xrtFutureWaitFor(pFuture, 3000) == XWAIT_OK) &&
 		(xrtFutureValue(pFuture) == &iValue) ) {
 		iResult = 0;
 	}

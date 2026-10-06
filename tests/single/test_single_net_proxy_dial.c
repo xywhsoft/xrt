@@ -275,11 +275,11 @@ static void testSingleProxyDone(
 /* 等待一个 Stream 进入关闭终态。 */
 static bool testSingleProxyWaitClosed(
 	const xnetstream* pStream,
-	xdeadline Deadline
+	double Deadline
 )
 {
 	while ( xrtNetStreamState(pStream) != XNET_STREAM_CLOSED ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -309,7 +309,7 @@ int main(void)
 	xnetstream* pClient;
 	xnetstream* pServer;
 	xnetaddr Address;
-	xdeadline Deadline;
+	double Deadline;
 
 	memset(&State, 0, sizeof(State));
 	xrtAtomicPtrInit(&State.Client, NULL);
@@ -386,10 +386,10 @@ int main(void)
 	if ( pDial == NULL ) {
 		return 5;
 	}
-	Deadline = xrtDeadlineAfter(5000000u);
+	Deadline = __xrtWaitAfter(5000);
 	while ( (xrtAtomic32Load(&State.Done, XMEMORY_ACQUIRE) == 0) ||
 		(xrtAtomic32Load(&State.Received, XMEMORY_ACQUIRE) < 2) ) {
-		if ( xrtDeadlineExpired(Deadline) ||
+		if ( __xrtWaitExpired(Deadline) ||
 			xrtAtomic32Load(&State.Failed, XMEMORY_ACQUIRE) ) {
 			return 6;
 		}
@@ -413,7 +413,7 @@ int main(void)
 	}
 	(void)xrtNetListenerClose(pListener);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		if ( xrtDeadlineExpired(Deadline) ) {
+		if ( __xrtWaitExpired(Deadline) ) {
 			return 8;
 		}
 		xrtThreadYield();

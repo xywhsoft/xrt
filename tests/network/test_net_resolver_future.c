@@ -70,7 +70,7 @@ static xnetaddrlist* testResolverFutureLookup(
 /* 等待阻塞查询进入自定义过程。 */
 static void testResolverFutureWaitEntered(testresolverfuture* pContext)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	testRequire(xrtMutexLock(&pContext->Lock),
 		"resolver Future wait lock failed");
@@ -119,7 +119,7 @@ int main(void)
 		XNET_FAMILY_IPV4
 	);
 	testRequire(pFuture != NULL, "resolver Future create failed");
-	testRequire(xrtFutureWaitFor(pFuture, 5000000u) == XWAIT_OK,
+	testRequire(xrtFutureWaitFor(pFuture, 5000) == XWAIT_OK,
 		"resolver Future success wait failed");
 	testRequire(xrtFutureState(pFuture) == XFUTURE_RESOLVED,
 		"resolver Future success state mismatch");
@@ -141,7 +141,7 @@ int main(void)
 		XNET_FAMILY_UNSPEC
 	);
 	testRequire(pFuture != NULL, "resolver failed Future create failed");
-	testRequire(xrtFutureWaitFor(pFuture, 5000000u) == XWAIT_OK,
+	testRequire(xrtFutureWaitFor(pFuture, 5000) == XWAIT_OK,
 		"resolver failed Future wait failed");
 	testRequire(xrtFutureState(pFuture) == XFUTURE_FAILED,
 		"resolver failed Future state mismatch");
@@ -166,7 +166,7 @@ int main(void)
 	testResolverFutureWaitEntered(&Context);
 	testRequire(xrtFutureCancel(pFuture),
 		"resolver Future cancel request failed");
-	testRequire(xrtFutureWaitFor(pFuture, 5000000u) == XWAIT_OK,
+	testRequire(xrtFutureWaitFor(pFuture, 5000) == XWAIT_OK,
 		"resolver cancelled Future wait failed");
 	testRequire(xrtFutureState(pFuture) == XFUTURE_CANCELLED,
 		"resolver cancelled Future state mismatch");

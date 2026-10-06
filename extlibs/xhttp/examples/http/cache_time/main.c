@@ -29,7 +29,7 @@ int main(void)
 	if ( !xrtHttpCacheControlParse(Fields, 3, &Control) ||
 		!xrtHttpCacheTimeParse(Fields, 3, &Time) ||
 		(xrtHttpCacheCurrentAge(
-			&Time, Time.Date, 1, 2, 3, &Age
+			&Time, Time.Date, 1e-06, 2e-06, 3e-06, &Age
 		) != XHTTP_CACHE_CALC_READY) ||
 		(xrtHttpCacheFreshness(
 			&Control, &Time, Time.Date, false, &Freshness

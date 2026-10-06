@@ -87,7 +87,7 @@ int main(int argc, char** argv)
     char issuer[2048], authorize[2048], endpoint[2048], userinfo[2048], jwks[2048];
     char discovery[4096], code[8192] = {0}, state[128] = {0};
     if ( strcmp(argv[4], "system") != 0 && (ca = live_ca(argv[4])) == NULL ) goto done;
-    http = xoauth2HttpXrtCreate(NULL, ca, 10000000u);
+    http = xoauth2HttpXrtCreate(NULL, ca, 10000);
     if ( http == NULL ) goto done;
     xoauth2ConfigInit(&config); config.Http = xoauth2HttpXrt; config.HttpContext = http;
     xoauth2UseCustom(&oauth, &config);
@@ -153,7 +153,7 @@ done:
     for ( unsigned attempt = 0; attempt < 3u && !cleaned; attempt++ ) cleaned = xoauth2HttpXrtCleanup(http);
     if ( cleaned ) xoauth2HttpXrtDestroy(http);
     else { result = 1; fputs("OIDC transport cleanup did not complete\n", stderr); }
-    if ( !xoauth2HttpXrtCleanupPending(10000000u, NULL) ) result = 1;
+    if ( !xoauth2HttpXrtCleanupPending(10000, NULL) ) result = 1;
     xrtFree(ca); xrtSecureZero(code, sizeof(code)); xrtSecureZero(state, sizeof(state));
     return result;
 }

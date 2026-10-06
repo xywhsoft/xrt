@@ -6,7 +6,7 @@
 /* 等待关闭回调完成 Server 的运行时引用释放。 */
 static void testTcpServerFutureOomClose(xnetserver* pServer)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetServerState(pServer) != XNET_SERVER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(iDeadline),

@@ -57,7 +57,7 @@ static void testTlsDialFutureEdgeWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	double Deadline = __xrtWaitAfter(INT64_C(5000));
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -132,7 +132,7 @@ static void testTlsDialFutureEdgeState(
 	testRequire((pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == State),
 		sMessage);
@@ -145,7 +145,7 @@ static void testTlsDialFutureEdgeDestroyEngine(
 	xnetengine* pEngine
 )
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	double Deadline = __xrtWaitAfter(INT64_C(5000));
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
@@ -214,7 +214,7 @@ int main(void)
 	xrtTlsDialConfigInit(&DialConfig);
 	DialConfig.Transport.Family = XNET_FAMILY_IPV4;
 	DialConfig.Transport.MaxAttempts = 1u;
-	DialConfig.Transport.Stream.ConnectTimeout = UINT64_C(1000000);
+	DialConfig.Transport.Stream.ConnectTimeout = INT64_C(1000);
 	pFailure = xrtTlsDialAsync(
 		pEngine,
 		pFailureResolver,
@@ -269,7 +269,7 @@ int main(void)
 	xrtTlsDialConfigInit(&DialConfig);
 	DialConfig.Transport.Family = XNET_FAMILY_IPV4;
 	DialConfig.Transport.Timeout = 0;
-	DialConfig.Timeout = UINT64_C(20000);
+	DialConfig.Timeout = INT64_C(20);
 	pTimeout = xrtTlsDialAsync(
 		pEngine,
 		pTimeoutResolver,

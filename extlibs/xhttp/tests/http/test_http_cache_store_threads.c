@@ -263,7 +263,7 @@ static void testHttpCacheRaceRun(
 {
 	test_http_cache_race_thread Contexts[2];
 	xthread* Threads[2];
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 	uint32 iReady = 0;
 	size_t i;
 

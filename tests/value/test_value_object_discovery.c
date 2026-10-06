@@ -217,12 +217,21 @@ static void cycle(bool abort_collection)
     testRequire(context.releases == 1 && context.finalizers == 1 && !remaining.count,"cycle tails leave no stale discovery node"); ++reclaimed; balance(&before);
 }
 static xatomic32 running = {0};
+static xatomic32 ready = {0};
+static xatomic32 proceed = {0};
 static int32 worker(ptr data)
 {
     size_t rounds = (size_t)(uintptr_t)data;
     for (size_t round=0; round<rounds; ++round) {
         Lifetime context = {0}; xvalue* object = create(&family,&context);
-        testRequire(object,"worker object"); xvalue* copy = xrtValueDeepClone(object); testRequire(copy,"worker clone");
+        testRequire(object,"worker object");
+        /* Keep the first real objects alive until discovery has observed all
+         * workers. Otherwise short runs can finish without any freeze window. */
+        if (round == 0) {
+            (void)xrtAtomic32FetchAdd(&ready,1,XMEMORY_RELEASE);
+            while (!xrtAtomic32Load(&proceed,XMEMORY_ACQUIRE)) xrtThreadYield();
+        }
+        xvalue* copy = xrtValueDeepClone(object); testRequire(copy,"worker clone");
         xrtValueRelease(object); xrtValueRelease(copy); testRequire(context.releases == 1,"worker lifetime ends exactly once");
     }
     (void)xrtAtomic32FetchSub(&running,1,XMEMORY_RELEASE); return 0;
@@ -231,12 +240,16 @@ static void concurrent(void)
 {
     /* Warm thread/runtime services before the measured allocation ledger. */
     xrtAtomic32Store(&running,1,XMEMORY_RELEASE); xthread* warm = xrtThreadCreate(worker,NULL,0);
-    testRequire(warm && xrtThreadWaitFor(warm,5000000) == XWAIT_OK,"warm native thread"); xrtThreadDestroy(warm);
+    testRequire(warm && xrtThreadWaitFor(warm,5000) == XWAIT_OK,"warm native thread"); xrtThreadDestroy(warm);
     xmemdebugsnapshot before; xrtMemDebugSnapshot(&before); xthread* threads[4];
+    xrtAtomic32Store(&ready,0,XMEMORY_RELEASE);
+    xrtAtomic32Store(&proceed,0,XMEMORY_RELEASE);
     xrtAtomic32Store(&running,4,XMEMORY_RELEASE);
     for (unsigned i=0; i<4; ++i) { threads[i]=xrtThreadCreate(worker,(ptr)(uintptr_t)200,0); testRequire(threads[i],"native worker"); }
     unsigned frozen = 0;
+    double limit = xrtTimer() + 5.0;
     while (xrtAtomic32Load(&running,XMEMORY_ACQUIRE)) {
+        testRequire(xrtTimer() < limit,"concurrent workers and discovery finish within budget");
         xrtownershipscope freeze = {0}; Anchors anchors = {0};
         if (xrtOwnershipFreezeTryBegin(&freeze)) {
             testRequire(xrtValueObjectOwnershipDiscoverV1(&family,discover,&anchors),"concurrent frozen discovery");
@@ -244,10 +257,12 @@ static void concurrent(void)
                 testRequire(anchors.refs[i].Ops->Count(anchors.refs[i].Data,&count) && count > 0,"no freed/zero-count registry nodes");
             }
             testRequire(xrtOwnershipScopeEnd(&freeze),"concurrent freeze end"); ++frozen;
+            if (xrtAtomic32Load(&ready,XMEMORY_ACQUIRE) == 4)
+                xrtAtomic32Store(&proceed,1,XMEMORY_RELEASE);
         }
         xrtThreadYield();
     }
-    for (unsigned i=0; i<4; ++i) { testRequire(xrtThreadWaitFor(threads[i],5000000) == XWAIT_OK,"join actual workers"); xrtThreadDestroy(threads[i]); }
+    for (unsigned i=0; i<4; ++i) { testRequire(xrtThreadWaitFor(threads[i],5000) == XWAIT_OK,"join actual workers"); xrtThreadDestroy(threads[i]); }
     testRequire(!enumerate(&family).count && frozen,"concurrent registry empty after joins"); balance(&before);
 }
 int main(void)

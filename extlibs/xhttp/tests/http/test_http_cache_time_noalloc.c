@@ -38,9 +38,9 @@ int main(void)
 	) && (xrtHttpCacheCurrentAge(
 		&Time,
 		Time.Date,
-		UINT64_C(1000000),
-		UINT64_C(2000000),
-		UINT64_C(3000000),
+		1.0,
+		2.0,
+		3.0,
 		&Age
 	) == XHTTP_CACHE_CALC_READY) &&
 		(xrtHttpCacheFreshness(

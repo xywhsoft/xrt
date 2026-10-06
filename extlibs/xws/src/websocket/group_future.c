@@ -1,3 +1,4 @@
+#include <xrt/detail/xws_wait.h>
 #include <xrt/detail/wait.h>
 #include <xrt/future.h>
 #include "../internal/xrt_websocket_group.h"
@@ -728,7 +729,7 @@ XRT_API xwaitresult xrtWsGroupOpWait(xwsgroupop* pOperation)
 
 
 
-/* 在相对微秒数内等待全部已接纳操作进入终态。 */
+/* 在相对毫秒数内等待全部已接纳操作进入终态。 */
 XRT_API xwaitresult xrtWsGroupOpWaitFor(
 	xwsgroupop* pOperation,
 	int64 iTimeout
@@ -757,6 +758,8 @@ XRT_API xwaitresult __xrtWsGroupOpWaitUntil(
 		"websocket-group.operation-wait",
 		NULL
 	) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 		return XWAIT_ERROR;
 	}
 	return __xrtFutureWaitUntil(pOperation->Completion, iDeadline);
@@ -776,6 +779,8 @@ XRT_API xwaitresult __xrtWsGroupOpWaitUntilCancel(
 		"websocket-group.operation-wait",
 		NULL
 	) ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
+
 		return XWAIT_ERROR;
 	}
 	return __xrtFutureWaitUntilCancel(

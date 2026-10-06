@@ -175,7 +175,7 @@ static void testHttpClientStreamWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -1312,7 +1312,7 @@ int main(void)
 	}
 	testRequire(xrtNetListenerClose(State.Listener),
 		"HTTP Listener close failed");
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while (
 		#if TEST_HTTP_CLIENT_STREAM_TRANSFERS
 			(xrtNetStreamState(State.Returned) !=

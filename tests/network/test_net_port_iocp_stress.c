@@ -32,7 +32,7 @@ int main(void)
 	xnetaddr Address;
 	size_t iReceiveCount = 0;
 	size_t iSendCount = 0;
-	double Deadline = __xrtWaitAfter(10000000);
+	double Deadline = __xrtWaitAfter(10000);
 
 	xrtNetPortConfigInit(&Config);
 	Config.Backend = XNET_PORT_IOCP;

@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/udp_sync —— 阻塞式 UDP 接收
  * ----------------------------------------------------------------
@@ -63,9 +62,8 @@ int main(void)
 		 (xrtNetUdpSend(pClient, "hello", 5) != XNET_RESULT_OK) ) {
 		return 3;
 	}
-	pPacket = __xrtNetUdpReceiveWait(
-		pServer,
-		__xrtWaitAfter(3000000u),
+	pPacket = xrtNetUdpReceiveWait(
+		pServer,3000,
 		NULL
 	);
 	bReceived = pPacket != NULL;

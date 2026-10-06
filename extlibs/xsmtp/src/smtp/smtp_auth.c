@@ -1,3 +1,4 @@
+#include <xrt/detail/xsmtp_wait.h>
 #include <xrt/detail/wait.h>
 #include <xrt/smtp_auth.h>
 
@@ -391,6 +392,8 @@ XRT_API bool __xrtSmtpClientAuth(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	uint64 iCapability;
 	bool bSuccess;
 

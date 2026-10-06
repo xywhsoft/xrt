@@ -131,7 +131,7 @@ URI、方法和 `Vary` 的实际比较留在键实现中，因为不同缓存可
 淘汰。该事实必须和存储条目一起保存，不能在首次存储检查后丢弃。
 
 每个缓存命中都设置 `XHTTP_CACHE_USE_SET_AGE`，输出层必须替换现有 `Age`。
-陈旧命中还设置 `XHTTP_CACHE_USE_STALE`，`StaleBy` 给出超过新鲜寿命的微秒数。
+陈旧命中还设置 `XHTTP_CACHE_USE_STALE`，`StaleBy` 给出超过新鲜寿命的毫秒数。
 意外进入存储的 `no-store` 响应设置 `XHTTP_CACHE_USE_EVICT`。
 
 ## 寿命扩展

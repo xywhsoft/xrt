@@ -117,6 +117,7 @@ typedef struct xsshkexsession {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -297,7 +298,7 @@ XRT_API xsshcode xrtSshKexSessionReadAbort(xsshkexsession* pSession);
 XRT_API xsshcode xrtSshKexSessionActivateWrite(
 	xsshkexsession* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -306,7 +307,7 @@ XRT_API xsshcode xrtSshKexSessionActivateWrite(
 XRT_API xsshcode xrtSshKexSessionActivateRead(
 	xsshkexsession* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 );
 
 

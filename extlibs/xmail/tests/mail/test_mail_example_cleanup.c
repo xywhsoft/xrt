@@ -32,7 +32,7 @@ static void busyCleanup(bool primary)
 		xrtSetErrorTake(error);
 		cause = xrtGetError();
 	}
-	testRequire(!mailExampleNetCleanup(&net, __xrtWaitAfter(0u)),
+	testRequire(!mailExampleNetCleanup(&net, __xrtWaitAfter(0)),
 		"mail example cleanup reported success with a live engine pin");
 	testRequire(net.Engine == engine && net.Tls == tls,
 		"mail example cleanup discarded retained resource owners");
@@ -61,7 +61,7 @@ typedef struct resolverGate {
 static xnetaddrlist* blockedLookup(cstr host, xnetfamily family, ptr data)
 {
 	resolverGate* gate = data;
-	double limit = __xrtWaitAfter(UINT64_C(3000000));
+	double limit = __xrtWaitAfter(INT64_C(3000));
 	(void)host;
 	(void)family;
 	xrtAtomic32Store(&gate->Entered, 1u, XMEMORY_RELEASE);
@@ -88,12 +88,12 @@ static void busyResolverCleanup(void)
 	xnetengine* engine = net.Engine;
 	xnetresolveop* operation = xrtNetResolverResolve(resolver, "blocked.test", XNET_FAMILY_IPV4, NULL, NULL);
 	testRequire(operation != NULL, "mail example blocked lookup submit failed");
-	double limit = __xrtWaitAfter(UINT64_C(3000000));
+	double limit = __xrtWaitAfter(INT64_C(3000));
 	while ( !xrtAtomic32Load(&gate.Entered, XMEMORY_ACQUIRE) ) {
 		testRequire(!__xrtWaitExpired(limit), "mail example lookup never entered");
 		xrtSleep(1u);
 	}
-	testRequire(!mailExampleNetCleanup(&net, __xrtWaitAfter(0u)),
+	testRequire(!mailExampleNetCleanup(&net, __xrtWaitAfter(0)),
 		"mail example cleanup waited through an active resolver query");
 	testRequire(net.Resolver == resolver && net.Engine == engine &&
 		xrtNetEngineState(engine) == XNET_ENGINE_RUNNING && xrtErrorKind(xrtGetError()) == XERR_TIMEOUT,
@@ -121,7 +121,7 @@ int main(void)
 	testRequire(net.Engine != NULL && net.Resolver != NULL, "mail example idle owners setup failed");
 	testRequire(mailExampleNetUnit(&net), "mail example idle owner cleanup failed");
 	testRequire(net.Engine == NULL && net.Resolver == NULL, "mail example idle owners not consumed");
-	testRequire(mailExampleNetCleanup(NULL, __xrtWaitAfter(0u)), "mail example null cleanup failed");
+	testRequire(mailExampleNetCleanup(NULL, __xrtWaitAfter(0)), "mail example null cleanup failed");
 	requireClean();
 	puts("mail example busy retirement, retained owners, retry and diagnostics passed");
 	return 0;

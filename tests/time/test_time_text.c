@@ -159,7 +159,7 @@ static void testTimeCustomParse(void)
 
 
 
-/* RFC 3339 必须无损处理偏移和微秒，并严格拒绝协议外字段。 */
+/* RFC 3339 必须无损处理偏移和毫秒，并严格拒绝协议外字段。 */
 static void testRFC3339(void)
 {
 	char arrText[64];
@@ -183,6 +183,14 @@ static void testRFC3339(void)
 		(strcmp(sText, "2024-01-02T03:04:05.123+08:30") == 0),
 		"RFC 3339 canonical format is wrong");
 	xrtFree(sText);
+
+    testRequire(xrtTimeParseRFC3339(XRT_STR_LITERAL("0000-12-31T23:59:59.9999Z"), &iTime) && iTime == -1,
+        "BCE fractional parsing crossed the civil epoch");
+    testRequire(xrtTimeWriteRFC3339(arrText, sizeof(arrText), -1, 0) != XRT_NPOS &&
+        strcmp(arrText, "0000-12-31T23:59:59.999Z") == 0,
+        "BCE RFC3339 roundtrip failed");
+    testRequire(xrtTimeWriteHTTPDate(arrText, sizeof(arrText), -1) == XRT_NPOS,
+        "HTTP date accepted an unsupported BCE year");
 
 	iTime = 71;
 	testRequire(!xrtTimeParseRFC3339(

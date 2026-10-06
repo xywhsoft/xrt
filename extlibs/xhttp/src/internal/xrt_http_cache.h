@@ -32,7 +32,7 @@ uint64 __xrtHttpCacheTimeAdd(
 
 
 
-/* 把线路秒数转换为内部微秒，溢出时保持饱和。 */
+/* 把线路秒数转换为内部毫秒，溢出时保持饱和。 */
 uint64 __xrtHttpCacheTimeSeconds(uint64 iSeconds);
 
 #endif

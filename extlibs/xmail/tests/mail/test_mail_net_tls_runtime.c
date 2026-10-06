@@ -47,7 +47,7 @@ static void testMailNetTlsParkWorker(xnetworker* pWorker, ptr pData)
 
 static void testMailNetTlsWaitFlag(const xatomic32* pFlag, cstr sMessage)
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	double Deadline = __xrtWaitAfter(INT64_C(3000));
 
 	while ( xrtAtomic32Load(pFlag, XMEMORY_ACQUIRE) == 0 ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -58,7 +58,7 @@ static void testMailNetTlsWaitFlag(const xatomic32* pFlag, cstr sMessage)
 /* 拨号取消是异步清理；资源退休须等待 Worker 完成回调。 */
 static void testMailNetTlsDestroyEngine(xnetengine* pEngine)
 {
-	double Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	double Deadline = __xrtWaitAfter(INT64_C(3000));
 
 	for ( ;; ) {
 		xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
@@ -95,7 +95,7 @@ static void testMailNetTlsLookupInit(xcancel* pCancel)
 static int32 testMailNetTlsReleaseLookupAfterReturn(ptr pData)
 {
 	testmailnettlslookup* pLookup = (testmailnettlslookup*)pData;
-	double Deadline = __xrtWaitAfter(UINT64_C(3000000));
+	double Deadline = __xrtWaitAfter(INT64_C(3000));
 
 	while ( xrtAtomic32Load(&pLookup->Entered, XMEMORY_ACQUIRE) == 0 &&
 		!__xrtWaitExpired(Deadline) ) {
@@ -257,7 +257,7 @@ int main(void)
 		"mail TLS runtime cancel fixture failed");
 	xrtClearError();
 	testRequire(!__xrtMailTransportOpen(
-		&Transport, &Config, __xrtWaitAfter(UINT64_C(3000000)), pCancel
+		&Transport, &Config, __xrtWaitAfter(INT64_C(3000)), pCancel
 	) && xrtGetError() != NULL &&
 		xrtErrorKind(xrtGetError()) == XERR_CANCELLED &&
 		Transport.Tls == NULL && Transport.Tcp == NULL &&
@@ -285,10 +285,10 @@ int main(void)
 	testRequire(pCanceller != NULL,
 		"mail TLS stalled cancel helper creation failed");
 	{
-		double Quick = __xrtWaitAfter(UINT64_C(500000));
+		double Quick = __xrtWaitAfter(INT64_C(500));
 		xrtClearError();
 		testRequire(!__xrtMailTransportOpen(
-			&Transport, &Config, __xrtWaitAfter(UINT64_C(3000000)), pCancel
+			&Transport, &Config, __xrtWaitAfter(INT64_C(3000)), pCancel
 		) && xrtGetError() != NULL &&
 			xrtErrorKind(xrtGetError()) == XERR_CANCELLED &&
 			!__xrtWaitExpired(Quick) &&
@@ -296,7 +296,7 @@ int main(void)
 			"mail TLS in-flight lookup cancellation was delayed");
 	}
 	xrtAtomic32Store(&TestMailNetTlsLookup.Returned, 1, XMEMORY_RELEASE);
-	testRequire(xrtThreadWaitFor(pCanceller, UINT64_C(3000000)) ==
+	testRequire(xrtThreadWaitFor(pCanceller, INT64_C(3000)) ==
 		XWAIT_OK && xrtThreadExitCode(pCanceller) == 0,
 		"mail TLS stalled cancel helper did not finish");
 	xrtThreadDestroy(pCanceller);
@@ -305,7 +305,7 @@ int main(void)
 	__xrtMailTransportDestroy(&Transport);
 	xrtCancelDestroy(pCancel);
 	pServer = __xrtTlsListenerAcceptWait(
-		pListener, __xrtWaitAfter(UINT64_C(200000)), NULL);
+		pListener, __xrtWaitAfter(INT64_C(200)), NULL);
 	testRequire(pServer == NULL,
 		"mail TLS cancelled lookup caused a late session");
 	xrtClearError();
@@ -317,10 +317,10 @@ int main(void)
 	testRequire(pCanceller != NULL,
 		"mail TLS stalled timeout helper creation failed");
 	{
-		double Quick = __xrtWaitAfter(UINT64_C(700000));
+		double Quick = __xrtWaitAfter(INT64_C(700));
 		xrtClearError();
 		testRequire(!__xrtMailTransportOpen(
-			&Transport, &Config, __xrtWaitAfter(UINT64_C(200000)), NULL
+			&Transport, &Config, __xrtWaitAfter(INT64_C(200)), NULL
 		) && xrtGetError() != NULL &&
 			xrtErrorKind(xrtGetError()) == XERR_TIMEOUT &&
 			!__xrtWaitExpired(Quick) &&
@@ -328,7 +328,7 @@ int main(void)
 			"mail TLS in-flight lookup timeout was delayed");
 	}
 	xrtAtomic32Store(&TestMailNetTlsLookup.Returned, 1, XMEMORY_RELEASE);
-	testRequire(xrtThreadWaitFor(pCanceller, UINT64_C(3000000)) ==
+	testRequire(xrtThreadWaitFor(pCanceller, INT64_C(3000)) ==
 		XWAIT_OK && xrtThreadExitCode(pCanceller) == 0,
 		"mail TLS stalled timeout helper did not finish");
 	xrtThreadDestroy(pCanceller);
@@ -336,13 +336,13 @@ int main(void)
 		"mail TLS timed-out lookup did not release");
 	__xrtMailTransportDestroy(&Transport);
 	pServer = __xrtTlsListenerAcceptWait(
-		pListener, __xrtWaitAfter(UINT64_C(200000)), NULL);
+		pListener, __xrtWaitAfter(INT64_C(200)), NULL);
 	testRequire(pServer == NULL,
 		"mail TLS timed-out lookup caused a late session");
 	xrtClearError();
 	Config.Host = "mail.test";
 
-	Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(INT64_C(10000));
 	testRequire(__xrtMailTransportOpen(
 		&Transport,
 		&Config,
@@ -392,7 +392,7 @@ int main(void)
 	/* 等待 TLS 明文时超时或取消，不得消耗随后到达的回复。 */
 	xrtClearError();
 	testRequire(!__xrtMailTransportLine(
-		&Transport, &Line, __xrtWaitAfter(UINT64_C(20000)), NULL
+		&Transport, &Line, __xrtWaitAfter(INT64_C(20)), NULL
 	) && xrtGetError() != NULL &&
 		xrtErrorKind(xrtGetError()) == XERR_TIMEOUT &&
 		xrtTlsStreamState(Transport.Tls) == XTLS_STREAM_OPEN,
@@ -423,7 +423,7 @@ int main(void)
 		xrtErrorKind(xrtGetError()) == XERR_CANCELLED &&
 		xrtTlsStreamState(Transport.Tls) == XTLS_STREAM_OPEN,
 		"mail TLS receive cancellation poisoned the stream");
-	testRequire(xrtThreadWaitFor(pCanceller, UINT64_C(3000000)) ==
+	testRequire(xrtThreadWaitFor(pCanceller, INT64_C(3000)) ==
 		XWAIT_OK && xrtThreadExitCode(pCanceller) == 0,
 		"mail TLS receive canceller did not finish");
 	xrtThreadDestroy(pCanceller);
@@ -468,7 +468,7 @@ int main(void)
 	) && xrtGetError() != NULL &&
 		xrtErrorKind(xrtGetError()) == XERR_CANCELLED,
 		"mail TLS queued send ignored cancellation");
-	testRequire(xrtThreadWaitFor(pCanceller, UINT64_C(3000000)) ==
+	testRequire(xrtThreadWaitFor(pCanceller, INT64_C(3000)) ==
 		XWAIT_OK && xrtThreadExitCode(pCanceller) == 0,
 		"mail TLS send canceller did not finish");
 	xrtThreadDestroy(pCanceller);
@@ -478,7 +478,7 @@ int main(void)
 		"mail TLS worker did not resume");
 	pFuture = xrtTlsStreamRecvAsync(pServer, 1u);
 	testRequire(pFuture != NULL && __xrtFutureWaitUntil(
-		pFuture, __xrtWaitAfter(UINT64_C(20000))
+		pFuture, __xrtWaitAfter(INT64_C(20))
 	) == XWAIT_TIMEOUT,
 		"mail TLS cancelled send leaked bytes to the server");
 	(void)xrtFutureCancel(pFuture);
@@ -505,7 +505,7 @@ int main(void)
 		unsigned char Tail[8193];
 
 		memset(Tail, 0x5a, sizeof(Tail));
-		Deadline = __xrtWaitAfter(UINT64_C(3000000));
+		Deadline = __xrtWaitAfter(INT64_C(3000));
 		pFuture = xrtTlsStreamSendAsync(pServer, Tail, sizeof(Tail));
 		testRequire(testMailNetTlsFuture(pFuture, Deadline),
 			"mail TLS unread close tail send failed");
@@ -539,7 +539,7 @@ int main(void)
 	Config.Tls.Verifier = pRejectVerifier;
 	TestMailNetTlsRejectCalled = false;
 	xrtClearError();
-	Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	Deadline = __xrtWaitAfter(INT64_C(10000));
 	testRequire(!__xrtMailTransportOpen(
 		&Transport, &Config, Deadline, NULL
 	) && TestMailNetTlsRejectCalled &&

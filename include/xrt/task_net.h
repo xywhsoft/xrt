@@ -59,7 +59,7 @@ XRT_API xfuture* xrtTaskNet(
 
 
 
-/* 在相对微秒数到期后向指定亲和 Worker 提交任务。 */
+/* 在相对毫秒数到期后向指定亲和 Worker 提交任务。 */
 XRT_API xfuture* xrtTaskNetAfter(
 	xnetengine* pEngine,
 	uint64 iAffinity,

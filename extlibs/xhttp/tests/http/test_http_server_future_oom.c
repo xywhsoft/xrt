@@ -248,7 +248,7 @@ static void testHttpServerFutureOomWaitCreate(
 		),
 		"HTTP server close wait OOM barrier post failed"
 	);
-	Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(INT64_C(5000));
 	while ( xrtAtomic32Load(
 		&pState->BarrierStarted,
 		XMEMORY_ACQUIRE
@@ -278,7 +278,7 @@ static void testHttpServerFutureOomWaitCreate(
 		1,
 		XMEMORY_RELEASE
 	);
-	Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	Deadline = __xrtWaitAfter(INT64_C(5000));
 	while ( xrtAtomic32Load(
 		&pState->BarrierDone,
 		XMEMORY_ACQUIRE
@@ -295,7 +295,7 @@ static void testHttpServerFutureOomWaitCreate(
 		xrtFutureCancel(pFuture) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(5000000)
+			INT64_C(5000)
 		 ) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_CANCELLED) &&
 		(xrtHttpServerState(pServer) == XHTTP_SERVER_RUNNING),
@@ -474,7 +474,7 @@ static void testHttpServerFutureOomWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(

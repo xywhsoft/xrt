@@ -1,3 +1,4 @@
+#include <xrt/detail/xpop3_wait.h>
 #include <xrt/detail/wait.h>
 #include "test.h"
 #include "test_tls.h"
@@ -201,7 +202,7 @@ int main(void)
 			Server.Tls = &TlsServer;
 			Server.Stage = (testpop3tlsstage)Stage;
 			Server.Fault = (testpop3tlsfault)Fault;
-			Server.Deadline = __xrtWaitAfter(UINT64_C(15000000));
+			Server.Deadline = __xrtWaitAfter(INT64_C(15000));
 			Server.Cancel = xrtCancelCreate();
 			xrtAtomic32Init(&Server.ClientReady, 0u);
 			xrtAtomic32Init(&Server.Partial, 0u);
@@ -218,7 +219,7 @@ int main(void)
 			testRequire(__xrtPop3ClientLogin(pClient, XRT_STR_LITERAL("user"),
 				XRT_STR_LITERAL("pass"), false, Server.Deadline, NULL), "POP3 TLS fault login failed");
 			double Deadline = Fault == TEST_POP3_TLS_TIMEOUT ?
-				__xrtWaitAfter(UINT64_C(2000000)) : Server.Deadline;
+				__xrtWaitAfter(INT64_C(2000)) : Server.Deadline;
 			xcancel* pCancel = Fault == TEST_POP3_TLS_CANCEL ? Server.Cancel : NULL;
 			bool Succeeded;
 			xrtClearError();
@@ -287,7 +288,7 @@ int main(void)
 		}
 	}
 	testRequire(xrtNetListenerClose(pListener), "POP3 TLS fault listener close failed");
-	double Retire = __xrtWaitAfter(UINT64_C(3000000));
+	double Retire = __xrtWaitAfter(INT64_C(3000));
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(Retire), "POP3 TLS fault listener did not close");
 		xrtThreadYield();

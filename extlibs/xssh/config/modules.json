@@ -343,7 +343,9 @@
 			"name": "ssh_kex_ecdh",
 			"state": "implemented",
 			"feature": "XSSH_FEATURE_KEX_ECDH",
-			"depends": ["ssh_wire"],
+			"depends": [
+				"ssh_wire"
+			],
 			"public_headers": [
 				"extlibs/xssh/include/xrt/ssh_kex_ecdh.h"
 			],
@@ -373,7 +375,10 @@
 			"name": "ssh_kex_sha256",
 			"state": "implemented",
 			"feature": "XSSH_FEATURE_KEX_SHA256",
-			"depends": ["ssh_wire", "crypto_sha256"],
+			"depends": [
+				"ssh_wire",
+				"crypto_sha256"
+			],
 			"public_headers": [
 				"extlibs/xssh/include/xrt/ssh_kex_sha256.h"
 			],
@@ -403,7 +408,10 @@
 			"name": "ssh_kex_curve25519",
 			"state": "implemented",
 			"feature": "XSSH_FEATURE_KEX_CURVE25519",
-			"depends": ["ssh_wire", "crypto_x25519"],
+			"depends": [
+				"ssh_wire",
+				"crypto_x25519"
+			],
 			"public_headers": [
 				"extlibs/xssh/include/xrt/ssh_kex_curve25519.h"
 			],

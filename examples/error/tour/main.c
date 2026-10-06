@@ -94,7 +94,7 @@ int main(void)
 		Inner.Domain = "inner";
 		Inner.Message = "root cause";
 		pTaken = xrtErrorBuild(&Inner);
-		if ( (pTaken == NULL) ) {
+		if ( pTaken == NULL ) {
 			goto Cleanup;
 		}
 		/* 包装：Cause 指向内层。 */
@@ -102,7 +102,7 @@ int main(void)
 		xrtErrorFree(pError);
 		pError = xrtErrorBuild(&Desc);
 		Desc.Cause = NULL;
-		if ( (pError == NULL) ) {
+		if ( pError == NULL ) {
 			goto Cleanup;
 		}
 		pFound = (xerror*)xrtErrorFind(pError, "inner", 42);

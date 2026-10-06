@@ -1,7 +1,23 @@
-#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <string.h>
 #include <xhttp.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -142,10 +158,10 @@ int main(int iArgc, char** ppArgv)
 	if ( !xrtHttpServerDrain(pServer) ) {
 		goto Cleanup;
 	}
-	Deadline = __xrtWaitAfter(UINT64_C(5000000));
+	Deadline = exampleTimerLimit(INT64_C(5000));
 	while ( xrtHttpServerState(pServer) !=
 		XHTTP_SERVER_CLOSED ) {
-		if ( __xrtWaitExpired(Deadline) ) {
+		if ( exampleTimerExpired(Deadline) ) {
 			(void)xrtHttpServerAbort(pServer);
 			break;
 		}
@@ -159,12 +175,12 @@ Cleanup:
 		(xrtHttpServerState(pServer) !=
 		 XHTTP_SERVER_CLOSED) ) {
 		(void)xrtHttpServerAbort(pServer);
-		Deadline = __xrtWaitAfter(
-			UINT64_C(5000000)
+		Deadline = exampleTimerLimit(
+			INT64_C(5000)
 		);
 		while ( xrtHttpServerState(pServer) !=
 			XHTTP_SERVER_CLOSED ) {
-			if ( __xrtWaitExpired(Deadline) ) {
+			if ( exampleTimerExpired(Deadline) ) {
 				iResult = 2;
 				break;
 			}

@@ -69,7 +69,7 @@ bool xacmeDnsUnit(xacmedns* pDns)
 	pPrevious = xrtErrorRef(xrtGetError());
 	if(pDns->bEngineOwned && (pDns->pEngine != NULL))
 	{
-		double Deadline = __xrtWaitAfter(UINT64_C(30000000));
+		double Deadline = __xrtWaitAfter(INT64_C(30000));
 		for(;;)
 		{
 			xnetretireresult Result = xrtNetEngineTryDestroy(pDns->pEngine);
@@ -360,7 +360,7 @@ bool xacmeDnsTxtQuery(
 		for(iAttempt = 0; (iAttempt < 2) && !bGot; iAttempt++)
 		{
 			pPacket = __xrtNetUdpReceiveWait(
-				pUdp, xrtTimer() + UINT64_C(2000000), NULL);
+				pUdp, xrtTimer() + 2, NULL);
 			if(pPacket == NULL)
 			{
 				if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) goto Done;
@@ -440,7 +440,7 @@ bool xacmeDnsTxtWait(
 	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
 	cstr sExpected, int64 uTimeoutMs)
 {
-	uint64 uDeadline = xrtTimer() + uTimeoutMs * 1000u;
+	double uDeadline = __xrtWaitAfter(uTimeoutMs);
 	if((sExpected == NULL) || (sExpected[0] == '\0'))
 	{
 		xacmeTxtError(
@@ -448,7 +448,8 @@ bool xacmeDnsTxtWait(
 			"acme dns txt wait requires expected value");
 		return false;
 	}
-	while(xrtTimer() < uDeadline)
+	if (!__xrtWaitValid(uDeadline)) return false;
+	while(!__xrtWaitExpired(uDeadline))
 	{
 		char sRecords[4][XACME_TXT_RECORD_MAX];
 		size_t iCount = 0u;

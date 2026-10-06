@@ -28,7 +28,7 @@ int main(void)
 	xnetresolver* pResolver;
 	xnetresolveop* pOperation;
 	xnetaddrlist* pAddresses;
-	xdeadline iDeadline;
+	double iDeadline;
 	int iResult = 1;
 
 	memset(&State, 0, sizeof(State));
@@ -47,9 +47,9 @@ int main(void)
 		(void)xrtNetResolverDestroy(pResolver);
 		return 2;
 	}
-	iDeadline = xrtDeadlineAfter(2000000u);
+	iDeadline = __xrtWaitAfter(2000);
 	while ( xrtAtomic32Load(&State.Done, XMEMORY_ACQUIRE) == 0 ) {
-		if ( xrtDeadlineExpired(iDeadline) ) {
+		if ( __xrtWaitExpired(iDeadline) ) {
 			xrtNetResolveOpDestroy(pOperation);
 			(void)xrtNetResolverDestroy(pResolver);
 			return 3;

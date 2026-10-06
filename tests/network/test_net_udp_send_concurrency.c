@@ -23,7 +23,7 @@ static void testUdpConcurrencyWaitState(
 	xnetudpstate State
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetUdpState(pUdp) != State ) {
 		testRequire(!__xrtWaitExpired(iDeadline),
@@ -37,7 +37,7 @@ static void testUdpConcurrencyWaitState(
 /* 在截止时间内拉取一个数据报。 */
 static xnetudppacket* testUdpConcurrencyReceive(xnetudp* pUdp)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 	xnetudppacket* pPacket;
 
 	for ( ;; ) {
@@ -137,7 +137,7 @@ int main(void)
 		"UDP concurrent datagram set mismatch");
 
 	{
-		double iDeadline = __xrtWaitAfter(5000000u);
+		double iDeadline = __xrtWaitAfter(5000);
 
 		for ( ;; ) {
 			testRequire(xrtNetUdpStats(pClient, &Stats),

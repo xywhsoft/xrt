@@ -22,7 +22,7 @@ int main(void)
 	testRequire(
 		(Config.pAccount == NULL) && (Config.sCaPem == NULL) &&
 			(Config.pBorrowedEngine == NULL) &&
-			(Config.uTimeoutUs == 0u) &&
+			(Config.uTimeoutMs == 0u) &&
 			(Config.sPropagateResolvers == NULL) &&
 			(Config.iPropagateResolverCount == 0u) &&
 			(Config.uPropagateTimeoutMs == 0u) &&

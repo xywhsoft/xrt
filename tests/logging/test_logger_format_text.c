@@ -74,7 +74,7 @@ static void testLogTextLayouts(void)
 		XRT_STR_LITERAL("bad key"),
 		XRT_STR_LITERAL("x\t\"")
 	);
-	Record.Time = 0;
+	Record.Time = XRT_TIME_UNIX_EPOCH + 123;
 	Record.Level = XLOG_INFO;
 	Record.Logger = XRT_STR_LITERAL("service");
 	Record.Message = XRT_STR_LITERAL("hello\nworld");
@@ -98,7 +98,7 @@ static void testLogTextLayouts(void)
 	);
 	testLogTextEqual(
 		&Output,
-		"1970-01-01T00:00:00.000000Z INFO service a.c:7 foo "
+		"1970-01-01T00:00:00.123Z INFO service a.c:7 foo "
 		"thread=9 - hello\\nworld code=-7 \"bad key\"=\"x\\t\\\"\"\n",
 		"full log text layout changed"
 	);
@@ -144,9 +144,9 @@ static void testLogTextValues(void)
 	Fields[3] = xrtLogFieldUInt(XRT_STR_LITERAL("uint"), UINT64_MAX);
 	Fields[4] = xrtLogFieldFloat(XRT_STR_LITERAL("float"), 1.5);
 	Fields[5] = xrtLogFieldString(XRT_STR_LITERAL("string"), XRT_STR_LITERAL("v"));
-	Fields[6] = xrtLogFieldTime(XRT_STR_LITERAL("time"), 0);
+	Fields[6] = xrtLogFieldTime(XRT_STR_LITERAL("time"), XRT_TIME_UNIX_EPOCH + 123);
 	Fields[7] = xrtLogFieldError(XRT_STR_LITERAL("error"), pError);
-	Record.Time = 0;
+	Record.Time = XRT_TIME_UNIX_EPOCH + 123;
 	Record.Level = XLOG_WARN;
 	Record.Message = (xstrview){ arrMessage, sizeof(arrMessage) };
 	Record.Fields = Fields;
@@ -171,8 +171,8 @@ static void testLogTextValues(void)
 		(Output.Size > sizeof(arrMessage)) &&
 		testLogTextContains(
 			&Output,
-			"1970-01-01T05:30:15.000000+05:30:15 - ",
-			sizeof("1970-01-01T05:30:15.000000+05:30:15 - ") - 1u
+			"1970-01-01T05:30:15.123+05:30:15 - ",
+			sizeof("1970-01-01T05:30:15.123+05:30:15 - ") - 1u
 		),
 		"second-precision UTC offset formatting changed"
 	);

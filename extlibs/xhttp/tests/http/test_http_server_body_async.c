@@ -55,7 +55,7 @@ static void testHttpServerBodyAsyncWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -79,7 +79,7 @@ static void testHttpServerBodyAsyncWaitStats(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	for ( ;; ) {
@@ -642,8 +642,8 @@ int main(void)
 		"HTTP server async body address setup failed"
 	);
 	ServerConfig.WriteSize = 3;
-	ServerConfig.WriteTimeout = UINT64_C(500000);
-	ServerConfig.RequestTimeout = UINT64_C(3000000);
+	ServerConfig.WriteTimeout = INT64_C(500);
+	ServerConfig.RequestTimeout = INT64_C(3000);
 	xrtHttpServerEventsInit(&Events);
 	Events.Request = testHttpServerBodyAsyncRequest;
 	Events.Error = testHttpServerBodyAsyncError;

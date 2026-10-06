@@ -226,7 +226,7 @@ int main(void)
 		xrtAcmeClientConfigInit(&ClientConfig);
 		ClientConfig.pAccount = &Account;
 		ClientConfig.sCaPem = sCaPem;
-		ClientConfig.uTimeoutUs = 10000000u;
+		ClientConfig.uTimeoutMs = 10000u;
 		ClientConfig.sCertKeyPem = g_sCertKeyPem;
 		if((sResolver != NULL) && (sResolver[0] != '\0'))
 		{
@@ -446,7 +446,7 @@ int main(void)
 			Obtain.pAccount = &Account;
 			Obtain.sCaPem = sCaPem;
 			Obtain.sStoreRoot = sStore;
-			Obtain.uTimeoutUs = 10000000u;
+			Obtain.uTimeoutMs = 10000u;
 			if((sResolver != NULL) && (sResolver[0] != '\0'))
 			{
 				Obtain.sPropagateResolvers = &sResolver;
@@ -466,7 +466,7 @@ int main(void)
 				if(!bObtained || bRenewed || G3.sKeyPem == NULL)
 				{
 					size_t Pending = SIZE_MAX;
-					(void)xrtAcmeCleanupPending(0u, &Pending);
+					(void)xrtAcmeCleanupPending(0, &Pending);
 					fprintf(stderr, "obtain repeat result=%d renewed=%d pending=%zu error=%s\n",
 						(int)bObtained, (int)bRenewed, Pending, xrtErrorMessage(xrtGetError()));
 				}
@@ -566,7 +566,7 @@ int main(void)
 		xrtFree(sCaPem);
 		{
 			size_t Pending = SIZE_MAX;
-			testRequire(xrtAcmeCleanupPending(UINT64_C(5000000), &Pending) && Pending == 0u,
+			testRequire(xrtAcmeCleanupPending(INT64_C(5), &Pending) && Pending == 0u,
 				"acme flow unpublished clients still pending");
 		}
 	}

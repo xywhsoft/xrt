@@ -87,7 +87,7 @@ int main(void)
 
 	/* ---- HMAC-SHA256：流式 vs 一次性。 ---- */
 	{
-		static const uint8 arrKey[7] = "s3cret!";
+		static const uint8 arrKey[7] = { 0x73u, 0x33u, 0x63u, 0x72u, 0x65u, 0x74u, 0x21u };
 		xhmacsha256 State;
 
 		if ( !xrtHmacSha256Init(&State, arrKey, sizeof(arrKey)) ||
@@ -104,7 +104,7 @@ int main(void)
 
 	/* ---- HMAC-SHA512：流式 vs 一次性。 ---- */
 	{
-		static const uint8 arrKey[7] = "s3cret!";
+		static const uint8 arrKey[7] = { 0x73u, 0x33u, 0x63u, 0x72u, 0x65u, 0x74u, 0x21u };
 		xhmacsha512 State;
 
 		if ( !xrtHmacSha512Init(&State, arrKey, sizeof(arrKey)) ||
@@ -121,7 +121,7 @@ int main(void)
 
 	/* ---- HMAC-SHA384：一次性形态，两次调用必须逐位一致。 ---- */
 	{
-		static const uint8 arrKey[7] = "s3cret!";
+		static const uint8 arrKey[7] = { 0x73u, 0x33u, 0x63u, 0x72u, 0x65u, 0x74u, 0x21u };
 
 		if ( !xrtHmacSha384(arrKey, sizeof(arrKey), "hello world",
 				11u, arrOnce) ||

@@ -58,7 +58,6 @@ int main(void)
 	char Buffer[64];
 	size_t iCount = 0;
 	size_t iTeCount = 0;
-	uint16 iQuality = 0;
 	int iResult = 1;
 
 	/* ---- TE 族 ---- */

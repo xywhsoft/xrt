@@ -16,7 +16,7 @@ Worker 缓冲池。
 隧道和自定义传输继续使用 `xrtSshClientAttach`，不会被 Dial helper 限制。
 
 `xsshclientconfig.ReadyTimeout` 统一约束 TCP 打开后到 `Ready` 的 identification、KEX、主机信任和认证
-阶段，单位为微秒，默认 30 秒，配置为零时禁用。超时通过 `XSSH_ERROR_TIMEOUT`、`XERR_TIMEOUT` 和
+阶段，单位为毫秒，默认 30 秒，配置为零时禁用。超时通过 `XSSH_ERROR_TIMEOUT`、`XERR_TIMEOUT` 和
 `xrt.ssh.client` 结构化错误同时到达 `Error`、`Close` 与全部未决 Future；TCP Dial 的 DNS/建连截止
 时间仍由 `xnetdialconfig.Timeout` 独立控制。
 

@@ -77,7 +77,7 @@ static void request(const void* data)
         /* This real second thread needs BOTH the ownership freeze and Future
          * lock before Request returns. A callback held under either deadlocks. */
         xthread* thread=xrtThreadCreate(scopeProbe,p,0);assert(thread);
-        assert(xrtThreadWaitFor(thread,UINT64_C(5000000))==XWAIT_OK);
+        assert(xrtThreadWaitFor(thread,INT64_C(5000))==XWAIT_OK);
         assert(xrtThreadExitCode(thread)==0);xrtThreadDestroy(thread);
     }
 }
@@ -154,7 +154,7 @@ static void race(void)
         assert(xrtPromiseResolve(p.promise,&payload));
         assert(atomicCount(&p.refs)==1&&!xrtFutureCancel(p.future));
         xrtAtomic32Store(&p.release,1,XMEMORY_RELEASE);
-        assert(xrtThreadWaitFor(thread,UINT64_C(5000000))==XWAIT_OK);
+        assert(xrtThreadWaitFor(thread,INT64_C(5000))==XWAIT_OK);
         assert(xrtThreadExitCode(thread)==0);xrtThreadDestroy(thread);
         assert(atomicCount(&p.requests)==1);finish(&p);
     }

@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/tcp —— 事件驱动 TCP 回显（回调面完整形态）
  * ----------------------------------------------------------------
@@ -22,6 +21,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -184,9 +200,9 @@ int main(void)
 		iResult = 4;
 		goto Cleanup;
 	}
-	iDeadline = __xrtWaitAfter(3000000u);
+	iDeadline = exampleTimerLimit(3000);
 	while ( xrtAtomic32Load(&Example.Accepted, XMEMORY_ACQUIRE) == 0 ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 5;
 			goto Cleanup;
 		}
@@ -209,7 +225,7 @@ int main(void)
 		goto Cleanup;
 	}
 	while ( xrtAtomic32Load(&Example.Reply, XMEMORY_ACQUIRE) == 0 ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 7;
 			goto Cleanup;
 		}
@@ -217,18 +233,18 @@ int main(void)
 	}
 	(void)xrtNetStreamClose(Example.Client);
 	(void)xrtNetStreamClose(pServer);
-	iDeadline = __xrtWaitAfter(3000000u);
+	iDeadline = exampleTimerLimit(3000);
 	while ( xrtAtomic32Load(&Example.Closed, XMEMORY_ACQUIRE) != 2 ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 8;
 			goto Cleanup;
 		}
 		xrtThreadYield();
 	}
 	(void)xrtNetListenerClose(pListener);
-	iDeadline = __xrtWaitAfter(3000000u);
+	iDeadline = exampleTimerLimit(3000);
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 8;
 			goto Cleanup;
 		}
@@ -254,14 +270,14 @@ Cleanup:
 		 (xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED) ) {
 		(void)xrtNetListenerClose(pListener);
 	}
-	iDeadline = __xrtWaitAfter(3000000u);
+	iDeadline = exampleTimerLimit(3000);
 	while ( ((Example.Client != NULL) &&
 		  (xrtNetStreamState(Example.Client) != XNET_STREAM_CLOSED)) ||
 		 ((pServer != NULL) &&
 		  (xrtNetStreamState(pServer) != XNET_STREAM_CLOSED)) ||
 		 ((pListener != NULL) &&
 		  (xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED)) ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			if ( iResult == 0 ) {
 				iResult = 8;
 			}

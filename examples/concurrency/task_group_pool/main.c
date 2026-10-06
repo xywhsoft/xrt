@@ -59,7 +59,7 @@ int main(void)
 			groupedWork,
 			&arrValue[i],
 			NULL,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		);
 		if ( arrFuture[i] == NULL ) {
 			(void)xrtTaskGroupCancel(pGroup);

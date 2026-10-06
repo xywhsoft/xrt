@@ -165,7 +165,7 @@ static bool testHttpServerFileOomBlockStarted(
 		bResult = xrtCondWaitFor(
 			&pBlock->Cond,
 			&pBlock->Lock,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK;
 	}
 	(void)xrtMutexUnlock(&pBlock->Lock);
@@ -357,14 +357,14 @@ static bool testHttpServerFileOomAttempt(
 		testHttpServerFileOomBlockRelease(&Block) &&
 		(xrtFutureWaitFor(
 			pBlockFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		 ) == XWAIT_OK),
 		"HTTP server file OOM blocker release failed"
 	);
 	if ( pReplyFuture != NULL ) {
 		xwaitresult WaitResult = xrtFutureWaitFor(
 			pReplyFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		);
 		xfuturestate FutureState = xrtFutureState(pReplyFuture);
 

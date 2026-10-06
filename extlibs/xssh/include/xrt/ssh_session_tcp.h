@@ -50,6 +50,7 @@ typedef struct xsshsessiontcp {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -67,7 +68,7 @@ XRT_API bool xrtSshSessionTcpInit(
 	xsshsessiontcp* pSession,
 	xnetbufpool* pPool,
 	const xsshsessiontcpconfig* pConfig,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -130,7 +131,7 @@ XRT_API xsshcode xrtSshSessionTcpKexBeginWithPrivate(
 XRT_API xsshcode xrtSshSessionTcpAuthBegin(
 	xsshsessiontcp* pSession,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 );
 
 
@@ -152,7 +153,7 @@ XRT_API xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 	uint64 iReplyToken,
 	xsshpaddingproc pPadding,
 	ptr pPaddingData,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 );
 
@@ -165,7 +166,7 @@ XRT_API xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 XRT_API xnetresult xrtSshSessionTcpWriteSubmit(
 	xsshsessiontcp* pSession,
 	xnetstream* pStream,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 
@@ -213,7 +214,7 @@ XRT_API xsshcode xrtSshSessionTcpReadPrepare(
 	void* pHostKeyStorage,
 	size_t iHostKeyCapacity,
 	size_t* pHostKeySize,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessiontcppacket* pPacket
 );
 
@@ -222,7 +223,7 @@ XRT_API xsshcode xrtSshSessionTcpReadPrepare(
 /* 先消费并提交 transport，再提交版本或协议事务并按需切换读密钥。 */
 XRT_API xsshcode xrtSshSessionTcpReadCommit(
 	xsshsessiontcp* pSession,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 

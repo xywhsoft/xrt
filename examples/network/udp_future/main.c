@@ -26,7 +26,7 @@
 static bool exampleUdpFutureWait(xfuture* pFuture)
 {
 	return (pFuture != NULL) &&
-		(xrtFutureWaitFor(pFuture, UINT64_C(3000000)) == XWAIT_OK) &&
+		(xrtFutureWaitFor(pFuture, INT64_C(3000)) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED);
 }
 

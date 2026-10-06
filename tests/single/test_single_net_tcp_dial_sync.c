@@ -69,7 +69,7 @@ int main(void)
 	}
 	xrtNetDialConfigInit(&DialConfig);
 	DialConfig.Family = XNET_FAMILY_IPV4;
-	pClient = xrtNetConnect(
+	pClient = __xrtNetConnect(
 		pEngine,
 		pResolver,
 		"single.test",
@@ -77,12 +77,12 @@ int main(void)
 		&DialConfig,
 		NULL,
 		NULL,
-		xrtDeadlineAfter(3000000u),
+		__xrtWaitAfter(3000),
 		NULL
 	);
-	pServer = xrtNetListenerAcceptWait(
+	pServer = __xrtNetListenerAcceptWait(
 		pListener,
-		xrtDeadlineAfter(3000000u),
+		__xrtWaitAfter(3000),
 		NULL
 	);
 	if ( (pClient == NULL) || (pServer == NULL) ) {

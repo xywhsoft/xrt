@@ -54,7 +54,7 @@ static void testHttpServerWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -590,7 +590,7 @@ static void testHttpServerRequest(
 				xrtNetWorkerIndex(
 					xrtHttpConnWorker(pConnection)
 				),
-				UINT64_C(50000),
+				INT64_C(50),
 				testHttpServerDelayedReply,
 				pRetained
 			 ) != 0),
@@ -1031,11 +1031,11 @@ static void testHttpServerKeepAliveHeaderTimeout(void)
 		"HTTP server keep-alive timeout address failed"
 	);
 	ServerConfig.Network.Listen.AcceptConcurrency = 2;
-	ServerConfig.HeaderTimeout = UINT64_C(200000);
-	ServerConfig.BodyTimeout = UINT64_C(1000000);
-	ServerConfig.RequestTimeout = UINT64_C(1000000);
+	ServerConfig.HeaderTimeout = INT64_C(200);
+	ServerConfig.BodyTimeout = INT64_C(1000);
+	ServerConfig.RequestTimeout = INT64_C(1000);
 	ServerConfig.IdleTimeout = 0;
-	ServerConfig.WriteTimeout = UINT64_C(1000000);
+	ServerConfig.WriteTimeout = INT64_C(1000);
 	memset(EventsStorage, 0xA5, sizeof(EventsStorage));
 	xrtHttpServerEventsInit((xhttpserverevents*)(void*)(
 		EventsStorage + 1u
@@ -1185,11 +1185,11 @@ int main(void)
 	ServerConfig.Network.Listen.Stream.WriteLimit = 32;
 	ServerConfig.Http1.Body.MaxBody = 8;
 	ServerConfig.WriteSize = 7;
-	ServerConfig.HeaderTimeout = UINT64_C(200000);
-	ServerConfig.BodyTimeout = UINT64_C(200000);
-	ServerConfig.RequestTimeout = UINT64_C(200000);
-	ServerConfig.IdleTimeout = UINT64_C(200000);
-	ServerConfig.WriteTimeout = UINT64_C(1000000);
+	ServerConfig.HeaderTimeout = INT64_C(200);
+	ServerConfig.BodyTimeout = INT64_C(200);
+	ServerConfig.RequestTimeout = INT64_C(200);
+	ServerConfig.IdleTimeout = INT64_C(200);
+	ServerConfig.WriteTimeout = INT64_C(1000);
 	xrtHttpServerEventsInit(&Events);
 	Events.Open = testHttpServerOpen;
 	Events.Headers = testHttpServerHeaders;

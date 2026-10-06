@@ -222,7 +222,7 @@ static void testTaskBarrierDestroy(ptr pValue, ptr pData)
 /* 等待任务数据析构进入测试屏障。 */
 static void testTaskBarrierWait(testtaskbarrier* pBarrier)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = __xrtWaitAfter(3000);
 
 	while ( xrtAtomic32Load(
 		&pBarrier->Destroying,
@@ -278,7 +278,7 @@ int main(void)
 	testRequire(xrtErrorKind(xrtGetError()) == XERR_STATE,
 		"open task pool wait error mismatch");
 	testRequire(xrtTaskPoolClose(pPool), "task pool close failed");
-	testRequire(xrtTaskPoolWaitFor(pPool, UINT64_C(2000000)) == XWAIT_OK,
+	testRequire(xrtTaskPoolWaitFor(pPool, INT64_C(2000)) == XWAIT_OK,
 		"task pool drain failed");
 
 	testRequire(xrtFutureValue(arrFuture[0]) == &tContext.Value,
@@ -322,7 +322,7 @@ int main(void)
 	tContext.Pool = pPool;
 	pWorkerFuture = xrtTaskSubmit(pPool, testTaskDestroyFromWorker, &tContext, NULL);
 	testRequire(pWorkerFuture != NULL, "worker destroy task submit failed");
-	testRequire(xrtFutureWaitFor(pWorkerFuture, UINT64_C(2000000)) == XWAIT_OK,
+	testRequire(xrtFutureWaitFor(pWorkerFuture, INT64_C(2000)) == XWAIT_OK,
 		"worker destroy task wait failed");
 	testRequire(tContext.DestroyRejected, "worker destroyed its own task pool");
 	xrtFutureDestroy(pWorkerFuture);
@@ -344,7 +344,7 @@ int main(void)
 	testRequire(xrtFutureState(pWorkerFuture) == XFUTURE_PENDING,
 		"task Future published before data destruction completed");
 	xrtAtomic32Store(&tBarrier.Release, 1, XMEMORY_RELEASE);
-	testRequire(xrtFutureWaitFor(pWorkerFuture, 3000000u) == XWAIT_OK,
+	testRequire(xrtFutureWaitFor(pWorkerFuture, 3000) == XWAIT_OK,
 		"task barrier Future did not complete");
 	testRequire(xrtFutureState(pWorkerFuture) == XFUTURE_RESOLVED,
 		"task barrier Future did not resolve");

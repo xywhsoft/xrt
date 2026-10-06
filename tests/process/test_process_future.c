@@ -68,7 +68,7 @@ int main(int argc, char** argv)
 	testRequire(xrtFutureCancel(pFirst), "process future cancel request failed");
 	xrtProcessDestroy(pProcess);
 	testRequire(
-		xrtFutureWaitFor(pFirst, UINT64_C(2000000)) == XWAIT_OK,
+		xrtFutureWaitFor(pFirst, INT64_C(2000)) == XWAIT_OK,
 		"process future wait failed"
 	);
 	testRequire(

@@ -65,11 +65,11 @@ int main(void)
 			buildGroupValue,
 			&iSecond,
 			NULL,
-			1000u
+			1
 		);
 	}
 	if ( (pFirst != NULL) && (pSecond != NULL) &&
-		(xrtTaskGroupWaitFor(pGroup, 3000000u) == XWAIT_OK) ) {
+		(xrtTaskGroupWaitFor(pGroup, 3000) == XWAIT_OK) ) {
 		printf(
 			"values=%d,%d\n",
 			*(int*)xrtFutureValue(pFirst),

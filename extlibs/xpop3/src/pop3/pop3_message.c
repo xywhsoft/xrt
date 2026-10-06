@@ -1,3 +1,4 @@
+#include <xrt/detail/xpop3_wait.h>
 #include <xrt/detail/wait.h>
 #include "../internal/xrt_mail.h"
 
@@ -225,6 +226,8 @@ XRT_API bool __xrtPop3ClientRetrWrite(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtPop3MessageWrite(
 		pClient,
 		iMessage,
@@ -254,6 +257,8 @@ XRT_API bool __xrtPop3ClientTopWrite(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	return __xrtPop3MessageWrite(
 		pClient,
 		iMessage,
@@ -280,6 +285,8 @@ XRT_API bytes __xrtPop3ClientRetrBytes(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	return __xrtPop3MessageBytes(
 		pClient,
 		iMessage,
@@ -305,6 +312,8 @@ XRT_API bytes __xrtPop3ClientTopBytes(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return NULL; }
+
 	return __xrtPop3MessageBytes(
 		pClient,
 		iMessage,
@@ -329,6 +338,8 @@ XRT_API bool __xrtPop3ClientRetrTree(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xmailtreelimits Limits;
 	bytes pData;
 	size_t iSize;

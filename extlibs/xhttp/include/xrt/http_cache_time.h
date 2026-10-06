@@ -34,7 +34,7 @@ typedef enum xhttpcachetimeflag {
 
 /*
 	缓存时间元数据独立于存储和网络。
-	Date 与 Expires 使用 Unix Epoch 微秒，Age 使用线路秒数。
+	Date 与 Expires 使用 Unix Epoch 毫秒，Age 使用线路秒数。
 */
 typedef struct xhttpcachetime {
 	xtime Date;
@@ -61,7 +61,7 @@ typedef enum xhttpcachecalc {
 
 /*
 	年龄结果保留 RFC 9111 公式的全部中间量。
-	除 CurrentAgeSeconds 使用线路秒数外，其余成员均使用微秒。
+	除 CurrentAgeSeconds 使用线路秒数外，其余成员均使用毫秒。
 */
 typedef struct xhttpcacheage {
 	uint64 ApparentAge;
@@ -87,7 +87,7 @@ typedef enum xhttpcachefreshnesssource {
 
 
 
-/* 显式新鲜寿命使用微秒，不包含站点自定义的启发式策略。 */
+/* 显式新鲜寿命使用毫秒，不包含站点自定义的启发式策略。 */
 typedef struct xhttpcachefreshness {
 	uint64 Lifetime;
 	xhttpcachefreshnesssource Source;
@@ -137,9 +137,9 @@ XRT_API bool xrtHttpCacheTimeParse(
 XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 	const xhttpcachetime* pTime,
 	xtime ResponseTime,
-	uint64 RequestClock,
-	uint64 ResponseClock,
-	uint64 NowClock,
+	double RequestClock,
+	double ResponseClock,
+	double NowClock,
 	xhttpcacheage* pAge
 );
 

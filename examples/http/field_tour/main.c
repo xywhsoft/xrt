@@ -42,7 +42,6 @@ int main(void)
 	size_t iSize = 0;
 	char Buffer[256];
 	size_t iFound;
-	const xhttpfield* pHit;
 
 	/* FieldBlockCount：整块严格计数。 */
 	if ( !xrtHttpFieldBlockCount(SV(sBlock), &iCount) || (iCount != 3u) ) {
@@ -63,6 +62,7 @@ int main(void)
 
 	/* Find / Get / Count / GetUnique / NameEqual / ValueValid。 */
 	iFound = xrtHttpFieldFind(Fields, 3u, SV("Connection"), 0u);
+	if ( iFound != 0u ) { return 1; }
 	{
 		const xhttpfield* pGet = xrtHttpFieldGet(Fields, 3u,
 			SV("Connection"));

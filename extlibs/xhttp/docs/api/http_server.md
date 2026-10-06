@@ -332,7 +332,7 @@ Server 组合层自动执行这条线路。Future 可以在任意线程完成，
 明文 HTTP/1 Server；Server 直接建立在 `xnetengine`、聚合 TCP Server、Stream 和无
 I/O 协议状态机上，不通过函数表隐藏依赖。
 
-`xhttpserverconfig` 的超时单位统一为微秒。`HeaderTimeout`、`BodyTimeout`、
+`xhttpserverconfig` 的超时单位统一为毫秒。`HeaderTimeout`、`BodyTimeout`、
 `RequestTimeout`、`IdleTimeout` 和 `WriteTimeout` 分别保护请求头、请求正文、
 应用处理、keep-alive 空闲和响应无进展阶段；零表示关闭对应保护。
 

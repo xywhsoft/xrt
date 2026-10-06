@@ -134,7 +134,7 @@ typedef struct xstrview {
 
 ### `xtime`
 
-绝对时间使用 Unix Epoch 微秒；该标量也是 xlang time 类型的底层表示。
+绝对时间使用 公元 UTC 毫秒；该标量也是 xlang time 类型的底层表示。
 
 ```c
 typedef int64 xtime;

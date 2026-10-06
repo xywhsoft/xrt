@@ -263,7 +263,7 @@ static void testHttpBodyFileOomClose(xasyncfile* pFile)
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK),
 		"HTTP file body OOM async close failed"
 	);

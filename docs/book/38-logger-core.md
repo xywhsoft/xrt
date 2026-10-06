@@ -41,7 +41,7 @@ api: logger, error
 | --- | --- |
 | `xrtLogFieldInt` / `Float` | 数值字段 |
 | `xrtLogFieldString` | 字符串字段（视图） |
-| `xrtLogFieldTime` | 时间字段（微秒值） |
+| `xrtLogFieldTime` | 时间字段（毫秒值） |
 | `xrtLogFieldError` | **错误字段**——第 4 章 xerror 直达日志 |
 | `xrtLogFieldNull` | 空值哨兵 |
 

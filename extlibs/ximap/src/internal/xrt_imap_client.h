@@ -1,3 +1,4 @@
+#include <xrt/detail/ximap_wait.h>
 #include <xrt/detail/wait.h>
 #ifndef XRT_INTERNAL_IMAP_CLIENT_H
 #define XRT_INTERNAL_IMAP_CLIENT_H
@@ -57,7 +58,7 @@ size_t __xrtImapClientAppendRemaining(const ximapclient* pClient);
 
 
 
-bool __xrtImapClientAppendEnd(ximapclient* pClient);
+bool __xrtImapClientAppendFinish(ximapclient* pClient);
 
 
 

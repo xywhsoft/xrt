@@ -145,7 +145,7 @@ static void testHttpServerOomWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -612,9 +612,9 @@ static void testHttpServerOomAttempt(
 		"HTTP server OOM loopback address failed"
 	);
 	ServerConfig.Network.Listen.AcceptConcurrency = 1;
-	ServerConfig.HeaderTimeout = UINT64_C(10000000);
-	ServerConfig.RequestTimeout = UINT64_C(10000000);
-	ServerConfig.IdleTimeout = UINT64_C(10000000);
+	ServerConfig.HeaderTimeout = INT64_C(10000);
+	ServerConfig.RequestTimeout = INT64_C(10000);
+	ServerConfig.IdleTimeout = INT64_C(10000);
 	xrtHttpServerEventsInit(&ServerEvents);
 	ServerEvents.Request = testHttpServerOomRequest;
 	ServerEvents.Close = testHttpServerOomConnectionClose;

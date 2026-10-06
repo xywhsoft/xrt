@@ -43,7 +43,7 @@ int main(void)
 		16u, 17u, 18u, 19u, 20u, 21u, 22u, 23u,
 		24u, 25u, 26u, 27u, 28u, 29u, 30u, 31u
 	};
-	uint8 arrAad[3] = "hdr";
+	uint8 arrAad[3] = { 0x68u, 0x64u, 0x72u };
 	uint8 arrCipher[16];
 	uint8 arrTag[16];
 	uint8 arrTagBad[16];

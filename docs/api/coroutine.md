@@ -1296,10 +1296,10 @@ xwaitresult xrtCoSchedStep(xcosched* pSched);
 
 ### `xrtCoSchedPollFor`
 
-在相对微秒期限内等待，并执行至多一个调度步。
+在相对毫秒期限内等待，并执行至多一个调度步。
 
 ```c
-xwaitresult xrtCoSchedPollFor(xcosched* pSched, uint64 iTimeout);
+xwaitresult xrtCoSchedPollFor(xcosched* pSched, int64 iTimeout);
 ```
 
 #### 参数
@@ -1307,7 +1307,7 @@ xwaitresult xrtCoSchedPollFor(xcosched* pSched, uint64 iTimeout);
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pSched` | 输入 | 非空、所属线程 | 目标调度器 |
-| `iTimeout` | 输入 | 微秒 | 等待期限 |
+| `iTimeout` | 输入 | 毫秒 | 等待期限 |
 
 #### 返回值
 
@@ -1327,43 +1327,7 @@ xwaitresult xrtCoSchedPollFor(xcosched* pSched, uint64 iTimeout);
 [concurrency/coroutine_tour · 单步模式](../../examples/concurrency/coroutine_tour/main.c) · 期限轮询
 
 ```c
-(xrtCoSchedPollFor(pStep, EXAMPLE_LONG_US) !=
-	XWAIT_OK) ||
-```
-
-### `xrtCoSchedPollUntil`
-
-在绝对截止时间前等待，并执行至多一个调度步。
-
-```c
-xwaitresult xrtCoSchedPollUntil(xcosched* pSched, xdeadline iDeadline);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pSched` | 输入 | 非空、所属线程 | 目标调度器 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CLOSED` | 同 `xrtCoSchedPollFor` | — |
-| `XWAIT_ERROR` | 参数/状态错误 | 错误经 `xrtGetError()` 报告 |
-
-#### 错误
-
-- 同 `xrtCoSchedStep`
-
-#### 范例
-
-[concurrency/coroutine_tour · 单步模式](../../examples/concurrency/coroutine_tour/main.c) · 截止轮询
-
-```c
-(xrtCoSchedPollUntil(pStep,
-	xrtDeadlineAfter(EXAMPLE_LONG_US)) !=
+(xrtCoSchedPollFor(pStep, EXAMPLE_LONG_MS) !=
 	XWAIT_OK) ||
 ```
 
@@ -1511,17 +1475,17 @@ if ( Result == XWAIT_CANCELLED ) {
 
 ### `xrtCoParkFor`
 
-挂起到相对微秒期限、wake 或取消。
+挂起到相对毫秒期限、wake 或取消。
 
 ```c
-xwaitresult xrtCoParkFor(uint64 iTimeout);
+xwaitresult xrtCoParkFor(int64 iTimeout);
 ```
 
 #### 参数
 
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
-| `iTimeout` | 输入 | 微秒 | 相对期限 |
+| `iTimeout` | 输入 | 毫秒 | 相对期限 |
 
 #### 返回值
 
@@ -1539,55 +1503,22 @@ xwaitresult xrtCoParkFor(uint64 iTimeout);
 [concurrency/coroutine_tour · Join/Park](../../examples/concurrency/coroutine_tour/main.c) · 被唤醒返回 OK
 
 ```c
-pJob->iForResult = (int)xrtCoParkFor(EXAMPLE_LONG_US);
-```
-
-### `xrtCoParkUntil`
-
-挂起到绝对截止时间、wake 或取消。
-
-```c
-xwaitresult xrtCoParkUntil(xdeadline iDeadline);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 同 `xrtCoParkFor` | — |
-| `XWAIT_ERROR` | 非调度协程 | `XERR_STATE` |
-
-#### 错误
-
-- `XERR_STATE` — 非调度协程上下文
-
-#### 范例
-
-[concurrency/coroutine_tour · Join/Park](../../examples/concurrency/coroutine_tour/main.c) · 过期返回 TIMEOUT
-
-```c
-pJob->iUntilResult = (int)xrtCoParkUntil(
+pJob->iForResult = (int)xrtCoParkFor(EXAMPLE_LONG_MS);
 ```
 
 ### `xrtCoSleep`
 
-睡眠相对微秒数；自然到期或提前 wake 返回 `OK`。
+睡眠相对毫秒数；自然到期或提前 wake 返回 `OK`。
 
 ```c
-xwaitresult xrtCoSleep(uint64 iTimeout);
+xwaitresult xrtCoSleep(int64 iTimeout);
 ```
 
 #### 参数
 
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
-| `iTimeout` | 输入 | 微秒 | 睡眠时长 |
+| `iTimeout` | 输入 | 毫秒 | 睡眠时长 |
 
 #### 返回值
 
@@ -1609,19 +1540,19 @@ xwaitresult xrtCoSleep(uint64 iTimeout);
 if ( xrtCoSleep(1000) != XWAIT_OK ) {
 ```
 
-### `xrtCoSleepUntil`
+### `xrtCoSleepFor`
 
 睡眠到绝对截止时间。
 
 ```c
-xwaitresult xrtCoSleepUntil(xdeadline iDeadline);
+xwaitresult xrtCoSleepFor(int64 iTimeout);
 ```
 
 #### 参数
 
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
+| `iTimeout` | 输入 | 单调时钟 | 绝对截止时间 |
 
 #### 返回值
 
@@ -1639,7 +1570,7 @@ xwaitresult xrtCoSleepUntil(xdeadline iDeadline);
 [concurrency/coroutine_tour · 生命周期](../../examples/concurrency/coroutine_tour/main.c) · 协程内短睡
 
 ```c
-(void)xrtCoSleepUntil(xrtDeadlineAfter(EXAMPLE_SHORT_US));
+(void)xrtCoSleepFor(EXAMPLE_SHORT_MS);
 ```
 
 ### `xrtCoJoin`
@@ -1679,10 +1610,10 @@ pContext->JoinResult = xrtCoJoin(pContext->Worker);
 
 ### `xrtCoJoinFor`
 
-在相对微秒期限内等待目标完成。
+在相对毫秒期限内等待目标完成。
 
 ```c
-xwaitresult xrtCoJoinFor(xcoro* pCo, uint64 iTimeout);
+xwaitresult xrtCoJoinFor(xcoro* pCo, int64 iTimeout);
 ```
 
 #### 参数
@@ -1690,7 +1621,7 @@ xwaitresult xrtCoJoinFor(xcoro* pCo, uint64 iTimeout);
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pCo` | 输入 | 非空 | 保留句柄 |
-| `iTimeout` | 输入 | 微秒 | 相对期限 |
+| `iTimeout` | 输入 | 毫秒 | 相对期限 |
 
 #### 返回值
 
@@ -1710,42 +1641,6 @@ xwaitresult xrtCoJoinFor(xcoro* pCo, uint64 iTimeout);
 ```c
 pJob->iForResult = (int)xrtCoJoinFor(pJob->pTarget,
 ```
-
-### `xrtCoJoinUntil`
-
-在绝对截止时间前等待目标完成。
-
-```c
-xwaitresult xrtCoJoinUntil(xcoro* pCo, xdeadline iDeadline);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pCo` | 输入 | 非空 | 保留句柄 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 完成/到期/取消 | — |
-| `XWAIT_ERROR` | 同 `xrtCoJoin` | 错误经 `xrtGetError()` 报告 |
-
-#### 错误
-
-- 同 `xrtCoJoin`
-
-#### 范例
-
-[concurrency/coroutine_tour · Join/Park](../../examples/concurrency/coroutine_tour/main.c) · 截止等待完成
-
-```c
-pJob->iUntilResult = (int)xrtCoJoinUntil(pJob->pTarget,
-```
-
-## 协程事件
 
 ### `xrtCoEventInit`
 
@@ -2038,12 +1933,12 @@ if ( xrtCoEventTryAwait(pJob->pAuto) == XWAIT_OK ) {
 
 ### `xrtCoEventAwaitFor`
 
-在相对微秒数内等待事件置位。
+在相对毫秒数内等待事件置位。
 
 ```c
 xwaitresult xrtCoEventAwaitFor(
 	xcoevent* pEvent,
-	uint64 iTimeout
+	int64 iTimeout
 );
 ```
 
@@ -2052,7 +1947,7 @@ xwaitresult xrtCoEventAwaitFor(
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pEvent` | 输入 | 非空 | 目标事件 |
-| `iTimeout` | 输入 | 微秒 | 相对期限 |
+| `iTimeout` | 输入 | 毫秒 | 相对期限 |
 
 #### 返回值
 
@@ -2070,126 +1965,5 @@ xwaitresult xrtCoEventAwaitFor(
 [concurrency/coroutine_tour · 事件族](../../examples/concurrency/coroutine_tour/main.c) · 期限等待由 Set 唤醒
 
 ```c
-if ( xrtCoEventAwaitFor(pJob->pAuto, EXAMPLE_LONG_US) ==
+if ( xrtCoEventAwaitFor(pJob->pAuto, EXAMPLE_LONG_MS) ==
 ```
-
-### `xrtCoEventAwaitUntil`
-
-等待事件置位、协程取消或到达截止时间。
-
-```c
-xwaitresult xrtCoEventAwaitUntil(
-	xcoevent* pEvent,
-	xdeadline iDeadline
-);
-```
-
-#### 参数
-
-| 参数 | 方向 | 约束 | 说明 |
-|---|---|---|---|
-| `pEvent` | 输入 | 非空 | 目标事件 |
-| `iDeadline` | 输入 | 单调时钟 | 绝对截止时间 |
-
-#### 返回值
-
-| 返回 | 含义 | 失败时状态 |
-|---|---|---|
-| `XWAIT_OK` / `XWAIT_TIMEOUT` / `XWAIT_CANCELLED` | 信号/到期/取消 | — |
-| `XWAIT_ERROR` | 参数/状态错误 | 错误经 `xrtGetError()` 报告 |
-
-#### 错误
-
-- 同 `xrtCoEventAwait`
-
-#### 范例
-
-[concurrency/coroutine_tour · 事件族](../../examples/concurrency/coroutine_tour/main.c) · 截止等待由 Set 唤醒
-
-```c
-if ( xrtCoEventAwaitUntil(pJob->pAuto,
-```
-
-## 示例
-
-```c
-static ptr work(ptr data)
-{
-	int* value = (int*)data;
-
-	(*value)++;
-	if ( xrtCoYield() != XWAIT_OK ) {
-		return NULL;
-	}
-	return value;
-}
-
-int value = 1;
-xcoro* co = xrtCoCreate(work, &value, NULL);
-
-xrtCoResume(co);
-xrtCoResume(co);
-xrtCoDestroy(co);
-xrtCoThreadDetach();
-```
-
-协程事件适合表达一次或广播式就绪通知：
-
-```c
-static ptr wait_ready(ptr data)
-{
-	xcoevent* ready = (xcoevent*)data;
-
-	return xrtCoEventAwait(ready) == XWAIT_OK ? ready : NULL;
-}
-
-xcoevent ready;
-xcosched* sched;
-xcoro* waiter;
-
-xrtCoEventInit(&ready, false, false);
-sched = xrtCoSchedCreate();
-waiter = xrtCoSpawn(sched, wait_ready, &ready, NULL);
-xrtCoSchedStep(sched);
-xrtCoEventSet(&ready);
-xrtCoSchedRun(sched);
-xrtCoDestroy(waiter);
-xrtCoSchedDestroy(sched);
-xrtCoEventUnit(&ready);
-xrtCoThreadDetach();
-```
-
-从任意线程投递创建工作时，使用调度器 post，而不是直接跨线程调用 `xrtCoGo`：
-
-```c
-static void post_task(xcosched* sched, ptr data)
-{
-	(void)xrtCoGo(sched, task, data, NULL);
-}
-
-xrtCoSchedPost(sched, post_task, data);
-xrtCoSchedRun(sched);
-```
-
-调度器常用路径：
-
-```c
-static ptr task(ptr data)
-{
-	if ( xrtCoSleep(1000) != XWAIT_OK ) {
-		return NULL;
-	}
-	return data;
-}
-
-xcosched* sched = xrtCoSchedCreate();
-xcoro* co = xrtCoSpawn(sched, task, data, NULL);
-
-xrtCoSchedRun(sched);
-use_result(xrtCoResult(co));
-xrtCoDestroy(co);
-xrtCoSchedDestroy(sched);
-xrtCoThreadDetach();
-```
-
-完整生命周期示例位于 `examples/concurrency/coroutine_lifecycle/main.c`，同时展示协作取消、同调度器 Join、调用方存储清理节点、托管清理节点，以及清理完成后收到的终态快照。

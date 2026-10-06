@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/udp_introspect —— UDP 自省族全接口
  * ----------------------------------------------------------------
@@ -33,6 +32,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -69,10 +85,10 @@ static void exampleWorkerTask(xnetworker* pWorker, ptr pData)
 /* 在截止时间内轮询条件。 */
 static bool exampleSpinUntil(volatile bool* pFlag)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = exampleTimerLimit(3000);
 
 	while ( !*pFlag ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -117,9 +133,9 @@ int main(void)
 	if ( pUdp == NULL ) {
 		goto Cleanup;
 	}
-	iDeadline = __xrtWaitAfter(3000000u);
+	iDeadline = exampleTimerLimit(3000);
 	while ( xrtNetUdpState(pUdp) != XNET_UDP_OPEN ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			goto Cleanup;
 		}
 		xrtThreadYield();
@@ -165,9 +181,9 @@ int main(void)
 		  XNET_RESULT_OK) ) {
 		goto Cleanup;
 	}
-	iDeadline = __xrtWaitAfter(3000000u);
+	iDeadline = exampleTimerLimit(3000);
 	while ( xrtNetUdpQueued(pUdp) == 0 ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			goto Cleanup;
 		}
 		xrtThreadYield();
@@ -203,9 +219,9 @@ int main(void)
 		iResult = 8;
 		goto Cleanup;
 	}
-	iDeadline = __xrtWaitAfter(3000000u);
+	iDeadline = exampleTimerLimit(3000);
 	while ( xrtNetUdpState(pUdp) != XNET_UDP_CLOSED ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			iResult = 9;
 			goto Cleanup;
 		}
@@ -223,11 +239,11 @@ Cleanup:
 	xrtNetUdpDestroy(pRef);
 	xrtNetUdpDestroy(pUdp);
 	if ( pServer != NULL ) {
-		double iEnd = __xrtWaitAfter(3000000u);
+		double iEnd = exampleTimerLimit(3000);
 
 		(void)xrtNetUdpAbort(pServer);
 		while ( xrtNetUdpState(pServer) != XNET_UDP_CLOSED ) {
-			if ( __xrtWaitExpired(iEnd) ) {
+			if ( exampleTimerExpired(iEnd) ) {
 				break;
 			}
 			xrtThreadYield();

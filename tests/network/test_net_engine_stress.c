@@ -85,7 +85,7 @@ int main(void)
 	testRequire(pEngine != NULL, "stress engine create failed");
 	testRequire(xrtNetEngineStart(pEngine), "stress engine start failed");
 
-	iDeadline = __xrtWaitAfter(750000u);
+	iDeadline = __xrtWaitAfter(750);
 	for ( uint32 i = 0; i < TEST_ENGINE_TIMER_COUNT; i++ ) {
 		testenginetimeritem* pItem = &pState->Items[i];
 
@@ -106,7 +106,7 @@ int main(void)
 		), "stress timer cancel request failed");
 	}
 
-	iDeadline = __xrtWaitAfter(5000000u);
+	iDeadline = __xrtWaitAfter(5000);
 	while ( (xrtAtomic32Load(&pState->Fired, XMEMORY_ACQUIRE) +
 		xrtAtomic32Load(&pState->Cancelled, XMEMORY_ACQUIRE)) <
 		TEST_ENGINE_TIMER_COUNT ) {

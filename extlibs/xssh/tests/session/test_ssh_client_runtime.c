@@ -290,7 +290,7 @@ static xsshcode testSshClientRuntimeServerSend(
 		pChannel != NULL ? &pChannel->Core : NULL,
 		NULL,
 		0u,
-		xrtTimer() / 1000u,
+		xrtTimer(),
 		&Kind
 	);
 }
@@ -676,7 +676,7 @@ static void testSshClientRuntimeServerAction(
 		Code = xrtSshSessionTcpAuthBegin(
 			pSession,
 			NULL,
-			xrtTimer() / 1000u
+			xrtTimer()
 		);
 	} else if ( Action == XSSH_SESSION_ACTION_WRITE_SERVICE_ACCEPT ) {
 		Code = !xrtSshWriterInit(
@@ -2602,9 +2602,9 @@ static void testSshClientRuntimeFutures(testsshclientruntime* pRuntime)
 
 	testRequire((xrtFutureWaitFor(
 		pRuntime->ReadyFuture,
-		5000000u
+		5000
 	) == XWAIT_OK) &&
-		(xrtFutureWaitFor(pRuntime->CloseFuture, 5000000u) == XWAIT_OK) &&
+		(xrtFutureWaitFor(pRuntime->CloseFuture, 5000) == XWAIT_OK) &&
 		(xrtFutureState(pRuntime->ReadyFuture) == XFUTURE_RESOLVED) &&
 		(xrtFutureState(pRuntime->ImmediateReadyFuture) ==
 		 XFUTURE_RESOLVED) &&
@@ -2614,7 +2614,7 @@ static void testSshClientRuntimeFutures(testsshclientruntime* pRuntime)
 	for ( i = 0u; i < TEST_SSH_CLIENT_CLOSE_WAITERS; ++i ) {
 		testRequire((xrtFutureWaitFor(
 			pRuntime->CloseStressFutures[i],
-			5000000u
+			5000
 		) == XWAIT_OK) &&
 			(xrtFutureState(pRuntime->CloseStressFutures[i]) ==
 			 ((i & 1u) != 0u ? XFUTURE_CANCELLED : XFUTURE_RESOLVED)),
@@ -2623,7 +2623,7 @@ static void testSshClientRuntimeFutures(testsshclientruntime* pRuntime)
 	for ( i = 0u; i < 2u; ++i ) {
 		testRequire((xrtFutureWaitFor(
 			pRuntime->GlobalFutures[i],
-			5000000u
+			5000
 		) == XWAIT_OK), "ssh client runtime global Future timeout");
 	}
 	testRequire((xrtFutureState(pRuntime->GlobalFutures[0]) ==
@@ -2635,22 +2635,22 @@ static void testSshClientRuntimeFutures(testsshclientruntime* pRuntime)
 		) == 0), "ssh client runtime global Future results mismatch");
 	testRequire((xrtFutureWaitFor(
 		pRuntime->ForwardedOpenFuture,
-		5000000u
+		5000
 	) == XWAIT_OK) && (xrtFutureState(pRuntime->ForwardedOpenFuture) ==
 		XFUTURE_RESOLVED) && (xrtFutureWaitFor(
 			pRuntime->ForwardedEofFuture,
-			5000000u
+			5000
 		) == XWAIT_OK) && (xrtFutureState(pRuntime->ForwardedEofFuture) ==
 		XFUTURE_RESOLVED) && (xrtFutureWaitFor(
 			pRuntime->ForwardedReadTerminalFuture,
-			5000000u
+			5000
 		) == XWAIT_OK) && (xrtFutureState(
 			pRuntime->ForwardedReadTerminalFuture
 		) == XFUTURE_CLOSED),
 		"ssh client runtime forwarded channel Future mismatch");
 	testRequire((xrtFutureWaitFor(
 		pRuntime->RejectedReplyFuture,
-		5000000u
+		5000
 	) == XWAIT_OK) &&
 		(xrtFutureState(pRuntime->RejectedReplyFuture) == XFUTURE_FAILED) &&
 		(strcmp(
@@ -2659,7 +2659,7 @@ static void testSshClientRuntimeFutures(testsshclientruntime* pRuntime)
 		) == 0), "ssh client runtime rejected reply Future mismatch");
 	testRequire((xrtFutureWaitFor(
 		pRuntime->RejectedOpenFuture,
-		5000000u
+		5000
 	) == XWAIT_OK) &&
 		(xrtFutureState(pRuntime->RejectedOpenFuture) == XFUTURE_FAILED) &&
 		(strcmp(
@@ -2669,15 +2669,15 @@ static void testSshClientRuntimeFutures(testsshclientruntime* pRuntime)
 	for ( i = 0u; i < 3u; ++i ) {
 		testRequire(xrtFutureWaitFor(
 			pRuntime->OpenFutures[i],
-			5000000u
+			5000
 		) == XWAIT_OK, "ssh client runtime channel Open Future timeout");
 		testRequire(xrtFutureWaitFor(
 				pRuntime->ReplyFutures[i],
-				5000000u
+				5000
 			) == XWAIT_OK, "ssh client runtime channel Reply Future timeout");
 		testRequire(xrtFutureWaitFor(
 				pRuntime->EofFutures[i],
-				5000000u
+				5000
 			) == XWAIT_OK, "ssh client runtime channel EOF Future timeout");
 		if ( xrtFutureState(pRuntime->OpenFutures[i]) != XFUTURE_RESOLVED ) {
 			fprintf(stderr,
@@ -2705,7 +2705,7 @@ static void testSshClientRuntimeFutures(testsshclientruntime* pRuntime)
 			"ssh client runtime channel EOF Future state mismatch");
 		testRequire(xrtFutureWaitFor(
 			pRuntime->ReadTerminalFutures[i],
-			5000000u
+			5000
 		) == XWAIT_OK, "ssh client runtime read terminal Future timeout");
 		testRequire(xrtFutureState(pRuntime->ReadTerminalFutures[i]) ==
 			XFUTURE_CLOSED,
@@ -2713,7 +2713,7 @@ static void testSshClientRuntimeFutures(testsshclientruntime* pRuntime)
 	}
 	testRequire((xrtFutureWaitFor(
 		pRuntime->StderrTerminalFuture,
-		5000000u
+		5000
 	) == XWAIT_OK) &&
 		(xrtFutureState(pRuntime->StderrTerminalFuture) == XFUTURE_CLOSED),
 		"ssh client runtime STDERR terminal Future mismatch");
@@ -2723,7 +2723,7 @@ static void testSshClientRuntimeFutures(testsshclientruntime* pRuntime)
 	for ( i = 0u; i < pRuntime->WriteFutureCount; ++i ) {
 		testRequire((xrtFutureWaitFor(
 			pRuntime->WriteFutures[i],
-			5000000u
+			5000
 		) == XWAIT_OK) &&
 			(xrtFutureState(pRuntime->WriteFutures[i]) == XFUTURE_RESOLVED),
 			"ssh client runtime write Future state mismatch");
@@ -2856,7 +2856,7 @@ static void testSshClientRuntimeRun(
 	ClientConfig.Core.AuthenticateData = &Runtime;
 	ClientConfig.Channels.Io.SendLimit = TEST_SSH_CLIENT_DIRECT_QUEUE;
 	if ( Runtime.Mode == TEST_SSH_CLIENT_MODE_TIMEOUT ) {
-		ClientConfig.ReadyTimeout = UINT64_C(50000);
+		ClientConfig.ReadyTimeout = INT64_C(50);
 	}
 	testRequire(xrtSshClientInit(
 		&Runtime.Client,
@@ -2903,7 +2903,7 @@ static void testSshClientRuntimeRun(
 		DialConfig.Stream.WriteLowWater = 16384u;
 		DialConfig.Stream.WriteLimit = 49152u;
 	}
-	DialConfig.Timeout = 5000000u;
+	DialConfig.Timeout = 5000;
 	Runtime.ClientDial = xrtSshClientDial(
 		&Runtime.Client,
 		Runtime.Engine,
@@ -2947,7 +2947,7 @@ static void testSshClientRuntimeRun(
 			(xrtAtomic32Load(&Runtime.HostChecks, XMEMORY_ACQUIRE) == 1u) &&
 			(xrtAtomic32Load(&Runtime.Ready, XMEMORY_ACQUIRE) == 0u) &&
 			(xrtAtomic32Load(&Runtime.ClientAuthCalls, XMEMORY_ACQUIRE) == 0u) &&
-			(xrtFutureWaitFor(Runtime.ReadyFuture, 5000000u) == XWAIT_OK) &&
+			(xrtFutureWaitFor(Runtime.ReadyFuture, 5000) == XWAIT_OK) &&
 			(xrtFutureState(Runtime.ReadyFuture) == XFUTURE_FAILED) &&
 			(xrtFutureError(Runtime.ReadyFuture) != NULL) &&
 			(strcmp(
@@ -2963,7 +2963,7 @@ static void testSshClientRuntimeRun(
 		for ( i = 0u; i < TEST_SSH_CLIENT_CLOSE_WAITERS; ++i ) {
 			testRequire((xrtFutureWaitFor(
 				Runtime.CloseStressFutures[i],
-				5000000u
+				5000
 			) == XWAIT_OK) && (xrtFutureState(
 				Runtime.CloseStressFutures[i]
 			) == ((i & 1u) != 0u ? XFUTURE_CANCELLED : XFUTURE_RESOLVED)),
@@ -2981,7 +2981,7 @@ static void testSshClientRuntimeRun(
 			(xrtAtomic32Load(&Runtime.Ready, XMEMORY_ACQUIRE) == 0u) &&
 			(xrtAtomic32Load(&Runtime.HostChecks, XMEMORY_ACQUIRE) == 0u) &&
 			(xrtAtomic32Load(&Runtime.ClientAuthCalls, XMEMORY_ACQUIRE) == 0u) &&
-			(xrtFutureWaitFor(Runtime.ReadyFuture, 5000000u) == XWAIT_OK) &&
+			(xrtFutureWaitFor(Runtime.ReadyFuture, 5000) == XWAIT_OK) &&
 			(xrtFutureState(Runtime.ReadyFuture) == XFUTURE_FAILED) &&
 			(xrtFutureError(Runtime.ReadyFuture) != NULL) &&
 			(xrtErrorKind(xrtFutureError(Runtime.ReadyFuture)) ==
@@ -3000,7 +3000,7 @@ static void testSshClientRuntimeRun(
 		for ( i = 0u; i < TEST_SSH_CLIENT_CLOSE_WAITERS; ++i ) {
 			testRequire((xrtFutureWaitFor(
 				Runtime.CloseStressFutures[i],
-				5000000u
+				5000
 			) == XWAIT_OK) && (xrtFutureState(
 				Runtime.CloseStressFutures[i]
 			) == ((i & 1u) != 0u ? XFUTURE_CANCELLED : XFUTURE_RESOLVED)),
@@ -3030,7 +3030,7 @@ static void testSshClientRuntimeRun(
 			(Runtime.CloseFuture != NULL) &&
 			(Runtime.GlobalFutures[0] != NULL) &&
 			(Runtime.GlobalFutures[1] == NULL) &&
-			(xrtFutureWaitFor(Runtime.GlobalFutures[0], 5000000u) == XWAIT_OK) &&
+			(xrtFutureWaitFor(Runtime.GlobalFutures[0], 5000) == XWAIT_OK) &&
 			(xrtFutureState(Runtime.GlobalFutures[0]) == XFUTURE_FAILED) &&
 			(xrtFutureError(Runtime.GlobalFutures[0]) != NULL) &&
 			(strcmp(
@@ -3049,7 +3049,7 @@ static void testSshClientRuntimeRun(
 		for ( i = 0u; i < TEST_SSH_CLIENT_CLOSE_WAITERS; ++i ) {
 			testRequire((xrtFutureWaitFor(
 				Runtime.CloseStressFutures[i],
-				5000000u
+				5000
 			) == XWAIT_OK) && (xrtFutureState(
 				Runtime.CloseStressFutures[i]
 			) == ((i & 1u) != 0u ? XFUTURE_CANCELLED : XFUTURE_RESOLVED)),

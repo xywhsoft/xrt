@@ -6,7 +6,7 @@
 /* 等待 Listener 完成全部在途 Accept 的取消。 */
 static void testTcpBindWaitClosed(xnetlistener* pListener)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED ) {
 		testRequire(!__xrtWaitExpired(iDeadline),

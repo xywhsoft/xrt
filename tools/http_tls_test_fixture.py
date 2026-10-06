@@ -142,8 +142,11 @@ def invalid_url_case(client: Path, ca: Path, *,
     failures = []
     try:
         for index, url in enumerate(urls):
-            completed = subprocess.run([str(client), url, str(ca), "url-failure", "50000"],
-                                       capture_output=True, text=True, timeout=10)
+            # Preserve the actual URI bytes on Windows: narrow argv substitutes
+            # non-ASCII characters with '?' on some runner code pages.
+            completed = subprocess.run([str(client), "--url-stdin", str(ca), "url-failure", "50000"],
+                                       input=url, encoding="utf-8",
+                                       capture_output=True, timeout=10)
             if completed.returncode != 0:
                 failures.append(f"URL {index}: {completed.stderr.strip()}")
     finally:

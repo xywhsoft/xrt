@@ -1,6 +1,7 @@
 #include "../internal/xrt_http_cache.h"
 
 #include <xrt/http_cache_time.h>
+#include <math.h>
 
 
 
@@ -33,7 +34,7 @@ uint64 __xrtHttpCacheTimeAdd(
 
 
 
-/* 把线路秒数转换为微秒，溢出时保持饱和。 */
+/* 把线路秒数转换为毫秒，溢出时保持饱和。 */
 uint64 __xrtHttpCacheTimeSeconds(uint64 iSeconds)
 {
 	const uint64 iUnit = (uint64)XRT_TIME_SECOND;
@@ -383,9 +384,9 @@ XRT_API bool xrtHttpCacheTimeParse(
 XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 	const xhttpcachetime* pTime,
 	xtime ResponseTime,
-	uint64 RequestClock,
-	uint64 ResponseClock,
-	uint64 NowClock,
+	double RequestClock,
+	double ResponseClock,
+	double NowClock,
 	xhttpcacheage* pAge
 )
 {
@@ -394,7 +395,7 @@ XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 	uint64 iAgeValue;
 
 	if ( !xrtHttpCacheTimeValid(pTime) ||
-		(pAge == NULL) ||
+		(pAge == NULL) || !isfinite(RequestClock) || !isfinite(ResponseClock) || !isfinite(NowClock) || RequestClock < 0 ||
 		(RequestClock > ResponseClock) ||
 		(ResponseClock > NowClock) ||
 		__xrtRangesOverlap(
@@ -425,7 +426,8 @@ XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 			iDate, ResponseTime
 		);
 	}
-	Age.ResponseDelay = ResponseClock - RequestClock;
+	{ double Milliseconds = (ResponseClock - RequestClock) * 1000.0;
+        Age.ResponseDelay = Milliseconds >= 0x1p64 ? UINT64_MAX : (uint64)Milliseconds; }
 	Age.CorrectedAgeValue = __xrtHttpCacheTimeAdd(
 		iAgeValue, Age.ResponseDelay
 	);
@@ -433,7 +435,8 @@ XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 		Age.ApparentAge > Age.CorrectedAgeValue ?
 		Age.ApparentAge :
 		Age.CorrectedAgeValue;
-	Age.ResidentTime = NowClock - ResponseClock;
+	{ double Milliseconds = (NowClock - ResponseClock) * 1000.0;
+        Age.ResidentTime = Milliseconds >= 0x1p64 ? UINT64_MAX : (uint64)Milliseconds; }
 	Age.CurrentAge = __xrtHttpCacheTimeAdd(
 		Age.CorrectedInitialAge, Age.ResidentTime
 	);

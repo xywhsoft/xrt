@@ -77,7 +77,7 @@ static void testHttpClientWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -96,7 +96,7 @@ static void testHttpClientWait(
 /* 等待请求已完整发送并进入响应头阶段。 */
 static void testHttpClientWaitRequestSent(xhttpcall* pCall)
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	for ( ;; ) {
 		xhttpcallinfo Info;
@@ -216,7 +216,7 @@ static void testHttpClientServerChunk(
 			xrtNetEngineAfter(
 				pState->Engine,
 				xrtNetWorkerIndex(pWorker),
-				UINT64_C(100000),
+				INT64_C(100),
 				testHttpClientServerChunk,
 				pState
 			) != 0,
@@ -363,7 +363,7 @@ static void testHttpClientServerRead(
 				xrtNetWorkerIndex(
 					xrtNetStreamWorker(pStream)
 				),
-				UINT64_C(100000),
+				INT64_C(100),
 				testHttpClientServerTail,
 				pState
 			) != 0,
@@ -420,7 +420,7 @@ static void testHttpClientServerRead(
 				xrtNetWorkerIndex(
 					xrtNetStreamWorker(pStream)
 				),
-				UINT64_C(100000),
+				INT64_C(100),
 				testHttpClientServerChunk,
 				pState
 			) != 0,
@@ -955,7 +955,7 @@ static void testHttpClientRun(
 		ClientConfig.Exchange.Body.MaxBody = 1u;
 	}
 	ClientConfig.Resolver.Lookup = testHttpClientLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	#if defined(XHTTP_FEATURE_HTTP_CLIENT_POOL)
 		/* 基础生命周期测试不保留空闲连接，复用由 Pool 套件覆盖。 */
@@ -996,18 +996,18 @@ static void testHttpClientRun(
 			"HTTP client cancel token creation failed"
 		);
 		Options.Cancel = State.Cancel;
-		Options.Timeout = UINT64_MAX - 1u;
+		Options.Timeout = INT64_MAX;
 		Options.IdleTimeout = XHTTP_CLIENT_TIMEOUT_NONE;
 	} else if ( Scenario == TEST_HTTP_CLIENT_TIMEOUT ) {
-		Options.Timeout = 1000000u;
+		Options.Timeout = 1000;
 		Options.IdleTimeout = XHTTP_CLIENT_TIMEOUT_NONE;
 	} else if ( Scenario == TEST_HTTP_CLIENT_IDLE_TIMEOUT ) {
-		Options.Timeout = 5000000u;
-		Options.IdleTimeout = 200000u;
+		Options.Timeout = 5000;
+		Options.IdleTimeout = 200;
 	} else if ( Scenario ==
 		TEST_HTTP_CLIENT_IDLE_PROGRESS ) {
-		Options.Timeout = 5000000u;
-		Options.IdleTimeout = 250000u;
+		Options.Timeout = 5000;
+		Options.IdleTimeout = 250;
 	} else if ( Scenario == TEST_HTTP_CLIENT_CALLBACK ) {
 		Options.Events.Body = testHttpClientRejectBody;
 		Options.Events.Data = &State;

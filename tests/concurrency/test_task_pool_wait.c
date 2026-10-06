@@ -101,14 +101,14 @@ static bool testTaskWaitBlocked(testtaskwait* pContext)
 	if ( !testTaskWaitForSignal(
 		pContext,
 		TEST_SIGNAL_ENTERED,
-		UINT64_C(2000000)
+		INT64_C(2000)
 	) ) {
 		return false;
 	}
 	return !testTaskWaitForSignal(
 		pContext,
 		TEST_SIGNAL_DONE,
-		UINT64_C(50000)
+		INT64_C(50)
 	);
 }
 
@@ -262,7 +262,7 @@ static void testTaskWaitFill(
 	testRequire(testTaskWaitForSignal(
 		pContext,
 		TEST_SIGNAL_RUNNING,
-		UINT64_C(2000000)
+		INT64_C(2000)
 	), "task wait running task did not start");
 	*ppQueued = xrtTaskSubmit(
 		pContext->Pool,
@@ -285,7 +285,7 @@ static void testTaskWaitCleanup(
 	testTaskWaitRelease(pContext);
 	(void)xrtTaskPoolClose(pContext->Pool);
 	testRequire(
-		xrtTaskPoolWaitFor(pContext->Pool, UINT64_C(2000000)) == XWAIT_OK,
+		xrtTaskPoolWaitFor(pContext->Pool, INT64_C(2000)) == XWAIT_OK,
 		"task wait pool did not drain"
 	);
 	xrtFutureDestroy(pContext->Submitted);
@@ -320,7 +320,7 @@ static void testTaskWaitSuccess(void)
 	testRequire(testTaskWaitForSignal(
 		&tContext,
 		TEST_SIGNAL_DONE,
-		UINT64_C(2000000)
+		INT64_C(2000)
 	), "capacity submit was not woken");
 	testThreadsJoin(&tThread, 1);
 	testRequire(tThread.Result == 0, "capacity submit thread failed");
@@ -351,7 +351,7 @@ static void testTaskWaitTimeout(void)
 		testTaskWaitQueued,
 		&tContext,
 		&tArgs,
-		UINT64_C(50000)
+		INT64_C(50)
 	) == NULL, "capacity timeout accepted task");
 	testRequire(xrtErrorKind(xrtGetError()) == XERR_TIMEOUT,
 		"capacity timeout error mismatch");
@@ -383,7 +383,7 @@ static void testTaskWaitCancel(void)
 	testRequire(testTaskWaitForSignal(
 		&tContext,
 		TEST_SIGNAL_DONE,
-		UINT64_C(2000000)
+		INT64_C(2000)
 	), "capacity cancel did not wake submitter");
 	testThreadsJoin(&tThread, 1);
 	testRequire((tContext.Submitted == NULL) && (tContext.Error == XERR_CANCELLED),
@@ -416,7 +416,7 @@ static void testTaskWaitTaskCancel(void)
 	testRequire(testTaskWaitForSignal(
 		&tContext,
 		TEST_SIGNAL_DONE,
-		UINT64_C(2000000)
+		INT64_C(2000)
 	), "task parent cancel did not wake submitter");
 	testThreadsJoin(&tThread, 1);
 	testRequire(
@@ -451,7 +451,7 @@ static void testTaskWaitClose(void)
 	testRequire(testTaskWaitForSignal(
 		&tContext,
 		TEST_SIGNAL_DONE,
-		UINT64_C(2000000)
+		INT64_C(2000)
 	), "close did not wake capacity submitter");
 	testThreadsJoin(&tThread, 1);
 	testRequire((tContext.Submitted == NULL) && (tContext.Error == XERR_CLOSED),
@@ -485,7 +485,7 @@ static void testTaskDrainCancel(void)
 	testRequire((pRunning != NULL) && testTaskWaitForSignal(
 		&tContext,
 		TEST_SIGNAL_RUNNING,
-		UINT64_C(2000000)
+		INT64_C(2000)
 	), "drain cancel running task failed");
 	testRequire(xrtTaskPoolClose(tContext.Pool), "drain cancel close failed");
 	tContext.Mode = TEST_DRAIN_CANCEL;
@@ -497,7 +497,7 @@ static void testTaskDrainCancel(void)
 	testRequire(testTaskWaitForSignal(
 		&tContext,
 		TEST_SIGNAL_DONE,
-		UINT64_C(2000000)
+		INT64_C(2000)
 	), "drain cancel did not wake waiter");
 	testThreadsJoin(&tThread, 1);
 	testRequire(tContext.WaitResult == XWAIT_CANCELLED,
@@ -571,7 +571,7 @@ static void testTaskWaitWorkerGuard(void)
 	testRequire((pWorker != NULL) && testTaskWaitForSignal(
 		&tContext,
 		TEST_SIGNAL_RUNNING,
-		UINT64_C(2000000)
+		INT64_C(2000)
 	), "worker guard task did not start");
 	pQueued = xrtTaskSubmit(
 		tContext.Pool,
@@ -587,7 +587,7 @@ static void testTaskWaitWorkerGuard(void)
 	testRequire(testTaskWaitForSignal(
 		&tContext,
 		TEST_SIGNAL_SELF_DONE,
-		UINT64_C(2000000)
+		INT64_C(2000)
 	), "worker guard submit did not return");
 	testRequire(tContext.WorkerRejected, "worker guard accepted blocking submit");
 	testRequire(tContext.Destroyed == 0, "worker guard consumed rejected data");

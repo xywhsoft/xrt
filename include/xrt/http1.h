@@ -197,7 +197,7 @@ typedef struct xhttp1bodylimits {
 */
 typedef struct xhttp1body {
 	xhttp1bodymode Mode;
-	int64 Remaining;
+	uint64 Remaining;
 	uint64 Received;
 	uint64 WireBytes;
 	xhttpfield* Trailers;

@@ -379,7 +379,7 @@ static bool benchNetworkCapacityPair(
 	}
 	*pServer = __xrtNetListenerAcceptWait(
 		*pListener,
-		__xrtWaitAfter(UINT64_C(5000000)),
+		__xrtWaitAfter(INT64_C(5000)),
 		NULL
 	);
 	bOpen =
@@ -387,7 +387,7 @@ static bool benchNetworkCapacityPair(
 		__xrtNetStreamWait(
 			*pClient,
 			XNET_STREAM_WAIT_OPEN,
-			__xrtWaitAfter(UINT64_C(5000000)),
+			__xrtWaitAfter(INT64_C(5000)),
 			NULL
 		);
 	if ( !bOpen || (pServerEvents == NULL) ) {
@@ -568,7 +568,7 @@ static bool benchNetworkCapacityFlow(
 			!__xrtNetStreamWait(
 				pClient,
 				XNET_STREAM_WAIT_WRITE,
-				__xrtWaitAfter(UINT64_C(30000000)),
+				__xrtWaitAfter(INT64_C(30000)),
 				NULL
 			)
 		) {
@@ -579,7 +579,7 @@ static bool benchNetworkCapacityFlow(
 	if ( !__xrtNetStreamWait(
 		pClient,
 		XNET_STREAM_WAIT_DRAIN,
-		__xrtWaitAfter(UINT64_C(30000000)),
+		__xrtWaitAfter(INT64_C(30000)),
 		NULL
 	) ) {
 		goto cleanup;
@@ -756,7 +756,7 @@ static bool benchNetworkCapacityIdle(uint32 iConnections)
 		}
 		pServers[iCreated] = __xrtNetListenerAcceptWait(
 			pListener,
-			__xrtWaitAfter(UINT64_C(5000000)),
+			__xrtWaitAfter(INT64_C(5000)),
 			NULL
 		);
 		if (
@@ -764,7 +764,7 @@ static bool benchNetworkCapacityIdle(uint32 iConnections)
 			!__xrtNetStreamWait(
 				pClients[iCreated],
 				XNET_STREAM_WAIT_OPEN,
-				__xrtWaitAfter(UINT64_C(5000000)),
+				__xrtWaitAfter(INT64_C(5000)),
 				NULL
 			)
 		) {

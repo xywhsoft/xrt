@@ -1,8 +1,24 @@
-#include <xrt/detail/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <xhttp.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -96,7 +112,7 @@ static bool exampleHttpProxyWait(
 		&pExample->Done,
 		XMEMORY_ACQUIRE
 	) == 0 ) {
-		if ( __xrtWaitExpired(Deadline) ) {
+		if ( exampleTimerExpired(Deadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -237,12 +253,12 @@ int main(
 		goto Cleanup;
 	}
 
-	Deadline = __xrtWaitAfter(35000000u);
+	Deadline = exampleTimerLimit(35000);
 	if ( !exampleHttpProxyWait(&Example, Deadline) ) {
 		(void)xrtHttpCallCancel(pCall);
 		(void)exampleHttpProxyWait(
 			&Example,
-			__xrtWaitAfter(5000000u)
+			exampleTimerLimit(5000)
 		);
 		goto Cleanup;
 	}

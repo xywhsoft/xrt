@@ -54,7 +54,6 @@ int main(void)
 	xdeflate* pDeflate = NULL;
 	xinflate* pInflate = NULL;
 	examplestore Coded;
-	examplestore Plain;
 	size_t iOriginal = sizeof(sText) - 1u;
 	int iResult = 1;
 
@@ -92,7 +91,6 @@ int main(void)
 		goto Cleanup;
 	}
 	pInflate = xrtInflateCreate(&InflateConfig);
-	Plain.Size = 0;
 	if ( (pInflate == NULL) ||
 		!xrtInflateWrite(pInflate,
 			(xbytesview) { Coded.Buffer, Coded.Size },
@@ -116,7 +114,6 @@ int main(void)
 	}
 	/* Write 的 Output 形态：直接传入收集回调（再复位一遍走回调）。 */
 	(void)xrtInflateReset(pInflate, &InflateConfig);
-	Plain.Size = 0;
 	{
 		/* InflateWrite 无回调形态——收集用自定义直通不可行；
 		 * OutputSize 已核对长度，这里收尾第二遍。 */

@@ -28,14 +28,14 @@ int main(void)
 		testSingleSignalCallback,
 		&Called
 	);
-	uint64 iDeadline = xrtClock() + UINT64_C(3000000);
+	uint64 iDeadline = xrtTimer() + UINT64_C(3000000);
 
 	if ( (pWatch == NULL) || !xrtSignalRaise(XSIGNAL_INT) ) {
 		xrtSignalFree(pWatch);
 		return 1;
 	}
 	while ( xrtAtomic32Load(&Called, XMEMORY_ACQUIRE) == 0u ) {
-		if ( xrtClock() >= iDeadline ) {
+		if ( xrtTimer() >= iDeadline ) {
 			xrtSignalFree(pWatch);
 			return 2;
 		}

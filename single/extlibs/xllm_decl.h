@@ -2710,7 +2710,7 @@ typedef struct xllm_diagnostics {
     uint64_t uRequestBytes;
     uint64_t uResponseBodyBytes;
     uint64_t uContextDeadlineMs;
-    uint64_t uEffectiveTimeoutMs;
+    int64 uEffectiveTimeoutMs;
     char sTransportError[32];
     char sTransportPhase[32];
     char sContextStatus[32];
@@ -3067,8 +3067,8 @@ typedef struct xllm_request {
     char* sExtraBodyJson;              /* owned raw JSON object, shallow-merged */
     /* Borrowed cancellation token; it must outlive this request's model call. */
     xcancel* pCancel;
-    /* Absolute xrtClock() deadline in milliseconds; UINT64_MAX disables it. */
-    uint64_t uDeadline;
+    /* Relative milliseconds; XRT_WAIT_FOREVER disables the timeout. */
+    int64_t iTimeout;
     /* Borrowed per-call lifecycle hooks; replaces the client-level set. */
     const xllm_hooks* pHooks;
     /* Wire-prefix cache stamp (set by borrowed-view renders only): the
@@ -3094,7 +3094,7 @@ XRT_API bool xllmRequestSetReasoningEffort(xllm_request* pRequest, const char* s
 XRT_API bool xllmRequestSetStop(xllm_request* pRequest, const char* sStop);
 XRT_API bool xllmRequestSetExtraBody(xllm_request* pRequest, const char* sJsonObject);
 XRT_API void xllmRequestSetCancel(xllm_request* pRequest, xcancel* pCancel);
-XRT_API void xllmRequestSetDeadline(xllm_request* pRequest, uint64_t uDeadline);
+XRT_API void xllmRequestSetTimeout(xllm_request* pRequest, int64_t iTimeout);
 XRT_API bool xllmRequestSetToolChoice(xllm_request* pRequest, xllm_tool_choice eChoice, const char* sNamedTool);
 XRT_API bool xllmRequestAddMessage(xllm_request* pRequest, const xllm_message* pMessage);
 XRT_API bool xllmRequestAddTextMessage(xllm_request* pRequest, xllm_role eRole, const char* sContent);
@@ -3285,9 +3285,8 @@ typedef struct xllm_executor xllm_executor;
 typedef struct xllm_executor_ctx {
     /* Borrowed cooperative cancel token; NULL when the host has none. */
     xcancel* pCancel;
-    /* Absolute xrtClock() deadline in milliseconds; 0 and UINT64_MAX both
-     * mean "no deadline" so a zero-initialized context is valid. */
-    uint64_t uDeadline;
+    /* Relative milliseconds; XRT_WAIT_FOREVER disables the timeout. */
+    int64_t iTimeout;
     /* 1-based model round within the current run. */
     uint64_t uRound;
     /* Session turn the call belongs to. */

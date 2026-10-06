@@ -1,3 +1,4 @@
+#include <xrt/detail/xsmtp_wait.h>
 #include <xrt/detail/wait.h>
 #include "../internal/xrt_mail.h"
 
@@ -192,6 +193,8 @@ XRT_API bool __xrtSmtpSubmitEnvelope(
 			true
 		 ) ) {
 		if ( xrtGetError() == NULL ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 			__xrtMailSetInvalidArgument();
 		}
 		return false;
@@ -271,6 +274,8 @@ XRT_API bool __xrtSmtpSubmit(
 	if ( (xrtSmtpClientState(pClient) != XSMTP_CLIENT_READY) ||
 		 !xrtMailMessageValid(pMessage) ) {
 		if ( xrtGetError() == NULL ) {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 			__xrtMailSetInvalidArgument();
 		}
 		return false;

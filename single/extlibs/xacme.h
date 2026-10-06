@@ -652,7 +652,7 @@ XRT_EXTERN_C_BEGIN
 	入列不分配内存；宿主须先停止新调用、等待在途调用结束，清理
 	已交付实例，再于退出或卸载库前调用至 true。false 时保留库及
 	相关运行环境，稍后重试；不启动后台清理线程。
-	uTimeoutUs == 0 为一次非阻塞轮询；非零为本次等待预算，退休
+	uTimeoutMs == 0 为一次非阻塞轮询；非零为本次等待预算，退休
 	错误会提前结束。true 表示队列及其他清理调用正在处理的对象全部
 	释放；false 表示仍有对象。piPending 可为空，否则返回未完成数量。
 	保留调用前已有诊断；无旧诊断时报告退休错误或等待超时，非阻塞
@@ -661,7 +661,7 @@ XRT_EXTERN_C_BEGIN
 	有未完成对象时，新的私有引擎构造先尝试非阻塞清理，仍未完成
 	则以 XERR_STATE 拒绝；借用引擎的构造不受此限制。
 */
-XRT_API bool xrtAcmeCleanupPending(uint64 uTimeoutUs, size_t* piPending);
+XRT_API bool xrtAcmeCleanupPending(int64 uTimeoutMs, size_t* piPending);
 
 XRT_EXTERN_C_END
 
@@ -1263,16 +1263,16 @@ typedef struct xacmeclientconfig {
 	const xacmeaccountconfig* pAccount;
 	cstr sCaPem;
 	struct xnetengine* pBorrowedEngine;
-	uint64 uTimeoutUs;
+	int64 uTimeoutMs;
 	const cstr* sPropagateResolvers;
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
 	/*
-		单次签发的总预算（微秒；0 = 不限时）：覆盖订单/挑战/
+		单次签发的总预算（毫秒；0 = 不限时）：覆盖订单/挑战/
 		finalize/证书下载的全部轮询与退避，超限以 XERR_TIMEOUT
 		失败。防病态 CA 把签发挂成小时级。
 	*/
-	uint64 uIssueTimeoutUs;
+	int64 uIssueTimeoutMs;
 	/*
 		宿主提供的证书私钥 PEM（可选；EC P-256 或 RSA-2048+）：
 		设置后每次签发复用同一证书密钥（含 RSA 证书场景）；
@@ -1769,12 +1769,12 @@ typedef struct xacmeobtainconfig {
 	const xacmeaccountconfig* pAccount;
 	cstr sCaPem;
 	struct xnetengine* pBorrowedEngine;
-	uint64 uTimeoutUs;
+	int64 uTimeoutMs;
 	const cstr* sPropagateResolvers;
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
-	/* 单次签发总预算（微秒；0 = 不限时），透传给客户端。 */
-	uint64 uIssueTimeoutUs;
+	/* 单次签发总预算（毫秒；0 = 不限时），透传给客户端。 */
+	int64 uIssueTimeoutMs;
 	/* 宿主提供的证书私钥 PEM（可选，EC/RSA），透传给客户端。 */
 	cstr sCertKeyPem;
 	cstr sStoreRoot;
@@ -1905,7 +1905,7 @@ typedef struct xacmehttp {
 	bool bEngineOwned;
 	struct xnetresolver* pResolver;
 	struct xtlsverifier* pVerifier;
-	uint64 uTimeoutUs;
+	int64 uTimeoutMs;
 	/* Last exchange failed after a write began; independent of error allocation. */
 	bool bWriteUncertain;
 	/* 未交付的堆外壳可转移到退休队列；入列后仅由队列访问。 */
@@ -1936,7 +1936,7 @@ bool xacmeHttpInit(
 	xacmehttp* pHttp,
 	struct xnetengine* pBorrowedEngine,
 	cstr sCaPem,
-	uint64 uTimeoutUs
+	int64 uTimeoutMs
 );
 
 /* 等待自建引擎的异步关闭退休，保留调用前诊断。
@@ -2286,7 +2286,7 @@ bool xacmeDnsTxtWait(
 	uint16 iPort,
 	cstr sFqdn,
 	cstr sExpected,
-	uint64 uTimeoutMs
+	int64 uTimeoutMs
 );
 
 #endif
@@ -2985,10 +2985,10 @@ typedef struct xacmeclient {
 	char sPropagateResolvers[XACME_FLOW_RESOLVER_MAX][64];
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
-	/* 单次签发的总预算（微秒；0 = 不限时）。Issue 入口打点，
+	/* 单次签发的总预算（毫秒；0 = 不限时）。Issue 入口打点，
 	   轮询/传播/退避逐段检查剩余时间。 */
-	uint64 uIssueTimeoutUs;
-	uint64 IssueDeadline;
+	int64 uIssueTimeoutMs;
+	double IssueDeadline;
 	bool bIssueDeadline;
 } xacmeclient;
 
@@ -3002,14 +3002,14 @@ XRT_EXTERN_C_BEGIN
 	初始化：建传输（pBorrowedEngine 为空则自建）、解析 directory、
 	注册或复用账户（kid 来自 Location 头）。pAccount 携带 directory、
 	账户密钥、EAB 与联系方式（借用视图，宿主保证存活至返回）。
-	uTimeoutUs 为 0 时取传输默认（30 秒）。失败设置线程错误。
+	uTimeoutMs 为 0 时取传输默认（30 秒）。失败设置线程错误。
 */
 bool xacmeClientInit(
 	xacmeclient* pClient,
 	struct xnetengine* pBorrowedEngine,
 	cstr sCaPem,
 	const xacmeaccountconfig* pAccount,
-	uint64 uTimeoutUs
+	int64 uTimeoutMs
 );
 
 /* false 时保留传输拥有者，只能继续清理。 */
@@ -3314,7 +3314,7 @@ static void xacmePendingUnlock(void)
 	写入端点的重放安全性须由调用方及 provider 的幂等/去重语义保证。
 	全部尝试失败时保留首个根因。
 */
-#define XACME_HTTP_RETRY_MAX 3u
+#define XACME_HTTP_RETRY_MAX 1
 #define XACME_HTTP_MAX_RESPONSE_BODY (4u * 1024u * 1024u)
 
 static bool xacmeHttpErrorRetryable(void)
@@ -3420,11 +3420,11 @@ void xacmeHttpDeferOwner(xacmehttp* pHttp, size_t iOwnerSize)
 	xacmePendingUnlock();
 }
 
-bool xrtAcmeCleanupPending(uint64 uTimeoutUs, size_t* piPending)
+bool xrtAcmeCleanupPending(int64 uTimeoutMs, size_t* piPending)
 {
 	xerror* pPrevious = xrtErrorRef(xrtGetError());
 	xerror* pFirst = NULL;
-	xdeadline Deadline = xrtDeadlineAfter(uTimeoutUs);
+	double Deadline = __xrtWaitAfter(uTimeoutMs);
 	size_t iPending;
 	bool bError = false;
 	for(;;)
@@ -3463,7 +3463,7 @@ bool xrtAcmeCleanupPending(uint64 uTimeoutUs, size_t* piPending)
 			}
 			pList = pNext;
 			if(pList != NULL && (bError ||
-				(uTimeoutUs != 0u && xrtDeadlineExpired(Deadline))))
+				(uTimeoutMs != 0u && __xrtWaitExpired(Deadline))))
 			{
 				/* 预算耗尽或首个 ERROR 后，未处理的尾段也仍是本次的拥有者。 */
 				if(pWaitTail != NULL) pWaitTail->pPendingNext = pList;
@@ -3481,8 +3481,8 @@ bool xrtAcmeCleanupPending(uint64 uTimeoutUs, size_t* piPending)
 		}
 		iPending = __xacmePendingCount;
 		xacmePendingUnlock();
-		if(iPending == 0u || bError || uTimeoutUs == 0u) break;
-		if(xrtDeadlineExpired(Deadline))
+		if(iPending == 0u || bError || uTimeoutMs == 0u) break;
+		if(__xrtWaitExpired(Deadline))
 		{
 			xacmeHttpError(XERR_TIMEOUT, XACME_HTTP_ERROR_TIMEOUT,
 				"acme pending cleanup still has live objects");
@@ -3506,7 +3506,7 @@ bool xrtAcmeCleanupPending(uint64 uTimeoutUs, size_t* piPending)
 
 bool xacmeHttpInit(
 	xacmehttp* pHttp, struct xnetengine* pBorrowedEngine,
-	cstr sCaPem, uint64 uTimeoutUs)
+	cstr sCaPem, int64 uTimeoutMs)
 {
 	xtlsverifierconfig Verify;
 	xx509store* pStore = NULL;
@@ -3519,15 +3519,15 @@ bool xacmeHttpInit(
 		return false;
 	}
 	memset(pHttp, 0, sizeof(*pHttp));
-	pHttp->uTimeoutUs = (uTimeoutUs != 0u) ?
-		uTimeoutUs : UINT64_C(30000000);
+	pHttp->uTimeoutMs = (uTimeoutMs != 0u) ?
+		uTimeoutMs : INT64_C(30000);
 
 	pHttp->pEngine = pBorrowedEngine;
 	if(pBorrowedEngine == NULL)
 	{
 		size_t iPending = 0u;
 		/* 异常尚未退休时暂停新增私有引擎，避免反复失败无限增加线程和内存。 */
-		if(!xrtAcmeCleanupPending(0u, &iPending))
+		if(!xrtAcmeCleanupPending(0, &iPending))
 		{
 			xacmeHttpError(XERR_STATE, XACME_HTTP_ERROR_CONNECT,
 				"acme pending cleanup must finish before creating a private engine");
@@ -3630,7 +3630,7 @@ bool xacmeHttpUnit(xacmehttp* pHttp)
 	}
 	if(pHttp->bEngineOwned && (pHttp->pEngine != NULL))
 	{
-		xdeadline Deadline = xrtDeadlineAfter(pHttp->uTimeoutUs);
+		double Deadline = __xrtWaitAfter(pHttp->uTimeoutMs);
 		for(;;)
 		{
 			xnetretireresult Result = xrtNetEngineTryDestroy(pHttp->pEngine);
@@ -3641,7 +3641,7 @@ bool xacmeHttpUnit(xacmehttp* pHttp)
 				break;
 			}
 			if(Result == XNET_RETIRE_ERROR) { bReady = false; break; }
-			if(xrtDeadlineExpired(Deadline))
+			if(__xrtWaitExpired(Deadline))
 			{
 				xacmeHttpError(XERR_TIMEOUT, XACME_HTTP_ERROR_TIMEOUT,
 					"acme http engine still has live objects during cleanup");
@@ -3908,11 +3908,11 @@ static bool xacmeStreamSendAll(
 	xacmestream* pStream, const void* pData, size_t iSize, uint64 uUs)
 {
 	size_t iOffset = 0u;
-	xdeadline Deadline = xrtDeadlineAfter(uUs);
+	double Deadline = __xrtWaitAfter(uUs);
 	while(iOffset < iSize)
 	{
 		size_t iChunk = iSize - iOffset;
-		if(xrtDeadlineExpired(Deadline))
+		if(__xrtWaitExpired(Deadline))
 		{
 			return false;
 		}
@@ -3925,7 +3925,7 @@ static bool xacmeStreamSendAll(
 			xfuture* pFuture = xrtTlsStreamSendAsync(
 				pStream->pTls, (const uint8*)pData + iOffset, iChunk);
 			if((pFuture == NULL) ||
-				!xacmeFutureWait(pFuture, xrtDeadlineRemaining(Deadline)))
+				!xacmeFutureWait(pFuture, __xrtWaitRemaining(Deadline)))
 			{
 				return false;
 			}
@@ -3938,14 +3938,14 @@ static bool xacmeStreamSendAll(
 				pStream->pTcp, (const uint8*)pData + iOffset, iChunk))
 				== XNET_RESULT_AGAIN)
 			{
-				if(xrtDeadlineExpired(Deadline))
+				if(__xrtWaitExpired(Deadline))
 				{
 					return false;
 				}
 				pFuture = xrtNetStreamWaitAsync(
 					pStream->pTcp, XNET_STREAM_WAIT_WRITE);
 				if((pFuture == NULL) ||
-					!xacmeFutureWait(pFuture, xrtDeadlineRemaining(Deadline)))
+					!xacmeFutureWait(pFuture, __xrtWaitRemaining(Deadline)))
 				{
 					return false;
 				}
@@ -3963,13 +3963,13 @@ static bool xacmeStreamSendAll(
 /* 返回 1=读到数据，0=流结束，-1=超时，-2=I/O 失败。 */
 static int xacmeStreamRecv(
 	xacmestream* pStream, uint8* pBuffer, size_t iCapacity,
-	size_t* pRead, xdeadline Deadline)
+	size_t* pRead, double Deadline)
 {
 	xfuture* pFuture;
 	xnetbytes* pBytes;
 	xwaitresult eWait;
 	xbytesview View;
-	uint64 uRemaining = xrtDeadlineRemaining(Deadline);
+	int64 uRemaining = __xrtWaitRemaining(Deadline);
 	if(uRemaining == 0u) return -1;
 	if(pStream->pTls != NULL)
 		pFuture = xrtTlsStreamRecvAsync(pStream->pTls, iCapacity);
@@ -3986,7 +3986,7 @@ static int xacmeStreamRecv(
 			bool bEnd;
 			pFuture = xrtTlsStreamWaitAsync(pStream->pTls, XTLS_STREAM_WAIT_END);
 			if(pFuture == NULL) return -2;
-			eWait = xrtFutureWaitFor(pFuture, xrtDeadlineRemaining(Deadline));
+			eWait = xrtFutureWaitFor(pFuture, __xrtWaitRemaining(Deadline));
 			bEnd = eWait == XWAIT_OK && xrtFutureState(pFuture) == XFUTURE_RESOLVED;
 			xrtFutureDestroy(pFuture);
 			return bEnd ? 0 : (eWait == XWAIT_TIMEOUT ? -1 : -2);
@@ -4193,7 +4193,7 @@ static bool xacmeHttpExchangeOnceImpl(
 	size_t iUsed = 0u;
 	size_t iConsumed = 0u;
 	xfuture* pFuture = NULL;
-	xdeadline ResponseDeadline;
+	double ResponseDeadline;
 	bool bOk = false;
 	bool bHeadDone = false;
 	bool bStreamEnd = false;
@@ -4337,7 +4337,7 @@ static bool xacmeHttpExchangeOnceImpl(
 		Tls.Verifier = pHttp->pVerifier;
 		xrtTlsDialConfigInit(&Dial);
 		xacmeUrlTlsNames(&Url, &Tls, &Dial);
-		Dial.Timeout = pHttp->uTimeoutUs;
+		Dial.Timeout = pHttp->uTimeoutMs;
 		pFuture = xrtTlsDialAsync(
 			pHttp->pEngine, pHttp->pResolver, Url.sHost, Url.iPort,
 			&Tls, &Dial, NULL, NULL);
@@ -4346,7 +4346,7 @@ static bool xacmeHttpExchangeOnceImpl(
 	{
 		xnetdialconfig Dial;
 		xrtNetDialConfigInit(&Dial);
-		Dial.Timeout = pHttp->uTimeoutUs;
+		Dial.Timeout = pHttp->uTimeoutMs;
 		pFuture = xrtNetDialAsync(
 			pHttp->pEngine, pHttp->pResolver, Url.sHost, Url.iPort,
 			&Dial, NULL, NULL);
@@ -4356,7 +4356,7 @@ static bool xacmeHttpExchangeOnceImpl(
 		/* 底层拨号错误已在线程错误里；仅补充域信息。 */
 		goto Done;
 	}
-	if(xrtFutureWaitFor(pFuture, pHttp->uTimeoutUs) != XWAIT_OK ||
+	if(xrtFutureWaitFor(pFuture, pHttp->uTimeoutMs) != XWAIT_OK ||
 		xrtFutureState(pFuture) != XFUTURE_RESOLVED)
 	{
 		const xerror* pFutureError = xrtFutureError(pFuture);
@@ -4405,14 +4405,14 @@ static bool xacmeHttpExchangeOnceImpl(
 		*pbRequestStarted = true;
 	}
 	if(!xacmeStreamSendAll(
-		&Stream, Request.Data, Request.Size, pHttp->uTimeoutUs))
+		&Stream, Request.Data, Request.Size, pHttp->uTimeoutMs))
 	{
 		xacmeHttpError(
 			XERR_IO, XACME_HTTP_ERROR_SEND,
 			"acme http send failed");
 		goto Done;
 	}
-	ResponseDeadline = xrtDeadlineAfter(pHttp->uTimeoutUs);
+	ResponseDeadline = __xrtWaitAfter(pHttp->uTimeoutMs);
 
 	/* ---- 接收头 ---- */
 	xrtHttp1LimitsInit(&Limits);
@@ -6281,13 +6281,13 @@ bool xacmeDnsUnit(xacmedns* pDns)
 	pPrevious = xrtErrorRef(xrtGetError());
 	if(pDns->bEngineOwned && (pDns->pEngine != NULL))
 	{
-		xdeadline Deadline = xrtDeadlineAfter(UINT64_C(30000000));
+		double Deadline = __xrtWaitAfter(INT64_C(30000));
 		for(;;)
 		{
 			xnetretireresult Result = xrtNetEngineTryDestroy(pDns->pEngine);
 			if(Result == XNET_RETIRE_READY) break;
 			if(Result == XNET_RETIRE_ERROR) { bReady = false; break; }
-			if(xrtDeadlineExpired(Deadline))
+			if(__xrtWaitExpired(Deadline))
 			{
 				xacmeTxtError(XERR_TIMEOUT, XACME_TXT_ERROR_TIMEOUT,
 					"acme dns engine still has live objects during cleanup");
@@ -6571,8 +6571,8 @@ bool xacmeDnsTxtQuery(
 		bool bGot = false;
 		for(iAttempt = 0; (iAttempt < 2) && !bGot; iAttempt++)
 		{
-			pPacket = xrtNetUdpReceiveWait(
-				pUdp, xrtClock() + UINT64_C(2000000), NULL);
+			pPacket = __xrtNetUdpReceiveWait(
+				pUdp, xrtTimer() + 2, NULL);
 			if(pPacket == NULL)
 			{
 				if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) goto Done;
@@ -6650,9 +6650,9 @@ Protocol:
 
 bool xacmeDnsTxtWait(
 	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
-	cstr sExpected, uint64 uTimeoutMs)
+	cstr sExpected, int64 uTimeoutMs)
 {
-	uint64 uDeadline = xrtClock() + uTimeoutMs * 1000u;
+	double uDeadline = __xrtWaitAfter(uTimeoutMs);
 	if((sExpected == NULL) || (sExpected[0] == '\0'))
 	{
 		xacmeTxtError(
@@ -6660,7 +6660,8 @@ bool xacmeDnsTxtWait(
 			"acme dns txt wait requires expected value");
 		return false;
 	}
-	while(xrtClock() < uDeadline)
+	if (!__xrtWaitValid(uDeadline)) return false;
+	while(!__xrtWaitExpired(uDeadline))
 	{
 		char sRecords[4][XACME_TXT_RECORD_MAX];
 		size_t iCount = 0u;
@@ -9507,7 +9508,7 @@ static bool xacmeFlowAlternateUrl(cstr sBase, cstr sReference,
 static bool xacmeFlowDeadlineHit(const xacmeclient* pClient)
 {
 	return pClient->bIssueDeadline &&
-		(xrtClock() >= (uint64)pClient->IssueDeadline);
+		(xrtTimer() >= pClient->IssueDeadline);
 }
 
 /* ---------------- nonce 与 POST ---------------- */
@@ -9918,7 +9919,7 @@ static void xacmeFlowWaitPropagate(
 	cstr sFqdn, cstr sTxt)
 {
 	xacmedns Probe;
-	uint64 uDeadline;
+	double uDeadline;
 	if(((pDns->iCaps & XACME_DNS_CAP_PROPAGATE) != 0u) &&
 		(pDns->Propagate != NULL))
 	{
@@ -9931,14 +9932,13 @@ static void xacmeFlowWaitPropagate(
 	{
 		return;
 	}
-	uDeadline = xrtClock() +
-		(uint64)pClient->uPropagateTimeoutMs * UINT64_C(1000);
+	uDeadline = __xrtWaitAfter(pClient->uPropagateTimeoutMs);
 	if(pClient->bIssueDeadline &&
-		((uint64)pClient->IssueDeadline < uDeadline))
+		(pClient->IssueDeadline < uDeadline))
 	{
 		uDeadline = pClient->IssueDeadline;
 	}
-	while(xrtClock() < uDeadline)
+	while(xrtTimer() < uDeadline)
 	{
 		if(xacmeFlowTxtVisible(&Probe, pClient, sFqdn, sTxt))
 		{
@@ -10020,7 +10020,7 @@ static void xacmeFlowChallengeDetail(
 
 bool xacmeClientInit(
 	xacmeclient* pClient, struct xnetengine* pBorrowedEngine,
-	cstr sCaPem, const xacmeaccountconfig* pAccount, uint64 uTimeoutUs)
+	cstr sCaPem, const xacmeaccountconfig* pAccount, int64 uTimeoutMs)
 {
 	xacmehttpresponse R;
 	xvalue* pRoot = NULL;
@@ -10049,7 +10049,7 @@ bool xacmeClientInit(
 			"acme client directory url too long");
 		return false;
 	}
-	if(!xacmeHttpInit(&pClient->Http, pBorrowedEngine, sCaPem, uTimeoutUs))
+	if(!xacmeHttpInit(&pClient->Http, pBorrowedEngine, sCaPem, uTimeoutMs))
 	{
 		goto Done;
 	}
@@ -10283,8 +10283,8 @@ Done:
 		/* 先保留首个根因，再拆传输（Unit 可能覆盖线程错误）。 */
 		xerror* pFirst = xrtErrorRef(xrtGetError());
 		/* 失败构造尚未交付拥有者，回滚不复用已经耗尽的请求预算。 */
-		if(pClient->Http.uTimeoutUs < UINT64_C(30000000))
-			pClient->Http.uTimeoutUs = UINT64_C(30000000);
+		if(pClient->Http.uTimeoutMs < INT64_C(30000))
+			pClient->Http.uTimeoutMs = INT64_C(30000);
 		xacmeHttpUnit(&pClient->Http);
 		if(pFirst != NULL)
 		{
@@ -10357,9 +10357,9 @@ bool xacmeClientIssue(
 			"acme certificate key must differ from the account key");
 		return false;
 	}
-	/* 总预算打点：uIssueTimeoutUs 非零时本次 Issue 全程受限。 */
-	pClient->bIssueDeadline = (pClient->uIssueTimeoutUs != 0u);
-	pClient->IssueDeadline = xrtClock() + pClient->uIssueTimeoutUs;
+	/* 总预算打点：uIssueTimeoutMs 非零时本次 Issue 全程受限。 */
+	pClient->bIssueDeadline = (pClient->uIssueTimeoutMs != 0u);
+	pClient->IssueDeadline = __xrtWaitAfter(pClient->uIssueTimeoutMs);
 
 	/* 1. 新订单；identifier 用完整域名（通配符原样：*.example.com 是
 	   独立 identifier，CA 依此返回通配符授权）。去重按完整字符串——
@@ -11609,7 +11609,7 @@ struct xacmeclient* xrtAcmeClientCreate(
 	}
 	if(!xacmeClientInit(
 			pClient, pConfig->pBorrowedEngine, pConfig->sCaPem,
-			pConfig->pAccount, pConfig->uTimeoutUs))
+			pConfig->pAccount, pConfig->uTimeoutMs))
 	{
 		xacmeClientDiscard(pClient);
 		return NULL;
@@ -11626,8 +11626,8 @@ struct xacmeclient* xrtAcmeClientCreate(
 			xacmeCertKeyUnit(pClient->pCertKey);
 			xrtFree(pClient->pCertKey);
 			pClient->pCertKey = NULL;
-			if(pClient->Http.uTimeoutUs < UINT64_C(30000000))
-				pClient->Http.uTimeoutUs = UINT64_C(30000000);
+			if(pClient->Http.uTimeoutMs < INT64_C(30000))
+				pClient->Http.uTimeoutMs = INT64_C(30000);
 			xacmeClientDiscard(pClient);
 			return NULL;
 		}
@@ -11651,7 +11651,7 @@ struct xacmeclient* xrtAcmeClientCreate(
 	}
 	pClient->uPropagateTimeoutMs = (pConfig->uPropagateTimeoutMs != 0u) ?
 		pConfig->uPropagateTimeoutMs : XACME_FLOW_PROPAGATE_TIMEOUT_MS;
-	pClient->uIssueTimeoutUs = pConfig->uIssueTimeoutUs;
+	pClient->uIssueTimeoutMs = pConfig->uIssueTimeoutMs;
 	return pClient;
 }
 
@@ -12320,7 +12320,7 @@ typedef struct xacmednstencentcontext {
 	xacmednsrecords Records;
 	bool bUncertain[XACME_DNS_RECORD_MAX];
 	int64 iDomainIds[XACME_DNS_RECORD_MAX];
-	uint64 uCreatedAt[XACME_DNS_RECORD_MAX];
+	double uCreatedAt[XACME_DNS_RECORD_MAX];
 	bool bDeletePending[XACME_DNS_RECORD_MAX];
 } xacmednstencentcontext;
 
@@ -12812,7 +12812,7 @@ static bool xacmeTencentAddLocked(
 						(long long)iId);
 					bTracked = xacmeDnsCreateCommit(&pCtx->Records, pCtx->bUncertain,
 						iSlot, sZone, '|', sIdText);
-					if(bTracked) pCtx->uCreatedAt[iSlot] = xrtClock();
+					if(bTracked) pCtx->uCreatedAt[iSlot] = xrtTimer();
 				}
 			}
 		}
@@ -12891,7 +12891,7 @@ static int xacmeTencentCompareIds(const void* pLeft, const void* pRight)
 static void xacmeTencentInspectMissingCandidate(xacmednstencentcontext* pCtx,
 	size_t iSlot, cstr sZone, int64 iRecordId)
 {
-	uint64 uNow = xrtClock();
+	double uNow = xrtTimer();
 	int64 iDomainId = pCtx->iDomainIds[iSlot], iTotal = -1, iListed = -1;
 	uint16 iStatus = 0u;
 	str sResp = NULL;
@@ -12902,7 +12902,7 @@ static void xacmeTencentInspectMissingCandidate(xacmednstencentcontext* pCtx,
 	xvalue* pResponse = NULL;
 	xvalue* pList;
 	bool bValid = false, bPresent = false;
-	if(uNow < pCtx->uCreatedAt[iSlot] || uNow - pCtx->uCreatedAt[iSlot] < 30000000u) {
+	if(uNow < pCtx->uCreatedAt[iSlot] || uNow - pCtx->uCreatedAt[iSlot] < 30.0) {
 		xrtSetErrorInfo(XERR_AGAIN, "xrt.acme.dns", XACME_DNS_ERROR_NETWORK,
 			"acme dns_tencent record absence cannot be checked during the create index delay"); return;
 	}
@@ -15521,12 +15521,12 @@ bool xrtAcmeObtain(
 	ClientConfig.pAccount = &Account;
 	ClientConfig.sCaPem = pConfig->sCaPem;
 	ClientConfig.pBorrowedEngine = pConfig->pBorrowedEngine;
-	ClientConfig.uTimeoutUs = pConfig->uTimeoutUs;
+	ClientConfig.uTimeoutMs = pConfig->uTimeoutMs;
 	ClientConfig.sPropagateResolvers = pConfig->sPropagateResolvers;
 	ClientConfig.iPropagateResolverCount =
 		pConfig->iPropagateResolverCount;
 	ClientConfig.uPropagateTimeoutMs = pConfig->uPropagateTimeoutMs;
-	ClientConfig.uIssueTimeoutUs = pConfig->uIssueTimeoutUs;
+	ClientConfig.uIssueTimeoutMs = pConfig->uIssueTimeoutMs;
 	ClientConfig.sCertKeyPem = pConfig->sCertKeyPem;
 
 	pClient = xrtAcmeClientCreate(&ClientConfig);
@@ -15564,8 +15564,8 @@ Done:
 	if(pClient != NULL)
 	{
 		/* 此临时客户端不会交付调用者；回滚单独留出退休预算。 */
-		if(pClient->Http.uTimeoutUs < UINT64_C(30000000))
-			pClient->Http.uTimeoutUs = UINT64_C(30000000);
+		if(pClient->Http.uTimeoutMs < INT64_C(30000))
+			pClient->Http.uTimeoutMs = INT64_C(30000);
 		xacmeClientDiscard(pClient);
 	}
 	if(!bResult)

@@ -31,7 +31,7 @@ static void testTlsStreamTimeoutWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -227,8 +227,8 @@ int main(void)
 	ClientConfig.Verifier = pVerifier;
 	ClientConfig.ServerName = XRT_STR_LITERAL("example.com");
 	xrtTlsStreamConfigInit(&StreamConfig);
-	StreamConfig.HandshakeTimeout = 50000u;
-	StreamConfig.CloseTimeout = 50000u;
+	StreamConfig.HandshakeTimeout = 50;
+	StreamConfig.CloseTimeout = 50;
 
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = TEST_TLS_STREAM_BACKEND;

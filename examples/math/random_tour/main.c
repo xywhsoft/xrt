@@ -68,7 +68,6 @@ int main(void)
 	char TextB[9];
 	uint8 BytesA[8];
 	uint8 BytesB[8];
-	uint64 Values[6];
 	str sGenerated;
 	int i;
 	int iResult = 1;
@@ -188,7 +187,6 @@ int main(void)
 	}
 	/* 双实例同种子：Rng64/RngBelow/RngRange 逐个一致。 */
 	for ( i = 0; i < 8; ++i ) {
-		Values[i % 6] = 0;  /* 复用栈数组避免新声明 */
 		if ( xrtRng64(&RngA) != xrtRng64(&RngB) ) {
 			goto Cleanup;
 		}

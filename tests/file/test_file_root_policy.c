@@ -63,10 +63,22 @@ static void testRootPolicyCase(void)
 	xrtClearError();
 	xrtFileOptionsInit(&Options);
 	Options.Flags = XFILE_WRITE | XFILE_CREATE | XFILE_TRUNCATE;
-	testRequire(__xrtRootFileOpenPolicy(Root, "case.txt", &Options,
-		XROOT_POLICY_CASE_SENSITIVE) == NULL,
-		"exact root policy opened an existing case alias for creation");
-	xrtClearError();
+	/* Case-sensitive filesystems can create a distinct spelling. On a
+	 * case-insensitive filesystem, the existing alias must stay protected. */
+	if ( xrtRootStat(Root, "case.txt", true, &Info) ) {
+		testRequire(__xrtRootFileOpenPolicy(Root, "case.txt", &Options,
+			XROOT_POLICY_CASE_SENSITIVE) == NULL,
+			"exact root policy opened an existing case alias for creation");
+		xrtClearError();
+	} else {
+		xrtClearError();
+		File = __xrtRootFileOpenPolicy(Root, "case.txt", &Options,
+			XROOT_POLICY_CASE_SENSITIVE);
+		testRequire(File != NULL && xrtClose(File),
+			"exact root policy rejected creation of a distinct case-sensitive name");
+		testRequire(xrtRootRemove(Root, "case.txt"),
+			"distinct case-sensitive file cleanup failed");
+	}
 	testRequire(__xrtRootStatPolicy(Root, "Case.txt", true, &Info,
 		XROOT_POLICY_CASE_SENSITIVE) &&
 		(Info.Type == XFILE_TYPE_FILE) && (Info.Size == 6u),

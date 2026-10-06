@@ -224,7 +224,7 @@ XRT_API xwaitresult xrtTaskGroupWait(xtaskgroup* pGroup);
 
 
 
-/* 关闭任务组并在相对微秒数内等待全部当前项。 */
+/* 关闭任务组并在相对毫秒数内等待全部当前项。 */
 XRT_API xwaitresult xrtTaskGroupWaitFor(xtaskgroup* pGroup, int64 iTimeout);
 
 
@@ -397,7 +397,7 @@ XRT_API xfuture* xrtTaskSubmitWait(
 
 
 
-/* 在相对微秒数内等待任务池出现队列槽位并提交。 */
+/* 在相对毫秒数内等待任务池出现队列槽位并提交。 */
 XRT_API xfuture* xrtTaskSubmitFor(
 	xtaskpool* pPool,
 	xtaskproc pProc,
@@ -440,7 +440,7 @@ XRT_API xwaitresult xrtTaskPoolWait(xtaskpool* pPool);
 
 
 
-/* 在相对微秒数内等待已关闭任务池排空。 */
+/* 在相对毫秒数内等待已关闭任务池排空。 */
 XRT_API xwaitresult xrtTaskPoolWaitFor(xtaskpool* pPool, int64 iTimeout);
 
 
@@ -503,7 +503,7 @@ XRT_API xfuture* xrtTaskGroupSubmitWait(
 
 
 
-/* 在相对微秒数内等待任务池槽位并原子纳入组。 */
+/* 在相对毫秒数内等待任务池槽位并原子纳入组。 */
 XRT_API xfuture* xrtTaskGroupSubmitFor(
 	xtaskgroup* pGroup,
 	xtaskpool* pPool,

@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 #include <stdio.h>
 
 #include <xrt.h>
@@ -48,11 +47,9 @@ int main(void)
 		(void)xrtMutexUnit(&Mutex);
 		return 1;
 	}
-	Result = __xrtCondWaitUntil(
+	Result = xrtCondWaitFor(
 		&Cond,
-		&Mutex,
-		__xrtWaitAfter(UINT64_C(1000))
-	);
+		&Mutex,INT64_C(1));
 	bLocked = xrtMutexUnlock(&Mutex);
 
 	printf("wait=%d mutex-restored=%d\n", (int)Result, (int)bLocked);

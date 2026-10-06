@@ -30,9 +30,9 @@
 
 int main(void)
 {
-	static const uint8 arrSalt[8] = "salt1234";
-	static const uint8 arrIkm[10] = "input-key!";
-	static const uint8 arrInfo[4] = "info";
+	static const uint8 arrSalt[8] = { 0x73u, 0x61u, 0x6Cu, 0x74u, 0x31u, 0x32u, 0x33u, 0x34u };
+	static const uint8 arrIkm[10] = { 0x69u, 0x6Eu, 0x70u, 0x75u, 0x74u, 0x2Du, 0x6Bu, 0x65u, 0x79u, 0x21u };
+	static const uint8 arrInfo[4] = { 0x69u, 0x6Eu, 0x66u, 0x6Fu };
 	uint8 arrPrk[64];
 	uint8 arrTwoStep[64];
 	uint8 arrCombined[64];

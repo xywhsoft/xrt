@@ -48,7 +48,7 @@ static void testHttpSseClientWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -602,7 +602,7 @@ static void testHttpSseClientLifecycle(void)
 	xrtHttpClientConfigInit(&HttpConfig);
 	HttpConfig.Resolver.Lookup =
 		testHttpSseClientLookup;
-	HttpConfig.Dial.FallbackDelay = 1000u;
+	HttpConfig.Dial.FallbackDelay = 1;
 	HttpConfig.Dial.MaxAttempts = 1;
 	#if defined(XHTTP_FEATURE_HTTP_CLIENT_POOL)
 		HttpConfig.Pool.MaxIdle = 0;

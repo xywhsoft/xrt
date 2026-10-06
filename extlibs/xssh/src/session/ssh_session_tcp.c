@@ -1,3 +1,4 @@
+#include <math.h>
 #include <string.h>
 
 #include <xrt/ssh_session_tcp.h>
@@ -178,9 +179,10 @@ bool xrtSshSessionTcpInit(
 	xsshsessiontcp* pSession,
 	xnetbufpool* pPool,
 	const xsshsessiontcpconfig* pConfig,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return false; }
 	xsshsessiontcp Session;
 	xsshsessiontcpconfig Config;
 	size_t iReplyBytes = 0u;
@@ -224,7 +226,7 @@ bool xrtSshSessionTcpInit(
 		&Session.Transport,
 		pPool,
 		&Config.Transport,
-		iNowMs
+		Timer
 	) || !xrtSshSessionCoreInit(
 		&Session.Session,
 		pPool,
@@ -364,9 +366,10 @@ xsshcode xrtSshSessionTcpKexBeginWithPrivate(
 xsshcode xrtSshSessionTcpAuthBegin(
 	xsshsessiontcp* pSession,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	if ( !xsshSessionTcpValid(pSession) ) {
 		return XSSH_ERROR_STATE;
 	}
@@ -384,7 +387,7 @@ xsshcode xrtSshSessionTcpAuthBegin(
 		&pSession->Session,
 		&pSession->Transport.Core,
 		pPolicy,
-		iNowMs
+		Timer
 	);
 }
 
@@ -443,10 +446,11 @@ xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 	uint64 iReplyToken,
 	xsshpaddingproc pPadding,
 	ptr pPaddingData,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessionpacketkind* pKind
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshcode Code;
 
 	if ( !xsshSessionTcpValid(pSession) ) {
@@ -474,7 +478,7 @@ xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 		pChannel,
 		pReplies,
 		iReplyToken,
-		iNowMs,
+		Timer,
 		pKind
 	);
 	if ( Code != XSSH_OK ) {
@@ -485,7 +489,7 @@ xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 		Payload,
 		pPadding,
 		pPaddingData,
-		iNowMs
+		Timer
 	);
 	if ( Code != XSSH_OK ) {
 		(void)xrtSshSessionCoreWriteAbort(
@@ -515,7 +519,7 @@ xsshcode xrtSshSessionTcpWritePrepareWithPadding(
 xnetresult xrtSshSessionTcpWriteSubmit(
 	xsshsessiontcp* pSession,
 	xnetstream* pStream,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
@@ -561,7 +565,7 @@ xnetresult xrtSshSessionTcpWriteSubmit(
 	Result = xrtSshTransportTcpWriteSubmit(
 		&pSession->Transport,
 		pStream,
-		iNowMs,
+		Timer,
 		pDecision
 	);
 	if ( Result != XNET_RESULT_OK ) {
@@ -576,7 +580,7 @@ xnetresult xrtSshSessionTcpWriteSubmit(
 		Code = xrtSshSessionCoreWriteCommit(
 			&pSession->Session,
 			&pSession->Transport.Core,
-			iNowMs
+			Timer
 		);
 	}
 	if ( Code != XSSH_OK ) {
@@ -753,10 +757,11 @@ xsshcode xrtSshSessionTcpReadPrepare(
 	void* pHostKeyStorage,
 	size_t iHostKeyCapacity,
 	size_t* pHostKeySize,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessiontcppacket* pPacket
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshsessionpacket SessionPacket;
 	xsshpacketview TransportPacket;
 	xsshcode Code;
@@ -791,7 +796,7 @@ xsshcode xrtSshSessionTcpReadPrepare(
 			&TransportPacket,
 			pPlain,
 			iPlainCapacity,
-			iNowMs
+			Timer
 		);
 		if ( Code != XSSH_OK ) {
 			if ( (pSession->Transport.Core.State.Phase ==
@@ -814,7 +819,7 @@ xsshcode xrtSshSessionTcpReadPrepare(
 		pHostKeyStorage,
 		iHostKeyCapacity,
 		pHostKeySize,
-		iNowMs,
+		Timer,
 		&SessionPacket
 	);
 	if ( Code == XSSH_OK ) {
@@ -838,10 +843,11 @@ xsshcode xrtSshSessionTcpReadPrepare(
 /* transport 消费成功后才发布版本或连接级协议状态。 */
 xsshcode xrtSshSessionTcpReadCommit(
 	xsshsessiontcp* pSession,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshtransporttcppending Pending;
 	xsshcode Code;
 
@@ -869,7 +875,7 @@ xsshcode xrtSshSessionTcpReadCommit(
 	}
 	Code = xrtSshTransportTcpReadCommit(
 		&pSession->Transport,
-		iNowMs,
+		Timer,
 		pDecision
 	);
 	if ( Code != XSSH_OK ) {
@@ -886,7 +892,7 @@ xsshcode xrtSshSessionTcpReadCommit(
 		Code = xrtSshSessionCoreReadCommit(
 			&pSession->Session,
 			&pSession->Transport.Core,
-			iNowMs
+			Timer
 		);
 	}
 	xsshSessionTcpReadClear(pSession);

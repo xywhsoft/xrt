@@ -398,8 +398,8 @@ static bool testTreeLinks(cstr sSource)
 /* 可选元数据复制必须保留源文件时间和平台权限属性。 */
 static void testTreeMetadata(cstr sSource)
 {
-	const xtime Accessed = (xtime)978307200000000LL;
-	const xtime Modified = (xtime)978307201345678LL;
+	const xtime Accessed = XRT_TIME_UNIX_EPOCH + INT64_C(978307200000);
+	const xtime Modified = XRT_TIME_UNIX_EPOCH + INT64_C(978307201345);
 	str sTarget = testTreePath("xrt-tree-metadata-target");
 	str sSourceFile = xrtPathJoin(sSource, "root.txt");
 	str sTargetFile = xrtPathJoin(sTarget, "root.txt");

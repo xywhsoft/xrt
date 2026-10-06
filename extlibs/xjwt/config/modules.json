@@ -121,6 +121,5 @@
 			"benchmarks": [],
 			"docs": []
 		}
-	],
-	"umbrella_header": "xjwt.h"
+	]
 }

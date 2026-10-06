@@ -45,6 +45,7 @@ typedef struct xsshsessionreader {
 
 
 
+/* Timer 参数为 xrtTimer() 的 double 秒数，必须有限且非负；配置时长仍用毫秒。 */
 XRT_EXTERN_C_BEGIN
 
 
@@ -91,7 +92,7 @@ XRT_API xsshsessionreaderstate xrtSshSessionReaderState(
 XRT_API xsshcode xrtSshSessionReaderPrepare(
 	xsshsessionreader* pReader,
 	xnetbuf* pInput,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessiontcppacket* pPacket
 );
 
@@ -100,7 +101,7 @@ XRT_API xsshcode xrtSshSessionReaderPrepare(
 /* 提交已接受 packet，释放临时明文并发布本轮主机公钥存储。 */
 XRT_API xsshcode xrtSshSessionReaderCommit(
 	xsshsessionreader* pReader,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 );
 

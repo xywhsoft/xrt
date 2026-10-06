@@ -32,7 +32,7 @@ SMTP 是 1982 年的对话协议：客户端发命令（`EHLO`/`MAIL FROM`/`RCPT
 
 ### 客户端：会话状态与所有权
 
-`xrtSmtpClientOpen`：验证 `220` banner → 发 EHLO →（仅当服务器明确 `500/502/504` 才按配置回退 HELO——EHLO 失败的其他码不回退）。状态机 `READY → MAIL → RECIPIENT → READY`（一笔 envelope）；CHUNKING 在首块后进 `CHUNK`、LAST 成功回 READY。**所有权**：配置只在 Open 期间借用；Client 持传输与最后响应、**借用** Engine/Resolver/TLS Context/Verifier（销毁不动共享对象）。**线程**：全部阻塞操作接受绝对 `xdeadline`+可选 `xcancel`；**不能从所属 Engine 的 Worker 回调调用**（第 98 章同款死锁防线）；单 Client 不支持并发命令。**三收尾**：`Quit`（协议告别）/`Close`（跳过 QUIT 等传输关闭）/`Abort`（任意非空状态立即异常中止、重复成功、FAILED 保留最后响应供诊断）。
+`xrtSmtpClientOpen`：验证 `220` banner → 发 EHLO →（仅当服务器明确 `500/502/504` 才按配置回退 HELO——EHLO 失败的其他码不回退）。状态机 `READY → MAIL → RECIPIENT → READY`（一笔 envelope）；CHUNKING 在首块后进 `CHUNK`、LAST 成功回 READY。**所有权**：配置只在 Open 期间借用；Client 持传输与最后响应、**借用** Engine/Resolver/TLS Context/Verifier（销毁不动共享对象）。**线程**：全部阻塞操作接受相对毫秒 `int64`+可选 `xcancel`；**不能从所属 Engine 的 Worker 回调调用**（第 98 章同款死锁防线）；单 Client 不支持并发命令。**三收尾**：`Quit`（协议告别）/`Close`（跳过 QUIT 等传输关闭）/`Abort`（任意非空状态立即异常中止、重复成功、FAILED 保留最后响应供诊断）。
 
 ### DATA 快速路径：流式 dot transparency
 

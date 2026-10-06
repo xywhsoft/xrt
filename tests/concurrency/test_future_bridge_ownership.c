@@ -1,8 +1,8 @@
-#include <xrt/detail/wait.h>
 #ifdef FUTURE_BRIDGE_OWNERSHIP_SINGLE
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
 #endif
+#include <xrt/detail/wait.h>
 #include "../test.h"
 #include <xrt/future_bridge.h>
 #include <assert.h>
@@ -15,7 +15,7 @@ typedef struct BridgeCase {
 static unsigned synchronous, races, pins;
 static void freeze_begin(xrtownershipscope* scope)
 {
-    double deadline=__xrtWaitAfter(5000000);
+    double deadline=__xrtWaitAfter(5000);
     while(!xrtOwnershipFreezeTryBegin(scope)){assert(!__xrtWaitExpired(deadline));xrtThreadYield();}
 }
 static void balanced(const xmemdebugsnapshot* before)
@@ -43,7 +43,7 @@ static int32 unpublished_probe(ptr data)
 static void cross_thread_probe(BridgeCase* test)
 {
     xthread* thread=xrtThreadCreate(unpublished_probe,test,0);assert(thread);
-    assert(xrtThreadWaitFor(thread,5000000)==XWAIT_OK);xrtThreadDestroy(thread);
+    assert(xrtThreadWaitFor(thread,5000)==XWAIT_OK);xrtThreadDestroy(thread);
 }
 static void notify(ptr data)
 {
@@ -122,7 +122,7 @@ static void publish_races(void)
         ++test.refs;assert(xrtFutureBridgeWatchOwnedV1(&test.bridge,&test,&policy));
         xthread* thread=xrtThreadCreate(wait_and_unlink,&test,0);assert(thread);
         assert((i&1)?xrtFutureBridgeFail(&test.bridge):xrtFutureBridgeReady(&test.bridge));
-        assert(xrtThreadWaitFor(thread,5000000)==XWAIT_OK);xrtThreadDestroy(thread);
+        assert(xrtThreadWaitFor(thread,5000)==XWAIT_OK);xrtThreadDestroy(thread);
         assert(test.dropped==1&&test.refs==1);finish(&test,future);balanced(&before);++races;
     }
 }

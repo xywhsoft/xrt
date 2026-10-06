@@ -207,7 +207,7 @@ Timeout 覆盖 DNS、TCP 和代理握手全过程；零值保留各内层超时�
 ```c
 typedef struct xnetproxydialconfig {
 	xnetdialconfig Transport;
-	uint64 Timeout;
+	int64 Timeout;
 	size_t ReceiveLimit;
 } xnetproxydialconfig;
 ```
@@ -215,7 +215,7 @@ typedef struct xnetproxydialconfig {
 | 字段 | 类型 | 语义 |
 |---|---|---|
 | `Transport` | `xnetdialconfig` | Transport |
-| `Timeout` | `uint64` | 超时（微秒） |
+| `Timeout` | `int64` | 超时（毫秒） |
 | `ReceiveLimit` | `size_t` | ReceiveLimit |
 
 ### `xnetproxydialstats`

@@ -17,9 +17,7 @@ int main(void)
 	) || !xrtSshSessionTcpInit(
 		&Session,
 		NULL,
-		&Config,
-		0u
-	) || !xrtSshSessionReaderInit(
+		&Config, ((double)(0u)) / 1000.0) || !xrtSshSessionReaderInit(
 		&Reader,
 		NULL,
 		&Session

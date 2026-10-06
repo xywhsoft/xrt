@@ -250,7 +250,7 @@ static int testFutureWaiter(ptr pData)
 {
 	testfuturethread* pContext = (testfuturethread*)pData;
 
-	pContext->Result = xrtFutureWaitFor(pContext->Future, UINT64_C(2000000));
+	pContext->Result = xrtFutureWaitFor(pContext->Future, INT64_C(2000));
 	if ( pContext->Result != XWAIT_OK ) {
 		return 1;
 	}

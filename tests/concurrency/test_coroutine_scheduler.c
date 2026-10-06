@@ -20,7 +20,7 @@ static ptr testCoSchedBasicProc(ptr pData)
 	pState->Step = 1;
 	testRequire(xrtCoSleep(0) == XWAIT_OK, "scheduler fair yield failed");
 	pState->Step = 2;
-	pState->SleepResult = xrtCoSleep(1000);
+	pState->SleepResult = xrtCoSleep(1);
 	pState->Step = 3;
 	return pState;
 }
@@ -150,7 +150,7 @@ typedef struct testcoschedjoin {
 /* 目标协程在一次睡眠后返回固定输入。 */
 static ptr testCoSchedTargetProc(ptr pData)
 {
-	testRequire(xrtCoSleep(2000) == XWAIT_OK, "join target sleep failed");
+	testRequire(xrtCoSleep(2) == XWAIT_OK, "join target sleep failed");
 	return pData;
 }
 
@@ -161,7 +161,7 @@ static ptr testCoSchedJoinProc(ptr pData)
 {
 	testcoschedjoin* pJoin = (testcoschedjoin*)pData;
 
-	pJoin->Result = pJoin->Timeout == UINT64_MAX ?
+	pJoin->Result = pJoin->Timeout == XRT_WAIT_FOREVER ?
 		xrtCoJoin(pJoin->Target) :
 		xrtCoJoinFor(pJoin->Target, pJoin->Timeout);
 	return pJoin;
@@ -706,9 +706,9 @@ static void testCoroutineSchedulerJoin(void)
 	pTarget = xrtCoSpawn(pSched, testCoSchedTargetProc, &tJoinA, NULL);
 	testRequire(pTarget != NULL, "join target spawn failed");
 	tJoinA.Target = pTarget;
-	tJoinA.Timeout = UINT64_MAX;
+	tJoinA.Timeout = XRT_WAIT_FOREVER;
 	tJoinB.Target = pTarget;
-	tJoinB.Timeout = UINT64_MAX;
+	tJoinB.Timeout = XRT_WAIT_FOREVER;
 	tTimeout.Target = pTarget;
 	tTimeout.Timeout = 1;
 	pJoinA = xrtCoSpawn(pSched, testCoSchedJoinProc, &tJoinA, NULL);
@@ -815,7 +815,7 @@ static void testCoroutineSchedulerLifecycle(void)
 
 	pSched = xrtCoSchedCreate();
 	testRequire(pSched != NULL, "join close scheduler create failed");
-	tJoin.Timeout = UINT64_MAX;
+	tJoin.Timeout = XRT_WAIT_FOREVER;
 	pWaiter = xrtCoSpawn(pSched, testCoSchedJoinProc, &tJoin, NULL);
 	tArgs.Finalize = testCoSchedAbandonFinal;
 	tArgs.FinalizeData = &tAbandon;

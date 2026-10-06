@@ -278,7 +278,7 @@ static void testResolverOomWaitIdle(
 	uint32 iCallbacks
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	for ( ;; ) {
 		xnetresolverstats Stats;

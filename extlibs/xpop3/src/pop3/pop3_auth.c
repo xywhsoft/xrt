@@ -1,3 +1,4 @@
+#include <xrt/detail/xpop3_wait.h>
 #include <xrt/detail/wait.h>
 #include <xrt/pop3_auth.h>
 
@@ -428,6 +429,8 @@ XRT_API bool __xrtPop3ClientAuth(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	bool bBearer;
 
 	if ( pClient == NULL ) {
@@ -485,6 +488,8 @@ XRT_API bool __xrtPop3ClientLogin(
 	xcancel* pCancel
 )
 {
+    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+
 	xpop3authconfig Config;
 
 	xrtPop3AuthConfigInit(&Config);

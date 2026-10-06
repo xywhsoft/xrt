@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 /*
  * 范例：network/tcp_dial —— 托管拨号：DNS + TCP 生命周期托管
  * ----------------------------------------------------------------
@@ -21,6 +20,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <xrt.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 
 
@@ -119,10 +135,10 @@ static void exampleTcpDialClose(
 /* 等待示例原子条件，超时返回 false。 */
 static bool exampleTcpDialWait(const xatomic32* pValue, uint32 iExpected)
 {
-	double iDeadline = __xrtWaitAfter(3000000u);
+	double iDeadline = exampleTimerLimit(3000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		if ( __xrtWaitExpired(iDeadline) ) {
+		if ( exampleTimerExpired(iDeadline) ) {
 			return false;
 		}
 		xrtThreadYield();
@@ -196,7 +212,7 @@ int main(void)
 		&Context
 	);
 	if ( (pDial == NULL) ||
-		 (xrtFutureWaitFor(pDial, 3000000u) != XWAIT_OK) ||
+		 (xrtFutureWaitFor(pDial, 3000) != XWAIT_OK) ||
 		 (xrtFutureState(pDial) != XFUTURE_RESOLVED) ) {
 		return 4;
 	}

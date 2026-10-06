@@ -241,7 +241,7 @@ static void testTaskGroupPoolBasic(void)
 		testTaskGroupPoolRun,
 		&tContext,
 		NULL,
-		UINT64_C(2000000)
+		INT64_C(2000)
 	);
 	pSecond = __xrtTaskGroupSubmitUntil(
 		tContext.Group,
@@ -249,7 +249,7 @@ static void testTaskGroupPoolBasic(void)
 		testTaskGroupPoolRun,
 		&tContext,
 		NULL,
-		__xrtWaitAfter(UINT64_C(2000000))
+		__xrtWaitAfter(INT64_C(2000))
 	);
 	testRequire((pFirst != NULL) && (pSecond != NULL),
 		"task group pool basic submit failed");
@@ -324,7 +324,7 @@ static void testTaskGroupPoolBackpressure(void)
 		testTaskGroupPoolRun,
 		&tContext,
 		&tArgs,
-		UINT64_C(50000)
+		INT64_C(50)
 	) == NULL, "group capacity timeout accepted task");
 	testRequire(xrtErrorKind(xrtGetError()) == XERR_TIMEOUT,
 		"group capacity timeout error mismatch");
@@ -379,7 +379,7 @@ static void testTaskGroupPoolBackpressure(void)
 		"task group pool close failed");
 	testRequire(xrtTaskPoolWaitFor(
 		tContext.Pool,
-		UINT64_C(2000000)
+		INT64_C(2000)
 	) == XWAIT_OK, "task group pool drain failed");
 	xrtFutureDestroy(pQueued);
 	xrtFutureDestroy(pRunning);

@@ -1,3 +1,4 @@
+#include <math.h>
 #include <string.h>
 
 #include <xrt/ssh_session_reader.h>
@@ -177,7 +178,7 @@ static xsshcode xsshSessionReaderHostKeyPrepare(
 /* 使用当前动态空间重试同一未消费 packet 的上层解析。 */
 static xsshcode xsshSessionReaderPacketPrepare(
 	xsshsessionreader* pReader,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessiontcppacket* pPacket
 )
 {
@@ -196,7 +197,7 @@ static xsshcode xsshSessionReaderPacketPrepare(
 		pReader->HostKey.Reserved != NULL ?
 			pReader->HostKeySpan.Size : 0u,
 		&iHostKeySize,
-		iNowMs,
+		Timer,
 		&Packet
 	);
 	pReader->HostKeySize = iHostKeySize;
@@ -306,10 +307,11 @@ xsshsessionreaderstate xrtSshSessionReaderState(
 xsshcode xrtSshSessionReaderPrepare(
 	xsshsessionreader* pReader,
 	xnetbuf* pInput,
-	uint64 iNowMs,
+	double Timer,
 	xsshsessiontcppacket* pPacket
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	xsshcode Code;
 
 	if ( !xsshSessionReaderValid(pReader) ||
@@ -336,7 +338,7 @@ xsshcode xrtSshSessionReaderPrepare(
 		}
 		Code = xsshSessionReaderPacketPrepare(
 			pReader,
-			iNowMs,
+			Timer,
 			pPacket
 		);
 		if ( (Code == XSSH_ERROR_SPACE) &&
@@ -355,10 +357,11 @@ xsshcode xrtSshSessionReaderPrepare(
 /* 发布可持久借用的主机公钥，再提交唯一 packet 并释放明文工作区。 */
 xsshcode xrtSshSessionReaderCommit(
 	xsshsessionreader* pReader,
-	uint64 iNowMs,
+	double Timer,
 	xsshrekeydecision* pDecision
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	bool bHostKey;
 	xsshcode Code;
 	xnetbufpool* pPool;
@@ -388,7 +391,7 @@ xsshcode xrtSshSessionReaderCommit(
 	}
 	Code = xrtSshSessionTcpReadCommit(
 		pReader->Session,
-		iNowMs,
+		Timer,
 		pDecision
 	);
 	if ( Code != XSSH_OK ) {

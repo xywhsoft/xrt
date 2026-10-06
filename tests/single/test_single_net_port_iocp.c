@@ -54,8 +54,8 @@ int main(void)
 				sData, sizeof(sData), 1, NULL) ||
 			 !xrtNetPortSendMsg(pPort, Client,
 				"iocp", 4, &Address, &Control, 2, NULL) ||
-			 (xrtNetPortWait(pPort, Events, 2,
-				xrtDeadlineAfter(1000000), &iCount) != XNET_RESULT_OK) ||
+			 (__xrtNetPortWait(pPort, Events, 2,
+				__xrtWaitAfter(1000), &iCount) != XNET_RESULT_OK) ||
 			 (iCount != 2) ) {
 			goto Cleanup;
 		}

@@ -1,8 +1,24 @@
-#include <xrt/detail/wait.h>
 #include <xpop3.h>
 
 #include <stdio.h>
 #include <string.h>
+
+#include <math.h>
+static inline double exampleTimerLimit(int64 Timeout)
+{
+    return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
+}
+static inline bool exampleTimerExpired(double Limit)
+{
+    return xrtTimer() >= Limit;
+}
+static inline int64 exampleTimerRemaining(double Limit)
+{
+    double Ms;
+    if (Limit == INFINITY) return XRT_WAIT_FOREVER;
+    Ms = ceil((Limit - xrtTimer()) * 1000.0);
+    return Ms <= 0 ? 0 : Ms >= 0x1p63 ? INT64_MAX : (int64)Ms;
+}
 
 /* 只供本进程的回环 POP3 演示服务器使用。 */
 static xnetaddr ExampleAddress;
@@ -30,8 +46,8 @@ static bool exampleSend(xnetstream* pStream, cstr sText, double Deadline)
 	{
 		xnetresult Result = xrtNetStreamSend(pStream, sText, iSize);
 		if(Result == XNET_RESULT_OK) return true;
-		if((Result != XNET_RESULT_AGAIN) || !__xrtNetStreamWait(
-			pStream, XNET_STREAM_WAIT_WRITE, Deadline, NULL)) return false;
+		if((Result != XNET_RESULT_AGAIN) || !xrtNetStreamWait(
+			pStream, XNET_STREAM_WAIT_WRITE,exampleTimerRemaining(Deadline), NULL)) return false;
 	}
 }
 
@@ -42,8 +58,8 @@ static bool exampleExpect(xnetstream* pStream, cstr sExpected,
 	size_t iUsed = 0u;
 	while(iUsed < iSize)
 	{
-		xnetbytes* pBytes = __xrtNetStreamRecv(
-			pStream, iSize - iUsed, Deadline, NULL);
+		xnetbytes* pBytes = xrtNetStreamRecv(
+			pStream, iSize - iUsed,exampleTimerRemaining(Deadline), NULL);
 		xbytesview Bytes;
 		if(pBytes == NULL) return false;
 		Bytes = xrtNetBytesView(pBytes);
@@ -62,8 +78,8 @@ static bool exampleExpect(xnetstream* pStream, cstr sExpected,
 static int32 exampleServer(ptr pData)
 {
 	example_server* pServer = (example_server*)pData;
-	xnetstream* pStream = __xrtNetListenerAcceptWait(
-		pServer->Listener, pServer->Deadline, NULL);
+	xnetstream* pStream = xrtNetListenerAcceptWait(
+		pServer->Listener,exampleTimerRemaining(pServer->Deadline), NULL);
 	bool bOk;
 	if(pStream == NULL) return 1;
 	bOk = exampleSend(pStream, "+OK ready\r\n", pServer->Deadline) &&
@@ -78,8 +94,7 @@ static int32 exampleServer(ptr pData)
 		exampleExpect(pStream, "QUIT\r\n", pServer->Deadline) &&
 		exampleSend(pStream, "+OK bye\r\n", pServer->Deadline) &&
 		xrtNetStreamClose(pStream) &&
-		__xrtNetStreamWait(pStream, XNET_STREAM_WAIT_CLOSE,
-			pServer->Deadline, NULL);
+		xrtNetStreamWait(pStream, XNET_STREAM_WAIT_CLOSE,exampleTimerRemaining(pServer->Deadline), NULL);
 	pServer->Success = bOk;
 	xrtNetStreamDestroy(pStream);
 	return bOk ? 0 : 2;
@@ -97,7 +112,7 @@ int main(void)
 	xnetlistener* pListener = NULL;
 	xpop3client* pClient = NULL;
 	xthread* pThread = NULL;
-	double Deadline = __xrtWaitAfter(UINT64_C(10000000));
+	double Deadline = exampleTimerLimit(INT64_C(10000));
 	xstrview Line;
 	xmailnext Next;
 	size_t iLines = 0u;
@@ -131,15 +146,15 @@ int main(void)
 	ClientConfig.Net.Host = "pop3.example.invalid";
 	ClientConfig.Net.Port = ExampleAddress.Port;
 	ClientConfig.ReadCapabilities = false;
-	pClient = __xrtPop3ClientOpen(&ClientConfig, Deadline, NULL);
+	pClient = xrtPop3ClientOpen(&ClientConfig,exampleTimerRemaining(Deadline), NULL);
 	/* 明文凭据仅用于进程内回环演示；真实服务请用 client 范例的 TLS。 */
-	if((pClient == NULL) || !__xrtPop3ClientLogin(pClient,
+	if((pClient == NULL) || !xrtPop3ClientLogin(pClient,
 			XRT_STR_LITERAL("demo"), XRT_STR_LITERAL("demo"),
-			true, Deadline, NULL) ||
-		!__xrtPop3ClientRetr(pClient, 1u, Deadline, NULL)) goto Done;
+			true,exampleTimerRemaining(Deadline), NULL) ||
+		!xrtPop3ClientRetr(pClient, 1u,exampleTimerRemaining(Deadline), NULL)) goto Done;
 	for(;;)
 	{
-		Next = __xrtPop3ClientNext(pClient, &Line, Deadline, NULL);
+		Next = xrtPop3ClientNext(pClient, &Line,exampleTimerRemaining(Deadline), NULL);
 		if(Next != XMAIL_NEXT_ITEM) break;
 		if(iLines == 0u)
 			bContentOk = bContentOk &&
@@ -157,7 +172,7 @@ int main(void)
 		iLines++;
 	}
 	if((Next != XMAIL_NEXT_END) || !bContentOk || (iLines != 3u) ||
-		!__xrtPop3ClientQuit(pClient, Deadline, NULL)) goto Done;
+		!xrtPop3ClientQuit(pClient,exampleTimerRemaining(Deadline), NULL)) goto Done;
 	bOk = true;
 
 Done:

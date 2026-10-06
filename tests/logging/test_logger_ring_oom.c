@@ -124,7 +124,7 @@ int main(void)
 	RingConfig.Capacity = 16u;
 	RingConfig.RecordLimit = 256u;
 	RingConfig.Batch = 16u;
-	RingConfig.IdleWait = 0u;
+	RingConfig.IdleWait = 0;
 	pRing = xrtLogRing(pTarget, &RingConfig);
 	testRequire(pRing != NULL, "Logger ring OOM create failed");
 	iLive = xrtAtomic64Load(&State.Live, XMEMORY_ACQUIRE);

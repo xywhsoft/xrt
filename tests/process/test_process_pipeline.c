@@ -313,8 +313,8 @@ int main(int argc, char** argv)
 
 	testPipelineStage(&Stages[0], argv[0], pSleep, 2u);
 	testRequire(xrtProcessPipelineOptionsInit(&Options), "deadline options init failed");
-	Options.Deadline = __xrtWaitAfter(20000u);
-	Options.StopGrace = 10000u;
+	Options.Timeout = 20;
+	Options.StopGrace = 10;
 	testRequire(
 		xrtProcessPipeline(Stages, 1u, &Options, &Result),
 		"deadline pipeline failed"
@@ -334,7 +334,7 @@ int main(int argc, char** argv)
 	testRequire(pThread != NULL, "pipeline cancel thread create failed");
 	testRequire(xrtProcessPipelineOptionsInit(&Options), "cancel options init failed");
 	Options.Cancel = pCancel;
-	Options.StopGrace = 10000u;
+	Options.StopGrace = 10;
 	testRequire(
 		xrtProcessPipeline(Stages, 1u, &Options, &Result),
 		"cancel pipeline failed"

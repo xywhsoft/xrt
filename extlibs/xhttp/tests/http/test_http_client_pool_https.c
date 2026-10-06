@@ -48,7 +48,7 @@ static void testHttpPoolHttpsWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -69,7 +69,7 @@ static void testHttpPoolHttpsWaitClosed(
 	xhttpclient* pClient
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 	xhttpclientstats Stats;
 
 	for ( ;; ) {
@@ -490,7 +490,7 @@ int main(void)
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup =
 		testHttpPoolHttpsLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	ClientConfig.TlsContext = pContext;
 	ClientConfig.TlsVerifier = pVerifier;

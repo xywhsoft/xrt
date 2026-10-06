@@ -58,7 +58,7 @@ static void testHttpProxyHttpsWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -77,7 +77,7 @@ static void testHttpProxyHttpsWait(
 /* 等待连接池和 TLS 认证关闭释放最后一个 Engine 对象。 */
 static void testHttpProxyHttpsEngineDestroy(xnetengine* pEngine)
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		const xerror* pError = xrtGetError();
@@ -612,7 +612,7 @@ int main(void)
 	xrtHttpClientConfigInit(&ClientConfig);
 	ClientConfig.Resolver.Lookup =
 		testHttpProxyHttpsLookup;
-	ClientConfig.Dial.FallbackDelay = 1000u;
+	ClientConfig.Dial.FallbackDelay = 1;
 	ClientConfig.Dial.MaxAttempts = 1;
 	ClientConfig.Proxy = pProxy;
 	ClientConfig.TlsContext = pContext;

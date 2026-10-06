@@ -9,7 +9,7 @@
  * 编译（单头形态，Windows）：
  *   gcc -O1 -DXRT_MODULE_ALL -I single impl.c \
  *       examples/logging/json/main.c -lws2_32 -liphlpapi
- * 预期输出（time 为 Unix 微秒，随运行变化）：
+ * 预期输出（time 为 公元 UTC 毫秒，随运行变化）：
  *   {"time":1788575322193322,"level":"INFO","logger":"http",
  *    "message":"request completed","fields":{"request_id":42,"cached":false}}
  *

@@ -152,7 +152,7 @@ static void testTlsStreamWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -526,7 +526,7 @@ static void testTlsStreamRead(
 			pEndpoint->Timer = xrtNetEngineAfter(
 				xrtNetWorkerEngine(pWorker),
 				xrtNetWorkerIndex(pWorker),
-				50000u,
+				50,
 				testTlsStreamDeferredRead,
 				pEndpoint
 			);

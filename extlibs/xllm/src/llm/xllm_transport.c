@@ -38,9 +38,9 @@ static xbytesview xllm__bv(const void* pData, size_t iSize)
     return tView;
 }
 
-static uint64_t xllm__clock_ms(void)
+static double xllm__timer(void)
 {
-    return xrtTimer() / UINT64_C(1000);
+    return xrtTimer();
 }
 
 static void xllm__transport_fail(xllm_call* pCall, const char* sPhase,
@@ -65,14 +65,14 @@ static void xllm__connection_close(xllm_connection* pConnection)
         (void)xrtTlsStreamAbort(pConnection->pTls);
         pClose = xrtTlsStreamWaitAsync(pConnection->pTls, XTLS_STREAM_WAIT_CLOSE);
         if ( pClose ) {
-            (void)xrtFutureWaitFor(pClose, UINT64_C(1000000));
+            (void)xrtFutureWaitFor(pClose, INT64_C(1000));
             xrtFutureDestroy(pClose);
         }
         xrtTlsStreamDestroy(pConnection->pTls);
     } else if ( pConnection->pTcp ) {
         (void)xrtNetStreamAbort(pConnection->pTcp);
         (void)__xrtNetStreamWait(pConnection->pTcp, XNET_STREAM_WAIT_CLOSE,
-            __xrtWaitAfter(UINT64_C(1000000)), NULL);
+            __xrtWaitAfter(INT64_C(1000)), NULL);
         xrtNetStreamDestroy(pConnection->pTcp);
     }
     xllm__free(pConnection);
@@ -530,7 +530,7 @@ static xfuture* xllm__step_dial(xllm_call* pCall, xfuture* pFuture)
     } else {
         pCall->pConnection->pTcp = xrtNetStreamRef((xnetstream*)xrtFutureValue(pFuture));
     }
-    pCall->tHttpDiagnostics.uConnectedMs = xllm__clock_ms();
+    pCall->tHttpDiagnostics.uConnectedMs = xllm__timer();
     pCall->ePhase = XLLM_ASYNC_SEND;
     pCall->iSendOffset = 0u;
     return XLLM_STEP_CONTINUE;
@@ -597,7 +597,7 @@ static xfuture* xllm__step_send(xllm_call* pCall, xfuture* pFuture)
     for ( ;; ) {
         xfuture* pNext = xllm__send_submit(pCall);
         if ( pNext == NULL ) {
-            pCall->tHttpDiagnostics.uRequestSentMs = xllm__clock_ms();
+            pCall->tHttpDiagnostics.uRequestSentMs = xllm__timer();
             pCall->ePhase = XLLM_ASYNC_READ;
             return XLLM_STEP_CONTINUE;
         }
@@ -651,7 +651,7 @@ static xfuture* xllm__step_pump(xllm_call* pCall)
             if ( eStatus == XHTTP1_READY ) {
                 pCall->bHeadReady = true;
                 pCall->iWireOffset = pCall->tHead.Bytes;
-                pCall->tHttpDiagnostics.uHeadersMs = xllm__clock_ms();
+                pCall->tHttpDiagnostics.uHeadersMs = xllm__timer();
                 if ( !xllm__transport_headers(pCall, &pCall->tHead) ) {
                     xllm__transport_fail(pCall, "headers", XLLM_TRANSPORT_CANCELLED,
                         "callback_cancelled", NULL);
@@ -734,7 +734,7 @@ static xfuture* xllm__step_read(xllm_call* pCall, xfuture* pFuture)
                 return NULL;
             }
             if ( !pCall->tHttpDiagnostics.uFirstByteMs ) {
-                pCall->tHttpDiagnostics.uFirstByteMs = xllm__clock_ms();
+                pCall->tHttpDiagnostics.uFirstByteMs = xllm__timer();
             }
         }
         return xllm__step_pump(pCall);
@@ -794,7 +794,7 @@ static void xllm__transport_finish(xllm_call* pCall, xllm_transport_result eResu
     if ( xllm__atomic_add(&pCall->iTerminal, 1) != 1 ) { return; }
     pCall->ePhase = XLLM_ASYNC_DONE;
     pCall->eTransportResult = eResult;
-    pCall->tHttpDiagnostics.uCompletedMs = xllm__clock_ms();
+    pCall->tHttpDiagnostics.uCompletedMs = xllm__timer();
     if ( pCall->tHttpDiagnostics.eResult == XLLM_TRANSPORT_OK &&
          eResult != XLLM_TRANSPORT_OK ) {
         pCall->tHttpDiagnostics.eResult = eResult;
@@ -855,7 +855,7 @@ void xllm__transport_begin(xllm_call* pCall)
 {
     xllm_client* pClient = pCall->pClient;
     xllm_connection* pConnection = xllm__connection_take(pClient);
-    pCall->tHttpDiagnostics.uStartedMs = xllm__clock_ms();
+    pCall->tHttpDiagnostics.uStartedMs = xllm__timer();
     pCall->tHttpDiagnostics.eResult = XLLM_TRANSPORT_OK;
     xllm__copy_text(pCall->tHttpDiagnostics.sPhase,
         sizeof(pCall->tHttpDiagnostics.sPhase), "connect");
@@ -940,9 +940,9 @@ void xllm__transport_abort(xllm_call* pCall)
     if ( pCall->pOpFuture ) { (void)xrtFutureCancel(pCall->pOpFuture); }
     if ( pCall->pFuture ) {
         /* xrtFutureWaitFor takes RELATIVE milliseconds (not a deadline). */
-        uint64 uGiveUp = xllm__clock_ms() + 3000u;
-        while ( xllm__atomic_load(&pCall->iTerminal) == 0 && xllm__clock_ms() < uGiveUp ) {
-            (void)xrtFutureWaitFor(pCall->pFuture, UINT64_C(20000));
+        double uGiveUp = xrtTimer() + 3.0;
+        while ( xllm__atomic_load(&pCall->iTerminal) == 0 && xllm__timer() < uGiveUp ) {
+            (void)xrtFutureWaitFor(pCall->pFuture, INT64_C(20));
         }
     }
     if ( xllm__atomic_load(&pCall->iTerminal) == 0 ) {

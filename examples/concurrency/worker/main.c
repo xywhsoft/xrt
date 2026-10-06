@@ -138,7 +138,7 @@ static int32 producerRun(ptr pData)
 
 		/* Send 成功后 worker 拥有任务；失败时仍由生产者关闭。 */
 		if ( xrtChannelSendFor(
-			pContext->Channel, pJob, UINT64_C(2000000)
+			pContext->Channel, pJob, INT64_C(2000)
 		) != XWAIT_OK ) {
 			workerJobClose(pJob);
 			return 3;
@@ -226,7 +226,7 @@ int main(void)
 			workerjob* pJob = NULL;
 
 			if ( (pFuture == NULL) ||
-				(xrtFutureWaitFor(pFuture, UINT64_C(2000000)) != XWAIT_OK) ||
+				(xrtFutureWaitFor(pFuture, INT64_C(2000)) != XWAIT_OK) ||
 				(xrtFutureState(pFuture) != XFUTURE_RESOLVED) ) {
 				bResultsOk = false;
 				continue;

@@ -81,7 +81,7 @@ int main(void)
 				pPort,
 				&Event,
 				1,
-				__xrtWaitAfter(3000000),
+				__xrtWaitAfter(3000),
 				&iCount
 			) == XNET_RESULT_OK,
 			"epoll failed-connect wait failed"

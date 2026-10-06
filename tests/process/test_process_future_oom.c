@@ -96,7 +96,7 @@ int main(int argc, char** argv)
 		xrtFutureDestroy(pShared);
 	}
 	testRequire(
-		xrtFutureWaitFor(pFuture, UINT64_C(2000000)) == XWAIT_OK,
+		xrtFutureWaitFor(pFuture, INT64_C(2000)) == XWAIT_OK,
 		"process wait Future OOM recovery wait failed"
 	);
 	pStatus = (const xprocessstatus*)xrtFutureValue(pFuture);

@@ -27,7 +27,7 @@ static bool start_engine(xnetengine* engine)
 	LastEngine = engine;
 	if (Fault != 0u && !xrtNetEnginePin(engine)) return false;
 	if (ConcurrentFactory) {
-		double deadline = __xrtWaitAfter(5000000u);
+		double deadline = __xrtWaitAfter(5000);
 		xrtAtomic32FetchAdd(&FactoryBarrier, 1u, XMEMORY_ACQ_REL);
 		while (xrtAtomic32Load(&FactoryBarrier, XMEMORY_ACQUIRE) < 4u) {
 			if (__xrtWaitExpired(deadline)) return false;
@@ -56,7 +56,7 @@ static xnetretireresult retire_engine(xnetengine* engine)
 	Retires++;
 	if (xrtAtomic32CompareExchange(&HoldRetirement, &expected, 2u,
 		XMEMORY_ACQ_REL, XMEMORY_RELAXED)) {
-		double deadline = __xrtWaitAfter(5000000u);
+		double deadline = __xrtWaitAfter(5000);
 		while (xrtAtomic32Load(&HoldRetirement, XMEMORY_ACQUIRE) == 2u) {
 			if (__xrtWaitExpired(deadline)) {
 				xrtSetErrorInfo(XERR_STATE, "test", 3, "retirement barrier timed out");
@@ -146,18 +146,18 @@ static bool factory_failures(void)
 		size_t pending = SIZE_MAX;
 		bool ok;
 		Fault = fault; ForceStartFailure = true; LastEngine = NULL; RollbackBudget = 0u;
-		if (stack ? xoauth2HttpXrtInit(&local, NULL, TestCa, 1u) :
-			(xoauth2HttpXrtCreate(NULL, TestCa, 1u) != NULL)) return false;
+		if (stack ? xoauth2HttpXrtInit(&local, NULL, TestCa, 1) :
+			(xoauth2HttpXrtCreate(NULL, TestCa, 1) != NULL)) return false;
 		ForceStartFailure = false;
 		original = xrtErrorRef(xrtGetError());
 		ok = LastEngine != NULL && original != NULL && RollbackBudget >= 30000000u &&
 			xoauth2LastError() == XOAUTH2_ERROR_NETWORK &&
 			error_contains(original, "injected partial startup failure") &&
 			xrtNetEngineState(LastEngine) == XNET_ENGINE_RUNNING;
-		ok = (xoauth2HttpXrtCleanupPending(0u, &pending) == (stack != 0u)) && ok;
+		ok = (xoauth2HttpXrtCleanupPending(0, &pending) == (stack != 0u)) && ok;
 		ok = pending == (stack ? 0u : 1u) && xrtGetError() == original && ok;
 		if (stack) {
-			ok = local.pEngine == LastEngine && local.bEngineOwned && local.uTimeoutUs == 1u &&
+			ok = local.pEngine == LastEngine && local.bEngineOwned && local.uTimeoutMs == 1u &&
 				local.pResolver == NULL && local.pVerifier == NULL && ok;
 			ok = !xoauth2HttpXrtCleanup(&local) && local.pEngine == LastEngine &&
 				xrtGetError() == original && ok;
@@ -169,19 +169,19 @@ static bool factory_failures(void)
 			ok = owner != NULL && allocation_live(owner) && owner->pEngine == LastEngine &&
 				owner->bEngineOwned && owner->pResolver == NULL && owner->pVerifier == NULL && ok;
 			xrtClearError();
-			ok = !xoauth2HttpXrtInit(&rejected, NULL, TestCa, 1u) && ok;
+			ok = !xoauth2HttpXrtInit(&rejected, NULL, TestCa, 1) && ok;
 			ok = rejected.pEngine == NULL && rejected.pResolver == NULL && rejected.pVerifier == NULL &&
 				Starts == starts && strcmp(xrtErrorMessage(xrtGetError()),
 				 "http pending cleanup must finish before creating a private engine") == 0 && ok;
 			borrowed = create_engine();
 			if (borrowed == NULL) return false;
-			borrowed_http = xoauth2HttpXrtCreate(borrowed, TestCa, 1u);
+			borrowed_http = xoauth2HttpXrtCreate(borrowed, TestCa, 1);
 			if (borrowed_http == NULL || !xoauth2HttpXrtCleanup(borrowed_http)) return false;
 			xoauth2HttpXrtDestroy(borrowed_http);
 			ok = xrtNetEngineState(borrowed) == XNET_ENGINE_RUNNING && Starts == starts && ok;
 			if (!xrtNetEngineDestroy(borrowed)) return false;
 			xrtClearError();
-			ok = !xoauth2HttpXrtCleanupPending(fault == 1u ? 5000000u : 20000u, &pending) &&
+			ok = !xoauth2HttpXrtCleanupPending(fault == 1u ? 5000u : 20u, &pending) &&
 				pending == 1u && ok;
 			ok = strcmp(xrtErrorMessage(xrtGetError()), fault == 1u ?
 				"injected retirement failure" : "http pending cleanup still has live objects") == 0 && ok;
@@ -190,8 +190,8 @@ static bool factory_failures(void)
 		}
 		xrtSetError(original); Fault = 0u;
 		if (!xrtNetEngineUnpin(LastEngine)) return false;
-		if (stack) { local.uTimeoutUs = 5000000u; ok = xoauth2HttpXrtCleanup(&local) && ok; }
-		ok = xoauth2HttpXrtCleanupPending(5000000u, &pending) && pending == 0u &&
+		if (stack) { local.uTimeoutMs = 5000u; ok = xoauth2HttpXrtCleanup(&local) && ok; }
+		ok = xoauth2HttpXrtCleanupPending(5, &pending) && pending == 0u &&
 			xrtGetError() == original && ok;
 		xrtErrorFree(original);
 		if (!memory_empty() || !ok) {
@@ -209,21 +209,21 @@ static bool startup_ready_and_wrap_oom(void)
 	size_t pending = SIZE_MAX;
 	bool ok;
 	ForceStartFailure = true; Fault = 0u;
-	ok = xoauth2HttpXrtCreate(NULL, TestCa, 1u) == NULL &&
+	ok = xoauth2HttpXrtCreate(NULL, TestCa, 1) == NULL &&
 		error_contains(xrtGetError(), "injected partial startup failure") &&
-		xoauth2HttpXrtCleanupPending(0u, &pending) && pending == 0u;
+		xoauth2HttpXrtCleanupPending(0, &pending) && pending == 0u;
 	ForceStartFailure = false;
 	if (!memory_empty() || !ok) return false;
 	puts("  partial startup failure with completed retirement: passed");
 	ForceStartFailure = true; Fault = 1u; WrapOom = true; StartError = NULL;
-	ok = xoauth2HttpXrtCreate(NULL, TestCa, 1u) == NULL &&
+	ok = xoauth2HttpXrtCreate(NULL, TestCa, 1) == NULL &&
 		xrtMemDebugFailTriggered() && StartError != NULL && xrtGetError() == StartError;
 	if (!ok) fprintf(stderr, "wrap OOM triggered=%d start=%p current=%p message=%s\n",
 		(int)xrtMemDebugFailTriggered(), (void*)StartError, (void*)xrtGetError(),
 		xrtErrorMessage(xrtGetError()));
 	xrtMemDebugFailClear(); ForceStartFailure = false; WrapOom = false; Fault = 0u;
 	if (LastEngine == NULL || !xrtNetEngineUnpin(LastEngine)) return false;
-	ok = xoauth2HttpXrtCleanupPending(5000000u, &pending) && pending == 0u &&
+	ok = xoauth2HttpXrtCleanupPending(5, &pending) && pending == 0u &&
 		xrtGetError() == StartError && ok;
 	xrtErrorFree(StartError); StartError = NULL;
 	if (!memory_empty() || !ok) { fprintf(stderr, "wrap OOM retirement pending=%zu ready=%d\n", pending, (int)ok); return false; }
@@ -233,7 +233,7 @@ static bool startup_ready_and_wrap_oom(void)
 
 static xoauth2httpxrt* pinned_http(void)
 {
-	xoauth2httpxrt* http = xoauth2HttpXrtCreate(NULL, TestCa, 1u);
+	xoauth2httpxrt* http = xoauth2HttpXrtCreate(NULL, TestCa, 1);
 	if (http == NULL || !xrtNetEnginePin(http->pEngine)) return NULL;
 	return http;
 }
@@ -249,11 +249,11 @@ static bool published_owner_and_no_allocation(void)
 	engine = http->pEngine;
 	xrtSetErrorInfo(XERR_PROTOCOL, "test", 4, "original operation error");
 	original = xrtErrorRef(xrtGetError());
-	ok = !xoauth2HttpXrtCleanup(http) && xoauth2HttpXrtCleanupPending(0u, &pending) && pending == 0u;
+	ok = !xoauth2HttpXrtCleanup(http) && xoauth2HttpXrtCleanupPending(0, &pending) && pending == 0u;
 	xoauth2HttpXrtDestroy(http);
 	ok = allocation_live(http) && xrtGetError() == original && ok;
 	if (!xrtNetEngineUnpin(engine)) return false;
-	http->uTimeoutUs = 5000000u;
+	http->uTimeoutMs = 5000u;
 	ok = xoauth2HttpXrtCleanup(http) && ok;
 	xoauth2HttpXrtDestroy(http);
 	xrtErrorFree(original);
@@ -266,11 +266,11 @@ static bool published_owner_and_no_allocation(void)
 	original = xrtErrorRef(xrtGetError());
 	if (xoauth2HttpXrtCleanup(http) || !xrtMemDebugFailAfter(0u)) return false;
 	http_defer_owner(http);
-	ok = !xoauth2HttpXrtCleanupPending(0u, &pending) && pending == 1u &&
+	ok = !xoauth2HttpXrtCleanupPending(0, &pending) && pending == 1u &&
 		!xrtMemDebugFailTriggered() && xrtGetError() == original;
 	xrtMemDebugFailClear();
 	if (!xrtNetEngineUnpin(engine)) return false;
-	ok = xoauth2HttpXrtCleanupPending(5000000u, &pending) && pending == 0u &&
+	ok = xoauth2HttpXrtCleanupPending(5, &pending) && pending == 0u &&
 		xrtGetError() == original && ok;
 	xrtErrorFree(original);
 	if (!memory_empty() || !ok) return false;
@@ -286,17 +286,17 @@ typedef struct cleanup_task {
 static int32 cleanup_thread(ptr data)
 {
 	cleanup_task* task = data;
-	double deadline = __xrtWaitAfter(5000000u);
+	double deadline = __xrtWaitAfter(5000);
 	if (task->factory) {
 		ForceStartFailure = ConcurrentFactory = true; Fault = 1u;
-		task->ready = xoauth2HttpXrtCreate(NULL, TestCa, 1u) == NULL &&
+		task->ready = xoauth2HttpXrtCreate(NULL, TestCa, 1) == NULL &&
 			LastEngine != NULL && error_contains(xrtGetError(), "injected partial startup failure");
 		task->engine = LastEngine;
 		xrtClearError();
 		return task->ready ? 0 : 1;
 	}
 	do {
-		task->ready = xoauth2HttpXrtCleanupPending(0u, &task->pending);
+		task->ready = xoauth2HttpXrtCleanupPending(0, &task->pending);
 		if (!task->loop || task->ready) return 0;
 		xrtSleep(1u);
 	} while (!__xrtWaitExpired(deadline));
@@ -305,7 +305,7 @@ static int32 cleanup_thread(ptr data)
 
 static bool join_thread(xthread* thread)
 {
-	bool ok = thread != NULL && xrtThreadWaitFor(thread, 8000000u) == XWAIT_OK;
+	bool ok = thread != NULL && xrtThreadWaitFor(thread, 8000) == XWAIT_OK;
 	if (ok) xrtThreadDestroy(thread);
 	return ok;
 }
@@ -329,28 +329,28 @@ static bool claimed_owner(void)
 	xrtAtomic32Store(&HoldRetirement, 1u, XMEMORY_RELEASE);
 	thread = xrtThreadCreate(cleanup_thread, &task, 0u);
 	if (thread == NULL) return false;
-	deadline = __xrtWaitAfter(5000000u);
+	deadline = __xrtWaitAfter(5000);
 	while (xrtAtomic32Load(&HoldRetirement, XMEMORY_ACQUIRE) != 2u &&
 		!__xrtWaitExpired(deadline)) xrtSleep(1u);
 	ok = xrtAtomic32Load(&HoldRetirement, XMEMORY_ACQUIRE) == 2u &&
-		!xoauth2HttpXrtCleanupPending(0u, &pending) && pending == 1u;
+		!xoauth2HttpXrtCleanupPending(0, &pending) && pending == 1u;
 	if (xoauth2HttpXrtCleanup(second)) return false;
 	http_defer_owner(second);
-	ok = !xoauth2HttpXrtCleanupPending(0u, &pending) && pending == 2u && ok;
+	ok = !xoauth2HttpXrtCleanupPending(0, &pending) && pending == 2u && ok;
 	xrtAtomic32Store(&HoldRetirement, 3u, XMEMORY_RELEASE);
 	if (!join_thread(thread)) return false;
 	xrtAtomic32Store(&HoldRetirement, 0u, XMEMORY_RELEASE);
 	ok = !task.ready && task.pending >= 1u && task.pending <= 2u && ok;
 	xrtClearError();
-	deadline = __xrtWaitAfter(5000000u);
+	deadline = __xrtWaitAfter(5000);
 	do {
-		ok = !xoauth2HttpXrtCleanupPending(0u, &pending) && ok;
+		ok = !xoauth2HttpXrtCleanupPending(0, &pending) && ok;
 		if (pending == 1u) break;
 		xrtSleep(1u);
 	} while (!__xrtWaitExpired(deadline));
 	ok = pending == 1u && ok;
 	if (!xrtNetEngineUnpin(b)) return false;
-	ok = xoauth2HttpXrtCleanupPending(5000000u, &pending) && pending == 0u && ok;
+	ok = xoauth2HttpXrtCleanupPending(5, &pending) && pending == 0u && ok;
 	if (!memory_empty() || !ok) return false;
 	puts("  claimed owner remains counted during concurrent enqueue/requeue: passed");
 	return true;
@@ -373,11 +373,11 @@ static bool concurrent_factories(void)
 		if (!join_thread(threads[i]) || !tasks[i].ready) return false;
 	xrtClearError();
 	InjectRetirementError = true;
-	ok = !xoauth2HttpXrtCleanupPending(0u, &pending) && pending == 4u &&
+	ok = !xoauth2HttpXrtCleanupPending(0, &pending) && pending == 4u &&
 		strcmp(xrtErrorMessage(xrtGetError()), "injected retirement failure") == 0;
 	xrtClearError();
 	SlowRetirement = true; retires = Retires;
-	ok = !xoauth2HttpXrtCleanupPending(500u, &pending) && pending == 4u &&
+	ok = !xoauth2HttpXrtCleanupPending(1, &pending) && pending == 4u &&
 		Retires == retires + 1u && strcmp(xrtErrorMessage(xrtGetError()),
 		 "http pending cleanup still has live objects") == 0 && ok;
 	ok = xrtErrorKind(xrtGetError()) == XERR_TIMEOUT && xoauth2LastError() == XOAUTH2_ERROR_NETWORK && ok;
@@ -393,7 +393,7 @@ static bool concurrent_factories(void)
 		if (!join_thread(threads[i])) return false;
 		ok = tasks[i].ready && tasks[i].pending == 0u && ok;
 	}
-	ok = xoauth2HttpXrtCleanupPending(0u, &pending) && pending == 0u && ok;
+	ok = xoauth2HttpXrtCleanupPending(0, &pending) && pending == 0u && ok;
 	if (!memory_empty() || !ok) return false;
 	puts("  four actual failed factories/drainers preserve ERROR and deadline tails: passed");
 	return true;

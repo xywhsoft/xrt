@@ -64,7 +64,7 @@ static void testDialStressWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(15000000u);
+	double iDeadline = __xrtWaitAfter(15000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -297,7 +297,7 @@ static int32 testDialStressCancelThread(ptr pData)
 /* 重试 Engine 销毁，验证延迟 Resolver 回调和候选资源最终归零。 */
 static void testDialStressDestroyEngine(xnetengine* pEngine)
 {
-	double iDeadline = __xrtWaitAfter(15000000u);
+	double iDeadline = __xrtWaitAfter(15000);
 
 	while ( !xrtNetEngineDestroy(pEngine) ) {
 		xrtClearError();
@@ -376,7 +376,7 @@ int main(void)
 	/* 提交全部同主机 Dial，确保 Resolver 可以观察完整合并批次。 */
 	xrtNetDialConfigInit(&DialConfig);
 	DialConfig.Family = XNET_FAMILY_IPV4;
-	DialConfig.Timeout = 10000000u;
+	DialConfig.Timeout = 10000;
 	DialConfig.MaxAttempts = 1;
 	for ( uint32 i = 0; i < TEST_DIAL_STRESS_COUNT; i++ ) {
 		Context.Attempts[i].Context = &Context;

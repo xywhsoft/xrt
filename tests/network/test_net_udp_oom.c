@@ -79,7 +79,7 @@ static void testUdpOomWait(
 	cstr sMessage
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(iDeadline), sMessage);
@@ -160,7 +160,7 @@ static void testUdpOomRawSend(
 	size_t iSize
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 	xnetresult Result;
 	size_t iSent;
 
@@ -191,7 +191,7 @@ static void testUdpOomRawReceive(
 	size_t iExpected
 )
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 	xnetaddr Remote;
 	xnetresult Result;
 	char sData[4096];
@@ -396,7 +396,7 @@ int main(void)
 	xrtFree(pRejectedRef);
 	testUdpOomRawSend(Peer, &LocalAddress, "G", 1);
 	{
-		double iDeadline = __xrtWaitAfter(5000000u);
+		double iDeadline = __xrtWaitAfter(5000);
 
 		while ( xrtNetUdpQueued(pUdp) == 0 ) {
 			testRequire(!__xrtWaitExpired(iDeadline),

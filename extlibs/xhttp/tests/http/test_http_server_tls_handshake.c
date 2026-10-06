@@ -41,7 +41,7 @@ static void testHttpServerTlsHandshakeWait(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	while ( xrtAtomic32Load(
@@ -65,7 +65,7 @@ static void testHttpServerTlsHandshakeWaitStats(
 )
 {
 	double Deadline = __xrtWaitAfter(
-		UINT64_C(10000000)
+		INT64_C(10000)
 	);
 
 	for ( ;; ) {
@@ -397,8 +397,8 @@ int main(void)
 	xrtHttpServerTlsConfigInit(&TlsConfig);
 	TlsConfig.Handshake.Context = pContext;
 	TlsConfig.Handshake.Identity = pIdentity;
-	TlsConfig.Stream.HandshakeTimeout = UINT64_C(100000);
-	TlsConfig.Stream.CloseTimeout = UINT64_C(100000);
+	TlsConfig.Stream.HandshakeTimeout = INT64_C(100);
+	TlsConfig.Stream.CloseTimeout = INT64_C(100);
 	xrtHttpServerEventsInit(&ServerEvents);
 	ServerEvents.Open = testHttpServerTlsHandshakeOpen;
 	ServerEvents.Request = testHttpServerTlsHandshakeRequest;

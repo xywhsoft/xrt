@@ -44,7 +44,7 @@ static void testHttpServerLifecycleWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000000u);
+	double Deadline = __xrtWaitAfter(10000);
 
 	while ( xrtAtomic32Load(
 		pValue,
@@ -406,9 +406,9 @@ static void testHttpServerShutdownCleanupOrder(void)
 		),
 		"HTTP shutdown order loopback address failed"
 	);
-	ServerConfig.HeaderTimeout = UINT64_C(10000000);
-	ServerConfig.RequestTimeout = UINT64_C(10000000);
-	ServerConfig.IdleTimeout = UINT64_C(10000000);
+	ServerConfig.HeaderTimeout = INT64_C(10000);
+	ServerConfig.RequestTimeout = INT64_C(10000);
+	ServerConfig.IdleTimeout = INT64_C(10000);
 	xrtHttpServerEventsInit(&ServerEvents);
 	ServerEvents.Open = testHttpServerShutdownOrderOpen;
 	ServerEvents.Request = testHttpServerShutdownOrderRequest;
@@ -763,9 +763,9 @@ int main(void)
 		"HTTP lifecycle loopback address failed"
 	);
 	ServerConfig.MaxConnections = 1;
-	ServerConfig.HeaderTimeout = UINT64_C(10000000);
-	ServerConfig.RequestTimeout = UINT64_C(10000000);
-	ServerConfig.IdleTimeout = UINT64_C(10000000);
+	ServerConfig.HeaderTimeout = INT64_C(10000);
+	ServerConfig.RequestTimeout = INT64_C(10000);
+	ServerConfig.IdleTimeout = INT64_C(10000);
 	xrtHttpServerEventsInit(&Events);
 	Events.Request = testHttpServerLifecycleRequest;
 	Events.Close = testHttpServerLifecycleClose;
@@ -811,7 +811,7 @@ int main(void)
 		"HTTP lifecycle rejected client did not close"
 	);
 	{
-		double Deadline = __xrtWaitAfter(5000000u);
+		double Deadline = __xrtWaitAfter(5000);
 
 		do {
 			testRequire(

@@ -97,7 +97,7 @@ XRT_EXTERN_C_BEGIN
 
 #if defined(XRT_FEATURE_TIME)
 
-/* 返回单调时钟的浮点秒数，供短小的性能测量代码使用。 */
+/* 返回高精度单调计时器的 double 秒数；原点无意义，两个读数相减得到耗时。 */
 XRT_API double xrtTimer(void);
 
 
@@ -168,7 +168,7 @@ XRT_API int64 xrtTimeUnix(xtime iTime);
 
 
 
-/* 返回向负无穷取整的 Unix 毫秒。 */
+/* 安全转换为 Unix 毫秒；目标范围溢出时不修改输出。 */
 XRT_API bool xrtTimeToUnixMs(xtime iTime, int64* pMilliseconds);
 
 /* 32 位有符号 Unix 秒的安全双向转换。 */
@@ -359,7 +359,7 @@ XRT_API str xrtTimeRFC3339(xtime iTime, int iOffset);
 
 
 
-/* 严格解析 RFC 3339；超过毫秒精度的尾数会向零截断。 */
+/* 严格解析 RFC 3339；秒内小数的毫秒以下尾数会被丢弃。 */
 XRT_API bool xrtTimeParseRFC3339(xstrview Text, xtime* pTime);
 
 

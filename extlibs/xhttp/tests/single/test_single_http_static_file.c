@@ -70,7 +70,7 @@ int main(void)
 		if ( (pWait != NULL) &&
 			(xrtFutureWaitFor(
 				pWait,
-				UINT64_C(2000000)
+				INT64_C(2000)
 			) == XWAIT_OK) &&
 			(xrtHttpBodyNext(
 				pReader,

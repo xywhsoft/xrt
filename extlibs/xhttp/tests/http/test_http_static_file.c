@@ -127,7 +127,7 @@ static size_t testHttpStaticFileBodyRead(
 				(pWait != NULL) &&
 				(xrtFutureWaitFor(
 					pWait,
-					UINT64_C(2000000)
+					INT64_C(2000)
 				) == XWAIT_OK),
 				"HTTP static file body wait failed"
 			);
@@ -312,7 +312,7 @@ static void testHttpStaticFileFuture(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) ==
 		 XFUTURE_RESOLVED),
@@ -382,7 +382,7 @@ static void testHttpStaticFileFuturePath(xroot Root)
 		pBlock != NULL,
 		"HTTP static file path copy blocker failed"
 	);
-	Deadline = __xrtWaitAfter(UINT64_C(2000000));
+	Deadline = __xrtWaitAfter(INT64_C(2000));
 	while ( xrtAtomic32Load(
 		&Block.Started,
 		XMEMORY_ACQUIRE
@@ -411,11 +411,11 @@ static void testHttpStaticFileFuturePath(xroot Root)
 	testRequire(
 		(xrtFutureWaitFor(
 			pBlock,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) == XFUTURE_RESOLVED),
 		"HTTP static file Future borrowed path storage"
@@ -467,7 +467,7 @@ static void testHttpStaticFileTakeFile(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) ==
 		 XFUTURE_RESOLVED),
@@ -485,7 +485,7 @@ static void testHttpStaticFileTakeFile(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK),
 		"HTTP static file extension close failed"
 	);
@@ -525,7 +525,7 @@ static void testHttpStaticFileCancel(
 		"HTTP static file blocker submit failed"
 	);
 	Deadline = __xrtWaitAfter(
-		UINT64_C(2000000)
+		INT64_C(2000)
 	);
 	while ( xrtAtomic32Load(
 		&Block.Started,
@@ -557,7 +557,7 @@ static void testHttpStaticFileCancel(
 		(pReplacement != NULL) &&
 		(xrtFutureWaitFor(
 			pFile,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFile) ==
 		 XFUTURE_CANCELLED),
@@ -571,11 +571,11 @@ static void testHttpStaticFileCancel(
 	testRequire(
 		(xrtFutureWaitFor(
 			pBlock,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK) &&
 		(xrtFutureWaitFor(
 			pReplacement,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK),
 		"HTTP static file blocker release failed"
 	);
@@ -661,7 +661,7 @@ static void testHttpStaticFileErrors(
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(
 			pFuture,
-			UINT64_C(2000000)
+			INT64_C(2000)
 		) == XWAIT_OK) &&
 		(xrtFutureState(pFuture) ==
 		 XFUTURE_FAILED) &&

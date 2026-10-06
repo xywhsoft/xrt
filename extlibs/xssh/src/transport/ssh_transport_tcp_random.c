@@ -1,3 +1,4 @@
+#include <math.h>
 #include <xrt/ssh_transport_tcp_random.h>
 
 
@@ -8,15 +9,16 @@
 xsshcode xrtSshTransportTcpWritePrepare(
 	xsshtransporttcp* pTransport,
 	xbytesview Payload,
-	uint64 iNowMs
+	double Timer
 )
 {
+	if (!isfinite(Timer) || Timer < 0) { return XSSH_ERROR_ARGUMENT; }
 	return xrtSshTransportTcpWritePrepareWithPadding(
 		pTransport,
 		Payload,
 		xrtSshSecurePadding,
 		NULL,
-		iNowMs
+		Timer
 	);
 }
 

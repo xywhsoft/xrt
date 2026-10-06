@@ -30,7 +30,7 @@ static void testTcpFileWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
 		testRequire(!__xrtWaitExpired(Deadline), sMessage);
@@ -43,7 +43,7 @@ static void testTcpFileWait(
 /* 等待发送 Worker 发布最终预算扣减，避免把对端接收误作本端完成屏障。 */
 static void testTcpFileDrain(xnetstream* pStream)
 {
-	double Deadline = __xrtWaitAfter(5000000u);
+	double Deadline = __xrtWaitAfter(5000);
 
 	while ( xrtNetStreamPending(pStream) != 0 ) {
 		testRequire(

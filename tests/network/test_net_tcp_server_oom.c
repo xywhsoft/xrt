@@ -6,7 +6,7 @@
 /* 等待启动回滚释放全部 Engine 对象。 */
 static void testTcpServerOomRollback(xnetengine* pEngine)
 {
-	double iDeadline = __xrtWaitAfter(5000000u);
+	double iDeadline = __xrtWaitAfter(5000);
 	xnetenginestats Stats;
 
 	for ( ;; ) {

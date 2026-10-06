@@ -130,7 +130,7 @@ XRT_API xwaitresult xrtExecutorWait(xexecutor* pExecutor);
 
 
 
-/* 在相对微秒数内等待已经关闭的执行器排空。 */
+/* 在相对毫秒数内等待已经关闭的执行器排空。 */
 XRT_API xwaitresult xrtExecutorWaitFor(xexecutor* pExecutor, int64 iTimeout);
 
 

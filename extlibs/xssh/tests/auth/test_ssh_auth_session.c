@@ -1,3 +1,4 @@
+#include <math.h>
 #include "../test.h"
 
 
@@ -101,9 +102,7 @@ static void testSshAuthSessionCoreOpen(
 		pCore,
 		Role,
 		0u,
-		NULL,
-		0u
-	) && (xrtSshTransportCoreIdentificationCommit(
+		NULL, ((double)(0u)) / 1000.0) && (xrtSshTransportCoreIdentificationCommit(
 		pCore,
 		XSSH_TRANSPORT_LOCAL
 	) == XSSH_OK) && (xrtSshTransportCoreIdentificationCommit(
@@ -163,7 +162,7 @@ static void testSshAuthSessionPairOpen(
 	xsshauthsession* pClient,
 	xsshauthsession* pServer,
 	const xsshauthguardpolicy* pPolicy,
-	uint64 iNowMs
+	double Timer
 )
 {
 	testSshAuthSessionCoreOpen(pClientCore, XSSH_ROLE_CLIENT);
@@ -178,12 +177,12 @@ static void testSshAuthSessionPairOpen(
 		pClient,
 		pClientCore,
 		pPolicy,
-		iNowMs
+		Timer
 	) == XSSH_OK) && (xrtSshAuthSessionBegin(
 		pServer,
 		pServerCore,
 		pPolicy,
-		iNowMs
+		Timer
 	) == XSSH_OK), "ssh auth session begin failed");
 }
 
@@ -196,7 +195,7 @@ static size_t testSshAuthSessionSend(
 	xbytesview Payload,
 	void* pWire,
 	size_t iWireCapacity,
-	uint64 iNowMs
+	double Timer
 )
 {
 	xsshrekeydecision Decision;
@@ -207,7 +206,7 @@ static size_t testSshAuthSessionSend(
 		pSession,
 		pCore,
 		Payload,
-		iNowMs
+		Timer
 	) == XSSH_OK) && xrtSshWriterInit(
 		&Writer,
 		pWire,
@@ -218,10 +217,10 @@ static size_t testSshAuthSessionSend(
 		Payload,
 		testSshAuthSessionPadding,
 		&iPadding,
-		iNowMs
+		Timer
 	) == XSSH_OK) && (xrtSshTransportCoreWriteCommit(
 		pCore,
-		iNowMs,
+		Timer,
 		&Decision
 	) == XSSH_OK) && (Decision != XSSH_REKEY_REQUIRED) &&
 		(xrtSshAuthSessionWriteCommit(
@@ -241,7 +240,7 @@ static xsshauthsessionpacket testSshAuthSessionReceivePrepare(
 	size_t iWireSize,
 	void* pPlain,
 	size_t iPlainCapacity,
-	uint64 iNowMs
+	double Timer
 )
 {
 	xsshauthsessionpacket Kind = XSSH_AUTH_SESSION_PACKET_NONE;
@@ -257,13 +256,13 @@ static xsshauthsessionpacket testSshAuthSessionReceivePrepare(
 		&Packet,
 		pPlain,
 		iPlainCapacity,
-		iNowMs
+		Timer
 	) == XSSH_OK) && (Reader.Position == iWireSize) &&
 		(xrtSshAuthSessionReadPrepare(
 			pSession,
 			pCore,
 			Packet.Payload,
-			iNowMs,
+			Timer,
 			&Kind
 		) == XSSH_OK), "ssh auth session receive prepare failed");
 	return Kind;
@@ -275,14 +274,14 @@ static xsshauthsessionpacket testSshAuthSessionReceivePrepare(
 static void testSshAuthSessionReceiveCommit(
 	xsshauthsession* pSession,
 	xsshtransportcore* pCore,
-	uint64 iNowMs
+	double Timer
 )
 {
 	xsshrekeydecision Decision;
 
 	testRequire((xrtSshTransportCoreReadCommit(
 		pCore,
-		iNowMs,
+		Timer,
 		&Decision
 	) == XSSH_OK) && (Decision != XSSH_REKEY_REQUIRED) &&
 		(xrtSshAuthSessionReadCommit(
@@ -325,7 +324,7 @@ static void testSshAuthSessionFlow(void)
 	xbytesview Payload;
 	xsshwriter Writer;
 	size_t iWireSize;
-	uint64 iNowMs = 100u;
+	double Timer = 0.1;
 
 	testSshAuthSessionPairOpen(
 		&ClientCore,
@@ -333,7 +332,7 @@ static void testSshAuthSessionFlow(void)
 		&Client,
 		&Server,
 		NULL,
-		iNowMs
+		Timer
 	);
 	testRequire((xrtSshAuthSessionEvent(&Client) ==
 		XSSH_AUTH_SESSION_EVENT_WRITE_SERVICE_REQUEST) &&
@@ -351,7 +350,7 @@ static void testSshAuthSessionFlow(void)
 		Payload,
 		arrWire,
 		sizeof(arrWire),
-		++iNowMs
+		(Timer += 0.001)
 	);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Server,
@@ -360,10 +359,10 @@ static void testSshAuthSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	) == XSSH_AUTH_SESSION_PACKET_SERVICE_REQUEST,
 		"ssh auth session service request classify failed");
-	testSshAuthSessionReceiveCommit(&Server, &ServerCore, iNowMs);
+	testSshAuthSessionReceiveCommit(&Server, &ServerCore, Timer);
 
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshServiceAcceptWrite(
@@ -377,7 +376,7 @@ static void testSshAuthSessionFlow(void)
 		Payload,
 		arrWire,
 		sizeof(arrWire),
-		++iNowMs
+		(Timer += 0.001)
 	);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Client,
@@ -386,10 +385,10 @@ static void testSshAuthSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	) == XSSH_AUTH_SESSION_PACKET_SERVICE_ACCEPT,
 		"ssh auth session service accept classify failed");
-	testSshAuthSessionReceiveCommit(&Client, &ClientCore, iNowMs);
+	testSshAuthSessionReceiveCommit(&Client, &ClientCore, Timer);
 
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshAuthBannerWrite(
@@ -404,7 +403,7 @@ static void testSshAuthSessionFlow(void)
 		Payload,
 		arrWire,
 		sizeof(arrWire),
-		++iNowMs
+		(Timer += 0.001)
 	);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Client,
@@ -413,7 +412,7 @@ static void testSshAuthSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	) == XSSH_AUTH_SESSION_PACKET_BANNER &&
 		(xrtSshAuthSessionBanner(&Client, &Banner) == XSSH_OK) &&
 		testSshTextEqual(
@@ -421,7 +420,7 @@ static void testSshAuthSessionFlow(void)
 			XRT_STR_LITERAL("authorized access")
 		) && testSshTextEqual(Banner.Language, XRT_STR_LITERAL("en")),
 		"ssh auth session banner view failed");
-	testSshAuthSessionReceiveCommit(&Client, &ClientCore, iNowMs);
+	testSshAuthSessionReceiveCommit(&Client, &ClientCore, Timer);
 	testRequire(xrtSshAuthSessionEvent(&Client) ==
 		XSSH_AUTH_SESSION_EVENT_WRITE_REQUEST,
 		"ssh auth session banner changed primary event");
@@ -438,7 +437,7 @@ static void testSshAuthSessionFlow(void)
 		Payload,
 		arrWire,
 		sizeof(arrWire),
-		++iNowMs
+		(Timer += 0.001)
 	);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Server,
@@ -447,7 +446,7 @@ static void testSshAuthSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	) == XSSH_AUTH_SESSION_PACKET_REQUEST &&
 		(xrtSshAuthSessionRequest(&Server, &Request) == XSSH_OK) &&
 		testSshTextEqual(Request.User, XRT_STR_LITERAL("alice")) &&
@@ -458,7 +457,7 @@ static void testSshAuthSessionFlow(void)
 			Request.Method,
 			XRT_STR_LITERAL(XSSH_AUTH_METHOD_NONE)
 		), "ssh auth session request view failed");
-	testSshAuthSessionReceiveCommit(&Server, &ServerCore, iNowMs);
+	testSshAuthSessionReceiveCommit(&Server, &ServerCore, Timer);
 
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshAuthFailureWrite(
@@ -473,7 +472,7 @@ static void testSshAuthSessionFlow(void)
 		Payload,
 		arrWire,
 		sizeof(arrWire),
-		++iNowMs
+		(Timer += 0.001)
 	);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Client,
@@ -482,14 +481,14 @@ static void testSshAuthSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	) == XSSH_AUTH_SESSION_PACKET_FAILURE &&
 		(xrtSshAuthSessionFailure(&Client, &Failure) == XSSH_OK) &&
 		!Failure.PartialSuccess && testSshTextEqual(
 			Failure.Methods,
 			XRT_STR_LITERAL("password,keyboard-interactive")
 		), "ssh auth session failure view failed");
-	testSshAuthSessionReceiveCommit(&Client, &ClientCore, iNowMs);
+	testSshAuthSessionReceiveCommit(&Client, &ClientCore, Timer);
 
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshAuthRequestWrite(
@@ -506,7 +505,7 @@ static void testSshAuthSessionFlow(void)
 		Payload,
 		arrWire,
 		sizeof(arrWire),
-		++iNowMs
+		(Timer += 0.001)
 	);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Server,
@@ -515,10 +514,10 @@ static void testSshAuthSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	) == XSSH_AUTH_SESSION_PACKET_REQUEST,
 		"ssh auth session second request failed");
-	testSshAuthSessionReceiveCommit(&Server, &ServerCore, iNowMs);
+	testSshAuthSessionReceiveCommit(&Server, &ServerCore, Timer);
 
 	Payload = (xbytesview){ arrMethodChallenge, sizeof(arrMethodChallenge) };
 	iWireSize = testSshAuthSessionSend(
@@ -527,7 +526,7 @@ static void testSshAuthSessionFlow(void)
 		Payload,
 		arrWire,
 		sizeof(arrWire),
-		++iNowMs
+		(Timer += 0.001)
 	);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Client,
@@ -536,12 +535,12 @@ static void testSshAuthSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	) == XSSH_AUTH_SESSION_PACKET_METHOD &&
 		(xrtSshAuthSessionMethod(&Client, &Method) == XSSH_OK) &&
 		testSshBytesEqual(Method, Payload),
 		"ssh auth session method challenge failed");
-	testSshAuthSessionReceiveCommit(&Client, &ClientCore, iNowMs);
+	testSshAuthSessionReceiveCommit(&Client, &ClientCore, Timer);
 
 	Payload = (xbytesview){ arrMethodResponse, sizeof(arrMethodResponse) };
 	iWireSize = testSshAuthSessionSend(
@@ -550,7 +549,7 @@ static void testSshAuthSessionFlow(void)
 		Payload,
 		arrWire,
 		sizeof(arrWire),
-		++iNowMs
+		(Timer += 0.001)
 	);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Server,
@@ -559,12 +558,12 @@ static void testSshAuthSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	) == XSSH_AUTH_SESSION_PACKET_METHOD &&
 		(xrtSshAuthSessionMethod(&Server, &Method) == XSSH_OK) &&
 		testSshBytesEqual(Method, Payload),
 		"ssh auth session method response failed");
-	testSshAuthSessionReceiveCommit(&Server, &ServerCore, iNowMs);
+	testSshAuthSessionReceiveCommit(&Server, &ServerCore, Timer);
 
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshAuthSuccessWrite(&Writer) == XSSH_OK),
@@ -576,7 +575,7 @@ static void testSshAuthSessionFlow(void)
 		Payload,
 		arrWire,
 		sizeof(arrWire),
-		++iNowMs
+		(Timer += 0.001)
 	);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Client,
@@ -585,10 +584,10 @@ static void testSshAuthSessionFlow(void)
 		iWireSize,
 		arrPlain,
 		sizeof(arrPlain),
-		iNowMs
+		Timer
 	) == XSSH_AUTH_SESSION_PACKET_SUCCESS,
 		"ssh auth session success classify failed");
-	testSshAuthSessionReceiveCommit(&Client, &ClientCore, iNowMs);
+	testSshAuthSessionReceiveCommit(&Client, &ClientCore, Timer);
 
 	testRequire(xrtSshAuthSessionComplete(&Client, &ClientCore) &&
 		xrtSshAuthSessionComplete(&Server, &ServerCore) &&
@@ -632,9 +631,7 @@ static void testSshAuthSessionAbort(void)
 		&ServerCore,
 		&Client,
 		&Server,
-		NULL,
-		0u
-	);
+		NULL, ((double)(0u)) / 1000.0);
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshServiceRequestWrite(
 			&Writer,
@@ -645,9 +642,7 @@ static void testSshAuthSessionAbort(void)
 		(xrtSshAuthSessionWritePrepare(
 			&Client,
 			&ClientCore,
-			Payload,
-			1u
-		) == XSSH_OK) && (xrtSshAuthSessionWriteAbort(&Client) == XSSH_OK) &&
+			Payload, ((double)(1u)) / 1000.0) == XSSH_OK) && (xrtSshAuthSessionWriteAbort(&Client) == XSSH_OK) &&
 		(xrtSshAuthSessionBudget(&Client, &After) == XSSH_OK) &&
 		(memcmp(&Before, &After, sizeof(Before)) == 0) &&
 		(xrtSshAuthSessionEvent(&Client) ==
@@ -658,18 +653,14 @@ static void testSshAuthSessionAbort(void)
 		&ClientCore,
 		Payload,
 		arrWire,
-		sizeof(arrWire),
-		2u
-	);
+		sizeof(arrWire), ((double)(2u)) / 1000.0);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Server,
 		&ServerCore,
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		2u
-	) == XSSH_AUTH_SESSION_PACKET_SERVICE_REQUEST &&
+		sizeof(arrPlain), ((double)(2u)) / 1000.0) == XSSH_AUTH_SESSION_PACKET_SERVICE_REQUEST &&
 		(xrtSshAuthSessionReadAbort(&Server) == XSSH_OK) &&
 		(xrtSshTransportCoreReadAbort(&ServerCore) == XSSH_OK) &&
 		(xrtSshAuthSessionEvent(&Server) ==
@@ -704,9 +695,7 @@ static void testSshAuthSessionAttemptLimit(void)
 		&ServerCore,
 		&Client,
 		&Server,
-		&Policy,
-		0u
-	);
+		&Policy, ((double)(0u)) / 1000.0);
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshServiceRequestWrite(
 			&Writer,
@@ -718,20 +707,16 @@ static void testSshAuthSessionAttemptLimit(void)
 		&ClientCore,
 		Payload,
 		arrWire,
-		sizeof(arrWire),
-		1u
-	);
+		sizeof(arrWire), ((double)(1u)) / 1000.0);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Server,
 		&ServerCore,
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		1u
-	) == XSSH_AUTH_SESSION_PACKET_SERVICE_REQUEST,
+		sizeof(arrPlain), ((double)(1u)) / 1000.0) == XSSH_AUTH_SESSION_PACKET_SERVICE_REQUEST,
 		"ssh auth session limit service receive failed");
-	testSshAuthSessionReceiveCommit(&Server, &ServerCore, 1u);
+	testSshAuthSessionReceiveCommit(&Server, &ServerCore, ((double)(1u)) / 1000.0);
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshServiceAcceptWrite(
 			&Writer,
@@ -743,20 +728,16 @@ static void testSshAuthSessionAttemptLimit(void)
 		&ServerCore,
 		Payload,
 		arrWire,
-		sizeof(arrWire),
-		2u
-	);
+		sizeof(arrWire), ((double)(2u)) / 1000.0);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Client,
 		&ClientCore,
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		2u
-	) == XSSH_AUTH_SESSION_PACKET_SERVICE_ACCEPT,
+		sizeof(arrPlain), ((double)(2u)) / 1000.0) == XSSH_AUTH_SESSION_PACKET_SERVICE_ACCEPT,
 		"ssh auth session limit accept receive failed");
-	testSshAuthSessionReceiveCommit(&Client, &ClientCore, 2u);
+	testSshAuthSessionReceiveCommit(&Client, &ClientCore, ((double)(2u)) / 1000.0);
 
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshAuthNoneWrite(
@@ -769,20 +750,16 @@ static void testSshAuthSessionAttemptLimit(void)
 		&ClientCore,
 		Payload,
 		arrWire,
-		sizeof(arrWire),
-		3u
-	);
+		sizeof(arrWire), ((double)(3u)) / 1000.0);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Server,
 		&ServerCore,
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		3u
-	) == XSSH_AUTH_SESSION_PACKET_REQUEST,
+		sizeof(arrPlain), ((double)(3u)) / 1000.0) == XSSH_AUTH_SESSION_PACKET_REQUEST,
 		"ssh auth session first attempt receive failed");
-	testSshAuthSessionReceiveCommit(&Server, &ServerCore, 3u);
+	testSshAuthSessionReceiveCommit(&Server, &ServerCore, ((double)(3u)) / 1000.0);
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshAuthFailureWrite(
 			&Writer,
@@ -795,20 +772,16 @@ static void testSshAuthSessionAttemptLimit(void)
 		&ServerCore,
 		Payload,
 		arrWire,
-		sizeof(arrWire),
-		4u
-	);
+		sizeof(arrWire), ((double)(4u)) / 1000.0);
 	testRequire(testSshAuthSessionReceivePrepare(
 		&Client,
 		&ClientCore,
 		arrWire,
 		iWireSize,
 		arrPlain,
-		sizeof(arrPlain),
-		4u
-	) == XSSH_AUTH_SESSION_PACKET_FAILURE,
+		sizeof(arrPlain), ((double)(4u)) / 1000.0) == XSSH_AUTH_SESSION_PACKET_FAILURE,
 		"ssh auth session limit failure receive failed");
-	testSshAuthSessionReceiveCommit(&Client, &ClientCore, 4u);
+	testSshAuthSessionReceiveCommit(&Client, &ClientCore, ((double)(4u)) / 1000.0);
 
 	testRequire(xrtSshWriterInit(&Writer, arrPayload, sizeof(arrPayload)) &&
 		(xrtSshAuthNoneWrite(
@@ -819,9 +792,7 @@ static void testSshAuthSessionAttemptLimit(void)
 	testRequire((xrtSshAuthSessionWritePrepare(
 		&Client,
 		&ClientCore,
-		Payload,
-		5u
-	) == XSSH_ERROR_AUTHENTICATION) &&
+		Payload, ((double)(5u)) / 1000.0) == XSSH_ERROR_AUTHENTICATION) &&
 		(xrtSshAuthSessionEvent(&Client) ==
 		 XSSH_AUTH_SESSION_EVENT_FAILED) && !ClientCore.Write.Active &&
 		(xrtSshAuthSessionBudget(&Client, &Budget) == XSSH_OK) &&
@@ -850,23 +821,18 @@ static void testSshAuthSessionLifecycleEdges(void)
 	) && (xrtSshAuthSessionBegin(
 		&Session,
 		&Core,
-		&Policy,
-		100u
-	) == XSSH_OK) && (xrtSshAuthSessionCheck(
-		&Session,
-		109u,
+		&Policy, ((double)(100u)) / 1000.0) == XSSH_OK) && (xrtSshAuthSessionCheck(
+		&Session, ((double)(109u)) / 1000.0,
 		&Decision
 	) == XSSH_OK) && (Decision == XSSH_AUTH_GUARD_ALLOW) &&
 		(xrtSshAuthSessionCheck(
-			&Session,
-			110u,
+			&Session, nextafter(0.110, INFINITY),
 			&Decision
 		) == XSSH_OK) && (Decision == XSSH_AUTH_GUARD_DISCONNECT) &&
 		(xrtSshAuthSessionEvent(&Session) ==
 		 XSSH_AUTH_SESSION_EVENT_FAILED) &&
 		(xrtSshAuthSessionCheck(
-			&Session,
-			111u,
+			&Session, ((double)(111u)) / 1000.0,
 			&Decision
 		) == XSSH_ERROR_STATE) &&
 		!xrtSshAuthSessionComplete(&Session, &Core),
@@ -883,9 +849,7 @@ static void testSshAuthSessionLifecycleEdges(void)
 	) && (xrtSshAuthSessionBegin(
 		&Session,
 		&Core,
-		NULL,
-		200u
-	) == XSSH_OK), "ssh auth session restart setup failed");
+		NULL, ((double)(200u)) / 1000.0) == XSSH_OK), "ssh auth session restart setup failed");
 	xrtSshAuthSessionFail(&Session);
 	testRequire(xrtSshAuthSessionEvent(&Session) ==
 		XSSH_AUTH_SESSION_EVENT_FAILED,

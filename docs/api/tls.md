@@ -1717,12 +1717,12 @@ typedef struct xtlssession xtlssession;
 
 ### `xtlsstreamconfig`
 
-两个超时都使用微秒；零值显式关闭对应计时器。 AsyncBytesLimit 和 AsyncCountLimit 是未完成操作的独立硬边界， AsyncBatch 限制一次 Worker 轮转完成的操作数。
+两个超时都使用毫秒；零值显式关闭对应计时器。 AsyncBytesLimit 和 AsyncCountLimit 是未完成操作的独立硬边界， AsyncBatch 限制一次 Worker 轮转完成的操作数。
 
 ```c
 typedef struct xtlsstreamconfig {
-	uint64 HandshakeTimeout;
-	uint64 CloseTimeout;
+	int64 HandshakeTimeout;
+	int64 CloseTimeout;
 	size_t AsyncBytesLimit;
 	uint32 AsyncCountLimit;
 	uint32 AsyncBatch;
@@ -1817,7 +1817,7 @@ Timeout 覆盖 DNS、TCP 和 TLS 全过程；零值只保留各阶段超时。
 typedef struct xtlsdialconfig {
 	xnetdialconfig Transport;
 	xtlsstreamconfig Stream;
-	uint64 Timeout;
+	int64 Timeout;
 	bool ServerNameFromHost;
 } xtlsdialconfig;
 ```
@@ -1826,7 +1826,7 @@ typedef struct xtlsdialconfig {
 |---|---|---|
 | `Transport` | `xnetdialconfig` | Transport |
 | `Stream` | `xtlsstreamconfig` | 流选择 |
-| `Timeout` | `uint64` | 超时（微秒） |
+| `Timeout` | `int64` | 超时（毫秒） |
 | `ServerNameFromHost` | `bool` | ServerNameFromHost |
 
 ### `xtlsstreamevents`
@@ -2041,7 +2041,7 @@ typedef struct xtlspeer {
 |---|---|---|
 | `Role` | `xtlsrole` | 角色 |
 | `Name` | `xstrview` | 名称 |
-| `Time` | `xtime` | 时间戳（Unix 微秒） |
+| `Time` | `xtime` | 时间戳（公元 UTC 毫秒） |
 | `Certificates` | `const xx509cert*` | Certificates |
 | `CertificateCount` | `size_t` | CertificateCount |
 
@@ -2087,7 +2087,7 @@ typedef struct xtlsverifierconfig {
 | `Store` | `const xx509store*` | Store |
 | `Verify` | `xtlsverifyproc` | Verify |
 | `Policy` | `xtlsverifypolicyproc` | 策略 |
-| `Time` | `xtlsverifytimeproc` | 时间戳（Unix 微秒） |
+| `Time` | `xtlsverifytimeproc` | 时间戳（公元 UTC 毫秒） |
 | `Release` | `xtlsverifyreleaseproc` | Release |
 | `Context` | `ptr` | 回调上下文 |
 | `AllowSha1` | `bool` | AllowSha1 |
@@ -2162,8 +2162,8 @@ typedef void (*xtlsverifyreleaseproc)(ptr pContext);
 | `XTLS_SERVER_RESUME_AGE_TOLERANCE_DEFAULT` | `10000u` | XTLS服务端角色RESUMEAGETOLERANCE默认值 |
 | `XTLS_SERVER_TICKET_LIFETIME_DEFAULT` | `86400u` | XTLS服务端角色TICKETLIFETIME默认值 |
 | `XTLS_SERVER_TICKET_SIZE_DEFAULT` | `32u` | XTLS服务端角色TICKET尺寸默认值 |
-| `XTLS_STREAM_HANDSHAKE_TIMEOUT_DEFAULT` | `UINT64_C(10000000)` | XTLSSTREAM握手阶段超时默认值 |
-| `XTLS_STREAM_CLOSE_TIMEOUT_DEFAULT` | `UINT64_C(5000000)` | XTLSSTREAMCLOSE超时默认值 |
+| `XTLS_STREAM_HANDSHAKE_TIMEOUT_DEFAULT` | `INT64_C(10000)` | XTLSSTREAM握手阶段超时默认值 |
+| `XTLS_STREAM_CLOSE_TIMEOUT_DEFAULT` | `INT64_C(5000)` | XTLSSTREAMCLOSE超时默认值 |
 | `XTLS_STREAM_ASYNC_BYTES_DEFAULT` | `((size_t)1048576u)` | XTLSSTREAMASYNCBYTES默认值 |
 | `XTLS_STREAM_ASYNC_COUNT_DEFAULT` | `UINT32_C(1024)` | XTLSSTREAMASYNC数量默认值 |
 | `XTLS_STREAM_ASYNC_BATCH_DEFAULT` | `UINT32_C(64)` | XTLSSTREAMASYNCBATCH默认值 |
@@ -11309,7 +11309,7 @@ xfuture* xrtTlsListenerAcceptAsync(xtlslistener* pListener)
 阻塞接受一个已完成握手的 Stream；禁止从该 Engine 的 Worker 调用。
 
 ```c
-xtlsstream* xrtTlsListenerAcceptWait(xtlslistener* pListener, xdeadline iDeadline, xcancel* pCancel)
+xtlsstream* xrtTlsListenerAcceptWait(xtlslistener* pListener, int64 iTimeout, xcancel* pCancel)
 ```
 
 #### 参数
@@ -11317,7 +11317,7 @@ xtlsstream* xrtTlsListenerAcceptWait(xtlslistener* pListener, xdeadline iDeadlin
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pListener` | 输入 | 非空 | TLS 监听器 |
-| `iDeadline` | 输入 | — | 单调截止时间 |
+| `iTimeout` | 输入 | — | 单调截止时间 |
 | `pCancel` | 输入 | — | 取消令牌 |
 
 #### 返回值
@@ -11338,7 +11338,7 @@ xtlsstream* xrtTlsListenerAcceptWait(xtlslistener* pListener, xdeadline iDeadlin
 
 ```c
 	pServerC = xrtTlsListenerAcceptWait(pListener,
-		xrtDeadlineAfter(EXAMPLE_DEADLINE_US), NULL);
+		EXAMPLE_DEADLINE_MS, NULL);
 ```
 
 ### `xrtTlsListenerClose`
