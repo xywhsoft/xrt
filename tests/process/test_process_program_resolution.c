@@ -1,6 +1,5 @@
-#include "../test.h"
-
 #if defined(_WIN32) || defined(_WIN64)
+#include "../test.h"
 #include <windows.h>
 #include <wchar.h>
 
@@ -57,6 +56,7 @@ int main(void)
 	return 0;
 }
 #else
+#include <stdio.h>
 int main(void)
 {
 	puts("[SKIP] Windows executable search semantics");
