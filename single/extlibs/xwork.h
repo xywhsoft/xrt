@@ -4849,6 +4849,7 @@ static bool xwork__stream_event(void* pUserData, const xllm_event* pModelEvent)
                 pBridge->bStreamOutput = false;
                 tEvent.eKind = XWORK_EVENT_MODEL_START;
                 tEvent.sText = "stream_restart";
+                tEvent.iTextLength = sizeof("stream_restart") - 1u;
                 return xwork__emit(pBridge->pAgent, &tEvent);
             }
             return !xwork__is_cancelled(pBridge->pAgent);
