@@ -131,6 +131,12 @@ xrtCancelDestroy(operation);
 
 ## 当前边界
 
+流式响应必须收到模型终止标记才算完成。输出上限中断工具调用时，返回
+`XLLM_ERROR_OUTPUT_LIMIT`，不交付可执行工具，也不调用工具修改钩子；纯文本
+达到上限仍保留 `XLLM_FINISH_LENGTH`，由应用决定如何继续。Responses 的
+`max_output_tokens`、Chat Completions 的 `length` 和 Anthropic 的 `max_tokens`
+采用相同判定。网络恢复及调整任务大小由宿主处理，库不会提高用户的输出限制。
+
 - 当前输入内容为文本；图片、文件等多模态输入后续扩展。
 - 全局限流、跨任务退避和配额策略仍由 xwork/宿主负责；xllm 只处理单次 provider 调用内的短暂失败。
 - 目前以 chat-completions 兼容协议为首个闭环，后续 provider adapter 不改变上层请求/响应模型。

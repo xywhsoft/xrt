@@ -1913,6 +1913,48 @@ static void test_stream_terminal_contract(void)
     }
 }
 
+static void test_output_limit_contract(void)
+{
+    static const struct { xllm_provider provider; const char* body; bool tools; } cases[] = {
+        {XLLM_PROVIDER_OPENAI_COMPAT, "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call\",\"function\":{\"name\":\"write_file\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"length\"}]}\n\n", true},
+        {XLLM_PROVIDER_OPENAI_COMPAT, "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call\",\"function\":{\"name\":\"write_file\",\"arguments\":\"{\\\"content\\\":\\\"unfinished\"}}]},\"finish_reason\":\"length\"}]}\n\n", true},
+        {XLLM_PROVIDER_OPENAI_RESPONSES, "data: {\"type\":\"response.output_item.added\",\"item\":{\"type\":\"function_call\",\"id\":\"fc\",\"call_id\":\"call\",\"name\":\"write_file\"}}\n\ndata: {\"type\":\"response.function_call_arguments.delta\",\"item_id\":\"fc\",\"delta\":\"{\\\"content\\\":\\\"unfinished\"}\n\ndata: {\"type\":\"response.incomplete\",\"response\":{\"incomplete_details\":{\"reason\":\"max_output_tokens\"}}}\n\n", true},
+        {XLLM_PROVIDER_ANTHROPIC, "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"call\",\"name\":\"write_file\",\"input\":{}}}\n\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"content\\\":\\\"unfinished\"}}\n\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"max_tokens\"}}\n\ndata: {\"type\":\"message_stop\"}\n\n", true},
+        {XLLM_PROVIDER_OPENAI_COMPAT, "data: {\"choices\":[{\"delta\":{\"content\":\"partial prose\"},\"finish_reason\":\"length\"}]}\n\n", false}
+    };
+    for (size_t i = 0; i < sizeof(cases)/sizeof(cases[0]); ++i) {
+        xllm_client* client = test_make_client("http://127.0.0.1:1/v1", cases[i].provider);
+        test_hook_state state = {0};
+        xllm_hooks hooks = {0};
+        xllm_request request;
+        xllm_error error;
+        xllm_response* response = NULL;
+        test_events events = {0};
+        xllm_stream_callbacks callbacks = {&events, test_on_event};
+        CHECK(client != NULL, "output limit client");
+        if (!client) continue;
+        state.sRawPre = cases[i].body;
+        hooks.pOnResponseBody = test_hook_on_raw;
+        hooks.pOnToolCall = test_hook_on_tool;
+        hooks.pUserData = &state;
+        xllmClientSetHooks(client, &hooks);
+        xllmRequestInit(&request);
+        (void)xllmRequestAddTextMessage(&request, XLLM_ROLE_USER, "output limit");
+        xllm_result result = xllmClientComplete(client, &request, &callbacks, &response, &error);
+        if (cases[i].tools) {
+            CHECK(result == XLLM_RESULT_ERROR && !response && events.iDone == 0 &&
+                error.eCode == XLLM_ERROR_OUTPUT_LIMIT && state.iToolFires[0] == 0,
+                "output-capped tool generation is typed and never reaches tool hooks");
+        } else {
+            CHECK(result == XLLM_RESULT_OK && response && response->eFinish == XLLM_FINISH_LENGTH,
+                "output-capped prose remains available for continuation");
+        }
+        xllmResponseDestroy(response);
+        xllmRequestUnit(&request);
+        xllmClientDestroy(client);
+    }
+}
+
 static void test_transport(void)
 {
     test_server_ctx tServerCtx = {0};
@@ -2088,6 +2130,7 @@ int main(void)
     test_fragmented_parser();
     test_malformed_parser();
     test_stream_terminal_contract();
+    test_output_limit_contract();
     test_transport();
     printf("xllm v2: %s (%d failures)\n", g_iFailures ? "FAIL" : "PASS", g_iFailures);
     return g_iFailures ? 1 : 0;

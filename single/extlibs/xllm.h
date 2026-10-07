@@ -295,7 +295,8 @@ typedef enum xllm_error_code {
     /* Session-layer additions (appended: existing values stay stable). */
     XLLM_ERROR_LIMIT,   /* a single message exceeds the configured byte cap */
     XLLM_ERROR_HOOK,    /* a host-supplied session hook failed or re-entered */
-    XLLM_ERROR_INCOMPLETE_RESPONSE /* valid stream ended before model termination */
+    XLLM_ERROR_INCOMPLETE_RESPONSE, /* valid stream ended before model termination */
+    XLLM_ERROR_OUTPUT_LIMIT /* output cap interrupted a tool-call generation */
 } xllm_error_code;
 
 /* Retry diagnostics (attempt, limit, retry-after, retryable). */
@@ -1695,6 +1696,7 @@ const char* xllmErrorCodeName(xllm_error_code eCode)
         case XLLM_ERROR_UPSTREAM: return "upstream";
         case XLLM_ERROR_PROTOCOL: return "protocol";
         case XLLM_ERROR_INCOMPLETE_RESPONSE: return "incomplete_response";
+        case XLLM_ERROR_OUTPUT_LIMIT: return "output_limit";
         case XLLM_ERROR_PARSE: return "parse";
         default: return "unknown";
     }
@@ -3200,7 +3202,8 @@ static xllm_finish xllm__finish_from_reason(const char* sRaw, bool bHasToolCalls
     if ( !sRaw ) { return bHasToolCalls ? XLLM_FINISH_TOOL_CALLS : XLLM_FINISH_STOP; }
     if ( strcmp(sRaw, "stop") == 0 || strcmp(sRaw, "end_turn") == 0 ||
          strcmp(sRaw, "stop_sequence") == 0 ) { return XLLM_FINISH_STOP; }
-    if ( strcmp(sRaw, "length") == 0 || strcmp(sRaw, "max_tokens") == 0 ) { return XLLM_FINISH_LENGTH; }
+    if ( strcmp(sRaw, "length") == 0 || strcmp(sRaw, "max_tokens") == 0 ||
+         strcmp(sRaw, "max_output_tokens") == 0 ) { return XLLM_FINISH_LENGTH; }
     if ( strcmp(sRaw, "tool_calls") == 0 || strcmp(sRaw, "function_call") == 0 ||
          strcmp(sRaw, "tool_use") == 0 ) { return XLLM_FINISH_TOOL_CALLS; }
     if ( strcmp(sRaw, "content_filter") == 0 ) { return XLLM_FINISH_CONTENT_FILTER; }
@@ -3255,6 +3258,15 @@ bool xllm__assemble_finalize(xllm_call* pCall)
     char sGeneratedId[64];
     if ( !pResponse ) { return false; }
     pResponse->uHttpStatus = pCall->uHttpStatus;
+    /* A token cap may leave even syntactically complete early tool calls in
+     * an unfinished generation. Do not invoke hooks or return executable
+     * tools from that draft. Text-only LENGTH responses remain available to
+     * applications that support continuing partial prose. */
+    if ( pResponse->eFinish == XLLM_FINISH_LENGTH && pResponse->iToolCallCount ) {
+        xllm__error_set(&pCall->tError, XLLM_ERROR_OUTPUT_LIMIT,
+            "model output limit interrupted tool-call generation");
+        return false;
+    }
     if ( !pResponse->sRequestId && pCall->sRequestId[0] ) {
         pResponse->sRequestId = xllm__strdup(pCall->sRequestId);
         if ( !pResponse->sRequestId ) goto oom;

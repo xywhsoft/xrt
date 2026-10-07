@@ -245,6 +245,7 @@ const char* xllmErrorCodeName(xllm_error_code eCode)
         case XLLM_ERROR_UPSTREAM: return "upstream";
         case XLLM_ERROR_PROTOCOL: return "protocol";
         case XLLM_ERROR_INCOMPLETE_RESPONSE: return "incomplete_response";
+        case XLLM_ERROR_OUTPUT_LIMIT: return "output_limit";
         case XLLM_ERROR_PARSE: return "parse";
         default: return "unknown";
     }
