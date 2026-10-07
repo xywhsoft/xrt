@@ -3,6 +3,7 @@
 typedef struct xwork_stream_bridge {
     xwork_agent* pAgent;
     uint64_t uTurn;
+    bool bStreamOutput;
 } xwork_stream_bridge;
 
 static uint64_t xwork__hash_bytes(uint64_t uHash, const char* sText)
@@ -71,12 +72,26 @@ static bool xwork__stream_event(void* pUserData, const xllm_event* pModelEvent)
     memset(&tEvent, 0, sizeof(tEvent));
     tEvent.uAgentTurn = pBridge->uTurn;
     switch ( pModelEvent->eKind ) {
+        case XLLM_EVENT_RESPONSE_START:
+            /* A host may recover an interrupted generation before returning
+             * from OnModelComplete. Completed tool batches are outside this
+             * boundary. Tell projections to replace only this turn's draft. */
+            if (pModelEvent->as.tResponse.uHttpStatus >= 200u &&
+                pModelEvent->as.tResponse.uHttpStatus < 300u && pBridge->bStreamOutput) {
+                pBridge->bStreamOutput = false;
+                tEvent.eKind = XWORK_EVENT_MODEL_START;
+                tEvent.sText = "stream_restart";
+                return xwork__emit(pBridge->pAgent, &tEvent);
+            }
+            return !xwork__is_cancelled(pBridge->pAgent);
         case XLLM_EVENT_TEXT_DELTA:
+            pBridge->bStreamOutput = true;
             tEvent.eKind = XWORK_EVENT_MODEL_TEXT_DELTA;
             tEvent.sText = pModelEvent->as.tText.sData;
             tEvent.iTextLength = pModelEvent->as.tText.iLen;
             return xwork__emit(pBridge->pAgent, &tEvent);
         case XLLM_EVENT_REASONING_DELTA:
+            pBridge->bStreamOutput = true;
             tEvent.eKind = XWORK_EVENT_MODEL_REASONING_DELTA;
             tEvent.sText = pModelEvent->as.tText.sData;
             tEvent.iTextLength = pModelEvent->as.tText.iLen;

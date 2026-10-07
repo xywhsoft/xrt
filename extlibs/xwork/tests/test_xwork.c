@@ -874,6 +874,57 @@ static void test_readonly_subagent(void)
     (void)xrtDirRemoveAll(sWorkspace);
 }
 
+static xllm_result restart_complete(void* data, const xllm_request* request,
+    const xllm_stream_callbacks* callbacks, xllm_response** response, xllm_error* error)
+{
+    (void)data; (void)request; (void)error;
+    xllm_event event = {0};
+    event.eKind = XLLM_EVENT_RESPONSE_START;
+    event.as.tResponse.uHttpStatus = 200;
+    if (!callbacks->OnEvent(callbacks->pUserData, &event)) return XLLM_RESULT_CANCELLED;
+    event.eKind = XLLM_EVENT_TEXT_DELTA;
+    event.as.tText.sData = "discarded draft"; event.as.tText.iLen = 15;
+    if (!callbacks->OnEvent(callbacks->pUserData, &event)) return XLLM_RESULT_CANCELLED;
+    event.eKind = XLLM_EVENT_RESPONSE_START;
+    event.as.tResponse.uHttpStatus = 200;
+    if (!callbacks->OnEvent(callbacks->pUserData, &event)) return XLLM_RESULT_CANCELLED;
+    event.eKind = XLLM_EVENT_TEXT_DELTA;
+    event.as.tText.sData = "replacement"; event.as.tText.iLen = 11;
+    if (!callbacks->OnEvent(callbacks->pUserData, &event)) return XLLM_RESULT_CANCELLED;
+    *response = mock_response("replacement", 0);
+    return *response ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;
+}
+
+static void test_stream_restart(void)
+{
+    xllm_session_config sc;
+    xllm_error model_error;
+    xwork_agent_config config;
+    xwork_error error;
+    xwork_run_result result = {0};
+    test_events events = {0};
+    xllmSessionConfigInit(&sc);
+    xllm_session* session = xllmSessionCreate(&sc, &model_error);
+    xworkAgentConfigInit(&config);
+    config.pSession = session;
+    config.sWorkspaceRoot = ".";
+    config.OnModelComplete = restart_complete;
+    config.OnEvent = on_event;
+    config.pEventUserData = &events;
+    xwork_agent* agent = xworkAgentCreate(&config, &error);
+    CHECK(session && agent, "stream recovery agent created");
+    if (agent) {
+        CHECK(xworkAgentRun(agent, "Reply once", &result, &error) == XWORK_RESULT_OK &&
+            result.uModelCalls == 1 && result.uToolCalls == 0 &&
+            events.uModelStarts == 2 && events.uModelDone == 1 &&
+            events.uTextDeltas == 2 && events.uErrors == 0,
+            "restarted draft stays in one model turn without tool replay or error");
+    }
+    xworkRunResultUnit(&result);
+    xworkAgentDestroy(agent);
+    xllmSessionDestroy(session);
+}
+
 static void test_agent_context_deadline(void)
 {
     static const char sWorkspace[] = "tests/tmp_xwork_deadline";
@@ -1842,6 +1893,7 @@ int main(int argc, char** argv)
     g_sSelfPath = argc > 0 ? argv[0] : NULL;
     printf("xwork v2 tests\n");
     test_process_text_normalization();
+    test_stream_restart();
     test_agent_context_deadline();
     test_command_context_deadline();
     test_edit_eol_write();
