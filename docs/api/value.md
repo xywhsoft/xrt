@@ -1672,6 +1672,101 @@ xvalue* xrtValueDeepClone(const xvalue* pValue)
 ```
 
 
+### `xrtValueGraphCopyV1`
+
+复用深拷贝遍历器复制无环混合值图，允许 resident 策略适配原生句柄。
+不改变 `xvaluehandleops` 的布局，也不注册进程级的全局转换器。
+
+```c
+xvalue* xrtValueGraphCopyV1(const xvalue* pValue,
+    const xvaluegraphcopyv1* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pValue` | 输入 | 非空、未 BUSY | 借用源值，调用期间不能修改源图 |
+| `pConfig` | 输入 | 可空、调用期间有效 | NULL 等价于普通深拷贝；否则 Size 必须为 sizeof(xvaluegraphcopyv1) |
+
+配置的 `CopyHandle` 接收捕获的 Ops、Data、UserData 和 TypeId，不必在
+BUSY 外壳上调用 GetHandle。必须先核对准确的静态 Ops 身份，再解引用
+opaque Data。回调返回 0 且输出 NULL 表示使用普通句柄策略；1 且输出
+独立拥有的值表示成功；-1 表示失败。所有非空输出均由遍历器接管，
+失败时也会释放。错误状态码或成功空输出会拒绝为 XERR_STATE。
+
+该回调类型为 `xvaluegraphhandlecopyv1`；配置和 continuation 都只在
+一次同步调用内有效，不建立保存任意用户回调的全局图协议。
+
+每个回调只借用一个同步 `xvaluegraphnextv1` 能力，不得保存它。递归
+必须调用 Next，不能另起一次 GraphCopy；同一次遍历按源 Value 外壳
+身份保留重复子值的共享，不按内容去重。已完成的目标另有 memo 引用，
+因此回调可以释放暂时不用的 Next 结果，后续别名不会指向已释放对象。
+活动路径在回调前后都受保护；回调不得修改、保留或释放源图节点。
+
+`XVALUE_GRAPH_COPY_DATA_V1` 用于数据快照：基础容器只复制数据，不
+复制逻辑 identity 或对象 lifetime；未适配的 opaque Handle 只保留
+引用，不调用 Clone。消费方仍决定该值的 unsupported 策略，并非
+自动接受所有句柄。Flag 不影响适配器自主构造的目标。
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 一个拥有的结果，用后 xrtValueRelease；数据快照的 opaque 值可能与源同指针 | — |
+| NULL | 复制失败，部分目标及 memo 引用已释放，源保持 | XERR_MEMORY 等 |
+
+#### 错误
+
+- XERR_ARGUMENT：空源、错误配置大小或未知 flag。
+- XERR_STATE：BUSY 源、无效回调状态、回调失败却没有提供新诊断。
+- XERR_VALUE：源图包含环，或超过既有深度上限。
+- XERR_UNSUPPORTED：普通深拷贝路径遇到无 Clone 的句柄。
+- XERR_MEMORY：目标、身份溢出表等分配失败；清理不覆盖首错。
+
+#### 范例
+
+精确的回调、混合图共享、丢弃临时结果、根保护、首错和数据快照
+回归见 [adapter test](../../tests/value/test_value_graph_adapter.c)。
+
+```c
+xvaluegraphcopyv1 config = { sizeof(config), 0, residentCopyHandle, context };
+xvalue* copy = xrtValueGraphCopyV1(source, &config);
+```
+
+### `xrtValueGraphNextV1`
+
+在当前句柄回调内，使用同一张身份表、深度计数和环检测复制一个子值。
+
+```c
+xvalue* xrtValueGraphNextV1(xvaluegraphnextv1* pNext, const xvalue* pChild)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| pNext | 输入 | 当前正在执行的回调所借用 | 不能跨回调、跨线程、保存后使用或使用外层正在挂起的能力 |
+| pChild | 输入 | 非空、稳定的借用节点 | Native owner 应在其自己的 operation pin 下提供这条边 |
+
+遍历器暂时解除当前路径的外壳保护，内部递归结束后立即恢复；源已在
+active memo 中登记，因此回指祖先会被环检测拒绝，而不是递归失控。
+这不是对外开放的 Value 借用 API，也不赋予回调修改源图的权限。
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| 非空 | 独立拥有的子值，可移交目标，也可释放不用的结果 | — |
+| NULL | 递归失败 | 与 GraphCopy 相同；无当前能力时为 XERR_STATE |
+
+#### 范例
+
+```c
+xvalue* child = xrtValueGraphNextV1(next, borrowedChild);
+/* Transfer child into the adapter's result, or xrtValueRelease(child). */
+```
+
 ### `xrtValueClear`
 
 清空容器并释放其中持有的全部值引用。

@@ -1128,6 +1128,40 @@ XRT_EXTERN_C_BEGIN
 */
 XRT_API xvalue* xrtValueDeepClone(const xvalue* pValue);
 
+/* Optional resident extension of the same acyclic graph copier. No Handle
+ * ABI/global registry is changed. Captured handle fields may be inspected
+ * only after matching the exact immutable Ops identity; never dereference
+ * an unknown handle. During Copy the entire active source path is BUSY.
+ * Return 0 with a NULL output to use the ordinary Handle policy, 1 with an
+ * independently owned output on success, or -1 on failure. The copier owns
+ * any non-NULL output even on failure. Callbacks must not mutate/retain/drop
+ * any source graph node, nor retain the synchronous continuation capability.
+ * Next reuses the SAME identity memo and depth/cycle checks; it is the only
+ * permitted recursive entry. Independent nested GraphCopy calls do not
+ * preserve aliases and must not be used as the continuation. Next returns
+ * an owned value; unused results may be released. The traversal separately
+ * pins completed memo targets until it ends, even if an adapter declines. */
+typedef struct xvaluegraphnextv1 xvaluegraphnextv1;
+typedef int (*xvaluegraphhandlecopyv1)(const xvaluehandleops* pOps,
+	ptr pHandle, ptr pHandleUser, uint64 iTypeId, xvaluegraphnextv1* pNext,
+	xvalue** pTarget, ptr pUserData);
+enum {
+	/* Data snapshots copy container data, not logical identities/lifecycle.
+	 * Unhandled opaque handles are retained, NOT cloned: the downstream
+	 * serializer/consumer still owns its unsupported-value policy. */
+	XVALUE_GRAPH_COPY_DATA_V1 = 1u
+};
+typedef struct xvaluegraphcopyv1 {
+	size_t Size;
+	uint32 Flags;
+	xvaluegraphhandlecopyv1 CopyHandle;
+	ptr UserData;
+} xvaluegraphcopyv1;
+XRT_API xvalue* xrtValueGraphCopyV1(const xvalue* pValue,
+	const xvaluegraphcopyv1* pConfig);
+XRT_API xvalue* xrtValueGraphNextV1(xvaluegraphnextv1* pNext,
+	const xvalue* pChild);
+
 
 
 /*
