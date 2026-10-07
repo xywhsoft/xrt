@@ -1548,6 +1548,7 @@
 				"src/internal/xrt_internal.h",
 				"extlibs/xruntime/src/internal/xrt_runtime_object.h",
 				"extlibs/xruntime/src/internal/xrt_runtime_value.h",
+				"extlibs/xruntime/src/internal/xrt_typed_container.h",
 				"extlibs/xruntime/src/internal/xrt_typed_dict.h"
 			],
 			"sources": [
@@ -1684,6 +1685,7 @@
 				"extlibs/xruntime/tests/single/test_single_runtime_convert.c",
 				"extlibs/xruntime/tests/single/test_single_runtime_convert_string.c",
 				"extlibs/xruntime/tests/single/test_single_runtime_dynamic_field.c",
+				"extlibs/xruntime/tests/single/test_single_runtime_dynamic_field_visit.c",
 				"extlibs/xruntime/tests/single/test_single_runtime_field.c",
 				"extlibs/xruntime/tests/single/test_single_runtime_object.c",
 				"extlibs/xruntime/tests/single/test_single_runtime_object_graph.c",
@@ -1787,6 +1789,7 @@
 				"extlibs/xruntime/tests/single/test_single_runtime_convert.c": "runtime_convert",
 				"extlibs/xruntime/tests/single/test_single_runtime_convert_string.c": "runtime_convert_string",
 				"extlibs/xruntime/tests/single/test_single_runtime_dynamic_field.c": "runtime_dynamic_field",
+				"extlibs/xruntime/tests/single/test_single_runtime_dynamic_field_visit.c": "runtime_dynamic_field_oom_tests",
 				"extlibs/xruntime/tests/single/test_single_runtime_field.c": "runtime_field",
 				"extlibs/xruntime/tests/single/test_single_runtime_object.c": "runtime_object",
 				"extlibs/xruntime/tests/single/test_single_runtime_object_graph.c": "runtime_object_graph",
@@ -1917,7 +1920,12 @@
 				"extlibs/xruntime/tests/runtime/test_runtime_value_graph.c",
 				"extlibs/xruntime/tests/runtime/test_runtime_value_graph_churn.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xruntime/tests/single/test_single_runtime_dynamic_field_visit.c"
+			],
+			"single_test_owners": {
+				"extlibs/xruntime/tests/single/test_single_runtime_dynamic_field_visit.c": "runtime_dynamic_field_oom_tests"
+			},
 			"examples": [],
 			"docs": [
 				"extlibs/xruntime/README.md"

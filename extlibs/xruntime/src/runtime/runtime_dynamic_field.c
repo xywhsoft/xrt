@@ -1,6 +1,7 @@
 #include "../internal/xrt_internal.h"
 #include "../internal/xrt_runtime_object.h"
 #include "../internal/xrt_runtime_value.h"
+#include "../internal/xrt_typed_container.h"
 #include "../internal/xrt_typed_dict.h"
 #include <xrt/runtime_field.h>
 

@@ -2773,6 +2773,17 @@ typedef struct xerrordescview {
 } xerrordescview;
 ```
 
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Kind` | `xerrkind` | 错误分类。 |
+| `Code` | `int32` | 所属领域的错误码。 |
+| `SystemCode` | `int32` | 可选的系统错误码，零表示未提供。 |
+| `Domain` | `xstrview` | 错误领域；构造期间借用，构造器复制全部字节。 |
+| `Operation` | `xstrview` | 失败的操作；构造期间借用，构造器复制全部字节。 |
+| `Message` | `xstrview` | 诊断消息；构造期间借用，构造器复制全部字节。 |
+| `Data` | `xstrview` | 附加诊断数据；构造期间借用，构造器复制全部字节。 |
+| `Cause` | `const xerror*` | 可选的原因错误；构造器保留其引用。 |
+
 
 ### `xerrorlocationview`
 
@@ -2785,3 +2796,9 @@ typedef struct xerrorlocationview {
 	int32 Column;
 } xerrorlocationview;
 ```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `File` | `xstrview` | 源码文件名；构造期间借用，构造器复制全部字节。 |
+| `Line` | `int32` | 非负源码行号，零表示未提供。 |
+| `Column` | `int32` | 非负源码列号，零表示未提供。 |

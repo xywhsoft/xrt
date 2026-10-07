@@ -6239,3 +6239,11 @@ typedef struct xvaluegraphcopyv1 {
 	xvaluegraphobjectcopyv1 CopyObject;
 } xvaluegraphcopyv1;
 ```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Size` | `size_t` | 配置结构体大小，必须等于 `sizeof(xvaluegraphcopyv1)`。 |
+| `Flags` | `uint32` | 图复制选项，允许 `XVALUE_GRAPH_COPY_DATA_V1`。 |
+| `CopyHandle` | `xvaluegraphhandlecopyv1` | 可选的句柄复制适配器。 |
+| `UserData` | `ptr` | 两种适配器共用的调用上下文；同步调用期间借用。 |
+| `CopyObject` | `xvaluegraphobjectcopyv1` | 可选的对象投影适配器。 |
