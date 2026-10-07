@@ -25,7 +25,7 @@ def main() -> int:
     if not cc or out.exists() or (args.sanitize and os.name=='nt'):
         parser.error('Require gcc, fresh evidence and Linux for sanitizers')
     fixtures=('test_value_graph','test_value_graph_contract','test_value_graph_oom','test_value_graph_adapter',
-        'test_value_graph_projection')
+        'test_value_graph_projection','test_value_graph_sequence')
     files={Path(__file__).resolve(),Path(sys.executable),Path(cc),root/'tests/test.h',root/'single/xrt.h',
         root/'single/xrt_decl.h',root/'include/xrt/value.h',root/'src/value/value_graph.c'}
     files.update(root/('tests/value/'+name+'.c') for name in fixtures)
@@ -33,7 +33,7 @@ def main() -> int:
     inputs=[{'Path':str(path),'Sha256':digest(path)} for path in sorted(files)]
     rows=[]; report={'Complete':False,'InputsUnchanged':False,'Inputs':inputs,'Rows':rows,
         'Scope':__doc__,'SelectedRuntimeInstrumented':args.sanitize,'WholeRuntimeInstrumented':False,
-        'LegacyRegressionProved':False,'ProjectionFaultPositions':{}}
+        'LegacyRegressionProved':False,'ProjectionFaultPositions':{},'SequenceFaultPositions':{}}
     out.mkdir(parents=True)
     flags=['-std=c11','-Wall','-Wextra','-Werror','-DXRT_IMPLEMENTATION','-DXRT_MODULE_VALUE_GRAPH',
         '-DXRT_MODULE_VALUE_COLLECTION','-Isingle']
@@ -63,13 +63,14 @@ def main() -> int:
         for level in (0,2):
             for name in fixtures:
                 lane=name+f'.O{level}'; binary=out/(lane+('.exe' if os.name=='nt' else ''))
-                debug=['-DXRT_MODULE_MEMORY_DEBUG'] if name=='test_value_graph_projection' else []
+                debug=['-DXRT_MODULE_MEMORY_DEBUG'] if name in ('test_value_graph_projection','test_value_graph_sequence') else []
                 run(lane+'.build',[cc,*flags,*debug,f'-O{level}','tests/value/'+name+'.c',*links,'-o',str(binary)])
                 proof=run(lane+'.run',[str(binary)])
-                if name=='test_value_graph_projection':
+                if name in ('test_value_graph_projection','test_value_graph_sequence'):
                     match=re.search(r'(\d+) complete allocation failure positions',proof)
                     assert match and int(match[1])>0
-                    report['ProjectionFaultPositions'][str(level)]=int(match[1])
+                    key='ProjectionFaultPositions' if name=='test_value_graph_projection' else 'SequenceFaultPositions'
+                    report[key][str(level)]=int(match[1])
         report['InputsUnchanged']=all(digest(Path(row['Path']))==row['Sha256'] for row in inputs)
         assert report['InputsUnchanged']; report['Complete']=True
     except Exception as error:

@@ -1151,6 +1151,15 @@ typedef int (*xvaluegraphhandlecopyv1)(const xvaluehandleops* pOps,
  * never visited. The same 0/1/-1 and output-ownership contract applies. */
 typedef int (*xvaluegraphobjectcopyv1)(uint64 iTypeId,
 	xvaluegraphnextv1* pNext, xvalue** pTarget, ptr pUserData);
+/* Exact nominal sequence policies for data projection. Only the matching
+ * IntMap/Set identity is written as an Array, in its ordinary iteration order.
+ * Untyped/unlisted containers retain their representation. A listed identity
+ * on the wrong physical type fails closed. The immutable table is borrowed
+ * only for the synchronous copy; no registry or application callback is used. */
+typedef struct xvaluegraphsequencev1 {
+	uint64 TypeId;
+	xvaluetype Type; /* XVALUE_INT_MAP or XVALUE_SET */
+} xvaluegraphsequencev1;
 enum {
 	/* Data snapshots copy container data, not logical identities/lifecycle.
 	 * Unhandled opaque handles are retained, NOT cloned: the downstream
@@ -1163,6 +1172,8 @@ typedef struct xvaluegraphcopyv1 {
 	xvaluegraphhandlecopyv1 CopyHandle;
 	ptr UserData;
 	xvaluegraphobjectcopyv1 CopyObject;
+	const xvaluegraphsequencev1* Sequences;
+	size_t SequenceCount; /* requires XVALUE_GRAPH_COPY_DATA_V1 */
 } xvaluegraphcopyv1;
 XRT_API xvalue* xrtValueGraphCopyV1(const xvalue* pValue,
 	const xvaluegraphcopyv1* pConfig);

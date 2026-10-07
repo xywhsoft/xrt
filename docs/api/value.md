@@ -1719,6 +1719,15 @@ Next 的临时装箱容器/句柄不会因地址被复用而命中另一个值�
 引用，不调用 Clone。消费方仍决定该值的 unsupported 策略，并非
 自动接受所有句柄。Flag 不影响适配器自主构造的目标。
 
+可选 `Sequences` 表只在 DATA 模式下使用。每行声明非零的精确
+TypeId 和 `XVALUE_INT_MAP` / `XVALUE_SET` 源类型；匹配的名义容器
+按原迭代顺序转换为无身份 Array。普通/未登记 IntMap 和 Set 仍
+保留其物理表示；同一身份出现在错误物理类型上报 `XERR_TYPE`。
+该策略由同一内核遍历子值，共用对象/句柄适配器的 memo、环/深度
+检查与失败清理，不调用应用回调、不预先复制另一份图。
+NULL 非空表、非法类型/零身份、重复身份或非 DATA 模式带表报
+`XERR_ARGUMENT`。表仅同步借用，调用期间必须保持不变。
+
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
@@ -6228,7 +6237,7 @@ typedef int (*xvaluegraphobjectcopyv1)(uint64 iTypeId,
 
 ### `xvaluegraphcopyv1`
 
-一次同步图复制的配置。Size 必须等于 sizeof(xvaluegraphcopyv1)；Flags 允许 XVALUE_GRAPH_COPY_DATA_V1；CopyHandle/CopyObject 为可选适配器，共用借用的 UserData，调用结束后不保留配置。
+一次同步图复制的配置。新调用者设置 Size=sizeof(xvaluegraphcopyv1)；原 V1 的截止 CopyObject 的完整前缀大小也接受，新增字段按零处理，不读取调用者对象之后的内存。Flags 允许 XVALUE_GRAPH_COPY_DATA_V1；CopyHandle/CopyObject 为可选适配器，共用借用的 UserData，调用结束后不保留配置。
 
 ```c
 typedef struct xvaluegraphcopyv1 {
@@ -6237,13 +6246,26 @@ typedef struct xvaluegraphcopyv1 {
 	xvaluegraphhandlecopyv1 CopyHandle;
 	ptr UserData;
 	xvaluegraphobjectcopyv1 CopyObject;
+	const xvaluegraphsequencev1* Sequences;
+	size_t SequenceCount;
 } xvaluegraphcopyv1;
 ```
 
 | 字段 | 类型 | 语义 |
 |---|---|---|
-| `Size` | `size_t` | 配置结构体大小，必须等于 `sizeof(xvaluegraphcopyv1)`。 |
+| `Size` | `size_t` | 完整结构体大小；也接受原 V1 完整前缀 `offsetof(xvaluegraphcopyv1, Sequences)`。 |
 | `Flags` | `uint32` | 图复制选项，允许 `XVALUE_GRAPH_COPY_DATA_V1`。 |
 | `CopyHandle` | `xvaluegraphhandlecopyv1` | 可选的句柄复制适配器。 |
 | `UserData` | `ptr` | 两种适配器共用的调用上下文；同步调用期间借用。 |
 | `CopyObject` | `xvaluegraphobjectcopyv1` | 可选的对象投影适配器。 |
+| `Sequences` | `const xvaluegraphsequencev1*` | 精确 TypeId/源类型的不可变序列投影表，仅 DATA 模式使用。 |
+| `SequenceCount` | `size_t` | 表行数，身份必须非零且不重复。 |
+
+### `xvaluegraphsequencev1`
+
+```c
+typedef struct xvaluegraphsequencev1 {
+	uint64 TypeId;
+	xvaluetype Type; /* XVALUE_INT_MAP or XVALUE_SET */
+} xvaluegraphsequencev1;
+```

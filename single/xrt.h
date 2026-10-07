@@ -14022,6 +14022,15 @@ typedef int (*xvaluegraphhandlecopyv1)(const xvaluehandleops* pOps,
  * never visited. The same 0/1/-1 and output-ownership contract applies. */
 typedef int (*xvaluegraphobjectcopyv1)(uint64 iTypeId,
 	xvaluegraphnextv1* pNext, xvalue** pTarget, ptr pUserData);
+/* Exact nominal sequence policies for data projection. Only the matching
+ * IntMap/Set identity is written as an Array, in its ordinary iteration order.
+ * Untyped/unlisted containers retain their representation. A listed identity
+ * on the wrong physical type fails closed. The immutable table is borrowed
+ * only for the synchronous copy; no registry or application callback is used. */
+typedef struct xvaluegraphsequencev1 {
+	uint64 TypeId;
+	xvaluetype Type; /* XVALUE_INT_MAP or XVALUE_SET */
+} xvaluegraphsequencev1;
 enum {
 	/* Data snapshots copy container data, not logical identities/lifecycle.
 	 * Unhandled opaque handles are retained, NOT cloned: the downstream
@@ -14034,6 +14043,8 @@ typedef struct xvaluegraphcopyv1 {
 	xvaluegraphhandlecopyv1 CopyHandle;
 	ptr UserData;
 	xvaluegraphobjectcopyv1 CopyObject;
+	const xvaluegraphsequencev1* Sequences;
+	size_t SequenceCount; /* requires XVALUE_GRAPH_COPY_DATA_V1 */
 } xvaluegraphcopyv1;
 XRT_API xvalue* xrtValueGraphCopyV1(const xvalue* pValue,
 	const xvaluegraphcopyv1* pConfig);
@@ -111043,7 +111054,9 @@ static bool __xrtValueCloneInsert(
 {
 	bool bResult;
 
-	if ( Key.Type == XVALUE_KEY_INDEX ) {
+	/* A declared nominal sequence discards its IntMap keys/Set key mode,
+	 * not its values or their shared graph identities. */
+	if ( pTarget->Type == XVALUE_ARRAY ) {
 		return xrtValueArrayAppendTake(pTarget, pCopy);
 	}
 	if ( Key.Type == XVALUE_KEY_INT ) {
@@ -111138,6 +111151,7 @@ static xvalue* __xrtValueDeepClone(
 	xvalue* pTarget;
 	bool bReady;
 	int iFound;
+	bool bSequence = false;
 
 	if ( pSource == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -111152,6 +111166,12 @@ static xvalue* __xrtValueDeepClone(
 		return NULL;
 	}
 	Type = (xvaluetype)pSource->Type;
+	for (size_t i = 0; i < pContext->Config.SequenceCount; ++i) {
+		const xvaluegraphsequencev1* pSequence = &pContext->Config.Sequences[i];
+		if (pSource->TypeId != pSequence->TypeId) continue;
+		if (Type != pSequence->Type) { __xrtErrorSetType(); return NULL; }
+		bSequence = true; break;
+	}
 	if (Type == XVALUE_OBJECT && pContext->Config.CopyObject) {
 		iFound = __xrtValueCloneFind(pContext, pSource, &pTarget);
 		if (iFound != 0) return iFound > 0 ? pTarget : NULL;
@@ -111183,7 +111203,7 @@ static xvalue* __xrtValueDeepClone(
 	if ( iFound < 0 ) {
 		return NULL;
 	}
-	pTarget = __xrtValueCloneContainer(pSource);
+	pTarget = bSequence ? xrtValueArray() : __xrtValueCloneContainer(pSource);
 	if ( pTarget == NULL ) {
 		return NULL;
 	}
@@ -111228,9 +111248,18 @@ static xvalue* __xrtOwnershipBody_ValueGraphCopy(const xvalue* pValue,
 	xvalueclonecontext Context;
 	xvalue* pResult;
 
-	if (pConfig != NULL && (pConfig->Size != sizeof(*pConfig) ||
-		(pConfig->Flags & ~XVALUE_GRAPH_COPY_DATA_V1) != 0)) {
-		__xrtErrorSetInvalidArgument(); return NULL;
+	/* Accept the original V1 prefix, whose omitted extension is zero-filled.
+	 * Never read trailing fields before validating the supplied size. */
+	const size_t iOriginalSize = offsetof(xvaluegraphcopyv1, Sequences);
+	size_t iConfigSize = 0;
+	if (pConfig != NULL) {
+		/* Prefix callers may have been compiled with an earlier struct
+		 * definition. Inspect and copy their object representation, without
+		 * accessing it through today's larger aggregate type. */
+		memcpy(&iConfigSize, pConfig, sizeof(iConfigSize));
+		if (iConfigSize != sizeof(*pConfig) && iConfigSize != iOriginalSize) {
+			__xrtErrorSetInvalidArgument(); return NULL;
+		}
 	}
 	if ( pValue == NULL ) {
 		__xrtErrorSetInvalidArgument();
@@ -111241,7 +111270,26 @@ static xvalue* __xrtOwnershipBody_ValueGraphCopy(const xvalue* pValue,
 		return NULL;
 	}
 	memset(&Context, 0, sizeof(Context));
-	if (pConfig != NULL) Context.Config = *pConfig;
+	if (pConfig != NULL) memcpy(&Context.Config, pConfig, iConfigSize);
+	if ((Context.Config.Flags & ~XVALUE_GRAPH_COPY_DATA_V1) != 0 ||
+		Context.Config.SequenceCount > SIZE_MAX / sizeof(xvaluegraphsequencev1) ||
+		(Context.Config.SequenceCount != 0 &&
+		(!(Context.Config.Flags & XVALUE_GRAPH_COPY_DATA_V1) ||
+		Context.Config.Sequences == NULL))) {
+		__xrtErrorSetInvalidArgument(); return NULL;
+	}
+	for (size_t i = 0; i < Context.Config.SequenceCount; ++i) {
+		const xvaluegraphsequencev1* pSequence = &Context.Config.Sequences[i];
+		if (pSequence->TypeId == 0 || (pSequence->Type != XVALUE_INT_MAP &&
+			pSequence->Type != XVALUE_SET)) {
+			__xrtErrorSetInvalidArgument(); return NULL;
+		}
+		for (size_t j = 0; j < i; ++j) {
+			if (Context.Config.Sequences[j].TypeId == pSequence->TypeId) {
+				__xrtErrorSetInvalidArgument(); return NULL;
+			}
+		}
+	}
 	pResult = __xrtValueDeepClone(&Context, pValue, 0);
 	/* Residual memo ownership may run Drop callbacks after recursion. Keep
 	 * the borrowed root guarded throughout that final cleanup as well. */
