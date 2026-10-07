@@ -161,6 +161,7 @@ int main(void)
 	xrtNetDialConfigInit(&DialConfig);
 	DialConfig.Family = XNET_FAMILY_IPV4;
 	DialConfig.Timeout = 0;
+	DialConfig.MaxAttempts = TEST_DIAL_OOM_ADDRESS_COUNT;
 
 	/* 大主机名绕过尺寸类缓存，验证入口失败不会留下 Engine 持有。 */
 	memset(sLargeHost, 'h', TEST_DIAL_OOM_HOST_SIZE);
@@ -202,6 +203,21 @@ int main(void)
 		xrtThreadYield();
 	}
 	(void)xrtNetDialStats(pDial, &Stats);
+	if ( (Context.Result != XNET_RESULT_ERROR) ||
+		(Context.ErrorKind != XERR_MEMORY) ||
+		(Stats.State != XNET_DIAL_FAILED) ||
+		(Stats.AttemptsStarted != 0) ||
+		(Stats.AttemptsFailed != 0) ||
+		(Stats.ActiveAttempts != 0) ) {
+		fprintf(stderr,
+			"[FAIL] dial OOM result=%d kind=%d state=%d "
+			"started=%u failed=%u active=%u max=%u\n",
+			(int)Context.Result, (int)Context.ErrorKind,
+			(int)Stats.State, (unsigned)Stats.AttemptsStarted,
+			(unsigned)Stats.AttemptsFailed,
+			(unsigned)Stats.ActiveAttempts,
+			(unsigned)DialConfig.MaxAttempts);
+	}
 	testRequire((Context.Result == XNET_RESULT_ERROR) &&
 		(Context.ErrorKind == XERR_MEMORY) &&
 		(Stats.State == XNET_DIAL_FAILED) &&

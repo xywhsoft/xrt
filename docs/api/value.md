@@ -1736,6 +1736,8 @@ Next 的临时装箱容器/句柄不会因地址被复用而命中另一个值�
 
 #### 范例
 
+基础 DAG 的构造、共享身份和回收流程见已注册的 [值图范例](../../examples/value/graph/main.c)。
+
 精确的回调、混合图共享、丢弃临时结果、根保护、首错和数据快照
 回归见 [adapter test](../../tests/value/test_value_graph_adapter.c)。
 
@@ -1758,8 +1760,8 @@ xvalue* xrtValueGraphNextV1(xvaluegraphnextv1* pNext, const xvalue* pChild)
 
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
-| pNext | 输入 | 当前正在执行的回调所借用 | 不能跨回调、跨线程、保存后使用或使用外层正在挂起的能力 |
-| pChild | 输入 | 非空、稳定的借用节点 | Native owner 应在其自己的 operation pin 下提供这条边 |
+| `pNext` | 输入 | 当前正在执行的回调所借用 | 不能跨回调、跨线程、保存后使用或使用外层正在挂起的能力 |
+| `pChild` | 输入 | 非空、稳定的借用节点 | Native owner 应在其自己的 operation pin 下提供这条边 |
 
 遍历器暂时解除当前路径的外壳保护，内部递归结束后立即恢复；源已在
 active memo 中登记，因此回指祖先会被环检测拒绝，而不是递归失控。
@@ -1772,7 +1774,13 @@ active memo 中登记，因此回指祖先会被环检测拒绝，而不是递�
 | 非空 | 独立拥有的子值，可移交目标，也可释放不用的结果 | — |
 | NULL | 递归失败 | 与 GraphCopy 相同；无当前能力时为 XERR_STATE |
 
+#### 错误
+
+无当前同步能力时为 `XERR_STATE`；其余递归复制的参数、环、深度和内存错误与 `xrtValueGraphCopyV1` 相同。失败保留首个诊断。
+
 #### 范例
+
+基础 DAG 的构造、共享身份和回收流程见已注册的 [值图范例](../../examples/value/graph/main.c)。
 
 ```c
 xvalue* child = xrtValueGraphNextV1(next, borrowedChild);
@@ -1792,16 +1800,21 @@ xvalue* xrtValueGraphObjectGetV1(xvaluegraphnextv1* pNext, xstrview Key)
 
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
-| pNext | 输入 | 当前同步回调能力，源必须是 Object | 不接受挂起的外层、已结束或跨线程的能力 |
-| Key | 输入 | 合法的显式字节视图 | 仅查询该字段，不遍历其它字段 |
+| `pNext` | 输入 | 当前同步回调能力，源必须是 Object | 不接受挂起的外层、已结束或跨线程的能力 |
+| `Key` | 输入 | 合法的显式字节视图 | 仅查询该字段，不遍历其它字段 |
 
-#### 返回值与错误
+#### 返回值
 
 - 非空：借用字段值，只能在当前回调有效期内传给 Next；不得 retain、release 或修改。
 - NULL、错误不变：字段不存在，允许 schema 按自己的缺省/省略规则处理。
-- NULL、新错误：无当前能力为 XERR_STATE；非对象源为 XERR_TYPE；非法键遵循 ObjectGet 的 XERR_ARGUMENT 合同。
+
+#### 错误
+
+无当前能力为 `XERR_STATE`；非对象源为 `XERR_TYPE`；非法键为 `XERR_ARGUMENT`。字段缺失不设置新错误，不能将其与失败混淆。
 
 #### 范例
+
+基础 DAG 的构造、共享身份和回收流程见已注册的 [值图范例](../../examples/value/graph/main.c)。
 
 字段重命名、排除适配器环、混合别名、深度、活动能力、首错与完整逻辑
 分配故障回归见 [projection test](../../tests/value/test_value_graph_projection.c)。
@@ -6181,3 +6194,48 @@ typedef struct xvalueobjectownershipv1 {
 | `FinalizerRelease` | `xvalueobjectfinalizerrelease` | 终结及全部字段销毁之后释放上下文。 |
 | `LifetimeTrace` | `xrtownershiptrace` | 共享 lifetime context 的实际拥有槽枚举入口。 |
 | `LifetimeRelease` | `xvalueobjectfinalizerrelease` | 最后一个拥有 backing 完成字段清理后释放共享 context。 |
+
+
+### `xvaluegraphnextv1`
+
+不透明的同步遍历能力，仅在当前适配回调期间有效；不能保存、跨线程使用或调用已挂起的外层能力。
+
+```c
+typedef struct xvaluegraphnextv1 xvaluegraphnextv1;
+```
+
+
+### `xvaluegraphhandlecopyv1`
+
+句柄适配回调。先验证精确 Ops 身份，随后才能访问句柄。返回 0 且输出 NULL 使用默认策略，1 且输出拥有值表示成功，-1 表示失败；遍历器接管所有非空输出，包括失败路径。通过 pNext 递归。
+
+```c
+typedef int (*xvaluegraphhandlecopyv1)(const xvaluehandleops* pOps,
+	ptr pHandle, ptr pHandleUser, uint64 iTypeId, xvaluegraphnextv1* pNext,
+	xvalue** pTarget, ptr pUserData);
+```
+
+
+### `xvaluegraphobjectcopyv1`
+
+对象投影回调。使用捕获的 TypeId 选择 schema，通过当前 pNext 借用字段并递归复制。采用相同的 0/1/-1 返回与输出接管规则；不遍历未选择字段。
+
+```c
+typedef int (*xvaluegraphobjectcopyv1)(uint64 iTypeId,
+	xvaluegraphnextv1* pNext, xvalue** pTarget, ptr pUserData);
+```
+
+
+### `xvaluegraphcopyv1`
+
+一次同步图复制的配置。Size 必须等于 sizeof(xvaluegraphcopyv1)；Flags 允许 XVALUE_GRAPH_COPY_DATA_V1；CopyHandle/CopyObject 为可选适配器，共用借用的 UserData，调用结束后不保留配置。
+
+```c
+typedef struct xvaluegraphcopyv1 {
+	size_t Size;
+	uint32 Flags;
+	xvaluegraphhandlecopyv1 CopyHandle;
+	ptr UserData;
+	xvaluegraphobjectcopyv1 CopyObject;
+} xvaluegraphcopyv1;
+```

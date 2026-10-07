@@ -11,41 +11,6 @@ Error 是全库统一的结构化错误对象与线程错误报告机制；本�
 尺寸与终止符的总和在分配/复制前检查溢出；失败不取得任何输入的所有权。
 错误保持不可变，视图访问不分配，静态 OOM 错误也有完整的长度。
 
-### `xrtErrorBuildView`
-
-`xerror* xrtErrorBuildView(const xerrordescview* pDesc)`：返回 owned 错误，
-失败返回 NULL 并设置当前错误。数值字段和原因链语义与 `xrtErrorBuild` 相同。
-
-### `xrtErrorBuildViewAt`
-
-`xerror* xrtErrorBuildViewAt(const xerrordescview*, const xerrorlocationview*)`：
-同时复制可选的精确文件名；行列不能为负。旧 C 字符串构造函数只测量一次，
-随后调用这个共同实现。printf 错误格式化保留其返回的实际长度，包括 `%c` 的 NUL。
-
-### `xrtErrorDomainView`
-
-返回完整 Domain 的借用 `xstrview`；`xrtErrorFind` 的 C 字符串域必须与完整视图
-等长且逐字节相等，不能只匹配内嵌 NUL 前缀。
-
-### `xrtErrorOperationView`
-
-返回完整 Operation 的借用 `xstrview`。
-
-### `xrtErrorMessageView`
-
-返回完整 Message 的借用 `xstrview`，包括 NUL 后缀。
-
-### `xrtErrorDataView`
-
-返回完整 Data 的借用 `xstrview`。
-
-### `xrtErrorFileView`
-
-返回完整 File 的借用 `xstrview`。五个访问器对 NULL 错误返回空视图；视图仅在
-错误仍存活时有效。旧 `cstr` 访问器是显式 C 互操入口，按 C 规则只观察到首个
-NUL 之前的前缀；完整内容必须使用 View。text/JSON 日志格式器使用精确视图，
-输出相应的控制字符转义，不把任意诊断文本作为裸 JSON 或格式串执行。
-
 ## 类型与常量
 
 ### `xseek`
@@ -2675,4 +2640,253 @@ typedef bool (*xrtownershiptrace)(const void* pData, xrtownershipvisitor pVisit,
 
 ```c
 typedef bool (*xrtownershipvisitor)(xrtownershipref Reference, ptr pContext);
+```
+
+### `xrtErrorBuildView`
+
+```c
+xerror* xrtErrorBuildView(const xerrordescview* pDesc);
+```
+
+按精确字节长度复制诊断文本，支持内嵌 NUL；一次分配同时保存错误对象和全部文本。输入视图只在调用期间借用，成功后不保留调用方缓冲区。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pDesc` | `const xerrordescview*` | 必须非空；类别有效。每个文本视图允许 NULL/0，拒绝 NULL/非零长度。Cause 在成功构造时增加引用。 |
+
+#### 返回值
+
+拥有的新错误对象，用后调用 `xrtErrorFree`。失败返回 NULL，不取得输入或 Cause 的所有权。
+
+#### 错误
+
+- `XERR_ARGUMENT`：描述、文本视图、类别或源码位置无效。
+- `XERR_RANGE`：对象、各文本与终止符的总大小溢出。
+- `XERR_MEMORY`：分配失败。
+- `XERR_STATE`：Cause 无法取得有效引用。
+
+#### 范例
+
+原因链和拥有引用的完整使用流程见已注册的 [错误范例](../../examples/core/error/main.c)。精确文本可以按同一回收流程构造：
+
+```c
+const char message[] = { 'a', 0, 'b' };
+xerrordescview desc = {0};
+desc.Kind = XERR_IO;
+desc.Message = (xstrview){message, sizeof(message)};
+xerror* error = xrtErrorBuildView(&desc);
+/* 检查 error；使用其视图后调用 xrtErrorFree(error)。 */
+```
+
+
+### `xrtErrorBuildViewAt`
+
+```c
+xerror* xrtErrorBuildViewAt(const xerrordescview* pDesc, const xerrorlocationview* pLocation);
+```
+
+按精确字节长度复制诊断文本，支持内嵌 NUL；一次分配同时保存错误对象和全部文本。输入视图只在调用期间借用，成功后不保留调用方缓冲区。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pDesc` | `const xerrordescview*` | 必须非空；类别有效。每个文本视图允许 NULL/0，拒绝 NULL/非零长度。Cause 在成功构造时增加引用。 |
+| `pLocation` | `const xerrorlocationview*` | 可空；文件名按完整长度复制，行列必须非负。 |
+
+#### 返回值
+
+拥有的新错误对象，用后调用 `xrtErrorFree`。失败返回 NULL，不取得输入或 Cause 的所有权。
+
+#### 错误
+
+- `XERR_ARGUMENT`：描述、文本视图、类别或源码位置无效。
+- `XERR_RANGE`：对象、各文本与终止符的总大小溢出。
+- `XERR_MEMORY`：分配失败。
+- `XERR_STATE`：Cause 无法取得有效引用。
+
+#### 范例
+
+原因链和拥有引用的完整使用流程见已注册的 [错误范例](../../examples/core/error/main.c)。精确文本可以按同一回收流程构造：
+
+```c
+const char message[] = { 'a', 0, 'b' };
+xerrordescview desc = {0};
+desc.Kind = XERR_IO;
+desc.Message = (xstrview){message, sizeof(message)};
+xerror* error = xrtErrorBuildViewAt(&desc, NULL);
+/* 检查 error；使用其视图后调用 xrtErrorFree(error)。 */
+```
+
+
+### `xrtErrorDomainView`
+
+```c
+xstrview xrtErrorDomainView(const xerror* pError);
+```
+
+返回 Domain 的完整借用字节视图，保留内嵌 NUL 后的文本；访问不分配内存。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pError` | `const xerror*` | 借用错误对象，可为 NULL。 |
+
+#### 返回值
+
+`xstrview` 的 Data/Size 描述全部诊断字节。NULL 错误返回空视图；结果只在错误存活期间有效，不可释放或修改。
+
+#### 范例
+
+对象获取和释放见已注册的 [错误范例](../../examples/core/error/main.c)；完整文本读取方式如下：
+
+```c
+xstrview view = xrtErrorDomainView(pError);
+/* 按 view.Size 消费 view.Data；不要用 strlen 推断完整长度。 */
+```
+
+
+### `xrtErrorOperationView`
+
+```c
+xstrview xrtErrorOperationView(const xerror* pError);
+```
+
+返回 Operation 的完整借用字节视图，保留内嵌 NUL 后的文本；访问不分配内存。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pError` | `const xerror*` | 借用错误对象，可为 NULL。 |
+
+#### 返回值
+
+`xstrview` 的 Data/Size 描述全部诊断字节。NULL 错误返回空视图；结果只在错误存活期间有效，不可释放或修改。
+
+#### 范例
+
+对象获取和释放见已注册的 [错误范例](../../examples/core/error/main.c)；完整文本读取方式如下：
+
+```c
+xstrview view = xrtErrorOperationView(pError);
+/* 按 view.Size 消费 view.Data；不要用 strlen 推断完整长度。 */
+```
+
+
+### `xrtErrorMessageView`
+
+```c
+xstrview xrtErrorMessageView(const xerror* pError);
+```
+
+返回 Message 的完整借用字节视图，保留内嵌 NUL 后的文本；访问不分配内存。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pError` | `const xerror*` | 借用错误对象，可为 NULL。 |
+
+#### 返回值
+
+`xstrview` 的 Data/Size 描述全部诊断字节。NULL 错误返回空视图；结果只在错误存活期间有效，不可释放或修改。
+
+#### 范例
+
+对象获取和释放见已注册的 [错误范例](../../examples/core/error/main.c)；完整文本读取方式如下：
+
+```c
+xstrview view = xrtErrorMessageView(pError);
+/* 按 view.Size 消费 view.Data；不要用 strlen 推断完整长度。 */
+```
+
+
+### `xrtErrorDataView`
+
+```c
+xstrview xrtErrorDataView(const xerror* pError);
+```
+
+返回 Data 的完整借用字节视图，保留内嵌 NUL 后的文本；访问不分配内存。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pError` | `const xerror*` | 借用错误对象，可为 NULL。 |
+
+#### 返回值
+
+`xstrview` 的 Data/Size 描述全部诊断字节。NULL 错误返回空视图；结果只在错误存活期间有效，不可释放或修改。
+
+#### 范例
+
+对象获取和释放见已注册的 [错误范例](../../examples/core/error/main.c)；完整文本读取方式如下：
+
+```c
+xstrview view = xrtErrorDataView(pError);
+/* 按 view.Size 消费 view.Data；不要用 strlen 推断完整长度。 */
+```
+
+
+### `xrtErrorFileView`
+
+```c
+xstrview xrtErrorFileView(const xerror* pError);
+```
+
+返回 File 的完整借用字节视图，保留内嵌 NUL 后的文本；访问不分配内存。
+
+#### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `pError` | `const xerror*` | 借用错误对象，可为 NULL。 |
+
+#### 返回值
+
+`xstrview` 的 Data/Size 描述全部诊断字节。NULL 错误返回空视图；结果只在错误存活期间有效，不可释放或修改。
+
+#### 范例
+
+对象获取和释放见已注册的 [错误范例](../../examples/core/error/main.c)；完整文本读取方式如下：
+
+```c
+xstrview view = xrtErrorFileView(pError);
+/* 按 view.Size 消费 view.Data；不要用 strlen 推断完整长度。 */
+```
+
+
+### `xerrordescview`
+
+错误构造描述。Kind/Code/SystemCode 保留数值诊断；Domain、Operation、Message、Data 是调用期间借用的精确文本视图，构造器复制所有字节并保留 Cause 引用。
+
+```c
+typedef struct xerrordescview {
+	xerrkind Kind;
+	int32 Code;
+	int32 SystemCode;
+	xstrview Domain;
+	xstrview Operation;
+	xstrview Message;
+	xstrview Data;
+	const xerror* Cause;
+} xerrordescview;
+```
+
+
+### `xerrorlocationview`
+
+可选源码位置。File 是精确文本视图，Line/Column 必须非负；构造器复制 File，零值表示未提供相应位置。
+
+```c
+typedef struct xerrorlocationview {
+	xstrview File;
+	int32 Line;
+	int32 Column;
+} xerrorlocationview;
 ```
