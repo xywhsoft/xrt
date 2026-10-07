@@ -8,6 +8,8 @@ typedef struct graphadapterstate {
     int Calls;
     int Clones;
     int Drops;
+    int TransientClones;
+    int TransientDrops;
 } graphadapterstate;
 static bool cloneOpaque(ptr raw,ptr* copy,ptr user)
 { graphadapterstate* state=user; ++state->Clones; *copy=raw; return true; }
@@ -17,6 +19,11 @@ static void dropFailure(ptr raw,ptr user)
 { (void)raw; (void)user; xrtSetErrorKind(XERR_TYPE); }
 static const xvaluehandleops opaque={cloneOpaque,dropOpaque,NULL,NULL};
 static const xvaluehandleops failing={NULL,dropFailure,NULL,NULL};
+static bool cloneTransient(ptr raw,ptr* copy,ptr user)
+{ ++((graphadapterstate*)user)->TransientClones; *copy=raw; return true; }
+static void dropTransient(ptr raw,ptr user)
+{ (void)raw; ++((graphadapterstate*)user)->TransientDrops; }
+static const xvaluehandleops transient={cloneTransient,dropTransient,NULL,NULL};
 static void guarded(xvalue* value)
 {
     testRequire(xrtValueRetain(value)==NULL && xrtErrorKind(xrtGetError())==XERR_STATE,
@@ -28,6 +35,22 @@ static int adapt(const xvaluehandleops* ops,ptr raw,ptr handleUser,uint64 identi
     graphadapterstate* state=user; (void)raw; (void)identity;
     if (ops!=&opaque || handleUser!=state) return 0;
     ++state->Calls; guarded(state->Root); guarded(state->Handle);
+    if (state->Mode==6) {
+        *target=xrtValueArray();
+        if (!*target) return -1;
+        for (uintptr_t at=1;at<=70;++at) {
+            ptr data=(ptr)at;
+            xvalue* source=xrtValueHandleTake(&data,&transient,state);
+            xvalue* copy=source ? xrtValueGraphNextV1(next,source) : NULL;
+            xrtValueRelease(source);
+            if (!copy) return -1;
+            data=NULL;
+            testRequire(xrtValueGetHandle(copy,&data,NULL,NULL) && data==(ptr)at,
+                "transient source address reused an earlier memo identity");
+            if (!xrtValueArrayAppendTake(*target,&copy)) { xrtValueRelease(copy); return -1; }
+        }
+        return 1;
+    }
     if (state->Mode==3) {
         ptr pointer=state; *target=xrtValueHandleTake(&pointer,&failing,NULL);
         testRequire(*target!=NULL,"failure output fixture"); xrtSetErrorKind(XERR_IO); return -1;
@@ -62,7 +85,7 @@ int main(void)
     ptr pointer=&state; state.Handle=xrtValueHandleTake(&pointer,&opaque,&state);
     testRequire(state.Handle && !pointer && xrtValueArrayAppend(state.Root,state.Handle) &&
         xrtValueArrayAppend(state.Root,state.Child),"root fixture");
-    xvaluegraphcopyv1 config={sizeof(config),0,adapt,&state};
+    xvaluegraphcopyv1 config={.Size=sizeof(config),.CopyHandle=adapt,.UserData=&state};
     xvalue* result=xrtValueGraphCopyV1(state.Root,&config); testRequire(result!=NULL,"mixed copy");
     xvalue* output=xrtValueArrayAt(result,0),*child=xrtValueArrayAt(result,1);
     testRequire(child!=state.Child && xrtValueArrayAt(output,0)==child && xrtValueArrayAt(output,1)==child,
@@ -85,6 +108,12 @@ int main(void)
     testRequire(result==state.Handle && state.Clones==clones,"opaque root data snapshot changed the handle");
     xrtValueRelease(result);
     config.CopyHandle=adapt; config.Flags=0; state.Mode=0;
+    state.Mode=6; result=xrtValueGraphCopyV1(state.Root,&config);
+    testRequire(result && xrtValueCount(xrtValueArrayAt(result,0))==70,"transient source graph");
+    xrtValueRelease(result);
+    testRequire(state.TransientClones==70 && state.TransientDrops==140,
+        "transient source/target memo pins unbalanced");
+    state.Mode=0;
     xvalue* saved=state.Child; state.Child=state.Handle;
     testRequire(!xrtValueGraphCopyV1(state.Root,&config),"adapter continuation accepted its active source");
     requireError(XERR_VALUE); state.Child=saved;

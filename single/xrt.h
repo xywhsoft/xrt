@@ -14016,6 +14016,12 @@ typedef struct xvaluegraphnextv1 xvaluegraphnextv1;
 typedef int (*xvaluegraphhandlecopyv1)(const xvaluehandleops* pOps,
 	ptr pHandle, ptr pHandleUser, uint64 iTypeId, xvaluegraphnextv1* pNext,
 	xvalue** pTarget, ptr pUserData);
+/* Optional object schema projection before ordinary traversal. TypeId is
+ * captured before the source is guarded. Select object fields through the
+ * current capability, then recurse only through Next; excluded fields are
+ * never visited. The same 0/1/-1 and output-ownership contract applies. */
+typedef int (*xvaluegraphobjectcopyv1)(uint64 iTypeId,
+	xvaluegraphnextv1* pNext, xvalue** pTarget, ptr pUserData);
 enum {
 	/* Data snapshots copy container data, not logical identities/lifecycle.
 	 * Unhandled opaque handles are retained, NOT cloned: the downstream
@@ -14027,11 +14033,17 @@ typedef struct xvaluegraphcopyv1 {
 	uint32 Flags;
 	xvaluegraphhandlecopyv1 CopyHandle;
 	ptr UserData;
+	xvaluegraphobjectcopyv1 CopyObject;
 } xvaluegraphcopyv1;
 XRT_API xvalue* xrtValueGraphCopyV1(const xvalue* pValue,
 	const xvaluegraphcopyv1* pConfig);
 XRT_API xvalue* xrtValueGraphNextV1(xvaluegraphnextv1* pNext,
 	const xvalue* pChild);
+/* Borrow one field of the current object without exposing an unguarded
+ * source shell. NULL means absent (unchanged error), or failure (new error).
+ * The edge must not be retained/released/mutated; pass it directly to Next. */
+XRT_API xvalue* xrtValueGraphObjectGetV1(xvaluegraphnextv1* pNext,
+	xstrview Key);
 
 
 
@@ -110444,6 +110456,7 @@ typedef struct xvalueclonestate {
 	xvalue* Target;
 	bool Active;
 	bool Held;
+	bool SourceHeld;
 } xvalueclonestate;
 
 
@@ -110471,6 +110484,7 @@ typedef struct xvalueclonecontext {
 
 struct xvaluegraphnextv1 {
 	xvalueclonecontext* Context;
+	const xvalue* Source;
 	uint32 Depth;
 	size_t GuardCount;
 };
@@ -110605,6 +110619,14 @@ static bool __xrtValueCloneStart(
 	State.Target = pTarget;
 	State.Active = true;
 	State.Held = false;
+	State.SourceHeld = pExisting != NULL && pExisting->SourceHeld;
+	/* Adapters can supply transient boxed sources to Next. Keep their shells
+	 * alive as long as their identity is in the memo: otherwise allocator
+	 * address reuse can make a different source hit an old completed entry. */
+	if (pContext->Config.Size && !State.SourceHeld) {
+		if (!xrtValueRetain(pSource)) return false;
+		State.SourceHeld = true;
+	}
 	if (pExisting != NULL) { *pExisting = State; return true; }
 	if ( pContext->InlineCount < XRT_VALUE_GRAPH_INLINE ) {
 		xvaluecloneentry* pEntry =
@@ -110619,15 +110641,18 @@ static bool __xrtValueCloneStart(
 			&pContext->Overflow,
 			sizeof(xvalueclonestate)
 		) ) {
+			if (State.SourceHeld) xrtValueRelease((xvalue*)pSource);
 			return false;
 		}
 		pContext->OverflowReady = true;
 	}
-	return xrtMapSet(
+	bool bReady = xrtMapSet(
 		&pContext->Overflow,
 		__xrtValueGraphPointerKey(&pSource),
 		&State
 	);
+	if (!bReady && State.SourceHeld) xrtValueRelease((xvalue*)pSource);
+	return bReady;
 }
 
 
@@ -110676,11 +110701,18 @@ static void __xrtValueCloneUnit(xvalueclonecontext* pContext)
 		xmapiter Iterator;
 		if (!xrtMapIterRBegin(&pContext->Overflow, &Iterator)) abort();
 		xvalueclonestate* pState;
-		while ((pState = xrtMapIterNext(&Iterator, NULL)) != NULL) {
+		xbytesview Key;
+		while ((pState = xrtMapIterNext(&Iterator, &Key)) != NULL) {
 			if (pState->Held) {
 				xvalue* pTarget = pState->Target;
 				pState->Target = NULL; pState->Held = false;
 				__xrtValueCloneMemoRelease(pContext, pTarget);
+			}
+			if (pState->SourceHeld) {
+				const xvalue* pSource;
+				memcpy(&pSource, Key.Data, sizeof(pSource));
+				pState->SourceHeld = false;
+				__xrtValueCloneMemoRelease(pContext, (xvalue*)pSource);
 			}
 		}
 		xrtMapIterEnd(&Iterator);
@@ -110691,6 +110723,10 @@ static void __xrtValueCloneUnit(xvalueclonecontext* pContext)
 			xvalue* pTarget = pState->Target;
 			pState->Target = NULL; pState->Held = false;
 			__xrtValueCloneMemoRelease(pContext, pTarget);
+		}
+		if (pState->SourceHeld) {
+			pState->SourceHeld = false;
+			__xrtValueCloneMemoRelease(pContext, (xvalue*)pContext->Inline[i - 1u].Source);
 		}
 	}
 	if ( pContext->OverflowReady ) {
@@ -110807,27 +110843,52 @@ XRT_API xvalue* xrtValueGraphNextV1(xvaluegraphnextv1* pNext, const xvalue* pChi
 	XRT_VALUE_MUTATION_RETURN(xvalue*, __xrtValueGraphNext(pNext, pChild));
 }
 
+/* The public object getter is a callback-free borrowed read. Only the current
+ * synchronous capability can briefly suspend its shell guards around that
+ * read; no caller code executes before the complete guard path is restored. */
+XRT_API xvalue* xrtValueGraphObjectGetV1(xvaluegraphnextv1* pNext, xstrview Key)
+{
+	xvalueclonecontext* pContext;
+	xvalue* pChild;
+	if (pNext == NULL || pNext->Context == NULL ||
+		pNext->Context->Cursor != pNext) {
+		__xrtErrorSetInvalidState(); return NULL;
+	}
+	if (pNext->Source->Type != XVALUE_OBJECT) {
+		__xrtErrorSetType(); return NULL;
+	}
+	pContext = pNext->Context;
+	__xrtValueCallbackUnprotect(pContext->Active, pNext->GuardCount);
+	pChild = xrtValueObjectGet(pNext->Source, Key);
+	if (!__xrtValueCallbackProtect(pContext->Active, pNext->GuardCount)) return NULL;
+	return pChild;
+}
+
 /* Handle adaptation starts the SAME memo before callback code, not after
  * recursion has already happened. Output ownership always returns here. */
-static int __xrtValueCloneAdaptHandle(xvalueclonecontext* pContext,
-	const xvalue* pSource, uint32 iDepth, xvalue** pTarget)
+static int __xrtValueCloneAdapt(xvalueclonecontext* pContext,
+	const xvalue* pSource, uint32 iDepth, bool bObject, xvalue** pTarget)
 {
 	xvaluegraphnextv1 Next;
 	xvalueclonestate* pState;
 	const xerror* pBefore;
 	int iResult;
-	if (!pContext->Config.CopyHandle) return 0;
+	if (bObject ? !pContext->Config.CopyObject : !pContext->Config.CopyHandle) return 0;
 	if (!__xrtValueCloneStart(pContext, pSource, NULL) ||
 		!__xrtValueClonePush(pContext, pSource)) return -1;
 	if (!__xrtValueCallbackProtect(pContext->Active, pContext->ActiveCount)) {
 		__xrtValueClonePop(pContext); return -1;
 	}
-	Next = (xvaluegraphnextv1){pContext, iDepth, pContext->ActiveCount};
+	Next = (xvaluegraphnextv1){pContext, pSource, iDepth, pContext->ActiveCount};
 	pContext->Cursor = &Next;
 	pBefore = xrtGetError();
-	iResult = pContext->Config.CopyHandle(pSource->Data.Handle.Ops,
-		pSource->Data.Handle.Data, pSource->Data.Handle.UserData, pSource->TypeId,
-		&Next, pTarget, pContext->Config.UserData);
+	if (bObject)
+		iResult = pContext->Config.CopyObject(pSource->TypeId,
+			&Next, pTarget, pContext->Config.UserData);
+	else
+		iResult = pContext->Config.CopyHandle(pSource->Data.Handle.Ops,
+			pSource->Data.Handle.Data, pSource->Data.Handle.UserData, pSource->TypeId,
+			&Next, pTarget, pContext->Config.UserData);
 	pContext->Cursor = NULL;
 	Next.Context = NULL;
 	__xrtValueCallbackUnprotect(pContext->Active, pContext->ActiveCount);
@@ -111091,10 +111152,16 @@ static xvalue* __xrtValueDeepClone(
 		return NULL;
 	}
 	Type = (xvaluetype)pSource->Type;
+	if (Type == XVALUE_OBJECT && pContext->Config.CopyObject) {
+		iFound = __xrtValueCloneFind(pContext, pSource, &pTarget);
+		if (iFound != 0) return iFound > 0 ? pTarget : NULL;
+		iFound = __xrtValueCloneAdapt(pContext, pSource, iDepth, true, &pTarget);
+		if (iFound != 0) return iFound > 0 ? pTarget : NULL;
+	}
 	if ( Type == XVALUE_HANDLE ) {
 		iFound = __xrtValueCloneFind(pContext, pSource, &pTarget);
 		if (iFound != 0) return iFound > 0 ? pTarget : NULL;
-		iFound = __xrtValueCloneAdaptHandle(pContext, pSource, iDepth, &pTarget);
+		iFound = __xrtValueCloneAdapt(pContext, pSource, iDepth, false, &pTarget);
 		if (iFound != 0) return iFound > 0 ? pTarget : NULL;
 		if (pContext->Config.Flags & XVALUE_GRAPH_COPY_DATA_V1) {
 			pTarget = xrtValueRetain(pSource);

@@ -1145,6 +1145,12 @@ typedef struct xvaluegraphnextv1 xvaluegraphnextv1;
 typedef int (*xvaluegraphhandlecopyv1)(const xvaluehandleops* pOps,
 	ptr pHandle, ptr pHandleUser, uint64 iTypeId, xvaluegraphnextv1* pNext,
 	xvalue** pTarget, ptr pUserData);
+/* Optional object schema projection before ordinary traversal. TypeId is
+ * captured before the source is guarded. Select object fields through the
+ * current capability, then recurse only through Next; excluded fields are
+ * never visited. The same 0/1/-1 and output-ownership contract applies. */
+typedef int (*xvaluegraphobjectcopyv1)(uint64 iTypeId,
+	xvaluegraphnextv1* pNext, xvalue** pTarget, ptr pUserData);
 enum {
 	/* Data snapshots copy container data, not logical identities/lifecycle.
 	 * Unhandled opaque handles are retained, NOT cloned: the downstream
@@ -1156,11 +1162,17 @@ typedef struct xvaluegraphcopyv1 {
 	uint32 Flags;
 	xvaluegraphhandlecopyv1 CopyHandle;
 	ptr UserData;
+	xvaluegraphobjectcopyv1 CopyObject;
 } xvaluegraphcopyv1;
 XRT_API xvalue* xrtValueGraphCopyV1(const xvalue* pValue,
 	const xvaluegraphcopyv1* pConfig);
 XRT_API xvalue* xrtValueGraphNextV1(xvaluegraphnextv1* pNext,
 	const xvalue* pChild);
+/* Borrow one field of the current object without exposing an unguarded
+ * source shell. NULL means absent (unchanged error), or failure (new error).
+ * The edge must not be retained/released/mutated; pass it directly to Next. */
+XRT_API xvalue* xrtValueGraphObjectGetV1(xvaluegraphnextv1* pNext,
+	xstrview Key);
 
 
 

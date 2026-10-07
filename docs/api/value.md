@@ -1698,10 +1698,20 @@ opaque Data。回调返回 0 且输出 NULL 表示使用普通句柄策略；1 �
 该回调类型为 `xvaluegraphhandlecopyv1`；配置和 continuation 都只在
 一次同步调用内有效，不建立保存任意用户回调的全局图协议。
 
+可选 `CopyObject`（`xvaluegraphobjectcopyv1`）先于普通对象遍历运行，
+接收已捕获的 TypeId 和当前同步能力。调用者据此选择明确的类/格式
+schema，通过 `xrtValueGraphObjectGetV1` 借用需要的字段，再调用 Next；
+未选择的字段不遍历，因此私有资源、被排除的适配器环不会提前报错。
+它与 CopyHandle 使用同一 0/1/-1、输出接管、首错和活动路径保护合同。
+回调返回 0 后恢复普通对象遍历，不影响普通标量的零分配路径。
+
 每个回调只借用一个同步 `xvaluegraphnextv1` 能力，不得保存它。递归
 必须调用 Next，不能另起一次 GraphCopy；同一次遍历按源 Value 外壳
 身份保留重复子值的共享，不按内容去重。已完成的目标另有 memo 引用，
 因此回调可以释放暂时不用的 Next 结果，后续别名不会指向已释放对象。
+配置式遍历还持有进入 memo 的源外壳，直至遍历清理完成：回调传给
+Next 的临时装箱容器/句柄不会因地址被复用而命中另一个值的 memo。
+这不复制源内容，也不改变 config=NULL 的普通深拷贝路径。
 活动路径在回调前后都受保护；回调不得修改、保留或释放源图节点。
 
 `XVALUE_GRAPH_COPY_DATA_V1` 用于数据快照：基础容器只复制数据，不
@@ -1730,13 +1740,15 @@ opaque Data。回调返回 0 且输出 NULL 表示使用普通句柄策略；1 �
 回归见 [adapter test](../../tests/value/test_value_graph_adapter.c)。
 
 ```c
-xvaluegraphcopyv1 config = { sizeof(config), 0, residentCopyHandle, context };
+xvaluegraphcopyv1 config = {
+    .Size = sizeof(config), .CopyHandle = residentCopyHandle, .UserData = context
+};
 xvalue* copy = xrtValueGraphCopyV1(source, &config);
 ```
 
 ### `xrtValueGraphNextV1`
 
-在当前句柄回调内，使用同一张身份表、深度计数和环检测复制一个子值。
+在当前句柄或对象 schema 回调内，使用同一张身份表、深度计数和环检测复制一个子值。
 
 ```c
 xvalue* xrtValueGraphNextV1(xvaluegraphnextv1* pNext, const xvalue* pChild)
@@ -1765,6 +1777,38 @@ active memo 中登记，因此回指祖先会被环检测拒绝，而不是递�
 ```c
 xvalue* child = xrtValueGraphNextV1(next, borrowedChild);
 /* Transfer child into the adapter's result, or xrtValueRelease(child). */
+```
+
+### `xrtValueGraphObjectGetV1`
+
+在当前对象投影能力内读取一个字段，只返回借用边，不泄露可修改的源外壳。
+读操作期间由遍历器暂时解除保护，调用者代码恢复执行前重建整条活动路径保护。
+
+```c
+xvalue* xrtValueGraphObjectGetV1(xvaluegraphnextv1* pNext, xstrview Key)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| pNext | 输入 | 当前同步回调能力，源必须是 Object | 不接受挂起的外层、已结束或跨线程的能力 |
+| Key | 输入 | 合法的显式字节视图 | 仅查询该字段，不遍历其它字段 |
+
+#### 返回值与错误
+
+- 非空：借用字段值，只能在当前回调有效期内传给 Next；不得 retain、release 或修改。
+- NULL、错误不变：字段不存在，允许 schema 按自己的缺省/省略规则处理。
+- NULL、新错误：无当前能力为 XERR_STATE；非对象源为 XERR_TYPE；非法键遵循 ObjectGet 的 XERR_ARGUMENT 合同。
+
+#### 范例
+
+字段重命名、排除适配器环、混合别名、深度、活动能力、首错与完整逻辑
+分配故障回归见 [projection test](../../tests/value/test_value_graph_projection.c)。
+
+```c
+xvalue* borrowed = xrtValueGraphObjectGetV1(next, (xstrview){ "public", 6 });
+xvalue* projected = borrowed ? xrtValueGraphNextV1(next, borrowed) : NULL;
 ```
 
 ### `xrtValueClear`
