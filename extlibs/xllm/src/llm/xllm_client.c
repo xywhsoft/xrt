@@ -846,7 +846,7 @@ xllm_result xllmCallWait(xllm_call* pCall, xllm_response** ppResponse, xllm_erro
                 !(pCall->pDialect == xllm__dialect_completions() &&
                   pCall->pResponse && pCall->pResponse->sFinishReason &&
                   pCall->pResponse->sFinishReason[0])) {
-                xllm__error_set(&pCall->tError, XLLM_ERROR_PROTOCOL,
+                xllm__error_set(&pCall->tError, XLLM_ERROR_INCOMPLETE_RESPONSE,
                     "provider event stream ended before its terminal event");
                 bParsed = false;
             }

@@ -143,7 +143,8 @@ typedef enum xllm_error_code {
     XLLM_ERROR_PARSE,
     /* Session-layer additions (appended: existing values stay stable). */
     XLLM_ERROR_LIMIT,   /* a single message exceeds the configured byte cap */
-    XLLM_ERROR_HOOK     /* a host-supplied session hook failed or re-entered */
+    XLLM_ERROR_HOOK,    /* a host-supplied session hook failed or re-entered */
+    XLLM_ERROR_INCOMPLETE_RESPONSE /* valid stream ended before model termination */
 } xllm_error_code;
 
 /* Retry diagnostics (attempt, limit, retry-after, retryable). */

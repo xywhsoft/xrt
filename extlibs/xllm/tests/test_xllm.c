@@ -1903,7 +1903,7 @@ static void test_stream_terminal_contract(void)
                 "explicit model terminal event completes exactly once");
         } else {
             CHECK(result != XLLM_RESULT_OK && !response && events.iDone == 0 &&
-                error.eCode == XLLM_ERROR_PROTOCOL &&
+                error.eCode == XLLM_ERROR_INCOMPLETE_RESPONSE &&
                 strstr(error.sMessage, "terminal event") != NULL,
                 "valid partial SSE at EOF cannot complete or dispatch tools");
         }
