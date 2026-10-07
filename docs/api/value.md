@@ -6269,3 +6269,8 @@ typedef struct xvaluegraphsequencev1 {
 	xvaluetype Type; /* XVALUE_INT_MAP or XVALUE_SET */
 } xvaluegraphsequencev1;
 ```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `TypeId` | `uint64` | 要投影的名义容器类型身份；必须非零，并与表中其他行不同。 |
+| `Type` | `xvaluetype` | 要匹配的源容器类型，允许 `XVALUE_INT_MAP` 或 `XVALUE_SET`；匹配时投影为 Array。 |

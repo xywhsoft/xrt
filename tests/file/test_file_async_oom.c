@@ -1,13 +1,14 @@
 #include "../test.h"
+#include <stdatomic.h>
 
 
 
 /* 可指定失败序号的分配器用于覆盖同步受理和工作线程结果分配。 */
 typedef struct testasyncfileoom {
-	size_t Calls;
-	size_t FailAt;
-	size_t Live;
-	bool Hit;
+	_Atomic size_t Calls;
+	_Atomic size_t FailAt;
+	_Atomic size_t Live;
+	atomic_bool Hit;
 } testasyncfileoom;
 
 
@@ -31,9 +32,10 @@ static ptr testAsyncFileOomAlloc(
 	testasyncfileoom* pState =
 		(testasyncfileoom*)pData;
 	ptr pMemory;
+	size_t iCall;
 
-	pState->Calls++;
-	if ( pState->Calls == pState->FailAt ) {
+	iCall = ++pState->Calls;
+	if ( iCall == pState->FailAt ) {
 		pState->Hit = true;
 		return NULL;
 	}
@@ -56,9 +58,10 @@ static ptr testAsyncFileOomRealloc(
 	testasyncfileoom* pState =
 		(testasyncfileoom*)pData;
 	ptr pResult;
+	size_t iCall;
 
-	pState->Calls++;
-	if ( pState->Calls == pState->FailAt ) {
+	iCall = ++pState->Calls;
+	if ( iCall == pState->FailAt ) {
 		pState->Hit = true;
 		return NULL;
 	}
@@ -240,6 +243,22 @@ static void testAsyncFileOomCloseFixture(xasyncfile* pFile)
 
 
 
+/* Future 终态早于任务的物理回收，泄漏基线必须在工作线程回收尾部之后记录。 */
+static void testAsyncFileOomWaitWorker(xtaskpool* pPool)
+{
+	for ( unsigned i = 0; i < 2000u; i++ ) {
+		xtaskpoolstats Stats;
+		testRequire(xrtTaskPoolGet(pPool, &Stats), "async file OOM pool stats failed");
+		if ( Stats.Queued == 0 && Stats.Running == 0 ) {
+			return;
+		}
+		xrtSleep(1u);
+	}
+	testRequire(false, "async file OOM worker cleanup wait failed");
+}
+
+
+
 /* 验证创建、任务参数、写入副本和异步结果 OOM 都完整回滚。 */
 int main(void)
 {
@@ -262,6 +281,7 @@ int main(void)
 	xfuture* pCloseFuture;
 	unsigned char* pSource;
 	str sPath;
+	str sInvalidPath;
 	size_t iBaseline;
 	size_t iFailAt;
 	size_t iOpenCount = 0;
@@ -295,9 +315,30 @@ int main(void)
 		"async file OOM worker warm state mismatch"
 	);
 	xrtFutureDestroy(pWarmFuture);
+	testAsyncFileOomWaitWorker(pPool);
 	xrtFileOptionsInit(&Options);
 	Options.Flags = XFILE_READ | XFILE_WRITE |
 		XFILE_CREATE | XFILE_TRUNCATE;
+	/* 预热实际 Open/Close 的尺寸类；缓存增长不能被计入故障回滚泄漏。 */
+	pFile = xrtAsyncFileOpen(pPool, sPath, &Options);
+	testRequire(pFile != NULL, "async file OOM lifecycle warm open failed");
+	testAsyncFileOomCloseFixture(pFile);
+	pWarmFuture = xrtTaskSubmit(pPool, testAsyncFileOomWarmTask, NULL, NULL);
+	testRequire(pWarmFuture != NULL, "async file OOM lifecycle warm barrier submit failed");
+	testRequire(xrtFutureWaitFor(pWarmFuture, INT64_C(2000)) == XWAIT_OK &&
+		xrtFutureState(pWarmFuture) == XFUTURE_RESOLVED,
+		"async file OOM lifecycle warm barrier wait failed");
+	xrtFutureDestroy(pWarmFuture);
+	testAsyncFileOomWaitWorker(pPool);
+	/* 失败的原生 Open 会包装 Error，先建立该错误的缓存尺寸类。 */
+	sInvalidPath = xrtPathJoin(sPath, "unavailable");
+	testRequire(sInvalidPath != NULL, "async file OOM error warm path failed");
+	testRequire(xrtAsyncFileOpen(pPool, sInvalidPath, &Options) == NULL &&
+		xrtGetError() != NULL &&
+		strcmp(xrtErrorDomain(xrtGetError()), "xrt.file.async") == 0,
+		"async file OOM error warm open failed");
+	xrtClearError();
+	xrtFree(sInvalidPath);
 
 	/*
 		保留成功创建的对象，直到必需尺寸类申请新 span。
@@ -335,6 +376,10 @@ int main(void)
 	xrtClearError();
 	for ( size_t i = 0; i < iOpenCount; i++ ) {
 		testAsyncFileOomCloseFixture(arrOpen[i]);
+	}
+	if ( State.Live != iBaseline ) {
+		fprintf(stderr, "[FAIL] open baseline=%zu live=%zu open=%zu calls=%zu\n",
+			iBaseline, (size_t)State.Live, iOpenCount, (size_t)State.Calls);
 	}
 	testRequire(
 		State.Live == iBaseline,
@@ -420,6 +465,7 @@ int main(void)
 		) == XERR_MEMORY),
 		"async file result OOM state mismatch"
 	);
+	testAsyncFileOomWaitWorker(pPool);
 	testRequire(
 		State.Live == iBaseline,
 		"async file result OOM leaked backing memory"

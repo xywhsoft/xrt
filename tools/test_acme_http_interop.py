@@ -169,6 +169,13 @@ def dns_lifecycle_case(client: Path, ca: Path) -> None:
                 packet, peer = listener.recvfrom(2048)
             except socket.timeout:
                 continue
+            except ConnectionResetError as exc:
+                # Injected receive failures close the client before our reply.
+                # Windows reports the resulting ICMP on this UDP listener.
+                if os.name == "nt" and exc.winerror == 10054:
+                    continue
+                errors.append(exc)
+                break
             try:
                 offset, labels = 12, []
                 while packet[offset]:
