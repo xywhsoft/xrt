@@ -76,7 +76,7 @@ static size_t testJsonReadBuild(char* sText, size_t iCapacity)
 {
 	static const char sPrefix[] = "{\"escaped\":\"";
 	static const char sMiddle[] = "\",\"plain\":\"";
-	static const char sSuffix[] = "\",\"items\":[0,1,2,3,4,5,6,7]}";
+	static const char sSuffix[] = "\",\"items\":[0,1,2,3,4,5,6,7,-9223372036854775808,9223372036854775808,18446744073709551615]}";
 	size_t iSize = 0;
 
 	testRequire(iCapacity > 6000u, "JSON read OOM fixture is too small");
@@ -139,13 +139,31 @@ int main(void)
 	State.FailAt = 1u;
 	State.Hit = false;
 	testRequire(
-		xrtJsonValid(XRT_STR_LITERAL("{\"ok\":[1,true,null]}")),
+		xrtJsonValid(XRT_STR_LITERAL("{\"ok\":[1,true,null,-9223372036854775808,9223372036854775808,18446744073709551615]}")),
 		"JSON allocation-free validation failed"
 	);
 	testRequire(
 		(State.Calls == 0) && !State.Hit,
 		"JSON validation allocated on a valid input"
 	);
+	State.FailAt = SIZE_MAX;
+	#if defined(XRT_FEATURE_MEMORY_DEBUG)
+		/* 合法整数类型判别无分配；真正的诊断分配失败必须保留 OOM。 */
+		testRequire(xrtMemDebugEnable(true), "JSON logical OOM enable failed");
+		testRequire(xrtMemDebugFailAfter(0), "JSON integer logical OOM arm failed");
+		testRequire(xrtJsonValid(XRT_STR_LITERAL("18446744073709551615")),
+			"JSON UINT64_MAX validation failed with allocation injection armed");
+		testRequire(!xrtMemDebugFailTriggered() && !xrtGetError(),
+			"JSON integer classification allocated or produced an error");
+		xrtMemDebugFailClear();
+		testRequire(xrtMemDebugFailAfter(0), "JSON float logical OOM arm failed");
+		testRequire(!xrtJsonValid(XRT_STR_LITERAL("1e999")), "JSON overflowing float accepted");
+		testRequire(xrtMemDebugFailTriggered() && xrtErrorKind(xrtGetError()) == XERR_MEMORY,
+			"JSON float diagnostic swallowed MemoryError");
+		xrtMemDebugFailClear();
+		xrtClearError();
+		testMemoryDebugDrain("JSON logical OOM memory debug reset failed");
+	#endif
 
 	/* 成功路径的底层调用数定义当前稳定扫描区间。 */
 	State.Calls = 0;
