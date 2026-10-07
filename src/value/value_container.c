@@ -1,5 +1,6 @@
 #include "../internal/xrt_value.h"
 #include "../internal/xrt_map.h"
+#include "../internal/xrt_set.h"
 
 
 
@@ -2450,13 +2451,25 @@ XRT_API bool xrtValueArrayAppendTake(xvalue* pArray, xvalue** pItem)
 
 
 
+/* Retire a consumed temporary without allowing a destructor error to replace
+ * the operation's original failure. Successful retirement retains its normal
+ * error behavior; no second owner or collection implementation is introduced. */
+static bool __xrtValueConsumeNewResult(bool bResult, xvalue* pItem)
+{
+	xerror* pFailure = bResult ? NULL : xrtTakeError();
+	xrtValueRelease(pItem);
+	if ( pFailure != NULL ) {
+		xrtClearError(); xrtSetErrorTake(pFailure);
+	}
+	return bResult;
+}
+
 /* 无论成功失败都消费临时值。 */
 static bool __xrtOwnershipBody_ValueArrayAppendNew(xvalue* pArray, xvalue* pItem)
 {
 	bool bResult = (pItem != NULL) && xrtValueArrayAppendTake(pArray, &pItem);
 
-	xrtValueRelease(pItem);
-	return bResult;
+	return __xrtValueConsumeNewResult(bResult, pItem);
 }
 
 XRT_API bool xrtValueArrayAppendNew(xvalue* pArray, xvalue* pItem)
@@ -2564,8 +2577,7 @@ static bool __xrtOwnershipBody_ValueArrayInsertNew(
 	bool bResult = (pItem != NULL) &&
 		xrtValueArrayInsertTake(pArray, iIndex, &pItem);
 
-	xrtValueRelease(pItem);
-	return bResult;
+	return __xrtValueConsumeNewResult(bResult, pItem);
 }
 
 XRT_API bool xrtValueArrayInsertNew(
@@ -2710,8 +2722,7 @@ static bool __xrtOwnershipBody_ValueArraySetNew(
 	bool bResult = (pItem != NULL) &&
 		xrtValueArraySetTake(pArray, iIndex, &pItem);
 
-	xrtValueRelease(pItem);
-	return bResult;
+	return __xrtValueConsumeNewResult(bResult, pItem);
 }
 
 XRT_API bool xrtValueArraySetNew(
@@ -3050,8 +3061,7 @@ static bool __xrtOwnershipBody_ValueIntMapSetNew(
 	bool bResult = (pItem != NULL) &&
 		xrtValueIntMapSetTake(pMap, iKey, &pItem);
 
-	xrtValueRelease(pItem);
-	return bResult;
+	return __xrtValueConsumeNewResult(bResult, pItem);
 }
 
 XRT_API bool xrtValueIntMapSetNew(
@@ -3364,8 +3374,7 @@ static bool __xrtOwnershipBody_ValueObjectSetNew(
 	bool bResult = (pItem != NULL) &&
 		xrtValueObjectSetTake(pObject, Key, &pItem);
 
-	xrtValueRelease(pItem);
-	return bResult;
+	return __xrtValueConsumeNewResult(bResult, pItem);
 }
 
 XRT_API bool xrtValueObjectSetNew(
@@ -3473,13 +3482,15 @@ static bool __xrtOwnershipBody_ValueSetAdd(xvalue* pSet, const xvalue* pItem)
 	);
 	xvalue* pKey = (xvalue*)pItem;
 	bool bResult;
+	bool bReady;
 
 	if ( (pBacking == NULL) || !__xrtValueSetItemValid(pItem) ) {
 		return false;
 	}
 	pSet->Flags |= XRT_VALUE_FLAG_BUSY;
-	bResult = xrtSetHas(&pBacking->Items, &pKey);
+	bReady = __xrtSetHasChecked(&pBacking->Items, &pKey, &bResult);
 	pSet->Flags &= ~XRT_VALUE_FLAG_BUSY;
+	if ( !bReady ) return false;
 	if ( bResult ) {
 		return true;
 	}
@@ -3526,8 +3537,7 @@ static bool __xrtOwnershipBody_ValueSetAddNew(xvalue* pSet, xvalue* pItem)
 {
 	bool bResult = (pItem != NULL) && xrtValueSetAddTake(pSet, &pItem);
 
-	xrtValueRelease(pItem);
-	return bResult;
+	return __xrtValueConsumeNewResult(bResult, pItem);
 }
 
 XRT_API bool xrtValueSetAddNew(xvalue* pSet, xvalue* pItem)

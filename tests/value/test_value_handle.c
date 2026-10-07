@@ -85,6 +85,7 @@ static uint64 testValueHandleHash(ptr pHandle, ptr pUserData)
 			(pClone == NULL) &&
 			(xrtErrorKind(xrtGetError()) == XERR_STATE);
 		xrtValueRelease(pClone);
+		xrtClearError(); /* The intentional guard probe has been handled. */
 	}
 	return (uint64)*(int*)pHandle;
 }
@@ -104,6 +105,7 @@ static bool testValueHandleEqual(ptr pLeft, ptr pRight, ptr pUserData)
 			(pClone == NULL) &&
 			(xrtErrorKind(xrtGetError()) == XERR_STATE);
 		xrtValueRelease(pClone);
+		xrtClearError();
 	}
 	if ( pState->CallbackRight != NULL ) {
 		xrtClearError();
@@ -112,6 +114,7 @@ static bool testValueHandleEqual(ptr pLeft, ptr pRight, ptr pUserData)
 			(pClone == NULL) &&
 			(xrtErrorKind(xrtGetError()) == XERR_STATE);
 		xrtValueRelease(pClone);
+		xrtClearError();
 	}
 	return *(int*)pLeft == *(int*)pRight;
 }

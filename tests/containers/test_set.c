@@ -176,6 +176,7 @@ static uint64 testSetReentryHash(const void* pItem, ptr pUserData)
 		pState->HashBlocked =
 			!xrtSetReserve(pState->Set, 32) &&
 			(xrtErrorKind(xrtGetError()) == XERR_STATE);
+		xrtClearError(); /* This diagnostic probe was deliberately handled. */
 	}
 	return 1;
 }
@@ -197,6 +198,7 @@ static bool testSetReentryEqual(
 		xrtSetClear(pState->Set);
 		pState->EqualBlocked =
 			xrtErrorKind(xrtGetError()) == XERR_STATE;
+		xrtClearError(); /* Do not report a handled probe as callback failure. */
 	}
 	return *(const int*)pLeft == *(const int*)pRight;
 }

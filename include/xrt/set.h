@@ -22,7 +22,10 @@ typedef struct xsetentry xsetentry;
 
 
 
-/* 哈希器必须保证相等元素产生相同哈希值，回调中不得调用同一集合的 API。 */
+/* 哈希器必须保证相等元素产生相同哈希值，回调中不得调用同一集合的 API。
+ * Hash/Equal 在独立的线程错误边界执行；回调设置错误时忽略返回值并停止
+ * 操作，成功时保留调用前错误。查询失败与正常缺失可通过线程错误区分，
+ * 插入/合并和集合运算不得提交失败回调的结果。零哈希是合法成功值。 */
 typedef uint64 (*xsethash)(const void* pItem, ptr pUserData);
 
 

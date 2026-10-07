@@ -495,11 +495,12 @@ static void testValueContainerHashReentry(void)
 	tState.Parent = pSet;
 	tState.Item = pItem;
 	testRequire(
-		xrtValueSetAdd(pSet, pItem) &&
+		!xrtValueSetAdd(pSet, pItem) &&
 		tState.HashEntered &&
 		tState.HashReentryRejected &&
-		(xrtValueCount(pSet) == 1),
-		"hash callback escaped parent set reentry guard"
+		(xrtValueCount(pSet) == 0) &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE),
+		"unhandled hash callback reentry did not abort parent insertion"
 	);
 	tState.Parent = NULL;
 	tState.Item = NULL;

@@ -11,6 +11,7 @@ typedef struct testvaluecollectionstate {
 	bool LeftBlocked;
 	bool RightBlocked;
 	bool PairBlocked;
+	bool PropagateGuardError;
 	bool DropCloneBlocked;
 	bool DropWriteBlocked;
 } testvaluecollectionstate;
@@ -73,6 +74,10 @@ static uint64 testValueCollectionHash(ptr pHandle, ptr pUserData)
 		pState->PairBlocked =
 			!xrtValueSetEqual(pState->Left, pState->Right) &&
 			(xrtErrorKind(xrtGetError()) == XERR_STATE);
+		/* A handled guard probe is not an application callback failure. */
+		if ( !pState->PropagateGuardError ) {
+			xrtClearError();
+		}
 	}
 	return (uint64)*(const int*)pHandle;
 }
@@ -252,6 +257,34 @@ static void testValueCollectionSetReentry(void)
 		tState.PairBlocked,
 		"set merge escaped Value guard"
 	);
+
+	/* Conversely, an unhandled callback error must abort algebra/relations,
+	 * never publish a result or commit a partially prepared merge. */
+	tState.Left = pLeft;
+	tState.PropagateGuardError = true;
+	testValueCollectionResetHash(&tState);
+	testRequire(
+		xrtValueSetUnion(pLeft, pRight) == NULL &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE) &&
+		(xrtValueCount(pLeft) == 1) && (xrtValueCount(pRight) == 1),
+		"set union swallowed callback guard error"
+	);
+	xrtClearError();
+	testValueCollectionResetHash(&tState);
+	testRequire(
+		!xrtValueSetIsDisjoint(pLeft, pRight) &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE),
+		"set relation swallowed callback guard error"
+	);
+	xrtClearError();
+	testValueCollectionResetHash(&tState);
+	testRequire(
+		!xrtValueSetMerge(pLeft, pRight) &&
+		(xrtErrorKind(xrtGetError()) == XERR_STATE) &&
+		(xrtValueCount(pLeft) == 1) && (xrtValueCount(pRight) == 1),
+		"set merge committed after callback guard error"
+	);
+	xrtClearError();
 
 	tState.Left = NULL;
 	tState.Right = NULL;

@@ -85,6 +85,7 @@ typedef bool (*xvalueownershiptrace)(const xvalue* pValue,
 /*
 	语义值哈希器只借用已经绑定 TypeId 的容器值。回调可以通过只读 Value API
 	观察该值及其字段，也可以递归哈希字段，但不得修改、保留或释放输入值。
+	可通过线程错误报告失败；公开 Hash/Set 键边界忽略失败返回值。
 */
 typedef uint64 (*xvalueidentityhash)(const xvalue* pValue, ptr pUserData);
 
@@ -94,6 +95,7 @@ typedef uint64 (*xvalueidentityhash)(const xvalue* pValue, ptr pUserData);
 /*
 	语义值相等器只借用同一 TypeId 和同一策略域中的两个容器值。回调可以
 	递归比较字段，但不得修改、保留或释放任一输入值。
+	可通过线程错误报告失败；无错误的 false 是普通不相等结果。
 */
 typedef bool (*xvalueidentityequal)(
 	const xvalue* pLeft,
@@ -113,7 +115,9 @@ typedef void (*xvaluehandledrop)(ptr pHandle, ptr pUserData);
 
 
 
-/* 句柄哈希器必须与相等器成对提供、保持一致且不得重入父 Value。 */
+/* 句柄哈希器必须与相等器成对提供、保持一致且不得重入父 Value。
+ * 哈希/相等回调可通过线程错误报告失败；调用边界忽略失败返回值，
+ * 保留原始错误，且不得据此插入或移除集合元素。成功保留原先错误。 */
 typedef uint64 (*xvaluehandlehash)(ptr pHandle, ptr pUserData);
 
 
@@ -463,6 +467,7 @@ XRT_API bool xrtValueTakeHandle(xvalue* pValue, ptr* pHandle);
 
 
 /* 为可哈希标量或显式身份容器计算一致哈希；指针和句柄哈希只在当前进程内有效。 */
+/* 哈希失败时输出保持不变；回调返回零但未报告错误是合法结果。 */
 XRT_API bool xrtValueHash(const xvalue* pValue, uint64* pHash);
 
 

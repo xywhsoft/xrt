@@ -36,6 +36,7 @@ static bool testValueGraphCloneBlocked(const xvalue* pValue)
 		(pClone == NULL) &&
 		(xrtErrorKind(xrtGetError()) == XERR_STATE);
 	xrtValueRelease(pClone);
+	xrtClearError(); /* The intentional guard probe has been handled. */
 	return bBlocked;
 }
 
@@ -64,6 +65,7 @@ static void testValueGraphCheckRoots(testvaluegraphcontract* pState)
 			pState->SelfEqualBlocked &&
 			!xrtValueEqual(pState->LeftRoot, pState->LeftRoot) &&
 			(xrtErrorKind(xrtGetError()) == XERR_STATE);
+		xrtClearError();
 	}
 }
 

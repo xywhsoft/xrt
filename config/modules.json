@@ -12909,10 +12909,12 @@
 			],
 			"tests": [
 				"tests/containers/test_set.c",
-				"tests/containers/test_set_oom.c"
+				"tests/containers/test_set_oom.c",
+				"tests/containers/test_set_callback_errors.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_set.c"
+				"tests/single/test_single_set.c",
+				"tests/single/test_single_set_callback_errors.c"
 			],
 			"examples": [
 				"examples/containers/set/main.c",
@@ -13057,10 +13059,12 @@
 			"tests": [
 				"tests/value/test_value_graph.c",
 				"tests/value/test_value_graph_contract.c",
-				"tests/value/test_value_graph_oom.c"
+				"tests/value/test_value_graph_oom.c",
+				"tests/value/test_value_key_callback_errors.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_value_graph.c"
+				"tests/single/test_single_value_graph.c",
+				"tests/single/test_single_value_key_callback_errors.c"
 			],
 			"examples": [
 				"examples/value/graph/main.c"

@@ -1,4 +1,5 @@
 #include "../internal/xrt_value.h"
+#include "../internal/xrt_set.h"
 
 
 
@@ -485,7 +486,10 @@ static bool __xrtOwnershipBody_ValueSetMerge(
 	if ( !__xrtValueCollectionProtect(pTarget, pSource) ) {
 		return false;
 	}
-	bSubset = xrtSetIsSubset(pSourceItems, pTargetItems, false);
+	if ( !__xrtSetIsSubsetChecked(pSourceItems, pTargetItems, false, &bSubset) ) {
+		__xrtValueCollectionUnprotect(pTarget, pSource);
+		return false;
+	}
 	if ( bSubset ) {
 		__xrtValueCollectionUnprotect(pTarget, pSource);
 		return true;

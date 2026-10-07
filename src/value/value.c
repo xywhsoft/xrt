@@ -1780,6 +1780,9 @@ bool __xrtValueEqualKnown(const xvalue* pLeft, const xvalue* pRight)
 static bool __xrtOwnershipBody_ValueHash(const xvalue* pValue, uint64* pHash)
 {
 	const xvalue* tValues[1];
+	xerror* pPrior;
+	xerror* pFailure;
+	uint64 iHash;
 
 	if ( !__xrtValueCanRead(pValue) ||
 		!__xrtValueOutputValid(pValue, pHash, sizeof(*pHash)) ) {
@@ -1793,16 +1796,33 @@ static bool __xrtOwnershipBody_ValueHash(const xvalue* pValue, uint64* pHash)
 		__xrtErrorSetType();
 		return false;
 	}
+	/* Built-in scalar hashes are infallible after validation. Keep their hot
+	 * path free of callback error scopes; custom identities are not scalars. */
+	if ( pValue->Type != XVALUE_HANDLE && pValue->IdentityHash == NULL ) {
+		*pHash = __xrtValueHashKnown(pValue);
+		return true;
+	}
+	pPrior = xrtTakeError();
 	if ( pValue->Type == XVALUE_HANDLE ) {
 		tValues[0] = pValue;
 		if ( !__xrtValueCallbackProtect(tValues, 1) ) {
+			xrtErrorFree(pPrior);
 			return false;
 		}
-		*pHash = __xrtValueHashKnown(pValue);
+		iHash = __xrtValueHashKnown(pValue);
+		pFailure = xrtTakeError();
 		__xrtValueCallbackUnprotect(tValues, 1);
-		return true;
+	} else {
+		iHash = __xrtValueHashKnown(pValue);
+		pFailure = xrtTakeError();
 	}
-	*pHash = __xrtValueHashKnown(pValue);
+	if ( pFailure != NULL ) {
+		xrtErrorFree(pPrior);
+		xrtClearError(); xrtSetErrorTake(pFailure);
+		return false;
+	}
+	xrtClearError(); xrtSetErrorTake(pPrior);
+	*pHash = iHash;
 	return true;
 }
 
@@ -1849,13 +1869,22 @@ static bool __xrtOwnershipBody_ValueScalarEqual(
 		 (pRight->Type == XVALUE_HANDLE) &&
 		 (pLeft->Data.Handle.Ops == pRight->Data.Handle.Ops) &&
 		 (pLeft->Data.Handle.UserData == pRight->Data.Handle.UserData) ) {
+		xerror* pPrior = xrtTakeError();
+		xerror* pFailure;
 		tValues[0] = pLeft;
 		tValues[1] = pRight;
 		if ( !__xrtValueCallbackProtect(tValues, 2) ) {
+			xrtErrorFree(pPrior);
 			return false;
 		}
 		bEqual = __xrtValueEqualKnown(pLeft, pRight);
+		pFailure = xrtTakeError();
 		__xrtValueCallbackUnprotect(tValues, 2);
+		if ( pFailure != NULL ) {
+			xrtErrorFree(pPrior); xrtClearError(); xrtSetErrorTake(pFailure);
+			return false;
+		}
+		xrtClearError(); xrtSetErrorTake(pPrior);
 		return bEqual;
 	}
 	return __xrtValueEqualKnown(pLeft, pRight);

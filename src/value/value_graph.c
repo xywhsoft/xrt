@@ -1176,6 +1176,9 @@ static bool __xrtValueHandleEqual(
 		pRight->Data.Handle.Data,
 		pLeft->Data.Handle.UserData
 	);
+	/* The public graph call owns a fresh error scope. Stop at the first failed
+	 * callback; do not memoize it as equal or run callbacks for later fields. */
+	bEqual = bEqual && (xrtGetError() == NULL);
 	__xrtValueCallbackUnprotect(
 		pContext->Guards,
 		pContext->GuardCount
@@ -1212,7 +1215,8 @@ static bool __xrtValueEqual(
 		return true;
 	}
 	if ( (pLeft->IdentityEqual != NULL) || (pRight->IdentityEqual != NULL) ) {
-		return __xrtValueEqualKnown(pLeft, pRight);
+		bEqual = __xrtValueEqualKnown(pLeft, pRight);
+		return bEqual && (xrtGetError() == NULL);
 	}
 	if ( iDepth >= XRT_VALUE_DEPTH_MAX ) {
 		__xrtErrorSetValue();
@@ -1292,6 +1296,8 @@ static bool __xrtOwnershipBody_ValueEqual(const xvalue* pLeft, const xvalue* pRi
 {
 	xvalueequalcontext Context;
 	bool bEqual;
+	xerror* pPrior;
+	xerror* pFailure;
 
 	if ( (pLeft == NULL) || (pRight == NULL) ) {
 		__xrtErrorSetInvalidArgument();
@@ -1303,8 +1309,16 @@ static bool __xrtOwnershipBody_ValueEqual(const xvalue* pLeft, const xvalue* pRi
 		return false;
 	}
 	memset(&Context, 0, sizeof(Context));
+	pPrior = xrtTakeError();
 	bEqual = __xrtValueEqual(&Context, pLeft, pRight, 0);
+	pFailure = xrtTakeError();
 	__xrtValueEqualUnit(&Context);
+	xrtClearError();
+	if ( pFailure != NULL ) {
+		xrtErrorFree(pPrior); xrtClearError(); xrtSetErrorTake(pFailure);
+		return false;
+	}
+	xrtSetErrorTake(pPrior);
 	return bEqual;
 }
 

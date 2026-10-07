@@ -20,6 +20,15 @@ bool __xrtSetValid(const xset* pSet);
 /* 检查集合当前是否允许查询或推进外置迭代器。 */
 bool __xrtSetCanRead(const xset* pSet);
 
+/* Separate callback failure from a successful absent lookup. The output is
+ * unchanged on failure; successful key callbacks preserve the ambient error. */
+bool __xrtSetHasChecked(const xset* pSet, const void* pItem, bool* pPresent);
+
+/* Separate a failed callback from a successfully false subset relation. */
+bool __xrtSetIsSubsetChecked(
+	const xset* pLeft, const xset* pRight, bool bProper, bool* pSubset
+);
+
 
 
 /* 检查集合当前是否允许修改结构和生命周期。 */
