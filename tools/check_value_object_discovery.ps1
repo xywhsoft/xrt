@@ -24,14 +24,15 @@ try {
         $code=$LASTEXITCODE
         $tests=@(Select-String -LiteralPath "$outPath/$name.log" -Pattern '^\[test\]').Count
         $markers=@(Select-String -LiteralPath "$outPath/$name.log" -SimpleMatch 'Object discovery: 200 copied backings, 200 detached/abort graphs, 800 concurrent lifetimes, full clone OOM prefix;').Count
+        $readMarkers=@(Select-String -LiteralPath "$outPath/$name.log" -SimpleMatch 'Object read: exact family, prepared/committed, single/pair/shared receivers, NUL keys, allocation-free boundary, reentry/refusal/error cleanup, COW snapshot and once-only lifetime passed').Count
         $complete=[bool](Select-String -LiteralPath "$outPath/$name.log" -Pattern '^\[pass\]' -Quiet)
-        $lanes+=[pscustomobject]@{Name=$name;Exit=$code;Programs=$tests;Tests=16;Examples=1;DiscoveryMarkers=$markers;Complete=$complete}
+        $lanes+=[pscustomobject]@{Name=$name;Exit=$code;Programs=$tests;Tests=16;Examples=1;DiscoveryMarkers=$markers;ReadMarkers=$readMarkers;Complete=$complete}
         Write-Output "$name exit=$code programs=$tests discovery-layouts=$markers"
     }
     $unchanged=@($inputs | Where-Object {(Get-FileHash -LiteralPath $_.Path).Hash -ne $_.Sha256}).Count -eq 0
-    $success=$unchanged -and @($lanes | Where-Object {$_.Exit -ne 0 -or $_.Programs -ne 17 -or $_.DiscoveryMarkers -ne 2 -or !$_.Complete}).Count -eq 0
+    $success=$unchanged -and @($lanes | Where-Object {$_.Exit -ne 0 -or $_.Programs -ne 17 -or $_.DiscoveryMarkers -ne 2 -or $_.ReadMarkers -ne 2 -or !$_.Complete}).Count -eq 0
     $report=[pscustomobject]@{Complete=$success;InputsUnchanged=$unchanged;Inputs=$inputs;Lanes=$lanes;
-        Scope='Native backing-discovery prerequisite only: borrowed exact-policy anchors, independent COW/deep backings, real external roots and phased class/native-field cycles, intact once-only finalizers, complete factory/clone allocation prefixes, four native mutators versus freeze, exact memory ledgers. Existing construction/copy/publication/finalizer/cursor/adapter populations retained. No xlang host discovery integration, automatic module-cycle reclamation or unmapping claim.'}
+        Scope='Exact-policy backing discovery and protected callback-scoped single/pair reads in modular and single layouts: prepared/committed, claimed/cleared/finalizing refusal, reentry/pin restoration, binary keys, explicit false outcome, prior/first error isolation, complete alias-COW OOM prefix and lifetime ledgers. Original discovery/construction/copy/publication/finalizer/cursor/adapter populations retained. No same-object concurrent mutation, transitive payload immutability, automatic module collection or unmapping claim.'}
     [IO.File]::WriteAllText("$outPath/results.json",($report|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
     if (!$success) { throw 'Backing discovery batch failed; inspect both fixed-input compiler logs' }
 } finally { Pop-Location }

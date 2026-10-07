@@ -17,6 +17,8 @@
 #include "../test.h"
 
 typedef struct Lifetime { unsigned releases, finalizers; size_t expectedFields; } Lifetime;
+static const xvalueobjectownershipv1 family;
+static bool unused_read(const xvalueobjectreadv1*,const xvalueobjectreadv1*,ptr);
 /* An actual uniquely owned native field bridges the class reference cycle;
  * ordinary XRT Value containers deliberately reject direct tree cycles. */
 typedef struct Link { xvalue* value; } Link;
@@ -41,6 +43,10 @@ static void finalize(xvalue* object, ptr data)
     testRequire(context && !context->finalizers && !context->releases &&
         xrtValueCount(object) == context->expectedFields,"exactly once semantic finalizer sees intact fields");
     testRequire(xrtOwnershipFreezeTryBegin(&freeze) && xrtOwnershipScopeEnd(&freeze),"finalizer outside freeze");
+    xerror* prior=xrtTakeError(); unsigned calls=0;
+    testRequire(!xrtValueObjectReadV1(object,NULL,&family,unused_read,&calls) && !calls &&
+        xrtErrorKind(xrtGetError())==XERR_STATE,"finalizing receiver refuses certified read");
+    xrtClearError(); xrtSetErrorTake(prior);
     ++context->finalizers;
 }
 static bool finalize_checked(xvalue* object, ptr data)
@@ -51,7 +57,7 @@ static const xvalueobjectownershipv1 family = {
 static const xvalueobjectownershipv1 other = {
     sizeof(other),finalize,trace_empty,release_finalizer,trace_empty,release_lifetime,finalize_checked
 };
-static xvalue* create_prepared(const xvalueobjectownershipv1* policy, Lifetime* context, bool finalized)
+static xvalue* create_state(const xvalueobjectownershipv1* policy, Lifetime* context, bool finalized, bool committed)
 {
     xrtownershipscope mutation = {0};
     testRequire(xrtOwnershipMutationBegin(&mutation),"creation mutation");
@@ -59,12 +65,14 @@ static xvalue* create_prepared(const xvalueobjectownershipv1* policy, Lifetime* 
     if (result && (!xrtValueObjectLifetimeBindOwned(result,context,trace_empty,release_lifetime) ||
         !(finalized ? xrtValueObjectFinalizerPrepareOwned(result,finalize,context,trace_empty,release_finalizer)
                     : xrtValueObjectConstructionPrepare(result)) || !xrtValueObjectOwnershipBindV1(result,policy) ||
-        !xrtValueObjectConstructionCommit(result))) {
+        (committed && !xrtValueObjectConstructionCommit(result)))) {
         xerror* error = xrtTakeError(); xrtValueRelease(result); result = NULL;
         xrtClearError(); xrtSetErrorTake(error);
     }
     testRequire(xrtOwnershipScopeEnd(&mutation),"creation end"); return result;
 }
+static xvalue* create_prepared(const xvalueobjectownershipv1* policy, Lifetime* context, bool finalized)
+{ return create_state(policy,context,finalized,true); }
 static xvalue* create(const xvalueobjectownershipv1* policy, Lifetime* context)
 { return create_prepared(policy,context,false); }
 typedef struct Anchors { xrtownershipref refs[64]; const void* contexts[64]; size_t count; bool stop; } Anchors;
@@ -169,6 +177,7 @@ static void cycle(bool abort_collection)
         xrtValueObjectSetNew(object,XRT_STR_LITERAL("self"),field),"actual native owning slot");
     testRequire(xrtOwnershipScopeEnd(&mutation),"native edge end");
     xvalue* alias = abort_collection ? xrtValueRetain(object) : NULL;
+    xvalue* readReceiver=object; /* Actual self slot and subsequent plan pins keep this shell live. */
     xrtValueRelease(object); object = NULL;
     Anchors anchors = {0}; xrtownershipscope freeze = {0}; xrtownershipsnapshot* snapshot = NULL;
     testRequire(xrtOwnershipFreezeTryBegin(&freeze) && xrtValueObjectOwnershipDiscoverV1(&family,discover,&anchors),"discover detached cycle under freeze");
@@ -183,6 +192,11 @@ static void cycle(bool abort_collection)
         testRequire(adapters[i] && adapters[i]->Hold(nodes[i].Reference.Data) &&
             adapters[i]->Claim(nodes[i].Reference.Data,&token),"real pins and quarantine");
     }
+    unsigned readCalls=0;
+    testRequire(xrtOwnershipScopeEnd(&freeze),"leave freeze to test claimed receiver");
+    testRequire(!xrtValueObjectReadV1(readReceiver,NULL,&family,unused_read,&readCalls) && !readCalls &&
+        xrtErrorKind(xrtGetError())==XERR_STATE,"claimed receiver read refused without callback"); xrtClearError();
+    testRequire(xrtOwnershipFreezeTryBegin(&freeze),"reenter original claim transaction");
     if (abort_collection) {
         for (size_t i=0; i<4; ++i) adapters[i]->Restore(nodes[i].Reference.Data,&token);
     } else {
@@ -198,6 +212,10 @@ static void cycle(bool abort_collection)
         testRequire(xrtValueObjectOwnershipDiscoverV1(&family,discover,&empty) && !empty.count,"Clear removes before lifetime retirement");
     }
     testRequire(xrtOwnershipScopeEnd(&freeze),"callbacks outside freeze");
+    if (!abort_collection) {
+        testRequire(!xrtValueObjectReadV1(readReceiver,NULL,&family,unused_read,&readCalls) && !readCalls &&
+            xrtErrorKind(xrtGetError())==XERR_STATE,"cleared but plan-pinned shell read refused"); xrtClearError();
+    }
     if (!abort_collection) for (size_t i=0; i<4; ++i)
         if (adapters[i]->Finish) testRequire(adapters[i]->Finish(nodes[i].Reference.Data,&token),"finish");
     for (size_t i=4; i--!=0;) adapters[i]->Drop(nodes[i].Reference.Data);
@@ -265,11 +283,151 @@ static void concurrent(void)
     for (unsigned i=0; i<4; ++i) { testRequire(xrtThreadWaitFor(threads[i],5000) == XWAIT_OK,"join actual workers"); xrtThreadDestroy(threads[i]); }
     testRequire(!enumerate(&family).count && frozen,"concurrent registry empty after joins"); balance(&before);
 }
+
+typedef struct ReadProbe {
+    xvalue* left;
+    xvalue* right;
+    xvalue* alias;
+    Lifetime* leftLifetime;
+    Lifetime* rightLifetime;
+    unsigned visits;
+    unsigned action;
+    bool result;
+} ReadProbe;
+static const char read_key[] = {'n',0,'k'};
+static int64 read_number(const xvalueobjectreadv1* view)
+{
+    int64 number=0;
+    const xvalue* field=xrtValueObjectReadGetV1(view,(xstrview){read_key,sizeof(read_key)});
+    testRequire(field && xrtValueGetInt(field,&number),"read exact NUL key"); return number;
+}
+static bool read_visit(const xvalueobjectreadv1* left, const xvalueobjectreadv1* right, ptr data)
+{
+    ReadProbe* probe=data; ++probe->visits;
+    testRequire(left && xrtValueObjectReadLifetimeV1(left)==probe->leftLifetime &&
+        xrtValueObjectReadTypeIdV1(left)==UINT64_C(0x1234) && read_number(left)==42,"certified left view");
+    testRequire((right!=NULL)==(probe->right!=NULL),"optional right view");
+    if (right) testRequire(xrtValueObjectReadLifetimeV1(right)==probe->rightLifetime &&
+        xrtValueObjectReadTypeIdV1(right)==UINT64_C(0x1234) && read_number(right)==42,"certified right view");
+    testRequire(!xrtValueObjectReadGetV1(left,XRT_STR_LITERAL("n")) &&
+        !xrtValueObjectReadGetV1(left,XRT_STR_LITERAL("absent")) && !xrtGetError(),"missing does not fabricate an error");
+    switch (probe->action) {
+    case 0: break;
+    case 1: testRequire(!xrtValueObjectRemove(probe->left,(xstrview){read_key,sizeof(read_key)}),"receiver mutation refused"); break;
+    case 2: testRequire(!xrtValueRetain(probe->left),"receiver retain refused"); break;
+    case 3: testRequire(!xrtValueClone(probe->left),"receiver clone refused"); break;
+    case 4: xrtValueRelease(probe->left); break;
+    case 5: testRequire(!xrtValueObjectReadV1(probe->left,NULL,&family,read_visit,probe),"nested receiver read refused"); break;
+    case 6: testRequire(!xrtValueObjectReadV1(probe->alias,probe->left,&family,read_visit,probe),"pair preflight refuses busy right"); break;
+    case 7:
+        testRequire(xrtValueObjectSetNew(probe->alias,(xstrview){read_key,sizeof(read_key)},xrtValueInt(99)),"unprotected COW alias may detach");
+        testRequire(read_number(left)==42,"pinned original slots survive alias detach"); break;
+    case 8:
+        xrtValueRelease(probe->alias); probe->alias=NULL;
+        testRequire(read_number(left)==42 && !probe->leftLifetime->releases,"alias release does not retire view lifetime"); break;
+    case 9: xrtSetErrorKind(XERR_RANGE); break;
+    case 10: testRequire(!xrtValueObjectReadGetV1(left,(xstrview){NULL,1}),"invalid read key refused"); break;
+    case 11: testRequire(!xrtValueObjectGet(probe->left,XRT_STR_LITERAL("n")),"ordinary read cannot bypass BUSY"); break;
+    case 12: testRequire(!xrtValueObjectRemove(probe->right,(xstrview){read_key,sizeof(read_key)}),"second receiver protected"); break;
+    case 13: {
+        bool removed=xrtValueObjectRemove(probe->alias,(xstrview){read_key,sizeof(read_key)});
+        testRequire(read_number(left)==42,"original snapshot survives failed or successful COW"); return removed;
+    }
+    default: testRequire(false,"known read probe action");
+    }
+    if ((probe->action>=1 && probe->action<=6) || probe->action==11 || probe->action==12)
+        testRequire(xrtErrorKind(xrtGetError())==XERR_STATE,"reentry error is State");
+    return probe->result;
+}
+static xvalue* read_object(const xvalueobjectownershipv1* policy, Lifetime* lifetime, bool committed)
+{
+    xvalue* value=create_state(policy,lifetime,false,committed);
+    testRequire(value && xrtValueTypeIdBind(value,UINT64_C(0x1234)) &&
+        xrtValueObjectSetNew(value,(xstrview){read_key,sizeof(read_key)},xrtValueInt(42)),"read object creation"); return value;
+}
+static bool unused_read(const xvalueobjectreadv1* left,const xvalueobjectreadv1* right,ptr data)
+{ (void)left; (void)right; ++*(unsigned*)data; return true; }
+static void protected_reads(void)
+{
+    xmemdebugsnapshot before; xrtMemDebugSnapshot(&before);
+    Lifetime a={0},b={0},foreignLifetime={0};
+    xvalue* left=read_object(&family,&a,false); /* Prepared is deliberately NOT collector-ready. */
+    xvalue* right=read_object(&family,&b,true);
+    xvalue* foreign=read_object(&other,&foreignLifetime,true);
+    xvalue* ordinary=xrtValueObject();
+    ReadProbe probe={.left=left,.leftLifetime=&a,.result=true};
+    testRequire(xrtMemDebugFailAfter(0) && xrtValueObjectReadV1(left,NULL,&family,read_visit,&probe) &&
+        !xrtMemDebugFailTriggered() && probe.visits==1,"prepared allocation-free certified read"); xrtMemDebugFailClear();
+    testRequire(xrtValueObjectConstructionCommit(left),"read restores prepared shell for commit");
+    for (unsigned pairing=0; pairing<3; ++pairing) {
+        probe.right=pairing==0 ? NULL : pairing==1 ? left : right;
+        probe.rightLifetime=pairing==1 ? &a : &b;
+        unsigned previous=probe.visits;
+        xrtSetErrorKind(XERR_ARGUMENT); const xerror* prior=xrtGetError();
+        testRequire(xrtMemDebugFailAfter(0) && xrtValueObjectReadV1(left,probe.right,&family,read_visit,&probe) &&
+            !xrtMemDebugFailTriggered() && probe.visits==previous+1 && xrtGetError()==prior,"one read for optional/same/distinct receivers, prior identity restored");
+        xrtMemDebugFailClear(); xrtClearError();
+    }
+    xvalue* shared=xrtValueClone(left); testRequire(shared,"shared backing read shell");
+    probe.right=shared; probe.rightLifetime=&a;
+    testRequire(xrtValueObjectReadV1(left,shared,&family,read_visit,&probe),"two shells one physical backing");
+    probe.right=NULL;
+    for (unsigned action=1; action<=12; ++action) {
+        if (action==7 || action==8) continue;
+        probe.action=action; probe.alias=shared; probe.right=action==12 ? right : NULL; probe.rightLifetime=&b;
+        xrtSetErrorKind(XERR_ARGUMENT); unsigned previous=probe.visits;
+        testRequire(!xrtValueObjectReadV1(left,probe.right,&family,read_visit,&probe) && probe.visits==previous+1,
+            "true payload with new diagnostic is failure");
+        testRequire(xrtErrorKind(xrtGetError())==(action==9 ? XERR_RANGE : action==10 ? XERR_ARGUMENT : XERR_STATE),
+            "first read failure diagnostic survives pin/flag cleanup");
+        xrtClearError();
+        testRequire(xrtValueCount(left)==1 && !a.releases && xrtValueTypeId(left)==UINT64_C(0x1234),"failure restores receivers and counts");
+    }
+    probe.action=0; probe.result=false; probe.right=NULL;
+    xrtSetErrorKind(XERR_ARGUMENT);
+    testRequire(!xrtValueObjectReadV1(left,NULL,&family,read_visit,&probe) && !xrtGetError(),"false without diagnostic remains failure, prior not substituted");
+    probe.result=true;
+    unsigned calls=0;
+    testRequire(!xrtValueObjectReadV1(left,foreign,&family,unused_read,&calls) && !calls,"unknown second family never invokes visitor"); xrtClearError();
+    testRequire(!xrtValueObjectReadV1(ordinary,NULL,&family,unused_read,&calls) && !calls,"ordinary object not authorized"); xrtClearError();
+    testRequire(!xrtValueObjectReadV1(left,NULL,&other,unused_read,&calls) && !calls,"same callbacks, different descriptor refused"); xrtClearError();
+    testRequire(!xrtValueObjectReadV1(NULL,NULL,&family,unused_read,&calls) && !calls,"null receiver preflight"); xrtClearError();
+    testRequire(!xrtValueObjectReadV1(left,NULL,NULL,unused_read,&calls) && !calls,"null policy preflight"); xrtClearError();
+    testRequire(!xrtValueObjectReadV1(left,NULL,&family,NULL,&calls) && !calls,"null visitor preflight"); xrtClearError();
+    testRequire(!xrtValueObjectReadGetV1(NULL,XRT_STR_LITERAL("n")) && xrtErrorKind(xrtGetError())==XERR_ARGUMENT,"null view key query"); xrtClearError();
+    testRequire(!xrtValueObjectReadLifetimeV1(NULL) && xrtErrorKind(xrtGetError())==XERR_ARGUMENT,"null lifetime view"); xrtClearError();
+    testRequire(!xrtValueObjectReadTypeIdV1(NULL) && xrtErrorKind(xrtGetError())==XERR_ARGUMENT,"null identity view"); xrtClearError();
+    probe.action=8; probe.alias=shared;
+    testRequire(xrtValueObjectReadV1(left,NULL,&family,read_visit,&probe) && !probe.alias,"release independent shared shell during read");
+    bool terminal=false;
+    for (size_t point=0; point<64; ++point) {
+        xmemdebugsnapshot start; xrtMemDebugSnapshot(&start);
+        probe.alias=xrtValueClone(left); testRequire(probe.alias,"alias COW allocation sweep setup");
+        probe.action=13; /* Read itself allocates nothing; every hit is actual alias detach work. */
+        testRequire(xrtMemDebugFailAfter(point),"read COW fault prefix");
+        bool ok=xrtValueObjectReadV1(left,NULL,&family,read_visit,&probe);
+        bool hit=xrtMemDebugFailTriggered(); xrtMemDebugFailClear();
+        testRequire(hit ? !ok && xrtErrorKind(xrtGetError())==XERR_MEMORY : ok,"complete actual alias COW allocation prefix");
+        xrtClearError();
+        testRequire(xrtValueCount(probe.alias)==(hit ? 1 : 0) && xrtValueCount(left)==1 && !a.releases,
+            "failed COW is transactional; all read flags and pins restored");
+        xrtValueRelease(probe.alias); probe.alias=NULL; balance(&start);
+        if (!hit) { terminal=true; break; }
+    }
+    testRequire(terminal,"full read COW snapshot allocation prefix completes");
+    probe.alias=xrtValueClone(left); testRequire(probe.alias,"successful mutable alias"); probe.action=7;
+    testRequire(xrtValueObjectReadV1(left,NULL,&family,read_visit,&probe),"COW field replacement snapshot success");
+    int64 changed=0; testRequire(xrtValueGetInt(xrtValueObjectGet(probe.alias,(xstrview){read_key,sizeof(read_key)}),&changed) && changed==99,"detached alias observes its own new field");
+    xrtValueRelease(probe.alias);
+    xrtValueRelease(left); xrtValueRelease(right); xrtValueRelease(foreign); xrtValueRelease(ordinary);
+    testRequire(a.releases==1 && b.releases==1 && foreignLifetime.releases==1,"all read tails release exact lifetime once"); balance(&before);
+    printf("Object read: exact family, prepared/committed, single/pair/shared receivers, NUL keys, allocation-free boundary, reentry/refusal/error cleanup, COW snapshot and once-only lifetime passed\n");
+}
 int main(void)
 {
     testRequire(xrtMemDebugEnable(true),"debug allocator");
     for (unsigned i=0; i<100; ++i) { copies(); cycle(false); cycle(true); }
-    failed_copies(); failed_creation(); concurrent();
+    failed_copies(); failed_creation(); concurrent(); protected_reads();
     Anchors stopped = {.stop=true}; Lifetime context = {0}; xvalue* object=create(&family,&context);
     xrtownershipscope freeze = {0}; testRequire(object && xrtOwnershipFreezeTryBegin(&freeze),"stop fixture");
     testRequire(!xrtValueObjectOwnershipDiscoverV1(&family,discover,&stopped) && stopped.count == 1 && !xrtGetError(),"visitor refusal has no fabricated error");
