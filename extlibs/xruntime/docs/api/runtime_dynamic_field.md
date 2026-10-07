@@ -112,6 +112,9 @@ if ( !xrtDynamicFieldsSetTake(
 | `xrtDynamicFieldsIterRBegin` | 启动逆向插入顺序迭代并保留字段对象。 |
 | `xrtDynamicFieldsIterNext` | 返回下一字段值借用和可选名称；自然结束不设置错误。 |
 | `xrtDynamicFieldsIterEnd` | 结束迭代并释放字段对象保留，可用于已结束迭代器。 |
+| `xrtDynamicFieldsVisitV1` | 同步访问借用名称和值；回调期间拒绝当前字段表的字段访问、修改和访问重入，强引用覆盖访问和退出；不留存回调/context。 |
+
+`xdynamicfieldvisitv1` 返回 `false` 或设置错误都会终止访问，失败保留首次错误；回调返回 `false` 却没有错误时补充 `XERR_STATE`，错误分配失败时物理 `false` 仍有效。成功恢复进入前的错误。普通外置迭代器只是检测结构版本，不会阻止回调删除当前借用键或值，不能用于跨任意回调的借用保护。`xrtDynamicFieldsVisitV1` 使用现有 typed dictionary 回调门禁，不新增全局注册表，也不是跨线程同步机制。
 | `xrtDynamicFieldsMerge` | 事务合并来源，按 `replace` 选择冲突策略。 |
 | `xrtDynamicFieldsClone` | 深复制字段对象和完整 Value 图。 |
 | `xrtDynamicFieldsKeys` | 返回按插入顺序排列的字段名 Value 数组。 |

@@ -3607,6 +3607,15 @@ XRT_API xvalue* xrtDynamicFieldsTake(
 
 
 
+/* 同步受保护访问。回调期间拒绝本字段表的字段访问、修改和访问重入；
+ * 名称和值只在回调内借用。访问器保留字段对象，回调/context 不会留存。
+ * 回调 false 或设置错误使访问失败；false 没有错误时补充 STATE。
+ * 成功恢复进入前的错误，失败保留首次错误。不是跨线程同步机制。
+ * 普通迭代器只检查版本，不能代替此跨任意回调的借用保护。 */
+typedef bool (*xdynamicfieldvisitv1)(xstrview Name, const xvalue* pValue, ptr UserData);
+XRT_API bool xrtDynamicFieldsVisitV1(xrtdynamicfields* pFields,
+	xdynamicfieldvisitv1 Visit, ptr UserData);
+
 /* 按稳定插入顺序或逆序迭代借用名称和值；启动函数负责初始化迭代器。 */
 XRT_API bool xrtDynamicFieldsIterBegin(
 	xrtdynamicfields* pFields,
@@ -26210,6 +26219,59 @@ XRT_API void xrtDynamicFieldsIterEnd(xrtdynamicfielditer* pIterator)
 }
 
 
+
+/* 同步访问使用类型字典既有门禁保护借用键和值；普通迭代器不锁住它们。
+ * 独立字段对象强引用覆盖整个迭代与门禁退出，不保存回调或 context。 */
+XRT_API bool xrtDynamicFieldsVisitV1(xrtdynamicfields* pFields,
+	xdynamicfieldvisitv1 Visit, ptr UserData)
+{
+	xrtdynamicfielditer Iterator;
+	xtypeddict* pDict;
+	const xvalue* pValue;
+	xstrview Name;
+	bool bResult = false;
+	bool bIterating = false;
+	xerror* pPrevious = xrtTakeError();
+	xerror* pFailure;
+	xerror* pCleanup;
+
+	if (Visit == NULL) {
+		__xrtDynamicFieldError(XERR_ARGUMENT, XDYNAMIC_FIELD_ERROR_ARGUMENT,
+			"visit", "the dynamic field visitor is null");
+		goto done;
+	}
+	pDict = __xrtDynamicFieldDict(pFields, "visit");
+	if (pDict == NULL || !xrtDynamicFieldsIterBegin(pFields, &Iterator)) goto done;
+	bIterating = true;
+	bResult = true;
+	while ((pValue = xrtDynamicFieldsIterNext(&Iterator, &Name)) != NULL) {
+		if (!__xrtTypedDictCallbackBegin(pDict)) { bResult = false; break; }
+		bResult = Visit(Name, pValue, UserData);
+		__xrtTypedDictCallbackEnd(pDict);
+		if (xrtGetError() != NULL) bResult = false;
+		if (!bResult) {
+			if (xrtGetError() == NULL)
+				__xrtDynamicFieldError(XERR_STATE, XDYNAMIC_FIELD_ERROR_STATE,
+					"visit", "the dynamic field visitor failed without an error");
+			break;
+		}
+	}
+	if (xrtGetError() != NULL) bResult = false;
+done:
+	/* Owner retirement can run native drops; never replace the first failure.
+     * Physical false remains authoritative even if no error can allocate. */
+	pFailure = xrtTakeError();
+	if (bIterating) xrtDynamicFieldsIterEnd(&Iterator);
+	pCleanup = xrtTakeError();
+	if (pFailure != NULL) {
+		xrtErrorFree(pCleanup); xrtErrorFree(pPrevious); xrtSetErrorTake(pFailure);
+		return false;
+	}
+	if (!bResult || pCleanup != NULL) {
+		xrtErrorFree(pPrevious); xrtSetErrorTake(pCleanup); return false;
+	}
+	xrtSetErrorTake(pPrevious); return true;
+}
 
 /* 返回递增且跳过外置迭代器保留零值的结构版本。 */
 static uint64 __xrtDynamicFieldNextVersion(uint64 iVersion)

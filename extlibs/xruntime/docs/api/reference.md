@@ -117,6 +117,7 @@
 - `xrtDynamicFieldsIterEnd`
 - `xrtDynamicFieldsIterNext`
 - `xrtDynamicFieldsIterRBegin`
+- `xrtDynamicFieldsVisitV1`
 - `xrtDynamicFieldsKeys`
 - `xrtDynamicFieldsMerge`
 - `xrtDynamicFieldsRef`
