@@ -1011,6 +1011,268 @@ def load_card_meta(wwwroot):
     return meta
 
 
+def brief_comments(path, names):
+    """原始头源 → {符号: 上方紧邻注释块首行}（扩展页条目描述）。
+
+    头文件契约注释的惯例是声明上方一块注释，取块内首个非空行；
+    注释结束后遇到的第一个非注释语句按名字绑定，绑定后清空。
+    """
+    out = {}
+    try:
+        lines = io.open(path, encoding="utf-8", errors="replace").read().split("\n")
+    except OSError:
+        return out
+    want = set(names)
+    brief = []
+    in_comment = False
+    block_depth = 0
+    pending_brief = []
+
+    def usable(t):
+        """跳过分隔线（----/====）、空行与过短行。"""
+        return t and not re.fullmatch(r"[-=*_~\s]+", t) and len(t) > 3
+
+    for raw in lines:
+        l = raw.strip()
+        if in_comment:
+            if "*/" in l:
+                tail = l[:l.index("*/")].strip().lstrip("*").strip()
+                if usable(tail):
+                    brief.append(tail)
+                in_comment = False
+            else:
+                t = l.lstrip("*").strip()
+                if usable(t):
+                    brief.append(t)
+            continue
+        if l.startswith("/*") and not l.startswith("/*="):
+            if "*/" in l:
+                first = l[2:l.index("*/")].strip()
+                brief = [first] if usable(first) else []
+            else:
+                head = l[2:].strip()
+                brief = [head] if usable(head) else []
+                in_comment = True
+            continue
+        if l.startswith("//"):
+            continue
+        if block_depth > 0:
+            # typedef/enum 块内部：字段行不清空 pending；跟踪嵌套到闭合
+            block_depth += l.count("{") - l.count("}")
+            if block_depth <= 0:
+                m_close = re.match(r"\}\s*([A-Za-z_]\w*)\s*;", l)
+                if m_close and m_close.group(1) in want and m_close.group(1) not in out:
+                    for b in pending_brief:
+                        out[m_close.group(1)] = b
+                        break
+                block_depth = 0
+                pending_brief = []
+            continue
+        if l:
+            for nm in want:
+                if nm not in out and (
+                        re.search(r"\b%s\s*\(" % re.escape(nm), raw) or
+                        (re.search(r"\b%s\b" % re.escape(nm), l) and
+                         ("typedef" in l or "#define" in l))):
+                    for b in brief:
+                        out[nm] = b
+                        break
+            if re.match(r"typedef\s+(struct|enum)", l) and "{" in l:
+                pending_brief = list(brief)
+                block_depth = 1 + l.count("{") - l.count("}") - 1
+                if l.count("}") >= l.count("{"):
+                    block_depth = 0
+                    pending_brief = []
+                continue
+            if not l.startswith("#"):
+                brief = []
+    return out
+
+
+def ext_header_brief(path):
+    """头文件首个注释块首行（模块/页描述）。"""
+    try:
+        src = io.open(path, encoding="utf-8", errors="replace").read()
+    except OSError:
+        return ""
+    m = re.search(r"/\*(?!\*)\s*(.*?)\*/", src, re.S)
+    if not m:
+        return ""
+    lines = [x.strip().lstrip("*").strip() for x in m.group(1).split("\n")]
+    for x in lines:
+        if x:
+            return x
+    return ""
+
+
+EXT_EXCLUDE_FN = {"if", "for", "while", "switch", "sizeof", "return", "defined"}
+
+
+def scan_header_ext(path):
+    """扩展库头扫描：在 scan_header（typedef/枚举/宏）之上补函数。
+
+    扩展函数不共用 xrt 前缀（xjwtHs256/xrtAcmeIssue/xllmCall…），
+    但都经导出宏声明（XJWT_API/XACME_API/XRT_API…）——取宏之后
+    首个 name( 作为函数名。
+    """
+    syms = scan_header(path)
+    src = strip_c_comments(io.open(path, encoding="utf-8", errors="replace").read())
+    # 扩展头手写 extern "C" { 会把整块吞成一条语句——替换为空语句边界
+    src = re.sub(r'extern\s*"C"\s*\{', ';', src)
+    # struct/enum typedef：split_statements 会把块切碎，块尾名字丢失——
+    # 用深度扫描补齐，签名给压缩形态
+    depth = 0
+    block_head = ""
+    for line in src.split("\n"):
+        t = line.strip()
+        if depth == 0:
+            if re.match(r"typedef\s+(struct|enum)\b", t) and "{" in t:
+                block_head = t
+                depth = t.count("{") - t.count("}")
+        else:
+            depth += t.count("{") - t.count("}")
+            if depth <= 0:
+                m = re.match(r"\}\s*([A-Za-z_]\w*)\s*;", t)
+                if m:
+                    kind = "type"
+                    decl = "%s { ... } %s;" % (block_head[:block_head.index("{")].strip(), m.group(1))
+                    syms.setdefault(m.group(1), (kind, decl))
+                depth = 0
+    for is_pre, text in split_statements(src):
+        if is_pre:
+            continue
+        flat = norm_ws(text)
+        if "typedef" in flat or "API" not in flat:
+            continue
+        m = re.search(r"\b[A-Z][A-Z0-9_]*_API\b[^;{}()]*?\b([A-Za-z_]\w*)\s*\(", flat)
+        if m and m.group(1) not in EXT_EXCLUDE_FN:
+            syms.setdefault(m.group(1), ("fn", flat))
+    # 裁剪/依赖/守卫宏不是公开 API（X*_MODULE_*、X*_FEATURE_*、X*_EXCLUDE_*、*_H）
+    drop = re.compile(r"^([A-Z][A-Z0-9]*_MODULE_|[A-Z][A-Z0-9]*_FEATURE_|"
+                      r"[A-Z][A-Z0-9]*_EXCLUDE_)|_H$")
+    for name in list(syms):
+        if drop.match(name):
+            del syms[name]
+    return syms
+
+
+def cmd_ext(lib, repo, wwwroot):
+    """生成一个扩展库的 ref 页（多模块：子页+落地页；单模块：合一页）。
+
+    复用内核渲染骨架（NAV/页脚/kind 徽章/侧栏），符号全部来自公共头扫描，
+    条目描述取声明上方注释首行；搜索条目按库追加进 search-index.json。
+    """
+    mroot = os.path.join(repo, "extlibs", lib)
+    manifest = json.load(io.open(os.path.join(mroot, "config", "modules.json"),
+                                 encoding="utf-8"))
+    mods = [m for m in manifest["modules"] if m.get("public_headers")]
+    if not mods:
+        print("ext %s: 无带公开头的模块" % lib)
+        return 1
+
+    cache = {}
+    def hdr_of(rel):
+        if rel not in cache:
+            p = os.path.join(repo, rel.replace("/", os.sep))
+            syms = scan_header_ext(p)
+            cache[rel] = (p, syms, ext_header_brief(p),
+                          brief_comments(p, list(syms)))
+        return cache[rel]
+
+    single = len(mods) == 1
+    entries = []
+    book = os.path.join(wwwroot, "book")
+    total_pages = 0
+    for m in mods:
+        syms = {}
+        first_hdr = None
+        page_brief = ""
+        for h in m["public_headers"]:
+            p, ss, hb, bc = hdr_of(h)
+            if first_hdr is None:
+                first_hdr, page_brief = p, hb
+            for name, (kind, decl) in ss.items():
+                syms.setdefault(name, (kind, decl, bc.get(name, "")))
+        page_id = lib if single else "%s-%s" % (lib, m["name"])
+        groups = []
+        counts = {"fn": 0, "type": 0, "const": 0}
+        items = []
+        for name, (kind, decl, brief) in syms.items():
+            sec = Section(name, None)
+            if brief:
+                sec.desc.append(("text", brief))
+            rel_hdr = first_hdr.replace(repo + os.sep, "").replace(os.sep, "/")
+            items.append((sec, kind, None, (decl, rel_hdr)))
+            counts[kind] = counts.get(kind, 0) + 1
+        groups.append((None, items))
+        title = m["name"]
+        desc = e(page_brief or ("%s 扩展模块 API 参考。" % m["name"]))
+        html = render_page(page_id, title, desc, groups, counts, set(), [], [],
+                           lang="zh", translated=None, prose_blocks=None)
+        out = os.path.join(book, "ref-%s.html" % page_id)
+        io.open(out, "w", encoding="utf-8", newline="\n").write(html)
+        total_pages += 1
+        for sec, kind, _sig, _fb in items:
+            if kind in ("fn", "type"):
+                brief = sec.desc[0][1] if sec.desc else "签名、参数与调用示例。"
+                entries.append({
+                    "name": sec.name, "module": lib,
+                    "url": "book/ref-%s.html#%s" % (page_id, sec.name),
+                    "text": brief[:140],
+                })
+        print("ext %s: %s (%d API)" % (lib, page_id, sum(counts.values())))
+
+    if not single:
+        # 落地页：模块卡列表（复用 api-index-card 形态）
+        cards = []
+        lib_brief = ext_header_brief(os.path.join(mroot, "include", lib + ".h")) or \
+            "%s 扩展库" % lib
+        for m in mods:
+            p, ss, hb, bc = hdr_of(m["public_headers"][0])
+            page_id = "%s-%s" % (lib, m["name"])
+            n = len(ss)
+            cards.append(
+                '<a class="api-index-card" href="ref-%s.html">'
+                '<div class="api-index-header"><h4>%s</h4>'
+                '<span class="api-index-count">%d</span></div>'
+                '<div class="api-index-file">%s</div>'
+                '<p class="api-index-desc">%s</p></a>'
+                % (page_id, m["name"], n,
+                   os.path.basename(m["public_headers"][0]),
+                   e(hb or "%s 模块。" % m["name"])))
+        body = ['<div class="api-index-grid">']
+        body.extend("  " + c for c in cards)
+        body.append("</div>")
+        groups = []
+        counts = {"fn": 0, "type": 0, "const": 0}
+        html = render_page(lib, lib, e(lib_brief), groups, counts, set(), [], [],
+                           lang="zh", translated=None, prose_blocks=None)
+        # 模块卡网格注入主区 + 徽章改为模块数语义
+        html = re.sub(r'(<div class="book-main">).*?(</div>)',
+                      lambda _m: _m.group(1) + "\n      " +
+                      "\n      ".join(body) + "\n    " + _m.group(2),
+                      html, count=1, flags=re.S)
+        html = html.replace('<div class="api-count-badge">0 个 API</div>',
+                            '<div class="api-count-badge">%d 个参考模块 · %d API</div>'
+                            % (len(mods), sum(len(hdr_of(m["public_headers"][0])[1])
+                                              for m in mods)))
+        io.open(os.path.join(book, "ref-%s.html" % lib), "w",
+                encoding="utf-8", newline="\n").write(html)
+        total_pages += 1
+        print("ext %s: 落地页 ref-%s.html（%d 模块）" % (lib, lib, len(mods)))
+
+    # 搜索条目：按库去重追加（重跑幂等）
+    idx_path = os.path.join(wwwroot, "search-index.json")
+    idx = json.load(io.open(idx_path, encoding="utf-8"))
+    idx = [x for x in idx if x["module"] != lib]
+    idx += entries
+    idx.sort(key=lambda x: x["module"])
+    json.dump(idx, io.open(idx_path, "w", encoding="utf-8", newline="\n"),
+              ensure_ascii=False, indent=1)
+    print("ext %s: %d 页 / 搜索条目 %d" % (lib, total_pages, len(entries)))
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default="D:/GIT/xrt")
@@ -1018,12 +1280,17 @@ def main():
     ap.add_argument("--only", help="逗号分隔的页面名（如 tls_client,json）")
     ap.add_argument("--lang", choices=("zh", "en", "ru"), default="zh",
                     help="zh: 官网根 book/；en/ru: 从 docs/api/<lang>/*.md 生成 <lang>/book/ 翻译页")
+    ap.add_argument("--ext", metavar="PRODUCT",
+                    help="生成指定扩展库（目录名，如 xacme、xllm-session）的 ref 页与搜索条目")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
     repo = args.repo.replace("\\", "/")
     wwwroot = args.wwwroot.replace("\\", "/")
     lang = args.lang
+
+    if args.ext:
+        return cmd_ext(args.ext, repo, wwwroot)
 
     modules = json.load(io.open(os.path.join(repo, "config", "modules.json"), encoding="utf-8"))["modules"]
     sym_map, hdr_syms, hdr_srcs = scan_all_headers(repo)

@@ -265,6 +265,7 @@ typedef struct xjwtcheck {
 	int         ClockLeeway;   /* exp/nbf 容差秒数，默认 0；负数报 ARGUMENT */
 } xjwtcheck;
 
+/* 校验参数零值（默认只查 exp）。 */
 XRT_API void xjwtCheckInit(xjwtcheck* pCheck);
 
 /* ------------------------------------------------------------------
@@ -276,11 +277,17 @@ XRT_API void xjwtCheckInit(xjwtcheck* pCheck);
  * 校验时请改用 xjwtSign（config 式可注入全部标准 claims）。
  * ------------------------------------------------------------------ */
 XRT_API char* xjwtHs256(const xvalue* claims, const char* secret, int expireSeconds);
+/* HS384 一步式签发；自动注入 exp，返回 xrtFree 释放的 token。 */
 XRT_API char* xjwtHs384(const xvalue* claims, const char* secret, int expireSeconds);
+/* HS512 一步式签发；自动注入 exp，返回 xrtFree 释放的 token。 */
 XRT_API char* xjwtHs512(const xvalue* claims, const char* secret, int expireSeconds);
+/* RS256 一步式签发（RSA 私钥 PEM）；自动注入 exp。 */
 XRT_API char* xjwtRs256(const xvalue* claims, const char* privatePem, int expireSeconds);
+/* RS384 一步式签发（RSA 私钥 PEM）；自动注入 exp。 */
 XRT_API char* xjwtRs384(const xvalue* claims, const char* privatePem, int expireSeconds);
+/* RS512 一步式签发（RSA 私钥 PEM）；自动注入 exp。 */
 XRT_API char* xjwtRs512(const xvalue* claims, const char* privatePem, int expireSeconds);
+/* ES256 一步式签发（EC P-256 私钥 PEM）；自动注入 exp。 */
 XRT_API char* xjwtEs256(const xvalue* claims, const char* privatePem, int expireSeconds);
 
 /* ------------------------------------------------------------------
@@ -298,6 +305,7 @@ typedef struct xjwtconfig {
 	const char* Jti;            /* 可选自动注入 jti */
 } xjwtconfig;
 
+/* 签发配置零值（可注入 iss/aud 与自定义 claims）。 */
 XRT_API void  xjwtConfigInit(xjwtconfig* pConfig);
 /* config 指定的字段覆盖 token 中同名字段，不改变调用方的 claims。 */
 XRT_API char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims);
@@ -317,8 +325,10 @@ XRT_API xvalue* xjwtVerify(const char* token, const char* keyPem, const xjwtchec
  * ------------------------------------------------------------------ */
 typedef struct xjwtkey xjwtkey;
 
+/* 解析公钥 PEM（RSA SPKI/PKCS#1 或 EC P-256）供反复验证。 */
 XRT_API xjwtkey* xjwtKeyParse(const char* publicPem);   /* 失败返回 NULL 并设 xerror；OOM 不回退算法 */
 XRT_API void     xjwtKeyFree(xjwtkey* key);
+/* 用缓存公钥验证 token；返回 claims（xrtValueRelease 释放）。 */
 XRT_API xvalue*  xjwtVerifyKey(const char* token, const xjwtkey* key, const xjwtcheck* check);
 
 /* ------------------------------------------------------------------
@@ -330,6 +340,7 @@ XRT_API xvalue*  xjwtVerifyKey(const char* token, const xjwtkey* key, const xjwt
  * 传 pKid 时拒绝非字符串、≥256 字节或含 NUL 的 kid，不做前缀匹配。
  * ------------------------------------------------------------------ */
 XRT_API xvalue* xjwtDecode(const char* token, int* pAlg);
+/* 只解 header 不验签（取 alg/kid 供路由选择）。 */
 XRT_API xvalue* xjwtDecodeHeader(const char* token, int* pAlg, const char** pKid);
 
 /* ------------------------------------------------------------------
@@ -358,8 +369,11 @@ XRT_API int xjwtLastError(void);
  * ------------------------------------------------------------------ */
 typedef struct xjwtjwks xjwtjwks;
 
+/* 解析 JWKS 公钥集 JSON。 */
 XRT_API xjwtjwks* xjwtJwksParse(const char* json);
+/* 释放 JWKS 公钥集。 */
 XRT_API void      xjwtJwksFree(xjwtjwks* pJwks);
+/* 在 JWKS 集内按 kid 自动选钥验证 token。 */
 XRT_API xvalue*   xjwtVerifyJwks(const char* token, const xjwtjwks* jwks, const xjwtcheck* check);
 
 /* ------------------------------------------------------------------

@@ -67,6 +67,7 @@ typedef struct xllm_compaction xllm_compaction;
 #define XLLM_COMPACTION_SECTION_CRITICAL_CONTEXT    (1u << 13)
 #define XLLM_COMPACTION_SECTION_PI_ALL              0x00003f00u
 
+/* Window and budget knobs (context window, output cap, safety reserve). */
 typedef struct xllm_session_config {
     uint64_t uContextWindowTokens;
     uint32_t uMaxOutputTokens;
@@ -91,6 +92,7 @@ typedef struct xllm_session_config {
     const char* sSnapshotPath;       /* optional default snapshot path for the easy layer; borrowed */
 } xllm_session_config;
 
+/* Budget pressure state (none / prune / compact / overflow). */
 typedef enum xllm_session_pressure {
     XLLM_SESSION_PRESSURE_NONE = 0,
     XLLM_SESSION_PRESSURE_PRUNE,
@@ -98,6 +100,7 @@ typedef enum xllm_session_pressure {
     XLLM_SESSION_PRESSURE_OVERFLOW
 } xllm_session_pressure;
 
+/* Budget accounting: raw vs billed tokens and compaction counters. */
 typedef struct xllm_session_stats {
     uint64_t uContextWindowTokens;
     uint64_t uInputBudgetTokens;
@@ -125,6 +128,7 @@ typedef struct xllm_session_stats {
     bool bFillExactValid;           /* false until the first real call reports usage (or after restore) */
 } xllm_session_stats;
 
+/* Section coverage of a candidate summary. */
 typedef struct xllm_compaction_quality {
     uint32_t uRequiredSections;
     uint32_t uPresentSections;
@@ -148,6 +152,7 @@ typedef struct xllm_pending_tool_call {
     const char* sArgumentsJson;
 } xllm_pending_tool_call;
 
+/* Tail snapshot: turn, role, and last-message presence. */
 typedef struct xllm_session_tail {
     uint64_t uTurn;
     xllm_role eRole;
@@ -172,6 +177,7 @@ typedef struct xllm_session_summary {
 /* the snapshot and journal.                                            */
 /* ------------------------------------------------------------------ */
 
+/* Borrowed file lists (read and modified) for replay and audits. */
 typedef struct xllm_file_ledger {
     const char* const* psReadFiles;     /* borrowed until the next note */
     size_t iReadFileCount;
@@ -179,19 +185,24 @@ typedef struct xllm_file_ledger {
     size_t iModifiedFileCount;
 } xllm_file_ledger;
 
+/* Record a file read into the session ledger (tool visibility tracking). */
 XRT_API bool xllmSessionNoteFileRead(xllm_session* pSession, const char* sPath);
+/* Record a file modification into the session ledger. */
 XRT_API bool xllmSessionNoteFileModified(xllm_session* pSession, const char* sPath);
+/* Copy out the file ledger (read/modified state per path). */
 XRT_API bool xllmSessionGetFileLedger(const xllm_session* pSession, xllm_file_ledger* pLedger);
 
 /* ------------------------------------------------------------------ */
 /* Compaction strategy table (D10): per-stage NULL = built-in default. */
 /* ------------------------------------------------------------------ */
 
+/* Compaction operator verdict (yes or no). */
 typedef enum xllm_compact_decision {
     XLLM_COMPACT_NO = 0,
     XLLM_COMPACT_YES
 } xllm_compact_decision;
 
+/* Compaction plan: the sequence span and split-turn prefix. */
 typedef struct xllm_compaction_plan {
     uint64_t uThroughSequence;      /* complete-turn candidates = (previous through, this value] */
     uint64_t uPrefixThroughSequence; /* split-turn prefix upper bound; 0 = no split (default).
@@ -203,6 +214,7 @@ typedef struct xllm_compaction_plan {
 
 struct xllm_session_stats;
 
+/* Compaction operator vtable (decide, plan, prompt, evaluate). */
 typedef struct xllm_compaction_ops {
     /* Trigger ruling; threshold auto path only (overflow/manual bypass it). */
     xllm_compact_decision (*pShouldCompact)(xllm_session*,
@@ -232,19 +244,23 @@ typedef struct xllm_compaction_ops {
     uint32_t uReserved[4];
 } xllm_compaction_ops;
 
+/* Return the default compaction operator table (read-only borrow). */
 XRT_API const xllm_compaction_ops* xllmSessionDefaultCompactionOps(void);
+/* Install custom compaction operators (NULL restores the defaults). */
 XRT_API bool xllmSessionSetCompactionOps(xllm_session*, const xllm_compaction_ops* pOps /* NULL = default */);
 
 /* ------------------------------------------------------------------ */
 /* Render and event hooks (D11). Borrowed; not persisted; fork inherits. */
 /* ------------------------------------------------------------------ */
 
+/* Host render verdict per message (keep / modified / skip). */
 typedef enum xllm_render_action {
     XLLM_RENDER_KEEP = 0,
     XLLM_RENDER_MODIFIED,
     XLLM_RENDER_SKIP
 } xllm_render_action;
 
+/* Session event types (turn begin and end, entries, compaction). */
 typedef enum xllm_session_event_type {
     XLLM_SESSION_EVENT_TURN_BEGIN = 1,
     XLLM_SESSION_EVENT_TURN_END,
@@ -265,6 +281,7 @@ typedef enum xllm_session_event_type {
     XLLM_SESSION_EVENT_SESSION_FORKED
 } xllm_session_event_type;
 
+/* One session event with its sequence range. */
 typedef struct xllm_session_event {
     xllm_session_event_type eType;
     uint64_t uTurn;
@@ -274,6 +291,7 @@ typedef struct xllm_session_event {
     const char* sText;                  /* optional: summary preview / stage label */
 } xllm_session_event;
 
+/* Host hooks: render filter and event sink. */
 typedef struct xllm_session_hooks {
     /* Per-entry transform on a cloned work message. Same entry should map to
      * the same output (violations cost cache hits, not correctness). SKIPping
@@ -293,22 +311,36 @@ typedef struct xllm_session_hooks {
     uint32_t uReserved[4];
 } xllm_session_hooks;
 
+/* Install session hooks (NULL removes them). */
 XRT_API bool xllmSessionSetHooks(xllm_session*, const xllm_session_hooks* pHooks /* NULL = remove */);
 
+/* Zero a session config with usable defaults (window, budgets, compaction). */
 XRT_API void xllmSessionConfigInit(xllm_session_config*);
+/* Recommended safety-reserve tokens for a context window (overflow margin). */
 XRT_API uint64_t xllmSessionComputeSafetyReserve(uint64_t uContextWindowTokens);
+/* Recommended output-reserve tokens from window and max output. */
 XRT_API uint32_t xllmSessionComputeOutputReserve(uint64_t uContextWindowTokens, uint32_t uMaxOutputTokens);
+/* Rough text token estimate; no model call. */
 XRT_API uint64_t xllmEstimateTextTokens(const char* sText);
+/* Rough message token estimate (same measure as xllm). */
 XRT_API uint64_t xllmEstimateMessageTokens(const xllm_message* pMessage);
 
+/* Create a session from a config; NULL with pError on failure. */
 XRT_API xllm_session* xllmSessionCreate(const xllm_session_config* pConfig, xllm_error* pError);
+/* Deep-copy a session, including history and budget snapshots. */
 XRT_API xllm_session* xllmSessionFork(const xllm_session* pSession, xllm_error* pError);
+/* Destroy the session and release everything it owns. */
 XRT_API void xllmSessionDestroy(xllm_session* pSession);
+/* Copy out the session's effective configuration. */
 XRT_API bool xllmSessionGetConfig(const xllm_session* pSession, xllm_session_config* pConfig);
 
+/* Begin a new turn and return its number. */
 XRT_API uint64_t xllmSessionBeginTurn(xllm_session* pSession);
+/* Current turn number (0 before the first turn). */
 XRT_API uint64_t xllmSessionCurrentTurn(const xllm_session* pSession);
+/* Append a full message to a turn; flags control billing and history. */
 XRT_API bool xllmSessionAddMessage(xllm_session* pSession, uint64_t uTurn, const xllm_message* pMessage, uint32_t uFlags);
+/* Convenience: append a plain text message to a turn. */
 XRT_API bool xllmSessionAddText(xllm_session* pSession, uint64_t uTurn, xllm_role eRole, const char* sContent, uint32_t uFlags);
 
 /* Idempotent pinned identity: appends a PINNED system entry when none exists
@@ -317,7 +349,9 @@ XRT_API bool xllmSessionAddText(xllm_session* pSession, uint64_t uTurn, xllm_rol
  * message, so identity upgrades stay append-only (the journal records them)
  * without stacking blocks. The host owns identity; nothing here injects one. */
 XRT_API bool xllmSessionSetSystemPrompt(xllm_session* pSession, const char* sText, xllm_error* pError);
+/* Fold a model response (with tool calls) into the turn ledger. */
 XRT_API bool xllmSessionAddAssistantResponse(xllm_session* pSession, uint64_t uTurn, const xllm_response* pResponse);
+/* Fold a tool result into the ledger, answering a pending call. */
 XRT_API bool xllmSessionAddToolResult(xllm_session* pSession, uint64_t uTurn, const char* sToolCallId, const char* sContent);
 /* Tool result with an image attachment (read passthrough): the text stays
  * the tool message content, the image rides as an IMAGE part. */
@@ -337,17 +371,23 @@ XRT_API bool xllmSessionAddReference(xllm_session* pSession, uint64_t uTurn,
  * xllmSessionAddAssistantResponse calls this automatically. */
 XRT_API bool xllmSessionRecordUsage(xllm_session* pSession, const xllm_usage* pUsage);
 
+/* Copy a tail snapshot (last message, turn, pending state). */
 XRT_API bool xllmSessionGetTail(const xllm_session* pSession, xllm_session_tail* pTail);
+/* Number of pending tool calls awaiting results. */
 XRT_API size_t xllmSessionPendingToolCallCount(const xllm_session* pSession);
+/* Fetch a pending call by index (id, name, arguments). */
 XRT_API bool xllmSessionPendingToolCallAt(const xllm_session* pSession, size_t iIndex, xllm_pending_tool_call* pCall);
 
+/* Copy session statistics (tokens, turns, compactions). */
 XRT_API bool xllmSessionGetStats(const xllm_session* pSession, xllm_session_stats* pStats);
+/* Assemble a request from the session (budgets, window, tools, system prompt). */
 XRT_API bool xllmSessionBuildRequest(const xllm_session* pSession, xllm_request* pRequest, xllm_error* pError);
 /* Borrowed-view variant (改造 A): plain ledger entries enter the request as
  * shallow copies pointing into the ledger — zero per-message allocations.
  * Hooks, pruned tool output, and the summary bridge still take owned clones.
  * The request must not outlive the session or span a session mutation. */
 XRT_API bool xllmSessionBuildRequestView(const xllm_session* pSession, xllm_request* pRequest, xllm_error* pError);
+/* Copy the session summary (turns, budget usage, compaction state). */
 XRT_API bool xllmSessionGetSummary(const xllm_session* pSession, xllm_session_summary* pSummary);
 
 /*
@@ -356,14 +396,20 @@ XRT_API bool xllmSessionGetSummary(const xllm_session* pSession, xllm_session_su
  * valid summary was obtained. Destroying it without commit aborts safely.
  */
 XRT_API xllm_compaction* xllmSessionPrepareCompaction(xllm_session* pSession, bool bForce, xllm_error* pError);
+/* The prompt that triggered this compaction (verifiable replay). */
 XRT_API const char* xllmCompactionPrompt(const xllm_compaction* pCompaction);
+/* Sequence number the compaction covers through. */
 XRT_API uint64_t xllmCompactionThroughSequence(const xllm_compaction* pCompaction);
+/* Estimated tokens of the compacted span. */
 XRT_API uint64_t xllmCompactionEstimatedTokens(const xllm_compaction* pCompaction);
 /* Record the meta-call usage before committing (exact summary accounting). */
 XRT_API bool xllmCompactionSetUsage(xllm_compaction* pCompaction, const xllm_usage* pUsage);
+/* Grade a summary (length, coverage) for compaction operators. */
 XRT_API bool xllmCompactionEvaluateSummary(const xllm_compaction* pCompaction, const char* sSummary,
     xllm_compaction_quality* pQuality, xllm_error* pError);
+/* Commit a compaction: replace the span with the summary and record it. */
 XRT_API bool xllmSessionCommitCompaction(xllm_session* pSession, xllm_compaction* pCompaction, const char* sSummary, xllm_error* pError);
+/* Free a compaction object. */
 XRT_API void xllmCompactionDestroy(xllm_compaction* pCompaction);
 
 /* Threshold auto-compaction consult: runs the full ops pipeline (meta call via
@@ -375,7 +421,9 @@ XRT_API bool xllmSessionMaybeCompact(xllm_session* pSession, bool* pbCompact, xl
  * a truncate event. L3 (per-message cap rejection) happens at Add time. */
 XRT_API bool xllmSessionOverflowLadder(xllm_session* pSession, xllm_error* pError);
 
+/* Serialize the session to a JSONL archive (atomic write). */
 XRT_API bool xllmSessionSave(const xllm_session* pSession, const char* sPath, xllm_error* pError);
+/* Restore a session from a JSONL archive. */
 XRT_API xllm_session* xllmSessionLoad(const char* sPath, xllm_error* pError);
 
 /*
@@ -384,8 +432,11 @@ XRT_API xllm_session* xllmSessionLoad(const char* sPath, xllm_error* pError);
  * atomically writes the full state and then removes covered journal records.
  */
 XRT_API bool xllmSessionEnableJournal(xllm_session* pSession, const char* sJournalPath, xllm_error* pError);
+/* Disable the automatic journal (debugging aid). */
 XRT_API void xllmSessionDisableJournal(xllm_session* pSession);
+/* Journal path, or NULL when disabled. */
 XRT_API const char* xllmSessionJournalPath(const xllm_session* pSession);
+/* Write a standalone snapshot without interrupting the session. */
 XRT_API bool xllmSessionCheckpoint(xllm_session* pSession, const char* sSnapshotPath, xllm_error* pError);
 /* Both paths are required and must be non-empty; a snapshot FILE that does
  * not exist yet selects the journal-only replay: the session is created from
@@ -398,6 +449,7 @@ XRT_API xllm_session* xllmSessionRecover(const char* sSnapshotPath, const char* 
 /* Easy layer (D1): optional bound client driving the call loop.       */
 /* ------------------------------------------------------------------ */
 
+/* Create a session bound to a real client (borrowed; must outlive the session). */
 XRT_API xllm_session* xllmSessionCreateBound(const xllm_session_config* pConfig,
     xllm_client* pClient /* borrowed, must outlive the session */, xllm_error* pError);
 
@@ -417,6 +469,7 @@ XRT_API xllm_result xllmSessionComplete(xllm_session* pSession,
  * controllable for offline governance lifecycle tests). */
 typedef xllm_result (*xllm_test_call_proc)(void* pUserData, const xllm_request* pRequest,
     const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError);
+/* Create a session over an injectable call function (offline, deterministic). */
 XRT_API xllm_session* xllmSessionCreateForTest(const xllm_session_config* pConfig,
     xllm_test_call_proc pCall, void* pUserData, xllm_error* pError);
 
@@ -439,6 +492,7 @@ XRT_API bool xllmSessionForwardDriver(xllm_session* pDst, const xllm_session* pS
 /* and use the same executor contract.                                  */
 /* ------------------------------------------------------------------ */
 
+/* Run guard policy (round cap, model override). */
 typedef struct xllm_run_policy {
     /* Model-round budget; 0 selects the default (32); UINT32_MAX disables
      * the round bound entirely (mdo-style hosts guard via pOnRound instead). */
@@ -460,6 +514,7 @@ typedef struct xllm_run_policy {
     uint32_t uReserved[4];
 } xllm_run_policy;
 
+/* Run outcome: rounds, tool calls, stop reason, final text. */
 typedef struct xllm_run_summary {
     uint32_t uRounds;        /* model rounds consumed */
     uint32_t uToolCalls;     /* executor calls completed (tool-level failures included) */
@@ -469,7 +524,9 @@ typedef struct xllm_run_summary {
     uint32_t uReserved[4];
 } xllm_run_summary;
 
+/* Zero a run policy (sentinel defaults for unbounded loops). */
 XRT_API void xllmRunPolicyInit(xllm_run_policy* pPolicy);
+/* Free the contents of a run summary. */
 XRT_API void xllmRunSummaryUnit(xllm_run_summary* pSummary);
 
 /* Run a bounded tool round-trip loop. sPrompt == NULL resumes an interrupted

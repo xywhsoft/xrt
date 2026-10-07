@@ -163,6 +163,7 @@ typedef bool (*xoauth2httpproc)(const char* sMethod, const char* sUrl,
                                 char** psResponseBody, int* piStatus,
                                 void* pContext);
 
+/* 自定义端点配置（授权/token/userinfo/JWKS URL 与 scope）。 */
 typedef struct xoauth2config {
 	const char* AuthorizeUrl;    /* 授权端点 */
 	const char* TokenUrl;        /* token 端点 */
@@ -180,6 +181,7 @@ typedef struct xoauth2config {
 	void*       HttpContext;      /* 透传给回调 */
 } xoauth2config;
 
+/* 自定义端点配置零值。 */
 XRT_API void xoauth2ConfigInit(xoauth2config* pConfig);
 
 /* ------------------------------------------------------------------
@@ -203,9 +205,13 @@ typedef struct xoauth2client {
 /* Provider 预设（一行初始化）。tenant 超 256 字符时 Microsoft 预设
  * 置错误并让端点为 NULL。 */
 XRT_API void xoauth2UseGithub(xoauth2client* pClient, const char* id, const char* secret, const char* redirect);
+/* 一键套用 Google 端点（授权码流程）。 */
 XRT_API void xoauth2UseGoogle(xoauth2client* pClient, const char* id, const char* secret, const char* redirect);
+/* 一键套用微信开放平台端点。 */
 XRT_API void xoauth2UseWechat(xoauth2client* pClient, const char* appid, const char* appSecret, const char* redirect);
+/* 一键套用 Microsoft/Azure AD 端点（含 tenant）。 */
 XRT_API void xoauth2UseMicrosoft(xoauth2client* pClient, const char* id, const char* secret, const char* redirect, const char* tenant);
+/* 套用自定义端点配置。 */
 XRT_API void xoauth2UseCustom(xoauth2client* pClient, const xoauth2config* pConfig);
 
 /* 会话终止/客户端重置：清零 state/verifier（敏感）并释放预设持有的
@@ -248,8 +254,10 @@ typedef struct xoauth2token {
 	int64_t ExpiresAt;            /* ObtainedAt + ExpiresIn */
 } xoauth2token;
 
+/* 用回调 code 换取令牌（含 state 校验与 PKCE）。 */
 XRT_API xoauth2token* xoauth2CompleteLogin(xoauth2client* pClient,
                                    const char* sCode, const char* sState);
+/* 释放令牌对象。 */
 XRT_API void xoauth2TokenFree(xoauth2token* pToken);
 
 /* ------------------------------------------------------------------
@@ -335,6 +343,7 @@ typedef struct xoauth2httpxrt xoauth2httpxrt;
  * 会先非阻塞轮询，仍未完成则拒绝，借用引擎不受该限制。 */
 XRT_API bool xoauth2HttpXrtInit(xoauth2httpxrt* pHttp, void* pBorrowedEngine,
                         const char* sCaPem, int64 uTimeoutMs);
+/* 同步清理直连传输（语义见上方 Cleanup 注释）。 */
 XRT_API void xoauth2HttpXrtUnit(xoauth2httpxrt* pHttp);
 
 /* 与请求串行调用；等待自建 engine 的异步 Close/Abort，最多 uTimeoutMs。
@@ -348,6 +357,7 @@ XRT_API bool xoauth2HttpXrtCleanup(xoauth2httpxrt* pHttp);
  * 需要确认成功时先调用 Cleanup，成功后再 Destroy。参数语义与 Init 相同。 */
 XRT_API xoauth2httpxrt* xoauth2HttpXrtCreate(void* pBorrowedEngine,
                                      const char* sCaPem, int64 uTimeoutMs);
+/* 堆句柄销毁（先 Cleanup 成功再释放）。 */
 XRT_API void            xoauth2HttpXrtDestroy(xoauth2httpxrt* pHttp);
 
 /* 重试未交付失败堆构造的引擎退休；并发可用，入列不分配且不启动后台线程。
