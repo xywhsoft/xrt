@@ -1853,6 +1853,66 @@ static void test_malformed_parser(void)
     xllmCallDestroy(pCall);
 }
 
+static void test_stream_terminal_contract(void)
+{
+    static const struct {
+        xllm_provider provider;
+        const char* body;
+        bool complete;
+    } cases[] = {
+        {XLLM_PROVIDER_OPENAI_COMPAT,
+         "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"},\"finish_reason\":null}]}\n\n", false},
+        /* Complete JSON arguments do not make an unfinished model turn safe. */
+        {XLLM_PROVIDER_OPENAI_COMPAT,
+         "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"t\",\"function\":{\"name\":\"write_file\",\"arguments\":\"{}\"}}]},\"finish_reason\":null}]}\n\n", false},
+        {XLLM_PROVIDER_OPENAI_COMPAT,
+         "data: {\"choices\":[{\"delta\":{\"content\":\"done\"},\"finish_reason\":\"stop\"}]}\n\n", true},
+        {XLLM_PROVIDER_OPENAI_COMPAT,
+         "data: {\"choices\":[{\"delta\":{\"content\":\"done\"},\"finish_reason\":null}]}\n\ndata: [DONE]\n\n", true},
+        {XLLM_PROVIDER_OPENAI_RESPONSES,
+         "data: {\"type\":\"response.output_text.delta\",\"delta\":\"partial\"}\n\n", false},
+        {XLLM_PROVIDER_OPENAI_RESPONSES,
+         "data: {\"type\":\"response.output_text.delta\",\"delta\":\"done\"}\n\ndata: {\"type\":\"response.completed\",\"response\":{}}\n\n", true},
+        {XLLM_PROVIDER_ANTHROPIC,
+         "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"partial\"}}\n\n", false},
+        {XLLM_PROVIDER_ANTHROPIC,
+         "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"done\"}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n", true}
+    };
+    size_t i;
+    for (i = 0; i < sizeof(cases)/sizeof(cases[0]); ++i) {
+        xllm_client* client = test_make_client("http://127.0.0.1:1/v1", cases[i].provider);
+        test_hook_state state = {0};
+        xllm_hooks hooks = {0};
+        xllm_request request;
+        xllm_error error;
+        xllm_response* response = NULL;
+        test_events events = {0};
+        xllm_stream_callbacks callbacks = {&events, test_on_event};
+        CHECK(client != NULL, "terminal contract client");
+        if (!client) continue;
+        state.sRawPre = cases[i].body;
+        hooks.pOnResponseBody = test_hook_on_raw;
+        hooks.pUserData = &state;
+        xllmClientSetHooks(client, &hooks);
+        xllmRequestInit(&request);
+        request.bStream = true;
+        (void)xllmRequestAddTextMessage(&request, XLLM_ROLE_USER, "terminal contract");
+        xllm_result result = xllmClientComplete(client, &request, &callbacks, &response, &error);
+        if (cases[i].complete) {
+            CHECK(result == XLLM_RESULT_OK && response && events.iDone == 1,
+                "explicit model terminal event completes exactly once");
+        } else {
+            CHECK(result != XLLM_RESULT_OK && !response && events.iDone == 0 &&
+                error.eCode == XLLM_ERROR_PROTOCOL &&
+                strstr(error.sMessage, "terminal event") != NULL,
+                "valid partial SSE at EOF cannot complete or dispatch tools");
+        }
+        xllmResponseDestroy(response);
+        xllmRequestUnit(&request);
+        xllmClientDestroy(client);
+    }
+}
+
 static void test_transport(void)
 {
     test_server_ctx tServerCtx = {0};
@@ -2027,6 +2087,7 @@ int main(void)
     test_tls_private_ca();
     test_fragmented_parser();
     test_malformed_parser();
+    test_stream_terminal_contract();
     test_transport();
     printf("xllm v2: %s (%d failures)\n", g_iFailures ? "FAIL" : "PASS", g_iFailures);
     return g_iFailures ? 1 : 0;

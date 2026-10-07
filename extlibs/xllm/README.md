@@ -23,6 +23,7 @@
 - 可替换分配器（测试用故障注入，按分配序号穷举 OOM）
 - 借用式 `xcancel` 与绝对单调 deadline，贯通取消和可中断重试退避
 - 仅在尚未交付模型事件时执行的有界瞬态重试，并支持 `Retry-After`
+- SSE 只有收到协议终止事件才完成；Chat Completions 也接受明确的 `finish_reason`。HTTP 正常 EOF 不会把部分文本或未完成工具调用当作成功。
 
 `xllm-session` 当前还提供：
 

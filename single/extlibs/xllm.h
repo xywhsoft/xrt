@@ -7131,8 +7131,19 @@ xllm_result xllmCallWait(xllm_call* pCall, xllm_response** ppResponse, xllm_erro
              !xllm__sse_feed(pCall, pCall->tRawBody.pData, pCall->tRawBody.iLen) ) {
             bParsed = false;
         } else {
-            bParsed = xllm__sse_finish(pCall) &&
-                (pCall->bSawEvent || pCall->bDone || pCall->pResponse != NULL);
+            bParsed = xllm__sse_finish(pCall);
+            /* EOF only completes HTTP framing. A model stream must carry a
+             * terminal event; otherwise even syntactically valid partial
+             * tool arguments must never be dispatched. Chat-compatible
+             * providers may omit [DONE] after an explicit finish_reason. */
+            if (bParsed && !pCall->bDone &&
+                !(pCall->pDialect == xllm__dialect_completions() &&
+                  pCall->pResponse && pCall->pResponse->sFinishReason &&
+                  pCall->pResponse->sFinishReason[0])) {
+                xllm__error_set(&pCall->tError, XLLM_ERROR_PROTOCOL,
+                    "provider event stream ended before its terminal event");
+                bParsed = false;
+            }
         }
     } else if ( pCall->tRawBody.iLen ) {
         bParsed = pCall->pDialect->DecodeJsonBody(pCall,
