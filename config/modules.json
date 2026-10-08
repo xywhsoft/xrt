@@ -12991,11 +12991,13 @@
 			"tests": [
 				"tests/value/test_value_container.c",
 				"tests/value/test_value_container_contract.c",
+				"tests/value/test_value_object_post_commit.c",
 				"tests/value/test_value_cow.c",
 				"tests/value/test_value_container_oom.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_value_container.c"
+				"tests/single/test_single_value_container.c",
+				"tests/single/test_single_value_object_post_commit.c"
 			],
 			"examples": [
 				"examples/value/containers/main.c",

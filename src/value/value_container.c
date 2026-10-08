@@ -3478,6 +3478,58 @@ XRT_API bool xrtValueObjectSetNew(
 	XRT_VALUE_MUTATION_RETURN(bool, __xrtOwnershipBody_ValueObjectSetNew(pObject, Key, pItem));
 }
 
+/* Transfer, rather than drop, the old slot while publishing its replacement.
+ * A callback-bearing child can own references to this very receiver. Dropping
+ * it inside SetOwned's BUSY fence would reject those legitimate releases.
+ * The outer API pins the receiver and retires the detached owner only after
+ * leaving its mutation. No BUSY/FINALIZING release exception is introduced. */
+static bool __xrtValueObjectExchangeOwned(
+	xvalue* pObject, xstrview Key, xvalue* pItem, xvalue** pOld)
+{
+	xvalueobjectbacking* pBacking;
+	xvalue** pSlot;
+	if (!__xrtValueObjectKeyValid(Key)) return false;
+	pBacking = (xvalueobjectbacking*)__xrtValueBacking(pObject, XVALUE_OBJECT);
+	if (pBacking == NULL || !__xrtValueStoreItemValid(pItem)) return false;
+	pSlot = (xvalue**)xrtMapGet(&pBacking->Items, __xrtValueObjectKey(Key));
+	if (pSlot != NULL && *pSlot == pItem) {
+		*pOld = pItem; /* Consume the independently owned duplicate after commit. */
+		return true;
+	}
+	if (!__xrtValuePrepareStore(pObject, pItem)) return false;
+	pBacking = (xvalueobjectbacking*)pObject->Data.Backing;
+	pSlot = (xvalue**)xrtMapGet(&pBacking->Items, __xrtValueObjectKey(Key));
+	if (pSlot != NULL) {
+		*pOld = *pSlot;
+		*pSlot = pItem;
+		return true;
+	}
+	pObject->Flags |= XRT_VALUE_FLAG_BUSY;
+	bool bResult = xrtMapSetPtr(&pBacking->Items, __xrtValueObjectKey(Key), pItem);
+	pObject->Flags &= ~XRT_VALUE_FLAG_BUSY;
+	return bResult;
+}
+
+XRT_API bool xrtValueObjectSetNewPostCommit(xvalue* pObject, xstrview Key, xvalue* pItem)
+{
+	xrtownershipscope Mutation = {0};
+	xvalue* pOld = NULL;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	xvalue* pPin = xrtValueRetain(pObject);
+	bool bResult = pPin != NULL && __xrtValueObjectExchangeOwned(pObject, Key, pItem, &pOld);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	/* On failure retire the unaccepted input, on success the detached field.
+ * A pinned receiver survives arbitrary old-value cleanup. Preserve the first
+ * operation/retirement diagnostic even if releasing that pin raises again. */
+	xerror* pPrimary = xrtTakeError();
+	xrtValueRelease(bResult ? pOld : pItem);
+	if (pPrimary != NULL) { xrtClearError(); xrtSetErrorTake(pPrimary); }
+	xerror* pFailure = xrtTakeError();
+	xrtValueRelease(pPin);
+	if (pFailure != NULL) { xrtClearError(); xrtSetErrorTake(pFailure); }
+	return bResult;
+}
+
 
 
 /* 判断对象键是否存在。 */
