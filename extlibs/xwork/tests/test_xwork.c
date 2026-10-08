@@ -1884,6 +1884,94 @@ static int run_mcp_test_server(void)
     return ferror(stdin) ? 1 : 0;
 }
 
+/* Follow the actual model instruction, so this catches a conflicting system
+ * format even when the user-side compaction prompt names the correct style. */
+static xllm_result style_summary_complete(void* Data, const xllm_request* Request,
+    const xllm_stream_callbacks* Callbacks, xllm_response** Response, xllm_error* Error)
+{
+    const char* Coding =
+        "Goal: preserve the original coding task and the exact pending next action.\n"
+        "Constraints & Preferences: keep all completed work and stay within the original workspace boundaries.\n"
+        "Progress: prior synthetic turns completed successfully and no tool calls are currently unresolved.\n"
+        "Key Decisions: retain the original files, commands and verification evidence without inventing outcomes.\n"
+        "Next Steps: continue the latest user request after committing this valid summary checkpoint.\n"
+        "Critical Context: this is a synthetic local test with no production credentials or file mutations.\n";
+    const char* General =
+        "Goal: preserve the original conversation and the exact pending next action.\n"
+        "Constraints: keep all established preferences and facts without inventing any completed work.\n"
+        "Progress: prior synthetic turns completed successfully and no tool calls are currently unresolved.\n"
+        "Key Decisions: retain the original facts, constraints and verification evidence for the next turn.\n"
+        "Next Steps: continue the latest user request after committing this valid summary checkpoint.\n"
+        "Critical Context: this is a synthetic local test with no production credentials or file mutations.\n";
+    const char* Durable =
+        "Objective: preserve the original task and the exact pending next action.\n"
+        "Constraints: keep completed work and obey the original workspace boundaries.\n"
+        "Architecture and decisions: retain the same session and safe completed prefix.\n"
+        "Completed work: prior synthetic turns completed with no unresolved tool calls.\n"
+        "Current repository state: no production files or credentials were changed.\n"
+        "Verification evidence: the old turns contain only completed synthetic user and assistant messages.\n"
+        "Open issues and risks: the latest request remains pending and is not claimed complete.\n"
+        "Exact next actions: commit this valid summary checkpoint and continue the user's request.\n";
+    const char* Text = request_has_text(Request, "## Constraints & Preferences") ? Coding :
+        request_has_text(Request, "## Goal") ? General : Durable;
+    (void)Data; (void)Callbacks; (void)Error;
+    if (strstr(Request->pMessages[0].sContent, "Return exactly these populated headings: Objective")) Text=Durable;
+    *Response=mock_response(Text,0u);
+    return *Response ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;
+}
+static void test_compaction_styles(void)
+{
+    const char* pStyles[] = { NULL, "general", "durable" };
+    char sHistory[2001];
+    size_t i;
+    memset(sHistory, 'x', sizeof(sHistory) - 1u);
+    sHistory[sizeof(sHistory) - 1u] = '\0';
+    for ( i = 0u; i < sizeof(pStyles) / sizeof(pStyles[0]); ++i ) {
+        xllm_session_config tConfig;
+        xllm_error tModelError;
+        xwork_error tError;
+        xwork_agent_config tAgentConfig;
+        xllm_session* pSession;
+        xwork_agent* pAgent;
+        xllm_session_summary tSummary;
+        xwork_result eResult;
+        unsigned int uTurn;
+        xllmSessionConfigInit(&tConfig);
+        tConfig.sSummaryStyle = pStyles[i];
+        tConfig.uContextWindowTokens = 8000u;
+        tConfig.uMaxOutputTokens = 600u;
+        tConfig.uSafetyReserveTokens = 100u;
+        tConfig.uSummaryMaxTokens = 400u;
+        tConfig.uKeepRecentTokens = 1000u;
+        pSession = xllmSessionCreate(&tConfig, &tModelError);
+        CHECK(pSession != NULL, "summary style session created");
+        if ( !pSession ) continue;
+        for ( uTurn = 0u; uTurn < 3u; ++uTurn ) {
+            uint64_t uId = xllmSessionBeginTurn(pSession);
+            CHECK(uId && xllmSessionAddText(pSession, uId, XLLM_ROLE_USER, sHistory, 0u) &&
+                xllmSessionAddText(pSession, uId, XLLM_ROLE_ASSISTANT, sHistory, 0u),
+                "summary style completed turn seeded");
+        }
+        xworkAgentConfigInit(&tAgentConfig);
+        tAgentConfig.pSession = pSession;
+        tAgentConfig.sModel = "mock-model";
+        tAgentConfig.sWorkspaceRoot = ".";
+        tAgentConfig.OnModelComplete = style_summary_complete;
+        pAgent = xworkAgentCreate(&tAgentConfig, &tError);
+        eResult = pAgent ? xworkAgentCompact(pAgent, &tError) : XWORK_RESULT_ERROR;
+        if ( eResult != XWORK_RESULT_OK ) {
+            fprintf(stderr, "summary style %s: %s\n",
+                pStyles[i] ? pStyles[i] : "coding", tError.sMessage);
+        }
+        CHECK(eResult == XWORK_RESULT_OK, pStyles[i] ? pStyles[i] :
+            "default coding summary honors its own style");
+        CHECK(xllmSessionGetSummary(pSession, &tSummary) && tSummary.sText && tSummary.sText[0],
+            "style summary checkpoint committed");
+        xworkAgentDestroy(pAgent);
+        xllmSessionDestroy(pSession);
+    }
+}
+
 int main(int argc, char** argv)
 {
     if ( argc == 2 && strcmp(argv[1], "--mcp-test-server") == 0 ) {
@@ -1903,6 +1991,7 @@ int main(int argc, char** argv)
     test_executor_bind();
     test_readonly_subagent();
     test_agent_loop();
+    test_compaction_styles();
     test_session_run_with_tools_chain();
     test_run_window_and_durable_recovery();
     printf("xwork v2: %s (%d failures)\n", g_iFailures ? "FAIL" : "PASS", g_iFailures);
