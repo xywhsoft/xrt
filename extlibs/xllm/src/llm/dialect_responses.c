@@ -109,17 +109,24 @@ static bool xllm__responses_append_items(xllm_buf* pBuf, const xllm_request* pRe
             }
             continue;
         }
-        if ( !xllm__buf_append_cstr(pBuf, "{\"type\":\"message\",\"role\":") ||
+        size_t iUsable = 0u;
+        bool bArray = false;
+        for ( j = 0u; j < pMessage->iPartCount; ++j ) {
+            if ( pMessage->pParts[j].eKind == XLLM_PART_REASONING ) { continue; }
+            ++iUsable;
+            if ( pMessage->pParts[j].eKind != XLLM_PART_TEXT ) { bArray = true; }
+        }
+        /* An explicit assistant message type selects ResponseOutputMessage in
+         * strict Responses servers, whose content must be an output-part array.
+         * String history uses EasyInputMessage instead: omit the discriminator
+         * rather than mixing the two schemas. Keep structured items typed. */
+        bool bAssistantText = pMessage->eRole == XLLM_ROLE_ASSISTANT &&
+            (pMessage->iPartCount == 0u || (iUsable == 1u && !bArray));
+        if ( !xllm__buf_append_cstr(pBuf, bAssistantText ? "{\"role\":" :
+                "{\"type\":\"message\",\"role\":") ||
              !xllm__json_string(pBuf, pMessage->eRole == XLLM_ROLE_ASSISTANT ? "assistant" : "user") ||
              !xllm__buf_append_cstr(pBuf, ",\"content\":") ) { return false; }
         if ( pMessage->iPartCount > 0u ) {
-            size_t iUsable = 0u;
-            bool bArray = false;
-            for ( j = 0u; j < pMessage->iPartCount; ++j ) {
-                if ( pMessage->pParts[j].eKind == XLLM_PART_REASONING ) { continue; }
-                ++iUsable;
-                if ( pMessage->pParts[j].eKind != XLLM_PART_TEXT ) { bArray = true; }
-            }
             if ( iUsable == 1u && !bArray ) {
                 const char* sText = NULL;
                 for ( j = 0u; j < pMessage->iPartCount; ++j ) {

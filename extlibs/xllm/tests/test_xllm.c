@@ -723,6 +723,50 @@ static void test_dialect_responses(void)
     xllmFree(sJson);
     xllmRequestUnit(&tRequest);
     {
+        xllm_message tAssistant, tParts;
+        xllm_part tPart;
+        xllmRequestInit(&tRequest);
+        xllmMessageInit(&tAssistant, XLLM_ROLE_ASSISTANT);
+        xllmMessageInit(&tParts, XLLM_ROLE_ASSISTANT);
+        xllmPartInit(&tPart, XLLM_PART_REASONING);
+        CHECK(xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "Hi") &&
+            xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_ASSISTANT, "Hello") &&
+            xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, "What can you do?"),
+            "responses follow-up history inputs");
+        CHECK(xllmMessageSetContent(&tAssistant, "Reading now") &&
+            xllmMessageAddToolCall(&tAssistant, "followup_call", "read_file", "{}") &&
+            xllmRequestAddMessage(&tRequest, &tAssistant) &&
+            xllmRequestAddToolResult(&tRequest, "followup_call", "file text"),
+            "responses text with paired function history");
+        CHECK(xllmPartSetText(&tPart, "private thought"), "responses reasoning history text");
+        tPart.eKind = XLLM_PART_REASONING;
+        CHECK(xllmMessageAddPart(&tParts, &tPart), "responses reasoning history part");
+        xllm__part_unit(&tPart);
+        xllmPartInit(&tPart, XLLM_PART_TEXT);
+        CHECK(xllmPartSetText(&tPart, "Visible answer") &&
+            xllmMessageAddPart(&tParts, &tPart) &&
+            xllmRequestAddMessage(&tRequest, &tParts), "responses single usable text part");
+        CHECK(xllmMessageAddPart(&tParts, &tPart) &&
+            xllmRequestAddMessage(&tRequest, &tParts), "responses multiple text parts");
+        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+        CHECK(sJson && strstr(sJson, "{\"role\":\"assistant\",\"content\":\"Hello\"}") &&
+            !strstr(sJson, "{\"type\":\"message\",\"role\":\"assistant\",\"content\":\""),
+            "responses string assistant history uses easy input messages");
+        CHECK(sJson && strstr(sJson, "{\"role\":\"assistant\",\"content\":\"Visible answer\"}") &&
+            !strstr(sJson, "private thought"), "responses filtered text history uses easy input");
+        CHECK(sJson && strstr(sJson, "{\"role\":\"assistant\",\"content\":\"Reading now\"}") &&
+            strstr(sJson, "\"type\":\"function_call\",\"call_id\":\"followup_call\"") &&
+            strstr(sJson, "\"type\":\"function_call_output\",\"call_id\":\"followup_call\""),
+            "responses follow-up retains function call-output pairing");
+        CHECK(sJson && strstr(sJson, "{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\""),
+            "responses structured assistant history keeps output parts");
+        xllmFree(sJson);
+        xllm__part_unit(&tPart);
+        xllmMessageUnit(&tParts);
+        xllmMessageUnit(&tAssistant);
+        xllmRequestUnit(&tRequest);
+    }
+    {
         xllm_call* pCall = (xllm_call*)calloc(1u, sizeof(*pCall));
         CHECK(pCall != NULL, "responses parser call allocation");
         if ( pCall ) {
