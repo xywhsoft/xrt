@@ -3673,10 +3673,10 @@ static bool __xrtValueFieldsReachable(const xrtownershipsnapshot* pSnapshot,
 	}
 	return false;
 }
-XRT_API xvalueobjectfieldsresultv1 xrtValueObjectFieldsCommitV1(
+XRT_API xvalueobjectfieldsresultv1 xrtValueObjectFieldsCommitV2(
 	xvalueobjectfieldsv1* const* ppFields, size_t iCount,
 	const xrtownershipref* pInternalSlots, size_t iInternalSlotCount,
-	xrtownershipadmitproc pAdmit, ptr pContext)
+	xrtownershipadmitproc pAdmit, ptr pContext, size_t* piSharedIndex)
 {
 	xrtownershipscope Freeze = {0};
 	xrtownershipsnapshot* pSnapshot = NULL;
@@ -3720,7 +3720,10 @@ XRT_API xvalueobjectfieldsresultv1 xrtValueObjectFieldsCommitV1(
 				__xrtErrorSetInvalidState(); goto done;
 			}
 		}
-		if (bShared) { Result = XVALUE_OBJECT_FIELDS_SHARED_V1; goto done; }
+		if (bShared) {
+			if (piSharedIndex != NULL) *piSharedIndex = i;
+			Result = XVALUE_OBJECT_FIELDS_SHARED_V1; goto done;
+		}
 		xvaluecontainscontext Contains = {0};
 		Contains.TargetValue = ppFields[i]->Receiver;
 		if (pBacking->FinalizerBound) Contains.TargetBacking = &pBacking->Base;
@@ -3753,6 +3756,14 @@ done:
 	xrtOwnershipSnapshotDestroy(pSnapshot); xrtFree(pSlots);
 	if (!xrtOwnershipScopeEnd(&Freeze)) abort();
 	return Result;
+}
+XRT_API xvalueobjectfieldsresultv1 xrtValueObjectFieldsCommitV1(
+	xvalueobjectfieldsv1* const* ppFields, size_t iCount,
+	const xrtownershipref* pInternalSlots, size_t iInternalSlotCount,
+	xrtownershipadmitproc pAdmit, ptr pContext)
+{
+	return xrtValueObjectFieldsCommitV2(ppFields, iCount, pInternalSlots,
+		iInternalSlotCount, pAdmit, pContext, NULL);
 }
 
 
