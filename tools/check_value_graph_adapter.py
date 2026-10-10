@@ -33,7 +33,8 @@ def main() -> int:
     inputs=[{'Path':str(path),'Sha256':digest(path)} for path in sorted(files)]
     rows=[]; report={'Complete':False,'InputsUnchanged':False,'Inputs':inputs,'Rows':rows,
         'Scope':__doc__,'SelectedRuntimeInstrumented':args.sanitize,'WholeRuntimeInstrumented':False,
-        'LegacyRegressionProved':False,'ProjectionFaultPositions':{},'SequenceFaultPositions':{}}
+        'LegacyRegressionProved':False,'ProjectionFaultPositions':{},'SequenceFaultPositions':{},
+        'NativeSequenceFaultPositions':{}}
     out.mkdir(parents=True)
     flags=['-std=c11','-Wall','-Wextra','-Werror','-DXRT_IMPLEMENTATION','-DXRT_MODULE_VALUE_GRAPH',
         '-DXRT_MODULE_VALUE_COLLECTION','-Isingle']
@@ -67,10 +68,15 @@ def main() -> int:
                 run(lane+'.build',[cc,*flags,*debug,f'-O{level}','tests/value/'+name+'.c',*links,'-o',str(binary)])
                 proof=run(lane+'.run',[str(binary)])
                 if name in ('test_value_graph_projection','test_value_graph_sequence'):
-                    match=re.search(r'(\d+) complete allocation failure positions',proof)
+                    match=re.search(('nominal sequence policies; ' if name=='test_value_graph_sequence' else '')+
+                        r'(\d+) complete allocation failure positions',proof)
                     assert match and int(match[1])>0
                     key='ProjectionFaultPositions' if name=='test_value_graph_projection' else 'SequenceFaultPositions'
                     report[key][str(level)]=int(match[1])
+                    if name=='test_value_graph_sequence':
+                        native=re.search(r'authenticated native sequence; (\d+) complete allocation failure positions',proof)
+                        assert native and int(native[1])>0
+                        report['NativeSequenceFaultPositions'][str(level)]=int(native[1])
         report['InputsUnchanged']=all(digest(Path(row['Path']))==row['Sha256'] for row in inputs)
         assert report['InputsUnchanged']; report['Complete']=True
     except Exception as error:

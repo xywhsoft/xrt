@@ -716,7 +716,13 @@ static xvalue* __xrtValueDeepClone(
 	for (size_t i = 0; i < pContext->Config.SequenceCount; ++i) {
 		const xvaluegraphsequencev1* pSequence = &pContext->Config.Sequences[i];
 		if (pSource->TypeId != pSequence->TypeId) continue;
-		if (Type != pSequence->Type) { __xrtErrorSetType(); return NULL; }
+		/* A logical sequence can have a wire and an authenticated native
+		 * carrier. Only the explicit handle adapter may bridge that boundary;
+		 * every other physical mismatch retains the strict wire rejection. */
+		if (Type != pSequence->Type &&
+			(Type != XVALUE_HANDLE || !pContext->Config.CopyHandle)) {
+			__xrtErrorSetType(); return NULL;
+		}
 		bSequence = true; break;
 	}
 	if (Type == XVALUE_OBJECT && pContext->Config.CopyObject) {
@@ -729,7 +735,16 @@ static xvalue* __xrtValueDeepClone(
 		iFound = __xrtValueCloneFind(pContext, pSource, &pTarget);
 		if (iFound != 0) return iFound > 0 ? pTarget : NULL;
 		iFound = __xrtValueCloneAdapt(pContext, pSource, iDepth, false, &pTarget);
-		if (iFound != 0) return iFound > 0 ? pTarget : NULL;
+		if (iFound < 0) return NULL;
+		if (iFound > 0) {
+			if (bSequence && pTarget->Type != XVALUE_ARRAY) {
+				__xrtErrorSetType(); __xrtValueCloneRelease(pContext, pTarget);
+				return NULL;
+			}
+			return pTarget;
+		}
+		/* A listed native sequence has no opaque-handle retention fallback. */
+		if (bSequence) { __xrtErrorSetType(); return NULL; }
 		if (pContext->Config.Flags & XVALUE_GRAPH_COPY_DATA_V1) {
 			pTarget = xrtValueRetain(pSource);
 			if (pTarget && (!__xrtValueCloneStart(pContext, pSource, pTarget) ||

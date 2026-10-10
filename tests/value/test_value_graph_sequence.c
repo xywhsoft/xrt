@@ -36,6 +36,67 @@ static xvalue* list(xvalue* edge,uint64 identity)
         (!identity || xrtValueTypeIdBind(value,identity)),"List fixture");
     return value;
 }
+static void nativeDrop(ptr raw,ptr user) { (void)user; xrtValueRelease(raw); }
+static const xvaluehandleops nativeOps={.Drop=nativeDrop};
+static const xvaluehandleops foreignOps={.Drop=nativeDrop};
+static int nativeProject(const xvaluehandleops* ops,ptr raw,ptr owner,uint64 identity,
+    xvaluegraphnextv1* next,xvalue** output,ptr user)
+{
+    (void)owner;
+    if (ops!=&nativeOps || identity!=LIST_ID) return 0;
+    int mode=*(const int*)user;
+    if (mode==1) return 0;
+    if (mode==2) { *output=xrtValueObject(); return *output ? 1 : -1; }
+    *output=xrtValueGraphNextV1(next,raw);
+    return *output ? 1 : -1;
+}
+static void nativeSequence(void)
+{
+    xmemdebugsnapshot initial=live(); int mode=0;
+    xvaluegraphsequencev1 rule={LIST_ID,XVALUE_INT_MAP};
+    xvaluegraphcopyv1 config={.Size=sizeof(config),.Flags=XVALUE_GRAPH_COPY_DATA_V1,
+        .CopyHandle=nativeProject,.UserData=&mode,.Sequences=&rule,.SequenceCount=1};
+    xvalue* child=xrtValueArray();
+    testRequire(child && xrtValueArrayAppendNew(child,xrtValueString((xstrview){"a\0b",3})),"native child");
+    ptr raw=child;
+    xvalue* native=xrtValueHandleTake(&raw,&nativeOps,NULL),*wire=list(child,LIST_ID),*root=xrtValueArray();
+    testRequire(native && wire && root && xrtValueTypeIdBind(native,LIST_ID) &&
+        xrtValueArrayAppend(root,native) && xrtValueArrayAppend(root,native) &&
+        xrtValueArrayAppend(root,wire) && xrtValueArrayAppend(root,child),"mixed native sequence fixture");
+    xmemdebugsnapshot baseline=live(); size_t failures=0;
+    for (size_t point=0;point<4096;++point) {
+        testRequire(xrtMemDebugFailAfter(point),"native sequence fault injection");
+        xvalue* result=xrtValueGraphCopyV1(root,&config);
+        bool hit=xrtMemDebugFailTriggered(); xrtMemDebugFailClear();
+        if (hit) { ++failures; testRequire(!result,"native sequence partial publication"); error(XERR_MEMORY); }
+        else {
+            testRequire(result && xrtValueArrayAt(result,0)==xrtValueArrayAt(result,1) &&
+                xrtValueArrayAt(result,0)==xrtValueArrayAt(result,3) &&
+                xrtValueArrayAt(xrtValueArrayAt(result,2),0)==xrtValueArrayAt(result,0),"native/wire memo split");
+            xstrview text={0}; testRequire(xrtValueGetString(xrtValueArrayAt(xrtValueArrayAt(result,0),0),&text) &&
+                text.Size==3 && !memcmp(text.Data,"a\0b",3),"native sequence exact text");
+            testRequire(point==failures,"native sequence incomplete fault prefix");
+        }
+        xrtValueRelease(result); balanced(baseline); if (!hit) break;
+        testRequire(point<4095,"native sequence fault prefix limit");
+    }
+    for (mode=1;mode<=2;++mode) {
+        testRequire(!xrtValueGraphCopyV1(root,&config),"invalid native sequence adapter accepted");
+        error(XERR_TYPE); balanced(baseline);
+    }
+    mode=0; raw=xrtValueRetain(child);
+    xvalue* foreign=xrtValueHandleTake(&raw,&foreignOps,NULL);
+    testRequire(foreign && xrtValueTypeIdBind(foreign,LIST_ID) &&
+        !xrtValueGraphCopyV1(foreign,&config),"nominal ID bypassed native family authentication");
+    error(XERR_TYPE); xrtValueRelease(foreign); balanced(baseline);
+    config.CopyHandle=NULL;
+    testRequire(!xrtValueGraphCopyV1(root,&config),"listed handle without adapter accepted");
+    error(XERR_TYPE); balanced(baseline);
+    xrtValueRelease(root); xrtValueRelease(wire); xrtValueRelease(native);
+    /* native owned the original child reference; never touch it after Drop. */
+    balanced(initial);
+    printf("[PASS] authenticated native sequence; %zu complete allocation failure positions\n",failures);
+}
 static void requireProjection(xvalue* result,xvalue* source)
 {
     testRequire(result && xrtValueType(result)==XVALUE_ARRAY && xrtValueCount(result)==74,
@@ -56,6 +117,7 @@ int main(void)
 {
     testRequire(xrtMemDebugEnable(true),"sequence logical allocation tracking");
     xmemdebugsnapshot initial=live();
+    nativeSequence(); balanced(initial);
     xvaluegraphsequencev1 sequences[]={{LIST_ID,XVALUE_INT_MAP},{SET_ID,XVALUE_SET}};
     xvaluegraphcopyv1 config={.Size=sizeof(config),.Flags=XVALUE_GRAPH_COPY_DATA_V1,
         .CopyObject=project,.Sequences=sequences,.SequenceCount=2};
