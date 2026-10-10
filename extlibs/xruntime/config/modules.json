@@ -1560,6 +1560,7 @@
 				"extlibs/xruntime/tests/runtime/test_runtime_dynamic_field_ownership.c"
 			],
 			"single_tests": [
+				"extlibs/xruntime/tests/single/test_single_runtime_dynamic_field.c",
 				"extlibs/xruntime/tests/single/test_single_runtime_dynamic_field_ownership.c"
 			],
 			"examples": [

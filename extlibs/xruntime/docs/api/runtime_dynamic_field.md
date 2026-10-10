@@ -74,7 +74,11 @@ if ( !xrtDynamicFieldsSetTake(
 
 ## 合并与克隆
 
-`xrtDynamicFieldsMerge(target, source, replace)` 先为目标已有字段建立 COW 工作快照，再深复制来源新增或替换的完整 Value 图，最后一次性提交工作字典；任一分配、克隆或迭代失败都保持两端不变。目标快照在提交时替代旧存储，不会留下额外 backing 共享。`replace == false` 保留目标冲突值，`replace == true` 使用来源值。
+`xrtDynamicFieldsMerge(target, source, replace)` 先保留目标已有字段的实际 Value 引用，再深复制来源新增或替换的字段图，最后一次性提交工作字典；发布前的分配、克隆或迭代失败保持两端不变。目标已有字段不经过外壳复制，因此引用身份和重复边得以保留。`replace == false` 保留目标冲突值，`replace == true` 使用来源值。
+
+`xrtDynamicFieldsMergeRefV1` 使用相同的事务、插入顺序及冲突策略，但保留来源 Value 的实际引用，不复制或消费来源。它用于调用方已通过一个共享 memo 隔离整张图后的发布阶段；把隔离后的字段再次逐个深复制会拆散重复边。名称仍由目标字典拥有，来源对象可以先释放。
+
+两个合并入口返回 `false` 表示未发布，目标保持原状。返回 `true` 表示已经提交；之后释放被替换值的析构诊断会保留，不能回滚已发生的析构副作用。checked 宿主还须捕获语言层无诊断清理失败。成功且清理无错误时恢复进入前的诊断；失败时保留操作的首次诊断。
 
 `xrtDynamicFieldsClone` 深复制名称和 Value 图，返回新的字段对象。容器值不共享 backing；运行时对象值仍指向相同对象身份并各自拥有强引用。
 
@@ -116,6 +120,7 @@ if ( !xrtDynamicFieldsSetTake(
 
 `xdynamicfieldvisitv1` 返回 `false` 或设置错误都会终止访问，失败保留首次错误；回调返回 `false` 却没有错误时补充 `XERR_STATE`，错误分配失败时物理 `false` 仍有效。成功恢复进入前的错误。普通外置迭代器只是检测结构版本，不会阻止回调删除当前借用键或值，不能用于跨任意回调的借用保护。`xrtDynamicFieldsVisitV1` 使用现有 typed dictionary 回调门禁，不新增全局注册表，也不是跨线程同步机制。
 | `xrtDynamicFieldsMerge` | 事务合并来源，按 `replace` 选择冲突策略。 |
+| `xrtDynamicFieldsMergeRefV1` | 事务发布已经隔离的实际 Value 引用，保留重复边和引用身份。 |
 | `xrtDynamicFieldsClone` | 深复制字段对象和完整 Value 图。 |
 | `xrtDynamicFieldsKeys` | 返回按插入顺序排列的字段名 Value 数组。 |
 | `xrtDynamicFieldsValues` | 返回按插入顺序排列的独立字段值数组。 |

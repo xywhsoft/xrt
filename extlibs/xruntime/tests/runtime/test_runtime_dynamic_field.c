@@ -356,10 +356,60 @@ static void testDynamicFieldExternalValueRoot(void)
 
 
 
+static unsigned ReferenceMergeDrops;
+static void testReferenceMergeDrop(ptr Value, ptr User)
+{
+	testRequire(Value == (ptr)1 && User == NULL, "reference merge drop arguments");
+	++ReferenceMergeDrops; xrtSetErrorKind(XERR_IO);
+}
+static void testDynamicFieldReferenceMerge(void)
+{
+	xrtdynamicfields* Source = xrtDynamicFieldsCreate();
+	xrtdynamicfields* Target = xrtDynamicFieldsCreate();
+	xvalue* Shared = xrtValueArray();
+	xvalue* Existing = xrtValueInt(7);
+	xstrview Exact = {"a\0b", 3u};
+	testRequire(Source && Target && Shared && Existing &&
+		xrtDynamicFieldsSetRef(Source, Exact, Shared) &&
+		xrtDynamicFieldsSetRef(Source, XRT_STR_LITERAL("again"), Shared) &&
+		xrtDynamicFieldsSetRef(Target, Exact, Existing), "reference merge setup");
+	xrtSetErrorKind(XERR_TIMEOUT);
+	const xerror* Prior = xrtGetError();
+	testRequire(xrtDynamicFieldsMergeRefV1(Target, Source, false) &&
+		xrtGetError() == Prior, "reference merge ambient error");
+	xrtClearError();
+	testRequire(xrtDynamicFieldsGet(Target, Exact) == Existing &&
+		xrtDynamicFieldsGet(Target, XRT_STR_LITERAL("again")) == Shared &&
+		xrtDynamicFieldsMergeRefV1(Target, Source, true) &&
+		xrtDynamicFieldsGet(Target, Exact) == Shared &&
+		xrtDynamicFieldsGet(Target, XRT_STR_LITERAL("again")) == Shared &&
+		xrtDynamicFieldsMergeRefV1(Target, Target, true), "reference merge identities/replacement");
+	xrtDynamicFieldsUnref(Source);
+	testRequire(xrtValueArrayAppendNew(Shared, xrtValueInt(11)) &&
+		xrtValueCount(xrtDynamicFieldsGet(Target, Exact)) == 1u &&
+		!xrtDynamicFieldsMergeRefV1(Target, NULL, true), "reference merge lifetime/invalid source");
+	xrtClearError();
+	testRequire(xrtDynamicFieldsCount(Target) == 2u &&
+		xrtDynamicFieldsGet(Target, Exact) == Shared, "reference merge failure changed target");
+	static const xvaluehandleops Operations = {NULL,testReferenceMergeDrop,NULL,NULL};
+	ptr Raw = (ptr)1;
+	xvalue* Retired = xrtValueHandleTake(&Raw, &Operations, NULL);
+	testRequire(Retired && Raw == NULL && xrtDynamicFieldsSetRef(Target, Exact, Retired), "reference merge retired setup");
+	xrtValueRelease(Retired);
+	Source = xrtDynamicFieldsCreate();
+	testRequire(Source && xrtDynamicFieldsSetRef(Source, Exact, Shared) &&
+		xrtDynamicFieldsMergeRefV1(Target, Source, true) && ReferenceMergeDrops == 1u &&
+		xrtGetError() && xrtErrorKind(xrtGetError()) == XERR_IO &&
+		xrtDynamicFieldsGet(Target, Exact) == Shared, "reference merge discarded committed cleanup error");
+	xrtClearError(); xrtDynamicFieldsUnref(Source);
+	xrtValueRelease(Existing); xrtValueRelease(Shared); xrtDynamicFieldsUnref(Target);
+}
+
 /* 运行动态字段常规与对象图测试。 */
 int main(void)
 {
 	testDynamicFieldOperations();
+	testDynamicFieldReferenceMerge();
 	testDynamicFieldNestedIsolation();
 	testDynamicFieldSharedValues();
 	testDynamicFieldObjectGraph();

@@ -22,6 +22,15 @@ int main(void)
 	bReady = bReady && (pKeys != NULL) &&
 		(xrtValueCount(pKeys) == 1u);
 	xrtValueRelease(pKeys);
+	xrtdynamicfields* Source = xrtDynamicFieldsCreate();
+	xvalue* Shared = xrtValueArray();
+	bReady = bReady && Source && Shared &&
+		xrtDynamicFieldsSetRef(Source, XRT_STR_LITERAL("a"), Shared) &&
+		xrtDynamicFieldsSetRef(Source, XRT_STR_LITERAL("b"), Shared) &&
+		xrtDynamicFieldsMergeRefV1(pFields, Source, true) &&
+		xrtDynamicFieldsGet(pFields, XRT_STR_LITERAL("a")) == Shared &&
+		xrtDynamicFieldsGet(pFields, XRT_STR_LITERAL("b")) == Shared;
+	xrtValueRelease(Shared); xrtDynamicFieldsUnref(Source);
 	xrtDynamicFieldsUnref(pFields);
 	return bReady ? 0 : 1;
 }
