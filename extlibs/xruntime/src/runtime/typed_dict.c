@@ -3,6 +3,9 @@
 #include "../internal/xrt_typed_container.h"
 #include "../internal/xrt_typed_dict.h"
 #include <xrt/typed_dict.h>
+#if defined(XRUNTIME_FEATURE_RUNTIME_DYNAMIC_FIELD)
+#include <xrt/runtime_field.h>
+#endif
 
 
 
@@ -150,6 +153,16 @@ static void __xrtTypedDictDrop(
 {
 	(void)Key;
 	xrtTypeDropValue((const xrttype*)pUserData, pValue);
+}
+
+bool __xrtTypedDictOwnershipStorage(const xtypeddict* pDict, const xrttype* pType)
+{
+	return pDict != NULL && pType != NULL && pDict->ItemType == pType &&
+		pDict->Storage.ValueSize == pType->Size &&
+		pDict->Storage.Drop == __xrtTypedDictDrop &&
+		pDict->Storage.DropUserData == (ptr)pType &&
+		__xrtMapUsesDefaultKeyPolicy(&pDict->Storage) &&
+		__xrtMapCanMutate((xmap*)&pDict->Storage);
 }
 
 
@@ -1435,6 +1448,11 @@ XRT_API bool xrtTypedDictTypeValidate(const xrttype* pType)
 			"type-validate", "the typed dictionary object type is invalid");
 		return false;
 	}
+#if defined(XRUNTIME_FEATURE_RUNTIME_DYNAMIC_FIELD)
+	/* This exact built-in type retains a typed-dictionary payload prefix and
+	 * adds resident retirement storage. Do not admit structural lookalikes. */
+	if (pType == xrtDynamicFieldsType()) return true;
+#endif
 	if (
 		(pType->Kind != XRT_TYPE_DICT) ||
 		((pType->Flags & XRT_TYPE_FLAG_REFERENCE) == 0u) ||

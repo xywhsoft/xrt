@@ -13,7 +13,7 @@
 - 静态字段零分配、按偏移访问，适合编译器生成的类和记录布局。
 - 动态字段复制名称、保持插入顺序，适合运行期增加、删除和枚举属性。
 - 动态字段表自身是 `xrt.DynamicFields` 对象图节点，而不是藏在类对象中的不可见 Value 字典。
-- 载荷直接复用 `xtypeddict<Value>`，不重复实现哈希表、迭代器或类型生命周期。
+- 载荷直接复用 `xtypeddict<Value>`，保持相同大小，不重复实现哈希表和迭代器；驻留实例操作表只补充分阶段退役。
 
 该边界使宿主对象只需持有一个动态字段对象强引用。字段值中的运行时对象由 `xrtTypeValue()` 和 `xrtValueTraceRuntimeObjects()` 继续追踪，自引用和互引用由对象图在安全点回收。
 
@@ -122,6 +122,38 @@ if ( !xrtDynamicFieldsSetTake(
 | `xrtDynamicFieldsItems` | 返回按插入顺序排列的 `[name, value]` 数组。 |
 | `xrtDynamicFieldsToValue` | 深复制全部字段为独立 Value Object。 |
 | `xrtDynamicFieldsFromValue` | 从 Value Object 深复制创建动态字段对象。 |
+
+## 完整物理拥有图和分阶段退役
+
+`xrtDynamicFieldsOwnership` 返回实际原生对象节点，Count 使用对象真实强引用
+数量，Trace 对每一个字段槽报告一条 Value 外壳边。重复引用保留边的数量，
+Value 的集合 backing 仍是独立节点，不折叠为字段中的对象，也不把字段表
+视为无引用叶节点。追踪不保留对象、不分配内存、不深复制或调用类回调。
+
+`xrtDynamicFieldsOwnershipAdapterV1` 先核对本实现的精确 Ops 身份，再读取
+精确内建类型和存活状态。普通 runtime Object、借用字典、相同 TypeId 的
+结构仿冒及已加入旧 object-only 收集器的节点均不自动准入。
+载荷中的元素类型、驻留析构器、析构 context 和默认键策略也必须精确匹配；
+经原始 C 接口改装为任意回调的存储不获得内建生命周期认证。
+
+调用者在 ownership freeze 或等价的完整安全点执行 Count、Trace、准入和
+claim。公开动态字段操作、对象强引用增减和弱引用提升参与同一 mutation
+域；原始 `xrtObjectData`、直接 typed dictionary 或旧 object graph 操作
+仍须由调用者覆盖完整转移并串行化。该域不是容器的并发读写锁。
+
+Claim 隔离弱引用提升，但允许已有真实强拥有者在提交前复活对象。Restore
+撤销隔离且保持字段原样。Clear 只把已有字段槽标为不可再访问的退役拥有，
+不分配内存或执行析构。Finish 在 mutation 内移出字典头，再在域外释放字段
+及存储；原字典先被置空，因此错误后重试不会再次执行已完成的物理释放。
+普通最后引用释放也先分离载荷，再运行字段析构。
+
+Clear 不创建第二份字典头、全局注册表或逐字段退役数组，payload 仍等于
+`sizeof(xtypeddict)`。强引用对象控制块额外保存 claim token 和 cleared
+状态。Finish 保留已有主要错误，并以 `false` 报告可观察的 XRT 清理诊断；
+语言宿主仍需自己的 checked 边界捕获无诊断的语言清理失败。
+
+这个接口是收集器参与合同，不自行收集循环、不卸载代码、不提供 Open
+对象恢复。不能把它与未认证的旧 object-only 收集器同时接管同一节点。
 
 ## 错误
 

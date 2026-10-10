@@ -286,15 +286,19 @@ void __xrtObjectEndFinalize(xrtobject* pObject)
 /* 释放一个控制块弱引用，最后一个弱引用负责回收整块内存。 */
 static void __xrtObjectWeakRelease(xrtobject* pObject)
 {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	int32 iReferences = xrtRefRelease(&pObject->WeakCount);
 
 	if ( iReferences < 0 ) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 		__xrtErrorSetInvalidState();
 		return;
 	}
 	if ( iReferences == 0 ) {
 		xrtFree(pObject);
 	}
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 }
 
 
@@ -379,12 +383,15 @@ XRT_API xrtobject* xrtObjectCreateSized(
 
 
 /* 增加一个已经存活对象的强引用。 */
-XRT_API xrtobject* xrtObjectRef(xrtobject* pObject)
+static xrtobject* __xrtObjectRefBody(xrtobject* pObject)
 {
 	if ( pObject == NULL ) {
 		__xrtRuntimeObjectError(XERR_ARGUMENT, XOBJECT_ERROR_REFERENCE,
 			"ref", "the runtime object is null");
 		return NULL;
+	}
+	if (pObject->OwnershipCleared) {
+		__xrtErrorSetInvalidState(); return NULL;
 	}
 #if defined(XRUNTIME_FEATURE_RUNTIME_OBJECT_GRAPH)
 	if ( __xrtObjectState(pObject) != XRT_OBJECT_STATE_ACTIVE ) {
@@ -409,6 +416,15 @@ XRT_API xrtobject* xrtObjectRef(xrtobject* pObject)
 	return pObject;
 }
 
+XRT_API xrtobject* xrtObjectRef(xrtobject* pObject)
+{
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	xrtobject* pResult = __xrtObjectRefBody(pObject);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return pResult;
+}
+
 
 
 /* 释放一个对象强引用，并在最后一次释放时销毁负载。 */
@@ -419,7 +435,10 @@ XRT_API void xrtObjectUnref(xrtobject* pObject)
 	if ( pObject == NULL ) {
 		return;
 	}
-	iReferences = xrtRefRelease(&pObject->StrongCount);
+	/* Only the counter transition participates here. Instance destruction is
+	 * outside this scope; participating instance adapters detach their own
+	 * fields under mutation before invoking arbitrary payload destructors. */
+	iReferences = xrtOwnershipRefRelease(&pObject->StrongCount);
 	if ( iReferences < 0 ) {
 		__xrtRuntimeObjectError(XERR_STATE, XOBJECT_ERROR_REFERENCE,
 			"unref", "the runtime object reference cannot be released");
@@ -517,6 +536,7 @@ XRT_API size_t xrtObjectRefCount(const xrtobject* pObject)
 
 static bool __xrtObjectOwnershipCount(const void* pData, size_t* pCount)
 {
+	if (((const xrtobject*)pData)->OwnershipCleared) return false;
 	#if defined(XRUNTIME_FEATURE_RUNTIME_OBJECT_GRAPH)
 		if (__xrtAtomicRefLoad(&((const xrtobject*)pData)->State) != XRT_OBJECT_STATE_ACTIVE) return false;
 	#endif
@@ -527,6 +547,7 @@ static bool __xrtObjectOwnershipCount(const void* pData, size_t* pCount)
 static bool __xrtObjectOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
 {
 	const xrtobject* pObject = (const xrtobject*)pData;
+	if (pObject->OwnershipCleared) return false;
 	#if defined(XRUNTIME_FEATURE_RUNTIME_OBJECT_GRAPH)
 		if (__xrtAtomicRefLoad(&pObject->State) != XRT_OBJECT_STATE_ACTIVE) return false;
 	#endif
@@ -716,7 +737,7 @@ XRT_API bool xrtWeakExpired(const xrtweak* pWeak)
 
 
 /* 尝试把弱引用提升为新的强引用。 */
-XRT_API xrtobject* xrtWeakLock(const xrtweak* pWeak)
+static xrtobject* __xrtWeakLockBody(const xrtweak* pWeak)
 {
 	xrtobject* pObject;
 
@@ -729,6 +750,7 @@ XRT_API xrtobject* xrtWeakLock(const xrtweak* pWeak)
 	if ( pObject == NULL ) {
 		return NULL;
 	}
+	if (pObject->OwnershipClaim != NULL || pObject->OwnershipCleared) return NULL;
 #if defined(XRUNTIME_FEATURE_RUNTIME_OBJECT_GRAPH)
 	if ( __xrtObjectState(pObject) != XRT_OBJECT_STATE_ACTIVE ) {
 		return NULL;
@@ -744,6 +766,15 @@ XRT_API xrtobject* xrtWeakLock(const xrtweak* pWeak)
 	}
 #endif
 	return pObject;
+}
+
+XRT_API xrtobject* xrtWeakLock(const xrtweak* pWeak)
+{
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	xrtobject* pResult = __xrtWeakLockBody(pWeak);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return pResult;
 }
 
 #endif

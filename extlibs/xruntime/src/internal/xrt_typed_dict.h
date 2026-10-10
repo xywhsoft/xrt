@@ -10,6 +10,10 @@
 /* 内建字典类型描述复用的进程期实例操作表。 */
 extern const xrtinstanceops __xrtTypedDictInstanceOperations;
 
+/* Exact built-in storage/destructor/key policy, not just a TypeId match.
+ * Caller holds complete quiescence; no arbitrary callback is invoked. */
+bool __xrtTypedDictOwnershipStorage(const xtypeddict*, const xrttype*);
+
 #endif
 
 #endif

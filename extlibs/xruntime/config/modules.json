@@ -1556,9 +1556,12 @@
 			],
 			"tests": [
 				"extlibs/xruntime/tests/runtime/test_runtime_dynamic_field.c",
-				"extlibs/xruntime/tests/runtime/test_runtime_dynamic_field_contract.c"
+				"extlibs/xruntime/tests/runtime/test_runtime_dynamic_field_contract.c",
+				"extlibs/xruntime/tests/runtime/test_runtime_dynamic_field_ownership.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xruntime/tests/single/test_single_runtime_dynamic_field_ownership.c"
+			],
 			"examples": [
 				"extlibs/xruntime/examples/runtime/dynamic_field/main.c"
 			],

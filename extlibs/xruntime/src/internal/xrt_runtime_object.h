@@ -15,6 +15,11 @@ struct xrtobject {
 	size_t Size;
 	size_t PayloadOffset;
 	xrtownershiptrace OwnershipTrace;
+	/* Resident phased adapters quarantine weak promotion; existing strong
+	 * owners may still resurrect an object before Clear. Protected by the
+	 * ownership domain, not a new object-graph registry or synthetic RC. */
+	const void* OwnershipClaim;
+	bool OwnershipCleared;
 #if defined(XRUNTIME_FEATURE_RUNTIME_OBJECT_GRAPH)
 	volatile int32 State;
 	struct xrtobjectgraph* Graph;

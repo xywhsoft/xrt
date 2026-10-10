@@ -15,6 +15,16 @@
 Weak 不是强拥有边。接口不改变 `xrtObjectRef` / `xrtValueRetain` 语义，
 不保活代码、不调用 Drop；完整检查与后续决策必须由宿主处于同一安全点。
 
+对象强引用增减、弱引用提升和最终控制块释放参与核心 ownership mutation
+域。最后强引用的类型析构不继承这个计数 mutation；参与完整图的实例适配器
+必须先保护并分离自身字段，再调用任意析构。原始字段写入、类型值槽替换、
+旧 object graph 的跟踪与收集不会因此自动获得完整图认证，仍需调用者串行化
+并覆盖整个转移。
+
+内建 DynamicFields 的驻留退役适配器会记录 claim token 并拒绝弱引用提升；
+abort 恢复提升，Clear 后强引用新增也拒绝。其他 Object 的 Trace 绑定本身
+不授予分阶段生命周期准入，不把任意绑定回调视为驻留实现。
+
 ## 启用与依赖
 
 启用 `XRUNTIME_FEATURE_RUNTIME_OBJECT` 会依赖 `XRUNTIME_FEATURE_RUNTIME_TYPE`。公共头文件为：
