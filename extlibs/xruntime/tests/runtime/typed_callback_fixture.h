@@ -39,6 +39,10 @@ static void testTypedCallbackRun(testtypedcallback Callback)
 	xrtClearError();
 	gTestTypedCallbackBlocked =
 		(gTestTypedCallbackProbe != NULL) && gTestTypedCallbackProbe();
+	/* This probe handles its expected checked refusal. Leaving that error
+	 * pending correctly fails the outer key operation; it does not mean the
+	 * container allowed reentry. Keep the independent Blocked assertion. */
+	xrtClearError();
 }
 
 

@@ -84,6 +84,7 @@ static void __xrtTypedSetWrap(
 /* 验证元素类型满足唯一值集合的生命周期和键规则。 */
 static bool __xrtTypedSetItemTypeValidate(
 	const xrttype* pItemType,
+	bool bTypedKeys,
 	cstr sOperation
 )
 {
@@ -102,12 +103,12 @@ static bool __xrtTypedSetItemTypeValidate(
 			sOperation, "the set item type is not copyable");
 		return false;
 	}
-	if ( !xrtTypeIsComparable(pItemType) ) {
+	if ( bTypedKeys && !xrtTypeIsComparable(pItemType) ) {
 		__xrtTypedSetError(XERR_UNSUPPORTED, XTYPED_SET_ERROR_TYPE,
 			sOperation, "the set item type is not comparable");
 		return false;
 	}
-	if ( !xrtTypeIsHashable(pItemType) ) {
+	if ( bTypedKeys && !xrtTypeIsHashable(pItemType) ) {
 		__xrtTypedSetError(XERR_UNSUPPORTED, XTYPED_SET_ERROR_TYPE,
 			sOperation, "the set item type is not hashable");
 		return false;
@@ -214,13 +215,14 @@ static bool __xrtTypedSetValid(
 		return false;
 	}
 	if (
+		(pSet->KeyPolicy && (!pSet->KeyPolicy->Hash || !pSet->KeyPolicy->Equal)) ||
 		(pSet->Storage.ItemSize != pSet->ItemType->Size) ||
 		(pSet->Storage.Alignment < pSet->ItemType->Align) ||
-		(pSet->Storage.Hash != __xrtTypedSetHash) ||
-		(pSet->Storage.Equal != __xrtTypedSetEqual) ||
+		(pSet->Storage.Hash != (pSet->KeyPolicy ? pSet->KeyPolicy->Hash : __xrtTypedSetHash)) ||
+		(pSet->Storage.Equal != (pSet->KeyPolicy ? pSet->KeyPolicy->Equal : __xrtTypedSetEqual)) ||
 		(pSet->Storage.Copy != __xrtTypedSetCopy) ||
 		(pSet->Storage.Drop != __xrtTypedSetDrop) ||
-		(pSet->Storage.KeyUserData != pSet->ItemType) ||
+		(pSet->Storage.KeyUserData != (pSet->KeyPolicy ? pSet->KeyPolicy->UserData : (ptr)pSet->ItemType)) ||
 		(pSet->Storage.LifecycleUserData != pSet->ItemType)
 	) {
 		__xrtTypedSetError(XERR_STATE, XTYPED_SET_ERROR_STATE,
@@ -357,9 +359,12 @@ static bool __xrtTypedSetSameType(
 	cstr sOperation
 )
 {
-	if ( pLeft->ItemType != pRight->ItemType ) {
+	if ( (pLeft->ItemType != pRight->ItemType) ||
+		 (pLeft->Storage.Hash != pRight->Storage.Hash) ||
+		 (pLeft->Storage.Equal != pRight->Storage.Equal) ||
+		 (pLeft->Storage.KeyUserData != pRight->Storage.KeyUserData) ) {
 		__xrtTypedSetError(XERR_TYPE, XTYPED_SET_ERROR_TYPE,
-			sOperation, "typed set operands must share one item type descriptor");
+			sOperation, "typed set operands must share item type and exact key policy");
 		return false;
 	}
 	return true;
@@ -383,7 +388,7 @@ static void __xrtTypedSetDestroyRaw(xset* pStorage)
 
 /* 把底层集合结果包装为不再复制元素的类型集合。 */
 static xtypedset* __xrtTypedSetFromRaw(
-	const xrttype* pItemType,
+	const xtypedset* pSource,
 	xset* pStorage,
 	cstr sOperation
 )
@@ -402,7 +407,9 @@ static xtypedset* __xrtTypedSetFromRaw(
 			sOperation, "the typed set result could not be allocated");
 		return NULL;
 	}
-	if ( !xrtTypedSetInit(pResult, pItemType) ) {
+	if ( !(pSource->KeyPolicy ?
+		xrtTypedSetInitWithKeyPolicy(pResult, pSource->ItemType, pSource->KeyPolicy) :
+		xrtTypedSetInit(pResult, pSource->ItemType)) ) {
 		xrtFree(pResult);
 		__xrtTypedSetDestroyRaw(pStorage);
 		__xrtTypedSetWrap(XERR_STATE, XTYPED_SET_ERROR_OPERATION,
@@ -423,9 +430,10 @@ static xtypedset* __xrtTypedSetFromRaw(
 
 
 /* 初始化一个拥有类型值的空集合。 */
-XRT_API bool xrtTypedSetInit(
+static bool __xrtTypedSetInit(
 	xtypedset* pSet,
-	const xrttype* pItemType
+	const xrttype* pItemType,
+	const xtypedsetkeypolicy* pPolicy
 )
 {
 	size_t iAlignment;
@@ -436,7 +444,7 @@ XRT_API bool xrtTypedSetInit(
 		return false;
 	}
 	memset(pSet, 0, sizeof(*pSet));
-	if ( !__xrtTypedSetItemTypeValidate(pItemType, "init") ) {
+	if ( !__xrtTypedSetItemTypeValidate(pItemType, pPolicy == NULL, "init") ) {
 		return false;
 	}
 	iAlignment = pItemType->Align > XRT_SET_ALIGNMENT_DEFAULT ?
@@ -449,11 +457,12 @@ XRT_API bool xrtTypedSetInit(
 		return false;
 	}
 	pSet->ItemType = pItemType;
+	pSet->KeyPolicy = pPolicy;
 	if ( !xrtSetSetKeyPolicy(
 		&pSet->Storage,
-		__xrtTypedSetHash,
-		__xrtTypedSetEqual,
-		(ptr)pItemType
+		pPolicy ? pPolicy->Hash : __xrtTypedSetHash,
+		pPolicy ? pPolicy->Equal : __xrtTypedSetEqual,
+		pPolicy ? pPolicy->UserData : (ptr)pItemType
 	) || !xrtSetSetLifecycle(
 		&pSet->Storage,
 		__xrtTypedSetCopy,
@@ -467,6 +476,35 @@ XRT_API bool xrtTypedSetInit(
 		return false;
 	}
 	return true;
+}
+
+
+
+XRT_API bool xrtTypedSetInit(xtypedset* pSet, const xrttype* pItemType)
+{
+	return __xrtTypedSetInit(pSet, pItemType, NULL);
+}
+
+
+
+XRT_API bool xrtTypedSetInitWithKeyPolicy(
+	xtypedset* pSet, const xrttype* pItemType, const xtypedsetkeypolicy* pPolicy
+)
+{
+	/* Policy is borrowed immutable metadata, never an alias of the structure
+	 * about to be cleared. Refuse without destroying the overlapping record. */
+	if ( pSet && pPolicy && __xrtRangesOverlap(pSet, sizeof(*pSet), pPolicy, sizeof(*pPolicy)) ) {
+		__xrtTypedSetError(XERR_ARGUMENT, XTYPED_SET_ERROR_ARGUMENT,
+			"init-key-policy", "the key policy must not alias set storage");
+		return false;
+	}
+	if ( (pPolicy == NULL) || (pPolicy->Hash == NULL) || (pPolicy->Equal == NULL) ) {
+		if ( pSet != NULL ) memset(pSet, 0, sizeof(*pSet));
+		__xrtTypedSetError(XERR_ARGUMENT, XTYPED_SET_ERROR_ARGUMENT,
+			"init-key-policy", "a complete immutable key policy is required");
+		return false;
+	}
+	return __xrtTypedSetInit(pSet, pItemType, pPolicy);
 }
 
 
@@ -488,6 +526,20 @@ XRT_API xtypedset* xrtTypedSetCreate(const xrttype* pItemType)
 
 
 
+XRT_API xtypedset* xrtTypedSetCreateWithKeyPolicy(
+	const xrttype* pItemType, const xtypedsetkeypolicy* pPolicy
+)
+{
+	xtypedset* pSet = (xtypedset*)xrtMalloc(sizeof(*pSet));
+	if ( pSet == NULL ) return NULL;
+	if ( !xrtTypedSetInitWithKeyPolicy(pSet, pItemType, pPolicy) ) {
+		xrtFree(pSet); return NULL;
+	}
+	return pSet;
+}
+
+
+
 /* 释放全部元素和存储，但不释放集合结构。 */
 XRT_API void xrtTypedSetUnit(xtypedset* pSet)
 {
@@ -499,6 +551,7 @@ XRT_API void xrtTypedSetUnit(xtypedset* pSet)
 	}
 	xrtSetUnit(&pSet->Storage);
 	pSet->ItemType = NULL;
+	pSet->KeyPolicy = NULL;
 }
 
 
@@ -873,7 +926,7 @@ XRT_API xtypedset* xrtTypedSetClone(const xtypedset* pSet)
 		return NULL;
 	}
 	return __xrtTypedSetFromRaw(
-		pSet->ItemType, xrtSetClone(&pSet->Storage), "clone"
+		pSet, xrtSetClone(&pSet->Storage), "clone"
 	);
 }
 
@@ -901,7 +954,7 @@ static xtypedset* __xrtTypedSetBinary(
 		return NULL;
 	}
 	return __xrtTypedSetFromRaw(
-		pLeft->ItemType,
+		pLeft,
 		pOperation(&pLeft->Storage, &pRight->Storage),
 		sOperation
 	);
@@ -1172,7 +1225,7 @@ XRT_API bool xrtTypedSetTypeValidate(const xrttype* pType)
 		return false;
 	}
 	return __xrtTypedSetItemTypeValidate(
-		pType->Arguments[0], "type-validate"
+		pType->Arguments[0], true, "type-validate"
 	);
 }
 

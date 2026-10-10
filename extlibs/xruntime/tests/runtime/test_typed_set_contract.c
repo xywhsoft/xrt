@@ -277,6 +277,9 @@ static void testTypedSetRejection(void)
 		xrtTypedSetTypeValidate(&SetType),
 		"typed set object descriptor was rejected"
 	);
+	SetType.InstanceSize -= sizeof(const xtypedsetkeypolicy*);
+	testRequire(!xrtTypedSetTypeValidate(&SetType), "typed set accepted the old payload size");
+	SetType.InstanceSize = sizeof(xtypedset);
 	SetType.Kind = XRT_TYPE_LIST;
 	testRequire(
 		!xrtTypedSetTypeValidate(&SetType),

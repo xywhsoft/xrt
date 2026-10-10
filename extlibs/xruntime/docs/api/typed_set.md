@@ -37,6 +37,31 @@
 存入集合的值在删除前必须保持比较和散列意义不变。公开查询只返回 `const void*`，调用方不得
 强制去除只读限定后修改规范值，否则桶位置和唯一性契约都会失效。
 
+## 显式键策略
+
+`xrtTypedSetInitWithKeyPolicy` 和 `xrtTypedSetCreateWithKeyPolicy` 把键语义与类型生命周期
+分开。元素仍须通过类型验证、占用非零存储且可复制，但不要求类型提供排序比较或散列。
+这适用于只有相等语义的对象、引用和值；不会为它们伪造 `Compare`，也不会修改类型能力。
+
+`xtypedsetkeypolicy` 包含成对非空的 `Hash`、`Equal` 回调及借用的 `UserData`。相等值必须
+有相同散列，零散列和正常不相等都是合法结果。回调设置错误时，底层集合的独立错误边界
+停止操作并保留失败；回调期间不能重入同一集合。值的初始化、复制、移动、释放和追踪
+仍使用 `ItemType`，不由键策略接管。
+
+策略记录、回调代码及 `UserData` 必须不可变，并且比原集合及所有克隆、集合运算结果
+存活更久。策略不能位于待初始化的 `xtypedset` 结构内。克隆保留同一个策略记录，不复制
+调用方上下文；借用策略不拥有任何对象边。语言运行时应使用驻留策略，不保存生成模块
+的回调或短期上下文。
+
+二元操作同时验证元素描述地址、Hash/Equal 函数地址和 `UserData` 地址。内容相同的
+独立策略记录可以共享键语义，但相同元素类型不足以允许不同上下文的集合合并。
+底层 `Storage` 的键或生命周期策略被单独篡改时，typed API 失败关闭。
+
+普通 `Init/Create` 仍由类型的 `Compare/Hash` 提供键语义。默认对象负载的
+`xrtTypedSetInstanceOps` 也保留这一规则；它不能从对象类型描述猜测自定义策略。
+`xtypedset` 新增一个策略指针，C ABI 大小发生变化，调用方和类型负载必须同步重编译。
+旧负载大小不能通过 `xrtTypedSetTypeValidate`。
+
 ## 生命周期与容量
 
 ```c
@@ -96,6 +121,12 @@ xrtTypedSetUnit(&Values);
 ```c
 bool xrtTypedSetInit(xtypedset* set, const xrttype* item_type);
 xtypedset* xrtTypedSetCreate(const xrttype* item_type);
+bool xrtTypedSetInitWithKeyPolicy(
+	xtypedset* set, const xrttype* item_type, const xtypedsetkeypolicy* policy
+);
+xtypedset* xrtTypedSetCreateWithKeyPolicy(
+	const xrttype* item_type, const xtypedsetkeypolicy* policy
+);
 void xrtTypedSetUnit(xtypedset* set);
 void xrtTypedSetDestroy(xtypedset* set);
 

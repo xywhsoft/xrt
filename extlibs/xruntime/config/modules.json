@@ -1147,6 +1147,20 @@
 			]
 		},
 		{
+			"name": "typed_set_key_policy_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["typed_set", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["extlibs/xruntime/tests/runtime/test_typed_set_key_policy.c"],
+			"single_tests": ["extlibs/xruntime/tests/single/test_single_typed_set_key_policy.c"],
+			"examples": [],
+			"docs": ["extlibs/xruntime/docs/api/typed_set.md"],
+			"legacy": []
+		},
+		{
 			"name": "typed_set_object_tests",
 			"state": "implemented",
 			"feature": null,
@@ -1715,6 +1729,7 @@
 				"extlibs/xruntime/tests/single/test_single_typed_queue_object_graph.c",
 				"extlibs/xruntime/tests/single/test_single_typed_queue_spsc.c",
 				"extlibs/xruntime/tests/single/test_single_typed_set.c",
+				"extlibs/xruntime/tests/single/test_single_typed_set_key_policy.c",
 				"extlibs/xruntime/tests/single/test_single_typed_set_object_graph.c",
 				"extlibs/xruntime/tests/single/test_single_typed_stack.c",
 				"extlibs/xruntime/tests/single/test_single_typed_tree.c",
@@ -1819,6 +1834,7 @@
 				"extlibs/xruntime/tests/single/test_single_typed_queue_object_graph.c": "typed_queue_object_tests",
 				"extlibs/xruntime/tests/single/test_single_typed_queue_spsc.c": "typed_queue_spsc",
 				"extlibs/xruntime/tests/single/test_single_typed_set.c": "typed_set",
+				"extlibs/xruntime/tests/single/test_single_typed_set_key_policy.c": "typed_set_key_policy_tests",
 				"extlibs/xruntime/tests/single/test_single_typed_set_object_graph.c": "typed_set_object_tests",
 				"extlibs/xruntime/tests/single/test_single_typed_stack.c": "typed_stack",
 				"extlibs/xruntime/tests/single/test_single_typed_tree.c": "typed_tree",
