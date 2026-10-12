@@ -88,14 +88,14 @@ static bool __xrtHttpProxyAliasesValid(xstrview Aliases)
 
 
 /* 初始化别名列表游标。 */
-XRT_API void xrtHttpProxyAliasCursorInit(
+XHTTP_API void xrtHttpProxyAliasCursorInit(
 	xhttpproxyaliascursor* pCursor
 )
 {
 	xhttpproxyaliascursor Cursor;
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -105,14 +105,14 @@ XRT_API void xrtHttpProxyAliasCursorInit(
 
 
 /* 验证完整别名列表。 */
-XRT_API bool xrtHttpProxyAliasesValid(xstrview Aliases)
+XHTTP_API bool xrtHttpProxyAliasesValid(xstrview Aliases)
 {
-	if ( !__xrtHttpViewValid(Aliases) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Aliases) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpProxyAliasesValid(Aliases) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return true;
@@ -140,7 +140,7 @@ static xstrview __xrtHttpProxyAliasAt(
 
 
 /* 零拷贝迭代一个已编码别名。 */
-XRT_API xhttpnext xrtHttpProxyAliasNext(
+XHTTP_API xhttpnext xrtHttpProxyAliasNext(
 	xstrview Aliases,
 	xhttpproxyaliascursor* pCursor,
 	xstrview* pAlias
@@ -151,17 +151,17 @@ XRT_API xhttpnext xrtHttpProxyAliasNext(
 	size_t iNext;
 
 	memset(&Alias, 0, sizeof(Alias));
-	if ( !__xrtHttpViewValid(Aliases) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pAlias, sizeof(Alias)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Aliases) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pAlias, sizeof(Alias)) ||
+		xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pAlias, sizeof(Alias)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), Aliases.Data, Aliases.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pAlias, sizeof(Alias), Aliases.Data, Aliases.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
@@ -174,12 +174,12 @@ XRT_API xhttpnext xrtHttpProxyAliasNext(
 		((Cursor.Validated != 0) &&
 		 ((Cursor.Source != (const void*)Aliases.Data) ||
 		  (Cursor.SourceSize != Aliases.Size))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.Validated == 0 ) {
 		if ( !__xrtHttpProxyAliasesValid(Aliases) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return XHTTP_NEXT_ERROR;
 		}
 		Cursor.Source = Aliases.Data;
@@ -203,21 +203,21 @@ XRT_API xhttpnext xrtHttpProxyAliasNext(
 
 
 /* 解码一个已经验证的别名，同时保留展示形式转义。 */
-XRT_API bool xrtHttpProxyAliasRead(
+XHTTP_API bool xrtHttpProxyAliasRead(
 	xstrview Alias,
 	void* pOutput,
 	size_t iCapacity,
 	size_t* pSize
 )
 {
-	if ( !__xrtHttpViewValid(Alias) ||
-		!__xrtRangeValid(pOutput, iCapacity) ||
-		!__xrtRangeValid(pSize, sizeof(*pSize)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Alias) ||
+		!xrtMemRangeValid(pOutput, iCapacity) ||
+		!xrtMemRangeValid(pSize, sizeof(*pSize)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpProxyAliasValid(Alias) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return xrtPercentDecode(

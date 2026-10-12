@@ -659,6 +659,37 @@ xhttpnext __xrtHttpQuotedListNext(
 
 
 
+/* 为扩展字段提供经过内存边界校验的通用列表扫描入口。 */
+XRT_API xhttpnext xrtHttpListNext(
+	xstrview Value,
+	size_t iOffset,
+	size_t* pNext,
+	xstrview* pElement
+)
+{
+	xstrview Element;
+	size_t iNext;
+	xhttpnext Result;
+
+	if ( !__xrtHttpViewValid(Value) || (iOffset > Value.Size) ||
+		!__xrtRangeValid(pNext, sizeof(iNext)) ||
+		!__xrtRangeValid(pElement, sizeof(Element)) ||
+		__xrtRangesOverlap(pNext, sizeof(iNext), pElement, sizeof(Element)) ||
+		__xrtRangesOverlap(pNext, sizeof(iNext), Value.Data, Value.Size) ||
+		__xrtRangesOverlap(pElement, sizeof(Element), Value.Data, Value.Size) ) {
+		__xrtErrorSetInvalidArgument();
+		return XHTTP_NEXT_ERROR;
+	}
+	Result = __xrtHttpQuotedListNext(Value, iOffset, &iNext, &Element);
+	if ( Result != XHTTP_NEXT_ERROR ) {
+		memcpy(pNext, &iNext, sizeof(iNext));
+		memcpy(pElement, &Element, sizeof(Element));
+	}
+	return Result;
+}
+
+
+
 /* 严格读取逗号分隔 token-list 的下一项。 */
 XRT_API xhttpnext xrtHttpTokenNext(
 	xstrview List,

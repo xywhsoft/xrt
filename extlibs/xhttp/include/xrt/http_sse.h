@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_SSE_H
 #define XRT_HTTP_SSE_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http.h>
 
 #if defined(XHTTP_FEATURE_HTTP_SSE)
@@ -203,12 +205,12 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_HTTP_SSE)
 
 /* 判断 Event 的视图、标志、UTF-8 和单行字段约束是否有效。 */
-XRT_API bool xrtHttpSseEventValid(const xhttpsseevent* pEvent);
+XHTTP_API bool xrtHttpSseEventValid(const xhttpsseevent* pEvent);
 
 
 
 /* 精确计算规范 LF 封包长度；Size 可以未对齐，失败不修改。 */
-XRT_API bool xrtHttpSseEventSize(
+XHTTP_API bool xrtHttpSseEventSize(
 	const xhttpsseevent* pEvent,
 	size_t* pSize
 );
@@ -220,7 +222,7 @@ XRT_API bool xrtHttpSseEventSize(
 	空输出只查询长度，容量不足或输入重叠时不写入部分结果。
 	Size 可以使用完整但未对齐的存储。
 */
-XRT_API bool xrtHttpSseEventWrite(
+XHTTP_API bool xrtHttpSseEventWrite(
 	const xhttpsseevent* pEvent,
 	void* pOutput,
 	size_t iCapacity,
@@ -230,7 +232,7 @@ XRT_API bool xrtHttpSseEventWrite(
 
 
 /* 构建零结尾事件块，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpSseEventBuild(
+XHTTP_API str xrtHttpSseEventBuild(
 	const xhttpsseevent* pEvent,
 	size_t* pSize
 );
@@ -238,7 +240,7 @@ XRT_API str xrtHttpSseEventBuild(
 
 
 /* 精确计算规范注释心跳长度；Comment 可以包含 LF，但不能包含 CR。 */
-XRT_API bool xrtHttpSseCommentSize(
+XHTTP_API bool xrtHttpSseCommentSize(
 	xstrview Comment,
 	size_t* pSize
 );
@@ -246,7 +248,7 @@ XRT_API bool xrtHttpSseCommentSize(
 
 
 /* 写出一条或多条注释行，不添加事件分隔空行。 */
-XRT_API bool xrtHttpSseCommentWrite(
+XHTTP_API bool xrtHttpSseCommentWrite(
 	xstrview Comment,
 	void* pOutput,
 	size_t iCapacity,
@@ -256,7 +258,7 @@ XRT_API bool xrtHttpSseCommentWrite(
 
 
 /* 构建零结尾注释心跳，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpSseCommentBuild(
+XHTTP_API str xrtHttpSseCommentBuild(
 	xstrview Comment,
 	size_t* pSize
 );
@@ -264,7 +266,7 @@ XRT_API str xrtHttpSseCommentBuild(
 
 
 /* 判断 Last-Event-ID 是否是可安全放入请求 Header 的 UTF-8 值。 */
-XRT_API bool xrtHttpSseLastEventIdValid(xstrview Id);
+XHTTP_API bool xrtHttpSseLastEventIdValid(xstrview Id);
 
 #endif
 
@@ -273,12 +275,12 @@ XRT_API bool xrtHttpSseLastEventIdValid(xstrview Id);
 #if defined(XHTTP_FEATURE_HTTP_SSE_HTTP)
 
 /* 判断 Content-Type 是否是参数合法的 text/event-stream。 */
-XRT_API bool xrtHttpSseContentTypeValid(xstrview ContentType);
+XHTTP_API bool xrtHttpSseContentTypeValid(xstrview ContentType);
 
 
 
 /* 事务设置 Accept，并按空值删除或唯一设置 Last-Event-ID。 */
-XRT_API bool xrtHttpSseRequestHeaders(
+XHTTP_API bool xrtHttpSseRequestHeaders(
 	xhttpheaders* pHeaders,
 	xstrview LastEventId
 );
@@ -286,12 +288,12 @@ XRT_API bool xrtHttpSseRequestHeaders(
 
 
 /* 事务唯一设置响应 Content-Type，不添加应用策略字段。 */
-XRT_API bool xrtHttpSseResponseHeaders(xhttpheaders* pHeaders);
+XHTTP_API bool xrtHttpSseResponseHeaders(xhttpheaders* pHeaders);
 
 
 
 /* 按 EventSource 规则分类状态码和唯一 Content-Type；协议拒绝不修改线程错误。 */
-XRT_API xhttpsseresponse xrtHttpSseResponseCheck(
+XHTTP_API xhttpsseresponse xrtHttpSseResponseCheck(
 	uint16 iStatus,
 	const xhttpheaders* pHeaders
 );
@@ -303,21 +305,21 @@ XRT_API xhttpsseresponse xrtHttpSseResponseCheck(
 #if defined(XHTTP_FEATURE_HTTP_SSE_PARSER)
 
 /* 初始化现代浏览器兼容的动态限额、替换解码和三秒重连配置。 */
-XRT_API void xrtHttpSseParserConfigInit(
+XHTTP_API void xrtHttpSseParserConfigInit(
 	xhttpsseparserconfig* pConfig
 );
 
 
 
 /* 纯判断解析配置是否可以安全建立状态机。 */
-XRT_API bool xrtHttpSseParserConfigValid(
+XHTTP_API bool xrtHttpSseParserConfigValid(
 	const xhttpsseparserconfig* pConfig
 );
 
 
 
 /* 初始化调用方持有且初始零分配的解析器。 */
-XRT_API bool xrtHttpSseParserInit(
+XHTTP_API bool xrtHttpSseParserInit(
 	xhttpsseparser* pParser,
 	const xhttpsseparserconfig* pConfig
 );
@@ -325,34 +327,34 @@ XRT_API bool xrtHttpSseParserInit(
 
 
 /* 创建初始零分配的解析器。 */
-XRT_API xhttpsseparser* xrtHttpSseParserCreate(
+XHTTP_API xhttpsseparser* xrtHttpSseParserCreate(
 	const xhttpsseparserconfig* pConfig
 );
 
 
 
 /* 释放解析器持有的动态容量，但不释放解析器结构。 */
-XRT_API void xrtHttpSseParserUnit(xhttpsseparser* pParser);
+XHTTP_API void xrtHttpSseParserUnit(xhttpsseparser* pParser);
 
 
 
 /* 释放解析器持有的动态容量和解析器结构。 */
-XRT_API void xrtHttpSseParserDestroy(xhttpsseparser* pParser);
+XHTTP_API void xrtHttpSseParserDestroy(xhttpsseparser* pParser);
 
 
 
 /* 清除全部流状态、Last-Event-ID 和 retry，并恢复配置初值。 */
-XRT_API void xrtHttpSseParserReset(xhttpsseparser* pParser);
+XHTTP_API void xrtHttpSseParserReset(xhttpsseparser* pParser);
 
 
 
 /* 开始重连后的新响应，保留 Last-Event-ID 和 retry。 */
-XRT_API void xrtHttpSseParserReconnect(xhttpsseparser* pParser);
+XHTTP_API void xrtHttpSseParserReconnect(xhttpsseparser* pParser);
 
 
 
 /* 把五个动态缓冲的容量裁剪到当前有效长度。 */
-XRT_API bool xrtHttpSseParserTrim(xhttpsseparser* pParser);
+XHTTP_API bool xrtHttpSseParserTrim(xhttpsseparser* pParser);
 
 
 
@@ -361,7 +363,7 @@ XRT_API bool xrtHttpSseParserTrim(xhttpsseparser* pParser);
 	bEnd 只结束当前响应，未由空行完成的事件按规范丢弃。
 	Consumed、Item 和可选 Error 可以使用完整但未对齐的存储。
 */
-XRT_API xhttpsseparsestatus xrtHttpSseParserRead(
+XHTTP_API xhttpsseparsestatus xrtHttpSseParserRead(
 	xhttpsseparser* pParser,
 	xbytesview Input,
 	bool bEnd,
@@ -373,14 +375,14 @@ XRT_API xhttpsseparsestatus xrtHttpSseParserRead(
 
 
 /* 返回当前持久 Last-Event-ID；视图在下一次修改或销毁前有效。 */
-XRT_API xstrview xrtHttpSseParserLastEventId(
+XHTTP_API xstrview xrtHttpSseParserLastEventId(
 	const xhttpsseparser* pParser
 );
 
 
 
 /* 返回当前重连毫秒数。 */
-XRT_API uint64 xrtHttpSseParserRetry(
+XHTTP_API uint64 xrtHttpSseParserRetry(
 	const xhttpsseparser* pParser
 );
 

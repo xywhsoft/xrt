@@ -8,6 +8,8 @@ lead: Store 挂进配置后的全自动 HTTP 缓存：新鲜度、条件验证�
 api: xhttp-http_cache, xhttp-http_client
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 第 100 章的三个自动行为之后，缓存是最大也最有味道的一个。`http_client_cache` 层把 Store（`xhttpcache`）挂进 Client 配置后，**查找、命中交付、新鲜度判断、条件验证、存储、部分响应组合与 unsafe 方法失效全自动**——你的代码一行不变，第二次请求同一 URL 就从本地出。协议侧完全遵循 RFC 9111：请求的 `Cache-Control`（no-store/no-cache/only-if-cached/年龄约束）与响应的可存储性统一由公共缓存策略解析器处理，客户端不另造近似语义。存储对象保持公开——应用、代理、自定义持久化后端直接用同一套 Store 契约。本章讲透配置、四种调用模式、存储契约与并发条件提交。
@@ -56,11 +58,11 @@ api: xhttp-http_cache, xhttp-http_client
 
 下面的程序来自 `examples/http/client_cache`——Store 挂载与限额：
 
-```embed path="extlibs/xhttp/examples/http/client_cache/main.c" title="extlibs/xhttp/examples/http/client_cache/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_cache/main.c" title="extlibs/xhttp-client/examples/http/client_cache/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_cache/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_cache --exclude-test "*" --no-single --no-run
 （示例校验缓存装配与回源-命中路径后正常退出）
 ```
 
@@ -70,11 +72,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 
 第二个程序来自 `examples/http/cache_policy`——策略解析与判定的协议层：
 
-```embed path="extlibs/xhttp/examples/http/cache_policy/main.c" title="extlibs/xhttp/examples/http/cache_policy/main.c"
+```embed path="extlibs/xhttp-policy/examples/http/cache_policy/main.c" title="extlibs/xhttp-policy/examples/http/cache_policy/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/cache_policy/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-policy/config/modules.json --suite http_cache_policy --exclude-test "*" --no-single --no-run
 （输出策略解析与可存储性判定的自检结果）
 ```
 

@@ -1,0 +1,30 @@
+#define XHTTP_SERVER_IMPLEMENTATION
+#define XHTTP_IMPLEMENTATION
+#include "../../include/xhttp-server/features.h"
+#include <xhttp/features.h>
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../../single/xrt.h"
+#include "../../../../single/extlibs/xhttp.h"
+#include "../../../../single/extlibs/xhttp-server.h"
+
+
+
+
+/* 单头文件构建必须公开 Upgrade 值与参数错误。 */
+int main(void)
+{
+	xhttpupgrade Upgrade;
+
+	memset(&Upgrade, 0, sizeof(Upgrade));
+	xrtHttpUpgradeAbort(&Upgrade);
+	return (xrtHttpConnUpgradeRaw(
+		NULL,
+		XRT_BYTES_LITERAL("HTTP/1.1 101 Switching Protocols\r\n\r\n"),
+		NULL,
+		NULL
+	) == XNET_RESULT_ERROR) &&
+		(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT) ?
+			0 : 1;
+}

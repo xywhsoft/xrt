@@ -71,7 +71,7 @@ bool __xrtHttpRequestSetWrittenAuth(
 	xrt_http_auth_consume_context Consume;
 
 	if ( (pRequest == NULL) || (pWrite == NULL) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	Consume.Request = pRequest;
@@ -109,7 +109,7 @@ static bool __xrtHttpRequestSetAuth(
 
 
 /* 设置源站 Authorization。 */
-XRT_API bool xrtHttpRequestSetAuth(
+XHTTP_API bool xrtHttpRequestSetAuth(
 	xhttprequest* pRequest,
 	xstrview Scheme,
 	xstrview Data
@@ -126,7 +126,7 @@ XRT_API bool xrtHttpRequestSetAuth(
 
 
 /* 设置代理 Proxy-Authorization。 */
-XRT_API bool xrtHttpRequestSetProxyAuth(
+XHTTP_API bool xrtHttpRequestSetProxyAuth(
 	xhttprequest* pRequest,
 	xstrview Scheme,
 	xstrview Data
@@ -143,7 +143,7 @@ XRT_API bool xrtHttpRequestSetProxyAuth(
 
 
 /* 清除全部源站认证字段。 */
-XRT_API size_t xrtHttpRequestClearAuth(xhttprequest* pRequest)
+XHTTP_API size_t xrtHttpRequestClearAuth(xhttprequest* pRequest)
 {
 	return xrtHttpRequestRemoveHeader(
 		pRequest,
@@ -154,7 +154,7 @@ XRT_API size_t xrtHttpRequestClearAuth(xhttprequest* pRequest)
 
 
 /* 清除全部代理认证字段。 */
-XRT_API size_t xrtHttpRequestClearProxyAuth(xhttprequest* pRequest)
+XHTTP_API size_t xrtHttpRequestClearProxyAuth(xhttprequest* pRequest)
 {
 	return xrtHttpRequestRemoveHeader(
 		pRequest,

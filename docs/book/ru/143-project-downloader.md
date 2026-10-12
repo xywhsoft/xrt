@@ -8,6 +8,8 @@ lead: От однострочного GET до поставляемого заг
 api: xhttp-http_client, xhttp-http_client_easy, file
 ---
 
+> Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Ориентация
 
 Четвёртый проект тома 13: **HTTPS-загрузчик** — `xd <url> [-o 输出] [-c 续传]`: вытянет HTTPS-ресурс на диск, поддерживает возобновление (когда сервер поддерживает Range — продолжение с последней точки), потоковую запись (файл 10 ГБ при памяти уровня МБ), атомарное завершение (временный файл + переименование — неудача посередине не оставляет половину файла). Это комплексное применение всей клиентской семьи xhttp (главы 98-103) и файлового слоя (главы 45-48): старт с **easy-слоя** (сила однострочного GET), **лимиты ответа и потоковое потребление** (ResponseBodyLimit и обратный вызов Body главы 99), **протокол возобновления Range** (семантика Range из фрейминга HTTP главы 91 + локальное применение композитного слоя cache_range главы 101), **атомарная запись** (WriteAtomic главы 46 — примитив из образца `file/whole`), **ошибки и повторы** (глава 100: различение повторяемых категорий отказов соединения). Семь уроков Проектов 1-2 (главы 138/140) проходят третий круг — сетевая форма добавляет измерение **неопределённости удалённого ресурса** (сервер может не поддерживать возобновление, ETag может смениться, соединение может оборваться на 90%).
@@ -81,11 +83,11 @@ api: xhttp-http_client, xhttp-http_client_easy, file
 
 Программа ниже из `examples/http/client_easy` — минимальный контур HTTP-грани загрузчика (полная форма главы 98 учебника):
 
-```embed path="extlibs/xhttp/examples/http/client_easy/main.c" title="extlibs/xhttp/examples/http/client_easy/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_easy/main.c" title="extlibs/xhttp-client/examples/http/client_easy/main.c"
 
 ```
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_easy/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_easy_future --exclude-test "*" --no-single --no-run
 usage: client_easy <http-url>
 ```
 

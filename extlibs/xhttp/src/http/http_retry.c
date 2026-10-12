@@ -75,14 +75,14 @@ static bool __xrtHttpRetryAfterFormat(
 		*pSize = iSize;
 		return true;
 	}
-	__xrtErrorSetValue();
+	xrtSetErrorKind(XERR_VALUE);
 	return false;
 }
 
 
 
 /* 严格解析相对秒数或三种兼容 HTTP 日期。 */
-XRT_API bool xrtHttpRetryAfterParse(
+XHTTP_API bool xrtHttpRetryAfterParse(
 	xstrview Value,
 	xhttpretryafter* pRetry
 )
@@ -90,12 +90,12 @@ XRT_API bool xrtHttpRetryAfterParse(
 	xhttpretryafter Retry = { 0 };
 	bool bOverflow;
 
-	if ( !__xrtRangeValid(pRetry, sizeof(Retry)) ||
-		!__xrtHttpViewValid(Value) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pRetry, sizeof(Retry)) ||
+		!__xhttpViewValid(Value) ||
+		xrtMemRangesOverlap(
 			pRetry, sizeof(Retry), Value.Data, Value.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pRetry, &Retry, sizeof(Retry));
@@ -108,7 +108,7 @@ XRT_API bool xrtHttpRetryAfterParse(
 		return true;
 	}
 	if ( bOverflow ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( xrtTimeTryParseHTTPDate(Value, &Retry.Date) ) {
@@ -116,14 +116,14 @@ XRT_API bool xrtHttpRetryAfterParse(
 		memcpy(pRetry, &Retry, sizeof(Retry));
 		return true;
 	}
-	__xrtErrorSetValue();
+	xrtSetErrorKind(XERR_VALUE);
 	return false;
 }
 
 
 
 /* 把线路秒数或绝对墙钟时间安全转换为毫秒延迟。 */
-XRT_API bool xrtHttpRetryAfterDelay(
+XHTTP_API bool xrtHttpRetryAfterDelay(
 	const xhttpretryafter* pRetry,
 	xtime iNow,
 	uint64* pDelay
@@ -132,19 +132,19 @@ XRT_API bool xrtHttpRetryAfterDelay(
 	xhttpretryafter Retry;
 	uint64 iDelay;
 
-	if ( !__xrtRangeValid(pRetry, sizeof(Retry)) ||
-		!__xrtRangeValid(pDelay, sizeof(iDelay)) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pRetry, sizeof(Retry)) ||
+		!xrtMemRangeValid(pDelay, sizeof(iDelay)) ||
+		xrtMemRangesOverlap(
 			pRetry, sizeof(Retry), pDelay, sizeof(iDelay)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Retry, pRetry, sizeof(Retry));
 	if ( Retry.Kind == XHTTP_RETRY_AFTER_DELAY ) {
 		if ( Retry.Seconds >
 			(UINT64_MAX / (uint64)XRT_TIME_SECOND) ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iDelay = Retry.Seconds * (uint64)XRT_TIME_SECOND;
@@ -152,7 +152,7 @@ XRT_API bool xrtHttpRetryAfterDelay(
 		iDelay = Retry.Date > iNow ?
 			((uint64)Retry.Date - (uint64)iNow) : UINT64_C(0);
 	} else {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memcpy(pDelay, &iDelay, sizeof(iDelay));
@@ -162,7 +162,7 @@ XRT_API bool xrtHttpRetryAfterDelay(
 
 
 /* 读取单值 Retry-After，并保持缺失与错误结果可区分。 */
-XRT_API xhttpnext xrtHttpRetryAfterFields(
+XHTTP_API xhttpnext xrtHttpRetryAfterFields(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xtime iNow,
@@ -175,12 +175,12 @@ XRT_API xhttpnext xrtHttpRetryAfterFields(
 	uint64 iDelay;
 	const uint64 iZero = 0;
 
-	if ( !__xrtRangeValid(pDelay, sizeof(iDelay)) ||
-		!__xrtHttpFieldArrayValid(pFields, iCount) ||
-		__xrtHttpFieldArrayOverlap(
+	if ( !xrtMemRangeValid(pDelay, sizeof(iDelay)) ||
+		!__xhttpFieldArrayValid(pFields, iCount) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pDelay, sizeof(iDelay)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(pDelay, &iZero, sizeof(iZero));
@@ -204,7 +204,7 @@ XRT_API xhttpnext xrtHttpRetryAfterFields(
 
 
 /* 规范写出相对秒数或 IMF-fixdate，并保持短缓冲失败原子性。 */
-XRT_API bool xrtHttpRetryAfterWrite(
+XHTTP_API bool xrtHttpRetryAfterWrite(
 	const xhttpretryafter* pRetry,
 	void* pOutput,
 	size_t iCapacity,
@@ -215,15 +215,15 @@ XRT_API bool xrtHttpRetryAfterWrite(
 	char Text[30];
 	size_t iRequired;
 
-	if ( !__xrtRangeValid(pRetry, sizeof(Retry)) ||
-		!__xrtRangeValid(pOutput, iCapacity) ||
-		!__xrtRangeValid(pSize, sizeof(iRequired)) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pRetry, sizeof(Retry)) ||
+		!xrtMemRangeValid(pOutput, iCapacity) ||
+		!xrtMemRangeValid(pSize, sizeof(iRequired)) ||
+		xrtMemRangesOverlap(
 			pRetry, sizeof(Retry), pSize, sizeof(iRequired)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(iRequired)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Retry, pRetry, sizeof(Retry));
@@ -236,13 +236,13 @@ XRT_API bool xrtHttpRetryAfterWrite(
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pRetry, sizeof(Retry), pOutput, iRequired
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pOutput, Text, iRequired);
@@ -253,7 +253,7 @@ XRT_API bool xrtHttpRetryAfterWrite(
 
 
 /* 构建零结尾 Retry-After 字段值。 */
-XRT_API str xrtHttpRetryAfterBuild(
+XHTTP_API str xrtHttpRetryAfterBuild(
 	const xhttpretryafter* pRetry,
 	size_t* pSize
 )
@@ -262,12 +262,12 @@ XRT_API str xrtHttpRetryAfterBuild(
 	size_t iRequired;
 
 	if ( (pSize != NULL) &&
-		(!__xrtRangeValid(pSize, sizeof(iRequired)) ||
-		 !__xrtRangeValid(pRetry, sizeof(*pRetry)) ||
-		 __xrtRangesOverlap(
+		(!xrtMemRangeValid(pSize, sizeof(iRequired)) ||
+		 !xrtMemRangeValid(pRetry, sizeof(*pRetry)) ||
+		 xrtMemRangesOverlap(
 			pRetry, sizeof(*pRetry), pSize, sizeof(iRequired)
 		 )) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtHttpRetryAfterWrite(
@@ -276,7 +276,7 @@ XRT_API str xrtHttpRetryAfterBuild(
 		return NULL;
 	}
 	if ( iRequired == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	sOutput = (str)xrtMalloc(iRequired + 1u);
@@ -298,59 +298,4 @@ XRT_API str xrtHttpRetryAfterBuild(
 
 
 
-/* 使用保守集合识别常见的临时服务或路由失败。 */
-XRT_API bool xrtHttpRetryStatusDefault(uint16 iStatus)
-{
-	switch ( iStatus ) {
-		case XHTTP_STATUS_REQUEST_TIMEOUT:
-		case XHTTP_STATUS_MISDIRECTED_REQUEST:
-		case XHTTP_STATUS_TOO_EARLY:
-		case XHTTP_STATUS_TOO_MANY_REQUESTS:
-		case XHTTP_STATUS_INTERNAL_SERVER_ERROR:
-		case XHTTP_STATUS_BAD_GATEWAY:
-		case XHTTP_STATUS_SERVICE_UNAVAILABLE:
-		case XHTTP_STATUS_GATEWAY_TIMEOUT:
-			return true;
-
-		default:
-			return false;
-	}
-}
-
-
-
-/* 以最多 64 次有效倍增得到不回绕的封顶指数退避。 */
-XRT_API bool xrtHttpRetryBackoff(
-	uint64 iBase,
-	uint64 iMaximum,
-	uint32 iRetry,
-	uint64* pDelay
-)
-{
-	uint64 iDelay = iBase;
-	uint32 i;
-
-	if ( !__xrtRangeValid(pDelay, sizeof(iDelay)) ||
-		(iMaximum == 0) ||
-		(iBase > iMaximum) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
-	}
-	/* 零基数的全部指数项都为零，避免按外部序号空转。 */
-	if ( iBase == 0 ) {
-		memcpy(pDelay, &iDelay, sizeof(iDelay));
-		return true;
-	}
-	for ( i = 0; (i < iRetry) && (iDelay < iMaximum); i++ ) {
-		if ( iDelay > (iMaximum / UINT64_C(2)) ) {
-			iDelay = iMaximum;
-		} else {
-			iDelay *= UINT64_C(2);
-		}
-	}
-	memcpy(pDelay, &iDelay, sizeof(iDelay));
-	return true;
-}
-
 #endif
-

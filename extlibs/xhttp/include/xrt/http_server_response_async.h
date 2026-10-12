@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_SERVER_RESPONSE_ASYNC_H
 #define XRT_HTTP_SERVER_RESPONSE_ASYNC_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_server_exchange.h>
 
 
@@ -23,7 +25,7 @@ XRT_EXTERN_C_BEGIN
 	Output 返回 AGAIN 后取得一次正文可读性 Future。
 	调用方拥有返回引用；Future 成功完成后再次调用 Output。
 */
-XRT_API xfuture* xrtHttp1ServerResponseWait(
+XHTTP_API xfuture* xrtHttp1ServerResponseWait(
 	xhttp1serverresponse* pResponse
 );
 

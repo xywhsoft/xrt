@@ -282,7 +282,7 @@ static bool __xrtHttpCacheStatusMember(
 
 
 /* 初始化单字段游标。 */
-XRT_API void xrtHttpCacheStatusCursorInit(
+XHTTP_API void xrtHttpCacheStatusCursorInit(
 	xhttpcachestatuscursor* pCursor
 )
 {
@@ -294,7 +294,7 @@ XRT_API void xrtHttpCacheStatusCursorInit(
 
 
 /* 初始化重复字段游标。 */
-XRT_API void xrtHttpCacheStatusFieldCursorInit(
+XHTTP_API void xrtHttpCacheStatusFieldCursorInit(
 	xhttpcachestatusfieldcursor* pCursor
 )
 {
@@ -306,7 +306,7 @@ XRT_API void xrtHttpCacheStatusFieldCursorInit(
 
 
 /* 验证完整 Cache-Status 字段值。 */
-XRT_API bool xrtHttpCacheStatusValid(xstrview Value)
+XHTTP_API bool xrtHttpCacheStatusValid(xstrview Value)
 {
 	return __xrtHttpStructuredStatusValid(
 		Value, __xrtHttpCacheStatusMember
@@ -316,7 +316,7 @@ XRT_API bool xrtHttpCacheStatusValid(xstrview Value)
 
 
 /* 迭代单个 Cache-Status 字段值。 */
-XRT_API xhttpnext xrtHttpCacheStatusNext(
+XHTTP_API xhttpnext xrtHttpCacheStatusNext(
 	xstrview Value,
 	xhttpcachestatuscursor* pCursor,
 	xhttpcachestatus* pStatus
@@ -332,7 +332,7 @@ XRT_API xhttpnext xrtHttpCacheStatusNext(
 
 
 /* 跨重复字段行迭代 Cache-Status。 */
-XRT_API xhttpnext xrtHttpCacheStatusFieldNext(
+XHTTP_API xhttpnext xrtHttpCacheStatusFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpcachestatusfieldcursor* pCursor,

@@ -6,7 +6,7 @@
 #if defined(XHTTP_FEATURE_HTTP_SERVER_RESPONSE_ASYNC)
 
 /* 把正文来源的可读性 Future 安全提升到 Server Response 层。 */
-XRT_API xfuture* xrtHttp1ServerResponseWait(
+XHTTP_API xfuture* xrtHttp1ServerResponseWait(
 	xhttp1serverresponse* pResponse
 )
 {
@@ -15,7 +15,7 @@ XRT_API xfuture* xrtHttp1ServerResponseWait(
 	xerrkind Kind;
 
 	if ( pResponse == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( pResponse->Error != NULL ) {
@@ -24,7 +24,7 @@ XRT_API xfuture* xrtHttp1ServerResponseWait(
 	}
 	if ( !pResponse->OutputAgain ||
 		(pResponse->Reader == NULL) ) {
-		__xrtErrorSetInvalidState();
+		xrtSetErrorKind(XERR_STATE);
 		return NULL;
 	}
 	pFuture = xrtHttpBodyReaderWait(

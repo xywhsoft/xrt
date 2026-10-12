@@ -44,12 +44,12 @@ static bool __xrtHttpProxyAliasesMeasure(
 	size_t i;
 
 	if ( iCount > (SIZE_MAX / sizeof(Alias)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iBytes = iCount * sizeof(Alias);
-	if ( !__xrtRangeValid(pAliases, iBytes) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pAliases, iBytes) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
@@ -57,12 +57,12 @@ static bool __xrtHttpProxyAliasesMeasure(
 			&Alias, (const uint8*)pAliases +
 			(i * sizeof(Alias)), sizeof(Alias)
 		);
-		if ( !__xrtHttpViewValid(Alias) ) {
-			__xrtErrorSetInvalidArgument();
+		if ( !__xhttpViewValid(Alias) ) {
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 		if ( !__xrtHttpProxyAliasPresentationValid(Alias) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		if ( !xrtPercentWrite(
@@ -75,7 +75,7 @@ static bool __xrtHttpProxyAliasesMeasure(
 		if ( ((i != 0) && (iRequired == SIZE_MAX)) ||
 			(iEncoded > (SIZE_MAX - iRequired -
 			 ((i != 0) ? 1u : 0u))) ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iRequired += iEncoded + ((i != 0) ? 1u : 0u);
@@ -97,7 +97,7 @@ static bool __xrtHttpProxyAliasesSizeOverlap(
 	size_t iBytes = iCount * sizeof(Alias);
 	size_t i;
 
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pSize, sizeof(*pSize), pAliases, iBytes
 	) ) {
 		return true;
@@ -107,7 +107,7 @@ static bool __xrtHttpProxyAliasesSizeOverlap(
 			&Alias, (const uint8*)pAliases +
 			(i * sizeof(Alias)), sizeof(Alias)
 		);
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), Alias.Data, Alias.Size
 		) ) {
 			return true;
@@ -130,7 +130,7 @@ static bool __xrtHttpProxyAliasesOutputOverlap(
 	size_t iBytes = iCount * sizeof(Alias);
 	size_t i;
 
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pOutput, iSize, pAliases, iBytes
 	) ) {
 		return true;
@@ -140,7 +140,7 @@ static bool __xrtHttpProxyAliasesOutputOverlap(
 			&Alias, (const uint8*)pAliases +
 			(i * sizeof(Alias)), sizeof(Alias)
 		);
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			pOutput, iSize, Alias.Data, Alias.Size
 		) ) {
 			return true;
@@ -191,7 +191,7 @@ static bool __xrtHttpProxyAliasesWriteUnchecked(
 
 
 /* 写出完整别名列表并保持失败原子性。 */
-XRT_API bool xrtHttpProxyAliasesWrite(
+XHTTP_API bool xrtHttpProxyAliasesWrite(
 	const xstrview* pAliases,
 	size_t iCount,
 	void* pOutput,
@@ -202,9 +202,9 @@ XRT_API bool xrtHttpProxyAliasesWrite(
 	size_t iRequired;
 	size_t iWritten;
 
-	if ( !__xrtRangeValid(pOutput, iCapacity) ||
-		!__xrtRangeValid(pSize, sizeof(*pSize)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pOutput, iCapacity) ||
+		!xrtMemRangeValid(pSize, sizeof(*pSize)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpProxyAliasesMeasure(
@@ -214,13 +214,13 @@ XRT_API bool xrtHttpProxyAliasesWrite(
 	}
 	if ( __xrtHttpProxyAliasesSizeOverlap(
 		pAliases, iCount, pSize
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pSize, sizeof(*pSize), pOutput, iRequired
 	) || ((pOutput != NULL) &&
 		__xrtHttpProxyAliasesOutputOverlap(
 			pAliases, iCount, pOutput, iRequired
 		)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pOutput == NULL ) {
@@ -229,7 +229,7 @@ XRT_API bool xrtHttpProxyAliasesWrite(
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( !__xrtHttpProxyAliasesWriteUnchecked(
@@ -245,7 +245,7 @@ XRT_API bool xrtHttpProxyAliasesWrite(
 
 
 /* 写出单个别名。 */
-XRT_API bool xrtHttpProxyAliasWrite(
+XHTTP_API bool xrtHttpProxyAliasWrite(
 	xstrview Alias,
 	void* pOutput,
 	size_t iCapacity,
@@ -260,7 +260,7 @@ XRT_API bool xrtHttpProxyAliasWrite(
 
 
 /* 构建零结尾别名列表。 */
-XRT_API str xrtHttpProxyAliasesBuild(
+XHTTP_API str xrtHttpProxyAliasesBuild(
 	const xstrview* pAliases,
 	size_t iCount,
 	size_t* pSize
@@ -271,8 +271,8 @@ XRT_API str xrtHttpProxyAliasesBuild(
 	size_t iWritten;
 
 	if ( (pSize != NULL) &&
-		!__xrtRangeValid(pSize, sizeof(*pSize)) ) {
-		__xrtErrorSetInvalidArgument();
+		!xrtMemRangeValid(pSize, sizeof(*pSize)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtHttpProxyAliasesWrite(
@@ -284,11 +284,11 @@ XRT_API str xrtHttpProxyAliasesBuild(
 		__xrtHttpProxyAliasesSizeOverlap(
 			pAliases, iCount, pSize
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( iRequired == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	sOutput = (char*)xrtMalloc(iRequired + 1u);

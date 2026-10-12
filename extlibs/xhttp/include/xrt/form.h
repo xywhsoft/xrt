@@ -1,6 +1,8 @@
 #ifndef XRT_FORM_H
 #define XRT_FORM_H
 
+#include <xhttp/export.h>
+
 #include <xrt/core.h>
 #include <xrt/memory.h>
 
@@ -51,7 +53,7 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_FORM_URLENCODED)
 
 /* 按 application/x-www-form-urlencoded 规则编码字节并写出零结尾文本。 */
-XRT_API bool xrtFormEncode(
+XHTTP_API bool xrtFormEncode(
 	const void* pData,
 	size_t iSize,
 	char* sOutput,
@@ -62,7 +64,7 @@ XRT_API bool xrtFormEncode(
 
 
 /* 严格解码 form-urlencoded 字节；加号转换为空格，支持同址收缩。 */
-XRT_API bool xrtFormDecode(
+XHTTP_API bool xrtFormDecode(
 	xstrview Text,
 	void* pOutput,
 	size_t iCapacity,
@@ -72,7 +74,7 @@ XRT_API bool xrtFormDecode(
 
 
 /* 分配并返回由 xrtFree 释放的零结尾 form-urlencoded 文本。 */
-XRT_API str xrtFormEncodeNew(
+XHTTP_API str xrtFormEncodeNew(
 	const void* pData,
 	size_t iSize,
 	size_t* pOutputSize
@@ -81,7 +83,7 @@ XRT_API str xrtFormEncodeNew(
 
 
 /* 分配解码字节；末尾哨兵零不计入必须返回的长度。 */
-XRT_API bytes xrtFormDecodeNew(
+XHTTP_API bytes xrtFormDecodeNew(
 	xstrview Text,
 	size_t* pOutputSize
 );
@@ -92,7 +94,7 @@ XRT_API bytes xrtFormDecodeNew(
 	严格预检并原地解码表单字段；空 Fields 可查询数量且不修改 Data。
 	字段数组容量不足时 Count 返回所需数量，输入保持不变。
 */
-XRT_API bool xrtFormParse(
+XHTTP_API bool xrtFormParse(
 	void* pData,
 	size_t iSize,
 	xformfield* pFields,
@@ -107,7 +109,7 @@ XRT_API bool xrtFormParse(
 	严格验证整个表单，并从 Offset 开始查找下一个解码后名称相同的字段。
 	空 Value 可查询精确长度；容量不足时 Size 返回所需长度且 Offset 和 Value 不变。
 */
-XRT_API xformfind xrtFormFind(
+XHTTP_API xformfind xrtFormFind(
 	xstrview Text,
 	xbytesview Name,
 	size_t* pOffset,
@@ -119,7 +121,7 @@ XRT_API xformfind xrtFormFind(
 
 
 /* 写出不带零结尾的 form-urlencoded 字段列表；每个字段始终包含等号。 */
-XRT_API bool xrtFormWrite(
+XHTTP_API bool xrtFormWrite(
 	const xformfield* pFields,
 	size_t iCount,
 	void* pOutput,
@@ -130,7 +132,7 @@ XRT_API bool xrtFormWrite(
 
 
 /* 分配并构建零结尾 form-urlencoded 字段列表；结果由 xrtFree 释放。 */
-XRT_API str xrtFormBuild(
+XHTTP_API str xrtFormBuild(
 	const xformfield* pFields,
 	size_t iCount,
 	size_t* pSize

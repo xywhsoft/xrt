@@ -8,6 +8,8 @@ lead: xhttpbody 的五来源与可重放语义、Reader 的租约式消费、有
 api: xhttp-http_body, xhttp-http_body_stream, xhttp-http_body_file
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 HTTP 的正文是"内容"与"内存"的战场：2 GB 上传、流式下载、按需生成的响应——**正文大小不应等于内存占用**是全部设计的出发点。`xhttpbody` 统一五种正文来源：固定族（`Empty/Copy/Borrow/Take/Reference`——可重放，已知长度）、**有界生产流**（`HttpBodyStreamCreate`——任务线程生产、预算受限、SSE 的底座）、**文件正文**（`http_body_file`——异步文件 IO 的正文化）、自定义来源（生产者回调）与变换正文。消费侧 `xhttpbodyreader` 单消费者流式读取，`xhttpbodychunk` 是**独立数据租约**（`ChunkRelease` 归还、可晚于 Reader 释放——TCP 引用发送的完美搭档）。第 104 章服务端的 Body 回调、第 107 章 SSE 的生产端，在本章拿到完整的地基叙述。
@@ -67,7 +69,7 @@ HTTP 的正文是"内容"与"内存"的战场：2 GB 上传、流式下载、按
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/body_stream/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_body_stream --exclude-test "*" --no-single --no-run
 first chunk
 second chunk
 ```
@@ -78,11 +80,11 @@ second chunk
 
 第二个程序来自 `examples/http/body_file`——大文件的上传形态：
 
-```embed path="extlibs/xhttp/examples/http/body_file/main.c" title="extlibs/xhttp/examples/http/body_file/main.c"
+```embed path="extlibs/xhttp-server/examples/http/body_file/main.c" title="extlibs/xhttp-server/examples/http/body_file/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/body_file/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_body_file --exclude-test "*" --no-single --no-run
 （示例校验文件正文创建与读回后正常退出）
 ```
 

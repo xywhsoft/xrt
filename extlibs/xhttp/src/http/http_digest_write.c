@@ -40,16 +40,16 @@ static bool __xrtHttpDigestPreferenceArguments(
 	size_t* pSize
 )
 {
-	return __xrtHttpViewValid(Algorithm) &&
-		__xrtRangeValid(pSize, sizeof(*pSize)) &&
-		!__xrtRangesOverlap(
+	return __xhttpViewValid(Algorithm) &&
+		xrtMemRangeValid(pSize, sizeof(*pSize)) &&
+		!xrtMemRangesOverlap(
 			Algorithm.Data, Algorithm.Size,
 			pSize, sizeof(*pSize)
 		) && ((pOutput == NULL) ? (iCapacity == 0) :
-			(__xrtRangeValid(pOutput, iCapacity) &&
-			 !__xrtRangesOverlap(
+			(xrtMemRangeValid(pOutput, iCapacity) &&
+			 !xrtMemRangesOverlap(
 				pOutput, iCapacity, pSize, sizeof(*pSize)
-			 ) && !__xrtRangesOverlap(
+			 ) && !xrtMemRangesOverlap(
 				pOutput, iCapacity,
 				Algorithm.Data, Algorithm.Size
 			 )));
@@ -58,7 +58,7 @@ static bool __xrtHttpDigestPreferenceArguments(
 
 
 /* 写出一个摘要成员。 */
-XRT_API bool xrtHttpDigestWrite(
+XHTTP_API bool xrtHttpDigestWrite(
 	xstrview Algorithm,
 	xbytesview Digest,
 	void* pOutput,
@@ -76,7 +76,7 @@ XRT_API bool xrtHttpDigestWrite(
 
 
 /* 写出一个摘要偏好成员。 */
-XRT_API bool xrtHttpDigestPreferenceWrite(
+XHTTP_API bool xrtHttpDigestPreferenceWrite(
 	xstrview Algorithm,
 	uint8 iWeight,
 	void* pOutput,
@@ -87,11 +87,11 @@ XRT_API bool xrtHttpDigestPreferenceWrite(
 	if ( !__xrtHttpDigestPreferenceArguments(
 		Algorithm, pOutput, iCapacity, pSize
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iWeight > 10u ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return __xrtHttpDigestWrite(

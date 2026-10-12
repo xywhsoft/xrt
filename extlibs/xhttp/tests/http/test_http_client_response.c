@@ -21,7 +21,7 @@ static bool testHttpResponseViewEqual(
 /* 验证缓冲响应的元数据、正文、trailer 和有效 URL。 */
 static void testHttpResponseBuffered(void)
 {
-	xhttpresponse* pResponse = __xrtHttpResponseCreate(
+	xhttpresponse* pResponse = xrtHttpBridgeResponseCreate(
 		XHTTP_VERSION_1_1,
 		201,
 		XRT_STR_LITERAL("Created"),
@@ -54,16 +54,16 @@ static void testHttpResponseBuffered(void)
 		"empty HTTP response trailer bypassed name validation"
 	);
 	xrtClearError();
-	testRequire(__xrtHttpResponseAddHeader(
+	testRequire(xrtHttpBridgeResponseAddHeader(
 		pResponse,
 		XRT_STR_LITERAL("Set-Cookie"),
 		XRT_STR_LITERAL("a=1")
-	) && __xrtHttpResponseAddHeader(
+	) && xrtHttpBridgeResponseAddHeader(
 		pResponse,
 		XRT_STR_LITERAL("set-cookie"),
 		XRT_STR_LITERAL("b=2")
 	), "HTTP response duplicate Header add failed");
-	testRequire(__xrtHttpResponseAddTrailer(
+	testRequire(xrtHttpBridgeResponseAddTrailer(
 		pResponse,
 		NULL,
 		XRT_STR_LITERAL("Digest"),
@@ -75,8 +75,8 @@ static void testHttpResponseBuffered(void)
 	) && __xrtHttpResponseAppendBody(
 		pResponse,
 		(xbytesview){ (cbytes)"lo\0x", 4 }
-	) && __xrtHttpResponseAddWireBody(pResponse, 7) &&
-		__xrtHttpResponseSetUrl(
+	) && xrtHttpBridgeResponseAddWireBody(pResponse, 7) &&
+		xrtHttpBridgeResponseSetUrl(
 			pResponse,
 			XRT_STR_LITERAL("https://example.test/final")
 		), "HTTP response body or URL append failed");
@@ -149,7 +149,7 @@ static void testHttpResponseDynamicStorage(void)
 
 	memset(Reason, 'r', sizeof(Reason));
 	memset(Value, 'v', sizeof(Value));
-	pResponse = __xrtHttpResponseCreate(
+	pResponse = xrtHttpBridgeResponseCreate(
 		XHTTP_VERSION_1_1,
 		299,
 		(xstrview){ Reason, sizeof(Reason) },
@@ -157,7 +157,7 @@ static void testHttpResponseDynamicStorage(void)
 	);
 	testRequire(pResponse != NULL,
 		"dynamic HTTP response reason create failed");
-	testRequire(__xrtHttpResponseAddHeader(
+	testRequire(xrtHttpBridgeResponseAddHeader(
 		pResponse,
 		XRT_STR_LITERAL("X-Large"),
 		(xstrview){ Value, sizeof(Value) }
@@ -188,7 +188,7 @@ static void testHttpResponseTrailerConfig(void)
 	Config.InitialFields = 0;
 	Config.InitialBytes = 0;
 	Config.MaxFields = 1;
-	pResponse = __xrtHttpResponseCreate(
+	pResponse = xrtHttpBridgeResponseCreate(
 		XHTTP_VERSION_1_1,
 		200,
 		XRT_STR_LITERAL("OK"),
@@ -197,14 +197,14 @@ static void testHttpResponseTrailerConfig(void)
 	testRequire((pResponse != NULL) &&
 		(pResponse->Trailers == NULL),
 		"HTTP response trailer config setup failed");
-	testRequire(__xrtHttpResponseAddTrailer(
+	testRequire(xrtHttpBridgeResponseAddTrailer(
 		pResponse,
 		&Config,
 		XRT_STR_LITERAL("Digest"),
 		XRT_STR_LITERAL("one")
 	), "HTTP response first lazy trailer failed");
 	xrtClearError();
-	testRequire(!__xrtHttpResponseAddTrailer(
+	testRequire(!xrtHttpBridgeResponseAddTrailer(
 		pResponse,
 		NULL,
 		XRT_STR_LITERAL("X-Extra"),
@@ -223,7 +223,7 @@ static void testHttpResponseTrailerConfig(void)
 /* 验证流式响应只累计字节而不分配正文缓冲。 */
 static void testHttpResponseStreamed(void)
 {
-	xhttpresponse* pResponse = __xrtHttpResponseCreate(
+	xhttpresponse* pResponse = xrtHttpBridgeResponseCreate(
 		XHTTP_VERSION_1_0,
 		200,
 		(xstrview){ NULL, 0 },
@@ -232,12 +232,12 @@ static void testHttpResponseStreamed(void)
 
 	testRequire(pResponse != NULL,
 		"streamed HTTP response create failed");
-	__xrtHttpResponseSetFlags(
+	xrtHttpBridgeResponseSetFlags(
 		pResponse, XHTTP_RESPONSE_STREAMED
 	);
-	testRequire(__xrtHttpResponseDeliverBody(
+	testRequire(xrtHttpBridgeResponseDeliverBody(
 		pResponse, UINT64_C(4)
-	) && __xrtHttpResponseDeliverBody(
+	) && xrtHttpBridgeResponseDeliverBody(
 		pResponse, UINT64_C(9)
 	), "streamed HTTP response byte delivery failed");
 	testRequire(((xrtHttpResponseFlags(pResponse) &
@@ -266,21 +266,21 @@ static void testHttpResponseContracts(void)
 	testRequire(xrtHttpResponseBodyText(NULL) == NULL,
 		"HTTP response text copy accepted null response");
 	xrtClearError();
-	testRequire(__xrtHttpResponseCreate(
+	testRequire(xrtHttpBridgeResponseCreate(
 		XHTTP_VERSION_1_1,
 		99,
 		XRT_STR_LITERAL("bad"),
 		NULL
 	) == NULL, "HTTP response accepted two-digit status");
 	xrtClearError();
-	testRequire(__xrtHttpResponseCreate(
+	testRequire(xrtHttpBridgeResponseCreate(
 		XHTTP_VERSION_1_1,
 		200,
 		XRT_STR_LITERAL("bad\rreason"),
 		NULL
 	) == NULL, "HTTP response accepted invalid reason");
 	xrtClearError();
-	testRequire(__xrtHttpResponseCreate(
+	testRequire(xrtHttpBridgeResponseCreate(
 		XHTTP_VERSION_1_1,
 		200,
 		(xstrview){
@@ -292,7 +292,7 @@ static void testHttpResponseContracts(void)
 		"HTTP response accepted a wrapping reason view");
 	xrtClearError();
 
-	pResponse = __xrtHttpResponseCreate(
+	pResponse = xrtHttpBridgeResponseCreate(
 		XHTTP_VERSION_1_1,
 		200,
 		XRT_STR_LITERAL("OK"),
@@ -300,12 +300,12 @@ static void testHttpResponseContracts(void)
 	);
 	testRequire(pResponse != NULL,
 		"HTTP response overflow setup failed");
-	testRequire(__xrtHttpResponseSetUrl(
+	testRequire(xrtHttpBridgeResponseSetUrl(
 		pResponse, XRT_STR_LITERAL("https://example.test/original")
 	) && __xrtHttpResponseAppendBody(
 		pResponse, (xbytesview){ (cbytes)"a", 1u }
 	), "HTTP response atomicity setup failed");
-	testRequire(!__xrtHttpResponseSetUrl(
+	testRequire(!xrtHttpBridgeResponseSetUrl(
 		pResponse,
 		(xstrview){
 			(cstr)(uintptr_t)(UINTPTR_MAX - 1u), 4u
@@ -334,18 +334,18 @@ static void testHttpResponseContracts(void)
 		(xrtHttpResponseBodyBytes(pResponse) == 2u),
 		"HTTP response body changed after a rejected range");
 
-	__xrtHttpResponseSetFlags(
+	xrtHttpBridgeResponseSetFlags(
 		pResponse, XHTTP_RESPONSE_STREAMED
 	);
 	pResponse->BodyBytes = UINT64_MAX;
-	testRequire(!__xrtHttpResponseDeliverBody(
+	testRequire(!xrtHttpBridgeResponseDeliverBody(
 		pResponse, 1
 	) && (xrtErrorKind(xrtGetError()) == XERR_RANGE),
 		"HTTP response body count overflow succeeded");
 	xrtClearError();
 	pResponse->BodyBytes = 0;
 	pResponse->WireBodyBytes = UINT64_MAX;
-	testRequire(!__xrtHttpResponseAddWireBody(
+	testRequire(!xrtHttpBridgeResponseAddWireBody(
 		pResponse, 1
 	) && (xrtErrorKind(xrtGetError()) == XERR_RANGE),
 		"HTTP response wire count overflow succeeded");

@@ -103,15 +103,15 @@ static bool __xrtHttpForwardedObfuscatedValid(xstrview Name)
 
 
 /* 验证已经解码的 by 或 for 节点。 */
-XRT_API bool xrtHttpForwardedNodeValid(xstrview Node)
+XHTTP_API bool xrtHttpForwardedNodeValid(xstrview Node)
 {
 	xstrview Name;
 	xstrview Port = { NULL, 0 };
 	cstr sColon;
 	cstr sClose;
 
-	if ( !__xrtHttpViewValid(Node) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Node) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( Node.Size == 0 ) {
@@ -165,12 +165,12 @@ XRT_API bool xrtHttpForwardedNodeValid(xstrview Node)
 
 
 /* 验证已经解码的 proto 参数是 URI scheme。 */
-XRT_API bool xrtHttpForwardedProtoValid(xstrview Proto)
+XHTTP_API bool xrtHttpForwardedProtoValid(xstrview Proto)
 {
 	size_t i;
 
-	if ( !__xrtHttpViewValid(Proto) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Proto) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( (Proto.Size == 0) ||
@@ -207,7 +207,7 @@ static bool __xrtHttpForwardedRead(
 	uint8* pByte
 )
 {
-	return __xrtHttpParamSemanticNext(
+	return __xhttpParamSemanticNext(
 		pReader->Param, &pReader->Offset, pByte
 	);
 }
@@ -330,10 +330,10 @@ static bool __xrtHttpForwardedHostParamValid(
 
 
 /* 验证已经解码的 host 参数值。 */
-XRT_API bool xrtHttpForwardedHostValid(xstrview Host)
+XHTTP_API bool xrtHttpForwardedHostValid(xstrview Host)
 {
-	if ( !__xrtHttpViewValid(Host) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Host) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return xrtHttpHostValid(Host);
@@ -350,7 +350,7 @@ static bool __xrtHttpForwardedProtoParamValid(
 	size_t iCount = 0;
 	uint8 iByte;
 
-	while ( __xrtHttpParamSemanticNext(
+	while ( __xhttpParamSemanticNext(
 		pParam, &iOffset, &iByte
 	) ) {
 		if ( (iCount == 0) ?
@@ -415,7 +415,7 @@ static bool __xrtHttpForwardedPairSeen(
 
 
 /* 严格读取一个 Forwarded 参数。 */
-XRT_API xhttpnext xrtHttpForwardedPairNext(
+XHTTP_API xhttpnext xrtHttpForwardedPairNext(
 	xstrview Element,
 	size_t* pOffset,
 	xhttpparam* pPair
@@ -430,23 +430,23 @@ XRT_API xhttpnext xrtHttpForwardedPairNext(
 	size_t iExpected;
 	size_t i;
 
-	if ( !__xrtHttpViewValid(Element) ||
-		!__xrtRangeValid(pOffset, sizeof(iOffset)) ||
-		!__xrtRangeValid(pPair, sizeof(Pair)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Element) ||
+		!xrtMemRangeValid(pOffset, sizeof(iOffset)) ||
+		!xrtMemRangeValid(pPair, sizeof(Pair)) ||
+		xrtMemRangesOverlap(
 			pOffset, sizeof(iOffset), pPair, sizeof(Pair)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOffset, sizeof(iOffset), Element.Data, Element.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pPair, sizeof(Pair), Element.Data, Element.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
 	iOriginal = iOffset;
 	memset(&Pair, 0, sizeof(Pair));
-	Next = __xrtHttpNameValueNext(
+	Next = xrtHttpNameValueNext(
 		Element, &iOffset, &Pair, ';', true
 	);
 	if ( Next == XHTTP_NEXT_ERROR ) {
@@ -454,20 +454,20 @@ XRT_API xhttpnext xrtHttpForwardedPairNext(
 	}
 	if ( (Next == XHTTP_NEXT_ITEM) &&
 		((Pair.Flags & XHTTP_PARAM_HAS_VALUE) == 0) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Next == XHTTP_NEXT_ITEM ) {
 		iName = (size_t)(Pair.Name.Data - Element.Data);
 		for ( i = iOriginal; i < iName; i++ ) {
 			if ( Element.Data[i] != ';' ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return XHTTP_NEXT_ERROR;
 			}
 		}
 		if ( ((iName + Pair.Name.Size) >= Element.Size) ||
 			(Element.Data[iName + Pair.Name.Size] != '=') ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return XHTTP_NEXT_ERROR;
 		}
 		if ( (Pair.Flags & XHTTP_PARAM_QUOTED) != 0 ) {
@@ -475,7 +475,7 @@ XRT_API xhttpnext xrtHttpForwardedPairNext(
 				(Element.Data[iName + Pair.Name.Size + 1u] != '"') ||
 				(Pair.Value.Data !=
 				 (Element.Data + iName + Pair.Name.Size + 2u)) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return XHTTP_NEXT_ERROR;
 			}
 			iEnd = (size_t)(Pair.Value.Data - Element.Data) +
@@ -483,26 +483,26 @@ XRT_API xhttpnext xrtHttpForwardedPairNext(
 		} else {
 			if ( Pair.Value.Data !=
 				(Element.Data + iName + Pair.Name.Size + 1u) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return XHTTP_NEXT_ERROR;
 			}
 			iEnd = (size_t)(Pair.Value.Data - Element.Data) +
 				Pair.Value.Size;
 		}
 		if ( iEnd > Element.Size ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return XHTTP_NEXT_ERROR;
 		}
 		iExpected = iEnd;
 		if ( iEnd < Element.Size ) {
 			if ( Element.Data[iEnd] != ';' ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return XHTTP_NEXT_ERROR;
 			}
 			iExpected++;
 		}
 		if ( iOffset != iExpected ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return XHTTP_NEXT_ERROR;
 		}
 	}
@@ -514,7 +514,7 @@ XRT_API xhttpnext xrtHttpForwardedPairNext(
 
 
 /* 严格解析一个代理元素。 */
-XRT_API bool xrtHttpForwardedElementParse(
+XHTTP_API bool xrtHttpForwardedElementParse(
 	xstrview Element,
 	xhttpforwarded* pOutput
 )
@@ -526,12 +526,12 @@ XRT_API bool xrtHttpForwardedElementParse(
 	size_t iBefore;
 	uint32 iKnown;
 
-	if ( !__xrtHttpViewValid(Element) ||
-		!__xrtRangeValid(pOutput, sizeof(Forwarded)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Element) ||
+		!xrtMemRangeValid(pOutput, sizeof(Forwarded)) ||
+		xrtMemRangesOverlap(
 			pOutput, sizeof(Forwarded), Element.Data, Element.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(&Forwarded, 0, sizeof(Forwarded));
@@ -553,39 +553,39 @@ XRT_API bool xrtHttpForwardedElementParse(
 			((iKnown == 0) && __xrtHttpForwardedPairSeen(
 			 Forwarded.Element, iBefore, Pair.Name
 			)) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		if ( iKnown == XHTTP_FORWARDED_HAS_FOR ) {
 			if ( !__xrtHttpForwardedNodeParamValid(&Pair) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			Forwarded.For = Pair;
 		} else if ( iKnown == XHTTP_FORWARDED_HAS_BY ) {
 			if ( !__xrtHttpForwardedNodeParamValid(&Pair) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			Forwarded.By = Pair;
 		} else if ( iKnown == XHTTP_FORWARDED_HAS_HOST ) {
 			if ( !__xrtHttpForwardedHostParamValid(&Pair) ) {
 				if ( xrtGetError() == NULL ) {
-					__xrtErrorSetValue();
+					xrtSetErrorKind(XERR_VALUE);
 				}
 				return false;
 			}
 			Forwarded.Host = Pair;
 		} else if ( iKnown == XHTTP_FORWARDED_HAS_PROTO ) {
 			if ( !__xrtHttpForwardedProtoParamValid(&Pair) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			Forwarded.Proto = Pair;
 		}
 		Forwarded.Flags |= iKnown;
 		if ( Forwarded.PairCount == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		Forwarded.PairCount++;
@@ -609,11 +609,11 @@ static bool __xrtHttpForwardedValueValidate(
 	size_t iNext;
 	size_t iCount = 0;
 
-	if ( !__xrtHttpViewValid(Value) ) {
+	if ( !__xhttpViewValid(Value) ) {
 		return false;
 	}
 	for ( ;; ) {
-		Next = __xrtHttpQuotedListNext(
+		Next = xrtHttpListNext(
 			Value, iOffset, &iNext, &Element
 		);
 		if ( Next == XHTTP_NEXT_END ) {
@@ -626,13 +626,13 @@ static bool __xrtHttpForwardedValueValidate(
 		}
 		iOffset = iNext;
 		if ( iCount == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iCount++;
 	}
 	if ( iCount == 0 ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	*pCount = iCount;
@@ -642,14 +642,14 @@ static bool __xrtHttpForwardedValueValidate(
 
 
 /* 初始化单字段游标。 */
-XRT_API void xrtHttpForwardedCursorInit(
+XHTTP_API void xrtHttpForwardedCursorInit(
 	xhttpforwardedcursor* pCursor
 )
 {
 	xhttpforwardedcursor Cursor;
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -659,14 +659,14 @@ XRT_API void xrtHttpForwardedCursorInit(
 
 
 /* 初始化重复字段游标。 */
-XRT_API void xrtHttpForwardedFieldCursorInit(
+XHTTP_API void xrtHttpForwardedFieldCursorInit(
 	xhttpforwardedfieldcursor* pCursor
 )
 {
 	xhttpforwardedfieldcursor Cursor;
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -676,12 +676,12 @@ XRT_API void xrtHttpForwardedFieldCursorInit(
 
 
 /* 验证完整 Forwarded 字段值。 */
-XRT_API bool xrtHttpForwardedValid(xstrview Value)
+XHTTP_API bool xrtHttpForwardedValid(xstrview Value)
 {
 	size_t iCount;
 
-	if ( !__xrtHttpViewValid(Value) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Value) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return __xrtHttpForwardedValueValidate(Value, &iCount);
@@ -690,19 +690,19 @@ XRT_API bool xrtHttpForwardedValid(xstrview Value)
 
 
 /* 完整验证并统计一个 Forwarded 字段值中的代理元素。 */
-XRT_API bool xrtHttpForwardedCount(
+XHTTP_API bool xrtHttpForwardedCount(
 	xstrview Value,
 	size_t* pCount
 )
 {
 	size_t iCount;
 
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pCount, sizeof(iCount)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pCount, sizeof(iCount)) ||
+		xrtMemRangesOverlap(
 			Value.Data, Value.Size, pCount, sizeof(iCount)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpForwardedValueValidate(
@@ -750,7 +750,7 @@ static bool __xrtHttpForwardedCursorValid(
 
 
 /* 迭代一个完整 Forwarded 字段值。 */
-XRT_API xhttpnext xrtHttpForwardedNext(
+XHTTP_API xhttpnext xrtHttpForwardedNext(
 	xstrview Value,
 	xhttpforwardedcursor* pCursor,
 	xhttpforwarded* pOutput
@@ -763,22 +763,22 @@ XRT_API xhttpnext xrtHttpForwardedNext(
 	size_t iNext;
 	size_t iCount;
 
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pOutput, sizeof(Forwarded)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pOutput, sizeof(Forwarded)) ||
+		xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pOutput, sizeof(Forwarded)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, sizeof(Forwarded), Value.Data, Value.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
 	if ( !__xrtHttpForwardedCursorValid(&Cursor, Value) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.State ==
@@ -792,7 +792,7 @@ XRT_API xhttpnext xrtHttpForwardedNext(
 		Cursor.SourceSize = Value.Size;
 		Cursor.State = (uint8)XRT_HTTP_FORWARDED_CURSOR_VALUE;
 	}
-	Next = __xrtHttpQuotedListNext(
+	Next = xrtHttpListNext(
 		Value, Cursor.Offset, &iNext, &Element
 	);
 	memset(&Forwarded, 0, sizeof(Forwarded));
@@ -828,7 +828,7 @@ static bool __xrtHttpForwardedFieldsValidate(
 	size_t i;
 
 	for ( i = 0; i < iCount; i++ ) {
-		__xrtHttpFieldLoad(pFields, i, &Field);
+		__xhttpFieldLoad(pFields, i, &Field);
 		if ( xrtHttpFieldNameEqual(
 			Field.Name, XRT_STR_LITERAL("Forwarded")
 		) ) {
@@ -838,7 +838,7 @@ static bool __xrtHttpForwardedFieldsValidate(
 				return false;
 			}
 			if ( iFieldElements > (SIZE_MAX - iElements) ) {
-				__xrtErrorSetSizeOverflow();
+				xrtSetErrorKind(XERR_RANGE);
 				return false;
 			}
 			iElements += iFieldElements;
@@ -851,7 +851,7 @@ static bool __xrtHttpForwardedFieldsValidate(
 
 
 /* 完整验证并统计全部 Forwarded 字段行。 */
-XRT_API bool xrtHttpForwardedFieldCount(
+XHTTP_API bool xrtHttpForwardedFieldCount(
 	const xhttpfield* pFields,
 	size_t iCount,
 	size_t* pCount
@@ -859,12 +859,12 @@ XRT_API bool xrtHttpForwardedFieldCount(
 {
 	size_t iElements;
 
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtRangeValid(pCount, sizeof(iElements)) ||
-		__xrtHttpFieldArrayOverlap(
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
+		!xrtMemRangeValid(pCount, sizeof(iElements)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pCount, sizeof(iElements)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpForwardedFieldsValidate(
@@ -915,7 +915,7 @@ static bool __xrtHttpForwardedFieldCursorValid(
 
 
 /* 跨重复字段行迭代代理链路。 */
-XRT_API xhttpnext xrtHttpForwardedFieldNext(
+XHTTP_API xhttpnext xrtHttpForwardedFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpforwardedfieldcursor* pCursor,
@@ -930,24 +930,24 @@ XRT_API xhttpnext xrtHttpForwardedFieldNext(
 	size_t iNext;
 	size_t iElements;
 
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pOutput, sizeof(Forwarded)) ||
-		__xrtHttpFieldArrayOverlap(
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pOutput, sizeof(Forwarded)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pCursor, sizeof(Cursor)
-		) || __xrtHttpFieldArrayOverlap(
+		) || __xhttpFieldArrayOverlap(
 			pFields, iCount, pOutput, sizeof(Forwarded)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pOutput, sizeof(Forwarded)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
 	if ( !__xrtHttpForwardedFieldCursorValid(
 		&Cursor, pFields, iCount
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.State ==
@@ -962,7 +962,7 @@ XRT_API xhttpnext xrtHttpForwardedFieldNext(
 		Cursor.State = (uint8)XRT_HTTP_FORWARDED_CURSOR_FIELDS;
 	}
 	while ( Cursor.Field < iCount ) {
-		__xrtHttpFieldLoad(pFields, Cursor.Field, &Field);
+		__xhttpFieldLoad(pFields, Cursor.Field, &Field);
 		if ( !xrtHttpFieldNameEqual(
 			Field.Name, XRT_STR_LITERAL("Forwarded")
 		) ) {
@@ -970,7 +970,7 @@ XRT_API xhttpnext xrtHttpForwardedFieldNext(
 			Cursor.Offset = 0;
 			continue;
 		}
-		Next = __xrtHttpQuotedListNext(
+		Next = xrtHttpListNext(
 			Field.Value, Cursor.Offset, &iNext, &Element
 		);
 		if ( Next == XHTTP_NEXT_END ) {

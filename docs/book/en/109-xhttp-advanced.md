@@ -8,6 +8,8 @@ lead: Content-negotiation-driven response compression, Range composition, the pr
 api: xhttp-http_server, xhttp-http_compress, xhttp-http_cache_range
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 Volume ten closes. After the server chapters (103–107), the remaining advanced topics converge here: **response compression** (`reply_compress`/`server_compress` — the encoding chosen by negotiating the client's `Accept-Encoding`, response bodies compressed transparently — the mirror side of Chapter 93's decoding); **Range and composed responses** (`range_multipart` — multipart/byteranges responses for multi-range requests, the dual of Chapter 101's client-side Range composition); **the proxy header family** (`Via`/`X-Forwarded-*`'s normalized replacement `Forwarded`, `proxy_status` proxy status — the vocabulary of gateway writing). Finally the volume closes with the panorama of "one request crossing volume ten's full stack": every layer from the easy call to the compressed Range response. From Chapter 110 we enter volume eleven (the xws/xruntime/xmail/xssh extension library family).
@@ -57,11 +59,11 @@ Every station is one chapter of this volume — this is xhttp's building-block a
 
 The program below is from `examples/http/reply_compress` — compressing responses by client capability:
 
-```embed path="extlibs/xhttp/examples/http/reply_compress/main.c" title="extlibs/xhttp/examples/http/reply_compress/main.c"
+```embed path="extlibs/xhttp-server/examples/http/reply_compress/main.c" title="extlibs/xhttp-server/examples/http/reply_compress/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/reply_compress/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_reply_compress --exclude-test "*" --no-single --no-run
 （输出压缩协商与产出响应的自检结果）
 ```
 
@@ -75,7 +77,7 @@ The second program is from `examples/http/range_multipart` — the write side of
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/range_multipart/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_range_multipart --exclude-test "*" --no-single --no-run
 （输出多区间响应组合的自检结果）
 ```
 

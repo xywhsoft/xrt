@@ -25,7 +25,7 @@ bool __xrtFormSafeMap(xpercentmap* pSafe)
 static bool __xrtFormViewValid(xbytesview Data)
 {
 	if ( (Data.Data == NULL) && (Data.Size != 0) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return true;
@@ -45,11 +45,11 @@ static bool __xrtFormMeasure(
 	size_t i;
 
 	if ( (pFields == NULL) && (iCount != 0) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCount > (SIZE_MAX / sizeof(*pFields)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
@@ -71,30 +71,30 @@ static bool __xrtFormMeasure(
 			return false;
 		}
 		if ( iName > (SIZE_MAX - 1u) ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iAdd = iName + 1u;
 		if ( iAdd > (SIZE_MAX - iValue) ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iAdd += iValue;
 		if ( i != 0 ) {
 			if ( iAdd == SIZE_MAX ) {
-				__xrtErrorSetSizeOverflow();
+				xrtSetErrorKind(XERR_RANGE);
 				return false;
 			}
 			iAdd++;
 		}
 		if ( iRequired > (SIZE_MAX - iAdd) ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iRequired += iAdd;
 	}
 	if ( iRequired == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	*pRequired = iRequired;
@@ -113,17 +113,17 @@ static bool __xrtFormMetadataOverlap(
 {
 	size_t i;
 
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pMetadata, iMetadataSize,
 		pFields, iCount * sizeof(*pFields)
 	) ) {
 		return true;
 	}
 	for ( i = 0; i < iCount; i++ ) {
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			pMetadata, iMetadataSize,
 			pFields[i].Name.Data, pFields[i].Name.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pMetadata, iMetadataSize,
 			pFields[i].Value.Data, pFields[i].Value.Size
 		) ) {
@@ -168,12 +168,12 @@ static bool __xrtFormPreflight(
 			return false;
 		}
 		if ( iBytes > (SIZE_MAX - iName) ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iBytes += iName;
 		if ( iBytes > (SIZE_MAX - iValue) ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iBytes += iValue;
@@ -186,11 +186,11 @@ static bool __xrtFormPreflight(
 			  (iValue > pLimits->MaxValue)) ||
 			 ((pLimits->MaxBytes != 0) &&
 			  (iBytes > pLimits->MaxBytes))) ) {
-			__xrtErrorSetRange();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		if ( iCount == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iCount++;
@@ -200,7 +200,7 @@ static bool __xrtFormPreflight(
 
 
 /* 按 WHATWG form-urlencoded 字节规则编码。 */
-XRT_API bool xrtFormEncode(
+XHTTP_API bool xrtFormEncode(
 	const void* pData,
 	size_t iSize,
 	char* sOutput,
@@ -212,10 +212,10 @@ XRT_API bool xrtFormEncode(
 	size_t iRequired;
 	size_t iWriteSize;
 
-	if ( !__xrtRangeValid(pData, iSize) ||
-		 !__xrtRangeValid(sOutput, iCapacity) ||
-		 !__xrtRangeValid(pOutputSize, sizeof(*pOutputSize)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pData, iSize) ||
+		 !xrtMemRangeValid(sOutput, iCapacity) ||
+		 !xrtMemRangeValid(pOutputSize, sizeof(*pOutputSize)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtFormSafeMap(&Safe) ||
@@ -225,12 +225,12 @@ XRT_API bool xrtFormEncode(
 		return false;
 	}
 	iWriteSize = iRequired + 1u;
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pOutputSize, sizeof(*pOutputSize), pData, iSize
-	) || ((sOutput != NULL) && __xrtRangesOverlap(
+	) || ((sOutput != NULL) && xrtMemRangesOverlap(
 		pOutputSize, sizeof(*pOutputSize), sOutput, iCapacity
 	)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( sOutput == NULL ) {
@@ -239,13 +239,13 @@ XRT_API bool xrtFormEncode(
 	}
 	if ( iCapacity < iWriteSize ) {
 		*pOutputSize = iRequired;
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		sOutput, iWriteSize, pData, iSize
 	) && ((const void*)sOutput != pData) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	xrtPercentEncodeMeasured(
@@ -259,7 +259,7 @@ XRT_API bool xrtFormEncode(
 
 
 /* 严格解码 form-urlencoded 字节并把加号转换为空格。 */
-XRT_API bool xrtFormDecode(
+XHTTP_API bool xrtFormDecode(
 	xstrview Text,
 	void* pOutput,
 	size_t iCapacity,
@@ -268,10 +268,10 @@ XRT_API bool xrtFormDecode(
 {
 	size_t iRequired;
 
-	if ( !__xrtRangeValid(Text.Data, Text.Size) ||
-		 !__xrtRangeValid(pOutput, iCapacity) ||
-		 !__xrtRangeValid(pOutputSize, sizeof(*pOutputSize)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(Text.Data, Text.Size) ||
+		 !xrtMemRangeValid(pOutput, iCapacity) ||
+		 !xrtMemRangeValid(pOutputSize, sizeof(*pOutputSize)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !xrtPercentDecodeMeasure(
@@ -279,12 +279,12 @@ XRT_API bool xrtFormDecode(
 	) ) {
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pOutputSize, sizeof(*pOutputSize), Text.Data, Text.Size
-	) || ((pOutput != NULL) && __xrtRangesOverlap(
+	) || ((pOutput != NULL) && xrtMemRangesOverlap(
 		pOutputSize, sizeof(*pOutputSize), pOutput, iCapacity
 	)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pOutput == NULL ) {
@@ -293,13 +293,13 @@ XRT_API bool xrtFormDecode(
 	}
 	if ( iCapacity < iRequired ) {
 		*pOutputSize = iRequired;
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pOutput, iRequired, Text.Data, Text.Size
 	) && (pOutput != (const void*)Text.Data) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iRequired != 0 ) {
@@ -314,7 +314,7 @@ XRT_API bool xrtFormDecode(
 
 
 /* 分配并返回零结尾 form-urlencoded 编码文本。 */
-XRT_API str xrtFormEncodeNew(
+XHTTP_API str xrtFormEncodeNew(
 	const void* pData,
 	size_t iSize,
 	size_t* pOutputSize
@@ -323,10 +323,10 @@ XRT_API str xrtFormEncodeNew(
 	str sOutput;
 	size_t iOutputSize;
 
-	if ( (pOutputSize != NULL) && __xrtRangesOverlap(
+	if ( (pOutputSize != NULL) && xrtMemRangesOverlap(
 		pOutputSize, sizeof(*pOutputSize), pData, iSize
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtFormEncode(
@@ -353,7 +353,7 @@ XRT_API str xrtFormEncodeNew(
 
 
 /* 分配解码字节并保留一个不计入长度的零哨兵。 */
-XRT_API bytes xrtFormDecodeNew(
+XHTTP_API bytes xrtFormDecodeNew(
 	xstrview Text,
 	size_t* pOutputSize
 )
@@ -361,10 +361,10 @@ XRT_API bytes xrtFormDecodeNew(
 	bytes pOutput;
 	size_t iOutputSize;
 
-	if ( (pOutputSize == NULL) || __xrtRangesOverlap(
+	if ( (pOutputSize == NULL) || xrtMemRangesOverlap(
 		pOutputSize, sizeof(*pOutputSize), Text.Data, Text.Size
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtFormDecode(Text, NULL, 0, &iOutputSize) ) {
@@ -388,7 +388,7 @@ XRT_API bytes xrtFormDecodeNew(
 
 
 /* 预检后在原始表单缓冲中原地解码全部字段。 */
-XRT_API bool xrtFormParse(
+XHTTP_API bool xrtFormParse(
 	void* pData,
 	size_t iSize,
 	xformfield* pFields,
@@ -406,21 +406,21 @@ XRT_API bool xrtFormParse(
 	if ( ((pData == NULL) && (iSize != 0)) || (pCount == NULL) ||
 		((pFields == NULL) && (iCapacity != 0)) ||
 		(iCapacity > (SIZE_MAX / sizeof(*pFields))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pCount, sizeof(*pCount), pData, iSize
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pCount, sizeof(*pCount), pFields, iCapacity * sizeof(*pFields)
-	) || ((pLimits != NULL) && __xrtRangesOverlap(
+	) || ((pLimits != NULL) && xrtMemRangesOverlap(
 		pCount, sizeof(*pCount), pLimits, sizeof(*pLimits)
-	)) || ((pFields != NULL) && __xrtRangesOverlap(
+	)) || ((pFields != NULL) && xrtMemRangesOverlap(
 		pFields, iCapacity * sizeof(*pFields), pData, iSize
-	)) || ((pFields != NULL) && (pLimits != NULL) && __xrtRangesOverlap(
+	)) || ((pFields != NULL) && (pLimits != NULL) && xrtMemRangesOverlap(
 		pFields, iCapacity * sizeof(*pFields), pLimits, sizeof(*pLimits)
 	)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtFormPreflight(Text, pLimits, &iRequired) ) {
@@ -432,7 +432,7 @@ XRT_API bool xrtFormParse(
 	}
 	if ( iCapacity < iRequired ) {
 		*pCount = iRequired;
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 
@@ -485,7 +485,7 @@ static bool __xrtFormDecodedEqual(
 
 
 /* 严格验证整个表单，并查找下一个解码后名称匹配的字段。 */
-XRT_API xformfind xrtFormFind(
+XHTTP_API xformfind xrtFormFind(
 	xstrview Text,
 	xbytesview Name,
 	size_t* pOffset,
@@ -504,33 +504,33 @@ XRT_API xformfind xrtFormFind(
 		(pOffset == NULL) || (pSize == NULL) ||
 		((pValue == NULL) && (iCapacity != 0)) ||
 		((pOffset != NULL) && (*pOffset > Text.Size)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XFORM_FIND_ERROR;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pOffset, sizeof(*pOffset), pSize, sizeof(*pSize)
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOffset, sizeof(*pOffset), Text.Data, Text.Size
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pSize, sizeof(*pSize), Text.Data, Text.Size
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOffset, sizeof(*pOffset), Name.Data, Name.Size
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pSize, sizeof(*pSize), Name.Data, Name.Size
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XFORM_FIND_ERROR;
 	}
-	if ( (pValue != NULL) && (__xrtRangesOverlap(
+	if ( (pValue != NULL) && (xrtMemRangesOverlap(
 		pValue, iCapacity, Text.Data, Text.Size
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pValue, iCapacity, Name.Data, Name.Size
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pValue, iCapacity, pOffset, sizeof(*pOffset)
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pValue, iCapacity, pSize, sizeof(*pSize)
 	)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XFORM_FIND_ERROR;
 	}
 	if ( !__xrtFormPreflight(Text, NULL, &iCount) ) {
@@ -565,7 +565,7 @@ XRT_API xformfind xrtFormFind(
 		}
 		if ( iCapacity < iRequired ) {
 			*pSize = iRequired;
-			__xrtErrorSetRange();
+			xrtSetErrorKind(XERR_RANGE);
 			return XFORM_FIND_ERROR;
 		}
 		if ( iRequired != 0 ) {
@@ -582,7 +582,7 @@ XRT_API xformfind xrtFormFind(
 
 
 /* 原子写出 form-urlencoded 字段列表。 */
-XRT_API bool xrtFormWrite(
+XHTTP_API bool xrtFormWrite(
 	const xformfield* pFields,
 	size_t iCount,
 	void* pOutput,
@@ -597,7 +597,7 @@ XRT_API bool xrtFormWrite(
 	size_t i;
 
 	if ( (pSize == NULL) || ((pOutput == NULL) && (iCapacity != 0)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtFormSafeMap(&Safe) ) {
@@ -608,10 +608,10 @@ XRT_API bool xrtFormWrite(
 	}
 	if ( __xrtFormMetadataOverlap(
 		pFields, iCount, pSize, sizeof(*pSize)
-	) || ((pOutput != NULL) && __xrtRangesOverlap(
+	) || ((pOutput != NULL) && xrtMemRangesOverlap(
 		pSize, sizeof(*pSize), pOutput, iRequired
 	)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pOutput == NULL ) {
@@ -620,13 +620,13 @@ XRT_API bool xrtFormWrite(
 	}
 	if ( iCapacity < iRequired ) {
 		*pSize = iRequired;
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( __xrtFormMetadataOverlap(
 		pFields, iCount, pOutput, iRequired
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
@@ -650,7 +650,7 @@ XRT_API bool xrtFormWrite(
 
 
 /* 分配并构建零结尾 form-urlencoded 字段列表。 */
-XRT_API str xrtFormBuild(
+XHTTP_API str xrtFormBuild(
 	const xformfield* pFields,
 	size_t iCount,
 	size_t* pSize
@@ -664,7 +664,7 @@ XRT_API str xrtFormBuild(
 		__xrtFormMetadataOverlap(
 			pFields, iCount, pSize, sizeof(*pSize)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtFormWrite(pFields, iCount, NULL, 0, &iRequired) ) {

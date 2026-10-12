@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_CONTENT_DISPOSITION_H
 #define XRT_HTTP_CONTENT_DISPOSITION_H
 
+#include <xhttp/export.h>
+
 #include <xrt/mime.h>
 
 
@@ -43,7 +45,7 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 严格解析 Content-Disposition，拒绝重复参数名称。 */
-XRT_API bool xrtHttpContentDispositionParse(
+XHTTP_API bool xrtHttpContentDispositionParse(
 	xstrview Text,
 	xcontentdisposition* pDisposition
 );
@@ -51,7 +53,7 @@ XRT_API bool xrtHttpContentDispositionParse(
 
 
 /* 严格查找 Content-Disposition 参数。 */
-XRT_API xhttpnext xrtHttpContentDispositionParam(
+XHTTP_API xhttpnext xrtHttpContentDispositionParam(
 	const xcontentdisposition* pDisposition,
 	xstrview Name,
 	xhttpparam* pParam
@@ -60,7 +62,7 @@ XRT_API xhttpnext xrtHttpContentDispositionParam(
 
 
 /* 读取文件名字节；优先有效 UTF-8 filename*，否则回退原始 filename。 */
-XRT_API bool xrtHttpContentDispositionFileNameWrite(
+XHTTP_API bool xrtHttpContentDispositionFileNameWrite(
 	const xcontentdisposition* pDisposition,
 	void* pOutput,
 	size_t iCapacity,
@@ -70,7 +72,7 @@ XRT_API bool xrtHttpContentDispositionFileNameWrite(
 
 
 /* 构建零结尾文件名字节，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpContentDispositionFileNameBuild(
+XHTTP_API str xrtHttpContentDispositionFileNameBuild(
 	const xcontentdisposition* pDisposition,
 	size_t* pSize
 );
@@ -78,7 +80,7 @@ XRT_API str xrtHttpContentDispositionFileNameBuild(
 
 
 /* 规范写出 Content-Disposition；结果不附加零字符。 */
-XRT_API bool xrtHttpContentDispositionWrite(
+XHTTP_API bool xrtHttpContentDispositionWrite(
 	const xcontentdisposition* pDisposition,
 	void* pOutput,
 	size_t iCapacity,
@@ -88,7 +90,7 @@ XRT_API bool xrtHttpContentDispositionWrite(
 
 
 /* 构建零结尾 Content-Disposition，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpContentDispositionBuild(
+XHTTP_API str xrtHttpContentDispositionBuild(
 	const xcontentdisposition* pDisposition,
 	size_t* pSize
 );

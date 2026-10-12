@@ -7,8 +7,8 @@
 /* 验证借用视图的空值一致性。 */
 bool __xrtQueryViewValid(xstrview Text)
 {
-	if ( !__xrtRangeValid(Text.Data, Text.Size) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(Text.Data, Text.Size) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return true;
@@ -22,11 +22,11 @@ bool __xrtQueryPairsValid(const xquerypair* pPairs, size_t iCount)
 	size_t i;
 
 	if ( (pPairs == NULL) && (iCount != 0) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCount > (SIZE_MAX / sizeof(*pPairs)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
@@ -40,7 +40,7 @@ bool __xrtQueryPairsValid(const xquerypair* pPairs, size_t iCount)
 			(((pPair->Flags & XQUERY_HAS_VALUE) == 0) &&
 			 ((pPair->Key.Size == 0) || (pPair->Value.Data != NULL) ||
 			  (pPair->Value.Size != 0))) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 	}
@@ -84,37 +84,37 @@ static bool __xrtQueryMeasure(
 		if ( __xrtQueryHasByte(pPair->Key, '&') ||
 			__xrtQueryHasByte(pPair->Key, '=') ||
 			__xrtQueryHasByte(pPair->Value, '&') ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		iAdd = pPair->Key.Size;
 		if ( (pPair->Flags & XQUERY_HAS_VALUE) != 0 ) {
 			if ( iAdd == SIZE_MAX ) {
-				__xrtErrorSetSizeOverflow();
+				xrtSetErrorKind(XERR_RANGE);
 				return false;
 			}
 			iAdd++;
 			if ( iAdd > (SIZE_MAX - pPair->Value.Size) ) {
-				__xrtErrorSetSizeOverflow();
+				xrtSetErrorKind(XERR_RANGE);
 				return false;
 			}
 			iAdd += pPair->Value.Size;
 		}
 		if ( i != 0 ) {
 			if ( iAdd == SIZE_MAX ) {
-				__xrtErrorSetSizeOverflow();
+				xrtSetErrorKind(XERR_RANGE);
 				return false;
 			}
 			iAdd++;
 		}
 		if ( iRequired > (SIZE_MAX - iAdd) ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iRequired += iAdd;
 	}
 	if ( iRequired == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	*pRequired = iRequired;
@@ -133,16 +133,16 @@ bool __xrtQueryMetadataOverlap(
 {
 	size_t i;
 
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pMetadata, iMetadataSize, pPairs, iCount * sizeof(*pPairs)
 	) ) {
 		return true;
 	}
 	for ( i = 0; i < iCount; i++ ) {
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			pMetadata, iMetadataSize,
 			pPairs[i].Key.Data, pPairs[i].Key.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pMetadata, iMetadataSize,
 			pPairs[i].Value.Data, pPairs[i].Value.Size
 		) ) {
@@ -184,14 +184,14 @@ xquerynext __xrtQueryNext(
 
 	if ( !__xrtQueryViewValid(Query) || (pOffset == NULL) ||
 		(pPair == NULL) || (*pOffset > Query.Size) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pOffset, sizeof(*pOffset), Query.Data, Query.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pPair, sizeof(*pPair), Query.Data, Query.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOffset, sizeof(*pOffset), pPair, sizeof(*pPair)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XQUERY_NEXT_ERROR;
 	}
 	memset(pPair, 0, sizeof(*pPair));
@@ -235,7 +235,7 @@ xquerynext __xrtQueryNext(
 
 
 /* 读取下一个非空原始查询项，并识别可选前导问号。 */
-XRT_API xquerynext xrtQueryNext(
+XHTTP_API xquerynext xrtQueryNext(
 	xstrview Query,
 	size_t* pOffset,
 	xquerypair* pPair
@@ -247,17 +247,17 @@ XRT_API xquerynext xrtQueryNext(
 
 
 /* 统计全部非空查询段。 */
-XRT_API bool xrtQueryCount(xstrview Query, size_t* pCount)
+XHTTP_API bool xrtQueryCount(xstrview Query, size_t* pCount)
 {
 	xquerypair Pair;
 	xquerynext Next;
 	size_t iOffset = 0;
 	size_t iCount = 0;
 
-	if ( (pCount == NULL) || __xrtRangesOverlap(
+	if ( (pCount == NULL) || xrtMemRangesOverlap(
 		pCount, sizeof(*pCount), Query.Data, Query.Size
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( ;; ) {
@@ -270,7 +270,7 @@ XRT_API bool xrtQueryCount(xstrview Query, size_t* pCount)
 			return true;
 		}
 		if ( iCount == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iCount++;
@@ -280,7 +280,7 @@ XRT_API bool xrtQueryCount(xstrview Query, size_t* pCount)
 
 
 /* 按调用方明确给出的上限验证每个原始查询项。 */
-XRT_API bool xrtQueryValidate(
+XHTTP_API bool xrtQueryValidate(
 	xstrview Query,
 	const xquerylimits* pLimits,
 	size_t* pCount
@@ -291,12 +291,12 @@ XRT_API bool xrtQueryValidate(
 	size_t iOffset = 0;
 	size_t iCount = 0;
 
-	if ( ((pCount != NULL) && __xrtRangesOverlap(
+	if ( ((pCount != NULL) && xrtMemRangesOverlap(
 		pCount, sizeof(*pCount), Query.Data, Query.Size
-	)) || ((pCount != NULL) && (pLimits != NULL) && __xrtRangesOverlap(
+	)) || ((pCount != NULL) && (pLimits != NULL) && xrtMemRangesOverlap(
 		pCount, sizeof(*pCount), pLimits, sizeof(*pLimits)
 	)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( ;; ) {
@@ -317,11 +317,11 @@ XRT_API bool xrtQueryValidate(
 			  (Pair.Key.Size > pLimits->MaxKey)) ||
 			 ((pLimits->MaxValue != 0) &&
 			  (Pair.Value.Size > pLimits->MaxValue))) ) {
-			__xrtErrorSetRange();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		if ( iCount == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iCount++;
@@ -331,7 +331,7 @@ XRT_API bool xrtQueryValidate(
 
 
 /* 从指定偏移查找下一个同名原始查询项。 */
-XRT_API xquerynext xrtQueryFind(
+XHTTP_API xquerynext xrtQueryFind(
 	xstrview Query,
 	xstrview Key,
 	size_t* pOffset,
@@ -341,12 +341,12 @@ XRT_API xquerynext xrtQueryFind(
 	xquerynext Next;
 
 	if ( !__xrtQueryViewValid(Key) || (pOffset == NULL) ||
-		(pPair == NULL) || __xrtRangesOverlap(
+		(pPair == NULL) || xrtMemRangesOverlap(
 			pOffset, sizeof(*pOffset), Key.Data, Key.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pPair, sizeof(*pPair), Key.Data, Key.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XQUERY_NEXT_ERROR;
 	}
 	for ( ;; ) {
@@ -365,7 +365,7 @@ XRT_API xquerynext xrtQueryFind(
 
 
 /* 原子写出已经编码好的原始查询项。 */
-XRT_API bool xrtQueryRawWrite(
+XHTTP_API bool xrtQueryRawWrite(
 	const xquerypair* pPairs,
 	size_t iCount,
 	void* pOutput,
@@ -379,7 +379,7 @@ XRT_API bool xrtQueryRawWrite(
 	size_t i;
 
 	if ( (pSize == NULL) || ((pOutput == NULL) && (iCapacity != 0)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtQueryMeasure(pPairs, iCount, &iRequired) ) {
@@ -387,10 +387,10 @@ XRT_API bool xrtQueryRawWrite(
 	}
 	if ( __xrtQueryMetadataOverlap(
 		pPairs, iCount, pSize, sizeof(*pSize)
-	) || ((pOutput != NULL) && __xrtRangesOverlap(
+	) || ((pOutput != NULL) && xrtMemRangesOverlap(
 		pSize, sizeof(*pSize), pOutput, iRequired
 	)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pOutput == NULL ) {
@@ -399,13 +399,13 @@ XRT_API bool xrtQueryRawWrite(
 	}
 	if ( iCapacity < iRequired ) {
 		*pSize = iRequired;
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( __xrtQueryOutputOverlap(
 		pPairs, iCount, pOutput, iRequired
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
@@ -439,7 +439,7 @@ XRT_API bool xrtQueryRawWrite(
 
 
 /* 分配并构建零结尾原始查询。 */
-XRT_API str xrtQueryRawBuild(
+XHTTP_API str xrtQueryRawBuild(
 	const xquerypair* pPairs,
 	size_t iCount,
 	size_t* pSize
@@ -453,7 +453,7 @@ XRT_API str xrtQueryRawBuild(
 		__xrtQueryMetadataOverlap(
 			pPairs, iCount, pSize, sizeof(*pSize)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtQueryRawWrite(pPairs, iCount, NULL, 0, &iRequired) ) {

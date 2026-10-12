@@ -17,16 +17,16 @@ static bool __xrtHttpResponseChallengeNextValid(
 	xhttpauthcursor Cursor;
 	xhttpauth Empty = { 0 };
 
-	if ( !__xrtHttpResponseOutputValid(
+	if ( !xrtHttpBridgeResponseOutputValid(
 		pResponse, pCursor, sizeof(*pCursor)
-	) || !__xrtHttpResponseOutputValid(
+	) || !xrtHttpBridgeResponseOutputValid(
 		pResponse, pChallenge, sizeof(*pChallenge)
 	) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pCursor, sizeof(*pCursor),
 			pChallenge, sizeof(*pChallenge)
 		) ) {
-		__xrtHttpResponseSetError(
+		xrtHttpBridgeResponseSetError(
 			XERR_ARGUMENT,
 			XHTTP_RESPONSE_ERROR_ARGUMENT,
 			"parse-http-response-auth",
@@ -40,7 +40,7 @@ static bool __xrtHttpResponseChallengeNextValid(
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
 	memcpy(pChallenge, &Empty, sizeof(Empty));
 	if ( Cursor.FieldIndex > iCount ) {
-		__xrtHttpResponseSetError(
+		xrtHttpBridgeResponseSetError(
 			XERR_ARGUMENT,
 			XHTTP_RESPONSE_ERROR_INDEX,
 			"parse-http-response-auth",
@@ -79,7 +79,7 @@ static xhttpnext __xrtHttpResponseChallengeNext(
 		pChallenge
 	);
 	if ( Next == XHTTP_NEXT_ERROR ) {
-		__xrtHttpResponseWrapError(
+		xrtHttpBridgeResponseWrapError(
 			XERR_VALUE,
 			XHTTP_RESPONSE_ERROR_AUTH,
 			"parse-http-response-auth",
@@ -108,34 +108,34 @@ static bool __xrtHttpResponseChallengeReadPrepare(
 	size_t iCount;
 	size_t iZero = 0;
 
-	if ( !__xrtHttpResponseOutputValid(
+	if ( !xrtHttpBridgeResponseOutputValid(
 		pResponse, pCursor, sizeof(Cursor)
-	) || !__xrtHttpResponseOutputValid(
+	) || !xrtHttpBridgeResponseOutputValid(
 		pResponse, pSize, sizeof(*pSize)
 	) ||
 		(iChallengeSize == 0) ||
-		!__xrtHttpResponseOutputValid(
+		!xrtHttpBridgeResponseOutputValid(
 			pResponse, pChallenge, iChallengeSize
 		) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
 		((pOutput != NULL) &&
-		 !__xrtHttpResponseOutputValid(
+		 !xrtHttpBridgeResponseOutputValid(
 			pResponse, pOutput, iCapacity
 		 )) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pSize, sizeof(*pSize)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pChallenge, iChallengeSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), pChallenge, iChallengeSize
-		) || ((pOutput != NULL) && (__xrtRangesOverlap(
+		) || ((pOutput != NULL) && (xrtMemRangesOverlap(
 			pOutput, iCapacity, pCursor, sizeof(Cursor)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(*pSize)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity, pChallenge, iChallengeSize
 		))) ) {
-		__xrtHttpResponseSetError(
+		xrtHttpBridgeResponseSetError(
 			XERR_ARGUMENT,
 			XHTTP_RESPONSE_ERROR_ARGUMENT,
 			sOperation,
@@ -150,7 +150,7 @@ static bool __xrtHttpResponseChallengeReadPrepare(
 	memcpy(pSize, &iZero, sizeof(iZero));
 	memset(pChallenge, 0, iChallengeSize);
 	if ( Cursor.FieldIndex > iCount ) {
-		__xrtHttpResponseSetError(
+		xrtHttpBridgeResponseSetError(
 			XERR_ARGUMENT,
 			XHTTP_RESPONSE_ERROR_INDEX,
 			sOperation,
@@ -193,7 +193,7 @@ static xhttpnext __xrtHttpResponseChallengeFind(
 				return XHTTP_NEXT_END;
 			}
 			if ( Next != XHTTP_NEXT_ERROR ) {
-				__xrtHttpResponseSetError(
+				xrtHttpBridgeResponseSetError(
 					XERR_STATE,
 					XHTTP_RESPONSE_ERROR_AUTH,
 					"parse-http-response-auth",
@@ -211,7 +211,7 @@ static xhttpnext __xrtHttpResponseChallengeFind(
 			(iStart + Auth.Scheme.Size) :
 			((uintptr_t)Auth.Data.Data + Auth.Data.Size);
 		if ( iEnd < iStart ) {
-			__xrtHttpResponseSetError(
+			xrtHttpBridgeResponseSetError(
 				XERR_STATE,
 				XHTTP_RESPONSE_ERROR_AUTH,
 				"parse-http-response-auth",
@@ -253,7 +253,7 @@ xhttpnext __xrtHttpResponseChallengeRead(
 	xhttpnext Next;
 
 	if ( pRead == NULL ) {
-		__xrtHttpResponseSetError(
+		xrtHttpBridgeResponseSetError(
 			XERR_STATE,
 			XHTTP_RESPONSE_ERROR_AUTH,
 			sOperation,
@@ -296,7 +296,7 @@ xhttpnext __xrtHttpResponseChallengeRead(
 		pSize,
 		pChallenge
 	) ) {
-		__xrtHttpResponseWrapError(
+		xrtHttpBridgeResponseWrapError(
 			XERR_VALUE,
 			XHTTP_RESPONSE_ERROR_AUTH,
 			sOperation,
@@ -313,7 +313,7 @@ xhttpnext __xrtHttpResponseChallengeRead(
 
 
 /* 迭代源站 WWW-Authenticate challenge。 */
-XRT_API xhttpnext xrtHttpResponseChallengeNext(
+XHTTP_API xhttpnext xrtHttpResponseChallengeNext(
 	const xhttpresponse* pResponse,
 	xhttpauthcursor* pCursor,
 	xhttpauth* pChallenge
@@ -330,7 +330,7 @@ XRT_API xhttpnext xrtHttpResponseChallengeNext(
 
 
 /* 迭代代理 Proxy-Authenticate challenge。 */
-XRT_API xhttpnext xrtHttpResponseProxyChallengeNext(
+XHTTP_API xhttpnext xrtHttpResponseProxyChallengeNext(
 	const xhttpresponse* pResponse,
 	xhttpauthcursor* pCursor,
 	xhttpauth* pChallenge

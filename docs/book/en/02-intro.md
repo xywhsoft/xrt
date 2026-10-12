@@ -25,7 +25,7 @@ One hidden cost deserves spelling out: the **upgrade paths** of scattered depend
 ### Kernel and extensions: a strict two-layer structure
 
 - **Kernel** (`src/` + `include/xrt/`, 91 public headers, hundreds of trimmable modules): the foundation (core / error / atomic / memory), containers, text and data, logging and files/processes, coroutines and async, the five-backend network engine (IOCP / epoll / kqueue / io_uring / select), in-house TLS 1.2/1.3 with X.509, and the HTTP/1.x and WebSocket **protocol core**.
-- **Extension libraries** (`extlibs/`, five independent products): `xhttp` (HTTP client/server runtimes), `xws` (WebSocket runtime), `xruntime` (dynamic types and object system), `xmail` (the full mail protocol suite), `xssh` (the SSH2 protocol stack).
+- **Extension libraries** (`extlibs/`, independent products by responsibility): `xhttp` (HTTP message codecs), `xhttp-client` (network client), `xhttp-server` (servers and routing), `xhttp-policy` (stateful policies), `xws` (WebSocket runtime), `xruntime` (dynamic types and object system), `xmail` (the full mail protocol suite), `xssh` (the SSH2 protocol stack).
 
 Dependencies are **strictly one-way**: extensions call only the kernel; the kernel has zero references to extensions. Volumes 1 through 9 of this book cover the kernel; Volumes 10 and 11 cover the extensions. The direct benefit for users is that "kernel capabilities stand alone" — write a small configuration-parsing tool using only the kernel, completely unaware the extensions exist; and any extension feature, traced to the bottom, is kernel primitives you have already learned. The learning order follows naturally: after Volumes 1–9, you can read extension documentation directly.
 

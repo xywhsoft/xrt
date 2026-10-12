@@ -197,7 +197,7 @@ static bool __xrtFormDataMultipartFill(
 
 
 /* 创建由协议元数据和原始 Part 正文交错组成的流式正文。 */
-XRT_API xhttpbody* xrtFormDataBody(
+XHTTP_API xhttpbody* xrtFormDataBody(
 	const xformdata* pForm,
 	const xmultipartboundary* pBoundary
 )

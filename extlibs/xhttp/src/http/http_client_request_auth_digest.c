@@ -40,7 +40,7 @@ static bool __xrtHttpRequestSetDigestAuth(
 
 
 /* 设置源站 Digest Authorization。 */
-XRT_API bool xrtHttpRequestSetDigestAuth(
+XHTTP_API bool xrtHttpRequestSetDigestAuth(
 	xhttprequest* pRequest,
 	const xhttpdigestauth* pDigest
 )
@@ -55,7 +55,7 @@ XRT_API bool xrtHttpRequestSetDigestAuth(
 
 
 /* 设置代理 Digest Proxy-Authorization。 */
-XRT_API bool xrtHttpRequestSetProxyDigestAuth(
+XHTTP_API bool xrtHttpRequestSetProxyDigestAuth(
 	xhttprequest* pRequest,
 	const xhttpdigestauth* pDigest
 )

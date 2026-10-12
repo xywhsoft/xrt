@@ -8,6 +8,8 @@ lead: Пять источников xhttpbody и семантика переиг
 api: xhttp-http_body, xhttp-http_body_stream, xhttp-http_body_file
 ---
 
+> Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Ориентация
 
 Тело HTTP — поле боя «содержимого» и «памяти»: загрузка 2 GB, потоковое скачивание, ответ, генерируемый по надобности, — **размер тела не должен равняться занятой памяти** — отправная точка всего дизайна. `xhttpbody` объединяет пять источников тела: фиксированное семейство (`Empty/Copy/Borrow/Take/Reference` — переигрываемо, известная длина), **ограниченный поток-производитель** (`HttpBodyStreamCreate` — производство в потоке задачи, бюджетный потолок, фундамент SSE), **файловые тела** (`http_body_file` — асинхронный файловый IO в форме тела), собственные источники (обратный вызов производителя) и трансформированные тела. На стороне потребления `xhttpbodyreader` — однопотребительское потоковое чтение, а `xhttpbodychunk` — **независимый лизинг данных** (`ChunkRelease` возвращает, можно освободить позже Reader — идеальный напарник отправки по ссылке TCP). Серверные обратные вызовы Body главы 104 и конец-производитель SSE главы 107 получают здесь полный фундаментальный рассказ.
@@ -67,7 +69,7 @@ api: xhttp-http_body, xhttp-http_body_stream, xhttp-http_body_file
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/body_stream/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_body_stream --exclude-test "*" --no-single --no-run
 first chunk
 second chunk
 ```
@@ -78,11 +80,11 @@ second chunk
 
 Вторая программа из `examples/http/body_file` — форма загрузки больших файлов:
 
-```embed path="extlibs/xhttp/examples/http/body_file/main.c" title="extlibs/xhttp/examples/http/body_file/main.c"
+```embed path="extlibs/xhttp-server/examples/http/body_file/main.c" title="extlibs/xhttp-server/examples/http/body_file/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/body_file/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_body_file --exclude-test "*" --no-single --no-run
 （示例校验文件正文创建与读回后正常退出）
 ```
 

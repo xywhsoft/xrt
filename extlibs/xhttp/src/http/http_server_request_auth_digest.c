@@ -19,20 +19,20 @@ static xhttpnext __xrtHttpServerRequestDigestAuth(
 	size_t iSize = 0;
 	xhttpnext Next;
 
-	if ( !__xrtHttpServerRequestOutputValid(
+	if ( !xrtHttpBridgeServerRequestOutputValid(
 		pRequest, pSize, sizeof(iSize)
-	) || !__xrtHttpServerRequestOutputValid(
+	) || !xrtHttpBridgeServerRequestOutputValid(
 		pRequest, pDigest, sizeof(Digest)
 	) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
 		((pOutput != NULL) &&
-		 !__xrtHttpServerRequestOutputValid(
+		 !xrtHttpBridgeServerRequestOutputValid(
 			pRequest, pOutput, iCapacity
-		)) || __xrtRangesOverlap(
+		)) || xrtMemRangesOverlap(
 			pSize, sizeof(iSize), pDigest, sizeof(Digest)
-		) || ((pOutput != NULL) && (__xrtRangesOverlap(
+		) || ((pOutput != NULL) && (xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(iSize)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity, pDigest, sizeof(Digest)
 		))) ) {
 		__xrtHttpServerRequestSetError(
@@ -77,7 +77,7 @@ static xhttpnext __xrtHttpServerRequestDigestAuth(
 
 
 /* 解码源站 Digest Authorization。 */
-XRT_API xhttpnext xrtHttpServerRequestDigestAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestDigestAuth(
 	const xhttpserverrequest* pRequest,
 	void* pOutput,
 	size_t iCapacity,
@@ -98,7 +98,7 @@ XRT_API xhttpnext xrtHttpServerRequestDigestAuth(
 
 
 /* 解码代理 Digest Proxy-Authorization。 */
-XRT_API xhttpnext xrtHttpServerRequestProxyDigestAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestProxyDigestAuth(
 	const xhttpserverrequest* pRequest,
 	void* pOutput,
 	size_t iCapacity,

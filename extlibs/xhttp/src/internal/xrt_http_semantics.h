@@ -10,12 +10,12 @@
 #if defined(XHTTP_FEATURE_HTTP_ETAG)
 
 /* 无错误副作用地验证实体标签正文。 */
-bool __xrtHttpETagValid(const xhttpetag* pTag);
+bool xrtHttpBridgeETagValid(const xhttpetag* pTag);
 
 
 
 /* 无错误副作用地解析一个完整实体标签。 */
-bool __xrtHttpETagParseValue(
+bool xrtHttpBridgeETagParseValue(
 	xstrview Text,
 	xhttpetag* pTag
 );
@@ -27,7 +27,7 @@ bool __xrtHttpETagParseValue(
 #if defined(XHTTP_FEATURE_HTTP_PRECONDITION)
 
 /* 验证条件评估输入并快照当前表示，兼容未对齐的固定结构与字段数组。 */
-bool __xrtHttpPreconditionInputRead(
+bool xrtHttpBridgePreconditionInputRead(
 	xstrview Method,
 	const xhttpfield* pFields,
 	size_t iFieldCount,
@@ -42,7 +42,7 @@ bool __xrtHttpPreconditionInputRead(
 #if defined(XHTTP_FEATURE_HTTP_RANGE)
 
 /* 无错误副作用地拆分一个完整 Range 字段值。 */
-bool __xrtHttpRangeParseValue(
+bool xrtHttpBridgeRangeParseValue(
 	xstrview Value,
 	xstrview* pUnit,
 	xstrview* pSet
@@ -51,7 +51,7 @@ bool __xrtHttpRangeParseValue(
 
 
 /* 无错误副作用地解析一个完整 bytes Content-Range 字段值。 */
-bool __xrtHttpContentRangeParseValue(
+bool xrtHttpBridgeContentRangeParseValue(
 	xstrview Value,
 	xhttpcontentrange* pRange
 );
@@ -59,7 +59,7 @@ bool __xrtHttpContentRangeParseValue(
 
 
 /* 无错误副作用地迭代已经验证视图的 byte-range-set。 */
-xhttpnext __xrtHttpByteRangeNextValue(
+xhttpnext xrtHttpBridgeByteRangeNextValue(
 	xstrview Set,
 	size_t* pOffset,
 	xhttprangespec* pSpec
@@ -72,7 +72,7 @@ xhttpnext __xrtHttpByteRangeNextValue(
 #if defined(XHTTP_FEATURE_HTTP_RANGE_MULTIPART)
 
 /* 验证并计算 canonical multipart/byteranges 正文长度。 */
-bool __xrtHttpRangeMultipartLength(
+bool xrtHttpBridgeRangeMultipartLength(
 	const xhttpbyterange* pRanges,
 	size_t iRangeCount,
 	uint64 iCompleteLength,

@@ -69,7 +69,7 @@ static bool __xrtHttpServerRequestCookiesCount(
 
 
 /* 一次性解析全部 Cookie 字段，避免多键查询反复扫描字段文本。 */
-XRT_API bool xrtHttpServerRequestCookies(
+XHTTP_API bool xrtHttpServerRequestCookies(
 	const xhttpserverrequest* pRequest,
 	xcookiepair* pCookies,
 	size_t iCapacity,
@@ -95,11 +95,11 @@ XRT_API bool xrtHttpServerRequestCookies(
 	}
 	iOutputBytes = iCapacity * sizeof(Cookie);
 	if ( (pRequest == NULL) ||
-		!__xrtHttpServerRequestOutputValid(
+		!xrtHttpBridgeServerRequestOutputValid(
 			pRequest, pCookies, iOutputBytes
-		) || !__xrtHttpServerRequestOutputValid(
+		) || !xrtHttpBridgeServerRequestOutputValid(
 			pRequest, pCount, sizeof(iRequired)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCookies, iOutputBytes,
 			pCount, sizeof(iRequired)
 		) ) {
@@ -169,7 +169,7 @@ XRT_API bool xrtHttpServerRequestCookies(
 
 
 /* 在全部有效 Cookie 字段中按线路顺序查找首个同名项。 */
-XRT_API xcookienext xrtHttpServerRequestCookie(
+XHTTP_API xcookienext xrtHttpServerRequestCookie(
 	const xhttpserverrequest* pRequest,
 	xstrview Name,
 	xcookiepair* pCookie
@@ -180,9 +180,9 @@ XRT_API xcookienext xrtHttpServerRequestCookie(
 	size_t i;
 
 	if ( (pRequest == NULL) || !xrtHttpTokenValid(Name) ||
-		!__xrtHttpServerRequestOutputValid(
+		!xrtHttpBridgeServerRequestOutputValid(
 			pRequest, pCookie, sizeof(*pCookie)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCookie, sizeof(*pCookie), Name.Data, Name.Size
 		) ) {
 		__xrtHttpServerRequestSetError(

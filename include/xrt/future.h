@@ -489,6 +489,18 @@ XRT_API bool xrtPromiseDone(const xpromise* pPromise);
 
 
 
+/* Internal absolute waits shared with independently built extensions. */
+#if (defined(XRT_FEATURE_FUTURE))
+XRT_API xwaitresult __xrtFutureWaitUntil(xfuture* pFuture, double iDeadline);
+#endif
+#if (defined(XRT_FEATURE_FUTURE))
+XRT_API xwaitresult __xrtFutureWaitUntilCancel(
+	xfuture* pFuture,
+	double iDeadline,
+	xcancel* pCancel
+);
+#endif
+
 XRT_EXTERN_C_END
 
 #endif

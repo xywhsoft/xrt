@@ -60,7 +60,7 @@ static bool __xrtHttpStructuredDigit(unsigned char iByte)
 /* 判断两个 key 是否按字节完全相同。 */
 static bool __xrtHttpStructuredKeyEqual(xstrview Left, xstrview Right)
 {
-	return __xrtHttpViewEqual(Left, Right);
+	return __xhttpViewEqual(Left, Right);
 }
 
 
@@ -147,7 +147,7 @@ static bool __xrtHttpStructuredStringMeasure(
 			return false;
 		}
 		if ( iOutput == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iOutput++;
@@ -209,7 +209,7 @@ static bool __xrtHttpStructuredDisplayMeasure(
 			return false;
 		}
 		if ( iOutput == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iOutput++;
@@ -407,7 +407,7 @@ static bool __xrtHttpStructuredTokenParse(
 	while ( i < Value.Size ) {
 		unsigned char iByte = (unsigned char)Value.Data[i];
 
-		if ( !__xrtHttpTokenByte(iByte) &&
+		if ( !__xhttpTokenByte(iByte) &&
 			(iByte != (unsigned char)':') &&
 			(iByte != (unsigned char)'/') ) {
 			break;
@@ -847,14 +847,14 @@ static bool __xrtHttpStructuredNextArguments(
 	size_t iOutputSize
 )
 {
-	return __xrtHttpViewValid(Value) &&
-		__xrtRangeValid(pOffset, sizeof(*pOffset)) &&
-		__xrtRangeValid(pOutput, iOutputSize) &&
-		!__xrtRangesOverlap(
+	return __xhttpViewValid(Value) &&
+		xrtMemRangeValid(pOffset, sizeof(*pOffset)) &&
+		xrtMemRangeValid(pOutput, iOutputSize) &&
+		!xrtMemRangesOverlap(
 			Value.Data, Value.Size, pOffset, sizeof(*pOffset)
-		) && !__xrtRangesOverlap(
+		) && !xrtMemRangesOverlap(
 			Value.Data, Value.Size, pOutput, iOutputSize
-		) && !__xrtRangesOverlap(
+		) && !xrtMemRangesOverlap(
 			pOffset, sizeof(*pOffset), pOutput, iOutputSize
 		);
 }
@@ -924,13 +924,13 @@ static bool __xrtHttpStructuredDictionaryComplete(xstrview Value)
 
 
 /* 验证 Structured Fields key 的小写 ASCII 语法。 */
-XRT_API bool xrtHttpStructuredKeyValid(xstrview Key)
+XHTTP_API bool xrtHttpStructuredKeyValid(xstrview Key)
 {
 	xstrview Parsed;
 	size_t iOffset = 0;
 
-	if ( !__xrtHttpViewValid(Key) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Key) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return __xrtHttpStructuredKeyParse(
@@ -941,13 +941,13 @@ XRT_API bool xrtHttpStructuredKeyValid(xstrview Key)
 
 
 /* 验证 Structured Fields token 语法。 */
-XRT_API bool xrtHttpStructuredTokenValid(xstrview Token)
+XHTTP_API bool xrtHttpStructuredTokenValid(xstrview Token)
 {
 	xhttpstructuredbare Bare;
 	size_t iOffset = 0;
 
-	if ( !__xrtHttpViewValid(Token) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Token) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(&Bare, 0, sizeof(Bare));
@@ -959,7 +959,7 @@ XRT_API bool xrtHttpStructuredTokenValid(xstrview Token)
 
 
 /* 从当前位置解析一个裸值。 */
-XRT_API xhttpnext xrtHttpStructuredBareNext(
+XHTTP_API xhttpnext xrtHttpStructuredBareNext(
 	xstrview Value,
 	size_t* pOffset,
 	xhttpstructuredbare* pBare
@@ -972,12 +972,12 @@ XRT_API xhttpnext xrtHttpStructuredBareNext(
 	if ( !__xrtHttpStructuredNextArguments(
 		Value, pOffset, pBare, sizeof(Bare)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
 	if ( iOffset > Value.Size ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( iOffset == Value.Size ) {
@@ -987,7 +987,7 @@ XRT_API xhttpnext xrtHttpStructuredBareNext(
 	if ( !__xrtHttpStructuredBareParse(
 		Value, &iOffset, &Bare
 	) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(pBare, &Bare, sizeof(Bare));
@@ -998,7 +998,7 @@ XRT_API xhttpnext xrtHttpStructuredBareNext(
 
 
 /* 严格解析完整顶层 Item。 */
-XRT_API bool xrtHttpStructuredItemParse(
+XHTTP_API bool xrtHttpStructuredItemParse(
 	xstrview Value,
 	xhttpstructureditem* pItem
 )
@@ -1007,12 +1007,12 @@ XRT_API bool xrtHttpStructuredItemParse(
 	size_t iOffset;
 
 	memset(&Item, 0, sizeof(Item));
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pItem, sizeof(Item)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pItem, sizeof(Item)) ||
+		xrtMemRangesOverlap(
 			Value.Data, Value.Size, pItem, sizeof(Item)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	iOffset = __xrtHttpStructuredSkipSp(Value, 0);
@@ -1021,7 +1021,7 @@ XRT_API bool xrtHttpStructuredItemParse(
 	) || (__xrtHttpStructuredSkipSp(
 		Value, iOffset
 	) != Value.Size) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memcpy(pItem, &Item, sizeof(Item));
@@ -1031,7 +1031,7 @@ XRT_API bool xrtHttpStructuredItemParse(
 
 
 /* 迭代原始参数区。 */
-XRT_API xhttpnext xrtHttpStructuredParameterNext(
+XHTTP_API xhttpnext xrtHttpStructuredParameterNext(
 	xstrview Parameters,
 	size_t* pOffset,
 	xhttpstructuredparameter* pParameter
@@ -1044,12 +1044,12 @@ XRT_API xhttpnext xrtHttpStructuredParameterNext(
 	if ( !__xrtHttpStructuredNextArguments(
 		Parameters, pOffset, pParameter, sizeof(Parameter)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
 	if ( iOffset > Parameters.Size ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( iOffset == Parameters.Size ) {
@@ -1059,7 +1059,7 @@ XRT_API xhttpnext xrtHttpStructuredParameterNext(
 	if ( !__xrtHttpStructuredParameterParse(
 		Parameters, &iOffset, &Parameter
 	) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(pParameter, &Parameter, sizeof(Parameter));
@@ -1116,7 +1116,7 @@ static bool __xrtHttpStructuredParametersCount(
 			Parameters, iBefore, Parameter.Key
 		) ) {
 			if ( iCount == SIZE_MAX ) {
-				__xrtErrorSetSizeOverflow();
+				xrtSetErrorKind(XERR_RANGE);
 				return false;
 			}
 			iCount++;
@@ -1156,19 +1156,19 @@ static bool __xrtHttpStructuredParameterLast(
 
 
 /* 返回去重后的参数数量。 */
-XRT_API size_t xrtHttpStructuredParameterCount(xstrview Parameters)
+XHTTP_API size_t xrtHttpStructuredParameterCount(xstrview Parameters)
 {
 	size_t iCount;
 
-	if ( !__xrtHttpViewValid(Parameters) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Parameters) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XRT_NPOS;
 	}
 	if ( !__xrtHttpStructuredParametersCount(
 		Parameters, &iCount
 	) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return XRT_NPOS;
 	}
@@ -1178,7 +1178,7 @@ XRT_API size_t xrtHttpStructuredParameterCount(xstrview Parameters)
 
 
 /* 按首次出现顺序读取参数，重复 key 取最后值。 */
-XRT_API xhttpnext xrtHttpStructuredParameterAt(
+XHTTP_API xhttpnext xrtHttpStructuredParameterAt(
 	xstrview Parameters,
 	size_t iIndex,
 	xhttpstructuredparameter* pParameter
@@ -1192,20 +1192,20 @@ XRT_API xhttpnext xrtHttpStructuredParameterAt(
 	size_t iCount;
 
 	memset(&Parameter, 0, sizeof(Parameter));
-	if ( !__xrtHttpViewValid(Parameters) ||
-		!__xrtRangeValid(pParameter, sizeof(Parameter)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Parameters) ||
+		!xrtMemRangeValid(pParameter, sizeof(Parameter)) ||
+		xrtMemRangesOverlap(
 			Parameters.Data, Parameters.Size,
 			pParameter, sizeof(Parameter)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( !__xrtHttpStructuredParametersCount(
 		Parameters, &iCount
 	) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return XHTTP_NEXT_ERROR;
 	}
@@ -1232,14 +1232,14 @@ XRT_API xhttpnext xrtHttpStructuredParameterAt(
 		memcpy(pParameter, &Last, sizeof(Last));
 		return XHTTP_NEXT_ITEM;
 	}
-	__xrtErrorSetValue();
+	xrtSetErrorKind(XERR_VALUE);
 	return XHTTP_NEXT_ERROR;
 }
 
 
 
 /* 按 key 读取最后一次参数值。 */
-XRT_API xhttpnext xrtHttpStructuredParameterFind(
+XHTTP_API xhttpnext xrtHttpStructuredParameterFind(
 	xstrview Parameters,
 	xstrview Key,
 	xhttpstructuredparameter* pParameter
@@ -1251,25 +1251,25 @@ XRT_API xhttpnext xrtHttpStructuredParameterFind(
 	size_t iCount;
 
 	memset(&Parameter, 0, sizeof(Parameter));
-	if ( !__xrtHttpViewValid(Parameters) ||
-		!__xrtHttpViewValid(Key) ||
-		!__xrtRangeValid(pParameter, sizeof(Parameter)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Parameters) ||
+		!__xhttpViewValid(Key) ||
+		!xrtMemRangeValid(pParameter, sizeof(Parameter)) ||
+		xrtMemRangesOverlap(
 			Parameters.Data, Parameters.Size,
 			pParameter, sizeof(Parameter)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Key.Data, Key.Size, pParameter, sizeof(Parameter)
 		) || !__xrtHttpStructuredKeyParse(
 			Key, &iOffset, &Parsed
 		) || (iOffset != Key.Size) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( !__xrtHttpStructuredParametersCount(
 		Parameters, &iCount
 	) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return XHTTP_NEXT_ERROR;
 	}
@@ -1287,7 +1287,7 @@ XRT_API xhttpnext xrtHttpStructuredParameterFind(
 
 
 /* 迭代已经取出括号的 Inner List。 */
-XRT_API xhttpnext xrtHttpStructuredInnerNext(
+XHTTP_API xhttpnext xrtHttpStructuredInnerNext(
 	xstrview Inner,
 	size_t* pOffset,
 	xhttpstructureditem* pItem
@@ -1301,17 +1301,17 @@ XRT_API xhttpnext xrtHttpStructuredInnerNext(
 	if ( !__xrtHttpStructuredNextArguments(
 		Inner, pOffset, pItem, sizeof(Item)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
 	if ( iOffset > Inner.Size ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( (iOffset == 0) &&
 		!__xrtHttpStructuredInnerComplete(Inner) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	iOffset = __xrtHttpStructuredSkipSp(Inner, iOffset);
@@ -1325,7 +1325,7 @@ XRT_API xhttpnext xrtHttpStructuredInnerNext(
 		Inner, &iNext, &Item
 	) || ((iNext < Inner.Size) &&
 		(Inner.Data[iNext] != ' ')) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	iNext = __xrtHttpStructuredSkipSp(Inner, iNext);
@@ -1337,14 +1337,14 @@ XRT_API xhttpnext xrtHttpStructuredInnerNext(
 
 
 /* 严格验证完整 Inner List 内容。 */
-XRT_API bool xrtHttpStructuredInnerValid(xstrview Inner)
+XHTTP_API bool xrtHttpStructuredInnerValid(xstrview Inner)
 {
-	if ( !__xrtHttpViewValid(Inner) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Inner) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpStructuredInnerComplete(Inner) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return true;
@@ -1353,7 +1353,7 @@ XRT_API bool xrtHttpStructuredInnerValid(xstrview Inner)
 
 
 /* 迭代完整 Structured List。 */
-XRT_API xhttpnext xrtHttpStructuredListNext(
+XHTTP_API xhttpnext xrtHttpStructuredListNext(
 	xstrview Value,
 	size_t* pOffset,
 	xhttpstructuredmember* pMember
@@ -1367,17 +1367,17 @@ XRT_API xhttpnext xrtHttpStructuredListNext(
 	if ( !__xrtHttpStructuredNextArguments(
 		Value, pOffset, pMember, sizeof(Member)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
 	if ( iOffset > Value.Size ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( (iOffset == 0) &&
 		!__xrtHttpStructuredListComplete(Value) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( iOffset == 0 ) {
@@ -1394,7 +1394,7 @@ XRT_API xhttpnext xrtHttpStructuredListNext(
 	) || !__xrtHttpStructuredMemberFinish(
 		Value, &iNext
 	) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(pMember, &Member, sizeof(Member));
@@ -1405,14 +1405,14 @@ XRT_API xhttpnext xrtHttpStructuredListNext(
 
 
 /* 严格验证完整 Structured List。 */
-XRT_API bool xrtHttpStructuredListValid(xstrview Value)
+XHTTP_API bool xrtHttpStructuredListValid(xstrview Value)
 {
-	if ( !__xrtHttpViewValid(Value) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Value) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpStructuredListComplete(Value) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return true;
@@ -1421,7 +1421,7 @@ XRT_API bool xrtHttpStructuredListValid(xstrview Value)
 
 
 /* 迭代完整 Structured Dictionary。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryNext(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryNext(
 	xstrview Value,
 	size_t* pOffset,
 	xhttpstructureddictionarymember* pMember
@@ -1435,17 +1435,17 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryNext(
 	if ( !__xrtHttpStructuredNextArguments(
 		Value, pOffset, pMember, sizeof(Member)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
 	if ( iOffset > Value.Size ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( (iOffset == 0) &&
 		!__xrtHttpStructuredDictionaryComplete(Value) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( iOffset == 0 ) {
@@ -1462,7 +1462,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryNext(
 	) || !__xrtHttpStructuredMemberFinish(
 		Value, &iNext
 	) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(pMember, &Member, sizeof(Member));
@@ -1473,14 +1473,14 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryNext(
 
 
 /* 严格验证完整 Structured Dictionary。 */
-XRT_API bool xrtHttpStructuredDictionaryValid(xstrview Value)
+XHTTP_API bool xrtHttpStructuredDictionaryValid(xstrview Value)
 {
-	if ( !__xrtHttpViewValid(Value) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Value) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpStructuredDictionaryComplete(Value) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return true;
@@ -1509,7 +1509,7 @@ static xhttpnext __xrtHttpStructuredDictionaryUnchecked(
 	) || !__xrtHttpStructuredMemberFinish(
 		Value, &iOffset
 	) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	*pOffset = iOffset;
@@ -1615,14 +1615,14 @@ static bool __xrtHttpStructuredMapValueCursorValid(
 
 
 /* 初始化 Dictionary 有序 Map 游标。 */
-XRT_API void xrtHttpStructuredMapCursorInit(
+XHTTP_API void xrtHttpStructuredMapCursorInit(
 	xhttpstructuredmapcursor* pCursor
 )
 {
 	xhttpstructuredmapcursor Cursor;
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -1632,7 +1632,7 @@ XRT_API void xrtHttpStructuredMapCursorInit(
 
 
 /* 按抽象有序 Map 语义迭代完整 Dictionary。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryMapNext(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryMapNext(
 	xstrview Value,
 	xhttpstructuredmapcursor* pCursor,
 	xhttpstructureddictionarymember* pMember
@@ -1645,24 +1645,24 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryMapNext(
 	size_t iBefore;
 
 	memset(&Member, 0, sizeof(Member));
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pMember, sizeof(Member)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pMember, sizeof(Member)) ||
+		xrtMemRangesOverlap(
 			Value.Data, Value.Size, pCursor, sizeof(Cursor)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Value.Data, Value.Size, pMember, sizeof(Member)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pMember, sizeof(Member)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
 	if ( !__xrtHttpStructuredMapValueCursorValid(
 		&Cursor, Value
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.State ==
@@ -1696,7 +1696,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryMapNext(
 		if ( !__xrtHttpStructuredDictionaryLast(
 			Value, Member.Key, &Last
 		) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return XHTTP_NEXT_ERROR;
 		}
 		memcpy(pMember, &Last, sizeof(Last));
@@ -1708,15 +1708,15 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryMapNext(
 
 
 /* 返回去重后的 Dictionary 成员数量。 */
-XRT_API size_t xrtHttpStructuredDictionaryCount(xstrview Value)
+XHTTP_API size_t xrtHttpStructuredDictionaryCount(xstrview Value)
 {
 	xhttpstructuredmapcursor Cursor;
 	xhttpstructureddictionarymember Member;
 	xhttpnext Next;
 	size_t iCount;
 
-	if ( !__xrtHttpViewValid(Value) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Value) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XRT_NPOS;
 	}
 	iCount = 0;
@@ -1725,7 +1725,7 @@ XRT_API size_t xrtHttpStructuredDictionaryCount(xstrview Value)
 		Value, &Cursor, &Member
 	)) == XHTTP_NEXT_ITEM ) {
 		if ( iCount == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return XRT_NPOS;
 		}
 		iCount++;
@@ -1739,7 +1739,7 @@ XRT_API size_t xrtHttpStructuredDictionaryCount(xstrview Value)
 
 
 /* 按首次出现顺序读取 Dictionary，重复 key 取最后值。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryAt(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryAt(
 	xstrview Value,
 	size_t iIndex,
 	xhttpstructureddictionarymember* pMember
@@ -1751,12 +1751,12 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryAt(
 	xhttpnext Next;
 
 	memset(&Member, 0, sizeof(Member));
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pMember, sizeof(Member)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pMember, sizeof(Member)) ||
+		xrtMemRangesOverlap(
 			Value.Data, Value.Size, pMember, sizeof(Member)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	xrtHttpStructuredMapCursorInit(&Cursor);
@@ -1778,7 +1778,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryAt(
 
 
 /* 按 key 读取 Dictionary 中最后一次成员值。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryFind(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryFind(
 	xstrview Value,
 	xstrview Key,
 	xhttpstructureddictionarymember* pMember
@@ -1789,17 +1789,17 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryFind(
 	size_t iOffset = 0;
 
 	memset(&Member, 0, sizeof(Member));
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtHttpViewValid(Key) ||
-		!__xrtRangeValid(pMember, sizeof(Member)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!__xhttpViewValid(Key) ||
+		!xrtMemRangeValid(pMember, sizeof(Member)) ||
+		xrtMemRangesOverlap(
 			Value.Data, Value.Size, pMember, sizeof(Member)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Key.Data, Key.Size, pMember, sizeof(Member)
 		) || !__xrtHttpStructuredKeyParse(
 			Key, &iOffset, &Parsed
 		) || (iOffset != Key.Size) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( !xrtHttpStructuredDictionaryValid(Value) ) {
@@ -1819,14 +1819,14 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryFind(
 
 
 /* 初始化重复字段行游标。 */
-XRT_API void xrtHttpStructuredFieldCursorInit(
+XHTTP_API void xrtHttpStructuredFieldCursorInit(
 	xhttpstructuredfieldcursor* pCursor
 )
 {
 	xhttpstructuredfieldcursor Cursor;
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -1849,7 +1849,7 @@ static bool __xrtHttpStructuredFieldsValidate(
 	size_t i;
 
 	for ( i = 0; i < iCount; i++ ) {
-		__xrtHttpFieldLoad(pFields, i, &Field);
+		__xhttpFieldLoad(pFields, i, &Field);
 		if ( !xrtHttpFieldNameEqual(Field.Name, Name) ) {
 			continue;
 		}
@@ -1859,19 +1859,19 @@ static bool __xrtHttpStructuredFieldsValidate(
 			return false;
 		}
 		if ( iMatches == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iMatches++;
 	}
 	if ( iMatches > 1u ) {
 		for ( i = 0; i < iCount; i++ ) {
-			__xrtHttpFieldLoad(pFields, i, &Field);
+			__xhttpFieldLoad(pFields, i, &Field);
 			if ( xrtHttpFieldNameEqual(Field.Name, Name) &&
 				(__xrtHttpStructuredSkipSp(
 					Field.Value, 0
 				) == Field.Value.Size) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 		}
@@ -1916,7 +1916,7 @@ static bool __xrtHttpStructuredFieldCursorValid(
 		(pCursor->Source == (const void*)pFields) &&
 		(pCursor->SourceSize == iCount) &&
 		(pCursor->NameSize == Name.Size) &&
-		__xrtRangeValid(pCursor->Name, pCursor->NameSize) &&
+		xrtMemRangeValid(pCursor->Name, pCursor->NameSize) &&
 		xrtHttpFieldNameEqual(
 			(xstrview){ (cstr)pCursor->Name, pCursor->NameSize },
 			Name
@@ -1940,20 +1940,20 @@ static bool __xrtHttpStructuredFieldArguments(
 	xhttpstructuredfieldcursor* pLoaded
 )
 {
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtHttpViewValid(Name) || (Name.Size == 0) ||
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
+		!__xhttpViewValid(Name) || (Name.Size == 0) ||
 		!xrtHttpTokenValid(Name) ||
-		!__xrtRangeValid(pCursor, sizeof(*pCursor)) ||
-		!__xrtRangeValid(pOutput, iOutputSize) ||
-		__xrtHttpFieldArrayOverlap(
+		!xrtMemRangeValid(pCursor, sizeof(*pCursor)) ||
+		!xrtMemRangeValid(pOutput, iOutputSize) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pCursor, sizeof(*pCursor)
-		) || __xrtHttpFieldArrayOverlap(
+		) || __xhttpFieldArrayOverlap(
 			pFields, iCount, pOutput, iOutputSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Name.Data, Name.Size, pCursor, sizeof(*pCursor)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Name.Data, Name.Size, pOutput, iOutputSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(*pCursor), pOutput, iOutputSize
 		) ) {
 		return false;
@@ -1967,7 +1967,7 @@ static bool __xrtHttpStructuredFieldArguments(
 
 
 /* 跨重复字段行迭代 Structured List。 */
-XRT_API xhttpnext xrtHttpStructuredListFieldNext(
+XHTTP_API xhttpnext xrtHttpStructuredListFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -1988,7 +1988,7 @@ XRT_API xhttpnext xrtHttpStructuredListFieldNext(
 		pCursor, pMember,
 		sizeof(Member), &Cursor
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.State ==
@@ -2006,10 +2006,10 @@ XRT_API xhttpnext xrtHttpStructuredListFieldNext(
 			(uint8)XRT_HTTP_STRUCTURED_FIELD_LIST;
 	}
 	while ( Cursor.Field < iCount ) {
-		__xrtHttpFieldLoad(pFields, Cursor.Field, &Field);
+		__xhttpFieldLoad(pFields, Cursor.Field, &Field);
 		if ( !xrtHttpFieldNameEqual(Field.Name, Name) ) {
 			if ( Cursor.Offset != 0 ) {
-				__xrtErrorSetInvalidArgument();
+				xrtSetErrorKind(XERR_ARGUMENT);
 				return XHTTP_NEXT_ERROR;
 			}
 			Cursor.Field++;
@@ -2039,7 +2039,7 @@ XRT_API xhttpnext xrtHttpStructuredListFieldNext(
 
 
 /* 跨重复字段行迭代 Structured Dictionary。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryFieldNext(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -2060,7 +2060,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryFieldNext(
 		pCursor, pMember,
 		sizeof(Member), &Cursor
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.State ==
@@ -2078,10 +2078,10 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryFieldNext(
 			(uint8)XRT_HTTP_STRUCTURED_FIELD_DICTIONARY;
 	}
 	while ( Cursor.Field < iCount ) {
-		__xrtHttpFieldLoad(pFields, Cursor.Field, &Field);
+		__xhttpFieldLoad(pFields, Cursor.Field, &Field);
 		if ( !xrtHttpFieldNameEqual(Field.Name, Name) ) {
 			if ( Cursor.Offset != 0 ) {
-				__xrtErrorSetInvalidArgument();
+				xrtSetErrorKind(XERR_ARGUMENT);
 				return XHTTP_NEXT_ERROR;
 			}
 			Cursor.Field++;
@@ -2123,7 +2123,7 @@ static xhttpnext __xrtHttpStructuredDictionaryFieldUnchecked(
 	xhttpnext Next;
 
 	while ( pCursor->Field < iCount ) {
-		__xrtHttpFieldLoad(pFields, pCursor->Field, &Field);
+		__xhttpFieldLoad(pFields, pCursor->Field, &Field);
 		if ( !xrtHttpFieldNameEqual(Field.Name, Name) ) {
 			pCursor->Field++;
 			continue;
@@ -2154,14 +2154,14 @@ static bool __xrtHttpStructuredDictionaryFieldArguments(
 	size_t iOutputSize
 )
 {
-	return __xrtHttpFieldArrayValid(pFields, iCount) &&
-		__xrtHttpViewValid(Name) && (Name.Size != 0) &&
+	return __xhttpFieldArrayValid(pFields, iCount) &&
+		__xhttpViewValid(Name) && (Name.Size != 0) &&
 		xrtHttpTokenValid(Name) &&
 		((iOutputSize == 0) ||
-		 (__xrtRangeValid(pOutput, iOutputSize) &&
-		  !__xrtHttpFieldArrayOverlap(
+		 (xrtMemRangeValid(pOutput, iOutputSize) &&
+		  !__xhttpFieldArrayOverlap(
 			pFields, iCount, pOutput, iOutputSize
-		  ) && !__xrtRangesOverlap(
+		  ) && !xrtMemRangesOverlap(
 			Name.Data, Name.Size, pOutput, iOutputSize
 		  )));
 }
@@ -2242,7 +2242,7 @@ static bool __xrtHttpStructuredMapFieldsCursorValid(
 		(pCursor->Source == (const void*)pFields) &&
 		(pCursor->SourceSize == iCount) &&
 		(pCursor->NameSize == Name.Size) &&
-		__xrtRangeValid(pCursor->Name, pCursor->NameSize) &&
+		xrtMemRangeValid(pCursor->Name, pCursor->NameSize) &&
 		xrtHttpFieldNameEqual(
 			(xstrview){ (cstr)pCursor->Name, pCursor->NameSize },
 			Name
@@ -2255,7 +2255,7 @@ static bool __xrtHttpStructuredMapFieldsCursorValid(
 
 
 /* 跨重复字段行按抽象有序 Map 语义迭代 Dictionary。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryMapFieldNext(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryMapFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -2274,22 +2274,22 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryMapFieldNext(
 	memset(&Member, 0, sizeof(Member));
 	if ( !__xrtHttpStructuredDictionaryFieldArguments(
 		pFields, iCount, Name, pMember, sizeof(Member)
-	) || !__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		__xrtHttpFieldArrayOverlap(
+	) || !xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pCursor, sizeof(Cursor)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Name.Data, Name.Size, pCursor, sizeof(Cursor)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pMember, sizeof(Member)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
 	if ( !__xrtHttpStructuredMapFieldsCursorValid(
 		&Cursor, pFields, iCount, Name
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.State ==
@@ -2326,7 +2326,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryMapFieldNext(
 			return Next;
 		}
 		if ( Cursor.Order == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return XHTTP_NEXT_ERROR;
 		}
 		Cursor.Order++;
@@ -2338,7 +2338,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryMapFieldNext(
 		if ( !__xrtHttpStructuredDictionaryFieldLast(
 			pFields, iCount, Name, Member.Key, &Last
 		) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return XHTTP_NEXT_ERROR;
 		}
 		memcpy(pMember, &Last, sizeof(Last));
@@ -2350,7 +2350,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryMapFieldNext(
 
 
 /* 返回重复字段行逻辑组合后的 Dictionary 成员数。 */
-XRT_API size_t xrtHttpStructuredDictionaryFieldCount(
+XHTTP_API size_t xrtHttpStructuredDictionaryFieldCount(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name
@@ -2364,7 +2364,7 @@ XRT_API size_t xrtHttpStructuredDictionaryFieldCount(
 	if ( !__xrtHttpStructuredDictionaryFieldArguments(
 		pFields, iCount, Name, NULL, 0
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XRT_NPOS;
 	}
 	iResult = 0;
@@ -2373,7 +2373,7 @@ XRT_API size_t xrtHttpStructuredDictionaryFieldCount(
 		pFields, iCount, Name, &Cursor, &Member
 	)) == XHTTP_NEXT_ITEM ) {
 		if ( iResult == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return XRT_NPOS;
 		}
 		iResult++;
@@ -2387,7 +2387,7 @@ XRT_API size_t xrtHttpStructuredDictionaryFieldCount(
 
 
 /* 按首次出现顺序读取跨字段 Dictionary。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryFieldAt(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryFieldAt(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -2404,7 +2404,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryFieldAt(
 	if ( !__xrtHttpStructuredDictionaryFieldArguments(
 		pFields, iCount, Name, pMember, sizeof(Member)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	xrtHttpStructuredMapCursorInit(&Cursor);
@@ -2426,7 +2426,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryFieldAt(
 
 
 /* 按 key 读取跨字段 Dictionary 中最后一次成员值。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryFieldFind(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryFieldFind(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -2442,13 +2442,13 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryFieldFind(
 	memset(&Member, 0, sizeof(Member));
 	if ( !__xrtHttpStructuredDictionaryFieldArguments(
 		pFields, iCount, Name, pMember, sizeof(Member)
-	) || !__xrtHttpViewValid(Key) ||
-		__xrtRangesOverlap(
+	) || !__xhttpViewValid(Key) ||
+		xrtMemRangesOverlap(
 			Key.Data, Key.Size, pMember, sizeof(Member)
 		) || !__xrtHttpStructuredKeyParse(
 			Key, &iKeyOffset, &Parsed
 		) || (iKeyOffset != Key.Size) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( !__xrtHttpStructuredFieldsValidate(
@@ -2470,7 +2470,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryFieldFind(
 
 
 /* 解析唯一同名字段行中的 Structured Item。 */
-XRT_API xhttpnext xrtHttpStructuredItemField(
+XHTTP_API xhttpnext xrtHttpStructuredItemField(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -2483,25 +2483,25 @@ XRT_API xhttpnext xrtHttpStructuredItemField(
 	size_t i;
 
 	memset(&Item, 0, sizeof(Item));
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtHttpViewValid(Name) || (Name.Size == 0) ||
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
+		!__xhttpViewValid(Name) || (Name.Size == 0) ||
 		!xrtHttpTokenValid(Name) ||
-		!__xrtRangeValid(pItem, sizeof(Item)) ||
-		__xrtHttpFieldArrayOverlap(
+		!xrtMemRangeValid(pItem, sizeof(Item)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pItem, sizeof(Item)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Name.Data, Name.Size, pItem, sizeof(Item)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	for ( i = 0; i < iCount; i++ ) {
-		__xrtHttpFieldLoad(pFields, i, &Field);
+		__xhttpFieldLoad(pFields, i, &Field);
 		if ( !xrtHttpFieldNameEqual(Field.Name, Name) ) {
 			continue;
 		}
 		if ( iFound != XRT_NPOS ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return XHTTP_NEXT_ERROR;
 		}
 		iFound = i;
@@ -2510,7 +2510,7 @@ XRT_API xhttpnext xrtHttpStructuredItemField(
 		memcpy(pItem, &Item, sizeof(Item));
 		return XHTTP_NEXT_END;
 	}
-	__xrtHttpFieldLoad(pFields, iFound, &Field);
+	__xhttpFieldLoad(pFields, iFound, &Field);
 	if ( !xrtHttpStructuredItemParse(Field.Value, &Item) ) {
 		return XHTTP_NEXT_ERROR;
 	}
@@ -2529,23 +2529,23 @@ static bool __xrtHttpStructuredDecodeArguments(
 	xhttpstructuredbare* pLoaded
 )
 {
-	if ( !__xrtRangeValid(pBare, sizeof(*pBare)) ||
-		!__xrtRangeValid(pSize, sizeof(*pSize)) ||
+	if ( !xrtMemRangeValid(pBare, sizeof(*pBare)) ||
+		!xrtMemRangeValid(pSize, sizeof(*pSize)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
 		((pOutput != NULL) &&
-		 !__xrtRangeValid(pOutput, iCapacity)) ||
-		__xrtRangesOverlap(
+		 !xrtMemRangeValid(pOutput, iCapacity)) ||
+		xrtMemRangesOverlap(
 			pBare, sizeof(*pBare), pSize, sizeof(*pSize)
-		) || ((pOutput != NULL) && __xrtRangesOverlap(
+		) || ((pOutput != NULL) && xrtMemRangesOverlap(
 			pBare, sizeof(*pBare), pOutput, iCapacity
-		)) || ((pOutput != NULL) && __xrtRangesOverlap(
+		)) || ((pOutput != NULL) && xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), pOutput, iCapacity
 		)) ) {
 		return false;
 	}
 	memcpy(pLoaded, pBare, sizeof(*pLoaded));
-	if ( !__xrtHttpViewValid(pLoaded->Encoded) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(pLoaded->Encoded) ||
+		xrtMemRangesOverlap(
 			pLoaded->Encoded.Data, pLoaded->Encoded.Size,
 			pSize, sizeof(*pSize)
 		) ) {
@@ -2571,13 +2571,13 @@ static bool __xrtHttpStructuredDecodeOutput(
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pOutput, iRequired, Encoded.Data, Encoded.Size
 	) && (pOutput != (const void*)Encoded.Data) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return true;
@@ -2586,7 +2586,7 @@ static bool __xrtHttpStructuredDecodeOutput(
 
 
 /* 解码 String 的反斜杠转义。 */
-XRT_API bool xrtHttpStructuredStringDecode(
+XHTTP_API bool xrtHttpStructuredStringDecode(
 	const xhttpstructuredbare* pBare,
 	char* sOutput,
 	size_t iCapacity,
@@ -2601,7 +2601,7 @@ XRT_API bool xrtHttpStructuredStringDecode(
 	if ( !__xrtHttpStructuredDecodeArguments(
 		pBare, sOutput, iCapacity, pSize, &Bare
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( (Bare.Type != XHTTP_STRUCTURED_STRING) ||
@@ -2610,7 +2610,7 @@ XRT_API bool xrtHttpStructuredStringDecode(
 			Bare.Encoded, &iRequired
 		) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return false;
 	}
@@ -2634,7 +2634,7 @@ XRT_API bool xrtHttpStructuredStringDecode(
 
 
 /* 解码 Byte Sequence。 */
-XRT_API bool xrtHttpStructuredBytesDecode(
+XHTTP_API bool xrtHttpStructuredBytesDecode(
 	const xhttpstructuredbare* pBare,
 	void* pOutput,
 	size_t iCapacity,
@@ -2648,12 +2648,12 @@ XRT_API bool xrtHttpStructuredBytesDecode(
 	if ( !__xrtHttpStructuredDecodeArguments(
 		pBare, pOutput, iCapacity, pSize, &Bare
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( (Bare.Type != XHTTP_STRUCTURED_BYTES) ||
 		(Bare.Number != 0) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	Config.Alphabet = NULL;
@@ -2682,7 +2682,7 @@ XRT_API bool xrtHttpStructuredBytesDecode(
 
 
 /* 解码 Display String 的百分号字节并保留严格 UTF-8。 */
-XRT_API bool xrtHttpStructuredDisplayDecode(
+XHTTP_API bool xrtHttpStructuredDisplayDecode(
 	const xhttpstructuredbare* pBare,
 	char* sOutput,
 	size_t iCapacity,
@@ -2697,7 +2697,7 @@ XRT_API bool xrtHttpStructuredDisplayDecode(
 	if ( !__xrtHttpStructuredDecodeArguments(
 		pBare, sOutput, iCapacity, pSize, &Bare
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( (Bare.Type != XHTTP_STRUCTURED_DISPLAY) ||
@@ -2706,7 +2706,7 @@ XRT_API bool xrtHttpStructuredDisplayDecode(
 			Bare.Encoded, &iRequired
 		) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return false;
 	}

@@ -20,19 +20,19 @@ static xhttpnext __xrtHttpServerRequestBasicAuth(
 	size_t iZero = 0;
 	xhttpnext Next;
 
-	if ( !__xrtHttpServerRequestOutputValid(
+	if ( !xrtHttpBridgeServerRequestOutputValid(
 		pRequest, pSize, sizeof(iSize)
-	) || !__xrtHttpServerRequestOutputValid(
+	) || !xrtHttpBridgeServerRequestOutputValid(
 		pRequest, pBasic, sizeof(Basic)
 	) || ((pOutput == NULL) && (iCapacity != 0)) ||
 		((pOutput != NULL) &&
-		 !__xrtHttpServerRequestOutputValid(
+		 !xrtHttpBridgeServerRequestOutputValid(
 			pRequest, pOutput, iCapacity
-		)) || __xrtRangesOverlap(
+		)) || xrtMemRangesOverlap(
 		pSize, sizeof(iSize), pBasic, sizeof(Basic)
-	) || ((pOutput != NULL) && (__xrtRangesOverlap(
+	) || ((pOutput != NULL) && (xrtMemRangesOverlap(
 		pOutput, iCapacity, pSize, sizeof(iSize)
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOutput, iCapacity, pBasic, sizeof(Basic)
 	))) ) {
 		__xrtHttpServerRequestSetError(
@@ -83,7 +83,7 @@ static xhttpnext __xrtHttpServerRequestBasicAuth(
 
 
 /* 解码源站 Basic Authorization。 */
-XRT_API xhttpnext xrtHttpServerRequestBasicAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestBasicAuth(
 	const xhttpserverrequest* pRequest,
 	void* pOutput,
 	size_t iCapacity,
@@ -104,7 +104,7 @@ XRT_API xhttpnext xrtHttpServerRequestBasicAuth(
 
 
 /* 解码代理 Basic Proxy-Authorization。 */
-XRT_API xhttpnext xrtHttpServerRequestProxyBasicAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestProxyBasicAuth(
 	const xhttpserverrequest* pRequest,
 	void* pOutput,
 	size_t iCapacity,

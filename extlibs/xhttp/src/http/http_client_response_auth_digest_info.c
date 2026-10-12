@@ -21,22 +21,22 @@ static xhttpnext __xrtHttpResponseDigestInfo(
 	size_t iZero = 0;
 	xhttpnext Next;
 
-	if ( !__xrtHttpResponseOutputValid(
+	if ( !xrtHttpBridgeResponseOutputValid(
 		pResponse, pSize, sizeof(*pSize)
-	) || !__xrtHttpResponseOutputValid(
+	) || !xrtHttpBridgeResponseOutputValid(
 		pResponse, pInfo, sizeof(*pInfo)
 	) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		((pOutput != NULL) && !__xrtHttpResponseOutputValid(
+		((pOutput != NULL) && !xrtHttpBridgeResponseOutputValid(
 			pResponse, pOutput, iCapacity
-		)) || __xrtRangesOverlap(
+		)) || xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), pInfo, sizeof(*pInfo)
-		) || ((pOutput != NULL) && (__xrtRangesOverlap(
+		) || ((pOutput != NULL) && (xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(*pSize)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity, pInfo, sizeof(*pInfo)
 		))) ) {
-		__xrtHttpResponseSetError(
+		xrtHttpBridgeResponseSetError(
 			XERR_ARGUMENT,
 			XHTTP_RESPONSE_ERROR_ARGUMENT,
 			"parse-http-response-digest-info",
@@ -55,7 +55,7 @@ static xhttpnext __xrtHttpResponseDigestInfo(
 	if ( Next == XHTTP_NEXT_ERROR ) {
 		xerror* pCause = xrtTakeError();
 
-		__xrtHttpResponseSetError(
+		xrtHttpBridgeResponseSetError(
 			XERR_PROTOCOL,
 			XHTTP_RESPONSE_ERROR_HEADER,
 			"parse-http-response-digest-info",
@@ -73,7 +73,7 @@ static xhttpnext __xrtHttpResponseDigestInfo(
 		pSize,
 		pInfo
 	) ) {
-		__xrtHttpResponseWrapError(
+		xrtHttpBridgeResponseWrapError(
 			XERR_VALUE,
 			XHTTP_RESPONSE_ERROR_AUTH,
 			"parse-http-response-digest-info",
@@ -87,7 +87,7 @@ static xhttpnext __xrtHttpResponseDigestInfo(
 
 
 /* 解析源站 Authentication-Info。 */
-XRT_API xhttpnext xrtHttpResponseDigestInfo(
+XHTTP_API xhttpnext xrtHttpResponseDigestInfo(
 	const xhttpresponse* pResponse,
 	xhttpdigestalgorithm Algorithm,
 	void* pOutput,
@@ -110,7 +110,7 @@ XRT_API xhttpnext xrtHttpResponseDigestInfo(
 
 
 /* 解析代理 Proxy-Authentication-Info。 */
-XRT_API xhttpnext xrtHttpResponseProxyDigestInfo(
+XHTTP_API xhttpnext xrtHttpResponseProxyDigestInfo(
 	const xhttpresponse* pResponse,
 	xhttpdigestalgorithm Algorithm,
 	void* pOutput,

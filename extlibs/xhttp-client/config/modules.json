@@ -1,0 +1,1883 @@
+{
+	"schema": 1,
+	"product": "xhttp_client",
+	"module_prefix": "XHTTP_CLIENT_MODULE_",
+	"single_header": "single/extlibs/xhttp-client.h",
+	"declaration_header": "single/extlibs/xhttp-client_decl.h",
+	"implementation_macro": "XHTTP_CLIENT_IMPLEMENTATION",
+	"implementation_once_macro": "XHTTP_CLIENT_IMPLEMENTATION_ONCE",
+	"single_guard": "XHTTP_CLIENT_SINGLE_HEADER_H",
+	"single_marker": "XHTTP_CLIENT_SINGLE_HEADER",
+	"declaration_guard": "XHTTP_CLIENT_DECLARATIONS_H",
+	"declaration_marker": "XHTTP_CLIENT_DECLARATIONS",
+	"package_consumer": "extlibs/xhttp-client/tests/package/test_consumer.c",
+	"product_root": "extlibs/xhttp-client",
+	"performance_config": "extlibs/xhttp-client/config/performance_profiles.json",
+	"size_config": "extlibs/xhttp-client/config/size_profiles.json",
+	"scope": {
+		"product": "xhttp_client",
+		"external_integrations": [],
+		"systems": [
+			{
+				"name": "xhttp_client",
+				"state": "retained",
+				"source_roots": [
+					"http"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xhttp-client 公共符号参考",
+		"function_prefix": "xrt",
+		"constant_prefix": "XHTTP_",
+		"type_prefix": "x",
+		"guide": "../../README.md",
+		"output": "extlibs/xhttp-client/docs/api/reference.md"
+	},
+	"features_guard": "XHTTP_CLIENT_FEATURES_H",
+	"features_header": "extlibs/xhttp-client/include/xhttp-client/features.h",
+	"include_dirs": [
+		"extlibs/xhttp-client/include"
+	],
+	"header_roots": [
+		"extlibs/xhttp-client/include",
+		"extlibs/xhttp-client/src/internal"
+	],
+	"modules": [
+		{
+			"name": "http_client_redirect",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_REDIRECT",
+			"depends": [
+				"http_client",
+				"url",
+				"http_redirect_policy"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_runtime.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_url.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_redirect.c"
+			],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_redirect.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_redirect_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_redirect",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_redirect.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_redirect_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_redirect_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_redirect_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_retry",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_RETRY",
+			"depends": [
+				"http_client",
+				"http_retry",
+				"random",
+				"http_retry_policy"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_runtime.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_retry.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_retry.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_retry_config.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_retry.c"
+			],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/client_retry/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md",
+				"extlibs/xhttp/docs/api/http_retry.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_resume",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_RESUME",
+			"depends": [
+				"http_client_https",
+				"tls_client_resume",
+				"mutex"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_runtime.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_resume.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_resume_unit.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_resume.c"
+			],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/client_resume/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_resume_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_resume",
+				"tls_stream",
+				"tls_server_resume",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_resume.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_resume_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_resume_tls_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_resume_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_easy",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_EASY",
+			"depends": [
+				"http_client"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_easy.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_easy.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_easy.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_easy.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_easy.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_easy_future",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_EASY_FUTURE",
+			"depends": [
+				"http_client_easy",
+				"http_client_future"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_easy.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xrt_http_client_easy.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_easy_future.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_easy_future.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_easy_future.c"
+			],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/client_easy/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_easy_oom",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_easy",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_easy_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_proxy",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_PROXY",
+			"depends": [
+				"http_client",
+				"net_proxy_dial"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_runtime.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_proxy.c"
+			],
+			"tests": [],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_proxy_config_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_proxy",
+				"net_proxy_http_connect"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_config.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_proxy.c"
+			],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_proxy_http_connect_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_proxy",
+				"http_client_pool",
+				"net_proxy_http_connect"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_failure.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_proxy_http_connect_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_proxy_http_connect_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_failure_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_proxy_socks5_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_proxy",
+				"net_proxy_socks5"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_socks5.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_proxy_socks5_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_proxy_socks5_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_socks5_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_proxy_https_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_proxy",
+				"http_client_https",
+				"net_proxy_http_connect",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_https.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_proxy_https_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_proxy_https_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_https_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_proxy_oom",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_proxy",
+				"http_client_pool",
+				"net_proxy_http_connect",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_proxy_example",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_proxy",
+				"net_proxy_http_connect",
+				"net_proxy_socks5"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/client_proxy/main.c"
+			],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_pool",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_POOL",
+			"depends": [
+				"http_client",
+				"mutex"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_runtime.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_pool.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_pool.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_transport.c"
+			],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/client_pool/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_pool_oom",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_pool",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_pool_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_pool_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_pool",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_pool_iocp.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_transport_iocp.c"
+			],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_pool_uring_tests",
+			"asset_platforms": [
+				"linux"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_pool",
+				"net_port_uring"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_pool_uring.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_transport_uring.c"
+			],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_pool_https_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_pool",
+				"http_client_https",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_pool_https.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_pool_https_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_pool_https_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_pool_https_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_cookies",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_COOKIES",
+			"depends": [
+				"http_client",
+				"cookie_jar_headers"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_runtime.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_cookie.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_cookie.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cookie.c"
+			],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/client_cookies/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_cookies_oom",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_cookies",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_cookie_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_decompress",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_DECOMPRESS",
+			"depends": [
+				"http_client",
+				"http_encoding",
+				"inflate"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_runtime.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_decompress.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_decompress.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_decompress.c"
+			],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/client_decompress/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_cache",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_CACHE",
+			"depends": [
+				"http_client",
+				"http_cache_store",
+				"http_cache_range",
+				"http_range_multipart",
+				"multipart",
+				"codec_hex",
+				"random_secure"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_runtime.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_cache_range.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_cache_store.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_cache.c",
+				"extlibs/xhttp-client/src/http/http_client_cache_multipart.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_cache.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cache_multipart.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cache_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cache.c"
+			],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/client_cache/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md",
+				"extlibs/xhttp-policy/docs/api/http_cache_store.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_decompress_oom",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_decompress",
+				"memory_debug",
+				"memory_stats"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_decompress_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_decompress_future_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_decompress",
+				"http_client_future"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_decompress_future.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_decompress_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_decompress",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_decompress_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_decompress_future_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_decompress_future_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_decompress_future_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_sse_client",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SSE_CLIENT",
+			"depends": [
+				"http_sse_http",
+				"http_sse_parser",
+				"http_client_redirect"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_sse_client.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_sse_client.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_sse_client.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_sse_client.c",
+				"extlibs/xhttp-client/tests/http/test_http_sse_client_contract.c",
+				"extlibs/xhttp-client/tests/http/test_http_sse_client_terminal.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_sse_client.c"
+			],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/sse_client/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_sse_client.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_sse_client_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_sse_client",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_sse_client_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_sse.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_stream",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_STREAM",
+			"depends": [
+				"http_exchange",
+				"net_tcp",
+				"spin"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_stream.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_stream.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_stream.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_fixed_close.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_close.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_upgrade.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_cancel.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_cancel_progress.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_cancel_race.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_pause.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_pause_cancel.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_oom.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_invalid.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_cancel_race.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_pause_cancel.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client_stream.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_stream_async",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_STREAM_ASYNC",
+			"depends": [
+				"http_client_stream",
+				"http_exchange_async"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_stream.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_stream_async.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_resume.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_immediate.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_reentrant.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_failure.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_source_cancel.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_cancel.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_early_final.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_async.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_async_reentrant.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_early_final_transport.c"
+			],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/client_stream/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client_stream.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_stream_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_stream",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_fixed_close_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_close_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_upgrade_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_cancel_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_cancel_progress_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_cancel_race_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_pause_cancel_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_stream_async_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_stream_async",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_resume_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_reentrant_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_early_final_iocp.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_early_final_transport_iocp.c"
+			],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_stream_async_uring_tests",
+			"asset_platforms": [
+				"linux"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_stream_async",
+				"net_port_uring"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_resume_uring.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_reentrant_uring.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_early_final_uring.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_early_final_transport_uring.c"
+			],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_tls",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_TLS",
+			"depends": [
+				"http_client_stream",
+				"tls_stream"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_stream.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_tls_invalid.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_tls.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client_stream.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_tls",
+				"tls_client_verify",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_tls.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_tls_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_tls_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_tls_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT",
+			"depends": [
+				"http_client_stream",
+				"net_tcp_dial",
+				"cancel",
+				"spin"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_runtime.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_runtime.c",
+				"extlibs/xhttp-client/src/http/http_client_tcp.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_contract.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cancel_race.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_terminal_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_transport.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cancel_race.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_future",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_FUTURE",
+			"depends": [
+				"http_client",
+				"future_bridge",
+				"spin"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_future.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_future.c"
+			],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_future.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_lifecycle.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_lifecycle_threads.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_future_oom.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_future_oom_continue.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_future.c"
+			],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/client_future/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_future_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_future",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_future_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_future_coroutine_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_future",
+				"future_coroutine"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_future_coroutine.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cancel_race_iocp.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_transport_iocp.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cancel_race_iocp.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_uring_tests",
+			"asset_platforms": [
+				"linux"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client",
+				"net_port_uring"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_uring.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cancel_race_uring.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_transport_uring.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cancel_race_uring.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_https",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_HTTPS",
+			"depends": [
+				"http_client",
+				"http_client_tls",
+				"tls_stream_dial",
+				"tls_client_verify",
+				"x509_store_system"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xrt/http_client_runtime.h",
+				"extlibs/xhttp-client/include/xhttp-client/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-client/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_runtime.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_client_stream.h",
+				"extlibs/xhttp-client/src/internal/xrt_http_exchange.h",
+				"extlibs/xhttp-client/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-client/src/http/http_client_https.c"
+			],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_https.c"
+			],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/client_https/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_https_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_https",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_https.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_https_state.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_https_ip.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_https_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_https_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_https_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_https_state_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_https_ip_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_future_https_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_future",
+				"http_client_https_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_future_https.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "xhttp_client",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_stream_async",
+				"http_client_https",
+				"http_client_future",
+				"http_client_easy_future",
+				"http_client_redirect",
+				"http_client_retry",
+				"http_client_resume",
+				"http_client_proxy",
+				"http_client_pool",
+				"http_client_cookies",
+				"http_client_decompress",
+				"http_client_cache",
+				"http_sse_client",
+				"net_proxy_http_connect",
+				"net_proxy_socks5"
+			],
+			"public_headers": [
+				"extlibs/xhttp-client/include/xhttp-client/features.h",
+				"extlibs/xhttp-client/include/xhttp-client.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_xhttp_client.c"
+			],
+			"examples": [
+				"extlibs/xhttp-client/examples/http/client_cache/main.c",
+				"extlibs/xhttp-client/examples/http/client_cookies/main.c",
+				"extlibs/xhttp-client/examples/http/client_decompress/main.c",
+				"extlibs/xhttp-client/examples/http/client_easy/main.c",
+				"extlibs/xhttp-client/examples/http/client_future/main.c",
+				"extlibs/xhttp-client/examples/http/client_https/main.c",
+				"extlibs/xhttp-client/examples/http/client_pool/main.c",
+				"extlibs/xhttp-client/examples/http/client_proxy/main.c",
+				"extlibs/xhttp-client/examples/http/client_resume/main.c",
+				"extlibs/xhttp-client/examples/http/client_retry/main.c",
+				"extlibs/xhttp-client/examples/http/client_stream/main.c",
+				"extlibs/xhttp-client/examples/http/sse_client/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xhttp-client/config/performance_profiles.json",
+				"extlibs/xhttp-client/README.md",
+				"extlibs/xhttp-client/bench/bench_http_client.c",
+				"extlibs/xhttp-client/tests/fixtures/http_origin.h"
+			],
+			"docs": [
+				"extlibs/xhttp-client/README.md",
+				"extlibs/xhttp-client/docs/api/reference.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "xhttp_client_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"xhttp_client",
+				"http_client_redirect_tests",
+				"http_client_redirect_iocp_tests",
+				"http_client_resume_tls_tests",
+				"http_client_resume_iocp_tests",
+				"http_client_easy_oom",
+				"http_client_proxy_config_tests",
+				"http_client_proxy_http_connect_tests",
+				"http_client_proxy_http_connect_iocp_tests",
+				"http_client_proxy_socks5_tests",
+				"http_client_proxy_socks5_iocp_tests",
+				"http_client_proxy_https_tests",
+				"http_client_proxy_https_iocp_tests",
+				"http_client_proxy_oom",
+				"http_client_proxy_example",
+				"http_client_pool_oom",
+				"http_client_pool_iocp_tests",
+				"http_client_pool_uring_tests",
+				"http_client_pool_https_tests",
+				"http_client_pool_https_iocp_tests",
+				"http_client_cookies_oom",
+				"http_client_decompress_oom",
+				"http_client_decompress_future_tests",
+				"http_client_decompress_iocp_tests",
+				"http_client_decompress_future_iocp_tests",
+				"http_sse_client_oom_tests",
+				"http_client_stream_iocp_tests",
+				"http_client_stream_async_iocp_tests",
+				"http_client_stream_async_uring_tests",
+				"http_client_tls_tests",
+				"http_client_tls_iocp_tests",
+				"http_client_future_iocp_tests",
+				"http_client_future_coroutine_tests",
+				"http_client_iocp_tests",
+				"http_client_uring_tests",
+				"http_client_https_tests",
+				"http_client_https_iocp_tests",
+				"http_client_future_https_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cache.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cache_multipart.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cache_oom.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cancel_race.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cancel_race_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cancel_race_uring.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_contract.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cookie.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_cookie_oom.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_decompress.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_decompress_future.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_decompress_future_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_decompress_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_decompress_oom.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_easy.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_easy_future.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_easy_oom.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_future.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_future_coroutine.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_future_https.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_future_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_future_oom.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_future_oom_continue.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_https.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_https_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_https_ip.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_https_ip_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_https_state.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_https_state_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_lifecycle.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_lifecycle_threads.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_pool.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_pool_https.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_pool_https_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_pool_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_pool_oom.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_pool_uring.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_config.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_failure.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_failure_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_https.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_https_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_oom.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_socks5.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_proxy_socks5_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_redirect.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_redirect_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_resume.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_resume_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_resume_unit.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_retry.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_retry_config.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_cancel.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_failure.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_immediate.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_reentrant.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_reentrant_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_reentrant_uring.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_async_source_cancel.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_cancel.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_cancel_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_cancel_progress.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_cancel_progress_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_cancel_race.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_cancel_race_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_close.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_close_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_early_final.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_early_final_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_early_final_uring.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_fixed_close.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_fixed_close_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_invalid.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_oom.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_pause.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_pause_cancel.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_pause_cancel_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_resume.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_resume_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_resume_uring.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_upgrade.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_stream_upgrade_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_terminal_oom.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_tls.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_tls_invalid.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_tls_iocp.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_uring.c",
+				"extlibs/xhttp-client/tests/http/test_http_sse_client.c",
+				"extlibs/xhttp-client/tests/http/test_http_sse_client_contract.c",
+				"extlibs/xhttp-client/tests/http/test_http_sse_client_oom.c",
+				"extlibs/xhttp-client/tests/http/test_http_sse_client_terminal.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cache.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cancel_race.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cancel_race_iocp.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cancel_race_uring.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cookie.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_decompress.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_easy.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_easy_future.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_future.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_https.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_transport.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_transport_iocp.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_transport_uring.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_proxy.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_redirect.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_resume.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_retry.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_async.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_async_reentrant.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_cancel_race.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_early_final_transport.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_early_final_transport_iocp.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_early_final_transport_uring.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_pause_cancel.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_tls.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_transport.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_transport_iocp.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_transport_uring.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_sse_client.c",
+				"extlibs/xhttp-client/tests/single/test_single_xhttp_client.c"
+			],
+			"examples": [],
+			"benchmarks": [
+				"dev/bench/bench_common.h"
+			],
+			"docs": [],
+			"legacy": [],
+			"single_test_owners": {
+				"extlibs/xhttp-client/tests/single/test_single_http_client.c": "http_client",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cache.c": "http_client_cache",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cancel_race.c": "http_client",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cancel_race_iocp.c": "http_client_iocp_tests",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cancel_race_uring.c": "http_client_uring_tests",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cookie.c": "http_client_cookies",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_decompress.c": "http_client_decompress",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_easy.c": "http_client_easy",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_easy_future.c": "http_client_easy_future",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_future.c": "http_client_future",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_https.c": "http_client_https",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_transport.c": "http_client_pool",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_transport_iocp.c": "http_client_pool_iocp_tests",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_transport_uring.c": "http_client_pool_uring_tests",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_proxy.c": "http_client_proxy_config_tests",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_redirect.c": "http_client_redirect",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_resume.c": "http_client_resume",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_retry.c": "http_client_retry",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream.c": "http_client_stream",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_async.c": "http_client_stream_async",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_async_reentrant.c": "http_client_stream_async",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_cancel_race.c": "http_client_stream",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_early_final_transport.c": "http_client_stream_async",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_early_final_transport_iocp.c": "http_client_stream_async_iocp_tests",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_early_final_transport_uring.c": "http_client_stream_async_uring_tests",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_stream_pause_cancel.c": "http_client_stream",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_tls.c": "http_client_tls",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_transport.c": "http_client",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_transport_iocp.c": "http_client_iocp_tests",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_transport_uring.c": "http_client_uring_tests",
+				"extlibs/xhttp-client/tests/single/test_single_http_sse_client.c": "http_sse_client",
+				"extlibs/xhttp-client/tests/single/test_single_xhttp_client.c": "xhttp_client"
+			}
+		}
+	],
+	"umbrella_header": "xhttp-client.h",
+	"dependency_manifests": [
+		"extlibs/xhttp/config/modules.json",
+		"extlibs/xhttp-policy/config/modules.json"
+	],
+	"api_macro": "XHTTP_CLIENT_API",
+	"package_ownership": "separate"
+}

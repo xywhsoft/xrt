@@ -31,14 +31,14 @@ static xerrkind __xrtHttp1ServerExchangeCauseKind(
 
 
 /* 验证 Server Exchange 限额在创建后不会产生无效协议状态。 */
-bool __xrtHttp1ServerConfigValid(
+XHTTP_API bool xrtHttpBridge1ServerConfigValid(
 	const xhttp1serverconfig* pConfig
 )
 {
 	if ( (pConfig->Head.MaxHead < 4) ||
 		(pConfig->Head.MaxStartLine == 0) ||
 		(pConfig->Head.MaxFieldLine == 0) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return true;
@@ -61,7 +61,7 @@ bool __xrtHttp1ServerExchangeFailCause(
 	xerrordesc Desc;
 
 	if ( pExchange == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pExchange->Error != NULL ) {
@@ -180,14 +180,14 @@ xhttp1serverfeedstatus __xrtHttp1ServerExchangeFinish(
 
 
 /* 初始化公开网络服务默认限额。 */
-XRT_API void xrtHttp1ServerConfigInit(
+XHTTP_API void xrtHttp1ServerConfigInit(
 	xhttp1serverconfig* pConfig
 )
 {
 	xhttp1serverconfig Config;
 
-	if ( !__xrtRangeValid(pConfig, sizeof(Config)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pConfig, sizeof(Config)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Config, 0, sizeof(Config));
@@ -200,7 +200,7 @@ XRT_API void xrtHttp1ServerConfigInit(
 
 
 /* 创建无 I/O Server Exchange。 */
-XRT_API xhttp1serverexchange* xrtHttp1ServerExchangeCreate(
+XHTTP_API xhttp1serverexchange* xrtHttp1ServerExchangeCreate(
 	const xhttp1serverconfig* pConfig,
 	const xhttp1serverevents* pEvents
 )
@@ -211,21 +211,21 @@ XRT_API xhttp1serverexchange* xrtHttp1ServerExchangeCreate(
 
 	xrtHttp1ServerConfigInit(&Config);
 	if ( pConfig != NULL ) {
-		if ( !__xrtRangeValid(pConfig, sizeof(Config)) ) {
-			__xrtErrorSetInvalidArgument();
+		if ( !xrtMemRangeValid(pConfig, sizeof(Config)) ) {
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return NULL;
 		}
 		memcpy(&Config, pConfig, sizeof(Config));
 	}
 	memset(&Events, 0, sizeof(Events));
 	if ( pEvents != NULL ) {
-		if ( !__xrtRangeValid(pEvents, sizeof(Events)) ) {
-			__xrtErrorSetInvalidArgument();
+		if ( !xrtMemRangeValid(pEvents, sizeof(Events)) ) {
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return NULL;
 		}
 		memcpy(&Events, pEvents, sizeof(Events));
 	}
-	if ( !__xrtHttp1ServerConfigValid(&Config) ) {
+	if ( !xrtHttpBridge1ServerConfigValid(&Config) ) {
 		return NULL;
 	}
 	pExchange = (xhttp1serverexchange*)xrtCalloc(
@@ -244,7 +244,7 @@ XRT_API xhttp1serverexchange* xrtHttp1ServerExchangeCreate(
 
 
 /* 销毁 Server Exchange 的请求和全部临时状态。 */
-XRT_API void xrtHttp1ServerExchangeDestroy(
+XHTTP_API void xrtHttp1ServerExchangeDestroy(
 	xhttp1serverexchange* pExchange
 )
 {
@@ -263,18 +263,18 @@ XRT_API void xrtHttp1ServerExchangeDestroy(
 
 
 /* 暂停尚未完成的当前请求正文。 */
-XRT_API bool xrtHttp1ServerExchangePause(
+XHTTP_API bool xrtHttp1ServerExchangePause(
 	xhttp1serverexchange* pExchange
 )
 {
 	if ( pExchange == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( (pExchange->State != XRT_HTTP_SERVER_STATE_BODY) ||
 		(xrtHttp1BodyDone(&pExchange->Body) &&
 		 !pExchange->InCallback) ) {
-		__xrtErrorSetInvalidState();
+		xrtSetErrorKind(XERR_STATE);
 		return false;
 	}
 	pExchange->Paused = true;
@@ -284,17 +284,17 @@ XRT_API bool xrtHttp1ServerExchangePause(
 
 
 /* 恢复已经暂停的正文状态机。 */
-XRT_API bool xrtHttp1ServerExchangeResume(
+XHTTP_API bool xrtHttp1ServerExchangeResume(
 	xhttp1serverexchange* pExchange
 )
 {
 	if ( pExchange == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( (pExchange->State != XRT_HTTP_SERVER_STATE_BODY) ||
 		!pExchange->Paused ) {
-		__xrtErrorSetInvalidState();
+		xrtSetErrorKind(XERR_STATE);
 		return false;
 	}
 	pExchange->Paused = false;
@@ -304,18 +304,18 @@ XRT_API bool xrtHttp1ServerExchangeResume(
 
 
 /* 在第一段正文交付前替换当前请求限额。 */
-XRT_API bool xrtHttp1ServerExchangeSetBodyLimit(
+XHTTP_API bool xrtHttp1ServerExchangeSetBodyLimit(
 	xhttp1serverexchange* pExchange,
 	uint64 iMaxBody
 )
 {
 	if ( pExchange == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( (pExchange->State != XRT_HTTP_SERVER_STATE_BODY) ||
 		pExchange->BodyStarted ) {
-		__xrtErrorSetInvalidState();
+		xrtSetErrorKind(XERR_STATE);
 		return false;
 	}
 	pExchange->BodyLimit = iMaxBody;
@@ -336,19 +336,19 @@ XRT_API bool xrtHttp1ServerExchangeSetBodyLimit(
 
 
 /* 完成响应后释放当前请求并等待下一条 keep-alive Header。 */
-XRT_API bool xrtHttp1ServerExchangeNext(
+XHTTP_API bool xrtHttp1ServerExchangeNext(
 	xhttp1serverexchange* pExchange
 )
 {
 	if ( pExchange == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pExchange->InCallback ||
 		(pExchange->State != XRT_HTTP_SERVER_STATE_COMPLETE) ||
 		((xrtHttpServerRequestFlags(pExchange->Request) &
 		  XHTTP_SERVER_REQUEST_KEEP_ALIVE) == 0) ) {
-		__xrtErrorSetInvalidState();
+		xrtSetErrorKind(XERR_STATE);
 		return false;
 	}
 	xrtHttpServerRequestDestroy(pExchange->Request);
@@ -369,7 +369,7 @@ XRT_API bool xrtHttp1ServerExchangeNext(
 
 
 /* 返回当前请求。 */
-XRT_API const xhttpserverrequest* xrtHttp1ServerExchangeRequest(
+XHTTP_API const xhttpserverrequest* xrtHttp1ServerExchangeRequest(
 	const xhttp1serverexchange* pExchange
 )
 {
@@ -379,7 +379,7 @@ XRT_API const xhttpserverrequest* xrtHttp1ServerExchangeRequest(
 
 
 /* 返回稳定终态错误。 */
-XRT_API const xerror* xrtHttp1ServerExchangeError(
+XHTTP_API const xerror* xrtHttp1ServerExchangeError(
 	const xhttp1serverexchange* pExchange
 )
 {
@@ -389,7 +389,7 @@ XRT_API const xerror* xrtHttp1ServerExchangeError(
 
 
 /* 判断当前请求是否完整。 */
-XRT_API bool xrtHttp1ServerExchangeComplete(
+XHTTP_API bool xrtHttp1ServerExchangeComplete(
 	const xhttp1serverexchange* pExchange
 )
 {
@@ -400,7 +400,7 @@ XRT_API bool xrtHttp1ServerExchangeComplete(
 
 
 /* 判断正文消费是否暂停。 */
-XRT_API bool xrtHttp1ServerExchangePaused(
+XHTTP_API bool xrtHttp1ServerExchangePaused(
 	const xhttp1serverexchange* pExchange
 )
 {
@@ -410,7 +410,7 @@ XRT_API bool xrtHttp1ServerExchangePaused(
 
 
 /* 返回当前请求已接受线缆字节数。 */
-XRT_API uint64 xrtHttp1ServerExchangeWireBytes(
+XHTTP_API uint64 xrtHttp1ServerExchangeWireBytes(
 	const xhttp1serverexchange* pExchange
 )
 {

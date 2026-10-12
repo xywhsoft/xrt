@@ -8,6 +8,8 @@ lead: An EventSource without a dedicated state machine: SSE Reply rides the one 
 api: xhttp-http_sse, xhttp-http_server, xhttp-http_client
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 For one-way push from server to client, the Web world has two options: WebSocket (Chapters 95–97, bidirectional, a separate protocol) and **SSE** (Server-Sent Events — an event protocol on an HTTP response stream). xhttp's implementation philosophy in one sentence: **no dedicated SSE connection, thread, queue, or network state machine** — `xrtHttpSseReplyCreate` creates an ordinary `xhttpreply` with status 200, `Content-Type: text/event-stream`, and a one-shot body of unknown length; the actual sending is driven by the HTTP Server's **one and only** response state machine, TCP/TLS backpressure, and the write deadline; the returned `xhttpbodystream` is an independent producer end, handed to a background task or any thread to write. The client side is the same mirror: a connection layer plus an event parser (the incremental syntax machine for `text/event-stream`), with `Last-Event-ID` disconnect resume built in. The selection rule: whenever push is one-way, use SSE — the protocol is simple, it rides port 80, and automatic reconnection is built into browsers.
@@ -61,11 +63,11 @@ The client side has two layers: the **connection layer** (`http_sse_client` — 
 
 The program below is from `examples/http/sse_server` — the complete face of structured event sending:
 
-```embed path="extlibs/xhttp/examples/http/sse_server/main.c" title="extlibs/xhttp/examples/http/sse_server/main.c"
+```embed path="extlibs/xhttp-server/examples/http/sse_server/main.c" title="extlibs/xhttp-server/examples/http/sse_server/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/sse_server/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_sse_server --exclude-test "*" --no-single --no-run
 （读回自检通过后正常退出）
 ```
 
@@ -75,11 +77,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 
 The second program is from `examples/http/sse_client` — the standard loop of the client's consuming side:
 
-```embed path="extlibs/xhttp/examples/http/sse_client/main.c" title="extlibs/xhttp/examples/http/sse_client/main.c"
+```embed path="extlibs/xhttp-client/examples/http/sse_client/main.c" title="extlibs/xhttp-client/examples/http/sse_client/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/sse_client/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_sse_client --exclude-test "*" --no-single --no-run
 （示例校验客户端事件消费路径后正常退出）
 ```
 

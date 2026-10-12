@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_CACHE_H
 #define XRT_HTTP_CACHE_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http.h>
 
 
@@ -105,21 +107,21 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_HTTP_CACHE)
 
 /* 返回已知缓存指令的静态小写名称；UNKNOWN 返回空视图。 */
-XRT_API xstrview xrtHttpCacheDirectiveName(
+XHTTP_API xstrview xrtHttpCacheDirectiveName(
 	xhttpcachedirective Directive
 );
 
 
 
 /* 大小写不敏感地映射缓存指令；未知或非法名称返回 UNKNOWN。 */
-XRT_API xhttpcachedirective xrtHttpCacheDirectiveParse(
+XHTTP_API xhttpcachedirective xrtHttpCacheDirectiveParse(
 	xstrview Name
 );
 
 
 
 /* 初始化可重复使用的 Cache-Control 前向游标。 */
-XRT_API void xrtHttpCacheCursorInit(xhttpcachecursor* pCursor);
+XHTTP_API void xrtHttpCacheCursorInit(xhttpcachecursor* pCursor);
 
 
 
@@ -127,7 +129,7 @@ XRT_API void xrtHttpCacheCursorInit(xhttpcachecursor* pCursor);
 	按字段出现顺序读取全部 Cache-Control 指令。
 	未知扩展仍返回 ITEM；列表语法错误返回 ERROR。
 */
-XRT_API xhttpnext xrtHttpCacheNext(
+XHTTP_API xhttpnext xrtHttpCacheNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpcachecursor* pCursor,
@@ -140,7 +142,7 @@ XRT_API xhttpnext xrtHttpCacheNext(
 	严格解析一个完整 delta-seconds，允许两端 OWS。
 	过大值饱和到 XHTTP_CACHE_DELTA_MAX。
 */
-XRT_API bool xrtHttpCacheDeltaParse(
+XHTTP_API bool xrtHttpCacheDeltaParse(
 	xstrview Text,
 	uint64* pSeconds
 );
@@ -151,7 +153,7 @@ XRT_API bool xrtHttpCacheDeltaParse(
 	读取已知数值指令的 delta-seconds。
 	token 与 quoted-string 都可接收，过大值饱和到 XHTTP_CACHE_DELTA_MAX。
 */
-XRT_API bool xrtHttpCacheDeltaRead(
+XHTTP_API bool xrtHttpCacheDeltaRead(
 	const xhttpcacheitem* pItem,
 	uint64* pSeconds
 );
@@ -159,14 +161,14 @@ XRT_API bool xrtHttpCacheDeltaRead(
 
 
 /* 初始化不存在 Cache-Control 字段的空汇总。 */
-XRT_API void xrtHttpCacheControlInit(
+XHTTP_API void xrtHttpCacheControlInit(
 	xhttpcachecontrol* pControl
 );
 
 
 
 /* 判断公开汇总结构是否满足可继续增量合并的内部约束。 */
-XRT_API bool xrtHttpCacheControlValid(
+XHTTP_API bool xrtHttpCacheControlValid(
 	const xhttpcachecontrol* pControl
 );
 
@@ -176,7 +178,7 @@ XRT_API bool xrtHttpCacheControlValid(
 	失败原子地合并一个 Cache-Control 字段值。
 	已知指令的非法参数被记录为 INVALID，只有列表语法错误会使函数失败。
 */
-XRT_API bool xrtHttpCacheControlAdd(
+XHTTP_API bool xrtHttpCacheControlAdd(
 	xhttpcachecontrol* pControl,
 	xstrview Value
 );
@@ -184,7 +186,7 @@ XRT_API bool xrtHttpCacheControlAdd(
 
 
 /* 扫描全部重复 Cache-Control 字段并建立零分配汇总。 */
-XRT_API bool xrtHttpCacheControlParse(
+XHTTP_API bool xrtHttpCacheControlParse(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpcachecontrol* pControl

@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_VIA_H
 #define XRT_HTTP_VIA_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http.h>
 
 
@@ -94,19 +96,19 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_HTTP_VIA)
 
 /* 初始化单个 Via 字段值游标。 */
-XRT_API void xrtHttpViaCursorInit(xhttpviacursor* pCursor);
+XHTTP_API void xrtHttpViaCursorInit(xhttpviacursor* pCursor);
 
 
 
 /* 初始化重复 Via 字段行游标。 */
-XRT_API void xrtHttpViaFieldCursorInit(
+XHTTP_API void xrtHttpViaFieldCursorInit(
 	xhttpviafieldcursor* pCursor
 );
 
 
 
 /* 严格解析一个不含列表逗号的非空 Via 元素。 */
-XRT_API bool xrtHttpViaElementParse(
+XHTTP_API bool xrtHttpViaElementParse(
 	xstrview Element,
 	xhttpvia* pVia
 );
@@ -114,12 +116,12 @@ XRT_API bool xrtHttpViaElementParse(
 
 
 /* 严格验证完整 Via 字段值，包括 HTTP 列表语法允许的空列表。 */
-XRT_API bool xrtHttpViaValid(xstrview Value);
+XHTTP_API bool xrtHttpViaValid(xstrview Value);
 
 
 
 /* 按线路顺序迭代一个完整 Via 字段值，游标在首次调用时绑定输入。 */
-XRT_API xhttpnext xrtHttpViaNext(
+XHTTP_API xhttpnext xrtHttpViaNext(
 	xstrview Value,
 	xhttpviacursor* pCursor,
 	xhttpvia* pVia
@@ -128,7 +130,7 @@ XRT_API xhttpnext xrtHttpViaNext(
 
 
 /* 跨重复 Via 字段行按线路顺序迭代代理节点，游标在首次调用时绑定输入。 */
-XRT_API xhttpnext xrtHttpViaFieldNext(
+XHTTP_API xhttpnext xrtHttpViaFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpviafieldcursor* pCursor,
@@ -141,7 +143,7 @@ XRT_API xhttpnext xrtHttpViaFieldNext(
 	解码一个包含最外层括号的完整 Via comment。
 	嵌套括号保留为正文，quoted-pair 去除反斜线；空输出可查询长度。
 */
-XRT_API bool xrtHttpViaCommentDecode(
+XHTTP_API bool xrtHttpViaCommentDecode(
 	xstrview Comment,
 	void* pOutput,
 	size_t iCapacity,
@@ -155,7 +157,7 @@ XRT_API bool xrtHttpViaCommentDecode(
 #if defined(XHTTP_FEATURE_HTTP_VIA_WRITE)
 
 /* 规范写出一个 Via 元素，不附加字段名称或 CRLF。 */
-XRT_API bool xrtHttpViaElementWrite(
+XHTTP_API bool xrtHttpViaElementWrite(
 	const xhttpviavalue* pVia,
 	void* pOutput,
 	size_t iCapacity,
@@ -165,7 +167,7 @@ XRT_API bool xrtHttpViaElementWrite(
 
 
 /* 规范写出逗号分隔的非空 Via 元素数组。 */
-XRT_API bool xrtHttpViaWrite(
+XHTTP_API bool xrtHttpViaWrite(
 	const xhttpviavalue* pVia,
 	size_t iCount,
 	void* pOutput,
@@ -176,7 +178,7 @@ XRT_API bool xrtHttpViaWrite(
 
 
 /* 构建零结尾 Via 字段值，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpViaBuild(
+XHTTP_API str xrtHttpViaBuild(
 	const xhttpviavalue* pVia,
 	size_t iCount,
 	size_t* pSize

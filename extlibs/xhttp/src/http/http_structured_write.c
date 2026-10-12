@@ -39,15 +39,15 @@ static bool __xrtHttpStructuredWriteBorrow(
 	size_t iSize
 )
 {
-	if ( !__xrtRangeValid(pMemory, iSize) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pMemory, iSize) ||
+		xrtMemRangesOverlap(
 			pMemory, iSize,
 			pWriter->Protected, pWriter->ProtectedSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pMemory, iSize,
 			pWriter->Target, pWriter->TargetSize
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return true;
@@ -61,8 +61,8 @@ static bool __xrtHttpStructuredWriteView(
 	xstrview Text
 )
 {
-	if ( !__xrtHttpViewValid(Text) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Text) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return __xrtHttpStructuredWriteBorrow(
@@ -82,7 +82,7 @@ static bool __xrtHttpStructuredWriteArray(
 )
 {
 	if ( iCount > (SIZE_MAX / iElementSize) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	*pBytes = iCount * iElementSize;
@@ -101,12 +101,12 @@ static bool __xrtHttpStructuredWriteBytes(
 )
 {
 	if ( iSize > (SIZE_MAX - pWriter->Position) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( pWriter->Output != NULL ) {
 		if ( (pData == NULL) && (iSize != 0) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 		if ( iSize != 0 ) {
@@ -149,7 +149,7 @@ static bool __xrtHttpStructuredWriteInteger(
 		!__xrtHttpStructuredWriteByte(pWriter, '-') ) {
 		return false;
 	}
-	iSize = __xrtHttpUInt64Write(arrDigits, iMagnitude);
+	iSize = __xhttpUInt64Write(arrDigits, iMagnitude);
 	return __xrtHttpStructuredWriteBytes(
 		pWriter, arrDigits, iSize
 	);
@@ -182,7 +182,7 @@ static bool __xrtHttpStructuredWriteDecimal(
 		!__xrtHttpStructuredWriteByte(pWriter, '-') ) {
 		return false;
 	}
-	iIntegerSize = __xrtHttpUInt64Write(arrDigits, iInteger);
+	iIntegerSize = __xhttpUInt64Write(arrDigits, iInteger);
 	arrFraction[0] = (char)('0' + (iFraction / 100u));
 	arrFraction[1] = (char)('0' + ((iFraction / 10u) % 10u));
 	arrFraction[2] = (char)('0' + (iFraction % 10u));
@@ -437,7 +437,7 @@ static bool __xrtHttpStructuredWriteParameterSeen(
 		__xrtHttpStructuredWriteParameterLoad(
 			pParameters, i, &Parameter
 		);
-		if ( __xrtHttpViewEqual(Parameter.Key, Key) ) {
+		if ( __xhttpViewEqual(Parameter.Key, Key) ) {
 			return true;
 		}
 	}
@@ -662,7 +662,7 @@ static bool __xrtHttpStructuredWriteDictionarySeen(
 		__xrtHttpStructuredWriteDictionaryLoad(
 			pEntries, i, &Entry
 		);
-		if ( __xrtHttpViewEqual(Entry.Key, Key) ) {
+		if ( __xhttpViewEqual(Entry.Key, Key) ) {
 			return true;
 		}
 	}
@@ -817,14 +817,14 @@ static bool __xrtHttpStructuredWrite(
 	xrt_http_structured_writer Writer;
 	size_t iRequired;
 
-	if ( !__xrtRangeValid(pSize, sizeof(*pSize)) ||
+	if ( !xrtMemRangeValid(pSize, sizeof(*pSize)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
 		((pOutput != NULL) &&
-		 !__xrtRangeValid(pOutput, iCapacity)) ||
-		((pOutput != NULL) && __xrtRangesOverlap(
+		 !xrtMemRangeValid(pOutput, iCapacity)) ||
+		((pOutput != NULL) && xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(*pSize)
 		)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(&Writer, 0, sizeof(Writer));
@@ -834,7 +834,7 @@ static bool __xrtHttpStructuredWrite(
 		&Writer, Root, pData, iCount
 	) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return false;
 	}
@@ -845,7 +845,7 @@ static bool __xrtHttpStructuredWrite(
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	memset(&Writer, 0, sizeof(Writer));
@@ -857,7 +857,7 @@ static bool __xrtHttpStructuredWrite(
 		&Writer, Root, pData, iCount
 	) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 		}
 		return false;
 	}
@@ -867,7 +867,7 @@ static bool __xrtHttpStructuredWrite(
 		&Writer, Root, pData, iCount
 	) || (Writer.Position != iRequired) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return false;
 	}
@@ -878,7 +878,7 @@ static bool __xrtHttpStructuredWrite(
 
 
 /* 规范序列化一个抽象裸值。 */
-XRT_API bool xrtHttpStructuredBareWrite(
+XHTTP_API bool xrtHttpStructuredBareWrite(
 	const xhttpstructuredvalue* pValue,
 	void* pOutput,
 	size_t iCapacity,
@@ -894,7 +894,7 @@ XRT_API bool xrtHttpStructuredBareWrite(
 
 
 /* 规范序列化一个 Item 及其参数。 */
-XRT_API bool xrtHttpStructuredItemWrite(
+XHTTP_API bool xrtHttpStructuredItemWrite(
 	const xhttpstructureditemvalue* pItem,
 	void* pOutput,
 	size_t iCapacity,
@@ -910,7 +910,7 @@ XRT_API bool xrtHttpStructuredItemWrite(
 
 
 /* 规范序列化完整 List。 */
-XRT_API bool xrtHttpStructuredListWrite(
+XHTTP_API bool xrtHttpStructuredListWrite(
 	const xhttpstructuredmembervalue* pMembers,
 	size_t iCount,
 	void* pOutput,
@@ -927,7 +927,7 @@ XRT_API bool xrtHttpStructuredListWrite(
 
 
 /* 规范序列化完整 Dictionary。 */
-XRT_API bool xrtHttpStructuredDictionaryWrite(
+XHTTP_API bool xrtHttpStructuredDictionaryWrite(
 	const xhttpstructureddictionaryentry* pEntries,
 	size_t iCount,
 	void* pOutput,

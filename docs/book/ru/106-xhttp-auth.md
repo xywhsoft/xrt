@@ -8,6 +8,8 @@ lead: Оба конца трёх схем: базовая линия откры�
 api: xhttp-http_auth, xhttp-http_server, xhttp-http_digest
 ---
 
+> Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Ориентация
 
 «Добавить аутентификацию» в HTTP — задача выбора из трёх семейств схем.**Basic**: `Authorization: Basic base64(用户:密码)` (пользователь:пароль) — открытый текст (приемлемая форма только под TLS), по строке на каждом конце.**Bearer**: `Authorization: Bearer <令牌>` (токен) — носитель эпохи OAuth2/JWT; клиент только несёт его.**Digest**: сервер выдаёт nonce-вызов, клиент отвечает `H(用户:域:密码)` (пользователь:область:пароль) — протокол вызов-ответ, где **пароль не выходит в сеть**, со встроенной защитой от повторов (nonce + счётчик nc); сервер ведёт жизненный цикл nonce, таблицу повторов и квитанцию `Authentication-Info`. xhttp реализует оба конца всех трёх схем как структурированные API: построение на клиенте (`xrtHttpBasicWrite`/`BearerWrite`/ответ Digest), чтение на сервере (три состояния `xrtHttpServerRequestBasicAuth/BearerAuth/DigestAuth`), полная цепочка проверки Digest (четыре состояния verify у `xrtHttpDigestVerify` + потокобезопасная таблица повторов). Отсюда собирается middleware авторизации главы 105.
@@ -59,7 +61,7 @@ api: xhttp-http_auth, xhttp-http_server, xhttp-http_digest
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/auth/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_auth --exclude-test "*" --no-single --no-run
 Digest
 Basic
 ```
@@ -74,7 +76,7 @@ Basic
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/auth_basic/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_auth_basic --exclude-test "*" --no-single --no-run
 Basic QWxhZGRpbjpvcGVuIHNlc2VtZQ==
 ```
 

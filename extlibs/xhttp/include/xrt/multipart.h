@@ -1,6 +1,8 @@
 #ifndef XRT_MULTIPART_H
 #define XRT_MULTIPART_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_content_disposition.h>
 
 #if defined(XHTTP_FEATURE_MULTIPART_RANDOM)
@@ -165,12 +167,12 @@ XRT_EXTERN_C_BEGIN
 	初始化适合一般 HTTP 表单与 MIME 内容的整包解析限制。
 	固定描述符只要求位于完整可访问的存储范围，不要求自然对齐。
 */
-XRT_API void xrtMultipartLimitsInit(xmultipartlimits* pLimits);
+XHTTP_API void xrtMultipartLimitsInit(xmultipartlimits* pLimits);
 
 
 
 /* 校验并复制已经解码的 MIME boundary；输出可以未对齐。 */
-XRT_API bool xrtMultipartBoundaryParse(
+XHTTP_API bool xrtMultipartBoundaryParse(
 	xstrview Text,
 	xmultipartboundary* pBoundary
 );
@@ -178,7 +180,7 @@ XRT_API bool xrtMultipartBoundaryParse(
 
 
 /* 从 multipart Content-Type 中严格读取并解码 boundary 参数。 */
-XRT_API bool xrtMultipartBoundaryFromContentType(
+XHTTP_API bool xrtMultipartBoundaryFromContentType(
 	xstrview ContentType,
 	xmultipartboundary* pBoundary
 );
@@ -186,7 +188,7 @@ XRT_API bool xrtMultipartBoundaryFromContentType(
 
 
 /* 返回借用边界结构的视图；无效结构返回空视图并设置错误。 */
-XRT_API xstrview xrtMultipartBoundaryView(
+XHTTP_API xstrview xrtMultipartBoundaryView(
 	const xmultipartboundary* pBoundary
 );
 
@@ -195,7 +197,7 @@ XRT_API xstrview xrtMultipartBoundaryView(
 #if defined(XHTTP_FEATURE_MULTIPART_RANDOM)
 
 /* 使用 128 位系统安全随机数原子生成 boundary；输出可以未对齐。 */
-XRT_API bool xrtMultipartBoundaryRandom(
+XHTTP_API bool xrtMultipartBoundaryRandom(
 	xmultipartboundary* pBoundary
 );
 
@@ -208,7 +210,7 @@ XRT_API bool xrtMultipartBoundaryRandom(
 	Offset 初始为零；ITEM 返回 Part，END 表示已验证关闭边界和全部后缀。
 	Boundary、Offset、Part 和可选 Error 可以未对齐。
 */
-XRT_API xhttpnext xrtMultipartNext(
+XHTTP_API xhttpnext xrtMultipartNext(
 	xbytesview Body,
 	const xmultipartboundary* pBoundary,
 	size_t* pOffset,
@@ -219,7 +221,7 @@ XRT_API xhttpnext xrtMultipartNext(
 
 
 /* 按限制严格验证完整 multipart 正文，要求存在至少一个 Part 和关闭边界。 */
-XRT_API bool xrtMultipartValidate(
+XHTTP_API bool xrtMultipartValidate(
 	xbytesview Body,
 	const xmultipartboundary* pBoundary,
 	const xmultipartlimits* pLimits,
@@ -232,7 +234,7 @@ XRT_API bool xrtMultipartValidate(
 	按标志严格验证完整 multipart 正文并返回 Part 数量。
 	pPartCount 仅在成功时发布；Flags 只接受 xmultipartvalidateflags。
 */
-XRT_API bool xrtMultipartValidateCount(
+XHTTP_API bool xrtMultipartValidateCount(
 	xbytesview Body,
 	const xmultipartboundary* pBoundary,
 	const xmultipartlimits* pLimits,
@@ -248,7 +250,7 @@ XRT_API bool xrtMultipartValidateCount(
 	pParts 为空且 Capacity 为零时只返回所需数量；容量不足不写出部分结果。
 	固定输入和输出描述符可以未对齐，函数只发布完整 Part。
 */
-XRT_API bool xrtMultipartParse(
+XHTTP_API bool xrtMultipartParse(
 	xbytesview Body,
 	const xmultipartboundary* pBoundary,
 	xmultipartpart* pParts,
@@ -261,14 +263,14 @@ XRT_API bool xrtMultipartParse(
 
 
 /* 验证 Part 具备 RFC 7578 form-data 所需的 disposition 类型和 name 参数。 */
-XRT_API bool xrtMultipartFormPartValid(
+XHTTP_API bool xrtMultipartFormPartValid(
 	const xmultipartpart* pPart
 );
 
 
 
 /* 读取 form-data 字段名；结果不附加零字符。 */
-XRT_API bool xrtMultipartPartNameWrite(
+XHTTP_API bool xrtMultipartPartNameWrite(
 	const xmultipartpart* pPart,
 	void* pOutput,
 	size_t iCapacity,
@@ -278,7 +280,7 @@ XRT_API bool xrtMultipartPartNameWrite(
 
 
 /* 读取上传文件名；优先采用受支持的 filename*，结果不附加零字符。 */
-XRT_API bool xrtMultipartPartFileNameWrite(
+XHTTP_API bool xrtMultipartPartFileNameWrite(
 	const xmultipartpart* pPart,
 	void* pOutput,
 	size_t iCapacity,
@@ -293,7 +295,7 @@ XRT_API bool xrtMultipartPartFileNameWrite(
 	初始化无分配流 Reader，并拥有 boundary 与限制的副本。
 	Reader 是有状态对象，必须自然对齐；固定输入描述符可以未对齐。
 */
-XRT_API bool xrtMultipartReaderInit(
+XHTTP_API bool xrtMultipartReaderInit(
 	xmultipartreader* pReader,
 	const xmultipartboundary* pBoundary,
 	const xmultipartlimits* pLimits
@@ -302,7 +304,7 @@ XRT_API bool xrtMultipartReaderInit(
 
 
 /* 保留 boundary 与限制并重置解析进度，便于复用 Reader 对象。 */
-XRT_API void xrtMultipartReaderReset(
+XHTTP_API void xrtMultipartReaderReset(
 	xmultipartreader* pReader
 );
 
@@ -315,7 +317,7 @@ XRT_API void xrtMultipartReaderReset(
 	bEnd 表示当前 Input 之后不会再有属于该 multipart 正文的字节。
 	Consumed、Part、Data 和可选 Error 可以未对齐；Reader 必须自然对齐。
 */
-XRT_API xmultipartreadstatus xrtMultipartReaderRead(
+XHTTP_API xmultipartreadstatus xrtMultipartReaderRead(
 	xmultipartreader* pReader,
 	xbytesview Input,
 	bool bEnd,
@@ -328,7 +330,7 @@ XRT_API xmultipartreadstatus xrtMultipartReaderRead(
 
 
 /* 判断 Reader 是否已经消费关闭 boundary 和全部 epilogue。 */
-XRT_API bool xrtMultipartReaderDone(
+XHTTP_API bool xrtMultipartReaderDone(
 	const xmultipartreader* pReader
 );
 
@@ -342,7 +344,7 @@ XRT_API bool xrtMultipartReaderDone(
 	写出 multipart/form-data Content-Type。
 	输出为空且容量为零时只查询所需字节数；结果不附加零字符。
 */
-XRT_API bool xrtMultipartContentTypeWrite(
+XHTTP_API bool xrtMultipartContentTypeWrite(
 	const xmultipartboundary* pBoundary,
 	void* pOutput,
 	size_t iCapacity,
@@ -355,7 +357,7 @@ XRT_API bool xrtMultipartContentTypeWrite(
 	写出原始 Part 的 boundary、字段和终止空行，不写正文与正文后的 CRLF。
 	字段名称和值按 HTTP 字段语法校验，调用方仍可自由选择 MIME 字段集合。
 */
-XRT_API bool xrtMultipartPartHeadWrite(
+XHTTP_API bool xrtMultipartPartHeadWrite(
 	const xmultipartboundary* pBoundary,
 	const xhttpfield* pFields,
 	size_t iFieldCount,
@@ -370,7 +372,7 @@ XRT_API bool xrtMultipartPartHeadWrite(
 	写出标准 form-data Part 头，不写正文与正文后的 CRLF。
 	Filename 为空指针时省略 filename 参数，ContentType 为空视图时省略对应字段。
 */
-XRT_API bool xrtMultipartFormHeadWrite(
+XHTTP_API bool xrtMultipartFormHeadWrite(
 	const xmultipartboundary* pBoundary,
 	xstrview Name,
 	const xstrview* pFilename,
@@ -383,7 +385,7 @@ XRT_API bool xrtMultipartFormHeadWrite(
 
 
 /* 写出 Part 正文后的 CRLF，可与 PartHeadWrite 和零复制正文发送组合使用。 */
-XRT_API bool xrtMultipartPartEndWrite(
+XHTTP_API bool xrtMultipartPartEndWrite(
 	void* pOutput,
 	size_t iCapacity,
 	size_t* pSize
@@ -392,7 +394,7 @@ XRT_API bool xrtMultipartPartEndWrite(
 
 
 /* 一次写出原始 Part；容量不足时不产生部分结果。 */
-XRT_API bool xrtMultipartPartWrite(
+XHTTP_API bool xrtMultipartPartWrite(
 	const xmultipartboundary* pBoundary,
 	const xhttpfield* pFields,
 	size_t iFieldCount,
@@ -405,7 +407,7 @@ XRT_API bool xrtMultipartPartWrite(
 
 
 /* 写出一个 form-data 普通字段 Part。 */
-XRT_API bool xrtMultipartFieldWrite(
+XHTTP_API bool xrtMultipartFieldWrite(
 	const xmultipartboundary* pBoundary,
 	xstrview Name,
 	xbytesview Value,
@@ -420,7 +422,7 @@ XRT_API bool xrtMultipartFieldWrite(
 	写出一个 form-data 文件 Part。
 	ContentType 为空时省略该字段；Filename 按 quoted-string 规则转义。
 */
-XRT_API bool xrtMultipartFileWrite(
+XHTTP_API bool xrtMultipartFileWrite(
 	const xmultipartboundary* pBoundary,
 	xstrview Name,
 	xstrview Filename,
@@ -434,7 +436,7 @@ XRT_API bool xrtMultipartFileWrite(
 
 
 /* 写出关闭 boundary；它必须位于最后一个 PartEndWrite 之后。 */
-XRT_API bool xrtMultipartCloseWrite(
+XHTTP_API bool xrtMultipartCloseWrite(
 	const xmultipartboundary* pBoundary,
 	void* pOutput,
 	size_t iCapacity,

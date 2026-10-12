@@ -8,6 +8,8 @@ lead: EventSource без выделенной машины состояний: S
 api: xhttp-http_sse, xhttp-http_server, xhttp-http_client
 ---
 
+> Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Ориентация
 
 Для одностороннего push от сервера к клиенту у Web-мира два варианта: WebSocket (главы 95–97, двунаправленный, отдельный протокол) и **SSE** (Server-Sent Events — протокол событий поверх потока HTTP-ответа). Философия реализации xhttp одной фразой: **никаких выделенных SSE-соединений, потоков, очередей или сетевых машин состояний** — `xrtHttpSseReplyCreate` создаёт обычный `xhttpreply` со статусом 200, `Content-Type: text/event-stream` и одноразовым телом неизвестной длины; фактическую отправку ведут **единственная** машина состояний ответа HTTP Server, противодавление TCP/TLS и срок записи; возвращённый `xhttpbodystream` — независимый конец-производитель, отдаваемый фоновой задаче или любому потоку на запись. Клиентская сторона — то же зеркало: слой соединения плюс парсер событий (инкрементальная машина синтаксиса `text/event-stream`), разрывное возобновление `Last-Event-ID` встроено. Правило выбора: когда push односторонний — берите SSE — протокол прост, едет по порту 80, автопереподключение встроено в браузер.
@@ -61,11 +63,11 @@ Push прогресса, потоки котировок, хвост журна�
 
 Программа ниже из `examples/http/sse_server` — полная грань структурированной отправки событий:
 
-```embed path="extlibs/xhttp/examples/http/sse_server/main.c" title="extlibs/xhttp/examples/http/sse_server/main.c"
+```embed path="extlibs/xhttp-server/examples/http/sse_server/main.c" title="extlibs/xhttp-server/examples/http/sse_server/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/sse_server/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_sse_server --exclude-test "*" --no-single --no-run
 （读回自检通过后正常退出）
 ```
 
@@ -75,11 +77,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 
 Вторая программа из `examples/http/sse_client` — стандартный цикл потребляющей стороны клиента:
 
-```embed path="extlibs/xhttp/examples/http/sse_client/main.c" title="extlibs/xhttp/examples/http/sse_client/main.c"
+```embed path="extlibs/xhttp-client/examples/http/sse_client/main.c" title="extlibs/xhttp-client/examples/http/sse_client/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/sse_client/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_sse_client --exclude-test "*" --no-single --no-run
 （示例校验客户端事件消费路径后正常退出）
 ```
 

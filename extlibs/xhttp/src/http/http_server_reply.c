@@ -4,6 +4,23 @@
 
 #if defined(XHTTP_FEATURE_HTTP_SERVER_REPLY)
 
+/* 使网络适配器能检查输出别名而无需知道 Reply 的布局。 */
+XHTTP_API bool xrtHttpBridgeReplyOutputValid(
+	const xhttpreply* pReply, const void* pOutput, size_t iSize
+)
+{
+	if ( !xrtMemRangeValid(pOutput, iSize) ) {
+		return false;
+	}
+	if ( pReply == NULL || iSize == 0 ) {
+		return true;
+	}
+	return !xrtMemRangesOverlap(pReply, sizeof(*pReply), pOutput, iSize) &&
+		!xrtMemRangesOverlap(pReply->Reason.Data, pReply->Reason.Size, pOutput, iSize) &&
+		!__xrtHttpHeadersOwnedOverlap(pReply->Headers, pOutput, iSize) &&
+		!__xrtHttpHeadersOwnedOverlap(pReply->Trailers, pOutput, iSize);
+}
+
 /* 解析默认配置并在创建空 Reply 时完成全部配置校验。 */
 static bool __xrtHttpReplyConfigResolve(
 	const xhttpreplyconfig* pInput,
@@ -12,8 +29,8 @@ static bool __xrtHttpReplyConfigResolve(
 {
 	xrtHttpReplyConfigInit(pConfig);
 	if ( pInput != NULL ) {
-		if ( !__xrtRangeValid(pInput, sizeof(*pConfig)) ) {
-			__xrtErrorSetInvalidArgument();
+		if ( !xrtMemRangeValid(pInput, sizeof(*pConfig)) ) {
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 		memcpy(pConfig, pInput, sizeof(*pConfig));
@@ -31,7 +48,7 @@ static bool __xrtHttpReplyConfigResolve(
 static bool __xrtHttpReplyStatusValid(uint16 iStatus)
 {
 	if ( (iStatus < 100) || (iStatus > 999) ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	return true;
@@ -118,11 +135,11 @@ static bool __xrtHttpReplyFieldSet(
 static bool __xrtHttpReplyFieldNameValid(xstrview Name)
 {
 	if ( (Name.Data == NULL) && (Name.Size != 0) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !xrtHttpTokenValid(Name) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return true;
@@ -146,12 +163,12 @@ static const xhttpfield* __xrtHttpReplyFieldGet(
 
 
 /* 初始化不预留字段内存的服务端 Reply 配置。 */
-XRT_API void xrtHttpReplyConfigInit(xhttpreplyconfig* pConfig)
+XHTTP_API void xrtHttpReplyConfigInit(xhttpreplyconfig* pConfig)
 {
 	xhttpreplyconfig Config;
 
-	if ( !__xrtRangeValid(pConfig, sizeof(Config)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pConfig, sizeof(Config)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Config, 0, sizeof(Config));
@@ -167,7 +184,7 @@ XRT_API void xrtHttpReplyConfigInit(xhttpreplyconfig* pConfig)
 
 
 /* 使用已解析配置创建一个空正文 Reply。 */
-XRT_API xhttpreply* xrtHttpReplyCreateWithConfig(
+XHTTP_API xhttpreply* xrtHttpReplyCreateWithConfig(
 	uint16 iStatus,
 	const xhttpreplyconfig* pConfig
 )
@@ -192,7 +209,7 @@ XRT_API xhttpreply* xrtHttpReplyCreateWithConfig(
 
 
 /* 使用默认按需分配配置创建 Reply。 */
-XRT_API xhttpreply* xrtHttpReplyCreate(uint16 iStatus)
+XHTTP_API xhttpreply* xrtHttpReplyCreate(uint16 iStatus)
 {
 	return xrtHttpReplyCreateWithConfig(iStatus, NULL);
 }
@@ -200,12 +217,12 @@ XRT_API xhttpreply* xrtHttpReplyCreate(uint16 iStatus)
 
 
 /* 克隆 Reply 的拥有型状态，并共享不可变正文来源。 */
-XRT_API xhttpreply* xrtHttpReplyClone(const xhttpreply* pReply)
+XHTTP_API xhttpreply* xrtHttpReplyClone(const xhttpreply* pReply)
 {
 	xhttpreply* pClone;
 
 	if ( pReply == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	pClone = xrtHttpReplyCreateWithConfig(
@@ -246,7 +263,7 @@ XRT_API xhttpreply* xrtHttpReplyClone(const xhttpreply* pReply)
 
 
 /* 销毁 Reply 的全部按需资产。 */
-XRT_API void xrtHttpReplyDestroy(xhttpreply* pReply)
+XHTTP_API void xrtHttpReplyDestroy(xhttpreply* pReply)
 {
 	if ( pReply == NULL ) {
 		return;
@@ -262,7 +279,7 @@ XRT_API void xrtHttpReplyDestroy(xhttpreply* pReply)
 
 
 /* 设置状态码并恢复静态标准原因短语。 */
-XRT_API bool xrtHttpReplySetStatus(
+XHTTP_API bool xrtHttpReplySetStatus(
 	xhttpreply* pReply,
 	uint16 iStatus
 )
@@ -270,7 +287,7 @@ XRT_API bool xrtHttpReplySetStatus(
 	if ( (pReply == NULL) ||
 		!__xrtHttpReplyStatusValid(iStatus) ) {
 		if ( pReply == NULL ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 		}
 		return false;
 	}
@@ -285,7 +302,7 @@ XRT_API bool xrtHttpReplySetStatus(
 
 
 /* 返回当前状态码。 */
-XRT_API uint16 xrtHttpReplyStatus(const xhttpreply* pReply)
+XHTTP_API uint16 xrtHttpReplyStatus(const xhttpreply* pReply)
 {
 	return pReply != NULL ? pReply->Status : 0;
 }
@@ -293,7 +310,7 @@ XRT_API uint16 xrtHttpReplyStatus(const xhttpreply* pReply)
 
 
 /* 复制自定义原因短语并在成功后一次替换。 */
-XRT_API bool xrtHttpReplySetReason(
+XHTTP_API bool xrtHttpReplySetReason(
 	xhttpreply* pReply,
 	xstrview Reason
 )
@@ -303,7 +320,7 @@ XRT_API bool xrtHttpReplySetReason(
 	if ( (pReply == NULL) ||
 		!xrtHttpFieldValueValid(Reason) ) {
 		if ( pReply == NULL ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 		}
 		return false;
 	}
@@ -325,7 +342,7 @@ XRT_API bool xrtHttpReplySetReason(
 
 
 /* 返回当前有效原因短语。 */
-XRT_API xstrview xrtHttpReplyReason(const xhttpreply* pReply)
+XHTTP_API xstrview xrtHttpReplyReason(const xhttpreply* pReply)
 {
 	return pReply != NULL ?
 		pReply->Reason : (xstrview){ NULL, 0 };
@@ -334,14 +351,14 @@ XRT_API xstrview xrtHttpReplyReason(const xhttpreply* pReply)
 
 
 /* 追加拥有型 Header。 */
-XRT_API bool xrtHttpReplyAddHeader(
+XHTTP_API bool xrtHttpReplyAddHeader(
 	xhttpreply* pReply,
 	xstrview Name,
 	xstrview Value
 )
 {
 	if ( pReply == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return __xrtHttpReplyFieldAdd(
@@ -355,14 +372,14 @@ XRT_API bool xrtHttpReplyAddHeader(
 
 
 /* 设置并折叠同名 Header。 */
-XRT_API bool xrtHttpReplySetHeader(
+XHTTP_API bool xrtHttpReplySetHeader(
 	xhttpreply* pReply,
 	xstrview Name,
 	xstrview Value
 )
 {
 	if ( pReply == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return __xrtHttpReplyFieldSet(
@@ -376,13 +393,13 @@ XRT_API bool xrtHttpReplySetHeader(
 
 
 /* 删除全部同名 Header。 */
-XRT_API size_t xrtHttpReplyRemoveHeader(
+XHTTP_API size_t xrtHttpReplyRemoveHeader(
 	xhttpreply* pReply,
 	xstrview Name
 )
 {
 	if ( pReply == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return 0;
 	}
 	if ( pReply->Headers == NULL ) {
@@ -395,7 +412,7 @@ XRT_API size_t xrtHttpReplyRemoveHeader(
 
 
 /* 查找首个同名 Header。 */
-XRT_API const xhttpfield* xrtHttpReplyHeader(
+XHTTP_API const xhttpfield* xrtHttpReplyHeader(
 	const xhttpreply* pReply,
 	xstrview Name
 )
@@ -407,7 +424,7 @@ XRT_API const xhttpfield* xrtHttpReplyHeader(
 
 
 /* 返回 Header 数量。 */
-XRT_API size_t xrtHttpReplyHeaderCount(const xhttpreply* pReply)
+XHTTP_API size_t xrtHttpReplyHeaderCount(const xhttpreply* pReply)
 {
 	return (pReply != NULL) && (pReply->Headers != NULL) ?
 		xrtHttpHeadersCount(pReply->Headers) : 0;
@@ -416,7 +433,7 @@ XRT_API size_t xrtHttpReplyHeaderCount(const xhttpreply* pReply)
 
 
 /* 返回 Reply 拥有的连续只读 Header 数组。 */
-XRT_API const xhttpfield* xrtHttpReplyHeaderData(
+XHTTP_API const xhttpfield* xrtHttpReplyHeaderData(
 	const xhttpreply* pReply
 )
 {
@@ -427,7 +444,7 @@ XRT_API const xhttpfield* xrtHttpReplyHeaderData(
 
 
 /* 返回指定位置的 Header。 */
-XRT_API const xhttpfield* xrtHttpReplyHeaderAt(
+XHTTP_API const xhttpfield* xrtHttpReplyHeaderAt(
 	const xhttpreply* pReply,
 	size_t iIndex
 )
@@ -439,7 +456,7 @@ XRT_API const xhttpfield* xrtHttpReplyHeaderAt(
 
 
 /* 返回只读 Header 容器而不触发创建。 */
-XRT_API const xhttpheaders* xrtHttpReplyHeaders(
+XHTTP_API const xhttpheaders* xrtHttpReplyHeaders(
 	const xhttpreply* pReply
 )
 {
@@ -449,10 +466,10 @@ XRT_API const xhttpheaders* xrtHttpReplyHeaders(
 
 
 /* 按需创建并返回可修改 Header 容器。 */
-XRT_API xhttpheaders* xrtHttpReplyEditHeaders(xhttpreply* pReply)
+XHTTP_API xhttpheaders* xrtHttpReplyEditHeaders(xhttpreply* pReply)
 {
 	if ( pReply == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	return __xrtHttpReplyFieldsCreate(
@@ -463,14 +480,14 @@ XRT_API xhttpheaders* xrtHttpReplyEditHeaders(xhttpreply* pReply)
 
 
 /* 追加拥有型 Trailer。 */
-XRT_API bool xrtHttpReplyAddTrailer(
+XHTTP_API bool xrtHttpReplyAddTrailer(
 	xhttpreply* pReply,
 	xstrview Name,
 	xstrview Value
 )
 {
 	if ( pReply == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return __xrtHttpReplyFieldAdd(
@@ -484,14 +501,14 @@ XRT_API bool xrtHttpReplyAddTrailer(
 
 
 /* 设置并折叠同名 Trailer。 */
-XRT_API bool xrtHttpReplySetTrailer(
+XHTTP_API bool xrtHttpReplySetTrailer(
 	xhttpreply* pReply,
 	xstrview Name,
 	xstrview Value
 )
 {
 	if ( pReply == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return __xrtHttpReplyFieldSet(
@@ -505,13 +522,13 @@ XRT_API bool xrtHttpReplySetTrailer(
 
 
 /* 删除全部同名 Trailer。 */
-XRT_API size_t xrtHttpReplyRemoveTrailer(
+XHTTP_API size_t xrtHttpReplyRemoveTrailer(
 	xhttpreply* pReply,
 	xstrview Name
 )
 {
 	if ( pReply == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return 0;
 	}
 	if ( pReply->Trailers == NULL ) {
@@ -524,7 +541,7 @@ XRT_API size_t xrtHttpReplyRemoveTrailer(
 
 
 /* 查找首个同名 Trailer。 */
-XRT_API const xhttpfield* xrtHttpReplyTrailer(
+XHTTP_API const xhttpfield* xrtHttpReplyTrailer(
 	const xhttpreply* pReply,
 	xstrview Name
 )
@@ -536,7 +553,7 @@ XRT_API const xhttpfield* xrtHttpReplyTrailer(
 
 
 /* 返回 Trailer 数量。 */
-XRT_API size_t xrtHttpReplyTrailerCount(const xhttpreply* pReply)
+XHTTP_API size_t xrtHttpReplyTrailerCount(const xhttpreply* pReply)
 {
 	return (pReply != NULL) && (pReply->Trailers != NULL) ?
 		xrtHttpHeadersCount(pReply->Trailers) : 0;
@@ -545,7 +562,7 @@ XRT_API size_t xrtHttpReplyTrailerCount(const xhttpreply* pReply)
 
 
 /* 返回 Reply 拥有的连续只读 Trailer 数组。 */
-XRT_API const xhttpfield* xrtHttpReplyTrailerData(
+XHTTP_API const xhttpfield* xrtHttpReplyTrailerData(
 	const xhttpreply* pReply
 )
 {
@@ -556,7 +573,7 @@ XRT_API const xhttpfield* xrtHttpReplyTrailerData(
 
 
 /* 返回指定位置的 Trailer。 */
-XRT_API const xhttpfield* xrtHttpReplyTrailerAt(
+XHTTP_API const xhttpfield* xrtHttpReplyTrailerAt(
 	const xhttpreply* pReply,
 	size_t iIndex
 )
@@ -568,7 +585,7 @@ XRT_API const xhttpfield* xrtHttpReplyTrailerAt(
 
 
 /* 返回只读 Trailer 容器而不触发创建。 */
-XRT_API const xhttpheaders* xrtHttpReplyTrailers(
+XHTTP_API const xhttpheaders* xrtHttpReplyTrailers(
 	const xhttpreply* pReply
 )
 {
@@ -578,10 +595,10 @@ XRT_API const xhttpheaders* xrtHttpReplyTrailers(
 
 
 /* 按需创建并返回可修改 Trailer 容器。 */
-XRT_API xhttpheaders* xrtHttpReplyEditTrailers(xhttpreply* pReply)
+XHTTP_API xhttpheaders* xrtHttpReplyEditTrailers(xhttpreply* pReply)
 {
 	if ( pReply == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	return __xrtHttpReplyFieldsCreate(
@@ -592,7 +609,7 @@ XRT_API xhttpheaders* xrtHttpReplyEditTrailers(xhttpreply* pReply)
 
 
 /* 替换正文并保留独立引用。 */
-XRT_API bool xrtHttpReplySetBody(
+XHTTP_API bool xrtHttpReplySetBody(
 	xhttpreply* pReply,
 	xhttpbody* pBody
 )
@@ -600,7 +617,7 @@ XRT_API bool xrtHttpReplySetBody(
 	xhttpbody* pNext = NULL;
 
 	if ( pReply == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pBody != NULL ) {
@@ -617,7 +634,7 @@ XRT_API bool xrtHttpReplySetBody(
 
 
 /* 复制常用完整正文，并可同时设置 Content-Type。 */
-XRT_API bool xrtHttpReplySetBytes(
+XHTTP_API bool xrtHttpReplySetBytes(
 	xhttpreply* pReply,
 	xbytesview Data,
 	xstrview ContentType
@@ -626,7 +643,7 @@ XRT_API bool xrtHttpReplySetBytes(
 	xhttpbody* pBody;
 
 	if ( pReply == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	pBody = xrtHttpBodyCopy(Data);
@@ -650,7 +667,7 @@ XRT_API bool xrtHttpReplySetBytes(
 
 
 /* 返回借用正文对象。 */
-XRT_API xhttpbody* xrtHttpReplyBody(const xhttpreply* pReply)
+XHTTP_API xhttpbody* xrtHttpReplyBody(const xhttpreply* pReply)
 {
 	return pReply != NULL ? pReply->Body : NULL;
 }

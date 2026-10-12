@@ -195,7 +195,7 @@ bool __xrtHttpExtValueSplit(
 
 
 /* 严格解析 RFC 8187 扩展值并原子发布借用视图。 */
-XRT_API bool xrtHttpExtValueParse(
+XHTTP_API bool xrtHttpExtValueParse(
 	xstrview Text,
 	xhttpextvalue* pValue
 )
@@ -221,7 +221,7 @@ XRT_API bool xrtHttpExtValueParse(
 
 
 /* 严格解码 RFC 8187 扩展值。 */
-XRT_API bool xrtHttpExtValueRead(
+XHTTP_API bool xrtHttpExtValueRead(
 	const xhttpextvalue* pInput,
 	void* pOutput,
 	size_t iCapacity,
@@ -266,7 +266,7 @@ XRT_API bool xrtHttpExtValueRead(
 
 
 /* 写出 RFC 8187 扩展值。 */
-XRT_API bool xrtHttpExtValueWrite(
+XHTTP_API bool xrtHttpExtValueWrite(
 	xstrview Charset,
 	xstrview Language,
 	xbytesview Value,
@@ -365,7 +365,7 @@ XRT_API bool xrtHttpExtValueWrite(
 
 
 /* 构建零结尾 RFC 8187 扩展值。 */
-XRT_API str xrtHttpExtValueBuild(
+XHTTP_API str xrtHttpExtValueBuild(
 	xstrview Charset,
 	xstrview Language,
 	xbytesview Value,

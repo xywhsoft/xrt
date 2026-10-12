@@ -8,6 +8,8 @@ lead: Both ends of the three schemes: Basic's plaintext baseline, Bearer's token
 api: xhttp-http_auth, xhttp-http_server, xhttp-http_digest
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 "Add some auth" in HTTP is a selection question across three scheme families. **Basic**: `Authorization: Basic base64(用户:密码)` (username:password) — plaintext (an acceptable form only under TLS), one line per end. **Bearer**: `Authorization: Bearer <令牌>` (token) — the vehicle of the OAuth2/JWT era; the client's only job is to carry it. **Digest**: the server issues a nonce challenge, the client answers with `H(用户:域:密码)` (user:realm:password) — a challenge-response protocol where **the password never travels the wire**, with built-in replay defense (nonce + nc counting); the server manages nonce lifetimes, the replay table, and the `Authentication-Info` receipt. xhttp implements both ends of all three schemes as structured APIs: client-side construction (`xrtHttpBasicWrite`/`BearerWrite`/the Digest response), server-side reading (`xrtHttpServerRequestBasicAuth/BearerAuth/DigestAuth` three states), and Digest's full verification chain (`xrtHttpDigestVerify`'s four verify states + a thread-safe replay table). Chapter 105's auth middleware is assembled from these.
@@ -59,7 +61,7 @@ The program below is from `examples/http/auth` — structured reading of a multi
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/auth/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_auth --exclude-test "*" --no-single --no-run
 Digest
 Basic
 ```
@@ -74,7 +76,7 @@ The second program is from `examples/http/auth_basic` — client-side constructi
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/auth_basic/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_auth_basic --exclude-test "*" --no-single --no-run
 Basic QWxhZGRpbjpvcGVuIHNlc2VtZQ==
 ```
 

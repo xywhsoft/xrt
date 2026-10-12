@@ -14,7 +14,7 @@ void __xrtHttpServerRequestSetError(
 	const xerror* pCause
 )
 {
-	__xrtErrorSetDetail(
+	__xhttpErrorSetDetail(
 		Kind,
 		"xrt.http.server.request",
 		(int32)Code,
@@ -34,7 +34,7 @@ void __xrtHttpServerRequestWrapError(
 	cstr sMessage
 )
 {
-	__xrtErrorWrapDetail(
+	__xhttpErrorWrapDetail(
 		DefaultKind,
 		"xrt.http.server.request",
 		(int32)Code,
@@ -46,33 +46,33 @@ void __xrtHttpServerRequestWrapError(
 
 
 /* 验证调用方输出不会破坏不透明请求拥有的任何内存。 */
-bool __xrtHttpServerRequestOutputValid(
+XHTTP_API bool xrtHttpBridgeServerRequestOutputValid(
 	const xhttpserverrequest* pRequest,
 	const void* pOutput,
 	size_t iSize
 )
 {
-	if ( !__xrtRangeValid(pOutput, iSize) ) {
+	if ( !xrtMemRangeValid(pOutput, iSize) ) {
 		return false;
 	}
 	if ( (pRequest == NULL) || (iSize == 0) ) {
 		return true;
 	}
-	return !__xrtRangesOverlap(
+	return !xrtMemRangesOverlap(
 		pOutput, iSize, pRequest, sizeof(*pRequest)
-	) && !__xrtRangesOverlap(
+	) && !xrtMemRangesOverlap(
 		pOutput, iSize,
 		pRequest->Method.Data, pRequest->Method.Size
-	) && !__xrtRangesOverlap(
+	) && !xrtMemRangesOverlap(
 		pOutput, iSize,
 		pRequest->Target.Data, pRequest->Target.Size
-	) && !__xrtHttpFieldArrayOverlap(
+	) && !__xhttpFieldArrayOverlap(
 		pRequest->Fields, pRequest->FieldCount,
 		pOutput, iSize
-	) && !__xrtRangesOverlap(
+	) && !xrtMemRangesOverlap(
 		pOutput, iSize,
 		pRequest->Body, pRequest->BodySize
-	) && !__xrtHttpFieldArrayOverlap(
+	) && !__xhttpFieldArrayOverlap(
 		pRequest->Trailers, pRequest->TrailerCount,
 		pOutput, iSize
 	);
@@ -90,7 +90,7 @@ bool __xrtHttpServerRequestBufferedBody(
 	xbytesview Body;
 
 	if ( (pRequest == NULL) ||
-		!__xrtHttpServerRequestOutputValid(
+		!xrtHttpBridgeServerRequestOutputValid(
 			pRequest, pBody, sizeof(Body)
 		) ) {
 		__xrtHttpServerRequestSetError(
@@ -143,7 +143,7 @@ static bool __xrtHttpServerRequestSizeAdd(
 {
 	if ( (pTotal == NULL) ||
 		(*pTotal > (SIZE_MAX - iValue)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	*pTotal += iValue;
@@ -161,9 +161,9 @@ static bool __xrtHttpServerRequestTextSize(
 	size_t iSize = 0;
 	size_t i;
 
-	if ( !__xrtHttpViewValid(pHead->Method) ||
-		!__xrtHttpViewValid(pHead->Target) ||
-		!__xrtHttpFieldArrayValid(
+	if ( !__xhttpViewValid(pHead->Method) ||
+		!__xhttpViewValid(pHead->Target) ||
+		!__xhttpFieldArrayValid(
 			pHead->Fields,
 			pHead->FieldCount
 		) ) {
@@ -234,13 +234,13 @@ xhttpserverrequest* __xrtHttpServerRequestCreate(
 			pHead, &iTextBytes
 		) ) {
 		if ( (pHead == NULL) || (pPlan == NULL) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 		}
 		return NULL;
 	}
 	if ( pHead->FieldCount >
 		(SIZE_MAX / sizeof(xhttpfield)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	iFieldBytes = pHead->FieldCount * sizeof(xhttpfield);
@@ -334,7 +334,7 @@ bool __xrtHttpServerRequestAppendBody(
 		((Data.Data == NULL) && (Data.Size != 0)) ||
 		((pRequest->Flags &
 		  XHTTP_SERVER_REQUEST_STREAMED) != 0) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( Data.Size == 0 ) {
@@ -343,7 +343,7 @@ bool __xrtHttpServerRequestAppendBody(
 	if ( (pRequest->BodySize > (SIZE_MAX - Data.Size)) ||
 		(pRequest->BodyBytes >
 		 (UINT64_MAX - (uint64)Data.Size)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iRequired = pRequest->BodySize + Data.Size;
@@ -373,11 +373,11 @@ bool __xrtHttpServerRequestDeliverBody(
 	if ( (pRequest == NULL) ||
 		((pRequest->Flags &
 		  XHTTP_SERVER_REQUEST_STREAMED) == 0) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pRequest->BodyBytes > (UINT64_MAX - iBytes) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	pRequest->BodyBytes += iBytes;
@@ -397,7 +397,7 @@ static bool __xrtHttpServerRequestTrailerSize(
 	size_t iText = 0;
 	size_t i;
 
-	if ( !__xrtHttpFieldArrayValid(pTrailers, iCount) ) {
+	if ( !__xhttpFieldArrayValid(pTrailers, iCount) ) {
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
@@ -439,7 +439,7 @@ bool __xrtHttpServerRequestSetTrailers(
 			&iTextBytes
 		) ) {
 		if ( pRequest == NULL ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 		}
 		return false;
 	}
@@ -489,16 +489,16 @@ void __xrtHttpServerRequestSetFlags(
 
 
 /* 增加线程安全请求引用。 */
-XRT_API xhttpserverrequest* xrtHttpServerRequestRef(
+XHTTP_API xhttpserverrequest* xrtHttpServerRequestRef(
 	xhttpserverrequest* pRequest
 )
 {
 	if ( (pRequest == NULL) ||
 		(xrtRefRetain(&pRequest->RefCount) < 0) ) {
 		if ( pRequest == NULL ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 		} else {
-			__xrtErrorSetInvalidState();
+			xrtSetErrorKind(XERR_STATE);
 		}
 		return NULL;
 	}
@@ -508,7 +508,7 @@ XRT_API xhttpserverrequest* xrtHttpServerRequestRef(
 
 
 /* 释放最后一个请求引用和按需分配的资产。 */
-XRT_API void xrtHttpServerRequestDestroy(
+XHTTP_API void xrtHttpServerRequestDestroy(
 	xhttpserverrequest* pRequest
 )
 {
@@ -525,7 +525,7 @@ XRT_API void xrtHttpServerRequestDestroy(
 
 
 /* 返回请求版本。 */
-XRT_API xhttpversion xrtHttpServerRequestVersion(
+XHTTP_API xhttpversion xrtHttpServerRequestVersion(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -535,7 +535,7 @@ XRT_API xhttpversion xrtHttpServerRequestVersion(
 
 
 /* 返回借用请求方法。 */
-XRT_API xstrview xrtHttpServerRequestMethod(
+XHTTP_API xstrview xrtHttpServerRequestMethod(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -546,7 +546,7 @@ XRT_API xstrview xrtHttpServerRequestMethod(
 
 
 /* 返回借用 request-target。 */
-XRT_API xstrview xrtHttpServerRequestTarget(
+XHTTP_API xstrview xrtHttpServerRequestTarget(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -557,22 +557,22 @@ XRT_API xstrview xrtHttpServerRequestTarget(
 
 
 /* 解析请求快照拥有的 request-target。 */
-XRT_API bool xrtHttpServerRequestParseTarget(
+XHTTP_API bool xrtHttpServerRequestParseTarget(
 	const xhttpserverrequest* pRequest,
 	xhttptarget* pTarget
 )
 {
 	xhttptarget Target = { 0 };
 
-	if ( !__xrtHttpServerRequestOutputValid(
+	if ( !xrtHttpBridgeServerRequestOutputValid(
 		pRequest, pTarget, sizeof(Target)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pTarget, &Target, sizeof(Target));
 	if ( pRequest == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return xrtHttpTargetParse(
@@ -585,7 +585,7 @@ XRT_API bool xrtHttpServerRequestParseTarget(
 
 
 /* 按 request-target 形式返回有效 authority。 */
-XRT_API bool xrtHttpServerRequestAuthority(
+XHTTP_API bool xrtHttpServerRequestAuthority(
 	const xhttpserverrequest* pRequest,
 	xhttpauthority* pAuthority
 )
@@ -595,10 +595,10 @@ XRT_API bool xrtHttpServerRequestAuthority(
 	xhttpauthority Authority = { 0 };
 	xstrview Host = { NULL, 0 };
 
-	if ( !__xrtHttpServerRequestOutputValid(
+	if ( !xrtHttpBridgeServerRequestOutputValid(
 		pRequest, pAuthority, sizeof(Authority)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pAuthority, &Authority, sizeof(Authority));
@@ -624,7 +624,7 @@ XRT_API bool xrtHttpServerRequestAuthority(
 
 
 /* 返回请求稳定标志。 */
-XRT_API uint32 xrtHttpServerRequestFlags(
+XHTTP_API uint32 xrtHttpServerRequestFlags(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -635,7 +635,7 @@ XRT_API uint32 xrtHttpServerRequestFlags(
 
 
 /* 返回由 Exchange 验证并冻结的 Trailer 接收能力。 */
-XRT_API bool xrtHttpServerRequestAcceptsTrailers(
+XHTTP_API bool xrtHttpServerRequestAcceptsTrailers(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -647,7 +647,7 @@ XRT_API bool xrtHttpServerRequestAcceptsTrailers(
 
 
 /* 返回正文分帧模式。 */
-XRT_API xhttp1bodymode xrtHttpServerRequestBodyMode(
+XHTTP_API xhttp1bodymode xrtHttpServerRequestBodyMode(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -658,7 +658,7 @@ XRT_API xhttp1bodymode xrtHttpServerRequestBodyMode(
 
 
 /* 只对定长正文返回声明长度。 */
-XRT_API uint64 xrtHttpServerRequestContentLength(
+XHTTP_API uint64 xrtHttpServerRequestContentLength(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -670,7 +670,7 @@ XRT_API uint64 xrtHttpServerRequestContentLength(
 
 
 /* 查找首个同名 Header。 */
-XRT_API const xhttpfield* xrtHttpServerRequestHeader(
+XHTTP_API const xhttpfield* xrtHttpServerRequestHeader(
 	const xhttpserverrequest* pRequest,
 	xstrview Name
 )
@@ -686,7 +686,7 @@ XRT_API const xhttpfield* xrtHttpServerRequestHeader(
 
 
 /* 返回 Header 数量。 */
-XRT_API size_t xrtHttpServerRequestHeaderCount(
+XHTTP_API size_t xrtHttpServerRequestHeaderCount(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -696,7 +696,7 @@ XRT_API size_t xrtHttpServerRequestHeaderCount(
 
 
 /* 返回请求拥有的连续只读 Header 数组。 */
-XRT_API const xhttpfield* xrtHttpServerRequestHeaderData(
+XHTTP_API const xhttpfield* xrtHttpServerRequestHeaderData(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -708,7 +708,7 @@ XRT_API const xhttpfield* xrtHttpServerRequestHeaderData(
 
 
 /* 返回指定位置的 Header。 */
-XRT_API const xhttpfield* xrtHttpServerRequestHeaderAt(
+XHTTP_API const xhttpfield* xrtHttpServerRequestHeaderAt(
 	const xhttpserverrequest* pRequest,
 	size_t iIndex
 )
@@ -721,7 +721,7 @@ XRT_API const xhttpfield* xrtHttpServerRequestHeaderAt(
 
 
 /* 返回缓冲正文；流式请求不持有正文副本。 */
-XRT_API xbytesview xrtHttpServerRequestBody(
+XHTTP_API xbytesview xrtHttpServerRequestBody(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -739,7 +739,7 @@ XRT_API xbytesview xrtHttpServerRequestBody(
 
 
 /* 返回已交付正文总字节数。 */
-XRT_API uint64 xrtHttpServerRequestBodyBytes(
+XHTTP_API uint64 xrtHttpServerRequestBodyBytes(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -749,7 +749,7 @@ XRT_API uint64 xrtHttpServerRequestBodyBytes(
 
 
 /* 查找首个同名 Trailer。 */
-XRT_API const xhttpfield* xrtHttpServerRequestTrailer(
+XHTTP_API const xhttpfield* xrtHttpServerRequestTrailer(
 	const xhttpserverrequest* pRequest,
 	xstrview Name
 )
@@ -765,7 +765,7 @@ XRT_API const xhttpfield* xrtHttpServerRequestTrailer(
 
 
 /* 返回 Trailer 数量。 */
-XRT_API size_t xrtHttpServerRequestTrailerCount(
+XHTTP_API size_t xrtHttpServerRequestTrailerCount(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -775,7 +775,7 @@ XRT_API size_t xrtHttpServerRequestTrailerCount(
 
 
 /* 返回请求拥有的连续只读 Trailer 数组。 */
-XRT_API const xhttpfield* xrtHttpServerRequestTrailerData(
+XHTTP_API const xhttpfield* xrtHttpServerRequestTrailerData(
 	const xhttpserverrequest* pRequest
 )
 {
@@ -787,7 +787,7 @@ XRT_API const xhttpfield* xrtHttpServerRequestTrailerData(
 
 
 /* 返回指定位置的 Trailer。 */
-XRT_API const xhttpfield* xrtHttpServerRequestTrailerAt(
+XHTTP_API const xhttpfield* xrtHttpServerRequestTrailerAt(
 	const xhttpserverrequest* pRequest,
 	size_t iIndex
 )

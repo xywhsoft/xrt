@@ -1785,6 +1785,13 @@ XRT_API bool xrtNetEnginePost(xnetengine* pEngine,
 
 
 
+/* Internal absolute timer entry used by independently built extensions. */
+#if (defined(XRT_FEATURE_NET_ENGINE))
+XRT_API uint64 __xrtNetEngineSchedule(xnetengine* pEngine,
+	uint64 iAffinity, double iDeadline,
+	xnettimerproc pProc, ptr pData);
+#endif
+
 /* 按单调时钟截止时间调度 Timer；成功返回非零 ID。 */
 XRT_API uint64 xrtNetEngineSchedule(xnetengine* pEngine,
 	uint64 iAffinity, int64 iTimeout,

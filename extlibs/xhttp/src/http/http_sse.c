@@ -18,7 +18,7 @@
 static bool __xrtHttpSseSizeAdd(size_t* pSize, size_t iAdd)
 {
 	if ( iAdd > (SIZE_MAX - *pSize) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	*pSize += iAdd;
@@ -36,7 +36,7 @@ static bool __xrtHttpSseTextValid(
 {
 	size_t i;
 
-	if ( !__xrtHttpViewValid(Text) ||
+	if ( !__xhttpViewValid(Text) ||
 		!xrtUtf8Valid(Text, NULL) ) {
 		return false;
 	}
@@ -163,7 +163,7 @@ static bool __xrtHttpSseEventResolve(
 	xhttpsseevent* pValue
 )
 {
-	if ( !__xrtRangeValid(pEvent, sizeof(*pValue)) ) {
+	if ( !xrtMemRangeValid(pEvent, sizeof(*pValue)) ) {
 		return false;
 	}
 	memcpy(pValue, pEvent, sizeof(*pValue));
@@ -205,7 +205,7 @@ static bool __xrtHttpSseEventMeasure(
 	}
 	if ( (pEvent->Flags & XHTTP_SSE_EVENT_RETRY) != 0 ) {
 		if ( !__xrtHttpSseFieldSize(
-			5u, __xrtHttpUInt64Size(pEvent->Retry), &iRequired
+			5u, __xhttpUInt64Size(pEvent->Retry), &iRequired
 		) ) {
 			return false;
 		}
@@ -224,7 +224,7 @@ static bool __xrtHttpSseEventMeasure(
 
 
 /* 判断事件字段及其显式存在标志一致。 */
-XRT_API bool xrtHttpSseEventValid(const xhttpsseevent* pEvent)
+XHTTP_API bool xrtHttpSseEventValid(const xhttpsseevent* pEvent)
 {
 	xhttpsseevent Event;
 
@@ -234,7 +234,7 @@ XRT_API bool xrtHttpSseEventValid(const xhttpsseevent* pEvent)
 
 
 /* 精确计算一个完整事件块。 */
-XRT_API bool xrtHttpSseEventSize(
+XHTTP_API bool xrtHttpSseEventSize(
 	const xhttpsseevent* pEvent,
 	size_t* pSize
 )
@@ -243,23 +243,23 @@ XRT_API bool xrtHttpSseEventSize(
 	size_t iRequired;
 
 	if ( !__xrtHttpSseEventResolve(pEvent, &Event) ||
-		!__xrtRangeValid(pSize, sizeof(iRequired)) ||
-		__xrtRangesOverlap(
+		!xrtMemRangeValid(pSize, sizeof(iRequired)) ||
+		xrtMemRangesOverlap(
 			pSize, sizeof(iRequired), pEvent, sizeof(Event)
 		) || (((Event.Flags & XHTTP_SSE_EVENT_TYPE) != 0) &&
-			__xrtRangesOverlap(
+			xrtMemRangesOverlap(
 				pSize, sizeof(iRequired),
 				Event.Type.Data, Event.Type.Size
 			)) || (((Event.Flags & XHTTP_SSE_EVENT_DATA) != 0) &&
-			__xrtRangesOverlap(
+			xrtMemRangesOverlap(
 				pSize, sizeof(iRequired),
 				Event.Data.Data, Event.Data.Size
 			)) || (((Event.Flags & XHTTP_SSE_EVENT_ID) != 0) &&
-			__xrtRangesOverlap(
+			xrtMemRangesOverlap(
 				pSize, sizeof(iRequired),
 				Event.Id.Data, Event.Id.Size
 			)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpSseEventMeasure(&Event, &iRequired) ) {
@@ -280,28 +280,28 @@ static bool __xrtHttpSseEventOutputValid(
 	const size_t* pSize
 )
 {
-	if ( !__xrtRangeValid(pOutput, iSize) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, iSize) ||
+		xrtMemRangesOverlap(
 			pOutput, iSize, pSource, sizeof(*pEvent)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iSize, pSize, sizeof(*pSize)
 		) ) {
 		return false;
 	}
 	if ( ((pEvent->Flags & XHTTP_SSE_EVENT_TYPE) != 0) &&
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pOutput, iSize, pEvent->Type.Data, pEvent->Type.Size
 		) ) {
 		return false;
 	}
 	if ( ((pEvent->Flags & XHTTP_SSE_EVENT_DATA) != 0) &&
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pOutput, iSize, pEvent->Data.Data, pEvent->Data.Size
 		) ) {
 		return false;
 	}
 	if ( ((pEvent->Flags & XHTTP_SSE_EVENT_ID) != 0) &&
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pOutput, iSize, pEvent->Id.Data, pEvent->Id.Size
 		) ) {
 		return false;
@@ -318,28 +318,28 @@ static bool __xrtHttpSseEventSizeValid(
 	const size_t* pSize
 )
 {
-	if ( !__xrtRangeValid(pSize, sizeof(*pSize)) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pSize, sizeof(*pSize)) ||
+		xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), pSource, sizeof(*pEvent)
 		) ) {
 		return false;
 	}
 	if ( ((pEvent->Flags & XHTTP_SSE_EVENT_TYPE) != 0) &&
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSize, sizeof(*pSize),
 			pEvent->Type.Data, pEvent->Type.Size
 		) ) {
 		return false;
 	}
 	if ( ((pEvent->Flags & XHTTP_SSE_EVENT_DATA) != 0) &&
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSize, sizeof(*pSize),
 			pEvent->Data.Data, pEvent->Data.Size
 		) ) {
 		return false;
 	}
 	if ( ((pEvent->Flags & XHTTP_SSE_EVENT_ID) != 0) &&
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSize, sizeof(*pSize),
 			pEvent->Id.Data, pEvent->Id.Size
 		) ) {
@@ -351,7 +351,7 @@ static bool __xrtHttpSseEventSizeValid(
 
 
 /* 写出一个完整事件块。 */
-XRT_API bool xrtHttpSseEventWrite(
+XHTTP_API bool xrtHttpSseEventWrite(
 	const xhttpsseevent* pEvent,
 	void* pOutput,
 	size_t iCapacity,
@@ -366,7 +366,7 @@ XRT_API bool xrtHttpSseEventWrite(
 
 	if ( !__xrtHttpSseEventResolve(pEvent, &Event) ||
 		!__xrtHttpSseEventSizeValid(pEvent, &Event, pSize) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpSseEventMeasure(&Event, &iRequired) ) {
@@ -374,7 +374,7 @@ XRT_API bool xrtHttpSseEventWrite(
 	}
 	if ( pOutput == NULL ) {
 		if ( iCapacity != 0 ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 		memcpy(pSize, &iRequired, sizeof(iRequired));
@@ -383,12 +383,12 @@ XRT_API bool xrtHttpSseEventWrite(
 	if ( !__xrtHttpSseEventOutputValid(
 		pEvent, &Event, pOutput, iRequired, pSize
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pSize, &iRequired, sizeof(iRequired));
 	if ( iCapacity < iRequired ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 
@@ -403,7 +403,7 @@ XRT_API bool xrtHttpSseEventWrite(
 		);
 	}
 	if ( (Event.Flags & XHTTP_SSE_EVENT_RETRY) != 0 ) {
-		size_t iRetry = __xrtHttpUInt64Write(
+		size_t iRetry = __xhttpUInt64Write(
 			arrRetry, Event.Retry
 		);
 
@@ -427,7 +427,7 @@ XRT_API bool xrtHttpSseEventWrite(
 
 
 /* 构建零结尾事件块。 */
-XRT_API str xrtHttpSseEventBuild(
+XHTTP_API str xrtHttpSseEventBuild(
 	const xhttpsseevent* pEvent,
 	size_t* pSize
 )
@@ -439,7 +439,7 @@ XRT_API str xrtHttpSseEventBuild(
 	if ( !__xrtHttpSseEventResolve(pEvent, &Event) ||
 		((pSize != NULL) &&
 		 !__xrtHttpSseEventSizeValid(pEvent, &Event, pSize)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtHttpSseEventWrite(
@@ -448,7 +448,7 @@ XRT_API str xrtHttpSseEventBuild(
 		return NULL;
 	}
 	if ( iSize == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	sOutput = (str)xrtMalloc(iSize + 1u);
@@ -471,19 +471,19 @@ XRT_API str xrtHttpSseEventBuild(
 
 
 /* 精确计算注释心跳。 */
-XRT_API bool xrtHttpSseCommentSize(
+XHTTP_API bool xrtHttpSseCommentSize(
 	xstrview Comment,
 	size_t* pSize
 )
 {
 	size_t iRequired = 0;
 
-	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ||
+	if ( !xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		!__xrtHttpSseTextValid(Comment, true, true) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSize, sizeof(iRequired), Comment.Data, Comment.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpSseLinesSize(0, Comment, &iRequired) ) {
@@ -496,7 +496,7 @@ XRT_API bool xrtHttpSseCommentSize(
 
 
 /* 写出一条或多条注释心跳。 */
-XRT_API bool xrtHttpSseCommentWrite(
+XHTTP_API bool xrtHttpSseCommentWrite(
 	xstrview Comment,
 	void* pOutput,
 	size_t iCapacity,
@@ -505,12 +505,12 @@ XRT_API bool xrtHttpSseCommentWrite(
 {
 	size_t iRequired = 0;
 
-	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ||
+	if ( !xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		!__xrtHttpSseTextValid(Comment, true, true) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 		pSize, sizeof(iRequired), Comment.Data, Comment.Size
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpSseLinesSize(0, Comment, &iRequired) ) {
@@ -518,24 +518,24 @@ XRT_API bool xrtHttpSseCommentWrite(
 	}
 	if ( pOutput == NULL ) {
 		if ( iCapacity != 0 ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, iRequired) ||
+		xrtMemRangesOverlap(
 		pOutput, iRequired, Comment.Data, Comment.Size
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOutput, iRequired, pSize, sizeof(*pSize)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pSize, &iRequired, sizeof(iRequired));
 	if ( iCapacity < iRequired ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	(void)__xrtHttpSseLinesWrite(
@@ -547,7 +547,7 @@ XRT_API bool xrtHttpSseCommentWrite(
 
 
 /* 构建零结尾注释心跳。 */
-XRT_API str xrtHttpSseCommentBuild(
+XHTTP_API str xrtHttpSseCommentBuild(
 	xstrview Comment,
 	size_t* pSize
 )
@@ -556,11 +556,11 @@ XRT_API str xrtHttpSseCommentBuild(
 	size_t iSize;
 
 	if ( (pSize != NULL) &&
-		(!__xrtRangeValid(pSize, sizeof(*pSize)) ||
-		 __xrtRangesOverlap(
+		(!xrtMemRangeValid(pSize, sizeof(*pSize)) ||
+		 xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), Comment.Data, Comment.Size
 		 )) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtHttpSseCommentWrite(
@@ -569,7 +569,7 @@ XRT_API str xrtHttpSseCommentBuild(
 		return NULL;
 	}
 	if ( iSize == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	sOutput = (str)xrtMalloc(iSize + 1u);
@@ -592,7 +592,7 @@ XRT_API str xrtHttpSseCommentBuild(
 
 
 /* 判断 Last-Event-ID 是否可安全复用为请求字段值。 */
-XRT_API bool xrtHttpSseLastEventIdValid(xstrview Id)
+XHTTP_API bool xrtHttpSseLastEventIdValid(xstrview Id)
 {
 	return __xrtHttpSseTextValid(Id, false, false);
 }

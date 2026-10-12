@@ -42,15 +42,15 @@ static bool __xrtHttpViaValueMeasure(
 	size_t i;
 
 	memcpy(pVia, pInput, sizeof(*pVia));
-	if ( !__xrtHttpViewValid(pVia->ProtocolName) ||
-		!__xrtHttpViewValid(pVia->ProtocolVersion) ||
-		!__xrtHttpViewValid(pVia->Pseudonym) ||
-		!__xrtHttpViewValid(pVia->Port) ||
-		!__xrtHttpViewValid(pVia->Comment) ||
+	if ( !__xhttpViewValid(pVia->ProtocolName) ||
+		!__xhttpViewValid(pVia->ProtocolVersion) ||
+		!__xhttpViewValid(pVia->Pseudonym) ||
+		!__xhttpViewValid(pVia->Port) ||
+		!__xhttpViewValid(pVia->Comment) ||
 		((pVia->Flags & ~iKnown) != 0) ||
 		!xrtHttpTokenValid(pVia->ProtocolVersion) ||
 		!xrtHttpTokenValid(pVia->Pseudonym) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( ((pVia->Flags & XHTTP_VIA_HAS_PROTOCOL_NAME) != 0) !=
@@ -59,19 +59,19 @@ static bool __xrtHttpViaValueMeasure(
 		 (pVia->Port.Size != 0)) ||
 		(((pVia->Flags & XHTTP_VIA_HAS_COMMENT) == 0) &&
 		 (pVia->Comment.Size != 0)) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	if ( ((pVia->Flags & XHTTP_VIA_HAS_PROTOCOL_NAME) != 0) &&
 		!xrtHttpTokenValid(pVia->ProtocolName) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	if ( (pVia->Flags & XHTTP_VIA_HAS_PORT) != 0 ) {
 		for ( i = 0; i < pVia->Port.Size; i++ ) {
 			if ( (pVia->Port.Data[i] < '0') ||
 				(pVia->Port.Data[i] > '9') ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 		}
@@ -81,40 +81,40 @@ static bool __xrtHttpViaValueMeasure(
 			uint8 iByte = (uint8)pVia->Comment.Data[i];
 
 			if ( !__xrtHttpViaCommentValueByte(iByte) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
-			if ( !__xrtHttpSizeAdd(
+			if ( !__xhttpSizeAdd(
 				&iRequired,
 				__xrtHttpViaCommentEscape(iByte) ? 2u : 1u
 			) ) {
 				return false;
 			}
 		}
-		if ( !__xrtHttpSizeAdd(&iRequired, 3u) ) {
+		if ( !__xhttpSizeAdd(&iRequired, 3u) ) {
 			return false;
 		}
 	}
-	if ( !__xrtHttpSizeAdd(
+	if ( !__xhttpSizeAdd(
 		&iRequired, pVia->ProtocolVersion.Size
-	) || !__xrtHttpSizeAdd(
+	) || !__xhttpSizeAdd(
 		&iRequired, pVia->Pseudonym.Size
-	) || !__xrtHttpSizeAdd(
+	) || !__xhttpSizeAdd(
 		&iRequired, 1u
 	) ) {
 		return false;
 	}
 	if ( (pVia->Flags & XHTTP_VIA_HAS_PROTOCOL_NAME) != 0 ) {
-		if ( !__xrtHttpSizeAdd(
+		if ( !__xhttpSizeAdd(
 			&iRequired, pVia->ProtocolName.Size
-		) || !__xrtHttpSizeAdd(&iRequired, 1u) ) {
+		) || !__xhttpSizeAdd(&iRequired, 1u) ) {
 			return false;
 		}
 	}
 	if ( (pVia->Flags & XHTTP_VIA_HAS_PORT) != 0 ) {
-		if ( !__xrtHttpSizeAdd(
+		if ( !__xhttpSizeAdd(
 			&iRequired, pVia->Port.Size
-		) || !__xrtHttpSizeAdd(&iRequired, 1u) ) {
+		) || !__xhttpSizeAdd(&iRequired, 1u) ) {
 			return false;
 		}
 	}
@@ -135,26 +135,26 @@ static bool __xrtHttpViaValuesOverlap(
 	xhttpviavalue Via;
 	size_t i;
 
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pVia, iCount * sizeof(*pVia), pMemory, iSize
 	) ) {
 		return true;
 	}
 	for ( i = 0; i < iCount; i++ ) {
 		memcpy(&Via, pVia + i, sizeof(Via));
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			Via.ProtocolName.Data, Via.ProtocolName.Size,
 			pMemory, iSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Via.ProtocolVersion.Data, Via.ProtocolVersion.Size,
 			pMemory, iSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Via.Pseudonym.Data, Via.Pseudonym.Size,
 			pMemory, iSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Via.Port.Data, Via.Port.Size,
 			pMemory, iSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Via.Comment.Data, Via.Comment.Size,
 			pMemory, iSize
 		) ) {
@@ -225,7 +225,7 @@ static size_t __xrtHttpViaValueWrite(
 
 
 /* 规范写出一个或多个 Via 元素。 */
-XRT_API bool xrtHttpViaWrite(
+XHTTP_API bool xrtHttpViaWrite(
 	const xhttpviavalue* pVia,
 	size_t iCount,
 	void* pOutput,
@@ -242,37 +242,37 @@ XRT_API bool xrtHttpViaWrite(
 
 	if ( (iCount == 0) ||
 		(iCount > (SIZE_MAX / sizeof(*pVia))) ||
-		!__xrtRangeValid(
+		!xrtMemRangeValid(
 			pVia, iCount * sizeof(*pVia)
-		) || !__xrtRangeValid(pSize, sizeof(iRequired)) ||
+		) || !xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
 		((pOutput != NULL) &&
-		 !__xrtRangeValid(pOutput, iCapacity)) ) {
-		__xrtErrorSetInvalidArgument();
+		 !xrtMemRangeValid(pOutput, iCapacity)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( __xrtHttpViaValuesOverlap(
 		pVia, iCount, pSize, sizeof(iRequired)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
 		if ( !__xrtHttpViaValueMeasure(
 			pVia + i, &Via, &iElement
 		) || ((i != 0) &&
-			!__xrtHttpSizeAdd(&iRequired, 2u)) ||
-			!__xrtHttpSizeAdd(&iRequired, iElement) ) {
+			!__xhttpSizeAdd(&iRequired, 2u)) ||
+			!__xhttpSizeAdd(&iRequired, iElement) ) {
 			return false;
 		}
 	}
 	if ( (pOutput != NULL) &&
 		(__xrtHttpViaValuesOverlap(
 			pVia, iCount, pOutput, iRequired
-		 ) || __xrtRangesOverlap(
+		 ) || xrtMemRangesOverlap(
 			pOutput, iRequired, pSize, sizeof(iRequired)
 		 )) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pSize, &iRequired, sizeof(iRequired));
@@ -280,7 +280,7 @@ XRT_API bool xrtHttpViaWrite(
 		return true;
 	}
 	if ( iCapacity < iRequired ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
@@ -299,7 +299,7 @@ XRT_API bool xrtHttpViaWrite(
 
 
 /* 规范写出单个 Via 元素。 */
-XRT_API bool xrtHttpViaElementWrite(
+XHTTP_API bool xrtHttpViaElementWrite(
 	const xhttpviavalue* pVia,
 	void* pOutput,
 	size_t iCapacity,
@@ -314,7 +314,7 @@ XRT_API bool xrtHttpViaElementWrite(
 
 
 /* 构建零结尾 Via 字段值。 */
-XRT_API str xrtHttpViaBuild(
+XHTTP_API str xrtHttpViaBuild(
 	const xhttpviavalue* pVia,
 	size_t iCount,
 	size_t* pSize
@@ -324,14 +324,14 @@ XRT_API str xrtHttpViaBuild(
 	str sOutput;
 
 	if ( (pSize != NULL) &&
-		(!__xrtRangeValid(pSize, sizeof(*pSize)) ||
+		(!xrtMemRangeValid(pSize, sizeof(*pSize)) ||
 		 (iCount <= (SIZE_MAX / sizeof(*pVia)) &&
-		  __xrtRangeValid(
+		  xrtMemRangeValid(
 			pVia, iCount * sizeof(*pVia)
 		  ) && __xrtHttpViaValuesOverlap(
 			pVia, iCount, pSize, sizeof(*pSize)
 		  ))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtHttpViaWrite(
@@ -340,7 +340,7 @@ XRT_API str xrtHttpViaBuild(
 		return NULL;
 	}
 	if ( iRequired == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	sOutput = (str)xrtMalloc(iRequired + 1u);

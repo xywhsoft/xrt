@@ -76,7 +76,7 @@ static bool __xrtHttpReplyWrittenAuth(
 	xrt_http_reply_auth_consume_context Consume;
 
 	if ( (pReply == NULL) || (pWrite == NULL) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	Consume.Reply = pReply;
@@ -145,7 +145,7 @@ static bool __xrtHttpReplyAddChallenge(
 
 
 /* 追加源站 WWW-Authenticate challenge。 */
-XRT_API bool xrtHttpReplyAddChallenge(
+XHTTP_API bool xrtHttpReplyAddChallenge(
 	xhttpreply* pReply,
 	xstrview Scheme,
 	xstrview Data
@@ -162,7 +162,7 @@ XRT_API bool xrtHttpReplyAddChallenge(
 
 
 /* 追加代理 Proxy-Authenticate challenge。 */
-XRT_API bool xrtHttpReplyAddProxyChallenge(
+XHTTP_API bool xrtHttpReplyAddProxyChallenge(
 	xhttpreply* pReply,
 	xstrview Scheme,
 	xstrview Data

@@ -1,6 +1,7 @@
 #include "../../../dev/bench/bench_common.h"
 
-#define XHTTP_MODULE_XHTTP
+#define XHTTP_MODULE_URL
+#define XHTTP_MODULE_QUERY_CODEC
 #include <xhttp.h>
 
 

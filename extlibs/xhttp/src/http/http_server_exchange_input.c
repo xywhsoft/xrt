@@ -13,27 +13,27 @@ static bool __xrtHttp1ServerExchangeFeedValid(
 {
 	size_t iZero = 0;
 
-	if ( !__xrtRangeValid(pAccepted, sizeof(iZero)) ) {
+	if ( !xrtMemRangeValid(pAccepted, sizeof(iZero)) ) {
 		return false;
 	}
 	if ( pExchange == NULL ) {
 		memcpy(pAccepted, &iZero, sizeof(iZero));
 		return false;
 	}
-	if ( !__xrtRangeValid(Input.Data, Input.Size) ) {
+	if ( !xrtMemRangeValid(Input.Data, Input.Size) ) {
 		memcpy(pAccepted, &iZero, sizeof(iZero));
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pAccepted, sizeof(iZero), Input.Data, Input.Size
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pAccepted, sizeof(iZero), pExchange, sizeof(*pExchange)
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		Input.Data, Input.Size, pExchange, sizeof(*pExchange)
 	) || ((pExchange->Request != NULL) &&
-		(!__xrtHttpServerRequestOutputValid(
+		(!xrtHttpBridgeServerRequestOutputValid(
 			pExchange->Request, pAccepted, sizeof(iZero)
-		) || !__xrtHttpServerRequestOutputValid(
+		) || !xrtHttpBridgeServerRequestOutputValid(
 			pExchange->Request, Input.Data, Input.Size
 		))) ) {
 		return false;
@@ -89,7 +89,7 @@ static xhttp1serverfeedstatus __xrtHttp1ServerExchangeStable(
 
 
 /* 推进当前请求，并准确报告可以从连接缓冲移除的前缀。 */
-XRT_API xhttp1serverfeedstatus xrtHttp1ServerExchangeFeed(
+XHTTP_API xhttp1serverfeedstatus xrtHttp1ServerExchangeFeed(
 	xhttp1serverexchange* pExchange,
 	xbytesview Input,
 	bool bEnd,
@@ -102,7 +102,7 @@ XRT_API xhttp1serverfeedstatus xrtHttp1ServerExchangeFeed(
 	if ( !__xrtHttp1ServerExchangeFeedValid(
 		pExchange, Input, pAccepted
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP1_SERVER_FEED_ERROR;
 	}
 	if ( pExchange->InCallback ) {

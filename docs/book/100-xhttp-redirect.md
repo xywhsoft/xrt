@@ -8,6 +8,8 @@ lead: 301/302/303 的方法改写与 307/308 的正文重放、幂等判定的�
 api: xhttp-http_client, xhttp-http_retry, xhttp-cookie_jar
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 第 99 章的运行时之上叠着三个**自动行为层**——它们把"每个客户端都要写的胶水"变成配置开关。**重定向**（`http_client_redirect`）：默认最多十跳；301/302/303 后 POST 改 GET、307/308 保留方法但要求可重放正文；跨 origin 剥离凭据、HTTPS→HTTP 降级默认拒绝。**自动重试**（`http_client_retry`）：默认**关闭**——只有幂等方法且正文可重放才重试，退避尊重 `Retry-After`；"要不要重复副作用"的决策权归你。**自动 Cookie**（`http_client_cookies`）：Cookie Jar 挂进配置，Set-Cookie 自动进罐、后续请求自动带上。三个层各自独立裁剪、语义显式——"自动"不等于"魔法"，每一跳的行为都可预测、可诊断（第 99 章 Info 的 Wire 字段累计整条重定向链就是证据）。
@@ -35,7 +37,7 @@ api: xhttp-http_client, xhttp-http_retry, xhttp-cookie_jar
 
 ### 自动重试：幂等判定与三重条件
 
-重试一次必须同时满足：**额度未用完**（`MaxRetries`）、**方法幂等**（`xrtHttpMethodIdempotent()` 判定——GET/HEAD/PUT/DELETE 等安全可重试，POST 不在列）、**正文可重放**（存在正文时 `xhttpbody` 声明）。三条件缺一不可——这是技术护栏；业务护栏是你设置额度这个动作本身。退避计算复用纯协议模块 `http_retry`：指数退避（`BaseDelay`/`MaxDelay`）+ 尊重服务端 `Retry-After`。调用级四模式：`DEFAULT` 继承 Client / `DISABLED` 本次关 / `ENABLED`（Client 零额度时用默认上限）；配置错误（未知模式、零 MaxDelay、Base>Max）**在网络操作前失败**——启动期拦截。
+重试一次必须同时满足：**额度未用完**（`MaxRetries`）、**方法幂等**（`xrtHttpMethodIdempotent()` 判定——GET/HEAD/PUT/DELETE 等安全可重试，POST 不在列）、**正文可重放**（存在正文时 `xhttpbody` 声明）。三条件缺一不可——这是技术护栏；业务护栏是你设置额度这个动作本身。退避计算使用 xhttp-policy 的 `http_retry_policy`；Retry-After 的解析仍在 xhttp 的 `http_retry`：指数退避（`BaseDelay`/`MaxDelay`）+ 尊重服务端 `Retry-After`。调用级四模式：`DEFAULT` 继承 Client / `DISABLED` 本次关 / `ENABLED`（Client 零额度时用默认上限）；配置错误（未知模式、零 MaxDelay、Base>Max）**在网络操作前失败**——启动期拦截。
 
 ### 自动 Cookie：Jar 的挂载
 
@@ -51,11 +53,11 @@ api: xhttp-http_client, xhttp-http_retry, xhttp-cookie_jar
 
 下面的程序来自 `examples/http/client_retry`——默认关闭与显式启用的对照：
 
-```embed path="extlibs/xhttp/examples/http/client_retry/main.c" title="extlibs/xhttp/examples/http/client_retry/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_retry/main.c" title="extlibs/xhttp-client/examples/http/client_retry/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_retry/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_retry --exclude-test "*" --no-single --no-run
 retries=3 base=250000 max=5000000
 ```
 
@@ -65,11 +67,11 @@ retries=3 base=250000 max=5000000
 
 第二个程序来自 `examples/http/client_cookies`——自动 Cookie 的装配面：
 
-```embed path="extlibs/xhttp/examples/http/client_cookies/main.c" title="extlibs/xhttp/examples/http/client_cookies/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_cookies/main.c" title="extlibs/xhttp-client/examples/http/client_cookies/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_cookies/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_cookies --exclude-test "*" --no-single --no-run
 （示例校验 Jar 挂载后 Set-Cookie 自动进罐与后续自动携带路径）
 ```
 

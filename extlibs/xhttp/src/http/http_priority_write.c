@@ -49,7 +49,7 @@ static void __xrtHttpPriorityWriteEntry(
 
 
 /* 规范写出显式 Priority 参数。 */
-XRT_API bool xrtHttpPriorityWrite(
+XHTTP_API bool xrtHttpPriorityWrite(
 	const xhttppriority* pPriority,
 	void* pOutput,
 	size_t iCapacity,
@@ -60,13 +60,13 @@ XRT_API bool xrtHttpPriorityWrite(
 	xhttppriority Priority;
 	size_t iCount = 0;
 
-	if ( !__xrtRangeValid(pPriority, sizeof(Priority)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pPriority, sizeof(Priority)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Priority, pPriority, sizeof(Priority));
 	if ( !__xrtHttpPriorityWriteValid(&Priority) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( (Priority.Flags & XHTTP_PRIORITY_HAS_URGENCY) != 0 ) {

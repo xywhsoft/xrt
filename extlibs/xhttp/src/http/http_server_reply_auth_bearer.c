@@ -40,7 +40,7 @@ static bool __xrtHttpReplyAddBearerChallenge(
 
 
 /* 追加源站 Bearer challenge。 */
-XRT_API bool xrtHttpReplyAddBearerChallenge(
+XHTTP_API bool xrtHttpReplyAddBearerChallenge(
 	xhttpreply* pReply,
 	const xhttpbearerchallenge* pChallenge
 )
@@ -55,7 +55,7 @@ XRT_API bool xrtHttpReplyAddBearerChallenge(
 
 
 /* 追加代理 Bearer challenge。 */
-XRT_API bool xrtHttpReplyAddProxyBearerChallenge(
+XHTTP_API bool xrtHttpReplyAddProxyBearerChallenge(
 	xhttpreply* pReply,
 	const xhttpbearerchallenge* pChallenge
 )

@@ -8,6 +8,8 @@ lead: 注册顺序进、逆序退的洋葱模型、Next 的同步栈语义、静
 api: xhttp-http_server_middleware, xhttp-http_server_static, xhttp-http_server_router
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 业务路由之外的东西——日志、计时、鉴权、CORS、压缩——每个请求都要过一遍。`xrtHttpServerUse` 把它们注册为**中间件**：按注册顺序进入、按逆序退出（洋葱模型），`xrtHttpServerNext` 同步进入下一层、返回后可执行后置逻辑（计时/日志收尾）；**不调用 Next 就是短路**——中间件可以直接响应或保留 Connection 异步处理。契约的关键细节：`Next` 只在当前同步回调栈内有效（不能存进线程/Future/协程）、最多调一次（重复=错误路径）——**异步中间件应短路并自己保留 Connection，而不是延迟 Next**。本章后半讲静态文件层：单文件响应、目录映射与沙箱约束（`http_server_static`——第 47 章 dir 沙箱思想的服务端落地）。
@@ -58,11 +60,11 @@ api: xhttp-http_server_middleware, xhttp-http_server_static, xhttp-http_server_r
 
 下面的程序来自 `examples/http/server_middleware`——日志中间件包裹健康路由：
 
-```embed path="extlibs/xhttp/examples/http/server_middleware/main.c" title="extlibs/xhttp/examples/http/server_middleware/main.c"
+```embed path="extlibs/xhttp-server/examples/http/server_middleware/main.c" title="extlibs/xhttp-server/examples/http/server_middleware/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server_middleware/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_server_middleware --exclude-test "*" --no-single --no-run
 middleware: 1, routes: 1
 ```
 
@@ -72,11 +74,11 @@ middleware: 1, routes: 1
 
 第二个程序来自 `examples/http/static_file`——文件响应的标准装配：
 
-```embed path="extlibs/xhttp/examples/http/static_file/main.c" title="extlibs/xhttp/examples/http/static_file/main.c"
+```embed path="extlibs/xhttp-server/examples/http/static_file/main.c" title="extlibs/xhttp-server/examples/http/static_file/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/static_file/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_static_file --exclude-test "*" --no-single --no-run
 （输出静态服务装配结果并正常退出）
 ```
 

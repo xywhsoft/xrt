@@ -698,6 +698,49 @@ static void testHttpParamMemoryContracts(void)
 
 
 
+/* 扩展字段解析复用核心扫描器，输出支持未对齐并拒绝别名覆盖。 */
+static void testHttpExtensionScanning(void)
+{
+	xstrview Text = XRT_STR_LITERAL(", first=\"a,b\\\"c\",, second=ok ,");
+	xstrview Element;
+	xhttpparam Param;
+	size_t iNext = 0;
+	size_t iOffset = 0;
+	uint8 NextStorage[sizeof(size_t) + 1];
+	uint8 ElementStorage[sizeof(xstrview) + 1];
+
+	testRequire(xrtHttpListNext(Text, 0,
+		(size_t*)(NextStorage + 1), (xstrview*)(ElementStorage + 1)) ==
+		XHTTP_NEXT_ITEM, "HTTP extension list rejected unaligned outputs");
+	memcpy(&iNext, NextStorage + 1, sizeof(iNext));
+	memcpy(&Element, ElementStorage + 1, sizeof(Element));
+	testRequire(Element.Size == 14 &&
+		memcmp(Element.Data, "first=\"a,b\\\"c\"", 14) == 0,
+		"HTTP extension list split an escaped quoted comma");
+	testRequire(xrtHttpListNext(Text, iNext, &iNext, &Element) ==
+		XHTTP_NEXT_ITEM && Element.Size == 9 &&
+		memcmp(Element.Data, "second=ok", 9) == 0,
+		"HTTP extension list failed to skip empty members");
+	testRequire(xrtHttpListNext(Text, iNext, &iNext, &Element) ==
+		XHTTP_NEXT_END && Element.Size == 0,
+		"HTTP extension list did not finish after a trailing comma");
+	testRequire(xrtHttpListNext(Text, Text.Size + 1, &iNext, &Element) ==
+		XHTTP_NEXT_ERROR, "HTTP extension list accepted an invalid offset");
+	testRequire(xrtHttpListNext(Text, 0, (size_t*)&Element, &Element) ==
+		XHTTP_NEXT_ERROR, "HTTP extension list accepted overlapping outputs");
+	testRequire(xrtHttpNameValueNext(XRT_STR_LITERAL(";; a=1;; b=2;"),
+		&iOffset, &Param, ';', true) == XHTTP_NEXT_ITEM &&
+		xrtHttpTokenEqual(Param.Name, XRT_STR_LITERAL("a")),
+		"HTTP extension parameter scanner lost empty-member behavior");
+	iOffset = 0;
+	testRequire(xrtHttpNameValueNext(XRT_STR_LITERAL("a=1"),
+		&iOffset, &Param, '|', false) == XHTTP_NEXT_ERROR && iOffset == 0,
+		"HTTP extension parameter scanner accepted an unsupported separator");
+	xrtClearError();
+}
+
+
+
 /* 执行 HTTP 参数和 quoted-string 契约测试。 */
 int main(void)
 {
@@ -708,6 +751,7 @@ int main(void)
 	testHttpParamToken();
 	testHttpParamValueCursor();
 	testHttpParamMemoryContracts();
+	testHttpExtensionScanning();
 	printf("[PASS] http_param\n");
 	return 0;
 }

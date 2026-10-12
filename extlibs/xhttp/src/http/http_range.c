@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "../internal/xrt_http_semantics.h"
 
 
@@ -44,7 +45,7 @@ static bool __xrtHttpRangeSizeAdd(
 )
 {
 	if ( *pSize > (SIZE_MAX - iAdd) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	*pSize += iAdd;
@@ -54,7 +55,7 @@ static bool __xrtHttpRangeSizeAdd(
 
 
 /* 无错误副作用地拆分一个完整 Range 字段值。 */
-bool __xrtHttpRangeParseValue(
+XHTTP_API bool xrtHttpBridgeRangeParseValue(
 	xstrview Value,
 	xstrview* pUnit,
 	xstrview* pSet
@@ -65,7 +66,7 @@ bool __xrtHttpRangeParseValue(
 	size_t iEqual = 0;
 
 	if ( (pUnit == NULL) || (pSet == NULL) ||
-		!__xrtHttpViewValid(Value) ) {
+		!__xhttpViewValid(Value) ) {
 		return false;
 	}
 	Value = xrtHttpOwsTrim(Value);
@@ -91,7 +92,7 @@ bool __xrtHttpRangeParseValue(
 
 
 /* 把 Range 字段拆成范围单位和集合。 */
-XRT_API bool xrtHttpRangeParse(
+XHTTP_API bool xrtHttpRangeParse(
 	xstrview Value,
 	xstrview* pUnit,
 	xstrview* pSet
@@ -101,25 +102,25 @@ XRT_API bool xrtHttpRangeParse(
 	xstrview Set;
 	xstrview Empty = { NULL, 0 };
 
-	if ( !__xrtRangeValid(pUnit, sizeof(Unit)) ||
-		!__xrtRangeValid(pSet, sizeof(Set)) ||
-		!__xrtHttpViewValid(Value) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pUnit, sizeof(Unit)) ||
+		!xrtMemRangeValid(pSet, sizeof(Set)) ||
+		!__xhttpViewValid(Value) ||
+		xrtMemRangesOverlap(
 			pUnit, sizeof(*pUnit), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSet, sizeof(*pSet), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pUnit, sizeof(*pUnit), pSet, sizeof(*pSet)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pUnit, &Empty, sizeof(Empty));
 	memcpy(pSet, &Empty, sizeof(Empty));
-	if ( !__xrtHttpRangeParseValue(
+	if ( !xrtHttpBridgeRangeParseValue(
 		Value, &Unit, &Set
 	) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memcpy(pUnit, &Unit, sizeof(Unit));
@@ -177,7 +178,7 @@ static bool __xrtHttpByteRangeSpecParse(
 
 
 /* 无错误副作用地迭代已经验证视图的 byte-range-set。 */
-xhttpnext __xrtHttpByteRangeNextValue(
+XHTTP_API xhttpnext xrtHttpBridgeByteRangeNextValue(
 	xstrview Set,
 	size_t* pOffset,
 	xhttprangespec* pSpec
@@ -212,7 +213,7 @@ xhttpnext __xrtHttpByteRangeNextValue(
 
 
 /* 迭代 byte-range-set。 */
-XRT_API xhttpnext xrtHttpByteRangeNext(
+XHTTP_API xhttpnext xrtHttpByteRangeNext(
 	xstrview Set,
 	size_t* pOffset,
 	xhttprangespec* pSpec
@@ -222,31 +223,31 @@ XRT_API xhttpnext xrtHttpByteRangeNext(
 	xhttprangespec Spec;
 	size_t iOffset;
 
-	if ( !__xrtRangeValid(pOffset, sizeof(iOffset)) ||
-		!__xrtRangeValid(pSpec, sizeof(Spec)) ||
-		!__xrtHttpViewValid(Set) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOffset, sizeof(iOffset)) ||
+		!xrtMemRangeValid(pSpec, sizeof(Spec)) ||
+		!__xhttpViewValid(Set) ||
+		xrtMemRangesOverlap(
 			pOffset, sizeof(*pOffset), Set.Data, Set.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSpec, sizeof(*pSpec), Set.Data, Set.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOffset, sizeof(*pOffset), pSpec, sizeof(*pSpec)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
 	if ( iOffset > Set.Size ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
-	Next = __xrtHttpByteRangeNextValue(
+	Next = xrtHttpBridgeByteRangeNextValue(
 		Set, &iOffset, &Spec
 	);
 	memcpy(pOffset, &iOffset, sizeof(iOffset));
 	memcpy(pSpec, &Spec, sizeof(Spec));
 	if ( Next == XHTTP_NEXT_ERROR ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 	}
 	return Next;
 }
@@ -254,7 +255,7 @@ XRT_API xhttpnext xrtHttpByteRangeNext(
 
 
 /* 验证并统计完整 byte-range-set。 */
-XRT_API bool xrtHttpByteRangeCount(
+XHTTP_API bool xrtHttpByteRangeCount(
 	xstrview Set,
 	size_t* pCount
 )
@@ -264,15 +265,15 @@ XRT_API bool xrtHttpByteRangeCount(
 	size_t iOffset = 0;
 	size_t iCount = 0;
 
-	if ( !__xrtRangeValid(pCount, sizeof(iCount)) ||
-		!__xrtHttpViewValid(Set) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCount, sizeof(iCount)) ||
+		!__xhttpViewValid(Set) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pCount, sizeof(*pCount), Set.Data, Set.Size
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	do {
@@ -282,14 +283,14 @@ XRT_API bool xrtHttpByteRangeCount(
 		}
 		if ( Next == XHTTP_NEXT_ITEM ) {
 			if ( iCount == SIZE_MAX ) {
-				__xrtErrorSetSizeOverflow();
+				xrtSetErrorKind(XERR_RANGE);
 				return false;
 			}
 			iCount++;
 		}
 	} while ( Next == XHTTP_NEXT_ITEM );
 	if ( iCount == 0 ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memcpy(pCount, &iCount, sizeof(iCount));
@@ -299,7 +300,7 @@ XRT_API bool xrtHttpByteRangeCount(
 
 
 /* 把一个范围项解析到表示长度内。 */
-XRT_API xhttprangeresult xrtHttpByteRangeResolve(
+XHTTP_API xhttprangeresult xrtHttpByteRangeResolve(
 	const xhttprangespec* pSpec,
 	uint64 iLength,
 	xhttpbyterange* pRange
@@ -308,18 +309,18 @@ XRT_API xhttprangeresult xrtHttpByteRangeResolve(
 	xhttprangespec Spec;
 	xhttpbyterange Range = { 0, 0 };
 
-	if ( !__xrtRangeValid(pSpec, sizeof(Spec)) ||
-		!__xrtRangeValid(pRange, sizeof(Range)) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pSpec, sizeof(Spec)) ||
+		!xrtMemRangeValid(pRange, sizeof(Range)) ||
+		xrtMemRangesOverlap(
 			pSpec, sizeof(*pSpec), pRange, sizeof(*pRange)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_RANGE_ERROR;
 	}
 	memcpy(&Spec, pSpec, sizeof(Spec));
 	if ( (Spec.Form < XHTTP_RANGE_SPEC_CLOSED) ||
 		(Spec.Form > XHTTP_RANGE_SPEC_SUFFIX) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_RANGE_ERROR;
 	}
 	memcpy(pRange, &Range, sizeof(Range));
@@ -339,7 +340,7 @@ XRT_API xhttprangeresult xrtHttpByteRangeResolve(
 	}
 	if ( (Spec.Form == XHTTP_RANGE_SPEC_CLOSED) &&
 		(Spec.First > Spec.Last) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_RANGE_ERROR;
 	}
 	if ( (iLength == 0) || (Spec.First >= iLength) ) {
@@ -467,7 +468,7 @@ static bool __xrtHttpByteRangesMerge(
 
 		if ( iSelectedLength >
 			(UINT64_MAX - iRangeLength) ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iSelectedLength += iRangeLength;
@@ -490,44 +491,44 @@ static bool __xrtHttpByteRangesOutputValid(
 {
 	size_t iRangeBytes;
 
-	if ( !__xrtHttpViewValid(Set) ||
+	if ( !__xhttpViewValid(Set) ||
 		((pRanges == NULL) && (iCapacity != 0)) ||
 		(iCapacity > (SIZE_MAX / sizeof(*pRanges))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	iRangeBytes = iCapacity * sizeof(*pRanges);
-	if ( !__xrtRangeValid(pRanges, iRangeBytes) ||
-		!__xrtRangeValid(pCount, sizeof(*pCount)) ||
-		!__xrtRangeValid(
+	if ( !xrtMemRangeValid(pRanges, iRangeBytes) ||
+		!xrtMemRangeValid(pCount, sizeof(*pCount)) ||
+		!xrtMemRangeValid(
 			pSelectedLength,
 			sizeof(*pSelectedLength)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pRanges, iRangeBytes, Set.Data, Set.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCount, sizeof(*pCount), Set.Data, Set.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSelectedLength,
 			sizeof(*pSelectedLength),
 			Set.Data,
 			Set.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCount,
 			sizeof(*pCount),
 			pSelectedLength,
 			sizeof(*pSelectedLength)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pRanges,
 			iRangeBytes,
 			pCount,
 			sizeof(*pCount)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pRanges,
 			iRangeBytes,
 			pSelectedLength,
 			sizeof(*pSelectedLength)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return true;
@@ -536,7 +537,7 @@ static bool __xrtHttpByteRangesOutputValid(
 
 
 /* 解析、裁剪、排序并合并完整 byte-range-set。 */
-XRT_API xhttprangeresult xrtHttpByteRangesResolve(
+XHTTP_API xhttprangeresult xrtHttpByteRangesResolve(
 	xstrview Set,
 	uint64 iLength,
 	xhttpbyterange* pRanges,
@@ -569,18 +570,18 @@ XRT_API xhttprangeresult xrtHttpByteRangesResolve(
 		return XHTTP_RANGE_ERROR;
 	}
 	if ( iInputCount > iCapacity ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return XHTTP_RANGE_ERROR;
 	}
 
 	do {
-		Next = __xrtHttpByteRangeNextValue(
+		Next = xrtHttpBridgeByteRangeNextValue(
 			Set,
 			&iOffset,
 			&Spec
 		);
 		if ( Next == XHTTP_NEXT_ERROR ) {
-			__xrtErrorSetInternal();
+			xrtSetErrorKind(XERR_INTERNAL);
 			return XHTTP_RANGE_ERROR;
 		}
 		if ( Next != XHTTP_NEXT_ITEM ) {
@@ -656,8 +657,8 @@ static bool __xrtHttpRangeWriteMeasure(
 
 	if ( (iCount == 0) ||
 		(iCount > (SIZE_MAX / sizeof(Spec))) ||
-		!__xrtRangeValid(pSpecs, iCount * sizeof(Spec)) ) {
-		__xrtErrorSetInvalidArgument();
+		!xrtMemRangeValid(pSpecs, iCount * sizeof(Spec)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
@@ -670,7 +671,7 @@ static bool __xrtHttpRangeWriteMeasure(
 			(Spec.Form > XHTTP_RANGE_SPEC_SUFFIX) ||
 			((Spec.Form == XHTTP_RANGE_SPEC_CLOSED) &&
 			 (Spec.First > Spec.Last)) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		if ( (i != 0) &&
@@ -680,21 +681,21 @@ static bool __xrtHttpRangeWriteMeasure(
 		if ( Spec.Form == XHTTP_RANGE_SPEC_SUFFIX ) {
 			if ( !__xrtHttpRangeSizeAdd(
 				&iRequired,
-				1u + __xrtHttpUInt64Size(Spec.First)
+				1u + __xhttpUInt64Size(Spec.First)
 			) ) {
 				return false;
 			}
 		} else {
 			if ( !__xrtHttpRangeSizeAdd(
 				&iRequired,
-				__xrtHttpUInt64Size(Spec.First) + 1u
+				__xhttpUInt64Size(Spec.First) + 1u
 			) ) {
 				return false;
 			}
 			if ( (Spec.Form == XHTTP_RANGE_SPEC_CLOSED) &&
 				!__xrtHttpRangeSizeAdd(
 					&iRequired,
-					__xrtHttpUInt64Size(Spec.Last)
+					__xhttpUInt64Size(Spec.Last)
 				) ) {
 				return false;
 			}
@@ -713,7 +714,7 @@ static void __xrtHttpRangeAppendNumber(
 	uint64 iValue
 )
 {
-	*pOffset += __xrtHttpUInt64Write(
+	*pOffset += __xhttpUInt64Write(
 		(char*)pOutput + *pOffset,
 		iValue
 	);
@@ -722,7 +723,7 @@ static void __xrtHttpRangeAppendNumber(
 
 
 /* 写出 bytes Range 字段值。 */
-XRT_API bool xrtHttpRangeWrite(
+XHTTP_API bool xrtHttpRangeWrite(
 	const xhttprangespec* pSpecs,
 	size_t iCount,
 	void* pOutput,
@@ -736,10 +737,10 @@ XRT_API bool xrtHttpRangeWrite(
 	size_t iOffset = 0;
 	size_t i;
 
-	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ||
+	if ( !xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
 		(iCount > (SIZE_MAX / sizeof(*pSpecs))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpRangeWriteMeasure(
@@ -747,10 +748,10 @@ XRT_API bool xrtHttpRangeWrite(
 	) ) {
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pSize, sizeof(iRequired), pSpecs, iCount * sizeof(*pSpecs)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pOutput == NULL ) {
@@ -758,24 +759,24 @@ XRT_API bool xrtHttpRangeWrite(
 		return true;
 	}
 	if ( (iCapacity >= iRequired) &&
-		!__xrtRangeValid(pOutput, iRequired) ) {
-		__xrtErrorSetInvalidArgument();
+		!xrtMemRangeValid(pOutput, iRequired) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pSize, sizeof(iRequired), pOutput, iRequired
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pSpecs,
 		iCount * sizeof(*pSpecs),
 		pOutput,
 		iRequired
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	memcpy(pWrite, "bytes=", 6);
@@ -814,7 +815,7 @@ XRT_API bool xrtHttpRangeWrite(
 
 
 /* 构建零结尾 bytes Range 字段值。 */
-XRT_API str xrtHttpRangeBuild(
+XHTTP_API str xrtHttpRangeBuild(
 	const xhttprangespec* pSpecs,
 	size_t iCount,
 	size_t* pSize
@@ -824,19 +825,19 @@ XRT_API str xrtHttpRangeBuild(
 	size_t iRequired;
 
 	if ( (pSize != NULL) &&
-		!__xrtRangeValid(pSize, sizeof(iRequired)) ) {
-		__xrtErrorSetInvalidArgument();
+		!xrtMemRangeValid(pSize, sizeof(iRequired)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( (pSize != NULL) && (pSpecs != NULL) &&
 		(iCount <= (SIZE_MAX / sizeof(*pSpecs))) &&
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSize,
 			sizeof(iRequired),
 			pSpecs,
 			iCount * sizeof(*pSpecs)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtHttpRangeWrite(
@@ -864,7 +865,7 @@ XRT_API str xrtHttpRangeBuild(
 
 
 /* 无错误副作用地解析一个完整 bytes Content-Range 字段值。 */
-bool __xrtHttpContentRangeParseValue(
+XHTTP_API bool xrtHttpBridgeContentRangeParseValue(
 	xstrview Value,
 	xhttpcontentrange* pRange
 )
@@ -872,7 +873,7 @@ bool __xrtHttpContentRangeParseValue(
 	xhttpcontentrange Range;
 	size_t iOffset;
 
-	if ( (pRange == NULL) || !__xrtHttpViewValid(Value) ) {
+	if ( (pRange == NULL) || !__xhttpViewValid(Value) ) {
 		return false;
 	}
 	memset(&Range, 0, sizeof(Range));
@@ -933,30 +934,30 @@ bool __xrtHttpContentRangeParseValue(
 
 
 /* 严格解析 bytes Content-Range 字段值。 */
-XRT_API bool xrtHttpContentRangeParse(
+XHTTP_API bool xrtHttpContentRangeParse(
 	xstrview Value,
 	xhttpcontentrange* pRange
 )
 {
 	xhttpcontentrange Range;
 
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pRange, sizeof(Range)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pRange, sizeof(Range)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pRange, sizeof(*pRange), Value.Data, Value.Size
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(&Range, 0, sizeof(Range));
 	memcpy(pRange, &Range, sizeof(Range));
-	if ( !__xrtHttpContentRangeParseValue(
+	if ( !xrtHttpBridgeContentRangeParseValue(
 		Value, &Range
 	) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memcpy(pRange, &Range, sizeof(Range));
@@ -974,30 +975,30 @@ static bool __xrtHttpContentRangeMeasure(
 	size_t iRequired = 6;
 
 	if ( pRange == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pRange->Satisfied ) {
 		if ( (pRange->First > pRange->Last) ||
 			(pRange->HasLength &&
 			 (pRange->Last >= pRange->Length)) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
-		iRequired += __xrtHttpUInt64Size(pRange->First);
+		iRequired += __xhttpUInt64Size(pRange->First);
 		iRequired += 1u;
-		iRequired += __xrtHttpUInt64Size(pRange->Last);
+		iRequired += __xhttpUInt64Size(pRange->Last);
 		iRequired += 1u;
 		iRequired += pRange->HasLength ?
-			__xrtHttpUInt64Size(pRange->Length) :
+			__xhttpUInt64Size(pRange->Length) :
 			1u;
 	} else {
 		if ( !pRange->HasLength ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		iRequired += 2u;
-		iRequired += __xrtHttpUInt64Size(pRange->Length);
+		iRequired += __xhttpUInt64Size(pRange->Length);
 	}
 	*pRequired = iRequired;
 	return true;
@@ -1006,7 +1007,7 @@ static bool __xrtHttpContentRangeMeasure(
 
 
 /* 写出 bytes Content-Range 字段值。 */
-XRT_API bool xrtHttpContentRangeWrite(
+XHTTP_API bool xrtHttpContentRangeWrite(
 	const xhttpcontentrange* pRange,
 	void* pOutput,
 	size_t iCapacity,
@@ -1018,10 +1019,10 @@ XRT_API bool xrtHttpContentRangeWrite(
 	size_t iRequired;
 	size_t iOffset = 6;
 
-	if ( !__xrtRangeValid(pRange, sizeof(Range)) ||
-		!__xrtRangeValid(pSize, sizeof(iRequired)) ||
+	if ( !xrtMemRangeValid(pRange, sizeof(Range)) ||
+		!xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Range, pRange, sizeof(Range));
@@ -1030,10 +1031,10 @@ XRT_API bool xrtHttpContentRangeWrite(
 	) ) {
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pSize, sizeof(iRequired), pRange, sizeof(Range)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pOutput == NULL ) {
@@ -1041,21 +1042,21 @@ XRT_API bool xrtHttpContentRangeWrite(
 		return true;
 	}
 	if ( (iCapacity >= iRequired) &&
-		!__xrtRangeValid(pOutput, iRequired) ) {
-		__xrtErrorSetInvalidArgument();
+		!xrtMemRangeValid(pOutput, iRequired) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pSize, sizeof(iRequired), pOutput, iRequired
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pRange, sizeof(Range), pOutput, iRequired
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	memcpy(pWrite, "bytes ", 6);
@@ -1089,7 +1090,7 @@ XRT_API bool xrtHttpContentRangeWrite(
 
 
 /* 构建零结尾 bytes Content-Range 字段值。 */
-XRT_API str xrtHttpContentRangeBuild(
+XHTTP_API str xrtHttpContentRangeBuild(
 	const xhttpcontentrange* pRange,
 	size_t* pSize
 )
@@ -1098,18 +1099,18 @@ XRT_API str xrtHttpContentRangeBuild(
 	str sOutput;
 	size_t iRequired;
 
-	if ( !__xrtRangeValid(pRange, sizeof(Range)) ||
+	if ( !xrtMemRangeValid(pRange, sizeof(Range)) ||
 		((pSize != NULL) &&
-		 !__xrtRangeValid(pSize, sizeof(iRequired))) ) {
-		__xrtErrorSetInvalidArgument();
+		 !xrtMemRangeValid(pSize, sizeof(iRequired))) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	memcpy(&Range, pRange, sizeof(Range));
 	if ( (pSize != NULL) &&
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSize, sizeof(iRequired), pRange, sizeof(Range)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtHttpContentRangeWrite(

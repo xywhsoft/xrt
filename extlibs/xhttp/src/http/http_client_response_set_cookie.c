@@ -5,7 +5,7 @@
 #if defined(XHTTP_FEATURE_HTTP_CLIENT_SET_COOKIE)
 
 /* 按线路字段顺序解析下一条独立 Set-Cookie。 */
-XRT_API xhttpnext xrtHttpResponseSetCookieNext(
+XHTTP_API xhttpnext xrtHttpResponseSetCookieNext(
 	const xhttpresponse* pResponse,
 	size_t* pHeaderIndex,
 	xsetcookie* pCookie
@@ -16,17 +16,17 @@ XRT_API xhttpnext xrtHttpResponseSetCookieNext(
 	size_t iCount;
 	size_t i;
 
-	if ( !__xrtHttpResponseOutputValid(
+	if ( !xrtHttpBridgeResponseOutputValid(
 			pResponse, pHeaderIndex, sizeof(i)
-		) || !__xrtHttpResponseOutputValid(
+		) || !xrtHttpBridgeResponseOutputValid(
 			pResponse, pCookie, sizeof(*pCookie)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pHeaderIndex,
 			sizeof(i),
 			pCookie,
 			sizeof(*pCookie)
 		) ) {
-		__xrtHttpResponseSetError(
+		xrtHttpBridgeResponseSetError(
 			XERR_ARGUMENT,
 			XHTTP_RESPONSE_ERROR_ARGUMENT,
 			"parse-http-response-set-cookie",
@@ -40,7 +40,7 @@ XRT_API xhttpnext xrtHttpResponseSetCookieNext(
 	memcpy(&i, pHeaderIndex, sizeof(i));
 	memcpy(pCookie, &Empty, sizeof(Empty));
 	if ( i > iCount ) {
-		__xrtHttpResponseSetError(
+		xrtHttpBridgeResponseSetError(
 			XERR_RANGE,
 			XHTTP_RESPONSE_ERROR_INDEX,
 			"parse-http-response-set-cookie",
@@ -65,7 +65,7 @@ XRT_API xhttpnext xrtHttpResponseSetCookieNext(
 		}
 		if ( !xrtSetCookieParse(pField->Value, &Cookie) ) {
 			memcpy(pHeaderIndex, &i, sizeof(i));
-			__xrtHttpResponseWrapError(
+			xrtHttpBridgeResponseWrapError(
 				XERR_VALUE,
 				XHTTP_RESPONSE_ERROR_SET_COOKIE,
 				"parse-http-response-set-cookie",

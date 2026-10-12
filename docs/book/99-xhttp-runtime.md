@@ -8,6 +8,8 @@ lead: 请求快照的冻结语义、两类截止时间与取消、诊断快照�
 api: xhttp-http_client, xhttp-http_client_runtime, net
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 easy 层（第 98 章）折叠了什么？本章展开给你看。**请求构建器**（`xhttprequest`）：方法/URL/Header/正文/认证的显式装配，`Do` 提交时冻结快照——调用方可立即修改或销毁原请求；**调用层**：`xhttpcalloptions` 的两类截止时间（总超时覆盖全链、空闲超时只看无进展时长）、取消令牌、响应体限额；**诊断**：`xhttpcallresult.Info` 的状态机与时间戳（单调时钟毫秒）——`RequestWireBytes`/`ResponseWireBytes` 累计整条重定向链；**连接池**：按 origin 分片（最多 32 片）、每片独立等待 FIFO 与空闲 LRU、全局原子配额——复用是性能的根。四个齿轮合起来就是"运行时"——easy 的每一行都在这上面跑。
@@ -64,7 +66,7 @@ Client 创建验静态配置；`Do` 提交验配置范围（地址回绕同步�
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_request/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_client_request --exclude-test "*" --no-single --no-run
 POST api.example.test:443
 ```
 
@@ -74,11 +76,11 @@ POST api.example.test:443
 
 第二个程序来自 `examples/http/client_pool`——运行时的运维面：
 
-```embed path="extlibs/xhttp/examples/http/client_pool/main.c" title="extlibs/xhttp/examples/http/client_pool/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_pool/main.c" title="extlibs/xhttp-client/examples/http/client_pool/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_pool/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_pool --exclude-test "*" --no-single --no-run
 （示例校验连接池统计与空闲清理路径后正常退出）
 ```
 

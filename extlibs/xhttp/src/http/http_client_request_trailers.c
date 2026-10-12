@@ -109,7 +109,7 @@ static bool __xrtHttpRequestTrailerSet(
 
 
 /* 清空实际 Trailer 字段但保留已经按需建立的容器容量。 */
-void __xrtHttpRequestClearTrailers(xhttprequest* pRequest)
+XHTTP_API void xrtHttpBridgeRequestClearTrailers(xhttprequest* pRequest)
 {
 	if ( (pRequest != NULL) &&
 		(pRequest->Trailers != NULL) ) {
@@ -120,7 +120,7 @@ void __xrtHttpRequestClearTrailers(xhttprequest* pRequest)
 
 
 /* 追加拥有型 Trailer。 */
-XRT_API bool xrtHttpRequestAddTrailer(
+XHTTP_API bool xrtHttpRequestAddTrailer(
 	xhttprequest* pRequest,
 	xstrview Name,
 	xstrview Value
@@ -138,7 +138,7 @@ XRT_API bool xrtHttpRequestAddTrailer(
 
 
 /* 设置并折叠同名 Trailer。 */
-XRT_API bool xrtHttpRequestSetTrailer(
+XHTTP_API bool xrtHttpRequestSetTrailer(
 	xhttprequest* pRequest,
 	xstrview Name,
 	xstrview Value
@@ -156,7 +156,7 @@ XRT_API bool xrtHttpRequestSetTrailer(
 
 
 /* 删除全部同名 Trailer。 */
-XRT_API size_t xrtHttpRequestRemoveTrailer(
+XHTTP_API size_t xrtHttpRequestRemoveTrailer(
 	xhttprequest* pRequest,
 	xstrview Name
 )
@@ -175,7 +175,7 @@ XRT_API size_t xrtHttpRequestRemoveTrailer(
 
 
 /* 返回首个同名 Trailer。 */
-XRT_API const xhttpfield* xrtHttpRequestTrailer(
+XHTTP_API const xhttpfield* xrtHttpRequestTrailer(
 	const xhttprequest* pRequest,
 	xstrview Name
 )
@@ -193,7 +193,7 @@ XRT_API const xhttpfield* xrtHttpRequestTrailer(
 
 
 /* 返回 Trailer 数量。 */
-XRT_API size_t xrtHttpRequestTrailerCount(
+XHTTP_API size_t xrtHttpRequestTrailerCount(
 	const xhttprequest* pRequest
 )
 {
@@ -205,7 +205,7 @@ XRT_API size_t xrtHttpRequestTrailerCount(
 
 
 /* 返回请求拥有的连续只读 Trailer 数组。 */
-XRT_API const xhttpfield* xrtHttpRequestTrailerData(
+XHTTP_API const xhttpfield* xrtHttpRequestTrailerData(
 	const xhttprequest* pRequest
 )
 {
@@ -217,7 +217,7 @@ XRT_API const xhttpfield* xrtHttpRequestTrailerData(
 
 
 /* 返回指定位置的 Trailer。 */
-XRT_API const xhttpfield* xrtHttpRequestTrailerAt(
+XHTTP_API const xhttpfield* xrtHttpRequestTrailerAt(
 	const xhttprequest* pRequest,
 	size_t iIndex
 )
@@ -230,7 +230,7 @@ XRT_API const xhttpfield* xrtHttpRequestTrailerAt(
 
 
 /* 返回只读 Trailer 容器且不触发创建。 */
-XRT_API const xhttpheaders* xrtHttpRequestTrailers(
+XHTTP_API const xhttpheaders* xrtHttpRequestTrailers(
 	const xhttprequest* pRequest
 )
 {
@@ -240,7 +240,7 @@ XRT_API const xhttpheaders* xrtHttpRequestTrailers(
 
 
 /* 按需创建并返回可修改 Trailer 容器。 */
-XRT_API xhttpheaders* xrtHttpRequestEditTrailers(
+XHTTP_API xhttpheaders* xrtHttpRequestEditTrailers(
 	xhttprequest* pRequest
 )
 {

@@ -91,7 +91,7 @@ static void __xrtSetCookieAttributeSegment(
 
 
 /* 扫描 Set-Cookie 原始属性区并保留未知属性。 */
-XRT_API xcookieattributenext xrtSetCookieAttributeNext(
+XHTTP_API xcookieattributenext xrtSetCookieAttributeNext(
 	xstrview Text,
 	size_t* pOffset,
 	xcookieattribute* pAttribute
@@ -350,7 +350,7 @@ static bool __xrtCookieDateParseValue(xstrview Text, xtime* pTime)
 
 
 /* 按 RFC 6265 宽松 cookie-date 算法解析 UTC 时间。 */
-XRT_API bool xrtCookieDateParse(xstrview Text, xtime* pTime)
+XHTTP_API bool xrtCookieDateParse(xstrview Text, xtime* pTime)
 {
 	xtime iTime;
 
@@ -448,7 +448,7 @@ static xcookiepriority __xrtSetCookiePriority(xstrview Value)
 
 
 /* 按 RFC 6265 用户代理接收算法解析 Set-Cookie 字段值。 */
-XRT_API bool xrtSetCookieParse(xstrview Text, xsetcookie* pCookie)
+XHTTP_API bool xrtSetCookieParse(xstrview Text, xsetcookie* pCookie)
 {
 	xsetcookie Cookie;
 	size_t iPairEnd = 0;
@@ -764,7 +764,7 @@ static bool __xrtSetCookieStrictAttribute(
 
 
 /* 按 RFC 6265 服务器生成语法严格校验 Set-Cookie 字段值。 */
-XRT_API bool xrtSetCookieValidate(xstrview Text)
+XHTTP_API bool xrtSetCookieValidate(xstrview Text)
 {
 	xsetcookie Cookie;
 	xstrview Whole;
@@ -1184,7 +1184,7 @@ static void __xrtSetCookieIntegerWrite(
 
 
 /* 从结构化数据写出 Set-Cookie 字段值。 */
-XRT_API bool xrtSetCookieWrite(
+XHTTP_API bool xrtSetCookieWrite(
 	const xsetcookie* pCookie,
 	void* pOutput,
 	size_t iCapacity,
@@ -1307,7 +1307,7 @@ XRT_API bool xrtSetCookieWrite(
 
 
 /* 分配并构建零结尾 Set-Cookie 字段值。 */
-XRT_API str xrtSetCookieBuild(
+XHTTP_API str xrtSetCookieBuild(
 	const xsetcookie* pCookie,
 	size_t* pSize
 )

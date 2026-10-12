@@ -8,6 +8,8 @@ lead: Fully automatic HTTP caching once a Store hangs in the configuration: fres
 api: xhttp-http_cache, xhttp-http_client
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 After Chapter 100's three automatic behaviors, caching is the largest and most flavorful. Once the `http_client_cache` layer hangs a Store (`xhttpcache`) into the Client configuration, **lookup, hit delivery, freshness judgment, conditional validation, storage, partial-response composition, and unsafe-method invalidation are all automatic** — not one line of your code changes; the second request for the same URL comes from local. The protocol side follows RFC 9111 exactly: the request's `Cache-Control` (no-store/no-cache/only-if-cached/age constraints) and the response's storability are all handled by the shared cache-policy parser — the client invents no approximate semantics. The storage object stays public — applications, proxies, and custom persistence backends use the same Store contract directly. This chapter covers configuration, the four call modes, the storage contract, and concurrent conditional commits.
@@ -56,11 +58,11 @@ Call-level four modes: `XHTTP_CLIENT_CACHE_DEFAULT` (honor request/response/stor
 
 The program below is from `examples/http/client_cache` — Store mounting and caps:
 
-```embed path="extlibs/xhttp/examples/http/client_cache/main.c" title="extlibs/xhttp/examples/http/client_cache/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_cache/main.c" title="extlibs/xhttp-client/examples/http/client_cache/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_cache/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_cache --exclude-test "*" --no-single --no-run
 （示例校验缓存装配与回源-命中路径后正常退出）
 ```
 
@@ -70,11 +72,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 
 The second program is from `examples/http/cache_policy` — the protocol layer of policy parsing and verdicts:
 
-```embed path="extlibs/xhttp/examples/http/cache_policy/main.c" title="extlibs/xhttp/examples/http/cache_policy/main.c"
+```embed path="extlibs/xhttp-policy/examples/http/cache_policy/main.c" title="extlibs/xhttp-policy/examples/http/cache_policy/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/cache_policy/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-policy/config/modules.json --suite http_cache_policy --exclude-test "*" --no-single --no-run
 （输出策略解析与可存储性判定的自检结果）
 ```
 

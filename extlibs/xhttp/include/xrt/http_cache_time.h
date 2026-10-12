@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_CACHE_TIME_H
 #define XRT_HTTP_CACHE_TIME_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_cache.h>
 #include <xrt/time.h>
 
@@ -104,14 +106,14 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_HTTP_CACHE_TIME)
 
 /* 初始化不存在 Date、Age 和 Expires 字段的空时间元数据。 */
-XRT_API void xrtHttpCacheTimeInit(
+XHTTP_API void xrtHttpCacheTimeInit(
 	xhttpcachetime* pTime
 );
 
 
 
 /* 判断公开时间元数据是否满足字段计数、标志和值约束。 */
-XRT_API bool xrtHttpCacheTimeValid(
+XHTTP_API bool xrtHttpCacheTimeValid(
 	const xhttpcachetime* pTime
 );
 
@@ -121,7 +123,7 @@ XRT_API bool xrtHttpCacheTimeValid(
 	零分配扫描 Date、Age 和 Expires。
 	Age 采用合并列表中的第一个成员；非法 Age 被记录并在计算中视为零。
 */
-XRT_API bool xrtHttpCacheTimeParse(
+XHTTP_API bool xrtHttpCacheTimeParse(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpcachetime* pTime
@@ -134,7 +136,7 @@ XRT_API bool xrtHttpCacheTimeParse(
 	ResponseTime 是接收响应时的墙钟；其余三个值必须来自同一单调时钟。
 	单个非法 Date 使用 ResponseTime 替代；重复 Date 返回 INVALID。
 */
-XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
+XHTTP_API xhttpcachecalc xrtHttpCacheCurrentAge(
 	const xhttpcachetime* pTime,
 	xtime ResponseTime,
 	double RequestClock,
@@ -150,7 +152,7 @@ XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 	无显式寿命返回 NONE；非法 Expires 按已过期处理，非法 Date 使用
 	ResponseTime 替代；选中的重复单值字段或指令返回 INVALID。
 */
-XRT_API xhttpcachecalc xrtHttpCacheFreshness(
+XHTTP_API xhttpcachecalc xrtHttpCacheFreshness(
 	const xhttpcachecontrol* pControl,
 	const xhttpcachetime* pTime,
 	xtime ResponseTime,
@@ -161,7 +163,7 @@ XRT_API xhttpcachecalc xrtHttpCacheFreshness(
 
 
 /* 判断年龄公式的全部公开中间量是否相互一致。 */
-XRT_API bool xrtHttpCacheAgeValid(
+XHTTP_API bool xrtHttpCacheAgeValid(
 	const xhttpcacheage* pAge
 );
 
@@ -171,14 +173,14 @@ XRT_API bool xrtHttpCacheAgeValid(
 	判断寿命来源和值是否有效。
 	NONE 只允许零寿命，启发式与扩展寿命可由上层策略构造。
 */
-XRT_API bool xrtHttpCacheFreshnessValid(
+XHTTP_API bool xrtHttpCacheFreshnessValid(
 	const xhttpcachefreshness* pFreshness
 );
 
 
 
 /* 按 freshness_lifetime > current_age 判断响应是否仍然新鲜。 */
-XRT_API bool xrtHttpCacheFresh(
+XHTTP_API bool xrtHttpCacheFresh(
 	const xhttpcacheage* pAge,
 	const xhttpcachefreshness* pFreshness
 );

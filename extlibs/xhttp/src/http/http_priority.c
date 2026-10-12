@@ -91,12 +91,12 @@ static void __xrtHttpPriorityMemberApply(
 
 
 /* 初始化 Priority 默认值。 */
-XRT_API void xrtHttpPriorityInit(xhttppriority* pPriority)
+XHTTP_API void xrtHttpPriorityInit(xhttppriority* pPriority)
 {
 	xhttppriority Priority;
 
-	if ( !__xrtRangeValid(pPriority, sizeof(Priority)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pPriority, sizeof(Priority)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	__xrtHttpPriorityDefault(&Priority);
@@ -106,7 +106,7 @@ XRT_API void xrtHttpPriorityInit(xhttppriority* pPriority)
 
 
 /* 解析一个 Priority 字段值。 */
-XRT_API bool xrtHttpPriorityValueParse(
+XHTTP_API bool xrtHttpPriorityValueParse(
 	xstrview Value,
 	xhttppriority* pPriority
 )
@@ -116,13 +116,13 @@ XRT_API bool xrtHttpPriorityValueParse(
 	xhttpnext Next;
 	size_t iOffset = 0;
 
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pPriority, sizeof(Priority)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pPriority, sizeof(Priority)) ||
+		xrtMemRangesOverlap(
 			Value.Data, Value.Size,
 			pPriority, sizeof(Priority)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	__xrtHttpPriorityDefault(&Priority);
@@ -145,7 +145,7 @@ XRT_API bool xrtHttpPriorityValueParse(
 
 
 /* 解析全部重复 Priority 字段行。 */
-XRT_API bool xrtHttpPriorityParse(
+XHTTP_API bool xrtHttpPriorityParse(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttppriority* pPriority
@@ -156,13 +156,13 @@ XRT_API bool xrtHttpPriorityParse(
 	xhttppriority Priority;
 	xhttpnext Next;
 
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtRangeValid(pPriority, sizeof(Priority)) ||
-		__xrtHttpFieldArrayOverlap(
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
+		!xrtMemRangeValid(pPriority, sizeof(Priority)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount,
 			pPriority, sizeof(Priority)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	__xrtHttpPriorityDefault(&Priority);
@@ -187,7 +187,7 @@ XRT_API bool xrtHttpPriorityParse(
 
 
 /* 以显式参数为边界覆盖两个 Priority 描述符。 */
-XRT_API bool xrtHttpPriorityOverlay(
+XHTTP_API bool xrtHttpPriorityOverlay(
 	const xhttppriority* pBase,
 	const xhttppriority* pUpdate,
 	xhttppriority* pPriority
@@ -197,17 +197,17 @@ XRT_API bool xrtHttpPriorityOverlay(
 	xhttppriority Update;
 	xhttppriority Priority;
 
-	if ( !__xrtRangeValid(pBase, sizeof(Base)) ||
-		!__xrtRangeValid(pUpdate, sizeof(Update)) ||
-		!__xrtRangeValid(pPriority, sizeof(Priority)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pBase, sizeof(Base)) ||
+		!xrtMemRangeValid(pUpdate, sizeof(Update)) ||
+		!xrtMemRangeValid(pPriority, sizeof(Priority)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Base, pBase, sizeof(Base));
 	memcpy(&Update, pUpdate, sizeof(Update));
 	if ( !__xrtHttpPriorityValid(&Base) ||
 		!__xrtHttpPriorityValid(&Update) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	__xrtHttpPriorityDefault(&Priority);

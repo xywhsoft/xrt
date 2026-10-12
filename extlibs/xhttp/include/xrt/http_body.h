@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_BODY_H
 #define XRT_HTTP_BODY_H
 
+#include <xhttp/export.h>
+
 #include <xrt/error.h>
 
 #if defined(XHTTP_FEATURE_HTTP_BODY_ASYNC)
@@ -163,7 +165,7 @@ XRT_EXTERN_C_BEGIN
 	创建自定义正文源；成功后接管 Factory 的 Destroy 责任。
 	Length 可以是 XHTTP_BODY_UNKNOWN，Flags 只接受公开标志。
 */
-XRT_API xhttpbody* xrtHttpBodyCreate(
+XHTTP_API xhttpbody* xrtHttpBodyCreate(
 	const xhttpbodyops* pOps,
 	ptr pFactory,
 	uint64 iLength,
@@ -173,22 +175,22 @@ XRT_API xhttpbody* xrtHttpBodyCreate(
 
 
 /* 创建可重放的空正文。 */
-XRT_API xhttpbody* xrtHttpBodyEmpty(void);
+XHTTP_API xhttpbody* xrtHttpBodyEmpty(void);
 
 
 
 /* 创建拥有正文副本的可重放正文。 */
-XRT_API xhttpbody* xrtHttpBodyCopy(xbytesview Data);
+XHTTP_API xhttpbody* xrtHttpBodyCopy(xbytesview Data);
 
 
 
 /* 创建借用外部内存的可重放正文，外部内存必须覆盖正文对象使用期。 */
-XRT_API xhttpbody* xrtHttpBodyBorrow(xbytesview Data);
+XHTTP_API xhttpbody* xrtHttpBodyBorrow(xbytesview Data);
 
 
 
 /* 成功时接管由 xrtMalloc 分配的数据，失败时所有权仍归调用方。 */
-XRT_API xhttpbody* xrtHttpBodyTake(ptr pData, size_t iSize);
+XHTTP_API xhttpbody* xrtHttpBodyTake(ptr pData, size_t iSize);
 
 
 
@@ -196,7 +198,7 @@ XRT_API xhttpbody* xrtHttpBodyTake(ptr pData, size_t iSize);
 	创建带自定义释放过程的可重放正文。
 	Release 不得为空；成功后在最后一个正文或 Chunk 引用释放时执行一次。
 */
-XRT_API xhttpbody* xrtHttpBodyReference(
+XHTTP_API xhttpbody* xrtHttpBodyReference(
 	xbytesview Data,
 	xhttpbodyreleaseproc pRelease,
 	ptr pContext
@@ -205,27 +207,27 @@ XRT_API xhttpbody* xrtHttpBodyReference(
 
 
 /* 增加正文对象引用并返回原指针。 */
-XRT_API xhttpbody* xrtHttpBodyRef(xhttpbody* pBody);
+XHTTP_API xhttpbody* xrtHttpBodyRef(xhttpbody* pBody);
 
 
 
 /* 释放正文对象引用；空指针安全，清理回调不会改变当前错误。 */
-XRT_API void xrtHttpBodyDestroy(xhttpbody* pBody);
+XHTTP_API void xrtHttpBodyDestroy(xhttpbody* pBody);
 
 
 
 /* 返回正文线性字节长度或 XHTTP_BODY_UNKNOWN。 */
-XRT_API uint64 xrtHttpBodyLength(const xhttpbody* pBody);
+XHTTP_API uint64 xrtHttpBodyLength(const xhttpbody* pBody);
 
 
 
 /* 返回正文源公开能力标志。 */
-XRT_API uint32 xrtHttpBodyFlags(const xhttpbody* pBody);
+XHTTP_API uint32 xrtHttpBodyFlags(const xhttpbody* pBody);
 
 
 
 /* 判断正文能否重新 Open 并从头读取。 */
-XRT_API bool xrtHttpBodyReplayable(const xhttpbody* pBody);
+XHTTP_API bool xrtHttpBodyReplayable(const xhttpbody* pBody);
 
 
 
@@ -234,7 +236,7 @@ XRT_API bool xrtHttpBodyReplayable(const xhttpbody* pBody);
 	自定义或流式正文返回 false、清空 Data，且不修改线程原有错误。
 	输出描述符不得覆盖正文对象或固定正文的底层字节。
 */
-XRT_API bool xrtHttpBodyView(
+XHTTP_API bool xrtHttpBodyView(
 	const xhttpbody* pBody,
 	xbytesview* pData
 );
@@ -242,7 +244,7 @@ XRT_API bool xrtHttpBodyView(
 
 
 /* 打开独立 Reader；非可重放正文一生最多尝试一次。 */
-XRT_API xhttpbodyreader* xrtHttpBodyOpen(xhttpbody* pBody);
+XHTTP_API xhttpbodyreader* xrtHttpBodyOpen(xhttpbody* pBody);
 
 
 
@@ -251,7 +253,7 @@ XRT_API xhttpbodyreader* xrtHttpBodyOpen(xhttpbody* pBody);
 	已失败 Reader 稳定重放同一个错误，已结束 Reader 稳定返回 EOF。
 	输出 Chunk 不得覆盖 Reader、Body 或固定正文的底层字节。
 */
-XRT_API xhttpbodystatus xrtHttpBodyNext(
+XHTTP_API xhttpbodystatus xrtHttpBodyNext(
 	xhttpbodyreader* pReader,
 	size_t iMaxBytes,
 	xhttpbodychunk* pChunk
@@ -264,7 +266,7 @@ XRT_API xhttpbodystatus xrtHttpBodyNext(
 	输出缓冲与 Size 不得相互覆盖，也不得覆盖 Reader、Body 或固定正文。
 	别名参数错误不会推进 Reader，也不会改写 Size。
 */
-XRT_API xhttpbodystatus xrtHttpBodyRead(
+XHTTP_API xhttpbodystatus xrtHttpBodyRead(
 	xhttpbodyreader* pReader,
 	void* pOutput,
 	size_t iCapacity,
@@ -274,24 +276,24 @@ XRT_API xhttpbodystatus xrtHttpBodyRead(
 
 
 /* 先清空再释放 Chunk 租约；空结构安全，回调不会改变当前错误。 */
-XRT_API void xrtHttpBodyChunkRelease(xhttpbodychunk* pChunk);
+XHTTP_API void xrtHttpBodyChunkRelease(xhttpbodychunk* pChunk);
 
 
 
 /* 返回 Reader 已发布的正文总字节数。 */
-XRT_API uint64 xrtHttpBodyReaderBytes(const xhttpbodyreader* pReader);
+XHTTP_API uint64 xrtHttpBodyReaderBytes(const xhttpbodyreader* pReader);
 
 
 
 /* 返回失败 Reader 借用的稳定错误，其他状态返回空指针。 */
-XRT_API const xerror* xrtHttpBodyReaderError(
+XHTTP_API const xerror* xrtHttpBodyReaderError(
 	const xhttpbodyreader* pReader
 );
 
 
 
 /* 关闭 Reader 并释放正文引用；未释放 Chunk 仍保持有效。 */
-XRT_API void xrtHttpBodyReaderDestroy(xhttpbodyreader* pReader);
+XHTTP_API void xrtHttpBodyReaderDestroy(xhttpbodyreader* pReader);
 
 #endif
 
@@ -303,7 +305,7 @@ XRT_API void xrtHttpBodyReaderDestroy(xhttpbodyreader* pReader);
 	在 AGAIN 后取得一次可读性 Future；每个 AGAIN 只能成功取得一次。
 	调用方拥有返回引用，Future 完成后必须重新调用 Next。
 */
-XRT_API xfuture* xrtHttpBodyReaderWait(xhttpbodyreader* pReader);
+XHTTP_API xfuture* xrtHttpBodyReaderWait(xhttpbodyreader* pReader);
 
 #endif
 

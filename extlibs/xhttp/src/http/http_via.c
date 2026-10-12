@@ -61,7 +61,7 @@ static bool __xrtHttpViaCommentEnd(
 		}
 		if ( iByte == (uint8)'\\' ) {
 			if ( (i >= Text.Size) ||
-				!__xrtHttpQuotedPairByte(
+				!__xhttpQuotedPairByte(
 					(unsigned char)Text.Data[i]
 				) ) {
 				return false;
@@ -88,7 +88,7 @@ static bool __xrtHttpViaTokenEnd(
 	size_t i = iStart;
 
 	while ( (i < Text.Size) &&
-		__xrtHttpTokenByte((unsigned char)Text.Data[i]) ) {
+		__xhttpTokenByte((unsigned char)Text.Data[i]) ) {
 		i++;
 	}
 	if ( i == iStart ) {
@@ -101,12 +101,12 @@ static bool __xrtHttpViaTokenEnd(
 
 
 /* 初始化单字段游标。 */
-XRT_API void xrtHttpViaCursorInit(xhttpviacursor* pCursor)
+XHTTP_API void xrtHttpViaCursorInit(xhttpviacursor* pCursor)
 {
 	xhttpviacursor Cursor;
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -116,14 +116,14 @@ XRT_API void xrtHttpViaCursorInit(xhttpviacursor* pCursor)
 
 
 /* 初始化重复字段游标。 */
-XRT_API void xrtHttpViaFieldCursorInit(
+XHTTP_API void xrtHttpViaFieldCursorInit(
 	xhttpviafieldcursor* pCursor
 )
 {
 	xhttpviafieldcursor Cursor;
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -133,7 +133,7 @@ XRT_API void xrtHttpViaFieldCursorInit(
 
 
 /* 严格解析一个 Via 元素。 */
-XRT_API bool xrtHttpViaElementParse(
+XHTTP_API bool xrtHttpViaElementParse(
 	xstrview Element,
 	xhttpvia* pOutput
 )
@@ -146,12 +146,12 @@ XRT_API bool xrtHttpViaElementParse(
 	size_t iEnd;
 	size_t i;
 
-	if ( !__xrtHttpViewValid(Element) ||
-		!__xrtRangeValid(pOutput, sizeof(Via)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Element) ||
+		!xrtMemRangeValid(pOutput, sizeof(Via)) ||
+		xrtMemRangesOverlap(
 			pOutput, sizeof(Via), Element.Data, Element.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(&Via, 0, sizeof(Via));
@@ -159,13 +159,13 @@ XRT_API bool xrtHttpViaElementParse(
 	Via.Element = Text;
 	if ( (Text.Size == 0) ||
 		!__xrtHttpViaTokenEnd(Text, 0, &iFirst) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	i = iFirst;
 	if ( (i < Text.Size) && (Text.Data[i] == '/') ) {
 		if ( !__xrtHttpViaTokenEnd(Text, i + 1u, &iSecond) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		Via.ProtocolName = (xstrview){ Text.Data, i };
@@ -180,7 +180,7 @@ XRT_API bool xrtHttpViaElementParse(
 	}
 	if ( (i >= Text.Size) ||
 		!__xrtHttpViaRwsByte((uint8)Text.Data[i]) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	while ( (i < Text.Size) &&
@@ -189,7 +189,7 @@ XRT_API bool xrtHttpViaElementParse(
 	}
 	iBy = i;
 	if ( !__xrtHttpViaTokenEnd(Text, i, &iEnd) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	Via.Pseudonym = (xstrview){ Text.Data + i, iEnd - i };
@@ -210,7 +210,7 @@ XRT_API bool xrtHttpViaElementParse(
 	Via.ReceivedBy = (xstrview){ Text.Data + iBy, i - iBy };
 	if ( i < Text.Size ) {
 		if ( !__xrtHttpViaRwsByte((uint8)Text.Data[i]) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		while ( (i < Text.Size) &&
@@ -219,7 +219,7 @@ XRT_API bool xrtHttpViaElementParse(
 		}
 		if ( !__xrtHttpViaCommentEnd(Text, i, &iEnd) ||
 			(iEnd != Text.Size) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		Via.Comment = (xstrview){ Text.Data + i, iEnd - i };
@@ -274,7 +274,7 @@ static xhttpnext __xrtHttpViaMemberNext(
 		}
 		if ( iByte == (uint8)')' ) {
 			if ( iDepth == 0 ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return XHTTP_NEXT_ERROR;
 			}
 			iDepth--;
@@ -283,7 +283,7 @@ static xhttpnext __xrtHttpViaMemberNext(
 		}
 		if ( (iByte == (uint8)'\\') && (iDepth != 0) ) {
 			if ( (i + 1u) >= Value.Size ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return XHTTP_NEXT_ERROR;
 			}
 			i += 2u;
@@ -292,7 +292,7 @@ static xhttpnext __xrtHttpViaMemberNext(
 		i++;
 	}
 	if ( iDepth != 0 ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	*pElement = xrtHttpOwsTrim((xstrview){
@@ -300,7 +300,7 @@ static xhttpnext __xrtHttpViaMemberNext(
 	});
 	*pNext = (i < Value.Size) ? (i + 1u) : i;
 	if ( pElement->Size == 0 ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	return XHTTP_NEXT_ITEM;
@@ -317,8 +317,8 @@ static bool __xrtHttpViaValueValidate(xstrview Value)
 	size_t iOffset = 0;
 	size_t iNext;
 
-	if ( !__xrtHttpViewValid(Value) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Value) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( ;; ) {
@@ -342,7 +342,7 @@ static bool __xrtHttpViaValueValidate(xstrview Value)
 
 
 /* 严格验证完整 Via 字段值。 */
-XRT_API bool xrtHttpViaValid(xstrview Value)
+XHTTP_API bool xrtHttpViaValid(xstrview Value)
 {
 	return __xrtHttpViaValueValidate(Value);
 }
@@ -371,7 +371,7 @@ static bool __xrtHttpViaCursorValid(
 
 
 /* 迭代一个完整 Via 字段值。 */
-XRT_API xhttpnext xrtHttpViaNext(
+XHTTP_API xhttpnext xrtHttpViaNext(
 	xstrview Value,
 	xhttpviacursor* pCursor,
 	xhttpvia* pOutput
@@ -383,24 +383,24 @@ XRT_API xhttpnext xrtHttpViaNext(
 	xhttpnext Next;
 	size_t iNext;
 
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pOutput, sizeof(Via)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pOutput, sizeof(Via)) ||
+		xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pOutput, sizeof(Via)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, sizeof(Via), Value.Data, Value.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
 	memset(&Via, 0, sizeof(Via));
 	memcpy(pOutput, &Via, sizeof(Via));
 	if ( !__xrtHttpViaCursorValid(&Cursor, Value) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.Validated == 0 ) {
@@ -442,7 +442,7 @@ static bool __xrtHttpViaFieldsValidate(
 	size_t i;
 
 	for ( i = 0; i < iCount; i++ ) {
-		__xrtHttpFieldLoad(pFields, i, &Field);
+		__xhttpFieldLoad(pFields, i, &Field);
 		if ( xrtHttpFieldNameEqual(
 			Field.Name, XRT_STR_LITERAL("Via")
 		) && !__xrtHttpViaValueValidate(Field.Value) ) {
@@ -480,7 +480,7 @@ static bool __xrtHttpViaFieldCursorValid(
 
 
 /* 跨重复 Via 字段行迭代代理节点。 */
-XRT_API xhttpnext xrtHttpViaFieldNext(
+XHTTP_API xhttpnext xrtHttpViaFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpviafieldcursor* pCursor,
@@ -494,17 +494,17 @@ XRT_API xhttpnext xrtHttpViaFieldNext(
 	xhttpnext Next;
 	size_t iNext;
 
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pOutput, sizeof(Via)) ||
-		__xrtHttpFieldArrayOverlap(
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pOutput, sizeof(Via)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pCursor, sizeof(Cursor)
-		) || __xrtHttpFieldArrayOverlap(
+		) || __xhttpFieldArrayOverlap(
 			pFields, iCount, pOutput, sizeof(Via)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pOutput, sizeof(Via)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
@@ -513,7 +513,7 @@ XRT_API xhttpnext xrtHttpViaFieldNext(
 	if ( !__xrtHttpViaFieldCursorValid(
 		&Cursor, pFields, iCount
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.Validated == 0 ) {
@@ -525,7 +525,7 @@ XRT_API xhttpnext xrtHttpViaFieldNext(
 		Cursor.Validated = 1u;
 	}
 	while ( Cursor.Field < iCount ) {
-		__xrtHttpFieldLoad(pFields, Cursor.Field, &Field);
+		__xhttpFieldLoad(pFields, Cursor.Field, &Field);
 		if ( !xrtHttpFieldNameEqual(
 			Field.Name, XRT_STR_LITERAL("Via")
 		) ) {
@@ -557,7 +557,7 @@ XRT_API xhttpnext xrtHttpViaFieldNext(
 
 
 /* 解码完整 Via comment。 */
-XRT_API bool xrtHttpViaCommentDecode(
+XHTTP_API bool xrtHttpViaCommentDecode(
 	xstrview Comment,
 	void* pOutput,
 	size_t iCapacity,
@@ -570,20 +570,20 @@ XRT_API bool xrtHttpViaCommentDecode(
 	size_t i;
 	bytes pBytes = (bytes)pOutput;
 
-	if ( !__xrtHttpViewValid(Comment) ||
-		!__xrtRangeValid(pSize, sizeof(iRequired)) ||
+	if ( !__xhttpViewValid(Comment) ||
+		!xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
 		((pOutput != NULL) &&
-		 !__xrtRangeValid(pOutput, iCapacity)) ||
-		__xrtRangesOverlap(
+		 !xrtMemRangeValid(pOutput, iCapacity)) ||
+		xrtMemRangesOverlap(
 			pSize, sizeof(iRequired), Comment.Data, Comment.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpViaCommentEnd(Comment, 0, &iEnd) ||
 		(iEnd != Comment.Size) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	for ( i = 1u; (i + 1u) < Comment.Size; i++ ) {
@@ -593,12 +593,12 @@ XRT_API bool xrtHttpViaCommentDecode(
 		iRequired++;
 	}
 	if ( (pOutput != NULL) &&
-		(__xrtRangesOverlap(
+		(xrtMemRangesOverlap(
 			pOutput, iRequired, Comment.Data, Comment.Size
-		 ) || __xrtRangesOverlap(
+		 ) || xrtMemRangesOverlap(
 			pOutput, iRequired, pSize, sizeof(iRequired)
 		 )) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pSize, &iRequired, sizeof(iRequired));
@@ -606,7 +606,7 @@ XRT_API bool xrtHttpViaCommentDecode(
 		return true;
 	}
 	if ( iCapacity < iRequired ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	for ( i = 1u; (i + 1u) < Comment.Size; i++ ) {

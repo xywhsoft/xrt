@@ -451,7 +451,7 @@ static bool __xrtFormDataConfigValid(
 
 
 /* 初始化适合 HTTP 表单的容量和限制。 */
-XRT_API void xrtFormDataConfigInit(xformdataconfig* pConfig)
+XHTTP_API void xrtFormDataConfigInit(xformdataconfig* pConfig)
 {
 	xformdataconfig Config;
 
@@ -482,7 +482,7 @@ XRT_API void xrtFormDataConfigInit(xformdataconfig* pConfig)
 
 
 /* 创建拥有型空容器。 */
-XRT_API xformdata* xrtFormDataCreate(
+XHTTP_API xformdata* xrtFormDataCreate(
 	const xformdataconfig* pConfig
 )
 {
@@ -521,7 +521,7 @@ XRT_API xformdata* xrtFormDataCreate(
 
 
 /* 清空全部 Part 并保留条目数组。 */
-XRT_API void xrtFormDataClear(xformdata* pForm)
+XHTTP_API void xrtFormDataClear(xformdata* pForm)
 {
 	size_t i;
 
@@ -540,7 +540,7 @@ XRT_API void xrtFormDataClear(xformdata* pForm)
 
 
 /* 销毁容器。 */
-XRT_API void xrtFormDataDestroy(xformdata* pForm)
+XHTTP_API void xrtFormDataDestroy(xformdata* pForm)
 {
 	if ( pForm == NULL ) {
 		return;
@@ -561,7 +561,7 @@ XRT_API void xrtFormDataDestroy(xformdata* pForm)
 
 
 /* 预留条目数组容量。 */
-XRT_API bool xrtFormDataReserve(xformdata* pForm, size_t iParts)
+XHTTP_API bool xrtFormDataReserve(xformdata* pForm, size_t iParts)
 {
 	xrt_form_data_entry* pEntries;
 	size_t iCapacity;
@@ -623,7 +623,7 @@ XRT_API bool xrtFormDataReserve(xformdata* pForm, size_t iParts)
 
 
 /* 返回 Part 数量。 */
-XRT_API size_t xrtFormDataCount(const xformdata* pForm)
+XHTTP_API size_t xrtFormDataCount(const xformdata* pForm)
 {
 	return pForm != NULL ? pForm->Count : 0;
 }
@@ -631,7 +631,7 @@ XRT_API size_t xrtFormDataCount(const xformdata* pForm)
 
 
 /* 返回逻辑元数据字节数。 */
-XRT_API size_t xrtFormDataMetadata(const xformdata* pForm)
+XHTTP_API size_t xrtFormDataMetadata(const xformdata* pForm)
 {
 	return pForm != NULL ? pForm->Metadata : 0;
 }
@@ -678,7 +678,7 @@ static bool __xrtFormDataAppendEntry(
 
 
 /* 追加一个正文 Part。 */
-XRT_API bool xrtFormDataAppendBody(
+XHTTP_API bool xrtFormDataAppendBody(
 	xformdata* pForm,
 	xstrview Name,
 	xhttpbody* pBody,
@@ -703,7 +703,7 @@ XRT_API bool xrtFormDataAppendBody(
 
 
 /* 复制文本值并追加普通字段。 */
-XRT_API bool xrtFormDataAppendText(
+XHTTP_API bool xrtFormDataAppendText(
 	xformdata* pForm,
 	xstrview Name,
 	xstrview Value
@@ -724,7 +724,7 @@ XRT_API bool xrtFormDataAppendText(
 
 
 /* 复制二进制值并追加字段。 */
-XRT_API bool xrtFormDataAppendBytes(
+XHTTP_API bool xrtFormDataAppendBytes(
 	xformdata* pForm,
 	xstrview Name,
 	xbytesview Data,
@@ -825,7 +825,7 @@ static bool __xrtFormDataSetEntry(
 
 
 /* 原子替换全部同名正文 Part。 */
-XRT_API bool xrtFormDataSetBody(
+XHTTP_API bool xrtFormDataSetBody(
 	xformdata* pForm,
 	xstrview Name,
 	xhttpbody* pBody,
@@ -850,7 +850,7 @@ XRT_API bool xrtFormDataSetBody(
 
 
 /* 复制文本值并原子替换同名项。 */
-XRT_API bool xrtFormDataSetText(
+XHTTP_API bool xrtFormDataSetText(
 	xformdata* pForm,
 	xstrview Name,
 	xstrview Value
@@ -871,7 +871,7 @@ XRT_API bool xrtFormDataSetText(
 
 
 /* 复制二进制值并原子替换同名项。 */
-XRT_API bool xrtFormDataSetBytes(
+XHTTP_API bool xrtFormDataSetBytes(
 	xformdata* pForm,
 	xstrview Name,
 	xbytesview Data,
@@ -895,7 +895,7 @@ XRT_API bool xrtFormDataSetBytes(
 
 
 /* 删除全部同名 Part。 */
-XRT_API size_t xrtFormDataRemove(
+XHTTP_API size_t xrtFormDataRemove(
 	xformdata* pForm,
 	xstrview Name
 )
@@ -939,7 +939,7 @@ XRT_API size_t xrtFormDataRemove(
 
 
 /* 返回同名 Part 数量。 */
-XRT_API size_t xrtFormDataCountName(
+XHTTP_API size_t xrtFormDataCountName(
 	const xformdata* pForm,
 	xstrview Name
 )
@@ -967,7 +967,7 @@ XRT_API size_t xrtFormDataCountName(
 
 
 /* 判断是否存在同名 Part。 */
-XRT_API bool xrtFormDataHas(
+XHTTP_API bool xrtFormDataHas(
 	const xformdata* pForm,
 	xstrview Name
 )
@@ -1012,7 +1012,7 @@ bool __xrtFormDataOutputValid(
 
 
 /* 复制指定位置的借用 Part 视图。 */
-XRT_API bool xrtFormDataAt(
+XHTTP_API bool xrtFormDataAt(
 	const xformdata* pForm,
 	size_t iIndex,
 	xformdatapart* pPart
@@ -1051,7 +1051,7 @@ XRT_API bool xrtFormDataAt(
 
 
 /* 复制首个同名 Part。 */
-XRT_API bool xrtFormDataGet(
+XHTTP_API bool xrtFormDataGet(
 	const xformdata* pForm,
 	xstrview Name,
 	xformdatapart* pPart
@@ -1067,7 +1067,7 @@ XRT_API bool xrtFormDataGet(
 
 
 /* 从 Index 开始查找下一个同名项。 */
-XRT_API xhttpnext xrtFormDataFind(
+XHTTP_API xhttpnext xrtFormDataFind(
 	const xformdata* pForm,
 	xstrview Name,
 	size_t* pIndex,
@@ -1124,7 +1124,7 @@ XRT_API xhttpnext xrtFormDataFind(
 
 
 /* 深复制元数据并保留正文引用。 */
-XRT_API xformdata* xrtFormDataClone(const xformdata* pForm)
+XHTTP_API xformdata* xrtFormDataClone(const xformdata* pForm)
 {
 	xformdata* pClone;
 	size_t i;

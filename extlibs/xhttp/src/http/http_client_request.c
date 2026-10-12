@@ -268,7 +268,7 @@ bool __xrtHttpRequestTakeUrl(
 
 
 /* 校验输出不会破坏请求对象及其拥有或借用的任一可见存储。 */
-bool __xrtHttpRequestOutputValid(
+XHTTP_API bool xrtHttpBridgeRequestOutputValid(
 	const xhttprequest* pRequest,
 	const void* pOutput,
 	size_t iSize
@@ -328,7 +328,7 @@ bool __xrtHttpRequestOutputValid(
 
 
 /* 创建拥有全部请求构建状态的对象。 */
-XRT_API xhttprequest* xrtHttpRequestCreate(
+XHTTP_API xhttprequest* xrtHttpRequestCreate(
 	xstrview Method,
 	xstrview Url
 )
@@ -341,7 +341,7 @@ XRT_API xhttprequest* xrtHttpRequestCreate(
 
 
 /* 使用指定 Header 配置创建拥有全部请求构建状态的对象。 */
-XRT_API xhttprequest* xrtHttpRequestCreateWithHeaders(
+XHTTP_API xhttprequest* xrtHttpRequestCreateWithHeaders(
 	xstrview Method,
 	xstrview Url,
 	const xhttpheadersconfig* pHeaders
@@ -366,7 +366,7 @@ XRT_API xhttprequest* xrtHttpRequestCreateWithHeaders(
 
 
 /* 创建 Header 和文本独立、正文共享引用的请求副本。 */
-XRT_API xhttprequest* xrtHttpRequestClone(
+XHTTP_API xhttprequest* xrtHttpRequestClone(
 	const xhttprequest* pRequest
 )
 {
@@ -430,7 +430,7 @@ fail:
 
 
 /* 释放请求拥有的全部动态资源。 */
-XRT_API void xrtHttpRequestDestroy(xhttprequest* pRequest)
+XHTTP_API void xrtHttpRequestDestroy(xhttprequest* pRequest)
 {
 	if ( pRequest == NULL ) {
 		return;
@@ -449,7 +449,7 @@ XRT_API void xrtHttpRequestDestroy(xhttprequest* pRequest)
 
 
 /* 校验并失败原子地替换方法。 */
-XRT_API bool xrtHttpRequestSetMethod(
+XHTTP_API bool xrtHttpRequestSetMethod(
 	xhttprequest* pRequest,
 	xstrview Method
 )
@@ -484,7 +484,7 @@ XRT_API bool xrtHttpRequestSetMethod(
 
 
 /* 返回请求方法的借用视图。 */
-XRT_API xstrview xrtHttpRequestMethod(
+XHTTP_API xstrview xrtHttpRequestMethod(
 	const xhttprequest* pRequest
 )
 {
@@ -500,7 +500,7 @@ XRT_API xstrview xrtHttpRequestMethod(
 
 
 /* 解析并失败原子地替换 URL。 */
-XRT_API bool xrtHttpRequestSetUrl(
+XHTTP_API bool xrtHttpRequestSetUrl(
 	xhttprequest* pRequest,
 	xstrview Url
 )
@@ -540,7 +540,7 @@ XRT_API bool xrtHttpRequestSetUrl(
 
 
 /* 返回原始 URL 文本的借用视图。 */
-XRT_API xstrview xrtHttpRequestUrlText(
+XHTTP_API xstrview xrtHttpRequestUrlText(
 	const xhttprequest* pRequest
 )
 {
@@ -556,7 +556,7 @@ XRT_API xstrview xrtHttpRequestUrlText(
 
 
 /* 返回借用请求文本的解析 URL。 */
-XRT_API const xurl* xrtHttpRequestUrl(
+XHTTP_API const xurl* xrtHttpRequestUrl(
 	const xhttprequest* pRequest
 )
 {
@@ -566,7 +566,7 @@ XRT_API const xurl* xrtHttpRequestUrl(
 
 
 /* 追加拥有型 Header。 */
-XRT_API bool xrtHttpRequestAddHeader(
+XHTTP_API bool xrtHttpRequestAddHeader(
 	xhttprequest* pRequest,
 	xstrview Name,
 	xstrview Value
@@ -582,7 +582,7 @@ XRT_API bool xrtHttpRequestAddHeader(
 
 
 /* 设置首个同名 Header。 */
-XRT_API bool xrtHttpRequestSetHeader(
+XHTTP_API bool xrtHttpRequestSetHeader(
 	xhttprequest* pRequest,
 	xstrview Name,
 	xstrview Value
@@ -598,7 +598,7 @@ XRT_API bool xrtHttpRequestSetHeader(
 
 
 /* 删除全部同名 Header。 */
-XRT_API size_t xrtHttpRequestRemoveHeader(
+XHTTP_API size_t xrtHttpRequestRemoveHeader(
 	xhttprequest* pRequest,
 	xstrview Name
 )
@@ -613,7 +613,7 @@ XRT_API size_t xrtHttpRequestRemoveHeader(
 
 
 /* 返回首个同名 Header。 */
-XRT_API const xhttpfield* xrtHttpRequestHeader(
+XHTTP_API const xhttpfield* xrtHttpRequestHeader(
 	const xhttprequest* pRequest,
 	xstrview Name
 )
@@ -627,7 +627,7 @@ XRT_API const xhttpfield* xrtHttpRequestHeader(
 
 
 /* 返回 Header 数量。 */
-XRT_API size_t xrtHttpRequestHeaderCount(
+XHTTP_API size_t xrtHttpRequestHeaderCount(
 	const xhttprequest* pRequest
 )
 {
@@ -638,7 +638,7 @@ XRT_API size_t xrtHttpRequestHeaderCount(
 
 
 /* 返回请求拥有的连续只读 Header 数组。 */
-XRT_API const xhttpfield* xrtHttpRequestHeaderData(
+XHTTP_API const xhttpfield* xrtHttpRequestHeaderData(
 	const xhttprequest* pRequest
 )
 {
@@ -649,7 +649,7 @@ XRT_API const xhttpfield* xrtHttpRequestHeaderData(
 
 
 /* 返回指定位置的 Header。 */
-XRT_API const xhttpfield* xrtHttpRequestHeaderAt(
+XHTTP_API const xhttpfield* xrtHttpRequestHeaderAt(
 	const xhttprequest* pRequest,
 	size_t iIndex
 )
@@ -663,7 +663,7 @@ XRT_API const xhttpfield* xrtHttpRequestHeaderAt(
 
 
 /* 返回请求拥有的可变 Header 容器。 */
-XRT_API xhttpheaders* xrtHttpRequestHeaders(
+XHTTP_API xhttpheaders* xrtHttpRequestHeaders(
 	xhttprequest* pRequest
 )
 {
@@ -673,7 +673,7 @@ XRT_API xhttpheaders* xrtHttpRequestHeaders(
 
 
 /* 保留并替换正文引用。 */
-XRT_API bool xrtHttpRequestSetBody(
+XHTTP_API bool xrtHttpRequestSetBody(
 	xhttprequest* pRequest,
 	xhttpbody* pBody
 )
@@ -700,7 +700,7 @@ XRT_API bool xrtHttpRequestSetBody(
 
 
 /* 复制正文并按需设置 Content-Type。 */
-XRT_API bool xrtHttpRequestSetBytes(
+XHTTP_API bool xrtHttpRequestSetBytes(
 	xhttprequest* pRequest,
 	xbytesview Data,
 	xstrview ContentType
@@ -724,7 +724,7 @@ XRT_API bool xrtHttpRequestSetBytes(
 
 
 /* 返回请求借用的正文引用。 */
-XRT_API xhttpbody* xrtHttpRequestBody(
+XHTTP_API xhttpbody* xrtHttpRequestBody(
 	const xhttprequest* pRequest
 )
 {

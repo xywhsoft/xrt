@@ -444,6 +444,26 @@ xhttpnext __xrtHttpNameValueNext(
 
 
 
+/* 为扩展字段提供指定分隔符的参数扫描入口。 */
+XRT_API xhttpnext xrtHttpNameValueNext(
+	xstrview Parameters,
+	size_t* pOffset,
+	xhttpparam* pParam,
+	char iSeparator,
+	bool bIgnoreEmpty
+)
+{
+	if ( (iSeparator != ';') && (iSeparator != ',') ) {
+		__xrtErrorSetInvalidArgument();
+		return XHTTP_NEXT_ERROR;
+	}
+	return __xrtHttpNameValueNext(
+		Parameters, pOffset, pParam, iSeparator, bIgnoreEmpty
+	);
+}
+
+
+
 /* 严格读取分号分隔参数列表的下一项。 */
 XRT_API xhttpnext xrtHttpParamNext(
 	xstrview Parameters,

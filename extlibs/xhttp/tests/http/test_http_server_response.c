@@ -961,7 +961,7 @@ static void testHttpServerResponseContracts(void)
 		XRT_STR_LITERAL("X-Invalid"),
 		{ NULL, 1 }
 	};
-	xrt_http1_server_response_source Source = {
+	xhttpresponsesource Source = {
 		200,
 		XRT_STR_LITERAL("OK"),
 		&InvalidField,
@@ -988,7 +988,7 @@ static void testHttpServerResponseContracts(void)
 		FieldStorage + 1u
 	);
 	testRequire(
-		((pResponse = __xrtHttp1ServerResponsePrepareSource(
+		((pResponse = xrtHttpBridge1ServerResponsePrepareSource(
 			XHTTP_VERSION_1_1,
 			XRT_STR_LITERAL("GET"),
 			XHTTP_SERVER_REQUEST_KEEP_ALIVE,
@@ -1004,7 +1004,7 @@ static void testHttpServerResponseContracts(void)
 	Source.Headers = &InvalidField;
 
 	testRequire(
-		(__xrtHttp1ServerResponsePrepareSource(
+		(xrtHttpBridge1ServerResponsePrepareSource(
 			XHTTP_VERSION_1_1,
 			XRT_STR_LITERAL("GET"),
 			XHTTP_SERVER_REQUEST_KEEP_ALIVE,
@@ -1018,7 +1018,7 @@ static void testHttpServerResponseContracts(void)
 	Source.HeaderCount = 0;
 	Source.BodyLength = 1;
 	testRequire(
-		(__xrtHttp1ServerResponsePrepareSource(
+		(xrtHttpBridge1ServerResponsePrepareSource(
 			XHTTP_VERSION_1_1,
 			XRT_STR_LITERAL("GET"),
 			XHTTP_SERVER_REQUEST_KEEP_ALIVE,
@@ -1033,7 +1033,7 @@ static void testHttpServerResponseContracts(void)
 		"HTTP server response source Body fixture failed");
 	Source.Body = pBody;
 	testRequire(
-		(__xrtHttp1ServerResponsePrepareSource(
+		(xrtHttpBridge1ServerResponsePrepareSource(
 			XHTTP_VERSION_1_1,
 			XRT_STR_LITERAL("GET"),
 			XHTTP_SERVER_REQUEST_KEEP_ALIVE,

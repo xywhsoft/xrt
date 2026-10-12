@@ -14,7 +14,7 @@
 
 
 
-/* 验证单头发布保留 Retry-After 解析和封顶退避。 */
+/* 验证单头发布保留 Retry-After 解析和写出。 */
 int main(void)
 {
 	xhttpretryafter Retry;
@@ -29,9 +29,7 @@ int main(void)
 		(iDelay == UINT64_C(2000)) &&
 		xrtHttpRetryAfterWrite(
 			&Retry, Text, sizeof(Text), &iSize
-		) && (iSize == 1u) && (Text[0] == '2') &&
-		xrtHttpRetryBackoff(1000, 4000, 8, &iDelay) &&
-		(iDelay == UINT64_C(4000));
+		) && (iSize == 1u) && (Text[0] == '2');
 	printf(
 		"%s single-http-retry\n",
 		bPass ? "[PASS]" : "[FAIL]"

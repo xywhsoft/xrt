@@ -8,6 +8,8 @@ lead: From a one-line GET to a deliverable downloader: resumable transfers (Rang
 api: xhttp-http_client, xhttp-http_client_easy, file
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 Volume 13's Project 4: an **HTTPS downloader** — `xd <url> [-o 输出] [-c 续传]` (output, resume): fetch an HTTPS resource to disk, support resumable downloads (continue from the last breakpoint when the server supports Range), stream to disk (a 10 GB file at MB-level memory), complete atomically (temp file + rename — a mid-flight failure leaves no half file). It is xhttp's client family (Chapters 98–103) applied together with the file layers (Chapters 45–48): starting from the **easy layer** (the power of a one-line GET), **response limits and streaming consumption** (Chapter 99's ResponseBodyLimit and the Body callback), the **Range resume protocol** (Chapter 91's HTTP-framing Range semantics + Chapter 101's cache_range composition layer applied locally), **atomic writes** (Chapter 46's WriteAtomic — the primitive of the `file/whole` sample), **errors and retry** (Chapter 100: judging retryable classes of connection failures). Projects 1/2's (Chapters 138/140) seven lessons replay a third time — the network shape adds the dimension of **remote-resource uncertainty** (the server may not support resume, the ETag may change, the connection may break at 90%).
@@ -81,11 +83,11 @@ The seven lessons replay a third time, two upgraded: **acceptance first** (seven
 
 The program below is from `examples/http/client_easy` — the downloader's HTTP face in a minimal loop (the tutorial Chapter 98 complete form):
 
-```embed path="extlibs/xhttp/examples/http/client_easy/main.c" title="extlibs/xhttp/examples/http/client_easy/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_easy/main.c" title="extlibs/xhttp-client/examples/http/client_easy/main.c"
 
 ```
 ```
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_easy/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_easy_future --exclude-test "*" --no-single --no-run
 usage: client_easy <http-url>
 ```
 

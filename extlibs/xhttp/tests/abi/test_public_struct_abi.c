@@ -1,4 +1,4 @@
-#define XHTTP_MODULE_HTTP_CLIENT
+#define XHTTP_CLIENT_MODULE_HTTP_CLIENT
 #include <xhttp.h>
 
 #include "public_struct_abi.h"

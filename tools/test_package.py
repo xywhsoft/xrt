@@ -318,5 +318,30 @@ class CommandTest(unittest.TestCase):
 
 
 
+class OwnedSourceTest(unittest.TestCase):
+	"""独立产品不能把核心或依赖源文件再次归入自己的发布库。"""
+
+	def test_each_source_is_archived_by_its_owner(self) -> None:
+		manifests = [
+			{"product": "xrt", "modules": [{"sources": ["src/core.c"]}]},
+			{"product": "xhttp", "modules": [{"sources": ["extlibs/xhttp/message.c"]}]},
+			{"product": "xhttp_client", "modules": [{"sources": ["extlibs/xhttp-client/client.c"]}]},
+		]
+		groups = xrt_package._owned_source_groups(
+			["extlibs/xhttp-client/client.c", "src/core.c", "extlibs/xhttp/message.c"], manifests)
+		self.assertEqual([(m["product"], s) for m, s in groups], [
+			("xrt", ["src/core.c"]), ("xhttp", ["extlibs/xhttp/message.c"]),
+			("xhttp_client", ["extlibs/xhttp-client/client.c"]),
+		])
+		self.assertEqual(xrt_package._owned_source_groups(["src/core.c"], manifests)[0][0]["product"], "xrt")
+
+	def test_unknown_and_cross_product_sources_are_rejected(self) -> None:
+		manifest = {"modules": [{"sources": ["known.c"]}]}
+		with self.assertRaisesRegex(ValueError, "unowned"):
+			xrt_package._owned_source_groups(["other.c"], [manifest])
+		with self.assertRaisesRegex(ValueError, "multiple products"):
+			xrt_package._owned_source_groups(["known.c"], [manifest, manifest])
+
+
 if __name__ == "__main__":
 	unittest.main()

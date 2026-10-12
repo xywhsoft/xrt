@@ -54,7 +54,7 @@ static xhttpnext __xrtHttpResponseBearerChallengeNext(
 
 
 /* 迭代并解码源站 Bearer challenge。 */
-XRT_API xhttpnext xrtHttpResponseBearerChallengeNext(
+XHTTP_API xhttpnext xrtHttpResponseBearerChallengeNext(
 	const xhttpresponse* pResponse,
 	xhttpauthcursor* pCursor,
 	void* pOutput,
@@ -77,7 +77,7 @@ XRT_API xhttpnext xrtHttpResponseBearerChallengeNext(
 
 
 /* 迭代并解码代理 Bearer challenge。 */
-XRT_API xhttpnext xrtHttpResponseProxyBearerChallengeNext(
+XHTTP_API xhttpnext xrtHttpResponseProxyBearerChallengeNext(
 	const xhttpresponse* pResponse,
 	xhttpauthcursor* pCursor,
 	void* pOutput,

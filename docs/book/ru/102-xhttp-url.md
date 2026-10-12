@@ -8,6 +8,8 @@ lead: Разбор универсального URI-reference без копир�
 api: xhttp-url, xhttp-query, net
 ---
 
+> Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Ориентация
 
 `xurl` — URL-слой xhttp, но он **не только про HTTP URL**: `xrtUrlParse` разбирает полный URI-reference RFC 3986 — `mailto:user@example.com`, `urn:isbn:...`, сетевой путь `//host/path`, относительную ссылку `../items?page=2` поддерживаются целиком; URL не сводится к `scheme://host/path`. Дизайн в один дух со всей библиотекой: **ноль копирования** (все представления заимствуют ввод), **биты присутствия** (`Path` присутствует всегда; есть ли Query/Fragment/UserInfo/порт — смотреть `Flags`, не на длину представления), **лексическая сохранность** (`PortText` хранит `:00080` как есть, `port` — десятичный текст произвольной длины: `:65536` не отвергается разбором за превышение uint16), **выписывание без выделения** (семейство Write отвергает перекрытие, короткий буфер — ноль записанного). Плюс разрешение ссылок RFC 3986 (`xrtUrlResolve` — разворот относительных адресов) и выписывание target (форма строки запроса HTTP) — вот полный словарь URL.
@@ -61,7 +63,7 @@ api: xhttp-url, xhttp-query, net
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite url --exclude-test "*" --no-single --no-run
 host: example.test
 target: /api/items?page=2
 resolved: https://example.test/api/health?full=1
@@ -77,7 +79,7 @@ resolved: https://example.test/api/health?full=1
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url_param/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite url_param --exclude-test "*" --no-single --no-run
 valid: yes
 ```
 

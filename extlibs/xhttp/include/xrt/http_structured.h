@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_STRUCTURED_H
 #define XRT_HTTP_STRUCTURED_H
 
+#include <xhttp/export.h>
+
 #include <xrt/charset.h>
 #include <xrt/codec.h>
 #include <xrt/http.h>
@@ -124,17 +126,17 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 验证 Structured Fields key 的小写 ASCII 语法。 */
-XRT_API bool xrtHttpStructuredKeyValid(xstrview Key);
+XHTTP_API bool xrtHttpStructuredKeyValid(xstrview Key);
 
 
 
 /* 验证 Structured Fields token 语法。 */
-XRT_API bool xrtHttpStructuredTokenValid(xstrview Token);
+XHTTP_API bool xrtHttpStructuredTokenValid(xstrview Token);
 
 
 
 /* 从当前位置解析一个裸值，不跳过空白且不要求消耗完整输入。 */
-XRT_API xhttpnext xrtHttpStructuredBareNext(
+XHTTP_API xhttpnext xrtHttpStructuredBareNext(
 	xstrview Value,
 	size_t* pOffset,
 	xhttpstructuredbare* pBare
@@ -143,7 +145,7 @@ XRT_API xhttpnext xrtHttpStructuredBareNext(
 
 
 /* 严格解析完整 Item；顶层两侧只允许 SP。 */
-XRT_API bool xrtHttpStructuredItemParse(
+XHTTP_API bool xrtHttpStructuredItemParse(
 	xstrview Value,
 	xhttpstructureditem* pItem
 );
@@ -151,7 +153,7 @@ XRT_API bool xrtHttpStructuredItemParse(
 
 
 /* 迭代 Item 或 Inner List 的原始参数区。 */
-XRT_API xhttpnext xrtHttpStructuredParameterNext(
+XHTTP_API xhttpnext xrtHttpStructuredParameterNext(
 	xstrview Parameters,
 	size_t* pOffset,
 	xhttpstructuredparameter* pParameter
@@ -160,12 +162,12 @@ XRT_API xhttpnext xrtHttpStructuredParameterNext(
 
 
 /* 返回去重后的参数数量；格式错误返回 XRT_NPOS。 */
-XRT_API size_t xrtHttpStructuredParameterCount(xstrview Parameters);
+XHTTP_API size_t xrtHttpStructuredParameterCount(xstrview Parameters);
 
 
 
 /* 按首次出现顺序读取参数，重复 key 的值取最后一次。 */
-XRT_API xhttpnext xrtHttpStructuredParameterAt(
+XHTTP_API xhttpnext xrtHttpStructuredParameterAt(
 	xstrview Parameters,
 	size_t iIndex,
 	xhttpstructuredparameter* pParameter
@@ -174,7 +176,7 @@ XRT_API xhttpnext xrtHttpStructuredParameterAt(
 
 
 /* 按 key 读取最后一次参数值。 */
-XRT_API xhttpnext xrtHttpStructuredParameterFind(
+XHTTP_API xhttpnext xrtHttpStructuredParameterFind(
 	xstrview Parameters,
 	xstrview Key,
 	xhttpstructuredparameter* pParameter
@@ -183,7 +185,7 @@ XRT_API xhttpnext xrtHttpStructuredParameterFind(
 
 
 /* 迭代完整 Inner List；游标从零开始，首次调用先验证全文，期间输入不可变。 */
-XRT_API xhttpnext xrtHttpStructuredInnerNext(
+XHTTP_API xhttpnext xrtHttpStructuredInnerNext(
 	xstrview Inner,
 	size_t* pOffset,
 	xhttpstructureditem* pItem
@@ -192,12 +194,12 @@ XRT_API xhttpnext xrtHttpStructuredInnerNext(
 
 
 /* 严格验证完整 Inner List 内容。 */
-XRT_API bool xrtHttpStructuredInnerValid(xstrview Inner);
+XHTTP_API bool xrtHttpStructuredInnerValid(xstrview Inner);
 
 
 
 /* 迭代完整 List；游标从零开始，首次调用先验证全文，期间输入不可变。 */
-XRT_API xhttpnext xrtHttpStructuredListNext(
+XHTTP_API xhttpnext xrtHttpStructuredListNext(
 	xstrview Value,
 	size_t* pOffset,
 	xhttpstructuredmember* pMember
@@ -206,12 +208,12 @@ XRT_API xhttpnext xrtHttpStructuredListNext(
 
 
 /* 严格验证完整 Structured List。 */
-XRT_API bool xrtHttpStructuredListValid(xstrview Value);
+XHTTP_API bool xrtHttpStructuredListValid(xstrview Value);
 
 
 
 /* 迭代完整 Dictionary；游标从零开始，首次调用先验证全文，期间输入不可变。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryNext(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryNext(
 	xstrview Value,
 	size_t* pOffset,
 	xhttpstructureddictionarymember* pMember
@@ -220,19 +222,19 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryNext(
 
 
 /* 严格验证完整 Structured Dictionary。 */
-XRT_API bool xrtHttpStructuredDictionaryValid(xstrview Value);
+XHTTP_API bool xrtHttpStructuredDictionaryValid(xstrview Value);
 
 
 
 /* 初始化单值或重复字段 Dictionary 有序 Map 游标。 */
-XRT_API void xrtHttpStructuredMapCursorInit(
+XHTTP_API void xrtHttpStructuredMapCursorInit(
 	xhttpstructuredmapcursor* pCursor
 );
 
 
 
 /* 迭代有序 Map；key 按首次出现顺序，值取最后一次出现。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryMapNext(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryMapNext(
 	xstrview Value,
 	xhttpstructuredmapcursor* pCursor,
 	xhttpstructureddictionarymember* pMember
@@ -241,12 +243,12 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryMapNext(
 
 
 /* 返回去重后的 Dictionary 成员数量；格式错误返回 XRT_NPOS。 */
-XRT_API size_t xrtHttpStructuredDictionaryCount(xstrview Value);
+XHTTP_API size_t xrtHttpStructuredDictionaryCount(xstrview Value);
 
 
 
 /* 按首次出现顺序读取成员，重复 key 的值取最后一次。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryAt(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryAt(
 	xstrview Value,
 	size_t iIndex,
 	xhttpstructureddictionarymember* pMember
@@ -255,7 +257,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryAt(
 
 
 /* 按 key 读取 Dictionary 中最后一次成员值。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryFind(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryFind(
 	xstrview Value,
 	xstrview Key,
 	xhttpstructureddictionarymember* pMember
@@ -264,14 +266,14 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryFind(
 
 
 /* 初始化来源绑定的重复字段行游标。 */
-XRT_API void xrtHttpStructuredFieldCursorInit(
+XHTTP_API void xrtHttpStructuredFieldCursorInit(
 	xhttpstructuredfieldcursor* pCursor
 );
 
 
 
 /* 按线路顺序跨重复同名字段行迭代；期间字段数组、字段名和内容不可变。 */
-XRT_API xhttpnext xrtHttpStructuredListFieldNext(
+XHTTP_API xhttpnext xrtHttpStructuredListFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -282,7 +284,7 @@ XRT_API xhttpnext xrtHttpStructuredListFieldNext(
 
 
 /* 按线路顺序跨重复同名字段行迭代；游标不可切换来源或顶层类型。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryFieldNext(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -293,7 +295,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryFieldNext(
 
 
 /* 跨重复字段行迭代有序 Map，重复 key 采用最后一次值。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryMapFieldNext(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryMapFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -304,7 +306,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryMapFieldNext(
 
 
 /* 返回重复字段行逻辑组合并去重后的 Dictionary 成员数。 */
-XRT_API size_t xrtHttpStructuredDictionaryFieldCount(
+XHTTP_API size_t xrtHttpStructuredDictionaryFieldCount(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name
@@ -313,7 +315,7 @@ XRT_API size_t xrtHttpStructuredDictionaryFieldCount(
 
 
 /* 按首次出现顺序读取跨字段 Dictionary，重复 key 取最后值。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryFieldAt(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryFieldAt(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -324,7 +326,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryFieldAt(
 
 
 /* 按 key 读取跨字段 Dictionary 中最后一次成员值。 */
-XRT_API xhttpnext xrtHttpStructuredDictionaryFieldFind(
+XHTTP_API xhttpnext xrtHttpStructuredDictionaryFieldFind(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -335,7 +337,7 @@ XRT_API xhttpnext xrtHttpStructuredDictionaryFieldFind(
 
 
 /* 解析唯一同名字段行中的 Structured Item；缺失返回 END。 */
-XRT_API xhttpnext xrtHttpStructuredItemField(
+XHTTP_API xhttpnext xrtHttpStructuredItemField(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -345,7 +347,7 @@ XRT_API xhttpnext xrtHttpStructuredItemField(
 
 
 /* 解码 String；空输出查询长度，允许与 Encoded 同址，长度输出可未对齐。 */
-XRT_API bool xrtHttpStructuredStringDecode(
+XHTTP_API bool xrtHttpStructuredStringDecode(
 	const xhttpstructuredbare* pBare,
 	char* sOutput,
 	size_t iCapacity,
@@ -355,7 +357,7 @@ XRT_API bool xrtHttpStructuredStringDecode(
 
 
 /* 解码 Byte Sequence；空输出查询长度，允许与 Encoded 同址，长度可未对齐。 */
-XRT_API bool xrtHttpStructuredBytesDecode(
+XHTTP_API bool xrtHttpStructuredBytesDecode(
 	const xhttpstructuredbare* pBare,
 	void* pOutput,
 	size_t iCapacity,
@@ -365,7 +367,7 @@ XRT_API bool xrtHttpStructuredBytesDecode(
 
 
 /* 解码并校验 Display UTF-8；允许与 Encoded 同址，长度输出可未对齐。 */
-XRT_API bool xrtHttpStructuredDisplayDecode(
+XHTTP_API bool xrtHttpStructuredDisplayDecode(
 	const xhttpstructuredbare* pBare,
 	char* sOutput,
 	size_t iCapacity,
@@ -443,7 +445,7 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 规范序列化一个抽象裸值；输出不附加零字节。 */
-XRT_API bool xrtHttpStructuredBareWrite(
+XHTTP_API bool xrtHttpStructuredBareWrite(
 	const xhttpstructuredvalue* pValue,
 	void* pOutput,
 	size_t iCapacity,
@@ -453,7 +455,7 @@ XRT_API bool xrtHttpStructuredBareWrite(
 
 
 /* 规范序列化一个 Item 及其参数；输出不附加零字节。 */
-XRT_API bool xrtHttpStructuredItemWrite(
+XHTTP_API bool xrtHttpStructuredItemWrite(
 	const xhttpstructureditemvalue* pItem,
 	void* pOutput,
 	size_t iCapacity,
@@ -463,7 +465,7 @@ XRT_API bool xrtHttpStructuredItemWrite(
 
 
 /* 规范序列化完整 List；空数组产生长度为零的省略值。 */
-XRT_API bool xrtHttpStructuredListWrite(
+XHTTP_API bool xrtHttpStructuredListWrite(
 	const xhttpstructuredmembervalue* pMembers,
 	size_t iCount,
 	void* pOutput,
@@ -474,7 +476,7 @@ XRT_API bool xrtHttpStructuredListWrite(
 
 
 /* 规范序列化完整 Dictionary；key 必须唯一。 */
-XRT_API bool xrtHttpStructuredDictionaryWrite(
+XHTTP_API bool xrtHttpStructuredDictionaryWrite(
 	const xhttpstructureddictionaryentry* pEntries,
 	size_t iCount,
 	void* pOutput,

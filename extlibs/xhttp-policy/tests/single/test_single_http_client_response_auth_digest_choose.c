@@ -1,0 +1,35 @@
+#define XHTTP_POLICY_IMPLEMENTATION
+#ifdef XHTTP_MODULE_XHTTP
+	#undef XHTTP_MODULE_XHTTP
+#endif
+#define XHTTP_POLICY_MODULE_HTTP_CLIENT_RESPONSE_AUTH_DIGEST_CHOOSE
+#define XHTTP_IMPLEMENTATION
+#include "../../include/xhttp-policy/features.h"
+#include <xhttp/features.h>
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../../single/xrt.h"
+#include "../../../../single/extlibs/xhttp.h"
+#include "../../../../single/extlibs/xhttp-policy.h"
+
+
+
+
+/* 验证单头发布包含客户端响应 Digest 一次选择入口。 */
+int main(void)
+{
+	xhttpdigestchallenge Challenge;
+	xhttpdigestchoice Choice;
+	size_t iSize;
+
+	return xrtHttpResponseDigestChallengeChoose(
+		NULL,
+		NULL,
+		NULL,
+		0,
+		&iSize,
+		&Challenge,
+		&Choice
+	) == XHTTP_NEXT_ERROR ? 0 : 1;
+}

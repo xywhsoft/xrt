@@ -196,7 +196,7 @@ str __xrtMimeBuild(
 
 
 /* 严格解析媒体类型并报告参数或值错误。 */
-XRT_API bool xrtHttpMediaTypeParse(
+XHTTP_API bool xrtHttpMediaTypeParse(
 	xstrview Text,
 	xmediatype* pType
 )
@@ -314,7 +314,7 @@ bool __xrtMimeSniffTypeParse(
 
 
 /* 比较媒体类型主值，不比较参数。 */
-XRT_API bool xrtHttpMediaTypeEqual(
+XHTTP_API bool xrtHttpMediaTypeEqual(
 	const xmediatype* pType,
 	xstrview Type,
 	xstrview Subtype
@@ -332,7 +332,7 @@ XRT_API bool xrtHttpMediaTypeEqual(
 
 
 /* 返回结构化语法后缀。 */
-XRT_API xstrview xrtHttpMediaTypeSuffix(
+XHTTP_API xstrview xrtHttpMediaTypeSuffix(
 	const xmediatype* pType
 )
 {
@@ -412,7 +412,7 @@ static bool __xrtMimeApplicationCompressible(
 
 
 /* 判断媒体类型是否适合 gzip 或 deflate 等通用内容编码。 */
-XRT_API bool xrtHttpMediaTypeCompressible(
+XHTTP_API bool xrtHttpMediaTypeCompressible(
 	const xmediatype* pType
 )
 {
@@ -444,7 +444,7 @@ XRT_API bool xrtHttpMediaTypeCompressible(
 
 
 /* 解析 Content-Type 并判断是否适合通用内容编码。 */
-XRT_API bool xrtHttpContentTypeCompressible(
+XHTTP_API bool xrtHttpContentTypeCompressible(
 	xstrview Text
 )
 {
@@ -459,7 +459,7 @@ XRT_API bool xrtHttpContentTypeCompressible(
 
 
 /* 查找媒体类型参数。 */
-XRT_API xhttpnext xrtHttpMediaTypeParam(
+XHTTP_API xhttpnext xrtHttpMediaTypeParam(
 	const xmediatype* pType,
 	xstrview Name,
 	xhttpparam* pParam
@@ -480,7 +480,7 @@ XRT_API xhttpnext xrtHttpMediaTypeParam(
 
 
 /* 写出媒体类型。 */
-XRT_API bool xrtHttpMediaTypeWrite(
+XHTTP_API bool xrtHttpMediaTypeWrite(
 	const xmediatype* pType,
 	void* pOutput,
 	size_t iCapacity,
@@ -582,7 +582,7 @@ static bool __xrtHttpMediaTypeWriteAdapter(
 
 
 /* 构建零结尾媒体类型。 */
-XRT_API str xrtHttpMediaTypeBuild(
+XHTTP_API str xrtHttpMediaTypeBuild(
 	const xmediatype* pType,
 	size_t* pSize
 )

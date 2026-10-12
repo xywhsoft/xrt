@@ -1,6 +1,8 @@
 #ifndef XRT_COOKIE_H
 #define XRT_COOKIE_H
 
+#include <xhttp/export.h>
+
 #include <xrt/core.h>
 #include <xrt/memory.h>
 
@@ -144,7 +146,7 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_COOKIE)
 
 /* 逐项扫描完整 Cookie 字段值；成功项和失败均只在返回时提交 Offset。 */
-XRT_API xcookienext xrtCookieNext(
+XHTTP_API xcookienext xrtCookieNext(
 	xstrview Text,
 	size_t* pOffset,
 	xcookiepair* pPair
@@ -153,7 +155,7 @@ XRT_API xcookienext xrtCookieNext(
 
 
 /* 完整校验 Cookie 字段值并应用显式限额；成功时可返回 pair 数量。 */
-XRT_API bool xrtCookieValidate(
+XHTTP_API bool xrtCookieValidate(
 	xstrview Text,
 	const xcookielimits* pLimits,
 	size_t* pCount
@@ -165,7 +167,7 @@ XRT_API bool xrtCookieValidate(
 	完整校验字段后，从 Offset 开始查找下一个区分大小写的 Cookie 名称。
 	重复调用可遍历同名 Cookie，未找到返回 XCOOKIE_NEXT_END。
 */
-XRT_API xcookienext xrtCookieFind(
+XHTTP_API xcookienext xrtCookieFind(
 	xstrview Text,
 	xstrview Name,
 	size_t* pOffset,
@@ -178,7 +180,7 @@ XRT_API xcookienext xrtCookieFind(
 	完整预检后把借用 pair 写入调用方数组；Pairs 为空可查询数量。
 	容量不足时 Count 返回所需数量，数组保持不变。
 */
-XRT_API bool xrtCookieParse(
+XHTTP_API bool xrtCookieParse(
 	xstrview Text,
 	xcookiepair* pPairs,
 	size_t iCapacity,
@@ -189,7 +191,7 @@ XRT_API bool xrtCookieParse(
 
 
 /* 写出不含字段名和零结尾的规范 Cookie 字段值；空输出可查询精确长度。 */
-XRT_API bool xrtCookieWrite(
+XHTTP_API bool xrtCookieWrite(
 	const xcookiepair* pPairs,
 	size_t iCount,
 	void* pOutput,
@@ -200,7 +202,7 @@ XRT_API bool xrtCookieWrite(
 
 
 /* 分配并构建零结尾 Cookie 字段值；返回值由 xrtFree 释放。 */
-XRT_API str xrtCookieBuild(
+XHTTP_API str xrtCookieBuild(
 	const xcookiepair* pPairs,
 	size_t iCount,
 	size_t* pSize
@@ -213,7 +215,7 @@ XRT_API str xrtCookieBuild(
 #if defined(XHTTP_FEATURE_SET_COOKIE)
 
 /* 扫描 xsetcookie.RawAttributes；未知属性和值存在位会原样暴露。 */
-XRT_API xcookieattributenext xrtSetCookieAttributeNext(
+XHTTP_API xcookieattributenext xrtSetCookieAttributeNext(
 	xstrview Text,
 	size_t* pOffset,
 	xcookieattribute* pAttribute
@@ -222,12 +224,12 @@ XRT_API xcookieattributenext xrtSetCookieAttributeNext(
 
 
 /* 按 RFC 6265 宽松 cookie-date 算法解析 UTC 时间。 */
-XRT_API bool xrtCookieDateParse(xstrview Text, xtime* pTime);
+XHTTP_API bool xrtCookieDateParse(xstrview Text, xtime* pTime);
 
 
 
 /* 按 RFC 6265 服务器生成语法严格校验一个 Set-Cookie 字段值。 */
-XRT_API bool xrtSetCookieValidate(xstrview Text);
+XHTTP_API bool xrtSetCookieValidate(xstrview Text);
 
 
 
@@ -235,7 +237,7 @@ XRT_API bool xrtSetCookieValidate(xstrview Text);
 	按 RFC 6265 用户代理接收算法宽松解析 Set-Cookie 字段值。
 	无效的单个已知属性被忽略，禁止控制字节和超长 cookie-pair 会使整体失败。
 */
-XRT_API bool xrtSetCookieParse(xstrview Text, xsetcookie* pCookie);
+XHTTP_API bool xrtSetCookieParse(xstrview Text, xsetcookie* pCookie);
 
 
 
@@ -243,7 +245,7 @@ XRT_API bool xrtSetCookieParse(xstrview Text, xsetcookie* pCookie);
 	从结构化数据写出不含字段名和零结尾的 Set-Cookie 字段值。
 	结构化构建器执行前缀、SameSite=None 与 Partitioned 的安全约束。
 */
-XRT_API bool xrtSetCookieWrite(
+XHTTP_API bool xrtSetCookieWrite(
 	const xsetcookie* pCookie,
 	void* pOutput,
 	size_t iCapacity,
@@ -253,7 +255,7 @@ XRT_API bool xrtSetCookieWrite(
 
 
 /* 分配并构建零结尾 Set-Cookie 字段值；返回值由 xrtFree 释放。 */
-XRT_API str xrtSetCookieBuild(
+XHTTP_API str xrtSetCookieBuild(
 	const xsetcookie* pCookie,
 	size_t* pSize
 );

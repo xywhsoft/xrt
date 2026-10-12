@@ -71,12 +71,12 @@ static bool __xrtHttpLanguageArrayValid(
 	xstrview Tag;
 	size_t i;
 
-	if ( !__xrtRangeValid(pIndex, sizeof(*pIndex)) ||
+	if ( !xrtMemRangeValid(pIndex, sizeof(*pIndex)) ||
 		((pTags == NULL) && (iCount != 0)) ||
 		(iCount > (SIZE_MAX / sizeof(*pTags))) ||
-		!__xrtRangeValid(
+		!xrtMemRangeValid(
 			pTags, iCount * sizeof(*pTags)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pTags, iCount * sizeof(*pTags),
 			pIndex, sizeof(*pIndex)
 		) ) {
@@ -89,7 +89,7 @@ static bool __xrtHttpLanguageArrayValid(
 			sizeof(Tag)
 		);
 		if ( !xrtHttpLanguageTagValid(Tag) ||
-			__xrtRangesOverlap(
+			xrtMemRangesOverlap(
 				Tag.Data, Tag.Size,
 				pIndex, sizeof(*pIndex)
 			) ) {
@@ -173,7 +173,7 @@ static size_t __xrtHttpLanguageLookupRange(
 
 
 /* 判断文本是否是 basic language range。 */
-XRT_API bool xrtHttpLanguageRangeValid(xstrview Range)
+XHTTP_API bool xrtHttpLanguageRangeValid(xstrview Range)
 {
 	return __xrtHttpLanguageTextValid(
 		Range, true, false, NULL
@@ -183,7 +183,7 @@ XRT_API bool xrtHttpLanguageRangeValid(xstrview Range)
 
 
 /* 判断文本是否是可匹配的基本语言标签。 */
-XRT_API bool xrtHttpLanguageTagValid(xstrview Tag)
+XHTTP_API bool xrtHttpLanguageTagValid(xstrview Tag)
 {
 	return __xrtHttpLanguageTextValid(
 		Tag, false, false, NULL
@@ -193,14 +193,14 @@ XRT_API bool xrtHttpLanguageTagValid(xstrview Tag)
 
 
 /* 初始化 Accept-Language 字段游标。 */
-XRT_API void xrtHttpLanguageCursorInit(
+XHTTP_API void xrtHttpLanguageCursorInit(
 	xhttplanguagecursor* pCursor
 )
 {
 	xhttplanguagecursor Cursor = { 0, 0 };
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memcpy(pCursor, &Cursor, sizeof(Cursor));
@@ -209,7 +209,7 @@ XRT_API void xrtHttpLanguageCursorInit(
 
 
 /* 迭代一个 Accept-Language 字段值。 */
-XRT_API xhttpnext xrtHttpLanguageRangeNext(
+XHTTP_API xhttpnext xrtHttpLanguageRangeNext(
 	xstrview List,
 	size_t* pOffset,
 	xhttplanguagerange* pOutput
@@ -221,17 +221,17 @@ XRT_API xhttpnext xrtHttpLanguageRangeNext(
 	size_t iOffset;
 
 	memset(&Range, 0, sizeof(Range));
-	if ( !__xrtHttpViewValid(List) ||
-		!__xrtRangeValid(pOffset, sizeof(iOffset)) ||
-		!__xrtRangeValid(pOutput, sizeof(Range)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(List) ||
+		!xrtMemRangeValid(pOffset, sizeof(iOffset)) ||
+		!xrtMemRangeValid(pOutput, sizeof(Range)) ||
+		xrtMemRangesOverlap(
 			List.Data, List.Size, pOffset, sizeof(iOffset)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			List.Data, List.Size, pOutput, sizeof(Range)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOffset, sizeof(iOffset), pOutput, sizeof(Range)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
@@ -248,7 +248,7 @@ XRT_API xhttpnext xrtHttpLanguageRangeNext(
 	if ( !__xrtHttpLanguageTextValid(
 		Item.Token, true, false, &Range.SubtagCount
 	) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	Range.Range = Item.Token;
@@ -261,7 +261,7 @@ XRT_API xhttpnext xrtHttpLanguageRangeNext(
 
 
 /* 跨越重复 Accept-Language 字段迭代语言范围。 */
-XRT_API xhttpnext xrtHttpAcceptLanguageNext(
+XHTTP_API xhttpnext xrtHttpAcceptLanguageNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttplanguagecursor* pCursor,
@@ -275,17 +275,17 @@ XRT_API xhttpnext xrtHttpAcceptLanguageNext(
 	size_t iOffset;
 
 	memset(&Range, 0, sizeof(Range));
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pOutput, sizeof(Range)) ||
-		__xrtHttpFieldArrayOverlap(
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pOutput, sizeof(Range)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pCursor, sizeof(Cursor)
-		) || __xrtHttpFieldArrayOverlap(
+		) || __xhttpFieldArrayOverlap(
 			pFields, iCount, pOutput, sizeof(Range)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pOutput, sizeof(Range)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
@@ -293,16 +293,16 @@ XRT_API xhttpnext xrtHttpAcceptLanguageNext(
 	if ( (Cursor.Field > iCount) ||
 		((Cursor.Field == iCount) &&
 		 (Cursor.Offset != 0)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	while ( Cursor.Field < iCount ) {
-		__xrtHttpFieldLoad(pFields, Cursor.Field, &Field);
+		__xhttpFieldLoad(pFields, Cursor.Field, &Field);
 		if ( !xrtHttpFieldNameEqual(
 			Field.Name, XRT_STR_LITERAL("Accept-Language")
 		) ) {
 			if ( Cursor.Offset != 0 ) {
-				__xrtErrorSetInvalidArgument();
+				xrtSetErrorKind(XERR_ARGUMENT);
 				return XHTTP_NEXT_ERROR;
 			}
 			Cursor.Field++;
@@ -332,14 +332,14 @@ XRT_API xhttpnext xrtHttpAcceptLanguageNext(
 
 
 /* 按 Basic Filtering 判断范围是否匹配标签。 */
-XRT_API xhttpnext xrtHttpLanguageBasicMatch(
+XHTTP_API xhttpnext xrtHttpLanguageBasicMatch(
 	xstrview Range,
 	xstrview Tag
 )
 {
 	if ( !xrtHttpLanguageRangeValid(Range) ||
 		!xrtHttpLanguageTagValid(Tag) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	return __xrtHttpLanguageBasicMatch(Range, Tag) ?
@@ -349,7 +349,7 @@ XRT_API xhttpnext xrtHttpLanguageBasicMatch(
 
 
 /* 计算语言标签的有效 Accept-Language 匹配。 */
-XRT_API bool xrtHttpAcceptLanguageMatch(
+XHTTP_API bool xrtHttpAcceptLanguageMatch(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Tag,
@@ -369,20 +369,20 @@ XRT_API bool xrtHttpAcceptLanguageMatch(
 	memset(&Match, 0, sizeof(Match));
 	Match.Field = XRT_NPOS;
 	Match.Order = XRT_NPOS;
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
 		!xrtHttpLanguageTagValid(Tag) ||
-		!__xrtRangeValid(pOutput, sizeof(Match)) ||
-		__xrtHttpFieldArrayOverlap(
+		!xrtMemRangeValid(pOutput, sizeof(Match)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pOutput, sizeof(Match)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Tag.Data, Tag.Size, pOutput, sizeof(Match)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(pOutput, 0, sizeof(Match));
 	for ( i = 0; i < iCount; i++ ) {
-		__xrtHttpFieldLoad(pFields, i, &Field);
+		__xhttpFieldLoad(pFields, i, &Field);
 		if ( xrtHttpFieldNameEqual(
 			Field.Name, XRT_STR_LITERAL("Accept-Language")
 		) ) {
@@ -416,7 +416,7 @@ XRT_API bool xrtHttpAcceptLanguageMatch(
 			bMatched = true;
 		}
 		if ( iOrder == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iOrder++;
@@ -428,7 +428,7 @@ XRT_API bool xrtHttpAcceptLanguageMatch(
 
 
 /* 返回语言标签的有效 Accept-Language 质量值。 */
-XRT_API uint16 xrtHttpAcceptLanguageQuality(
+XHTTP_API uint16 xrtHttpAcceptLanguageQuality(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Tag
@@ -444,7 +444,7 @@ XRT_API uint16 xrtHttpAcceptLanguageQuality(
 
 
 /* 使用 Basic Filtering 选择质量最高的服务端语言。 */
-XRT_API xhttpnext xrtHttpAcceptLanguageSelect(
+XHTTP_API xhttpnext xrtHttpAcceptLanguageSelect(
 	const xhttpfield* pFields,
 	size_t iFieldCount,
 	const xstrview* pTags,
@@ -458,15 +458,15 @@ XRT_API xhttpnext xrtHttpAcceptLanguageSelect(
 	uint16 iQuality = 0;
 	size_t i;
 
-	if ( !__xrtHttpFieldArrayValid(
+	if ( !__xhttpFieldArrayValid(
 		pFields, iFieldCount
 	) || !__xrtHttpLanguageArrayValid(
 		pTags, iTagCount, pIndex
-	) || __xrtHttpFieldArrayOverlap(
+	) || __xhttpFieldArrayOverlap(
 		pFields, iFieldCount,
 		pIndex, sizeof(*pIndex)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(pIndex, &iSelected, sizeof(iSelected));
@@ -496,7 +496,7 @@ XRT_API xhttpnext xrtHttpAcceptLanguageSelect(
 
 
 /* 按质量值和线路顺序执行 RFC 4647 Lookup。 */
-XRT_API xhttpnext xrtHttpAcceptLanguageLookup(
+XHTTP_API xhttpnext xrtHttpAcceptLanguageLookup(
 	const xhttpfield* pFields,
 	size_t iFieldCount,
 	const xstrview* pTags,
@@ -513,20 +513,20 @@ XRT_API xhttpnext xrtHttpAcceptLanguageLookup(
 	size_t i;
 	bool bPresent = false;
 
-	if ( !__xrtHttpFieldArrayValid(
+	if ( !__xhttpFieldArrayValid(
 		pFields, iFieldCount
 	) || !__xrtHttpLanguageArrayValid(
 		pTags, iTagCount, pIndex
-	) || __xrtHttpFieldArrayOverlap(
+	) || __xhttpFieldArrayOverlap(
 		pFields, iFieldCount,
 		pIndex, sizeof(*pIndex)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(pIndex, &iSelected, sizeof(iSelected));
 	for ( i = 0; i < iFieldCount; i++ ) {
-		__xrtHttpFieldLoad(pFields, i, &Field);
+		__xhttpFieldLoad(pFields, i, &Field);
 		if ( xrtHttpFieldNameEqual(
 			Field.Name, XRT_STR_LITERAL("Accept-Language")
 		) ) {

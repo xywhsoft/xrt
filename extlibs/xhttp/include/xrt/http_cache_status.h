@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_CACHE_STATUS_H
 #define XRT_HTTP_CACHE_STATUS_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_structured.h>
 
 
@@ -84,26 +86,26 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化单个 Cache-Status 字段值游标。 */
-XRT_API void xrtHttpCacheStatusCursorInit(
+XHTTP_API void xrtHttpCacheStatusCursorInit(
 	xhttpcachestatuscursor* pCursor
 );
 
 
 
 /* 初始化跨重复 Cache-Status 字段行游标。 */
-XRT_API void xrtHttpCacheStatusFieldCursorInit(
+XHTTP_API void xrtHttpCacheStatusFieldCursorInit(
 	xhttpcachestatusfieldcursor* pCursor
 );
 
 
 
 /* 严格验证完整 Cache-Status 字段值和每个缓存标识。 */
-XRT_API bool xrtHttpCacheStatusValid(xstrview Value);
+XHTTP_API bool xrtHttpCacheStatusValid(xstrview Value);
 
 
 
 /* 迭代一个完整 Cache-Status 字段值。 */
-XRT_API xhttpnext xrtHttpCacheStatusNext(
+XHTTP_API xhttpnext xrtHttpCacheStatusNext(
 	xstrview Value,
 	xhttpcachestatuscursor* pCursor,
 	xhttpcachestatus* pStatus
@@ -112,7 +114,7 @@ XRT_API xhttpnext xrtHttpCacheStatusNext(
 
 
 /* 按线路顺序跨越全部重复 Cache-Status 字段行。 */
-XRT_API xhttpnext xrtHttpCacheStatusFieldNext(
+XHTTP_API xhttpnext xrtHttpCacheStatusFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpcachestatusfieldcursor* pCursor,
@@ -134,7 +136,7 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 规范写出一个 Cache-Status 成员，适合追加独立字段行。 */
-XRT_API bool xrtHttpCacheStatusWrite(
+XHTTP_API bool xrtHttpCacheStatusWrite(
 	const xhttpstructureditemvalue* pStatus,
 	void* pOutput,
 	size_t iCapacity,

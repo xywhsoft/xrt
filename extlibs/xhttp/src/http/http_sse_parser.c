@@ -27,9 +27,9 @@ static bool __xrtHttpSseParserPointerValid(
 	const xhttpsseparser* pParser
 )
 {
-	return __xrtRangeValid(pParser, sizeof(*pParser)) &&
+	return xrtMemRangeValid(pParser, sizeof(*pParser)) &&
 		(((uintptr_t)pParser %
-		 XRT_INTERNAL_OBJECT_ALIGNOF(xhttpsseparser)) == 0);
+		 XHTTP_OBJECT_ALIGNOF(xhttpsseparser)) == 0);
 }
 
 
@@ -55,7 +55,7 @@ static bool __xrtHttpSseParserConfigResolve(
 	xhttpsseparserconfig* pValue
 )
 {
-	if ( !__xrtRangeValid(pConfig, sizeof(*pValue)) ) {
+	if ( !xrtMemRangeValid(pConfig, sizeof(*pValue)) ) {
 		return false;
 	}
 	memcpy(pValue, pConfig, sizeof(*pValue));
@@ -70,7 +70,7 @@ static bool __xrtHttpSseBufferValid(const xbuffer* pBuffer)
 	return (pBuffer != NULL) &&
 		(pBuffer->Size <= pBuffer->Capacity) &&
 		((pBuffer->Data != NULL) || (pBuffer->Capacity == 0)) &&
-		__xrtRangeValid(pBuffer->Data, pBuffer->Capacity);
+		xrtMemRangeValid(pBuffer->Data, pBuffer->Capacity);
 }
 
 
@@ -167,11 +167,11 @@ static xhttpsseparsestatus __xrtHttpSseFail(
 	if ( pParser != NULL ) {
 		pParser->State = XRT_HTTP_SSE_PARSER_FAILED;
 	}
-	if ( __xrtRangeValid(pError, sizeof(Error)) ) {
+	if ( xrtMemRangeValid(pError, sizeof(Error)) ) {
 		memcpy(pError, &Error, sizeof(Error));
 	}
 	if ( Code == XHTTP_SSE_ERROR_ALLOCATION ) {
-		__xrtErrorWrapDetail(
+		__xhttpErrorWrapDetail(
 			XERR_MEMORY,
 			"xrt.http.sse",
 			(int32)Code,
@@ -179,7 +179,7 @@ static xhttpsseparsestatus __xrtHttpSseFail(
 			__xrtHttpSseErrorMessage(Code)
 		);
 	} else {
-		__xrtErrorSetDetail(
+		__xhttpErrorSetDetail(
 			Kind,
 			"xrt.http.sse",
 			(int32)Code,
@@ -637,14 +637,14 @@ static xhttpsseparsestatus __xrtHttpSseLine(
 
 
 /* 初始化默认 Parser 配置。 */
-XRT_API void xrtHttpSseParserConfigInit(
+XHTTP_API void xrtHttpSseParserConfigInit(
 	xhttpsseparserconfig* pConfig
 )
 {
 	xhttpsseparserconfig Config;
 
-	if ( !__xrtRangeValid(pConfig, sizeof(Config)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pConfig, sizeof(Config)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Config, 0, sizeof(Config));
@@ -661,7 +661,7 @@ XRT_API void xrtHttpSseParserConfigInit(
 
 
 /* 判断配置限额和 UTF-8 策略有效。 */
-XRT_API bool xrtHttpSseParserConfigValid(
+XHTTP_API bool xrtHttpSseParserConfigValid(
 	const xhttpsseparserconfig* pConfig
 )
 {
@@ -673,7 +673,7 @@ XRT_API bool xrtHttpSseParserConfigValid(
 
 
 /* 初始化初始零分配 Parser。 */
-XRT_API bool xrtHttpSseParserInit(
+XHTTP_API bool xrtHttpSseParserInit(
 	xhttpsseparser* pParser,
 	const xhttpsseparserconfig* pConfig
 )
@@ -686,15 +686,15 @@ XRT_API bool xrtHttpSseParserInit(
 	} else if ( !__xrtHttpSseParserConfigResolve(
 		pConfig, &Config
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpSseParserPointerValid(pParser) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pParser, sizeof(Parser), pConfig,
 			pConfig == NULL ? 0 : sizeof(Config)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(&Parser, 0, sizeof(Parser));
@@ -715,7 +715,7 @@ XRT_API bool xrtHttpSseParserInit(
 
 
 /* 创建初始零分配 Parser。 */
-XRT_API xhttpsseparser* xrtHttpSseParserCreate(
+XHTTP_API xhttpsseparser* xrtHttpSseParserCreate(
 	const xhttpsseparserconfig* pConfig
 )
 {
@@ -727,7 +727,7 @@ XRT_API xhttpsseparser* xrtHttpSseParserCreate(
 	} else if ( !__xrtHttpSseParserConfigResolve(
 		pConfig, &Config
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	pParser = xrtMalloc(sizeof(*pParser));
@@ -745,10 +745,10 @@ XRT_API xhttpsseparser* xrtHttpSseParserCreate(
 
 
 /* 释放 Parser 持有的动态容量。 */
-XRT_API void xrtHttpSseParserUnit(xhttpsseparser* pParser)
+XHTTP_API void xrtHttpSseParserUnit(xhttpsseparser* pParser)
 {
 	if ( !__xrtHttpSseParserValid(pParser) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	xrtBufferUnit(&pParser->Line);
@@ -762,13 +762,13 @@ XRT_API void xrtHttpSseParserUnit(xhttpsseparser* pParser)
 
 
 /* 释放 Parser 和动态容量。 */
-XRT_API void xrtHttpSseParserDestroy(xhttpsseparser* pParser)
+XHTTP_API void xrtHttpSseParserDestroy(xhttpsseparser* pParser)
 {
 	if ( pParser == NULL ) {
 		return;
 	}
 	if ( !__xrtHttpSseParserValid(pParser) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	xrtHttpSseParserUnit(pParser);
@@ -778,10 +778,10 @@ XRT_API void xrtHttpSseParserDestroy(xhttpsseparser* pParser)
 
 
 /* 清除新 EventSource 的全部状态。 */
-XRT_API void xrtHttpSseParserReset(xhttpsseparser* pParser)
+XHTTP_API void xrtHttpSseParserReset(xhttpsseparser* pParser)
 {
 	if ( !__xrtHttpSseParserValid(pParser) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	xrtBufferClear(&pParser->Line);
@@ -800,10 +800,10 @@ XRT_API void xrtHttpSseParserReset(xhttpsseparser* pParser)
 
 
 /* 清除新响应状态并保留重连元数据。 */
-XRT_API void xrtHttpSseParserReconnect(xhttpsseparser* pParser)
+XHTTP_API void xrtHttpSseParserReconnect(xhttpsseparser* pParser)
 {
 	if ( !__xrtHttpSseParserValid(pParser) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	xrtBufferClear(&pParser->Line);
@@ -820,10 +820,10 @@ XRT_API void xrtHttpSseParserReconnect(xhttpsseparser* pParser)
 
 
 /* 裁剪 Parser 的全部动态容量。 */
-XRT_API bool xrtHttpSseParserTrim(xhttpsseparser* pParser)
+XHTTP_API bool xrtHttpSseParserTrim(xhttpsseparser* pParser)
 {
 	if ( !__xrtHttpSseParserValid(pParser) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return xrtBufferTrim(&pParser->Line) &&
@@ -851,11 +851,11 @@ static bool __xrtHttpSseReadValid(
 	size_t j;
 
 	if ( !__xrtHttpSseParserValid(pParser) ||
-		!__xrtRangeValid(Input.Data, Input.Size) ||
-		!__xrtRangeValid(pConsumed, sizeof(*pConsumed)) ||
-		!__xrtRangeValid(pItem, sizeof(*pItem)) ||
+		!xrtMemRangeValid(Input.Data, Input.Size) ||
+		!xrtMemRangeValid(pConsumed, sizeof(*pConsumed)) ||
+		!xrtMemRangeValid(pItem, sizeof(*pItem)) ||
 		((pError != NULL) &&
-		 !__xrtRangeValid(pError, sizeof(*pError))) ) {
+		 !xrtMemRangeValid(pError, sizeof(*pError))) ) {
 		return false;
 	}
 	arrOutput[0] = pConsumed;
@@ -869,51 +869,51 @@ static bool __xrtHttpSseReadValid(
 	arrBuffer[2] = &pParser->Data;
 	arrBuffer[3] = &pParser->Type;
 	arrBuffer[4] = &pParser->Id;
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pParser, sizeof(*pParser), Input.Data, Input.Size
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pParser, sizeof(*pParser), pConsumed, sizeof(*pConsumed)
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pParser, sizeof(*pParser), pItem, sizeof(*pItem)
-	) || ((pError != NULL) && __xrtRangesOverlap(
+	) || ((pError != NULL) && xrtMemRangesOverlap(
 		pParser, sizeof(*pParser), pError, sizeof(*pError)
 	)) ) {
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pConsumed, sizeof(*pConsumed), pItem, sizeof(*pItem)
 	) || ((pError != NULL) && (
-		 __xrtRangesOverlap(
+		 xrtMemRangesOverlap(
 			pConsumed, sizeof(*pConsumed), pError, sizeof(*pError)
-		 ) || __xrtRangesOverlap(
+		 ) || xrtMemRangesOverlap(
 			pItem, sizeof(*pItem), pError, sizeof(*pError)
 		 )
 	)) ) {
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		Input.Data, Input.Size,
 		pParser->Line.Data, pParser->Line.Capacity
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		Input.Data, Input.Size,
 		pParser->Decoded.Data, pParser->Decoded.Capacity
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		Input.Data, Input.Size,
 		pParser->Data.Data, pParser->Data.Capacity
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		Input.Data, Input.Size,
 		pParser->Type.Data, pParser->Type.Capacity
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		Input.Data, Input.Size,
 		pParser->Id.Data, pParser->Id.Capacity
 	) ) {
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		Input.Data, Input.Size, pConsumed, sizeof(*pConsumed)
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		Input.Data, Input.Size, pItem, sizeof(*pItem)
-	) || ((pError != NULL) && __xrtRangesOverlap(
+	) || ((pError != NULL) && xrtMemRangesOverlap(
 		Input.Data, Input.Size, pError, sizeof(*pError)
 	)) ) {
 		return false;
@@ -921,7 +921,7 @@ static bool __xrtHttpSseReadValid(
 	/* 输出对象不能位于 Read 期间可能重分配的 Parser 缓冲。 */
 	for ( i = 0; i < 3u; i++ ) {
 		for ( j = 0; j < 5u; j++ ) {
-			if ( __xrtRangesOverlap(
+			if ( xrtMemRangesOverlap(
 				arrOutput[i],
 				arrOutputSize[i],
 				arrBuffer[j]->Data,
@@ -1076,7 +1076,7 @@ static xhttpsseparsestatus __xrtHttpSseParserRead(
 
 
 /* 增量读取任意输入分块并最多发布一个项目。 */
-XRT_API xhttpsseparsestatus xrtHttpSseParserRead(
+XHTTP_API xhttpsseparsestatus xrtHttpSseParserRead(
 	xhttpsseparser* pParser,
 	xbytesview Input,
 	bool bEnd,
@@ -1121,12 +1121,12 @@ XRT_API xhttpsseparsestatus xrtHttpSseParserRead(
 
 
 /* 返回当前持久 Last-Event-ID。 */
-XRT_API xstrview xrtHttpSseParserLastEventId(
+XHTTP_API xstrview xrtHttpSseParserLastEventId(
 	const xhttpsseparser* pParser
 )
 {
 	if ( !__xrtHttpSseParserValid(pParser) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return (xstrview){ NULL, 0 };
 	}
 	return (xstrview){
@@ -1138,12 +1138,12 @@ XRT_API xstrview xrtHttpSseParserLastEventId(
 
 
 /* 返回当前重连毫秒数。 */
-XRT_API uint64 xrtHttpSseParserRetry(
+XHTTP_API uint64 xrtHttpSseParserRetry(
 	const xhttpsseparser* pParser
 )
 {
 	if ( !__xrtHttpSseParserValid(pParser) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return 0;
 	}
 	return pParser->Retry;

@@ -5,7 +5,7 @@
 #if defined(XHTTP_FEATURE_HTTP_BODY_ASYNC)
 
 /* 在 AGAIN 后取得来源可读性 Future。 */
-XRT_API xfuture* xrtHttpBodyReaderWait(xhttpbodyreader* pReader)
+XHTTP_API xfuture* xrtHttpBodyReaderWait(xhttpbodyreader* pReader)
 {
 	xfuture* pFuture;
 	xerror* pPrevious;

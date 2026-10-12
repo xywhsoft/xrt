@@ -36,7 +36,7 @@ static xhttpbodydecoderesult __xrtHttpBodyDecodeRaw(
 
 
 /* 初始化通用内容解码配置。 */
-XRT_API void xrtHttpBodyDecodeConfigInit(
+XHTTP_API void xrtHttpBodyDecodeConfigInit(
 	xhttpbodydecodeconfig* pConfig
 )
 {
@@ -56,7 +56,7 @@ XRT_API void xrtHttpBodyDecodeConfigInit(
 
 
 /* 按协议计划逆序组合内置流式解码层。 */
-XRT_API xhttpbodydecoderesult xrtHttpBodyDecodeFields(
+XHTTP_API xhttpbodydecoderesult xrtHttpBodyDecodeFields(
 	xhttpbody* pSource,
 	const xhttpfield* pFields,
 	size_t iCount,
@@ -183,7 +183,7 @@ XRT_API xhttpbodydecoderesult xrtHttpBodyDecodeFields(
 
 
 /* 把单字段值适配到完整字段计划入口。 */
-XRT_API xhttpbodydecoderesult xrtHttpBodyDecode(
+XHTTP_API xhttpbodydecoderesult xrtHttpBodyDecode(
 	xhttpbody* pSource,
 	xstrview ContentEncoding,
 	const xhttpbodydecodeconfig* pConfig,

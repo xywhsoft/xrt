@@ -5,7 +5,7 @@
 #if defined(XHTTP_FEATURE_HTTP_SERVER_FORM)
 
 /* 解析完整缓冲的 application/x-www-form-urlencoded 请求正文。 */
-XRT_API xqueryparams* xrtHttpServerRequestForm(
+XHTTP_API xqueryparams* xrtHttpServerRequestForm(
 	const xhttpserverrequest* pRequest,
 	const xqueryparamsconfig* pConfig,
 	size_t* pErrorOffset
@@ -19,12 +19,12 @@ XRT_API xqueryparams* xrtHttpServerRequestForm(
 	size_t iError = 0;
 	xhttpnext Next;
 
-	if ( ((pConfig != NULL) && !__xrtRangeValid(
+	if ( ((pConfig != NULL) && !xrtMemRangeValid(
 		pConfig, sizeof(Config)
 	)) || ((pErrorOffset != NULL) &&
-		(!__xrtHttpServerRequestOutputValid(
+		(!xrtHttpBridgeServerRequestOutputValid(
 			pRequest, pErrorOffset, sizeof(iError)
-		) || ((pConfig != NULL) && __xrtRangesOverlap(
+		) || ((pConfig != NULL) && xrtMemRangesOverlap(
 			pErrorOffset, sizeof(iError),
 			pConfig, sizeof(Config)
 		)))) ) {

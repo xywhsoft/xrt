@@ -23,7 +23,7 @@ bool __xrtHttpAuthWriteTemporary(
 	bool bResult;
 
 	if ( (pWrite == NULL) || (pConsume == NULL) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !pWrite(pWriteContext, NULL, 0, &iSize) ) {
@@ -44,7 +44,7 @@ bool __xrtHttpAuthWriteTemporary(
 	);
 	if ( !bWritten || (iWritten != iSize) ) {
 		if ( bWritten && (iWritten != iSize) ) {
-			__xrtErrorSetInternal();
+			xrtSetErrorKind(XERR_INTERNAL);
 		}
 		xrtSecureZero(pValue, iSize);
 		if ( bHeap ) {
@@ -133,7 +133,7 @@ static bool __xrtHttpAuthParamScan(
 	size_t i = iStart;
 	size_t iName = i;
 
-	while ( (i < Text.Size) && __xrtHttpTokenByte(
+	while ( (i < Text.Size) && __xhttpTokenByte(
 		(unsigned char)Text.Data[i]
 	) ) {
 		i++;
@@ -160,20 +160,20 @@ static bool __xrtHttpAuthParamScan(
 			}
 			if ( iByte == (unsigned char)'\\' ) {
 				if ( (i >= Text.Size) ||
-					!__xrtHttpQuotedPairByte(
+					!__xhttpQuotedPairByte(
 						(unsigned char)Text.Data[i]
 					) ) {
 					return false;
 				}
 				i++;
-			} else if ( !__xrtHttpQuotedTextByte(iByte) ) {
+			} else if ( !__xhttpQuotedTextByte(iByte) ) {
 				return false;
 			}
 		}
 		return false;
 	}
 	iName = i;
-	while ( (i < Text.Size) && __xrtHttpTokenByte(
+	while ( (i < Text.Size) && __xhttpTokenByte(
 		(unsigned char)Text.Data[i]
 	) ) {
 		i++;
@@ -195,7 +195,7 @@ static bool __xrtHttpAuthParamAhead(
 {
 	size_t i = iStart;
 
-	while ( (i < Text.Size) && __xrtHttpTokenByte(
+	while ( (i < Text.Size) && __xhttpTokenByte(
 		(unsigned char)Text.Data[i]
 	) ) {
 		i++;
@@ -265,11 +265,11 @@ static bool __xrtHttpAuthDataKind(
 
 
 /* 判断文本是否是完整 token68。 */
-XRT_API bool xrtHttpAuthToken68Valid(xstrview Text)
+XHTTP_API bool xrtHttpAuthToken68Valid(xstrview Text)
 {
 	size_t iEnd;
 
-	return __xrtRangeValid(Text.Data, Text.Size) &&
+	return xrtMemRangeValid(Text.Data, Text.Size) &&
 		__xrtHttpAuthToken68Scan(Text, 0, &iEnd) &&
 		(iEnd == Text.Size);
 }
@@ -277,7 +277,7 @@ XRT_API bool xrtHttpAuthToken68Valid(xstrview Text)
 
 
 /* 读取并约束一个 auth-param。 */
-XRT_API xhttpnext xrtHttpAuthParamNext(
+XHTTP_API xhttpnext xrtHttpAuthParamNext(
 	xstrview Parameters,
 	size_t* pOffset,
 	xhttpparam* pParam
@@ -287,29 +287,29 @@ XRT_API xhttpnext xrtHttpAuthParamNext(
 	xhttpnext Next;
 	size_t iOffset;
 
-	if ( !__xrtHttpViewValid(Parameters) ||
-		!__xrtRangeValid(pOffset, sizeof(iOffset)) ||
-		!__xrtRangeValid(pParam, sizeof(Param)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Parameters) ||
+		!xrtMemRangeValid(pOffset, sizeof(iOffset)) ||
+		!xrtMemRangeValid(pParam, sizeof(Param)) ||
+		xrtMemRangesOverlap(
 			pOffset, sizeof(iOffset), Parameters.Data, Parameters.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pParam, sizeof(Param), Parameters.Data, Parameters.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOffset, sizeof(iOffset), pParam, sizeof(Param)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
 	memcpy(pParam, &Param, sizeof(Param));
 	if ( iOffset > Parameters.Size ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	Next = xrtHttpDirectiveNext(Parameters, &iOffset, &Param);
 	if ( (Next == XHTTP_NEXT_ITEM) &&
 		((Param.Flags & XHTTP_PARAM_HAS_VALUE) == 0) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Next != XHTTP_NEXT_ERROR ) {
@@ -322,7 +322,7 @@ XRT_API xhttpnext xrtHttpAuthParamNext(
 
 
 /* 读取一项 challenge，并用参数等号消除逗号归属歧义。 */
-XRT_API xhttpnext xrtHttpChallengeNext(
+XHTTP_API xhttpnext xrtHttpChallengeNext(
 	xstrview Challenges,
 	size_t* pOffset,
 	xhttpauth* pChallenge
@@ -338,24 +338,24 @@ XRT_API xhttpnext xrtHttpChallengeNext(
 	size_t iOffset;
 	size_t iTokenEnd;
 
-	if ( !__xrtHttpViewValid(Challenges) ||
-		!__xrtRangeValid(pOffset, sizeof(iOffset)) ||
-		!__xrtRangeValid(pChallenge, sizeof(Challenge)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Challenges) ||
+		!xrtMemRangeValid(pOffset, sizeof(iOffset)) ||
+		!xrtMemRangeValid(pChallenge, sizeof(Challenge)) ||
+		xrtMemRangesOverlap(
 			pOffset, sizeof(iOffset), Challenges.Data, Challenges.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pChallenge, sizeof(Challenge),
 			Challenges.Data, Challenges.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOffset, sizeof(iOffset), pChallenge, sizeof(Challenge)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
 	memcpy(pChallenge, &Challenge, sizeof(Challenge));
 	if ( iOffset > Challenges.Size ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	i = iOffset;
@@ -372,13 +372,13 @@ XRT_API xhttpnext xrtHttpChallengeNext(
 		return XHTTP_NEXT_END;
 	}
 	iScheme = i;
-	while ( (i < Challenges.Size) && __xrtHttpTokenByte(
+	while ( (i < Challenges.Size) && __xhttpTokenByte(
 		(unsigned char)Challenges.Data[i]
 	) ) {
 		i++;
 	}
 	if ( i == iScheme ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	Challenge.Scheme = (xstrview){
@@ -394,7 +394,7 @@ XRT_API xhttpnext xrtHttpChallengeNext(
 		goto Publish;
 	}
 	if ( Challenges.Data[iAfterScheme] != ' ' ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	iData = i;
@@ -414,7 +414,7 @@ XRT_API xhttpnext xrtHttpChallengeNext(
 		}
 	}
 	if ( !__xrtHttpAuthParamScan(Challenges, iData, &iEnd) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	for ( ;; ) {
@@ -426,7 +426,7 @@ XRT_API xhttpnext xrtHttpChallengeNext(
 			break;
 		}
 		if ( Challenges.Data[iSeparator] != ',' ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return XHTTP_NEXT_ERROR;
 		}
 		iNext = __xrtHttpAuthOws(Challenges, iSeparator + 1u);
@@ -443,7 +443,7 @@ XRT_API xhttpnext xrtHttpChallengeNext(
 			break;
 		}
 		if ( !__xrtHttpAuthParamScan(Challenges, iNext, &iEnd) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return XHTTP_NEXT_ERROR;
 		}
 	}
@@ -464,12 +464,12 @@ Publish:
 
 
 /* 把跨字段 challenge 游标恢复为零位置。 */
-XRT_API void xrtHttpAuthCursorInit(xhttpauthcursor* pCursor)
+XHTTP_API void xrtHttpAuthCursorInit(xhttpauthcursor* pCursor)
 {
 	xhttpauthcursor Cursor = { 0 };
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memcpy(pCursor, &Cursor, sizeof(Cursor));
@@ -480,14 +480,14 @@ XRT_API void xrtHttpAuthCursorInit(xhttpauthcursor* pCursor)
 /* 校验一条调用方提供的借用字段，避免游标读取无效视图。 */
 static bool __xrtHttpAuthFieldValid(const xhttpfield* pField)
 {
-	if ( !__xrtHttpViewValid(pField->Name) ||
-		!__xrtHttpViewValid(pField->Value) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(pField->Name) ||
+		!__xhttpViewValid(pField->Value) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !xrtHttpTokenValid(pField->Name) ||
 		!xrtHttpFieldValueValid(pField->Value) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return true;
@@ -496,7 +496,7 @@ static bool __xrtHttpAuthFieldValid(const xhttpfield* pField)
 
 
 /* 跨重复字段读取 challenge，并把双层位置保存在一个稳定游标中。 */
-XRT_API xhttpnext xrtHttpFieldChallengeNext(
+XHTTP_API xhttpnext xrtHttpFieldChallengeNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -509,36 +509,36 @@ XRT_API xhttpnext xrtHttpFieldChallengeNext(
 	xhttpfield Field;
 	xhttpnext Next;
 
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtHttpViewValid(Name) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pChallenge, sizeof(Challenge)) ||
-		__xrtHttpFieldArrayOverlap(
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
+		!__xhttpViewValid(Name) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pChallenge, sizeof(Challenge)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pCursor, sizeof(Cursor)
-		) || __xrtHttpFieldArrayOverlap(
+		) || __xhttpFieldArrayOverlap(
 			pFields, iCount, pChallenge, sizeof(Challenge)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), Name.Data, Name.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pChallenge, sizeof(Challenge), Name.Data, Name.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pChallenge, sizeof(Challenge)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
 	memcpy(pChallenge, &Challenge, sizeof(Challenge));
 	if ( Cursor.FieldIndex > iCount ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( !xrtHttpTokenValid(Name) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	while ( Cursor.FieldIndex < iCount ) {
-		__xrtHttpFieldLoad(
+		__xhttpFieldLoad(
 			pFields, Cursor.FieldIndex, &Field
 		);
 		if ( !__xrtHttpAuthFieldValid(&Field) ) {
@@ -572,7 +572,7 @@ XRT_API xhttpnext xrtHttpFieldChallengeNext(
 
 
 /* 严格解析一份不允许 challenge 列表外壳的凭据。 */
-XRT_API bool xrtHttpAuthParse(
+XHTTP_API bool xrtHttpAuthParse(
 	xstrview Value,
 	xhttpauth* pAuth
 )
@@ -584,12 +584,12 @@ XRT_API bool xrtHttpAuthParse(
 	const char* sStart;
 	const char* sEnd;
 
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pAuth, sizeof(Auth)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pAuth, sizeof(Auth)) ||
+		xrtMemRangesOverlap(
 			pAuth, sizeof(Auth), Value.Data, Value.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pAuth, &Auth, sizeof(Auth));
@@ -597,7 +597,7 @@ XRT_API bool xrtHttpAuthParse(
 	Next = xrtHttpChallengeNext(Value, &iOffset, &Auth);
 	if ( Next != XHTTP_NEXT_ITEM ) {
 		if ( Next == XHTTP_NEXT_END ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return false;
 	}
@@ -608,7 +608,7 @@ XRT_API bool xrtHttpAuthParse(
 	if ( (Trimmed.Size == 0) ||
 		(sStart != Trimmed.Data) ||
 		(sEnd != (Trimmed.Data + Trimmed.Size)) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memcpy(pAuth, &Auth, sizeof(Auth));
@@ -627,34 +627,34 @@ static bool __xrtHttpAuthWriteValid(
 	size_t* pSize
 )
 {
-	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ||
+	if ( !xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSize, sizeof(iRequired), Scheme.Data, Scheme.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(iRequired), Data.Data, Data.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pOutput == NULL ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, iRequired) ||
+		xrtMemRangesOverlap(
 			pSize, sizeof(iRequired), pOutput, iRequired
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOutput, iRequired, Scheme.Data, Scheme.Size
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOutput, iRequired, Data.Data, Data.Size
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	return true;
@@ -663,7 +663,7 @@ static bool __xrtHttpAuthWriteValid(
 
 
 /* 校验并写出完整认证字段值。 */
-XRT_API bool xrtHttpAuthWrite(
+XHTTP_API bool xrtHttpAuthWrite(
 	xstrview Scheme,
 	xstrview Data,
 	void* pOutput,
@@ -675,24 +675,24 @@ XRT_API bool xrtHttpAuthWrite(
 	size_t iRequired;
 	char* sWrite = (char*)pOutput;
 
-	if ( !__xrtHttpViewValid(Data) ||
+	if ( !__xhttpViewValid(Data) ||
 		!xrtHttpTokenValid(Scheme) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpAuthDataKind(Data, &Kind) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	if ( Scheme.Size > (SIZE_MAX -
 		((Kind == XHTTP_AUTH_NONE) ? 0u : 1u)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iRequired = Scheme.Size +
 		((Kind == XHTTP_AUTH_NONE) ? 0u : 1u);
 	if ( iRequired > (SIZE_MAX - Data.Size) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iRequired += Data.Size;
@@ -720,7 +720,7 @@ XRT_API bool xrtHttpAuthWrite(
 
 
 /* 构建零结尾认证字段值。 */
-XRT_API str xrtHttpAuthBuild(
+XHTTP_API str xrtHttpAuthBuild(
 	xstrview Scheme,
 	xstrview Data,
 	size_t* pSize
@@ -730,13 +730,13 @@ XRT_API str xrtHttpAuthBuild(
 	size_t iRequired;
 
 	if ( ((pSize != NULL) &&
-		!__xrtRangeValid(pSize, sizeof(iRequired))) ||
-		((pSize != NULL) && __xrtRangesOverlap(
+		!xrtMemRangeValid(pSize, sizeof(iRequired))) ||
+		((pSize != NULL) && xrtMemRangesOverlap(
 			pSize, sizeof(iRequired), Scheme.Data, Scheme.Size
-		)) || ((pSize != NULL) && __xrtRangesOverlap(
+		)) || ((pSize != NULL) && xrtMemRangesOverlap(
 			pSize, sizeof(iRequired), Data.Data, Data.Size
 		)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtHttpAuthWrite(

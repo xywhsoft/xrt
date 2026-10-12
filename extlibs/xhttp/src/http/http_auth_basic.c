@@ -88,27 +88,27 @@ static bool __xrtHttpBasicMeasure(
 	size_t iBlocks;
 	size_t iEncoded;
 
-	if ( !__xrtHttpViewValid(User) ||
-		!__xrtHttpViewValid(Password) ) {
+	if ( !__xhttpViewValid(User) ||
+		!__xhttpViewValid(Password) ) {
 		return false;
 	}
 	if ( !__xrtHttpBasicTextValid(User, true) ||
 		!__xrtHttpBasicTextValid(Password, false) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	if ( User.Size > (SIZE_MAX - Password.Size - 1u) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iPlain = User.Size + Password.Size + 1u;
 	if ( iPlain > (SIZE_MAX - 2u) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iBlocks = (iPlain + 2u) / 3u;
 	if ( iBlocks > ((SIZE_MAX - 6u) / 4u) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iEncoded = iBlocks * 4u;
@@ -130,34 +130,34 @@ static bool __xrtHttpBasicWriteValid(
 	size_t* pSize
 )
 {
-	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ||
+	if ( !xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), User.Data, User.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), Password.Data, Password.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pOutput == NULL ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, iRequired) ||
+		xrtMemRangesOverlap(
 		pSize, sizeof(iRequired), pOutput, iRequired
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOutput, iRequired, User.Data, User.Size
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOutput, iRequired, Password.Data, Password.Size
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	return true;
@@ -166,7 +166,7 @@ static bool __xrtHttpBasicWriteValid(
 
 
 /* 构建完整 Basic 字段值。 */
-XRT_API bool xrtHttpBasicWrite(
+XHTTP_API bool xrtHttpBasicWrite(
 	xstrview User,
 	xstrview Password,
 	void* pOutput,
@@ -239,37 +239,37 @@ static bool __xrtHttpBasicReadOutputValid(
 	xhttpbasicauth* pBasic
 )
 {
-	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ||
-		!__xrtRangeValid(pBasic, sizeof(*pBasic)) ||
+	if ( !xrtMemRangeValid(pSize, sizeof(iRequired)) ||
+		!xrtMemRangeValid(pBasic, sizeof(*pBasic)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pBasic, sizeof(*pBasic), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), pBasic, sizeof(*pBasic)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pOutput == NULL ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, iRequired) ||
+		xrtMemRangesOverlap(
 		pOutput, iRequired, Value.Data, Value.Size
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pSize, sizeof(*pSize), pOutput, iRequired
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pBasic, sizeof(*pBasic), pOutput, iRequired
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	return true;
@@ -278,7 +278,7 @@ static bool __xrtHttpBasicReadOutputValid(
 
 
 /* 解码并拆分完整 Basic 字段值。 */
-XRT_API bool xrtHttpBasicRead(
+XHTTP_API bool xrtHttpBasicRead(
 	xstrview Value,
 	void* pOutput,
 	size_t iCapacity,
@@ -292,20 +292,20 @@ XRT_API bool xrtHttpBasicRead(
 	size_t iDecoded;
 	size_t iColon;
 
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pSize, sizeof(iDecoded)) ||
-		!__xrtRangeValid(pBasic, sizeof(Basic)) ||
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pSize, sizeof(iDecoded)) ||
+		!xrtMemRangeValid(pBasic, sizeof(Basic)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		((pOutput != NULL) && !__xrtRangeValid(
+		((pOutput != NULL) && !xrtMemRangeValid(
 			pOutput, iCapacity
-		)) || __xrtRangesOverlap(
+		)) || xrtMemRangesOverlap(
 			pSize, sizeof(iDecoded), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pBasic, sizeof(Basic), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(iDecoded), pBasic, sizeof(Basic)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pBasic, &Basic, sizeof(Basic));
@@ -315,7 +315,7 @@ XRT_API bool xrtHttpBasicRead(
 	if ( !xrtHttpTokenEqual(
 			Auth.Scheme, XRT_STR_LITERAL("Basic")
 		) || (Auth.Kind != XHTTP_AUTH_TOKEN68) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	if ( !xrtBase64Decode(
@@ -357,7 +357,7 @@ XRT_API bool xrtHttpBasicRead(
 			false
 		) ) {
 		__xrtHttpBasicTemporaryClose(&Temporary);
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	if ( !__xrtHttpBasicReadOutputValid(
@@ -394,29 +394,29 @@ static bool __xrtHttpBasicChallengeReadValid(
 	xhttpbasicchallenge* pChallenge
 )
 {
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pSize, sizeof(size_t)) ||
-		!__xrtRangeValid(pChallenge, sizeof(*pChallenge)) ||
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pSize, sizeof(size_t)) ||
+		!xrtMemRangeValid(pChallenge, sizeof(*pChallenge)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		((pOutput != NULL) && !__xrtRangeValid(
+		((pOutput != NULL) && !xrtMemRangeValid(
 			pOutput, iCapacity
-		)) || __xrtRangesOverlap(
+		)) || xrtMemRangesOverlap(
 			pSize, sizeof(size_t), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pChallenge, sizeof(*pChallenge),
 			Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(size_t),
 			pChallenge, sizeof(*pChallenge)
-		) || ((pOutput != NULL) && (__xrtRangesOverlap(
+		) || ((pOutput != NULL) && (xrtMemRangesOverlap(
 			pOutput, iCapacity, Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(size_t)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity,
 			pChallenge, sizeof(*pChallenge)
 		))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return true;
@@ -425,7 +425,7 @@ static bool __xrtHttpBasicChallengeReadValid(
 
 
 /* 解析并解码 RFC 7617 Basic challenge。 */
-XRT_API bool xrtHttpBasicChallengeRead(
+XHTTP_API bool xrtHttpBasicChallengeRead(
 	xstrview Value,
 	void* pOutput,
 	size_t iCapacity,
@@ -455,7 +455,7 @@ XRT_API bool xrtHttpBasicChallengeRead(
 	if ( !xrtHttpTokenEqual(
 		Auth.Scheme, XRT_STR_LITERAL("Basic")
 	) || (Auth.Kind != XHTTP_AUTH_PARAMS) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	for ( ;; ) {
@@ -475,7 +475,7 @@ XRT_API bool xrtHttpBasicChallengeRead(
 				&Param, NULL, 0, &iRequired
 			) ) {
 				if ( bRealm ) {
-					__xrtErrorSetValue();
+					xrtSetErrorKind(XERR_VALUE);
 				}
 				return false;
 			}
@@ -489,7 +489,7 @@ XRT_API bool xrtHttpBasicChallengeRead(
 			if ( bCharset || !xrtHttpParamTokenEqual(
 				&Param, XRT_STR_LITERAL("UTF-8")
 			) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			bCharset = true;
@@ -497,7 +497,7 @@ XRT_API bool xrtHttpBasicChallengeRead(
 		}
 	}
 	if ( !bRealm ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	if ( pOutput == NULL ) {
@@ -505,16 +505,16 @@ XRT_API bool xrtHttpBasicChallengeRead(
 		memcpy(pChallenge, &Challenge, sizeof(Challenge));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pOutput, iRequired) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
-	(void)__xrtHttpParamValueWriteUnchecked(
+	(void)__xhttpParamValueWriteUnchecked(
 		&Realm, (bytes)pOutput
 	);
 	Challenge.Realm = (xstrview){
@@ -529,7 +529,7 @@ XRT_API bool xrtHttpBasicChallengeRead(
 
 
 /* 写出 Basic challenge。 */
-XRT_API bool xrtHttpBasicChallengeWrite(
+XHTTP_API bool xrtHttpBasicChallengeWrite(
 	xstrview Realm,
 	bool bUtf8,
 	void* pOutput,
@@ -544,13 +544,13 @@ XRT_API bool xrtHttpBasicChallengeWrite(
 	size_t iWritten;
 	char* sWrite = (char*)pOutput;
 
-	if ( !__xrtHttpViewValid(Realm) ||
-		!__xrtRangeValid(pSize, sizeof(iRequired)) ||
+	if ( !__xhttpViewValid(Realm) ||
+		!xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSize, sizeof(iRequired), Realm.Data, Realm.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !xrtHttpQuotedWrite(
@@ -559,13 +559,13 @@ XRT_API bool xrtHttpBasicChallengeWrite(
 		return false;
 	}
 	if ( iQuoted > (SIZE_MAX - (sizeof(Prefix) - 1u)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iRequired = (sizeof(Prefix) - 1u) + iQuoted;
 	if ( bUtf8 ) {
 		if ( iRequired > (SIZE_MAX - (sizeof(Utf8) - 1u)) ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iRequired += sizeof(Utf8) - 1u;
@@ -574,18 +574,18 @@ XRT_API bool xrtHttpBasicChallengeWrite(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, iRequired) ||
+		xrtMemRangesOverlap(
 		pSize, sizeof(iRequired), pOutput, iRequired
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOutput, iRequired, Realm.Data, Realm.Size
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	memcpy(sWrite, Prefix, sizeof(Prefix) - 1u);

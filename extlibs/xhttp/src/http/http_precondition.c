@@ -36,7 +36,7 @@ static bool __xrtHttpDateParseValue(
 
 
 /* 验证条件评估输入并快照当前表示。 */
-bool __xrtHttpPreconditionInputRead(
+XHTTP_API bool xrtHttpBridgePreconditionInputRead(
 	xstrview Method,
 	const xhttpfield* pFields,
 	size_t iFieldCount,
@@ -47,11 +47,11 @@ bool __xrtHttpPreconditionInputRead(
 	xhttpfield Field;
 	size_t i;
 
-	if ( !__xrtHttpViewValid(Method) ||
+	if ( !__xhttpViewValid(Method) ||
 		!xrtHttpTokenValid(Method) ||
-		!__xrtRangeValid(pInput, sizeof(*pCurrent)) ||
-		!__xrtHttpFieldArrayValid(pFields, iFieldCount) ) {
-		__xrtErrorSetInvalidArgument();
+		!xrtMemRangeValid(pInput, sizeof(*pCurrent)) ||
+		!__xhttpFieldArrayValid(pFields, iFieldCount) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pCurrent, pInput, sizeof(*pCurrent));
@@ -60,15 +60,15 @@ bool __xrtHttpPreconditionInputRead(
 		(pCurrent->LastModifiedStrong &&
 		 !pCurrent->HasLastModified) ||
 		(pCurrent->HasETag &&
-		 !__xrtHttpETagValid(&pCurrent->ETag)) ) {
-		__xrtErrorSetInvalidArgument();
+		 !xrtHttpBridgeETagValid(&pCurrent->ETag)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( i = 0; i < iFieldCount; i++ ) {
-		__xrtHttpFieldLoad(pFields, i, &Field);
+		__xhttpFieldLoad(pFields, i, &Field);
 		if ( !xrtHttpTokenValid(Field.Name) ||
 			!xrtHttpFieldValueValid(Field.Value) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 	}
@@ -108,7 +108,7 @@ static bool __xrtHttpETagConditionRead(
 
 	memset(pCondition, 0, sizeof(*pCondition));
 	for ( i = 0; i < iFieldCount; i++ ) {
-		__xrtHttpFieldLoad(pFields, i, &Field);
+		__xhttpFieldLoad(pFields, i, &Field);
 		if ( !__xrtHttpConditionName(&Field, Name) ) {
 			continue;
 		}
@@ -149,7 +149,7 @@ static bool __xrtHttpETagConditionRead(
 	if ( (pCondition->Items == 0) ||
 		(pCondition->Any &&
 		 ((pCondition->Items != 1) || (iFields != 1))) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return true;
@@ -176,7 +176,7 @@ static bool __xrtHttpDateConditionRead(
 	*pValid = false;
 	*pDate = 0;
 	for ( i = 0; i < iFieldCount; i++ ) {
-		__xrtHttpFieldLoad(pFields, i, &Field);
+		__xhttpFieldLoad(pFields, i, &Field);
 		if ( __xrtHttpConditionName(&Field, Name) ) {
 			Value = Field.Value;
 			iMatches++;
@@ -205,7 +205,7 @@ static int64 __xrtHttpTimeSecond(xtime iTime)
 
 
 /* 按 RFC 固定顺序评估条件请求。 */
-XRT_API xhttpprecondition xrtHttpPreconditionsEvaluate(
+XHTTP_API xhttpprecondition xrtHttpPreconditionsEvaluate(
 	xstrview Method,
 	const xhttpfield* pFields,
 	size_t iFieldCount,
@@ -220,22 +220,22 @@ XRT_API xhttpprecondition xrtHttpPreconditionsEvaluate(
 	bool bGet;
 	bool bHead;
 
-	if ( !__xrtHttpPreconditionInputRead(
+	if ( !xrtHttpBridgePreconditionInputRead(
 		Method, pFields, iFieldCount, pCurrent, &Current
 	) ) {
 		return XHTTP_PRECONDITION_ERROR;
 	}
-	bGet = __xrtHttpViewEqual(
+	bGet = __xhttpViewEqual(
 		Method, XRT_STR_LITERAL("GET")
 	);
-	bHead = __xrtHttpViewEqual(
+	bHead = __xhttpViewEqual(
 		Method, XRT_STR_LITERAL("HEAD")
 	);
-	if ( __xrtHttpViewEqual(
+	if ( __xhttpViewEqual(
 			Method, XRT_STR_LITERAL("CONNECT")
-		) || __xrtHttpViewEqual(
+		) || __xhttpViewEqual(
 			Method, XRT_STR_LITERAL("OPTIONS")
-		) || __xrtHttpViewEqual(
+		) || __xhttpViewEqual(
 			Method, XRT_STR_LITERAL("TRACE")
 		) ) {
 		return XHTTP_PRECONDITION_PROCEED;
@@ -322,7 +322,7 @@ XRT_API xhttpprecondition xrtHttpPreconditionsEvaluate(
 
 
 /* 判断 If-Range 是否与当前表示的强验证器匹配。 */
-XRT_API bool xrtHttpIfRangeMatch(
+XHTTP_API bool xrtHttpIfRangeMatch(
 	xstrview Value,
 	const xhttprepresentation* pCurrent
 )
@@ -331,9 +331,9 @@ XRT_API bool xrtHttpIfRangeMatch(
 	xhttprepresentation Current;
 	xtime iDate;
 
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pCurrent, sizeof(Current)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pCurrent, sizeof(Current)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Current, pCurrent, sizeof(Current));
@@ -342,17 +342,17 @@ XRT_API bool xrtHttpIfRangeMatch(
 		(Current.LastModifiedStrong &&
 		 !Current.HasLastModified) ||
 		(Current.HasETag &&
-		 !__xrtHttpETagValid(&Current.ETag)) ) {
-		__xrtErrorSetInvalidArgument();
+		 !xrtHttpBridgeETagValid(&Current.ETag)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	Value = xrtHttpOwsTrim(Value);
-	if ( __xrtHttpETagParseValue(Value, &Tag) ) {
+	if ( xrtHttpBridgeETagParseValue(Value, &Tag) ) {
 		return Current.Exists &&
 			Current.HasETag &&
 			!Tag.Weak &&
 			!Current.ETag.Weak &&
-			__xrtHttpETagValid(&Tag) &&
+			xrtHttpBridgeETagValid(&Tag) &&
 			(Tag.Opaque.Size == Current.ETag.Opaque.Size) &&
 			((Tag.Opaque.Size == 0) ||
 			 (memcmp(

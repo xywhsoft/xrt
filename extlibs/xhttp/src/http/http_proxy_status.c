@@ -269,7 +269,7 @@ static bool __xrtHttpProxyStatusMember(
 
 
 /* 初始化单字段游标。 */
-XRT_API void xrtHttpProxyStatusCursorInit(
+XHTTP_API void xrtHttpProxyStatusCursorInit(
 	xhttpproxystatuscursor* pCursor
 )
 {
@@ -281,7 +281,7 @@ XRT_API void xrtHttpProxyStatusCursorInit(
 
 
 /* 初始化重复字段游标。 */
-XRT_API void xrtHttpProxyStatusFieldCursorInit(
+XHTTP_API void xrtHttpProxyStatusFieldCursorInit(
 	xhttpproxystatusfieldcursor* pCursor
 )
 {
@@ -293,7 +293,7 @@ XRT_API void xrtHttpProxyStatusFieldCursorInit(
 
 
 /* 验证完整 Proxy-Status 字段值。 */
-XRT_API bool xrtHttpProxyStatusValid(xstrview Value)
+XHTTP_API bool xrtHttpProxyStatusValid(xstrview Value)
 {
 	return __xrtHttpStructuredStatusValid(
 		Value, __xrtHttpProxyStatusMember
@@ -303,7 +303,7 @@ XRT_API bool xrtHttpProxyStatusValid(xstrview Value)
 
 
 /* 迭代单个 Proxy-Status 字段值。 */
-XRT_API xhttpnext xrtHttpProxyStatusNext(
+XHTTP_API xhttpnext xrtHttpProxyStatusNext(
 	xstrview Value,
 	xhttpproxystatuscursor* pCursor,
 	xhttpproxystatus* pStatus
@@ -319,7 +319,7 @@ XRT_API xhttpnext xrtHttpProxyStatusNext(
 
 
 /* 跨重复字段行迭代 Proxy-Status。 */
-XRT_API xhttpnext xrtHttpProxyStatusFieldNext(
+XHTTP_API xhttpnext xrtHttpProxyStatusFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpproxystatusfieldcursor* pCursor,

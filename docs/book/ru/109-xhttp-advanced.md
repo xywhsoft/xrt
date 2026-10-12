@@ -8,6 +8,8 @@ lead: Сжатие ответов, управляемое согласовани
 api: xhttp-http_server, xhttp-http_compress, xhttp-http_cache_range
 ---
 
+> Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Ориентация
 
 Том 10 закрывается. После серверных глав (103–107) оставшиеся продвинутые темы сходятся здесь: **сжатие ответов** (`reply_compress`/`server_compress` — кодирование выбирается согласованием `Accept-Encoding` клиента, тела ответов сжимаются прозрачно — зеркальная сторона декодирования главы 93); **Range и составные ответы** (`range_multipart` — ответы multipart/byteranges на многоинтервальные запросы, дуал клиентской сборки Range главы 101); **семейство заголовков прокси** (`Via`/нормализованная замена `X-Forwarded-*` — `Forwarded`, статус прокси `proxy_status` — словарь написания шлюзов). Напоследок том закрывает панорамой «один запрос сквозь весь стек тома 10»: каждый слой от вызова easy до сжатого Range-ответа. С главы 110 начинается том 11 (семейство библиотек-расширений xws/xruntime/xmail/xssh).
@@ -57,11 +59,11 @@ api: xhttp-http_server, xhttp-http_compress, xhttp-http_cache_range
 
 Программа ниже из `examples/http/reply_compress` — сжатие ответов по возможностям клиента:
 
-```embed path="extlibs/xhttp/examples/http/reply_compress/main.c" title="extlibs/xhttp/examples/http/reply_compress/main.c"
+```embed path="extlibs/xhttp-server/examples/http/reply_compress/main.c" title="extlibs/xhttp-server/examples/http/reply_compress/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/reply_compress/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_reply_compress --exclude-test "*" --no-single --no-run
 （输出压缩协商与产出响应的自检结果）
 ```
 
@@ -75,7 +77,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/range_multipart/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_range_multipart --exclude-test "*" --no-single --no-run
 （输出多区间响应组合的自检结果）
 ```
 

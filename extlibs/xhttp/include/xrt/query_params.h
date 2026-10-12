@@ -1,6 +1,8 @@
 #ifndef XRT_QUERY_PARAMS_H
 #define XRT_QUERY_PARAMS_H
 
+#include <xhttp/export.h>
+
 #include <xrt/form.h>
 #include <xrt/query.h>
 
@@ -48,19 +50,19 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_QUERY_PARAMS)
 
 /* 初始化适合 URL 查询和表单数据的容量、限额与严格 percent 策略。 */
-XRT_API void xrtQueryParamsConfigInit(xqueryparamsconfig* pConfig);
+XHTTP_API void xrtQueryParamsConfigInit(xqueryparamsconfig* pConfig);
 
 
 
 /* 创建拥有型空容器；配置为空时使用默认值。 */
-XRT_API xqueryparams* xrtQueryParamsCreate(
+XHTTP_API xqueryparams* xrtQueryParamsCreate(
 	const xqueryparamsconfig* pConfig
 );
 
 
 
 /* 按 form-urlencoded 规则解析并创建容器；成功时 ErrorOffset 等于输入长度。 */
-XRT_API xqueryparams* xrtQueryParamsParse(
+XHTTP_API xqueryparams* xrtQueryParamsParse(
 	xstrview Text,
 	const xqueryparamsconfig* pConfig,
 	size_t* pErrorOffset
@@ -69,24 +71,24 @@ XRT_API xqueryparams* xrtQueryParamsParse(
 
 
 /* 深复制全部 pair、配置和有效字节。 */
-XRT_API xqueryparams* xrtQueryParamsClone(
+XHTTP_API xqueryparams* xrtQueryParamsClone(
 	const xqueryparams* pParams
 );
 
 
 
 /* 销毁容器；空指针是安全的空操作。 */
-XRT_API void xrtQueryParamsDestroy(xqueryparams* pParams);
+XHTTP_API void xrtQueryParamsDestroy(xqueryparams* pParams);
 
 
 
 /* 删除全部 pair，但保留已经分配的容量供后续复用。 */
-XRT_API void xrtQueryParamsClear(xqueryparams* pParams);
+XHTTP_API void xrtQueryParamsClear(xqueryparams* pParams);
 
 
 
 /* 预留至少指定 pair 数量和有效已解码字节容量。 */
-XRT_API bool xrtQueryParamsReserve(
+XHTTP_API bool xrtQueryParamsReserve(
 	xqueryparams* pParams,
 	size_t iPairs,
 	size_t iBytes
@@ -95,17 +97,17 @@ XRT_API bool xrtQueryParamsReserve(
 
 
 /* 返回当前 pair 数量；空容器返回零。 */
-XRT_API size_t xrtQueryParamsCount(const xqueryparams* pParams);
+XHTTP_API size_t xrtQueryParamsCount(const xqueryparams* pParams);
 
 
 
 /* 返回全部有效名称和值的已解码字节数；空容器返回零。 */
-XRT_API size_t xrtQueryParamsBytes(const xqueryparams* pParams);
+XHTTP_API size_t xrtQueryParamsBytes(const xqueryparams* pParams);
 
 
 
 /* 追加一个拥有型 pair，并保留 HAS_VALUE 状态。 */
-XRT_API bool xrtQueryParamsAppendPair(
+XHTTP_API bool xrtQueryParamsAppendPair(
 	xqueryparams* pParams,
 	xquerypair Pair
 );
@@ -113,7 +115,7 @@ XRT_API bool xrtQueryParamsAppendPair(
 
 
 /* 追加一个始终带等号和值的常用 pair。 */
-XRT_API bool xrtQueryParamsAppend(
+XHTTP_API bool xrtQueryParamsAppend(
 	xqueryparams* pParams,
 	xstrview Name,
 	xstrview Value
@@ -122,7 +124,7 @@ XRT_API bool xrtQueryParamsAppend(
 
 
 /* 用一个 pair 替换全部同名项；首个同名位置保持不变。 */
-XRT_API bool xrtQueryParamsSetPair(
+XHTTP_API bool xrtQueryParamsSetPair(
 	xqueryparams* pParams,
 	xquerypair Pair
 );
@@ -130,7 +132,7 @@ XRT_API bool xrtQueryParamsSetPair(
 
 
 /* 用一个始终带值的常用 pair 替换全部同名项。 */
-XRT_API bool xrtQueryParamsSet(
+XHTTP_API bool xrtQueryParamsSet(
 	xqueryparams* pParams,
 	xstrview Name,
 	xstrview Value
@@ -139,7 +141,7 @@ XRT_API bool xrtQueryParamsSet(
 
 
 /* 删除全部同名项并返回删除数量；名称按字节区分大小写。 */
-XRT_API size_t xrtQueryParamsRemove(
+XHTTP_API size_t xrtQueryParamsRemove(
 	xqueryparams* pParams,
 	xstrview Name
 );
@@ -147,7 +149,7 @@ XRT_API size_t xrtQueryParamsRemove(
 
 
 /* 返回同名项数量；名称按字节区分大小写。 */
-XRT_API size_t xrtQueryParamsCountName(
+XHTTP_API size_t xrtQueryParamsCountName(
 	const xqueryparams* pParams,
 	xstrview Name
 );
@@ -155,7 +157,7 @@ XRT_API size_t xrtQueryParamsCountName(
 
 
 /* 判断是否存在同名项；无匹配不是错误。 */
-XRT_API bool xrtQueryParamsHas(
+XHTTP_API bool xrtQueryParamsHas(
 	const xqueryparams* pParams,
 	xstrview Name
 );
@@ -163,7 +165,7 @@ XRT_API bool xrtQueryParamsHas(
 
 
 /* 复制指定位置的借用 pair；视图在下一次容器修改前有效。 */
-XRT_API bool xrtQueryParamsAt(
+XHTTP_API bool xrtQueryParamsAt(
 	const xqueryparams* pParams,
 	size_t iIndex,
 	xquerypair* pPair
@@ -172,7 +174,7 @@ XRT_API bool xrtQueryParamsAt(
 
 
 /* 复制首个同名 pair；无匹配返回 false 且不是错误。 */
-XRT_API bool xrtQueryParamsGet(
+XHTTP_API bool xrtQueryParamsGet(
 	const xqueryparams* pParams,
 	xstrview Name,
 	xquerypair* pPair
@@ -181,7 +183,7 @@ XRT_API bool xrtQueryParamsGet(
 
 
 /* 从 Index 开始查找下一个同名项；Index 必须不大于 Count，ITEM 时指向下一位置。 */
-XRT_API xquerynext xrtQueryParamsFind(
+XHTTP_API xquerynext xrtQueryParamsFind(
 	const xqueryparams* pParams,
 	xstrview Name,
 	size_t* pIndex,
@@ -191,7 +193,7 @@ XRT_API xquerynext xrtQueryParamsFind(
 
 
 /* 原子追加一段 form-urlencoded 文本；失败时原容器保持逻辑不变。 */
-XRT_API bool xrtQueryParamsParseAppend(
+XHTTP_API bool xrtQueryParamsParseAppend(
 	xqueryparams* pParams,
 	xstrview Text,
 	size_t* pErrorOffset
@@ -200,17 +202,17 @@ XRT_API bool xrtQueryParamsParseAppend(
 
 
 /* 按名称字节稳定排序，重复名称保持原先顺序。 */
-XRT_API bool xrtQueryParamsSort(xqueryparams* pParams);
+XHTTP_API bool xrtQueryParamsSort(xqueryparams* pParams);
 
 
 
 /* 丢弃修改产生的废弃字节，并把字符串区收缩为当前有效内容。 */
-XRT_API bool xrtQueryParamsCompact(xqueryparams* pParams);
+XHTTP_API bool xrtQueryParamsCompact(xqueryparams* pParams);
 
 
 
 /* 按 form-urlencoded 规则写出且不附加零字符；空输出可查询精确长度。 */
-XRT_API bool xrtQueryParamsWrite(
+XHTTP_API bool xrtQueryParamsWrite(
 	const xqueryparams* pParams,
 	void* pOutput,
 	size_t iCapacity,
@@ -220,7 +222,7 @@ XRT_API bool xrtQueryParamsWrite(
 
 
 /* 分配并构建零结尾文本；返回值由 xrtFree 释放。 */
-XRT_API str xrtQueryParamsBuild(
+XHTTP_API str xrtQueryParamsBuild(
 	const xqueryparams* pParams,
 	size_t* pSize
 );

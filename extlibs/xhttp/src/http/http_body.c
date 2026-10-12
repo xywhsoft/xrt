@@ -238,7 +238,7 @@ static bool __xrtHttpBodyReaderOpsValid(
 
 
 /* 创建自定义正文源。 */
-XRT_API xhttpbody* xrtHttpBodyCreate(
+XHTTP_API xhttpbody* xrtHttpBodyCreate(
 	const xhttpbodyops* pOps,
 	ptr pFactory,
 	uint64 iLength,
@@ -267,7 +267,7 @@ XRT_API xhttpbody* xrtHttpBodyCreate(
 
 
 /* 创建可重放的空正文。 */
-XRT_API xhttpbody* xrtHttpBodyEmpty(void)
+XHTTP_API xhttpbody* xrtHttpBodyEmpty(void)
 {
 	return __xrtHttpBodyBytesCreate(
 		(xbytesview){ NULL, 0 }, NULL, NULL
@@ -277,7 +277,7 @@ XRT_API xhttpbody* xrtHttpBodyEmpty(void)
 
 
 /* 创建拥有正文副本的可重放正文。 */
-XRT_API xhttpbody* xrtHttpBodyCopy(xbytesview Data)
+XHTTP_API xhttpbody* xrtHttpBodyCopy(xbytesview Data)
 {
 	xhttpbody* pBody;
 	bytes pCopy;
@@ -311,7 +311,7 @@ XRT_API xhttpbody* xrtHttpBodyCopy(xbytesview Data)
 
 
 /* 创建借用外部内存的可重放正文。 */
-XRT_API xhttpbody* xrtHttpBodyBorrow(xbytesview Data)
+XHTTP_API xhttpbody* xrtHttpBodyBorrow(xbytesview Data)
 {
 	return __xrtHttpBodyBytesCreate(Data, NULL, NULL);
 }
@@ -319,7 +319,7 @@ XRT_API xhttpbody* xrtHttpBodyBorrow(xbytesview Data)
 
 
 /* 成功时接管由 xrtMalloc 分配的数据。 */
-XRT_API xhttpbody* xrtHttpBodyTake(ptr pData, size_t iSize)
+XHTTP_API xhttpbody* xrtHttpBodyTake(ptr pData, size_t iSize)
 {
 	return __xrtHttpBodyBytesCreate(
 		(xbytesview){ (cbytes)pData, iSize },
@@ -331,7 +331,7 @@ XRT_API xhttpbody* xrtHttpBodyTake(ptr pData, size_t iSize)
 
 
 /* 创建带自定义释放过程的可重放正文。 */
-XRT_API xhttpbody* xrtHttpBodyReference(
+XHTTP_API xhttpbody* xrtHttpBodyReference(
 	xbytesview Data,
 	xhttpbodyreleaseproc pRelease,
 	ptr pContext
@@ -347,7 +347,7 @@ XRT_API xhttpbody* xrtHttpBodyReference(
 
 
 /* 增加正文对象引用并返回原指针。 */
-XRT_API xhttpbody* xrtHttpBodyRef(xhttpbody* pBody)
+XHTTP_API xhttpbody* xrtHttpBodyRef(xhttpbody* pBody)
 {
 	if ( (pBody == NULL) ||
 		(xrtRefRetain(&pBody->RefCount) < 0) ) {
@@ -364,7 +364,7 @@ XRT_API xhttpbody* xrtHttpBodyRef(xhttpbody* pBody)
 
 
 /* 释放正文对象的最后一个引用及其工厂资产。 */
-XRT_API void xrtHttpBodyDestroy(xhttpbody* pBody)
+XHTTP_API void xrtHttpBodyDestroy(xhttpbody* pBody)
 {
 	xerror* pPrevious;
 	xerror* pDiscard;
@@ -394,7 +394,7 @@ XRT_API void xrtHttpBodyDestroy(xhttpbody* pBody)
 
 
 /* 返回正文线性字节长度或未知长度哨兵。 */
-XRT_API uint64 xrtHttpBodyLength(const xhttpbody* pBody)
+XHTTP_API uint64 xrtHttpBodyLength(const xhttpbody* pBody)
 {
 	if ( pBody == NULL ) {
 		__xhttpErrorSetInvalidArgument();
@@ -406,7 +406,7 @@ XRT_API uint64 xrtHttpBodyLength(const xhttpbody* pBody)
 
 
 /* 返回正文源公开能力标志。 */
-XRT_API uint32 xrtHttpBodyFlags(const xhttpbody* pBody)
+XHTTP_API uint32 xrtHttpBodyFlags(const xhttpbody* pBody)
 {
 	if ( pBody == NULL ) {
 		__xhttpErrorSetInvalidArgument();
@@ -418,7 +418,7 @@ XRT_API uint32 xrtHttpBodyFlags(const xhttpbody* pBody)
 
 
 /* 判断正文能否重新 Open 并从头读取。 */
-XRT_API bool xrtHttpBodyReplayable(const xhttpbody* pBody)
+XHTTP_API bool xrtHttpBodyReplayable(const xhttpbody* pBody)
 {
 	return (pBody != NULL) &&
 		( (pBody->Flags & XHTTP_BODY_REPLAYABLE) != 0 );
@@ -427,7 +427,7 @@ XRT_API bool xrtHttpBodyReplayable(const xhttpbody* pBody)
 
 
 /* 借用固定正文的连续字节视图，自定义来源没有连续视图。 */
-XRT_API bool xrtHttpBodyView(
+XHTTP_API bool xrtHttpBodyView(
 	const xhttpbody* pBody,
 	xbytesview* pData
 )
@@ -463,7 +463,7 @@ XRT_API bool xrtHttpBodyView(
 
 
 /* 为固定字节或自定义来源打开一个独立 Reader。 */
-XRT_API xhttpbodyreader* xrtHttpBodyOpen(xhttpbody* pBody)
+XHTTP_API xhttpbodyreader* xrtHttpBodyOpen(xhttpbody* pBody)
 {
 	xhttpbodyreader* pReader;
 	xhttpbodyreaderops Ops;
@@ -668,7 +668,7 @@ static bool __xrtHttpBodyReaderBytesOverlap(
 
 
 /* 读取下一个拥有型 Chunk 并稳定推进 Reader 终态。 */
-XRT_API xhttpbodystatus xrtHttpBodyNext(
+XHTTP_API xhttpbodystatus xrtHttpBodyNext(
 	xhttpbodyreader* pReader,
 	size_t iMaxBytes,
 	xhttpbodychunk* pChunk
@@ -775,7 +775,7 @@ XRT_API xhttpbodystatus xrtHttpBodyNext(
 
 
 /* 复制读取一个 Chunk 并立即归还数据租约。 */
-XRT_API xhttpbodystatus xrtHttpBodyRead(
+XHTTP_API xhttpbodystatus xrtHttpBodyRead(
 	xhttpbodyreader* pReader,
 	void* pOutput,
 	size_t iCapacity,
@@ -824,7 +824,7 @@ XRT_API xhttpbodystatus xrtHttpBodyRead(
 
 
 /* 释放 Chunk 数据租约并清空结构。 */
-XRT_API void xrtHttpBodyChunkRelease(xhttpbodychunk* pChunk)
+XHTTP_API void xrtHttpBodyChunkRelease(xhttpbodychunk* pChunk)
 {
 	xhttpbodyreleaseproc pRelease;
 	ptr pContext;
@@ -852,7 +852,7 @@ XRT_API void xrtHttpBodyChunkRelease(xhttpbodychunk* pChunk)
 
 
 /* 返回 Reader 已发布的正文总字节数。 */
-XRT_API uint64 xrtHttpBodyReaderBytes(const xhttpbodyreader* pReader)
+XHTTP_API uint64 xrtHttpBodyReaderBytes(const xhttpbodyreader* pReader)
 {
 	if ( pReader == NULL ) {
 		__xhttpErrorSetInvalidArgument();
@@ -864,7 +864,7 @@ XRT_API uint64 xrtHttpBodyReaderBytes(const xhttpbodyreader* pReader)
 
 
 /* 返回失败 Reader 借用的稳定错误。 */
-XRT_API const xerror* xrtHttpBodyReaderError(
+XHTTP_API const xerror* xrtHttpBodyReaderError(
 	const xhttpbodyreader* pReader
 )
 {
@@ -875,7 +875,7 @@ XRT_API const xerror* xrtHttpBodyReaderError(
 
 
 /* 关闭 Reader 并释放正文引用。 */
-XRT_API void xrtHttpBodyReaderDestroy(xhttpbodyreader* pReader)
+XHTTP_API void xrtHttpBodyReaderDestroy(xhttpbodyreader* pReader)
 {
 	if ( pReader == NULL ) {
 		return;

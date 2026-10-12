@@ -8,6 +8,8 @@ lead: Защита пятью тайм-аутами, цепочка событи
 api: xhttp-http_server, xhttp-http_server_router, net
 ---
 
+> Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Ориентация
 
 После шести клиентских глав (97–102) перспектива переворачивается: теперь вы сервер. `xrtHttpServerStart` одним шагом собирает Engine, агрегированный TCP Server, Stream и протокольные машины состояний без ввода-вывода в открытый текстовый HTTP/1-сервис — зависимости не прячутся за таблицей функций (честная обрезка). В главе три темы: **конфигурационная грань** — пять тайм-аутов (Header/Body/Request/Idle/Write — каждый независимо защищает свою стадию, ноль отключает); **цепочка событий** — `Open → Headers → Body → Request → Error/Close`, где `Headers` принимает стратегическое решение до чтения тела (буферизовать/стримить/отбросить/отвергнуть/ответить напрямую), `Body` принимает только потоковые фрагменты, возврат false из обратного вызова — 500; **три пути ответа** — `Reply` (прямой ответ фиксированными байтами, ноль временных контейнеров), `ReplyBody` (версия с источником тела), `Respond` (полный построитель динамических полей и trailer). Маршрутизация и middleware — глава 105; SSE и потоковость — главы 107/108. Вход разбора заголовков запроса у протокольного автомата в основе — ровно сетевая привязка парсера главы 90 (http1_net: цепочка буферов идёт в парсер напрямую, без ручной сшивки).
@@ -58,11 +60,11 @@ api: xhttp-http_server, xhttp-http_server_router, net
 
 Программа ниже из `examples/http/server` — минимальный полный сервис:
 
-```embed path="extlibs/xhttp/examples/http/server/main.c" title="extlibs/xhttp/examples/http/server/main.c"
+```embed path="extlibs/xhttp-server/examples/http/server/main.c" title="extlibs/xhttp-server/examples/http/server/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_server --exclude-test "*" --no-single --no-run
 listening on http://127.0.0.1:52173/health
 press Enter to drain
 ```
@@ -73,11 +75,11 @@ press Enter to drain
 
 Вторая программа из `examples/http/server_router` — комбинация маршрутизации и прямого ответа:
 
-```embed path="extlibs/xhttp/examples/http/server_router/main.c" title="extlibs/xhttp/examples/http/server_router/main.c"
+```embed path="extlibs/xhttp-server/examples/http/server_router/main.c" title="extlibs/xhttp-server/examples/http/server_router/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server_router/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_server_router --exclude-test "*" --no-single --no-run
 （输出路由装配计数并正常退出）
 ```
 

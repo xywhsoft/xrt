@@ -75,26 +75,26 @@ static bool __xrtHttpDigestInfoReadValid(
 	xhttpdigestinfo* pInfo
 )
 {
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pSize, sizeof(size_t)) ||
-		!__xrtRangeValid(pInfo, sizeof(*pInfo)) ||
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pSize, sizeof(size_t)) ||
+		!xrtMemRangeValid(pInfo, sizeof(*pInfo)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		((pOutput != NULL) && !__xrtRangeValid(
+		((pOutput != NULL) && !xrtMemRangeValid(
 			pOutput, iCapacity
-		)) || __xrtRangesOverlap(
+		)) || xrtMemRangesOverlap(
 			pSize, sizeof(size_t), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pInfo, sizeof(*pInfo), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(size_t), pInfo, sizeof(*pInfo)
-		) || ((pOutput != NULL) && (__xrtRangesOverlap(
+		) || ((pOutput != NULL) && (xrtMemRangesOverlap(
 			pOutput, iCapacity, Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(size_t)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity, pInfo, sizeof(*pInfo)
 		))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return true;
@@ -103,7 +103,7 @@ static bool __xrtHttpDigestInfoReadValid(
 
 
 /* 严格解析 Digest Authentication-Info 参数列表。 */
-XRT_API bool xrtHttpDigestInfoRead(
+XHTTP_API bool xrtHttpDigestInfoRead(
 	xstrview Value,
 	xhttpdigestalgorithm Algorithm,
 	void* pOutput,
@@ -129,7 +129,7 @@ XRT_API bool xrtHttpDigestInfoRead(
 	memcpy(pInfo, &Info, sizeof(Info));
 	if ( (Algorithm != XHTTP_DIGEST_ALGORITHM_UNKNOWN) &&
 		(xrtHttpDigestSize(Algorithm) == 0) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	Info.Algorithm = Algorithm;
@@ -152,7 +152,7 @@ XRT_API bool xrtHttpDigestInfoRead(
 		}
 		iBit = UINT32_C(1) << (uint32)iIndex;
 		if ( (iSeen & iBit) != 0 ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		iSeen |= iBit;
@@ -161,14 +161,14 @@ XRT_API bool xrtHttpDigestInfoRead(
 			(iIndex == XRT_HTTP_DIGEST_INFO_RESPONSE) ||
 			(iIndex == XRT_HTTP_DIGEST_INFO_CNONCE) ) {
 			if ( (Param.Flags & XHTTP_PARAM_QUOTED) == 0 ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			if ( iIndex == XRT_HTTP_DIGEST_INFO_RESPONSE ) {
 				if ( !__xrtHttpDigestHexParamValid(
 					&Param, &Sizes[iIndex]
 				) ) {
-					__xrtErrorSetValue();
+					xrtSetErrorKind(XERR_VALUE);
 					return false;
 				}
 			} else if ( !xrtHttpParamValueWrite(
@@ -176,7 +176,7 @@ XRT_API bool xrtHttpDigestInfoRead(
 			) ) {
 				return false;
 			}
-			if ( !__xrtHttpSizeAdd(
+			if ( !__xhttpSizeAdd(
 				&iRequired, Sizes[iIndex]
 			) ) {
 				return false;
@@ -187,12 +187,12 @@ XRT_API bool xrtHttpDigestInfoRead(
 		if ( iIndex == XRT_HTTP_DIGEST_INFO_QOP ) {
 			if ( ((Param.Flags & XHTTP_PARAM_QUOTED) != 0) ||
 				!xrtHttpParamTokenValid(&Param) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			Info.Qop = xrtHttpDigestQopParse(Param.Value);
 			if ( Info.Qop == XHTTP_DIGEST_QOP_NONE ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			continue;
@@ -200,14 +200,14 @@ XRT_API bool xrtHttpDigestInfoRead(
 		if ( !__xrtHttpDigestNonceCountRead(
 			&Param, &Info.NonceCount
 		) || (Info.NonceCount == 0) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 	}
 	if ( (iSeen & (UINT32_C(1) <<
 		XRT_HTTP_DIGEST_INFO_NEXT_NONCE)) != 0 ) {
 		if ( Sizes[XRT_HTTP_DIGEST_INFO_NEXT_NONCE] == 0 ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		Info.Flags |= XHTTP_DIGEST_INFO_HAS_NEXT_NONCE;
@@ -215,13 +215,13 @@ XRT_API bool xrtHttpDigestInfoRead(
 	if ( (iSeen & XRT_HTTP_DIGEST_INFO_RESPONSE_GROUP) != 0 ) {
 		if ( (iSeen & XRT_HTTP_DIGEST_INFO_RESPONSE_GROUP) !=
 			XRT_HTTP_DIGEST_INFO_RESPONSE_GROUP ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		if ( !__xrtHttpDigestInfoResponseSizeValid(
 			Algorithm, Sizes[XRT_HTTP_DIGEST_INFO_RESPONSE]
 		) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		Info.Flags |= XHTTP_DIGEST_INFO_HAS_RESPONSE;
@@ -231,13 +231,13 @@ XRT_API bool xrtHttpDigestInfoRead(
 		memcpy(pInfo, &Info, sizeof(Info));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pOutput, iRequired) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	{
@@ -265,7 +265,7 @@ XRT_API bool xrtHttpDigestInfoRead(
 				  XHTTP_DIGEST_INFO_HAS_RESPONSE) == 0)) ) {
 				continue;
 			}
-			iWritten = __xrtHttpParamValueWriteUnchecked(
+			iWritten = __xhttpParamValueWriteUnchecked(
 				&Parameters[iIndex], (bytes)pOutput + iOutput
 			);
 			*Targets[i] = (xstrview){
@@ -291,12 +291,12 @@ static bool __xrtHttpDigestInfoWriteValid(
 	xstrview Views[3];
 	uint32 iFlags;
 
-	if ( !__xrtRangeValid(pInput, sizeof(*pInput)) ||
-		!__xrtRangeValid(pSize, sizeof(size_t)) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pInput, sizeof(*pInput)) ||
+		!xrtMemRangeValid(pSize, sizeof(size_t)) ||
+		xrtMemRangesOverlap(
 			pInput, sizeof(*pInput), pSize, sizeof(size_t)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pInfo, pInput, sizeof(*pInfo));
@@ -305,13 +305,13 @@ static bool __xrtHttpDigestInfoWriteValid(
 	Views[1] = pInfo->Response;
 	Views[2] = pInfo->Cnonce;
 	for ( size_t i = 0; i < 3u; i++ ) {
-		if ( !__xrtHttpViewValid(Views[i]) ||
-			__xrtRangesOverlap(
+		if ( !__xhttpViewValid(Views[i]) ||
+			xrtMemRangesOverlap(
 				pInput, sizeof(*pInput), Views[i].Data, Views[i].Size
-			) || __xrtRangesOverlap(
+			) || xrtMemRangesOverlap(
 				pSize, sizeof(size_t), Views[i].Data, Views[i].Size
 			) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 	}
@@ -331,11 +331,11 @@ static bool __xrtHttpDigestInfoWriteValid(
 		(((pInfo->Qop != XHTTP_DIGEST_QOP_AUTH) &&
 		  (pInfo->Qop != XHTTP_DIGEST_QOP_AUTH_INT)) ||
 		 (pInfo->NonceCount == 0) ||
-		 !__xrtHttpDigestHexViewValid(pInfo->Response) ||
+		 !xrtHttpBridgeDigestHexViewValid(pInfo->Response) ||
 		 !__xrtHttpDigestInfoResponseSizeValid(
 			pInfo->Algorithm, pInfo->Response.Size
 		 ))) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return true;
@@ -346,13 +346,13 @@ static bool __xrtHttpDigestInfoWriteValid(
 /* 按固定顺序执行一次 Authentication-Info 测量或写出。 */
 static bool __xrtHttpDigestInfoWritePass(
 	const xhttpdigestinfo* pInfo,
-	xrt_http_param_writer* pWriter
+	__xhttp_param_writer* pWriter
 )
 {
 	bool bFirst = true;
 
 	if ( (pInfo->Flags & XHTTP_DIGEST_INFO_HAS_NEXT_NONCE) != 0 ) {
-		if ( !__xrtHttpParamWriterQuoted(
+		if ( !__xhttpParamWriterQuoted(
 			pWriter, XRT_STR_LITERAL("nextnonce"),
 			pInfo->NextNonce, true
 		) ) {
@@ -364,18 +364,18 @@ static bool __xrtHttpDigestInfoWritePass(
 		char NonceCount[8];
 		xstrview Qop = xrtHttpDigestQopName(pInfo->Qop);
 
-		__xrtHttpDigestNonceCountWrite(
+		xrtHttpBridgeDigestNonceCountWrite(
 			pInfo->NonceCount, NonceCount
 		);
-		if ( !__xrtHttpParamWriterToken(
+		if ( !__xhttpParamWriterToken(
 			pWriter, XRT_STR_LITERAL("qop"), Qop, bFirst
 		) || !__xrtHttpDigestWriterHex(
 			pWriter, XRT_STR_LITERAL("rspauth"),
 			pInfo->Response, false
-		) || !__xrtHttpParamWriterQuoted(
+		) || !__xhttpParamWriterQuoted(
 			pWriter, XRT_STR_LITERAL("cnonce"),
 			pInfo->Cnonce, false
-		) || !__xrtHttpParamWriterToken(
+		) || !__xhttpParamWriterToken(
 			pWriter, XRT_STR_LITERAL("nc"),
 			(xstrview){ NonceCount, sizeof(NonceCount) }, false
 		) ) {
@@ -388,7 +388,7 @@ static bool __xrtHttpDigestInfoWritePass(
 
 
 /* 写出 Digest Authentication-Info 参数列表。 */
-XRT_API bool xrtHttpDigestInfoWrite(
+XHTTP_API bool xrtHttpDigestInfoWrite(
 	const xhttpdigestinfo* pInput,
 	void* pOutput,
 	size_t iCapacity,
@@ -397,13 +397,13 @@ XRT_API bool xrtHttpDigestInfoWrite(
 {
 	xhttpdigestinfo Info;
 	xstrview Views[3];
-	xrt_http_param_writer Writer = { 0 };
+	__xhttp_param_writer Writer = { 0 };
 
 	if ( ((pOutput == NULL) && (iCapacity != 0)) ||
 		!__xrtHttpDigestInfoWriteValid(pInput, &Info, pSize) ||
 		!__xrtHttpDigestInfoWritePass(&Info, &Writer) ) {
 		if ( (pOutput == NULL) && (iCapacity != 0) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 		}
 		return false;
 	}
@@ -414,26 +414,26 @@ XRT_API bool xrtHttpDigestInfoWrite(
 		memcpy(pSize, &Writer.Size, sizeof(Writer.Size));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, Writer.Size) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, Writer.Size) ||
+		xrtMemRangesOverlap(
 			pOutput, Writer.Size, pInput, sizeof(*pInput)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, Writer.Size, pSize, sizeof(size_t)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( size_t i = 0; i < 3u; i++ ) {
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			pOutput, Writer.Size, Views[i].Data, Views[i].Size
 		) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 	}
 	if ( iCapacity < Writer.Size ) {
 		memcpy(pSize, &Writer.Size, sizeof(Writer.Size));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	Writer.Output = (bytes)pOutput;

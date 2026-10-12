@@ -48,7 +48,7 @@ static void __xrtHttpBodyInflateDestroy(ptr pCodec)
 
 
 /* 初始化公开解压正文配置。 */
-XRT_API void xrtHttpBodyInflateConfigInit(
+XHTTP_API void xrtHttpBodyInflateConfigInit(
 	xhttpbodyinflateconfig* pConfig
 )
 {
@@ -70,7 +70,7 @@ XRT_API void xrtHttpBodyInflateConfigInit(
 
 
 /* 创建持有来源独立引用的流式解压正文。 */
-XRT_API xhttpbody* xrtHttpBodyInflate(
+XHTTP_API xhttpbody* xrtHttpBodyInflate(
 	xhttpbody* pSource,
 	const xhttpbodyinflateconfig* pConfig
 )

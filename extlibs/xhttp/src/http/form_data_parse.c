@@ -340,7 +340,7 @@ done:
 
 
 /* 把完整 multipart/form-data 正文复制为拥有型容器。 */
-XRT_API xformdata* xrtFormDataParse(
+XHTTP_API xformdata* xrtFormDataParse(
 	xbytesview Body,
 	const xmultipartboundary* pBoundary,
 	const xformdataconfig* pConfig,
@@ -442,7 +442,7 @@ XRT_API xformdata* xrtFormDataParse(
 
 
 /* 从 Content-Type 读取 boundary，再解析完整正文。 */
-XRT_API xformdata* xrtFormDataParseContentType(
+XHTTP_API xformdata* xrtFormDataParseContentType(
 	xstrview ContentType,
 	xbytesview Body,
 	const xformdataconfig* pConfig,

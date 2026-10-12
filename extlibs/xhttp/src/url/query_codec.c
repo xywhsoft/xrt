@@ -37,12 +37,12 @@ static bool __xrtQueryCodecMeasure(
 				return false;
 			}
 			if ( iKey == SIZE_MAX ) {
-				__xrtErrorSetSizeOverflow();
+				xrtSetErrorKind(XERR_RANGE);
 				return false;
 			}
 			iAdd = iKey + 1u;
 			if ( iAdd > (SIZE_MAX - iValue) ) {
-				__xrtErrorSetSizeOverflow();
+				xrtSetErrorKind(XERR_RANGE);
 				return false;
 			}
 			iAdd += iValue;
@@ -51,19 +51,19 @@ static bool __xrtQueryCodecMeasure(
 		}
 		if ( i != 0 ) {
 			if ( iAdd == SIZE_MAX ) {
-				__xrtErrorSetSizeOverflow();
+				xrtSetErrorKind(XERR_RANGE);
 				return false;
 			}
 			iAdd++;
 		}
 		if ( iRequired > (SIZE_MAX - iAdd) ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iRequired += iAdd;
 	}
 	if ( iRequired == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	*pRequired = iRequired;
@@ -73,7 +73,7 @@ static bool __xrtQueryCodecMeasure(
 
 
 /* 按 RFC 3986 编码键和值并原子写出 Query。 */
-XRT_API bool xrtQueryWrite(
+XHTTP_API bool xrtQueryWrite(
 	const xquerypair* pPairs,
 	size_t iCount,
 	void* pOutput,
@@ -88,7 +88,7 @@ XRT_API bool xrtQueryWrite(
 	size_t i;
 
 	if ( (pSize == NULL) || ((pOutput == NULL) && (iCapacity != 0)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !xrtPercentMapInit(
@@ -103,10 +103,10 @@ XRT_API bool xrtQueryWrite(
 	}
 	if ( __xrtQueryMetadataOverlap(
 		pPairs, iCount, pSize, sizeof(*pSize)
-	) || ((pOutput != NULL) && __xrtRangesOverlap(
+	) || ((pOutput != NULL) && xrtMemRangesOverlap(
 		pSize, sizeof(*pSize), pOutput, iRequired
 	)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pOutput == NULL ) {
@@ -115,13 +115,13 @@ XRT_API bool xrtQueryWrite(
 	}
 	if ( iCapacity < iRequired ) {
 		*pSize = iRequired;
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( __xrtQueryMetadataOverlap(
 		pPairs, iCount, pOutput, iRequired
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
@@ -147,7 +147,7 @@ XRT_API bool xrtQueryWrite(
 
 
 /* 分配并构建零结尾的 RFC 3986 Query。 */
-XRT_API str xrtQueryBuild(
+XHTTP_API str xrtQueryBuild(
 	const xquerypair* pPairs,
 	size_t iCount,
 	size_t* pSize
@@ -161,7 +161,7 @@ XRT_API str xrtQueryBuild(
 		__xrtQueryMetadataOverlap(
 			pPairs, iCount, pSize, sizeof(*pSize)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtQueryWrite(pPairs, iCount, NULL, 0, &iRequired) ) {

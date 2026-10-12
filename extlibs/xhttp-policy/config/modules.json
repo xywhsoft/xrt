@@ -1,0 +1,1161 @@
+{
+	"schema": 1,
+	"product": "xhttp_policy",
+	"module_prefix": "XHTTP_POLICY_MODULE_",
+	"single_header": "single/extlibs/xhttp-policy.h",
+	"declaration_header": "single/extlibs/xhttp-policy_decl.h",
+	"implementation_macro": "XHTTP_POLICY_IMPLEMENTATION",
+	"implementation_once_macro": "XHTTP_POLICY_IMPLEMENTATION_ONCE",
+	"single_guard": "XHTTP_POLICY_SINGLE_HEADER_H",
+	"single_marker": "XHTTP_POLICY_SINGLE_HEADER",
+	"declaration_guard": "XHTTP_POLICY_DECLARATIONS_H",
+	"declaration_marker": "XHTTP_POLICY_DECLARATIONS",
+	"package_consumer": "extlibs/xhttp-policy/tests/package/test_consumer.c",
+	"product_root": "extlibs/xhttp-policy",
+	"performance_config": "extlibs/xhttp-policy/config/performance_profiles.json",
+	"size_config": "extlibs/xhttp-policy/config/size_profiles.json",
+	"scope": {
+		"product": "xhttp_policy",
+		"external_integrations": [],
+		"systems": [
+			{
+				"name": "xhttp_policy",
+				"state": "retained",
+				"source_roots": [
+					"http"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xhttp-policy 公共符号参考",
+		"function_prefix": "xrt",
+		"constant_prefix": "XHTTP_",
+		"type_prefix": "x",
+		"guide": "../../README.md",
+		"output": "extlibs/xhttp-policy/docs/api/reference.md"
+	},
+	"features_guard": "XHTTP_POLICY_FEATURES_H",
+	"features_header": "extlibs/xhttp-policy/include/xhttp-policy/features.h",
+	"include_dirs": [
+		"extlibs/xhttp-policy/include"
+	],
+	"header_roots": [
+		"extlibs/xhttp-policy/include",
+		"extlibs/xhttp-policy/src/internal"
+	],
+	"modules": [
+		{
+			"name": "http_cache_policy",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CACHE_POLICY",
+			"depends": [
+				"http_cache_time"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_cache_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_cache.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_cache_policy.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_cache_policy.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_policy_matrix.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_policy_noalloc.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_cache_policy.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/cache_policy/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-policy/docs/api/http_cache_policy.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_cache_validate",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CACHE_VALIDATE",
+			"depends": [
+				"http_cache_policy",
+				"http_forward",
+				"http_origin",
+				"http_precondition",
+				"url"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_cache_validate.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_cache.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_cache_validate.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_origin.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_semantics.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_url.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_cache_validate.c",
+				"extlibs/xhttp-policy/src/http/http_cache_update.c",
+				"extlibs/xhttp-policy/src/http/http_cache_invalidate.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_cache_validate.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_update.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_invalidate.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_validate_mutation.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_validate_noalloc.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_validate_matrix.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_cache_validate.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/cache_validate/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-policy/docs/api/http_cache_validate.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_cache_range",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CACHE_RANGE",
+			"depends": [
+				"http_cache_validate",
+				"http_range"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_cache_range.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_cache.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_cache_range.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_cache_validate.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_semantics.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_cache_fragment.c",
+				"extlibs/xhttp-policy/src/http/http_cache_coverage.c",
+				"extlibs/xhttp-policy/src/http/http_cache_combine.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_cache_range.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_combine.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_range_mutation.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_range_noalloc.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_range_matrix.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_cache_range.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/cache_range/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-policy/docs/api/http_cache_range.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_cache_store",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CACHE_STORE",
+			"depends": [
+				"http_cache_validate",
+				"http_vary",
+				"map",
+				"mutex"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_cache_store.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_cache.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_cache_store.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_cache_validate.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_semantics.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_cache_record.c",
+				"extlibs/xhttp-policy/src/http/http_cache_store.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_cache_store_record.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_store.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_store_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_cache_store.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/cache_store/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-policy/docs/api/http_cache_store.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_cache_store_thread_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_cache_store",
+				"thread"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_cache_store_threads.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-policy/docs/api/http_cache_store.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_auth_digest_sha2",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_AUTH_DIGEST_SHA2",
+			"depends": [
+				"http_auth_digest",
+				"crypto_sha256",
+				"crypto_sha512_256"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_auth_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_auth_digest_compute.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_sha2.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_sha2_noalloc.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_sha2.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/auth_digest_sha2/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_auth.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_auth_digest_md5",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_AUTH_DIGEST_MD5",
+			"depends": [
+				"http_auth_digest_sha2",
+				"crypto_md5"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_auth_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_auth_digest_compute.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_md5.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_md5.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/auth_digest_md5/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_auth.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_auth_digest_nonce",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_AUTH_DIGEST_NONCE",
+			"depends": [
+				"http_auth_digest",
+				"codec_base64",
+				"crypto_hmac_sha256"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_auth_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_auth_digest_nonce.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_nonce.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_nonce_noalloc.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_nonce.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/auth_digest_nonce/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_auth.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_auth_digest_nonce_random",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_AUTH_DIGEST_NONCE_RANDOM",
+			"depends": [
+				"http_auth_digest_nonce",
+				"random_secure"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_auth_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_auth_digest_nonce.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_nonce_random.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_nonce_random.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/auth_digest_nonce_random/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_auth.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_auth_digest_verify",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_AUTH_DIGEST_VERIFY",
+			"depends": [
+				"http_auth_digest_challenge",
+				"http_auth_digest_credentials",
+				"http_auth_digest_sha2",
+				"http_auth_digest_nonce"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_auth_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_auth_digest_verify.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_verify.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_verify_noalloc.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_verify.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/auth_digest_verify/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_auth.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_auth_digest_client",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_AUTH_DIGEST_CLIENT",
+			"depends": [
+				"http_auth_digest_challenge",
+				"http_auth_digest_credentials",
+				"http_auth_digest_info",
+				"http_auth_digest_sha2"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_auth_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_auth_digest_client.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_client.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_client_noalloc.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_client.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/auth_digest_client/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_auth.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_auth_digest_session",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_AUTH_DIGEST_SESSION",
+			"depends": [
+				"http_auth_digest_client",
+				"mutex"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_auth_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_auth_digest_session.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_session.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_session.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/auth_digest_session/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_auth.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_auth_digest_session_oom",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_auth_digest_session",
+				"memory_debug"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_auth_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_session_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-policy/README.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_auth_digest_session_threads",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_auth_digest_session",
+				"thread"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_auth_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_session_threads.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-policy/README.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_auth_digest_replay",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_AUTH_DIGEST_REPLAY",
+			"depends": [
+				"http_auth_digest",
+				"crypto_sha256",
+				"mutex"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_auth_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_auth_digest_replay.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_replay.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_replay.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/auth_digest_replay/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_auth.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_auth_digest_replay_oom",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_auth_digest_replay",
+				"memory_debug"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_auth_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_replay_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-policy/README.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_auth_digest_replay_threads",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_auth_digest_replay",
+				"thread"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_auth_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_replay_threads.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-policy/README.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_prepare_auth_digest_session",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_PREPARE_AUTH_DIGEST_SESSION",
+			"depends": [
+				"http_client_prepare",
+				"http_auth_digest_session"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_client_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_client.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_client_prepare_auth_digest_session.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_client_prepare_auth_digest_session.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_client_prepare_auth_digest_session.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_client.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_prepare_auth_digest_session_oom",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_prepare_auth_digest_session",
+				"memory_debug"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_client_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_client_prepare_auth_digest_session_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-policy/README.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_response_auth_digest_choose",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_RESPONSE_AUTH_DIGEST_CHOOSE",
+			"depends": [
+				"http_client_response_auth_digest",
+				"http_auth_digest_client"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_client_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_client.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_client_response_auth_digest_choose.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_client_response_auth_digest_choose.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_client_response_auth_digest_choose.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/client_response_auth_digest/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_client.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_response_auth_digest_choose_noalloc",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_response_auth_digest_choose",
+				"memory_debug"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_client_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_client_response_auth_digest_choose_noalloc.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-policy/README.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_response_auth_digest_session",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_CLIENT_RESPONSE_AUTH_DIGEST_SESSION",
+			"depends": [
+				"http_client_response_auth_digest_info",
+				"http_auth_digest_session"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_client_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http.h",
+				"extlibs/xhttp-policy/src/internal/xrt_http_client.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_client_response_auth_digest_session.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_client_response_auth_digest_session.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_client_response_auth_digest_session.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_client.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_client_response_auth_digest_session_oom",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_response_auth_digest_session",
+				"memory_debug"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_client_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_client_response_auth_digest_session_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-policy/README.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "cookie_jar",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_COOKIE_JAR",
+			"depends": [
+				"set_cookie",
+				"url",
+				"mutex"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/cookie_jar.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_cookie.h",
+				"extlibs/xhttp-policy/src/internal/xrt_cookie_jar.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_url.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/cookie_jar.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar.c",
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar_policy.c",
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar_mutation.c",
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_cookie_jar.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/cookie_jar/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-policy/docs/api/cookie_jar.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "cookie_jar_threads",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"cookie_jar",
+				"thread"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar_threads.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-policy/docs/api/cookie_jar.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "cookie_jar_headers",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_COOKIE_JAR_HEADERS",
+			"depends": [
+				"cookie_jar",
+				"http_headers"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/cookie_jar.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_cookie.h",
+				"extlibs/xhttp-policy/src/internal/xrt_cookie_jar.h",
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h",
+				"extlibs/xhttp-policy/src/internal/xrt_url.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/cookie_jar_headers.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar_headers.c",
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar_headers_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_cookie_jar_headers.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/cookie_jar_headers/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-policy/docs/api/cookie_jar.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "xhttp_policy",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_cache_policy",
+				"http_cache_validate",
+				"http_cache_range",
+				"http_cache_store",
+				"http_auth_digest_md5",
+				"http_auth_digest_nonce_random",
+				"http_auth_digest_verify",
+				"http_auth_digest_session",
+				"http_auth_digest_replay",
+				"http_client_prepare_auth_digest_session",
+				"http_client_response_auth_digest_choose",
+				"http_client_response_auth_digest_session",
+				"cookie_jar_headers",
+				"http_retry_policy",
+				"http_redirect_policy"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xhttp-policy/features.h",
+				"extlibs/xhttp-policy/include/xhttp-policy.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_xhttp_policy.c"
+			],
+			"examples": [
+				"extlibs/xhttp-policy/examples/http/auth_digest_client/main.c",
+				"extlibs/xhttp-policy/examples/http/auth_digest_md5/main.c",
+				"extlibs/xhttp-policy/examples/http/auth_digest_nonce/main.c",
+				"extlibs/xhttp-policy/examples/http/auth_digest_nonce_random/main.c",
+				"extlibs/xhttp-policy/examples/http/auth_digest_replay/main.c",
+				"extlibs/xhttp-policy/examples/http/auth_digest_session/main.c",
+				"extlibs/xhttp-policy/examples/http/auth_digest_sha2/main.c",
+				"extlibs/xhttp-policy/examples/http/auth_digest_verify/main.c",
+				"extlibs/xhttp-policy/examples/http/cache_policy/main.c",
+				"extlibs/xhttp-policy/examples/http/cache_range/main.c",
+				"extlibs/xhttp-policy/examples/http/cache_store/main.c",
+				"extlibs/xhttp-policy/examples/http/cache_validate/main.c",
+				"extlibs/xhttp-policy/examples/http/client_response_auth_digest/main.c",
+				"extlibs/xhttp-policy/examples/http/cookie_jar/main.c",
+				"extlibs/xhttp-policy/examples/http/cookie_jar_headers/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xhttp-policy/config/performance_profiles.json",
+				"extlibs/xhttp-policy/README.md",
+				"extlibs/xhttp-policy/bench/bench_http_retry_policy.c"
+			],
+			"docs": [
+				"extlibs/xhttp-policy/README.md",
+				"extlibs/xhttp-policy/docs/api/reference.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "xhttp_policy_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"xhttp_policy",
+				"http_cache_store_thread_tests",
+				"http_auth_digest_session_oom",
+				"http_auth_digest_session_threads",
+				"http_auth_digest_replay_oom",
+				"http_auth_digest_replay_threads",
+				"http_client_prepare_auth_digest_session_oom",
+				"http_client_response_auth_digest_choose_noalloc",
+				"http_client_response_auth_digest_session_oom",
+				"cookie_jar_threads",
+				"http_retry_policy",
+				"http_redirect_policy"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar.c",
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar_headers.c",
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar_headers_oom.c",
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar_mutation.c",
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar_oom.c",
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar_policy.c",
+				"extlibs/xhttp-policy/tests/http/test_cookie_jar_threads.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_client.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_client_noalloc.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_md5.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_nonce.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_nonce_noalloc.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_nonce_random.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_replay.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_replay_oom.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_replay_threads.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_session.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_session_oom.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_session_threads.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_sha2.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_sha2_noalloc.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_verify.c",
+				"extlibs/xhttp-policy/tests/http/test_http_auth_digest_verify_noalloc.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_combine.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_invalidate.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_policy.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_policy_matrix.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_policy_noalloc.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_range.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_range_matrix.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_range_mutation.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_range_noalloc.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_store.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_store_oom.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_store_record.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_store_threads.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_update.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_validate.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_validate_matrix.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_validate_mutation.c",
+				"extlibs/xhttp-policy/tests/http/test_http_cache_validate_noalloc.c",
+				"extlibs/xhttp-policy/tests/http/test_http_client_prepare_auth_digest_session.c",
+				"extlibs/xhttp-policy/tests/http/test_http_client_prepare_auth_digest_session_oom.c",
+				"extlibs/xhttp-policy/tests/http/test_http_client_response_auth_digest_choose.c",
+				"extlibs/xhttp-policy/tests/http/test_http_client_response_auth_digest_choose_noalloc.c",
+				"extlibs/xhttp-policy/tests/http/test_http_client_response_auth_digest_session.c",
+				"extlibs/xhttp-policy/tests/http/test_http_client_response_auth_digest_session_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_cookie_jar.c",
+				"extlibs/xhttp-policy/tests/single/test_single_cookie_jar_headers.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_client.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_md5.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_nonce.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_nonce_random.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_replay.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_session.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_sha2.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_verify.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_cache_policy.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_cache_range.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_cache_store.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_cache_validate.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_client_prepare_auth_digest_session.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_client_response_auth_digest_choose.c",
+				"extlibs/xhttp-policy/tests/single/test_single_http_client_response_auth_digest_session.c",
+				"extlibs/xhttp-policy/tests/single/test_single_xhttp_policy.c"
+			],
+			"examples": [],
+			"benchmarks": [
+				"dev/bench/bench_common.h"
+			],
+			"docs": [],
+			"legacy": [],
+			"single_test_owners": {
+				"extlibs/xhttp-policy/tests/single/test_single_cookie_jar.c": "cookie_jar",
+				"extlibs/xhttp-policy/tests/single/test_single_cookie_jar_headers.c": "cookie_jar_headers",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_client.c": "http_auth_digest_client",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_md5.c": "http_auth_digest_md5",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_nonce.c": "http_auth_digest_nonce",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_nonce_random.c": "http_auth_digest_nonce_random",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_replay.c": "http_auth_digest_replay",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_session.c": "http_auth_digest_session",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_sha2.c": "http_auth_digest_sha2",
+				"extlibs/xhttp-policy/tests/single/test_single_http_auth_digest_verify.c": "http_auth_digest_verify",
+				"extlibs/xhttp-policy/tests/single/test_single_http_cache_policy.c": "http_cache_policy",
+				"extlibs/xhttp-policy/tests/single/test_single_http_cache_range.c": "http_cache_range",
+				"extlibs/xhttp-policy/tests/single/test_single_http_cache_store.c": "http_cache_store",
+				"extlibs/xhttp-policy/tests/single/test_single_http_cache_validate.c": "http_cache_validate",
+				"extlibs/xhttp-policy/tests/single/test_single_http_client_prepare_auth_digest_session.c": "http_client_prepare_auth_digest_session",
+				"extlibs/xhttp-policy/tests/single/test_single_http_client_response_auth_digest_choose.c": "http_client_response_auth_digest_choose",
+				"extlibs/xhttp-policy/tests/single/test_single_http_client_response_auth_digest_session.c": "http_client_response_auth_digest_session",
+				"extlibs/xhttp-policy/tests/single/test_single_xhttp_policy.c": "xhttp_policy"
+			}
+		},
+		{
+			"name": "http_retry_policy",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_RETRY_POLICY",
+			"depends": [
+				"http"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_retry_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h",
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_retry_policy.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_retry_policy.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-policy/tests/single/test_single_http_retry_policy.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-policy/docs/api/http_transfer_policy.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_redirect_policy",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_REDIRECT_POLICY",
+			"depends": [
+				"http_client_request",
+				"http_client_request_trailers",
+				"url"
+			],
+			"public_headers": [
+				"extlibs/xhttp-policy/include/xrt/http_redirect_policy.h",
+				"extlibs/xhttp-policy/include/xhttp-policy/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-policy/src/internal/xrt_internal.h",
+				"extlibs/xhttp-policy/src/internal/xhttp_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-policy/src/http/http_redirect_policy.c"
+			],
+			"tests": [
+				"extlibs/xhttp-policy/tests/http/test_http_redirect_policy.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-policy/docs/api/http_transfer_policy.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		}
+	],
+	"umbrella_header": "xhttp-policy.h",
+	"dependency_manifests": [
+		"extlibs/xhttp/config/modules.json"
+	],
+	"api_macro": "XHTTP_POLICY_API",
+	"package_ownership": "separate"
+}

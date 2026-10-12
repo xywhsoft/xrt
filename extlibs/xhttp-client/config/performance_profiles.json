@@ -1,0 +1,46 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xhttp-client/config/modules.json",
+	"defaults": {
+		"repeats": 5,
+		"warmups": 1,
+		"timeout_seconds": 120,
+		"policy": "baseline-unpinned",
+		"cflags": [
+			"-O2"
+		],
+		"ldflags": [],
+		"max_relative_mad": 0.2,
+		"max_relative_central_range": 0.3,
+		"regression": {
+			"higher": 0.1,
+			"lower": 0.2
+		}
+	},
+	"profiles": [
+		{
+			"name": "xhttp_client",
+			"system": "xhttp_client",
+			"description": "HTTP 客户端 热路径",
+			"benchmarks": [
+				{
+					"name": "http_client",
+					"source": "extlibs/xhttp-client/bench/bench_http_client.c",
+					"suite": "http_client_easy_future,net_tcp_server",
+					"args": [
+						"100"
+					],
+					"smoke_args": [
+						"5"
+					],
+					"metrics": {
+						"client_tcp_requests_per_sec": {
+							"direction": "higher",
+							"unit": "operations/s"
+						}
+					}
+				}
+			]
+		}
+	]
+}

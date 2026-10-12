@@ -336,7 +336,7 @@ static xmultipartreadstatus __xrtMultipartReaderData(
 
 
 /* 初始化无分配流 Reader。 */
-XRT_API bool xrtMultipartReaderInit(
+XHTTP_API bool xrtMultipartReaderInit(
 	xmultipartreader* pReader,
 	const xmultipartboundary* pBoundary,
 	const xmultipartlimits* pLimits
@@ -373,7 +373,7 @@ XRT_API bool xrtMultipartReaderInit(
 
 
 /* 重置流 Reader 的解析进度。 */
-XRT_API void xrtMultipartReaderReset(
+XHTTP_API void xrtMultipartReaderReset(
 	xmultipartreader* pReader
 )
 {
@@ -395,7 +395,7 @@ XRT_API void xrtMultipartReaderReset(
 
 
 /* 推进流式 multipart 状态机。 */
-XRT_API xmultipartreadstatus xrtMultipartReaderRead(
+XHTTP_API xmultipartreadstatus xrtMultipartReaderRead(
 	xmultipartreader* pReader,
 	xbytesview Input,
 	bool bEnd,
@@ -747,7 +747,7 @@ XRT_API xmultipartreadstatus xrtMultipartReaderRead(
 
 
 /* 判断流 Reader 是否完成关闭 boundary 和 epilogue。 */
-XRT_API bool xrtMultipartReaderDone(
+XHTTP_API bool xrtMultipartReaderDone(
 	const xmultipartreader* pReader
 )
 {

@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_EXT_VALUE_H
 #define XRT_HTTP_EXT_VALUE_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http.h>
 
 
@@ -33,7 +35,7 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_HTTP_EXT_VALUE)
 
 /* 严格解析 charset'language'value，并验证字符集、语言和转义语法。 */
-XRT_API bool xrtHttpExtValueParse(
+XHTTP_API bool xrtHttpExtValueParse(
 	xstrview Text,
 	xhttpextvalue* pValue
 );
@@ -41,7 +43,7 @@ XRT_API bool xrtHttpExtValueParse(
 
 
 /* 严格百分号解码扩展值；不执行字符集转换，也不附加零字节。 */
-XRT_API bool xrtHttpExtValueRead(
+XHTTP_API bool xrtHttpExtValueRead(
 	const xhttpextvalue* pValue,
 	void* pOutput,
 	size_t iCapacity,
@@ -51,7 +53,7 @@ XRT_API bool xrtHttpExtValueRead(
 
 
 /* 写出扩展值；Charset 为空时使用 UTF-8。 */
-XRT_API bool xrtHttpExtValueWrite(
+XHTTP_API bool xrtHttpExtValueWrite(
 	xstrview Charset,
 	xstrview Language,
 	xbytesview Value,
@@ -63,7 +65,7 @@ XRT_API bool xrtHttpExtValueWrite(
 
 
 /* 分配并构建零结尾扩展值。 */
-XRT_API str xrtHttpExtValueBuild(
+XHTTP_API str xrtHttpExtValueBuild(
 	xstrview Charset,
 	xstrview Language,
 	xbytesview Value,

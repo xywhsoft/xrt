@@ -60,6 +60,7 @@ def _read_part(
 			path,
 			match.group("target"),
 			include_dirs,
+			match.group("open") == '"',
 		)
 		if dependency in known:
 			continue
@@ -73,13 +74,14 @@ def _local_path(
 	path: str,
 	target: str,
 	include_dirs: list[str],
+	quoted: bool = True,
 ) -> str | None:
 	"""把一个被移除的本地 include 转换为仓库相对路径。"""
 
 	relative = posixpath.normpath(
 		str(PurePosixPath(path).parent.joinpath(target))
 	)
-	if (ROOT / relative).is_file():
+	if quoted and (ROOT / relative).is_file():
 		return _bridge_target(relative, include_dirs) or relative
 	for directory in include_dirs:
 		candidate = posixpath.normpath(
@@ -114,7 +116,7 @@ def _bridge_target(path: str, include_dirs: list[str]) -> str | None:
 	relative = posixpath.normpath(
 		str(PurePosixPath(path).parent.joinpath(target))
 	)
-	if (ROOT / relative).is_file():
+	if match.group("open") == '"' and (ROOT / relative).is_file():
 		return relative
 	for directory in include_dirs:
 		candidate = posixpath.normpath(
@@ -142,6 +144,7 @@ def _part_dependencies(
 			path,
 			match.group("target"),
 			include_dirs,
+			match.group("open") == '"',
 		)
 		if dependency in known:
 			dependencies.append(dependency)
@@ -195,6 +198,7 @@ def _validate_local_includes(
 				path,
 				match.group("target"),
 				include_dirs or ["include"],
+				match.group("open") == '"',
 			)
 			target = match.group("target")
 			local_names = {"xrt"}

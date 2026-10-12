@@ -7,7 +7,7 @@
 #if defined(XHTTP_FEATURE_MULTIPART_RANDOM)
 
 /* 使用系统安全随机源生成 128 位 form-data boundary。 */
-XRT_API bool xrtMultipartBoundaryRandom(
+XHTTP_API bool xrtMultipartBoundaryRandom(
 	xmultipartboundary* pBoundary
 )
 {

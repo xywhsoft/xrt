@@ -34,7 +34,7 @@ static bool __xrtHttp1ServerBodyTrailersGrow(
 		return true;
 	}
 	if ( iRequired > (SIZE_MAX / sizeof(xhttpfield)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return __xrtHttp1ServerExchangeFailCause(
 			pExchange,
 			XHTTP1_SERVER_ERROR_TRAILER_STORAGE,

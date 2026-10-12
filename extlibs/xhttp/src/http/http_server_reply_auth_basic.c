@@ -57,7 +57,7 @@ static bool __xrtHttpReplyAddBasicChallenge(
 
 
 /* 追加源站 Basic challenge。 */
-XRT_API bool xrtHttpReplyAddBasicChallenge(
+XHTTP_API bool xrtHttpReplyAddBasicChallenge(
 	xhttpreply* pReply,
 	xstrview Realm,
 	bool bUtf8
@@ -74,7 +74,7 @@ XRT_API bool xrtHttpReplyAddBasicChallenge(
 
 
 /* 追加代理 Basic challenge。 */
-XRT_API bool xrtHttpReplyAddProxyBasicChallenge(
+XHTTP_API bool xrtHttpReplyAddProxyBasicChallenge(
 	xhttpreply* pReply,
 	xstrview Realm,
 	bool bUtf8

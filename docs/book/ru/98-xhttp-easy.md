@@ -8,6 +8,8 @@ lead: За одной строкой GetSync нет второй реализа�
 api: xhttp-http_client, xhttp-http_client_easy, net
 ---
 
+> Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Ориентация
 
 Том 9 дал вам все детали HTTP (разбор, кадрирование, поля, декодирование); xhttp тома 10 собирает их в **высокоуровневый клиент** — эта глава начинает с самого тонкого слоя: **слоя удобства easy**. `xrtHttpClientGetSync(客户端, URL, NULL)` (клиент, URL, NULL) выполняет запрос-ответ одной строкой; ключ в том, что за этой строкой **нет скрытого Engine, Client или второй реализации запроса** — она лишь создаёт временный запрос и передаёт его `xrtHttpClientDo()` на заморозку; тайм-ауты, отмена, перенаправления, Cookie, кэш, прокси, TLS, распаковка, диагностика и цепочка ошибок полностью совпадают с низкоуровневым входом. Пройдя главу, вы получаете «кратчайший рабочий путь» и ещё одно суждение: когда оставаться на слое easy, а когда спускаться к построителю запросов главы 99.
@@ -61,11 +63,11 @@ Header, потоковое тело, формы, аутентификация, U
 
 Программа ниже из `examples/http/client_easy` — полная утилита из трёх ключевых строк:
 
-```embed path="extlibs/xhttp/examples/http/client_easy/main.c" title="extlibs/xhttp/examples/http/client_easy/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_easy/main.c" title="extlibs/xhttp-client/examples/http/client_easy/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_easy/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_easy_future --exclude-test "*" --no-single --no-run
 usage: client_easy <http-url>
 ```
 
@@ -75,11 +77,11 @@ usage: client_easy <http-url>
 
 Вторая программа из `examples/http/client_future` — асинхронная грань тех же вызовов:
 
-```embed path="extlibs/xhttp/examples/http/client_future/main.c" title="extlibs/xhttp/examples/http/client_future/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_future/main.c" title="extlibs/xhttp-client/examples/http/client_future/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_future/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_future --exclude-test "*" --no-single --no-run
 usage: client_future <http-url>
 ```
 
@@ -93,7 +95,7 @@ usage: client_future <http-url>
 - **Намеренно не принимает**: Header/потоковое тело/формы/аутентификацию — спуск к построителю (глава 99), без промежуточного состояния.
 - **Объект результата**: снимок только для чтения; `ResultResponse` одалживает ответ, `ResponseBody` одалживает тело; итоговый действующий URL содержит точку приземления после перенаправлений; после использования `ResultDestroy`.
 - **Валидация при старте**: создание Client сразу проверяет статическую конфигурацию; неверная политика не откладывается до первого запроса.
-- **Обрезка**: `XHTTP_MODULE_HTTP_CLIENT_EASY` (обратный вызов) и `_EASY_FUTURE` (Future/синхронный) независимы.
+- **Обрезка**: `XHTTP_CLIENT_MODULE_HTTP_CLIENT_EASY` (обратный вызов) и `_EASY_FUTURE` (Future/синхронный) независимы.
 - **Дисциплина сборки**: Engine стартует первым; очистка сначала Client, потом Engine; Destroy Engine — циклом повторных попыток.
 
 ## Ловушки

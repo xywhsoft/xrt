@@ -132,26 +132,26 @@ python tools/amalgamate.py --all --check
 python tools/amalgamate.py --manifest extlibs/xws/config/modules.json
 ```
 
-以下在一个实现翻译单元中组合核心与 xhttp；其他翻译单元提供相同模块配置，
-只包含声明或不定义实现宏的单头。核心实现只能编译一次：
+HTTP 的独立库通过公开 API 组合。以最小 Client 为例，在实现翻译单元中先解析 features，再提供一次核心与各扩展实现；其他翻译单元使用相同模块配置并只包含声明。
 
 ```c
-#define XRT_MODULE_ALL
+#define XHTTP_CLIENT_MODULE_HTTP_CLIENT
+#include <xhttp-client/features.h>
+#include <xhttp-policy/features.h>
+#include <xhttp/features.h>
 #define XRT_IMPLEMENTATION
 #include "single/xrt.h"
-
-#define XHTTP_MODULE_HTTP_CLIENT
 #define XHTTP_IMPLEMENTATION
 #include "single/extlibs/xhttp.h"
+#define XHTTP_POLICY_IMPLEMENTATION
+#include "single/extlibs/xhttp-policy.h"
+#define XHTTP_CLIENT_IMPLEMENTATION
+#include "single/extlibs/xhttp-client.h"
 ```
 
-示例使用完整核心便于接入。按需裁剪时，必须在核心声明与实现之前确定依赖闭包；
-源码仓库中可先定义扩展的 `*_MODULE_*`，按逆依赖顺序包含对应 `include/<产品>/features.h`，
-再包含核心和各扩展单头。也可由宿主显式选择所需核心模块。
-只依赖公开 API 的模块可以提供匹配配置的核心声明并链接独立核心库。
-部分现有 xhttp、xruntime 与邮件协议模块复用依赖内部的快速路径；这些模块当前采用
-同一翻译单元组合，必须先包含所需核心或邮件基座的实现，再包含扩展实现。
-扩展单头不会自动编译或复制核心，也不会展开兄弟扩展源码。
+features 在核心声明/实现之前确定闭包，实现按依赖顺序排列。HTTP 可独立编译多个翻译单元，链接一份核心；各产品单头不复制核心和兄弟实现。静态/动态打包的 `packages.json` 记录所有权和链接顺序。详细迁移见 [HTTP 分层](../extlibs/xhttp/docs/design/http-layers.md)。
+
+部分 xruntime 与邮件模块仍复用依赖内部快速路径，使用其原有同一翻译单元组合要求。
 
 ## 生成文档
 

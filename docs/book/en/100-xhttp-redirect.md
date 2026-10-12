@@ -8,6 +8,8 @@ lead: Method rewrites for 301/302/303 and body replay for 307/308, idempotency-g
 api: xhttp-http_client, xhttp-http_retry, xhttp-cookie_jar
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 Above Chapter 99's runtime sit three **automatic-behavior layers** — they turn "glue every client has to write" into configuration switches.**Redirects** (`http_client_redirect`): at most ten hops by default; after 301/302/303 a POST becomes GET, 307/308 keep the method but require a replayable body; cross-origin strips credentials, HTTPS→HTTP downgrade refused by default.**Automatic retries** (`http_client_retry`): **off by default** — only idempotent methods with replayable bodies retry, backoff honors `Retry-After`; the decision "should side effects repeat" stays yours.**Automatic cookies** (`http_client_cookies`): hang a Cookie Jar into the configuration and Set-Cookie enters the jar automatically while later requests carry it automatically. The three layers trim independently with explicit semantics — "automatic" is not "magic": every hop's behavior is predictable and diagnosable (Chapter 99's Info Wire fields accumulating the whole redirect chain are the evidence).
@@ -35,7 +37,7 @@ The precise boundary of method rewriting: only the **standard method** `POST` ma
 
 ### Automatic retries: idempotency and the triple condition
 
-A retry must satisfy all three at once: **quota unused** (`MaxRetries`), **method idempotent** (decided by `xrtHttpMethodIdempotent()` — GET/HEAD/PUT/DELETE and other safe-to-repeat methods; POST is not on the list), and **body replayable** (declared by `xhttpbody` when a body exists). Missing any one blocks it — that is the technical guardrail; the business guardrail is your act of setting the quota. Backoff computation reuses the pure protocol module `http_retry`: exponential backoff (`BaseDelay`/`MaxDelay`) plus honoring the server's `Retry-After`. Call-level four modes: `DEFAULT` inherits Client / `DISABLED` off for this call / `ENABLED` (default cap when Client's quota is zero); configuration errors (unknown mode, zero MaxDelay, Base>Max) **fail before any network operation** — startup-time interception.
+A retry must satisfy all three at once: **quota unused** (`MaxRetries`), **method idempotent** (decided by `xrtHttpMethodIdempotent()` — GET/HEAD/PUT/DELETE and other safe-to-repeat methods; POST is not on the list), and **body replayable** (declared by `xhttpbody` when a body exists). Missing any one blocks it — that is the technical guardrail; the business guardrail is your act of setting the quota. Backoff computation uses `http_retry_policy` in xhttp-policy; Retry-After parsing remains in xhttp `http_retry`: exponential backoff (`BaseDelay`/`MaxDelay`) plus honoring the server's `Retry-After`. Call-level four modes: `DEFAULT` inherits Client / `DISABLED` off for this call / `ENABLED` (default cap when Client's quota is zero); configuration errors (unknown mode, zero MaxDelay, Base>Max) **fail before any network operation** — startup-time interception.
 
 ### Automatic cookies: hanging the jar
 
@@ -51,11 +53,11 @@ The three layers share three design disciplines: **safe defaults** (redirects te
 
 The program below is from `examples/http/client_retry` — default-off versus explicit-enable:
 
-```embed path="extlibs/xhttp/examples/http/client_retry/main.c" title="extlibs/xhttp/examples/http/client_retry/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_retry/main.c" title="extlibs/xhttp-client/examples/http/client_retry/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_retry/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_retry --exclude-test "*" --no-single --no-run
 retries=3 base=250000 max=5000000
 ```
 
@@ -65,11 +67,11 @@ retries=3 base=250000 max=5000000
 
 The second program is from `examples/http/client_cookies` — the assembly face of automatic cookies:
 
-```embed path="extlibs/xhttp/examples/http/client_cookies/main.c" title="extlibs/xhttp/examples/http/client_cookies/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_cookies/main.c" title="extlibs/xhttp-client/examples/http/client_cookies/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_cookies/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_cookies --exclude-test "*" --no-single --no-run
 （示例校验 Jar 挂载后 Set-Cookie 自动进罐与后续自动携带路径）
 ```
 

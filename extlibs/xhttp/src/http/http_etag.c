@@ -23,12 +23,12 @@ static bool __xrtHttpETagRead(
 	xhttpetag Tag;
 	size_t i;
 
-	if ( !__xrtRangeValid(pInput, sizeof(Tag)) ) {
+	if ( !xrtMemRangeValid(pInput, sizeof(Tag)) ) {
 		return false;
 	}
 	memcpy(&Tag, pInput, sizeof(Tag));
 	if (
-		!__xrtRangeValid(
+		!xrtMemRangeValid(
 			Tag.Opaque.Data,
 			Tag.Opaque.Size
 		) ) {
@@ -48,7 +48,7 @@ static bool __xrtHttpETagRead(
 
 
 /* 无错误副作用地验证实体标签正文。 */
-bool __xrtHttpETagValid(const xhttpetag* pTag)
+XHTTP_API bool xrtHttpBridgeETagValid(const xhttpetag* pTag)
 {
 	xhttpetag Tag;
 
@@ -58,7 +58,7 @@ bool __xrtHttpETagValid(const xhttpetag* pTag)
 
 
 /* 无错误副作用地解析一个完整实体标签。 */
-bool __xrtHttpETagParseValue(
+XHTTP_API bool xrtHttpBridgeETagParseValue(
 	xstrview Text,
 	xhttpetag* pTag
 )
@@ -67,7 +67,7 @@ bool __xrtHttpETagParseValue(
 	size_t iStart = 0;
 	size_t i;
 
-	if ( (pTag == NULL) || !__xrtHttpViewValid(Text) ) {
+	if ( (pTag == NULL) || !__xhttpViewValid(Text) ) {
 		return false;
 	}
 	Tag.Opaque = (xstrview){ NULL, 0 };
@@ -99,27 +99,27 @@ bool __xrtHttpETagParseValue(
 
 
 /* 严格解析一个完整实体标签。 */
-XRT_API bool xrtHttpETagParse(
+XHTTP_API bool xrtHttpETagParse(
 	xstrview Text,
 	xhttpetag* pTag
 )
 {
 	xhttpetag Tag;
 
-	if ( !__xrtHttpViewValid(Text) ||
-		!__xrtRangeValid(pTag, sizeof(Tag)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Text) ||
+		!xrtMemRangeValid(pTag, sizeof(Tag)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pTag, sizeof(*pTag), Text.Data, Text.Size
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(pTag, 0, sizeof(Tag));
-	if ( !__xrtHttpETagParseValue(Text, &Tag) ) {
-		__xrtErrorSetValue();
+	if ( !xrtHttpBridgeETagParseValue(Text, &Tag) ) {
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memcpy(pTag, &Tag, sizeof(Tag));
@@ -138,7 +138,7 @@ static bool __xrtHttpETagAny(xstrview List)
 
 
 /* 迭代一个实体标签列表。 */
-XRT_API xhttpnext xrtHttpETagNext(
+XHTTP_API xhttpnext xrtHttpETagNext(
 	xstrview List,
 	size_t* pOffset,
 	xhttpetagitem* pItem
@@ -154,22 +154,22 @@ XRT_API xhttpnext xrtHttpETagNext(
 		{ { NULL, 0 }, false }
 	};
 
-	if ( !__xrtHttpViewValid(List) ||
-		!__xrtRangeValid(pOffset, sizeof(iOffset)) ||
-		!__xrtRangeValid(pItem, sizeof(Item)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(List) ||
+		!xrtMemRangeValid(pOffset, sizeof(iOffset)) ||
+		!xrtMemRangeValid(pItem, sizeof(Item)) ||
+		xrtMemRangesOverlap(
 			pOffset, sizeof(iOffset), List.Data, List.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pItem, sizeof(Item), List.Data, List.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOffset, sizeof(iOffset), pItem, sizeof(Item)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
 	if ( iOffset > List.Size ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( iOffset == List.Size ) {
@@ -196,10 +196,10 @@ XRT_API xhttpnext xrtHttpETagNext(
 		if ( Text.Size == 0 ) {
 			continue;
 		}
-		if ( !__xrtHttpETagParseValue(Text, &Tag) ) {
+		if ( !xrtHttpBridgeETagParseValue(Text, &Tag) ) {
 			memcpy(pOffset, &iOffset, sizeof(iOffset));
 			memcpy(pItem, &Item, sizeof(Item));
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return XHTTP_NEXT_ERROR;
 		}
 		Item.Kind = XHTTP_ETAG_VALUE;
@@ -233,7 +233,7 @@ static bool __xrtHttpETagOpaqueEqual(
 
 
 /* 按强比较规则比较两个实体标签。 */
-XRT_API bool xrtHttpETagStrongEqual(
+XHTTP_API bool xrtHttpETagStrongEqual(
 	const xhttpetag* pLeft,
 	const xhttpetag* pRight
 )
@@ -243,7 +243,7 @@ XRT_API bool xrtHttpETagStrongEqual(
 
 	if ( !__xrtHttpETagRead(pLeft, &Left) ||
 		!__xrtHttpETagRead(pRight, &Right) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return !Left.Weak &&
@@ -254,7 +254,7 @@ XRT_API bool xrtHttpETagStrongEqual(
 
 
 /* 按弱比较规则比较两个实体标签。 */
-XRT_API bool xrtHttpETagWeakEqual(
+XHTTP_API bool xrtHttpETagWeakEqual(
 	const xhttpetag* pLeft,
 	const xhttpetag* pRight
 )
@@ -264,7 +264,7 @@ XRT_API bool xrtHttpETagWeakEqual(
 
 	if ( !__xrtHttpETagRead(pLeft, &Left) ||
 		!__xrtHttpETagRead(pRight, &Right) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return __xrtHttpETagOpaqueEqual(&Left, &Right);
@@ -287,8 +287,8 @@ static bool __xrtHttpETagListHas(
 	bool bMatch = false;
 
 	if ( !__xrtHttpETagRead(pTag, &Tag) ||
-		!__xrtHttpViewValid(List) ) {
-		__xrtErrorSetInvalidArgument();
+		!__xhttpViewValid(List) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	do {
@@ -316,7 +316,7 @@ static bool __xrtHttpETagListHas(
 		}
 	} while ( Next == XHTTP_NEXT_ITEM );
 	if ( iCount == 0 ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return bMatch;
@@ -325,7 +325,7 @@ static bool __xrtHttpETagListHas(
 
 
 /* 按强比较规则检查完整实体标签列表。 */
-XRT_API bool xrtHttpETagListStrongHas(
+XHTTP_API bool xrtHttpETagListStrongHas(
 	xstrview List,
 	const xhttpetag* pTag
 )
@@ -336,7 +336,7 @@ XRT_API bool xrtHttpETagListStrongHas(
 
 
 /* 按弱比较规则检查完整实体标签列表。 */
-XRT_API bool xrtHttpETagListWeakHas(
+XHTTP_API bool xrtHttpETagListWeakHas(
 	xstrview List,
 	const xhttpetag* pTag
 )
@@ -347,7 +347,7 @@ XRT_API bool xrtHttpETagListWeakHas(
 
 
 /* 写出一个实体标签。 */
-XRT_API bool xrtHttpETagWrite(
+XHTTP_API bool xrtHttpETagWrite(
 	const xhttpetag* pTag,
 	void* pOutput,
 	size_t iCapacity,
@@ -359,24 +359,24 @@ XRT_API bool xrtHttpETagWrite(
 	size_t iPrefix;
 	size_t iRequired;
 
-	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ||
+	if ( !xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
 		!__xrtHttpETagRead(pTag, &Tag) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	iPrefix = Tag.Weak ? 2u : 0u;
 	if ( Tag.Opaque.Size > (SIZE_MAX - iPrefix - 2u) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iRequired = iPrefix + Tag.Opaque.Size + 2u;
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pSize, sizeof(iRequired), Tag.Opaque.Data, Tag.Opaque.Size
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pSize, sizeof(iRequired), pTag, sizeof(Tag)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pOutput == NULL ) {
@@ -384,26 +384,26 @@ XRT_API bool xrtHttpETagWrite(
 		return true;
 	}
 	if ( (iCapacity >= iRequired) &&
-		!__xrtRangeValid(pOutput, iRequired) ) {
-		__xrtErrorSetInvalidArgument();
+		!xrtMemRangeValid(pOutput, iRequired) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pSize, sizeof(iRequired), pOutput, iRequired
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pTag, sizeof(Tag), pOutput, iRequired
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		Tag.Opaque.Data,
 		Tag.Opaque.Size,
 		pOutput,
 		iRequired
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( Tag.Weak ) {
@@ -426,7 +426,7 @@ XRT_API bool xrtHttpETagWrite(
 
 
 /* 构建零结尾实体标签。 */
-XRT_API str xrtHttpETagBuild(
+XHTTP_API str xrtHttpETagBuild(
 	const xhttpetag* pTag,
 	size_t* pSize
 )
@@ -437,23 +437,23 @@ XRT_API str xrtHttpETagBuild(
 
 	if ( !__xrtHttpETagRead(pTag, &Tag) ||
 		((pSize != NULL) &&
-		 !__xrtRangeValid(pSize, sizeof(iRequired))) ) {
-		__xrtErrorSetInvalidArgument();
+		 !xrtMemRangeValid(pSize, sizeof(iRequired))) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( pSize != NULL ) {
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 				pSize,
 				sizeof(iRequired),
 				Tag.Opaque.Data,
 				Tag.Opaque.Size
-			) || __xrtRangesOverlap(
+			) || xrtMemRangesOverlap(
 				pSize,
 				sizeof(iRequired),
 				pTag,
 				sizeof(Tag)
 			) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return NULL;
 		}
 	}

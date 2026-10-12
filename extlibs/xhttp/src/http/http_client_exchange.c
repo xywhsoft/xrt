@@ -49,7 +49,7 @@ void __xrtHttp1ExchangeSizeOverflow(void)
 
 
 /* 验证公开 Exchange 配置的全部硬边界。 */
-bool __xrtHttp1ExchangeConfigValid(
+XHTTP_API bool xrtHttpBridge1ExchangeConfigValid(
 	const xhttp1exchangeconfig* pConfig
 )
 {
@@ -301,7 +301,7 @@ void __xrtHttp1ExchangeBufferConsume(
 
 
 /* 初始化客户端 Exchange 默认限额。 */
-XRT_API void xrtHttp1ExchangeConfigInit(
+XHTTP_API void xrtHttp1ExchangeConfigInit(
 	xhttp1exchangeconfig* pConfig
 )
 {
@@ -341,7 +341,7 @@ XRT_API void xrtHttp1ExchangeConfigInit(
 
 
 /* 创建并接管一份已经冻结的请求计划。 */
-XRT_API xhttp1exchange* xrtHttp1ExchangeCreate(
+XHTTP_API xhttp1exchange* xrtHttp1ExchangeCreate(
 	xhttp1requestplan* pPlan,
 	const xhttp1exchangeconfig* pConfig,
 	const xhttp1exchangeevents* pEvents
@@ -362,7 +362,7 @@ XRT_API xhttp1exchange* xrtHttp1ExchangeCreate(
 		}
 		memcpy(&Config, pConfig, sizeof(Config));
 	}
-	if ( !__xrtHttp1ExchangeConfigValid(&Config) ) {
+	if ( !xrtHttpBridge1ExchangeConfigValid(&Config) ) {
 		return NULL;
 	}
 	memset(&Events, 0, sizeof(Events));
@@ -394,7 +394,7 @@ XRT_API xhttp1exchange* xrtHttp1ExchangeCreate(
 
 
 /* 销毁 Exchange 的全部拥有型状态。 */
-XRT_API void xrtHttp1ExchangeDestroy(
+XHTTP_API void xrtHttp1ExchangeDestroy(
 	xhttp1exchange* pExchange
 )
 {
@@ -418,7 +418,7 @@ XRT_API void xrtHttp1ExchangeDestroy(
 
 
 /* 允许 100 Continue 正文路径继续。 */
-XRT_API bool xrtHttp1ExchangeContinue(
+XHTTP_API bool xrtHttp1ExchangeContinue(
 	xhttp1exchange* pExchange
 )
 {
@@ -447,7 +447,7 @@ XRT_API bool xrtHttp1ExchangeContinue(
 
 
 /* 暂停后续响应输入；当前回调借用的数据仍由本次 Feed 完成。 */
-XRT_API bool xrtHttp1ExchangePause(xhttp1exchange* pExchange)
+XHTTP_API bool xrtHttp1ExchangePause(xhttp1exchange* pExchange)
 {
 	if ( pExchange == NULL ) {
 		__xrtHttp1ExchangeInvalidArgument();
@@ -468,7 +468,7 @@ XRT_API bool xrtHttp1ExchangePause(xhttp1exchange* pExchange)
 
 
 /* 恢复后由下一次 Feed 继续消费调用方保留的输入。 */
-XRT_API bool xrtHttp1ExchangeResume(xhttp1exchange* pExchange)
+XHTTP_API bool xrtHttp1ExchangeResume(xhttp1exchange* pExchange)
 {
 	if ( pExchange == NULL ) {
 		__xrtHttp1ExchangeInvalidArgument();
@@ -489,7 +489,7 @@ XRT_API bool xrtHttp1ExchangeResume(xhttp1exchange* pExchange)
 
 
 /* 返回应用输入门的当前同步状态。 */
-XRT_API bool xrtHttp1ExchangePaused(
+XHTTP_API bool xrtHttp1ExchangePaused(
 	const xhttp1exchange* pExchange
 )
 {
@@ -499,7 +499,7 @@ XRT_API bool xrtHttp1ExchangePaused(
 
 
 /* 返回最终响应的借用指针。 */
-XRT_API const xhttpresponse* xrtHttp1ExchangeResponse(
+XHTTP_API const xhttpresponse* xrtHttp1ExchangeResponse(
 	const xhttp1exchange* pExchange
 )
 {
@@ -509,7 +509,7 @@ XRT_API const xhttpresponse* xrtHttp1ExchangeResponse(
 
 
 /* 在响应终态取走响应对象。 */
-XRT_API xhttpresponse* xrtHttp1ExchangeTakeResponse(
+XHTTP_API xhttpresponse* xrtHttp1ExchangeTakeResponse(
 	xhttp1exchange* pExchange
 )
 {
@@ -529,7 +529,7 @@ XRT_API xhttpresponse* xrtHttp1ExchangeTakeResponse(
 
 
 /* 返回内部保留的终态后缀。 */
-XRT_API xbytesview xrtHttp1ExchangeRemainder(
+XHTTP_API xbytesview xrtHttp1ExchangeRemainder(
 	const xhttp1exchange* pExchange
 )
 {
@@ -547,7 +547,7 @@ XRT_API xbytesview xrtHttp1ExchangeRemainder(
 
 
 /* 返回稳定 Exchange 错误。 */
-XRT_API const xerror* xrtHttp1ExchangeError(
+XHTTP_API const xerror* xrtHttp1ExchangeError(
 	const xhttp1exchange* pExchange
 )
 {
@@ -557,7 +557,7 @@ XRT_API const xerror* xrtHttp1ExchangeError(
 
 
 /* 判断请求是否完整发送。 */
-XRT_API bool xrtHttp1ExchangeRequestComplete(
+XHTTP_API bool xrtHttp1ExchangeRequestComplete(
 	const xhttp1exchange* pExchange
 )
 {
@@ -568,7 +568,7 @@ XRT_API bool xrtHttp1ExchangeRequestComplete(
 
 
 /* 判断响应是否完整结束。 */
-XRT_API bool xrtHttp1ExchangeResponseComplete(
+XHTTP_API bool xrtHttp1ExchangeResponseComplete(
 	const xhttp1exchange* pExchange
 )
 {
@@ -579,7 +579,7 @@ XRT_API bool xrtHttp1ExchangeResponseComplete(
 
 
 /* 判断 Exchange 是否交出升级协议。 */
-XRT_API bool xrtHttp1ExchangeUpgraded(
+XHTTP_API bool xrtHttp1ExchangeUpgraded(
 	const xhttp1exchange* pExchange
 )
 {
@@ -589,7 +589,7 @@ XRT_API bool xrtHttp1ExchangeUpgraded(
 
 
 /* 汇总所有影响 HTTP/1 连接复用的协议事实。 */
-XRT_API bool xrtHttp1ExchangeReusable(
+XHTTP_API bool xrtHttp1ExchangeReusable(
 	const xhttp1exchange* pExchange
 )
 {
@@ -611,7 +611,7 @@ XRT_API bool xrtHttp1ExchangeReusable(
 
 
 /* 返回信息响应计数。 */
-XRT_API uint32 xrtHttp1ExchangeInformationalCount(
+XHTTP_API uint32 xrtHttp1ExchangeInformationalCount(
 	const xhttp1exchange* pExchange
 )
 {
@@ -622,7 +622,7 @@ XRT_API uint32 xrtHttp1ExchangeInformationalCount(
 
 
 /* 返回已经确认发送的线路字节。 */
-XRT_API uint64 xrtHttp1ExchangeRequestWireBytes(
+XHTTP_API uint64 xrtHttp1ExchangeRequestWireBytes(
 	const xhttp1exchange* pExchange
 )
 {

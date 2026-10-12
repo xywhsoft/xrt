@@ -1,0 +1,2035 @@
+{
+	"schema": 1,
+	"product": "xhttp_server",
+	"module_prefix": "XHTTP_SERVER_MODULE_",
+	"single_header": "single/extlibs/xhttp-server.h",
+	"declaration_header": "single/extlibs/xhttp-server_decl.h",
+	"implementation_macro": "XHTTP_SERVER_IMPLEMENTATION",
+	"implementation_once_macro": "XHTTP_SERVER_IMPLEMENTATION_ONCE",
+	"single_guard": "XHTTP_SERVER_SINGLE_HEADER_H",
+	"single_marker": "XHTTP_SERVER_SINGLE_HEADER",
+	"declaration_guard": "XHTTP_SERVER_DECLARATIONS_H",
+	"declaration_marker": "XHTTP_SERVER_DECLARATIONS",
+	"package_consumer": "extlibs/xhttp-server/tests/package/test_consumer.c",
+	"product_root": "extlibs/xhttp-server",
+	"performance_config": "extlibs/xhttp-server/config/performance_profiles.json",
+	"size_config": "extlibs/xhttp-server/config/size_profiles.json",
+	"scope": {
+		"product": "xhttp_server",
+		"external_integrations": [],
+		"systems": [
+			{
+				"name": "xhttp_server",
+				"state": "retained",
+				"source_roots": [
+					"http"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xhttp-server 公共符号参考",
+		"function_prefix": "xrt",
+		"constant_prefix": "XHTTP_",
+		"type_prefix": "x",
+		"guide": "../../README.md",
+		"output": "extlibs/xhttp-server/docs/api/reference.md"
+	},
+	"features_guard": "XHTTP_SERVER_FEATURES_H",
+	"features_header": "extlibs/xhttp-server/include/xhttp-server/features.h",
+	"include_dirs": [
+		"extlibs/xhttp-server/include"
+	],
+	"header_roots": [
+		"extlibs/xhttp-server/include",
+		"extlibs/xhttp-server/src/internal"
+	],
+	"modules": [
+		{
+			"name": "http_static_path",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_STATIC_PATH",
+			"depends": [
+				"codec_percent",
+				"path_safe"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_static.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body_file.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_semantics.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_static.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_static_path.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_static_path.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_path_mutation.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_path_noalloc.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_static_path.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/static_path/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_static.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_static_plan",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_STATIC_PLAN",
+			"depends": [
+				"http_precondition",
+				"http_range"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_static.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body_file.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_semantics.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_static.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_static_plan.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_static_plan.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_plan_noalloc.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_static_plan.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/static_plan/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_static.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_static_response",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_STATIC_RESPONSE",
+			"depends": [
+				"http_static_plan",
+				"http_range_multipart"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_static.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body_file.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_semantics.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_static.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_static_response.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_static_response.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_response_noalloc.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_static_response.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/static_response/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_static.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_static_file",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_STATIC_FILE",
+			"depends": [
+				"atomic",
+				"file_root",
+				"http_body_file",
+				"http_precondition"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_static.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body_file.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_semantics.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_static.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_static_file.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_static_file.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_file_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_static_file.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/static_file/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_static.md",
+				"extlibs/xhttp-server/docs/api/http_body_file.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_static_multipart_body",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_STATIC_MULTIPART_BODY",
+			"depends": [
+				"http_range_multipart",
+				"http_static_file",
+				"http_body_file"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_static.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body_file.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_semantics.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_static.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_static_multipart_body.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_static_multipart_body.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_multipart_body_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_static_multipart_body.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/static_multipart_body/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_static.md",
+				"extlibs/xhttp-server/docs/api/http_body_file.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_sse_server",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SSE_SERVER",
+			"depends": [
+				"http_sse_http",
+				"http_body_stream",
+				"http_server_reply"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_sse_server.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body_stream.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_sse_server.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_sse_server.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_sse_server.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/sse_server/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_sse_server.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_sse_server_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_sse_server",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_sse_server_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp/docs/api/http_sse.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_body_file",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_BODY_FILE",
+			"depends": [
+				"http_body_async",
+				"file_async"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_body_file.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body_file.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_body_file.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_body_file.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_body_file.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/body_file/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_body_file.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_body_file_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_body_file",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_body_file_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER",
+			"depends": [
+				"http_server_exchange",
+				"http_server_response",
+				"net_tcp_server",
+				"spin"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_server_runtime.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_runtime.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_runtime.c",
+				"extlibs/xhttp-server/src/http/http_server_connection.c",
+				"extlibs/xhttp-server/src/http/http_server_transport.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_invalid.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_lifecycle.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_multi_endpoint.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_write.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_transport.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_write_iocp.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_transport_iocp.c"
+			],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_uring_tests",
+			"asset_platforms": [
+				"linux"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server",
+				"net_port_uring"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_uring.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_write_uring.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_transport_uring.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_tls",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_TLS",
+			"depends": [
+				"http_server",
+				"tls_stream"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_server_tls.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_runtime.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_tls.c"
+			],
+			"tests": [],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_tls",
+				"tls_client_verify",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_tls.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_handshake.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_invalid.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_write.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_tls_transport.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_tls_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_tls_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_handshake_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_write_iocp.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_tls_transport_iocp.c"
+			],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_tls_uring_tests",
+			"asset_platforms": [
+				"linux"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_tls_tests",
+				"net_port_uring"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_uring.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_handshake_uring.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_write_uring.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_tls_transport_uring.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_tls_example",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_tls",
+				"tls_identity_rsa",
+				"tls_identity_p256",
+				"tls_identity_p384",
+				"tls_identity_ed25519"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xhttp-server/examples/tls/common.h",
+				"extlibs/xhttp-server/examples/http/server_tls/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_body_async",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_BODY_ASYNC",
+			"depends": [
+				"http_server",
+				"http_server_response_async"
+			],
+			"public_headers": [],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_runtime.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_body_async.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_body_async.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_body_async.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server_body_async/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_body_async_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_body_async",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_body_async_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_raw",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_RAW",
+			"depends": [
+				"http_server"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_server_raw.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_runtime.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_raw.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_raw.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_raw_invalid.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_raw_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_raw_oom_plan.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_raw_oom_refs.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_raw.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server_raw/main.c"
+			],
+			"benchmarks": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "http_server_raw_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_raw",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_raw_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_upgrade",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_UPGRADE",
+			"depends": [
+				"http_server"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_server_upgrade.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_runtime.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_upgrade.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_response.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_raw.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_failure.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_invalid.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_upgrade.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server_upgrade/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_upgrade_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_upgrade",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_upgrade_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_upgrade",
+				"http_server_tls_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_tls.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_future",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_FUTURE",
+			"depends": [
+				"http_server",
+				"future_continue"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_server_future.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_runtime.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_future.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_future.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_future_invalid.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_wait_future.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_wait_future_threads.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_future_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_future_oom_continue.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_future.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server_future/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_upgrade_future_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_upgrade",
+				"http_server_future"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_wait.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_future_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_future",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_future_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_future_sources_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_future",
+				"task_pool",
+				"task_coroutine"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_future_sources.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_file",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_FILE",
+			"depends": [
+				"http_server_future",
+				"http_body_file",
+				"http_server_body_async"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_server_file.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_file.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_runtime.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_file.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_file.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_file.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server_file/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_file.md",
+				"extlibs/xhttp-server/docs/api/http_server.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_file_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_file",
+				"memory_stats",
+				"file_temp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_file_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_file_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_file",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_file_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_static",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_STATIC",
+			"depends": [
+				"codec_hex",
+				"http_server_future",
+				"http_server_body_async",
+				"http_static_path",
+				"http_static_file",
+				"http_static_plan",
+				"http_static_response",
+				"http_static_multipart_body",
+				"mime_types",
+				"random_secure"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_server_static.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_body_file.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_semantics.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_runtime.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_static.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_static.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_static.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_static.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_static_runtime.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_static.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server_static/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_static.md",
+				"extlibs/xhttp-server/docs/api/http_static.md",
+				"extlibs/xhttp-server/docs/api/http_server.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_static_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_static",
+				"memory_stats"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_static_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_static_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_static",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_static_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_route",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_ROUTE",
+			"depends": [
+				"http"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_route.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_route.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_route.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_route.c",
+				"extlibs/xhttp-server/tests/http/test_http_route_noalloc.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_route.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/route/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_route.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_route_fuzz_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_route"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"fuzz_sources": [
+				"extlibs/xhttp/fuzz/http_route.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_route_fuzz.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_route_fuzz.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_route.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_router",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_ROUTER",
+			"depends": [
+				"http_route"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_router.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_route.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_router.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_router.c",
+				"extlibs/xhttp-server/src/http/http_router_match.c",
+				"extlibs/xhttp-server/src/http/http_router_methods.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_router.c",
+				"extlibs/xhttp-server/tests/http/test_http_router_noalloc.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_router.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/router/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_router.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_router_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_router",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_router_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_router.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_router_fuzz_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_router"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"fuzz_sources": [
+				"extlibs/xhttp/fuzz/http_router.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_router_fuzz.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_router_fuzz.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_router.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_router_threads_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_router",
+				"thread"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_router_threads.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_router.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_reply_compress",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_REPLY_COMPRESS",
+			"depends": [
+				"http_server_reply",
+				"http_encoding",
+				"http_vary",
+				"http_cache",
+				"http_body_deflate",
+				"mime",
+				"http_etag"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_compress.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_reply_compress.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_reply_compress.c",
+				"extlibs/xhttp-server/tests/http/test_http_reply_compress_edges.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_reply_compress.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/reply_compress/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_compress.md",
+				"extlibs/xhttp/docs/api/http_vary.md",
+				"extlibs/xhttp/docs/api/http_body_deflate.md",
+				"extlibs/xhttp/docs/design/http-runtime.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_reply_compress_roundtrip_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_reply_compress",
+				"inflate"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_reply_compress_roundtrip.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_compress.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_reply_compress_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_reply_compress",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_reply_compress_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_compress.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_compress",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_COMPRESS",
+			"depends": [
+				"http_reply_compress",
+				"http_server_request"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_compress.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_compress.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_compress.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_compress.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server_compress/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_compress.md",
+				"extlibs/xhttp-server/docs/api/http_server.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_router",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_ROUTER",
+			"depends": [
+				"http_router",
+				"http_server"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_server_router.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_router.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_runtime.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_router.c",
+				"extlibs/xhttp-server/src/http/http_server_router_dispatch.c",
+				"extlibs/xhttp-server/src/http/http_server_router_runtime.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_router.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_router_contract.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_router.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server_router/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_router.md",
+				"extlibs/xhttp-server/docs/api/http_router.md",
+				"extlibs/xhttp-server/docs/api/http_server.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_router_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_router",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_router_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_router.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_middleware",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_MIDDLEWARE",
+			"depends": [
+				"http_server_router"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_server_middleware.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_router.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_middleware.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_middleware.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_middleware.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server_middleware/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_middleware.md",
+				"extlibs/xhttp-server/docs/api/http_server_router.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_middleware_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_middleware",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_middleware_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_middleware.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_middleware_mux_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_middleware",
+				"http_server_mux"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_mux_runtime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_middleware.md",
+				"extlibs/xhttp-server/docs/api/http_server_mux.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_mux",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_MUX",
+			"depends": [
+				"http_server_router",
+				"rwlock"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_server_mux.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_mux.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_router.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_runtime.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_mux.c",
+				"extlibs/xhttp-server/src/http/http_server_mux_runtime.c"
+			],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_mux.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_mux_runtime.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_mux.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server_mux/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_mux.md",
+				"extlibs/xhttp-server/docs/api/http_server_router.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_mux_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_mux",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_mux_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_mux.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_mux_tls",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_MUX_TLS",
+			"depends": [
+				"http_server_mux",
+				"http_server_tls"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_server_mux_tls.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_mux.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_router.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_runtime.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_mux_tls.c"
+			],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_mux_tls.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server_mux_tls/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_mux.md",
+				"extlibs/xhttp-server/docs/api/http_server.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_mux_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_mux_tls",
+				"tls_client_verify",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_mux_tls.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_mux.md",
+				"extlibs/xhttp-server/docs/api/http_server.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_router_tls",
+			"state": "implemented",
+			"feature": "XHTTP_FEATURE_HTTP_SERVER_ROUTER_TLS",
+			"depends": [
+				"http_server_router",
+				"http_server_tls"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xrt/http_server_router_tls.h",
+				"extlibs/xhttp-server/include/xhttp-server/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xhttp-server/src/internal/xhttp_internal.h",
+				"extlibs/xhttp-server/src/internal/xrt_http_server_router.h",
+				"extlibs/xhttp-server/src/internal/xrt_internal.h"
+			],
+			"sources": [
+				"extlibs/xhttp-server/src/http/http_server_router_tls.c"
+			],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_server_router_tls.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/server_router_tls/main.c"
+			],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_router.md",
+				"extlibs/xhttp-server/docs/api/http_server.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "http_server_router_tls_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_server_router_tls",
+				"tls_client_verify",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_server_router_tls.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-server/docs/api/http_server_router.md",
+				"extlibs/xhttp-server/docs/api/http_server.md"
+			],
+			"legacy": [],
+			"benchmarks": []
+		},
+		{
+			"name": "xhttp_server",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_static_path",
+				"http_static_response",
+				"http_static_multipart_body",
+				"http_server_tls",
+				"http_server_body_async",
+				"http_server_raw",
+				"http_server_upgrade",
+				"http_server_future",
+				"http_server_file",
+				"http_server_static",
+				"http_reply_compress",
+				"http_server_compress",
+				"http_route",
+				"http_router",
+				"http_server_router",
+				"http_server_middleware",
+				"http_server_mux",
+				"http_server_router_tls",
+				"http_server_mux_tls",
+				"http_body_file",
+				"http_sse_server"
+			],
+			"public_headers": [
+				"extlibs/xhttp-server/include/xhttp-server/features.h",
+				"extlibs/xhttp-server/include/xhttp-server.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_xhttp_server.c"
+			],
+			"examples": [
+				"extlibs/xhttp-server/examples/http/body_file/main.c",
+				"extlibs/xhttp-server/examples/http/reply_compress/main.c",
+				"extlibs/xhttp-server/examples/http/route/main.c",
+				"extlibs/xhttp-server/examples/http/router/main.c",
+				"extlibs/xhttp-server/examples/http/server/main.c",
+				"extlibs/xhttp-server/examples/http/server_body_async/main.c",
+				"extlibs/xhttp-server/examples/http/server_compress/main.c",
+				"extlibs/xhttp-server/examples/http/server_file/main.c",
+				"extlibs/xhttp-server/examples/http/server_future/main.c",
+				"extlibs/xhttp-server/examples/http/server_middleware/main.c",
+				"extlibs/xhttp-server/examples/http/server_mux/main.c",
+				"extlibs/xhttp-server/examples/http/server_mux_tls/main.c",
+				"extlibs/xhttp-server/examples/http/server_raw/main.c",
+				"extlibs/xhttp-server/examples/http/server_router/main.c",
+				"extlibs/xhttp-server/examples/http/server_router_tls/main.c",
+				"extlibs/xhttp-server/examples/http/server_static/main.c",
+				"extlibs/xhttp-server/examples/http/server_tls/main.c",
+				"extlibs/xhttp-server/examples/http/server_upgrade/main.c",
+				"extlibs/xhttp-server/examples/http/sse_server/main.c",
+				"extlibs/xhttp-server/examples/http/static_file/main.c",
+				"extlibs/xhttp-server/examples/http/static_multipart_body/main.c",
+				"extlibs/xhttp-server/examples/http/static_path/main.c",
+				"extlibs/xhttp-server/examples/http/static_plan/main.c",
+				"extlibs/xhttp-server/examples/http/static_response/main.c"
+			],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xhttp-server/config/performance_profiles.json",
+				"extlibs/xhttp-server/README.md",
+				"extlibs/xhttp-server/bench/bench_http_route.c",
+				"extlibs/xhttp-server/bench/bench_http_loopback.c",
+				"extlibs/xhttp-server/config/integration_profiles.json"
+			],
+			"docs": [
+				"extlibs/xhttp-server/README.md",
+				"extlibs/xhttp-server/docs/api/reference.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "xhttp_server_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"xhttp_server",
+				"http_sse_server_oom_tests",
+				"http_body_file_oom_tests",
+				"http_server_iocp_tests",
+				"http_server_uring_tests",
+				"http_server_tls_tests",
+				"http_server_tls_iocp_tests",
+				"http_server_tls_uring_tests",
+				"http_server_tls_example",
+				"http_server_body_async_iocp_tests",
+				"http_server_raw_iocp_tests",
+				"http_server_upgrade_iocp_tests",
+				"http_server_upgrade_tls_tests",
+				"http_server_upgrade_future_tests",
+				"http_server_future_iocp_tests",
+				"http_server_future_sources_tests",
+				"http_server_file_oom_tests",
+				"http_server_file_iocp_tests",
+				"http_server_static_oom_tests",
+				"http_server_static_iocp_tests",
+				"http_route_fuzz_tests",
+				"http_router_oom_tests",
+				"http_router_fuzz_tests",
+				"http_router_threads_tests",
+				"http_reply_compress_roundtrip_tests",
+				"http_reply_compress_oom_tests",
+				"http_server_router_oom_tests",
+				"http_server_middleware_oom_tests",
+				"http_server_middleware_mux_tests",
+				"http_server_mux_oom_tests",
+				"http_server_mux_tls_tests",
+				"http_server_router_tls_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-server/tests/http/test_http_body_file.c",
+				"extlibs/xhttp-server/tests/http/test_http_body_file_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_reply_compress.c",
+				"extlibs/xhttp-server/tests/http/test_http_reply_compress_edges.c",
+				"extlibs/xhttp-server/tests/http/test_http_reply_compress_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_reply_compress_roundtrip.c",
+				"extlibs/xhttp-server/tests/http/test_http_route.c",
+				"extlibs/xhttp-server/tests/http/test_http_route_fuzz.c",
+				"extlibs/xhttp-server/tests/http/test_http_route_noalloc.c",
+				"extlibs/xhttp-server/tests/http/test_http_router.c",
+				"extlibs/xhttp-server/tests/http/test_http_router_fuzz.c",
+				"extlibs/xhttp-server/tests/http/test_http_router_noalloc.c",
+				"extlibs/xhttp-server/tests/http/test_http_router_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_router_threads.c",
+				"extlibs/xhttp-server/tests/http/test_http_server.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_body_async.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_body_async_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_compress.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_file.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_file_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_file_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_future.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_future_invalid.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_future_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_future_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_future_oom_continue.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_future_sources.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_invalid.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_lifecycle.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_middleware.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_middleware_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_multi_endpoint.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_mux.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_mux_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_mux_runtime.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_mux_tls.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_raw.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_raw_invalid.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_raw_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_raw_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_raw_oom_plan.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_raw_oom_refs.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_router.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_router_contract.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_router_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_router_tls.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_static.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_static_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_static_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_static_runtime.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_handshake.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_handshake_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_handshake_uring.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_invalid.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_uring.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_write.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_write_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_tls_write_uring.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_failure.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_invalid.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_raw.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_response.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_tls.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_upgrade_wait.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_uring.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_wait_future.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_wait_future_threads.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_write.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_write_iocp.c",
+				"extlibs/xhttp-server/tests/http/test_http_server_write_uring.c",
+				"extlibs/xhttp-server/tests/http/test_http_sse_server.c",
+				"extlibs/xhttp-server/tests/http/test_http_sse_server_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_file.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_file_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_multipart_body.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_multipart_body_oom.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_path.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_path_mutation.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_path_noalloc.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_plan.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_plan_noalloc.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_response.c",
+				"extlibs/xhttp-server/tests/http/test_http_static_response_noalloc.c"
+			],
+			"single_tests": [
+				"extlibs/xhttp-server/tests/single/test_single_http_body_file.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_reply_compress.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_route.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_route_fuzz.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_router.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_router_fuzz.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_body_async.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_compress.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_file.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_future.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_middleware.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_mux.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_mux_tls.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_raw.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_router.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_router_tls.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_static.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_tls_transport.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_tls_transport_iocp.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_tls_transport_uring.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_transport.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_transport_iocp.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_transport_uring.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_upgrade.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_sse_server.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_static_file.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_static_multipart_body.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_static_path.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_static_plan.c",
+				"extlibs/xhttp-server/tests/single/test_single_http_static_response.c",
+				"extlibs/xhttp-server/tests/single/test_single_xhttp_server.c"
+			],
+			"examples": [],
+			"benchmarks": [
+				"dev/bench/bench_common.h"
+			],
+			"docs": [],
+			"legacy": [],
+			"single_test_owners": {
+				"extlibs/xhttp-server/tests/single/test_single_http_body_file.c": "http_body_file",
+				"extlibs/xhttp-server/tests/single/test_single_http_reply_compress.c": "http_reply_compress",
+				"extlibs/xhttp-server/tests/single/test_single_http_route.c": "http_route",
+				"extlibs/xhttp-server/tests/single/test_single_http_route_fuzz.c": "http_route_fuzz_tests",
+				"extlibs/xhttp-server/tests/single/test_single_http_router.c": "http_router",
+				"extlibs/xhttp-server/tests/single/test_single_http_router_fuzz.c": "http_router_fuzz_tests",
+				"extlibs/xhttp-server/tests/single/test_single_http_server.c": "http_server",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_body_async.c": "http_server_body_async",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_compress.c": "http_server_compress",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_file.c": "http_server_file",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_future.c": "http_server_future",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_middleware.c": "http_server_middleware",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_mux.c": "http_server_mux",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_mux_tls.c": "http_server_mux_tls",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_raw.c": "http_server_raw",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_router.c": "http_server_router",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_router_tls.c": "http_server_router_tls",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_static.c": "http_server_static",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_tls_transport.c": "http_server_tls_tests",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_tls_transport_iocp.c": "http_server_tls_iocp_tests",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_tls_transport_uring.c": "http_server_tls_uring_tests",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_transport.c": "http_server",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_transport_iocp.c": "http_server_iocp_tests",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_transport_uring.c": "http_server_uring_tests",
+				"extlibs/xhttp-server/tests/single/test_single_http_server_upgrade.c": "http_server_upgrade",
+				"extlibs/xhttp-server/tests/single/test_single_http_sse_server.c": "http_sse_server",
+				"extlibs/xhttp-server/tests/single/test_single_http_static_file.c": "http_static_file",
+				"extlibs/xhttp-server/tests/single/test_single_http_static_multipart_body.c": "http_static_multipart_body",
+				"extlibs/xhttp-server/tests/single/test_single_http_static_path.c": "http_static_path",
+				"extlibs/xhttp-server/tests/single/test_single_http_static_plan.c": "http_static_plan",
+				"extlibs/xhttp-server/tests/single/test_single_http_static_response.c": "http_static_response",
+				"extlibs/xhttp-server/tests/single/test_single_xhttp_server.c": "xhttp_server"
+			}
+		}
+	],
+	"umbrella_header": "xhttp-server.h",
+	"dependency_manifests": [
+		"extlibs/xhttp/config/modules.json"
+	],
+	"api_macro": "XHTTP_SERVER_API",
+	"package_ownership": "separate"
+}

@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_PROXY_STATUS_H
 #define XRT_HTTP_PROXY_STATUS_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_structured.h>
 
 
@@ -85,26 +87,26 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化单个 Proxy-Status 字段值游标。 */
-XRT_API void xrtHttpProxyStatusCursorInit(
+XHTTP_API void xrtHttpProxyStatusCursorInit(
 	xhttpproxystatuscursor* pCursor
 );
 
 
 
 /* 初始化跨重复 Proxy-Status 字段行游标。 */
-XRT_API void xrtHttpProxyStatusFieldCursorInit(
+XHTTP_API void xrtHttpProxyStatusFieldCursorInit(
 	xhttpproxystatusfieldcursor* pCursor
 );
 
 
 
 /* 严格验证完整 Proxy-Status 字段值和每个代理标识。 */
-XRT_API bool xrtHttpProxyStatusValid(xstrview Value);
+XHTTP_API bool xrtHttpProxyStatusValid(xstrview Value);
 
 
 
 /* 迭代一个完整 Proxy-Status 字段值。 */
-XRT_API xhttpnext xrtHttpProxyStatusNext(
+XHTTP_API xhttpnext xrtHttpProxyStatusNext(
 	xstrview Value,
 	xhttpproxystatuscursor* pCursor,
 	xhttpproxystatus* pStatus
@@ -113,7 +115,7 @@ XRT_API xhttpnext xrtHttpProxyStatusNext(
 
 
 /* 按线路顺序跨越全部重复 Proxy-Status 字段行。 */
-XRT_API xhttpnext xrtHttpProxyStatusFieldNext(
+XHTTP_API xhttpnext xrtHttpProxyStatusFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpproxystatusfieldcursor* pCursor,
@@ -145,19 +147,19 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化 next-hop-aliases 列表游标。 */
-XRT_API void xrtHttpProxyAliasCursorInit(
+XHTTP_API void xrtHttpProxyAliasCursorInit(
 	xhttpproxyaliascursor* pCursor
 );
 
 
 
 /* 严格验证完整 RFC 9532 别名列表；空文本表示没有别名。 */
-XRT_API bool xrtHttpProxyAliasesValid(xstrview Aliases);
+XHTTP_API bool xrtHttpProxyAliasesValid(xstrview Aliases);
 
 
 
 /* 零拷贝迭代一个已编码别名，首次调用先验证完整列表。 */
-XRT_API xhttpnext xrtHttpProxyAliasNext(
+XHTTP_API xhttpnext xrtHttpProxyAliasNext(
 	xstrview Aliases,
 	xhttpproxyaliascursor* pCursor,
 	xstrview* pAlias
@@ -166,7 +168,7 @@ XRT_API xhttpnext xrtHttpProxyAliasNext(
 
 
 /* 百分号解码一个已编码别名；保留 RFC 9532 的反斜杠表示。 */
-XRT_API bool xrtHttpProxyAliasRead(
+XHTTP_API bool xrtHttpProxyAliasRead(
 	xstrview Alias,
 	void* pOutput,
 	size_t iCapacity,
@@ -188,7 +190,7 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 把一个 RFC 9532 展示形式名称写为百分号编码别名。 */
-XRT_API bool xrtHttpProxyAliasWrite(
+XHTTP_API bool xrtHttpProxyAliasWrite(
 	xstrview Alias,
 	void* pOutput,
 	size_t iCapacity,
@@ -198,7 +200,7 @@ XRT_API bool xrtHttpProxyAliasWrite(
 
 
 /* 把名称数组写为逗号分隔的 next-hop-aliases String 正文。 */
-XRT_API bool xrtHttpProxyAliasesWrite(
+XHTTP_API bool xrtHttpProxyAliasesWrite(
 	const xstrview* pAliases,
 	size_t iCount,
 	void* pOutput,
@@ -209,7 +211,7 @@ XRT_API bool xrtHttpProxyAliasesWrite(
 
 
 /* 构建零结尾别名列表；返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpProxyAliasesBuild(
+XHTTP_API str xrtHttpProxyAliasesBuild(
 	const xstrview* pAliases,
 	size_t iCount,
 	size_t* pSize
@@ -230,7 +232,7 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 规范写出一个 Proxy-Status 成员，适合追加独立字段行。 */
-XRT_API bool xrtHttpProxyStatusWrite(
+XHTTP_API bool xrtHttpProxyStatusWrite(
 	const xhttpstructureditemvalue* pStatus,
 	void* pOutput,
 	size_t iCapacity,

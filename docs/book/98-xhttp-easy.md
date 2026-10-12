@@ -8,6 +8,8 @@ lead: GetSync 一行的背后没有第二套实现——便利层如何透明继
 api: xhttp-http_client, xhttp-http_client_easy, net
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 卷九给了你 HTTP 的全部零件（解析、分帧、字段、解码）；卷十的 xhttp 把它们组装成**高层客户端**——本章从最薄的一层开始：**easy 便利层**。`xrtHttpClientGetSync(客户端, URL, NULL)` 一行完成请求-响应；关键是这一行的背后**没有隐藏 Engine、Client 或第二套请求实现**——它只创建临时请求交给 `xrtHttpClientDo()` 冻结，超时、取消、重定向、Cookie、缓存、代理、TLS、解压、诊断与错误链和底层入口完全一致。学完本章你得到的是"能用的最短路径"，以及一个判断力：什么时候该停在 easy 层、什么时候需要下沉到第 99 章的请求构建器。
@@ -61,11 +63,11 @@ easy 调用前的固定三步：`xrtNetEngineConfigInit/Create/Start`（Engine�
 
 下面的程序来自 `examples/http/client_easy`——三行核心的完整工具：
 
-```embed path="extlibs/xhttp/examples/http/client_easy/main.c" title="extlibs/xhttp/examples/http/client_easy/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_easy/main.c" title="extlibs/xhttp-client/examples/http/client_easy/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_easy/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_easy_future --exclude-test "*" --no-single --no-run
 usage: client_easy <http-url>
 ```
 
@@ -75,11 +77,11 @@ usage: client_easy <http-url>
 
 第二个程序来自 `examples/http/client_future`——同一套调用的异步面：
 
-```embed path="extlibs/xhttp/examples/http/client_future/main.c" title="extlibs/xhttp/examples/http/client_future/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_future/main.c" title="extlibs/xhttp-client/examples/http/client_future/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_future/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_future --exclude-test "*" --no-single --no-run
 usage: client_future <http-url>
 ```
 
@@ -93,7 +95,7 @@ usage: client_future <http-url>
 - **故意不接受**：Header/流式正文/表单/认证——下沉到构建器（第 99 章），无中间态。
 - **结果对象**：只读快照；`ResultResponse` 借响应、`ResponseBody` 借正文；最终有效 URL 含重定向落点；用完 `ResultDestroy`。
 - **启动期验证**：Client 创建即验静态配置，无效策略不延迟到首请求。
-- **裁剪**：`XHTTP_MODULE_HTTP_CLIENT_EASY`（回调）与 `_EASY_FUTURE`（Future/同步）独立。
+- **裁剪**：`XHTTP_CLIENT_MODULE_HTTP_CLIENT_EASY`（回调）与 `_EASY_FUTURE`（Future/同步）独立。
 - **装配纪律**：Engine 先启动；清理先 Client 后 Engine；Engine Destroy 自旋重试。
 
 ## 避坑

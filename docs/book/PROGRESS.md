@@ -373,7 +373,7 @@
 - 门禁拦下：ref 页名带 xhttp- 前缀（api 字段改 xhttp-*）、
   xrtHttpRequestSetMethodUrl 真名 SetMethod+SetUrl、xhttpclientredirectoptions
   实为 xhttpcalloptions 字段、xhttpcookiejar 真名 xcookiejar、
-  XURL_HAS_* 通配改具体、xrtFormData* 通配展开、XHTTP_MODULE_HTTP_CLIENT_EASY
+  XURL_HAS_* 通配改具体、xrtFormData* 通配展开、XHTTP_CLIENT_MODULE_HTTP_CLIENT_EASY
   等 17 个真宏（白名单扩展后放行）。
 - 行文章号修正 6 处（testing→117、perf→119）。
 

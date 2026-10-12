@@ -487,7 +487,7 @@ static bool __xrtMultipartLimitsResolve(
 
 
 /* 初始化适合一般 HTTP 表单与 MIME 内容的整包解析限制。 */
-XRT_API void xrtMultipartLimitsInit(
+XHTTP_API void xrtMultipartLimitsInit(
 	xmultipartlimits* pLimits
 )
 {
@@ -510,7 +510,7 @@ XRT_API void xrtMultipartLimitsInit(
 
 
 /* 校验并复制 MIME boundary。 */
-XRT_API bool xrtMultipartBoundaryParse(
+XHTTP_API bool xrtMultipartBoundaryParse(
 	xstrview Text,
 	xmultipartboundary* pBoundary
 )
@@ -553,7 +553,7 @@ XRT_API bool xrtMultipartBoundaryParse(
 
 
 /* 从 multipart Content-Type 解码并复制 boundary 参数。 */
-XRT_API bool xrtMultipartBoundaryFromContentType(
+XHTTP_API bool xrtMultipartBoundaryFromContentType(
 	xstrview ContentType,
 	xmultipartboundary* pBoundary
 )
@@ -610,7 +610,7 @@ XRT_API bool xrtMultipartBoundaryFromContentType(
 
 
 /* 返回借用边界结构的字符串视图。 */
-XRT_API xstrview xrtMultipartBoundaryView(
+XHTTP_API xstrview xrtMultipartBoundaryView(
 	const xmultipartboundary* pBoundary
 )
 {
@@ -631,7 +631,7 @@ XRT_API xstrview xrtMultipartBoundaryView(
 
 
 /* 读取完整 multipart 正文中的下一项。 */
-XRT_API xhttpnext xrtMultipartNext(
+XHTTP_API xhttpnext xrtMultipartNext(
 	xbytesview Body,
 	const xmultipartboundary* pBoundary,
 	size_t* pOffset,
@@ -778,7 +778,7 @@ static size_t __xrtMultipartDelimiterStart(
 
 
 /* 按限制验证完整 multipart 正文，并按标志决定是否接受零 Part。 */
-XRT_API bool xrtMultipartValidateCount(
+XHTTP_API bool xrtMultipartValidateCount(
 	xbytesview Body,
 	const xmultipartboundary* pBoundary,
 	const xmultipartlimits* pInputLimits,
@@ -942,7 +942,7 @@ XRT_API bool xrtMultipartValidateCount(
 
 
 /* 按限制严格验证至少包含一个 Part 的完整 multipart 正文。 */
-XRT_API bool xrtMultipartValidate(
+XHTTP_API bool xrtMultipartValidate(
 	xbytesview Body,
 	const xmultipartboundary* pBoundary,
 	const xmultipartlimits* pLimits,
@@ -964,7 +964,7 @@ XRT_API bool xrtMultipartValidate(
 
 
 /* 解析完整 multipart 正文到调用方数组，并保证容量失败不产生部分结果。 */
-XRT_API bool xrtMultipartParse(
+XHTTP_API bool xrtMultipartParse(
 	xbytesview Body,
 	const xmultipartboundary* pBoundary,
 	xmultipartpart* pParts,
@@ -1110,7 +1110,7 @@ XRT_API bool xrtMultipartParse(
 
 
 /* 验证 RFC 7578 form-data Part 的必要结构。 */
-XRT_API bool xrtMultipartFormPartValid(
+XHTTP_API bool xrtMultipartFormPartValid(
 	const xmultipartpart* pPart
 )
 {
@@ -1141,7 +1141,7 @@ XRT_API bool xrtMultipartFormPartValid(
 
 
 /* 读取 form-data 字段名。 */
-XRT_API bool xrtMultipartPartNameWrite(
+XHTTP_API bool xrtMultipartPartNameWrite(
 	const xmultipartpart* pPart,
 	void* pOutput,
 	size_t iCapacity,
@@ -1182,7 +1182,7 @@ XRT_API bool xrtMultipartPartNameWrite(
 
 
 /* 读取上传文件名。 */
-XRT_API bool xrtMultipartPartFileNameWrite(
+XHTTP_API bool xrtMultipartPartFileNameWrite(
 	const xmultipartpart* pPart,
 	void* pOutput,
 	size_t iCapacity,

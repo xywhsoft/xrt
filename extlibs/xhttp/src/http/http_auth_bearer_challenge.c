@@ -121,7 +121,7 @@ static bool __xrtHttpBearerScopeValid(const xhttpparam* pParam)
 	uint8 iByte;
 	bool bSpace = true;
 
-	while ( __xrtHttpParamSemanticNext(
+	while ( __xhttpParamSemanticNext(
 		pParam, &iOffset, &iByte
 	) ) {
 		if ( iByte == (uint8)' ' ) {
@@ -155,7 +155,7 @@ static bool __xrtHttpBearerErrorTextValid(
 	size_t iCount = 0;
 	uint8 iByte;
 
-	while ( __xrtHttpParamSemanticNext(
+	while ( __xhttpParamSemanticNext(
 		pParam, &iOffset, &iByte
 	) ) {
 		if ( !(((iByte >= UINT8_C(0x20)) &&
@@ -185,7 +185,7 @@ static bool __xrtHttpBearerUriCharactersValid(
 	bool bAbsolute = false;
 	bool bBoundary = false;
 
-	while ( __xrtHttpParamSemanticNext(
+	while ( __xhttpParamSemanticNext(
 		pParam, &iOffset, &iByte
 	) ) {
 		if ( (iByte == (uint8)'#') ||
@@ -273,7 +273,7 @@ static bool __xrtHttpBearerSizeAdd(
 )
 {
 	if ( *pSize > (SIZE_MAX - iAdd) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	*pSize += iAdd;
@@ -291,26 +291,26 @@ static bool __xrtHttpBearerReadOutputValid(
 	xhttpbearerchallenge* pChallenge
 )
 {
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pSize, sizeof(size_t)) ||
-		!__xrtRangeValid(pChallenge, sizeof(*pChallenge)) ||
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pSize, sizeof(size_t)) ||
+		!xrtMemRangeValid(pChallenge, sizeof(*pChallenge)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		((pOutput != NULL) && !__xrtRangeValid(
+		((pOutput != NULL) && !xrtMemRangeValid(
 			pOutput, iCapacity
-		)) || __xrtRangesOverlap(
+		)) || xrtMemRangesOverlap(
 			pSize, sizeof(size_t), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pChallenge, sizeof(*pChallenge), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(size_t), pChallenge, sizeof(*pChallenge)
-		) || ((pOutput != NULL) && (__xrtRangesOverlap(
+		) || ((pOutput != NULL) && (xrtMemRangesOverlap(
 			pOutput, iCapacity, Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(size_t)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity, pChallenge, sizeof(*pChallenge)
 		))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return true;
@@ -319,7 +319,7 @@ static bool __xrtHttpBearerReadOutputValid(
 
 
 /* 解析、验证并解码 Bearer challenge 的五个标准参数。 */
-XRT_API bool xrtHttpBearerChallengeRead(
+XHTTP_API bool xrtHttpBearerChallengeRead(
 	xstrview Value,
 	void* pOutput,
 	size_t iCapacity,
@@ -352,7 +352,7 @@ XRT_API bool xrtHttpBearerChallengeRead(
 	if ( !xrtHttpTokenEqual(
 			Auth.Scheme, XRT_STR_LITERAL("Bearer")
 		) || (Auth.Kind != XHTTP_AUTH_PARAMS) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	for ( ;; ) {
@@ -371,7 +371,7 @@ XRT_API bool xrtHttpBearerChallengeRead(
 		}
 		iFlag = __xrtHttpBearerFlags[iIndex];
 		if ( (Challenge.Flags & iFlag) != 0 ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		if ( !xrtHttpParamValueWrite(
@@ -386,7 +386,7 @@ XRT_API bool xrtHttpBearerChallengeRead(
 			return false;
 		}
 		if ( Check == XRT_HTTP_BEARER_CHECK_INVALID ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		if ( !__xrtHttpBearerSizeAdd(
@@ -402,13 +402,13 @@ XRT_API bool xrtHttpBearerChallengeRead(
 		memcpy(pChallenge, &Challenge, sizeof(Challenge));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pOutput, iRequired) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iOffset = 0;
@@ -419,7 +419,7 @@ XRT_API bool xrtHttpBearerChallengeRead(
 			__xrtHttpBearerFlags[iIndex]) == 0 ) {
 			continue;
 		}
-		iWritten = __xrtHttpParamValueWriteUnchecked(
+		iWritten = __xhttpParamValueWriteUnchecked(
 			&Parameters[iIndex], (bytes)pOutput + iOffset
 		);
 		__xrtHttpBearerValueSet(
@@ -455,37 +455,37 @@ static bool __xrtHttpBearerWriteMeasure(
 	size_t iCount = 0;
 	xstrview Value;
 
-	if ( !__xrtRangeValid(pInput, sizeof(*pInput)) ||
-		!__xrtRangeValid(pSize, sizeof(size_t)) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pInput, sizeof(*pInput)) ||
+		!xrtMemRangeValid(pSize, sizeof(size_t)) ||
+		xrtMemRangesOverlap(
 			pInput, sizeof(*pInput), pSize, sizeof(size_t)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pChallenge, pInput, sizeof(*pChallenge));
 	if ( ((pChallenge->Flags & ~XRT_HTTP_BEARER_VALID_FLAGS) != 0) ||
 		(pChallenge->Flags == 0) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	for ( iIndex = 0;
 		iIndex < XRT_HTTP_BEARER_PARAMETER_COUNT;
 		iIndex++ ) {
 		Value = __xrtHttpBearerValue(pChallenge, iIndex);
-		if ( !__xrtHttpViewValid(Value) ||
-			__xrtRangesOverlap(
+		if ( !__xhttpViewValid(Value) ||
+			xrtMemRangesOverlap(
 				pInput, sizeof(*pInput), Value.Data, Value.Size
-			) || __xrtRangesOverlap(
+			) || xrtMemRangesOverlap(
 				pSize, sizeof(size_t), Value.Data, Value.Size
 			) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 		if ( (pChallenge->Flags &
 			__xrtHttpBearerFlags[iIndex]) == 0 ) {
 			if ( Value.Size != 0 ) {
-				__xrtErrorSetInvalidArgument();
+				xrtSetErrorKind(XERR_ARGUMENT);
 				return false;
 			}
 			continue;
@@ -502,7 +502,7 @@ static bool __xrtHttpBearerWriteMeasure(
 			return false;
 		}
 		if ( Check == XRT_HTTP_BEARER_CHECK_INVALID ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		if ( !xrtHttpQuotedWrite(
@@ -525,7 +525,7 @@ static bool __xrtHttpBearerWriteMeasure(
 
 
 /* 按规范顺序写出 Bearer challenge 标准参数。 */
-XRT_API bool xrtHttpBearerChallengeWrite(
+XHTTP_API bool xrtHttpBearerChallengeWrite(
 	const xhttpbearerchallenge* pInput,
 	void* pOutput,
 	size_t iCapacity,
@@ -545,7 +545,7 @@ XRT_API bool xrtHttpBearerChallengeWrite(
 			pInput, &Challenge, &iRequired, pSize
 		) ) {
 		if ( (pOutput == NULL) && (iCapacity != 0) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 		}
 		return false;
 	}
@@ -553,13 +553,13 @@ XRT_API bool xrtHttpBearerChallengeWrite(
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, iRequired) ||
+		xrtMemRangesOverlap(
 			pOutput, iRequired, pInput, sizeof(*pInput)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iRequired, pSize, sizeof(size_t)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( iIndex = 0;
@@ -568,16 +568,16 @@ XRT_API bool xrtHttpBearerChallengeWrite(
 		Value = __xrtHttpBearerValue(&Challenge, iIndex);
 		if ( ((Challenge.Flags &
 			__xrtHttpBearerFlags[iIndex]) != 0) &&
-			__xrtRangesOverlap(
+			xrtMemRangesOverlap(
 				pOutput, iRequired, Value.Data, Value.Size
 			) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	memcpy(pWrite + iOffset, "Bearer ", 7u);
@@ -601,7 +601,7 @@ XRT_API bool xrtHttpBearerChallengeWrite(
 		iOffset += __xrtHttpBearerNames[iIndex].Size;
 		pWrite[iOffset++] = (uint8)'=';
 		Value = __xrtHttpBearerValue(&Challenge, iIndex);
-		iOffset += __xrtHttpQuotedWriteUnchecked(
+		iOffset += __xhttpQuotedWriteUnchecked(
 			Value, pWrite + iOffset
 		);
 		iCount++;

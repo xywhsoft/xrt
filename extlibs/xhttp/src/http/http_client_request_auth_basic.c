@@ -57,7 +57,7 @@ static bool __xrtHttpRequestSetBasicAuth(
 
 
 /* 设置源站 Basic 凭据。 */
-XRT_API bool xrtHttpRequestSetBasicAuth(
+XHTTP_API bool xrtHttpRequestSetBasicAuth(
 	xhttprequest* pRequest,
 	xstrview User,
 	xstrview Password
@@ -74,7 +74,7 @@ XRT_API bool xrtHttpRequestSetBasicAuth(
 
 
 /* 设置代理 Basic 凭据。 */
-XRT_API bool xrtHttpRequestSetProxyBasicAuth(
+XHTTP_API bool xrtHttpRequestSetProxyBasicAuth(
 	xhttprequest* pRequest,
 	xstrview User,
 	xstrview Password

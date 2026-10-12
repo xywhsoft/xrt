@@ -476,6 +476,18 @@ XRT_API xhttpnext xrtHttpTokenNext(
 	xstrview* pToken
 );
 
+/*
+	读取逗号分隔字段列表的一项，跳过空项和 OWS，保留 quoted-string 内逗号。
+	只划分成员边界；成员的具体语法由调用方验证。成功时推进 pNext。
+	输出可以未对齐，但不能相互覆盖或覆盖输入。
+*/
+XRT_API xhttpnext xrtHttpListNext(
+	xstrview Value,
+	size_t iOffset,
+	size_t* pNext,
+	xstrview* pElement
+);
+
 
 
 /* 判断完整 token-list 是否包含指定 token；非空元素语法错误仍返回 false 并设置错误。 */
@@ -686,6 +698,19 @@ XRT_API xhttpnext xrtHttpParamNext(
 	xstrview Parameters,
 	size_t* pOffset,
 	xhttpparam* pParam
+);
+
+/*
+	读取指定分隔符的 name/value 列表；分隔符仅支持分号或逗号。
+	bIgnoreEmpty 控制是否跳过空成员，其余校验与 ParamNext 相同。
+	用于扩展字段语法复用核心参数解析器。
+*/
+XRT_API xhttpnext xrtHttpNameValueNext(
+	xstrview Parameters,
+	size_t* pOffset,
+	xhttpparam* pParam,
+	char iSeparator,
+	bool bIgnoreEmpty
 );
 
 

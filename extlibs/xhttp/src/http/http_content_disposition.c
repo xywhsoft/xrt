@@ -77,7 +77,7 @@ static bool __xrtHttpContentDispositionInspect(
 
 
 /* 严格解析 Content-Disposition。 */
-XRT_API bool xrtHttpContentDispositionParse(
+XHTTP_API bool xrtHttpContentDispositionParse(
 	xstrview Text,
 	xcontentdisposition* pDisposition
 )
@@ -135,7 +135,7 @@ XRT_API bool xrtHttpContentDispositionParse(
 
 
 /* 查找 Content-Disposition 参数。 */
-XRT_API xhttpnext xrtHttpContentDispositionParam(
+XHTTP_API xhttpnext xrtHttpContentDispositionParam(
 	const xcontentdisposition* pDisposition,
 	xstrview Name,
 	xhttpparam* pParam
@@ -239,7 +239,7 @@ static bool __xrtHttpContentDispositionUtf8Valid(xstrview Encoded)
 
 
 /* 读取 Content-Disposition 的文件名字节。 */
-XRT_API bool xrtHttpContentDispositionFileNameWrite(
+XHTTP_API bool xrtHttpContentDispositionFileNameWrite(
 	const xcontentdisposition* pDisposition,
 	void* pOutput,
 	size_t iCapacity,
@@ -345,7 +345,7 @@ XRT_API bool xrtHttpContentDispositionFileNameWrite(
 
 
 /* 构建零结尾文件名字节。 */
-XRT_API str xrtHttpContentDispositionFileNameBuild(
+XHTTP_API str xrtHttpContentDispositionFileNameBuild(
 	const xcontentdisposition* pDisposition,
 	size_t* pSize
 )
@@ -378,7 +378,7 @@ XRT_API str xrtHttpContentDispositionFileNameBuild(
 
 
 /* 写出 Content-Disposition。 */
-XRT_API bool xrtHttpContentDispositionWrite(
+XHTTP_API bool xrtHttpContentDispositionWrite(
 	const xcontentdisposition* pDisposition,
 	void* pOutput,
 	size_t iCapacity,
@@ -491,7 +491,7 @@ static bool __xrtHttpContentDispositionWriteAdapter(
 
 
 /* 构建零结尾 Content-Disposition。 */
-XRT_API str xrtHttpContentDispositionBuild(
+XHTTP_API str xrtHttpContentDispositionBuild(
 	const xcontentdisposition* pDisposition,
 	size_t* pSize
 )

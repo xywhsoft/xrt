@@ -7,7 +7,7 @@
 #if defined(XHTTP_FEATURE_HTTP_AUTH_BEARER)
 
 /* 判断 Bearer token。 */
-XRT_API bool xrtHttpBearerTokenValid(xstrview Token)
+XHTTP_API bool xrtHttpBearerTokenValid(xstrview Token)
 {
 	return xrtHttpAuthToken68Valid(Token);
 }
@@ -15,18 +15,18 @@ XRT_API bool xrtHttpBearerTokenValid(xstrview Token)
 
 
 /* 写出完整 Bearer 字段值。 */
-XRT_API bool xrtHttpBearerWrite(
+XHTTP_API bool xrtHttpBearerWrite(
 	xstrview Token,
 	void* pOutput,
 	size_t iCapacity,
 	size_t* pSize
 )
 {
-	if ( !__xrtHttpViewValid(Token) ) {
+	if ( !__xhttpViewValid(Token) ) {
 		return false;
 	}
 	if ( !xrtHttpBearerTokenValid(Token) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return xrtHttpAuthWrite(
@@ -41,7 +41,7 @@ XRT_API bool xrtHttpBearerWrite(
 
 
 /* 解析完整 Bearer 字段值。 */
-XRT_API bool xrtHttpBearerRead(
+XHTTP_API bool xrtHttpBearerRead(
 	xstrview Value,
 	xstrview* pToken
 )
@@ -49,12 +49,12 @@ XRT_API bool xrtHttpBearerRead(
 	xhttpauth Auth;
 	xstrview Token = { NULL, 0 };
 
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pToken, sizeof(Token)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pToken, sizeof(Token)) ||
+		xrtMemRangesOverlap(
 			pToken, sizeof(Token), Value.Data, Value.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pToken, &Token, sizeof(Token));
@@ -64,7 +64,7 @@ XRT_API bool xrtHttpBearerRead(
 	if ( !xrtHttpTokenEqual(
 			Auth.Scheme, XRT_STR_LITERAL("Bearer")
 		) || (Auth.Kind != XHTTP_AUTH_TOKEN68) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	Token = Auth.Data;

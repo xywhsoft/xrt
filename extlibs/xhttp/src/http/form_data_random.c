@@ -5,7 +5,7 @@
 #if defined(XHTTP_FEATURE_FORM_DATA_RANDOM)
 
 /* 生成安全随机 boundary，并创建对应 multipart/form-data 正文。 */
-XRT_API xhttpbody* xrtFormDataBodyRandom(
+XHTTP_API xhttpbody* xrtFormDataBodyRandom(
 	const xformdata* pForm,
 	xmultipartboundary* pBoundary
 )

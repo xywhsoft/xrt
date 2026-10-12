@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_BODY_COMPOSE_H
 #define XRT_HTTP_BODY_COMPOSE_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_body.h>
 
 
@@ -40,12 +42,12 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_HTTP_BODY_COMPOSE)
 
 /* 构造一个创建组合正文时立即复制的字节片段描述。 */
-XRT_API xhttpbodypiece xrtHttpBodyPieceBytes(xbytesview Data);
+XHTTP_API xhttpbodypiece xrtHttpBodyPieceBytes(xbytesview Data);
 
 
 
 /* 构造一个创建组合正文时增加引用的子正文片段描述。 */
-XRT_API xhttpbodypiece xrtHttpBodyPieceBody(xhttpbody* pBody);
+XHTTP_API xhttpbodypiece xrtHttpBodyPieceBody(xhttpbody* pBody);
 
 
 
@@ -54,7 +56,7 @@ XRT_API xhttpbodypiece xrtHttpBodyPieceBody(xhttpbody* pBody);
 	字节在调用期间复制，子正文引用由返回对象持有，输入数组无需长期保存。
 	片段数组和非空字节范围必须有效、完整且地址计算不回绕。
 */
-XRT_API xhttpbody* xrtHttpBodyCompose(
+XHTTP_API xhttpbody* xrtHttpBodyCompose(
 	const xhttpbodypiece* pPieces,
 	size_t iCount
 );

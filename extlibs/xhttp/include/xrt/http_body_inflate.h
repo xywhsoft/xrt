@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_BODY_INFLATE_H
 #define XRT_HTTP_BODY_INFLATE_H
 
+#include <xhttp/export.h>
+
 #include <xrt/compress.h>
 #include <xrt/http_body.h>
 
@@ -52,7 +54,7 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_HTTP_BODY_INFLATE)
 
 /* 初始化 HTTP deflate、64 MiB 输出与队列上限和 32 KiB 推进粒度。 */
-XRT_API void xrtHttpBodyInflateConfigInit(
+XHTTP_API void xrtHttpBodyInflateConfigInit(
 	xhttpbodyinflateconfig* pConfig
 );
 
@@ -62,7 +64,7 @@ XRT_API void xrtHttpBodyInflateConfigInit(
 	创建流式解压正文，并持有 Source 的独立引用。
 	结果长度始终未知；可重放能力与 Source 相同。
 */
-XRT_API xhttpbody* xrtHttpBodyInflate(
+XHTTP_API xhttpbody* xrtHttpBodyInflate(
 	xhttpbody* pSource,
 	const xhttpbodyinflateconfig* pConfig
 );

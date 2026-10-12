@@ -8,6 +8,8 @@ lead: 零分配的 query 遍历（区分缺失值与空值）、拥有型 QueryP
 api: xhttp-query, xhttp-query_params, xhttp-form, xhttp-form_data
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 URL 的 query 串与 HTTP 表单是两套相近但不相同的键值语法，xhttp 给了两层工具。**零分配层**（`query` 模块）：`xrtQueryNext` 直接在原始串上遍历——`xquerypair` 的 `XQUERY_HAS_VALUE` 精确区分 `a`（无值）、`a=`（空值）、`=v`（空 key）；`xrtQueryFind/Count/Validate` 同族；启用 `query_codec` 后加 percent 编解码。**拥有型层**（`query_params` 模块）：`xqueryparams` 容器解析、改写（`Set` 保位去重/`Append` 追加/`Sort` 稳定排序/`Compact` 紧凑）、重建——"改一个参数再拼回去"的标准路径。表单侧两形态：`application/x-www-form-urlencoded`（同一语法 + `+` 空格语义）与 `multipart/form-data`（第 92 章 quoted-string 的实战场）。raw 与拥有型两层与第 89/92 章的分层完全同构——先看语法层再谈容器。
@@ -61,7 +63,7 @@ API 客户端的高频操作：翻页（`page=2` 改成 `page=3`）、加过滤�
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/query/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite query --exclude-test "*" --no-single --no-run
 tag = c
 tag = xlang
 debug = <missing>
@@ -78,7 +80,7 @@ empty =
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/query_params/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite query_params --exclude-test "*" --no-single --no-run
 page=2&tag=c&tag=network&tag=xlang
 ```
 

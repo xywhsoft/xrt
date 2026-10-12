@@ -8762,3 +8762,73 @@ bool xrtNetProxyDialStats(
 ## 模块契约：线程
 
 解析、编码与字段表 API 为无共享状态的纯函数或单拥有者对象，可任意线程并发调用（不同对象间）；同一对象（连接、字段表）由使用它的执行流独占。
+
+### `xrtHttpListNext`
+
+复用核心的带引号逗号列表扫描器，返回借用的成员范围。空成员被跳过，带引号的逗号不会分隔成员；调用方仍需验证具体字段的成员语法。
+
+```c
+xhttpnext xrtHttpListNext(
+    xstrview Value,
+    size_t iOffset,
+    size_t* pNext,
+    xstrview* pElement
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| `Value` | 输入 | 完整视图 | 列表文本，结果借用此存储 |
+| `iOffset` | 输入 | 不大于 Value.Size | 当前游标 |
+| `pNext` | 输出 | 完整、可未对齐 | 接收下一游标 |
+| `pElement` | 输出 | 完整、可未对齐 | 接收去掉两端 OWS 的成员 |
+
+#### 返回值
+
+ITEM 表示成员，END 表示结束；ERROR 时输出保持不变。成功与结束发布游标和视图，不分配、不转移输入所有权。
+
+#### 错误
+
+范围无效、输出彼此重叠或覆盖输入为 XERR_ARGUMENT。具体成员的参数/转义语法由调用方的字段解析器验证。
+
+#### 范例
+
+[参数迭代示例](../../examples/http/param/main.c) 展示借用视图和游标的使用方式；逗号字段由扩展在此扫描器上解析。
+
+### `xrtHttpNameValueNext`
+
+读取分号或逗号分隔的 name/value，复用 ParamNext 的严格验证和未对齐输出处理。
+
+```c
+xhttpnext xrtHttpNameValueNext(
+    xstrview Parameters,
+    size_t* pOffset,
+    xhttpparam* pParam,
+    char iSeparator,
+    bool bIgnoreEmpty
+);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| `Parameters` | 输入 | 借用 | 参数文本 |
+| `pOffset` | 输入/输出 | 完整、可未对齐 | 初始为零 |
+| `pParam` | 输出 | 完整、可未对齐 | 名称、值及标志，文本借用输入 |
+| `iSeparator` | 输入 | ';' 或 ',' | 分隔符 |
+| `bIgnoreEmpty` | 输入 | bool | 是否跳过空成员 |
+
+#### 返回值
+
+ITEM、END、ERROR 的含义与 ParamNext 相同。不分配、不转移所有权。语法错误不推进游标并清空结果；参数错误及不支持的分隔符不写入输出。
+
+#### 错误
+
+无效范围、别名或分隔符为 XERR_ARGUMENT；非法名称、引号或参数结构为 XERR_VALUE。
+
+#### 范例
+
+[参数迭代示例](../../examples/http/param/main.c)；以分号和 false 调用等价于 xrtHttpParamNext。

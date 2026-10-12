@@ -27,7 +27,7 @@ static bool __xrtQueryParamsAddSize(
 )
 {
 	if ( (pResult == NULL) || (iLeft > (SIZE_MAX - iRight)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	*pResult = iLeft + iRight;
@@ -50,7 +50,7 @@ static bool __xrtQueryParamsConfigResolve(
 		(pConfig->InitialBytes > pConfig->MaxBytes) ||
 		(pConfig->MaxPairs > (SIZE_MAX / sizeof(xquerypair))) ||
 		((pConfig->Flags & ~XQUERY_PARAMS_LENIENT_PERCENT) != 0) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return true;
@@ -71,12 +71,12 @@ static bool __xrtQueryParamsPairValid(
 		((Pair.Flags & ~XQUERY_HAS_VALUE) != 0) ||
 		(((Pair.Flags & XQUERY_HAS_VALUE) == 0) &&
 		 ((Pair.Value.Size != 0) || (Pair.Key.Size == 0))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( (Pair.Key.Size > pParams->Config.MaxName) ||
 		(Pair.Value.Size > pParams->Config.MaxValue) ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( !__xrtQueryParamsAddSize(
@@ -85,7 +85,7 @@ static bool __xrtQueryParamsPairValid(
 		return false;
 	}
 	if ( *pBytes > pParams->Config.MaxBytes ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	return true;
@@ -100,7 +100,7 @@ static bool __xrtQueryParamsNameValid(
 )
 {
 	if ( (pParams == NULL) || !__xrtQueryViewValid(Name) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return true;
@@ -129,7 +129,7 @@ static bool __xrtQueryParamsAliases(
 {
 	return (pParams->Storage != NULL) &&
 		(Text.Data != NULL) && (Text.Size != 0) &&
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pParams->Storage, pParams->StorageUsed,
 			Text.Data, Text.Size
 		);
@@ -193,7 +193,7 @@ static bool __xrtQueryParamsReservePairs(
 	}
 	if ( (iRequired > pParams->Config.MaxPairs) ||
 		(iRequired > (SIZE_MAX / sizeof(*pPairs))) ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iCapacity = pParams->PairCapacity != 0 ?
@@ -241,7 +241,7 @@ static bool __xrtQueryParamsReserveStorage(
 		return true;
 	}
 	if ( iRequired > pParams->Config.MaxBytes ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iCapacity = pParams->StorageCapacity != 0 ?
@@ -303,7 +303,7 @@ static bool __xrtQueryParamsPrepare(
 
 	if ( (iPairs > pParams->Config.MaxPairs) ||
 		(iBytes > pParams->Config.MaxBytes) ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( iAppendBytes >
@@ -466,7 +466,7 @@ static bool __xrtQueryParamsDecodedSize(
 				i += 2u;
 			} else if ( !bLenient ) {
 				*pError = i;
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 		}
@@ -687,10 +687,10 @@ static bool __xrtQueryParamsMeasure(
 
 
 /* 初始化拥有型 QueryParams 的默认容量和安全限额。 */
-XRT_API void xrtQueryParamsConfigInit(xqueryparamsconfig* pConfig)
+XHTTP_API void xrtQueryParamsConfigInit(xqueryparamsconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	pConfig->InitialPairs = 8;
@@ -705,7 +705,7 @@ XRT_API void xrtQueryParamsConfigInit(xqueryparamsconfig* pConfig)
 
 
 /* 创建拥有型 QueryParams 容器。 */
-XRT_API xqueryparams* xrtQueryParamsCreate(
+XHTTP_API xqueryparams* xrtQueryParamsCreate(
 	const xqueryparamsconfig* pConfig
 )
 {
@@ -732,7 +732,7 @@ XRT_API xqueryparams* xrtQueryParamsCreate(
 
 
 /* 解析 form-urlencoded 文本并创建拥有型容器。 */
-XRT_API xqueryparams* xrtQueryParamsParse(
+XHTTP_API xqueryparams* xrtQueryParamsParse(
 	xstrview Text,
 	const xqueryparamsconfig* pConfig,
 	size_t* pErrorOffset
@@ -742,7 +742,7 @@ XRT_API xqueryparams* xrtQueryParamsParse(
 	size_t iError;
 
 	if ( !__xrtQueryViewValid(Text) ||
-		((pErrorOffset != NULL) && __xrtRangesOverlap(
+		((pErrorOffset != NULL) && xrtMemRangesOverlap(
 			pErrorOffset, sizeof(*pErrorOffset),
 			Text.Data, Text.Size
 		)) ) {
@@ -768,7 +768,7 @@ XRT_API xqueryparams* xrtQueryParamsParse(
 
 
 /* 深复制一个 QueryParams 容器。 */
-XRT_API xqueryparams* xrtQueryParamsClone(
+XHTTP_API xqueryparams* xrtQueryParamsClone(
 	const xqueryparams* pParams
 )
 {
@@ -776,7 +776,7 @@ XRT_API xqueryparams* xrtQueryParamsClone(
 	size_t i;
 
 	if ( pParams == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	pClone = xrtQueryParamsCreate(&pParams->Config);
@@ -803,7 +803,7 @@ XRT_API xqueryparams* xrtQueryParamsClone(
 
 
 /* 销毁 QueryParams 的全部资产。 */
-XRT_API void xrtQueryParamsDestroy(xqueryparams* pParams)
+XHTTP_API void xrtQueryParamsDestroy(xqueryparams* pParams)
 {
 	if ( pParams == NULL ) {
 		return;
@@ -817,10 +817,10 @@ XRT_API void xrtQueryParamsDestroy(xqueryparams* pParams)
 
 
 /* 清空逻辑内容并保留容量。 */
-XRT_API void xrtQueryParamsClear(xqueryparams* pParams)
+XHTTP_API void xrtQueryParamsClear(xqueryparams* pParams)
 {
 	if ( pParams == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	pParams->Count = 0;
@@ -832,7 +832,7 @@ XRT_API void xrtQueryParamsClear(xqueryparams* pParams)
 
 
 /* 预留指定逻辑 pair 与有效字节容量。 */
-XRT_API bool xrtQueryParamsReserve(
+XHTTP_API bool xrtQueryParamsReserve(
 	xqueryparams* pParams,
 	size_t iPairs,
 	size_t iBytes
@@ -842,12 +842,12 @@ XRT_API bool xrtQueryParamsReserve(
 	size_t iPhysical;
 
 	if ( pParams == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( (iPairs > pParams->Config.MaxPairs) ||
 		(iBytes > pParams->Config.MaxBytes) ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iAdditional = iBytes > pParams->Bytes ?
@@ -870,7 +870,7 @@ XRT_API bool xrtQueryParamsReserve(
 
 
 /* 返回当前 pair 数量。 */
-XRT_API size_t xrtQueryParamsCount(const xqueryparams* pParams)
+XHTTP_API size_t xrtQueryParamsCount(const xqueryparams* pParams)
 {
 	return pParams != NULL ? pParams->Count : 0;
 }
@@ -878,7 +878,7 @@ XRT_API size_t xrtQueryParamsCount(const xqueryparams* pParams)
 
 
 /* 返回当前有效名称和值字节数。 */
-XRT_API size_t xrtQueryParamsBytes(const xqueryparams* pParams)
+XHTTP_API size_t xrtQueryParamsBytes(const xqueryparams* pParams)
 {
 	return pParams != NULL ? pParams->Bytes : 0;
 }
@@ -886,7 +886,7 @@ XRT_API size_t xrtQueryParamsBytes(const xqueryparams* pParams)
 
 
 /* 追加一个拥有型 pair 并保留值存在状态。 */
-XRT_API bool xrtQueryParamsAppendPair(
+XHTTP_API bool xrtQueryParamsAppendPair(
 	xqueryparams* pParams,
 	xquerypair Pair
 )
@@ -925,7 +925,7 @@ XRT_API bool xrtQueryParamsAppendPair(
 
 
 /* 追加一个始终带值的常用 pair。 */
-XRT_API bool xrtQueryParamsAppend(
+XHTTP_API bool xrtQueryParamsAppend(
 	xqueryparams* pParams,
 	xstrview Name,
 	xstrview Value
@@ -939,7 +939,7 @@ XRT_API bool xrtQueryParamsAppend(
 
 
 /* 替换全部同名 pair，并把新值放在首个同名位置。 */
-XRT_API bool xrtQueryParamsSetPair(
+XHTTP_API bool xrtQueryParamsSetPair(
 	xqueryparams* pParams,
 	xquerypair Pair
 )
@@ -1012,7 +1012,7 @@ XRT_API bool xrtQueryParamsSetPair(
 
 
 /* 用一个始终带值的常用 pair 替换同名项。 */
-XRT_API bool xrtQueryParamsSet(
+XHTTP_API bool xrtQueryParamsSet(
 	xqueryparams* pParams,
 	xstrview Name,
 	xstrview Value
@@ -1026,7 +1026,7 @@ XRT_API bool xrtQueryParamsSet(
 
 
 /* 删除全部同名 pair 并保留其他项顺序。 */
-XRT_API size_t xrtQueryParamsRemove(
+XHTTP_API size_t xrtQueryParamsRemove(
 	xqueryparams* pParams,
 	xstrview Name
 )
@@ -1062,7 +1062,7 @@ XRT_API size_t xrtQueryParamsRemove(
 
 
 /* 统计全部同名 pair。 */
-XRT_API size_t xrtQueryParamsCountName(
+XHTTP_API size_t xrtQueryParamsCountName(
 	const xqueryparams* pParams,
 	xstrview Name
 )
@@ -1086,7 +1086,7 @@ XRT_API size_t xrtQueryParamsCountName(
 
 
 /* 判断是否存在同名 pair。 */
-XRT_API bool xrtQueryParamsHas(
+XHTTP_API bool xrtQueryParamsHas(
 	const xqueryparams* pParams,
 	xstrview Name
 )
@@ -1097,24 +1097,24 @@ XRT_API bool xrtQueryParamsHas(
 
 
 /* 复制指定位置的借用 pair。 */
-XRT_API bool xrtQueryParamsAt(
+XHTTP_API bool xrtQueryParamsAt(
 	const xqueryparams* pParams,
 	size_t iIndex,
 	xquerypair* pPair
 )
 {
 	if ( (pParams == NULL) || (pPair == NULL) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pPair, sizeof(*pPair), pParams, sizeof(*pParams)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pPair, sizeof(*pPair),
 			pParams->Pairs,
 			pParams->Count * sizeof(*pParams->Pairs)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pPair, sizeof(*pPair),
 			pParams->Storage, pParams->StorageUsed
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iIndex >= pParams->Count ) {
@@ -1127,7 +1127,7 @@ XRT_API bool xrtQueryParamsAt(
 
 
 /* 复制首个同名 pair。 */
-XRT_API bool xrtQueryParamsGet(
+XHTTP_API bool xrtQueryParamsGet(
 	const xqueryparams* pParams,
 	xstrview Name,
 	xquerypair* pPair
@@ -1147,7 +1147,7 @@ XRT_API bool xrtQueryParamsGet(
 
 
 /* 从 Index 开始查找下一个同名 pair。 */
-XRT_API xquerynext xrtQueryParamsFind(
+XHTTP_API xquerynext xrtQueryParamsFind(
 	const xqueryparams* pParams,
 	xstrview Name,
 	size_t* pIndex,
@@ -1159,28 +1159,28 @@ XRT_API xquerynext xrtQueryParamsFind(
 	if ( !__xrtQueryParamsNameValid(pParams, Name) ||
 		(pIndex == NULL) || (pPair == NULL) ||
 		((pIndex != NULL) && (*pIndex > pParams->Count)) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pIndex, sizeof(*pIndex), pPair, sizeof(*pPair)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pIndex, sizeof(*pIndex), pParams, sizeof(*pParams)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pPair, sizeof(*pPair), pParams, sizeof(*pParams)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pIndex, sizeof(*pIndex),
 			pParams->Pairs,
 			pParams->Count * sizeof(*pParams->Pairs)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pPair, sizeof(*pPair),
 			pParams->Pairs,
 			pParams->Count * sizeof(*pParams->Pairs)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pIndex, sizeof(*pIndex),
 			pParams->Storage, pParams->StorageUsed
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pPair, sizeof(*pPair),
 			pParams->Storage, pParams->StorageUsed
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XQUERY_NEXT_ERROR;
 	}
 	for ( i = *pIndex; i < pParams->Count; i++ ) {
@@ -1199,7 +1199,7 @@ XRT_API xquerynext xrtQueryParamsFind(
 
 
 /* 原子解析并追加一段 form-urlencoded 文本。 */
-XRT_API bool xrtQueryParamsParseAppend(
+XHTTP_API bool xrtQueryParamsParseAppend(
 	xqueryparams* pParams,
 	xstrview Text,
 	size_t* pErrorOffset
@@ -1210,21 +1210,21 @@ XRT_API bool xrtQueryParamsParseAppend(
 
 	if ( (pParams == NULL) ||
 		!__xrtQueryViewValid(Text) ||
-		((pErrorOffset != NULL) && __xrtRangesOverlap(
+		((pErrorOffset != NULL) && xrtMemRangesOverlap(
 			pErrorOffset, sizeof(*pErrorOffset),
 			Text.Data, Text.Size
-		)) || ((pErrorOffset != NULL) && __xrtRangesOverlap(
+		)) || ((pErrorOffset != NULL) && xrtMemRangesOverlap(
 			pErrorOffset, sizeof(*pErrorOffset),
 			pParams, sizeof(*pParams)
-		)) || ((pErrorOffset != NULL) && __xrtRangesOverlap(
+		)) || ((pErrorOffset != NULL) && xrtMemRangesOverlap(
 			pErrorOffset, sizeof(*pErrorOffset),
 			pParams->Pairs,
 			pParams->Count * sizeof(*pParams->Pairs)
-		)) || ((pErrorOffset != NULL) && __xrtRangesOverlap(
+		)) || ((pErrorOffset != NULL) && xrtMemRangesOverlap(
 			pErrorOffset, sizeof(*pErrorOffset),
 			pParams->Storage, pParams->StorageUsed
 		)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	pWork = xrtQueryParamsClone(pParams);
@@ -1249,7 +1249,7 @@ XRT_API bool xrtQueryParamsParseAppend(
 
 
 /* 按名称执行稳定自底向上归并排序。 */
-XRT_API bool xrtQueryParamsSort(xqueryparams* pParams)
+XHTTP_API bool xrtQueryParamsSort(xqueryparams* pParams)
 {
 	xquerypair* pTemporary;
 	xquerypair* pSource;
@@ -1257,7 +1257,7 @@ XRT_API bool xrtQueryParamsSort(xqueryparams* pParams)
 	size_t iWidth;
 
 	if ( pParams == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pParams->Count < 2u ) {
@@ -1337,14 +1337,14 @@ XRT_API bool xrtQueryParamsSort(xqueryparams* pParams)
 
 
 /* 把全部有效名称和值重新打包为紧凑字符串区。 */
-XRT_API bool xrtQueryParamsCompact(xqueryparams* pParams)
+XHTTP_API bool xrtQueryParamsCompact(xqueryparams* pParams)
 {
 	bytes pStorage;
 	size_t iUsed = 0;
 	size_t i;
 
 	if ( pParams == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pParams->StoredBytes == 0 ) {
@@ -1397,7 +1397,7 @@ XRT_API bool xrtQueryParamsCompact(xqueryparams* pParams)
 
 
 /* 写出 form-urlencoded 文本并保持全部失败路径原子。 */
-XRT_API bool xrtQueryParamsWrite(
+XHTTP_API bool xrtQueryParamsWrite(
 	const xqueryparams* pParams,
 	void* pOutput,
 	size_t iCapacity,
@@ -1412,30 +1412,30 @@ XRT_API bool xrtQueryParamsWrite(
 
 	if ( (pParams == NULL) || (pSize == NULL) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), pParams, sizeof(*pParams)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(*pSize),
 			pParams->Pairs,
 			pParams->Count * sizeof(*pParams->Pairs)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(*pSize),
 			pParams->Storage, pParams->StorageUsed
 		) || ((pOutput != NULL) && (
-			__xrtRangesOverlap(
+			xrtMemRangesOverlap(
 				pOutput, iCapacity, pParams, sizeof(*pParams)
-			) || __xrtRangesOverlap(
+			) || xrtMemRangesOverlap(
 				pOutput, iCapacity,
 				pParams->Pairs,
 				pParams->Count * sizeof(*pParams->Pairs)
-			) || __xrtRangesOverlap(
+			) || xrtMemRangesOverlap(
 				pOutput, iCapacity,
 				pParams->Storage, pParams->StorageUsed
-			) || __xrtRangesOverlap(
+			) || xrtMemRangesOverlap(
 				pOutput, iCapacity, pSize, sizeof(*pSize)
 			)
 		)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtFormSafeMap(&Safe) ) {
@@ -1452,7 +1452,7 @@ XRT_API bool xrtQueryParamsWrite(
 	}
 	if ( iCapacity < iRequired ) {
 		*pSize = iRequired;
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	for ( i = 0; i < pParams->Count; i++ ) {
@@ -1487,7 +1487,7 @@ XRT_API bool xrtQueryParamsWrite(
 
 
 /* 分配并构建零结尾 form-urlencoded 文本。 */
-XRT_API str xrtQueryParamsBuild(
+XHTTP_API str xrtQueryParamsBuild(
 	const xqueryparams* pParams,
 	size_t* pSize
 )
@@ -1497,18 +1497,18 @@ XRT_API str xrtQueryParamsBuild(
 	size_t iWritten;
 
 	if ( (pParams == NULL) || ((pSize != NULL) && (
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), pParams, sizeof(*pParams)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(*pSize),
 			pParams->Pairs,
 			pParams->Count * sizeof(*pParams->Pairs)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(*pSize),
 			pParams->Storage, pParams->StorageUsed
 		)
 	)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtQueryParamsWrite(
@@ -1517,7 +1517,7 @@ XRT_API str xrtQueryParamsBuild(
 		return NULL;
 	}
 	if ( iRequired == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	sText = (str)xrtMalloc(iRequired + 1u);

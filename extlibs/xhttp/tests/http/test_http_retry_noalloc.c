@@ -4,7 +4,7 @@
 
 
 
-/* 验证解析、字段读取和退避计算在失败分配器下仍可完成。 */
+/* 验证解析和字段读取在失败分配器下仍可完成。 */
 int main(void)
 {
 	static const xhttpfield Fields[] = {
@@ -33,9 +33,7 @@ int main(void)
 		(iDelay == UINT64_C(1000)) &&
 		xrtHttpRetryAfterWrite(
 			&Retry, Text, sizeof(Text), &iSize
-		) && (iSize == 29u) &&
-		xrtHttpRetryBackoff(1000, 8000, 3, &iDelay) &&
-		(iDelay == UINT64_C(8000)),
+		) && (iSize == 29u),
 		"HTTP retry protocol allocated memory"
 	);
 	puts("[PASS] http_retry_noalloc");

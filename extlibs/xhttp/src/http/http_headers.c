@@ -94,7 +94,7 @@ static bool __xrtHttpHeadersStorageLimit(
 
 
 /* 验证 Header 容器的逻辑容量和物理字符串区上限。 */
-XRT_API bool xrtHttpHeadersConfigValid(
+XHTTP_API bool xrtHttpHeadersConfigValid(
 	const xhttpheadersconfig* pConfig
 )
 {
@@ -722,7 +722,7 @@ static bool __xrtHttpHeadersParseInto(
 
 
 /* 初始化动态 Header 的默认容量与安全上限。 */
-XRT_API void xrtHttpHeadersConfigInit(xhttpheadersconfig* pConfig)
+XHTTP_API void xrtHttpHeadersConfigInit(xhttpheadersconfig* pConfig)
 {
 	xhttpheadersconfig Config;
 
@@ -746,7 +746,7 @@ XRT_API void xrtHttpHeadersConfigInit(xhttpheadersconfig* pConfig)
 
 
 /* 创建拥有字段内容的动态 Header 容器。 */
-XRT_API xhttpheaders* xrtHttpHeadersCreate(
+XHTTP_API xhttpheaders* xrtHttpHeadersCreate(
 	const xhttpheadersconfig* pConfig
 )
 {
@@ -773,7 +773,7 @@ XRT_API xhttpheaders* xrtHttpHeadersCreate(
 
 
 /* 释放动态 Header 的字段、字符串区和对象本身。 */
-XRT_API void xrtHttpHeadersDestroy(xhttpheaders* pHeaders)
+XHTTP_API void xrtHttpHeadersDestroy(xhttpheaders* pHeaders)
 {
 	if ( pHeaders == NULL ) {
 		return;
@@ -787,7 +787,7 @@ XRT_API void xrtHttpHeadersDestroy(xhttpheaders* pHeaders)
 
 
 /* 清空逻辑内容并保留容量供下一条消息复用。 */
-XRT_API void xrtHttpHeadersClear(xhttpheaders* pHeaders)
+XHTTP_API void xrtHttpHeadersClear(xhttpheaders* pHeaders)
 {
 	if ( pHeaders == NULL ) {
 		__xhttpErrorSetInvalidArgument();
@@ -802,7 +802,7 @@ XRT_API void xrtHttpHeadersClear(xhttpheaders* pHeaders)
 
 
 /* 预留字段数组与有效内容对应的字符串区。 */
-XRT_API bool xrtHttpHeadersReserve(
+XHTTP_API bool xrtHttpHeadersReserve(
 	xhttpheaders* pHeaders,
 	size_t iFields,
 	size_t iBytes
@@ -833,7 +833,7 @@ XRT_API bool xrtHttpHeadersReserve(
 
 
 /* 把所有有效字符串复制到紧凑的新存储。 */
-XRT_API bool xrtHttpHeadersCompact(xhttpheaders* pHeaders)
+XHTTP_API bool xrtHttpHeadersCompact(xhttpheaders* pHeaders)
 {
 	if ( pHeaders == NULL ) {
 		__xhttpErrorSetInvalidArgument();
@@ -854,7 +854,7 @@ XRT_API bool xrtHttpHeadersCompact(xhttpheaders* pHeaders)
 
 
 /* 返回容器中的字段数量。 */
-XRT_API size_t xrtHttpHeadersCount(const xhttpheaders* pHeaders)
+XHTTP_API size_t xrtHttpHeadersCount(const xhttpheaders* pHeaders)
 {
 	if ( pHeaders == NULL ) {
 		__xhttpErrorSetInvalidArgument();
@@ -866,7 +866,7 @@ XRT_API size_t xrtHttpHeadersCount(const xhttpheaders* pHeaders)
 
 
 /* 返回全部有效名称和值的总字节数。 */
-XRT_API size_t xrtHttpHeadersBytes(const xhttpheaders* pHeaders)
+XHTTP_API size_t xrtHttpHeadersBytes(const xhttpheaders* pHeaders)
 {
 	if ( pHeaders == NULL ) {
 		__xhttpErrorSetInvalidArgument();
@@ -878,7 +878,7 @@ XRT_API size_t xrtHttpHeadersBytes(const xhttpheaders* pHeaders)
 
 
 /* 返回便于直接遍历和协议写出的连续字段数组。 */
-XRT_API const xhttpfield* xrtHttpHeadersData(
+XHTTP_API const xhttpfield* xrtHttpHeadersData(
 	const xhttpheaders* pHeaders
 )
 {
@@ -892,7 +892,7 @@ XRT_API const xhttpfield* xrtHttpHeadersData(
 
 
 /* 返回指定位置的借用字段。 */
-XRT_API const xhttpfield* xrtHttpHeadersAt(
+XHTTP_API const xhttpfield* xrtHttpHeadersAt(
 	const xhttpheaders* pHeaders,
 	size_t iIndex
 )
@@ -910,7 +910,7 @@ XRT_API const xhttpfield* xrtHttpHeadersAt(
 
 
 /* 追加允许重名且拥有内容副本的新字段。 */
-XRT_API bool xrtHttpHeadersAdd(
+XHTTP_API bool xrtHttpHeadersAdd(
 	xhttpheaders* pHeaders,
 	xstrview Name,
 	xstrview Value
@@ -964,7 +964,7 @@ XRT_API bool xrtHttpHeadersAdd(
 
 
 /* 替换首个同名位置并折叠其余同名字段。 */
-XRT_API bool xrtHttpHeadersSet(
+XHTTP_API bool xrtHttpHeadersSet(
 	xhttpheaders* pHeaders,
 	xstrview Name,
 	xstrview Value
@@ -1086,7 +1086,7 @@ XRT_API bool xrtHttpHeadersSet(
 
 
 /* 删除全部同名字段并压紧字段数组。 */
-XRT_API size_t xrtHttpHeadersRemove(
+XHTTP_API size_t xrtHttpHeadersRemove(
 	xhttpheaders* pHeaders,
 	xstrview Name
 )
@@ -1123,7 +1123,7 @@ XRT_API size_t xrtHttpHeadersRemove(
 
 
 /* 判断容器是否包含指定字段名。 */
-XRT_API bool xrtHttpHeadersHas(
+XHTTP_API bool xrtHttpHeadersHas(
 	const xhttpheaders* pHeaders,
 	xstrview Name
 )
@@ -1134,7 +1134,7 @@ XRT_API bool xrtHttpHeadersHas(
 
 
 /* 统计容器中的同名字段。 */
-XRT_API size_t xrtHttpHeadersCountName(
+XHTTP_API size_t xrtHttpHeadersCountName(
 	const xhttpheaders* pHeaders,
 	xstrview Name
 )
@@ -1148,7 +1148,7 @@ XRT_API size_t xrtHttpHeadersCountName(
 
 
 /* 返回第一个同名借用字段。 */
-XRT_API const xhttpfield* xrtHttpHeadersGet(
+XHTTP_API const xhttpfield* xrtHttpHeadersGet(
 	const xhttpheaders* pHeaders,
 	xstrview Name
 )
@@ -1159,7 +1159,7 @@ XRT_API const xhttpfield* xrtHttpHeadersGet(
 
 
 /* 返回唯一同名借用字段，并把重复字段作为值错误报告。 */
-XRT_API xhttpnext xrtHttpHeadersGetUnique(
+XHTTP_API xhttpnext xrtHttpHeadersGetUnique(
 	const xhttpheaders* pHeaders,
 	xstrview Name,
 	const xhttpfield** ppField
@@ -1191,7 +1191,7 @@ XRT_API xhttpnext xrtHttpHeadersGetUnique(
 
 
 /* 返回第 N 个同名借用字段。 */
-XRT_API const xhttpfield* xrtHttpHeadersGetNth(
+XHTTP_API const xhttpfield* xrtHttpHeadersGetNth(
 	const xhttpheaders* pHeaders,
 	xstrview Name,
 	size_t iIndex
@@ -1221,7 +1221,7 @@ XRT_API const xhttpfield* xrtHttpHeadersGetNth(
 
 
 /* 复制全部同名借用值，并始终返回完整匹配数量。 */
-XRT_API size_t xrtHttpHeadersGetAll(
+XHTTP_API size_t xrtHttpHeadersGetAll(
 	const xhttpheaders* pHeaders,
 	xstrview Name,
 	xstrview* pValues,
@@ -1268,7 +1268,7 @@ XRT_API size_t xrtHttpHeadersGetAll(
 
 
 /* 深复制 Header 容器及其配置。 */
-XRT_API xhttpheaders* xrtHttpHeadersClone(
+XHTTP_API xhttpheaders* xrtHttpHeadersClone(
 	const xhttpheaders* pHeaders
 )
 {
@@ -1305,7 +1305,7 @@ XRT_API xhttpheaders* xrtHttpHeadersClone(
 
 
 /* 不分配地交换两个完整容器；容器地址不变，拥有的状态随之交换。 */
-XRT_API bool xrtHttpHeadersSwap(
+XHTTP_API bool xrtHttpHeadersSwap(
 	xhttpheaders* pLeft,
 	xhttpheaders* pRight
 )
@@ -1328,7 +1328,7 @@ XRT_API bool xrtHttpHeadersSwap(
 
 
 /* 在独立副本中解析字段块，成功后一次性交换整个容器状态。 */
-XRT_API bool xrtHttpHeadersAddBlock(
+XHTTP_API bool xrtHttpHeadersAddBlock(
 	xhttpheaders* pHeaders,
 	xstrview Block,
 	size_t* pErrorOffset
@@ -1376,7 +1376,7 @@ XRT_API bool xrtHttpHeadersAddBlock(
 
 
 /* 创建容器并把完整字段块直接解析到该容器。 */
-XRT_API xhttpheaders* xrtHttpHeadersParse(
+XHTTP_API xhttpheaders* xrtHttpHeadersParse(
 	xstrview Block,
 	const xhttpheadersconfig* pConfig,
 	size_t* pErrorOffset
@@ -1425,7 +1425,7 @@ XRT_API xhttpheaders* xrtHttpHeadersParse(
 
 
 /* 写出字段行和最终空行，不附加零字符。 */
-XRT_API bool xrtHttpHeadersWrite(
+XHTTP_API bool xrtHttpHeadersWrite(
 	const xhttpheaders* pHeaders,
 	void* pOutput,
 	size_t iCapacity,
@@ -1491,7 +1491,7 @@ XRT_API bool xrtHttpHeadersWrite(
 
 
 /* 分配并构建带最终空行和额外零字符的字段块。 */
-XRT_API str xrtHttpHeadersBuild(
+XHTTP_API str xrtHttpHeadersBuild(
 	const xhttpheaders* pHeaders,
 	size_t* pSize
 )

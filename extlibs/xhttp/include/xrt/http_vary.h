@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_VARY_H
 #define XRT_HTTP_VARY_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http.h>
 
 
@@ -63,7 +65,7 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_HTTP_VARY)
 
 /* 初始化可重复使用的 Vary 前向游标；输出支持未对齐存储。 */
-XRT_API void xrtHttpVaryCursorInit(xhttpvarycursor* pCursor);
+XHTTP_API void xrtHttpVaryCursorInit(xhttpvarycursor* pCursor);
 
 
 
@@ -72,7 +74,7 @@ XRT_API void xrtHttpVaryCursorInit(xhttpvarycursor* pCursor);
 	星号仍返回 ITEM；列表语法错误返回 ERROR。
 	字段数组、游标和条目描述符都支持未对齐存储。
 */
-XRT_API xhttpnext xrtHttpVaryNext(
+XHTTP_API xhttpnext xrtHttpVaryNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpvarycursor* pCursor,
@@ -86,7 +88,7 @@ XRT_API xhttpnext xrtHttpVaryNext(
 	列表包含星号和名称时设置 MIXED，但不把可观察的线路事实当作解析错误。
 	计划输出在完整验证后一次性发布，可位于未对齐存储。
 */
-XRT_API bool xrtHttpVaryPlan(
+XHTTP_API bool xrtHttpVaryPlan(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpvaryplan* pPlan
@@ -95,7 +97,7 @@ XRT_API bool xrtHttpVaryPlan(
 
 
 /* 大小写不敏感地查找选择字段；未对齐输出在完整扫描后发布。 */
-XRT_API xhttpnext xrtHttpVaryFind(
+XHTTP_API xhttpnext xrtHttpVaryFind(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name,
@@ -109,7 +111,7 @@ XRT_API xhttpnext xrtHttpVaryFind(
 	NULL/0 成功查询精确大小，容量不足时不会写出部分结果。
 	字段数组和大小输出支持未对齐存储。
 */
-XRT_API bool xrtHttpVaryWrite(
+XHTTP_API bool xrtHttpVaryWrite(
 	const xhttpfield* pFields,
 	size_t iCount,
 	void* pOutput,

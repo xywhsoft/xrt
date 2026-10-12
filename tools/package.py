@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -18,7 +19,6 @@ from xrt_manifest import expand_manifest_paths, load_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE_COMMAND_LIMIT = 20000
-
 
 
 def _compiler_family(compiler: str) -> str:
@@ -446,6 +446,8 @@ def _verify_gnu(
 	consumer: str = "tests/package/test_core_consumer.c",
 	include_dirs: list[str] | None = None,
 	product: str = "xrt",
+	dependencies: list[Path] | None = None,
+	shared_defines: list[str] | None = None,
 ) -> None:
 	"""真实链接并运行 GNU/TCC 发布库消费者。"""
 
@@ -474,11 +476,17 @@ def _verify_gnu(
 		command.extend(["-I", str(ROOT / directory)])
 	if kind == "shared":
 		command.append("-DXRT_USE_SHARED")
+		command.extend("-D" + item for item in shared_defines or [])
 	command.append(str(ROOT / consumer))
 	if (kind == "static") and (family != "tcc"):
 		command.extend(_gnu_static_archive_flags(artifact))
 	else:
 		command.append(str(import_library or artifact))
+	for dependency in dependencies or []:
+		if (kind == "static") and (family != "tcc"):
+			command.extend(_gnu_static_archive_flags(dependency))
+		else:
+			command.append(str(dependency))
 	if sys.platform != "win32":
 		command.extend(["-pthread", "-lm"])
 		if kind == "shared":
@@ -546,6 +554,8 @@ def _verify_msvc(
 	consumer: str = "tests/package/test_core_consumer.c",
 	include_dirs: list[str] | None = None,
 	product: str = "xrt",
+	dependencies: list[Path] | None = None,
+	shared_defines: list[str] | None = None,
 ) -> None:
 	"""真实链接并运行 MSVC/clang-cl 发布库消费者。"""
 
@@ -567,6 +577,7 @@ def _verify_msvc(
 	command.extend(f"/I{ROOT / directory}" for directory in include_dirs or [])
 	if kind == "shared":
 		command.append("/DXRT_USE_SHARED")
+		command.extend("/D" + item for item in shared_defines or [])
 	command.append(str(ROOT / consumer))
 	command.append(f"/Fe{output}")
 	# 库引用统一进 /link 段；新版 cl 不再把 /Fe 之前的裸 .lib 当链接输入。
@@ -575,6 +586,10 @@ def _verify_msvc(
 		command.append(str(link_library))
 	if kind == "static":
 		command.append(f"/WHOLEARCHIVE:{artifact}")
+	for dependency in dependencies or []:
+		command.append(
+			f"/WHOLEARCHIVE:{dependency}" if kind == "static" else str(dependency)
+		)
 	command.extend(f"{item}.lib" for item in links)
 	try:
 		xrt_build._run_compiler(command, output.with_suffix(".rsp"))
@@ -606,6 +621,102 @@ def _verify_msvc(
 		raise
 	print(f"[verify] {output.relative_to(ROOT)}")
 	subprocess.run([str(output)], cwd=artifact.parent, check=True)
+
+
+
+def _owned_source_groups(sources: list[str], manifests: list[dict]) -> list[tuple[dict, list[str]]]:
+	"""按清单归属分组，拒绝漏登记或由两个产品实现同一源文件。"""
+	owners: dict[str, int] = {}
+	for index, manifest in enumerate(manifests):
+		for module in manifest["modules"]:
+			for source in module.get("sources", []):
+				previous = owners.setdefault(source, index)
+				if previous != index:
+					raise ValueError(f"source belongs to multiple products: {source}")
+	unknown = set(sources) - owners.keys()
+	if unknown:
+		raise ValueError("unowned package sources: " + ", ".join(sorted(unknown)))
+	return [
+		(manifest, [source for source in sources if owners[source] == index])
+		for index, manifest in enumerate(manifests)
+		if any(owners[source] == index for source in sources)
+	]
+
+
+
+def _separate_packages(
+	args: argparse.Namespace, compiler: str, family: str,
+	sources: list[str], defines: list[str], links: list[str],
+	include_dirs: list[str], header_roots: list[str], overlays: list[Path],
+	product: str, consumer: str,
+) -> None:
+	"""独立归档各产品；共享库链接依赖导入库，静态宿主只链接一份核心。"""
+	manifests = [load_manifest(ROOT / "config/modules.json")]
+	manifests.extend(load_manifest(path) for path in overlays)
+	groups = _owned_source_groups(sources, manifests)
+	base = ROOT / "release" / family / args.arch / xrt_build._suite_output_name(args.suite) / args.kind
+	base.mkdir(parents=True, exist_ok=True)
+	artifacts: list[tuple[str, Path, Path | None, list[Path]]] = []
+	use_macros: list[str] = []
+	metadata: list[dict] = []
+	for manifest, owned in groups:
+		name = manifest.get("product", "xrt")
+		api = manifest.get("api_macro", "XRT_API")
+		prefix = api.removesuffix("_API")
+		group_defines = list(defines)
+		if args.kind == "shared":
+			group_defines += use_macros + [prefix + "_BUILD_SHARED"]
+		extra_flags = list(args.cflag)
+		for directory in include_dirs:
+			extra_flags += [f"/I{ROOT / directory}"] if family == "msvc" else ["-I", str(ROOT / directory)]
+		objects_dir = base / "obj" / name
+		if family == "msvc":
+			objects = _compile_msvc_objects(
+				compiler, args.arch, owned, group_defines, objects_dir,
+				args.rebuild, extra_flags, header_roots,
+			)
+		else:
+			flags = ["-O2", *extra_flags]
+			if args.kind == "shared":
+				if sys.platform != "win32": flags.append("-fPIC")
+				if family == "gnu": flags.append("-fvisibility=hidden")
+			objects = xrt_build._compile_objects(
+				compiler, args.arch, owned, group_defines, objects_dir,
+				args.rebuild, flags, header_roots,
+			)
+		main_name, import_name = _artifact_names(args.kind, _platform(), family, name)
+		artifact = base / main_name
+		import_library = base / import_name if import_name is not None else None
+		dependencies = [str(item[2] or item[1]) for item in reversed(artifacts)]
+		if args.kind == "static":
+			if family == "msvc": _archive_msvc(_msvc_archiver(compiler, args.archiver), objects, artifact)
+			else: _archive_gnu(_gnu_archiver(compiler, args.archiver), objects, artifact)
+		elif family == "msvc":
+			assert import_library is not None
+			_link_msvc_shared(compiler, args.arch, objects, links, artifact, import_library, [*dependencies, *args.ldflag])
+		else:
+			_link_gnu_shared(compiler, args.arch, family, objects, links, artifact, import_library, [*dependencies, *args.ldflag])
+		artifacts.append((name, artifact, import_library, objects))
+		use_macros.append(prefix + "_USE_SHARED")
+		metadata.append({"product": name, "artifact": main_name, "sources": owned,
+			"shared_define": prefix + "_USE_SHARED" if args.kind == "shared" else None})
+		print(f"[pass] package={artifact.relative_to(ROOT)} owned_sources={len(owned)}")
+	(base / "packages.json").write_text(json.dumps({
+		"schema": 1, "suite": args.suite, "kind": args.kind,
+		"packages": list(reversed(metadata)), "system_libraries": links,
+	}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+	selected = next((item for item in artifacts if item[0] == product), None)
+	if selected is None:
+		raise ValueError(f"package suite selects no sources owned by {product}")
+	if args.verify:
+		_, artifact, import_library, objects = selected
+		dependencies = [item[2] or item[1] for item in reversed(artifacts) if item is not selected]
+		if family == "msvc":
+			_verify_msvc(compiler, args.arch, args.kind, artifact, import_library, links,
+				consumer, include_dirs, product, dependencies, use_macros)
+		else:
+			_verify_gnu(compiler, args.arch, family, args.kind, artifact, import_library, links,
+				objects, consumer, include_dirs, product, dependencies, use_macros)
 
 
 
@@ -655,6 +766,10 @@ def main() -> int:
 	(
 		sources, _, _, _, defines, links, _, _, include_dirs, header_roots,
 	) = xrt_build._load_modules(args.suite, overlays)
+	if product_manifest.get("package_ownership") == "separate":
+		_separate_packages(args, compiler, family, sources, defines, links,
+			include_dirs, header_roots, overlays, product, consumer)
+		return 0
 	if args.kind == "shared":
 		defines = [*defines, "XRT_BUILD_SHARED"]
 	extra_cflags = list(args.cflag)

@@ -36,7 +36,7 @@ static bool __xrtHttpOriginWriterBytes(
 	size_t iSize
 )
 {
-	if ( !__xrtHttpSizeAdd(&pWriter->Size, iSize) ) {
+	if ( !__xhttpSizeAdd(&pWriter->Size, iSize) ) {
 		return false;
 	}
 	if ( pWriter->Output != NULL ) {
@@ -60,7 +60,7 @@ static bool __xrtHttpOriginWriterLower(
 	size_t iStart = pWriter->Size;
 	size_t i;
 
-	if ( !__xrtHttpSizeAdd(&pWriter->Size, Text.Size) ) {
+	if ( !__xhttpSizeAdd(&pWriter->Size, Text.Size) ) {
 		return false;
 	}
 	if ( pWriter->Output == NULL ) {
@@ -131,7 +131,7 @@ static bool __xrtHttpOriginWriteOne(
 	if ( !__xrtHttpOriginPortWrite(&pOrigin->Url) ) {
 		return true;
 	}
-	iPort = __xrtHttpUInt64Write(
+	iPort = __xhttpUInt64Write(
 		sPort, (uint64)pOrigin->Url.Port
 	);
 	return __xrtHttpOriginWriterBytes(
@@ -158,26 +158,26 @@ static bool __xrtHttpOriginListMeasure(
 
 	if ( (iCount == 0) ||
 		(iCount > (SIZE_MAX / sizeof(Origin))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	iBytes = iCount * sizeof(Origin);
-	if ( !__xrtRangeValid(pOrigins, iBytes) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pOrigins, iBytes) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(&Writer, 0, sizeof(Writer));
 	memset(&Previous, 0, sizeof(Previous));
 	for ( i = 0; i < iCount; i++ ) {
 		__xrtHttpOriginLoad(pOrigins, i, &Origin);
-		if ( !__xrtHttpOriginValueValid(&Origin) ||
+		if ( !xrtHttpBridgeOriginValueValid(&Origin) ||
 			(((Origin.Flags & XHTTP_ORIGIN_NULL) != 0) &&
 			 (iCount != 1u)) ||
 			((i != 0) &&
 			 ((Previous.Flags & XHTTP_ORIGIN_NULL) == 0) &&
 			 ((Origin.Flags & XHTTP_ORIGIN_NULL) == 0) &&
-			 __xrtHttpOriginTupleSame(&Previous, &Origin)) ) {
-			__xrtErrorSetInvalidArgument();
+			 xrtHttpBridgeOriginTupleSame(&Previous, &Origin)) ) {
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 		if ( ((i != 0) && !__xrtHttpOriginWriterBytes(
@@ -207,7 +207,7 @@ static bool __xrtHttpOriginListOverlap(
 	size_t iBytes = iCount * sizeof(Origin);
 	size_t i;
 
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pOrigins, iBytes, pOutput, iSize
 	) ) {
 		return true;
@@ -226,7 +226,7 @@ static bool __xrtHttpOriginListOverlap(
 
 
 /* 原子写出 Origin 数组。 */
-XRT_API bool xrtHttpOriginListWrite(
+XHTTP_API bool xrtHttpOriginListWrite(
 	const xhttporigin* pOrigins,
 	size_t iCount,
 	void* pOutput,
@@ -239,14 +239,14 @@ XRT_API bool xrtHttpOriginListWrite(
 	size_t iRequired;
 	size_t i;
 
-	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ||
+	if ( !xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
 		((pOutput != NULL) &&
-		 (!__xrtRangeValid(pOutput, iCapacity) ||
-		  __xrtRangesOverlap(
+		 (!xrtMemRangeValid(pOutput, iCapacity) ||
+		  xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(iRequired)
 		  ))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpOriginListMeasure(
@@ -257,7 +257,7 @@ XRT_API bool xrtHttpOriginListWrite(
 	if ( __xrtHttpOriginListOverlap(
 		pOrigins, iCount, pSize, sizeof(iRequired)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pSize, &iRequired, sizeof(iRequired));
@@ -265,13 +265,13 @@ XRT_API bool xrtHttpOriginListWrite(
 		return true;
 	}
 	if ( iCapacity < iRequired ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( __xrtHttpOriginListOverlap(
 			pOrigins, iCount, pOutput, iRequired
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	Writer.Output = (bytes)pOutput;
@@ -293,7 +293,7 @@ XRT_API bool xrtHttpOriginListWrite(
 
 
 /* 原子写出一个 Origin。 */
-XRT_API bool xrtHttpOriginWrite(
+XHTTP_API bool xrtHttpOriginWrite(
 	const xhttporigin* pOrigin,
 	void* pOutput,
 	size_t iCapacity,
@@ -308,7 +308,7 @@ XRT_API bool xrtHttpOriginWrite(
 
 
 /* 单次分配构建 Origin 字段值。 */
-XRT_API str xrtHttpOriginBuild(
+XHTTP_API str xrtHttpOriginBuild(
 	const xhttporigin* pOrigins,
 	size_t iCount,
 	size_t* pSize
@@ -324,15 +324,15 @@ XRT_API str xrtHttpOriginBuild(
 		return NULL;
 	}
 	if ( (pSize != NULL) &&
-		(!__xrtRangeValid(pSize, sizeof(iRequired)) ||
+		(!xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		 __xrtHttpOriginListOverlap(
 			pOrigins, iCount, pSize, sizeof(iRequired)
 		 )) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( iRequired == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	sOutput = (str)xrtMalloc(iRequired + 1u);

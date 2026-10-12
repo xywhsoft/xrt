@@ -194,7 +194,7 @@ static xhttpresponse* __xrtHttp1ExchangeResponseBuild(
 	xhttpresponse* pResponse;
 	size_t i;
 
-	pResponse = __xrtHttpResponseCreate(
+	pResponse = xrtHttpBridgeResponseCreate(
 		pHead->Version,
 		pHead->Status,
 		pHead->Reason,
@@ -212,7 +212,7 @@ static xhttpresponse* __xrtHttp1ExchangeResponseBuild(
 		return NULL;
 	}
 	for ( i = 0; i < pHead->FieldCount; i++ ) {
-		if ( !__xrtHttpResponseAddHeader(
+		if ( !xrtHttpBridgeResponseAddHeader(
 			pResponse,
 			pHead->Fields[i].Name,
 			pHead->Fields[i].Value
@@ -229,7 +229,7 @@ static xhttpresponse* __xrtHttp1ExchangeResponseBuild(
 			return NULL;
 		}
 	}
-	if ( !__xrtHttpResponseSetUrl(
+	if ( !xrtHttpBridgeResponseSetUrl(
 		pResponse,
 		xrtHttp1RequestPlanUrl(pExchange->Plan)
 	) ) {
@@ -399,7 +399,7 @@ static bool __xrtHttp1ExchangeFinalHead(
 		return false;
 	}
 	if ( pExchange->Events.Body != NULL ) {
-		__xrtHttpResponseSetFlags(
+		xrtHttpBridgeResponseSetFlags(
 			pResponse,
 			(uint32)XHTTP_RESPONSE_STREAMED
 		);
@@ -430,7 +430,7 @@ static bool __xrtHttp1ExchangeFinalHead(
 		}
 	}
 	if ( pExchange->BodyPlan.Mode == XHTTP1_BODY_TUNNEL ) {
-		__xrtHttpResponseSetFlags(
+		xrtHttpBridgeResponseSetFlags(
 			pResponse,
 			(uint32)XHTTP_RESPONSE_UPGRADED
 		);
@@ -620,7 +620,7 @@ static bool __xrtHttp1ExchangeResponseFinish(
 		);
 	}
 	for ( i = 0; i < pExchange->Body.TrailerCount; i++ ) {
-		if ( !__xrtHttpResponseAddTrailer(
+		if ( !xrtHttpBridgeResponseAddTrailer(
 			pExchange->Response,
 			&pExchange->Config.Trailers,
 			pExchange->Body.Trailers[i].Name,
@@ -649,7 +649,7 @@ static bool __xrtHttp1ExchangeBodyDeliver(
 	xbytesview Data
 )
 {
-	if ( !__xrtHttpResponseAddWireBody(
+	if ( !xrtHttpBridgeResponseAddWireBody(
 		pExchange->Response,
 		(uint64)Data.Size
 	) ) {
@@ -682,7 +682,7 @@ static bool __xrtHttp1ExchangeBodyDeliver(
 				xrtGetError()
 			);
 		}
-		if ( !__xrtHttpResponseDeliverBody(
+		if ( !xrtHttpBridgeResponseDeliverBody(
 			pExchange->Response,
 			(uint64)Data.Size
 		) ) {
@@ -808,7 +808,7 @@ static xhttp1feedstatus __xrtHttp1ExchangeFeedState(
 
 
 /* 增量消费一条 HTTP/1 响应。 */
-XRT_API xhttp1feedstatus xrtHttp1ExchangeFeed(
+XHTTP_API xhttp1feedstatus xrtHttp1ExchangeFeed(
 	xhttp1exchange* pExchange,
 	xbytesview Input,
 	bool bEnd,

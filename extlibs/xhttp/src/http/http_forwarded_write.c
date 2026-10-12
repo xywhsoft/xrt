@@ -105,24 +105,24 @@ static bool __xrtHttpForwardedValueMemoryValid(
 	size_t iBytes;
 	size_t i;
 
-	if ( !__xrtHttpViewValid(pElement->For) ||
-		!__xrtHttpViewValid(pElement->By) ||
-		!__xrtHttpViewValid(pElement->Host) ||
-		!__xrtHttpViewValid(pElement->Proto) ||
+	if ( !__xhttpViewValid(pElement->For) ||
+		!__xhttpViewValid(pElement->By) ||
+		!__xhttpViewValid(pElement->Host) ||
+		!__xhttpViewValid(pElement->Proto) ||
 		(pElement->ExtensionCount >
 		 (SIZE_MAX / sizeof(Pair))) ) {
 		return false;
 	}
 	iBytes = pElement->ExtensionCount * sizeof(Pair);
-	if ( !__xrtRangeValid(pElement->Extensions, iBytes) ) {
+	if ( !xrtMemRangeValid(pElement->Extensions, iBytes) ) {
 		return false;
 	}
 	for ( i = 0; i < pElement->ExtensionCount; i++ ) {
 		__xrtHttpForwardedPairValueLoad(
 			pElement->Extensions, i, &Pair
 		);
-		if ( !__xrtHttpViewValid(Pair.Name) ||
-			!__xrtHttpViewValid(Pair.Value) ) {
+		if ( !__xhttpViewValid(Pair.Name) ||
+			!__xhttpViewValid(Pair.Value) ) {
 			return false;
 		}
 	}
@@ -203,10 +203,10 @@ static bool __xrtHttpForwardedPairMeasure(
 	) ) {
 		return false;
 	}
-	return (bFirst || __xrtHttpSizeAdd(pSize, 1u)) &&
-		__xrtHttpSizeAdd(pSize, pPair->Name.Size) &&
-		__xrtHttpSizeAdd(pSize, 1u) &&
-		__xrtHttpSizeAdd(pSize, iValue);
+	return (bFirst || __xhttpSizeAdd(pSize, 1u)) &&
+		__xhttpSizeAdd(pSize, pPair->Name.Size) &&
+		__xhttpSizeAdd(pSize, 1u) &&
+		__xhttpSizeAdd(pSize, iValue);
 }
 
 
@@ -279,7 +279,7 @@ static void __xrtHttpForwardedPairWriteUnchecked(
 		);
 		*pOffset += pPair->Value.Size;
 	} else {
-		*pOffset += __xrtHttpQuotedWriteUnchecked(
+		*pOffset += __xhttpQuotedWriteUnchecked(
 			pPair->Value, pOutput + *pOffset
 		);
 	}
@@ -371,26 +371,26 @@ static bool __xrtHttpForwardedOutputOverlap(
 	size_t i;
 	size_t j;
 
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pElements, iElements, pOutput, iSize
 	) ) {
 		return true;
 	}
 	for ( i = 0; i < iCount; i++ ) {
 		__xrtHttpForwardedValueLoad(pElements, i, &Element);
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			Element.For.Data, Element.For.Size, pOutput, iSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Element.By.Data, Element.By.Size, pOutput, iSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Element.Host.Data, Element.Host.Size, pOutput, iSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Element.Proto.Data, Element.Proto.Size, pOutput, iSize
 		) ) {
 			return true;
 		}
 		iExtensions = Element.ExtensionCount * sizeof(Pair);
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			Element.Extensions, iExtensions, pOutput, iSize
 		) ) {
 			return true;
@@ -399,9 +399,9 @@ static bool __xrtHttpForwardedOutputOverlap(
 			__xrtHttpForwardedPairValueLoad(
 				Element.Extensions, j, &Pair
 			);
-			if ( __xrtRangesOverlap(
+			if ( xrtMemRangesOverlap(
 				Pair.Name.Data, Pair.Name.Size, pOutput, iSize
-			) || __xrtRangesOverlap(
+			) || xrtMemRangesOverlap(
 				Pair.Value.Data, Pair.Value.Size, pOutput, iSize
 			) ) {
 				return true;
@@ -430,13 +430,13 @@ static bool __xrtHttpForwardedMemoryValid(
 	if ( (iCount == 0) ||
 		(iCount > (SIZE_MAX / sizeof(Element))) ||
 		((!bSizeOptional || (pSize != NULL)) &&
-		 !__xrtRangeValid(pSize, sizeof(size_t))) ||
+		 !xrtMemRangeValid(pSize, sizeof(size_t))) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		!__xrtRangeValid(pOutput, iCapacity) ) {
+		!xrtMemRangeValid(pOutput, iCapacity) ) {
 		return false;
 	}
 	iElements = iCount * sizeof(Element);
-	if ( !__xrtRangeValid(pElements, iElements) ) {
+	if ( !xrtMemRangeValid(pElements, iElements) ) {
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
@@ -449,7 +449,7 @@ static bool __xrtHttpForwardedMemoryValid(
 		 __xrtHttpForwardedOutputOverlap(
 			pElements, iCount, pSize, sizeof(size_t)
 		 )) || ((pOutput != NULL) &&
-		 (((pSize != NULL) && __xrtRangesOverlap(
+		 (((pSize != NULL) && xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(size_t)
 		 )) || __xrtHttpForwardedOutputOverlap(
 			pElements, iCount, pOutput, iCapacity
@@ -475,11 +475,11 @@ static bool __xrtHttpForwardedMeasure(
 	for ( i = 0; i < iCount; i++ ) {
 		__xrtHttpForwardedValueLoad(pElements, i, &Element);
 		if ( !__xrtHttpForwardedValueValid(&Element) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		if ( ((i != 0) &&
-			 !__xrtHttpSizeAdd(&iRequired, 2u)) ||
+			 !__xhttpSizeAdd(&iRequired, 2u)) ||
 			!__xrtHttpForwardedValueMeasure(
 				&Element, &iRequired
 			) ) {
@@ -493,7 +493,7 @@ static bool __xrtHttpForwardedMeasure(
 
 
 /* 规范写出 Forwarded 元素数组。 */
-XRT_API bool xrtHttpForwardedWrite(
+XHTTP_API bool xrtHttpForwardedWrite(
 	const xhttpforwardedvalue* pElements,
 	size_t iCount,
 	void* pOutput,
@@ -509,7 +509,7 @@ XRT_API bool xrtHttpForwardedWrite(
 		pElements, iCount, pOutput,
 		iCapacity, pSize, false
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpForwardedMeasure(
@@ -523,7 +523,7 @@ XRT_API bool xrtHttpForwardedWrite(
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	__xrtHttpForwardedWriteUnchecked(
@@ -536,7 +536,7 @@ XRT_API bool xrtHttpForwardedWrite(
 
 
 /* 规范写出单个 Forwarded 元素。 */
-XRT_API bool xrtHttpForwardedElementWrite(
+XHTTP_API bool xrtHttpForwardedElementWrite(
 	const xhttpforwardedvalue* pElement,
 	void* pOutput,
 	size_t iCapacity,
@@ -551,7 +551,7 @@ XRT_API bool xrtHttpForwardedElementWrite(
 
 
 /* 构建零结尾 Forwarded 字段值。 */
-XRT_API str xrtHttpForwardedBuild(
+XHTTP_API str xrtHttpForwardedBuild(
 	const xhttpforwardedvalue* pElements,
 	size_t iCount,
 	size_t* pSize
@@ -564,7 +564,7 @@ XRT_API str xrtHttpForwardedBuild(
 	if ( !__xrtHttpForwardedMemoryValid(
 		pElements, iCount, NULL, 0, pSize, true
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !__xrtHttpForwardedMeasure(
@@ -573,7 +573,7 @@ XRT_API str xrtHttpForwardedBuild(
 		return NULL;
 	}
 	if ( iRequired == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	sOutput = (str)xrtMalloc(iRequired + 1u);

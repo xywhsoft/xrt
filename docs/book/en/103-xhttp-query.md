@@ -8,6 +8,8 @@ lead: Zero-allocation query traversal (distinguishing missing values from empty 
 api: xhttp-query, xhttp-query_params, xhttp-form, xhttp-form_data
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 URL query strings and HTTP forms are two similar-but-different key-value grammars, and xhttp gives two tool layers.**The zero-allocation layer** (the `query` module): `xrtQueryNext` traverses directly over the raw string — `xquerypair`'s `XQUERY_HAS_VALUE` precisely distinguishes `a` (no value), `a=` (empty value), `=v` (empty key); `xrtQueryFind/Count/Validate` complete the family; enabling `query_codec` adds percent encoding/decoding.**The owning layer** (the `query_params` module): the `xqueryparams` container parses, rewrites (`Set` position-preserving dedup / `Append` append / `Sort` stable sort / `Compact` compaction), and rebuilds — the standard path of "change one parameter and stitch it back". The form side has two shapes: `application/x-www-form-urlencoded` (the same grammar + the `+`-space semantics) and `multipart/form-data` (Chapter 92's quoted-string in live combat). The raw layer (borrowing views) and owning layer (containers), are fully isomorphic with Chapters 89/92's layering — grammar layer first, containers after.
@@ -61,7 +63,7 @@ The program below is from `examples/url/query/main.c` — four key-value shapes 
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/query/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite query --exclude-test "*" --no-single --no-run
 tag = c
 tag = xlang
 debug = <missing>
@@ -78,7 +80,7 @@ The second program is from `examples/url/query_params/main.c` — the parse, Set
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/query_params/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite query_params --exclude-test "*" --no-single --no-run
 page=2&tag=c&tag=network&tag=xlang
 ```
 

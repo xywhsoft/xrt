@@ -1,0 +1,30 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xhttp-policy/config/modules.json",
+	"profiles": [
+		{
+			"name": "minimal",
+			"system": "xhttp_policy",
+			"suite": "http_retry_policy",
+			"description": "基本闭包"
+		},
+		{
+			"name": "optional",
+			"system": "xhttp_policy",
+			"suite": "cookie_jar",
+			"description": "可选模块闭包"
+		},
+		{
+			"name": "xhttp_policy",
+			"system": "xhttp_policy",
+			"suite": "xhttp_policy",
+			"description": "本库完整闭包"
+		}
+	],
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

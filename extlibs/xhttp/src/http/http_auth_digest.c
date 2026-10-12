@@ -7,7 +7,7 @@
 #if defined(XHTTP_FEATURE_HTTP_AUTH_DIGEST)
 
 /* 把单个十六进制字节转换为数值。 */
-int __xrtHttpDigestHexValue(uint8 iByte)
+XHTTP_API int xrtHttpBridgeDigestHexValue(uint8 iByte)
 {
 	if ( (iByte >= (uint8)'0') && (iByte <= (uint8)'9') ) {
 		return (int)(iByte - (uint8)'0');
@@ -33,7 +33,7 @@ bool __xrtHttpDigestHexParamValid(
 		return false;
 	}
 	for ( size_t i = 0; i < pParam->Value.Size; i++ ) {
-		if ( __xrtHttpDigestHexValue(
+		if ( xrtHttpBridgeDigestHexValue(
 			(uint8)pParam->Value.Data[i]
 		) < 0 ) {
 			return false;
@@ -46,13 +46,13 @@ bool __xrtHttpDigestHexParamValid(
 
 
 /* 验证借用视图中的十六进制文本。 */
-bool __xrtHttpDigestHexViewValid(xstrview Text)
+XHTTP_API bool xrtHttpBridgeDigestHexViewValid(xstrview Text)
 {
-	if ( !__xrtHttpViewValid(Text) || (Text.Size == 0) ) {
+	if ( !__xhttpViewValid(Text) || (Text.Size == 0) ) {
 		return false;
 	}
 	for ( size_t i = 0; i < Text.Size; i++ ) {
-		if ( __xrtHttpDigestHexValue((uint8)Text.Data[i]) < 0 ) {
+		if ( xrtHttpBridgeDigestHexValue((uint8)Text.Data[i]) < 0 ) {
 			return false;
 		}
 	}
@@ -74,7 +74,7 @@ bool __xrtHttpDigestNonceCountRead(
 		return false;
 	}
 	for ( size_t i = 0; i < 8u; i++ ) {
-		int iValue = __xrtHttpDigestHexValue(
+		int iValue = xrtHttpBridgeDigestHexValue(
 			(uint8)pParam->Value.Data[i]
 		);
 
@@ -90,7 +90,7 @@ bool __xrtHttpDigestNonceCountRead(
 
 
 /* 规范写出八位小写 nonce count。 */
-void __xrtHttpDigestNonceCountWrite(
+XHTTP_API void xrtHttpBridgeDigestNonceCountWrite(
 	uint32 iCount,
 	char sOutput[8]
 )
@@ -107,18 +107,18 @@ void __xrtHttpDigestNonceCountWrite(
 
 /* 以 quoted-string 形式写出规范小写十六进制值。 */
 bool __xrtHttpDigestWriterHex(
-	xrt_http_param_writer* pWriter,
+	__xhttp_param_writer* pWriter,
 	xstrview Name,
 	xstrview Value,
 	bool bFirst
 )
 {
-	if ( !__xrtHttpParamWriterName(pWriter, Name, bFirst) ) {
+	if ( !__xhttpParamWriterName(pWriter, Name, bFirst) ) {
 		return false;
 	}
 	if ( (Value.Size > (SIZE_MAX - 2u)) ||
 		(pWriter->Size > (SIZE_MAX - Value.Size - 2u)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( pWriter->Output != NULL ) {
@@ -139,7 +139,7 @@ bool __xrtHttpDigestWriterHex(
 
 
 /* 解析 Digest 算法名称，不把正常的未知扩展算法当成错误。 */
-XRT_API xhttpdigestalgorithm xrtHttpDigestAlgorithmParse(xstrview Name)
+XHTTP_API xhttpdigestalgorithm xrtHttpDigestAlgorithmParse(xstrview Name)
 {
 	if ( xrtHttpTokenEqual(Name, XRT_STR_LITERAL("MD5")) ) {
 		return XHTTP_DIGEST_ALGORITHM_MD5;
@@ -167,7 +167,7 @@ XRT_API xhttpdigestalgorithm xrtHttpDigestAlgorithmParse(xstrview Name)
 
 
 /* 返回已知算法的规范线路名称。 */
-XRT_API xstrview xrtHttpDigestAlgorithmName(
+XHTTP_API xstrview xrtHttpDigestAlgorithmName(
 	xhttpdigestalgorithm Algorithm
 )
 {
@@ -192,7 +192,7 @@ XRT_API xstrview xrtHttpDigestAlgorithmName(
 
 
 /* 返回 RFC 7616 算法的二进制摘要长度。 */
-XRT_API size_t xrtHttpDigestSize(xhttpdigestalgorithm Algorithm)
+XHTTP_API size_t xrtHttpDigestSize(xhttpdigestalgorithm Algorithm)
 {
 	switch ( Algorithm ) {
 		case XHTTP_DIGEST_ALGORITHM_MD5:
@@ -211,7 +211,7 @@ XRT_API size_t xrtHttpDigestSize(xhttpdigestalgorithm Algorithm)
 
 
 /* 判断算法是否使用 RFC 7616 session A1。 */
-XRT_API bool xrtHttpDigestAlgorithmSession(
+XHTTP_API bool xrtHttpDigestAlgorithmSession(
 	xhttpdigestalgorithm Algorithm
 )
 {
@@ -223,7 +223,7 @@ XRT_API bool xrtHttpDigestAlgorithmSession(
 
 
 /* 按当前裁剪闭包报告可执行的摘要后端。 */
-XRT_API bool xrtHttpDigestAlgorithmSupported(
+XHTTP_API bool xrtHttpDigestAlgorithmSupported(
 	xhttpdigestalgorithm Algorithm
 )
 {
@@ -250,7 +250,7 @@ XRT_API bool xrtHttpDigestAlgorithmSupported(
 
 
 /* 解析单个 Digest qop token。 */
-XRT_API xhttpdigestqop xrtHttpDigestQopParse(xstrview Name)
+XHTTP_API xhttpdigestqop xrtHttpDigestQopParse(xstrview Name)
 {
 	if ( xrtHttpTokenEqual(Name, XRT_STR_LITERAL("auth")) ) {
 		return XHTTP_DIGEST_QOP_AUTH;
@@ -264,7 +264,7 @@ XRT_API xhttpdigestqop xrtHttpDigestQopParse(xstrview Name)
 
 
 /* 返回 qop 的规范线路名称。 */
-XRT_API xstrview xrtHttpDigestQopName(xhttpdigestqop Qop)
+XHTTP_API xstrview xrtHttpDigestQopName(xhttpdigestqop Qop)
 {
 	if ( Qop == XHTTP_DIGEST_QOP_AUTH ) {
 		return XRT_STR_LITERAL("auth");

@@ -3,6 +3,7 @@
 
 #include "xrt_internal.h"
 #include "xrt_http.h"
+#include <xrt/http_bridge.h>
 #include "xrt_http_body.h"
 #include <xrt/http_client.h>
 
@@ -70,7 +71,7 @@ bool __xrtHttpRequestTakeUrl(
 
 
 /* 校验公开输出不会覆盖请求对象及其借用可见存储。 */
-bool __xrtHttpRequestOutputValid(
+bool xrtHttpBridgeRequestOutputValid(
 	const xhttprequest* pRequest,
 	const void* pOutput,
 	size_t iSize
@@ -104,7 +105,7 @@ bool __xrtHttpRequestSetWrittenAuth(
 #if defined(XHTTP_FEATURE_HTTP_CLIENT_REQUEST_TRAILERS)
 
 /* 清空已经存在的请求 Trailer；未创建容器时保持无分配。 */
-void __xrtHttpRequestClearTrailers(xhttprequest* pRequest);
+void xrtHttpBridgeRequestClearTrailers(xhttprequest* pRequest);
 
 #endif
 
@@ -128,20 +129,15 @@ bool __xrtHttpRequestCommitFormData(
 #if defined(XHTTP_FEATURE_HTTP_CLIENT_PREPARE)
 
 /* 补充字段回调在最终 target 已确定且基础请求验证完成后执行。 */
-typedef bool (*__xrtHttp1RequestFieldFunction)(
-	xstrview Method,
-	xstrview Target,
-	ptr pContext,
-	xhttpfield* pField
-);
+
 
 
 
 /* 冻结请求并用回调生成的单个字段替换全部同名用户字段。 */
-xhttp1requestplan* __xrtHttp1RequestPrepareField(
+xhttp1requestplan* xrtHttpBridge1RequestPrepareField(
 	const xhttprequest* pRequest,
 	const xhttp1requestoptions* pOptions,
-	__xrtHttp1RequestFieldFunction pField,
+	xhttprequestfieldproc pField,
 	ptr pContext
 );
 
@@ -168,7 +164,7 @@ struct xhttpresponse {
 	str Url;
 	size_t UrlSize;
 	size_t Redirects;
-	#if defined(XHTTP_FEATURE_HTTP_CLIENT_DECOMPRESS)
+	#if defined(XHTTP_FEATURE_HTTP_CLIENT_RESPONSE)
 		str OriginalEncoding;
 		size_t OriginalEncodingSize;
 	#endif
@@ -177,7 +173,7 @@ struct xhttpresponse {
 
 
 /* 设置不占用客户端 Call 终态槽的响应读取错误。 */
-void __xrtHttpResponseSetError(
+void xrtHttpBridgeResponseSetError(
 	xerrkind Kind,
 	xhttpresponseerror Code,
 	cstr sOperation,
@@ -188,7 +184,7 @@ void __xrtHttpResponseSetError(
 
 
 /* 提取并包装当前线程错误，保留底层类别和完整原因链。 */
-void __xrtHttpResponseWrapError(
+void xrtHttpBridgeResponseWrapError(
 	xerrkind DefaultKind,
 	xhttpresponseerror Code,
 	cstr sOperation,
@@ -198,7 +194,7 @@ void __xrtHttpResponseWrapError(
 
 
 /* 校验公开输出不会覆盖响应对象及其借用可见存储。 */
-bool __xrtHttpResponseOutputValid(
+bool xrtHttpBridgeResponseOutputValid(
 	const xhttpresponse* pResponse,
 	const void* pOutput,
 	size_t iSize
@@ -240,7 +236,7 @@ xhttpnext __xrtHttpResponseChallengeRead(
 
 
 /* 创建客户端事务内部可填充的响应对象。 */
-xhttpresponse* __xrtHttpResponseCreate(
+xhttpresponse* xrtHttpBridgeResponseCreate(
 	xhttpversion Version,
 	uint16 iStatus,
 	xstrview Reason,
@@ -250,7 +246,7 @@ xhttpresponse* __xrtHttpResponseCreate(
 
 
 /* 追加一个拥有型响应 Header。 */
-bool __xrtHttpResponseAddHeader(
+bool xrtHttpBridgeResponseAddHeader(
 	xhttpresponse* pResponse,
 	xstrview Name,
 	xstrview Value
@@ -259,7 +255,7 @@ bool __xrtHttpResponseAddHeader(
 
 
 /* 按需创建 trailer 容器并追加一个拥有型字段。 */
-bool __xrtHttpResponseAddTrailer(
+bool xrtHttpBridgeResponseAddTrailer(
 	xhttpresponse* pResponse,
 	const xhttpheadersconfig* pConfig,
 	xstrview Name,
@@ -280,7 +276,7 @@ bool __xrtHttpResponseAppendBody(
 	复制已经通过内部流式包装器交付的正文。
 	Exchange 随后统一累计 BodyBytes，因此这里仅增长缓冲内容。
 */
-bool __xrtHttpResponseBufferDeliveredBody(
+bool xrtHttpBridgeResponseBufferDeliveredBody(
 	xhttpresponse* pResponse,
 	xbytesview Data
 );
@@ -288,7 +284,7 @@ bool __xrtHttpResponseBufferDeliveredBody(
 
 
 /* 在流式模式累计已交付正文，不分配正文缓冲。 */
-bool __xrtHttpResponseDeliverBody(
+bool xrtHttpBridgeResponseDeliverBody(
 	xhttpresponse* pResponse,
 	uint64 iBytes
 );
@@ -296,7 +292,7 @@ bool __xrtHttpResponseDeliverBody(
 
 
 /* 累计线上编码正文载荷字节数。 */
-bool __xrtHttpResponseAddWireBody(
+bool xrtHttpBridgeResponseAddWireBody(
 	xhttpresponse* pResponse,
 	uint64 iBytes
 );
@@ -304,7 +300,7 @@ bool __xrtHttpResponseAddWireBody(
 
 
 /* 失败原子地替换最终有效 URL。 */
-bool __xrtHttpResponseSetUrl(
+bool xrtHttpBridgeResponseSetUrl(
 	xhttpresponse* pResponse,
 	xstrview Url
 );
@@ -312,7 +308,7 @@ bool __xrtHttpResponseSetUrl(
 
 
 /* 保存高层客户端已经完成的重定向跳数。 */
-void __xrtHttpResponseSetRedirects(
+void xrtHttpBridgeResponseSetRedirects(
 	xhttpresponse* pResponse,
 	size_t iRedirects
 );
@@ -320,22 +316,22 @@ void __xrtHttpResponseSetRedirects(
 
 
 /* 清除内部包装器产生的流式标志，恢复调用方选择的缓冲语义。 */
-void __xrtHttpResponseSetBuffered(xhttpresponse* pResponse);
+void xrtHttpBridgeResponseSetBuffered(xhttpresponse* pResponse);
 
 
 
 /* 增加由客户端事务确认的响应标志。 */
-void __xrtHttpResponseSetFlags(
+void xrtHttpBridgeResponseSetFlags(
 	xhttpresponse* pResponse,
 	uint32 iFlags
 );
 
 
 
-#if defined(XHTTP_FEATURE_HTTP_CLIENT_DECOMPRESS)
+#if defined(XHTTP_FEATURE_HTTP_CLIENT_RESPONSE)
 
 /* 接管原始编码文本，删除失效的表示元数据并标记响应已经解码。 */
-void __xrtHttpResponseSetDecoded(
+void xrtHttpBridgeResponseSetDecoded(
 	xhttpresponse* pResponse,
 	str sOriginalEncoding,
 	size_t iOriginalEncodingSize
@@ -344,7 +340,7 @@ void __xrtHttpResponseSetDecoded(
 
 
 /* 在全部解码层结束后发布调用方可见的准确正文长度。 */
-void __xrtHttpResponseSetBodyBytes(
+void xrtHttpBridgeResponseSetBodyBytes(
 	xhttpresponse* pResponse,
 	uint64 iBodyBytes
 );

@@ -73,26 +73,26 @@ static bool __xrtHttpDigestChallengeReadValid(
 	xhttpdigestchallenge* pChallenge
 )
 {
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pSize, sizeof(size_t)) ||
-		!__xrtRangeValid(pChallenge, sizeof(*pChallenge)) ||
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pSize, sizeof(size_t)) ||
+		!xrtMemRangeValid(pChallenge, sizeof(*pChallenge)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		((pOutput != NULL) && !__xrtRangeValid(
+		((pOutput != NULL) && !xrtMemRangeValid(
 			pOutput, iCapacity
-		)) || __xrtRangesOverlap(
+		)) || xrtMemRangesOverlap(
 			pSize, sizeof(size_t), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pChallenge, sizeof(*pChallenge), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pSize, sizeof(size_t), pChallenge, sizeof(*pChallenge)
-		) || ((pOutput != NULL) && (__xrtRangesOverlap(
+		) || ((pOutput != NULL) && (xrtMemRangesOverlap(
 			pOutput, iCapacity, Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(size_t)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iCapacity, pChallenge, sizeof(*pChallenge)
 		))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return true;
@@ -107,7 +107,7 @@ static bool __xrtHttpDigestSemanticPeek(
 	uint8* pByte
 )
 {
-	return __xrtHttpParamSemanticNext(pParam, &iOffset, pByte);
+	return __xhttpParamSemanticNext(pParam, &iOffset, pByte);
 }
 
 
@@ -135,7 +135,7 @@ static bool __xrtHttpDigestChallengeQop(
 		) && ((iByte == (uint8)' ') ||
 			(iByte == (uint8)'\t') ||
 			(iByte == (uint8)',')) ) {
-			(void)__xrtHttpParamSemanticNext(
+			(void)__xhttpParamSemanticNext(
 				pParam, &iOffset, &iByte
 			);
 		}
@@ -144,11 +144,11 @@ static bool __xrtHttpDigestChallengeQop(
 		}
 		while ( __xrtHttpDigestSemanticPeek(
 			pParam, iOffset, &iByte
-		) && __xrtHttpTokenByte(iByte) ) {
+		) && __xhttpTokenByte(iByte) ) {
 			static const char Auth[] = "auth";
 			static const char AuthInt[] = "auth-int";
 
-			(void)__xrtHttpParamSemanticNext(
+			(void)__xhttpParamSemanticNext(
 				pParam, &iOffset, &iByte
 			);
 			bAuth = bAuth && (iLength < (sizeof(Auth) - 1u)) &&
@@ -174,14 +174,14 @@ static bool __xrtHttpDigestChallengeQop(
 			pParam, iOffset, &iByte
 		) && ((iByte == (uint8)' ') ||
 			(iByte == (uint8)'\t')) ) {
-			(void)__xrtHttpParamSemanticNext(
+			(void)__xhttpParamSemanticNext(
 				pParam, &iOffset, &iByte
 			);
 		}
 		if ( iOffset == pParam->Value.Size ) {
 			break;
 		}
-		(void)__xrtHttpParamSemanticNext(
+		(void)__xhttpParamSemanticNext(
 			pParam, &iOffset, &iByte
 		);
 		if ( iByte != (uint8)',' ) {
@@ -206,7 +206,7 @@ static bool __xrtHttpDigestChallengeToken(
 
 
 /* 解析并解码 RFC 7616 Digest challenge。 */
-XRT_API bool xrtHttpDigestChallengeRead(
+XHTTP_API bool xrtHttpDigestChallengeRead(
 	xstrview Value,
 	void* pOutput,
 	size_t iCapacity,
@@ -236,7 +236,7 @@ XRT_API bool xrtHttpDigestChallengeRead(
 	if ( !xrtHttpTokenEqual(
 		Auth.Scheme, XRT_STR_LITERAL("Digest")
 	) || (Auth.Kind != XHTTP_AUTH_PARAMS) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	for ( ;; ) {
@@ -258,14 +258,14 @@ XRT_API bool xrtHttpDigestChallengeRead(
 		}
 		iBit = UINT32_C(1) << (uint32)iIndex;
 		if ( (iSeen & iBit) != 0 ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		iSeen |= iBit;
 
 		if ( iIndex <= XRT_HTTP_DIGEST_CHALLENGE_OPAQUE ) {
 			if ( (Param.Flags & XHTTP_PARAM_QUOTED) == 0 ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			if ( !xrtHttpParamValueWrite(
@@ -273,7 +273,7 @@ XRT_API bool xrtHttpDigestChallengeRead(
 			) ) {
 				return false;
 			}
-			if ( !__xrtHttpSizeAdd(
+			if ( !__xhttpSizeAdd(
 				&iRequired, Sizes[iIndex]
 			) ) {
 				return false;
@@ -290,7 +290,7 @@ XRT_API bool xrtHttpDigestChallengeRead(
 			} else if ( !__xrtHttpDigestChallengeToken(
 				&Param, XRT_STR_LITERAL("false")
 			) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			continue;
@@ -298,7 +298,7 @@ XRT_API bool xrtHttpDigestChallengeRead(
 		if ( iIndex == XRT_HTTP_DIGEST_CHALLENGE_ALGORITHM ) {
 			if ( ((Param.Flags & XHTTP_PARAM_QUOTED) != 0) ||
 				!xrtHttpParamTokenValid(&Param) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			Challenge.Algorithm = xrtHttpDigestAlgorithmParse(
@@ -317,7 +317,7 @@ XRT_API bool xrtHttpDigestChallengeRead(
 			if ( !__xrtHttpDigestChallengeQop(
 				&Param, &Challenge.Flags
 			) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			continue;
@@ -326,7 +326,7 @@ XRT_API bool xrtHttpDigestChallengeRead(
 			if ( !__xrtHttpDigestChallengeToken(
 				&Param, XRT_STR_LITERAL("UTF-8")
 			) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			Challenge.Flags |= XHTTP_DIGEST_CHALLENGE_UTF8;
@@ -340,7 +340,7 @@ XRT_API bool xrtHttpDigestChallengeRead(
 		} else if ( !__xrtHttpDigestChallengeToken(
 			&Param, XRT_STR_LITERAL("false")
 		) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 	}
@@ -350,7 +350,7 @@ XRT_API bool xrtHttpDigestChallengeRead(
 		XRT_HTTP_DIGEST_CHALLENGE_NONCE)) == 0 ||
 		(iSeen & (UINT32_C(1) <<
 		XRT_HTTP_DIGEST_CHALLENGE_QOP)) == 0 ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	if ( (iSeen & (UINT32_C(1) <<
@@ -371,13 +371,13 @@ XRT_API bool xrtHttpDigestChallengeRead(
 		memcpy(pChallenge, &Challenge, sizeof(Challenge));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iRequired) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pOutput, iRequired) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	{
@@ -395,7 +395,7 @@ XRT_API bool xrtHttpDigestChallengeRead(
 			if ( (iSeen & (UINT32_C(1) << (uint32)i)) == 0 ) {
 				continue;
 			}
-			iWritten = __xrtHttpParamValueWriteUnchecked(
+			iWritten = __xhttpParamValueWriteUnchecked(
 				&Parameters[i], (bytes)pOutput + iOutput
 			);
 			*pTargets[i] = (xstrview){
@@ -415,14 +415,14 @@ XRT_API bool xrtHttpDigestChallengeRead(
 static bool __xrtHttpDigestChallengeWritePass(
 	const xhttpdigestchallenge* pChallenge,
 	xstrview Algorithm,
-	xrt_http_param_writer* pWriter
+	__xhttp_param_writer* pWriter
 )
 {
 	char Qop[14];
 	size_t iQop = 0;
 
-	if ( !__xrtHttpParamWriterBytes(pWriter, "Digest ", 7u) ||
-		!__xrtHttpParamWriterQuoted(
+	if ( !__xhttpParamWriterBytes(pWriter, "Digest ", 7u) ||
+		!__xhttpParamWriterQuoted(
 			pWriter, XRT_STR_LITERAL("realm"),
 			pChallenge->Realm, true
 		) ) {
@@ -430,13 +430,13 @@ static bool __xrtHttpDigestChallengeWritePass(
 	}
 	if ( ((pChallenge->Flags &
 		XHTTP_DIGEST_CHALLENGE_HAS_DOMAIN) != 0) &&
-		!__xrtHttpParamWriterQuoted(
+		!__xhttpParamWriterQuoted(
 			pWriter, XRT_STR_LITERAL("domain"),
 			pChallenge->Domain, false
 		) ) {
 		return false;
 	}
-	if ( !__xrtHttpParamWriterQuoted(
+	if ( !__xhttpParamWriterQuoted(
 		pWriter, XRT_STR_LITERAL("nonce"),
 		pChallenge->Nonce, false
 	) ) {
@@ -444,7 +444,7 @@ static bool __xrtHttpDigestChallengeWritePass(
 	}
 	if ( ((pChallenge->Flags &
 		XHTTP_DIGEST_CHALLENGE_HAS_OPAQUE) != 0) &&
-		!__xrtHttpParamWriterQuoted(
+		!__xhttpParamWriterQuoted(
 			pWriter, XRT_STR_LITERAL("opaque"),
 			pChallenge->Opaque, false
 		) ) {
@@ -456,7 +456,7 @@ static bool __xrtHttpDigestChallengeWritePass(
 			XHTTP_DIGEST_CHALLENGE_STALE) != 0) ?
 			XRT_STR_LITERAL("true") : XRT_STR_LITERAL("false");
 
-		if ( !__xrtHttpParamWriterToken(
+		if ( !__xhttpParamWriterToken(
 			pWriter, XRT_STR_LITERAL("stale"), Stale, false
 		) ) {
 			return false;
@@ -464,7 +464,7 @@ static bool __xrtHttpDigestChallengeWritePass(
 	}
 	if ( ((pChallenge->Flags &
 		XHTTP_DIGEST_CHALLENGE_ALGORITHM_EXPLICIT) != 0) &&
-		!__xrtHttpParamWriterToken(
+		!__xhttpParamWriterToken(
 			pWriter, XRT_STR_LITERAL("algorithm"),
 			Algorithm, false
 		) ) {
@@ -485,7 +485,7 @@ static bool __xrtHttpDigestChallengeWritePass(
 			iQop += 8u;
 		}
 	}
-	if ( !__xrtHttpParamWriterQuoted(
+	if ( !__xhttpParamWriterQuoted(
 		pWriter, XRT_STR_LITERAL("qop"),
 		(xstrview){ Qop, iQop }, false
 	) ) {
@@ -493,7 +493,7 @@ static bool __xrtHttpDigestChallengeWritePass(
 	}
 	if ( ((pChallenge->Flags &
 		XHTTP_DIGEST_CHALLENGE_UTF8) != 0) &&
-		!__xrtHttpParamWriterToken(
+		!__xhttpParamWriterToken(
 			pWriter, XRT_STR_LITERAL("charset"),
 			XRT_STR_LITERAL("UTF-8"), false
 		) ) {
@@ -505,7 +505,7 @@ static bool __xrtHttpDigestChallengeWritePass(
 			XHTTP_DIGEST_CHALLENGE_USERHASH) != 0) ?
 			XRT_STR_LITERAL("true") : XRT_STR_LITERAL("false");
 
-		if ( !__xrtHttpParamWriterToken(
+		if ( !__xhttpParamWriterToken(
 			pWriter, XRT_STR_LITERAL("userhash"),
 			Userhash, false
 		) ) {
@@ -528,12 +528,12 @@ static bool __xrtHttpDigestChallengeWriteValid(
 	xstrview Canonical;
 	uint32 iFlags;
 
-	if ( !__xrtRangeValid(pInput, sizeof(*pInput)) ||
-		!__xrtRangeValid(pSize, sizeof(size_t)) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pInput, sizeof(*pInput)) ||
+		!xrtMemRangeValid(pSize, sizeof(size_t)) ||
+		xrtMemRangesOverlap(
 			pInput, sizeof(*pInput), pSize, sizeof(size_t)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pChallenge, pInput, sizeof(*pChallenge));
@@ -543,22 +543,22 @@ static bool __xrtHttpDigestChallengeWriteValid(
 		 ((iFlags & XHTTP_DIGEST_CHALLENGE_HAS_STALE) == 0)) ||
 		(((iFlags & XHTTP_DIGEST_CHALLENGE_USERHASH) != 0) &&
 		 ((iFlags & XHTTP_DIGEST_CHALLENGE_HAS_USERHASH) == 0)) ||
-		!__xrtHttpViewValid(pChallenge->Realm) ||
-		!__xrtHttpViewValid(pChallenge->Domain) ||
-		!__xrtHttpViewValid(pChallenge->Nonce) ||
-		!__xrtHttpViewValid(pChallenge->Opaque) ||
-		!__xrtHttpViewValid(pChallenge->AlgorithmName) ||
+		!__xhttpViewValid(pChallenge->Realm) ||
+		!__xhttpViewValid(pChallenge->Domain) ||
+		!__xhttpViewValid(pChallenge->Nonce) ||
+		!__xhttpViewValid(pChallenge->Opaque) ||
+		!__xhttpViewValid(pChallenge->AlgorithmName) ||
 		(((iFlags & XHTTP_DIGEST_CHALLENGE_HAS_DOMAIN) == 0) &&
 		 (pChallenge->Domain.Size != 0)) ||
 		(((iFlags & XHTTP_DIGEST_CHALLENGE_HAS_OPAQUE) == 0) &&
 		 (pChallenge->Opaque.Size != 0)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	/* 未知 qop 可被读取，但结构化写出只能表达已知能力位。 */
 	if ( (iFlags & (XHTTP_DIGEST_CHALLENGE_QOP_AUTH |
 		XHTTP_DIGEST_CHALLENGE_QOP_AUTH_INT)) == 0 ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	{
@@ -571,14 +571,14 @@ static bool __xrtHttpDigestChallengeWriteValid(
 		};
 
 		for ( size_t i = 0; i < 5u; i++ ) {
-			if ( __xrtRangesOverlap(
+			if ( xrtMemRangesOverlap(
 				pInput, sizeof(*pInput),
 				Views[i].Data, Views[i].Size
-			) || __xrtRangesOverlap(
+			) || xrtMemRangesOverlap(
 				pSize, sizeof(size_t),
 				Views[i].Data, Views[i].Size
 			) ) {
-				__xrtErrorSetInvalidArgument();
+				xrtSetErrorKind(XERR_ARGUMENT);
 				return false;
 			}
 		}
@@ -587,7 +587,7 @@ static bool __xrtHttpDigestChallengeWriteValid(
 	if ( (pChallenge->Algorithm !=
 		XHTTP_DIGEST_ALGORITHM_UNKNOWN) &&
 		(Canonical.Size == 0) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	if ( (iFlags &
@@ -598,7 +598,7 @@ static bool __xrtHttpDigestChallengeWriteValid(
 				pChallenge->AlgorithmName,
 				XRT_STR_LITERAL("MD5")
 			 )) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		*pAlgorithm = XRT_STR_LITERAL("MD5");
@@ -606,7 +606,7 @@ static bool __xrtHttpDigestChallengeWriteValid(
 	}
 	if ( pChallenge->Algorithm == XHTTP_DIGEST_ALGORITHM_UNKNOWN ) {
 		if ( !xrtHttpTokenValid(pChallenge->AlgorithmName) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		*pAlgorithm = pChallenge->AlgorithmName;
@@ -616,7 +616,7 @@ static bool __xrtHttpDigestChallengeWriteValid(
 		!xrtHttpTokenEqual(
 			pChallenge->AlgorithmName, Canonical
 		) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	*pAlgorithm = Canonical;
@@ -626,7 +626,7 @@ static bool __xrtHttpDigestChallengeWriteValid(
 
 
 /* 按规范顺序写出 Digest challenge。 */
-XRT_API bool xrtHttpDigestChallengeWrite(
+XHTTP_API bool xrtHttpDigestChallengeWrite(
 	const xhttpdigestchallenge* pInput,
 	void* pOutput,
 	size_t iCapacity,
@@ -636,7 +636,7 @@ XRT_API bool xrtHttpDigestChallengeWrite(
 	xhttpdigestchallenge Challenge;
 	xstrview Algorithm;
 	xstrview Views[5];
-	xrt_http_param_writer Writer = { 0 };
+	__xhttp_param_writer Writer = { 0 };
 
 	if ( ((pOutput == NULL) && (iCapacity != 0)) ||
 		!__xrtHttpDigestChallengeWriteValid(
@@ -645,7 +645,7 @@ XRT_API bool xrtHttpDigestChallengeWrite(
 			&Challenge, Algorithm, &Writer
 		) ) {
 		if ( (pOutput == NULL) && (iCapacity != 0) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 		}
 		return false;
 	}
@@ -658,26 +658,26 @@ XRT_API bool xrtHttpDigestChallengeWrite(
 		memcpy(pSize, &Writer.Size, sizeof(Writer.Size));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, Writer.Size) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, Writer.Size) ||
+		xrtMemRangesOverlap(
 			pOutput, Writer.Size, pInput, sizeof(*pInput)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, Writer.Size, pSize, sizeof(size_t)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( size_t i = 0; i < 5u; i++ ) {
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			pOutput, Writer.Size, Views[i].Data, Views[i].Size
 		) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 	}
 	if ( iCapacity < Writer.Size ) {
 		memcpy(pSize, &Writer.Size, sizeof(Writer.Size));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	Writer.Output = (bytes)pOutput;

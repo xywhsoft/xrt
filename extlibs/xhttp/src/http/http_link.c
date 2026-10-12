@@ -175,7 +175,7 @@ static bool __xrtHttpLinkElementParseValue(
 		Element.Data + 1u,
 		(size_t)(sClose - Element.Data - 1u)
 	};
-	if ( !__xrtUrlParseValue(Link.Target, &Target) ) {
+	if ( !xrtHttpBridgeUrlParseValue(Link.Target, &Target) ) {
 		return false;
 	}
 	Rest = (xstrview){
@@ -226,24 +226,24 @@ static bool __xrtHttpLinkElementParseValue(
 
 
 /* 严格解析一个 link-value。 */
-XRT_API bool xrtHttpLinkElementParse(
+XHTTP_API bool xrtHttpLinkElementParse(
 	xstrview Element,
 	xhttplink* pOutput
 )
 {
 	xhttplink Link;
 
-	if ( !__xrtHttpViewValid(Element) ||
-		!__xrtRangeValid(pOutput, sizeof(Link)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Element) ||
+		!xrtMemRangeValid(pOutput, sizeof(Link)) ||
+		xrtMemRangesOverlap(
 			pOutput, sizeof(Link), Element.Data, Element.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpLinkElementParseValue(Element, &Link) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return false;
 	}
@@ -330,7 +330,7 @@ static bool __xrtHttpLinkValueValidate(xstrview Value)
 	size_t iOffset = 0;
 	size_t iNext;
 
-	if ( !__xrtHttpViewValid(Value) ) {
+	if ( !__xhttpViewValid(Value) ) {
 		return false;
 	}
 	for ( ;; ) {
@@ -355,12 +355,12 @@ static bool __xrtHttpLinkValueValidate(xstrview Value)
 
 
 /* 初始化单字段游标。 */
-XRT_API void xrtHttpLinkCursorInit(xhttplinkcursor* pCursor)
+XHTTP_API void xrtHttpLinkCursorInit(xhttplinkcursor* pCursor)
 {
 	xhttplinkcursor Cursor;
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -370,14 +370,14 @@ XRT_API void xrtHttpLinkCursorInit(xhttplinkcursor* pCursor)
 
 
 /* 初始化重复字段游标。 */
-XRT_API void xrtHttpLinkFieldCursorInit(
+XHTTP_API void xrtHttpLinkFieldCursorInit(
 	xhttplinkfieldcursor* pCursor
 )
 {
 	xhttplinkfieldcursor Cursor;
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -387,15 +387,15 @@ XRT_API void xrtHttpLinkFieldCursorInit(
 
 
 /* 严格验证完整 Link 字段值。 */
-XRT_API bool xrtHttpLinkValid(xstrview Value)
+XHTTP_API bool xrtHttpLinkValid(xstrview Value)
 {
-	if ( !__xrtHttpViewValid(Value) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Value) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpLinkValueValidate(Value) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return false;
 	}
@@ -424,7 +424,7 @@ static bool __xrtHttpLinkCursorValid(
 
 
 /* 迭代一个完整 Link 字段值。 */
-XRT_API xhttpnext xrtHttpLinkNext(
+XHTTP_API xhttpnext xrtHttpLinkNext(
 	xstrview Value,
 	xhttplinkcursor* pCursor,
 	xhttplink* pOutput
@@ -436,28 +436,28 @@ XRT_API xhttpnext xrtHttpLinkNext(
 	xhttpnext Next;
 	size_t iNext;
 
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pOutput, sizeof(Link)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pOutput, sizeof(Link)) ||
+		xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pOutput, sizeof(Link)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, sizeof(Link), Value.Data, Value.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
 	if ( !__xrtHttpLinkCursorValid(&Cursor, Value) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.Validated == 0 ) {
 		if ( !__xrtHttpLinkValueValidate(Value) ) {
 			if ( xrtGetError() == NULL ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 			}
 			return XHTTP_NEXT_ERROR;
 		}
@@ -469,7 +469,7 @@ XRT_API xhttpnext xrtHttpLinkNext(
 		Value, Cursor.Offset, &iNext, &Element
 	);
 	if ( Next == XHTTP_NEXT_ERROR ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return Next;
 	}
 	memset(&Link, 0, sizeof(Link));
@@ -480,7 +480,7 @@ XRT_API xhttpnext xrtHttpLinkNext(
 		return Next;
 	}
 	if ( !__xrtHttpLinkElementParseValue(Element, &Link) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	Cursor.Offset = iNext;
@@ -501,7 +501,7 @@ static bool __xrtHttpLinkFieldsValidate(
 	size_t i;
 
 	for ( i = 0; i < iCount; i++ ) {
-		__xrtHttpFieldLoad(pFields, i, &Field);
+		__xhttpFieldLoad(pFields, i, &Field);
 		if ( xrtHttpFieldNameEqual(
 			Field.Name, XRT_STR_LITERAL("Link")
 		) && !__xrtHttpLinkValueValidate(Field.Value) ) {
@@ -537,7 +537,7 @@ static bool __xrtHttpLinkFieldCursorValid(
 
 
 /* 跨重复 Link 字段行迭代链接。 */
-XRT_API xhttpnext xrtHttpLinkFieldNext(
+XHTTP_API xhttpnext xrtHttpLinkFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttplinkfieldcursor* pCursor,
@@ -551,30 +551,30 @@ XRT_API xhttpnext xrtHttpLinkFieldNext(
 	xhttpnext Next;
 	size_t iNext;
 
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pOutput, sizeof(Link)) ||
-		__xrtHttpFieldArrayOverlap(
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pOutput, sizeof(Link)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pCursor, sizeof(Cursor)
-		) || __xrtHttpFieldArrayOverlap(
+		) || __xhttpFieldArrayOverlap(
 			pFields, iCount, pOutput, sizeof(Link)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pOutput, sizeof(Link)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
 	if ( !__xrtHttpLinkFieldCursorValid(
 		&Cursor, pFields, iCount
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.Validated == 0 ) {
 		if ( !__xrtHttpLinkFieldsValidate(pFields, iCount) ) {
 			if ( xrtGetError() == NULL ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 			}
 			return XHTTP_NEXT_ERROR;
 		}
@@ -583,7 +583,7 @@ XRT_API xhttpnext xrtHttpLinkFieldNext(
 		Cursor.Validated = 1u;
 	}
 	while ( Cursor.Field < iCount ) {
-		__xrtHttpFieldLoad(pFields, Cursor.Field, &Field);
+		__xhttpFieldLoad(pFields, Cursor.Field, &Field);
 		if ( !xrtHttpFieldNameEqual(
 			Field.Name, XRT_STR_LITERAL("Link")
 		) ) {
@@ -592,14 +592,14 @@ XRT_API xhttpnext xrtHttpLinkFieldNext(
 			continue;
 		}
 		if ( Cursor.Offset > Field.Value.Size ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return XHTTP_NEXT_ERROR;
 		}
 		Next = __xrtHttpLinkMemberNext(
 			Field.Value, Cursor.Offset, &iNext, &Element
 		);
 		if ( Next == XHTTP_NEXT_ERROR ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return Next;
 		}
 		if ( Next == XHTTP_NEXT_END ) {
@@ -610,7 +610,7 @@ XRT_API xhttpnext xrtHttpLinkFieldNext(
 		if ( !__xrtHttpLinkElementParseValue(
 			Element, &Link
 		) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return XHTTP_NEXT_ERROR;
 		}
 		Cursor.Offset = iNext;
@@ -690,13 +690,13 @@ bool __xrtHttpLinkDescriptorLoad(
 	xhttplink Link;
 	xhttplink Parsed;
 
-	if ( !__xrtRangeValid(pLink, sizeof(Link)) ||
+	if ( !xrtMemRangeValid(pLink, sizeof(Link)) ||
 		(pOutput == NULL) ) {
 		return false;
 	}
 	memcpy(&Link, pLink, sizeof(Link));
-	if ( !__xrtHttpViewValid(Link.Element) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Link.Element) ||
+		xrtMemRangesOverlap(
 			pLink, sizeof(Link),
 			Link.Element.Data, Link.Element.Size
 		) || !__xrtHttpLinkElementParseValue(

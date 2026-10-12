@@ -3,6 +3,7 @@
 
 #include "xrt_internal.h"
 #include "xrt_http.h"
+#include <xrt/http_bridge.h>
 #include <xrt/http_server.h>
 
 #if defined(XHTTP_FEATURE_HTTP_SERVER_EXCHANGE) || \
@@ -99,7 +100,7 @@ void __xrtHttpServerRequestWrapError(
 
 
 /* 验证输出范围完整且不会覆盖请求行、字段、正文或 Trailer 快照。 */
-bool __xrtHttpServerRequestOutputValid(
+bool xrtHttpBridgeServerRequestOutputValid(
 	const xhttpserverrequest* pRequest,
 	const void* pOutput,
 	size_t iSize
@@ -175,7 +176,7 @@ struct xhttp1serverexchange {
 
 
 /* 无分配验证 Server Exchange 的静态限额。 */
-bool __xrtHttp1ServerConfigValid(
+bool xrtHttpBridge1ServerConfigValid(
 	const xhttp1serverconfig* pConfig
 );
 
@@ -255,16 +256,7 @@ xhttp1serverfeedstatus __xrtHttp1ServerExchangeFeedBody(
 
 
 /* 响应来源借用调用期元数据，冻结结果独立拥有全部线缆状态。 */
-typedef struct xrt_http1_server_response_source {
-	uint16 Status;
-	xstrview Reason;
-	const xhttpfield* Headers;
-	size_t HeaderCount;
-	const xhttpfield* Trailers;
-	size_t TrailerCount;
-	xhttpbody* Body;
-	uint64 BodyLength;
-} xrt_http1_server_response_source;
+
 
 
 
@@ -304,11 +296,11 @@ struct xhttp1serverresponse {
 
 
 /* 从借用型响应来源冻结唯一 HTTP/1 输出计划。 */
-xhttp1serverresponse* __xrtHttp1ServerResponsePrepareSource(
+xhttp1serverresponse* xrtHttpBridge1ServerResponsePrepareSource(
 	xhttpversion Version,
 	xstrview Method,
 	uint32 iRequestFlags,
-	const xrt_http1_server_response_source* pSource
+	const xhttpresponsesource* pSource
 );
 
 
@@ -337,7 +329,7 @@ bool __xrtHttp1ServerResponseFail(
 
 
 /* 最终响应被连接成功受理后，接管其全部 Wire 引用。 */
-void __xrtHttp1ServerResponseOwnRefs(
+void xrtHttpBridge1ServerResponseOwnRefs(
 	xhttp1serverresponse* pResponse
 );
 

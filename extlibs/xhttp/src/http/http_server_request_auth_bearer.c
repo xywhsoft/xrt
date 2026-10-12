@@ -15,7 +15,7 @@ static xhttpnext __xrtHttpServerRequestBearerAuth(
 	xstrview Token = { NULL, 0 };
 	xhttpnext Next;
 
-	if ( !__xrtHttpServerRequestOutputValid(
+	if ( !xrtHttpBridgeServerRequestOutputValid(
 		pRequest, pToken, sizeof(Token)
 	) ) {
 		__xrtHttpServerRequestSetError(
@@ -52,7 +52,7 @@ static xhttpnext __xrtHttpServerRequestBearerAuth(
 
 
 /* 解析源站 Bearer Authorization。 */
-XRT_API xhttpnext xrtHttpServerRequestBearerAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestBearerAuth(
 	const xhttpserverrequest* pRequest,
 	xstrview* pToken
 )
@@ -67,7 +67,7 @@ XRT_API xhttpnext xrtHttpServerRequestBearerAuth(
 
 
 /* 解析代理 Bearer Proxy-Authorization。 */
-XRT_API xhttpnext xrtHttpServerRequestProxyBearerAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestProxyBearerAuth(
 	const xhttpserverrequest* pRequest,
 	xstrview* pToken
 )

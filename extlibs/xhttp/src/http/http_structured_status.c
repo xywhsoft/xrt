@@ -16,7 +16,7 @@ static bool __xrtHttpStructuredStatusRead(
 		return true;
 	}
 	if ( xrtGetError() == NULL ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 	}
 	return false;
 }
@@ -113,8 +113,8 @@ void __xrtHttpStructuredStatusCursorInit(
 	xrt_http_structured_status_cursor Cursor;
 
 	if ( (iCursorSize != sizeof(Cursor)) ||
-		!__xrtRangeValid(pCursor, iCursorSize) ) {
-		__xrtErrorSetInvalidArgument();
+		!xrtMemRangeValid(pCursor, iCursorSize) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -132,8 +132,8 @@ void __xrtHttpStructuredStatusFieldCursorInit(
 	xrt_http_structured_status_field_cursor Cursor;
 
 	if ( (iCursorSize != sizeof(Cursor)) ||
-		!__xrtRangeValid(pCursor, iCursorSize) ) {
-		__xrtErrorSetInvalidArgument();
+		!xrtMemRangeValid(pCursor, iCursorSize) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -152,8 +152,8 @@ bool __xrtHttpStructuredStatusValid(
 	size_t iFirstOffset;
 	bool bFound;
 
-	if ( !__xrtHttpViewValid(Value) || (pRead == NULL) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Value) || (pRead == NULL) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return __xrtHttpStructuredStatusListInspect(
@@ -181,17 +181,17 @@ xhttpnext __xrtHttpStructuredStatusNext(
 	bool bFound;
 
 	if ( (iCursorSize != sizeof(Cursor)) ||
-		!__xrtHttpViewValid(Value) || (pRead == NULL) ||
-		!__xrtRangeValid(pCursor, iCursorSize) ||
-		!__xrtRangeValid(pOutput, iOutputSize) ||
-		__xrtRangesOverlap(
+		!__xhttpViewValid(Value) || (pRead == NULL) ||
+		!xrtMemRangeValid(pCursor, iCursorSize) ||
+		!xrtMemRangeValid(pOutput, iOutputSize) ||
+		xrtMemRangesOverlap(
 			Value.Data, Value.Size, pCursor, iCursorSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Value.Data, Value.Size, pOutput, iOutputSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, iCursorSize, pOutput, iOutputSize
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
@@ -204,7 +204,7 @@ xhttpnext __xrtHttpStructuredStatusNext(
 		((Cursor.Validated != 0) &&
 		 ((Cursor.Source != (const void*)Value.Data) ||
 		  (Cursor.SourceSize != Value.Size))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.Validated == 0 ) {
@@ -274,23 +274,23 @@ xhttpnext __xrtHttpStructuredStatusFieldNext(
 	bool bFound;
 
 	if ( (iCursorSize != sizeof(Cursor)) ||
-		!__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtHttpViewValid(Name) || (Name.Size == 0) ||
+		!__xhttpFieldArrayValid(pFields, iCount) ||
+		!__xhttpViewValid(Name) || (Name.Size == 0) ||
 		!xrtHttpTokenValid(Name) || (pRead == NULL) ||
-		!__xrtRangeValid(pCursor, iCursorSize) ||
-		!__xrtRangeValid(pOutput, iOutputSize) ||
-		__xrtHttpFieldArrayOverlap(
+		!xrtMemRangeValid(pCursor, iCursorSize) ||
+		!xrtMemRangeValid(pOutput, iOutputSize) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pCursor, iCursorSize
-		) || __xrtHttpFieldArrayOverlap(
+		) || __xhttpFieldArrayOverlap(
 			pFields, iCount, pOutput, iOutputSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Name.Data, Name.Size, pCursor, iCursorSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Name.Data, Name.Size, pOutput, iOutputSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, iCursorSize, pOutput, iOutputSize
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
@@ -299,7 +299,7 @@ xhttpnext __xrtHttpStructuredStatusFieldNext(
 		 ((Cursor.Structured.Field != 0) ||
 		  (Cursor.Structured.Offset != 0) ||
 		  (Cursor.Structured.State != 0))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.Validated == 0 ) {

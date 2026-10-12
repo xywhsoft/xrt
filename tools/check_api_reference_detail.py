@@ -40,6 +40,7 @@ def load_manifest():
 
 def extract_header_functions(text):
 	"""返回 {name: {decl, params, ret}}；decl 为规范化签名文本。"""
+	text = re.sub(r"\bXHTTP(?:_(?:CLIENT|SERVER|POLICY))?_API\b", "XRT_API", text)
 	functions = {}
 	i = 0
 	while True:
@@ -82,6 +83,7 @@ def extract_header_functions(text):
 
 
 def normalize(text):
+	text = re.sub(r"\bXHTTP(?:_(?:CLIENT|SERVER|POLICY))?_API\b", "XRT_API", text)
 	text = re.sub(r"^XRT_API\s+", "", text.strip())
 	text = text.rstrip(";").strip()
 	text = re.sub(r"\s+", " ", text)

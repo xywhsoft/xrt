@@ -5,7 +5,7 @@
 #if defined(XHTTP_FEATURE_HTTP_CLIENT_REQUEST_FORM)
 
 /* 编码 QueryParams 并接管其存储作为 urlencoded 固定正文。 */
-XRT_API bool xrtHttpRequestSetForm(
+XHTTP_API bool xrtHttpRequestSetForm(
 	xhttprequest* pRequest,
 	const xqueryparams* pParams
 )

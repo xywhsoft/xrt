@@ -1,0 +1,24 @@
+#define XHTTP_SERVER_IMPLEMENTATION
+#define XHTTP_IMPLEMENTATION
+#include "../../include/xhttp-server/features.h"
+#include <xhttp/features.h>
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../../single/xrt.h"
+#include "../../../../single/extlibs/xhttp.h"
+#include "../../../../single/extlibs/xhttp-server.h"
+
+
+
+
+#if !defined(TEST_SINGLE_HTTP_SERVER_TLS_BACKEND)
+	#define TEST_SINGLE_HTTP_SERVER_TLS_BACKEND XNET_PORT_SELECT
+	#define TEST_SINGLE_HTTP_SERVER_TLS_BACKEND_NAME "single select"
+#endif
+
+#define TEST_HTTP_SERVER_TLS_BACKEND \
+	TEST_SINGLE_HTTP_SERVER_TLS_BACKEND
+#define TEST_HTTP_SERVER_TLS_BACKEND_NAME \
+	TEST_SINGLE_HTTP_SERVER_TLS_BACKEND_NAME
+#include "../http/test_http_server_tls.c"

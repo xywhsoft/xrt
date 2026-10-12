@@ -5,7 +5,7 @@
 #if defined(XHTTP_FEATURE_HTTP_CLIENT_RESPONSE)
 
 /* 建立客户端响应读取错误并保留借用原因链。 */
-void __xrtHttpResponseSetError(
+XHTTP_API void xrtHttpBridgeResponseSetError(
 	xerrkind Kind,
 	xhttpresponseerror Code,
 	cstr sOperation,
@@ -32,7 +32,7 @@ void __xrtHttpResponseSetError(
 
 
 /* 取得当前错误所有权，再用稳定响应错误域包裹。 */
-void __xrtHttpResponseWrapError(
+XHTTP_API void xrtHttpBridgeResponseWrapError(
 	xerrkind DefaultKind,
 	xhttpresponseerror Code,
 	cstr sOperation,
@@ -43,7 +43,7 @@ void __xrtHttpResponseWrapError(
 	xerrkind Kind = pCause != NULL ?
 		xrtErrorKind(pCause) : DefaultKind;
 
-	__xrtHttpResponseSetError(
+	xrtHttpBridgeResponseSetError(
 		Kind,
 		Code,
 		sOperation,
@@ -61,7 +61,7 @@ void __xrtHttpResponseWrapError(
 /* 设置响应实现使用的通用参数错误。 */
 static void __xrtHttpResponseInvalidArgument(void)
 {
-	__xrtHttpResponseSetError(
+	xrtHttpBridgeResponseSetError(
 		XERR_ARGUMENT,
 		XHTTP_RESPONSE_ERROR_ARGUMENT,
 		"response",
@@ -75,7 +75,7 @@ static void __xrtHttpResponseInvalidArgument(void)
 /* 设置响应实现使用的大小溢出错误。 */
 static void __xrtHttpResponseSizeOverflow(void)
 {
-	__xrtHttpResponseSetError(
+	xrtHttpBridgeResponseSetError(
 		XERR_RANGE,
 		XHTTP_RESPONSE_ERROR_ARGUMENT,
 		"response",
@@ -94,7 +94,7 @@ static bool __xrtHttpResponseLookupNameValid(xstrview Name)
 		return false;
 	}
 	if ( !xrtHttpTokenValid(Name) ) {
-		__xrtHttpResponseSetError(
+		xrtHttpBridgeResponseSetError(
 			XERR_VALUE,
 			XHTTP_RESPONSE_ERROR_HEADER,
 			"lookup-trailer",
@@ -109,7 +109,7 @@ static bool __xrtHttpResponseLookupNameValid(xstrview Name)
 
 
 /* 校验输出不会破坏响应对象、文本、字段或正文。 */
-bool __xrtHttpResponseOutputValid(
+XHTTP_API bool xrtHttpBridgeResponseOutputValid(
 	const xhttpresponse* pResponse,
 	const void* pOutput,
 	size_t iSize
@@ -158,7 +158,7 @@ bool __xrtHttpResponseOutputValid(
 	) ) {
 		return false;
 	}
-	#if defined(XHTTP_FEATURE_HTTP_CLIENT_DECOMPRESS)
+	#if defined(XHTTP_FEATURE_HTTP_CLIENT_RESPONSE)
 		if ( ((pResponse->OriginalEncoding == NULL) &&
 			 (pResponse->OriginalEncodingSize != 0)) ||
 			((pResponse->OriginalEncoding != NULL) &&
@@ -265,7 +265,7 @@ static bool __xrtHttpResponseReserveBody(
 
 
 /* 创建客户端事务内部可填充的响应对象。 */
-xhttpresponse* __xrtHttpResponseCreate(
+XHTTP_API xhttpresponse* xrtHttpBridgeResponseCreate(
 	xhttpversion Version,
 	uint16 iStatus,
 	xstrview Reason,
@@ -301,7 +301,7 @@ xhttpresponse* __xrtHttpResponseCreate(
 
 
 /* 追加响应 Header。 */
-bool __xrtHttpResponseAddHeader(
+XHTTP_API bool xrtHttpBridgeResponseAddHeader(
 	xhttpresponse* pResponse,
 	xstrview Name,
 	xstrview Value
@@ -319,7 +319,7 @@ bool __xrtHttpResponseAddHeader(
 
 
 /* 追加响应 trailer。 */
-bool __xrtHttpResponseAddTrailer(
+XHTTP_API bool xrtHttpBridgeResponseAddTrailer(
 	xhttpresponse* pResponse,
 	const xhttpheadersconfig* pConfig,
 	xstrview Name,
@@ -417,7 +417,7 @@ bool __xrtHttpResponseAppendBody(
 
 
 /* 为内部流式包装器缓冲正文，交付长度仍由 Exchange 统一累计。 */
-bool __xrtHttpResponseBufferDeliveredBody(
+XHTTP_API bool xrtHttpBridgeResponseBufferDeliveredBody(
 	xhttpresponse* pResponse,
 	xbytesview Data
 )
@@ -438,7 +438,7 @@ bool __xrtHttpResponseBufferDeliveredBody(
 
 
 /* 累计流式交付正文而不分配响应正文缓冲。 */
-bool __xrtHttpResponseDeliverBody(
+XHTTP_API bool xrtHttpBridgeResponseDeliverBody(
 	xhttpresponse* pResponse,
 	uint64 iBytes
 )
@@ -459,7 +459,7 @@ bool __xrtHttpResponseDeliverBody(
 
 
 /* 累计线上编码正文载荷长度。 */
-bool __xrtHttpResponseAddWireBody(
+XHTTP_API bool xrtHttpBridgeResponseAddWireBody(
 	xhttpresponse* pResponse,
 	uint64 iBytes
 )
@@ -479,7 +479,7 @@ bool __xrtHttpResponseAddWireBody(
 
 
 /* 失败原子地替换最终有效 URL。 */
-bool __xrtHttpResponseSetUrl(
+XHTTP_API bool xrtHttpBridgeResponseSetUrl(
 	xhttpresponse* pResponse,
 	xstrview Url
 )
@@ -503,7 +503,7 @@ bool __xrtHttpResponseSetUrl(
 
 
 /* 保存高层客户端已经完成的重定向跳数。 */
-void __xrtHttpResponseSetRedirects(
+XHTTP_API void xrtHttpBridgeResponseSetRedirects(
 	xhttpresponse* pResponse,
 	size_t iRedirects
 )
@@ -516,7 +516,7 @@ void __xrtHttpResponseSetRedirects(
 
 
 /* 恢复内部包装器代理前调用方选择的缓冲响应语义。 */
-void __xrtHttpResponseSetBuffered(xhttpresponse* pResponse)
+XHTTP_API void xrtHttpBridgeResponseSetBuffered(xhttpresponse* pResponse)
 {
 	if ( pResponse != NULL ) {
 		pResponse->Flags &=
@@ -527,7 +527,7 @@ void __xrtHttpResponseSetBuffered(xhttpresponse* pResponse)
 
 
 /* 增加客户端已经确认的响应标志。 */
-void __xrtHttpResponseSetFlags(
+XHTTP_API void xrtHttpBridgeResponseSetFlags(
 	xhttpresponse* pResponse,
 	uint32 iFlags
 )
@@ -540,12 +540,12 @@ void __xrtHttpResponseSetFlags(
 
 
 /* 销毁客户端响应。 */
-XRT_API void xrtHttpResponseDestroy(xhttpresponse* pResponse)
+XHTTP_API void xrtHttpResponseDestroy(xhttpresponse* pResponse)
 {
 	if ( pResponse == NULL ) {
 		return;
 	}
-	#if defined(XHTTP_FEATURE_HTTP_CLIENT_DECOMPRESS)
+	#if defined(XHTTP_FEATURE_HTTP_CLIENT_RESPONSE)
 		xrtFree(pResponse->OriginalEncoding);
 	#endif
 	xrtFree(pResponse->Url);
@@ -560,7 +560,7 @@ XRT_API void xrtHttpResponseDestroy(xhttpresponse* pResponse)
 
 
 /* 返回响应版本。 */
-XRT_API xhttpversion xrtHttpResponseVersion(
+XHTTP_API xhttpversion xrtHttpResponseVersion(
 	const xhttpresponse* pResponse
 )
 {
@@ -570,7 +570,7 @@ XRT_API xhttpversion xrtHttpResponseVersion(
 
 
 /* 返回响应状态码。 */
-XRT_API uint16 xrtHttpResponseStatus(
+XHTTP_API uint16 xrtHttpResponseStatus(
 	const xhttpresponse* pResponse
 )
 {
@@ -580,7 +580,7 @@ XRT_API uint16 xrtHttpResponseStatus(
 
 
 /* 判断响应是否属于成功状态范围。 */
-XRT_API bool xrtHttpResponseSuccess(
+XHTTP_API bool xrtHttpResponseSuccess(
 	const xhttpresponse* pResponse
 )
 {
@@ -592,7 +592,7 @@ XRT_API bool xrtHttpResponseSuccess(
 
 
 /* 返回借用 reason phrase。 */
-XRT_API xstrview xrtHttpResponseReason(
+XHTTP_API xstrview xrtHttpResponseReason(
 	const xhttpresponse* pResponse
 )
 {
@@ -608,7 +608,7 @@ XRT_API xstrview xrtHttpResponseReason(
 
 
 /* 返回响应标志。 */
-XRT_API uint32 xrtHttpResponseFlags(
+XHTTP_API uint32 xrtHttpResponseFlags(
 	const xhttpresponse* pResponse
 )
 {
@@ -619,7 +619,7 @@ XRT_API uint32 xrtHttpResponseFlags(
 
 
 /* 返回首个同名 Header。 */
-XRT_API const xhttpfield* xrtHttpResponseHeader(
+XHTTP_API const xhttpfield* xrtHttpResponseHeader(
 	const xhttpresponse* pResponse,
 	xstrview Name
 )
@@ -631,7 +631,7 @@ XRT_API const xhttpfield* xrtHttpResponseHeader(
 
 
 /* 返回 Header 数量。 */
-XRT_API size_t xrtHttpResponseHeaderCount(
+XHTTP_API size_t xrtHttpResponseHeaderCount(
 	const xhttpresponse* pResponse
 )
 {
@@ -642,7 +642,7 @@ XRT_API size_t xrtHttpResponseHeaderCount(
 
 
 /* 返回响应拥有的连续只读 Header 数组。 */
-XRT_API const xhttpfield* xrtHttpResponseHeaderData(
+XHTTP_API const xhttpfield* xrtHttpResponseHeaderData(
 	const xhttpresponse* pResponse
 )
 {
@@ -653,7 +653,7 @@ XRT_API const xhttpfield* xrtHttpResponseHeaderData(
 
 
 /* 返回指定位置的 Header。 */
-XRT_API const xhttpfield* xrtHttpResponseHeaderAt(
+XHTTP_API const xhttpfield* xrtHttpResponseHeaderAt(
 	const xhttpresponse* pResponse,
 	size_t iIndex
 )
@@ -665,7 +665,7 @@ XRT_API const xhttpfield* xrtHttpResponseHeaderAt(
 
 
 /* 返回响应拥有的只读 Header 容器。 */
-XRT_API const xhttpheaders* xrtHttpResponseHeaders(
+XHTTP_API const xhttpheaders* xrtHttpResponseHeaders(
 	const xhttpresponse* pResponse
 )
 {
@@ -675,7 +675,7 @@ XRT_API const xhttpheaders* xrtHttpResponseHeaders(
 
 
 /* 返回首个同名 trailer。 */
-XRT_API const xhttpfield* xrtHttpResponseTrailer(
+XHTTP_API const xhttpfield* xrtHttpResponseTrailer(
 	const xhttpresponse* pResponse,
 	xstrview Name
 )
@@ -693,7 +693,7 @@ XRT_API const xhttpfield* xrtHttpResponseTrailer(
 
 
 /* 返回 trailer 数量。 */
-XRT_API size_t xrtHttpResponseTrailerCount(
+XHTTP_API size_t xrtHttpResponseTrailerCount(
 	const xhttpresponse* pResponse
 )
 {
@@ -705,7 +705,7 @@ XRT_API size_t xrtHttpResponseTrailerCount(
 
 
 /* 返回响应拥有的连续只读 trailer 数组。 */
-XRT_API const xhttpfield* xrtHttpResponseTrailerData(
+XHTTP_API const xhttpfield* xrtHttpResponseTrailerData(
 	const xhttpresponse* pResponse
 )
 {
@@ -717,7 +717,7 @@ XRT_API const xhttpfield* xrtHttpResponseTrailerData(
 
 
 /* 返回指定位置的 trailer。 */
-XRT_API const xhttpfield* xrtHttpResponseTrailerAt(
+XHTTP_API const xhttpfield* xrtHttpResponseTrailerAt(
 	const xhttpresponse* pResponse,
 	size_t iIndex
 )
@@ -730,7 +730,7 @@ XRT_API const xhttpfield* xrtHttpResponseTrailerAt(
 
 
 /* 返回响应拥有的只读 Trailer 容器。 */
-XRT_API const xhttpheaders* xrtHttpResponseTrailers(
+XHTTP_API const xhttpheaders* xrtHttpResponseTrailers(
 	const xhttpresponse* pResponse
 )
 {
@@ -740,7 +740,7 @@ XRT_API const xhttpheaders* xrtHttpResponseTrailers(
 
 
 /* 返回缓冲正文视图。 */
-XRT_API xbytesview xrtHttpResponseBody(
+XHTTP_API xbytesview xrtHttpResponseBody(
 	const xhttpresponse* pResponse
 )
 {
@@ -756,7 +756,7 @@ XRT_API xbytesview xrtHttpResponseBody(
 
 
 /* 返回交付正文总字节数。 */
-XRT_API uint64 xrtHttpResponseBodyBytes(
+XHTTP_API uint64 xrtHttpResponseBodyBytes(
 	const xhttpresponse* pResponse
 )
 {
@@ -766,7 +766,7 @@ XRT_API uint64 xrtHttpResponseBodyBytes(
 
 
 /* 返回线上编码正文载荷总字节数。 */
-XRT_API uint64 xrtHttpResponseWireBodyBytes(
+XHTTP_API uint64 xrtHttpResponseWireBodyBytes(
 	const xhttpresponse* pResponse
 )
 {
@@ -776,10 +776,10 @@ XRT_API uint64 xrtHttpResponseWireBodyBytes(
 
 
 
-#if defined(XHTTP_FEATURE_HTTP_CLIENT_DECOMPRESS)
+#if defined(XHTTP_FEATURE_HTTP_CLIENT_RESPONSE)
 
 /* 返回自动解码前的完整 Content-Encoding。 */
-XRT_API xstrview xrtHttpResponseOriginalEncoding(
+XHTTP_API xstrview xrtHttpResponseOriginalEncoding(
 	const xhttpresponse* pResponse
 )
 {
@@ -795,7 +795,7 @@ XRT_API xstrview xrtHttpResponseOriginalEncoding(
 
 
 /* 接管原始编码文本并删除已经失效的线路表示 Header。 */
-void __xrtHttpResponseSetDecoded(
+XHTTP_API void xrtHttpBridgeResponseSetDecoded(
 	xhttpresponse* pResponse,
 	str sOriginalEncoding,
 	size_t iOriginalEncodingSize
@@ -824,7 +824,7 @@ void __xrtHttpResponseSetDecoded(
 
 
 /* 覆盖 Exchange 按线路片段累计的正文长度。 */
-void __xrtHttpResponseSetBodyBytes(
+XHTTP_API void xrtHttpBridgeResponseSetBodyBytes(
 	xhttpresponse* pResponse,
 	uint64 iBodyBytes
 )
@@ -839,7 +839,7 @@ void __xrtHttpResponseSetBodyBytes(
 
 
 /* 复制正文并附加零字符。 */
-XRT_API str xrtHttpResponseBodyText(
+XHTTP_API str xrtHttpResponseBodyText(
 	const xhttpresponse* pResponse
 )
 {
@@ -869,7 +869,7 @@ XRT_API str xrtHttpResponseBodyText(
 
 
 /* 返回最终有效 URL。 */
-XRT_API xstrview xrtHttpResponseUrl(
+XHTTP_API xstrview xrtHttpResponseUrl(
 	const xhttpresponse* pResponse
 )
 {
@@ -885,7 +885,7 @@ XRT_API xstrview xrtHttpResponseUrl(
 
 
 /* 返回高层客户端实际跟随的重定向跳数。 */
-XRT_API size_t xrtHttpResponseRedirects(
+XHTTP_API size_t xrtHttpResponseRedirects(
 	const xhttpresponse* pResponse
 )
 {

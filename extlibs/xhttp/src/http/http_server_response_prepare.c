@@ -9,7 +9,7 @@
 
 /* 准备阶段只保存借用输入和本次调用内的临时字段数组。 */
 typedef struct xrt_http1_server_response_prepare {
-	const xrt_http1_server_response_source* Source;
+	const xhttpresponsesource* Source;
 	xhttpfield* Fields;
 	size_t FieldCount;
 	size_t FieldCapacity;
@@ -157,7 +157,7 @@ static bool __xrtHttp1ServerResponseHeaders(
 	*pTrailerDeclared = false;
 	*pUpgradeCount = 0;
 	for ( i = 0; i < iCount; i++ ) {
-		__xrtHttpFieldLoad(
+		__xhttpFieldLoad(
 			pPrepare->Source->Headers, i, &Field
 		);
 		if ( xrtHttpFieldNameEqual(
@@ -338,7 +338,7 @@ static bool __xrtHttp1ServerResponseStatus(
 	bool bUpgrade = iUpgrade != XRT_NPOS;
 
 	if ( bUpgrade ) {
-		__xrtHttpFieldLoad(
+		__xhttpFieldLoad(
 			pPrepare->Source->Headers,
 			iUpgrade,
 			&Upgrade
@@ -618,7 +618,7 @@ static bool __xrtHttp1ServerResponseStorageAdd(
 )
 {
 	if ( *pSize > (SIZE_MAX - iAdd) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	*pSize += iAdd;
@@ -756,7 +756,7 @@ static bool __xrtHttp1ServerResponseInformField(
 
 
 /* 冻结一条没有正文且不结束当前请求的 HTTP/1.1 信息响应。 */
-XRT_API xhttp1serverresponse* xrtHttp1ServerResponseInform(
+XHTTP_API xhttp1serverresponse* xrtHttp1ServerResponseInform(
 	xhttpversion Version,
 	const xhttpreply* pReply
 )
@@ -772,7 +772,7 @@ XRT_API xhttp1serverresponse* xrtHttp1ServerResponseInform(
 	if ( (pReply == NULL) ||
 		((Version != XHTTP_VERSION_1_0) &&
 		 (Version != XHTTP_VERSION_1_1)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( (Version != XHTTP_VERSION_1_1) ||
@@ -837,7 +837,7 @@ XRT_API xhttp1serverresponse* xrtHttp1ServerResponseInform(
 		return NULL;
 	}
 	if ( sizeof(*pResponse) > (SIZE_MAX - iHeadSize) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	pResponse = (xhttp1serverresponse*)xrtMalloc(
@@ -871,11 +871,11 @@ XRT_API xhttp1serverresponse* xrtHttp1ServerResponseInform(
 
 
 /* 按固定请求事实冻结借用型响应来源。 */
-xhttp1serverresponse* __xrtHttp1ServerResponsePrepareSource(
+XHTTP_API xhttp1serverresponse* xrtHttpBridge1ServerResponsePrepareSource(
 	xhttpversion Version,
 	xstrview Method,
 	uint32 iRequestFlags,
-	const xrt_http1_server_response_source* pSource
+	const xhttpresponsesource* pSource
 )
 {
 	xrt_http1_server_response_prepare Prepare;
@@ -904,10 +904,10 @@ xhttp1serverresponse* __xrtHttp1ServerResponsePrepareSource(
 		(pSource->Status < 100) ||
 		(pSource->Status > 999) ||
 		!xrtHttpFieldValueValid(pSource->Reason) ||
-		!__xrtHttpFieldArrayValid(
+		!__xhttpFieldArrayValid(
 			pSource->Headers,
 			pSource->HeaderCount
-		) || !__xrtHttpFieldArrayValid(
+		) || !__xhttpFieldArrayValid(
 			pSource->Trailers,
 			pSource->TrailerCount
 		) || ((pSource->Body == NULL) &&
@@ -916,7 +916,7 @@ xhttp1serverresponse* __xrtHttp1ServerResponsePrepareSource(
 		 (xrtHttpBodyLength(pSource->Body) !=
 		  pSource->BodyLength)) ||
 		((iRequestFlags & ~iKnownFlags) != 0) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	memset(&Prepare, 0, sizeof(Prepare));
@@ -928,7 +928,7 @@ xhttp1serverresponse* __xrtHttp1ServerResponsePrepareSource(
 	if ( (iHeaders > (SIZE_MAX - 4u)) ||
 		((iHeaders + 4u) >
 		 (SIZE_MAX / sizeof(xhttpfield))) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	iCapacity = iHeaders + 4u;
@@ -972,19 +972,19 @@ xhttp1serverresponse* __xrtHttp1ServerResponsePrepareSource(
 
 
 /* 把拥有型 Reply 适配为借用来源并复用唯一冻结内核。 */
-XRT_API xhttp1serverresponse* xrtHttp1ServerResponsePrepare(
+XHTTP_API xhttp1serverresponse* xrtHttp1ServerResponsePrepare(
 	xhttpversion Version,
 	xstrview Method,
 	uint32 iRequestFlags,
 	const xhttpreply* pReply
 )
 {
-	xrt_http1_server_response_source Source;
+	xhttpresponsesource Source;
 	const xhttpheaders* pHeaders;
 	const xhttpheaders* pTrailers;
 
 	if ( pReply == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	memset(&Source, 0, sizeof(Source));
@@ -1001,7 +1001,7 @@ XRT_API xhttp1serverresponse* xrtHttp1ServerResponsePrepare(
 	Source.Body = xrtHttpReplyBody(pReply);
 	Source.BodyLength = Source.Body != NULL ?
 		xrtHttpBodyLength(Source.Body) : 0;
-	return __xrtHttp1ServerResponsePrepareSource(
+	return xrtHttpBridge1ServerResponsePrepareSource(
 		Version,
 		Method,
 		iRequestFlags,
@@ -1012,13 +1012,13 @@ XRT_API xhttp1serverresponse* xrtHttp1ServerResponsePrepare(
 
 
 /* 从拥有型请求快照提取请求事实并准备响应。 */
-XRT_API xhttp1serverresponse* xrtHttp1ServerResponseCreate(
+XHTTP_API xhttp1serverresponse* xrtHttp1ServerResponseCreate(
 	const xhttpserverrequest* pRequest,
 	const xhttpreply* pReply
 )
 {
 	if ( (pRequest == NULL) || (pReply == NULL) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	return xrtHttp1ServerResponsePrepare(

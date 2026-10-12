@@ -8,6 +8,8 @@ lead: Луковичная модель «вход в порядке регис�
 api: xhttp-http_server_middleware, xhttp-http_server_static, xhttp-http_server_router
 ---
 
+> Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Ориентация
 
 Всё вне бизнес-маршрутизации — журналирование, хронометраж, авторизация, CORS, сжатие — должно пройти по каждому запросу. `xrtHttpServerUse` регистрирует их как **middleware**: вход в порядке регистрации, выход в обратном (луковичная модель); `xrtHttpServerNext` синхронно входит в следующий слой, после возврата исполняется пост-логика (хронометраж/завершение журнала);**не вызвать Next — значит замкнуть цепь** — middleware может ответить напрямую или удержать Connection для асинхронной обработки. Ключевая деталь контракта: `Next` действительна только внутри текущего синхронного стека обратных вызовов (нельзя сохранять в поток/Future/корутину), вызывается максимум один раз (повтор = путь ошибки) — **асинхронное middleware должно замыкать цепь и удерживать Connection само, а не откладывать Next**. Вторая половина главы — слой статических файлов: ответ одним файлом, отображение каталогов с песочницей (`http_server_static` — серверное приземление идеи dir-песочницы главы 47).
@@ -58,11 +60,11 @@ Unified-журналу и обработчику ошибок надо виде�
 
 Программа ниже из `examples/http/server_middleware` — middleware журналирования оборачивает health-маршрут:
 
-```embed path="extlibs/xhttp/examples/http/server_middleware/main.c" title="extlibs/xhttp/examples/http/server_middleware/main.c"
+```embed path="extlibs/xhttp-server/examples/http/server_middleware/main.c" title="extlibs/xhttp-server/examples/http/server_middleware/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server_middleware/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_server_middleware --exclude-test "*" --no-single --no-run
 middleware: 1, routes: 1
 ```
 
@@ -72,11 +74,11 @@ middleware: 1, routes: 1
 
 Вторая программа из `examples/http/static_file` — стандартная сборка файловых ответов:
 
-```embed path="extlibs/xhttp/examples/http/static_file/main.c" title="extlibs/xhttp/examples/http/static_file/main.c"
+```embed path="extlibs/xhttp-server/examples/http/static_file/main.c" title="extlibs/xhttp-server/examples/http/static_file/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/static_file/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_static_file --exclude-test "*" --no-single --no-run
 （输出静态服务装配结果并正常退出）
 ```
 

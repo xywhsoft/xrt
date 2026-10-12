@@ -224,7 +224,7 @@ static bool __xrtUrlParamAuthorityValid(
 
 
 /* 严格验证参数语义值的 URI-reference 结构。 */
-XRT_API bool xrtUrlParamValid(const xhttpparam* pParam)
+XHTTP_API bool xrtUrlParamValid(const xhttpparam* pParam)
 {
 	xhttpparamvaluecursor Cursor;
 	xhttpparam Param;
@@ -249,8 +249,8 @@ XRT_API bool xrtUrlParamValid(const xhttpparam* pParam)
 	bool bScheme = false;
 	bool bValid;
 
-	if ( !__xrtRangeValid(pParam, sizeof(Param)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pParam, sizeof(Param)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Param, pParam, sizeof(Param));
@@ -315,7 +315,7 @@ XRT_API bool xrtUrlParamValid(const xhttpparam* pParam)
 		if ( !__xrtUrlParamSchemeValid(
 			&Param, 0, iColonBefore
 		) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		iPathStart = iColonAfter;
@@ -336,7 +336,7 @@ XRT_API bool xrtUrlParamValid(const xhttpparam* pParam)
 		) || !__xrtUrlParamAuthorityValid(
 			&Param, iAuthorityStart, iAuthorityEnd
 		) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		iPathStart = iAuthorityEnd;
@@ -368,7 +368,7 @@ XRT_API bool xrtUrlParamValid(const xhttpparam* pParam)
 		);
 	}
 	if ( !bValid ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 	}
 	return bValid;
 }

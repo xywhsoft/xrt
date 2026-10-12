@@ -1,0 +1,38 @@
+#define XHTTP_SERVER_IMPLEMENTATION
+#define XHTTP_IMPLEMENTATION
+#include "../../include/xhttp-server/features.h"
+#include <xhttp/features.h>
+#ifndef XRT_IMPLEMENTATION
+#define XRT_IMPLEMENTATION
+#endif
+#include "../../../../single/xrt.h"
+#include "../../../../single/extlibs/xhttp.h"
+#include "../../../../single/extlibs/xhttp-server.h"
+
+
+
+
+/* 单头文件构建必须公开原始响应接口及其参数错误。 */
+int main(void)
+{
+	xnetref Ref = { NULL, 0, NULL, NULL };
+
+	return (xrtHttpConnRespondRaw(
+		NULL,
+		XRT_BYTES_LITERAL("HTTP/1.1 204 No Content\r\n\r\n"),
+		XHTTP_SERVER_RAW_NONE
+	) == XNET_RESULT_ERROR) &&
+		(xrtHttpConnRespondRawRef(
+			NULL,
+			&Ref,
+			XHTTP_SERVER_RAW_NONE
+		 ) == XNET_RESULT_ERROR) &&
+		(xrtHttpConnRespondRawTake(
+			NULL,
+			NULL,
+			0,
+			XHTTP_SERVER_RAW_NONE
+		 ) == XNET_RESULT_ERROR) &&
+		(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT) ?
+			0 : 1;
+}

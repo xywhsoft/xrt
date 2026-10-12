@@ -27,7 +27,7 @@ static inline xhttpresponse* testHttpResponseFixtureTryCreate(
 	size_t iCount
 )
 {
-	xhttpresponse* pResponse = __xrtHttpResponseCreate(
+	xhttpresponse* pResponse = xrtHttpBridgeResponseCreate(
 		XHTTP_VERSION_1_1,
 		XHTTP_STATUS_OK,
 		XRT_STR_LITERAL("OK"),
@@ -39,7 +39,7 @@ static inline xhttpresponse* testHttpResponseFixtureTryCreate(
 		return NULL;
 	}
 	for ( i = 0; i < iCount; i++ ) {
-		if ( !__xrtHttpResponseAddHeader(
+		if ( !xrtHttpBridgeResponseAddHeader(
 			pResponse,
 			pFields[i].Name,
 			pFields[i].Value

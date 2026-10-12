@@ -1,6 +1,9 @@
-#ifndef XHTTP_INTERNAL_XRT_INTERNAL_BRIDGE_H
-#define XHTTP_INTERNAL_XRT_INTERNAL_BRIDGE_H
+#ifndef XHTTP_INTERNAL_RUNTIME_H
+#define XHTTP_INTERNAL_RUNTIME_H
 
-#include "../../../../src/internal/xrt_internal.h"
+#include "xhttp_internal.h"
+#if defined(XRT_FEATURE_SPIN)
+#include <xrt/spin.h>
+#endif
 
 #endif

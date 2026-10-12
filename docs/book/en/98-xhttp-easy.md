@@ -8,6 +8,8 @@ lead: Behind the one-line GetSync there is no second implementation — how the 
 api: xhttp-http_client, xhttp-http_client_easy, net
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 Volume 9 gave you every HTTP part (parsing, framing, fields, decoding); Volume 10's xhttp assembles them into a **high-level client** — this chapter starts at the thinnest layer: the **easy convenience layer**. `xrtHttpClientGetSync(客户端, URL, NULL)` (client, URL, NULL) completes request-response in one line; the key is that behind this line there is **no hidden Engine, Client, or second request implementation** — it merely creates a temporary request and hands it to `xrtHttpClientDo()` to freeze; timeouts, cancellation, redirects, cookies, caching, proxies, TLS, decompression, diagnostics, and the error chain are all identical to the low-level entrance. After this chapter you hold "the shortest usable path" plus a judgment: when to stay at the easy layer and when to sink to Chapter 99's request builder.
@@ -61,11 +63,11 @@ Three fixed steps before any easy call: `xrtNetEngineConfigInit/Create/Start` (E
 
 The program below is from `examples/http/client_easy` — the complete tool of three core lines:
 
-```embed path="extlibs/xhttp/examples/http/client_easy/main.c" title="extlibs/xhttp/examples/http/client_easy/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_easy/main.c" title="extlibs/xhttp-client/examples/http/client_easy/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_easy/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_easy_future --exclude-test "*" --no-single --no-run
 usage: client_easy <http-url>
 ```
 
@@ -75,11 +77,11 @@ usage: client_easy <http-url>
 
 The second program is from `examples/http/client_future` — the asynchronous face of the same calls:
 
-```embed path="extlibs/xhttp/examples/http/client_future/main.c" title="extlibs/xhttp/examples/http/client_future/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_future/main.c" title="extlibs/xhttp-client/examples/http/client_future/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_future/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_future --exclude-test "*" --no-single --no-run
 usage: client_future <http-url>
 ```
 
@@ -93,7 +95,7 @@ usage: client_future <http-url>
 - **Deliberate refusals**: Header/streaming/forms/auth — sink to the builder (Chapter 99); no middle state.
 - **Result object**: read-only snapshot; `ResultResponse` lends the response, `ResponseBody` lends the body; the final effective URL includes the redirect landing point; `ResultDestroy` when used up.
 - **Startup validation**: Client creation validates the static configuration; invalid strategies are not deferred to the first request.
-- **Trimming**: `XHTTP_MODULE_HTTP_CLIENT_EASY` (callback) and `_EASY_FUTURE` (Future/sync) independent.
+- **Trimming**: `XHTTP_CLIENT_MODULE_HTTP_CLIENT_EASY` (callback) and `_EASY_FUTURE` (Future/sync) independent.
 - **Assembly discipline**: Engine started first; cleanup Client before Engine; Engine Destroy spins and retries.
 
 ## Pitfalls

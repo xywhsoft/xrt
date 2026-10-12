@@ -99,7 +99,7 @@ static bool __xrtHttpLinkWriteParamValid(
 		XHTTP_PARAM_QUOTED;
 
 	if ( !xrtHttpTokenValid(pParam->Name) ||
-		!__xrtHttpViewValid(pParam->Value) ||
+		!__xhttpViewValid(pParam->Value) ||
 		((pParam->Flags & ~iKnown) != 0) ||
 		(((pParam->Flags & XHTTP_PARAM_QUOTED) != 0) &&
 		 ((pParam->Flags & XHTTP_PARAM_HAS_VALUE) == 0)) ||
@@ -185,16 +185,16 @@ static bool __xrtHttpLinkWriteValueValid(
 	size_t iBytes;
 	size_t i;
 
-	if ( !__xrtHttpViewValid(pLink->Target) ||
-		!__xrtHttpViewValid(pLink->Relations) ||
+	if ( !__xhttpViewValid(pLink->Target) ||
+		!__xhttpViewValid(pLink->Relations) ||
 		(pLink->ParameterCount >
 		 (SIZE_MAX / sizeof(Param))) ||
-		!__xrtUrlParseValue(pLink->Target, &Target) ||
+		!xrtHttpBridgeUrlParseValue(pLink->Target, &Target) ||
 		!__xrtHttpLinkRelationsValueValid(pLink->Relations) ) {
 		return false;
 	}
 	iBytes = pLink->ParameterCount * sizeof(Param);
-	if ( !__xrtRangeValid(pLink->Parameters, iBytes) ) {
+	if ( !xrtMemRangeValid(pLink->Parameters, iBytes) ) {
 		return false;
 	}
 	for ( i = 0; i < pLink->ParameterCount; i++ ) {
@@ -233,11 +233,11 @@ static bool __xrtHttpLinkWriteParamMeasure(
 			iValue = pParam->Value.Size;
 		}
 	}
-	return __xrtHttpSizeAdd(pSize, 2u) &&
-		__xrtHttpSizeAdd(pSize, pParam->Name.Size) &&
+	return __xhttpSizeAdd(pSize, 2u) &&
+		__xhttpSizeAdd(pSize, pParam->Name.Size) &&
 		(((pParam->Flags & XHTTP_PARAM_HAS_VALUE) == 0) ||
-		 (__xrtHttpSizeAdd(pSize, 1u) &&
-		  __xrtHttpSizeAdd(pSize, iValue)));
+		 (__xhttpSizeAdd(pSize, 1u) &&
+		  __xhttpSizeAdd(pSize, iValue)));
 }
 
 
@@ -259,10 +259,10 @@ static bool __xrtHttpLinkWriteValueMeasure(
 	) ) {
 		return false;
 	}
-	if ( !__xrtHttpSizeAdd(pSize, 1u) ||
-		!__xrtHttpSizeAdd(pSize, pLink->Target.Size) ||
-		!__xrtHttpSizeAdd(pSize, 7u) ||
-		!__xrtHttpSizeAdd(pSize, iRelation) ) {
+	if ( !__xhttpSizeAdd(pSize, 1u) ||
+		!__xhttpSizeAdd(pSize, pLink->Target.Size) ||
+		!__xhttpSizeAdd(pSize, 7u) ||
+		!__xhttpSizeAdd(pSize, iRelation) ) {
 		return false;
 	}
 	for ( i = 0; i < pLink->ParameterCount; i++ ) {
@@ -300,7 +300,7 @@ static void __xrtHttpLinkWriteParamUnchecked(
 	}
 	pOutput[(*pOffset)++] = (uint8)'=';
 	if ( (pParam->Flags & XHTTP_PARAM_QUOTED) != 0 ) {
-		*pOffset += __xrtHttpQuotedWriteUnchecked(
+		*pOffset += __xhttpQuotedWriteUnchecked(
 			pParam->Value, pOutput + *pOffset
 		);
 	} else {
@@ -342,7 +342,7 @@ static void __xrtHttpLinkWriteValueUnchecked(
 		);
 		*pOffset += pLink->Relations.Size;
 	} else {
-		*pOffset += __xrtHttpQuotedWriteUnchecked(
+		*pOffset += __xhttpQuotedWriteUnchecked(
 			pLink->Relations, pOutput + *pOffset
 		);
 	}
@@ -373,24 +373,24 @@ static bool __xrtHttpLinkWriteOutputOverlap(
 	size_t i;
 	size_t j;
 
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pLinks, iLinks, pOutput, iSize
 	) ) {
 		return true;
 	}
 	for ( i = 0; i < iCount; i++ ) {
 		__xrtHttpLinkValueLoad(pLinks, i, &Link);
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			Link.Target.Data, Link.Target.Size,
 			pOutput, iSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Link.Relations.Data, Link.Relations.Size,
 			pOutput, iSize
 		) ) {
 			return true;
 		}
 		iParams = Link.ParameterCount * sizeof(Param);
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			Link.Parameters, iParams, pOutput, iSize
 		) ) {
 			return true;
@@ -399,10 +399,10 @@ static bool __xrtHttpLinkWriteOutputOverlap(
 			__xrtHttpLinkParamValueLoad(
 				Link.Parameters, j, &Param
 			);
-			if ( __xrtRangesOverlap(
+			if ( xrtMemRangesOverlap(
 				Param.Name.Data, Param.Name.Size,
 				pOutput, iSize
-			) || __xrtRangesOverlap(
+			) || xrtMemRangesOverlap(
 				Param.Value.Data, Param.Value.Size,
 				pOutput, iSize
 			) ) {
@@ -416,7 +416,7 @@ static bool __xrtHttpLinkWriteOutputOverlap(
 
 
 /* 规范写出 Link 元素数组。 */
-XRT_API bool xrtHttpLinkWrite(
+XHTTP_API bool xrtHttpLinkWrite(
 	const xhttplinkvalue* pLinks,
 	size_t iCount,
 	void* pOutput,
@@ -432,29 +432,29 @@ XRT_API bool xrtHttpLinkWrite(
 	size_t i;
 
 	if ( (iCount > (SIZE_MAX / sizeof(Link))) ||
-		!__xrtRangeValid(pSize, sizeof(iRequired)) ||
+		!xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	iLinks = iCount * sizeof(Link);
-	if ( !__xrtRangeValid(pLinks, iLinks) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pLinks, iLinks) ||
+		xrtMemRangesOverlap(
 			pLinks, iLinks, pSize, sizeof(iRequired)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
 		__xrtHttpLinkValueLoad(pLinks, i, &Link);
 		if ( !__xrtHttpLinkWriteValueValid(&Link) ) {
 			if ( xrtGetError() == NULL ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 			}
 			return false;
 		}
 		if ( ((i != 0) &&
-			 !__xrtHttpSizeAdd(&iRequired, 2u)) ||
+			 !__xhttpSizeAdd(&iRequired, 2u)) ||
 			!__xrtHttpLinkWriteValueMeasure(
 				&Link, &iRequired
 			) ) {
@@ -464,25 +464,25 @@ XRT_API bool xrtHttpLinkWrite(
 	if ( __xrtHttpLinkWriteOutputOverlap(
 		pLinks, iCount, pSize, sizeof(iRequired)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pOutput == NULL ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iCapacity) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, iCapacity) ||
+		xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(iRequired)
 		) || __xrtHttpLinkWriteOutputOverlap(
 			pLinks, iCount, pOutput, iCapacity
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iRequired ) {
 		memcpy(pSize, &iRequired, sizeof(iRequired));
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
@@ -502,7 +502,7 @@ XRT_API bool xrtHttpLinkWrite(
 
 
 /* 规范写出一个 link-value。 */
-XRT_API bool xrtHttpLinkElementWrite(
+XHTTP_API bool xrtHttpLinkElementWrite(
 	const xhttplinkvalue* pLink,
 	void* pOutput,
 	size_t iCapacity,
@@ -517,7 +517,7 @@ XRT_API bool xrtHttpLinkElementWrite(
 
 
 /* 构建零结尾 Link 字段值。 */
-XRT_API str xrtHttpLinkBuild(
+XHTTP_API str xrtHttpLinkBuild(
 	const xhttplinkvalue* pLinks,
 	size_t iCount,
 	size_t* pSize
@@ -532,15 +532,15 @@ XRT_API str xrtHttpLinkBuild(
 		return NULL;
 	}
 	if ( (pSize != NULL) &&
-		(!__xrtRangeValid(pSize, sizeof(iRequired)) ||
+		(!xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		 __xrtHttpLinkWriteOutputOverlap(
 			pLinks, iCount, pSize, sizeof(iRequired)
 		 )) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( iRequired == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	sOutput = (str)xrtMalloc(iRequired + 1u);

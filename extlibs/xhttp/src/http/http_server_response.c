@@ -41,7 +41,7 @@ bool __xrtHttp1ServerResponseFailCause(
 	xerrordesc Desc;
 
 	if ( pResponse == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( pResponse->Error != NULL ) {
@@ -106,16 +106,16 @@ static void __xrtHttp1ServerResponseRefRelease(xhttpbodychunk* pRef)
 	}
 	Ref = *pRef;
 	memset(pRef, 0, sizeof(*pRef));
-	pPrevious = __xrtErrorSwapOwned(NULL);
+	pPrevious = __xhttpErrorSwapOwned(NULL);
 	Ref.Release(Ref.Context, Ref.Data, Ref.Size);
-	pDiscard = __xrtErrorSwapOwned(pPrevious);
+	pDiscard = __xhttpErrorSwapOwned(pPrevious);
 	xrtErrorFree(pDiscard);
 }
 
 
 
 /* 最终响应被连接成功受理后，接管其全部 Wire 引用。 */
-void __xrtHttp1ServerResponseOwnRefs(
+XHTTP_API void xrtHttpBridge1ServerResponseOwnRefs(
 	xhttp1serverresponse* pResponse
 )
 {
@@ -144,7 +144,7 @@ void __xrtHttp1ServerResponseReleaseCurrentRef(
 
 
 /* 销毁响应计划和全部尚未归还的正文资产。 */
-XRT_API void xrtHttp1ServerResponseDestroy(
+XHTTP_API void xrtHttp1ServerResponseDestroy(
 	xhttp1serverresponse* pResponse
 )
 {
@@ -170,7 +170,7 @@ XRT_API void xrtHttp1ServerResponseDestroy(
 
 
 /* 返回稳定响应错误。 */
-XRT_API const xerror* xrtHttp1ServerResponseError(
+XHTTP_API const xerror* xrtHttp1ServerResponseError(
 	const xhttp1serverresponse* pResponse
 )
 {
@@ -180,7 +180,7 @@ XRT_API const xerror* xrtHttp1ServerResponseError(
 
 
 /* 判断全部线路字节是否已经确认消费。 */
-XRT_API bool xrtHttp1ServerResponseComplete(
+XHTTP_API bool xrtHttp1ServerResponseComplete(
 	const xhttp1serverresponse* pResponse
 )
 {
@@ -192,7 +192,7 @@ XRT_API bool xrtHttp1ServerResponseComplete(
 
 
 /* 返回响应后的连接关闭决定。 */
-XRT_API bool xrtHttp1ServerResponseClose(
+XHTTP_API bool xrtHttp1ServerResponseClose(
 	const xhttp1serverresponse* pResponse
 )
 {
@@ -202,7 +202,7 @@ XRT_API bool xrtHttp1ServerResponseClose(
 
 
 /* 返回响应后的协议交接决定。 */
-XRT_API bool xrtHttp1ServerResponseTunnel(
+XHTTP_API bool xrtHttp1ServerResponseTunnel(
 	const xhttp1serverresponse* pResponse
 )
 {
@@ -212,7 +212,7 @@ XRT_API bool xrtHttp1ServerResponseTunnel(
 
 
 /* 判断响应计划是否为不会结束当前请求的信息响应。 */
-XRT_API bool xrtHttp1ServerResponseInformational(
+XHTTP_API bool xrtHttp1ServerResponseInformational(
 	const xhttp1serverresponse* pResponse
 )
 {
@@ -222,7 +222,7 @@ XRT_API bool xrtHttp1ServerResponseInformational(
 
 
 /* 返回已经确认消费的响应线路字节数。 */
-XRT_API uint64 xrtHttp1ServerResponseWireBytes(
+XHTTP_API uint64 xrtHttp1ServerResponseWireBytes(
 	const xhttp1serverresponse* pResponse
 )
 {

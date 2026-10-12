@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_BODY_DEFLATE_H
 #define XRT_HTTP_BODY_DEFLATE_H
 
+#include <xhttp/export.h>
+
 #include <xrt/compress.h>
 #include <xrt/http_body.h>
 
@@ -53,7 +55,7 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_HTTP_BODY_DEFLATE)
 
 /* 初始化 gzip、级别 6、默认策略、32 KiB 推进粒度和 1 MiB 队列上限。 */
-XRT_API void xrtHttpBodyDeflateConfigInit(
+XHTTP_API void xrtHttpBodyDeflateConfigInit(
 	xhttpbodydeflateconfig* pConfig
 );
 
@@ -63,7 +65,7 @@ XRT_API void xrtHttpBodyDeflateConfigInit(
 	创建流式压缩正文，并持有 Source 的独立引用。
 	结果长度始终未知；可重放能力与 Source 相同。
 */
-XRT_API xhttpbody* xrtHttpBodyDeflate(
+XHTTP_API xhttpbody* xrtHttpBodyDeflate(
 	xhttpbody* pSource,
 	const xhttpbodydeflateconfig* pConfig
 );

@@ -5,7 +5,7 @@
 #if defined(XHTTP_FEATURE_HTTP_CLIENT_CONTENT_TYPE)
 
 /* 解析客户端响应中的唯一 Content-Type 字段。 */
-XRT_API xhttpnext xrtHttpResponseContentType(
+XHTTP_API xhttpnext xrtHttpResponseContentType(
 	const xhttpresponse* pResponse,
 	xmediatype* pType
 )
@@ -16,10 +16,10 @@ XRT_API xhttpnext xrtHttpResponseContentType(
 	xmediatype Type;
 	xhttpnext Next;
 
-	if ( !__xrtHttpResponseOutputValid(
+	if ( !xrtHttpBridgeResponseOutputValid(
 		pResponse, pType, sizeof(Type)
 	) ) {
-		__xrtHttpResponseSetError(
+		xrtHttpBridgeResponseSetError(
 			XERR_ARGUMENT,
 			XHTTP_RESPONSE_ERROR_ARGUMENT,
 			"parse-http-response-content-type",
@@ -41,7 +41,7 @@ XRT_API xhttpnext xrtHttpResponseContentType(
 	if ( Next == XHTTP_NEXT_ERROR ) {
 		xerror* pCause = xrtTakeError();
 
-		__xrtHttpResponseSetError(
+		xrtHttpBridgeResponseSetError(
 			XERR_PROTOCOL,
 			XHTTP_RESPONSE_ERROR_HEADER,
 			"parse-http-response-content-type",
@@ -52,7 +52,7 @@ XRT_API xhttpnext xrtHttpResponseContentType(
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( !xrtHttpMediaTypeParse(pField->Value, &Type) ) {
-		__xrtHttpResponseWrapError(
+		xrtHttpBridgeResponseWrapError(
 			XERR_VALUE,
 			XHTTP_RESPONSE_ERROR_CONTENT_TYPE,
 			"parse-http-response-content-type",

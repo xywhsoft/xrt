@@ -174,7 +174,7 @@ static int __xrtMimeExtCompare(
 
 
 /* 按扩展名查询内置媒体类型。 */
-XRT_API xstrview xrtMimeByExt(
+XHTTP_API xstrview xrtMimeByExt(
 	xstrview Extension
 )
 {
@@ -215,7 +215,7 @@ XRT_API xstrview xrtMimeByExt(
 
 
 /* 从最后一个路径段提取最后一个扩展名并查询。 */
-XRT_API xstrview xrtMimeByPath(
+XHTTP_API xstrview xrtMimeByPath(
 	xstrview Path
 )
 {
@@ -250,7 +250,7 @@ XRT_API xstrview xrtMimeByPath(
 
 
 /* 为经典 C 字符串路径提供未知类型回退。 */
-XRT_API cstr xrtMime(
+XHTTP_API cstr xrtMime(
 	cstr sPath
 )
 {

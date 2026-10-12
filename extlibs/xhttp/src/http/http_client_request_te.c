@@ -28,7 +28,7 @@ static bool __xrtHttp1RequestAcceptTrailersFail(
 
 
 /* 失败原子地补齐 RFC 9110 要求的 TE 与 Connection 声明。 */
-XRT_API bool xrtHttp1RequestAcceptTrailers(
+XHTTP_API bool xrtHttp1RequestAcceptTrailers(
 	xhttprequest* pRequest
 )
 {

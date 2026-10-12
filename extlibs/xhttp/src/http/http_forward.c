@@ -7,7 +7,7 @@
 #if defined(XHTTP_FEATURE_HTTP_FORWARD)
 
 /* 判断字段名是否属于 RFC 9110 固定逐跳集合。 */
-XRT_API bool xrtHttpHopFieldKnown(xstrview Name)
+XHTTP_API bool xrtHttpHopFieldKnown(xstrview Name)
 {
 	if ( !xrtHttpTokenValid(Name) ) {
 		return false;
@@ -30,7 +30,7 @@ XRT_API bool xrtHttpHopFieldKnown(xstrview Name)
 
 
 /* 判断字段是固定逐跳字段或被 Connection 提名。 */
-XRT_API xhttpnext xrtHttpHopField(
+XHTTP_API xhttpnext xrtHttpHopField(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Name
@@ -39,7 +39,7 @@ XRT_API xhttpnext xrtHttpHopField(
 	xhttpnext Next;
 
 	if ( !xrtHttpTokenValid(Name) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	Next = xrtHttpConnectionFind(
@@ -56,7 +56,7 @@ XRT_API xhttpnext xrtHttpHopField(
 
 
 /* 严格解析十进制 Max-Forwards。 */
-XRT_API bool xrtHttpMaxForwardsParse(
+XHTTP_API bool xrtHttpMaxForwardsParse(
 	xstrview Value,
 	uint64* pForwards
 )
@@ -64,17 +64,17 @@ XRT_API bool xrtHttpMaxForwardsParse(
 	uint64 iValue = 0;
 	size_t i;
 
-	if ( !__xrtRangeValid(pForwards, sizeof(iValue)) ||
-		!__xrtHttpViewValid(Value) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pForwards, sizeof(iValue)) ||
+		!__xhttpViewValid(Value) ||
+		xrtMemRangesOverlap(
 			pForwards, sizeof(iValue), Value.Data, Value.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pForwards, &iValue, sizeof(iValue));
 	if ( Value.Size == 0 ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	for ( i = 0; i < Value.Size; i++ ) {
@@ -83,12 +83,12 @@ XRT_API bool xrtHttpMaxForwardsParse(
 
 		if ( (iByte < (uint8)'0') ||
 			(iByte > (uint8)'9') ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		iDigit = (uint64)(iByte - (uint8)'0');
 		if ( iValue > ((UINT64_MAX - iDigit) / UINT64_C(10)) ) {
-			__xrtErrorSetRange();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iValue = (iValue * UINT64_C(10)) + iDigit;
@@ -100,7 +100,7 @@ XRT_API bool xrtHttpMaxForwardsParse(
 
 
 /* 解析并更新 Max-Forwards 转发计数。 */
-XRT_API xhttpforwardstatus xrtHttpMaxForwardsUpdate(
+XHTTP_API xhttpforwardstatus xrtHttpMaxForwardsUpdate(
 	xstrview Value,
 	uint64 iMaximum,
 	uint64* pNext
@@ -109,12 +109,12 @@ XRT_API xhttpforwardstatus xrtHttpMaxForwardsUpdate(
 	uint64 iValue;
 	uint64 iNext = 0;
 
-	if ( !__xrtRangeValid(pNext, sizeof(iNext)) ||
-		!__xrtHttpViewValid(Value) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pNext, sizeof(iNext)) ||
+		!__xhttpViewValid(Value) ||
+		xrtMemRangesOverlap(
 			pNext, sizeof(iNext), Value.Data, Value.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_FORWARD_ERROR;
 	}
 	memcpy(pNext, &iNext, sizeof(iNext));
@@ -135,26 +135,26 @@ XRT_API xhttpforwardstatus xrtHttpMaxForwardsUpdate(
 
 
 /* 规范写出十进制 Max-Forwards。 */
-XRT_API bool xrtHttpMaxForwardsWrite(
+XHTTP_API bool xrtHttpMaxForwardsWrite(
 	uint64 iForwards,
 	void* pOutput,
 	size_t iCapacity,
 	size_t* pSize
 )
 {
-	size_t iRequired = __xrtHttpUInt64Size(iForwards);
+	size_t iRequired = __xhttpUInt64Size(iForwards);
 
-	if ( !__xrtRangeValid(pSize, sizeof(iRequired)) ||
+	if ( !xrtMemRangeValid(pSize, sizeof(iRequired)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
 		((pOutput != NULL) &&
-		 !__xrtRangeValid(pOutput, iCapacity)) ) {
-		__xrtErrorSetInvalidArgument();
+		 !xrtMemRangeValid(pOutput, iCapacity)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	if ( (pOutput != NULL) && __xrtRangesOverlap(
+	if ( (pOutput != NULL) && xrtMemRangesOverlap(
 		pOutput, iRequired, pSize, sizeof(iRequired)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pSize, &iRequired, sizeof(iRequired));
@@ -162,10 +162,10 @@ XRT_API bool xrtHttpMaxForwardsWrite(
 		return true;
 	}
 	if ( iCapacity < iRequired ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
-	(void)__xrtHttpUInt64Write((char*)pOutput, iForwards);
+	(void)__xhttpUInt64Write((char*)pOutput, iForwards);
 	return true;
 }
 

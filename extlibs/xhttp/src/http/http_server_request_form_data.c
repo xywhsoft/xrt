@@ -5,7 +5,7 @@
 #if defined(XHTTP_FEATURE_HTTP_SERVER_FORM_DATA)
 
 /* 解析完整缓冲的 multipart/form-data 请求正文。 */
-XRT_API xformdata* xrtHttpServerRequestFormData(
+XHTTP_API xformdata* xrtHttpServerRequestFormData(
 	const xhttpserverrequest* pRequest,
 	const xformdataconfig* pConfig,
 	const xmultipartlimits* pLimits,
@@ -23,16 +23,16 @@ XRT_API xformdata* xrtHttpServerRequestFormData(
 	const xmultipartlimits* pResolvedLimits = NULL;
 	xhttpnext Next;
 
-	if ( ((pConfig != NULL) && !__xrtRangeValid(
+	if ( ((pConfig != NULL) && !xrtMemRangeValid(
 		pConfig, sizeof(Config)
-	)) || ((pLimits != NULL) && !__xrtRangeValid(
+	)) || ((pLimits != NULL) && !xrtMemRangeValid(
 		pLimits, sizeof(Limits)
 	)) || ((pError != NULL) &&
-		(!__xrtHttpServerRequestOutputValid(
+		(!xrtHttpBridgeServerRequestOutputValid(
 			pRequest, pError, sizeof(Error)
-		) || ((pConfig != NULL) && __xrtRangesOverlap(
+		) || ((pConfig != NULL) && xrtMemRangesOverlap(
 			pError, sizeof(Error), pConfig, sizeof(Config)
-		)) || ((pLimits != NULL) && __xrtRangesOverlap(
+		)) || ((pLimits != NULL) && xrtMemRangesOverlap(
 			pError, sizeof(Error), pLimits, sizeof(Limits)
 		)))) ) {
 		__xrtHttpServerRequestSetError(

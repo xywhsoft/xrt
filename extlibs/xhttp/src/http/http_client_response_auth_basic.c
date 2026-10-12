@@ -54,7 +54,7 @@ static xhttpnext __xrtHttpResponseBasicChallengeNext(
 
 
 /* 迭代并解码源站 Basic challenge。 */
-XRT_API xhttpnext xrtHttpResponseBasicChallengeNext(
+XHTTP_API xhttpnext xrtHttpResponseBasicChallengeNext(
 	const xhttpresponse* pResponse,
 	xhttpauthcursor* pCursor,
 	void* pOutput,
@@ -77,7 +77,7 @@ XRT_API xhttpnext xrtHttpResponseBasicChallengeNext(
 
 
 /* 迭代并解码代理 Basic challenge。 */
-XRT_API xhttpnext xrtHttpResponseProxyBasicChallengeNext(
+XHTTP_API xhttpnext xrtHttpResponseProxyBasicChallengeNext(
 	const xhttpresponse* pResponse,
 	xhttpauthcursor* pCursor,
 	void* pOutput,

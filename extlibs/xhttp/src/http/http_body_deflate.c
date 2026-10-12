@@ -45,7 +45,7 @@ static void __xrtHttpBodyDeflateDestroy(ptr pCodec)
 
 
 /* 初始化公开压缩正文配置。 */
-XRT_API void xrtHttpBodyDeflateConfigInit(
+XHTTP_API void xrtHttpBodyDeflateConfigInit(
 	xhttpbodydeflateconfig* pConfig
 )
 {
@@ -65,7 +65,7 @@ XRT_API void xrtHttpBodyDeflateConfigInit(
 
 
 /* 创建持有来源独立引用的流式压缩正文。 */
-XRT_API xhttpbody* xrtHttpBodyDeflate(
+XHTTP_API xhttpbody* xrtHttpBodyDeflate(
 	xhttpbody* pSource,
 	const xhttpbodydeflateconfig* pConfig
 )

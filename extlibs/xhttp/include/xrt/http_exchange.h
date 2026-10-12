@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_EXCHANGE_H
 #define XRT_HTTP_EXCHANGE_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_client.h>
 #include <xrt/http1.h>
 
@@ -113,7 +115,7 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化公网安全限额；输出可位于合法的未对齐存储。 */
-XRT_API void xrtHttp1ExchangeConfigInit(
+XHTTP_API void xrtHttp1ExchangeConfigInit(
 	xhttp1exchangeconfig* pConfig
 );
 
@@ -124,7 +126,7 @@ XRT_API void xrtHttp1ExchangeConfigInit(
 	成功时接管 Plan；失败时 Plan 所有权仍属于调用方。
 	非空配置和事件表会在返回前复制，不要求自然对齐。
 */
-XRT_API xhttp1exchange* xrtHttp1ExchangeCreate(
+XHTTP_API xhttp1exchange* xrtHttp1ExchangeCreate(
 	xhttp1requestplan* pPlan,
 	const xhttp1exchangeconfig* pConfig,
 	const xhttp1exchangeevents* pEvents
@@ -133,7 +135,7 @@ XRT_API xhttp1exchange* xrtHttp1ExchangeCreate(
 
 
 /* 销毁 Exchange、未取走的响应、请求计划和正文 Reader。 */
-XRT_API void xrtHttp1ExchangeDestroy(
+XHTTP_API void xrtHttp1ExchangeDestroy(
 	xhttp1exchange* pExchange
 );
 
@@ -143,7 +145,7 @@ XRT_API void xrtHttp1ExchangeDestroy(
 	借出下一段线路数据，大小不超过 MaxBytes。
 	DATA 必须通过 OutputConsume 推进；AGAIN 表示正文源暂不可读。
 */
-XRT_API xhttp1outputstatus xrtHttp1ExchangeOutput(
+XHTTP_API xhttp1outputstatus xrtHttp1ExchangeOutput(
 	xhttp1exchange* pExchange,
 	size_t iMaxBytes,
 	xbytesview* pData
@@ -152,7 +154,7 @@ XRT_API xhttp1outputstatus xrtHttp1ExchangeOutput(
 
 
 /* 消费最近一次 Output 借出的前缀；允许短写。 */
-XRT_API bool xrtHttp1ExchangeOutputConsume(
+XHTTP_API bool xrtHttp1ExchangeOutputConsume(
 	xhttp1exchange* pExchange,
 	size_t iSize
 );
@@ -160,24 +162,24 @@ XRT_API bool xrtHttp1ExchangeOutputConsume(
 
 
 /* 允许 Expect: 100-continue 请求开始发送正文；重复调用是安全的。 */
-XRT_API bool xrtHttp1ExchangeContinue(
+XHTTP_API bool xrtHttp1ExchangeContinue(
 	xhttp1exchange* pExchange
 );
 
 
 
 /* 暂停响应输入交付；可在 Headers 或 Body 回调内调用。 */
-XRT_API bool xrtHttp1ExchangePause(xhttp1exchange* pExchange);
+XHTTP_API bool xrtHttp1ExchangePause(xhttp1exchange* pExchange);
 
 
 
 /* 恢复响应输入交付；重复恢复未暂停 Exchange 是安全的。 */
-XRT_API bool xrtHttp1ExchangeResume(xhttp1exchange* pExchange);
+XHTTP_API bool xrtHttp1ExchangeResume(xhttp1exchange* pExchange);
 
 
 
 /* 判断响应输入是否由应用暂停。 */
-XRT_API bool xrtHttp1ExchangePaused(
+XHTTP_API bool xrtHttp1ExchangePaused(
 	const xhttp1exchange* pExchange
 );
 
@@ -188,7 +190,7 @@ XRT_API bool xrtHttp1ExchangePaused(
 	End 表示本段之后可靠传输正常结束。
 	若 Feed 提前终止请求输出，先前借出的 DATA 仍有效到 Consume 或 Destroy。
 */
-XRT_API xhttp1feedstatus xrtHttp1ExchangeFeed(
+XHTTP_API xhttp1feedstatus xrtHttp1ExchangeFeed(
 	xhttp1exchange* pExchange,
 	xbytesview Input,
 	bool bEnd,
@@ -198,49 +200,49 @@ XRT_API xhttp1feedstatus xrtHttp1ExchangeFeed(
 
 
 /* 返回最终响应的借用指针；最终 Header 到达前返回空指针。 */
-XRT_API const xhttpresponse* xrtHttp1ExchangeResponse(
+XHTTP_API const xhttpresponse* xrtHttp1ExchangeResponse(
 	const xhttp1exchange* pExchange
 );
 
 
 
 /* 在 DONE 或 UPGRADED 后取走最终响应；其他状态失败。 */
-XRT_API xhttpresponse* xrtHttp1ExchangeTakeResponse(
+XHTTP_API xhttpresponse* xrtHttp1ExchangeTakeResponse(
 	xhttp1exchange* pExchange
 );
 
 
 
 /* 返回因跨输入边界而内部保留的升级或多余后缀。 */
-XRT_API xbytesview xrtHttp1ExchangeRemainder(
+XHTTP_API xbytesview xrtHttp1ExchangeRemainder(
 	const xhttp1exchange* pExchange
 );
 
 
 
 /* 返回终态错误；非失败状态返回空指针。 */
-XRT_API const xerror* xrtHttp1ExchangeError(
+XHTTP_API const xerror* xrtHttp1ExchangeError(
 	const xhttp1exchange* pExchange
 );
 
 
 
 /* 判断请求 Header 和完整正文是否已经全部被调用方消费。 */
-XRT_API bool xrtHttp1ExchangeRequestComplete(
+XHTTP_API bool xrtHttp1ExchangeRequestComplete(
 	const xhttp1exchange* pExchange
 );
 
 
 
 /* 判断最终响应是否已经完整结束。 */
-XRT_API bool xrtHttp1ExchangeResponseComplete(
+XHTTP_API bool xrtHttp1ExchangeResponseComplete(
 	const xhttp1exchange* pExchange
 );
 
 
 
 /* 判断响应是否已经切换为升级协议或 CONNECT 隧道。 */
-XRT_API bool xrtHttp1ExchangeUpgraded(
+XHTTP_API bool xrtHttp1ExchangeUpgraded(
 	const xhttp1exchange* pExchange
 );
 
@@ -250,21 +252,21 @@ XRT_API bool xrtHttp1ExchangeUpgraded(
 	判断连接在协议层是否可复用。
 	调用方还必须确认 Feed 返回后没有尚未提交的外部输入。
 */
-XRT_API bool xrtHttp1ExchangeReusable(
+XHTTP_API bool xrtHttp1ExchangeReusable(
 	const xhttp1exchange* pExchange
 );
 
 
 
 /* 返回已经消费的信息响应数量。 */
-XRT_API uint32 xrtHttp1ExchangeInformationalCount(
+XHTTP_API uint32 xrtHttp1ExchangeInformationalCount(
 	const xhttp1exchange* pExchange
 );
 
 
 
 /* 返回调用方通过 OutputConsume 确认发送的线路字节数。 */
-XRT_API uint64 xrtHttp1ExchangeRequestWireBytes(
+XHTTP_API uint64 xrtHttp1ExchangeRequestWireBytes(
 	const xhttp1exchange* pExchange
 );
 

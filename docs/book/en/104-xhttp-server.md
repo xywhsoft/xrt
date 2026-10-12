@@ -8,6 +8,8 @@ lead: Five-segment timeout protection, the Headers/Body/Request event chain, the
 api: xhttp-http_server, xhttp-http_server_router, net
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 After six client chapters (97–102), the perspective flips: now you are the server. `xrtHttpServerStart` assembles an Engine, the aggregated TCP Server, Stream, and the I/O-free protocol state machines into a plaintext HTTP/1 service in one step — dependencies hidden behind no function table (honest trimming). This chapter covers three things: **the configuration face** — five-segment timeouts (Header/Body/Request/Idle/Write — each independently protecting one stage, zero disables); **the event chain** — `Open → Headers → Body → Request → Error/Close`, where `Headers` makes the policy decision before reading the body (buffer/stream/discard/reject/respond directly), and `Body` only receives streaming fragments with a false return meaning 500; **three response paths** — `Reply` (the direct-answer path for fixed bytes, zero temporary containers), `ReplyBody` (the body-source version), and `Respond` (the full builder for dynamic fields and trailers). Routing and middleware are Chapter 105; SSE/streaming live in Chapters 107/108. The protocol state machine's request-head entry underneath is exactly Chapter 90's parser network binding (http1_net — the buffer chain feeds the parser directly, no manual stitching).
@@ -58,11 +60,11 @@ Three key semantics.① **Headers' policy authority**: per-route `xrtHttpConnSet
 
 The program below is from `examples/http/server` — the minimal complete service:
 
-```embed path="extlibs/xhttp/examples/http/server/main.c" title="extlibs/xhttp/examples/http/server/main.c"
+```embed path="extlibs/xhttp-server/examples/http/server/main.c" title="extlibs/xhttp-server/examples/http/server/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_server --exclude-test "*" --no-single --no-run
 listening on http://127.0.0.1:52173/health
 press Enter to drain
 ```
@@ -73,11 +75,11 @@ press Enter to drain
 
 The second program is from `examples/http/server_router` — routing plus direct answers:
 
-```embed path="extlibs/xhttp/examples/http/server_router/main.c" title="extlibs/xhttp/examples/http/server_router/main.c"
+```embed path="extlibs/xhttp-server/examples/http/server_router/main.c" title="extlibs/xhttp-server/examples/http/server_router/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server_router/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_server_router --exclude-test "*" --no-single --no-run
 （输出路由装配计数并正常退出）
 ```
 

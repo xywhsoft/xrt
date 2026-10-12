@@ -1,7 +1,8 @@
 #ifndef XHTTP_INTERNAL_XRT_HTTP_BRIDGE_H
 #define XHTTP_INTERNAL_XRT_HTTP_BRIDGE_H
 
-#include "../../../../src/internal/xrt_http.h"
+#include "xrt_internal.h"
+#include <xrt/http1.h>
 #include "xhttp_internal.h"
 #include <xrt/http_headers.h>
 #include <xrt/http_ext_value.h>
@@ -54,7 +55,7 @@ bool __xrtHttpAuthWriteTemporary(
 #if defined(XHTTP_FEATURE_HTTP_AUTH_DIGEST)
 
 /* 把单个十六进制字节转换为数值，无效字节返回负数。 */
-int __xrtHttpDigestHexValue(uint8 iByte);
+int xrtHttpBridgeDigestHexValue(uint8 iByte);
 
 
 
@@ -67,7 +68,7 @@ bool __xrtHttpDigestHexParamValid(
 
 
 /* 验证借用视图是非空十六进制文本。 */
-bool __xrtHttpDigestHexViewValid(xstrview Text);
+bool xrtHttpBridgeDigestHexViewValid(xstrview Text);
 
 
 
@@ -80,7 +81,7 @@ bool __xrtHttpDigestNonceCountRead(
 
 
 /* 把 nonce count 规范写为八位小写十六进制。 */
-void __xrtHttpDigestNonceCountWrite(
+void xrtHttpBridgeDigestNonceCountWrite(
 	uint32 iCount,
 	char sOutput[8]
 );
@@ -89,7 +90,7 @@ void __xrtHttpDigestNonceCountWrite(
 
 /* 以 quoted-string 形式写出规范小写十六进制参数。 */
 bool __xrtHttpDigestWriterHex(
-	xrt_http_param_writer* pWriter,
+	__xhttp_param_writer* pWriter,
 	xstrview Name,
 	xstrview Value,
 	bool bFirst
@@ -99,17 +100,7 @@ bool __xrtHttpDigestWriterHex(
 
 
 
-#if defined(XHTTP_FEATURE_HTTP_AUTH_DIGEST_SESSION)
 
-/* 校验写出区不会覆盖 Digest 会话及可选 Exchange 的保留状态。 */
-bool __xrtHttpDigestSessionOutputValid(
-	const xhttpdigestsession* pSession,
-	const xhttpdigestexchange* pExchange,
-	const void* pOutput,
-	size_t iSize
-);
-
-#endif
 
 
 

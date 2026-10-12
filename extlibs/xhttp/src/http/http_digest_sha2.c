@@ -29,11 +29,11 @@ static bool __xrtHttpDigestSha2WriteArguments(
 	size_t* pOutputSize
 )
 {
-	return __xrtRangeValid(pData, iSize) &&
-		__xrtRangeValid(pOutputSize, sizeof(*pOutputSize)) &&
+	return xrtMemRangeValid(pData, iSize) &&
+		xrtMemRangeValid(pOutputSize, sizeof(*pOutputSize)) &&
 		((pOutput == NULL) ? (iCapacity == 0) :
-			(__xrtRangeValid(pOutput, iCapacity) &&
-			 !__xrtRangesOverlap(
+			(xrtMemRangeValid(pOutput, iCapacity) &&
+			 !xrtMemRangesOverlap(
 				pOutput, iCapacity,
 				pOutputSize, sizeof(*pOutputSize)
 			 )));
@@ -42,7 +42,7 @@ static bool __xrtHttpDigestSha2WriteArguments(
 
 
 /* 计算 SHA-256 并写出单成员 Dictionary。 */
-XRT_API bool xrtHttpDigestSha256Write(
+XHTTP_API bool xrtHttpDigestSha256Write(
 	const void* pData,
 	size_t iSize,
 	void* pOutput,
@@ -56,7 +56,7 @@ XRT_API bool xrtHttpDigestSha256Write(
 	if ( !__xrtHttpDigestSha2WriteArguments(
 		pData, iSize, pOutput, iCapacity, pOutputSize
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !xrtSha256(pData, iSize, Digest) ) {
@@ -74,7 +74,7 @@ XRT_API bool xrtHttpDigestSha256Write(
 
 
 /* 计算 SHA-512 并写出单成员 Dictionary。 */
-XRT_API bool xrtHttpDigestSha512Write(
+XHTTP_API bool xrtHttpDigestSha512Write(
 	const void* pData,
 	size_t iSize,
 	void* pOutput,
@@ -88,7 +88,7 @@ XRT_API bool xrtHttpDigestSha512Write(
 	if ( !__xrtHttpDigestSha2WriteArguments(
 		pData, iSize, pOutput, iCapacity, pOutputSize
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !xrtSha512(pData, iSize, Digest) ) {
@@ -106,7 +106,7 @@ XRT_API bool xrtHttpDigestSha512Write(
 
 
 /* 读取摘要后以常量时间比较 SHA-2 计算结果。 */
-XRT_API xhttpdigestmatch xrtHttpDigestSha2Verify(
+XHTTP_API xhttpdigestmatch xrtHttpDigestSha2Verify(
 	const xhttpdigest* pDigest,
 	const void* pData,
 	size_t iSize
@@ -119,19 +119,19 @@ XRT_API xhttpdigestmatch xrtHttpDigestSha2Verify(
 	size_t iReceived;
 	bool bEqual;
 
-	if ( !__xrtRangeValid(pDigest, sizeof(Digest)) ||
-		!__xrtRangeValid(pData, iSize) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pDigest, sizeof(Digest)) ||
+		!xrtMemRangeValid(pData, iSize) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_DIGEST_MATCH_ERROR;
 	}
 	memcpy(&Digest, pDigest, sizeof(Digest));
-	if ( !__xrtHttpViewValid(Digest.Algorithm) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Digest.Algorithm) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_DIGEST_MATCH_ERROR;
 	}
 	if ( !xrtHttpStructuredKeyValid(Digest.Algorithm) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return XHTTP_DIGEST_MATCH_ERROR;
 	}

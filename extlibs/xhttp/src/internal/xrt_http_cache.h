@@ -25,7 +25,7 @@ bool __xrtHttpCacheDeltaParse(
 #if defined(XHTTP_FEATURE_HTTP_CACHE_TIME)
 
 /* 饱和累加两个缓存时间，保证溢出不会使条目变年轻。 */
-uint64 __xrtHttpCacheTimeAdd(
+uint64 xrtHttpBridgeCacheTimeAdd(
 	uint64 iLeft,
 	uint64 iRight
 );
@@ -33,7 +33,7 @@ uint64 __xrtHttpCacheTimeAdd(
 
 
 /* 把线路秒数转换为内部毫秒，溢出时保持饱和。 */
-uint64 __xrtHttpCacheTimeSeconds(uint64 iSeconds);
+uint64 xrtHttpBridgeCacheTimeSeconds(uint64 iSeconds);
 
 #endif
 

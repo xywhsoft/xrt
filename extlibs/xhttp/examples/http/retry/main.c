@@ -4,7 +4,7 @@
 
 
 
-/* 读取服务端建议，并在缺失时使用本地封顶退避。 */
+/* 读取服务端建议，并转换为等待时间。 */
 int main(void)
 {
 	static const xhttpfield Fields[] = {
@@ -28,14 +28,7 @@ int main(void)
 	if ( xrtHttpRetryAfterFields(
 		Fields, 1, 0, &iDelay
 	) != XHTTP_NEXT_ITEM ) {
-		if ( !xrtHttpRetryBackoff(
-			UINT64_C(250000),
-			UINT64_C(8000000),
-			0,
-			&iDelay
-		) ) {
-			return 1;
-		}
+		return 1;
 	}
 	printf(
 		"Retry-After: %.*s, wait %llu milliseconds\n",

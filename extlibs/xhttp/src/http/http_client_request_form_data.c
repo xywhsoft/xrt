@@ -50,7 +50,7 @@ bool __xrtHttpRequestCommitFormData(
 
 
 /* 创建给定 boundary 的组合 FormData 正文并提交到请求。 */
-XRT_API bool xrtHttpRequestSetFormData(
+XHTTP_API bool xrtHttpRequestSetFormData(
 	xhttprequest* pRequest,
 	const xformdata* pForm,
 	const xmultipartboundary* pBoundary

@@ -1,6 +1,8 @@
 #ifndef XRT_FORM_DATA_H
 #define XRT_FORM_DATA_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_body.h>
 
 #if defined(XHTTP_FEATURE_FORM_DATA_MULTIPART) || \
@@ -103,49 +105,49 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_FORM_DATA)
 
 /* 初始化适合 HTTP 表单的限制；输出可位于合法的未对齐存储。 */
-XRT_API void xrtFormDataConfigInit(xformdataconfig* pConfig);
+XHTTP_API void xrtFormDataConfigInit(xformdataconfig* pConfig);
 
 
 
 /* 创建拥有型空容器；配置为空时采用默认值，非空配置会立即复制。 */
-XRT_API xformdata* xrtFormDataCreate(
+XHTTP_API xformdata* xrtFormDataCreate(
 	const xformdataconfig* pConfig
 );
 
 
 
 /* 深复制元数据并为每个正文取得独立引用。 */
-XRT_API xformdata* xrtFormDataClone(const xformdata* pForm);
+XHTTP_API xformdata* xrtFormDataClone(const xformdata* pForm);
 
 
 
 /* 销毁容器；空指针是安全的空操作。 */
-XRT_API void xrtFormDataDestroy(xformdata* pForm);
+XHTTP_API void xrtFormDataDestroy(xformdata* pForm);
 
 
 
 /* 清空全部 Part，但保留条目数组容量供后续复用。 */
-XRT_API void xrtFormDataClear(xformdata* pForm);
+XHTTP_API void xrtFormDataClear(xformdata* pForm);
 
 
 
 /* 预留至少指定数量的 Part 槽位。 */
-XRT_API bool xrtFormDataReserve(xformdata* pForm, size_t iParts);
+XHTTP_API bool xrtFormDataReserve(xformdata* pForm, size_t iParts);
 
 
 
 /* 返回当前 Part 数量；空容器返回零。 */
-XRT_API size_t xrtFormDataCount(const xformdata* pForm);
+XHTTP_API size_t xrtFormDataCount(const xformdata* pForm);
 
 
 
 /* 返回名称、文件名和媒体类型的有效元数据字节总数。 */
-XRT_API size_t xrtFormDataMetadata(const xformdata* pForm);
+XHTTP_API size_t xrtFormDataMetadata(const xformdata* pForm);
 
 
 
 /* 追加一个正文 Part；Filename 为空指针时参数缺席。 */
-XRT_API bool xrtFormDataAppendBody(
+XHTTP_API bool xrtFormDataAppendBody(
 	xformdata* pForm,
 	xstrview Name,
 	xhttpbody* pBody,
@@ -156,7 +158,7 @@ XRT_API bool xrtFormDataAppendBody(
 
 
 /* 复制文本值并追加普通字段。 */
-XRT_API bool xrtFormDataAppendText(
+XHTTP_API bool xrtFormDataAppendText(
 	xformdata* pForm,
 	xstrview Name,
 	xstrview Value
@@ -165,7 +167,7 @@ XRT_API bool xrtFormDataAppendText(
 
 
 /* 复制二进制值并追加普通字段或文件字段。 */
-XRT_API bool xrtFormDataAppendBytes(
+XHTTP_API bool xrtFormDataAppendBytes(
 	xformdata* pForm,
 	xstrview Name,
 	xbytesview Data,
@@ -176,7 +178,7 @@ XRT_API bool xrtFormDataAppendBytes(
 
 
 /* 在首个同名位置替换全部同名项；不存在时追加。 */
-XRT_API bool xrtFormDataSetBody(
+XHTTP_API bool xrtFormDataSetBody(
 	xformdata* pForm,
 	xstrview Name,
 	xhttpbody* pBody,
@@ -187,7 +189,7 @@ XRT_API bool xrtFormDataSetBody(
 
 
 /* 复制文本值并原子替换全部同名项。 */
-XRT_API bool xrtFormDataSetText(
+XHTTP_API bool xrtFormDataSetText(
 	xformdata* pForm,
 	xstrview Name,
 	xstrview Value
@@ -196,7 +198,7 @@ XRT_API bool xrtFormDataSetText(
 
 
 /* 复制二进制值并原子替换全部同名项。 */
-XRT_API bool xrtFormDataSetBytes(
+XHTTP_API bool xrtFormDataSetBytes(
 	xformdata* pForm,
 	xstrview Name,
 	xbytesview Data,
@@ -207,7 +209,7 @@ XRT_API bool xrtFormDataSetBytes(
 
 
 /* 删除全部同名 Part 并返回删除数量。 */
-XRT_API size_t xrtFormDataRemove(
+XHTTP_API size_t xrtFormDataRemove(
 	xformdata* pForm,
 	xstrview Name
 );
@@ -215,7 +217,7 @@ XRT_API size_t xrtFormDataRemove(
 
 
 /* 返回同名 Part 数量。 */
-XRT_API size_t xrtFormDataCountName(
+XHTTP_API size_t xrtFormDataCountName(
 	const xformdata* pForm,
 	xstrview Name
 );
@@ -223,7 +225,7 @@ XRT_API size_t xrtFormDataCountName(
 
 
 /* 判断是否存在同名 Part；未匹配不是错误。 */
-XRT_API bool xrtFormDataHas(
+XHTTP_API bool xrtFormDataHas(
 	const xformdata* pForm,
 	xstrview Name
 );
@@ -231,7 +233,7 @@ XRT_API bool xrtFormDataHas(
 
 
 /* 复制指定位置的借用 Part 视图。 */
-XRT_API bool xrtFormDataAt(
+XHTTP_API bool xrtFormDataAt(
 	const xformdata* pForm,
 	size_t iIndex,
 	xformdatapart* pPart
@@ -240,7 +242,7 @@ XRT_API bool xrtFormDataAt(
 
 
 /* 复制首个同名 Part；无匹配返回 false 且不是错误。 */
-XRT_API bool xrtFormDataGet(
+XHTTP_API bool xrtFormDataGet(
 	const xformdata* pForm,
 	xstrview Name,
 	xformdatapart* pPart
@@ -249,7 +251,7 @@ XRT_API bool xrtFormDataGet(
 
 
 /* 从 Index 开始查找下一个同名项，ITEM 时 Index 指向下一位置。 */
-XRT_API xhttpnext xrtFormDataFind(
+XHTTP_API xhttpnext xrtFormDataFind(
 	const xformdata* pForm,
 	xstrview Name,
 	size_t* pIndex,
@@ -263,7 +265,7 @@ XRT_API xhttpnext xrtFormDataFind(
 #if defined(XHTTP_FEATURE_FORM_DATA_MULTIPART)
 
 /* 按给定 boundary 创建零合并复制的 multipart/form-data 正文。 */
-XRT_API xhttpbody* xrtFormDataBody(
+XHTTP_API xhttpbody* xrtFormDataBody(
 	const xformdata* pForm,
 	const xmultipartboundary* pBoundary
 );
@@ -275,7 +277,7 @@ XRT_API xhttpbody* xrtFormDataBody(
 #if defined(XHTTP_FEATURE_FORM_DATA_RANDOM)
 
 /* 生成安全随机 boundary，并创建对应 multipart/form-data 正文。 */
-XRT_API xhttpbody* xrtFormDataBodyRandom(
+XHTTP_API xhttpbody* xrtFormDataBodyRandom(
 	const xformdata* pForm,
 	xmultipartboundary* pBoundary
 );
@@ -287,7 +289,7 @@ XRT_API xhttpbody* xrtFormDataBodyRandom(
 #if defined(XHTTP_FEATURE_FORM_DATA_PARSE)
 
 /* 把完整 multipart/form-data 正文复制为拥有型容器；输入描述符会立即快照。 */
-XRT_API xformdata* xrtFormDataParse(
+XHTTP_API xformdata* xrtFormDataParse(
 	xbytesview Body,
 	const xmultipartboundary* pBoundary,
 	const xformdataconfig* pConfig,
@@ -298,7 +300,7 @@ XRT_API xformdata* xrtFormDataParse(
 
 
 /* 从 Content-Type 读取 boundary，再解析完整正文；错误输出支持未对齐存储。 */
-XRT_API xformdata* xrtFormDataParseContentType(
+XHTTP_API xformdata* xrtFormDataParseContentType(
 	xstrview ContentType,
 	xbytesview Body,
 	const xformdataconfig* pConfig,

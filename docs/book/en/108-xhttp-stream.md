@@ -8,6 +8,8 @@ lead: xhttpbody's five sources and replay semantics, the Reader's lease-based co
 api: xhttp-http_body, xhttp-http_body_stream, xhttp-http_body_file
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 HTTP's body is the battlefield of "content" versus "memory": a 2 GB upload, a streaming download, a response generated on demand — **body size should not equal memory footprint** is the starting point of the whole design. `xhttpbody` unifies five body sources: the fixed family (`Empty/Copy/Borrow/Take/Reference` — replayable, known length), the **bounded producer stream** (`HttpBodyStreamCreate` — task-thread production, budget-bounded, the foundation of SSE), **file bodies** (`http_body_file` — async file IO made into a body), custom sources (producer callbacks), and transformed bodies. On the consuming side `xhttpbodyreader` is a single-consumer streaming reader, and `xhttpbodychunk` is an **independent data lease** (`ChunkRelease` to return, releasable later than the Reader — the perfect partner of TCP reference sending). Chapter 104's server-side Body callbacks and Chapter 107's SSE producer end get their complete foundation story here.
@@ -67,7 +69,7 @@ The program below is from `examples/http/body_stream` — the minimal loop of a 
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/body_stream/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_body_stream --exclude-test "*" --no-single --no-run
 first chunk
 second chunk
 ```
@@ -78,11 +80,11 @@ second chunk
 
 The second program is from `examples/http/body_file` — the upload shape for large files:
 
-```embed path="extlibs/xhttp/examples/http/body_file/main.c" title="extlibs/xhttp/examples/http/body_file/main.c"
+```embed path="extlibs/xhttp-server/examples/http/body_file/main.c" title="extlibs/xhttp-server/examples/http/body_file/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/body_file/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_body_file --exclude-test "*" --no-single --no-run
 （示例校验文件正文创建与读回后正常退出）
 ```
 

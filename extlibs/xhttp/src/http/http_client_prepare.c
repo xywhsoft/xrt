@@ -1078,7 +1078,7 @@ static void __xrtHttp1RequestPrepareUnit(
 
 
 /* 初始化默认准备选项。 */
-XRT_API void xrtHttp1RequestOptionsInit(
+XHTTP_API void xrtHttp1RequestOptionsInit(
 	xhttp1requestoptions* pOptions
 )
 {
@@ -1097,10 +1097,10 @@ XRT_API void xrtHttp1RequestOptionsInit(
 
 
 /* 冻结请求，并在最终 target 上按需生成一个替换型补充字段。 */
-xhttp1requestplan* __xrtHttp1RequestPrepareField(
+XHTTP_API xhttp1requestplan* xrtHttpBridge1RequestPrepareField(
 	const xhttprequest* pRequest,
 	const xhttp1requestoptions* pInputOptions,
-	__xrtHttp1RequestFieldFunction pField,
+	xhttprequestfieldproc pField,
 	ptr pContext
 )
 {
@@ -1182,12 +1182,12 @@ xhttp1requestplan* __xrtHttp1RequestPrepareField(
 
 
 /* 冻结请求并生成完整 HTTP/1.1 Header。 */
-XRT_API xhttp1requestplan* xrtHttp1RequestPrepare(
+XHTTP_API xhttp1requestplan* xrtHttp1RequestPrepare(
 	const xhttprequest* pRequest,
 	const xhttp1requestoptions* pOptions
 )
 {
-	return __xrtHttp1RequestPrepareField(
+	return xrtHttpBridge1RequestPrepareField(
 		pRequest, pOptions, NULL, NULL
 	);
 }
@@ -1195,7 +1195,7 @@ XRT_API xhttp1requestplan* xrtHttp1RequestPrepare(
 
 
 /* 销毁请求计划。 */
-XRT_API void xrtHttp1RequestPlanDestroy(
+XHTTP_API void xrtHttp1RequestPlanDestroy(
 	xhttp1requestplan* pPlan
 )
 {
@@ -1210,7 +1210,7 @@ XRT_API void xrtHttp1RequestPlanDestroy(
 
 
 /* 返回完整 Header 字节。 */
-XRT_API xbytesview xrtHttp1RequestPlanHead(
+XHTTP_API xbytesview xrtHttp1RequestPlanHead(
 	const xhttp1requestplan* pPlan
 )
 {
@@ -1223,7 +1223,7 @@ XRT_API xbytesview xrtHttp1RequestPlanHead(
 
 
 /* 返回计划冻结的完整 last-chunk。 */
-XRT_API xbytesview xrtHttp1RequestPlanEnd(
+XHTTP_API xbytesview xrtHttp1RequestPlanEnd(
 	const xhttp1requestplan* pPlan
 )
 {
@@ -1236,7 +1236,7 @@ XRT_API xbytesview xrtHttp1RequestPlanEnd(
 
 
 /* 返回计划拥有的请求方法。 */
-XRT_API xstrview xrtHttp1RequestPlanMethod(
+XHTTP_API xstrview xrtHttp1RequestPlanMethod(
 	const xhttp1requestplan* pPlan
 )
 {
@@ -1249,7 +1249,7 @@ XRT_API xstrview xrtHttp1RequestPlanMethod(
 
 
 /* 返回计划拥有的完整原始 URL。 */
-XRT_API xstrview xrtHttp1RequestPlanUrl(
+XHTTP_API xstrview xrtHttp1RequestPlanUrl(
 	const xhttp1requestplan* pPlan
 )
 {
@@ -1262,7 +1262,7 @@ XRT_API xstrview xrtHttp1RequestPlanUrl(
 
 
 /* 返回 request-target。 */
-XRT_API xstrview xrtHttp1RequestPlanTarget(
+XHTTP_API xstrview xrtHttp1RequestPlanTarget(
 	const xhttp1requestplan* pPlan
 )
 {
@@ -1275,7 +1275,7 @@ XRT_API xstrview xrtHttp1RequestPlanTarget(
 
 
 /* 返回连接端点 host。 */
-XRT_API xstrview xrtHttp1RequestPlanHost(
+XHTTP_API xstrview xrtHttp1RequestPlanHost(
 	const xhttp1requestplan* pPlan
 )
 {
@@ -1288,7 +1288,7 @@ XRT_API xstrview xrtHttp1RequestPlanHost(
 
 
 /* 返回连接端点端口。 */
-XRT_API uint16 xrtHttp1RequestPlanPort(
+XHTTP_API uint16 xrtHttp1RequestPlanPort(
 	const xhttp1requestplan* pPlan
 )
 {
@@ -1298,7 +1298,7 @@ XRT_API uint16 xrtHttp1RequestPlanPort(
 
 
 /* 判断连接端点是否使用 TLS。 */
-XRT_API bool xrtHttp1RequestPlanSecure(
+XHTTP_API bool xrtHttp1RequestPlanSecure(
 	const xhttp1requestplan* pPlan
 )
 {
@@ -1308,7 +1308,7 @@ XRT_API bool xrtHttp1RequestPlanSecure(
 
 
 /* 返回借用正文对象。 */
-XRT_API xhttpbody* xrtHttp1RequestPlanBody(
+XHTTP_API xhttpbody* xrtHttp1RequestPlanBody(
 	const xhttp1requestplan* pPlan
 )
 {
@@ -1318,7 +1318,7 @@ XRT_API xhttpbody* xrtHttp1RequestPlanBody(
 
 
 /* 返回正文发送模式。 */
-XRT_API xhttprequestbodymode xrtHttp1RequestPlanBodyMode(
+XHTTP_API xhttprequestbodymode xrtHttp1RequestPlanBodyMode(
 	const xhttp1requestplan* pPlan
 )
 {
@@ -1329,7 +1329,7 @@ XRT_API xhttprequestbodymode xrtHttp1RequestPlanBodyMode(
 
 
 /* 返回正文源长度。 */
-XRT_API uint64 xrtHttp1RequestPlanBodyLength(
+XHTTP_API uint64 xrtHttp1RequestPlanBodyLength(
 	const xhttp1requestplan* pPlan
 )
 {
@@ -1339,7 +1339,7 @@ XRT_API uint64 xrtHttp1RequestPlanBodyLength(
 
 
 /* 判断请求是否要求关闭连接。 */
-XRT_API bool xrtHttp1RequestPlanClose(
+XHTTP_API bool xrtHttp1RequestPlanClose(
 	const xhttp1requestplan* pPlan
 )
 {
@@ -1349,7 +1349,7 @@ XRT_API bool xrtHttp1RequestPlanClose(
 
 
 /* 判断请求是否使用 100 Continue 握手。 */
-XRT_API bool xrtHttp1RequestPlanExpectContinue(
+XHTTP_API bool xrtHttp1RequestPlanExpectContinue(
 	const xhttp1requestplan* pPlan
 )
 {

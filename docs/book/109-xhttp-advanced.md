@@ -8,6 +8,8 @@ lead: 内容协商驱动的响应压缩、Range 组合、代理头族与卷十�
 api: xhttp-http_server, xhttp-http_compress, xhttp-http_cache_range
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 卷十收官。三章服务端（104–108）之后，剩余的高级主题在此合拢：**响应压缩**（`reply_compress`/`server_compress`——按客户端 `Accept-Encoding` 协商选编码、透明压缩响应正文——第 93 章解码的镜像侧）；**Range 与组合响应**（`range_multipart`——多区间请求的 multipart/byteranges 响应，与第 101 章客户端 Range 组合对偶）；**代理头族**（`Via`/`X-Forwarded-*` 的规范化替代 `Forwarded`、`proxy_status` 代理状态——网关写作的词汇）。最后以"一次请求穿越卷十全栈"的全景图收卷：从 easy 调用到压缩 Range 响应的每一层。第 110 章起进入卷十一（xws/xruntime/xmail/xssh 扩展库家族）。
@@ -57,11 +59,11 @@ api: xhttp-http_server, xhttp-http_compress, xhttp-http_cache_range
 
 下面的程序来自 `examples/http/reply_compress`——按客户端能力压缩响应：
 
-```embed path="extlibs/xhttp/examples/http/reply_compress/main.c" title="extlibs/xhttp/examples/http/reply_compress/main.c"
+```embed path="extlibs/xhttp-server/examples/http/reply_compress/main.c" title="extlibs/xhttp-server/examples/http/reply_compress/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/reply_compress/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_reply_compress --exclude-test "*" --no-single --no-run
 （输出压缩协商与产出响应的自检结果）
 ```
 
@@ -75,7 +77,7 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/range_multipart/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_range_multipart --exclude-test "*" --no-single --no-run
 （输出多区间响应组合的自检结果）
 ```
 

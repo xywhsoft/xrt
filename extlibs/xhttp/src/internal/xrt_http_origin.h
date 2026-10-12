@@ -11,14 +11,14 @@
 #if defined(XHTTP_FEATURE_HTTP_ORIGIN)
 
 /* 无错误副作用地验证 Origin 描述符。 */
-bool __xrtHttpOriginValueValid(
+bool xrtHttpBridgeOriginValueValid(
 	const xhttporigin* pOrigin
 );
 
 
 
 /* 比较两个已经验证的非 null Origin 三元组。 */
-bool __xrtHttpOriginTupleSame(
+bool xrtHttpBridgeOriginTupleSame(
 	const xhttporigin* pLeft,
 	const xhttporigin* pRight
 );

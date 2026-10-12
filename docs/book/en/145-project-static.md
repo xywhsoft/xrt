@@ -8,6 +8,8 @@ lead: A TLS security entrance, directory mapping with traversal protection, ETag
 api: xhttp-http_server, xhttp-http_server_static, xhttp-http_server_middleware
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 The book's final chapter. Project 6 (the **static file server** webserv): serve a frontend build-artifacts directory over HTTPS — a secure entrance (TLS + certificates), static mapping (URL prefix ↔ disk directory + traversal protection), conditional requests (ETag/304), resumable transfer (Range/206), compression negotiation (gzip for compressible text), access logs and graceful shutdown. It is **the fusion of the six projects**: logstat's line processing (logs), configd's configuration (listen address and directory mapping read from config), xdl's Range semantics (this time served), pushd's long-connection lifecycle (HTTP keep-alive and TLS sessions) — plus the static layer (Chapters 105/132) and compression (Chapter 109) as specialist parts. It is also **the final gathering of the book's knowledge map**: from line 3 of code to this chapter, thirteen volumes and one hundred forty-four chapters of knowledge converge in one really deployable service. After acceptance comes the book's closing — what you learned, where to go next.
@@ -63,13 +65,13 @@ Chapter 109's compression layer configured for webserv: **type whitelist** (text
 
 ### First complete program: the minimal shape of a static service
 
-The program below is from `extlibs/xhttp/examples/http/static_file` — the minimal loop of a static file response:
+The program below is from `extlibs/xhttp-server/examples/http/static_file` — the minimal loop of a static file response:
 
-```embed path="extlibs/xhttp/examples/http/static_file/main.c" title="extlibs/xhttp/examples/http/static_file/main.c"
+```embed path="extlibs/xhttp-server/examples/http/static_file/main.c" title="extlibs/xhttp-server/examples/http/static_file/main.c"
 
 ```
 ```
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/static_file/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_static_file --exclude-test "*" --no-single --no-run
 （输出静态文件服务装配的自检结果）
 ```
 
@@ -79,11 +81,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 
 The second program is from `examples/http/server_static` — a runnable static-service skeleton:
 
-```embed path="extlibs/xhttp/examples/http/server_static/main.c" title="extlibs/xhttp/examples/http/server_static/main.c"
+```embed path="extlibs/xhttp-server/examples/http/server_static/main.c" title="extlibs/xhttp-server/examples/http/server_static/main.c"
 
 ```
 ```
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server_static/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_server_static --exclude-test "*" --no-single --no-run
 （启动静态服务后按 Enter Drain 退出）
 ```
 
@@ -142,7 +144,7 @@ Cleanup:
 }
 ```
 ```
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c webserv.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXHTTP_SERVER_MODULE_ALL -I include -I extlibs/xhttp/include -I extlibs/xhttp-server/include -I single -I single/extlibs -include xrt.h -include xhttp.h -include xhttp-server.h impl.c webserv.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 webserv listening on https://127.0.0.1:8443 (root=dist)
 ```
 

@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [http.md](http.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `120` 个函数、`146` 个常量或宏、
+当前登记 `122` 个函数、`146` 个常量或宏、
 `42` 个公共类型。
 
 ## `include/xrt/http.h`
 
 [查看带契约注释的公共头](../../include/xrt/http.h)
 
-### 函数 (59)
+### 函数 (61)
 
 - `xrtHttpAuthorityPort`
 - `xrtHttpAuthorityValid`
@@ -39,10 +39,12 @@
 - `xrtHttpHostValid`
 - `xrtHttpIpv4Valid`
 - `xrtHttpIpv6Valid`
+- `xrtHttpListNext`
 - `xrtHttpMethodEqual`
 - `xrtHttpMethodIdempotent`
 - `xrtHttpMethodParse`
 - `xrtHttpMethodSafe`
+- `xrtHttpNameValueNext`
 - `xrtHttpOwsTrim`
 - `xrtHttpParamBuild`
 - `xrtHttpParamCount`

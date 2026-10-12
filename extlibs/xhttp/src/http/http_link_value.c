@@ -145,7 +145,7 @@ static bool __xrtHttpLinkRelationValueValid(xstrview Relation)
 	size_t i;
 	bool bRegistered;
 
-	if ( !__xrtHttpViewValid(Relation) ||
+	if ( !__xhttpViewValid(Relation) ||
 		(Relation.Size == 0) ) {
 		return false;
 	}
@@ -163,7 +163,7 @@ static bool __xrtHttpLinkRelationValueValid(xstrview Relation)
 	if ( bRegistered ) {
 		return true;
 	}
-	if ( !__xrtUrlParseValue(Relation, &Url) ) {
+	if ( !xrtHttpBridgeUrlParseValue(Relation, &Url) ) {
 		return false;
 	}
 	return ((Url.Flags & XURL_HAS_SCHEME) != 0) &&
@@ -178,7 +178,7 @@ static bool __xrtHttpLinkRelationQueryValid(xstrview Relation)
 	size_t i;
 	bool bRegistered;
 
-	if ( !__xrtHttpViewValid(Relation) ||
+	if ( !__xhttpViewValid(Relation) ||
 		(Relation.Size == 0) ) {
 		return false;
 	}
@@ -205,7 +205,7 @@ bool __xrtHttpLinkRelationsValueValid(xstrview Relations)
 	size_t iStart = 0;
 	size_t i = 0;
 
-	if ( !__xrtHttpViewValid(Relations) ||
+	if ( !__xhttpViewValid(Relations) ||
 		(Relations.Size == 0) ||
 		(Relations.Data[0] == ' ') ||
 		(Relations.Data[Relations.Size - 1u] == ' ') ) {
@@ -471,7 +471,7 @@ bool __xrtHttpLinkTypeParamValid(const xhttpparam* pParam)
 			bSlash = true;
 			continue;
 		}
-		if ( !__xrtHttpTokenByte(iByte) ) {
+		if ( !__xhttpTokenByte(iByte) ) {
 			return false;
 		}
 		if ( bSlash ) {
@@ -493,14 +493,14 @@ static bool __xrtHttpLinkHelperOutputValid(
 	const size_t* pSize
 )
 {
-	return __xrtRangeValid(pSize, sizeof(*pSize)) &&
+	return xrtMemRangeValid(pSize, sizeof(*pSize)) &&
 		((pOutput != NULL) || (iCapacity == 0)) &&
-		!__xrtRangesOverlap(
+		!xrtMemRangesOverlap(
 			pLink, sizeof(*pLink), pSize, sizeof(*pSize)
 		) && ((pOutput == NULL) ||
-		 (!__xrtRangesOverlap(
+		 (!xrtMemRangesOverlap(
 			pLink, sizeof(*pLink), pOutput, iCapacity
-		 ) && !__xrtRangesOverlap(
+		 ) && !xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), pOutput, iCapacity
 		 )));
 }
@@ -515,11 +515,11 @@ static bool __xrtHttpLinkHelperBorrowValid(
 	const size_t* pSize
 )
 {
-	return !__xrtRangesOverlap(
+	return !xrtMemRangesOverlap(
 		pLink->Element.Data, pLink->Element.Size,
 		pSize, sizeof(*pSize)
 	) && ((pOutput == NULL) ||
-		!__xrtRangesOverlap(
+		!xrtMemRangesOverlap(
 			pLink->Element.Data, pLink->Element.Size,
 			pOutput, iCapacity
 		));
@@ -528,7 +528,7 @@ static bool __xrtHttpLinkHelperBorrowValid(
 
 
 /* 严格查找第一个 Link 参数。 */
-XRT_API xhttpnext xrtHttpLinkParam(
+XHTTP_API xhttpnext xrtHttpLinkParam(
 	const xhttplink* pLink,
 	xstrview Name,
 	xhttpparam* pOutput
@@ -536,12 +536,12 @@ XRT_API xhttpnext xrtHttpLinkParam(
 {
 	xhttplink Link;
 
-	if ( !__xrtRangeValid(pOutput, sizeof(*pOutput)) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, sizeof(*pOutput)) ||
+		xrtMemRangesOverlap(
 			pLink, sizeof(*pLink), pOutput, sizeof(*pOutput)
 		) || !xrtHttpTokenValid(Name) ||
 		!__xrtHttpLinkDescriptorLoad(pLink, &Link) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	return xrtHttpParamFind(Link.Parameters, Name, pOutput);
@@ -550,7 +550,7 @@ XRT_API xhttpnext xrtHttpLinkParam(
 
 
 /* 按大小写不敏感规则查找一个关系类型。 */
-XRT_API xhttpnext xrtHttpLinkRelationFind(
+XHTTP_API xhttpnext xrtHttpLinkRelationFind(
 	const xhttplink* pLink,
 	xstrview Relation
 )
@@ -564,7 +564,7 @@ XRT_API xhttpnext xrtHttpLinkRelationFind(
 
 	if ( !__xrtHttpLinkRelationQueryValid(Relation) ||
 		!__xrtHttpLinkDescriptorLoad(pLink, &Link) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	__xrtHttpLinkReaderInit(&Reader, &Link.Rel);
@@ -597,7 +597,7 @@ XRT_API xhttpnext xrtHttpLinkRelationFind(
 
 
 /* 解码 anchor 参数。 */
-XRT_API bool xrtHttpLinkAnchorWrite(
+XHTTP_API bool xrtHttpLinkAnchorWrite(
 	const xhttplink* pLink,
 	void* pOutput,
 	size_t iCapacity,
@@ -612,11 +612,11 @@ XRT_API bool xrtHttpLinkAnchorWrite(
 		!__xrtHttpLinkHelperBorrowValid(
 			&Link, pOutput, iCapacity, pSize
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( (Link.Flags & XHTTP_LINK_HAS_ANCHOR) == 0 ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return xrtHttpParamValueWrite(
@@ -627,7 +627,7 @@ XRT_API bool xrtHttpLinkAnchorWrite(
 
 
 /* 构建零结尾 anchor。 */
-XRT_API str xrtHttpLinkAnchorBuild(
+XHTTP_API str xrtHttpLinkAnchorBuild(
 	const xhttplink* pLink,
 	size_t* pSize
 )
@@ -638,14 +638,14 @@ XRT_API str xrtHttpLinkAnchorBuild(
 
 	if ( !__xrtHttpLinkDescriptorLoad(pLink, &Link) ||
 		((pSize != NULL) &&
-		 (!__xrtRangeValid(pSize, sizeof(iRequired)) ||
-		  __xrtRangesOverlap(
+		 (!xrtMemRangeValid(pSize, sizeof(iRequired)) ||
+		  xrtMemRangesOverlap(
 			pLink, sizeof(*pLink), pSize, sizeof(iRequired)
-		  ) || __xrtRangesOverlap(
+		  ) || xrtMemRangesOverlap(
 			Link.Element.Data, Link.Element.Size,
 			pSize, sizeof(iRequired)
 		  ))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtHttpLinkAnchorWrite(
@@ -673,7 +673,7 @@ XRT_API str xrtHttpLinkAnchorBuild(
 
 
 /* 读取 UTF-8 标题并按规范回退普通 title。 */
-XRT_API bool xrtHttpLinkTitleWrite(
+XHTTP_API bool xrtHttpLinkTitleWrite(
 	const xhttplink* pLink,
 	void* pOutput,
 	size_t iCapacity,
@@ -689,7 +689,7 @@ XRT_API bool xrtHttpLinkTitleWrite(
 		!__xrtHttpLinkHelperBorrowValid(
 			&Link, pOutput, iCapacity, pSize
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( (Link.Flags & XHTTP_LINK_HAS_TITLE_EXT) != 0 ) {
@@ -708,14 +708,14 @@ XRT_API bool xrtHttpLinkTitleWrite(
 			&Link.Title, pOutput, iCapacity, pSize
 		);
 	}
-	__xrtErrorSetValue();
+	xrtSetErrorKind(XERR_VALUE);
 	return false;
 }
 
 
 
 /* 构建零结尾 UTF-8 标题。 */
-XRT_API str xrtHttpLinkTitleBuild(
+XHTTP_API str xrtHttpLinkTitleBuild(
 	const xhttplink* pLink,
 	size_t* pSize
 )
@@ -726,14 +726,14 @@ XRT_API str xrtHttpLinkTitleBuild(
 
 	if ( !__xrtHttpLinkDescriptorLoad(pLink, &Link) ||
 		((pSize != NULL) &&
-		 (!__xrtRangeValid(pSize, sizeof(iRequired)) ||
-		  __xrtRangesOverlap(
+		 (!xrtMemRangeValid(pSize, sizeof(iRequired)) ||
+		  xrtMemRangesOverlap(
 			pLink, sizeof(*pLink), pSize, sizeof(iRequired)
-		  ) || __xrtRangesOverlap(
+		  ) || xrtMemRangesOverlap(
 			Link.Element.Data, Link.Element.Size,
 			pSize, sizeof(iRequired)
 		  ))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( !xrtHttpLinkTitleWrite(
@@ -761,7 +761,7 @@ XRT_API str xrtHttpLinkTitleBuild(
 
 
 /* 使用 Base 解析链接目标。 */
-XRT_API bool xrtHttpLinkTargetResolve(
+XHTTP_API bool xrtHttpLinkTargetResolve(
 	const xhttplink* pLink,
 	const xurl* pBase,
 	void* pOutput,
@@ -771,19 +771,19 @@ XRT_API bool xrtHttpLinkTargetResolve(
 {
 	xhttplink Link;
 
-	if ( !__xrtRangeValid(pBase, sizeof(*pBase)) ||
+	if ( !xrtMemRangeValid(pBase, sizeof(*pBase)) ||
 		!__xrtHttpLinkHelperOutputValid(
 		pLink, pOutput, iCapacity, pSize
 	) || !__xrtHttpLinkDescriptorLoad(pLink, &Link) ||
 		!__xrtHttpLinkHelperBorrowValid(
 			&Link, pOutput, iCapacity, pSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pBase, sizeof(*pBase), pSize, sizeof(*pSize)
 		) || ((pOutput != NULL) &&
-		 __xrtRangesOverlap(
+		 xrtMemRangesOverlap(
 			pBase, sizeof(*pBase), pOutput, iCapacity
 		) ) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return xrtUrlResolve(
@@ -795,7 +795,7 @@ XRT_API bool xrtHttpLinkTargetResolve(
 
 
 /* 分配并解析链接目标。 */
-XRT_API str xrtHttpLinkTargetResolveBuild(
+XHTTP_API str xrtHttpLinkTargetResolveBuild(
 	const xhttplink* pLink,
 	const xurl* pBase,
 	size_t* pSize
@@ -805,19 +805,19 @@ XRT_API str xrtHttpLinkTargetResolveBuild(
 	str sOutput;
 	size_t iSize;
 
-	if ( !__xrtRangeValid(pBase, sizeof(*pBase)) ||
+	if ( !xrtMemRangeValid(pBase, sizeof(*pBase)) ||
 		!__xrtHttpLinkDescriptorLoad(pLink, &Link) ||
 		((pSize != NULL) &&
-		 (!__xrtRangeValid(pSize, sizeof(iSize)) ||
-		  __xrtRangesOverlap(
+		 (!xrtMemRangeValid(pSize, sizeof(iSize)) ||
+		  xrtMemRangesOverlap(
 			pLink, sizeof(*pLink), pSize, sizeof(iSize)
-		  ) || __xrtRangesOverlap(
+		  ) || xrtMemRangesOverlap(
 			Link.Element.Data, Link.Element.Size,
 			pSize, sizeof(iSize)
-		  ) || __xrtRangesOverlap(
+		  ) || xrtMemRangesOverlap(
 			pBase, sizeof(*pBase), pSize, sizeof(iSize)
 		  ))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	sOutput = xrtUrlResolveBuild(pBase, Link.Target, &iSize);

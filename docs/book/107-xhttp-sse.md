@@ -8,6 +8,8 @@ lead: 不建专用状态机的 EventSource：SSE Reply 借道唯一响应状态�
 api: xhttp-http_sse, xhttp-http_server, xhttp-http_client
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 服务器到客户端的单向推送，Web 世界有两个选择：WebSocket（第 95–97 章，双向、独立协议）与 **SSE**（Server-Sent Events——HTTP 响应流上的事件协议）。xhttp 的实现哲学一句话：**不建 SSE 专用连接、线程、队列或网络状态机**——`xrtHttpSseReplyCreate` 创建的是一个状态 200、`Content-Type: text/event-stream`、未知长度一次性 Body 的普通 `xhttpreply`，实际发送由 HTTP Server 的**唯一**响应状态机、TCP/TLS 背压与写时限驱动；返回的 `xhttpbodystream` 是独立生产端，交给后台任务或任意线程写入。客户端侧是同镜像：连接层 + 事件解析器（`text/event-stream` 的增量语法机），`Last-Event-ID` 断线续传内建。选择法则：只要单向推送就用 SSE——协议简单、走 80 端口、自动重连是浏览器内建。
@@ -61,11 +63,11 @@ api: xhttp-http_sse, xhttp-http_server, xhttp-http_client
 
 下面的程序来自 `examples/http/sse_server`——结构化事件发送的完整面：
 
-```embed path="extlibs/xhttp/examples/http/sse_server/main.c" title="extlibs/xhttp/examples/http/sse_server/main.c"
+```embed path="extlibs/xhttp-server/examples/http/sse_server/main.c" title="extlibs/xhttp-server/examples/http/sse_server/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/sse_server/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_sse_server --exclude-test "*" --no-single --no-run
 （读回自检通过后正常退出）
 ```
 
@@ -75,11 +77,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 
 第二个程序来自 `examples/http/sse_client`——客户端消费侧的标准循环：
 
-```embed path="extlibs/xhttp/examples/http/sse_client/main.c" title="extlibs/xhttp/examples/http/sse_client/main.c"
+```embed path="extlibs/xhttp-client/examples/http/sse_client/main.c" title="extlibs/xhttp-client/examples/http/sse_client/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/sse_client/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_sse_client --exclude-test "*" --no-single --no-run
 （示例校验客户端事件消费路径后正常退出）
 ```
 

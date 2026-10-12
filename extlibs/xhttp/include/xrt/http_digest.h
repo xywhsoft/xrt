@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_DIGEST_H
 #define XRT_HTTP_DIGEST_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_structured.h>
 
 
@@ -66,17 +68,17 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化摘要或摘要偏好游标。 */
-XRT_API void xrtHttpDigestCursorInit(xhttpdigestcursor* pCursor);
+XHTTP_API void xrtHttpDigestCursorInit(xhttpdigestcursor* pCursor);
 
 
 
 /* 严格验证完整 Content-Digest 或 Repr-Digest 字段值。 */
-XRT_API bool xrtHttpDigestValid(xstrview Value);
+XHTTP_API bool xrtHttpDigestValid(xstrview Value);
 
 
 
 /* 迭代完整且不可变的摘要值；算法按首次位置输出，重复值取最后一次。 */
-XRT_API xhttpnext xrtHttpDigestNext(
+XHTTP_API xhttpnext xrtHttpDigestNext(
 	xstrview Value,
 	xhttpdigestcursor* pCursor,
 	xhttpdigest* pDigest
@@ -85,7 +87,7 @@ XRT_API xhttpnext xrtHttpDigestNext(
 
 
 /* 跨重复字段行迭代；字段数组、目标和借用内容在游标期间不可改变。 */
-XRT_API xhttpnext xrtHttpDigestFieldNext(
+XHTTP_API xhttpnext xrtHttpDigestFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpdigesttarget Target,
@@ -96,7 +98,7 @@ XRT_API xhttpnext xrtHttpDigestFieldNext(
 
 
 /* 解码摘要；空输出查询长度，不附加零字节，长度输出允许未对齐。 */
-XRT_API bool xrtHttpDigestRead(
+XHTTP_API bool xrtHttpDigestRead(
 	const xhttpdigest* pDigest,
 	void* pOutput,
 	size_t iCapacity,
@@ -106,12 +108,12 @@ XRT_API bool xrtHttpDigestRead(
 
 
 /* 严格验证完整 Want-Content-Digest 或 Want-Repr-Digest 值。 */
-XRT_API bool xrtHttpDigestPreferenceValid(xstrview Value);
+XHTTP_API bool xrtHttpDigestPreferenceValid(xstrview Value);
 
 
 
 /* 迭代完整且不可变的摘要偏好值，游标不可与摘要迭代混用。 */
-XRT_API xhttpnext xrtHttpDigestPreferenceNext(
+XHTTP_API xhttpnext xrtHttpDigestPreferenceNext(
 	xstrview Value,
 	xhttpdigestcursor* pCursor,
 	xhttpdigestpreference* pPreference
@@ -120,7 +122,7 @@ XRT_API xhttpnext xrtHttpDigestPreferenceNext(
 
 
 /* 跨重复摘要偏好字段行迭代。 */
-XRT_API xhttpnext xrtHttpDigestPreferenceFieldNext(
+XHTTP_API xhttpnext xrtHttpDigestPreferenceFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpdigesttarget Target,
@@ -143,7 +145,7 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 写出一个算法的摘要 Dictionary；适合最常见的单算法路径。 */
-XRT_API bool xrtHttpDigestWrite(
+XHTTP_API bool xrtHttpDigestWrite(
 	xstrview Algorithm,
 	xbytesview Digest,
 	void* pOutput,
@@ -154,7 +156,7 @@ XRT_API bool xrtHttpDigestWrite(
 
 
 /* 写出一个算法的偏好 Dictionary，权重必须位于 0 到 10。 */
-XRT_API bool xrtHttpDigestPreferenceWrite(
+XHTTP_API bool xrtHttpDigestPreferenceWrite(
 	xstrview Algorithm,
 	uint8 iWeight,
 	void* pOutput,
@@ -187,7 +189,7 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 计算连续内容的 SHA-256 并写出 Dictionary；长度输出允许未对齐。 */
-XRT_API bool xrtHttpDigestSha256Write(
+XHTTP_API bool xrtHttpDigestSha256Write(
 	const void* pData,
 	size_t iSize,
 	void* pOutput,
@@ -198,7 +200,7 @@ XRT_API bool xrtHttpDigestSha256Write(
 
 
 /* 计算连续内容的 SHA-512 并写出 Dictionary；长度输出允许未对齐。 */
-XRT_API bool xrtHttpDigestSha512Write(
+XHTTP_API bool xrtHttpDigestSha512Write(
 	const void* pData,
 	size_t iSize,
 	void* pOutput,
@@ -209,7 +211,7 @@ XRT_API bool xrtHttpDigestSha512Write(
 
 
 /* 按成员算法常量时间校验；未知算法不解码载荷并返回 UNSUPPORTED。 */
-XRT_API xhttpdigestmatch xrtHttpDigestSha2Verify(
+XHTTP_API xhttpdigestmatch xrtHttpDigestSha2Verify(
 	const xhttpdigest* pDigest,
 	const void* pData,
 	size_t iSize

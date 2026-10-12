@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_SERVER_H
 #define XRT_HTTP_SERVER_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http.h>
 #include <xrt/http_body.h>
 
@@ -201,42 +203,42 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_HTTP_SERVER_REQUEST)
 
 /* 增加请求引用并返回原指针；请求正文仍由所属 Worker 串行推进。 */
-XRT_API xhttpserverrequest* xrtHttpServerRequestRef(
+XHTTP_API xhttpserverrequest* xrtHttpServerRequestRef(
 	xhttpserverrequest* pRequest
 );
 
 
 
 /* 释放请求引用及其实际使用的字段、Trailer 和缓冲正文。 */
-XRT_API void xrtHttpServerRequestDestroy(
+XHTTP_API void xrtHttpServerRequestDestroy(
 	xhttpserverrequest* pRequest
 );
 
 
 
 /* 返回请求 HTTP 版本；空请求返回零。 */
-XRT_API xhttpversion xrtHttpServerRequestVersion(
+XHTTP_API xhttpversion xrtHttpServerRequestVersion(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 返回借用的大小写敏感请求方法。 */
-XRT_API xstrview xrtHttpServerRequestMethod(
+XHTTP_API xstrview xrtHttpServerRequestMethod(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 返回借用的原始 request-target。 */
-XRT_API xstrview xrtHttpServerRequestTarget(
+XHTTP_API xstrview xrtHttpServerRequestTarget(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 解析拥有 target 的四种形式，结果借用请求快照。 */
-XRT_API bool xrtHttpServerRequestParseTarget(
+XHTTP_API bool xrtHttpServerRequestParseTarget(
 	const xhttpserverrequest* pRequest,
 	xhttptarget* pTarget
 );
@@ -247,7 +249,7 @@ XRT_API bool xrtHttpServerRequestParseTarget(
 	解析请求的有效 authority。
 	absolute 和 CONNECT 使用 target，其他形式使用 Host 字段。
 */
-XRT_API bool xrtHttpServerRequestAuthority(
+XHTTP_API bool xrtHttpServerRequestAuthority(
 	const xhttpserverrequest* pRequest,
 	xhttpauthority* pAuthority
 );
@@ -255,35 +257,35 @@ XRT_API bool xrtHttpServerRequestAuthority(
 
 
 /* 返回连接、Expect、正文交付和完整性标志。 */
-XRT_API uint32 xrtHttpServerRequestFlags(
+XHTTP_API uint32 xrtHttpServerRequestFlags(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 判断 HTTP/1.1 客户端是否正确声明不会丢弃响应 Trailer。 */
-XRT_API bool xrtHttpServerRequestAcceptsTrailers(
+XHTTP_API bool xrtHttpServerRequestAcceptsTrailers(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 返回请求正文的唯一 HTTP/1 分帧模式。 */
-XRT_API xhttp1bodymode xrtHttpServerRequestBodyMode(
+XHTTP_API xhttp1bodymode xrtHttpServerRequestBodyMode(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 返回定长正文声明长度；其他分帧模式返回零。 */
-XRT_API uint64 xrtHttpServerRequestContentLength(
+XHTTP_API uint64 xrtHttpServerRequestContentLength(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 返回首个同名借用 Header；未找到返回空指针，字段名必须是有效 token。 */
-XRT_API const xhttpfield* xrtHttpServerRequestHeader(
+XHTTP_API const xhttpfield* xrtHttpServerRequestHeader(
 	const xhttpserverrequest* pRequest,
 	xstrview Name
 );
@@ -291,21 +293,21 @@ XRT_API const xhttpfield* xrtHttpServerRequestHeader(
 
 
 /* 返回请求 Header 数量。 */
-XRT_API size_t xrtHttpServerRequestHeaderCount(
+XHTTP_API size_t xrtHttpServerRequestHeaderCount(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 返回连续只读 Header 数组；空请求或无字段返回空指针。 */
-XRT_API const xhttpfield* xrtHttpServerRequestHeaderData(
+XHTTP_API const xhttpfield* xrtHttpServerRequestHeaderData(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 返回指定位置的借用 Header，越界返回空指针。 */
-XRT_API const xhttpfield* xrtHttpServerRequestHeaderAt(
+XHTTP_API const xhttpfield* xrtHttpServerRequestHeaderAt(
 	const xhttpserverrequest* pRequest,
 	size_t iIndex
 );
@@ -315,7 +317,7 @@ XRT_API const xhttpfield* xrtHttpServerRequestHeaderAt(
 #if defined(XHTTP_FEATURE_HTTP_SERVER_REQUEST_AUTH)
 
 /* 解析唯一 Authorization；缺失、有效和错误分别返回 END、ITEM 和 ERROR。 */
-XRT_API xhttpnext xrtHttpServerRequestAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestAuth(
 	const xhttpserverrequest* pRequest,
 	xhttpauth* pAuth
 );
@@ -323,7 +325,7 @@ XRT_API xhttpnext xrtHttpServerRequestAuth(
 
 
 /* 解析唯一 Proxy-Authorization；结果视图借用请求快照。 */
-XRT_API xhttpnext xrtHttpServerRequestProxyAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestProxyAuth(
 	const xhttpserverrequest* pRequest,
 	xhttpauth* pAuth
 );
@@ -338,7 +340,7 @@ XRT_API xhttpnext xrtHttpServerRequestProxyAuth(
 	解码唯一 Basic Authorization；缺失返回 END 并发布空结果。
 	OOM 或格式错误清空 Basic，但保持长度和正文输出不变；短缓冲发布所需长度。
 */
-XRT_API xhttpnext xrtHttpServerRequestBasicAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestBasicAuth(
 	const xhttpserverrequest* pRequest,
 	void* pOutput,
 	size_t iCapacity,
@@ -352,7 +354,7 @@ XRT_API xhttpnext xrtHttpServerRequestBasicAuth(
 	解码唯一 Basic Proxy-Authorization；缺失返回 END 并发布空结果。
 	输出原子性与源站 Basic 入口一致。
 */
-XRT_API xhttpnext xrtHttpServerRequestProxyBasicAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestProxyBasicAuth(
 	const xhttpserverrequest* pRequest,
 	void* pOutput,
 	size_t iCapacity,
@@ -367,7 +369,7 @@ XRT_API xhttpnext xrtHttpServerRequestProxyBasicAuth(
 #if defined(XHTTP_FEATURE_HTTP_SERVER_REQUEST_AUTH_BEARER)
 
 /* 解析唯一 Bearer Authorization，Token 借用请求快照。 */
-XRT_API xhttpnext xrtHttpServerRequestBearerAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestBearerAuth(
 	const xhttpserverrequest* pRequest,
 	xstrview* pToken
 );
@@ -375,7 +377,7 @@ XRT_API xhttpnext xrtHttpServerRequestBearerAuth(
 
 
 /* 解析唯一 Bearer Proxy-Authorization，Token 借用请求快照。 */
-XRT_API xhttpnext xrtHttpServerRequestProxyBearerAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestProxyBearerAuth(
 	const xhttpserverrequest* pRequest,
 	xstrview* pToken
 );
@@ -387,7 +389,7 @@ XRT_API xhttpnext xrtHttpServerRequestProxyBearerAuth(
 #if defined(XHTTP_FEATURE_HTTP_SERVER_REQUEST_AUTH_DIGEST)
 
 /* 解码唯一 Digest Authorization；标准值借用 Output。 */
-XRT_API xhttpnext xrtHttpServerRequestDigestAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestDigestAuth(
 	const xhttpserverrequest* pRequest,
 	void* pOutput,
 	size_t iCapacity,
@@ -398,7 +400,7 @@ XRT_API xhttpnext xrtHttpServerRequestDigestAuth(
 
 
 /* 解码唯一 Digest Proxy-Authorization；标准值借用 Output。 */
-XRT_API xhttpnext xrtHttpServerRequestProxyDigestAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestProxyDigestAuth(
 	const xhttpserverrequest* pRequest,
 	void* pOutput,
 	size_t iCapacity,
@@ -414,21 +416,21 @@ XRT_API xhttpnext xrtHttpServerRequestProxyDigestAuth(
 	返回缓冲模式下已经拥有的连续正文。
 	流式与丢弃模式始终返回空视图；流式片段只在回调期间借用。
 */
-XRT_API xbytesview xrtHttpServerRequestBody(
+XHTTP_API xbytesview xrtHttpServerRequestBody(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 返回已经缓冲、流式交付或丢弃的正文总字节数。 */
-XRT_API uint64 xrtHttpServerRequestBodyBytes(
+XHTTP_API uint64 xrtHttpServerRequestBodyBytes(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 返回首个同名借用 Trailer；未找到返回空指针，字段名必须是有效 token。 */
-XRT_API const xhttpfield* xrtHttpServerRequestTrailer(
+XHTTP_API const xhttpfield* xrtHttpServerRequestTrailer(
 	const xhttpserverrequest* pRequest,
 	xstrview Name
 );
@@ -436,21 +438,21 @@ XRT_API const xhttpfield* xrtHttpServerRequestTrailer(
 
 
 /* 返回请求 Trailer 数量。 */
-XRT_API size_t xrtHttpServerRequestTrailerCount(
+XHTTP_API size_t xrtHttpServerRequestTrailerCount(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 返回连续只读 Trailer 数组；空请求或无字段返回空指针。 */
-XRT_API const xhttpfield* xrtHttpServerRequestTrailerData(
+XHTTP_API const xhttpfield* xrtHttpServerRequestTrailerData(
 	const xhttpserverrequest* pRequest
 );
 
 
 
 /* 返回指定位置的借用 Trailer，越界返回空指针。 */
-XRT_API const xhttpfield* xrtHttpServerRequestTrailerAt(
+XHTTP_API const xhttpfield* xrtHttpServerRequestTrailerAt(
 	const xhttpserverrequest* pRequest,
 	size_t iIndex
 );
@@ -459,7 +461,7 @@ XRT_API const xhttpfield* xrtHttpServerRequestTrailerAt(
 
 #if defined(XHTTP_FEATURE_HTTP_SERVER_QUERY)
 /* 解析 request-target 的查询组件并创建拥有型 QueryParams。 */
-XRT_API xqueryparams* xrtHttpServerRequestQueryParams(
+XHTTP_API xqueryparams* xrtHttpServerRequestQueryParams(
 	const xhttpserverrequest* pRequest,
 	const xqueryparamsconfig* pConfig,
 	size_t* pErrorOffset
@@ -470,7 +472,7 @@ XRT_API xqueryparams* xrtHttpServerRequestQueryParams(
 
 #if defined(XHTTP_FEATURE_HTTP_SERVER_COOKIE)
 /* 严格校验全部 Cookie 字段并一次写出借用项；Cookies 为空时查询总数。 */
-XRT_API bool xrtHttpServerRequestCookies(
+XHTTP_API bool xrtHttpServerRequestCookies(
 	const xhttpserverrequest* pRequest,
 	xcookiepair* pCookies,
 	size_t iCapacity,
@@ -480,7 +482,7 @@ XRT_API bool xrtHttpServerRequestCookies(
 
 
 /* 严格校验全部 Cookie 字段并返回首个同名借用项；END 或 ERROR 发布空结果。 */
-XRT_API xcookienext xrtHttpServerRequestCookie(
+XHTTP_API xcookienext xrtHttpServerRequestCookie(
 	const xhttpserverrequest* pRequest,
 	xstrview Name,
 	xcookiepair* pCookie
@@ -491,7 +493,7 @@ XRT_API xcookienext xrtHttpServerRequestCookie(
 
 #if defined(XHTTP_FEATURE_HTTP_SERVER_CONTENT_TYPE)
 /* 解析唯一 Content-Type；字段缺失返回 END，重复或无效返回 ERROR。 */
-XRT_API xhttpnext xrtHttpServerRequestContentType(
+XHTTP_API xhttpnext xrtHttpServerRequestContentType(
 	const xhttpserverrequest* pRequest,
 	xmediatype* pType
 );
@@ -501,7 +503,7 @@ XRT_API xhttpnext xrtHttpServerRequestContentType(
 
 #if defined(XHTTP_FEATURE_HTTP_SERVER_FORM)
 /* 校验媒体类型并把完整缓冲的 urlencoded 正文解析为 QueryParams。 */
-XRT_API xqueryparams* xrtHttpServerRequestForm(
+XHTTP_API xqueryparams* xrtHttpServerRequestForm(
 	const xhttpserverrequest* pRequest,
 	const xqueryparamsconfig* pConfig,
 	size_t* pErrorOffset
@@ -512,7 +514,7 @@ XRT_API xqueryparams* xrtHttpServerRequestForm(
 
 #if defined(XHTTP_FEATURE_HTTP_SERVER_FORM_DATA)
 /* 校验媒体类型并把完整缓冲的 multipart 正文解析为拥有型 FormData。 */
-XRT_API xformdata* xrtHttpServerRequestFormData(
+XHTTP_API xformdata* xrtHttpServerRequestFormData(
 	const xhttpserverrequest* pRequest,
 	const xformdataconfig* pConfig,
 	const xmultipartlimits* pLimits,
@@ -530,12 +532,12 @@ XRT_API xformdata* xrtHttpServerRequestFormData(
 	初始化按需分配 Header 与 Trailer 的默认 Reply 配置。
 	配置对象只要求位于完整可访问的存储范围，不要求自然对齐。
 */
-XRT_API void xrtHttpReplyConfigInit(xhttpreplyconfig* pConfig);
+XHTTP_API void xrtHttpReplyConfigInit(xhttpreplyconfig* pConfig);
 
 
 
 /* 创建使用标准原因短语且正文为空的 Reply。 */
-XRT_API xhttpreply* xrtHttpReplyCreate(uint16 iStatus);
+XHTTP_API xhttpreply* xrtHttpReplyCreate(uint16 iStatus);
 
 
 
@@ -543,7 +545,7 @@ XRT_API xhttpreply* xrtHttpReplyCreate(uint16 iStatus);
 	使用独立 Header 与 Trailer 限额创建 Reply。
 	函数立即快照配置；调用返回后配置存储可修改或释放。
 */
-XRT_API xhttpreply* xrtHttpReplyCreateWithConfig(
+XHTTP_API xhttpreply* xrtHttpReplyCreateWithConfig(
 	uint16 iStatus,
 	const xhttpreplyconfig* pConfig
 );
@@ -554,17 +556,17 @@ XRT_API xhttpreply* xrtHttpReplyCreateWithConfig(
 	克隆状态、原因短语和字段存储，并增加正文引用。
 	克隆结果与源对象可以独立修改和销毁。
 */
-XRT_API xhttpreply* xrtHttpReplyClone(const xhttpreply* pReply);
+XHTTP_API xhttpreply* xrtHttpReplyClone(const xhttpreply* pReply);
 
 
 
 /* 销毁 Reply 及其字段、原因短语和正文引用；空指针是安全的空操作。 */
-XRT_API void xrtHttpReplyDestroy(xhttpreply* pReply);
+XHTTP_API void xrtHttpReplyDestroy(xhttpreply* pReply);
 
 
 
 /* 设置三位状态码，并恢复该状态的标准原因短语。 */
-XRT_API bool xrtHttpReplySetStatus(
+XHTTP_API bool xrtHttpReplySetStatus(
 	xhttpreply* pReply,
 	uint16 iStatus
 );
@@ -572,12 +574,12 @@ XRT_API bool xrtHttpReplySetStatus(
 
 
 /* 返回 Reply 状态码；空 Reply 返回零。 */
-XRT_API uint16 xrtHttpReplyStatus(const xhttpreply* pReply);
+XHTTP_API uint16 xrtHttpReplyStatus(const xhttpreply* pReply);
 
 
 
 /* 失败原子地设置自定义原因短语；空文本会显式写出空原因短语。 */
-XRT_API bool xrtHttpReplySetReason(
+XHTTP_API bool xrtHttpReplySetReason(
 	xhttpreply* pReply,
 	xstrview Reason
 );
@@ -585,12 +587,12 @@ XRT_API bool xrtHttpReplySetReason(
 
 
 /* 返回借用的有效原因短语。 */
-XRT_API xstrview xrtHttpReplyReason(const xhttpreply* pReply);
+XHTTP_API xstrview xrtHttpReplyReason(const xhttpreply* pReply);
 
 
 
 /* 追加一个拥有型 Header，并保留同名字段。 */
-XRT_API bool xrtHttpReplyAddHeader(
+XHTTP_API bool xrtHttpReplyAddHeader(
 	xhttpreply* pReply,
 	xstrview Name,
 	xstrview Value
@@ -599,7 +601,7 @@ XRT_API bool xrtHttpReplyAddHeader(
 
 
 /* 设置首个同名 Header，并删除其余同名字段。 */
-XRT_API bool xrtHttpReplySetHeader(
+XHTTP_API bool xrtHttpReplySetHeader(
 	xhttpreply* pReply,
 	xstrview Name,
 	xstrview Value
@@ -608,7 +610,7 @@ XRT_API bool xrtHttpReplySetHeader(
 
 
 /* 删除全部同名 Header 并返回删除数量。 */
-XRT_API size_t xrtHttpReplyRemoveHeader(
+XHTTP_API size_t xrtHttpReplyRemoveHeader(
 	xhttpreply* pReply,
 	xstrview Name
 );
@@ -616,7 +618,7 @@ XRT_API size_t xrtHttpReplyRemoveHeader(
 
 
 /* 返回首个同名借用 Header，未找到返回空指针。 */
-XRT_API const xhttpfield* xrtHttpReplyHeader(
+XHTTP_API const xhttpfield* xrtHttpReplyHeader(
 	const xhttpreply* pReply,
 	xstrview Name
 );
@@ -624,19 +626,19 @@ XRT_API const xhttpfield* xrtHttpReplyHeader(
 
 
 /* 返回 Header 数量。 */
-XRT_API size_t xrtHttpReplyHeaderCount(const xhttpreply* pReply);
+XHTTP_API size_t xrtHttpReplyHeaderCount(const xhttpreply* pReply);
 
 
 
 /* 返回连续只读 Header 数组；空 Reply 或无字段返回空指针。 */
-XRT_API const xhttpfield* xrtHttpReplyHeaderData(
+XHTTP_API const xhttpfield* xrtHttpReplyHeaderData(
 	const xhttpreply* pReply
 );
 
 
 
 /* 返回指定位置的借用 Header，越界返回空指针。 */
-XRT_API const xhttpfield* xrtHttpReplyHeaderAt(
+XHTTP_API const xhttpfield* xrtHttpReplyHeaderAt(
 	const xhttpreply* pReply,
 	size_t iIndex
 );
@@ -647,7 +649,7 @@ XRT_API const xhttpfield* xrtHttpReplyHeaderAt(
 	返回借用的只读 Header 容器。
 	从未添加字段时返回空指针，查询不会触发分配。
 */
-XRT_API const xhttpheaders* xrtHttpReplyHeaders(
+XHTTP_API const xhttpheaders* xrtHttpReplyHeaders(
 	const xhttpreply* pReply
 );
 
@@ -657,14 +659,14 @@ XRT_API const xhttpheaders* xrtHttpReplyHeaders(
 	返回可修改 Header 容器并在首次调用时创建它。
 	容器由 Reply 拥有，不能单独销毁。
 */
-XRT_API xhttpheaders* xrtHttpReplyEditHeaders(xhttpreply* pReply);
+XHTTP_API xhttpheaders* xrtHttpReplyEditHeaders(xhttpreply* pReply);
 
 
 
 #if defined(XHTTP_FEATURE_HTTP_SERVER_REPLY_AUTH)
 
 /* 校验并追加一条 WWW-Authenticate challenge。 */
-XRT_API bool xrtHttpReplyAddChallenge(
+XHTTP_API bool xrtHttpReplyAddChallenge(
 	xhttpreply* pReply,
 	xstrview Scheme,
 	xstrview Data
@@ -673,7 +675,7 @@ XRT_API bool xrtHttpReplyAddChallenge(
 
 
 /* 校验并追加一条 Proxy-Authenticate challenge。 */
-XRT_API bool xrtHttpReplyAddProxyChallenge(
+XHTTP_API bool xrtHttpReplyAddProxyChallenge(
 	xhttpreply* pReply,
 	xstrview Scheme,
 	xstrview Data
@@ -686,7 +688,7 @@ XRT_API bool xrtHttpReplyAddProxyChallenge(
 #if defined(XHTTP_FEATURE_HTTP_SERVER_REPLY_AUTH_BASIC)
 
 /* 追加带安全转义 realm 的 Basic WWW-Authenticate challenge。 */
-XRT_API bool xrtHttpReplyAddBasicChallenge(
+XHTTP_API bool xrtHttpReplyAddBasicChallenge(
 	xhttpreply* pReply,
 	xstrview Realm,
 	bool bUtf8
@@ -695,7 +697,7 @@ XRT_API bool xrtHttpReplyAddBasicChallenge(
 
 
 /* 追加带安全转义 realm 的 Basic Proxy-Authenticate challenge。 */
-XRT_API bool xrtHttpReplyAddProxyBasicChallenge(
+XHTTP_API bool xrtHttpReplyAddProxyBasicChallenge(
 	xhttpreply* pReply,
 	xstrview Realm,
 	bool bUtf8
@@ -708,7 +710,7 @@ XRT_API bool xrtHttpReplyAddProxyBasicChallenge(
 #if defined(XHTTP_FEATURE_HTTP_SERVER_REPLY_AUTH_BEARER)
 
 /* 校验并追加一条 Bearer WWW-Authenticate challenge。 */
-XRT_API bool xrtHttpReplyAddBearerChallenge(
+XHTTP_API bool xrtHttpReplyAddBearerChallenge(
 	xhttpreply* pReply,
 	const xhttpbearerchallenge* pChallenge
 );
@@ -716,7 +718,7 @@ XRT_API bool xrtHttpReplyAddBearerChallenge(
 
 
 /* 校验并追加一条 Bearer Proxy-Authenticate challenge。 */
-XRT_API bool xrtHttpReplyAddProxyBearerChallenge(
+XHTTP_API bool xrtHttpReplyAddProxyBearerChallenge(
 	xhttpreply* pReply,
 	const xhttpbearerchallenge* pChallenge
 );
@@ -728,7 +730,7 @@ XRT_API bool xrtHttpReplyAddProxyBearerChallenge(
 #if defined(XHTTP_FEATURE_HTTP_SERVER_REPLY_AUTH_DIGEST)
 
 /* 追加一条规范 Digest WWW-Authenticate challenge。 */
-XRT_API bool xrtHttpReplyAddDigestChallenge(
+XHTTP_API bool xrtHttpReplyAddDigestChallenge(
 	xhttpreply* pReply,
 	const xhttpdigestchallenge* pChallenge
 );
@@ -736,7 +738,7 @@ XRT_API bool xrtHttpReplyAddDigestChallenge(
 
 
 /* 追加一条规范 Digest Proxy-Authenticate challenge。 */
-XRT_API bool xrtHttpReplyAddProxyDigestChallenge(
+XHTTP_API bool xrtHttpReplyAddProxyDigestChallenge(
 	xhttpreply* pReply,
 	const xhttpdigestchallenge* pChallenge
 );
@@ -748,7 +750,7 @@ XRT_API bool xrtHttpReplyAddProxyDigestChallenge(
 #if defined(XHTTP_FEATURE_HTTP_SERVER_REPLY_AUTH_DIGEST_INFO)
 
 /* 设置唯一 Authentication-Info 字段。 */
-XRT_API bool xrtHttpReplySetDigestInfo(
+XHTTP_API bool xrtHttpReplySetDigestInfo(
 	xhttpreply* pReply,
 	const xhttpdigestinfo* pInfo
 );
@@ -756,7 +758,7 @@ XRT_API bool xrtHttpReplySetDigestInfo(
 
 
 /* 设置唯一 Proxy-Authentication-Info 字段。 */
-XRT_API bool xrtHttpReplySetProxyDigestInfo(
+XHTTP_API bool xrtHttpReplySetProxyDigestInfo(
 	xhttpreply* pReply,
 	const xhttpdigestinfo* pInfo
 );
@@ -766,7 +768,7 @@ XRT_API bool xrtHttpReplySetProxyDigestInfo(
 
 
 /* 追加一个拥有型 Trailer，并保留同名字段。 */
-XRT_API bool xrtHttpReplyAddTrailer(
+XHTTP_API bool xrtHttpReplyAddTrailer(
 	xhttpreply* pReply,
 	xstrview Name,
 	xstrview Value
@@ -775,7 +777,7 @@ XRT_API bool xrtHttpReplyAddTrailer(
 
 
 /* 设置首个同名 Trailer，并删除其余同名字段。 */
-XRT_API bool xrtHttpReplySetTrailer(
+XHTTP_API bool xrtHttpReplySetTrailer(
 	xhttpreply* pReply,
 	xstrview Name,
 	xstrview Value
@@ -784,7 +786,7 @@ XRT_API bool xrtHttpReplySetTrailer(
 
 
 /* 删除全部同名 Trailer 并返回删除数量。 */
-XRT_API size_t xrtHttpReplyRemoveTrailer(
+XHTTP_API size_t xrtHttpReplyRemoveTrailer(
 	xhttpreply* pReply,
 	xstrview Name
 );
@@ -792,7 +794,7 @@ XRT_API size_t xrtHttpReplyRemoveTrailer(
 
 
 /* 返回首个同名借用 Trailer，未找到返回空指针。 */
-XRT_API const xhttpfield* xrtHttpReplyTrailer(
+XHTTP_API const xhttpfield* xrtHttpReplyTrailer(
 	const xhttpreply* pReply,
 	xstrview Name
 );
@@ -800,19 +802,19 @@ XRT_API const xhttpfield* xrtHttpReplyTrailer(
 
 
 /* 返回 Trailer 数量。 */
-XRT_API size_t xrtHttpReplyTrailerCount(const xhttpreply* pReply);
+XHTTP_API size_t xrtHttpReplyTrailerCount(const xhttpreply* pReply);
 
 
 
 /* 返回连续只读 Trailer 数组；空 Reply 或无字段返回空指针。 */
-XRT_API const xhttpfield* xrtHttpReplyTrailerData(
+XHTTP_API const xhttpfield* xrtHttpReplyTrailerData(
 	const xhttpreply* pReply
 );
 
 
 
 /* 返回指定位置的借用 Trailer，越界返回空指针。 */
-XRT_API const xhttpfield* xrtHttpReplyTrailerAt(
+XHTTP_API const xhttpfield* xrtHttpReplyTrailerAt(
 	const xhttpreply* pReply,
 	size_t iIndex
 );
@@ -823,7 +825,7 @@ XRT_API const xhttpfield* xrtHttpReplyTrailerAt(
 	返回借用的只读 Trailer 容器。
 	从未添加字段时返回空指针，查询不会触发分配。
 */
-XRT_API const xhttpheaders* xrtHttpReplyTrailers(
+XHTTP_API const xhttpheaders* xrtHttpReplyTrailers(
 	const xhttpreply* pReply
 );
 
@@ -833,7 +835,7 @@ XRT_API const xhttpheaders* xrtHttpReplyTrailers(
 	返回可修改 Trailer 容器并在首次调用时创建它。
 	协议准备层仍会拒绝禁止作为 Trailer 的字段。
 */
-XRT_API xhttpheaders* xrtHttpReplyEditTrailers(xhttpreply* pReply);
+XHTTP_API xhttpheaders* xrtHttpReplyEditTrailers(xhttpreply* pReply);
 
 
 
@@ -841,7 +843,7 @@ XRT_API xhttpheaders* xrtHttpReplyEditTrailers(xhttpreply* pReply);
 	替换正文并保留一个独立引用；空 Body 清除正文。
 	该函数不自动修改 Content-Type、Content-Length 或 Transfer-Encoding。
 */
-XRT_API bool xrtHttpReplySetBody(
+XHTTP_API bool xrtHttpReplySetBody(
 	xhttpreply* pReply,
 	xhttpbody* pBody
 );
@@ -852,7 +854,7 @@ XRT_API bool xrtHttpReplySetBody(
 	复制字节并设置正文；ContentType 非空时同时失败原子地设置 Content-Type。
 	正文长度和线路分帧仍由后续协议准备层生成。
 */
-XRT_API bool xrtHttpReplySetBytes(
+XHTTP_API bool xrtHttpReplySetBytes(
 	xhttpreply* pReply,
 	xbytesview Data,
 	xstrview ContentType
@@ -861,7 +863,7 @@ XRT_API bool xrtHttpReplySetBytes(
 
 
 /* 返回借用的正文对象，可能为空。 */
-XRT_API xhttpbody* xrtHttpReplyBody(const xhttpreply* pReply);
+XHTTP_API xhttpbody* xrtHttpReplyBody(const xhttpreply* pReply);
 
 #endif
 

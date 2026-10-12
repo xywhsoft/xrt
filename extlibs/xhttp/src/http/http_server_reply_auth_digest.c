@@ -40,7 +40,7 @@ static bool __xrtHttpReplyAddDigestChallenge(
 
 
 /* 追加源站 Digest challenge。 */
-XRT_API bool xrtHttpReplyAddDigestChallenge(
+XHTTP_API bool xrtHttpReplyAddDigestChallenge(
 	xhttpreply* pReply,
 	const xhttpdigestchallenge* pChallenge
 )
@@ -55,7 +55,7 @@ XRT_API bool xrtHttpReplyAddDigestChallenge(
 
 
 /* 追加代理 Digest challenge。 */
-XRT_API bool xrtHttpReplyAddProxyDigestChallenge(
+XHTTP_API bool xrtHttpReplyAddProxyDigestChallenge(
 	xhttpreply* pReply,
 	const xhttpdigestchallenge* pChallenge
 )

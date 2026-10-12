@@ -40,23 +40,7 @@ if ( owned != NULL ) {
 
 所有固定描述符和输出参数都允许未对齐存储，但必须构成完整、不回绕且不与仍需读取的数据重叠的内存范围。
 
-## 默认策略
+## 策略与网络执行
 
-`xrtHttpRetryStatusDefault` 默认识别 `408`、`421`、`425`、`429`、`500`、`502`、`503` 和 `504`。状态码只是服务端失败事实，不足以单独证明一次请求可以安全重放；客户端还必须检查方法幂等性、正文可重放性、发送阶段和调用者策略。
-
-`xrtHttpRetryBackoff(base, maximum, retry, &delay)` 计算 `min(base * 2^retry, maximum)`。`retry` 从零开始表示第一次重试，单位由调用者统一决定。函数不内置随机数，避免纯协议层强制依赖 RNG；客户端可在结果区间上应用 full jitter。
-
-## 客户端组合层
-
-启用 `http_client_retry` 后，高层 Client 才会建立 Timer、重放请求和隐藏中间响应。
-该层默认关闭，完整配置、幂等与正文重放边界、取消和超时语义见
-[`http_client.md`](http_client.md#自动重试)。纯 `http_retry` 不依赖网络、随机数
-或任务体系，也不会根据一个状态码自行执行请求。
-
-## 裁剪与验证
-
-- 启用 `XRT_MODULE_HTTP_RETRY` 只引入 HTTP 字段基础和时间文本解析，不引入网络、任务、随机数或动态内存。
-- 模块化、单头和失败分配器测试覆盖数字及日期解析、字段三态、直接写出、OOM、未对齐描述符、回绕范围、溢出、过去日期、状态集合和极大重试序号。
-- 当前模块只定义重试事实和基础策略；高层 Client 也默认不自动重试任何请求。
-
-
+默认状态集合和封顶退避已迁入 xhttp-policy 的 `http_retry_policy`，见 [策略说明](../../../xhttp-policy/docs/api/http_transfer_policy.md)。
+实际 Timer、请求重放、抖动与响应排空由 xhttp-client 的 `http_client_retry` 执行。纯 `http_retry` 只编解码 Retry-After，不依赖网络、随机数或任务体系。

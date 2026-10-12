@@ -1,0 +1,30 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xhttp-server/config/modules.json",
+	"profiles": [
+		{
+			"name": "minimal",
+			"system": "xhttp_server",
+			"suite": "http_server",
+			"description": "基本闭包"
+		},
+		{
+			"name": "optional",
+			"system": "xhttp_server",
+			"suite": "http_server_router",
+			"description": "可选模块闭包"
+		},
+		{
+			"name": "xhttp_server",
+			"system": "xhttp_server",
+			"suite": "xhttp_server",
+			"description": "本库完整闭包"
+		}
+	],
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

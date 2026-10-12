@@ -160,7 +160,7 @@ static bool __xrtHttp1ServerHeadParse(
 	if ( Status == XHTTP1_FIELDS ) {
 		iRequired = pHead->FieldCount;
 		if ( iRequired > (SIZE_MAX / sizeof(xhttpfield)) ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return __xrtHttp1ServerExchangeFailCause(
 				pExchange,
 				XHTTP1_SERVER_ERROR_HEAD,

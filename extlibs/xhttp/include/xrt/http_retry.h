@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_RETRY_H
 #define XRT_HTTP_RETRY_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http.h>
 #include <xrt/time.h>
 
@@ -47,7 +49,7 @@ XRT_EXTERN_C_BEGIN
 	语法或数值失败时清空输出；参数错误不修改输出。
 	delay-seconds 超出 uint64 时报告溢出。
 */
-XRT_API bool xrtHttpRetryAfterParse(
+XHTTP_API bool xrtHttpRetryAfterParse(
 	xstrview Value,
 	xhttpretryafter* pRetry
 );
@@ -58,7 +60,7 @@ XRT_API bool xrtHttpRetryAfterParse(
 	把 Retry-After 转换为当前应等待的毫秒数。
 	过去的绝对日期得到零；转换溢出时不修改输出。
 */
-XRT_API bool xrtHttpRetryAfterDelay(
+XHTTP_API bool xrtHttpRetryAfterDelay(
 	const xhttpretryafter* pRetry,
 	xtime iNow,
 	uint64* pDelay
@@ -71,7 +73,7 @@ XRT_API bool xrtHttpRetryAfterDelay(
 	缺失返回 END，唯一有效值返回 ITEM，重复或非法值返回 ERROR。
 	缺失和错误都把输出清零。
 */
-XRT_API xhttpnext xrtHttpRetryAfterFields(
+XHTTP_API xhttpnext xrtHttpRetryAfterFields(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xtime iNow,
@@ -84,7 +86,7 @@ XRT_API xhttpnext xrtHttpRetryAfterFields(
 	规范写出 Retry-After 值，不附加零字节。
 	空输出用于查询精确长度；短缓冲返回所需长度且不写入部分结果。
 */
-XRT_API bool xrtHttpRetryAfterWrite(
+XHTTP_API bool xrtHttpRetryAfterWrite(
 	const xhttpretryafter* pRetry,
 	void* pOutput,
 	size_t iCapacity,
@@ -94,28 +96,13 @@ XRT_API bool xrtHttpRetryAfterWrite(
 
 
 /* 构建零结尾 Retry-After 值；返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpRetryAfterBuild(
+XHTTP_API str xrtHttpRetryAfterBuild(
 	const xhttpretryafter* pRetry,
 	size_t* pSize
 );
 
 
 
-/* 判断状态码是否属于默认的临时失败重试集合。 */
-XRT_API bool xrtHttpRetryStatusDefault(uint16 iStatus);
-
-
-
-/*
-	计算以零开始编号的封顶指数退避，单位由调用方决定。
-	Maximum 必须非零且 Base 不得大于 Maximum；失败时不修改输出。
-*/
-XRT_API bool xrtHttpRetryBackoff(
-	uint64 iBase,
-	uint64 iMaximum,
-	uint32 iRetry,
-	uint64* pDelay
-);
 
 #endif
 

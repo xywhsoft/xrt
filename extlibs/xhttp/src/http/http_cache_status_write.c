@@ -24,8 +24,8 @@ static bool __xrtHttpCacheStatusWriteParameter(
 	const xhttpstructuredparameterentry* pParameter
 )
 {
-	if ( !__xrtHttpViewValid(pParameter->Key) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(pParameter->Key) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( __xrtHttpCacheStatusWriteKey(
@@ -88,11 +88,11 @@ static bool __xrtHttpCacheStatusWriteValid(
 	}
 	if ( pStatus->ParameterCount >
 		(SIZE_MAX / sizeof(Parameter)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iBytes = pStatus->ParameterCount * sizeof(Parameter);
-	if ( !__xrtRangeValid(pStatus->Parameters, iBytes) ) {
+	if ( !xrtMemRangeValid(pStatus->Parameters, iBytes) ) {
 		return false;
 	}
 	for ( i = 0; i < pStatus->ParameterCount; i++ ) {
@@ -112,7 +112,7 @@ static bool __xrtHttpCacheStatusWriteValid(
 
 
 /* 规范写出一个 Cache-Status 成员。 */
-XRT_API bool xrtHttpCacheStatusWrite(
+XHTTP_API bool xrtHttpCacheStatusWrite(
 	const xhttpstructureditemvalue* pStatus,
 	void* pOutput,
 	size_t iCapacity,
@@ -121,14 +121,14 @@ XRT_API bool xrtHttpCacheStatusWrite(
 {
 	xhttpstructureditemvalue Status;
 
-	if ( !__xrtRangeValid(pStatus, sizeof(Status)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pStatus, sizeof(Status)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Status, pStatus, sizeof(Status));
 	if ( !__xrtHttpCacheStatusWriteValid(&Status) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return false;
 	}

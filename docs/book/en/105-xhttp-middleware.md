@@ -8,6 +8,8 @@ lead: The onion model entering in registration order and exiting in reverse, Nex
 api: xhttp-http_server_middleware, xhttp-http_server_static, xhttp-http_server_router
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 Everything outside business routing — logging, timing, auth, CORS, compression — must run for every request. `xrtHttpServerUse` registers them as **middleware**: entered in registration order, exited in reverse (the onion model); `xrtHttpServerNext` enters the next layer synchronously, and post-logic (timing/log finalization) runs after it returns;**not calling Next is a short-circuit** — middleware may respond directly or retain the Connection for async handling. The contract's key detail: `Next` is valid only within the current synchronous callback stack (never store it into a thread/Future/coroutine) and may be called at most once (repetition = error path) — **async middleware should short-circuit and retain the Connection itself, not delay Next**. The chapter's second half covers the static file layer: single-file responses, directory mapping with sandbox constraints (`http_server_static` — Chapter 47's dir-sandbox idea landing server-side).
@@ -58,11 +60,11 @@ Fixed Routers and the Host Mux (a multiplexer branching on the Host header — o
 
 The program below is from `examples/http/server_middleware` — a logging middleware wrapping a health route:
 
-```embed path="extlibs/xhttp/examples/http/server_middleware/main.c" title="extlibs/xhttp/examples/http/server_middleware/main.c"
+```embed path="extlibs/xhttp-server/examples/http/server_middleware/main.c" title="extlibs/xhttp-server/examples/http/server_middleware/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server_middleware/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_server_middleware --exclude-test "*" --no-single --no-run
 middleware: 1, routes: 1
 ```
 
@@ -72,11 +74,11 @@ middleware: 1, routes: 1
 
 The second program is from `examples/http/static_file` — the standard assembly of file responses:
 
-```embed path="extlibs/xhttp/examples/http/static_file/main.c" title="extlibs/xhttp/examples/http/static_file/main.c"
+```embed path="extlibs/xhttp-server/examples/http/static_file/main.c" title="extlibs/xhttp-server/examples/http/static_file/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/static_file/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_static_file --exclude-test "*" --no-single --no-run
 （输出静态服务装配结果并正常退出）
 ```
 

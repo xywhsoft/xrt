@@ -135,7 +135,7 @@ static bool __xrtHttpCacheFieldNames(
 				bAfter = true;
 			}
 		} else {
-			if ( bAfter || !__xrtHttpTokenByte(iByte) ) {
+			if ( bAfter || !__xhttpTokenByte(iByte) ) {
 				return false;
 			}
 			bToken = true;
@@ -160,16 +160,16 @@ static bool __xrtHttpCacheItemValid(
 			XHTTP_PARAM_QUOTED
 		 )) != 0) ||
 		((pItem->Flags & XHTTP_PARAM_HAS_VALUE) == 0) ||
-		!__xrtHttpViewValid(pItem->Name) ||
-		!__xrtHttpViewValid(pItem->Value) ||
+		!__xhttpViewValid(pItem->Name) ||
+		!__xhttpViewValid(pItem->Value) ||
 		!xrtHttpTokenValid(pItem->Name) ||
 		(xrtHttpCacheDirectiveParse(pItem->Name) !=
 		 pItem->Directive) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pItem, sizeof(*pItem),
 			pItem->Name.Data, pItem->Name.Size
 		) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pItem, sizeof(*pItem),
 			pItem->Value.Data, pItem->Value.Size
 		) ) {
@@ -189,7 +189,7 @@ static bool __xrtHttpCacheItemValid(
 static bool __xrtHttpCacheCount(size_t* pCount)
 {
 	if ( *pCount == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	(*pCount)++;
@@ -357,7 +357,7 @@ static size_t __xrtHttpCacheDirectiveCount(uint32 iFlags)
 
 
 /* 返回已知缓存指令的规范名称。 */
-XRT_API xstrview xrtHttpCacheDirectiveName(
+XHTTP_API xstrview xrtHttpCacheDirectiveName(
 	xhttpcachedirective Directive
 )
 {
@@ -396,7 +396,7 @@ XRT_API xstrview xrtHttpCacheDirectiveName(
 
 
 /* 大小写不敏感地映射一个缓存指令名称。 */
-XRT_API xhttpcachedirective xrtHttpCacheDirectiveParse(
+XHTTP_API xhttpcachedirective xrtHttpCacheDirectiveParse(
 	xstrview Name
 )
 {
@@ -433,10 +433,10 @@ XRT_API xhttpcachedirective xrtHttpCacheDirectiveParse(
 
 
 /* 初始化 Cache-Control 前向游标。 */
-XRT_API void xrtHttpCacheCursorInit(xhttpcachecursor* pCursor)
+XHTTP_API void xrtHttpCacheCursorInit(xhttpcachecursor* pCursor)
 {
 	if ( pCursor == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(pCursor, 0, sizeof(*pCursor));
@@ -445,7 +445,7 @@ XRT_API void xrtHttpCacheCursorInit(xhttpcachecursor* pCursor)
 
 
 /* 跨越重复字段读取下一个缓存指令。 */
-XRT_API xhttpnext xrtHttpCacheNext(
+XHTTP_API xhttpnext xrtHttpCacheNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpcachecursor* pCursor,
@@ -454,26 +454,26 @@ XRT_API xhttpnext xrtHttpCacheNext(
 {
 	xhttpcachecursor Cursor;
 
-	if ( !__xrtHttpFieldArrayValid(
+	if ( !__xhttpFieldArrayValid(
 		pFields, iCount
 	) || (pCursor == NULL) ||
 		(pItem == NULL) ||
 		(pCursor->Field > iCount) ||
 		((pCursor->Field == iCount) &&
 		 (pCursor->Offset != 0)) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pCursor, sizeof(*pCursor),
 			pItem, sizeof(*pItem)
 		) ||
-		__xrtHttpFieldArrayOverlap(
+		__xhttpFieldArrayOverlap(
 			pFields, iCount,
 			pCursor, sizeof(*pCursor)
 		) ||
-		__xrtHttpFieldArrayOverlap(
+		__xhttpFieldArrayOverlap(
 			pFields, iCount,
 			pItem, sizeof(*pItem)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memset(pItem, 0, sizeof(*pItem));
@@ -483,14 +483,14 @@ XRT_API xhttpnext xrtHttpCacheNext(
 
 		if ( !__xrtHttpCacheField(pField) ) {
 			if ( Cursor.Offset != 0 ) {
-				__xrtErrorSetInvalidArgument();
+				xrtSetErrorKind(XERR_ARGUMENT);
 				return XHTTP_NEXT_ERROR;
 			}
 			Cursor.Field++;
 			continue;
 		}
 		if ( Cursor.Offset > pField->Value.Size ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return XHTTP_NEXT_ERROR;
 		}
 		{
@@ -524,26 +524,26 @@ XRT_API xhttpnext xrtHttpCacheNext(
 
 
 /* 严格解析一个完整 delta-seconds。 */
-XRT_API bool xrtHttpCacheDeltaParse(
+XHTTP_API bool xrtHttpCacheDeltaParse(
 	xstrview Text,
 	uint64* pSeconds
 )
 {
 	uint64 iSeconds;
 
-	if ( !__xrtHttpViewValid(Text) ||
+	if ( !__xhttpViewValid(Text) ||
 		(pSeconds == NULL) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSeconds, sizeof(*pSeconds),
 			Text.Data, Text.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpCacheDeltaParse(
 		Text, false, true, &iSeconds
 	) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	*pSeconds = iSeconds;
@@ -553,7 +553,7 @@ XRT_API bool xrtHttpCacheDeltaParse(
 
 
 /* 读取并饱和一个已知数值缓存指令。 */
-XRT_API bool xrtHttpCacheDeltaRead(
+XHTTP_API bool xrtHttpCacheDeltaRead(
 	const xhttpcacheitem* pItem,
 	uint64* pSeconds
 )
@@ -568,19 +568,19 @@ XRT_API bool xrtHttpCacheDeltaRead(
 		 (pItem->Directive == XHTTP_CACHE_S_MAXAGE));
 	if ( !bNumeric || (pSeconds == NULL) ||
 		!__xrtHttpCacheItemValid(pItem) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSeconds, sizeof(*pSeconds),
 			pItem, sizeof(*pItem)
 		) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSeconds, sizeof(*pSeconds),
 			pItem->Name.Data, pItem->Name.Size
 		) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pSeconds, sizeof(*pSeconds),
 			pItem->Value.Data, pItem->Value.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !__xrtHttpCacheDeltaParse(
@@ -589,7 +589,7 @@ XRT_API bool xrtHttpCacheDeltaRead(
 		false,
 		&iSeconds
 	) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	*pSeconds = iSeconds;
@@ -599,12 +599,12 @@ XRT_API bool xrtHttpCacheDeltaRead(
 
 
 /* 初始化空缓存控制汇总。 */
-XRT_API void xrtHttpCacheControlInit(
+XHTTP_API void xrtHttpCacheControlInit(
 	xhttpcachecontrol* pControl
 )
 {
 	if ( pControl == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(pControl, 0, sizeof(*pControl));
@@ -613,7 +613,7 @@ XRT_API void xrtHttpCacheControlInit(
 
 
 /* 验证公开缓存控制汇总的内部一致性。 */
-XRT_API bool xrtHttpCacheControlValid(
+XHTTP_API bool xrtHttpCacheControlValid(
 	const xhttpcachecontrol* pControl
 )
 {
@@ -722,7 +722,7 @@ XRT_API bool xrtHttpCacheControlValid(
 
 
 /* 失败原子地合并一个 Cache-Control 字段值。 */
-XRT_API bool xrtHttpCacheControlAdd(
+XHTTP_API bool xrtHttpCacheControlAdd(
 	xhttpcachecontrol* pControl,
 	xstrview Value
 )
@@ -732,12 +732,12 @@ XRT_API bool xrtHttpCacheControlAdd(
 
 	if ( (pControl == NULL) ||
 		!xrtHttpCacheControlValid(pControl) ||
-		!__xrtHttpViewValid(Value) ||
-		__xrtRangesOverlap(
+		!__xhttpViewValid(Value) ||
+		xrtMemRangesOverlap(
 			pControl, sizeof(*pControl),
 			Value.Data, Value.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	Control = *pControl;
@@ -777,7 +777,7 @@ XRT_API bool xrtHttpCacheControlAdd(
 
 
 /* 扫描重复字段并建立缓存控制汇总。 */
-XRT_API bool xrtHttpCacheControlParse(
+XHTTP_API bool xrtHttpCacheControlParse(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpcachecontrol* pControl
@@ -786,14 +786,14 @@ XRT_API bool xrtHttpCacheControlParse(
 	xhttpcachecontrol Control;
 	size_t i;
 
-	if ( !__xrtHttpFieldArrayValid(
+	if ( !__xhttpFieldArrayValid(
 		pFields, iCount
 	) || (pControl == NULL) ||
-		__xrtHttpFieldArrayOverlap(
+		__xhttpFieldArrayOverlap(
 			pFields, iCount,
 			pControl, sizeof(*pControl)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(&Control, 0, sizeof(Control));

@@ -219,7 +219,7 @@ static xhttp1outputstatus __xrtHttp1ExchangeBodyNext(
 
 
 /* 借出下一段 HTTP/1 请求线路数据。 */
-XRT_API xhttp1outputstatus xrtHttp1ExchangeOutput(
+XHTTP_API xhttp1outputstatus xrtHttp1ExchangeOutput(
 	xhttp1exchange* pExchange,
 	size_t iMaxBytes,
 	xbytesview* pData
@@ -359,7 +359,7 @@ XRT_API xhttp1outputstatus xrtHttp1ExchangeOutput(
 
 
 /* 推进最近一次借出的请求线路片段。 */
-XRT_API bool xrtHttp1ExchangeOutputConsume(
+XHTTP_API bool xrtHttp1ExchangeOutputConsume(
 	xhttp1exchange* pExchange,
 	size_t iSize
 )

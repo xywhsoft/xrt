@@ -10,26 +10,26 @@ static bool __xrtHttp1ServerResponseOutputValid(
 	const xbytesview* pOutput
 )
 {
-	if ( !__xrtRangeValid(pOutput, sizeof(*pOutput)) ) {
+	if ( !xrtMemRangeValid(pOutput, sizeof(*pOutput)) ) {
 		return false;
 	}
 	if ( pResponse == NULL ) {
 		return true;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pOutput, sizeof(*pOutput),
 		pResponse, sizeof(*pResponse)
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOutput, sizeof(*pOutput),
 		pResponse->Head, pResponse->HeadSize
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOutput, sizeof(*pOutput),
 		pResponse->End, pResponse->EndSize
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOutput, sizeof(*pOutput),
 		pResponse->ChunkLine,
 		sizeof(pResponse->ChunkLine)
-	) || __xrtRangesOverlap(
+	) || xrtMemRangesOverlap(
 		pOutput, sizeof(*pOutput),
 		pResponse->Chunk.Data,
 		pResponse->Chunk.Size
@@ -38,7 +38,7 @@ static bool __xrtHttp1ServerResponseOutputValid(
 	}
 	for ( size_t i = pResponse->WireRefIndex;
 		i < pResponse->WireRefCount; i++ ) {
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			pOutput,
 			sizeof(*pOutput),
 			pResponse->WireRefs[i].Data,
@@ -75,10 +75,10 @@ static xhttp1serveroutputstatus __xrtHttp1ServerResponseOffer(
 		);
 		return XHTTP1_SERVER_OUTPUT_ERROR;
 	}
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pData, iSize, pOutput, sizeof(Output)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP1_SERVER_OUTPUT_ERROR;
 	}
 	pResponse->OfferData = pData;
@@ -299,7 +299,7 @@ static xhttp1serveroutputstatus __xrtHttp1ServerResponseBodyNext(
 
 
 /* 借出下一段 HTTP/1 响应线路数据。 */
-XRT_API xhttp1serveroutputstatus xrtHttp1ServerResponseOutput(
+XHTTP_API xhttp1serveroutputstatus xrtHttp1ServerResponseOutput(
 	xhttp1serverresponse* pResponse,
 	size_t iMaxBytes,
 	xbytesview* pData
@@ -311,13 +311,13 @@ XRT_API xhttp1serveroutputstatus xrtHttp1ServerResponseOutput(
 	if ( !__xrtHttp1ServerResponseOutputValid(
 		pResponse, pData
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP1_SERVER_OUTPUT_ERROR;
 	}
 	memcpy(pData, &Empty, sizeof(Empty));
 	if ( (pResponse == NULL) ||
 		(iMaxBytes == 0) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP1_SERVER_OUTPUT_ERROR;
 	}
 	if ( pResponse->Error != NULL ) {
@@ -435,7 +435,7 @@ XRT_API xhttp1serveroutputstatus xrtHttp1ServerResponseOutput(
 
 
 /* 推进最近一次借出的 HTTP/1 响应线路片段。 */
-XRT_API bool xrtHttp1ServerResponseOutputConsume(
+XHTTP_API bool xrtHttp1ServerResponseOutputConsume(
 	xhttp1serverresponse* pResponse,
 	size_t iSize
 )
@@ -443,7 +443,7 @@ XRT_API bool xrtHttp1ServerResponseOutputConsume(
 	if ( (pResponse == NULL) ||
 		(pResponse->Offered == 0) ||
 		(iSize > pResponse->Offered) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iSize == 0 ) {
@@ -451,7 +451,7 @@ XRT_API bool xrtHttp1ServerResponseOutputConsume(
 	}
 	if ( pResponse->WireBytes >
 		(UINT64_MAX - (uint64)iSize) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return __xrtHttp1ServerResponseFailCause(
 			pResponse,
 			XHTTP1_SERVER_RESPONSE_ERROR_LENGTH,

@@ -160,7 +160,7 @@ static void testHttpBodyStreamWriteOom(void)
 	testRequire(xrtMemDebugFailAfter(0),
 		"HTTP body stream build OOM fault setup failed");
 	testRequire(
-		(__xrtHttpBodyStreamBuild(
+		(xrtHttpBridgeBodyStreamBuild(
 			pStream,
 			4,
 			testHttpBodyStreamFill,
@@ -180,7 +180,7 @@ static void testHttpBodyStreamWriteOom(void)
 		"HTTP body stream build OOM did not roll back budget"
 	);
 	testRequire(
-		__xrtHttpBodyStreamBuild(
+		xrtHttpBridgeBodyStreamBuild(
 			pStream,
 			4,
 			testHttpBodyStreamFillFail,
@@ -198,7 +198,7 @@ static void testHttpBodyStreamWriteOom(void)
 	);
 
 	testRequire(
-		__xrtHttpBodyStreamBuild(
+		xrtHttpBridgeBodyStreamBuild(
 			pStream,
 			5,
 			testHttpBodyStreamFill,

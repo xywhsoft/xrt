@@ -554,10 +554,10 @@ static xhttpbodystreamresult __xrtHttpBodyStreamWriteOwned(
 
 
 /* 填充一次精确长度的单分配节点。 */
-xhttpbodystreamresult __xrtHttpBodyStreamBuild(
+XHTTP_API xhttpbodystreamresult xrtHttpBridgeBodyStreamBuild(
 	xhttpbodystream* pStream,
 	size_t iSize,
-	__xrt_http_body_stream_fill_proc pFill,
+	xhttpbodyfillproc pFill,
 	ptr pData
 )
 {
@@ -1002,7 +1002,7 @@ static bool __xrtHttpBodyStreamCloseInput(
 
 
 /* 初始化有界生产流默认配置。 */
-XRT_API void xrtHttpBodyStreamConfigInit(
+XHTTP_API void xrtHttpBodyStreamConfigInit(
 	xhttpbodystreamconfig* pConfig
 )
 {
@@ -1027,7 +1027,7 @@ XRT_API void xrtHttpBodyStreamConfigInit(
 
 
 /* 验证两个硬预算都能容纳至少一个非空 Chunk。 */
-XRT_API bool xrtHttpBodyStreamConfigValid(
+XHTTP_API bool xrtHttpBodyStreamConfigValid(
 	const xhttpbodystreamconfig* pConfig
 )
 {
@@ -1043,7 +1043,7 @@ XRT_API bool xrtHttpBodyStreamConfigValid(
 
 
 /* 创建共享状态、生产端和未知长度一次性 Body。 */
-XRT_API xhttpbody* xrtHttpBodyStreamCreate(
+XHTTP_API xhttpbody* xrtHttpBodyStreamCreate(
 	const xhttpbodystreamconfig* pConfig,
 	xhttpbodystream** ppStream
 )
@@ -1123,7 +1123,7 @@ XRT_API xhttpbody* xrtHttpBodyStreamCreate(
 
 
 /* 增加一个可独立关闭的生产端引用。 */
-XRT_API xhttpbodystream* xrtHttpBodyStreamRef(
+XHTTP_API xhttpbodystream* xrtHttpBodyStreamRef(
 	xhttpbodystream* pStream
 )
 {
@@ -1156,7 +1156,7 @@ XRT_API xhttpbodystream* xrtHttpBodyStreamRef(
 
 
 /* 最后一个生产端释放时自然结束输入。 */
-XRT_API void xrtHttpBodyStreamDestroy(
+XHTTP_API void xrtHttpBodyStreamDestroy(
 	xhttpbodystream* pStream
 )
 {
@@ -1174,7 +1174,7 @@ XRT_API void xrtHttpBodyStreamDestroy(
 
 
 /* 复制并提交一个非空 Chunk。 */
-XRT_API xhttpbodystreamresult xrtHttpBodyStreamWrite(
+XHTTP_API xhttpbodystreamresult xrtHttpBodyStreamWrite(
 	xhttpbodystream* pStream,
 	xbytesview Data
 )
@@ -1189,7 +1189,7 @@ XRT_API xhttpbodystreamresult xrtHttpBodyStreamWrite(
 		);
 		return XHTTP_BODY_STREAM_ERROR;
 	}
-	return __xrtHttpBodyStreamBuild(
+	return xrtHttpBridgeBodyStreamBuild(
 		pStream,
 		Data.Size,
 		__xrtHttpBodyStreamCopyFill,
@@ -1200,7 +1200,7 @@ XRT_API xhttpbodystreamresult xrtHttpBodyStreamWrite(
 
 
 /* 提交由调用方释放过程管理的 Chunk 租约。 */
-XRT_API xhttpbodystreamresult xrtHttpBodyStreamWriteRef(
+XHTTP_API xhttpbodystreamresult xrtHttpBodyStreamWriteRef(
 	xhttpbodystream* pStream,
 	xbytesview Data,
 	xhttpbodyreleaseproc pRelease,
@@ -1226,7 +1226,7 @@ XRT_API xhttpbodystreamresult xrtHttpBodyStreamWriteRef(
 
 
 /* 提交由 xrtMalloc 分配并在消费后自动释放的 Chunk。 */
-XRT_API xhttpbodystreamresult xrtHttpBodyStreamWriteTake(
+XHTTP_API xhttpbodystreamresult xrtHttpBodyStreamWriteTake(
 	xhttpbodystream* pStream,
 	ptr pData,
 	size_t iSize
@@ -1255,7 +1255,7 @@ XRT_API xhttpbodystreamresult xrtHttpBodyStreamWriteTake(
 
 
 /* 创建或复用当前可写代际，并在已有容量时立即完成。 */
-XRT_API xfuture* xrtHttpBodyStreamWaitWritable(
+XHTTP_API xfuture* xrtHttpBodyStreamWaitWritable(
 	xhttpbodystream* pStream
 )
 {
@@ -1275,7 +1275,7 @@ XRT_API xfuture* xrtHttpBodyStreamWaitWritable(
 
 
 /* 幂等发布正常 EOF。 */
-XRT_API bool xrtHttpBodyStreamClose(
+XHTTP_API bool xrtHttpBodyStreamClose(
 	xhttpbodystream* pStream
 )
 {
@@ -1295,7 +1295,7 @@ XRT_API bool xrtHttpBodyStreamClose(
 
 
 /* 发布永久生产失败并丢弃未交付节点。 */
-XRT_API bool xrtHttpBodyStreamFail(
+XHTTP_API bool xrtHttpBodyStreamFail(
 	xhttpbodystream* pStream,
 	const xerror* pError
 )
@@ -1401,7 +1401,7 @@ XRT_API bool xrtHttpBodyStreamFail(
 
 
 /* 复制不暴露节点和等待对象的并发快照。 */
-XRT_API bool xrtHttpBodyStreamInfo(
+XHTTP_API bool xrtHttpBodyStreamInfo(
 	const xhttpbodystream* pStream,
 	xhttpbodystreaminfo* pInfo
 )

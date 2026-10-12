@@ -5,7 +5,7 @@
 #if defined(XHTTP_FEATURE_HTTP_EXCHANGE_ASYNC)
 
 /* 把正文来源的可读性 Future 安全提升到 Exchange 层。 */
-XRT_API xfuture* xrtHttp1ExchangeOutputWait(
+XHTTP_API xfuture* xrtHttp1ExchangeOutputWait(
 	xhttp1exchange* pExchange
 )
 {
@@ -14,7 +14,7 @@ XRT_API xfuture* xrtHttp1ExchangeOutputWait(
 	xerrkind Kind;
 
 	if ( pExchange == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( pExchange->Error != NULL ) {
@@ -24,7 +24,7 @@ XRT_API xfuture* xrtHttp1ExchangeOutputWait(
 	if ( pExchange->OutputStopped ||
 		!pExchange->OutputAgain ||
 		(pExchange->Reader == NULL) ) {
-		__xrtErrorSetInvalidState();
+		xrtSetErrorKind(XERR_STATE);
 		return NULL;
 	}
 	pFuture = xrtHttpBodyReaderWait(pExchange->Reader);

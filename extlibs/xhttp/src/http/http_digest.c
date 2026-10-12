@@ -165,7 +165,7 @@ static bool __xrtHttpDigestValueValidate(
 		Value, &Cursor, &Member
 	)) == XHTTP_NEXT_ITEM ) {
 		if ( !Convert(&Member, NULL) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 	}
@@ -193,7 +193,7 @@ static bool __xrtHttpDigestFieldsValidate(
 		pFields, iCount, Name, &Cursor, &Member
 	)) == XHTTP_NEXT_ITEM ) {
 		if ( !Convert(&Member, NULL) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 	}
@@ -220,22 +220,22 @@ static xhttpnext __xrtHttpDigestValueNext(
 	xhttpnext Next;
 
 	memset(&Output, 0, sizeof(Output));
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pOutput, iOutputSize) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pOutput, iOutputSize) ||
+		xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pOutput, iOutputSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, iOutputSize, Value.Data, Value.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
 	if ( !__xrtHttpDigestCursorValid(&Cursor, iState) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.State ==
@@ -255,7 +255,7 @@ static xhttpnext __xrtHttpDigestValueNext(
 	}
 	if ( (Next == XHTTP_NEXT_ITEM) &&
 		!Convert(&Member, &Output) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(pOutput, &Output, iOutputSize);
@@ -285,22 +285,22 @@ static xhttpnext __xrtHttpDigestFieldsNext(
 	xhttpnext Next;
 
 	memset(&Output, 0, sizeof(Output));
-	if ( !__xrtHttpFieldArrayValid(pFields, iFieldCount) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pOutput, iOutputSize) ||
-		__xrtHttpFieldArrayOverlap(
+	if ( !__xhttpFieldArrayValid(pFields, iFieldCount) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pOutput, iOutputSize) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iFieldCount, pCursor, sizeof(Cursor)
-		) || __xrtHttpFieldArrayOverlap(
+		) || __xhttpFieldArrayOverlap(
 			pFields, iFieldCount, pOutput, iOutputSize
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pOutput, iOutputSize
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
 	if ( !__xrtHttpDigestCursorValid(&Cursor, iState) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.State ==
@@ -321,7 +321,7 @@ static xhttpnext __xrtHttpDigestFieldsNext(
 	}
 	if ( (Next == XHTTP_NEXT_ITEM) &&
 		!Convert(&Member, &Output) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(pOutput, &Output, iOutputSize);
@@ -332,12 +332,12 @@ static xhttpnext __xrtHttpDigestFieldsNext(
 
 
 /* 初始化摘要游标。 */
-XRT_API void xrtHttpDigestCursorInit(xhttpdigestcursor* pCursor)
+XHTTP_API void xrtHttpDigestCursorInit(xhttpdigestcursor* pCursor)
 {
 	xhttpdigestcursor Cursor;
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -347,10 +347,10 @@ XRT_API void xrtHttpDigestCursorInit(xhttpdigestcursor* pCursor)
 
 
 /* 验证摘要 Dictionary。 */
-XRT_API bool xrtHttpDigestValid(xstrview Value)
+XHTTP_API bool xrtHttpDigestValid(xstrview Value)
 {
-	if ( !__xrtHttpViewValid(Value) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Value) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return __xrtHttpDigestValueValidate(
@@ -361,7 +361,7 @@ XRT_API bool xrtHttpDigestValid(xstrview Value)
 
 
 /* 迭代摘要 Dictionary。 */
-XRT_API xhttpnext xrtHttpDigestNext(
+XHTTP_API xhttpnext xrtHttpDigestNext(
 	xstrview Value,
 	xhttpdigestcursor* pCursor,
 	xhttpdigest* pDigest
@@ -377,7 +377,7 @@ XRT_API xhttpnext xrtHttpDigestNext(
 
 
 /* 跨重复字段行迭代摘要 Dictionary。 */
-XRT_API xhttpnext xrtHttpDigestFieldNext(
+XHTTP_API xhttpnext xrtHttpDigestFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpdigesttarget Target,
@@ -391,7 +391,7 @@ XRT_API xhttpnext xrtHttpDigestFieldNext(
 	if ( !__xrtHttpDigestFieldName(
 		Target, false, &Name, &iState
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	return __xrtHttpDigestFieldsNext(
@@ -428,38 +428,38 @@ static bool __xrtHttpDigestReadArguments(
 	xhttpdigest* pLoaded
 )
 {
-	if ( !__xrtRangeValid(pDigest, sizeof(*pDigest)) ||
-		!__xrtRangeValid(pSize, sizeof(*pSize)) ||
+	if ( !xrtMemRangeValid(pDigest, sizeof(*pDigest)) ||
+		!xrtMemRangeValid(pSize, sizeof(*pSize)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
 		((pOutput != NULL) &&
-		 !__xrtRangeValid(pOutput, iCapacity)) ||
-		__xrtRangesOverlap(
+		 !xrtMemRangeValid(pOutput, iCapacity)) ||
+		xrtMemRangesOverlap(
 			pDigest, sizeof(*pDigest), pSize, sizeof(*pSize)
-		) || ((pOutput != NULL) && __xrtRangesOverlap(
+		) || ((pOutput != NULL) && xrtMemRangesOverlap(
 			pDigest, sizeof(*pDigest), pOutput, iCapacity
-		)) || ((pOutput != NULL) && __xrtRangesOverlap(
+		)) || ((pOutput != NULL) && xrtMemRangesOverlap(
 			pSize, sizeof(*pSize), pOutput, iCapacity
 		)) ) {
 		return false;
 	}
 	memcpy(pLoaded, pDigest, sizeof(*pLoaded));
-	if ( !__xrtHttpViewValid(pLoaded->Algorithm) ||
-		!__xrtHttpViewValid(pLoaded->Value.Encoded) ||
-		!__xrtHttpViewValid(pLoaded->Parameters) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(pLoaded->Algorithm) ||
+		!__xhttpViewValid(pLoaded->Value.Encoded) ||
+		!__xhttpViewValid(pLoaded->Parameters) ||
+		xrtMemRangesOverlap(
 			pLoaded->Algorithm.Data, pLoaded->Algorithm.Size,
 			pSize, sizeof(*pSize)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pLoaded->Value.Encoded.Data,
 			pLoaded->Value.Encoded.Size,
 			pSize, sizeof(*pSize)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pLoaded->Parameters.Data, pLoaded->Parameters.Size,
 			pSize, sizeof(*pSize)
-		) || ((pOutput != NULL) && __xrtRangesOverlap(
+		) || ((pOutput != NULL) && xrtMemRangesOverlap(
 			pLoaded->Algorithm.Data, pLoaded->Algorithm.Size,
 			pOutput, iCapacity
-		)) || ((pOutput != NULL) && __xrtRangesOverlap(
+		)) || ((pOutput != NULL) && xrtMemRangesOverlap(
 			pLoaded->Parameters.Data, pLoaded->Parameters.Size,
 			pOutput, iCapacity
 		)) ) {
@@ -471,7 +471,7 @@ static bool __xrtHttpDigestReadArguments(
 
 
 /* 解码一个摘要 Byte Sequence。 */
-XRT_API bool xrtHttpDigestRead(
+XHTTP_API bool xrtHttpDigestRead(
 	const xhttpdigest* pDigest,
 	void* pOutput,
 	size_t iCapacity,
@@ -483,7 +483,7 @@ XRT_API bool xrtHttpDigestRead(
 	if ( !__xrtHttpDigestReadArguments(
 		pDigest, pOutput, iCapacity, pSize, &Digest
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( !xrtHttpStructuredKeyValid(Digest.Algorithm) ||
@@ -491,7 +491,7 @@ XRT_API bool xrtHttpDigestRead(
 		(Digest.Value.Number != 0) ||
 		!__xrtHttpDigestParametersValid(Digest.Parameters) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return false;
 	}
@@ -503,10 +503,10 @@ XRT_API bool xrtHttpDigestRead(
 
 
 /* 验证摘要偏好 Dictionary。 */
-XRT_API bool xrtHttpDigestPreferenceValid(xstrview Value)
+XHTTP_API bool xrtHttpDigestPreferenceValid(xstrview Value)
 {
-	if ( !__xrtHttpViewValid(Value) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Value) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return __xrtHttpDigestValueValidate(
@@ -517,7 +517,7 @@ XRT_API bool xrtHttpDigestPreferenceValid(xstrview Value)
 
 
 /* 迭代摘要偏好 Dictionary。 */
-XRT_API xhttpnext xrtHttpDigestPreferenceNext(
+XHTTP_API xhttpnext xrtHttpDigestPreferenceNext(
 	xstrview Value,
 	xhttpdigestcursor* pCursor,
 	xhttpdigestpreference* pPreference
@@ -533,7 +533,7 @@ XRT_API xhttpnext xrtHttpDigestPreferenceNext(
 
 
 /* 跨重复字段行迭代摘要偏好 Dictionary。 */
-XRT_API xhttpnext xrtHttpDigestPreferenceFieldNext(
+XHTTP_API xhttpnext xrtHttpDigestPreferenceFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpdigesttarget Target,
@@ -547,7 +547,7 @@ XRT_API xhttpnext xrtHttpDigestPreferenceFieldNext(
 	if ( !__xrtHttpDigestFieldName(
 		Target, true, &Name, &iState
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	return __xrtHttpDigestFieldsNext(

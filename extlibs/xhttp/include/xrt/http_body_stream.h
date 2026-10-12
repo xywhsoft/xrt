@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_BODY_STREAM_H
 #define XRT_HTTP_BODY_STREAM_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_body.h>
 
 
@@ -82,14 +84,14 @@ XRT_EXTERN_C_BEGIN
 	初始化 1 MiB、256 Chunk 的有界生产流默认配置。
 	配置对象只要求位于完整可访问的存储范围，不要求自然对齐。
 */
-XRT_API void xrtHttpBodyStreamConfigInit(
+XHTTP_API void xrtHttpBodyStreamConfigInit(
 	xhttpbodystreamconfig* pConfig
 );
 
 
 
 /* 无分配验证两个预算都非零；配置输入可以未对齐。 */
-XRT_API bool xrtHttpBodyStreamConfigValid(
+XHTTP_API bool xrtHttpBodyStreamConfigValid(
 	const xhttpbodystreamconfig* pConfig
 );
 
@@ -99,7 +101,7 @@ XRT_API bool xrtHttpBodyStreamConfigValid(
 	创建未知长度一次性 Body；配置被立即快照，输出句柄可以未对齐，
 	但输出不得与非空配置重叠。
 */
-XRT_API xhttpbody* xrtHttpBodyStreamCreate(
+XHTTP_API xhttpbody* xrtHttpBodyStreamCreate(
 	const xhttpbodystreamconfig* pConfig,
 	xhttpbodystream** ppStream
 );
@@ -107,21 +109,21 @@ XRT_API xhttpbody* xrtHttpBodyStreamCreate(
 
 
 /* 增加生产端引用；最后一个生产端释放会自动发布 EOF。 */
-XRT_API xhttpbodystream* xrtHttpBodyStreamRef(
+XHTTP_API xhttpbodystream* xrtHttpBodyStreamRef(
 	xhttpbodystream* pStream
 );
 
 
 
 /* 释放生产端引用；空指针安全，自动 EOF 不改变调用线程错误。 */
-XRT_API void xrtHttpBodyStreamDestroy(
+XHTTP_API void xrtHttpBodyStreamDestroy(
 	xhttpbodystream* pStream
 );
 
 
 
 /* 复制有效且不覆盖 Stream 的非空字节；非 OK 时不保留输入。 */
-XRT_API xhttpbodystreamresult xrtHttpBodyStreamWrite(
+XHTTP_API xhttpbodystreamresult xrtHttpBodyStreamWrite(
 	xhttpbodystream* pStream,
 	xbytesview Data
 );
@@ -129,7 +131,7 @@ XRT_API xhttpbodystreamresult xrtHttpBodyStreamWrite(
 
 
 /* OK 时接管有效独立字节租约；其他结果仍由调用方释放。 */
-XRT_API xhttpbodystreamresult xrtHttpBodyStreamWriteRef(
+XHTTP_API xhttpbodystreamresult xrtHttpBodyStreamWriteRef(
 	xhttpbodystream* pStream,
 	xbytesview Data,
 	xhttpbodyreleaseproc pRelease,
@@ -139,7 +141,7 @@ XRT_API xhttpbodystreamresult xrtHttpBodyStreamWriteRef(
 
 
 /* OK 时接管有效独立的 xrtMalloc 数据；其他结果不接管。 */
-XRT_API xhttpbodystreamresult xrtHttpBodyStreamWriteTake(
+XHTTP_API xhttpbodystreamresult xrtHttpBodyStreamWriteTake(
 	xhttpbodystream* pStream,
 	ptr pData,
 	size_t iSize
@@ -152,21 +154,21 @@ XRT_API xhttpbodystreamresult xrtHttpBodyStreamWriteTake(
 	一次写入返回 AGAIN 后，当前背压代际至少等待一次预算释放，避免残余空间
 	不足以容纳原 Chunk 时立即完成并形成忙重试；完成后仍须重新尝试写入。
 */
-XRT_API xfuture* xrtHttpBodyStreamWaitWritable(
+XHTTP_API xfuture* xrtHttpBodyStreamWaitWritable(
 	xhttpbodystream* pStream
 );
 
 
 
 /* 幂等发布正常 EOF；已排队 Chunk 仍按顺序完整交付。 */
-XRT_API bool xrtHttpBodyStreamClose(
+XHTTP_API bool xrtHttpBodyStreamClose(
 	xhttpbodystream* pStream
 );
 
 
 
 /* 以指定 Cause 永久失败，丢弃尚未交付的排队 Chunk。 */
-XRT_API bool xrtHttpBodyStreamFail(
+XHTTP_API bool xrtHttpBodyStreamFail(
 	xhttpbodystream* pStream,
 	const xerror* pError
 );
@@ -177,7 +179,7 @@ XRT_API bool xrtHttpBodyStreamFail(
 	原子复制并发快照；输出可以未对齐，但必须与 Stream 内部存储完全分离。
 	输出范围无效时失败且不写入部分结果。
 */
-XRT_API bool xrtHttpBodyStreamInfo(
+XHTTP_API bool xrtHttpBodyStreamInfo(
 	const xhttpbodystream* pStream,
 	xhttpbodystreaminfo* pInfo
 );

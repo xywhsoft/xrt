@@ -44,7 +44,7 @@ typedef struct xrt_url_resolve_plan {
 /* 验证通用字符串视图的空值表示。 */
 static bool __xrtUrlViewValid(xstrview Text)
 {
-	return __xrtRangeValid(Text.Data, Text.Size);
+	return xrtMemRangeValid(Text.Data, Text.Size);
 }
 
 
@@ -69,7 +69,7 @@ static xstrview __xrtUrlSlice(
 static bool __xrtUrlAddSize(size_t iLeft, size_t iRight, size_t* pResult)
 {
 	if ( (pResult == NULL) || (iLeft > (SIZE_MAX - iRight)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	*pResult = iLeft + iRight;
@@ -368,7 +368,7 @@ static bool __xrtUrlAuthorityInto(xstrview Authority, xurl* pUrl)
 
 
 /* 严格解析 URI-reference 到局部结果，失败时不发布半成品。 */
-bool __xrtUrlParseValue(xstrview Text, xurl* pUrl)
+XHTTP_API bool xrtHttpBridgeUrlParseValue(xstrview Text, xurl* pUrl)
 {
 	xurl Url;
 	size_t iFragment = XRT_NPOS;
@@ -497,21 +497,21 @@ bool __xrtUrlParseValue(xstrview Text, xurl* pUrl)
 
 
 /* 严格解析 RFC 3986 URI-reference。 */
-XRT_API bool xrtUrlParse(xstrview Text, xurl* pUrl)
+XHTTP_API bool xrtUrlParse(xstrview Text, xurl* pUrl)
 {
 	xurl Url = { 0 };
 
-	if ( !__xrtRangeValid(pUrl, sizeof(Url)) ||
+	if ( !xrtMemRangeValid(pUrl, sizeof(Url)) ||
 		!__xrtUrlViewValid(Text) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pUrl, sizeof(Url), Text.Data, Text.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	if ( !__xrtUrlParseValue(Text, &Url) ) {
+	if ( !xrtHttpBridgeUrlParseValue(Text, &Url) ) {
 		memcpy(pUrl, &Url, sizeof(Url));
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memcpy(pUrl, &Url, sizeof(Url));
@@ -521,22 +521,22 @@ XRT_API bool xrtUrlParse(xstrview Text, xurl* pUrl)
 
 
 /* 独立解析 authority 并发布借用视图。 */
-XRT_API bool xrtUrlAuthorityParse(xstrview Authority, xurl* pUrl)
+XHTTP_API bool xrtUrlAuthorityParse(xstrview Authority, xurl* pUrl)
 {
 	xurl Url;
 
-	if ( !__xrtRangeValid(pUrl, sizeof(Url)) ||
+	if ( !xrtMemRangeValid(pUrl, sizeof(Url)) ||
 		!__xrtUrlViewValid(Authority) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pUrl, sizeof(Url), Authority.Data, Authority.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(&Url, 0, sizeof(Url));
 	if ( !__xrtUrlAuthorityInto(Authority, &Url) ) {
 		memcpy(pUrl, &Url, sizeof(Url));
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memcpy(pUrl, &Url, sizeof(Url));
@@ -546,7 +546,7 @@ XRT_API bool xrtUrlAuthorityParse(xstrview Authority, xurl* pUrl)
 
 
 /* 返回 XRT HTTP 与 WebSocket 协议族的已知默认端口。 */
-XRT_API uint16 xrtUrlDefaultPort(xstrview Scheme)
+XHTTP_API uint16 xrtUrlDefaultPort(xstrview Scheme)
 {
 	if ( __xrtUrlCaseEqual(Scheme, XRT_STR_LITERAL("http")) ||
 		__xrtUrlCaseEqual(Scheme, XRT_STR_LITERAL("ws")) ) {
@@ -562,7 +562,7 @@ XRT_API uint16 xrtUrlDefaultPort(xstrview Scheme)
 
 
 /* 无错误副作用地取得可用的显式端口或已知默认端口。 */
-bool __xrtUrlPortValue(const xurl* pUrl, uint16* pPort)
+XHTTP_API bool xrtHttpBridgeUrlPortValue(const xurl* pUrl, uint16* pPort)
 {
 	uint16 iPort;
 
@@ -588,30 +588,30 @@ bool __xrtUrlPortValue(const xurl* pUrl, uint16* pPort)
 
 
 /* 取得可直接传给网络层的端口，并区分无默认值与数值越界。 */
-XRT_API bool xrtUrlPort(const xurl* pUrl, uint16* pPort)
+XHTTP_API bool xrtUrlPort(const xurl* pUrl, uint16* pPort)
 {
 	xurl Url;
 	uint16 iPort;
 
-	if ( !__xrtRangeValid(pUrl, sizeof(Url)) ||
-		!__xrtRangeValid(pPort, sizeof(iPort)) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pUrl, sizeof(Url)) ||
+		!xrtMemRangeValid(pPort, sizeof(iPort)) ||
+		xrtMemRangesOverlap(
 			pUrl, sizeof(Url), pPort, sizeof(iPort)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Url, pUrl, sizeof(Url));
 	if ( !__xrtUrlValueValid(&Url) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
-	if ( !__xrtUrlPortValue(&Url, &iPort) ) {
+	if ( !xrtHttpBridgeUrlPortValue(&Url, &iPort) ) {
 		if ( ((Url.Flags & XURL_HAS_PORT) != 0) &&
 			((Url.Flags & XURL_PORT_EMPTY) == 0) ) {
-			__xrtErrorSetRange();
+			xrtSetErrorKind(XERR_RANGE);
 		} else {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return false;
 	}
@@ -622,10 +622,10 @@ XRT_API bool xrtUrlPort(const xurl* pUrl, uint16* pPort)
 
 
 /* 判断 URL scheme。 */
-XRT_API bool xrtUrlSchemeIs(const xurl* pUrl, xstrview Scheme)
+XHTTP_API bool xrtUrlSchemeIs(const xurl* pUrl, xstrview Scheme)
 {
 	if ( (pUrl == NULL) || !__xrtUrlViewValid(Scheme) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return ((pUrl->Flags & XURL_HAS_SCHEME) != 0) &&
@@ -635,10 +635,10 @@ XRT_API bool xrtUrlSchemeIs(const xurl* pUrl, xstrview Scheme)
 
 
 /* 判断 HTTPS 或 WSS。 */
-XRT_API bool xrtUrlSecure(const xurl* pUrl)
+XHTTP_API bool xrtUrlSecure(const xurl* pUrl)
 {
 	if ( pUrl == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return xrtUrlSchemeIs(pUrl, XRT_STR_LITERAL("https")) ||
@@ -648,12 +648,12 @@ XRT_API bool xrtUrlSecure(const xurl* pUrl)
 
 
 /* 判断显式端口是否为空或等于已知默认端口。 */
-XRT_API bool xrtUrlPortIsDefault(const xurl* pUrl)
+XHTTP_API bool xrtUrlPortIsDefault(const xurl* pUrl)
 {
 	uint16 iDefault;
 
 	if ( pUrl == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( ((pUrl->Flags & XURL_HAS_PORT) == 0) ||
@@ -807,7 +807,7 @@ static bool __xrtUrlWriterAppend(
 	}
 	if ( pWriter->Data != NULL ) {
 		if ( iEnd > pWriter->Capacity ) {
-			__xrtErrorSetRange();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		if ( iSize != 0 ) {
@@ -986,7 +986,7 @@ static bool __xrtUrlViewOverlap(
 	size_t iSize
 )
 {
-	return __xrtRangesOverlap(
+	return xrtMemRangesOverlap(
 		Input.Data, Input.Size, pOutput, iSize
 	);
 }
@@ -1025,29 +1025,29 @@ static bool __xrtUrlOutput(
 	size_t iSize = 0;
 	bool bValid;
 
-	if ( !__xrtRangeValid(pUrl, sizeof(Url)) ||
-		!__xrtRangeValid(pSize, sizeof(iSize)) ||
+	if ( !xrtMemRangeValid(pUrl, sizeof(Url)) ||
+		!xrtMemRangeValid(pSize, sizeof(iSize)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
 		((pOutput != NULL) &&
-		 !__xrtRangeValid(pOutput, iCapacity)) ||
-		__xrtRangesOverlap(
+		 !xrtMemRangeValid(pOutput, iCapacity)) ||
+		xrtMemRangesOverlap(
 			pUrl, sizeof(Url), pSize, sizeof(iSize)
 		) || ((pOutput != NULL) &&
-		 __xrtRangesOverlap(
+		 xrtMemRangesOverlap(
 			pOutput, iCapacity, pSize, sizeof(iSize)
 		 )) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Url, pUrl, sizeof(Url));
 	if ( __xrtUrlOverlap(&Url, pSize, sizeof(iSize)) ||
 		((pOutput != NULL) &&
-		 (__xrtRangesOverlap(
+		 (xrtMemRangesOverlap(
 			pUrl, sizeof(Url), pOutput, iCapacity
 		  ) || __xrtUrlOverlap(
 			&Url, pOutput, iCapacity
 		  ))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pSize, &iSize, sizeof(iSize));
@@ -1061,7 +1061,7 @@ static bool __xrtUrlOutput(
 		bValid = Url.Path.Data[0] == '/';
 	}
 	if ( !bValid ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memset(&Writer, 0, sizeof(Writer));
@@ -1081,7 +1081,7 @@ static bool __xrtUrlOutput(
 		return true;
 	}
 	if ( iCapacity < Writer.Size ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	Writer.Data = (bytes)pOutput;
@@ -1103,7 +1103,7 @@ static bool __xrtUrlOutput(
 
 
 /* 原样写出完整 URL。 */
-XRT_API bool xrtUrlWrite(
+XHTTP_API bool xrtUrlWrite(
 	const xurl* pUrl,
 	void* pOutput,
 	size_t iCapacity,
@@ -1118,25 +1118,25 @@ XRT_API bool xrtUrlWrite(
 
 
 /* 构建零结尾完整 URL。 */
-XRT_API str xrtUrlBuild(const xurl* pUrl, size_t* pSize)
+XHTTP_API str xrtUrlBuild(const xurl* pUrl, size_t* pSize)
 {
 	xurl Url;
 	size_t iSize;
 	str sOutput;
 
 	if ( pSize != NULL ) {
-		if ( !__xrtRangeValid(pSize, sizeof(iSize)) ||
-			!__xrtRangeValid(pUrl, sizeof(Url)) ) {
-			__xrtErrorSetInvalidArgument();
+		if ( !xrtMemRangeValid(pSize, sizeof(iSize)) ||
+			!xrtMemRangeValid(pUrl, sizeof(Url)) ) {
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return NULL;
 		}
 		memcpy(&Url, pUrl, sizeof(Url));
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			pUrl, sizeof(Url), pSize, sizeof(iSize)
 		) || __xrtUrlOverlap(
 			&Url, pSize, sizeof(iSize)
 		) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return NULL;
 		}
 		iSize = 0;
@@ -1146,7 +1146,7 @@ XRT_API str xrtUrlBuild(const xurl* pUrl, size_t* pSize)
 		return NULL;
 	}
 	if ( iSize == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	sOutput = (str)xrtMalloc(iSize + 1u);
@@ -1167,7 +1167,7 @@ XRT_API str xrtUrlBuild(const xurl* pUrl, size_t* pSize)
 
 
 /* 写出 authority。 */
-XRT_API bool xrtUrlAuthorityWrite(
+XHTTP_API bool xrtUrlAuthorityWrite(
 	const xurl* pUrl,
 	void* pOutput,
 	size_t iCapacity,
@@ -1182,7 +1182,7 @@ XRT_API bool xrtUrlAuthorityWrite(
 
 
 /* 写出 host 与显式端口。 */
-XRT_API bool xrtUrlHostWrite(
+XHTTP_API bool xrtUrlHostWrite(
 	const xurl* pUrl,
 	void* pOutput,
 	size_t iCapacity,
@@ -1197,7 +1197,7 @@ XRT_API bool xrtUrlHostWrite(
 
 
 /* 写出 HTTP origin-form target。 */
-XRT_API bool xrtUrlTargetWrite(
+XHTTP_API bool xrtUrlTargetWrite(
 	const xurl* pUrl,
 	void* pOutput,
 	size_t iCapacity,
@@ -1514,7 +1514,7 @@ static bool __xrtUrlPathNormalizeMeasure(
 
 
 /* 分配并规范化 URL path。 */
-XRT_API str xrtUrlPathNormalizeBuild(
+XHTTP_API str xrtUrlPathNormalizeBuild(
 	xstrview Path,
 	size_t* pSize
 )
@@ -1525,11 +1525,11 @@ XRT_API str xrtUrlPathNormalizeBuild(
 
 	if ( !__xrtUrlViewValid(Path) ||
 		((pSize != NULL) &&
-		 (!__xrtRangeValid(pSize, sizeof(iSize)) ||
-		  __xrtRangesOverlap(
+		 (!xrtMemRangeValid(pSize, sizeof(iSize)) ||
+		  xrtMemRangesOverlap(
 			Path.Data, Path.Size, pSize, sizeof(iSize)
 		  ))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( pSize != NULL ) {
@@ -1538,7 +1538,7 @@ XRT_API str xrtUrlPathNormalizeBuild(
 	if ( !__xrtUrlComponentValid(
 		Path, true, true, true, false
 	) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return NULL;
 	}
 	__xrtUrlPathSourceOne(Path, &Source);
@@ -1546,7 +1546,7 @@ XRT_API str xrtUrlPathNormalizeBuild(
 		return NULL;
 	}
 	if ( iSize == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	sOutput = (str)xrtMalloc(iSize + 1u);
@@ -1566,7 +1566,7 @@ XRT_API str xrtUrlPathNormalizeBuild(
 
 
 /* 原子写出规范化 URL path。 */
-XRT_API bool xrtUrlPathNormalize(
+XHTTP_API bool xrtUrlPathNormalize(
 	xstrview Path,
 	void* pOutput,
 	size_t iCapacity,
@@ -1578,19 +1578,19 @@ XRT_API bool xrtUrlPathNormalize(
 	size_t iSize;
 	bool bOverlap;
 
-	if ( !__xrtRangeValid(pSize, sizeof(iSize)) ||
+	if ( !xrtMemRangeValid(pSize, sizeof(iSize)) ||
 		!__xrtUrlViewValid(Path) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			Path.Data, Path.Size, pSize, sizeof(iSize)
 		) || ((pOutput == NULL) && (iCapacity != 0)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(pSize, 0, sizeof(iSize));
 	if ( !__xrtUrlComponentValid(
 		Path, true, true, true, false
 	) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	__xrtUrlPathSourceOne(Path, &Source);
@@ -1601,18 +1601,18 @@ XRT_API bool xrtUrlPathNormalize(
 	if ( pOutput == NULL ) {
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iCapacity) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, iCapacity) ||
+		xrtMemRangesOverlap(
 			pOutput, iSize, pSize, sizeof(iSize)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iSize ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
-	bOverlap = __xrtRangesOverlap(
+	bOverlap = xrtMemRangesOverlap(
 		Path.Data, Path.Size, pOutput, iSize
 	);
 	WriteSource = Source;
@@ -1620,11 +1620,11 @@ XRT_API bool xrtUrlPathNormalize(
 		((uintptr_t)pOutput >
 		 (uintptr_t)(const void*)Path.Data) ) {
 		if ( (iCapacity < Path.Size) ||
-			__xrtRangesOverlap(
+			xrtMemRangesOverlap(
 				pOutput, Path.Size,
 				pSize, sizeof(iSize)
 			) ) {
-			__xrtErrorSetInvalidArgument();
+			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
 		memmove(pOutput, Path.Data, Path.Size);
@@ -1691,11 +1691,11 @@ static bool __xrtUrlResolvePlanInit(
 
 	if ( !__xrtUrlValueValid(pBase) ||
 		((pBase->Flags & XURL_HAS_SCHEME) == 0) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
-	if ( !__xrtUrlParseValue(Reference, &Ref) ) {
-		__xrtErrorSetValue();
+	if ( !xrtHttpBridgeUrlParseValue(Reference, &Ref) ) {
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memset(pPlan, 0, sizeof(*pPlan));
@@ -1775,7 +1775,7 @@ static bool __xrtUrlResolvePathWrite(
 	}
 	if ( pWriter->Data != NULL ) {
 		if ( iEnd > pWriter->Capacity ) {
-			__xrtErrorSetRange();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		if ( pPlan->NormalizePath ) {
@@ -1853,7 +1853,7 @@ static bool __xrtUrlResolveOverlap(
 	size_t iSize
 )
 {
-	return __xrtRangesOverlap(
+	return xrtMemRangesOverlap(
 		pBase, sizeof(*pBase), pOutput, iSize
 	) || __xrtUrlOverlap(pBase, pOutput, iSize) ||
 		__xrtUrlViewOverlap(Reference, pOutput, iSize);
@@ -1862,7 +1862,7 @@ static bool __xrtUrlResolveOverlap(
 
 
 /* 原子写出 RFC 3986 引用解析结果，全程不申请动态内存。 */
-XRT_API bool xrtUrlResolve(
+XHTTP_API bool xrtUrlResolve(
 	const xurl* pBase,
 	xstrview Reference,
 	void* pOutput,
@@ -1874,16 +1874,16 @@ XRT_API bool xrtUrlResolve(
 	xrt_url_writer Writer;
 	size_t iSize;
 
-	if ( !__xrtRangeValid(pBase, sizeof(*pBase)) ||
+	if ( !xrtMemRangeValid(pBase, sizeof(*pBase)) ||
 		!__xrtUrlViewValid(Reference) ||
-		!__xrtRangeValid(pSize, sizeof(iSize)) ||
+		!xrtMemRangeValid(pSize, sizeof(iSize)) ||
 		((pOutput == NULL) && (iCapacity != 0)) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pBase, sizeof(*pBase), pSize, sizeof(iSize)
 		) || __xrtUrlViewOverlap(
 			Reference, pSize, sizeof(iSize)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(pSize, 0, sizeof(iSize));
@@ -1901,17 +1901,17 @@ XRT_API bool xrtUrlResolve(
 	if ( pOutput == NULL ) {
 		return true;
 	}
-	if ( !__xrtRangeValid(pOutput, iCapacity) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pOutput, iCapacity) ||
+		xrtMemRangesOverlap(
 			pOutput, iSize, pSize, sizeof(iSize)
 		) || __xrtUrlResolveOverlap(
 			pBase, Reference, pOutput, iSize
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( iCapacity < iSize ) {
-		__xrtErrorSetRange();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	Writer.Data = (bytes)pOutput;
@@ -1923,7 +1923,7 @@ XRT_API bool xrtUrlResolve(
 
 
 /* 单次分配并构建 RFC 3986 引用解析结果。 */
-XRT_API str xrtUrlResolveBuild(
+XHTTP_API str xrtUrlResolveBuild(
 	const xurl* pBase,
 	xstrview Reference,
 	size_t* pSize
@@ -1934,16 +1934,16 @@ XRT_API str xrtUrlResolveBuild(
 	str sOutput;
 	size_t iSize;
 
-	if ( !__xrtRangeValid(pBase, sizeof(*pBase)) ||
+	if ( !xrtMemRangeValid(pBase, sizeof(*pBase)) ||
 		!__xrtUrlViewValid(Reference) ||
 		((pSize != NULL) &&
-		 (!__xrtRangeValid(pSize, sizeof(iSize)) ||
-		  __xrtRangesOverlap(
+		 (!xrtMemRangeValid(pSize, sizeof(iSize)) ||
+		  xrtMemRangesOverlap(
 			pBase, sizeof(*pBase), pSize, sizeof(iSize)
 		  ) || __xrtUrlViewOverlap(
 			Reference, pSize, sizeof(iSize)
 		  ))) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return NULL;
 	}
 	if ( pSize != NULL ) {
@@ -1960,7 +1960,7 @@ XRT_API str xrtUrlResolveBuild(
 	}
 	iSize = Writer.Size;
 	if ( iSize == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return NULL;
 	}
 	sOutput = (str)xrtMalloc(iSize + 1u);

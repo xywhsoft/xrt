@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_ACCEPT_H
 #define XRT_HTTP_ACCEPT_H
 
+#include <xhttp/export.h>
+
 #include <xrt/mime.h>
 
 
@@ -59,12 +61,12 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化可重复使用的 Accept 字段游标。 */
-XRT_API void xrtHttpAcceptCursorInit(xhttpacceptcursor* pCursor);
+XHTTP_API void xrtHttpAcceptCursorInit(xhttpacceptcursor* pCursor);
 
 
 
 /* 严格迭代一个 Accept 字段值，忽略由连续逗号产生的空成员。 */
-XRT_API xhttpnext xrtHttpMediaRangeNext(
+XHTTP_API xhttpnext xrtHttpMediaRangeNext(
 	xstrview List,
 	size_t* pOffset,
 	xhttpmediarange* pRange
@@ -73,7 +75,7 @@ XRT_API xhttpnext xrtHttpMediaRangeNext(
 
 
 /* 迭代媒体范围的非 q 参数；描述符、游标和结果均支持未对齐存储。 */
-XRT_API xhttpnext xrtHttpMediaRangeParamNext(
+XHTTP_API xhttpnext xrtHttpMediaRangeParamNext(
 	const xhttpmediarange* pRange,
 	size_t* pOffset,
 	xhttpparam* pParam
@@ -82,7 +84,7 @@ XRT_API xhttpnext xrtHttpMediaRangeParamNext(
 
 
 /* 按线路顺序跨越全部重复 Accept 字段迭代媒体范围。 */
-XRT_API xhttpnext xrtHttpAcceptNext(
+XHTTP_API xhttpnext xrtHttpAcceptNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpacceptcursor* pCursor,
@@ -92,7 +94,7 @@ XRT_API xhttpnext xrtHttpAcceptNext(
 
 
 /* 判断已解析媒体范围是否匹配已解析媒体类型。 */
-XRT_API xhttpnext xrtHttpMediaRangeMatch(
+XHTTP_API xhttpnext xrtHttpMediaRangeMatch(
 	const xhttpmediarange* pRange,
 	const xmediatype* pType
 );
@@ -100,7 +102,7 @@ XRT_API xhttpnext xrtHttpMediaRangeMatch(
 
 
 /* 计算一个媒体类型的有效 Accept 匹配；缺失字段默认质量为 1000。 */
-XRT_API bool xrtHttpAcceptMatch(
+XHTTP_API bool xrtHttpAcceptMatch(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview MediaType,
@@ -110,7 +112,7 @@ XRT_API bool xrtHttpAcceptMatch(
 
 
 /* 返回媒体类型的有效质量值；错误与不可接受都返回零，错误槽区分二者。 */
-XRT_API uint16 xrtHttpAcceptQuality(
+XHTTP_API uint16 xrtHttpAcceptQuality(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview MediaType
@@ -119,7 +121,7 @@ XRT_API uint16 xrtHttpAcceptQuality(
 
 
 /* 从按服务端偏好排序的媒体类型数组中选择最高质量项。 */
-XRT_API xhttpnext xrtHttpAcceptSelect(
+XHTTP_API xhttpnext xrtHttpAcceptSelect(
 	const xhttpfield* pFields,
 	size_t iFieldCount,
 	const xstrview* pMediaTypes,

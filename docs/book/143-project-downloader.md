@@ -8,6 +8,8 @@ lead: 从一行 GET 到可交付下载器：断点续传（Range + ETag 校验�
 api: xhttp-http_client, xhttp-http_client_easy, file
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 卷十三项目四：**HTTPS 下载器**——`xd <url> [-o 输出] [-c 续传]`：拉取 HTTPS 资源落盘、支持断点续传（服务器支持 Range 时从上次断点继续）、流式写盘（10 GB 文件 MB 级内存）、原子完成（临时文件 + 改名——中途失败不留半文件）。它是 xhttp 客户端全家（第 98-103 章）与文件层（第 45-48 章）的综合运用：**easy 层**起步（一行 GET 的力量）、**响应限额与流式消费**（第 99 章 ResponseBodyLimit 与 Body 回调）、**Range 续传协议**（第 91 章 HTTP 分帧的 Range 语义 + 第 101 章 cache_range 组合层的本机运用）、**原子写**（第 46 章 WriteAtomic——`file/whole` 示例的原语）、**错误与重试**（第 100 章：连接失败的可重试类别判断）。项目一二（第 138/140 章）的七条经验第三次重放——网络形态让它加上**远程资源的不确定性**维度（服务器可能不支持续传、ETag 可能变化、连接可能中断在 90%）。
@@ -81,11 +83,11 @@ api: xhttp-http_client, xhttp-http_client_easy, file
 
 下面的程序来自 `examples/http/client_easy`——下载器的 HTTP 面最小闭环（教程第 98 章的完整形态）：
 
-```embed path="extlibs/xhttp/examples/http/client_easy/main.c" title="extlibs/xhttp/examples/http/client_easy/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_easy/main.c" title="extlibs/xhttp-client/examples/http/client_easy/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_easy/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_easy_future --exclude-test "*" --no-single --no-run
 usage: client_easy <http-url>
 ```
 

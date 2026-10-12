@@ -8,6 +8,8 @@ lead: Переписывание методов для 301/302/303 и повто
 api: xhttp-http_client, xhttp-http_retry, xhttp-cookie_jar
 ---
 
+> Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Ориентация
 
 Над средой выполнения главы 99 лежат три **слоя автоматического поведения** — они превращают «клей, который пишет каждый клиент» в переключатели конфигурации.**Перенаправления** (`http_client_redirect`): по умолчанию максимум десять прыжков; после 301/302/303 POST меняется на GET, 307/308 сохраняют метод, но требуют переигрываемого тела; на чужом origin учётные данные срезаются, деградация HTTPS→HTTP по умолчанию отвергается.**Автоматические повторы** (`http_client_retry`): по умолчанию **выключены** — повторяется только идемпотентный метод с переигрываемым телом, выдержка уважает `Retry-After`; решение «повторять ли побочный эффект» остаётся за вами.**Автоматические Cookie** (`http_client_cookies`): Jar подключается в конфигурацию — Set-Cookie автоматически попадает в банку, последующие запросы автоматически несут. Три слоя независимо обрезаются, семантика явная — «автоматически» не значит «магически»: поведение каждого прыжка предсказуемо и диагностируемо (поля Wire Info главы 99, накапливающие всю цепочку перенаправлений, тому свидетельство).
@@ -35,7 +37,7 @@ api: xhttp-http_client, xhttp-http_retry, xhttp-cookie_jar
 
 ### Автоматические повторы: идемпотентность и тройное условие
 
-Один повтор обязан одновременно удовлетворять: **лимит не исчерпан** (`MaxRetries`), **метод идемпотентен** (проверяет `xrtHttpMethodIdempotent()` — GET/HEAD/PUT/DELETE и другие безопасно повторяемы, POST не в списке), **тело переигрываемо** (при наличии тела — объявлено `xhttpbody`). Три условия неразделимы — это техническое ограждение; бизнес-ограждение — сам ваш акт установки лимита. Расчёт выдержки переиспользует чистый протокольный модуль `http_retry`: экспоненциальная выдержка (`BaseDelay`/`MaxDelay`) + уважение серверному `Retry-After`. Четыре режима на уровне вызова: `DEFAULT` наследует Client / `DISABLED` выключает на этот раз / `ENABLED` (при нулевом лимите Client берёт потолок по умолчанию); ошибка конфигурации (неизвестный режим, нулевой MaxDelay, Base>Max) **падает до сетевой операции** — перехват при старте.
+Один повтор обязан одновременно удовлетворять: **лимит не исчерпан** (`MaxRetries`), **метод идемпотентен** (проверяет `xrtHttpMethodIdempotent()` — GET/HEAD/PUT/DELETE и другие безопасно повторяемы, POST не в списке), **тело переигрываемо** (при наличии тела — объявлено `xhttpbody`). Три условия неразделимы — это техническое ограждение; бизнес-ограждение — сам ваш акт установки лимита. Расчёт выдержки использует `http_retry_policy` в xhttp-policy; разбор Retry-After остаётся в xhttp `http_retry`: экспоненциальная выдержка (`BaseDelay`/`MaxDelay`) + уважение серверному `Retry-After`. Четыре режима на уровне вызова: `DEFAULT` наследует Client / `DISABLED` выключает на этот раз / `ENABLED` (при нулевом лимите Client берёт потолок по умолчанию); ошибка конфигурации (неизвестный режим, нулевой MaxDelay, Base>Max) **падает до сетевой операции** — перехват при старте.
 
 ### Автоматические Cookie: подключение Jar
 
@@ -51,11 +53,11 @@ api: xhttp-http_client, xhttp-http_retry, xhttp-cookie_jar
 
 Программа ниже из `examples/http/client_retry` — контроль «выключено по умолчанию» против «явно включено»:
 
-```embed path="extlibs/xhttp/examples/http/client_retry/main.c" title="extlibs/xhttp/examples/http/client_retry/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_retry/main.c" title="extlibs/xhttp-client/examples/http/client_retry/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_retry/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_retry --exclude-test "*" --no-single --no-run
 retries=3 base=250000 max=5000000
 ```
 
@@ -65,11 +67,11 @@ retries=3 base=250000 max=5000000
 
 Вторая программа из `examples/http/client_cookies` — сборочная грань автоматических Cookie:
 
-```embed path="extlibs/xhttp/examples/http/client_cookies/main.c" title="extlibs/xhttp/examples/http/client_cookies/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_cookies/main.c" title="extlibs/xhttp-client/examples/http/client_cookies/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_cookies/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_cookies --exclude-test "*" --no-single --no-run
 （示例校验 Jar 挂载后 Set-Cookie 自动进罐与后续自动携带路径）
 ```
 

@@ -8,6 +8,8 @@ lead: 三方案的两端实现：Basic 的明文底线、Bearer 的令牌形态�
 api: xhttp-http_auth, xhttp-http_server, xhttp-http_digest
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 "加个认证"在 HTTP 里是三个方案家族的选型题。**Basic**：`Authorization: Basic base64(用户:密码)`——明文（TLS 之下的可接受形态），两端各一行。**Bearer**：`Authorization: Bearer <令牌>`——OAuth2/JWT 时代的载体，客户端只负责携带。**Digest**：服务端发 nonce 挑战、客户端以 `H(用户:域:密码)` 应答——**密码不上线**、自带防重放（nonce+nc 计数）的挑战应答协议，服务端要管 nonce 生命周期、重放表与 `Authentication-Info` 回执。xhttp 把三方案的两端都实现为结构化 API：客户端构建（`xrtHttpBasicWrite`/`BearerWrite`/Digest 应答）、服务端读取（`xrtHttpServerRequestBasicAuth/BearerAuth/DigestAuth` 三态）、Digest 的完整验证链（`xrtHttpDigestVerify` 的 verify 四态 + 线程安全重放表）。第 105 章鉴权中间件由此拼装。
@@ -59,7 +61,7 @@ api: xhttp-http_auth, xhttp-http_server, xhttp-http_digest
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/auth/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_auth --exclude-test "*" --no-single --no-run
 Digest
 Basic
 ```
@@ -74,7 +76,7 @@ Basic
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/auth_basic/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_auth_basic --exclude-test "*" --no-single --no-run
 Basic QWxhZGRpbjpvcGVuIHNlc2VtZQ==
 ```
 

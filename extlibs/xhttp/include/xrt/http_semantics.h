@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_SEMANTICS_H
 #define XRT_HTTP_SEMANTICS_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http.h>
 
 #if defined(XHTTP_FEATURE_HTTP_PRECONDITION)
@@ -147,7 +149,7 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_HTTP_ETAG)
 
 /* 严格解析一个 entity-tag；未对齐 Tag 可用，Opaque 借用输入且不含双引号。 */
-XRT_API bool xrtHttpETagParse(
+XHTTP_API bool xrtHttpETagParse(
 	xstrview Text,
 	xhttpetag* pTag
 );
@@ -159,7 +161,7 @@ XRT_API bool xrtHttpETagParse(
 	Offset 初始为零；空列表元素会被忽略，星号只能作为整个字段值出现。
 	Offset 和 Item 可以未对齐，但必须覆盖完整且不回绕的内存范围。
 */
-XRT_API xhttpnext xrtHttpETagNext(
+XHTTP_API xhttpnext xrtHttpETagNext(
 	xstrview List,
 	size_t* pOffset,
 	xhttpetagitem* pItem
@@ -168,7 +170,7 @@ XRT_API xhttpnext xrtHttpETagNext(
 
 
 /* 按强规则比较两个可未对齐的实体标签，任一弱标签都不匹配。 */
-XRT_API bool xrtHttpETagStrongEqual(
+XHTTP_API bool xrtHttpETagStrongEqual(
 	const xhttpetag* pLeft,
 	const xhttpetag* pRight
 );
@@ -176,7 +178,7 @@ XRT_API bool xrtHttpETagStrongEqual(
 
 
 /* 按弱规则比较两个可未对齐的实体标签，只比较 opaque-tag 正文。 */
-XRT_API bool xrtHttpETagWeakEqual(
+XHTTP_API bool xrtHttpETagWeakEqual(
 	const xhttpetag* pLeft,
 	const xhttpetag* pRight
 );
@@ -187,7 +189,7 @@ XRT_API bool xrtHttpETagWeakEqual(
 	按强比较规则检查完整实体标签列表。
 	星号视为命中；语法错误与没有命中都返回 false，前者会设置错误。
 */
-XRT_API bool xrtHttpETagListStrongHas(
+XHTTP_API bool xrtHttpETagListStrongHas(
 	xstrview List,
 	const xhttpetag* pTag
 );
@@ -198,7 +200,7 @@ XRT_API bool xrtHttpETagListStrongHas(
 	按弱比较规则检查完整实体标签列表。
 	星号视为命中；即使命中也会继续验证余下全部条目。
 */
-XRT_API bool xrtHttpETagListWeakHas(
+XHTTP_API bool xrtHttpETagListWeakHas(
 	xstrview List,
 	const xhttpetag* pTag
 );
@@ -206,7 +208,7 @@ XRT_API bool xrtHttpETagListWeakHas(
 
 
 /* 写出可未对齐的 entity-tag；未对齐 Size 可用，结果不附加零字符。 */
-XRT_API bool xrtHttpETagWrite(
+XHTTP_API bool xrtHttpETagWrite(
 	const xhttpetag* pTag,
 	void* pOutput,
 	size_t iCapacity,
@@ -216,7 +218,7 @@ XRT_API bool xrtHttpETagWrite(
 
 
 /* 从可未对齐的 entity-tag 构建零结尾文本，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpETagBuild(
+XHTTP_API str xrtHttpETagBuild(
 	const xhttpetag* pTag,
 	size_t* pSize
 );
@@ -232,7 +234,7 @@ XRT_API str xrtHttpETagBuild(
 	字段数组可以直接来自 xhttpheaders；无关字段会被忽略。
 	字段描述符数组和 Current 可以未对齐，但必须覆盖完整且不回绕的内存范围。
 */
-XRT_API xhttpprecondition xrtHttpPreconditionsEvaluate(
+XHTTP_API xhttpprecondition xrtHttpPreconditionsEvaluate(
 	xstrview Method,
 	const xhttpfield* pFields,
 	size_t iFieldCount,
@@ -246,7 +248,7 @@ XRT_API xhttpprecondition xrtHttpPreconditionsEvaluate(
 	无效、弱标签、不匹配或不够强的日期验证器都返回 false。
 	Current 可以未对齐，但必须覆盖完整且不回绕的结构范围。
 */
-XRT_API bool xrtHttpIfRangeMatch(
+XHTTP_API bool xrtHttpIfRangeMatch(
 	xstrview Value,
 	const xhttprepresentation* pCurrent
 );
@@ -258,7 +260,7 @@ XRT_API bool xrtHttpIfRangeMatch(
 #if defined(XHTTP_FEATURE_HTTP_RANGE)
 
 /* 把 Range 字段拆成范围单位和单位专用集合；未对齐输出仍借用输入。 */
-XRT_API bool xrtHttpRangeParse(
+XHTTP_API bool xrtHttpRangeParse(
 	xstrview Value,
 	xstrview* pUnit,
 	xstrview* pSet
@@ -267,7 +269,7 @@ XRT_API bool xrtHttpRangeParse(
 
 
 /* 迭代 byte-range-set；Offset 和 Spec 可以未对齐，空列表元素会被忽略。 */
-XRT_API xhttpnext xrtHttpByteRangeNext(
+XHTTP_API xhttpnext xrtHttpByteRangeNext(
 	xstrview Set,
 	size_t* pOffset,
 	xhttprangespec* pSpec
@@ -276,7 +278,7 @@ XRT_API xhttpnext xrtHttpByteRangeNext(
 
 
 /* 验证并统计完整 byte-range-set；未对齐 Count 可用，集合必须至少包含一项。 */
-XRT_API bool xrtHttpByteRangeCount(
+XHTTP_API bool xrtHttpByteRangeCount(
 	xstrview Set,
 	size_t* pCount
 );
@@ -288,7 +290,7 @@ XRT_API bool xrtHttpByteRangeCount(
 	EMPTY 表示零长度表示上的非零后缀范围，它按规范可满足但不选择字节。
 	Spec 和 Range 可以未对齐，但必须覆盖完整且不回绕的结构范围。
 */
-XRT_API xhttprangeresult xrtHttpByteRangeResolve(
+XHTTP_API xhttprangeresult xrtHttpByteRangeResolve(
 	const xhttprangespec* pSpec,
 	uint64 iLength,
 	xhttpbyterange* pRange
@@ -302,7 +304,7 @@ XRT_API xhttprangeresult xrtHttpByteRangeResolve(
 	SATISFIED 返回至少一个区间，EMPTY 只表示零长度表示上的非零后缀范围。
 	范围数组和标量输出可以未对齐，但必须覆盖各自完整且不回绕的内存范围。
 */
-XRT_API xhttprangeresult xrtHttpByteRangesResolve(
+XHTTP_API xhttprangeresult xrtHttpByteRangesResolve(
 	xstrview Set,
 	uint64 iLength,
 	xhttpbyterange* pRanges,
@@ -315,7 +317,7 @@ XRT_API xhttprangeresult xrtHttpByteRangesResolve(
 
 
 /* 写出可未对齐的 Range 项数组；空输出查询长度，Size 也可以未对齐。 */
-XRT_API bool xrtHttpRangeWrite(
+XHTTP_API bool xrtHttpRangeWrite(
 	const xhttprangespec* pSpecs,
 	size_t iCount,
 	void* pOutput,
@@ -326,7 +328,7 @@ XRT_API bool xrtHttpRangeWrite(
 
 
 /* 从可未对齐的 Range 项数组构建零结尾字段值，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpRangeBuild(
+XHTTP_API str xrtHttpRangeBuild(
 	const xhttprangespec* pSpecs,
 	size_t iCount,
 	size_t* pSize
@@ -335,7 +337,7 @@ XRT_API str xrtHttpRangeBuild(
 
 
 /* 严格解析 bytes Content-Range 字段值，Range 输出可以未对齐。 */
-XRT_API bool xrtHttpContentRangeParse(
+XHTTP_API bool xrtHttpContentRangeParse(
 	xstrview Value,
 	xhttpcontentrange* pRange
 );
@@ -343,7 +345,7 @@ XRT_API bool xrtHttpContentRangeParse(
 
 
 /* 写出可未对齐的 Content-Range；空输出查询长度，Size 也可未对齐。 */
-XRT_API bool xrtHttpContentRangeWrite(
+XHTTP_API bool xrtHttpContentRangeWrite(
 	const xhttpcontentrange* pRange,
 	void* pOutput,
 	size_t iCapacity,
@@ -353,7 +355,7 @@ XRT_API bool xrtHttpContentRangeWrite(
 
 
 /* 从可未对齐的 Content-Range 构建零结尾文本，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpContentRangeBuild(
+XHTTP_API str xrtHttpContentRangeBuild(
 	const xhttpcontentrange* pRange,
 	size_t* pSize
 );
@@ -369,7 +371,7 @@ XRT_API str xrtHttpContentRangeBuild(
 	范围必须按起点严格递增且互不重叠；空媒体类型使用二进制默认值。
 	范围数组和 Length 输出可以未对齐，但必须覆盖完整且不回绕的内存范围。
 */
-XRT_API bool xrtHttpRangeMultipartLength(
+XHTTP_API bool xrtHttpRangeMultipartLength(
 	const xhttpbyterange* pRanges,
 	size_t iRangeCount,
 	uint64 iCompleteLength,
@@ -385,7 +387,7 @@ XRT_API bool xrtHttpRangeMultipartLength(
 	空输出只查询长度，输出不包含范围数据和数据后的 CRLF。
 	Range 和 Size 可以未对齐，但必须覆盖完整且不回绕的内存范围。
 */
-XRT_API bool xrtHttpRangeMultipartHeadWrite(
+XHTTP_API bool xrtHttpRangeMultipartHeadWrite(
 	const xhttpbyterange* pRange,
 	uint64 iCompleteLength,
 	xstrview ContentType,
@@ -398,7 +400,7 @@ XRT_API bool xrtHttpRangeMultipartHeadWrite(
 
 
 /* 写出一个范围 Part 数据后的 CRLF；Size 输出可以未对齐。 */
-XRT_API bool xrtHttpRangeMultipartEndWrite(
+XHTTP_API bool xrtHttpRangeMultipartEndWrite(
 	void* pOutput,
 	size_t iCapacity,
 	size_t* pSize
@@ -407,7 +409,7 @@ XRT_API bool xrtHttpRangeMultipartEndWrite(
 
 
 /* 写出最后一个 Part 之后的关闭 boundary；Size 输出可以未对齐。 */
-XRT_API bool xrtHttpRangeMultipartCloseWrite(
+XHTTP_API bool xrtHttpRangeMultipartCloseWrite(
 	xstrview Boundary,
 	void* pOutput,
 	size_t iCapacity,

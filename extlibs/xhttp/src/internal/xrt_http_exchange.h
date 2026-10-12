@@ -102,7 +102,7 @@ struct xhttp1exchange {
 
 
 /* 验证 Exchange 解析、存储和信息响应限额。 */
-bool __xrtHttp1ExchangeConfigValid(
+bool xrtHttpBridge1ExchangeConfigValid(
 	const xhttp1exchangeconfig* pConfig
 );
 

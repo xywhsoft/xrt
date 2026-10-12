@@ -53,7 +53,7 @@ static bool __xrtHttpRequestSetBearerAuth(
 
 
 /* 设置源站 Bearer token。 */
-XRT_API bool xrtHttpRequestSetBearerAuth(
+XHTTP_API bool xrtHttpRequestSetBearerAuth(
 	xhttprequest* pRequest,
 	xstrview Token
 )
@@ -68,7 +68,7 @@ XRT_API bool xrtHttpRequestSetBearerAuth(
 
 
 /* 设置代理 Bearer token。 */
-XRT_API bool xrtHttpRequestSetProxyBearerAuth(
+XHTTP_API bool xrtHttpRequestSetProxyBearerAuth(
 	xhttprequest* pRequest,
 	xstrview Token
 )

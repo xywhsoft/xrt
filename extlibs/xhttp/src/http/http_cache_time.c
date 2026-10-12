@@ -21,7 +21,7 @@
 
 
 /* 饱和累加缓存时长，避免任何线路值回绕。 */
-uint64 __xrtHttpCacheTimeAdd(
+XHTTP_API uint64 xrtHttpBridgeCacheTimeAdd(
 	uint64 iLeft,
 	uint64 iRight
 )
@@ -35,7 +35,7 @@ uint64 __xrtHttpCacheTimeAdd(
 
 
 /* 把线路秒数转换为毫秒，溢出时保持饱和。 */
-uint64 __xrtHttpCacheTimeSeconds(uint64 iSeconds)
+XHTTP_API uint64 xrtHttpBridgeCacheTimeSeconds(uint64 iSeconds)
 {
 	const uint64 iUnit = (uint64)XRT_TIME_SECOND;
 
@@ -62,7 +62,7 @@ static uint64 __xrtHttpCacheTimeDiff(
 static bool __xrtHttpCacheTimeCount(size_t* pCount)
 {
 	if ( *pCount == SIZE_MAX ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	(*pCount)++;
@@ -174,7 +174,7 @@ static bool __xrtHttpCacheTimeAgeAdd(
 
 
 /* 验证年龄公式结果可安全用于新鲜度比较。 */
-XRT_API bool xrtHttpCacheAgeValid(
+XHTTP_API bool xrtHttpCacheAgeValid(
 	const xhttpcacheage* pAge
 )
 {
@@ -189,7 +189,7 @@ XRT_API bool xrtHttpCacheAgeValid(
 		pAge->CorrectedAgeValue ?
 		pAge->ApparentAge :
 		pAge->CorrectedAgeValue;
-	iCurrent = __xrtHttpCacheTimeAdd(
+	iCurrent = xrtHttpBridgeCacheTimeAdd(
 		iInitial, pAge->ResidentTime
 	);
 	iSeconds = iCurrent / (uint64)XRT_TIME_SECOND;
@@ -206,7 +206,7 @@ XRT_API bool xrtHttpCacheAgeValid(
 
 
 /* 验证显式、启发式或扩展新鲜寿命可安全用于策略比较。 */
-XRT_API bool xrtHttpCacheFreshnessValid(
+XHTTP_API bool xrtHttpCacheFreshnessValid(
 	const xhttpcachefreshness* pFreshness
 )
 {
@@ -226,12 +226,12 @@ XRT_API bool xrtHttpCacheFreshnessValid(
 
 
 /* 初始化空缓存时间元数据。 */
-XRT_API void xrtHttpCacheTimeInit(
+XHTTP_API void xrtHttpCacheTimeInit(
 	xhttpcachetime* pTime
 )
 {
 	if ( pTime == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(pTime, 0, sizeof(*pTime));
@@ -240,7 +240,7 @@ XRT_API void xrtHttpCacheTimeInit(
 
 
 /* 验证公开缓存时间元数据的一致性。 */
-XRT_API bool xrtHttpCacheTimeValid(
+XHTTP_API bool xrtHttpCacheTimeValid(
 	const xhttpcachetime* pTime
 )
 {
@@ -309,7 +309,7 @@ XRT_API bool xrtHttpCacheTimeValid(
 
 
 /* 扫描响应字段并建立缓存时间元数据。 */
-XRT_API bool xrtHttpCacheTimeParse(
+XHTTP_API bool xrtHttpCacheTimeParse(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpcachetime* pTime
@@ -318,14 +318,14 @@ XRT_API bool xrtHttpCacheTimeParse(
 	xhttpcachetime Time;
 	size_t i;
 
-	if ( !__xrtHttpFieldArrayValid(
+	if ( !__xhttpFieldArrayValid(
 		pFields, iCount
 	) || (pTime == NULL) ||
-		__xrtHttpFieldArrayOverlap(
+		__xhttpFieldArrayOverlap(
 			pFields, iCount,
 			pTime, sizeof(*pTime)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(&Time, 0, sizeof(Time));
@@ -381,7 +381,7 @@ XRT_API bool xrtHttpCacheTimeParse(
 
 
 /* 按墙钟和单调时钟计算当前年龄。 */
-XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
+XHTTP_API xhttpcachecalc xrtHttpCacheCurrentAge(
 	const xhttpcachetime* pTime,
 	xtime ResponseTime,
 	double RequestClock,
@@ -398,11 +398,11 @@ XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 		(pAge == NULL) || !isfinite(RequestClock) || !isfinite(ResponseClock) || !isfinite(NowClock) || RequestClock < 0 ||
 		(RequestClock > ResponseClock) ||
 		(ResponseClock > NowClock) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pAge, sizeof(*pAge),
 			pTime, sizeof(*pTime)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_CACHE_CALC_ERROR;
 	}
 	if ( (pTime->Flags &
@@ -419,7 +419,7 @@ XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 		(pTime->Flags &
 		 XHTTP_CACHE_TIME_AGE_INVALID) != 0 ?
 		0 :
-		__xrtHttpCacheTimeSeconds(pTime->Age);
+		xrtHttpBridgeCacheTimeSeconds(pTime->Age);
 	memset(&Age, 0, sizeof(Age));
 	if ( ResponseTime > iDate ) {
 		Age.ApparentAge = __xrtHttpCacheTimeDiff(
@@ -428,7 +428,7 @@ XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 	}
 	{ double Milliseconds = (ResponseClock - RequestClock) * 1000.0;
         Age.ResponseDelay = Milliseconds >= 0x1p64 ? UINT64_MAX : (uint64)Milliseconds; }
-	Age.CorrectedAgeValue = __xrtHttpCacheTimeAdd(
+	Age.CorrectedAgeValue = xrtHttpBridgeCacheTimeAdd(
 		iAgeValue, Age.ResponseDelay
 	);
 	Age.CorrectedInitialAge =
@@ -437,7 +437,7 @@ XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 		Age.CorrectedAgeValue;
 	{ double Milliseconds = (NowClock - ResponseClock) * 1000.0;
         Age.ResidentTime = Milliseconds >= 0x1p64 ? UINT64_MAX : (uint64)Milliseconds; }
-	Age.CurrentAge = __xrtHttpCacheTimeAdd(
+	Age.CurrentAge = xrtHttpBridgeCacheTimeAdd(
 		Age.CorrectedInitialAge, Age.ResidentTime
 	);
 	Age.CurrentAgeSeconds =
@@ -453,7 +453,7 @@ XRT_API xhttpcachecalc xrtHttpCacheCurrentAge(
 
 
 /* 计算共享或私有缓存的显式新鲜寿命。 */
-XRT_API xhttpcachecalc xrtHttpCacheFreshness(
+XHTTP_API xhttpcachecalc xrtHttpCacheFreshness(
 	const xhttpcachecontrol* pControl,
 	const xhttpcachetime* pTime,
 	xtime ResponseTime,
@@ -467,29 +467,29 @@ XRT_API xhttpcachecalc xrtHttpCacheFreshness(
 	if ( !xrtHttpCacheControlValid(pControl) ||
 		!xrtHttpCacheTimeValid(pTime) ||
 		(pFreshness == NULL) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pFreshness, sizeof(*pFreshness),
 			pControl, sizeof(*pControl)
 		) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			pFreshness, sizeof(*pFreshness),
 			pTime, sizeof(*pTime)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_CACHE_CALC_ERROR;
 	}
 	if ( Shared &&
 		((pControl->Flags & XHTTP_CACHE_S_MAXAGE) != 0) ) {
 		Directive = XHTTP_CACHE_S_MAXAGE;
 		Freshness.Lifetime =
-			__xrtHttpCacheTimeSeconds(pControl->SMaxAge);
+			xrtHttpBridgeCacheTimeSeconds(pControl->SMaxAge);
 		Freshness.Source =
 			XHTTP_CACHE_FRESHNESS_S_MAXAGE;
 	} else if ( (pControl->Flags &
 		XHTTP_CACHE_MAX_AGE) != 0 ) {
 		Directive = XHTTP_CACHE_MAX_AGE;
 		Freshness.Lifetime =
-			__xrtHttpCacheTimeSeconds(pControl->MaxAge);
+			xrtHttpBridgeCacheTimeSeconds(pControl->MaxAge);
 		Freshness.Source =
 			XHTTP_CACHE_FRESHNESS_MAX_AGE;
 	} else if ( (pTime->Flags &
@@ -541,7 +541,7 @@ XRT_API xhttpcachecalc xrtHttpCacheFreshness(
 
 
 /* 比较已计算的显式新鲜寿命和当前年龄。 */
-XRT_API bool xrtHttpCacheFresh(
+XHTTP_API bool xrtHttpCacheFresh(
 	const xhttpcacheage* pAge,
 	const xhttpcachefreshness* pFreshness
 )
@@ -550,7 +550,7 @@ XRT_API bool xrtHttpCacheFresh(
 		!xrtHttpCacheFreshnessValid(pFreshness) ||
 		(pFreshness->Source ==
 		 XHTTP_CACHE_FRESHNESS_NONE) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return pFreshness->Lifetime > pAge->CurrentAge;

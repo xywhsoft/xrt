@@ -8,6 +8,8 @@ lead: The freeze semantics of request snapshots, two kinds of deadlines with can
 api: xhttp-http_client, xhttp-http_client_runtime, net
 ---
 
+> Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Orientation
 
 What did the easy layer (Chapter 98) fold away? This chapter unfolds it.**The request builder** (`xhttprequest`): explicit assembly of method/URL/Headers/body/auth; `Do` freezes a snapshot at submission — the caller may modify or destroy the original request immediately;**the call layer**: `xhttpcalloptions`' two kinds of deadlines (a total timeout covering the whole chain, an idle timeout watching only time without progress), cancellation tokens, and response-body caps;**diagnostics**: `xhttpcallresult.Info`'s state machine and timestamps (monotonic-clock milliseconds) — `RequestWireBytes`/`ResponseWireBytes` accumulate across the entire redirect chain;**the connection pool**: sharded by origin (at most 32 shards), each with its own waiting FIFO and idle LRU, a global atomic quota — reuse is the root of performance. Four gears together are "the runtime" — every easy line runs on top of them.
@@ -64,7 +66,7 @@ The program below is from `examples/http/client_request` — the explicit assemb
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_request/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite http_client_request --exclude-test "*" --no-single --no-run
 POST api.example.test:443
 ```
 
@@ -74,11 +76,11 @@ POST api.example.test:443
 
 The second program is from `examples/http/client_pool` — the runtime's operational face:
 
-```embed path="extlibs/xhttp/examples/http/client_pool/main.c" title="extlibs/xhttp/examples/http/client_pool/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_pool/main.c" title="extlibs/xhttp-client/examples/http/client_pool/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_pool/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_pool --exclude-test "*" --no-single --no-run
 （示例校验连接池统计与空闲清理路径后正常退出）
 ```
 

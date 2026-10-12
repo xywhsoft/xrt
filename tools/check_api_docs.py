@@ -93,8 +93,9 @@ def _header_code(text: str) -> str:
 	text = re.sub(pattern,
 		lambda match: re.sub(r"[^\n]", " ", match.group(0)),
 		text, flags=re.DOTALL)
-	return re.sub(r"^[ \t]*#[ \t]*include(?:_next)?\b[^\n]*", "",
+	text = re.sub(r"^[ \t]*#[ \t]*include(?:_next)?\b[^\n]*", "",
 		text, flags=re.MULTILINE)
+	return re.sub(r"\bXHTTP(?:_(?:CLIENT|SERVER|POLICY))?_API\b", "XRT_API", text)
 
 
 

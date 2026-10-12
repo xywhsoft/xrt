@@ -29,6 +29,8 @@ jobs:
           tools/test_declaration_features.py
           tools/test_extension_single.py
           tools/test_extension_layout.py
+          tools/test_http_layout.py
+          tools/test_http_linkage.py
           tools/test_package.py
           tools/test_measure_size.py
           tools/test_measure_performance.py
@@ -137,6 +139,9 @@ jobs:
         product:
           - xruntime
           - xhttp
+          - xhttp-client
+          - xhttp-server
+          - xhttp-policy
           - xws
           - xmail
           - xsmtp
@@ -181,6 +186,15 @@ jobs:
           - product: xhttp
             test_suite: xhttp_tests
             package_suite: xhttp
+          - product: xhttp-client
+            test_suite: xhttp_client_tests
+            package_suite: xhttp_client
+          - product: xhttp-server
+            test_suite: xhttp_server_tests
+            package_suite: xhttp_server
+          - product: xhttp-policy
+            test_suite: xhttp_policy_tests
+            package_suite: xhttp_policy
           - product: xws
             test_suite: xws_tests
             package_suite: xws
@@ -243,11 +257,11 @@ jobs:
           python-version: "3.12"
 
       - name: Run HTTP client retirement contract first
-        if: matrix.product == 'xhttp'
+        if: matrix.product == 'xhttp-client'
         run: >-
           python tools/build.py
           --compiler gcc
-          --manifest extlibs/xhttp/config/modules.json
+          --manifest extlibs/xhttp-client/config/modules.json
           --suite http_client
           --test test_http_client_contract
           --no-single
@@ -1246,7 +1260,8 @@ jobs:
         run: >-
           python tools/build.py
           --compiler gcc
-          --manifest extlibs/xhttp/config/modules.json
+          --manifest extlibs/xhttp-client/config/modules.json
+          --manifest extlibs/xhttp-server/config/modules.json
           --suite
           net_port_uring,net_file,net_tcp_file_uring_tests,net_tcp_dial_uring_tests,net_tcp_dial_future_uring_tests,net_tcp_uring_tests,net_tcp_future_uring_tests,net_udp_uring_tests,net_udp_sync_uring_tests,net_udp_future_uring_tests,tls_stream_dial_future_uring_tests,tls_stream_dial_uring_tests,tls_stream_uring_tests,http_client_pool_uring_tests,http_client_stream_async_uring_tests,http_client_uring_tests,http_server_uring_tests,http_server_tls_uring_tests
           --no-run

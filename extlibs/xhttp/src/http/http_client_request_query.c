@@ -5,7 +5,7 @@
 #if defined(XHTTP_FEATURE_HTTP_CLIENT_REQUEST_QUERY)
 
 /* 编码 QueryParams 并替换请求 URL 的查询组件。 */
-XRT_API bool xrtHttpRequestSetQueryParams(
+XHTTP_API bool xrtHttpRequestSetQueryParams(
 	xhttprequest* pRequest,
 	const xqueryparams* pParams
 )

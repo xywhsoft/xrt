@@ -64,7 +64,7 @@ static bool __xrtHttpMediaRangeParse(
 			Member.Size - (size_t)(sSemi + 1 - Member.Data)
 		});
 		if ( Parameters.Size == 0 ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		Range.Parameters = Parameters;
@@ -76,7 +76,7 @@ static bool __xrtHttpMediaRangeParse(
 			sSlash + 1, '/',
 			Main.Size - (size_t)(sSlash + 1 - Main.Data)
 		) != NULL) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	Range.Type = (xstrview){
@@ -90,12 +90,12 @@ static bool __xrtHttpMediaRangeParse(
 		(Range.Type.Data[0] == '*') ) {
 		if ( (Range.Subtype.Size != 1u) ||
 			(Range.Subtype.Data[0] != '*') ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		Range.Specificity = XHTTP_MEDIA_RANGE_ANY;
 	} else if ( !xrtHttpTokenValid(Range.Type) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	} else if ( (Range.Subtype.Size == 1u) &&
 		(Range.Subtype.Data[0] == '*') ) {
@@ -103,7 +103,7 @@ static bool __xrtHttpMediaRangeParse(
 	} else if ( xrtHttpTokenValid(Range.Subtype) ) {
 		Range.Specificity = XHTTP_MEDIA_RANGE_EXACT;
 	} else {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 
@@ -122,7 +122,7 @@ static bool __xrtHttpMediaRangeParse(
 		if ( __xrtHttpAcceptParamSeen(
 			Parameters, iBefore, Param.Name
 		) ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		if ( xrtHttpTokenEqual(
@@ -134,18 +134,18 @@ static bool __xrtHttpMediaRangeParse(
 				!xrtHttpQualityParse(
 					Param.Value, &Range.Quality
 				) ) {
-				__xrtErrorSetValue();
+				xrtSetErrorKind(XERR_VALUE);
 				return false;
 			}
 			bQuality = true;
 			continue;
 		}
 		if ( (Param.Flags & XHTTP_PARAM_HAS_VALUE) == 0 ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		if ( Range.ParameterCount == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		Range.ParameterCount++;
@@ -203,9 +203,9 @@ static bool __xrtHttpMediaRangeValid(
 	bool bQuality = false;
 
 	if ( (pRange == NULL) ||
-		!__xrtHttpViewValid(pRange->Type) ||
-		!__xrtHttpViewValid(pRange->Subtype) ||
-		!__xrtHttpViewValid(pRange->Parameters) ||
+		!__xhttpViewValid(pRange->Type) ||
+		!__xhttpViewValid(pRange->Subtype) ||
+		!__xhttpViewValid(pRange->Parameters) ||
 		(pRange->Quality > XHTTP_QUALITY_MAX) ) {
 		return false;
 	}
@@ -292,10 +292,10 @@ static bool __xrtHttpAcceptParamValueEqual(
 		pLeft->Name, XRT_STR_LITERAL("charset")
 	);
 	for ( ;; ) {
-		bLeft = __xrtHttpParamSemanticNext(
+		bLeft = __xhttpParamSemanticNext(
 			pLeft, &iLeft, &iLeftByte
 		);
-		bRight = __xrtHttpParamSemanticNext(
+		bRight = __xhttpParamSemanticNext(
 			pRight, &iRight, &iRightByte
 		);
 		if ( bLeft != bRight ) {
@@ -372,12 +372,12 @@ static bool __xrtHttpAcceptMediaTypesValid(
 	xstrview MediaType;
 	size_t i;
 
-	if ( !__xrtRangeValid(pIndex, sizeof(*pIndex)) ||
+	if ( !xrtMemRangeValid(pIndex, sizeof(*pIndex)) ||
 		((pMediaTypes == NULL) && (iCount != 0)) ||
 		(iCount > (SIZE_MAX / sizeof(*pMediaTypes))) ||
-		!__xrtRangeValid(
+		!xrtMemRangeValid(
 			pMediaTypes, iCount * sizeof(*pMediaTypes)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pMediaTypes, iCount * sizeof(*pMediaTypes),
 			pIndex, sizeof(*pIndex)
 		) ) {
@@ -390,8 +390,8 @@ static bool __xrtHttpAcceptMediaTypesValid(
 				i * sizeof(*pMediaTypes),
 			sizeof(MediaType)
 		);
-		if ( !__xrtHttpViewValid(MediaType) ||
-			__xrtRangesOverlap(
+		if ( !__xhttpViewValid(MediaType) ||
+			xrtMemRangesOverlap(
 				MediaType.Data, MediaType.Size,
 				pIndex, sizeof(*pIndex)
 			) || !xrtHttpMediaTypeParse(MediaType, &Type) ) {
@@ -422,12 +422,12 @@ static bool __xrtHttpAcceptMatchBetter(
 
 
 /* 初始化 Accept 字段游标。 */
-XRT_API void xrtHttpAcceptCursorInit(xhttpacceptcursor* pCursor)
+XHTTP_API void xrtHttpAcceptCursorInit(xhttpacceptcursor* pCursor)
 {
 	xhttpacceptcursor Cursor = { 0, 0 };
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memcpy(pCursor, &Cursor, sizeof(Cursor));
@@ -436,7 +436,7 @@ XRT_API void xrtHttpAcceptCursorInit(xhttpacceptcursor* pCursor)
 
 
 /* 迭代单个 Accept 字段值。 */
-XRT_API xhttpnext xrtHttpMediaRangeNext(
+XHTTP_API xhttpnext xrtHttpMediaRangeNext(
 	xstrview List,
 	size_t* pOffset,
 	xhttpmediarange* pRange
@@ -449,26 +449,26 @@ XRT_API xhttpnext xrtHttpMediaRangeNext(
 	size_t iNext;
 
 	memset(&Range, 0, sizeof(Range));
-	if ( !__xrtHttpViewValid(List) ||
-		!__xrtRangeValid(pOffset, sizeof(iOffset)) ||
-		!__xrtRangeValid(pRange, sizeof(Range)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(List) ||
+		!xrtMemRangeValid(pOffset, sizeof(iOffset)) ||
+		!xrtMemRangeValid(pRange, sizeof(Range)) ||
+		xrtMemRangesOverlap(
 			List.Data, List.Size, pOffset, sizeof(iOffset)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			List.Data, List.Size, pRange, sizeof(Range)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOffset, sizeof(iOffset), pRange, sizeof(Range)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
 	memcpy(pRange, &Range, sizeof(Range));
 	if ( iOffset > List.Size ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
-	Next = __xrtHttpQuotedListNext(
+	Next = xrtHttpListNext(
 		List, iOffset, &iNext, &Member
 	);
 	if ( Next != XHTTP_NEXT_ITEM ) {
@@ -488,7 +488,7 @@ XRT_API xhttpnext xrtHttpMediaRangeNext(
 
 
 /* 迭代已解析媒体范围中的非 q 参数。 */
-XRT_API xhttpnext xrtHttpMediaRangeParamNext(
+XHTTP_API xhttpnext xrtHttpMediaRangeParamNext(
 	const xhttpmediarange* pInputRange,
 	size_t* pOffset,
 	xhttpparam* pOutput
@@ -501,50 +501,50 @@ XRT_API xhttpnext xrtHttpMediaRangeParamNext(
 	size_t iNext;
 
 	memset(&Param, 0, sizeof(Param));
-	if ( !__xrtRangeValid(pInputRange, sizeof(Range)) ||
-		!__xrtRangeValid(pOffset, sizeof(iOffset)) ||
-		!__xrtRangeValid(pOutput, sizeof(Param)) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pInputRange, sizeof(Range)) ||
+		!xrtMemRangeValid(pOffset, sizeof(iOffset)) ||
+		!xrtMemRangeValid(pOutput, sizeof(Param)) ||
+		xrtMemRangesOverlap(
 			pInputRange, sizeof(Range),
 			pOffset, sizeof(iOffset)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pInputRange, sizeof(Range),
 			pOutput, sizeof(Param)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOffset, sizeof(iOffset),
 			pOutput, sizeof(Param)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Range, pInputRange, sizeof(Range));
 	memcpy(&iOffset, pOffset, sizeof(iOffset));
 	if ( !__xrtHttpMediaRangeValid(&Range) ||
-		__xrtRangesOverlap(
+		xrtMemRangesOverlap(
 			Range.Type.Data, Range.Type.Size,
 			pOffset, sizeof(iOffset)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Range.Subtype.Data, Range.Subtype.Size,
 			pOffset, sizeof(iOffset)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Range.Parameters.Data, Range.Parameters.Size,
 			pOffset, sizeof(iOffset)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Range.Type.Data, Range.Type.Size,
 			pOutput, sizeof(Param)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Range.Subtype.Data, Range.Subtype.Size,
 			pOutput, sizeof(Param)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			Range.Parameters.Data, Range.Parameters.Size,
 			pOutput, sizeof(Param)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(pOutput, &Param, sizeof(Param));
 	if ( iOffset > Range.Parameters.Size ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	Next = __xrtHttpMediaRangeParamNextValidated(
@@ -562,7 +562,7 @@ XRT_API xhttpnext xrtHttpMediaRangeParamNext(
 
 
 /* 跨越重复 Accept 字段迭代媒体范围。 */
-XRT_API xhttpnext xrtHttpAcceptNext(
+XHTTP_API xhttpnext xrtHttpAcceptNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpacceptcursor* pCursor,
@@ -577,17 +577,17 @@ XRT_API xhttpnext xrtHttpAcceptNext(
 	size_t iOffset;
 
 	memset(&Range, 0, sizeof(Range));
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pRange, sizeof(Range)) ||
-		__xrtHttpFieldArrayOverlap(
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pRange, sizeof(Range)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pCursor, sizeof(Cursor)
-		) || __xrtHttpFieldArrayOverlap(
+		) || __xhttpFieldArrayOverlap(
 			pFields, iCount, pRange, sizeof(Range)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pRange, sizeof(Range)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
@@ -595,16 +595,16 @@ XRT_API xhttpnext xrtHttpAcceptNext(
 	if ( (Cursor.Field > iCount) ||
 		((Cursor.Field == iCount) &&
 		 (Cursor.Offset != 0)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	while ( Cursor.Field < iCount ) {
-		__xrtHttpFieldLoad(pFields, Cursor.Field, &Field);
+		__xhttpFieldLoad(pFields, Cursor.Field, &Field);
 		if ( !xrtHttpFieldNameEqual(
 			Field.Name, XRT_STR_LITERAL("Accept")
 		) ) {
 			if ( Cursor.Offset != 0 ) {
-				__xrtErrorSetInvalidArgument();
+				xrtSetErrorKind(XERR_ARGUMENT);
 				return XHTTP_NEXT_ERROR;
 			}
 			Cursor.Field++;
@@ -636,7 +636,7 @@ XRT_API xhttpnext xrtHttpAcceptNext(
 
 
 /* 判断已解析媒体范围是否匹配已解析媒体类型。 */
-XRT_API xhttpnext xrtHttpMediaRangeMatch(
+XHTTP_API xhttpnext xrtHttpMediaRangeMatch(
 	const xhttpmediarange* pInputRange,
 	const xmediatype* pInputType
 )
@@ -644,16 +644,16 @@ XRT_API xhttpnext xrtHttpMediaRangeMatch(
 	xhttpmediarange Range;
 	xmediatype Type;
 
-	if ( !__xrtRangeValid(pInputRange, sizeof(Range)) ||
-		!__xrtRangeValid(pInputType, sizeof(Type)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pInputRange, sizeof(Range)) ||
+		!xrtMemRangeValid(pInputType, sizeof(Type)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Range, pInputRange, sizeof(Range));
 	memcpy(&Type, pInputType, sizeof(Type));
 	if ( !__xrtHttpMediaRangeValid(&Range) ||
 		!__xrtHttpMediaTypeValid(&Type) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	return __xrtHttpMediaRangeMatch(&Range, &Type);
@@ -662,7 +662,7 @@ XRT_API xhttpnext xrtHttpMediaRangeMatch(
 
 
 /* 计算具体媒体类型的有效 Accept 匹配。 */
-XRT_API bool xrtHttpAcceptMatch(
+XHTTP_API bool xrtHttpAcceptMatch(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview MediaType,
@@ -683,16 +683,16 @@ XRT_API bool xrtHttpAcceptMatch(
 	memset(&Match, 0, sizeof(Match));
 	Match.Field = XRT_NPOS;
 	Match.Order = XRT_NPOS;
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtHttpViewValid(MediaType) ||
-		!__xrtRangeValid(pOutput, sizeof(Match)) ||
-		__xrtHttpFieldArrayOverlap(
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
+		!__xhttpViewValid(MediaType) ||
+		!xrtMemRangeValid(pOutput, sizeof(Match)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pOutput, sizeof(Match)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			MediaType.Data, MediaType.Size,
 			pOutput, sizeof(Match)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(pOutput, 0, sizeof(Match));
@@ -700,7 +700,7 @@ XRT_API bool xrtHttpAcceptMatch(
 		return false;
 	}
 	for ( i = 0; i < iCount; i++ ) {
-		__xrtHttpFieldLoad(pFields, i, &Field);
+		__xhttpFieldLoad(pFields, i, &Field);
 		if ( xrtHttpFieldNameEqual(
 			Field.Name, XRT_STR_LITERAL("Accept")
 		) ) {
@@ -739,7 +739,7 @@ XRT_API bool xrtHttpAcceptMatch(
 			bMatched = true;
 		}
 		if ( iOrder == SIZE_MAX ) {
-			__xrtErrorSetSizeOverflow();
+			xrtSetErrorKind(XERR_RANGE);
 			return false;
 		}
 		iOrder++;
@@ -751,7 +751,7 @@ XRT_API bool xrtHttpAcceptMatch(
 
 
 /* 返回媒体类型的有效 Accept 质量值。 */
-XRT_API uint16 xrtHttpAcceptQuality(
+XHTTP_API uint16 xrtHttpAcceptQuality(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview MediaType
@@ -767,7 +767,7 @@ XRT_API uint16 xrtHttpAcceptQuality(
 
 
 /* 从服务端偏好顺序中选择客户端质量最高的媒体类型。 */
-XRT_API xhttpnext xrtHttpAcceptSelect(
+XHTTP_API xhttpnext xrtHttpAcceptSelect(
 	const xhttpfield* pFields,
 	size_t iFieldCount,
 	const xstrview* pMediaTypes,
@@ -781,15 +781,15 @@ XRT_API xhttpnext xrtHttpAcceptSelect(
 	uint16 iQuality = 0;
 	size_t i;
 
-	if ( !__xrtHttpFieldArrayValid(
+	if ( !__xhttpFieldArrayValid(
 		pFields, iFieldCount
 	) || !__xrtHttpAcceptMediaTypesValid(
 		pMediaTypes, iMediaTypeCount, pIndex
-	) || __xrtHttpFieldArrayOverlap(
+	) || __xhttpFieldArrayOverlap(
 			pFields, iFieldCount,
 			pIndex, sizeof(iSelected)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(pIndex, &iSelected, sizeof(iSelected));

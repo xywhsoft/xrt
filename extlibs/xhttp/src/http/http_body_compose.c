@@ -386,7 +386,7 @@ static bool __xrtHttpBodyComposeFill(
 
 
 /* 构造一个创建组合正文时立即复制的字节片段描述。 */
-XRT_API xhttpbodypiece xrtHttpBodyPieceBytes(xbytesview Data)
+XHTTP_API xhttpbodypiece xrtHttpBodyPieceBytes(xbytesview Data)
 {
 	xhttpbodypiece Piece;
 
@@ -399,7 +399,7 @@ XRT_API xhttpbodypiece xrtHttpBodyPieceBytes(xbytesview Data)
 
 
 /* 构造一个创建组合正文时增加引用的子正文片段描述。 */
-XRT_API xhttpbodypiece xrtHttpBodyPieceBody(xhttpbody* pBody)
+XHTTP_API xhttpbodypiece xrtHttpBodyPieceBody(xhttpbody* pBody)
 {
 	xhttpbodypiece Piece;
 
@@ -412,7 +412,7 @@ XRT_API xhttpbodypiece xrtHttpBodyPieceBody(xhttpbody* pBody)
 
 
 /* 复制字节并保留子正文引用，创建按片段顺序读取的正文。 */
-XRT_API xhttpbody* xrtHttpBodyCompose(
+XHTTP_API xhttpbody* xrtHttpBodyCompose(
 	const xhttpbodypiece* pPieces,
 	size_t iCount
 )

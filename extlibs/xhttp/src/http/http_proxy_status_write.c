@@ -24,7 +24,7 @@ static bool __xrtHttpProxyStatusWriteProtocol(
 	const xhttpstructuredvalue* pProtocol
 )
 {
-	if ( !__xrtHttpViewValid(pProtocol->Data) ||
+	if ( !__xhttpViewValid(pProtocol->Data) ||
 		(pProtocol->Data.Size == 0) ||
 		(pProtocol->Data.Size > XHTTP_PROXY_ALPN_MAX) ) {
 		return false;
@@ -45,8 +45,8 @@ static bool __xrtHttpProxyStatusWriteParameter(
 	const xhttpstructuredparameterentry* pParameter
 )
 {
-	if ( !__xrtHttpViewValid(pParameter->Key) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(pParameter->Key) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( __xrtHttpProxyStatusWriteKey(
@@ -101,11 +101,11 @@ static bool __xrtHttpProxyStatusWriteValid(
 	}
 	if ( pStatus->ParameterCount >
 		(SIZE_MAX / sizeof(Parameter)) ) {
-		__xrtErrorSetSizeOverflow();
+		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	iBytes = pStatus->ParameterCount * sizeof(Parameter);
-	if ( !__xrtRangeValid(pStatus->Parameters, iBytes) ) {
+	if ( !xrtMemRangeValid(pStatus->Parameters, iBytes) ) {
 		return false;
 	}
 	for ( i = 0; i < pStatus->ParameterCount; i++ ) {
@@ -125,7 +125,7 @@ static bool __xrtHttpProxyStatusWriteValid(
 
 
 /* 规范写出一个 Proxy-Status 成员。 */
-XRT_API bool xrtHttpProxyStatusWrite(
+XHTTP_API bool xrtHttpProxyStatusWrite(
 	const xhttpstructureditemvalue* pStatus,
 	void* pOutput,
 	size_t iCapacity,
@@ -134,14 +134,14 @@ XRT_API bool xrtHttpProxyStatusWrite(
 {
 	xhttpstructureditemvalue Status;
 
-	if ( !__xrtRangeValid(pStatus, sizeof(Status)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pStatus, sizeof(Status)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Status, pStatus, sizeof(Status));
 	if ( !__xrtHttpProxyStatusWriteValid(&Status) ) {
 		if ( xrtGetError() == NULL ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 		}
 		return false;
 	}

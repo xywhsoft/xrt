@@ -6,7 +6,7 @@
 #if defined(XHTTP_FEATURE_HTTP_CLIENT_REQUEST_FORM_DATA_RANDOM)
 
 /* 生成安全随机 boundary 与组合正文，并只在完整提交后发布 boundary。 */
-XRT_API bool xrtHttpRequestSetFormDataRandom(
+XHTTP_API bool xrtHttpRequestSetFormDataRandom(
 	xhttprequest* pRequest,
 	const xformdata* pForm,
 	xmultipartboundary* pBoundary
@@ -16,12 +16,12 @@ XRT_API bool xrtHttpRequestSetFormDataRandom(
 	xhttpbody* pBody;
 
 	if ( (pRequest == NULL) || (pForm == NULL) ||
-		!__xrtHttpRequestOutputValid(
+		!xrtHttpBridgeRequestOutputValid(
 			pRequest, pBoundary, sizeof(Boundary)
 		) || !__xrtFormDataOutputValid(
 			pForm, pBoundary, sizeof(Boundary)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	pBody = xrtFormDataBodyRandom(pForm, &Boundary);

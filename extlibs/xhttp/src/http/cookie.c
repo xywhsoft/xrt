@@ -210,7 +210,7 @@ static bool __xrtCookiePairParse(
 
 
 /* 逐项扫描完整 Cookie 字段值。 */
-XRT_API xcookienext xrtCookieNext(
+XHTTP_API xcookienext xrtCookieNext(
 	xstrview Text,
 	size_t* pOffset,
 	xcookiepair* pPair
@@ -251,7 +251,7 @@ XRT_API xcookienext xrtCookieNext(
 
 
 /* 完整扫描 Cookie 字段并应用显式资源限额。 */
-XRT_API bool xrtCookieValidate(
+XHTTP_API bool xrtCookieValidate(
 	xstrview Text,
 	const xcookielimits* pLimits,
 	size_t* pCount
@@ -319,7 +319,7 @@ XRT_API bool xrtCookieValidate(
 
 
 /* 完整校验后查找下一个同名 Cookie。 */
-XRT_API xcookienext xrtCookieFind(
+XHTTP_API xcookienext xrtCookieFind(
 	xstrview Text,
 	xstrview Name,
 	size_t* pOffset,
@@ -373,7 +373,7 @@ XRT_API xcookienext xrtCookieFind(
 
 
 /* 完整预检后把借用 Cookie pair 写入调用方数组。 */
-XRT_API bool xrtCookieParse(
+XHTTP_API bool xrtCookieParse(
 	xstrview Text,
 	xcookiepair* pPairs,
 	size_t iCapacity,
@@ -507,7 +507,7 @@ static bool __xrtCookieMeasure(
 
 
 /* 写出不含字段名和零结尾的规范 Cookie 字段值。 */
-XRT_API bool xrtCookieWrite(
+XHTTP_API bool xrtCookieWrite(
 	const xcookiepair* pPairs,
 	size_t iCount,
 	void* pOutput,
@@ -579,7 +579,7 @@ XRT_API bool xrtCookieWrite(
 
 
 /* 分配并构建零结尾 Cookie 字段值。 */
-XRT_API str xrtCookieBuild(
+XHTTP_API str xrtCookieBuild(
 	const xcookiepair* pPairs,
 	size_t iCount,
 	size_t* pSize

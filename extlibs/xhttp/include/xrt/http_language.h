@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_LANGUAGE_H
 #define XRT_HTTP_LANGUAGE_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http.h>
 
 
@@ -51,22 +53,22 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 判断文本是否是 RFC 4647 basic language range；纯谓词不修改错误槽。 */
-XRT_API bool xrtHttpLanguageRangeValid(xstrview Range);
+XHTTP_API bool xrtHttpLanguageRangeValid(xstrview Range);
 
 
 
 /* 判断文本是否是可用于匹配的基本语言标签；纯谓词不修改错误槽。 */
-XRT_API bool xrtHttpLanguageTagValid(xstrview Tag);
+XHTTP_API bool xrtHttpLanguageTagValid(xstrview Tag);
 
 
 
 /* 初始化可重复使用的 Accept-Language 字段游标。 */
-XRT_API void xrtHttpLanguageCursorInit(xhttplanguagecursor* pCursor);
+XHTTP_API void xrtHttpLanguageCursorInit(xhttplanguagecursor* pCursor);
 
 
 
 /* 严格迭代一个 Accept-Language 字段值。 */
-XRT_API xhttpnext xrtHttpLanguageRangeNext(
+XHTTP_API xhttpnext xrtHttpLanguageRangeNext(
 	xstrview List,
 	size_t* pOffset,
 	xhttplanguagerange* pRange
@@ -75,7 +77,7 @@ XRT_API xhttpnext xrtHttpLanguageRangeNext(
 
 
 /* 按线路顺序跨越全部重复 Accept-Language 字段迭代语言范围。 */
-XRT_API xhttpnext xrtHttpAcceptLanguageNext(
+XHTTP_API xhttpnext xrtHttpAcceptLanguageNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttplanguagecursor* pCursor,
@@ -85,7 +87,7 @@ XRT_API xhttpnext xrtHttpAcceptLanguageNext(
 
 
 /* 按 RFC 4647 Basic Filtering 判断语言范围是否匹配语言标签。 */
-XRT_API xhttpnext xrtHttpLanguageBasicMatch(
+XHTTP_API xhttpnext xrtHttpLanguageBasicMatch(
 	xstrview Range,
 	xstrview Tag
 );
@@ -93,7 +95,7 @@ XRT_API xhttpnext xrtHttpLanguageBasicMatch(
 
 
 /* 计算语言标签的有效 Accept-Language 匹配；缺失字段质量为 1000。 */
-XRT_API bool xrtHttpAcceptLanguageMatch(
+XHTTP_API bool xrtHttpAcceptLanguageMatch(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Tag,
@@ -103,7 +105,7 @@ XRT_API bool xrtHttpAcceptLanguageMatch(
 
 
 /* 返回语言标签的有效质量；错误与不可接受都返回零，错误槽区分二者。 */
-XRT_API uint16 xrtHttpAcceptLanguageQuality(
+XHTTP_API uint16 xrtHttpAcceptLanguageQuality(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xstrview Tag
@@ -112,7 +114,7 @@ XRT_API uint16 xrtHttpAcceptLanguageQuality(
 
 
 /* 使用 Basic Filtering 从服务端偏好顺序中选择最高质量语言。 */
-XRT_API xhttpnext xrtHttpAcceptLanguageSelect(
+XHTTP_API xhttpnext xrtHttpAcceptLanguageSelect(
 	const xhttpfield* pFields,
 	size_t iFieldCount,
 	const xstrview* pTags,
@@ -123,7 +125,7 @@ XRT_API xhttpnext xrtHttpAcceptLanguageSelect(
 
 
 /* 按 RFC 4647 Lookup 逐级回退，并返回可用语言数组中的索引。 */
-XRT_API xhttpnext xrtHttpAcceptLanguageLookup(
+XHTTP_API xhttpnext xrtHttpAcceptLanguageLookup(
 	const xhttpfield* pFields,
 	size_t iFieldCount,
 	const xstrview* pTags,

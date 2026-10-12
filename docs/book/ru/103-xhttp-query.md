@@ -8,6 +8,8 @@ lead: Обход query без выделения (различение отсу�
 api: xhttp-query, xhttp-query_params, xhttp-form, xhttp-form_data
 ---
 
+> Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Ориентация
 
 Query-строка URL и HTTP-форма — две близкие, но не одинаковые синтаксические системы ключ-значение; xhttp даёт два слоя инструментов.**Слой без выделения** (модуль `query`): `xrtQueryNext` обходит прямо по исходной строке — `XQUERY_HAS_VALUE` из `xquerypair` точно различает `a` (нет значения), `a=` (пустое значение), `=v` (пустой ключ); `xrtQueryFind/Count/Validate` того же семейства; после включения `query_codec` добавляется percent-кодирование/декодирование.**Владеющий слой** (модуль `query_params`): контейнер `xqueryparams` разбирает, переписывает (`Set` — сохранить позицию и дедуплицировать/`Append` — добавить в хвост/`Sort` — стабильная сортировка/`Compact` — уплотнение) и пересобирает — стандартный путь «изменил один параметр и склеил обратно». Сторона форм — две формы: `application/x-www-form-urlencoded` (тот же синтаксис + семантика `+` как пробела) и `multipart/form-data` (поле боя quoted-string главы 92). Два слоя raw и владеющий полностью изоморфны делению глав 89/92 — сперва синтаксический слой, потом контейнер.
@@ -61,7 +63,7 @@ Query-строка URL и HTTP-форма — две близкие, но не �
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/query/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite query --exclude-test "*" --no-single --no-run
 tag = c
 tag = xlang
 debug = <missing>
@@ -78,7 +80,7 @@ empty =
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/query_params/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite query_params --exclude-test "*" --no-single --no-run
 page=2&tag=c&tag=network&tag=xlang
 ```
 

@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_FORWARDED_H
 #define XRT_HTTP_FORWARDED_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http.h>
 
 
@@ -70,21 +72,21 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化单个 Forwarded 字段值游标。 */
-XRT_API void xrtHttpForwardedCursorInit(
+XHTTP_API void xrtHttpForwardedCursorInit(
 	xhttpforwardedcursor* pCursor
 );
 
 
 
 /* 初始化重复 Forwarded 字段行游标。 */
-XRT_API void xrtHttpForwardedFieldCursorInit(
+XHTTP_API void xrtHttpForwardedFieldCursorInit(
 	xhttpforwardedfieldcursor* pCursor
 );
 
 
 
 /* 严格读取下一项 name=value，忽略 RFC 允许的空分号项。 */
-XRT_API xhttpnext xrtHttpForwardedPairNext(
+XHTTP_API xhttpnext xrtHttpForwardedPairNext(
 	xstrview Element,
 	size_t* pOffset,
 	xhttpparam* pPair
@@ -93,7 +95,7 @@ XRT_API xhttpnext xrtHttpForwardedPairNext(
 
 
 /* 严格解析一个代理元素；元素可为空，重复参数非法。 */
-XRT_API bool xrtHttpForwardedElementParse(
+XHTTP_API bool xrtHttpForwardedElementParse(
 	xstrview Element,
 	xhttpforwarded* pForwarded
 );
@@ -101,12 +103,12 @@ XRT_API bool xrtHttpForwardedElementParse(
 
 
 /* 严格验证完整 Forwarded 字段值和所有标准参数语义。 */
-XRT_API bool xrtHttpForwardedValid(xstrview Value);
+XHTTP_API bool xrtHttpForwardedValid(xstrview Value);
 
 
 
 /* 完整验证并统计一个 Forwarded 字段值中的代理元素数量。 */
-XRT_API bool xrtHttpForwardedCount(
+XHTTP_API bool xrtHttpForwardedCount(
 	xstrview Value,
 	size_t* pCount
 );
@@ -114,7 +116,7 @@ XRT_API bool xrtHttpForwardedCount(
 
 
 /* 按代理链路顺序迭代一个完整 Forwarded 字段值。 */
-XRT_API xhttpnext xrtHttpForwardedNext(
+XHTTP_API xhttpnext xrtHttpForwardedNext(
 	xstrview Value,
 	xhttpforwardedcursor* pCursor,
 	xhttpforwarded* pForwarded
@@ -123,7 +125,7 @@ XRT_API xhttpnext xrtHttpForwardedNext(
 
 
 /* 完整验证并统计全部同名字段行中的代理元素数量。 */
-XRT_API bool xrtHttpForwardedFieldCount(
+XHTTP_API bool xrtHttpForwardedFieldCount(
 	const xhttpfield* pFields,
 	size_t iCount,
 	size_t* pCount
@@ -132,7 +134,7 @@ XRT_API bool xrtHttpForwardedFieldCount(
 
 
 /* 跨重复 Forwarded 字段行按线路顺序迭代代理元素。 */
-XRT_API xhttpnext xrtHttpForwardedFieldNext(
+XHTTP_API xhttpnext xrtHttpForwardedFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttpforwardedfieldcursor* pCursor,
@@ -142,17 +144,17 @@ XRT_API xhttpnext xrtHttpForwardedFieldNext(
 
 
 /* 验证已经解码的 by 或 for 节点标识。 */
-XRT_API bool xrtHttpForwardedNodeValid(xstrview Node);
+XHTTP_API bool xrtHttpForwardedNodeValid(xstrview Node);
 
 
 
 /* 验证已解码的 Host ABNF；空主机和任意长度十进制端口合法。 */
-XRT_API bool xrtHttpForwardedHostValid(xstrview Host);
+XHTTP_API bool xrtHttpForwardedHostValid(xstrview Host);
 
 
 
 /* 验证已经解码的 proto 参数值是 URI scheme。 */
-XRT_API bool xrtHttpForwardedProtoValid(xstrview Proto);
+XHTTP_API bool xrtHttpForwardedProtoValid(xstrview Proto);
 
 
 
@@ -190,7 +192,7 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 规范写出一个 Forwarded 元素，不附加字段名称或 CRLF。 */
-XRT_API bool xrtHttpForwardedElementWrite(
+XHTTP_API bool xrtHttpForwardedElementWrite(
 	const xhttpforwardedvalue* pElement,
 	void* pOutput,
 	size_t iCapacity,
@@ -200,7 +202,7 @@ XRT_API bool xrtHttpForwardedElementWrite(
 
 
 /* 原子写出逗号分隔的 Forwarded 元素数组。 */
-XRT_API bool xrtHttpForwardedWrite(
+XHTTP_API bool xrtHttpForwardedWrite(
 	const xhttpforwardedvalue* pElements,
 	size_t iCount,
 	void* pOutput,
@@ -211,7 +213,7 @@ XRT_API bool xrtHttpForwardedWrite(
 
 
 /* 构建零结尾 Forwarded 字段值，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpForwardedBuild(
+XHTTP_API str xrtHttpForwardedBuild(
 	const xhttpforwardedvalue* pElements,
 	size_t iCount,
 	size_t* pSize

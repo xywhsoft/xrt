@@ -8,6 +8,8 @@ lead: 零拷贝的通用 URI-reference 解析、存在位语义、端口词法�
 api: xhttp-url, xhttp-query, net
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 `xurl` 是 xhttp 的 URL 层，但它**不止是 HTTP URL**：`xrtUrlParse` 解析完整的 RFC 3986 URI-reference——`mailto:user@example.com`、`urn:isbn:...`、网络路径 `//host/path`、相对引用 `../items?page=2` 全部支持，不把 URL 限制为 `scheme://host/path`。与全库一脉相承的设计：**零拷贝**（全部视图借用输入）、**存在位语义**（`Path` 恒在，Query/Fragment/UserInfo/端口是否有必须看 `Flags`——不能只看视图长度）、**词法保留**（`PortText` 原样保留 `:00080`，`port` 是任意长度十进制文本——`:65536` 不因超 uint16 而拒绝解析）、**无分配写出**（Write 族拒绝重叠、短缓冲零写入）。加上 RFC 3986 引用解析（`xrtUrlResolve`——相对地址展开）与 target 写出（HTTP 请求行形态），这就是 URL 的完整词汇表。
@@ -61,7 +63,7 @@ api: xhttp-url, xhttp-query, net
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite url --exclude-test "*" --no-single --no-run
 host: example.test
 target: /api/items?page=2
 resolved: https://example.test/api/health?full=1
@@ -77,7 +79,7 @@ resolved: https://example.test/api/health?full=1
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/url_param/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp/config/modules.json --suite url_param --exclude-test "*" --no-single --no-run
 valid: yes
 ```
 

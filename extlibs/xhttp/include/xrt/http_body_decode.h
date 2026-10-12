@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_BODY_DECODE_H
 #define XRT_HTTP_BODY_DECODE_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_body_inflate.h>
 #include <xrt/http_encoding.h>
 
@@ -43,7 +45,7 @@ XRT_EXTERN_C_BEGIN
 #if defined(XHTTP_FEATURE_HTTP_BODY_DECODE)
 
 /* 初始化通用 Inflate 默认值和四层内容编码上限。 */
-XRT_API void xrtHttpBodyDecodeConfigInit(
+XHTTP_API void xrtHttpBodyDecodeConfigInit(
 	xhttpbodydecodeconfig* pConfig
 );
 
@@ -54,7 +56,7 @@ XRT_API void xrtHttpBodyDecodeConfigInit(
 	所有非错误结果都会向 Output 发布一个调用方负责销毁的 Body 引用。
 	未知编码返回 UNSUPPORTED 和未做部分解码的原始 Body。
 */
-XRT_API xhttpbodydecoderesult xrtHttpBodyDecodeFields(
+XHTTP_API xhttpbodydecoderesult xrtHttpBodyDecodeFields(
 	xhttpbody* pSource,
 	const xhttpfield* pFields,
 	size_t iCount,
@@ -65,7 +67,7 @@ XRT_API xhttpbodydecoderesult xrtHttpBodyDecodeFields(
 
 
 /* 解码单个 Content-Encoding 字段值的常用便利路径。 */
-XRT_API xhttpbodydecoderesult xrtHttpBodyDecode(
+XHTTP_API xhttpbodydecoderesult xrtHttpBodyDecode(
 	xhttpbody* pSource,
 	xstrview ContentEncoding,
 	const xhttpbodydecodeconfig* pConfig,

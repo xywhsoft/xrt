@@ -40,7 +40,7 @@ static bool __xrtHttpReplySetDigestInfo(
 
 
 /* 设置源站 Authentication-Info。 */
-XRT_API bool xrtHttpReplySetDigestInfo(
+XHTTP_API bool xrtHttpReplySetDigestInfo(
 	xhttpreply* pReply,
 	const xhttpdigestinfo* pInfo
 )
@@ -55,7 +55,7 @@ XRT_API bool xrtHttpReplySetDigestInfo(
 
 
 /* 设置代理 Proxy-Authentication-Info。 */
-XRT_API bool xrtHttpReplySetProxyDigestInfo(
+XHTTP_API bool xrtHttpReplySetProxyDigestInfo(
 	xhttpreply* pReply,
 	const xhttpdigestinfo* pInfo
 )

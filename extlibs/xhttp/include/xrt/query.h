@@ -1,6 +1,8 @@
 #ifndef XRT_QUERY_H
 #define XRT_QUERY_H
 
+#include <xhttp/export.h>
+
 #include <xrt/core.h>
 #include <xrt/memory.h>
 
@@ -59,7 +61,7 @@ XRT_EXTERN_C_BEGIN
 	读取下一个非空查询段；Offset 初始为零，输入可以包含一个前导问号。
 	连续、前导和尾随 & 产生的空段被跳过，空 key 和空 value 仍被保留。
 */
-XRT_API xquerynext xrtQueryNext(
+XHTTP_API xquerynext xrtQueryNext(
 	xstrview Query,
 	size_t* pOffset,
 	xquerypair* pPair
@@ -68,12 +70,12 @@ XRT_API xquerynext xrtQueryNext(
 
 
 /* 统计查询项；正常空查询返回零，失败时不修改 Count。 */
-XRT_API bool xrtQueryCount(xstrview Query, size_t* pCount);
+XHTTP_API bool xrtQueryCount(xstrview Query, size_t* pCount);
 
 
 
 /* 按显式 pair/key/value 限额验证结构；Limits 为空时仅统计。 */
-XRT_API bool xrtQueryValidate(
+XHTTP_API bool xrtQueryValidate(
 	xstrview Query,
 	const xquerylimits* pLimits,
 	size_t* pCount
@@ -85,7 +87,7 @@ XRT_API bool xrtQueryValidate(
 	从 Offset 指定位置查找下一个原始 key；可重复调用以遍历重复 key。
 	未找到返回 XQUERY_NEXT_END，比较按字节区分大小写。
 */
-XRT_API xquerynext xrtQueryFind(
+XHTTP_API xquerynext xrtQueryFind(
 	xstrview Query,
 	xstrview Key,
 	size_t* pOffset,
@@ -95,7 +97,7 @@ XRT_API xquerynext xrtQueryFind(
 
 
 /* 写出不含前导问号和零结尾的已编码原始查询；空输出可查询精确长度。 */
-XRT_API bool xrtQueryRawWrite(
+XHTTP_API bool xrtQueryRawWrite(
 	const xquerypair* pPairs,
 	size_t iCount,
 	void* pOutput,
@@ -106,7 +108,7 @@ XRT_API bool xrtQueryRawWrite(
 
 
 /* 分配并构建零结尾的已编码原始查询；返回值由 xrtFree 释放。 */
-XRT_API str xrtQueryRawBuild(
+XHTTP_API str xrtQueryRawBuild(
 	const xquerypair* pPairs,
 	size_t iCount,
 	size_t* pSize
@@ -119,7 +121,7 @@ XRT_API str xrtQueryRawBuild(
 #if defined(XHTTP_FEATURE_QUERY_CODEC)
 
 /* 按 RFC 3986 编码键和值并写出查询；空输出可查询不含零结尾的精确长度。 */
-XRT_API bool xrtQueryWrite(
+XHTTP_API bool xrtQueryWrite(
 	const xquerypair* pPairs,
 	size_t iCount,
 	void* pOutput,
@@ -130,7 +132,7 @@ XRT_API bool xrtQueryWrite(
 
 
 /* 按 RFC 3986 编码键和值并构建零结尾查询；返回值由 xrtFree 释放。 */
-XRT_API str xrtQueryBuild(
+XHTTP_API str xrtQueryBuild(
 	const xquerypair* pPairs,
 	size_t iCount,
 	size_t* pSize

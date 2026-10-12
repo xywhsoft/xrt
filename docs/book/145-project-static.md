@@ -8,6 +8,8 @@ lead: TLS 安全入口、目录映射与穿越防护、ETag 条件请求与 Rang
 api: xhttp-http_server, xhttp-http_server_static, xhttp-http_server_middleware
 ---
 
+> 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。
+
 ## 导读
 
 全书最后一章。项目六（**静态文件服务器** webserv）：HTTPS 服务一个前端构建产物目录——安全入口（TLS + 证书）、静态映射（URL 前缀 ↔ 磁盘目录 + 穿越防护）、条件请求（ETag/304）、断点续传（Range/206）、压缩协商（gzip 可压文本）、访问日志与优雅停机。它是**六个项目的合体**：logstat 的行处理（日志）、configd 的配置（监听地址与目录映射从配置读）、xdl 的 Range 语义（这次在服务端给）、pushd 的长连接生命周期（HTTP keep-alive 与 TLS 会话）——加上静态层（第 105/132 章）与压缩（第 109 章）的专业件。也是**全书知识地图的总收拢**：从第 3 行代码到本章，十三章一百四十五个章节的知识在一个真实可部署的服务里汇合。验收之后是全书结语——你学到了什么、下一步去哪。
@@ -63,13 +65,13 @@ ETag 的生成：内容指纹（文件内容哈希——第 74 章）或元组�
 
 ### 第一个完整程序：静态服务的最小形态
 
-下面的程序来自 `extlibs/xhttp/examples/http/static_file`——静态文件响应的最小闭环：
+下面的程序来自 `extlibs/xhttp-server/examples/http/static_file`——静态文件响应的最小闭环：
 
-```embed path="extlibs/xhttp/examples/http/static_file/main.c" title="extlibs/xhttp/examples/http/static_file/main.c"
+```embed path="extlibs/xhttp-server/examples/http/static_file/main.c" title="extlibs/xhttp-server/examples/http/static_file/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/static_file/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_static_file --exclude-test "*" --no-single --no-run
 （输出静态文件服务装配的自检结果）
 ```
 
@@ -79,11 +81,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 
 第二个程序来自 `examples/http/server_static`——可运行的静态服务骨架：
 
-```embed path="extlibs/xhttp/examples/http/server_static/main.c" title="extlibs/xhttp/examples/http/server_static/main.c"
+```embed path="extlibs/xhttp-server/examples/http/server_static/main.c" title="extlibs/xhttp-server/examples/http/server_static/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/server_static/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-server/config/modules.json --suite http_server_static --exclude-test "*" --no-single --no-run
 （启动静态服务后按 Enter Drain 退出）
 ```
 
@@ -143,7 +145,7 @@ Cleanup:
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c webserv.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXHTTP_SERVER_MODULE_ALL -I include -I extlibs/xhttp/include -I extlibs/xhttp-server/include -I single -I single/extlibs -include xrt.h -include xhttp.h -include xhttp-server.h impl.c webserv.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
 webserv listening on https://127.0.0.1:8443 (root=dist)
 ```
 

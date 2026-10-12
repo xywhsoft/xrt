@@ -5,7 +5,7 @@
 #if defined(XHTTP_FEATURE_HTTP_SERVER_QUERY)
 
 /* 从已经通过 HTTP/1 校验的 request-target 创建拥有型查询参数。 */
-XRT_API xqueryparams* xrtHttpServerRequestQueryParams(
+XHTTP_API xqueryparams* xrtHttpServerRequestQueryParams(
 	const xhttpserverrequest* pRequest,
 	const xqueryparamsconfig* pConfig,
 	size_t* pErrorOffset
@@ -17,12 +17,12 @@ XRT_API xqueryparams* xrtHttpServerRequestQueryParams(
 	xqueryparams* pParams;
 	size_t iError = 0;
 
-	if ( ((pConfig != NULL) && !__xrtRangeValid(
+	if ( ((pConfig != NULL) && !xrtMemRangeValid(
 		pConfig, sizeof(Config)
 	)) || ((pErrorOffset != NULL) &&
-		(!__xrtHttpServerRequestOutputValid(
+		(!xrtHttpBridgeServerRequestOutputValid(
 			pRequest, pErrorOffset, sizeof(iError)
-		) || ((pConfig != NULL) && __xrtRangesOverlap(
+		) || ((pConfig != NULL) && xrtMemRangesOverlap(
 			pErrorOffset, sizeof(iError),
 			pConfig, sizeof(Config)
 		)))) ) {

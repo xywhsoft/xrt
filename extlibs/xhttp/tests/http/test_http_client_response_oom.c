@@ -82,7 +82,7 @@ static bool testHttpResponseOomAttempt(void)
 	bool bComplete = false;
 
 	memset(Body, 'b', sizeof(Body));
-	pResponse = __xrtHttpResponseCreate(
+	pResponse = xrtHttpBridgeResponseCreate(
 		XHTTP_VERSION_1_1,
 		200,
 		XRT_STR_LITERAL("A dynamic reason phrase"),
@@ -91,14 +91,14 @@ static bool testHttpResponseOomAttempt(void)
 	if ( pResponse == NULL ) {
 		return false;
 	}
-	if ( !__xrtHttpResponseAddHeader(
+	if ( !xrtHttpBridgeResponseAddHeader(
 		pResponse,
 		XRT_STR_LITERAL("X-Test"),
 		(xstrview){ Body, sizeof(Body) }
 	) ) {
 		goto done;
 	}
-	if ( !__xrtHttpResponseAddTrailer(
+	if ( !xrtHttpBridgeResponseAddTrailer(
 		pResponse,
 		NULL,
 		XRT_STR_LITERAL("Digest"),
@@ -116,7 +116,7 @@ static bool testHttpResponseOomAttempt(void)
 			"HTTP response body OOM exposed partial append");
 		goto done;
 	}
-	if ( !__xrtHttpResponseSetUrl(
+	if ( !xrtHttpBridgeResponseSetUrl(
 		pResponse,
 		XRT_STR_LITERAL("https://example.test/final")
 	) ) {

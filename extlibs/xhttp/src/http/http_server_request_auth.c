@@ -58,7 +58,7 @@ static xhttpnext __xrtHttpServerRequestAuth(
 	const xhttpfield* pField;
 	xhttpnext Next;
 
-	if ( !__xrtHttpServerRequestOutputValid(
+	if ( !xrtHttpBridgeServerRequestOutputValid(
 		pRequest, pAuth, sizeof(Auth)
 	) ) {
 		__xrtHttpServerRequestSetError(
@@ -95,7 +95,7 @@ static xhttpnext __xrtHttpServerRequestAuth(
 
 
 /* 解析源站 Authorization。 */
-XRT_API xhttpnext xrtHttpServerRequestAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestAuth(
 	const xhttpserverrequest* pRequest,
 	xhttpauth* pAuth
 )
@@ -110,7 +110,7 @@ XRT_API xhttpnext xrtHttpServerRequestAuth(
 
 
 /* 解析代理 Proxy-Authorization。 */
-XRT_API xhttpnext xrtHttpServerRequestProxyAuth(
+XHTTP_API xhttpnext xrtHttpServerRequestProxyAuth(
 	const xhttpserverrequest* pRequest,
 	xhttpauth* pAuth
 )

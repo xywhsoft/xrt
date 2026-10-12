@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_LINK_H
 #define XRT_HTTP_LINK_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_language.h>
 #include <xrt/url.h>
 
@@ -81,19 +83,19 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化单个 Link 字段值游标。 */
-XRT_API void xrtHttpLinkCursorInit(xhttplinkcursor* pCursor);
+XHTTP_API void xrtHttpLinkCursorInit(xhttplinkcursor* pCursor);
 
 
 
 /* 初始化重复 Link 字段行游标。 */
-XRT_API void xrtHttpLinkFieldCursorInit(
+XHTTP_API void xrtHttpLinkFieldCursorInit(
 	xhttplinkfieldcursor* pCursor
 );
 
 
 
 /* 严格解析一个 link-value；rel 必须存在，结果借用 Element。 */
-XRT_API bool xrtHttpLinkElementParse(
+XHTTP_API bool xrtHttpLinkElementParse(
 	xstrview Element,
 	xhttplink* pLink
 );
@@ -101,12 +103,12 @@ XRT_API bool xrtHttpLinkElementParse(
 
 
 /* 严格验证完整 Link 字段值；空列表符合 RFC 的列表语法。 */
-XRT_API bool xrtHttpLinkValid(xstrview Value);
+XHTTP_API bool xrtHttpLinkValid(xstrview Value);
 
 
 
 /* 按线路顺序迭代一个完整 Link 字段值。 */
-XRT_API xhttpnext xrtHttpLinkNext(
+XHTTP_API xhttpnext xrtHttpLinkNext(
 	xstrview Value,
 	xhttplinkcursor* pCursor,
 	xhttplink* pLink
@@ -115,7 +117,7 @@ XRT_API xhttpnext xrtHttpLinkNext(
 
 
 /* 跨重复 Link 字段行按线路顺序迭代链接。 */
-XRT_API xhttpnext xrtHttpLinkFieldNext(
+XHTTP_API xhttpnext xrtHttpLinkFieldNext(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttplinkfieldcursor* pCursor,
@@ -125,7 +127,7 @@ XRT_API xhttpnext xrtHttpLinkFieldNext(
 
 
 /* 严格查找第一个参数；未命中返回 END，结果借用 Link 字段。 */
-XRT_API xhttpnext xrtHttpLinkParam(
+XHTTP_API xhttpnext xrtHttpLinkParam(
 	const xhttplink* pLink,
 	xstrview Name,
 	xhttpparam* pParam
@@ -134,7 +136,7 @@ XRT_API xhttpnext xrtHttpLinkParam(
 
 
 /* 按 RFC 8288 的大小写不敏感规则查找关系类型。 */
-XRT_API xhttpnext xrtHttpLinkRelationFind(
+XHTTP_API xhttpnext xrtHttpLinkRelationFind(
 	const xhttplink* pLink,
 	xstrview Relation
 );
@@ -142,7 +144,7 @@ XRT_API xhttpnext xrtHttpLinkRelationFind(
 
 
 /* 解码 anchor 参数；不存在时返回 VALUE 错误，不执行 URI 解析。 */
-XRT_API bool xrtHttpLinkAnchorWrite(
+XHTTP_API bool xrtHttpLinkAnchorWrite(
 	const xhttplink* pLink,
 	void* pOutput,
 	size_t iCapacity,
@@ -152,7 +154,7 @@ XRT_API bool xrtHttpLinkAnchorWrite(
 
 
 /* 构建零结尾 anchor，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpLinkAnchorBuild(
+XHTTP_API str xrtHttpLinkAnchorBuild(
 	const xhttplink* pLink,
 	size_t* pSize
 );
@@ -160,7 +162,7 @@ XRT_API str xrtHttpLinkAnchorBuild(
 
 
 /* 读取 UTF-8 标题；优先 title*，不支持的字符集回退 title。 */
-XRT_API bool xrtHttpLinkTitleWrite(
+XHTTP_API bool xrtHttpLinkTitleWrite(
 	const xhttplink* pLink,
 	void* pOutput,
 	size_t iCapacity,
@@ -170,7 +172,7 @@ XRT_API bool xrtHttpLinkTitleWrite(
 
 
 /* 构建零结尾 UTF-8 标题，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpLinkTitleBuild(
+XHTTP_API str xrtHttpLinkTitleBuild(
 	const xhttplink* pLink,
 	size_t* pSize
 );
@@ -178,7 +180,7 @@ XRT_API str xrtHttpLinkTitleBuild(
 
 
 /* 零分配使用 RFC 3986 Base 解析链接目标；输出不带零结尾。 */
-XRT_API bool xrtHttpLinkTargetResolve(
+XHTTP_API bool xrtHttpLinkTargetResolve(
 	const xhttplink* pLink,
 	const xurl* pBase,
 	void* pOutput,
@@ -189,7 +191,7 @@ XRT_API bool xrtHttpLinkTargetResolve(
 
 
 /* 分配并解析链接目标，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpLinkTargetResolveBuild(
+XHTTP_API str xrtHttpLinkTargetResolveBuild(
 	const xhttplink* pLink,
 	const xurl* pBase,
 	size_t* pSize
@@ -229,7 +231,7 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 规范写出一个 link-value，不附加字段名称或 CRLF。 */
-XRT_API bool xrtHttpLinkElementWrite(
+XHTTP_API bool xrtHttpLinkElementWrite(
 	const xhttplinkvalue* pLink,
 	void* pOutput,
 	size_t iCapacity,
@@ -239,7 +241,7 @@ XRT_API bool xrtHttpLinkElementWrite(
 
 
 /* 规范写出逗号分隔的 Link 元素数组。 */
-XRT_API bool xrtHttpLinkWrite(
+XHTTP_API bool xrtHttpLinkWrite(
 	const xhttplinkvalue* pLinks,
 	size_t iCount,
 	void* pOutput,
@@ -250,7 +252,7 @@ XRT_API bool xrtHttpLinkWrite(
 
 
 /* 构建零结尾 Link 字段值，返回值由 xrtFree 释放。 */
-XRT_API str xrtHttpLinkBuild(
+XHTTP_API str xrtHttpLinkBuild(
 	const xhttplinkvalue* pLinks,
 	size_t iCount,
 	size_t* pSize

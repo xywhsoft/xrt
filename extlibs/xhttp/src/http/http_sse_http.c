@@ -31,7 +31,7 @@ static bool __xrtHttpSseHeadersCommit(
 
 
 /* 判断媒体类型本体并保留调用线程原有错误。 */
-XRT_API bool xrtHttpSseContentTypeValid(xstrview ContentType)
+XHTTP_API bool xrtHttpSseContentTypeValid(xstrview ContentType)
 {
 	xmediatype Type;
 	xerror* pSaved = xrtTakeError();
@@ -45,7 +45,7 @@ XRT_API bool xrtHttpSseContentTypeValid(xstrview ContentType)
 		);
 	xrtClearError();
 	if ( pSaved != NULL ) {
-		__xrtErrorSetOwned(pSaved);
+		xrtSetErrorTake(pSaved);
 	}
 	return bValid;
 }
@@ -53,7 +53,7 @@ XRT_API bool xrtHttpSseContentTypeValid(xstrview ContentType)
 
 
 /* 在副本中完整修改请求字段，任一验证或分配失败都不触碰原容器。 */
-XRT_API bool xrtHttpSseRequestHeaders(
+XHTTP_API bool xrtHttpSseRequestHeaders(
 	xhttpheaders* pHeaders,
 	xstrview LastEventId
 )
@@ -61,10 +61,10 @@ XRT_API bool xrtHttpSseRequestHeaders(
 	xhttpheaders* pWork;
 
 	if ( (pHeaders == NULL) ||
-		!__xrtHttpViewValid(LastEventId) ||
+		!__xhttpViewValid(LastEventId) ||
 		((LastEventId.Size != 0) &&
 		 !xrtHttpSseLastEventIdValid(LastEventId)) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	pWork = xrtHttpHeadersClone(pHeaders);
@@ -91,12 +91,12 @@ XRT_API bool xrtHttpSseRequestHeaders(
 
 
 /* 在副本中唯一设置响应媒体类型，不隐式添加缓存或连接策略。 */
-XRT_API bool xrtHttpSseResponseHeaders(xhttpheaders* pHeaders)
+XHTTP_API bool xrtHttpSseResponseHeaders(xhttpheaders* pHeaders)
 {
 	xhttpheaders* pWork;
 
 	if ( pHeaders == NULL ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	pWork = xrtHttpHeadersClone(pHeaders);
@@ -115,7 +115,7 @@ XRT_API bool xrtHttpSseResponseHeaders(xhttpheaders* pHeaders)
 
 
 /* 分类 EventSource 响应；协议拒绝不是库错误，只有无效调用返回 ERROR。 */
-XRT_API xhttpsseresponse xrtHttpSseResponseCheck(
+XHTTP_API xhttpsseresponse xrtHttpSseResponseCheck(
 	uint16 iStatus,
 	const xhttpheaders* pHeaders
 )
@@ -123,7 +123,7 @@ XRT_API xhttpsseresponse xrtHttpSseResponseCheck(
 	const xhttpfield* pContentType;
 
 	if ( (iStatus < 100) || (iStatus > 999) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_SSE_RESPONSE_ERROR;
 	}
 	if ( iStatus == 204 ) {

@@ -27,11 +27,11 @@ static bool __xrtHttpOriginSourceUrlValid(const xurl* pUrl)
 
 
 /* 判断 Origin 结构的存在位、文本和 URL 保持一致。 */
-bool __xrtHttpOriginValueValid(
+XHTTP_API bool xrtHttpBridgeOriginValueValid(
 	const xhttporigin* pOrigin
 )
 {
-	if ( !__xrtHttpViewValid(pOrigin->Text) ||
+	if ( !__xhttpViewValid(pOrigin->Text) ||
 		((pOrigin->Flags & ~XHTTP_ORIGIN_NULL) != 0) ) {
 		return false;
 	}
@@ -108,7 +108,7 @@ static bool __xrtHttpOriginPortSame(
 
 
 /* 比较两个已经验证的非 null Origin。 */
-bool __xrtHttpOriginTupleSame(
+XHTTP_API bool xrtHttpBridgeOriginTupleSame(
 	const xhttporigin* pLeft,
 	const xhttporigin* pRight
 )
@@ -125,14 +125,14 @@ bool __xrtHttpOriginTupleSame(
 
 
 /* 初始化 Origin 列表游标。 */
-XRT_API void xrtHttpOriginCursorInit(
+XHTTP_API void xrtHttpOriginCursorInit(
 	xhttporigincursor* pCursor
 )
 {
 	xhttporigincursor Cursor;
 
-	if ( !__xrtRangeValid(pCursor, sizeof(Cursor)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pCursor, sizeof(Cursor)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Cursor, 0, sizeof(Cursor));
@@ -142,12 +142,12 @@ XRT_API void xrtHttpOriginCursorInit(
 
 
 /* 建立没有三元组身份的 null Origin。 */
-XRT_API void xrtHttpOriginNull(xhttporigin* pOrigin)
+XHTTP_API void xrtHttpOriginNull(xhttporigin* pOrigin)
 {
 	xhttporigin Origin;
 
-	if ( !__xrtRangeValid(pOrigin, sizeof(Origin)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pOrigin, sizeof(Origin)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
 	memset(&Origin, 0, sizeof(Origin));
@@ -158,7 +158,7 @@ XRT_API void xrtHttpOriginNull(xhttporigin* pOrigin)
 
 
 /* 严格解析一个 null 或 serialized-origin。 */
-XRT_API bool xrtHttpOriginParse(
+XHTTP_API bool xrtHttpOriginParse(
 	xstrview Text,
 	xhttporigin* pOutput
 )
@@ -166,28 +166,28 @@ XRT_API bool xrtHttpOriginParse(
 	xhttporigin Origin;
 	xstrview Value;
 
-	if ( !__xrtHttpViewValid(Text) ||
-		!__xrtRangeValid(pOutput, sizeof(Origin)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Text) ||
+		!xrtMemRangeValid(pOutput, sizeof(Origin)) ||
+		xrtMemRangesOverlap(
 			pOutput, sizeof(Origin), Text.Data, Text.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memset(&Origin, 0, sizeof(Origin));
 	Value = xrtHttpOwsTrim(Text);
 	Origin.Text = Value;
-	if ( __xrtHttpViewEqual(Value, XRT_STR_LITERAL("null")) ) {
+	if ( __xhttpViewEqual(Value, XRT_STR_LITERAL("null")) ) {
 		Origin.Flags = XHTTP_ORIGIN_NULL;
 		memcpy(pOutput, &Origin, sizeof(Origin));
 		return true;
 	}
-	if ( !__xrtUrlParseValue(Value, &Origin.Url) ||
+	if ( !xrtHttpBridgeUrlParseValue(Value, &Origin.Url) ||
 		!__xrtHttpOriginSourceUrlValid(&Origin.Url) ||
 		(Origin.Url.Path.Size != 0) ||
 		((Origin.Url.Flags & (XURL_HAS_QUERY |
 		 XURL_HAS_FRAGMENT)) != 0) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memcpy(pOutput, &Origin, sizeof(Origin));
@@ -207,7 +207,7 @@ bool __xrtHttpOriginOverlap(
 	xstrview Views[9];
 	size_t i;
 
-	if ( __xrtRangesOverlap(
+	if ( xrtMemRangesOverlap(
 		pOrigin, sizeof(*pOrigin), pOutput, iSize
 	) ) {
 		return true;
@@ -222,7 +222,7 @@ bool __xrtHttpOriginOverlap(
 	Views[7] = pUrl->Query;
 	Views[8] = pUrl->Fragment;
 	for ( i = 0; i < 9u; i++ ) {
-		if ( __xrtRangesOverlap(
+		if ( xrtMemRangesOverlap(
 			Views[i].Data, Views[i].Size, pOutput, iSize
 		) ) {
 			return true;
@@ -234,7 +234,7 @@ bool __xrtHttpOriginOverlap(
 
 
 /* 从 URL 提取不含资源路径的 Origin 三元组。 */
-XRT_API bool xrtHttpOriginFromUrl(
+XHTTP_API bool xrtHttpOriginFromUrl(
 	const xurl* pUrl,
 	xhttporigin* pOutput
 )
@@ -242,17 +242,17 @@ XRT_API bool xrtHttpOriginFromUrl(
 	xhttporigin Origin;
 	xurl Url;
 
-	if ( !__xrtRangeValid(pUrl, sizeof(Url)) ||
-		!__xrtRangeValid(pOutput, sizeof(Origin)) ||
-		__xrtRangesOverlap(
+	if ( !xrtMemRangeValid(pUrl, sizeof(Url)) ||
+		!xrtMemRangeValid(pOutput, sizeof(Origin)) ||
+		xrtMemRangesOverlap(
 			pUrl, sizeof(Url), pOutput, sizeof(Origin)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Url, pUrl, sizeof(Url));
 	if ( !__xrtHttpOriginSourceUrlValid(&Url) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	memset(&Origin, 0, sizeof(Origin));
@@ -264,7 +264,7 @@ XRT_API bool xrtHttpOriginFromUrl(
 	if ( __xrtHttpOriginOverlap(
 		&Origin, pOutput, sizeof(Origin)
 	) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(pOutput, &Origin, sizeof(Origin));
@@ -282,7 +282,7 @@ static bool __xrtHttpOriginBounds(
 {
 	xstrview Trimmed;
 
-	if ( !__xrtHttpViewValid(Value) ) {
+	if ( !__xhttpViewValid(Value) ) {
 		return false;
 	}
 	Trimmed = xrtHttpOwsTrim(Value);
@@ -350,7 +350,7 @@ static bool __xrtHttpOriginListValidate(
 	size_t iCount = 0;
 
 	if ( !__xrtHttpOriginBounds(Value, pStart, pEnd) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	iOffset = *pStart;
@@ -359,7 +359,7 @@ static bool __xrtHttpOriginListValidate(
 			Value, iOffset, *pEnd, &iNext, &Text
 		);
 		if ( Next == XHTTP_NEXT_ERROR ) {
-			__xrtErrorSetValue();
+			xrtSetErrorKind(XERR_VALUE);
 			return false;
 		}
 		if ( Next == XHTTP_NEXT_END ) {
@@ -374,7 +374,7 @@ static bool __xrtHttpOriginListValidate(
 		iOffset = iNext;
 	}
 	if ( (iCount == 0) || (bNull && (iCount != 1u)) ) {
-		__xrtErrorSetValue();
+		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
 	return true;
@@ -383,13 +383,13 @@ static bool __xrtHttpOriginListValidate(
 
 
 /* 严格验证完整 Origin 字段值。 */
-XRT_API bool xrtHttpOriginValid(xstrview Value)
+XHTTP_API bool xrtHttpOriginValid(xstrview Value)
 {
 	size_t iStart;
 	size_t iEnd;
 
-	if ( !__xrtHttpViewValid(Value) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !__xhttpViewValid(Value) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	return __xrtHttpOriginListValidate(
@@ -423,7 +423,7 @@ static bool __xrtHttpOriginCursorValid(
 
 
 /* 完整预校验后迭代 Origin 字段值。 */
-XRT_API xhttpnext xrtHttpOriginNext(
+XHTTP_API xhttpnext xrtHttpOriginNext(
 	xstrview Value,
 	xhttporigincursor* pCursor,
 	xhttporigin* pOutput
@@ -437,24 +437,24 @@ XRT_API xhttpnext xrtHttpOriginNext(
 	size_t iStart;
 	size_t iEnd;
 
-	if ( !__xrtHttpViewValid(Value) ||
-		!__xrtRangeValid(pCursor, sizeof(Cursor)) ||
-		!__xrtRangeValid(pOutput, sizeof(Origin)) ||
-		__xrtRangesOverlap(
+	if ( !__xhttpViewValid(Value) ||
+		!xrtMemRangeValid(pCursor, sizeof(Cursor)) ||
+		!xrtMemRangeValid(pOutput, sizeof(Origin)) ||
+		xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), pOutput, sizeof(Origin)
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pCursor, sizeof(Cursor), Value.Data, Value.Size
-		) || __xrtRangesOverlap(
+		) || xrtMemRangesOverlap(
 			pOutput, sizeof(Origin), Value.Data, Value.Size
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memcpy(&Cursor, pCursor, sizeof(Cursor));
 	memset(&Origin, 0, sizeof(Origin));
 	memcpy(pOutput, &Origin, sizeof(Origin));
 	if ( !__xrtHttpOriginCursorValid(&Cursor, Value) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	if ( Cursor.Validated == 0 ) {
@@ -490,7 +490,7 @@ XRT_API xhttpnext xrtHttpOriginNext(
 
 
 /* 读取唯一 Origin 字段和单一值。 */
-XRT_API xhttpnext xrtHttpOriginFields(
+XHTTP_API xhttpnext xrtHttpOriginFields(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttporigin* pOutput
@@ -501,12 +501,12 @@ XRT_API xhttpnext xrtHttpOriginFields(
 	xhttporigin Origin;
 	xhttpnext Next;
 
-	if ( !__xrtHttpFieldArrayValid(pFields, iCount) ||
-		!__xrtRangeValid(pOutput, sizeof(Origin)) ||
-		__xrtHttpFieldArrayOverlap(
+	if ( !__xhttpFieldArrayValid(pFields, iCount) ||
+		!xrtMemRangeValid(pOutput, sizeof(Origin)) ||
+		__xhttpFieldArrayOverlap(
 			pFields, iCount, pOutput, sizeof(Origin)
 		) ) {
-		__xrtErrorSetInvalidArgument();
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_NEXT_ERROR;
 	}
 	memset(&Origin, 0, sizeof(Origin));
@@ -528,7 +528,7 @@ XRT_API xhttpnext xrtHttpOriginFields(
 
 
 /* 比较两个 Origin 三元组。 */
-XRT_API bool xrtHttpOriginSame(
+XHTTP_API bool xrtHttpOriginSame(
 	const xhttporigin* pLeft,
 	const xhttporigin* pRight
 )
@@ -536,23 +536,23 @@ XRT_API bool xrtHttpOriginSame(
 	xhttporigin Left;
 	xhttporigin Right;
 
-	if ( !__xrtRangeValid(pLeft, sizeof(Left)) ||
-		!__xrtRangeValid(pRight, sizeof(Right)) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtMemRangeValid(pLeft, sizeof(Left)) ||
+		!xrtMemRangeValid(pRight, sizeof(Right)) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	memcpy(&Left, pLeft, sizeof(Left));
 	memcpy(&Right, pRight, sizeof(Right));
-	if ( !__xrtHttpOriginValueValid(&Left) ||
-		!__xrtHttpOriginValueValid(&Right) ) {
-		__xrtErrorSetInvalidArgument();
+	if ( !xrtHttpBridgeOriginValueValid(&Left) ||
+		!xrtHttpBridgeOriginValueValid(&Right) ) {
+		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
 	if ( ((Left.Flags | Right.Flags) &
 		XHTTP_ORIGIN_NULL) != 0 ) {
 		return false;
 	}
-	return __xrtHttpOriginTupleSame(&Left, &Right);
+	return xrtHttpBridgeOriginTupleSame(&Left, &Right);
 }
 
 #endif

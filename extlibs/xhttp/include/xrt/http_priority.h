@@ -1,6 +1,8 @@
 #ifndef XRT_HTTP_PRIORITY_H
 #define XRT_HTTP_PRIORITY_H
 
+#include <xhttp/export.h>
+
 #include <xrt/http_structured.h>
 
 
@@ -47,12 +49,12 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 初始化请求语义的默认优先级，并清除显式参数标志。 */
-XRT_API void xrtHttpPriorityInit(xhttppriority* pPriority);
+XHTTP_API void xrtHttpPriorityInit(xhttppriority* pPriority);
 
 
 
 /* 严格解析一个 Priority 字段值；未知或无效的参数会被忽略。 */
-XRT_API bool xrtHttpPriorityValueParse(
+XHTTP_API bool xrtHttpPriorityValueParse(
 	xstrview Value,
 	xhttppriority* pPriority
 );
@@ -60,7 +62,7 @@ XRT_API bool xrtHttpPriorityValueParse(
 
 
 /* 解析全部重复 Priority 字段行；缺失字段产生协议默认值。 */
-XRT_API bool xrtHttpPriorityParse(
+XHTTP_API bool xrtHttpPriorityParse(
 	const xhttpfield* pFields,
 	size_t iCount,
 	xhttppriority* pPriority
@@ -69,7 +71,7 @@ XRT_API bool xrtHttpPriorityParse(
 
 
 /* 用 Update 中显式出现的参数覆盖 Base，其余参数保持不变。 */
-XRT_API bool xrtHttpPriorityOverlay(
+XHTTP_API bool xrtHttpPriorityOverlay(
 	const xhttppriority* pBase,
 	const xhttppriority* pUpdate,
 	xhttppriority* pPriority
@@ -90,7 +92,7 @@ XRT_EXTERN_C_BEGIN
 
 
 /* 规范写出显式 Priority 参数；输出不附加零字节。 */
-XRT_API bool xrtHttpPriorityWrite(
+XHTTP_API bool xrtHttpPriorityWrite(
 	const xhttppriority* pPriority,
 	void* pOutput,
 	size_t iCapacity,

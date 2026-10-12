@@ -8,6 +8,8 @@ lead: Полностью автоматический HTTP-кэш после п�
 api: xhttp-http_cache, xhttp-http_client
 ---
 
+> Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).
+
 ## Ориентация
 
 После трёх автоматических поведений главы 100 кэш — самое большое и самое колоритное из них. Слой `http_client_cache` после подключения Store (`xhttpcache`) в конфигурацию Client делает **поиск, доставку при попадании, оценку свежести, условную валидацию, сохранение, сборку частичных ответов и инвалидацию unsafe-методов полностью автоматически** — ваш код не меняется ни на строку, второй запрос того же URL выходит из локального хранилища. Протокольная сторона полностью следует RFC 9111: `Cache-Control` запроса (no-store/no-cache/only-if-cached/возрастные ограничения) и хранимость ответа обрабатываются единым публичным парсером политики кэша — клиент не изобретает приближённых семантик. Объекты хранения остаются открытыми — приложение, прокси, собственный персистентный бэкенд используют тот же контракт Store. Глава разбирает конфигурацию, четыре режима вызова, контракт хранения и условную конкурентную фиксацию.
@@ -56,11 +58,11 @@ api: xhttp-http_cache, xhttp-http_client
 
 Программа ниже из `examples/http/client_cache` — подключение Store и потолки:
 
-```embed path="extlibs/xhttp/examples/http/client_cache/main.c" title="extlibs/xhttp/examples/http/client_cache/main.c"
+```embed path="extlibs/xhttp-client/examples/http/client_cache/main.c" title="extlibs/xhttp-client/examples/http/client_cache/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/client_cache/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-client/config/modules.json --suite http_client_cache --exclude-test "*" --no-single --no-run
 （示例校验缓存装配与回源-命中路径后正常退出）
 ```
 
@@ -70,11 +72,11 @@ $ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -inclu
 
 Вторая программа из `examples/http/cache_policy` — протокольный слой разбора и суждения политики:
 
-```embed path="extlibs/xhttp/examples/http/cache_policy/main.c" title="extlibs/xhttp/examples/http/cache_policy/main.c"
+```embed path="extlibs/xhttp-policy/examples/http/cache_policy/main.c" title="extlibs/xhttp-policy/examples/http/cache_policy/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h impl.c extlibs/xhttp/examples/http/cache_policy/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xhttp-policy/config/modules.json --suite http_cache_policy --exclude-test "*" --no-single --no-run
 （输出策略解析与可存储性判定的自检结果）
 ```
 

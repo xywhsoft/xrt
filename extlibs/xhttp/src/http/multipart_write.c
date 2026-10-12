@@ -359,7 +359,7 @@ static bool __xrtMultipartWriteViewsOverlap(
 
 
 /* 写出 multipart/form-data Content-Type。 */
-XRT_API bool xrtMultipartContentTypeWrite(
+XHTTP_API bool xrtMultipartContentTypeWrite(
 	const xmultipartboundary* pBoundary,
 	void* pOutput,
 	size_t iCapacity,
@@ -416,7 +416,7 @@ XRT_API bool xrtMultipartContentTypeWrite(
 
 
 /* 写出原始 Part Header。 */
-XRT_API bool xrtMultipartPartHeadWrite(
+XHTTP_API bool xrtMultipartPartHeadWrite(
 	const xmultipartboundary* pBoundary,
 	const xhttpfield* pFields,
 	size_t iFieldCount,
@@ -477,7 +477,7 @@ XRT_API bool xrtMultipartPartHeadWrite(
 
 
 /* 写出 Part 正文后的 CRLF。 */
-XRT_API bool xrtMultipartPartEndWrite(
+XHTTP_API bool xrtMultipartPartEndWrite(
 	void* pOutput,
 	size_t iCapacity,
 	size_t* pSize
@@ -498,7 +498,7 @@ XRT_API bool xrtMultipartPartEndWrite(
 
 
 /* 一次写出原始 Part。 */
-XRT_API bool xrtMultipartPartWrite(
+XHTTP_API bool xrtMultipartPartWrite(
 	const xmultipartboundary* pBoundary,
 	const xhttpfield* pFields,
 	size_t iFieldCount,
@@ -738,7 +738,7 @@ static size_t __xrtMultipartWriteFormHead(
 
 
 /* 写出标准 form-data Part 头。 */
-XRT_API bool xrtMultipartFormHeadWrite(
+XHTTP_API bool xrtMultipartFormHeadWrite(
 	const xmultipartboundary* pBoundary,
 	xstrview Name,
 	const xstrview* pFilename,
@@ -810,7 +810,7 @@ XRT_API bool xrtMultipartFormHeadWrite(
 
 
 /* 写出一个 form-data 普通字段 Part。 */
-XRT_API bool xrtMultipartFieldWrite(
+XHTTP_API bool xrtMultipartFieldWrite(
 	const xmultipartboundary* pBoundary,
 	xstrview Name,
 	xbytesview Value,
@@ -884,7 +884,7 @@ XRT_API bool xrtMultipartFieldWrite(
 
 
 /* 写出一个 form-data 文件 Part。 */
-XRT_API bool xrtMultipartFileWrite(
+XHTTP_API bool xrtMultipartFileWrite(
 	const xmultipartboundary* pBoundary,
 	xstrview Name,
 	xstrview Filename,
@@ -965,7 +965,7 @@ XRT_API bool xrtMultipartFileWrite(
 
 
 /* 写出关闭 boundary。 */
-XRT_API bool xrtMultipartCloseWrite(
+XHTTP_API bool xrtMultipartCloseWrite(
 	const xmultipartboundary* pBoundary,
 	void* pOutput,
 	size_t iCapacity,

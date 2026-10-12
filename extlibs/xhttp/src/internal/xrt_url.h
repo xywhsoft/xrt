@@ -51,7 +51,7 @@ bool __xrtUrlComponentStateValid(
 );
 
 /* 无错误副作用地严格解析 URI-reference，结果借用输入文本。 */
-bool __xrtUrlParseValue(
+bool xrtHttpBridgeUrlParseValue(
 	xstrview Text,
 	xurl* pUrl
 );
@@ -64,7 +64,7 @@ bool __xrtUrlValueValid(const xurl* pUrl);
 
 
 /* 无错误副作用地取得显式端口或已知 scheme 的默认端口。 */
-bool __xrtUrlPortValue(const xurl* pUrl, uint16* pPort);
+bool xrtHttpBridgeUrlPortValue(const xurl* pUrl, uint16* pPort);
 
 
 

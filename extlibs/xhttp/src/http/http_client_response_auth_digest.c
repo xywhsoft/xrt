@@ -54,7 +54,7 @@ static xhttpnext __xrtHttpResponseDigestChallengeNext(
 
 
 /* 迭代源站 Digest challenge。 */
-XRT_API xhttpnext xrtHttpResponseDigestChallengeNext(
+XHTTP_API xhttpnext xrtHttpResponseDigestChallengeNext(
 	const xhttpresponse* pResponse,
 	xhttpauthcursor* pCursor,
 	void* pOutput,
@@ -77,7 +77,7 @@ XRT_API xhttpnext xrtHttpResponseDigestChallengeNext(
 
 
 /* 迭代代理 Digest challenge。 */
-XRT_API xhttpnext xrtHttpResponseProxyDigestChallengeNext(
+XHTTP_API xhttpnext xrtHttpResponseProxyDigestChallengeNext(
 	const xhttpresponse* pResponse,
 	xhttpauthcursor* pCursor,
 	void* pOutput,

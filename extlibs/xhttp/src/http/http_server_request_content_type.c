@@ -5,7 +5,7 @@
 #if defined(XHTTP_FEATURE_HTTP_SERVER_CONTENT_TYPE)
 
 /* 解析请求唯一 Content-Type，结果借用拥有型请求快照。 */
-XRT_API xhttpnext xrtHttpServerRequestContentType(
+XHTTP_API xhttpnext xrtHttpServerRequestContentType(
 	const xhttpserverrequest* pRequest,
 	xmediatype* pType
 )
@@ -15,7 +15,7 @@ XRT_API xhttpnext xrtHttpServerRequestContentType(
 	xhttpnext Next;
 
 	if ( (pRequest == NULL) ||
-		!__xrtHttpServerRequestOutputValid(
+		!xrtHttpBridgeServerRequestOutputValid(
 			pRequest, pType, sizeof(Type)
 		) ) {
 		__xrtHttpServerRequestSetError(
