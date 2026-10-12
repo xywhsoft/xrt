@@ -960,7 +960,7 @@ void __xrtWsConnFutureNotify(xwsconn* pConnection)
 
 
 /* 返回当前异步发送负载字节数。 */
-XRT_API size_t xrtWsConnAsyncBytes(
+XWS_API size_t xrtWsConnAsyncBytes(
 	const xwsconn* pConnection
 )
 {
@@ -986,7 +986,7 @@ XRT_API size_t xrtWsConnAsyncBytes(
 
 
 /* 返回当前异步发送和等待操作总数。 */
-XRT_API uint32 xrtWsConnAsyncCount(
+XWS_API uint32 xrtWsConnAsyncCount(
 	const xwsconn* pConnection
 )
 {
@@ -1008,7 +1008,7 @@ XRT_API uint32 xrtWsConnAsyncCount(
 
 
 /* 创建并发布一个条件 Future。 */
-XRT_API xfuture* xrtWsConnWaitAsync(
+XWS_API xfuture* xrtWsConnWaitAsync(
 	xwsconn* pConnection,
 	xwsconnwait Wait
 )
@@ -1098,7 +1098,7 @@ static xfuture* __xrtWsConnSendAsync(
 
 
 /* 从任意线程复制并异步提交完整消息。 */
-XRT_API xfuture* xrtWsConnSendAsync(
+XWS_API xfuture* xrtWsConnSendAsync(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -1115,7 +1115,7 @@ XRT_API xfuture* xrtWsConnSendAsync(
 
 
 /* 从任意线程复制并异步提交 Text。 */
-XRT_API xfuture* xrtWsConnTextAsync(
+XWS_API xfuture* xrtWsConnTextAsync(
 	xwsconn* pConnection,
 	xstrview Text
 )
@@ -1133,7 +1133,7 @@ XRT_API xfuture* xrtWsConnTextAsync(
 
 
 /* 从任意线程复制并异步提交 Binary。 */
-XRT_API xfuture* xrtWsConnBinaryAsync(
+XWS_API xfuture* xrtWsConnBinaryAsync(
 	xwsconn* pConnection,
 	xbytesview Data
 )
@@ -1149,7 +1149,7 @@ XRT_API xfuture* xrtWsConnBinaryAsync(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_REF_FUTURE)
 /* 预检并发布一条所有权异步消息；仅成功返回 Future 时转移调用方引用。 */
-XRT_API xfuture* xrtWsConnSendRefAsync(
+XWS_API xfuture* xrtWsConnSendRefAsync(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	const xnetref* pRef
@@ -1238,7 +1238,7 @@ XRT_API xfuture* xrtWsConnSendRefAsync(
 
 
 /* 从任意线程异步提交所有权 Text。 */
-XRT_API xfuture* xrtWsConnTextRefAsync(
+XWS_API xfuture* xrtWsConnTextRefAsync(
 	xwsconn* pConnection,
 	const xnetref* pRef
 )
@@ -1253,7 +1253,7 @@ XRT_API xfuture* xrtWsConnTextRefAsync(
 
 
 /* 从任意线程异步提交所有权 Binary。 */
-XRT_API xfuture* xrtWsConnBinaryRefAsync(
+XWS_API xfuture* xrtWsConnBinaryRefAsync(
 	xwsconn* pConnection,
 	const xnetref* pRef
 )
@@ -1270,7 +1270,7 @@ XRT_API xfuture* xrtWsConnBinaryRefAsync(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
 /* 从任意线程复制、压缩并异步提交完整消息。 */
-XRT_API xfuture* xrtWsConnSendCompressedAsync(
+XWS_API xfuture* xrtWsConnSendCompressedAsync(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -1287,7 +1287,7 @@ XRT_API xfuture* xrtWsConnSendCompressedAsync(
 
 
 /* 从任意线程复制、压缩并异步提交 Text。 */
-XRT_API xfuture* xrtWsConnTextCompressedAsync(
+XWS_API xfuture* xrtWsConnTextCompressedAsync(
 	xwsconn* pConnection,
 	xstrview Text
 )
@@ -1305,7 +1305,7 @@ XRT_API xfuture* xrtWsConnTextCompressedAsync(
 
 
 /* 从任意线程复制、压缩并异步提交 Binary。 */
-XRT_API xfuture* xrtWsConnBinaryCompressedAsync(
+XWS_API xfuture* xrtWsConnBinaryCompressedAsync(
 	xwsconn* pConnection,
 	xbytesview Data
 )
@@ -1377,7 +1377,7 @@ static xfuture* __xrtWsConnControlAsync(
 
 
 /* 从任意线程复制并异步提交 Ping。 */
-XRT_API xfuture* xrtWsConnPingAsync(
+XWS_API xfuture* xrtWsConnPingAsync(
 	xwsconn* pConnection,
 	xbytesview Payload
 )
@@ -1392,7 +1392,7 @@ XRT_API xfuture* xrtWsConnPingAsync(
 
 
 /* 从任意线程复制并异步提交 Pong。 */
-XRT_API xfuture* xrtWsConnPongAsync(
+XWS_API xfuture* xrtWsConnPongAsync(
 	xwsconn* pConnection,
 	xbytesview Payload
 )
@@ -1407,7 +1407,7 @@ XRT_API xfuture* xrtWsConnPongAsync(
 
 
 /* 从任意线程预检并异步提交唯一 Close。 */
-XRT_API xfuture* xrtWsConnCloseAsync(
+XWS_API xfuture* xrtWsConnCloseAsync(
 	xwsconn* pConnection,
 	uint16 iCode,
 	xstrview Reason

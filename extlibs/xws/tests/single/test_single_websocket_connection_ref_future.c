@@ -1,15 +1,8 @@
-#define XWS_IMPLEMENTATION
-#include "../../include/xws/features.h"
-#include "../../../xhttp/include/xhttp/features.h"
-#ifndef XRT_IMPLEMENTATION
+#include "../../../xws/include/xws/features.h"
 #define XRT_IMPLEMENTATION
-#endif
 #include "../../../../single/xrt.h"
-#define XHTTP_IMPLEMENTATION
-#include "../../../../single/extlibs/xhttp.h"
+#define XWS_IMPLEMENTATION
 #include "../../../../single/extlibs/xws.h"
-
-
 
 /* 单头文件必须公开 Ref Future，并在提交失败时保留调用方所有权。 */
 static void testRelease(ptr pContext, cbytes pData, size_t iSize)

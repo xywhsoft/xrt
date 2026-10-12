@@ -1,0 +1,277 @@
+{
+	"schema": 1,
+	"product": "xws_group",
+	"dependency_manifests": [
+		"extlibs/xws/config/modules.json"
+	],
+	"module_prefix": "XWS_GROUP_MODULE_",
+	"single_header": "single/extlibs/xws-group.h",
+	"declaration_header": "single/extlibs/xws-group_decl.h",
+	"implementation_macro": "XWS_GROUP_IMPLEMENTATION",
+	"implementation_once_macro": "XWS_GROUP_IMPLEMENTATION_ONCE",
+	"single_guard": "XWS_GROUP_SINGLE_HEADER_H",
+	"single_marker": "XWS_GROUP_SINGLE_HEADER",
+	"declaration_guard": "XWS_GROUP_DECLARATIONS_H",
+	"declaration_marker": "XWS_GROUP_DECLARATIONS",
+	"package_consumer": "extlibs/xws-group/tests/package/test_consumer.c",
+	"product_root": "extlibs/xws-group",
+	"performance_config": "extlibs/xws-group/config/performance_profiles.json",
+	"size_config": "extlibs/xws-group/config/size_profiles.json",
+	"scope": {
+		"product": "xws_group",
+		"external_integrations": [
+			{
+				"name": "xlang",
+				"state": "deferred"
+			}
+		],
+		"systems": [
+			{
+				"name": "websocket_extension",
+				"state": "retained",
+				"source_roots": [
+					"websocket"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xws-group API 参考",
+		"function_prefix": "xrtWs",
+		"constant_prefix": "XWS_",
+		"type_prefix": "xws",
+		"guide": "../../README.md",
+		"output": "extlibs/xws-group/docs/api/reference.md"
+	},
+	"features_guard": "XWS_GROUP_FEATURES_H",
+	"features_header": "extlibs/xws-group/include/xws-group/features.h",
+	"include_dirs": [
+		"extlibs/xws-group/include"
+	],
+	"header_roots": [
+		"extlibs/xws-group/include",
+		"extlibs/xws-group/src/internal"
+	],
+	"modules": [
+		{
+			"name": "websocket_group",
+			"state": "implemented",
+			"feature": "XWS_GROUP_FEATURE_WEBSOCKET_GROUP",
+			"depends": [
+				"websocket_connection",
+				"set",
+				"mutex"
+			],
+			"public_headers": [
+				"extlibs/xws-group/include/xws-group/export.h",
+				"extlibs/xws-group/include/xrt/websocket_group.h"
+			],
+			"internal_headers": [
+				"extlibs/xws-group/src/internal/xrt_websocket_group.h"
+			],
+			"sources": [
+				"extlibs/xws-group/src/websocket/group.c"
+			],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xws-group/tests/single/test_single_websocket_group.c"
+			],
+			"examples": [
+				"extlibs/xws-group/examples/websocket/group/main.c"
+			],
+			"docs": [
+				"extlibs/xws-group/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_group_future",
+			"state": "implemented",
+			"feature": "XWS_GROUP_FEATURE_WEBSOCKET_GROUP_FUTURE",
+			"depends": [
+				"websocket_group",
+				"websocket_connection_ref_future",
+				"future"
+			],
+			"public_headers": [
+				"extlibs/xws-group/include/xws-group/export.h"
+			],
+			"internal_headers": [
+				"extlibs/xws-group/src/internal/xrt_websocket_group_future.h",
+				"extlibs/xws-group/include/xrt/detail/xws_group_wait.h"
+			],
+			"sources": [
+				"extlibs/xws-group/src/websocket/group_future.c",
+				"extlibs/xws-group/src/websocket/group_broadcast.c"
+			],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xws-group/tests/single/test_single_websocket_group_future.c"
+			],
+			"examples": [
+				"extlibs/xws-group/examples/websocket/group_future/main.c"
+			],
+			"docs": [
+				"extlibs/xws-group/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_group_future_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_group_future"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-group/tests/websocket/test_group_future.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-group/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_group_future_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_group_future",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-group/tests/websocket/test_group_future_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-group/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_group_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_group",
+				"websocket_connection_future"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-group/tests/websocket/test_group.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-group/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_group_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_group_tests",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-group/tests/websocket/test_group_oom.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-group/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "xws_group",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_group",
+				"websocket_group_future"
+			],
+			"public_headers": [
+				"extlibs/xws-group/include/xws-group.h",
+				"extlibs/xws-group/include/xws-group/features.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xws-group/tests/single/test_single_xws_group.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-group/README.md",
+				"extlibs/xws-group/docs/api/websocket.md",
+				"extlibs/xws-group/docs/api/reference.md",
+				"extlibs/xws-group/docs/api/websocket_group.md"
+			],
+			"legacy": [],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xws-group/config/performance_profiles.json",
+				"extlibs/xws-group/bench/bench_group_snapshot.c"
+			]
+		},
+		{
+			"name": "xws_group_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"xws_group",
+				"websocket_group_future_tests",
+				"websocket_group_future_oom_tests",
+				"websocket_group_tests",
+				"websocket_group_oom_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-group/tests/websocket/test_group_future.c",
+				"extlibs/xws-group/tests/websocket/test_group_future_oom.c",
+				"extlibs/xws-group/tests/websocket/test_group.c",
+				"extlibs/xws-group/tests/websocket/test_group_oom.c"
+			],
+			"single_tests": [
+				"extlibs/xws-group/tests/single/test_single_websocket_group.c",
+				"extlibs/xws-group/tests/single/test_single_websocket_group_future.c",
+				"extlibs/xws-group/tests/single/test_single_xws_group.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-group/README.md"
+			],
+			"legacy": [],
+			"single_test_owners": {
+				"extlibs/xws-group/tests/single/test_single_websocket_group.c": "websocket_group",
+				"extlibs/xws-group/tests/single/test_single_websocket_group_future.c": "websocket_group_future",
+				"extlibs/xws-group/tests/single/test_single_xws_group.c": "xws_group"
+			},
+			"collect_dependency_assets": [
+				"examples"
+			]
+		}
+	],
+	"umbrella_header": "xws-group.h",
+	"api_macro": "XWS_GROUP_API",
+	"package_ownership": "separate"
+}

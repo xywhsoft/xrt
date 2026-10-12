@@ -5,7 +5,7 @@ title: xws (Part 1): Connection Management and the Full-Chain Tour
 volume: 卷十一 其他扩展库
 type: practice
 lead: xwsconn takes over handshaked connections, a seven-line full-chain tour, the Future/coroutine bridge, pause/resume flow control, and a protocol-driven close — the connection layer of the WebSocket extension library.
-api: xws-websocket_runtime, xws-websocket_http, net
+api: xws-websocket_runtime, xws-server-websocket_server, net
 ---
 
 ## Orientation
@@ -53,11 +53,11 @@ Normal close order: send or answer Close → stop sending new data → wait for 
 
 The program below is from `examples/websocket/connection_tour` — a full-feature self-check of the connection layer after an xhttp server and client loop back into each other:
 
-```embed path="extlibs/xws/examples/websocket/connection_tour/main.c" title="extlibs/xws/examples/websocket/connection_tour/main.c"
+```embed path="extlibs/xws-server/examples/websocket/connection_tour/main.c" title="extlibs/xws-server/examples/websocket/connection_tour/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/connection_tour/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-server/config/modules.json --suite websocket_connection_tour --no-single --exclude-test "*"
 conn-tour: offline request builders ok
 conn-tour: live pair upgraded, introspection ok
 conn-tour: sync send x9 + writer-take delivered ok
@@ -77,7 +77,7 @@ The second program is from `examples/websocket/connection_ref` — the ownership
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/connection_ref/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws/config/modules.json --suite websocket_connection_ref --no-single --exclude-test "*"
 WebSocket Connection reference example is ready
 ```
 
@@ -153,7 +153,7 @@ xrtWsConnText(pConn, Msg);   /* not the owning Worker: a race */
 
 ```c good
 /* cross-thread: go through the Future/async family (dispatched to the connection's Worker internally) */
-/* see the websocket_http_future module: the waiting semantics of the ConnectAsync family */
+/* see the websocket_client_future module: the waiting semantics of the ConnectAsync family */
 ```
 
 ## Exercises

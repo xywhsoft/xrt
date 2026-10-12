@@ -1,106 +1,71 @@
-# WebSocket 核心设计
+# WebSocket 扩展边界
 
-## 目标
+四个扩展复用现有实现，不增加新的业务功能。
 
-WebSocket 核心在不依赖 HTTP 客户端/服务器框架的前提下，优先冻结握手、帧、消息、
-压缩和关闭协议。连接、背压、异步和分组实现当前保留，但仍须在下一阶段证明它们属于
-不可替代的通用快速路径；高级客户端、服务器与路由属于 `xws`。
+| 产品 | 职责 | 不承担的能力 |
+| --- | --- | --- |
+| XRT WebSocket core | 帧、掩码、消息协议、UTF-8、Close、握手原语、压缩原语及已有底层 Stream | 应用会话、路由和广播 |
+| xws | 已建立 TCP/TLS 连接、消息收发、背压、Writer、引用、Future、关闭 | HTTP、拨号、监听、路由、连接集合 |
+| xws-client | HTTP 客户端握手、响应验证、协商、接管连接 | 监听、服务端 Upgrade、路由和广播 |
+| xws-server | HTTP 服务端 Upgrade、协商、连接交接；可选 Router 集成 | 客户端拨号和广播 |
+| xws-group | 成员引用、快照、广播、逐连接结果与取消 | HTTP、鉴权、房间和业务消息 |
 
-## 层次
-
-```text
-frame / mask / close
-        |
-message state machine
-        |
-optional permessage-deflate
-        |
-established connection + writer + Future + group
-        |
-caller-provided TCP or TLS stream
+```mermaid
+flowchart BT
+    xws --> XRT
+    xws_client["xws-client"] --> xws
+    xws_client --> xhttp_client["xhttp-client"]
+    xws_server["xws-server"] --> xws
+    xws_server --> xhttp_server["xhttp-server"]
+    xws_group["xws-group"] --> xws
 ```
 
-握手工具位于旁路：它读取 HTTP/1 parser 的字段并产生校验结果，成功后把传输所有权
-交给 established connection。
+客户端和服务端成功后交付同一类 `xwsconn`。TLS、压缩、Future 与 Writer 是所属库的可选模块，不为每个变体新建产品。Router 只属于 xws-server 的可选模块。
 
-## 核心不变量
+## Upgrade 交接
 
-- 客户端发送必须 mask，服务端发送禁止 mask；
-- 控制帧必须 FIN 且 payload 不超过 125；
-- continuation 必须与活动消息匹配；
-- 文本消息跨帧保持增量 UTF-8 状态；
-- RSV 位只能由成功协商的扩展占用；
-- Close 后不再开始数据消息；
-- 协议错误不能继续把后续字节交给应用；
-- 已受理引用在所有成功、失败和取消路径恰好释放一次。
+1. HTTP 层拥有并驱动 Stream，解析和验证握手。
+2. 握手成功后停止 HTTP 消费，向 xws 转移一个调用方拥有引用。
+3. 未消费输入保留在 Stream 缓冲，xws 在下一次 Worker 循环解析，早到帧不会丢失。
+4. 同步失败不转移输入传输；异步失败、取消与最终结果释放遵守原拥有引用契约。
 
-## 接收
+不得同时启动两套读取驱动；同一个引用不得释放两次。握手、拒绝响应、早到帧、取消、内存失败、TLS、压缩和关闭测试都随实现迁移。
 
-网络流发布字节片段，帧 parser 消费 Header，消息层消费 payload。任何一层都不要求
-完整消息驻留内存。
+## Future 结果
 
-应用回调变慢时暂停网络读取。恢复必须回到所属 worker，不能从任意线程并发推进同一
-parser。累计消息长度、压缩后输入和解压后输出分别受限。
+旧 `xwsopenresult` 混合服务端连接和客户端 HTTP Response，导致两个产品共享条件结构。现在客户端返回 `xwsclientresult` / `xrtWsClientResult*`，服务端返回 `xwsserverresult` / `xrtWsServerResult*`。两者只管理自己交付的资源，不新增通用载荷或插件机制。
 
-## 发送
+公开配置与握手快照保持固定布局；可选实现仍被功能宏裁剪。不透明连接布局由 xws 私有维护，其他产品通过公开接口访问，不导入其私有头。
 
-短帧复制发送；大消息使用 ref/take/buffer；writer 负责分片和压缩状态。所有路径最终
-进入网络流的有界队列，因此共享同一 high/low watermark、最大排队字节和 drain。
+## 构建
 
-不能为了广播或 Future 再建立无界中间队列。组广播逐连接执行受理，失败结果必须能
-区分 AGAIN、关闭、取消和真实 I/O 错误。
+每个产品维护自己的清单、入口、单头、声明头、测试、示例和验证配置。xws 与 xws-group 不声明任何 HTTP 清单依赖。xws-server 清单包含 xws-client 供集成测试使用，生产模块闭包仍只包含服务端所需能力。
 
-## 压缩
+集成测试属于 xws-server，连接测试属于 xws，客户端独立测试属于 xws-client，成员与广播测试属于 xws-group。最终宿主只提供一份 XRT 与每个所选依赖实现。
 
-协商器严格验证 RFC 7692 参数。运行时按方向保存独立窗口和 context takeover 状态，
-在消息边界处理同步刷新尾和字典复位。
+## 改造验证（2026-10-12）
 
-压缩输出可直接进入 writer，解压输出可直接进入消息回调。两者都不聚合完整消息。
+本地环境为 Windows x64、GCC 16.2、C11，编译启用 `-Wall -Wextra -Werror`。以下门禁均已通过：
 
-## TLS
+- 四个 `*_tests` 套件：58 个不同的模块化测试、27 个不同的单头测试；覆盖 TCP/TLS、压缩、Writer、Ref/Copy/Take、Future、内存失败、Upgrade 早到数据、取消、关闭、路由及广播。
+- 16 个原有示例编译并运行；连接巡检保留真实握手、发送、流控和关闭验证。
+- Python 原始帧客户端到 XRT 服务端、XRT 客户端到 Python 服务端的双向互操作。
+- Select 与 Windows IOCP 各 1000 轮重连。
+- 四库分别编译并链接同一份 Core；静态库和独立 DLL 的四个消费者均能运行。DLL 只导出自己的 API，归档不嵌入 Core 或 HTTP 的实现。
+- 七项产品边界与公共布局检查、四项单头边界检查、最小模块依赖裁剪检查；全部 API 文档与发布成熟度检查。
+- 四个性能冒烟配置和九个体积配置；禁止的其他产品符号均为零。冒烟结果用于确认可运行，不用于宣称性能提升。
 
-WebSocket 连接只接管已完成握手的 `xtlsstream`。证书、SNI、ALPN、恢复和代理属于
-通用 TLS/网络层。TLS 和普通 TCP 必须具有一致的发送所有权、背压和关闭语义。
+本地未执行 Linux、MSVC、TCC 门禁；对应产品已接入现有 CI。该记录只验证 WebSocket 改造，HTTP 源码与架构由另一个线程负责。
 
-## HTTP Upgrade
+基础 xws 从原来的 15 个 C 实现文件收敛为 5 个；全部四库合计 16 个 C 实现文件，增加的一个来自客户端与服务端结果对象分别归属。TLS、压缩、Writer 和 Future 保留为可选模块，没有新增房间、鉴权、持久化、重连策略或插件框架。
 
-XRT 核心公开握手计算和字段验证，不公开绑定某个 HTTP server/client 对象的适配器。
+复现完整回归可依次执行（例）：
 
-上层流程固定为：
+```powershell
+python tools/build.py --manifest extlibs/xws/config/modules.json --suite xws_tests --arch x64 --no-examples --jobs 1
+python tools/build.py --manifest extlibs/xws-client/config/modules.json --suite xws_client_tests --arch x64 --no-examples --jobs 1
+python tools/build.py --manifest extlibs/xws-server/config/modules.json --suite xws_server_tests --arch x64 --no-examples --jobs 1
+python tools/build.py --manifest extlibs/xws-group/config/modules.json --suite xws_group_tests --arch x64 --no-examples --jobs 1
+```
 
-1. HTTP/1 parser 完成 Header；
-2. 验证方法、版本、Upgrade、Connection、Key/Accept、版本、协议和扩展；
-3. 写出 101 或验证 101；
-4. 停止 HTTP body reader；
-5. 把网络流及未消费字节交给 WebSocket connection。
-
-`xws` 可以把这五步包装成客户端/服务器便利入口，但不得隐藏未消费字节、错误原因或
-传输所有权。
-
-## Future 与取消
-
-Future 包装 established connection 操作，不创建隐藏引擎。取消等待和取消底层操作
-必须区分；取消发送前若数据已受理，连接仍负责最终释放。
-
-协程只使用通用 Future/Wait 桥，不在 WebSocket 中实现独立调度器。
-
-## 关闭
-
-正常关闭遵循 Close 握手、截止时间、半关闭和传输终态。协议错误可发送合适 Close code
-后 abort；底层已经不可写时直接 abort。任何关闭路径都必须停止新发送、解除读取暂停、
-完成等待者并释放队列。
-
-## 扩展边界
-
-`extlibs/xws/archive` 保存迁出的客户端、服务器、HTTP Future、路由和代理适配资产。
-后续 `xws` 重建时必须只依赖公开 HTTP/1、网络、TLS 和 WebSocket 核心，不能复制帧、
-握手、压缩或错误处理实现。
-
-## 发布门槛
-
-- 帧、消息、Close、UTF-8、mask 和 64 位长度边界；
-- 任意分片与控制帧穿插；
-- permessage-deflate 参数矩阵、上下文复用和膨胀限制；
-- copy/ref/take/writer 的所有权和背压；
-- TCP/TLS、Future、协程、连接组和关闭竞态；
-- 协议 fuzz、固定互操作向量、单头文件和裁剪构建。
+本次原始记录位于 `out/*-verified-final.log`、`out/*-examples-final.log`、`out/ws-interop-final.log`、`out/ws-stress-*-final.log`、`out/ws-package-*-separate.log`、`out/ws-layout-final.log`、`out/ws-single-boundaries-final.log`。这些是本地生成产物，不作为源码提交。

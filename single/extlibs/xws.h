@@ -59,35 +59,16 @@
 #ifndef XWS_FEATURES_H
 #define XWS_FEATURES_H
 
-/* websocket_group_future 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_GROUP_FUTURE)
-#ifndef XWS_FEATURE_WEBSOCKET_GROUP_FUTURE
-#define XWS_FEATURE_WEBSOCKET_GROUP_FUTURE
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_GROUP
-#define XWS_MODULE_WEBSOCKET_GROUP
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_CONNECTION_REF_FUTURE
-#define XWS_MODULE_WEBSOCKET_CONNECTION_REF_FUTURE
-#endif
-#ifndef XRT_MODULE_FUTURE
-#define XRT_MODULE_FUTURE
-#endif
-#endif
-
-/* websocket_group 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_GROUP)
-#ifndef XWS_FEATURE_WEBSOCKET_GROUP
-#define XWS_FEATURE_WEBSOCKET_GROUP
+/* websocket_connection_tls 及其直接依赖。 */
+#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_CONNECTION_TLS)
+#ifndef XWS_FEATURE_WEBSOCKET_CONNECTION_TLS
+#define XWS_FEATURE_WEBSOCKET_CONNECTION_TLS
 #endif
 #ifndef XWS_MODULE_WEBSOCKET_CONNECTION
 #define XWS_MODULE_WEBSOCKET_CONNECTION
 #endif
-#ifndef XRT_MODULE_SET
-#define XRT_MODULE_SET
-#endif
-#ifndef XRT_MODULE_MUTEX
-#define XRT_MODULE_MUTEX
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
 #endif
 #endif
 
@@ -143,74 +124,6 @@
 #endif
 #endif
 
-/* websocket_writer 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_WRITER)
-#ifndef XWS_FEATURE_WEBSOCKET_WRITER
-#define XWS_FEATURE_WEBSOCKET_WRITER
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_CONNECTION
-#define XWS_MODULE_WEBSOCKET_CONNECTION
-#endif
-#endif
-
-/* websocket_connection_ref 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_CONNECTION_REF)
-#ifndef XWS_FEATURE_WEBSOCKET_CONNECTION_REF
-#define XWS_FEATURE_WEBSOCKET_CONNECTION_REF
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_CONNECTION
-#define XWS_MODULE_WEBSOCKET_CONNECTION
-#endif
-#endif
-
-/* websocket_client_deflate 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_CLIENT_DEFLATE)
-#ifndef XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE
-#define XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_CLIENT
-#define XWS_MODULE_WEBSOCKET_CLIENT
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_CONNECTION_DEFLATE
-#define XWS_MODULE_WEBSOCKET_CONNECTION_DEFLATE
-#endif
-#ifndef XRT_MODULE_WEBSOCKET_DEFLATE
-#define XRT_MODULE_WEBSOCKET_DEFLATE
-#endif
-#endif
-
-/* websocket_client_future 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_CLIENT_FUTURE)
-#ifndef XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE
-#define XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_CLIENT
-#define XWS_MODULE_WEBSOCKET_CLIENT
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_HTTP_FUTURE
-#define XWS_MODULE_WEBSOCKET_HTTP_FUTURE
-#endif
-#ifndef XRT_MODULE_FUTURE_BRIDGE
-#define XRT_MODULE_FUTURE_BRIDGE
-#endif
-#endif
-
-/* websocket_server_deflate 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_SERVER_DEFLATE)
-#ifndef XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE
-#define XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_SERVER
-#define XWS_MODULE_WEBSOCKET_SERVER
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_CONNECTION_DEFLATE
-#define XWS_MODULE_WEBSOCKET_CONNECTION_DEFLATE
-#endif
-#ifndef XRT_MODULE_WEBSOCKET_DEFLATE
-#define XRT_MODULE_WEBSOCKET_DEFLATE
-#endif
-#endif
-
 /* websocket_connection_deflate 及其直接依赖。 */
 #if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_CONNECTION_DEFLATE)
 #ifndef XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE
@@ -227,125 +140,20 @@
 #endif
 #endif
 
-/* websocket_server_future 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_SERVER_FUTURE)
-#ifndef XWS_FEATURE_WEBSOCKET_SERVER_FUTURE
-#define XWS_FEATURE_WEBSOCKET_SERVER_FUTURE
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_SERVER
-#define XWS_MODULE_WEBSOCKET_SERVER
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_HTTP_FUTURE
-#define XWS_MODULE_WEBSOCKET_HTTP_FUTURE
-#endif
-#ifndef XRT_MODULE_FUTURE_BRIDGE
-#define XRT_MODULE_FUTURE_BRIDGE
-#endif
-#endif
-
-/* websocket_client_https 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_CLIENT_HTTPS)
-#ifndef XWS_FEATURE_WEBSOCKET_CLIENT_HTTPS
-#define XWS_FEATURE_WEBSOCKET_CLIENT_HTTPS
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_CLIENT
-#define XWS_MODULE_WEBSOCKET_CLIENT
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_CONNECTION_TLS
-#define XWS_MODULE_WEBSOCKET_CONNECTION_TLS
-#endif
-#ifndef XHTTP_MODULE_HTTP_CLIENT_HTTPS
-#define XHTTP_MODULE_HTTP_CLIENT_HTTPS
-#endif
-#endif
-
-/* websocket_server_tls 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_SERVER_TLS)
-#ifndef XWS_FEATURE_WEBSOCKET_SERVER_TLS
-#define XWS_FEATURE_WEBSOCKET_SERVER_TLS
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_SERVER
-#define XWS_MODULE_WEBSOCKET_SERVER
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_CONNECTION_TLS
-#define XWS_MODULE_WEBSOCKET_CONNECTION_TLS
-#endif
-#ifndef XHTTP_MODULE_HTTP_SERVER_TLS
-#define XHTTP_MODULE_HTTP_SERVER_TLS
-#endif
-#endif
-
-/* websocket_connection_tls 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_CONNECTION_TLS)
-#ifndef XWS_FEATURE_WEBSOCKET_CONNECTION_TLS
-#define XWS_FEATURE_WEBSOCKET_CONNECTION_TLS
+/* websocket_writer 及其直接依赖。 */
+#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_WRITER)
+#ifndef XWS_FEATURE_WEBSOCKET_WRITER
+#define XWS_FEATURE_WEBSOCKET_WRITER
 #endif
 #ifndef XWS_MODULE_WEBSOCKET_CONNECTION
 #define XWS_MODULE_WEBSOCKET_CONNECTION
 #endif
-#ifndef XRT_MODULE_TLS_STREAM
-#define XRT_MODULE_TLS_STREAM
-#endif
 #endif
 
-/* websocket_client 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_CLIENT)
-#ifndef XWS_FEATURE_WEBSOCKET_CLIENT
-#define XWS_FEATURE_WEBSOCKET_CLIENT
-#endif
-#ifndef XRT_MODULE_WEBSOCKET_KEYGEN
-#define XRT_MODULE_WEBSOCKET_KEYGEN
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_CONNECTION
-#define XWS_MODULE_WEBSOCKET_CONNECTION
-#endif
-#ifndef XRT_MODULE_HTTP_UPGRADE
-#define XRT_MODULE_HTTP_UPGRADE
-#endif
-#ifndef XHTTP_MODULE_HTTP_CLIENT
-#define XHTTP_MODULE_HTTP_CLIENT
-#endif
-#endif
-
-/* websocket_server_router 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_SERVER_ROUTER)
-#ifndef XWS_FEATURE_WEBSOCKET_SERVER_ROUTER
-#define XWS_FEATURE_WEBSOCKET_SERVER_ROUTER
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_SERVER
-#define XWS_MODULE_WEBSOCKET_SERVER
-#endif
-#ifndef XHTTP_MODULE_HTTP_SERVER_ROUTER
-#define XHTTP_MODULE_HTTP_SERVER_ROUTER
-#endif
-#ifndef XHTTP_MODULE_HTTP_ORIGIN
-#define XHTTP_MODULE_HTTP_ORIGIN
-#endif
-#endif
-
-/* websocket_server 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_SERVER)
-#ifndef XWS_FEATURE_WEBSOCKET_SERVER
-#define XWS_FEATURE_WEBSOCKET_SERVER
-#endif
-#ifndef XRT_MODULE_WEBSOCKET_HANDSHAKE
-#define XRT_MODULE_WEBSOCKET_HANDSHAKE
-#endif
-#ifndef XWS_MODULE_WEBSOCKET_CONNECTION
-#define XWS_MODULE_WEBSOCKET_CONNECTION
-#endif
-#ifndef XRT_MODULE_HTTP_UPGRADE
-#define XRT_MODULE_HTTP_UPGRADE
-#endif
-#ifndef XHTTP_MODULE_HTTP_SERVER_UPGRADE
-#define XHTTP_MODULE_HTTP_SERVER_UPGRADE
-#endif
-#endif
-
-/* websocket_http_future 及其直接依赖。 */
-#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_HTTP_FUTURE)
-#ifndef XWS_FEATURE_WEBSOCKET_HTTP_FUTURE
-#define XWS_FEATURE_WEBSOCKET_HTTP_FUTURE
+/* websocket_connection_ref 及其直接依赖。 */
+#if defined(XWS_MODULE_ALL) || defined(XWS_MODULE_WEBSOCKET_CONNECTION_REF)
+#ifndef XWS_FEATURE_WEBSOCKET_CONNECTION_REF
+#define XWS_FEATURE_WEBSOCKET_CONNECTION_REF
 #endif
 #ifndef XWS_MODULE_WEBSOCKET_CONNECTION
 #define XWS_MODULE_WEBSOCKET_CONNECTION
@@ -372,6 +180,36 @@
 #endif
 
 #endif /* XWS_FEATURES_H */
+
+
+/* ========================================================================== */
+/* public: extlibs/xws/include/xws/export.h */
+/* ========================================================================== */
+
+#ifndef XWS_EXPORT_H
+#define XWS_EXPORT_H
+
+
+/* 独立动态库只导出本库接口，依赖由宿主共同链接。 */
+#if defined(_WIN32) || defined(_WIN64)
+ #if defined(XWS_BUILD_SHARED)
+  #define XWS_API __declspec(dllexport)
+ #elif defined(XWS_USE_SHARED)
+  #define XWS_API __declspec(dllimport)
+ #else
+  #define XWS_API
+ #endif
+#elif defined(__GNUC__) || defined(__clang__)
+ #if defined(XWS_BUILD_SHARED)
+  #define XWS_API __attribute__((visibility("default")))
+ #else
+  #define XWS_API
+ #endif
+#else
+ #define XWS_API
+#endif
+
+#endif
 
 
 /* ========================================================================== */
@@ -457,11 +295,9 @@
 #define XWS_CONN_SEND_LIMIT_DEFAULT ((size_t)1048576u)
 #define XWS_CONN_CONTROL_RESERVE_DEFAULT ((size_t)512u)
 #define XWS_CONN_CLOSE_TIMEOUT_DEFAULT INT64_C(5000)
-#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
-	#define XWS_CONN_ASYNC_BYTES_DEFAULT ((size_t)1048576u)
-	#define XWS_CONN_ASYNC_COUNT_DEFAULT UINT32_C(1024)
-	#define XWS_CONN_ASYNC_BATCH_DEFAULT UINT32_C(64)
-#endif
+#define XWS_CONN_ASYNC_BYTES_DEFAULT ((size_t)1048576u)
+#define XWS_CONN_ASYNC_COUNT_DEFAULT UINT32_C(1024)
+#define XWS_CONN_ASYNC_BATCH_DEFAULT UINT32_C(64)
 
 
 
@@ -530,17 +366,13 @@ typedef struct xwsconnconfig {
 	size_t ControlReserve;
 	int64 CloseTimeout;
 	bool AutoPong;
-	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
-		size_t AsyncBytesLimit;
-		uint32 AsyncCountLimit;
-		uint32 AsyncBatch;
-	#endif
-	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
-		xwsdeflate Deflate;
-		xwsinflaterconfig Inflater;
-		xwsdeflaterconfig Deflater;
-		bool DeflateEnabled;
-	#endif
+	size_t AsyncBytesLimit;
+	uint32 AsyncCountLimit;
+	uint32 AsyncBatch;
+	xwsdeflate Deflate;
+	xwsinflaterconfig Inflater;
+	xwsdeflaterconfig Deflater;
+	bool DeflateEnabled;
 } xwsconnconfig;
 
 
@@ -636,7 +468,7 @@ XRT_EXTERN_C_BEGIN
 	初始化服务端角色、1 MiB 收发上限、512 字节控制预算和五秒关闭超时。
 	pConfig 可以指向完整但未对齐的可写结构存储；失败时不修改该存储。
 */
-XRT_API void xrtWsConnConfigInit(xwsconnconfig* pConfig);
+XWS_API void xrtWsConnConfigInit(xwsconnconfig* pConfig);
 
 
 
@@ -644,9 +476,12 @@ XRT_API void xrtWsConnConfigInit(xwsconnconfig* pConfig);
 	无分配验证完整 Connection 配置；不会修改传入结构。
 	pConfig 及其 Protocol 视图都必须是完整有效范围，结构本身可以未对齐。
 */
-XRT_API bool xrtWsConnConfigValid(
+XWS_API bool xrtWsConnConfigValid(
 	const xwsconnconfig* pConfig
 );
+
+/* 验证不透明连接的完整地址范围；不修改连接或线程错误。 */
+XWS_API bool xrtWsConnValid(const xwsconn* pConnection);
 
 
 
@@ -658,7 +493,7 @@ XRT_API bool xrtWsConnConfigValid(
 	Config、Events 和 Protocol 内容在调用期间复制，调用返回后不再借用。
 	两个结构都可以位于完整但未对齐的只读存储。
 */
-XRT_API xwsconn* xrtWsConnAttach(
+XWS_API xwsconn* xrtWsConnAttach(
 	xnetstream* pStream,
 	const xwsconnconfig* pConfig,
 	const xwsconnevents* pEvents,
@@ -675,7 +510,7 @@ XRT_API xwsconn* xrtWsConnAttach(
 	Config、Events 和 Protocol 内容在调用期间复制，调用返回后不再借用。
 	两个结构都可以位于完整但未对齐的只读存储。
 */
-XRT_API xwsconn* xrtWsConnAttachTls(
+XWS_API xwsconn* xrtWsConnAttachTls(
 	xtlsstream* pStream,
 	const xwsconnconfig* pConfig,
 	const xwsconnevents* pEvents,
@@ -686,27 +521,27 @@ XRT_API xwsconn* xrtWsConnAttachTls(
 
 
 /* 增加 Connection 引用并返回原指针。 */
-XRT_API xwsconn* xrtWsConnRef(xwsconn* pConnection);
+XWS_API xwsconn* xrtWsConnRef(xwsconn* pConnection);
 
 
 
 /* 释放 Connection 引用；关闭或中止传输必须另行请求。 */
-XRT_API void xrtWsConnDestroy(xwsconn* pConnection);
+XWS_API void xrtWsConnDestroy(xwsconn* pConnection);
 
 
 
 /* 返回并发可读的会话状态。 */
-XRT_API xwsconnstate xrtWsConnState(const xwsconn* pConnection);
+XWS_API xwsconnstate xrtWsConnState(const xwsconn* pConnection);
 
 
 
 /* 返回建立连接时固定的本端角色。 */
-XRT_API xwsrole xrtWsConnRole(const xwsconn* pConnection);
+XWS_API xwsrole xrtWsConnRole(const xwsconn* pConnection);
 
 
 
 /* 返回 Connection 拥有的已协商子协议快照。 */
-XRT_API xstrview xrtWsConnProtocol(
+XWS_API xstrview xrtWsConnProtocol(
 	const xwsconn* pConnection
 );
 
@@ -719,7 +554,7 @@ XRT_API xstrview xrtWsConnProtocol(
 	pDeflate 可以未对齐，但必须是与 Connection 所有存储分离的完整可写范围；
 	失败时不修改输出。
 */
-XRT_API bool xrtWsConnDeflate(
+XWS_API bool xrtWsConnDeflate(
 	const xwsconn* pConnection,
 	xwsdeflate* pDeflate
 );
@@ -728,39 +563,39 @@ XRT_API bool xrtWsConnDeflate(
 
 
 /* 返回传输所属的借用 Worker。 */
-XRT_API xnetworker* xrtWsConnWorker(const xwsconn* pConnection);
+XWS_API xnetworker* xrtWsConnWorker(const xwsconn* pConnection);
 
 
 
 /* 在所属 Worker 上借用 TCP Stream；TLS 会话返回空指针。 */
-XRT_API xnetstream* xrtWsConnTcp(const xwsconn* pConnection);
+XWS_API xnetstream* xrtWsConnTcp(const xwsconn* pConnection);
 
 
 
 /* 从任意线程取得 TCP Stream 强引用；调用方最终 Destroy。 */
-XRT_API xnetstream* xrtWsConnTcpRef(const xwsconn* pConnection);
+XWS_API xnetstream* xrtWsConnTcpRef(const xwsconn* pConnection);
 
 
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 /* 在所属 Worker 上借用 TLS Stream；TCP 会话返回空指针。 */
-XRT_API xtlsstream* xrtWsConnTls(const xwsconn* pConnection);
+XWS_API xtlsstream* xrtWsConnTls(const xwsconn* pConnection);
 
 
 
 /* 从任意线程取得 TLS Stream 强引用；调用方最终 Destroy。 */
-XRT_API xtlsstream* xrtWsConnTlsRef(const xwsconn* pConnection);
+XWS_API xtlsstream* xrtWsConnTlsRef(const xwsconn* pConnection);
 #endif
 
 
 
 /* 返回 WebSocket 与底层传输当前待发字节的并发快照。 */
-XRT_API size_t xrtWsConnPending(const xwsconn* pConnection);
+XWS_API size_t xrtWsConnPending(const xwsconn* pConnection);
 
 
 
 /* 返回普通数据当前仍可受理的硬预算快照。 */
-XRT_API size_t xrtWsConnWritable(const xwsconn* pConnection);
+XWS_API size_t xrtWsConnWritable(const xwsconn* pConnection);
 
 
 
@@ -768,7 +603,7 @@ XRT_API size_t xrtWsConnWritable(const xwsconn* pConnection);
 	暂停应用消息读取。
 	可以从任意线程调用；当前回调分块完成后不再发布后续消息事件。
 */
-XRT_API void xrtWsConnPause(xwsconn* pConnection);
+XWS_API void xrtWsConnPause(xwsconn* pConnection);
 
 
 
@@ -776,12 +611,12 @@ XRT_API void xrtWsConnPause(xwsconn* pConnection);
 	恢复应用消息读取并投递一次所属 Worker 驱动。
 	已关闭连接返回 false；关闭握手中的连接允许恢复协议读取。
 */
-XRT_API bool xrtWsConnResume(xwsconn* pConnection);
+XWS_API bool xrtWsConnResume(xwsconn* pConnection);
 
 
 
 /* 返回接收侧当前是否被应用暂停的并发快照。 */
-XRT_API bool xrtWsConnPaused(const xwsconn* pConnection);
+XWS_API bool xrtWsConnPaused(const xwsconn* pConnection);
 
 
 
@@ -791,7 +626,7 @@ XRT_API bool xrtWsConnPaused(const xwsconn* pConnection);
 	单帧永久超过 WebSocket 或 TCP 硬容量返回 ERROR 和 XERR_RANGE。
 	Payload 必须是完整且不发生地址回绕的只读范围，返回前已经完成复制。
 */
-XRT_API xnetresult xrtWsConnSend(
+XWS_API xnetresult xrtWsConnSend(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -800,7 +635,7 @@ XRT_API xnetresult xrtWsConnSend(
 
 
 /* 发送一条完整 UTF-8 Text 消息。 */
-XRT_API xnetresult xrtWsConnText(
+XWS_API xnetresult xrtWsConnText(
 	xwsconn* pConnection,
 	xstrview Text
 );
@@ -808,7 +643,7 @@ XRT_API xnetresult xrtWsConnText(
 
 
 /* 发送一条完整 Binary 消息。 */
-XRT_API xnetresult xrtWsConnBinary(
+XWS_API xnetresult xrtWsConnBinary(
 	xwsconn* pConnection,
 	xbytesview Data
 );
@@ -822,7 +657,7 @@ XRT_API xnetresult xrtWsConnBinary(
 	Ref 可以未对齐，但结构和数据必须是完整范围，且都不能覆盖 Connection。
 	空负载不接管所有权，应改用普通 Send；失败不会调用 Release。
 */
-XRT_API xnetresult xrtWsConnSendRef(
+XWS_API xnetresult xrtWsConnSendRef(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	const xnetref* pRef
@@ -831,7 +666,7 @@ XRT_API xnetresult xrtWsConnSendRef(
 
 
 /* 发送一条所有权 UTF-8 Text 消息。 */
-XRT_API xnetresult xrtWsConnTextRef(
+XWS_API xnetresult xrtWsConnTextRef(
 	xwsconn* pConnection,
 	const xnetref* pRef
 );
@@ -839,7 +674,7 @@ XRT_API xnetresult xrtWsConnTextRef(
 
 
 /* 发送一条所有权 Binary 消息。 */
-XRT_API xnetresult xrtWsConnBinaryRef(
+XWS_API xnetresult xrtWsConnBinaryRef(
 	xwsconn* pConnection,
 	const xnetref* pRef
 );
@@ -850,7 +685,7 @@ XRT_API xnetresult xrtWsConnBinaryRef(
 	在所属 Worker 上发送并接管一段 xrtMalloc 内存。
 	仅返回 OK 时由 Connection 最终 xrtFree；空负载应改用普通 Send。
 */
-XRT_API xnetresult xrtWsConnSendTake(
+XWS_API xnetresult xrtWsConnSendTake(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	ptr pData,
@@ -860,7 +695,7 @@ XRT_API xnetresult xrtWsConnSendTake(
 
 
 /* 发送并接管一段 xrtMalloc UTF-8 Text。 */
-XRT_API xnetresult xrtWsConnTextTake(
+XWS_API xnetresult xrtWsConnTextTake(
 	xwsconn* pConnection,
 	str sText,
 	size_t iSize
@@ -869,7 +704,7 @@ XRT_API xnetresult xrtWsConnTextTake(
 
 
 /* 发送并接管一段 xrtMalloc Binary。 */
-XRT_API xnetresult xrtWsConnBinaryTake(
+XWS_API xnetresult xrtWsConnBinaryTake(
 	xwsconn* pConnection,
 	bytes pData,
 	size_t iSize
@@ -883,7 +718,7 @@ XRT_API xnetresult xrtWsConnBinaryTake(
 	在所属 Worker 上开始一条未压缩的分片 Text 或 Binary 消息。
 	同一 Connection 同时只能存在一个 Writer；失败返回空指针并设置错误。
 */
-XRT_API xwswriter* xrtWsConnBegin(
+XWS_API xwswriter* xrtWsConnBegin(
 	xwsconn* pConnection,
 	xwsopcode Opcode
 );
@@ -891,14 +726,14 @@ XRT_API xwswriter* xrtWsConnBegin(
 
 
 /* 开始一条未压缩的分片 UTF-8 Text 消息。 */
-XRT_API xwswriter* xrtWsConnBeginText(
+XWS_API xwswriter* xrtWsConnBeginText(
 	xwsconn* pConnection
 );
 
 
 
 /* 开始一条未压缩的分片 Binary 消息。 */
-XRT_API xwswriter* xrtWsConnBeginBinary(
+XWS_API xwswriter* xrtWsConnBeginBinary(
 	xwsconn* pConnection
 );
 
@@ -910,7 +745,7 @@ XRT_API xwswriter* xrtWsConnBeginBinary(
 	每次 Write 都独立建立同步边界，因此成功返回后对应线路帧已被传输层受理。
 	AGAIN、永久容量和 OOM 不推进 Writer；半条消息后的编码或传输故障会终止会话。
 */
-XRT_API xwswriter* xrtWsConnBeginCompressed(
+XWS_API xwswriter* xrtWsConnBeginCompressed(
 	xwsconn* pConnection,
 	xwsopcode Opcode
 );
@@ -918,14 +753,14 @@ XRT_API xwswriter* xrtWsConnBeginCompressed(
 
 
 /* 开始一条压缩分片 UTF-8 Text 消息。 */
-XRT_API xwswriter* xrtWsConnBeginTextCompressed(
+XWS_API xwswriter* xrtWsConnBeginTextCompressed(
 	xwsconn* pConnection
 );
 
 
 
 /* 开始一条压缩分片 Binary 消息。 */
-XRT_API xwswriter* xrtWsConnBeginBinaryCompressed(
+XWS_API xwswriter* xrtWsConnBeginBinaryCompressed(
 	xwsconn* pConnection
 );
 #endif
@@ -937,7 +772,7 @@ XRT_API xwswriter* xrtWsConnBeginBinaryCompressed(
 	仅返回 OK 时推进消息大小、UTF-8 和首帧状态；AGAIN 可原样重试。
 	Writer 和 Data 必须是完整且分离的范围；参数错误不推进 Writer。
 */
-XRT_API xnetresult xrtWsWriterWrite(
+XWS_API xnetresult xrtWsWriterWrite(
 	xwswriter* pWriter,
 	xbytesview Data
 );
@@ -949,7 +784,7 @@ XRT_API xnetresult xrtWsWriterWrite(
 	成功后释放 Connection 的 Writer 独占权，但对象仍需 Destroy。
 	Writer 和 Data 必须是完整且分离的范围；参数错误不推进 Writer。
 */
-XRT_API xnetresult xrtWsWriterFinish(
+XWS_API xnetresult xrtWsWriterFinish(
 	xwswriter* pWriter,
 	xbytesview Data
 );
@@ -962,7 +797,7 @@ XRT_API xnetresult xrtWsWriterFinish(
 	仅返回 OK 时接管 Ref；Release 可能在返回前执行，也可能在线路发送后执行。
 	Ref 可以未对齐，但其结构和数据都必须是完整范围，并且 Ref 不能覆盖 Writer。
 */
-XRT_API xnetresult xrtWsWriterWriteRef(
+XWS_API xnetresult xrtWsWriterWriteRef(
 	xwswriter* pWriter,
 	const xnetref* pRef
 );
@@ -973,7 +808,7 @@ XRT_API xnetresult xrtWsWriterWriteRef(
 	提交最终所有权分片；失败时 Ref 所有权保持不变。
 	Ref 可以未对齐，但其结构和数据都必须是完整范围，并且 Ref 不能覆盖 Writer。
 */
-XRT_API xnetresult xrtWsWriterFinishRef(
+XWS_API xnetresult xrtWsWriterFinishRef(
 	xwswriter* pWriter,
 	const xnetref* pRef
 );
@@ -981,7 +816,7 @@ XRT_API xnetresult xrtWsWriterFinishRef(
 
 
 /* 提交并接管一个非空 xrtMalloc 分片。 */
-XRT_API xnetresult xrtWsWriterWriteTake(
+XWS_API xnetresult xrtWsWriterWriteTake(
 	xwswriter* pWriter,
 	ptr pData,
 	size_t iSize
@@ -990,7 +825,7 @@ XRT_API xnetresult xrtWsWriterWriteTake(
 
 
 /* 提交并接管一个非空 xrtMalloc 最终分片。 */
-XRT_API xnetresult xrtWsWriterFinishTake(
+XWS_API xnetresult xrtWsWriterFinishTake(
 	xwswriter* pWriter,
 	ptr pData,
 	size_t iSize
@@ -1000,7 +835,7 @@ XRT_API xnetresult xrtWsWriterFinishTake(
 
 
 /* 返回 Writer 是否已经成功提交最终分片；空指针返回 false，回绕范围设置参数错误。 */
-XRT_API bool xrtWsWriterIsFinished(
+XWS_API bool xrtWsWriterIsFinished(
 	const xwswriter* pWriter
 );
 
@@ -1011,7 +846,7 @@ XRT_API bool xrtWsWriterIsFinished(
 	放弃已经开始但未结束的消息会尝试发送 1011 Close，失败则中止传输。
 	空指针无操作；回绕对象范围只设置参数错误。
 */
-XRT_API void xrtWsWriterDestroy(
+XWS_API void xrtWsWriterDestroy(
 	xwswriter* pWriter
 );
 #endif
@@ -1023,7 +858,7 @@ XRT_API void xrtWsWriterDestroy(
 	压缩并发送一条完整 Text 或 Binary 消息。
 	失败不会让未发送的压缩上下文影响下一条消息。
 */
-XRT_API xnetresult xrtWsConnSendCompressed(
+XWS_API xnetresult xrtWsConnSendCompressed(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -1032,7 +867,7 @@ XRT_API xnetresult xrtWsConnSendCompressed(
 
 
 /* 压缩并发送一条完整 UTF-8 Text 消息。 */
-XRT_API xnetresult xrtWsConnTextCompressed(
+XWS_API xnetresult xrtWsConnTextCompressed(
 	xwsconn* pConnection,
 	xstrview Text
 );
@@ -1040,7 +875,7 @@ XRT_API xnetresult xrtWsConnTextCompressed(
 
 
 /* 压缩并发送一条完整 Binary 消息。 */
-XRT_API xnetresult xrtWsConnBinaryCompressed(
+XWS_API xnetresult xrtWsConnBinaryCompressed(
 	xwsconn* pConnection,
 	xbytesview Data
 );
@@ -1052,7 +887,7 @@ XRT_API xnetresult xrtWsConnBinaryCompressed(
 	发送 Ping 控制帧；Payload 最多 125 字节。
 	控制帧可以使用普通数据不可占用的预留预算。
 */
-XRT_API xnetresult xrtWsConnPing(
+XWS_API xnetresult xrtWsConnPing(
 	xwsconn* pConnection,
 	xbytesview Payload
 );
@@ -1063,7 +898,7 @@ XRT_API xnetresult xrtWsConnPing(
 	发送 Pong 控制帧；通常在 AutoPong 关闭后的 Ping 回调中使用。
 	Payload 最多 125 字节，并使用控制帧预留预算。
 */
-XRT_API xnetresult xrtWsConnPong(
+XWS_API xnetresult xrtWsConnPong(
 	xwsconn* pConnection,
 	xbytesview Payload
 );
@@ -1074,7 +909,7 @@ XRT_API xnetresult xrtWsConnPong(
 	发送 Close 并进入关闭握手；Code 为零且 Reason 为空时发送空负载。
 	重复调用返回 CLOSED，不会发送第二个 Close。
 */
-XRT_API xnetresult xrtWsConnClose(
+XWS_API xnetresult xrtWsConnClose(
 	xwsconn* pConnection,
 	uint16 iCode,
 	xstrview Reason
@@ -1086,7 +921,7 @@ XRT_API xnetresult xrtWsConnClose(
 	从任意线程请求立即异常关闭底层传输。
 	OPEN 只会前进到 CLOSING；已经 CLOSED 时返回 false 且终态保持不变。
 */
-XRT_API bool xrtWsConnAbort(xwsconn* pConnection);
+XWS_API bool xrtWsConnAbort(xwsconn* pConnection);
 
 
 
@@ -1095,7 +930,7 @@ XRT_API bool xrtWsConnAbort(xwsconn* pConnection);
 	pClose 可以未对齐，但必须是与 Connection 所有存储分离的完整可写范围；
 	失败时不修改输出，成功后除 Reason 视图外不再借用 Connection 状态。
 */
-XRT_API bool xrtWsConnCloseInfo(
+XWS_API bool xrtWsConnCloseInfo(
 	const xwsconn* pConnection,
 	xwsconnclose* pClose
 );
@@ -1103,18 +938,18 @@ XRT_API bool xrtWsConnCloseInfo(
 
 
 /* 返回 Connection 第一个结构化错误；结果借用到 Connection 销毁。 */
-XRT_API const xerror* xrtWsConnError(const xwsconn* pConnection);
+XWS_API const xerror* xrtWsConnError(const xwsconn* pConnection);
 
 
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
 /* 返回尚未由 Connection Worker 终结的异步发送负载字节数。 */
-XRT_API size_t xrtWsConnAsyncBytes(const xwsconn* pConnection);
+XWS_API size_t xrtWsConnAsyncBytes(const xwsconn* pConnection);
 
 
 
 /* 返回异步发送和条件等待的合计操作数。 */
-XRT_API uint32 xrtWsConnAsyncCount(const xwsconn* pConnection);
+XWS_API uint32 xrtWsConnAsyncCount(const xwsconn* pConnection);
 
 
 
@@ -1124,7 +959,7 @@ XRT_API uint32 xrtWsConnAsyncCount(const xwsconn* pConnection);
 	WRITE 随后要求当前可写，DRAIN 随后要求传输待发归零。
 	取消只移除本次等待，不会关闭 Connection。
 */
-XRT_API xfuture* xrtWsConnWaitAsync(
+XWS_API xfuture* xrtWsConnWaitAsync(
 	xwsconn* pConnection,
 	xwsconnwait Wait
 );
@@ -1136,7 +971,7 @@ XRT_API xfuture* xrtWsConnWaitAsync(
 	Future 在帧被传输层受理时完成；排空必须另行等待 DRAIN。
 	取消只在 Worker 受理前有效，不会撤回已经提交的线路帧。
 */
-XRT_API xfuture* xrtWsConnSendAsync(
+XWS_API xfuture* xrtWsConnSendAsync(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -1145,7 +980,7 @@ XRT_API xfuture* xrtWsConnSendAsync(
 
 
 /* 从任意线程复制并异步提交 UTF-8 Text。 */
-XRT_API xfuture* xrtWsConnTextAsync(
+XWS_API xfuture* xrtWsConnTextAsync(
 	xwsconn* pConnection,
 	xstrview Text
 );
@@ -1153,7 +988,7 @@ XRT_API xfuture* xrtWsConnTextAsync(
 
 
 /* 从任意线程复制并异步提交 Binary。 */
-XRT_API xfuture* xrtWsConnBinaryAsync(
+XWS_API xfuture* xrtWsConnBinaryAsync(
 	xwsconn* pConnection,
 	xbytesview Data
 );
@@ -1168,7 +1003,7 @@ XRT_API xfuture* xrtWsConnBinaryAsync(
 	Ref 可以未对齐，但结构与数据都必须是完整、不回绕且与 Connection 分离的范围；
 	任何预检失败都不接管所有权，也不会调用 Release。
 */
-XRT_API xfuture* xrtWsConnSendRefAsync(
+XWS_API xfuture* xrtWsConnSendRefAsync(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	const xnetref* pRef
@@ -1177,7 +1012,7 @@ XRT_API xfuture* xrtWsConnSendRefAsync(
 
 
 /* 从任意线程异步提交一条所有权 UTF-8 Text。 */
-XRT_API xfuture* xrtWsConnTextRefAsync(
+XWS_API xfuture* xrtWsConnTextRefAsync(
 	xwsconn* pConnection,
 	const xnetref* pRef
 );
@@ -1185,7 +1020,7 @@ XRT_API xfuture* xrtWsConnTextRefAsync(
 
 
 /* 从任意线程异步提交一条所有权 Binary。 */
-XRT_API xfuture* xrtWsConnBinaryRefAsync(
+XWS_API xfuture* xrtWsConnBinaryRefAsync(
 	xwsconn* pConnection,
 	const xnetref* pRef
 );
@@ -1195,7 +1030,7 @@ XRT_API xfuture* xrtWsConnBinaryRefAsync(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
 /* 从任意线程复制、压缩并异步提交一条完整消息。 */
-XRT_API xfuture* xrtWsConnSendCompressedAsync(
+XWS_API xfuture* xrtWsConnSendCompressedAsync(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -1204,7 +1039,7 @@ XRT_API xfuture* xrtWsConnSendCompressedAsync(
 
 
 /* 从任意线程复制、压缩并异步提交 UTF-8 Text。 */
-XRT_API xfuture* xrtWsConnTextCompressedAsync(
+XWS_API xfuture* xrtWsConnTextCompressedAsync(
 	xwsconn* pConnection,
 	xstrview Text
 );
@@ -1212,7 +1047,7 @@ XRT_API xfuture* xrtWsConnTextCompressedAsync(
 
 
 /* 从任意线程复制、压缩并异步提交 Binary。 */
-XRT_API xfuture* xrtWsConnBinaryCompressedAsync(
+XWS_API xfuture* xrtWsConnBinaryCompressedAsync(
 	xwsconn* pConnection,
 	xbytesview Data
 );
@@ -1221,7 +1056,7 @@ XRT_API xfuture* xrtWsConnBinaryCompressedAsync(
 
 
 /* 从任意线程复制并异步提交 Ping。 */
-XRT_API xfuture* xrtWsConnPingAsync(
+XWS_API xfuture* xrtWsConnPingAsync(
 	xwsconn* pConnection,
 	xbytesview Payload
 );
@@ -1229,7 +1064,7 @@ XRT_API xfuture* xrtWsConnPingAsync(
 
 
 /* 从任意线程复制并异步提交 Pong。 */
-XRT_API xfuture* xrtWsConnPongAsync(
+XWS_API xfuture* xrtWsConnPongAsync(
 	xwsconn* pConnection,
 	xbytesview Payload
 );
@@ -1237,7 +1072,7 @@ XRT_API xfuture* xrtWsConnPongAsync(
 
 
 /* 从任意线程异步提交唯一 Close。 */
-XRT_API xfuture* xrtWsConnCloseAsync(
+XWS_API xfuture* xrtWsConnCloseAsync(
 	xwsconn* pConnection,
 	uint16 iCode,
 	xstrview Reason
@@ -1249,1069 +1084,6 @@ XRT_API xfuture* xrtWsConnCloseAsync(
 
 
 XRT_EXTERN_C_END
-
-#endif
-
-
-/* ========================================================================== */
-/* public: extlibs/xws/include/xrt/websocket_http.h */
-/* ========================================================================== */
-
-#ifndef XRT_WEBSOCKET_HTTP_H
-#define XRT_WEBSOCKET_HTTP_H
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER)
-#endif
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT)
-#endif
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER) && \
-	(!defined(XRT_FEATURE_WEBSOCKET_HANDSHAKE) || \
-	 !defined(XWS_FEATURE_WEBSOCKET_CONNECTION) || \
-	 !defined(XHTTP_FEATURE_HTTP_SERVER_UPGRADE))
-	#error "XRT WebSocket server requires handshake, connection and HTTP Upgrade"
-#endif
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT) && \
-	(!defined(XRT_FEATURE_WEBSOCKET_KEYGEN) || \
-	 !defined(XWS_FEATURE_WEBSOCKET_CONNECTION) || \
-	 !defined(XHTTP_FEATURE_HTTP_CLIENT))
-	#error "XRT WebSocket client requires keygen, connection and HTTP client"
-#endif
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_TLS) && \
-	(!defined(XWS_FEATURE_WEBSOCKET_SERVER) || \
-	 !defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS) || \
-	 !defined(XHTTP_FEATURE_HTTP_SERVER_TLS))
-	#error "XRT WebSocket TLS server requires server, TLS connection and HTTPS server"
-#endif
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_HTTPS) && \
-	(!defined(XWS_FEATURE_WEBSOCKET_CLIENT) || \
-	 !defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS) || \
-	 !defined(XHTTP_FEATURE_HTTP_CLIENT_HTTPS))
-	#error "XRT WebSocket HTTPS client requires client, TLS connection and HTTPS client"
-#endif
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE) && \
-	(!defined(XWS_FEATURE_WEBSOCKET_SERVER) || \
-	 !defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE) || \
-	 !defined(XRT_FEATURE_WEBSOCKET_DEFLATE))
-	#error "XRT WebSocket Deflate server requires server, compressed connection and negotiation"
-#endif
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE) && \
-	(!defined(XWS_FEATURE_WEBSOCKET_CLIENT) || \
-	 !defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE) || \
-	 !defined(XRT_FEATURE_WEBSOCKET_DEFLATE))
-	#error "XRT WebSocket Deflate client requires client, compressed connection and negotiation"
-#endif
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-/*
-	服务端压缩策略返回 true 表示接受并写出 Response。
-	返回 false 且未设置线程错误表示主动放弃，带错误则终止握手。
-	返回 true 时回调内部已恢复的错误会被丢弃，进入回调前的线程错误保持不变。
-*/
-typedef bool (*xwsdeflateacceptproc)(
-	const xwsdeflate* pOffer,
-	xwsdeflate* pResponse,
-	ptr pData
-);
-#endif
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER)
-
-/*
-	Accept 是末尾补零的响应值。
-	Protocol 借用请求字段；空视图表示没有协商子协议。
-*/
-typedef struct xwsserverhandshake {
-	char Accept[XWS_ACCEPT_CAPACITY];
-	xstrview Protocol;
-	#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-		xwsdeflate Deflate;
-		char Extensions[XWS_DEFLATE_MAX_SIZE + 1u];
-		bool DeflateEnabled;
-	#endif
-} xwsserverhandshake;
-
-
-
-/*
-	Protocols 是按服务端支持顺序书写的候选列表，但选择保持客户端偏好顺序。
-	Upgrade 调用返回后不再借用配置中的任何视图。
-*/
-typedef struct xwsserverconfig {
-	xwsconnconfig Connection;
-	xstrview Protocols;
-	#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-		xwsdeflateacceptproc AcceptDeflate;
-		ptr DeflateData;
-		bool EnableDeflate;
-		bool RequireDeflate;
-	#endif
-} xwsserverconfig;
-
-
-
-/*
-	异步 Upgrade 终态只发布一次。
-	成功时 Connection 调用方引用转移给回调；Error 只在回调期间借用。
-*/
-typedef void (*xwsupgradeproc)(
-	xhttpconn* pHttp,
-	xnetresult Result,
-	xwsconn* pConnection,
-	const xerror* pError,
-	ptr pData
-);
-
-#endif
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT)
-
-/*
-	Protocols 和 Http 内的借用对象只需覆盖 Connect 调用。
-	内部请求、协议列表、连接配置和事件表都会在返回前取得独立快照。
-*/
-typedef struct xwsclientconfig {
-	xwsconnconfig Connection;
-	xhttpcalloptions Http;
-	xstrview Protocols;
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-		xwsdeflate Deflate;
-		bool EnableDeflate;
-		bool RequireDeflate;
-	#endif
-} xwsclientconfig;
-
-
-
-/* 客户端握手快照借用 Response 的子协议，并拥有扩展协商参数。 */
-typedef struct xwsclienthandshake {
-	xstrview Protocol;
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-		xwsdeflate Deflate;
-		bool DeflateEnabled;
-	#endif
-} xwsclienthandshake;
-
-
-
-/*
-	完成回调在 HTTP Call 的网络 Worker 上发布一次。
-	Response 无论握手成功失败都把非空调用方引用转移给回调；
-	成功时 Connection 调用方引用同时转移，Error 只在回调期间借用。
-*/
-typedef void (*xwsconnectproc)(
-	xhttpcall* pCall,
-	xnetresult Result,
-	xwsconn* pConnection,
-	xhttpresponse* pResponse,
-	const xerror* pError,
-	ptr pData
-);
-
-#endif
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER)
-
-/* 在完整、允许未对齐的存储中初始化服务端默认配置。 */
-XRT_API void xrtWsServerConfigInit(
-	xwsserverconfig* pConfig
-);
-
-
-
-/* 从允许未对齐的完整快照无分配验证服务端配置。 */
-XRT_API bool xrtWsServerConfigValid(
-	const xwsserverconfig* pConfig
-);
-
-
-
-/*
-	严格验证一个完整 HTTP/1.1 WebSocket 请求并计算响应。
-	配置和输出允许未对齐，输出不得覆盖请求或配置；
-	重复子协议字段按一份合并列表验证，失败不修改 Handshake。
-*/
-XRT_API bool xrtWsServerCheck(
-	const xhttpserverrequest* pRequest,
-	const xwsserverconfig* pConfig,
-	xwsserverhandshake* pHandshake
-);
-
-
-
-/* 从完整、允许未对齐的已验证握手快照创建拥有型 101 Reply。 */
-XRT_API xhttpreply* xrtWsServerReply(
-	const xwsserverhandshake* pHandshake
-);
-
-
-
-/*
-	把 WebSocket 握手错误映射为无正文 400、405、426 或 500 最终响应。
-	Error 为空或不属于握手域时按服务端内部错误处理。
-*/
-XRT_API xnetresult xrtWsServerReject(
-	xhttpconn* pHttp,
-	const xerror* pError
-);
-
-
-
-/*
-	提交已经通过 xrtWsServerCheck 的 WebSocket 握手。
-	Headers 可以为空；非空时只追加普通响应字段，Upgrade、Connection、
-	Sec-WebSocket-* 以及正文分帧字段由协议层独占，不能覆盖。
-	Handshake 和 Headers 只在调用期间借用，配置、事件和子协议会在返回前快照。
-	该入口适合鉴权后追加 Cookie、追踪标识或应用自定义 Header；同步失败不调用 Proc。
-*/
-XRT_API xnetresult xrtWsUpgradeAccept(
-	xhttpconn* pHttp,
-	const xwsserverconfig* pConfig,
-	const xwsserverhandshake* pHandshake,
-	const xhttpheaders* pHeaders,
-	const xwsconnevents* pEvents,
-	ptr pEventData,
-	xwsupgradeproc pProc,
-	ptr pData
-);
-
-
-
-/*
-	验证当前 HTTP 请求、提交 101 并接管为 WebSocket Connection。
-	配置和事件表在分配前快照；调用前可以直接读取请求完成鉴权；
-	EventData 只交给 Connection 事件，Data 只交给完成回调；
-	同步失败不会调用 Proc。
-*/
-XRT_API xnetresult xrtWsUpgrade(
-	xhttpconn* pHttp,
-	const xwsserverconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pEventData,
-	xwsupgradeproc pProc,
-	ptr pData
-);
-
-#endif
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT)
-
-/* 在完整、允许未对齐的存储中初始化客户端默认配置。 */
-XRT_API void xrtWsClientConfigInit(
-	xwsclientconfig* pConfig
-);
-
-
-
-/*
-	创建可继续添加自定义 Header 的基础 GET 请求。
-	Url 接受 ws、wss、http 或 https，并映射为 HTTP Client 可执行的 URL；
-	Url 不得包含 userinfo 或 fragment；该函数不写入任何 WebSocket 握手管理字段。
-*/
-XRT_API xhttprequest* xrtWsRequestCreate(
-	xstrview Url
-);
-
-
-
-/*
-	创建 GET WebSocket 请求；Url 接受 ws、wss、http 或 https。
-	Url 不得包含 userinfo 或 fragment；资源名中的井号必须编码为 %23。
-	配置先复制为局部快照；成功时 Key 写入完整的固定输出。
-*/
-XRT_API xhttprequest* xrtWsClientRequestCreate(
-	xstrview Url,
-	const xwsclientconfig* pConfig,
-	char sKey[XWS_KEY_CAPACITY]
-);
-
-
-
-/*
-	克隆自定义 GET 请求并原子替换 WebSocket 管理字段。
-	配置先复制为局部快照；Key 必须覆盖完整固定输出；
-	源请求不得包含 userinfo、fragment、正文、分帧字段或扩展字段。
-*/
-XRT_API xhttprequest* xrtWsClientRequestClone(
-	const xhttprequest* pRequest,
-	const xwsclientconfig* pConfig,
-	char sKey[XWS_KEY_CAPACITY]
-);
-
-
-
-/*
-	严格验证 101 响应、Accept、所选子协议和扩展响应。
-	配置和输出允许未对齐，输出不得覆盖 Response、Key 或配置；
-	Handshake 的子协议借用 Response，失败时保持不变。
-*/
-XRT_API bool xrtWsClientCheck(
-	const xhttpresponse* pResponse,
-	xstrview Key,
-	const xwsclientconfig* pConfig,
-	xwsclienthandshake* pHandshake
-);
-
-
-
-/*
-	快照配置和事件表后，使用 ws/wss URL 异步执行 WebSocket 握手。
-	EventData 属于 Connection 事件，Data 属于完成回调，生命周期彼此独立。
-*/
-XRT_API xhttpcall* xrtWsConnect(
-	xhttpclient* pClient,
-	xstrview Url,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pEventData,
-	xwsconnectproc pProc,
-	ptr pData
-);
-
-
-
-/*
-	以自定义 GET 请求为基础异步握手。
-	配置和事件表在任何分配或 HTTP 提交前复制为局部快照。
-	管理字段由适配器替换，其它 Header、代理、Cookie 和超时策略继续保留。
-	EventData 与 Data 分别交给 Connection 事件和完成回调。
-*/
-XRT_API xhttpcall* xrtWsConnectRequest(
-	xhttpclient* pClient,
-	const xhttprequest* pRequest,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pEventData,
-	xwsconnectproc pProc,
-	ptr pData
-);
-
-#endif
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-/* ========================================================================== */
-/* public: extlibs/xws/include/xrt/websocket_http_future.h */
-/* ========================================================================== */
-
-#ifndef XRT_WEBSOCKET_HTTP_FUTURE_H
-#define XRT_WEBSOCKET_HTTP_FUTURE_H
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE) || \
-	defined(XWS_FEATURE_WEBSOCKET_SERVER_FUTURE)
-#endif
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_HTTP_FUTURE) && \
-	!defined(XWS_FEATURE_WEBSOCKET_CONNECTION)
-	#error "XRT WebSocket HTTP Future result requires WebSocket connection support"
-#endif
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE) && \
-	(!defined(XWS_FEATURE_WEBSOCKET_HTTP_FUTURE) || \
-	 !defined(XWS_FEATURE_WEBSOCKET_CLIENT) || \
-	 !defined(XRT_FEATURE_FUTURE) || \
-	 !defined(XRT_FEATURE_FUTURE_BRIDGE))
-	#error "XRT WebSocket client Future requires client, result and Future bridge support"
-#endif
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_FUTURE) && \
-	(!defined(XWS_FEATURE_WEBSOCKET_HTTP_FUTURE) || \
-	 !defined(XWS_FEATURE_WEBSOCKET_SERVER) || \
-	 !defined(XRT_FEATURE_FUTURE) || \
-	 !defined(XRT_FEATURE_FUTURE_BRIDGE))
-	#error "XRT WebSocket server Future requires server, result and Future bridge support"
-#endif
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_HTTP_FUTURE)
-
-/*
-	连接建立结果拥有 WebSocket Connection。
-	客户端 Future 启用时，成功结果还拥有对应的 101 Response。
-*/
-typedef struct xwsopenresult xwsopenresult;
-
-
-
-/* 连接建立结果错误码只描述结果对象本身，不依赖 HTTP 握手实现。 */
-typedef enum xwsopenresulterror {
-	XWS_OPEN_RESULT_ERROR_ARGUMENT = 1,
-	XWS_OPEN_RESULT_ERROR_STATE
-} xwsopenresulterror;
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/*
-	增加连接建立结果引用并返回原指针。
-	空指针、无效对象范围或不可再增加的引用状态返回 NULL 并记录错误。
-*/
-XRT_API xwsopenresult* xrtWsOpenResultRef(
-	xwsopenresult* pResult
-);
-
-
-
-/*
-	释放结果引用。
-	最后一个引用会中止尚未取走的 Connection，并销毁尚未取走的 Response。
-	NULL 是空操作；非空但无效的对象范围会记录参数错误。
-*/
-XRT_API void xrtWsOpenResultDestroy(
-	xwsopenresult* pResult
-);
-
-
-
-/*
-	返回结果借用的 Connection；结果有效且 Connection 未被取走期间可用。
-	空指针或无效对象范围返回 NULL 并记录参数错误。
-*/
-XRT_API xwsconn* xrtWsOpenResultConnection(
-	const xwsopenresult* pResult
-);
-
-
-
-/*
-	原子取走 Connection 所有权。
-	调用方必须在使用结束后关闭或中止 Connection，并释放其调用方引用。
-	同一结果的 Take 与借用访问不可并发。
-	空指针或无效对象范围返回 NULL 并记录参数错误。
-*/
-XRT_API xwsconn* xrtWsOpenResultTakeConnection(
-	xwsopenresult* pResult
-);
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE)
-
-/* 返回客户端结果借用的 101 Response；无效结果返回 NULL 并记录参数错误。 */
-XRT_API const xhttpresponse* xrtWsOpenResultResponse(
-	const xwsopenresult* pResult
-);
-
-
-
-/*
-	原子取走客户端 101 Response 所有权；同一结果的 Take 与借用访问不可并发。
-	无效结果返回 NULL 并记录参数错误。
-*/
-XRT_API xhttpresponse* xrtWsOpenResultTakeResponse(
-	xwsopenresult* pResult
-);
-
-
-
-/*
-	使用 ws/wss URL 异步建立 WebSocket。
-	Future 成功值是其拥有的 xwsopenresult；取消会协作取消底层 HTTP Call。
-	Client、Config 和 Events 在创建任何异步状态前验证完整对象范围。
-	Connection 事件使用独立的 Data，不会看到 Future 内部桥接上下文。
-*/
-XRT_API xfuture* xrtWsConnectAsync(
-	xhttpclient* pClient,
-	xstrview Url,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pData
-);
-
-
-
-/* 以自定义 GET 请求为基础异步建立 WebSocket；Request 同样先验证完整对象范围。 */
-XRT_API xfuture* xrtWsConnectRequestAsync(
-	xhttpclient* pClient,
-	const xhttprequest* pRequest,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pData
-);
-
-
-
-/*
-	阻塞建立 WebSocket 并返回拥有型结果。
-	网络 Worker 不允许调用；协程应等待 xrtWsConnectAsync 返回的 Future。
-*/
-XRT_API xwsopenresult* xrtWsConnectSync(
-	xhttpclient* pClient,
-	xstrview Url,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pData
-);
-
-
-
-/* 以自定义 GET 请求为基础阻塞建立 WebSocket。 */
-XRT_API xwsopenresult* xrtWsConnectRequestSync(
-	xhttpclient* pClient,
-	const xhttprequest* pRequest,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pData
-);
-
-#endif
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_FUTURE)
-
-/*
-	验证当前请求、提交 101，并以 Future 交付拥有型连接建立结果。
-	取消 Future 会异常关闭当前 HTTP Connection；此函数只应在 Request Worker 中调用。
-	HTTP Connection、Config 和 Events 在分配桥接状态前验证完整对象范围。
-	Connection 事件使用独立的 Data，不会看到 Future 内部桥接上下文。
-*/
-XRT_API xfuture* xrtWsUpgradeAsync(
-	xhttpconn* pHttp,
-	const xwsserverconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pData
-);
-
-#endif
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-#endif
-
-
-/* ========================================================================== */
-/* public: extlibs/xws/include/xrt/websocket_server_router.h */
-/* ========================================================================== */
-
-#ifndef XRT_WEBSOCKET_SERVER_ROUTER_H
-#define XRT_WEBSOCKET_SERVER_ROUTER_H
-
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_ROUTER) && \
-	(!defined(XWS_FEATURE_WEBSOCKET_SERVER) || \
-	 !defined(XHTTP_FEATURE_HTTP_SERVER_ROUTER) || \
-	 !defined(XHTTP_FEATURE_HTTP_ORIGIN))
-	#error "XRT WebSocket server router requires WebSocket server, HTTP server router and HTTP Origin"
-#endif
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_ROUTER)
-
-/* WebSocket 服务端路由错误区分参数、配置、分配、注册、响应和运行时状态。 */
-typedef enum xwsserverroutererror {
-	XWS_SERVER_ROUTER_ERROR_ARGUMENT = 1,
-	XWS_SERVER_ROUTER_ERROR_CONFIG,
-	XWS_SERVER_ROUTER_ERROR_MEMORY,
-	XWS_SERVER_ROUTER_ERROR_ROUTE,
-	XWS_SERVER_ROUTER_ERROR_AUTHORIZATION,
-	XWS_SERVER_ROUTER_ERROR_RESPONSE,
-	XWS_SERVER_ROUTER_ERROR_STATE
-} xwsserverroutererror;
-
-
-
-/*
-	固定路由默认允许原生客户端省略 Origin，但浏览器提供时必须与请求同源。
-	ANY 只适合已经在外层完成来源校验的端点。
-*/
-typedef enum xwsserveroriginpolicy {
-	XWS_SERVER_ORIGIN_SAME_HOST_OR_ABSENT = 0,
-	XWS_SERVER_ORIGIN_SAME_HOST,
-	XWS_SERVER_ORIGIN_ANY
-} xwsserveroriginpolicy;
-
-
-
-/* Upgrade 成功后借用 Connection；需要跨回调保存时由用户显式增加引用。 */
-typedef void (*xwsserverrouteopenproc)(
-	xhttpconn* pHttp,
-	xwsconn* pConnection,
-	ptr pData
-);
-
-
-
-/*
-	Origin 策略通过后调用业务授权；返回 false 由路由器统一回复 403。
-	请求、路由参数和握手只在回调期间借用，回调不应修改线程错误。
-*/
-typedef bool (*xwsserverrouteauthorizeproc)(
-	xhttpconn* pHttp,
-	const xhttpserverrequest* pRequest,
-	const xhttprouteparam* pParams,
-	size_t iParamCount,
-	const xwsserverhandshake* pHandshake,
-	ptr pData
-);
-
-
-
-/* 同步握手或异步 Upgrade 失败时借用稳定错误；该回调只用于观察。 */
-typedef void (*xwsserverrouteerrorproc)(
-	xhttpconn* pHttp,
-	const xerror* pError,
-	ptr pData
-);
-
-
-
-/* Router 和全部已升级连接释放后，对成功注册的 Data 调用一次。 */
-typedef void (*xwsserverrouterreleaseproc)(ptr pData);
-
-
-
-/* 固定路由复制服务端配置与事件，并为常见 WebSocket 端点托管生命周期。 */
-typedef struct xwsserverrouteconfig {
-	xwsserverconfig Server;
-	xwsconnevents Events;
-	xwsserveroriginpolicy Origin;
-	xwsserverrouteauthorizeproc Authorize;
-	xwsserverrouteopenproc Open;
-	xwsserverrouteerrorproc Error;
-	xwsserverrouterreleaseproc Release;
-	ptr Data;
-} xwsserverrouteconfig;
-
-#endif
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_ROUTER)
-
-/*
-	初始化默认 WebSocket 服务端配置、空连接事件和空生命周期回调。
-	输出允许未对齐，但必须是完整且不回绕的固定结构地址范围。
-*/
-XRT_API void xrtWsServerRouteConfigInit(
-	xwsserverrouteconfig* pConfig
-);
-
-
-
-/*
-	注册固定 WebSocket 路径；内部处理方法、Origin、授权、握手和 Upgrade。
-	成功后 Router 接管一次 Release(Data)，失败时 Data 所有权保持不变。
-	Pattern 和配置内借用视图必须完整且不回绕；固定配置允许未对齐。
-	函数在注册前只读取配置一次，并深复制子协议列表；后续修改调用方配置
-	不会改变已注册端点。
-*/
-XRT_API bool xrtWsServerRoute(
-	xhttpserverrouter* pRouter,
-	xstrview Pattern,
-	const xwsserverrouteconfig* pConfig
-);
-
-#endif
-
-
-
-XRT_EXTERN_C_END
-
-#endif
-
-
-/* ========================================================================== */
-/* public: extlibs/xws/include/xrt/websocket_group.h */
-/* ========================================================================== */
-
-#ifndef XRT_WEBSOCKET_GROUP_H
-#define XRT_WEBSOCKET_GROUP_H
-
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP) && \
-	(!defined(XWS_FEATURE_WEBSOCKET_CONNECTION) || \
-	 !defined(XRT_FEATURE_SET) || \
-	 !defined(XRT_FEATURE_MUTEX))
-	#error "XRT WebSocket group requires connection, set and mutex"
-#endif
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE) && \
-	(!defined(XWS_FEATURE_WEBSOCKET_GROUP) || \
-	 !defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE) || \
-	 !defined(XWS_FEATURE_WEBSOCKET_CONNECTION_REF_FUTURE) || \
-	 !defined(XRT_FEATURE_FUTURE))
-	#error "XRT WebSocket group Future requires group, connection Future, reference Future and Future"
-#endif
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP)
-
-/* 连接组错误用于区分参数、内存、状态、容量和索引边界。 */
-typedef enum xwsgrouperror {
-	XWS_GROUP_ERROR_ARGUMENT = 1,
-	XWS_GROUP_ERROR_MEMORY,
-	XWS_GROUP_ERROR_STATE,
-	XWS_GROUP_ERROR_CAPACITY,
-	XWS_GROUP_ERROR_RANGE
-} xwsgrouperror;
-
-
-
-/* 连接组并发持有不重复的 Connection 引用。 */
-typedef struct xwsgroup xwsgroup;
-
-
-
-/* 快照独立持有创建时的全部 Connection 引用。 */
-typedef struct xwsgroupsnapshot xwsgroupsnapshot;
-
-#endif
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE)
-
-/* 批量操作槽位区分同步拒绝、等待和五种 Future 终态。 */
-typedef enum xwsgroupopstate {
-	XWS_GROUP_OP_REJECTED = 0,
-	XWS_GROUP_OP_PENDING,
-	XWS_GROUP_OP_RESOLVED,
-	XWS_GROUP_OP_FAILED,
-	XWS_GROUP_OP_CANCELLED,
-	XWS_GROUP_OP_CLOSED
-} xwsgroupopstate;
-
-
-
-/* 槽位结果借用操作对象持有的 Connection 和错误。 */
-typedef struct xwsgroupopresult {
-	xwsgroupopstate State;
-	xwsconn* Connection;
-	const xerror* Error;
-} xwsgroupopresult;
-
-
-
-/* 批量操作保存稳定成员快照、逐成员 Future 和同步拒绝原因。 */
-typedef struct xwsgroupop xwsgroupop;
-
-#endif
-
-
-
-XRT_EXTERN_C_BEGIN
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP)
-
-/* 创建连接组；Limit 为零表示不设置成员数量上限。 */
-XRT_API xwsgroup* xrtWsGroupCreate(size_t iLimit);
-
-
-
-/* 增加连接组引用并返回原指针。 */
-XRT_API xwsgroup* xrtWsGroupRef(xwsgroup* pGroup);
-
-
-
-/* 释放连接组引用；最后一个引用只释放成员，不关闭连接。 */
-XRT_API void xrtWsGroupDestroy(xwsgroup* pGroup);
-
-
-
-/* 加入并持有 Connection；重复加入成功且不增加第二个引用。 */
-XRT_API bool xrtWsGroupAdd(xwsgroup* pGroup, xwsconn* pConnection);
-
-
-
-/* 移除并释放 Connection；成员不存在时正常返回 false。 */
-XRT_API bool xrtWsGroupRemove(xwsgroup* pGroup, xwsconn* pConnection);
-
-
-
-/* 判断 Connection 是否属于当前组。 */
-XRT_API bool xrtWsGroupHas(const xwsgroup* pGroup, const xwsconn* pConnection);
-
-
-
-/* 返回当前成员数量。 */
-XRT_API size_t xrtWsGroupCount(const xwsgroup* pGroup);
-
-
-
-/* 返回创建时设置的硬上限；零表示没有显式上限。 */
-XRT_API size_t xrtWsGroupLimit(const xwsgroup* pGroup);
-
-
-
-/* 永久阻止新成员加入；重复调用保持成功。 */
-XRT_API bool xrtWsGroupSeal(xwsgroup* pGroup);
-
-
-
-/* 返回连接组是否已经封闭。 */
-XRT_API bool xrtWsGroupSealed(const xwsgroup* pGroup);
-
-
-
-/* 原子移走全部成员并在组锁外释放，返回数量且不重新开放已封闭的组。 */
-XRT_API size_t xrtWsGroupClear(xwsgroup* pGroup);
-
-
-
-/* 在组锁外分配并创建保序成员快照；空组也返回有效空快照。 */
-XRT_API xwsgroupsnapshot* xrtWsGroupSnapshotCreate(const xwsgroup* pGroup);
-
-
-
-/* 返回快照成员数量。 */
-XRT_API size_t xrtWsGroupSnapshotCount(const xwsgroupsnapshot* pSnapshot);
-
-
-
-/* 借用指定快照成员；借用期不超过快照生命周期。 */
-XRT_API xwsconn* xrtWsGroupSnapshotGet(
-	const xwsgroupsnapshot* pSnapshot,
-	size_t iIndex
-);
-
-
-
-/* 释放快照和它持有的全部 Connection 引用。 */
-XRT_API void xrtWsGroupSnapshotDestroy(xwsgroupsnapshot* pSnapshot);
-
-#endif
-
-
-
-XRT_EXTERN_C_END
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE)
-
-XRT_EXTERN_C_BEGIN
-
-
-
-/* 对调用时的稳定成员快照异步提交一条 Text 或 Binary 消息；负载只复制一次。 */
-XRT_API xwsgroupop* xrtWsGroupSendAsync(
-	xwsgroup* pGroup,
-	xwsopcode Opcode,
-	xbytesview Payload
-);
-
-
-
-/* 对调用时的稳定成员快照异步提交 UTF-8 Text。 */
-XRT_API xwsgroupop* xrtWsGroupTextAsync(
-	xwsgroup* pGroup,
-	xstrview Text
-);
-
-
-
-/* 对调用时的稳定成员快照异步提交 Binary。 */
-XRT_API xwsgroupop* xrtWsGroupBinaryAsync(
-	xwsgroup* pGroup,
-	xbytesview Data
-);
-
-
-
-/*
-	异步提交共享所有权消息；仅成功返回操作对象时接管 Ref。
-	每个已接纳成员持有独立共享引用，最后一个引用恰好调用一次 Release。
-	Ref 结构允许未对齐；结构与负载必须是完整范围且不能覆盖 Group。
-*/
-XRT_API xwsgroupop* xrtWsGroupSendRefAsync(
-	xwsgroup* pGroup,
-	xwsopcode Opcode,
-	const xnetref* pRef
-);
-
-
-
-/* 异步提交共享所有权 UTF-8 Text。 */
-XRT_API xwsgroupop* xrtWsGroupTextRefAsync(
-	xwsgroup* pGroup,
-	const xnetref* pRef
-);
-
-
-
-/* 异步提交共享所有权 Binary。 */
-XRT_API xwsgroupop* xrtWsGroupBinaryRefAsync(
-	xwsgroup* pGroup,
-	const xnetref* pRef
-);
-
-
-
-/* 对调用时的稳定成员快照异步提交 Ping。 */
-XRT_API xwsgroupop* xrtWsGroupPingAsync(
-	xwsgroup* pGroup,
-	xbytesview Payload
-);
-
-
-
-/* 对调用时的稳定成员快照异步提交 Pong。 */
-XRT_API xwsgroupop* xrtWsGroupPongAsync(
-	xwsgroup* pGroup,
-	xbytesview Payload
-);
-
-
-
-/* 对调用时的稳定成员快照异步提交唯一 Close。 */
-XRT_API xwsgroupop* xrtWsGroupCloseAsync(
-	xwsgroup* pGroup,
-	uint16 iCode,
-	xstrview Reason
-);
-
-
-
-/* 对调用时的稳定成员快照异步等待同一种 Connection 条件。 */
-XRT_API xwsgroupop* xrtWsGroupWaitAsync(
-	xwsgroup* pGroup,
-	xwsconnwait Wait
-);
-
-
-
-/* 增加批量操作引用并返回原指针。 */
-XRT_API xwsgroupop* xrtWsGroupOpRef(xwsgroupop* pOperation);
-
-
-
-/* 释放批量操作引用；已提交的 Connection 操作不会因此取消。 */
-XRT_API void xrtWsGroupOpDestroy(xwsgroupop* pOperation);
-
-
-
-/* 返回稳定成员槽位总数。 */
-XRT_API size_t xrtWsGroupOpCount(const xwsgroupop* pOperation);
-
-
-
-/* 返回成功创建逐成员 Future 的槽位数。 */
-XRT_API size_t xrtWsGroupOpAccepted(const xwsgroupop* pOperation);
-
-
-
-/* 返回提交阶段同步拒绝的槽位数。 */
-XRT_API size_t xrtWsGroupOpRejected(const xwsgroupop* pOperation);
-
-
-
-/* 以 O(1) 并发快照返回同步拒绝或已经进入 Future 终态的槽位数。 */
-XRT_API size_t xrtWsGroupOpDoneCount(const xwsgroupop* pOperation);
-
-
-
-/* 读取指定槽位；输出允许未对齐，但必须完整且不能覆盖 Operation。 */
-XRT_API bool xrtWsGroupOpResult(
-	const xwsgroupop* pOperation,
-	size_t iIndex,
-	xwsgroupopresult* pResult
-);
-
-
-
-/* 返回增加引用后的逐成员 Future；同步拒绝槽位返回空指针。 */
-XRT_API xfuture* xrtWsGroupOpItemFutureRef(
-	const xwsgroupop* pOperation,
-	size_t iIndex
-);
-
-
-
-/*
-	返回增加引用后的完成 Future；正常时在全部已接纳操作进入终态后成功完成。
-	取消该 Future 会立即取消聚合等待，并向仍未结束的逐成员 Future 传播取消请求。
-*/
-XRT_API xfuture* xrtWsGroupOpFutureRef(const xwsgroupop* pOperation);
-
-
-
-/* 向全部已接纳且尚未结束的逐成员 Future 请求协作取消，并返回成功请求数。 */
-XRT_API size_t xrtWsGroupOpCancel(xwsgroupop* pOperation);
-
-
-
-/* 等待全部已接纳操作进入终态。 */
-XRT_API xwaitresult xrtWsGroupOpWait(xwsgroupop* pOperation);
-
-
-
-/* 在相对毫秒数内等待全部已接纳操作进入终态。 */
-XRT_API xwaitresult xrtWsGroupOpWaitFor(
-	xwsgroupop* pOperation,
-	int64 iTimeout
-);
-
-
-
-/* 等待全部已接纳操作到指定单调时钟截止时间。 */
-
-
-
-
-/* 等待批量操作、截止时间或调用方取消令牌中的首个事件。 */
-XRT_API xwaitresult xrtWsGroupOpWaitForCancel(
-	xwsgroupop* pOperation,
-	int64 iTimeout,
-	xcancel* pCancel
-);
-
-
-
-XRT_EXTERN_C_END
-
-#endif
 
 #endif
 
@@ -2323,26 +1095,6 @@ XRT_EXTERN_C_END
 #ifndef XWS_H
 #define XWS_H
 
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP) || \
-	defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE)
-#endif
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER) || \
-	defined(XWS_FEATURE_WEBSOCKET_CLIENT) || \
-	defined(XWS_FEATURE_WEBSOCKET_SERVER_TLS) || \
-	defined(XWS_FEATURE_WEBSOCKET_CLIENT_HTTPS) || \
-	defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE) || \
-	defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-#endif
-
-#if defined(XWS_FEATURE_WEBSOCKET_HTTP_FUTURE) || \
-	defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE) || \
-	defined(XWS_FEATURE_WEBSOCKET_SERVER_FUTURE)
-#endif
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_ROUTER)
-#endif
 
 #endif
 
@@ -2356,82 +1108,12 @@ XRT_EXTERN_C_END
 /* internal: extlibs/xws/src/internal/xrt_websocket.h */
 /* ========================================================================== */
 
-#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION) || \
-	defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS) || \
-	defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE) || \
-	defined(XWS_FEATURE_WEBSOCKET_CONNECTION_REF) || \
-	defined(XWS_FEATURE_WEBSOCKET_WRITER) || \
-	defined(XWS_FEATURE_WEBSOCKET_WRITER_DEFLATE) || \
-	defined(XWS_FEATURE_WEBSOCKET_WRITER_REF) || \
-	defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE) || \
-	defined(XWS_FEATURE_WEBSOCKET_CONNECTION_REF_FUTURE)
+#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION)
 #ifndef XWS_INTERNAL_WEBSOCKET_H
 #define XWS_INTERNAL_WEBSOCKET_H
 
 #include <string.h>
 
-
-
-
-/* 构建并安装扩展库自己的结构化错误。 */
-static inline void __xwsErrorSetDetail(
-	xerrkind Kind,
-	cstr sDomain,
-	int32 iCode,
-	cstr sOperation,
-	cstr sMessage,
-	const xerror* pCause
-)
-{
-	xerrordesc Desc;
-	xerror* pError;
-
-	memset(&Desc, 0, sizeof(Desc));
-	Desc.Kind = Kind;
-	Desc.Domain = sDomain;
-	Desc.Code = iCode;
-	Desc.Operation = sOperation;
-	Desc.Message = sMessage;
-	Desc.Cause = pCause;
-	pError = xrtErrorBuild(&Desc);
-	if ( pError != NULL ) {
-		xrtSetError(pError);
-		xrtErrorFree(pError);
-	}
-}
-
-
-
-/* 取走当前原因链，并用扩展库稳定域包装后重新安装。 */
-static inline void __xwsErrorWrapDetail(
-	xerrkind DefaultKind,
-	cstr sDomain,
-	int32 iCode,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	xerror* pCause = xrtTakeError();
-	xerrordesc Desc;
-	xerror* pError;
-
-	memset(&Desc, 0, sizeof(Desc));
-	Desc.Kind = pCause != NULL ?
-		xrtErrorKind(pCause) : DefaultKind;
-	Desc.Domain = sDomain;
-	Desc.Code = iCode;
-	Desc.Operation = sOperation;
-	Desc.Message = sMessage;
-	Desc.Cause = pCause;
-	pError = xrtErrorBuild(&Desc);
-	if ( pError != NULL ) {
-		xrtSetError(pError);
-		xrtErrorFree(pError);
-	} else if ( pCause != NULL ) {
-		xrtSetError(pCause);
-	}
-	xrtErrorFree(pCause);
-}
 
 
 
@@ -2458,49 +1140,6 @@ static inline void __xwsErrorSetSizeOverflow(void)
 		"size overflow"
 	);
 }
-
-
-
-#if defined(XRT_FEATURE_WEBSOCKET_HANDSHAKE)
-
-/* 设置 WebSocket 握手层的结构化错误。 */
-static inline void __xwsHandshakeError(
-	xerrkind Kind,
-	xwshandshakeerror Code,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	__xwsErrorSetDetail(
-		Kind,
-		"xrt.websocket.handshake",
-		(int32)Code,
-		sOperation,
-		sMessage,
-		NULL
-	);
-}
-
-
-
-/* 将当前底层错误包装为稳定的 WebSocket 握手错误。 */
-static inline void __xwsHandshakeWrap(
-	xerrkind DefaultKind,
-	xwshandshakeerror Code,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	__xwsErrorWrapDetail(
-		DefaultKind,
-		"xrt.websocket.handshake",
-		(int32)Code,
-		sOperation,
-		sMessage
-	);
-}
-
-#endif
 
 
 
@@ -2785,650 +1424,6 @@ struct xwsconn {
 
 
 /* ========================================================================== */
-/* internal: extlibs/xws/src/internal/xrt_websocket_http.h */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_HTTP_FUTURE) || \
-	defined(XWS_FEATURE_WEBSOCKET_SERVER) || \
-	defined(XWS_FEATURE_WEBSOCKET_CLIENT) || \
-	defined(XWS_FEATURE_WEBSOCKET_SERVER_TLS) || \
-	defined(XWS_FEATURE_WEBSOCKET_SERVER_FUTURE) || \
-	defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE)
-#ifndef XRT_INTERNAL_WEBSOCKET_HTTP_H
-#define XRT_INTERNAL_WEBSOCKET_HTTP_H
-
-
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER) || \
-	defined(XWS_FEATURE_WEBSOCKET_CLIENT)
-
-typedef struct __xrt_ws_fields {
-	const xhttpfield* Data;
-	size_t Count;
-} __xrt_ws_fields;
-
-
-
-/* 验证 HTTP 适配层公开入口使用的完整对象范围。 */
-static inline bool __xrtWsHttpRangeCheck(
-	const void* pObject,
-	size_t iSize,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	if ( xrtMemRangeValid(pObject, iSize) ) {
-		return true;
-	}
-	__xwsHandshakeError(
-		XERR_ARGUMENT,
-		XWS_HANDSHAKE_ERROR_ARGUMENT,
-		sOperation,
-		sMessage
-	);
-	return false;
-}
-
-
-
-/* 验证不透明 HTTP 对象存在，不依赖扩展库之外的对象布局。 */
-static inline bool __xrtWsHttpObjectCheck(
-	const void* pObject,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	if ( xrtMemRangeValid(pObject, sizeof(ptr)) &&
-		(((uintptr_t)pObject & (sizeof(ptr) - 1u)) == 0u) ) {
-		return true;
-	}
-	__xwsHandshakeError(
-		XERR_ARGUMENT,
-		XWS_HANDSHAKE_ERROR_ARGUMENT,
-		sOperation,
-		sMessage
-	);
-	return false;
-}
-
-
-
-/* 把可选事件表复制到对齐的独立快照。 */
-static inline bool __xrtWsConnEventsSnapshot(
-	xwsconnevents* pOutput,
-	const xwsconnevents* pInput,
-	cstr sOperation
-)
-{
-	memset(pOutput, 0, sizeof(*pOutput));
-	if ( pInput == NULL ) {
-		return true;
-	}
-	if ( !__xrtWsHttpRangeCheck(
-		pInput,
-		sizeof(*pInput),
-		sOperation,
-		"WebSocket connection event range is invalid"
-	) ) {
-		return false;
-	}
-	memcpy(pOutput, pInput, sizeof(*pOutput));
-	return true;
-}
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT)
-
-/* 把可选客户端配置复制到对齐的默认值快照。 */
-static inline bool __xrtWsClientConfigSnapshot(
-	xwsclientconfig* pOutput,
-	const xwsclientconfig* pInput,
-	cstr sOperation
-)
-{
-	xrtWsClientConfigInit(pOutput);
-	if ( pInput == NULL ) {
-		return true;
-	}
-	if ( !__xrtWsHttpRangeCheck(
-		pInput,
-		sizeof(*pInput),
-		sOperation,
-		"WebSocket client configuration range is invalid"
-	) ) {
-		return false;
-	}
-	memcpy(pOutput, pInput, sizeof(*pOutput));
-	return true;
-}
-
-#endif
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER)
-
-/* 把可选服务端配置复制到对齐的默认值快照。 */
-static inline bool __xrtWsServerConfigSnapshot(
-	xwsserverconfig* pOutput,
-	const xwsserverconfig* pInput,
-	cstr sOperation
-)
-{
-	xrtWsServerConfigInit(pOutput);
-	if ( pInput == NULL ) {
-		return true;
-	}
-	if ( !__xrtWsHttpRangeCheck(
-		pInput,
-		sizeof(*pInput),
-		sOperation,
-		"WebSocket server configuration range is invalid"
-	) ) {
-		return false;
-	}
-	memcpy(pOutput, pInput, sizeof(*pOutput));
-	return true;
-}
-
-#endif
-
-
-
-/* 按大小写敏感规则比较两个协议文本视图。 */
-static inline bool __xrtWsHttpTextEqual(
-	xstrview Left,
-	xstrview Right
-)
-{
-	return (Left.Size == Right.Size) &&
-		((Left.Size == 0) ||
-		 (memcmp(Left.Data, Right.Data, Left.Size) == 0));
-}
-
-
-
-/* 统计同名字段，不借出容器内部结构。 */
-static inline size_t __xrtWsHttpFieldCount(
-	const __xrt_ws_fields* pFields,
-	xstrview Name
-)
-{
-	return xrtHttpFieldCount(
-		pFields->Data,
-		pFields->Count,
-		Name
-	);
-}
-
-
-
-/* 返回唯一同名字段；缺失或重复都返回空指针。 */
-static inline const xhttpfield* __xrtWsHttpFieldUnique(
-	const __xrt_ws_fields* pFields,
-	xstrview Name
-)
-{
-	const xhttpfield* pFound = NULL;
-
-	if ( xrtHttpFieldGetUnique(
-		pFields->Data,
-		pFields->Count,
-		Name,
-		&pFound
-	) != XHTTP_NEXT_ITEM ) {
-		return NULL;
-	}
-	return pFound;
-}
-
-
-
-/* 验证全部同名 token-list 字段并查找目标 token。 */
-static inline bool __xrtWsHttpTokenHas(
-	const __xrt_ws_fields* pFields,
-	xstrview Name,
-	xstrview Token,
-	bool* pFound
-)
-{
-	bool bPresent = false;
-	bool bFound = false;
-
-	for ( size_t i = 0; i < pFields->Count; i++ ) {
-		const xhttpfield* pField = &pFields->Data[i];
-		size_t iCount;
-
-		if ( !xrtHttpFieldNameEqual(pField->Name, Name) ) {
-			continue;
-		}
-		bPresent = true;
-		if ( !xrtHttpTokenListCount(
-			pField->Value,
-			&iCount
-		) || (iCount == 0) ) {
-			return false;
-		}
-		if ( xrtHttpTokenListHas(
-			pField->Value,
-			Token
-		) ) {
-			bFound = true;
-		}
-	}
-	*pFound = bPresent && bFound;
-	return true;
-}
-
-
-
-/* 验证唯一字段只包含指定 token。 */
-static inline bool __xrtWsHttpTokenExact(
-	const __xrt_ws_fields* pFields,
-	xstrview Name,
-	xstrview Token
-)
-{
-	const xhttpfield* pField =
-		__xrtWsHttpFieldUnique(pFields, Name);
-	size_t iCount;
-
-	return (pField != NULL) &&
-		xrtHttpTokenListCount(pField->Value, &iCount) &&
-		(iCount == 1) &&
-		xrtHttpTokenListHas(pField->Value, Token);
-}
-
-
-
-
-/* 验证 Upgrade 列表完整合法且至少包含一个无版本 websocket。 */
-static inline bool __xrtWsHttpUpgradeHas(
-	const __xrt_ws_fields* pFields
-)
-{
-	xhttpupgradefieldcursor Cursor;
-	xhttpupgradeitem Upgrade;
-	xhttpnext Next;
-	bool bFound = false;
-
-	xrtHttpUpgradeFieldCursorInit(&Cursor);
-	while ( (Next = xrtHttpUpgradeFieldNext(
-		pFields->Data,
-		pFields->Count,
-		&Cursor,
-		&Upgrade
-	)) == XHTTP_NEXT_ITEM ) {
-		if ( (Upgrade.Version.Size == 0) &&
-			xrtHttpTokenEqual(
-				Upgrade.Protocol,
-				XRT_STR_LITERAL("websocket")
-			) ) {
-			bFound = true;
-		}
-	}
-	return (Next == XHTTP_NEXT_END) && bFound;
-}
-
-
-
-/* 验证响应只选择唯一一个无版本 websocket 升级协议。 */
-static inline bool __xrtWsHttpUpgradeExact(
-	const __xrt_ws_fields* pFields
-)
-{
-	xhttpupgradefieldcursor Cursor;
-	xhttpupgradeitem Upgrade;
-	xhttpnext Next;
-	size_t iCount = 0;
-	bool bMatch = false;
-
-	xrtHttpUpgradeFieldCursorInit(&Cursor);
-	while ( (Next = xrtHttpUpgradeFieldNext(
-		pFields->Data,
-		pFields->Count,
-		&Cursor,
-		&Upgrade
-	)) == XHTTP_NEXT_ITEM ) {
-		if ( iCount == SIZE_MAX ) {
-			return false;
-		}
-		iCount++;
-		bMatch = (Upgrade.Version.Size == 0) &&
-			xrtHttpTokenEqual(
-				Upgrade.Protocol,
-				XRT_STR_LITERAL("websocket")
-			);
-	}
-	return (Next == XHTTP_NEXT_END) &&
-		(iCount == 1u) && bMatch;
-}
-
-
-
-#if defined(XRT_FEATURE_WEBSOCKET_EXTENSION)
-
-typedef bool (*__xrt_ws_extension_visit)(
-	const xwsextension* pExtension,
-	ptr pData
-);
-
-
-
-/* 把重复的扩展字段视为一份列表，并依次访问每个严格解析的扩展项。 */
-static inline bool __xrtWsHttpExtensionsVisit(
-	const __xrt_ws_fields* pFields,
-	__xrt_ws_extension_visit pVisit,
-	ptr pData
-)
-{
-	for ( size_t i = 0; i < pFields->Count; i++ ) {
-		const xhttpfield* pField = &pFields->Data[i];
-		size_t iOffset = 0;
-
-		if ( !xrtHttpFieldNameEqual(
-				pField->Name,
-				XRT_STR_LITERAL(
-					"Sec-WebSocket-Extensions"
-				)
-			) ) {
-			continue;
-		}
-		for ( ;; ) {
-			xwsextension Extension;
-			xhttpnext Next = xrtWsExtensionNext(
-				pField->Value,
-				&iOffset,
-				&Extension
-			);
-
-			if ( Next == XHTTP_NEXT_ERROR ) {
-				return false;
-			}
-			if ( Next == XHTTP_NEXT_END ) {
-				break;
-			}
-			if ( !pVisit(&Extension, pData) ) {
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-#endif
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: extlibs/xws/src/internal/xrt_websocket_http_future.h */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_HTTP_FUTURE) || \
-	defined(XWS_FEATURE_WEBSOCKET_SERVER_FUTURE) || \
-	defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE)
-#ifndef XRT_INTERNAL_WEBSOCKET_HTTP_FUTURE_H
-#define XRT_INTERNAL_WEBSOCKET_HTTP_FUTURE_H
-
-
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_HTTP_FUTURE)
-
-/* 统一结果用原子槽管理可取走所有权，服务端裁剪时不携带客户端响应槽。 */
-struct xwsopenresult {
-	volatile int32 References;
-	xatomicptr Connection;
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE)
-		xatomicptr Response;
-	#endif
-};
-
-
-
-/* 中止并释放一个没有进入调用方所有权的 WebSocket Connection。 */
-static inline void __xrtWsOpenConnectionDestroy(
-	xwsconn* pConnection
-)
-{
-	if ( pConnection == NULL ) {
-		return;
-	}
-	(void)xrtWsConnAbort(pConnection);
-	xrtWsConnDestroy(pConnection);
-}
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE) || \
-	defined(XWS_FEATURE_WEBSOCKET_SERVER_FUTURE)
-
-/* 创建 HTTP Future 桥接层自己的稳定握手错误。 */
-static inline xerror* __xrtWsOpenErrorCreate(
-	xerrkind Kind,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	xerrordesc Desc;
-
-	memset(&Desc, 0, sizeof(Desc));
-	Desc.Kind = Kind;
-	Desc.Domain = "xrt.websocket.handshake";
-	Desc.Code = XWS_HANDSHAKE_ERROR_UPGRADE;
-	Desc.Operation = sOperation;
-	Desc.Message = sMessage;
-	return xrtErrorBuild(&Desc);
-}
-
-#endif
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: extlibs/xws/include/xrt/detail/xws_wait.h */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_HTTP_FUTURE)
-#ifndef XRT_DETAIL_XWS_WAIT_H
-#define XRT_DETAIL_XWS_WAIT_H
-
-XRT_EXTERN_C_BEGIN
-#if (defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE))
-XRT_API xwaitresult __xrtWsGroupOpWaitUntil(
-	xwsgroupop* pOperation,
-	double iDeadline
-);
-#endif
-#if (defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE))
-XRT_API xwaitresult __xrtWsGroupOpWaitUntilCancel(
-	xwsgroupop* pOperation,
-	double iDeadline,
-	xcancel* pCancel
-);
-#endif
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: extlibs/xws/src/internal/xrt_websocket_server_router.h */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_ROUTER)
-#ifndef XRT_INTERNAL_WEBSOCKET_SERVER_ROUTER_H
-#define XRT_INTERNAL_WEBSOCKET_SERVER_ROUTER_H
-
-
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_ROUTER)
-
-/* 路由快照由 Router 和全部已升级连接共同引用。 */
-typedef struct xrt_ws_server_route {
-	volatile int32 References;
-	xwsserverrouteconfig Config;
-	char Storage[];
-} xrt_ws_server_route;
-
-
-
-/* 每次 Upgrade 独立持有路由，并在异步完成与连接 Close 之间共享。 */
-typedef struct xrt_ws_server_route_connection {
-	volatile int32 References;
-	xrt_ws_server_route* Route;
-} xrt_ws_server_route_connection;
-
-
-
-/* 所有 WebSocket 事件先恢复用户 Data，再转发给固定路由事件表。 */
-extern const xwsconnevents __xrtWsServerRouteEvents;
-
-
-
-/* 创建持有路由的单次 Upgrade 上下文。 */
-xrt_ws_server_route_connection* __xrtWsServerRouteConnectionCreate(
-	xrt_ws_server_route* pRoute
-);
-
-
-
-/* 释放 Upgrade 或 Connection 对单次上下文的一个引用。 */
-void __xrtWsServerRouteConnectionRelease(
-	xrt_ws_server_route_connection* pConnection
-);
-
-
-
-/* 释放 Router 或活动连接对固定路由快照的一个引用。 */
-void __xrtWsServerRouteRelease(ptr pData);
-
-
-
-/* 把底层 Upgrade 终态转为借用 Open 或 Error 回调。 */
-void __xrtWsServerRouteUpgradeDone(
-	xhttpconn* pHttp,
-	xnetresult Result,
-	xwsconn* pConnection,
-	const xerror* pError,
-	ptr pData
-);
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: extlibs/xws/src/internal/xrt_websocket_group.h */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP) || \
-	defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE)
-#ifndef XRT_INTERNAL_WEBSOCKET_GROUP_H
-#define XRT_INTERNAL_WEBSOCKET_GROUP_H
-
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP)
-
-/* 验证 Group 固定结构并设置稳定的 Group 域错误。 */
-bool __xrtWsGroupCheck(
-	const xwsgroup* pGroup,
-	cstr sOperation
-);
-
-
-
-/* 判断一个已验证范围是否覆盖 Group 的私有固定结构。 */
-bool __xrtWsGroupOverlaps(
-	const xwsgroup* pGroup,
-	cbytes pData,
-	size_t iSize
-);
-
-
-
-/* 设置带稳定 WebSocket Group 域的结构化错误。 */
-void __xrtWsGroupError(
-	xerrkind Kind,
-	xwsgrouperror Code,
-	cstr sOperation,
-	cstr sMessage
-);
-
-
-
-/* 为底层失败补充稳定的连接组操作边界。 */
-void __xrtWsGroupWrap(
-	xerrkind DefaultKind,
-	xwsgrouperror Code,
-	cstr sOperation,
-	cstr sMessage
-);
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* internal: extlibs/xws/src/internal/xrt_websocket_group_future.h */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE)
-#ifndef XRT_INTERNAL_WEBSOCKET_GROUP_FUTURE_H
-#define XRT_INTERNAL_WEBSOCKET_GROUP_FUTURE_H
-
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE)
-
-/* 成员提交函数只在创建批量操作的调用线程内借用上下文。 */
-typedef xfuture* (*__xrt_ws_group_submitproc)(
-	xwsconn* pConnection,
-	ptr pData
-);
-
-
-
-/* 创建已经具备稳定成员快照和完成 Future 的批量操作。 */
-xwsgroupop* __xrtWsGroupOpCreate(xwsgroup* pGroup);
-
-
-
-/* 对稳定快照逐成员提交操作，并保存接纳 Future 或同步错误。 */
-bool __xrtWsGroupOpSubmit(
-	xwsgroupop* pOperation,
-	__xrt_ws_group_submitproc pSubmit,
-	ptr pData
-);
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* source: extlibs/xws/src/websocket/connection.c */
 /* ========================================================================== */
 
@@ -3648,6 +1643,8 @@ static bool __xrtWsConnConfigPrepare(xwsconnconfig* pConfig)
 				return false;
 			}
 		}
+	#else
+		if (pConfig->DeflateEnabled) return false;
 	#endif
 	return true;
 }
@@ -3655,7 +1652,7 @@ static bool __xrtWsConnConfigPrepare(xwsconnconfig* pConfig)
 
 
 /* 对外部适配层执行无分配且不修改输入的 Connection 配置预检。 */
-XRT_API bool xrtWsConnConfigValid(
+XWS_API bool xrtWsConnConfigValid(
 	const xwsconnconfig* pConfig
 )
 {
@@ -3677,6 +1674,12 @@ bool __xrtWsConnRangeValid(const xwsconn* pConnection)
 		pConnection,
 		sizeof(*pConnection)
 	);
+}
+
+/* 扩展库通过公开入口验证连接，不共享私有结构布局。 */
+XWS_API bool xrtWsConnValid(const xwsconn* pConnection)
+{
+	return __xrtWsConnRangeValid(pConnection);
 }
 
 
@@ -3887,7 +1890,7 @@ static void __xrtWsConnOutputRelease(
 
 
 /* 合并 TLS 余量和传输队列，溢出时返回饱和值。 */
-XRT_API size_t xrtWsConnPending(const xwsconn* pConnection)
+XWS_API size_t xrtWsConnPending(const xwsconn* pConnection)
 {
 	uint64 iOutput;
 	size_t iTransport;
@@ -4031,7 +2034,7 @@ static size_t __xrtWsConnAvailable(
 
 
 /* 计算控制预留之后普通数据仍可使用的发送预算。 */
-XRT_API size_t xrtWsConnWritable(const xwsconn* pConnection)
+XWS_API size_t xrtWsConnWritable(const xwsconn* pConnection)
 {
 	if ( pConnection == NULL ) {
 		return 0;
@@ -5781,7 +3784,7 @@ static void __xrtWsConnDriveSchedule(xwsconn* pConnection)
 
 
 /* 暂停后续应用消息分块；TCP 立即停止新接收，TLS 由未消费明文施加背压。 */
-XRT_API void xrtWsConnPause(xwsconn* pConnection)
+XWS_API void xrtWsConnPause(xwsconn* pConnection)
 {
 	ptr pTransport;
 
@@ -5824,7 +3827,7 @@ XRT_API void xrtWsConnPause(xwsconn* pConnection)
 
 
 /* 恢复读取，并让所属 Worker 继续消费已缓冲的 TCP 或 TLS 明文。 */
-XRT_API bool xrtWsConnResume(xwsconn* pConnection)
+XWS_API bool xrtWsConnResume(xwsconn* pConnection)
 {
 	if ( pConnection == NULL ) {
 		(void)__xrtWsConnReject(
@@ -5864,7 +3867,7 @@ XRT_API bool xrtWsConnResume(xwsconn* pConnection)
 
 
 /* 返回应用读取暂停状态的并发快照。 */
-XRT_API bool xrtWsConnPaused(const xwsconn* pConnection)
+XWS_API bool xrtWsConnPaused(const xwsconn* pConnection)
 {
 	if ( pConnection == NULL ) {
 		return false;
@@ -6472,7 +4475,7 @@ static xwsconn* __xrtWsConnCreate(
 
 
 /* 初始化稳定的已建立会话默认值。 */
-XRT_API void xrtWsConnConfigInit(xwsconnconfig* pConfig)
+XWS_API void xrtWsConnConfigInit(xwsconnconfig* pConfig)
 {
 	xwsconnconfig Config;
 
@@ -6499,18 +4502,25 @@ XRT_API void xrtWsConnConfigInit(xwsconnconfig* pConfig)
 	Config.CloseTimeout =
 		XWS_CONN_CLOSE_TIMEOUT_DEFAULT;
 	Config.AutoPong = true;
-	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
-		Config.AsyncBytesLimit =
-			XWS_CONN_ASYNC_BYTES_DEFAULT;
-		Config.AsyncCountLimit =
-			XWS_CONN_ASYNC_COUNT_DEFAULT;
-		Config.AsyncBatch =
-			XWS_CONN_ASYNC_BATCH_DEFAULT;
-	#endif
+	Config.AsyncBytesLimit =
+		XWS_CONN_ASYNC_BYTES_DEFAULT;
+	Config.AsyncCountLimit =
+		XWS_CONN_ASYNC_COUNT_DEFAULT;
+	Config.AsyncBatch =
+		XWS_CONN_ASYNC_BATCH_DEFAULT;
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
 		xrtWsDeflateInit(&Config.Deflate);
 		xrtWsInflaterConfigInit(&Config.Inflater);
 		xrtWsDeflaterConfigInit(&Config.Deflater);
+	#else
+		Config.Deflate.ServerMaxWindowBits = XWS_DEFLATE_WINDOW_MAX;
+		Config.Deflate.ClientMaxWindowBits = XWS_DEFLATE_WINDOW_MAX;
+		Config.Inflater.OutputLimit = XWS_INFLATE_OUTPUT_DEFAULT;
+		Config.Inflater.WindowBits = XWS_DEFLATE_WINDOW_MAX;
+		Config.Deflater.OutputLimit = UINT64_MAX;
+		Config.Deflater.Level = 6;
+		Config.Deflater.Strategy = XDEFLATE_STRATEGY_DEFAULT;
+		Config.Deflater.WindowBits = XWS_DEFLATE_WINDOW_MAX;
 	#endif
 	memcpy(pConfig, &Config, sizeof(Config));
 }
@@ -6607,7 +4617,7 @@ static bool __xrtWsConnAttachBudget(
 
 
 /* 接管开放 TCP Stream，并延迟处理已经缓冲的早到帧。 */
-XRT_API xwsconn* xrtWsConnAttach(
+XWS_API xwsconn* xrtWsConnAttach(
 	xnetstream* pStream,
 	const xwsconnconfig* pConfig,
 	const xwsconnevents* pEvents,
@@ -6681,7 +4691,7 @@ XRT_API xwsconn* xrtWsConnAttach(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 /* 接管开放 TLS Stream，并延迟处理已经解密的早到明文。 */
-XRT_API xwsconn* xrtWsConnAttachTls(
+XWS_API xwsconn* xrtWsConnAttachTls(
 	xtlsstream* pStream,
 	const xwsconnconfig* pConfig,
 	const xwsconnevents* pEvents,
@@ -6758,7 +4768,7 @@ XRT_API xwsconn* xrtWsConnAttachTls(
 
 
 /* 增加 Connection 引用。 */
-XRT_API xwsconn* xrtWsConnRef(xwsconn* pConnection)
+XWS_API xwsconn* xrtWsConnRef(xwsconn* pConnection)
 {
 	if ( pConnection == NULL ) {
 		return NULL;
@@ -6775,7 +4785,7 @@ XRT_API xwsconn* xrtWsConnRef(xwsconn* pConnection)
 
 
 /* 释放 Connection 引用。 */
-XRT_API void xrtWsConnDestroy(xwsconn* pConnection)
+XWS_API void xrtWsConnDestroy(xwsconn* pConnection)
 {
 	if ( pConnection == NULL ) {
 		return;
@@ -6794,7 +4804,7 @@ XRT_API void xrtWsConnDestroy(xwsconn* pConnection)
 
 
 /* 返回并发可读状态。 */
-XRT_API xwsconnstate xrtWsConnState(
+XWS_API xwsconnstate xrtWsConnState(
 	const xwsconn* pConnection
 )
 {
@@ -6816,7 +4826,7 @@ XRT_API xwsconnstate xrtWsConnState(
 
 
 /* 返回固定本端角色。 */
-XRT_API xwsrole xrtWsConnRole(
+XWS_API xwsrole xrtWsConnRole(
 	const xwsconn* pConnection
 )
 {
@@ -6835,7 +4845,7 @@ XRT_API xwsrole xrtWsConnRole(
 
 
 /* 返回拥有型已协商子协议的借用视图。 */
-XRT_API xstrview xrtWsConnProtocol(
+XWS_API xstrview xrtWsConnProtocol(
 	const xwsconn* pConnection
 )
 {
@@ -6857,7 +4867,7 @@ XRT_API xstrview xrtWsConnProtocol(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
 /* 复制固定的 permessage-deflate 协商结果。 */
-XRT_API bool xrtWsConnDeflate(
+XWS_API bool xrtWsConnDeflate(
 	const xwsconn* pConnection,
 	xwsdeflate* pDeflate
 )
@@ -6902,7 +4912,7 @@ XRT_API bool xrtWsConnDeflate(
 
 
 /* 返回借用 Worker。 */
-XRT_API xnetworker* xrtWsConnWorker(
+XWS_API xnetworker* xrtWsConnWorker(
 	const xwsconn* pConnection
 )
 {
@@ -6921,7 +4931,7 @@ XRT_API xnetworker* xrtWsConnWorker(
 
 
 /* TCP 会话返回借用 Stream。 */
-XRT_API xnetstream* xrtWsConnTcp(
+XWS_API xnetstream* xrtWsConnTcp(
 	const xwsconn* pConnection
 )
 {
@@ -6954,7 +4964,7 @@ XRT_API xnetstream* xrtWsConnTcp(
 
 
 /* 从任意线程取得 TCP Stream 强引用。 */
-XRT_API xnetstream* xrtWsConnTcpRef(
+XWS_API xnetstream* xrtWsConnTcpRef(
 	const xwsconn* pConnection
 )
 {
@@ -6977,7 +4987,7 @@ XRT_API xnetstream* xrtWsConnTcpRef(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 /* TLS 会话返回借用 Stream。 */
-XRT_API xtlsstream* xrtWsConnTls(
+XWS_API xtlsstream* xrtWsConnTls(
 	const xwsconn* pConnection
 )
 {
@@ -7010,7 +5020,7 @@ XRT_API xtlsstream* xrtWsConnTls(
 
 
 /* 从任意线程取得 TLS Stream 强引用。 */
-XRT_API xtlsstream* xrtWsConnTlsRef(
+XWS_API xtlsstream* xrtWsConnTlsRef(
 	const xwsconn* pConnection
 )
 {
@@ -7860,7 +5870,7 @@ static xnetresult __xrtWsConnSendMessage(
 
 
 /* 发送一条完整 Text 或 Binary 消息。 */
-XRT_API xnetresult xrtWsConnSend(
+XWS_API xnetresult xrtWsConnSend(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -7877,7 +5887,7 @@ XRT_API xnetresult xrtWsConnSend(
 
 
 /* 发送完整 Text。 */
-XRT_API xnetresult xrtWsConnText(
+XWS_API xnetresult xrtWsConnText(
 	xwsconn* pConnection,
 	xstrview Text
 )
@@ -7895,7 +5905,7 @@ XRT_API xnetresult xrtWsConnText(
 
 
 /* 发送完整 Binary。 */
-XRT_API xnetresult xrtWsConnBinary(
+XWS_API xnetresult xrtWsConnBinary(
 	xwsconn* pConnection,
 	xbytesview Data
 )
@@ -7911,7 +5921,7 @@ XRT_API xnetresult xrtWsConnBinary(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
 /* 压缩并发送完整 Text 或 Binary。 */
-XRT_API xnetresult xrtWsConnSendCompressed(
+XWS_API xnetresult xrtWsConnSendCompressed(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -7928,7 +5938,7 @@ XRT_API xnetresult xrtWsConnSendCompressed(
 
 
 /* 压缩并发送完整 Text。 */
-XRT_API xnetresult xrtWsConnTextCompressed(
+XWS_API xnetresult xrtWsConnTextCompressed(
 	xwsconn* pConnection,
 	xstrview Text
 )
@@ -7946,7 +5956,7 @@ XRT_API xnetresult xrtWsConnTextCompressed(
 
 
 /* 压缩并发送完整 Binary。 */
-XRT_API xnetresult xrtWsConnBinaryCompressed(
+XWS_API xnetresult xrtWsConnBinaryCompressed(
 	xwsconn* pConnection,
 	xbytesview Data
 )
@@ -7994,7 +6004,7 @@ static xnetresult __xrtWsConnControlSend(
 
 
 /* 发送 Ping 控制帧。 */
-XRT_API xnetresult xrtWsConnPing(
+XWS_API xnetresult xrtWsConnPing(
 	xwsconn* pConnection,
 	xbytesview Payload
 )
@@ -8009,7 +6019,7 @@ XRT_API xnetresult xrtWsConnPing(
 
 
 /* 发送 Pong 控制帧。 */
-XRT_API xnetresult xrtWsConnPong(
+XWS_API xnetresult xrtWsConnPong(
 	xwsconn* pConnection,
 	xbytesview Payload
 )
@@ -8024,7 +6034,7 @@ XRT_API xnetresult xrtWsConnPong(
 
 
 /* 发送唯一 Close 并等待远端回应。 */
-XRT_API xnetresult xrtWsConnClose(
+XWS_API xnetresult xrtWsConnClose(
 	xwsconn* pConnection,
 	uint16 iCode,
 	xstrview Reason
@@ -8070,7 +6080,7 @@ XRT_API xnetresult xrtWsConnClose(
 
 
 /* 从任意线程安全取得临时传输引用并请求异常关闭。 */
-XRT_API bool xrtWsConnAbort(xwsconn* pConnection)
+XWS_API bool xrtWsConnAbort(xwsconn* pConnection)
 {
 	ptr pTransport;
 	bool bAccepted;
@@ -8130,7 +6140,7 @@ XRT_API bool xrtWsConnAbort(xwsconn* pConnection)
 
 
 /* 复制 Close 快照。 */
-XRT_API bool xrtWsConnCloseInfo(
+XWS_API bool xrtWsConnCloseInfo(
 	const xwsconn* pConnection,
 	xwsconnclose* pClose
 )
@@ -8169,7 +6179,7 @@ XRT_API bool xrtWsConnCloseInfo(
 
 
 /* 返回第一个结构化错误。 */
-XRT_API const xerror* xrtWsConnError(
+XWS_API const xerror* xrtWsConnError(
 	const xwsconn* pConnection
 )
 {
@@ -8185,4350 +6195,6 @@ XRT_API const xerror* xrtWsConnError(
 	return (const xerror*)xrtAtomicPtrLoad(
 		&pConnection->Error,
 		XMEMORY_ACQUIRE
-	);
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: extlibs/xws/src/websocket/http_future.c */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_HTTP_FUTURE)
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_HTTP_FUTURE)
-
-/* 记录连接建立结果的稳定错误上下文。 */
-static void __xrtWsOpenResultError(
-	xerrkind Kind,
-	xwsopenresulterror Code,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	__xwsErrorSetDetail(
-		Kind,
-		"xrt.websocket.open-result",
-		(int32)Code,
-		sOperation,
-		sMessage,
-		NULL
-	);
-}
-
-
-
-/* 验证公开连接建立结果覆盖完整固定存储。 */
-static bool __xrtWsOpenResultValid(
-	const xwsopenresult* pResult,
-	cstr sOperation
-)
-{
-	if ( xrtMemRangeValid(pResult, sizeof(*pResult)) ) {
-		return true;
-	}
-	__xrtWsOpenResultError(
-		XERR_ARGUMENT,
-		XWS_OPEN_RESULT_ERROR_ARGUMENT,
-		sOperation,
-		"WebSocket open result range is invalid"
-	);
-	return false;
-}
-
-
-
-
-/* 增加连接建立结果引用并返回原指针。 */
-XRT_API xwsopenresult* xrtWsOpenResultRef(
-	xwsopenresult* pResult
-)
-{
-	if ( !__xrtWsOpenResultValid(
-		pResult,
-		"retain-websocket-open-result"
-	) ) {
-		return NULL;
-	}
-	if ( xrtRefRetain(&pResult->References) < 0 ) {
-		__xrtWsOpenResultError(
-			XERR_STATE,
-			XWS_OPEN_RESULT_ERROR_STATE,
-			"retain-websocket-open-result",
-			"WebSocket open result cannot be retained"
-		);
-		return NULL;
-	}
-	return pResult;
-}
-
-
-
-/* 释放最后一个结果引用及其尚未取走的全部所有权。 */
-XRT_API void xrtWsOpenResultDestroy(
-	xwsopenresult* pResult
-)
-{
-	xwsconn* pConnection;
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE)
-		xhttpresponse* pResponse;
-	#endif
-
-	if ( pResult == NULL ) {
-		return;
-	}
-	if ( !__xrtWsOpenResultValid(
-		pResult,
-		"destroy-websocket-open-result"
-	) ) {
-		return;
-	}
-	if ( xrtRefRelease(&pResult->References) != 0 ) {
-		return;
-	}
-	pConnection = (xwsconn*)xrtAtomicPtrExchange(
-		&pResult->Connection,
-		NULL,
-		XMEMORY_ACQ_REL
-	);
-	__xrtWsOpenConnectionDestroy(pConnection);
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE)
-		pResponse = (xhttpresponse*)xrtAtomicPtrExchange(
-			&pResult->Response,
-			NULL,
-			XMEMORY_ACQ_REL
-		);
-		xrtHttpResponseDestroy(pResponse);
-	#endif
-	memset(pResult, 0, sizeof(*pResult));
-	xrtFree(pResult);
-}
-
-
-
-/* 返回结果借用的 WebSocket Connection。 */
-XRT_API xwsconn* xrtWsOpenResultConnection(
-	const xwsopenresult* pResult
-)
-{
-	if ( !__xrtWsOpenResultValid(
-		pResult,
-		"get-websocket-open-connection"
-	) ) {
-		return NULL;
-	}
-	return (xwsconn*)xrtAtomicPtrLoad(
-		&pResult->Connection,
-		XMEMORY_ACQUIRE
-	);
-}
-
-
-
-/* 原子取走结果拥有的 WebSocket Connection。 */
-XRT_API xwsconn* xrtWsOpenResultTakeConnection(
-	xwsopenresult* pResult
-)
-{
-	if ( !__xrtWsOpenResultValid(
-		pResult,
-		"take-websocket-open-connection"
-	) ) {
-		return NULL;
-	}
-	return (xwsconn*)xrtAtomicPtrExchange(
-		&pResult->Connection,
-		NULL,
-		XMEMORY_ACQ_REL
-	);
-}
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE)
-
-/* 返回结果借用的客户端 HTTP 101 Response。 */
-XRT_API const xhttpresponse* xrtWsOpenResultResponse(
-	const xwsopenresult* pResult
-)
-{
-	if ( !__xrtWsOpenResultValid(
-		pResult,
-		"get-websocket-open-response"
-	) ) {
-		return NULL;
-	}
-	return (const xhttpresponse*)xrtAtomicPtrLoad(
-		&pResult->Response,
-		XMEMORY_ACQUIRE
-	);
-}
-
-
-
-/* 原子取走结果拥有的客户端 HTTP 101 Response。 */
-XRT_API xhttpresponse* xrtWsOpenResultTakeResponse(
-	xwsopenresult* pResult
-)
-{
-	if ( !__xrtWsOpenResultValid(
-		pResult,
-		"take-websocket-open-response"
-	) ) {
-		return NULL;
-	}
-	return (xhttpresponse*)xrtAtomicPtrExchange(
-		&pResult->Response,
-		NULL,
-		XMEMORY_ACQ_REL
-	);
-}
-
-#endif
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: extlibs/xws/src/websocket/server.c */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER)
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER)
-
-typedef struct __xrt_ws_upgrade {
-	xwsserverconfig Config;
-	xwsconnevents Events;
-	xwsupgradeproc Proc;
-	ptr EventData;
-	ptr Data;
-	xstrview Protocol;
-	char Storage[];
-} __xrt_ws_upgrade;
-
-
-
-/* 比较大小写敏感的子协议 token。 */
-static bool __xrtWsServerProtocolEqual(
-	xstrview Left,
-	xstrview Right
-)
-{
-	return __xrtWsHttpTextEqual(Left, Right);
-}
-
-
-
-/* 判断当前 token 是否已在更早字段或当前字段前缀出现。 */
-static bool __xrtWsServerProtocolSeen(
-	const xhttpserverrequest* pRequest,
-	size_t iField,
-	size_t iOrdinal,
-	xstrview Protocol
-)
-{
-	for ( size_t i = 0; i <= iField; i++ ) {
-		const xhttpfield* pField =
-			xrtHttpServerRequestHeaderAt(pRequest, i);
-		size_t iOffset = 0;
-		size_t iLimit = i == iField ?
-			iOrdinal : SIZE_MAX;
-		size_t iCurrent = 0;
-
-		if ( (pField == NULL) ||
-			!xrtHttpFieldNameEqual(
-				pField->Name,
-				XRT_STR_LITERAL(
-					"Sec-WebSocket-Protocol"
-				)
-			) ) {
-			continue;
-		}
-		while ( iCurrent < iLimit ) {
-			xstrview Previous;
-			xhttpnext Next = xrtWsProtocolNext(
-				pField->Value,
-				&iOffset,
-				&Previous
-			);
-
-			if ( Next != XHTTP_NEXT_ITEM ) {
-				break;
-			}
-			if ( __xrtWsServerProtocolEqual(
-				Previous,
-				Protocol
-			) ) {
-				return true;
-			}
-			iCurrent++;
-		}
-	}
-	return false;
-}
-
-
-
-/* 验证重复子协议字段并按客户端出现顺序选择交集。 */
-static bool __xrtWsServerProtocolSelect(
-	const xhttpserverrequest* pRequest,
-	xstrview Protocols,
-	xstrview* pSelected
-)
-{
-	size_t iCount = xrtHttpServerRequestHeaderCount(
-		pRequest
-	);
-	xstrview Selected = { 0 };
-
-	if ( !xrtWsProtocolsValid(Protocols) ) {
-		__xwsHandshakeError(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_PROTOCOL,
-			"check-websocket-request",
-			"WebSocket server protocol list is invalid"
-		);
-		return false;
-	}
-	for ( size_t i = 0; i < iCount; i++ ) {
-		const xhttpfield* pField =
-			xrtHttpServerRequestHeaderAt(pRequest, i);
-		size_t iOffset = 0;
-		size_t iOrdinal = 0;
-
-		if ( (pField == NULL) ||
-			!xrtHttpFieldNameEqual(
-				pField->Name,
-				XRT_STR_LITERAL(
-					"Sec-WebSocket-Protocol"
-				)
-			) ) {
-			continue;
-		}
-		if ( !xrtWsProtocolsValid(pField->Value) ) {
-			__xwsHandshakeError(
-				XERR_PROTOCOL,
-				XWS_HANDSHAKE_ERROR_PROTOCOL,
-				"check-websocket-request",
-				"WebSocket request protocol field is invalid"
-			);
-			return false;
-		}
-		for ( ;; ) {
-			xstrview Offered;
-			xhttpnext Next = xrtWsProtocolNext(
-				pField->Value,
-				&iOffset,
-				&Offered
-			);
-
-			if ( Next == XHTTP_NEXT_END ) {
-				break;
-			}
-			if ( Next != XHTTP_NEXT_ITEM ) {
-				return false;
-			}
-			if ( __xrtWsServerProtocolSeen(
-				pRequest,
-				i,
-				iOrdinal,
-				Offered
-			) ) {
-				__xwsHandshakeError(
-					XERR_PROTOCOL,
-					XWS_HANDSHAKE_ERROR_PROTOCOL,
-					"check-websocket-request",
-					"WebSocket request repeats a protocol"
-				);
-				return false;
-			}
-			if ( (Selected.Size == 0) &&
-				xrtWsProtocolsHas(
-					Protocols,
-					Offered
-				) ) {
-				Selected = Offered;
-			}
-			iOrdinal++;
-		}
-	}
-	*pSelected = Selected;
-	return true;
-}
-
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-
-typedef struct __xrt_ws_server_deflate {
-	xwsdeflate Offer;
-	bool Found;
-} __xrt_ws_server_deflate;
-
-
-
-/* 找出唯一的 permessage-deflate offer；未知扩展由服务端主动忽略。 */
-static bool __xrtWsServerDeflateVisit(
-	const xwsextension* pExtension,
-	ptr pData
-)
-{
-	__xrt_ws_server_deflate* pDeflate =
-		(__xrt_ws_server_deflate*)pData;
-
-	if ( !xrtWsDeflateIs(pExtension) ) {
-		return true;
-	}
-	if ( pDeflate->Found ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_EXTENSION,
-			"check-websocket-request",
-			"WebSocket request repeats permessage-deflate"
-		);
-		return false;
-	}
-	if ( !xrtWsDeflateOfferParse(
-		pExtension,
-		&pDeflate->Offer
-	) ) {
-		__xwsHandshakeWrap(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_EXTENSION,
-			"check-websocket-request",
-			"WebSocket permessage-deflate offer is invalid"
-		);
-		return false;
-	}
-	pDeflate->Found = true;
-	return true;
-}
-
-
-
-/* 运行可选策略，并区分无错误的主动放弃和带原因的策略失败。 */
-static bool __xrtWsServerDeflateAccept(
-	const xwsserverconfig* pConfig,
-	const xwsdeflate* pOffer,
-	xwsdeflate* pResponse,
-	bool* pAccepted
-)
-{
-	xerror* pPrevious;
-	xerror* pCallbackError;
-	bool bAccepted;
-
-	if ( !xrtWsDeflateAccept(pOffer, pResponse) ) {
-		__xwsHandshakeWrap(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_EXTENSION,
-			"check-websocket-request",
-			"WebSocket permessage-deflate offer cannot be accepted"
-		);
-		return false;
-	}
-	if ( pConfig->AcceptDeflate == NULL ) {
-		*pAccepted = true;
-		return true;
-	}
-
-	pPrevious = xrtTakeError();
-	bAccepted = pConfig->AcceptDeflate(
-		pOffer,
-		pResponse,
-		pConfig->DeflateData
-	);
-	pCallbackError = xrtTakeError();
-	if ( !bAccepted && (pCallbackError != NULL) ) {
-		xrtSetError(pCallbackError);
-		__xwsHandshakeWrap(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_EXTENSION,
-			"check-websocket-request",
-			"WebSocket permessage-deflate policy failed"
-		);
-		xrtErrorFree(pCallbackError);
-		xrtErrorFree(pPrevious);
-		return false;
-	}
-	xrtErrorFree(pCallbackError);
-	if ( pPrevious != NULL ) {
-		xrtSetError(pPrevious);
-	}
-	xrtErrorFree(pPrevious);
-	*pAccepted = bAccepted;
-	return true;
-}
-
-
-
-/* 协商服务端压缩响应，并把规范字段值保存在握手快照中。 */
-static bool __xrtWsServerDeflateSelect(
-	const __xrt_ws_fields* pFields,
-	const xwsserverconfig* pConfig,
-	xwsserverhandshake* pHandshake
-)
-{
-	__xrt_ws_server_deflate Deflate;
-	xwsdeflate Response;
-	size_t iSize = 0;
-	bool bAccepted;
-
-	if ( !pConfig->EnableDeflate ) {
-		if ( pConfig->RequireDeflate ) {
-			__xwsHandshakeError(
-				XERR_VALUE,
-				XWS_HANDSHAKE_ERROR_EXTENSION,
-				"check-websocket-request",
-				"Required WebSocket compression is not enabled"
-			);
-			return false;
-		}
-		return true;
-	}
-	memset(&Deflate, 0, sizeof(Deflate));
-	if ( !__xrtWsHttpExtensionsVisit(
-		pFields,
-		__xrtWsServerDeflateVisit,
-		&Deflate
-	) ) {
-		return false;
-	}
-	if ( !Deflate.Found ) {
-		if ( pConfig->RequireDeflate ) {
-			__xwsHandshakeError(
-				XERR_PROTOCOL,
-				XWS_HANDSHAKE_ERROR_EXTENSION,
-				"check-websocket-request",
-				"WebSocket request did not offer required compression"
-			);
-			return false;
-		}
-		return true;
-	}
-	if ( !__xrtWsServerDeflateAccept(
-		pConfig,
-		&Deflate.Offer,
-		&Response,
-		&bAccepted
-	) ) {
-		return false;
-	}
-	if ( !bAccepted ) {
-		if ( pConfig->RequireDeflate ) {
-			__xwsHandshakeError(
-				XERR_PROTOCOL,
-				XWS_HANDSHAKE_ERROR_EXTENSION,
-				"check-websocket-request",
-				"WebSocket compression policy declined a required offer"
-			);
-			return false;
-		}
-		return true;
-	}
-	if ( !xrtWsDeflateResponseCheck(
-		&Deflate.Offer,
-		&Response
-	) || !xrtWsDeflateResponseWrite(
-		&Response,
-		pHandshake->Extensions,
-		XWS_DEFLATE_MAX_SIZE,
-		&iSize
-	) ) {
-		__xwsHandshakeWrap(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_EXTENSION,
-			"check-websocket-request",
-			"WebSocket compression policy produced an invalid response"
-		);
-		return false;
-	}
-	pHandshake->Extensions[iSize] = '\0';
-	pHandshake->Deflate = Response;
-	pHandshake->DeflateEnabled = true;
-	return true;
-}
-
-#endif
-
-
-
-/* 初始化服务端 Upgrade 默认配置。 */
-XRT_API void xrtWsServerConfigInit(
-	xwsserverconfig* pConfig
-)
-{
-	xwsserverconfig Config;
-
-	if ( !xrtMemRangeValid(pConfig, sizeof(Config)) ) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"config-init-websocket-server",
-			"WebSocket server configuration range is invalid"
-		);
-		return;
-	}
-	memset(&Config, 0, sizeof(Config));
-	xrtWsConnConfigInit(&Config.Connection);
-	Config.Connection.Role = XWS_ROLE_SERVER;
-	memcpy(pConfig, &Config, sizeof(Config));
-}
-
-
-
-/* 验证服务端固定配置，并以 Upgrade 实际采用的 Connection 参数完成预检。 */
-XRT_API bool xrtWsServerConfigValid(
-	const xwsserverconfig* pConfig
-)
-{
-	xwsserverconfig Config;
-	xwsconnconfig Connection;
-
-	if ( !xrtMemRangeValid(pConfig, sizeof(Config)) ) {
-		return false;
-	}
-	memcpy(&Config, pConfig, sizeof(Config));
-	if ( !xrtWsProtocolsValid(Config.Protocols) ) {
-		return false;
-	}
-	#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-		if ( Config.RequireDeflate &&
-			!Config.EnableDeflate ) {
-			return false;
-		}
-	#endif
-	Connection = Config.Connection;
-	Connection.Role = XWS_ROLE_SERVER;
-	Connection.Protocol = (xstrview) { 0 };
-	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
-		Connection.DeflateEnabled = false;
-	#endif
-	return xrtWsConnConfigValid(&Connection);
-}
-
-
-
-/* 严格验证服务端 HTTP/1.1 Upgrade 请求。 */
-XRT_API bool xrtWsServerCheck(
-	const xhttpserverrequest* pRequest,
-	const xwsserverconfig* pConfig,
-	xwsserverhandshake* pHandshake
-)
-{
-	__xrt_ws_fields Fields;
-	xwsserverconfig Config;
-	xwsserverhandshake Handshake;
-	const xhttpfield* pKey;
-	xhttpauthority Authority;
-	bool bConnection;
-
-	if ( !__xrtWsServerConfigSnapshot(
-		&Config,
-		pConfig,
-		"check-websocket-request"
-	) || !__xrtWsHttpObjectCheck(
-		pRequest,
-		"check-websocket-request",
-		"WebSocket server request is null"
-	) || !__xrtWsHttpRangeCheck(
-		pHandshake,
-		sizeof(Handshake),
-		"check-websocket-request",
-		"WebSocket server handshake output range is invalid"
-	) ) {
-		return false;
-	}
-	if ( ((Config.Protocols.Data == NULL) &&
-		 (Config.Protocols.Size != 0)) ||
-		(pHandshake == (const void*)pRequest) ||
-		((pConfig != NULL) && xrtMemRangesOverlap(
-			pHandshake,
-			sizeof(Handshake),
-			pConfig,
-			sizeof(*pConfig)
-		)) ) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"check-websocket-request",
-			"WebSocket protocol list or handshake output is invalid"
-		);
-		return false;
-	}
-	memset(&Handshake, 0, sizeof(Handshake));
-	Fields.Data = xrtHttpServerRequestHeaderData(pRequest);
-	Fields.Count = xrtHttpServerRequestHeaderCount(
-		pRequest
-	);
-	if ( !__xrtWsServerProtocolSelect(
-		pRequest,
-		Config.Protocols,
-		&Handshake.Protocol
-	) ) {
-		return false;
-	}
-	if ( !__xrtWsHttpTextEqual(
-		xrtHttpServerRequestMethod(pRequest),
-		XRT_STR_LITERAL("GET")
-	) ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_METHOD,
-			"check-websocket-request",
-			"WebSocket Upgrade method is not GET"
-		);
-		return false;
-	}
-	if ( xrtHttpServerRequestVersion(pRequest) !=
-		XHTTP_VERSION_1_1 ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_VERSION,
-			"check-websocket-request",
-			"WebSocket Upgrade requires HTTP/1.1"
-		);
-		return false;
-	}
-	if ( __xrtWsHttpFieldCount(
-		&Fields,
-		XRT_STR_LITERAL("Host")
-	) != 1 ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_HOST,
-			"check-websocket-request",
-			"WebSocket Upgrade requires exactly one Host"
-		);
-		return false;
-	}
-	if ( !xrtHttpServerRequestAuthority(
-		pRequest,
-		&Authority
-	) ) {
-		__xwsHandshakeWrap(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_HOST,
-			"check-websocket-request",
-			"WebSocket Upgrade requires one valid Host"
-		);
-		return false;
-	}
-	if ( !__xrtWsHttpUpgradeHas(&Fields) ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_UPGRADE,
-			"check-websocket-request",
-			"WebSocket Upgrade field is missing or ambiguous"
-		);
-		return false;
-	}
-	if ( !__xrtWsHttpTokenHas(
-		&Fields,
-		XRT_STR_LITERAL("Connection"),
-		XRT_STR_LITERAL("Upgrade"),
-		&bConnection
-	) || !bConnection ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_CONNECTION,
-			"check-websocket-request",
-			"WebSocket Connection field does not select Upgrade"
-		);
-		return false;
-	}
-	if ( !__xrtWsHttpTokenExact(
-		&Fields,
-		XRT_STR_LITERAL("Sec-WebSocket-Version"),
-		XRT_STR_LITERAL("13")
-	) ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_VERSION,
-			"check-websocket-request",
-			"WebSocket version is missing, repeated or unsupported"
-		);
-		return false;
-	}
-	pKey = __xrtWsHttpFieldUnique(
-		&Fields,
-		XRT_STR_LITERAL("Sec-WebSocket-Key")
-	);
-	if ( (pKey == NULL) ||
-		!xrtWsKeyValid(pKey->Value) ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_KEY,
-			"check-websocket-request",
-			"WebSocket key is missing, repeated or invalid"
-		);
-		return false;
-	}
-	if ( (__xrtWsHttpFieldCount(
-		&Fields,
-		XRT_STR_LITERAL("Content-Length")
-	) != 0) || (__xrtWsHttpFieldCount(
-		&Fields,
-		XRT_STR_LITERAL("Transfer-Encoding")
-	) != 0) || (xrtHttpServerRequestBodyMode(
-		pRequest
-	) != XHTTP1_BODY_NONE) ||
-		(xrtHttpServerRequestBodyBytes(pRequest) != 0) ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_BODY,
-			"check-websocket-request",
-			"WebSocket Upgrade request contains an HTTP body"
-		);
-		return false;
-	}
-	#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-		if ( !__xrtWsServerDeflateSelect(
-			&Fields,
-			&Config,
-			&Handshake
-		) ) {
-			return false;
-		}
-	#endif
-	if ( !xrtWsAccept(
-		pKey->Value,
-		Handshake.Accept,
-		sizeof(Handshake.Accept)
-	) ) {
-		return false;
-	}
-	memcpy(pHandshake, &Handshake, sizeof(Handshake));
-	return true;
-}
-
-
-
-/* 从握手快照构造标准 101 Reply。 */
-XRT_API xhttpreply* xrtWsServerReply(
-	const xwsserverhandshake* pHandshake
-)
-{
-	xwsserverhandshake Handshake;
-	xhttpreply* pReply;
-	#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-		char sExtensions[XWS_DEFLATE_MAX_SIZE];
-		size_t iExtensions = 0;
-		bool bDeflateValid;
-	#endif
-
-	if ( !__xrtWsHttpRangeCheck(
-		pHandshake,
-		sizeof(Handshake),
-		"reply-websocket-upgrade",
-		"WebSocket server handshake snapshot range is invalid"
-	) ) {
-		return NULL;
-	}
-	memcpy(&Handshake, pHandshake, sizeof(Handshake));
-	#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-		bDeflateValid = !Handshake.DeflateEnabled ||
-			 (xrtWsDeflateResponseWrite(
-				&Handshake.Deflate,
-				sExtensions,
-				sizeof(sExtensions),
-				&iExtensions
-			  ) &&
-			  (Handshake.Extensions[iExtensions] == '\0') &&
-			  (memcmp(
-				Handshake.Extensions,
-				sExtensions,
-				iExtensions
-			   ) == 0));
-	#endif
-	if ( (Handshake.Accept[XWS_ACCEPT_SIZE] != '\0') ||
-		!xrtHttpFieldValueValid((xstrview) {
-			Handshake.Accept,
-			XWS_ACCEPT_SIZE
-		}) ||
-		((Handshake.Protocol.Data == NULL) &&
-		 (Handshake.Protocol.Size != 0)) ||
-		((Handshake.Protocol.Size != 0) &&
-		 !xrtHttpTokenValid(Handshake.Protocol))
-		#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-			|| !bDeflateValid
-		#endif
-		) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"reply-websocket-upgrade",
-			"WebSocket server handshake snapshot is invalid"
-		);
-		return NULL;
-	}
-	pReply = xrtHttpReplyCreate(101);
-	if ( pReply == NULL ) {
-		__xwsHandshakeWrap(
-			XERR_MEMORY,
-			XWS_HANDSHAKE_ERROR_OUTPUT,
-			"reply-websocket-upgrade",
-			"WebSocket 101 Reply allocation failed"
-		);
-		return NULL;
-	}
-	if ( !xrtHttpReplySetHeader(
-		pReply,
-		XRT_STR_LITERAL("Upgrade"),
-		XRT_STR_LITERAL("websocket")
-	) || !xrtHttpReplySetHeader(
-		pReply,
-		XRT_STR_LITERAL("Connection"),
-		XRT_STR_LITERAL("Upgrade")
-	) || !xrtHttpReplySetHeader(
-		pReply,
-		XRT_STR_LITERAL("Sec-WebSocket-Accept"),
-		(xstrview) {
-			Handshake.Accept,
-			XWS_ACCEPT_SIZE
-		}
-	) || ((Handshake.Protocol.Size != 0) &&
-		!xrtHttpReplySetHeader(
-			pReply,
-			XRT_STR_LITERAL("Sec-WebSocket-Protocol"),
-			Handshake.Protocol
-		))
-	#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-		|| (Handshake.DeflateEnabled &&
-			!xrtHttpReplySetHeader(
-				pReply,
-				XRT_STR_LITERAL(
-					"Sec-WebSocket-Extensions"
-				),
-				(xstrview) {
-					Handshake.Extensions,
-					iExtensions
-				}
-			))
-	#endif
-		) {
-		xrtHttpReplyDestroy(pReply);
-		__xwsHandshakeWrap(
-			XERR_MEMORY,
-			XWS_HANDSHAKE_ERROR_OUTPUT,
-			"reply-websocket-upgrade",
-			"WebSocket 101 Reply fields could not be stored"
-		);
-		return NULL;
-	}
-	return pReply;
-}
-
-
-
-/* 根据稳定握手域和错误类型选择不会泄露内部细节的 HTTP 状态。 */
-static uint16 __xrtWsServerRejectStatus(
-	const xerror* pError
-)
-{
-	cstr sDomain;
-	int32 iCode;
-
-	if ( (pError == NULL) ||
-		(xrtErrorKind(pError) != XERR_PROTOCOL) ) {
-		return XHTTP_STATUS_INTERNAL_SERVER_ERROR;
-	}
-	sDomain = xrtErrorDomain(pError);
-	if ( (sDomain == NULL) ||
-		(strcmp(sDomain, "xrt.websocket.handshake") != 0) ) {
-		return XHTTP_STATUS_INTERNAL_SERVER_ERROR;
-	}
-	iCode = xrtErrorCode(pError);
-	if ( iCode == (int32)XWS_HANDSHAKE_ERROR_METHOD ) {
-		return XHTTP_STATUS_METHOD_NOT_ALLOWED;
-	}
-	if ( iCode == (int32)XWS_HANDSHAKE_ERROR_VERSION ) {
-		return XHTTP_STATUS_UPGRADE_REQUIRED;
-	}
-	return XHTTP_STATUS_BAD_REQUEST;
-}
-
-
-
-/* 构造并提交标准 WebSocket 握手拒绝响应。 */
-XRT_API xnetresult xrtWsServerReject(
-	xhttpconn* pHttp,
-	const xerror* pError
-)
-{
-	uint16 iStatus;
-	xhttpreply* pReply;
-	xnetresult Result;
-	bool bReady;
-
-	if ( !__xrtWsHttpObjectCheck(
-		pHttp,
-		"reject-websocket-upgrade",
-		"HTTP server connection is null"
-	) ) {
-		return XNET_RESULT_ERROR;
-	}
-	iStatus = __xrtWsServerRejectStatus(pError);
-	pReply = xrtHttpReplyCreate(iStatus);
-	if ( pReply == NULL ) {
-		return XNET_RESULT_ERROR;
-	}
-	bReady = true;
-	if ( iStatus == XHTTP_STATUS_METHOD_NOT_ALLOWED ) {
-		bReady = xrtHttpReplySetHeader(
-			pReply,
-			XRT_STR_LITERAL("Allow"),
-			XRT_STR_LITERAL("GET")
-		);
-	} else if ( iStatus == XHTTP_STATUS_UPGRADE_REQUIRED ) {
-		bReady = xrtHttpReplySetHeader(
-			pReply,
-			XRT_STR_LITERAL("Upgrade"),
-			XRT_STR_LITERAL("websocket")
-		) && xrtHttpReplySetHeader(
-			pReply,
-			XRT_STR_LITERAL("Sec-WebSocket-Version"),
-			XRT_STR_LITERAL("13")
-		);
-	}
-	if ( bReady ) {
-		Result = xrtHttpConnRespond(pHttp, pReply);
-	} else {
-		Result = XNET_RESULT_ERROR;
-	}
-	xrtHttpReplyDestroy(pReply);
-	return Result;
-}
-
-
-
-/* 把 HTTP Upgrade 终态接管为共享 WebSocket Connection。 */
-static void __xrtWsServerUpgradeDone(
-	xhttpconn* pHttp,
-	xnetresult Result,
-	xhttpupgrade Upgrade,
-	const xerror* pError,
-	ptr pData
-)
-{
-	__xrt_ws_upgrade* pUpgrade =
-		(__xrt_ws_upgrade*)pData;
-	xwsconn* pConnection = NULL;
-	xerror* pOwnedError = NULL;
-
-	if ( Result == XNET_RESULT_OK ) {
-		pUpgrade->Config.Connection.Protocol =
-			pUpgrade->Protocol;
-		if ( Upgrade.Tcp != NULL ) {
-			pConnection = xrtWsConnAttach(
-				Upgrade.Tcp,
-				&pUpgrade->Config.Connection,
-				&pUpgrade->Events,
-				pUpgrade->EventData
-			);
-			if ( pConnection != NULL ) {
-				Upgrade.Tcp = NULL;
-			}
-		}
-		#if defined(XWS_FEATURE_WEBSOCKET_SERVER_TLS)
-			else if ( Upgrade.Tls != NULL ) {
-				pConnection = xrtWsConnAttachTls(
-					Upgrade.Tls,
-					&pUpgrade->Config.Connection,
-					&pUpgrade->Events,
-					pUpgrade->EventData
-				);
-				if ( pConnection != NULL ) {
-					Upgrade.Tls = NULL;
-				}
-			}
-		#endif
-		else {
-			__xwsHandshakeError(
-				XERR_STATE,
-				XWS_HANDSHAKE_ERROR_UPGRADE,
-				"attach-websocket-server",
-				"HTTP Upgrade returned an unsupported transport"
-			);
-		}
-		if ( pConnection == NULL ) {
-			pOwnedError = xrtTakeError();
-			xrtHttpUpgradeAbort(&Upgrade);
-			Result = XNET_RESULT_ERROR;
-			pError = pOwnedError;
-		}
-	}
-	pUpgrade->Proc(
-		pHttp,
-		Result,
-		pConnection,
-		pError,
-		pUpgrade->Data
-	);
-	xrtErrorFree(pOwnedError);
-	xrtFree(pUpgrade);
-}
-
-
-
-/* 判断附加 Header 是否会覆盖 WebSocket 握手或 HTTP 分帧语义。 */
-static bool __xrtWsServerHeaderReserved(xstrview Name)
-{
-	return xrtHttpFieldNameEqual(
-		Name,
-		XRT_STR_LITERAL("Connection")
-	) || xrtHttpFieldNameEqual(
-		Name,
-		XRT_STR_LITERAL("Upgrade")
-	) || xrtHttpFieldNameEqual(
-		Name,
-		XRT_STR_LITERAL("Sec-WebSocket-Accept")
-	) || xrtHttpFieldNameEqual(
-		Name,
-		XRT_STR_LITERAL("Sec-WebSocket-Protocol")
-	) || xrtHttpFieldNameEqual(
-		Name,
-		XRT_STR_LITERAL("Sec-WebSocket-Extensions")
-	) || xrtHttpFieldNameEqual(
-		Name,
-		XRT_STR_LITERAL("Content-Length")
-	) || xrtHttpFieldNameEqual(
-		Name,
-		XRT_STR_LITERAL("Transfer-Encoding")
-	) || xrtHttpFieldNameEqual(
-		Name,
-		XRT_STR_LITERAL("Trailer")
-	);
-}
-
-
-
-/* 把已经快照的握手、事件和 Reply 提交给 HTTP Upgrade 层。 */
-static xnetresult __xrtWsServerUpgradeSubmit(
-	xhttpconn* pHttp,
-	const xwsserverconfig* pConfig,
-	const xwsserverhandshake* pHandshake,
-	const xhttpreply* pReply,
-	const xwsconnevents* pEvents,
-	ptr pEventData,
-	xwsupgradeproc pProc,
-	ptr pData
-)
-{
-	__xrt_ws_upgrade* pUpgrade;
-	xnetresult Result;
-	size_t iAllocation;
-
-	if ( pHandshake->Protocol.Size >
-		(SIZE_MAX - sizeof(*pUpgrade) - 1u) ) {
-		__xwsHandshakeError(
-			XERR_RANGE,
-			XWS_HANDSHAKE_ERROR_PROTOCOL,
-			"accept-websocket-upgrade",
-			"WebSocket selected protocol is too large"
-		);
-		return XNET_RESULT_ERROR;
-	}
-	iAllocation = sizeof(*pUpgrade) +
-		pHandshake->Protocol.Size + 1u;
-	pUpgrade = (__xrt_ws_upgrade*)xrtCalloc(
-		1,
-		iAllocation
-	);
-	if ( pUpgrade == NULL ) {
-		__xwsHandshakeWrap(
-			XERR_MEMORY,
-			XWS_HANDSHAKE_ERROR_OUTPUT,
-			"accept-websocket-upgrade",
-			"WebSocket Upgrade context allocation failed"
-		);
-		return XNET_RESULT_ERROR;
-	}
-	pUpgrade->Config = *pConfig;
-	pUpgrade->Config.Connection.Role = XWS_ROLE_SERVER;
-	pUpgrade->Config.Connection.Protocol =
-		(xstrview) { 0 };
-	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
-		pUpgrade->Config.Connection.DeflateEnabled = false;
-		#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-			pUpgrade->Config.Connection.DeflateEnabled =
-				pHandshake->DeflateEnabled;
-			if ( pHandshake->DeflateEnabled ) {
-				pUpgrade->Config.Connection.Deflate =
-					pHandshake->Deflate;
-			}
-		#endif
-	#endif
-	pUpgrade->Events = *pEvents;
-	pUpgrade->Proc = pProc;
-	pUpgrade->EventData = pEventData;
-	pUpgrade->Data = pData;
-	if ( pHandshake->Protocol.Size != 0 ) {
-		memcpy(
-			pUpgrade->Storage,
-			pHandshake->Protocol.Data,
-			pHandshake->Protocol.Size
-		);
-		pUpgrade->Protocol.Data =
-			pUpgrade->Storage;
-		pUpgrade->Protocol.Size =
-			pHandshake->Protocol.Size;
-	}
-	Result = xrtHttpConnUpgrade(
-		pHttp,
-		pReply,
-		__xrtWsServerUpgradeDone,
-		pUpgrade
-	);
-	if ( Result != XNET_RESULT_OK ) {
-		xrtFree(pUpgrade);
-	}
-	return Result;
-}
-
-
-
-/* 提交已经校验的握手，并在受保护字段之外追加应用 Header。 */
-XRT_API xnetresult xrtWsUpgradeAccept(
-	xhttpconn* pHttp,
-	const xwsserverconfig* pConfig,
-	const xwsserverhandshake* pHandshake,
-	const xhttpheaders* pHeaders,
-	const xwsconnevents* pEvents,
-	ptr pEventData,
-	xwsupgradeproc pProc,
-	ptr pData
-)
-{
-	xwsserverconfig Config;
-	xwsconnevents Events;
-	xwsserverhandshake Handshake;
-	xhttpheaders* pHeaderSnapshot = NULL;
-	xhttpreply* pReply;
-	xnetresult Result;
-	size_t iHeaderCount;
-
-	if ( !__xrtWsServerConfigSnapshot(
-		&Config,
-		pConfig,
-		"accept-websocket-upgrade"
-	) || !__xrtWsConnEventsSnapshot(
-		&Events,
-		pEvents,
-		"accept-websocket-upgrade"
-	) || !__xrtWsHttpObjectCheck(
-		pHttp,
-		"accept-websocket-upgrade",
-		"HTTP server connection is null"
-	) || !__xrtWsHttpRangeCheck(
-		pHandshake,
-		sizeof(Handshake),
-		"accept-websocket-upgrade",
-		"WebSocket server handshake snapshot range is invalid"
-	) ) {
-		return XNET_RESULT_ERROR;
-	}
-	if ( pProc == NULL ) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"accept-websocket-upgrade",
-			"WebSocket Upgrade callback is null"
-		);
-		return XNET_RESULT_ERROR;
-	}
-	if ( !xrtWsServerConfigValid(&Config) ) {
-		__xwsHandshakeError(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"accept-websocket-upgrade",
-			"WebSocket server configuration is invalid"
-		);
-		return XNET_RESULT_ERROR;
-	}
-	memcpy(&Handshake, pHandshake, sizeof(Handshake));
-	if ( (Handshake.Protocol.Size != 0) &&
-		!xrtWsProtocolsHas(
-			Config.Protocols,
-			Handshake.Protocol
-		) ) {
-		__xwsHandshakeError(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_PROTOCOL,
-			"accept-websocket-upgrade",
-			"WebSocket selected protocol is not enabled by the server"
-		);
-		return XNET_RESULT_ERROR;
-	}
-	#if defined(XWS_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-		if ( Handshake.DeflateEnabled &&
-			!Config.EnableDeflate ) {
-			__xwsHandshakeError(
-				XERR_VALUE,
-				XWS_HANDSHAKE_ERROR_EXTENSION,
-				"accept-websocket-upgrade",
-				"WebSocket compression was not enabled by the server"
-			);
-			return XNET_RESULT_ERROR;
-		}
-	#endif
-	pReply = xrtWsServerReply(&Handshake);
-	if ( pReply == NULL ) {
-		return XNET_RESULT_ERROR;
-	}
-	if ( pHeaders != NULL ) {
-		pHeaderSnapshot = xrtHttpHeadersClone(pHeaders);
-		if ( pHeaderSnapshot == NULL ) {
-			xrtHttpReplyDestroy(pReply);
-			__xwsHandshakeWrap(
-				XERR_VALUE,
-				XWS_HANDSHAKE_ERROR_OUTPUT,
-				"accept-websocket-upgrade",
-				"WebSocket application Header snapshot failed"
-			);
-			return XNET_RESULT_ERROR;
-		}
-	}
-	iHeaderCount = xrtHttpHeadersCount(pHeaderSnapshot);
-	for ( size_t i = 0; i < iHeaderCount; i++ ) {
-		const xhttpfield* pField =
-			xrtHttpHeadersAt(pHeaderSnapshot, i);
-
-		if ( (pField == NULL) ||
-			__xrtWsServerHeaderReserved(pField->Name) ) {
-			__xwsHandshakeError(
-				XERR_VALUE,
-				XWS_HANDSHAKE_ERROR_OUTPUT,
-				"accept-websocket-upgrade",
-				"WebSocket application Header is invalid or reserved"
-			);
-			Result = XNET_RESULT_ERROR;
-			goto Cleanup;
-		}
-		if ( !xrtHttpReplyAddHeader(
-			pReply,
-			pField->Name,
-			pField->Value
-		) ) {
-			__xwsHandshakeWrap(
-				XERR_VALUE,
-				XWS_HANDSHAKE_ERROR_OUTPUT,
-				"accept-websocket-upgrade",
-				"WebSocket application Header could not be appended"
-			);
-			Result = XNET_RESULT_ERROR;
-			goto Cleanup;
-		}
-	}
-	Result = __xrtWsServerUpgradeSubmit(
-		pHttp,
-		&Config,
-		&Handshake,
-		pReply,
-		&Events,
-		pEventData,
-		pProc,
-		pData
-	);
-
-Cleanup:
-	xrtHttpHeadersDestroy(pHeaderSnapshot);
-	xrtHttpReplyDestroy(pReply);
-	return Result;
-}
-
-
-
-/* 验证并提交常用服务端 WebSocket Upgrade。 */
-XRT_API xnetresult xrtWsUpgrade(
-	xhttpconn* pHttp,
-	const xwsserverconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pEventData,
-	xwsupgradeproc pProc,
-	ptr pData
-)
-{
-	xwsserverconfig Config;
-	xwsconnevents Events;
-	xwsserverhandshake Handshake;
-	const xhttpserverrequest* pRequest;
-
-	if ( !__xrtWsServerConfigSnapshot(
-		&Config,
-		pConfig,
-		"upgrade-websocket-server"
-	) || !__xrtWsConnEventsSnapshot(
-		&Events,
-		pEvents,
-		"upgrade-websocket-server"
-	) || !__xrtWsHttpObjectCheck(
-		pHttp,
-		"upgrade-websocket-server",
-		"HTTP server connection is null"
-	) ) {
-		return XNET_RESULT_ERROR;
-	}
-	if ( pProc == NULL ) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"upgrade-websocket-server",
-			"WebSocket Upgrade callback is null"
-		);
-		return XNET_RESULT_ERROR;
-	}
-	if ( !xrtWsServerConfigValid(&Config) ) {
-		__xwsHandshakeError(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"upgrade-websocket-server",
-			"WebSocket server configuration is invalid"
-		);
-		return XNET_RESULT_ERROR;
-	}
-	pRequest = xrtHttpConnRequest(pHttp);
-	if ( !xrtWsServerCheck(
-		pRequest,
-		&Config,
-		&Handshake
-	) ) {
-		return XNET_RESULT_ERROR;
-	}
-	return xrtWsUpgradeAccept(
-		pHttp,
-		&Config,
-		&Handshake,
-		NULL,
-		&Events,
-		pEventData,
-		pProc,
-		pData
-	);
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: extlibs/xws/src/websocket/server_router.c */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_ROUTER)
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_ROUTER)
-
-/* 设置带稳定域、代码、操作和可选原因链的 WebSocket Router 错误。 */
-static void __xrtWsServerRouterSetError(
-	xerrkind Kind,
-	xwsserverroutererror Code,
-	cstr sOperation,
-	cstr sMessage,
-	const xerror* pCause
-)
-{
-	xerrordesc Desc;
-	xerror* pError;
-
-	memset(&Desc, 0, sizeof(Desc));
-	Desc.Kind = Kind;
-	Desc.Code = (int32)Code;
-	Desc.SystemCode = pCause != NULL ?
-		xrtErrorSystemCode(pCause) : 0;
-	Desc.Domain = "xrt.websocket.server.router";
-	Desc.Operation = sOperation;
-	Desc.Message = sMessage;
-	Desc.Cause = pCause;
-	pError = xrtErrorBuild(&Desc);
-	if ( pError != NULL ) {
-		xrtSetError(pError);
-		xrtErrorFree(pError);
-	}
-}
-
-
-
-/* 验证固定公开对象占用完整且不回绕的地址区间。 */
-static bool __xrtWsServerRouterRangeCheck(
-	const void* pObject,
-	size_t iSize,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	if ( xrtMemRangeValid(pObject, iSize) ) {
-		return true;
-	}
-	__xrtWsServerRouterSetError(
-		XERR_ARGUMENT,
-		XWS_SERVER_ROUTER_ERROR_ARGUMENT,
-		sOperation,
-		sMessage,
-		NULL
-	);
-	return false;
-}
-
-
-
-/* 返回原因错误已有类型，缺失时使用调用点给出的保守类型。 */
-static xerrkind __xrtWsServerRouterCauseKind(
-	const xerror* pCause,
-	xerrkind Default
-)
-{
-	xerrkind Kind = xrtErrorKind(pCause);
-
-	return Kind != XERR_NONE ? Kind : Default;
-}
-
-
-
-/* 比较大小写敏感且不要求零结尾的 HTTP 方法。 */
-static bool __xrtWsServerRouterMethod(
-	xstrview Method,
-	cstr sExpected
-)
-{
-	size_t iSize = strlen(sExpected);
-
-	return (Method.Size == iSize) &&
-		(memcmp(Method.Data, sExpected, iSize) == 0);
-}
-
-
-
-/* 向固定路由观察者发布一次同步握手或响应错误。 */
-static void __xrtWsServerRouterReport(
-	xrt_ws_server_route* pRoute,
-	xhttpconn* pHttp,
-	const xerror* pError
-)
-{
-	if ( pRoute->Config.Error != NULL ) {
-		pRoute->Config.Error(
-			pHttp, pError, pRoute->Config.Data
-		);
-	}
-}
-
-
-
-/* 提交只允许 GET 的方法拒绝响应。 */
-static bool __xrtWsServerRouterMethodReply(
-	xhttpconn* pHttp,
-	uint16 iStatus
-)
-{
-	xhttpreply* pReply = xrtHttpReplyCreate(iStatus);
-	xnetresult Result = XNET_RESULT_ERROR;
-
-	if ( (pReply != NULL) &&
-		xrtHttpReplySetHeader(
-			pReply,
-			XRT_STR_LITERAL("Allow"),
-			XRT_STR_LITERAL("GET")
-		) ) {
-		Result = xrtHttpConnRespond(pHttp, pReply);
-	}
-	xrtHttpReplyDestroy(pReply);
-	return Result == XNET_RESULT_OK;
-}
-
-
-
-/* 提交无正文的固定状态响应。 */
-static bool __xrtWsServerRouterStatusReply(
-	xhttpconn* pHttp,
-	uint16 iStatus
-)
-{
-	xhttpreply* pReply = xrtHttpReplyCreate(iStatus);
-	xnetresult Result = XNET_RESULT_ERROR;
-
-	if ( pReply != NULL ) {
-		Result = xrtHttpConnRespond(pHttp, pReply);
-	}
-	xrtHttpReplyDestroy(pReply);
-	return Result == XNET_RESULT_OK;
-}
-
-
-
-/* 包装响应构造或提交失败，通知观察者后异常关闭。 */
-static void __xrtWsServerRouterResponseFailed(
-	xrt_ws_server_route* pRoute,
-	xhttpconn* pHttp,
-	cstr sMessage
-)
-{
-	xerror* pCause = xrtErrorRef(xrtGetError());
-	xerror* pError;
-
-	__xrtWsServerRouterSetError(
-		__xrtWsServerRouterCauseKind(pCause, XERR_IO),
-		XWS_SERVER_ROUTER_ERROR_RESPONSE,
-		"reject-websocket-server-route",
-		sMessage,
-		pCause
-	);
-	xrtErrorFree(pCause);
-	pError = xrtErrorRef(xrtGetError());
-	__xrtWsServerRouterReport(pRoute, pHttp, pError);
-	xrtErrorFree(pError);
-	(void)xrtHttpConnAbort(pHttp);
-}
-
-
-
-/* 报告并提交标准握手拒绝；二次响应失败时异常关闭。 */
-static void __xrtWsServerRouterReject(
-	xrt_ws_server_route* pRoute,
-	xhttpconn* pHttp,
-	const xerror* pError
-)
-{
-	__xrtWsServerRouterReport(pRoute, pHttp, pError);
-	if ( xrtWsServerReject(
-		pHttp, pError
-	) != XNET_RESULT_OK ) {
-		__xrtWsServerRouterResponseFailed(
-			pRoute,
-			pHttp,
-			"WebSocket handshake rejection response failed"
-		);
-	}
-}
-
-
-
-/* 拒绝不符合 Origin 或业务授权策略的握手。 */
-static void __xrtWsServerRouterAuthorizationReject(
-	xrt_ws_server_route* pRoute,
-	xhttpconn* pHttp,
-	cstr sMessage
-)
-{
-	xerror* pError;
-
-	__xrtWsServerRouterSetError(
-		XERR_PERMISSION,
-		XWS_SERVER_ROUTER_ERROR_AUTHORIZATION,
-		"authorize-websocket-server-route",
-		sMessage,
-		NULL
-	);
-	pError = xrtErrorRef(xrtGetError());
-	__xrtWsServerRouterReport(pRoute, pHttp, pError);
-	xrtErrorFree(pError);
-	if ( !__xrtWsServerRouterStatusReply(
-		pHttp, XHTTP_STATUS_FORBIDDEN
-	) ) {
-		__xrtWsServerRouterResponseFailed(
-			pRoute,
-			pHttp,
-			"WebSocket authorization response failed"
-		);
-	}
-}
-
-
-
-/* 比较浏览器 Origin 与当前 HTTP 请求的 scheme、host 和有效端口。 */
-static bool __xrtWsServerRouterOriginSame(
-	xhttpconn* pHttp,
-	const xhttpserverrequest* pRequest,
-	const xhttporigin* pOrigin
-)
-{
-	xhttpauthority Authority;
-	xstrview Scheme = xrtHttpConnSecure(pHttp) ?
-		XRT_STR_LITERAL("https") : XRT_STR_LITERAL("http");
-	uint16 iDefault = xrtHttpConnSecure(pHttp) ? 443u : 80u;
-	uint16 iOriginPort;
-	uint16 iRequestPort;
-
-	if ( ((pOrigin->Flags & XHTTP_ORIGIN_NULL) != 0) ||
-		!xrtUrlSchemeIs(&pOrigin->Url, Scheme) ||
-		!xrtHttpServerRequestAuthority(pRequest, &Authority) ||
-		!xrtHttpHostEqual(pOrigin->Url.Host, Authority.Host) ||
-		!xrtUrlPort(&pOrigin->Url, &iOriginPort) ||
-		!xrtHttpAuthorityPort(
-			&Authority, iDefault, &iRequestPort
-		) ) {
-		return false;
-	}
-	return iOriginPort == iRequestPort;
-}
-
-
-
-/* 执行固定路由 Origin 策略，ANY 保留给已在外层授权的组合。 */
-static bool __xrtWsServerRouterOriginAllowed(
-	xrt_ws_server_route* pRoute,
-	xhttpconn* pHttp,
-	const xhttpserverrequest* pRequest
-)
-{
-	xhttporigin Origin;
-	xhttpnext Next;
-
-	if ( pRoute->Config.Origin == XWS_SERVER_ORIGIN_ANY ) {
-		return true;
-	}
-	Next = xrtHttpOriginFields(
-		xrtHttpServerRequestHeaderData(pRequest),
-		xrtHttpServerRequestHeaderCount(pRequest),
-		&Origin
-	);
-	if ( Next == XHTTP_NEXT_END ) {
-		return pRoute->Config.Origin ==
-			XWS_SERVER_ORIGIN_SAME_HOST_OR_ABSENT;
-	}
-	return (Next == XHTTP_NEXT_ITEM) &&
-		__xrtWsServerRouterOriginSame(
-			pHttp, pRequest, &Origin
-		);
-}
-
-
-
-/* 判断请求是否声明或已经携带正文；WebSocket Upgrade 不接受这些请求。 */
-static bool __xrtWsServerRouterHasBody(
-	const xhttpserverrequest* pRequest
-)
-{
-	return (xrtHttpServerRequestHeader(
-		pRequest,
-		XRT_STR_LITERAL("Content-Length")
-	) != NULL) || (xrtHttpServerRequestHeader(
-		pRequest,
-		XRT_STR_LITERAL("Transfer-Encoding")
-	) != NULL) || (xrtHttpServerRequestBodyMode(pRequest) !=
-		XHTTP1_BODY_NONE) ||
-		(xrtHttpServerRequestBodyBytes(pRequest) != 0);
-}
-
-
-
-/* 在 Header 阶段处理方法和正文门禁；无正文请求进入完整请求阶段。 */
-static xhttpserverbodypolicy __xrtWsServerRouterHeaders(
-	xhttpserver* pServer,
-	xhttpconn* pHttp,
-	const xhttpserverrequest* pRequest,
-	const xhttprouteparam* pParams,
-	size_t iParamCount,
-	ptr pData
-)
-{
-	xrt_ws_server_route* pRoute =
-		(xrt_ws_server_route*)pData;
-	xstrview Method = xrtHttpServerRequestMethod(pRequest);
-	xwsserverhandshake Handshake;
-	xerror* pError;
-
-	(void)pServer;
-	(void)pParams;
-	(void)iParamCount;
-	if ( !__xrtWsServerRouterMethod(Method, "GET") ) {
-		if ( !__xrtWsServerRouterMethodReply(
-			pHttp, XHTTP_STATUS_METHOD_NOT_ALLOWED
-		) ) {
-			__xrtWsServerRouterResponseFailed(
-				pRoute,
-				pHttp,
-				"WebSocket method rejection response failed"
-			);
-		}
-		return XHTTP_SERVER_BODY_REJECT;
-	}
-	if ( __xrtWsServerRouterHasBody(pRequest) ) {
-		(void)xrtWsServerCheck(
-			pRequest,
-			&pRoute->Config.Server,
-			&Handshake
-		);
-		pError = xrtErrorRef(xrtGetError());
-		__xrtWsServerRouterReject(pRoute, pHttp, pError);
-		xrtErrorFree(pError);
-		return XHTTP_SERVER_BODY_REJECT;
-	}
-	return XHTTP_SERVER_BODY_BUFFER;
-}
-
-
-
-/* 在完整请求阶段提交 Upgrade，确保未消费字节只属于下一层协议。 */
-static void __xrtWsServerRouterRequest(
-	xhttpserver* pServer,
-	xhttpconn* pHttp,
-	const xhttpserverrequest* pRequest,
-	const xhttprouteparam* pParams,
-	size_t iParamCount,
-	ptr pData
-)
-{
-	xrt_ws_server_route* pRoute =
-		(xrt_ws_server_route*)pData;
-	xrt_ws_server_route_connection* pContext;
-	xwsserverhandshake Handshake;
-	xerror* pError;
-	xnetresult Result;
-	xerrkind Kind;
-	xwsserverroutererror Code;
-
-	(void)pServer;
-	if ( !xrtWsServerCheck(
-		pRequest, &pRoute->Config.Server, &Handshake
-	) ) {
-		pError = xrtErrorRef(xrtGetError());
-		__xrtWsServerRouterReject(pRoute, pHttp, pError);
-		xrtErrorFree(pError);
-		return;
-	}
-	if ( !__xrtWsServerRouterOriginAllowed(
-		pRoute, pHttp, pRequest
-	) ) {
-		__xrtWsServerRouterAuthorizationReject(
-			pRoute,
-			pHttp,
-			"WebSocket request Origin is not allowed"
-		);
-		return;
-	}
-	if ( (pRoute->Config.Authorize != NULL) &&
-		!pRoute->Config.Authorize(
-			pHttp,
-			pRequest,
-			pParams,
-			iParamCount,
-			&Handshake,
-			pRoute->Config.Data
-		) ) {
-		__xrtWsServerRouterAuthorizationReject(
-			pRoute,
-			pHttp,
-			"WebSocket request was rejected by the authorization callback"
-		);
-		return;
-	}
-	pContext = __xrtWsServerRouteConnectionCreate(pRoute);
-	if ( pContext == NULL ) {
-		pError = xrtErrorRef(xrtGetError());
-		Kind = __xrtWsServerRouterCauseKind(
-			pError,
-			XERR_MEMORY
-		);
-		Code = Kind == XERR_MEMORY ?
-			XWS_SERVER_ROUTER_ERROR_MEMORY :
-			XWS_SERVER_ROUTER_ERROR_STATE;
-		__xrtWsServerRouterSetError(
-			Kind,
-			Code,
-			"upgrade-websocket-server-route",
-			"WebSocket route Upgrade context could not be retained",
-			pError
-		);
-		xrtErrorFree(pError);
-		pError = xrtErrorRef(xrtGetError());
-		__xrtWsServerRouterReject(pRoute, pHttp, pError);
-		xrtErrorFree(pError);
-		return;
-	}
-	Result = xrtWsUpgradeAccept(
-		pHttp,
-		&pRoute->Config.Server,
-		&Handshake,
-		NULL,
-		&__xrtWsServerRouteEvents,
-		pContext,
-		__xrtWsServerRouteUpgradeDone,
-		pContext
-	);
-	if ( Result != XNET_RESULT_OK ) {
-		pError = xrtErrorRef(xrtGetError());
-		__xrtWsServerRouteConnectionRelease(pContext);
-		__xrtWsServerRouterReject(pRoute, pHttp, pError);
-		xrtErrorFree(pError);
-	}
-}
-
-
-
-/* 初始化固定 WebSocket 路由的默认配置。 */
-XRT_API void xrtWsServerRouteConfigInit(
-	xwsserverrouteconfig* pConfig
-)
-{
-	xwsserverrouteconfig Config;
-
-	if ( !__xrtWsServerRouterRangeCheck(
-		pConfig,
-		sizeof(Config),
-		"config-init-websocket-server-route",
-		"WebSocket server route configuration range is invalid"
-	) ) {
-		return;
-	}
-	memset(&Config, 0, sizeof(Config));
-	xrtWsServerConfigInit(&Config.Server);
-	memcpy(pConfig, &Config, sizeof(Config));
-}
-
-
-
-/* 复制固定配置和协议列表，并把路由快照所有权移交给 Router。 */
-XRT_API bool xrtWsServerRoute(
-	xhttpserverrouter* pRouter,
-	xstrview Pattern,
-	const xwsserverrouteconfig* pConfig
-)
-{
-	xwsserverrouteconfig Config;
-	xrt_ws_server_route* pRoute;
-	xhttpserverrouteevents Events;
-	xerror* pCause;
-	xerrkind Kind;
-	size_t iAllocation;
-
-	if ( pRouter == NULL ) {
-		__xrtWsServerRouterSetError(
-			XERR_ARGUMENT,
-			XWS_SERVER_ROUTER_ERROR_ARGUMENT,
-			"register-websocket-server-route",
-			"HTTP server Router is null",
-			NULL
-		);
-		return false;
-	}
-	if ( !xrtMemRangeValid(Pattern.Data, Pattern.Size) ) {
-		__xrtWsServerRouterSetError(
-			XERR_ARGUMENT,
-			XWS_SERVER_ROUTER_ERROR_ARGUMENT,
-			"register-websocket-server-route",
-			"WebSocket server route pattern range is invalid",
-			NULL
-		);
-		return false;
-	}
-	xrtWsServerRouteConfigInit(&Config);
-	if ( pConfig != NULL ) {
-		if ( !__xrtWsServerRouterRangeCheck(
-			pConfig,
-			sizeof(Config),
-			"register-websocket-server-route",
-			"WebSocket server route configuration range is invalid"
-		) ) {
-			return false;
-		}
-		memcpy(&Config, pConfig, sizeof(Config));
-	}
-	if ( !xrtWsServerConfigValid(&Config.Server) ) {
-		pCause = xrtErrorRef(xrtGetError());
-		__xrtWsServerRouterSetError(
-			XERR_VALUE,
-			XWS_SERVER_ROUTER_ERROR_CONFIG,
-			"register-websocket-server-route",
-			"WebSocket server route configuration is invalid",
-			pCause
-		);
-		xrtErrorFree(pCause);
-		return false;
-	}
-	if ( (Config.Origin !=
-		  XWS_SERVER_ORIGIN_SAME_HOST_OR_ABSENT) &&
-		(Config.Origin != XWS_SERVER_ORIGIN_SAME_HOST) &&
-		(Config.Origin != XWS_SERVER_ORIGIN_ANY) ) {
-		__xrtWsServerRouterSetError(
-			XERR_VALUE,
-			XWS_SERVER_ROUTER_ERROR_CONFIG,
-			"register-websocket-server-route",
-			"WebSocket server route Origin policy is invalid",
-			NULL
-		);
-		return false;
-	}
-	if ( Config.Server.Protocols.Size >
-		(SIZE_MAX - sizeof(*pRoute) - 1u) ) {
-		__xrtWsServerRouterSetError(
-			XERR_RANGE,
-			XWS_SERVER_ROUTER_ERROR_CONFIG,
-			"register-websocket-server-route",
-			"WebSocket server protocol list is too large",
-			NULL
-		);
-		return false;
-	}
-	iAllocation = sizeof(*pRoute) +
-		Config.Server.Protocols.Size + 1u;
-	pRoute = (xrt_ws_server_route*)xrtCalloc(
-		1, iAllocation
-	);
-	if ( pRoute == NULL ) {
-		pCause = xrtErrorRef(xrtGetError());
-		__xrtWsServerRouterSetError(
-			XERR_MEMORY,
-			XWS_SERVER_ROUTER_ERROR_MEMORY,
-			"register-websocket-server-route",
-			"WebSocket server route snapshot allocation failed",
-			pCause
-		);
-		xrtErrorFree(pCause);
-		return false;
-	}
-	pRoute->References = 1;
-	pRoute->Config = Config;
-	if ( Config.Server.Protocols.Size != 0 ) {
-		memcpy(
-			pRoute->Storage,
-			Config.Server.Protocols.Data,
-			Config.Server.Protocols.Size
-		);
-		pRoute->Config.Server.Protocols.Data =
-			pRoute->Storage;
-	}
-	pRoute->Storage[Config.Server.Protocols.Size] = '\0';
-
-	xrtHttpServerRouteEventsInit(&Events);
-	Events.Headers = __xrtWsServerRouterHeaders;
-	Events.Request = __xrtWsServerRouterRequest;
-	Events.Release = __xrtWsServerRouteRelease;
-	Events.Data = pRoute;
-	if ( !xrtHttpServerRouteEvents(
-		pRouter,
-		XRT_STR_LITERAL("*"),
-		Pattern,
-		&Events
-	) ) {
-		pCause = xrtErrorRef(xrtGetError());
-		Kind = __xrtWsServerRouterCauseKind(
-			pCause, XERR_INTERNAL
-		);
-		xrtFree(pRoute);
-		__xrtWsServerRouterSetError(
-			Kind,
-			XWS_SERVER_ROUTER_ERROR_ROUTE,
-			"register-websocket-server-route",
-			"HTTP server route registration failed",
-			pCause
-		);
-		xrtErrorFree(pCause);
-		return false;
-	}
-	return true;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: extlibs/xws/src/websocket/server_router_events.c */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_ROUTER)
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_ROUTER)
-
-/* 增加活动 Upgrade 或 Connection 对固定路由快照的引用。 */
-static bool __xrtWsServerRouteRef(
-	xrt_ws_server_route* pRoute
-)
-{
-	if ( xrtRefRetain(&pRoute->References) < 0 ) {
-		__xwsErrorSetDetail(
-			XERR_STATE,
-			"xrt.websocket.server.router",
-			(int32)XWS_SERVER_ROUTER_ERROR_STATE,
-			"retain-websocket-server-route",
-			"WebSocket server route reference cannot be retained",
-			NULL
-		);
-		return false;
-	}
-	return true;
-}
-
-
-
-/* 释放 Router 或连接引用，并在最终引用上清理用户 Data。 */
-void __xrtWsServerRouteRelease(ptr pData)
-{
-	xrt_ws_server_route* pRoute =
-		(xrt_ws_server_route*)pData;
-
-	if ( (pRoute == NULL) ||
-		(xrtRefRelease(&pRoute->References) != 0) ) {
-		return;
-	}
-	if ( pRoute->Config.Release != NULL ) {
-		pRoute->Config.Release(pRoute->Config.Data);
-	}
-	xrtFree(pRoute);
-}
-
-
-
-/* 创建由 Upgrade 终态和成功连接共同管理的上下文。 */
-xrt_ws_server_route_connection* __xrtWsServerRouteConnectionCreate(
-	xrt_ws_server_route* pRoute
-)
-{
-	xrt_ws_server_route_connection* pConnection;
-
-	if ( pRoute == NULL ) {
-		return NULL;
-	}
-	pConnection = (xrt_ws_server_route_connection*)xrtCalloc(
-		1, sizeof(*pConnection)
-	);
-	if ( pConnection == NULL ) {
-		return NULL;
-	}
-	pConnection->References = 1;
-	pConnection->Route = pRoute;
-	if ( !__xrtWsServerRouteRef(pRoute) ) {
-		xrtFree(pConnection);
-		return NULL;
-	}
-	return pConnection;
-}
-
-
-
-/* 释放单次连接上下文，并把最后一个引用归还给固定路由。 */
-void __xrtWsServerRouteConnectionRelease(
-	xrt_ws_server_route_connection* pConnection
-)
-{
-	xrt_ws_server_route* pRoute;
-
-	if ( (pConnection == NULL) ||
-		(xrtRefRelease(&pConnection->References) != 0) ) {
-		return;
-	}
-	pRoute = pConnection->Route;
-	xrtFree(pConnection);
-	__xrtWsServerRouteRelease(pRoute);
-}
-
-
-
-/* 转发逻辑消息开始事件。 */
-static void __xrtWsServerRouteMessageBegin(
-	xwsconn* pConnection,
-	const xwsmessageinfo* pInfo,
-	ptr pData
-)
-{
-	xrt_ws_server_route_connection* pContext =
-		(xrt_ws_server_route_connection*)pData;
-	xrt_ws_server_route* pRoute = pContext->Route;
-
-	if ( pRoute->Config.Events.MessageBegin != NULL ) {
-		pRoute->Config.Events.MessageBegin(
-			pConnection, pInfo, pRoute->Config.Data
-		);
-	}
-}
-
-
-
-/* 转发逻辑消息数据片段。 */
-static void __xrtWsServerRouteMessageData(
-	xwsconn* pConnection,
-	xbytesview Data,
-	ptr pData
-)
-{
-	xrt_ws_server_route_connection* pContext =
-		(xrt_ws_server_route_connection*)pData;
-	xrt_ws_server_route* pRoute = pContext->Route;
-
-	if ( pRoute->Config.Events.MessageData != NULL ) {
-		pRoute->Config.Events.MessageData(
-			pConnection, Data, pRoute->Config.Data
-		);
-	}
-}
-
-
-
-/* 转发逻辑消息结束事件。 */
-static void __xrtWsServerRouteMessageEnd(
-	xwsconn* pConnection,
-	ptr pData
-)
-{
-	xrt_ws_server_route_connection* pContext =
-		(xrt_ws_server_route_connection*)pData;
-	xrt_ws_server_route* pRoute = pContext->Route;
-
-	if ( pRoute->Config.Events.MessageEnd != NULL ) {
-		pRoute->Config.Events.MessageEnd(
-			pConnection, pRoute->Config.Data
-		);
-	}
-}
-
-
-
-/* 转发 Ping 事件。 */
-static void __xrtWsServerRoutePing(
-	xwsconn* pConnection,
-	xbytesview Payload,
-	ptr pData
-)
-{
-	xrt_ws_server_route_connection* pContext =
-		(xrt_ws_server_route_connection*)pData;
-	xrt_ws_server_route* pRoute = pContext->Route;
-
-	if ( pRoute->Config.Events.Ping != NULL ) {
-		pRoute->Config.Events.Ping(
-			pConnection, Payload, pRoute->Config.Data
-		);
-	}
-}
-
-
-
-/* 转发 Pong 事件。 */
-static void __xrtWsServerRoutePong(
-	xwsconn* pConnection,
-	xbytesview Payload,
-	ptr pData
-)
-{
-	xrt_ws_server_route_connection* pContext =
-		(xrt_ws_server_route_connection*)pData;
-	xrt_ws_server_route* pRoute = pContext->Route;
-
-	if ( pRoute->Config.Events.Pong != NULL ) {
-		pRoute->Config.Events.Pong(
-			pConnection, Payload, pRoute->Config.Data
-		);
-	}
-}
-
-
-
-/* 转发高水位背压事件。 */
-static void __xrtWsServerRouteBackpressure(
-	xwsconn* pConnection,
-	size_t iPending,
-	ptr pData
-)
-{
-	xrt_ws_server_route_connection* pContext =
-		(xrt_ws_server_route_connection*)pData;
-	xrt_ws_server_route* pRoute = pContext->Route;
-
-	if ( pRoute->Config.Events.Backpressure != NULL ) {
-		pRoute->Config.Events.Backpressure(
-			pConnection, iPending, pRoute->Config.Data
-		);
-	}
-}
-
-
-
-/* 转发恢复可写事件。 */
-static void __xrtWsServerRouteWritable(
-	xwsconn* pConnection,
-	size_t iPending,
-	ptr pData
-)
-{
-	xrt_ws_server_route_connection* pContext =
-		(xrt_ws_server_route_connection*)pData;
-	xrt_ws_server_route* pRoute = pContext->Route;
-
-	if ( pRoute->Config.Events.Writable != NULL ) {
-		pRoute->Config.Events.Writable(
-			pConnection, iPending, pRoute->Config.Data
-		);
-	}
-}
-
-
-
-/* 转发发送队列排空事件。 */
-static void __xrtWsServerRouteDrain(
-	xwsconn* pConnection,
-	ptr pData
-)
-{
-	xrt_ws_server_route_connection* pContext =
-		(xrt_ws_server_route_connection*)pData;
-	xrt_ws_server_route* pRoute = pContext->Route;
-
-	if ( pRoute->Config.Events.Drain != NULL ) {
-		pRoute->Config.Events.Drain(
-			pConnection, pRoute->Config.Data
-		);
-	}
-}
-
-
-
-/* 转发连接协议或传输错误。 */
-static void __xrtWsServerRouteConnectionError(
-	xwsconn* pConnection,
-	const xerror* pError,
-	ptr pData
-)
-{
-	xrt_ws_server_route_connection* pContext =
-		(xrt_ws_server_route_connection*)pData;
-	xrt_ws_server_route* pRoute = pContext->Route;
-
-	if ( pRoute->Config.Events.Error != NULL ) {
-		pRoute->Config.Events.Error(
-			pConnection, pError, pRoute->Config.Data
-		);
-	}
-}
-
-
-
-/* 转发唯一 Close，并在用户回调返回后释放连接持有的上下文。 */
-static void __xrtWsServerRouteClose(
-	xwsconn* pConnection,
-	const xwsconnclose* pClose,
-	ptr pData
-)
-{
-	xrt_ws_server_route_connection* pContext =
-		(xrt_ws_server_route_connection*)pData;
-	xrt_ws_server_route* pRoute = pContext->Route;
-
-	if ( pRoute->Config.Events.Close != NULL ) {
-		pRoute->Config.Events.Close(
-			pConnection, pClose, pRoute->Config.Data
-		);
-	}
-	__xrtWsServerRouteConnectionRelease(pContext);
-}
-
-
-
-/* 把 Upgrade 终态转换为借用 Open 或 Error，并自动归还交付引用。 */
-void __xrtWsServerRouteUpgradeDone(
-	xhttpconn* pHttp,
-	xnetresult Result,
-	xwsconn* pConnection,
-	const xerror* pError,
-	ptr pData
-)
-{
-	xrt_ws_server_route_connection* pContext =
-		(xrt_ws_server_route_connection*)pData;
-	xrt_ws_server_route* pRoute = pContext->Route;
-
-	if ( (Result == XNET_RESULT_OK) &&
-		(pConnection != NULL) ) {
-		(void)xrtRefRetain(&pContext->References);
-		if ( pRoute->Config.Open != NULL ) {
-			pRoute->Config.Open(
-				pHttp,
-				pConnection,
-				pRoute->Config.Data
-			);
-		}
-		xrtWsConnDestroy(pConnection);
-	} else if ( pRoute->Config.Error != NULL ) {
-		pRoute->Config.Error(
-			pHttp, pError, pRoute->Config.Data
-		);
-	}
-	__xrtWsServerRouteConnectionRelease(pContext);
-}
-
-
-
-/* 固定适配表保证全部事件都恢复为调用方 Data。 */
-const xwsconnevents __xrtWsServerRouteEvents = {
-	.MessageBegin = __xrtWsServerRouteMessageBegin,
-	.MessageData = __xrtWsServerRouteMessageData,
-	.MessageEnd = __xrtWsServerRouteMessageEnd,
-	.Ping = __xrtWsServerRoutePing,
-	.Pong = __xrtWsServerRoutePong,
-	.Backpressure = __xrtWsServerRouteBackpressure,
-	.Writable = __xrtWsServerRouteWritable,
-	.Drain = __xrtWsServerRouteDrain,
-	.Error = __xrtWsServerRouteConnectionError,
-	.Close = __xrtWsServerRouteClose
-};
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: extlibs/xws/src/websocket/client.c */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT)
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT)
-
-typedef struct __xrt_ws_connect {
-	xwsconnconfig Connection;
-	xwsconnevents Events;
-	xwsconnectproc Proc;
-	ptr EventData;
-	ptr Data;
-	char Key[XWS_KEY_CAPACITY];
-	xstrview Protocols;
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-		xwsdeflate Deflate;
-		bool EnableDeflate;
-		bool RequireDeflate;
-	#endif
-	char Storage[];
-} __xrt_ws_connect;
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-
-typedef struct __xrt_ws_client_deflate {
-	const xwsdeflate* Offer;
-	xwsdeflate Response;
-	bool Found;
-} __xrt_ws_client_deflate;
-
-
-
-/* 客户端只接受唯一且确实由本次 offer 允许的 permessage-deflate 响应。 */
-static bool __xrtWsClientDeflateVisit(
-	const xwsextension* pExtension,
-	ptr pData
-)
-{
-	__xrt_ws_client_deflate* pDeflate =
-		(__xrt_ws_client_deflate*)pData;
-
-	if ( !xrtWsDeflateIs(pExtension) ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_EXTENSION,
-			"check-websocket-response",
-			"WebSocket response selected an unsupported extension"
-		);
-		return false;
-	}
-	if ( pDeflate->Found ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_EXTENSION,
-			"check-websocket-response",
-			"WebSocket response repeats permessage-deflate"
-		);
-		return false;
-	}
-	if ( !xrtWsDeflateResponseParse(
-		pExtension,
-		&pDeflate->Response
-	) || !xrtWsDeflateResponseCheck(
-		pDeflate->Offer,
-		&pDeflate->Response
-	) ) {
-		__xwsHandshakeWrap(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_EXTENSION,
-			"check-websocket-response",
-			"WebSocket permessage-deflate response violates the offer"
-		);
-		return false;
-	}
-	pDeflate->Found = true;
-	return true;
-}
-
-
-
-/* 验证扩展响应并把协商参数复制到独立握手快照。 */
-static bool __xrtWsClientDeflateCheck(
-	const __xrt_ws_fields* pFields,
-	const xwsclientconfig* pConfig,
-	xwsclienthandshake* pHandshake
-)
-{
-	__xrt_ws_client_deflate Deflate;
-
-	if ( !pConfig->EnableDeflate ) {
-		if ( pConfig->RequireDeflate ) {
-			__xwsHandshakeError(
-				XERR_VALUE,
-				XWS_HANDSHAKE_ERROR_EXTENSION,
-				"check-websocket-response",
-				"Required WebSocket compression is not enabled"
-			);
-			return false;
-		}
-		if ( __xrtWsHttpFieldCount(
-			pFields,
-			XRT_STR_LITERAL(
-				"Sec-WebSocket-Extensions"
-			)
-		) != 0 ) {
-			__xwsHandshakeError(
-				XERR_PROTOCOL,
-				XWS_HANDSHAKE_ERROR_EXTENSION,
-				"check-websocket-response",
-				"WebSocket response selected an unoffered extension"
-			);
-			return false;
-		}
-		return true;
-	}
-	memset(&Deflate, 0, sizeof(Deflate));
-	Deflate.Offer = &pConfig->Deflate;
-	if ( !__xrtWsHttpExtensionsVisit(
-		pFields,
-		__xrtWsClientDeflateVisit,
-		&Deflate
-	) ) {
-		return false;
-	}
-	if ( !Deflate.Found ) {
-		if ( pConfig->RequireDeflate ) {
-			__xwsHandshakeError(
-				XERR_PROTOCOL,
-				XWS_HANDSHAKE_ERROR_EXTENSION,
-				"check-websocket-response",
-				"WebSocket response omitted required compression"
-			);
-			return false;
-		}
-		return true;
-	}
-	pHandshake->Deflate = Deflate.Response;
-	pHandshake->DeflateEnabled = true;
-	return true;
-}
-
-#endif
-
-
-
-/* 创建仅把 ws/wss scheme 映射到 HTTP 执行层的基础 GET 请求。 */
-XRT_API xhttprequest* xrtWsRequestCreate(
-	xstrview Url
-)
-{
-	xurl Parsed;
-	xhttprequest* pRequest;
-	str sHttpUrl;
-	xstrview HttpUrl;
-	xstrview Scheme;
-	size_t iSize;
-
-	if ( (Url.Size == 0) ||
-		!xrtMemRangeValid(Url.Data, Url.Size) ) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"create-websocket-request",
-			"WebSocket URL view is empty or invalid"
-		);
-		return NULL;
-	}
-	if ( !xrtUrlParse(Url, &Parsed) ) {
-		__xwsHandshakeWrap(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"create-websocket-request",
-			"WebSocket URL is invalid"
-		);
-		return NULL;
-	}
-	if ( (Parsed.Flags &
-		(XURL_HAS_USERINFO | XURL_HAS_FRAGMENT)) != 0 ) {
-		__xwsHandshakeError(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"create-websocket-request",
-			"WebSocket URL must not contain userinfo or a fragment"
-		);
-		return NULL;
-	}
-	if ( xrtUrlSchemeIs(
-		&Parsed,
-		XRT_STR_LITERAL("http")
-	) || xrtUrlSchemeIs(
-		&Parsed,
-		XRT_STR_LITERAL("https")
-	) ) {
-		pRequest = xrtHttpRequestCreate(
-			XRT_STR_LITERAL("GET"),
-			Url
-		);
-		if ( pRequest == NULL ) {
-			__xwsHandshakeWrap(
-				XERR_VALUE,
-				XWS_HANDSHAKE_ERROR_ARGUMENT,
-				"create-websocket-request",
-				"WebSocket URL cannot be used by the HTTP client"
-			);
-		}
-		return pRequest;
-	}
-	if ( xrtUrlSchemeIs(
-		&Parsed,
-		XRT_STR_LITERAL("ws")
-	) ) {
-		Scheme = XRT_STR_LITERAL("http");
-	} else if ( xrtUrlSchemeIs(
-		&Parsed,
-		XRT_STR_LITERAL("wss")
-	) ) {
-		Scheme = XRT_STR_LITERAL("https");
-	} else {
-		__xwsHandshakeError(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"create-websocket-request",
-			"WebSocket URL scheme must be ws, wss, http or https"
-		);
-		return NULL;
-	}
-	if ( Url.Size >
-		(SIZE_MAX - (Scheme.Size - Parsed.Scheme.Size) - 1u) ) {
-		__xwsHandshakeError(
-			XERR_RANGE,
-			XWS_HANDSHAKE_ERROR_OUTPUT,
-			"create-websocket-request",
-			"WebSocket URL is too large"
-		);
-		return NULL;
-	}
-	iSize = Url.Size + Scheme.Size - Parsed.Scheme.Size;
-	sHttpUrl = (str)xrtMalloc(iSize + 1u);
-	if ( sHttpUrl == NULL ) {
-		__xwsHandshakeWrap(
-			XERR_MEMORY,
-			XWS_HANDSHAKE_ERROR_OUTPUT,
-			"create-websocket-request",
-			"WebSocket HTTP URL allocation failed"
-		);
-		return NULL;
-	}
-	memcpy(sHttpUrl, Scheme.Data, Scheme.Size);
-	memcpy(
-		sHttpUrl + Scheme.Size,
-		Url.Data + Parsed.Scheme.Size,
-		Url.Size - Parsed.Scheme.Size
-	);
-	sHttpUrl[iSize] = '\0';
-	HttpUrl.Data = sHttpUrl;
-	HttpUrl.Size = iSize;
-	pRequest = xrtHttpRequestCreate(
-		XRT_STR_LITERAL("GET"),
-		HttpUrl
-	);
-	xrtFree(sHttpUrl);
-	if ( pRequest == NULL ) {
-		__xwsHandshakeWrap(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"create-websocket-request",
-			"WebSocket URL cannot be used by the HTTP client"
-		);
-	}
-	return pRequest;
-}
-
-
-
-/* 在私有请求副本上原子构造 RFC 6455 客户端管理字段。 */
-static bool __xrtWsClientRequestConfigure(
-	xhttprequest* pRequest,
-	const xwsclientconfig* pConfig,
-	char sKey[XWS_KEY_CAPACITY]
-)
-{
-	const xurl* pUrl;
-	char sGenerated[XWS_KEY_CAPACITY];
-	xstrview Protocols;
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-		char sExtensions[XWS_DEFLATE_MAX_SIZE];
-		size_t iExtensions = 0;
-	#endif
-
-	if ( (pRequest == NULL) || (pConfig == NULL) ||
-		(sKey == NULL) ||
-		((pConfig->Protocols.Data == NULL) &&
-		 (pConfig->Protocols.Size != 0)) ) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"configure-websocket-request",
-			"WebSocket request, protocols or key output is invalid"
-		);
-		return false;
-	}
-
-	/* WebSocket URI 不允许 userinfo 或 fragment，包括显式空值。 */
-	pUrl = xrtHttpRequestUrl(pRequest);
-	if ( (pUrl == NULL) ||
-		((pUrl->Flags &
-		 (XURL_HAS_USERINFO | XURL_HAS_FRAGMENT)) != 0) ) {
-		__xwsHandshakeError(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"configure-websocket-request",
-			"WebSocket URL must not contain userinfo or a fragment"
-		);
-		return false;
-	}
-	Protocols = pConfig->Protocols;
-	if ( !xrtWsProtocolsValid(Protocols) ) {
-		__xwsHandshakeWrap(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_PROTOCOL,
-			"configure-websocket-request",
-			"WebSocket client protocol list is invalid"
-		);
-		return false;
-	}
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-		if ( pConfig->RequireDeflate &&
-			!pConfig->EnableDeflate ) {
-			__xwsHandshakeError(
-				XERR_VALUE,
-				XWS_HANDSHAKE_ERROR_EXTENSION,
-				"configure-websocket-request",
-				"Required WebSocket compression is not enabled"
-			);
-			return false;
-		}
-		if ( pConfig->EnableDeflate &&
-			!xrtWsDeflateOfferWrite(
-				&pConfig->Deflate,
-				sExtensions,
-				sizeof(sExtensions),
-				&iExtensions
-			) ) {
-			__xwsHandshakeWrap(
-				XERR_VALUE,
-				XWS_HANDSHAKE_ERROR_EXTENSION,
-				"configure-websocket-request",
-				"WebSocket compression offer is invalid"
-			);
-			return false;
-		}
-	#endif
-	if ( !__xrtWsHttpTextEqual(
-		xrtHttpRequestMethod(pRequest),
-		XRT_STR_LITERAL("GET")
-	) ) {
-		__xwsHandshakeError(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_METHOD,
-			"configure-websocket-request",
-			"WebSocket client request method must be GET"
-		);
-		return false;
-	}
-	if ( (xrtHttpRequestBody(pRequest) != NULL) ||
-		(xrtHttpRequestHeader(
-			pRequest,
-			XRT_STR_LITERAL("Content-Length")
-		) != NULL) || (xrtHttpRequestHeader(
-			pRequest,
-			XRT_STR_LITERAL("Transfer-Encoding")
-		) != NULL) ) {
-		__xwsHandshakeError(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_BODY,
-			"configure-websocket-request",
-			"WebSocket client request must not carry a body"
-		);
-		return false;
-	}
-	if ( xrtHttpRequestHeader(
-		pRequest,
-		XRT_STR_LITERAL("Sec-WebSocket-Extensions")
-	) != NULL ) {
-		__xwsHandshakeError(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_EXTENSION,
-			"configure-websocket-request",
-			"WebSocket extensions require an explicit extension adapter"
-		);
-		return false;
-	}
-	if ( !xrtWsKeyGenerate(
-		sGenerated,
-		sizeof(sGenerated)
-	) ) {
-		return false;
-	}
-	if ( !xrtHttpRequestSetHeader(
-		pRequest,
-		XRT_STR_LITERAL("Upgrade"),
-		XRT_STR_LITERAL("websocket")
-	) || !xrtHttpRequestSetHeader(
-		pRequest,
-		XRT_STR_LITERAL("Connection"),
-		XRT_STR_LITERAL("Upgrade")
-	) || !xrtHttpRequestSetHeader(
-		pRequest,
-		XRT_STR_LITERAL("Sec-WebSocket-Version"),
-		XRT_STR_LITERAL("13")
-	) || !xrtHttpRequestSetHeader(
-		pRequest,
-		XRT_STR_LITERAL("Sec-WebSocket-Key"),
-		(xstrview) { sGenerated, XWS_KEY_SIZE }
-	) || ((Protocols.Size != 0) &&
-		!xrtHttpRequestSetHeader(
-			pRequest,
-			XRT_STR_LITERAL("Sec-WebSocket-Protocol"),
-			Protocols
-		))
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-		|| (pConfig->EnableDeflate &&
-			!xrtHttpRequestSetHeader(
-				pRequest,
-				XRT_STR_LITERAL(
-					"Sec-WebSocket-Extensions"
-				),
-				(xstrview) {
-					sExtensions,
-					iExtensions
-				}
-			))
-	#endif
-		) {
-		__xwsHandshakeWrap(
-			XERR_MEMORY,
-			XWS_HANDSHAKE_ERROR_OUTPUT,
-			"configure-websocket-request",
-			"WebSocket request fields could not be stored"
-		);
-		return false;
-	}
-	if ( Protocols.Size == 0 ) {
-		(void)xrtHttpRequestRemoveHeader(
-			pRequest,
-			XRT_STR_LITERAL("Sec-WebSocket-Protocol")
-		);
-	}
-	memcpy(sKey, sGenerated, sizeof(sGenerated));
-	return true;
-}
-
-
-
-/* 初始化客户端握手与已建立连接的默认配置。 */
-XRT_API void xrtWsClientConfigInit(
-	xwsclientconfig* pConfig
-)
-{
-	xwsclientconfig Config;
-
-	if ( !xrtMemRangeValid(pConfig, sizeof(Config)) ) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"config-init-websocket-client",
-			"WebSocket client configuration range is invalid"
-		);
-		return;
-	}
-	memset(&Config, 0, sizeof(Config));
-	xrtWsConnConfigInit(&Config.Connection);
-	Config.Connection.Role = XWS_ROLE_CLIENT;
-	xrtHttpCallOptionsInit(&Config.Http);
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-		xrtWsDeflateInit(&Config.Deflate);
-	#endif
-	#if defined(XHTTP_FEATURE_HTTP_CLIENT_REDIRECT)
-		Config.Http.Redirect =
-			XHTTP_REDIRECT_MANUAL;
-	#endif
-	memcpy(pConfig, &Config, sizeof(Config));
-}
-
-
-
-/* 从 ws/wss 或 HTTP URL 创建完整客户端握手请求。 */
-XRT_API xhttprequest* xrtWsClientRequestCreate(
-	xstrview Url,
-	const xwsclientconfig* pConfig,
-	char sKey[XWS_KEY_CAPACITY]
-)
-{
-	xwsclientconfig Config;
-	xhttprequest* pRequest;
-
-	if ( !__xrtWsClientConfigSnapshot(
-		&Config,
-		pConfig,
-		"create-websocket-request"
-	) || !__xrtWsHttpRangeCheck(
-		sKey,
-		XWS_KEY_CAPACITY,
-		"create-websocket-request",
-		"WebSocket key output range is invalid"
-	) ) {
-		return NULL;
-	}
-	pRequest = xrtWsRequestCreate(Url);
-	if ( pRequest == NULL ) {
-		return NULL;
-	}
-	if ( !__xrtWsClientRequestConfigure(
-		pRequest,
-		&Config,
-		sKey
-	) ) {
-		xrtHttpRequestDestroy(pRequest);
-		return NULL;
-	}
-	return pRequest;
-}
-
-
-
-/* 克隆自定义 GET 请求并替换 WebSocket 管理字段。 */
-XRT_API xhttprequest* xrtWsClientRequestClone(
-	const xhttprequest* pRequest,
-	const xwsclientconfig* pConfig,
-	char sKey[XWS_KEY_CAPACITY]
-)
-{
-	xwsclientconfig Config;
-	xhttprequest* pClone;
-
-	if ( !__xrtWsClientConfigSnapshot(
-		&Config,
-		pConfig,
-		"clone-websocket-request"
-	) || !__xrtWsHttpObjectCheck(
-		pRequest,
-		"clone-websocket-request",
-		"WebSocket source request is null"
-	) || !__xrtWsHttpRangeCheck(
-		sKey,
-		XWS_KEY_CAPACITY,
-		"clone-websocket-request",
-		"WebSocket key output range is invalid"
-	) ) {
-		return NULL;
-	}
-	pClone = xrtHttpRequestClone(pRequest);
-	if ( pClone == NULL ) {
-		__xwsHandshakeWrap(
-			XERR_MEMORY,
-			XWS_HANDSHAKE_ERROR_OUTPUT,
-			"clone-websocket-request",
-			"WebSocket source request could not be cloned"
-		);
-		return NULL;
-	}
-	if ( !__xrtWsClientRequestConfigure(
-		pClone,
-		&Config,
-		sKey
-	) ) {
-		xrtHttpRequestDestroy(pClone);
-		return NULL;
-	}
-	return pClone;
-}
-
-
-
-/* 严格验证服务器 101 响应和客户端 offer 的绑定关系。 */
-XRT_API bool xrtWsClientCheck(
-	const xhttpresponse* pResponse,
-	xstrview Key,
-	const xwsclientconfig* pConfig,
-	xwsclienthandshake* pHandshake
-)
-{
-	__xrt_ws_fields Fields;
-	xwsclientconfig Config;
-	xwsclienthandshake Handshake;
-	const xhttpfield* pAccept;
-	const xhttpfield* pProtocol;
-	xstrview Selected = { 0 };
-	bool bConnection;
-	size_t iProtocols;
-
-	if ( !__xrtWsClientConfigSnapshot(
-		&Config,
-		pConfig,
-		"check-websocket-response"
-	) || !__xrtWsHttpObjectCheck(
-		pResponse,
-		"check-websocket-response",
-		"WebSocket response is null"
-	) || !__xrtWsHttpRangeCheck(
-		pHandshake,
-		sizeof(Handshake),
-		"check-websocket-response",
-		"WebSocket client handshake output range is invalid"
-	) ) {
-		return false;
-	}
-	if ( !xrtMemRangeValid(Key.Data, Key.Size) ) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"check-websocket-response",
-			"WebSocket key range is invalid"
-		);
-		return false;
-	}
-	if ( (Config.Protocols.Data == NULL) &&
-		(Config.Protocols.Size != 0) ) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"check-websocket-response",
-			"WebSocket client protocol range is invalid"
-		);
-		return false;
-	}
-	if ( (pHandshake == (const void*)pResponse) ||
-		((pConfig != NULL) && xrtMemRangesOverlap(
-		pHandshake,
-		sizeof(Handshake),
-		pConfig,
-		sizeof(*pConfig)
-	)) || xrtMemRangesOverlap(
-		pHandshake,
-		sizeof(Handshake),
-		Key.Data,
-		Key.Size
-	) ) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"check-websocket-response",
-			"WebSocket client handshake output overlaps an input"
-		);
-		return false;
-	}
-	if ( !xrtWsKeyValid(Key) ||
-		!xrtWsProtocolsValid(Config.Protocols) ) {
-		__xwsHandshakeWrap(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"check-websocket-response",
-			"WebSocket response check input is invalid"
-		);
-		return false;
-	}
-	memset(&Handshake, 0, sizeof(Handshake));
-	Fields.Data = xrtHttpHeadersData(
-		xrtHttpResponseHeaders(pResponse)
-	);
-	Fields.Count = xrtHttpResponseHeaderCount(
-		pResponse
-	);
-	if ( xrtHttpResponseVersion(pResponse) !=
-		XHTTP_VERSION_1_1 ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_VERSION,
-			"check-websocket-response",
-			"WebSocket response requires HTTP/1.1"
-		);
-		return false;
-	}
-	if ( xrtHttpResponseStatus(pResponse) !=
-		XHTTP_STATUS_SWITCHING_PROTOCOLS ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_STATUS,
-			"check-websocket-response",
-			"WebSocket response status is not 101"
-		);
-		return false;
-	}
-	if ( !__xrtWsHttpUpgradeExact(&Fields) ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_UPGRADE,
-			"check-websocket-response",
-			"WebSocket Upgrade response field is missing or ambiguous"
-		);
-		return false;
-	}
-	if ( !__xrtWsHttpTokenHas(
-		&Fields,
-		XRT_STR_LITERAL("Connection"),
-		XRT_STR_LITERAL("Upgrade"),
-		&bConnection
-	) || !bConnection ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_CONNECTION,
-			"check-websocket-response",
-			"WebSocket response Connection field does not select Upgrade"
-		);
-		return false;
-	}
-	pAccept = __xrtWsHttpFieldUnique(
-		&Fields,
-		XRT_STR_LITERAL("Sec-WebSocket-Accept")
-	);
-	if ( (pAccept == NULL) ||
-		!xrtWsAcceptValid(Key, pAccept->Value) ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_ACCEPT,
-			"check-websocket-response",
-			"WebSocket response Accept is missing, repeated or invalid"
-		);
-		return false;
-	}
-	if ( (__xrtWsHttpFieldCount(
-		&Fields,
-		XRT_STR_LITERAL("Content-Length")
-	) != 0) || (__xrtWsHttpFieldCount(
-		&Fields,
-		XRT_STR_LITERAL("Transfer-Encoding")
-	) != 0) || (xrtHttpResponseBodyBytes(
-		pResponse
-	) != 0) ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_BODY,
-			"check-websocket-response",
-			"WebSocket 101 response contains an HTTP body"
-		);
-		return false;
-	}
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-		if ( !__xrtWsClientDeflateCheck(
-			&Fields,
-			&Config,
-			&Handshake
-		) ) {
-			return false;
-		}
-	#else
-		if ( __xrtWsHttpFieldCount(
-			&Fields,
-			XRT_STR_LITERAL(
-				"Sec-WebSocket-Extensions"
-			)
-		) != 0 ) {
-			__xwsHandshakeError(
-				XERR_PROTOCOL,
-				XWS_HANDSHAKE_ERROR_EXTENSION,
-				"check-websocket-response",
-				"Unsolicited WebSocket extensions are not accepted"
-			);
-			return false;
-		}
-	#endif
-	iProtocols = __xrtWsHttpFieldCount(
-		&Fields,
-		XRT_STR_LITERAL("Sec-WebSocket-Protocol")
-	);
-	if ( iProtocols > 1 ) {
-		__xwsHandshakeError(
-			XERR_PROTOCOL,
-			XWS_HANDSHAKE_ERROR_PROTOCOL,
-			"check-websocket-response",
-			"WebSocket response repeats the selected protocol"
-		);
-		return false;
-	}
-	if ( iProtocols == 1 ) {
-		pProtocol = __xrtWsHttpFieldUnique(
-			&Fields,
-			XRT_STR_LITERAL("Sec-WebSocket-Protocol")
-		);
-		if ( (pProtocol == NULL) ||
-			!xrtHttpTokenValid(pProtocol->Value) ||
-			(Config.Protocols.Size == 0) ||
-			!xrtWsProtocolsHas(
-				Config.Protocols,
-				pProtocol->Value
-			) ) {
-			__xwsHandshakeError(
-				XERR_PROTOCOL,
-				XWS_HANDSHAKE_ERROR_PROTOCOL,
-				"check-websocket-response",
-				"WebSocket response selected an unoffered protocol"
-			);
-			return false;
-		}
-		Selected = pProtocol->Value;
-	}
-	Handshake.Protocol = Selected;
-	memcpy(pHandshake, &Handshake, sizeof(Handshake));
-	return true;
-}
-
-
-
-/* 异常关闭并释放 HTTP Call 转移出的升级传输。 */
-static void __xrtWsClientTransportAbort(
-	xnetstream* pTcp
-	#if defined(XHTTP_FEATURE_HTTP_CLIENT_HTTPS)
-		, xtlsstream* pTls
-	#endif
-)
-{
-	if ( pTcp != NULL ) {
-		(void)xrtNetStreamAbort(pTcp);
-		xrtNetStreamDestroy(pTcp);
-	}
-	#if defined(XHTTP_FEATURE_HTTP_CLIENT_HTTPS)
-		if ( pTls != NULL ) {
-			(void)xrtTlsStreamAbort(pTls);
-			xrtTlsStreamDestroy(pTls);
-		}
-	#endif
-}
-
-
-
-/* 把 HTTP Client 的升级终态接管为共享 WebSocket Connection。 */
-static void __xrtWsClientDone(
-	xhttpcall* pCall,
-	const xhttpcallresult* pResult,
-	ptr pData
-)
-{
-	__xrt_ws_connect* pConnect =
-		(__xrt_ws_connect*)pData;
-	xwsconn* pConnection = NULL;
-	xerror* pOwnedError = NULL;
-	const xerror* pError;
-	xnetresult Result;
-	xwsclientconfig Config;
-	xwsclienthandshake Handshake;
-	bool bTransport;
-
-	Result = pResult->Result;
-	pError = pResult->Error;
-	if ( Result == XNET_RESULT_OK ) {
-		xrtWsClientConfigInit(&Config);
-		Config.Protocols = pConnect->Protocols;
-		#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-			Config.Deflate = pConnect->Deflate;
-			Config.EnableDeflate =
-				pConnect->EnableDeflate;
-			Config.RequireDeflate =
-				pConnect->RequireDeflate;
-		#endif
-		bTransport = pResult->Upgraded &&
-			((pResult->Tcp != NULL)
-			#if defined(XHTTP_FEATURE_HTTP_CLIENT_HTTPS)
-				!= (pResult->Tls != NULL)
-			#endif
-			);
-		if ( !xrtWsClientCheck(
-			pResult->Response,
-			(xstrview) {
-				pConnect->Key,
-				XWS_KEY_SIZE
-			},
-			&Config,
-			&Handshake
-		) ) {
-			/* xrtWsClientCheck 已经发布准确原因。 */
-		} else if ( !bTransport ) {
-			__xwsHandshakeError(
-				XERR_STATE,
-				XWS_HANDSHAKE_ERROR_UPGRADE,
-				"attach-websocket-client",
-				"HTTP client did not return one upgraded transport"
-			);
-		} else {
-			pConnect->Connection.Protocol =
-				Handshake.Protocol;
-			#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-				pConnect->Connection.DeflateEnabled =
-					Handshake.DeflateEnabled;
-				if ( Handshake.DeflateEnabled ) {
-					pConnect->Connection.Deflate =
-						Handshake.Deflate;
-				}
-			#endif
-			if ( pResult->Tcp != NULL ) {
-				pConnection = xrtWsConnAttach(
-					pResult->Tcp,
-					&pConnect->Connection,
-					&pConnect->Events,
-					pConnect->EventData
-				);
-			}
-			#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_HTTPS)
-				else if ( pResult->Tls != NULL ) {
-					pConnection = xrtWsConnAttachTls(
-						pResult->Tls,
-						&pConnect->Connection,
-						&pConnect->Events,
-						pConnect->EventData
-					);
-				}
-			#endif
-			#if defined(XHTTP_FEATURE_HTTP_CLIENT_HTTPS) && \
-				!defined(XWS_FEATURE_WEBSOCKET_CLIENT_HTTPS)
-				else {
-					__xwsHandshakeError(
-						XERR_UNSUPPORTED,
-						XWS_HANDSHAKE_ERROR_UPGRADE,
-						"attach-websocket-client",
-						"TLS WebSocket adapter is not present in this build"
-					);
-				}
-			#endif
-		}
-		if ( pConnection == NULL ) {
-			pOwnedError = xrtTakeError();
-			__xrtWsClientTransportAbort(
-				pResult->Tcp
-				#if defined(XHTTP_FEATURE_HTTP_CLIENT_HTTPS)
-					, pResult->Tls
-				#endif
-			);
-			Result = XNET_RESULT_ERROR;
-			pError = pOwnedError;
-		}
-	} else {
-		__xrtWsClientTransportAbort(
-			pResult->Tcp
-			#if defined(XHTTP_FEATURE_HTTP_CLIENT_HTTPS)
-				, pResult->Tls
-			#endif
-		);
-	}
-	pConnect->Proc(
-		pCall,
-		Result,
-		pConnection,
-		pResult->Response,
-		pError,
-		pConnect->Data
-	);
-	xrtErrorFree(pOwnedError);
-	xrtFree(pConnect);
-}
-
-
-
-/* 克隆请求、冻结异步上下文并提交 HTTP Client。 */
-XRT_API xhttpcall* xrtWsConnectRequest(
-	xhttpclient* pClient,
-	const xhttprequest* pRequest,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pEventData,
-	xwsconnectproc pProc,
-	ptr pData
-)
-{
-	xwsclientconfig Config;
-	xwsconnevents Events;
-	xhttpcalloptions Options;
-	xhttprequest* pPrepared;
-	__xrt_ws_connect* pConnect;
-	xhttpcall* pCall;
-	char sKey[XWS_KEY_CAPACITY];
-	size_t iAllocation;
-
-	if ( !__xrtWsClientConfigSnapshot(
-		&Config,
-		pConfig,
-		"connect-websocket-client"
-	) || !__xrtWsConnEventsSnapshot(
-		&Events,
-		pEvents,
-		"connect-websocket-client"
-	) || !__xrtWsHttpObjectCheck(
-		pClient,
-		"connect-websocket-client",
-		"HTTP client is null"
-	) || !__xrtWsHttpObjectCheck(
-		pRequest,
-		"connect-websocket-client",
-		"HTTP request is null"
-	) ) {
-		return NULL;
-	}
-	Config.Connection.Role = XWS_ROLE_CLIENT;
-	Config.Connection.Protocol =
-		(xstrview) { 0 };
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-		Config.Connection.DeflateEnabled =
-			Config.EnableDeflate;
-		if ( Config.EnableDeflate ) {
-			/*
-				HTTP 提交前还没有服务端响应。
-				用无参数响应验证本地编解码配置，实际方向在握手完成后覆盖。
-			*/
-			xrtWsDeflateInit(
-				&Config.Connection.Deflate
-			);
-		}
-	#elif defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
-		Config.Connection.DeflateEnabled = false;
-	#endif
-	if ( (pProc == NULL) ||
-		((Config.Protocols.Data == NULL) &&
-		 (Config.Protocols.Size != 0)) ) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"connect-websocket-client",
-			"WebSocket client, request, protocols or callback is invalid"
-		);
-		return NULL;
-	}
-	if ( !xrtWsConnConfigValid(
-		&Config.Connection
-	) ) {
-		__xwsHandshakeError(
-			XERR_VALUE,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"connect-websocket-client",
-			"WebSocket client connection configuration is invalid"
-		);
-		return NULL;
-	}
-	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
-		Config.Connection.DeflateEnabled = false;
-	#endif
-	pPrepared = xrtWsClientRequestClone(
-		pRequest,
-		&Config,
-		sKey
-	);
-	if ( pPrepared == NULL ) {
-		return NULL;
-	}
-	if ( Config.Protocols.Size >
-		(SIZE_MAX - sizeof(*pConnect) - 1u) ) {
-		xrtHttpRequestDestroy(pPrepared);
-		__xwsHandshakeError(
-			XERR_RANGE,
-			XWS_HANDSHAKE_ERROR_PROTOCOL,
-			"connect-websocket-client",
-			"WebSocket client protocol list is too large"
-		);
-		return NULL;
-	}
-	iAllocation = sizeof(*pConnect) +
-		Config.Protocols.Size + 1u;
-	pConnect = (__xrt_ws_connect*)xrtCalloc(
-		1,
-		iAllocation
-	);
-	if ( pConnect == NULL ) {
-		xrtHttpRequestDestroy(pPrepared);
-		__xwsHandshakeWrap(
-			XERR_MEMORY,
-			XWS_HANDSHAKE_ERROR_OUTPUT,
-			"connect-websocket-client",
-			"WebSocket client context allocation failed"
-		);
-		return NULL;
-	}
-	pConnect->Connection = Config.Connection;
-	pConnect->Events = Events;
-	pConnect->Proc = pProc;
-	pConnect->EventData = pEventData;
-	pConnect->Data = pData;
-	memcpy(pConnect->Key, sKey, sizeof(sKey));
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
-		pConnect->Deflate = Config.Deflate;
-		pConnect->EnableDeflate =
-			Config.EnableDeflate;
-		pConnect->RequireDeflate =
-			Config.RequireDeflate;
-	#endif
-	if ( Config.Protocols.Size != 0 ) {
-		memcpy(
-			pConnect->Storage,
-			Config.Protocols.Data,
-			Config.Protocols.Size
-		);
-		pConnect->Protocols.Data =
-			pConnect->Storage;
-		pConnect->Protocols.Size =
-			Config.Protocols.Size;
-	}
-	Options = Config.Http;
-	#if defined(XHTTP_FEATURE_HTTP_CLIENT_REDIRECT)
-		Options.Redirect = XHTTP_REDIRECT_MANUAL;
-	#endif
-	pCall = xrtHttpClientDo(
-		pClient,
-		pPrepared,
-		&Options,
-		__xrtWsClientDone,
-		pConnect
-	);
-	xrtHttpRequestDestroy(pPrepared);
-	if ( pCall == NULL ) {
-		xrtFree(pConnect);
-	}
-	return pCall;
-}
-
-
-
-/* 从 URL 创建基础请求并提交异步 WebSocket 握手。 */
-XRT_API xhttpcall* xrtWsConnect(
-	xhttpclient* pClient,
-	xstrview Url,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pEventData,
-	xwsconnectproc pProc,
-	ptr pData
-)
-{
-	xwsclientconfig Config;
-	xwsconnevents Events;
-	xhttprequest* pRequest;
-	xhttpcall* pCall;
-
-	if ( !__xrtWsClientConfigSnapshot(
-		&Config,
-		pConfig,
-		"connect-websocket-client"
-	) || !__xrtWsConnEventsSnapshot(
-		&Events,
-		pEvents,
-		"connect-websocket-client"
-	) || !__xrtWsHttpObjectCheck(
-		pClient,
-		"connect-websocket-client",
-		"HTTP client is null"
-	) ) {
-		return NULL;
-	}
-	if ( pProc == NULL ) {
-		__xwsHandshakeError(
-			XERR_ARGUMENT,
-			XWS_HANDSHAKE_ERROR_ARGUMENT,
-			"connect-websocket-client",
-			"WebSocket completion callback is null"
-		);
-		return NULL;
-	}
-	pRequest = xrtWsRequestCreate(Url);
-	if ( pRequest == NULL ) {
-		return NULL;
-	}
-	pCall = xrtWsConnectRequest(
-		pClient,
-		pRequest,
-		&Config,
-		&Events,
-		pEventData,
-		pProc,
-		pData
-	);
-	xrtHttpRequestDestroy(pRequest);
-	return pCall;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: extlibs/xws/src/websocket/server_future.c */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_FUTURE)
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_SERVER_FUTURE)
-
-/*
-	服务端桥在成功后原位转为 Future 拥有的结果。
-	独立 HTTP 引用覆盖取消线程与 Upgrade 完成回调的竞态。
-*/
-typedef struct xrt_ws_server_future {
-	xwsopenresult Result;
-	xfuturebridge Bridge;
-	xhttpconn* Http;
-	xatomic32 Cancelled;
-} xrt_ws_server_future;
-
-
-
-/* Future 的拥有值析构只释放一个连接建立结果引用。 */
-static void __xrtWsServerFutureFree(ptr pValue, ptr pData)
-{
-	(void)pData;
-	xrtWsOpenResultDestroy((xwsopenresult*)pValue);
-}
-
-
-
-/* 标记 Future 取消并异常关闭尚未完成的 HTTP Upgrade。 */
-static void __xrtWsServerFutureCancel(ptr pData)
-{
-	xrt_ws_server_future* pContext =
-		(xrt_ws_server_future*)pData;
-
-	xrtAtomic32Store(
-		&pContext->Cancelled,
-		1,
-		XMEMORY_RELEASE
-	);
-	(void)xrtHttpConnAbort(pContext->Http);
-}
-
-
-
-/* 接收 HTTP Upgrade 唯一终态并完成服务端 Future。 */
-static void __xrtWsServerFutureDone(
-	xhttpconn* pHttp,
-	xnetresult Result,
-	xwsconn* pConnection,
-	const xerror* pError,
-	ptr pData
-)
-{
-	xrt_ws_server_future* pContext =
-		(xrt_ws_server_future*)pData;
-	xpromise* pPromise = xrtFutureBridgePromise(&pContext->Bridge);
-	xhttpconn* pHeld = pContext->Http;
-	xerror* pFallback = NULL;
-	xerror* pFailure = NULL;
-	bool bCancelled;
-	bool bReady;
-	bool bResolved = false;
-	bool bSuccess;
-
-	(void)pHttp;
-	bReady = xrtFutureBridgeWait(&pContext->Bridge);
-	xrtFutureBridgeUnwatch(&pContext->Bridge);
-	bCancelled = xrtAtomic32Load(
-		&pContext->Cancelled,
-		XMEMORY_ACQUIRE
-	) != 0;
-	bSuccess = bReady && !bCancelled &&
-		(Result == XNET_RESULT_OK) &&
-		(pConnection != NULL);
-	if ( !bReady ) {
-		__xrtWsOpenConnectionDestroy(pConnection);
-		xrtHttpConnDestroy(pHeld);
-		xrtPromiseDestroy(pPromise);
-		xrtFree(pContext);
-		return;
-	}
-	if ( !bSuccess && !bCancelled &&
-		(Result != XNET_RESULT_CANCELLED) ) {
-		if ( pError == NULL ) {
-			pFallback = __xrtWsOpenErrorCreate(
-				XERR_INTERNAL,
-				"complete-websocket-upgrade",
-				Result == XNET_RESULT_OK ?
-					"WebSocket Upgrade succeeded without a connection" :
-					"WebSocket Upgrade failed without an error"
-			);
-			pError = pFallback != NULL ?
-				pFallback : xrtGetError();
-		}
-		pFailure = xrtErrorRef(pError);
-	}
-	if ( bSuccess ) {
-		xrtAtomicPtrStore(
-			&pContext->Result.Connection,
-			pConnection,
-			XMEMORY_RELEASE
-		);
-	} else {
-		__xrtWsOpenConnectionDestroy(pConnection);
-		xrtFree(pContext);
-	}
-	xrtHttpConnDestroy(pHeld);
-	if ( bSuccess ) {
-		bResolved = xrtPromiseResolveOwned(
-			pPromise,
-			&pContext->Result,
-			__xrtWsServerFutureFree,
-			NULL
-		);
-		if ( !bResolved ) {
-			xrtWsOpenResultDestroy(&pContext->Result);
-		}
-	} else if ( bCancelled ||
-		(Result == XNET_RESULT_CANCELLED) ) {
-		(void)xrtPromiseCancel(pPromise);
-	} else if ( pFailure != NULL ) {
-		(void)xrtPromiseReject(pPromise, pFailure);
-	} else {
-		(void)xrtPromiseClose(pPromise);
-	}
-	xrtPromiseDestroy(pPromise);
-	xrtErrorFree(pFailure);
-	xrtErrorFree(pFallback);
-}
-
-
-
-/* 验证并提交服务端 WebSocket Upgrade Future。 */
-XRT_API xfuture* xrtWsUpgradeAsync(
-	xhttpconn* pHttp,
-	const xwsserverconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pData
-)
-{
-	xrt_ws_server_future* pContext;
-	xwsserverconfig Config;
-	xwsconnevents Events;
-	xfuture* pFuture;
-	xerror* pError;
-
-	if ( !__xrtWsServerConfigSnapshot(
-		&Config,
-		pConfig,
-		"upgrade-websocket-async"
-	) || !__xrtWsConnEventsSnapshot(
-		&Events,
-		pEvents,
-		"upgrade-websocket-async"
-	) || !__xrtWsHttpObjectCheck(
-		pHttp,
-		"upgrade-websocket-async",
-		"HTTP server connection is null"
-	) ) {
-		return NULL;
-	}
-	pContext = (xrt_ws_server_future*)xrtCalloc(
-		1,
-		sizeof(*pContext)
-	);
-	if ( pContext == NULL ) {
-		return NULL;
-	}
-	pContext->Result.References = 1;
-	xrtAtomicPtrInit(&pContext->Result.Connection, NULL);
-	#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE)
-		xrtAtomicPtrInit(&pContext->Result.Response, NULL);
-	#endif
-	xrtAtomic32Init(&pContext->Cancelled, 0);
-	pContext->Http = xrtHttpConnRef(pHttp);
-	if ( pContext->Http == NULL ) {
-		xrtFree(pContext);
-		return NULL;
-	}
-	pFuture = xrtFutureBridgeCreate(
-		&pContext->Bridge,
-		NULL
-	);
-	if ( pFuture == NULL ) {
-		xrtHttpConnDestroy(pContext->Http);
-		xrtFree(pContext);
-		return NULL;
-	}
-	if ( xrtWsUpgrade(
-		pHttp,
-		&Config,
-		&Events,
-		pData,
-		__xrtWsServerFutureDone,
-		pContext
-	) != XNET_RESULT_OK ) {
-		xrtFutureDestroy(pFuture);
-		xrtPromiseDestroy(xrtFutureBridgePromise(&pContext->Bridge));
-		xrtHttpConnDestroy(pContext->Http);
-		xrtFree(pContext);
-		return NULL;
-	}
-	if ( !xrtFutureBridgeWatch(
-		&pContext->Bridge,
-		__xrtWsServerFutureCancel,
-		pContext
-	) ) {
-		pError = xrtTakeError();
-		xrtFutureBridgeFail(&pContext->Bridge);
-		(void)xrtHttpConnAbort(pContext->Http);
-		xrtFutureDestroy(pFuture);
-		if ( pError != NULL ) {
-			xrtSetError(pError);
-			xrtErrorFree(pError);
-		}
-		return NULL;
-	}
-	xrtFutureBridgeReady(&pContext->Bridge);
-	return pFuture;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: extlibs/xws/src/websocket/client_future.c */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE)
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_CLIENT_FUTURE)
-
-/*
-	桥接上下文在成功后原位转为 Future 拥有的结果。
-	Result 必须保持首成员，使结果析构能够释放整块存储。
-*/
-typedef struct xrt_ws_client_future {
-	xwsopenresult Result;
-	xfuturebridge Bridge;
-	xhttpcall* Call;
-} xrt_ws_client_future;
-
-
-
-/* 验证 Future 入口并安全取得配置中的父取消令牌。 */
-static bool __xrtWsClientFutureInputs(
-	xhttpclient* pClient,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	cstr sOperation,
-	xwsclientconfig* pConfigOutput,
-	xwsconnevents* pEventsOutput,
-	xcancel** ppParent
-)
-{
-	*ppParent = NULL;
-	if ( !__xrtWsClientConfigSnapshot(
-		pConfigOutput,
-		pConfig,
-		sOperation
-	) || !__xrtWsConnEventsSnapshot(
-		pEventsOutput,
-		pEvents,
-		sOperation
-	) || !__xrtWsHttpObjectCheck(
-		pClient,
-		sOperation,
-		"HTTP client is null"
-	) ) {
-		return false;
-	}
-	*ppParent = pConfigOutput->Http.Cancel;
-	return true;
-}
-
-
-
-/* Future 的拥有值析构只释放一个连接建立结果引用。 */
-static void __xrtWsClientFutureFree(ptr pValue, ptr pData)
-{
-	(void)pData;
-	xrtWsOpenResultDestroy((xwsopenresult*)pValue);
-}
-
-
-
-/* 把 Future 的协作取消转发给完整 HTTP Call。 */
-static void __xrtWsClientFutureCancel(ptr pData)
-{
-	xrt_ws_client_future* pContext =
-		(xrt_ws_client_future*)pData;
-
-	(void)xrtHttpCallCancel(pContext->Call);
-}
-
-
-
-/* 回收回调转移但没有进入成功结果的全部对象。 */
-static void __xrtWsClientFutureObjectsDestroy(
-	xwsconn* pConnection,
-	xhttpresponse* pResponse
-)
-{
-	__xrtWsOpenConnectionDestroy(pConnection);
-	xrtHttpResponseDestroy(pResponse);
-}
-
-
-
-/* 把成功回调转为 Future 拥有的连接建立结果。 */
-static void __xrtWsClientFutureResolve(
-	xrt_ws_client_future* pContext,
-	xwsconn* pConnection,
-	xhttpresponse* pResponse
-)
-{
-	xpromise* pPromise = xrtFutureBridgePromise(&pContext->Bridge);
-	xhttpcall* pCall = pContext->Call;
-	bool bResolved;
-
-	xrtAtomicPtrStore(
-		&pContext->Result.Connection,
-		pConnection,
-		XMEMORY_RELEASE
-	);
-	xrtAtomicPtrStore(
-		&pContext->Result.Response,
-		pResponse,
-		XMEMORY_RELEASE
-	);
-	xrtHttpCallDestroy(pCall);
-	bResolved = xrtPromiseResolveOwned(
-		pPromise,
-		&pContext->Result,
-		__xrtWsClientFutureFree,
-		NULL
-	);
-	xrtPromiseDestroy(pPromise);
-	if ( !bResolved ) {
-		xrtWsOpenResultDestroy(&pContext->Result);
-	}
-}
-
-
-
-/* 把失败或取消回调转为对应 Future 终态并回收响应。 */
-static void __xrtWsClientFutureReject(
-	xrt_ws_client_future* pContext,
-	xnetresult Result,
-	xwsconn* pConnection,
-	xhttpresponse* pResponse,
-	const xerror* pError
-)
-{
-	xpromise* pPromise = xrtFutureBridgePromise(&pContext->Bridge);
-	xhttpcall* pCall = pContext->Call;
-	xerror* pFallback = NULL;
-	xerror* pFailure = NULL;
-
-	if ( Result != XNET_RESULT_CANCELLED ) {
-		if ( pError == NULL ) {
-			pFallback = __xrtWsOpenErrorCreate(
-				XERR_INTERNAL,
-				"complete-websocket-connect",
-				"WebSocket connect failed without an error"
-			);
-			pError = pFallback != NULL ?
-				pFallback : xrtGetError();
-		}
-		pFailure = xrtErrorRef(pError);
-	}
-	__xrtWsClientFutureObjectsDestroy(
-		pConnection,
-		pResponse
-	);
-	xrtHttpCallDestroy(pCall);
-	xrtFree(pContext);
-	if ( Result == XNET_RESULT_CANCELLED ) {
-		(void)xrtPromiseCancel(pPromise);
-	} else if ( pFailure != NULL ) {
-		(void)xrtPromiseReject(pPromise, pFailure);
-	} else {
-		(void)xrtPromiseClose(pPromise);
-	}
-	xrtErrorFree(pFailure);
-	xrtErrorFree(pFallback);
-	xrtPromiseDestroy(pPromise);
-}
-
-
-
-/* 接收 WebSocket 客户端唯一终态并完成 Future。 */
-static void __xrtWsClientFutureDone(
-	xhttpcall* pCall,
-	xnetresult Result,
-	xwsconn* pConnection,
-	xhttpresponse* pResponse,
-	const xerror* pError,
-	ptr pData
-)
-{
-	xrt_ws_client_future* pContext =
-		(xrt_ws_client_future*)pData;
-	bool bReady;
-
-	(void)pCall;
-	bReady = xrtFutureBridgeWait(&pContext->Bridge);
-	xrtFutureBridgeUnwatch(&pContext->Bridge);
-	if ( !bReady ) {
-		__xrtWsClientFutureObjectsDestroy(
-			pConnection,
-			pResponse
-		);
-		xrtHttpCallDestroy(pContext->Call);
-		xrtPromiseDestroy(xrtFutureBridgePromise(&pContext->Bridge));
-		xrtFree(pContext);
-		return;
-	}
-	if ( (Result == XNET_RESULT_OK) &&
-		(pConnection != NULL) &&
-		(pResponse != NULL) ) {
-		__xrtWsClientFutureResolve(
-			pContext,
-			pConnection,
-			pResponse
-		);
-	} else if ( Result == XNET_RESULT_OK ) {
-		xerror* pContractError =
-			__xrtWsOpenErrorCreate(
-				XERR_INTERNAL,
-				"complete-websocket-connect",
-				"WebSocket connect succeeded without a connection or response"
-			);
-
-		__xrtWsClientFutureReject(
-			pContext,
-			XNET_RESULT_ERROR,
-			pConnection,
-			pResponse,
-			pContractError != NULL ?
-				pContractError : xrtGetError()
-		);
-		xrtErrorFree(pContractError);
-	} else {
-		__xrtWsClientFutureReject(
-			pContext,
-			Result,
-			pConnection,
-			pResponse,
-			pError
-		);
-	}
-}
-
-
-
-/* 分配 Promise、连接建立结果和统一取消桥。 */
-static xrt_ws_client_future* __xrtWsClientFutureCreate(
-	xcancel* pParent,
-	xfuture** ppFuture
-)
-{
-	xrt_ws_client_future* pContext;
-
-	pContext = (xrt_ws_client_future*)xrtCalloc(
-		1,
-		sizeof(*pContext)
-	);
-	if ( pContext == NULL ) {
-		return NULL;
-	}
-	pContext->Result.References = 1;
-	xrtAtomicPtrInit(&pContext->Result.Connection, NULL);
-	xrtAtomicPtrInit(&pContext->Result.Response, NULL);
-	*ppFuture = xrtFutureBridgeCreate(
-		&pContext->Bridge,
-		pParent
-	);
-	if ( *ppFuture == NULL ) {
-		xrtFree(pContext);
-		return NULL;
-	}
-	return pContext;
-}
-
-
-
-/* 完成底层提交后的取消观察器安装。 */
-static bool __xrtWsClientFutureWatch(
-	xrt_ws_client_future* pContext,
-	xfuture* pFuture
-)
-{
-	xerror* pError;
-
-	if ( xrtFutureBridgeWatch(
-		&pContext->Bridge,
-		__xrtWsClientFutureCancel,
-		pContext
-	) ) {
-		xrtFutureBridgeReady(&pContext->Bridge);
-		return true;
-	}
-	pError = xrtTakeError();
-	xrtFutureBridgeFail(&pContext->Bridge);
-	(void)xrtHttpCallCancel(pContext->Call);
-	xrtFutureDestroy(pFuture);
-	if ( pError != NULL ) {
-		xrtSetError(pError);
-		xrtErrorFree(pError);
-	}
-	return false;
-}
-
-
-
-/* 使用 URL 提交 WebSocket Client Future。 */
-XRT_API xfuture* xrtWsConnectAsync(
-	xhttpclient* pClient,
-	xstrview Url,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pData
-)
-{
-	xrt_ws_client_future* pContext;
-	xwsclientconfig Config;
-	xwsconnevents Events;
-	xcancel* pParent;
-	xfuture* pFuture;
-
-	if ( !__xrtWsClientFutureInputs(
-		pClient,
-		pConfig,
-		pEvents,
-		"connect-websocket-async",
-		&Config,
-		&Events,
-		&pParent
-	) ) {
-		return NULL;
-	}
-	pContext = __xrtWsClientFutureCreate(
-		pParent,
-		&pFuture
-	);
-	if ( pContext == NULL ) {
-		return NULL;
-	}
-	pContext->Call = xrtWsConnect(
-		pClient,
-		Url,
-		&Config,
-		&Events,
-		pData,
-		__xrtWsClientFutureDone,
-		pContext
-	);
-	if ( pContext->Call == NULL ) {
-		xrtFutureDestroy(pFuture);
-		xrtPromiseDestroy(xrtFutureBridgePromise(&pContext->Bridge));
-		xrtFree(pContext);
-		return NULL;
-	}
-	if ( !__xrtWsClientFutureWatch(
-		pContext,
-		pFuture
-	) ) {
-		return NULL;
-	}
-	return pFuture;
-}
-
-
-
-/* 使用自定义 GET 请求提交 WebSocket Client Future。 */
-XRT_API xfuture* xrtWsConnectRequestAsync(
-	xhttpclient* pClient,
-	const xhttprequest* pRequest,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pData
-)
-{
-	xrt_ws_client_future* pContext;
-	xwsclientconfig Config;
-	xwsconnevents Events;
-	xcancel* pParent;
-	xfuture* pFuture;
-
-	if ( !__xrtWsClientFutureInputs(
-		pClient,
-		pConfig,
-		pEvents,
-		"connect-websocket-request-async",
-		&Config,
-		&Events,
-		&pParent
-	) ) {
-		return NULL;
-	}
-	if ( !__xrtWsHttpObjectCheck(
-		pRequest,
-		"connect-websocket-request-async",
-		"HTTP request is null"
-	) ) {
-		return NULL;
-	}
-	pContext = __xrtWsClientFutureCreate(
-		pParent,
-		&pFuture
-	);
-	if ( pContext == NULL ) {
-		return NULL;
-	}
-	pContext->Call = xrtWsConnectRequest(
-		pClient,
-		pRequest,
-		&Config,
-		&Events,
-		pData,
-		__xrtWsClientFutureDone,
-		pContext
-	);
-	if ( pContext->Call == NULL ) {
-		xrtFutureDestroy(pFuture);
-		xrtPromiseDestroy(xrtFutureBridgePromise(&pContext->Bridge));
-		xrtFree(pContext);
-		return NULL;
-	}
-	if ( !__xrtWsClientFutureWatch(
-		pContext,
-		pFuture
-	) ) {
-		return NULL;
-	}
-	return pFuture;
-}
-
-
-
-/* 验证宿主线程可以阻塞等待指定 Client。 */
-static bool __xrtWsConnectCanWait(xhttpclient* pClient)
-{
-	if ( !__xrtWsHttpObjectCheck(
-		pClient,
-		"wait-websocket-connect",
-		"HTTP client is null"
-	) ) {
-		return false;
-	}
-	if ( xrtNetEngineCurrent(xrtHttpClientEngine(pClient)) != NULL ) {
-		xerror* pError = __xrtWsOpenErrorCreate(
-			XERR_STATE,
-			"wait-websocket-connect",
-			"network Worker cannot block on its own WebSocket connect"
-		);
-
-		if ( pError != NULL ) {
-			xrtSetError(pError);
-			xrtErrorFree(pError);
-		}
-		return false;
-	}
-	return true;
-}
-
-
-
-/* 阻塞等待 Future，并保留一个成功结果引用。 */
-static xwsopenresult* __xrtWsConnectWait(
-	xfuture* pFuture
-)
-{
-	xfuturestate State;
-	xwsopenresult* pResult = NULL;
-
-	if ( pFuture == NULL ) {
-		return NULL;
-	}
-	if ( xrtFutureWait(pFuture) != XWAIT_OK ) {
-		xerror* pError = xrtTakeError();
-
-		(void)xrtFutureCancel(pFuture);
-		xrtFutureDestroy(pFuture);
-		if ( pError != NULL ) {
-			xrtSetError(pError);
-			xrtErrorFree(pError);
-		}
-		return NULL;
-	}
-	State = xrtFutureState(pFuture);
-	if ( State == XFUTURE_RESOLVED ) {
-		pResult = xrtWsOpenResultRef(
-			(xwsopenresult*)xrtFutureValue(pFuture)
-		);
-	} else if ( State == XFUTURE_FAILED ) {
-		(void)xrtFutureValue(pFuture);
-	} else {
-		xerror* pError = __xrtWsOpenErrorCreate(
-			State == XFUTURE_CANCELLED ?
-				XERR_CANCELLED : XERR_INTERNAL,
-			"wait-websocket-connect",
-			State == XFUTURE_CANCELLED ?
-				"WebSocket connect was cancelled while waiting" :
-				"WebSocket Future completed without a usable result"
-		);
-
-		if ( pError != NULL ) {
-			xrtSetError(pError);
-			xrtErrorFree(pError);
-		}
-	}
-	xrtFutureDestroy(pFuture);
-	return pResult;
-}
-
-
-
-/* 在宿主线程使用 URL 阻塞建立 WebSocket。 */
-XRT_API xwsopenresult* xrtWsConnectSync(
-	xhttpclient* pClient,
-	xstrview Url,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pData
-)
-{
-	if ( !__xrtWsConnectCanWait(pClient) ) {
-		return NULL;
-	}
-	return __xrtWsConnectWait(
-		xrtWsConnectAsync(
-			pClient,
-			Url,
-			pConfig,
-			pEvents,
-			pData
-		)
-	);
-}
-
-
-
-/* 在宿主线程使用自定义 GET 请求阻塞建立 WebSocket。 */
-XRT_API xwsopenresult* xrtWsConnectRequestSync(
-	xhttpclient* pClient,
-	const xhttprequest* pRequest,
-	const xwsclientconfig* pConfig,
-	const xwsconnevents* pEvents,
-	ptr pData
-)
-{
-	if ( !__xrtWsConnectCanWait(pClient) ) {
-		return NULL;
-	}
-	return __xrtWsConnectWait(
-		xrtWsConnectRequestAsync(
-			pClient,
-			pRequest,
-			pConfig,
-			pEvents,
-			pData
-		)
 	);
 }
 
@@ -12795,7 +6461,7 @@ xnetresult __xrtWsConnSendRefFrame(
 
 
 /* 验证所有权契约并选择零复制或必要复制路径。 */
-XRT_API xnetresult xrtWsConnSendRef(
+XWS_API xnetresult xrtWsConnSendRef(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	const xnetref* pRef
@@ -12891,7 +6557,7 @@ XRT_API xnetresult xrtWsConnSendRef(
 
 
 /* 发送一条所有权 UTF-8 Text 消息。 */
-XRT_API xnetresult xrtWsConnTextRef(
+XWS_API xnetresult xrtWsConnTextRef(
 	xwsconn* pConnection,
 	const xnetref* pRef
 )
@@ -12906,7 +6572,7 @@ XRT_API xnetresult xrtWsConnTextRef(
 
 
 /* 发送一条所有权 Binary 消息。 */
-XRT_API xnetresult xrtWsConnBinaryRef(
+XWS_API xnetresult xrtWsConnBinaryRef(
 	xwsconn* pConnection,
 	const xnetref* pRef
 )
@@ -12921,7 +6587,7 @@ XRT_API xnetresult xrtWsConnBinaryRef(
 
 
 /* 把一段 XRT 内存包装成一次性释放引用。 */
-XRT_API xnetresult xrtWsConnSendTake(
+XWS_API xnetresult xrtWsConnSendTake(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	ptr pData,
@@ -12945,7 +6611,7 @@ XRT_API xnetresult xrtWsConnSendTake(
 
 
 /* 发送并接管一段 XRT UTF-8 Text。 */
-XRT_API xnetresult xrtWsConnTextTake(
+XWS_API xnetresult xrtWsConnTextTake(
 	xwsconn* pConnection,
 	str sText,
 	size_t iSize
@@ -12962,7 +6628,7 @@ XRT_API xnetresult xrtWsConnTextTake(
 
 
 /* 发送并接管一段 XRT Binary。 */
-XRT_API xnetresult xrtWsConnBinaryTake(
+XWS_API xnetresult xrtWsConnBinaryTake(
 	xwsconn* pConnection,
 	bytes pData,
 	size_t iSize
@@ -13366,7 +7032,7 @@ xwswriter* __xrtWsWriterCreate(
 
 
 /* 创建并独占 Connection 的一条未压缩出站数据消息。 */
-XRT_API xwswriter* xrtWsConnBegin(
+XWS_API xwswriter* xrtWsConnBegin(
 	xwsconn* pConnection,
 	xwsopcode Opcode
 )
@@ -13381,7 +7047,7 @@ XRT_API xwswriter* xrtWsConnBegin(
 
 
 /* 开始一条分片 Text 消息。 */
-XRT_API xwswriter* xrtWsConnBeginText(
+XWS_API xwswriter* xrtWsConnBeginText(
 	xwsconn* pConnection
 )
 {
@@ -13394,7 +7060,7 @@ XRT_API xwswriter* xrtWsConnBeginText(
 
 
 /* 开始一条分片 Binary 消息。 */
-XRT_API xwswriter* xrtWsConnBeginBinary(
+XWS_API xwswriter* xrtWsConnBeginBinary(
 	xwsconn* pConnection
 )
 {
@@ -13407,7 +7073,7 @@ XRT_API xwswriter* xrtWsConnBeginBinary(
 
 
 /* 复制并提交一个非最终分片。 */
-XRT_API xnetresult xrtWsWriterWrite(
+XWS_API xnetresult xrtWsWriterWrite(
 	xwswriter* pWriter,
 	xbytesview Data
 )
@@ -13423,7 +7089,7 @@ XRT_API xnetresult xrtWsWriterWrite(
 
 
 /* 复制并提交最终分片。 */
-XRT_API xnetresult xrtWsWriterFinish(
+XWS_API xnetresult xrtWsWriterFinish(
 	xwswriter* pWriter,
 	xbytesview Data
 )
@@ -13490,7 +7156,7 @@ static xnetresult __xrtWsWriterSendRef(
 
 
 /* 提交一个非最终所有权分片。 */
-XRT_API xnetresult xrtWsWriterWriteRef(
+XWS_API xnetresult xrtWsWriterWriteRef(
 	xwswriter* pWriter,
 	const xnetref* pRef
 )
@@ -13505,7 +7171,7 @@ XRT_API xnetresult xrtWsWriterWriteRef(
 
 
 /* 提交最终所有权分片。 */
-XRT_API xnetresult xrtWsWriterFinishRef(
+XWS_API xnetresult xrtWsWriterFinishRef(
 	xwswriter* pWriter,
 	const xnetref* pRef
 )
@@ -13520,7 +7186,7 @@ XRT_API xnetresult xrtWsWriterFinishRef(
 
 
 /* 提交并接管一个非空 XRT 内存分片。 */
-XRT_API xnetresult xrtWsWriterWriteTake(
+XWS_API xnetresult xrtWsWriterWriteTake(
 	xwswriter* pWriter,
 	ptr pData,
 	size_t iSize
@@ -13539,7 +7205,7 @@ XRT_API xnetresult xrtWsWriterWriteTake(
 
 
 /* 提交并接管一个非空 XRT 内存最终分片。 */
-XRT_API xnetresult xrtWsWriterFinishTake(
+XWS_API xnetresult xrtWsWriterFinishTake(
 	xwswriter* pWriter,
 	ptr pData,
 	size_t iSize
@@ -13559,7 +7225,7 @@ XRT_API xnetresult xrtWsWriterFinishTake(
 
 
 /* 返回最终分片是否已经受理。 */
-XRT_API bool xrtWsWriterIsFinished(
+XWS_API bool xrtWsWriterIsFinished(
 	const xwswriter* pWriter
 )
 {
@@ -13576,7 +7242,7 @@ XRT_API bool xrtWsWriterIsFinished(
 
 
 /* 销毁 Writer；发送回调重入销毁时延迟到当前事务结束。 */
-XRT_API void xrtWsWriterDestroy(
+XWS_API void xrtWsWriterDestroy(
 	xwswriter* pWriter
 )
 {
@@ -13617,7 +7283,7 @@ XRT_API void xrtWsWriterDestroy(
 #if defined(XWS_FEATURE_WEBSOCKET_WRITER_DEFLATE)
 
 /* 开始一条压缩分片 Text 或 Binary 消息。 */
-XRT_API xwswriter* xrtWsConnBeginCompressed(
+XWS_API xwswriter* xrtWsConnBeginCompressed(
 	xwsconn* pConnection,
 	xwsopcode Opcode
 )
@@ -13632,7 +7298,7 @@ XRT_API xwswriter* xrtWsConnBeginCompressed(
 
 
 /* 开始一条压缩分片 Text 消息。 */
-XRT_API xwswriter* xrtWsConnBeginTextCompressed(
+XWS_API xwswriter* xrtWsConnBeginTextCompressed(
 	xwsconn* pConnection
 )
 {
@@ -13645,7 +7311,7 @@ XRT_API xwswriter* xrtWsConnBeginTextCompressed(
 
 
 /* 开始一条压缩分片 Binary 消息。 */
-XRT_API xwswriter* xrtWsConnBeginBinaryCompressed(
+XWS_API xwswriter* xrtWsConnBeginBinaryCompressed(
 	xwsconn* pConnection
 )
 {
@@ -14626,7 +8292,7 @@ void __xrtWsConnFutureNotify(xwsconn* pConnection)
 
 
 /* 返回当前异步发送负载字节数。 */
-XRT_API size_t xrtWsConnAsyncBytes(
+XWS_API size_t xrtWsConnAsyncBytes(
 	const xwsconn* pConnection
 )
 {
@@ -14652,7 +8318,7 @@ XRT_API size_t xrtWsConnAsyncBytes(
 
 
 /* 返回当前异步发送和等待操作总数。 */
-XRT_API uint32 xrtWsConnAsyncCount(
+XWS_API uint32 xrtWsConnAsyncCount(
 	const xwsconn* pConnection
 )
 {
@@ -14674,7 +8340,7 @@ XRT_API uint32 xrtWsConnAsyncCount(
 
 
 /* 创建并发布一个条件 Future。 */
-XRT_API xfuture* xrtWsConnWaitAsync(
+XWS_API xfuture* xrtWsConnWaitAsync(
 	xwsconn* pConnection,
 	xwsconnwait Wait
 )
@@ -14764,7 +8430,7 @@ static xfuture* __xrtWsConnSendAsync(
 
 
 /* 从任意线程复制并异步提交完整消息。 */
-XRT_API xfuture* xrtWsConnSendAsync(
+XWS_API xfuture* xrtWsConnSendAsync(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -14781,7 +8447,7 @@ XRT_API xfuture* xrtWsConnSendAsync(
 
 
 /* 从任意线程复制并异步提交 Text。 */
-XRT_API xfuture* xrtWsConnTextAsync(
+XWS_API xfuture* xrtWsConnTextAsync(
 	xwsconn* pConnection,
 	xstrview Text
 )
@@ -14799,7 +8465,7 @@ XRT_API xfuture* xrtWsConnTextAsync(
 
 
 /* 从任意线程复制并异步提交 Binary。 */
-XRT_API xfuture* xrtWsConnBinaryAsync(
+XWS_API xfuture* xrtWsConnBinaryAsync(
 	xwsconn* pConnection,
 	xbytesview Data
 )
@@ -14815,7 +8481,7 @@ XRT_API xfuture* xrtWsConnBinaryAsync(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_REF_FUTURE)
 /* 预检并发布一条所有权异步消息；仅成功返回 Future 时转移调用方引用。 */
-XRT_API xfuture* xrtWsConnSendRefAsync(
+XWS_API xfuture* xrtWsConnSendRefAsync(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	const xnetref* pRef
@@ -14904,7 +8570,7 @@ XRT_API xfuture* xrtWsConnSendRefAsync(
 
 
 /* 从任意线程异步提交所有权 Text。 */
-XRT_API xfuture* xrtWsConnTextRefAsync(
+XWS_API xfuture* xrtWsConnTextRefAsync(
 	xwsconn* pConnection,
 	const xnetref* pRef
 )
@@ -14919,7 +8585,7 @@ XRT_API xfuture* xrtWsConnTextRefAsync(
 
 
 /* 从任意线程异步提交所有权 Binary。 */
-XRT_API xfuture* xrtWsConnBinaryRefAsync(
+XWS_API xfuture* xrtWsConnBinaryRefAsync(
 	xwsconn* pConnection,
 	const xnetref* pRef
 )
@@ -14936,7 +8602,7 @@ XRT_API xfuture* xrtWsConnBinaryRefAsync(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
 /* 从任意线程复制、压缩并异步提交完整消息。 */
-XRT_API xfuture* xrtWsConnSendCompressedAsync(
+XWS_API xfuture* xrtWsConnSendCompressedAsync(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -14953,7 +8619,7 @@ XRT_API xfuture* xrtWsConnSendCompressedAsync(
 
 
 /* 从任意线程复制、压缩并异步提交 Text。 */
-XRT_API xfuture* xrtWsConnTextCompressedAsync(
+XWS_API xfuture* xrtWsConnTextCompressedAsync(
 	xwsconn* pConnection,
 	xstrview Text
 )
@@ -14971,7 +8637,7 @@ XRT_API xfuture* xrtWsConnTextCompressedAsync(
 
 
 /* 从任意线程复制、压缩并异步提交 Binary。 */
-XRT_API xfuture* xrtWsConnBinaryCompressedAsync(
+XWS_API xfuture* xrtWsConnBinaryCompressedAsync(
 	xwsconn* pConnection,
 	xbytesview Data
 )
@@ -15043,7 +8709,7 @@ static xfuture* __xrtWsConnControlAsync(
 
 
 /* 从任意线程复制并异步提交 Ping。 */
-XRT_API xfuture* xrtWsConnPingAsync(
+XWS_API xfuture* xrtWsConnPingAsync(
 	xwsconn* pConnection,
 	xbytesview Payload
 )
@@ -15058,7 +8724,7 @@ XRT_API xfuture* xrtWsConnPingAsync(
 
 
 /* 从任意线程复制并异步提交 Pong。 */
-XRT_API xfuture* xrtWsConnPongAsync(
+XWS_API xfuture* xrtWsConnPongAsync(
 	xwsconn* pConnection,
 	xbytesview Payload
 )
@@ -15073,7 +8739,7 @@ XRT_API xfuture* xrtWsConnPongAsync(
 
 
 /* 从任意线程预检并异步提交唯一 Close。 */
-XRT_API xfuture* xrtWsConnCloseAsync(
+XWS_API xfuture* xrtWsConnCloseAsync(
 	xwsconn* pConnection,
 	uint16 iCode,
 	xstrview Reason
@@ -15122,2230 +8788,6 @@ XRT_API xfuture* xrtWsConnCloseAsync(
 	}
 	__xrtWsAsyncSubmit(pAsync);
 	return pFuture;
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: extlibs/xws/src/websocket/group.c */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP)
-
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP)
-
-/* 连接组以通用集合保存唯一成员，并用互斥锁保护全部结构状态。 */
-struct xwsgroup {
-	volatile int32 References;
-	xmutex Lock;
-	xset Connections;
-	size_t Limit;
-	bool Sealed;
-};
-
-
-
-/* 快照使用单次分配保存结构和保序引用数组。 */
-struct xwsgroupsnapshot {
-	size_t Count;
-	xwsconn* Connections[];
-};
-
-
-
-/* 验证 Group 固定结构并设置稳定的 Group 域错误。 */
-bool __xrtWsGroupCheck(
-	const xwsgroup* pGroup,
-	cstr sOperation
-)
-{
-	if ( xrtMemRangeValid(pGroup, sizeof(*pGroup)) ) {
-		return true;
-	}
-	__xrtWsGroupError(
-		XERR_ARGUMENT,
-		XWS_GROUP_ERROR_ARGUMENT,
-		sOperation,
-		"WebSocket group range is invalid"
-	);
-	return false;
-}
-
-
-
-/* 判断一个已验证范围是否覆盖 Group 的私有固定结构。 */
-bool __xrtWsGroupOverlaps(
-	const xwsgroup* pGroup,
-	cbytes pData,
-	size_t iSize
-)
-{
-	return xrtMemRangesOverlap(
-		pData,
-		iSize,
-		pGroup,
-		sizeof(*pGroup)
-	);
-}
-
-
-
-/* 设置带稳定 WebSocket Group 域的结构化错误。 */
-void __xrtWsGroupError(
-	xerrkind Kind,
-	xwsgrouperror Code,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	__xwsErrorSetDetail(
-		Kind,
-		"xrt.websocket.group",
-		(int32)Code,
-		sOperation,
-		sMessage,
-		NULL
-	);
-}
-
-
-
-/* 为底层失败补充稳定的连接组操作边界。 */
-void __xrtWsGroupWrap(
-	xerrkind DefaultKind,
-	xwsgrouperror Code,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	__xwsErrorWrapDetail(
-		DefaultKind,
-		"xrt.websocket.group",
-		(int32)Code,
-		sOperation,
-		sMessage
-	);
-}
-
-
-
-/* 以 Connection 指针值计算稳定的集合哈希。 */
-static uint64 __xrtWsGroupHash(const void* pItem, ptr pData)
-{
-	(void)pData;
-	return xrtHash64(pItem, sizeof(xwsconn*));
-}
-
-
-
-/* 比较两个 Connection 指针值。 */
-static bool __xrtWsGroupEqual(
-	const void* pLeft,
-	const void* pRight,
-	ptr pData
-)
-{
-	(void)pData;
-	return *(xwsconn* const*)pLeft == *(xwsconn* const*)pRight;
-}
-
-
-
-/* 为新成员取得一个独立 Connection 引用。 */
-static bool __xrtWsGroupCopy(
-	ptr pTarget,
-	const void* pSource,
-	ptr pData
-)
-{
-	xwsconn* pConnection = *(xwsconn* const*)pSource;
-
-	(void)pData;
-	pConnection = xrtWsConnRef(pConnection);
-	if ( pConnection == NULL ) {
-		return false;
-	}
-	*(xwsconn**)pTarget = pConnection;
-	return true;
-}
-
-
-
-/* 归还集合成员持有的 Connection 引用。 */
-static void __xrtWsGroupDrop(ptr pItem, ptr pData)
-{
-	(void)pData;
-	xrtWsConnDestroy(*(xwsconn**)pItem);
-}
-
-
-
-/* 初始化具有唯一 Connection 所有权语义的成员集合。 */
-static bool __xrtWsGroupSetInit(xset* pConnections)
-{
-	memset(pConnections, 0, sizeof(*pConnections));
-	if ( !xrtSetInit(pConnections, sizeof(xwsconn*)) ) {
-		return false;
-	}
-	if ( !xrtSetSetKeyPolicy(
-		pConnections,
-		__xrtWsGroupHash,
-		__xrtWsGroupEqual,
-		NULL
-	) || !xrtSetSetLifecycle(
-		pConnections,
-		__xrtWsGroupCopy,
-		__xrtWsGroupDrop,
-		NULL
-	) ) {
-		xrtSetUnit(pConnections);
-		return false;
-	}
-	return true;
-}
-
-
-
-/* 验证快照头、计数乘法和完整连续分配区间。 */
-static bool __xrtWsGroupSnapshotCheck(
-	const xwsgroupsnapshot* pSnapshot,
-	cstr sOperation,
-	size_t* pSize
-)
-{
-	size_t iSize;
-
-	if ( !xrtMemRangeValid(pSnapshot, sizeof(*pSnapshot)) ) {
-		__xrtWsGroupError(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			sOperation,
-			"WebSocket group snapshot range is invalid"
-		);
-		return false;
-	}
-	if ( pSnapshot->Count > ((SIZE_MAX - sizeof(*pSnapshot)) /
-		sizeof(xwsconn*)) ) {
-		__xrtWsGroupError(
-			XERR_RANGE,
-			XWS_GROUP_ERROR_RANGE,
-			sOperation,
-			"WebSocket group snapshot size overflows"
-		);
-		return false;
-	}
-	iSize = sizeof(*pSnapshot) +
-		(pSnapshot->Count * sizeof(xwsconn*));
-	if ( !xrtMemRangeValid(pSnapshot, iSize) ) {
-		__xrtWsGroupError(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			sOperation,
-			"WebSocket group snapshot storage is incomplete"
-		);
-		return false;
-	}
-	if ( pSize != NULL ) {
-		*pSize = iSize;
-	}
-	return true;
-}
-
-
-
-/* 在调用方持有组锁时检查成员是否存在。 */
-static bool __xrtWsGroupHasLocked(
-	const xwsgroup* pGroup,
-	const xwsconn* pConnection
-)
-{
-	xwsconn* pKey = (xwsconn*)pConnection;
-
-	return xrtSetHas(&pGroup->Connections, &pKey);
-}
-
-
-
-/* 快照访问器按集合插入顺序增加 Connection 引用。 */
-static bool __xrtWsGroupSnapshotAdd(const void* pItem, ptr pData)
-{
-	xwsgroupsnapshot* pSnapshot = (xwsgroupsnapshot*)pData;
-	xwsconn* pConnection = *(xwsconn* const*)pItem;
-
-	pConnection = xrtWsConnRef(pConnection);
-	if ( pConnection == NULL ) {
-		return false;
-	}
-	pSnapshot->Connections[pSnapshot->Count] = pConnection;
-	pSnapshot->Count++;
-	return true;
-}
-
-
-
-/* 创建连接组；Limit 为零表示不设置成员数量上限。 */
-XRT_API xwsgroup* xrtWsGroupCreate(size_t iLimit)
-{
-	xwsgroup* pGroup = (xwsgroup*)xrtCalloc(1, sizeof(*pGroup));
-
-	if ( pGroup == NULL ) {
-		__xrtWsGroupWrap(
-			XERR_MEMORY,
-			XWS_GROUP_ERROR_MEMORY,
-			"websocket-group.create",
-			"WebSocket group allocation failed"
-		);
-		return NULL;
-	}
-	pGroup->References = 1;
-	pGroup->Limit = iLimit;
-	if ( !xrtMutexInit(&pGroup->Lock) ) {
-		xrtFree(pGroup);
-		return NULL;
-	}
-	if ( !__xrtWsGroupSetInit(&pGroup->Connections) ) {
-		(void)xrtMutexUnit(&pGroup->Lock);
-		xrtFree(pGroup);
-		return NULL;
-	}
-	return pGroup;
-}
-
-
-
-/* 增加连接组引用并返回原指针。 */
-XRT_API xwsgroup* xrtWsGroupRef(xwsgroup* pGroup)
-{
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.ref"
-	) ) {
-		return NULL;
-	}
-	if ( xrtRefRetain(&pGroup->References) < 0 ) {
-		__xrtWsGroupError(
-			XERR_STATE,
-			XWS_GROUP_ERROR_STATE,
-			"websocket-group.ref",
-			"WebSocket group reference cannot be retained"
-		);
-		return NULL;
-	}
-	return pGroup;
-}
-
-
-
-/* 释放连接组引用；最后一个引用只释放成员，不关闭连接。 */
-XRT_API void xrtWsGroupDestroy(xwsgroup* pGroup)
-{
-	if ( pGroup == NULL ) {
-		return;
-	}
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.destroy"
-	) ) {
-		return;
-	}
-	if ( xrtRefRelease(&pGroup->References) != 0 ) {
-		return;
-	}
-	xrtSetUnit(&pGroup->Connections);
-	(void)xrtMutexUnit(&pGroup->Lock);
-	xrtFree(pGroup);
-}
-
-
-
-/* 加入并持有 Connection；重复加入成功且不增加第二个引用。 */
-XRT_API bool xrtWsGroupAdd(xwsgroup* pGroup, xwsconn* pConnection)
-{
-	bool bAdded;
-
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.add"
-	) ) {
-		return false;
-	}
-	if ( !__xrtWsConnRangeValid(pConnection) ) {
-		__xrtWsGroupError(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			"websocket-group.add",
-			"WebSocket group or connection range is invalid"
-		);
-		return false;
-	}
-	if ( !xrtMutexLock(&pGroup->Lock) ) {
-		return false;
-	}
-	if ( __xrtWsGroupHasLocked(pGroup, pConnection) ) {
-		(void)xrtMutexUnlock(&pGroup->Lock);
-		return true;
-	}
-	if ( pGroup->Sealed ) {
-		(void)xrtMutexUnlock(&pGroup->Lock);
-		__xrtWsGroupError(
-			XERR_STATE,
-			XWS_GROUP_ERROR_STATE,
-			"websocket-group.add",
-			"WebSocket group is sealed"
-		);
-		return false;
-	}
-	if ( (pGroup->Limit != 0) &&
-		(xrtSetCount(&pGroup->Connections) >= pGroup->Limit) ) {
-		(void)xrtMutexUnlock(&pGroup->Lock);
-		__xrtWsGroupError(
-			XERR_AGAIN,
-			XWS_GROUP_ERROR_CAPACITY,
-			"websocket-group.add",
-			"WebSocket group member limit is reached"
-		);
-		return false;
-	}
-	bAdded = xrtSetAdd(&pGroup->Connections, &pConnection);
-	(void)xrtMutexUnlock(&pGroup->Lock);
-	if ( !bAdded ) {
-		__xrtWsGroupWrap(
-			XERR_MEMORY,
-			XWS_GROUP_ERROR_MEMORY,
-			"websocket-group.add",
-			"WebSocket group member allocation failed"
-		);
-	}
-	return bAdded;
-}
-
-
-
-/* 移除并释放 Connection；成员不存在时正常返回 false。 */
-XRT_API bool xrtWsGroupRemove(xwsgroup* pGroup, xwsconn* pConnection)
-{
-	xwsconn* pOwned = NULL;
-	bool bRemoved;
-
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.remove"
-	) ) {
-		return false;
-	}
-	if ( !__xrtWsConnRangeValid(pConnection) ) {
-		__xrtWsGroupError(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			"websocket-group.remove",
-			"WebSocket group or connection range is invalid"
-		);
-		return false;
-	}
-	if ( !xrtMutexLock(&pGroup->Lock) ) {
-		return false;
-	}
-	bRemoved = xrtSetTake(
-		&pGroup->Connections,
-		&pConnection,
-		&pOwned
-	);
-	(void)xrtMutexUnlock(&pGroup->Lock);
-	if ( bRemoved ) {
-		xrtWsConnDestroy(pOwned);
-	}
-	return bRemoved;
-}
-
-
-
-/* 判断 Connection 是否属于当前组。 */
-XRT_API bool xrtWsGroupHas(
-	const xwsgroup* pGroup,
-	const xwsconn* pConnection
-)
-{
-	bool bPresent;
-
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.has"
-	) ) {
-		return false;
-	}
-	if ( !__xrtWsConnRangeValid(pConnection) ) {
-		__xrtWsGroupError(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			"websocket-group.has",
-			"WebSocket group or connection range is invalid"
-		);
-		return false;
-	}
-	if ( !xrtMutexLock((xmutex*)&pGroup->Lock) ) {
-		return false;
-	}
-	bPresent = __xrtWsGroupHasLocked(pGroup, pConnection);
-	(void)xrtMutexUnlock((xmutex*)&pGroup->Lock);
-	return bPresent;
-}
-
-
-
-/* 返回当前成员数量。 */
-XRT_API size_t xrtWsGroupCount(const xwsgroup* pGroup)
-{
-	size_t iCount;
-
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.count"
-	) ) {
-		return 0;
-	}
-	if ( !xrtMutexLock((xmutex*)&pGroup->Lock) ) {
-		return 0;
-	}
-	iCount = xrtSetCount(&pGroup->Connections);
-	(void)xrtMutexUnlock((xmutex*)&pGroup->Lock);
-	return iCount;
-}
-
-
-
-/* 返回创建时设置的硬上限；零表示没有显式上限。 */
-XRT_API size_t xrtWsGroupLimit(const xwsgroup* pGroup)
-{
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.limit"
-	) ) {
-		return 0;
-	}
-	return pGroup->Limit;
-}
-
-
-
-/* 永久阻止新成员加入；重复调用保持成功。 */
-XRT_API bool xrtWsGroupSeal(xwsgroup* pGroup)
-{
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.seal"
-	) ) {
-		return false;
-	}
-	if ( !xrtMutexLock(&pGroup->Lock) ) {
-		return false;
-	}
-	pGroup->Sealed = true;
-	(void)xrtMutexUnlock(&pGroup->Lock);
-	return true;
-}
-
-
-
-/* 返回连接组是否已经封闭。 */
-XRT_API bool xrtWsGroupSealed(const xwsgroup* pGroup)
-{
-	bool bSealed;
-
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.sealed"
-	) ) {
-		return false;
-	}
-	if ( !xrtMutexLock((xmutex*)&pGroup->Lock) ) {
-		return false;
-	}
-	bSealed = pGroup->Sealed;
-	(void)xrtMutexUnlock((xmutex*)&pGroup->Lock);
-	return bSealed;
-}
-
-
-
-/* 移除并释放全部成员，返回移除数量，但不重新开放已封闭的组。 */
-XRT_API size_t xrtWsGroupClear(xwsgroup* pGroup)
-{
-	xset Empty;
-	xset Previous;
-	size_t iCount;
-
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.clear"
-	) ) {
-		return 0;
-	}
-	if ( !__xrtWsGroupSetInit(&Empty) ) {
-		__xrtWsGroupWrap(
-			XERR_MEMORY,
-			XWS_GROUP_ERROR_MEMORY,
-			"websocket-group.clear",
-			"WebSocket group replacement set initialization failed"
-		);
-		return 0;
-	}
-	if ( !xrtMutexLock(&pGroup->Lock) ) {
-		xrtSetUnit(&Empty);
-		return 0;
-	}
-	iCount = xrtSetCount(&pGroup->Connections);
-	Previous = pGroup->Connections;
-	pGroup->Connections = Empty;
-	(void)xrtMutexUnlock(&pGroup->Lock);
-	xrtSetUnit(&Previous);
-	return iCount;
-}
-
-
-
-/* 成员增长时预留有限余量，避免高频加入导致连续精确重试。 */
-static size_t __xrtWsGroupSnapshotGrow(
-	const xwsgroup* pGroup,
-	size_t iCount
-)
-{
-	size_t iCapacity;
-	size_t iExtra;
-	size_t iMaximum = (SIZE_MAX - sizeof(xwsgroupsnapshot)) /
-		sizeof(xwsconn*);
-
-	if ( iCount >= iMaximum ) {
-		return iCount;
-	}
-	iExtra = (iCount / 2u) + 8u;
-	iCapacity = iExtra > (iMaximum - iCount) ?
-		iMaximum : iCount + iExtra;
-	if ( (pGroup->Limit != 0) &&
-		(iCapacity > pGroup->Limit) ) {
-		iCapacity = pGroup->Limit;
-	}
-	return iCapacity < iCount ? iCount : iCapacity;
-}
-
-
-
-/* 在锁外分配连续存储，并在成员增长时扩容重试。 */
-XRT_API xwsgroupsnapshot* xrtWsGroupSnapshotCreate(
-	const xwsgroup* pGroup
-)
-{
-	xwsgroupsnapshot* pSnapshot;
-	size_t iCapacity;
-	size_t iCount;
-	size_t iSize;
-	size_t iVisited;
-
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.snapshot"
-	) ) {
-		return NULL;
-	}
-	if ( !xrtMutexLock((xmutex*)&pGroup->Lock) ) {
-		return NULL;
-	}
-	iCapacity = xrtSetCount(&pGroup->Connections);
-	(void)xrtMutexUnlock((xmutex*)&pGroup->Lock);
-
-	for ( ;; ) {
-		if ( iCapacity > ((SIZE_MAX - sizeof(*pSnapshot)) /
-			sizeof(xwsconn*)) ) {
-			__xrtWsGroupError(
-				XERR_RANGE,
-				XWS_GROUP_ERROR_RANGE,
-				"websocket-group.snapshot",
-				"WebSocket group snapshot size overflows"
-			);
-			return NULL;
-		}
-		iSize = sizeof(*pSnapshot) +
-			(iCapacity * sizeof(xwsconn*));
-		pSnapshot = (xwsgroupsnapshot*)xrtCalloc(1, iSize);
-		if ( pSnapshot == NULL ) {
-			__xrtWsGroupWrap(
-				XERR_MEMORY,
-				XWS_GROUP_ERROR_MEMORY,
-				"websocket-group.snapshot",
-				"WebSocket group snapshot allocation failed"
-			);
-			return NULL;
-		}
-		if ( !xrtMutexLock((xmutex*)&pGroup->Lock) ) {
-			xrtFree(pSnapshot);
-			return NULL;
-		}
-		iCount = xrtSetCount(&pGroup->Connections);
-		if ( iCount > iCapacity ) {
-			(void)xrtMutexUnlock((xmutex*)&pGroup->Lock);
-			xrtFree(pSnapshot);
-			iCapacity = __xrtWsGroupSnapshotGrow(
-				pGroup,
-				iCount
-			);
-			continue;
-		}
-		iVisited = xrtSetVisit(
-			(xset*)&pGroup->Connections,
-			__xrtWsGroupSnapshotAdd,
-			pSnapshot
-		);
-		(void)xrtMutexUnlock((xmutex*)&pGroup->Lock);
-		if ( iVisited != iCount ) {
-			xrtWsGroupSnapshotDestroy(pSnapshot);
-			__xrtWsGroupWrap(
-				XERR_STATE,
-				XWS_GROUP_ERROR_STATE,
-				"websocket-group.snapshot",
-				"WebSocket group snapshot could not retain every member"
-			);
-			return NULL;
-		}
-		return pSnapshot;
-	}
-}
-
-
-
-/* 返回快照成员数量。 */
-XRT_API size_t xrtWsGroupSnapshotCount(
-	const xwsgroupsnapshot* pSnapshot
-)
-{
-	if ( !__xrtWsGroupSnapshotCheck(
-		pSnapshot,
-		"websocket-group.snapshot-count",
-		NULL
-	) ) {
-		return 0;
-	}
-	return pSnapshot->Count;
-}
-
-
-
-/* 借用指定快照成员；借用期不超过快照生命周期。 */
-XRT_API xwsconn* xrtWsGroupSnapshotGet(
-	const xwsgroupsnapshot* pSnapshot,
-	size_t iIndex
-)
-{
-	if ( !__xrtWsGroupSnapshotCheck(
-		pSnapshot,
-		"websocket-group.snapshot-get",
-		NULL
-	) ) {
-		return NULL;
-	}
-	if ( iIndex >= pSnapshot->Count ) {
-		__xrtWsGroupError(
-			XERR_RANGE,
-			XWS_GROUP_ERROR_RANGE,
-			"websocket-group.snapshot-get",
-			"WebSocket group snapshot index is out of range"
-		);
-		return NULL;
-	}
-	return pSnapshot->Connections[iIndex];
-}
-
-
-
-/* 释放快照和它持有的全部 Connection 引用。 */
-XRT_API void xrtWsGroupSnapshotDestroy(xwsgroupsnapshot* pSnapshot)
-{
-	if ( pSnapshot == NULL ) {
-		return;
-	}
-	if ( !__xrtWsGroupSnapshotCheck(
-		pSnapshot,
-		"websocket-group.snapshot-destroy",
-		NULL
-	) ) {
-		return;
-	}
-	for ( size_t i = 0; i < pSnapshot->Count; i++ ) {
-		xrtWsConnDestroy(pSnapshot->Connections[i]);
-	}
-	xrtFree(pSnapshot);
-}
-
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: extlibs/xws/src/websocket/group_future.c */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE)
-
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE)
-
-typedef struct __xrt_ws_group_item __xrt_ws_group_item;
-
-
-
-/* 批量操作的每个槽位保存提交结果和一个无额外分配的完成监听节点。 */
-struct __xrt_ws_group_item {
-	struct xwsgroupop* Operation;
-	xfuture* Future;
-	xerror* Error;
-	xfuturewatch Watch;
-	bool Completed;
-};
-
-
-
-/* 批量操作用一次连续分配保存稳定快照之外的全部槽位状态。 */
-struct xwsgroupop {
-	volatile int32 References;
-	xmutex Lock;
-	xwsgroupsnapshot* Snapshot;
-	xfuture* Completion;
-	xpromise* Promise;
-	xcancelwatch* Watch;
-	size_t Count;
-	size_t Accepted;
-	size_t Rejected;
-	size_t Remaining;
-	bool Submitting;
-	__xrt_ws_group_item Items[];
-};
-
-
-
-/* 验证批量操作头、槽位乘法和完整连续分配区间。 */
-static bool __xrtWsGroupOpCheck(
-	const xwsgroupop* pOperation,
-	cstr sOperation,
-	size_t* pSize
-)
-{
-	size_t iSize;
-
-	if ( !xrtMemRangeValid(pOperation, sizeof(*pOperation)) ) {
-		__xrtWsGroupError(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			sOperation,
-			"WebSocket group operation range is invalid"
-		);
-		return false;
-	}
-	if ( (pOperation->Count > (size_t)(INT32_MAX - 2)) ||
-		(pOperation->Count >
-		 ((SIZE_MAX - sizeof(*pOperation)) /
-		  sizeof(__xrt_ws_group_item))) ) {
-		__xrtWsGroupError(
-			XERR_RANGE,
-			XWS_GROUP_ERROR_RANGE,
-			sOperation,
-			"WebSocket group operation size overflows"
-		);
-		return false;
-	}
-	iSize = sizeof(*pOperation) +
-		(pOperation->Count * sizeof(__xrt_ws_group_item));
-	if ( !xrtMemRangeValid(pOperation, iSize) ) {
-		__xrtWsGroupError(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			sOperation,
-			"WebSocket group operation storage is incomplete"
-		);
-		return false;
-	}
-	if ( pSize != NULL ) {
-		*pSize = iSize;
-	}
-	return true;
-}
-
-
-
-/* 前置声明批量操作内部引用释放路径。 */
-static void __xrtWsGroupOpRelease(xwsgroupop* pOperation);
-
-
-
-/* 释放完成监听或调用方持有的一个批量操作内部引用。 */
-static void __xrtWsGroupOpRelease(xwsgroupop* pOperation)
-{
-	if ( xrtRefRelease(&pOperation->References) != 0 ) {
-		return;
-	}
-	for ( size_t i = 0; i < pOperation->Count; i++ ) {
-		xrtFutureDestroy(pOperation->Items[i].Future);
-		xrtErrorFree(pOperation->Items[i].Error);
-	}
-	if ( pOperation->Promise != NULL ) {
-		xrtPromiseDestroy(pOperation->Promise);
-	}
-	xrtFutureDestroy(pOperation->Completion);
-	xrtWsGroupSnapshotDestroy(pOperation->Snapshot);
-	(void)xrtMutexUnit(&pOperation->Lock);
-	xrtFree(pOperation);
-}
-
-
-
-/* 完成监听离开源 Future 后归还它持有的操作引用。 */
-static void __xrtWsGroupOpWaiterRelease(ptr pData)
-{
-	__xrt_ws_group_item* pItem = (__xrt_ws_group_item*)pData;
-
-	__xrtWsGroupOpRelease(pItem->Operation);
-}
-
-
-
-/* 在最后一个已接纳 Future 结束后取得唯一完成 Promise。 */
-static xpromise* __xrtWsGroupOpFinishLocked(
-	xwsgroupop* pOperation,
-	xcancelwatch** ppWatch
-)
-{
-	xpromise* pPromise;
-
-	if ( pOperation->Submitting ||
-		(pOperation->Remaining != 0) ||
-		(pOperation->Promise == NULL) ) {
-		return NULL;
-	}
-	pPromise = pOperation->Promise;
-	pOperation->Promise = NULL;
-	*ppWatch = pOperation->Watch;
-	pOperation->Watch = NULL;
-	return pPromise;
-}
-
-
-
-/* 发布完成 Future 的唯一成功终态。 */
-static void __xrtWsGroupOpResolve(
-	xwsgroupop* pOperation,
-	xpromise* pPromise,
-	xcancelwatch* pWatch
-)
-{
-	if ( pPromise == NULL ) {
-		return;
-	}
-	if ( pWatch != NULL ) {
-		xrtCancelUnwatch(pWatch);
-		__xrtWsGroupOpRelease(pOperation);
-	}
-	(void)xrtPromiseResolve(pPromise, NULL);
-	xrtPromiseDestroy(pPromise);
-}
-
-
-
-/* 一个逐成员 Future 进入终态后更新剩余计数。 */
-static void __xrtWsGroupOpSourceDone(ptr pData)
-{
-	__xrt_ws_group_item* pItem = (__xrt_ws_group_item*)pData;
-	xwsgroupop* pOperation = pItem->Operation;
-	xpromise* pPromise = NULL;
-	xcancelwatch* pWatch = NULL;
-
-	(void)xrtMutexLock(&pOperation->Lock);
-	if ( !pItem->Completed ) {
-		pItem->Completed = true;
-		pOperation->Remaining--;
-		pPromise = __xrtWsGroupOpFinishLocked(
-			pOperation,
-			&pWatch
-		);
-	}
-	(void)xrtMutexUnlock(&pOperation->Lock);
-	__xrtWsGroupOpResolve(pOperation, pPromise, pWatch);
-}
-
-
-
-/* 保存同步提交失败，并从当前执行上下文取走精确错误。 */
-static void __xrtWsGroupOpReject(__xrt_ws_group_item* pItem)
-{
-	pItem->Error = xrtTakeError();
-	if ( pItem->Error == NULL ) {
-		__xrtWsGroupError(
-			XERR_STATE,
-			XWS_GROUP_ERROR_STATE,
-			"websocket-group.submit",
-			"WebSocket group member rejected an operation without an error"
-		);
-		pItem->Error = xrtTakeError();
-	}
-}
-
-
-
-/* 为已接纳 Future 注册预分配完成监听。 */
-static void __xrtWsGroupOpAccept(
-	xwsgroupop* pOperation,
-	__xrt_ws_group_item* pItem,
-	xfuture* pFuture
-)
-{
-	xfuturewatchresult WatchResult;
-	xpromise* pPromise = NULL;
-	xcancelwatch* pWatch = NULL;
-
-	pItem->Operation = pOperation;
-	pItem->Future = pFuture;
-	if ( !xrtFutureWatchInit(
-		&pItem->Watch,
-		__xrtWsGroupOpSourceDone,
-		__xrtWsGroupOpWaiterRelease,
-		pItem
-	) ) {
-		__xrtWsGroupOpReject(pItem);
-		xrtFutureDestroy(pFuture);
-		pItem->Future = NULL;
-		(void)xrtMutexLock(&pOperation->Lock);
-		pOperation->Rejected++;
-		(void)xrtMutexUnlock(&pOperation->Lock);
-		return;
-	}
-	(void)xrtMutexLock(&pOperation->Lock);
-	pOperation->Accepted++;
-	pOperation->Remaining++;
-	(void)xrtMutexUnlock(&pOperation->Lock);
-	(void)xrtRefRetain(&pOperation->References);
-	WatchResult = xrtFutureWatchAdd(pFuture, &pItem->Watch);
-	if ( WatchResult == XFUTURE_WATCH_PENDING ) {
-		return;
-	}
-	if ( WatchResult == XFUTURE_WATCH_READY ) {
-		__xrtWsGroupOpSourceDone(pItem);
-		__xrtWsGroupOpRelease(pOperation);
-		return;
-	}
-
-	/* Watch 注册失败属于同步拒绝，不能伪装成成员 Future 已完成。 */
-	__xrtWsGroupOpReject(pItem);
-	xrtFutureDestroy(pFuture);
-	pItem->Future = NULL;
-	(void)xrtMutexLock(&pOperation->Lock);
-	pItem->Completed = true;
-	pOperation->Accepted--;
-	pOperation->Rejected++;
-	pOperation->Remaining--;
-	pPromise = __xrtWsGroupOpFinishLocked(pOperation, &pWatch);
-	(void)xrtMutexUnlock(&pOperation->Lock);
-	__xrtWsGroupOpResolve(pOperation, pPromise, pWatch);
-	__xrtWsGroupOpRelease(pOperation);
-}
-
-
-
-/* 创建尚未提交成员操作、但已经具备稳定快照和完成 Future 的对象。 */
-xwsgroupop* __xrtWsGroupOpCreate(xwsgroup* pGroup)
-{
-	xwsgroupop* pOperation;
-	xwsgroupsnapshot* pSnapshot;
-	size_t iCount;
-	size_t iBytes;
-
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.operation"
-	) ) {
-		return NULL;
-	}
-	pSnapshot = xrtWsGroupSnapshotCreate(pGroup);
-	if ( pSnapshot == NULL ) {
-		return NULL;
-	}
-	iCount = xrtWsGroupSnapshotCount(pSnapshot);
-	if ( (iCount > (size_t)(INT32_MAX - 2)) ||
-		(iCount > ((SIZE_MAX - sizeof(*pOperation)) /
-		 sizeof(__xrt_ws_group_item))) ) {
-		xrtWsGroupSnapshotDestroy(pSnapshot);
-		__xrtWsGroupError(
-			XERR_RANGE,
-			XWS_GROUP_ERROR_RANGE,
-			"websocket-group.operation",
-			"WebSocket group operation size overflows"
-		);
-		return NULL;
-	}
-	iBytes = sizeof(*pOperation) +
-		(iCount * sizeof(__xrt_ws_group_item));
-	pOperation = (xwsgroupop*)xrtCalloc(1, iBytes);
-	if ( pOperation == NULL ) {
-		xrtWsGroupSnapshotDestroy(pSnapshot);
-		__xrtWsGroupWrap(
-			XERR_MEMORY,
-			XWS_GROUP_ERROR_MEMORY,
-			"websocket-group.operation",
-			"WebSocket group operation allocation failed"
-		);
-		return NULL;
-	}
-	pOperation->References = 1;
-	pOperation->Snapshot = pSnapshot;
-	pOperation->Count = iCount;
-	pOperation->Submitting = true;
-	if ( !xrtMutexInit(&pOperation->Lock) ) {
-		xrtWsGroupSnapshotDestroy(pSnapshot);
-		xrtFree(pOperation);
-		return NULL;
-	}
-	pOperation->Promise = xrtPromiseCreate(
-		&pOperation->Completion,
-		NULL
-	);
-	if ( pOperation->Promise == NULL ) {
-		__xrtWsGroupWrap(
-			XERR_MEMORY,
-			XWS_GROUP_ERROR_MEMORY,
-			"websocket-group.operation",
-			"WebSocket group completion Future allocation failed"
-		);
-		__xrtWsGroupOpRelease(pOperation);
-		return NULL;
-	}
-	return pOperation;
-}
-
-
-
-/* 完成 Future 被请求取消时立即取消聚合等待，并把请求传播给成员。 */
-static void __xrtWsGroupOpCancelled(ptr pData)
-{
-	xwsgroupop* pOperation = (xwsgroupop*)pData;
-	xpromise* pPromise;
-	xcancelwatch* pWatch;
-
-	(void)xrtMutexLock(&pOperation->Lock);
-	if ( pOperation->Promise == NULL ) {
-		(void)xrtMutexUnlock(&pOperation->Lock);
-		return;
-	}
-	pPromise = pOperation->Promise;
-	pOperation->Promise = NULL;
-	pWatch = pOperation->Watch;
-	pOperation->Watch = NULL;
-	(void)xrtMutexUnlock(&pOperation->Lock);
-
-	(void)xrtWsGroupOpCancel(pOperation);
-	(void)xrtPromiseCancel(pPromise);
-	xrtPromiseDestroy(pPromise);
-	if ( pWatch != NULL ) {
-		xrtCancelUnwatch(pWatch);
-		__xrtWsGroupOpRelease(pOperation);
-	}
-}
-
-
-
-/* 在任何成员提交前注册完成 Future 的取消传播监听。 */
-static bool __xrtWsGroupOpWatch(xwsgroupop* pOperation)
-{
-	xcancel* pCancel = xrtPromiseCancelToken(pOperation->Promise);
-
-	if ( pCancel == NULL ) {
-		__xrtWsGroupWrap(
-			XERR_MEMORY,
-			XWS_GROUP_ERROR_MEMORY,
-			"websocket-group.operation-watch",
-			"WebSocket group completion cancel token failed"
-		);
-		return false;
-	}
-	(void)xrtRefRetain(&pOperation->References);
-	pOperation->Watch = xrtCancelWatch(
-		pCancel,
-		__xrtWsGroupOpCancelled,
-		pOperation
-	);
-	xrtCancelDestroy(pCancel);
-	if ( pOperation->Watch == NULL ) {
-		__xrtWsGroupOpRelease(pOperation);
-		__xrtWsGroupWrap(
-			XERR_MEMORY,
-			XWS_GROUP_ERROR_MEMORY,
-			"websocket-group.operation-watch",
-			"WebSocket group completion cancel watch failed"
-		);
-		return false;
-	}
-	return true;
-}
-
-
-
-/* 遍历稳定快照，保留每个成员的接纳 Future 或同步拒绝错误。 */
-bool __xrtWsGroupOpSubmit(
-	xwsgroupop* pOperation,
-	__xrt_ws_group_submitproc pSubmit,
-	ptr pData
-)
-{
-	xpromise* pPromise;
-	xcancelwatch* pWatch = NULL;
-
-	if ( !__xrtWsGroupOpWatch(pOperation) ) {
-		return false;
-	}
-
-	for ( size_t i = 0; i < pOperation->Count; i++ ) {
-		__xrt_ws_group_item* pItem = &pOperation->Items[i];
-		xwsconn* pConnection = xrtWsGroupSnapshotGet(
-			pOperation->Snapshot,
-			i
-		);
-		xfuture* pFuture = pSubmit(pConnection, pData);
-
-		if ( pFuture == NULL ) {
-			pOperation->Rejected++;
-			__xrtWsGroupOpReject(pItem);
-		} else {
-			__xrtWsGroupOpAccept(
-				pOperation,
-				pItem,
-				pFuture
-			);
-		}
-	}
-	(void)xrtMutexLock(&pOperation->Lock);
-	pOperation->Submitting = false;
-	pPromise = __xrtWsGroupOpFinishLocked(
-		pOperation,
-		&pWatch
-	);
-	(void)xrtMutexUnlock(&pOperation->Lock);
-	__xrtWsGroupOpResolve(pOperation, pPromise, pWatch);
-	return true;
-}
-
-
-
-/* 增加批量操作引用并返回原指针。 */
-XRT_API xwsgroupop* xrtWsGroupOpRef(xwsgroupop* pOperation)
-{
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-ref",
-		NULL
-	) ) {
-		return NULL;
-	}
-	if ( xrtRefRetain(&pOperation->References) < 0 ) {
-		__xrtWsGroupError(
-			XERR_STATE,
-			XWS_GROUP_ERROR_STATE,
-			"websocket-group.operation-ref",
-			"WebSocket group operation reference cannot be retained"
-		);
-		return NULL;
-	}
-	return pOperation;
-}
-
-
-
-/* 释放批量操作引用。 */
-XRT_API void xrtWsGroupOpDestroy(xwsgroupop* pOperation)
-{
-	if ( pOperation == NULL ) {
-		return;
-	}
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-destroy",
-		NULL
-	) ) {
-		return;
-	}
-	__xrtWsGroupOpRelease(pOperation);
-}
-
-
-
-/* 返回稳定成员槽位总数。 */
-XRT_API size_t xrtWsGroupOpCount(const xwsgroupop* pOperation)
-{
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-count",
-		NULL
-	) ) {
-		return 0;
-	}
-	return pOperation->Count;
-}
-
-
-
-/* 返回成功创建逐成员 Future 的槽位数。 */
-XRT_API size_t xrtWsGroupOpAccepted(const xwsgroupop* pOperation)
-{
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-accepted",
-		NULL
-	) ) {
-		return 0;
-	}
-	return pOperation->Accepted;
-}
-
-
-
-/* 返回提交阶段同步拒绝的槽位数。 */
-XRT_API size_t xrtWsGroupOpRejected(const xwsgroupop* pOperation)
-{
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-rejected",
-		NULL
-	) ) {
-		return 0;
-	}
-	return pOperation->Rejected;
-}
-
-
-
-/* 返回同步拒绝和已经进入 Future 终态的槽位数。 */
-XRT_API size_t xrtWsGroupOpDoneCount(const xwsgroupop* pOperation)
-{
-	size_t iDone;
-
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-done",
-		NULL
-	) ) {
-		return 0;
-	}
-	if ( !xrtMutexLock((xmutex*)&pOperation->Lock) ) {
-		return 0;
-	}
-	iDone = pOperation->Rejected +
-		(pOperation->Accepted - pOperation->Remaining);
-	(void)xrtMutexUnlock((xmutex*)&pOperation->Lock);
-	return iDone;
-}
-
-
-
-/* 把通用 Future 状态映射为批量操作槽位状态。 */
-static xwsgroupopstate __xrtWsGroupOpState(xfuturestate State)
-{
-	switch ( State ) {
-		case XFUTURE_RESOLVED:
-			return XWS_GROUP_OP_RESOLVED;
-		case XFUTURE_FAILED:
-			return XWS_GROUP_OP_FAILED;
-		case XFUTURE_CANCELLED:
-			return XWS_GROUP_OP_CANCELLED;
-		case XFUTURE_CLOSED:
-			return XWS_GROUP_OP_CLOSED;
-		default:
-			return XWS_GROUP_OP_PENDING;
-	}
-}
-
-
-
-/* 读取一个槽位的稳定成员和当前状态快照。 */
-XRT_API bool xrtWsGroupOpResult(
-	const xwsgroupop* pOperation,
-	size_t iIndex,
-	xwsgroupopresult* pResult
-)
-{
-	const __xrt_ws_group_item* pItem;
-	xwsgroupopresult Result;
-	xfuturestate State;
-	size_t iOperationSize;
-
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-result",
-		&iOperationSize
-	) ) {
-		return false;
-	}
-	if ( !xrtMemRangeValid(pResult, sizeof(Result)) ||
-		xrtMemRangesOverlap(
-			pResult,
-			sizeof(Result),
-			pOperation,
-			iOperationSize
-		) ) {
-		__xrtWsGroupError(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			"websocket-group.operation-result",
-			"WebSocket group operation result range is invalid"
-		);
-		return false;
-	}
-	if ( iIndex >= pOperation->Count ) {
-		__xrtWsGroupError(
-			XERR_RANGE,
-			XWS_GROUP_ERROR_RANGE,
-			"websocket-group.operation-result",
-			"WebSocket group operation index is out of range"
-		);
-		return false;
-	}
-	pItem = &pOperation->Items[iIndex];
-	Result.Connection = xrtWsGroupSnapshotGet(
-		pOperation->Snapshot,
-		iIndex
-	);
-	if ( pItem->Future == NULL ) {
-		Result.State = XWS_GROUP_OP_REJECTED;
-		Result.Error = pItem->Error;
-		memcpy(pResult, &Result, sizeof(Result));
-		return true;
-	}
-	State = xrtFutureState(pItem->Future);
-	Result.State = __xrtWsGroupOpState(State);
-	Result.Error = State == XFUTURE_FAILED ?
-		xrtFutureError(pItem->Future) : NULL;
-	memcpy(pResult, &Result, sizeof(Result));
-	return true;
-}
-
-
-
-/* 返回增加引用后的逐成员 Future。 */
-XRT_API xfuture* xrtWsGroupOpItemFutureRef(
-	const xwsgroupop* pOperation,
-	size_t iIndex
-)
-{
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-item",
-		NULL
-	) ) {
-		return NULL;
-	}
-	if ( iIndex >= pOperation->Count ) {
-		__xrtWsGroupError(
-			XERR_RANGE,
-			XWS_GROUP_ERROR_RANGE,
-			"websocket-group.operation-item",
-			"WebSocket group operation index is out of range"
-		);
-		return NULL;
-	}
-	if ( pOperation->Items[iIndex].Future == NULL ) {
-		return NULL;
-	}
-	return xrtFutureRef(pOperation->Items[iIndex].Future);
-}
-
-
-
-/* 返回增加引用后的完成 Future。 */
-XRT_API xfuture* xrtWsGroupOpFutureRef(const xwsgroupop* pOperation)
-{
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-future",
-		NULL
-	) ) {
-		return NULL;
-	}
-	return xrtFutureRef(pOperation->Completion);
-}
-
-
-
-/* 向全部仍等待的逐成员 Future 请求协作取消。 */
-XRT_API size_t xrtWsGroupOpCancel(xwsgroupop* pOperation)
-{
-	size_t iCancelled = 0;
-
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-cancel",
-		NULL
-	) ) {
-		return 0;
-	}
-	for ( size_t i = 0; i < pOperation->Count; i++ ) {
-		if ( (pOperation->Items[i].Future != NULL) &&
-			xrtFutureCancel(pOperation->Items[i].Future) ) {
-			iCancelled++;
-		}
-	}
-	return iCancelled;
-}
-
-
-
-/* 等待全部已接纳操作进入终态。 */
-XRT_API xwaitresult xrtWsGroupOpWait(xwsgroupop* pOperation)
-{
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-wait",
-		NULL
-	) ) {
-		return XWAIT_ERROR;
-	}
-	return xrtFutureWait(pOperation->Completion);
-}
-
-
-
-/* 在相对毫秒数内等待全部已接纳操作进入终态。 */
-XRT_API xwaitresult xrtWsGroupOpWaitFor(
-	xwsgroupop* pOperation,
-	int64 iTimeout
-)
-{
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-wait",
-		NULL
-	) ) {
-		return XWAIT_ERROR;
-	}
-	return xrtFutureWaitFor(pOperation->Completion, iTimeout);
-}
-
-
-
-/* 等待全部已接纳操作到指定单调时钟截止时间。 */
-XRT_API xwaitresult __xrtWsGroupOpWaitUntil(
-	xwsgroupop* pOperation,
-	double iDeadline
-)
-{
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-wait",
-		NULL
-	) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
-
-		return XWAIT_ERROR;
-	}
-	return __xrtFutureWaitUntil(pOperation->Completion, iDeadline);
-}
-
-
-
-/* 等待批量操作、截止时间或调用方取消令牌中的首个事件。 */
-XRT_API xwaitresult __xrtWsGroupOpWaitUntilCancel(
-	xwsgroupop* pOperation,
-	double iDeadline,
-	xcancel* pCancel
-)
-{
-	if ( !__xrtWsGroupOpCheck(
-		pOperation,
-		"websocket-group.operation-wait",
-		NULL
-	) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return XWAIT_ERROR; }
-
-		return XWAIT_ERROR;
-	}
-	return __xrtFutureWaitUntilCancel(
-		pOperation->Completion,
-		iDeadline,
-		pCancel
-	);
-}
-
-#endif
-
-#if (defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE))
-XRT_API xwaitresult xrtWsGroupOpWaitForCancel(
-	xwsgroupop* pOperation,
-	int64 iTimeout,
-	xcancel* pCancel
-)
-{
-    return __xrtWsGroupOpWaitUntilCancel(pOperation, __xrtWaitAfter(iTimeout), pCancel);
-}
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: extlibs/xws/src/websocket/group_broadcast.c */
-/* ========================================================================== */
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE)
-
-
-
-
-#if defined(XWS_FEATURE_WEBSOCKET_GROUP_FUTURE)
-
-/* 共享负载在全部逐连接异步发送归还引用后释放一次来源。 */
-typedef struct __xrt_ws_group_payload {
-	volatile int32 References;
-	xnetref Source;
-	bool External;
-	uint8 Data[];
-} __xrt_ws_group_payload;
-
-
-
-/* 完整消息提交上下文可借用空负载，也可共享一个所有权负载。 */
-typedef struct __xrt_ws_group_message {
-	xwsopcode Opcode;
-	xbytesview Payload;
-	__xrt_ws_group_payload* Shared;
-} __xrt_ws_group_message;
-
-
-
-/* 控制帧提交上下文保存操作码和小负载视图。 */
-typedef struct __xrt_ws_group_control {
-	xwsopcode Opcode;
-	xbytesview Payload;
-} __xrt_ws_group_control;
-
-
-
-/* Close 提交上下文在同步遍历期间借用原因文本。 */
-typedef struct __xrt_ws_group_close {
-	uint16 Code;
-	xstrview Reason;
-} __xrt_ws_group_close;
-
-
-
-/* Wait 提交上下文保存统一的 Connection 条件。 */
-typedef struct __xrt_ws_group_wait {
-	xwsconnwait Wait;
-} __xrt_ws_group_wait;
-
-
-
-/* 最后一个共享负载引用归还调用方来源或释放单次复制。 */
-static void __xrtWsGroupPayloadRelease(
-	ptr pContext,
-	cbytes pData,
-	size_t iSize
-)
-{
-	__xrt_ws_group_payload* pPayload =
-		(__xrt_ws_group_payload*)pContext;
-
-	(void)pData;
-	(void)iSize;
-	if ( xrtRefRelease(&pPayload->References) != 0 ) {
-		return;
-	}
-	if ( pPayload->External ) {
-		pPayload->Source.Release(
-			pPayload->Source.Context,
-			pPayload->Source.Data,
-			pPayload->Source.Size
-		);
-	}
-	xrtFree(pPayload);
-}
-
-
-
-/* 为复制型广播创建一次共享负载；空负载不需要所有权节点。 */
-static __xrt_ws_group_payload* __xrtWsGroupPayloadCopy(
-	xbytesview Payload
-)
-{
-	__xrt_ws_group_payload* pShared;
-	size_t iBytes;
-
-	if ( Payload.Size == 0 ) {
-		return NULL;
-	}
-	if ( Payload.Size > (SIZE_MAX - sizeof(*pShared)) ) {
-		__xrtWsGroupError(
-			XERR_RANGE,
-			XWS_GROUP_ERROR_RANGE,
-			"websocket-group.payload",
-			"WebSocket group payload size overflows"
-		);
-		return NULL;
-	}
-	iBytes = sizeof(*pShared) + Payload.Size;
-	pShared = (__xrt_ws_group_payload*)xrtMalloc(iBytes);
-	if ( pShared == NULL ) {
-		__xrtWsGroupWrap(
-			XERR_MEMORY,
-			XWS_GROUP_ERROR_MEMORY,
-			"websocket-group.payload",
-			"WebSocket group shared payload allocation failed"
-		);
-		return NULL;
-	}
-	pShared->References = 1;
-	pShared->Source = (xnetref) {
-		pShared->Data,
-		Payload.Size,
-		__xrtWsGroupPayloadRelease,
-		pShared
-	};
-	pShared->External = false;
-	memcpy(pShared->Data, Payload.Data, Payload.Size);
-	return pShared;
-}
-
-
-
-/* 为调用方所有权负载创建共享控制节点，但尚不调用来源 Release。 */
-static __xrt_ws_group_payload* __xrtWsGroupPayloadTake(
-	const xnetref* pRef
-)
-{
-	__xrt_ws_group_payload* pShared =
-		(__xrt_ws_group_payload*)xrtMalloc(sizeof(*pShared));
-
-	if ( pShared == NULL ) {
-		__xrtWsGroupWrap(
-			XERR_MEMORY,
-			XWS_GROUP_ERROR_MEMORY,
-			"websocket-group.payload",
-			"WebSocket group reference control allocation failed"
-		);
-		return NULL;
-	}
-	pShared->References = 1;
-	pShared->Source = *pRef;
-	pShared->External = true;
-	return pShared;
-}
-
-
-
-/* 为一个成员取得共享负载引用。 */
-static bool __xrtWsGroupPayloadRef(
-	__xrt_ws_group_payload* pShared,
-	xnetref* pRef
-)
-{
-	if ( xrtRefRetain(&pShared->References) < 0 ) {
-		__xrtWsGroupError(
-			XERR_RANGE,
-			XWS_GROUP_ERROR_RANGE,
-			"websocket-group.payload-ref",
-			"WebSocket group payload reference limit is reached"
-		);
-		return false;
-	}
-	pRef->Data = pShared->Source.Data;
-	pRef->Size = pShared->Source.Size;
-	pRef->Release = __xrtWsGroupPayloadRelease;
-	pRef->Context = pShared;
-	return true;
-}
-
-
-
-/* 为一个成员提交共享消息；空消息沿用普通异步路径。 */
-static xfuture* __xrtWsGroupSubmitMessage(
-	xwsconn* pConnection,
-	ptr pData
-)
-{
-	__xrt_ws_group_message* pMessage =
-		(__xrt_ws_group_message*)pData;
-	xnetref Ref;
-	xfuture* pFuture;
-
-	if ( pMessage->Shared == NULL ) {
-		return xrtWsConnSendAsync(
-			pConnection,
-			pMessage->Opcode,
-			pMessage->Payload
-		);
-	}
-	if ( !__xrtWsGroupPayloadRef(pMessage->Shared, &Ref) ) {
-		return NULL;
-	}
-	pFuture = xrtWsConnSendRefAsync(
-		pConnection,
-		pMessage->Opcode,
-		&Ref
-	);
-	if ( pFuture == NULL ) {
-		__xrtWsGroupPayloadRelease(
-			Ref.Context,
-			Ref.Data,
-			Ref.Size
-		);
-	}
-	return pFuture;
-}
-
-
-
-/* 为一个成员提交 Ping 或 Pong。 */
-static xfuture* __xrtWsGroupSubmitControl(
-	xwsconn* pConnection,
-	ptr pData
-)
-{
-	__xrt_ws_group_control* pControl =
-		(__xrt_ws_group_control*)pData;
-
-	return pControl->Opcode == XWS_OPCODE_PING ?
-		xrtWsConnPingAsync(pConnection, pControl->Payload) :
-		xrtWsConnPongAsync(pConnection, pControl->Payload);
-}
-
-
-
-/* 为一个成员提交 Close。 */
-static xfuture* __xrtWsGroupSubmitClose(
-	xwsconn* pConnection,
-	ptr pData
-)
-{
-	__xrt_ws_group_close* pClose = (__xrt_ws_group_close*)pData;
-
-	return xrtWsConnCloseAsync(
-		pConnection,
-		pClose->Code,
-		pClose->Reason
-	);
-}
-
-
-
-/* 为一个成员提交 Connection 条件等待。 */
-static xfuture* __xrtWsGroupSubmitWait(
-	xwsconn* pConnection,
-	ptr pData
-)
-{
-	__xrt_ws_group_wait* pWait = (__xrt_ws_group_wait*)pData;
-
-	return xrtWsConnWaitAsync(pConnection, pWait->Wait);
-}
-
-
-
-/* 校验完整消息共有的操作码、视图和 UTF-8 语义。 */
-static bool __xrtWsGroupMessageValid(
-	xwsopcode Opcode,
-	xbytesview Payload
-)
-{
-	if ( ((Opcode != XWS_OPCODE_TEXT) &&
-		 (Opcode != XWS_OPCODE_BINARY)) ||
-		!xrtMemRangeValid(Payload.Data, Payload.Size) ) {
-		__xrtWsGroupError(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			"websocket-group.send",
-			"WebSocket group message opcode or view is invalid"
-		);
-		return false;
-	}
-	if ( (Opcode == XWS_OPCODE_TEXT) &&
-		!xrtUtf8Valid(
-			(xstrview) {
-				(const char*)Payload.Data,
-				Payload.Size
-			},
-			NULL
-		) ) {
-		__xrtWsGroupWrap(
-			XERR_VALUE,
-			XWS_GROUP_ERROR_ARGUMENT,
-			"websocket-group.send",
-			"WebSocket group text is not valid UTF-8"
-		);
-		return false;
-	}
-	return true;
-}
-
-
-
-/* 创建操作并以一次复制的共享负载提交完整消息。 */
-XRT_API xwsgroupop* xrtWsGroupSendAsync(
-	xwsgroup* pGroup,
-	xwsopcode Opcode,
-	xbytesview Payload
-)
-{
-	xwsgroupop* pOperation;
-	__xrt_ws_group_message Message;
-
-	if ( !__xrtWsGroupMessageValid(Opcode, Payload) ) {
-		return NULL;
-	}
-	pOperation = __xrtWsGroupOpCreate(pGroup);
-	if ( pOperation == NULL ) {
-		return NULL;
-	}
-	Message.Opcode = Opcode;
-	Message.Payload = Payload;
-	Message.Shared = NULL;
-	if ( (Payload.Size != 0) &&
-		(xrtWsGroupOpCount(pOperation) != 0) ) {
-		Message.Shared = __xrtWsGroupPayloadCopy(Payload);
-		if ( Message.Shared == NULL ) {
-			xrtWsGroupOpDestroy(pOperation);
-			return NULL;
-		}
-		Message.Payload = (xbytesview) {
-			Message.Shared->Source.Data,
-			Message.Shared->Source.Size
-		};
-	}
-	if ( !__xrtWsGroupOpSubmit(
-		pOperation,
-		__xrtWsGroupSubmitMessage,
-		&Message
-	) ) {
-		if ( Message.Shared != NULL ) {
-			__xrtWsGroupPayloadRelease(
-				Message.Shared,
-				Message.Shared->Source.Data,
-				Message.Shared->Source.Size
-			);
-		}
-		xrtWsGroupOpDestroy(pOperation);
-		return NULL;
-	}
-	if ( Message.Shared != NULL ) {
-		__xrtWsGroupPayloadRelease(
-			Message.Shared,
-			Message.Shared->Source.Data,
-			Message.Shared->Source.Size
-		);
-	}
-	return pOperation;
-}
-
-
-
-/* 对稳定成员快照提交 UTF-8 Text。 */
-XRT_API xwsgroupop* xrtWsGroupTextAsync(
-	xwsgroup* pGroup,
-	xstrview Text
-)
-{
-	return xrtWsGroupSendAsync(
-		pGroup,
-		XWS_OPCODE_TEXT,
-		(xbytesview) {
-			(cbytes)Text.Data,
-			Text.Size
-		}
-	);
-}
-
-
-
-/* 对稳定成员快照提交 Binary。 */
-XRT_API xwsgroupop* xrtWsGroupBinaryAsync(
-	xwsgroup* pGroup,
-	xbytesview Data
-)
-{
-	return xrtWsGroupSendAsync(
-		pGroup,
-		XWS_OPCODE_BINARY,
-		Data
-	);
-}
-
-
-
-/* 创建操作后接管并共享调用方所有权负载。 */
-XRT_API xwsgroupop* xrtWsGroupSendRefAsync(
-	xwsgroup* pGroup,
-	xwsopcode Opcode,
-	const xnetref* pRef
-)
-{
-	xwsgroupop* pOperation;
-	__xrt_ws_group_payload* pShared;
-	__xrt_ws_group_message Message;
-	xnetref Ref;
-
-	if ( !__xrtWsGroupCheck(
-		pGroup,
-		"websocket-group.send-ref"
-	) ) {
-		return NULL;
-	}
-	if ( !xrtMemRangeValid(pRef, sizeof(Ref)) ||
-		__xrtWsGroupOverlaps(
-			pGroup,
-			(cbytes)pRef,
-			sizeof(Ref)
-		) ) {
-		__xrtWsGroupError(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			"websocket-group.send-ref",
-			"WebSocket group reference range is invalid"
-		);
-		return NULL;
-	}
-	memcpy(&Ref, pRef, sizeof(Ref));
-	if ( (Ref.Data == NULL) ||
-		(Ref.Size == 0) ||
-		(Ref.Release == NULL) ||
-		!xrtMemRangeValid(Ref.Data, Ref.Size) ||
-		__xrtWsGroupOverlaps(
-			pGroup,
-			Ref.Data,
-			Ref.Size
-		) ) {
-		__xrtWsGroupError(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			"websocket-group.send-ref",
-			"WebSocket group reference is incomplete or invalid"
-		);
-		return NULL;
-	}
-	if ( !__xrtWsGroupMessageValid(
-		Opcode,
-		(xbytesview) { Ref.Data, Ref.Size }
-	) ) {
-		return NULL;
-	}
-	pOperation = __xrtWsGroupOpCreate(pGroup);
-	if ( pOperation == NULL ) {
-		return NULL;
-	}
-	pShared = __xrtWsGroupPayloadTake(&Ref);
-	if ( pShared == NULL ) {
-		xrtWsGroupOpDestroy(pOperation);
-		return NULL;
-	}
-	Message.Opcode = Opcode;
-	Message.Payload = (xbytesview) {
-		Ref.Data,
-		Ref.Size
-	};
-	Message.Shared = pShared;
-	if ( !__xrtWsGroupOpSubmit(
-		pOperation,
-		__xrtWsGroupSubmitMessage,
-		&Message
-	) ) {
-		xrtFree(pShared);
-		xrtWsGroupOpDestroy(pOperation);
-		return NULL;
-	}
-	__xrtWsGroupPayloadRelease(
-		pShared,
-		pShared->Source.Data,
-		pShared->Source.Size
-	);
-	return pOperation;
-}
-
-
-
-/* 对稳定成员快照提交共享所有权 Text。 */
-XRT_API xwsgroupop* xrtWsGroupTextRefAsync(
-	xwsgroup* pGroup,
-	const xnetref* pRef
-)
-{
-	return xrtWsGroupSendRefAsync(
-		pGroup,
-		XWS_OPCODE_TEXT,
-		pRef
-	);
-}
-
-
-
-/* 对稳定成员快照提交共享所有权 Binary。 */
-XRT_API xwsgroupop* xrtWsGroupBinaryRefAsync(
-	xwsgroup* pGroup,
-	const xnetref* pRef
-)
-{
-	return xrtWsGroupSendRefAsync(
-		pGroup,
-		XWS_OPCODE_BINARY,
-		pRef
-	);
-}
-
-
-
-/* 创建并提交一个 Ping 或 Pong 批量操作。 */
-static xwsgroupop* __xrtWsGroupControlAsync(
-	xwsgroup* pGroup,
-	xwsopcode Opcode,
-	xbytesview Payload
-)
-{
-	xwsgroupop* pOperation;
-	__xrt_ws_group_control Control;
-
-	if ( !xrtMemRangeValid(Payload.Data, Payload.Size) ||
-		(Payload.Size > XWS_CLOSE_PAYLOAD_MAX) ) {
-		__xrtWsGroupError(
-			!xrtMemRangeValid(Payload.Data, Payload.Size) ?
-				XERR_ARGUMENT : XERR_RANGE,
-			!xrtMemRangeValid(Payload.Data, Payload.Size) ?
-				XWS_GROUP_ERROR_ARGUMENT :
-				XWS_GROUP_ERROR_RANGE,
-			"websocket-group.control",
-			"WebSocket group control payload is invalid"
-		);
-		return NULL;
-	}
-	pOperation = __xrtWsGroupOpCreate(pGroup);
-	if ( pOperation == NULL ) {
-		return NULL;
-	}
-	Control.Opcode = Opcode;
-	Control.Payload = Payload;
-	if ( !__xrtWsGroupOpSubmit(
-		pOperation,
-		__xrtWsGroupSubmitControl,
-		&Control
-	) ) {
-		xrtWsGroupOpDestroy(pOperation);
-		return NULL;
-	}
-	return pOperation;
-}
-
-
-
-/* 对稳定成员快照提交 Ping。 */
-XRT_API xwsgroupop* xrtWsGroupPingAsync(
-	xwsgroup* pGroup,
-	xbytesview Payload
-)
-{
-	return __xrtWsGroupControlAsync(
-		pGroup,
-		XWS_OPCODE_PING,
-		Payload
-	);
-}
-
-
-
-/* 对稳定成员快照提交 Pong。 */
-XRT_API xwsgroupop* xrtWsGroupPongAsync(
-	xwsgroup* pGroup,
-	xbytesview Payload
-)
-{
-	return __xrtWsGroupControlAsync(
-		pGroup,
-		XWS_OPCODE_PONG,
-		Payload
-	);
-}
-
-
-
-/* 对稳定成员快照提交唯一 Close。 */
-XRT_API xwsgroupop* xrtWsGroupCloseAsync(
-	xwsgroup* pGroup,
-	uint16 iCode,
-	xstrview Reason
-)
-{
-	xwsgroupop* pOperation;
-	__xrt_ws_group_close Close;
-	size_t iPayload = 0;
-
-	if ( !xrtWsCloseWrite(
-		iCode,
-		Reason,
-		NULL,
-		0,
-		&iPayload
-	) ) {
-		__xrtWsGroupWrap(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			"websocket-group.close",
-			"WebSocket group Close code or reason is invalid"
-		);
-		return NULL;
-	}
-	pOperation = __xrtWsGroupOpCreate(pGroup);
-	if ( pOperation == NULL ) {
-		return NULL;
-	}
-	Close.Code = iCode;
-	Close.Reason = Reason;
-	if ( !__xrtWsGroupOpSubmit(
-		pOperation,
-		__xrtWsGroupSubmitClose,
-		&Close
-	) ) {
-		xrtWsGroupOpDestroy(pOperation);
-		return NULL;
-	}
-	return pOperation;
-}
-
-
-
-/* 对稳定成员快照提交统一 Connection 条件等待。 */
-XRT_API xwsgroupop* xrtWsGroupWaitAsync(
-	xwsgroup* pGroup,
-	xwsconnwait Wait
-)
-{
-	xwsgroupop* pOperation;
-	__xrt_ws_group_wait Context;
-
-	if ( (Wait < XWS_CONN_WAIT_WRITE) ||
-		(Wait > XWS_CONN_WAIT_CLOSE) ) {
-		__xrtWsGroupError(
-			XERR_ARGUMENT,
-			XWS_GROUP_ERROR_ARGUMENT,
-			"websocket-group.wait",
-			"WebSocket group wait condition is invalid"
-		);
-		return NULL;
-	}
-	pOperation = __xrtWsGroupOpCreate(pGroup);
-	if ( pOperation == NULL ) {
-		return NULL;
-	}
-	Context.Wait = Wait;
-	if ( !__xrtWsGroupOpSubmit(
-		pOperation,
-		__xrtWsGroupSubmitWait,
-		&Context
-	) ) {
-		xrtWsGroupOpDestroy(pOperation);
-		return NULL;
-	}
-	return pOperation;
 }
 
 #endif

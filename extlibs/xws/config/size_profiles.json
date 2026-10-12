@@ -3,28 +3,30 @@
 	"manifest": "extlibs/xws/config/modules.json",
 	"profiles": [
 		{
-			"name": "connection",
+			"name": "xws_connection",
 			"system": "websocket_extension",
 			"suite": "websocket_connection",
-			"description": "WebSocket TCP 连接与消息状态机"
+			"description": "xws connection",
+			"forbid_symbols": [
+				"xrtWsClient",
+				"xrtWsServer",
+				"xrtWsGroup",
+				"xrtHttpClient",
+				"xrtHttpServer"
+			]
 		},
 		{
-			"name": "http_client",
-			"system": "websocket_extension",
-			"suite": "websocket_client",
-			"description": "WebSocket HTTP 客户端握手和连接接管"
-		},
-		{
-			"name": "http_server",
-			"system": "websocket_extension",
-			"suite": "websocket_server",
-			"description": "WebSocket HTTP 服务端 Upgrade 和连接接管"
-		},
-		{
-			"name": "xws",
+			"name": "xws_runtime",
 			"system": "websocket_extension",
 			"suite": "xws",
-			"description": "xws 当前完整扩展闭包"
+			"description": "xws runtime",
+			"forbid_symbols": [
+				"xrtWsClient",
+				"xrtWsServer",
+				"xrtWsGroup",
+				"xrtHttpClient",
+				"xrtHttpServer"
+			]
 		}
 	],
 	"default_growth": {

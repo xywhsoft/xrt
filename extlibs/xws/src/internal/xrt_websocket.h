@@ -10,68 +10,6 @@
 
 
 
-/* 构建并安装扩展库自己的结构化错误。 */
-static inline void __xwsErrorSetDetail(
-	xerrkind Kind,
-	cstr sDomain,
-	int32 iCode,
-	cstr sOperation,
-	cstr sMessage,
-	const xerror* pCause
-)
-{
-	xerrordesc Desc;
-	xerror* pError;
-
-	memset(&Desc, 0, sizeof(Desc));
-	Desc.Kind = Kind;
-	Desc.Domain = sDomain;
-	Desc.Code = iCode;
-	Desc.Operation = sOperation;
-	Desc.Message = sMessage;
-	Desc.Cause = pCause;
-	pError = xrtErrorBuild(&Desc);
-	if ( pError != NULL ) {
-		xrtSetError(pError);
-		xrtErrorFree(pError);
-	}
-}
-
-
-
-/* 取走当前原因链，并用扩展库稳定域包装后重新安装。 */
-static inline void __xwsErrorWrapDetail(
-	xerrkind DefaultKind,
-	cstr sDomain,
-	int32 iCode,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	xerror* pCause = xrtTakeError();
-	xerrordesc Desc;
-	xerror* pError;
-
-	memset(&Desc, 0, sizeof(Desc));
-	Desc.Kind = pCause != NULL ?
-		xrtErrorKind(pCause) : DefaultKind;
-	Desc.Domain = sDomain;
-	Desc.Code = iCode;
-	Desc.Operation = sOperation;
-	Desc.Message = sMessage;
-	Desc.Cause = pCause;
-	pError = xrtErrorBuild(&Desc);
-	if ( pError != NULL ) {
-		xrtSetError(pError);
-		xrtErrorFree(pError);
-	} else if ( pCause != NULL ) {
-		xrtSetError(pCause);
-	}
-	xrtErrorFree(pCause);
-}
-
-
-
 /* 设置扩展库公共参数错误。 */
 static inline void __xwsErrorSetInvalidArgument(void)
 {
@@ -95,49 +33,6 @@ static inline void __xwsErrorSetSizeOverflow(void)
 		"size overflow"
 	);
 }
-
-
-
-#if defined(XRT_FEATURE_WEBSOCKET_HANDSHAKE)
-
-/* 设置 WebSocket 握手层的结构化错误。 */
-static inline void __xwsHandshakeError(
-	xerrkind Kind,
-	xwshandshakeerror Code,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	__xwsErrorSetDetail(
-		Kind,
-		"xrt.websocket.handshake",
-		(int32)Code,
-		sOperation,
-		sMessage,
-		NULL
-	);
-}
-
-
-
-/* 将当前底层错误包装为稳定的 WebSocket 握手错误。 */
-static inline void __xwsHandshakeWrap(
-	xerrkind DefaultKind,
-	xwshandshakeerror Code,
-	cstr sOperation,
-	cstr sMessage
-)
-{
-	__xwsErrorWrapDetail(
-		DefaultKind,
-		"xrt.websocket.handshake",
-		(int32)Code,
-		sOperation,
-		sMessage
-	);
-}
-
-#endif
 
 
 

@@ -21,6 +21,15 @@ ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE_COMMAND_LIMIT = 20000
 
 
+def _shared_defines(overlays: list[Path], building: bool) -> list[str]:
+	"""Use each selected library's export namespace when packaging the closure."""
+	suffix = "BUILD_SHARED" if building else "USE_SHARED"
+	products = ["xrt", *(load_manifest(path)["product"] for path in overlays)]
+	return [product.upper().replace("-", "_") + "_" + suffix
+		for product in dict.fromkeys(products)]
+
+
+
 def _compiler_family(compiler: str) -> str:
 	"""区分 GNU 风格、TCC 和 MSVC 风格驱动。"""
 
@@ -771,7 +780,7 @@ def main() -> int:
 			include_dirs, header_roots, overlays, product, consumer)
 		return 0
 	if args.kind == "shared":
-		defines = [*defines, "XRT_BUILD_SHARED"]
+		defines = [*defines, *_shared_defines(overlays, True)]
 	extra_cflags = list(args.cflag)
 	for directory in include_dirs:
 		if family == "msvc":

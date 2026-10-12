@@ -5,7 +5,7 @@ title: 项目五：WebSocket 实时推送服务
 volume: 卷十三 实战项目
 type: project
 lead: 连接组广播、引用发送的组播原语、慢客户端策略与背压、优雅停机全流程——xws 四章知识在长连接并发形态下的综合运用。
-api: xws-websocket_server_router, xws-websocket_group, xhttp-http_server
+api: xws-server-websocket_server_router, xws-group-websocket_group, xhttp-http_server
 ---
 
 ## 导读
@@ -74,11 +74,11 @@ api: xws-websocket_server_router, xws-websocket_group, xhttp-http_server
 
 下面的程序来自 `examples/websocket/group`——频道成员管理的接入模板：
 
-```embed path="extlibs/xws/examples/websocket/group/main.c" title="extlibs/xws/examples/websocket/group/main.c"
+```embed path="extlibs/xws-group/examples/websocket/group/main.c" title="extlibs/xws-group/examples/websocket/group/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/group/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-group/config/modules.json --suite websocket_group --no-single --exclude-test "*"
 WebSocket connection group is ready
 ```
 
@@ -88,11 +88,11 @@ WebSocket connection group is ready
 
 第二个程序来自 `examples/websocket/group_future`——可等待的广播：
 
-```embed path="extlibs/xws/examples/websocket/group_future/main.c" title="extlibs/xws/examples/websocket/group_future/main.c"
+```embed path="extlibs/xws-group/examples/websocket/group_future/main.c" title="extlibs/xws-group/examples/websocket/group_future/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/group_future/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-group/config/modules.json --suite websocket_group_future --no-single --exclude-test "*"
 （空组广播操作完成自检通过后正常退出）
 ```
 

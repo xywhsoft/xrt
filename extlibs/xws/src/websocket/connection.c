@@ -214,6 +214,8 @@ static bool __xrtWsConnConfigPrepare(xwsconnconfig* pConfig)
 				return false;
 			}
 		}
+	#else
+		if (pConfig->DeflateEnabled) return false;
 	#endif
 	return true;
 }
@@ -221,7 +223,7 @@ static bool __xrtWsConnConfigPrepare(xwsconnconfig* pConfig)
 
 
 /* 对外部适配层执行无分配且不修改输入的 Connection 配置预检。 */
-XRT_API bool xrtWsConnConfigValid(
+XWS_API bool xrtWsConnConfigValid(
 	const xwsconnconfig* pConfig
 )
 {
@@ -243,6 +245,12 @@ bool __xrtWsConnRangeValid(const xwsconn* pConnection)
 		pConnection,
 		sizeof(*pConnection)
 	);
+}
+
+/* 扩展库通过公开入口验证连接，不共享私有结构布局。 */
+XWS_API bool xrtWsConnValid(const xwsconn* pConnection)
+{
+	return __xrtWsConnRangeValid(pConnection);
 }
 
 
@@ -453,7 +461,7 @@ static void __xrtWsConnOutputRelease(
 
 
 /* 合并 TLS 余量和传输队列，溢出时返回饱和值。 */
-XRT_API size_t xrtWsConnPending(const xwsconn* pConnection)
+XWS_API size_t xrtWsConnPending(const xwsconn* pConnection)
 {
 	uint64 iOutput;
 	size_t iTransport;
@@ -597,7 +605,7 @@ static size_t __xrtWsConnAvailable(
 
 
 /* 计算控制预留之后普通数据仍可使用的发送预算。 */
-XRT_API size_t xrtWsConnWritable(const xwsconn* pConnection)
+XWS_API size_t xrtWsConnWritable(const xwsconn* pConnection)
 {
 	if ( pConnection == NULL ) {
 		return 0;
@@ -2347,7 +2355,7 @@ static void __xrtWsConnDriveSchedule(xwsconn* pConnection)
 
 
 /* 暂停后续应用消息分块；TCP 立即停止新接收，TLS 由未消费明文施加背压。 */
-XRT_API void xrtWsConnPause(xwsconn* pConnection)
+XWS_API void xrtWsConnPause(xwsconn* pConnection)
 {
 	ptr pTransport;
 
@@ -2390,7 +2398,7 @@ XRT_API void xrtWsConnPause(xwsconn* pConnection)
 
 
 /* 恢复读取，并让所属 Worker 继续消费已缓冲的 TCP 或 TLS 明文。 */
-XRT_API bool xrtWsConnResume(xwsconn* pConnection)
+XWS_API bool xrtWsConnResume(xwsconn* pConnection)
 {
 	if ( pConnection == NULL ) {
 		(void)__xrtWsConnReject(
@@ -2430,7 +2438,7 @@ XRT_API bool xrtWsConnResume(xwsconn* pConnection)
 
 
 /* 返回应用读取暂停状态的并发快照。 */
-XRT_API bool xrtWsConnPaused(const xwsconn* pConnection)
+XWS_API bool xrtWsConnPaused(const xwsconn* pConnection)
 {
 	if ( pConnection == NULL ) {
 		return false;
@@ -3038,7 +3046,7 @@ static xwsconn* __xrtWsConnCreate(
 
 
 /* 初始化稳定的已建立会话默认值。 */
-XRT_API void xrtWsConnConfigInit(xwsconnconfig* pConfig)
+XWS_API void xrtWsConnConfigInit(xwsconnconfig* pConfig)
 {
 	xwsconnconfig Config;
 
@@ -3065,18 +3073,25 @@ XRT_API void xrtWsConnConfigInit(xwsconnconfig* pConfig)
 	Config.CloseTimeout =
 		XWS_CONN_CLOSE_TIMEOUT_DEFAULT;
 	Config.AutoPong = true;
-	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
-		Config.AsyncBytesLimit =
-			XWS_CONN_ASYNC_BYTES_DEFAULT;
-		Config.AsyncCountLimit =
-			XWS_CONN_ASYNC_COUNT_DEFAULT;
-		Config.AsyncBatch =
-			XWS_CONN_ASYNC_BATCH_DEFAULT;
-	#endif
+	Config.AsyncBytesLimit =
+		XWS_CONN_ASYNC_BYTES_DEFAULT;
+	Config.AsyncCountLimit =
+		XWS_CONN_ASYNC_COUNT_DEFAULT;
+	Config.AsyncBatch =
+		XWS_CONN_ASYNC_BATCH_DEFAULT;
 	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
 		xrtWsDeflateInit(&Config.Deflate);
 		xrtWsInflaterConfigInit(&Config.Inflater);
 		xrtWsDeflaterConfigInit(&Config.Deflater);
+	#else
+		Config.Deflate.ServerMaxWindowBits = XWS_DEFLATE_WINDOW_MAX;
+		Config.Deflate.ClientMaxWindowBits = XWS_DEFLATE_WINDOW_MAX;
+		Config.Inflater.OutputLimit = XWS_INFLATE_OUTPUT_DEFAULT;
+		Config.Inflater.WindowBits = XWS_DEFLATE_WINDOW_MAX;
+		Config.Deflater.OutputLimit = UINT64_MAX;
+		Config.Deflater.Level = 6;
+		Config.Deflater.Strategy = XDEFLATE_STRATEGY_DEFAULT;
+		Config.Deflater.WindowBits = XWS_DEFLATE_WINDOW_MAX;
 	#endif
 	memcpy(pConfig, &Config, sizeof(Config));
 }
@@ -3173,7 +3188,7 @@ static bool __xrtWsConnAttachBudget(
 
 
 /* 接管开放 TCP Stream，并延迟处理已经缓冲的早到帧。 */
-XRT_API xwsconn* xrtWsConnAttach(
+XWS_API xwsconn* xrtWsConnAttach(
 	xnetstream* pStream,
 	const xwsconnconfig* pConfig,
 	const xwsconnevents* pEvents,
@@ -3247,7 +3262,7 @@ XRT_API xwsconn* xrtWsConnAttach(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 /* 接管开放 TLS Stream，并延迟处理已经解密的早到明文。 */
-XRT_API xwsconn* xrtWsConnAttachTls(
+XWS_API xwsconn* xrtWsConnAttachTls(
 	xtlsstream* pStream,
 	const xwsconnconfig* pConfig,
 	const xwsconnevents* pEvents,
@@ -3324,7 +3339,7 @@ XRT_API xwsconn* xrtWsConnAttachTls(
 
 
 /* 增加 Connection 引用。 */
-XRT_API xwsconn* xrtWsConnRef(xwsconn* pConnection)
+XWS_API xwsconn* xrtWsConnRef(xwsconn* pConnection)
 {
 	if ( pConnection == NULL ) {
 		return NULL;
@@ -3341,7 +3356,7 @@ XRT_API xwsconn* xrtWsConnRef(xwsconn* pConnection)
 
 
 /* 释放 Connection 引用。 */
-XRT_API void xrtWsConnDestroy(xwsconn* pConnection)
+XWS_API void xrtWsConnDestroy(xwsconn* pConnection)
 {
 	if ( pConnection == NULL ) {
 		return;
@@ -3360,7 +3375,7 @@ XRT_API void xrtWsConnDestroy(xwsconn* pConnection)
 
 
 /* 返回并发可读状态。 */
-XRT_API xwsconnstate xrtWsConnState(
+XWS_API xwsconnstate xrtWsConnState(
 	const xwsconn* pConnection
 )
 {
@@ -3382,7 +3397,7 @@ XRT_API xwsconnstate xrtWsConnState(
 
 
 /* 返回固定本端角色。 */
-XRT_API xwsrole xrtWsConnRole(
+XWS_API xwsrole xrtWsConnRole(
 	const xwsconn* pConnection
 )
 {
@@ -3401,7 +3416,7 @@ XRT_API xwsrole xrtWsConnRole(
 
 
 /* 返回拥有型已协商子协议的借用视图。 */
-XRT_API xstrview xrtWsConnProtocol(
+XWS_API xstrview xrtWsConnProtocol(
 	const xwsconn* pConnection
 )
 {
@@ -3423,7 +3438,7 @@ XRT_API xstrview xrtWsConnProtocol(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
 /* 复制固定的 permessage-deflate 协商结果。 */
-XRT_API bool xrtWsConnDeflate(
+XWS_API bool xrtWsConnDeflate(
 	const xwsconn* pConnection,
 	xwsdeflate* pDeflate
 )
@@ -3468,7 +3483,7 @@ XRT_API bool xrtWsConnDeflate(
 
 
 /* 返回借用 Worker。 */
-XRT_API xnetworker* xrtWsConnWorker(
+XWS_API xnetworker* xrtWsConnWorker(
 	const xwsconn* pConnection
 )
 {
@@ -3487,7 +3502,7 @@ XRT_API xnetworker* xrtWsConnWorker(
 
 
 /* TCP 会话返回借用 Stream。 */
-XRT_API xnetstream* xrtWsConnTcp(
+XWS_API xnetstream* xrtWsConnTcp(
 	const xwsconn* pConnection
 )
 {
@@ -3520,7 +3535,7 @@ XRT_API xnetstream* xrtWsConnTcp(
 
 
 /* 从任意线程取得 TCP Stream 强引用。 */
-XRT_API xnetstream* xrtWsConnTcpRef(
+XWS_API xnetstream* xrtWsConnTcpRef(
 	const xwsconn* pConnection
 )
 {
@@ -3543,7 +3558,7 @@ XRT_API xnetstream* xrtWsConnTcpRef(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 /* TLS 会话返回借用 Stream。 */
-XRT_API xtlsstream* xrtWsConnTls(
+XWS_API xtlsstream* xrtWsConnTls(
 	const xwsconn* pConnection
 )
 {
@@ -3576,7 +3591,7 @@ XRT_API xtlsstream* xrtWsConnTls(
 
 
 /* 从任意线程取得 TLS Stream 强引用。 */
-XRT_API xtlsstream* xrtWsConnTlsRef(
+XWS_API xtlsstream* xrtWsConnTlsRef(
 	const xwsconn* pConnection
 )
 {
@@ -4426,7 +4441,7 @@ static xnetresult __xrtWsConnSendMessage(
 
 
 /* 发送一条完整 Text 或 Binary 消息。 */
-XRT_API xnetresult xrtWsConnSend(
+XWS_API xnetresult xrtWsConnSend(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -4443,7 +4458,7 @@ XRT_API xnetresult xrtWsConnSend(
 
 
 /* 发送完整 Text。 */
-XRT_API xnetresult xrtWsConnText(
+XWS_API xnetresult xrtWsConnText(
 	xwsconn* pConnection,
 	xstrview Text
 )
@@ -4461,7 +4476,7 @@ XRT_API xnetresult xrtWsConnText(
 
 
 /* 发送完整 Binary。 */
-XRT_API xnetresult xrtWsConnBinary(
+XWS_API xnetresult xrtWsConnBinary(
 	xwsconn* pConnection,
 	xbytesview Data
 )
@@ -4477,7 +4492,7 @@ XRT_API xnetresult xrtWsConnBinary(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
 /* 压缩并发送完整 Text 或 Binary。 */
-XRT_API xnetresult xrtWsConnSendCompressed(
+XWS_API xnetresult xrtWsConnSendCompressed(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -4494,7 +4509,7 @@ XRT_API xnetresult xrtWsConnSendCompressed(
 
 
 /* 压缩并发送完整 Text。 */
-XRT_API xnetresult xrtWsConnTextCompressed(
+XWS_API xnetresult xrtWsConnTextCompressed(
 	xwsconn* pConnection,
 	xstrview Text
 )
@@ -4512,7 +4527,7 @@ XRT_API xnetresult xrtWsConnTextCompressed(
 
 
 /* 压缩并发送完整 Binary。 */
-XRT_API xnetresult xrtWsConnBinaryCompressed(
+XWS_API xnetresult xrtWsConnBinaryCompressed(
 	xwsconn* pConnection,
 	xbytesview Data
 )
@@ -4560,7 +4575,7 @@ static xnetresult __xrtWsConnControlSend(
 
 
 /* 发送 Ping 控制帧。 */
-XRT_API xnetresult xrtWsConnPing(
+XWS_API xnetresult xrtWsConnPing(
 	xwsconn* pConnection,
 	xbytesview Payload
 )
@@ -4575,7 +4590,7 @@ XRT_API xnetresult xrtWsConnPing(
 
 
 /* 发送 Pong 控制帧。 */
-XRT_API xnetresult xrtWsConnPong(
+XWS_API xnetresult xrtWsConnPong(
 	xwsconn* pConnection,
 	xbytesview Payload
 )
@@ -4590,7 +4605,7 @@ XRT_API xnetresult xrtWsConnPong(
 
 
 /* 发送唯一 Close 并等待远端回应。 */
-XRT_API xnetresult xrtWsConnClose(
+XWS_API xnetresult xrtWsConnClose(
 	xwsconn* pConnection,
 	uint16 iCode,
 	xstrview Reason
@@ -4636,7 +4651,7 @@ XRT_API xnetresult xrtWsConnClose(
 
 
 /* 从任意线程安全取得临时传输引用并请求异常关闭。 */
-XRT_API bool xrtWsConnAbort(xwsconn* pConnection)
+XWS_API bool xrtWsConnAbort(xwsconn* pConnection)
 {
 	ptr pTransport;
 	bool bAccepted;
@@ -4696,7 +4711,7 @@ XRT_API bool xrtWsConnAbort(xwsconn* pConnection)
 
 
 /* 复制 Close 快照。 */
-XRT_API bool xrtWsConnCloseInfo(
+XWS_API bool xrtWsConnCloseInfo(
 	const xwsconn* pConnection,
 	xwsconnclose* pClose
 )
@@ -4735,7 +4750,7 @@ XRT_API bool xrtWsConnCloseInfo(
 
 
 /* 返回第一个结构化错误。 */
-XRT_API const xerror* xrtWsConnError(
+XWS_API const xerror* xrtWsConnError(
 	const xwsconn* pConnection
 )
 {

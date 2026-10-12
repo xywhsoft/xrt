@@ -1,6 +1,7 @@
 #ifndef XWS_WEBSOCKET_RUNTIME_H
 #define XWS_WEBSOCKET_RUNTIME_H
 
+#include <xws/export.h>
 #include <xrt/websocket.h>
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION)
@@ -81,11 +82,9 @@
 #define XWS_CONN_SEND_LIMIT_DEFAULT ((size_t)1048576u)
 #define XWS_CONN_CONTROL_RESERVE_DEFAULT ((size_t)512u)
 #define XWS_CONN_CLOSE_TIMEOUT_DEFAULT INT64_C(5000)
-#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
-	#define XWS_CONN_ASYNC_BYTES_DEFAULT ((size_t)1048576u)
-	#define XWS_CONN_ASYNC_COUNT_DEFAULT UINT32_C(1024)
-	#define XWS_CONN_ASYNC_BATCH_DEFAULT UINT32_C(64)
-#endif
+#define XWS_CONN_ASYNC_BYTES_DEFAULT ((size_t)1048576u)
+#define XWS_CONN_ASYNC_COUNT_DEFAULT UINT32_C(1024)
+#define XWS_CONN_ASYNC_BATCH_DEFAULT UINT32_C(64)
 
 
 
@@ -154,17 +153,13 @@ typedef struct xwsconnconfig {
 	size_t ControlReserve;
 	int64 CloseTimeout;
 	bool AutoPong;
-	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
-		size_t AsyncBytesLimit;
-		uint32 AsyncCountLimit;
-		uint32 AsyncBatch;
-	#endif
-	#if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
-		xwsdeflate Deflate;
-		xwsinflaterconfig Inflater;
-		xwsdeflaterconfig Deflater;
-		bool DeflateEnabled;
-	#endif
+	size_t AsyncBytesLimit;
+	uint32 AsyncCountLimit;
+	uint32 AsyncBatch;
+	xwsdeflate Deflate;
+	xwsinflaterconfig Inflater;
+	xwsdeflaterconfig Deflater;
+	bool DeflateEnabled;
 } xwsconnconfig;
 
 
@@ -260,7 +255,7 @@ XRT_EXTERN_C_BEGIN
 	初始化服务端角色、1 MiB 收发上限、512 字节控制预算和五秒关闭超时。
 	pConfig 可以指向完整但未对齐的可写结构存储；失败时不修改该存储。
 */
-XRT_API void xrtWsConnConfigInit(xwsconnconfig* pConfig);
+XWS_API void xrtWsConnConfigInit(xwsconnconfig* pConfig);
 
 
 
@@ -268,9 +263,12 @@ XRT_API void xrtWsConnConfigInit(xwsconnconfig* pConfig);
 	无分配验证完整 Connection 配置；不会修改传入结构。
 	pConfig 及其 Protocol 视图都必须是完整有效范围，结构本身可以未对齐。
 */
-XRT_API bool xrtWsConnConfigValid(
+XWS_API bool xrtWsConnConfigValid(
 	const xwsconnconfig* pConfig
 );
+
+/* 验证不透明连接的完整地址范围；不修改连接或线程错误。 */
+XWS_API bool xrtWsConnValid(const xwsconn* pConnection);
 
 
 
@@ -282,7 +280,7 @@ XRT_API bool xrtWsConnConfigValid(
 	Config、Events 和 Protocol 内容在调用期间复制，调用返回后不再借用。
 	两个结构都可以位于完整但未对齐的只读存储。
 */
-XRT_API xwsconn* xrtWsConnAttach(
+XWS_API xwsconn* xrtWsConnAttach(
 	xnetstream* pStream,
 	const xwsconnconfig* pConfig,
 	const xwsconnevents* pEvents,
@@ -299,7 +297,7 @@ XRT_API xwsconn* xrtWsConnAttach(
 	Config、Events 和 Protocol 内容在调用期间复制，调用返回后不再借用。
 	两个结构都可以位于完整但未对齐的只读存储。
 */
-XRT_API xwsconn* xrtWsConnAttachTls(
+XWS_API xwsconn* xrtWsConnAttachTls(
 	xtlsstream* pStream,
 	const xwsconnconfig* pConfig,
 	const xwsconnevents* pEvents,
@@ -310,27 +308,27 @@ XRT_API xwsconn* xrtWsConnAttachTls(
 
 
 /* 增加 Connection 引用并返回原指针。 */
-XRT_API xwsconn* xrtWsConnRef(xwsconn* pConnection);
+XWS_API xwsconn* xrtWsConnRef(xwsconn* pConnection);
 
 
 
 /* 释放 Connection 引用；关闭或中止传输必须另行请求。 */
-XRT_API void xrtWsConnDestroy(xwsconn* pConnection);
+XWS_API void xrtWsConnDestroy(xwsconn* pConnection);
 
 
 
 /* 返回并发可读的会话状态。 */
-XRT_API xwsconnstate xrtWsConnState(const xwsconn* pConnection);
+XWS_API xwsconnstate xrtWsConnState(const xwsconn* pConnection);
 
 
 
 /* 返回建立连接时固定的本端角色。 */
-XRT_API xwsrole xrtWsConnRole(const xwsconn* pConnection);
+XWS_API xwsrole xrtWsConnRole(const xwsconn* pConnection);
 
 
 
 /* 返回 Connection 拥有的已协商子协议快照。 */
-XRT_API xstrview xrtWsConnProtocol(
+XWS_API xstrview xrtWsConnProtocol(
 	const xwsconn* pConnection
 );
 
@@ -343,7 +341,7 @@ XRT_API xstrview xrtWsConnProtocol(
 	pDeflate 可以未对齐，但必须是与 Connection 所有存储分离的完整可写范围；
 	失败时不修改输出。
 */
-XRT_API bool xrtWsConnDeflate(
+XWS_API bool xrtWsConnDeflate(
 	const xwsconn* pConnection,
 	xwsdeflate* pDeflate
 );
@@ -352,39 +350,39 @@ XRT_API bool xrtWsConnDeflate(
 
 
 /* 返回传输所属的借用 Worker。 */
-XRT_API xnetworker* xrtWsConnWorker(const xwsconn* pConnection);
+XWS_API xnetworker* xrtWsConnWorker(const xwsconn* pConnection);
 
 
 
 /* 在所属 Worker 上借用 TCP Stream；TLS 会话返回空指针。 */
-XRT_API xnetstream* xrtWsConnTcp(const xwsconn* pConnection);
+XWS_API xnetstream* xrtWsConnTcp(const xwsconn* pConnection);
 
 
 
 /* 从任意线程取得 TCP Stream 强引用；调用方最终 Destroy。 */
-XRT_API xnetstream* xrtWsConnTcpRef(const xwsconn* pConnection);
+XWS_API xnetstream* xrtWsConnTcpRef(const xwsconn* pConnection);
 
 
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_TLS)
 /* 在所属 Worker 上借用 TLS Stream；TCP 会话返回空指针。 */
-XRT_API xtlsstream* xrtWsConnTls(const xwsconn* pConnection);
+XWS_API xtlsstream* xrtWsConnTls(const xwsconn* pConnection);
 
 
 
 /* 从任意线程取得 TLS Stream 强引用；调用方最终 Destroy。 */
-XRT_API xtlsstream* xrtWsConnTlsRef(const xwsconn* pConnection);
+XWS_API xtlsstream* xrtWsConnTlsRef(const xwsconn* pConnection);
 #endif
 
 
 
 /* 返回 WebSocket 与底层传输当前待发字节的并发快照。 */
-XRT_API size_t xrtWsConnPending(const xwsconn* pConnection);
+XWS_API size_t xrtWsConnPending(const xwsconn* pConnection);
 
 
 
 /* 返回普通数据当前仍可受理的硬预算快照。 */
-XRT_API size_t xrtWsConnWritable(const xwsconn* pConnection);
+XWS_API size_t xrtWsConnWritable(const xwsconn* pConnection);
 
 
 
@@ -392,7 +390,7 @@ XRT_API size_t xrtWsConnWritable(const xwsconn* pConnection);
 	暂停应用消息读取。
 	可以从任意线程调用；当前回调分块完成后不再发布后续消息事件。
 */
-XRT_API void xrtWsConnPause(xwsconn* pConnection);
+XWS_API void xrtWsConnPause(xwsconn* pConnection);
 
 
 
@@ -400,12 +398,12 @@ XRT_API void xrtWsConnPause(xwsconn* pConnection);
 	恢复应用消息读取并投递一次所属 Worker 驱动。
 	已关闭连接返回 false；关闭握手中的连接允许恢复协议读取。
 */
-XRT_API bool xrtWsConnResume(xwsconn* pConnection);
+XWS_API bool xrtWsConnResume(xwsconn* pConnection);
 
 
 
 /* 返回接收侧当前是否被应用暂停的并发快照。 */
-XRT_API bool xrtWsConnPaused(const xwsconn* pConnection);
+XWS_API bool xrtWsConnPaused(const xwsconn* pConnection);
 
 
 
@@ -415,7 +413,7 @@ XRT_API bool xrtWsConnPaused(const xwsconn* pConnection);
 	单帧永久超过 WebSocket 或 TCP 硬容量返回 ERROR 和 XERR_RANGE。
 	Payload 必须是完整且不发生地址回绕的只读范围，返回前已经完成复制。
 */
-XRT_API xnetresult xrtWsConnSend(
+XWS_API xnetresult xrtWsConnSend(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -424,7 +422,7 @@ XRT_API xnetresult xrtWsConnSend(
 
 
 /* 发送一条完整 UTF-8 Text 消息。 */
-XRT_API xnetresult xrtWsConnText(
+XWS_API xnetresult xrtWsConnText(
 	xwsconn* pConnection,
 	xstrview Text
 );
@@ -432,7 +430,7 @@ XRT_API xnetresult xrtWsConnText(
 
 
 /* 发送一条完整 Binary 消息。 */
-XRT_API xnetresult xrtWsConnBinary(
+XWS_API xnetresult xrtWsConnBinary(
 	xwsconn* pConnection,
 	xbytesview Data
 );
@@ -446,7 +444,7 @@ XRT_API xnetresult xrtWsConnBinary(
 	Ref 可以未对齐，但结构和数据必须是完整范围，且都不能覆盖 Connection。
 	空负载不接管所有权，应改用普通 Send；失败不会调用 Release。
 */
-XRT_API xnetresult xrtWsConnSendRef(
+XWS_API xnetresult xrtWsConnSendRef(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	const xnetref* pRef
@@ -455,7 +453,7 @@ XRT_API xnetresult xrtWsConnSendRef(
 
 
 /* 发送一条所有权 UTF-8 Text 消息。 */
-XRT_API xnetresult xrtWsConnTextRef(
+XWS_API xnetresult xrtWsConnTextRef(
 	xwsconn* pConnection,
 	const xnetref* pRef
 );
@@ -463,7 +461,7 @@ XRT_API xnetresult xrtWsConnTextRef(
 
 
 /* 发送一条所有权 Binary 消息。 */
-XRT_API xnetresult xrtWsConnBinaryRef(
+XWS_API xnetresult xrtWsConnBinaryRef(
 	xwsconn* pConnection,
 	const xnetref* pRef
 );
@@ -474,7 +472,7 @@ XRT_API xnetresult xrtWsConnBinaryRef(
 	在所属 Worker 上发送并接管一段 xrtMalloc 内存。
 	仅返回 OK 时由 Connection 最终 xrtFree；空负载应改用普通 Send。
 */
-XRT_API xnetresult xrtWsConnSendTake(
+XWS_API xnetresult xrtWsConnSendTake(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	ptr pData,
@@ -484,7 +482,7 @@ XRT_API xnetresult xrtWsConnSendTake(
 
 
 /* 发送并接管一段 xrtMalloc UTF-8 Text。 */
-XRT_API xnetresult xrtWsConnTextTake(
+XWS_API xnetresult xrtWsConnTextTake(
 	xwsconn* pConnection,
 	str sText,
 	size_t iSize
@@ -493,7 +491,7 @@ XRT_API xnetresult xrtWsConnTextTake(
 
 
 /* 发送并接管一段 xrtMalloc Binary。 */
-XRT_API xnetresult xrtWsConnBinaryTake(
+XWS_API xnetresult xrtWsConnBinaryTake(
 	xwsconn* pConnection,
 	bytes pData,
 	size_t iSize
@@ -507,7 +505,7 @@ XRT_API xnetresult xrtWsConnBinaryTake(
 	在所属 Worker 上开始一条未压缩的分片 Text 或 Binary 消息。
 	同一 Connection 同时只能存在一个 Writer；失败返回空指针并设置错误。
 */
-XRT_API xwswriter* xrtWsConnBegin(
+XWS_API xwswriter* xrtWsConnBegin(
 	xwsconn* pConnection,
 	xwsopcode Opcode
 );
@@ -515,14 +513,14 @@ XRT_API xwswriter* xrtWsConnBegin(
 
 
 /* 开始一条未压缩的分片 UTF-8 Text 消息。 */
-XRT_API xwswriter* xrtWsConnBeginText(
+XWS_API xwswriter* xrtWsConnBeginText(
 	xwsconn* pConnection
 );
 
 
 
 /* 开始一条未压缩的分片 Binary 消息。 */
-XRT_API xwswriter* xrtWsConnBeginBinary(
+XWS_API xwswriter* xrtWsConnBeginBinary(
 	xwsconn* pConnection
 );
 
@@ -534,7 +532,7 @@ XRT_API xwswriter* xrtWsConnBeginBinary(
 	每次 Write 都独立建立同步边界，因此成功返回后对应线路帧已被传输层受理。
 	AGAIN、永久容量和 OOM 不推进 Writer；半条消息后的编码或传输故障会终止会话。
 */
-XRT_API xwswriter* xrtWsConnBeginCompressed(
+XWS_API xwswriter* xrtWsConnBeginCompressed(
 	xwsconn* pConnection,
 	xwsopcode Opcode
 );
@@ -542,14 +540,14 @@ XRT_API xwswriter* xrtWsConnBeginCompressed(
 
 
 /* 开始一条压缩分片 UTF-8 Text 消息。 */
-XRT_API xwswriter* xrtWsConnBeginTextCompressed(
+XWS_API xwswriter* xrtWsConnBeginTextCompressed(
 	xwsconn* pConnection
 );
 
 
 
 /* 开始一条压缩分片 Binary 消息。 */
-XRT_API xwswriter* xrtWsConnBeginBinaryCompressed(
+XWS_API xwswriter* xrtWsConnBeginBinaryCompressed(
 	xwsconn* pConnection
 );
 #endif
@@ -561,7 +559,7 @@ XRT_API xwswriter* xrtWsConnBeginBinaryCompressed(
 	仅返回 OK 时推进消息大小、UTF-8 和首帧状态；AGAIN 可原样重试。
 	Writer 和 Data 必须是完整且分离的范围；参数错误不推进 Writer。
 */
-XRT_API xnetresult xrtWsWriterWrite(
+XWS_API xnetresult xrtWsWriterWrite(
 	xwswriter* pWriter,
 	xbytesview Data
 );
@@ -573,7 +571,7 @@ XRT_API xnetresult xrtWsWriterWrite(
 	成功后释放 Connection 的 Writer 独占权，但对象仍需 Destroy。
 	Writer 和 Data 必须是完整且分离的范围；参数错误不推进 Writer。
 */
-XRT_API xnetresult xrtWsWriterFinish(
+XWS_API xnetresult xrtWsWriterFinish(
 	xwswriter* pWriter,
 	xbytesview Data
 );
@@ -586,7 +584,7 @@ XRT_API xnetresult xrtWsWriterFinish(
 	仅返回 OK 时接管 Ref；Release 可能在返回前执行，也可能在线路发送后执行。
 	Ref 可以未对齐，但其结构和数据都必须是完整范围，并且 Ref 不能覆盖 Writer。
 */
-XRT_API xnetresult xrtWsWriterWriteRef(
+XWS_API xnetresult xrtWsWriterWriteRef(
 	xwswriter* pWriter,
 	const xnetref* pRef
 );
@@ -597,7 +595,7 @@ XRT_API xnetresult xrtWsWriterWriteRef(
 	提交最终所有权分片；失败时 Ref 所有权保持不变。
 	Ref 可以未对齐，但其结构和数据都必须是完整范围，并且 Ref 不能覆盖 Writer。
 */
-XRT_API xnetresult xrtWsWriterFinishRef(
+XWS_API xnetresult xrtWsWriterFinishRef(
 	xwswriter* pWriter,
 	const xnetref* pRef
 );
@@ -605,7 +603,7 @@ XRT_API xnetresult xrtWsWriterFinishRef(
 
 
 /* 提交并接管一个非空 xrtMalloc 分片。 */
-XRT_API xnetresult xrtWsWriterWriteTake(
+XWS_API xnetresult xrtWsWriterWriteTake(
 	xwswriter* pWriter,
 	ptr pData,
 	size_t iSize
@@ -614,7 +612,7 @@ XRT_API xnetresult xrtWsWriterWriteTake(
 
 
 /* 提交并接管一个非空 xrtMalloc 最终分片。 */
-XRT_API xnetresult xrtWsWriterFinishTake(
+XWS_API xnetresult xrtWsWriterFinishTake(
 	xwswriter* pWriter,
 	ptr pData,
 	size_t iSize
@@ -624,7 +622,7 @@ XRT_API xnetresult xrtWsWriterFinishTake(
 
 
 /* 返回 Writer 是否已经成功提交最终分片；空指针返回 false，回绕范围设置参数错误。 */
-XRT_API bool xrtWsWriterIsFinished(
+XWS_API bool xrtWsWriterIsFinished(
 	const xwswriter* pWriter
 );
 
@@ -635,7 +633,7 @@ XRT_API bool xrtWsWriterIsFinished(
 	放弃已经开始但未结束的消息会尝试发送 1011 Close，失败则中止传输。
 	空指针无操作；回绕对象范围只设置参数错误。
 */
-XRT_API void xrtWsWriterDestroy(
+XWS_API void xrtWsWriterDestroy(
 	xwswriter* pWriter
 );
 #endif
@@ -647,7 +645,7 @@ XRT_API void xrtWsWriterDestroy(
 	压缩并发送一条完整 Text 或 Binary 消息。
 	失败不会让未发送的压缩上下文影响下一条消息。
 */
-XRT_API xnetresult xrtWsConnSendCompressed(
+XWS_API xnetresult xrtWsConnSendCompressed(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -656,7 +654,7 @@ XRT_API xnetresult xrtWsConnSendCompressed(
 
 
 /* 压缩并发送一条完整 UTF-8 Text 消息。 */
-XRT_API xnetresult xrtWsConnTextCompressed(
+XWS_API xnetresult xrtWsConnTextCompressed(
 	xwsconn* pConnection,
 	xstrview Text
 );
@@ -664,7 +662,7 @@ XRT_API xnetresult xrtWsConnTextCompressed(
 
 
 /* 压缩并发送一条完整 Binary 消息。 */
-XRT_API xnetresult xrtWsConnBinaryCompressed(
+XWS_API xnetresult xrtWsConnBinaryCompressed(
 	xwsconn* pConnection,
 	xbytesview Data
 );
@@ -676,7 +674,7 @@ XRT_API xnetresult xrtWsConnBinaryCompressed(
 	发送 Ping 控制帧；Payload 最多 125 字节。
 	控制帧可以使用普通数据不可占用的预留预算。
 */
-XRT_API xnetresult xrtWsConnPing(
+XWS_API xnetresult xrtWsConnPing(
 	xwsconn* pConnection,
 	xbytesview Payload
 );
@@ -687,7 +685,7 @@ XRT_API xnetresult xrtWsConnPing(
 	发送 Pong 控制帧；通常在 AutoPong 关闭后的 Ping 回调中使用。
 	Payload 最多 125 字节，并使用控制帧预留预算。
 */
-XRT_API xnetresult xrtWsConnPong(
+XWS_API xnetresult xrtWsConnPong(
 	xwsconn* pConnection,
 	xbytesview Payload
 );
@@ -698,7 +696,7 @@ XRT_API xnetresult xrtWsConnPong(
 	发送 Close 并进入关闭握手；Code 为零且 Reason 为空时发送空负载。
 	重复调用返回 CLOSED，不会发送第二个 Close。
 */
-XRT_API xnetresult xrtWsConnClose(
+XWS_API xnetresult xrtWsConnClose(
 	xwsconn* pConnection,
 	uint16 iCode,
 	xstrview Reason
@@ -710,7 +708,7 @@ XRT_API xnetresult xrtWsConnClose(
 	从任意线程请求立即异常关闭底层传输。
 	OPEN 只会前进到 CLOSING；已经 CLOSED 时返回 false 且终态保持不变。
 */
-XRT_API bool xrtWsConnAbort(xwsconn* pConnection);
+XWS_API bool xrtWsConnAbort(xwsconn* pConnection);
 
 
 
@@ -719,7 +717,7 @@ XRT_API bool xrtWsConnAbort(xwsconn* pConnection);
 	pClose 可以未对齐，但必须是与 Connection 所有存储分离的完整可写范围；
 	失败时不修改输出，成功后除 Reason 视图外不再借用 Connection 状态。
 */
-XRT_API bool xrtWsConnCloseInfo(
+XWS_API bool xrtWsConnCloseInfo(
 	const xwsconn* pConnection,
 	xwsconnclose* pClose
 );
@@ -727,18 +725,18 @@ XRT_API bool xrtWsConnCloseInfo(
 
 
 /* 返回 Connection 第一个结构化错误；结果借用到 Connection 销毁。 */
-XRT_API const xerror* xrtWsConnError(const xwsconn* pConnection);
+XWS_API const xerror* xrtWsConnError(const xwsconn* pConnection);
 
 
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_FUTURE)
 /* 返回尚未由 Connection Worker 终结的异步发送负载字节数。 */
-XRT_API size_t xrtWsConnAsyncBytes(const xwsconn* pConnection);
+XWS_API size_t xrtWsConnAsyncBytes(const xwsconn* pConnection);
 
 
 
 /* 返回异步发送和条件等待的合计操作数。 */
-XRT_API uint32 xrtWsConnAsyncCount(const xwsconn* pConnection);
+XWS_API uint32 xrtWsConnAsyncCount(const xwsconn* pConnection);
 
 
 
@@ -748,7 +746,7 @@ XRT_API uint32 xrtWsConnAsyncCount(const xwsconn* pConnection);
 	WRITE 随后要求当前可写，DRAIN 随后要求传输待发归零。
 	取消只移除本次等待，不会关闭 Connection。
 */
-XRT_API xfuture* xrtWsConnWaitAsync(
+XWS_API xfuture* xrtWsConnWaitAsync(
 	xwsconn* pConnection,
 	xwsconnwait Wait
 );
@@ -760,7 +758,7 @@ XRT_API xfuture* xrtWsConnWaitAsync(
 	Future 在帧被传输层受理时完成；排空必须另行等待 DRAIN。
 	取消只在 Worker 受理前有效，不会撤回已经提交的线路帧。
 */
-XRT_API xfuture* xrtWsConnSendAsync(
+XWS_API xfuture* xrtWsConnSendAsync(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -769,7 +767,7 @@ XRT_API xfuture* xrtWsConnSendAsync(
 
 
 /* 从任意线程复制并异步提交 UTF-8 Text。 */
-XRT_API xfuture* xrtWsConnTextAsync(
+XWS_API xfuture* xrtWsConnTextAsync(
 	xwsconn* pConnection,
 	xstrview Text
 );
@@ -777,7 +775,7 @@ XRT_API xfuture* xrtWsConnTextAsync(
 
 
 /* 从任意线程复制并异步提交 Binary。 */
-XRT_API xfuture* xrtWsConnBinaryAsync(
+XWS_API xfuture* xrtWsConnBinaryAsync(
 	xwsconn* pConnection,
 	xbytesview Data
 );
@@ -792,7 +790,7 @@ XRT_API xfuture* xrtWsConnBinaryAsync(
 	Ref 可以未对齐，但结构与数据都必须是完整、不回绕且与 Connection 分离的范围；
 	任何预检失败都不接管所有权，也不会调用 Release。
 */
-XRT_API xfuture* xrtWsConnSendRefAsync(
+XWS_API xfuture* xrtWsConnSendRefAsync(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	const xnetref* pRef
@@ -801,7 +799,7 @@ XRT_API xfuture* xrtWsConnSendRefAsync(
 
 
 /* 从任意线程异步提交一条所有权 UTF-8 Text。 */
-XRT_API xfuture* xrtWsConnTextRefAsync(
+XWS_API xfuture* xrtWsConnTextRefAsync(
 	xwsconn* pConnection,
 	const xnetref* pRef
 );
@@ -809,7 +807,7 @@ XRT_API xfuture* xrtWsConnTextRefAsync(
 
 
 /* 从任意线程异步提交一条所有权 Binary。 */
-XRT_API xfuture* xrtWsConnBinaryRefAsync(
+XWS_API xfuture* xrtWsConnBinaryRefAsync(
 	xwsconn* pConnection,
 	const xnetref* pRef
 );
@@ -819,7 +817,7 @@ XRT_API xfuture* xrtWsConnBinaryRefAsync(
 
 #if defined(XWS_FEATURE_WEBSOCKET_CONNECTION_DEFLATE)
 /* 从任意线程复制、压缩并异步提交一条完整消息。 */
-XRT_API xfuture* xrtWsConnSendCompressedAsync(
+XWS_API xfuture* xrtWsConnSendCompressedAsync(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload
@@ -828,7 +826,7 @@ XRT_API xfuture* xrtWsConnSendCompressedAsync(
 
 
 /* 从任意线程复制、压缩并异步提交 UTF-8 Text。 */
-XRT_API xfuture* xrtWsConnTextCompressedAsync(
+XWS_API xfuture* xrtWsConnTextCompressedAsync(
 	xwsconn* pConnection,
 	xstrview Text
 );
@@ -836,7 +834,7 @@ XRT_API xfuture* xrtWsConnTextCompressedAsync(
 
 
 /* 从任意线程复制、压缩并异步提交 Binary。 */
-XRT_API xfuture* xrtWsConnBinaryCompressedAsync(
+XWS_API xfuture* xrtWsConnBinaryCompressedAsync(
 	xwsconn* pConnection,
 	xbytesview Data
 );
@@ -845,7 +843,7 @@ XRT_API xfuture* xrtWsConnBinaryCompressedAsync(
 
 
 /* 从任意线程复制并异步提交 Ping。 */
-XRT_API xfuture* xrtWsConnPingAsync(
+XWS_API xfuture* xrtWsConnPingAsync(
 	xwsconn* pConnection,
 	xbytesview Payload
 );
@@ -853,7 +851,7 @@ XRT_API xfuture* xrtWsConnPingAsync(
 
 
 /* 从任意线程复制并异步提交 Pong。 */
-XRT_API xfuture* xrtWsConnPongAsync(
+XWS_API xfuture* xrtWsConnPongAsync(
 	xwsconn* pConnection,
 	xbytesview Payload
 );
@@ -861,7 +859,7 @@ XRT_API xfuture* xrtWsConnPongAsync(
 
 
 /* 从任意线程异步提交唯一 Close。 */
-XRT_API xfuture* xrtWsConnCloseAsync(
+XWS_API xfuture* xrtWsConnCloseAsync(
 	xwsconn* pConnection,
 	uint16 iCode,
 	xstrview Reason

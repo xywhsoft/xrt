@@ -4,7 +4,8 @@ import json
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATED = ('xllm', 'xllm-session', 'xwork', 'xjwt', 'xoauth2')
+MIGRATED = ('xllm', 'xllm-session', 'xwork', 'xjwt', 'xoauth2',
+            'xws', 'xws-client', 'xws-server', 'xws-group')
 
 class ExtensionLayoutTests(unittest.TestCase):
     def test_every_extension_has_one_common_manifest(self):

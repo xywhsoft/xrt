@@ -333,7 +333,7 @@
 - 门禁拦下：ref 页前缀 xws- 非 xhttp-（websocket_connection 等页在
   ref-xws-websocket_runtime）、XRT_NET_AGAIN 是契约文档描述词非符号
   （改"AGAIN 结果"行文）、xrtWsConnTextFuture 不存在（Future 族真名在
-  websocket_http_future：ConnectAsync 一族）。
+  websocket_client_future：ConnectAsync 一族）。
 - 行文章号修正 7 处（testing→122、perf→124）。
 
 ## P19 阶段记录

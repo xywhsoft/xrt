@@ -1,0 +1,37 @@
+/* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
+#ifndef XWS_GROUP_FEATURES_H
+#define XWS_GROUP_FEATURES_H
+
+/* websocket_group_future 及其直接依赖。 */
+#if defined(XWS_GROUP_MODULE_ALL) || defined(XWS_GROUP_MODULE_WEBSOCKET_GROUP_FUTURE)
+#ifndef XWS_GROUP_FEATURE_WEBSOCKET_GROUP_FUTURE
+#define XWS_GROUP_FEATURE_WEBSOCKET_GROUP_FUTURE
+#endif
+#ifndef XWS_GROUP_MODULE_WEBSOCKET_GROUP
+#define XWS_GROUP_MODULE_WEBSOCKET_GROUP
+#endif
+#ifndef XWS_MODULE_WEBSOCKET_CONNECTION_REF_FUTURE
+#define XWS_MODULE_WEBSOCKET_CONNECTION_REF_FUTURE
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
+#endif
+#endif
+
+/* websocket_group 及其直接依赖。 */
+#if defined(XWS_GROUP_MODULE_ALL) || defined(XWS_GROUP_MODULE_WEBSOCKET_GROUP)
+#ifndef XWS_GROUP_FEATURE_WEBSOCKET_GROUP
+#define XWS_GROUP_FEATURE_WEBSOCKET_GROUP
+#endif
+#ifndef XWS_MODULE_WEBSOCKET_CONNECTION
+#define XWS_MODULE_WEBSOCKET_CONNECTION
+#endif
+#ifndef XRT_MODULE_SET
+#define XRT_MODULE_SET
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#endif
+
+#endif /* XWS_GROUP_FEATURES_H */

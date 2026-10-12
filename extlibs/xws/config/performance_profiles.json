@@ -6,35 +6,37 @@
 		"warmups": 1,
 		"timeout_seconds": 120,
 		"policy": "baseline-unpinned",
-		"cflags": ["-O2"],
+		"cflags": [
+			"-O2"
+		],
 		"ldflags": [],
-		"max_relative_mad": 0.20,
-		"max_relative_central_range": 0.30,
+		"max_relative_mad": 0.2,
+		"max_relative_central_range": 0.3,
 		"regression": {
-			"higher": 0.10,
-			"lower": 0.20
+			"higher": 0.1,
+			"lower": 0.2
 		}
 	},
 	"profiles": [
 		{
-			"name": "websocket_loopback",
+			"name": "connection_config",
 			"system": "websocket_extension",
-			"description": "WebSocket 持久连接消息回环、背压和关闭路径",
+			"description": "xws connection_config",
 			"benchmarks": [
 				{
-					"name": "websocket_loopback",
-					"source": "extlibs/xws/bench/bench_websocket_loopback.c",
-					"suite": "xws",
-					"args": ["5000"],
-					"smoke_args": ["50"],
+					"name": "connection_config",
+					"source": "extlibs/xws/bench/bench_connection_config.c",
+					"suite": "websocket_connection",
+					"args": [
+						"10000"
+					],
+					"smoke_args": [
+						"50"
+					],
 					"metrics": {
-						"websocket_messages_per_sec": {
+						"connection_config_per_sec": {
 							"direction": "higher",
-							"unit": "messages/s"
-						},
-						"websocket_latency_p99_us": {
-							"direction": "lower",
-							"unit": "microseconds"
+							"unit": "operations/s"
 						}
 					}
 				}

@@ -1,0 +1,36 @@
+{
+	"schema": 1,
+	"manifest": "extlibs/xws-group/config/modules.json",
+	"profiles": [
+		{
+			"name": "xws_group_group",
+			"system": "websocket_extension",
+			"suite": "websocket_group",
+			"description": "xws-group group",
+			"forbid_symbols": [
+				"xrtWsClient",
+				"xrtWsServer",
+				"xrtHttpClient",
+				"xrtHttpServer"
+			]
+		},
+		{
+			"name": "xws_group_broadcast",
+			"system": "websocket_extension",
+			"suite": "websocket_group_future",
+			"description": "xws-group broadcast",
+			"forbid_symbols": [
+				"xrtWsClient",
+				"xrtWsServer",
+				"xrtHttpClient",
+				"xrtHttpServer"
+			]
+		}
+	],
+	"default_growth": {
+		"text": 0.1,
+		"data": 0.2,
+		"bss": 0.2,
+		"file": 0.15
+	}
+}

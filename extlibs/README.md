@@ -20,7 +20,7 @@ extlibs/<product>/
 └── docs/api/reference.md      按公共头生成的 API 参考
 ```
 
-`modules.json` 的 `depends` 声明核心及其他扩展模块；跨扩展依赖用 `dependency_manifests` 引入。需要内存诊断等额外能力的测试使用测试套件模块声明，不加入产品依赖。核心公开 API 使用 `XRT_API`；独立交付的 HTTP 产品使用各自导出宏，归档只拥有本库源码。
+`modules.json` 的 `depends` 声明核心及其他扩展模块；跨扩展依赖用 `dependency_manifests` 引入。需要内存诊断等额外能力的测试使用测试套件模块声明，不加入产品依赖。核心公开 API 使用 `XRT_API`；独立交付的 HTTP 与 WebSocket 产品使用各自导出宏，归档只拥有本库源码。
 
 所有 CI 位于根目录 `.github/workflows/`。各扩展使用 `tools/build.py`、`tools/package.py`、`tools/generate_extension_features.py`、`tools/amalgamate.py`、`tools/generate_api_reference.py`、`tools/measure_performance.py` 和 `tools/measure_size.py`。构建与测量的临时产物进入根目录 `out/`，统一打包的交付产物进入根目录 `release/`。
 
@@ -46,7 +46,10 @@ python tools/measure_size.py --config extlibs/xllm/config/size_profiles.json --k
 | xhttp-client | HTTP 客户端、可选 TLS/Future/连接池 |
 | xhttp-server | HTTP 服务器、可选路由/文件服务 |
 | xhttp-policy | CookieJar、缓存、认证会话、重试/重定向策略 |
-| xws | WebSocket 客户端和服务端 |
+| xws | WebSocket 已建立连接运行时 |
+| xws-client | WebSocket 客户端握手 |
+| xws-server | WebSocket 服务端 Upgrade 与可选路由 |
+| xws-group | WebSocket 连接集合与广播 |
 | xmail | MIME 内容层与邮件传输基座 |
 | xsmtp | SMTP 客户端 |
 | xpop3 | POP3 客户端 |

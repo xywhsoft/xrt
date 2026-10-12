@@ -29,6 +29,7 @@ jobs:
           tools/test_declaration_features.py
           tools/test_extension_single.py
           tools/test_extension_layout.py
+          tools/test_websocket_layout.py
           tools/test_http_layout.py
           tools/test_http_linkage.py
           tools/test_package.py
@@ -143,6 +144,9 @@ jobs:
           - xhttp-server
           - xhttp-policy
           - xws
+          - xws-client
+          - xws-server
+          - xws-group
           - xmail
           - xsmtp
           - xpop3
@@ -198,6 +202,15 @@ jobs:
           - product: xws
             test_suite: xws_tests
             package_suite: xws
+          - product: xws-client
+            test_suite: xws_client_tests
+            package_suite: xws_client
+          - product: xws-server
+            test_suite: xws_server_tests
+            package_suite: xws_server
+          - product: xws-group
+            test_suite: xws_group_tests
+            package_suite: xws_group
           - product: xmail
             test_suite: xmail_tests
             package_suite: xmail
@@ -1124,13 +1137,11 @@ jobs:
         run: python tools/build.py --compiler ${{ matrix.compiler }} --suite all --jobs 4
 
       - name: Build WebSocket extension runtime gates
-        run: >-
-          python tools/build.py
-          --compiler ${{ matrix.compiler }}
-          --manifest extlibs/xws/config/modules.json
-          --suite xws_tests
-          --no-single
-          --jobs 4
+        run: |
+          python tools/build.py --compiler ${{ matrix.compiler }} --manifest extlibs/xws/config/modules.json --suite xws_tests --no-single --jobs 4
+          python tools/build.py --compiler ${{ matrix.compiler }} --manifest extlibs/xws-client/config/modules.json --suite xws_client_tests --no-single --jobs 4
+          python tools/build.py --compiler ${{ matrix.compiler }} --manifest extlibs/xws-server/config/modules.json --suite xws_server_tests --no-single --jobs 4
+          python tools/build.py --compiler ${{ matrix.compiler }} --manifest extlibs/xws-group/config/modules.json --suite xws_group_tests --no-single --jobs 4
 
       - name: Verify static and shared package consumers
         run: |
@@ -1139,11 +1150,11 @@ jobs:
 
       - name: Run WebSocket interoperability gate
         run: >-
-          python extlibs/xws/tools/test_websocket_interop.py
-          --peer out/${{ matrix.compiler }}/native/xws_tests/test_interop_peer
+          python extlibs/xws-server/tools/test_websocket_interop.py
+          --peer out/${{ matrix.compiler }}/native/xws_server_tests/test_interop_peer
 
       - name: Run WebSocket reconnect stress gate
-        run: out/${{ matrix.compiler }}/native/xws_tests/test_http_reconnect 1000
+        run: out/${{ matrix.compiler }}/native/xws_server_tests/test_http_reconnect 1000
 
       - name: Install TLS test certificate dependency
         run: python -m pip install cryptography==50.0.0
@@ -1335,13 +1346,11 @@ jobs:
         run: python tools/build.py --compiler gcc --suite all --jobs 4
 
       - name: Build WebSocket extension runtime gates
-        run: >-
-          python tools/build.py
-          --compiler gcc
-          --manifest extlibs/xws/config/modules.json
-          --suite xws_tests
-          --no-single
-          --jobs 4
+        run: |
+          python tools/build.py --compiler gcc --manifest extlibs/xws/config/modules.json --suite xws_tests --no-single --jobs 4
+          python tools/build.py --compiler gcc --manifest extlibs/xws-client/config/modules.json --suite xws_client_tests --no-single --jobs 4
+          python tools/build.py --compiler gcc --manifest extlibs/xws-server/config/modules.json --suite xws_server_tests --no-single --jobs 4
+          python tools/build.py --compiler gcc --manifest extlibs/xws-group/config/modules.json --suite xws_group_tests --no-single --jobs 4
 
       - name: Verify static and shared package consumers
         run: |
@@ -1356,13 +1365,13 @@ jobs:
 
       - name: Run WebSocket interoperability gate
         run: >-
-          python extlibs/xws/tools/test_websocket_interop.py
-          --peer out/gcc/native/xws_tests/test_interop_peer.exe
+          python extlibs/xws-server/tools/test_websocket_interop.py
+          --peer out/gcc/native/xws_server_tests/test_interop_peer.exe
 
       - name: Run WebSocket reconnect stress gate
         run: |
-          out/gcc/native/xws_tests/test_http_reconnect.exe 1000
-          out/gcc/native/xws_tests/test_http_reconnect_iocp.exe 1000
+          out/gcc/native/xws_server_tests/test_http_reconnect.exe 1000
+          out/gcc/native/xws_server_tests/test_http_reconnect_iocp.exe 1000
 
       - name: Verify trim dependencies
         run: python tools/build.py --compiler gcc --suite all --trim-only

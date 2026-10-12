@@ -5,7 +5,7 @@ title: xws（上）：连接管理与全链巡检
 volume: 卷十一 其他扩展库
 type: practice
 lead: xwsconn 接管已握手连接、七行全链巡检、Future/协程桥、pause/resume 流控与协议化关闭——扩展库 WebSocket 的连接层。
-api: xws-websocket_runtime, xws-websocket_http, net
+api: xws-websocket_runtime, xws-server-websocket_server, net
 ---
 
 ## 导读
@@ -53,11 +53,11 @@ Future 只包装**已建立连接上的**发送、关闭、drain 和终态等待
 
 下面的程序来自 `examples/websocket/connection_tour`——xhttp 服务器+客户端回环对接后的连接层全特性自检：
 
-```embed path="extlibs/xws/examples/websocket/connection_tour/main.c" title="extlibs/xws/examples/websocket/connection_tour/main.c"
+```embed path="extlibs/xws-server/examples/websocket/connection_tour/main.c" title="extlibs/xws-server/examples/websocket/connection_tour/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/connection_tour/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-server/config/modules.json --suite websocket_connection_tour --no-single --exclude-test "*"
 conn-tour: offline request builders ok
 conn-tour: live pair upgraded, introspection ok
 conn-tour: sync send x9 + writer-take delivered ok
@@ -77,7 +77,7 @@ conn-tour: close handshake clean on both peers ok
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/connection_ref/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws/config/modules.json --suite websocket_connection_ref --no-single --exclude-test "*"
 WebSocket Connection reference example is ready
 ```
 
@@ -153,7 +153,7 @@ xrtWsConnText(pConn, Msg);   /* 非所属 Worker：竞态 */
 
 ```c good
 /* 跨线程：走 Future/异步族（内部投递到连接 Worker） */
-/* 形态见 websocket_http_future 模块：ConnectAsync 一族的等待语义 */
+/* 形态见 websocket_client_future 模块：ConnectAsync 一族的等待语义 */
 ```
 
 ## 练习

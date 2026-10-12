@@ -1,15 +1,8 @@
-#define XWS_IMPLEMENTATION
-#include "../../include/xws/features.h"
-#include "../../../xhttp/include/xhttp/features.h"
-#ifndef XRT_IMPLEMENTATION
+#include "../../../xws/include/xws/features.h"
 #define XRT_IMPLEMENTATION
-#endif
 #include "../../../../single/xrt.h"
-#define XHTTP_IMPLEMENTATION
-#include "../../../../single/extlibs/xhttp.h"
+#define XWS_IMPLEMENTATION
 #include "../../../../single/extlibs/xws.h"
-
-
 
 /*
 	单头发布复用模块化 TLS 会话回归，确保两种发布形态保持同一组

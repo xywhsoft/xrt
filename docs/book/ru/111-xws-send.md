@@ -5,7 +5,7 @@ title: xws (часть 2): путь отправки — writer, ссылки и
 volume: 卷十一 其他扩展库
 type: practice
 lead: xwswriter для фрагментации длинных сообщений, та же семантика противодавления для сжатой отправки и полная матрица трёх состояний владения — все формы отправляющей стороны.
-api: xws-websocket_runtime, xws-websocket_http
+api: xws-websocket_runtime, xws-server-websocket_server
 ---
 
 ## Ориентация
@@ -60,7 +60,7 @@ api: xws-websocket_runtime, xws-websocket_http
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/writer/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws/config/modules.json --suite websocket_writer --no-single --exclude-test "*"
 WebSocket Writer example is ready
 ```
 
@@ -74,7 +74,7 @@ WebSocket Writer example is ready
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/writer_deflate/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws/config/modules.json --suite websocket_writer_deflate --no-single --exclude-test "*"
 （压缩 writer 就绪自检通过后正常退出）
 ```
 

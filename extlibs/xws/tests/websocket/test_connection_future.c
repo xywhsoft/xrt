@@ -1,4 +1,3 @@
-#include <xrt/detail/xws_wait.h>
 #include <xrt/detail/wait.h>
 #include "../test.h"
 

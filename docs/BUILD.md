@@ -115,8 +115,8 @@ python tools/amalgamate.py --check
 
 扩展实现头与声明头统一生成到仓库根目录的 `single/extlibs/`。
 每个扩展只包含自己的公共声明、内部头与源码；核心 XRT 和其他扩展由调用方提供。
-核心仍位于 `single/xrt.h`、`single/xrt_decl.h`。例如 xws 使用 xhttp 的能力时，
-包含顺序为 XRT → xhttp → xws；SMTP、POP3、IMAP 使用邮件基座时为 XRT → xmail → 协议扩展。
+核心仍位于 `single/xrt.h`、`single/xrt_decl.h`。WebSocket 连接入口为 XRT → xws，广播入口为 XRT → xws → xws-group；
+客户端在 xhttp-client 和 xws 之后包含 xws-client，服务端在 xhttp-server 和 xws 之后包含 xws-server；SMTP、POP3、IMAP 使用邮件基座时为 XRT → xmail → 协议扩展。
 声明模式同样按依赖顺序先包含核心和依赖产品的 `_decl.h`。
 
 生成或校验全部 14 个扩展及核心：

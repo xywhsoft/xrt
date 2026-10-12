@@ -253,7 +253,7 @@ xnetresult __xrtWsConnSendRefFrame(
 
 
 /* 验证所有权契约并选择零复制或必要复制路径。 */
-XRT_API xnetresult xrtWsConnSendRef(
+XWS_API xnetresult xrtWsConnSendRef(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	const xnetref* pRef
@@ -349,7 +349,7 @@ XRT_API xnetresult xrtWsConnSendRef(
 
 
 /* 发送一条所有权 UTF-8 Text 消息。 */
-XRT_API xnetresult xrtWsConnTextRef(
+XWS_API xnetresult xrtWsConnTextRef(
 	xwsconn* pConnection,
 	const xnetref* pRef
 )
@@ -364,7 +364,7 @@ XRT_API xnetresult xrtWsConnTextRef(
 
 
 /* 发送一条所有权 Binary 消息。 */
-XRT_API xnetresult xrtWsConnBinaryRef(
+XWS_API xnetresult xrtWsConnBinaryRef(
 	xwsconn* pConnection,
 	const xnetref* pRef
 )
@@ -379,7 +379,7 @@ XRT_API xnetresult xrtWsConnBinaryRef(
 
 
 /* 把一段 XRT 内存包装成一次性释放引用。 */
-XRT_API xnetresult xrtWsConnSendTake(
+XWS_API xnetresult xrtWsConnSendTake(
 	xwsconn* pConnection,
 	xwsopcode Opcode,
 	ptr pData,
@@ -403,7 +403,7 @@ XRT_API xnetresult xrtWsConnSendTake(
 
 
 /* 发送并接管一段 XRT UTF-8 Text。 */
-XRT_API xnetresult xrtWsConnTextTake(
+XWS_API xnetresult xrtWsConnTextTake(
 	xwsconn* pConnection,
 	str sText,
 	size_t iSize
@@ -420,7 +420,7 @@ XRT_API xnetresult xrtWsConnTextTake(
 
 
 /* 发送并接管一段 XRT Binary。 */
-XRT_API xnetresult xrtWsConnBinaryTake(
+XWS_API xnetresult xrtWsConnBinaryTake(
 	xwsconn* pConnection,
 	bytes pData,
 	size_t iSize

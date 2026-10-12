@@ -1,19 +1,8 @@
-#define XWS_IMPLEMENTATION
-#include "../../include/xws/features.h"
-#include "../../../xhttp/include/xhttp/features.h"
-#ifndef XRT_IMPLEMENTATION
+#include "../../../xws/include/xws/features.h"
 #define XRT_IMPLEMENTATION
-#endif
 #include "../../../../single/xrt.h"
-#define XHTTP_IMPLEMENTATION
-#include "../../../../single/extlibs/xhttp.h"
+#define XWS_IMPLEMENTATION
 #include "../../../../single/extlibs/xws.h"
-
-
-
-#include <stdio.h>
-
-
 
 /* 单头文件必须独立导出压缩 Writer 与输出上界接口。 */
 int main(void)

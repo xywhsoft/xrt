@@ -5,7 +5,7 @@
 #if defined(XWS_FEATURE_WEBSOCKET_WRITER_DEFLATE)
 
 /* 开始一条压缩分片 Text 或 Binary 消息。 */
-XRT_API xwswriter* xrtWsConnBeginCompressed(
+XWS_API xwswriter* xrtWsConnBeginCompressed(
 	xwsconn* pConnection,
 	xwsopcode Opcode
 )
@@ -20,7 +20,7 @@ XRT_API xwswriter* xrtWsConnBeginCompressed(
 
 
 /* 开始一条压缩分片 Text 消息。 */
-XRT_API xwswriter* xrtWsConnBeginTextCompressed(
+XWS_API xwswriter* xrtWsConnBeginTextCompressed(
 	xwsconn* pConnection
 )
 {
@@ -33,7 +33,7 @@ XRT_API xwswriter* xrtWsConnBeginTextCompressed(
 
 
 /* 开始一条压缩分片 Binary 消息。 */
-XRT_API xwswriter* xrtWsConnBeginBinaryCompressed(
+XWS_API xwswriter* xrtWsConnBeginBinaryCompressed(
 	xwsconn* pConnection
 )
 {

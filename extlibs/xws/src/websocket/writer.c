@@ -380,7 +380,7 @@ xwswriter* __xrtWsWriterCreate(
 
 
 /* 创建并独占 Connection 的一条未压缩出站数据消息。 */
-XRT_API xwswriter* xrtWsConnBegin(
+XWS_API xwswriter* xrtWsConnBegin(
 	xwsconn* pConnection,
 	xwsopcode Opcode
 )
@@ -395,7 +395,7 @@ XRT_API xwswriter* xrtWsConnBegin(
 
 
 /* 开始一条分片 Text 消息。 */
-XRT_API xwswriter* xrtWsConnBeginText(
+XWS_API xwswriter* xrtWsConnBeginText(
 	xwsconn* pConnection
 )
 {
@@ -408,7 +408,7 @@ XRT_API xwswriter* xrtWsConnBeginText(
 
 
 /* 开始一条分片 Binary 消息。 */
-XRT_API xwswriter* xrtWsConnBeginBinary(
+XWS_API xwswriter* xrtWsConnBeginBinary(
 	xwsconn* pConnection
 )
 {
@@ -421,7 +421,7 @@ XRT_API xwswriter* xrtWsConnBeginBinary(
 
 
 /* 复制并提交一个非最终分片。 */
-XRT_API xnetresult xrtWsWriterWrite(
+XWS_API xnetresult xrtWsWriterWrite(
 	xwswriter* pWriter,
 	xbytesview Data
 )
@@ -437,7 +437,7 @@ XRT_API xnetresult xrtWsWriterWrite(
 
 
 /* 复制并提交最终分片。 */
-XRT_API xnetresult xrtWsWriterFinish(
+XWS_API xnetresult xrtWsWriterFinish(
 	xwswriter* pWriter,
 	xbytesview Data
 )
@@ -504,7 +504,7 @@ static xnetresult __xrtWsWriterSendRef(
 
 
 /* 提交一个非最终所有权分片。 */
-XRT_API xnetresult xrtWsWriterWriteRef(
+XWS_API xnetresult xrtWsWriterWriteRef(
 	xwswriter* pWriter,
 	const xnetref* pRef
 )
@@ -519,7 +519,7 @@ XRT_API xnetresult xrtWsWriterWriteRef(
 
 
 /* 提交最终所有权分片。 */
-XRT_API xnetresult xrtWsWriterFinishRef(
+XWS_API xnetresult xrtWsWriterFinishRef(
 	xwswriter* pWriter,
 	const xnetref* pRef
 )
@@ -534,7 +534,7 @@ XRT_API xnetresult xrtWsWriterFinishRef(
 
 
 /* 提交并接管一个非空 XRT 内存分片。 */
-XRT_API xnetresult xrtWsWriterWriteTake(
+XWS_API xnetresult xrtWsWriterWriteTake(
 	xwswriter* pWriter,
 	ptr pData,
 	size_t iSize
@@ -553,7 +553,7 @@ XRT_API xnetresult xrtWsWriterWriteTake(
 
 
 /* 提交并接管一个非空 XRT 内存最终分片。 */
-XRT_API xnetresult xrtWsWriterFinishTake(
+XWS_API xnetresult xrtWsWriterFinishTake(
 	xwswriter* pWriter,
 	ptr pData,
 	size_t iSize
@@ -573,7 +573,7 @@ XRT_API xnetresult xrtWsWriterFinishTake(
 
 
 /* 返回最终分片是否已经受理。 */
-XRT_API bool xrtWsWriterIsFinished(
+XWS_API bool xrtWsWriterIsFinished(
 	const xwswriter* pWriter
 )
 {
@@ -590,7 +590,7 @@ XRT_API bool xrtWsWriterIsFinished(
 
 
 /* 销毁 Writer；发送回调重入销毁时延迟到当前事务结束。 */
-XRT_API void xrtWsWriterDestroy(
+XWS_API void xrtWsWriterDestroy(
 	xwswriter* pWriter
 )
 {

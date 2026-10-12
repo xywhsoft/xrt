@@ -5,7 +5,7 @@ title: xws: Server Routing and Sessions
 volume: 卷十一 其他扩展库
 type: practice
 lead: One registration serving both plaintext and TLS on a fixed endpoint, Origin policy and the authorize callback, staged low-level upgrade APIs, and the coroutine session form — xws concludes.
-api: xws-websocket_server_router, xws-websocket_http, xhttp-http_server_router
+api: xws-server-websocket_server_router, xws-server-websocket_server, xhttp-http_server_router
 ---
 
 ## Orientation
@@ -55,11 +55,11 @@ The `session_channel_coroutine` sample shows the **sequential style** of per-con
 
 The program below is from `examples/websocket/server_router` — the minimal compilable registration:
 
-```embed path="extlibs/xws/examples/websocket/server_router/main.c" title="extlibs/xws/examples/websocket/server_router/main.c"
+```embed path="extlibs/xws-server/examples/websocket/server_router/main.c" title="extlibs/xws-server/examples/websocket/server_router/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/server_router/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-server/config/modules.json --suite websocket_server_router --no-single --exclude-test "*"
 WebSocket route /chat is ready
 ```
 
@@ -69,11 +69,11 @@ WebSocket route /chat is ready
 
 The second program is from `examples/websocket/http_server` — the standard shape of the Upgrade-completion callback:
 
-```embed path="extlibs/xws/examples/websocket/http_server/main.c" title="extlibs/xws/examples/websocket/http_server/main.c"
+```embed path="extlibs/xws-server/examples/websocket/http_server/main.c" title="extlibs/xws-server/examples/websocket/http_server/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/http_server/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-server/config/modules.json --suite websocket_server_deflate --no-single --exclude-test "*"
 （升级回调演示完成：连接发送-关闭-销毁路径执行后正常退出）
 ```
 

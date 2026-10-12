@@ -1,0 +1,351 @@
+{
+	"schema": 1,
+	"product": "xws_client",
+	"dependency_manifests": [
+		"extlibs/xws/config/modules.json",
+		"extlibs/xhttp-client/config/modules.json"
+	],
+	"module_prefix": "XWS_CLIENT_MODULE_",
+	"single_header": "single/extlibs/xws-client.h",
+	"declaration_header": "single/extlibs/xws-client_decl.h",
+	"implementation_macro": "XWS_CLIENT_IMPLEMENTATION",
+	"implementation_once_macro": "XWS_CLIENT_IMPLEMENTATION_ONCE",
+	"single_guard": "XWS_CLIENT_SINGLE_HEADER_H",
+	"single_marker": "XWS_CLIENT_SINGLE_HEADER",
+	"declaration_guard": "XWS_CLIENT_DECLARATIONS_H",
+	"declaration_marker": "XWS_CLIENT_DECLARATIONS",
+	"package_consumer": "extlibs/xws-client/tests/package/test_consumer.c",
+	"product_root": "extlibs/xws-client",
+	"performance_config": "extlibs/xws-client/config/performance_profiles.json",
+	"size_config": "extlibs/xws-client/config/size_profiles.json",
+	"scope": {
+		"product": "xws_client",
+		"external_integrations": [
+			{
+				"name": "xlang",
+				"state": "deferred"
+			}
+		],
+		"systems": [
+			{
+				"name": "websocket_extension",
+				"state": "retained",
+				"source_roots": [
+					"websocket"
+				]
+			}
+		]
+	},
+	"api_reference": {
+		"title": "xws-client API 参考",
+		"function_prefix": "xrtWs",
+		"constant_prefix": "XWS_",
+		"type_prefix": "xws",
+		"guide": "../../README.md",
+		"output": "extlibs/xws-client/docs/api/reference.md"
+	},
+	"features_guard": "XWS_CLIENT_FEATURES_H",
+	"features_header": "extlibs/xws-client/include/xws-client/features.h",
+	"include_dirs": [
+		"extlibs/xws-client/include"
+	],
+	"header_roots": [
+		"extlibs/xws-client/include",
+		"extlibs/xws-client/src/internal"
+	],
+	"modules": [
+		{
+			"name": "websocket_client",
+			"state": "implemented",
+			"feature": "XWS_CLIENT_FEATURE_WEBSOCKET_CLIENT",
+			"depends": [
+				"websocket_keygen",
+				"websocket_connection",
+				"http_upgrade",
+				"http_client"
+			],
+			"public_headers": [
+				"extlibs/xws-client/include/xws-client/export.h",
+				"extlibs/xws-client/include/xrt/websocket_client.h"
+			],
+			"internal_headers": [
+				"extlibs/xws-client/src/internal/xrt_websocket_client.h"
+			],
+			"sources": [
+				"extlibs/xws-client/src/websocket/client.c"
+			],
+			"tests": [
+				"extlibs/xws-client/tests/websocket/test_http_client_invalid.c"
+			],
+			"single_tests": [
+				"extlibs/xws-client/tests/single/test_single_websocket_client.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-client/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_client_future",
+			"state": "implemented",
+			"feature": "XWS_CLIENT_FEATURE_WEBSOCKET_CLIENT_FUTURE",
+			"depends": [
+				"websocket_client",
+				"future_bridge"
+			],
+			"public_headers": [
+				"extlibs/xws-client/include/xws-client/export.h",
+				"extlibs/xws-client/include/xrt/websocket_client_future.h"
+			],
+			"internal_headers": [
+				"extlibs/xws-client/src/internal/xrt_websocket_client_future.h"
+			],
+			"sources": [
+				"extlibs/xws-client/src/websocket/client_future.c",
+				"extlibs/xws-client/src/websocket/client_result.c"
+			],
+			"tests": [
+				"extlibs/xws-client/tests/websocket/test_http_client_future.c",
+				"extlibs/xws-client/tests/websocket/test_client_result.c"
+			],
+			"single_tests": [
+				"extlibs/xws-client/tests/single/test_single_websocket_client_future.c"
+			],
+			"examples": [
+				"extlibs/xws-client/examples/websocket/http_client_future/main.c"
+			],
+			"docs": [
+				"extlibs/xws-client/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_client_deflate",
+			"state": "implemented",
+			"feature": "XWS_CLIENT_FEATURE_WEBSOCKET_CLIENT_DEFLATE",
+			"depends": [
+				"websocket_client",
+				"websocket_connection_deflate",
+				"websocket_deflate"
+			],
+			"public_headers": [
+				"extlibs/xws-client/include/xws-client/export.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-client/tests/websocket/test_http_client_deflate.c"
+			],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xws-client/examples/websocket/http_client/main.c"
+			],
+			"docs": [
+				"extlibs/xws-client/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_client_https",
+			"state": "implemented",
+			"feature": "XWS_CLIENT_FEATURE_WEBSOCKET_CLIENT_HTTPS",
+			"depends": [
+				"websocket_client",
+				"websocket_connection_tls",
+				"http_client_https"
+			],
+			"public_headers": [
+				"extlibs/xws-client/include/xws-client/export.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xws-client/examples/websocket/http_client/main.c"
+			],
+			"docs": [
+				"extlibs/xws-client/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_client_proxy_http_connect",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_client",
+				"http_client_proxy",
+				"net_proxy_http_connect"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [],
+			"examples": [
+				"extlibs/xws-client/examples/websocket/http_client_proxy/main.c"
+			],
+			"docs": [
+				"extlibs/xws-client/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_http_proxy_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_client_proxy_http_connect",
+				"net_port_select"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-client/tests/websocket/test_http_proxy.c"
+			],
+			"single_tests": [
+				"extlibs/xws-client/tests/single/test_single_websocket_http_proxy_transport.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-client/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_http_proxy_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_http_proxy_tests",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-client/tests/websocket/test_http_proxy_iocp.c"
+			],
+			"single_tests": [
+				"extlibs/xws-client/tests/single/test_single_websocket_http_proxy_transport_iocp.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-client/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "xws_client",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_client",
+				"websocket_client_future",
+				"websocket_client_deflate",
+				"websocket_client_https"
+			],
+			"public_headers": [
+				"extlibs/xws-client/include/xws-client.h",
+				"extlibs/xws-client/include/xws-client/features.h"
+			],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xws-client/tests/single/test_single_xws_client.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-client/README.md",
+				"extlibs/xws-client/docs/api/websocket.md",
+				"extlibs/xws-client/docs/api/reference.md"
+			],
+			"legacy": [],
+			"benchmarks": [
+				"dev/bench/bench_common.h",
+				"extlibs/xws-client/config/performance_profiles.json",
+				"extlibs/xws-client/bench/bench_client_request.c"
+			]
+		},
+		{
+			"name": "websocket_client_invalid_iocp_tests",
+			"asset_platforms": [
+				"windows"
+			],
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_client",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-client/tests/websocket/test_http_client_invalid_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-client/README.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "xws_client_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"xws_client",
+				"websocket_client_proxy_http_connect",
+				"websocket_http_proxy_tests",
+				"websocket_http_proxy_iocp_tests",
+				"websocket_client_invalid_iocp_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-client/tests/websocket/test_http_client_invalid.c",
+				"extlibs/xws-client/tests/websocket/test_http_client_future.c",
+				"extlibs/xws-client/tests/websocket/test_client_result.c",
+				"extlibs/xws-client/tests/websocket/test_http_client_deflate.c",
+				"extlibs/xws-client/tests/websocket/test_http_proxy.c",
+				"extlibs/xws-client/tests/websocket/test_http_proxy_iocp.c",
+				"extlibs/xws-client/tests/websocket/test_http_client_invalid_iocp.c"
+			],
+			"single_tests": [
+				"extlibs/xws-client/tests/single/test_single_websocket_client.c",
+				"extlibs/xws-client/tests/single/test_single_websocket_client_future.c",
+				"extlibs/xws-client/tests/single/test_single_websocket_http_proxy_transport.c",
+				"extlibs/xws-client/tests/single/test_single_websocket_http_proxy_transport_iocp.c",
+				"extlibs/xws-client/tests/single/test_single_xws_client.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-client/README.md"
+			],
+			"legacy": [],
+			"single_test_owners": {
+				"extlibs/xws-client/tests/single/test_single_websocket_client.c": "websocket_client",
+				"extlibs/xws-client/tests/single/test_single_websocket_client_future.c": "websocket_client_future",
+				"extlibs/xws-client/tests/single/test_single_websocket_http_proxy_transport.c": "websocket_http_proxy_tests",
+				"extlibs/xws-client/tests/single/test_single_websocket_http_proxy_transport_iocp.c": "websocket_http_proxy_iocp_tests",
+				"extlibs/xws-client/tests/single/test_single_xws_client.c": "xws_client"
+			},
+			"collect_dependency_assets": [
+				"examples"
+			]
+		}
+	],
+	"umbrella_header": "xws-client.h",
+	"api_macro": "XWS_CLIENT_API",
+	"package_ownership": "separate"
+}

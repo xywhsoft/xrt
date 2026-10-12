@@ -5,7 +5,7 @@ title: xws (Part 3): Connection Groups and Broadcast
 volume: 卷十一 其他扩展库
 type: practice
 lead: Unique membership and the reference lifecycle, hard capacity and sealing, stable snapshots allocated outside the lock, and waitable batch broadcast — from "send to one" to "send to all".
-api: xws-websocket_group, xws-websocket_runtime
+api: xws-group-websocket_group, xws-websocket_runtime
 ---
 
 ## Orientation
@@ -53,11 +53,11 @@ A broadcast's message payload is a natural fit for the **ref form** (Chapter 111
 
 The program below is from `examples/websocket/group` — the standard integration shape of Add/Remove:
 
-```embed path="extlibs/xws/examples/websocket/group/main.c" title="extlibs/xws/examples/websocket/group/main.c"
+```embed path="extlibs/xws-group/examples/websocket/group/main.c" title="extlibs/xws-group/examples/websocket/group/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/group/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-group/config/modules.json --suite websocket_group --no-single --exclude-test "*"
 WebSocket connection group is ready
 ```
 
@@ -67,11 +67,11 @@ WebSocket connection group is ready
 
 The second program is from `examples/websocket/group_future` — the full lifecycle of the async broadcast operation object:
 
-```embed path="extlibs/xws/examples/websocket/group_future/main.c" title="extlibs/xws/examples/websocket/group_future/main.c"
+```embed path="extlibs/xws-group/examples/websocket/group_future/main.c" title="extlibs/xws-group/examples/websocket/group_future/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/group_future/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-group/config/modules.json --suite websocket_group_future --no-single --exclude-test "*"
 （空组广播操作完成自检通过后正常退出）
 ```
 

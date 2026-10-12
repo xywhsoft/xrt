@@ -10,7 +10,7 @@ HTTP 与 WebSocket 核心提供协议解析、帧处理和传输辅助，不提�
 
 ## 扩展库
 
-`extlibs/` 中的 xruntime、xhttp、xhttp-client、xhttp-server、xhttp-policy、xws、xmail 和 xssh 是独立产品：它们可以复用 XRT 公开 API，但不进入核心库的依赖闭包、单头包或发布承诺。每个扩展维护自己的版本、依赖、文档和兼容性说明。
+`extlibs/` 中的 xruntime、xhttp、xhttp-client、xhttp-server、xhttp-policy、xws、xws-client、xws-server、xws-group、xmail 和 xssh 是独立产品：它们可以复用 XRT 公开 API，但不进入核心库的依赖闭包、单头包或发布承诺。每个扩展维护自己的版本、依赖、文档和兼容性说明。
 
 ## 不在核心范围内
 

@@ -5,7 +5,7 @@ title: xws（中）：发送路径——writer、引用与压缩
 volume: 卷十一 其他扩展库
 type: practice
 lead: 长消息分片的 xwswriter、压缩发送的同一套背压语义、三态所有权的完整矩阵——发送侧的全部形态。
-api: xws-websocket_runtime, xws-websocket_http
+api: xws-websocket_runtime, xws-server-websocket_server
 ---
 
 ## 导读
@@ -60,7 +60,7 @@ take/buffer 形态可把 **XRT 网络缓冲链**（第 65 章）直接交给连�
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/writer/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws/config/modules.json --suite websocket_writer --no-single --exclude-test "*"
 WebSocket Writer example is ready
 ```
 
@@ -74,7 +74,7 @@ WebSocket Writer example is ready
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/writer_deflate/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws/config/modules.json --suite websocket_writer_deflate --no-single --exclude-test "*"
 （压缩 writer 就绪自检通过后正常退出）
 ```
 

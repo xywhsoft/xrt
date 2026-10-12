@@ -163,14 +163,14 @@ jobs:
         run: >-
           python tools/build.py
           --compiler gcc
-          --manifest extlibs/xws/config/modules.json
-          --suite xws_tests
+          --manifest extlibs/xws-server/config/modules.json
+          --suite xws_server_tests
           --no-single
           --rebuild
           --jobs 4
 
       - name: Run reconnect stress 10000 rounds
-        run: out/gcc/native/xws_tests/test_http_reconnect 10000
+        run: out/gcc/native/xws_server_tests/test_http_reconnect 10000
 
   stress-windows:
     name: Reconnect stress deep / Windows
@@ -200,16 +200,16 @@ jobs:
         run: >-
           python tools/build.py
           --compiler gcc
-          --manifest extlibs/xws/config/modules.json
-          --suite xws_tests
+          --manifest extlibs/xws-server/config/modules.json
+          --suite xws_server_tests
           --no-single
           --rebuild
           --jobs 4
 
       - name: Run reconnect stress 10000 rounds
         run: |
-          out/gcc/native/xws_tests/test_http_reconnect.exe 10000
-          out/gcc/native/xws_tests/test_http_reconnect_iocp.exe 10000
+          out/gcc/native/xws_server_tests/test_http_reconnect.exe 10000
+          out/gcc/native/xws_server_tests/test_http_reconnect_iocp.exe 10000
 
   compat-old-ubuntu:
     name: Ubuntu 22.04 GCC

@@ -95,7 +95,7 @@ def _header_code(text: str) -> str:
 		text, flags=re.DOTALL)
 	text = re.sub(r"^[ \t]*#[ \t]*include(?:_next)?\b[^\n]*", "",
 		text, flags=re.MULTILINE)
-	return re.sub(r"\bXHTTP(?:_(?:CLIENT|SERVER|POLICY))?_API\b", "XRT_API", text)
+	return re.sub(r"\b(?:XHTTP(?:_(?:CLIENT|SERVER|POLICY))?|XWS(?:_(?:CLIENT|SERVER|GROUP))?)_API\b", "XRT_API", text)
 
 
 

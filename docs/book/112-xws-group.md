@@ -5,7 +5,7 @@ title: xws（下）：连接组与广播
 volume: 卷十一 其他扩展库
 type: practice
 lead: 唯一成员与引用生命周期、硬容量与封闭、锁外分配的稳定快照、可等待的批量广播——从“发一条”到“发全体”。
-api: xws-websocket_group, xws-websocket_runtime
+api: xws-group-websocket_group, xws-websocket_runtime
 ---
 
 ## 导读
@@ -53,11 +53,11 @@ xwsgroup 的答案逐条对应：唯一成员语义消化重复 Add；Snapshot �
 
 下面的程序来自 `examples/websocket/group`——Add/Remove 的标准接入形态：
 
-```embed path="extlibs/xws/examples/websocket/group/main.c" title="extlibs/xws/examples/websocket/group/main.c"
+```embed path="extlibs/xws-group/examples/websocket/group/main.c" title="extlibs/xws-group/examples/websocket/group/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/group/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-group/config/modules.json --suite websocket_group --no-single --exclude-test "*"
 WebSocket connection group is ready
 ```
 
@@ -67,11 +67,11 @@ WebSocket connection group is ready
 
 第二个程序来自 `examples/websocket/group_future`——异步广播操作对象的完整生命周期：
 
-```embed path="extlibs/xws/examples/websocket/group_future/main.c" title="extlibs/xws/examples/websocket/group_future/main.c"
+```embed path="extlibs/xws-group/examples/websocket/group_future/main.c" title="extlibs/xws-group/examples/websocket/group_future/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/group_future/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-group/config/modules.json --suite websocket_group_future --no-single --exclude-test "*"
 （空组广播操作完成自检通过后正常退出）
 ```
 

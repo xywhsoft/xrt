@@ -5,7 +5,7 @@ title: xws：服务端路由与会话
 volume: 卷十一 其他扩展库
 type: practice
 lead: 一条注册同时服务明文与 TLS 的固定端点、Origin 策略与授权回调、升级的分阶段底层 API、协程会话形态——xws 收官。
-api: xws-websocket_server_router, xws-websocket_http, xhttp-http_server_router
+api: xws-server-websocket_server_router, xws-server-websocket_server, xhttp-http_server_router
 ---
 
 ## 导读
@@ -55,11 +55,11 @@ WebSocket 服务端的“入口工程”比看起来多：请求到达时先过 
 
 下面的程序来自 `examples/websocket/server_router`——最小可编译注册：
 
-```embed path="extlibs/xws/examples/websocket/server_router/main.c" title="extlibs/xws/examples/websocket/server_router/main.c"
+```embed path="extlibs/xws-server/examples/websocket/server_router/main.c" title="extlibs/xws-server/examples/websocket/server_router/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/server_router/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-server/config/modules.json --suite websocket_server_router --no-single --exclude-test "*"
 WebSocket route /chat is ready
 ```
 
@@ -69,11 +69,11 @@ WebSocket route /chat is ready
 
 第二个程序来自 `examples/websocket/http_server`——Upgrade 完成回调的标准形态：
 
-```embed path="extlibs/xws/examples/websocket/http_server/main.c" title="extlibs/xws/examples/websocket/http_server/main.c"
+```embed path="extlibs/xws-server/examples/websocket/http_server/main.c" title="extlibs/xws-server/examples/websocket/http_server/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/http_server/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-server/config/modules.json --suite websocket_server_deflate --no-single --exclude-test "*"
 （升级回调演示完成：连接发送-关闭-销毁路径执行后正常退出）
 ```
 

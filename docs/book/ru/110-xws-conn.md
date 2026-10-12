@@ -5,7 +5,7 @@ title: xws (часть 1): управление соединениями и по
 volume: 卷十一 其他扩展库
 type: practice
 lead: xwsconn принимает уже рукопожатые соединения, семистрочный полный обход цепочки, мост Future/корутин, противодавление pause/resume и протокольное закрытие — соединительный слой библиотеки-расширения WebSocket.
-api: xws-websocket_runtime, xws-websocket_http, net
+api: xws-websocket_runtime, xws-server-websocket_server, net
 ---
 
 ## Ориентация
@@ -53,11 +53,11 @@ Future оборачивает только отправки, закрытия, d
 
 Программа ниже из `examples/websocket/connection_tour` — полная самопроверка соединительного слоя после стыковки xhttp-сервера и клиента по кольцу:
 
-```embed path="extlibs/xws/examples/websocket/connection_tour/main.c" title="extlibs/xws/examples/websocket/connection_tour/main.c"
+```embed path="extlibs/xws-server/examples/websocket/connection_tour/main.c" title="extlibs/xws-server/examples/websocket/connection_tour/main.c"
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/connection_tour/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws-server/config/modules.json --suite websocket_connection_tour --no-single --exclude-test "*"
 conn-tour: offline request builders ok
 conn-tour: live pair upgraded, introspection ok
 conn-tour: sync send x9 + writer-take delivered ok
@@ -77,7 +77,7 @@ conn-tour: close handshake clean on both peers ok
 ```
 
 ```term
-$ gcc -O1 -DXRT_MODULE_ALL -DXHTTP_MODULE_ALL -DXWS_MODULE_ALL -I single -I single/extlibs -include xrt.h -include xhttp.h -include xws.h impl.c extlibs/xws/examples/websocket/connection_ref/main.c -lws2_32 -lbcrypt -ladvapi32 -liphlpapi
+$ python tools/build.py --manifest extlibs/xws/config/modules.json --suite websocket_connection_ref --no-single --exclude-test "*"
 WebSocket Connection reference example is ready
 ```
 
@@ -153,7 +153,7 @@ xrtWsConnText(pConn, Msg);   /* не Worker-владелец: гонка */
 
 ```c good
 /* между потоками: через семейство Future/асинхронное (внутри диспетчеризация на Worker соединения) */
-/* см. модуль websocket_http_future: семантика ожидания семейства ConnectAsync */
+/* см. модуль websocket_client_future: семантика ожидания семейства ConnectAsync */
 ```
 
 ## Упражнения
