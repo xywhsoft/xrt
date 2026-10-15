@@ -337,7 +337,7 @@ static const xrtownershipadapterv1* __xrtFutureAdapterQuery(xrtownershipref Refe
 	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
 	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
 	const xfuturewatchownershipv1* const* pWatchPolicies, size_t iWatchPolicyCount,
-	const xfutureownershipadmissionv1* pAdmission)
+	const xfutureownershipadmissionv1* pAdmission, bool bPostClear)
 {
 	const xfuture* pFuture;
 	if (Reference.Ops != &__xrtFutureOwnershipOps || Reference.Data == NULL ||
@@ -351,8 +351,11 @@ static const xrtownershipadapterv1* __xrtFutureAdapterQuery(xrtownershipref Refe
 	if (pFuture->Completing || pFuture->OwnershipCleared || __xrtAtomicRefLoad(&pFuture->RefCount) <= 0) return NULL;
 	if (pAdmission) {
 		const xrtownershippreparationv1* pPreparation = NULL;
-		if (!xrtCancelOwnershipAdapterV2(xrtCancelOwnership(pFuture->Cancel), pAdmission->CancelWatchPolicies,
-			pAdmission->CancelWatchPolicyCount, &pPreparation)) return NULL;
+		const xrtownershipfinishv1* pCompletion = NULL;
+		if (!(bPostClear ? xrtCancelOwnershipAdapterV3(xrtCancelOwnership(pFuture->Cancel),
+			pAdmission->CancelWatchPolicies, pAdmission->CancelWatchPolicyCount, &pCompletion) :
+			xrtCancelOwnershipAdapterV2(xrtCancelOwnership(pFuture->Cancel), pAdmission->CancelWatchPolicies,
+			pAdmission->CancelWatchPolicyCount, &pPreparation))) return NULL;
 	} else if (!xrtCancelOwnershipAdapterV1(xrtCancelOwnership(pFuture->Cancel))) return NULL;
 	const xrt_future_waiter* pLast = NULL;
 	for (const xrt_future_waiter* pWaiter = pFuture->Waiters; pWaiter != NULL; pWaiter = pWaiter->Next) {
@@ -400,7 +403,7 @@ static const xrtownershipadapterv1* __xrtFutureAdapterQuery(xrtownershipref Refe
 XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV2(xrtownershipref Reference,
 	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
 	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount)
-{ return __xrtFutureAdapterQuery(Reference, pPolicies, iPolicyCount, pProducerPolicies, iProducerPolicyCount, NULL, 0, NULL); }
+{ return __xrtFutureAdapterQuery(Reference, pPolicies, iPolicyCount, pProducerPolicies, iProducerPolicyCount, NULL, 0, NULL, false); }
 XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref Reference,
 	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount,
 	const xfutureproducerownershipv1* const* pProducerPolicies, size_t iProducerPolicyCount,
@@ -410,7 +413,7 @@ XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV3(xrtownershipref
 	const xrtownershipadapterv1* pAdapter;
 	if (ppPreparation == NULL) return NULL;
 	pAdapter = __xrtFutureAdapterQuery(Reference, pPolicies, iPolicyCount,
-		pProducerPolicies, iProducerPolicyCount, pWatchPolicies, iWatchPolicyCount, NULL);
+		pProducerPolicies, iProducerPolicyCount, pWatchPolicies, iWatchPolicyCount, NULL, false);
 	if (pAdapter != NULL) *ppPreparation = &__xrtFuturePreparation;
 	return pAdapter;
 }
@@ -421,7 +424,7 @@ XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV4(xrtownershipref
 	if (!pAdmission || pAdmission->size != sizeof(*pAdmission) || !ppPreparation) return NULL;
 	pAdapter = __xrtFutureAdapterQuery(Reference, pAdmission->PayloadPolicies, pAdmission->PayloadPolicyCount,
 		pAdmission->ProducerPolicies, pAdmission->ProducerPolicyCount,
-		pAdmission->WatchPolicies, pAdmission->WatchPolicyCount, pAdmission);
+		pAdmission->WatchPolicies, pAdmission->WatchPolicyCount, pAdmission, false);
 	if (pAdapter) *ppPreparation = &__xrtFuturePreparation;
 	return pAdapter;
 }
@@ -429,6 +432,41 @@ XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV1(xrtownershipref
 	const xfuturepayloadownershipv1* const* pPolicies, size_t iPolicyCount)
 {
 	return xrtFutureOwnershipAdapterV2(Reference, pPolicies, iPolicyCount, NULL, 0);
+}
+
+/* No preparation notification: the registration's actual owner retires it
+ * only after every semantic finalizer and the exclusive global Clear. */
+static void __xrtFutureClearV5(const void* pData, const void* pToken)
+{
+	xfuture* pFuture = (xfuture*)pData;
+	if (!pToken || pFuture->OwnershipClaim != pToken || pFuture->OwnershipCleared || pFuture->Completing) abort();
+	pFuture->State = XFUTURE_CLOSED; pFuture->OwnershipCleared = true;
+}
+static xrtownershipfinishresult __xrtFutureFinishV5(const void* pData, const void* pToken)
+{
+	xfuture* pFuture = (xfuture*)pData; xrtownershipscope Scope = {0}; bool bReady;
+	if (!xrtOwnershipMutationBegin(&Scope)) return XRT_OWNERSHIP_FINISH_FAILED;
+	if (!pToken || pFuture->OwnershipClaim != pToken || !pFuture->OwnershipCleared) abort();
+	(void)xrtMutexLock(&pFuture->Lock);
+	bReady = !pFuture->Waiters && !pFuture->WaitersTail && !pFuture->Completing;
+	(void)xrtMutexUnlock(&pFuture->Lock);
+	if (!xrtOwnershipScopeEnd(&Scope)) abort();
+	if (!bReady) return XRT_OWNERSHIP_FINISH_BUSY;
+	return __xrtFutureAdapterFinish(pData,pToken) ? XRT_OWNERSHIP_FINISH_READY : XRT_OWNERSHIP_FINISH_FAILED;
+}
+static bool __xrtFutureFinishV5Bool(const void* pData, const void* pToken)
+{ return __xrtFutureFinishV5(pData,pToken) == XRT_OWNERSHIP_FINISH_READY; }
+XRT_API const xrtownershipadapterv1* xrtFutureOwnershipAdapterV5(xrtownershipref Reference,
+	const xfutureownershipadmissionv1* pAdmission, const xrtownershipfinishv1** ppCompletion)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtFutureAdapterHold, __xrtFutureAdapterDrop,
+		__xrtFutureAdapterClaim, __xrtFutureAdapterRestore, NULL, __xrtFutureClearV5, __xrtFutureFinishV5Bool};
+	static const xrtownershipfinishv1 Completion = {sizeof(Completion), &Adapter, __xrtFutureFinishV5};
+	if (!pAdmission || pAdmission->size != sizeof(*pAdmission) || !ppCompletion) return NULL;
+	if (!__xrtFutureAdapterQuery(Reference,pAdmission->PayloadPolicies,pAdmission->PayloadPolicyCount,
+		pAdmission->ProducerPolicies,pAdmission->ProducerPolicyCount,pAdmission->WatchPolicies,
+		pAdmission->WatchPolicyCount,pAdmission,true)) return NULL;
+	*ppCompletion = &Completion; return &Adapter;
 }
 
 /* 同一执行上下文中的完成通知使用迭代队列，避免 Future 链递归耗尽线程栈。 */

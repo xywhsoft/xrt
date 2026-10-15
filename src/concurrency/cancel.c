@@ -666,6 +666,16 @@ static void __xrtCancelWatchAdapterRestore(const void* pData, const void* pToken
 	if (!pToken || pWatch->OwnershipClaim != pToken || pWatch->OwnershipCleared) abort();
 	pWatch->OwnershipClaim = NULL;
 }
+bool __xrtCancelWatchOwnerReleased(const xcancelwatch* pWatch)
+{
+	xrtownershipscope Scope = {0}; bool bDone;
+	if (!pWatch || !xrtOwnershipMutationBegin(&Scope)) return false;
+	(void)xrtMutexLock((xmutex*)&pWatch->Lock);
+	bDone = pWatch->Destroying && pWatch->UnwatchDone;
+	(void)xrtMutexUnlock((xmutex*)&pWatch->Lock);
+	if (!xrtOwnershipScopeEnd(&Scope)) abort();
+	return bDone;
+}
 static bool __xrtCancelWatchPrepared(const void* pData)
 {
 	const xcancelwatch* pWatch = pData;

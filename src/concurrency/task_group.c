@@ -24,6 +24,8 @@ struct xrt_task_group_item {
 	bool ClosePosted;
 	bool CancelPosted;
 	bool Listed;
+	bool OwnershipCleared;
+	const void* OwnershipClaim;
 };
 
 
@@ -54,6 +56,8 @@ struct xtaskgroup {
 	bool Closed;
 	bool Cancelling;
 	size_t Busy;
+	bool OwnershipCleared;
+	const void* OwnershipClaim;
 };
 
 /* Every physical count/edge transition participates in whole-graph freeze.
@@ -69,7 +73,7 @@ static void __xrtTaskGroupEnd(const xtaskgroup* pGroup, xrtownershipscope* pScop
 static bool __xrtTaskGroupOwnershipCount(const void* pData, size_t* pCount)
 {
 	const xtaskgroup* pGroup = pData; int32 iCount;
-	if (!pGroup || !pCount || pGroup->Busy || pGroup->Reserved) return false;
+	if (!pGroup || !pCount || pGroup->Busy || pGroup->Reserved || pGroup->OwnershipCleared) return false;
 	iCount = __xrtAtomicRefLoad(&pGroup->RefCount);
 	if (iCount <= 0) return false;
 	*pCount = (size_t)iCount; return true;
@@ -77,7 +81,8 @@ static bool __xrtTaskGroupOwnershipCount(const void* pData, size_t* pCount)
 static bool __xrtTaskGroupItemOwnershipCount(const void* pData, size_t* pCount)
 {
 	const xrt_task_group_item* pItem = pData; size_t iGroupCount; int32 iCount;
-	if (!pItem || !pCount || !pItem->Listed || !pItem->Future || pItem->Waiter.Calling ||
+	if (!pItem || !pCount || pItem->OwnershipCleared || !pItem->Listed || !pItem->Future ||
+		!pItem->Waiter.Linked || pItem->Waiter.Calling ||
 		!__xrtTaskGroupOwnershipCount(pItem->Group, &iGroupCount)) return false;
 	iCount = __xrtAtomicRefLoad(&pItem->RefCount);
 	if (iCount <= 0) return false;
@@ -125,7 +130,7 @@ static bool __xrtTaskGroupRef(xtaskgroup* pGroup)
 {
 	xrtownershipscope Scope = {0}; bool bHeld;
 	__xrtTaskGroupBegin(pGroup, &Scope);
-	bHeld = xrtRefRetain(&pGroup->RefCount) >= 0;
+	bHeld = !pGroup->OwnershipCleared && xrtRefRetain(&pGroup->RefCount) >= 0;
 	__xrtTaskGroupEnd(pGroup, &Scope); return bHeld;
 }
 
@@ -179,7 +184,7 @@ static void __xrtTaskGroupItemRelease(xrt_task_group_item* pItem)
 	if (iLeft != 0) return;
 	xrtFutureDestroy(pFuture);
 	if (pChild) __xrtTaskGroupRelease(pChild);
-	__xrtTaskGroupRelease(pGroup);
+	if (pGroup) __xrtTaskGroupRelease(pGroup);
 }
 
 
@@ -490,6 +495,10 @@ static xrt_task_group_item* __xrtTaskGroupReserve(
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
+	__xrtTaskGroupBegin(pGroup, &Scope);
+	bool bRetired = pGroup->OwnershipCleared;
+	__xrtTaskGroupEnd(pGroup, &Scope);
+	if (bRetired) { __xrtErrorSetInvalidState(); return NULL; }
 	pItem = __xrtTaskGroupItemCreate(pGroup, pChild);
 	if ( pItem == NULL ) {
 		return NULL;
@@ -768,6 +777,9 @@ XRT_API bool xrtTaskGroupClose(xtaskgroup* pGroup)
 		return false;
 	}
 	__xrtTaskGroupBegin(pGroup, &Scope);
+	if (pGroup->OwnershipCleared) {
+		__xrtTaskGroupEnd(pGroup, &Scope); __xrtErrorSetInvalidState(); return false;
+	}
 	bClosed = pGroup->Closed;
 	if ( !bClosed ) {
 		pGroup->Closed = true;
@@ -801,11 +813,18 @@ XRT_API bool xrtTaskGroupClose(xtaskgroup* pGroup)
 /* 请求组取消；取消监听负责统一关闭和锁外传播。 */
 XRT_API bool xrtTaskGroupCancel(xtaskgroup* pGroup)
 {
+	xrtownershipscope Scope = {0}; xcancel* pCancel; bool bResult;
 	if ( pGroup == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return xrtCancelRequest(pGroup->Cancel);
+	__xrtTaskGroupBegin(pGroup, &Scope);
+	if (pGroup->OwnershipCleared) {
+		__xrtTaskGroupEnd(pGroup, &Scope); __xrtErrorSetInvalidState(); return false;
+	}
+	pCancel = xrtCancelRef(pGroup->Cancel); __xrtTaskGroupEnd(pGroup, &Scope);
+	if (!pCancel) return false;
+	bResult = xrtCancelRequest(pCancel); xrtCancelDestroy(pCancel); return bResult;
 }
 
 
@@ -813,11 +832,16 @@ XRT_API bool xrtTaskGroupCancel(xtaskgroup* pGroup)
 /* 返回稳定 Done Future 的新增引用。 */
 XRT_API xfuture* xrtTaskGroupFuture(const xtaskgroup* pGroup)
 {
+	xrtownershipscope Scope = {0}; xfuture* pFuture;
 	if ( pGroup == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	return xrtFutureRef(pGroup->Future);
+	__xrtTaskGroupBegin(pGroup, &Scope);
+	if (pGroup->OwnershipCleared) {
+		__xrtTaskGroupEnd(pGroup, &Scope); __xrtErrorSetInvalidState(); return NULL;
+	}
+	pFuture = xrtFutureRef(pGroup->Future); __xrtTaskGroupEnd(pGroup, &Scope); return pFuture;
 }
 
 
@@ -894,6 +918,9 @@ XRT_API bool xrtTaskGroupGet(
 		return false;
 	}
 	__xrtTaskGroupBegin(pGroup, &Scope);
+	if (pGroup->OwnershipCleared) {
+		__xrtTaskGroupEnd(pGroup, &Scope); __xrtErrorSetInvalidState(); return false;
+	}
 	pStats->Active = pGroup->Active;
 	pStats->Added = pGroup->Added;
 	pStats->Completed = pGroup->Completed;
@@ -923,6 +950,9 @@ XRT_API const xerror* xrtTaskGroupError(const xtaskgroup* pGroup)
 		return NULL;
 	}
 	__xrtTaskGroupBegin(pGroup, &Scope);
+	if (pGroup->OwnershipCleared) {
+		__xrtTaskGroupEnd(pGroup, &Scope); __xrtErrorSetInvalidState(); return NULL;
+	}
 	pError = pGroup->FirstError;
 	__xrtTaskGroupEnd(pGroup, &Scope);
 	return pError;
@@ -933,11 +963,16 @@ XRT_API const xerror* xrtTaskGroupError(const xtaskgroup* pGroup)
 /* 返回组取消令牌的新增引用。 */
 XRT_API xcancel* xrtTaskGroupCancelToken(const xtaskgroup* pGroup)
 {
+	xrtownershipscope Scope = {0}; xcancel* pCancel;
 	if ( pGroup == NULL ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	return xrtCancelRef(pGroup->Cancel);
+	__xrtTaskGroupBegin(pGroup, &Scope);
+	if (pGroup->OwnershipCleared) {
+		__xrtTaskGroupEnd(pGroup, &Scope); __xrtErrorSetInvalidState(); return NULL;
+	}
+	pCancel = xrtCancelRef(pGroup->Cancel); __xrtTaskGroupEnd(pGroup, &Scope); return pCancel;
 }
 
 
@@ -952,6 +987,9 @@ XRT_API void xrtTaskGroupDestroy(xtaskgroup* pGroup)
 	if ( pGroup == NULL ) {
 		return;
 	}
+	__xrtTaskGroupBegin(pGroup, &Scope); bool bRetired = pGroup->OwnershipCleared;
+	__xrtTaskGroupEnd(pGroup, &Scope);
+	if (bRetired) { __xrtTaskGroupRelease(pGroup); return; }
 	(void)xrtTaskGroupClose(pGroup);
 	__xrtTaskGroupBegin(pGroup, &Scope);
 	bActive = pGroup->Active != 0;
@@ -964,6 +1002,141 @@ XRT_API void xrtTaskGroupDestroy(xtaskgroup* pGroup)
 	__xrtTaskGroupBegin(pGroup, &Scope); pWatch = pGroup->Watch; pGroup->Watch = NULL;
 	__xrtTaskGroupEnd(pGroup, &Scope); xrtCancelUnwatch(pWatch);
 	__xrtTaskGroupRelease(pGroup);
+}
+
+/* The collector keeps one real pin on EVERY node until all completion
+ * duties settle. No semantic notification or unlink occurs before Clear. */
+static bool __xrtTaskGroupAdapterHold(const void* pData)
+{ return __xrtTaskGroupRef((xtaskgroup*)pData); }
+static void __xrtTaskGroupAdapterDrop(const void* pData)
+{ __xrtTaskGroupRelease((xtaskgroup*)pData); }
+static bool __xrtTaskGroupAdapterClaim(const void* pData, const void* pToken)
+{
+	xtaskgroup* pGroup = (xtaskgroup*)pData; size_t iCount;
+	if (!pToken || !__xrtTaskGroupOwnershipCount(pData,&iCount) ||
+		(pGroup->OwnershipClaim && pGroup->OwnershipClaim != pToken)) return false;
+	pGroup->OwnershipClaim = pToken; return true;
+}
+static void __xrtTaskGroupAdapterRestore(const void* pData, const void* pToken)
+{
+	xtaskgroup* pGroup = (xtaskgroup*)pData;
+	if (!pToken || pGroup->OwnershipClaim != pToken || pGroup->OwnershipCleared) abort();
+	pGroup->OwnershipClaim = NULL;
+}
+static void __xrtTaskGroupAdapterClear(const void* pData, const void* pToken)
+{
+	xtaskgroup* pGroup = (xtaskgroup*)pData;
+	if (!pToken || pGroup->OwnershipClaim != pToken || pGroup->OwnershipCleared || pGroup->Busy || pGroup->Reserved) abort();
+	pGroup->OwnershipCleared = true; pGroup->Closed = true;
+}
+static xrtownershipfinishresult __xrtTaskGroupAdapterFinish(const void* pData, const void* pToken)
+{
+	xtaskgroup* pGroup = (xtaskgroup*)pData; xrtownershipscope Scope = {0};
+	xcancelwatch* pWatch; xpromise* pPromise; xfuture* pFuture; xcancel* pCancel; xerror* pError;
+	__xrtTaskGroupBegin(pGroup,&Scope);
+	if (!pToken || pGroup->OwnershipClaim != pToken || !pGroup->OwnershipCleared) abort();
+	pWatch = pGroup->Watch;
+	__xrtTaskGroupEnd(pGroup,&Scope);
+	if (pWatch) {
+		xrtCancelUnwatch(pWatch);
+		/* Unwatch is idempotent while our actual Watch plan pin is retained.
+		 * Never report READY after a refused owner-right consumption. */
+		if (!__xrtCancelWatchOwnerReleased(pWatch)) return XRT_OWNERSHIP_FINISH_FAILED;
+		__xrtTaskGroupBegin(pGroup,&Scope); pGroup->Watch = NULL; __xrtTaskGroupEnd(pGroup,&Scope);
+	}
+	for (;;) {
+		__xrtTaskGroupBegin(pGroup,&Scope); xrt_task_group_item* pItem = pGroup->Head;
+		if (pItem) { __xrtTaskGroupItemRemoveLocked(pGroup,pItem); --pGroup->Active; }
+		__xrtTaskGroupEnd(pGroup,&Scope);
+		if (!pItem) break;
+		__xrtTaskGroupItemRelease(pItem); /* Only the real list-owned right. */
+	}
+	__xrtTaskGroupBegin(pGroup,&Scope); pPromise = pGroup->Promise; pFuture = pGroup->Future;
+	__xrtTaskGroupEnd(pGroup,&Scope);
+	/* A separately rooted Done Future is not cleared with this group. It still
+	 * receives normal successful completion, outside freeze and mutation. */
+	if (pPromise && !xrtFutureDone(pFuture) && !xrtPromiseResolve(pPromise,NULL))
+		return XRT_OWNERSHIP_FINISH_FAILED;
+	__xrtTaskGroupBegin(pGroup,&Scope);
+	pPromise = pGroup->Promise; pGroup->Promise = NULL; pFuture = pGroup->Future; pGroup->Future = NULL;
+	pCancel = pGroup->Cancel; pGroup->Cancel = NULL; pError = pGroup->FirstError; pGroup->FirstError = NULL;
+	__xrtTaskGroupEnd(pGroup,&Scope);
+	xrtPromiseDestroy(pPromise); xrtFutureDestroy(pFuture); xrtCancelDestroy(pCancel); xrtErrorFree(pError);
+	return XRT_OWNERSHIP_FINISH_READY;
+}
+static bool __xrtTaskGroupAdapterFinishBool(const void* pData, const void* pToken)
+{ return __xrtTaskGroupAdapterFinish(pData,pToken) == XRT_OWNERSHIP_FINISH_READY; }
+static bool __xrtTaskGroupItemAdapterHold(const void* pData)
+{
+	xrt_task_group_item* pItem = (xrt_task_group_item*)pData; xrtownershipscope Scope = {0}; bool bHeld;
+	if (!xrtOwnershipMutationBegin(&Scope)) return false;
+	bHeld = !pItem->OwnershipCleared && xrtRefRetain(&pItem->RefCount) > 0;
+	if (!xrtOwnershipScopeEnd(&Scope)) abort();
+	return bHeld;
+}
+static void __xrtTaskGroupItemAdapterDrop(const void* pData)
+{ __xrtTaskGroupItemRelease((xrt_task_group_item*)pData); }
+static bool __xrtTaskGroupItemAdapterClaim(const void* pData, const void* pToken)
+{
+	xrt_task_group_item* pItem = (xrt_task_group_item*)pData; size_t iCount;
+	if (!pToken || !__xrtTaskGroupItemOwnershipCount(pData,&iCount) ||
+		(pItem->OwnershipClaim && pItem->OwnershipClaim != pToken)) return false;
+	pItem->OwnershipClaim = pToken; return true;
+}
+static void __xrtTaskGroupItemAdapterRestore(const void* pData, const void* pToken)
+{
+	xrt_task_group_item* pItem = (xrt_task_group_item*)pData;
+	if (!pToken || pItem->OwnershipClaim != pToken || pItem->OwnershipCleared) abort();
+	pItem->OwnershipClaim = NULL;
+}
+static void __xrtTaskGroupItemAdapterClear(const void* pData, const void* pToken)
+{
+	xrt_task_group_item* pItem = (xrt_task_group_item*)pData;
+	if (!pToken || pItem->OwnershipClaim != pToken || pItem->OwnershipCleared || pItem->Waiter.Calling) abort();
+	pItem->OwnershipCleared = true;
+}
+static xrtownershipfinishresult __xrtTaskGroupItemAdapterFinish(const void* pData, const void* pToken)
+{
+	xrt_task_group_item* pItem = (xrt_task_group_item*)pData; xrtownershipscope Scope = {0};
+	xtaskgroup *pGroup, *pChild; xfuture* pFuture; bool bListed;
+	if (!xrtOwnershipMutationBegin(&Scope)) return XRT_OWNERSHIP_FINISH_FAILED;
+	if (!pToken || pItem->OwnershipClaim != pToken || !pItem->OwnershipCleared) abort();
+	pGroup = pItem->Group; pFuture = pItem->Future;
+	if (!xrtOwnershipScopeEnd(&Scope)) abort();
+	if (!pGroup) return XRT_OWNERSHIP_FINISH_READY;
+	(void)__xrtFutureWaiterDetach(pFuture,&pItem->Waiter);
+	__xrtTaskGroupBegin(pGroup,&Scope);
+	if (pItem->Waiter.Linked || pItem->Waiter.Calling) {
+		__xrtTaskGroupEnd(pGroup,&Scope); return XRT_OWNERSHIP_FINISH_FAILED;
+	}
+	bListed = pItem->Listed;
+	if (bListed) { __xrtTaskGroupItemRemoveLocked(pGroup,pItem); --pGroup->Active; }
+	pChild = pItem->Child; pItem->Child = NULL; pItem->Group = NULL; pItem->Future = NULL;
+	__xrtTaskGroupEnd(pGroup,&Scope);
+	if (bListed) __xrtTaskGroupItemRelease(pItem);
+	xrtFutureDestroy(pFuture); if (pChild) __xrtTaskGroupRelease(pChild); __xrtTaskGroupRelease(pGroup);
+	return XRT_OWNERSHIP_FINISH_READY;
+}
+static bool __xrtTaskGroupItemAdapterFinishBool(const void* pData, const void* pToken)
+{ return __xrtTaskGroupItemAdapterFinish(pData,pToken) == XRT_OWNERSHIP_FINISH_READY; }
+XRT_API const xrtownershipadapterv1* xrtTaskGroupOwnershipAdapterV1(xrtownershipref Reference,
+	const xrtownershipfinishv1** ppCompletion)
+{
+	static const xrtownershipadapterv1 Group = {sizeof(Group), __xrtTaskGroupAdapterHold, __xrtTaskGroupAdapterDrop,
+		__xrtTaskGroupAdapterClaim, __xrtTaskGroupAdapterRestore, NULL, __xrtTaskGroupAdapterClear, __xrtTaskGroupAdapterFinishBool};
+	static const xrtownershipadapterv1 Item = {sizeof(Item), __xrtTaskGroupItemAdapterHold, __xrtTaskGroupItemAdapterDrop,
+		__xrtTaskGroupItemAdapterClaim, __xrtTaskGroupItemAdapterRestore, NULL, __xrtTaskGroupItemAdapterClear, __xrtTaskGroupItemAdapterFinishBool};
+	static const xrtownershipfinishv1 GroupFinish = {sizeof(GroupFinish), &Group, __xrtTaskGroupAdapterFinish};
+	static const xrtownershipfinishv1 ItemFinish = {sizeof(ItemFinish), &Item, __xrtTaskGroupItemAdapterFinish};
+	size_t iCount;
+	if (!Reference.Data || !ppCompletion) return NULL;
+	if (Reference.Ops == &__xrtTaskGroupOwnershipOps && __xrtTaskGroupOwnershipCount(Reference.Data,&iCount)) {
+		*ppCompletion = &GroupFinish; return &Group;
+	}
+	if (Reference.Ops == &__xrtTaskGroupItemOwnershipOps && __xrtTaskGroupItemOwnershipCount(Reference.Data,&iCount)) {
+		*ppCompletion = &ItemFinish; return &Item;
+	}
+	return NULL;
 }
 
 #endif

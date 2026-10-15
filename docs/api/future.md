@@ -5821,6 +5821,37 @@ NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生
 
 
 
+### `xrtFutureOwnershipAdapterV5`
+
+```c
+const xrtownershipadapterv1* xrtFutureOwnershipAdapterV5(
+    xrtownershipref Reference, const xfutureownershipadmissionv1* pAdmission,
+    const xrtownershipfinishv1** ppCompletion);
+```
+
+显式的 Clear 后退役协议，不在语言终结前关闭待决 Future 或触发
+观察者。查询在全图冻结中按真实策略指针白名单验证 payload、
+producer、直接及投影 Watch、取消观察者；未知和 legacy 注册仍
+拒绝。每个传递节点都须独立准入，拒绝不修改完成输出槽。
+
+调用方必须共同验证 Adapter、配套 completion 的大小、精确身份
+和代码驻留，完成全部语义终结后再在同一次冻结中 Clear 全部可收集
+节点。Clear 只把端点标为退役关闭，不派发回调、不解绑、不释放强
+槽，也不把一个单独存活的取消令牌改成已请求状态。
+
+所有实际计划引用保留到整个完成阶段结束。在冻结和 mutation
+之外使用 completion 的 Step，不得仅调用旧 bool Finish。等待
+注册仍存在时返回 BUSY，不改变拥有边；真实注册拥有者负责解绑，
+之后 Step 才移走并释放 payload、producer、Owner、Error 和 Cancel。
+READY 幂等，FAILED 即使无诊断对象也必须作为失败处理。
+
+此版本必须与 Cancel Watch V2、Token V3 及支持对应完成协议的
+注册拥有者配套使用。旧 V1 至 V4 的准备协议和描述符身份保持不变，
+不得在同一物理节点上混用两种准入身份。
+
+完整循环、顺序和拒绝路径见
+[TaskGroup 退役测试](../../tests/concurrency/test_task_group_retirement.c)。
+
 ### `xrtFutureOwnershipAdapterV4`
 
 ```c

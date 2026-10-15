@@ -272,6 +272,14 @@ XRT_API xrtownershipref xrtTaskGroupOwnership(const xtaskgroup* pGroup);
 XRT_API const xfuturewatchownershipv1* xrtTaskGroupWatchPolicyV1Get(void);
 XRT_API const xcancelwatchownershipv1* xrtTaskGroupCancelPolicyV1Get(void);
 
+/* Group and real active-item lifecycle admission under whole-graph freeze.
+ * No early close, cancel or Unwatch. All semantic finalizers precede Clear;
+ * the mandatory exact completion detaches only actual owned rights afterward.
+ * Use with Future V5 and Cancel Watch V2/Token V3, and independently admit every
+ * transitive node. Unknown references leave the completion output unchanged. */
+XRT_API const xrtownershipadapterv1* xrtTaskGroupOwnershipAdapterV1(xrtownershipref Reference,
+	const xrtownershipfinishv1** ppCompletion);
+
 
 
 XRT_EXTERN_C_END

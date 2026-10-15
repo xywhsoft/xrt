@@ -835,8 +835,39 @@ const xcancelwatchownershipv1* xrtTaskGroupCancelPolicyV1Get(void);
 
 可执行合同见
 [任务组物理图测试](../../tests/concurrency/test_task_group_graph.c)。
-原生视图与策略尚不提供组的 Claim、语义终结、Clear、Finish；
-托管收集器在这些能力完整接通前必须继续拒绝组节点。
+视图本身不授予生命周期权限；完整的 Clear 后退役须使用下一节
+适配器，并独立接通所有传递节点的相同代际协议。
+
+### `xrtTaskGroupOwnershipAdapterV1`
+
+```c
+const xrtownershipadapterv1* xrtTaskGroupOwnershipAdapterV1(
+    xrtownershipref Reference, const xrtownershipfinishv1** ppCompletion);
+```
+
+按精确原生身份查询组或真实活动项的生命周期适配器。全图冻结中
+拒绝预留启动、在途回调、已退役和未知节点；拒绝不修改输出槽。
+Hold 和 Drop 对应实际引用，不调用公开 Destroy 来提前关闭或取消。
+Claim 不改变语义状态，Clear 前 Restore 保持原有取消和完成行为。
+
+全部语义终结必须先完成，再全局 Clear。Clear 保留所有物理槽，
+标记退役并阻止公开方法重新取得拥有值。配套的 mandatory completion
+在冻结和 mutation 之外执行：组归还活动链表的引用，消费自己的
+取消注册权，再释放端点等强槽；活动项自行解绑 Future 完成注册，
+归还独立的注册引用、可选子组、源 Future 和所属组引用。所有节点
+的实际计划引用必须保留到全部 Step 返回 READY。
+
+如果完成 Future 单独被外部持有，它不随组 Clear，组完成职责仍
+正常 resolve 该端点；不能把外部端点静默丢弃或改为 CLOSED。
+已 Clear 组的公开 Destroy 只归还调用方的真实组引用，不重复触发
+关闭或取消。链表和注册职责分别归还，允许组、活动项、Future 和
+取消节点的完成顺序交错。READY 可重复确认，FAILED 不能靠缺少
+错误对象判成成功。
+
+须与 Future V5、Cancel Watch V2、Token V3 和真正的强槽拥有者
+配套，不能将旧准备协议与新完成协议混用。完整可执行合同见
+[TaskGroup 退役测试](../../tests/concurrency/test_task_group_retirement.c)，
+包括真实外部根、嵌套组、64 种顺序、中止恢复与无分配清理。
 
 ### `xrtTaskGroupDestroy`
 

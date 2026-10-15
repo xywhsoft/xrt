@@ -15448,6 +15448,19 @@
 			"single_tests": ["tests/single/test_single_task_group_graph.c"],
 			"examples": [],
 			"docs": ["docs/api/task.md"]
+		},
+		{
+			"name": "task_group_retirement_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["task_group", "memory_debug", "atomic"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/concurrency/test_task_group_retirement.c"],
+			"single_tests": ["tests/single/test_single_task_group_retirement.c"],
+			"examples": [],
+			"docs": ["docs/api/task.md", "docs/api/future.md"]
 		}
 	]
 }

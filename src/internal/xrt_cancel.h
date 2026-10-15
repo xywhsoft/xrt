@@ -6,5 +6,8 @@
  * token. Publish last-producer cancellation without locks, allocation or user
  * notification. Never use this for an ordinary cancellation request. */
 void __xrtCancelOwnershipCloseUnobserved(xcancel* pCancel);
+/* With a real plan pin retained after Clear: has the registration owner
+ * actually consumed Unwatch? Dispatch retirement remains a separate duty. */
+bool __xrtCancelWatchOwnerReleased(const xcancelwatch* pWatch);
 #endif
 #endif
