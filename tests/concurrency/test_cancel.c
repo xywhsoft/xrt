@@ -27,7 +27,7 @@ static void testCancelSelfUnwatch(ptr pData)
 	testcancelself* pState = (testcancelself*)pData;
 
 	pState->Count++;
-	xrtCancelUnwatch(pState->Watch);
+	testRequire(xrtCancelUnwatchChecked(pState->Watch), "checked self unwatch refused");
 }
 
 
@@ -316,6 +316,7 @@ static void testCancelErrors(void)
 	testRequire(!xrtCancelTriggered(NULL), "null watch query succeeded");
 	testRequire(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT, "null watch query error mismatch");
 	xrtCancelUnwatch(NULL);
+	testRequire(xrtCancelUnwatchChecked(NULL), "checked null unwatch refused");
 	xrtCancelDestroy(NULL);
 	xrtCancelDestroy(pCancel);
 }
@@ -325,6 +326,13 @@ static void testCancelErrors(void)
 /* 运行通用取消模型的语义和并发边界测试。 */
 int main(void)
 {
+	int iCheckedCount = 0;
+	xcancel* pChecked = xrtCancelCreate();
+	testRequire(pChecked != NULL, "checked token");
+	xcancelwatch* pCheckedWatch = xrtCancelWatch(pChecked, testCancelCount, &iCheckedCount);
+	testRequire(pCheckedWatch != NULL && xrtCancelUnwatchChecked(pCheckedWatch), "checked unregister");
+	testRequire(xrtCancelRequest(pChecked) && iCheckedCount == 0, "checked unregister consumed owner right");
+	xrtCancelDestroy(pChecked);
 	testCancelSemantics();
 	testCancelAncestorRace();
 	testCancelUnwatchBeforeRequest();

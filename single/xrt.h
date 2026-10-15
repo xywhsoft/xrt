@@ -7262,6 +7262,15 @@ XRT_API xrtownershipref xrtCancelWatchOwnership(const xcancelwatch* pWatch);
 /* 注销并释放监听；从其他线程调用时等待正在执行的回调返回。 */
 XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch);
 
+/* Consume the same registration right, reporting whether unlink/retirement
+ * was accepted even when no diagnostic can be allocated. NULL succeeds.
+ * False leaves the owner's right unconsumed; retry while storage is valid.
+ * Self-unwatch succeeds with its physical release deferred until callback
+ * return. Success does not imply that all dispatcher references have left.
+ * Repeated calls require an independent real lifetime pin; never reuse a
+ * pointer whose last right was consumed by an earlier call. */
+XRT_API bool xrtCancelUnwatchChecked(xcancelwatch* pWatch);
+
 
 
 XRT_EXTERN_C_END
@@ -46622,9 +46631,6 @@ struct xnetresolver {
  * token. Publish last-producer cancellation without locks, allocation or user
  * notification. Never use this for an ordinary cancellation request. */
 void __xrtCancelOwnershipCloseUnobserved(xcancel* pCancel);
-/* With a real plan pin retained after Clear: has the registration owner
- * actually consumed Unwatch? Dispatch retirement remains a separate duty. */
-bool __xrtCancelWatchOwnerReleased(const xcancelwatch* pWatch);
 #endif
 #endif
 #endif
@@ -92636,19 +92642,19 @@ static void __xrtCancelUnlinkNode(xcancelnode* pNode)
 
 
 /* 注销监听，并针对回调自身注销采用返回后延迟回收。 */
-XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch)
+static bool __xrtCancelUnwatchChecked(xcancelwatch* pWatch)
 {
-	bool bSelf, bFirst;
+	bool bSelf, bFirst, bDone;
 	xrtownershipscope Mutation = {0};
 
 	if ( pWatch == NULL ) {
-		return;
+		return true;
 	}
-	if (!xrtOwnershipMutationBegin(&Mutation)) return;
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
 	if ( xrtRefRetain(&pWatch->RefCount) < 0 ) {
 		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 		__xrtErrorSetInvalidArgument();
-		return;
+		return false;
 	}
 	(void)xrtMutexLock(&pWatch->Lock);
 	bFirst = !pWatch->Destroying;
@@ -92667,7 +92673,7 @@ XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch)
 		(void)xrtMutexUnlock(&pWatch->Lock);
 		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 		__xrtCancelWatchRelease(pWatch);
-		return;
+		return true;
 	}
 	(void)xrtMutexUnlock(&pWatch->Lock);
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
@@ -92676,10 +92682,17 @@ XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch)
 	while ( pWatch->CallbackActive && !bSelf ) {
 		(void)xrtCondWait(&pWatch->Idle, &pWatch->Lock);
 	}
+	bDone = pWatch->UnwatchDone;
 	(void)xrtMutexUnlock(&pWatch->Lock);
 	__xrtCancelWatchRelease(pWatch);
 	if (bFirst) __xrtCancelWatchRelease(pWatch);
+	return bDone;
 }
+
+XRT_API bool xrtCancelUnwatchChecked(xcancelwatch* pWatch)
+{ return __xrtCancelUnwatchChecked(pWatch); }
+XRT_API void xrtCancelUnwatch(xcancelwatch* pWatch)
+{ (void)__xrtCancelUnwatchChecked(pWatch); }
 
 /* Policy admission is deliberately separate from trace. Observers are not
  * strong token slots: only their actual owners may make the Watch reachable. */
@@ -92716,16 +92729,6 @@ static void __xrtCancelWatchAdapterRestore(const void* pData, const void* pToken
 	xcancelwatch* pWatch = (xcancelwatch*)pData;
 	if (!pToken || pWatch->OwnershipClaim != pToken || pWatch->OwnershipCleared) abort();
 	pWatch->OwnershipClaim = NULL;
-}
-bool __xrtCancelWatchOwnerReleased(const xcancelwatch* pWatch)
-{
-	xrtownershipscope Scope = {0}; bool bDone;
-	if (!pWatch || !xrtOwnershipMutationBegin(&Scope)) return false;
-	(void)xrtMutexLock((xmutex*)&pWatch->Lock);
-	bDone = pWatch->Destroying && pWatch->UnwatchDone;
-	(void)xrtMutexUnlock((xmutex*)&pWatch->Lock);
-	if (!xrtOwnershipScopeEnd(&Scope)) abort();
-	return bDone;
 }
 static bool __xrtCancelWatchPrepared(const void* pData)
 {
@@ -237232,10 +237235,7 @@ static xrtownershipfinishresult __xrtTaskGroupAdapterFinish(const void* pData, c
 	pWatch = pGroup->Watch;
 	__xrtTaskGroupEnd(pGroup,&Scope);
 	if (pWatch) {
-		xrtCancelUnwatch(pWatch);
-		/* Unwatch is idempotent while our actual Watch plan pin is retained.
-		 * Never report READY after a refused owner-right consumption. */
-		if (!__xrtCancelWatchOwnerReleased(pWatch)) return XRT_OWNERSHIP_FINISH_FAILED;
+		if (!xrtCancelUnwatchChecked(pWatch)) return XRT_OWNERSHIP_FINISH_FAILED;
 		__xrtTaskGroupBegin(pGroup,&Scope); pGroup->Watch = NULL; __xrtTaskGroupEnd(pGroup,&Scope);
 	}
 	for (;;) {

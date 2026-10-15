@@ -1038,10 +1038,7 @@ static xrtownershipfinishresult __xrtTaskGroupAdapterFinish(const void* pData, c
 	pWatch = pGroup->Watch;
 	__xrtTaskGroupEnd(pGroup,&Scope);
 	if (pWatch) {
-		xrtCancelUnwatch(pWatch);
-		/* Unwatch is idempotent while our actual Watch plan pin is retained.
-		 * Never report READY after a refused owner-right consumption. */
-		if (!__xrtCancelWatchOwnerReleased(pWatch)) return XRT_OWNERSHIP_FINISH_FAILED;
+		if (!xrtCancelUnwatchChecked(pWatch)) return XRT_OWNERSHIP_FINISH_FAILED;
 		__xrtTaskGroupBegin(pGroup,&Scope); pGroup->Watch = NULL; __xrtTaskGroupEnd(pGroup,&Scope);
 	}
 	for (;;) {
