@@ -2365,3 +2365,23 @@ typedef struct xtaskdataownershipv1 {
 | `Proc` | `xtaskproc` | `Proc` 的 xtaskproc 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
 | `Drop` | `xfuturefreeproc` | `Drop` 的 xfuturefreeproc 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
 | `Ops` | `const xrtownershipops*` | 同一物理 Data 节点的计数和真实边枚举操作表。 |
+
+### `xrtTaskGroupProducerPolicyV1Get`
+
+```c
+const xfutureproducerownershipv1* xrtTaskGroupProducerPolicyV1Get(void);
+```
+
+返回 TaskGroup 的常驻生产者策略。未完成的 Done Future 实际持有一份
+组引用，终态发布在通知等待者之前归还该引用。它独立于创建者、取消
+观察者和活动项的引用；拥有图逐一计数，不合并成虚拟节点。
+
+持有 Done 会保活它的生产者及其实际可达资源。仅释放 Done 观察引用
+不会关闭或取消组；组所有者仍负责 Close、Cancel 或 Destroy。已关闭
+且活动项归零时，Done 仍按既有规则成功完成。Future 的收集器必须把
+此策略明确加入生产者准入集合；未知策略继续拒绝，准备阶段不能把
+尚有生产者的 Done 当成无生产者端点提前关闭。构造失败先归还生产者
+权再释放创建者权，保留原始诊断。
+
+这项关系不替代语言回调和 finally 的准备职责，也不单独授予 TaskGroup
+全局循环回收权限。
