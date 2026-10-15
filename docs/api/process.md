@@ -2097,3 +2097,25 @@ xfuture* xrtProcessWaitAsync(xprocess* pProcess)
 | `xrtProcessShell()` | 使用默认有界策略执行明确的 Shell 命令。 |
 | `xrtProcessPipelineOptionsInit()` | 初始化 Pipeline 的输入、等待和捕获策略。 |
 | `xrtProcessPipelineSuccess()` | 仅在全部阶段均以退出码零正常结束时返回 true。 |
+
+## 拥有图和分阶段退役
+
+`xrtProcessOwnership()` 返回实际 Process 控制块的引用描述。
+Count 包含用户端点、后台等待者及收集器 pin 的全部真实强引用。
+Trace 访问 Error，以及启用 `process_future` 时的 WaitFuture 和
+WaitPromise；共享目标的重复拥有槽不能合并为一条引用。
+
+`xrtProcessOwnershipAdapterV1()` 只识别本实现的精确 Ops，查询必须在
+ownership Freeze 内执行。它不授权任何子节点；Future 的状态快照
+需要显式登记 `xrtProcessFuturePayloadPolicyV1Get()`，未知 payload、
+producer 和观察者仍应拒绝。生命周期调用遵循 core ownership 协议。
+
+adapter Hold 只增加控制块引用，不增加用户端点数。即使收集器保留
+了 pin，最后一个 `xrtProcessDestroy()` 仍会关闭父端管道，交付 stdin
+EOF，而不会强杀子进程。后台等待者继续以自己的真实引用完成回收。
+
+Clear 只标记退役，拥有槽保留到 Finish；它不关闭管道、不等待线程、
+不运行任意回调。Finish 在冻结区外拆除并释放实际拥有槽，重复调用
+不会重复释放。终态发布和拥有槽转换参与 mutation，平台等待与 Future
+通知回调不保留外层 mutation。EXITED 或 FutureDone 不能代替等待者
+引用已释放的证据。

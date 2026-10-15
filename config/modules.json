@@ -14834,6 +14834,19 @@
 			]
 		},
 		{
+			"name": "process_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["process_future", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/process/test_process_ownership.c"],
+			"single_tests": ["tests/single/test_single_process_ownership.c"],
+			"examples": [],
+			"docs": ["docs/api/process.md"]
+		},
+		{
 			"name": "process_pipeline_prefix_tests",
 			"state": "implemented",
 			"feature": null,

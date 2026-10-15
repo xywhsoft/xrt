@@ -11,6 +11,18 @@ static void __xrtProcessFutureStatusFree(ptr pValue, ptr pData)
 	xrtFree(pValue);
 }
 
+static bool __xrtProcessFutureStatusTrace(const void* pValue, const void* pData,
+	xrtownershipvisitor Visit, ptr pContext)
+{
+	(void)pContext;
+	return pValue != NULL && pData == NULL && Visit != NULL;
+}
+static const xfuturepayloadownershipv1 __xrtProcessFutureStatusPolicy = {
+	sizeof(xfuturepayloadownershipv1), __xrtProcessFutureStatusFree, __xrtProcessFutureStatusTrace
+};
+XRT_API const xfuturepayloadownershipv1* xrtProcessFuturePayloadPolicyV1Get(void)
+{ return &__xrtProcessFutureStatusPolicy; }
+
 
 
 /* 把已发布的 Process 终态写入等待 Future。 */
@@ -20,7 +32,9 @@ void __xrtProcessFutureComplete(xprocess* pProcess)
 	xprocessstatus* pStatus = NULL;
 	xerror* pError = NULL;
 	bool bCompleted;
+	xrtownershipscope Mutation = {0};
 
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	(void)xrtMutexLock(&pProcess->Lock);
 	if ( (pProcess->State == XPROCESS_EXITED) &&
 		(pProcess->WaitPromise != NULL) ) {
@@ -34,6 +48,7 @@ void __xrtProcessFutureComplete(xprocess* pProcess)
 		}
 	}
 	(void)xrtMutexUnlock(&pProcess->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if ( pPromise == NULL ) {
 		return;
 	}
@@ -42,11 +57,10 @@ void __xrtProcessFutureComplete(xprocess* pProcess)
 		xrtErrorFree(pError);
 		xrtFree(pStatus);
 	} else {
-		bCompleted = xrtPromiseResolveOwned(
+		bCompleted = xrtPromiseResolveOwnedPolicyV1(
 			pPromise,
 			pStatus,
-			__xrtProcessFutureStatusFree,
-			NULL
+			&__xrtProcessFutureStatusPolicy
 		);
 		if ( !bCompleted ) {
 			xrtFree(pStatus);
@@ -65,6 +79,7 @@ XRT_API xfuture* xrtProcessWaitAsync(xprocess* pProcess)
 	xpromise* pPromise = NULL;
 	xprocessstatus* pStatus = NULL;
 	bool bComplete = false;
+	xrtownershipscope Mutation = {0};
 
 	if ( pProcess == NULL ) {
 		__xrtProcessErrorSet(
@@ -76,13 +91,22 @@ XRT_API xfuture* xrtProcessWaitAsync(xprocess* pProcess)
 		);
 		return NULL;
 	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
 	(void)xrtMutexLock(&pProcess->Lock);
+	if (pProcess->OwnershipCleared) {
+		(void)xrtMutexUnlock(&pProcess->Lock);
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		__xrtErrorSetInvalidState(); return NULL;
+	}
 	if ( pProcess->WaitFuture != NULL ) {
 		pFuture = xrtFutureRef(pProcess->WaitFuture);
 		(void)xrtMutexUnlock(&pProcess->Lock);
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 		return pFuture;
 	}
 	(void)xrtMutexUnlock(&pProcess->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	memset(&Mutation, 0, sizeof(Mutation));
 
 	pStatus = (xprocessstatus*)xrtMalloc(sizeof(xprocessstatus));
 	if ( pStatus == NULL ) {
@@ -94,7 +118,14 @@ XRT_API xfuture* xrtProcessWaitAsync(xprocess* pProcess)
 		return NULL;
 	}
 
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	(void)xrtMutexLock(&pProcess->Lock);
+	if (pProcess->OwnershipCleared) {
+		(void)xrtMutexUnlock(&pProcess->Lock);
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		xrtPromiseDestroy(pPromise); xrtFutureDestroy(pCandidate); xrtFree(pStatus);
+		__xrtErrorSetInvalidState(); return NULL;
+	}
 	if ( pProcess->WaitFuture == NULL ) {
 		pProcess->WaitFuture = pCandidate;
 		pProcess->WaitPromise = pPromise;
@@ -106,6 +137,7 @@ XRT_API xfuture* xrtProcessWaitAsync(xprocess* pProcess)
 	}
 	pFuture = xrtFutureRef(pProcess->WaitFuture);
 	(void)xrtMutexUnlock(&pProcess->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 
 	xrtPromiseDestroy(pPromise);
 	xrtFutureDestroy(pCandidate);

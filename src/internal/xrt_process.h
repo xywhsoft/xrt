@@ -20,6 +20,9 @@
 struct xprocess {
 	volatile int32 RefCount;
 	volatile int32 UserRefs;
+	const void* OwnershipClaim;
+	bool OwnershipPublishing;
+	bool OwnershipCleared;
 	xmutex Lock;
 	xcond Changed;
 	xthread* Waiter;

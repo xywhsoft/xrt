@@ -249,10 +249,14 @@ static void __xrtProcessFree(xprocess* pProcess)
 /* 释放一个内部或外部共享引用。 */
 static void __xrtProcessRelease(xprocess* pProcess)
 {
-	if ( (pProcess != NULL) &&
-		(xrtRefRelease(&pProcess->RefCount) == 0) ) {
-		__xrtProcessFree(pProcess);
-	}
+	xrtownershipscope Mutation = {0}; int32 iLeft;
+	if ( pProcess == NULL ) return;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	iLeft = xrtRefRelease(&pProcess->RefCount);
+	if (iLeft < 0 || !xrtOwnershipScopeEnd(&Mutation)) abort();
+	/* Zero-count storage cannot be admitted. No outer mutation is held over
+	 * native close or the release of independently owned callback payloads. */
+	if (iLeft == 0) __xrtProcessFree(pProcess);
 }
 
 
@@ -264,6 +268,7 @@ static int32 __xrtProcessWaiter(ptr pData)
 	xprocessstatus Status;
 	xerror* pError = NULL;
 	bool bOk;
+	xrtownershipscope Mutation = {0};
 
 	memset(&Status, 0, sizeof(Status));
 	bOk = __xrtProcessPlatformWait(pProcess, &Status);
@@ -272,6 +277,7 @@ static int32 __xrtProcessWaiter(ptr pData)
 		Status.Kind = XPROCESS_EXIT_LOST;
 		Status.Code = -1;
 	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	(void)__xrtProcessPlatformClose(pProcess, XPROCESS_STDIN);
 
 	(void)xrtMutexLock(&pProcess->Lock);
@@ -281,6 +287,7 @@ static int32 __xrtProcessWaiter(ptr pData)
 	pProcess->Error = pError;
 	(void)xrtCondBroadcast(&pProcess->Changed);
 	(void)xrtMutexUnlock(&pProcess->Lock);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	#if defined(XRT_FEATURE_PROCESS_FUTURE)
 		__xrtProcessFutureComplete(pProcess);
 	#endif
@@ -335,7 +342,7 @@ XRT_API bool xrtProcessShellConfigInit(
 
 
 /* 分配对象、启动平台进程并建立唯一后台等待者。 */
-XRT_API xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
+static xprocess* __xrtOwnershipBody_ProcessSpawn(const xprocessconfig* pConfig)
 {
 	xprocess* pProcess;
 	xprocessstatus Status;
@@ -349,6 +356,7 @@ XRT_API xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
 	}
 	pProcess->RefCount = 1;
 	pProcess->UserRefs = 1;
+	pProcess->OwnershipPublishing = true;
 	pProcess->State = XPROCESS_RUNNING;
 	pProcess->Status.Kind = XPROCESS_EXIT_NONE;
 	pProcess->Status.Code = -1;
@@ -403,6 +411,7 @@ XRT_API xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
 		}
 		goto fail_running;
 	}
+	pProcess->OwnershipPublishing = false;
 	return pProcess;
 
 fail_running:
@@ -422,15 +431,20 @@ fail_running:
 	}
 }
 
+XRT_API xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xprocess*, NULL, __xrtOwnershipBody_ProcessSpawn(pConfig));
+}
+
 
 
 /* 同时增加外部引用计数和对象总引用计数。 */
-XRT_API xprocess* xrtProcessRef(xprocess* pProcess)
+static xprocess* __xrtOwnershipBody_ProcessRef(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
 		return NULL;
 	}
-	if ( xrtRefRetain(&pProcess->RefCount) < 0 ) {
+	if ( pProcess->OwnershipCleared || xrtRefRetain(&pProcess->RefCount) < 0 ) {
 		return NULL;
 	}
 	if ( xrtRefRetain(&pProcess->UserRefs) < 0 ) {
@@ -440,17 +454,25 @@ XRT_API xprocess* xrtProcessRef(xprocess* pProcess)
 	return pProcess;
 }
 
+XRT_API xprocess* xrtProcessRef(xprocess* pProcess)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xprocess*, NULL, __xrtOwnershipBody_ProcessRef(pProcess));
+}
+
 
 
 /* 最后一个调用方引用关闭父端管道，后台等待引用继续负责回收。 */
 XRT_API void xrtProcessDestroy(xprocess* pProcess)
 {
 	int32 iUsers;
+	xrtownershipscope Mutation = {0};
 
 	if ( pProcess == NULL ) {
 		return;
 	}
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	iUsers = xrtRefRelease(&pProcess->UserRefs);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if ( iUsers < 0 ) {
 		return;
 	}
@@ -460,6 +482,93 @@ XRT_API void xrtProcessDestroy(xprocess* pProcess)
 		(void)__xrtProcessPlatformClose(pProcess, XPROCESS_STDERR);
 	}
 	__xrtProcessRelease(pProcess);
+}
+
+static bool __xrtProcessOwnershipCount(const void* pData, size_t* pCount)
+{
+	const xprocess* pProcess = pData; int32 iCount;
+	if (!pProcess || !pCount || pProcess->OwnershipPublishing || pProcess->OwnershipCleared) return false;
+	iCount = __xrtAtomicRefLoad(&pProcess->RefCount);
+	if (iCount <= 0) return false;
+	*pCount = (size_t)iCount; return true;
+}
+static bool __xrtProcessOwnershipTrace(const void* pData, xrtownershipvisitor Visit, ptr pContext)
+{
+	const xprocess* pProcess = pData; size_t iCount;
+	if (!Visit || !__xrtProcessOwnershipCount(pData, &iCount)) return false;
+	if (pProcess->Error && !Visit(xrtErrorOwnership(pProcess->Error), pContext)) return false;
+	#if defined(XRT_FEATURE_PROCESS_FUTURE)
+		if (pProcess->WaitFuture && !Visit(xrtFutureOwnership(pProcess->WaitFuture), pContext)) return false;
+		if (pProcess->WaitPromise && !Visit(xrtPromiseOwnership(pProcess->WaitPromise), pContext)) return false;
+	#endif
+	/* Waiter owns a native thread handle with no owning callback data. Its
+	 * process argument has its own real RefCount slot, an external root until
+	 * the callback AND publication tail have released it. Never subtract it. */
+	return true;
+}
+static const xrtownershipops __xrtProcessOwnershipOps = {__xrtProcessOwnershipCount, __xrtProcessOwnershipTrace};
+XRT_API xrtownershipref xrtProcessOwnership(const xprocess* pProcess)
+{ return (xrtownershipref){pProcess, pProcess ? &__xrtProcessOwnershipOps : NULL}; }
+static bool __xrtProcessOwnershipHold(const void* pData)
+{
+	xprocess* pProcess = (xprocess*)pData; xrtownershipscope Mutation = {0}; bool bHeld;
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	bHeld = !pProcess->OwnershipCleared && xrtRefRetain(&pProcess->RefCount) > 0;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return bHeld;
+}
+static void __xrtProcessOwnershipDrop(const void* pData)
+{ __xrtProcessRelease((xprocess*)pData); }
+static bool __xrtProcessOwnershipClaim(const void* pData, const void* pToken)
+{
+	xprocess* pProcess = (xprocess*)pData; size_t iCount;
+	if (!pToken || !__xrtProcessOwnershipCount(pData, &iCount) ||
+		(pProcess->OwnershipClaim && pProcess->OwnershipClaim != pToken)) return false;
+	pProcess->OwnershipClaim = pToken; return true;
+}
+static void __xrtProcessOwnershipRestore(const void* pData, const void* pToken)
+{
+	xprocess* pProcess = (xprocess*)pData;
+	if (!pToken || pProcess->OwnershipClaim != pToken || pProcess->OwnershipCleared) abort();
+	pProcess->OwnershipClaim = NULL;
+}
+static void __xrtProcessOwnershipClear(const void* pData, const void* pToken)
+{
+	xprocess* pProcess = (xprocess*)pData;
+	if (!pToken || pProcess->OwnershipClaim != pToken || pProcess->OwnershipCleared) abort();
+	/* Retired owning slots remain actual references until Finish. No close,
+	 * native wait or callback is permitted under the graph freeze. */
+	pProcess->OwnershipCleared = true;
+}
+static bool __xrtProcessOwnershipFinish(const void* pData, const void* pToken)
+{
+	xprocess* pProcess = (xprocess*)pData; xrtownershipscope Mutation = {0}; xerror* pError;
+	#if defined(XRT_FEATURE_PROCESS_FUTURE)
+		xfuture* pFuture; xpromise* pPromise; xprocessstatus* pStatus;
+	#endif
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (!pToken || pProcess->OwnershipClaim != pToken || !pProcess->OwnershipCleared) abort();
+	pError = pProcess->Error; pProcess->Error = NULL;
+	#if defined(XRT_FEATURE_PROCESS_FUTURE)
+		pFuture = pProcess->WaitFuture; pProcess->WaitFuture = NULL;
+		pPromise = pProcess->WaitPromise; pProcess->WaitPromise = NULL;
+		pStatus = pProcess->WaitStatus; pProcess->WaitStatus = NULL;
+	#endif
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	xrtErrorFree(pError);
+	#if defined(XRT_FEATURE_PROCESS_FUTURE)
+		xrtPromiseDestroy(pPromise); xrtFutureDestroy(pFuture); xrtFree(pStatus);
+	#endif
+	return true;
+}
+XRT_API const xrtownershipadapterv1* xrtProcessOwnershipAdapterV1(xrtownershipref Reference)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtProcessOwnershipHold,
+		__xrtProcessOwnershipDrop, __xrtProcessOwnershipClaim, __xrtProcessOwnershipRestore,
+		NULL, __xrtProcessOwnershipClear, __xrtProcessOwnershipFinish};
+	size_t iCount;
+	return Reference.Ops == &__xrtProcessOwnershipOps &&
+		__xrtProcessOwnershipCount(Reference.Data, &iCount) ? &Adapter : NULL;
 }
 
 
@@ -546,7 +655,7 @@ XRT_API bool xrtProcessStatus(
 
 
 /* 增加后台错误引用后在锁外返回。 */
-XRT_API xerror* xrtProcessError(const xprocess* pProcess)
+static xerror* __xrtOwnershipBody_ProcessError(const xprocess* pProcess)
 {
 	xerror* pError;
 
@@ -557,6 +666,11 @@ XRT_API xerror* xrtProcessError(const xprocess* pProcess)
 	pError = xrtErrorRef(pProcess->Error);
 	(void)xrtMutexUnlock((xmutex*)&pProcess->Lock);
 	return pError;
+}
+
+XRT_API xerror* xrtProcessError(const xprocess* pProcess)
+{
+	XRT_OWNERSHIP_MUTATION_RETURN(xerror*, NULL, __xrtOwnershipBody_ProcessError(pProcess));
 }
 
 
