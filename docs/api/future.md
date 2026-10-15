@@ -4,6 +4,20 @@
 
 ## 物理拥有图
 
+### 聚合器的终结后物理退役
+
+`xrtFutureCombineOwnershipAdapterV2` 与 Future V5、Cancel Watch V2、
+Token V3 配套。它不提前完成输入或运行 mapper；Clear 保留真实强槽并
+禁止新的聚合语义。Step 在一个短独占 freeze 内预检全部源注册，在途
+回调或冻结忙返回无拥有边副作用的 BUSY。预检通过后才摘除稳定注册、
+消费取消注册权；mapper Data 与端点引用在 freeze 外归还。
+
+收集器须独立准入全部节点，在所有语义终结与全局 Clear 之后调用 Step，
+并保留每个实际计划引用直到全部职责完成。Combine 已 READY 时，其取消
+Watch 仍可能因真实派发尾部而 BUSY，不允许提前归还已完成节点的 pin。
+mapper Data 的 Drop 只归还引用，不能代替该 Data 自己的语义终结。
+旧 V1 准备协议保持原状；V2 不能被用于跳过已接受的语言 catch／finally。
+
 ### 显式生产者协作取消
 
 `xrtPromiseProducerBindTakeV2` 在 V1 的同一真实 producer 节点上增加

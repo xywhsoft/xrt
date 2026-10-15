@@ -15461,6 +15461,19 @@
 			"single_tests": ["tests/single/test_single_task_group_retirement.c"],
 			"examples": [],
 			"docs": ["docs/api/task.md", "docs/api/future.md"]
+		},
+		{
+			"name": "future_combine_retirement_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["future_combine", "task_group", "memory_debug", "atomic"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/concurrency/test_future_combine_retirement.c"],
+			"single_tests": ["tests/single/test_single_future_combine_retirement.c"],
+			"examples": [],
+			"docs": ["docs/api/future.md"]
 		}
 	]
 }
