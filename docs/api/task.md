@@ -788,6 +788,56 @@ xwaitresult xrtTaskGroupWaitForCancel(xtaskgroup* pGroup, int64 iTimeout, xcance
 ```
 
 
+### `xrtTaskGroupOwnership`
+
+```c
+xrtownershipref xrtTaskGroupOwnership(const xtaskgroup* pGroup);
+```
+
+借用的物理拥有图视图。调用方必须保证全图冻结及相关代码驻留；
+视图不增加引用，不授予循环收集或代码卸载权限。启动槽仍处于
+预留状态、组回调仍在运行时拒绝 Count，并保持输出槽不变。
+
+组持有 Cancel、owned Watch、完成 Future、尚未交付的 Promise、
+首个失败 Error，以及每个活动项的独立引用。Future 与 Promise
+是同一物理端点上的两个真实强槽，必须分别 Trace。活动项持有
+所属组、可选子组和源 Future；源 Future 注册又持有活动项。
+活动链表引用与注册引用独立计数。链表前后链接和传播快照链接
+只借用节点存储，快照期间的临时引用仍保留在真实计数中。
+
+空组的典型图为五节点七条边；只有调用方组引用是外部根。添加一个
+由调用方保留 Future 和 Promise 的待决源后为八节点十二条边；
+外部根还包括源端点。完成摘链、关闭和公开 Destroy 都按实际槽
+释放引用，不使用根折扣或合成计数。
+
+### `xrtTaskGroupWatchPolicyV1Get`
+
+```c
+const xfuturewatchownershipv1* xrtTaskGroupWatchPolicyV1Get(void);
+```
+
+返回活动项完成注册的借用、不可变常驻策略。Data 是实际引用计数
+活动项，其 Count 和 Trace 描述该项而不是所属组的替代身份。
+只有认可完整生命周期协议的调用方才能将策略身份加入白名单；
+单独认可它不能代替组和子节点的独立准入。
+
+### `xrtTaskGroupCancelPolicyV1Get`
+
+```c
+const xcancelwatchownershipv1* xrtTaskGroupCancelPolicyV1Get(void);
+```
+
+返回组取消观察者的借用、不可变常驻 owned 策略。Watch 真实持有
+一份组引用；Notify 在短 mutation 之外执行，组自行标记传播在途
+并在短 scope 内完成边转换。公开 Destroy 先移走自己的 Watch
+槽，再在锁外 Unwatch；已开始的回调或派发退出后才归还 Data 引用。
+组剩余活动项仍保持自身的组引用，不把取消请求当作任务终态。
+
+可执行合同见
+[任务组物理图测试](../../tests/concurrency/test_task_group_graph.c)。
+原生视图与策略尚不提供组的 Claim、语义终结、Clear、Finish；
+托管收集器在这些能力完整接通前必须继续拒绝组节点。
+
 ### `xrtTaskGroupDestroy`
 
 关闭并取消仍活动的项，随后以延迟回收方式释放任务组。
