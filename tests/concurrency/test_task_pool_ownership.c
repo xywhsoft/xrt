@@ -25,6 +25,7 @@ typedef struct PoolData {
 static unsigned idle_cases, queued_cases, opaque_cases, entry_cases, finalizer_cases, snapshot_failures, snapshot_budgets;
 static unsigned create_failures, create_successes;
 static unsigned resource_cases;
+static unsigned startup_cases;
 static xtaskoutcome pool_run(xcancel*, ptr, xtaskvalue*);
 static void pool_drop(ptr, ptr);
 static void freeze_begin(xrtownershipscope* scope)
@@ -154,6 +155,29 @@ static void idle(unsigned threads,bool destroy_first)
     assert(test.adapter->Finish(ref.Data,&test)&&test.adapter->Finish(ref.Data,&test));
     if(!destroy_first)assert(xrtTaskPoolDestroy(test.pool));
     test.adapter->Drop(ref.Data);balance(&before);++idle_cases;
+}
+static void startup(unsigned threads)
+{
+    /* Freeze predates creation: no worker can enter its first mutation, so
+     * all worker records are genuinely not yet Parked. The fully published,
+     * idle pool must still expose its exact graph without yielding/retrying. */
+    xmemdebugsnapshot before;xrtClearError();xrtMemDebugSnapshot(&before);
+    PoolCase test={0};xtaskpoolconfig config={threads,4,0};xrtownershipscope freeze={0};
+    freeze_begin(&freeze);test.pool=xrtTaskPoolCreate(&config);assert(test.pool);
+    xrtownershipref pool=xrtTaskPoolOwnership(test.pool);size_t refs=0;
+    const xrtownershippreparationv1* preparation=NULL;
+    assert(pool.Ops->Count(pool.Data,&refs)&&refs==1);
+    test.adapter=xrtTaskPoolOwnershipAdapterV1(pool,&preparation);assert(test.adapter&&preparation);
+    xrtownershipresult graph={0};
+    assert(xrtOwnershipInspect(&pool,1,&pool,1,&graph)&&graph.NodeCount==1&&
+        graph.EdgeCount==1&&graph.ExternalRootCount==0);
+    assert(test.adapter->Hold(pool.Data)&&test.adapter->Claim(pool.Data,&test));
+    assert(xrtOwnershipScopeEnd(&freeze));prepare_pool(&test,preparation);
+    freeze_begin(&freeze);assert(preparation->Ready(pool.Data));
+    assert(pool.Ops->Count(pool.Data,&refs)&&refs==2);test.adapter->Clear(pool.Data,&test);
+    assert(xrtOwnershipScopeEnd(&freeze));assert(test.adapter->Finish(pool.Data,&test));
+    assert(xrtTaskPoolDestroy(test.pool));test.adapter->Drop(pool.Data);
+    balance(&before);++startup_cases;
 }
 static void queued(unsigned count,unsigned mode,bool oom)
 {
@@ -319,11 +343,11 @@ int main(void)
 {
     testRequire(xrtMemDebugEnable(true),"enable native pool ownership accounting");
     for(unsigned i=0;i<20;++i){
-        for(unsigned threads=1;threads<=3;++threads){idle(threads,(i&1)!=0);queued(threads,i%3,i==0);}
+        for(unsigned threads=1;threads<=3;++threads){startup(threads);idle(threads,(i&1)!=0);queued(threads,i%3,i==0);}
         opaque();reentrant_entry();opaque_finalizer();delayed_resource((i&1)!=0);
     }
     for(unsigned budget=0;budget<48;++budget)create_oom(budget);
-    assert(idle_cases==60&&queued_cases==60&&opaque_cases==20&&entry_cases==20&&finalizer_cases==20&&resource_cases==20&&snapshot_budgets==96&&snapshot_failures&&create_failures&&create_successes);
-    printf("Native pool ownership: 60 parked/joined shells, 60 exact queued graphs, 20 opaque/active refusals, 20 reentrant native entries, 20 opaque finalizers, 20 real delayed-file roots; %u snapshot budgets/%u failures, 48 creation budgets/%u failures/%u successes; actual queue Job edges, no cancellation substitution, exact live count/bytes balance\n",snapshot_budgets,snapshot_failures,create_failures,create_successes);
+    assert(startup_cases==60&&idle_cases==60&&queued_cases==60&&opaque_cases==20&&entry_cases==20&&finalizer_cases==20&&resource_cases==20&&snapshot_budgets==96&&snapshot_failures&&create_failures&&create_successes);
+    printf("Native pool ownership: 60 initially unparked shells, 60 parked/joined shells, 60 exact queued graphs, 20 opaque/active refusals, 20 reentrant native entries, 20 opaque finalizers, 20 real delayed-file roots; %u snapshot budgets/%u failures, 48 creation budgets/%u failures/%u successes; actual queue Job edges, no cancellation substitution, exact live count/bytes balance\n",snapshot_budgets,snapshot_failures,create_failures,create_successes);
     return 0;
 }
