@@ -255,6 +255,25 @@ typedef struct xrtownershippreparationv1 {
 	bool (*Ready)(const void* pData);
 	xrtownershipprepareresult (*Prepare)(const void* pData, const void* pToken);
 } xrtownershippreparationv1;
+
+/* Optional completion after Clear, distinct from semantic preparation.
+ * Exact Adapter identity and permanent code are admitted with this descriptor.
+ * Step runs outside freeze/mutation with all plan pins retained. BUSY makes
+ * no owning-edge change or semantic notification and never waits for another
+ * participant: the collector must try other duties, then retry. READY is
+ * idempotent; FAILED is explicit even without an allocated diagnostic.
+ * A consumer of this descriptor MUST use Step, not the V1 bool Finish slot,
+ * to distinguish an unfinished dependency from a cleanup failure. */
+typedef enum xrtownershipfinishresult {
+	XRT_OWNERSHIP_FINISH_FAILED = -1,
+	XRT_OWNERSHIP_FINISH_BUSY = 0,
+	XRT_OWNERSHIP_FINISH_READY = 1
+} xrtownershipfinishresult;
+typedef struct xrtownershipfinishv1 {
+	size_t size;
+	const xrtownershipadapterv1* Adapter;
+	xrtownershipfinishresult (*Step)(const void* pData, const void* pToken);
+} xrtownershipfinishv1;
 typedef struct xrtownershipresult {
 	size_t NodeCount;
 	size_t EdgeCount;

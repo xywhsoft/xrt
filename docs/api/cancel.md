@@ -654,6 +654,59 @@ NULL 表示准入拒绝或不识别；不调用未知策略回调，不授予生
 
 
 
+### `xrtCancelWatchOwnershipAdapterV2`
+
+```c
+const xrtownershipadapterv1* xrtCancelWatchOwnershipAdapterV2(
+    xrtownershipref Reference, const xcancelwatchownershipv1* const* pPolicies,
+    size_t iPolicyCount, const xrtownershipfinishv1** ppCompletion);
+```
+
+这两个适配器允许注册的真实拥有者在 Clear 之后解绑。它们不要求
+提前 Unwatch，也不改变旧 Watch V1 和 Token V2 的准备协议。
+查询必须处于全图冻结中；只接受白名单中指针身份完全匹配的
+不可变常驻 owned 策略。活动回调、活动请求、未知策略与 legacy
+观察者都被拒绝。拒绝返回 NULL，且不修改 `*ppCompletion`。
+
+成功交付的适配器和完成描述符都是借用的常驻对象。调用方必须分别
+验证两者的大小、代码驻留和 `Completion->Adapter == Adapter`，
+以及所有传递节点的独立准入；不能把策略白名单当作子图豁免。
+
+持有每个节点的真实计划引用并完成 Claim 后，语义终结仍能访问原有
+字段；终结中止时 Restore 保留原有注册与取消行为。全图 Clear 在
+冻结内执行，只标记退役，不丢弃强引用槽；Watch 从此不再启动新的
+Notify，包括由外部祖先令牌触发的通知。取消请求本身不被撤销。
+
+在冻结和 mutation 之外，真实拥有者的 Finish 先移走自己的 Watch
+槽，再调用 Unwatch；只能由拥有该注册权的一方消费此权利。完成
+描述符的 Step 在注册仍未解绑、派发尾部未退出时返回 BUSY，调用方
+必须继续其他节点的清理工作，不能在同一依赖上无限自旋。Token
+在仍有链入注册或活动请求时同样返回 BUSY。所有计划引用必须保留
+到整个完成阶段结束。READY 可以重复调用，FAILED 是显式失败，
+即使没有可分配的错误对象也不能当作完成。
+
+不得用适配器的 bool Finish 判断 BUSY 与失败；这两个版本必须使用
+配套完成描述符的 Step。若调用方不支持该协议，应拒绝接纳，而不是
+把 false 当作成功、提前解绑或扣减真实引用计数。
+
+完整生命周期示例及可执行断言见
+[取消注册退役测试](../../tests/concurrency/test_cancel_retirement.c)，
+包括 Clear 和完成顺序、外部取消、Restore、活动回调拒绝、无分配
+BUSY 以及真实四节点五边图的释放平衡。
+
+### `xrtCancelOwnershipAdapterV3`
+
+```c
+const xrtownershipadapterv1* xrtCancelOwnershipAdapterV3(
+    xrtownershipref Reference, const xcancelwatchownershipv1* const* pPolicies,
+    size_t iPolicyCount, const xrtownershipfinishv1** ppCompletion);
+```
+
+Token 的 Clear 后完成协议。参数、准入和描述符规则与上节 Watch V2
+相同；Token 本身的计划引用和传递的父引用仍按真实计数处理。Step
+只在无链入注册且无活动请求后移走 Parent 强引用，并在 mutation
+之外释放；尚有依赖返回 BUSY，不替拥有者 Unwatch。
+
 ### `xcancelwatchownershipv1`
 
 已认证取消注册上下文的不可变通知、释放及所有权策略。注册持有的 Cancel 与 Data 是独立的真实边；链表链接借用 Watch 存储。

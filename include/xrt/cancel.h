@@ -119,6 +119,23 @@ XRT_API const xrtownershipadapterv1* xrtCancelWatchOwnershipAdapterV1(xrtownersh
 	const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount,
 	const xrtownershippreparationv1** ppPreparation);
 
+/* Post-Clear owner-driven retirement. Unlike the earlier adapters, these do
+ * not require or perform Unwatch before semantic finalization. Whole-graph
+ * freeze admits the same closed owned-policy set and rejects active/unknown
+ * observers. Clear prevents new notification without dropping any slot.
+ * The actual registration owner must detach and Unwatch during its Finish;
+ * Watch completion stays BUSY until that right is consumed and dispatch tails
+ * retire. Token completion stays BUSY while linked registrations remain.
+ * The returned completion is mandatory and must be admitted by exact Adapter
+ * identity; refusal leaves its output unchanged. No legacy observer is opted
+ * in, no request is delivered or undone, and abort leaves registration armed. */
+XRT_API const xrtownershipadapterv1* xrtCancelWatchOwnershipAdapterV2(xrtownershipref Reference,
+	const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershipfinishv1** ppCompletion);
+XRT_API const xrtownershipadapterv1* xrtCancelOwnershipAdapterV3(xrtownershipref Reference,
+	const xcancelwatchownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershipfinishv1** ppCompletion);
+
 
 
 /* 查询监听是否已命中取消。 */

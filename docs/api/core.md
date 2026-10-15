@@ -2995,6 +2995,36 @@ typedef struct xerrordescview {
 | `Cause` | `const xerror*` | 可选的原因错误；构造器保留其引用。 |
 
 
+### `xrtownershipfinishv1`
+
+Clear 之后的依赖驱动完成协议，与语义终结前的 preparation 分离。
+它不会扩展旧操作表，也不使旧适配器自动获得新能力。
+
+```c
+typedef enum xrtownershipfinishresult {
+    XRT_OWNERSHIP_FINISH_FAILED = -1,
+    XRT_OWNERSHIP_FINISH_BUSY = 0,
+    XRT_OWNERSHIP_FINISH_READY = 1
+} xrtownershipfinishresult;
+typedef struct xrtownershipfinishv1 {
+    size_t size;
+    const xrtownershipadapterv1* Adapter;
+    xrtownershipfinishresult (*Step)(const void* pData, const void* pToken);
+} xrtownershipfinishv1;
+```
+
+调用方按大小、Adapter 精确指针身份与常驻代码准入描述符。全图
+Clear 后，在冻结和 mutation 之外串行调用 Step，并保留所有节点
+的真实计划引用。BUSY 不改变拥有边，不触发语义通知，不等待其他
+参与者；调用方应先处理其他节点的完成工作，再重试。READY 幂等。
+FAILED 必须作为失败处理，不依赖能否分配错误对象。使用此协议的
+适配器不能只调用旧 bool Finish，否则会混淆 BUSY 与失败。
+
+### `xrtownershipfinishresult`
+
+Clear 后完成状态：FAILED 是失败，BUSY 是尚有退役依赖，READY 是
+完成且允许重复确认。具体调度和引用保留要求见上一节。
+
 ### `xerrorlocationview`
 
 可选源码位置。File 是精确文本视图，Line/Column 必须非负；构造器复制 File，零值表示未提供相应位置。

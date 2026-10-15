@@ -259,11 +259,13 @@
 			"sources": [],
 			"tests": [
 				"tests/concurrency/test_cancel_ownership.c",
-				"tests/concurrency/test_cancel_ownership_threads.c"
+				"tests/concurrency/test_cancel_ownership_threads.c",
+				"tests/concurrency/test_cancel_retirement.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_cancel_ownership.c",
-				"tests/single/test_single_cancel_ownership_threads.c"
+				"tests/single/test_single_cancel_ownership_threads.c",
+				"tests/single/test_single_cancel_retirement.c"
 			],
 			"examples": [],
 			"docs": [
