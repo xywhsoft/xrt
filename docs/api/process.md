@@ -569,6 +569,13 @@ Process 核心不缓存输出。需要并发排空和有界结果时选择 `proc
 
 启用 `process_terminal` 后，把 `Terminal` 设为 true 即可使用 Windows ConPTY 或 POSIX PTY。`Columns` 与 `Rows` 的有效范围都是 1 到 32767；运行中使用 `xrtProcessResize()` 修改尺寸。启动前可用 `xrtProcessTerminalSupported()` 探测当前系统运行时能力。
 
+启动尺寸应通过配置中的 `Columns` / `Rows` 指定。`Spawn` 成功不等于子程序
+已经完成控制台初始化；Windows 10 系统 ConPTY 在启动期可能接受 resize
+请求却丢失该次调整。需要在启动后动态调整尺寸时，先通过应用协议确认子程序
+已经附着并就绪，再调用 `xrtProcessResize()`。库保留系统后端，不隐式等待、
+重发或引入其他 ConPTY 依赖。运行中返回成功也只是平台接受请求，不是子程序
+已经观察到新尺寸的确认；依赖尺寸的程序仍应处理尺寸事件并按需回复确认。
+
 Terminal 会取代三项标准流配置：父端通过 stdin 写入，通过 stdout 读取终端的统一字节流；子进程 stderr 也进入该字节流，因此 `xrtProcessStreamNative(..., XPROCESS_STDERR)` 返回 `-1`。终端输出可能包含输入回显、平台换行和程序产生的控制序列，调用方应按终端流而不是普通 stdout 文本处理。
 
 POSIX PTY 的读端和写端共享同一个 master。普通 `xrtProcessClose()` 只关闭父端写描述符，
@@ -1543,7 +1550,7 @@ bool xrtProcessTerminalSupported(void)
 
 ### `xrtProcessResize`
 
-调整 Terminal 进程窗口并通知子进程。
+请求调整 Terminal 进程窗口；成功不是子进程的尺寸观察屏障。
 
 ```c
 bool xrtProcessResize(
@@ -1558,19 +1565,23 @@ bool xrtProcessResize(
 | 参数 | 方向 | 约束 | 说明 |
 |---|---|---|---|
 | `pProcess` | 输入 | 非空、Terminal 进程 | 目标进程 |
-| `iColumns` | 输入 | > 0 | 列数 |
-| `iRows` | 输入 | > 0 | 行数 |
+| `iColumns` | 输入 | 1..32767 | 列数 |
+| `iRows` | 输入 | 1..32767 | 行数 |
 
 #### 返回值
 
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
-| `true` | 已调整并通知 | — |
+| `true` | 平台已接受调整请求；未等待应用确认 | — |
 | `false` | 失败 | `xrt.process` 域错误 |
 
 #### 错误
 
 - `xrt.process` / `XPROCESS_ERROR_TERMINAL` — 非终端进程或平台调整失败；句柄为空 `XERR_ARGUMENT`
+- 尺寸不在 1..32767 时返回 `XERR_RANGE`。
+
+Windows 10 系统 ConPTY 的启动期限制和应用就绪前置条件见上文 Terminal。
+`true` 不能证明启动期请求未丢失，也不能替代应用对实际尺寸的查询或确认。
 
 #### 范例
 
