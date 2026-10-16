@@ -2385,3 +2385,23 @@ const xfutureproducerownershipv1* xrtTaskGroupProducerPolicyV1Get(void);
 
 这项关系不替代语言回调和 finally 的准备职责，也不单独授予 TaskGroup
 全局循环回收权限。
+
+### TaskGroup 的准备和等待依赖
+
+`xrtTaskGroupOwnershipAdapterV2(ref, &preparation, &completion)` 使用独立于
+V1 的描述符。准备阶段正常 Close，允许已接纳任务发布结果并完成回调，
+全部活动项归零后才注销组自己的取消观察者。它不取消任务或伪造 Done。
+正常摘除后仍有计划引用的 item 保持真实 Count/Trace；V1 的活动项准入
+边界不变。准备在冻结之外运行，Clear 仍在所有语义清理完成之后。
+
+`xrtTaskGroupWaitV1(ref, token, &wait, visitor, context)` 在完整图冻结并以
+同一不可达 token 声明组和全部活动项后，提供关闭组的 ALL-terminal
+等待事实。`wait.Output` 借用真实 Promise，`wait.Count` 是实际活动项数。
+NULL visitor 只查询元数据；非空 visitor 按链表顺序借用每个 Future，
+重复输入逐项报告，不分配输入数组、不增加引用。开放、忙碌、未声明、
+不同 token 或已完成的状态拒绝；验证全链表后才回调。visitor 拒绝时
+输出不变，但它已经使用的私有分析空间不回滚。visitor 只能运行收集器
+分析，不得修改组、保留引用、阻塞或执行语言代码。
+
+等待事实不是拥有边，也不是循环证明或取消授权。收集器必须独立准入
+所有真实节点；语言执行节点仍负责自己的协作取消和 catch/finally。
