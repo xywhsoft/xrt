@@ -387,6 +387,10 @@ XRT_API xrtownershipref xrtTaskPoolOwnership(const xtaskpool* pPool);
  * caller's owner reference. ppPreparation changes only on success. */
 XRT_API const xrtownershipadapterv1* xrtTaskPoolOwnershipAdapterV1(
     xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+/* Exact native transition capability; does not relax Count/Trace admission.
+ * Queued opaque jobs and retained resources still require their own policies.
+ * The immutable descriptor and callback reside with this XRT instance. */
+XRT_API const xrtownershipquiescencev1* xrtTaskPoolOwnershipQuiescenceV1Get(void);
 
 
 

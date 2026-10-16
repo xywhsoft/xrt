@@ -1273,6 +1273,18 @@ static bool __xrtTaskPoolOwnershipTrace(const void* pData, xrtownershipvisitor p
 static const xrtownershipops __xrtTaskPoolOwnershipOps = {
 	__xrtTaskPoolOwnershipCount, __xrtTaskPoolOwnershipTrace
 };
+static bool __xrtTaskPoolOwnershipBusy(const void* pData)
+{
+	const xtaskpool* pPool = pData;
+	if (!pPool || !pPool->Initialized || !pPool->References || pPool->OwnershipCleared || pPool->Retired) return false;
+	return pPool->Entries || pPool->Joining || pPool->Destroying || pPool->Retiring ||
+		pPool->Running || pPool->FinalizerQueued || pPool->FinalizerRunning;
+}
+XRT_API const xrtownershipquiescencev1* xrtTaskPoolOwnershipQuiescenceV1Get(void)
+{
+	static const xrtownershipquiescencev1 Policy = {sizeof(Policy), &__xrtTaskPoolOwnershipOps, __xrtTaskPoolOwnershipBusy};
+	return &Policy;
+}
 XRT_API xrtownershipref xrtTaskPoolOwnership(const xtaskpool* pPool)
 { return (xrtownershipref){pPool, pPool ? &__xrtTaskPoolOwnershipOps : NULL}; }
 static bool __xrtTaskPoolHold(const void* pData)

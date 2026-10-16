@@ -7351,6 +7351,16 @@ struct xrtownershipops {
 	bool (*Count)(const void* pData, size_t* pCount);
 	bool (*Trace)(const void* pData, xrtownershipvisitor pVisit, ptr pContext);
 };
+/* Independent resident capability for a known participant's transient native
+ * execution. Call Busy only under the entire graph's ownership freeze, after
+ * exact Ops identity admission. It is read-only: no Count/Trace, user code,
+ * allocation, locking or reference changes. true defers snapshot admission;
+ * false is NOT lifecycle certification and never admits an opaque resource. */
+typedef struct xrtownershipquiescencev1 {
+	size_t size;
+	const xrtownershipops* Ops;
+	bool (*Busy)(const void* pData);
+} xrtownershipquiescencev1;
 /* Separate, explicitly admitted lifecycle protocol. Never read an extension
  * past xrtownershipops: existing native descriptors contain only two entries.
  * The resolver certifies complete mutation-domain participation, including
@@ -17198,6 +17208,10 @@ XRT_API xrtownershipref xrtTaskPoolOwnership(const xtaskpool* pPool);
  * caller's owner reference. ppPreparation changes only on success. */
 XRT_API const xrtownershipadapterv1* xrtTaskPoolOwnershipAdapterV1(
     xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+/* Exact native transition capability; does not relax Count/Trace admission.
+ * Queued opaque jobs and retained resources still require their own policies.
+ * The immutable descriptor and callback reside with this XRT instance. */
+XRT_API const xrtownershipquiescencev1* xrtTaskPoolOwnershipQuiescenceV1Get(void);
 
 
 

@@ -39,10 +39,23 @@ int main(void)
 		(pFuture != NULL) &&
 		(xrtFutureWaitFor(pFuture, INT64_C(2000)) == XWAIT_OK) &&
 		(xrtFutureValue(pFuture) == &iValue) &&
-		xrtTaskPoolDestroy(pPool)
+		xrtTaskPoolClose(pPool) && xrtTaskPoolWaitFor(pPool, 2000) == XWAIT_OK
 	) {
-		iResult = 0;
-		pPool = NULL;
+		const xrtownershipquiescencev1* pPolicy = xrtTaskPoolOwnershipQuiescenceV1Get();
+		xrtownershipref View = xrtTaskPoolOwnership(pPool);
+		xrtownershipscope Freeze = {0}; size_t iCount = 0;
+		if (!pPolicy || pPolicy->size != sizeof(*pPolicy) || pPolicy->Ops != View.Ops) return 2;
+		double iDeadline = xrtTimer() + 3;
+		while (!xrtOwnershipFreezeTryBegin(&Freeze)) {
+			if (xrtTimer() >= iDeadline) return 2;
+			xrtThreadYield();
+		}
+		bool bReady = !pPolicy->Busy(View.Data) && View.Ops->Count(View.Data, &iCount);
+		if (!xrtOwnershipScopeEnd(&Freeze) || !bReady) return 3;
+		if (xrtTaskPoolDestroy(pPool)) {
+			iResult = 0;
+			pPool = NULL;
+		}
 	}
 	xrtFutureDestroy(pFuture);
 	(void)xrtTaskPoolDestroy(pPool);

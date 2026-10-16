@@ -237,6 +237,14 @@ static void testTaskBarrierWait(testtaskbarrier* pBarrier)
 
 
 /* 验证任务结果、错误、所有权、上下文隔离和任务池生命周期。 */
+static void testTaskOwnershipFreeze(xrtownershipscope* pFreeze)
+{
+	double iDeadline = __xrtWaitAfter(3000);
+	while (!xrtOwnershipFreezeTryBegin(pFreeze)) {
+		testRequire(!__xrtWaitExpired(iDeadline), "task pool ownership freeze timed out");
+		xrtThreadYield();
+	}
+}
 int main(void)
 {
 	xtaskpoolconfig tConfig = { 1, 16, 0 };
@@ -341,6 +349,17 @@ int main(void)
 	);
 	testRequire(pWorkerFuture != NULL, "task barrier submit failed");
 	testTaskBarrierWait(&tBarrier);
+	const xrtownershipquiescencev1* pQuiescence = xrtTaskPoolOwnershipQuiescenceV1Get();
+	xrtownershipref PoolView = xrtTaskPoolOwnership(pPool);
+	xrtownershipscope Freeze = {0};
+	testRequire(pQuiescence && pQuiescence->size == sizeof(*pQuiescence) &&
+		pQuiescence->Ops == PoolView.Ops && pQuiescence->Busy && !pQuiescence->Busy(NULL),
+		"task pool quiescence identity mismatch");
+	testTaskOwnershipFreeze(&Freeze);
+	testRequire(pQuiescence->Busy(PoolView.Data), "active data finalizer is not a retryable transition");
+	size_t iReferences = 0;
+	testRequire(!PoolView.Ops->Count(PoolView.Data, &iReferences), "busy capability relaxed physical Count");
+	testRequire(xrtOwnershipScopeEnd(&Freeze), "task pool busy freeze end failed");
 	testRequire(xrtFutureState(pWorkerFuture) == XFUTURE_PENDING,
 		"task Future published before data destruction completed");
 	xrtAtomic32Store(&tBarrier.Release, 1, XMEMORY_RELEASE);
@@ -348,6 +367,12 @@ int main(void)
 		"task barrier Future did not complete");
 	testRequire(xrtFutureState(pWorkerFuture) == XFUTURE_RESOLVED,
 		"task barrier Future did not resolve");
+	testRequire(xrtTaskPoolClose(pPool) && xrtTaskPoolWaitFor(pPool, 3000) == XWAIT_OK,
+		"task pool finalizer tail did not settle");
+	testTaskOwnershipFreeze(&Freeze);
+	testRequire(!pQuiescence->Busy(PoolView.Data) && PoolView.Ops->Count(PoolView.Data, &iReferences),
+		"settled pool did not retain strict physical admission");
+	testRequire(xrtOwnershipScopeEnd(&Freeze), "task pool idle freeze end failed");
 	xrtFutureDestroy(pWorkerFuture);
 	testRequire(xrtTaskPoolDestroy(pPool), "task barrier pool destroy failed");
 
