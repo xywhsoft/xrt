@@ -140,6 +140,38 @@ static const xrtownershipops __xrtCancelWatchOwnershipOps = {
 	__xrtCancelWatchOwnershipCount, __xrtCancelWatchOwnershipTrace
 };
 
+/* Read only under whole-graph freeze. These native execution flags are not
+ * lifecycle admission: an idle legacy/unknown observer still fails closed. */
+static bool __xrtCancelWatchOwnershipBusy(const void* pData)
+{
+	const xcancelwatch* pWatch = pData;
+	return pWatch && !pWatch->OwnershipCleared && (pWatch->CallbackActive ||
+		pWatch->Dispatching || pWatch->DeferredRelease);
+}
+static bool __xrtCancelOwnershipBusy(const void* pData)
+{
+	const xcancel* pCancel = pData;
+	if (!pCancel || pCancel->OwnershipCleared) return false;
+	if (pCancel->ActiveRequests) return true;
+	/* The list borrows native Watch storage, not its user Data. Do not call
+	 * any observer policy, Count or Trace merely to recognize its dispatch. */
+	for (const xcancelnode* pNode = pCancel->WatchHead; pNode; pNode = pNode->Next)
+		if (__xrtCancelWatchOwnershipBusy(pNode->Watch)) return true;
+	return false;
+}
+XRT_API const xrtownershipquiescencev1* xrtCancelOwnershipQuiescenceV1Get(void)
+{
+	static const xrtownershipquiescencev1 Policy = {sizeof(Policy),
+		&__xrtCancelOwnershipOps, __xrtCancelOwnershipBusy};
+	return &Policy;
+}
+XRT_API const xrtownershipquiescencev1* xrtCancelWatchOwnershipQuiescenceV1Get(void)
+{
+	static const xrtownershipquiescencev1 Policy = {sizeof(Policy),
+		&__xrtCancelWatchOwnershipOps, __xrtCancelWatchOwnershipBusy};
+	return &Policy;
+}
+
 XRT_API xrtownershipref xrtCancelWatchOwnership(const xcancelwatch* pWatch)
 {
 	xrtownershipref Result = {pWatch, pWatch != NULL ? &__xrtCancelWatchOwnershipOps : NULL};

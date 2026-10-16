@@ -269,6 +269,11 @@ XRT_API void xrtTaskGroupDestroy(xtaskgroup* pGroup);
  * registrations and every real temporary pin. Busy callbacks/reservations
  * refuse inspection. This view alone grants no collection or unload right. */
 XRT_API xrtownershipref xrtTaskGroupOwnership(const xtaskgroup* pGroup);
+/* Exact resident group/item operations, including private Start reservation
+ * and waiter publication. Whole-graph freeze only; no Count/Trace or callback.
+ * These descriptors do not weaken the physical views or lifecycle adapters. */
+XRT_API const xrtownershipquiescencev1* xrtTaskGroupOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTaskGroupItemOwnershipQuiescenceV1Get(void);
 XRT_API const xfuturewatchownershipv1* xrtTaskGroupWatchPolicyV1Get(void);
 XRT_API const xcancelwatchownershipv1* xrtTaskGroupCancelPolicyV1Get(void);
 /* Pending Done owns one actual group producer reference, released exactly

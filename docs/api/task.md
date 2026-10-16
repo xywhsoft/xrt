@@ -2406,7 +2406,13 @@ NULL visitor 只查询元数据；非空 visitor 按链表顺序借用每个 Fut
 等待事实不是拥有边，也不是循环证明或取消授权。收集器必须独立准入
 所有真实节点；语言执行节点仍负责自己的协作取消和 catch/finally。
 
-### 任务池的暂态准入
+### 任务组与任务池的暂态准入
+
+任务组的 `xrtTaskGroupOwnershipQuiescenceV1Get()` 与活动项的
+`xrtTaskGroupItemOwnershipQuiescenceV1Get()` 使用同一精确暂态协议。
+组操作、私有 Start 预留、监听发布以及活动项完成通知只推迟快照，不放宽
+物理 Count／Trace。提交操作独立保留真实组引用，覆盖同步回调销毁公共
+拥有者后的操作尾部。链表不一致本身不是 BUSY 证明。
 
 `xrtTaskPoolOwnershipQuiescenceV1Get()` 返回不可变的
 `xrtownershipquiescencev1`。收集器先核对精确 `Ops` 身份，再在完整图

@@ -170,6 +170,49 @@ static void testTaskGroupStartWindowRelease(
 
 
 /* 验证 Close 和 Cancel 都覆盖尚未提交 Future 的预留窗口。 */
+typedef struct testtaskgroupadmission {
+	volatile int32 Refs;
+	xatomic32 Entered, Release;
+} testtaskgroupadmission;
+static bool testTaskGroupAdmissionCount(const void* pData, size_t* pCount)
+{
+	const testtaskgroupadmission* pValue = pData;
+	if (!pValue || !pCount || pValue->Refs <= 0) return false;
+	*pCount = (size_t)pValue->Refs; return true;
+}
+static bool testTaskGroupAdmissionTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{ (void)pData; (void)pVisit; (void)pContext; return true; }
+static const xrtownershipops testTaskGroupAdmissionOps = {testTaskGroupAdmissionCount, testTaskGroupAdmissionTrace};
+static void testTaskGroupAdmissionPause(ptr pData)
+{
+	testtaskgroupadmission* pValue = pData;
+	xrtAtomic32Store(&pValue->Entered, 1, XMEMORY_RELEASE);
+	while (!xrtAtomic32Load(&pValue->Release, XMEMORY_ACQUIRE)) testThreadYield();
+}
+static void testTaskGroupAdmissionDrop(const void* pData)
+{
+	testtaskgroupadmission* pValue = (testtaskgroupadmission*)pData; xrtownershipscope Scope = {0};
+	testRequire(xrtOwnershipMutationBegin(&Scope), "admission data transition");
+	testRequire(xrtRefRelease(&pValue->Refs) == 1, "only watch's actual data right returned");
+	testRequire(xrtOwnershipScopeEnd(&Scope), "admission data transition end");
+}
+static const xcancelwatchownershipv1 testTaskGroupAdmissionPolicy = {
+	sizeof(testTaskGroupAdmissionPolicy), testTaskGroupAdmissionPause, testTaskGroupAdmissionDrop, &testTaskGroupAdmissionOps
+};
+static void testTaskGroupAdmissionCheck(xtaskgroup* pGroup, xcancel* pCancel, xcancelwatch* pWatch, xfuture* pFuture)
+{
+	xrtownershipscope Scope = {0}; double Deadline = xrtTimer() + 5; size_t Count = SIZE_MAX;
+	while (!xrtOwnershipFreezeTryBegin(&Scope)) { testRequire(xrtTimer() < Deadline, "admission freeze deadline"); testThreadYield(); }
+	xrtownershipref Group = xrtTaskGroupOwnership(pGroup);
+	const xrtownershipquiescencev1* Policy = xrtTaskGroupOwnershipQuiescenceV1Get();
+	testRequire(Policy->size == sizeof(*Policy) && Policy->Ops == Group.Ops && Policy->Busy(pGroup), "actual private group operation busy");
+	testRequire(!Group.Ops->Count(Group.Data, &Count) && Count == SIZE_MAX, "busy physical count remains refused");
+	testRequire(xrtTaskGroupItemOwnershipQuiescenceV1Get()->Ops == xrtTaskGroupWatchPolicyV1Get()->Ops, "exact item capability identity");
+	if (pWatch) testRequire(xrtCancelOwnershipQuiescenceV1Get()->Busy(pCancel) &&
+		xrtCancelWatchOwnershipQuiescenceV1Get()->Busy(pWatch) && xrtFutureOwnershipQuiescenceV1Get()->Busy(pFuture),
+		"commit cancellation remains a real native operation");
+	testRequire(xrtOwnershipScopeEnd(&Scope), "admission freeze end");
+}
 static void testTaskGroupStartWindow(bool bCancel)
 {
 	testtaskgroupstartwindow tWindow;
@@ -177,6 +220,7 @@ static void testTaskGroupStartWindow(bool bCancel)
 	xtaskgroupstats tStats;
 	xfuture* pDone;
 	xcancel* pCancel;
+	xcancelwatch* pWatch = NULL; testtaskgroupadmission Admission = {0}; Admission.Refs = 2;
 
 	memset(&tWindow, 0, sizeof(tWindow));
 	memset(&tThread, 0, sizeof(tThread));
@@ -195,6 +239,7 @@ static void testTaskGroupStartWindow(bool bCancel)
 	testThreadsStart(&tThread, 1);
 	testRequire(testTaskGroupStartWindowWait(&tWindow),
 		"task group start window did not open");
+	testTaskGroupAdmissionCheck(tWindow.Group, NULL, NULL, NULL);
 	testRequire(xrtTaskGroupGet(tWindow.Group, &tStats) &&
 		(tStats.Active == 1) && (tStats.Added == 0),
 		"task group reservation was not visible as active");
@@ -214,8 +259,21 @@ static void testTaskGroupStartWindow(bool bCancel)
 			"Close cancelled a reserved Future");
 	}
 
+	if (bCancel) {
+		pWatch = xrtCancelWatchOwnedV1(pCancel, &Admission, &testTaskGroupAdmissionPolicy);
+		testRequire(pWatch != NULL, "owned commit-window observer");
+	}
 	testTaskGroupStartWindowRelease(&tWindow);
+	if (bCancel) {
+		double Deadline = xrtTimer() + 5;
+		while (!xrtAtomic32Load(&Admission.Entered, XMEMORY_ACQUIRE)) {
+			testRequire(xrtTimer() < Deadline, "commit-window callback deadline"); testThreadYield();
+		}
+		testTaskGroupAdmissionCheck(tWindow.Group, pCancel, pWatch, tWindow.Future);
+		xrtAtomic32Store(&Admission.Release, 1, XMEMORY_RELEASE);
+	}
 	testThreadsJoin(&tThread, 1);
+	if (pWatch) { testRequire(xrtCancelUnwatchChecked(pWatch) && Admission.Refs == 1, "commit observer returns actual right"); }
 	testRequire((tThread.Result == 0) &&
 		(tWindow.Returned == tWindow.Future),
 		"reserved Future commit failed");
@@ -245,6 +303,40 @@ static void testTaskGroupStartWindow(bool bCancel)
 		"task group start window cond unit failed");
 	testRequire(xrtMutexUnit(&tWindow.Lock),
 		"task group start window lock unit failed");
+}
+
+typedef struct testtaskgroupreentrant {
+	xtaskgroup* Group;
+	xfuture* Done;
+	unsigned Calls, Releases;
+} testtaskgroupreentrant;
+static void testTaskGroupDestroyInCommit(ptr pData)
+{
+	testtaskgroupreentrant* pValue = pData; ++pValue->Calls;
+	xrtTaskGroupDestroy(pValue->Group); pValue->Group = NULL;
+	xrtFutureDestroy(pValue->Done); pValue->Done = NULL;
+}
+static void testTaskGroupReentrantRelease(ptr pData)
+{ ++((testtaskgroupreentrant*)pData)->Releases; }
+/* An already terminal source publishes Done synchronously inside Commit.
+ * Its observer returns the public group/Done rights before the item dies. */
+static void testTaskGroupReentrantCommit(void)
+{
+	testtaskgroupstartwindow Window = {0}; testthread Thread = {0};
+	testtaskgroupreentrant Value = {0}; xfuturewatch Watch = {0};
+	testRequire(xrtMutexInit(&Window.Lock) && xrtCondInit(&Window.Changed), "reentrant window synchronization");
+	Window.Group = xrtTaskGroupCreate(NULL); testRequire(Window.Group != NULL, "reentrant commit group");
+	Value.Group = Window.Group; Value.Done = xrtTaskGroupFuture(Window.Group);
+	testRequire(Value.Done && xrtFutureWatchInit(&Watch, testTaskGroupDestroyInCommit, testTaskGroupReentrantRelease, &Value) &&
+		xrtFutureWatchAdd(Value.Done, &Watch) == XFUTURE_WATCH_PENDING, "reentrant Done observer owns public rights");
+	Thread.Proc = testTaskGroupStartWindowThread; Thread.Data = &Window;
+	testThreadsStart(&Thread, 1); testRequire(testTaskGroupStartWindowWait(&Window), "reentrant private reservation");
+	testRequire(xrtTaskGroupClose(Window.Group) && xrtPromiseResolve(Window.Promise, NULL), "terminal source before waiter publication");
+	testTaskGroupStartWindowRelease(&Window); testThreadsJoin(&Thread, 1);
+	testRequire(Thread.Result == 0 && Window.Returned == Window.Future && !Value.Group && !Value.Done &&
+		Value.Calls == 1 && Value.Releases == 1, "commit owns its real lifetime after synchronous public destruction");
+	xrtPromiseDestroy(Window.Promise); xrtFutureDestroy(Window.Future);
+	testRequire(xrtCondUnit(&Window.Changed) && xrtMutexUnit(&Window.Lock), "reentrant window cleanup");
 }
 
 
@@ -444,6 +536,7 @@ int main(void)
 {
 	testTaskGroupStartWindow(false);
 	testTaskGroupStartWindow(true);
+	testTaskGroupReentrantCommit();
 	testTaskGroupCompletionStress();
 	testTaskGroupCloseStress();
 	testTaskGroupDestroyStress();

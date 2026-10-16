@@ -196,6 +196,19 @@ static const xrtownershipops __xrtFutureOwnershipOps = {
 	__xrtFutureOwnershipCount, __xrtFutureOwnershipTrace
 };
 
+static bool __xrtFutureOwnershipBusy(const void* pData)
+{
+	const xfuture* pFuture = pData;
+	return pFuture && !pFuture->OwnershipCleared && (pFuture->Completing ||
+		xrtCancelOwnershipQuiescenceV1Get()->Busy(pFuture->Cancel));
+}
+XRT_API const xrtownershipquiescencev1* xrtFutureOwnershipQuiescenceV1Get(void)
+{
+	static const xrtownershipquiescencev1 Policy = {sizeof(Policy),
+		&__xrtFutureOwnershipOps, __xrtFutureOwnershipBusy};
+	return &Policy;
+}
+
 XRT_API xrtownershipref xrtFutureOwnership(const xfuture* pFuture)
 {
 	xrtownershipref Result = {pFuture, pFuture != NULL ? &__xrtFutureOwnershipOps : NULL};

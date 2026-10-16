@@ -4,6 +4,11 @@
 
 ## 物理拥有图
 
+`xrtFutureOwnershipQuiescenceV1Get()` 描述同一物理 Future／Promise
+控制块的唯一终态预留和自身取消令牌分发。完整图冻结后匹配精确 Ops 身份
+才能查询，不分配或运行用户回调。普通通知尾部持有的真实引用仍是物理根，
+不把所有回调或未完成状态一概标成忙碌。未知负载与观察者保留原有拒绝边界。
+
 ### 聚合器的终结后物理退役
 
 `xrtFutureCombineOwnershipAdapterV2` 与 Future V5、Cancel Watch V2、

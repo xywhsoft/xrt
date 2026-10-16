@@ -1,5 +1,11 @@
 # 取消令牌
 
+`xrtCancelOwnershipQuiescenceV1Get` 与
+`xrtCancelWatchOwnershipQuiescenceV1Get` 在完整拥有图冻结期间描述原生
+请求、回调、分发和回调内延迟释放。只允许精确 Ops 身份匹配后调用 Busy，
+不执行用户策略或 Count／Trace。空闲的未知观察者仍被适配器拒绝；
+Busy 为 false 不是准入证明，不允许按错误种类把所有拒绝改成重试。
+
 `xrtCancelUnwatchChecked` 与 `xrtCancelUnwatch` 消费同一份注册权，前者
 显式返回是否成功，不依赖错误对象能否分配。NULL 成功；失败不消费
 调用者的注册权。回调自身注销返回成功，实际引用延迟到回调返回后释放。

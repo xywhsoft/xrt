@@ -95,6 +95,12 @@ static void blocked(bool owned)
     testThreadsStart(threads, 1); wait_for(&value.entered);
     if (owned) {
         testRequire(xrtOwnershipFreezeTryBegin(&freeze), "owned callback does not monopolize mutation domain");
+        const xrtownershipquiescencev1* token = xrtCancelOwnershipQuiescenceV1Get();
+        const xrtownershipquiescencev1* watch = xrtCancelWatchOwnershipQuiescenceV1Get();
+        testRequire(token->size == sizeof(*token) && token->Ops == xrtCancelOwnership(value.parent).Ops &&
+            watch->size == sizeof(*watch) && watch->Ops == xrtCancelWatchOwnership(value.watch).Ops &&
+            token->Busy(value.parent) && token->Busy(value.child) && watch->Busy(value.watch),
+            "precise request and linked-child dispatch capabilities");
         testRequire(!xrtCancelWatchOwnershipAdapterV1(xrtCancelWatchOwnership(value.watch), policies, 1, &prepare) &&
             prepare == (const xrtownershippreparationv1*)(uintptr_t)1, "active Watch is refused before tracing");
         testRequire(!xrtCancelOwnershipAdapterV2(xrtCancelOwnership(value.parent), policies, 1, &prepare), "active native request refused");

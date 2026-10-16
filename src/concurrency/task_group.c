@@ -96,6 +96,29 @@ static const xrtownershipops __xrtTaskGroupOwnershipOps = {
 static const xrtownershipops __xrtTaskGroupItemOwnershipOps = {
 	__xrtTaskGroupItemOwnershipCount, __xrtTaskGroupItemOwnershipTrace
 };
+static bool __xrtTaskGroupOwnershipBusy(const void* pData)
+{
+	const xtaskgroup* pGroup = pData;
+	return pGroup && !pGroup->OwnershipCleared && (pGroup->Busy || pGroup->Reserved);
+}
+static bool __xrtTaskGroupItemOwnershipBusy(const void* pData)
+{
+	const xrt_task_group_item* pItem = pData;
+	return pItem && !pItem->OwnershipCleared && (pItem->Waiter.Calling ||
+		__xrtTaskGroupOwnershipBusy(pItem->Group));
+}
+XRT_API const xrtownershipquiescencev1* xrtTaskGroupOwnershipQuiescenceV1Get(void)
+{
+	static const xrtownershipquiescencev1 Policy = {sizeof(Policy),
+		&__xrtTaskGroupOwnershipOps, __xrtTaskGroupOwnershipBusy};
+	return &Policy;
+}
+XRT_API const xrtownershipquiescencev1* xrtTaskGroupItemOwnershipQuiescenceV1Get(void)
+{
+	static const xrtownershipquiescencev1 Policy = {sizeof(Policy),
+		&__xrtTaskGroupItemOwnershipOps, __xrtTaskGroupItemOwnershipBusy};
+	return &Policy;
+}
 XRT_API xrtownershipref xrtTaskGroupOwnership(const xtaskgroup* pGroup)
 { return (xrtownershipref){pGroup, pGroup ? &__xrtTaskGroupOwnershipOps : NULL}; }
 static bool __xrtTaskGroupItemOwnershipTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
@@ -600,12 +623,21 @@ static bool __xrtTaskGroupCommit(
 		__xrtTaskGroupAbort(pItem);
 		return false;
 	}
+	/* Completion may synchronously call an observer which destroys the public
+	 * group owner. This operation needs its own real right through Busy exit. */
+	if (!__xrtTaskGroupRef(pGroup)) {
+		xrtFutureDestroy(pTracked); __xrtTaskGroupAbort(pItem); return false;
+	}
 
 	__xrtTaskGroupBegin(pGroup, &Scope);
 	pItem->Future = pTracked;
 	pItem->Index = (size_t)pGroup->Added;
 	pGroup->Added++;
 	pGroup->Reserved--;
+	/* A published Future is not yet linked to its waiter. Describe that real
+	 * commit operation explicitly rather than interpreting a list mismatch as
+	 * BUSY (which would also hide a permanently invalid graph). */
+	++pGroup->Busy;
 	bCancel = pItem->CancelPosted;
 	__xrtTaskGroupEnd(pGroup, &Scope);
 
@@ -616,6 +648,8 @@ static bool __xrtTaskGroupCommit(
 		__xrtTaskGroupSourceDone(pItem);
 		__xrtTaskGroupItemRelease(pItem);
 	}
+	__xrtTaskGroupBegin(pGroup, &Scope); --pGroup->Busy; __xrtTaskGroupEnd(pGroup, &Scope);
+	__xrtTaskGroupRelease(pGroup);
 	return true;
 }
 
