@@ -25,6 +25,8 @@ int main(void)
 	xallocator allocator = {NULL, alloc, resize, release};
 	xrudpreceive* r = NULL;
 	xrudpreceivechange change;
+	xrudpreceivebatchchange batch;
+	xrudpreceiveframe frames[64];
 	unsigned char input[1024], output[1024];
 	size_t before, count;
 	memset(input, 0xa7, sizeof(input));
@@ -40,6 +42,9 @@ int main(void)
 	CHECK(xrtRudpReceiveRead(r, output, sizeof(output), &count) == XRUDP_OK && count == sizeof(output));
 	CHECK(memcmp(input, output, sizeof(input)) == 0);
 	CHECK(xrtRudpReceiveExtend(r, 2048) == XRUDP_OK);
+	for (size_t i = 0; i < 64; ++i) frames[i] = (xrudpreceiveframe){r, 1024 + i, input + i, 1, false};
+	CHECK(xrtRudpReceiveCheckBatch(frames, 64, 64, &batch) == XRUDP_OK && batch.NewBytes == 64);
+	CHECK(xrtRudpReceivePushBatch(frames, 64, 64, &batch) == XRUDP_OK && batch.HighestDelta == 64);
 	CHECK(xrtRudpReceiveReset(r, 2048, 5, &change) == XRUDP_OK && change.ConsumedDelta == 1024);
 	xrtRudpReceiveDestroy(r);
 	CHECK(calls == before);

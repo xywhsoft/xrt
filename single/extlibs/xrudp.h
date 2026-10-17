@@ -878,6 +878,21 @@ typedef struct xrudpreceivechange {
 	uint32_t Reserved;
 } xrudpreceivechange;
 
+typedef struct xrudpreceiveframe {
+	xrudpreceive* Receive;
+	uint64_t Offset;
+	const void* Data;
+	size_t Size;
+	bool Fin;
+} xrudpreceiveframe;
+
+typedef struct xrudpreceivebatchchange {
+	uint64_t HighestDelta;
+	uint64_t NewBytes;
+	uint32_t NewFinals;
+	uint32_t Streams;
+} xrudpreceivebatchchange;
+
 XRT_EXTERN_C_BEGIN
 
 /* Capacity=0 defaults to 64KiB, otherwise a power of two in [256,1MiB].
@@ -903,6 +918,19 @@ XRUDP_API xrudpresult xrtRudpReceiveCheck(const xrudpreceive* pReceive,
 XRUDP_API xrudpresult xrtRudpReceivePush(xrudpreceive* pReceive,
 	uint64_t iOffset, const void* pData, size_t iSize, bool bFin,
 	xrudpreceivechange* pChange);
+/* Atomic STREAM-only batch across already admitted stream objects. At most 64
+ * frames and one datagram's encoded STREAM budget (body + frame headers).
+ * Checks cross-frame overlaps/final sizes and sums each stream's maximum offset
+ * delta exactly once. Exceeding remaining advertised CONNECTION credit is
+ * MALFORMED. Metadata/CPU work is bounded, and neither routine allocates.
+ * CheckBatch is pure; PushBatch rechecks and commits only after ALL validation.
+ * Inputs and output objects must be disjoint from every receive object.
+ * The connection driver must ALSO preflight ACK/control/OPEN/RESET frames,
+ * authorization and lifecycle before invoking PushBatch and recording an ACK. */
+XRUDP_API xrudpresult xrtRudpReceiveCheckBatch(const xrudpreceiveframe* pFrames,
+	size_t iCount, uint64_t iRemainingConnectionCredit, xrudpreceivebatchchange* pChange);
+XRUDP_API xrudpresult xrtRudpReceivePushBatch(const xrudpreceiveframe* pFrames,
+	size_t iCount, uint64_t iRemainingConnectionCredit, xrudpreceivebatchchange* pChange);
 /* Copies and consumes only contiguous data. BACKPRESSURE means a receive hole;
  * DONE is clean EOF, CANCELLED is peer RESET, both with zero read count.
  * EOF/RESET are never inferred merely from an empty buffer. Capacity must >0.
@@ -2730,6 +2758,22 @@ xrudpresult xrtRudpReceiveCheck(const xrudpreceive* r, uint64_t offset,
 	return next.HighestDelta != 0 || next.NewBytes != 0 || next.NewFinal != 0 ? XRUDP_OK : XRUDP_DUPLICATE;
 }
 
+static void xrudp__receive_commit(xrudpreceive* r, uint64_t offset,
+	const void* data, size_t size, bool fin)
+{
+	if (r->Reset) return;
+	for (size_t i = 0; i < size; ++i) {
+		size_t slot;
+		if (offset + i < r->ReadOffset) continue;
+		slot = xrudp__receive_slot(r, offset + i);
+		if (!xrudp__receive_has(r, slot)) ++r->Buffered;
+		r->Data[slot] = ((const unsigned char*)data)[i];
+		r->Data[r->Capacity + slot / 8] |= (unsigned char)(1u << (slot % 8));
+	}
+	if (offset + size > r->HighestOffset) r->HighestOffset = offset + size;
+	if (fin) { r->HasFinal = true; r->FinalOffset = offset + size; }
+}
+
 xrudpresult xrtRudpReceivePush(xrudpreceive* r, uint64_t offset,
 	const void* data, size_t size, bool fin, xrudpreceivechange* change)
 {
@@ -2738,18 +2782,84 @@ xrudpresult xrtRudpReceivePush(xrudpreceive* r, uint64_t offset,
 	if (change == NULL) return XRUDP_ARGUMENT;
 	result = xrtRudpReceiveCheck(r, offset, data, size, fin, &next);
 	if (result != XRUDP_OK && result != XRUDP_DUPLICATE) return result;
-	if (result == XRUDP_DUPLICATE) { *change = next; return result; }
-	for (size_t i = 0; i < size; ++i) {
-		size_t slot;
-		if (offset + i < r->ReadOffset) continue;
-		slot = xrudp__receive_slot(r, offset + i);
-		r->Data[slot] = ((const unsigned char*)data)[i];
-		r->Data[r->Capacity + slot / 8] |= (unsigned char)(1u << (slot % 8));
-	}
-	r->HighestOffset += next.HighestDelta; r->Buffered += next.NewBytes;
-	if (fin) { r->HasFinal = true; r->FinalOffset = offset + size; }
+	if (result == XRUDP_OK) xrudp__receive_commit(r, offset, data, size, fin);
 	*change = next;
-	return XRUDP_OK;
+	return result;
+}
+
+xrudpresult xrtRudpReceiveCheckBatch(const xrudpreceiveframe* frames,
+	size_t count, uint64_t credit, xrudpreceivebatchchange* change)
+{
+	struct plan { const xrudpreceive* Receive; uint64_t Highest, Final; bool HasFinal; } plans[XRUDP_FRAMES_MAX];
+	xrudpreceivebatchchange next;
+	size_t streams = 0, wireSize = 0;
+	if (frames == NULL || change == NULL || count == 0 || count > XRUDP_FRAMES_MAX) return XRUDP_ARGUMENT;
+	memset(&next, 0, sizeof(next));
+	for (size_t i = 0; i < count; ++i) {
+		const xrudpreceiveframe* f = &frames[i];
+		xrudpreceivechange single;
+		xrudpresult result = xrtRudpReceiveCheck(f->Receive, f->Offset, f->Data, f->Size, f->Fin, &single);
+		if (result != XRUDP_OK && result != XRUDP_DUPLICATE) return result;
+		if (f->Size + 16 > XRUDP_PACKET_MAX - XRUDP_HEADER_SIZE - XRUDP_TAG_SIZE - wireSize) return XRUDP_LIMIT;
+		wireSize += f->Size + 16;
+		const xrudpreceive* r = f->Receive;
+		size_t p;
+		for (p = 0; p < streams && plans[p].Receive != r; ++p) {}
+		if (p == streams) {
+			plans[p].Receive = r; plans[p].Highest = r->HighestOffset;
+			plans[p].Final = r->FinalOffset; plans[p].HasFinal = r->HasFinal; ++streams;
+		}
+		uint64_t end = f->Offset + f->Size;
+		if ((plans[p].HasFinal && (end > plans[p].Final || (f->Fin && end != plans[p].Final))) ||
+			(f->Fin && end < plans[p].Highest)) return XRUDP_MALFORMED;
+		if (f->Fin && !plans[p].HasFinal) {
+			plans[p].HasFinal = true; plans[p].Final = end; ++next.NewFinals;
+		}
+		if (end > plans[p].Highest) plans[p].Highest = end;
+		if (r->Reset) continue;
+		for (size_t j = 0; j < i; ++j) {
+			const xrudpreceiveframe* old = &frames[j];
+			if (old->Receive != r) continue;
+			uint64_t first = f->Offset > old->Offset ? f->Offset : old->Offset;
+			uint64_t last = end < old->Offset + old->Size ? end : old->Offset + old->Size;
+			if (first < r->ReadOffset) first = r->ReadOffset;
+			if (first < last && memcmp((const unsigned char*)f->Data + (size_t)(first - f->Offset),
+				(const unsigned char*)old->Data + (size_t)(first - old->Offset), (size_t)(last - first)) != 0)
+				return XRUDP_MALFORMED;
+		}
+		for (size_t k = 0; k < f->Size; ++k) {
+			uint64_t position = f->Offset + k;
+			bool covered = false;
+			if (position < r->ReadOffset || xrudp__receive_has(r, xrudp__receive_slot(r, position))) continue;
+			for (size_t j = 0; j < i; ++j)
+				if (frames[j].Receive == r && position >= frames[j].Offset && position - frames[j].Offset < frames[j].Size) {
+					covered = true; break;
+				}
+			if (!covered) ++next.NewBytes;
+		}
+	}
+	for (size_t i = 0; i < streams; ++i) {
+		uint64_t delta = plans[i].Highest - plans[i].Receive->HighestOffset;
+		if (delta > credit - next.HighestDelta) return XRUDP_MALFORMED;
+		next.HighestDelta += delta;
+	}
+	next.Streams = (uint32_t)streams; *change = next;
+	return next.HighestDelta || next.NewBytes || next.NewFinals ? XRUDP_OK : XRUDP_DUPLICATE;
+}
+
+xrudpresult xrtRudpReceivePushBatch(const xrudpreceiveframe* frames,
+	size_t count, uint64_t credit, xrudpreceivebatchchange* change)
+{
+	xrudpreceivebatchchange next;
+	xrudpresult result;
+	if (change == NULL) return XRUDP_ARGUMENT;
+	result = xrtRudpReceiveCheckBatch(frames, count, credit, &next);
+	if (result != XRUDP_OK && result != XRUDP_DUPLICATE) return result;
+	if (result == XRUDP_OK)
+		for (size_t i = 0; i < count; ++i)
+			xrudp__receive_commit(frames[i].Receive, frames[i].Offset, frames[i].Data, frames[i].Size, frames[i].Fin);
+	*change = next;
+	return result;
 }
 
 xrudpresult xrtRudpReceiveRead(xrudpreceive* r, void* output, size_t capacity, size_t* read)

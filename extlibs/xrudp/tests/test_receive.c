@@ -98,6 +98,77 @@ static uint32_t random_word(void)
 	seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5; return seed;
 }
 
+static int batches(void)
+{
+	xrudpreceive *a = NULL, *b = NULL;
+	xrudpreceiveframe frames[XRUDP_FRAMES_MAX] = {{0}};
+	xrudpreceivebatchchange batch, saved;
+	xrudpreceivechange single;
+	xrudpreceivestate beforeA, beforeB, state;
+	unsigned char output[256], bad[10];
+	size_t read;
+	CHECK(xrtRudpReceiveCreate(256, 256, &a) == XRUDP_OK);
+	CHECK(xrtRudpReceiveCreate(256, 256, &b) == XRUDP_OK);
+	CHECK(xrtRudpReceivePush(a, 10, source + 10, 10, false, &single) == XRUDP_OK);
+	frames[0] = (xrudpreceiveframe){a, 0, source, 10, false};
+	frames[1] = (xrudpreceiveframe){b, 0, source, 40, false};
+	frames[2] = (xrudpreceiveframe){a, 15, source + 15, 10, false};
+	frames[3] = (xrudpreceiveframe){a, 25, NULL, 0, true};
+	frames[4] = (xrudpreceiveframe){b, 40, NULL, 0, true};
+	CHECK(xrtRudpReceiveState(a, &beforeA) == XRUDP_OK);
+	CHECK(xrtRudpReceiveState(b, &beforeB) == XRUDP_OK);
+	memset(&batch, 0xa5, sizeof(batch)); saved = batch;
+	CHECK(xrtRudpReceivePushBatch(frames, 5, 44, &batch) == XRUDP_MALFORMED);
+	CHECK(memcmp(&batch, &saved, sizeof(batch)) == 0);
+	CHECK(xrtRudpReceiveState(a, &state) == XRUDP_OK && memcmp(&state, &beforeA, sizeof(state)) == 0);
+	CHECK(xrtRudpReceiveState(b, &state) == XRUDP_OK && memcmp(&state, &beforeB, sizeof(state)) == 0);
+	frames[4].Offset = 39; /* Late final-size error cannot commit earlier streams. */
+	CHECK(xrtRudpReceivePushBatch(frames, 5, 1000, &batch) == XRUDP_MALFORMED);
+	CHECK(xrtRudpReceiveRead(b, output, sizeof(output), &read) == XRUDP_BACKPRESSURE);
+	CHECK(xrtRudpReceiveState(a, &state) == XRUDP_OK && memcmp(&state, &beforeA, sizeof(state)) == 0);
+	frames[4].Offset = 40;
+	memcpy(bad, source + 15, 10); bad[2] ^= 1; frames[2].Data = bad;
+	CHECK(xrtRudpReceivePushBatch(frames, 5, 1000, &batch) == XRUDP_MALFORMED);
+	CHECK(xrtRudpReceiveState(a, &state) == XRUDP_OK && memcmp(&state, &beforeA, sizeof(state)) == 0);
+	frames[2].Data = source + 15;
+	CHECK(xrtRudpReceiveCheckBatch(frames, 5, 45, &batch) == XRUDP_OK);
+	CHECK(batch.HighestDelta == 45 && batch.NewBytes == 55 && batch.NewFinals == 2 && batch.Streams == 2);
+	CHECK(xrtRudpReceiveState(b, &state) == XRUDP_OK && memcmp(&state, &beforeB, sizeof(state)) == 0);
+	CHECK(xrtRudpReceivePushBatch(frames, 5, 45, &batch) == XRUDP_OK);
+	CHECK(batch.HighestDelta == 45 && batch.NewBytes == 55 && batch.NewFinals == 2);
+	CHECK(xrtRudpReceiveRead(a, output, 256, &read) == XRUDP_OK && read == 25 && memcmp(output, source, read) == 0);
+	CHECK(xrtRudpReceiveRead(b, output, 256, &read) == XRUDP_OK && read == 40 && memcmp(output, source, read) == 0);
+	CHECK(xrtRudpReceiveRead(a, output, 256, &read) == XRUDP_DONE);
+	CHECK(xrtRudpReceiveRead(b, output, 256, &read) == XRUDP_DONE);
+	CHECK(xrtRudpReceivePushBatch(frames, 5, 0, &batch) == XRUDP_DUPLICATE && batch.HighestDelta == 0 && batch.NewBytes == 0);
+	xrtRudpReceiveDestroy(a); xrtRudpReceiveDestroy(b);
+	CHECK(xrtRudpReceiveCreate(256, 256, &a) == XRUDP_OK);
+	/* New-vs-new overlap conflicts, absent from the original receive buffer. */
+	frames[0] = (xrudpreceiveframe){a, 0, source, 20, false};
+	frames[1] = (xrudpreceiveframe){a, 15, bad, 10, false};
+	CHECK(xrtRudpReceivePushBatch(frames, 2, 1000, &batch) == XRUDP_MALFORMED);
+	CHECK(xrtRudpReceiveRead(a, output, 256, &read) == XRUDP_BACKPRESSURE);
+	frames[0] = (xrudpreceiveframe){a, 200, NULL, 0, true};
+	frames[1] = (xrudpreceiveframe){a, 200, source, 1, false};
+	CHECK(xrtRudpReceivePushBatch(frames, 2, 1000, &batch) == XRUDP_MALFORMED);
+	frames[1] = (xrudpreceiveframe){a, 150, source, 10, false};
+	CHECK(xrtRudpReceivePushBatch(frames, 2, 200, &batch) == XRUDP_OK && batch.HighestDelta == 200 && batch.NewBytes == 10);
+	xrtRudpReceiveDestroy(a);
+	CHECK(xrtRudpReceiveCreate(256, 256, &a) == XRUDP_OK);
+	for (size_t i = 0; i < XRUDP_FRAMES_MAX; ++i) frames[i] = (xrudpreceiveframe){a, i, NULL, 0, false};
+	CHECK(xrtRudpReceivePushBatch(frames, XRUDP_FRAMES_MAX, 63, &batch) == XRUDP_OK);
+	CHECK(batch.NewBytes == 0 && batch.HighestDelta == 63 && batch.Streams == 1);
+	CHECK(xrtRudpReceiveCheckBatch(frames, 0, 1000, &batch) == XRUDP_ARGUMENT);
+	CHECK(xrtRudpReceiveCheckBatch(frames, XRUDP_FRAMES_MAX + 1, 1000, &batch) == XRUDP_ARGUMENT);
+	xrtRudpReceiveDestroy(a);
+	CHECK(xrtRudpReceiveCreate(2048, 2048, &a) == XRUDP_OK);
+	frames[0] = frames[1] = (xrudpreceiveframe){a, 0, source, XRUDP_STREAM_CHUNK_MAX, false};
+	CHECK(xrtRudpReceivePushBatch(frames, 2, 2048, &batch) == XRUDP_LIMIT);
+	CHECK(xrtRudpReceiveState(a, &state) == XRUDP_OK && state.BufferedBytes == 0 && state.HighestOffset == 0);
+	xrtRudpReceiveDestroy(a);
+	return 0;
+}
+
 static int model(void)
 {
 	/* Full-history reference bitmap uses no modulo/ring indexing. */
@@ -163,6 +234,7 @@ int main(void)
 {
 	for (size_t i = 0; i < sizeof(source); ++i) source[i] = (unsigned char)((i * 37) ^ (i >> 5));
 	CHECK(boundaries() == 0);
+	CHECK(batches() == 0);
 	CHECK(model() == 0);
 	puts("xrudp receive: bounded ring/bitmap, flow/final/overlap errors and 100,000-step reassembly model passed");
 	return 0;

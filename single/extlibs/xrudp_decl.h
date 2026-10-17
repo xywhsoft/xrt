@@ -3269,6 +3269,21 @@ typedef struct xrudpreceivechange {
 	uint32_t Reserved;
 } xrudpreceivechange;
 
+typedef struct xrudpreceiveframe {
+	xrudpreceive* Receive;
+	uint64_t Offset;
+	const void* Data;
+	size_t Size;
+	bool Fin;
+} xrudpreceiveframe;
+
+typedef struct xrudpreceivebatchchange {
+	uint64_t HighestDelta;
+	uint64_t NewBytes;
+	uint32_t NewFinals;
+	uint32_t Streams;
+} xrudpreceivebatchchange;
+
 XRT_EXTERN_C_BEGIN
 
 /* Capacity=0 defaults to 64KiB, otherwise a power of two in [256,1MiB].
@@ -3294,6 +3309,19 @@ XRUDP_API xrudpresult xrtRudpReceiveCheck(const xrudpreceive* pReceive,
 XRUDP_API xrudpresult xrtRudpReceivePush(xrudpreceive* pReceive,
 	uint64_t iOffset, const void* pData, size_t iSize, bool bFin,
 	xrudpreceivechange* pChange);
+/* Atomic STREAM-only batch across already admitted stream objects. At most 64
+ * frames and one datagram's encoded STREAM budget (body + frame headers).
+ * Checks cross-frame overlaps/final sizes and sums each stream's maximum offset
+ * delta exactly once. Exceeding remaining advertised CONNECTION credit is
+ * MALFORMED. Metadata/CPU work is bounded, and neither routine allocates.
+ * CheckBatch is pure; PushBatch rechecks and commits only after ALL validation.
+ * Inputs and output objects must be disjoint from every receive object.
+ * The connection driver must ALSO preflight ACK/control/OPEN/RESET frames,
+ * authorization and lifecycle before invoking PushBatch and recording an ACK. */
+XRUDP_API xrudpresult xrtRudpReceiveCheckBatch(const xrudpreceiveframe* pFrames,
+	size_t iCount, uint64_t iRemainingConnectionCredit, xrudpreceivebatchchange* pChange);
+XRUDP_API xrudpresult xrtRudpReceivePushBatch(const xrudpreceiveframe* pFrames,
+	size_t iCount, uint64_t iRemainingConnectionCredit, xrudpreceivebatchchange* pChange);
 /* Copies and consumes only contiguous data. BACKPRESSURE means a receive hole;
  * DONE is clean EOF, CANCELLED is peer RESET, both with zero read count.
  * EOF/RESET are never inferred merely from an empty buffer. Capacity must >0.
