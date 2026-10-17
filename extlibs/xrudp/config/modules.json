@@ -20,7 +20,8 @@
         "name": "rudp",
         "state": "retained",
         "source_roots": [
-          "wire"
+          "wire",
+          "crypto"
         ]
       }
     ]
@@ -74,6 +75,35 @@
         "extlibs/xrudp/README.md",
         "extlibs/xrudp/docs/protocol.md",
         "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
+      "name": "rudp_crypto",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_CRYPTO",
+      "depends": [
+        "rudp_wire",
+        "crypto_chacha20_poly1305"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/crypto.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/crypto/rudp_cipher.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_cipher.c",
+        "extlibs/xrudp/tests/test_cipher_memory.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_crypto.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
       ]
     }
   ]

@@ -6,8 +6,8 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
 运行时不增加第三方依赖。源码、模块清单、单头产物按 XRT 的统一扩展流程管理。
 
 当前为开发中的基础设施，尚不能建立网络连接，也尚未通过生产发布验收。
-已实现组件：固定格式报文编解码、完整负载结构预校验、有界防重放窗口。
-这些组件本身不提供认证；未经认证的输入不能提交到防重放状态或交给应用。
+已实现组件：固定格式报文编解码、完整负载结构预校验、有界防重放窗口、
+基于已认证方向密钥的包加密与密钥更新。安全握手尚未实现，不能将原始密钥构造器当作身份认证。
 
 ## 目标与边界
 
@@ -29,7 +29,8 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_wire --no-examples
     python tools/amalgamate.py --manifest extlibs/xrudp/config/modules.json
 
-当前模块 rudp_wire 只依赖 core。源入口 include/xrudp.h；生成产物在
+模块 rudp_wire 只依赖 core；rudp_crypto 增加 XRT ChaCha20-Poly1305。
+源入口 include/xrudp.h；生成产物在
 single/extlibs/xrudp.h 与 single/extlibs/xrudp_decl.h。
 
 协议草案见 docs/protocol.md；生产验收与跨仓库进度见 docs/implementation-status.md。

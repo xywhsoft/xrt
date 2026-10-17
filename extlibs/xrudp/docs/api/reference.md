@@ -4,8 +4,34 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `8` 个函数、`47` 个常量或宏、
-`7` 个公共类型。
+当前登记 `15` 个函数、`50` 个常量或宏、
+`9` 个公共类型。
+
+## `extlibs/xrudp/include/xrudp/crypto.h`
+
+[查看带契约注释的公共头](../../include/xrudp/crypto.h)
+
+### 函数 (7)
+
+- `xrtRudpCipherCreate`
+- `xrtRudpCipherDestroy`
+- `xrtRudpCipherOpen`
+- `xrtRudpCipherRetirePrevious`
+- `xrtRudpCipherSeal`
+- `xrtRudpCipherState`
+- `xrtRudpCipherUpdateKey`
+
+### 常量与宏 (3)
+
+- `XRUDP_FEATURE_RUDP_CRYPTO`
+- `XRUDP_KEY_PACKETS_MAX`
+- `XRUDP_KEY_SIZE`
+
+### 类型 (3)
+
+- `xrudpcipher`
+- `xrudpcipherstate`
+- `xrudpresult`
 
 ## `extlibs/xrudp/include/xrudp/export.h`
 
@@ -79,12 +105,11 @@
 - `XRUDP_TOO_OLD`
 - `XRUDP_TRUNCATED`
 
-### 类型 (7)
+### 类型 (6)
 
 - `xrudpframetype`
 - `xrudppackettype`
 - `xrudpreplay`
-- `xrudpresult`
 - `xrudpwireframe`
 - `xrudpwireheader`
 - `xrudpwirepacket`
