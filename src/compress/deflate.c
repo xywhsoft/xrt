@@ -452,7 +452,7 @@ XRT_API bool xrtDeflateWrite(
 		return false;
 	}
 	if ( pDeflate->Config.Format == XDEFLATE_GZIP ) {
-		pDeflate->GzipCrc = __xrtCompressCrc32Update(
+		pDeflate->GzipCrc = __xrtCrc32UpdateRaw(
 			pDeflate->GzipCrc,
 			Input.Data,
 			Input.Size

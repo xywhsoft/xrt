@@ -187,7 +187,7 @@ static bool __xrtInflateEmit(
 		return false;
 	}
 	if ( pInflate->Config.Format == XINFLATE_GZIP ) {
-		pInflate->GzipDataCrc = __xrtCompressCrc32Update(
+		pInflate->GzipDataCrc = __xrtCrc32UpdateRaw(
 			pInflate->GzipDataCrc,
 			pData,
 			iSize
@@ -443,7 +443,7 @@ static bool __xrtInflateGzipHeaderByte(
 		return false;
 	}
 	pInflate->GzipHeaderBytes++;
-	pInflate->GzipHeaderCrc = __xrtCompressCrc32Update(
+	pInflate->GzipHeaderCrc = __xrtCrc32UpdateRaw(
 		pInflate->GzipHeaderCrc,
 		&iByte,
 		1

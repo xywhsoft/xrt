@@ -2,21 +2,8 @@
 #define XRT_INTERNAL_COMPRESS_H
 
 #include "xrt_internal.h"
+#include "xrt_crc32.h"
 #include <xrt/compress.h>
-
-
-
-#if defined(XRT_FEATURE_INFLATE) || defined(XRT_FEATURE_DEFLATE) || \
-	defined(XRT_FEATURE_VFS_PACK)
-
-/* 使用共享小表更新未取反的 CRC32 状态。 */
-uint32 __xrtCompressCrc32Update(
-	uint32 iCrc,
-	const void* pData,
-	size_t iSize
-);
-
-#endif
 
 
 

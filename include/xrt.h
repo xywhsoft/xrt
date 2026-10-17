@@ -27,6 +27,7 @@
 #include <xrt/pattern.h>
 #include <xrt/regex.h>
 #include <xrt/codec.h>
+#include <xrt/crc32.h>
 #include <xrt/html.h>
 #include <xrt/websocket.h>
 #include <xrt/websocket_stream.h>

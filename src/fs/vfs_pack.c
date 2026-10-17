@@ -1,5 +1,5 @@
 #include "../internal/xrt_vfs.h"
-#include "../internal/xrt_compress.h"
+#include "../internal/xrt_crc32.h"
 #include "../third_party/lzma/LzmaDec.h"
 
 #include <stdlib.h>
@@ -138,14 +138,14 @@ static bool __xrtVfsPackAdd(uint64 iLeft, uint64 iRight, uint64* pOutput)
 
 static uint32 __xrtVfsPackCrc(const void* pData, size_t iSize)
 {
-	return __xrtCompressCrc32Update(UINT32_MAX, pData, iSize) ^ UINT32_MAX;
+	return __xrtCrc32UpdateRaw(UINT32_MAX, pData, iSize) ^ UINT32_MAX;
 }
 
 static uint32 __xrtVfsPackCrcPair(const void* pFirst, size_t iFirst,
 	const void* pSecond, size_t iSecond)
 {
-	uint32 iCrc = __xrtCompressCrc32Update(UINT32_MAX, pFirst, iFirst);
-	iCrc = __xrtCompressCrc32Update(iCrc, pSecond, iSecond);
+	uint32 iCrc = __xrtCrc32UpdateRaw(UINT32_MAX, pFirst, iFirst);
+	iCrc = __xrtCrc32UpdateRaw(iCrc, pSecond, iSecond);
 	return iCrc ^ UINT32_MAX;
 }
 

@@ -2314,19 +2314,30 @@
 			]
 		},
 		{
+			"name": "crc32",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_CRC32",
+			"depends": ["core"],
+			"public_headers": ["include/xrt/crc32.h"],
+			"internal_headers": ["src/internal/xrt_crc32.h"],
+			"sources": ["src/hash/crc32.c"],
+			"tests": ["tests/hash/test_crc32.c"],
+			"single_tests": ["tests/single/test_single_crc32.c"],
+			"examples": [],
+			"docs": ["docs/api/crc32.md"]
+		},
+		{
 			"name": "compress_common",
 			"state": "implemented",
 			"feature": null,
 			"depends": [
-				"core"
+				"crc32"
 			],
 			"public_headers": [],
 			"internal_headers": [
 				"src/internal/xrt_compress.h"
 			],
-			"sources": [
-				"src/compress/checksum.c"
-			],
+			"sources": [],
 			"tests": [],
 			"single_tests": [],
 			"examples": [],
@@ -11676,14 +11687,14 @@
 			"depends": [
 				"vfs",
 				"cond",
-				"compress_common"
+				"crc32"
 			],
 			"public_headers": [
 				"include/xrt/vfs.h"
 			],
 			"internal_headers": [
 				"src/internal/xrt_vfs.h",
-				"src/internal/xrt_compress.h",
+				"src/internal/xrt_crc32.h",
 				"src/third_party/lzma/Compiler.h",
 				"src/third_party/lzma/Precomp.h",
 				"src/third_party/lzma/7zTypes.h",

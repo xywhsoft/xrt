@@ -69,11 +69,13 @@ class DeclarationFeatureTest(unittest.TestCase):
 		"""无选择、单模块、跨产品依赖、ALL 与排除均不得放大功能面。"""
 		cases = (
 			("xrt", ()),
+			("xrt", ("XRT_MODULE_CRC32",)),
 			("xrt", ("XRT_MODULE_CODEC_PERCENT",)),
 			("xrt", ("XRT_MODULE_DEFLATE", "XRT_MODULE_INFLATE")),
 			("xrt", ("XRT_MODULE_TLS_STREAM_DIAL_SYNC",)),
 			("xrt", ("XRT_MODULE_ALL", "XRT_EXCLUDE_MEMORY_DEBUG")),
 			("xruntime", ()),
+			("xruntime", ("XRT_MODULE_CRC32",)),
 			("xruntime", ("XRUNTIME_MODULE_TYPED_DICT",)),
 			("xruntime", ("XRUNTIME_MODULE_RUNTIME_DYNAMIC_FIELD",)),
 			("xruntime", ("XRT_MODULE_ALL", "XRUNTIME_MODULE_ALL", "XRT_EXCLUDE_MEMORY_DEBUG")),
