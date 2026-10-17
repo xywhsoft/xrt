@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `41` 个函数、`74` 个常量或宏、
-`24` 个公共类型。
+当前登记 `46` 个函数、`80` 个常量或宏、
+`25` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -30,6 +30,33 @@
 - `xrudpackrange`
 - `xrudpackset`
 - `xrudpresult`
+
+## `extlibs/xrudp/include/xrudp/congestion.h`
+
+[查看带契约注释的公共头](../../include/xrudp/congestion.h)
+
+### 函数 (5)
+
+- `xrtRudpCongestionApply`
+- `xrtRudpCongestionCanSend`
+- `xrtRudpCongestionCollapse`
+- `xrtRudpCongestionInit`
+- `xrtRudpCongestionOnSent`
+
+### 常量与宏 (7)
+
+- `XRUDP_CC_BURST_BYTES`
+- `XRUDP_CC_DEFAULT_MAXIMUM`
+- `XRUDP_CC_INITIAL_WINDOW`
+- `XRUDP_CC_MAXIMUM_LIMIT`
+- `XRUDP_CC_MINIMUM_WINDOW`
+- `XRUDP_FEATURE_RUDP_CONGESTION`
+- `XRUDP_PACKET_MAX`
+
+### 类型 (2)
+
+- `xrudpcongestion`
+- `xrudpsentevent`
 
 ## `extlibs/xrudp/include/xrudp/cookie.h`
 
@@ -143,10 +170,9 @@
 - `XRUDP_SENT_PROBE`
 - `XRUDP_SENT_PROBE_RESERVE`
 
-### 类型 (5)
+### 类型 (4)
 
 - `xrudpackchange`
-- `xrudpsentevent`
 - `xrudpsenteventkind`
 - `xrudpsentstate`
 - `xrudpsentwindow`
@@ -188,7 +214,7 @@
 - `xrtRudpReplayCheck`
 - `xrtRudpReplayInit`
 
-### 常量与宏 (44)
+### 常量与宏 (43)
 
 - `XRUDP_ARGUMENT`
 - `XRUDP_AUTH_FAILED`
@@ -224,7 +250,6 @@
 - `XRUDP_PACKET_DATA`
 - `XRUDP_PACKET_HANDSHAKE`
 - `XRUDP_PACKET_HELLO`
-- `XRUDP_PACKET_MAX`
 - `XRUDP_PACKET_RETRY`
 - `XRUDP_PROTOCOL_MISMATCH`
 - `XRUDP_REPLAY_BITS`

@@ -248,6 +248,33 @@
         "extlibs/xrudp/README.md",
         "extlibs/xrudp/docs/protocol.md"
       ]
+    },
+    {
+      "name": "rudp_congestion",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_CONGESTION",
+      "depends": [
+        "rudp_sent"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/congestion.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/recovery/rudp_congestion.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_congestion.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_congestion.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
+      ]
     }
   ]
 }

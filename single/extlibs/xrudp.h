@@ -59,6 +59,16 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_congestion 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_CONGESTION)
+#ifndef XRUDP_FEATURE_RUDP_CONGESTION
+#define XRUDP_FEATURE_RUDP_CONGESTION
+#endif
+#ifndef XRUDP_MODULE_RUDP_SENT
+#define XRUDP_MODULE_RUDP_SENT
+#endif
+#endif
+
 /* rudp_sent 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_SENT)
 #ifndef XRUDP_FEATURE_RUDP_SENT
@@ -721,6 +731,71 @@ XRUDP_API xrudpresult xrtRudpSentAbort(xrudpsentwindow* pWindow,
 
 XRT_EXTERN_C_END
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/congestion.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_CONGESTION_H
+#define XRUDP_CONGESTION_H
+
+
+#if defined(XRUDP_FEATURE_RUDP_CONGESTION)
+
+#define XRUDP_CC_INITIAL_WINDOW (10u * XRUDP_PACKET_MAX)
+#define XRUDP_CC_MINIMUM_WINDOW (2u * XRUDP_PACKET_MAX)
+#define XRUDP_CC_DEFAULT_MAXIMUM (4u * 1024u * 1024u)
+#define XRUDP_CC_MAXIMUM_LIMIT (64u * 1024u * 1024u)
+#define XRUDP_CC_BURST_BYTES (2u * XRUDP_PACKET_MAX)
+
+/* One owner; initialize before use. Read-only snapshots are ordinary copies.
+ * This is local sender policy, never populated from peer-provided state. */
+typedef struct xrudpcongestion {
+	uint64_t Window;
+	uint64_t SlowStartThreshold;
+	uint64_t BytesInFlight;
+	uint64_t MaximumWindow;
+	uint64_t RecoveryThrough;
+	uint64_t LargestSent;
+	uint64_t AvoidanceCredit;
+	uint64_t PacerNextUs;
+	uint64_t LastNowUs;
+} xrudpcongestion;
+
+XRT_EXTERN_C_BEGIN
+
+/* Maximum=0 defaults to 4MiB; allowed range is initial window..64MiB.
+ * Fixed datagram ceiling 1200, initial window=10 datagrams, minimum=2. */
+XRUDP_API xrudpresult xrtRudpCongestionInit(xrudpcongestion* pState, uint64_t iMaximumWindow);
+/* A pure admission query. BACKPRESSURE: cwnd/hard flight budget; TIMEOUT: wait
+ * until *pDueUs for pacing; OK: admitted now. Due is unchanged on other errors.
+ * ACK-only bypasses cwnd/pacing; endpoint still must bound control traffic.
+ * PROBE may exceed cwnd but not the hard budget and never bypasses pacing.
+ * Only the recovery driver may grant up to two PROBE packets per actual PTO. */
+XRUDP_API xrudpresult xrtRudpCongestionCanSend(const xrudpcongestion* pState,
+	uint64_t iNowUs, uint64_t iSmoothedRttUs, uint32_t iBytes,
+	uint32_t iFlags, uint64_t* pDueUs);
+/* Commit after UDP admission under the same serialized owner as CanSend and
+ * the sent ledger. Records all DATA packet numbers, including ACK-only. */
+XRUDP_API xrudpresult xrtRudpCongestionOnSent(xrudpcongestion* pState,
+	uint64_t iPacketNumber, uint64_t iNowUs, uint64_t iSmoothedRttUs,
+	uint32_t iBytes, uint32_t iFlags);
+/* Consume unique final events from Sent exactly once, before any new send.
+ * Caller must combine all loss and ACK events from the same ACK processing in
+ * one batch (losses are applied before growth regardless of array order).
+ * Application-limited or flow-control-limited ACKs do not increase cwnd.
+ * No allocations/callbacks. Errors leave the entire state unchanged. */
+XRUDP_API xrudpresult xrtRudpCongestionApply(xrudpcongestion* pState,
+	const xrudpsentevent* pEvents, size_t iCount, uint64_t iNowUs,
+	bool bApplicationLimited);
+/* Call only after the recovery driver proves a persistent congestion period,
+ * not on a single PTO. The driver owns the consecutive-loss/RTT evidence. */
+XRUDP_API xrudpresult xrtRudpCongestionCollapse(xrudpcongestion* pState, uint64_t iNowUs);
+
+XRT_EXTERN_C_END
 #endif
 #endif
 
@@ -2181,6 +2256,158 @@ xrudpresult xrtRudpSentAbort(xrudpsentwindow* w,
 	w->Stopped = true;
 	xrudp__sent_trim(w);
 	*count = written;
+	return XRUDP_OK;
+}
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrudp/src/recovery/rudp_congestion.c */
+/* ========================================================================== */
+
+#if defined(XRUDP_FEATURE_RUDP_CONGESTION)
+#include <string.h>
+
+static bool xrudp__cc_valid(const xrudpcongestion* s)
+{
+	return s != NULL && s->MaximumWindow >= XRUDP_CC_INITIAL_WINDOW &&
+		s->MaximumWindow <= XRUDP_CC_MAXIMUM_LIMIT && s->Window >= XRUDP_CC_MINIMUM_WINDOW &&
+		s->Window <= s->MaximumWindow && s->SlowStartThreshold >= XRUDP_CC_MINIMUM_WINDOW &&
+		s->RecoveryThrough <= s->LargestSent && s->AvoidanceCredit < s->Window &&
+		s->BytesInFlight <= s->MaximumWindow + XRUDP_SENT_PROBE_RESERVE * XRUDP_PACKET_MAX;
+}
+
+static bool xrudp__cc_packet(uint32_t bytes, uint32_t flags)
+{
+	return bytes >= XRUDP_HEADER_SIZE + XRUDP_TAG_SIZE + XRUDP_FRAME_HEADER_SIZE &&
+		bytes <= XRUDP_PACKET_MAX && (flags & ~7u) == 0 &&
+		((flags & XRUDP_SENT_PROBE) == 0 || (flags & XRUDP_SENT_ACK_ELICITING) != 0);
+}
+
+static bool xrudp__cc_flight(uint32_t flags)
+{
+	return (flags & (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING)) != 0;
+}
+
+static uint64_t xrudp__cc_add(uint64_t a, uint64_t b)
+{
+	return a > UINT64_MAX - b ? UINT64_MAX : a + b;
+}
+
+/* ceil(rtt * bytes / window), without a wide-integer compiler dependency.
+ * window<=64MiB and bytes<=2400 keep the remainder product bounded. */
+static uint64_t xrudp__cc_interval(uint64_t rtt, uint32_t bytes, uint64_t window)
+{
+	uint64_t quotient = rtt / window, remainder = (rtt % window) * bytes;
+	uint64_t tail = remainder / window + (remainder % window != 0 ? 1u : 0u);
+	if (bytes != 0 && quotient > UINT64_MAX / bytes) return UINT64_MAX;
+	return xrudp__cc_add(quotient * bytes, tail);
+}
+
+xrudpresult xrtRudpCongestionInit(xrudpcongestion* s, uint64_t maximum)
+{
+	xrudpcongestion next;
+	if (maximum == 0) maximum = XRUDP_CC_DEFAULT_MAXIMUM;
+	if (s == NULL || maximum < XRUDP_CC_INITIAL_WINDOW || maximum > XRUDP_CC_MAXIMUM_LIMIT)
+		return XRUDP_ARGUMENT;
+	memset(&next, 0, sizeof(next));
+	next.Window = XRUDP_CC_INITIAL_WINDOW; next.MaximumWindow = maximum;
+	next.SlowStartThreshold = UINT64_MAX;
+	*s = next;
+	return XRUDP_OK;
+}
+
+xrudpresult xrtRudpCongestionCanSend(const xrudpcongestion* s,
+	uint64_t now, uint64_t rtt, uint32_t bytes, uint32_t flags, uint64_t* due)
+{
+	uint64_t limit, tolerance, earliest;
+	if (!xrudp__cc_valid(s) || due == NULL || !xrudp__cc_packet(bytes, flags) ||
+		rtt == 0 || now < s->LastNowUs) return XRUDP_ARGUMENT;
+	if (!xrudp__cc_flight(flags)) { *due = now; return XRUDP_OK; }
+	limit = (flags & XRUDP_SENT_PROBE) != 0 ?
+		s->MaximumWindow + XRUDP_SENT_PROBE_RESERVE * XRUDP_PACKET_MAX : s->Window;
+	if (s->BytesInFlight > limit || bytes > limit - s->BytesInFlight) return XRUDP_BACKPRESSURE;
+	/* A two-datagram GCRA burst bound; idle time cannot accumulate more credit. */
+	tolerance = xrudp__cc_interval(rtt, XRUDP_CC_BURST_BYTES - bytes, s->Window);
+	earliest = s->PacerNextUs > tolerance ? s->PacerNextUs - tolerance : 0;
+	*due = earliest > now ? earliest : now;
+	return earliest > now ? XRUDP_TIMEOUT : XRUDP_OK;
+}
+
+xrudpresult xrtRudpCongestionOnSent(xrudpcongestion* s,
+	uint64_t number, uint64_t now, uint64_t rtt, uint32_t bytes, uint32_t flags)
+{
+	uint64_t due, interval;
+	xrudpresult result;
+	if (s == NULL || number == 0 || number == UINT64_MAX || number <= s->LargestSent)
+		return XRUDP_ARGUMENT;
+	result = xrtRudpCongestionCanSend(s, now, rtt, bytes, flags, &due);
+	if (result != XRUDP_OK) return result;
+	if (xrudp__cc_flight(flags)) {
+		interval = xrudp__cc_interval(rtt, bytes, s->Window);
+		if (interval == 0) interval = 1;
+		s->PacerNextUs = xrudp__cc_add(s->PacerNextUs > now ? s->PacerNextUs : now, interval);
+		s->BytesInFlight += bytes;
+	}
+	s->LargestSent = number; s->LastNowUs = now;
+	return XRUDP_OK;
+}
+
+xrudpresult xrtRudpCongestionApply(xrudpcongestion* s, const xrudpsentevent* events,
+	size_t count, uint64_t now, bool limited)
+{
+	xrudpcongestion next;
+	uint64_t removed = 0, newestLoss = 0;
+	if (!xrudp__cc_valid(s) || (events == NULL && count != 0) ||
+		count > XRUDP_SENT_CAPACITY_MAX + XRUDP_SENT_PROBE_RESERVE || now < s->LastNowUs)
+		return XRUDP_ARGUMENT;
+	for (size_t i = 0; i < count; ++i) {
+		const xrudpsentevent* p = &events[i];
+		if (!xrudp__cc_packet(p->Bytes, p->Flags) || p->PacketNumber == 0 ||
+			p->PacketNumber > s->LargestSent || p->SentAtUs > now || p->Reserved != 0 ||
+			p->Kind < XRUDP_SENT_ACKED || p->Kind > XRUDP_SENT_CANCELLED ||
+			(p->Kind == XRUDP_SENT_EXPIRED && xrudp__cc_flight(p->Flags))) return XRUDP_ARGUMENT;
+		if (xrudp__cc_flight(p->Flags)) {
+			removed += p->Bytes;
+			if (p->Kind == XRUDP_SENT_LOST && p->PacketNumber > newestLoss) newestLoss = p->PacketNumber;
+		}
+	}
+	if (removed > s->BytesInFlight) return XRUDP_ARGUMENT;
+	next = *s; next.BytesInFlight -= removed; next.LastNowUs = now;
+	if (newestLoss > next.RecoveryThrough) {
+		next.RecoveryThrough = next.LargestSent;
+		next.Window /= 2;
+		if (next.Window < XRUDP_CC_MINIMUM_WINDOW) next.Window = XRUDP_CC_MINIMUM_WINDOW;
+		next.SlowStartThreshold = next.Window; next.AvoidanceCredit = 0;
+	}
+	for (size_t i = 0; i < count; ++i) {
+		const xrudpsentevent* p = &events[i];
+		if (limited || p->Kind != XRUDP_SENT_ACKED || !xrudp__cc_flight(p->Flags) ||
+			p->PacketNumber <= next.RecoveryThrough || next.Window == next.MaximumWindow) continue;
+		if (next.Window < next.SlowStartThreshold) {
+			next.Window += p->Bytes;
+		} else {
+			next.AvoidanceCredit += p->Bytes;
+			if (next.AvoidanceCredit >= next.Window) {
+				next.AvoidanceCredit -= next.Window;
+				next.Window += XRUDP_PACKET_MAX;
+			}
+		}
+		if (next.Window >= next.MaximumWindow) {
+			next.Window = next.MaximumWindow; next.AvoidanceCredit = 0;
+		}
+	}
+	*s = next;
+	return XRUDP_OK;
+}
+
+xrudpresult xrtRudpCongestionCollapse(xrudpcongestion* s, uint64_t now)
+{
+	if (!xrudp__cc_valid(s) || s->LargestSent == 0 || now < s->LastNowUs) return XRUDP_ARGUMENT;
+	s->SlowStartThreshold = s->Window / 2;
+	if (s->SlowStartThreshold < XRUDP_CC_MINIMUM_WINDOW) s->SlowStartThreshold = XRUDP_CC_MINIMUM_WINDOW;
+	s->Window = XRUDP_CC_MINIMUM_WINDOW; s->AvoidanceCredit = 0;
+	s->RecoveryThrough = s->LargestSent; s->LastNowUs = now;
 	return XRUDP_OK;
 }
 #endif
