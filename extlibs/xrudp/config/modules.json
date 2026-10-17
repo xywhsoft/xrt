@@ -304,6 +304,34 @@
         "extlibs/xrudp/README.md",
         "extlibs/xrudp/docs/protocol.md"
       ]
+    },
+    {
+      "name": "rudp_transmit",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_TRANSMIT",
+      "depends": [
+        "rudp_wire"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/transmit.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/stream/rudp_transmit.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_transmit.c",
+        "extlibs/xrudp/tests/test_transmit_memory.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_transmit.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
+      ]
     }
   ]
 }

@@ -9,7 +9,6 @@
 #define XRUDP_RECEIVE_CAPACITY_DEFAULT 65536u
 #define XRUDP_RECEIVE_CAPACITY_MIN 256u
 #define XRUDP_RECEIVE_CAPACITY_MAX (1024u * 1024u)
-#define XRUDP_STREAM_CHUNK_MAX (XRUDP_PACKET_MAX - XRUDP_HEADER_SIZE - XRUDP_TAG_SIZE - XRUDP_FRAME_HEADER_SIZE - 12u)
 
 typedef struct xrudpreceive xrudpreceive;
 typedef struct xrudpreceivestate {

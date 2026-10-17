@@ -1230,6 +1230,9 @@
 #if !defined(XRUDP_FEATURE_RUDP_TIMING)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_TIMING 1
 #endif
+#if !defined(XRUDP_FEATURE_RUDP_TRANSMIT)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_TRANSMIT 1
+#endif
 #if !defined(XRUDP_FEATURE_RUDP_WIRE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_WIRE 1
 #endif
@@ -1259,6 +1262,9 @@
 #endif
 #if !defined(XRUDP_MODULE_RUDP_TIMING)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_TIMING 1
+#endif
+#if !defined(XRUDP_MODULE_RUDP_TRANSMIT)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_TRANSMIT 1
 #endif
 #if !defined(XRUDP_MODULE_RUDP_WIRE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_WIRE 1
@@ -2438,6 +2444,16 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_transmit 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_TRANSMIT)
+#ifndef XRUDP_FEATURE_RUDP_TRANSMIT
+#define XRUDP_FEATURE_RUDP_TRANSMIT
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#endif
+
 /* rudp_receive 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_RECEIVE)
 #ifndef XRUDP_FEATURE_RUDP_RECEIVE
@@ -2586,6 +2602,7 @@
 #define XRUDP_TAG_SIZE 16u
 #define XRUDP_PACKET_MAX 1200u
 #define XRUDP_FRAME_HEADER_SIZE 4u
+#define XRUDP_STREAM_CHUNK_MAX (XRUDP_PACKET_MAX - XRUDP_HEADER_SIZE - XRUDP_TAG_SIZE - XRUDP_FRAME_HEADER_SIZE - 12u)
 #define XRUDP_ACK_RANGES_MAX 32u
 #define XRUDP_FRAMES_MAX 64u
 #define XRUDP_REPLAY_WORDS 16u
@@ -3202,7 +3219,6 @@ XRT_EXTERN_C_END
 #define XRUDP_RECEIVE_CAPACITY_DEFAULT 65536u
 #define XRUDP_RECEIVE_CAPACITY_MIN 256u
 #define XRUDP_RECEIVE_CAPACITY_MAX (1024u * 1024u)
-#define XRUDP_STREAM_CHUNK_MAX (XRUDP_PACKET_MAX - XRUDP_HEADER_SIZE - XRUDP_TAG_SIZE - XRUDP_FRAME_HEADER_SIZE - 12u)
 
 typedef struct xrudpreceive xrudpreceive;
 typedef struct xrudpreceivestate {
@@ -3266,6 +3282,96 @@ XRUDP_API xrudpresult xrtRudpReceiveExtend(xrudpreceive* pReceive, uint64_t iLim
  * A matching RESET after clean EOF consumption is ignored as DUPLICATE. */
 XRUDP_API xrudpresult xrtRudpReceiveReset(xrudpreceive* pReceive,
 	uint64_t iFinalOffset, uint32_t iReason, xrudpreceivechange* pChange);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/transmit.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_TRANSMIT_H
+#define XRUDP_TRANSMIT_H
+
+
+#if defined(XRUDP_FEATURE_RUDP_TRANSMIT)
+
+#define XRUDP_TRANSMIT_CAPACITY_DEFAULT 65536u
+#define XRUDP_TRANSMIT_CAPACITY_MIN 256u
+#define XRUDP_TRANSMIT_CAPACITY_MAX (1024u * 1024u)
+
+typedef struct xrudptransmit xrudptransmit;
+typedef struct xrudptransmitstate {
+	uint64_t BaseOffset;
+	uint64_t QueuedEnd;
+	uint64_t HighestSent;
+	uint64_t PeerLimit;
+	uint64_t PendingBytes;
+	uint32_t Capacity;
+	uint32_t FinQueued;
+	uint32_t FinSent;
+	uint32_t FinAcknowledged;
+	uint32_t Cancelled;
+	uint32_t Reserved;
+} xrudptransmitstate;
+
+typedef struct xrudptransmitframe {
+	uint64_t Offset;
+	uint64_t HighestDelta; /* New connection credit required if sent. */
+	uint32_t Size;
+	uint32_t Fin;
+} xrudptransmitframe;
+
+typedef struct xrudptransmitchange {
+	uint64_t HighestDelta;
+	uint64_t NewlyAckedBytes;
+	uint64_t ReleasedBytes; /* Contiguous ring capacity returned. */
+	uint32_t NewFinAcknowledged;
+	uint32_t Reserved;
+} xrudptransmitchange;
+
+XRT_EXTERN_C_BEGIN
+
+/* One fixed ring + bounded bitmaps. Capacity=0 means 64KiB, otherwise a power
+ * of two in [256,1MiB]. Reserve aggregate budgets before allocating. */
+XRUDP_API xrudpresult xrtRudpTransmitAllocationSize(uint32_t iCapacity, size_t* pSize);
+XRUDP_API xrudpresult xrtRudpTransmitCreate(uint32_t iCapacity,
+	uint64_t iPeerLimit, xrudptransmit** ppTransmit);
+XRUDP_API void xrtRudpTransmitDestroy(xrudptransmit* pTransmit);
+XRUDP_API xrudpresult xrtRudpTransmitState(const xrudptransmit* pTransmit, xrudptransmitstate* pState);
+/* Copies a bounded prefix; written may be smaller than Size. Buffering success
+ * is not peer acknowledgement. Backpressure/other failures set *pWritten=0.
+ * No write is accepted after Finish/Cancel. Inputs/outputs must be disjoint. */
+XRUDP_API xrudpresult xrtRudpTransmitWrite(xrudptransmit* pTransmit,
+	const void* pData, size_t iSize, size_t* pWritten);
+XRUDP_API xrudpresult xrtRudpTransmitFinish(xrudptransmit* pTransmit);
+/* Old/same advertised limits are harmless DUPLICATE, never a credit decrease. */
+XRUDP_API xrudpresult xrtRudpTransmitSetLimit(xrudptransmit* pTransmit, uint64_t iLimit);
+/* Copies the first ready chunk (at most one STREAM chunk), without mutation.
+ * Probe selects the oldest unacknowledged bytes even if still in flight; ONLY
+ * the recovery driver may request this under PTO packet/congestion budgets.
+ * Capacity>0; caller packet buffer and frame must be disjoint. Outputs remain
+ * unchanged on failure. A successful zero-size frame always carries FIN. */
+XRUDP_API xrudpresult xrtRudpTransmitPeek(const xrudptransmit* pTransmit,
+	bool bProbe, void* pOutput, size_t iCapacity, xrudptransmitframe* pFrame);
+/* Called exactly after packet admission under one serialized owner. The driver
+ * retains Offset/Size/Fin in its bounded packet references until final feedback.
+ * Lost data is retransmitted in a NEW packet number; this buffer owns no PN. */
+XRUDP_API xrudpresult xrtRudpTransmitMarkSent(xrudptransmit* pTransmit,
+	uint64_t iOffset, size_t iSize, bool bFin, xrudptransmitchange* pChange);
+/* Only trusted ACKED/LOST packet references from the send ledger may resolve.
+ * Any copy's ACK retires logical bytes; late loss of another copy cannot revive
+ * them. Peer frames must never invoke this by unauthenticated byte offsets.
+ * Duplicate/retired feedback is harmless. Errors leave state/output unchanged.
+ * FIN acknowledgement completes the write half only after BaseOffset=QueuedEnd. */
+XRUDP_API xrudpresult xrtRudpTransmitResolve(xrudptransmit* pTransmit,
+	uint64_t iOffset, size_t iSize, bool bFin, bool bAcknowledged,
+	xrudptransmitchange* pChange);
+/* Clears plaintext and bitmaps, releases all held ring capacity, then rejects
+ * future operations. Late ledger events must be drained by the owning driver. */
+XRUDP_API xrudpresult xrtRudpTransmitCancel(xrudptransmit* pTransmit, xrudptransmitchange* pChange);
 
 XRT_EXTERN_C_END
 #endif
@@ -4881,6 +4987,10 @@ XRT_EXTERN_C_END
 #undef XRUDP_FEATURE_RUDP_TIMING
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_TIMING
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_TRANSMIT)
+#undef XRUDP_FEATURE_RUDP_TRANSMIT
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_TRANSMIT
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_WIRE)
 #undef XRUDP_FEATURE_RUDP_WIRE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_WIRE
@@ -4921,6 +5031,10 @@ XRT_EXTERN_C_END
 #undef XRUDP_MODULE_RUDP_TIMING
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_TIMING
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_TRANSMIT)
+#undef XRUDP_MODULE_RUDP_TRANSMIT
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_TRANSMIT
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_WIRE)
 #undef XRUDP_MODULE_RUDP_WIRE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_WIRE
@@ -4939,6 +5053,16 @@ XRT_EXTERN_C_END
 /* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
+
+/* rudp_transmit 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_TRANSMIT)
+#ifndef XRUDP_FEATURE_RUDP_TRANSMIT
+#define XRUDP_FEATURE_RUDP_TRANSMIT
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#endif
 
 /* rudp_receive 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_RECEIVE)

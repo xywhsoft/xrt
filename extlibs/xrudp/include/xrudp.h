@@ -11,5 +11,6 @@
 #include <xrudp/sent.h>
 #include <xrudp/congestion.h>
 #include <xrudp/receive.h>
+#include <xrudp/transmit.h>
 
 #endif

@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `55` 个函数、`85` 个常量或宏、
-`28` 个公共类型。
+当前登记 `66` 个函数、`89` 个常量或宏、
+`32` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -157,16 +157,12 @@
 - `xrtRudpReceiveReset`
 - `xrtRudpReceiveState`
 
-### 常量与宏 (8)
+### 常量与宏 (4)
 
 - `XRUDP_FEATURE_RUDP_RECEIVE`
-- `XRUDP_FRAME_HEADER_SIZE`
-- `XRUDP_HEADER_SIZE`
 - `XRUDP_RECEIVE_CAPACITY_DEFAULT`
 - `XRUDP_RECEIVE_CAPACITY_MAX`
 - `XRUDP_RECEIVE_CAPACITY_MIN`
-- `XRUDP_STREAM_CHUNK_MAX`
-- `XRUDP_TAG_SIZE`
 
 ### 类型 (3)
 
@@ -232,6 +228,38 @@
 
 - `xrudprtt`
 
+## `extlibs/xrudp/include/xrudp/transmit.h`
+
+[查看带契约注释的公共头](../../include/xrudp/transmit.h)
+
+### 函数 (11)
+
+- `xrtRudpTransmitAllocationSize`
+- `xrtRudpTransmitCancel`
+- `xrtRudpTransmitCreate`
+- `xrtRudpTransmitDestroy`
+- `xrtRudpTransmitFinish`
+- `xrtRudpTransmitMarkSent`
+- `xrtRudpTransmitPeek`
+- `xrtRudpTransmitResolve`
+- `xrtRudpTransmitSetLimit`
+- `xrtRudpTransmitState`
+- `xrtRudpTransmitWrite`
+
+### 常量与宏 (4)
+
+- `XRUDP_FEATURE_RUDP_TRANSMIT`
+- `XRUDP_TRANSMIT_CAPACITY_DEFAULT`
+- `XRUDP_TRANSMIT_CAPACITY_MAX`
+- `XRUDP_TRANSMIT_CAPACITY_MIN`
+
+### 类型 (4)
+
+- `xrudptransmit`
+- `xrudptransmitchange`
+- `xrudptransmitframe`
+- `xrudptransmitstate`
+
 ## `extlibs/xrudp/include/xrudp/wire.h`
 
 [查看带契约注释的公共头](../../include/xrudp/wire.h)
@@ -247,7 +275,7 @@
 - `xrtRudpReplayCheck`
 - `xrtRudpReplayInit`
 
-### 常量与宏 (40)
+### 常量与宏 (44)
 
 - `XRUDP_ARGUMENT`
 - `XRUDP_AUTH_FAILED`
@@ -262,6 +290,7 @@
 - `XRUDP_FRAME_ACK`
 - `XRUDP_FRAME_CLOSE`
 - `XRUDP_FRAME_DATAGRAM`
+- `XRUDP_FRAME_HEADER_SIZE`
 - `XRUDP_FRAME_KEY_CONFIRM`
 - `XRUDP_FRAME_MAX_DATA`
 - `XRUDP_FRAME_MAX_STREAMS`
@@ -273,6 +302,7 @@
 - `XRUDP_FRAME_PING`
 - `XRUDP_FRAME_RESET`
 - `XRUDP_FRAME_STREAM`
+- `XRUDP_HEADER_SIZE`
 - `XRUDP_IO_ERROR`
 - `XRUDP_LIMIT`
 - `XRUDP_MALFORMED`
@@ -285,7 +315,9 @@
 - `XRUDP_PROTOCOL_MISMATCH`
 - `XRUDP_REPLAY_BITS`
 - `XRUDP_REPLAY_WORDS`
+- `XRUDP_STREAM_CHUNK_MAX`
 - `XRUDP_STREAM_FIN`
+- `XRUDP_TAG_SIZE`
 - `XRUDP_TIMEOUT`
 - `XRUDP_TOO_OLD`
 - `XRUDP_TRUNCATED`

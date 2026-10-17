@@ -10,7 +10,7 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
 基于已认证方向密钥的包加密与密钥更新、固定 Noise IK 握手、无状态地址 cookie。
 接收侧 ACK 历史、规范帧生成与解析、RTT、发送记录与包/时间丢失判定已实现；
 发送侧 NewReno 与有界 pacing 已实现；可靠数据重传与连接调度仍在开发。
-可靠流接收半部已有固定容量重组、显式滑动流控和 FIN/RESET 核算。
+可靠流两半已有固定容量缓冲、重组、显式流额度、选择性确认/重传和 FIN/RESET 核算。
 仍未实现连接驱动和可靠性核心，不能将这些组件直接作为可对外服务的完整连接。
 
 ## 目标与边界
@@ -41,6 +41,7 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
 模块 rudp_sent 提供有界发送记录、合法 ACK 校验、丢失事件与取消，固定分配后不再分配。
 模块 rudp_congestion 提供 NewReno 与两数据报突发上限的 pacing；共享所有在途业务的预算。
 模块 rudp_receive 提供固定数据环/位图重组，不为乱序片段另行分配元数据。
+模块 rudp_transmit 保留未确认内容，以分层位图查找待发范围，重传副本共享逻辑确认状态。
 源入口 include/xrudp.h；生成产物在
 single/extlibs/xrudp.h 与 single/extlibs/xrudp_decl.h。
 
