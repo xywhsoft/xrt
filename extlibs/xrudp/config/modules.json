@@ -193,6 +193,33 @@
         "extlibs/xrudp/README.md",
         "extlibs/xrudp/docs/protocol.md"
       ]
+    },
+    {
+      "name": "rudp_timing",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_TIMING",
+      "depends": [
+        "rudp_wire"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/timing.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/recovery/rudp_timing.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_timing.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_timing.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
+      ]
     }
   ]
 }

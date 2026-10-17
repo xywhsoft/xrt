@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `29` 个函数、`59` 个常量或宏、
-`18` 个公共类型。
+当前登记 `33` 个函数、`63` 个常量或宏、
+`19` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -113,6 +113,28 @@
 - `xrudpnoiseinfo`
 - `xrudpnoisetrustproc`
 - `xrudprole`
+
+## `extlibs/xrudp/include/xrudp/timing.h`
+
+[查看带契约注释的公共头](../../include/xrudp/timing.h)
+
+### 函数 (4)
+
+- `xrtRudpRttInit`
+- `xrtRudpRttLossDelay`
+- `xrtRudpRttPto`
+- `xrtRudpRttSample`
+
+### 常量与宏 (4)
+
+- `XRUDP_ACK_DELAY_MAX_US`
+- `XRUDP_FEATURE_RUDP_TIMING`
+- `XRUDP_INITIAL_RTT_US`
+- `XRUDP_TIMER_GRANULARITY_US`
+
+### 类型 (1)
+
+- `xrudprtt`
 
 ## `extlibs/xrudp/include/xrudp/wire.h`
 

@@ -7,5 +7,6 @@
 #include <xrudp/noise.h>
 #include <xrudp/cookie.h>
 #include <xrudp/ack.h>
+#include <xrudp/timing.h>
 
 #endif

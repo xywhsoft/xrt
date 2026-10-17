@@ -1218,6 +1218,9 @@
 #if !defined(XRUDP_FEATURE_RUDP_NOISE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_NOISE 1
 #endif
+#if !defined(XRUDP_FEATURE_RUDP_TIMING)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_TIMING 1
+#endif
 #if !defined(XRUDP_FEATURE_RUDP_WIRE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_WIRE 1
 #endif
@@ -1235,6 +1238,9 @@
 #endif
 #if !defined(XRUDP_MODULE_RUDP_NOISE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_NOISE 1
+#endif
+#if !defined(XRUDP_MODULE_RUDP_TIMING)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_TIMING 1
 #endif
 #if !defined(XRUDP_MODULE_RUDP_WIRE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_WIRE 1
@@ -2414,6 +2420,16 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_timing 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_TIMING)
+#ifndef XRUDP_FEATURE_RUDP_TIMING
+#define XRUDP_FEATURE_RUDP_TIMING
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#endif
+
 /* rudp_ack 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_ACK)
 #ifndef XRUDP_FEATURE_RUDP_ACK
@@ -2896,6 +2912,57 @@ XRUDP_API xrudpresult xrtRudpAckSetEncode(const xrudpackset* pSet,
  * Output is unchanged on failure. */
 XRUDP_API xrudpresult xrtRudpAckDecode(const void* pFrame, size_t iSize,
 	xrudpack* pAck);
+
+XRT_EXTERN_C_END
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/timing.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_TIMING_H
+#define XRUDP_TIMING_H
+
+
+#if defined(XRUDP_FEATURE_RUDP_TIMING)
+
+#define XRUDP_INITIAL_RTT_US UINT64_C(333000)
+#define XRUDP_TIMER_GRANULARITY_US UINT64_C(1000)
+#define XRUDP_ACK_DELAY_MAX_US 25000u
+
+typedef struct xrudprtt {
+	uint64_t LatestUs;
+	uint64_t MinimumUs;
+	uint64_t SmoothedUs;
+	uint64_t VariationUs;
+	uint32_t MaxAckDelayUs;
+	bool HasSample;
+} xrudprtt;
+
+XRT_EXTERN_C_BEGIN
+
+/* All units are monotonic microseconds. InitialRtt=0 selects 333ms.
+ * MaxAckDelay may be zero (handshake/low-latency profile) and must not exceed
+ * the fixed 25ms protocol ceiling. No global clock, allocation or I/O.
+ * Owner serializes calls; failure preserves output/state. */
+XRUDP_API xrudpresult xrtRudpRttInit(xrudprtt* pRtt,
+	uint64_t iInitialRttUs, uint32_t iMaxAckDelayUs);
+/* Sample is the measured send-to-ACK interval, never a peer-supplied RTT.
+ * A zero measured interval is rounded to 1us. Peer ACK delay is capped by
+ * local policy and cannot reduce the sample below observed minimum RTT. */
+XRUDP_API xrudpresult xrtRudpRttSample(xrudprtt* pRtt,
+	uint64_t iMeasuredUs, uint32_t iPeerAckDelayUs);
+/* PTO = smoothed + max(4*variation, granularity) + bounded max ACK delay,
+ * with exponential backoff. Integer overflow saturates at UINT64_MAX.
+ * Reset backoff only on real authenticated acknowledgment progress. */
+XRUDP_API xrudpresult xrtRudpRttPto(const xrudprtt* pRtt,
+	unsigned int iBackoff, uint64_t* pIntervalUs);
+/* ceil(9/8 * max(latest,smoothed)), no less than timer granularity. */
+XRUDP_API xrudpresult xrtRudpRttLossDelay(const xrudprtt* pRtt,
+	uint64_t* pIntervalUs);
 
 XRT_EXTERN_C_END
 
@@ -4496,6 +4563,10 @@ XRT_EXTERN_C_END
 #undef XRUDP_FEATURE_RUDP_NOISE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_NOISE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_TIMING)
+#undef XRUDP_FEATURE_RUDP_TIMING
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_TIMING
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_WIRE)
 #undef XRUDP_FEATURE_RUDP_WIRE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_WIRE
@@ -4520,6 +4591,10 @@ XRT_EXTERN_C_END
 #undef XRUDP_MODULE_RUDP_NOISE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_NOISE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_TIMING)
+#undef XRUDP_MODULE_RUDP_TIMING
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_TIMING
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_WIRE)
 #undef XRUDP_MODULE_RUDP_WIRE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_WIRE
@@ -4538,6 +4613,16 @@ XRT_EXTERN_C_END
 /* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
+
+/* rudp_timing 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_TIMING)
+#ifndef XRUDP_FEATURE_RUDP_TIMING
+#define XRUDP_FEATURE_RUDP_TIMING
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#endif
 
 /* rudp_ack 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_ACK)
