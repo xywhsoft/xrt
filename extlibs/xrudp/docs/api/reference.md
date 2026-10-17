@@ -4,5 +4,87 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `0` 个函数、`0` 个常量或宏、
-`0` 个公共类型。
+当前登记 `8` 个函数、`47` 个常量或宏、
+`7` 个公共类型。
+
+## `extlibs/xrudp/include/xrudp/export.h`
+
+[查看带契约注释的公共头](../../include/xrudp/export.h)
+
+### 常量与宏 (2)
+
+- `XRUDP_BUILD_SHARED`
+- `XRUDP_USE_SHARED`
+
+## `extlibs/xrudp/include/xrudp/wire.h`
+
+[查看带契约注释的公共头](../../include/xrudp/wire.h)
+
+### 函数 (8)
+
+- `xrtRudpFrameAppend`
+- `xrtRudpFrameNext`
+- `xrtRudpFramesValidate`
+- `xrtRudpPacketDecode`
+- `xrtRudpPacketEncode`
+- `xrtRudpReplayAccept`
+- `xrtRudpReplayCheck`
+- `xrtRudpReplayInit`
+
+### 常量与宏 (45)
+
+- `XRUDP_ACK_RANGES_MAX`
+- `XRUDP_ARGUMENT`
+- `XRUDP_AUTH_FAILED`
+- `XRUDP_BACKPRESSURE`
+- `XRUDP_CANCELLED`
+- `XRUDP_CLOSED`
+- `XRUDP_DATAGRAM_SEQUENCED`
+- `XRUDP_DONE`
+- `XRUDP_DUPLICATE`
+- `XRUDP_FEATURE_RUDP_WIRE`
+- `XRUDP_FRAMES_MAX`
+- `XRUDP_FRAME_ACK`
+- `XRUDP_FRAME_CLOSE`
+- `XRUDP_FRAME_DATAGRAM`
+- `XRUDP_FRAME_HEADER_SIZE`
+- `XRUDP_FRAME_KEY_CONFIRM`
+- `XRUDP_FRAME_MAX_DATA`
+- `XRUDP_FRAME_MAX_STREAMS`
+- `XRUDP_FRAME_MAX_STREAM_DATA`
+- `XRUDP_FRAME_OPEN`
+- `XRUDP_FRAME_PADDING`
+- `XRUDP_FRAME_PATH_CHALLENGE`
+- `XRUDP_FRAME_PATH_RESPONSE`
+- `XRUDP_FRAME_PING`
+- `XRUDP_FRAME_RESET`
+- `XRUDP_FRAME_STREAM`
+- `XRUDP_HEADER_SIZE`
+- `XRUDP_IO_ERROR`
+- `XRUDP_LIMIT`
+- `XRUDP_MALFORMED`
+- `XRUDP_NO_MEMORY`
+- `XRUDP_OK`
+- `XRUDP_PACKET_DATA`
+- `XRUDP_PACKET_HANDSHAKE`
+- `XRUDP_PACKET_HELLO`
+- `XRUDP_PACKET_MAX`
+- `XRUDP_PACKET_RETRY`
+- `XRUDP_PROTOCOL_MISMATCH`
+- `XRUDP_REPLAY_BITS`
+- `XRUDP_REPLAY_WORDS`
+- `XRUDP_STREAM_FIN`
+- `XRUDP_TAG_SIZE`
+- `XRUDP_TIMEOUT`
+- `XRUDP_TOO_OLD`
+- `XRUDP_TRUNCATED`
+
+### 类型 (7)
+
+- `xrudpframetype`
+- `xrudppackettype`
+- `xrudpreplay`
+- `xrudpresult`
+- `xrudpwireframe`
+- `xrudpwireheader`
+- `xrudpwirepacket`

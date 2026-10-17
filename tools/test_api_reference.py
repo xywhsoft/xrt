@@ -19,6 +19,26 @@ import generate_api_reference as reference
 class ApiReferenceTest(unittest.TestCase):
 	"""验证家族收集、符号归属和稳定输出。"""
 
+	def test_xrudp_exports_are_included_without_comment_phantoms(self) -> None:
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			header = root / "xrudp.h"
+			header.write_text("XRUDP_API int xrtRudpOpen(void);\n"
+				"/* XRUDP_API int xrtRudpFake(void); */\n"
+				"typedef struct xrudppeer { int state; } xrudppeer;\n"
+				"#define XRUDP_LIMIT 64\n", encoding="utf-8")
+			manifest = root / "modules.json"
+			manifest.write_text(json.dumps({"modules": [{"public_headers": ["xrudp.h"]}],
+				"api_reference": {"title": "xrudp", "function_prefix": "xrtRudp",
+				"constant_prefix": "XRUDP_", "type_prefix": "xrudp", "guide": "guide.md",
+				"output": "reference.md"}}), encoding="utf-8")
+			with patch.object(reference, "ROOT", root):
+				_, output = reference._generate_manifest(manifest)
+			self.assertIn("`xrtRudpOpen`", output)
+			self.assertIn("`XRUDP_LIMIT`", output)
+			self.assertIn("`xrudppeer`", output)
+			self.assertNotIn("xrtRudpFake", output)
+
 	def test_manifest_comment_only_export_is_not_an_api_header(self) -> None:
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
