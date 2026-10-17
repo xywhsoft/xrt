@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `46` 个函数、`80` 个常量或宏、
-`25` 个公共类型。
+当前登记 `55` 个函数、`85` 个常量或宏、
+`28` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -141,6 +141,39 @@
 - `xrudpnoisetrustproc`
 - `xrudprole`
 
+## `extlibs/xrudp/include/xrudp/receive.h`
+
+[查看带契约注释的公共头](../../include/xrudp/receive.h)
+
+### 函数 (9)
+
+- `xrtRudpReceiveAllocationSize`
+- `xrtRudpReceiveCheck`
+- `xrtRudpReceiveCreate`
+- `xrtRudpReceiveDestroy`
+- `xrtRudpReceiveExtend`
+- `xrtRudpReceivePush`
+- `xrtRudpReceiveRead`
+- `xrtRudpReceiveReset`
+- `xrtRudpReceiveState`
+
+### 常量与宏 (8)
+
+- `XRUDP_FEATURE_RUDP_RECEIVE`
+- `XRUDP_FRAME_HEADER_SIZE`
+- `XRUDP_HEADER_SIZE`
+- `XRUDP_RECEIVE_CAPACITY_DEFAULT`
+- `XRUDP_RECEIVE_CAPACITY_MAX`
+- `XRUDP_RECEIVE_CAPACITY_MIN`
+- `XRUDP_STREAM_CHUNK_MAX`
+- `XRUDP_TAG_SIZE`
+
+### 类型 (3)
+
+- `xrudpreceive`
+- `xrudpreceivechange`
+- `xrudpreceivestate`
+
 ## `extlibs/xrudp/include/xrudp/sent.h`
 
 [查看带契约注释的公共头](../../include/xrudp/sent.h)
@@ -214,7 +247,7 @@
 - `xrtRudpReplayCheck`
 - `xrtRudpReplayInit`
 
-### 常量与宏 (43)
+### 常量与宏 (40)
 
 - `XRUDP_ARGUMENT`
 - `XRUDP_AUTH_FAILED`
@@ -229,7 +262,6 @@
 - `XRUDP_FRAME_ACK`
 - `XRUDP_FRAME_CLOSE`
 - `XRUDP_FRAME_DATAGRAM`
-- `XRUDP_FRAME_HEADER_SIZE`
 - `XRUDP_FRAME_KEY_CONFIRM`
 - `XRUDP_FRAME_MAX_DATA`
 - `XRUDP_FRAME_MAX_STREAMS`
@@ -241,7 +273,6 @@
 - `XRUDP_FRAME_PING`
 - `XRUDP_FRAME_RESET`
 - `XRUDP_FRAME_STREAM`
-- `XRUDP_HEADER_SIZE`
 - `XRUDP_IO_ERROR`
 - `XRUDP_LIMIT`
 - `XRUDP_MALFORMED`
@@ -255,7 +286,6 @@
 - `XRUDP_REPLAY_BITS`
 - `XRUDP_REPLAY_WORDS`
 - `XRUDP_STREAM_FIN`
-- `XRUDP_TAG_SIZE`
 - `XRUDP_TIMEOUT`
 - `XRUDP_TOO_OLD`
 - `XRUDP_TRUNCATED`

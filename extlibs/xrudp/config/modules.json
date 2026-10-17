@@ -22,7 +22,8 @@
         "source_roots": [
           "wire",
           "crypto",
-          "recovery"
+          "recovery",
+          "stream"
         ]
       }
     ]
@@ -268,6 +269,34 @@
       ],
       "single_tests": [
         "extlibs/xrudp/tests/single/test_single_congestion.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
+      ]
+    },
+    {
+      "name": "rudp_receive",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_RECEIVE",
+      "depends": [
+        "rudp_wire"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/receive.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/stream/rudp_receive.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_receive.c",
+        "extlibs/xrudp/tests/test_receive_memory.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_receive.c"
       ],
       "examples": [],
       "benchmarks": [],

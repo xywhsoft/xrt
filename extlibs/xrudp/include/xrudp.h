@@ -10,5 +10,6 @@
 #include <xrudp/timing.h>
 #include <xrudp/sent.h>
 #include <xrudp/congestion.h>
+#include <xrudp/receive.h>
 
 #endif
