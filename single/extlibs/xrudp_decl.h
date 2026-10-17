@@ -2668,6 +2668,10 @@ XRUDP_API xrudpresult xrtRudpCipherState(const xrudpcipher* pCipher,
  * Source and destination buffers may overlap. Output counters/state objects
  * must not alias buffers. Success consumes a fresh packet number exactly once.
  * A successful Open confirms transport reception, not application execution. */
+/* Open reports AUTH_FAILED for untrusted header/body failures. DUPLICATE,
+ * TOO_OLD and MALFORMED require a verified AEAD tag; MALFORMED means an
+ * authenticated frame/protocol violation. LIMIT denotes local output capacity.
+ * Do not turn unauthenticated noise into peer failure or path activity. */
 XRUDP_API xrudpresult xrtRudpCipherSeal(xrudpcipher* pCipher,
 	const void* pFrames, size_t iFrameSize, void* pOutput,
 	size_t iCapacity, size_t* pWritten);

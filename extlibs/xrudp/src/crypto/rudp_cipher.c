@@ -159,21 +159,25 @@ xrudpresult xrtRudpCipherOpen(xrudpcipher* pCipher,
 	xrudpresult result;
 	unsigned char plain[XRUDP_PACKET_MAX], nextKey[XRUDP_KEY_SIZE] = {0}, nonce[12];
 	const unsigned char* key;
+	xrudpresult replayResult;
 	size_t size, count;
 	bool update = false, confirmed;
 	if (pWritten != NULL) *pWritten = 0;
 	if (pCipher == NULL || pPacket == NULL || pOutput == NULL || pWritten == NULL)
 		return XRUDP_ARGUMENT;
 	result = xrtRudpPacketDecode(pPacket, iPacketSize, &packet);
-	if (result != XRUDP_OK) return result;
+	/* A wire error before AEAD is untrusted input, not an authenticated peer
+	 * violation. The caller must be able to drop it without closing a session. */
+	if (result != XRUDP_OK) return XRUDP_AUTH_FAILED;
 	if (packet.Header.Type != XRUDP_PACKET_DATA ||
 		packet.Header.PacketNumber == UINT64_MAX ||
 		!xrtConstTimeEqual(packet.Header.ConnectionId, pCipher->LocalId, 16))
 		return XRUDP_AUTH_FAILED;
 	size = packet.Header.PayloadSize - XRUDP_TAG_SIZE;
 	if (iCapacity < size) return XRUDP_LIMIT;
-	result = xrtRudpReplayCheck(&pCipher->Replay, packet.Header.PacketNumber);
-	if (result != XRUDP_OK) return result;
+	replayResult = xrtRudpReplayCheck(&pCipher->Replay, packet.Header.PacketNumber);
+	if (replayResult != XRUDP_OK && replayResult != XRUDP_DUPLICATE &&
+		replayResult != XRUDP_TOO_OLD) return replayResult;
 	if (packet.Header.KeyEpoch == pCipher->ReceiveEpoch) key = pCipher->ReceiveKey;
 	else if (pCipher->PreviousEpoch != 0 && packet.Header.KeyEpoch == pCipher->PreviousEpoch)
 		key = pCipher->PreviousKey;
@@ -189,8 +193,17 @@ xrudpresult xrtRudpCipherOpen(xrudpcipher* pCipher,
 		result = XRUDP_AUTH_FAILED;
 		goto cleanup;
 	}
+	/* A matching packet number is not proof of authenticity. The driver may
+	 * ACK an authenticated duplicate or use it as evidence of path activity. */
+	if (replayResult != XRUDP_OK) {
+		result = replayResult;
+		goto cleanup;
+	}
 	result = xrtRudpFramesValidate(plain, size, &count);
-	if (result != XRUDP_OK) goto cleanup;
+	if (result != XRUDP_OK) {
+		result = XRUDP_MALFORMED;
+		goto cleanup;
+	}
 	result = xrudp__confirm_check(pCipher, plain, size, &confirmed);
 	if (result != XRUDP_OK) goto cleanup;
 	/* No fallible operations after this commit point. The caller must still

@@ -66,6 +66,14 @@ static int basic_tests(void)
 	CHECK(xrtRudpCipherOpen(b, packet, size, plain, sizeof(plain), &read) == XRUDP_OK);
 	CHECK(read == sizeof(ping) && memcmp(plain, ping, sizeof(ping)) == 0);
 	CHECK(xrtRudpCipherOpen(b, packet, size, plain, sizeof(plain), &read) == XRUDP_DUPLICATE);
+	/* A forged body with a previously accepted packet number is not an
+	 * authenticated duplicate and must never elicit a retransmission ACK. */
+	packet[size - 1] ^= 1;
+	CHECK(xrtRudpCipherOpen(b, packet, size, plain, sizeof(plain), &read) == XRUDP_AUTH_FAILED);
+	packet[size - 1] ^= 1;
+	packet[0] ^= 1;
+	CHECK(xrtRudpCipherOpen(b, packet, size, plain, sizeof(plain), &read) == XRUDP_AUTH_FAILED);
+	packet[0] ^= 1;
 	/* Other direction has independent keys and packet numbers. */
 	CHECK(xrtRudpCipherSeal(b, ping, sizeof(ping), packet, sizeof(packet), &size) == XRUDP_OK);
 	CHECK(memcmp(packet + XRUDP_HEADER_SIZE, original + XRUDP_HEADER_SIZE,
@@ -148,9 +156,10 @@ static int authenticated_invalid_payload(void)
 	xrudpcipher *a, *b;
 	xrudpwireheader header;
 	xrudpcipherstate state;
-	unsigned char packet[XRUDP_PACKET_MAX] = {0}, plain[16], saved[16];
+	unsigned char packet[XRUDP_PACKET_MAX] = {0}, plain[XRUDP_PACKET_MAX], saved[XRUDP_PACKET_MAX];
 	unsigned char nonce[12] = {0,0,0,0,1,0,0,0,0,0,0,0};
 	unsigned char invalid[4] = {255,0,0,0};
+	unsigned char tooManyFrames[(XRUDP_FRAMES_MAX + 1) * 4];
 	size_t size, read;
 	CHECK(pair(&a, &b, 0) == 0);
 	memset(&header, 0, sizeof(header));
@@ -164,6 +173,17 @@ static int authenticated_invalid_payload(void)
 	memset(plain, 0xa5, sizeof(plain)); memcpy(saved, plain, sizeof(saved));
 	CHECK(xrtRudpCipherOpen(b, packet, size, plain, sizeof(plain), &read) == XRUDP_MALFORMED);
 	CHECK(read == 0 && memcmp(plain, saved, sizeof(saved)) == 0);
+	CHECK(xrtRudpCipherState(b, &state) == XRUDP_OK && state.LargestReceivedPacket == 0);
+	for (size_t i = 0; i < XRUDP_FRAMES_MAX + 1; ++i) {
+		tooManyFrames[i * 4] = XRUDP_FRAME_PING;
+		tooManyFrames[i * 4 + 1] = tooManyFrames[i * 4 + 2] = tooManyFrames[i * 4 + 3] = 0;
+	}
+	header.PayloadSize = sizeof(tooManyFrames) + XRUDP_TAG_SIZE;
+	CHECK(xrtRudpPacketEncode(packet, sizeof(packet), &size, &header,
+		packet + XRUDP_HEADER_SIZE, header.PayloadSize) == XRUDP_OK);
+	CHECK(xrtChaCha20Poly1305Seal(keyA, nonce, packet, XRUDP_HEADER_SIZE,
+		tooManyFrames, sizeof(tooManyFrames), packet + XRUDP_HEADER_SIZE, header.PayloadSize));
+	CHECK(xrtRudpCipherOpen(b, packet, size, plain, sizeof(plain), &read) == XRUDP_MALFORMED);
 	CHECK(xrtRudpCipherState(b, &state) == XRUDP_OK && state.LargestReceivedPacket == 0);
 	CHECK(xrtRudpCipherSeal(a, ping, sizeof(ping), packet, sizeof(packet), &size) == XRUDP_OK);
 	CHECK(xrtRudpCipherOpen(b, packet, size, plain, sizeof(plain), &read) == XRUDP_OK);
