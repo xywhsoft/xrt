@@ -31,6 +31,7 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
 在 XRT 仓库根目录使用统一工具：
 
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_wire --no-examples
+    python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_transport_tests --no-examples
     python tools/amalgamate.py --manifest extlibs/xrudp/config/modules.json
 
 模块 rudp_wire 只依赖 core；rudp_crypto 增加 XRT ChaCha20-Poly1305。
@@ -42,6 +43,8 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
 模块 rudp_congestion 提供 NewReno 与两数据报突发上限的 pacing；共享所有在途业务的预算。
 模块 rudp_receive 提供固定数据环/位图重组，不为乱序片段另行分配元数据。
 模块 rudp_transmit 保留未确认内容，以分层位图查找待发范围，重传副本共享逻辑确认状态。
+测试套件 rudp_transport_tests 组合加密、恢复、拥塞与双向字节流，注入确定性网络故障；
+其中的测试驱动不作为产品连接端点导出。
 源入口 include/xrudp.h；生成产物在
 single/extlibs/xrudp.h 与 single/extlibs/xrudp_decl.h。
 

@@ -332,6 +332,32 @@
         "extlibs/xrudp/README.md",
         "extlibs/xrudp/docs/protocol.md"
       ]
+    },
+    {
+      "name": "rudp_transport_tests",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_TRANSPORT_TESTS",
+      "depends": [
+        "rudp_transmit",
+        "rudp_receive",
+        "rudp_congestion",
+        "rudp_timing",
+        "rudp_crypto"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_transport_sim.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_transport_sim.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
     }
   ]
 }
