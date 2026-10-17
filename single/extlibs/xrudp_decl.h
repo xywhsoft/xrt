@@ -1194,8 +1194,20 @@
 #if !defined(XRT_MODULE_CRYPTO_CHACHA20_POLY1305)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_CHACHA20_POLY1305 1
 #endif
+#if !defined(XRT_MODULE_CRYPTO_HKDF_SHA256)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_HKDF_SHA256 1
+#endif
+#if !defined(XRT_MODULE_CRYPTO_X25519)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_X25519 1
+#endif
+#if !defined(XRT_MODULE_RANDOM_SECURE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE 1
+#endif
 #if !defined(XRUDP_FEATURE_RUDP_CRYPTO)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_CRYPTO 1
+#endif
+#if !defined(XRUDP_FEATURE_RUDP_NOISE)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_NOISE 1
 #endif
 #if !defined(XRUDP_FEATURE_RUDP_WIRE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_WIRE 1
@@ -1205,6 +1217,9 @@
 #endif
 #if !defined(XRUDP_MODULE_RUDP_CRYPTO)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_CRYPTO 1
+#endif
+#if !defined(XRUDP_MODULE_RUDP_NOISE)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_NOISE 1
 #endif
 #if !defined(XRUDP_MODULE_RUDP_WIRE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_WIRE 1
@@ -2384,6 +2399,25 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_noise 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_NOISE)
+#ifndef XRUDP_FEATURE_RUDP_NOISE
+#define XRUDP_FEATURE_RUDP_NOISE
+#endif
+#ifndef XRUDP_MODULE_RUDP_CRYPTO
+#define XRUDP_MODULE_RUDP_CRYPTO
+#endif
+#ifndef XRT_MODULE_CRYPTO_X25519
+#define XRT_MODULE_CRYPTO_X25519
+#endif
+#ifndef XRT_MODULE_CRYPTO_HKDF_SHA256
+#define XRT_MODULE_CRYPTO_HKDF_SHA256
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
+#endif
+
 /* rudp_crypto 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_CRYPTO)
 #ifndef XRUDP_FEATURE_RUDP_CRYPTO
@@ -2628,6 +2662,90 @@ XRUDP_API xrudpresult xrtRudpCipherOpen(xrudpcipher* pCipher,
  * This rotation does not provide recovery from a compromised current key. */
 XRUDP_API xrudpresult xrtRudpCipherUpdateKey(xrudpcipher* pCipher);
 XRUDP_API void xrtRudpCipherRetirePrevious(xrudpcipher* pCipher);
+
+XRT_EXTERN_C_END
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/noise.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_NOISE_H
+#define XRUDP_NOISE_H
+
+
+#if defined(XRUDP_FEATURE_RUDP_NOISE)
+
+#define XRUDP_NOISE_PARAMETERS_MAX 256u
+#define XRUDP_NOISE_MESSAGE_MAX (96u + XRUDP_NOISE_PARAMETERS_MAX)
+
+typedef struct xrudpnoise xrudpnoise;
+typedef enum xrudprole { XRUDP_INITIATOR = 1, XRUDP_RESPONDER = 2 } xrudprole;
+
+/* Bounded, nonblocking, side-effect-free authorization check. The public key
+ * has been cryptographically verified; its account/role must still be trusted.
+ * Do not consume a one-use grant here: the connection is not yet established.
+ * Do not reenter or destroy the currently executing Noise object. */
+typedef bool (*xrudpnoisetrustproc)(const unsigned char* pPeerPublic, void* pContext);
+
+typedef struct xrudpnoiseconfig {
+	xrudprole Role;
+	const void* StaticPrivate; /* 32 bytes; copied, never logged. */
+	const void* PeerPublic; /* 32-byte trusted pin; mandatory for initiator. */
+	const void* Prologue; /* Canonical protocol/session/role binding. */
+	size_t PrologueSize;
+	xrudpnoisetrustproc Trust;
+	void* TrustContext; /* Borrowed until Destroy; callback runs on owner. */
+} xrudpnoiseconfig;
+
+typedef struct xrudpnoiseinfo {
+	unsigned int MessageIndex;
+	bool Complete;
+	bool PeerVerified;
+	bool KeysTaken;
+	size_t PeerParameterSize;
+	unsigned char PeerPublic[32];
+	unsigned char HandshakeHash[32]; /* Available only after Complete. */
+} xrudpnoiseinfo;
+
+XRT_EXTERN_C_BEGIN
+
+/* Fixed Noise_IK_25519_ChaChaPoly_SHA256, no negotiation/fallback/0-RTT.
+ * Responder requires a trusted peer pin or a Trust callback; if both are
+ * provided both must pass. Production ephemeral keys always come from XRT's
+ * OS secure random source. The caller handles address cookies, wire framing,
+ * cached retransmission, deadlines and final key confirmation.
+ * Complete means Noise key derivation completed, NOT application admission
+ * or peer liveness confirmation. Never execute handshake parameters as data. */
+XRUDP_API xrudpresult xrtRudpNoiseCreate(const xrudpnoiseconfig* pConfig,
+	xrudpnoise** ppNoise);
+XRUDP_API void xrtRudpNoiseDestroy(xrudpnoise* pNoise);
+XRUDP_API xrudpresult xrtRudpNoiseInfo(const xrudpnoise* pNoise, xrudpnoiseinfo* pInfo);
+
+/* Write exactly once for each local flight; cache its returned bytes for loss
+ * recovery. A retry of an already successful Write returns BACKPRESSURE/DONE.
+ * pParameters contains protocol parameters only. Failure changes no state or
+ * output bytes, and *pWritten=0. Buffers/counters must not alias the object. */
+XRUDP_API xrudpresult xrtRudpNoiseWrite(xrudpnoise* pNoise,
+	const void* pParameters, size_t iParameterSize,
+	void* pOutput, size_t iCapacity, size_t* pWritten);
+/* Candidate state is discarded on an invalid/forged flight, leaving the prior
+ * live state intact. Duplicate flights must be handled by cached wire messages
+ * in the connection driver, not by advancing this state machine twice. */
+XRUDP_API xrudpresult xrtRudpNoiseRead(xrudpnoise* pNoise,
+	const void* pMessage, size_t iMessageSize);
+XRUDP_API xrudpresult xrtRudpNoisePeerParameters(const xrudpnoise* pNoise,
+	void* pOutput, size_t iCapacity, size_t* pWritten);
+/* Transfer keys into exactly ONE packet protector, then clear their copies.
+ * This prevents constructing multiple packet-number domains with one key pair.
+ * Call only after higher-level identity/parameter policy accepts the handshake.
+ * The canonical Prologue must bind the IDs passed here and the application. */
+XRUDP_API xrudpresult xrtRudpNoiseCreateCipher(xrudpnoise* pNoise,
+	const void* pLocalId, const void* pPeerId, uint64_t iPacketLimit,
+	xrudpcipher** ppCipher);
 
 XRT_EXTERN_C_END
 
@@ -4196,9 +4314,25 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_CRYPTO_CHACHA20_POLY1305
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_CHACHA20_POLY1305
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_HKDF_SHA256)
+#undef XRT_MODULE_CRYPTO_HKDF_SHA256
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_HKDF_SHA256
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_X25519)
+#undef XRT_MODULE_CRYPTO_X25519
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_X25519
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE)
+#undef XRT_MODULE_RANDOM_SECURE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_CRYPTO)
 #undef XRUDP_FEATURE_RUDP_CRYPTO
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_CRYPTO
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_NOISE)
+#undef XRUDP_FEATURE_RUDP_NOISE
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_NOISE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_WIRE)
 #undef XRUDP_FEATURE_RUDP_WIRE
@@ -4211,6 +4345,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_CRYPTO)
 #undef XRUDP_MODULE_RUDP_CRYPTO
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_CRYPTO
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_NOISE)
+#undef XRUDP_MODULE_RUDP_NOISE
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_NOISE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_WIRE)
 #undef XRUDP_MODULE_RUDP_WIRE
@@ -4230,6 +4368,25 @@ XRT_EXTERN_C_END
 /* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
+
+/* rudp_noise 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_NOISE)
+#ifndef XRUDP_FEATURE_RUDP_NOISE
+#define XRUDP_FEATURE_RUDP_NOISE
+#endif
+#ifndef XRUDP_MODULE_RUDP_CRYPTO
+#define XRUDP_MODULE_RUDP_CRYPTO
+#endif
+#ifndef XRT_MODULE_CRYPTO_X25519
+#define XRT_MODULE_CRYPTO_X25519
+#endif
+#ifndef XRT_MODULE_CRYPTO_HKDF_SHA256
+#define XRT_MODULE_CRYPTO_HKDF_SHA256
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
+#endif
 
 /* rudp_crypto 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_CRYPTO)

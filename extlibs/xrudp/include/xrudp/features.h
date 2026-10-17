@@ -2,6 +2,25 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_noise 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_NOISE)
+#ifndef XRUDP_FEATURE_RUDP_NOISE
+#define XRUDP_FEATURE_RUDP_NOISE
+#endif
+#ifndef XRUDP_MODULE_RUDP_CRYPTO
+#define XRUDP_MODULE_RUDP_CRYPTO
+#endif
+#ifndef XRT_MODULE_CRYPTO_X25519
+#define XRT_MODULE_CRYPTO_X25519
+#endif
+#ifndef XRT_MODULE_CRYPTO_HKDF_SHA256
+#define XRT_MODULE_CRYPTO_HKDF_SHA256
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
+#endif
+
 /* rudp_crypto 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_CRYPTO)
 #ifndef XRUDP_FEATURE_RUDP_CRYPTO

@@ -7,7 +7,8 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
 
 当前为开发中的基础设施，尚不能建立网络连接，也尚未通过生产发布验收。
 已实现组件：固定格式报文编解码、完整负载结构预校验、有界防重放窗口、
-基于已认证方向密钥的包加密与密钥更新。安全握手尚未实现，不能将原始密钥构造器当作身份认证。
+基于已认证方向密钥的包加密与密钥更新、固定 Noise IK 握手。
+仍未实现地址验证、连接驱动和可靠性核心，不能将这些组件直接作为可对外服务的完整连接。
 
 ## 目标与边界
 
@@ -30,6 +31,7 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
     python tools/amalgamate.py --manifest extlibs/xrudp/config/modules.json
 
 模块 rudp_wire 只依赖 core；rudp_crypto 增加 XRT ChaCha20-Poly1305。
+模块 rudp_noise 增加 X25519、HKDF-SHA256 与系统安全随机源。
 源入口 include/xrudp.h；生成产物在
 single/extlibs/xrudp.h 与 single/extlibs/xrudp_decl.h。
 

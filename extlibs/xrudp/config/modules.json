@@ -105,6 +105,38 @@
         "extlibs/xrudp/README.md",
         "extlibs/xrudp/docs/protocol.md"
       ]
+    },
+    {
+      "name": "rudp_noise",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_NOISE",
+      "depends": [
+        "rudp_crypto",
+        "crypto_x25519",
+        "crypto_hkdf_sha256",
+        "random_secure"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/noise.h"
+      ],
+      "internal_headers": [
+        "extlibs/xrudp/src/internal/xrudp_noise.h"
+      ],
+      "sources": [
+        "extlibs/xrudp/src/crypto/rudp_noise.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_noise.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_noise.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
+      ]
     }
   ]
 }
