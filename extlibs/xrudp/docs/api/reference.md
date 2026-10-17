@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `84` 个函数、`100` 个常量或宏、
-`39` 个公共类型。
+当前登记 `97` 个函数、`110` 个常量或宏、
+`47` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -103,6 +103,53 @@
 - `xrudpcipher`
 - `xrudpcipherstate`
 
+## `extlibs/xrudp/include/xrudp/endpoint.h`
+
+[查看带契约注释的公共头](../../include/xrudp/endpoint.h)
+
+### 函数 (13)
+
+- `xrtRudpEndpointBind`
+- `xrtRudpEndpointClose`
+- `xrtRudpEndpointConfigInit`
+- `xrtRudpEndpointConnect`
+- `xrtRudpEndpointDestroy`
+- `xrtRudpEndpointInfo`
+- `xrtRudpEndpointRef`
+- `xrtRudpEndpointState`
+- `xrtRudpPeerAbort`
+- `xrtRudpPeerDestroy`
+- `xrtRudpPeerInfo`
+- `xrtRudpPeerRef`
+- `xrtRudpPeerState`
+
+### 常量与宏 (10)
+
+- `XRUDP_ENDPOINT_ADDRESS_BUCKETS`
+- `XRUDP_ENDPOINT_CLOSED`
+- `XRUDP_ENDPOINT_CLOSING`
+- `XRUDP_ENDPOINT_OPEN`
+- `XRUDP_ENDPOINT_OPENING`
+- `XRUDP_ENDPOINT_PEERS_MAX`
+- `XRUDP_FEATURE_RUDP_ENDPOINT`
+- `XRUDP_PEER_CLOSED`
+- `XRUDP_PEER_CONFIRMED`
+- `XRUDP_PEER_NEGOTIATING`
+
+### 类型 (11)
+
+- `xrudpconnectconfig`
+- `xrudpendpoint`
+- `xrudpendpointconfig`
+- `xrudpendpointevents`
+- `xrudpendpointinfo`
+- `xrudpendpointstate`
+- `xrudphandshakeinfo`
+- `xrudpnoisetrustproc`
+- `xrudpparameters`
+- `xrudppeer`
+- `xrudppeerstate`
+
 ## `extlibs/xrudp/include/xrudp/export.h`
 
 [查看带契约注释的公共头](../../include/xrudp/export.h)
@@ -145,14 +192,11 @@
 - `XRUDP_HELLO_SIZE`
 - `XRUDP_PARAMETERS_SIZE`
 
-### 类型 (7)
+### 类型 (4)
 
 - `xrudphandshake`
 - `xrudphandshakeconfig`
-- `xrudphandshakeinfo`
 - `xrudphandshakephase`
-- `xrudpnoisetrustproc`
-- `xrudpparameters`
 - `xrudprole`
 
 ## `extlibs/xrudp/include/xrudp/noise.h`

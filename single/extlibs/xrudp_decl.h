@@ -1191,6 +1191,9 @@
 #if !defined(XRT_FEATURE_XLON_WRITE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_WRITE 1
 #endif
+#if !defined(XRT_MODULE_ATOMIC)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_ATOMIC 1
+#endif
 #if !defined(XRT_MODULE_CRYPTO_CHACHA20_POLY1305)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_CHACHA20_POLY1305 1
 #endif
@@ -1203,8 +1206,14 @@
 #if !defined(XRT_MODULE_CRYPTO_X25519)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_X25519 1
 #endif
+#if !defined(XRT_MODULE_NET_UDP)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_UDP 1
+#endif
 #if !defined(XRT_MODULE_RANDOM_SECURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE 1
+#endif
+#if !defined(XRT_MODULE_TIME)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME 1
 #endif
 #if !defined(XRUDP_FEATURE_RUDP_ACK)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_ACK 1
@@ -1217,6 +1226,9 @@
 #endif
 #if !defined(XRUDP_FEATURE_RUDP_CRYPTO)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_CRYPTO 1
+#endif
+#if !defined(XRUDP_FEATURE_RUDP_ENDPOINT)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_ENDPOINT 1
 #endif
 #if !defined(XRUDP_FEATURE_RUDP_HANDSHAKE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_HANDSHAKE 1
@@ -1253,6 +1265,9 @@
 #endif
 #if !defined(XRUDP_MODULE_RUDP_CRYPTO)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_CRYPTO 1
+#endif
+#if !defined(XRUDP_MODULE_RUDP_ENDPOINT)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_ENDPOINT 1
 #endif
 #if !defined(XRUDP_MODULE_RUDP_HANDSHAKE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_HANDSHAKE 1
@@ -2450,6 +2465,25 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_endpoint 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_ENDPOINT)
+#ifndef XRUDP_FEATURE_RUDP_ENDPOINT
+#define XRUDP_FEATURE_RUDP_ENDPOINT
+#endif
+#ifndef XRUDP_MODULE_RUDP_HANDSHAKE
+#define XRUDP_MODULE_RUDP_HANDSHAKE
+#endif
+#ifndef XRT_MODULE_NET_UDP
+#define XRT_MODULE_NET_UDP
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#endif
+
 /* rudp_handshake 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_HANDSHAKE)
 #ifndef XRUDP_FEATURE_RUDP_HANDSHAKE
@@ -3557,6 +3591,116 @@ XRUDP_API xrudpresult xrtRudpHandshakeInfo(const xrudphandshake* pHandshake, xru
  * Destroy never destroys a transferred cipher. */
 XRUDP_API xrudpresult xrtRudpHandshakeTakeCipher(xrudphandshake* pHandshake, xrudpcipher** ppCipher);
 XRUDP_API void xrtRudpHandshakeDestroy(xrudphandshake* pHandshake);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/endpoint.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_ENDPOINT_H
+#define XRUDP_ENDPOINT_H
+
+
+#if defined(XRUDP_FEATURE_RUDP_ENDPOINT)
+
+#define XRUDP_ENDPOINT_PEERS_MAX 256u
+#define XRUDP_ENDPOINT_ADDRESS_BUCKETS 64u
+
+typedef struct xrudpendpoint xrudpendpoint;
+typedef struct xrudppeer xrudppeer;
+typedef enum xrudpendpointstate {
+	XRUDP_ENDPOINT_OPENING = 0,
+	XRUDP_ENDPOINT_OPEN,
+	XRUDP_ENDPOINT_CLOSING,
+	XRUDP_ENDPOINT_CLOSED
+} xrudpendpointstate;
+typedef enum xrudppeerstate {
+	XRUDP_PEER_NEGOTIATING = 0,
+	XRUDP_PEER_CONFIRMED,
+	XRUDP_PEER_CLOSED
+} xrudppeerstate;
+
+/* All callbacks run on the bound Worker and borrow their arguments. Ref a peer
+ * to keep its handle beyond the callback. Confirmed means identity/address/key
+ * proof completed; reliable stream session admission is a separate layer.
+ * Callbacks may close/ref/destroy owned handles, but must not block the Worker.
+ * Context remains borrowed until endpoint Close returns. */
+typedef struct xrudpendpointevents {
+	void (*Open)(xrudpendpoint* pEndpoint, void* pContext);
+	void (*Confirmed)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, void* pContext);
+	void (*PeerClose)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, xrudpresult iReason, void* pContext);
+	void (*Close)(xrudpendpoint* pEndpoint, xrudpresult iReason, const xerror* pError, void* pContext);
+} xrudpendpointevents;
+
+typedef struct xrudpendpointconfig {
+	const void* StaticPrivate; /* 32 bytes, copied; securely erased on Close. */
+	const void* Scope; /* Optional nonzero 16 bytes; NULL creates a random scope. */
+	const void* PeerPublic; /* Optional listener pin; pin or Trust required when Listen. */
+	const void* ApplicationContext; /* Optional exact listener context, copied. */
+	xrudpnoisetrustproc Trust;
+	void* TrustContext;
+	xrudpparameters Parameters;
+	uint64_t HandshakeTimeoutUs;
+	size_t MemoryLimit; /* Logical owned endpoint/peer/handshake/cipher bytes.
+	                    * XRT engine pools/kernel socket buffers have own limits. */
+	uint32_t MaxPeers;
+	uint32_t MaxHalfOpen;
+	uint32_t HandshakesPerSecond;
+	uint32_t AddressHandshakesPerSecond; /* IP (not port); fixed 64-entry table. */
+	bool Listen;
+} xrudpendpointconfig;
+
+typedef struct xrudpconnectconfig {
+	const void* PeerPublic; /* Trusted 32-byte public key, mandatory. */
+	const void* Scope; /* 16-byte listener scope from trusted discovery. */
+	const void* ApplicationContext; /* Optional 32-byte binding, copied into handshake. */
+} xrudpconnectconfig;
+
+typedef struct xrudpendpointinfo {
+	xnetaddr Local;
+	unsigned char Public[32], Scope[16];
+	uint32_t Peers, HalfOpen;
+	size_t ReservedBytes, MemoryLimit;
+	uint64_t Received, Sent, Invalid, RateDropped, AddressDropped, CapacityDropped, IoErrors;
+} xrudpendpointinfo;
+
+XRT_EXTERN_C_BEGIN
+
+XRUDP_API void xrtRudpEndpointConfigInit(xrudpendpointconfig* pConfig);
+/* Must be called on a running Engine Worker. Binding and all mutable operations
+ * are serialized on that Worker; no private engine/thread is created. Native
+ * IPv4/IPv6 are supported as separate endpoints; IPv6 is v6-only.
+ * Bind success returns one owned reference plus an internal I/O lifetime.
+ * The endpoint owns UDP queues (64 packets/64KiB send; bounded push receive).
+ * Context/Open callback cannot run before Bind returns on this Worker. */
+XRUDP_API xrudpresult xrtRudpEndpointBind(xnetworker* pWorker, const xnetaddr* pLocal,
+	const xrudpendpointconfig* pConfig, const xrudpendpointevents* pEvents,
+	void* pContext, xrudpendpoint** ppEndpoint);
+XRUDP_API xrudpendpoint* xrtRudpEndpointRef(xrudpendpoint* pEndpoint);
+XRUDP_API void xrtRudpEndpointDestroy(xrudpendpoint* pEndpoint);
+/* Thread-safe states. Info requires the owner while live; after CLOSED it is
+ * an immutable snapshot and may be read even after the Engine is destroyed. */
+XRUDP_API xrudpendpointstate xrtRudpEndpointState(const xrudpendpoint* pEndpoint);
+XRUDP_API xrudppeerstate xrtRudpPeerState(const xrudppeer* pPeer);
+XRUDP_API xrudpresult xrtRudpEndpointInfo(const xrudpendpoint* pEndpoint, xrudpendpointinfo* pInfo);
+XRUDP_API xrudpresult xrtRudpPeerInfo(const xrudppeer* pPeer, xrudphandshakeinfo* pInfo, xnetaddr* pAddress);
+/* Owner-only; success returns an additional owned peer reference. Account ACL,
+ * peer pin and scope must come from trusted application discovery. */
+XRUDP_API xrudpresult xrtRudpEndpointConnect(xrudpendpoint* pEndpoint, const xnetaddr* pRemote,
+	const xrudpconnectconfig* pConfig, xrudppeer** ppPeer);
+XRUDP_API xrudppeer* xrtRudpPeerRef(xrudppeer* pPeer);
+XRUDP_API void xrtRudpPeerDestroy(xrudppeer* pPeer);
+XRUDP_API xrudpresult xrtRudpPeerAbort(xrudppeer* pPeer);
+/* Thread-safe, idempotent request, no allocation. Close callback runs once after
+ * peer callbacks and timer cleanup. Dropping a handle alone does not close it.
+ * XRT refuses Engine Stop while UDP objects are live: request endpoint Close
+ * and await its terminal callback BEFORE Stop. Closed external handles retain
+ * no engine resources and may be destroyed after the Engine. */
+XRUDP_API xrudpresult xrtRudpEndpointClose(xrudpendpoint* pEndpoint);
 
 XRT_EXTERN_C_END
 #endif
@@ -5120,6 +5264,10 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_XLON_WRITE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_WRITE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_ATOMIC)
+#undef XRT_MODULE_ATOMIC
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_ATOMIC
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_CHACHA20_POLY1305)
 #undef XRT_MODULE_CRYPTO_CHACHA20_POLY1305
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_CHACHA20_POLY1305
@@ -5136,9 +5284,17 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_CRYPTO_X25519
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_X25519
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_UDP)
+#undef XRT_MODULE_NET_UDP
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_UDP
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE)
 #undef XRT_MODULE_RANDOM_SECURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME)
+#undef XRT_MODULE_TIME
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_ACK)
 #undef XRUDP_FEATURE_RUDP_ACK
@@ -5155,6 +5311,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_CRYPTO)
 #undef XRUDP_FEATURE_RUDP_CRYPTO
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_CRYPTO
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_ENDPOINT)
+#undef XRUDP_FEATURE_RUDP_ENDPOINT
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_ENDPOINT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_HANDSHAKE)
 #undef XRUDP_FEATURE_RUDP_HANDSHAKE
@@ -5204,6 +5364,10 @@ XRT_EXTERN_C_END
 #undef XRUDP_MODULE_RUDP_CRYPTO
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_CRYPTO
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_ENDPOINT)
+#undef XRUDP_MODULE_RUDP_ENDPOINT
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_ENDPOINT
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_HANDSHAKE)
 #undef XRUDP_MODULE_RUDP_HANDSHAKE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_HANDSHAKE
@@ -5246,6 +5410,25 @@ XRT_EXTERN_C_END
 /* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
+
+/* rudp_endpoint 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_ENDPOINT)
+#ifndef XRUDP_FEATURE_RUDP_ENDPOINT
+#define XRUDP_FEATURE_RUDP_ENDPOINT
+#endif
+#ifndef XRUDP_MODULE_RUDP_HANDSHAKE
+#define XRUDP_MODULE_RUDP_HANDSHAKE
+#endif
+#ifndef XRT_MODULE_NET_UDP
+#define XRT_MODULE_NET_UDP
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#endif
 
 /* rudp_handshake 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_HANDSHAKE)

@@ -23,7 +23,8 @@
           "wire",
           "crypto",
           "recovery",
-          "stream"
+          "stream",
+          "network"
         ]
       }
     ]
@@ -378,8 +379,7 @@
         "extlibs/xrudp/tests/test_handshake.c"
       ],
       "single_tests": [
-        "extlibs/xrudp/tests/single/test_single_handshake.c",
-        "extlibs/xrudp/tests/single/test_single_all_profile.c"
+        "extlibs/xrudp/tests/single/test_single_handshake.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -403,6 +403,105 @@
       ],
       "single_tests": [
         "extlibs/xrudp/tests/single/test_single_handshake_fault.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
+      "name": "rudp_endpoint",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_ENDPOINT",
+      "depends": [
+        "rudp_handshake",
+        "net_udp",
+        "atomic",
+        "time"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/endpoint.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/network/rudp_endpoint.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_endpoint.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_endpoint.c",
+        "extlibs/xrudp/tests/single/test_single_all_profile.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
+      ]
+    },
+    {
+      "name": "rudp_endpoint_iocp_tests",
+      "asset_platforms": [
+        "windows"
+      ],
+      "state": "implemented",
+      "depends": [
+        "rudp_endpoint",
+        "net_port_iocp"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_endpoint_iocp.c"
+      ],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
+      "name": "rudp_endpoint_epoll_tests",
+      "asset_platforms": [
+        "linux"
+      ],
+      "state": "implemented",
+      "depends": [
+        "rudp_endpoint",
+        "net_port_epoll"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_endpoint_epoll.c"
+      ],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
+      "name": "rudp_endpoint_fault_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_endpoint",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_endpoint_fault.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_endpoint_fault.c"
       ],
       "examples": [],
       "benchmarks": [],

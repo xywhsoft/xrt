@@ -13,5 +13,6 @@
 #include <xrudp/receive.h>
 #include <xrudp/transmit.h>
 #include <xrudp/handshake.h>
+#include <xrudp/endpoint.h>
 
 #endif
