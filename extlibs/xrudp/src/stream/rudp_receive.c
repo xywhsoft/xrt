@@ -69,6 +69,12 @@ xrudpresult xrtRudpReceiveState(const xrudpreceive* r, xrudpreceivestate* output
 	return XRUDP_OK;
 }
 
+bool xrtRudpReceiveReady(const xrudpreceive* r)
+{
+	return r != NULL && (r->Reset || (r->HasFinal && r->ReadOffset == r->FinalOffset) ||
+		(r->Buffered != 0 && xrudp__receive_has(r, xrudp__receive_slot(r, r->ReadOffset))));
+}
+
 xrudpresult xrtRudpReceiveCheck(const xrudpreceive* r, uint64_t offset,
 	const void* data, size_t size, bool fin, xrudpreceivechange* change)
 {

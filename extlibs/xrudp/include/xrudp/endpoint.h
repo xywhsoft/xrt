@@ -2,13 +2,17 @@
 #define XRUDP_ENDPOINT_H
 
 #include <xrudp/features.h>
-#include <xrudp/handshake.h>
+#include <xrudp/session.h>
 #include <xrt/udp.h>
 
 #if defined(XRUDP_FEATURE_RUDP_ENDPOINT)
 
 #define XRUDP_ENDPOINT_PEERS_MAX 256u
 #define XRUDP_ENDPOINT_ADDRESS_BUCKETS 64u
+#define XRUDP_PEER_READ_READY 1u
+#define XRUDP_PEER_WRITE_READY 2u
+#define XRUDP_PEER_WRITE_DONE 4u
+#define XRUDP_PEER_READ_EOF 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
 typedef struct xrudppeer xrudppeer;
@@ -26,7 +30,7 @@ typedef enum xrudppeerstate {
 
 /* All callbacks run on the bound Worker and borrow their arguments. Ref a peer
  * to keep its handle beyond the callback. Confirmed means identity/address/key
- * proof completed; reliable stream session admission is a separate layer.
+ * proof AND default reliable session admission have completed.
  * Callbacks may close/ref/destroy owned handles, but must not block the Worker.
  * Context remains borrowed until endpoint Close returns. */
 typedef struct xrudpendpointevents {
@@ -34,6 +38,11 @@ typedef struct xrudpendpointevents {
 	void (*Confirmed)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, void* pContext);
 	void (*PeerClose)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, xrudpresult iReason, void* pContext);
 	void (*Close)(xrudpendpoint* pEndpoint, xrudpresult iReason, const xerror* pError, void* pContext);
+	/* Edge hints; drain Read until BACKPRESSURE/EOF/RESET. WRITE_READY means
+	 * ACK returned buffer capacity; WRITE_DONE is all bytes+FIN acknowledged.
+	 * Mutations inside a callback defer further Changed delivery to another
+	 * worker turn; no recursive Changed callbacks. Borrowed peer and context. */
+	void (*Changed)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, uint32_t iEvents, void* pContext);
 } xrudpendpointevents;
 
 typedef struct xrudpendpointconfig {
@@ -43,9 +52,9 @@ typedef struct xrudpendpointconfig {
 	const void* ApplicationContext; /* Optional exact listener context, copied. */
 	xrudpnoisetrustproc Trust;
 	void* TrustContext;
-	xrudpparameters Parameters;
+	xrudpsessionconfig Session; /* Local is advertised; Peer overwritten after authentication. */
 	uint64_t HandshakeTimeoutUs;
-	size_t MemoryLimit; /* Logical owned endpoint/peer/handshake/cipher bytes.
+	size_t MemoryLimit; /* Peak endpoint/peer/handshake/session reservation bytes.
 	                    * XRT engine pools/kernel socket buffers have own limits. */
 	uint32_t MaxPeers;
 	uint32_t MaxHalfOpen;
@@ -94,6 +103,16 @@ XRUDP_API xrudpresult xrtRudpEndpointConnect(xrudpendpoint* pEndpoint, const xne
 	const xrudpconnectconfig* pConfig, xrudppeer** ppPeer);
 XRUDP_API xrudppeer* xrtRudpPeerRef(xrudppeer* pPeer);
 XRUDP_API void xrtRudpPeerDestroy(xrudppeer* pPeer);
+/* Owner-only nonblocking default stream. Write copies a bounded prefix;
+ * success is buffering, not delivery. Finish forbids further writes. Read
+ * returns DONE at clean EOF, CANCELLED at peer RESET. Confirmed allows the
+ * first write; subsequent capacity/EOF changes arrive as Changed hints. */
+XRUDP_API xrudpresult xrtRudpPeerWrite(xrudppeer* pPeer, const void* pData, size_t iSize, size_t* pWritten);
+XRUDP_API xrudpresult xrtRudpPeerRead(xrudppeer* pPeer, void* pOutput, size_t iCapacity, size_t* pRead);
+XRUDP_API xrudpresult xrtRudpPeerFinish(xrudppeer* pPeer);
+/* Owner while live; immutable snapshot after CLOSED, safe after Engine destroy.
+ * BACKPRESSURE before admission, CLOSED when no session was ever admitted. */
+XRUDP_API xrudpresult xrtRudpPeerSessionState(const xrudppeer* pPeer, xrudpsessionstate* pState);
 XRUDP_API xrudpresult xrtRudpPeerAbort(xrudppeer* pPeer);
 /* Thread-safe, idempotent request, no allocation. Close callback runs once after
  * peer callbacks and timer cleanup. Dropping a handle alone does not close it.

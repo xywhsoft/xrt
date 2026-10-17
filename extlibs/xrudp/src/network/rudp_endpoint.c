@@ -11,11 +11,14 @@ struct xrudppeer {
 	xrudpendpoint* Endpoint;
 	xnetaddr Address;
 	xrudphandshake* Handshake;
-	xrudpcipher* Cipher;
+	xrudpcipher* Cipher; /* Owned until Session admission; then borrowed for final abort CLOSE only. */
+	xrudpsession* Session;
+	xrudpsessionstate Snapshot;
 	xrudphandshakeinfo Info;
-	uint64_t NextPoll, LastActivity, IdleUs;
+	uint64_t NextPoll, SessionPoll;
 	size_t Slot, RuntimeBytes, PendingSize;
-	bool FinalQueued;
+	uint32_t PendingEvents;
+	bool FinalQueued, Notifying, HadSession;
 	unsigned char Pending[XRUDP_HANDSHAKE_PACKET_MAX];
 };
 
@@ -35,8 +38,8 @@ struct xrudpendpoint {
 	xrudpendpointconfig Config;
 	xrudpendpointevents Events;
 	void* Context;
-	size_t Allocation;
-	uint64_t Timer, LastNow, RateSecond;
+	size_t Allocation, PeerRuntime;
+	uint64_t Timer, TimerDue, LastNow, RateSecond;
 	double Epoch;
 	uint32_t RateCount, Peers, HalfOpen;
 	bool UdpClosed, CloseNotified;
@@ -117,11 +120,17 @@ static void xrudp__peer_close(xrudppeer* p, xrudpresult reason)
 {
 	xrudpendpoint* e = p->Endpoint; xrudppeerstate previous = xrtRudpPeerState(p);
 	if (previous == XRUDP_PEER_CLOSED) return;
-	xrtAtomic32Store(&p->State, XRUDP_PEER_CLOSED, XMEMORY_RELEASE);
 	e->Slots[p->Slot] = NULL; --e->Peers; if (previous == XRUDP_PEER_NEGOTIATING) --e->HalfOpen;
-	xrtRudpHandshakeDestroy(p->Handshake); p->Handshake = NULL; xrtRudpCipherDestroy(p->Cipher); p->Cipher = NULL;
+	xrtRudpHandshakeDestroy(p->Handshake); p->Handshake = NULL;
+	if (p->Session != NULL) {
+		(void)xrtRudpSessionAbort(p->Session, reason); (void)xrtRudpSessionState(p->Session, &p->Snapshot);
+		xrtRudpSessionDestroy(p->Session); p->Session = NULL;
+	} else xrtRudpCipherDestroy(p->Cipher);
+	p->Cipher = NULL;
 	(void)xrtAtomic64FetchSub(&e->Reserved, p->RuntimeBytes, XMEMORY_ACQ_REL); p->RuntimeBytes = 0;
-	p->PendingSize = 0;
+	p->PendingSize = 0; p->PendingEvents = 0;
+	/* Publish the closed snapshot only after all mutable session work. */
+	xrtAtomic32Store(&p->State, XRUDP_PEER_CLOSED, XMEMORY_RELEASE);
 	if (e->Events.PeerClose != NULL) e->Events.PeerClose(e, p, reason, e->Context);
 	xrtRudpPeerDestroy(p); /* Slot ownership; caller must hold its own temporary reference. */
 }
@@ -133,7 +142,7 @@ static xrudppeer* xrudp__endpoint_find(xrudpendpoint* e, const unsigned char id[
 }
 static bool xrudp__endpoint_reserve(xrudpendpoint* e, size_t* slot)
 {
-	size_t cost = sizeof(xrudppeer) + xrtRudpHandshakeAllocationSize();
+	size_t cost = sizeof(xrudppeer) + e->PeerRuntime;
 	if (e->Peers >= e->Config.MaxPeers || e->HalfOpen >= e->Config.MaxHalfOpen ||
 		cost > e->Config.MemoryLimit - (size_t)xrtAtomic64Load(&e->Reserved, XMEMORY_ACQUIRE)) return false;
 	for (*slot = 0; *slot < e->Config.MaxPeers && e->Slots[*slot] != NULL; ++*slot) {}
@@ -142,7 +151,7 @@ static bool xrudp__endpoint_reserve(xrudpendpoint* e, size_t* slot)
 }
 static void xrudp__endpoint_unreserve(xrudpendpoint* e)
 {
-	(void)xrtAtomic64FetchSub(&e->Reserved, sizeof(xrudppeer) + xrtRudpHandshakeAllocationSize(), XMEMORY_ACQ_REL);
+	(void)xrtAtomic64FetchSub(&e->Reserved, sizeof(xrudppeer) + e->PeerRuntime, XMEMORY_ACQ_REL);
 }
 static xrudppeer* xrudp__endpoint_peer(xrudpendpoint* e, size_t slot, const xnetaddr* address, xrudphandshake* handshake)
 {
@@ -150,7 +159,7 @@ static xrudppeer* xrudp__endpoint_peer(xrudpendpoint* e, size_t slot, const xnet
 	if (p == NULL) return NULL;
 	memset(p, 0, sizeof(*p)); xrtAtomic32Init(&p->References, 1); xrtAtomic32Init(&p->State, XRUDP_PEER_NEGOTIATING);
 	p->Endpoint = xrtRudpEndpointRef(e); p->Address = *address; p->Handshake = handshake; p->Slot = slot;
-	p->RuntimeBytes = xrtRudpHandshakeAllocationSize(); (void)xrtRudpHandshakeInfo(handshake, &p->Info);
+	p->RuntimeBytes = e->PeerRuntime; p->SessionPoll = UINT64_MAX; (void)xrtRudpHandshakeInfo(handshake, &p->Info);
 	p->NextPoll = e->LastNow; e->Slots[slot] = p; ++e->Peers; ++e->HalfOpen; return p;
 }
 static bool xrudp__endpoint_rate(xrudpendpoint* e, const xrudpaddress* address, uint64_t now)
@@ -179,11 +188,48 @@ static xnetresult xrudp__endpoint_send(xrudpendpoint* e, const xnetaddr* address
 {
 	xnetresult result = xrtNetUdpSendTo(e->Udp, address, data, size);
 	if (result == XNET_RESULT_OK) ++e->Stats.Sent;
-	else if (result != XNET_RESULT_AGAIN) {
+	else if (result != XNET_RESULT_AGAIN && xrtRudpEndpointState(e) == XRUDP_ENDPOINT_OPEN) {
 		if (xrtGetError() != NULL && xrtErrorKind(xrtGetError()) == XERR_MEMORY) ++e->Stats.CapacityDropped;
 		else ++e->Stats.IoErrors;
 	}
 	return result;
+}
+static xrudpresult xrudp__peer_send(const void* data, size_t size, void* context)
+{
+	xrudppeer* p = (xrudppeer*)context; xrudpendpoint* e = p->Endpoint;
+	if (xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return XRUDP_BACKPRESSURE;
+	xnetresult r = xrudp__endpoint_send(e, &p->Address, data, size);
+	if (r == XNET_RESULT_OK) return XRUDP_OK;
+	if (r == XNET_RESULT_AGAIN || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return XRUDP_BACKPRESSURE;
+	return xrtGetError() != NULL && xrtErrorKind(xrtGetError()) == XERR_MEMORY ? XRUDP_NO_MEMORY : XRUDP_IO_ERROR;
+}
+static bool xrudp__peer_eof(const xrudpsessionstate* s)
+{
+	return s->Receive.HasFinal && !s->Receive.Reset && s->Receive.ReadOffset == s->Receive.FinalOffset;
+}
+static bool xrudp__peer_write_done(const xrudpsessionstate* s)
+{
+	return s->Transmit.FinAcknowledged && s->Transmit.PendingBytes == 0;
+}
+static void xrudp__peer_capture(xrudppeer* p)
+{
+	xrudpsessionstate next;
+	if (p->Session == NULL || xrtRudpSessionState(p->Session, &next) != XRUDP_OK) return;
+	if (next.ReadReady && !p->Snapshot.ReadReady) p->PendingEvents |= XRUDP_PEER_READ_READY;
+	if (next.Transmit.BaseOffset > p->Snapshot.Transmit.BaseOffset && !next.Transmit.FinQueued) p->PendingEvents |= XRUDP_PEER_WRITE_READY;
+	if (xrudp__peer_write_done(&next) && !xrudp__peer_write_done(&p->Snapshot)) p->PendingEvents |= XRUDP_PEER_WRITE_DONE;
+	if (xrudp__peer_eof(&next) && !xrudp__peer_eof(&p->Snapshot)) p->PendingEvents |= XRUDP_PEER_READ_EOF;
+	p->Snapshot = next;
+}
+static void xrudp__peer_notify(xrudppeer* p)
+{
+	xrudpendpoint* e = p->Endpoint;
+	if (p->Notifying || p->PendingEvents == 0 || xrtRudpPeerState(p) != XRUDP_PEER_CONFIRMED ||
+		xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
+	uint32_t events = p->PendingEvents; p->PendingEvents = 0;
+	if (e->Events.Changed != NULL) {
+		p->Notifying = true; e->Events.Changed(e, p, events, e->Context); p->Notifying = false;
+	}
 }
 static void xrudp__peer_pump(xrudppeer* p, uint64_t now)
 {
@@ -206,6 +252,16 @@ static void xrudp__peer_pump(xrudppeer* p, uint64_t now)
 					xrudp__peer_close(p, p->Info.Phase == XRUDP_HANDSHAKE_FAILED ? p->Info.Failure : result); return;
 				}
 			}
+			/* Allocate the full session before admitting the final server proof
+			 * to UDP; Confirmed never exposes a peer lacking receive resources. */
+			if (p->Info.Phase == XRUDP_HANDSHAKE_ESTABLISHED && p->Session == NULL) {
+				if (xrtRudpHandshakeTakeCipher(p->Handshake, &p->Cipher) != XRUDP_OK) { xrudp__peer_close(p, XRUDP_IO_ERROR); return; }
+				(void)xrtRudpHandshakeInfo(p->Handshake, &p->Info);
+				xrudpsessionconfig config = e->Config.Session; config.Peer = p->Info.PeerParameters;
+				xrudpresult result = xrtRudpSessionCreate(&config, p->Cipher, now, xrudp__peer_send, p, &p->Session);
+				if (result != XRUDP_OK) { if (result == XRUDP_NO_MEMORY) ++e->Stats.CapacityDropped; xrudp__peer_close(p, result); return; }
+				p->HadSession = true; p->SessionPoll = now; (void)xrtRudpSessionState(p->Session, &p->Snapshot);
+			}
 			if (p->PendingSize != 0) {
 				xnetresult sent = xrudp__endpoint_send(e, &p->Address, p->Pending, p->PendingSize);
 				if (sent == XNET_RESULT_OK) {
@@ -219,23 +275,26 @@ static void xrudp__peer_pump(xrudppeer* p, uint64_t now)
 			}
 			if (xrtRudpPeerState(p) == XRUDP_PEER_NEGOTIATING && p->Info.Phase == XRUDP_HANDSHAKE_ESTABLISHED &&
 				(p->Info.Role == XRUDP_INITIATOR || p->FinalQueued)) {
-				if (xrtRudpHandshakeTakeCipher(p->Handshake, &p->Cipher) != XRUDP_OK) { xrudp__peer_close(p, XRUDP_IO_ERROR); return; }
-				(void)xrtRudpHandshakeInfo(p->Handshake, &p->Info); p->LastActivity = now;
-				uint32_t idle = p->Info.PeerParameters.IdleTimeoutMs < e->Config.Parameters.IdleTimeoutMs ?
-					p->Info.PeerParameters.IdleTimeoutMs : e->Config.Parameters.IdleTimeoutMs;
-				p->IdleUs = (uint64_t)idle * 1000; --e->HalfOpen;
+				--e->HalfOpen;
 				xrtAtomic32Store(&p->State, XRUDP_PEER_CONFIRMED, XMEMORY_RELEASE);
 				if (e->Events.Confirmed != NULL) e->Events.Confirmed(e, p, e->Context);
-				if (xrtRudpPeerState(p) == XRUDP_PEER_CLOSED) return;
+				if (xrtRudpPeerState(p) == XRUDP_PEER_CLOSED || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
 			}
 		}
 	}
-	if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && now - p->LastActivity >= p->IdleUs) xrudp__peer_close(p, XRUDP_TIMEOUT);
+	if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED) {
+		if (now >= p->SessionPoll) {
+			xrudpresult result = xrtRudpSessionPoll(p->Session, now, &p->SessionPoll);
+			if (result != XRUDP_OK) { xrudp__peer_close(p, result); return; }
+			xrudp__peer_capture(p);
+		}
+		xrudp__peer_notify(p);
+	}
 }
 static void xrudp__endpoint_timer(xnetworker* worker, uint64 id, xnetresult result, ptr context)
 {
 	xrudpendpoint* e = (xrudpendpoint*)context; (void)worker;
-	if (e->Timer == id) e->Timer = 0;
+	if (e->Timer == id) { e->Timer = 0; e->TimerDue = 0; }
 	if (result == XNET_RESULT_OK && xrtRudpEndpointState(e) == XRUDP_ENDPOINT_OPEN) {
 		uint64_t now = xrudp__endpoint_now(e);
 		for (size_t i = 0; i < e->Config.MaxPeers; ++i) if (e->Slots[i] != NULL) {
@@ -247,18 +306,26 @@ static void xrudp__endpoint_timer(xnetworker* worker, uint64 id, xnetresult resu
 }
 static void xrudp__endpoint_schedule(xrudpendpoint* e)
 {
-	if (e->Timer != 0 || e->Peers == 0 || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
+	if (e->Peers == 0 || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
 	uint64_t now = xrudp__endpoint_now(e), due = UINT64_MAX;
 	for (size_t i = 0; i < e->Config.MaxPeers; ++i) if (e->Slots[i] != NULL) {
 		xrudppeer* p = e->Slots[i]; uint64_t next = p->PendingSize ? now : p->NextPoll;
-		uint64_t idle = p->LastActivity > UINT64_MAX - p->IdleUs ? UINT64_MAX : p->LastActivity + p->IdleUs;
-		if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && idle < next) next = idle;
+		if (xrtRudpPeerState(p) == XRUDP_PEER_NEGOTIATING && p->Info.DeadlineUs < next) next = p->Info.DeadlineUs;
+		if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && p->SessionPoll < next) next = p->SessionPoll;
+		if (p->PendingEvents != 0) next = now;
 		if (next < due) due = next;
 	}
 	uint64_t milliseconds = due > now ? (due - now) / 1000 + ((due - now) % 1000 != 0) : 1;
 	if (milliseconds == 0) milliseconds = 1;
 	if (milliseconds > 1000) milliseconds = 1000;
+	due = now > UINT64_MAX - milliseconds * 1000 ? UINT64_MAX : now + milliseconds * 1000;
+	if (e->Timer != 0) {
+		if (due >= e->TimerDue) return;
+		if (!xrtNetEngineTimerCancelCurrent(e->Engine, e->Timer)) return; /* Already queued: it will run next. */
+		if (xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
+	}
 	xrtRudpEndpointRef(e);
+	e->TimerDue = due;
 	e->Timer = xrtNetEngineAfter(e->Engine, xrtNetWorkerIndex(e->Worker), (int64)milliseconds, xrudp__endpoint_timer, e);
 	if (e->Timer == 0) {
 		e->LocalError = xrtErrorRef(xrtGetError()); ++e->Stats.IoErrors;
@@ -277,14 +344,12 @@ static void xrudp__endpoint_receive(xnetudp* udp, const xnetudpmessage* message,
 		if (!xrtNetAddrEqual(&p->Address, &message->Remote)) { ++e->Stats.AddressDropped; return; }
 		xrtRudpPeerRef(p);
 		if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && packet.Header.Type == XRUDP_PACKET_DATA && packet.Header.PacketNumber >= 2) {
-			/* Carrier control only; reliable session dispatch is attached by the
-			 * next layer. Never ACK/discard reliable business data here. */
-			unsigned char plain[XRUDP_PACKET_MAX]; size_t size, offset = 0; xrudpwireframe frame;
-			xrudpresult result = xrtRudpCipherOpen(p->Cipher, message->Data, message->Size, plain, sizeof(plain), &size);
-			if (result == XRUDP_OK) {
-				while (xrtRudpFrameNext(plain, size, &offset, &frame) == XRUDP_OK)
-					if (frame.Type == XRUDP_FRAME_CLOSE) { xrudp__peer_close(p, XRUDP_CLOSED); break; }
-			} else if (result == XRUDP_AUTH_FAILED) ++e->Stats.Invalid;
+			xrudpresult result = xrtRudpSessionInput(p->Session, message->Data, message->Size, now);
+			if (result == XRUDP_AUTH_FAILED) ++e->Stats.Invalid;
+			else if (result != XRUDP_OK && result != XRUDP_DUPLICATE && result != XRUDP_TOO_OLD) xrudp__peer_close(p, result);
+			if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED) {
+				xrudp__peer_capture(p); p->SessionPoll = now; xrudp__peer_pump(p, now);
+			}
 		} else if (p->Handshake != NULL) {
 			xrudpresult result = xrtRudpHandshakeInput(p->Handshake, message->Data, message->Size, now);
 			(void)xrtRudpHandshakeInfo(p->Handshake, &p->Info);
@@ -313,7 +378,7 @@ static void xrudp__endpoint_receive(xnetudp* udp, const xnetudpmessage* message,
 	if (!xrudp__endpoint_reserve(e, &slot)) { ++e->Stats.CapacityDropped; return; }
 	xrudphandshakeconfig c = {0}; c.StaticPrivate = e->Private; c.LocalPublic = e->Public; c.Scope = e->Scope;
 	c.PeerPublic = e->Config.PeerPublic; c.ApplicationContext = e->Config.ApplicationContext;
-	c.Trust = e->Config.Trust; c.TrustContext = e->Config.TrustContext; c.Parameters = e->Config.Parameters; c.TimeoutUs = e->Config.HandshakeTimeoutUs;
+	c.Trust = e->Config.Trust; c.TrustContext = e->Config.TrustContext; c.Parameters = e->Config.Session.Local; c.TimeoutUs = e->Config.HandshakeTimeoutUs;
 	xrudphandshake* h = NULL;
 	xrudpresult result = xrtRudpHandshakeAccept(&c, e->CookieKey, NULL, &address, now, message->Data, message->Size, &h);
 	if (result != XRUDP_OK) {
@@ -366,14 +431,16 @@ static void xrudp__endpoint_closed(xnetudp* udp, xnetresult result, const xerror
 void xrtRudpEndpointConfigInit(xrudpendpointconfig* c)
 {
 	if (c == NULL) return;
-	memset(c, 0, sizeof(*c)); xrtRudpParametersDefault(&c->Parameters);
+	memset(c, 0, sizeof(*c)); xrtRudpSessionConfigInit(&c->Session);
 	c->MaxPeers = 64; c->MaxHalfOpen = 16; c->MemoryLimit = 16u * 1024u * 1024u;
 	c->HandshakesPerSecond = 128; c->AddressHandshakesPerSecond = 8;
 }
 xrudpresult xrtRudpEndpointBind(xnetworker* worker, const xnetaddr* local,
 	const xrudpendpointconfig* config, const xrudpendpointevents* events, void* context, xrudpendpoint** output)
 {
-	unsigned char params[32];
+	size_t sessionBytes; xrudpsessionconfig session;
+	if (config == NULL) return XRUDP_ARGUMENT;
+	session = config->Session; session.Peer = session.Local;
 	if (worker == NULL || !xrtNetWorkerIsCurrent(worker) || local == NULL || config == NULL || output == NULL ||
 		(local->Family != XNET_FAMILY_IPV4 && local->Family != XNET_FAMILY_IPV6) ||
 		!xrudp__endpoint_nonzero(config->StaticPrivate, 32) || (config->Scope != NULL && !xrudp__endpoint_nonzero(config->Scope, 16)) ||
@@ -382,13 +449,15 @@ xrudpresult xrtRudpEndpointBind(xnetworker* worker, const xnetaddr* local,
 		config->MaxHalfOpen == 0 || config->MaxHalfOpen > config->MaxPeers || config->HandshakesPerSecond == 0 || config->HandshakesPerSecond > 65536 ||
 		config->AddressHandshakesPerSecond == 0 || config->AddressHandshakesPerSecond > config->HandshakesPerSecond ||
 		config->MemoryLimit > 1024u * 1024u * 1024u || (config->HandshakeTimeoutUs != 0 && (config->HandshakeTimeoutUs < 1000000 || config->HandshakeTimeoutUs > XRUDP_HANDSHAKE_MAX_TIMEOUT_US)) ||
-		xrtRudpParametersEncode(&config->Parameters, params, sizeof(params)) != XRUDP_OK) return XRUDP_ARGUMENT;
+		xrtRudpSessionAllocationSize(&session, &sessionBytes) != XRUDP_OK) return XRUDP_ARGUMENT;
 	size_t size = sizeof(xrudpendpoint) + config->MaxPeers * sizeof(xrudppeer*);
-	if (config->MemoryLimit < size + sizeof(xrudppeer) + xrtRudpHandshakeAllocationSize()) return XRUDP_ARGUMENT;
+	size_t runtime = xrtRudpHandshakeAllocationSize() + sessionBytes - xrtRudpCipherAllocationSize();
+	if (config->MemoryLimit < size + sizeof(xrudppeer) + runtime) return XRUDP_ARGUMENT;
 	xrudpendpoint* e = (xrudpendpoint*)xrtMalloc(size);
 	if (e == NULL) return XRUDP_NO_MEMORY;
 	memset(e, 0, size); e->Allocation = size; e->Worker = worker; e->Engine = xrtNetWorkerEngine(worker);
-	e->Config = *config; e->Context = context; e->Epoch = xrtTimer(); e->RateSecond = UINT64_MAX;
+	e->Config = *config; e->Config.Session = session; e->PeerRuntime = runtime;
+	e->Context = context; e->Epoch = xrtTimer(); e->RateSecond = UINT64_MAX;
 	if (events != NULL) e->Events = *events;
 	xrtAtomic32Init(&e->References, 2); xrtAtomic32Init(&e->State, XRUDP_ENDPOINT_OPENING); xrtAtomic64Init(&e->Reserved, size);
 	memcpy(e->Private, config->StaticPrivate, 32); e->Config.StaticPrivate = e->Private;
@@ -424,7 +493,7 @@ xrudpresult xrtRudpEndpointConnect(xrudpendpoint* e, const xnetaddr* remote,
 	xnetaddr local; if (!xrtNetUdpLocal(e->Udp, &local) || remote->Family != local.Family) return XRUDP_ARGUMENT;
 	size_t slot; if (!xrudp__endpoint_reserve(e, &slot)) return XRUDP_BACKPRESSURE;
 	xrudphandshakeconfig c = {0}; c.StaticPrivate = e->Private; c.PeerPublic = config->PeerPublic; c.Scope = config->Scope;
-	c.ApplicationContext = config->ApplicationContext; c.Parameters = e->Config.Parameters; c.TimeoutUs = e->Config.HandshakeTimeoutUs;
+	c.ApplicationContext = config->ApplicationContext; c.Parameters = e->Config.Session.Local; c.TimeoutUs = e->Config.HandshakeTimeoutUs;
 	xrudphandshake* h = NULL;
 	xrudpresult result = xrtRudpHandshakeCreate(&c, xrudp__endpoint_now(e), &h);
 	if (result != XRUDP_OK) { xrudp__endpoint_unreserve(e); return result; }
@@ -449,6 +518,53 @@ xrudpresult xrtRudpPeerInfo(const xrudppeer* p, xrudphandshakeinfo* output, xnet
 	if (p == NULL || output == NULL || address == NULL ||
 		(xrtRudpPeerState(p) != XRUDP_PEER_CLOSED && !xrudp__endpoint_owner(p->Endpoint))) return XRUDP_ARGUMENT;
 	*output = p->Info; *address = p->Address; return XRUDP_OK;
+}
+static xrudpresult xrudp__peer_io(const xrudppeer* p)
+{
+	if (p == NULL) return XRUDP_ARGUMENT;
+	if (xrtRudpPeerState(p) == XRUDP_PEER_CLOSED) return XRUDP_CLOSED;
+	if (!xrudp__endpoint_owner(p->Endpoint)) return XRUDP_ARGUMENT;
+	if (xrtRudpEndpointState(p->Endpoint) != XRUDP_ENDPOINT_OPEN) return XRUDP_CLOSED;
+	return xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED ? XRUDP_OK : XRUDP_BACKPRESSURE;
+}
+static void xrudp__peer_wake(xrudppeer* p)
+{
+	xrudp__peer_capture(p); p->SessionPoll = xrudp__endpoint_now(p->Endpoint); xrudp__endpoint_schedule(p->Endpoint);
+}
+xrudpresult xrtRudpPeerWrite(xrudppeer* p, const void* data, size_t size, size_t* written)
+{
+	if (written != NULL) *written = 0;
+	if (written == NULL || (data == NULL && size != 0)) return XRUDP_ARGUMENT;
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	xrtRudpPeerRef(p); result = xrtRudpSessionWrite(p->Session, data, size, written);
+	if (*written != 0) xrudp__peer_wake(p);
+	xrtRudpPeerDestroy(p); return result;
+}
+xrudpresult xrtRudpPeerRead(xrudppeer* p, void* output, size_t capacity, size_t* read)
+{
+	if (read != NULL) *read = 0;
+	if (read == NULL || output == NULL || capacity == 0) return XRUDP_ARGUMENT;
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	xrtRudpPeerRef(p); result = xrtRudpSessionRead(p->Session, output, capacity, read);
+	if (*read != 0) xrudp__peer_wake(p);
+	xrtRudpPeerDestroy(p); return result;
+}
+xrudpresult xrtRudpPeerFinish(xrudppeer* p)
+{
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	xrtRudpPeerRef(p); result = xrtRudpSessionFinish(p->Session);
+	if (result == XRUDP_OK) xrudp__peer_wake(p);
+	xrtRudpPeerDestroy(p); return result;
+}
+xrudpresult xrtRudpPeerSessionState(const xrudppeer* p, xrudpsessionstate* output)
+{
+	if (p == NULL || output == NULL) return XRUDP_ARGUMENT;
+	if (xrtRudpPeerState(p) == XRUDP_PEER_CLOSED) {
+		if (!p->HadSession) return XRUDP_CLOSED;
+		*output = p->Snapshot; return XRUDP_OK;
+	}
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	return xrtRudpSessionState(p->Session, output);
 }
 xrudpresult xrtRudpPeerAbort(xrudppeer* p)
 {

@@ -42,7 +42,7 @@ typedef struct xrudpsessionstate {
 	uint64_t ReceivedPackets, SentPackets, LostPackets, ProbeTimeouts, KeyUpdates;
 	uint64_t InvalidPackets, OutputBackpressure;
 	uint32_t PtoBackoff, OutstandingProbes;
-	bool AckPending;
+	bool AckPending, ReadReady;
 } xrudpsessionstate;
 
 XRT_EXTERN_C_BEGIN

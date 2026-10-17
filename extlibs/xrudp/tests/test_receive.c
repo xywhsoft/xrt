@@ -230,11 +230,27 @@ static int model(void)
 	return 0;
 }
 
+static int readiness(void)
+{
+	xrudpreceive* r; xrudpreceivechange change; unsigned char byte=7,out; size_t count;
+	CHECK(!xrtRudpReceiveReady(NULL));
+	CHECK(xrtRudpReceiveCreate(256,256,&r)==XRUDP_OK && !xrtRudpReceiveReady(r));
+	CHECK(xrtRudpReceivePush(r,100,&byte,1,false,&change)==XRUDP_OK && !xrtRudpReceiveReady(r));
+	CHECK(xrtRudpReceivePush(r,0,&byte,1,false,&change)==XRUDP_OK && xrtRudpReceiveReady(r));
+	CHECK(xrtRudpReceiveRead(r,&out,1,&count)==XRUDP_OK && count==1 && !xrtRudpReceiveReady(r));
+	CHECK(xrtRudpReceiveReset(r,101,42,&change)==XRUDP_OK && xrtRudpReceiveReady(r));
+	xrtRudpReceiveDestroy(r);
+	CHECK(xrtRudpReceiveCreate(256,0,&r)==XRUDP_OK);
+	CHECK(xrtRudpReceivePush(r,0,NULL,0,true,&change)==XRUDP_OK && xrtRudpReceiveReady(r));
+	CHECK(xrtRudpReceiveRead(r,&out,1,&count)==XRUDP_DONE && xrtRudpReceiveReady(r));
+	xrtRudpReceiveDestroy(r); return 0;
+}
 int main(void)
 {
 	for (size_t i = 0; i < sizeof(source); ++i) source[i] = (unsigned char)((i * 37) ^ (i >> 5));
 	CHECK(boundaries() == 0);
 	CHECK(batches() == 0);
+	CHECK(readiness() == 0);
 	CHECK(model() == 0);
 	puts("xrudp receive: bounded ring/bitmap, flow/final/overlap errors and 100,000-step reassembly model passed");
 	return 0;

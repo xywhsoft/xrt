@@ -415,7 +415,7 @@
       "state": "implemented",
       "feature": "XRUDP_FEATURE_RUDP_ENDPOINT",
       "depends": [
-        "rudp_handshake",
+        "rudp_session",
         "net_udp",
         "atomic",
         "time"
@@ -428,11 +428,13 @@
         "extlibs/xrudp/src/network/rudp_endpoint.c"
       ],
       "tests": [
-        "extlibs/xrudp/tests/test_endpoint.c"
+        "extlibs/xrudp/tests/test_endpoint.c",
+        "extlibs/xrudp/tests/test_endpoint_stream.c"
       ],
       "single_tests": [
         "extlibs/xrudp/tests/single/test_single_endpoint.c",
-        "extlibs/xrudp/tests/single/test_single_all_profile.c"
+        "extlibs/xrudp/tests/single/test_single_all_profile.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_stream.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -455,7 +457,8 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
-        "extlibs/xrudp/tests/test_endpoint_iocp.c"
+        "extlibs/xrudp/tests/test_endpoint_iocp.c",
+        "extlibs/xrudp/tests/test_endpoint_stream_iocp.c"
       ],
       "single_tests": [],
       "examples": [],
@@ -478,7 +481,8 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
-        "extlibs/xrudp/tests/test_endpoint_epoll.c"
+        "extlibs/xrudp/tests/test_endpoint_epoll.c",
+        "extlibs/xrudp/tests/test_endpoint_stream_epoll.c"
       ],
       "single_tests": [],
       "examples": [],
@@ -498,11 +502,13 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
-        "extlibs/xrudp/tests/test_endpoint_fault.c"
+        "extlibs/xrudp/tests/test_endpoint_fault.c",
+        "extlibs/xrudp/tests/test_endpoint_stream_fault.c"
       ],
       "single_tests": [
         "extlibs/xrudp/tests/single/test_single_endpoint_fault.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_pending.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_pending.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_stream_fault.c"
       ],
       "examples": [],
       "benchmarks": [],

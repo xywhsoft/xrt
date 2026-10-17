@@ -2471,6 +2471,25 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_endpoint 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_ENDPOINT)
+#ifndef XRUDP_FEATURE_RUDP_ENDPOINT
+#define XRUDP_FEATURE_RUDP_ENDPOINT
+#endif
+#ifndef XRUDP_MODULE_RUDP_SESSION
+#define XRUDP_MODULE_RUDP_SESSION
+#endif
+#ifndef XRT_MODULE_NET_UDP
+#define XRT_MODULE_NET_UDP
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#endif
+
 /* rudp_session 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_SESSION)
 #ifndef XRUDP_FEATURE_RUDP_SESSION
@@ -2490,25 +2509,6 @@
 #endif
 #ifndef XRUDP_MODULE_RUDP_RECEIVE
 #define XRUDP_MODULE_RUDP_RECEIVE
-#endif
-#endif
-
-/* rudp_endpoint 及其直接依赖。 */
-#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_ENDPOINT)
-#ifndef XRUDP_FEATURE_RUDP_ENDPOINT
-#define XRUDP_FEATURE_RUDP_ENDPOINT
-#endif
-#ifndef XRUDP_MODULE_RUDP_HANDSHAKE
-#define XRUDP_MODULE_RUDP_HANDSHAKE
-#endif
-#ifndef XRT_MODULE_NET_UDP
-#define XRT_MODULE_NET_UDP
-#endif
-#ifndef XRT_MODULE_ATOMIC
-#define XRT_MODULE_ATOMIC
-#endif
-#ifndef XRT_MODULE_TIME
-#define XRT_MODULE_TIME
 #endif
 #endif
 
@@ -3370,6 +3370,8 @@ XRUDP_API xrudpresult xrtRudpReceiveCreate(uint32_t iCapacity,
 	uint64_t iInitialLimit, xrudpreceive** ppReceive);
 XRUDP_API void xrtRudpReceiveDestroy(xrudpreceive* pReceive);
 XRUDP_API xrudpresult xrtRudpReceiveState(const xrudpreceive* pReceive, xrudpreceivestate* pState);
+/* A Read can return bytes or a terminal EOF/RESET now (no hole wait). */
+XRUDP_API bool xrtRudpReceiveReady(const xrudpreceive* pReceive);
 /* Pure preflight for ONE authenticated STREAM frame. At most one datagram's
  * STREAM chunk; total work is bounded by its payload, not its offset/gaps.
  * MALFORMED includes conflicting overlap, final size, offset overflow or credit
@@ -3628,6 +3630,101 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/session.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_SESSION_H
+#define XRUDP_SESSION_H
+
+
+#if defined(XRUDP_FEATURE_RUDP_SESSION)
+
+#define XRUDP_SESSION_PACKETS_MAX 256u
+#define XRUDP_SESSION_POLL_BURST 8u
+
+typedef struct xrudpsession xrudpsession;
+/* Called only by Poll, serialized with the entire session. Must COPY the
+ * datagram before returning OK (UDP admission, not delivery). May return
+ * BACKPRESSURE/NO_MEMORY for temporary local admission failure, IO_ERROR for
+ * a terminal transport failure. Must not reenter/destroy this session. */
+typedef xrudpresult (*xrudpsessionsendproc)(const void* pPacket, size_t iSize, void* pContext);
+
+typedef struct xrudpsessionconfig {
+	xrudpparameters Local, Peer; /* Authenticated, already negotiated parameters. */
+	uint32_t ReceiveCapacity, TransmitCapacity;
+	uint32_t PacketCapacity; /* 1..256 normal slots plus bounded probe reserve. */
+	uint32_t ControlPerSecond; /* ACK-only output limit, 40..4096. */
+	uint64_t MaximumWindow, InitialRttUs;
+	uint64_t ProgressTimeoutUs; /* 1s..10min, default 30s; cannot be refreshed by PING. */
+	uint64_t KeyUpdatePackets; /* Local rotation threshold, 8..2^24. */
+} xrudpsessionconfig;
+
+typedef struct xrudpsessionstate {
+	xrudpresult Reason; /* OK while active; terminal reasons are sticky. */
+	xrudpreceivestate Receive;
+	xrudptransmitstate Transmit;
+	xrudpsentstate Sent;
+	xrudpcongestion Congestion;
+	xrudprtt Rtt;
+	uint64_t ReceivedConnection, ReceiveLimit, SentConnection, PeerLimit;
+	uint64_t LastNowUs, LastActivityUs, ProgressAtUs;
+	uint64_t ReceivedPackets, SentPackets, LostPackets, ProbeTimeouts, KeyUpdates;
+	uint64_t InvalidPackets, OutputBackpressure;
+	uint32_t PtoBackoff, OutstandingProbes;
+	bool AckPending, ReadReady;
+} xrudpsessionstate;
+
+XRT_EXTERN_C_BEGIN
+
+/* First connection profile: implicit bidirectional byte stream 1, admitted by
+ * the completed handshake, Local.MaxStreams must be 1. Additional OPEN, game
+ * datagrams and path migration are not enabled by this profile yet.
+ * No private thread/socket, no callbacks except serialized output admission.
+ * Every method requires one owner; all caller buffers must be disjoint. */
+XRUDP_API void xrtRudpSessionConfigInit(xrudpsessionconfig* pConfig);
+/* Total logical bytes including the cipher transferred at Create; excludes
+ * allocator overhead and the caller's UDP queues. Reserve BEFORE admission. */
+XRUDP_API xrudpresult xrtRudpSessionAllocationSize(const xrudpsessionconfig* pConfig, size_t* pSize);
+/* Cipher must be exclusively owned and promoted from completed proof: next PN
+ * 2, largest received 1, epoch 1. Ownership transfers ONLY on success; output
+ * remains unchanged on failure. Session initializes sent/ACK proof prefix 1.
+ * Config identity/parameters must come from the authenticated handshake. */
+XRUDP_API xrudpresult xrtRudpSessionCreate(const xrudpsessionconfig* pConfig,
+	xrudpcipher* pCipher, uint64_t iNowUs, xrudpsessionsendproc pSend,
+	void* pContext, xrudpsession** ppSession);
+XRUDP_API void xrtRudpSessionDestroy(xrudpsession* pSession);
+XRUDP_API xrudpresult xrtRudpSessionState(const xrudpsession* pSession, xrudpsessionstate* pState);
+XRUDP_API xrudpresult xrtRudpSessionWrite(xrudpsession* pSession,
+	const void* pData, size_t iSize, size_t* pWritten);
+XRUDP_API xrudpresult xrtRudpSessionFinish(xrudpsession* pSession);
+/* Read releases stream and connection credit; grants are retransmitted until
+ * validated ACK. DONE is clean stream EOF, not implicit connection closure. */
+XRUDP_API xrudpresult xrtRudpSessionRead(xrudpsession* pSession,
+	void* pOutput, size_t iCapacity, size_t* pRead);
+/* Authenticate, preflight ALL ACK/data/reset/control state, then commit once.
+ * Malformed authenticated input terminates the session; no partial delivery or
+ * false acknowledgement. Noise/forgery/old/duplicate packets do not terminate.
+ * Caller must first enforce the original verified source address. */
+XRUDP_API xrudpresult xrtRudpSessionInput(xrudpsession* pSession,
+	const void* pPacket, size_t iSize, uint64_t iNowUs);
+/* Bounded maintenance/output (<=8 datagrams), no allocation. Due is the next
+ * monotonic microsecond service deadline, also when output is backpressured.
+ * Call again after Write/Finish/Read/Input and at Due; no blocking or sleeps.
+ * Time must never go backwards. Finite idle AND useful-progress deadlines apply.
+ * New local work after idle starts its progress deadline at the first following
+ * Poll/Input clock observation. Additional local operations cannot renew it. */
+XRUDP_API xrudpresult xrtRudpSessionPoll(xrudpsession* pSession,
+	uint64_t iNowUs, uint64_t* pDueUs);
+/* Local cancellation, no output/allocation. Clears plaintext and drains unique
+ * packet ownership. Caller coordinates any best-effort remote CLOSE separately. */
+XRUDP_API xrudpresult xrtRudpSessionAbort(xrudpsession* pSession, xrudpresult iReason);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrudp/include/xrudp/endpoint.h */
 /* ========================================================================== */
 
@@ -3639,6 +3736,10 @@ XRT_EXTERN_C_END
 
 #define XRUDP_ENDPOINT_PEERS_MAX 256u
 #define XRUDP_ENDPOINT_ADDRESS_BUCKETS 64u
+#define XRUDP_PEER_READ_READY 1u
+#define XRUDP_PEER_WRITE_READY 2u
+#define XRUDP_PEER_WRITE_DONE 4u
+#define XRUDP_PEER_READ_EOF 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
 typedef struct xrudppeer xrudppeer;
@@ -3656,7 +3757,7 @@ typedef enum xrudppeerstate {
 
 /* All callbacks run on the bound Worker and borrow their arguments. Ref a peer
  * to keep its handle beyond the callback. Confirmed means identity/address/key
- * proof completed; reliable stream session admission is a separate layer.
+ * proof AND default reliable session admission have completed.
  * Callbacks may close/ref/destroy owned handles, but must not block the Worker.
  * Context remains borrowed until endpoint Close returns. */
 typedef struct xrudpendpointevents {
@@ -3664,6 +3765,11 @@ typedef struct xrudpendpointevents {
 	void (*Confirmed)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, void* pContext);
 	void (*PeerClose)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, xrudpresult iReason, void* pContext);
 	void (*Close)(xrudpendpoint* pEndpoint, xrudpresult iReason, const xerror* pError, void* pContext);
+	/* Edge hints; drain Read until BACKPRESSURE/EOF/RESET. WRITE_READY means
+	 * ACK returned buffer capacity; WRITE_DONE is all bytes+FIN acknowledged.
+	 * Mutations inside a callback defer further Changed delivery to another
+	 * worker turn; no recursive Changed callbacks. Borrowed peer and context. */
+	void (*Changed)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, uint32_t iEvents, void* pContext);
 } xrudpendpointevents;
 
 typedef struct xrudpendpointconfig {
@@ -3673,9 +3779,9 @@ typedef struct xrudpendpointconfig {
 	const void* ApplicationContext; /* Optional exact listener context, copied. */
 	xrudpnoisetrustproc Trust;
 	void* TrustContext;
-	xrudpparameters Parameters;
+	xrudpsessionconfig Session; /* Local is advertised; Peer overwritten after authentication. */
 	uint64_t HandshakeTimeoutUs;
-	size_t MemoryLimit; /* Logical owned endpoint/peer/handshake/cipher bytes.
+	size_t MemoryLimit; /* Peak endpoint/peer/handshake/session reservation bytes.
 	                    * XRT engine pools/kernel socket buffers have own limits. */
 	uint32_t MaxPeers;
 	uint32_t MaxHalfOpen;
@@ -3724,6 +3830,16 @@ XRUDP_API xrudpresult xrtRudpEndpointConnect(xrudpendpoint* pEndpoint, const xne
 	const xrudpconnectconfig* pConfig, xrudppeer** ppPeer);
 XRUDP_API xrudppeer* xrtRudpPeerRef(xrudppeer* pPeer);
 XRUDP_API void xrtRudpPeerDestroy(xrudppeer* pPeer);
+/* Owner-only nonblocking default stream. Write copies a bounded prefix;
+ * success is buffering, not delivery. Finish forbids further writes. Read
+ * returns DONE at clean EOF, CANCELLED at peer RESET. Confirmed allows the
+ * first write; subsequent capacity/EOF changes arrive as Changed hints. */
+XRUDP_API xrudpresult xrtRudpPeerWrite(xrudppeer* pPeer, const void* pData, size_t iSize, size_t* pWritten);
+XRUDP_API xrudpresult xrtRudpPeerRead(xrudppeer* pPeer, void* pOutput, size_t iCapacity, size_t* pRead);
+XRUDP_API xrudpresult xrtRudpPeerFinish(xrudppeer* pPeer);
+/* Owner while live; immutable snapshot after CLOSED, safe after Engine destroy.
+ * BACKPRESSURE before admission, CLOSED when no session was ever admitted. */
+XRUDP_API xrudpresult xrtRudpPeerSessionState(const xrudppeer* pPeer, xrudpsessionstate* pState);
 XRUDP_API xrudpresult xrtRudpPeerAbort(xrudppeer* pPeer);
 /* Thread-safe, idempotent request, no allocation. Close callback runs once after
  * peer callbacks and timer cleanup. Dropping a handle alone does not close it.
@@ -3731,101 +3847,6 @@ XRUDP_API xrudpresult xrtRudpPeerAbort(xrudppeer* pPeer);
  * and await its terminal callback BEFORE Stop. Closed external handles retain
  * no engine resources and may be destroyed after the Engine. */
 XRUDP_API xrudpresult xrtRudpEndpointClose(xrudpendpoint* pEndpoint);
-
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* public: extlibs/xrudp/include/xrudp/session.h */
-/* ========================================================================== */
-
-#ifndef XRUDP_SESSION_H
-#define XRUDP_SESSION_H
-
-
-#if defined(XRUDP_FEATURE_RUDP_SESSION)
-
-#define XRUDP_SESSION_PACKETS_MAX 256u
-#define XRUDP_SESSION_POLL_BURST 8u
-
-typedef struct xrudpsession xrudpsession;
-/* Called only by Poll, serialized with the entire session. Must COPY the
- * datagram before returning OK (UDP admission, not delivery). May return
- * BACKPRESSURE/NO_MEMORY for temporary local admission failure, IO_ERROR for
- * a terminal transport failure. Must not reenter/destroy this session. */
-typedef xrudpresult (*xrudpsessionsendproc)(const void* pPacket, size_t iSize, void* pContext);
-
-typedef struct xrudpsessionconfig {
-	xrudpparameters Local, Peer; /* Authenticated, already negotiated parameters. */
-	uint32_t ReceiveCapacity, TransmitCapacity;
-	uint32_t PacketCapacity; /* 1..256 normal slots plus bounded probe reserve. */
-	uint32_t ControlPerSecond; /* ACK-only output limit, 40..4096. */
-	uint64_t MaximumWindow, InitialRttUs;
-	uint64_t ProgressTimeoutUs; /* 1s..10min, default 30s; cannot be refreshed by PING. */
-	uint64_t KeyUpdatePackets; /* Local rotation threshold, 8..2^24. */
-} xrudpsessionconfig;
-
-typedef struct xrudpsessionstate {
-	xrudpresult Reason; /* OK while active; terminal reasons are sticky. */
-	xrudpreceivestate Receive;
-	xrudptransmitstate Transmit;
-	xrudpsentstate Sent;
-	xrudpcongestion Congestion;
-	xrudprtt Rtt;
-	uint64_t ReceivedConnection, ReceiveLimit, SentConnection, PeerLimit;
-	uint64_t LastNowUs, LastActivityUs, ProgressAtUs;
-	uint64_t ReceivedPackets, SentPackets, LostPackets, ProbeTimeouts, KeyUpdates;
-	uint64_t InvalidPackets, OutputBackpressure;
-	uint32_t PtoBackoff, OutstandingProbes;
-	bool AckPending;
-} xrudpsessionstate;
-
-XRT_EXTERN_C_BEGIN
-
-/* First connection profile: implicit bidirectional byte stream 1, admitted by
- * the completed handshake, Local.MaxStreams must be 1. Additional OPEN, game
- * datagrams and path migration are not enabled by this profile yet.
- * No private thread/socket, no callbacks except serialized output admission.
- * Every method requires one owner; all caller buffers must be disjoint. */
-XRUDP_API void xrtRudpSessionConfigInit(xrudpsessionconfig* pConfig);
-/* Total logical bytes including the cipher transferred at Create; excludes
- * allocator overhead and the caller's UDP queues. Reserve BEFORE admission. */
-XRUDP_API xrudpresult xrtRudpSessionAllocationSize(const xrudpsessionconfig* pConfig, size_t* pSize);
-/* Cipher must be exclusively owned and promoted from completed proof: next PN
- * 2, largest received 1, epoch 1. Ownership transfers ONLY on success; output
- * remains unchanged on failure. Session initializes sent/ACK proof prefix 1.
- * Config identity/parameters must come from the authenticated handshake. */
-XRUDP_API xrudpresult xrtRudpSessionCreate(const xrudpsessionconfig* pConfig,
-	xrudpcipher* pCipher, uint64_t iNowUs, xrudpsessionsendproc pSend,
-	void* pContext, xrudpsession** ppSession);
-XRUDP_API void xrtRudpSessionDestroy(xrudpsession* pSession);
-XRUDP_API xrudpresult xrtRudpSessionState(const xrudpsession* pSession, xrudpsessionstate* pState);
-XRUDP_API xrudpresult xrtRudpSessionWrite(xrudpsession* pSession,
-	const void* pData, size_t iSize, size_t* pWritten);
-XRUDP_API xrudpresult xrtRudpSessionFinish(xrudpsession* pSession);
-/* Read releases stream and connection credit; grants are retransmitted until
- * validated ACK. DONE is clean stream EOF, not implicit connection closure. */
-XRUDP_API xrudpresult xrtRudpSessionRead(xrudpsession* pSession,
-	void* pOutput, size_t iCapacity, size_t* pRead);
-/* Authenticate, preflight ALL ACK/data/reset/control state, then commit once.
- * Malformed authenticated input terminates the session; no partial delivery or
- * false acknowledgement. Noise/forgery/old/duplicate packets do not terminate.
- * Caller must first enforce the original verified source address. */
-XRUDP_API xrudpresult xrtRudpSessionInput(xrudpsession* pSession,
-	const void* pPacket, size_t iSize, uint64_t iNowUs);
-/* Bounded maintenance/output (<=8 datagrams), no allocation. Due is the next
- * monotonic microsecond service deadline, also when output is backpressured.
- * Call again after Write/Finish/Read/Input and at Due; no blocking or sleeps.
- * Time must never go backwards. Finite idle AND useful-progress deadlines apply.
- * New local work after idle starts its progress deadline at the first following
- * Poll/Input clock observation. Additional local operations cannot renew it. */
-XRUDP_API xrudpresult xrtRudpSessionPoll(xrudpsession* pSession,
-	uint64_t iNowUs, uint64_t* pDueUs);
-/* Local cancellation, no output/allocation. Clears plaintext and drains unique
- * packet ownership. Caller coordinates any best-effort remote CLOSE separately. */
-XRUDP_API xrudpresult xrtRudpSessionAbort(xrudpsession* pSession, xrudpresult iReason);
 
 XRT_EXTERN_C_END
 #endif
@@ -5544,6 +5565,25 @@ XRT_EXTERN_C_END
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_endpoint 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_ENDPOINT)
+#ifndef XRUDP_FEATURE_RUDP_ENDPOINT
+#define XRUDP_FEATURE_RUDP_ENDPOINT
+#endif
+#ifndef XRUDP_MODULE_RUDP_SESSION
+#define XRUDP_MODULE_RUDP_SESSION
+#endif
+#ifndef XRT_MODULE_NET_UDP
+#define XRT_MODULE_NET_UDP
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#endif
+
 /* rudp_session 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_SESSION)
 #ifndef XRUDP_FEATURE_RUDP_SESSION
@@ -5563,25 +5603,6 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRUDP_MODULE_RUDP_RECEIVE
 #define XRUDP_MODULE_RUDP_RECEIVE
-#endif
-#endif
-
-/* rudp_endpoint 及其直接依赖。 */
-#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_ENDPOINT)
-#ifndef XRUDP_FEATURE_RUDP_ENDPOINT
-#define XRUDP_FEATURE_RUDP_ENDPOINT
-#endif
-#ifndef XRUDP_MODULE_RUDP_HANDSHAKE
-#define XRUDP_MODULE_RUDP_HANDSHAKE
-#endif
-#ifndef XRT_MODULE_NET_UDP
-#define XRT_MODULE_NET_UDP
-#endif
-#ifndef XRT_MODULE_ATOMIC
-#define XRT_MODULE_ATOMIC
-#endif
-#ifndef XRT_MODULE_TIME
-#define XRT_MODULE_TIME
 #endif
 #endif
 

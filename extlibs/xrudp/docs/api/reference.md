@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `109` 个函数、`113` 个常量或宏、
+当前登记 `114` 个函数、`117` 个常量或宏、
 `51` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
@@ -107,7 +107,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/endpoint.h)
 
-### 函数 (13)
+### 函数 (17)
 
 - `xrtRudpEndpointBind`
 - `xrtRudpEndpointClose`
@@ -119,11 +119,15 @@
 - `xrtRudpEndpointState`
 - `xrtRudpPeerAbort`
 - `xrtRudpPeerDestroy`
+- `xrtRudpPeerFinish`
 - `xrtRudpPeerInfo`
+- `xrtRudpPeerRead`
 - `xrtRudpPeerRef`
+- `xrtRudpPeerSessionState`
 - `xrtRudpPeerState`
+- `xrtRudpPeerWrite`
 
-### 常量与宏 (10)
+### 常量与宏 (14)
 
 - `XRUDP_ENDPOINT_ADDRESS_BUCKETS`
 - `XRUDP_ENDPOINT_CLOSED`
@@ -135,8 +139,12 @@
 - `XRUDP_PEER_CLOSED`
 - `XRUDP_PEER_CONFIRMED`
 - `XRUDP_PEER_NEGOTIATING`
+- `XRUDP_PEER_READ_EOF`
+- `XRUDP_PEER_READ_READY`
+- `XRUDP_PEER_WRITE_DONE`
+- `XRUDP_PEER_WRITE_READY`
 
-### 类型 (11)
+### 类型 (12)
 
 - `xrudpconnectconfig`
 - `xrudpendpoint`
@@ -146,9 +154,10 @@
 - `xrudpendpointstate`
 - `xrudphandshakeinfo`
 - `xrudpnoisetrustproc`
-- `xrudpparameters`
 - `xrudppeer`
 - `xrudppeerstate`
+- `xrudpsessionconfig`
+- `xrudpsessionstate`
 
 ## `extlibs/xrudp/include/xrudp/export.h`
 
@@ -192,11 +201,12 @@
 - `XRUDP_HELLO_SIZE`
 - `XRUDP_PARAMETERS_SIZE`
 
-### 类型 (4)
+### 类型 (5)
 
 - `xrudphandshake`
 - `xrudphandshakeconfig`
 - `xrudphandshakephase`
+- `xrudpparameters`
 - `xrudprole`
 
 ## `extlibs/xrudp/include/xrudp/noise.h`
@@ -232,7 +242,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/receive.h)
 
-### 函数 (11)
+### 函数 (12)
 
 - `xrtRudpReceiveAllocationSize`
 - `xrtRudpReceiveCheck`
@@ -243,6 +253,7 @@
 - `xrtRudpReceivePush`
 - `xrtRudpReceivePushBatch`
 - `xrtRudpReceiveRead`
+- `xrtRudpReceiveReady`
 - `xrtRudpReceiveReset`
 - `xrtRudpReceiveState`
 
@@ -324,13 +335,11 @@
 - `XRUDP_SESSION_PACKETS_MAX`
 - `XRUDP_SESSION_POLL_BURST`
 
-### 类型 (6)
+### 类型 (4)
 
 - `xrudprtt`
 - `xrudpsession`
-- `xrudpsessionconfig`
 - `xrudpsessionsendproc`
-- `xrudpsessionstate`
 - `xrudptransmitstate`
 
 ## `extlibs/xrudp/include/xrudp/timing.h`

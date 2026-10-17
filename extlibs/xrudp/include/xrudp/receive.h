@@ -57,6 +57,8 @@ XRUDP_API xrudpresult xrtRudpReceiveCreate(uint32_t iCapacity,
 	uint64_t iInitialLimit, xrudpreceive** ppReceive);
 XRUDP_API void xrtRudpReceiveDestroy(xrudpreceive* pReceive);
 XRUDP_API xrudpresult xrtRudpReceiveState(const xrudpreceive* pReceive, xrudpreceivestate* pState);
+/* A Read can return bytes or a terminal EOF/RESET now (no hole wait). */
+XRUDP_API bool xrtRudpReceiveReady(const xrudpreceive* pReceive);
 /* Pure preflight for ONE authenticated STREAM frame. At most one datagram's
  * STREAM chunk; total work is bounded by its payload, not its offset/gaps.
  * MALFORMED includes conflicting overlap, final size, offset overflow or credit

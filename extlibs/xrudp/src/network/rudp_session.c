@@ -167,7 +167,8 @@ xrudpresult xrtRudpSessionState(const xrudpsession* s, xrudpsessionstate* output
 	state.ReceivedPackets = s->ReceivedPackets; state.SentPackets = s->SentPackets; state.LostPackets = s->LostPackets;
 	state.ProbeTimeouts = s->ProbeTimeouts; state.KeyUpdates = s->KeyUpdates; state.InvalidPackets = s->InvalidPackets;
 	state.OutputBackpressure = s->OutputBackpressure; state.PtoBackoff = s->PtoCount;
-	state.OutstandingProbes = s->Probes; state.AckPending = s->AckWanted; *output = state; return XRUDP_OK;
+	state.OutstandingProbes = s->Probes; state.AckPending = s->AckWanted;
+	state.ReadReady = xrtRudpReceiveReady(s->Rx); *output = state; return XRUDP_OK;
 }
 xrudpresult xrtRudpSessionWrite(xrudpsession* s, const void* data, size_t size, size_t* written)
 {

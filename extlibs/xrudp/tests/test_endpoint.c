@@ -87,7 +87,7 @@ static void bind_endpoint(xnetworker* worker, ptr context)
 	cfg.StaticPrivate = t->Private[s->Index]; cfg.PeerPublic = t->Public[1 - s->Index]; cfg.Listen = s->Index == 0;
 	if (t->Mode >= 2) { cfg.MaxPeers = cfg.MaxHalfOpen = 1; cfg.HandshakeTimeoutUs = t->Mode == 2 ? 1000000 : 10000000; }
 	xnetaddr local; expect(t, xrtNetAddrLoopback(&local, t->Family, 0), "loopback address failed");
-	xrudpendpointevents ev = {opened, confirmed, peer_closed, closed};
+	xrudpendpointevents ev = {opened, confirmed, peer_closed, closed, NULL};
 	expect(t, xrtRudpEndpointBind(worker, &local, &cfg, &ev, s, &t->Endpoint[s->Index]) == XRUDP_OK, "endpoint bind failed");
 }
 static void dial(xnetworker* worker, ptr context)
