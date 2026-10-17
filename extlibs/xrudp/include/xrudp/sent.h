@@ -56,6 +56,8 @@ typedef struct xrudpackchange {
 
 XRT_EXTERN_C_BEGIN
 
+XRUDP_API xrudpresult xrtRudpSentAllocationSize(uint32_t iCapacity, size_t* pSize);
+
 /* One fixed allocation, no allocation during processing. Capacity=0 uses 256;
  * 32 additional slots are reserved for PTO probes. Serialized by one owner.
  * All output buffers/objects must be disjoint from inputs and window storage.

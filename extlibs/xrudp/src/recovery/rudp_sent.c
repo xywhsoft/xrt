@@ -58,13 +58,21 @@ xrudpresult xrtRudpSentCreate(uint32_t capacity, xrudpsentwindow** output)
 	return xrtRudpSentCreateAfter(capacity, 0, output);
 }
 
+xrudpresult xrtRudpSentAllocationSize(uint32_t capacity, size_t* output)
+{
+	if (output == NULL || capacity > XRUDP_SENT_CAPACITY_MAX) return XRUDP_ARGUMENT;
+	if (capacity == 0) capacity = XRUDP_SENT_CAPACITY_DEFAULT;
+	*output = sizeof(xrudpsentwindow) + (capacity + XRUDP_SENT_PROBE_RESERVE) * sizeof(xrudp__sentpacket);
+	return XRUDP_OK;
+}
+
 xrudpresult xrtRudpSentCreateAfter(uint32_t capacity, uint64_t retired, xrudpsentwindow** output)
 {
 	xrudpsentwindow* w;
 	size_t size;
 	if (output == NULL || capacity > XRUDP_SENT_CAPACITY_MAX || retired == UINT64_MAX) return XRUDP_ARGUMENT;
 	if (capacity == 0) capacity = XRUDP_SENT_CAPACITY_DEFAULT;
-	size = sizeof(*w) + (capacity + XRUDP_SENT_PROBE_RESERVE) * sizeof(xrudp__sentpacket);
+	(void)xrtRudpSentAllocationSize(capacity, &size);
 	w = (xrudpsentwindow*)xrtMalloc(size);
 	if (w == NULL) return XRUDP_NO_MEMORY;
 	memset(w, 0, size);

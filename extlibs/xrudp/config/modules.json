@@ -508,6 +508,59 @@
       "docs": [
         "extlibs/xrudp/docs/implementation-status.md"
       ]
+    },
+    {
+      "name": "rudp_session",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_SESSION",
+      "depends": [
+        "rudp_handshake",
+        "rudp_congestion",
+        "rudp_timing",
+        "rudp_transmit",
+        "rudp_receive"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/session.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/network/rudp_session.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_session.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_session.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
+      ]
+    },
+    {
+      "name": "rudp_session_fault_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_session",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_session_fault.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_session_fault.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
     }
   ]
 }

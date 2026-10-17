@@ -14,5 +14,6 @@
 #include <xrudp/transmit.h>
 #include <xrudp/handshake.h>
 #include <xrudp/endpoint.h>
+#include <xrudp/session.h>
 
 #endif
