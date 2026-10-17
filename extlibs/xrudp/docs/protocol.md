@@ -149,6 +149,45 @@ Split 后立即清理静态私钥副本、临时私钥和握手密码状态；�
 Noise 完成后，接收方仍须验证发起方的最终持钥确认才能发布业务连接。
 连接驱动必须保证业务事件在身份、参数、授权与最终确认全部通过后才交付。
 
+## 固定线上握手配置
+
+握手头仍为通用 48B，非 DATA 的 key_epoch=0。初始 scope 为非零公开监听/协调 ID。
+HELLO（PN=1，目标 scope）负载固定 96B：client_id:16、目标静态公钥:32、随机 nonce:16、
+应用上下文:32。ID/nonce 均不为零；客户端 ID 不与 scope 相同。上下文可为全零，
+mdo 则应使用已授权协调通道下发的上下文并在监听侧要求精确匹配。
+
+HELLO 摘要为完整规范 HELLO 报文的 SHA256。RETRY（PN=1，目标 client_id）负载 88B：
+server_id:16、HELLO 摘要:32、地址 cookie:40。server_id 为 SHA256 的前 16 字节，
+输入为 ASCII XRUDP001/server-id（不含终止符）、HELLO 摘要、cookie；禁止零值与 ID 冲突。
+cookie 的原有 HMAC 同时绑定 scope、HELLO 摘要、源地址和签发时间。
+RETRY 仅 136B，不放大初始 144B HELLO；监听端仍须先应用每地址/端点 CPU 与响应配额。
+
+客户端向 server_id 发送 HANDSHAKE（PN=1）：HELLO 负载 96B、cookie 40B、Noise 第一飞行
+128B，共 312B。接收侧先查现有 CID，再验证 cookie、上下文与派生 server_id，最后才允许
+预留状态并执行 DH，不能让有效 cookie 重复创建同一活动连接。
+Noise Prologue 固定为 ASCII XRUDP001/IK/prologue（无终止符）+ scope:16 + HELLO 负载:96
++ server_id:16，共 148B；角色和方向由固定 IK 模式定义。应用上下文、公钥与两个连接 ID
+因此参与认证，不能只存在于未认证的外部元数据里。
+服务端第二 HANDSHAKE（PN=2，目标 client_id）仅带 Noise 第二飞行 80B，共 128B。
+
+Noise 加密参数固定 32B，大端：connection_credit:u64、stream_credit:u32、max_streams:u32、
+idle_timeout_ms:u32、max_ack_delay_us:u32、datagram_size:u32、保留零:u32。
+初始连接额度至多 64MiB，流额度至多 1MiB，流数 1..1024，空闲截止 1s..1h，
+ACK 延迟至多 25ms，数据报上限 512..1200B；本地实际分配仍受更严格的全局预算约束。
+双方公布独立接收额度，不将对端参数当成本端可以无限分配的配置。
+
+Noise 派生完成仍不发布业务连接。客户端首次 DATA（epoch=1、PN=1）仅含 PING 和
+KEY_CONFIRM(1)；服务端验证后首次 DATA（epoch=1、PN=1）依次含 PING、KEY_CONFIRM(1)、
+ACK(delay=0,range=[1,1])。提前 STREAM 或任何其他证明形状拒绝，且不交付应用数据。
+客户端验证该回复后建立；服务端先验证客户端证明并排队回复后才向应用发布。
+业务包从 PN=2 开始，连接接收历史与发送退休前缀必须初始化为证明占用的 PN=1。
+
+各阶段重传缓存完全相同的原始报文，不能再次推进 Noise 或重新加密另一份 PN=1 内容。
+发送间隔从 250ms 指数增长至 2s；每阶段至多 16 次，总截止默认 10s、可选 1..60s，
+不会因重复输入延长。Cookie 最多 30s，超长断链应在外层创建全新握手，而不是续签旧 Cookie。
+已建立服务端短期保留最终回复供丢失恢复，转交密钥不会销毁该缓存；端点必须有限退休。
+只有认证后才能判定协议违规，本地输出容量不足不能充当认证依据。
+
 ## 恢复时间计算
 
 全部时间使用单调微秒。初始 RTT 默认 333ms，初始方差为其一半；定时器粒度下限 1ms。

@@ -23,6 +23,9 @@ typedef struct xrudpcipherstate {
 
 XRT_EXTERN_C_BEGIN
 
+/* Owned object bytes for aggregate reservations; excludes allocator overhead. */
+XRUDP_API size_t xrtRudpCipherAllocationSize(void);
+
 /* Low-level packet protection for already authenticated directional keys.
  * This constructor does NOT authenticate a peer or implement a handshake.
  * Keys are 32 bytes, connection IDs are 16 nonzero bytes. Send/receive keys

@@ -19,6 +19,8 @@ struct xrudpcipher {
 	xrudpreplay Replay;
 };
 
+size_t xrtRudpCipherAllocationSize(void) { return sizeof(xrudpcipher); }
+
 static void xrudp__nonce(unsigned char nonce[12], uint64_t number)
 {
 	memset(nonce, 0, 4);

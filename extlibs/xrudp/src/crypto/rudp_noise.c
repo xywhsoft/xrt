@@ -131,6 +131,8 @@ xrudpresult xrudp__noise_create(const xrudpnoiseconfig* config,
 	return XRUDP_OK;
 }
 
+size_t xrtRudpNoiseAllocationSize(void) { return sizeof(xrudpnoise); }
+
 xrudpresult xrtRudpNoiseCreate(const xrudpnoiseconfig* pConfig, xrudpnoise** ppNoise)
 {
 	return xrudp__noise_create(pConfig, NULL, ppNoise);

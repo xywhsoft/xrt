@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `69` 个函数、`89` 个常量或宏、
-`34` 个公共类型。
+当前登记 `83` 个函数、`100` 个常量或宏、
+`39` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -81,8 +81,9 @@
 
 [查看带契约注释的公共头](../../include/xrudp/crypto.h)
 
-### 函数 (7)
+### 函数 (8)
 
+- `xrtRudpCipherAllocationSize`
 - `xrtRudpCipherCreate`
 - `xrtRudpCipherDestroy`
 - `xrtRudpCipherOpen`
@@ -111,12 +112,56 @@
 - `XRUDP_BUILD_SHARED`
 - `XRUDP_USE_SHARED`
 
+## `extlibs/xrudp/include/xrudp/handshake.h`
+
+[查看带契约注释的公共头](../../include/xrudp/handshake.h)
+
+### 函数 (12)
+
+- `xrtRudpHandshakeAccept`
+- `xrtRudpHandshakeAllocationSize`
+- `xrtRudpHandshakeCreate`
+- `xrtRudpHandshakeDestroy`
+- `xrtRudpHandshakeInfo`
+- `xrtRudpHandshakeInput`
+- `xrtRudpHandshakeNext`
+- `xrtRudpHandshakeRetry`
+- `xrtRudpHandshakeTakeCipher`
+- `xrtRudpParametersDecode`
+- `xrtRudpParametersDefault`
+- `xrtRudpParametersEncode`
+
+### 常量与宏 (11)
+
+- `XRUDP_FEATURE_RUDP_HANDSHAKE`
+- `XRUDP_HANDSHAKE_DEFAULT_TIMEOUT_US`
+- `XRUDP_HANDSHAKE_ESTABLISHED`
+- `XRUDP_HANDSHAKE_FAILED`
+- `XRUDP_HANDSHAKE_MAX_TIMEOUT_US`
+- `XRUDP_HANDSHAKE_NOISE`
+- `XRUDP_HANDSHAKE_PACKET_MAX`
+- `XRUDP_HANDSHAKE_PROOF`
+- `XRUDP_HANDSHAKE_RETRY`
+- `XRUDP_HELLO_SIZE`
+- `XRUDP_PARAMETERS_SIZE`
+
+### 类型 (7)
+
+- `xrudphandshake`
+- `xrudphandshakeconfig`
+- `xrudphandshakeinfo`
+- `xrudphandshakephase`
+- `xrudpnoisetrustproc`
+- `xrudpparameters`
+- `xrudprole`
+
 ## `extlibs/xrudp/include/xrudp/noise.h`
 
 [查看带契约注释的公共头](../../include/xrudp/noise.h)
 
-### 函数 (7)
+### 函数 (8)
 
+- `xrtRudpNoiseAllocationSize`
 - `xrtRudpNoiseCreate`
 - `xrtRudpNoiseCreateCipher`
 - `xrtRudpNoiseDestroy`
@@ -133,13 +178,11 @@
 - `XRUDP_NOISE_PARAMETERS_MAX`
 - `XRUDP_RESPONDER`
 
-### 类型 (5)
+### 类型 (3)
 
 - `xrudpnoise`
 - `xrudpnoiseconfig`
 - `xrudpnoiseinfo`
-- `xrudpnoisetrustproc`
-- `xrudprole`
 
 ## `extlibs/xrudp/include/xrudp/receive.h`
 

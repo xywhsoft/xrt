@@ -337,7 +337,6 @@
     {
       "name": "rudp_transport_tests",
       "state": "implemented",
-      "feature": "XRUDP_FEATURE_RUDP_TRANSPORT_TESTS",
       "depends": [
         "rudp_transmit",
         "rudp_receive",
@@ -353,6 +352,57 @@
       ],
       "single_tests": [
         "extlibs/xrudp/tests/single/test_single_transport_sim.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
+      "name": "rudp_handshake",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_HANDSHAKE",
+      "depends": [
+        "rudp_noise",
+        "rudp_cookie"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/handshake.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/crypto/rudp_handshake.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_handshake.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_handshake.c",
+        "extlibs/xrudp/tests/single/test_single_all_profile.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
+      ]
+    },
+    {
+      "name": "rudp_handshake_fault_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_handshake",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_handshake_fault.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_handshake_fault.c"
       ],
       "examples": [],
       "benchmarks": [],

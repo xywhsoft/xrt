@@ -40,6 +40,9 @@ typedef struct xrudpnoiseinfo {
 
 XRT_EXTERN_C_BEGIN
 
+/* Owned object bytes for aggregate reservations; excludes allocator overhead. */
+XRUDP_API size_t xrtRudpNoiseAllocationSize(void);
+
 /* Fixed Noise_IK_25519_ChaChaPoly_SHA256, no negotiation/fallback/0-RTT.
  * Responder requires a trusted peer pin or a Trust callback; if both are
  * provided both must pass. Production ephemeral keys always come from XRT's
