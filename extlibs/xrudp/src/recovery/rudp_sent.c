@@ -55,15 +55,21 @@ static void xrudp__sent_finish(xrudpsentwindow* w, xrudp__sentpacket* p,
 
 xrudpresult xrtRudpSentCreate(uint32_t capacity, xrudpsentwindow** output)
 {
+	return xrtRudpSentCreateAfter(capacity, 0, output);
+}
+
+xrudpresult xrtRudpSentCreateAfter(uint32_t capacity, uint64_t retired, xrudpsentwindow** output)
+{
 	xrudpsentwindow* w;
 	size_t size;
-	if (output == NULL || capacity > XRUDP_SENT_CAPACITY_MAX) return XRUDP_ARGUMENT;
+	if (output == NULL || capacity > XRUDP_SENT_CAPACITY_MAX || retired == UINT64_MAX) return XRUDP_ARGUMENT;
 	if (capacity == 0) capacity = XRUDP_SENT_CAPACITY_DEFAULT;
 	size = sizeof(*w) + (capacity + XRUDP_SENT_PROBE_RESERVE) * sizeof(xrudp__sentpacket);
 	w = (xrudpsentwindow*)xrtMalloc(size);
 	if (w == NULL) return XRUDP_NO_MEMORY;
 	memset(w, 0, size);
 	w->NormalCapacity = capacity; w->Capacity = capacity + XRUDP_SENT_PROBE_RESERVE;
+	w->LargestSent = retired;
 	*output = w;
 	return XRUDP_OK;
 }

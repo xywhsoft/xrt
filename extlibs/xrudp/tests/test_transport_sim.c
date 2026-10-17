@@ -1,6 +1,7 @@
 /* Test-only single-stream driver. Not the production endpoint or its packet
  * transaction, authorization, resource admission, timer or close policy. */
 #include <xrudp.h>
+#include <xrt/crypto.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -287,20 +288,43 @@ static int maintain(uint32_t index)
 
 static int scenario(uint32_t initialSeed)
 {
-	unsigned char keys[2][32], ids[2][16] = {{1},{2}};
+	unsigned char keys[2][32], publicKeys[2][32], cookieKey[32] = {17}, scope[16] = {23};
+	unsigned char packet[312], retry[312]; size_t size, retrySize; uint64_t due;
+	xrudphandshake *handshake[2] = {NULL,NULL}; xrudphandshakeconfig config[2];
+	xrudpaddress peerAddress = {4,42000,0,{192,0,2,1}};
 	bool done = false;
 	memset(&sim, 0, sizeof(sim)); seed = initialSeed; tick = 0; now = 0;
 	for (size_t i = 0; i < 32; ++i) { keys[0][i] = (unsigned char)i; keys[1][i] = (unsigned char)(i + 100); }
+	for (size_t i = 0; i < 2; ++i) CHECK(xrtX25519Public(keys[i], publicKeys[i]));
+	for (size_t i = 0; i < 2; ++i) {
+		memset(&config[i], 0, sizeof(config[i])); config[i].StaticPrivate = keys[i]; config[i].LocalPublic = publicKeys[i];
+		config[i].PeerPublic = publicKeys[1 - i]; config[i].Scope = scope;
+		xrtRudpParametersDefault(&config[i].Parameters); config[i].Parameters.StreamCredit = 512;
+	}
+	CHECK(xrtRudpHandshakeCreate(&config[0], 0, &handshake[0]) == XRUDP_OK);
+	CHECK(xrtRudpHandshakeNext(handshake[0], 0, packet, 312, &size, &due) == XRUDP_OK);
+	CHECK(xrtRudpHandshakeRetry(cookieKey, scope, publicKeys[1], &peerAddress, 0, packet, size, retry, 312, &retrySize) == XRUDP_OK);
+	CHECK(xrtRudpHandshakeInput(handshake[0], retry, retrySize, 0) == XRUDP_OK);
+	CHECK(xrtRudpHandshakeNext(handshake[0], 0, packet, 312, &size, &due) == XRUDP_OK);
+	CHECK(xrtRudpHandshakeAccept(&config[1], cookieKey, NULL, &peerAddress, 0, packet, size, &handshake[1]) == XRUDP_OK);
+	CHECK(xrtRudpHandshakeNext(handshake[1], 0, packet, 312, &size, &due) == XRUDP_OK);
+	CHECK(xrtRudpHandshakeInput(handshake[0], packet, size, 0) == XRUDP_OK);
+	CHECK(xrtRudpHandshakeNext(handshake[0], 0, packet, 312, &size, &due) == XRUDP_OK);
+	CHECK(xrtRudpHandshakeInput(handshake[1], packet, size, 0) == XRUDP_OK);
+	CHECK(xrtRudpHandshakeNext(handshake[1], 0, packet, 312, &size, &due) == XRUDP_OK);
+	CHECK(xrtRudpHandshakeInput(handshake[0], packet, size, 0) == XRUDP_OK);
 	for (uint32_t index = 0; index < 2; ++index) {
 		struct endpoint* e = &sim.Ends[index];
 		for (size_t i = 0; i < DATA_SIZE; ++i) sim.Input[index][i] = (unsigned char)((i * 37 + index * 73) ^ (i >> 9));
-		CHECK(xrtRudpCipherCreate(keys[index], keys[1 - index], ids[index], ids[1 - index], 0, &e->Cipher) == XRUDP_OK);
-		CHECK(xrtRudpSentCreate(32, &e->Sent) == XRUDP_OK);
+		CHECK(xrtRudpHandshakeTakeCipher(handshake[index], &e->Cipher) == XRUDP_OK);
+		xrtRudpHandshakeDestroy(handshake[index]);
+		CHECK(xrtRudpSentCreateAfter(32, 1, &e->Sent) == XRUDP_OK);
 		CHECK(xrtRudpTransmitCreate(512, 512, &e->Tx) == XRUDP_OK);
 		CHECK(xrtRudpReceiveCreate(512, 512, &e->Rx) == XRUDP_OK);
 		CHECK(xrtRudpCongestionInit(&e->Cc, 12000) == XRUDP_OK);
 		CHECK(xrtRudpRttInit(&e->Rtt, 30000, 25000) == XRUDP_OK);
 		xrtRudpAckSetInit(&e->Ack); e->GrantAcked = 512;
+		CHECK(xrtRudpAckSetRecord(&e->Ack, 1, 0) == XRUDP_OK);
 	}
 	for (tick = 1; tick <= 200000 && !done; ++tick) {
 		now = (uint64_t)tick * 1000;

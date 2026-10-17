@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `83` 个函数、`100` 个常量或宏、
+当前登记 `84` 个函数、`100` 个常量或宏、
 `39` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
@@ -221,13 +221,14 @@
 
 [查看带契约注释的公共头](../../include/xrudp/sent.h)
 
-### 函数 (9)
+### 函数 (10)
 
 - `xrtRudpSentAbort`
 - `xrtRudpSentAcknowledge`
 - `xrtRudpSentCanRecord`
 - `xrtRudpSentCheckAcknowledge`
 - `xrtRudpSentCreate`
+- `xrtRudpSentCreateAfter`
 - `xrtRudpSentDestroy`
 - `xrtRudpSentDetectLoss`
 - `xrtRudpSentRecord`

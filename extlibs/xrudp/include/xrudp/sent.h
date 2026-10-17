@@ -64,6 +64,12 @@ XRT_EXTERN_C_BEGIN
  * event. A late ACK of a declared-lost packet does not produce a second event.
  * Logical data may retransmit under a new packet; deduplication is stream-level. */
 XRUDP_API xrudpresult xrtRudpSentCreate(uint32_t iCapacity, xrudpsentwindow** ppWindow);
+/* Start after an already retired packet-number prefix (e.g. handshake PN 1).
+ * No pending packets/events/flight bytes are imported; ACKs of that prefix never
+ * grant progress or RTT samples. Maximum reserved PN UINT64_MAX is invalid.
+ * RetiredThrough comes from trusted local state, never from a peer ACK/header. */
+XRUDP_API xrudpresult xrtRudpSentCreateAfter(uint32_t iCapacity,
+	uint64_t iRetiredThrough, xrudpsentwindow** ppWindow);
 XRUDP_API void xrtRudpSentDestroy(xrudpsentwindow* pWindow);
 XRUDP_API xrudpresult xrtRudpSentState(const xrudpsentwindow* pWindow, xrudpsentstate* pState);
 XRUDP_API bool xrtRudpSentCanRecord(const xrudpsentwindow* pWindow, bool bProbe);

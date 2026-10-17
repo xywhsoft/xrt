@@ -2,7 +2,7 @@
 #define XRUDP_MODULE_RUDP_RECEIVE
 #define XRUDP_MODULE_RUDP_CONGESTION
 #define XRUDP_MODULE_RUDP_TIMING
-#define XRUDP_MODULE_RUDP_CRYPTO
+#define XRUDP_MODULE_RUDP_HANDSHAKE
 #include "../../include/xrudp/features.h"
 #define XRT_IMPLEMENTATION
 #include "../../../../single/xrt.h"

@@ -77,6 +77,18 @@ static int boundaries(void)
 	CHECK(xrtRudpSentAcknowledge(w, &ack, 1000, events, 40, &count, &change) == XRUDP_OK);
 	CHECK(change.NewlyAckedBytes == 1200 && change.NewlyAckedEliciting == 0 && !change.RttSampleValid);
 	xrtRudpSentDestroy(w);
+	w = NULL;
+	CHECK(xrtRudpSentCreateAfter(2, UINT64_MAX, &w) == XRUDP_ARGUMENT && w == NULL);
+	CHECK(xrtRudpSentCreateAfter(2, 1, &w) == XRUDP_OK);
+	ack = one_ack(1, 1);
+	CHECK(xrtRudpSentAcknowledge(w, &ack, 0, NULL, 0, &count, &change) == XRUDP_OK);
+	CHECK(count == 0 && change.NewlyAckedBytes == 0 && !change.RttSampleValid && change.NewlyAckedEliciting == 0);
+	CHECK(xrtRudpSentRecord(w, 1, 0, 100, 1, 1) == XRUDP_ARGUMENT);
+	CHECK(xrtRudpSentRecord(w, 2, 0, 100, 1, 2) == XRUDP_OK);
+	ack = one_ack(1, 2);
+	CHECK(xrtRudpSentAcknowledge(w, &ack, 1000, events, 40, &count, &change) == XRUDP_OK);
+	CHECK(count == 1 && events[0].PacketNumber == 2 && change.NewlyAckedBytes == 100 && change.RttSampleValid);
+	xrtRudpSentDestroy(w);
 	return 0;
 }
 
