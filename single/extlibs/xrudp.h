@@ -4176,6 +4176,11 @@ static void xrudp__peer_pump(xrudppeer* p, uint64_t now)
 	xrudpendpoint* e = p->Endpoint;
 	if (xrtRudpPeerState(p) == XRUDP_PEER_CLOSED || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
 	if (p->Handshake != NULL) {
+		/* A retained packet waiting for UDP capacity must not bypass the
+		 * absolute handshake deadline by skipping HandshakeNext forever. */
+		if (xrtRudpPeerState(p) == XRUDP_PEER_NEGOTIATING && now >= p->Info.DeadlineUs) {
+			xrudp__peer_close(p, XRUDP_TIMEOUT); return;
+		}
 		if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && now >= p->Info.DeadlineUs) {
 			xrtRudpHandshakeDestroy(p->Handshake); p->Handshake = NULL; p->NextPoll = UINT64_MAX;
 		} else {

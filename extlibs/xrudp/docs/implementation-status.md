@@ -209,6 +209,12 @@ Windows GCC 严格 C11 与 Linux Clang ASan/UBSan，模块化/单头和故障版
 观察到当前单调时间后开始计时；后续写入/读取和 PING 不能不断重置。Windows GCC 与
 Linux Clang ASan/UBSan 的完整会话及分配故障套件通过，处理期仍不增加分配。
 
+握手输出背压的截止修复：保留待发握手包时，驱动原先跳过 HandshakeNext，因而可能绕过
+其绝对截止。驱动现在在发送缓存包之前单独检查截止；不因 UDP 持续背压无限保留半开对象。
+以真实生成的 HELLO 注入待受理状态，截止时必须在触碰 UDP 前 TIMEOUT 并释放；
+禁止分配的取消与存活字节回归通过。隔离的 HEAD 加此修复在 Windows GCC、Linux Clang
+ASan/UBSan 单头中验证，未依赖后续原生数据接口改动。
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。

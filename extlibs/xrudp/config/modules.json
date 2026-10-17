@@ -501,7 +501,8 @@
         "extlibs/xrudp/tests/test_endpoint_fault.c"
       ],
       "single_tests": [
-        "extlibs/xrudp/tests/single/test_single_endpoint_fault.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_fault.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_pending.c"
       ],
       "examples": [],
       "benchmarks": [],
