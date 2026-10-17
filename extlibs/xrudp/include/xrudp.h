@@ -6,5 +6,6 @@
 #include <xrudp/crypto.h>
 #include <xrudp/noise.h>
 #include <xrudp/cookie.h>
+#include <xrudp/ack.h>
 
 #endif

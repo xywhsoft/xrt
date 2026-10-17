@@ -59,6 +59,16 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_ack 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_ACK)
+#ifndef XRUDP_FEATURE_RUDP_ACK
+#define XRUDP_FEATURE_RUDP_ACK
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#endif
+
 /* rudp_cookie 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_COOKIE)
 #ifndef XRUDP_FEATURE_RUDP_COOKIE
@@ -474,6 +484,63 @@ XRUDP_API xrudpresult xrtRudpCookieVerify(const void* pCurrentKey,
 	const void* pPreviousKey, const void* pScope, const void* pHelloHash,
 	const xrudpaddress* pAddress, uint64_t iNowUs, uint64_t iMaxAgeUs,
 	const void* pCookie, size_t iCookieSize);
+
+XRT_EXTERN_C_END
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/ack.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_ACK_H
+#define XRUDP_ACK_H
+
+
+#if defined(XRUDP_FEATURE_RUDP_ACK)
+
+typedef struct xrudpackrange { uint64_t First, Last; } xrudpackrange;
+typedef struct xrudpack {
+	uint32_t DelayUs;
+	uint16_t Count;
+	xrudpackrange Ranges[XRUDP_ACK_RANGES_MAX];
+} xrudpack;
+
+/* Single-owner state initialized by Init. Only the newest 32 disjoint ranges
+ * are retained; missing ranges are not negative acknowledgments. No allocation.
+ * A connection records only authenticated, fully admitted packets. This object
+ * neither schedules ACKs nor updates receive flow-control credit. */
+typedef struct xrudpackset {
+	uint16_t Count;
+	uint64_t LargestAtUs;
+	xrudpackrange Ranges[XRUDP_ACK_RANGES_MAX];
+} xrudpackset;
+
+XRT_EXTERN_C_BEGIN
+
+XRUDP_API void xrtRudpAckSetInit(xrudpackset* pSet);
+/* Test actual retained transport admission. An authenticated crypto-layer
+ * duplicate is not itself proof that stream/resource admission previously
+ * succeeded. A driver may re-ACK it only if this history contains it. */
+XRUDP_API bool xrtRudpAckSetContains(const xrudpackset* pSet,
+	uint64_t iPacketNumber);
+/* DUPLICATE/TOO_OLD leave state unchanged. TOO_OLD means a new isolated range
+ * fell below the bounded retained history; the sender can recover data using
+ * a fresh packet number. Now must not precede the current largest packet time. */
+XRUDP_API xrudpresult xrtRudpAckSetRecord(xrudpackset* pSet,
+	uint64_t iPacketNumber, uint64_t iNowUs);
+/* Encode one complete ACK frame; retains history so lost ACKs can be repeated.
+ * The connection controls ACK-eliciting rules to avoid ACK-of-ACK loops.
+ * Empty history returns DONE; failure changes no destination bytes, written=0. */
+XRUDP_API xrudpresult xrtRudpAckSetEncode(const xrudpackset* pSet,
+	uint64_t iNowUs, void* pOutput, size_t iCapacity, size_t* pWritten);
+/* Decode exactly one canonical ACK frame, rejecting trailing frames/bytes.
+ * This does not check peer authentication or whether packet numbers were sent.
+ * Output is unchanged on failure. */
+XRUDP_API xrudpresult xrtRudpAckDecode(const void* pFrame, size_t iSize,
+	xrudpack* pAck);
 
 XRT_EXTERN_C_END
 
@@ -1488,6 +1555,120 @@ xrudpresult xrtRudpCookieVerify(const void* pCurrentKey,
 	for (size_t i = 0; i < 8; ++i) issued = (issued << 8) | cookie[i];
 	if (iMaxAgeUs == 0) iMaxAgeUs = XRUDP_COOKIE_MAX_AGE_US;
 	if (issued > iNowUs || iNowUs - issued > iMaxAgeUs) return XRUDP_TIMEOUT;
+	return XRUDP_OK;
+}
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrudp/src/recovery/rudp_ack.c */
+/* ========================================================================== */
+
+#if defined(XRUDP_FEATURE_RUDP_ACK)
+#include <string.h>
+
+static void xrudp__ack_put64(unsigned char* p, uint64_t n)
+{
+	for (size_t i = 0; i < 8; ++i) p[7 - i] = (unsigned char)(n >> (i * 8));
+}
+
+static uint64_t xrudp__ack_get64(const unsigned char* p)
+{
+	uint64_t n = 0;
+	for (size_t i = 0; i < 8; ++i) n = (n << 8) | p[i];
+	return n;
+}
+
+void xrtRudpAckSetInit(xrudpackset* pSet)
+{
+	if (pSet != NULL) memset(pSet, 0, sizeof(*pSet));
+}
+
+bool xrtRudpAckSetContains(const xrudpackset* pSet, uint64_t number)
+{
+	if (pSet == NULL || number == 0 || pSet->Count > XRUDP_ACK_RANGES_MAX) return false;
+	for (size_t i = 0; i < pSet->Count; ++i) {
+		if (number >= pSet->Ranges[i].First && number <= pSet->Ranges[i].Last) return true;
+	}
+	return false;
+}
+
+xrudpresult xrtRudpAckSetRecord(xrudpackset* pSet, uint64_t number, uint64_t now)
+{
+	xrudpackrange sorted[XRUDP_ACK_RANGES_MAX + 1];
+	xrudpackrange merged[XRUDP_ACK_RANGES_MAX + 1];
+	size_t index = 0, count, used = 0;
+	if (pSet == NULL || number == 0 || pSet->Count > XRUDP_ACK_RANGES_MAX ||
+		(pSet->Count != 0 && now < pSet->LargestAtUs)) return XRUDP_ARGUMENT;
+	count = pSet->Count;
+	for (size_t i = 0; i < count; ++i) {
+		if (number >= pSet->Ranges[i].First && number <= pSet->Ranges[i].Last)
+			return XRUDP_DUPLICATE;
+	}
+	while (index < count && pSet->Ranges[index].Last > number) ++index;
+	for (size_t i = 0; i < index; ++i) sorted[i] = pSet->Ranges[i];
+	sorted[index].First = sorted[index].Last = number;
+	for (size_t i = index; i < count; ++i) sorted[i + 1] = pSet->Ranges[i];
+	for (size_t i = 0; i < count + 1; ++i) {
+		if (used != 0 && (sorted[i].Last >= merged[used - 1].First ||
+			merged[used - 1].First - sorted[i].Last == 1)) {
+			if (sorted[i].First < merged[used - 1].First)
+				merged[used - 1].First = sorted[i].First;
+		} else merged[used++] = sorted[i];
+	}
+	if (used > XRUDP_ACK_RANGES_MAX) {
+		if (number < merged[XRUDP_ACK_RANGES_MAX - 1].First) return XRUDP_TOO_OLD;
+		used = XRUDP_ACK_RANGES_MAX;
+	}
+	if (count == 0 || number > pSet->Ranges[0].Last) pSet->LargestAtUs = now;
+	pSet->Count = (uint16_t)used;
+	memcpy(pSet->Ranges, merged, used * sizeof(merged[0]));
+	memset(pSet->Ranges + used, 0, (XRUDP_ACK_RANGES_MAX - used) * sizeof(merged[0]));
+	return XRUDP_OK;
+}
+
+xrudpresult xrtRudpAckSetEncode(const xrudpackset* pSet, uint64_t now,
+	void* output, size_t capacity, size_t* written)
+{
+	unsigned char body[8 + XRUDP_ACK_RANGES_MAX * 16] = {0};
+	uint64_t elapsed;
+	uint32_t delay;
+	if (written != NULL) *written = 0;
+	if (pSet == NULL || output == NULL || written == NULL ||
+		pSet->Count > XRUDP_ACK_RANGES_MAX) return XRUDP_ARGUMENT;
+	if (pSet->Count == 0) return XRUDP_DONE;
+	if (now < pSet->LargestAtUs) return XRUDP_ARGUMENT;
+	elapsed = now - pSet->LargestAtUs;
+	delay = elapsed > UINT32_MAX ? UINT32_MAX : (uint32_t)elapsed;
+	for (size_t i = 0; i < 4; ++i) body[3 - i] = (unsigned char)(delay >> (i * 8));
+	body[4] = (unsigned char)(pSet->Count >> 8);
+	body[5] = (unsigned char)pSet->Count;
+	for (size_t i = 0; i < pSet->Count; ++i) {
+		xrudp__ack_put64(body + 8 + i * 16, pSet->Ranges[i].First);
+		xrudp__ack_put64(body + 16 + i * 16, pSet->Ranges[i].Last);
+	}
+	return xrtRudpFrameAppend(output, capacity, written, XRUDP_FRAME_ACK, 0,
+		body, 8u + (size_t)pSet->Count * 16u);
+}
+
+xrudpresult xrtRudpAckDecode(const void* data, size_t size, xrudpack* ack)
+{
+	xrudpwireframe frame;
+	xrudpack decoded;
+	xrudpresult result;
+	size_t offset = 0;
+	if (ack == NULL) return XRUDP_ARGUMENT;
+	result = xrtRudpFrameNext(data, size, &offset, &frame);
+	if (result != XRUDP_OK) return result == XRUDP_DONE ? XRUDP_MALFORMED : result;
+	if (frame.Type != XRUDP_FRAME_ACK || offset != size) return XRUDP_MALFORMED;
+	memset(&decoded, 0, sizeof(decoded));
+	for (size_t i = 0; i < 4; ++i) decoded.DelayUs = (decoded.DelayUs << 8) | frame.Data[i];
+	decoded.Count = (uint16_t)(((uint16_t)frame.Data[4] << 8) | frame.Data[5]);
+	for (size_t i = 0; i < decoded.Count; ++i) {
+		decoded.Ranges[i].First = xrudp__ack_get64(frame.Data + 8 + i * 16);
+		decoded.Ranges[i].Last = xrudp__ack_get64(frame.Data + 16 + i * 16);
+	}
+	*ack = decoded;
 	return XRUDP_OK;
 }
 #endif

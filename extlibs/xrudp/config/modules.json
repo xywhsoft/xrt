@@ -21,7 +21,8 @@
         "state": "retained",
         "source_roots": [
           "wire",
-          "crypto"
+          "crypto",
+          "recovery"
         ]
       }
     ]
@@ -158,6 +159,33 @@
       ],
       "single_tests": [
         "extlibs/xrudp/tests/single/test_single_cookie.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
+      ]
+    },
+    {
+      "name": "rudp_ack",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_ACK",
+      "depends": [
+        "rudp_wire"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/ack.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/recovery/rudp_ack.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_ack.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_ack.c"
       ],
       "examples": [],
       "benchmarks": [],

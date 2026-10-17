@@ -2,6 +2,16 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_ack 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_ACK)
+#ifndef XRUDP_FEATURE_RUDP_ACK
+#define XRUDP_FEATURE_RUDP_ACK
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#endif
+
 /* rudp_cookie 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_COOKIE)
 #ifndef XRUDP_FEATURE_RUDP_COOKIE

@@ -4,8 +4,32 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `24` 个函数、`58` 个常量或宏、
-`15` 个公共类型。
+当前登记 `29` 个函数、`59` 个常量或宏、
+`18` 个公共类型。
+
+## `extlibs/xrudp/include/xrudp/ack.h`
+
+[查看带契约注释的公共头](../../include/xrudp/ack.h)
+
+### 函数 (5)
+
+- `xrtRudpAckDecode`
+- `xrtRudpAckSetContains`
+- `xrtRudpAckSetEncode`
+- `xrtRudpAckSetInit`
+- `xrtRudpAckSetRecord`
+
+### 常量与宏 (2)
+
+- `XRUDP_ACK_RANGES_MAX`
+- `XRUDP_FEATURE_RUDP_ACK`
+
+### 类型 (4)
+
+- `xrudpack`
+- `xrudpackrange`
+- `xrudpackset`
+- `xrudpresult`
 
 ## `extlibs/xrudp/include/xrudp/cookie.h`
 
@@ -22,10 +46,9 @@
 - `XRUDP_COOKIE_SIZE`
 - `XRUDP_FEATURE_RUDP_COOKIE`
 
-### 类型 (2)
+### 类型 (1)
 
 - `xrudpaddress`
-- `xrudpresult`
 
 ## `extlibs/xrudp/include/xrudp/crypto.h`
 
@@ -106,9 +129,8 @@
 - `xrtRudpReplayCheck`
 - `xrtRudpReplayInit`
 
-### 常量与宏 (45)
+### 常量与宏 (44)
 
-- `XRUDP_ACK_RANGES_MAX`
 - `XRUDP_ARGUMENT`
 - `XRUDP_AUTH_FAILED`
 - `XRUDP_BACKPRESSURE`
