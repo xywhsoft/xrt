@@ -41,6 +41,10 @@ static int boundaries(void)
 	ack = one_ack(4, 4);
 	CHECK(xrtRudpSentAcknowledge(w, &ack, 200, events, 40, &count, &change) == XRUDP_MALFORMED);
 	ack = one_ack(3, 3); ack.Count = 2; ack.Ranges[1].First = 1; ack.Ranges[1].Last = 1;
+	CHECK(xrtRudpSentCheckAcknowledge(w, &ack, 200, &count, &change) == XRUDP_OK && count == 2);
+	CHECK(change.NewlyAckedPackets == 2 && change.NewlyAckedBytes == 100 && change.RttSampleUs == 99);
+	CHECK(xrtRudpSentState(w, &s) == XRUDP_OK && memcmp(&s, &saved, sizeof(s)) == 0);
+	change = before;
 	CHECK(xrtRudpSentAcknowledge(w, &ack, 200, events, 1, &count, &change) == XRUDP_BACKPRESSURE);
 	CHECK(count == 0 && memcmp(events, untouched, sizeof(events)) == 0);
 	CHECK(xrtRudpSentState(w, &s) == XRUDP_OK && memcmp(&s, &saved, sizeof(s)) == 0);

@@ -38,6 +38,7 @@ int main(void)
 	CHECK(xrtRudpSentRecord(w, 1, 100, 100, 1, 10) == XRUDP_OK);
 	CHECK(xrtRudpSentRecord(w, 2, 100, 100, 1, 20) == XRUDP_OK);
 	ack.Count = 1; ack.Ranges[0].First = ack.Ranges[0].Last = 2;
+	CHECK(xrtRudpSentCheckAcknowledge(w, &ack, 200, &count, &change) == XRUDP_OK && count == 1);
 	CHECK(xrtRudpSentAcknowledge(w, &ack, 200, event, 2, &count, &change) == XRUDP_OK);
 	CHECK(xrtRudpSentDetectLoss(w, 1000, 1000, 1200, event, 2, &count) == XRUDP_OK);
 	CHECK(xrtRudpSentRecord(w, 3, 1200, 100, 1, 30) == XRUDP_OK);

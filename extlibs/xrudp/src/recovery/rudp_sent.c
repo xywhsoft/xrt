@@ -134,16 +134,14 @@ static xrudpresult xrudp__sent_ack_check(const xrudpsentwindow* w, const xrudpac
 	return XRUDP_OK;
 }
 
-xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* w, const xrudpack* ack,
-	uint64_t now, xrudpsentevent* events, size_t capacity, size_t* count,
-	xrudpackchange* change)
+xrudpresult xrtRudpSentCheckAcknowledge(const xrudpsentwindow* w, const xrudpack* ack,
+	uint64_t now, size_t* count, xrudpackchange* change)
 {
 	xrudpackchange next;
 	xrudpresult result;
-	size_t needed = 0, written = 0;
+	size_t needed = 0;
 	if (count != NULL) *count = 0;
-	if (w == NULL || ack == NULL || count == NULL || change == NULL ||
-		(events == NULL && capacity != 0) || now < w->LastNow) return XRUDP_ARGUMENT;
+	if (w == NULL || ack == NULL || count == NULL || change == NULL || now < w->LastNow) return XRUDP_ARGUMENT;
 	if (w->Stopped) return XRUDP_CLOSED;
 	result = xrudp__sent_ack_check(w, ack);
 	if (result != XRUDP_OK) return result;
@@ -163,7 +161,6 @@ xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* w, const xrudpack* ack,
 			}
 		}
 	}
-	if (needed > capacity) return XRUDP_BACKPRESSURE;
 	if (next.NewlyAckedEliciting != 0) {
 		size_t index = xrudp__sent_lower(w, ack->Ranges[0].Last);
 		if (index < w->Count) {
@@ -174,6 +171,22 @@ xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* w, const xrudpack* ack,
 			}
 		}
 	}
+	*change = next; *count = needed;
+	return XRUDP_OK;
+}
+
+xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* w, const xrudpack* ack,
+	uint64_t now, xrudpsentevent* events, size_t capacity, size_t* count,
+	xrudpackchange* change)
+{
+	xrudpackchange next;
+	size_t needed, written = 0;
+	xrudpresult result;
+	if (count != NULL) *count = 0;
+	if (count == NULL || change == NULL || (events == NULL && capacity != 0)) return XRUDP_ARGUMENT;
+	result = xrtRudpSentCheckAcknowledge(w, ack, now, &needed, &next);
+	if (result != XRUDP_OK) return result;
+	if (needed > capacity) return XRUDP_BACKPRESSURE;
 	/* Validation, event capacity and timing checks are complete. */
 	for (size_t i = 0; i < ack->Count; ++i) {
 		size_t lower = xrudp__sent_lower(w, ack->Ranges[i].First);

@@ -751,6 +751,14 @@ XRUDP_API bool xrtRudpSentCanRecord(const xrudpsentwindow* pWindow, bool bProbe)
 XRUDP_API xrudpresult xrtRudpSentRecord(xrudpsentwindow* pWindow,
 	uint64_t iPacketNumber, uint64_t iNowUs, uint32_t iBytes,
 	uint32_t iFlags, uint64_t iUserTag);
+/* Pure preflight: exact final-event requirement and candidate progress/RTT,
+ * with no time/history/ownership mutation. Use before packet-wide admission.
+ * EventCount=0 on error; Change is otherwise unchanged. Commit still rechecks.
+ * A multi-ACK packet must bound its aggregate scratch and defer callbacks until
+ * its complete receive/control transaction has committed. */
+XRUDP_API xrudpresult xrtRudpSentCheckAcknowledge(const xrudpsentwindow* pWindow,
+	const xrudpack* pAck, uint64_t iNowUs, size_t* pEventCount,
+	xrudpackchange* pChange);
 /* Requires an authenticated canonical ACK. Future ACKs and ACKs covering unsent
  * gaps inside retained history fail atomically. Retired history is ignored and
  * can never grant bytes/progress again. Backpressure means event output is too
@@ -2395,16 +2403,14 @@ static xrudpresult xrudp__sent_ack_check(const xrudpsentwindow* w, const xrudpac
 	return XRUDP_OK;
 }
 
-xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* w, const xrudpack* ack,
-	uint64_t now, xrudpsentevent* events, size_t capacity, size_t* count,
-	xrudpackchange* change)
+xrudpresult xrtRudpSentCheckAcknowledge(const xrudpsentwindow* w, const xrudpack* ack,
+	uint64_t now, size_t* count, xrudpackchange* change)
 {
 	xrudpackchange next;
 	xrudpresult result;
-	size_t needed = 0, written = 0;
+	size_t needed = 0;
 	if (count != NULL) *count = 0;
-	if (w == NULL || ack == NULL || count == NULL || change == NULL ||
-		(events == NULL && capacity != 0) || now < w->LastNow) return XRUDP_ARGUMENT;
+	if (w == NULL || ack == NULL || count == NULL || change == NULL || now < w->LastNow) return XRUDP_ARGUMENT;
 	if (w->Stopped) return XRUDP_CLOSED;
 	result = xrudp__sent_ack_check(w, ack);
 	if (result != XRUDP_OK) return result;
@@ -2424,7 +2430,6 @@ xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* w, const xrudpack* ack,
 			}
 		}
 	}
-	if (needed > capacity) return XRUDP_BACKPRESSURE;
 	if (next.NewlyAckedEliciting != 0) {
 		size_t index = xrudp__sent_lower(w, ack->Ranges[0].Last);
 		if (index < w->Count) {
@@ -2435,6 +2440,22 @@ xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* w, const xrudpack* ack,
 			}
 		}
 	}
+	*change = next; *count = needed;
+	return XRUDP_OK;
+}
+
+xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* w, const xrudpack* ack,
+	uint64_t now, xrudpsentevent* events, size_t capacity, size_t* count,
+	xrudpackchange* change)
+{
+	xrudpackchange next;
+	size_t needed, written = 0;
+	xrudpresult result;
+	if (count != NULL) *count = 0;
+	if (count == NULL || change == NULL || (events == NULL && capacity != 0)) return XRUDP_ARGUMENT;
+	result = xrtRudpSentCheckAcknowledge(w, ack, now, &needed, &next);
+	if (result != XRUDP_OK) return result;
+	if (needed > capacity) return XRUDP_BACKPRESSURE;
 	/* Validation, event capacity and timing checks are complete. */
 	for (size_t i = 0; i < ack->Count; ++i) {
 		size_t lower = xrudp__sent_lower(w, ack->Ranges[i].First);

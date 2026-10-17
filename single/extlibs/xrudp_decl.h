@@ -3142,6 +3142,14 @@ XRUDP_API bool xrtRudpSentCanRecord(const xrudpsentwindow* pWindow, bool bProbe)
 XRUDP_API xrudpresult xrtRudpSentRecord(xrudpsentwindow* pWindow,
 	uint64_t iPacketNumber, uint64_t iNowUs, uint32_t iBytes,
 	uint32_t iFlags, uint64_t iUserTag);
+/* Pure preflight: exact final-event requirement and candidate progress/RTT,
+ * with no time/history/ownership mutation. Use before packet-wide admission.
+ * EventCount=0 on error; Change is otherwise unchanged. Commit still rechecks.
+ * A multi-ACK packet must bound its aggregate scratch and defer callbacks until
+ * its complete receive/control transaction has committed. */
+XRUDP_API xrudpresult xrtRudpSentCheckAcknowledge(const xrudpsentwindow* pWindow,
+	const xrudpack* pAck, uint64_t iNowUs, size_t* pEventCount,
+	xrudpackchange* pChange);
 /* Requires an authenticated canonical ACK. Future ACKs and ACKs covering unsent
  * gaps inside retained history fail atomically. Retired history is ignored and
  * can never grant bytes/progress again. Backpressure means event output is too
