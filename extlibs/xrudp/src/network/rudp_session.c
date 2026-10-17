@@ -20,7 +20,7 @@ struct xrudpsession {
 	xrudpsessionsendproc Send;
 	void* Context;
 	xrudpresult Reason;
-	bool Busy, Work, AckWanted, ConfirmWanted;
+	bool Busy, Work, WorkStartPending, AckWanted, ConfirmWanted;
 	size_t Allocation;
 	uint32_t Slots, PtoCount, Probes, ElicitingSinceAck;
 	uint64_t Now, Activity, Progress, IdleUs, PtoAt, AckAt, ControlAt;
@@ -140,7 +140,7 @@ static xrudpresult xrudp__session_abort(xrudpsession* s, xrudpresult reason)
 	(void)xrtRudpSentAbort(s->Sent, s->Events, s->Slots, &count);
 	(void)xrtRudpCongestionApply(&s->Cc, s->Events, count, s->Now, true);
 	memset(s->Ref, 0, s->Slots * sizeof(*s->Ref)); xrtRudpCipherDestroy(s->Cipher); s->Cipher = NULL;
-	s->AckWanted = s->ConfirmWanted = s->Work = false; s->Probes = 0; s->PtoAt = 0; s->Reason = reason;
+	s->AckWanted = s->ConfirmWanted = s->Work = s->WorkStartPending = false; s->Probes = 0; s->PtoAt = 0; s->Reason = reason;
 	return XRUDP_OK;
 }
 xrudpresult xrtRudpSessionAbort(xrudpsession* s, xrudpresult reason)
@@ -174,13 +174,19 @@ xrudpresult xrtRudpSessionWrite(xrudpsession* s, const void* data, size_t size, 
 	if (written != NULL) *written = 0;
 	if (s == NULL || s->Busy || written == NULL || (data == NULL && size != 0)) return XRUDP_ARGUMENT;
 	if (s->Reason != XRUDP_OK) return s->Reason;
-	xrudpresult result = xrtRudpTransmitWrite(s->Tx, data, size, written); xrudp__session_syncwork(s); return result;
+	bool prior = s->Work;
+	xrudpresult result = xrtRudpTransmitWrite(s->Tx, data, size, written); xrudp__session_syncwork(s);
+	if (!prior && s->Work) s->WorkStartPending = true;
+	return result;
 }
 xrudpresult xrtRudpSessionFinish(xrudpsession* s)
 {
 	if (s == NULL || s->Busy) return XRUDP_ARGUMENT;
 	if (s->Reason != XRUDP_OK) return s->Reason;
-	xrudpresult result = xrtRudpTransmitFinish(s->Tx); xrudp__session_syncwork(s); return result;
+	bool prior = s->Work;
+	xrudpresult result = xrtRudpTransmitFinish(s->Tx); xrudp__session_syncwork(s);
+	if (!prior && s->Work) s->WorkStartPending = true;
+	return result;
 }
 static void xrudp__session_consumed(xrudpsession* s, uint64_t amount)
 {
@@ -194,9 +200,19 @@ xrudpresult xrtRudpSessionRead(xrudpsession* s, void* output, size_t capacity, s
 	if (read != NULL) *read = 0;
 	if (s == NULL || s->Busy || output == NULL || capacity == 0 || read == NULL) return XRUDP_ARGUMENT;
 	if (s->Reason != XRUDP_OK) return s->Reason;
+	bool prior = s->Work;
 	xrudpresult result = xrtRudpReceiveRead(s->Rx, output, capacity, read);
 	if (*read != 0) xrudp__session_consumed(s, *read);
+	if (!prior && s->Work) s->WorkStartPending = true;
 	return result;
+}
+static void xrudp__session_clock(xrudpsession* s, uint64_t now)
+{
+	s->Now = now;
+	/* Clock-free application operations cannot use a stale idle timestamp to
+	 * start their deadline. Anchor only this idle->work transition at the next
+	 * driver observation; further writes/reads cannot continually rearm it. */
+	if (s->WorkStartPending) { s->Progress = now; s->WorkStartPending = false; }
 }
 static bool xrudp__session_dead(xrudpsession* s, uint64_t now)
 {
@@ -261,7 +277,7 @@ xrudpresult xrtRudpSessionInput(xrudpsession* s, const void* packet, size_t size
 {
 	if (s == NULL || s->Busy || packet == NULL || now < s->Now) return XRUDP_ARGUMENT;
 	if (s->Reason != XRUDP_OK) return s->Reason;
-	s->Now = now;
+	xrudp__session_clock(s, now);
 	if (xrudp__session_dead(s, now)) { (void)xrudp__session_abort(s, XRUDP_TIMEOUT); return XRUDP_TIMEOUT; }
 	unsigned char plain[XRUDP_PACKET_MAX]; size_t length, cursor = 0;
 	xrudpcipherstate previous, current; xrudpwirepacket parsed;
@@ -505,7 +521,7 @@ xrudpresult xrtRudpSessionPoll(xrudpsession* s, uint64_t now, uint64_t* output)
 {
 	if (s == NULL || s->Busy || output == NULL || now < s->Now) return XRUDP_ARGUMENT;
 	if (s->Reason != XRUDP_OK) return s->Reason;
-	s->Now = now;
+	xrudp__session_clock(s, now);
 	if (xrudp__session_dead(s, now)) { (void)xrudp__session_abort(s, XRUDP_TIMEOUT); return XRUDP_TIMEOUT; }
 	s->Busy = true; xrudpresult result = xrudp__session_losses(s, 0);
 	if (result != XRUDP_OK) goto failure;

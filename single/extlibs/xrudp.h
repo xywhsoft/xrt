@@ -1382,7 +1382,7 @@ XRUDP_API void xrtRudpSessionConfigInit(xrudpsessionconfig* pConfig);
  * allocator overhead and the caller's UDP queues. Reserve BEFORE admission. */
 XRUDP_API xrudpresult xrtRudpSessionAllocationSize(const xrudpsessionconfig* pConfig, size_t* pSize);
 /* Cipher must be exclusively owned and promoted from completed proof: next PN
- * 2, largest received >=1, epoch 1. Ownership transfers ONLY on success; output
+ * 2, largest received 1, epoch 1. Ownership transfers ONLY on success; output
  * remains unchanged on failure. Session initializes sent/ACK proof prefix 1.
  * Config identity/parameters must come from the authenticated handshake. */
 XRUDP_API xrudpresult xrtRudpSessionCreate(const xrudpsessionconfig* pConfig,
@@ -1406,7 +1406,9 @@ XRUDP_API xrudpresult xrtRudpSessionInput(xrudpsession* pSession,
 /* Bounded maintenance/output (<=8 datagrams), no allocation. Due is the next
  * monotonic microsecond service deadline, also when output is backpressured.
  * Call again after Write/Finish/Read/Input and at Due; no blocking or sleeps.
- * Time must never go backwards. Finite idle AND useful-progress deadlines apply. */
+ * Time must never go backwards. Finite idle AND useful-progress deadlines apply.
+ * New local work after idle starts its progress deadline at the first following
+ * Poll/Input clock observation. Additional local operations cannot renew it. */
 XRUDP_API xrudpresult xrtRudpSessionPoll(xrudpsession* pSession,
 	uint64_t iNowUs, uint64_t* pDueUs);
 /* Local cancellation, no output/allocation. Clears plaintext and drains unique
@@ -4478,7 +4480,7 @@ struct xrudpsession {
 	xrudpsessionsendproc Send;
 	void* Context;
 	xrudpresult Reason;
-	bool Busy, Work, AckWanted, ConfirmWanted;
+	bool Busy, Work, WorkStartPending, AckWanted, ConfirmWanted;
 	size_t Allocation;
 	uint32_t Slots, PtoCount, Probes, ElicitingSinceAck;
 	uint64_t Now, Activity, Progress, IdleUs, PtoAt, AckAt, ControlAt;
@@ -4598,7 +4600,7 @@ static xrudpresult xrudp__session_abort(xrudpsession* s, xrudpresult reason)
 	(void)xrtRudpSentAbort(s->Sent, s->Events, s->Slots, &count);
 	(void)xrtRudpCongestionApply(&s->Cc, s->Events, count, s->Now, true);
 	memset(s->Ref, 0, s->Slots * sizeof(*s->Ref)); xrtRudpCipherDestroy(s->Cipher); s->Cipher = NULL;
-	s->AckWanted = s->ConfirmWanted = s->Work = false; s->Probes = 0; s->PtoAt = 0; s->Reason = reason;
+	s->AckWanted = s->ConfirmWanted = s->Work = s->WorkStartPending = false; s->Probes = 0; s->PtoAt = 0; s->Reason = reason;
 	return XRUDP_OK;
 }
 xrudpresult xrtRudpSessionAbort(xrudpsession* s, xrudpresult reason)
@@ -4632,13 +4634,19 @@ xrudpresult xrtRudpSessionWrite(xrudpsession* s, const void* data, size_t size, 
 	if (written != NULL) *written = 0;
 	if (s == NULL || s->Busy || written == NULL || (data == NULL && size != 0)) return XRUDP_ARGUMENT;
 	if (s->Reason != XRUDP_OK) return s->Reason;
-	xrudpresult result = xrtRudpTransmitWrite(s->Tx, data, size, written); xrudp__session_syncwork(s); return result;
+	bool prior = s->Work;
+	xrudpresult result = xrtRudpTransmitWrite(s->Tx, data, size, written); xrudp__session_syncwork(s);
+	if (!prior && s->Work) s->WorkStartPending = true;
+	return result;
 }
 xrudpresult xrtRudpSessionFinish(xrudpsession* s)
 {
 	if (s == NULL || s->Busy) return XRUDP_ARGUMENT;
 	if (s->Reason != XRUDP_OK) return s->Reason;
-	xrudpresult result = xrtRudpTransmitFinish(s->Tx); xrudp__session_syncwork(s); return result;
+	bool prior = s->Work;
+	xrudpresult result = xrtRudpTransmitFinish(s->Tx); xrudp__session_syncwork(s);
+	if (!prior && s->Work) s->WorkStartPending = true;
+	return result;
 }
 static void xrudp__session_consumed(xrudpsession* s, uint64_t amount)
 {
@@ -4652,9 +4660,19 @@ xrudpresult xrtRudpSessionRead(xrudpsession* s, void* output, size_t capacity, s
 	if (read != NULL) *read = 0;
 	if (s == NULL || s->Busy || output == NULL || capacity == 0 || read == NULL) return XRUDP_ARGUMENT;
 	if (s->Reason != XRUDP_OK) return s->Reason;
+	bool prior = s->Work;
 	xrudpresult result = xrtRudpReceiveRead(s->Rx, output, capacity, read);
 	if (*read != 0) xrudp__session_consumed(s, *read);
+	if (!prior && s->Work) s->WorkStartPending = true;
 	return result;
+}
+static void xrudp__session_clock(xrudpsession* s, uint64_t now)
+{
+	s->Now = now;
+	/* Clock-free application operations cannot use a stale idle timestamp to
+	 * start their deadline. Anchor only this idle->work transition at the next
+	 * driver observation; further writes/reads cannot continually rearm it. */
+	if (s->WorkStartPending) { s->Progress = now; s->WorkStartPending = false; }
 }
 static bool xrudp__session_dead(xrudpsession* s, uint64_t now)
 {
@@ -4719,7 +4737,7 @@ xrudpresult xrtRudpSessionInput(xrudpsession* s, const void* packet, size_t size
 {
 	if (s == NULL || s->Busy || packet == NULL || now < s->Now) return XRUDP_ARGUMENT;
 	if (s->Reason != XRUDP_OK) return s->Reason;
-	s->Now = now;
+	xrudp__session_clock(s, now);
 	if (xrudp__session_dead(s, now)) { (void)xrudp__session_abort(s, XRUDP_TIMEOUT); return XRUDP_TIMEOUT; }
 	unsigned char plain[XRUDP_PACKET_MAX]; size_t length, cursor = 0;
 	xrudpcipherstate previous, current; xrudpwirepacket parsed;
@@ -4963,7 +4981,7 @@ xrudpresult xrtRudpSessionPoll(xrudpsession* s, uint64_t now, uint64_t* output)
 {
 	if (s == NULL || s->Busy || output == NULL || now < s->Now) return XRUDP_ARGUMENT;
 	if (s->Reason != XRUDP_OK) return s->Reason;
-	s->Now = now;
+	xrudp__session_clock(s, now);
 	if (xrudp__session_dead(s, now)) { (void)xrudp__session_abort(s, XRUDP_TIMEOUT); return XRUDP_TIMEOUT; }
 	s->Busy = true; xrudpresult result = xrudp__session_losses(s, 0);
 	if (result != XRUDP_OK) goto failure;

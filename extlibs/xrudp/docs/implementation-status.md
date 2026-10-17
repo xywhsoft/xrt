@@ -204,6 +204,11 @@ Windows GCC 严格 C11 与 Linux Clang ASan/UBSan，模块化/单头和故障版
 当前只启用默认 stream 1（Local.MaxStreams=1），高级 OPEN、多流消息、持久拥塞区间证明、
 优雅关闭/RESET 发送、原生端点数据接口、NAT/xs/mdo 接入和生产验收均待继续。
 
+空闲后首次本地工作的截止修复：新增回归复现维护时间落后于首次写入时，进度截止使用
+旧时间而立即误报 TIMEOUT。仅从空闲转为有工作时设置一次待定起点，在下一次 Poll/Input
+观察到当前单调时间后开始计时；后续写入/读取和 PING 不能不断重置。Windows GCC 与
+Linux Clang ASan/UBSan 的完整会话及分配故障套件通过，处理期仍不增加分配。
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。

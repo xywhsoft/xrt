@@ -259,6 +259,17 @@ static int transaction_cases(void)
 }
 static int admission_cases(void)
 {
+	/* Local work starts at the next driver clock observation, not the previous
+	 * idle maintenance tick. Write has no clock argument and may follow a long
+	 * quiet interval shorter than the negotiated idle timeout. */
+	memset(&net, 0, sizeof(net)); xrudpsessionconfig cfg; configure(&cfg, 512, 1200);
+	cfg.ProgressTimeoutUs = 1000000; xrudpcipher* peer; xrudpsession* s;
+	CHECK(raw_session(&peer, &s, &cfg) == 0); uint64_t idleDue; size_t idleWritten;
+	CHECK(xrtRudpSessionPoll(s, 5000000, &idleDue) == XRUDP_OK);
+	CHECK(xrtRudpSessionWrite(s, "new", 3, &idleWritten) == XRUDP_OK && idleWritten == 3);
+	CHECK(xrtRudpSessionPoll(s, 10000000, &idleDue) == XRUDP_OK);
+	xrudpsessionstate idleState; CHECK(xrtRudpSessionState(s, &idleState) == XRUDP_OK && idleState.ProgressAtUs == 10000000);
+	xrtRudpSessionDestroy(s); xrtRudpCipherDestroy(peer);
 	for (unsigned int mode = 0; mode < 3; ++mode) {
 		tick = 0; CHECK(new_pair(512, 1200, false) == 0);
 		net.Output[0].Block = mode == 0; net.Output[0].OutOfMemory = mode == 1; net.Output[0].Error = mode == 2;
@@ -337,6 +348,7 @@ static int deadlines_and_control(void)
 	/* Fresh authenticated PING keeps idle alive but does not extend a blocked
 	 * application write's useful-progress deadline. */
 	unsigned char ping[4] = {XRUDP_FRAME_PING,0,0,0}; uint64_t due;
+	CHECK(xrtRudpSessionPoll(s, 0, &due) == XRUDP_OK);
 	for (uint64_t now = 100000; now < 1000000; now += 100000) {
 		CHECK(deliver_raw(s, peer, ping, sizeof(ping), now, XRUDP_OK) == 0);
 		CHECK(xrtRudpSessionPoll(s, now, &due) == XRUDP_OK);

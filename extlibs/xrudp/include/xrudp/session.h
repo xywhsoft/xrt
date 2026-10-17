@@ -57,7 +57,7 @@ XRUDP_API void xrtRudpSessionConfigInit(xrudpsessionconfig* pConfig);
  * allocator overhead and the caller's UDP queues. Reserve BEFORE admission. */
 XRUDP_API xrudpresult xrtRudpSessionAllocationSize(const xrudpsessionconfig* pConfig, size_t* pSize);
 /* Cipher must be exclusively owned and promoted from completed proof: next PN
- * 2, largest received >=1, epoch 1. Ownership transfers ONLY on success; output
+ * 2, largest received 1, epoch 1. Ownership transfers ONLY on success; output
  * remains unchanged on failure. Session initializes sent/ACK proof prefix 1.
  * Config identity/parameters must come from the authenticated handshake. */
 XRUDP_API xrudpresult xrtRudpSessionCreate(const xrudpsessionconfig* pConfig,
@@ -81,7 +81,9 @@ XRUDP_API xrudpresult xrtRudpSessionInput(xrudpsession* pSession,
 /* Bounded maintenance/output (<=8 datagrams), no allocation. Due is the next
  * monotonic microsecond service deadline, also when output is backpressured.
  * Call again after Write/Finish/Read/Input and at Due; no blocking or sleeps.
- * Time must never go backwards. Finite idle AND useful-progress deadlines apply. */
+ * Time must never go backwards. Finite idle AND useful-progress deadlines apply.
+ * New local work after idle starts its progress deadline at the first following
+ * Poll/Input clock observation. Additional local operations cannot renew it. */
 XRUDP_API xrudpresult xrtRudpSessionPoll(xrudpsession* pSession,
 	uint64_t iNowUs, uint64_t* pDueUs);
 /* Local cancellation, no output/allocation. Clears plaintext and drains unique
