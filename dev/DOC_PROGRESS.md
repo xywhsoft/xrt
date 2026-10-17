@@ -7,6 +7,7 @@
 
 | # | 文件 | API 数 | 状态 | 备注 |
 |---|---|---|---|---|
+| CRC32 | crc32.md | 2 | **完成** | 2026-10-17 新模块；G1/G2/G4/G5 两函数、零类型/常量通过，G3 两片段通过，12 项深度审计零发现；已注册范例在 Windows GCC 编译运行通过，Linux 原生核心与压缩/VFS 回归通过 |
 | 1 | array.md | 50 | **完成** | 试点 1；50 函数 G1-G4 全绿（2026-09-07） |
 | 2 | asn1.md | 27 | **完成** | 27/27 全绿（G3 27 片段，2026-09-07）；错误码 TAG/LENGTH/VALUE/TYPE/END/TRAILING/ORDER/DEPTH/RANGE 九码全表成文；编码器族（Append*8 + Oid 工具 3）首入文档 |
 | 3 | atomic.md | 29 | **完成** | 29/29 全绿（G3 29 片段，2026-09-07）；范例 atomic_tour 补 5 个缺口 API（32Store/FetchAdd/FetchSub、64Store、PtrInit/PtrStore）并实测通过 |
