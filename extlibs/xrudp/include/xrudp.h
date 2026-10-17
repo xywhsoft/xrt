@@ -8,5 +8,6 @@
 #include <xrudp/cookie.h>
 #include <xrudp/ack.h>
 #include <xrudp/timing.h>
+#include <xrudp/sent.h>
 
 #endif

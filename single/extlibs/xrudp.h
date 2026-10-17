@@ -59,6 +59,16 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_sent 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_SENT)
+#ifndef XRUDP_FEATURE_RUDP_SENT
+#define XRUDP_FEATURE_RUDP_SENT
+#endif
+#ifndef XRUDP_MODULE_RUDP_ACK
+#define XRUDP_MODULE_RUDP_ACK
+#endif
+#endif
+
 /* rudp_timing 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_TIMING)
 #ifndef XRUDP_FEATURE_RUDP_TIMING
@@ -602,6 +612,112 @@ XRUDP_API xrudpresult xrtRudpRttPto(const xrudprtt* pRtt,
 /* ceil(9/8 * max(latest,smoothed)), no less than timer granularity. */
 XRUDP_API xrudpresult xrtRudpRttLossDelay(const xrudprtt* pRtt,
 	uint64_t* pIntervalUs);
+
+XRT_EXTERN_C_END
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/sent.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_SENT_H
+#define XRUDP_SENT_H
+
+
+#if defined(XRUDP_FEATURE_RUDP_SENT)
+
+#define XRUDP_SENT_CAPACITY_DEFAULT 256u
+#define XRUDP_SENT_CAPACITY_MAX 4096u
+#define XRUDP_SENT_PROBE_RESERVE 32u
+#define XRUDP_SENT_ACK_ELICITING 1u
+#define XRUDP_SENT_PROBE 2u
+#define XRUDP_SENT_PADDING 4u
+
+typedef struct xrudpsentwindow xrudpsentwindow;
+typedef enum xrudpsenteventkind {
+	XRUDP_SENT_ACKED = 1,
+	XRUDP_SENT_LOST = 2,
+	XRUDP_SENT_EXPIRED = 3,
+	XRUDP_SENT_CANCELLED = 4
+} xrudpsenteventkind;
+
+typedef struct xrudpsentevent {
+	uint64_t PacketNumber;
+	uint64_t UserTag;
+	uint64_t SentAtUs;
+	uint32_t Bytes;
+	uint32_t Flags;
+	uint32_t Kind;
+	uint32_t Reserved;
+} xrudpsentevent;
+
+typedef struct xrudpsentstate {
+	uint64_t LargestSent;
+	uint64_t LargestAcked;
+	uint64_t BytesInFlight;
+	uint64_t LastNowUs; /* Mutation time, not peer liveness/progress. */
+	uint32_t NormalCapacity;
+	uint32_t TotalCapacity;
+	uint32_t StoredPackets;
+	uint32_t PendingPackets;
+	uint32_t Stopped;
+	uint32_t Reserved;
+} xrudpsentstate;
+
+typedef struct xrudpackchange {
+	uint64_t LargestAcked;
+	uint64_t NewlyAckedBytes;
+	uint64_t RttSampleUs;
+	uint32_t NewlyAckedPackets;
+	uint32_t NewlyAckedEliciting;
+	uint32_t RttSampleValid;
+	uint32_t PeerAckDelayUs;
+} xrudpackchange;
+
+XRT_EXTERN_C_BEGIN
+
+/* One fixed allocation, no allocation during processing. Capacity=0 uses 256;
+ * 32 additional slots are reserved for PTO probes. Serialized by one owner.
+ * All output buffers/objects must be disjoint from inputs and window storage.
+ * Numeric UserTags are borrowed identifiers, not owned/released pointers.
+ * Each tracked packet produces at most one final ACKED/LOST/EXPIRED/CANCELLED
+ * event. A late ACK of a declared-lost packet does not produce a second event.
+ * Logical data may retransmit under a new packet; deduplication is stream-level. */
+XRUDP_API xrudpresult xrtRudpSentCreate(uint32_t iCapacity, xrudpsentwindow** ppWindow);
+XRUDP_API void xrtRudpSentDestroy(xrudpsentwindow* pWindow);
+XRUDP_API xrudpresult xrtRudpSentState(const xrudpsentwindow* pWindow, xrudpsentstate* pState);
+XRUDP_API bool xrtRudpSentCanRecord(const xrudpsentwindow* pWindow, bool bProbe);
+/* Record every DATA packet actually admitted to UDP output, including ACK-only
+ * packets. Numbers strictly increase, gaps are permitted for failed sends.
+ * Check capacity under the same serialized owner before sealing/sending.
+ * Probe must be ACK-eliciting. PADDING marks padded packets, which count toward
+ * congestion even when not ACK-eliciting. Bytes is the protected UDP payload. */
+XRUDP_API xrudpresult xrtRudpSentRecord(xrudpsentwindow* pWindow,
+	uint64_t iPacketNumber, uint64_t iNowUs, uint32_t iBytes,
+	uint32_t iFlags, uint64_t iUserTag);
+/* Requires an authenticated canonical ACK. Future ACKs and ACKs covering unsent
+ * gaps inside retained history fail atomically. Retired history is ignored and
+ * can never grant bytes/progress again. Backpressure means event output is too
+ * small; nothing is changed and the caller may retry its retained ACK value.
+ * Failure leaves change/events unchanged and *pCount=0. */
+XRUDP_API xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* pWindow,
+	const xrudpack* pAck, uint64_t iNowUs,
+	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount,
+	xrudpackchange* pChange);
+/* Packet threshold=3; time threshold only applies below largest acknowledged.
+ * ACK-only metadata expires independently without a congestion-loss signal.
+ * Delays are monotonic microseconds and must be >=1ms. Does not declare all
+ * outstanding data lost merely because a PTO fires; PTO probing is separate. */
+XRUDP_API xrudpresult xrtRudpSentDetectLoss(xrudpsentwindow* pWindow,
+	uint64_t iLossDelayUs, uint64_t iAckOnlyAgeUs, uint64_t iNowUs,
+	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
+/* Complete pending packets as CANCELLED, then stop accepting new records.
+ * Caller drains/cancels higher-level stream operations before Destroy. */
+XRUDP_API xrudpresult xrtRudpSentAbort(xrudpsentwindow* pWindow,
+	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
 
 XRT_EXTERN_C_END
 
@@ -1817,6 +1933,254 @@ xrudpresult xrtRudpRttLossDelay(const xrudprtt* pRtt, uint64_t* interval)
 	fraction = largest / 8 + (largest % 8 != 0 ? 1u : 0u);
 	value = xrudp__timing_add(largest, fraction);
 	*interval = value < XRUDP_TIMER_GRANULARITY_US ? XRUDP_TIMER_GRANULARITY_US : value;
+	return XRUDP_OK;
+}
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrudp/src/recovery/rudp_sent.c */
+/* ========================================================================== */
+
+#if defined(XRUDP_FEATURE_RUDP_SENT)
+#include <string.h>
+
+typedef struct xrudp__sentpacket {
+	uint64_t Number, AtUs, Tag;
+	uint32_t Bytes, Flags;
+	uint32_t Status;
+} xrudp__sentpacket;
+
+struct xrudpsentwindow {
+	uint64_t LargestSent, LargestAcked, InFlight, LastNow;
+	uint32_t NormalCapacity, Capacity, Head, Count, Pending;
+	bool Stopped;
+	xrudp__sentpacket Packets[];
+};
+
+static xrudp__sentpacket* xrudp__sent_at(const xrudpsentwindow* w, size_t index)
+{
+	return (xrudp__sentpacket*)&w->Packets[(w->Head + index) % w->Capacity];
+}
+
+static size_t xrudp__sent_lower(const xrudpsentwindow* w, uint64_t number)
+{
+	size_t first = 0, last = w->Count;
+	while (first < last) {
+		size_t middle = first + (last - first) / 2;
+		if (xrudp__sent_at(w, middle)->Number < number) first = middle + 1;
+		else last = middle;
+	}
+	return first;
+}
+
+static void xrudp__sent_trim(xrudpsentwindow* w)
+{
+	while (w->Count != 0 && xrudp__sent_at(w, 0)->Status != 0) {
+		memset(xrudp__sent_at(w, 0), 0, sizeof(xrudp__sentpacket));
+		w->Head = (w->Head + 1) % w->Capacity;
+		--w->Count;
+	}
+}
+
+static void xrudp__sent_finish(xrudpsentwindow* w, xrudp__sentpacket* p,
+	uint32_t kind, xrudpsentevent* event)
+{
+	memset(event, 0, sizeof(*event));
+	event->PacketNumber = p->Number; event->UserTag = p->Tag;
+	event->SentAtUs = p->AtUs; event->Bytes = p->Bytes;
+	event->Flags = p->Flags; event->Kind = kind;
+	if ((p->Flags & (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING)) != 0) w->InFlight -= p->Bytes;
+	p->Status = kind;
+	p->Tag = 0;
+	--w->Pending;
+}
+
+xrudpresult xrtRudpSentCreate(uint32_t capacity, xrudpsentwindow** output)
+{
+	xrudpsentwindow* w;
+	size_t size;
+	if (output == NULL || capacity > XRUDP_SENT_CAPACITY_MAX) return XRUDP_ARGUMENT;
+	if (capacity == 0) capacity = XRUDP_SENT_CAPACITY_DEFAULT;
+	size = sizeof(*w) + (capacity + XRUDP_SENT_PROBE_RESERVE) * sizeof(xrudp__sentpacket);
+	w = (xrudpsentwindow*)xrtMalloc(size);
+	if (w == NULL) return XRUDP_NO_MEMORY;
+	memset(w, 0, size);
+	w->NormalCapacity = capacity; w->Capacity = capacity + XRUDP_SENT_PROBE_RESERVE;
+	*output = w;
+	return XRUDP_OK;
+}
+
+void xrtRudpSentDestroy(xrudpsentwindow* w)
+{
+	if (w != NULL) {
+		size_t size = sizeof(*w) + w->Capacity * sizeof(xrudp__sentpacket);
+		xrtSecureZero(w, size);
+		xrtFree(w);
+	}
+}
+
+xrudpresult xrtRudpSentState(const xrudpsentwindow* w, xrudpsentstate* output)
+{
+	xrudpsentstate state;
+	if (w == NULL || output == NULL) return XRUDP_ARGUMENT;
+	memset(&state, 0, sizeof(state));
+	state.LargestSent = w->LargestSent; state.LargestAcked = w->LargestAcked;
+	state.BytesInFlight = w->InFlight; state.LastNowUs = w->LastNow;
+	state.NormalCapacity = w->NormalCapacity; state.TotalCapacity = w->Capacity;
+	state.StoredPackets = w->Count; state.PendingPackets = w->Pending;
+	state.Stopped = w->Stopped ? 1u : 0u;
+	*output = state;
+	return XRUDP_OK;
+}
+
+bool xrtRudpSentCanRecord(const xrudpsentwindow* w, bool probe)
+{
+	return w != NULL && !w->Stopped && w->Count < (probe ? w->Capacity : w->NormalCapacity);
+}
+
+xrudpresult xrtRudpSentRecord(xrudpsentwindow* w, uint64_t number,
+	uint64_t now, uint32_t bytes, uint32_t flags, uint64_t tag)
+{
+	xrudp__sentpacket* p;
+	bool probe = (flags & XRUDP_SENT_PROBE) != 0;
+	if (w == NULL || number == 0 || number == UINT64_MAX || number <= w->LargestSent ||
+		now < w->LastNow || bytes < XRUDP_HEADER_SIZE + XRUDP_TAG_SIZE + XRUDP_FRAME_HEADER_SIZE ||
+		bytes > XRUDP_PACKET_MAX || (flags & ~(XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PROBE | XRUDP_SENT_PADDING)) != 0 ||
+		(probe && (flags & XRUDP_SENT_ACK_ELICITING) == 0)) return XRUDP_ARGUMENT;
+	if (w->Stopped) return XRUDP_CLOSED;
+	if (!xrtRudpSentCanRecord(w, probe)) return XRUDP_BACKPRESSURE;
+	p = xrudp__sent_at(w, w->Count++);
+	memset(p, 0, sizeof(*p));
+	p->Number = number; p->AtUs = now; p->Tag = tag; p->Bytes = bytes; p->Flags = flags;
+	w->LargestSent = number; w->LastNow = now; ++w->Pending;
+	if ((flags & (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING)) != 0) w->InFlight += bytes;
+	return XRUDP_OK;
+}
+
+static xrudpresult xrudp__sent_ack_check(const xrudpsentwindow* w, const xrudpack* ack)
+{
+	uint64_t previous = 0;
+	if (ack->Count == 0 || ack->Count > XRUDP_ACK_RANGES_MAX) return XRUDP_MALFORMED;
+	for (size_t i = 0; i < ack->Count; ++i) {
+		uint64_t first = ack->Ranges[i].First, last = ack->Ranges[i].Last;
+		size_t lower, upper;
+		if (first == 0 || first > last || last > w->LargestSent ||
+			(i != 0 && (last >= previous || previous - last <= 1))) return XRUDP_MALFORMED;
+		previous = first;
+		if (w->Count == 0 || last < xrudp__sent_at(w, 0)->Number) continue;
+		if (first < xrudp__sent_at(w, 0)->Number) first = xrudp__sent_at(w, 0)->Number;
+		lower = xrudp__sent_lower(w, first);
+		upper = xrudp__sent_lower(w, last + 1);
+		if ((uint64_t)(upper - lower) != last - first + 1) return XRUDP_MALFORMED;
+	}
+	return XRUDP_OK;
+}
+
+xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* w, const xrudpack* ack,
+	uint64_t now, xrudpsentevent* events, size_t capacity, size_t* count,
+	xrudpackchange* change)
+{
+	xrudpackchange next;
+	xrudpresult result;
+	size_t needed = 0, written = 0;
+	if (count != NULL) *count = 0;
+	if (w == NULL || ack == NULL || count == NULL || change == NULL ||
+		(events == NULL && capacity != 0) || now < w->LastNow) return XRUDP_ARGUMENT;
+	if (w->Stopped) return XRUDP_CLOSED;
+	result = xrudp__sent_ack_check(w, ack);
+	if (result != XRUDP_OK) return result;
+	memset(&next, 0, sizeof(next));
+	next.LargestAcked = ack->Ranges[0].Last > w->LargestAcked ? ack->Ranges[0].Last : w->LargestAcked;
+	next.PeerAckDelayUs = ack->DelayUs;
+	for (size_t i = 0; i < ack->Count; ++i) {
+		size_t lower = xrudp__sent_lower(w, ack->Ranges[i].First);
+		size_t upper = xrudp__sent_lower(w, ack->Ranges[i].Last + 1);
+		for (size_t j = lower; j < upper; ++j) {
+			const xrudp__sentpacket* p = xrudp__sent_at(w, j);
+			if (p->Status != 0) continue;
+			++needed; ++next.NewlyAckedPackets;
+			if ((p->Flags & XRUDP_SENT_ACK_ELICITING) != 0) ++next.NewlyAckedEliciting;
+			if ((p->Flags & (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING)) != 0) {
+				next.NewlyAckedBytes += p->Bytes;
+			}
+		}
+	}
+	if (needed > capacity) return XRUDP_BACKPRESSURE;
+	if (next.NewlyAckedEliciting != 0) {
+		size_t index = xrudp__sent_lower(w, ack->Ranges[0].Last);
+		if (index < w->Count) {
+			const xrudp__sentpacket* p = xrudp__sent_at(w, index);
+			if (p->Number == ack->Ranges[0].Last && p->Status == 0) {
+				next.RttSampleUs = now - p->AtUs;
+				next.RttSampleValid = 1;
+			}
+		}
+	}
+	/* Validation, event capacity and timing checks are complete. */
+	for (size_t i = 0; i < ack->Count; ++i) {
+		size_t lower = xrudp__sent_lower(w, ack->Ranges[i].First);
+		size_t upper = xrudp__sent_lower(w, ack->Ranges[i].Last + 1);
+		for (size_t j = lower; j < upper; ++j) {
+			xrudp__sentpacket* p = xrudp__sent_at(w, j);
+			if (p->Status == 0) xrudp__sent_finish(w, p, XRUDP_SENT_ACKED, &events[written++]);
+		}
+	}
+	w->LargestAcked = next.LargestAcked; w->LastNow = now;
+	xrudp__sent_trim(w);
+	*change = next; *count = written;
+	return XRUDP_OK;
+}
+
+static uint32_t xrudp__sent_loss_kind(const xrudpsentwindow* w,
+	const xrudp__sentpacket* p, uint64_t lossDelay, uint64_t ackOnlyAge, uint64_t now)
+{
+	if (p->Status != 0) return 0;
+	if ((p->Flags & (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING)) == 0)
+		return now - p->AtUs >= ackOnlyAge ? XRUDP_SENT_EXPIRED : 0;
+	if (p->Number >= w->LargestAcked) return 0;
+	return w->LargestAcked - p->Number >= 3 || now - p->AtUs >= lossDelay ? XRUDP_SENT_LOST : 0;
+}
+
+xrudpresult xrtRudpSentDetectLoss(xrudpsentwindow* w,
+	uint64_t lossDelay, uint64_t ackOnlyAge, uint64_t now,
+	xrudpsentevent* events, size_t capacity, size_t* count)
+{
+	size_t needed = 0, written = 0;
+	if (count != NULL) *count = 0;
+	if (w == NULL || count == NULL || (events == NULL && capacity != 0) ||
+		lossDelay < 1000 || ackOnlyAge < 1000 || now < w->LastNow) return XRUDP_ARGUMENT;
+	if (w->Stopped) return XRUDP_CLOSED;
+	for (size_t i = 0; i < w->Count; ++i)
+		if (xrudp__sent_loss_kind(w, xrudp__sent_at(w, i), lossDelay, ackOnlyAge, now) != 0) ++needed;
+	if (needed > capacity) return XRUDP_BACKPRESSURE;
+	if (needed == 0) return XRUDP_DONE;
+	for (size_t i = 0; i < w->Count; ++i) {
+		xrudp__sentpacket* p = xrudp__sent_at(w, i);
+		uint32_t kind = xrudp__sent_loss_kind(w, p, lossDelay, ackOnlyAge, now);
+		if (kind != 0) xrudp__sent_finish(w, p, kind, &events[written++]);
+	}
+	w->LastNow = now;
+	xrudp__sent_trim(w);
+	*count = written;
+	return XRUDP_OK;
+}
+
+xrudpresult xrtRudpSentAbort(xrudpsentwindow* w,
+	xrudpsentevent* events, size_t capacity, size_t* count)
+{
+	size_t written = 0;
+	if (count != NULL) *count = 0;
+	if (w == NULL || count == NULL || (events == NULL && capacity != 0)) return XRUDP_ARGUMENT;
+	if (w->Stopped) return XRUDP_DONE;
+	if (w->Pending > capacity) return XRUDP_BACKPRESSURE;
+	for (size_t i = 0; i < w->Count; ++i) {
+		xrudp__sentpacket* p = xrudp__sent_at(w, i);
+		if (p->Status == 0) xrudp__sent_finish(w, p, XRUDP_SENT_CANCELLED, &events[written++]);
+	}
+	w->Stopped = true;
+	xrudp__sent_trim(w);
+	*count = written;
 	return XRUDP_OK;
 }
 #endif

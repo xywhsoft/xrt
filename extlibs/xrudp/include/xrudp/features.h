@@ -2,6 +2,16 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_sent 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_SENT)
+#ifndef XRUDP_FEATURE_RUDP_SENT
+#define XRUDP_FEATURE_RUDP_SENT
+#endif
+#ifndef XRUDP_MODULE_RUDP_ACK
+#define XRUDP_MODULE_RUDP_ACK
+#endif
+#endif
+
 /* rudp_timing 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_TIMING)
 #ifndef XRUDP_FEATURE_RUDP_TIMING

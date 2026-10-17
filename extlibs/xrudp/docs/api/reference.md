@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `33` 个函数、`63` 个常量或宏、
-`19` 个公共类型。
+当前登记 `41` 个函数、`74` 个常量或宏、
+`24` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -113,6 +113,43 @@
 - `xrudpnoiseinfo`
 - `xrudpnoisetrustproc`
 - `xrudprole`
+
+## `extlibs/xrudp/include/xrudp/sent.h`
+
+[查看带契约注释的公共头](../../include/xrudp/sent.h)
+
+### 函数 (8)
+
+- `xrtRudpSentAbort`
+- `xrtRudpSentAcknowledge`
+- `xrtRudpSentCanRecord`
+- `xrtRudpSentCreate`
+- `xrtRudpSentDestroy`
+- `xrtRudpSentDetectLoss`
+- `xrtRudpSentRecord`
+- `xrtRudpSentState`
+
+### 常量与宏 (11)
+
+- `XRUDP_FEATURE_RUDP_SENT`
+- `XRUDP_SENT_ACKED`
+- `XRUDP_SENT_ACK_ELICITING`
+- `XRUDP_SENT_CANCELLED`
+- `XRUDP_SENT_CAPACITY_DEFAULT`
+- `XRUDP_SENT_CAPACITY_MAX`
+- `XRUDP_SENT_EXPIRED`
+- `XRUDP_SENT_LOST`
+- `XRUDP_SENT_PADDING`
+- `XRUDP_SENT_PROBE`
+- `XRUDP_SENT_PROBE_RESERVE`
+
+### 类型 (5)
+
+- `xrudpackchange`
+- `xrudpsentevent`
+- `xrudpsenteventkind`
+- `xrudpsentstate`
+- `xrudpsentwindow`
 
 ## `extlibs/xrudp/include/xrudp/timing.h`
 

@@ -1,0 +1,102 @@
+#ifndef XRUDP_SENT_H
+#define XRUDP_SENT_H
+
+#include <xrudp/features.h>
+#include <xrudp/ack.h>
+
+#if defined(XRUDP_FEATURE_RUDP_SENT)
+
+#define XRUDP_SENT_CAPACITY_DEFAULT 256u
+#define XRUDP_SENT_CAPACITY_MAX 4096u
+#define XRUDP_SENT_PROBE_RESERVE 32u
+#define XRUDP_SENT_ACK_ELICITING 1u
+#define XRUDP_SENT_PROBE 2u
+#define XRUDP_SENT_PADDING 4u
+
+typedef struct xrudpsentwindow xrudpsentwindow;
+typedef enum xrudpsenteventkind {
+	XRUDP_SENT_ACKED = 1,
+	XRUDP_SENT_LOST = 2,
+	XRUDP_SENT_EXPIRED = 3,
+	XRUDP_SENT_CANCELLED = 4
+} xrudpsenteventkind;
+
+typedef struct xrudpsentevent {
+	uint64_t PacketNumber;
+	uint64_t UserTag;
+	uint64_t SentAtUs;
+	uint32_t Bytes;
+	uint32_t Flags;
+	uint32_t Kind;
+	uint32_t Reserved;
+} xrudpsentevent;
+
+typedef struct xrudpsentstate {
+	uint64_t LargestSent;
+	uint64_t LargestAcked;
+	uint64_t BytesInFlight;
+	uint64_t LastNowUs; /* Mutation time, not peer liveness/progress. */
+	uint32_t NormalCapacity;
+	uint32_t TotalCapacity;
+	uint32_t StoredPackets;
+	uint32_t PendingPackets;
+	uint32_t Stopped;
+	uint32_t Reserved;
+} xrudpsentstate;
+
+typedef struct xrudpackchange {
+	uint64_t LargestAcked;
+	uint64_t NewlyAckedBytes;
+	uint64_t RttSampleUs;
+	uint32_t NewlyAckedPackets;
+	uint32_t NewlyAckedEliciting;
+	uint32_t RttSampleValid;
+	uint32_t PeerAckDelayUs;
+} xrudpackchange;
+
+XRT_EXTERN_C_BEGIN
+
+/* One fixed allocation, no allocation during processing. Capacity=0 uses 256;
+ * 32 additional slots are reserved for PTO probes. Serialized by one owner.
+ * All output buffers/objects must be disjoint from inputs and window storage.
+ * Numeric UserTags are borrowed identifiers, not owned/released pointers.
+ * Each tracked packet produces at most one final ACKED/LOST/EXPIRED/CANCELLED
+ * event. A late ACK of a declared-lost packet does not produce a second event.
+ * Logical data may retransmit under a new packet; deduplication is stream-level. */
+XRUDP_API xrudpresult xrtRudpSentCreate(uint32_t iCapacity, xrudpsentwindow** ppWindow);
+XRUDP_API void xrtRudpSentDestroy(xrudpsentwindow* pWindow);
+XRUDP_API xrudpresult xrtRudpSentState(const xrudpsentwindow* pWindow, xrudpsentstate* pState);
+XRUDP_API bool xrtRudpSentCanRecord(const xrudpsentwindow* pWindow, bool bProbe);
+/* Record every DATA packet actually admitted to UDP output, including ACK-only
+ * packets. Numbers strictly increase, gaps are permitted for failed sends.
+ * Check capacity under the same serialized owner before sealing/sending.
+ * Probe must be ACK-eliciting. PADDING marks padded packets, which count toward
+ * congestion even when not ACK-eliciting. Bytes is the protected UDP payload. */
+XRUDP_API xrudpresult xrtRudpSentRecord(xrudpsentwindow* pWindow,
+	uint64_t iPacketNumber, uint64_t iNowUs, uint32_t iBytes,
+	uint32_t iFlags, uint64_t iUserTag);
+/* Requires an authenticated canonical ACK. Future ACKs and ACKs covering unsent
+ * gaps inside retained history fail atomically. Retired history is ignored and
+ * can never grant bytes/progress again. Backpressure means event output is too
+ * small; nothing is changed and the caller may retry its retained ACK value.
+ * Failure leaves change/events unchanged and *pCount=0. */
+XRUDP_API xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* pWindow,
+	const xrudpack* pAck, uint64_t iNowUs,
+	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount,
+	xrudpackchange* pChange);
+/* Packet threshold=3; time threshold only applies below largest acknowledged.
+ * ACK-only metadata expires independently without a congestion-loss signal.
+ * Delays are monotonic microseconds and must be >=1ms. Does not declare all
+ * outstanding data lost merely because a PTO fires; PTO probing is separate. */
+XRUDP_API xrudpresult xrtRudpSentDetectLoss(xrudpsentwindow* pWindow,
+	uint64_t iLossDelayUs, uint64_t iAckOnlyAgeUs, uint64_t iNowUs,
+	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
+/* Complete pending packets as CANCELLED, then stop accepting new records.
+ * Caller drains/cancels higher-level stream operations before Destroy. */
+XRUDP_API xrudpresult xrtRudpSentAbort(xrudpsentwindow* pWindow,
+	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
+
+XRT_EXTERN_C_END
+
+#endif
+#endif

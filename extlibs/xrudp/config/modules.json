@@ -220,6 +220,34 @@
         "extlibs/xrudp/README.md",
         "extlibs/xrudp/docs/protocol.md"
       ]
+    },
+    {
+      "name": "rudp_sent",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_SENT",
+      "depends": [
+        "rudp_ack"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/sent.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/recovery/rudp_sent.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_sent.c",
+        "extlibs/xrudp/tests/test_sent_memory.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_sent.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
+      ]
     }
   ]
 }
