@@ -5,5 +5,6 @@
 #include <xrudp/wire.h>
 #include <xrudp/crypto.h>
 #include <xrudp/noise.h>
+#include <xrudp/cookie.h>
 
 #endif

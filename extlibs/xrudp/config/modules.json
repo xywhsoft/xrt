@@ -137,6 +137,34 @@
         "extlibs/xrudp/README.md",
         "extlibs/xrudp/docs/protocol.md"
       ]
+    },
+    {
+      "name": "rudp_cookie",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_COOKIE",
+      "depends": [
+        "rudp_wire",
+        "crypto_hmac_sha256"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/cookie.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/crypto/rudp_cookie.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_cookie.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_cookie.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
+      ]
     }
   ]
 }

@@ -1197,11 +1197,17 @@
 #if !defined(XRT_MODULE_CRYPTO_HKDF_SHA256)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_HKDF_SHA256 1
 #endif
+#if !defined(XRT_MODULE_CRYPTO_HMAC_SHA256)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_HMAC_SHA256 1
+#endif
 #if !defined(XRT_MODULE_CRYPTO_X25519)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_X25519 1
 #endif
 #if !defined(XRT_MODULE_RANDOM_SECURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE 1
+#endif
+#if !defined(XRUDP_FEATURE_RUDP_COOKIE)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_COOKIE 1
 #endif
 #if !defined(XRUDP_FEATURE_RUDP_CRYPTO)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_CRYPTO 1
@@ -1214,6 +1220,9 @@
 #endif
 #if !defined(XRUDP_MODULE_ALL)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_ALL 1
+#endif
+#if !defined(XRUDP_MODULE_RUDP_COOKIE)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_COOKIE 1
 #endif
 #if !defined(XRUDP_MODULE_RUDP_CRYPTO)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_CRYPTO 1
@@ -2399,6 +2408,19 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_cookie 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_COOKIE)
+#ifndef XRUDP_FEATURE_RUDP_COOKIE
+#define XRUDP_FEATURE_RUDP_COOKIE
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#endif
+
 /* rudp_noise 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_NOISE)
 #ifndef XRUDP_FEATURE_RUDP_NOISE
@@ -2746,6 +2768,57 @@ XRUDP_API xrudpresult xrtRudpNoisePeerParameters(const xrudpnoise* pNoise,
 XRUDP_API xrudpresult xrtRudpNoiseCreateCipher(xrudpnoise* pNoise,
 	const void* pLocalId, const void* pPeerId, uint64_t iPacketLimit,
 	xrudpcipher** ppCipher);
+
+XRT_EXTERN_C_END
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/cookie.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_COOKIE_H
+#define XRUDP_COOKIE_H
+
+
+#if defined(XRUDP_FEATURE_RUDP_COOKIE)
+
+#define XRUDP_COOKIE_SIZE 40u
+#define XRUDP_COOKIE_MAX_AGE_US UINT64_C(30000000)
+
+/* API representation only; never memcpy this C structure onto the wire.
+ * IPv4 uses Address[0..3] and twelve zero tail bytes, Zone=0.
+ * IPv6 uses all 16 address bytes; Zone is the local interface scope ID.
+ * Port/Zone are host-order. Unspecified and multicast addresses are rejected. */
+typedef struct xrudpaddress {
+	uint8_t Family; /* 4 or 6. */
+	uint16_t Port;
+	uint32_t Zone;
+	unsigned char Address[16];
+} xrudpaddress;
+
+XRT_EXTERN_C_BEGIN
+
+/* Stateless address-return validation, NOT peer identity or a one-use grant.
+ * Key is a 32-byte server secret generated securely per endpoint generation.
+ * Scope is a nonzero 16-byte listener/session domain. HelloHash is the 32-byte
+ * digest of the canonical client probe, including connection IDs and target.
+ * Time uses the server's monotonic microseconds; tokens expire at most 30s
+ * after issuance. The driver enforces amplification/CPU/rate limits separately.
+ * No allocation, random generation, logging or I/O. Failure preserves output. */
+XRUDP_API xrudpresult xrtRudpCookieCreate(const void* pKey,
+	const void* pScope, const void* pHelloHash, const xrudpaddress* pAddress,
+	uint64_t iNowUs, void* pCookie, size_t iCapacity);
+/* PreviousKey may be NULL, or the immediately previous endpoint secret during
+ * a bounded rotation grace period. iMaxAgeUs=0 selects the fixed maximum.
+ * Authentication is checked before reporting an expired/future timestamp.
+ * Keys and caller policy remain unchanged on every result. */
+XRUDP_API xrudpresult xrtRudpCookieVerify(const void* pCurrentKey,
+	const void* pPreviousKey, const void* pScope, const void* pHelloHash,
+	const xrudpaddress* pAddress, uint64_t iNowUs, uint64_t iMaxAgeUs,
+	const void* pCookie, size_t iCookieSize);
 
 XRT_EXTERN_C_END
 
@@ -4318,6 +4391,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_CRYPTO_HKDF_SHA256
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_HKDF_SHA256
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_HMAC_SHA256)
+#undef XRT_MODULE_CRYPTO_HMAC_SHA256
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_X25519)
 #undef XRT_MODULE_CRYPTO_X25519
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_X25519
@@ -4325,6 +4402,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE)
 #undef XRT_MODULE_RANDOM_SECURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_RANDOM_SECURE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_COOKIE)
+#undef XRUDP_FEATURE_RUDP_COOKIE
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_COOKIE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_CRYPTO)
 #undef XRUDP_FEATURE_RUDP_CRYPTO
@@ -4341,6 +4422,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_ALL)
 #undef XRUDP_MODULE_ALL
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_ALL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_COOKIE)
+#undef XRUDP_MODULE_RUDP_COOKIE
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_COOKIE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_CRYPTO)
 #undef XRUDP_MODULE_RUDP_CRYPTO
@@ -4368,6 +4453,19 @@ XRT_EXTERN_C_END
 /* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
+
+/* rudp_cookie 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_COOKIE)
+#ifndef XRUDP_FEATURE_RUDP_COOKIE
+#define XRUDP_FEATURE_RUDP_COOKIE
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#endif
 
 /* rudp_noise 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_NOISE)

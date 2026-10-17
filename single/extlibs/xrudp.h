@@ -59,6 +59,19 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_cookie 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_COOKIE)
+#ifndef XRUDP_FEATURE_RUDP_COOKIE
+#define XRUDP_FEATURE_RUDP_COOKIE
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#ifndef XRT_MODULE_CRYPTO_HMAC_SHA256
+#define XRT_MODULE_CRYPTO_HMAC_SHA256
+#endif
+#endif
+
 /* rudp_noise 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_NOISE)
 #ifndef XRUDP_FEATURE_RUDP_NOISE
@@ -406,6 +419,57 @@ XRUDP_API xrudpresult xrtRudpNoisePeerParameters(const xrudpnoise* pNoise,
 XRUDP_API xrudpresult xrtRudpNoiseCreateCipher(xrudpnoise* pNoise,
 	const void* pLocalId, const void* pPeerId, uint64_t iPacketLimit,
 	xrudpcipher** ppCipher);
+
+XRT_EXTERN_C_END
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/cookie.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_COOKIE_H
+#define XRUDP_COOKIE_H
+
+
+#if defined(XRUDP_FEATURE_RUDP_COOKIE)
+
+#define XRUDP_COOKIE_SIZE 40u
+#define XRUDP_COOKIE_MAX_AGE_US UINT64_C(30000000)
+
+/* API representation only; never memcpy this C structure onto the wire.
+ * IPv4 uses Address[0..3] and twelve zero tail bytes, Zone=0.
+ * IPv6 uses all 16 address bytes; Zone is the local interface scope ID.
+ * Port/Zone are host-order. Unspecified and multicast addresses are rejected. */
+typedef struct xrudpaddress {
+	uint8_t Family; /* 4 or 6. */
+	uint16_t Port;
+	uint32_t Zone;
+	unsigned char Address[16];
+} xrudpaddress;
+
+XRT_EXTERN_C_BEGIN
+
+/* Stateless address-return validation, NOT peer identity or a one-use grant.
+ * Key is a 32-byte server secret generated securely per endpoint generation.
+ * Scope is a nonzero 16-byte listener/session domain. HelloHash is the 32-byte
+ * digest of the canonical client probe, including connection IDs and target.
+ * Time uses the server's monotonic microseconds; tokens expire at most 30s
+ * after issuance. The driver enforces amplification/CPU/rate limits separately.
+ * No allocation, random generation, logging or I/O. Failure preserves output. */
+XRUDP_API xrudpresult xrtRudpCookieCreate(const void* pKey,
+	const void* pScope, const void* pHelloHash, const xrudpaddress* pAddress,
+	uint64_t iNowUs, void* pCookie, size_t iCapacity);
+/* PreviousKey may be NULL, or the immediately previous endpoint secret during
+ * a bounded rotation grace period. iMaxAgeUs=0 selects the fixed maximum.
+ * Authentication is checked before reporting an expired/future timestamp.
+ * Keys and caller policy remain unchanged on every result. */
+XRUDP_API xrudpresult xrtRudpCookieVerify(const void* pCurrentKey,
+	const void* pPreviousKey, const void* pScope, const void* pHelloHash,
+	const xrudpaddress* pAddress, uint64_t iNowUs, uint64_t iMaxAgeUs,
+	const void* pCookie, size_t iCookieSize);
 
 XRT_EXTERN_C_END
 
@@ -1304,6 +1368,110 @@ xrudpresult xrtRudpNoiseCreateCipher(xrudpnoise* pNoise,
 		xrtSecureZero(pNoise->ReceiveKey, 32);
 	}
 	return result;
+}
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrudp/src/crypto/rudp_cookie.c */
+/* ========================================================================== */
+
+#if defined(XRUDP_FEATURE_RUDP_COOKIE)
+#include <string.h>
+
+static bool xrudp__cookie_nonzero(const unsigned char* p, size_t size)
+{
+	unsigned char any = 0;
+	for (size_t i = 0; i < size; ++i) any |= p[i];
+	return any != 0;
+}
+
+static void xrudp__cookie_put32(unsigned char* p, uint32_t n)
+{
+	for (size_t i = 0; i < 4; ++i) p[3 - i] = (unsigned char)(n >> (i * 8));
+}
+
+static bool xrudp__cookie_address(const xrudpaddress* address, unsigned char wire[23])
+{
+	if (address == NULL || address->Port == 0) return false;
+	if (address->Family == 4) {
+		if (address->Zone != 0 || xrudp__cookie_nonzero(address->Address + 4, 12) ||
+			address->Address[0] == 0 || address->Address[0] >= 224) return false;
+	} else if (address->Family == 6) {
+		if (!xrudp__cookie_nonzero(address->Address, 16) || address->Address[0] == 0xff)
+			return false;
+	} else return false;
+	wire[0] = address->Family;
+	wire[1] = (unsigned char)(address->Port >> 8);
+	wire[2] = (unsigned char)address->Port;
+	xrudp__cookie_put32(wire + 3, address->Zone);
+	memcpy(wire + 7, address->Address, 16);
+	return true;
+}
+
+static bool xrudp__cookie_mac(const void* key, const void* scope,
+	const void* helloHash, const unsigned char address[23],
+	const unsigned char timestamp[8], unsigned char mac[32])
+{
+	static const char domain[] = "XRUDP001/address-cookie";
+	xhmacsha256 state;
+	bool ok = xrtHmacSha256Init(&state, key, 32) &&
+		xrtHmacSha256Update(&state, domain, sizeof(domain) - 1) &&
+		xrtHmacSha256Update(&state, scope, 16) &&
+		xrtHmacSha256Update(&state, helloHash, 32) &&
+		xrtHmacSha256Update(&state, address, 23) &&
+		xrtHmacSha256Update(&state, timestamp, 8) &&
+		xrtHmacSha256Final(&state, mac);
+	xrtSecureZero(&state, sizeof(state));
+	return ok;
+}
+
+xrudpresult xrtRudpCookieCreate(const void* pKey,
+	const void* pScope, const void* pHelloHash, const xrudpaddress* pAddress,
+	uint64_t iNowUs, void* pCookie, size_t iCapacity)
+{
+	unsigned char wire[23], cookie[XRUDP_COOKIE_SIZE];
+	bool ok;
+	if (pKey == NULL || pScope == NULL || pHelloHash == NULL || pCookie == NULL ||
+		!xrudp__cookie_nonzero((const unsigned char*)pScope, 16) ||
+		!xrudp__cookie_address(pAddress, wire)) return XRUDP_ARGUMENT;
+	if (iCapacity < XRUDP_COOKIE_SIZE) return XRUDP_LIMIT;
+	for (size_t i = 0; i < 8; ++i) cookie[7 - i] = (unsigned char)(iNowUs >> (i * 8));
+	ok = xrudp__cookie_mac(pKey, pScope, pHelloHash, wire, cookie, cookie + 8);
+	if (ok) memmove(pCookie, cookie, sizeof(cookie));
+	xrtSecureZero(cookie, sizeof(cookie));
+	return ok ? XRUDP_OK : XRUDP_IO_ERROR;
+}
+
+xrudpresult xrtRudpCookieVerify(const void* pCurrentKey,
+	const void* pPreviousKey, const void* pScope, const void* pHelloHash,
+	const xrudpaddress* pAddress, uint64_t iNowUs, uint64_t iMaxAgeUs,
+	const void* pCookie, size_t iCookieSize)
+{
+	const unsigned char* cookie = (const unsigned char*)pCookie;
+	unsigned char wire[23], current[32] = {0}, previous[32] = {0};
+	uint64_t issued = 0;
+	bool ok, valid, currentValid, previousValid;
+	if (pCurrentKey == NULL || pScope == NULL || pHelloHash == NULL || cookie == NULL ||
+		iMaxAgeUs > XRUDP_COOKIE_MAX_AGE_US ||
+		!xrudp__cookie_nonzero((const unsigned char*)pScope, 16) ||
+		!xrudp__cookie_address(pAddress, wire)) return XRUDP_ARGUMENT;
+	if (iCookieSize != XRUDP_COOKIE_SIZE) return XRUDP_MALFORMED;
+	/* Always calculate both candidates, without a key-ID/timing oracle. */
+	ok = xrudp__cookie_mac(pCurrentKey, pScope, pHelloHash, wire, cookie, current);
+	ok = xrudp__cookie_mac(pPreviousKey != NULL ? pPreviousKey : pCurrentKey,
+		pScope, pHelloHash, wire, cookie, previous) && ok;
+	currentValid = xrtConstTimeEqual(current, cookie + 8, 32);
+	previousValid = xrtConstTimeEqual(previous, cookie + 8, 32);
+	valid = currentValid || previousValid;
+	xrtSecureZero(current, sizeof(current));
+	xrtSecureZero(previous, sizeof(previous));
+	if (!ok) return XRUDP_IO_ERROR;
+	if (!valid) return XRUDP_AUTH_FAILED;
+	for (size_t i = 0; i < 8; ++i) issued = (issued << 8) | cookie[i];
+	if (iMaxAgeUs == 0) iMaxAgeUs = XRUDP_COOKIE_MAX_AGE_US;
+	if (issued > iNowUs || iNowUs - issued > iMaxAgeUs) return XRUDP_TIMEOUT;
+	return XRUDP_OK;
 }
 #endif
 
