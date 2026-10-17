@@ -76,7 +76,8 @@
       "docs": [
         "extlibs/xrudp/README.md",
         "extlibs/xrudp/docs/protocol.md",
-        "extlibs/xrudp/docs/implementation-status.md"
+        "extlibs/xrudp/docs/implementation-status.md",
+        "extlibs/xrudp/docs/api/reference.md"
       ]
     },
     {
