@@ -22260,6 +22260,20 @@ XRT_API bool xrtChaCha20Poly1305Open(
 	size_t iPlainSize
 );
 
+/* 与 Open 相同，但标签不匹配或输入短于标签是正常 false 结果：不分配、
+ * 不改变线程错误且不修改输出。其他本地参数错误仍报告普通诊断。
+ * 用于处理不可信网络数据报，避免认证失败触发每包错误对象分配。 */
+XRT_API bool xrtChaCha20Poly1305TryOpen(
+	const void* pKey,
+	const void* pNonce,
+	const void* pAad,
+	size_t iAadSize,
+	const void* pInput,
+	size_t iInputSize,
+	void* pPlain,
+	size_t iPlainSize
+);
+
 #endif
 
 
@@ -229469,7 +229483,7 @@ cleanup:
 
 
 /* 先以常量时间验证标签，成功后才写入明文。 */
-XRT_API bool xrtChaCha20Poly1305Decrypt(
+static bool __xrtChaCha20Poly1305Decrypt(
 	const void* pKey,
 	const void* pNonce,
 	const void* pAad,
@@ -229477,7 +229491,8 @@ XRT_API bool xrtChaCha20Poly1305Decrypt(
 	const void* pCipher,
 	size_t iCipherSize,
 	const void* pTag,
-	void* pPlain
+	void* pPlain,
+	bool bReportAuthentication
 )
 {
 	uint8 Tag[XRT_CHACHA20_POLY1305_TAG_SIZE];
@@ -229501,7 +229516,7 @@ XRT_API bool xrtChaCha20Poly1305Decrypt(
 		goto cleanup;
 	}
 	if ( !xrtConstTimeEqual(Tag, pTag, sizeof(Tag)) ) {
-		__xrtChaCha20Poly1305AuthError();
+		if ( bReportAuthentication ) __xrtChaCha20Poly1305AuthError();
 		goto cleanup;
 	}
 	bResult = xrtChaCha20(
@@ -229511,6 +229526,15 @@ XRT_API bool xrtChaCha20Poly1305Decrypt(
 cleanup:
 	xrtSecureZero(Tag, sizeof(Tag));
 	return bResult;
+}
+
+XRT_API bool xrtChaCha20Poly1305Decrypt(
+	const void* pKey, const void* pNonce, const void* pAad, size_t iAadSize,
+	const void* pCipher, size_t iCipherSize, const void* pTag, void* pPlain
+)
+{
+	return __xrtChaCha20Poly1305Decrypt(pKey, pNonce, pAad, iAadSize,
+		pCipher, iCipherSize, pTag, pPlain, true);
 }
 
 
@@ -229557,7 +229581,7 @@ XRT_API bool xrtChaCha20Poly1305Seal(
 
 
 /* 分离连续输入末尾标签，并复用认证后写入的 detached 解密路径。 */
-XRT_API bool xrtChaCha20Poly1305Open(
+static bool __xrtChaCha20Poly1305Open(
 	const void* pKey,
 	const void* pNonce,
 	const void* pAad,
@@ -229565,7 +229589,8 @@ XRT_API bool xrtChaCha20Poly1305Open(
 	const void* pInput,
 	size_t iInputSize,
 	void* pPlain,
-	size_t iPlainSize
+	size_t iPlainSize,
+	bool bReportAuthentication
 )
 {
 	size_t iCipherSize;
@@ -229575,7 +229600,7 @@ XRT_API bool xrtChaCha20Poly1305Open(
 		return false;
 	}
 	if ( iInputSize < XRT_CHACHA20_POLY1305_OVERHEAD ) {
-		__xrtChaCha20Poly1305AuthError();
+		if ( bReportAuthentication ) __xrtChaCha20Poly1305AuthError();
 		return false;
 	}
 	iCipherSize = iInputSize - XRT_CHACHA20_POLY1305_OVERHEAD;
@@ -229587,7 +229612,7 @@ XRT_API bool xrtChaCha20Poly1305Open(
 		__xrtErrorSetRange();
 		return false;
 	}
-	return xrtChaCha20Poly1305Decrypt(
+	return __xrtChaCha20Poly1305Decrypt(
 		pKey,
 		pNonce,
 		pAad,
@@ -229595,8 +229620,27 @@ XRT_API bool xrtChaCha20Poly1305Open(
 		pInput,
 		iCipherSize,
 		(const uint8*)pInput + iCipherSize,
-		pPlain
+		pPlain,
+		bReportAuthentication
 	);
+}
+
+XRT_API bool xrtChaCha20Poly1305Open(
+	const void* pKey, const void* pNonce, const void* pAad, size_t iAadSize,
+	const void* pInput, size_t iInputSize, void* pPlain, size_t iPlainSize
+)
+{
+	return __xrtChaCha20Poly1305Open(pKey, pNonce, pAad, iAadSize,
+		pInput, iInputSize, pPlain, iPlainSize, true);
+}
+
+XRT_API bool xrtChaCha20Poly1305TryOpen(
+	const void* pKey, const void* pNonce, const void* pAad, size_t iAadSize,
+	const void* pInput, size_t iInputSize, void* pPlain, size_t iPlainSize
+)
+{
+	return __xrtChaCha20Poly1305Open(pKey, pNonce, pAad, iAadSize,
+		pInput, iInputSize, pPlain, iPlainSize, false);
 }
 
 #endif

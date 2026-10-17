@@ -1863,7 +1863,7 @@ xrudpresult xrtRudpCipherOpen(xrudpcipher* pCipher,
 		update = true;
 	} else return XRUDP_AUTH_FAILED;
 	xrudp__nonce(nonce, packet.Header.PacketNumber);
-	if (!xrtChaCha20Poly1305Open(key, nonce, pPacket, XRUDP_HEADER_SIZE,
+	if (!xrtChaCha20Poly1305TryOpen(key, nonce, pPacket, XRUDP_HEADER_SIZE,
 		packet.Payload, packet.Header.PayloadSize, plain, sizeof(plain))) {
 		result = XRUDP_AUTH_FAILED;
 		goto cleanup;
@@ -1983,7 +1983,7 @@ static bool xrudp__noise_decrypt(xrudpnoise* n, const unsigned char* input,
 	unsigned char nonce[12];
 	if (size < XRUDP_TAG_SIZE || n->Nonce == UINT64_MAX) return false;
 	xrudp__noise_nonce(nonce, n->Nonce);
-	if (!xrtChaCha20Poly1305Open(n->CipherKey, nonce, n->Hash, 32,
+	if (!xrtChaCha20Poly1305TryOpen(n->CipherKey, nonce, n->Hash, 32,
 		input, size, output, size - XRUDP_TAG_SIZE) ||
 		!xrudp__noise_hash(n, input, size)) return false;
 	++n->Nonce;

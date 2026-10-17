@@ -219,6 +219,31 @@ static void testAeadEdges(void)
 
 
 
+/* 网络尝试入口不把正常坏标签变为错误对象，仍保留普通 Open 的诊断。 */
+static void testAeadTryOpen(void)
+{
+	uint8 Packed[sizeof(TestAeadPlain) - 1u + XRT_CHACHA20_POLY1305_OVERHEAD];
+	uint8 Plain[sizeof(TestAeadPlain) - 1u], Before[sizeof(Plain)];
+	testRequire(xrtChaCha20Poly1305Seal(TestAeadKey, TestAeadNonce, TestAeadAad, sizeof(TestAeadAad),
+		TestAeadPlain, sizeof(Plain), Packed, sizeof(Packed)), "TryOpen setup failed");
+	xrtClearError();
+	testRequire(xrtChaCha20Poly1305TryOpen(TestAeadKey, TestAeadNonce, TestAeadAad, sizeof(TestAeadAad),
+		Packed, sizeof(Packed), Plain, sizeof(Plain)) && xrtGetError() == NULL &&
+		memcmp(Plain, TestAeadPlain, sizeof(Plain)) == 0, "TryOpen valid vector failed");
+	Packed[sizeof(Packed) - 1] ^= 1; memset(Plain, 0xa5, sizeof(Plain)); memcpy(Before, Plain, sizeof(Before));
+	testRequire(!xrtChaCha20Poly1305Open(TestAeadKey, TestAeadNonce, TestAeadAad, sizeof(TestAeadAad),
+		Packed, sizeof(Packed), Plain, sizeof(Plain)) && xrtGetError() != NULL, "Open lost authentication diagnostic");
+	const xerror* Saved = xrtGetError();
+	for (size_t i = 0; i <= sizeof(Packed); ++i) {
+		testRequire(!xrtChaCha20Poly1305TryOpen(TestAeadKey, TestAeadNonce, TestAeadAad, sizeof(TestAeadAad),
+			Packed, i, Plain, sizeof(Plain)) && xrtGetError() == Saved && memcmp(Plain, Before, sizeof(Plain)) == 0,
+			"TryOpen changed error/output for truncated or corrupted packet");
+	}
+	xrtClearError();
+	testRequire(!xrtChaCha20Poly1305TryOpen(TestAeadKey, TestAeadNonce, TestAeadAad, sizeof(TestAeadAad),
+		Packed, sizeof(Packed), Plain, 1) && xrtErrorKind(xrtGetError()) == XERR_RANGE, "TryOpen suppressed a local buffer error");
+}
+
 /* 执行 AEAD 向量、便捷层、认证原子性与边界测试。 */
 int main(void)
 {
@@ -226,5 +251,6 @@ int main(void)
 	testAeadPacked();
 	testAeadAuthentication();
 	testAeadEdges();
+	testAeadTryOpen();
 	return 0;
 }

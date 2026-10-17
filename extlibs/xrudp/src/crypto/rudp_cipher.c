@@ -190,7 +190,7 @@ xrudpresult xrtRudpCipherOpen(xrudpcipher* pCipher,
 		update = true;
 	} else return XRUDP_AUTH_FAILED;
 	xrudp__nonce(nonce, packet.Header.PacketNumber);
-	if (!xrtChaCha20Poly1305Open(key, nonce, pPacket, XRUDP_HEADER_SIZE,
+	if (!xrtChaCha20Poly1305TryOpen(key, nonce, pPacket, XRUDP_HEADER_SIZE,
 		packet.Payload, packet.Header.PayloadSize, plain, sizeof(plain))) {
 		result = XRUDP_AUTH_FAILED;
 		goto cleanup;

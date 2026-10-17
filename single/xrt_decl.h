@@ -24574,6 +24574,20 @@ XRT_API bool xrtChaCha20Poly1305Open(
 	size_t iPlainSize
 );
 
+/* 与 Open 相同，但标签不匹配或输入短于标签是正常 false 结果：不分配、
+ * 不改变线程错误且不修改输出。其他本地参数错误仍报告普通诊断。
+ * 用于处理不可信网络数据报，避免认证失败触发每包错误对象分配。 */
+XRT_API bool xrtChaCha20Poly1305TryOpen(
+	const void* pKey,
+	const void* pNonce,
+	const void* pAad,
+	size_t iAadSize,
+	const void* pInput,
+	size_t iInputSize,
+	void* pPlain,
+	size_t iPlainSize
+);
+
 #endif
 
 

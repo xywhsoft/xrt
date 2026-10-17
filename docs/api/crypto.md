@@ -3484,6 +3484,21 @@ bool xrtChaCha20Poly1305Open(
 
 
 
+### `xrtChaCha20Poly1305TryOpen`
+
+参数、输出布局、原位解密与 `xrtChaCha20Poly1305Open` 相同。
+此入口适用于网络数据报：标签不匹配或输入短于 16 字节时返回 `false`，
+不分配错误对象、不改变当前线程的错误、不修改明文输出。标签仍以常量时间比较。
+本地指针、重叠、容量等错误仍报告常规 `XERR_ARGUMENT` / `XERR_RANGE` 诊断。
+成功认证和解密返回 `true`；成功也保留既有线程错误，调用方依据返回值处理结果。
+
+```c
+bool xrtChaCha20Poly1305TryOpen(
+	const void* pKey, const void* pNonce, const void* pAad, size_t iAadSize,
+	const void* pInput, size_t iInputSize, void* pPlain, size_t iPlainSize
+);
+```
+
 ## AES
 
 `XRT_FEATURE_CRYPTO_AES` 只依赖 `CRYPTO_CORE`，提供调用方持有、无动态分配的 AES-128、AES-192 与 AES-256 正向轮密钥状态：

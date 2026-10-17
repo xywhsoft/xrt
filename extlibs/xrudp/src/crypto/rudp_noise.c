@@ -52,7 +52,7 @@ static bool xrudp__noise_decrypt(xrudpnoise* n, const unsigned char* input,
 	unsigned char nonce[12];
 	if (size < XRUDP_TAG_SIZE || n->Nonce == UINT64_MAX) return false;
 	xrudp__noise_nonce(nonce, n->Nonce);
-	if (!xrtChaCha20Poly1305Open(n->CipherKey, nonce, n->Hash, 32,
+	if (!xrtChaCha20Poly1305TryOpen(n->CipherKey, nonce, n->Hash, 32,
 		input, size, output, size - XRUDP_TAG_SIZE) ||
 		!xrudp__noise_hash(n, input, size)) return false;
 	++n->Nonce;

@@ -179,6 +179,13 @@ Windows GCC Select/IOCP 与 Linux Clang ASan/UBSan Select/Epoll，模块化及�
 故障回归逐轮核对存活对象/字节回到基线；生产 ALL 单头不引入测试故障注入依赖。
 该组件尚未接入可靠数据会话，多流、游戏消息、公网穿透和生产验收仍待继续。
 
+认证坏包分配修复：会话运行期的 FailAfter(0) 暴露 XRT AEAD 标签失败会创建结构化错误对象。
+新增 xrtChaCha20Poly1305TryOpen，将坏标签/短标签作为不分配、不改线程错误且不改输出的 false；
+普通 Open/Decrypt 的诊断保持原样。xrudp 密码器及 Noise 读取使用尝试入口。
+Core 的 RFC 向量、截断/篡改/错误保留与原有参数诊断检查通过；xrudp 故障测试覆盖逐位篡改
+DATA 与错误 Noise 飞行在禁止分配时仍能丢弃并恢复合法握手。Windows GCC 与 Linux Clang
+ASan/UBSan 模块化和单头验证通过；坏包不再通过诊断对象触发每数据报堆分配。
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。

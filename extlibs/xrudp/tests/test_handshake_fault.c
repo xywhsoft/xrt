@@ -47,6 +47,10 @@ static int exercise(unsigned int budget)
 	} else {
 		CHECK(result == XRUDP_OK && server != NULL); xrtMemDebugFailClear();
 		CHECK(xrtRudpHandshakeNext(server, 0, second, 312, &secondSize, &due) == XRUDP_OK);
+		memcpy(bad, second, secondSize); bad[secondSize - 1] ^= 1;
+		CHECK(xrtMemDebugFailAfter(0));
+		CHECK(xrtRudpHandshakeInput(client, bad, secondSize, 0) == XRUDP_AUTH_FAILED && !xrtMemDebugFailTriggered());
+		xrtMemDebugFailClear();
 		CHECK(xrtMemDebugFailAfter(0));
 		CHECK(xrtRudpHandshakeInput(client, second, secondSize, 0) == XRUDP_NO_MEMORY && xrtMemDebugFailTriggered());
 		xrtMemDebugFailClear();
@@ -69,6 +73,27 @@ static int exercise(unsigned int budget)
 	return 0;
 }
 
+static int invalid_cipher_no_allocation(void)
+{
+	unsigned char keys[2][32] = {{3},{11}}, ids[2][16] = {{7},{19}};
+	unsigned char packet[80], plain[80], ping[4] = {XRUDP_FRAME_PING,0,0,0};
+	xrudpcipher *a = NULL, *b = NULL; size_t size, read;
+	CHECK(xrtRudpCipherCreate(keys[0], keys[1], ids[0], ids[1], 0, &a) == XRUDP_OK);
+	CHECK(xrtRudpCipherCreate(keys[1], keys[0], ids[1], ids[0], 0, &b) == XRUDP_OK);
+	CHECK(xrtRudpCipherSeal(a, ping, sizeof(ping), packet, sizeof(packet), &size) == XRUDP_OK);
+	xrtClearError(); CHECK(xrtMemDebugFailAfter(0));
+	for (size_t i = 0; i < size; ++i) for (unsigned int bit = 0; bit < 8; ++bit) {
+		packet[i] ^= (unsigned char)(1u << bit);
+		CHECK(xrtRudpCipherOpen(b, packet, size, plain, sizeof(plain), &read) == XRUDP_AUTH_FAILED && read == 0);
+		packet[i] ^= (unsigned char)(1u << bit);
+		CHECK(!xrtMemDebugFailTriggered() && xrtGetError() == NULL);
+	}
+	CHECK(xrtRudpCipherOpen(b, packet, size, plain, sizeof(plain), &read) == XRUDP_OK);
+	CHECK(xrtRudpCipherOpen(b, packet, size, plain, sizeof(plain), &read) == XRUDP_DUPLICATE);
+	CHECK(!xrtMemDebugFailTriggered()); xrtMemDebugFailClear();
+	xrtRudpCipherDestroy(a); xrtRudpCipherDestroy(b); return 0;
+}
+
 int main(void)
 {
 	for (size_t i = 0; i < 32; ++i) { privateKeys[0][i] = (unsigned char)(i + 17); privateKeys[1][i] = (unsigned char)(i + 83); }
@@ -78,6 +103,7 @@ int main(void)
 	CHECK(xrtRudpHandshakeCreate(&c, 0, &h) == XRUDP_NO_MEMORY && h == NULL && xrtMemDebugFailTriggered());
 	xrtMemDebugFailClear();
 	for (unsigned int budget = 0; budget <= 3; ++budget) CHECK(exercise(budget) == 0);
+	CHECK(invalid_cipher_no_allocation() == 0);
 	puts("xrudp handshake faults: no allocation before cookie, every constructor failure, retained authenticated progress and balanced lifetimes passed");
 	return 0;
 }
