@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "product": "xrudp",
+  "module_prefix": "XRUDP_MODULE_",
+  "single_header": "single/extlibs/xrudp.h",
+  "declaration_header": "single/extlibs/xrudp_decl.h",
+  "implementation_macro": "XRUDP_IMPLEMENTATION",
+  "implementation_once_macro": "XRUDP_IMPLEMENTATION_ONCE",
+  "single_guard": "XRUDP_SINGLE_HEADER_H",
+  "single_marker": "XRUDP_SINGLE_HEADER",
+  "declaration_guard": "XRUDP_DECLARATIONS_H",
+  "declaration_marker": "XRUDP_DECLARATIONS",
+  "package_consumer": "extlibs/xrudp/tests/package/test_consumer.c",
+  "product_root": "extlibs/xrudp",
+  "scope": {
+    "product": "xrudp",
+    "external_integrations": [],
+    "systems": [
+      {
+        "name": "rudp",
+        "state": "retained",
+        "source_roots": [
+          "wire"
+        ]
+      }
+    ]
+  },
+  "api_reference": {
+    "title": "xrudp public API reference",
+    "function_prefix": "xrt",
+    "constant_prefix": "XRUDP_",
+    "type_prefix": "xrudp",
+    "guide": "../../README.md",
+    "output": "extlibs/xrudp/docs/api/reference.md"
+  },
+  "features_guard": "XRUDP_FEATURES_H",
+  "features_header": "extlibs/xrudp/include/xrudp/features.h",
+  "include_dirs": [
+    "extlibs/xrudp/include"
+  ],
+  "header_roots": [
+    "extlibs/xrudp/include",
+    "extlibs/xrudp/src/internal"
+  ],
+  "modules": [
+    {
+      "name": "rudp_wire",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_WIRE",
+      "depends": [
+        "core"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp.h",
+        "extlibs/xrudp/include/xrudp/features.h",
+        "extlibs/xrudp/include/xrudp/export.h",
+        "extlibs/xrudp/include/xrudp/wire.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/wire/rudp_wire.c",
+        "extlibs/xrudp/src/wire/rudp_replay.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_wire.c",
+        "extlibs/xrudp/tests/test_replay.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_wire.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md",
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    }
+  ]
+}
