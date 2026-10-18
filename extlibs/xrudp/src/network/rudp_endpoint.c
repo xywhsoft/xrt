@@ -38,6 +38,14 @@ typedef struct xrudp__discoveryjob {
 	uint64_t Id, NotifyAt;
 	bool Used;
 } xrudp__discoveryjob;
+typedef struct xrudp__punchjob {
+	xrudppunch Core;
+	xrudppunchproc Callback;
+	void* Context;
+	xerror* Error;
+	uint64_t Id, NotifyAt;
+	bool Used;
+} xrudp__punchjob;
 
 struct xrudpendpoint {
 	xatomic32 References, State;
@@ -62,6 +70,10 @@ struct xrudpendpoint {
 	uint64_t DiscoveryId, DiscoveryAt;
 	uint32_t DiscoveryCount, DiscoveryCursor;
 	bool DiscoveryNotifying, DiscoveryFirst;
+	xrudp__punchjob Punches[XRUDP_ENDPOINT_PUNCHES_MAX];
+	uint64_t PunchId;
+	uint32_t PunchCount, PunchCursor;
+	bool PunchNotifying, PunchFirst;
 	xrudppeer* Slots[];
 };
 
@@ -286,6 +298,74 @@ static void xrudp__endpoint_discovery_input(xrudpendpoint* e,const xnetudpmessag
 		if(j->Core.State.Reason!=XRUDP_OK)j->NotifyAt=xrudp__discovery_after(now,1000);
 	}
 }
+static void xrudp__endpoint_punch_end(xrudp__punchjob* j,xrudpresult reason,uint64_t now,const xerror* error)
+{
+	if(j->Core.State.Reason==XRUDP_OK) {
+		(void)xrtRudpPunchCancel(&j->Core);j->Core.State.Reason=reason;
+		for(uint32_t i=0;i<j->Core.State.Count;++i)if(j->Core.State.Candidates[i].Reason==XRUDP_CANCELLED)j->Core.State.Candidates[i].Reason=reason;
+		if(j->Error==NULL && error!=NULL)j->Error=xrtErrorRef((xerror*)error);
+	}
+	j->NotifyAt=xrudp__discovery_after(now,1000);
+}
+static void xrudp__endpoint_punch_notify(xrudpendpoint* e,uint64_t now,bool closing)
+{
+	if(e->PunchNotifying)return;
+	e->PunchNotifying=true;
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_PUNCHES_MAX;++i) {
+		xrudp__punchjob* j=&e->Punches[i];if(e->UdpClosed)closing=true;
+		if(!j->Used || j->Core.State.Reason==XRUDP_OK || (!closing && now<j->NotifyAt))continue;
+		xrudppunchstate result=j->Core.State;xrudppunchproc callback=j->Callback;void* context=j->Context;
+		uint64_t id=j->Id;xerror* error=j->Error;xrtSecureZero(j,sizeof(*j));--e->PunchCount;
+		if(result.Reason==XRUDP_DONE)++e->Stats.PunchCompleted;else ++e->Stats.PunchFailed;
+		callback(e,id,&result,error,context);xrtErrorFree(error);
+	}
+	e->PunchNotifying=false;
+}
+static bool xrudp__endpoint_punch_pump(xrudpendpoint* e,uint64_t now,bool allowSend)
+{
+	if(xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_OPEN)return false;
+	bool attempted=false,admitted=false;uint32_t first=e->PunchCursor;
+	for(uint32_t n=0;n<XRUDP_ENDPOINT_PUNCHES_MAX;++n) {
+		if(xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_OPEN)break;
+		uint32_t i=(first+n)%XRUDP_ENDPOINT_PUNCHES_MAX;xrudp__punchjob* j=&e->Punches[i];
+		if(!j->Used || j->Core.State.Reason!=XRUDP_OK)continue;
+		unsigned char packet[28];size_t size;uint64_t due;xrudpaddress address;uint32_t index;
+		xrudpresult r=xrtRudpPunchNext(&j->Core,now,packet,sizeof(packet),&size,&address,&index,&due);
+		if(j->Core.State.Reason!=XRUDP_OK) {j->NotifyAt=xrudp__discovery_after(now,1000);continue;}
+		if(r!=XRUDP_OK || attempted || !allowSend || now<e->DiscoveryAt)continue;
+		xnetaddr target;memset(&target,0,sizeof(target));target.Family=(xnetfamily)address.Family;
+		target.Port=address.Port;target.Scope=address.Zone;memcpy(target.Address,address.Address,16);
+		attempted=true;xnetresult sent=xrudp__endpoint_send(e,&target,packet,size);
+		if(sent!=XNET_RESULT_OK && xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_OPEN)break;
+		if(sent==XNET_RESULT_OK) {
+			admitted=true;(void)xrtRudpPunchSent(&j->Core,index,now);
+			e->DiscoveryAt=xrudp__discovery_after(now,50000);e->PunchCursor=(i+1)%XRUDP_ENDPOINT_PUNCHES_MAX;
+		} else if(sent==XNET_RESULT_AGAIN || (sent==XNET_RESULT_ERROR && xrtGetError()!=NULL && xrtErrorKind(xrtGetError())==XERR_MEMORY)) {
+			++e->Stats.PunchBackpressure;e->DiscoveryAt=xrudp__discovery_after(now,1000);
+		} else {
+			if(j->Error==NULL && xrtGetError()!=NULL)j->Error=xrtErrorRef(xrtGetError());
+			(void)xrtRudpPunchReject(&j->Core,index,now);
+		}
+		if(j->Core.State.Reason!=XRUDP_OK)j->NotifyAt=xrudp__discovery_after(now,1000);
+	}
+	xrudp__endpoint_punch_notify(e,now,false);return admitted;
+}
+static bool xrudp__endpoint_aux_pump(xrudpendpoint* e,uint64_t now,bool allowSend)
+{
+	/* Both auxiliary classes share one physical gate. Alternate their first
+	 * chance only on admission; update the clock after user callbacks. */
+	bool first=e->PunchFirst,admitted;
+	if(first) {
+		admitted=xrudp__endpoint_punch_pump(e,now,allowSend);
+		if(admitted)e->PunchFirst=false;
+		if(xrudp__endpoint_discovery_pump(e,xrudp__endpoint_now(e),allowSend&&!admitted)) {admitted=true;e->PunchFirst=true;}
+	} else {
+		admitted=xrudp__endpoint_discovery_pump(e,now,allowSend);
+		if(admitted)e->PunchFirst=true;
+		if(xrudp__endpoint_punch_pump(e,xrudp__endpoint_now(e),allowSend&&!admitted)) {admitted=true;e->PunchFirst=false;}
+	}
+	return admitted;
+}
 static xnetresult xrudp__peer_output_to(xrudppeer* p, const xnetaddr* address, const void* data, size_t size)
 {
 	xrudpendpoint* e = p->Endpoint;
@@ -483,7 +563,8 @@ static void xrudp__endpoint_timer(xnetworker* worker, uint64 id, xnetresult resu
 		 * queue slot, nor wait forever behind continuous peer output. Alternate
 		 * first opportunity after actual admission; pacing still limits mapping. */
 		bool discoveryFirst=e->DiscoveryFirst;
-		if(discoveryFirst && xrudp__endpoint_discovery_pump(e,now,true))e->DiscoveryFirst=false;
+		if(discoveryFirst && xrudp__endpoint_aux_pump(e,now,true))e->DiscoveryFirst=false;
+		now=xrudp__endpoint_now(e); /* Auxiliary callbacks can mutate live peers. */
 		uint64_t peerSent=e->Stats.Sent;
 		uint32_t i = e->ServiceCursor;
 		for (uint32_t n = 0; n < e->Config.MaxPeers; ++n) {
@@ -495,7 +576,7 @@ static void xrudp__endpoint_timer(xnetworker* worker, uint64 id, xnetresult resu
 		if(!discoveryFirst) {
 			bool peerAdmitted=e->Stats.Sent!=peerSent;
 			if(peerAdmitted)e->DiscoveryFirst=true;
-			if(xrudp__endpoint_discovery_pump(e,xrudp__endpoint_now(e),!peerAdmitted))e->DiscoveryFirst=false;
+			if(xrudp__endpoint_aux_pump(e,xrudp__endpoint_now(e),!peerAdmitted))e->DiscoveryFirst=false;
 		}
 		xrudp__endpoint_schedule(e);
 	}
@@ -503,10 +584,19 @@ static void xrudp__endpoint_timer(xnetworker* worker, uint64 id, xnetresult resu
 }
 static void xrudp__endpoint_schedule(xrudpendpoint* e)
 {
-	if ((e->Peers == 0 && e->DiscoveryCount == 0) || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
+	if ((e->Peers == 0 && e->DiscoveryCount == 0 && e->PunchCount == 0) || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
 	uint64_t now = xrudp__endpoint_now(e), due = UINT64_MAX;
 	for(uint32_t i=0;i<XRUDP_ENDPOINT_DISCOVERIES_MAX;++i)if(e->Discoveries[i].Used) {
 		xrudp__discoveryjob* j=&e->Discoveries[i];uint64_t next=j->NotifyAt;
+		if(j->Core.State.Reason==XRUDP_OK) {
+			next=j->Core.State.NextUs;
+			if(next<=now && next<e->DiscoveryAt)next=e->DiscoveryAt;
+			if(j->Core.State.DeadlineUs<next)next=j->Core.State.DeadlineUs;
+		}
+		if(next<due)due=next;
+	}
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_PUNCHES_MAX;++i)if(e->Punches[i].Used) {
+		xrudp__punchjob* j=&e->Punches[i];uint64_t next=j->NotifyAt;
 		if(j->Core.State.Reason==XRUDP_OK) {
 			next=j->Core.State.NextUs;
 			if(next<=now && next<e->DiscoveryAt)next=e->DiscoveryAt;
@@ -622,7 +712,7 @@ static void xrudp__endpoint_error(xnetudp* udp, const xerror* error, ptr context
 }
 static void xrudp__endpoint_finish(xrudpendpoint* e, const xerror* error)
 {
-	if (!e->UdpClosed || e->Timer != 0 || e->CloseNotified || e->DiscoveryNotifying || e->DiscoveryCount) return;
+	if (!e->UdpClosed || e->Timer != 0 || e->CloseNotified || e->DiscoveryNotifying || e->DiscoveryCount || e->PunchNotifying || e->PunchCount) return;
 	e->CloseNotified = true; xrtSecureZero(e->Private, 32); xrtSecureZero(e->CookieKey, 32);
 	xrtAtomic32Store(&e->State, XRUDP_ENDPOINT_CLOSED, XMEMORY_RELEASE);
 	if (error == NULL) error = e->LocalError != NULL ? e->LocalError : xrtNetUdpError(e->Udp);
@@ -645,6 +735,9 @@ static void xrudp__endpoint_closed(xnetudp* udp, xnetresult result, const xerror
 	for(uint32_t i=0;i<XRUDP_ENDPOINT_DISCOVERIES_MAX;++i)if(e->Discoveries[i].Used)
 		xrudp__endpoint_discovery_end(&e->Discoveries[i],e->CloseReason,now,error);
 	xrudp__endpoint_discovery_notify(e,now,true);
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_PUNCHES_MAX;++i)if(e->Punches[i].Used)
+		xrudp__endpoint_punch_end(&e->Punches[i],e->CloseReason,now,error);
+	xrudp__endpoint_punch_notify(e,now,true);
 	if (e->Timer != 0) (void)xrtNetEngineTimerCancelCurrent(e->Engine, e->Timer);
 	xrudp__endpoint_finish(e, error); xrtRudpEndpointDestroy(e);
 }
@@ -734,6 +827,7 @@ xrudpresult xrtRudpEndpointInfo(const xrudpendpoint* e, xrudpendpointinfo* outpu
 	memcpy(info.Public, e->Public, 32); memcpy(info.Scope, e->Scope, 16); info.Peers = e->Peers; info.HalfOpen = e->HalfOpen;
 	info.ReservedBytes = (size_t)xrtAtomic64Load(&e->Reserved, XMEMORY_ACQUIRE); info.MemoryLimit = e->Config.MemoryLimit;
 	info.Discoveries=e->DiscoveryCount;
+	info.Punches=e->PunchCount;
 	*output = info; return XRUDP_OK;
 }
 xrudpresult xrtRudpEndpointDiscover(xrudpendpoint* e,const xnetaddr* server,uint32_t timeout,bool fingerprint,xrudpdiscoveryproc callback,void* context,uint64_t* id)
@@ -766,6 +860,40 @@ xrudpresult xrtRudpEndpointDiscoveryCancel(xrudpendpoint* e,uint64_t id)
 		(void)xrtRudpDiscoveryNext(&j->Core,now,packet,sizeof(packet),&n,&due);
 		bool pending=j->Core.State.Reason==XRUDP_OK;
 		if(pending)(void)xrtRudpDiscoveryCancel(&j->Core);
+		j->NotifyAt=xrudp__discovery_after(now,1000);xrudp__endpoint_schedule(e);return pending?XRUDP_OK:XRUDP_DONE;
+	}
+	return XRUDP_DONE;
+}
+xrudpresult xrtRudpEndpointPunch(xrudpendpoint* e,const xnetaddr* candidates,size_t count,uint32_t timeout,xrudppunchproc callback,void* context,uint64_t* id)
+{
+	if(e==NULL || candidates==NULL || !count || count>XRUDP_PUNCH_CANDIDATES_MAX || callback==NULL || id==NULL)return XRUDP_ARGUMENT;
+	if(xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_OPEN)return XRUDP_CLOSED;
+	if(!xrudp__endpoint_owner(e))return XRUDP_ARGUMENT;
+	xnetaddr local;if(!xrtNetUdpLocal(e->Udp,&local))return XRUDP_IO_ERROR;
+	xrudpaddress addresses[XRUDP_PUNCH_CANDIDATES_MAX];
+	for(size_t i=0;i<count;++i)if(candidates[i].Family!=local.Family || !xrudp__endpoint_address(&candidates[i],&addresses[i]))return XRUDP_ARGUMENT;
+	if(e->PunchId==UINT64_MAX)return XRUDP_LIMIT;
+	uint32_t slot=XRUDP_ENDPOINT_PUNCHES_MAX;
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_PUNCHES_MAX;++i)if(!e->Punches[i].Used) {slot=i;break;}
+	if(slot==XRUDP_ENDPOINT_PUNCHES_MAX)return XRUDP_BACKPRESSURE;
+	xrudppunch value;uint64_t now=xrudp__endpoint_now(e);
+	xrudpresult r=xrtRudpPunchInit(&value,addresses,count,now,timeout);if(r!=XRUDP_OK)return r;
+	xrudp__punchjob* j=&e->Punches[slot];j->Core=value;j->Callback=callback;j->Context=context;j->Id=++e->PunchId;j->Used=true;
+	++e->PunchCount;++e->Stats.PunchStarted;*id=j->Id;xrtSecureZero(&value,sizeof(value));
+	xrudp__endpoint_schedule(e);return XRUDP_OK;
+}
+xrudpresult xrtRudpEndpointPunchCancel(xrudpendpoint* e,uint64_t id)
+{
+	if(e==NULL || !id)return XRUDP_ARGUMENT;
+	if(xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_OPEN)return XRUDP_CLOSED;
+	if(!xrudp__endpoint_owner(e))return XRUDP_ARGUMENT;
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_PUNCHES_MAX;++i) {
+		xrudp__punchjob* j=&e->Punches[i];if(!j->Used || j->Id!=id)continue;
+		if(j->Core.State.Reason!=XRUDP_OK)return XRUDP_DONE;
+		unsigned char packet[28];size_t n;uint64_t due;xrudpaddress target;uint32_t index;uint64_t now=xrudp__endpoint_now(e);
+		(void)xrtRudpPunchNext(&j->Core,now,packet,sizeof(packet),&n,&target,&index,&due);
+		bool pending=j->Core.State.Reason==XRUDP_OK;
+		if(pending)(void)xrtRudpPunchCancel(&j->Core);
 		j->NotifyAt=xrudp__discovery_after(now,1000);xrudp__endpoint_schedule(e);return pending?XRUDP_OK:XRUDP_DONE;
 	}
 	return XRUDP_DONE;

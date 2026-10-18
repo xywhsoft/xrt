@@ -22,6 +22,9 @@
 #ifndef XRUDP_MODULE_RUDP_DISCOVERY
 #define XRUDP_MODULE_RUDP_DISCOVERY
 #endif
+#ifndef XRUDP_MODULE_RUDP_PUNCH
+#define XRUDP_MODULE_RUDP_PUNCH
+#endif
 #endif
 
 /* rudp_session 及其直接依赖。 */

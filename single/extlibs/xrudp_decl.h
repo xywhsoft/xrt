@@ -2530,6 +2530,9 @@
 #ifndef XRUDP_MODULE_RUDP_DISCOVERY
 #define XRUDP_MODULE_RUDP_DISCOVERY
 #endif
+#ifndef XRUDP_MODULE_RUDP_PUNCH
+#define XRUDP_MODULE_RUDP_PUNCH
+#endif
 #endif
 
 /* rudp_session 及其直接依赖。 */
@@ -4541,6 +4544,7 @@ XRT_EXTERN_C_END
 #define XRUDP_PEER_MTU_CHANGED 4096u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 #define XRUDP_ENDPOINT_DISCOVERIES_MAX 4u
+#define XRUDP_ENDPOINT_PUNCHES_MAX 2u
 
 typedef struct xrudpendpoint xrudpendpoint;
 typedef struct xrudppeer xrudppeer;
@@ -4552,6 +4556,11 @@ typedef struct xrudppeer xrudppeer;
  * No recursive discovery callbacks. A result is an address hint, not identity. */
 typedef void (*xrudpdiscoveryproc)(xrudpendpoint* pEndpoint, uint64_t iId,
 	const xrudpdiscoverystate* pResult, const xerror* pError, void* pContext);
+/* Same deferred ownership/reentrancy rules as discovery. DONE reports only
+ * local burst admission, never reachability/authentication. Error is the first
+ * hard route error, if any, borrowed for this callback. */
+typedef void (*xrudppunchproc)(xrudpendpoint* pEndpoint, uint64_t iId,
+	const xrudppunchstate* pResult, const xerror* pError, void* pContext);
 typedef enum xrudpendpointstate {
 	XRUDP_ENDPOINT_OPENING = 0,
 	XRUDP_ENDPOINT_OPEN,
@@ -4626,6 +4635,8 @@ typedef struct xrudpendpointinfo {
 	uint64_t Received, Sent, Invalid, RateDropped, AddressDropped, CapacityDropped, IoErrors;
 	uint32_t Discoveries; /* Includes terminal results waiting for their callback. */
 	uint64_t DiscoveryStarted, DiscoverySucceeded, DiscoveryFailed, DiscoveryBackpressure;
+	uint32_t Punches; /* Includes completed bursts waiting for their callback. */
+	uint64_t PunchStarted, PunchCompleted, PunchFailed, PunchBackpressure;
 } xrudpendpointinfo;
 
 XRT_EXTERN_C_BEGIN
@@ -4661,6 +4672,21 @@ XRUDP_API xrudpresult xrtRudpEndpointDiscover(xrudpendpoint* pEndpoint, const xn
  * already terminal. Late cancellation cannot replace a completed result or
  * renew deadlines. Endpoint close cancels pending jobs before Close event. */
 XRUDP_API xrudpresult xrtRudpEndpointDiscoveryCancel(xrudpendpoint* pEndpoint, uint64_t iId);
+/* Owner-only, at most two fixed jobs with 1..8 trusted destinations each,
+ * same family/socket/port as this endpoint's handshake and business traffic.
+ * No new socket/engine/thread, peer/halfopen allocation or input responder.
+ * Shares mapping's aggregate >=50ms send gate and fair access with peers.
+ * Fixed storage counts against MemoryLimit. IDs are monotonic/nonreused in
+ * their punch namespace. Failure preserves *pId, never calls Callback.
+ * Context must survive through its exactly-once deferred callback, before
+ * endpoint Close. Cancel after real authenticated peer confirmation or relay
+ * fallback; this primitive does NOT automatically select/connect a candidate. */
+XRUDP_API xrudpresult xrtRudpEndpointPunch(xrudpendpoint* pEndpoint,
+	const xnetaddr* pCandidates, size_t iCount, uint32_t iTimeoutMs,
+	xrudppunchproc pCallback, void* pContext, uint64_t* pId);
+/* Owner-only, no inline callback. Pending cancellation returns OK; unknown or
+ * already terminal DONE. Closing endpoint returns CLOSED, Engine-safe. */
+XRUDP_API xrudpresult xrtRudpEndpointPunchCancel(xrudpendpoint* pEndpoint, uint64_t iId);
 XRUDP_API xrudpresult xrtRudpPeerInfo(const xrudppeer* pPeer, xrudphandshakeinfo* pInfo, xnetaddr* pAddress);
 /* Owner-only; success returns an additional owned peer reference. Account ACL,
  * peer pin and scope must come from trusted application discovery. */
@@ -6530,6 +6556,9 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRUDP_MODULE_RUDP_DISCOVERY
 #define XRUDP_MODULE_RUDP_DISCOVERY
+#endif
+#ifndef XRUDP_MODULE_RUDP_PUNCH
+#define XRUDP_MODULE_RUDP_PUNCH
 #endif
 #endif
 

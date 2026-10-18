@@ -781,6 +781,33 @@ API 211 函数/175 常量/74 类型；参考检查与扩展工具 7 项通过，
 本组只完成核心，随后接入原生同套接字并验证 NAT 过滤场景；授权协调/xs/mdo 和完整
 跨平台、互操作、模糊测试及 72 小时长稳仍待继续。长期目标 active，其他九个改动保留。
 
+原生打洞出站预热已接入：EndpointPunch/PunchCancel 固定双任务槽、独立单调 ID，
+使用现有 UDP/Worker/定时器，不占 peer/halfopen；结构预算计入 MemoryLimit。
+与映射发现共用每套接字 50ms 门，发现/预热两类与 peer 输出均按真实受理轮换，
+不通过多建任务扩大预算。临时 AGAIN/内存拒收不消费次数，硬路由错误仅撤销该候选，
+保留首个错误到回调。取消与发送拒收的竞态沿用关闭优先规则。回调延迟且恰好一次，
+可关端点/释放 owner/取消兄弟/新建任务；关闭前结算，Engine 销毁后保留句柄仍安全。
+
+新增真实 UDP 的双端口过滤/NAT 源地址改写模拟：不预热时仅拨号会超时；监听端预热后，
+IPv4/IPv6 均完成带公钥 pin 的 Noise 握手及双向可靠字节/FIN。预热报文全部丢弃仍可
+打开出站过滤，不将其冒充认证响应；另有直接递送 indication 的场景验证端点不反射回应。
+覆盖无 peer 的六份本地受理完成、1s 绝对超时、双槽配额、错误线程/地址族/重复候选、
+回调取消兄弟与新 ID、关闭/引用、发现与业务并存及共享辅助出口。单头只在 xrudp
+发送调用点注入一次 AGAIN、临时 XERR_MEMORY、硬路由拒收与 Close+拒收，均通过；
+没有添加产品测试钩子。IOCP/Epoll 测试组显式声明 memory_debug，独立选择不依赖其他套件。
+
+Windows GCC -O2：本次核心 8 个、原生发现/预热 6 个、端点/IOCP 24 个程序通过，日志
+out/rudp-punch-windows-second.log、out/rudp-punch-native-windows-target.log、
+out/rudp-punch-native-windows-backend.log。Linux Clang -O2 ASan/UBSan、禁止恢复：
+当前代码 13 个模块化和 25 个单头程序通过，日志 out/rudp-punch-native-linux-{modular,single}.log，
+含 Select/Epoll、既有多流/消息/游戏/STOP/关闭/路径/MTU 与新故障注入，无 sanitizer 失败。
+独立 Python STUN oracle 两平台各 4 场景通过（out/rudp-punch-discovery-interop-{windows,linux}.log），
+仍核对同 UDP 源端口、伪造来源/事务/长度/CRC 的结果隔离。213 个产品/测试/清单输入在
+最终验证期间哈希不变，API 213 函数/176 常量/75 类型；单头/参考只读检查及工具 7 项通过。
+其他九项改动哈希保留，xs/mdo 只读检查。此为单个地址对的 NAT 过滤模拟，不等于公网全
+NAT 类型验收；候选授权/优选/协调、mdo 内嵌直连与中继兜底、xs 独立协议及 Android/
+完整互操作/模糊测试/72 小时长稳仍待继续。长期目标 active。
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。

@@ -819,7 +819,8 @@
         "net_udp",
         "atomic",
         "time",
-        "rudp_discovery"
+        "rudp_discovery",
+        "rudp_punch"
       ],
       "public_headers": [
         "extlibs/xrudp/include/xrudp/endpoint.h"
@@ -854,7 +855,8 @@
       "state": "implemented",
       "depends": [
         "rudp_endpoint",
-        "net_port_iocp"
+        "net_port_iocp",
+        "memory_debug"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -863,7 +865,8 @@
         "extlibs/xrudp/tests/test_endpoint_iocp.c",
         "extlibs/xrudp/tests/test_endpoint_stream_iocp.c",
         "extlibs/xrudp/tests/test_endpoint_multi_iocp.c",
-        "extlibs/xrudp/tests/test_endpoint_discovery_iocp.c"
+        "extlibs/xrudp/tests/test_endpoint_discovery_iocp.c",
+        "extlibs/xrudp/tests/test_endpoint_punch_iocp.c"
       ],
       "single_tests": [
         "extlibs/xrudp/tests/single/test_single_endpoint_multi_iocp.c",
@@ -876,7 +879,8 @@
         "extlibs/xrudp/tests/single/test_single_endpoint_message_shutdown_iocp.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_path_iocp.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_mtu_iocp.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_discovery_iocp.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_discovery_iocp.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_punch_iocp.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -892,7 +896,8 @@
       "state": "implemented",
       "depends": [
         "rudp_endpoint",
-        "net_port_epoll"
+        "net_port_epoll",
+        "memory_debug"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -901,7 +906,8 @@
         "extlibs/xrudp/tests/test_endpoint_epoll.c",
         "extlibs/xrudp/tests/test_endpoint_stream_epoll.c",
         "extlibs/xrudp/tests/test_endpoint_multi_epoll.c",
-        "extlibs/xrudp/tests/test_endpoint_discovery_epoll.c"
+        "extlibs/xrudp/tests/test_endpoint_discovery_epoll.c",
+        "extlibs/xrudp/tests/test_endpoint_punch_epoll.c"
       ],
       "single_tests": [
         "extlibs/xrudp/tests/single/test_single_endpoint_multi_epoll.c",
@@ -914,7 +920,8 @@
         "extlibs/xrudp/tests/single/test_single_endpoint_message_shutdown_epoll.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_path_epoll.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_mtu_epoll.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_discovery_epoll.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_discovery_epoll.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_punch_epoll.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -1082,6 +1089,19 @@
       "docs": [
         "extlibs/xrudp/docs/implementation-status.md"
       ]
+    },
+    {
+      "name": "rudp_punch_native_tests",
+      "state": "implemented",
+      "depends": ["rudp_endpoint", "memory_debug"],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": ["extlibs/xrudp/tests/test_endpoint_punch.c"],
+      "single_tests": ["extlibs/xrudp/tests/single/test_single_endpoint_punch.c", "extlibs/xrudp/tests/single/test_single_endpoint_punch_fault.c"],
+      "examples": [],
+      "benchmarks": [],
+      "docs": ["extlibs/xrudp/docs/implementation-status.md"]
     },
     {
       "name": "rudp_discovery_native_tests",
