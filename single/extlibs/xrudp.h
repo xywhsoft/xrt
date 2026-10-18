@@ -477,6 +477,14 @@ XRUDP_API xrudpresult xrtRudpCipherSeal(xrudpcipher* pCipher,
 XRUDP_API xrudpresult xrtRudpCipherOpen(xrudpcipher* pCipher,
 	const void* pPacket, size_t iPacketSize, void* pOutput,
 	size_t iCapacity, size_t* pWritten);
+/* Same authenticated result/plaintext checks as Open, but NEVER commits replay,
+ * receive keys or send-key confirmations. Intended for unvalidated-address
+ * probes; success is not transport admission and must not generate data ACKs.
+ * A subsequent Open must perform the actual commit. No allocation; a private
+ * stack copy (including keys) is securely erased on every return. */
+XRUDP_API xrudpresult xrtRudpCipherInspect(const xrudpcipher* pCipher,
+	const void* pPacket, size_t iPacketSize, void* pOutput,
+	size_t iCapacity, size_t* pWritten);
 
 /* Noise REKEY; packet numbers never reset. Only one unconfirmed send update
  * is allowed. The peer must reliably send KEY_CONFIRM for its receive epoch;
@@ -850,6 +858,15 @@ XRUDP_API xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* pWindow,
  * outstanding data lost merely because a PTO fires; PTO probing is separate. */
 XRUDP_API xrudpresult xrtRudpSentDetectLoss(xrudpsentwindow* pWindow,
 	uint64_t iLossDelayUs, uint64_t iAckOnlyAgeUs, uint64_t iNowUs,
+	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
+/* After validated path migration, finish all old pending flight as LOST (data/
+ * padding) or EXPIRED (ACK-only), WITHOUT stopping this ledger or resetting its
+ * global packet-number/ACK watermark. The driver requeues reliable references
+ * and resets old-path congestion/RTT after consuming these unique events.
+ * No packet is acknowledged by this operation. Atomic capacity/timing checks;
+ * failure leaves state/events unchanged and Count=0. Empty is DONE and does
+ * not advance time. Old ACKs never produce ownership/growth again. */
+XRUDP_API xrudpresult xrtRudpSentDiscardPath(xrudpsentwindow* pWindow, uint64_t iNowUs,
 	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
 /* Complete pending packets as CANCELLED, then stop accepting new records.
  * Caller drains/cancels higher-level stream operations before Destroy. */
@@ -2521,6 +2538,15 @@ cleanup:
 	return result;
 }
 
+xrudpresult xrtRudpCipherInspect(const xrudpcipher* cipher, const void* packet,
+	size_t size, void* output, size_t capacity, size_t* written)
+{
+	if (written != NULL) *written = 0;
+	if (cipher == NULL) return XRUDP_ARGUMENT;
+	xrudpcipher candidate = *cipher;
+	xrudpresult result = xrtRudpCipherOpen(&candidate, packet, size, output, capacity, written);
+	xrtSecureZero(&candidate, sizeof(candidate)); return result;
+}
 xrudpresult xrtRudpCipherUpdateKey(xrudpcipher* pCipher)
 {
 	unsigned char key[XRUDP_KEY_SIZE];
@@ -3394,6 +3420,22 @@ xrudpresult xrtRudpSentDetectLoss(xrudpsentwindow* w,
 	return XRUDP_OK;
 }
 
+xrudpresult xrtRudpSentDiscardPath(xrudpsentwindow* w, uint64_t now,
+	xrudpsentevent* events, size_t capacity, size_t* count)
+{
+	if (count != NULL) *count = 0;
+	if (w == NULL || count == NULL || (events == NULL && capacity != 0) || now < w->LastNow) return XRUDP_ARGUMENT;
+	if (w->Stopped) return XRUDP_CLOSED;
+	if (w->Pending > capacity) return XRUDP_BACKPRESSURE;
+	if (w->Pending == 0) return XRUDP_DONE;
+	size_t written = 0;
+	for (size_t i = 0; i < w->Count; ++i) {
+		xrudp__sentpacket* p = xrudp__sent_at(w, i);
+		if (p->Status == 0) xrudp__sent_finish(w, p,
+			(p->Flags & (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING)) ? XRUDP_SENT_LOST : XRUDP_SENT_EXPIRED, &events[written++]);
+	}
+	w->LastNow = now; xrudp__sent_trim(w); *count = written; return XRUDP_OK;
+}
 xrudpresult xrtRudpSentAbort(xrudpsentwindow* w,
 	xrudpsentevent* events, size_t capacity, size_t* count)
 {

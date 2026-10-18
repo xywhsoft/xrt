@@ -107,6 +107,15 @@ XRUDP_API xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* pWindow,
 XRUDP_API xrudpresult xrtRudpSentDetectLoss(xrudpsentwindow* pWindow,
 	uint64_t iLossDelayUs, uint64_t iAckOnlyAgeUs, uint64_t iNowUs,
 	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
+/* After validated path migration, finish all old pending flight as LOST (data/
+ * padding) or EXPIRED (ACK-only), WITHOUT stopping this ledger or resetting its
+ * global packet-number/ACK watermark. The driver requeues reliable references
+ * and resets old-path congestion/RTT after consuming these unique events.
+ * No packet is acknowledged by this operation. Atomic capacity/timing checks;
+ * failure leaves state/events unchanged and Count=0. Empty is DONE and does
+ * not advance time. Old ACKs never produce ownership/growth again. */
+XRUDP_API xrudpresult xrtRudpSentDiscardPath(xrudpsentwindow* pWindow, uint64_t iNowUs,
+	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
 /* Complete pending packets as CANCELLED, then stop accepting new records.
  * Caller drains/cancels higher-level stream operations before Destroy. */
 XRUDP_API xrudpresult xrtRudpSentAbort(xrudpsentwindow* pWindow,

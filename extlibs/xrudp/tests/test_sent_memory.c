@@ -42,6 +42,8 @@ int main(void)
 	CHECK(xrtRudpSentAcknowledge(w, &ack, 200, event, 2, &count, &change) == XRUDP_OK);
 	CHECK(xrtRudpSentDetectLoss(w, 1000, 1000, 1200, event, 2, &count) == XRUDP_OK);
 	CHECK(xrtRudpSentRecord(w, 3, 1200, 100, 1, 30) == XRUDP_OK);
+	CHECK(xrtRudpSentDiscardPath(w, 1300, event, 2, &count) == XRUDP_OK && count == 1 && event[0].Kind == XRUDP_SENT_LOST);
+	CHECK(xrtRudpSentRecord(w, 4, 1400, 100, 1, 40) == XRUDP_OK);
 	CHECK(xrtRudpSentAbort(w, event, 2, &count) == XRUDP_OK);
 	xrtRudpSentDestroy(w);
 	CHECK(calls == before);

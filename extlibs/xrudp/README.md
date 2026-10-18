@@ -72,6 +72,11 @@ RETIRE_READY 提示两半结束且旧包引用已排空，STREAMS_READY 提示�
 模块 rudp_cookie 只增加 HMAC-SHA256，不需要分配或公钥运算。
 模块 rudp_ack 提供固定上限的接收确认历史，依赖 rudp_wire，无堆分配。
 模块 rudp_timing 提供 RTT、PTO 退避和丢失时间阈值；时间由外部注入，不访问全局时钟。
+CipherInspect 可对未验证地址的探测先验密而不提交防重放、接收密钥或发送密钥确认；
+它不是受理成功，不能据此交付数据或生成传输 ACK，之后仍须由 Open 完成真实提交。
+SentDiscardPath 供验证后的路径切换排空旧在途：可靠引用返回 LOST，纯 ACK 返回 EXPIRED，
+全局包号/确认水位保留且账本可继续发送。驱动须先处理这些唯一事件，再重建新路径拥塞/RTT。
+这些是路径管理的前置接口，当前原生端点仍固定验证握手地址，挑战和切换接入尚在开发。
 模块 rudp_sent 提供有界发送记录、合法 ACK 校验、丢失事件与取消，固定分配后不再分配。
 模块 rudp_congestion 提供 NewReno 与两数据报突发上限的 pacing；共享所有在途业务的预算。
 模块 rudp_receive 提供固定数据环/位图重组，不为乱序片段另行分配元数据。

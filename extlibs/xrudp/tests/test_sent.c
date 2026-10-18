@@ -227,11 +227,46 @@ static int model(void)
 	return 0;
 }
 
+static int discard_path(void)
+{
+	xrudpsentwindow* w; CHECK(xrtRudpSentCreate(4, &w) == XRUDP_OK);
+	xrudpsentevent events[4], saved[4]; xrudpsentstate before, after; size_t count = 999;
+	CHECK(xrtRudpSentRecord(w, 1, 100, 100, XRUDP_SENT_ACK_ELICITING, 91) == XRUDP_OK);
+	CHECK(xrtRudpSentRecord(w, 2, 100, 100, 0, 92) == XRUDP_OK);
+	CHECK(xrtRudpSentRecord(w, 4, 100, 100, XRUDP_SENT_PADDING, 94) == XRUDP_OK);
+	CHECK(xrtRudpSentRecord(w, 5, 100, 100, XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PROBE, 95) == XRUDP_OK);
+	xrudpack ack; memset(&ack, 0, sizeof(ack)); ack.Count = 1; ack.Ranges[0].First = ack.Ranges[0].Last = 2; xrudpackchange change;
+	CHECK(xrtRudpSentAcknowledge(w, &ack, 200, events, 4, &count, &change) == XRUDP_OK && count == 1);
+	CHECK(xrtRudpSentState(w, &before) == XRUDP_OK && before.StoredPackets == 4 && before.PendingPackets == 3 && before.BytesInFlight == 300);
+	memset(events, 0xa5, sizeof(events)); memcpy(saved, events, sizeof(saved));
+	CHECK(xrtRudpSentDiscardPath(w, 300, events, 2, &count) == XRUDP_BACKPRESSURE && count == 0 && memcmp(events, saved, sizeof(saved)) == 0);
+	CHECK(xrtRudpSentState(w, &after) == XRUDP_OK && memcmp(&before, &after, sizeof(before)) == 0);
+	CHECK(xrtRudpSentDiscardPath(w, 199, events, 4, &count) == XRUDP_ARGUMENT && count == 0 && memcmp(events, saved, sizeof(saved)) == 0);
+	CHECK(xrtRudpSentDiscardPath(w, 300, events, 4, &count) == XRUDP_OK && count == 3);
+	uint64_t numbers[] = {1,4,5};
+	for (size_t i = 0; i < count; ++i) CHECK(events[i].PacketNumber == numbers[i] && events[i].Kind == XRUDP_SENT_LOST && events[i].UserTag == 90 + numbers[i]);
+	CHECK(xrtRudpSentState(w, &after) == XRUDP_OK && !after.StoredPackets && !after.PendingPackets && !after.BytesInFlight && !after.Stopped && after.LargestSent == 5 && after.LargestAcked == 2 && after.LastNowUs == 300);
+	CHECK(xrtRudpSentDiscardPath(w, 400, NULL, 0, &count) == XRUDP_DONE && count == 0);
+	CHECK(xrtRudpSentState(w, &before) == XRUDP_OK && memcmp(&before, &after, sizeof(before)) == 0);
+	ack.Ranges[0].First = 1; ack.Ranges[0].Last = 5;
+	CHECK(xrtRudpSentAcknowledge(w, &ack, 400, events, 4, &count, &change) == XRUDP_OK && count == 0 && change.NewlyAckedBytes == 0 && !change.RttSampleValid);
+	CHECK(xrtRudpSentRecord(w, 5, 500, 100, XRUDP_SENT_ACK_ELICITING, 95) == XRUDP_ARGUMENT);
+	CHECK(xrtRudpSentRecord(w, 6, 500, 100, 0, 96) == XRUDP_OK);
+	CHECK(xrtRudpSentRecord(w, 7, 500, 100, XRUDP_SENT_ACK_ELICITING, 97) == XRUDP_OK);
+	ack.Ranges[0].Last = 5;
+	CHECK(xrtRudpSentAcknowledge(w, &ack, 600, events, 4, &count, &change) == XRUDP_OK && count == 0 && change.NewlyAckedBytes == 0);
+	CHECK(xrtRudpSentDiscardPath(w, 700, events, 4, &count) == XRUDP_OK && count == 2 && events[0].Kind == XRUDP_SENT_EXPIRED && events[1].Kind == XRUDP_SENT_LOST);
+	ack.Ranges[0].First = ack.Ranges[0].Last = 8;
+	CHECK(xrtRudpSentAcknowledge(w, &ack, 800, events, 4, &count, &change) == XRUDP_MALFORMED && count == 0);
+	CHECK(xrtRudpSentAbort(w, events, 4, &count) == XRUDP_OK && xrtRudpSentDiscardPath(w, 800, events, 4, &count) == XRUDP_CLOSED && count == 0);
+	xrtRudpSentDestroy(w); return 0;
+}
 int main(void)
 {
 	CHECK(boundaries() == 0);
 	CHECK(loss_and_reserve() == 0);
 	CHECK(model() == 0);
+	CHECK(discard_path() == 0);
 	puts("xrudp sent: gap/future ACK rejection, atomic events, reserved probes and 50,000-step history model passed");
 	return 0;
 }

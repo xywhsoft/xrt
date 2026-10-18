@@ -215,10 +215,45 @@ static int retirement_and_size(void)
 	return 0;
 }
 
+static int inspection(void)
+{
+	xrudpcipher *a, *b; CHECK(pair(&a, &b, 0) == 0);
+	unsigned char first[1200], second[1200], packet[1200], plain[1200], saved[1200]; size_t one, two, size, read;
+	CHECK(xrtRudpCipherSeal(a, ping, sizeof(ping), first, sizeof(first), &one) == XRUDP_OK);
+	CHECK(xrtRudpCipherSeal(a, ping, sizeof(ping), second, sizeof(second), &two) == XRUDP_OK);
+	CHECK(xrtRudpCipherOpen(b, second, two, plain, sizeof(plain), &read) == XRUDP_OK);
+	for (uint32_t i = 0; i < 2; ++i) {
+		CHECK(xrtRudpCipherInspect(b, first, one, plain, sizeof(plain), &read) == XRUDP_OK && read == sizeof(ping) && memcmp(plain, ping, read) == 0);
+		xrudpcipherstate state; CHECK(xrtRudpCipherState(b, &state) == XRUDP_OK && state.LargestReceivedPacket == 2 && state.ReceiveEpoch == 1);
+	}
+	/* A hole below the largest received number also must remain uncommitted. */
+	CHECK(xrtRudpCipherOpen(b, first, one, plain, sizeof(plain), &read) == XRUDP_OK);
+	CHECK(xrtRudpCipherInspect(b, first, one, plain, sizeof(plain), &read) == XRUDP_DUPLICATE && read == 0);
+	CHECK(xrtRudpCipherUpdateKey(a) == XRUDP_OK && xrtRudpCipherSeal(a, ping, sizeof(ping), packet, sizeof(packet), &size) == XRUDP_OK);
+	for (uint32_t i = 0; i < 2; ++i) {
+		CHECK(xrtRudpCipherInspect(b, packet, size, plain, sizeof(plain), &read) == XRUDP_OK);
+		xrudpcipherstate state; CHECK(xrtRudpCipherState(b, &state) == XRUDP_OK && state.ReceiveEpoch == 1 && state.PreviousReceiveEpoch == 0 && state.LargestReceivedPacket == 2);
+	}
+	memset(plain, 0xa5, sizeof(plain)); memcpy(saved, plain, sizeof(saved)); packet[size-1] ^= 1;
+	CHECK(xrtRudpCipherInspect(b, packet, size, plain, sizeof(plain), &read) == XRUDP_AUTH_FAILED && read == 0 && memcmp(plain, saved, sizeof(plain)) == 0);
+	packet[size-1] ^= 1;
+	CHECK(xrtRudpCipherInspect(b, packet, size, plain, 0, &read) == XRUDP_LIMIT && read == 0 && memcmp(plain, saved, sizeof(plain)) == 0);
+	CHECK(xrtRudpCipherInspect(NULL, packet, size, plain, sizeof(plain), &read) == XRUDP_ARGUMENT && read == 0);
+	CHECK(xrtRudpCipherOpen(b, packet, size, plain, sizeof(plain), &read) == XRUDP_OK);
+	CHECK(xrtRudpCipherUpdateKey(b) == XRUDP_OK && xrtRudpCipherSeal(b, ping, sizeof(ping), packet, sizeof(packet), &size) == XRUDP_OK);
+	CHECK(xrtRudpCipherOpen(a, packet, size, plain, sizeof(plain), &read) == XRUDP_OK);
+	unsigned char confirm[] = {XRUDP_FRAME_KEY_CONFIRM,0,0,4,0,0,0,2};
+	CHECK(xrtRudpCipherSeal(a, confirm, sizeof(confirm), packet, sizeof(packet), &size) == XRUDP_OK);
+	CHECK(xrtRudpCipherInspect(b, packet, size, plain, sizeof(plain), &read) == XRUDP_OK);
+	xrudpcipherstate state; CHECK(xrtRudpCipherState(b, &state) == XRUDP_OK && state.SendKeyPending);
+	CHECK(xrtRudpCipherOpen(b, packet, size, plain, sizeof(plain), &read) == XRUDP_OK);
+	CHECK(xrtRudpCipherState(b, &state) == XRUDP_OK && !state.SendKeyPending);
+	xrtRudpCipherDestroy(a); xrtRudpCipherDestroy(b); return 0;
+}
 int main(void)
 {
 	if (basic_tests() || key_update_tests() || confirmation_tests() ||
-		authenticated_invalid_payload() || retirement_and_size()) return 1;
+		authenticated_invalid_payload() || retirement_and_size() || inspection()) return 1;
 	puts("xrudp cipher: all-bit tamper, no poisoning, independent directions, rotation and limits passed");
 	return 0;
 }

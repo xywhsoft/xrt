@@ -56,6 +56,14 @@ XRUDP_API xrudpresult xrtRudpCipherSeal(xrudpcipher* pCipher,
 XRUDP_API xrudpresult xrtRudpCipherOpen(xrudpcipher* pCipher,
 	const void* pPacket, size_t iPacketSize, void* pOutput,
 	size_t iCapacity, size_t* pWritten);
+/* Same authenticated result/plaintext checks as Open, but NEVER commits replay,
+ * receive keys or send-key confirmations. Intended for unvalidated-address
+ * probes; success is not transport admission and must not generate data ACKs.
+ * A subsequent Open must perform the actual commit. No allocation; a private
+ * stack copy (including keys) is securely erased on every return. */
+XRUDP_API xrudpresult xrtRudpCipherInspect(const xrudpcipher* pCipher,
+	const void* pPacket, size_t iPacketSize, void* pOutput,
+	size_t iCapacity, size_t* pWritten);
 
 /* Noise REKEY; packet numbers never reset. Only one unconfirmed send update
  * is allowed. The peer must reliably send KEY_CONFIRM for its receive epoch;

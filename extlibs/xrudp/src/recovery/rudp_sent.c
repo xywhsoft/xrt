@@ -250,6 +250,22 @@ xrudpresult xrtRudpSentDetectLoss(xrudpsentwindow* w,
 	return XRUDP_OK;
 }
 
+xrudpresult xrtRudpSentDiscardPath(xrudpsentwindow* w, uint64_t now,
+	xrudpsentevent* events, size_t capacity, size_t* count)
+{
+	if (count != NULL) *count = 0;
+	if (w == NULL || count == NULL || (events == NULL && capacity != 0) || now < w->LastNow) return XRUDP_ARGUMENT;
+	if (w->Stopped) return XRUDP_CLOSED;
+	if (w->Pending > capacity) return XRUDP_BACKPRESSURE;
+	if (w->Pending == 0) return XRUDP_DONE;
+	size_t written = 0;
+	for (size_t i = 0; i < w->Count; ++i) {
+		xrudp__sentpacket* p = xrudp__sent_at(w, i);
+		if (p->Status == 0) xrudp__sent_finish(w, p,
+			(p->Flags & (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING)) ? XRUDP_SENT_LOST : XRUDP_SENT_EXPIRED, &events[written++]);
+	}
+	w->LastNow = now; xrudp__sent_trim(w); *count = written; return XRUDP_OK;
+}
 xrudpresult xrtRudpSentAbort(xrudpsentwindow* w,
 	xrudpsentevent* events, size_t capacity, size_t* count)
 {

@@ -65,7 +65,7 @@ static void test_free(void* context, void* data)
 int main(void)
 {
 	xallocator allocator = {NULL, test_alloc, test_realloc, test_free};
-	xrudpcipher *cipher = NULL;
+	xrudpcipher *cipher = NULL, *receiver = NULL;
 	unsigned char local[16] = {1}, peer[16] = {2};
 	unsigned char packet[XRUDP_PACKET_MAX], ping[] = {1,0,0,0};
 	size_t size, calls;
@@ -77,13 +77,23 @@ int main(void)
 	memory.Fail = false;
 	CHECK(xrtRudpCipherCreate(sendKey, receiveKey, local, peer, 0, &cipher) == XRUDP_OK);
 	CHECK(cipher != NULL);
+	CHECK(xrtRudpCipherCreate(receiveKey, sendKey, peer, local, 0, &receiver) == XRUDP_OK);
 	calls = memory.AllocCalls;
 	memory.Fail = true;
 	CHECK(xrtRudpCipherSeal(cipher, ping, sizeof(ping), packet, sizeof(packet), &size) == XRUDP_OK);
+	unsigned char plain[XRUDP_PACKET_MAX]; size_t read; xrudpcipherstate state;
+	CHECK(xrtRudpCipherInspect(receiver, packet, size, plain, sizeof(plain), &read) == XRUDP_OK && read == sizeof(ping));
+	CHECK(xrtRudpCipherInspect(receiver, packet, size, plain, sizeof(plain), &read) == XRUDP_OK);
+	CHECK(xrtRudpCipherState(receiver, &state) == XRUDP_OK && state.LargestReceivedPacket == 0 && state.ReceiveEpoch == 1);
+	CHECK(xrtRudpCipherOpen(receiver, packet, size, plain, sizeof(plain), &read) == XRUDP_OK);
+	CHECK(xrtRudpCipherInspect(receiver, packet, size, plain, sizeof(plain), &read) == XRUDP_DUPLICATE);
 	CHECK(xrtRudpCipherUpdateKey(cipher) == XRUDP_OK);
 	CHECK(xrtRudpCipherSeal(cipher, ping, sizeof(ping), packet, sizeof(packet), &size) == XRUDP_OK);
+	CHECK(xrtRudpCipherInspect(receiver, packet, size, plain, sizeof(plain), &read) == XRUDP_OK);
+	CHECK(xrtRudpCipherState(receiver, &state) == XRUDP_OK && state.ReceiveEpoch == 1 && state.PreviousReceiveEpoch == 0);
+	packet[size-1] ^= 1; CHECK(xrtRudpCipherInspect(receiver, packet, size, plain, sizeof(plain), &read) == XRUDP_AUTH_FAILED);
 	CHECK(memory.AllocCalls == calls);
-	xrtRudpCipherDestroy(cipher);
+	xrtRudpCipherDestroy(cipher); xrtRudpCipherDestroy(receiver);
 	/* XRT retains pool spans/caches: inspect those still-live backing blocks,
 	 * as well as blocks released through our Free hook. */
 	for (size_t i = 0; i < 64; ++i)

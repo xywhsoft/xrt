@@ -227,6 +227,15 @@ cleanup:
 	return result;
 }
 
+xrudpresult xrtRudpCipherInspect(const xrudpcipher* cipher, const void* packet,
+	size_t size, void* output, size_t capacity, size_t* written)
+{
+	if (written != NULL) *written = 0;
+	if (cipher == NULL) return XRUDP_ARGUMENT;
+	xrudpcipher candidate = *cipher;
+	xrudpresult result = xrtRudpCipherOpen(&candidate, packet, size, output, capacity, written);
+	xrtSecureZero(&candidate, sizeof(candidate)); return result;
+}
 xrudpresult xrtRudpCipherUpdateKey(xrudpcipher* pCipher)
 {
 	unsigned char key[XRUDP_KEY_SIZE];

@@ -2901,6 +2901,14 @@ XRUDP_API xrudpresult xrtRudpCipherSeal(xrudpcipher* pCipher,
 XRUDP_API xrudpresult xrtRudpCipherOpen(xrudpcipher* pCipher,
 	const void* pPacket, size_t iPacketSize, void* pOutput,
 	size_t iCapacity, size_t* pWritten);
+/* Same authenticated result/plaintext checks as Open, but NEVER commits replay,
+ * receive keys or send-key confirmations. Intended for unvalidated-address
+ * probes; success is not transport admission and must not generate data ACKs.
+ * A subsequent Open must perform the actual commit. No allocation; a private
+ * stack copy (including keys) is securely erased on every return. */
+XRUDP_API xrudpresult xrtRudpCipherInspect(const xrudpcipher* pCipher,
+	const void* pPacket, size_t iPacketSize, void* pOutput,
+	size_t iCapacity, size_t* pWritten);
 
 /* Noise REKEY; packet numbers never reset. Only one unconfirmed send update
  * is allowed. The peer must reliably send KEY_CONFIRM for its receive epoch;
@@ -3274,6 +3282,15 @@ XRUDP_API xrudpresult xrtRudpSentAcknowledge(xrudpsentwindow* pWindow,
  * outstanding data lost merely because a PTO fires; PTO probing is separate. */
 XRUDP_API xrudpresult xrtRudpSentDetectLoss(xrudpsentwindow* pWindow,
 	uint64_t iLossDelayUs, uint64_t iAckOnlyAgeUs, uint64_t iNowUs,
+	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
+/* After validated path migration, finish all old pending flight as LOST (data/
+ * padding) or EXPIRED (ACK-only), WITHOUT stopping this ledger or resetting its
+ * global packet-number/ACK watermark. The driver requeues reliable references
+ * and resets old-path congestion/RTT after consuming these unique events.
+ * No packet is acknowledged by this operation. Atomic capacity/timing checks;
+ * failure leaves state/events unchanged and Count=0. Empty is DONE and does
+ * not advance time. Old ACKs never produce ownership/growth again. */
+XRUDP_API xrudpresult xrtRudpSentDiscardPath(xrudpsentwindow* pWindow, uint64_t iNowUs,
 	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
 /* Complete pending packets as CANCELLED, then stop accepting new records.
  * Caller drains/cancels higher-level stream operations before Destroy. */
