@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `202` 个函数、`168` 个常量或宏、
-`70` 个公共类型。
+当前登记 `204` 个函数、`169` 个常量或宏、
+`71` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -181,13 +181,15 @@
 
 [查看带契约注释的公共头](../../include/xrudp/endpoint.h)
 
-### 函数 (36)
+### 函数 (38)
 
 - `xrtRudpEndpointBind`
 - `xrtRudpEndpointClose`
 - `xrtRudpEndpointConfigInit`
 - `xrtRudpEndpointConnect`
 - `xrtRudpEndpointDestroy`
+- `xrtRudpEndpointDiscover`
+- `xrtRudpEndpointDiscoveryCancel`
 - `xrtRudpEndpointInfo`
 - `xrtRudpEndpointRef`
 - `xrtRudpEndpointState`
@@ -220,11 +222,12 @@
 - `xrtRudpPeerStreamWrite`
 - `xrtRudpPeerWrite`
 
-### 常量与宏 (24)
+### 常量与宏 (25)
 
 - `XRUDP_ENDPOINT_ADDRESS_BUCKETS`
 - `XRUDP_ENDPOINT_CLOSED`
 - `XRUDP_ENDPOINT_CLOSING`
+- `XRUDP_ENDPOINT_DISCOVERIES_MAX`
 - `XRUDP_ENDPOINT_OPEN`
 - `XRUDP_ENDPOINT_OPENING`
 - `XRUDP_ENDPOINT_PEERS_MAX`
@@ -247,9 +250,10 @@
 - `XRUDP_PEER_WRITE_READY`
 - `XRUDP_PEER_WRITE_STOPPED`
 
-### 类型 (15)
+### 类型 (16)
 
 - `xrudpconnectconfig`
+- `xrudpdiscoveryproc`
 - `xrudpendpoint`
 - `xrudpendpointconfig`
 - `xrudpendpointevents`

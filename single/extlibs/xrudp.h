@@ -76,6 +76,9 @@
 #ifndef XRT_MODULE_TIME
 #define XRT_MODULE_TIME
 #endif
+#ifndef XRUDP_MODULE_RUDP_DISCOVERY
+#define XRUDP_MODULE_RUDP_DISCOVERY
+#endif
 #endif
 
 /* rudp_session 及其直接依赖。 */
@@ -1983,9 +1986,18 @@ XRT_EXTERN_C_END
 #define XRUDP_PEER_PATH_FAILED 2048u
 #define XRUDP_PEER_MTU_CHANGED 4096u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
+#define XRUDP_ENDPOINT_DISCOVERIES_MAX 4u
 
 typedef struct xrudpendpoint xrudpendpoint;
 typedef struct xrudppeer xrudppeer;
+
+/* Exactly once on the owner, deferred beyond Discover/Cancel. Result/error
+ * borrowed for this call; no transaction nonce is exposed. Keep Context alive
+ * through this callback, which precedes endpoint Close on shutdown. May ref/
+ * destroy owned handles, cancel/start discoveries or close the endpoint.
+ * No recursive discovery callbacks. A result is an address hint, not identity. */
+typedef void (*xrudpdiscoveryproc)(xrudpendpoint* pEndpoint, uint64_t iId,
+	const xrudpdiscoverystate* pResult, const xerror* pError, void* pContext);
 typedef enum xrudpendpointstate {
 	XRUDP_ENDPOINT_OPENING = 0,
 	XRUDP_ENDPOINT_OPEN,
@@ -2058,6 +2070,8 @@ typedef struct xrudpendpointinfo {
 	uint32_t Peers, HalfOpen;
 	size_t ReservedBytes, MemoryLimit;
 	uint64_t Received, Sent, Invalid, RateDropped, AddressDropped, CapacityDropped, IoErrors;
+	uint32_t Discoveries; /* Includes terminal results waiting for their callback. */
+	uint64_t DiscoveryStarted, DiscoverySucceeded, DiscoveryFailed, DiscoveryBackpressure;
 } xrudpendpointinfo;
 
 XRT_EXTERN_C_BEGIN
@@ -2079,6 +2093,20 @@ XRUDP_API void xrtRudpEndpointDestroy(xrudpendpoint* pEndpoint);
 XRUDP_API xrudpendpointstate xrtRudpEndpointState(const xrudpendpoint* pEndpoint);
 XRUDP_API xrudppeerstate xrtRudpPeerState(const xrudppeer* pPeer);
 XRUDP_API xrudpresult xrtRudpEndpointInfo(const xrudpendpoint* pEndpoint, xrudpendpointinfo* pInfo);
+/* Owner-only, same UDP socket/port as handshake+business. Up to four fixed
+ * tasks share the existing timer/queue, globally at most one send per 50ms.
+ * Server is chosen by trusted application policy, same family as this socket.
+ * No hostname resolution, credentials or redirect. Core timeout semantics.
+ * Success reserves a monotonic nonreused ID and one callback; failure preserves
+ * *pId and never calls it. Context ownership ends only at that callback.
+ * Zero peers is supported. Fixed task storage participates in MemoryLimit;
+ * XRT timer/UDP/error objects retain their own budgets. CLOSED is Engine-safe. */
+XRUDP_API xrudpresult xrtRudpEndpointDiscover(xrudpendpoint* pEndpoint, const xnetaddr* pServer,
+	uint32_t iTimeoutMs, bool bFingerprint, xrudpdiscoveryproc pCallback, void* pContext, uint64_t* pId);
+/* Owner-only, no inline callback. OK=requested cancellation, DONE=unknown or
+ * already terminal. Late cancellation cannot replace a completed result or
+ * renew deadlines. Endpoint close cancels pending jobs before Close event. */
+XRUDP_API xrudpresult xrtRudpEndpointDiscoveryCancel(xrudpendpoint* pEndpoint, uint64_t iId);
 XRUDP_API xrudpresult xrtRudpPeerInfo(const xrudppeer* pPeer, xrudphandshakeinfo* pInfo, xnetaddr* pAddress);
 /* Owner-only; success returns an additional owned peer reference. Account ACL,
  * peer pin and scope must come from trusted application discovery. */
@@ -7422,6 +7450,16 @@ typedef struct xrudp__addressrate {
 	bool Used;
 } xrudp__addressrate;
 
+typedef struct xrudp__discoveryjob {
+	xrudpdiscovery Core;
+	xnetaddr Server;
+	xrudpdiscoveryproc Callback;
+	void* Context;
+	xerror* Error;
+	uint64_t Id, NotifyAt;
+	bool Used;
+} xrudp__discoveryjob;
+
 struct xrudpendpoint {
 	xatomic32 References, State;
 	xatomic64 Reserved;
@@ -7441,6 +7479,10 @@ struct xrudpendpoint {
 	unsigned char Private[32], Public[32], Scope[16], Pin[32], Application[32], CookieKey[32];
 	xrudpendpointinfo Stats;
 	xrudp__addressrate Rates[XRUDP_ENDPOINT_ADDRESS_BUCKETS];
+	xrudp__discoveryjob Discoveries[XRUDP_ENDPOINT_DISCOVERIES_MAX];
+	uint64_t DiscoveryId, DiscoveryAt;
+	uint32_t DiscoveryCount, DiscoveryCursor;
+	bool DiscoveryNotifying, DiscoveryFirst;
 	xrudppeer* Slots[];
 };
 
@@ -7602,6 +7644,68 @@ static xnetresult xrudp__endpoint_send(xrudpendpoint* e, const xnetaddr* address
 		else ++e->Stats.IoErrors;
 	}
 	return result;
+}
+static uint64_t xrudp__discovery_after(uint64_t now,uint64_t delay)
+{ return now>UINT64_MAX-delay?UINT64_MAX:now+delay; }
+static void xrudp__endpoint_discovery_end(xrudp__discoveryjob* j,xrudpresult reason,uint64_t now,const xerror* error)
+{
+	if(j->Core.State.Reason==XRUDP_OK) {
+		(void)xrtRudpDiscoveryCancel(&j->Core);j->Core.State.Reason=reason;
+		if(j->Error==NULL && error!=NULL)j->Error=xrtErrorRef((xerror*)error);
+	}
+	j->NotifyAt=xrudp__discovery_after(now,1000);
+}
+static void xrudp__endpoint_discovery_notify(xrudpendpoint* e,uint64_t now,bool closing)
+{
+	if(e->DiscoveryNotifying)return;
+	e->DiscoveryNotifying=true;
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_DISCOVERIES_MAX;++i) {
+		xrudp__discoveryjob* j=&e->Discoveries[i];
+		if(e->UdpClosed)closing=true;
+		if(!j->Used || j->Core.State.Reason==XRUDP_OK || (!closing && now<j->NotifyAt))continue;
+		xrudpdiscoverystate result=j->Core.State;xrudpdiscoveryproc callback=j->Callback;void* context=j->Context;
+		uint64_t id=j->Id;xerror* error=j->Error;
+		xrtSecureZero(j,sizeof(*j));--e->DiscoveryCount;
+		if(result.Reason==XRUDP_DONE)++e->Stats.DiscoverySucceeded;else ++e->Stats.DiscoveryFailed;
+		callback(e,id,&result,error,context);xrtErrorFree(error);
+	}
+	e->DiscoveryNotifying=false;
+}
+static bool xrudp__endpoint_discovery_pump(xrudpendpoint* e,uint64_t now,bool allowSend)
+{
+	if(xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_OPEN)return false;
+	bool attempted=false,admitted=false;uint32_t first=e->DiscoveryCursor;
+	for(uint32_t n=0;n<XRUDP_ENDPOINT_DISCOVERIES_MAX;++n) {
+		if(xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_OPEN)break;
+		uint32_t i=(first+n)%XRUDP_ENDPOINT_DISCOVERIES_MAX;xrudp__discoveryjob* j=&e->Discoveries[i];
+		if(!j->Used || j->Core.State.Reason!=XRUDP_OK)continue;
+		unsigned char packet[28];size_t size;uint64_t due;
+		xrudpresult r=xrtRudpDiscoveryNext(&j->Core,now,packet,sizeof(packet),&size,&due);
+		if(j->Core.State.Reason!=XRUDP_OK) { j->NotifyAt=xrudp__discovery_after(now,1000);continue; }
+		if(r!=XRUDP_OK || attempted || !allowSend || now<e->DiscoveryAt)continue;
+		attempted=true;xnetresult sent=xrudp__endpoint_send(e,&j->Server,packet,size);
+		/* A concurrent close request owns cancellation of pending tasks. A
+		 * rejected send observed after that request must not replace it with
+		 * an unrelated route error before the asynchronous close callback. */
+		if(sent!=XNET_RESULT_OK && xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_OPEN)break;
+		if(sent==XNET_RESULT_OK) {
+			admitted=true;
+			if(xrtRudpDiscoverySent(&j->Core,now)!=XRUDP_OK)xrudp__endpoint_discovery_end(j,XRUDP_IO_ERROR,now,NULL);
+			e->DiscoveryAt=xrudp__discovery_after(now,50000);e->DiscoveryCursor=(i+1)%XRUDP_ENDPOINT_DISCOVERIES_MAX;
+		} else if(sent==XNET_RESULT_AGAIN || (sent==XNET_RESULT_ERROR && xrtGetError()!=NULL && xrtErrorKind(xrtGetError())==XERR_MEMORY)) {
+			++e->Stats.DiscoveryBackpressure;e->DiscoveryAt=xrudp__discovery_after(now,1000);
+		} else xrudp__endpoint_discovery_end(j,XRUDP_IO_ERROR,now,xrtGetError());
+	}
+	xrudp__endpoint_discovery_notify(e,now,false);
+	return admitted;
+}
+static void xrudp__endpoint_discovery_input(xrudpendpoint* e,const xnetudpmessage* message,const xrudpaddress* source,uint64_t now)
+{
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_DISCOVERIES_MAX;++i) {
+		xrudp__discoveryjob* j=&e->Discoveries[i];if(!j->Used || j->Core.State.Reason!=XRUDP_OK)continue;
+		(void)xrtRudpDiscoveryInput(&j->Core,source,message->Data,message->Size,now);
+		if(j->Core.State.Reason!=XRUDP_OK)j->NotifyAt=xrudp__discovery_after(now,1000);
+	}
 }
 static xnetresult xrudp__peer_output_to(xrudppeer* p, const xnetaddr* address, const void* data, size_t size)
 {
@@ -7796,6 +7900,12 @@ static void xrudp__endpoint_timer(xnetworker* worker, uint64 id, xnetresult resu
 	if (e->Timer == id) { e->Timer = 0; e->TimerDue = 0; }
 	if (result == XNET_RESULT_OK && xrtRudpEndpointState(e) == XRUDP_ENDPOINT_OPEN) {
 		uint64_t now = xrudp__endpoint_now(e);
+		/* A tiny auxiliary class must not repeatedly steal the only shared
+		 * queue slot, nor wait forever behind continuous peer output. Alternate
+		 * first opportunity after actual admission; pacing still limits mapping. */
+		bool discoveryFirst=e->DiscoveryFirst;
+		if(discoveryFirst && xrudp__endpoint_discovery_pump(e,now,true))e->DiscoveryFirst=false;
+		uint64_t peerSent=e->Stats.Sent;
 		uint32_t i = e->ServiceCursor;
 		for (uint32_t n = 0; n < e->Config.MaxPeers; ++n) {
 			if (e->Slots[i] != NULL) {
@@ -7803,14 +7913,28 @@ static void xrudp__endpoint_timer(xnetworker* worker, uint64 id, xnetresult resu
 			}
 			if (++i == e->Config.MaxPeers) i = 0;
 		}
+		if(!discoveryFirst) {
+			bool peerAdmitted=e->Stats.Sent!=peerSent;
+			if(peerAdmitted)e->DiscoveryFirst=true;
+			if(xrudp__endpoint_discovery_pump(e,xrudp__endpoint_now(e),!peerAdmitted))e->DiscoveryFirst=false;
+		}
 		xrudp__endpoint_schedule(e);
 	}
 	xrudp__endpoint_finish(e, NULL); xrtRudpEndpointDestroy(e);
 }
 static void xrudp__endpoint_schedule(xrudpendpoint* e)
 {
-	if (e->Peers == 0 || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
+	if ((e->Peers == 0 && e->DiscoveryCount == 0) || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
 	uint64_t now = xrudp__endpoint_now(e), due = UINT64_MAX;
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_DISCOVERIES_MAX;++i)if(e->Discoveries[i].Used) {
+		xrudp__discoveryjob* j=&e->Discoveries[i];uint64_t next=j->NotifyAt;
+		if(j->Core.State.Reason==XRUDP_OK) {
+			next=j->Core.State.NextUs;
+			if(next<=now && next<e->DiscoveryAt)next=e->DiscoveryAt;
+			if(j->Core.State.DeadlineUs<next)next=j->Core.State.DeadlineUs;
+		}
+		if(next<due)due=next;
+	}
 	for (size_t i = 0; i < e->Config.MaxPeers; ++i) if (e->Slots[i] != NULL) {
 		xrudppeer* p = e->Slots[i]; uint64_t next = p->PendingSize ? now : p->NextPoll;
 		if (xrtRudpPeerState(p) == XRUDP_PEER_NEGOTIATING && p->Info.DeadlineUs < next) next = p->Info.DeadlineUs;
@@ -7842,9 +7966,13 @@ static void xrudp__endpoint_receive(xnetudp* udp, const xnetudpmessage* message,
 	xrudpendpoint* e = (xrudpendpoint*)context; (void)udp;
 	if (xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
 	++e->Stats.Received; xrudpaddress address; xrudpwirepacket packet;
-	if ((message->Flags & XNET_UDP_MESSAGE_TRUNCATED) != 0 || !xrudp__endpoint_address(&message->Remote, &address) ||
-		xrtRudpPacketDecode(message->Data, message->Size, &packet) != XRUDP_OK) { ++e->Stats.Invalid; return; }
-	uint64_t now = xrudp__endpoint_now(e); xrudppeer* p = xrudp__endpoint_find(e, packet.Header.ConnectionId);
+	if ((message->Flags & XNET_UDP_MESSAGE_TRUNCATED) != 0 || !xrudp__endpoint_address(&message->Remote, &address)) { ++e->Stats.Invalid;return; }
+	uint64_t now = xrudp__endpoint_now(e);
+	if(message->Size>=20 && (message->Data[0]&0xc0)==0 && message->Data[4]==0x21 && message->Data[5]==0x12 && message->Data[6]==0xa4 && message->Data[7]==0x42) {
+		xrudp__endpoint_discovery_input(e,message,&address,now);xrudp__endpoint_schedule(e);return;
+	}
+	if(xrtRudpPacketDecode(message->Data,message->Size,&packet)!=XRUDP_OK) {++e->Stats.Invalid;return;}
+	xrudppeer* p = xrudp__endpoint_find(e, packet.Header.ConnectionId);
 	if (p != NULL) {
 		bool active = xrtNetAddrEqual(&p->Address, &message->Remote);
 		bool encrypted = packet.Header.Type == XRUDP_PACKET_DATA || packet.Header.Type == XRUDP_PACKET_PATH;
@@ -7915,7 +8043,7 @@ static void xrudp__endpoint_error(xnetudp* udp, const xerror* error, ptr context
 }
 static void xrudp__endpoint_finish(xrudpendpoint* e, const xerror* error)
 {
-	if (!e->UdpClosed || e->Timer != 0 || e->CloseNotified) return;
+	if (!e->UdpClosed || e->Timer != 0 || e->CloseNotified || e->DiscoveryNotifying || e->DiscoveryCount) return;
 	e->CloseNotified = true; xrtSecureZero(e->Private, 32); xrtSecureZero(e->CookieKey, 32);
 	xrtAtomic32Store(&e->State, XRUDP_ENDPOINT_CLOSED, XMEMORY_RELEASE);
 	if (error == NULL) error = e->LocalError != NULL ? e->LocalError : xrtNetUdpError(e->Udp);
@@ -7934,6 +8062,10 @@ static void xrudp__endpoint_closed(xnetudp* udp, xnetresult result, const xerror
 		xrudppeer* p = xrtRudpPeerRef(e->Slots[i]); xrudp__peer_close(p, e->CloseReason); xrtRudpPeerDestroy(p);
 	}
 	e->UdpClosed = true;
+	uint64_t now=xrudp__endpoint_now(e);
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_DISCOVERIES_MAX;++i)if(e->Discoveries[i].Used)
+		xrudp__endpoint_discovery_end(&e->Discoveries[i],e->CloseReason,now,error);
+	xrudp__endpoint_discovery_notify(e,now,true);
 	if (e->Timer != 0) (void)xrtNetEngineTimerCancelCurrent(e->Engine, e->Timer);
 	xrudp__endpoint_finish(e, error); xrtRudpEndpointDestroy(e);
 }
@@ -8022,7 +8154,42 @@ xrudpresult xrtRudpEndpointInfo(const xrudpendpoint* e, xrudpendpointinfo* outpu
 	if (!xrtNetUdpLocal(e->Udp, &info.Local)) return XRUDP_IO_ERROR;
 	memcpy(info.Public, e->Public, 32); memcpy(info.Scope, e->Scope, 16); info.Peers = e->Peers; info.HalfOpen = e->HalfOpen;
 	info.ReservedBytes = (size_t)xrtAtomic64Load(&e->Reserved, XMEMORY_ACQUIRE); info.MemoryLimit = e->Config.MemoryLimit;
+	info.Discoveries=e->DiscoveryCount;
 	*output = info; return XRUDP_OK;
+}
+xrudpresult xrtRudpEndpointDiscover(xrudpendpoint* e,const xnetaddr* server,uint32_t timeout,bool fingerprint,xrudpdiscoveryproc callback,void* context,uint64_t* id)
+{
+	if(e==NULL || server==NULL || callback==NULL || id==NULL)return XRUDP_ARGUMENT;
+	if(xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_OPEN)return XRUDP_CLOSED;
+	xrudpaddress address;if(!xrudp__endpoint_owner(e) || !xrudp__endpoint_address(server,&address))return XRUDP_ARGUMENT;
+	xnetaddr local;if(!xrtNetUdpLocal(e->Udp,&local) || local.Family!=server->Family)return XRUDP_ARGUMENT;
+	if(e->DiscoveryId==UINT64_MAX)return XRUDP_LIMIT;
+	uint32_t slot=XRUDP_ENDPOINT_DISCOVERIES_MAX;
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_DISCOVERIES_MAX;++i)if(!e->Discoveries[i].Used) {slot=i;break;}
+	if(slot==XRUDP_ENDPOINT_DISCOVERIES_MAX)return XRUDP_BACKPRESSURE;
+	xrudpdiscovery value;uint64_t now=xrudp__endpoint_now(e);
+	xrudpresult r=xrtRudpDiscoveryInit(&value,&address,now,timeout,fingerprint);if(r!=XRUDP_OK)return r;
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_DISCOVERIES_MAX;++i)if(e->Discoveries[i].Used && e->Discoveries[i].Core.State.Reason==XRUDP_OK &&
+		memcmp(e->Discoveries[i].Core._Transaction,value._Transaction,12)==0) {xrtSecureZero(&value,sizeof(value));return XRUDP_IO_ERROR;}
+	xrudp__discoveryjob* j=&e->Discoveries[slot];j->Core=value;j->Server=*server;j->Callback=callback;j->Context=context;j->Id=++e->DiscoveryId;j->Used=true;
+	++e->DiscoveryCount;++e->Stats.DiscoveryStarted;*id=j->Id;xrtSecureZero(&value,sizeof(value));
+	xrudp__endpoint_schedule(e);return XRUDP_OK;
+}
+xrudpresult xrtRudpEndpointDiscoveryCancel(xrudpendpoint* e,uint64_t id)
+{
+	if(e==NULL || !id)return XRUDP_ARGUMENT;
+	if(xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_OPEN)return XRUDP_CLOSED;
+	if(!xrudp__endpoint_owner(e))return XRUDP_ARGUMENT;
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_DISCOVERIES_MAX;++i) {
+		xrudp__discoveryjob* j=&e->Discoveries[i];if(!j->Used || j->Id!=id)continue;
+		if(j->Core.State.Reason!=XRUDP_OK)return XRUDP_DONE;
+		unsigned char packet[28];size_t n;uint64_t due;uint64_t now=xrudp__endpoint_now(e);
+		(void)xrtRudpDiscoveryNext(&j->Core,now,packet,sizeof(packet),&n,&due);
+		bool pending=j->Core.State.Reason==XRUDP_OK;
+		if(pending)(void)xrtRudpDiscoveryCancel(&j->Core);
+		j->NotifyAt=xrudp__discovery_after(now,1000);xrudp__endpoint_schedule(e);return pending?XRUDP_OK:XRUDP_DONE;
+	}
+	return XRUDP_DONE;
 }
 xrudpresult xrtRudpPeerInfo(const xrudppeer* p, xrudphandshakeinfo* output, xnetaddr* address)
 {

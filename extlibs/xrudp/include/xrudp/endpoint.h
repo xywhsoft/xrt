@@ -3,6 +3,7 @@
 
 #include <xrudp/features.h>
 #include <xrudp/session.h>
+#include <xrudp/discovery.h>
 #include <xrt/udp.h>
 
 #if defined(XRUDP_FEATURE_RUDP_ENDPOINT)
@@ -23,9 +24,18 @@
 #define XRUDP_PEER_PATH_FAILED 2048u
 #define XRUDP_PEER_MTU_CHANGED 4096u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
+#define XRUDP_ENDPOINT_DISCOVERIES_MAX 4u
 
 typedef struct xrudpendpoint xrudpendpoint;
 typedef struct xrudppeer xrudppeer;
+
+/* Exactly once on the owner, deferred beyond Discover/Cancel. Result/error
+ * borrowed for this call; no transaction nonce is exposed. Keep Context alive
+ * through this callback, which precedes endpoint Close on shutdown. May ref/
+ * destroy owned handles, cancel/start discoveries or close the endpoint.
+ * No recursive discovery callbacks. A result is an address hint, not identity. */
+typedef void (*xrudpdiscoveryproc)(xrudpendpoint* pEndpoint, uint64_t iId,
+	const xrudpdiscoverystate* pResult, const xerror* pError, void* pContext);
 typedef enum xrudpendpointstate {
 	XRUDP_ENDPOINT_OPENING = 0,
 	XRUDP_ENDPOINT_OPEN,
@@ -98,6 +108,8 @@ typedef struct xrudpendpointinfo {
 	uint32_t Peers, HalfOpen;
 	size_t ReservedBytes, MemoryLimit;
 	uint64_t Received, Sent, Invalid, RateDropped, AddressDropped, CapacityDropped, IoErrors;
+	uint32_t Discoveries; /* Includes terminal results waiting for their callback. */
+	uint64_t DiscoveryStarted, DiscoverySucceeded, DiscoveryFailed, DiscoveryBackpressure;
 } xrudpendpointinfo;
 
 XRT_EXTERN_C_BEGIN
@@ -119,6 +131,20 @@ XRUDP_API void xrtRudpEndpointDestroy(xrudpendpoint* pEndpoint);
 XRUDP_API xrudpendpointstate xrtRudpEndpointState(const xrudpendpoint* pEndpoint);
 XRUDP_API xrudppeerstate xrtRudpPeerState(const xrudppeer* pPeer);
 XRUDP_API xrudpresult xrtRudpEndpointInfo(const xrudpendpoint* pEndpoint, xrudpendpointinfo* pInfo);
+/* Owner-only, same UDP socket/port as handshake+business. Up to four fixed
+ * tasks share the existing timer/queue, globally at most one send per 50ms.
+ * Server is chosen by trusted application policy, same family as this socket.
+ * No hostname resolution, credentials or redirect. Core timeout semantics.
+ * Success reserves a monotonic nonreused ID and one callback; failure preserves
+ * *pId and never calls it. Context ownership ends only at that callback.
+ * Zero peers is supported. Fixed task storage participates in MemoryLimit;
+ * XRT timer/UDP/error objects retain their own budgets. CLOSED is Engine-safe. */
+XRUDP_API xrudpresult xrtRudpEndpointDiscover(xrudpendpoint* pEndpoint, const xnetaddr* pServer,
+	uint32_t iTimeoutMs, bool bFingerprint, xrudpdiscoveryproc pCallback, void* pContext, uint64_t* pId);
+/* Owner-only, no inline callback. OK=requested cancellation, DONE=unknown or
+ * already terminal. Late cancellation cannot replace a completed result or
+ * renew deadlines. Endpoint close cancels pending jobs before Close event. */
+XRUDP_API xrudpresult xrtRudpEndpointDiscoveryCancel(xrudpendpoint* pEndpoint, uint64_t iId);
 XRUDP_API xrudpresult xrtRudpPeerInfo(const xrudppeer* pPeer, xrudphandshakeinfo* pInfo, xnetaddr* pAddress);
 /* Owner-only; success returns an additional owned peer reference. Account ACL,
  * peer pin and scope must come from trusted application discovery. */

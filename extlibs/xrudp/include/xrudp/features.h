@@ -19,6 +19,9 @@
 #ifndef XRT_MODULE_TIME
 #define XRT_MODULE_TIME
 #endif
+#ifndef XRUDP_MODULE_RUDP_DISCOVERY
+#define XRUDP_MODULE_RUDP_DISCOVERY
+#endif
 #endif
 
 /* rudp_session 及其直接依赖。 */

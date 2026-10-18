@@ -34,7 +34,7 @@ mdo 直接调用 xrudp，在自身进程内创建监听、连接和打洞端点�
 7. 进行中：xrt UDP/Worker 原生载体、多可靠字节流/消息流、就绪/完成/退休事件和有界统计已实现；
    跨线程异步数据操作、完整可观测性及广泛并发销毁验证待实现。
 8. 待实现：xs 扩展注册、TCP 风格 xrudp 服务与脚本运行代生命周期。
-9. 进行中：已实现 STUN 映射发现的编解码/固定存储状态机；原生同套接字接线、打洞、协调服务、mdo 原生直连/中继兜底与业务恢复仍待实现。
+9. 进行中：已实现 STUN 映射发现的编解码/固定存储状态机与原生同套接字接线；打洞、协调服务、mdo 原生直连/中继兜底与业务恢复仍待实现。
 10. 待实现：同版独立实现互操作、模糊测试、跨平台实机、长稳与安全审查。
 
 ## 验收要求
@@ -736,6 +736,33 @@ Windows GCC -O2 的 27 个发现/CRC/地址 cookie/握手/路径/原生端点程
 无 sanitizer/原生路径失败。产品源码/测试/清单 191 个文件在最终验证期间哈希不变；
 API 202 函数/168 常量/70 类型，参考生成检查和扩展工具 7 项通过。
 原生同套接字接线及真正打洞/协调、xs 独立服务和 mdo 内嵌端点仍待继续；长期目标 active。
+
+
+原生映射发现：EndpointDiscover/EndpointDiscoveryCancel 使用现有 UDP/定时器，内置四槽
+与单调 ID，支持无 peer；结构预算计入 MemoryLimit，不创建第二个套接字。全局 50ms
+发包门及按实际受理的 peer/发现交替优先，局部背压不计次，局部错误不终止 peer。
+完成异步且恰好一次，回调可关端点/释放自有引用/取消兄弟/新开任务；关闭先结算发现，
+终态和已关闭句柄可在 Engine 销毁后安全保留。公开结果不含事务值，错误只在回调中借用。
+测试真实 IPv4/IPv6 UDP，并核对映射源端口与后续 Noise/可靠双向字节流一致，覆盖丢首包、
+超时、取消、四槽满、ID 复用防护、回调关端点/释放 owner、兄弟取消与重建、错误线程、
+关闭后调用、服务端 500 而可靠业务继续；Select/IOCP/Epoll 各有模块化/单头入口。
+独立单头只在 xrudp 调用点注入 AGAIN、临时 XERR_MEMORY、真正 IOERROR，验证受理计数、
+错误对象寿命及既有可靠连接。又发现发送/关闭竞态可能把取消误报为 IO_ERROR：
+out/rudp-discovery-close-race-before.log 为 reason15，而预期 reason11；现让生效的关闭请求
+结算 pending 任务，专用 mode14 回归。未增加产品测试钩子。
+组合构建发现平台单头嵌套入口的重复宏定义，所有新选择器改为 ifndef，保留严格 Werror。
+独立标准库 UDP oracle（tools/test_xrudp_discovery_interop.py）不链接 C 编解码器，构造
+错误来源/错误事务/错误长度/错误 CRC 的有毒地址，再发正确结果，覆盖两地址族与两种指纹。
+Windows GCC -O2 的发现/原生/故障/路径/MTU/关闭/游戏/IOCP 共 64 个程序通过
+（out/rudp-discovery-native-wide-windows-before-close-fix.log）；最后取消竞态修正后，
+13 个相关单头回归通过（out/rudp-discovery-native-close-final-windows.log，含 mode14）。
+Linux Clang -O2 ASan/UBSan、禁止错误后继续，当前代码 25 个模块化和 39 个单头程序
+全部通过（out/rudp-discovery-native-final-linux-{modular,single}.log），含 Select/Epoll、
+取消竞态及 IO/内存/背压注入，无 sanitizer/原生失败。独立 Python oracle 两平台各 4 场景
+通过（out/rudp-discovery-interop-tracked-{windows,linux}.log，Linux 含 sanitizer）。
+最终阶段 199 个源码/测试/清单输入哈希保留；API 204 函数/169 常量/71 类型、参考检查
+及扩展工具 7 项通过。既存文件根目录/根单头 9 个改动哈希保留，xs/mdo 未改。
+此能力只完成发现/资源与生命周期接线；打洞授权协调、xs/mdo、Android 和完整生产门禁仍继续。
 
 
 ## 恢复工作
