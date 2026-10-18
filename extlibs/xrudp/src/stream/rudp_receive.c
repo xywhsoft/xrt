@@ -75,6 +75,16 @@ bool xrtRudpReceiveReady(const xrudpreceive* r)
 		(r->Buffered != 0 && xrudp__receive_has(r, xrudp__receive_slot(r, r->ReadOffset))));
 }
 
+xrudpresult xrtRudpReceiveRestart(xrudpreceive* r, uint64_t limit)
+{
+	if (r == NULL || limit > r->Capacity) return XRUDP_ARGUMENT;
+	if (!r->Reset && !(r->HasFinal && r->ReadOffset == r->FinalOffset) &&
+		(r->ReadOffset != 0 || r->HighestOffset != 0 || r->HasFinal || r->Buffered != 0)) return XRUDP_BACKPRESSURE;
+	uint32_t capacity = r->Capacity;
+	xrtSecureZero(r, sizeof(*r) + capacity + capacity / 8); r->Capacity = capacity; r->Limit = limit;
+	return XRUDP_OK;
+}
+
 xrudpresult xrtRudpReceiveCheck(const xrudpreceive* r, uint64_t offset,
 	const void* data, size_t size, bool fin, xrudpreceivechange* change)
 {

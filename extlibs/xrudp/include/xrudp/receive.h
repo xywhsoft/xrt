@@ -59,6 +59,9 @@ XRUDP_API void xrtRudpReceiveDestroy(xrudpreceive* pReceive);
 XRUDP_API xrudpresult xrtRudpReceiveState(const xrudpreceive* pReceive, xrudpreceivestate* pState);
 /* A Read can return bytes or a terminal EOF/RESET now (no hole wait). */
 XRUDP_API bool xrtRudpReceiveReady(const xrudpreceive* pReceive);
+/* Reuse quiescent storage for a NEW stream: only fresh, RESET, or consumed EOF.
+ * Driver must have drained every old packet reference first. No allocation. */
+XRUDP_API xrudpresult xrtRudpReceiveRestart(xrudpreceive* pReceive, uint64_t iInitialLimit);
 /* Pure preflight for ONE authenticated STREAM frame. At most one datagram's
  * STREAM chunk; total work is bounded by its payload, not its offset/gaps.
  * MALFORMED includes conflicting overlap, final size, offset overflow or credit

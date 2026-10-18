@@ -12,6 +12,12 @@
 
 #define XRUDP_SESSION_PACKETS_MAX 256u
 #define XRUDP_SESSION_POLL_BURST 8u
+#define XRUDP_SESSION_STREAM_CAPACITY_MAX 64u
+#define XRUDP_STREAM_OPENED 1u
+#define XRUDP_STREAM_READ_READY 2u
+#define XRUDP_STREAM_WRITE_READY 4u
+#define XRUDP_STREAM_WRITE_DONE 8u
+#define XRUDP_STREAM_READ_EOF 16u
 
 typedef struct xrudpsession xrudpsession;
 /* Called only by Poll, serialized with the entire session. Must COPY the
@@ -22,6 +28,8 @@ typedef xrudpresult (*xrudpsessionsendproc)(const void* pPacket, size_t iSize, v
 
 typedef struct xrudpsessionconfig {
 	xrudpparameters Local, Peer; /* Authenticated, already negotiated parameters. */
+	xrudprole Role; /* Trusted handshake role, not chosen from a DATA frame. */
+	uint32_t StreamCapacity; /* Per-origin pool, includes implicit stream 1; 1..64. */
 	uint32_t ReceiveCapacity, TransmitCapacity;
 	uint32_t PacketCapacity; /* 1..256 normal slots plus bounded probe reserve. */
 	uint32_t ControlPerSecond; /* ACK-only output limit, 40..4096. */
@@ -42,17 +50,38 @@ typedef struct xrudpsessionstate {
 	uint64_t ReceivedPackets, SentPackets, LostPackets, ProbeTimeouts, KeyUpdates;
 	uint64_t InvalidPackets, OutputBackpressure;
 	uint32_t PtoBackoff, OutstandingProbes;
+	uint32_t ActiveStreams, PendingStreamEvents;
+	uint32_t IncomingLimit, OutgoingLimit;
 	bool AckPending, ReadReady;
 } xrudpsessionstate;
 
+typedef struct xrudpstreamconfig {
+	uint8_t Priority; /* 0..3; bounded weighted deficit service, no starvation. */
+	uint16_t Weight; /* 1..16 local policy. Wire weights are capped to 16 for service. */
+} xrudpstreamconfig;
+typedef struct xrudpstreamstate {
+	uint32_t Id, References;
+	uint16_t Weight;
+	uint8_t Priority;
+	bool Local, OpenAcknowledged, ReadReady, WriteDone;
+	bool ResetQueued, ResetAcknowledged;
+	uint32_t ResetReason;
+	uint64_t ResetFinal;
+	xrudpreceivestate Receive;
+	xrudptransmitstate Transmit;
+} xrudpstreamstate;
+typedef struct xrudpstreamevent { uint32_t Id, Events; } xrudpstreamevent;
+
 XRT_EXTERN_C_BEGIN
 
-/* First connection profile: implicit bidirectional byte stream 1, admitted by
- * the completed handshake, Local.MaxStreams must be 1. Additional OPEN, game
- * datagrams and path migration are not enabled by this profile yet.
+/* Implicit bidirectional byte stream 1 is admitted by the completed handshake.
+ * StreamCapacity reserves 2*N-1 fixed receive/transmit pairs at construction;
+ * Local.MaxStreams <= N. OPEN/read/write/retire never allocate. Message/game
+ * framing and path migration are separate layers, not enabled here yet.
  * No private thread/socket, no callbacks except serialized output admission.
  * Every method requires one owner; all caller buffers must be disjoint. */
 XRUDP_API void xrtRudpSessionConfigInit(xrudpsessionconfig* pConfig);
+XRUDP_API void xrtRudpStreamConfigInit(xrudpstreamconfig* pConfig);
 /* Total logical bytes including the cipher transferred at Create; excludes
  * allocator overhead and the caller's UDP queues. Reserve BEFORE admission. */
 XRUDP_API xrudpresult xrtRudpSessionAllocationSize(const xrudpsessionconfig* pConfig, size_t* pSize);
@@ -72,9 +101,34 @@ XRUDP_API xrudpresult xrtRudpSessionFinish(xrudpsession* pSession);
  * validated ACK. DONE is clean stream EOF, not implicit connection closure. */
 XRUDP_API xrudpresult xrtRudpSessionRead(xrudpsession* pSession,
 	void* pOutput, size_t iCapacity, size_t* pRead);
+/* New bidirectional byte stream. IDs never reused: initiator odd, responder
+ * even; default ID 1 consumes ordinal 1 in both pools. Success permits bounded
+ * writing before OPEN ACK; output repeats OPEN until acknowledged. */
+XRUDP_API xrudpresult xrtRudpSessionStreamOpen(xrudpsession* pSession,
+	const xrudpstreamconfig* pConfig, uint32_t* pId);
+XRUDP_API xrudpresult xrtRudpSessionStreamState(const xrudpsession* pSession,
+	uint32_t iId, xrudpstreamstate* pState);
+XRUDP_API xrudpresult xrtRudpSessionStreamWrite(xrudpsession* pSession,
+	uint32_t iId, const void* pData, size_t iSize, size_t* pWritten);
+XRUDP_API xrudpresult xrtRudpSessionStreamRead(xrudpsession* pSession,
+	uint32_t iId, void* pOutput, size_t iCapacity, size_t* pRead);
+XRUDP_API xrudpresult xrtRudpSessionStreamFinish(xrudpsession* pSession, uint32_t iId);
+/* Reset only the local sending half. Final size is actual highest sent, so
+ * discarded, never-sent buffers do not consume peer flow credit. */
+XRUDP_API xrudpresult xrtRudpSessionStreamReset(xrudpsession* pSession, uint32_t iId, uint32_t iReason);
+/* Reclaim after both halves terminate/consume and ALL packet copies drain.
+ * Cannot retire default stream 1. Retiring a peer-origin stream reliably
+ * replenishes cumulative MAX_STREAMS; late frames for retired IDs are ignored. */
+XRUDP_API xrudpresult xrtRudpSessionStreamRetire(xrudpsession* pSession, uint32_t iId);
+/* Coalesced per-stream edge hints, including remote OPEN. DONE when none.
+ * No callbacks, no allocation; explicit retirement discards pending hints. */
+XRUDP_API xrudpresult xrtRudpSessionStreamNextEvent(xrudpsession* pSession, xrudpstreamevent* pEvent);
 /* Authenticate, preflight ALL ACK/data/reset/control state, then commit once.
  * Malformed authenticated input terminates the session; no partial delivery or
  * false acknowledgement. Noise/forgery/old/duplicate packets do not terminate.
+ * BACKPRESSURE means an OPEN gap or unavailable admission slot: no connection
+ * frames commit and this PN is NOT ACKed. Retransmit contents with a fresh PN.
+ * An authenticated receive key update may still be confirmed without that ACK.
  * Caller must first enforce the original verified source address. */
 XRUDP_API xrudpresult xrtRudpSessionInput(xrudpsession* pSession,
 	const void* pPacket, size_t iSize, uint64_t iNowUs);

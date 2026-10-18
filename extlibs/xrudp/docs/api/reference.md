@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `114` 个函数、`117` 个常量或宏、
-`51` 个公共类型。
+当前登记 `125` 个函数、`123` 个常量或宏、
+`54` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -242,7 +242,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/receive.h)
 
-### 函数 (12)
+### 函数 (13)
 
 - `xrtRudpReceiveAllocationSize`
 - `xrtRudpReceiveCheck`
@@ -255,6 +255,7 @@
 - `xrtRudpReceiveRead`
 - `xrtRudpReceiveReady`
 - `xrtRudpReceiveReset`
+- `xrtRudpReceiveRestart`
 - `xrtRudpReceiveState`
 
 ### 常量与宏 (4)
@@ -315,7 +316,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/session.h)
 
-### 函数 (11)
+### 函数 (20)
 
 - `xrtRudpSessionAbort`
 - `xrtRudpSessionAllocationSize`
@@ -327,19 +328,37 @@
 - `xrtRudpSessionPoll`
 - `xrtRudpSessionRead`
 - `xrtRudpSessionState`
+- `xrtRudpSessionStreamFinish`
+- `xrtRudpSessionStreamNextEvent`
+- `xrtRudpSessionStreamOpen`
+- `xrtRudpSessionStreamRead`
+- `xrtRudpSessionStreamReset`
+- `xrtRudpSessionStreamRetire`
+- `xrtRudpSessionStreamState`
+- `xrtRudpSessionStreamWrite`
 - `xrtRudpSessionWrite`
+- `xrtRudpStreamConfigInit`
 
-### 常量与宏 (3)
+### 常量与宏 (9)
 
 - `XRUDP_FEATURE_RUDP_SESSION`
 - `XRUDP_SESSION_PACKETS_MAX`
 - `XRUDP_SESSION_POLL_BURST`
+- `XRUDP_SESSION_STREAM_CAPACITY_MAX`
+- `XRUDP_STREAM_OPENED`
+- `XRUDP_STREAM_READ_EOF`
+- `XRUDP_STREAM_READ_READY`
+- `XRUDP_STREAM_WRITE_DONE`
+- `XRUDP_STREAM_WRITE_READY`
 
-### 类型 (4)
+### 类型 (7)
 
 - `xrudprtt`
 - `xrudpsession`
 - `xrudpsessionsendproc`
+- `xrudpstreamconfig`
+- `xrudpstreamevent`
+- `xrudpstreamstate`
 - `xrudptransmitstate`
 
 ## `extlibs/xrudp/include/xrudp/timing.h`
@@ -364,7 +383,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/transmit.h)
 
-### 函数 (11)
+### 函数 (12)
 
 - `xrtRudpTransmitAllocationSize`
 - `xrtRudpTransmitCancel`
@@ -374,6 +393,7 @@
 - `xrtRudpTransmitMarkSent`
 - `xrtRudpTransmitPeek`
 - `xrtRudpTransmitResolve`
+- `xrtRudpTransmitRestart`
 - `xrtRudpTransmitSetLimit`
 - `xrtRudpTransmitState`
 - `xrtRudpTransmitWrite`

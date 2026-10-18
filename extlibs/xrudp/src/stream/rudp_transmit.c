@@ -142,6 +142,17 @@ xrudpresult xrtRudpTransmitWrite(xrudptransmit* t, const void* data, size_t size
 	return XRUDP_OK;
 }
 
+xrudpresult xrtRudpTransmitRestart(xrudptransmit* t, uint64_t limit)
+{
+	if (t == NULL) return XRUDP_ARGUMENT;
+	if (!t->Cancelled && !(t->FinQueued && t->FinAcked && t->Base == t->End) &&
+		(t->Base != 0 || t->End != 0 || t->Highest != 0 || t->FinQueued)) return XRUDP_BACKPRESSURE;
+	xrtSecureZero(t->Data, t->Allocation - sizeof(*t));
+	t->Base = t->End = t->Highest = t->Pending = 0; t->Limit = limit;
+	t->FinQueued = t->FinSent = t->FinAcked = t->FinReady = t->Cancelled = false;
+	return XRUDP_OK;
+}
+
 xrudpresult xrtRudpTransmitFinish(xrudptransmit* t)
 {
 	if (t == NULL) return XRUDP_ARGUMENT;

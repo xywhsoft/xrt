@@ -257,7 +257,7 @@ static void xrudp__peer_pump(xrudppeer* p, uint64_t now)
 			if (p->Info.Phase == XRUDP_HANDSHAKE_ESTABLISHED && p->Session == NULL) {
 				if (xrtRudpHandshakeTakeCipher(p->Handshake, &p->Cipher) != XRUDP_OK) { xrudp__peer_close(p, XRUDP_IO_ERROR); return; }
 				(void)xrtRudpHandshakeInfo(p->Handshake, &p->Info);
-				xrudpsessionconfig config = e->Config.Session; config.Peer = p->Info.PeerParameters;
+				xrudpsessionconfig config = e->Config.Session; config.Peer = p->Info.PeerParameters; config.Role = p->Info.Role;
 				xrudpresult result = xrtRudpSessionCreate(&config, p->Cipher, now, xrudp__peer_send, p, &p->Session);
 				if (result != XRUDP_OK) { if (result == XRUDP_NO_MEMORY) ++e->Stats.CapacityDropped; xrudp__peer_close(p, result); return; }
 				p->HadSession = true; p->SessionPoll = now; (void)xrtRudpSessionState(p->Session, &p->Snapshot);
@@ -346,7 +346,7 @@ static void xrudp__endpoint_receive(xnetudp* udp, const xnetudpmessage* message,
 		if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && packet.Header.Type == XRUDP_PACKET_DATA && packet.Header.PacketNumber >= 2) {
 			xrudpresult result = xrtRudpSessionInput(p->Session, message->Data, message->Size, now);
 			if (result == XRUDP_AUTH_FAILED) ++e->Stats.Invalid;
-			else if (result != XRUDP_OK && result != XRUDP_DUPLICATE && result != XRUDP_TOO_OLD) xrudp__peer_close(p, result);
+			else if (result != XRUDP_OK && result != XRUDP_DUPLICATE && result != XRUDP_TOO_OLD && result != XRUDP_BACKPRESSURE) xrudp__peer_close(p, result);
 			if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED) {
 				xrudp__peer_capture(p); p->SessionPoll = now; xrudp__peer_pump(p, now);
 			}

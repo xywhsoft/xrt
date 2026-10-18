@@ -49,6 +49,9 @@ XRUDP_API xrudpresult xrtRudpTransmitCreate(uint32_t iCapacity,
 	uint64_t iPeerLimit, xrudptransmit** ppTransmit);
 XRUDP_API void xrtRudpTransmitDestroy(xrudptransmit* pTransmit);
 XRUDP_API xrudpresult xrtRudpTransmitState(const xrudptransmit* pTransmit, xrudptransmitstate* pState);
+/* Reuse only fresh, cancelled, or fully acknowledged FIN storage. The driver
+ * MUST first drain all old packet copies; offsets restart for a NEW stream. */
+XRUDP_API xrudpresult xrtRudpTransmitRestart(xrudptransmit* pTransmit, uint64_t iPeerLimit);
 /* Copies a bounded prefix; written may be smaller than Size. Buffering success
  * is not peer acknowledgement. Backpressure/other failures set *pWritten=0.
  * No write is accepted after Finish/Cancel. Inputs/outputs must be disjoint. */

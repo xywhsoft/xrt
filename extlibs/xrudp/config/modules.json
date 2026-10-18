@@ -568,6 +568,53 @@
       "docs": [
         "extlibs/xrudp/docs/implementation-status.md"
       ]
+    },
+    {
+      "name": "rudp_multi_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_session"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_multi.c",
+        "extlibs/xrudp/tests/test_multi_protocol.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_multi.c",
+        "extlibs/xrudp/tests/single/test_single_multi_protocol.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
+      "name": "rudp_multi_fault_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_session",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_multi_fault.c",
+        "extlibs/xrudp/tests/test_multi_protocol_fault.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_multi_fault.c",
+        "extlibs/xrudp/tests/single/test_single_multi_protocol_fault.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
     }
   ]
 }
