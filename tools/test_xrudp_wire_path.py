@@ -123,6 +123,7 @@ class PathPeer(Peer):
                 self.rejected.append(self.send_number)
                 self.reliable(frame(1))
                 assert self.proof_sent,'business ACK before candidate validation'
+                self.before_migration_marker()
                 marker=b'migrate1' if self.phase==1 else b'migrate2'
                 self.raw(self.protect(frame(8,struct.pack('!IQ',7,0)+marker)+
                                       frame(12,struct.pack('!I',self.receive_epoch))))
@@ -130,10 +131,17 @@ class PathPeer(Peer):
                 while marker not in self.datagrams.get(7,[]):
                     assert time.monotonic()<until,'business echo on migrated socket stalled'
                     self.service()
+                self.after_migration_marker(marker)
             assert self.datagrams=={7:[b'',b'migrate1',b'migrate2'],8:[b'ordered'],9:[b'latest']}
             assert all(p not in self.acked for p in self.rejected),'unadmitted candidate packet was falsely ACKed'
         finally:
             self.sock=self.original
+
+    def before_migration_marker(self):
+        pass
+
+    def after_migration_marker(self,marker):
+        pass
 
     def expected_games(self):
         return 5

@@ -23,6 +23,7 @@ typedef struct wire_test {
     bool PathTest, PathVerified; uint16_t InitialPeerPort; unsigned PathChanges;
     bool MtuTest, MtuLimited, MtuStarted, MtuVerified; xrudpmtustate Mtu;
     bool MtuShrink, MtuLimitChecked; uint64_t StallDeadline, StallStartReceived, StallReceives;
+    bool PathMtu; unsigned PathMtuResets;
     uint64_t GameLost, GameSizeDropped;
     unsigned Games, StreamOpened; xrudpresult CloseReason, ExpectedClose;
     wire_slot Slots[6];
@@ -219,6 +220,12 @@ static void changed(xrudpendpoint* E, xrudppeer* P, uint32_t Events, void* Data)
             require(T,T->Games<5 && I.Channel==7 && !I.Sequenced && I.Sequence==0 && I.Size==8 &&
                 !memcmp(Buffer,T->Games==3 ? "migrate1":"migrate2",8) &&
                 S.Path.Validations==T->Games-2 && T->PathChanges==T->Games-2,"business only after matching path proof");
+            if (T->PathMtu) {
+                require(T,S.Mtu.Enabled && S.Mtu.Effective==512 && S.Mtu.Ceiling==1200 && !S.Mtu.BaseConfirmed &&
+                    S.Mtu.ProbePacket && S.Mtu.ProbeSize==512 && !S.Mtu.Fallbacks &&
+                    S.Mtu.ProbesSent==4u*S.Path.Validations+1u && S.Mtu.ProbesAcknowledged==4u*S.Path.Validations &&
+                    ++T->PathMtuResets==S.Path.Validations,"new path has no old-size proof before held base ACK");
+            }
         } else require(T,(I.Channel==7 && !I.Sequenced && I.Sequence==0 && I.Size==0) ||
                 (I.Channel==8 && I.Sequenced && I.Sequence==5 && I.Size==7 && !memcmp(Buffer,"ordered",7)) ||
                 (I.Channel==9 && I.Sequenced && I.Sequence==12 && I.Size==6 && !memcmp(Buffer,"latest",6)),"game mode/sequence/replace");
@@ -300,7 +307,11 @@ static void peer_closed(xrudpendpoint* E, xrudppeer* P, xrudpresult Reason, void
         require(T,xrtRudpPeerSessionState(P,&S)==XRUDP_OK,"terminal MTU snapshot");
         T->Mtu=S.Mtu;
         T->MtuVerified=Reason==XRUDP_CLOSED && T->MtuStarted && S.Mtu.Enabled && S.Mtu.BaseConfirmed && S.Mtu.Ceiling==1200;
-        if (T->MtuShrink) {
+        if (T->PathMtu) {
+            T->MtuVerified=T->MtuVerified && T->PathVerified && T->PathMtuResets==2 &&
+                S.Mtu.Effective==1200 && !S.Mtu.Fallbacks && S.Mtu.ProbesSent==12 &&
+                S.Mtu.ProbesAcknowledged==12 && !S.Mtu.ProbeFailures;
+        } else if (T->MtuShrink) {
             T->GameLost=S.DatagramLost; T->GameSizeDropped=S.Datagrams.SendSizeDropped;
             T->MtuVerified=T->MtuVerified && T->MtuLimitChecked && T->StallReceives>=2 &&
                 S.Mtu.Effective==512 && S.Mtu.Fallbacks==1 && S.Mtu.ProbesSent==5 &&
@@ -349,9 +360,10 @@ int main(int Argc, char** Argv)
     if (Argc!=5 && Argc!=6) return 2;
     wire_test T={0}; T.Family=atoi(Argv[1])==6 ? XNET_FAMILY_IPV6:XNET_FAMILY_IPV4;
     int Port=atoi(Argv[2]); if (Port<0 || Port>65535) return 2; T.RemotePort=(uint16_t)Port;
-    int Mode=atoi(Argv[3]); if (Mode<0 || Mode>8 || (Mode==2)!=(Argc==6)) return 2;
-    T.Typed=Mode==1 || Mode>=3; T.Probe=Mode==2; T.StopControl=Mode==3; T.Graceful=Mode==4; T.PathTest=Mode==5;
+    int Mode=atoi(Argv[3]); if (Mode<0 || Mode>9 || (Mode==2)!=(Argc==6)) return 2;
+    T.Typed=Mode==1 || Mode>=3; T.Probe=Mode==2; T.StopControl=Mode==3; T.Graceful=Mode==4; T.PathTest=Mode==5 || Mode==9;
     T.MtuTest=Mode>=6; T.MtuLimited=Mode==7; T.MtuShrink=Mode==8;
+    T.PathMtu=Mode==9;
     if (T.Probe) { T.ExpectedClose=(xrudpresult)atoi(Argv[5]); if (T.ExpectedClose!=XRUDP_MALFORMED && T.ExpectedClose!=XRUDP_CLOSED) return 2; }
     xnetengineconfig C; xrtNetEngineConfigInit(&C); C.Workers=1; C.Backend=XNET_PORT_SELECT;
     if (atoi(Argv[4])) {
@@ -382,7 +394,7 @@ int main(int Argc, char** Argv)
     while (!xrtNetEngineDestroy(T.Engine)) { if (xrtTimer()>=Until) return 5; xrtSleep(1); }
     xrudpendpointinfo I={0}; require(&T,xrtRudpEndpointInfo(T.Endpoint,&I)==XRUDP_OK,"terminal info");
     xrtRudpPeerDestroy(T.Peer); xrtRudpEndpointDestroy(T.Endpoint);
-    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u,\"close_reason\":%u,\"opened\":%u,\"stop_verified\":%s,\"shutdown_verified\":%s,\"path_verified\":%s,\"path_changes\":%u,\"mtu_verified\":%s,\"mtu_effective\":%u,\"mtu_probes\":%llu,\"mtu_acknowledged\":%llu,\"mtu_failures\":%llu,\"mtu_fallbacks\":%llu,\"stall_receives\":%llu,\"game_lost\":%llu,\"game_size_dropped\":%llu,\"joined\":true}\n",
-        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games,(unsigned)T.CloseReason,T.StreamOpened,T.StopVerified?"true":"false",T.ShutdownVerified?"true":"false",T.PathVerified?"true":"false",T.PathChanges,T.MtuVerified?"true":"false",T.Mtu.Effective,(unsigned long long)T.Mtu.ProbesSent,(unsigned long long)T.Mtu.ProbesAcknowledged,(unsigned long long)T.Mtu.ProbeFailures,(unsigned long long)T.Mtu.Fallbacks,(unsigned long long)T.StallReceives,(unsigned long long)T.GameLost,(unsigned long long)T.GameSizeDropped);
+    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u,\"close_reason\":%u,\"opened\":%u,\"stop_verified\":%s,\"shutdown_verified\":%s,\"path_verified\":%s,\"path_changes\":%u,\"path_mtu_resets\":%u,\"mtu_verified\":%s,\"mtu_effective\":%u,\"mtu_probes\":%llu,\"mtu_acknowledged\":%llu,\"mtu_failures\":%llu,\"mtu_fallbacks\":%llu,\"stall_receives\":%llu,\"game_lost\":%llu,\"game_size_dropped\":%llu,\"joined\":true}\n",
+        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games,(unsigned)T.CloseReason,T.StreamOpened,T.StopVerified?"true":"false",T.ShutdownVerified?"true":"false",T.PathVerified?"true":"false",T.PathChanges,T.PathMtuResets,T.MtuVerified?"true":"false",T.Mtu.Effective,(unsigned long long)T.Mtu.ProbesSent,(unsigned long long)T.Mtu.ProbesAcknowledged,(unsigned long long)T.Mtu.ProbeFailures,(unsigned long long)T.Mtu.Fallbacks,(unsigned long long)T.StallReceives,(unsigned long long)T.GameLost,(unsigned long long)T.GameSizeDropped);
     return Ready && Done && T.Closes==1 && !xrtAtomic32Load(&T.Failure,XMEMORY_ACQUIRE) ? 0:6;
 }
