@@ -1412,7 +1412,8 @@ typedef enum xrudppeerstate {
  * to keep its handle beyond the callback. Confirmed means identity/address/key
  * proof AND default reliable session admission have completed.
  * Callbacks may close/ref/destroy owned handles, but must not block the Worker.
- * Context remains borrowed until endpoint Close returns. */
+ * Keep Context alive until the final Events.Close callback; release it there
+ * or after it returns. EndpointClose is only an asynchronous close request. */
 typedef struct xrudpendpointevents {
 	void (*Open)(xrudpendpoint* pEndpoint, void* pContext);
 	void (*Confirmed)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, void* pContext);
@@ -5063,7 +5064,7 @@ struct xrudppeer {
 	uint64_t NextPoll, SessionPoll, NotifyAt;
 	size_t Slot, RuntimeBytes, PendingSize;
 	uint32_t PendingEvents;
-	bool FinalQueued, Notifying, HadSession;
+	bool FinalQueued, Notifying, HadSession, OutputWaiting, OutputAttempted;
 	unsigned char Pending[XRUDP_HANDSHAKE_PACKET_MAX];
 };
 
@@ -5086,7 +5087,7 @@ struct xrudpendpoint {
 	size_t Allocation, PeerRuntime;
 	uint64_t Timer, TimerDue, LastNow, RateSecond;
 	double Epoch;
-	uint32_t RateCount, Peers, HalfOpen;
+	uint32_t RateCount, Peers, HalfOpen, ServiceCursor, WaitingPeers;
 	bool UdpClosed, CloseNotified;
 	xrudpresult CloseReason;
 	xerror* LocalError;
@@ -5098,6 +5099,21 @@ struct xrudpendpoint {
 
 static void xrudp__endpoint_schedule(xrudpendpoint* e);
 static void xrudp__endpoint_finish(xrudpendpoint* e, const xerror* error);
+static void xrudp__peer_waiting(xrudppeer* p, bool waiting)
+{
+	if (p->OutputWaiting == waiting) return;
+	p->OutputWaiting = waiting;
+	if (waiting) ++p->Endpoint->WaitingPeers; else --p->Endpoint->WaitingPeers;
+}
+static uint32_t xrudp__endpoint_waiter(const xrudpendpoint* e)
+{
+	uint32_t i = e->ServiceCursor;
+	if (e->WaitingPeers != 0) for (uint32_t n = 0; n < e->Config.MaxPeers; ++n) {
+		if (e->Slots[i] != NULL && e->Slots[i]->OutputWaiting) return i;
+		if (++i == e->Config.MaxPeers) i = 0;
+	}
+	return e->Config.MaxPeers;
+}
 
 static bool xrudp__endpoint_nonzero(const void* data, size_t size)
 {
@@ -5165,6 +5181,7 @@ static void xrudp__peer_close(xrudppeer* p, xrudpresult reason)
 {
 	xrudpendpoint* e = p->Endpoint; xrudppeerstate previous = xrtRudpPeerState(p);
 	if (previous == XRUDP_PEER_CLOSED) return;
+	xrudp__peer_waiting(p, false);
 	e->Slots[p->Slot] = NULL; --e->Peers; if (previous == XRUDP_PEER_NEGOTIATING) --e->HalfOpen;
 	xrtRudpHandshakeDestroy(p->Handshake); p->Handshake = NULL;
 	if (p->Session != NULL) {
@@ -5239,11 +5256,31 @@ static xnetresult xrudp__endpoint_send(xrudpendpoint* e, const xnetaddr* address
 	}
 	return result;
 }
+static xnetresult xrudp__peer_output(xrudppeer* p, const void* data, size_t size)
+{
+	xrudpendpoint* e = p->Endpoint;
+	p->OutputAttempted = true;
+	uint32_t first = xrudp__endpoint_waiter(e);
+	if (first != e->Config.MaxPeers && first != p->Slot) {
+		xrudp__peer_waiting(p, true); return XNET_RESULT_AGAIN;
+	}
+	xnetresult result = xrudp__endpoint_send(e, &p->Address, data, size);
+	xrudp__peer_waiting(p, result == XNET_RESULT_AGAIN || (result == XNET_RESULT_ERROR &&
+		xrtGetError() != NULL && xrtErrorKind(xrtGetError()) == XERR_MEMORY));
+	/* A peer that consumed shared UDP capacity yields the next service start.
+	 * Failed admission must not advance it: retry cadence otherwise phase-locks
+	 * the first successful peers to the socket's capacity-replenishment period. */
+	if (result == XNET_RESULT_OK) {
+		uint32_t next = (uint32_t)p->Slot + 1;
+		e->ServiceCursor = next == e->Config.MaxPeers ? 0 : next;
+	}
+	return result;
+}
 static xrudpresult xrudp__peer_send(const void* data, size_t size, void* context)
 {
 	xrudppeer* p = (xrudppeer*)context; xrudpendpoint* e = p->Endpoint;
 	if (xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return XRUDP_BACKPRESSURE;
-	xnetresult r = xrudp__endpoint_send(e, &p->Address, data, size);
+	xnetresult r = xrudp__peer_output(p, data, size);
 	if (r == XNET_RESULT_OK) return XRUDP_OK;
 	if (r == XNET_RESULT_AGAIN || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return XRUDP_BACKPRESSURE;
 	return xrtGetError() != NULL && xrtErrorKind(xrtGetError()) == XERR_MEMORY ? XRUDP_NO_MEMORY : XRUDP_IO_ERROR;
@@ -5295,6 +5332,11 @@ static void xrudp__peer_pump(xrudppeer* p, uint64_t now)
 {
 	xrudpendpoint* e = p->Endpoint;
 	if (xrtRudpPeerState(p) == XRUDP_PEER_CLOSED || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
+	p->OutputAttempted = false;
+	/* A refused packet already passed stream/cwnd admission. Give its owner
+	 * the first retry when capacity is observable again, not only at a timer.
+	 * Poll still checks pacing/deadlines; no new output means no HOL waiter. */
+	if (p->OutputWaiting && p->Session != NULL) p->SessionPoll = now;
 	if (p->Handshake != NULL) {
 		/* A retained packet waiting for UDP capacity must not bypass the
 		 * absolute handshake deadline by skipping HandshakeNext forever. */
@@ -5323,7 +5365,7 @@ static void xrudp__peer_pump(xrudppeer* p, uint64_t now)
 				p->HadSession = true; p->SessionPoll = now; (void)xrtRudpSessionState(p->Session, &p->Snapshot);
 			}
 			if (p->PendingSize != 0) {
-				xnetresult sent = xrudp__endpoint_send(e, &p->Address, p->Pending, p->PendingSize);
+				xnetresult sent = xrudp__peer_output(p, p->Pending, p->PendingSize);
 				if (sent == XNET_RESULT_OK) {
 					if (p->Info.Phase == XRUDP_HANDSHAKE_ESTABLISHED && p->Info.Role == XRUDP_RESPONDER) p->FinalQueued = true;
 					p->PendingSize = 0;
@@ -5348,8 +5390,21 @@ static void xrudp__peer_pump(xrudppeer* p, uint64_t now)
 			if (result != XRUDP_OK) { xrudp__peer_close(p, result); return; }
 			xrudp__peer_capture(p);
 		}
+		if (!p->OutputAttempted) xrudp__peer_waiting(p, false);
 		xrudp__peer_notify(p);
+	} else if (!p->OutputAttempted) xrudp__peer_waiting(p, false);
+}
+static void xrudp__endpoint_input_pump(xrudppeer* p, uint64_t now, bool resume)
+{
+	xrudpendpoint* e = p->Endpoint;
+	uint32_t first = resume ? xrudp__endpoint_waiter(e) : e->Config.MaxPeers;
+	if (first != e->Config.MaxPeers && e->Slots[first] != p) {
+		/* One bounded earlier waiter before the newly active input peer. This
+		 * prevents ACK/data receive callbacks from bypassing the shared queue. */
+		xrudppeer* q = xrtRudpPeerRef(e->Slots[first]); xrudp__peer_pump(q, now); xrtRudpPeerDestroy(q);
+		now = xrudp__endpoint_now(e); /* Earlier callbacks may have queued work. */
 	}
+	xrudp__peer_pump(p, now);
 }
 static void xrudp__endpoint_timer(xnetworker* worker, uint64 id, xnetresult result, ptr context)
 {
@@ -5357,8 +5412,12 @@ static void xrudp__endpoint_timer(xnetworker* worker, uint64 id, xnetresult resu
 	if (e->Timer == id) { e->Timer = 0; e->TimerDue = 0; }
 	if (result == XNET_RESULT_OK && xrtRudpEndpointState(e) == XRUDP_ENDPOINT_OPEN) {
 		uint64_t now = xrudp__endpoint_now(e);
-		for (size_t i = 0; i < e->Config.MaxPeers; ++i) if (e->Slots[i] != NULL) {
-			xrudppeer* p = xrtRudpPeerRef(e->Slots[i]); xrudp__peer_pump(p, now); xrtRudpPeerDestroy(p);
+		uint32_t i = e->ServiceCursor;
+		for (uint32_t n = 0; n < e->Config.MaxPeers; ++n) {
+			if (e->Slots[i] != NULL) {
+				xrudppeer* p = xrtRudpPeerRef(e->Slots[i]); xrudp__peer_pump(p, now); xrtRudpPeerDestroy(p);
+			}
+			if (++i == e->Config.MaxPeers) i = 0;
 		}
 		xrudp__endpoint_schedule(e);
 	}
@@ -5410,7 +5469,7 @@ static void xrudp__endpoint_receive(xnetudp* udp, const xnetudpmessage* message,
 			if (result == XRUDP_AUTH_FAILED) ++e->Stats.Invalid;
 			else if (result != XRUDP_OK && result != XRUDP_DUPLICATE && result != XRUDP_TOO_OLD && result != XRUDP_BACKPRESSURE) xrudp__peer_close(p, result);
 			if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED) {
-				xrudp__peer_capture(p); p->SessionPoll = now; xrudp__peer_pump(p, now);
+				xrudp__peer_capture(p); p->SessionPoll = now; xrudp__endpoint_input_pump(p, now, result == XRUDP_OK);
 			}
 		} else if (p->Handshake != NULL) {
 			xrudpresult result = xrtRudpHandshakeInput(p->Handshake, message->Data, message->Size, now);
@@ -5420,7 +5479,7 @@ static void xrudp__endpoint_receive(xnetudp* udp, const xnetudpmessage* message,
 			else {
 				if (result == XRUDP_OK) { p->PendingSize = 0; p->NextPoll = now; }
 				if (result == XRUDP_AUTH_FAILED) ++e->Stats.Invalid;
-				xrudp__peer_pump(p, now);
+				xrudp__endpoint_input_pump(p, now, result == XRUDP_OK);
 			}
 		}
 		xrtRudpPeerDestroy(p); xrudp__endpoint_schedule(e); return;
@@ -5678,7 +5737,7 @@ xrudpresult xrtRudpPeerAbort(xrudppeer* p)
 	if (p->Cipher != NULL && xrtRudpEndpointState(p->Endpoint) == XRUDP_ENDPOINT_OPEN) {
 		unsigned char frames[8] = {XRUDP_FRAME_CLOSE,0,0,4,0,0,0,XRUDP_CANCELLED}, packet[80]; size_t size;
 		if (xrtRudpCipherSeal(p->Cipher, frames, sizeof(frames), packet, sizeof(packet), &size) == XRUDP_OK)
-			(void)xrudp__endpoint_send(p->Endpoint, &p->Address, packet, size);
+			(void)xrudp__peer_output(p, packet, size);
 	}
 	xrudp__peer_close(p, XRUDP_CANCELLED); xrtRudpPeerDestroy(p); return XRUDP_OK;
 }

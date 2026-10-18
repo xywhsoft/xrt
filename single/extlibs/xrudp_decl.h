@@ -3824,7 +3824,8 @@ typedef enum xrudppeerstate {
  * to keep its handle beyond the callback. Confirmed means identity/address/key
  * proof AND default reliable session admission have completed.
  * Callbacks may close/ref/destroy owned handles, but must not block the Worker.
- * Context remains borrowed until endpoint Close returns. */
+ * Keep Context alive until the final Events.Close callback; release it there
+ * or after it returns. EndpointClose is only an asynchronous close request. */
 typedef struct xrudpendpointevents {
 	void (*Open)(xrudpendpoint* pEndpoint, void* pContext);
 	void (*Confirmed)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, void* pContext);
