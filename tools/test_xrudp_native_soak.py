@@ -102,8 +102,9 @@ def resources(pid):
 
 def build(args):
     sdk=args.sdk.resolve(); core=sdk/'lib/xrt.h'; declaration=sdk/'lib/xrt_decl.h'
+    source_commit=subprocess.check_output(['git','rev-parse','--verify','HEAD^{commit}'],cwd=ROOT,text=True).strip()
     for local,source in ((core,'single/xrt.h'),(declaration,'single/xrt_decl.h')):
-        assert local.read_bytes()==subprocess.check_output(['git','show','HEAD:'+source],cwd=ROOT),'SDK core must match committed upstream bytes'
+        assert local.read_bytes()==subprocess.check_output(['git','show',source_commit+':'+source],cwd=ROOT),'SDK core must match committed upstream bytes'
     fixture=ROOT/'extlibs/xrudp/tests/test_native_soak.c'
     output=ROOT/'out/xrudp-native-soak'; output.mkdir(parents=True,exist_ok=True)
     binary=output/('native.exe' if os.name=='nt' else 'native')
@@ -114,12 +115,17 @@ def build(args):
     command+=[str(fixture),*map(str,sorted((ROOT/'extlibs/xrudp/src').rglob('*.c'))),'-o',str(binary)]
     command+=['-lws2_32','-liphlpapi'] if os.name=='nt' else ['-pthread','-lm','-ldl']
     paths=[core,declaration,fixture]
-    for folder,suffix in ((ROOT/'extlibs/xrudp/src','*.c'),(ROOT/'extlibs/xrudp/include','*.h'),(sdk/'lib/xrtshim','*.h')):
+    for folder,suffix in ((ROOT/'extlibs/xrudp/src','*.c'),(ROOT/'extlibs/xrudp/src','*.h'),
+            (ROOT/'extlibs/xrudp/include','*.h'),(sdk/'lib/xrtshim','*.h')):
         paths+=sorted(folder.rglob(suffix))
     for path in paths:
         if path.is_relative_to(ROOT/'extlibs/xrudp/src') or path.is_relative_to(ROOT/'extlibs/xrudp/include'):
-            upstream=subprocess.check_output(['git','show','HEAD:'+path.relative_to(ROOT).as_posix()],cwd=ROOT)
+            upstream=subprocess.check_output(['git','show',source_commit+':'+path.relative_to(ROOT).as_posix()],cwd=ROOT)
             assert path.read_bytes().replace(b'\r\n',b'\n')==upstream.replace(b'\r\n',b'\n'),'commit runtime changes before an acceptance build'
+    if getattr(args,'seconds',0)>=72*3600:
+        for path in (fixture,Path(__file__).resolve()):
+            committed=subprocess.check_output(['git','show',source_commit+':'+path.relative_to(ROOT).as_posix()],cwd=ROOT)
+            assert path.read_bytes().replace(b'\r\n',b'\n')==committed.replace(b'\r\n',b'\n'),'commit the acceptance harness before a 72h run'
     hashes={str(path):hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}
     version=subprocess.check_output([args.compiler,'--version'],text=True).splitlines()[0]
     key=hashlib.sha256(json.dumps([command,version,hashes],sort_keys=True).encode()).hexdigest()
@@ -127,14 +133,14 @@ def build(args):
     if args.reuse:
         stored=json.loads(receipt.read_text())
         assert stored['input_key']==key and stored['binary_sha256']==hashlib.sha256(binary.read_bytes()).hexdigest(),'native build provenance changed; rebuild explicitly'
-        return binary,stored
+        return binary,{**stored,'verified_source_commit':source_commit}
     print(json.dumps({'build_started':True,'pid':os.getpid(),'compiler':version,'input_key':key}),flush=True)
     subprocess.run(command,cwd=ROOT,check=True)
     assert all(hashlib.sha256(Path(name).read_bytes()).hexdigest()==value for name,value in hashes.items()),'source changed while compiling'
-    value={'input_key':key,'compiler':version,'command':command,'source_hashes':hashes,
+    value={'input_key':key,'compiler':version,'command':command,'source_hashes':hashes,'source_commit':source_commit,
         'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest()}
     receipt.write_text(json.dumps(value,indent=2)+'\n',encoding='utf-8',newline='\n')
-    return binary,value
+    return binary,{**value,'verified_source_commit':source_commit}
 
 
 def main():
@@ -153,7 +159,7 @@ def main():
     binary,provenance=build(args)
     assert driver_hash==hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'driver changed during native build'
     state={'schema':1,'status':'starting','acceptance_72h':False,'seconds':args.seconds,'family':args.family,'backend':args.backend,
-        'pid':os.getpid(),'root_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
+        'pid':os.getpid(),'root_commit':provenance['verified_source_commit'],
         'input_key':provenance['input_key'],'binary_sha256':provenance['binary_sha256'],'started_unix':time.time()}
     state['driver_sha256']=driver_hash
     state['backend_name']=('iocp' if os.name=='nt' else 'epoll') if args.backend=='native' else 'select'

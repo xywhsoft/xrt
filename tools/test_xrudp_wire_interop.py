@@ -389,11 +389,12 @@ class Peer:
 
 def build(args):
     sdk=args.sdk.resolve(); core=sdk/'lib/xrt.h'
-    committed=subprocess.check_output(['git','show','HEAD:single/xrt.h'],cwd=ROOT)
+    source_commit=subprocess.check_output(['git','rev-parse','--verify','HEAD^{commit}'],cwd=ROOT,text=True).strip()
+    committed=subprocess.check_output(['git','show',source_commit+':single/xrt.h'],cwd=ROOT)
     assert core.read_bytes()==committed,'SDK must use the current committed core; never export dirty core'
     output=ROOT/'out/xrudp-wire-interop'; output.mkdir(parents=True,exist_ok=True)
     binary=output/('server.exe' if os.name=='nt' else 'server')
-    assert (sdk/'lib/xrt_decl.h').read_bytes()==subprocess.check_output(['git','show','HEAD:single/xrt_decl.h'],cwd=ROOT)
+    assert (sdk/'lib/xrt_decl.h').read_bytes()==subprocess.check_output(['git','show',source_commit+':single/xrt_decl.h'],cwd=ROOT)
     command=[args.compiler,'-std=gnu11','-O2','-g','-Wall','-Wextra','-Werror','-DXRT_MODULE_ALL=1','-DXRUDP_MODULE_ALL=1',
         '-I'+str(sdk/'lib'),'-I'+str(ROOT/'extlibs/xrudp/include'),'-I'+str(sdk/'lib/xrtshim')]
     if args.sanitize: command+=['-fsanitize=address,undefined','-fno-sanitize-recover=all','-fno-omit-frame-pointer']
@@ -401,8 +402,13 @@ def build(args):
     command+=list(map(str,sorted((ROOT/'extlibs/xrudp/src').rglob('*.c'))))
     command+=['-o',str(binary)]+(['-lws2_32','-liphlpapi'] if os.name=='nt' else ['-pthread','-lm','-ldl'])
     paths=[core,sdk/'lib/xrt_decl.h',ROOT/'extlibs/xrudp/tests/test_wire_interop_server.c']
-    for directory,suffix in ((ROOT/'extlibs/xrudp/src','*.c'),(ROOT/'extlibs/xrudp/include','*.h'),(sdk/'lib/xrtshim','*.h')):
+    for directory,suffix in ((ROOT/'extlibs/xrudp/src','*.c'),(ROOT/'extlibs/xrudp/src','*.h'),
+            (ROOT/'extlibs/xrudp/include','*.h'),(sdk/'lib/xrtshim','*.h')):
         paths+=sorted(directory.rglob(suffix))
+    for path in paths:
+        if path.is_relative_to(ROOT/'extlibs/xrudp/src') or path.is_relative_to(ROOT/'extlibs/xrudp/include'):
+            upstream=subprocess.check_output(['git','show',source_commit+':'+path.relative_to(ROOT).as_posix()],cwd=ROOT)
+            assert path.read_bytes().replace(b'\r\n',b'\n')==upstream.replace(b'\r\n',b'\n'),'commit runtime changes before an acceptance build'
     hashes={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
     version=subprocess.check_output([args.compiler,'--version'],text=True).splitlines()[0]
     key=hashlib.sha256(json.dumps([command,version,hashes],sort_keys=True).encode()).hexdigest()
@@ -413,7 +419,7 @@ def build(args):
         return binary
     subprocess.run(command,cwd=ROOT,check=True)
     assert all(hashlib.sha256(Path(p).read_bytes()).hexdigest()==value for p,value in hashes.items()),'native input changed during build'
-    receipt.write_text(json.dumps({'input_key':key,'compiler':version,'source_hashes':hashes,
+    receipt.write_text(json.dumps({'input_key':key,'compiler':version,'source_hashes':hashes,'source_commit':source_commit,
         'command':command,'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest()},indent=2)+'\n',encoding='utf-8',newline='\n')
     return binary
 

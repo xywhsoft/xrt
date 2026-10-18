@@ -920,6 +920,23 @@ ASan/UBSan/泄漏检查的 Select/Epoll × IPv4/IPv6。每组双向可靠字节�
 这些结果只完成驱动及短测矩阵，不是 72 小时通过；原生持续多流和 mdo 业务的完整真实时钟结果
 分别记录。独立控制帧互操作/结构化模糊、Android 实机和两个独立公网 NAT 等验收仍未完成。
 
+### 构建复用来源完整性修正
+
+复查发现两个测试构建器只记录了 `src/**/*.c` 与公开头，遗漏实际参与编译的
+`src/internal/xrudp_noise.h`、`xrudp_path.h`。现在原生长稳和独立 wire peer 都记录全部内部头，
+并逐文件核对已提交来源。所有 Git 读取固定到构建开始时捕获的提交，收据也保留这个来源，
+不会因编译期间 HEAD 被无关提交推进而错误标注。72h 驱动及 C fixture 本身亦必须已提交。
+
+`tools/test_xrudp_build_provenance.py` 的独立临时 Git 仓库回归在 Windows/Linux 通过：
+脏内部头在调用编译器前即拒绝；干净来源可到达编译器；只提交内部头的变化会使原二进制
+复用失效，而不是静默重编译；编译期间 HEAD 推进仍记录原始来源。真实 Windows -O2 和
+Linux -O2 ASan/UBSan/泄漏检查均以扩展后的哈希清单重建并通过 25 秒完整混合故障短测，
+见 `dev/xrudp-build-provenance-{windows,linux}.log`、`xrudp-native-soak-{windows,linux}-full-pin.log`。
+
+修正前启动的四个原生长测已明确取消，不计入任何 72h 通过；使用新清单和新收据重新起算。
+未修改运行时代码，也未在活跃进程中替换测试二进制。mdo 业务长测使用独立的宿主收据，不受此
+测试构建器修正影响。
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。
