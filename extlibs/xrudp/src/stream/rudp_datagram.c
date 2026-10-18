@@ -197,6 +197,26 @@ xrudpresult xrtRudpDatagramSent(xrudpdatagrams* d, uint64_t ticket, uint32_t wir
 	d->Cursor = c->Deficit ? index : (index + 1) % d->State.Channels;
 	xrudp__dg_count(&d->State.Sent); return XRUDP_OK;
 }
+xrudpresult xrtRudpDatagramTrimSend(xrudpdatagrams* d, uint32_t maximum, uint32_t* count)
+{
+	if (count != NULL) *count = 0;
+	if (d == NULL || count == NULL || maximum > XRUDP_DATAGRAM_PAYLOAD_MAX) return XRUDP_ARGUMENT;
+	if (d->State.Stopped) return XRUDP_CLOSED;
+	for (uint32_t i = 0; i < d->State.Channels; ++i) {
+		xrudp__datagramchannel* c = &d->Channel[i]; uint32_t prev = XRUDP__DATAGRAM_NONE, at = c->Head;
+		while (at != XRUDP__DATAGRAM_NONE) {
+			xrudp__datagramslot* p = &d->Slot[at]; uint32_t next = p->Next;
+			if (p->Info.Size > maximum) {
+				if (prev == XRUDP__DATAGRAM_NONE) c->Head = next; else d->Slot[prev].Next = next;
+				if (c->Tail == at) c->Tail = prev;
+				xrudp__dg_clear(d, at, false); xrudp__dg_count(&d->State.SendSizeDropped); ++*count;
+			} else prev = at;
+			at = next;
+		}
+	}
+	return XRUDP_OK;
+}
+
 xrudpresult xrtRudpDatagramInput(xrudpdatagrams* d, uint32_t id, bool sequenced, uint64_t sequence, const void* data, size_t size, uint64_t now)
 {
 	if (d == NULL || id == 0 || (data == NULL && size != 0) || size > XRUDP_STREAM_CHUNK_MAX ||

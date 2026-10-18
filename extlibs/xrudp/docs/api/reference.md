@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `189` 个函数、`152` 个常量或宏、
+当前登记 `191` 个函数、`153` 个常量或宏、
 `66` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
@@ -108,7 +108,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/datagram.h)
 
-### 函数 (16)
+### 函数 (17)
 
 - `xrtRudpDatagramAbort`
 - `xrtRudpDatagramAllocationSize`
@@ -125,6 +125,7 @@
 - `xrtRudpDatagramRead`
 - `xrtRudpDatagramSent`
 - `xrtRudpDatagramState`
+- `xrtRudpDatagramTrimSend`
 - `xrtRudpDatagramWrite`
 
 ### 常量与宏 (11)
@@ -384,7 +385,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/sent.h)
 
-### 函数 (12)
+### 函数 (13)
 
 - `xrtRudpSentAbort`
 - `xrtRudpSentAcknowledge`
@@ -395,11 +396,12 @@
 - `xrtRudpSentCreateAfter`
 - `xrtRudpSentDestroy`
 - `xrtRudpSentDetectLoss`
+- `xrtRudpSentDiscardPacket`
 - `xrtRudpSentDiscardPath`
 - `xrtRudpSentRecord`
 - `xrtRudpSentState`
 
-### 常量与宏 (11)
+### 常量与宏 (12)
 
 - `XRUDP_FEATURE_RUDP_SENT`
 - `XRUDP_SENT_ACKED`
@@ -409,6 +411,7 @@
 - `XRUDP_SENT_CAPACITY_MAX`
 - `XRUDP_SENT_EXPIRED`
 - `XRUDP_SENT_LOST`
+- `XRUDP_SENT_MTU`
 - `XRUDP_SENT_PADDING`
 - `XRUDP_SENT_PROBE`
 - `XRUDP_SENT_PROBE_RESERVE`

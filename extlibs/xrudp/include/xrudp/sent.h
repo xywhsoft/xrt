@@ -12,6 +12,7 @@
 #define XRUDP_SENT_ACK_ELICITING 1u
 #define XRUDP_SENT_PROBE 2u
 #define XRUDP_SENT_PADDING 4u
+#define XRUDP_SENT_MTU 8u
 
 typedef struct xrudpsentwindow xrudpsentwindow;
 typedef enum xrudpsenteventkind {
@@ -116,6 +117,16 @@ XRUDP_API xrudpresult xrtRudpSentDetectLoss(xrudpsentwindow* pWindow,
  * not advance time. Old ACKs never produce ownership/growth again. */
 XRUDP_API xrudpresult xrtRudpSentDiscardPath(xrudpsentwindow* pWindow, uint64_t iNowUs,
 	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
+/* Retire one locally timed-out packet, without acknowledging it or stopping
+ * the ledger. Produces LOST for in-flight bytes, EXPIRED for pure ACKs. An
+ * already finished/retired PN is DONE and leaves Event/time unchanged; future
+ * or retained unsent gaps are ARGUMENT. Useful for a size probe whose timeout
+ * must release its normal slot even when no higher PN was acknowledged.
+ * MTU marks an ACK-eliciting padded packet >=512B, never a PTO reserve probe.
+ * It still consumes congestion/pacing/flight; loss alone is not congestion
+ * evidence, and its ACK alone does not grow the congestion window. */
+XRUDP_API xrudpresult xrtRudpSentDiscardPacket(xrudpsentwindow* pWindow,
+	uint64_t iPacketNumber, uint64_t iNowUs, xrudpsentevent* pEvent);
 /* Complete pending packets as CANCELLED, then stop accepting new records.
  * Caller drains/cancels higher-level stream operations before Destroy. */
 XRUDP_API xrudpresult xrtRudpSentAbort(xrudpsentwindow* pWindow,

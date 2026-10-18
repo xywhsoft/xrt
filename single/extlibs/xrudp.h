@@ -764,6 +764,7 @@ XRT_EXTERN_C_END
 #define XRUDP_SENT_ACK_ELICITING 1u
 #define XRUDP_SENT_PROBE 2u
 #define XRUDP_SENT_PADDING 4u
+#define XRUDP_SENT_MTU 8u
 
 typedef struct xrudpsentwindow xrudpsentwindow;
 typedef enum xrudpsenteventkind {
@@ -868,6 +869,16 @@ XRUDP_API xrudpresult xrtRudpSentDetectLoss(xrudpsentwindow* pWindow,
  * not advance time. Old ACKs never produce ownership/growth again. */
 XRUDP_API xrudpresult xrtRudpSentDiscardPath(xrudpsentwindow* pWindow, uint64_t iNowUs,
 	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
+/* Retire one locally timed-out packet, without acknowledging it or stopping
+ * the ledger. Produces LOST for in-flight bytes, EXPIRED for pure ACKs. An
+ * already finished/retired PN is DONE and leaves Event/time unchanged; future
+ * or retained unsent gaps are ARGUMENT. Useful for a size probe whose timeout
+ * must release its normal slot even when no higher PN was acknowledged.
+ * MTU marks an ACK-eliciting padded packet >=512B, never a PTO reserve probe.
+ * It still consumes congestion/pacing/flight; loss alone is not congestion
+ * evidence, and its ACK alone does not grow the congestion window. */
+XRUDP_API xrudpresult xrtRudpSentDiscardPacket(xrudpsentwindow* pWindow,
+	uint64_t iPacketNumber, uint64_t iNowUs, xrudpsentevent* pEvent);
 /* Complete pending packets as CANCELLED, then stop accepting new records.
  * Caller drains/cancels higher-level stream operations before Destroy. */
 XRUDP_API xrudpresult xrtRudpSentAbort(xrudpsentwindow* pWindow,
@@ -1292,6 +1303,7 @@ typedef struct xrudpdatagramstate {
 	uint64_t DroppedUnknown, DroppedMode, DroppedStale, DroppedCapacity;
 	uint64_t LastNowUs, NextDeadlineUs;
 	uint64_t SendCancelled, ReceiveCancelled;
+	uint64_t SendSizeDropped;
 	bool Stopped;
 } xrudpdatagramstate;
 typedef struct xrudpdatagramchannelstate {
@@ -1341,6 +1353,14 @@ XRUDP_API xrudpresult xrtRudpDatagramMaintain(xrudpdatagrams* pDatagrams, uint64
  * this record back in the queue: packet ACK/recovery belongs to the session. */
 XRUDP_API xrudpresult xrtRudpDatagramPeekSend(const xrudpdatagrams* pDatagrams, xrudpdatagramview* pView);
 XRUDP_API xrudpresult xrtRudpDatagramSent(xrudpdatagrams* pDatagrams, uint64_t iTicket, uint32_t iWireSize);
+/* Drop/clear unsent records larger than MaximumPayload after a path shrinks.
+ * MaximumPayload=0 keeps empty records; max is DATAGRAM_PAYLOAD_MAX. One
+ * bounded queue scan, no allocation/time/sequence/ticket reuse. Keeps FIFO and
+ * service history of surviving records and all receive data. Count=0 on error.
+ * Does not change the configured payload budget or enforce future Write size;
+ * the transport enforces its current send limit separately. */
+XRUDP_API xrudpresult xrtRudpDatagramTrimSend(xrudpdatagrams* pDatagrams,
+	uint32_t iMaximumPayload, uint32_t* pCount);
 /* Accept one structurally valid, AUTHENTICATED frame after packet-wide
  * preflight. Valid unreliable traffic always returns OK, even on policy drop:
  * unknown/mismatched channel, old sequence, oversize or full receive queue.
@@ -3365,7 +3385,8 @@ xrudpresult xrtRudpSentRecord(xrudpsentwindow* w, uint64_t number,
 	bool probe = (flags & XRUDP_SENT_PROBE) != 0;
 	if (w == NULL || number == 0 || number == UINT64_MAX || number <= w->LargestSent ||
 		now < w->LastNow || bytes < XRUDP_HEADER_SIZE + XRUDP_TAG_SIZE + XRUDP_FRAME_HEADER_SIZE ||
-		bytes > XRUDP_PACKET_MAX || (flags & ~(XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PROBE | XRUDP_SENT_PADDING)) != 0 ||
+		bytes > XRUDP_PACKET_MAX || (flags & ~(XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PROBE | XRUDP_SENT_PADDING | XRUDP_SENT_MTU)) != 0 ||
+		((flags & XRUDP_SENT_MTU) && ((flags & 7u) != (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING) || bytes < 512)) ||
 		(probe && (flags & XRUDP_SENT_ACK_ELICITING) == 0)) return XRUDP_ARGUMENT;
 	if (w->Stopped) return XRUDP_CLOSED;
 	if (!xrtRudpSentCanRecord(w, probe)) return XRUDP_BACKPRESSURE;
@@ -3374,6 +3395,21 @@ xrudpresult xrtRudpSentRecord(xrudpsentwindow* w, uint64_t number,
 	p->Number = number; p->AtUs = now; p->Tag = tag; p->Bytes = bytes; p->Flags = flags;
 	w->LargestSent = number; w->LastNow = now; ++w->Pending;
 	if ((flags & (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING)) != 0) w->InFlight += bytes;
+	return XRUDP_OK;
+}
+
+xrudpresult xrtRudpSentDiscardPacket(xrudpsentwindow* w, uint64_t number,
+	uint64_t now, xrudpsentevent* event)
+{
+	if (w == NULL || event == NULL || number == 0 || number > w->LargestSent || now < w->LastNow) return XRUDP_ARGUMENT;
+	if (w->Stopped) return XRUDP_CLOSED;
+	if (w->Count == 0 || number < xrudp__sent_at(w, 0)->Number) return XRUDP_DONE;
+	size_t at = xrudp__sent_lower(w, number);
+	if (at == w->Count || xrudp__sent_at(w, at)->Number != number) return XRUDP_ARGUMENT;
+	xrudp__sentpacket* p = xrudp__sent_at(w, at);
+	if (p->Status != 0) return XRUDP_DONE;
+	uint32_t kind = (p->Flags & (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING)) ? XRUDP_SENT_LOST : XRUDP_SENT_EXPIRED;
+	xrudp__sent_finish(w, p, kind, event); w->LastNow = now; xrudp__sent_trim(w);
 	return XRUDP_OK;
 }
 
@@ -3553,7 +3589,8 @@ static bool xrudp__cc_valid(const xrudpcongestion* s)
 static bool xrudp__cc_packet(uint32_t bytes, uint32_t flags)
 {
 	return bytes >= XRUDP_HEADER_SIZE + XRUDP_TAG_SIZE + XRUDP_FRAME_HEADER_SIZE &&
-		bytes <= XRUDP_PACKET_MAX && (flags & ~7u) == 0 &&
+		bytes <= XRUDP_PACKET_MAX && (flags & ~15u) == 0 &&
+		(!(flags & XRUDP_SENT_MTU) || ((flags & 7u) == (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING) && bytes >= 512)) &&
 		((flags & XRUDP_SENT_PROBE) == 0 || (flags & XRUDP_SENT_ACK_ELICITING) != 0);
 }
 
@@ -3642,7 +3679,7 @@ xrudpresult xrtRudpCongestionApply(xrudpcongestion* s, const xrudpsentevent* eve
 			(p->Kind == XRUDP_SENT_EXPIRED && xrudp__cc_flight(p->Flags))) return XRUDP_ARGUMENT;
 		if (xrudp__cc_flight(p->Flags)) {
 			removed += p->Bytes;
-			if (p->Kind == XRUDP_SENT_LOST && p->PacketNumber > newestLoss) newestLoss = p->PacketNumber;
+			if (p->Kind == XRUDP_SENT_LOST && !(p->Flags & XRUDP_SENT_MTU) && p->PacketNumber > newestLoss) newestLoss = p->PacketNumber;
 		}
 	}
 	if (removed > s->BytesInFlight) return XRUDP_ARGUMENT;
@@ -3655,7 +3692,7 @@ xrudpresult xrtRudpCongestionApply(xrudpcongestion* s, const xrudpsentevent* eve
 	}
 	for (size_t i = 0; i < count; ++i) {
 		const xrudpsentevent* p = &events[i];
-		if (limited || p->Kind != XRUDP_SENT_ACKED || !xrudp__cc_flight(p->Flags) ||
+		if (limited || p->Kind != XRUDP_SENT_ACKED || (p->Flags & XRUDP_SENT_MTU) || !xrudp__cc_flight(p->Flags) ||
 			p->PacketNumber <= next.RecoveryThrough || next.Window == next.MaximumWindow) continue;
 		if (next.Window < next.SlowStartThreshold) {
 			next.Window += p->Bytes;
@@ -4522,6 +4559,26 @@ xrudpresult xrtRudpDatagramSent(xrudpdatagrams* d, uint64_t ticket, uint32_t wir
 	d->Cursor = c->Deficit ? index : (index + 1) % d->State.Channels;
 	xrudp__dg_count(&d->State.Sent); return XRUDP_OK;
 }
+xrudpresult xrtRudpDatagramTrimSend(xrudpdatagrams* d, uint32_t maximum, uint32_t* count)
+{
+	if (count != NULL) *count = 0;
+	if (d == NULL || count == NULL || maximum > XRUDP_DATAGRAM_PAYLOAD_MAX) return XRUDP_ARGUMENT;
+	if (d->State.Stopped) return XRUDP_CLOSED;
+	for (uint32_t i = 0; i < d->State.Channels; ++i) {
+		xrudp__datagramchannel* c = &d->Channel[i]; uint32_t prev = XRUDP__DATAGRAM_NONE, at = c->Head;
+		while (at != XRUDP__DATAGRAM_NONE) {
+			xrudp__datagramslot* p = &d->Slot[at]; uint32_t next = p->Next;
+			if (p->Info.Size > maximum) {
+				if (prev == XRUDP__DATAGRAM_NONE) c->Head = next; else d->Slot[prev].Next = next;
+				if (c->Tail == at) c->Tail = prev;
+				xrudp__dg_clear(d, at, false); xrudp__dg_count(&d->State.SendSizeDropped); ++*count;
+			} else prev = at;
+			at = next;
+		}
+	}
+	return XRUDP_OK;
+}
+
 xrudpresult xrtRudpDatagramInput(xrudpdatagrams* d, uint32_t id, bool sequenced, uint64_t sequence, const void* data, size_t size, uint64_t now)
 {
 	if (d == NULL || id == 0 || (data == NULL && size != 0) || size > XRUDP_STREAM_CHUNK_MAX ||

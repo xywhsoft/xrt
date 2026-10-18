@@ -13,7 +13,8 @@ static bool xrudp__cc_valid(const xrudpcongestion* s)
 static bool xrudp__cc_packet(uint32_t bytes, uint32_t flags)
 {
 	return bytes >= XRUDP_HEADER_SIZE + XRUDP_TAG_SIZE + XRUDP_FRAME_HEADER_SIZE &&
-		bytes <= XRUDP_PACKET_MAX && (flags & ~7u) == 0 &&
+		bytes <= XRUDP_PACKET_MAX && (flags & ~15u) == 0 &&
+		(!(flags & XRUDP_SENT_MTU) || ((flags & 7u) == (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING) && bytes >= 512)) &&
 		((flags & XRUDP_SENT_PROBE) == 0 || (flags & XRUDP_SENT_ACK_ELICITING) != 0);
 }
 
@@ -102,7 +103,7 @@ xrudpresult xrtRudpCongestionApply(xrudpcongestion* s, const xrudpsentevent* eve
 			(p->Kind == XRUDP_SENT_EXPIRED && xrudp__cc_flight(p->Flags))) return XRUDP_ARGUMENT;
 		if (xrudp__cc_flight(p->Flags)) {
 			removed += p->Bytes;
-			if (p->Kind == XRUDP_SENT_LOST && p->PacketNumber > newestLoss) newestLoss = p->PacketNumber;
+			if (p->Kind == XRUDP_SENT_LOST && !(p->Flags & XRUDP_SENT_MTU) && p->PacketNumber > newestLoss) newestLoss = p->PacketNumber;
 		}
 	}
 	if (removed > s->BytesInFlight) return XRUDP_ARGUMENT;
@@ -115,7 +116,7 @@ xrudpresult xrtRudpCongestionApply(xrudpcongestion* s, const xrudpsentevent* eve
 	}
 	for (size_t i = 0; i < count; ++i) {
 		const xrudpsentevent* p = &events[i];
-		if (limited || p->Kind != XRUDP_SENT_ACKED || !xrudp__cc_flight(p->Flags) ||
+		if (limited || p->Kind != XRUDP_SENT_ACKED || (p->Flags & XRUDP_SENT_MTU) || !xrudp__cc_flight(p->Flags) ||
 			p->PacketNumber <= next.RecoveryThrough || next.Window == next.MaximumWindow) continue;
 		if (next.Window < next.SlowStartThreshold) {
 			next.Window += p->Bytes;

@@ -940,6 +940,28 @@
       "docs": [
         "extlibs/xrudp/docs/implementation-status.md"
       ]
+    },
+    {
+      "name": "rudp_mtu_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_endpoint",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_mtu_ledger.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_mtu_ledger.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
     }
   ]
 }

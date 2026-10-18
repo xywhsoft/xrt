@@ -117,7 +117,8 @@ xrudpresult xrtRudpSentRecord(xrudpsentwindow* w, uint64_t number,
 	bool probe = (flags & XRUDP_SENT_PROBE) != 0;
 	if (w == NULL || number == 0 || number == UINT64_MAX || number <= w->LargestSent ||
 		now < w->LastNow || bytes < XRUDP_HEADER_SIZE + XRUDP_TAG_SIZE + XRUDP_FRAME_HEADER_SIZE ||
-		bytes > XRUDP_PACKET_MAX || (flags & ~(XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PROBE | XRUDP_SENT_PADDING)) != 0 ||
+		bytes > XRUDP_PACKET_MAX || (flags & ~(XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PROBE | XRUDP_SENT_PADDING | XRUDP_SENT_MTU)) != 0 ||
+		((flags & XRUDP_SENT_MTU) && ((flags & 7u) != (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING) || bytes < 512)) ||
 		(probe && (flags & XRUDP_SENT_ACK_ELICITING) == 0)) return XRUDP_ARGUMENT;
 	if (w->Stopped) return XRUDP_CLOSED;
 	if (!xrtRudpSentCanRecord(w, probe)) return XRUDP_BACKPRESSURE;
@@ -126,6 +127,21 @@ xrudpresult xrtRudpSentRecord(xrudpsentwindow* w, uint64_t number,
 	p->Number = number; p->AtUs = now; p->Tag = tag; p->Bytes = bytes; p->Flags = flags;
 	w->LargestSent = number; w->LastNow = now; ++w->Pending;
 	if ((flags & (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING)) != 0) w->InFlight += bytes;
+	return XRUDP_OK;
+}
+
+xrudpresult xrtRudpSentDiscardPacket(xrudpsentwindow* w, uint64_t number,
+	uint64_t now, xrudpsentevent* event)
+{
+	if (w == NULL || event == NULL || number == 0 || number > w->LargestSent || now < w->LastNow) return XRUDP_ARGUMENT;
+	if (w->Stopped) return XRUDP_CLOSED;
+	if (w->Count == 0 || number < xrudp__sent_at(w, 0)->Number) return XRUDP_DONE;
+	size_t at = xrudp__sent_lower(w, number);
+	if (at == w->Count || xrudp__sent_at(w, at)->Number != number) return XRUDP_ARGUMENT;
+	xrudp__sentpacket* p = xrudp__sent_at(w, at);
+	if (p->Status != 0) return XRUDP_DONE;
+	uint32_t kind = (p->Flags & (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING)) ? XRUDP_SENT_LOST : XRUDP_SENT_EXPIRED;
+	xrudp__sent_finish(w, p, kind, event); w->LastNow = now; xrudp__sent_trim(w);
 	return XRUDP_OK;
 }
 

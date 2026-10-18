@@ -3188,6 +3188,7 @@ XRT_EXTERN_C_END
 #define XRUDP_SENT_ACK_ELICITING 1u
 #define XRUDP_SENT_PROBE 2u
 #define XRUDP_SENT_PADDING 4u
+#define XRUDP_SENT_MTU 8u
 
 typedef struct xrudpsentwindow xrudpsentwindow;
 typedef enum xrudpsenteventkind {
@@ -3292,6 +3293,16 @@ XRUDP_API xrudpresult xrtRudpSentDetectLoss(xrudpsentwindow* pWindow,
  * not advance time. Old ACKs never produce ownership/growth again. */
 XRUDP_API xrudpresult xrtRudpSentDiscardPath(xrudpsentwindow* pWindow, uint64_t iNowUs,
 	xrudpsentevent* pEvents, size_t iCapacity, size_t* pCount);
+/* Retire one locally timed-out packet, without acknowledging it or stopping
+ * the ledger. Produces LOST for in-flight bytes, EXPIRED for pure ACKs. An
+ * already finished/retired PN is DONE and leaves Event/time unchanged; future
+ * or retained unsent gaps are ARGUMENT. Useful for a size probe whose timeout
+ * must release its normal slot even when no higher PN was acknowledged.
+ * MTU marks an ACK-eliciting padded packet >=512B, never a PTO reserve probe.
+ * It still consumes congestion/pacing/flight; loss alone is not congestion
+ * evidence, and its ACK alone does not grow the congestion window. */
+XRUDP_API xrudpresult xrtRudpSentDiscardPacket(xrudpsentwindow* pWindow,
+	uint64_t iPacketNumber, uint64_t iNowUs, xrudpsentevent* pEvent);
 /* Complete pending packets as CANCELLED, then stop accepting new records.
  * Caller drains/cancels higher-level stream operations before Destroy. */
 XRUDP_API xrudpresult xrtRudpSentAbort(xrudpsentwindow* pWindow,
@@ -3716,6 +3727,7 @@ typedef struct xrudpdatagramstate {
 	uint64_t DroppedUnknown, DroppedMode, DroppedStale, DroppedCapacity;
 	uint64_t LastNowUs, NextDeadlineUs;
 	uint64_t SendCancelled, ReceiveCancelled;
+	uint64_t SendSizeDropped;
 	bool Stopped;
 } xrudpdatagramstate;
 typedef struct xrudpdatagramchannelstate {
@@ -3765,6 +3777,14 @@ XRUDP_API xrudpresult xrtRudpDatagramMaintain(xrudpdatagrams* pDatagrams, uint64
  * this record back in the queue: packet ACK/recovery belongs to the session. */
 XRUDP_API xrudpresult xrtRudpDatagramPeekSend(const xrudpdatagrams* pDatagrams, xrudpdatagramview* pView);
 XRUDP_API xrudpresult xrtRudpDatagramSent(xrudpdatagrams* pDatagrams, uint64_t iTicket, uint32_t iWireSize);
+/* Drop/clear unsent records larger than MaximumPayload after a path shrinks.
+ * MaximumPayload=0 keeps empty records; max is DATAGRAM_PAYLOAD_MAX. One
+ * bounded queue scan, no allocation/time/sequence/ticket reuse. Keeps FIFO and
+ * service history of surviving records and all receive data. Count=0 on error.
+ * Does not change the configured payload budget or enforce future Write size;
+ * the transport enforces its current send limit separately. */
+XRUDP_API xrudpresult xrtRudpDatagramTrimSend(xrudpdatagrams* pDatagrams,
+	uint32_t iMaximumPayload, uint32_t* pCount);
 /* Accept one structurally valid, AUTHENTICATED frame after packet-wide
  * preflight. Valid unreliable traffic always returns OK, even on policy drop:
  * unknown/mismatched channel, old sequence, oversize or full receive queue.
