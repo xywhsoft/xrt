@@ -8,6 +8,26 @@
 /* 全局轮转票据避免固定从第一个 case 开始造成长期偏置。 */
 static xatomic32 __xrtChannelSelectTicket = XRT_ATOMIC32_INIT(0);
 
+size_t __xrtChannelSelectStartIndex(size_t iCount)
+{
+	return iCount==1u ? 0 : xrtAtomic32FetchAdd(
+		&__xrtChannelSelectTicket,1u,XMEMORY_RELAXED)%iCount;
+}
+
+static void __xrtChannelSelectNotifyLocked(xrt_channel_impl* pImpl,
+	xrt_channel_select_state* pSelect)
+{
+	#if defined(XRT_FEATURE_CHANNEL_SUBSCRIBE)
+		if(pSelect->Deferred) {
+			__xrtChannelSubscriptionWakeLocked(pImpl,pSelect->Deferred);
+			return;
+		}
+	#else
+		(void)pImpl;
+	#endif
+	pSelect->Wake(pSelect->WakeData);
+}
+
 
 
 /* 构造一个没有 case 被选中的结果。 */
@@ -54,7 +74,7 @@ static uint32 __xrtChannelSelectWinner(
 
 
 /* 把未提交的 Select 固定为超时、取消或平台错误。 */
-static bool __xrtChannelSelectStop(
+bool __xrtChannelSelectStop(
 	xrt_channel_select_state* pSelect,
 	xwaitresult iResult
 )
@@ -107,7 +127,7 @@ static xwaitresult __xrtChannelSelectStopReason(
 
 
 /* 检查 case 数组、操作、对象、输出和跨 Channel 别名。 */
-static bool __xrtChannelSelectCasesValid(
+bool __xrtChannelSelectCasesValid(
 	const xchannelcase* pCases,
 	size_t iCount
 )
@@ -253,7 +273,7 @@ static xchannelresult __xrtChannelSelectTryCase(
 
 
 /* 按轮转起点尝试全部未注册 case。 */
-static xchannelselectresult __xrtChannelSelectTryCases(
+xchannelselectresult __xrtChannelSelectTryCases(
 	const xchannelcase* pCases,
 	size_t iCount,
 	size_t iStart
@@ -280,7 +300,7 @@ static xchannelselectresult __xrtChannelSelectTryCases(
 
 
 /* 把一个等待节点追加到 Channel，保持同类选择者的注册顺序。 */
-static bool __xrtChannelSelectRegister(
+bool __xrtChannelSelectRegister(
 	xrt_channel_select_waiter* pWaiter
 )
 {
@@ -336,7 +356,7 @@ static void __xrtChannelSelectUnregister(
 
 
 /* 依次移除当前 Select 已经注册的全部节点。 */
-static void __xrtChannelSelectUnregisterAll(
+void __xrtChannelSelectUnregisterAll(
 	xrt_channel_select_waiter* pWaiters,
 	size_t iCount
 )
@@ -402,7 +422,7 @@ static void __xrtChannelSelectTryWaiter(
 
 
 /* 按轮转起点尝试全部已注册 case。 */
-static void __xrtChannelSelectTryWaiters(
+void __xrtChannelSelectTryWaiters(
 	xrt_channel_select_waiter* pWaiters,
 	size_t iCount,
 	size_t iStart
@@ -476,12 +496,7 @@ xchannelselectresult __xrtChannelSelectWait(
 	if ( !__xrtChannelSelectCasesValid(pCases, iCount) ) {
 		return __xrtChannelSelectEmpty(XWAIT_ERROR);
 	}
-	iStart = iCount == 1u ? 0 :
-		xrtAtomic32FetchAdd(
-			&__xrtChannelSelectTicket,
-			1u,
-			XMEMORY_RELAXED
-		) % iCount;
+	iStart=__xrtChannelSelectStartIndex(iCount);
 	tTry = __xrtChannelSelectTryCases(
 		pCases,
 		iCount,
@@ -661,7 +676,7 @@ void __xrtChannelNotifySelectLocked(xrt_channel_impl* pImpl)
 	}
 	pWaiter = pImpl->SelectWaiters;
 	while ( pWaiter != NULL ) {
-		pWaiter->Select->Wake(pWaiter->Select->WakeData);
+		__xrtChannelSelectNotifyLocked(pImpl,pWaiter->Select);
 		pWaiter = pWaiter->Next;
 	}
 }
@@ -698,7 +713,7 @@ void __xrtChannelSelectCommit(
 		pWaiter->Index,
 		XMEMORY_RELEASE
 	);
-	pWaiter->Select->Wake(pWaiter->Select->WakeData);
+	__xrtChannelSelectNotifyLocked((xrt_channel_impl*)pWaiter->Channel,pWaiter->Select);
 }
 
 
@@ -762,12 +777,7 @@ static xchannelselectresult __xrtChannelSelectTry(
 	if ( !__xrtChannelSelectCasesValid(pCases, iCount) ) {
 		return __xrtChannelSelectEmpty(XWAIT_ERROR);
 	}
-	iStart = iCount == 1u ? 0 :
-		xrtAtomic32FetchAdd(
-			&__xrtChannelSelectTicket,
-			1u,
-			XMEMORY_RELAXED
-		) % iCount;
+	iStart=__xrtChannelSelectStartIndex(iCount);
 	return __xrtChannelSelectTryCases(
 		pCases,
 		iCount,

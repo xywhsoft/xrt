@@ -4080,6 +4080,16 @@
 #endif
 #endif
 
+/* channel_subscribe 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CHANNEL_SUBSCRIBE)
+#ifndef XRT_FEATURE_CHANNEL_SUBSCRIBE
+#define XRT_FEATURE_CHANNEL_SUBSCRIBE
+#endif
+#ifndef XRT_MODULE_CHANNEL_SELECT
+#define XRT_MODULE_CHANNEL_SELECT
+#endif
+#endif
+
 /* channel_select 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_CHANNEL_SELECT)
 #ifndef XRT_FEATURE_CHANNEL_SELECT

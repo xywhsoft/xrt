@@ -4,6 +4,52 @@ Channel 是建立在线程同步原语之上的指针消息通道。它覆盖精
 MPMC 通信和容量为零的同步 rendezvous；无锁 SPSC、MPSC、MPMC 队列仍由
 `queue.h` 独立提供。
 
+## 无阻塞原生订阅
+
+选择 `XRT_MODULE_CHANNEL_SUBSCRIBE`，使用 `channel_subscribe.h`。它复用
+同步 select 的同一个原子提交引擎；不创建线程、阻塞工作项、有栈协程或每等待一个定时器。
+同步、协程和订阅 case 可以互相配对，仍只有一个 case 能提交。
+
+```c
+const xchannelsubscribepolicyv1 Policy = {
+    sizeof(xchannelsubscribepolicyv1), on_complete, drop_context
+}; /* Policy 和这两个函数的代码必须保持驻留直到 drop_context 返回。 */
+xchannelsubscribecase Cases[] = {{ channel, XCHANNEL_OP_RECV, NULL }};
+xchannelsubscription* Subscription =
+    xrtChannelSubscribeCreateV1(Cases, 1, context, &Policy);
+/* 创建成功才转移 context 的一个真实引用；失败不转移。 */
+if (Subscription != NULL) {
+    if (!xrtChannelSubscribeStart(Subscription)) {
+        /* 未受理；此处仍须归还外部引用。 */
+    }
+    /* 保存外部引用直到需要释放，不要求同步等待完成。 */
+    xrtChannelSubscribeDestroy(Subscription);
+}
+```
+
+接口合同：
+
+- `CreateV1` 完成全部分配、复制和参数校验，不操作 Channel、不执行通知。
+  成功后不再为 Start、状态变化、提交、停止或注销分配存储。
+- `Start` 只能受理一次；可在返回之前完成并回调，因此必须先完成上下文装配。
+  创建后、Start 前可以记录停止请求；未 Start 的对象销毁时不执行 Notify。
+- `Stop(subscription, XWAIT_CANCELLED | XWAIT_TIMEOUT | XWAIT_ERROR)` 中第二个参数
+  是上述三个枚举值之一，不是位标志。它记录第一个停止原因；true 不表示取消战胜了就绪操作。
+  就绪值和关闭 case 优先尝试，已经提交的发送或接收不能撤回。期限由调用方已有的定时器触发 Stop。
+- `Result(subscription, &result, &received)` 在 pending 时返回 false 且不修改输出。
+  完成后提供不可变的 select 结果和原始接收指针；NULL 同样是合法消息。
+  它不保留输出地址，也不接管原始消息或 Channel 的所有权。
+- `Notify` 恰好一次，在全部 case 物理注销之后、Channel 锁外执行，执行线程可能是
+  Start、Stop 或任一改变 Channel 状态的线程。回调可以重入、查询结果、Ref 或归还外部引用。
+  Notify 自身仍须遵守所属应用的执行时间、线程亲和性和诊断隔离合同。
+- `Ref` 增加一个外部引用，`Destroy` 归还一个。最后外部引用释放会请求停止 pending 订阅，
+  不会无限保留注册，也不会等待其他线程上的回调。`Drop` 在最后外部引用及所有物理回调尾部
+  都退役后恰好一次；因此 Ready 不等于 context 已释放，Destroy 返回也不保证 Drop 已发生。
+- case 描述和接收槽由订阅拥有；Channel、发送消息和接收消息仍遵守原始 Channel 指针合同。
+  调用方必须保持 Channel 存储存活至完成，并等全部并发的 Channel 调用返回，才能释放它。
+- 这是原生订阅底座，不是另一套语言 Future 或调度器。原始 context 对所有权图仍是 opaque；
+  不能仅凭一个回调或 Trace 将它认证成可收集对象。语言适配还须封闭取消、期限、消息与生产者的真实拥有关系。
+
 
 ## 类型与常量
 

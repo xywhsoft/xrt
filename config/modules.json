@@ -1091,6 +1091,23 @@
 			]
 		},
 		{
+			"name": "channel_subscribe",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_CHANNEL_SUBSCRIBE",
+			"depends": ["channel_select"],
+			"public_headers": ["include/xrt/channel_subscribe.h"],
+			"internal_headers": [],
+			"sources": ["src/concurrency/channel_subscribe.c"],
+			"tests": [
+				"tests/concurrency/test_channel_subscribe.c",
+				"tests/concurrency/test_channel_subscribe_threads.c",
+				"tests/concurrency/test_channel_subscribe_oom.c"
+			],
+			"single_tests": ["tests/single/test_single_channel_subscribe.c"],
+			"examples": [],
+			"docs": ["docs/api/channel.md"]
+		},
+		{
 			"name": "channel_select_cancel",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_CHANNEL_SELECT_CANCEL",

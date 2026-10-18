@@ -35,6 +35,14 @@
 
 typedef struct xrt_channel_select_state xrt_channel_select_state;
 typedef struct xrt_channel_select_waiter xrt_channel_select_waiter;
+
+#if defined(XRT_FEATURE_CHANNEL_SUBSCRIBE)
+/* Preallocated, coalesced work; Dispatch never runs under a Channel mutex. */
+typedef struct xrt_channel_deferred {
+	struct xrt_channel_deferred* Next;
+	void (*Dispatch)(struct xrt_channel_deferred* pWork);
+} xrt_channel_deferred;
+#endif
 typedef void (*xrt_channel_select_wake_proc)(ptr pData);
 typedef bool (*xrt_channel_select_prepare_proc)(ptr pData);
 typedef xwaitresult (*xrt_channel_select_wait_proc)(
@@ -50,6 +58,9 @@ struct xrt_channel_select_state {
 	xrt_channel_select_wake_proc Wake;
 	ptr WakeData;
 	xwaitresult StopResult;
+	#if defined(XRT_FEATURE_CHANNEL_SUBSCRIBE)
+		xrt_channel_deferred* Deferred;
+	#endif
 };
 
 
@@ -95,6 +106,10 @@ typedef struct xrt_channel_impl {
 		ptr SelectWaiters;
 	#endif
 	uint64 Epoch;
+	#if defined(XRT_FEATURE_CHANNEL_SUBSCRIBE)
+		xrt_channel_deferred* DeferredHead;
+		xrt_channel_deferred* DeferredTail;
+	#endif
 } xrt_channel_impl;
 
 
@@ -150,6 +165,19 @@ xchannelresult __xrtChannelTryRecvLocked(
 
 
 #if defined(XRT_INTERNAL_CHANNEL_WAIT)
+
+/* Shared split-phase engine: subscriptions own their nodes and private output
+ * until physical unlink; synchronous drivers alone use stack waiters. */
+bool __xrtChannelSelectCasesValid(const xchannelcase*,size_t);
+size_t __xrtChannelSelectStartIndex(size_t);
+xchannelselectresult __xrtChannelSelectTryCases(const xchannelcase*,size_t,size_t);
+bool __xrtChannelSelectRegister(xrt_channel_select_waiter*);
+void __xrtChannelSelectUnregisterAll(xrt_channel_select_waiter*,size_t);
+void __xrtChannelSelectTryWaiters(xrt_channel_select_waiter*,size_t,size_t);
+bool __xrtChannelSelectStop(xrt_channel_select_state*,xwaitresult);
+#if defined(XRT_FEATURE_CHANNEL_SUBSCRIBE)
+void __xrtChannelSubscriptionWakeLocked(xrt_channel_impl*,xrt_channel_deferred*);
+#endif
 
 /* 用调用方提供的等待驱动完成一次同步或协程 Select。 */
 xchannelselectresult __xrtChannelSelectWait(

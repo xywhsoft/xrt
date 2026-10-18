@@ -186,7 +186,21 @@ xrt_channel_impl* __xrtChannelLock(xchannel* pChannel)
 /* 解锁已经验证的 Channel。 */
 void __xrtChannelUnlock(xrt_channel_impl* pImpl)
 {
+	#if defined(XRT_FEATURE_CHANNEL_SUBSCRIBE)
+		xrt_channel_deferred* pWork=pImpl->DeferredHead;
+		pImpl->DeferredHead=NULL;
+		pImpl->DeferredTail=NULL;
+	#endif
 	(void)xrtMutexUnlock(&pImpl->Mutex);
+	#if defined(XRT_FEATURE_CHANNEL_SUBSCRIBE)
+		/* Dispatch may destroy a now-idle Channel; do not access pImpl again. */
+		while(pWork) {
+			xrt_channel_deferred* pNext=pWork->Next;
+			pWork->Next=NULL;
+			pWork->Dispatch(pWork);
+			pWork=pNext;
+		}
+	#endif
 }
 
 
@@ -541,14 +555,24 @@ static xwaitresult __xrtChannelStop(
 
 /* 等待指定条件变量，并保留锁内重新检查谓词的机会。 */
 static xwaitresult __xrtChannelWaitCondition(
+	xrt_channel_impl* pImpl,
 	xcond* pCond,
-	xmutex* pMutex,
 	double iDeadline
 )
 {
+	#if defined(XRT_FEATURE_CHANNEL_SUBSCRIBE)
+		/* An offer/reader registration can make a subscription ready. Dispatch
+		 * it BEFORE sleeping: cond-wait's implicit unlock cannot drain our
+		 * queue. Recheck the predicate after reacquiring, never sleep on a
+		 * notification already delivered by that synchronous dispatch. */
+		if(pImpl->DeferredHead) {
+			__xrtChannelUnlock(pImpl);
+			return xrtMutexLock(&pImpl->Mutex) ? XWAIT_OK : XWAIT_ERROR;
+		}
+	#endif
 	return iDeadline == INFINITY ?
-		xrtCondWait(pCond, pMutex) :
-		__xrtCondWaitUntil(pCond, pMutex, iDeadline);
+		xrtCondWait(pCond, &pImpl->Mutex) :
+		__xrtCondWaitUntil(pCond, &pImpl->Mutex, iDeadline);
 }
 
 
@@ -651,8 +675,8 @@ static xwaitresult __xrtChannelSendWait(
 			}
 		}
 		iResult = __xrtChannelWaitCondition(
+			pImpl,
 			&pImpl->Writable,
-			&pImpl->Mutex,
 			iDeadline
 		);
 		if ( iResult == XWAIT_ERROR ) {
@@ -720,8 +744,8 @@ static xwaitresult __xrtChannelRecvWait(
 			break;
 		}
 		iResult = __xrtChannelWaitCondition(
+			pImpl,
 			&pImpl->Readable,
-			&pImpl->Mutex,
 			iDeadline
 		);
 		if ( iResult == XWAIT_ERROR ) {

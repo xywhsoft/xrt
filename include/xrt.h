@@ -59,6 +59,7 @@
 #include <xrt/sync.h>
 #include <xrt/cancel.h>
 #include <xrt/channel.h>
+#include <xrt/channel_subscribe.h>
 #include <xrt/coroutine.h>
 #include <xrt/future.h>
 #include <xrt/future_bridge.h>
