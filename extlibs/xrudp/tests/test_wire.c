@@ -161,6 +161,29 @@ static int ack_tests(void)
 	return 0;
 }
 
+static int shutdown_frames(void)
+{
+	static const unsigned char goldenShutdown[] = {15,0,0,8,0,0,0,3,0,0,0x13,0x88};
+	static const unsigned char goldenDrained[] = {16,0,0,0};
+	unsigned char output[64], body[12] = {0}; size_t size, offset, count;
+	xrudpwireframe frame;
+	CHECK(xrtRudpFrameAppend(output, sizeof(output), &size, XRUDP_FRAME_SHUTDOWN, 0, goldenShutdown + 4, 8) == XRUDP_OK && size == sizeof(goldenShutdown) && memcmp(output, goldenShutdown, size) == 0);
+	CHECK(xrtRudpFramesValidate(goldenShutdown, sizeof(goldenShutdown), &count) == XRUDP_OK && count == 1);
+	CHECK(xrtRudpFrameAppend(output, sizeof(output), &size, XRUDP_FRAME_DRAINED, 0, NULL, 0) == XRUDP_OK && size == sizeof(goldenDrained) && memcmp(output, goldenDrained, size) == 0);
+	for (size_t n = 0; n < sizeof(goldenShutdown); ++n) { offset = 0; CHECK(xrtRudpFrameNext(goldenShutdown, n, &offset, &frame) == (n ? XRUDP_TRUNCATED : XRUDP_DONE) && offset == 0); }
+	for (size_t n = 0; n < sizeof(goldenDrained); ++n) { offset = 0; CHECK(xrtRudpFrameNext(goldenDrained, n, &offset, &frame) == (n ? XRUDP_TRUNCATED : XRUDP_DONE) && offset == 0); }
+	for (size_t n = 0; n <= sizeof(body); ++n) if (n != 8) CHECK(xrtRudpFrameAppend(output, sizeof(output), &size, XRUDP_FRAME_SHUTDOWN, 0, body, n) == XRUDP_MALFORMED);
+	CHECK(xrtRudpFrameAppend(output, sizeof(output), &size, XRUDP_FRAME_DRAINED, 0, body, 1) == XRUDP_MALFORMED);
+	CHECK(xrtRudpFrameAppend(output, sizeof(output), &size, XRUDP_FRAME_DRAINED, 1, NULL, 0) == XRUDP_MALFORMED);
+	CHECK(xrtRudpFrameAppend(output, sizeof(output), &size, XRUDP_FRAME_SHUTDOWN, 1, goldenShutdown + 4, 8) == XRUDP_MALFORMED);
+	uint32_t finals[] = {0,1,UINT32_C(2147483648),UINT32_C(2147483649)}, times[] = {0,999,1000,600000,600001};
+	for (size_t i = 0; i < 4; ++i) for (size_t j = 0; j < 5; ++j) {
+		for (size_t k = 0; k < 4; ++k) { body[3-k] = (unsigned char)(finals[i] >> (8*k)); body[7-k] = (unsigned char)(times[j] >> (8*k)); }
+		CHECK(xrtRudpFrameAppend(output, sizeof(output), &size, XRUDP_FRAME_SHUTDOWN, 0, body, 8) ==
+			((i == 1 || i == 2) && (j == 2 || j == 3) ? XRUDP_OK : XRUDP_MALFORMED));
+	}
+	return 0;
+}
 static int malformed_corpus(void)
 {
 	unsigned char data[XRUDP_PACKET_MAX + 1];
@@ -194,7 +217,7 @@ static int malformed_corpus(void)
 
 int main(void)
 {
-	if (packet_tests() || frame_tests() || ack_tests() || malformed_corpus()) return 1;
+	if (packet_tests() || frame_tests() || ack_tests() || shutdown_frames() || malformed_corpus()) return 1;
 	puts("xrudp wire: golden, truncation, overflow, canonical ACK, bounded corpus passed");
 	return 0;
 }

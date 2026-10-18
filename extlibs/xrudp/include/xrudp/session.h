@@ -47,8 +47,16 @@ typedef struct xrudpsessionconfig {
 	uint64_t KeyUpdatePackets; /* Local rotation threshold, 8..2^24. */
 } xrudpsessionconfig;
 
+typedef struct xrudpshutdownstate {
+	uint32_t LocalFinalOrdinal, PeerFinalOrdinal, LocalTimeoutMs, PeerTimeoutMs;
+	uint64_t DeadlineUs, LingerUntilUs; /* Local monotonic; 0 before first clock/no request. */
+	bool Requested, PeerRequested, Ready, DeclarationAcknowledged;
+	bool DrainedAcknowledged, PeerDrained, PeerDrainedAcknowledged, Succeeded;
+} xrudpshutdownstate;
+
 typedef struct xrudpsessionstate {
 	xrudpresult Reason; /* OK while active; terminal reasons are sticky. */
+	xrudpshutdownstate Shutdown;
 	xrudpreceivestate Receive;
 	xrudptransmitstate Transmit;
 	xrudpsentstate Sent;
@@ -121,6 +129,20 @@ XRUDP_API xrudpresult xrtRudpSessionState(const xrudpsession* pSession, xrudpses
 XRUDP_API xrudpresult xrtRudpSessionWrite(xrudpsession* pSession,
 	const void* pData, size_t iSize, size_t* pWritten);
 XRUDP_API xrudpresult xrtRudpSessionFinish(xrudpsession* pSession);
+/* Bounded two-sided reliable drain. TimeoutMs=1000..600000, measured from the
+ * next owner clock observation; duplicates cannot renew it. Existing idle,
+ * useful-progress and STOP/RESET deadlines may expire sooner. Forbid new
+ * opens/writes, FIN every admitted sending half, cancel queued game datagrams.
+ * Reads/Stop/Retire remain available. PeerRequested in State asks the peer
+ * application to finish existing responses and explicitly Shutdown; it never
+ * auto-FINs asynchronous replies. Peer request also forbids new local opens.
+ * Success requires both declarations, all admitted reliable halves drained,
+ * peer DRAINED, own DRAINED ACK, and real UDP admission of its final ACK. Keys
+ * remain during a finite nonrenewable linger for lost final ACKs. CLOSED plus
+ * Shutdown.Succeeded distinguishes clean drain from abort/error/timeout.
+ * This is transport drain, not a business receipt or delivery of datagrams.
+ * No allocation; same timeout returns DUPLICATE, changed timeout ARGUMENT. */
+XRUDP_API xrudpresult xrtRudpSessionShutdown(xrudpsession* pSession, uint32_t iTimeoutMs);
 /* Read releases stream and connection credit; grants are retransmitted until
  * validated ACK. DONE is clean stream EOF, not implicit connection closure. */
 XRUDP_API xrudpresult xrtRudpSessionRead(xrudpsession* pSession,

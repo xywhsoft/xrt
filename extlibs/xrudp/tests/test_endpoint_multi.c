@@ -22,6 +22,7 @@ typedef struct multi_side {
 	native_multi* Test; uint32_t Index,OwnOpened,LocalRetired,RemoteRetired,OpenHints,Changes,Closes,PeerCloses;
 	bool InCallback,OpenBlocked; multi_stream Stream[MULTI_IDS];
 	bool DefaultStopHint,DefaultReadDoneHint,DefaultWriteDoneHint;
+	bool ShutdownStarted,ShutdownHint;
 #ifdef TEST_NATIVE_MULTI_DATAGRAMS
 	uint32_t GameWritten,GameRead;bool GameStarted,GameSeen[48];
 #endif
@@ -150,6 +151,16 @@ static void completion(multi_side* s)
 #endif
 	if(done)(void)xrtAtomic32FetchOr(&s->Test->Complete,1u<<s->Index,XMEMORY_RELEASE);
 }
+static void shutdown_when_written(multi_side* s,xrudppeer* p)
+{
+	if(s->Test->Mode<11 || s->ShutdownStarted || xrtRudpEndpointState(s->Test->Endpoint[s->Index])!=XRUDP_ENDPOINT_OPEN)return;
+	if(s->Index==0 && (s->Test->Mode!=11 || !s->ShutdownHint))return;
+	for(uint32_t id=1;id<=5;++id)if(!s->Stream[id].Active || !s->Stream[id].Fin)return;
+	s->ShutdownStarted=true;
+	require(s,xrtRudpPeerShutdown(p,5000)==XRUDP_OK && xrtRudpPeerShutdown(p,5000)==XRUDP_DUPLICATE && xrtRudpPeerShutdown(p,6000)==XRUDP_ARGUMENT,"shutdown request not immutable/idempotent");
+	size_t written=99;unsigned char byte=0;xrudpstreamconfig config;xrtRudpStreamConfigInit(&config);uint32_t id=999;
+	require(s,xrtRudpPeerWrite(p,&byte,1,&written)==XRUDP_CLOSED && written==0 && xrtRudpPeerStreamOpen(p,&config,&id)==XRUDP_CLOSED && id==999,"shutdown admitted new application output");
+}
 static void opened(xrudpendpoint* e,void* context)
 {
 	multi_side* s=(multi_side*)context;require(s,xrtRudpEndpointInfo(e,&s->Test->Identity[s->Index])==XRUDP_OK,"bound identity missing");
@@ -171,11 +182,22 @@ static void confirmed(xrudpendpoint* e,xrudppeer* p,void* context)
 	}
 	if(s->Test->Mode!=3)write_more(s,p,1);
 	open_more(s,p);
+	shutdown_when_written(s,p);
 	(void)xrtAtomic32FetchOr(&s->Test->Confirmed,1u<<s->Index,XMEMORY_RELEASE);
 }
 static void changed(xrudpendpoint* e,xrudppeer* p,uint32_t events,void* context)
 {
 	multi_side* s=(multi_side*)context;(void)e;require(s,!s->InCallback,"recursive global hint");
+	if(events&XRUDP_PEER_SHUTDOWN_REQUESTED) {
+		xrudpsessionstate state;require(s,s->Test->Mode>=11 && !s->ShutdownHint && xrtRudpPeerSessionState(p,&state)==XRUDP_OK && state.Shutdown.PeerRequested,"missing/repeated shutdown request hint");
+		s->ShutdownHint=true;
+		if(s->Index==0 && (s->Test->Mode==12 || s->Test->Mode==13)) {
+			if(s->Test->Mode==12) { xrtRudpPeerDestroy(s->Test->Peer[0]);s->Test->Peer[0]=NULL;require(s,xrtRudpPeerAbort(p)==XRUDP_OK,"shutdown callback abort failed"); }
+			else require(s,xrtRudpEndpointClose(e)==XRUDP_OK,"shutdown callback endpoint close failed");
+			return;
+		}
+		shutdown_when_written(s,p);
+	}
 	if(events&XRUDP_PEER_WRITE_STOPPED) {
 		require(s,!(events&XRUDP_PEER_WRITE_READY),"cancelled default writer received a capacity hint");
 		xrudpsessionstate state;require(s,s->Test->Mode==10 && s->Index==1 && xrtRudpPeerSessionState(p,&state)==XRUDP_OK && state.WriteStopped && state.WriteStopReason==71,"default stop hint missing identity");
@@ -292,7 +314,7 @@ static void stream_changed(xrudpendpoint* e,xrudppeer* p,const xrudpstreamevent*
 			if(t->Mode==3)open_more(s,p);
 		}
 	}
-	completion(s);s->InCallback=false;
+	completion(s);shutdown_when_written(s,p);s->InCallback=false;
 }
 static void peer_closed(xrudpendpoint* e,xrudppeer* p,xrudpresult reason,void* context)
 {
@@ -301,6 +323,10 @@ static void peer_closed(xrudpendpoint* e,xrudppeer* p,xrudpresult reason,void* c
 	require(s,xrtRudpPeerSessionState(p,&state)==XRUDP_OK && state.Reason!=XRUDP_OK && !state.Sent.PendingPackets && !state.Sent.BytesInFlight,
 		"terminal snapshot not drained");
 	require(s,reason==XRUDP_CANCELLED || reason==XRUDP_CLOSED || (s->Test->Mode==6 && reason==XRUDP_TIMEOUT),"unexpected peer failure");
+	if(s->Test->Mode==11) {
+		require(s,reason==XRUDP_CLOSED && state.Shutdown.Succeeded && state.Shutdown.PeerDrainedAcknowledged && s->ShutdownStarted && s->ShutdownHint,"native close lacks two-sided drain proof");
+		for(uint32_t id=1;id<=5;++id)require(s,s->Stream[id].Read==expected(s) && s->Stream[id].Written==expected(s),"native shutdown lost buffered data");
+	} else require(s,!state.Shutdown.Succeeded,"abort reported graceful completion");
 	(void)xrtAtomic32FetchOr(&s->Test->PeerClosed,1u<<s->Index,XMEMORY_RELEASE);
 }
 static void closed(xrudpendpoint* e,xrudpresult reason,const xerror* error,void* context)
@@ -340,6 +366,7 @@ static void dial(xnetworker* worker,ptr context)
 	require(s,xrtRudpPeerStreamFinish(t->Peer[1],1)==XRUDP_BACKPRESSURE,"pre-confirmation FIN accepted");
 	require(s,xrtRudpPeerStreamReset(t->Peer[1],1,1)==XRUDP_BACKPRESSURE,"pre-confirmation RESET accepted");
 	require(s,xrtRudpPeerStop(t->Peer[1],1)==XRUDP_BACKPRESSURE && xrtRudpPeerStreamStop(t->Peer[1],2,1)==XRUDP_BACKPRESSURE,"pre-confirmation STOP accepted");
+	require(s,xrtRudpPeerShutdown(t->Peer[1],5000)==XRUDP_BACKPRESSURE,"pre-confirmation shutdown accepted");
 	require(s,xrtRudpPeerStreamRetire(t->Peer[1],2)==XRUDP_BACKPRESSURE,"pre-confirmation retirement accepted");
 	xrudpdatagraminfo info;uint64_t seq=999;xrudpdatagramchannel ch;xrtRudpDatagramChannelInit(&ch);ch.Id=9;
 	require(s,xrtRudpPeerDatagramWrite(t->Peer[1],9,NULL,0,0,&seq)==XRUDP_BACKPRESSURE && seq==999,"pre-confirmation game accepted");
@@ -373,6 +400,7 @@ static int run(xnetfamily family,uint32_t mode)
 		CHECK(xrtRudpPeerStreamWrite(t.Peer[0],1,&byte,1,&count)==XRUDP_ARGUMENT && count==0);
 		CHECK(xrtRudpPeerStreamFinish(t.Peer[0],1)==XRUDP_ARGUMENT && xrtRudpPeerStreamReset(t.Peer[0],1,1)==XRUDP_ARGUMENT);
 		CHECK(xrtRudpPeerStop(t.Peer[0],1)==XRUDP_ARGUMENT && xrtRudpPeerStreamStop(t.Peer[0],2,1)==XRUDP_ARGUMENT);
+		CHECK(xrtRudpPeerShutdown(t.Peer[0],5000)==XRUDP_ARGUMENT);
 		CHECK(xrtRudpPeerStreamRetire(t.Peer[0],2)==XRUDP_ARGUMENT);
 		CHECK(xrtRudpPeerMessageWrite(t.Peer[0],2,NULL,0)==XRUDP_ARGUMENT);
 		CHECK(xrtRudpPeerMessagePeek(t.Peer[0],2,&count)==XRUDP_ARGUMENT && count==0);
@@ -380,7 +408,8 @@ static int run(xnetfamily family,uint32_t mode)
 		xrudpdatagraminfo info;uint64_t seq=999;
 		CHECK(xrtRudpPeerDatagramRead(t.Peer[0],NULL,0,&info)==XRUDP_ARGUMENT && info.Size==0);
 		CHECK(xrtRudpPeerDatagramWrite(t.Peer[0],9,NULL,0,0,&seq)==XRUDP_ARGUMENT && seq==999);
-	} else if(mode==1 || mode==8)CHECK(wait_for(&t,&t.PeerClosed,3));
+	} else if(mode==1 || mode==8 || mode==11 || mode==12)CHECK(wait_for(&t,&t.PeerClosed,3));
+	else if(mode==13)CHECK(wait_for(&t,&t.Closed,1));
 	else if(mode==6)CHECK(wait_for(&t,&t.PeerClosed,2));
 	else CHECK(wait_for(&t,&t.Closed,2));
 	for(size_t i=0;i<2;++i)CHECK(xrtRudpEndpointClose(t.Endpoint[i])==XRUDP_OK);
@@ -408,6 +437,7 @@ static int run(xnetfamily family,uint32_t mode)
 			CHECK(xrtRudpPeerStreamWrite(t.Peer[i],1,&byte,1,&count)==XRUDP_CLOSED && count==0);
 			CHECK(xrtRudpPeerStreamFinish(t.Peer[i],1)==XRUDP_CLOSED && xrtRudpPeerStreamReset(t.Peer[i],1,1)==XRUDP_CLOSED);
 			CHECK(xrtRudpPeerStop(t.Peer[i],1)==XRUDP_CLOSED && xrtRudpPeerStreamStop(t.Peer[i],2,1)==XRUDP_CLOSED);
+			CHECK(xrtRudpPeerShutdown(t.Peer[i],5000)==XRUDP_CLOSED);
 			CHECK(xrtRudpPeerStreamRetire(t.Peer[i],2)==XRUDP_CLOSED);
 			CHECK(xrtRudpPeerMessageWrite(t.Peer[i],2,NULL,0)==XRUDP_CLOSED);
 			CHECK(xrtRudpPeerMessagePeek(t.Peer[i],2,&count)==XRUDP_CLOSED && count==0);

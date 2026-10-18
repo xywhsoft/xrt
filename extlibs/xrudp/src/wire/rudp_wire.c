@@ -177,6 +177,11 @@ static xrudpresult xrudp__frame_check(xrudpframetype type, uint8_t flags,
 			XRUDP_OK : XRUDP_MALFORMED;
 	case XRUDP_FRAME_CLOSE:
 		return n == 4 ? XRUDP_OK : XRUDP_MALFORMED;
+	case XRUDP_FRAME_SHUTDOWN:
+		return n == 8 && xrudp__get32(p) != 0 && xrudp__get32(p) <= UINT32_C(2147483648) &&
+			xrudp__get32(p + 4) >= 1000 && xrudp__get32(p + 4) <= 600000 ? XRUDP_OK : XRUDP_MALFORMED;
+	case XRUDP_FRAME_DRAINED:
+		return n == 0 ? XRUDP_OK : XRUDP_MALFORMED;
 	case XRUDP_FRAME_PATH_CHALLENGE:
 	case XRUDP_FRAME_PATH_RESPONSE:
 		return n == 16 ? XRUDP_OK : XRUDP_MALFORMED;

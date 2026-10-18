@@ -2769,7 +2769,9 @@ typedef enum xrudpframetype {
 	XRUDP_FRAME_PATH_RESPONSE = 11,
 	XRUDP_FRAME_KEY_CONFIRM = 12,
 	XRUDP_FRAME_OPEN = 13,
-	XRUDP_FRAME_STOP_SENDING = 14
+	XRUDP_FRAME_STOP_SENDING = 14,
+	XRUDP_FRAME_SHUTDOWN = 15,
+	XRUDP_FRAME_DRAINED = 16
 } xrudpframetype;
 
 #define XRUDP_STREAM_FIN 1u
@@ -3930,8 +3932,16 @@ typedef struct xrudpsessionconfig {
 	uint64_t KeyUpdatePackets; /* Local rotation threshold, 8..2^24. */
 } xrudpsessionconfig;
 
+typedef struct xrudpshutdownstate {
+	uint32_t LocalFinalOrdinal, PeerFinalOrdinal, LocalTimeoutMs, PeerTimeoutMs;
+	uint64_t DeadlineUs, LingerUntilUs; /* Local monotonic; 0 before first clock/no request. */
+	bool Requested, PeerRequested, Ready, DeclarationAcknowledged;
+	bool DrainedAcknowledged, PeerDrained, PeerDrainedAcknowledged, Succeeded;
+} xrudpshutdownstate;
+
 typedef struct xrudpsessionstate {
 	xrudpresult Reason; /* OK while active; terminal reasons are sticky. */
+	xrudpshutdownstate Shutdown;
 	xrudpreceivestate Receive;
 	xrudptransmitstate Transmit;
 	xrudpsentstate Sent;
@@ -4004,6 +4014,20 @@ XRUDP_API xrudpresult xrtRudpSessionState(const xrudpsession* pSession, xrudpses
 XRUDP_API xrudpresult xrtRudpSessionWrite(xrudpsession* pSession,
 	const void* pData, size_t iSize, size_t* pWritten);
 XRUDP_API xrudpresult xrtRudpSessionFinish(xrudpsession* pSession);
+/* Bounded two-sided reliable drain. TimeoutMs=1000..600000, measured from the
+ * next owner clock observation; duplicates cannot renew it. Existing idle,
+ * useful-progress and STOP/RESET deadlines may expire sooner. Forbid new
+ * opens/writes, FIN every admitted sending half, cancel queued game datagrams.
+ * Reads/Stop/Retire remain available. PeerRequested in State asks the peer
+ * application to finish existing responses and explicitly Shutdown; it never
+ * auto-FINs asynchronous replies. Peer request also forbids new local opens.
+ * Success requires both declarations, all admitted reliable halves drained,
+ * peer DRAINED, own DRAINED ACK, and real UDP admission of its final ACK. Keys
+ * remain during a finite nonrenewable linger for lost final ACKs. CLOSED plus
+ * Shutdown.Succeeded distinguishes clean drain from abort/error/timeout.
+ * This is transport drain, not a business receipt or delivery of datagrams.
+ * No allocation; same timeout returns DUPLICATE, changed timeout ARGUMENT. */
+XRUDP_API xrudpresult xrtRudpSessionShutdown(xrudpsession* pSession, uint32_t iTimeoutMs);
 /* Read releases stream and connection credit; grants are retransmitted until
  * validated ACK. DONE is clean stream EOF, not implicit connection closure. */
 XRUDP_API xrudpresult xrtRudpSessionRead(xrudpsession* pSession,
@@ -4134,6 +4158,7 @@ XRT_EXTERN_C_END
 #define XRUDP_PEER_DATAGRAM_WRITE_READY 64u
 #define XRUDP_PEER_WRITE_STOPPED 128u
 #define XRUDP_PEER_READ_DONE 256u
+#define XRUDP_PEER_SHUTDOWN_REQUESTED 512u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
@@ -4245,6 +4270,12 @@ XRUDP_API void xrtRudpPeerDestroy(xrudppeer* pPeer);
 XRUDP_API xrudpresult xrtRudpPeerWrite(xrudppeer* pPeer, const void* pData, size_t iSize, size_t* pWritten);
 XRUDP_API xrudpresult xrtRudpPeerRead(xrudppeer* pPeer, void* pOutput, size_t iCapacity, size_t* pRead);
 XRUDP_API xrudpresult xrtRudpPeerFinish(xrudppeer* pPeer);
+/* Owner-only SessionShutdown; existing reads remain available while draining.
+ * Changed reports SHUTDOWN_REQUESTED once for the authenticated peer request.
+ * Finish asynchronous responses, then explicitly Shutdown. PeerClose returns
+ * CLOSED for a completed drain; PeerSessionState.Shutdown.Succeeded proves it.
+ * Before Confirmed BACKPRESSURE, after CLOSED safe without Engine access. */
+XRUDP_API xrudpresult xrtRudpPeerShutdown(xrudppeer* pPeer, uint32_t iTimeoutMs);
 /* Owner-only advanced typed streams; capacity/IDs/half-close/retirement follow
  * SessionStream*. No per-stream heap allocation. Before Confirmed return
  * BACKPRESSURE; after peer close return CLOSED, without accessing the Engine.

@@ -18,6 +18,7 @@
 #define XRUDP_PEER_DATAGRAM_WRITE_READY 64u
 #define XRUDP_PEER_WRITE_STOPPED 128u
 #define XRUDP_PEER_READ_DONE 256u
+#define XRUDP_PEER_SHUTDOWN_REQUESTED 512u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
@@ -129,6 +130,12 @@ XRUDP_API void xrtRudpPeerDestroy(xrudppeer* pPeer);
 XRUDP_API xrudpresult xrtRudpPeerWrite(xrudppeer* pPeer, const void* pData, size_t iSize, size_t* pWritten);
 XRUDP_API xrudpresult xrtRudpPeerRead(xrudppeer* pPeer, void* pOutput, size_t iCapacity, size_t* pRead);
 XRUDP_API xrudpresult xrtRudpPeerFinish(xrudppeer* pPeer);
+/* Owner-only SessionShutdown; existing reads remain available while draining.
+ * Changed reports SHUTDOWN_REQUESTED once for the authenticated peer request.
+ * Finish asynchronous responses, then explicitly Shutdown. PeerClose returns
+ * CLOSED for a completed drain; PeerSessionState.Shutdown.Succeeded proves it.
+ * Before Confirmed BACKPRESSURE, after CLOSED safe without Engine access. */
+XRUDP_API xrudpresult xrtRudpPeerShutdown(xrudppeer* pPeer, uint32_t iTimeoutMs);
 /* Owner-only advanced typed streams; capacity/IDs/half-close/retirement follow
  * SessionStream*. No per-stream heap allocation. Before Confirmed return
  * BACKPRESSURE; after peer close return CLOSED, without accessing the Engine.

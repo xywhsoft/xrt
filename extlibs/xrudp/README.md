@@ -16,6 +16,7 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
 发送侧 NewReno 与有界 pacing 已实现；多流共用包号、ACK、连接额度及拥塞窗口，按受限权重调度。
 可靠流两半已有固定容量缓冲、重组、显式流额度、选择性确认/重传和 FIN/RESET 核算。
 原生端点已接入流读写、OPEN、FIN/RESET、退休、进度事件和连接取消；
+SessionShutdown/PeerShutdown 已接入双方可靠数据排空、可靠关闭确认和有限驻留；
 不能将当前组件直接作为已通过完整生产验收的产品。
 
 ## 目标与边界
@@ -46,6 +47,7 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_datagram_tests --no-examples --cflag=-O2 --jobs 2
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_game_tests,rudp_game_native_tests --no-examples --cflag=-O2 --jobs 2
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_stop_tests,rudp_wire --no-examples --cflag=-O2 --jobs 2
+    python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_shutdown_tests,rudp_wire --no-examples --cflag=-O2 --jobs 2
 
 Windows 另外组合 rudp_endpoint_iocp_tests，Linux 组合 rudp_endpoint_epoll_tests；
 Linux 的优化构建同时运行 ASan/UBSan。无优化构建通过不能代替发布优化编译检查。
@@ -87,6 +89,13 @@ StopComplete 表示通知被 ACK 或真实终结已到达，仍须真实最终�
 正常收到真实终结即撤去该期限；超时会关闭不响应的连接并清理资源。
 发送 RESET 也有独立的 ProgressTimeoutUs 确认期限，重复请求/重发和其他流进展不续期，
 收到有效 ACK 才撤去。State.PendingSendResets 与流的 ResetDeadlineUs 可查询等待状态。
+SessionShutdown/PeerShutdown 启动 1 秒至 10 分钟的有界可靠排空，停止新写入并给已受理
+发送半流排入 FIN，读取仍可继续。原生 SHUTDOWN_REQUESTED 提示对端请求；已有异步回复
+写完后须显式 Shutdown，不会自动截断。State.Shutdown 可查询双方声明、排空/确认及期限。
+最终 CLOSED 且 Shutdown.Succeeded 才表示本地已证明双方可靠数据排空；取消/错误不置成功。
+关闭请求会取消排队游戏数据报，不能将其传输确认当成可靠交付。有限驻留保留最终 ACK
+恢复能力，不因重复控制延长；原有空闲/进度和独立取消期限仍可更早终止未排空的连接。
+需要优雅结束时先关闭各 peer、等待 PeerClose，再关闭端点；EndpointClose 保持立即取消语义。
 模块 rudp_transmit 保留未确认内容，以分层位图查找待发范围，重传副本共享逻辑确认状态。
 TransmitMessageWrite 可将 u32 长度前缀和一条负载整体排入现有发送环，空间不足时完整拒收。
 模块 rudp_message 提供有界的消息接收组装器，构造时一次分配 0..1MiB 固定空间；
