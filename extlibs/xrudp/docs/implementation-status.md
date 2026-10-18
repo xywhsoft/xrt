@@ -978,6 +978,32 @@ mdo 业务长测使用独立驱动和收据，须分别完成完整时长。观�
 启动与短测成功不能替代最终排空、父/子退出结果和时长核验。独立控制帧/结构化模糊、Android
 实机和两个独立公网 NAT 等门槛继续保留。
 
+## 独立负面线路与控制帧矩阵（2026-10-19）
+
+`tools/test_xrudp_wire_negative.py` 使用独立 Python Noise/AEAD/帧编码器，对真实原生端点运行
+59 类认证后非法输入，包括未来/未发送 ACK、非规范 ACK、偏移溢出、额度与最终偏移冲突、
+重复 STOP 原因冲突、OPEN 来源/元数据/额度错误、消息长度/截断 FIN、关闭声明、错误帧长、
+未知帧、非法确认代和帧数上限。除空负载外，每种都在合法 STREAM、OPEN、游戏数据报的
+前后各测试一次；非法包必须以 `XRUDP_MALFORMED` 终结，应用读取、OPEN 提示及游戏交付均为零。
+原生夹具只使用公共 API，检查唯一确认/关闭、准确原因，并在 Engine Stop/Destroy 成功后报告结果。
+
+每组还测试 220 个未认证头部/密文/标签/长度/随机 UDP 变体，分批发送原始同包号合法报文，
+证明失败认证不会污染重放状态或连接；认证重复包保持无害。STREAM 先于 OPEN、已授予范围内
+但缺少先前序数的 OPEN 另作合法乱序测试，整包不交付、不被 ACK，随后 PING 正常受理；
+最终由对端 CLOSE 正常结束，不能把合法乱序误报成协议错误。
+
+Windows GCC `-O2 -Wall -Wextra -Werror` 的 Select/IOCP、Linux Clang `-O2` 的
+ASan/UBSan/泄漏检查 Select/Epoll，分别覆盖 IPv4/IPv6 和独立发起/响应两种角色，均为
+960 个不重复场景，共 1,920 例通过。扩展夹具后的原有 basic/mixed 互操作矩阵也重新通过
+两平台各 16 例，覆盖五流、整条消息、游戏数据、换钥及有损确认。来源固定回归 4 项通过。
+证据为 `dev/xrudp-wire-negative-{windows,linux-asan}.log`、
+`dev/xrudp-wire-probe-regression-{windows,linux-asan}.log` 和
+`dev/xrudp-wire-negative-provenance-guard.log`；构建输入、工具链及实际二进制哈希由现有构建收据保存。
+
+本轮没有确认新的产品运行时缺陷，源码不变，原有九组真实 72 小时测试不重置。
+这些结果不替代有效 STOP/RESET、优雅关闭、路径/MTU 流程的独立互操作，也不替代持续模糊、
+Android 实机、两个独立公网 NAT 和最终长稳验收；完整目标继续 active。
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。

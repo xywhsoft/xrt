@@ -18,7 +18,8 @@ typedef struct wire_test {
     uint16_t Port, RemotePort; xnetfamily Family; size_t Read;
     unsigned char Pin[32];
     unsigned Confirmed, Closes; bool Eof, Acked;
-    bool Typed; unsigned Games; wire_slot Slots[6];
+    bool Typed, Probe; unsigned Games, StreamOpened; xrudpresult CloseReason, ExpectedClose;
+    wire_slot Slots[6];
 } wire_test;
 static void require(wire_test* T, bool Ok, const char* What)
 { if (!Ok) { fprintf(stderr,"wire native failure: %s\n",What); xrtAtomic32Store(&T->Failure,1,XMEMORY_RELEASE); } }
@@ -57,6 +58,12 @@ static void typed_write(wire_test* T, xrudppeer* P, uint32_t Id)
 static void stream_changed(xrudpendpoint* E, xrudppeer* P, const xrudpstreamevent* V, void* Data)
 {
     wire_test* T=Data; (void)E; uint32_t Id=V->Id;
+    if (T->Probe) {
+        if (Id!=1 && (V->Events&XRUDP_STREAM_OPENED)) ++T->StreamOpened;
+        require(T,T->StreamOpened==0,"probe packet exposed an OPEN before full validation");
+        require(T,!(V->Events&XRUDP_STREAM_READ_READY),"probe packet exposed stream data");
+        return;
+    }
     if (!T->Typed || Id==1) return;
     require(T,Id>=2 && Id<6,"typed stream ID"); if (Id<2 || Id>=6) return;
     wire_slot* S=&T->Slots[Id]; S->Id=Id;
@@ -99,6 +106,16 @@ static void opened(xrudpendpoint* E, void* Data)
 static void changed(xrudpendpoint* E, xrudppeer* P, uint32_t Events, void* Data)
 {
     wire_test* T=Data; (void)E;
+    if (T->Probe) {
+        unsigned char Buffer[512]; size_t Read=0; xrudpdatagraminfo I;
+        xrudpresult R=xrtRudpPeerRead(P,Buffer,sizeof(Buffer),&Read);
+        T->Read+=Read;
+        require(T,R!=XRUDP_OK && Read==0,"probe packet exposed default stream data");
+        R=xrtRudpPeerDatagramRead(P,Buffer,sizeof(Buffer),&I);
+        if (R==XRUDP_OK) ++T->Games;
+        require(T,T->Games==0,"probe packet exposed a game datagram");
+        return;
+    }
     if (Events&XRUDP_PEER_READ_READY) for (unsigned N=0;N<8;++N) {
         unsigned char Buffer[512]; size_t Read=0; xrudpresult R=xrtRudpPeerRead(P,Buffer,sizeof(Buffer),&Read);
         if (R==XRUDP_BACKPRESSURE) break;
@@ -132,6 +149,12 @@ static void confirmed(xrudpendpoint* E, xrudppeer* P, void* Data)
     wire_test* T=Data; unsigned char Buffer[4096]; size_t Written=0; (void)E;
     require(T,++T->Confirmed==1,"duplicate confirmation");
     if (!T->Peer) T->Peer=xrtRudpPeerRef(P); else require(T,T->Peer==P,"known initiating peer");
+    if (T->Probe) {
+        xrudpdatagramchannel C; xrtRudpDatagramChannelInit(&C); C.Id=7;
+        require(T,xrtRudpPeerDatagramConfigure(P,&C)==XRUDP_OK,"probe game channel");
+        xrtAtomic32Store(&T->AppDone,1,XMEMORY_RELEASE);
+        return;
+    }
     for (size_t I=0;I<sizeof(Buffer);++I) Buffer[I]=(unsigned char)(I*7u+19u);
     require(T,xrtRudpPeerWrite(P,Buffer,sizeof(Buffer),&Written)==XRUDP_OK && Written==sizeof(Buffer),"server write");
     require(T,xrtRudpPeerFinish(P)==XRUDP_OK,"server FIN");
@@ -150,8 +173,10 @@ static void confirmed(xrudpendpoint* E, xrudppeer* P, void* Data)
 }
 static void peer_closed(xrudpendpoint* E, xrudppeer* P, xrudpresult Reason, void* Data)
 {
-    wire_test* T=Data; (void)E; (void)P; (void)Reason;
+    wire_test* T=Data; (void)E; (void)P;
     require(T,!xrtAtomic32Load(&T->PeerClosed,XMEMORY_ACQUIRE),"duplicate peer close");
+    T->CloseReason=Reason;
+    if (T->Probe) require(T,Reason==T->ExpectedClose,"probe close reason");
     xrtAtomic32Store(&T->PeerClosed,1,XMEMORY_RELEASE);
 }
 static void closed(xrudpendpoint* E, xrudpresult Reason, const xerror* Error, void* Data)
@@ -171,7 +196,7 @@ static void bind_peer(xnetworker* W, ptr Data)
     C.Session.Local.ConnectionCredit=2048; C.Session.Local.StreamCredit=1024;
     C.Session.ReceiveCapacity=1024; C.Session.TransmitCapacity=8192; C.Session.KeyUpdatePackets=8;
     C.Session.DiscoverMtu=false; C.Session.ProgressTimeoutUs=5000000;
-    if (T->Typed) {
+    if (T->Typed || T->Probe) {
         C.Session.StreamCapacity=C.Session.Local.MaxStreams=3; C.Session.Local.MaxMessageSize=8192;
         xrtRudpDatagramConfigInit(&C.Session.Datagrams); C.Session.Datagrams.Channels=3;
         C.Session.Datagrams.SendCapacity=C.Session.Datagrams.ReceiveCapacity=8; C.Session.Datagrams.PayloadCapacity=128;
@@ -185,10 +210,12 @@ static void stop_peer(xnetworker* W, ptr Data)
 { (void)W; wire_test* T=Data; if (T->Endpoint) (void)xrtRudpEndpointClose(T->Endpoint); }
 int main(int Argc, char** Argv)
 {
-    if (Argc!=5) return 2;
+    if (Argc!=5 && Argc!=6) return 2;
     wire_test T={0}; T.Family=atoi(Argv[1])==6 ? XNET_FAMILY_IPV6:XNET_FAMILY_IPV4;
     int Port=atoi(Argv[2]); if (Port<0 || Port>65535) return 2; T.RemotePort=(uint16_t)Port;
-    T.Typed=atoi(Argv[3])!=0;
+    int Mode=atoi(Argv[3]); if (Mode<0 || Mode>2 || (Mode==2)!=(Argc==6)) return 2;
+    T.Typed=Mode==1; T.Probe=Mode==2;
+    if (T.Probe) { T.ExpectedClose=(xrudpresult)atoi(Argv[5]); if (T.ExpectedClose!=XRUDP_MALFORMED && T.ExpectedClose!=XRUDP_CLOSED) return 2; }
     xnetengineconfig C; xrtNetEngineConfigInit(&C); C.Workers=1; C.Backend=XNET_PORT_SELECT;
     if (atoi(Argv[4])) {
 #if defined(_WIN32)
@@ -213,7 +240,7 @@ int main(int Argc, char** Argv)
     while (!xrtNetEngineDestroy(T.Engine)) { if (xrtTimer()>=Until) return 5; xrtSleep(1); }
     xrudpendpointinfo I={0}; require(&T,xrtRudpEndpointInfo(T.Endpoint,&I)==XRUDP_OK,"terminal info");
     xrtRudpPeerDestroy(T.Peer); xrtRudpEndpointDestroy(T.Endpoint);
-    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u}\n",
-        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games);
+    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u,\"close_reason\":%u,\"opened\":%u,\"joined\":true}\n",
+        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games,(unsigned)T.CloseReason,T.StreamOpened);
     return Ready && Done && T.Closes==1 && !xrtAtomic32Load(&T.Failure,XMEMORY_ACQUIRE) ? 0:6;
 }
