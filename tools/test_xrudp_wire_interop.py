@@ -47,6 +47,7 @@ def decode(data):
     assert magic==MAGIC and kind in range(1,6) and not flags and not any(reserved)
     assert size==len(data)-48 and any(cid) and pn
     assert (epoch!=0)==(kind in (4,5))
+    assert kind not in (4,5) or pn<2**64-1
     return kind,epoch,cid,pn,data[48:]
 def frame(kind,body=b'',flags=0): return struct.pack('!BBH',kind,flags,len(body))+body
 def frames(data):
@@ -107,14 +108,20 @@ class Noise:
 
 
 class Peer:
-    def __init__(self,sock,address,responder=False):
+    def __init__(self,sock,address,responder=False,typed=False):
         self.sock,self.address=sock,address; self.cid=os.urandom(16); self.server=None
-        self.responder=responder
+        self.responder=responder; self.typed=typed
         self.send_number=1; self.send_epoch=1; self.receive_epoch=1
         self.send_key=None; self.receive_keys={}; self.seen=set(); self.acked=set()
         self.received={}; self.final=None; self.credit=0; self.stream_credit=0
         self.invalid_injected=0; self.replay_injected=0; self.duplicates=0; self.rotations=0
         self.retransmits=0; self.muted_acks=0; self.mute_until=0
+        self.extra_receive={i:{} for i in range(2,6)}; self.extra_final={}; self.extra_credit={}
+        self.remote_opens={}; self.datagrams={}; self.sent_high={i:0 for i in range(1,6)}
+    def parameters(self): return struct.pack('!QIIIIII',1024,512,3 if self.typed else 1,10000,25000,1200,8192 if self.typed else 0)
+    def negotiated(self,value):
+        self.credit,self.stream_credit=value[:2]; self.initial_credit,self.initial_stream_credit=value[:2]
+        self.extra_credit={i:self.stream_credit for i in range(2,6)}
     def raw(self,data): self.sock.sendto(data,self.address)
     def receive(self):
         data,source=self.sock.recvfrom(2048); assert source==self.address
@@ -141,11 +148,11 @@ class Peer:
         self.server=body[:16]; cookie=body[48:]
         assert body[16:48]==digest(first) and self.server==digest(b'XRUDP001/server-id'+digest(first)+cookie)[:16]
         noise=Noise(b'XRUDP001/IK/prologue'+SCOPE+hello+self.server,remote)
-        parameters=struct.pack('!QIIIIII',1024,512,1,10000,25000,1200,0)
+        parameters=self.parameters()
         flight=packet(3,self.server,1,hello+cookie+noise.first(parameters))
         assert len(flight)==312
         (_,_,cid,pn,body),_=self.exchange(flight,3); assert cid==self.cid and pn==2
-        negotiated=noise.second(body); self.credit,self.stream_credit=negotiated[:2]
+        self.negotiated(noise.second(body))
         self.send_key=noise.send; self.receive_keys[1]=noise.receive
         proof=self.protect(frame(1)+frame(12,struct.pack('!I',1)))
         assert self.send_number==2
@@ -188,8 +195,8 @@ class Peer:
             except socket.timeout: pass
         assert flight is not None,'native first flight deadline'
         noise=Noise(b'XRUDP001/IK/prologue'+SCOPE+hello+self.cid,remote,responder=True)
-        negotiated=noise.read_first(flight); self.credit,self.stream_credit=negotiated[:2]
-        second=noise.write_second(struct.pack('!QIIIIII',1024,512,1,10000,25000,1200,0))
+        self.negotiated(noise.read_first(flight))
+        second=noise.write_second(self.parameters())
         self.send_key=noise.send; self.receive_keys[1]=noise.receive
         (_,epoch,cid,pn,_),wire=self.exchange(packet(3,self.server,2,second),4)
         assert epoch==1 and cid==self.cid and pn==1
@@ -204,6 +211,7 @@ class Peer:
     def open(self,wire):
         kind,epoch,cid,number,body=decode(wire); assert kind in (4,5) and cid==self.cid
         key=self.receive_keys.get(epoch)
+        if key is None and epoch<self.receive_epoch: return []
         if key is None:
             assert epoch==self.receive_epoch+1,'skipped unauthenticated key epoch'
             key=rekey(self.receive_keys[self.receive_epoch])
@@ -211,6 +219,7 @@ class Peer:
         parsed=frames(payload)
         if epoch not in self.receive_keys:
             self.receive_keys[epoch]=key; self.receive_epoch=epoch; self.rotations+=1
+            self.receive_keys={e:k for e,k in self.receive_keys.items() if e>=epoch-1}
         if number in self.seen: self.duplicates+=1; return []
         self.seen.add(number); return parsed
     def ack(self):
@@ -222,7 +231,15 @@ class Peer:
         body=struct.pack('!IHH',0,len(ranges),0)+b''.join(struct.pack('!QQ',*r) for r in ranges)
         return frame(2,body)
     def input(self,wire):
-        before=self.receive_epoch; parsed=self.open(wire); eliciting=False; consumed=False
+        before=self.receive_epoch; parsed=self.open(wire); eliciting=False; consumed=set()
+        for kind,flags,body in parsed:
+            if kind!=13: continue
+            assert self.typed and len(body)==16
+            stream,credit,mode,priority,weight=struct.unpack('!IQBBH',body)
+            assert stream in ((3,5) if self.responder else (2,4)) and mode==(1 if stream>=4 else 0) and priority<=3 and weight
+            value=(credit,mode,priority,weight)
+            assert stream not in self.remote_opens or self.remote_opens[stream]==value,'OPEN changed on retransmission'
+            self.remote_opens[stream]=value; self.extra_credit[stream]=max(self.extra_credit[stream],credit)
         for kind,flags,body in parsed:
             eliciting|=kind not in (0,2)
             if kind==2:
@@ -235,15 +252,32 @@ class Peer:
                     if time.monotonic()>=self.mute_until: self.acked.update(range(first,last+1))
                     else: self.muted_acks+=1
             elif kind==3:
-                stream,offset=struct.unpack_from('!IQ',body); assert stream==1
+                stream,offset=struct.unpack_from('!IQ',body)
+                assert stream==1 or (self.typed and 2<=stream<6)
+                received=self.received if stream==1 else self.extra_receive[stream]
                 for i,value in enumerate(body[12:],offset):
-                    assert i<8192 and self.received.get(i,value)==value
-                    if i not in self.received: self.received[i]=value; consumed=True
+                    assert i<8192 and received.get(i,value)==value
+                    if i not in received: received[i]=value; consumed.add(stream)
                 if flags:
-                    final=offset+len(body)-12; assert self.final in (None,final); self.final=final
-            elif kind==5: self.credit=max(self.credit,struct.unpack('!Q',body)[0])
+                    final=offset+len(body)-12
+                    if stream==1: assert self.final in (None,final); self.final=final
+                    else: assert self.extra_final.get(stream,final)==final; self.extra_final[stream]=final
+            elif kind==5:
+                credit=struct.unpack('!Q',body)[0]
+                assert credit<=self.initial_credit+sum(self.sent_high.values()),'connection credit consumed twice'
+                self.credit=max(self.credit,credit)
             elif kind==6:
-                stream,credit=struct.unpack('!IQ',body); assert stream==1; self.stream_credit=max(self.stream_credit,credit)
+                stream,credit=struct.unpack('!IQ',body); assert stream in self.sent_high
+                assert credit<=self.initial_stream_credit+self.sent_high[stream],'stream credit consumed twice'
+                if stream==1: self.stream_credit=max(self.stream_credit,credit)
+                else: self.extra_credit[stream]=max(self.extra_credit[stream],credit)
+            elif kind==7: assert self.typed and 3<=struct.unpack('!I',body)[0]<=2**31
+            elif kind==8:
+                assert self.typed and len(body)>=12
+                channel,sequence=struct.unpack_from('!IQ',body)
+                assert channel in (7,8,9) and ((channel==7 and not flags and not sequence) or (channel!=7 and flags==1 and sequence==1))
+                self.datagrams.setdefault(channel,[]).append(body[12:])
+            elif kind==13: pass
             elif kind==12: assert len(body)==4 and 1<=struct.unpack('!I',body)[0]<=self.send_epoch
             elif kind==0: assert not any(body)
             elif kind==1: assert not body
@@ -252,9 +286,13 @@ class Peer:
         if eliciting: reply+=self.ack()
         if self.receive_epoch!=before: reply+=frame(12,struct.pack('!I',self.receive_epoch))
         if consumed:
-            contiguous=0
-            while contiguous in self.received: contiguous+=1
-            reply+=frame(5,struct.pack('!Q',contiguous+1024))+frame(6,struct.pack('!IQ',1,contiguous+512))
+            total=0
+            for stream in range(1,6 if self.typed else 2):
+                received=self.received if stream==1 else self.extra_receive[stream]; contiguous=0
+                while contiguous in received: contiguous+=1
+                total+=contiguous
+                if stream in consumed: reply+=frame(6,struct.pack('!IQ',stream,contiguous+512))
+            reply+=frame(5,struct.pack('!Q',total+1024))
         if reply: self.raw(self.protect(reply))
     def service(self):
         try:
@@ -262,6 +300,10 @@ class Peer:
             if decode(data)[0] in (4,5): self.input(data)
         except socket.timeout: pass
     def reliable(self,payload,poison=False):
+        for kind,_,body in frames(payload):
+            if kind==3:
+                stream,offset=struct.unpack_from('!IQ',body)
+                self.sent_high[stream]=max(self.sent_high[stream],offset+len(body)-12)
         end=time.monotonic()+5; next_send=0; copies=[]
         while not any(pn in self.acked for pn in copies):
             now=time.monotonic(); assert now<end,'independent stop/wait deadline'
@@ -275,6 +317,7 @@ class Peer:
                 next_send=now+.25
             self.service()
     def transfer(self):
+        if self.typed: return self.transfer_typed()
         body=bytes((i*11+3)&255 for i in range(3072)); offset=0
         self.mute_until=time.monotonic()+.28
         while offset<len(body):
@@ -289,6 +332,57 @@ class Peer:
         while self.final!=4096 or len(self.received)!=4096:
             assert time.monotonic()<end,'server FIN/bytes stalled'; self.service()
         assert bytes(self.received[i] for i in range(4096))==bytes((i*7+19)&255 for i in range(4096))
+        assert self.rotations>0 and self.send_epoch==2 and self.retransmits>0
+        self.raw(self.protect(self.ack()))
+    @staticmethod
+    def typed_body(stream,native):
+        factor,base=(7,19) if native else (11,3)
+        if stream<4:
+            size=(1536 if native else 2304)+stream
+            return bytes((i*factor+base+stream)&255 for i in range(size))
+        return b''.join(struct.pack('!I',size)+bytes((i*factor+base+stream+n)&255 for i in range(size)) for n,size in enumerate((0,513,4097)))
+    def transfer_typed(self):
+        outgoing={1:bytes((i*11+3)&255 for i in range(3072))}
+        outgoing.update({i:self.typed_body(i,False) for i in range(2,6)})
+        own=(2,4) if self.responder else (3,5)
+        offsets={i:0 for i in outgoing}; offsets[own[0]]=1
+        # Legal packet-wide preflight: data may precede its OPEN, and the two
+        # continuous ordinals need not be serialized in frame order.
+        early=frame(3,struct.pack('!IQ',own[0],0)+outgoing[own[0]][:1])
+        self.reliable(early+b''.join(frame(13,struct.pack('!IQBBH',i,512,int(i>=4),1,1)) for i in reversed(own)))
+        end=time.monotonic()+4
+        while len(self.remote_opens)!=2:
+            assert time.monotonic()<end,'native OPEN stalled'; self.service()
+        for channel,sequence,body in ((7,0,b''),(7,1,b'wrong-mode'),(8,5,b'ordered'),(8,4,b'old'),
+            (9,11,b'old'),(9,12,b'latest'),(9,10,b'stale'),(99,0,b'unknown')):
+            # Canonical game output: one record + key confirmation, never
+            # replayed on ACK loss. The app defers reads until reliable FIN.
+            game=frame(8,struct.pack('!IQ',channel,sequence)+body,int(sequence!=0))
+            self.raw(self.protect(game+frame(12,struct.pack('!I',self.receive_epoch))))
+        self.mute_until=time.monotonic()+.28
+        end=time.monotonic()+8
+        while any(offsets[i]<len(body) for i,body in outgoing.items()):
+            progressed=False
+            for stream,body in outgoing.items():
+                offset=offsets[stream]
+                credit=self.stream_credit if stream==1 else self.extra_credit[stream]
+                room=min(self.credit-sum(offsets.values()),credit-offset,len(body)-offset,400)
+                if room<=0: continue
+                self.reliable(frame(3,struct.pack('!IQ',stream,offset)+body[offset:offset+room]),poison=stream==1 and offset==0)
+                offsets[stream]+=room; progressed=True
+            if progressed: end=time.monotonic()+8
+            else: assert time.monotonic()<end,'mixed small-window credit deadlock'; self.service()
+        for stream,offset in offsets.items(): self.reliable(frame(3,struct.pack('!IQ',stream,offset),1))
+        expected={1:bytes((i*7+19)&255 for i in range(4096))}
+        expected.update({i:self.typed_body(i,True) for i in range(2,6)})
+        end=time.monotonic()+5
+        while not (self.final==4096 and len(self.received)==4096 and len(self.datagrams)==3 and
+            all(self.extra_final.get(i)==len(expected[i]) and len(self.extra_receive[i])==len(expected[i]) for i in range(2,6))):
+            assert time.monotonic()<end,'mixed receive/FIN/game stalled'; self.service()
+        for stream,body in expected.items():
+            received=self.received if stream==1 else self.extra_receive[stream]
+            assert bytes(received[i] for i in range(len(body)))==body,('mixed output bytes',stream)
+        assert self.datagrams=={7:[b''],8:[b'ordered'],9:[b'latest']},'game duplicate/stale/latest policy'
         assert self.rotations>0 and self.send_epoch==2 and self.retransmits>0
         self.raw(self.protect(self.ack()))
 
@@ -331,18 +425,24 @@ def main():
     parser.add_argument('--sanitize',action='store_true')
     parser.add_argument('--reuse',action='store_true',help='require matching source/compiler/flags/binary provenance')
     parser.add_argument('--roles',choices=('both','initiator','responder'),default='both',help='independent Python peer roles')
+    parser.add_argument('--suite',choices=('basic','mixed','both'),default='both')
+    parser.add_argument('--backends',choices=('select','native','both'),default='both')
     args=parser.parse_args(); binary=build(args)
     roles=(False,True) if args.roles=='both' else (args.roles=='responder',)
-    for responder in roles:
-        for family in (4,6): run_case(binary,family,responder)
+    suites=(False,True) if args.suite=='both' else (args.suite=='mixed',)
+    backends=(False,True) if args.backends=='both' else (args.backends=='native',)
+    for native_backend in backends:
+        for typed in suites:
+            for responder in roles:
+                for family in (4,6): run_case(binary,family,responder,typed,native_backend)
     return 0
 
 
-def run_case(binary,family,responder):
+def run_case(binary,family,responder,typed,native_backend):
     host='127.0.0.1' if family==4 else '::1'
     with socket.socket(socket.AF_INET if family==4 else socket.AF_INET6,socket.SOCK_DGRAM) as sock:
         sock.bind((host,0)); sock.settimeout(.05)
-        argv=[str(binary),str(family)]+([str(sock.getsockname()[1])] if responder else [])
+        argv=[str(binary),str(family),str(sock.getsockname()[1]) if responder else '0',str(int(typed)),str(int(native_backend))]
         child=subprocess.Popen(argv,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,
             env={**os.environ,'ASAN_OPTIONS':'detect_leaks=1:halt_on_error=1','UBSAN_OPTIONS':'halt_on_error=1:print_stacktrace=1'})
         lines=queue.Queue()
@@ -352,13 +452,15 @@ def run_case(binary,family,responder):
         try:
             ready=json.loads(lines.get(timeout=5)); assert ready['ready']
             address=(host,ready['port']) if family==4 else (host,ready['port'],0,0)
-            peer=Peer(sock,address,responder); peer.handshake(); peer.transfer()
+            peer=Peer(sock,address,responder,typed); peer.handshake(); peer.transfer()
             assert json.loads(lines.get(timeout=4))['app_done']
             peer.raw(peer.protect(frame(9,struct.pack('!I',0))))
             code=child.wait(timeout=6); reader.join(1); error=child.stderr.read()
             assert code==0,(code,error)
             result=json.loads(lines.get(timeout=1)); assert result['read']==3072 and result['confirmed']==1 and result['closes']==1
-            result.update(family=family,python_role='responder' if responder else 'initiator',independent_noise=True,server_bytes=len(peer.received),
+            assert result['streams']==(5 if typed else 1) and result['messages']==(6 if typed else 0) and result['games']==(3 if typed else 0)
+            result.update(family=family,typed=typed,backend=('iocp' if os.name=='nt' else 'epoll') if native_backend else 'select',
+                python_role='responder' if responder else 'initiator',independent_noise=True,native_default_bytes=len(peer.received),
                 rekeys=peer.rotations,client_rekey=peer.send_epoch,retransmits=peer.retransmits,
                 bad_tags=peer.invalid_injected,replayed_packets=peer.replay_injected)
             print(json.dumps(result),flush=True)

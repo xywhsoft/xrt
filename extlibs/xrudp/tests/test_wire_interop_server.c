@@ -7,18 +7,86 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct wire_slot {
+    uint32_t Id; size_t Read, Written;
+    unsigned MessagesRead, MessagesWritten;
+    bool Finished, Eof, Acked;
+} wire_slot;
 typedef struct wire_test {
     xnetengine* Engine; xrudpendpoint* Endpoint; xrudppeer* Peer;
     xatomic32 Opened, Closed, PeerClosed, AppDone, Failure;
     uint16_t Port, RemotePort; xnetfamily Family; size_t Read;
     unsigned char Pin[32];
     unsigned Confirmed, Closes; bool Eof, Acked;
+    bool Typed; unsigned Games; wire_slot Slots[6];
 } wire_test;
 static void require(wire_test* T, bool Ok, const char* What)
 { if (!Ok) { fprintf(stderr,"wire native failure: %s\n",What); xrtAtomic32Store(&T->Failure,1,XMEMORY_RELEASE); } }
+static void complete(wire_test* T)
+{
+    if (!T->Eof || T->Read!=3072 || !T->Acked) return;
+    if (T->Typed) {
+        if (T->Games!=3) return;
+        for (unsigned I=2;I<6;++I) {
+            wire_slot* S=&T->Slots[I];
+            if (S->Id!=I || !S->Eof || !S->Acked || (I<4 ? S->Read!=2304u+I:S->MessagesRead!=3)) return;
+        }
+    }
+    xrtAtomic32Store(&T->AppDone,1,XMEMORY_RELEASE);
+}
+static void typed_write(wire_test* T, xrudppeer* P, uint32_t Id)
+{
+    wire_slot* S=&T->Slots[Id]; unsigned char Buffer[8192];
+    if (S->Finished) return;
+    if (Id<4) {
+        size_t Size=1536u+Id, Written=0;
+        for (size_t I=0;I<Size;++I) Buffer[I]=(unsigned char)(I*7u+19u+Id);
+        xrudpresult R=xrtRudpPeerStreamWrite(P,Id,Buffer+S->Written,Size-S->Written,&Written);
+        if (R==XRUDP_BACKPRESSURE) return;
+        require(T,R==XRUDP_OK && Written,"typed bytes write"); S->Written+=Written;
+        if (S->Written!=Size) return;
+    } else for (;S->MessagesWritten<3;++S->MessagesWritten) {
+        size_t Size=S->MessagesWritten==0 ? 0:(S->MessagesWritten==1 ? 513:4097);
+        for (size_t I=0;I<Size;++I) Buffer[I]=(unsigned char)(I*7u+19u+Id+S->MessagesWritten);
+        xrudpresult R=xrtRudpPeerMessageWrite(P,Id,Buffer,Size);
+        if (R==XRUDP_BACKPRESSURE) return;
+        require(T,R==XRUDP_OK,"typed message write"); if (R!=XRUDP_OK) return;
+    }
+    require(T,xrtRudpPeerStreamFinish(P,Id)==XRUDP_OK,"typed FIN"); S->Finished=true;
+}
+static void stream_changed(xrudpendpoint* E, xrudppeer* P, const xrudpstreamevent* V, void* Data)
+{
+    wire_test* T=Data; (void)E; uint32_t Id=V->Id;
+    if (!T->Typed || Id==1) return;
+    require(T,Id>=2 && Id<6,"typed stream ID"); if (Id<2 || Id>=6) return;
+    wire_slot* S=&T->Slots[Id]; S->Id=Id;
+    xrudpstreamstate State={0};
+    require(T,xrtRudpPeerStreamState(P,Id,&State)==XRUDP_OK,"typed state");
+    require(T,State.Kind==(Id<4 ? XRUDP_STREAM_BYTES:XRUDP_STREAM_MESSAGES),"typed stream kind");
+    typed_write(T,P,Id);
+    if (V->Events&(XRUDP_STREAM_READ_READY|XRUDP_STREAM_READ_EOF|XRUDP_STREAM_READ_DONE)) for (unsigned N=0;N<8;++N) {
+        unsigned char Buffer[8192]; size_t Read=0;
+        xrudpresult R=Id<4 ? xrtRudpPeerStreamRead(P,Id,Buffer,512,&Read):xrtRudpPeerMessageRead(P,Id,Buffer,sizeof(Buffer),&Read);
+        if (R==XRUDP_BACKPRESSURE) break;
+        if (R==XRUDP_DONE) { S->Eof=true; break; }
+        require(T,R==XRUDP_OK,"typed read"); if (R!=XRUDP_OK) break;
+        if (Id<4) {
+            require(T,Read!=0 && S->Read+Read<=2304u+Id,"typed byte count");
+            for (size_t I=0;I<Read;++I) require(T,Buffer[I]==(unsigned char)((S->Read+I)*11u+3u+Id),"typed input bytes");
+            S->Read+=Read;
+        } else {
+            size_t Want=S->MessagesRead==0 ? 0:(S->MessagesRead==1 ? 513:4097);
+            require(T,S->MessagesRead<3 && Read==Want,"whole/empty message count");
+            for (size_t I=0;I<Read;++I) require(T,Buffer[I]==(unsigned char)(I*11u+3u+Id+S->MessagesRead),"typed input message");
+            ++S->MessagesRead;
+        }
+    }
+    if (V->Events&XRUDP_STREAM_WRITE_DONE) S->Acked=true;
+    complete(T);
+}
 static void opened(xrudpendpoint* E, void* Data)
 {
-    wire_test* T=Data; xrudpendpointinfo I;
+    wire_test* T=Data; xrudpendpointinfo I={0};
     require(T,xrtRudpEndpointInfo(E,&I)==XRUDP_OK,"endpoint info"); T->Port=I.Local.Port;
     if (T->RemotePort) {
         unsigned char Scope[16], Context[32]; memset(Scope,17,sizeof(Scope)); memset(Context,22,sizeof(Context));
@@ -44,7 +112,20 @@ static void changed(xrudpendpoint* E, xrudppeer* P, uint32_t Events, void* Data)
         if (xrtRudpPeerRead(P,&Byte,1,&Read)==XRUDP_DONE) T->Eof=true;
     }
     if (Events&XRUDP_PEER_WRITE_DONE) T->Acked=true;
-    if (T->Eof && T->Read==3072 && T->Acked) xrtAtomic32Store(&T->AppDone,1,XMEMORY_RELEASE);
+    /* Keep game records unread through the producer's reliable FIN fence so
+     * LATEST replacement is deterministic rather than racing app consumption. */
+    if (T->Typed && T->Eof) for (unsigned N=0;N<8;++N) {
+        unsigned char Buffer[128]; xrudpdatagraminfo I; uint64_t Sequence=0;
+        xrudpresult R=xrtRudpPeerDatagramRead(P,Buffer,sizeof(Buffer),&I);
+        if (R==XRUDP_BACKPRESSURE) break;
+        require(T,R==XRUDP_OK,"game read"); if (R!=XRUDP_OK) break;
+        require(T,(I.Channel==7 && !I.Sequenced && I.Sequence==0 && I.Size==0) ||
+            (I.Channel==8 && I.Sequenced && I.Sequence==5 && I.Size==7 && !memcmp(Buffer,"ordered",7)) ||
+            (I.Channel==9 && I.Sequenced && I.Sequence==12 && I.Size==6 && !memcmp(Buffer,"latest",6)),"game mode/sequence/replace");
+        require(T,xrtRudpPeerDatagramWrite(P,I.Channel,Buffer,I.Size,0,&Sequence)==XRUDP_OK,"game echo write");
+        require(T,Sequence==(I.Channel==7 ? 0u:1u) && ++T->Games<=3,"game output sequence/duplicates");
+    }
+    complete(T);
 }
 static void confirmed(xrudpendpoint* E, xrudppeer* P, void* Data)
 {
@@ -54,6 +135,18 @@ static void confirmed(xrudpendpoint* E, xrudppeer* P, void* Data)
     for (size_t I=0;I<sizeof(Buffer);++I) Buffer[I]=(unsigned char)(I*7u+19u);
     require(T,xrtRudpPeerWrite(P,Buffer,sizeof(Buffer),&Written)==XRUDP_OK && Written==sizeof(Buffer),"server write");
     require(T,xrtRudpPeerFinish(P)==XRUDP_OK,"server FIN");
+    if (T->Typed) {
+        for (unsigned I=0;I<3;++I) {
+            xrudpdatagramchannel C; xrtRudpDatagramChannelInit(&C); C.Id=7u+I; C.Mode=(uint8_t)I; C.ReplacePending=I==2;
+            require(T,xrtRudpPeerDatagramConfigure(P,&C)==XRUDP_OK,"game channel");
+        }
+        for (unsigned I=0;I<2;++I) {
+            xrudpstreamconfig C={(uint8_t)I,(uint8_t)(I+1),1}; uint32_t Id=0;
+            require(T,xrtRudpPeerStreamOpen(P,&C,&Id)==XRUDP_OK,"open native typed stream");
+            require(T,Id==(T->RemotePort ? 3u:2u)+2u*I,"native role stream IDs");
+            if (Id>=2 && Id<6) { T->Slots[Id].Id=Id; typed_write(T,P,Id); }
+        }
+    }
 }
 static void peer_closed(xrudpendpoint* E, xrudppeer* P, xrudpresult Reason, void* Data)
 {
@@ -78,8 +171,13 @@ static void bind_peer(xnetworker* W, ptr Data)
     C.Session.Local.ConnectionCredit=2048; C.Session.Local.StreamCredit=1024;
     C.Session.ReceiveCapacity=1024; C.Session.TransmitCapacity=8192; C.Session.KeyUpdatePackets=8;
     C.Session.DiscoverMtu=false; C.Session.ProgressTimeoutUs=5000000;
+    if (T->Typed) {
+        C.Session.StreamCapacity=C.Session.Local.MaxStreams=3; C.Session.Local.MaxMessageSize=8192;
+        xrtRudpDatagramConfigInit(&C.Session.Datagrams); C.Session.Datagrams.Channels=3;
+        C.Session.Datagrams.SendCapacity=C.Session.Datagrams.ReceiveCapacity=8; C.Session.Datagrams.PayloadCapacity=128;
+    }
     xnetaddr A; require(T,xrtNetAddrLoopback(&A,T->Family,0),"local address");
-    xrudpendpointevents V={opened,confirmed,peer_closed,closed,changed,NULL};
+    xrudpendpointevents V={opened,confirmed,peer_closed,closed,changed,stream_changed};
     require(T,xrtRudpEndpointBind(W,&A,&C,&V,T,&T->Endpoint)==XRUDP_OK,"bind");
     xrtSecureZero(Private,sizeof(Private)); xrtSecureZero(Client,sizeof(Client));
 }
@@ -87,13 +185,21 @@ static void stop_peer(xnetworker* W, ptr Data)
 { (void)W; wire_test* T=Data; if (T->Endpoint) (void)xrtRudpEndpointClose(T->Endpoint); }
 int main(int Argc, char** Argv)
 {
-    if (Argc!=2 && Argc!=3) return 2;
+    if (Argc!=5) return 2;
     wire_test T={0}; T.Family=atoi(Argv[1])==6 ? XNET_FAMILY_IPV6:XNET_FAMILY_IPV4;
-    if (Argc==3) { int Port=atoi(Argv[2]); if (Port<1 || Port>65535) return 2; T.RemotePort=(uint16_t)Port; }
+    int Port=atoi(Argv[2]); if (Port<0 || Port>65535) return 2; T.RemotePort=(uint16_t)Port;
+    T.Typed=atoi(Argv[3])!=0;
     xnetengineconfig C; xrtNetEngineConfigInit(&C); C.Workers=1; C.Backend=XNET_PORT_SELECT;
+    if (atoi(Argv[4])) {
+#if defined(_WIN32)
+        C.Backend=XNET_PORT_IOCP;
+#else
+        C.Backend=XNET_PORT_EPOLL;
+#endif
+    }
     T.Engine=xrtNetEngineCreate(&C);
     if (!T.Engine || !xrtNetEngineStart(T.Engine) || !xrtNetEnginePost(T.Engine,0,bind_peer,&T)) return 3;
-    double Until=xrtTimer()+20; bool Ready=false, Done=false;
+    double Until=xrtTimer()+30; bool Ready=false, Done=false;
     while (xrtTimer()<Until && !xrtAtomic32Load(&T.Failure,XMEMORY_ACQUIRE) && !xrtAtomic32Load(&T.PeerClosed,XMEMORY_ACQUIRE)) {
         if (!Ready && xrtAtomic32Load(&T.Opened,XMEMORY_ACQUIRE)) { printf("{\"ready\":true,\"port\":%u}\n",T.Port); fflush(stdout); Ready=true; }
         if (!Done && xrtAtomic32Load(&T.AppDone,XMEMORY_ACQUIRE)) { puts("{\"app_done\":true}"); fflush(stdout); Done=true; }
@@ -105,8 +211,9 @@ int main(int Argc, char** Argv)
     Until=xrtTimer()+5;
     while (!xrtNetEngineStop(T.Engine)) { if (xrtTimer()>=Until) return 5; xrtSleep(1); }
     while (!xrtNetEngineDestroy(T.Engine)) { if (xrtTimer()>=Until) return 5; xrtSleep(1); }
-    xrudpendpointinfo I; require(&T,xrtRudpEndpointInfo(T.Endpoint,&I)==XRUDP_OK,"terminal info");
+    xrudpendpointinfo I={0}; require(&T,xrtRudpEndpointInfo(T.Endpoint,&I)==XRUDP_OK,"terminal info");
     xrtRudpPeerDestroy(T.Peer); xrtRudpEndpointDestroy(T.Endpoint);
-    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s}\n",T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false");
+    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u}\n",
+        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games);
     return Ready && Done && T.Closes==1 && !xrtAtomic32Load(&T.Failure,XMEMORY_ACQUIRE) ? 0:6;
 }
