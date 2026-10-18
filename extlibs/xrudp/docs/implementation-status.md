@@ -937,6 +937,27 @@ Linux -O2 ASan/UBSan/泄漏检查均以扩展后的哈希清单重建并通过 2
 未修改运行时代码，也未在活跃进程中替换测试二进制。mdo 业务长测使用独立的宿主收据，不受此
 测试构建器修正影响。
 
+完整来源清单下重新构建的独立 wire peer，Windows 与 Linux ASan/UBSan/泄漏检查各十六组
+再次全部通过（`dev/xrudp-wire-full-pin-{windows,linux-asan}.log`），覆盖双角色、双族、
+basic/mixed 及 Select/IOCP/Epoll；按实际笛卡尔积核对，无遗漏组合。
+
+### 长稳观察进程的资源与退出边界
+
+Linux 实机短测发现，原生程序已报告完整排空时，`/proc` 内存信息可能先于 `waitpid` 的
+终结状态消失；旧监测器会把这次瞬时 `ProcessLookupError` 判为失败。现在只对同一个
+子进程保留最多两秒的资源观察等待，继续读取既有输出和终结状态；持续不可读仍失败，
+最终仍强制检查原生终结、成功、真实时长、退出码与 join，不从资源观察失败推断成功。
+
+Windows 监测器每次采样创建 ctypes 结构会被全局指针类型缓存保留，十次调用产生十个
+新类型。现为每个观察进程初始化一次结构与系统函数绑定；五百次采样缓存数量不变。
+同时监测 Python 观察进程自身的内存/句柄和半小时后的增长，不只监测原生子进程。
+`tools/test_xrudp_soak_monitor.py` 验证瞬时退出竞态、持续失败、已终结状态和 Windows
+有界类型缓存；Windows/Linux 回归及两平台真实混合故障短测均通过，日志为
+`dev/xrudp-soak-monitor-{windows,linux}.log`、`xrudp-native-soak-*-observer-fixed.log`。
+
+旧长测观察器已取消，后续使用修正后的提交和新收据重新计时；这些是测试监测器修正，
+没有据此修改或宣称发现 xrudp 运行时缺陷。
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。

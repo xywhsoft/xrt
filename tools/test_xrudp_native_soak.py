@@ -18,6 +18,24 @@ import threading
 import time
 
 ROOT=Path(__file__).resolve().parents[1]
+_WINDOWS_MEMORY=None
+
+
+def windows_memory_backend():
+    global _WINDOWS_MEMORY
+    if _WINDOWS_MEMORY is not None: return _WINDOWS_MEMORY
+    class Counters(ctypes.Structure):
+        _fields_=[('cb',wintypes.DWORD),('faults',wintypes.DWORD)]+[(name,ctypes.c_size_t) for name in
+            ('peak_rss','rss','peak_paged','paged','peak_nonpaged','nonpaged','pagefile','peak_pagefile','private')]
+    kernel=ctypes.WinDLL('kernel32',use_last_error=True); psapi=ctypes.WinDLL('psapi',use_last_error=True)
+    kernel.OpenProcess.argtypes=[wintypes.DWORD,wintypes.BOOL,wintypes.DWORD]; kernel.OpenProcess.restype=wintypes.HANDLE
+    kernel.CloseHandle.argtypes=[wintypes.HANDLE]; kernel.CloseHandle.restype=wintypes.BOOL
+    psapi.GetProcessMemoryInfo.argtypes=[wintypes.HANDLE,ctypes.POINTER(Counters),wintypes.DWORD]
+    psapi.GetProcessMemoryInfo.restype=wintypes.BOOL
+    kernel.GetProcessHandleCount.argtypes=[wintypes.HANDLE,ctypes.POINTER(wintypes.DWORD)]
+    kernel.GetProcessHandleCount.restype=wintypes.BOOL
+    _WINDOWS_MEMORY=kernel,psapi,Counters
+    return _WINDOWS_MEMORY
 
 
 class FaultProxy:
@@ -83,14 +101,7 @@ def resources(pid):
         return {'private':sum(int(resident[name].split()[0])*1024 for name in ('Private_Clean','Private_Dirty')),
             'rss':int(values['VmRSS'].split()[0])*1024,'handles':len(list(Path(f'/proc/{pid}/fd').iterdir())),
             'private_metric':'resident_private'}
-    class Counters(ctypes.Structure):
-        _fields_=[('cb',wintypes.DWORD),('faults',wintypes.DWORD)]+[(name,ctypes.c_size_t) for name in
-            ('peak_rss','rss','peak_paged','paged','peak_nonpaged','nonpaged','pagefile','peak_pagefile','private')]
-    kernel=ctypes.WinDLL('kernel32',use_last_error=True); psapi=ctypes.WinDLL('psapi',use_last_error=True)
-    kernel.OpenProcess.argtypes=[wintypes.DWORD,wintypes.BOOL,wintypes.DWORD]; kernel.OpenProcess.restype=wintypes.HANDLE
-    kernel.CloseHandle.argtypes=[wintypes.HANDLE]
-    psapi.GetProcessMemoryInfo.argtypes=[wintypes.HANDLE,ctypes.POINTER(Counters),wintypes.DWORD]
-    kernel.GetProcessHandleCount.argtypes=[wintypes.HANDLE,ctypes.POINTER(wintypes.DWORD)]
+    kernel,psapi,Counters=windows_memory_backend()
     handle=kernel.OpenProcess(0x400|0x10,False,pid); assert handle,'cannot query owned native process'
     try:
         value=Counters(); value.cb=ctypes.sizeof(value); count=wintypes.DWORD()
@@ -98,6 +109,18 @@ def resources(pid):
         assert kernel.GetProcessHandleCount(handle,ctypes.byref(count))
         return {'private':value.private,'rss':value.rss,'handles':count.value}
     finally: kernel.CloseHandle(handle)
+
+
+def observe_resources(child,pending):
+    now=time.monotonic()
+    try: return resources(child.pid),None
+    except (OSError,AssertionError,KeyError):
+        # exit_mm may remove /proc data before waitpid reports terminal. Keep
+        # reading the same child's output/status for a bounded settling turn.
+        if child.poll() is not None: return None,pending
+        if pending is None: pending=now
+        if now-pending>=2: raise
+        return None,pending
 
 
 def build(args):
@@ -173,7 +196,8 @@ def main():
         os.replace(temporary,state_path)
         with progress.open('a',encoding='utf-8') as stream: stream.write(json.dumps(state)+'\n')
         print(json.dumps({name:state.get(name) for name in ('status','native','resources','acceptance_72h')}),flush=True); saved=now
-    values=queue.Queue(maxsize=256); child=None; inhibited=False; reader=None; baseline=None; error=None; proxy=None
+    values=queue.Queue(maxsize=256); child=None; inhibited=False; reader=None; baseline=None; observer_baseline=None
+    error=None; proxy=None; pending_resource=None
     try:
         if os.name=='nt' and args.seconds>=3600:
             kernel=ctypes.WinDLL('kernel32',use_last_error=True)
@@ -219,15 +243,17 @@ def main():
                 assert elapsed<args.seconds+45,'native drain deadline exceeded'
                 state['elapsed_seconds']=elapsed
             assert time.monotonic()-last_report<(args.report_every+20 if start else 30),'native reporting stopped'
-            try: value=resources(child.pid)
-            except (OSError,AssertionError):
-                if child.poll() is not None: continue
-                raise
+            value,pending_resource=observe_resources(child,pending_resource)
+            if value is None: continue
             state['resources']=value
             assert value['private']<384*1024*1024 and value['handles']<512,'native resource ceiling exceeded'
+            observer=resources(os.getpid()); state['observer_resources']=observer
+            assert observer['private']<256*1024*1024 and observer['handles']<512,'observer resource ceiling exceeded'
             if start and time.monotonic()-start>=1800:
                 if baseline is None: baseline=value
                 assert value['private']-baseline['private']<64*1024*1024 and value['handles']-baseline['handles']<64,'native resource growth exceeded'
+                if observer_baseline is None: observer_baseline=observer
+                assert observer['private']-observer_baseline['private']<32*1024*1024 and observer['handles']-observer_baseline['handles']<32,'observer resource growth exceeded'
             save()
         code=child.wait(timeout=15); reader.join(2); error.close()
         assert code==0 and terminal and terminal['passed'] and terminal['joined'] and terminal['duration_passed'],'native terminal/drain failed'
