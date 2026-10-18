@@ -327,7 +327,8 @@ typedef enum xrudppackettype {
 	XRUDP_PACKET_HELLO = 1,
 	XRUDP_PACKET_RETRY = 2,
 	XRUDP_PACKET_HANDSHAKE = 3,
-	XRUDP_PACKET_DATA = 4
+	XRUDP_PACKET_DATA = 4,
+	XRUDP_PACKET_PATH = 5 /* Authenticated, path-only control, at most 128 bytes. */
 } xrudppackettype;
 
 typedef enum xrudpframetype {
@@ -354,7 +355,7 @@ typedef enum xrudpframetype {
 #define XRUDP_DATAGRAM_SEQUENCED 1u
 
 /* Wire integers are big-endian; no C structure is copied onto the wire.
- * PayloadSize includes the AEAD tag for DATA; all other packet types use epoch 0.
+ * PayloadSize includes the AEAD tag for DATA/PATH; other types use epoch 0.
  * ConnectionId is an opaque nonzero destination/rendezvous identifier, not auth.
  * The codec checks structure only. It never authenticates or authorizes a peer. */
 typedef struct xrudpwireheader {
@@ -466,6 +467,9 @@ XRUDP_API xrudpresult xrtRudpCipherState(const xrudpcipher* pCipher,
  * Failure changes neither cipher state nor destination bytes; *pWritten=0.
  * Source and destination buffers may overlap. Output counters/state objects
  * must not alias buffers. Success consumes a fresh packet number exactly once.
+ * Seal automatically classifies short (<=128B total) path-only controls as
+ * authenticated PATH after packet 1; DATA/PATH share keys and packet numbers.
+ * Open rejects business/ACK/PING disguised as PATH before committing state.
  * A successful Open confirms transport reception, not application execution. */
 /* Open reports AUTH_FAILED for untrusted header/body failures. DUPLICATE,
  * TOO_OLD and MALFORMED require a verified AEAD tag; MALFORMED means an
@@ -1669,6 +1673,9 @@ XRUDP_API xrudpresult xrtRudpSessionState(const xrudpsession* pSession, xrudpses
  * trusted ProbePath grants only 336 initial bytes for opening a NAT mapping.
  * Response must match the pending token and candidate source address. This is
  * xrudp's single-path contract, not QUIC migration/MTU validation.
+ * Fresh authenticated traffic can revalidate a previous address immediately;
+ * unvalidated PNs are spent across failed attempts, never credited twice.
+ * A passive response older than newer active traffic cannot select a path.
  * Candidate failure leaves the active connection intact. No allocation. */
 XRUDP_API xrudpresult xrtRudpSessionEnablePaths(xrudpsession* pSession,
 	const xrudpaddress* pVerified, xrudppathsendproc pSend);
@@ -1676,7 +1683,9 @@ XRUDP_API xrudpresult xrtRudpSessionEnablePaths(xrudpsession* pSession,
  * Now clocks the session; existing connection deadlines still apply. Rejects
  * new probes during local shutdown, but existing validation may finish draining.
  * DUPLICATE for active/current candidate, BACKPRESSURE for cooldown/other
- * candidate. Queries/stats are in SessionState.Path; never expose probe tokens. */
+ * candidate. Its new matching proof may select the caller's preferred target
+ * even while newer traffic still arrives on the current path. Queries/stats
+ * are in SessionState.Path; never expose probe tokens. */
 XRUDP_API xrudpresult xrtRudpSessionProbePath(xrudpsession* pSession,
 	const xrudpaddress* pCandidate, uint64_t iNowUs);
 XRUDP_API xrudpresult xrtRudpSessionPathInput(xrudpsession* pSession,
@@ -2085,21 +2094,21 @@ typedef struct xrudp__pathecho {
 typedef struct xrudp__path {
 	xrudppathstate State;
 	xrudppathsendproc Send;
-	xrudpaddress Previous;
 	xrudp__pathecho Echo[2];
 	unsigned char Token[16];
-	uint64_t CandidateNumber, ActiveNumber, PreviousUntil, ResponseAt, InspectSecond;
-	uint32_t Inspections, InitialAllowance;
+	uint64_t CandidateNumber, ActiveNumber, UnvalidatedNumber, ResponseAt, InspectSecond;
+	uint32_t Inspections, ControlInspections, InitialAllowance;
+	bool Trusted;
 } xrudp__path;
 bool xrudp__path_address(const xrudpaddress* address);
 bool xrudp__path_equal(const xrudpaddress* a, const xrudpaddress* b);
 void xrudp__path_clock(xrudp__path* path, uint64_t now);
 void xrudp__path_fail(xrudp__path* path, uint64_t at, xrudpresult reason);
 xrudpresult xrudp__path_start(xrudp__path* path, const xrudpaddress* address, uint64_t now, bool local);
-bool xrudp__path_inspect(xrudp__path* path, const xrudpaddress* address, uint64_t now);
+bool xrudp__path_inspect(xrudp__path* path, const xrudpaddress* address, bool control, uint64_t now);
 void xrudp__path_credit(xrudp__path* path, uint64_t number, uint32_t size);
 void xrudp__path_echo(xrudp__path* path, const xrudpaddress* address, const void* token);
-void xrudp__path_promote(xrudp__path* path, uint64_t now, uint64_t largest);
+void xrudp__path_promote(xrudp__path* path, uint64_t largest);
 void xrudp__path_clear(xrudp__path* path);
 uint64_t xrudp__path_due(const xrudp__path* path, uint64_t now);
 #endif
@@ -2162,13 +2171,16 @@ static bool xrudp__nonzero(const unsigned char* p, size_t n)
 
 static xrudpresult xrudp__header_check(const xrudpwireheader* h)
 {
-	if (h->Type < XRUDP_PACKET_HELLO || h->Type > XRUDP_PACKET_DATA ||
+	if (h->Type < XRUDP_PACKET_HELLO || h->Type > XRUDP_PACKET_PATH ||
 		!xrudp__nonzero(h->ConnectionId, sizeof(h->ConnectionId)) ||
 		h->PacketNumber == 0) return XRUDP_MALFORMED;
 	if (h->PayloadSize > XRUDP_PACKET_MAX - XRUDP_HEADER_SIZE)
 		return XRUDP_LIMIT;
-	if (h->Type == XRUDP_PACKET_DATA) {
+	if (h->Type == XRUDP_PACKET_DATA || h->Type == XRUDP_PACKET_PATH) {
 		if (h->KeyEpoch == 0 || h->PayloadSize < XRUDP_TAG_SIZE)
+			return XRUDP_MALFORMED;
+		if (h->Type == XRUDP_PACKET_PATH && (h->PacketNumber < 2 ||
+			h->PayloadSize < XRUDP_TAG_SIZE + 20 || h->PayloadSize > 128 - XRUDP_HEADER_SIZE))
 			return XRUDP_MALFORMED;
 	} else if (h->KeyEpoch != 0 || h->PayloadSize == 0) {
 		return XRUDP_MALFORMED;
@@ -2529,6 +2541,19 @@ xrudpresult xrtRudpCipherState(const xrudpcipher* pCipher, xrudpcipherstate* pSt
 	return XRUDP_OK;
 }
 
+/* An authenticated header discriminator reserves bounded validation work even
+ * when candidate business traffic exhausts the ordinary inspection budget.
+ * Never allow application data, ACK or PING to borrow the PATH class. */
+static bool xrudp__cipher_path(const void* plain, size_t size)
+{
+	if (size > 128 - XRUDP_HEADER_SIZE - XRUDP_TAG_SIZE) return false;
+	size_t at = 0; bool path = false; xrudpwireframe frame;
+	while (xrtRudpFrameNext(plain, size, &at, &frame) == XRUDP_OK) {
+		if (frame.Type == XRUDP_FRAME_PATH_CHALLENGE || frame.Type == XRUDP_FRAME_PATH_RESPONSE) path = true;
+		else if (frame.Type != XRUDP_FRAME_PADDING && frame.Type != XRUDP_FRAME_KEY_CONFIRM) return false;
+	}
+	return path;
+}
 xrudpresult xrtRudpCipherSeal(xrudpcipher* pCipher,
 	const void* pFrames, size_t iFrameSize, void* pOutput,
 	size_t iCapacity, size_t* pWritten)
@@ -2547,7 +2572,7 @@ xrudpresult xrtRudpCipherSeal(xrudpcipher* pCipher,
 	if (pCipher->NextPacket == UINT64_MAX || pCipher->SendCount >= pCipher->PacketLimit)
 		return XRUDP_LIMIT;
 	memset(&header, 0, sizeof(header));
-	header.Type = XRUDP_PACKET_DATA;
+	header.Type = pCipher->NextPacket >= 2 && xrudp__cipher_path(pFrames, iFrameSize) ? XRUDP_PACKET_PATH : XRUDP_PACKET_DATA;
 	header.PayloadSize = (uint16_t)(iFrameSize + XRUDP_TAG_SIZE);
 	header.KeyEpoch = pCipher->SendEpoch;
 	header.PacketNumber = pCipher->NextPacket;
@@ -2605,7 +2630,7 @@ xrudpresult xrtRudpCipherOpen(xrudpcipher* pCipher,
 	/* A wire error before AEAD is untrusted input, not an authenticated peer
 	 * violation. The caller must be able to drop it without closing a session. */
 	if (result != XRUDP_OK) return XRUDP_AUTH_FAILED;
-	if (packet.Header.Type != XRUDP_PACKET_DATA ||
+	if ((packet.Header.Type != XRUDP_PACKET_DATA && packet.Header.Type != XRUDP_PACKET_PATH) ||
 		packet.Header.PacketNumber == UINT64_MAX ||
 		!xrtConstTimeEqual(packet.Header.ConnectionId, pCipher->LocalId, 16))
 		return XRUDP_AUTH_FAILED;
@@ -2639,6 +2664,9 @@ xrudpresult xrtRudpCipherOpen(xrudpcipher* pCipher,
 	if (result != XRUDP_OK) {
 		result = XRUDP_MALFORMED;
 		goto cleanup;
+	}
+	if (packet.Header.Type == XRUDP_PACKET_PATH && !xrudp__cipher_path(plain, size)) {
+		result = XRUDP_MALFORMED; goto cleanup;
 	}
 	result = xrudp__confirm_check(pCipher, plain, size, &confirmed);
 	if (result != XRUDP_OK) goto cleanup;
@@ -6373,7 +6401,7 @@ static xrudpresult xrudp__session_migrate(xrudpsession* s)
 	(void)xrtRudpRttInit(&s->Rtt, s->Config.InitialRttUs, s->Config.Peer.MaxAckDelayUs);
 	s->PtoAt = 0; s->PtoCount = s->Probes = 0; s->GrantRetry = s->StreamsRetry = s->Now; s->Progress = s->Now;
 	xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher);
-	xrudp__path_promote(&s->Path, s->Now, cipher.LargestReceivedPacket);
+	xrudp__path_promote(&s->Path, cipher.LargestReceivedPacket);
 	xrudp__mtu_reset(s);
 	if (s->Datagrams != NULL) { uint32_t count; if (xrtRudpDatagramTrimSend(s->Datagrams, s->Mtu.Effective - XRUDP_DATAGRAM_OVERHEAD, &count) != XRUDP_OK && !s->Shutdown.Requested) return XRUDP_IO_ERROR; }
 	xrudp__session_ackwant(s, true); return XRUDP_OK;
@@ -6390,7 +6418,13 @@ xrudpresult xrtRudpSessionPathInput(xrudpsession* s, const xrudpaddress* address
 		if (r == XRUDP_OK) { xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher); s->Path.ActiveNumber = cipher.LargestReceivedPacket; }
 		return r;
 	}
-	if (s->Shutdown.Ready || !xrudp__path_inspect(&s->Path, address, now)) return XRUDP_BACKPRESSURE;
+	xrudpwirepacket parsed;
+	if (s->Shutdown.Ready) return XRUDP_BACKPRESSURE;
+	if (xrtRudpPacketDecode(packet, size, &parsed) != XRUDP_OK) {
+		if (s->Path.State.Invalid != UINT64_MAX) ++s->Path.State.Invalid;
+		return XRUDP_AUTH_FAILED;
+	}
+	if (!xrudp__path_inspect(&s->Path, address, parsed.Header.Type == XRUDP_PACKET_PATH, now)) return XRUDP_BACKPRESSURE;
 	if (size > s->Config.Local.DatagramSize) { if (s->Path.State.Invalid != UINT64_MAX) ++s->Path.State.Invalid; return XRUDP_BACKPRESSURE; }
 	unsigned char plain[XRUDP_PACKET_MAX]; size_t length;
 	xrudpresult r = xrtRudpCipherInspect(s->Cipher, packet, size, plain, sizeof(plain), &length);
@@ -6399,7 +6433,6 @@ xrudpresult xrtRudpSessionPathInput(xrudpsession* s, const xrudpaddress* address
 		if (s->Path.State.Invalid != UINT64_MAX) ++s->Path.State.Invalid;
 		return r == XRUDP_AUTH_FAILED ? r : XRUDP_BACKPRESSURE;
 	}
-	xrudpwirepacket parsed; (void)xrtRudpPacketDecode(packet, size, &parsed);
 	bool proof = false, only = true; const unsigned char* challenge = NULL; size_t offset = 0; xrudpwireframe frame;
 	while (xrtRudpFrameNext(plain, length, &offset, &frame) == XRUDP_OK) {
 		if (frame.Type == XRUDP_FRAME_PATH_RESPONSE && s->Path.State.Validating && s->Path.State.Attempts &&
@@ -6409,16 +6442,24 @@ xrudpresult xrtRudpSessionPathInput(xrudpsession* s, const xrudpaddress* address
 			challenge = frame.Data;
 		} else if (frame.Type != XRUDP_FRAME_PATH_RESPONSE && frame.Type != XRUDP_FRAME_PADDING && frame.Type != XRUDP_FRAME_KEY_CONFIRM) only = false;
 	}
-	if (proof && only) {
+	/* Passive selection follows the newest active-path evidence, not a delayed
+	 * matching response. A trusted caller explicitly selecting a reachable
+	 * alternative is allowed to prefer it while the current path still works. */
+	if (proof && only && (s->Path.Trusted || parsed.Header.PacketNumber > s->Path.ActiveNumber)) {
 		r = xrudp__session_input(s, address, packet, size, now);
 		if (r == XRUDP_OK) {
 			r = xrudp__session_migrate(s);
 			if (r != XRUDP_OK) (void)xrudp__session_abort(s, XRUDP_IO_ERROR);
 		}
 	} else {
-		if (!s->Path.State.Validating && parsed.Header.PacketNumber > s->Path.ActiveNumber) (void)xrudp__path_start(&s->Path, address, now, false);
+		bool fresh = parsed.Header.PacketNumber > s->Path.ActiveNumber && parsed.Header.PacketNumber > s->Path.UnvalidatedNumber;
+		if (!s->Path.State.Validating && fresh) {
+			xrudpresult start = xrudp__path_start(&s->Path, address, now, false);
+			/* An authenticated trigger is spent even if the random source fails;
+			 * the same captured packet cannot reopen attempts after cooldown. */
+			if (start != XRUDP_OK) s->Path.UnvalidatedNumber = parsed.Header.PacketNumber;
+		}
 		if (s->Path.State.Validating && xrudp__path_equal(address, &s->Path.State.Candidate)) {
-			bool fresh = parsed.Header.PacketNumber > s->Path.CandidateNumber;
 			xrudp__path_credit(&s->Path, parsed.Header.PacketNumber, (uint32_t)size);
 			if (fresh && only && challenge != NULL) xrudp__path_echo(&s->Path, address, challenge);
 		}
@@ -6905,6 +6946,7 @@ void xrudp__path_clear(xrudp__path* p)
 {
 	xrtSecureZero(p->Token,sizeof(p->Token)); xrtSecureZero(p->Echo,sizeof(p->Echo));
 	p->State.Validating=false; p->State.DeadlineUs=0; p->State.NextProbeUs=UINT64_MAX;
+	p->Trusted=false;
 }
 void xrudp__path_fail(xrudp__path* p,uint64_t at,xrudpresult reason)
 {
@@ -6912,6 +6954,7 @@ void xrudp__path_fail(xrudp__path* p,uint64_t at,xrudpresult reason)
 	if(p->State.Failures!=UINT64_MAX)++p->State.Failures;
 	xrtSecureZero(p->Token,sizeof(p->Token)); xrtSecureZero(&p->Echo[1],sizeof(p->Echo[1]));
 	p->State.Validating=false; p->State.DeadlineUs=0; p->State.NextProbeUs=UINT64_MAX;
+	p->Trusted=false;
 }
 void xrudp__path_clock(xrudp__path* p,uint64_t now)
 {
@@ -6923,9 +6966,9 @@ xrudpresult xrudp__path_start(xrudp__path* p,const xrudpaddress* a,uint64_t now,
 {
 	if(xrudp__path_equal(a,&p->State.Active))return XRUDP_DUPLICATE;
 	if(p->State.Validating)return xrudp__path_equal(a,&p->State.Candidate)?XRUDP_DUPLICATE:XRUDP_BACKPRESSURE;
-	if(now<p->State.CooldownUntilUs || (!local && now<p->PreviousUntil && xrudp__path_equal(a,&p->Previous)))return XRUDP_BACKPRESSURE;
+	if(now<p->State.CooldownUntilUs)return XRUDP_BACKPRESSURE;
 	p->State.Candidate=*a; p->State.Attempts=0; p->State.CandidateReceived=p->State.CandidateSent=0;
-	p->CandidateNumber=0; p->InitialAllowance=local?336u:0;
+	p->CandidateNumber=0; p->InitialAllowance=local?336u:0; p->Trusted=local;
 	unsigned char token[16]; if(!xrtSecureRandom(token,sizeof(token))) {
 		xrtSecureZero(token,sizeof(token)); xrudp__path_fail(p,now,XRUDP_IO_ERROR); return XRUDP_IO_ERROR;
 	}
@@ -6935,21 +6978,22 @@ xrudpresult xrudp__path_start(xrudp__path* p,const xrudpaddress* a,uint64_t now,
 	p->State.DeadlineUs=xrudp__path_add(now,3000000); p->State.NextProbeUs=now;
 	xrtSecureZero(&p->Echo[1],sizeof(p->Echo[1])); return XRUDP_OK;
 }
-bool xrudp__path_inspect(xrudp__path* p,const xrudpaddress* a,uint64_t now)
+bool xrudp__path_inspect(xrudp__path* p,const xrudpaddress* a,bool control,uint64_t now)
 {
 	if((p->State.Validating && !xrudp__path_equal(a,&p->State.Candidate)) ||
-		(!p->State.Validating && (now<p->State.CooldownUntilUs || (now<p->PreviousUntil && xrudp__path_equal(a,&p->Previous))))) {
+		(!p->State.Validating && now<p->State.CooldownUntilUs)) {
 		if(p->State.AddressDropped!=UINT64_MAX)++p->State.AddressDropped;
 		return false;
 	}
-	uint64_t second=now/1000000; if(second!=p->InspectSecond) { p->InspectSecond=second; p->Inspections=0; }
-	if(p->Inspections>=32) { if(p->State.RateDropped!=UINT64_MAX)++p->State.RateDropped; return false; }
-	++p->Inspections; return true;
+	uint64_t second=now/1000000; if(second!=p->InspectSecond) { p->InspectSecond=second; p->Inspections=p->ControlInspections=0; }
+	uint32_t* inspections=control?&p->ControlInspections:&p->Inspections;
+	if(*inspections>=(control?8u:24u)) { if(p->State.RateDropped!=UINT64_MAX)++p->State.RateDropped; return false; }
+	++*inspections; return true;
 }
 void xrudp__path_credit(xrudp__path* p,uint64_t number,uint32_t size)
 {
-	if(number<=p->CandidateNumber)return;
-	p->CandidateNumber=number;
+	if(number<=p->CandidateNumber || number<=p->UnvalidatedNumber || number<=p->ActiveNumber)return;
+	p->CandidateNumber=number; p->UnvalidatedNumber=number;
 	p->State.CandidateReceived+=size<1200-p->State.CandidateReceived?size:1200-p->State.CandidateReceived;
 	p->State.ReceivedUnvalidated=xrudp__path_add(p->State.ReceivedUnvalidated,size);
 }
@@ -6959,18 +7003,25 @@ void xrudp__path_echo(xrudp__path* p,const xrudpaddress* a,const void* token)
 	if(index && (!p->State.Validating || !xrudp__path_equal(a,&p->State.Candidate)))return;
 	if(!p->Echo[index].Pending) { p->Echo[index].Address=*a; memcpy(p->Echo[index].Token,token,16); p->Echo[index].Pending=true; }
 }
-void xrudp__path_promote(xrudp__path* p,uint64_t now,uint64_t largest)
+void xrudp__path_promote(xrudp__path* p,uint64_t largest)
 {
-	p->Previous=p->State.Active; p->PreviousUntil=xrudp__path_add(now,30000000);
 	p->State.Active=p->State.Candidate; p->State.Validating=false; p->State.DeadlineUs=0; p->State.NextProbeUs=UINT64_MAX;
 	p->State.CooldownUntilUs=0; p->ActiveNumber=largest;
+	if(largest>p->UnvalidatedNumber)p->UnvalidatedNumber=largest;
+	p->Trusted=false;
 	if(p->State.Validations!=UINT64_MAX)++p->State.Validations;
 	p->Echo[0]=p->Echo[1]; xrtSecureZero(&p->Echo[1],sizeof(p->Echo[1])); xrtSecureZero(p->Token,sizeof(p->Token));
 }
 uint64_t xrudp__path_due(const xrudp__path* p,uint64_t now)
 {
 	uint64_t due=p->State.Validating?p->State.DeadlineUs:UINT64_MAX;
-	if(p->State.Validating && p->State.Attempts<3 && p->State.NextProbeUs>now && p->State.NextProbeUs<due)due=p->State.NextProbeUs;
+	if(p->State.Validating && p->State.Attempts<3) {
+		/* An already-due first challenge may be waiting only for the shared
+		 * path-control rate gate. Idle sessions need that wake even without
+		 * pending echoes, flight, application data or another received packet. */
+		uint64_t at=p->State.NextProbeUs>p->ResponseAt?p->State.NextProbeUs:p->ResponseAt;
+		if(at>now && at<due)due=at;
+	}
 	if((p->Echo[0].Pending || p->Echo[1].Pending) && p->ResponseAt>now && p->ResponseAt<due)due=p->ResponseAt;
 	return due;
 }
@@ -7432,9 +7483,10 @@ static void xrudp__endpoint_receive(xnetudp* udp, const xnetudpmessage* message,
 	uint64_t now = xrudp__endpoint_now(e); xrudppeer* p = xrudp__endpoint_find(e, packet.Header.ConnectionId);
 	if (p != NULL) {
 		bool active = xrtNetAddrEqual(&p->Address, &message->Remote);
-		if (!active && (xrtRudpPeerState(p) != XRUDP_PEER_CONFIRMED || packet.Header.Type != XRUDP_PACKET_DATA || packet.Header.PacketNumber < 2)) { ++e->Stats.AddressDropped; return; }
+		bool encrypted = packet.Header.Type == XRUDP_PACKET_DATA || packet.Header.Type == XRUDP_PACKET_PATH;
+		if (!active && (xrtRudpPeerState(p) != XRUDP_PEER_CONFIRMED || !encrypted || packet.Header.PacketNumber < 2)) { ++e->Stats.AddressDropped; return; }
 		xrtRudpPeerRef(p);
-		if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && packet.Header.Type == XRUDP_PACKET_DATA && packet.Header.PacketNumber >= 2) {
+		if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && encrypted && packet.Header.PacketNumber >= 2) {
 			xrudpresult result = xrtRudpSessionPathInput(p->Session, &address, message->Data, message->Size, now);
 			if (!active && result != XRUDP_OK) ++e->Stats.AddressDropped;
 			if (result == XRUDP_AUTH_FAILED) ++e->Stats.Invalid;

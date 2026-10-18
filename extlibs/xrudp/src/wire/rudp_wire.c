@@ -50,13 +50,16 @@ static bool xrudp__nonzero(const unsigned char* p, size_t n)
 
 static xrudpresult xrudp__header_check(const xrudpwireheader* h)
 {
-	if (h->Type < XRUDP_PACKET_HELLO || h->Type > XRUDP_PACKET_DATA ||
+	if (h->Type < XRUDP_PACKET_HELLO || h->Type > XRUDP_PACKET_PATH ||
 		!xrudp__nonzero(h->ConnectionId, sizeof(h->ConnectionId)) ||
 		h->PacketNumber == 0) return XRUDP_MALFORMED;
 	if (h->PayloadSize > XRUDP_PACKET_MAX - XRUDP_HEADER_SIZE)
 		return XRUDP_LIMIT;
-	if (h->Type == XRUDP_PACKET_DATA) {
+	if (h->Type == XRUDP_PACKET_DATA || h->Type == XRUDP_PACKET_PATH) {
 		if (h->KeyEpoch == 0 || h->PayloadSize < XRUDP_TAG_SIZE)
+			return XRUDP_MALFORMED;
+		if (h->Type == XRUDP_PACKET_PATH && (h->PacketNumber < 2 ||
+			h->PayloadSize < XRUDP_TAG_SIZE + 20 || h->PayloadSize > 128 - XRUDP_HEADER_SIZE))
 			return XRUDP_MALFORMED;
 	} else if (h->KeyEpoch != 0 || h->PayloadSize == 0) {
 		return XRUDP_MALFORMED;

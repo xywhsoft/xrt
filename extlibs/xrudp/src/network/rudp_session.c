@@ -1222,7 +1222,7 @@ static xrudpresult xrudp__session_migrate(xrudpsession* s)
 	(void)xrtRudpRttInit(&s->Rtt, s->Config.InitialRttUs, s->Config.Peer.MaxAckDelayUs);
 	s->PtoAt = 0; s->PtoCount = s->Probes = 0; s->GrantRetry = s->StreamsRetry = s->Now; s->Progress = s->Now;
 	xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher);
-	xrudp__path_promote(&s->Path, s->Now, cipher.LargestReceivedPacket);
+	xrudp__path_promote(&s->Path, cipher.LargestReceivedPacket);
 	xrudp__mtu_reset(s);
 	if (s->Datagrams != NULL) { uint32_t count; if (xrtRudpDatagramTrimSend(s->Datagrams, s->Mtu.Effective - XRUDP_DATAGRAM_OVERHEAD, &count) != XRUDP_OK && !s->Shutdown.Requested) return XRUDP_IO_ERROR; }
 	xrudp__session_ackwant(s, true); return XRUDP_OK;
@@ -1239,7 +1239,13 @@ xrudpresult xrtRudpSessionPathInput(xrudpsession* s, const xrudpaddress* address
 		if (r == XRUDP_OK) { xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher); s->Path.ActiveNumber = cipher.LargestReceivedPacket; }
 		return r;
 	}
-	if (s->Shutdown.Ready || !xrudp__path_inspect(&s->Path, address, now)) return XRUDP_BACKPRESSURE;
+	xrudpwirepacket parsed;
+	if (s->Shutdown.Ready) return XRUDP_BACKPRESSURE;
+	if (xrtRudpPacketDecode(packet, size, &parsed) != XRUDP_OK) {
+		if (s->Path.State.Invalid != UINT64_MAX) ++s->Path.State.Invalid;
+		return XRUDP_AUTH_FAILED;
+	}
+	if (!xrudp__path_inspect(&s->Path, address, parsed.Header.Type == XRUDP_PACKET_PATH, now)) return XRUDP_BACKPRESSURE;
 	if (size > s->Config.Local.DatagramSize) { if (s->Path.State.Invalid != UINT64_MAX) ++s->Path.State.Invalid; return XRUDP_BACKPRESSURE; }
 	unsigned char plain[XRUDP_PACKET_MAX]; size_t length;
 	xrudpresult r = xrtRudpCipherInspect(s->Cipher, packet, size, plain, sizeof(plain), &length);
@@ -1248,7 +1254,6 @@ xrudpresult xrtRudpSessionPathInput(xrudpsession* s, const xrudpaddress* address
 		if (s->Path.State.Invalid != UINT64_MAX) ++s->Path.State.Invalid;
 		return r == XRUDP_AUTH_FAILED ? r : XRUDP_BACKPRESSURE;
 	}
-	xrudpwirepacket parsed; (void)xrtRudpPacketDecode(packet, size, &parsed);
 	bool proof = false, only = true; const unsigned char* challenge = NULL; size_t offset = 0; xrudpwireframe frame;
 	while (xrtRudpFrameNext(plain, length, &offset, &frame) == XRUDP_OK) {
 		if (frame.Type == XRUDP_FRAME_PATH_RESPONSE && s->Path.State.Validating && s->Path.State.Attempts &&
@@ -1258,16 +1263,24 @@ xrudpresult xrtRudpSessionPathInput(xrudpsession* s, const xrudpaddress* address
 			challenge = frame.Data;
 		} else if (frame.Type != XRUDP_FRAME_PATH_RESPONSE && frame.Type != XRUDP_FRAME_PADDING && frame.Type != XRUDP_FRAME_KEY_CONFIRM) only = false;
 	}
-	if (proof && only) {
+	/* Passive selection follows the newest active-path evidence, not a delayed
+	 * matching response. A trusted caller explicitly selecting a reachable
+	 * alternative is allowed to prefer it while the current path still works. */
+	if (proof && only && (s->Path.Trusted || parsed.Header.PacketNumber > s->Path.ActiveNumber)) {
 		r = xrudp__session_input(s, address, packet, size, now);
 		if (r == XRUDP_OK) {
 			r = xrudp__session_migrate(s);
 			if (r != XRUDP_OK) (void)xrudp__session_abort(s, XRUDP_IO_ERROR);
 		}
 	} else {
-		if (!s->Path.State.Validating && parsed.Header.PacketNumber > s->Path.ActiveNumber) (void)xrudp__path_start(&s->Path, address, now, false);
+		bool fresh = parsed.Header.PacketNumber > s->Path.ActiveNumber && parsed.Header.PacketNumber > s->Path.UnvalidatedNumber;
+		if (!s->Path.State.Validating && fresh) {
+			xrudpresult start = xrudp__path_start(&s->Path, address, now, false);
+			/* An authenticated trigger is spent even if the random source fails;
+			 * the same captured packet cannot reopen attempts after cooldown. */
+			if (start != XRUDP_OK) s->Path.UnvalidatedNumber = parsed.Header.PacketNumber;
+		}
 		if (s->Path.State.Validating && xrudp__path_equal(address, &s->Path.State.Candidate)) {
-			bool fresh = parsed.Header.PacketNumber > s->Path.CandidateNumber;
 			xrudp__path_credit(&s->Path, parsed.Header.PacketNumber, (uint32_t)size);
 			if (fresh && only && challenge != NULL) xrudp__path_echo(&s->Path, address, challenge);
 		}

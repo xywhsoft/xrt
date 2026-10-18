@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `192` 个函数、`155` 个常量或宏、
+当前登记 `192` 个函数、`156` 个常量或宏、
 `67` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
@@ -562,7 +562,7 @@
 - `xrtRudpReplayCheck`
 - `xrtRudpReplayInit`
 
-### 常量与宏 (46)
+### 常量与宏 (47)
 
 - `XRUDP_ARGUMENT`
 - `XRUDP_AUTH_FAILED`
@@ -601,6 +601,7 @@
 - `XRUDP_PACKET_DATA`
 - `XRUDP_PACKET_HANDSHAKE`
 - `XRUDP_PACKET_HELLO`
+- `XRUDP_PACKET_PATH`
 - `XRUDP_PACKET_RETRY`
 - `XRUDP_PROTOCOL_MISMATCH`
 - `XRUDP_REPLAY_BITS`

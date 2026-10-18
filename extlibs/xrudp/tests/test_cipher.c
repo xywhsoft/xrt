@@ -250,10 +250,37 @@ static int inspection(void)
 	CHECK(xrtRudpCipherState(b, &state) == XRUDP_OK && !state.SendKeyPending);
 	xrtRudpCipherDestroy(a); xrtRudpCipherDestroy(b); return 0;
 }
+static int path_class(void)
+{
+	xrudpcipher *a,*b;CHECK(pair(&a,&b,0)==0);
+	unsigned char packet[1200],plain[1200],frames[64]={XRUDP_FRAME_PATH_CHALLENGE,0,0,16};size_t size,read;
+	CHECK(xrtRudpCipherSeal(a,ping,sizeof(ping),packet,sizeof(packet),&size)==XRUDP_OK && xrtRudpCipherOpen(b,packet,size,plain,sizeof(plain),&read)==XRUDP_OK);
+	CHECK(xrtRudpCipherSeal(a,frames,20,packet,sizeof(packet),&size)==XRUDP_OK && packet[8]==XRUDP_PACKET_PATH && size==84);
+	xrudpcipherstate before,after;CHECK(xrtRudpCipherState(b,&before)==XRUDP_OK);
+	packet[8]=XRUDP_PACKET_DATA;
+	CHECK(xrtRudpCipherOpen(b,packet,size,plain,sizeof(plain),&read)==XRUDP_AUTH_FAILED && !read);
+	CHECK(xrtRudpCipherState(b,&after)==XRUDP_OK && memcmp(&before,&after,sizeof(before))==0);
+	packet[8]=XRUDP_PACKET_PATH;CHECK(xrtRudpCipherOpen(b,packet,size,plain,sizeof(plain),&read)==XRUDP_OK && read==20);
+	/* A key holder cannot smuggle STREAM under the control discriminator. The
+	 * header is valid and its AEAD is real, but no replay/key/output is committed. */
+	memset(frames,0,sizeof(frames));frames[0]=XRUDP_FRAME_STREAM;frames[3]=16;frames[7]=1;memcpy(frames+16,"evil",4);
+	xrudpwireheader h;memset(&h,0,sizeof(h));h.Type=XRUDP_PACKET_PATH;h.KeyEpoch=1;h.PacketNumber=3;h.PayloadSize=36;memcpy(h.ConnectionId,idB,16);
+	CHECK(xrtRudpPacketEncode(packet,sizeof(packet),&size,&h,packet+XRUDP_HEADER_SIZE,h.PayloadSize)==XRUDP_OK);
+	unsigned char nonce[12]={0,0,0,0,3};CHECK(xrtChaCha20Poly1305Seal(keyA,nonce,packet,XRUDP_HEADER_SIZE,frames,20,packet+XRUDP_HEADER_SIZE,h.PayloadSize));
+	CHECK(xrtRudpCipherState(b,&before)==XRUDP_OK);memset(plain,0xa5,sizeof(plain));
+	CHECK(xrtRudpCipherOpen(b,packet,size,plain,sizeof(plain),&read)==XRUDP_MALFORMED && !read);
+	for(size_t i=0;i<sizeof(plain);++i)CHECK(plain[i]==0xa5);
+	CHECK(xrtRudpCipherState(b,&after)==XRUDP_OK && memcmp(&before,&after,sizeof(before))==0);
+	/* A mixed path/business frame stays DATA and uses the ordinary budget. */
+	memset(frames,0,24);frames[0]=XRUDP_FRAME_PATH_CHALLENGE;frames[3]=16;frames[20]=XRUDP_FRAME_PING;
+	CHECK(xrtRudpCipherSeal(a,frames,24,packet,sizeof(packet),&size)==XRUDP_OK && packet[8]==XRUDP_PACKET_DATA);
+	CHECK(xrtRudpCipherOpen(b,packet,size,plain,sizeof(plain),&read)==XRUDP_OK);
+	xrtRudpCipherDestroy(a);xrtRudpCipherDestroy(b);return 0;
+}
 int main(void)
 {
 	if (basic_tests() || key_update_tests() || confirmation_tests() ||
-		authenticated_invalid_payload() || retirement_and_size() || inspection()) return 1;
+		authenticated_invalid_payload() || retirement_and_size() || inspection() || path_class()) return 1;
 	puts("xrudp cipher: all-bit tamper, no poisoning, independent directions, rotation and limits passed");
 	return 0;
 }

@@ -25,6 +25,7 @@ void xrudp__path_clear(xrudp__path* p)
 {
 	xrtSecureZero(p->Token,sizeof(p->Token)); xrtSecureZero(p->Echo,sizeof(p->Echo));
 	p->State.Validating=false; p->State.DeadlineUs=0; p->State.NextProbeUs=UINT64_MAX;
+	p->Trusted=false;
 }
 void xrudp__path_fail(xrudp__path* p,uint64_t at,xrudpresult reason)
 {
@@ -32,6 +33,7 @@ void xrudp__path_fail(xrudp__path* p,uint64_t at,xrudpresult reason)
 	if(p->State.Failures!=UINT64_MAX)++p->State.Failures;
 	xrtSecureZero(p->Token,sizeof(p->Token)); xrtSecureZero(&p->Echo[1],sizeof(p->Echo[1]));
 	p->State.Validating=false; p->State.DeadlineUs=0; p->State.NextProbeUs=UINT64_MAX;
+	p->Trusted=false;
 }
 void xrudp__path_clock(xrudp__path* p,uint64_t now)
 {
@@ -43,9 +45,9 @@ xrudpresult xrudp__path_start(xrudp__path* p,const xrudpaddress* a,uint64_t now,
 {
 	if(xrudp__path_equal(a,&p->State.Active))return XRUDP_DUPLICATE;
 	if(p->State.Validating)return xrudp__path_equal(a,&p->State.Candidate)?XRUDP_DUPLICATE:XRUDP_BACKPRESSURE;
-	if(now<p->State.CooldownUntilUs || (!local && now<p->PreviousUntil && xrudp__path_equal(a,&p->Previous)))return XRUDP_BACKPRESSURE;
+	if(now<p->State.CooldownUntilUs)return XRUDP_BACKPRESSURE;
 	p->State.Candidate=*a; p->State.Attempts=0; p->State.CandidateReceived=p->State.CandidateSent=0;
-	p->CandidateNumber=0; p->InitialAllowance=local?336u:0;
+	p->CandidateNumber=0; p->InitialAllowance=local?336u:0; p->Trusted=local;
 	unsigned char token[16]; if(!xrtSecureRandom(token,sizeof(token))) {
 		xrtSecureZero(token,sizeof(token)); xrudp__path_fail(p,now,XRUDP_IO_ERROR); return XRUDP_IO_ERROR;
 	}
@@ -55,21 +57,22 @@ xrudpresult xrudp__path_start(xrudp__path* p,const xrudpaddress* a,uint64_t now,
 	p->State.DeadlineUs=xrudp__path_add(now,3000000); p->State.NextProbeUs=now;
 	xrtSecureZero(&p->Echo[1],sizeof(p->Echo[1])); return XRUDP_OK;
 }
-bool xrudp__path_inspect(xrudp__path* p,const xrudpaddress* a,uint64_t now)
+bool xrudp__path_inspect(xrudp__path* p,const xrudpaddress* a,bool control,uint64_t now)
 {
 	if((p->State.Validating && !xrudp__path_equal(a,&p->State.Candidate)) ||
-		(!p->State.Validating && (now<p->State.CooldownUntilUs || (now<p->PreviousUntil && xrudp__path_equal(a,&p->Previous))))) {
+		(!p->State.Validating && now<p->State.CooldownUntilUs)) {
 		if(p->State.AddressDropped!=UINT64_MAX)++p->State.AddressDropped;
 		return false;
 	}
-	uint64_t second=now/1000000; if(second!=p->InspectSecond) { p->InspectSecond=second; p->Inspections=0; }
-	if(p->Inspections>=32) { if(p->State.RateDropped!=UINT64_MAX)++p->State.RateDropped; return false; }
-	++p->Inspections; return true;
+	uint64_t second=now/1000000; if(second!=p->InspectSecond) { p->InspectSecond=second; p->Inspections=p->ControlInspections=0; }
+	uint32_t* inspections=control?&p->ControlInspections:&p->Inspections;
+	if(*inspections>=(control?8u:24u)) { if(p->State.RateDropped!=UINT64_MAX)++p->State.RateDropped; return false; }
+	++*inspections; return true;
 }
 void xrudp__path_credit(xrudp__path* p,uint64_t number,uint32_t size)
 {
-	if(number<=p->CandidateNumber)return;
-	p->CandidateNumber=number;
+	if(number<=p->CandidateNumber || number<=p->UnvalidatedNumber || number<=p->ActiveNumber)return;
+	p->CandidateNumber=number; p->UnvalidatedNumber=number;
 	p->State.CandidateReceived+=size<1200-p->State.CandidateReceived?size:1200-p->State.CandidateReceived;
 	p->State.ReceivedUnvalidated=xrudp__path_add(p->State.ReceivedUnvalidated,size);
 }
@@ -79,18 +82,25 @@ void xrudp__path_echo(xrudp__path* p,const xrudpaddress* a,const void* token)
 	if(index && (!p->State.Validating || !xrudp__path_equal(a,&p->State.Candidate)))return;
 	if(!p->Echo[index].Pending) { p->Echo[index].Address=*a; memcpy(p->Echo[index].Token,token,16); p->Echo[index].Pending=true; }
 }
-void xrudp__path_promote(xrudp__path* p,uint64_t now,uint64_t largest)
+void xrudp__path_promote(xrudp__path* p,uint64_t largest)
 {
-	p->Previous=p->State.Active; p->PreviousUntil=xrudp__path_add(now,30000000);
 	p->State.Active=p->State.Candidate; p->State.Validating=false; p->State.DeadlineUs=0; p->State.NextProbeUs=UINT64_MAX;
 	p->State.CooldownUntilUs=0; p->ActiveNumber=largest;
+	if(largest>p->UnvalidatedNumber)p->UnvalidatedNumber=largest;
+	p->Trusted=false;
 	if(p->State.Validations!=UINT64_MAX)++p->State.Validations;
 	p->Echo[0]=p->Echo[1]; xrtSecureZero(&p->Echo[1],sizeof(p->Echo[1])); xrtSecureZero(p->Token,sizeof(p->Token));
 }
 uint64_t xrudp__path_due(const xrudp__path* p,uint64_t now)
 {
 	uint64_t due=p->State.Validating?p->State.DeadlineUs:UINT64_MAX;
-	if(p->State.Validating && p->State.Attempts<3 && p->State.NextProbeUs>now && p->State.NextProbeUs<due)due=p->State.NextProbeUs;
+	if(p->State.Validating && p->State.Attempts<3) {
+		/* An already-due first challenge may be waiting only for the shared
+		 * path-control rate gate. Idle sessions need that wake even without
+		 * pending echoes, flight, application data or another received packet. */
+		uint64_t at=p->State.NextProbeUs>p->ResponseAt?p->State.NextProbeUs:p->ResponseAt;
+		if(at>now && at<due)due=at;
+	}
 	if((p->Echo[0].Pending || p->Echo[1].Pending) && p->ResponseAt>now && p->ResponseAt<due)due=p->ResponseAt;
 	return due;
 }

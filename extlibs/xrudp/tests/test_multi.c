@@ -20,6 +20,9 @@ static struct {
 	size_t Written[2][MULTI_COUNT], Read[2][MULTI_COUNT];
 	uint32_t Deferred,Dropped,Blocked,Duplicated;
 	uint32_t Epoch[2],RetiredKeys;
+#ifdef TEST_MULTI_PATH_RETURN
+	uint32_t ReturnAt;
+#endif
 #ifdef TEST_MULTI_STOP
 	bool ReceiveStopped,PeerStopped;
 #endif
@@ -33,7 +36,11 @@ static uint32_t tick, randomState;
 static xrudpaddress pathDestination;
 static xrudpaddress multi_address(uint32_t side)
 {
-	xrudpaddress a={4,0,0,{192,0,2,1}};a.Port=(uint16_t)(41000+side+(side && tick>=600?1000:0));a.Address[3]=(unsigned char)(1+side);return a;
+	bool moved=side && tick>=600;
+#ifdef TEST_MULTI_PATH_RETURN
+	if(net.ReturnAt && tick>=net.ReturnAt)moved=false;
+#endif
+	xrudpaddress a={4,0,0,{192,0,2,1}};a.Port=(uint16_t)(41000+side+(moved?1000:0));a.Address[3]=(unsigned char)(1+side);return a;
 }
 #endif
 static uint32_t ids[MULTI_COUNT]={1,3,5,2,4};
@@ -227,6 +234,9 @@ static int scenario(uint32_t seed)
 				CHECK(xrtRudpSessionPoll(net.Session[side],now,&due[side])==XRUDP_OK && due[side]>now);wake&=~(1u<<side);
 			}
 			xrudpsessionstate state;CHECK(xrtRudpSessionState(net.Session[side],&state)==XRUDP_OK && state.Sent.BytesInFlight==state.Congestion.BytesInFlight);
+			#ifdef TEST_MULTI_PATH_RETURN
+			if(side==0 && state.Path.Validations==1 && !net.ReturnAt)net.ReturnAt=tick+1000;
+#endif
 			uint64_t sent=0,received=0;
 			for(size_t k=0;k<MULTI_COUNT;++k)if(net.Active[side][k]) {
 				xrudpstreamstate stream;CHECK(xrtRudpSessionStreamState(net.Session[side],ids[k],&stream)==XRUDP_OK);
@@ -257,7 +267,11 @@ static int scenario(uint32_t seed)
 #endif
 #ifdef TEST_MULTI_PATH
 		xrudpsessionstate pathState;CHECK(xrtRudpSessionState(net.Session[side],&pathState)==XRUDP_OK);
-		CHECK(pathState.Path.Validations==(side?0u:1u) && pathState.Path.Active.Port==multi_address(1-side).Port);
+		uint32_t wanted=side?0u:1u;
+#ifdef TEST_MULTI_PATH_RETURN
+		wanted=side?0u:2u;CHECK(net.ReturnAt && tick>net.ReturnAt);
+#endif
+		CHECK(pathState.Path.Validations==wanted && pathState.Path.Active.Port==multi_address(1-side).Port);
 		printf("path mixed: side=%u migrations=%llu failures=%llu unvalidated-sent=%llu received=%llu\n",side,(unsigned long long)pathState.Path.Validations,(unsigned long long)pathState.Path.Failures,(unsigned long long)pathState.Path.SentUnvalidated,(unsigned long long)pathState.Path.ReceivedUnvalidated);
 #endif
 #ifdef TEST_MULTI_DATAGRAMS

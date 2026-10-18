@@ -2757,7 +2757,8 @@ typedef enum xrudppackettype {
 	XRUDP_PACKET_HELLO = 1,
 	XRUDP_PACKET_RETRY = 2,
 	XRUDP_PACKET_HANDSHAKE = 3,
-	XRUDP_PACKET_DATA = 4
+	XRUDP_PACKET_DATA = 4,
+	XRUDP_PACKET_PATH = 5 /* Authenticated, path-only control, at most 128 bytes. */
 } xrudppackettype;
 
 typedef enum xrudpframetype {
@@ -2784,7 +2785,7 @@ typedef enum xrudpframetype {
 #define XRUDP_DATAGRAM_SEQUENCED 1u
 
 /* Wire integers are big-endian; no C structure is copied onto the wire.
- * PayloadSize includes the AEAD tag for DATA; all other packet types use epoch 0.
+ * PayloadSize includes the AEAD tag for DATA/PATH; other types use epoch 0.
  * ConnectionId is an opaque nonzero destination/rendezvous identifier, not auth.
  * The codec checks structure only. It never authenticates or authorizes a peer. */
 typedef struct xrudpwireheader {
@@ -2896,6 +2897,9 @@ XRUDP_API xrudpresult xrtRudpCipherState(const xrudpcipher* pCipher,
  * Failure changes neither cipher state nor destination bytes; *pWritten=0.
  * Source and destination buffers may overlap. Output counters/state objects
  * must not alias buffers. Success consumes a fresh packet number exactly once.
+ * Seal automatically classifies short (<=128B total) path-only controls as
+ * authenticated PATH after packet 1; DATA/PATH share keys and packet numbers.
+ * Open rejects business/ACK/PING disguised as PATH before committing state.
  * A successful Open confirms transport reception, not application execution. */
 /* Open reports AUTH_FAILED for untrusted header/body failures. DUPLICATE,
  * TOO_OLD and MALFORMED require a verified AEAD tag; MALFORMED means an
@@ -4099,6 +4103,9 @@ XRUDP_API xrudpresult xrtRudpSessionState(const xrudpsession* pSession, xrudpses
  * trusted ProbePath grants only 336 initial bytes for opening a NAT mapping.
  * Response must match the pending token and candidate source address. This is
  * xrudp's single-path contract, not QUIC migration/MTU validation.
+ * Fresh authenticated traffic can revalidate a previous address immediately;
+ * unvalidated PNs are spent across failed attempts, never credited twice.
+ * A passive response older than newer active traffic cannot select a path.
  * Candidate failure leaves the active connection intact. No allocation. */
 XRUDP_API xrudpresult xrtRudpSessionEnablePaths(xrudpsession* pSession,
 	const xrudpaddress* pVerified, xrudppathsendproc pSend);
@@ -4106,7 +4113,9 @@ XRUDP_API xrudpresult xrtRudpSessionEnablePaths(xrudpsession* pSession,
  * Now clocks the session; existing connection deadlines still apply. Rejects
  * new probes during local shutdown, but existing validation may finish draining.
  * DUPLICATE for active/current candidate, BACKPRESSURE for cooldown/other
- * candidate. Queries/stats are in SessionState.Path; never expose probe tokens. */
+ * candidate. Its new matching proof may select the caller's preferred target
+ * even while newer traffic still arrives on the current path. Queries/stats
+ * are in SessionState.Path; never expose probe tokens. */
 XRUDP_API xrudpresult xrtRudpSessionProbePath(xrudpsession* pSession,
 	const xrudpaddress* pCandidate, uint64_t iNowUs);
 XRUDP_API xrudpresult xrtRudpSessionPathInput(xrudpsession* pSession,

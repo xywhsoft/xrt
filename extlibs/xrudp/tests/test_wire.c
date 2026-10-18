@@ -64,6 +64,13 @@ static int packet_tests(void)
 	CHECK(xrtRudpPacketDecode(output, written, &packet) == XRUDP_OK);
 	header.KeyEpoch = 0;
 	CHECK(xrtRudpPacketEncode(output, sizeof(output), &written, &header, before, header.PayloadSize) == XRUDP_MALFORMED);
+	header.Type=XRUDP_PACKET_PATH;header.KeyEpoch=1;header.PacketNumber=2;header.PayloadSize=36;
+	CHECK(xrtRudpPacketEncode(output,sizeof(output),&written,&header,before,36)==XRUDP_OK && written==84);
+	CHECK(xrtRudpPacketDecode(output,written,&packet)==XRUDP_OK && packet.Header.Type==XRUDP_PACKET_PATH);
+	header.PayloadSize=80;CHECK(xrtRudpPacketEncode(output,sizeof(output),&written,&header,before,80)==XRUDP_OK && written==128);
+	header.PayloadSize=81;CHECK(xrtRudpPacketEncode(output,sizeof(output),&written,&header,before,81)==XRUDP_MALFORMED);
+	header.PayloadSize=35;CHECK(xrtRudpPacketEncode(output,sizeof(output),&written,&header,before,35)==XRUDP_MALFORMED);
+	header.PayloadSize=36;header.PacketNumber=1;CHECK(xrtRudpPacketEncode(output,sizeof(output),&written,&header,before,36)==XRUDP_MALFORMED);
 	return 0;
 }
 

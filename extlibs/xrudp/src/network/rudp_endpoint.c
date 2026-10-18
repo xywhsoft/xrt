@@ -454,9 +454,10 @@ static void xrudp__endpoint_receive(xnetudp* udp, const xnetudpmessage* message,
 	uint64_t now = xrudp__endpoint_now(e); xrudppeer* p = xrudp__endpoint_find(e, packet.Header.ConnectionId);
 	if (p != NULL) {
 		bool active = xrtNetAddrEqual(&p->Address, &message->Remote);
-		if (!active && (xrtRudpPeerState(p) != XRUDP_PEER_CONFIRMED || packet.Header.Type != XRUDP_PACKET_DATA || packet.Header.PacketNumber < 2)) { ++e->Stats.AddressDropped; return; }
+		bool encrypted = packet.Header.Type == XRUDP_PACKET_DATA || packet.Header.Type == XRUDP_PACKET_PATH;
+		if (!active && (xrtRudpPeerState(p) != XRUDP_PEER_CONFIRMED || !encrypted || packet.Header.PacketNumber < 2)) { ++e->Stats.AddressDropped; return; }
 		xrtRudpPeerRef(p);
-		if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && packet.Header.Type == XRUDP_PACKET_DATA && packet.Header.PacketNumber >= 2) {
+		if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && encrypted && packet.Header.PacketNumber >= 2) {
 			xrudpresult result = xrtRudpSessionPathInput(p->Session, &address, message->Data, message->Size, now);
 			if (!active && result != XRUDP_OK) ++e->Stats.AddressDropped;
 			if (result == XRUDP_AUTH_FAILED) ++e->Stats.Invalid;

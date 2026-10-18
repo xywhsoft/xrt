@@ -40,7 +40,8 @@ typedef enum xrudppackettype {
 	XRUDP_PACKET_HELLO = 1,
 	XRUDP_PACKET_RETRY = 2,
 	XRUDP_PACKET_HANDSHAKE = 3,
-	XRUDP_PACKET_DATA = 4
+	XRUDP_PACKET_DATA = 4,
+	XRUDP_PACKET_PATH = 5 /* Authenticated, path-only control, at most 128 bytes. */
 } xrudppackettype;
 
 typedef enum xrudpframetype {
@@ -67,7 +68,7 @@ typedef enum xrudpframetype {
 #define XRUDP_DATAGRAM_SEQUENCED 1u
 
 /* Wire integers are big-endian; no C structure is copied onto the wire.
- * PayloadSize includes the AEAD tag for DATA; all other packet types use epoch 0.
+ * PayloadSize includes the AEAD tag for DATA/PATH; other types use epoch 0.
  * ConnectionId is an opaque nonzero destination/rendezvous identifier, not auth.
  * The codec checks structure only. It never authenticates or authorizes a peer. */
 typedef struct xrudpwireheader {

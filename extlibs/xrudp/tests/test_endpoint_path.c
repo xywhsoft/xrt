@@ -71,7 +71,7 @@ static void path_peer_closed(xrudpendpoint* e,xrudppeer* p,xrudpresult reason,vo
 {
 	path_side* s=(path_side*)context;(void)e;xrudpsessionstate state;
 	demand(s->Test,++s->PeerCloses==1 && xrtRudpPeerSessionState(p,&state)==XRUDP_OK && !state.Sent.PendingPackets && !state.Sent.BytesInFlight,"close snapshot owns flight");
-	if(s->Test->Mode==0 || s->Test->Mode==3)demand(s->Test,reason==XRUDP_CLOSED && state.Shutdown.Succeeded,"clean drain failed after rebinding");
+	if(s->Test->Mode==0 || s->Test->Mode==3 || s->Test->Mode==4)demand(s->Test,reason==XRUDP_CLOSED && state.Shutdown.Succeeded,"clean drain failed after rebinding");
 	else demand(s->Test,!state.Shutdown.Succeeded && (reason==XRUDP_CANCELLED || reason==XRUDP_CLOSED),"callback abort became success");
 	(void)xrtAtomic32FetchOr(&s->Test->PeerClosed,1u<<s->Id,XMEMORY_RELEASE);
 }
@@ -85,12 +85,15 @@ static void path_changed(xrudpendpoint* e,xrudppeer* p,uint32_t events,void* con
 {
 	path_side* s=(path_side*)context;path_native* t=s->Test;demand(t,!s->InCallback,"recursive path callback");s->InCallback=true;
 	if(events&XRUDP_PEER_PATH_FAILED) {
-		xrudpsessionstate state;demand(t,t->Mode==3 && s->Id==0 && xrtRudpPeerSessionState(p,&state)==XRUDP_OK && state.Reason==XRUDP_OK && state.Path.Failures==1 && state.Path.Failure==XRUDP_TIMEOUT && !state.Path.Validating && state.Path.Active.Port==t->UdpAddress[2].Port,"failed candidate damaged active path");
+		xrudpsessionstate state;bool snapshot=xrtRudpPeerSessionState(p,&state)==XRUDP_OK;
+		if(t->Mode!=3 && snapshot)fprintf(stderr,"unexpected path failure: mode=%u side=%u reason=%u active=%u candidate=%u attempts=%u rx=%u tx=%u validations=%llu now=%llu rate=%llu invalid=%llu address=%llu packets=%llu keys=%llu\n",t->Mode,s->Id,(unsigned)state.Path.Failure,state.Path.Active.Port,state.Path.Candidate.Port,state.Path.Attempts,state.Path.CandidateReceived,state.Path.CandidateSent,(unsigned long long)state.Path.Validations,(unsigned long long)state.LastNowUs,(unsigned long long)state.Path.RateDropped,(unsigned long long)state.Path.Invalid,(unsigned long long)state.Path.AddressDropped,(unsigned long long)state.ReceivedPackets,(unsigned long long)state.KeyUpdates);
+		demand(t,t->Mode==3 && s->Id==0 && snapshot && state.Reason==XRUDP_OK && state.Path.Failures==1 && state.Path.Failure==XRUDP_TIMEOUT && !state.Path.Validating && state.Path.Active.Port==t->UdpAddress[2].Port,"failed candidate damaged active path");
 		xrtAtomic32Store(&t->PathFailed,1,XMEMORY_RELEASE);
 	}
 	if(events&XRUDP_PEER_PATH_CHANGED) {
 		xrudpsessionstate state;xrudphandshakeinfo info;xnetaddr address;
-		demand(t,s->Id==0 && xrtRudpPeerSessionState(p,&state)==XRUDP_OK && state.Path.Validations==s->PathHints+1 && xrtRudpPeerInfo(p,&info,&address)==XRUDP_OK && address.Port==t->UdpAddress[s->PathHints+2].Port,"path publication/address mismatch");
+		uint32_t expected=t->Mode==4 && s->PathHints==1?1u:s->PathHints+2;
+		demand(t,expected<4 && s->Id==0 && xrtRudpPeerSessionState(p,&state)==XRUDP_OK && state.Path.Validations==s->PathHints+1 && xrtRudpPeerInfo(p,&info,&address)==XRUDP_OK && address.Port==t->UdpAddress[expected].Port,"path publication/address mismatch");
 		++s->PathHints;(void)xrtAtomic32FetchOr(&t->PathChanges,1u<<(s->PathHints-1),XMEMORY_RELEASE);
 		if(t->Mode==1) { xrtRudpPeerDestroy(t->Peer[0]);t->Peer[0]=NULL;demand(t,xrtRudpPeerAbort(p)==XRUDP_OK,"drop+abort from path callback failed"); }
 		if(t->Mode==2)demand(t,xrtRudpEndpointClose(e)==XRUDP_OK,"endpoint close from path callback failed");
@@ -141,6 +144,7 @@ static void proxy_receive(xnetudp* udp,const xnetudpmessage* message,ptr context
 		if(t->ProxyBytes>=6000 && xrtAtomic32Load(&t->Confirmed,XMEMORY_ACQUIRE)==3 && xrtAtomic32Load(&t->ActiveBack,XMEMORY_ACQUIRE)==1)
 			xrtAtomic32Store(&t->ActiveBack,2,XMEMORY_RELEASE);
 		uint32_t back=xrtAtomic32Load(&t->ActiveBack,XMEMORY_ACQUIRE);
+		if(back==4)back=1; /* Return mapping; do not trigger the first move again. */
 		if(xrtNetUdpState(t->Udp[back])!=XNET_UDP_OPEN)return;
 		demand(t,xrtNetUdpSendTo(t->Udp[back],&t->Info[0].Local,message->Data,message->Size)==XNET_RESULT_OK,"proxy client forward failed");
 	} else demand(t,xrtNetUdpSendTo(t->Udp[0],&t->Info[1].Local,message->Data,message->Size)==XNET_RESULT_OK,"proxy server forward failed");
@@ -179,6 +183,10 @@ static void path_probe_failed(xnetworker* worker,ptr context)
 {
 	path_native* t=(path_native*)context;(void)worker;demand(t,xrtRudpPeerProbePath(t->Peer[0],&t->UdpAddress[3])==XRUDP_OK,"failed-path probe was not admitted");
 }
+static void path_return_mapping(xnetworker* worker,ptr context)
+{
+	path_native* t=(path_native*)context;(void)worker;xrtAtomic32Store(&t->ActiveBack,4,XMEMORY_RELEASE);
+}
 static int path_run(xnetfamily family,uint32_t mode)
 {
 	path_native t;memset(&t,0,sizeof(t));t.Family=family;t.Mode=mode;xrtAtomic32Init(&t.ActiveBack,1);
@@ -187,10 +195,11 @@ static int path_run(xnetfamily family,uint32_t mode)
 	for(uint32_t i=0;i<2;++i)CHECK(xrtNetEnginePost(t.Engine,i,path_bind,&t.Side[i]));
 	CHECK(xrtNetEnginePost(t.Engine,2,proxy_bind,&t) && path_wait(&t,&t.Ready,63));
 	CHECK(xrtNetEnginePost(t.Engine,1,path_dial,&t) && path_wait(&t,&t.Dialed,1) && path_wait(&t,&t.PathChanges,1));
-	if(mode==0 || mode==3) {
+	if(mode==0 || mode==3 || mode==4) {
 		CHECK(xrtRudpPeerProbePath(t.Peer[0],&t.UdpAddress[3])==XRUDP_ARGUMENT);
 		if(mode==0)CHECK(xrtNetEnginePost(t.Engine,0,path_probe_second,&t) && path_wait(&t,&t.PathChanges,3));
-		else CHECK(xrtNetEnginePost(t.Engine,0,path_probe_failed,&t) && path_wait(&t,&t.PathFailed,1));
+		else if(mode==3)CHECK(xrtNetEnginePost(t.Engine,0,path_probe_failed,&t) && path_wait(&t,&t.PathFailed,1));
+		else { double began=xrtTimer();CHECK(xrtNetEnginePost(t.Engine,2,path_return_mapping,&t) && path_wait(&t,&t.PathChanges,3) && xrtTimer()-began<5); }
 		CHECK(path_wait(&t,&t.Complete,3));
 		for(uint32_t i=0;i<2;++i)CHECK(xrtNetEnginePost(t.Engine,i,path_shutdown,&t.Side[i]));
 		CHECK(path_wait(&t,&t.PeerClosed,3));
@@ -203,7 +212,7 @@ static int path_run(xnetfamily family,uint32_t mode)
 	for(uint32_t i=0;i<2;++i) {
 		if(t.Peer[i]) {
 			xrudpsessionstate state;CHECK(xrtRudpPeerSessionState(t.Peer[i],&state)==XRUDP_OK && state.Path.Enabled);
-			if(mode==0 || mode==3) { CHECK(state.Path.Validations==(i?0u:(mode==0?2u:1u)) && state.SentConnection==PATH_BYTES+PATH_MESSAGES+4*(PATH_MESSAGES/128) && state.ReceivedConnection==state.SentConnection); }
+			if(mode==0 || mode==3 || mode==4) { CHECK(state.Path.Validations==(i?0u:(mode==3?1u:2u)) && state.SentConnection==PATH_BYTES+PATH_MESSAGES+4*(PATH_MESSAGES/128) && state.ReceivedConnection==state.SentConnection); }
 			CHECK(xrtRudpPeerProbePath(t.Peer[i],&t.UdpAddress[3])==XRUDP_CLOSED);
 		}
 		xrtRudpPeerDestroy(t.Peer[i]);xrtRudpEndpointDestroy(t.Endpoint[i]);
@@ -214,7 +223,7 @@ static int path_run(xnetfamily family,uint32_t mode)
 int main(void)
 {
 	CHECK(path_run(XNET_FAMILY_IPV4,0)==0);xmemdebugsnapshot before,after;xrtClearError();xrtMemDebugSnapshot(&before);
-	CHECK(path_run(XNET_FAMILY_IPV4,0)==0 && path_run(XNET_FAMILY_IPV6,0)==0 && path_run(XNET_FAMILY_IPV4,1)==0 && path_run(XNET_FAMILY_IPV4,2)==0 && path_run(XNET_FAMILY_IPV4,3)==0);
+	CHECK(path_run(XNET_FAMILY_IPV4,0)==0 && path_run(XNET_FAMILY_IPV6,0)==0 && path_run(XNET_FAMILY_IPV4,1)==0 && path_run(XNET_FAMILY_IPV4,2)==0 && path_run(XNET_FAMILY_IPV4,3)==0 && path_run(XNET_FAMILY_IPV4,4)==0 && path_run(XNET_FAMILY_IPV6,4)==0);
 	xrtClearError();xrtMemDebugSnapshot(&after);CHECK(before.LiveCount==after.LiveCount && before.LiveBytes==after.LiveBytes && before.DoubleFreeCount==after.DoubleFreeCount && before.UseAfterFreeCount==after.UseAfterFreeCount);
 	return 0;
 }

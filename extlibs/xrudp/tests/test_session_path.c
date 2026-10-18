@@ -127,8 +127,125 @@ static int path_output_failure(void)
 	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Reason==XRUDP_IO_ERROR && !state.Path.Failures);
 	xrtRudpSessionDestroy(s);xrtRudpCipherDestroy(peer);return 0;
 }
+static int path_challenge_to(xrudpcipher* peer,const xrudpaddress* to,unsigned char token[16],uint32_t* decoded)
+{
+	bool found=false;
+	for(;*decoded<pathCount;++*decoded) {
+		path_packet* p=&pathPackets[*decoded];unsigned char plain[1200];size_t size,at=0;xrudpwireframe frame;
+		CHECK(xrtRudpCipherOpen(peer,p->Data,p->Size,plain,sizeof(plain),&size)==XRUDP_OK);
+		while(xrtRudpFrameNext(plain,size,&at,&frame)==XRUDP_OK)if(frame.Type==XRUDP_FRAME_PATH_CHALLENGE && address_equal(&p->To,to)) { memcpy(token,frame.Data,16);found=true; }
+	}
+	CHECK(found);return 0;
+}
+static int path_fast_return(void)
+{
+	xrudpcipher* peer;xrudpsession* s;CHECK(path_raw(&peer,&s,32)==0 && xrtMemDebugFailAfter(0));
+	unsigned char ping[4]={XRUDP_FRAME_PING,0,0,0},packet[1200],held[1200],plain[1200],first[16],second[16];
+	size_t n,heldSize,size;uint64_t due;uint32_t decoded=0;
+	CHECK(path_deliver(s,peer,&newAddress,ping,sizeof(ping),0,XRUDP_BACKPRESSURE)==0);
+	/* A reordered old-path packet remains uncommitted, but cannot start a
+	 * migration after a newer path proof has been accepted. */
+	CHECK(xrtRudpCipherSeal(peer,ping,sizeof(ping),held,sizeof(held),&heldSize)==XRUDP_OK);
+	CHECK(xrtRudpSessionPoll(s,0,&due)==XRUDP_OK && path_challenge_to(peer,&newAddress,first,&decoded)==0);
+	size=0;CHECK(append(plain,&size,XRUDP_FRAME_PATH_RESPONSE,0,first,16)==0 && path_deliver(s,peer,&newAddress,plain,size,1000,XRUDP_OK)==0);
+	CHECK(xrtRudpSessionPathInput(s,&oldAddress,held,heldSize,2000)==XRUDP_BACKPRESSURE);
+	xrudpsessionstate state;CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Validations==1 && !state.Path.Validating);
+	CHECK(xrtRudpCipherSeal(peer,ping,sizeof(ping),packet,sizeof(packet),&n)==XRUDP_OK);
+	CHECK(xrtRudpSessionPathInput(s,&oldAddress,packet,n,3000)==XRUDP_BACKPRESSURE);
+	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK);
+	if(!state.Path.Validating)fprintf(stderr,"fresh NAT return suppressed at 3ms: validations=%llu active=%u\n",(unsigned long long)state.Path.Validations,state.Path.Active.Port);
+	CHECK(state.Path.Validating && state.Path.Validations==1 && address_equal(&state.Path.Candidate,&oldAddress));
+	uint32_t credit=state.Path.CandidateReceived;
+	CHECK(xrtRudpSessionPathInput(s,&oldAddress,packet,n,4000)==XRUDP_BACKPRESSURE && xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.CandidateReceived==credit);
+	CHECK(xrtRudpSessionPoll(s,60000,&due)==XRUDP_OK && path_challenge_to(peer,&oldAddress,second,&decoded)==0 && memcmp(first,second,16)!=0);
+	/* Even a fresh PN carrying the previous token cannot select the path. */
+	size=0;CHECK(append(plain,&size,XRUDP_FRAME_PATH_RESPONSE,0,first,16)==0 && path_deliver(s,peer,&oldAddress,plain,size,61000,XRUDP_BACKPRESSURE)==0);
+	size=0;CHECK(append(plain,&size,XRUDP_FRAME_PATH_RESPONSE,0,second,16)==0 && xrtRudpCipherSeal(peer,plain,size,held,sizeof(held),&heldSize)==XRUDP_OK);
+	/* A matching but delayed PASSIVE response loses to newer active traffic. */
+	size=0;CHECK(path_stream(plain,&size,0,"live",4)==0 && path_deliver(s,peer,&newAddress,plain,size,62000,XRUDP_OK)==0);
+	CHECK(xrtRudpSessionPathInput(s,&oldAddress,held,heldSize,63000)==XRUDP_BACKPRESSURE);
+	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Validations==1 && state.Path.Validating && state.ReceivedConnection==4 && address_equal(&state.Path.Active,&newAddress));
+	size=0;CHECK(append(plain,&size,XRUDP_FRAME_PATH_RESPONSE,0,second,16)==0 && path_deliver(s,peer,&oldAddress,plain,size,64000,XRUDP_OK)==0);
+	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Validations==2 && !state.Path.Validating && address_equal(&state.Path.Active,&oldAddress));
+	CHECK(xrtRudpSessionPathInput(s,&newAddress,packet,n,65000)==XRUDP_BACKPRESSURE && xrtRudpSessionState(s,&state)==XRUDP_OK && !state.Path.Validating);
+	CHECK(!xrtMemDebugFailTriggered());xrtMemDebugFailClear();xrtRudpSessionDestroy(s);xrtRudpCipherDestroy(peer);
+	puts("xrudp path return: fresh A-B-A in64ms, old nonce/token and stale passive proof cannot bounce the active path");return 0;
+}
+static int path_replay_after_failure(void)
+{
+	xrudpcipher* peer;xrudpsession* s;CHECK(path_raw(&peer,&s,32)==0 && xrtMemDebugFailAfter(0));
+	unsigned char ping[4]={XRUDP_FRAME_PING,0,0,0},packet[1200];size_t n;uint64_t due;
+	CHECK(xrtRudpCipherSeal(peer,ping,sizeof(ping),packet,sizeof(packet),&n)==XRUDP_OK && xrtRudpSessionPathInput(s,&newAddress,packet,n,0)==XRUDP_BACKPRESSURE);
+	CHECK(xrtRudpSessionPoll(s,0,&due)==XRUDP_OK && xrtRudpSessionPoll(s,3000000,&due)==XRUDP_OK);
+	xrudpsessionstate state;CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Failures==1 && !state.Path.Validating);
+	CHECK(xrtRudpSessionPathInput(s,&newAddress,packet,n,6000000)==XRUDP_BACKPRESSURE);
+	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && !state.Path.Validating && state.Path.Failures==1);
+	CHECK(xrtRudpCipherSeal(peer,ping,sizeof(ping),packet,sizeof(packet),&n)==XRUDP_OK && xrtRudpSessionPathInput(s,&newAddress,packet,n,6001000)==XRUDP_BACKPRESSURE);
+	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Validating && state.Path.CandidateReceived==n && state.Path.Attempts==0);
+	/* One captured nonce cannot regain credit even after a trusted restart. */
+	CHECK(xrtRudpSessionPoll(s,9001000,&due)==XRUDP_OK && xrtRudpSessionProbePath(s,&newAddress,12001000)==XRUDP_OK);
+	CHECK(xrtRudpSessionPathInput(s,&newAddress,packet,n,12002000)==XRUDP_BACKPRESSURE && xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.CandidateReceived==0);
+	CHECK(!xrtMemDebugFailTriggered());xrtMemDebugFailClear();xrtRudpSessionDestroy(s);xrtRudpCipherDestroy(peer);return 0;
+}
+static int path_trusted_preference(void)
+{
+	xrudpcipher* peer;xrudpsession* s;CHECK(path_raw(&peer,&s,32)==0 && xrtMemDebugFailAfter(0));
+	uint64_t due;unsigned char token[16],plain[1200],held[1200],ping[4]={XRUDP_FRAME_PING,0,0,0};size_t size=0,n;uint32_t decoded=0;
+	CHECK(xrtRudpSessionProbePath(s,&newAddress,0)==XRUDP_OK && xrtRudpSessionPoll(s,0,&due)==XRUDP_OK && path_challenge_to(peer,&newAddress,token,&decoded)==0);
+	CHECK(append(plain,&size,XRUDP_FRAME_PATH_RESPONSE,0,token,16)==0 && xrtRudpCipherSeal(peer,plain,size,held,sizeof(held),&n)==XRUDP_OK);
+	CHECK(path_deliver(s,peer,&oldAddress,ping,sizeof(ping),1000,XRUDP_OK)==0 && xrtRudpSessionPathInput(s,&newAddress,held,n,2000)==XRUDP_OK);
+	xrudpsessionstate state;CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Validations==1 && address_equal(&state.Path.Active,&newAddress));
+	CHECK(!xrtMemDebugFailTriggered());xrtMemDebugFailClear();xrtRudpSessionDestroy(s);xrtRudpCipherDestroy(peer);return 0;
+}
+static int path_idle_probe_deadline(void)
+{
+	xrudpcipher* peer;xrudpsession* s;CHECK(path_raw(&peer,&s,32)==0 && xrtMemDebugFailAfter(0));
+	unsigned char token[16]={7},plain[1200],body[24]={0};size_t size=0;uint64_t due;uint32_t decoded=0;
+	CHECK(append(plain,&size,XRUDP_FRAME_PATH_CHALLENGE,0,token,16)==0 && path_deliver(s,peer,&oldAddress,plain,size,0,XRUDP_OK)==0);
+	CHECK(xrtRudpSessionPoll(s,0,&due)==XRUDP_OK && xrtRudpSessionPoll(s,25000,&due)==XRUDP_OK && pathCount==2);
+	for(;decoded<pathCount;++decoded) { size_t n;CHECK(xrtRudpCipherOpen(peer,pathPackets[decoded].Data,pathPackets[decoded].Size,plain,sizeof(plain),&n)==XRUDP_OK); }
+	body[5]=1;put64(body+8,2);put64(body+16,3);size=0;
+	CHECK(append(plain,&size,XRUDP_FRAME_ACK,0,body,24)==0 && path_deliver(s,peer,&oldAddress,plain,size,26000,XRUDP_OK)==0);
+	xrudpsessionstate state;CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && !state.Sent.PendingPackets && !state.Sent.BytesInFlight);
+	CHECK(xrtRudpSessionProbePath(s,&newAddress,26000)==XRUDP_OK && xrtRudpSessionPoll(s,26000,&due)==XRUDP_OK && pathCount==2);
+	if(due>50000)fprintf(stderr,"idle probe slept past rate limit: due=%llu expected=50000\n",(unsigned long long)due);
+	CHECK(due==50000 && xrtRudpSessionPoll(s,due,&due)==XRUDP_OK && pathCount>=3);
+	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Attempts==1 && state.Path.CandidateSent>0);
+	CHECK(!xrtMemDebugFailTriggered());xrtMemDebugFailClear();xrtRudpSessionDestroy(s);xrtRudpCipherDestroy(peer);return 0;
+}
+static int path_busy_candidate(void)
+{
+	xrudpcipher* peer;xrudpsession* s;CHECK(path_raw(&peer,&s,32)==0 && xrtMemDebugFailAfter(0));
+	unsigned char plain[1200],token[16];size_t size=0;uint64_t due;uint32_t decoded=0;
+	CHECK(path_stream(plain,&size,0,"busy",4)==0);
+	for(uint32_t i=0;i<40;++i)CHECK(path_deliver(s,peer,&newAddress,plain,size,0,XRUDP_BACKPRESSURE)==0);
+	xrudpsessionstate state;CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.RateDropped && !state.ReceivedConnection);
+	CHECK(xrtRudpSessionPoll(s,0,&due)==XRUDP_OK && path_challenge_to(peer,&newAddress,token,&decoded)==0);
+	size=0;CHECK(append(plain,&size,XRUDP_FRAME_PATH_RESPONSE,0,token,16)==0);
+	CHECK(path_deliver(s,peer,&newAddress,plain,size,1000,XRUDP_OK)==0);
+	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Validations==1 && !state.ReceivedConnection);
+	CHECK(!xrtMemDebugFailTriggered());xrtMemDebugFailClear();xrtRudpSessionDestroy(s);xrtRudpCipherDestroy(peer);return 0;
+}
+static int path_control_budget(void)
+{
+	xrudpcipher* peer;xrudpsession* s;CHECK(path_raw(&peer,&s,32)==0 && xrtMemDebugFailAfter(0));
+	unsigned char plain[1200],packet[1200],token[16],wrong[16];size_t size=0,n;uint64_t due;uint32_t decoded=0;
+	CHECK(xrtRudpSessionProbePath(s,&newAddress,0)==XRUDP_OK && xrtRudpSessionPoll(s,0,&due)==XRUDP_OK && path_challenge_to(peer,&newAddress,token,&decoded)==0);
+	memcpy(wrong,token,16);wrong[0]^=1;CHECK(append(plain,&size,XRUDP_FRAME_PATH_RESPONSE,0,wrong,16)==0);
+	CHECK(xrtRudpCipherSeal(peer,plain,size,packet,sizeof(packet),&n)==XRUDP_OK && packet[8]==XRUDP_PACKET_PATH);
+	packet[n-1]^=1;
+	for(uint32_t i=0;i<8;++i)CHECK(xrtRudpSessionPathInput(s,&newAddress,packet,n,1000)==XRUDP_AUTH_FAILED);
+	CHECK(xrtRudpSessionPathInput(s,&newAddress,packet,n,1000)==XRUDP_BACKPRESSURE);
+	size=0;CHECK(append(plain,&size,XRUDP_FRAME_PATH_RESPONSE,0,token,16)==0 && path_deliver(s,peer,&newAddress,plain,size,1000,XRUDP_BACKPRESSURE)==0);
+	xrudpsessionstate state;CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Invalid==8 && state.Path.RateDropped==2 && state.Path.DeadlineUs==3000000 && !state.Path.CandidateReceived);
+	CHECK(path_deliver(s,peer,&newAddress,plain,size,1000000,XRUDP_OK)==0);
+	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Validations==1 && state.Path.CandidateReceived==0);
+	CHECK(!xrtMemDebugFailTriggered());xrtMemDebugFailClear();xrtRudpSessionDestroy(s);xrtRudpCipherDestroy(peer);return 0;
+}
 int main(void)
 {
 	CHECK(path_quarantine_and_migration(false,32)==0 && path_quarantine_and_migration(true,32)==0 && path_quarantine_and_migration(false,1)==0 && path_bounds()==0 && path_active_transaction()==0 && path_output_failure()==0);
+	CHECK(path_fast_return()==0 && path_replay_after_failure()==0 && path_trusted_preference()==0);
+	CHECK(path_idle_probe_deadline()==0 && path_busy_candidate()==0 && path_control_budget()==0);
 	puts("xrudp paths: address quarantine, fresh-byte amplification, fixed deadlines, real migration and conservative recovery passed");return 0;
 }

@@ -45,6 +45,9 @@ XRUDP_API xrudpresult xrtRudpCipherState(const xrudpcipher* pCipher,
  * Failure changes neither cipher state nor destination bytes; *pWritten=0.
  * Source and destination buffers may overlap. Output counters/state objects
  * must not alias buffers. Success consumes a fresh packet number exactly once.
+ * Seal automatically classifies short (<=128B total) path-only controls as
+ * authenticated PATH after packet 1; DATA/PATH share keys and packet numbers.
+ * Open rejects business/ACK/PING disguised as PATH before committing state.
  * A successful Open confirms transport reception, not application execution. */
 /* Open reports AUTH_FAILED for untrusted header/body failures. DUPLICATE,
  * TOO_OLD and MALFORMED require a verified AEAD tag; MALFORMED means an

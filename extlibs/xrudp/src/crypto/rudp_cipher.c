@@ -95,6 +95,19 @@ xrudpresult xrtRudpCipherState(const xrudpcipher* pCipher, xrudpcipherstate* pSt
 	return XRUDP_OK;
 }
 
+/* An authenticated header discriminator reserves bounded validation work even
+ * when candidate business traffic exhausts the ordinary inspection budget.
+ * Never allow application data, ACK or PING to borrow the PATH class. */
+static bool xrudp__cipher_path(const void* plain, size_t size)
+{
+	if (size > 128 - XRUDP_HEADER_SIZE - XRUDP_TAG_SIZE) return false;
+	size_t at = 0; bool path = false; xrudpwireframe frame;
+	while (xrtRudpFrameNext(plain, size, &at, &frame) == XRUDP_OK) {
+		if (frame.Type == XRUDP_FRAME_PATH_CHALLENGE || frame.Type == XRUDP_FRAME_PATH_RESPONSE) path = true;
+		else if (frame.Type != XRUDP_FRAME_PADDING && frame.Type != XRUDP_FRAME_KEY_CONFIRM) return false;
+	}
+	return path;
+}
 xrudpresult xrtRudpCipherSeal(xrudpcipher* pCipher,
 	const void* pFrames, size_t iFrameSize, void* pOutput,
 	size_t iCapacity, size_t* pWritten)
@@ -113,7 +126,7 @@ xrudpresult xrtRudpCipherSeal(xrudpcipher* pCipher,
 	if (pCipher->NextPacket == UINT64_MAX || pCipher->SendCount >= pCipher->PacketLimit)
 		return XRUDP_LIMIT;
 	memset(&header, 0, sizeof(header));
-	header.Type = XRUDP_PACKET_DATA;
+	header.Type = pCipher->NextPacket >= 2 && xrudp__cipher_path(pFrames, iFrameSize) ? XRUDP_PACKET_PATH : XRUDP_PACKET_DATA;
 	header.PayloadSize = (uint16_t)(iFrameSize + XRUDP_TAG_SIZE);
 	header.KeyEpoch = pCipher->SendEpoch;
 	header.PacketNumber = pCipher->NextPacket;
@@ -171,7 +184,7 @@ xrudpresult xrtRudpCipherOpen(xrudpcipher* pCipher,
 	/* A wire error before AEAD is untrusted input, not an authenticated peer
 	 * violation. The caller must be able to drop it without closing a session. */
 	if (result != XRUDP_OK) return XRUDP_AUTH_FAILED;
-	if (packet.Header.Type != XRUDP_PACKET_DATA ||
+	if ((packet.Header.Type != XRUDP_PACKET_DATA && packet.Header.Type != XRUDP_PACKET_PATH) ||
 		packet.Header.PacketNumber == UINT64_MAX ||
 		!xrtConstTimeEqual(packet.Header.ConnectionId, pCipher->LocalId, 16))
 		return XRUDP_AUTH_FAILED;
@@ -205,6 +218,9 @@ xrudpresult xrtRudpCipherOpen(xrudpcipher* pCipher,
 	if (result != XRUDP_OK) {
 		result = XRUDP_MALFORMED;
 		goto cleanup;
+	}
+	if (packet.Header.Type == XRUDP_PACKET_PATH && !xrudp__cipher_path(plain, size)) {
+		result = XRUDP_MALFORMED; goto cleanup;
 	}
 	result = xrudp__confirm_check(pCipher, plain, size, &confirmed);
 	if (result != XRUDP_OK) goto cleanup;

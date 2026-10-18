@@ -163,6 +163,9 @@ XRUDP_API xrudpresult xrtRudpSessionState(const xrudpsession* pSession, xrudpses
  * trusted ProbePath grants only 336 initial bytes for opening a NAT mapping.
  * Response must match the pending token and candidate source address. This is
  * xrudp's single-path contract, not QUIC migration/MTU validation.
+ * Fresh authenticated traffic can revalidate a previous address immediately;
+ * unvalidated PNs are spent across failed attempts, never credited twice.
+ * A passive response older than newer active traffic cannot select a path.
  * Candidate failure leaves the active connection intact. No allocation. */
 XRUDP_API xrudpresult xrtRudpSessionEnablePaths(xrudpsession* pSession,
 	const xrudpaddress* pVerified, xrudppathsendproc pSend);
@@ -170,7 +173,9 @@ XRUDP_API xrudpresult xrtRudpSessionEnablePaths(xrudpsession* pSession,
  * Now clocks the session; existing connection deadlines still apply. Rejects
  * new probes during local shutdown, but existing validation may finish draining.
  * DUPLICATE for active/current candidate, BACKPRESSURE for cooldown/other
- * candidate. Queries/stats are in SessionState.Path; never expose probe tokens. */
+ * candidate. Its new matching proof may select the caller's preferred target
+ * even while newer traffic still arrives on the current path. Queries/stats
+ * are in SessionState.Path; never expose probe tokens. */
 XRUDP_API xrudpresult xrtRudpSessionProbePath(xrudpsession* pSession,
 	const xrudpaddress* pCandidate, uint64_t iNowUs);
 XRUDP_API xrudpresult xrtRudpSessionPathInput(xrudpsession* pSession,
