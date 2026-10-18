@@ -45,6 +45,7 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_session_message_tests,rudp_endpoint_message_tests --no-examples --cflag=-O2 --jobs 2
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_datagram_tests --no-examples --cflag=-O2 --jobs 2
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_game_tests,rudp_game_native_tests --no-examples --cflag=-O2 --jobs 2
+    python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_stop_tests,rudp_wire --no-examples --cflag=-O2 --jobs 2
 
 Windows 另外组合 rudp_endpoint_iocp_tests，Linux 组合 rudp_endpoint_epoll_tests；
 Linux 的优化构建同时运行 ASan/UBSan。无优化构建通过不能代替发布优化编译检查。
@@ -75,7 +76,15 @@ RETIRE_READY 提示两半结束且旧包引用已排空，STREAMS_READY 提示�
 同包多个 STREAM 帧可整体预检和原子提交，连接累计偏移按各流最高值计费一次。
 ReceiveStop 已提供本地停止交付的基础状态：清除未读明文和位图，仍校验迟到 STREAM 的
 额度/偏移/真实 FIN/RESET，不伪造最终偏移，不继续给该流授予额度；逻辑消费量供连接回收额度。
-停止后不能在真实 FIN/RESET 前复用存储。这是缓冲组件，可靠取消通知与会话/原生 API 尚待接入。
+停止后不能在真实 FIN/RESET 前复用存储。SessionStop/PeerStop 操作默认流 1，StreamStop
+操作额外字节/消息流；STOP_SENDING 可靠通知对端停止对应发送半流，反向与其他流继续工作。
+停止请求、RESET 和正常数据共用拥塞、账本和有界恢复；只在 UDP 真正受理后提交控制发送，
+对端 RESET 的最终偏移为实际最高已发送值，未发缓存清除但不消耗对端额度。
+WRITE_STOPPED 提示对端取消发送；READ_DONE 提示真实接收终结，不能把取消当成正常 READ_EOF。
+默认流通过 Changed，所有流通过 StreamChanged 交付这些提示；取消后的发送容量提示会撤去。
+StopComplete 表示通知被 ACK 或真实终结已到达，仍须真实最终偏移与所有包引用排空才允许退休。
+等待最终偏移另有独立的 ProgressTimeoutUs 期限；ACK、其他流进展和重复 Stop 都不能续期。
+正常收到真实终结即撤去该期限；超时会关闭不响应的连接并清理资源。
 模块 rudp_transmit 保留未确认内容，以分层位图查找待发范围，重传副本共享逻辑确认状态。
 TransmitMessageWrite 可将 u32 长度前缀和一条负载整体排入现有发送环，空间不足时完整拒收。
 模块 rudp_message 提供有界的消息接收组装器，构造时一次分配 0..1MiB 固定空间；

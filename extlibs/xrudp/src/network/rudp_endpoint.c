@@ -241,21 +241,24 @@ static xrudpresult xrudp__peer_send(const void* data, size_t size, void* context
 }
 static bool xrudp__peer_eof(const xrudpsessionstate* s)
 {
-	return s->Receive.HasFinal && !s->Receive.Reset && s->Receive.ReadOffset == s->Receive.FinalOffset;
+	return s->Receive.HasFinal && !s->Receive.Reset && !s->Receive.Stopped && s->Receive.ReadOffset == s->Receive.FinalOffset;
 }
 static bool xrudp__peer_write_done(const xrudpsessionstate* s)
 {
-	return s->Transmit.FinAcknowledged && s->Transmit.PendingBytes == 0;
+	return s->WriteDone;
 }
 static void xrudp__peer_capture(xrudppeer* p)
 {
 	xrudpsessionstate next;
 	if (p->Session == NULL || xrtRudpSessionState(p->Session, &next) != XRUDP_OK) return;
 	if (next.ReadReady && !p->Snapshot.ReadReady) p->PendingEvents |= XRUDP_PEER_READ_READY;
-	if (next.Transmit.BaseOffset > p->Snapshot.Transmit.BaseOffset && !next.Transmit.FinQueued) p->PendingEvents |= XRUDP_PEER_WRITE_READY;
+	if (next.Transmit.Cancelled) p->PendingEvents &= ~XRUDP_PEER_WRITE_READY;
+	else if (next.Transmit.BaseOffset > p->Snapshot.Transmit.BaseOffset && !next.Transmit.FinQueued) p->PendingEvents |= XRUDP_PEER_WRITE_READY;
 	if (xrudp__peer_write_done(&next) && !xrudp__peer_write_done(&p->Snapshot)) p->PendingEvents |= XRUDP_PEER_WRITE_DONE;
 	if (xrudp__peer_eof(&next) && !xrudp__peer_eof(&p->Snapshot)) p->PendingEvents |= XRUDP_PEER_READ_EOF;
+	if (next.ReadDone && !p->Snapshot.ReadDone) p->PendingEvents |= XRUDP_PEER_READ_DONE;
 	if (next.OutgoingLimit > p->Snapshot.OutgoingLimit) p->PendingEvents |= XRUDP_PEER_STREAMS_READY;
+	if (next.WriteStopped && !p->Snapshot.WriteStopped) p->PendingEvents |= XRUDP_PEER_WRITE_STOPPED;
 	if (next.Datagrams.ReceiveQueued != 0 && (next.Datagrams.Accepted > p->Snapshot.Datagrams.Accepted ||
 		next.Datagrams.ReceiveQueued > p->Snapshot.Datagrams.ReceiveQueued)) p->PendingEvents |= XRUDP_PEER_DATAGRAM_READ_READY;
 	if (next.Datagrams.SendQueued < p->Snapshot.Datagrams.SendQueued) p->PendingEvents |= XRUDP_PEER_DATAGRAM_WRITE_READY;
@@ -279,8 +282,10 @@ static void xrudp__peer_notify(xrudppeer* p)
 	for (size_t i = 0; i < count && xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED &&
 		xrtRudpEndpointState(e) == XRUDP_ENDPOINT_OPEN; ++i) {
 		xrudpstreamstate state;
-		if (e->Events.StreamChanged != NULL && xrtRudpSessionStreamState(p->Session, streams[i].Id, &state) == XRUDP_OK)
-			e->Events.StreamChanged(e, p, &streams[i], e->Context);
+		if (e->Events.StreamChanged != NULL && xrtRudpSessionStreamState(p->Session, streams[i].Id, &state) == XRUDP_OK) {
+			if (state.Transmit.Cancelled) streams[i].Events &= ~XRUDP_STREAM_WRITE_READY;
+			if (streams[i].Events != 0) e->Events.StreamChanged(e, p, &streams[i], e->Context);
+		}
 	}
 	p->Notifying = false;
 	now = xrudp__endpoint_now(e); p->NotifyAt = now > UINT64_MAX - 1000 ? UINT64_MAX : now + 1000;
@@ -735,6 +740,14 @@ xrudpresult xrtRudpPeerStreamReset(xrudppeer* p, uint32_t id, uint32_t reason)
 {
 	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
 	xrtRudpPeerRef(p); result = xrtRudpSessionStreamReset(p->Session, id, reason);
+	if (result == XRUDP_OK) xrudp__peer_wake(p);
+	xrtRudpPeerDestroy(p); return result;
+}
+xrudpresult xrtRudpPeerStop(xrudppeer* p, uint32_t reason) { return xrtRudpPeerStreamStop(p, 1, reason); }
+xrudpresult xrtRudpPeerStreamStop(xrudppeer* p, uint32_t id, uint32_t reason)
+{
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	xrtRudpPeerRef(p); result = xrtRudpSessionStreamStop(p->Session, id, reason);
 	if (result == XRUDP_OK) xrudp__peer_wake(p);
 	xrtRudpPeerDestroy(p); return result;
 }

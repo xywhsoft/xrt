@@ -503,6 +503,34 @@
       ]
     },
     {
+      "name": "rudp_stop_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_endpoint",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_session_stop.c",
+        "extlibs/xrudp/tests/test_multi_stop.c",
+        "extlibs/xrudp/tests/test_endpoint_stop.c",
+        "extlibs/xrudp/tests/test_endpoint_message_stop.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_session_stop.c",
+        "extlibs/xrudp/tests/single/test_single_multi_stop.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_stop.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_message_stop.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
       "name": "rudp_session_message_tests",
       "state": "implemented",
       "depends": [
@@ -680,7 +708,9 @@
         "extlibs/xrudp/tests/single/test_single_endpoint_multi_iocp.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_fair_iocp.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_messages_iocp.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_datagrams_iocp.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_datagrams_iocp.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_stop_iocp.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_message_stop_iocp.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -710,7 +740,9 @@
         "extlibs/xrudp/tests/single/test_single_endpoint_multi_epoll.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_fair_epoll.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_messages_epoll.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_datagrams_epoll.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_datagrams_epoll.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_stop_epoll.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_message_stop_epoll.c"
       ],
       "examples": [],
       "benchmarks": [],

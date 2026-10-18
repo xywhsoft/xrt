@@ -16,6 +16,9 @@ static struct {
 	size_t Written[2][MULTI_COUNT], Read[2][MULTI_COUNT];
 	uint32_t Deferred,Dropped,Blocked,Duplicated;
 	uint32_t Epoch[2],RetiredKeys;
+#ifdef TEST_MULTI_STOP
+	bool ReceiveStopped,PeerStopped;
+#endif
 #ifdef TEST_MULTI_DATAGRAMS
 	uint32_t GameWritten[2][4],GameRead[2][4],GameLast[2][4];
 	bool GameSeen[2][3][4001];
@@ -74,6 +77,12 @@ static int events(uint32_t side)
 			CHECK(!net.Active[side][k]);net.Active[side][k]=true;
 			xrudpstreamstate state;CHECK(xrtRudpSessionStreamState(net.Session[side],event.Id,&state)==XRUDP_OK && !state.Local);
 		}
+#ifdef TEST_MULTI_STOP
+		if(event.Events&XRUDP_STREAM_WRITE_STOPPED) {
+			xrudpstreamstate state;CHECK(side==0 && event.Id==3 && xrtRudpSessionStreamState(net.Session[side],3,&state)==XRUDP_OK && state.PeerStopped && state.PeerStopReason==71);
+			net.PeerStopped=true;
+		}
+#endif
 	}
 	CHECK(false);return 1;
 }
@@ -119,6 +128,11 @@ static int scenario(uint32_t seed)
 		}
 		for(uint32_t side=0;side<2;++side) {
 			CHECK(events(side)==0);
+#ifdef TEST_MULTI_STOP
+			if(side==1 && tick>=600 && net.Active[1][1] && !net.ReceiveStopped) {
+				CHECK(xrtRudpSessionStreamStop(net.Session[1],3,71)==XRUDP_OK);net.ReceiveStopped=true;wake|=2;
+			}
+#endif
 #ifdef TEST_MULTI_DATAGRAMS
 			if(tick<4000 && tick%4==0)for(uint32_t id=1;id<=3;++id)for(uint32_t repeat=0;repeat<(id==3?3u:1u);++repeat) {
 				unsigned char bytes[424];size_t size=id==3?128:sizeof(bytes);uint32_t serial=net.GameWritten[side][id]+1;
@@ -141,7 +155,11 @@ static int scenario(uint32_t seed)
 			}
 #endif
 			for(size_t k=0;k<MULTI_COUNT;++k)if(net.Active[side][k]) {
-				if(net.Written[side][k]<MULTI_BYTES) {
+				bool stopped=false;
+#ifdef TEST_MULTI_STOP
+				stopped=side==0 && k==1 && net.PeerStopped;
+#endif
+				if(net.Written[side][k]<MULTI_BYTES && !stopped) {
 					unsigned char source[128];size_t n=MULTI_BYTES-net.Written[side][k];if(n>sizeof(source))n=sizeof(source);
 					for(size_t j=0;j<n;++j)source[j]=pattern(side,ids[k],net.Written[side][k]+j);
 					size_t written;xrudpresult r=xrtRudpSessionStreamWrite(net.Session[side],ids[k],source,n,&written);
@@ -151,7 +169,12 @@ static int scenario(uint32_t seed)
 				/* One stalled consumer must not block delivery on other streams. */
 				if(!(side==1 && ids[k]==3 && tick<1500) && random_next()%3==0) {
 					unsigned char out[97];size_t read;xrudpresult r=xrtRudpSessionStreamRead(net.Session[side],ids[k],out,1+random_next()%sizeof(out),&read);
-					CHECK(r==XRUDP_OK || r==XRUDP_BACKPRESSURE || r==XRUDP_DONE);
+					bool cancelled=false;
+#ifdef TEST_MULTI_STOP
+					cancelled=side==1 && k==1 && net.ReceiveStopped && r==XRUDP_CANCELLED;
+					if(cancelled) { CHECK(read==0 && net.Read[side][k]==0);net.Eof[side][k]=true; }
+#endif
+					CHECK(r==XRUDP_OK || r==XRUDP_BACKPRESSURE || r==XRUDP_DONE || cancelled);
 					for(size_t j=0;j<read;++j)CHECK(out[j]==pattern(1-side,ids[k],net.Read[side][k]+j));
 					net.Read[side][k]+=read;CHECK(net.Read[side][k]<=MULTI_BYTES);if(read)wake|=1u<<side;
 					if(r==XRUDP_DONE) { CHECK(net.Read[side][k]==MULTI_BYTES);net.Eof[side][k]=true; }
@@ -174,9 +197,16 @@ static int scenario(uint32_t seed)
 			if(!net.Active[side][k]) { done=false;continue; }
 			xrudpstreamstate stream;CHECK(xrtRudpSessionStreamState(net.Session[side],ids[k],&stream)==XRUDP_OK);
 			if(!stream.WriteDone || stream.References || !net.Eof[side][k])done=false;
+			if(stream.Receive.Stopped && !stream.Receive.HasFinal)done=false;
 		}
 	}
 	CHECK(done && otherProgress && net.Dropped && net.Blocked && net.Duplicated && net.Deferred);
+#ifdef TEST_MULTI_STOP
+	xrudpstreamstate sender,receiver;CHECK(net.ReceiveStopped && net.PeerStopped);
+	CHECK(xrtRudpSessionStreamState(net.Session[0],3,&sender)==XRUDP_OK && xrtRudpSessionStreamState(net.Session[1],3,&receiver)==XRUDP_OK);
+	CHECK(sender.ResetAcknowledged && receiver.Receive.Reset && sender.ResetFinal==receiver.Receive.FinalOffset && sender.ResetFinal<net.Written[0][1]);
+	printf("stop mixed: seed=%u cancelled-final=%llu buffered-before-stop=%zu reverse-delivered=%zu\n",seed,(unsigned long long)sender.ResetFinal,net.Written[0][1],net.Read[0][1]);
+#endif
 	for(uint32_t side=0;side<2;++side) {
 #ifdef TEST_MULTI_DATAGRAMS
 		xrudpsessionstate state;CHECK(xrtRudpSessionState(net.Session[side],&state)==XRUDP_OK);

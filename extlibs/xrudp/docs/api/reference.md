@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `177` 个函数、`142` 个常量或宏、
+当前登记 `181` 个函数、`147` 个常量或宏、
 `63` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
@@ -154,7 +154,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/endpoint.h)
 
-### 函数 (32)
+### 函数 (34)
 
 - `xrtRudpEndpointBind`
 - `xrtRudpEndpointClose`
@@ -180,16 +180,18 @@
 - `xrtRudpPeerRef`
 - `xrtRudpPeerSessionState`
 - `xrtRudpPeerState`
+- `xrtRudpPeerStop`
 - `xrtRudpPeerStreamFinish`
 - `xrtRudpPeerStreamOpen`
 - `xrtRudpPeerStreamRead`
 - `xrtRudpPeerStreamReset`
 - `xrtRudpPeerStreamRetire`
 - `xrtRudpPeerStreamState`
+- `xrtRudpPeerStreamStop`
 - `xrtRudpPeerStreamWrite`
 - `xrtRudpPeerWrite`
 
-### 常量与宏 (18)
+### 常量与宏 (20)
 
 - `XRUDP_ENDPOINT_ADDRESS_BUCKETS`
 - `XRUDP_ENDPOINT_CLOSED`
@@ -203,12 +205,14 @@
 - `XRUDP_PEER_DATAGRAM_READ_READY`
 - `XRUDP_PEER_DATAGRAM_WRITE_READY`
 - `XRUDP_PEER_NEGOTIATING`
+- `XRUDP_PEER_READ_DONE`
 - `XRUDP_PEER_READ_EOF`
 - `XRUDP_PEER_READ_READY`
 - `XRUDP_PEER_STREAMS_READY`
 - `XRUDP_PEER_STREAM_EVENT_BURST`
 - `XRUDP_PEER_WRITE_DONE`
 - `XRUDP_PEER_WRITE_READY`
+- `XRUDP_PEER_WRITE_STOPPED`
 
 ### 类型 (15)
 
@@ -413,7 +417,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/session.h)
 
-### 函数 (28)
+### 函数 (30)
 
 - `xrtRudpSessionAbort`
 - `xrtRudpSessionAllocationSize`
@@ -433,6 +437,7 @@
 - `xrtRudpSessionPoll`
 - `xrtRudpSessionRead`
 - `xrtRudpSessionState`
+- `xrtRudpSessionStop`
 - `xrtRudpSessionStreamFinish`
 - `xrtRudpSessionStreamNextEvent`
 - `xrtRudpSessionStreamOpen`
@@ -440,11 +445,12 @@
 - `xrtRudpSessionStreamReset`
 - `xrtRudpSessionStreamRetire`
 - `xrtRudpSessionStreamState`
+- `xrtRudpSessionStreamStop`
 - `xrtRudpSessionStreamWrite`
 - `xrtRudpSessionWrite`
 - `xrtRudpStreamConfigInit`
 
-### 常量与宏 (13)
+### 常量与宏 (15)
 
 - `XRUDP_FEATURE_RUDP_SESSION`
 - `XRUDP_SESSION_MESSAGE_STAGE_BYTES`
@@ -454,11 +460,13 @@
 - `XRUDP_STREAM_BYTES`
 - `XRUDP_STREAM_MESSAGES`
 - `XRUDP_STREAM_OPENED`
+- `XRUDP_STREAM_READ_DONE`
 - `XRUDP_STREAM_READ_EOF`
 - `XRUDP_STREAM_READ_READY`
 - `XRUDP_STREAM_RETIRE_READY`
 - `XRUDP_STREAM_WRITE_DONE`
 - `XRUDP_STREAM_WRITE_READY`
+- `XRUDP_STREAM_WRITE_STOPPED`
 
 ### 类型 (4)
 
@@ -533,7 +541,7 @@
 - `xrtRudpReplayCheck`
 - `xrtRudpReplayInit`
 
-### 常量与宏 (43)
+### 常量与宏 (44)
 
 - `XRUDP_ARGUMENT`
 - `XRUDP_AUTH_FAILED`
@@ -559,6 +567,7 @@
 - `XRUDP_FRAME_PATH_RESPONSE`
 - `XRUDP_FRAME_PING`
 - `XRUDP_FRAME_RESET`
+- `XRUDP_FRAME_STOP_SENDING`
 - `XRUDP_FRAME_STREAM`
 - `XRUDP_IO_ERROR`
 - `XRUDP_LIMIT`

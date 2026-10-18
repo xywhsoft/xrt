@@ -16,6 +16,8 @@
 #define XRUDP_PEER_STREAMS_READY 16u
 #define XRUDP_PEER_DATAGRAM_READ_READY 32u
 #define XRUDP_PEER_DATAGRAM_WRITE_READY 64u
+#define XRUDP_PEER_WRITE_STOPPED 128u
+#define XRUDP_PEER_READ_DONE 256u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
@@ -166,6 +168,13 @@ XRUDP_API xrudpresult xrtRudpPeerDatagramPeek(const xrudppeer* pPeer, xrudpdatag
 XRUDP_API xrudpresult xrtRudpPeerDatagramRead(xrudppeer* pPeer, void* pOutput, size_t iCapacity, xrudpdatagraminfo* pInfo);
 XRUDP_API xrudpresult xrtRudpPeerStreamFinish(xrudppeer* pPeer, uint32_t iId);
 XRUDP_API xrudpresult xrtRudpPeerStreamReset(xrudppeer* pPeer, uint32_t iId, uint32_t iReason);
+/* Owner-only receive-half cancellation, following SessionStreamStop, for byte
+ * and message streams. Other direction/streams keep operating. Changed reports
+ * WRITE_STOPPED for stream 1; StreamChanged reports it for any stream. Closed
+ * handles return CLOSED without touching Engine. Success schedules maintenance;
+ * callbacks remain deferred and may abort/drop the peer/close the endpoint. */
+XRUDP_API xrudpresult xrtRudpPeerStop(xrudppeer* pPeer, uint32_t iReason);
+XRUDP_API xrudpresult xrtRudpPeerStreamStop(xrudppeer* pPeer, uint32_t iId, uint32_t iReason);
 XRUDP_API xrudpresult xrtRudpPeerStreamRetire(xrudppeer* pPeer, uint32_t iId);
 /* Owner while live; immutable snapshot after CLOSED, safe after Engine destroy.
  * BACKPRESSURE before admission, CLOSED when no session was ever admitted. */

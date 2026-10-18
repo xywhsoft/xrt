@@ -163,6 +163,8 @@ static xrudpresult xrudp__frame_check(xrudpframetype type, uint8_t flags,
 		return (uint64_t)(n - 12) <= UINT64_MAX - offset ? XRUDP_OK : XRUDP_MALFORMED;
 	case XRUDP_FRAME_RESET:
 		return n == 16 && xrudp__get32(p) != 0 ? XRUDP_OK : XRUDP_MALFORMED;
+	case XRUDP_FRAME_STOP_SENDING:
+		return n == 8 && xrudp__get32(p) != 0 ? XRUDP_OK : XRUDP_MALFORMED;
 	case XRUDP_FRAME_MAX_DATA:
 		return n == 8 ? XRUDP_OK : XRUDP_MALFORMED;
 	case XRUDP_FRAME_MAX_STREAM_DATA:

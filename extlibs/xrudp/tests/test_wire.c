@@ -84,6 +84,14 @@ static int frame_tests(void)
 	CHECK(xrtRudpFramesValidate(output, written, &count) == XRUDP_OK && count == 1);
 	CHECK(xrtRudpFrameAppend(output, sizeof(output), &written, XRUDP_FRAME_PING, 1, NULL, 0) == XRUDP_MALFORMED);
 	CHECK(xrtRudpFrameAppend(output, sizeof(output), &written, (xrudpframetype)255, 0, NULL, 0) == XRUDP_MALFORMED);
+	/* Independent canonical STOP_SENDING vector, fixed reason and stream id. */
+	static const unsigned char stop[]={14,0,0,8,0,0,0,3,0x12,0x34,0x56,0x78};
+	CHECK(xrtRudpFrameAppend(output,sizeof(output),&written,XRUDP_FRAME_STOP_SENDING,0,stop+4,8)==XRUDP_OK && written==sizeof(stop) && memcmp(output,stop,sizeof(stop))==0);
+	CHECK(xrtRudpFramesValidate(stop,sizeof(stop),&count)==XRUDP_OK && count==1);
+	for(size_t n=0;n<sizeof(stop);++n) { offset=0;CHECK(xrtRudpFrameNext(stop,n,&offset,&frame)==(n==0?XRUDP_DONE:XRUDP_TRUNCATED) && offset==0); }
+	for(size_t n=0;n<=12;++n)if(n!=8)CHECK(xrtRudpFrameAppend(output,sizeof(output),&written,XRUDP_FRAME_STOP_SENDING,0,body,n)==XRUDP_MALFORMED);
+	CHECK(xrtRudpFrameAppend(output,sizeof(output),&written,XRUDP_FRAME_STOP_SENDING,0,body,8)==XRUDP_MALFORMED);
+	CHECK(xrtRudpFrameAppend(output,sizeof(output),&written,XRUDP_FRAME_STOP_SENDING,1,stop+4,8)==XRUDP_MALFORMED);
 	count = 87;
 	CHECK(xrtRudpFramesValidate(NULL, 0, &count) == XRUDP_MALFORMED && count == 87);
 	for (size_t i = 0; i < sizeof(ping); ++i) {

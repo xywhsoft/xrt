@@ -2768,7 +2768,8 @@ typedef enum xrudpframetype {
 	XRUDP_FRAME_PATH_CHALLENGE = 10,
 	XRUDP_FRAME_PATH_RESPONSE = 11,
 	XRUDP_FRAME_KEY_CONFIRM = 12,
-	XRUDP_FRAME_OPEN = 13
+	XRUDP_FRAME_OPEN = 13,
+	XRUDP_FRAME_STOP_SENDING = 14
 } xrudpframetype;
 
 #define XRUDP_STREAM_FIN 1u
@@ -3903,6 +3904,8 @@ XRT_EXTERN_C_END
 #define XRUDP_STREAM_WRITE_DONE 8u
 #define XRUDP_STREAM_READ_EOF 16u
 #define XRUDP_STREAM_RETIRE_READY 32u
+#define XRUDP_STREAM_WRITE_STOPPED 64u
+#define XRUDP_STREAM_READ_DONE 128u
 #define XRUDP_STREAM_BYTES 0u
 #define XRUDP_STREAM_MESSAGES 1u
 #define XRUDP_SESSION_MESSAGE_STAGE_BYTES 4096u
@@ -3943,8 +3946,10 @@ typedef struct xrudpsessionstate {
 	uint64_t InvalidPackets, OutputBackpressure;
 	uint32_t PtoBackoff, OutstandingProbes;
 	uint32_t ActiveStreams, PendingStreamEvents;
+	uint32_t PendingReceiveStops; /* Waiting for real final size, independently bounded. */
 	uint32_t IncomingLimit, OutgoingLimit;
-	bool AckPending, ReadReady;
+	uint32_t WriteStopReason; /* Default stream's authenticated peer request. */
+	bool AckPending, ReadReady, ReadDone, WriteDone, WriteStopped;
 } xrudpsessionstate;
 
 typedef struct xrudpstreamconfig {
@@ -3956,10 +3961,13 @@ typedef struct xrudpstreamstate {
 	uint32_t Id, References;
 	uint16_t Weight;
 	uint8_t Priority, Kind;
-	bool Local, OpenAcknowledged, ReadReady, WriteDone, RetireReady;
+	bool Local, OpenAcknowledged, ReadReady, ReadDone, WriteDone, RetireReady;
 	bool ResetQueued, ResetAcknowledged;
+	bool StopQueued, StopSent, StopComplete, PeerStopped;
 	uint32_t ResetReason;
+	uint32_t PeerStopReason;
 	uint64_t ResetFinal;
+	uint64_t ReceiveStopDeadlineUs; /* 0 before first clock observation/after real final. */
 	uint32_t SendMessageLimit; /* min(peer authenticated bound, local TX capacity-4). */
 	xrudpmessagestate Message; /* Fixed receive staging; zero for byte streams. */
 	xrudpreceivestate Receive;
@@ -4029,6 +4037,23 @@ XRUDP_API xrudpresult xrtRudpSessionStreamFinish(xrudpsession* pSession, uint32_
 /* Reset only the local sending half. Final size is actual highest sent, so
  * discarded, never-sent buffers do not consume peer flow credit. */
 XRUDP_API xrudpresult xrtRudpSessionStreamReset(xrudpsession* pSession, uint32_t iId, uint32_t iReason);
+/* Cancel only local reception, clear unread plaintext/staged messages, freeze
+ * stream credit and reliably request peer STOP_SENDING. Reverse sending and
+ * other streams remain live. Reads/MessagePeek return CANCELLED; discarded
+ * logical offsets release connection credit exactly once. Same reason is
+ * DUPLICATE, changing it is ARGUMENT; already consumed EOF/RESET is DUPLICATE.
+ * StopComplete means this request was ACKed OR a real peer FIN/RESET arrived;
+ * retirement still requires that real final size and every old packet copy.
+ * READ_DONE reports a fully consumed EOF, peer RESET, or stopped reception with
+ * a real final size. It is distinct from clean READ_EOF and from local intent.
+ * Waiting for that final size has its own ProgressTimeoutUs deadline, anchored
+ * at the next owner clock observation; ACKs/other traffic/repeated Stop cannot
+ * renew it. Expiry closes the connection without inventing a peer final size.
+ * Peer requests produce WRITE_STOPPED and cancel only local sending, with a
+ * RESET charging actual highest sent, never buffered but unsent bytes.
+ * No allocation; call Poll after success. Default Stop is stream 1. */
+XRUDP_API xrudpresult xrtRudpSessionStop(xrudpsession* pSession, uint32_t iReason);
+XRUDP_API xrudpresult xrtRudpSessionStreamStop(xrudpsession* pSession, uint32_t iId, uint32_t iReason);
 /* Reclaim after both halves terminate/consume and ALL packet copies drain.
  * Cannot retire default stream 1. Retiring a peer-origin stream reliably
  * replenishes cumulative MAX_STREAMS; late frames for retired IDs are ignored. */
@@ -4102,6 +4127,8 @@ XRT_EXTERN_C_END
 #define XRUDP_PEER_STREAMS_READY 16u
 #define XRUDP_PEER_DATAGRAM_READ_READY 32u
 #define XRUDP_PEER_DATAGRAM_WRITE_READY 64u
+#define XRUDP_PEER_WRITE_STOPPED 128u
+#define XRUDP_PEER_READ_DONE 256u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
@@ -4252,6 +4279,13 @@ XRUDP_API xrudpresult xrtRudpPeerDatagramPeek(const xrudppeer* pPeer, xrudpdatag
 XRUDP_API xrudpresult xrtRudpPeerDatagramRead(xrudppeer* pPeer, void* pOutput, size_t iCapacity, xrudpdatagraminfo* pInfo);
 XRUDP_API xrudpresult xrtRudpPeerStreamFinish(xrudppeer* pPeer, uint32_t iId);
 XRUDP_API xrudpresult xrtRudpPeerStreamReset(xrudppeer* pPeer, uint32_t iId, uint32_t iReason);
+/* Owner-only receive-half cancellation, following SessionStreamStop, for byte
+ * and message streams. Other direction/streams keep operating. Changed reports
+ * WRITE_STOPPED for stream 1; StreamChanged reports it for any stream. Closed
+ * handles return CLOSED without touching Engine. Success schedules maintenance;
+ * callbacks remain deferred and may abort/drop the peer/close the endpoint. */
+XRUDP_API xrudpresult xrtRudpPeerStop(xrudppeer* pPeer, uint32_t iReason);
+XRUDP_API xrudpresult xrtRudpPeerStreamStop(xrudppeer* pPeer, uint32_t iId, uint32_t iReason);
 XRUDP_API xrudpresult xrtRudpPeerStreamRetire(xrudppeer* pPeer, uint32_t iId);
 /* Owner while live; immutable snapshot after CLOSED, safe after Engine destroy.
  * BACKPRESSURE before admission, CLOSED when no session was ever admitted. */
