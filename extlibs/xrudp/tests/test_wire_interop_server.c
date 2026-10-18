@@ -18,7 +18,8 @@ typedef struct wire_test {
     uint16_t Port, RemotePort; xnetfamily Family; size_t Read;
     unsigned char Pin[32];
     unsigned Confirmed, Closes; bool Eof, Acked;
-    bool Typed, Probe; unsigned Games, StreamOpened; xrudpresult CloseReason, ExpectedClose;
+    bool Typed, Probe, StopControl, StopVerified;
+    unsigned Games, StreamOpened; xrudpresult CloseReason, ExpectedClose;
     wire_slot Slots[6];
 } wire_test;
 static void require(wire_test* T, bool Ok, const char* What)
@@ -26,6 +27,7 @@ static void require(wire_test* T, bool Ok, const char* What)
 static void complete(wire_test* T)
 {
     if (!T->Eof || T->Read!=3072 || !T->Acked) return;
+    if (T->StopControl && !T->StopVerified) return;
     if (T->Typed) {
         if (T->Games!=3) return;
         for (unsigned I=2;I<6;++I) {
@@ -128,7 +130,16 @@ static void changed(xrudpendpoint* E, xrudppeer* P, uint32_t Events, void* Data)
         unsigned char Byte; size_t Read=0;
         if (xrtRudpPeerRead(P,&Byte,1,&Read)==XRUDP_DONE) T->Eof=true;
     }
-    if (Events&XRUDP_PEER_WRITE_DONE) T->Acked=true;
+    if (Events&XRUDP_PEER_WRITE_DONE) {
+        T->Acked=true;
+        if (T->StopControl) {
+            xrudpstreamstate S={0};
+            require(T,xrtRudpPeerStreamState(P,1,&S)==XRUDP_OK,"STOP stream state");
+            require(T,S.PeerStopped && S.PeerStopReason==77 && S.ResetQueued && S.ResetAcknowledged &&
+                S.ResetFinal==512 && S.ResetReason==77 && S.WriteDone,"STOP RESET acknowledgement/high-water");
+            T->StopVerified=true;
+        }
+    }
     /* Keep game records unread through the producer's reliable FIN fence so
      * LATEST replacement is deterministic rather than racing app consumption. */
     if (T->Typed && T->Eof) for (unsigned N=0;N<8;++N) {
@@ -213,8 +224,8 @@ int main(int Argc, char** Argv)
     if (Argc!=5 && Argc!=6) return 2;
     wire_test T={0}; T.Family=atoi(Argv[1])==6 ? XNET_FAMILY_IPV6:XNET_FAMILY_IPV4;
     int Port=atoi(Argv[2]); if (Port<0 || Port>65535) return 2; T.RemotePort=(uint16_t)Port;
-    int Mode=atoi(Argv[3]); if (Mode<0 || Mode>2 || (Mode==2)!=(Argc==6)) return 2;
-    T.Typed=Mode==1; T.Probe=Mode==2;
+    int Mode=atoi(Argv[3]); if (Mode<0 || Mode>3 || (Mode==2)!=(Argc==6)) return 2;
+    T.Typed=Mode==1 || Mode==3; T.Probe=Mode==2; T.StopControl=Mode==3;
     if (T.Probe) { T.ExpectedClose=(xrudpresult)atoi(Argv[5]); if (T.ExpectedClose!=XRUDP_MALFORMED && T.ExpectedClose!=XRUDP_CLOSED) return 2; }
     xnetengineconfig C; xrtNetEngineConfigInit(&C); C.Workers=1; C.Backend=XNET_PORT_SELECT;
     if (atoi(Argv[4])) {
@@ -240,7 +251,7 @@ int main(int Argc, char** Argv)
     while (!xrtNetEngineDestroy(T.Engine)) { if (xrtTimer()>=Until) return 5; xrtSleep(1); }
     xrudpendpointinfo I={0}; require(&T,xrtRudpEndpointInfo(T.Endpoint,&I)==XRUDP_OK,"terminal info");
     xrtRudpPeerDestroy(T.Peer); xrtRudpEndpointDestroy(T.Endpoint);
-    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u,\"close_reason\":%u,\"opened\":%u,\"joined\":true}\n",
-        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games,(unsigned)T.CloseReason,T.StreamOpened);
+    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u,\"close_reason\":%u,\"opened\":%u,\"stop_verified\":%s,\"joined\":true}\n",
+        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games,(unsigned)T.CloseReason,T.StreamOpened,T.StopVerified?"true":"false");
     return Ready && Done && T.Closes==1 && !xrtAtomic32Load(&T.Failure,XMEMORY_ACQUIRE) ? 0:6;
 }

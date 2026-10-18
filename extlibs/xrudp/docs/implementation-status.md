@@ -1004,6 +1004,28 @@ ASan/UBSan/泄漏检查 Select/Epoll，分别覆盖 IPv4/IPv6 和独立发起/�
 这些结果不替代有效 STOP/RESET、优雅关闭、路径/MTU 流程的独立互操作，也不替代持续模糊、
 Android 实机、两个独立公网 NAT 和最终长稳验收；完整目标继续 active。
 
+## 独立 STOP/RESET 与并行流恢复（2026-10-19）
+
+`tools/test_xrudp_wire_controls.py` 增加合法控制交换。原生端点在默认流排入 4096 字节和 FIN，
+独立对端保持该流 512 字节额度，收到真实 512 字节后请求 STOP_SENDING(77)。夹具验证
+PeerStopped、ResetQueued、ResetAcknowledged、WriteDone 及原因 77，RESET 最终偏移必须
+是实际已发送的 512，而不是队列末尾的 4096；反方向的 3072 字节仍完整读取至 FIN。
+
+独立对端丢弃首个 STOP、发送同原因的新包号重复请求，并始终从 ACK ranges 排除第一份
+RESET 报文。必须收到至少两份不同包号的 RESET，第二份真实确认后原生发送半流才完成；
+被丢弃的 STOP 包号不能被误确认。同时其余四条可靠流完成字节和六条整消息，三种游戏模式
+照常交付，含换钥、坏标签、重放及常规确认丢失；不把单流取消升级为连接失败。
+
+IPv4/IPv6、独立发起/响应角色、Windows Select/IOCP 与 Linux Select/Epoll 共 16 例通过，
+Linux 同时开启 ASan/UBSan/泄漏检查，所有端点及 Engine 正常排空、关闭并加入线程。
+共享夹具和独立对端扩展后，两平台 1920 个负面用例与原有 32 个 basic/mixed 场景重新通过。
+证据为 `dev/xrudp-wire-controls-{windows,linux-asan}.log`、
+`dev/xrudp-wire-controls-negative-regression-{windows,linux-asan}.log` 及
+`dev/xrudp-wire-controls-mixed-regression-{windows,linux-asan}.log`。
+
+本轮仍只增加测试能力，没有产品运行时改动，不重置九组长稳测试。有效优雅关闭、路径/MTU
+的独立互操作、更多取消时序以及实机、真实双 NAT、最终长稳门槛继续保留。
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。

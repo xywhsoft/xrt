@@ -112,7 +112,7 @@ class Peer:
         self.sock,self.address=sock,address; self.cid=os.urandom(16); self.server=None
         self.responder=responder; self.typed=typed
         self.send_number=1; self.send_epoch=1; self.receive_epoch=1
-        self.send_key=None; self.receive_keys={}; self.seen=set(); self.acked=set()
+        self.send_key=None; self.receive_keys={}; self.seen=set(); self.acked=set(); self.ack_omitted=set()
         self.received={}; self.final=None; self.credit=0; self.stream_credit=0
         self.invalid_injected=0; self.replay_injected=0; self.duplicates=0; self.rotations=0
         self.retransmits=0; self.muted_acks=0; self.mute_until=0
@@ -224,7 +224,7 @@ class Peer:
         self.seen.add(number); return parsed
     def ack(self):
         ranges=[]
-        for pn in sorted(self.seen,reverse=True):
+        for pn in sorted(self.seen-self.ack_omitted,reverse=True):
             if ranges and pn==ranges[-1][0]-1: ranges[-1][0]=pn
             else: ranges.append([pn,pn])
         ranges=ranges[:32]
@@ -281,7 +281,7 @@ class Peer:
             elif kind==12: assert len(body)==4 and 1<=struct.unpack('!I',body)[0]<=self.send_epoch
             elif kind==0: assert not any(body)
             elif kind==1: assert not body
-            else: raise AssertionError(('unexpected frame',kind))
+            else: self.control(kind,flags,body)
         reply=b''
         if eliciting: reply+=self.ack()
         if self.receive_epoch!=before: reply+=frame(12,struct.pack('!I',self.receive_epoch))
@@ -291,9 +291,17 @@ class Peer:
                 received=self.received if stream==1 else self.extra_receive[stream]; contiguous=0
                 while contiguous in received: contiguous+=1
                 total+=contiguous
-                if stream in consumed: reply+=frame(6,struct.pack('!IQ',stream,contiguous+512))
+                if stream in consumed: reply+=frame(6,struct.pack('!IQ',stream,self.receive_credit(stream,contiguous)))
             reply+=frame(5,struct.pack('!Q',total+1024))
         if reply: self.raw(self.protect(reply))
+    def control(self,kind,flags,body):
+        raise AssertionError(('unexpected frame',kind))
+    def receive_credit(self,stream,contiguous):
+        return contiguous+512
+    def expected_default_body(self):
+        return bytes((i*7+19)&255 for i in range(4096))
+    def validate_control(self,result):
+        pass
     def service(self):
         try:
             data=self.receive()
@@ -373,10 +381,10 @@ class Peer:
             if progressed: end=time.monotonic()+8
             else: assert time.monotonic()<end,'mixed small-window credit deadlock'; self.service()
         for stream,offset in offsets.items(): self.reliable(frame(3,struct.pack('!IQ',stream,offset),1))
-        expected={1:bytes((i*7+19)&255 for i in range(4096))}
+        expected={1:self.expected_default_body()}
         expected.update({i:self.typed_body(i,True) for i in range(2,6)})
         end=time.monotonic()+5
-        while not (self.final==4096 and len(self.received)==4096 and len(self.datagrams)==3 and
+        while not (self.final==len(expected[1]) and len(self.received)==len(expected[1]) and len(self.datagrams)==3 and
             all(self.extra_final.get(i)==len(expected[i]) and len(self.extra_receive[i])==len(expected[i]) for i in range(2,6))):
             assert time.monotonic()<end,'mixed receive/FIN/game stalled'; self.service()
         for stream,body in expected.items():
@@ -444,11 +452,11 @@ def main():
     return 0
 
 
-def run_case(binary,family,responder,typed,native_backend):
+def run_case(binary,family,responder,typed,native_backend,peer_type=Peer,fixture_mode=None):
     host='127.0.0.1' if family==4 else '::1'
     with socket.socket(socket.AF_INET if family==4 else socket.AF_INET6,socket.SOCK_DGRAM) as sock:
         sock.bind((host,0)); sock.settimeout(.05)
-        argv=[str(binary),str(family),str(sock.getsockname()[1]) if responder else '0',str(int(typed)),str(int(native_backend))]
+        argv=[str(binary),str(family),str(sock.getsockname()[1]) if responder else '0',str(int(typed) if fixture_mode is None else fixture_mode),str(int(native_backend))]
         child=subprocess.Popen(argv,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,
             env={**os.environ,'ASAN_OPTIONS':'detect_leaks=1:halt_on_error=1','UBSAN_OPTIONS':'halt_on_error=1:print_stacktrace=1'})
         lines=queue.Queue()
@@ -458,13 +466,14 @@ def run_case(binary,family,responder,typed,native_backend):
         try:
             ready=json.loads(lines.get(timeout=5)); assert ready['ready']
             address=(host,ready['port']) if family==4 else (host,ready['port'],0,0)
-            peer=Peer(sock,address,responder,typed); peer.handshake(); peer.transfer()
+            peer=peer_type(sock,address,responder,typed); peer.handshake(); peer.transfer()
             assert json.loads(lines.get(timeout=4))['app_done']
             peer.raw(peer.protect(frame(9,struct.pack('!I',0))))
             code=child.wait(timeout=6); reader.join(1); error=child.stderr.read()
             assert code==0,(code,error)
             result=json.loads(lines.get(timeout=1)); assert result['read']==3072 and result['confirmed']==1 and result['closes']==1
             assert result['streams']==(5 if typed else 1) and result['messages']==(6 if typed else 0) and result['games']==(3 if typed else 0)
+            peer.validate_control(result)
             result.update(family=family,typed=typed,backend=('iocp' if os.name=='nt' else 'epoll') if native_backend else 'select',
                 python_role='responder' if responder else 'initiator',independent_noise=True,native_default_bytes=len(peer.received),
                 rekeys=peer.rotations,client_rekey=peer.send_epoch,retransmits=peer.retransmits,
