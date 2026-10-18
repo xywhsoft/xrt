@@ -336,6 +336,55 @@
       ]
     },
     {
+      "name": "rudp_message",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_MESSAGE",
+      "depends": [
+        "rudp_transmit"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/message.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/stream/rudp_message.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_message.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_message.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md"
+      ]
+    },
+    {
+      "name": "rudp_message_fault_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_message",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_message_fault.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_message_fault.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
       "name": "rudp_transport_tests",
       "state": "implemented",
       "depends": [

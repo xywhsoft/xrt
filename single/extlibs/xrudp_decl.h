@@ -1233,6 +1233,9 @@
 #if !defined(XRUDP_FEATURE_RUDP_HANDSHAKE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_HANDSHAKE 1
 #endif
+#if !defined(XRUDP_FEATURE_RUDP_MESSAGE)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_MESSAGE 1
+#endif
 #if !defined(XRUDP_FEATURE_RUDP_NOISE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_NOISE 1
 #endif
@@ -1274,6 +1277,9 @@
 #endif
 #if !defined(XRUDP_MODULE_RUDP_HANDSHAKE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_HANDSHAKE 1
+#endif
+#if !defined(XRUDP_MODULE_RUDP_MESSAGE)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_MESSAGE 1
 #endif
 #if !defined(XRUDP_MODULE_RUDP_NOISE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_NOISE 1
@@ -2525,6 +2531,16 @@
 #endif
 #endif
 
+/* rudp_message 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_MESSAGE)
+#ifndef XRUDP_FEATURE_RUDP_MESSAGE
+#define XRUDP_FEATURE_RUDP_MESSAGE
+#endif
+#ifndef XRUDP_MODULE_RUDP_TRANSMIT
+#define XRUDP_MODULE_RUDP_TRANSMIT
+#endif
+#endif
+
 /* rudp_transmit 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_TRANSMIT)
 #ifndef XRUDP_FEATURE_RUDP_TRANSMIT
@@ -3485,6 +3501,12 @@ XRUDP_API xrudpresult xrtRudpTransmitRestart(xrudptransmit* pTransmit, uint64_t 
  * No write is accepted after Finish/Cancel. Inputs/outputs must be disjoint. */
 XRUDP_API xrudpresult xrtRudpTransmitWrite(xrudptransmit* pTransmit,
 	const void* pData, size_t iSize, size_t* pWritten);
+/* Atomically queues one u32 big-endian length plus payload. Empty messages
+ * are valid. LIMIT means Size+4 exceeds this ring's total capacity; temporary
+ * lack of free capacity is BACKPRESSURE. Every failure leaves the ring intact.
+ * This does not negotiate peer message limits or implement message delivery. */
+XRUDP_API xrudpresult xrtRudpTransmitMessageWrite(xrudptransmit* pTransmit,
+	const void* pData, size_t iSize);
 XRUDP_API xrudpresult xrtRudpTransmitFinish(xrudptransmit* pTransmit);
 /* Old/same advertised limits are harmless DUPLICATE, never a credit decrease. */
 XRUDP_API xrudpresult xrtRudpTransmitSetLimit(xrudptransmit* pTransmit, uint64_t iLimit);
@@ -3511,6 +3533,71 @@ XRUDP_API xrudpresult xrtRudpTransmitResolve(xrudptransmit* pTransmit,
 /* Clears plaintext and bitmaps, releases all held ring capacity, then rejects
  * future operations. Late ledger events must be drained by the owning driver. */
 XRUDP_API xrudpresult xrtRudpTransmitCancel(xrudptransmit* pTransmit, xrudptransmitchange* pChange);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/message.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_MESSAGE_H
+#define XRUDP_MESSAGE_H
+
+
+#if defined(XRUDP_FEATURE_RUDP_MESSAGE)
+
+#define XRUDP_MESSAGE_SIZE_MAX (1024u * 1024u)
+
+typedef struct xrudpmessage xrudpmessage;
+typedef struct xrudpmessagestate {
+	xrudpresult Reason;
+	uint32_t Maximum, Expected, Buffered, HeaderBytes;
+	bool Ready, Finished;
+} xrudpmessagestate;
+
+XRT_EXTERN_C_BEGIN
+
+/* Ordered reliable-message decoder: u32 big-endian payload length. Owns one
+ * fixed Maximum-byte staging area, not a second reliability/recovery core.
+ * Maximum is explicit, 0..1MiB (zero accepts empty messages only). Reserve
+ * aggregate memory BEFORE Create; only Create allocates. One serialized owner,
+ * no callbacks, and all caller buffers/outputs must be disjoint from the object.
+ * The session adapter must release byte-stream flow credit as Push consumes
+ * bytes, and stop pulling when one complete message is ready. This staging
+ * allows partial records on multiple streams to progress without reserving a
+ * whole record in shared connection credit. It remains bounded when unread. */
+XRUDP_API xrudpresult xrtRudpMessageAllocationSize(uint32_t iMaximum, size_t* pSize);
+XRUDP_API xrudpresult xrtRudpMessageCreate(uint32_t iMaximum, xrudpmessage** ppMessage);
+XRUDP_API void xrtRudpMessageDestroy(xrudpmessage* pMessage);
+XRUDP_API xrudpresult xrtRudpMessageState(const xrudpmessage* pMessage, xrudpmessagestate* pState);
+/* Copies only through the end of the next record. *pConsumed is the exact
+ * prefix taken; caller retains any suffix. OK may consume an incomplete
+ * header/body. BACKPRESSURE means a complete unread record already exists.
+ * Oversized wire length is sticky MALFORMED and clears retained plaintext;
+ * consumed still reports the header prefix taken before that error.
+ * No allocation on success, malformed input, backpressure, EOF or reset. */
+XRUDP_API xrudpresult xrtRudpMessagePush(xrudpmessage* pMessage,
+	const void* pData, size_t iSize, size_t* pConsumed);
+/* Pure query. OK includes a complete empty record; BACKPRESSURE is incomplete,
+ * DONE is consumed clean EOF. Output size is zero on other results. */
+XRUDP_API xrudpresult xrtRudpMessagePeek(const xrudpmessage* pMessage, size_t* pSize);
+/* Copies exactly one complete payload and clears its staging storage.
+ * TRUNCATED reports the required payload size without consuming/writing any
+ * bytes. NULL/0 may query a nonempty record or consume an empty one. */
+XRUDP_API xrudpresult xrtRudpMessageRead(xrudpmessage* pMessage,
+	void* pOutput, size_t iCapacity, size_t* pSize);
+/* FIN is valid only on a record boundary or after a complete unread record;
+ * a partial length/body at FIN is sticky MALFORMED, with no partial delivery. */
+XRUDP_API xrudpresult xrtRudpMessageFinish(xrudpmessage* pMessage);
+/* Local/peer reset discards retained plaintext and makes future reads CANCELLED.
+ * A consumed clean EOF cannot become a second cancellation. */
+XRUDP_API xrudpresult xrtRudpMessageReset(xrudpmessage* pMessage);
+/* Reuse only fresh, failed/reset, or fully consumed clean EOF storage. A live
+ * partial or unread complete record returns BACKPRESSURE. No allocation. */
+XRUDP_API xrudpresult xrtRudpMessageRestart(xrudpmessage* pMessage);
 
 XRT_EXTERN_C_END
 #endif
@@ -5557,6 +5644,10 @@ XRT_EXTERN_C_END
 #undef XRUDP_FEATURE_RUDP_HANDSHAKE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_HANDSHAKE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_MESSAGE)
+#undef XRUDP_FEATURE_RUDP_MESSAGE
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_MESSAGE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_NOISE)
 #undef XRUDP_FEATURE_RUDP_NOISE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_NOISE
@@ -5612,6 +5703,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_HANDSHAKE)
 #undef XRUDP_MODULE_RUDP_HANDSHAKE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_HANDSHAKE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_MESSAGE)
+#undef XRUDP_MODULE_RUDP_MESSAGE
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_MESSAGE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_NOISE)
 #undef XRUDP_MODULE_RUDP_NOISE
@@ -5707,6 +5802,16 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRUDP_MODULE_RUDP_COOKIE
 #define XRUDP_MODULE_RUDP_COOKIE
+#endif
+#endif
+
+/* rudp_message 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_MESSAGE)
+#ifndef XRUDP_FEATURE_RUDP_MESSAGE
+#define XRUDP_FEATURE_RUDP_MESSAGE
+#endif
+#ifndef XRUDP_MODULE_RUDP_TRANSMIT
+#define XRUDP_MODULE_RUDP_TRANSMIT
 #endif
 #endif
 

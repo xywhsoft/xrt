@@ -57,6 +57,12 @@ XRUDP_API xrudpresult xrtRudpTransmitRestart(xrudptransmit* pTransmit, uint64_t 
  * No write is accepted after Finish/Cancel. Inputs/outputs must be disjoint. */
 XRUDP_API xrudpresult xrtRudpTransmitWrite(xrudptransmit* pTransmit,
 	const void* pData, size_t iSize, size_t* pWritten);
+/* Atomically queues one u32 big-endian length plus payload. Empty messages
+ * are valid. LIMIT means Size+4 exceeds this ring's total capacity; temporary
+ * lack of free capacity is BACKPRESSURE. Every failure leaves the ring intact.
+ * This does not negotiate peer message limits or implement message delivery. */
+XRUDP_API xrudpresult xrtRudpTransmitMessageWrite(xrudptransmit* pTransmit,
+	const void* pData, size_t iSize);
 XRUDP_API xrudpresult xrtRudpTransmitFinish(xrudptransmit* pTransmit);
 /* Old/same advertised limits are harmless DUPLICATE, never a credit decrease. */
 XRUDP_API xrudpresult xrtRudpTransmitSetLimit(xrudptransmit* pTransmit, uint64_t iLimit);

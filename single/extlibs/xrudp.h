@@ -113,6 +113,16 @@
 #endif
 #endif
 
+/* rudp_message 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_MESSAGE)
+#ifndef XRUDP_FEATURE_RUDP_MESSAGE
+#define XRUDP_FEATURE_RUDP_MESSAGE
+#endif
+#ifndef XRUDP_MODULE_RUDP_TRANSMIT
+#define XRUDP_MODULE_RUDP_TRANSMIT
+#endif
+#endif
+
 /* rudp_transmit 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_TRANSMIT)
 #ifndef XRUDP_FEATURE_RUDP_TRANSMIT
@@ -1073,6 +1083,12 @@ XRUDP_API xrudpresult xrtRudpTransmitRestart(xrudptransmit* pTransmit, uint64_t 
  * No write is accepted after Finish/Cancel. Inputs/outputs must be disjoint. */
 XRUDP_API xrudpresult xrtRudpTransmitWrite(xrudptransmit* pTransmit,
 	const void* pData, size_t iSize, size_t* pWritten);
+/* Atomically queues one u32 big-endian length plus payload. Empty messages
+ * are valid. LIMIT means Size+4 exceeds this ring's total capacity; temporary
+ * lack of free capacity is BACKPRESSURE. Every failure leaves the ring intact.
+ * This does not negotiate peer message limits or implement message delivery. */
+XRUDP_API xrudpresult xrtRudpTransmitMessageWrite(xrudptransmit* pTransmit,
+	const void* pData, size_t iSize);
 XRUDP_API xrudpresult xrtRudpTransmitFinish(xrudptransmit* pTransmit);
 /* Old/same advertised limits are harmless DUPLICATE, never a credit decrease. */
 XRUDP_API xrudpresult xrtRudpTransmitSetLimit(xrudptransmit* pTransmit, uint64_t iLimit);
@@ -1099,6 +1115,71 @@ XRUDP_API xrudpresult xrtRudpTransmitResolve(xrudptransmit* pTransmit,
 /* Clears plaintext and bitmaps, releases all held ring capacity, then rejects
  * future operations. Late ledger events must be drained by the owning driver. */
 XRUDP_API xrudpresult xrtRudpTransmitCancel(xrudptransmit* pTransmit, xrudptransmitchange* pChange);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/message.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_MESSAGE_H
+#define XRUDP_MESSAGE_H
+
+
+#if defined(XRUDP_FEATURE_RUDP_MESSAGE)
+
+#define XRUDP_MESSAGE_SIZE_MAX (1024u * 1024u)
+
+typedef struct xrudpmessage xrudpmessage;
+typedef struct xrudpmessagestate {
+	xrudpresult Reason;
+	uint32_t Maximum, Expected, Buffered, HeaderBytes;
+	bool Ready, Finished;
+} xrudpmessagestate;
+
+XRT_EXTERN_C_BEGIN
+
+/* Ordered reliable-message decoder: u32 big-endian payload length. Owns one
+ * fixed Maximum-byte staging area, not a second reliability/recovery core.
+ * Maximum is explicit, 0..1MiB (zero accepts empty messages only). Reserve
+ * aggregate memory BEFORE Create; only Create allocates. One serialized owner,
+ * no callbacks, and all caller buffers/outputs must be disjoint from the object.
+ * The session adapter must release byte-stream flow credit as Push consumes
+ * bytes, and stop pulling when one complete message is ready. This staging
+ * allows partial records on multiple streams to progress without reserving a
+ * whole record in shared connection credit. It remains bounded when unread. */
+XRUDP_API xrudpresult xrtRudpMessageAllocationSize(uint32_t iMaximum, size_t* pSize);
+XRUDP_API xrudpresult xrtRudpMessageCreate(uint32_t iMaximum, xrudpmessage** ppMessage);
+XRUDP_API void xrtRudpMessageDestroy(xrudpmessage* pMessage);
+XRUDP_API xrudpresult xrtRudpMessageState(const xrudpmessage* pMessage, xrudpmessagestate* pState);
+/* Copies only through the end of the next record. *pConsumed is the exact
+ * prefix taken; caller retains any suffix. OK may consume an incomplete
+ * header/body. BACKPRESSURE means a complete unread record already exists.
+ * Oversized wire length is sticky MALFORMED and clears retained plaintext;
+ * consumed still reports the header prefix taken before that error.
+ * No allocation on success, malformed input, backpressure, EOF or reset. */
+XRUDP_API xrudpresult xrtRudpMessagePush(xrudpmessage* pMessage,
+	const void* pData, size_t iSize, size_t* pConsumed);
+/* Pure query. OK includes a complete empty record; BACKPRESSURE is incomplete,
+ * DONE is consumed clean EOF. Output size is zero on other results. */
+XRUDP_API xrudpresult xrtRudpMessagePeek(const xrudpmessage* pMessage, size_t* pSize);
+/* Copies exactly one complete payload and clears its staging storage.
+ * TRUNCATED reports the required payload size without consuming/writing any
+ * bytes. NULL/0 may query a nonempty record or consume an empty one. */
+XRUDP_API xrudpresult xrtRudpMessageRead(xrudpmessage* pMessage,
+	void* pOutput, size_t iCapacity, size_t* pSize);
+/* FIN is valid only on a record boundary or after a complete unread record;
+ * a partial length/body at FIN is sticky MALFORMED, with no partial delivery. */
+XRUDP_API xrudpresult xrtRudpMessageFinish(xrudpmessage* pMessage);
+/* Local/peer reset discards retained plaintext and makes future reads CANCELLED.
+ * A consumed clean EOF cannot become a second cancellation. */
+XRUDP_API xrudpresult xrtRudpMessageReset(xrudpmessage* pMessage);
+/* Reuse only fresh, failed/reset, or fully consumed clean EOF storage. A live
+ * partial or unread complete record returns BACKPRESSURE. No allocation. */
+XRUDP_API xrudpresult xrtRudpMessageRestart(xrudpmessage* pMessage);
 
 XRT_EXTERN_C_END
 #endif
@@ -3598,6 +3679,24 @@ xrudpresult xrtRudpTransmitWrite(xrudptransmit* t, const void* data, size_t size
 	return XRUDP_OK;
 }
 
+xrudpresult xrtRudpTransmitMessageWrite(xrudptransmit* t, const void* data, size_t size)
+{
+	if (t == NULL || (data == NULL && size != 0)) return XRUDP_ARGUMENT;
+	if (t->Cancelled || t->FinQueued) return XRUDP_CLOSED;
+	if (size > t->Capacity - 4u) return XRUDP_LIMIT;
+	size_t total = size + 4;
+	if (total > UINT64_MAX - t->End) return XRUDP_LIMIT;
+	if (total > t->Capacity - (size_t)(t->End - t->Base)) return XRUDP_BACKPRESSURE;
+	unsigned char header[4];
+	for (size_t i = 0; i < 4; ++i) header[3 - i] = (unsigned char)((uint32_t)size >> (i * 8));
+	/* All bounds and terminal state checked before either copy. Serialized
+	 * ownership makes both ordinary writes infallible and unobservable apart. */
+	size_t written;
+	(void)xrtRudpTransmitWrite(t, header, sizeof(header), &written);
+	(void)xrtRudpTransmitWrite(t, data, size, &written);
+	return XRUDP_OK;
+}
+
 xrudpresult xrtRudpTransmitRestart(xrudptransmit* t, uint64_t limit)
 {
 	if (t == NULL) return XRUDP_ARGUMENT;
@@ -3746,6 +3845,112 @@ xrudpresult xrtRudpTransmitCancel(xrudptransmit* t, xrudptransmitchange* change)
 	xrtSecureZero(t->Data, t->Allocation - sizeof(*t));
 	*change = next;
 	return XRUDP_OK;
+}
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrudp/src/stream/rudp_message.c */
+/* ========================================================================== */
+
+#if defined(XRUDP_FEATURE_RUDP_MESSAGE)
+#include <string.h>
+
+struct xrudpmessage {
+	xrudpmessagestate State;
+	bool Used;
+	unsigned char Data[];
+};
+
+xrudpresult xrtRudpMessageAllocationSize(uint32_t maximum, size_t* output)
+{
+	if (output == NULL || maximum > XRUDP_MESSAGE_SIZE_MAX) return XRUDP_ARGUMENT;
+	*output = sizeof(xrudpmessage) + maximum; return XRUDP_OK;
+}
+xrudpresult xrtRudpMessageCreate(uint32_t maximum, xrudpmessage** output)
+{
+	size_t size;
+	if (output == NULL || xrtRudpMessageAllocationSize(maximum, &size) != XRUDP_OK) return XRUDP_ARGUMENT;
+	xrudpmessage* m = (xrudpmessage*)xrtMalloc(size);
+	if (m == NULL) return XRUDP_NO_MEMORY;
+	memset(m, 0, size); m->State.Maximum = maximum; *output = m; return XRUDP_OK;
+}
+void xrtRudpMessageDestroy(xrudpmessage* m)
+{
+	if (m != NULL) { xrtSecureZero(m, sizeof(*m) + m->State.Maximum); xrtFree(m); }
+}
+xrudpresult xrtRudpMessageState(const xrudpmessage* m, xrudpmessagestate* output)
+{
+	if (m == NULL || output == NULL) return XRUDP_ARGUMENT;
+	*output = m->State; return XRUDP_OK;
+}
+static void xrudp__message_clear(xrudpmessage* m, xrudpresult reason)
+{
+	xrtSecureZero(m->Data, m->State.Buffered);
+	uint32_t maximum = m->State.Maximum;
+	memset(&m->State, 0, sizeof(m->State)); m->State.Maximum = maximum; m->State.Reason = reason;
+}
+xrudpresult xrtRudpMessagePush(xrudpmessage* m, const void* data, size_t size, size_t* consumed)
+{
+	if (consumed != NULL) *consumed = 0;
+	if (m == NULL || consumed == NULL || (data == NULL && size != 0)) return XRUDP_ARGUMENT;
+	xrudpmessagestate* s = &m->State;
+	if (s->Reason != XRUDP_OK) return s->Reason;
+	if (s->Finished) return XRUDP_CLOSED;
+	if (s->Ready) return XRUDP_BACKPRESSURE;
+	if (size != 0) m->Used = true;
+	const unsigned char* bytes = (const unsigned char*)data;
+	while (s->HeaderBytes < 4 && *consumed < size) {
+		s->Expected = (s->Expected << 8) | bytes[(*consumed)++]; ++s->HeaderBytes;
+	}
+	if (s->HeaderBytes != 4) return XRUDP_OK;
+	if (s->Expected > s->Maximum) { xrudp__message_clear(m, XRUDP_MALFORMED); return XRUDP_MALFORMED; }
+	size_t count = s->Expected - s->Buffered;
+	if (count > size - *consumed) count = size - *consumed;
+	if (count != 0) memcpy(m->Data + s->Buffered, bytes + *consumed, count);
+	s->Buffered += (uint32_t)count; *consumed += count; s->Ready = s->Buffered == s->Expected;
+	return XRUDP_OK;
+}
+xrudpresult xrtRudpMessagePeek(const xrudpmessage* m, size_t* size)
+{
+	if (size != NULL) *size = 0;
+	if (m == NULL || size == NULL) return XRUDP_ARGUMENT;
+	if (m->State.Reason != XRUDP_OK) return m->State.Reason;
+	if (m->State.Ready) { *size = m->State.Expected; return XRUDP_OK; }
+	return m->State.Finished ? XRUDP_DONE : XRUDP_BACKPRESSURE;
+}
+xrudpresult xrtRudpMessageRead(xrudpmessage* m, void* output, size_t capacity, size_t* size)
+{
+	if (size != NULL) *size = 0;
+	if (size == NULL || (output == NULL && capacity != 0)) return XRUDP_ARGUMENT;
+	xrudpresult result = xrtRudpMessagePeek(m, size);
+	if (result != XRUDP_OK) return result;
+	if (capacity < *size) return XRUDP_TRUNCATED;
+	if (*size != 0) memcpy(output, m->Data, *size);
+	bool finished = m->State.Finished; xrudp__message_clear(m, XRUDP_OK); m->State.Finished = finished;
+	return XRUDP_OK;
+}
+xrudpresult xrtRudpMessageFinish(xrudpmessage* m)
+{
+	if (m == NULL) return XRUDP_ARGUMENT;
+	if (m->State.Reason != XRUDP_OK) return m->State.Reason;
+	if (m->State.Finished) return XRUDP_DUPLICATE;
+	if (!m->State.Ready && m->State.HeaderBytes != 0) { xrudp__message_clear(m, XRUDP_MALFORMED); return XRUDP_MALFORMED; }
+	m->State.Finished = true; return XRUDP_OK;
+}
+xrudpresult xrtRudpMessageReset(xrudpmessage* m)
+{
+	if (m == NULL) return XRUDP_ARGUMENT;
+	if (m->State.Reason == XRUDP_CANCELLED) return XRUDP_DUPLICATE;
+	if (m->State.Reason != XRUDP_OK) return m->State.Reason;
+	if (m->State.Finished && !m->State.Ready) return XRUDP_DONE;
+	xrudp__message_clear(m, XRUDP_CANCELLED); return XRUDP_OK;
+}
+xrudpresult xrtRudpMessageRestart(xrudpmessage* m)
+{
+	if (m == NULL) return XRUDP_ARGUMENT;
+	if (m->State.Reason == XRUDP_OK && ((m->Used && !m->State.Finished) || m->State.Ready || m->State.HeaderBytes != 0)) return XRUDP_BACKPRESSURE;
+	xrudp__message_clear(m, XRUDP_OK); m->Used = false; return XRUDP_OK;
 }
 #endif
 

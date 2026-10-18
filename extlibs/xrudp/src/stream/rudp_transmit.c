@@ -142,6 +142,24 @@ xrudpresult xrtRudpTransmitWrite(xrudptransmit* t, const void* data, size_t size
 	return XRUDP_OK;
 }
 
+xrudpresult xrtRudpTransmitMessageWrite(xrudptransmit* t, const void* data, size_t size)
+{
+	if (t == NULL || (data == NULL && size != 0)) return XRUDP_ARGUMENT;
+	if (t->Cancelled || t->FinQueued) return XRUDP_CLOSED;
+	if (size > t->Capacity - 4u) return XRUDP_LIMIT;
+	size_t total = size + 4;
+	if (total > UINT64_MAX - t->End) return XRUDP_LIMIT;
+	if (total > t->Capacity - (size_t)(t->End - t->Base)) return XRUDP_BACKPRESSURE;
+	unsigned char header[4];
+	for (size_t i = 0; i < 4; ++i) header[3 - i] = (unsigned char)((uint32_t)size >> (i * 8));
+	/* All bounds and terminal state checked before either copy. Serialized
+	 * ownership makes both ordinary writes infallible and unobservable apart. */
+	size_t written;
+	(void)xrtRudpTransmitWrite(t, header, sizeof(header), &written);
+	(void)xrtRudpTransmitWrite(t, data, size, &written);
+	return XRUDP_OK;
+}
+
 xrudpresult xrtRudpTransmitRestart(xrudptransmit* t, uint64_t limit)
 {
 	if (t == NULL) return XRUDP_ARGUMENT;

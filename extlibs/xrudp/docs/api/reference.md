@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `132` 个函数、`126` 个常量或宏、
-`54` 个公共类型。
+当前登记 `143` 个函数、`128` 个常量或宏、
+`56` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -221,6 +221,33 @@
 - `xrudpparameters`
 - `xrudprole`
 
+## `extlibs/xrudp/include/xrudp/message.h`
+
+[查看带契约注释的公共头](../../include/xrudp/message.h)
+
+### 函数 (10)
+
+- `xrtRudpMessageAllocationSize`
+- `xrtRudpMessageCreate`
+- `xrtRudpMessageDestroy`
+- `xrtRudpMessageFinish`
+- `xrtRudpMessagePeek`
+- `xrtRudpMessagePush`
+- `xrtRudpMessageRead`
+- `xrtRudpMessageReset`
+- `xrtRudpMessageRestart`
+- `xrtRudpMessageState`
+
+### 常量与宏 (2)
+
+- `XRUDP_FEATURE_RUDP_MESSAGE`
+- `XRUDP_MESSAGE_SIZE_MAX`
+
+### 类型 (2)
+
+- `xrudpmessage`
+- `xrudpmessagestate`
+
 ## `extlibs/xrudp/include/xrudp/noise.h`
 
 [查看带契约注释的公共头](../../include/xrudp/noise.h)
@@ -393,7 +420,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/transmit.h)
 
-### 函数 (12)
+### 函数 (13)
 
 - `xrtRudpTransmitAllocationSize`
 - `xrtRudpTransmitCancel`
@@ -401,6 +428,7 @@
 - `xrtRudpTransmitDestroy`
 - `xrtRudpTransmitFinish`
 - `xrtRudpTransmitMarkSent`
+- `xrtRudpTransmitMessageWrite`
 - `xrtRudpTransmitPeek`
 - `xrtRudpTransmitResolve`
 - `xrtRudpTransmitRestart`

@@ -12,6 +12,7 @@
 #include <xrudp/congestion.h>
 #include <xrudp/receive.h>
 #include <xrudp/transmit.h>
+#include <xrudp/message.h>
 #include <xrudp/handshake.h>
 #include <xrudp/endpoint.h>
 #include <xrudp/session.h>
