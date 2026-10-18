@@ -1378,7 +1378,13 @@ static xrudpresult xrudp__session_send_inner(xrudpsession* s, uint64_t* due, boo
 	uint32_t quantum = m ? XRUDP_PACKET_MAX * (m->Weight < 16 ? m->Weight : 16u) * (4u - m->Priority) : 0;
 	uint32_t deficit = m && m->Deficit ? m->Deficit : quantum;
 	if (s->AckWanted || finalAck) {
-		xrudpackset ack = s->Ack; size_t ranges = (limit - 12 - 128) / 16;
+		/* Pure ACKs cannot elicit their own delivery proof. Keep their portion
+		 * within the safe base budget even after a previously larger path
+		 * shrinks, including fallback-to-ACK and final drain ACK+PING packets.
+		 * Reliable/game payload still uses the current effective packet size. */
+		size_t ackLimit = 512u - XRUDP_HEADER_SIZE - XRUDP_TAG_SIZE;
+		if (ackLimit > limit) ackLimit = limit;
+		xrudpackset ack = s->Ack; size_t ranges = (ackLimit - 12 - 128) / 16;
 		if (ack.Count > ranges) ack.Count = (uint16_t)ranges;
 		if (xrtRudpAckSetEncode(&ack, s->Now, plain, limit, &used) != XRUDP_OK) return XRUDP_IO_ERROR;
 		ackSize = used;

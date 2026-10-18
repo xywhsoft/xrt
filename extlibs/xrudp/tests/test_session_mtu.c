@@ -167,11 +167,37 @@ static int migrate(void)
 	CHECK(xrtRudpSessionState(net.Session[0],&state)==XRUDP_OK && state.Mtu.BaseConfirmed && state.Mtu.Effective==768 && state.Path.Validations==1);
 	CHECK(!xrtMemDebugFailTriggered());xrtMemDebugFailClear();destroy_pair();return 0;
 }
+static int sparse_ack(void)
+{
+	memset(&net,0,sizeof(net));xrudpsessionconfig config;configure(&config,65536,1200);
+	xrudpcipher* peer;xrudpsession* session;CHECK(raw_session(&peer,&session,&config)==0);
+	CHECK(xrtMemDebugFailAfter(0));
+	unsigned char ping[4]={XRUDP_FRAME_PING,0,0,0},packet[1200],plain[1200];size_t size,length;
+	/* Authenticated nonconsecutive PNs force the complete ACK range budget.
+	 * The skipped nonce was never delivered, and must never be acknowledged. */
+	for(uint32_t i=0;i<32;++i) {
+		CHECK(xrtRudpCipherSeal(peer,ping,sizeof(ping),packet,sizeof(packet),&size)==XRUDP_OK);
+		CHECK(xrtRudpCipherSeal(peer,ping,sizeof(ping),packet,sizeof(packet),&size)==XRUDP_OK);
+		CHECK(xrtRudpSessionInput(session,packet,size,i*1000)==XRUDP_OK);
+	}
+	uint64_t due;CHECK(xrtRudpSessionPoll(session,100000,&due)==XRUDP_OK);
+	uint32_t packets=0;
+	for(size_t i=0;i<TEST_QUEUE;++i)if(net.Queue[i].Used) {
+		session_packet* p=&net.Queue[i];CHECK(p->Size<=512 && xrtRudpCipherOpen(peer,p->Data,p->Size,plain,sizeof(plain),&length)==XRUDP_OK);
+		xrudpack ack;CHECK(xrtRudpAckDecode(plain,length,&ack)==XRUDP_OK && ack.Count>1 && ack.Ranges[0].Last==65);
+		for(uint16_t k=0;k<ack.Count;++k)CHECK(ack.Ranges[k].First==ack.Ranges[k].Last && (ack.Ranges[k].Last&1u));
+		++packets;
+	}
+	xrudpsessionstate state;CHECK(packets==1 && xrtRudpSessionState(session,&state)==XRUDP_OK && !state.AckPending && state.Sent.BytesInFlight==0 && state.Congestion.BytesInFlight==0);
+	CHECK(!xrtMemDebugFailTriggered());xrtMemDebugFailClear();xrtRudpSessionDestroy(session);xrtRudpCipherDestroy(peer);
+	puts("xrudp sparse ACK: 32 authenticated gaps fit safe512 budget without acknowledging undelivered nonces or flight growth");return 0;
+}
 int main(void)
 {
 	xmemdebugsnapshot before, after; xrtClearError(); xrtMemDebugSnapshot(&before);
 	CHECK(grow(1200,512,512) == 0 && grow(1200,768,768) == 0 && grow(1200,1024,1024) == 0 && grow(1200,1200,1200) == 0 && grow(700,700,700) == 0);
 	CHECK(blocked() == 0 && shrink(32) == 0 && shrink(1) == 0 && unsupported() == 0 && migrate() == 0);
+	CHECK(sparse_ack() == 0);
 	xrtClearError(); xrtMemDebugSnapshot(&after);
 	CHECK(before.LiveCount == after.LiveCount && before.LiveBytes == after.LiveBytes && before.DoubleFreeCount == after.DoubleFreeCount && before.UseAfterFreeCount == after.UseAfterFreeCount);
 	puts("xrudp session MTU: padded ACK proof, failed growth, base failure, backpressure, size black hole and zero I/O allocations passed"); return 0;
