@@ -45,9 +45,11 @@ int main(void)
 	for (size_t i = 0; i < 64; ++i) frames[i] = (xrudpreceiveframe){r, 1024 + i, input + i, 1, false};
 	CHECK(xrtRudpReceiveCheckBatch(frames, 64, 64, &batch) == XRUDP_OK && batch.NewBytes == 64);
 	CHECK(xrtRudpReceivePushBatch(frames, 64, 64, &batch) == XRUDP_OK && batch.HighestDelta == 64);
-	CHECK(xrtRudpReceiveReset(r, 2048, 5, &change) == XRUDP_OK && change.ConsumedDelta == 1024);
+	CHECK(xrtRudpReceiveStop(r, 42, &change) == XRUDP_OK && change.ConsumedDelta == 64);
+	CHECK(xrtRudpReceiveRestart(r, 1024) == XRUDP_BACKPRESSURE);
+	CHECK(xrtRudpReceiveReset(r, 2048, 5, &change) == XRUDP_OK && change.ConsumedDelta == 960);
 	xrtRudpReceiveDestroy(r);
 	CHECK(calls == before);
-	puts("xrudp receive memory: allocation failure and allocation-free worst-case fragmentation/read/reset passed");
+	puts("xrudp receive memory: allocation failure and allocation-free worst-case fragmentation/read/stop/reset passed");
 	return 0;
 }

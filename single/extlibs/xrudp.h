@@ -949,12 +949,14 @@ typedef struct xrudpreceivestate {
 	uint32_t HasFinal;
 	uint32_t Reset;
 	uint32_t ResetReason;
+	uint32_t Stopped; /* Local delivery cancellation; peer final size still unknown. */
+	uint32_t StopReason;
 } xrudpreceivestate;
 
 typedef struct xrudpreceivechange {
 	uint64_t HighestDelta; /* Connection flow-control cost, includes holes. */
 	uint64_t NewBytes; /* Newly buffered bytes, excludes duplicates/consumed data. */
-	uint64_t ConsumedDelta; /* RESET discards all outstanding logical offsets. */
+	uint64_t ConsumedDelta; /* RESET/Stop/discard releases charged logical offsets. */
 	uint32_t NewFinal;
 	uint32_t Reserved;
 } xrudpreceivechange;
@@ -970,6 +972,7 @@ typedef struct xrudpreceiveframe {
 typedef struct xrudpreceivebatchchange {
 	uint64_t HighestDelta;
 	uint64_t NewBytes;
+	uint64_t ConsumedDelta; /* HighestDelta of already stopped streams, once each. */
 	uint32_t NewFinals;
 	uint32_t Streams;
 } xrudpreceivebatchchange;
@@ -985,7 +988,7 @@ XRUDP_API xrudpresult xrtRudpReceiveCreate(uint32_t iCapacity,
 	uint64_t iInitialLimit, xrudpreceive** ppReceive);
 XRUDP_API void xrtRudpReceiveDestroy(xrudpreceive* pReceive);
 XRUDP_API xrudpresult xrtRudpReceiveState(const xrudpreceive* pReceive, xrudpreceivestate* pState);
-/* A Read can return bytes or a terminal EOF/RESET now (no hole wait). */
+/* A Read can return bytes or terminal EOF/RESET/local Stop now (no hole wait). */
 XRUDP_API bool xrtRudpReceiveReady(const xrudpreceive* pReceive);
 /* Reuse quiescent storage for a NEW stream: only fresh, RESET, or consumed EOF.
  * Driver must have drained every old packet reference first. No allocation. */
@@ -1009,6 +1012,8 @@ XRUDP_API xrudpresult xrtRudpReceivePush(xrudpreceive* pReceive,
  * Checks cross-frame overlaps/final sizes and sums each stream's maximum offset
  * delta exactly once. Exceeding remaining advertised CONNECTION credit is
  * MALFORMED. Metadata/CPU work is bounded, and neither routine allocates.
+ * ConsumedDelta counts each stopped stream's new logical maximum once, not
+ * each duplicate/overlapping frame; normal streams still buffer NewBytes.
  * CheckBatch is pure; PushBatch rechecks and commits only after ALL validation.
  * Inputs and output objects must be disjoint from every receive object.
  * The connection driver must ALSO preflight ACK/control/OPEN/RESET frames,
@@ -1018,7 +1023,7 @@ XRUDP_API xrudpresult xrtRudpReceiveCheckBatch(const xrudpreceiveframe* pFrames,
 XRUDP_API xrudpresult xrtRudpReceivePushBatch(const xrudpreceiveframe* pFrames,
 	size_t iCount, uint64_t iRemainingConnectionCredit, xrudpreceivebatchchange* pChange);
 /* Copies and consumes only contiguous data. BACKPRESSURE means a receive hole;
- * DONE is clean EOF, CANCELLED is peer RESET, both with zero read count.
+ * DONE is clean EOF, CANCELLED is peer RESET/local Stop, with zero read count.
  * EOF/RESET are never inferred merely from an empty buffer. Capacity must >0.
  * Successful consumption does not itself advertise additional peer credit. */
 XRUDP_API xrudpresult xrtRudpReceiveRead(xrudpreceive* pReceive,
@@ -1032,6 +1037,19 @@ XRUDP_API xrudpresult xrtRudpReceivePeek(const xrudpreceive* pReceive,
 /* Monotonic explicit credit, <=ReadOffset+Capacity, saturating at UINT64_MAX.
  * Owner sends/retransmits the latest MAX_STREAM_DATA value. */
 XRUDP_API xrudpresult xrtRudpReceiveExtend(xrudpreceive* pReceive, uint64_t iLimit);
+/* Locally stop delivery and clear all buffered plaintext/bitmap. Consume all
+ * already charged offsets, including holes, exactly once; never invent a peer
+ * final size or enlarge the advertised limit. Later authenticated STREAMs are
+ * validated for credit/offset/final-size and discarded without copying, with
+ * ConsumedDelta tracking only each new maximum. Read/Peek return CANCELLED.
+ * Discarded plaintext overlaps are not compared; offset/final constraints stay.
+ * Extend is CANCELLED; Restart waits for a real peer FIN/RESET. Same reason is
+ * DUPLICATE, changing a stopped reason is ARGUMENT. Already RESET/consumed EOF
+ * is DUPLICATE without changing its existing terminal result. No allocation.
+ * This is a buffer primitive: the driver must reliably notify the peer and
+ * use ConsumedDelta to release CONNECTION credit without granting this stream. */
+XRUDP_API xrudpresult xrtRudpReceiveStop(xrudpreceive* pReceive,
+	uint32_t iReason, xrudpreceivechange* pChange);
 /* Final size is charged even if missing bytes are discarded. Duplicated RESET
  * has no new cost. An inconsistent final size/reason is a peer protocol error.
  * ReadOffset advances to final size and ConsumedDelta lets connection credit
@@ -3480,8 +3498,8 @@ xrudpresult xrtRudpCongestionCollapse(xrudpcongestion* s, uint64_t now)
 
 struct xrudpreceive {
 	uint64_t ReadOffset, HighestOffset, FinalOffset, Limit, Buffered;
-	uint32_t Capacity, ResetReason;
-	bool HasFinal, Reset;
+	uint32_t Capacity, ResetReason, StopReason;
+	bool HasFinal, Reset, Stopped;
 	unsigned char Data[]; /* Capacity plaintext bytes, then Capacity/8 bitmap. */
 };
 
@@ -3541,13 +3559,14 @@ xrudpresult xrtRudpReceiveState(const xrudpreceive* r, xrudpreceivestate* output
 	s.FinalOffset = r->FinalOffset; s.Limit = r->Limit; s.BufferedBytes = r->Buffered;
 	s.Capacity = r->Capacity; s.HasFinal = r->HasFinal ? 1u : 0u;
 	s.Reset = r->Reset ? 1u : 0u; s.ResetReason = r->ResetReason;
+	s.Stopped = r->Stopped ? 1u : 0u; s.StopReason = r->StopReason;
 	*output = s;
 	return XRUDP_OK;
 }
 
 bool xrtRudpReceiveReady(const xrudpreceive* r)
 {
-	return r != NULL && (r->Reset || (r->HasFinal && r->ReadOffset == r->FinalOffset) ||
+	return r != NULL && (r->Reset || r->Stopped || (r->HasFinal && r->ReadOffset == r->FinalOffset) ||
 		(r->Buffered != 0 && xrudp__receive_has(r, xrudp__receive_slot(r, r->ReadOffset))));
 }
 
@@ -3555,7 +3574,7 @@ xrudpresult xrtRudpReceiveRestart(xrudpreceive* r, uint64_t limit)
 {
 	if (r == NULL || limit > r->Capacity) return XRUDP_ARGUMENT;
 	if (!r->Reset && !(r->HasFinal && r->ReadOffset == r->FinalOffset) &&
-		(r->ReadOffset != 0 || r->HighestOffset != 0 || r->HasFinal || r->Buffered != 0)) return XRUDP_BACKPRESSURE;
+		(r->Stopped || r->ReadOffset != 0 || r->HighestOffset != 0 || r->HasFinal || r->Buffered != 0)) return XRUDP_BACKPRESSURE;
 	uint32_t capacity = r->Capacity;
 	xrtSecureZero(r, sizeof(*r) + capacity + capacity / 8); r->Capacity = capacity; r->Limit = limit;
 	return XRUDP_OK;
@@ -3577,6 +3596,10 @@ xrudpresult xrtRudpReceiveCheck(const xrudpreceive* r, uint64_t offset,
 	if (r->Reset) { *change = next; return XRUDP_DUPLICATE; }
 	next.HighestDelta = end > r->HighestOffset ? end - r->HighestOffset : 0;
 	next.NewFinal = fin && !r->HasFinal ? 1u : 0u;
+	if (r->Stopped) {
+		next.ConsumedDelta = next.HighestDelta; *change = next;
+		return next.HighestDelta || next.NewFinal ? XRUDP_OK : XRUDP_DUPLICATE;
+	}
 	for (size_t i = 0; i < size; ++i) {
 		size_t slot;
 		if (offset + i < r->ReadOffset) continue;
@@ -3593,6 +3616,11 @@ static void xrudp__receive_commit(xrudpreceive* r, uint64_t offset,
 	const void* data, size_t size, bool fin)
 {
 	if (r->Reset) return;
+	if (r->Stopped) {
+		if (offset + size > r->HighestOffset) r->ReadOffset = r->HighestOffset = offset + size;
+		if (fin) { r->HasFinal = true; r->FinalOffset = offset + size; }
+		return;
+	}
 	for (size_t i = 0; i < size; ++i) {
 		size_t slot;
 		if (offset + i < r->ReadOffset) continue;
@@ -3647,7 +3675,7 @@ xrudpresult xrtRudpReceiveCheckBatch(const xrudpreceiveframe* frames,
 			plans[p].HasFinal = true; plans[p].Final = end; ++next.NewFinals;
 		}
 		if (end > plans[p].Highest) plans[p].Highest = end;
-		if (r->Reset) continue;
+		if (r->Reset || r->Stopped) continue;
 		for (size_t j = 0; j < i; ++j) {
 			const xrudpreceiveframe* old = &frames[j];
 			if (old->Receive != r) continue;
@@ -3673,6 +3701,7 @@ xrudpresult xrtRudpReceiveCheckBatch(const xrudpreceiveframe* frames,
 		uint64_t delta = plans[i].Highest - plans[i].Receive->HighestOffset;
 		if (delta > credit - next.HighestDelta) return XRUDP_MALFORMED;
 		next.HighestDelta += delta;
+		if (plans[i].Receive->Stopped) next.ConsumedDelta += delta;
 	}
 	next.Streams = (uint32_t)streams; *change = next;
 	return next.HighestDelta || next.NewBytes || next.NewFinals ? XRUDP_OK : XRUDP_DUPLICATE;
@@ -3698,7 +3727,7 @@ xrudpresult xrtRudpReceivePeek(const xrudpreceive* r, uint64_t offset, void* out
 	if (read != NULL) *read = 0;
 	if (r == NULL || output == NULL || capacity == 0 || read == NULL || offset < r->ReadOffset || offset > r->Limit ||
 		(r->HasFinal && offset > r->FinalOffset)) return XRUDP_ARGUMENT;
-	if (r->Reset) return XRUDP_CANCELLED;
+	if (r->Reset || r->Stopped) return XRUDP_CANCELLED;
 	if (r->HasFinal && offset == r->FinalOffset) return XRUDP_DONE;
 	size_t count = 0;
 	while (count < capacity && offset < r->Limit) {
@@ -3715,7 +3744,7 @@ xrudpresult xrtRudpReceiveRead(xrudpreceive* r, void* output, size_t capacity, s
 	size_t count = 0;
 	if (read != NULL) *read = 0;
 	if (r == NULL || output == NULL || capacity == 0 || read == NULL) return XRUDP_ARGUMENT;
-	if (r->Reset) return XRUDP_CANCELLED;
+	if (r->Reset || r->Stopped) return XRUDP_CANCELLED;
 	if (r->HasFinal && r->ReadOffset == r->FinalOffset) return XRUDP_DONE;
 	while (count < capacity && r->Buffered != 0) {
 		size_t slot = xrudp__receive_slot(r, r->ReadOffset);
@@ -3733,11 +3762,26 @@ xrudpresult xrtRudpReceiveExtend(xrudpreceive* r, uint64_t limit)
 	uint64_t ceiling;
 	if (r == NULL) return XRUDP_ARGUMENT;
 	if (r->Reset) return XRUDP_CLOSED;
+	if (r->Stopped) return XRUDP_CANCELLED;
 	ceiling = r->ReadOffset > UINT64_MAX - r->Capacity ? UINT64_MAX : r->ReadOffset + r->Capacity;
 	if (limit < r->Limit || limit > ceiling) return XRUDP_ARGUMENT;
 	if (limit == r->Limit) return XRUDP_DUPLICATE;
 	r->Limit = limit;
 	return XRUDP_OK;
+}
+
+xrudpresult xrtRudpReceiveStop(xrudpreceive* r, uint32_t reason, xrudpreceivechange* change)
+{
+	if (r == NULL || change == NULL) return XRUDP_ARGUMENT;
+	if (r->Stopped && reason != r->StopReason) return XRUDP_ARGUMENT;
+	xrudpreceivechange next; memset(&next, 0, sizeof(next));
+	if (r->Stopped || r->Reset || (r->HasFinal && r->ReadOffset == r->FinalOffset)) {
+		*change = next; return XRUDP_DUPLICATE;
+	}
+	next.ConsumedDelta = r->HighestOffset - r->ReadOffset;
+	r->ReadOffset = r->HighestOffset; r->Buffered = 0; r->Stopped = true; r->StopReason = reason;
+	xrtSecureZero(r->Data, r->Capacity + r->Capacity / 8);
+	*change = next; return XRUDP_OK;
 }
 
 xrudpresult xrtRudpReceiveReset(xrudpreceive* r,

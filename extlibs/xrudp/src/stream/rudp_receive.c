@@ -4,8 +4,8 @@
 
 struct xrudpreceive {
 	uint64_t ReadOffset, HighestOffset, FinalOffset, Limit, Buffered;
-	uint32_t Capacity, ResetReason;
-	bool HasFinal, Reset;
+	uint32_t Capacity, ResetReason, StopReason;
+	bool HasFinal, Reset, Stopped;
 	unsigned char Data[]; /* Capacity plaintext bytes, then Capacity/8 bitmap. */
 };
 
@@ -65,13 +65,14 @@ xrudpresult xrtRudpReceiveState(const xrudpreceive* r, xrudpreceivestate* output
 	s.FinalOffset = r->FinalOffset; s.Limit = r->Limit; s.BufferedBytes = r->Buffered;
 	s.Capacity = r->Capacity; s.HasFinal = r->HasFinal ? 1u : 0u;
 	s.Reset = r->Reset ? 1u : 0u; s.ResetReason = r->ResetReason;
+	s.Stopped = r->Stopped ? 1u : 0u; s.StopReason = r->StopReason;
 	*output = s;
 	return XRUDP_OK;
 }
 
 bool xrtRudpReceiveReady(const xrudpreceive* r)
 {
-	return r != NULL && (r->Reset || (r->HasFinal && r->ReadOffset == r->FinalOffset) ||
+	return r != NULL && (r->Reset || r->Stopped || (r->HasFinal && r->ReadOffset == r->FinalOffset) ||
 		(r->Buffered != 0 && xrudp__receive_has(r, xrudp__receive_slot(r, r->ReadOffset))));
 }
 
@@ -79,7 +80,7 @@ xrudpresult xrtRudpReceiveRestart(xrudpreceive* r, uint64_t limit)
 {
 	if (r == NULL || limit > r->Capacity) return XRUDP_ARGUMENT;
 	if (!r->Reset && !(r->HasFinal && r->ReadOffset == r->FinalOffset) &&
-		(r->ReadOffset != 0 || r->HighestOffset != 0 || r->HasFinal || r->Buffered != 0)) return XRUDP_BACKPRESSURE;
+		(r->Stopped || r->ReadOffset != 0 || r->HighestOffset != 0 || r->HasFinal || r->Buffered != 0)) return XRUDP_BACKPRESSURE;
 	uint32_t capacity = r->Capacity;
 	xrtSecureZero(r, sizeof(*r) + capacity + capacity / 8); r->Capacity = capacity; r->Limit = limit;
 	return XRUDP_OK;
@@ -101,6 +102,10 @@ xrudpresult xrtRudpReceiveCheck(const xrudpreceive* r, uint64_t offset,
 	if (r->Reset) { *change = next; return XRUDP_DUPLICATE; }
 	next.HighestDelta = end > r->HighestOffset ? end - r->HighestOffset : 0;
 	next.NewFinal = fin && !r->HasFinal ? 1u : 0u;
+	if (r->Stopped) {
+		next.ConsumedDelta = next.HighestDelta; *change = next;
+		return next.HighestDelta || next.NewFinal ? XRUDP_OK : XRUDP_DUPLICATE;
+	}
 	for (size_t i = 0; i < size; ++i) {
 		size_t slot;
 		if (offset + i < r->ReadOffset) continue;
@@ -117,6 +122,11 @@ static void xrudp__receive_commit(xrudpreceive* r, uint64_t offset,
 	const void* data, size_t size, bool fin)
 {
 	if (r->Reset) return;
+	if (r->Stopped) {
+		if (offset + size > r->HighestOffset) r->ReadOffset = r->HighestOffset = offset + size;
+		if (fin) { r->HasFinal = true; r->FinalOffset = offset + size; }
+		return;
+	}
 	for (size_t i = 0; i < size; ++i) {
 		size_t slot;
 		if (offset + i < r->ReadOffset) continue;
@@ -171,7 +181,7 @@ xrudpresult xrtRudpReceiveCheckBatch(const xrudpreceiveframe* frames,
 			plans[p].HasFinal = true; plans[p].Final = end; ++next.NewFinals;
 		}
 		if (end > plans[p].Highest) plans[p].Highest = end;
-		if (r->Reset) continue;
+		if (r->Reset || r->Stopped) continue;
 		for (size_t j = 0; j < i; ++j) {
 			const xrudpreceiveframe* old = &frames[j];
 			if (old->Receive != r) continue;
@@ -197,6 +207,7 @@ xrudpresult xrtRudpReceiveCheckBatch(const xrudpreceiveframe* frames,
 		uint64_t delta = plans[i].Highest - plans[i].Receive->HighestOffset;
 		if (delta > credit - next.HighestDelta) return XRUDP_MALFORMED;
 		next.HighestDelta += delta;
+		if (plans[i].Receive->Stopped) next.ConsumedDelta += delta;
 	}
 	next.Streams = (uint32_t)streams; *change = next;
 	return next.HighestDelta || next.NewBytes || next.NewFinals ? XRUDP_OK : XRUDP_DUPLICATE;
@@ -222,7 +233,7 @@ xrudpresult xrtRudpReceivePeek(const xrudpreceive* r, uint64_t offset, void* out
 	if (read != NULL) *read = 0;
 	if (r == NULL || output == NULL || capacity == 0 || read == NULL || offset < r->ReadOffset || offset > r->Limit ||
 		(r->HasFinal && offset > r->FinalOffset)) return XRUDP_ARGUMENT;
-	if (r->Reset) return XRUDP_CANCELLED;
+	if (r->Reset || r->Stopped) return XRUDP_CANCELLED;
 	if (r->HasFinal && offset == r->FinalOffset) return XRUDP_DONE;
 	size_t count = 0;
 	while (count < capacity && offset < r->Limit) {
@@ -239,7 +250,7 @@ xrudpresult xrtRudpReceiveRead(xrudpreceive* r, void* output, size_t capacity, s
 	size_t count = 0;
 	if (read != NULL) *read = 0;
 	if (r == NULL || output == NULL || capacity == 0 || read == NULL) return XRUDP_ARGUMENT;
-	if (r->Reset) return XRUDP_CANCELLED;
+	if (r->Reset || r->Stopped) return XRUDP_CANCELLED;
 	if (r->HasFinal && r->ReadOffset == r->FinalOffset) return XRUDP_DONE;
 	while (count < capacity && r->Buffered != 0) {
 		size_t slot = xrudp__receive_slot(r, r->ReadOffset);
@@ -257,11 +268,26 @@ xrudpresult xrtRudpReceiveExtend(xrudpreceive* r, uint64_t limit)
 	uint64_t ceiling;
 	if (r == NULL) return XRUDP_ARGUMENT;
 	if (r->Reset) return XRUDP_CLOSED;
+	if (r->Stopped) return XRUDP_CANCELLED;
 	ceiling = r->ReadOffset > UINT64_MAX - r->Capacity ? UINT64_MAX : r->ReadOffset + r->Capacity;
 	if (limit < r->Limit || limit > ceiling) return XRUDP_ARGUMENT;
 	if (limit == r->Limit) return XRUDP_DUPLICATE;
 	r->Limit = limit;
 	return XRUDP_OK;
+}
+
+xrudpresult xrtRudpReceiveStop(xrudpreceive* r, uint32_t reason, xrudpreceivechange* change)
+{
+	if (r == NULL || change == NULL) return XRUDP_ARGUMENT;
+	if (r->Stopped && reason != r->StopReason) return XRUDP_ARGUMENT;
+	xrudpreceivechange next; memset(&next, 0, sizeof(next));
+	if (r->Stopped || r->Reset || (r->HasFinal && r->ReadOffset == r->FinalOffset)) {
+		*change = next; return XRUDP_DUPLICATE;
+	}
+	next.ConsumedDelta = r->HighestOffset - r->ReadOffset;
+	r->ReadOffset = r->HighestOffset; r->Buffered = 0; r->Stopped = true; r->StopReason = reason;
+	xrtSecureZero(r->Data, r->Capacity + r->Capacity / 8);
+	*change = next; return XRUDP_OK;
 }
 
 xrudpresult xrtRudpReceiveReset(xrudpreceive* r,

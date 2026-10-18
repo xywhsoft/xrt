@@ -295,10 +295,12 @@
       ],
       "tests": [
         "extlibs/xrudp/tests/test_receive.c",
-        "extlibs/xrudp/tests/test_receive_memory.c"
+        "extlibs/xrudp/tests/test_receive_memory.c",
+        "extlibs/xrudp/tests/test_receive_stop.c"
       ],
       "single_tests": [
-        "extlibs/xrudp/tests/single/test_single_receive.c"
+        "extlibs/xrudp/tests/single/test_single_receive.c",
+        "extlibs/xrudp/tests/single/test_single_receive_stop.c"
       ],
       "examples": [],
       "benchmarks": [],

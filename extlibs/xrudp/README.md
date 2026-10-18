@@ -73,6 +73,9 @@ RETIRE_READY 提示两半结束且旧包引用已排空，STREAMS_READY 提示�
 模块 rudp_congestion 提供 NewReno 与两数据报突发上限的 pacing；共享所有在途业务的预算。
 模块 rudp_receive 提供固定数据环/位图重组，不为乱序片段另行分配元数据。
 同包多个 STREAM 帧可整体预检和原子提交，连接累计偏移按各流最高值计费一次。
+ReceiveStop 已提供本地停止交付的基础状态：清除未读明文和位图，仍校验迟到 STREAM 的
+额度/偏移/真实 FIN/RESET，不伪造最终偏移，不继续给该流授予额度；逻辑消费量供连接回收额度。
+停止后不能在真实 FIN/RESET 前复用存储。这是缓冲组件，可靠取消通知与会话/原生 API 尚待接入。
 模块 rudp_transmit 保留未确认内容，以分层位图查找待发范围，重传副本共享逻辑确认状态。
 TransmitMessageWrite 可将 u32 长度前缀和一条负载整体排入现有发送环，空间不足时完整拒收。
 模块 rudp_message 提供有界的消息接收组装器，构造时一次分配 0..1MiB 固定空间；

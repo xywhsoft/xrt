@@ -3373,12 +3373,14 @@ typedef struct xrudpreceivestate {
 	uint32_t HasFinal;
 	uint32_t Reset;
 	uint32_t ResetReason;
+	uint32_t Stopped; /* Local delivery cancellation; peer final size still unknown. */
+	uint32_t StopReason;
 } xrudpreceivestate;
 
 typedef struct xrudpreceivechange {
 	uint64_t HighestDelta; /* Connection flow-control cost, includes holes. */
 	uint64_t NewBytes; /* Newly buffered bytes, excludes duplicates/consumed data. */
-	uint64_t ConsumedDelta; /* RESET discards all outstanding logical offsets. */
+	uint64_t ConsumedDelta; /* RESET/Stop/discard releases charged logical offsets. */
 	uint32_t NewFinal;
 	uint32_t Reserved;
 } xrudpreceivechange;
@@ -3394,6 +3396,7 @@ typedef struct xrudpreceiveframe {
 typedef struct xrudpreceivebatchchange {
 	uint64_t HighestDelta;
 	uint64_t NewBytes;
+	uint64_t ConsumedDelta; /* HighestDelta of already stopped streams, once each. */
 	uint32_t NewFinals;
 	uint32_t Streams;
 } xrudpreceivebatchchange;
@@ -3409,7 +3412,7 @@ XRUDP_API xrudpresult xrtRudpReceiveCreate(uint32_t iCapacity,
 	uint64_t iInitialLimit, xrudpreceive** ppReceive);
 XRUDP_API void xrtRudpReceiveDestroy(xrudpreceive* pReceive);
 XRUDP_API xrudpresult xrtRudpReceiveState(const xrudpreceive* pReceive, xrudpreceivestate* pState);
-/* A Read can return bytes or a terminal EOF/RESET now (no hole wait). */
+/* A Read can return bytes or terminal EOF/RESET/local Stop now (no hole wait). */
 XRUDP_API bool xrtRudpReceiveReady(const xrudpreceive* pReceive);
 /* Reuse quiescent storage for a NEW stream: only fresh, RESET, or consumed EOF.
  * Driver must have drained every old packet reference first. No allocation. */
@@ -3433,6 +3436,8 @@ XRUDP_API xrudpresult xrtRudpReceivePush(xrudpreceive* pReceive,
  * Checks cross-frame overlaps/final sizes and sums each stream's maximum offset
  * delta exactly once. Exceeding remaining advertised CONNECTION credit is
  * MALFORMED. Metadata/CPU work is bounded, and neither routine allocates.
+ * ConsumedDelta counts each stopped stream's new logical maximum once, not
+ * each duplicate/overlapping frame; normal streams still buffer NewBytes.
  * CheckBatch is pure; PushBatch rechecks and commits only after ALL validation.
  * Inputs and output objects must be disjoint from every receive object.
  * The connection driver must ALSO preflight ACK/control/OPEN/RESET frames,
@@ -3442,7 +3447,7 @@ XRUDP_API xrudpresult xrtRudpReceiveCheckBatch(const xrudpreceiveframe* pFrames,
 XRUDP_API xrudpresult xrtRudpReceivePushBatch(const xrudpreceiveframe* pFrames,
 	size_t iCount, uint64_t iRemainingConnectionCredit, xrudpreceivebatchchange* pChange);
 /* Copies and consumes only contiguous data. BACKPRESSURE means a receive hole;
- * DONE is clean EOF, CANCELLED is peer RESET, both with zero read count.
+ * DONE is clean EOF, CANCELLED is peer RESET/local Stop, with zero read count.
  * EOF/RESET are never inferred merely from an empty buffer. Capacity must >0.
  * Successful consumption does not itself advertise additional peer credit. */
 XRUDP_API xrudpresult xrtRudpReceiveRead(xrudpreceive* pReceive,
@@ -3456,6 +3461,19 @@ XRUDP_API xrudpresult xrtRudpReceivePeek(const xrudpreceive* pReceive,
 /* Monotonic explicit credit, <=ReadOffset+Capacity, saturating at UINT64_MAX.
  * Owner sends/retransmits the latest MAX_STREAM_DATA value. */
 XRUDP_API xrudpresult xrtRudpReceiveExtend(xrudpreceive* pReceive, uint64_t iLimit);
+/* Locally stop delivery and clear all buffered plaintext/bitmap. Consume all
+ * already charged offsets, including holes, exactly once; never invent a peer
+ * final size or enlarge the advertised limit. Later authenticated STREAMs are
+ * validated for credit/offset/final-size and discarded without copying, with
+ * ConsumedDelta tracking only each new maximum. Read/Peek return CANCELLED.
+ * Discarded plaintext overlaps are not compared; offset/final constraints stay.
+ * Extend is CANCELLED; Restart waits for a real peer FIN/RESET. Same reason is
+ * DUPLICATE, changing a stopped reason is ARGUMENT. Already RESET/consumed EOF
+ * is DUPLICATE without changing its existing terminal result. No allocation.
+ * This is a buffer primitive: the driver must reliably notify the peer and
+ * use ConsumedDelta to release CONNECTION credit without granting this stream. */
+XRUDP_API xrudpresult xrtRudpReceiveStop(xrudpreceive* pReceive,
+	uint32_t iReason, xrudpreceivechange* pChange);
 /* Final size is charged even if missing bytes are discarded. Duplicated RESET
  * has no new cost. An inconsistent final size/reason is a peer protocol error.
  * ReadOffset advances to final size and ConsumedDelta lets connection credit
