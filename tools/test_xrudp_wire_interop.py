@@ -16,6 +16,7 @@ import queue
 import socket
 import struct
 import subprocess
+import sys
 import threading
 import time
 
@@ -497,9 +498,17 @@ def run_case(binary,family,responder,typed,native_backend,peer_type=Peer,fixture
                 bad_tags=peer.invalid_injected,replayed_packets=peer.replay_injected)
             print(json.dumps(result),flush=True)
         finally:
+            failed=sys.exc_info()[0] is not None
             if child.poll() is None:
                 child.terminate(); child.wait(timeout=5)
-            reader.join(1); child.stdout.close(); child.stderr.close()
+            reader.join(1)
+            if failed:
+                diagnostic=child.stderr.read()
+                pending=[]
+                while not lines.empty() and len(pending)<4: pending.append(lines.get_nowait().strip())
+                if diagnostic or pending:
+                    print('native failure diagnostic: '+(diagnostic+'\n'+'\n'.join(pending))[:8192],file=sys.stderr,flush=True)
+            child.stdout.close(); child.stderr.close()
             if peer is not None: peer.cleanup()
 
 

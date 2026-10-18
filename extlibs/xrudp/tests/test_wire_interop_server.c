@@ -22,6 +22,8 @@ typedef struct wire_test {
     bool Graceful, ShutdownStarted, ShutdownVerified;
     bool PathTest, PathVerified; uint16_t InitialPeerPort; unsigned PathChanges;
     bool MtuTest, MtuLimited, MtuStarted, MtuVerified; xrudpmtustate Mtu;
+    bool MtuShrink, MtuLimitChecked; uint64_t StallDeadline, StallStartReceived, StallReceives;
+    uint64_t GameLost, GameSizeDropped;
     unsigned Games, StreamOpened; xrudpresult CloseReason, ExpectedClose;
     wire_slot Slots[6];
 } wire_test;
@@ -32,6 +34,11 @@ static void complete(wire_test* T)
 {
     if (!T->Eof || T->Read!=3072 || !T->Acked) return;
     if (T->StopControl && !T->StopVerified) return;
+    if (T->MtuShrink) {
+        xrudpsessionstate S={0};
+        require(T,xrtRudpPeerSessionState(T->Peer,&S)==XRUDP_OK,"recovered game receipt state");
+        if (!T->MtuLimitChecked || S.DatagramAcknowledged!=3 || S.Datagrams.SendQueued) return;
+    }
     if (T->Typed) {
         if (T->Games!=3) return;
         for (unsigned I=2;I<6;++I) {
@@ -65,6 +72,24 @@ static void check_complete(xnetworker* W, ptr Data)
                     S.Mtu.ProbesAcknowledged==(T->MtuLimited ? 2u:4u) && !S.Mtu.Fallbacks &&
                     S.Mtu.ProbeFailures==(T->MtuLimited ? 3u:0u),"exact authenticated MTU evidence");
                 T->MtuStarted=true; start_business(T,T->Peer);
+            }
+        }
+        if (T->MtuShrink && T->MtuStarted) {
+            xrudpsessionstate S={0};
+            require(T,xrtRudpPeerSessionState(T->Peer,&S)==XRUDP_OK,"stalled size snapshot");
+            if (!S.Mtu.Fallbacks && S.Mtu.LargeDeadlineUs) {
+                if (!T->StallDeadline) { T->StallDeadline=S.Mtu.LargeDeadlineUs; T->StallStartReceived=S.ReceivedPackets; }
+                require(T,T->StallDeadline==S.Mtu.LargeDeadlineUs,"small progress cannot extend large size deadline");
+            }
+            if (S.Mtu.Fallbacks && !T->MtuLimitChecked) {
+                unsigned char Game[700]={0}; uint64_t Sequence=999;
+                require(T,T->StallDeadline && S.ReceivedPackets>=T->StallStartReceived+2 &&
+                    S.Mtu.Fallbacks==1 && S.Mtu.Effective==512 && S.DatagramSendLimit==424 &&
+                    S.Datagrams.SendSizeDropped && S.DatagramLost,"small traffic, fallback and queued/inflight game loss");
+                T->StallReceives=S.ReceivedPackets-T->StallStartReceived;
+                require(T,xrtRudpPeerDatagramWrite(T->Peer,7,Game,sizeof(Game),0,&Sequence)==XRUDP_LIMIT &&
+                    Sequence==999,"current MTU rejects a new oversized game without consuming sequence");
+                T->MtuLimitChecked=true;
             }
         }
         complete(T);
@@ -213,6 +238,11 @@ static void start_business(wire_test* T, xrudppeer* P)
             xrudpdatagramchannel C; xrtRudpDatagramChannelInit(&C); C.Id=7u+I; C.Mode=(uint8_t)I; C.ReplacePending=I==2;
             require(T,xrtRudpPeerDatagramConfigure(P,&C)==XRUDP_OK,"game channel");
         }
+        if (T->MtuShrink) for (unsigned I=0;I<8;++I) {
+            unsigned char Game[700]; uint64_t Sequence=999; memset(Game,'G',sizeof(Game)); Game[0]=(unsigned char)I;
+            require(T,xrtRudpPeerDatagramWrite(P,7,Game,sizeof(Game),0,&Sequence)==XRUDP_OK &&
+                Sequence==0,"queue unreplayed oversized game markers before blackhole fallback");
+        }
         for (unsigned I=0;I<2;++I) {
             xrudpstreamconfig C={(uint8_t)I,(uint8_t)(I+1),1}; uint32_t Id=0;
             require(T,xrtRudpPeerStreamOpen(P,&C,&Id)==XRUDP_OK,"open native typed stream");
@@ -269,10 +299,16 @@ static void peer_closed(xrudpendpoint* E, xrudppeer* P, xrudpresult Reason, void
         xrudpsessionstate S={0};
         require(T,xrtRudpPeerSessionState(P,&S)==XRUDP_OK,"terminal MTU snapshot");
         T->Mtu=S.Mtu;
-        T->MtuVerified=Reason==XRUDP_CLOSED && T->MtuStarted && S.Mtu.Enabled && S.Mtu.BaseConfirmed &&
-            S.Mtu.Effective==(T->MtuLimited ? 768u:1200u) && S.Mtu.Ceiling==1200 && !S.Mtu.Fallbacks &&
-            S.Mtu.ProbesSent==(T->MtuLimited ? 5u:4u) && S.Mtu.ProbesAcknowledged==(T->MtuLimited ? 2u:4u) &&
-            S.Mtu.ProbeFailures==(T->MtuLimited ? 3u:0u);
+        T->MtuVerified=Reason==XRUDP_CLOSED && T->MtuStarted && S.Mtu.Enabled && S.Mtu.BaseConfirmed && S.Mtu.Ceiling==1200;
+        if (T->MtuShrink) {
+            T->GameLost=S.DatagramLost; T->GameSizeDropped=S.Datagrams.SendSizeDropped;
+            T->MtuVerified=T->MtuVerified && T->MtuLimitChecked && T->StallReceives>=2 &&
+                S.Mtu.Effective==512 && S.Mtu.Fallbacks==1 && S.Mtu.ProbesSent==5 &&
+                S.Mtu.ProbesAcknowledged==5 && !S.Mtu.ProbeFailures && S.DatagramAcknowledged==3 &&
+                T->GameLost && T->GameSizeDropped && T->GameLost+T->GameSizeDropped==8;
+        } else T->MtuVerified=T->MtuVerified && S.Mtu.Effective==(T->MtuLimited ? 768u:1200u) && !S.Mtu.Fallbacks &&
+                S.Mtu.ProbesSent==(T->MtuLimited ? 5u:4u) && S.Mtu.ProbesAcknowledged==(T->MtuLimited ? 2u:4u) &&
+                S.Mtu.ProbeFailures==(T->MtuLimited ? 3u:0u);
         require(T,T->MtuVerified,"MTU terminal evidence and preserved ceiling");
     }
     xrtAtomic32Store(&T->PeerClosed,1,XMEMORY_RELEASE);
@@ -294,10 +330,12 @@ static void bind_peer(xnetworker* W, ptr Data)
     C.Session.Local.ConnectionCredit=2048; C.Session.Local.StreamCredit=1024;
     C.Session.ReceiveCapacity=1024; C.Session.TransmitCapacity=8192; C.Session.KeyUpdatePackets=8;
     C.Session.DiscoverMtu=T->MtuTest; C.Session.ProgressTimeoutUs=T->MtuTest ? 15000000:5000000;
+    if (T->MtuShrink) C.Session.PacketCapacity=2;
     if (T->Typed || T->Probe) {
         C.Session.StreamCapacity=C.Session.Local.MaxStreams=3; C.Session.Local.MaxMessageSize=8192;
         xrtRudpDatagramConfigInit(&C.Session.Datagrams); C.Session.Datagrams.Channels=3;
-        C.Session.Datagrams.SendCapacity=C.Session.Datagrams.ReceiveCapacity=8; C.Session.Datagrams.PayloadCapacity=128;
+        C.Session.Datagrams.SendCapacity=C.Session.Datagrams.ReceiveCapacity=8;
+        C.Session.Datagrams.PayloadCapacity=T->MtuShrink ? 1024u:128u;
     }
     xnetaddr A; require(T,xrtNetAddrLoopback(&A,T->Family,0),"local address");
     xrudpendpointevents V={opened,confirmed,peer_closed,closed,changed,stream_changed};
@@ -311,9 +349,9 @@ int main(int Argc, char** Argv)
     if (Argc!=5 && Argc!=6) return 2;
     wire_test T={0}; T.Family=atoi(Argv[1])==6 ? XNET_FAMILY_IPV6:XNET_FAMILY_IPV4;
     int Port=atoi(Argv[2]); if (Port<0 || Port>65535) return 2; T.RemotePort=(uint16_t)Port;
-    int Mode=atoi(Argv[3]); if (Mode<0 || Mode>7 || (Mode==2)!=(Argc==6)) return 2;
+    int Mode=atoi(Argv[3]); if (Mode<0 || Mode>8 || (Mode==2)!=(Argc==6)) return 2;
     T.Typed=Mode==1 || Mode>=3; T.Probe=Mode==2; T.StopControl=Mode==3; T.Graceful=Mode==4; T.PathTest=Mode==5;
-    T.MtuTest=Mode==6 || Mode==7; T.MtuLimited=Mode==7;
+    T.MtuTest=Mode>=6; T.MtuLimited=Mode==7; T.MtuShrink=Mode==8;
     if (T.Probe) { T.ExpectedClose=(xrudpresult)atoi(Argv[5]); if (T.ExpectedClose!=XRUDP_MALFORMED && T.ExpectedClose!=XRUDP_CLOSED) return 2; }
     xnetengineconfig C; xrtNetEngineConfigInit(&C); C.Workers=1; C.Backend=XNET_PORT_SELECT;
     if (atoi(Argv[4])) {
@@ -344,7 +382,7 @@ int main(int Argc, char** Argv)
     while (!xrtNetEngineDestroy(T.Engine)) { if (xrtTimer()>=Until) return 5; xrtSleep(1); }
     xrudpendpointinfo I={0}; require(&T,xrtRudpEndpointInfo(T.Endpoint,&I)==XRUDP_OK,"terminal info");
     xrtRudpPeerDestroy(T.Peer); xrtRudpEndpointDestroy(T.Endpoint);
-    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u,\"close_reason\":%u,\"opened\":%u,\"stop_verified\":%s,\"shutdown_verified\":%s,\"path_verified\":%s,\"path_changes\":%u,\"mtu_verified\":%s,\"mtu_effective\":%u,\"mtu_probes\":%llu,\"mtu_acknowledged\":%llu,\"mtu_failures\":%llu,\"joined\":true}\n",
-        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games,(unsigned)T.CloseReason,T.StreamOpened,T.StopVerified?"true":"false",T.ShutdownVerified?"true":"false",T.PathVerified?"true":"false",T.PathChanges,T.MtuVerified?"true":"false",T.Mtu.Effective,(unsigned long long)T.Mtu.ProbesSent,(unsigned long long)T.Mtu.ProbesAcknowledged,(unsigned long long)T.Mtu.ProbeFailures);
+    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u,\"close_reason\":%u,\"opened\":%u,\"stop_verified\":%s,\"shutdown_verified\":%s,\"path_verified\":%s,\"path_changes\":%u,\"mtu_verified\":%s,\"mtu_effective\":%u,\"mtu_probes\":%llu,\"mtu_acknowledged\":%llu,\"mtu_failures\":%llu,\"mtu_fallbacks\":%llu,\"stall_receives\":%llu,\"game_lost\":%llu,\"game_size_dropped\":%llu,\"joined\":true}\n",
+        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games,(unsigned)T.CloseReason,T.StreamOpened,T.StopVerified?"true":"false",T.ShutdownVerified?"true":"false",T.PathVerified?"true":"false",T.PathChanges,T.MtuVerified?"true":"false",T.Mtu.Effective,(unsigned long long)T.Mtu.ProbesSent,(unsigned long long)T.Mtu.ProbesAcknowledged,(unsigned long long)T.Mtu.ProbeFailures,(unsigned long long)T.Mtu.Fallbacks,(unsigned long long)T.StallReceives,(unsigned long long)T.GameLost,(unsigned long long)T.GameSizeDropped);
     return Ready && Done && T.Closes==1 && !xrtAtomic32Load(&T.Failure,XMEMORY_ACQUIRE) ? 0:6;
 }
