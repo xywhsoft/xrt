@@ -95,6 +95,12 @@ XRUDP_API xrudpresult xrtRudpReceivePushBatch(const xrudpreceiveframe* pFrames,
  * Successful consumption does not itself advertise additional peer credit. */
 XRUDP_API xrudpresult xrtRudpReceiveRead(xrudpreceive* pReceive,
 	void* pOutput, size_t iCapacity, size_t* pRead);
+/* Pure copy at an absolute offset in [ReadOffset,Limit]. Stops at the first
+ * hole, never consumes data or grants credit. Same EOF/RESET results as Read;
+ * *pRead=0 on failure. Useful for validating a message prefix before committing
+ * an authenticated packet's ACK/data transaction. No allocation. */
+XRUDP_API xrudpresult xrtRudpReceivePeek(const xrudpreceive* pReceive,
+	uint64_t iOffset, void* pOutput, size_t iCapacity, size_t* pRead);
 /* Monotonic explicit credit, <=ReadOffset+Capacity, saturating at UINT64_MAX.
  * Owner sends/retransmits the latest MAX_STREAM_DATA value. */
 XRUDP_API xrudpresult xrtRudpReceiveExtend(xrudpreceive* pReceive, uint64_t iLimit);

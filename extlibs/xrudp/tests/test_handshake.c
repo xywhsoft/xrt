@@ -20,6 +20,7 @@ static void config(xrudphandshakeconfig* c, unsigned int role)
 	memset(c, 0, sizeof(*c)); c->StaticPrivate = privateKeys[role]; c->PeerPublic = publicKeys[1 - role];
 	c->LocalPublic = publicKeys[role]; c->Scope = scope; c->ApplicationContext = context;
 	xrtRudpParametersDefault(&c->Parameters);
+	c->Parameters.MaxMessageSize = role ? 252 : 508;
 	if (role) { c->Parameters.StreamCredit = 512; c->Parameters.MaxStreams = 8; c->Trust = trust; }
 }
 static int flight(xrudphandshake* h, uint64_t now, unsigned char* packet, size_t* size)
@@ -85,7 +86,7 @@ static int exchange(void)
 	CHECK(flight(server, 500002, second, &secondSize) == 0 && secondSize == 128);
 	CHECK(tamper(client, second, secondSize, 500003) == 0);
 	CHECK(xrtRudpHandshakeInput(client, second, secondSize, 500003) == XRUDP_OK);
-	CHECK(xrtRudpHandshakeInfo(client, &info) == XRUDP_OK && info.Phase == XRUDP_HANDSHAKE_PROOF && info.PeerParameters.StreamCredit == 512);
+	CHECK(xrtRudpHandshakeInfo(client, &info) == XRUDP_OK && info.Phase == XRUDP_HANDSHAKE_PROOF && info.PeerParameters.StreamCredit == 512 && info.PeerParameters.MaxMessageSize == 252);
 	CHECK(xrtRudpHandshakeTakeCipher(client, &ca) == XRUDP_BACKPRESSURE && ca == NULL);
 	CHECK(flight(client, 500003, proof, &proofSize) == 0 && proofSize == 76);
 	/* Unauthenticated size fields must not turn a local scratch limit into a
@@ -133,7 +134,10 @@ static int parameters_and_time(void)
 	xrtRudpParametersDefault(&p);
 	CHECK(xrtRudpParametersEncode(&p, wire, sizeof(wire)) == XRUDP_OK && memcmp(wire, golden, 32) == 0);
 	CHECK(xrtRudpParametersDecode(wire, sizeof(wire), &decoded) == XRUDP_OK && memcmp(&p, &decoded, sizeof(p)) == 0);
-	saved = decoded; wire[31] = 1;
+	p.MaxMessageSize = 66051;
+	CHECK(xrtRudpParametersEncode(&p, wire, 32) == XRUDP_OK && wire[28] == 0 && wire[29] == 1 && wire[30] == 2 && wire[31] == 3);
+	CHECK(xrtRudpParametersDecode(wire, 32, &decoded) == XRUDP_OK && decoded.MaxMessageSize == 66051);
+	saved = decoded; wire[28] = 0xff;
 	CHECK(xrtRudpParametersDecode(wire, 32, &decoded) == XRUDP_MALFORMED && memcmp(&decoded, &saved, sizeof(saved)) == 0);
 	for (size_t i = 0; i < 32; ++i) CHECK(xrtRudpParametersDecode(golden, i, &decoded) == XRUDP_MALFORMED);
 	memset(wire, 0xa5, 32); memcpy(before, wire, 32); p.MaxStreams = 0;
@@ -176,7 +180,7 @@ static int authenticated_violations(void)
 		n.Prologue = prologue; n.PrologueSize = cursor;
 		CHECK(xrtRudpNoiseCreate(&n, &noise) == XRUDP_OK);
 		CHECK(xrtRudpParametersEncode(&serverConfig.Parameters, parameters, 32) == XRUDP_OK);
-		if (invalid == 0) parameters[31] = 1;
+		if (invalid == 0) parameters[28] = 0xff;
 		memcpy(body, hello, 96); memcpy(body + 96, decoded.Payload + 48, 40);
 		CHECK(xrtRudpNoiseWrite(noise, parameters, 32, body + 136, 128, &noiseSize) == XRUDP_OK);
 		header.Type = XRUDP_PACKET_HANDSHAKE; header.PayloadSize = 264; memcpy(header.ConnectionId, decoded.Payload, 16);

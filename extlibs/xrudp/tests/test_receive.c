@@ -27,16 +27,23 @@ static int boundaries(void)
 	CHECK(xrtRudpReceiveExtend(r, 256) == XRUDP_OK);
 	CHECK(xrtRudpReceivePush(r, 1, source + 1, 255, false, &change) == XRUDP_OK);
 	CHECK(change.NewBytes == 255 && change.HighestDelta == 256);
+	CHECK(xrtRudpReceivePeek(r, 0, output, sizeof(output), &count) == XRUDP_BACKPRESSURE && count == 0);
+	CHECK(xrtRudpReceiveState(r, &before) == XRUDP_OK);
+	CHECK(xrtRudpReceivePeek(r, 1, output, sizeof(output), &count) == XRUDP_OK && count == 255 && memcmp(output, source + 1, count) == 0);
+	CHECK(xrtRudpReceiveState(r, &state) == XRUDP_OK && memcmp(&state, &before, sizeof(state)) == 0);
+	CHECK(xrtRudpReceivePeek(r, 257, output, sizeof(output), &count) == XRUDP_ARGUMENT && count == 0);
 	CHECK(xrtRudpReceiveRead(r, output, sizeof(output), &count) == XRUDP_BACKPRESSURE && count == 0);
 	CHECK(xrtRudpReceiveState(r, &before) == XRUDP_OK);
 	CHECK(xrtRudpReceiveCheck(r, 0, source, 1, false, &change) == XRUDP_OK && change.NewBytes == 1);
 	CHECK(xrtRudpReceiveState(r, &state) == XRUDP_OK && memcmp(&state, &before, sizeof(state)) == 0);
 	CHECK(xrtRudpReceivePush(r, 0, source, 1, false, &change) == XRUDP_OK && change.HighestDelta == 0);
 	CHECK(xrtRudpReceiveRead(r, output, 17, &count) == XRUDP_OK && count == 17 && memcmp(output, source, 17) == 0);
+	CHECK(xrtRudpReceivePeek(r, 16, output, sizeof(output), &count) == XRUDP_ARGUMENT && count == 0);
 	CHECK(xrtRudpReceivePush(r, 256, source + 256, 1, false, &change) == XRUDP_MALFORMED);
 	CHECK(xrtRudpReceiveExtend(r, 274) == XRUDP_ARGUMENT); /* Physical window is only 273. */
 	CHECK(xrtRudpReceiveExtend(r, 273) == XRUDP_OK);
 	CHECK(xrtRudpReceivePush(r, 256, source + 256, 17, false, &change) == XRUDP_OK && change.NewBytes == 17);
+	CHECK(xrtRudpReceivePeek(r, 250, output, sizeof(output), &count) == XRUDP_OK && count == 23 && memcmp(output, source + 250, count) == 0);
 	CHECK(xrtRudpReceivePush(r, 0, source, 17, false, &change) == XRUDP_DUPLICATE);
 	CHECK(change.NewBytes == 0 && change.HighestDelta == 0);
 	memcpy(bad, source + 10, sizeof(bad)); bad[20] ^= 1;
@@ -56,6 +63,7 @@ static int boundaries(void)
 	CHECK(xrtRudpReceiveRead(r, output, sizeof(output), &count) == XRUDP_OK && count == 256);
 	CHECK(memcmp(output, source + 17, count) == 0);
 	CHECK(xrtRudpReceiveRead(r, output, sizeof(output), &count) == XRUDP_DONE && count == 0);
+	CHECK(xrtRudpReceivePeek(r, 273, output, sizeof(output), &count) == XRUDP_DONE && count == 0);
 	CHECK(xrtRudpReceiveReset(r, 273, 9, &change) == XRUDP_DUPLICATE && change.ConsumedDelta == 0);
 	CHECK(xrtRudpReceiveRead(r, output, sizeof(output), &count) == XRUDP_DONE);
 	xrtRudpReceiveDestroy(r);
@@ -77,6 +85,7 @@ static int boundaries(void)
 	CHECK(change.HighestDelta == 90 && change.ConsumedDelta == 200 && change.NewFinal == 1);
 	CHECK(xrtRudpReceiveState(r, &state) == XRUDP_OK && state.Reset && state.ResetReason == 7);
 	CHECK(state.ReadOffset == 200 && state.HighestOffset == 200 && state.BufferedBytes == 0);
+	CHECK(xrtRudpReceivePeek(r, 200, output, sizeof(output), &count) == XRUDP_CANCELLED && count == 0);
 	CHECK(xrtRudpReceiveRead(r, output, sizeof(output), &count) == XRUDP_CANCELLED && count == 0);
 	CHECK(xrtRudpReceivePush(r, 0, source, 200, false, &change) == XRUDP_DUPLICATE);
 	CHECK(xrtRudpReceivePush(r, 200, source, 1, false, &change) == XRUDP_MALFORMED);

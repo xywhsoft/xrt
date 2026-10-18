@@ -217,6 +217,22 @@ xrudpresult xrtRudpReceivePushBatch(const xrudpreceiveframe* frames,
 	return result;
 }
 
+xrudpresult xrtRudpReceivePeek(const xrudpreceive* r, uint64_t offset, void* output, size_t capacity, size_t* read)
+{
+	if (read != NULL) *read = 0;
+	if (r == NULL || output == NULL || capacity == 0 || read == NULL || offset < r->ReadOffset || offset > r->Limit ||
+		(r->HasFinal && offset > r->FinalOffset)) return XRUDP_ARGUMENT;
+	if (r->Reset) return XRUDP_CANCELLED;
+	if (r->HasFinal && offset == r->FinalOffset) return XRUDP_DONE;
+	size_t count = 0;
+	while (count < capacity && offset < r->Limit) {
+		size_t slot = xrudp__receive_slot(r, offset);
+		if (!xrudp__receive_has(r, slot)) break;
+		((unsigned char*)output)[count++] = r->Data[slot]; ++offset;
+	}
+	*read = count; return count != 0 ? XRUDP_OK : XRUDP_BACKPRESSURE;
+}
+
 xrudpresult xrtRudpReceiveRead(xrudpreceive* r, void* output, size_t capacity, size_t* read)
 {
 	unsigned char* bytes = (unsigned char*)output;

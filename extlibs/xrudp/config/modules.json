@@ -408,6 +408,52 @@
       ]
     },
     {
+      "name": "rudp_session_message_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_session",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_session_messages.c",
+        "extlibs/xrudp/tests/test_session_message_validation.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_session_messages.c",
+        "extlibs/xrudp/tests/single/test_single_session_message_validation.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
+      "name": "rudp_endpoint_message_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_endpoint",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_endpoint_messages.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_endpoint_messages.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
       "name": "rudp_transport_tests",
       "state": "implemented",
       "depends": [
@@ -537,7 +583,8 @@
       ],
       "single_tests": [
         "extlibs/xrudp/tests/single/test_single_endpoint_multi_iocp.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_fair_iocp.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_fair_iocp.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_messages_iocp.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -565,7 +612,8 @@
       ],
       "single_tests": [
         "extlibs/xrudp/tests/single/test_single_endpoint_multi_epoll.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_fair_epoll.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_fair_epoll.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_messages_epoll.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -610,7 +658,8 @@
         "rudp_congestion",
         "rudp_timing",
         "rudp_transmit",
-        "rudp_receive"
+        "rudp_receive",
+        "rudp_message"
       ],
       "public_headers": [
         "extlibs/xrudp/include/xrudp/session.h"

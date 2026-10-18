@@ -46,7 +46,7 @@ typedef struct xrudpendpointevents {
 	 * Mutations inside a callback defer further Changed delivery to another
 	 * worker turn; no recursive Changed callbacks. Borrowed peer and context. */
 	void (*Changed)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, uint32_t iEvents, void* pContext);
-	/* All byte streams, including ID 1; XRUDP_STREAM_* masks. At most eight
+	/* All typed streams, including byte stream ID 1; XRUDP_STREAM_* masks. At most eight
 	 * coalesced stream hints per dispatch. OPENED is remote-origin only. The
 	 * borrowed event is valid only during this callback. Callbacks may perform
 	 * stream operations or close/drop owned handles; never recursively invoked.
@@ -125,7 +125,7 @@ XRUDP_API void xrtRudpPeerDestroy(xrudppeer* pPeer);
 XRUDP_API xrudpresult xrtRudpPeerWrite(xrudppeer* pPeer, const void* pData, size_t iSize, size_t* pWritten);
 XRUDP_API xrudpresult xrtRudpPeerRead(xrudppeer* pPeer, void* pOutput, size_t iCapacity, size_t* pRead);
 XRUDP_API xrudpresult xrtRudpPeerFinish(xrudppeer* pPeer);
-/* Owner-only advanced byte streams; capacity/IDs/half-close/retirement follow
+/* Owner-only advanced typed streams; capacity/IDs/half-close/retirement follow
  * SessionStream*. No per-stream heap allocation. Before Confirmed return
  * BACKPRESSURE; after peer close return CLOSED, without accessing the Engine.
  * A stream state is live-only (the aggregate session snapshot survives Close).
@@ -135,6 +135,15 @@ XRUDP_API xrudpresult xrtRudpPeerStreamOpen(xrudppeer* pPeer, const xrudpstreamc
 XRUDP_API xrudpresult xrtRudpPeerStreamState(const xrudppeer* pPeer, uint32_t iId, xrudpstreamstate* pState);
 XRUDP_API xrudpresult xrtRudpPeerStreamWrite(xrudppeer* pPeer, uint32_t iId, const void* pData, size_t iSize, size_t* pWritten);
 XRUDP_API xrudpresult xrtRudpPeerStreamRead(xrudppeer* pPeer, uint32_t iId, void* pOutput, size_t iCapacity, size_t* pRead);
+/* Message-only whole-payload APIs, following SessionMessage*. Configure
+ * Session.Local.MaxMessageSize before Bind; its staging memory participates in
+ * endpoint peak reservation. Existing StreamChanged reports full message/EOF/
+ * RESET readiness. Empty successful Read/Write also schedules the next turn.
+ * No per-message allocation; Engine timers/UDP queues retain their own budgets.
+ * Only the owner may call while confirmed, CLOSED thereafter. */
+XRUDP_API xrudpresult xrtRudpPeerMessageWrite(xrudppeer* pPeer, uint32_t iId, const void* pData, size_t iSize);
+XRUDP_API xrudpresult xrtRudpPeerMessagePeek(const xrudppeer* pPeer, uint32_t iId, size_t* pSize);
+XRUDP_API xrudpresult xrtRudpPeerMessageRead(xrudppeer* pPeer, uint32_t iId, void* pOutput, size_t iCapacity, size_t* pSize);
 XRUDP_API xrudpresult xrtRudpPeerStreamFinish(xrudppeer* pPeer, uint32_t iId);
 XRUDP_API xrudpresult xrtRudpPeerStreamReset(xrudppeer* pPeer, uint32_t iId, uint32_t iReason);
 XRUDP_API xrudpresult xrtRudpPeerStreamRetire(xrudppeer* pPeer, uint32_t iId);

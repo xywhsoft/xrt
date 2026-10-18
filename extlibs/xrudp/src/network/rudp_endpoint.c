@@ -633,6 +633,30 @@ xrudpresult xrtRudpPeerStreamRead(xrudppeer* p, uint32_t id, void* output, size_
 	if (*read != 0) xrudp__peer_wake(p);
 	xrtRudpPeerDestroy(p); return result;
 }
+xrudpresult xrtRudpPeerMessageWrite(xrudppeer* p, uint32_t id, const void* data, size_t size)
+{
+	if (data == NULL && size != 0) return XRUDP_ARGUMENT;
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	xrtRudpPeerRef(p); result = xrtRudpSessionMessageWrite(p->Session, id, data, size);
+	if (result == XRUDP_OK) xrudp__peer_wake(p);
+	xrtRudpPeerDestroy(p); return result;
+}
+xrudpresult xrtRudpPeerMessagePeek(const xrudppeer* p, uint32_t id, size_t* size)
+{
+	if (size != NULL) *size = 0;
+	if (size == NULL) return XRUDP_ARGUMENT;
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	return xrtRudpSessionMessagePeek(p->Session, id, size);
+}
+xrudpresult xrtRudpPeerMessageRead(xrudppeer* p, uint32_t id, void* output, size_t capacity, size_t* size)
+{
+	if (size != NULL) *size = 0;
+	if (size == NULL || (output == NULL && capacity != 0)) return XRUDP_ARGUMENT;
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	xrtRudpPeerRef(p); result = xrtRudpSessionMessageRead(p->Session, id, output, capacity, size);
+	if (result == XRUDP_OK) xrudp__peer_wake(p);
+	xrtRudpPeerDestroy(p); return result;
+}
 xrudpresult xrtRudpPeerFinish(xrudppeer* p)
 {
 	return xrtRudpPeerStreamFinish(p, 1);

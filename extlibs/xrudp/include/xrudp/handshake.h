@@ -20,7 +20,7 @@ typedef struct xrudpparameters {
 	uint32_t IdleTimeoutMs;
 	uint32_t MaxAckDelayUs;
 	uint32_t DatagramSize;
-	uint32_t Reserved;
+	uint32_t MaxMessageSize; /* Authenticated receive payload bound; 0 disables message streams. */
 } xrudpparameters;
 
 typedef struct xrudphandshake xrudphandshake;

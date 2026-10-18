@@ -5,8 +5,8 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
 不要求通过 xs 跨服务通信。
 运行时不增加第三方依赖。源码、模块清单、单头产物按 XRT 的统一扩展流程管理。
 
-当前为开发中的基础设施，已能通过原生 UDP 建立已认证连接并可靠传输多条双向字节流。
-会话核心和原生端点已有固定预算的多流接口；消息、游戏和公网路径管理仍待开发，
+当前为开发中的基础设施，已能通过原生 UDP 建立已认证连接并可靠传输多条双向字节流和消息流。
+会话核心和原生端点已有固定预算的多流/消息接口；游戏和公网路径管理仍待开发，
 尚未通过生产发布验收。
 已实现组件：固定格式报文编解码、完整负载结构预校验、有界防重放窗口、
 基于已认证方向密钥的包加密与密钥更新、固定 Noise IK 握手、无状态地址 cookie。
@@ -42,6 +42,7 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
 发布前还须使用优化编译保持严格警告门禁，例如：
 
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_endpoint,rudp_endpoint_fault_tests,rudp_multi_tests,rudp_multi_fault_tests --no-examples --cflag=-O2 --jobs 2
+    python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_session_message_tests,rudp_endpoint_message_tests --no-examples --cflag=-O2 --jobs 2
 
 Windows 另外组合 rudp_endpoint_iocp_tests，Linux 组合 rudp_endpoint_epoll_tests；
 Linux 的优化构建同时运行 ASan/UBSan。无优化构建通过不能代替发布优化编译检查。
@@ -75,8 +76,16 @@ TransmitMessageWrite 可将 u32 长度前缀和一条负载整体排入现有发
 模块 rudp_message 提供有界的消息接收组装器，构造时一次分配 0..1MiB 固定空间；
 逐段接收只组装一条消息，应用未取走时背压，不交付半条消息，短输出缓冲不消费消息。
 非法长度或不完整 FIN 清空明文并保留错误，支持空消息、RESET 和终结后的存储复用。
-该组件尚待接入会话的 kind=1、逐段流控释放和原生消息事件；当前字节流端点仍不接受消息流。
-模块 rudp_session 是单所有者的双向多字节流会话，消费握手晋升后的唯一密码器，
+消息流已接入会话和原生端点：Bind 前设置 Session.Local.MaxMessageSize（默认 0 关闭，
+非零为最高接收负载，最多 1MiB），握手认证双方上限；StreamOpen 的 Kind 设置为 MESSAGES。
+默认流 1 保持字节流，其他流可混合 BYTES/MESSAGES；字节读写接口拒绝操作消息流。
+PeerMessageWrite 整条入队，允许空消息；State.SendMessageLimit 给出对端上限与本端发送环的较小值。
+PeerMessagePeek/Read 只提供完整负载或 EOF/RESET，短缓冲返回 TRUNCATED 及所需大小，消息仍保留。
+原有 StreamChanged 的 READ_READY 表示一条完整消息或终结状态；成功读取空消息也会调度后续维护。
+组装空间按 2*N-2 个额外槽在会话构造时预留，并计入 AllocationSize 和端点连接准入预算；
+组装时逐段释放字节额度，每次 Input/Poll 共处理至多 4096B，轮转维护并由下一截止继续推进。
+消息被应用取走前不退休流槽；FIN/RESET、包引用排空和累计开流额度规则与字节流一致。
+模块 rudp_session 是单所有者的双向多流会话，消费握手晋升后的唯一密码器，
 组合整包 ACK/STREAM/RESET/额度预检、实际输出受理后的发送提交、恢复/流控/换钥与有限截止。
 固定数据环、引用和事件空间预先分配，Poll 最多输出 8 包，通过回调复制交给 UDP；
 不自行创建套接字、线程或 Engine，由 rudp_endpoint 驱动并映射字节流的业务读写接口。

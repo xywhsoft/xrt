@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
-/* Test-only byte-stream adapter. This validates incremental message staging
- * and its credit contract; the production kind=1 adapter is not implemented. */
+/* Default mode tests a byte-stream adapter. TEST_SESSION_MESSAGES also enables
+ * real kind=1 streams in both directions, sharing the same impaired wire. */
 #define CHECK(e) do { if (!(e)) { fprintf(stderr,"%s:%d: %s (tick=%u)\n",__FILE__,__LINE__,#e,tick); return 1; } } while (0)
 #define CHANNELS 3u
 #define RECORDS 12u
@@ -54,17 +54,38 @@ static int drain(uint32_t side, size_t k, bool stalled, bool* wake)
 	xrudpmessage* m = net.Decoder[side][k]; unsigned char buffer[512]; size_t size, consumed;
 	for (size_t n = 0; n < 32; ++n) { /* Application callback work is finite. */
 		xrudpresult ready = xrtRudpMessagePeek(m, &size);
+#ifdef TEST_SESSION_MESSAGES
+		if (k != 0) {
+			ready = xrtRudpSessionMessagePeek(net.Session[side], ids[k], &size);
+			xrudpstreamstate state; CHECK(xrtRudpSessionStreamState(net.Session[side], ids[k], &state) == XRUDP_OK);
+			CHECK(state.Kind == XRUDP_STREAM_MESSAGES && state.SendMessageLimit == 508 && state.Message.Buffered <= 508);
+			if (ready == XRUDP_BACKPRESSURE) { CHECK(!state.ReadReady); return 0; }
+		}
+#endif
 		if (ready == XRUDP_OK) {
 			if (stalled) return 0;
 			uint32_t r = net.Read[side][k]; CHECK(r < RECORDS && size == record_size(r));
 			if (size != 0 && !net.ShortChecked[side][k]) {
 				memset(buffer, 0xa5, sizeof(buffer)); size_t required;
-				CHECK(xrtRudpMessageRead(m, buffer, size - 1, &required) == XRUDP_TRUNCATED && required == size && buffer[0] == 0xa5);
+				xrudpresult shortRead;
+#ifdef TEST_SESSION_MESSAGES
+				if (k != 0) shortRead = xrtRudpSessionMessageRead(net.Session[side], ids[k], buffer, size - 1, &required); else
+#endif
+				shortRead = xrtRudpMessageRead(m, buffer, size - 1, &required);
+				CHECK(shortRead == XRUDP_TRUNCATED && required == size && buffer[0] == 0xa5);
 				net.ShortChecked[side][k] = true;
 			}
-			CHECK(xrtRudpMessageRead(m, buffer, sizeof(buffer), &size) == XRUDP_OK);
+			xrudpresult read;
+#ifdef TEST_SESSION_MESSAGES
+			if (k != 0) read = xrtRudpSessionMessageRead(net.Session[side], ids[k], buffer, sizeof(buffer), &size); else
+#endif
+			read = xrtRudpMessageRead(m, buffer, sizeof(buffer), &size);
+			CHECK(read == XRUDP_OK); *wake = true;
 			for (size_t i = 0; i < size; ++i) CHECK(buffer[i] == pattern(1-side, (uint32_t)k, r, i));
 			++net.Read[side][k];
+#ifdef TEST_SESSION_MESSAGES
+			if (k != 0) continue;
+#endif
 		} else if (ready == XRUDP_DONE) {
 			CHECK(net.Read[side][k] == RECORDS); net.Eof[side][k] = true; return 0;
 		} else CHECK(ready == XRUDP_BACKPRESSURE);
@@ -89,12 +110,18 @@ static int scenario(uint32_t seed, bool stall)
 		c.StreamCapacity = 2; c.Local.MaxStreams = c.Peer.MaxStreams = 2;
 		c.ReceiveCapacity = 256; c.TransmitCapacity = 512;
 		c.Local.StreamCredit = c.Peer.StreamCredit = 16;
+#ifdef TEST_SESSION_MESSAGES
+		c.Local.MaxMessageSize = c.Peer.MaxMessageSize = 508;
+#endif
 		c.Local.ConnectionCredit = c.Peer.ConnectionCredit = stall ? 64 : 16;
 		c.Local.DatagramSize = c.Peer.DatagramSize = 512; c.PacketCapacity = 64; c.InitialRttUs = 10000;
 		c.Local.MaxAckDelayUs = c.Peer.MaxAckDelayUs = 1000;
 		c.Local.IdleTimeoutMs = c.Peer.IdleTimeoutMs = 60000; c.KeyUpdatePackets = 16;
 		CHECK(xrtRudpSessionCreate(&c, cipher[side], 0, send_packet, (void*)(uintptr_t)side, &net.Session[side]) == XRUDP_OK);
 		xrudpstreamconfig stream; xrtRudpStreamConfigInit(&stream); uint32_t id;
+#ifdef TEST_SESSION_MESSAGES
+		stream.Kind = XRUDP_STREAM_MESSAGES;
+#endif
 		CHECK(xrtRudpSessionStreamOpen(net.Session[side], &stream, &id) == XRUDP_OK && id == ids[side ? 2 : 1]);
 		net.Active[side][0] = net.Active[side][side ? 2 : 1] = true;
 		for (size_t k = 0; k < CHANNELS; ++k) CHECK(xrtRudpMessageCreate(508, &net.Decoder[side][k]) == XRUDP_OK);
@@ -128,7 +155,16 @@ static int scenario(uint32_t seed, bool stall)
 					unsigned char encoded[512]; uint32_t r = net.Written[side][k]; size_t length = record_size(r), total = length + 4;
 					for (size_t j = 0; j < 4; ++j) encoded[3-j] = (unsigned char)((uint32_t)length >> (j*8));
 					for (size_t j = 0; j < length; ++j) encoded[j+4] = pattern(side, (uint32_t)k, r, j);
-					size_t count; xrudpresult result = xrtRudpSessionStreamWrite(net.Session[side], ids[k], encoded + net.Offset[side][k], total - net.Offset[side][k], &count);
+					size_t count; xrudpresult result;
+#ifdef TEST_SESSION_MESSAGES
+					if (k != 0) {
+						result = xrtRudpSessionMessageWrite(net.Session[side], ids[k], encoded + 4, length); count = result == XRUDP_OK ? total : 0;
+						size_t rejected = 99;
+						CHECK(xrtRudpSessionStreamWrite(net.Session[side], ids[k], encoded, 1, &rejected) == XRUDP_ARGUMENT && rejected == 0);
+						CHECK(xrtRudpSessionStreamRead(net.Session[side], ids[k], encoded, 1, &rejected) == XRUDP_ARGUMENT && rejected == 0);
+					} else
+#endif
+					result = xrtRudpSessionStreamWrite(net.Session[side], ids[k], encoded + net.Offset[side][k], total - net.Offset[side][k], &count);
 					CHECK(result == XRUDP_OK || result == XRUDP_BACKPRESSURE); net.Offset[side][k] += count; if (count) wake |= 1u << side;
 					if (net.Offset[side][k] == total) {
 						net.Offset[side][k] = 0; ++net.Written[side][k];

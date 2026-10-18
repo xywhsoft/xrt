@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `143` 个函数、`128` 个常量或宏、
+当前登记 `150` 个函数、`131` 个常量或宏、
 `56` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
@@ -107,7 +107,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/endpoint.h)
 
-### 函数 (24)
+### 函数 (27)
 
 - `xrtRudpEndpointBind`
 - `xrtRudpEndpointClose`
@@ -121,6 +121,9 @@
 - `xrtRudpPeerDestroy`
 - `xrtRudpPeerFinish`
 - `xrtRudpPeerInfo`
+- `xrtRudpPeerMessagePeek`
+- `xrtRudpPeerMessageRead`
+- `xrtRudpPeerMessageWrite`
 - `xrtRudpPeerRead`
 - `xrtRudpPeerRef`
 - `xrtRudpPeerSessionState`
@@ -238,10 +241,9 @@
 - `xrtRudpMessageRestart`
 - `xrtRudpMessageState`
 
-### 常量与宏 (2)
+### 常量与宏 (1)
 
 - `XRUDP_FEATURE_RUDP_MESSAGE`
-- `XRUDP_MESSAGE_SIZE_MAX`
 
 ### 类型 (2)
 
@@ -281,7 +283,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/receive.h)
 
-### 函数 (13)
+### 函数 (14)
 
 - `xrtRudpReceiveAllocationSize`
 - `xrtRudpReceiveCheck`
@@ -289,6 +291,7 @@
 - `xrtRudpReceiveCreate`
 - `xrtRudpReceiveDestroy`
 - `xrtRudpReceiveExtend`
+- `xrtRudpReceivePeek`
 - `xrtRudpReceivePush`
 - `xrtRudpReceivePushBatch`
 - `xrtRudpReceiveRead`
@@ -355,7 +358,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/session.h)
 
-### 函数 (20)
+### 函数 (23)
 
 - `xrtRudpSessionAbort`
 - `xrtRudpSessionAllocationSize`
@@ -364,6 +367,9 @@
 - `xrtRudpSessionDestroy`
 - `xrtRudpSessionFinish`
 - `xrtRudpSessionInput`
+- `xrtRudpSessionMessagePeek`
+- `xrtRudpSessionMessageRead`
+- `xrtRudpSessionMessageWrite`
 - `xrtRudpSessionPoll`
 - `xrtRudpSessionRead`
 - `xrtRudpSessionState`
@@ -378,12 +384,15 @@
 - `xrtRudpSessionWrite`
 - `xrtRudpStreamConfigInit`
 
-### 常量与宏 (10)
+### 常量与宏 (13)
 
 - `XRUDP_FEATURE_RUDP_SESSION`
+- `XRUDP_SESSION_MESSAGE_STAGE_BYTES`
 - `XRUDP_SESSION_PACKETS_MAX`
 - `XRUDP_SESSION_POLL_BURST`
 - `XRUDP_SESSION_STREAM_CAPACITY_MAX`
+- `XRUDP_STREAM_BYTES`
+- `XRUDP_STREAM_MESSAGES`
 - `XRUDP_STREAM_OPENED`
 - `XRUDP_STREAM_READ_EOF`
 - `XRUDP_STREAM_READ_READY`
@@ -464,7 +473,7 @@
 - `xrtRudpReplayCheck`
 - `xrtRudpReplayInit`
 
-### 常量与宏 (44)
+### 常量与宏 (45)
 
 - `XRUDP_ARGUMENT`
 - `XRUDP_AUTH_FAILED`
@@ -495,6 +504,7 @@
 - `XRUDP_IO_ERROR`
 - `XRUDP_LIMIT`
 - `XRUDP_MALFORMED`
+- `XRUDP_MESSAGE_SIZE_MAX`
 - `XRUDP_NO_MEMORY`
 - `XRUDP_OK`
 - `XRUDP_PACKET_DATA`

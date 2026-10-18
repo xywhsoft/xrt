@@ -40,7 +40,8 @@ static bool xrudp__hs_parameters(const xrudpparameters* p)
 {
 	return p != NULL && p->ConnectionCredit <= UINT64_C(67108864) && p->StreamCredit <= 1048576 &&
 		p->MaxStreams >= 1 && p->MaxStreams <= 1024 && p->IdleTimeoutMs >= 1000 && p->IdleTimeoutMs <= 3600000 &&
-		p->MaxAckDelayUs <= 25000 && p->DatagramSize >= 512 && p->DatagramSize <= XRUDP_PACKET_MAX && p->Reserved == 0;
+		p->MaxAckDelayUs <= 25000 && p->DatagramSize >= 512 && p->DatagramSize <= XRUDP_PACKET_MAX &&
+		p->MaxMessageSize <= XRUDP_MESSAGE_SIZE_MAX;
 }
 void xrtRudpParametersDefault(xrudpparameters* p)
 {
@@ -57,7 +58,7 @@ xrudpresult xrtRudpParametersEncode(const xrudpparameters* p, void* output, size
 	xrudp__hs_put(wire, p->ConnectionCredit, 8); xrudp__hs_put(wire + 8, p->StreamCredit, 4);
 	xrudp__hs_put(wire + 12, p->MaxStreams, 4); xrudp__hs_put(wire + 16, p->IdleTimeoutMs, 4);
 	xrudp__hs_put(wire + 20, p->MaxAckDelayUs, 4); xrudp__hs_put(wire + 24, p->DatagramSize, 4);
-	memset(wire + 28, 0, 4); memmove(output, wire, sizeof(wire)); return XRUDP_OK;
+	xrudp__hs_put(wire + 28, p->MaxMessageSize, 4); memmove(output, wire, sizeof(wire)); return XRUDP_OK;
 }
 xrudpresult xrtRudpParametersDecode(const void* data, size_t size, xrudpparameters* output)
 {
@@ -67,7 +68,7 @@ xrudpresult xrtRudpParametersDecode(const void* data, size_t size, xrudpparamete
 	memset(&next, 0, sizeof(next)); next.ConnectionCredit = xrudp__hs_get(p, 8);
 	next.StreamCredit = (uint32_t)xrudp__hs_get(p + 8, 4); next.MaxStreams = (uint32_t)xrudp__hs_get(p + 12, 4);
 	next.IdleTimeoutMs = (uint32_t)xrudp__hs_get(p + 16, 4); next.MaxAckDelayUs = (uint32_t)xrudp__hs_get(p + 20, 4);
-	next.DatagramSize = (uint32_t)xrudp__hs_get(p + 24, 4); next.Reserved = (uint32_t)xrudp__hs_get(p + 28, 4);
+	next.DatagramSize = (uint32_t)xrudp__hs_get(p + 24, 4); next.MaxMessageSize = (uint32_t)xrudp__hs_get(p + 28, 4);
 	if (!xrudp__hs_parameters(&next)) return XRUDP_MALFORMED;
 	*output = next; return XRUDP_OK;
 }

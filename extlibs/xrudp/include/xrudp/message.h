@@ -6,8 +6,6 @@
 
 #if defined(XRUDP_FEATURE_RUDP_MESSAGE)
 
-#define XRUDP_MESSAGE_SIZE_MAX (1024u * 1024u)
-
 typedef struct xrudpmessage xrudpmessage;
 typedef struct xrudpmessagestate {
 	xrudpresult Reason;

@@ -98,6 +98,9 @@
 #ifndef XRUDP_MODULE_RUDP_RECEIVE
 #define XRUDP_MODULE_RUDP_RECEIVE
 #endif
+#ifndef XRUDP_MODULE_RUDP_MESSAGE
+#define XRUDP_MODULE_RUDP_MESSAGE
+#endif
 #endif
 
 /* rudp_handshake 及其直接依赖。 */
@@ -284,6 +287,7 @@
 #define XRUDP_STREAM_CHUNK_MAX (XRUDP_PACKET_MAX - XRUDP_HEADER_SIZE - XRUDP_TAG_SIZE - XRUDP_FRAME_HEADER_SIZE - 12u)
 #define XRUDP_ACK_RANGES_MAX 32u
 #define XRUDP_FRAMES_MAX 64u
+#define XRUDP_MESSAGE_SIZE_MAX (1024u * 1024u)
 #define XRUDP_REPLAY_WORDS 16u
 #define XRUDP_REPLAY_BITS (XRUDP_REPLAY_WORDS * 64u)
 
@@ -1006,6 +1010,12 @@ XRUDP_API xrudpresult xrtRudpReceivePushBatch(const xrudpreceiveframe* pFrames,
  * Successful consumption does not itself advertise additional peer credit. */
 XRUDP_API xrudpresult xrtRudpReceiveRead(xrudpreceive* pReceive,
 	void* pOutput, size_t iCapacity, size_t* pRead);
+/* Pure copy at an absolute offset in [ReadOffset,Limit]. Stops at the first
+ * hole, never consumes data or grants credit. Same EOF/RESET results as Read;
+ * *pRead=0 on failure. Useful for validating a message prefix before committing
+ * an authenticated packet's ACK/data transaction. No allocation. */
+XRUDP_API xrudpresult xrtRudpReceivePeek(const xrudpreceive* pReceive,
+	uint64_t iOffset, void* pOutput, size_t iCapacity, size_t* pRead);
 /* Monotonic explicit credit, <=ReadOffset+Capacity, saturating at UINT64_MAX.
  * Owner sends/retransmits the latest MAX_STREAM_DATA value. */
 XRUDP_API xrudpresult xrtRudpReceiveExtend(xrudpreceive* pReceive, uint64_t iLimit);
@@ -1131,8 +1141,6 @@ XRT_EXTERN_C_END
 
 #if defined(XRUDP_FEATURE_RUDP_MESSAGE)
 
-#define XRUDP_MESSAGE_SIZE_MAX (1024u * 1024u)
-
 typedef struct xrudpmessage xrudpmessage;
 typedef struct xrudpmessagestate {
 	xrudpresult Reason;
@@ -1209,7 +1217,7 @@ typedef struct xrudpparameters {
 	uint32_t IdleTimeoutMs;
 	uint32_t MaxAckDelayUs;
 	uint32_t DatagramSize;
-	uint32_t Reserved;
+	uint32_t MaxMessageSize; /* Authenticated receive payload bound; 0 disables message streams. */
 } xrudpparameters;
 
 typedef struct xrudphandshake xrudphandshake;
@@ -1323,6 +1331,9 @@ XRT_EXTERN_C_END
 #define XRUDP_STREAM_WRITE_DONE 8u
 #define XRUDP_STREAM_READ_EOF 16u
 #define XRUDP_STREAM_RETIRE_READY 32u
+#define XRUDP_STREAM_BYTES 0u
+#define XRUDP_STREAM_MESSAGES 1u
+#define XRUDP_SESSION_MESSAGE_STAGE_BYTES 4096u
 
 typedef struct xrudpsession xrudpsession;
 /* Called only by Poll, serialized with the entire session. Must COPY the
@@ -1361,17 +1372,20 @@ typedef struct xrudpsessionstate {
 } xrudpsessionstate;
 
 typedef struct xrudpstreamconfig {
+	uint8_t Kind; /* BYTES or MESSAGES; default byte stream 1 remains BYTES. */
 	uint8_t Priority; /* 0..3; bounded weighted deficit service, no starvation. */
 	uint16_t Weight; /* 1..16 local policy. Wire weights are capped to 16 for service. */
 } xrudpstreamconfig;
 typedef struct xrudpstreamstate {
 	uint32_t Id, References;
 	uint16_t Weight;
-	uint8_t Priority;
+	uint8_t Priority, Kind;
 	bool Local, OpenAcknowledged, ReadReady, WriteDone, RetireReady;
 	bool ResetQueued, ResetAcknowledged;
 	uint32_t ResetReason;
 	uint64_t ResetFinal;
+	uint32_t SendMessageLimit; /* min(peer authenticated bound, local TX capacity-4). */
+	xrudpmessagestate Message; /* Fixed receive staging; zero for byte streams. */
 	xrudpreceivestate Receive;
 	xrudptransmitstate Transmit;
 } xrudpstreamstate;
@@ -1381,8 +1395,9 @@ XRT_EXTERN_C_BEGIN
 
 /* Implicit bidirectional byte stream 1 is admitted by the completed handshake.
  * StreamCapacity reserves 2*N-1 fixed receive/transmit pairs at construction;
- * Local.MaxStreams <= N. OPEN/read/write/retire never allocate. Message/game
- * framing and path migration are separate layers, not enabled here yet.
+ * Local.MaxStreams <= N. When Local.MaxMessageSize>0, all 2*N-2 extra slots
+ * also reserve one fixed message assembler. OPEN/read/write/retire never
+ * allocate. Game datagrams and path migration remain separate layers.
  * No private thread/socket, no callbacks except serialized output admission.
  * Every method requires one owner; all caller buffers must be disjoint. */
 XRUDP_API void xrtRudpSessionConfigInit(xrudpsessionconfig* pConfig);
@@ -1406,7 +1421,8 @@ XRUDP_API xrudpresult xrtRudpSessionFinish(xrudpsession* pSession);
  * validated ACK. DONE is clean stream EOF, not implicit connection closure. */
 XRUDP_API xrudpresult xrtRudpSessionRead(xrudpsession* pSession,
 	void* pOutput, size_t iCapacity, size_t* pRead);
-/* New bidirectional byte stream. IDs never reused: initiator odd, responder
+/* New bidirectional typed stream. MESSAGES requires both authenticated message
+ * bounds to be nonzero. IDs never reused: initiator odd, responder
  * even; default ID 1 consumes ordinal 1 in both pools. Success permits bounded
  * writing before OPEN ACK; output repeats OPEN until acknowledged. */
 XRUDP_API xrudpresult xrtRudpSessionStreamOpen(xrudpsession* pSession,
@@ -1417,6 +1433,21 @@ XRUDP_API xrudpresult xrtRudpSessionStreamWrite(xrudpsession* pSession,
 	uint32_t iId, const void* pData, size_t iSize, size_t* pWritten);
 XRUDP_API xrudpresult xrtRudpSessionStreamRead(xrudpsession* pSession,
 	uint32_t iId, void* pOutput, size_t iCapacity, size_t* pRead);
+/* Message-only APIs; raw StreamRead/Write reject a message stream. Write is
+ * atomic even for empty messages. LIMIT exceeds peer/local SendMessageLimit;
+ * BACKPRESSURE is temporary ring capacity. Peek is pure. Read returns a whole
+ * payload; TRUNCATED reports required size without consuming/writing bytes.
+ * NULL/0 can query a nonempty record or consume an empty one. READ_READY is a
+ * full message or EOF/RESET, never a partial body. Call Poll after a successful
+ * Read, INCLUDING an empty message, to stage the next record and return credit.
+ * Poll/Input stage at most MESSAGE_STAGE_BYTES each, with round-robin service.
+ * Invalid head length/truncated FIN is MALFORMED and terminates the session. */
+XRUDP_API xrudpresult xrtRudpSessionMessageWrite(xrudpsession* pSession,
+	uint32_t iId, const void* pData, size_t iSize);
+XRUDP_API xrudpresult xrtRudpSessionMessagePeek(const xrudpsession* pSession,
+	uint32_t iId, size_t* pSize);
+XRUDP_API xrudpresult xrtRudpSessionMessageRead(xrudpsession* pSession,
+	uint32_t iId, void* pOutput, size_t iCapacity, size_t* pSize);
 XRUDP_API xrudpresult xrtRudpSessionStreamFinish(xrudpsession* pSession, uint32_t iId);
 /* Reset only the local sending half. Final size is actual highest sent, so
  * discarded, never-sent buffers do not consume peer flow credit. */
@@ -1505,7 +1536,7 @@ typedef struct xrudpendpointevents {
 	 * Mutations inside a callback defer further Changed delivery to another
 	 * worker turn; no recursive Changed callbacks. Borrowed peer and context. */
 	void (*Changed)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, uint32_t iEvents, void* pContext);
-	/* All byte streams, including ID 1; XRUDP_STREAM_* masks. At most eight
+	/* All typed streams, including byte stream ID 1; XRUDP_STREAM_* masks. At most eight
 	 * coalesced stream hints per dispatch. OPENED is remote-origin only. The
 	 * borrowed event is valid only during this callback. Callbacks may perform
 	 * stream operations or close/drop owned handles; never recursively invoked.
@@ -1584,7 +1615,7 @@ XRUDP_API void xrtRudpPeerDestroy(xrudppeer* pPeer);
 XRUDP_API xrudpresult xrtRudpPeerWrite(xrudppeer* pPeer, const void* pData, size_t iSize, size_t* pWritten);
 XRUDP_API xrudpresult xrtRudpPeerRead(xrudppeer* pPeer, void* pOutput, size_t iCapacity, size_t* pRead);
 XRUDP_API xrudpresult xrtRudpPeerFinish(xrudppeer* pPeer);
-/* Owner-only advanced byte streams; capacity/IDs/half-close/retirement follow
+/* Owner-only advanced typed streams; capacity/IDs/half-close/retirement follow
  * SessionStream*. No per-stream heap allocation. Before Confirmed return
  * BACKPRESSURE; after peer close return CLOSED, without accessing the Engine.
  * A stream state is live-only (the aggregate session snapshot survives Close).
@@ -1594,6 +1625,15 @@ XRUDP_API xrudpresult xrtRudpPeerStreamOpen(xrudppeer* pPeer, const xrudpstreamc
 XRUDP_API xrudpresult xrtRudpPeerStreamState(const xrudppeer* pPeer, uint32_t iId, xrudpstreamstate* pState);
 XRUDP_API xrudpresult xrtRudpPeerStreamWrite(xrudppeer* pPeer, uint32_t iId, const void* pData, size_t iSize, size_t* pWritten);
 XRUDP_API xrudpresult xrtRudpPeerStreamRead(xrudppeer* pPeer, uint32_t iId, void* pOutput, size_t iCapacity, size_t* pRead);
+/* Message-only whole-payload APIs, following SessionMessage*. Configure
+ * Session.Local.MaxMessageSize before Bind; its staging memory participates in
+ * endpoint peak reservation. Existing StreamChanged reports full message/EOF/
+ * RESET readiness. Empty successful Read/Write also schedules the next turn.
+ * No per-message allocation; Engine timers/UDP queues retain their own budgets.
+ * Only the owner may call while confirmed, CLOSED thereafter. */
+XRUDP_API xrudpresult xrtRudpPeerMessageWrite(xrudppeer* pPeer, uint32_t iId, const void* pData, size_t iSize);
+XRUDP_API xrudpresult xrtRudpPeerMessagePeek(const xrudppeer* pPeer, uint32_t iId, size_t* pSize);
+XRUDP_API xrudpresult xrtRudpPeerMessageRead(xrudppeer* pPeer, uint32_t iId, void* pOutput, size_t iCapacity, size_t* pSize);
 XRUDP_API xrudpresult xrtRudpPeerStreamFinish(xrudppeer* pPeer, uint32_t iId);
 XRUDP_API xrudpresult xrtRudpPeerStreamReset(xrudppeer* pPeer, uint32_t iId, uint32_t iReason);
 XRUDP_API xrudpresult xrtRudpPeerStreamRetire(xrudppeer* pPeer, uint32_t iId);
@@ -3479,6 +3519,22 @@ xrudpresult xrtRudpReceivePushBatch(const xrudpreceiveframe* frames,
 	return result;
 }
 
+xrudpresult xrtRudpReceivePeek(const xrudpreceive* r, uint64_t offset, void* output, size_t capacity, size_t* read)
+{
+	if (read != NULL) *read = 0;
+	if (r == NULL || output == NULL || capacity == 0 || read == NULL || offset < r->ReadOffset || offset > r->Limit ||
+		(r->HasFinal && offset > r->FinalOffset)) return XRUDP_ARGUMENT;
+	if (r->Reset) return XRUDP_CANCELLED;
+	if (r->HasFinal && offset == r->FinalOffset) return XRUDP_DONE;
+	size_t count = 0;
+	while (count < capacity && offset < r->Limit) {
+		size_t slot = xrudp__receive_slot(r, offset);
+		if (!xrudp__receive_has(r, slot)) break;
+		((unsigned char*)output)[count++] = r->Data[slot]; ++offset;
+	}
+	*read = count; return count != 0 ? XRUDP_OK : XRUDP_BACKPRESSURE;
+}
+
 xrudpresult xrtRudpReceiveRead(xrudpreceive* r, void* output, size_t capacity, size_t* read)
 {
 	unsigned char* bytes = (unsigned char*)output;
@@ -3998,7 +4054,8 @@ static bool xrudp__hs_parameters(const xrudpparameters* p)
 {
 	return p != NULL && p->ConnectionCredit <= UINT64_C(67108864) && p->StreamCredit <= 1048576 &&
 		p->MaxStreams >= 1 && p->MaxStreams <= 1024 && p->IdleTimeoutMs >= 1000 && p->IdleTimeoutMs <= 3600000 &&
-		p->MaxAckDelayUs <= 25000 && p->DatagramSize >= 512 && p->DatagramSize <= XRUDP_PACKET_MAX && p->Reserved == 0;
+		p->MaxAckDelayUs <= 25000 && p->DatagramSize >= 512 && p->DatagramSize <= XRUDP_PACKET_MAX &&
+		p->MaxMessageSize <= XRUDP_MESSAGE_SIZE_MAX;
 }
 void xrtRudpParametersDefault(xrudpparameters* p)
 {
@@ -4015,7 +4072,7 @@ xrudpresult xrtRudpParametersEncode(const xrudpparameters* p, void* output, size
 	xrudp__hs_put(wire, p->ConnectionCredit, 8); xrudp__hs_put(wire + 8, p->StreamCredit, 4);
 	xrudp__hs_put(wire + 12, p->MaxStreams, 4); xrudp__hs_put(wire + 16, p->IdleTimeoutMs, 4);
 	xrudp__hs_put(wire + 20, p->MaxAckDelayUs, 4); xrudp__hs_put(wire + 24, p->DatagramSize, 4);
-	memset(wire + 28, 0, 4); memmove(output, wire, sizeof(wire)); return XRUDP_OK;
+	xrudp__hs_put(wire + 28, p->MaxMessageSize, 4); memmove(output, wire, sizeof(wire)); return XRUDP_OK;
 }
 xrudpresult xrtRudpParametersDecode(const void* data, size_t size, xrudpparameters* output)
 {
@@ -4025,7 +4082,7 @@ xrudpresult xrtRudpParametersDecode(const void* data, size_t size, xrudpparamete
 	memset(&next, 0, sizeof(next)); next.ConnectionCredit = xrudp__hs_get(p, 8);
 	next.StreamCredit = (uint32_t)xrudp__hs_get(p + 8, 4); next.MaxStreams = (uint32_t)xrudp__hs_get(p + 12, 4);
 	next.IdleTimeoutMs = (uint32_t)xrudp__hs_get(p + 16, 4); next.MaxAckDelayUs = (uint32_t)xrudp__hs_get(p + 20, 4);
-	next.DatagramSize = (uint32_t)xrudp__hs_get(p + 24, 4); next.Reserved = (uint32_t)xrudp__hs_get(p + 28, 4);
+	next.DatagramSize = (uint32_t)xrudp__hs_get(p + 24, 4); next.MaxMessageSize = (uint32_t)xrudp__hs_get(p + 28, 4);
 	if (!xrudp__hs_parameters(&next)) return XRUDP_MALFORMED;
 	*output = next; return XRUDP_OK;
 }
@@ -4347,12 +4404,14 @@ typedef struct xrudp__sessionref {
 typedef struct xrudp__sessionstream {
 	xrudpreceive* Rx;
 	xrudptransmit* Tx;
+	xrudpmessage* Message;
 	uint64_t InitialCredit, GrantAcked, RetryAt, ResetFinal;
 	uint32_t Id, References, Events, Deficit, ResetReason;
 	uint16_t Weight;
-	uint8_t Priority;
+	uint8_t Priority, Kind;
 	bool Local, OpenSent, OpenAcked, ResetQueued, ResetSent, ResetAcked;
 	bool LastRead, LastDone, LastEof, LastRetire;
+	bool StagePending;
 } xrudp__sessionstream;
 
 struct xrudpsession {
@@ -4371,7 +4430,7 @@ struct xrudpsession {
 	bool Busy, Work, WorkStartPending, AckWanted, ConfirmWanted;
 	size_t Allocation;
 	uint32_t Slots, PtoCount, Probes, ElicitingSinceAck;
-	uint32_t StreamSlots, ActiveStreams, ScheduleCursor, EventCursor;
+	uint32_t StreamSlots, ActiveStreams, ScheduleCursor, EventCursor, MessageCursor;
 	uint32_t IncomingNext, OutgoingNext, IncomingLimit, OutgoingLimit, StreamsAcked;
 	uint64_t Now, Activity, Progress, IdleUs, PtoAt, AckAt, ControlAt;
 	uint64_t GrantRetry, ConnectionLimit, ConnectionReceived, ConnectionSent, PeerLimit;
@@ -4413,6 +4472,7 @@ static bool xrudp__stream_done(const xrudp__sessionstream* m)
 }
 static bool xrudp__stream_eof(const xrudp__sessionstream* m)
 {
+	if (m->Kind == XRUDP_STREAM_MESSAGES) { size_t size; return xrtRudpMessagePeek(m->Message, &size) == XRUDP_DONE; }
 	xrudpreceivestate r;
 	return xrtRudpReceiveState(m->Rx, &r) == XRUDP_OK && r.HasFinal && !r.Reset && r.ReadOffset == r.FinalOffset;
 }
@@ -4421,11 +4481,17 @@ static bool xrudp__stream_retire(const xrudp__sessionstream* m)
 	if (m->Id == 1 || !m->OpenAcked || m->References != 0 || !xrudp__stream_done(m)) return false;
 	xrudpreceivestate r;
 	return xrtRudpReceiveState(m->Rx, &r) == XRUDP_OK &&
-		(r.Reset || (r.HasFinal && r.ReadOffset == r.FinalOffset));
+		(r.Reset || xrudp__stream_eof(m));
+}
+static bool xrudp__stream_read_ready(const xrudp__sessionstream* m)
+{
+	if (m->Kind == XRUDP_STREAM_BYTES) return xrtRudpReceiveReady(m->Rx);
+	size_t size; xrudpresult r = xrtRudpMessagePeek(m->Message, &size);
+	return r == XRUDP_OK || r == XRUDP_DONE || r == XRUDP_CANCELLED;
 }
 static void xrudp__stream_note(xrudp__sessionstream* m)
 {
-	bool read = xrtRudpReceiveReady(m->Rx), done = xrudp__stream_done(m), eof = xrudp__stream_eof(m);
+	bool read = xrudp__stream_read_ready(m), done = xrudp__stream_done(m), eof = xrudp__stream_eof(m);
 	bool retire = xrudp__stream_retire(m);
 	if (read && !m->LastRead) m->Events |= XRUDP_STREAM_READ_READY;
 	if (done && !m->LastDone) m->Events |= XRUDP_STREAM_WRITE_DONE;
@@ -4452,10 +4518,10 @@ static xrudpresult xrudp__stream_access(const xrudpsession* s, uint32_t id, uint
 	return (id / 2 + 1) < next ? XRUDP_CLOSED : XRUDP_ARGUMENT;
 }
 static void xrudp__stream_activate(xrudpsession* s, uint32_t index, uint32_t id,
-	bool local, uint64_t credit, uint8_t priority, uint16_t weight)
+	bool local, uint64_t credit, uint8_t priority, uint16_t weight, uint8_t kind)
 {
 	xrudp__sessionstream* m = &s->Streams[index]; m->Id = id; m->Local = local;
-	m->InitialCredit = credit; m->Priority = priority; m->Weight = weight;
+	m->InitialCredit = credit; m->Priority = priority; m->Weight = weight; m->Kind = kind;
 	m->GrantAcked = s->Config.Local.StreamCredit; m->OpenAcked = !local || id == 1; m->RetryAt = s->Now;
 	(void)xrtRudpTransmitSetLimit(m->Tx, local ? s->Config.Peer.StreamCredit : credit); ++s->ActiveStreams;
 }
@@ -4475,7 +4541,7 @@ void xrtRudpStreamConfigInit(xrudpstreamconfig* c)
 }
 static xrudpresult xrudp__session_sizes(const xrudpsessionconfig* c, size_t* own, size_t* total)
 {
-	unsigned char params[32]; size_t rx, tx, sent; xrudpcongestion cc; xrudprtt rtt;
+	unsigned char params[32]; size_t rx, tx, sent, message = 0; xrudpcongestion cc; xrudprtt rtt;
 	if (c == NULL || c->PacketCapacity == 0 || c->PacketCapacity > XRUDP_SESSION_PACKETS_MAX ||
 		c->ControlPerSecond < 40 || c->ControlPerSecond > 4096 ||
 		(c->Role != XRUDP_INITIATOR && c->Role != XRUDP_RESPONDER) || c->StreamCapacity == 0 ||
@@ -4490,9 +4556,10 @@ static xrudpresult xrudp__session_sizes(const xrudpsessionconfig* c, size_t* own
 		xrtRudpSentAllocationSize(c->PacketCapacity, &sent) != XRUDP_OK ||
 		xrtRudpCongestionInit(&cc, c->MaximumWindow) != XRUDP_OK ||
 		xrtRudpRttInit(&rtt, c->InitialRttUs, c->Peer.MaxAckDelayUs) != XRUDP_OK) return XRUDP_ARGUMENT;
+	if (c->Local.MaxMessageSize != 0 && xrtRudpMessageAllocationSize(c->Local.MaxMessageSize, &message) != XRUDP_OK) return XRUDP_ARGUMENT;
 	*own = sizeof(xrudpsession) + (c->PacketCapacity + XRUDP_SENT_PROBE_RESERVE) *
 		(sizeof(xrudp__sessionref) + sizeof(xrudpsentevent)) + (2 * c->StreamCapacity - 1) * sizeof(xrudp__sessionstream);
-	*total = *own + (2 * c->StreamCapacity - 1) * (rx + tx) + sent + xrtRudpCipherAllocationSize();
+	*total = *own + (2 * c->StreamCapacity - 1) * (rx + tx) + (2 * c->StreamCapacity - 2) * message + sent + xrtRudpCipherAllocationSize();
 	return XRUDP_OK;
 }
 xrudpresult xrtRudpSessionAllocationSize(const xrudpsessionconfig* c, size_t* output)
@@ -4523,16 +4590,18 @@ xrudpresult xrtRudpSessionCreate(const xrudpsessionconfig* c, xrudpcipher* ciphe
 	for (uint32_t i = 0; i < s->StreamSlots && result == XRUDP_OK; ++i) {
 		result = xrtRudpReceiveCreate(c->ReceiveCapacity, c->Local.StreamCredit, &s->Streams[i].Rx);
 		if (result == XRUDP_OK) result = xrtRudpTransmitCreate(c->TransmitCapacity, 0, &s->Streams[i].Tx);
+		if (result == XRUDP_OK && i != 0 && c->Local.MaxMessageSize != 0)
+			result = xrtRudpMessageCreate(c->Local.MaxMessageSize, &s->Streams[i].Message);
 	}
 	if (result != XRUDP_OK) {
-		for (uint32_t i = 0; i < s->StreamSlots; ++i) { xrtRudpTransmitDestroy(s->Streams[i].Tx); xrtRudpReceiveDestroy(s->Streams[i].Rx); }
+		for (uint32_t i = 0; i < s->StreamSlots; ++i) { xrtRudpMessageDestroy(s->Streams[i].Message); xrtRudpTransmitDestroy(s->Streams[i].Tx); xrtRudpReceiveDestroy(s->Streams[i].Rx); }
 		xrtRudpSentDestroy(s->Sent);
 		xrtSecureZero(s, own); xrtFree(s); return result;
 	}
 	(void)xrtRudpCongestionInit(&s->Cc, c->MaximumWindow); s->Cc.LargestSent = 1;
 	(void)xrtRudpRttInit(&s->Rtt, c->InitialRttUs, c->Peer.MaxAckDelayUs);
 	xrtRudpAckSetInit(&s->Ack); (void)xrtRudpAckSetRecord(&s->Ack, 1, now);
-	xrudp__stream_activate(s, 0, 1, true, c->Local.StreamCredit, 1, 1); s->Streams[0].OpenSent = true;
+	xrudp__stream_activate(s, 0, 1, true, c->Local.StreamCredit, 1, 1, XRUDP_STREAM_BYTES); s->Streams[0].OpenSent = true;
 	s->Rx = s->Streams[0].Rx; s->Tx = s->Streams[0].Tx;
 	s->Cipher = cipher; *output = s; (void)total; return XRUDP_OK;
 }
@@ -4561,6 +4630,7 @@ static xrudpresult xrudp__session_abort(xrudpsession* s, xrudpresult reason)
 		(void)xrtRudpTransmitCancel(s->Streams[i].Tx, &tx);
 		(void)xrtRudpReceiveState(s->Streams[i].Rx, &rx);
 		(void)xrtRudpReceiveReset(s->Streams[i].Rx, rx.HighestOffset, (uint32_t)reason, &reset);
+		if (s->Streams[i].Message != NULL) (void)xrtRudpMessageReset(s->Streams[i].Message);
 		s->Streams[i].References = s->Streams[i].Events = 0;
 	}
 	(void)xrtRudpSentAbort(s->Sent, s->Events, s->Slots, &count);
@@ -4579,7 +4649,7 @@ void xrtRudpSessionDestroy(xrudpsession* s)
 	if (s == NULL) return;
 	(void)xrudp__session_abort(s, XRUDP_CANCELLED); xrtRudpCipherDestroy(s->Cipher);
 	xrtRudpSentDestroy(s->Sent);
-	for (uint32_t i = 0; i < s->StreamSlots; ++i) { xrtRudpTransmitDestroy(s->Streams[i].Tx); xrtRudpReceiveDestroy(s->Streams[i].Rx); }
+	for (uint32_t i = 0; i < s->StreamSlots; ++i) { xrtRudpMessageDestroy(s->Streams[i].Message); xrtRudpTransmitDestroy(s->Streams[i].Tx); xrtRudpReceiveDestroy(s->Streams[i].Rx); }
 	size_t size = s->Allocation; xrtSecureZero(s, size); xrtFree(s);
 }
 xrudpresult xrtRudpSessionState(const xrudpsession* s, xrudpsessionstate* output)
@@ -4604,24 +4674,30 @@ xrudpresult xrtRudpSessionStreamState(const xrudpsession* s, uint32_t id, xrudps
 	uint32_t index; if (output == NULL) return XRUDP_ARGUMENT;
 	xrudpresult result = xrudp__stream_access(s, id, &index); if (result != XRUDP_OK) return result;
 	const xrudp__sessionstream* m = &s->Streams[index]; xrudpstreamstate state; memset(&state, 0, sizeof(state));
-	state.Id = id; state.References = m->References; state.Weight = m->Weight; state.Priority = m->Priority;
-	state.Local = m->Local; state.OpenAcknowledged = m->OpenAcked; state.ReadReady = xrtRudpReceiveReady(m->Rx);
+	state.Id = id; state.References = m->References; state.Weight = m->Weight; state.Priority = m->Priority; state.Kind = m->Kind;
+	state.Local = m->Local; state.OpenAcknowledged = m->OpenAcked; state.ReadReady = xrudp__stream_read_ready(m);
 	state.WriteDone = xrudp__stream_done(m); state.ResetQueued = m->ResetQueued; state.ResetAcknowledged = m->ResetAcked;
 	state.RetireReady = xrudp__stream_retire(m);
 	state.ResetReason = m->ResetReason; state.ResetFinal = m->ResetFinal;
 	(void)xrtRudpReceiveState(m->Rx, &state.Receive); (void)xrtRudpTransmitState(m->Tx, &state.Transmit);
+	if (m->Kind == XRUDP_STREAM_MESSAGES) {
+		state.SendMessageLimit = s->Config.Peer.MaxMessageSize;
+		if (state.SendMessageLimit > state.Transmit.Capacity - 4u) state.SendMessageLimit = state.Transmit.Capacity - 4u;
+		(void)xrtRudpMessageState(m->Message, &state.Message);
+	}
 	*output = state; return XRUDP_OK;
 }
 xrudpresult xrtRudpSessionStreamOpen(xrudpsession* s, const xrudpstreamconfig* c, uint32_t* output)
 {
-	if (s == NULL || s->Busy || c == NULL || output == NULL || c->Priority > 3 || c->Weight == 0 || c->Weight > 16) return XRUDP_ARGUMENT;
+	if (s == NULL || s->Busy || c == NULL || output == NULL || c->Priority > 3 || c->Weight == 0 || c->Weight > 16 || c->Kind > XRUDP_STREAM_MESSAGES) return XRUDP_ARGUMENT;
 	if (s->Reason != XRUDP_OK) return s->Reason;
+	if (c->Kind == XRUDP_STREAM_MESSAGES && (s->Config.Local.MaxMessageSize == 0 || s->Config.Peer.MaxMessageSize == 0)) return XRUDP_PROTOCOL_MISMATCH;
 	if (s->OutgoingNext > XRUDP__ORDINAL_MAX) return XRUDP_LIMIT;
 	if (s->OutgoingNext > s->OutgoingLimit) return XRUDP_BACKPRESSURE;
 	uint32_t index; for (index = 1; index < s->Config.StreamCapacity && s->Streams[index].Id != 0; ++index) {}
 	if (index == s->Config.StreamCapacity) return XRUDP_BACKPRESSURE;
 	bool prior = s->Work; uint32_t id = (s->OutgoingNext - 1) * 2 + (s->Config.Role == XRUDP_INITIATOR ? 1u : 0u);
-	xrudp__stream_activate(s, index, id, true, s->Config.Local.StreamCredit, c->Priority, c->Weight); ++s->OutgoingNext;
+	xrudp__stream_activate(s, index, id, true, s->Config.Local.StreamCredit, c->Priority, c->Weight, c->Kind); ++s->OutgoingNext;
 	xrudp__session_syncwork(s); if (!prior && s->Work) s->WorkStartPending = true;
 	*output = id; return XRUDP_OK;
 }
@@ -4630,6 +4706,7 @@ xrudpresult xrtRudpSessionStreamWrite(xrudpsession* s, uint32_t id, const void* 
 	if (written != NULL) *written = 0;
 	if (written == NULL || (data == NULL && size != 0)) return XRUDP_ARGUMENT;
 	uint32_t index; xrudpresult access = xrudp__stream_access(s, id, &index); if (access != XRUDP_OK) return access;
+	if (s->Streams[index].Kind != XRUDP_STREAM_BYTES) return XRUDP_ARGUMENT;
 	bool prior = s->Work;
 	xrudpresult result = xrtRudpTransmitWrite(s->Streams[index].Tx, data, size, written); xrudp__session_syncwork(s);
 	if (!prior && s->Work) s->WorkStartPending = true;
@@ -4651,15 +4728,119 @@ static void xrudp__session_consumed(xrudpsession* s, uint32_t index, uint64_t am
 	s->ConnectionLimit = xrudp__session_add(s->ConnectionLimit, amount); s->GrantRetry = s->Now;
 	xrudp__session_syncwork(s);
 }
+/* Only the current undecoded head is examined. At most four bytes, read from
+ * existing reassembly overlaid with this already-validated STREAM batch.
+ * Thus an arriving header/FIN cannot commit a useful ACK before rejection. */
+static xrudpresult xrudp__message_check(const xrudp__sessionstream* m, const xrudpreceivestate* rx,
+	const xrudpreceiveframe* frames, size_t count, bool hasFinal, uint64_t final)
+{
+	xrudpmessagestate state;
+	if (xrtRudpMessageState(m->Message, &state) != XRUDP_OK) return XRUDP_IO_ERROR;
+	if (state.Ready || state.Finished || rx->Reset) return XRUDP_OK;
+	if (state.Reason != XRUDP_OK) return state.Reason;
+	if (hasFinal && final < rx->ReadOffset) return XRUDP_MALFORMED;
+	uint64_t remaining = (hasFinal ? final : UINT64_MAX) - rx->ReadOffset;
+	if (hasFinal && remaining == 0 && state.HeaderBytes == 0) return XRUDP_OK; /* Clean boundary. */
+	uint32_t needed = 4 - state.HeaderBytes, length = state.Expected;
+	if (remaining < needed) return XRUDP_MALFORMED;
+	for (uint32_t j = 0; j < needed; ++j) {
+		if (rx->ReadOffset > UINT64_MAX - j) return XRUDP_MALFORMED;
+		uint64_t at = rx->ReadOffset + j; unsigned char byte = 0; size_t read;
+		bool found = xrtRudpReceivePeek(m->Rx, at, &byte, 1, &read) == XRUDP_OK;
+		if (!found) for (size_t i = 0; i < count; ++i) if (frames[i].Receive == m->Rx && at >= frames[i].Offset && at - frames[i].Offset < frames[i].Size) {
+			byte = ((const unsigned char*)frames[i].Data)[(size_t)(at - frames[i].Offset)]; found = true; break;
+		}
+		if (!found) return XRUDP_OK; /* Header hole; no false malformed result. */
+		length = (length << 8) | byte;
+	}
+	if (length > state.Maximum || remaining - needed < length - state.Buffered) return XRUDP_MALFORMED;
+	return XRUDP_OK;
+}
+static xrudpresult xrudp__message_stage_inner(xrudpsession* s, uint32_t index, size_t* budget, unsigned char* buffer)
+{
+	xrudp__sessionstream* m = &s->Streams[index]; xrudpreceivestate rx;
+	m->StagePending = false; (void)xrtRudpReceiveState(m->Rx, &rx);
+	if (rx.Reset) { (void)xrtRudpMessageReset(m->Message); return XRUDP_OK; }
+	xrudpresult result = xrudp__message_check(m, &rx, NULL, 0, rx.HasFinal != 0, rx.FinalOffset);
+	if (result != XRUDP_OK) return result;
+	while (*budget != 0) {
+		size_t size; result = xrtRudpMessagePeek(m->Message, &size);
+		if (result == XRUDP_OK || result == XRUDP_DONE) break;
+		if (result != XRUDP_BACKPRESSURE) return result;
+		xrudpmessagestate state; (void)xrtRudpMessageState(m->Message, &state);
+		size_t needed = state.HeaderBytes < 4 ? 4 - state.HeaderBytes : state.Expected - state.Buffered;
+		if (needed == 0) return XRUDP_IO_ERROR;
+		if (needed > 512) needed = 512;
+		if (needed > *budget) needed = *budget;
+		result = xrtRudpReceiveRead(m->Rx, buffer, needed, &size);
+		if (result == XRUDP_DONE) return xrtRudpMessageFinish(m->Message);
+		if (result == XRUDP_BACKPRESSURE) return XRUDP_OK;
+		if (result != XRUDP_OK) return XRUDP_IO_ERROR;
+		size_t consumed;
+		result = xrtRudpMessagePush(m->Message, buffer, size, &consumed);
+		if (result != XRUDP_OK || consumed != size) return result == XRUDP_MALFORMED ? result : XRUDP_IO_ERROR;
+		*budget -= size; xrudp__session_consumed(s, index, size);
+	}
+	(void)xrtRudpReceiveState(m->Rx, &rx);
+	if (rx.HasFinal && rx.ReadOffset == rx.FinalOffset) {
+		result = xrtRudpMessageFinish(m->Message);
+		if (result != XRUDP_OK && result != XRUDP_DUPLICATE) return result;
+	}
+	size_t size;
+	m->StagePending = xrtRudpMessagePeek(m->Message, &size) == XRUDP_BACKPRESSURE && xrtRudpReceiveReady(m->Rx);
+	return XRUDP_OK;
+}
+static xrudpresult xrudp__session_stage(xrudpsession* s)
+{
+	if (s->Config.Local.MaxMessageSize == 0) return XRUDP_OK;
+	size_t budget = XRUDP_SESSION_MESSAGE_STAGE_BYTES; unsigned char buffer[512]; xrudpresult result = XRUDP_OK;
+	uint32_t start = s->MessageCursor;
+	for (uint32_t n = 0; n < s->StreamSlots && budget != 0; ++n) {
+		uint32_t i = (start + n) % s->StreamSlots; xrudp__sessionstream* m = &s->Streams[i];
+		if (m->Id && m->Kind == XRUDP_STREAM_MESSAGES && m->StagePending) {
+			result = xrudp__message_stage_inner(s, i, &budget, buffer);
+			if (result != XRUDP_OK) break;
+			xrudp__stream_note(m); s->MessageCursor = (i + 1) % s->StreamSlots;
+		}
+	}
+	xrtSecureZero(buffer, sizeof(buffer)); return result;
+}
 xrudpresult xrtRudpSessionStreamRead(xrudpsession* s, uint32_t id, void* output, size_t capacity, size_t* read)
 {
 	if (read != NULL) *read = 0;
 	if (output == NULL || capacity == 0 || read == NULL) return XRUDP_ARGUMENT;
 	uint32_t index; xrudpresult access = xrudp__stream_access(s, id, &index); if (access != XRUDP_OK) return access;
+	if (s->Streams[index].Kind != XRUDP_STREAM_BYTES) return XRUDP_ARGUMENT;
 	bool prior = s->Work;
 	xrudpresult result = xrtRudpReceiveRead(s->Streams[index].Rx, output, capacity, read);
 	if (*read != 0) { xrudp__session_consumed(s, index, *read); xrudp__stream_note(&s->Streams[index]); }
 	if (!prior && s->Work) s->WorkStartPending = true;
+	return result;
+}
+xrudpresult xrtRudpSessionMessageWrite(xrudpsession* s, uint32_t id, const void* data, size_t size)
+{
+	if (data == NULL && size != 0) return XRUDP_ARGUMENT;
+	uint32_t index; xrudpresult access = xrudp__stream_access(s, id, &index); if (access != XRUDP_OK) return access;
+	xrudp__sessionstream* m = &s->Streams[index]; if (m->Kind != XRUDP_STREAM_MESSAGES) return XRUDP_ARGUMENT;
+	if (size > s->Config.Peer.MaxMessageSize) return XRUDP_LIMIT;
+	bool prior = s->Work; xrudpresult result = xrtRudpTransmitMessageWrite(m->Tx, data, size);
+	xrudp__session_syncwork(s); if (!prior && s->Work) s->WorkStartPending = true; return result;
+}
+xrudpresult xrtRudpSessionMessagePeek(const xrudpsession* s, uint32_t id, size_t* size)
+{
+	if (size != NULL) *size = 0;
+	if (size == NULL) return XRUDP_ARGUMENT;
+	uint32_t index; xrudpresult access = xrudp__stream_access(s, id, &index); if (access != XRUDP_OK) return access;
+	return s->Streams[index].Kind == XRUDP_STREAM_MESSAGES ? xrtRudpMessagePeek(s->Streams[index].Message, size) : XRUDP_ARGUMENT;
+}
+xrudpresult xrtRudpSessionMessageRead(xrudpsession* s, uint32_t id, void* output, size_t capacity, size_t* size)
+{
+	if (size != NULL) *size = 0;
+	if (size == NULL || (output == NULL && capacity != 0)) return XRUDP_ARGUMENT;
+	uint32_t index; xrudpresult access = xrudp__stream_access(s, id, &index); if (access != XRUDP_OK) return access;
+	xrudp__sessionstream* m = &s->Streams[index]; if (m->Kind != XRUDP_STREAM_MESSAGES) return XRUDP_ARGUMENT;
+	xrudpresult result = xrtRudpMessageRead(m->Message, output, capacity, size);
+	if (result == XRUDP_OK) { m->StagePending = true; xrudp__stream_note(m); }
 	return result;
 }
 xrudpresult xrtRudpSessionWrite(xrudpsession* s, const void* data, size_t size, size_t* written)
@@ -4688,9 +4869,10 @@ xrudpresult xrtRudpSessionStreamRetire(xrudpsession* s, uint32_t id)
 	uint32_t index; xrudpresult access = xrudp__stream_access(s, id, &index); if (access != XRUDP_OK) return access;
 	xrudp__sessionstream* m = &s->Streams[index];
 	if (!xrudp__stream_retire(m)) return XRUDP_BACKPRESSURE;
-	bool prior = s->Work, local = m->Local; xrudpreceive* r = m->Rx; xrudptransmit* t = m->Tx;
+	bool prior = s->Work, local = m->Local; xrudpreceive* r = m->Rx; xrudptransmit* t = m->Tx; xrudpmessage* message = m->Message;
+	if (message != NULL && xrtRudpMessageRestart(message) != XRUDP_OK) return XRUDP_IO_ERROR;
 	if (xrtRudpReceiveRestart(r, s->Config.Local.StreamCredit) != XRUDP_OK || xrtRudpTransmitRestart(t, 0) != XRUDP_OK) return XRUDP_IO_ERROR;
-	memset(m, 0, sizeof(*m)); m->Rx = r; m->Tx = t; --s->ActiveStreams;
+	memset(m, 0, sizeof(*m)); m->Rx = r; m->Tx = t; m->Message = message; --s->ActiveStreams;
 	if (!local && s->IncomingLimit < XRUDP__ORDINAL_MAX) { ++s->IncomingLimit; s->StreamsRetry = s->Now; }
 	xrudp__session_syncwork(s); if (!prior && s->Work) s->WorkStartPending = true; return XRUDP_OK;
 }
@@ -4796,7 +4978,7 @@ typedef struct xrudp__streamplan {
 	uint64_t Highest, Final, TxLimit, ResetFinal, Credit;
 	uint32_t Index, Id, ResetReason;
 	uint16_t Weight;
-	uint8_t Priority;
+	uint8_t Priority, Kind;
 	bool New, HasFinal, HasReset, HasOpen;
 } xrudp__streamplan;
 static xrudpresult xrudp__plan_get(xrudpsession* s, xrudp__streamplan* plans, size_t* count,
@@ -4876,12 +5058,13 @@ xrudpresult xrtRudpSessionInput(xrudpsession* s, const void* packet, size_t size
 		if (result != XRUDP_OK) goto malformed;
 		if (plan == NULL) continue;
 		uint64_t credit = xrudp__session_get64(d + 4); uint16_t weight = (uint16_t)(((uint16_t)d[14] << 8) | d[15]);
-		if (d[12] != 0 || credit > XRUDP_RECEIVE_CAPACITY_MAX) goto malformed;
+		if (credit > XRUDP_RECEIVE_CAPACITY_MAX || (d[12] == XRUDP_STREAM_MESSAGES &&
+			(s->Config.Local.MaxMessageSize == 0 || s->Config.Peer.MaxMessageSize == 0))) goto malformed;
 		if (plan->HasOpen) {
-			if (plan->Credit != credit || plan->Priority != d[13] || plan->Weight != weight) goto malformed;
+			if (plan->Credit != credit || plan->Priority != d[13] || plan->Weight != weight || plan->Kind != d[12]) goto malformed;
 		} else {
-			if (!plan->New && (plan->Stream->InitialCredit != credit || plan->Stream->Priority != d[13] || plan->Stream->Weight != weight)) goto malformed;
-			plan->HasOpen = true; plan->Credit = credit; plan->Priority = d[13]; plan->Weight = weight;
+			if (!plan->New && (plan->Stream->InitialCredit != credit || plan->Stream->Priority != d[13] || plan->Stream->Weight != weight || plan->Stream->Kind != d[12])) goto malformed;
+			plan->HasOpen = true; plan->Credit = credit; plan->Priority = d[13]; plan->Weight = weight; plan->Kind = d[12];
 			if (plan->New) { ++opened; plan->TxLimit = credit; }
 		}
 	}
@@ -4959,10 +5142,21 @@ xrudpresult xrtRudpSessionInput(xrudpsession* s, const void* packet, size_t size
 		xrudpreceivebatchchange change;
 		if (!xrudp__session_good(xrtRudpReceiveCheckBatch(streams, streamCount, s->ConnectionLimit - s->ConnectionReceived, &change))) goto malformed;
 	}
+	if (s->Config.Local.MaxMessageSize != 0) for (uint32_t i = 1; i < s->StreamSlots; ++i) {
+		xrudp__sessionstream* m = &s->Streams[i]; xrudp__streamplan* plan = NULL;
+		for (size_t j = 0; j < planCount; ++j) if (plans[j].Index == i) { plan = &plans[j]; break; }
+		uint8_t kind = plan != NULL && plan->New ? plan->Kind : m->Kind;
+		if (kind != XRUDP_STREAM_MESSAGES || (plan == NULL && !m->StagePending)) continue;
+		if (plan != NULL && plan->HasReset) continue;
+		xrudpreceivestate rx; (void)xrtRudpReceiveState(m->Rx, &rx);
+		bool final = plan != NULL ? plan->HasFinal : rx.HasFinal != 0;
+		uint64_t end = plan != NULL ? plan->Final : rx.FinalOffset;
+		if (xrudp__message_check(m, &rx, streams, streamCount, final, end) != XRUDP_OK) goto malformed;
+	}
 	/* No peer-dependent rejection, allocation or callback after this point. */
 	for (size_t i = 0; i < planCount; ++i) if (plans[i].New) {
 		xrudp__streamplan* p = &plans[i];
-		xrudp__stream_activate(s, p->Index, p->Id, false, p->Credit, p->Priority, p->Weight);
+		xrudp__stream_activate(s, p->Index, p->Id, false, p->Credit, p->Priority, p->Weight, p->Kind);
 		p->Stream->Events |= XRUDP_STREAM_OPENED;
 	}
 	s->IncomingNext += (uint32_t)opened; if (opened) s->Progress = now;
@@ -4984,8 +5178,10 @@ xrudpresult xrtRudpSessionInput(xrudpsession* s, const void* packet, size_t size
 			if (p->TxLimit > tx.PeerLimit) s->Progress = now;
 			(void)xrtRudpTransmitSetLimit(p->Stream->Tx, p->TxLimit);
 		}
+		if (p->Stream->Kind == XRUDP_STREAM_MESSAGES) p->Stream->StagePending = true;
 		xrudp__stream_note(p->Stream);
 	}
+	if (xrudp__session_stage(s) != XRUDP_OK) goto internal;
 	if (peerLimit > s->PeerLimit || outgoingLimit > s->OutgoingLimit) s->Progress = now;
 	s->PeerLimit = peerLimit; s->OutgoingLimit = outgoingLimit;
 	size_t eventCount = 0; bool progress = false; xrudpackchange sample; memset(&sample, 0, sizeof(sample));
@@ -5090,7 +5286,7 @@ static xrudpresult xrudp__session_send_inner(xrudpsession* s, uint64_t* due,
 	}
 	if (open) {
 		xrudp__session_put32(body, m->Id); xrudp__session_put64(body + 4, m->InitialCredit);
-		body[12] = 0; body[13] = m->Priority; body[14] = (unsigned char)(m->Weight >> 8); body[15] = (unsigned char)m->Weight;
+		body[12] = m->Kind; body[13] = m->Priority; body[14] = (unsigned char)(m->Weight >> 8); body[15] = (unsigned char)m->Weight;
 		if (!xrudp__session_append(plain, limit, &used, XRUDP_FRAME_OPEN, 0, body, 16)) return XRUDP_IO_ERROR;
 	}
 	if (streamGrant) {
@@ -5204,6 +5400,7 @@ xrudpresult xrtRudpSessionPoll(xrudpsession* s, uint64_t now, uint64_t* output)
 	if (xrudp__session_dead(s, now)) { (void)xrudp__session_abort(s, XRUDP_TIMEOUT); return XRUDP_TIMEOUT; }
 	s->Busy = true; xrudpresult result = xrudp__session_losses(s, 0);
 	if (result != XRUDP_OK) goto failure;
+	result = xrudp__session_stage(s); if (result != XRUDP_OK) goto failure;
 	xrudp__session_pto_sync(s, false); xrudp__session_syncwork(s);
 	if (s->PtoAt && now >= s->PtoAt) {
 		if (s->PtoCount < 32) ++s->PtoCount;
@@ -5228,6 +5425,7 @@ xrudpresult xrtRudpSessionPoll(xrudpsession* s, uint64_t now, uint64_t* output)
 	if (s->IncomingLimit > s->StreamsAcked && s->StreamsRetry > now && s->StreamsRetry < due) due = s->StreamsRetry;
 	for (uint32_t i = 0; i < s->StreamSlots; ++i) if (s->Streams[i].Id) {
 		xrudp__sessionstream* m = &s->Streams[i]; xrudpreceivestate rx; (void)xrtRudpReceiveState(m->Rx, &rx);
+		if (m->StagePending && xrudp__session_add(now, 1000) < due) due = xrudp__session_add(now, 1000);
 		if ((!m->OpenAcked || (m->ResetQueued && !m->ResetAcked) || rx.Limit > m->GrantAcked) && m->RetryAt > now && m->RetryAt < due) due = m->RetryAt;
 	}
 	uint64_t delay, age; xrudpsentstate sent;
@@ -5882,6 +6080,30 @@ xrudpresult xrtRudpPeerStreamRead(xrudppeer* p, uint32_t id, void* output, size_
 	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
 	xrtRudpPeerRef(p); result = xrtRudpSessionStreamRead(p->Session, id, output, capacity, read);
 	if (*read != 0) xrudp__peer_wake(p);
+	xrtRudpPeerDestroy(p); return result;
+}
+xrudpresult xrtRudpPeerMessageWrite(xrudppeer* p, uint32_t id, const void* data, size_t size)
+{
+	if (data == NULL && size != 0) return XRUDP_ARGUMENT;
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	xrtRudpPeerRef(p); result = xrtRudpSessionMessageWrite(p->Session, id, data, size);
+	if (result == XRUDP_OK) xrudp__peer_wake(p);
+	xrtRudpPeerDestroy(p); return result;
+}
+xrudpresult xrtRudpPeerMessagePeek(const xrudppeer* p, uint32_t id, size_t* size)
+{
+	if (size != NULL) *size = 0;
+	if (size == NULL) return XRUDP_ARGUMENT;
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	return xrtRudpSessionMessagePeek(p->Session, id, size);
+}
+xrudpresult xrtRudpPeerMessageRead(xrudppeer* p, uint32_t id, void* output, size_t capacity, size_t* size)
+{
+	if (size != NULL) *size = 0;
+	if (size == NULL || (output == NULL && capacity != 0)) return XRUDP_ARGUMENT;
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	xrtRudpPeerRef(p); result = xrtRudpSessionMessageRead(p->Session, id, output, capacity, size);
+	if (result == XRUDP_OK) xrudp__peer_wake(p);
 	xrtRudpPeerDestroy(p); return result;
 }
 xrudpresult xrtRudpPeerFinish(xrudppeer* p)

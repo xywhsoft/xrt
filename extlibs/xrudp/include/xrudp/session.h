@@ -7,6 +7,7 @@
 #include <xrudp/timing.h>
 #include <xrudp/receive.h>
 #include <xrudp/transmit.h>
+#include <xrudp/message.h>
 
 #if defined(XRUDP_FEATURE_RUDP_SESSION)
 
@@ -19,6 +20,9 @@
 #define XRUDP_STREAM_WRITE_DONE 8u
 #define XRUDP_STREAM_READ_EOF 16u
 #define XRUDP_STREAM_RETIRE_READY 32u
+#define XRUDP_STREAM_BYTES 0u
+#define XRUDP_STREAM_MESSAGES 1u
+#define XRUDP_SESSION_MESSAGE_STAGE_BYTES 4096u
 
 typedef struct xrudpsession xrudpsession;
 /* Called only by Poll, serialized with the entire session. Must COPY the
@@ -57,17 +61,20 @@ typedef struct xrudpsessionstate {
 } xrudpsessionstate;
 
 typedef struct xrudpstreamconfig {
+	uint8_t Kind; /* BYTES or MESSAGES; default byte stream 1 remains BYTES. */
 	uint8_t Priority; /* 0..3; bounded weighted deficit service, no starvation. */
 	uint16_t Weight; /* 1..16 local policy. Wire weights are capped to 16 for service. */
 } xrudpstreamconfig;
 typedef struct xrudpstreamstate {
 	uint32_t Id, References;
 	uint16_t Weight;
-	uint8_t Priority;
+	uint8_t Priority, Kind;
 	bool Local, OpenAcknowledged, ReadReady, WriteDone, RetireReady;
 	bool ResetQueued, ResetAcknowledged;
 	uint32_t ResetReason;
 	uint64_t ResetFinal;
+	uint32_t SendMessageLimit; /* min(peer authenticated bound, local TX capacity-4). */
+	xrudpmessagestate Message; /* Fixed receive staging; zero for byte streams. */
 	xrudpreceivestate Receive;
 	xrudptransmitstate Transmit;
 } xrudpstreamstate;
@@ -77,8 +84,9 @@ XRT_EXTERN_C_BEGIN
 
 /* Implicit bidirectional byte stream 1 is admitted by the completed handshake.
  * StreamCapacity reserves 2*N-1 fixed receive/transmit pairs at construction;
- * Local.MaxStreams <= N. OPEN/read/write/retire never allocate. Message/game
- * framing and path migration are separate layers, not enabled here yet.
+ * Local.MaxStreams <= N. When Local.MaxMessageSize>0, all 2*N-2 extra slots
+ * also reserve one fixed message assembler. OPEN/read/write/retire never
+ * allocate. Game datagrams and path migration remain separate layers.
  * No private thread/socket, no callbacks except serialized output admission.
  * Every method requires one owner; all caller buffers must be disjoint. */
 XRUDP_API void xrtRudpSessionConfigInit(xrudpsessionconfig* pConfig);
@@ -102,7 +110,8 @@ XRUDP_API xrudpresult xrtRudpSessionFinish(xrudpsession* pSession);
  * validated ACK. DONE is clean stream EOF, not implicit connection closure. */
 XRUDP_API xrudpresult xrtRudpSessionRead(xrudpsession* pSession,
 	void* pOutput, size_t iCapacity, size_t* pRead);
-/* New bidirectional byte stream. IDs never reused: initiator odd, responder
+/* New bidirectional typed stream. MESSAGES requires both authenticated message
+ * bounds to be nonzero. IDs never reused: initiator odd, responder
  * even; default ID 1 consumes ordinal 1 in both pools. Success permits bounded
  * writing before OPEN ACK; output repeats OPEN until acknowledged. */
 XRUDP_API xrudpresult xrtRudpSessionStreamOpen(xrudpsession* pSession,
@@ -113,6 +122,21 @@ XRUDP_API xrudpresult xrtRudpSessionStreamWrite(xrudpsession* pSession,
 	uint32_t iId, const void* pData, size_t iSize, size_t* pWritten);
 XRUDP_API xrudpresult xrtRudpSessionStreamRead(xrudpsession* pSession,
 	uint32_t iId, void* pOutput, size_t iCapacity, size_t* pRead);
+/* Message-only APIs; raw StreamRead/Write reject a message stream. Write is
+ * atomic even for empty messages. LIMIT exceeds peer/local SendMessageLimit;
+ * BACKPRESSURE is temporary ring capacity. Peek is pure. Read returns a whole
+ * payload; TRUNCATED reports required size without consuming/writing bytes.
+ * NULL/0 can query a nonempty record or consume an empty one. READ_READY is a
+ * full message or EOF/RESET, never a partial body. Call Poll after a successful
+ * Read, INCLUDING an empty message, to stage the next record and return credit.
+ * Poll/Input stage at most MESSAGE_STAGE_BYTES each, with round-robin service.
+ * Invalid head length/truncated FIN is MALFORMED and terminates the session. */
+XRUDP_API xrudpresult xrtRudpSessionMessageWrite(xrudpsession* pSession,
+	uint32_t iId, const void* pData, size_t iSize);
+XRUDP_API xrudpresult xrtRudpSessionMessagePeek(const xrudpsession* pSession,
+	uint32_t iId, size_t* pSize);
+XRUDP_API xrudpresult xrtRudpSessionMessageRead(xrudpsession* pSession,
+	uint32_t iId, void* pOutput, size_t iCapacity, size_t* pSize);
 XRUDP_API xrudpresult xrtRudpSessionStreamFinish(xrudpsession* pSession, uint32_t iId);
 /* Reset only the local sending half. Final size is actual highest sent, so
  * discarded, never-sent buffers do not consume peer flow credit. */

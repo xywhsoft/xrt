@@ -41,6 +41,9 @@
 #ifndef XRUDP_MODULE_RUDP_RECEIVE
 #define XRUDP_MODULE_RUDP_RECEIVE
 #endif
+#ifndef XRUDP_MODULE_RUDP_MESSAGE
+#define XRUDP_MODULE_RUDP_MESSAGE
+#endif
 #endif
 
 /* rudp_handshake 及其直接依赖。 */
