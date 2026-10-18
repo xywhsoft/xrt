@@ -72,6 +72,12 @@ typedef struct xrudpsessionconfig {
 	 * 60s. Required 512B failure terminates. Independent large-packet stalls
 	 * reduce to 512 and requeue reliable ranges, never game payload. */
 	bool DiscoverMtu;
+	/* Optional idle PING, 0 disabled (default), otherwise 1s..1h. Local policy,
+	 * no wire negotiation. Effective interval is capped at one third of the
+	 * negotiated idle timeout. Uses normal congestion/pacing/packet slots;
+	 * no application progress, extra allocation or new probe reserve. Suspended
+	 * while business work, PTO or graceful shutdown already drives the session. */
+	uint64_t KeepAliveUs;
 } xrudpsessionconfig;
 
 typedef struct xrudpshutdownstate {

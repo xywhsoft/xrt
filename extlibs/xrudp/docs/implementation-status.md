@@ -808,6 +808,22 @@ out/rudp-punch-native-windows-backend.log。Linux Clang -O2 ASan/UBSan、禁止�
 NAT 类型验收；候选授权/优选/协调、mdo 内嵌直连与中继兜底、xs 独立协议及 Android/
 完整互操作/模糊测试/72 小时长稳仍待继续。长期目标 active。
 
+## 2026-10-19：有界空闲保活
+
+会话增加可选本地 `KeepAliveUs`（默认关闭），在空闲时发送原协议的加密 PING。
+配置范围 1s..1h，有效间隔取配置值与协商 idle/3 的较小值。保活服从普通拥塞、
+pacing 和发送记录配额，不复用额外 PTO 槽；UDP 拒收不提交发送记录，ACK 丢失后
+复用已有 PTO，不持续制造新保活。业务、PTO 或优雅关闭已驱动连接时不另发保活。
+PING/ACK 只更新认证活动时间，不能延长被阻塞写入的业务进展期限。
+
+新增虚拟时钟回归：仅一端启用、协商 1s idle 而配置 20s，双端 4.5s 无业务后仍
+连接有效、每端仅 12..15 个包且业务字节/进展为零；配置边界、发送拒收后恢复、
+失联仍按原 idle 超时、新鲜认证 PING 不能掩盖业务停滞。Windows GCC -O2 严格警告
+与 Linux Clang -O2 ASan/UBSan/泄漏检查均通过会话、分配失败与关闭套件，含模块化、
+单头、原生 Select/IOCP/Epoll 字节/消息关闭。日志 dev/xrudp-keepalive-{windows,linux}.log。
+本次未修改其他任务的核心文件，单头仅再生 xrudp 扩展。xs/mdo 同步与真实空闲连接
+验收继续单独记录；公网、Android、完整互操作/模糊测试及 72h 长稳仍待完成。
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。

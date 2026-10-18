@@ -388,6 +388,61 @@ static int deadlines_and_control(void)
 	xrtRudpSessionDestroy(s); xrtRudpCipherDestroy(peer);
 	return 0;
 }
+static int keepalive_cases(void)
+{
+	xrudpsessionconfig cfg; configure(&cfg, 512, 1200); size_t allocation;
+	CHECK(cfg.KeepAliveUs == 0);
+	cfg.KeepAliveUs = 999999; CHECK(xrtRudpSessionAllocationSize(&cfg, &allocation) == XRUDP_ARGUMENT);
+	cfg.KeepAliveUs = UINT64_C(3600000001); CHECK(xrtRudpSessionAllocationSize(&cfg, &allocation) == XRUDP_ARGUMENT);
+	/* Only one peer enables the optional local policy. Existing peers already
+	 * ACK authenticated PING; no extra application messages or wire variant. */
+	memset(&net, 0, sizeof(net)); xrudpcipher* cipher[2]; CHECK(raw_pair(cipher) == 0);
+	cfg.Local.IdleTimeoutMs = cfg.Peer.IdleTimeoutMs = 1000;
+	cfg.KeepAliveUs = 20000000; cfg.KeyUpdatePackets = 1048576;
+	for (size_t i = 0; i < 2; ++i) {
+		net.Output[i].Index = (uint32_t)i;
+		CHECK(xrtRudpSessionCreate(&cfg, cipher[i], 0, send_packet, &net.Output[i], &net.Session[i]) == XRUDP_OK);
+		cfg.KeepAliveUs = 0;
+	}
+	uint64_t due[2] = {0,0}; uint32_t wake = 0;
+	for (tick = 0; tick <= 4500; ++tick) {
+		uint64_t now = (uint64_t)tick * 1000;
+		for (size_t i = 0; i < TEST_QUEUE; ++i) if (net.Queue[i].Used && net.Queue[i].Due <= tick) {
+			session_packet p = net.Queue[i]; net.Queue[i].Used = false;
+			CHECK(xrtRudpSessionInput(net.Session[p.Target], p.Data, p.Size, now) == XRUDP_OK); wake |= 1u << p.Target;
+		}
+		for (size_t i = 0; i < 2; ++i) if (now >= due[i] || (wake & (1u << i))) {
+			CHECK(xrtRudpSessionPoll(net.Session[i], now, &due[i]) == XRUDP_OK && due[i] > now); wake &= ~(1u << i);
+		}
+	}
+	for (size_t i = 0; i < 2; ++i) {
+		xrudpsessionstate state; CHECK(xrtRudpSessionState(net.Session[i], &state) == XRUDP_OK);
+		CHECK(state.LastActivityUs >= 4000000 && state.ProgressAtUs == 0 && !state.ReceivedConnection && !state.SentConnection);
+		CHECK(net.Output[i].Calls >= 12 && net.Output[i].Calls <= 15 && !state.Transmit.PendingBytes);
+	}
+	CHECK(!net.Overflow); destroy_pair();
+	/* UDP admission failure does not claim a keepalive or consume a packet
+	 * ledger. Recovery is finite and remains subject to the ordinary idle lease. */
+	memset(&net, 0, sizeof(net)); xrudpsession* s; xrudpcipher* peer;
+	cfg.KeepAliveUs = 1000000; CHECK(raw_session(&peer, &s, &cfg) == 0);
+	net.Output[0].Block = true; CHECK(xrtRudpSessionPoll(s, 334000, &due[0]) == XRUDP_OK && due[0] <= 335000);
+	xrudpsessionstate before, after; CHECK(xrtRudpSessionState(s, &before) == XRUDP_OK && before.OutputBackpressure == 1 && !before.Sent.PendingPackets);
+	net.Output[0].Block = false; CHECK(xrtRudpSessionPoll(s, 335000, &due[0]) == XRUDP_OK);
+	CHECK(xrtRudpSessionState(s, &after) == XRUDP_OK && after.Sent.PendingPackets == 1 && after.ProgressAtUs == before.ProgressAtUs);
+	CHECK(xrtRudpSessionPoll(s, 1000000, &due[0]) == XRUDP_TIMEOUT);
+	xrtRudpSessionDestroy(s); xrtRudpCipherDestroy(peer);
+	/* PING cannot conceal a stalled application write, even with keepalive
+	 * enabled and fresh authenticated traffic renewing the idle lease. */
+	memset(&net, 0, sizeof(net)); configure(&cfg, 512, 1200); cfg.KeepAliveUs = 1000000; cfg.ProgressTimeoutUs = 1000000;
+	cfg.Peer.ConnectionCredit = cfg.Peer.StreamCredit = 0;
+	CHECK(raw_session(&peer, &s, &cfg) == 0); size_t written;
+	CHECK(xrtRudpSessionWrite(s, "blocked", 7, &written) == XRUDP_OK && written == 7);
+	CHECK(xrtRudpSessionPoll(s, 0, &due[0]) == XRUDP_OK);
+	unsigned char ping[4] = {XRUDP_FRAME_PING,0,0,0};
+	CHECK(deliver_raw(s, peer, ping, sizeof(ping), 900000, XRUDP_OK) == 0);
+	CHECK(xrtRudpSessionPoll(s, 1000000, &due[0]) == XRUDP_TIMEOUT);
+	xrtRudpSessionDestroy(s); xrtRudpCipherDestroy(peer); return 0;
+}
 static int compact_ack(void)
 {
 	memset(&net, 0, sizeof(net)); xrudpsessionconfig cfg; configure(&cfg, 1024, 512);
@@ -443,6 +498,7 @@ int main(void)
 	randomState = 1;
 	CHECK(transaction_cases() == 0); CHECK(admission_cases() == 0); CHECK(deadlines_and_control() == 0); CHECK(compact_ack() == 0);
 	CHECK(overlapping_ack_commit() == 0); CHECK(empty_fin() == 0);
+	CHECK(keepalive_cases() == 0);
 	CHECK(transfer(0x8734bc17, 512, 1200) == 0);
 	CHECK(transfer(0x1357a9cf, 1024, 512) == 0);
 	CHECK(transfer(0xe6713569, 4096, 1200) == 0);

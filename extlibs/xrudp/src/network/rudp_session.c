@@ -50,7 +50,7 @@ struct xrudpsession {
 	uint32_t Slots, PtoCount, Probes, ElicitingSinceAck;
 	uint32_t StreamSlots, ActiveStreams, ScheduleCursor, EventCursor, MessageCursor, StopWaiters, ResetWaiters;
 	uint32_t IncomingNext, OutgoingNext, IncomingLimit, OutgoingLimit, StreamsAcked;
-	uint64_t Now, Activity, Progress, IdleUs, PtoAt, AckAt, ControlAt;
+	uint64_t Now, Activity, Progress, IdleUs, PtoAt, AckAt, ControlAt, KeepAliveSent;
 	uint64_t GrantRetry, ConnectionLimit, ConnectionReceived, ConnectionSent, PeerLimit;
 	uint64_t ConnectionAcked, StreamsRetry, PreviousKeyUntil;
 	uint64_t Eliciting[XRUDP_REPLAY_BITS];
@@ -232,6 +232,7 @@ static xrudpresult xrudp__session_sizes(const xrudpsessionconfig* c, size_t* own
 		(c->Role != XRUDP_INITIATOR && c->Role != XRUDP_RESPONDER) || c->StreamCapacity == 0 ||
 		c->StreamCapacity > XRUDP_SESSION_STREAM_CAPACITY_MAX || c->Local.MaxStreams > c->StreamCapacity ||
 		c->ProgressTimeoutUs < 1000000 || c->ProgressTimeoutUs > 600000000 ||
+		(c->KeepAliveUs && (c->KeepAliveUs < 1000000 || c->KeepAliveUs > UINT64_C(3600000000))) ||
 		c->KeyUpdatePackets < 8 || c->KeyUpdatePackets > XRUDP_KEY_PACKETS_MAX ||
 		xrtRudpParametersEncode(&c->Local, params, sizeof(params)) != XRUDP_OK ||
 		xrtRudpParametersEncode(&c->Peer, params, sizeof(params)) != XRUDP_OK ||
@@ -314,6 +315,14 @@ static void xrudp__session_syncwork(xrudpsession* s)
 	bool work = xrudp__session_work(s);
 	if (work && !s->Work) s->Progress = s->Now;
 	s->Work = work;
+}
+static uint64_t xrudp__session_keepalive(const xrudpsession* s)
+{
+	if (!s->Config.KeepAliveUs || s->Work || s->PtoAt || s->Shutdown.Requested || s->Shutdown.PeerRequested) return UINT64_MAX;
+	uint64_t interval = s->Config.KeepAliveUs, maximum = s->IdleUs / 3;
+	if (interval > maximum) interval = maximum;
+	uint64_t base = s->Activity > s->KeepAliveSent ? s->Activity : s->KeepAliveSent;
+	return xrudp__session_add(base, interval);
 }
 static xrudpresult xrudp__session_abort(xrudpsession* s, xrudpresult reason)
 {
@@ -1390,7 +1399,8 @@ static xrudpresult xrudp__session_send_inner(xrudpsession* s, uint64_t* due, boo
 	 * bounded PING elicits its ACK; true PTO may repeat ACK+PING using the
 	 * existing two-probe reserve. No reliable data/control is revived in linger. */
 	bool finalAck = s->Shutdown.PeerDrained && ((!s->Shutdown.PeerDrainedAcknowledged && s->AckWanted) || (probe && s->Shutdown.LingerUntilUs));
-	bool data = false, eliciting = open || reset || stop || streamGrant || grant || streamsGrant || shutdown || drained || finalAck || probe || (!ackOnly && s->ConfirmWanted);
+	bool keepalive = !ackOnly && s->Now >= xrudp__session_keepalive(s);
+	bool data = false, eliciting = open || reset || stop || streamGrant || grant || streamsGrant || shutdown || drained || finalAck || probe || keepalive || (!ackOnly && s->ConfirmWanted);
 	uint32_t quantum = m ? XRUDP_PACKET_MAX * (m->Weight < 16 ? m->Weight : 16u) * (4u - m->Priority) : 0;
 	uint32_t deficit = m && m->Deficit ? m->Deficit : quantum;
 	if (s->AckWanted || finalAck) {
@@ -1514,7 +1524,7 @@ static xrudpresult xrudp__session_send_inner(xrudpsession* s, uint64_t* due, boo
 	}
 	if (probe) --s->Probes;
 	if (!eliciting) s->ControlAt = xrudp__session_add(s->Now, (1000000u + s->Config.ControlPerSecond - 1) / s->Config.ControlPerSecond);
-	if (eliciting) { s->ConfirmWanted = false; s->PreferDatagram = true; }
+	if (eliciting) { s->ConfirmWanted = false; s->PreferDatagram = true; s->KeepAliveSent = s->Now; }
 	++s->SentPackets; xrudp__session_pto_sync(s, false); return XRUDP_OK;
 }
 
@@ -1697,6 +1707,7 @@ xrudpresult xrtRudpSessionPoll(xrudpsession* s, uint64_t now, uint64_t* output)
 		goto scheduled;
 	}
 	if (s->PtoAt && s->PtoAt < due) due = s->PtoAt;
+	uint64_t keepalive = xrudp__session_keepalive(s); if (keepalive < due) due = keepalive;
 	if (s->Mtu.Enabled && !s->Shutdown.Requested && !s->Shutdown.PeerRequested) {
 		uint64_t at = s->Mtu.ProbePacket ? s->Mtu.ProbeDeadlineUs : s->Mtu.NextProbeUs;
 		if (at < due) due = at;
