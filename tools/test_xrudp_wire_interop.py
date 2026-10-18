@@ -202,10 +202,12 @@ class Peer:
         assert epoch==1 and cid==self.cid and pn==1
         assert self.open(wire)==[(1,0,b''),(12,0,struct.pack('!I',1))]
         self.raw(self.protect(frame(1)+frame(12,struct.pack('!I',1))+frame(2,struct.pack('!IHHQQ',0,1,0,1,1))))
-    def protect(self,payload):
+    def protect(self,payload,kind=4):
         if self.send_number==8:
             self.send_key=rekey(self.send_key); self.send_epoch+=1
-        head=header(4,self.send_epoch,self.server,self.send_number,len(payload)+16)
+        assert kind in (4,5)
+        if kind==5: assert 84<=len(payload)+64<=128
+        head=header(kind,self.send_epoch,self.server,self.send_number,len(payload)+16)
         wire=head+ChaCha20Poly1305(self.send_key).encrypt(nonce(self.send_number),payload,head)
         self.send_number+=1; return wire
     def open(self,wire):
@@ -301,6 +303,10 @@ class Peer:
     def expected_default_body(self):
         return bytes((i*7+19)&255 for i in range(4096))
     def validate_control(self,result):
+        pass
+    def expected_games(self):
+        return 3 if self.typed else 0
+    def cleanup(self):
         pass
     def service(self):
         try:
@@ -463,6 +469,7 @@ def run_case(binary,family,responder,typed,native_backend,peer_type=Peer,fixture
         def read_lines():
             for line in child.stdout: lines.put(line)
         reader=threading.Thread(target=read_lines,daemon=True); reader.start()
+        peer=None
         try:
             ready=json.loads(lines.get(timeout=5)); assert ready['ready']
             address=(host,ready['port']) if family==4 else (host,ready['port'],0,0)
@@ -482,7 +489,7 @@ def run_case(binary,family,responder,typed,native_backend,peer_type=Peer,fixture
             code=child.wait(timeout=6); reader.join(1); error=child.stderr.read()
             assert code==0,(code,error)
             result=json.loads(lines.get(timeout=1)); assert result['read']==3072 and result['confirmed']==1 and result['closes']==1
-            assert result['streams']==(5 if typed else 1) and result['messages']==(6 if typed else 0) and result['games']==(3 if typed else 0)
+            assert result['streams']==(5 if typed else 1) and result['messages']==(6 if typed else 0) and result['games']==peer.expected_games()
             peer.validate_control(result)
             result.update(family=family,typed=typed,backend=('iocp' if os.name=='nt' else 'epoll') if native_backend else 'select',
                 python_role='responder' if responder else 'initiator',independent_noise=True,native_default_bytes=len(peer.received),
@@ -493,6 +500,7 @@ def run_case(binary,family,responder,typed,native_backend,peer_type=Peer,fixture
             if child.poll() is None:
                 child.terminate(); child.wait(timeout=5)
             reader.join(1); child.stdout.close(); child.stderr.close()
+            if peer is not None: peer.cleanup()
 
 
 if __name__=='__main__': raise SystemExit(main())

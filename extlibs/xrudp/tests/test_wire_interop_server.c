@@ -20,6 +20,7 @@ typedef struct wire_test {
     unsigned Confirmed, Closes; bool Eof, Acked;
     bool Typed, Probe, StopControl, StopVerified;
     bool Graceful, ShutdownStarted, ShutdownVerified;
+    bool PathTest, PathVerified; uint16_t InitialPeerPort; unsigned PathChanges;
     unsigned Games, StreamOpened; xrudpresult CloseReason, ExpectedClose;
     wire_slot Slots[6];
 } wire_test;
@@ -135,6 +136,13 @@ static void changed(xrudpendpoint* E, xrudppeer* P, uint32_t Events, void* Data)
         require(T,T->Games==0,"probe packet exposed a game datagram");
         return;
     }
+    if (T->PathTest && (Events&XRUDP_PEER_PATH_CHANGED)) {
+        xrudpsessionstate S={0};
+        require(T,xrtRudpPeerSessionState(P,&S)==XRUDP_OK,"changed path state");
+        require(T,S.Path.Validations==++T->PathChanges && T->PathChanges<=2,"unique path change notification");
+        require(T,(T->PathChanges==1 && S.Path.Active.Port!=T->InitialPeerPort) ||
+            (T->PathChanges==2 && S.Path.Active.Port==T->InitialPeerPort),"A to B to A active address");
+    }
     if (Events&XRUDP_PEER_READ_READY) for (unsigned N=0;N<8;++N) {
         unsigned char Buffer[512]; size_t Read=0; xrudpresult R=xrtRudpPeerRead(P,Buffer,sizeof(Buffer),&Read);
         if (R==XRUDP_BACKPRESSURE) break;
@@ -164,11 +172,17 @@ static void changed(xrudpendpoint* E, xrudppeer* P, uint32_t Events, void* Data)
         xrudpresult R=xrtRudpPeerDatagramRead(P,Buffer,sizeof(Buffer),&I);
         if (R==XRUDP_BACKPRESSURE) break;
         require(T,R==XRUDP_OK,"game read"); if (R!=XRUDP_OK) break;
-        require(T,(I.Channel==7 && !I.Sequenced && I.Sequence==0 && I.Size==0) ||
-            (I.Channel==8 && I.Sequenced && I.Sequence==5 && I.Size==7 && !memcmp(Buffer,"ordered",7)) ||
-            (I.Channel==9 && I.Sequenced && I.Sequence==12 && I.Size==6 && !memcmp(Buffer,"latest",6)),"game mode/sequence/replace");
+        if (T->PathTest && T->Games>=3) {
+            xrudpsessionstate S={0};
+            require(T,xrtRudpPeerSessionState(P,&S)==XRUDP_OK,"migrated business state");
+            require(T,T->Games<5 && I.Channel==7 && !I.Sequenced && I.Sequence==0 && I.Size==8 &&
+                !memcmp(Buffer,T->Games==3 ? "migrate1":"migrate2",8) &&
+                S.Path.Validations==T->Games-2 && T->PathChanges==T->Games-2,"business only after matching path proof");
+        } else require(T,(I.Channel==7 && !I.Sequenced && I.Sequence==0 && I.Size==0) ||
+                (I.Channel==8 && I.Sequenced && I.Sequence==5 && I.Size==7 && !memcmp(Buffer,"ordered",7)) ||
+                (I.Channel==9 && I.Sequenced && I.Sequence==12 && I.Size==6 && !memcmp(Buffer,"latest",6)),"game mode/sequence/replace");
         require(T,xrtRudpPeerDatagramWrite(P,I.Channel,Buffer,I.Size,0,&Sequence)==XRUDP_OK,"game echo write");
-        require(T,Sequence==(I.Channel==7 ? 0u:1u) && ++T->Games<=3,"game output sequence/duplicates");
+        require(T,Sequence==(I.Channel==7 ? 0u:1u) && ++T->Games<=(T->PathTest ? 5u:3u),"game output sequence/duplicates");
     }
     complete(T);
 }
@@ -177,6 +191,11 @@ static void confirmed(xrudpendpoint* E, xrudppeer* P, void* Data)
     wire_test* T=Data; unsigned char Buffer[4096]; size_t Written=0; (void)E;
     require(T,++T->Confirmed==1,"duplicate confirmation");
     if (!T->Peer) T->Peer=xrtRudpPeerRef(P); else require(T,T->Peer==P,"known initiating peer");
+    if (T->PathTest) {
+        xrudpsessionstate S={0};
+        require(T,xrtRudpPeerSessionState(P,&S)==XRUDP_OK && S.Path.Enabled && S.Path.Active.Port,"initial path state");
+        T->InitialPeerPort=S.Path.Active.Port;
+    }
     if (T->Probe) {
         xrudpdatagramchannel C; xrtRudpDatagramChannelInit(&C); C.Id=7;
         require(T,xrtRudpPeerDatagramConfigure(P,&C)==XRUDP_OK,"probe game channel");
@@ -215,6 +234,14 @@ static void peer_closed(xrudpendpoint* E, xrudppeer* P, xrudpresult Reason, void
             S.ReadDone && S.WriteDone && !S.Transmit.Cancelled;
         require(T,T->ShutdownVerified,"graceful drain/ACK/FIN terminal proof");
     }
+    if (T->PathTest) {
+        xrudpsessionstate S={0};
+        require(T,xrtRudpPeerSessionState(P,&S)==XRUDP_OK,"terminal path snapshot");
+        T->PathVerified=Reason==XRUDP_CLOSED && T->Games==5 && T->PathChanges==2 &&
+            S.Path.Enabled && S.Path.Validations==2 && S.Path.Active.Port==T->InitialPeerPort &&
+            S.Path.AddressDropped>=2 && S.Path.SentUnvalidated<=3*S.Path.ReceivedUnvalidated;
+        require(T,T->PathVerified,"migration, wrong-source isolation and amplification terminal proof");
+    }
     xrtAtomic32Store(&T->PeerClosed,1,XMEMORY_RELEASE);
 }
 static void closed(xrudpendpoint* E, xrudpresult Reason, const xerror* Error, void* Data)
@@ -251,8 +278,8 @@ int main(int Argc, char** Argv)
     if (Argc!=5 && Argc!=6) return 2;
     wire_test T={0}; T.Family=atoi(Argv[1])==6 ? XNET_FAMILY_IPV6:XNET_FAMILY_IPV4;
     int Port=atoi(Argv[2]); if (Port<0 || Port>65535) return 2; T.RemotePort=(uint16_t)Port;
-    int Mode=atoi(Argv[3]); if (Mode<0 || Mode>4 || (Mode==2)!=(Argc==6)) return 2;
-    T.Typed=Mode==1 || Mode==3 || Mode==4; T.Probe=Mode==2; T.StopControl=Mode==3; T.Graceful=Mode==4;
+    int Mode=atoi(Argv[3]); if (Mode<0 || Mode>5 || (Mode==2)!=(Argc==6)) return 2;
+    T.Typed=Mode==1 || Mode>=3; T.Probe=Mode==2; T.StopControl=Mode==3; T.Graceful=Mode==4; T.PathTest=Mode==5;
     if (T.Probe) { T.ExpectedClose=(xrudpresult)atoi(Argv[5]); if (T.ExpectedClose!=XRUDP_MALFORMED && T.ExpectedClose!=XRUDP_CLOSED) return 2; }
     xnetengineconfig C; xrtNetEngineConfigInit(&C); C.Workers=1; C.Backend=XNET_PORT_SELECT;
     if (atoi(Argv[4])) {
@@ -283,7 +310,7 @@ int main(int Argc, char** Argv)
     while (!xrtNetEngineDestroy(T.Engine)) { if (xrtTimer()>=Until) return 5; xrtSleep(1); }
     xrudpendpointinfo I={0}; require(&T,xrtRudpEndpointInfo(T.Endpoint,&I)==XRUDP_OK,"terminal info");
     xrtRudpPeerDestroy(T.Peer); xrtRudpEndpointDestroy(T.Endpoint);
-    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u,\"close_reason\":%u,\"opened\":%u,\"stop_verified\":%s,\"shutdown_verified\":%s,\"joined\":true}\n",
-        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games,(unsigned)T.CloseReason,T.StreamOpened,T.StopVerified?"true":"false",T.ShutdownVerified?"true":"false");
+    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u,\"close_reason\":%u,\"opened\":%u,\"stop_verified\":%s,\"shutdown_verified\":%s,\"path_verified\":%s,\"path_changes\":%u,\"joined\":true}\n",
+        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games,(unsigned)T.CloseReason,T.StreamOpened,T.StopVerified?"true":"false",T.ShutdownVerified?"true":"false",T.PathVerified?"true":"false",T.PathChanges);
     return Ready && Done && T.Closes==1 && !xrtAtomic32Load(&T.Failure,XMEMORY_ACQUIRE) ? 0:6;
 }
