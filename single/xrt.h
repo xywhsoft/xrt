@@ -131019,21 +131019,17 @@ static void __xrtChannelSubscriptionMutationBegin(xrtownershipscope* pScope)
 static void __xrtChannelSubscriptionMutationEnd(xrtownershipscope* pScope)
 { if(!xrtOwnershipScopeEnd(pScope)) abort(); }
 
-static bool __xrtChannelSubscriptionRetain(xchannelsubscription* pSubscription,
+/* The caller owns a mutation scope or the complete graph freeze. This exact
+ * counter primitive is also used by adapter Hold: no diagnostics (even static
+ * errors may call the installed handler), allocation or callback is allowed. */
+static bool __xrtChannelSubscriptionTryRetain(xchannelsubscription* pSubscription,
 	uint32 iReserve)
 {
-	xrtownershipscope tMutation={0};
-	__xrtChannelSubscriptionMutationBegin(&tMutation);
 	uint32 iRefs=xrtAtomic32Load(&pSubscription->References,XMEMORY_RELAXED);
 	while(iRefs && iRefs<UINT32_MAX-iReserve) {
 		if(xrtAtomic32CompareExchange(&pSubscription->References,&iRefs,iRefs+1u,
-			XMEMORY_RELAXED,XMEMORY_RELAXED)) {
-			__xrtChannelSubscriptionMutationEnd(&tMutation);
-			return true;
-		}
+			XMEMORY_RELAXED,XMEMORY_RELAXED)) return true;
 	}
-	__xrtChannelSubscriptionMutationEnd(&tMutation);
-	__xrtErrorSetSizeOverflow();
 	return false;
 }
 
@@ -131076,7 +131072,7 @@ static bool __xrtChannelSubscriptionSchedule(xchannelsubscription* pSubscription
 		if(xrtAtomic32CompareExchange(&pSubscription->Dispatch,&iFlags,
 			iFlags|XRT_CHANNEL_SUB_DRIVER,XMEMORY_ACQ_REL,XMEMORY_ACQUIRE)) {
 			/* Reserved internal credit: at most one dispatcher per subscription. */
-			(void)__xrtChannelSubscriptionRetain(pSubscription,0u);
+			if(!__xrtChannelSubscriptionTryRetain(pSubscription,0u)) abort();
 			__xrtChannelSubscriptionMutationEnd(&tMutation);
 			return true;
 		}
@@ -131265,8 +131261,9 @@ XRT_API bool xrtChannelSubscribeStart(xchannelsubscription* pSubscription)
 		__xrtChannelSubscriptionMutationEnd(&tMutation);
 		__xrtErrorSetInvalidState(); return false;
 	}
-	if(!__xrtChannelSubscriptionRetain(pSubscription,2u)) {
-		__xrtChannelSubscriptionMutationEnd(&tMutation); return false;
+	if(!__xrtChannelSubscriptionTryRetain(pSubscription,2u)) {
+		__xrtChannelSubscriptionMutationEnd(&tMutation);
+		__xrtErrorSetSizeOverflow(); return false;
 	}
 	if(!xrtAtomic32CompareExchange(&pSubscription->Started,&iExpected,1u,
 		XMEMORY_ACQ_REL,XMEMORY_ACQUIRE)) {
@@ -131275,7 +131272,8 @@ XRT_API bool xrtChannelSubscribeStart(xchannelsubscription* pSubscription)
 		__xrtErrorSetInvalidState();
 		return false;
 	}
-	(void)__xrtChannelSubscriptionRetain(pSubscription,1u); /* registration */
+	/* The admitted call reserved this independent registration credit. */
+	if(!__xrtChannelSubscriptionTryRetain(pSubscription,1u)) abort();
 	__xrtChannelSubscriptionMutationEnd(&tMutation);
 	for(size_t i=0;i<pSubscription->Count;i++) {
 		uint32 iWinner;
@@ -131300,8 +131298,9 @@ XRT_API xchannelsubscription* xrtChannelSubscribeRef(xchannelsubscription* pSubs
 		__xrtChannelSubscriptionMutationEnd(&tMutation);
 		__xrtErrorSetInvalidState(); return NULL;
 	}
-	if(!__xrtChannelSubscriptionRetain(pSubscription,4u)) {
-		__xrtChannelSubscriptionMutationEnd(&tMutation); return NULL;
+	if(!__xrtChannelSubscriptionTryRetain(pSubscription,4u)) {
+		__xrtChannelSubscriptionMutationEnd(&tMutation);
+		__xrtErrorSetSizeOverflow(); return NULL;
 	}
 	xrtAtomic32FetchAdd(&pSubscription->External,1u,XMEMORY_RELAXED);
 	__xrtChannelSubscriptionMutationEnd(&tMutation);
@@ -131341,8 +131340,9 @@ XRT_API bool xrtChannelSubscribeStop(xchannelsubscription* pSubscription,xwaitre
 		__xrtChannelSubscriptionMutationEnd(&tMutation);
 		__xrtErrorSetInvalidState(); return false;
 	}
-	if(!__xrtChannelSubscriptionRetain(pSubscription,2u)) {
-		__xrtChannelSubscriptionMutationEnd(&tMutation); return false;
+	if(!__xrtChannelSubscriptionTryRetain(pSubscription,2u)) {
+		__xrtChannelSubscriptionMutationEnd(&tMutation);
+		__xrtErrorSetSizeOverflow(); return false;
 	}
 	bRecorded=xrtAtomic32CompareExchange(&pSubscription->Stop,&iExpected,
 		(uint32)iReason,XMEMORY_ACQ_REL,XMEMORY_ACQUIRE);
@@ -131427,7 +131427,7 @@ XRT_API const xrtownershipquiescencev1* xrtChannelSubscribeOwnershipQuiescenceV1
 static bool __xrtChannelSubscriptionHold(const void* pData)
 {
 	xchannelsubscription* pSubscription=(xchannelsubscription*)pData;
-	return !pSubscription->Cleared && __xrtChannelSubscriptionRetain(pSubscription,2u);
+	return !pSubscription->Cleared && __xrtChannelSubscriptionTryRetain(pSubscription,2u);
 }
 
 static void __xrtChannelSubscriptionDropHold(const void* pData)
