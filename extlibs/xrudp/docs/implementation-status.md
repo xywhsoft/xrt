@@ -278,6 +278,19 @@ out/rudp-multistream-native-{windows,linux}.log。
 out/rudp-native-multi-linux-final.log；既存改动哈希保护通过。
 下一步先专项验证多个连接共享 UDP 输出背压时的服务公平性和低 RTT 吞吐，再推进可靠消息与游戏通道。
 单连接最大流池成功不证明多连接压力、公网路径、Android 实机、独立互操作或长稳验收完成。
+
+发布优化构建修复：GCC 16.2 的严格 -O2 单头编译在原 HEAD 4353a933 下报告内部状态结果
+可能未初始化，以及关闭回调 Context 可能为空的原子存储诊断，因 -Werror 无法发布编译。
+完成/EOF/退休判断现在显式检查状态读取成功，退休判断先排除不具备条件的流；关闭回调检查
+保留引用得到的 Context 非空，再写入状态。不关闭或降低编译警告。
+保留原 HEAD 单头的失败编译证据 out/rudp-release-before.log；修复后 Windows GCC -O2
+Select/IOCP、Linux Clang -O2 ASan/UBSan Select/Epoll，模块化、单头、分配故障和多流回归通过。
+日志 out/rudp-release-guards-{windows,linux}.log，README 增加发布优化构建门禁命令。
+另已捕获尚待修复的共享输出偏斜：真实握手的 8 个连接在每毫秒最多 4 包的诊断背压下，
+一秒样本最少发送 0、最多 147328 字节；起点固定的定时轮询需要进一步修正。
+隔离试验的轮转起点已改善该样本，但尚未作为产品修复提交；证据及试验在 out/rudp-fairness-*。
+Windows -O2、1MiB 固定环的单连接 32MiB 双向回环样本约每方向 21.28MiB/s，
+只证明该配置的本机结果，不作为公网、多连接或其他平台的吞吐承诺。
 可靠消息、游戏通道、接收取消/优雅关闭、路径/穿透、xs/mdo 接入与完整生产验收仍待完成。
 
 ## 恢复工作

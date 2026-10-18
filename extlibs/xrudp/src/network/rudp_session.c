@@ -74,18 +74,19 @@ static bool xrudp__session_terminal(xrudpresult r)
 static bool xrudp__stream_done(const xrudp__sessionstream* m)
 {
 	if (m->ResetQueued) return m->ResetAcked;
-	xrudptransmitstate t; (void)xrtRudpTransmitState(m->Tx, &t);
-	return t.FinAcknowledged && t.PendingBytes == 0;
+	xrudptransmitstate t;
+	return xrtRudpTransmitState(m->Tx, &t) == XRUDP_OK && t.FinAcknowledged && t.PendingBytes == 0;
 }
 static bool xrudp__stream_eof(const xrudp__sessionstream* m)
 {
-	xrudpreceivestate r; (void)xrtRudpReceiveState(m->Rx, &r);
-	return r.HasFinal && !r.Reset && r.ReadOffset == r.FinalOffset;
+	xrudpreceivestate r;
+	return xrtRudpReceiveState(m->Rx, &r) == XRUDP_OK && r.HasFinal && !r.Reset && r.ReadOffset == r.FinalOffset;
 }
 static bool xrudp__stream_retire(const xrudp__sessionstream* m)
 {
-	xrudpreceivestate r; (void)xrtRudpReceiveState(m->Rx, &r);
-	return m->Id != 1 && m->OpenAcked && m->References == 0 && xrudp__stream_done(m) &&
+	if (m->Id == 1 || !m->OpenAcked || m->References != 0 || !xrudp__stream_done(m)) return false;
+	xrudpreceivestate r;
+	return xrtRudpReceiveState(m->Rx, &r) == XRUDP_OK &&
 		(r.Reset || (r.HasFinal && r.ReadOffset == r.FinalOffset));
 }
 static void xrudp__stream_note(xrudp__sessionstream* m)

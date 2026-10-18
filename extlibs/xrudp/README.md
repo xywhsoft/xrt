@@ -39,6 +39,13 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_transport_tests --no-examples
     python tools/amalgamate.py --manifest extlibs/xrudp/config/modules.json
 
+发布前还须使用优化编译保持严格警告门禁，例如：
+
+    python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_endpoint,rudp_endpoint_fault_tests,rudp_multi_tests,rudp_multi_fault_tests --no-examples --cflag=-O2 --jobs 2
+
+Windows 另外组合 rudp_endpoint_iocp_tests，Linux 组合 rudp_endpoint_epoll_tests；
+Linux 的优化构建同时运行 ASan/UBSan。无优化构建通过不能代替发布优化编译检查。
+
 模块 rudp_wire 只依赖 core；rudp_crypto 增加 XRT ChaCha20-Poly1305。
 模块 rudp_noise 增加 X25519、HKDF-SHA256 与系统安全随机源。
 模块 rudp_handshake 提供固定协议的完整握手状态机；不自行创建套接字或执行应用请求。

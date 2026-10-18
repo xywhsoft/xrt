@@ -434,6 +434,7 @@ static void xrudp__endpoint_finish(xrudpendpoint* e, const xerror* error)
 static void xrudp__endpoint_closed(xnetudp* udp, xnetresult result, const xerror* error, ptr context)
 {
 	xrudpendpoint* e = xrtRudpEndpointRef((xrudpendpoint*)context); (void)udp;
+	if (e == NULL) return;
 	xrudpendpointstate previous = xrtRudpEndpointState(e);
 	xrtAtomic32Store(&e->State, XRUDP_ENDPOINT_CLOSING, XMEMORY_RELEASE);
 	e->CloseReason = e->LocalError != NULL ? (xrtErrorKind(e->LocalError) == XERR_MEMORY ? XRUDP_NO_MEMORY : XRUDP_IO_ERROR) :
