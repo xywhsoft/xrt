@@ -452,7 +452,7 @@ def main():
     return 0
 
 
-def run_case(binary,family,responder,typed,native_backend,peer_type=Peer,fixture_mode=None):
+def run_case(binary,family,responder,typed,native_backend,peer_type=Peer,fixture_mode=None,graceful=False):
     host='127.0.0.1' if family==4 else '::1'
     with socket.socket(socket.AF_INET if family==4 else socket.AF_INET6,socket.SOCK_DGRAM) as sock:
         sock.bind((host,0)); sock.settimeout(.05)
@@ -468,7 +468,17 @@ def run_case(binary,family,responder,typed,native_backend,peer_type=Peer,fixture
             address=(host,ready['port']) if family==4 else (host,ready['port'],0,0)
             peer=peer_type(sock,address,responder,typed); peer.handshake(); peer.transfer()
             assert json.loads(lines.get(timeout=4))['app_done']
-            peer.raw(peer.protect(frame(9,struct.pack('!I',0))))
+            if graceful:
+                until=time.monotonic()+6
+                while child.poll() is None:
+                    assert time.monotonic()<until,'native graceful close deadline'
+                    try: peer.service()
+                    except (ConnectionResetError,ConnectionRefusedError):
+                        # A final ACK can race the already-closed UDP socket.
+                        # Only the actual child exit and terminal proof below
+                        # may establish success, never ICMP alone.
+                        child.wait(timeout=2)
+            else: peer.raw(peer.protect(frame(9,struct.pack('!I',0))))
             code=child.wait(timeout=6); reader.join(1); error=child.stderr.read()
             assert code==0,(code,error)
             result=json.loads(lines.get(timeout=1)); assert result['read']==3072 and result['confirmed']==1 and result['closes']==1

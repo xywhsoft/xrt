@@ -1026,6 +1026,35 @@ Linux 同时开启 ASan/UBSan/泄漏检查，所有端点及 Engine 正常排空
 本轮仍只增加测试能力，没有产品运行时改动，不重置九组长稳测试。有效优雅关闭、路径/MTU
 的独立互操作、更多取消时序以及实机、真实双 NAT、最终长稳门槛继续保留。
 
+## 独立优雅关闭与确认恢复（2026-10-19）
+
+控制对端新增 `ShutdownPeer` 和 `EarlyShutdownPeer`，均完成五条双向可靠流、六条整消息及
+三种游戏回包后，通过真实 SHUTDOWN/DRAINED 排空结束；不发送中止用 CLOSE。
+一组由原生端先声明，另一组由独立对端先声明最终序数 3，再发送该声明范围内尚在途的 OPEN
+及流内容，验证接收声明不会提前停止已有异步回复。第一份本地声明、第一份 DRAINED 均丢失，
+第一份原生 DRAINED 的包号始终从 ACK ranges 排除，必须以新包号恢复，丢失的包号不能被误确认。
+独立端还把 DRAINED 放在同包 SHUTDOWN 前面，验证连接层不依赖帧的序列化顺序。
+
+原生夹具使用最多一个未处理的 owner 检查任务，每 10ms 检查一次，在全部应用读取/FIN 确认
+及三份游戏回包传输收据完成后才调用 PeerShutdown(5000)，避免取消尚未发出的游戏队列。
+PeerClose 必须保存 Succeeded、Ready、双向声明/排空确认及已消费 FIN 的真实公开状态，
+默认发送半流不能变成 Cancelled。主线程继续等待最终驻留与原生线程加入；独立对端也继续
+服务最终确认，不能停止收包后等待子进程而制造关闭死锁。
+
+最初短测发现夹具在主动 Shutdown 后仍读取已关闭的游戏队列，将按契约返回的 CLOSED
+误认为失败。已在完整游戏收据门槛之后停止这段读取。失败日志
+`dev/xrudp-wire-shutdown-smoke-windows.log` 保留，未将夹具错误记录为产品运行时缺陷。
+
+Windows Select/IOCP、Linux Select/Epoll 的 IPv4/IPv6、两种 IK 角色和两种关闭顺序共
+32 个优雅关闭场景通过，另有原来的 16 个 STOP/RESET 场景继续通过；Linux 开启
+ASan/UBSan/泄漏检查。共享夹具变化后的 1920 个负面场景和 32 个普通 basic/mixed
+场景也重新通过。日志为 `dev/xrudp-wire-shutdown-{windows,linux-asan}.log`、
+`dev/xrudp-wire-shutdown-negative-regression-{windows,linux-asan}.log` 及
+`dev/xrudp-wire-shutdown-mixed-regression-{windows,linux-asan}.log`。
+
+本轮只扩展测试，九组长稳的产品代码、二进制及起始时间均保持原记录。路径/MTU 的独立
+互操作、更多取消和压力时序、Android 实机、两个独立公网 NAT 及完整长稳验收仍未完成。
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。
