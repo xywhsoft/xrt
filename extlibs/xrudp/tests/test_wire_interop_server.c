@@ -10,7 +10,8 @@
 typedef struct wire_test {
     xnetengine* Engine; xrudpendpoint* Endpoint; xrudppeer* Peer;
     xatomic32 Opened, Closed, PeerClosed, AppDone, Failure;
-    uint16_t Port; xnetfamily Family; size_t Read;
+    uint16_t Port, RemotePort; xnetfamily Family; size_t Read;
+    unsigned char Pin[32];
     unsigned Confirmed, Closes; bool Eof, Acked;
 } wire_test;
 static void require(wire_test* T, bool Ok, const char* What)
@@ -19,6 +20,12 @@ static void opened(xrudpendpoint* E, void* Data)
 {
     wire_test* T=Data; xrudpendpointinfo I;
     require(T,xrtRudpEndpointInfo(E,&I)==XRUDP_OK,"endpoint info"); T->Port=I.Local.Port;
+    if (T->RemotePort) {
+        unsigned char Scope[16], Context[32]; memset(Scope,17,sizeof(Scope)); memset(Context,22,sizeof(Context));
+        xnetaddr A; require(T,xrtNetAddrLoopback(&A,T->Family,T->RemotePort),"remote address");
+        xrudpconnectconfig C={T->Pin,Scope,Context};
+        require(T,xrtRudpEndpointConnect(E,&A,&C,&T->Peer)==XRUDP_OK,"connect");
+    }
     xrtAtomic32Store(&T->Opened,1,XMEMORY_RELEASE);
 }
 static void changed(xrudpendpoint* E, xrudppeer* P, uint32_t Events, void* Data)
@@ -42,7 +49,8 @@ static void changed(xrudpendpoint* E, xrudppeer* P, uint32_t Events, void* Data)
 static void confirmed(xrudpendpoint* E, xrudppeer* P, void* Data)
 {
     wire_test* T=Data; unsigned char Buffer[4096]; size_t Written=0; (void)E;
-    require(T,++T->Confirmed==1,"duplicate confirmation"); T->Peer=xrtRudpPeerRef(P);
+    require(T,++T->Confirmed==1,"duplicate confirmation");
+    if (!T->Peer) T->Peer=xrtRudpPeerRef(P); else require(T,T->Peer==P,"known initiating peer");
     for (size_t I=0;I<sizeof(Buffer);++I) Buffer[I]=(unsigned char)(I*7u+19u);
     require(T,xrtRudpPeerWrite(P,Buffer,sizeof(Buffer),&Written)==XRUDP_OK && Written==sizeof(Buffer),"server write");
     require(T,xrtRudpPeerFinish(P)==XRUDP_OK,"server FIN");
@@ -58,10 +66,14 @@ static void closed(xrudpendpoint* E, xrudpresult Reason, const xerror* Error, vo
 static void bind_peer(xnetworker* W, ptr Data)
 {
     wire_test* T=Data; unsigned char Private[32], Client[32], Pin[32], Scope[16], Context[32];
-    for (unsigned I=0;I<32;++I) { Private[I]=(unsigned char)(91u+I); Client[I]=(unsigned char)(33u+I); Context[I]=22; }
+    for (unsigned I=0;I<32;++I) {
+        Private[I]=(unsigned char)((T->RemotePort ? 33u:91u)+I);
+        Client[I]=(unsigned char)((T->RemotePort ? 91u:33u)+I); Context[I]=22;
+    }
     memset(Scope,17,sizeof(Scope)); require(T,xrtX25519Public(Client,Pin),"test pin");
     xrudpendpointconfig C; xrtRudpEndpointConfigInit(&C);
-    C.StaticPrivate=Private; C.PeerPublic=Pin; C.Scope=Scope; C.ApplicationContext=Context; C.Listen=true;
+    memcpy(T->Pin,Pin,32);
+    C.StaticPrivate=Private; C.PeerPublic=Pin; C.Scope=Scope; C.ApplicationContext=Context; C.Listen=!T->RemotePort;
     C.MaxPeers=C.MaxHalfOpen=1; C.HandshakeTimeoutUs=3000000; C.MemoryLimit=4u*1024u*1024u;
     C.Session.Local.ConnectionCredit=2048; C.Session.Local.StreamCredit=1024;
     C.Session.ReceiveCapacity=1024; C.Session.TransmitCapacity=8192; C.Session.KeyUpdatePackets=8;
@@ -75,8 +87,9 @@ static void stop_peer(xnetworker* W, ptr Data)
 { (void)W; wire_test* T=Data; if (T->Endpoint) (void)xrtRudpEndpointClose(T->Endpoint); }
 int main(int Argc, char** Argv)
 {
-    if (Argc!=2) return 2;
+    if (Argc!=2 && Argc!=3) return 2;
     wire_test T={0}; T.Family=atoi(Argv[1])==6 ? XNET_FAMILY_IPV6:XNET_FAMILY_IPV4;
+    if (Argc==3) { int Port=atoi(Argv[2]); if (Port<1 || Port>65535) return 2; T.RemotePort=(uint16_t)Port; }
     xnetengineconfig C; xrtNetEngineConfigInit(&C); C.Workers=1; C.Backend=XNET_PORT_SELECT;
     T.Engine=xrtNetEngineCreate(&C);
     if (!T.Engine || !xrtNetEngineStart(T.Engine) || !xrtNetEnginePost(T.Engine,0,bind_peer,&T)) return 3;

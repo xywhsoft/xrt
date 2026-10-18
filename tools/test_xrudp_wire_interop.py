@@ -62,12 +62,13 @@ def frames(data):
 
 
 class Noise:
-    """Fixed IK initiator, from the public fixed-profile specification."""
-    def __init__(self,prologue,remote):
+    """Fixed IK roles, from the public fixed-profile specification."""
+    def __init__(self,prologue,remote,responder=False):
         name=b'Noise_IK_25519_ChaChaPoly_SHA256'
         self.hash=name.ljust(32,b'\0') if len(name)<=32 else digest(name)
-        self.chain=self.hash; self.mix_hash(prologue); self.mix_hash(remote)
-        self.static=X25519PrivateKey.from_private_bytes(bytes(range(33,65)))
+        self.chain=self.hash; self.mix_hash(prologue)
+        self.static=X25519PrivateKey.from_private_bytes(bytes(range(91,123) if responder else range(33,65)))
+        self.mix_hash(public(self.static) if responder else remote)
         self.ephemeral=X25519PrivateKey.generate(); self.remote=remote
         self.key=None; self.number=0
     def mix_hash(self,value): self.hash=digest(self.hash+value)
@@ -90,11 +91,25 @@ class Noise:
         self.mix_key(self.ephemeral,ephemeral); self.mix_key(self.static,ephemeral)
         parameters=self.decrypt(value[32:]); assert len(parameters)==32
         self.send,self.receive=hkdf(self.chain,b''); return struct.unpack('!QIIIIII',parameters)
+    def read_first(self,value):
+        assert len(value)==128
+        self.remote_ephemeral=value[:32]; self.mix_hash(self.remote_ephemeral)
+        self.mix_key(self.static,self.remote_ephemeral)
+        remote=self.decrypt(value[32:80]); assert remote==self.remote,'independent responder pin'
+        self.mix_key(self.static,remote)
+        parameters=self.decrypt(value[80:]); assert len(parameters)==32
+        return struct.unpack('!QIIIIII',parameters)
+    def write_second(self,parameters):
+        out=public(self.ephemeral); self.mix_hash(out)
+        self.mix_key(self.ephemeral,self.remote_ephemeral); self.mix_key(self.ephemeral,self.remote)
+        out+=self.encrypt(parameters)
+        self.receive,self.send=hkdf(self.chain,b''); return out
 
 
 class Peer:
-    def __init__(self,sock,address):
+    def __init__(self,sock,address,responder=False):
         self.sock,self.address=sock,address; self.cid=os.urandom(16); self.server=None
+        self.responder=responder
         self.send_number=1; self.send_epoch=1; self.receive_epoch=1
         self.send_key=None; self.receive_keys={}; self.seen=set(); self.acked=set()
         self.received={}; self.final=None; self.credit=0; self.stream_credit=0
@@ -115,6 +130,7 @@ class Peer:
             except socket.timeout: pass
         raise AssertionError('handshake flight deadline')
     def handshake(self):
+        if self.responder: return self.accept()
         remote=public(X25519PrivateKey.from_private_bytes(bytes(range(91,123))))
         hello=self.cid+remote+os.urandom(16)+CONTEXT
         first=packet(1,SCOPE,1,hello)
@@ -137,6 +153,48 @@ class Peer:
         assert cid==self.cid and epoch==1 and pn==1
         payload=self.open(data)
         assert payload==[(1,0,b''),(12,0,struct.pack('!I',1)),(2,0,struct.pack('!IHHQQ',0,1,0,1,1))]
+    def accept(self):
+        end=time.monotonic()+4; first=None
+        while time.monotonic()<end:
+            try:
+                wire=self.receive(); kind,_,scope,pn,hello=decode(wire)
+                if kind==1: first=wire; break
+            except socket.timeout: pass
+        assert first is not None and scope==SCOPE and pn==1 and len(hello)==96
+        remote=public(X25519PrivateKey.from_private_bytes(bytes(range(33,65))))
+        assert any(hello[:16]) and hello[:16]!=SCOPE and any(hello[48:64]) and hello[64:]==CONTEXT
+        assert hello[16:48]==public(X25519PrivateKey.from_private_bytes(bytes(range(91,123))))
+        issued=struct.pack('!Q',int(time.monotonic()*1000000)); secret=os.urandom(32)
+        family=4 if self.sock.family==socket.AF_INET else 6
+        ip=socket.inet_pton(self.sock.family,self.address[0]).ljust(16,b'\0')
+        canonical=struct.pack('!BHI',family,self.address[1],self.address[3] if family==6 else 0)+ip
+        mac_input=b'XRUDP001/address-cookie'+SCOPE+digest(first)+canonical+issued
+        cookie=issued+hmac.digest(secret,mac_input,'sha256')
+        self.cid=digest(b'XRUDP001/server-id'+digest(first)+cookie)[:16]; self.server=hello[:16]
+        assert any(self.cid) and self.cid not in (self.server,SCOPE)
+        retry=packet(2,self.server,1,self.cid+digest(first)+cookie); self.raw(retry)
+        flight=None
+        while time.monotonic()<end:
+            try:
+                wire=self.receive(); kind,_,cid,pn,body=decode(wire)
+                if kind==1:
+                    assert wire==first; self.raw(retry)
+                elif kind==3:
+                    assert cid==self.cid and pn==1 and len(body)==264 and body[:96]==hello
+                    token=body[96:136]; assert token[:8]==issued
+                    assert hmac.compare_digest(token[8:],hmac.digest(secret,mac_input,'sha256'))
+                    assert 0<=int(time.monotonic()*1000000)-struct.unpack('!Q',issued)[0]<=30000000
+                    flight=body[136:]; break
+            except socket.timeout: pass
+        assert flight is not None,'native first flight deadline'
+        noise=Noise(b'XRUDP001/IK/prologue'+SCOPE+hello+self.cid,remote,responder=True)
+        negotiated=noise.read_first(flight); self.credit,self.stream_credit=negotiated[:2]
+        second=noise.write_second(struct.pack('!QIIIIII',1024,512,1,10000,25000,1200,0))
+        self.send_key=noise.send; self.receive_keys[1]=noise.receive
+        (_,epoch,cid,pn,_),wire=self.exchange(packet(3,self.server,2,second),4)
+        assert epoch==1 and cid==self.cid and pn==1
+        assert self.open(wire)==[(1,0,b''),(12,0,struct.pack('!I',1))]
+        self.raw(self.protect(frame(1)+frame(12,struct.pack('!I',1))+frame(2,struct.pack('!IHHQQ',0,1,0,1,1))))
     def protect(self,payload):
         if self.send_number==8:
             self.send_key=rekey(self.send_key); self.send_epoch+=1
@@ -248,7 +306,21 @@ def build(args):
     command+=[str(ROOT/'extlibs/xrudp/tests/test_wire_interop_server.c')]
     command+=list(map(str,sorted((ROOT/'extlibs/xrudp/src').rglob('*.c'))))
     command+=['-o',str(binary)]+(['-lws2_32','-liphlpapi'] if os.name=='nt' else ['-pthread','-lm','-ldl'])
+    paths=[core,sdk/'lib/xrt_decl.h',ROOT/'extlibs/xrudp/tests/test_wire_interop_server.c']
+    for directory,suffix in ((ROOT/'extlibs/xrudp/src','*.c'),(ROOT/'extlibs/xrudp/include','*.h'),(sdk/'lib/xrtshim','*.h')):
+        paths+=sorted(directory.rglob(suffix))
+    hashes={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
+    version=subprocess.check_output([args.compiler,'--version'],text=True).splitlines()[0]
+    key=hashlib.sha256(json.dumps([command,version,hashes],sort_keys=True).encode()).hexdigest()
+    receipt=binary.with_name(binary.name+'.build.json')
+    if args.reuse:
+        stored=json.loads(receipt.read_text())
+        assert stored['input_key']==key and stored['binary_sha256']==hashlib.sha256(binary.read_bytes()).hexdigest(),'native inputs changed; rebuild without --reuse'
+        return binary
     subprocess.run(command,cwd=ROOT,check=True)
+    assert all(hashlib.sha256(Path(p).read_bytes()).hexdigest()==value for p,value in hashes.items()),'native input changed during build'
+    receipt.write_text(json.dumps({'input_key':key,'compiler':version,'source_hashes':hashes,
+        'command':command,'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest()},indent=2)+'\n',encoding='utf-8',newline='\n')
     return binary
 
 
@@ -257,9 +329,21 @@ def main():
     parser.add_argument('--sdk',required=True,type=Path)
     parser.add_argument('--compiler',default='gcc')
     parser.add_argument('--sanitize',action='store_true')
+    parser.add_argument('--reuse',action='store_true',help='require matching source/compiler/flags/binary provenance')
+    parser.add_argument('--roles',choices=('both','initiator','responder'),default='both',help='independent Python peer roles')
     args=parser.parse_args(); binary=build(args)
-    for family in (4,6):
-        child=subprocess.Popen([str(binary),str(family)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,
+    roles=(False,True) if args.roles=='both' else (args.roles=='responder',)
+    for responder in roles:
+        for family in (4,6): run_case(binary,family,responder)
+    return 0
+
+
+def run_case(binary,family,responder):
+    host='127.0.0.1' if family==4 else '::1'
+    with socket.socket(socket.AF_INET if family==4 else socket.AF_INET6,socket.SOCK_DGRAM) as sock:
+        sock.bind((host,0)); sock.settimeout(.05)
+        argv=[str(binary),str(family)]+([str(sock.getsockname()[1])] if responder else [])
+        child=subprocess.Popen(argv,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,
             env={**os.environ,'ASAN_OPTIONS':'detect_leaks=1:halt_on_error=1','UBSAN_OPTIONS':'halt_on_error=1:print_stacktrace=1'})
         lines=queue.Queue()
         def read_lines():
@@ -267,25 +351,21 @@ def main():
         reader=threading.Thread(target=read_lines,daemon=True); reader.start()
         try:
             ready=json.loads(lines.get(timeout=5)); assert ready['ready']
-            host='127.0.0.1' if family==4 else '::1'
-            with socket.socket(socket.AF_INET if family==4 else socket.AF_INET6,socket.SOCK_DGRAM) as sock:
-                sock.bind((host,0)); sock.settimeout(.05)
-                address=(host,ready['port']) if family==4 else (host,ready['port'],0,0)
-                peer=Peer(sock,address); peer.handshake(); peer.transfer()
-                assert json.loads(lines.get(timeout=4))['app_done']
-                peer.raw(peer.protect(frame(9,struct.pack('!I',0))))
-                code=child.wait(timeout=6); reader.join(1); error=child.stderr.read()
-                assert code==0,(code,error)
-                result=json.loads(lines.get(timeout=1)); assert result['read']==3072 and result['confirmed']==1 and result['closes']==1
-                result.update(family=family,independent_noise=True,server_bytes=len(peer.received),
-                    rekeys=peer.rotations,client_rekey=peer.send_epoch,retransmits=peer.retransmits,
-                    bad_tags=peer.invalid_injected,replayed_packets=peer.replay_injected)
-                print(json.dumps(result),flush=True)
+            address=(host,ready['port']) if family==4 else (host,ready['port'],0,0)
+            peer=Peer(sock,address,responder); peer.handshake(); peer.transfer()
+            assert json.loads(lines.get(timeout=4))['app_done']
+            peer.raw(peer.protect(frame(9,struct.pack('!I',0))))
+            code=child.wait(timeout=6); reader.join(1); error=child.stderr.read()
+            assert code==0,(code,error)
+            result=json.loads(lines.get(timeout=1)); assert result['read']==3072 and result['confirmed']==1 and result['closes']==1
+            result.update(family=family,python_role='responder' if responder else 'initiator',independent_noise=True,server_bytes=len(peer.received),
+                rekeys=peer.rotations,client_rekey=peer.send_epoch,retransmits=peer.retransmits,
+                bad_tags=peer.invalid_injected,replayed_packets=peer.replay_injected)
+            print(json.dumps(result),flush=True)
         finally:
             if child.poll() is None:
                 child.terminate(); child.wait(timeout=5)
-            child.stdout.close(); child.stderr.close()
-    return 0
+            reader.join(1); child.stdout.close(); child.stderr.close()
 
 
 if __name__=='__main__': raise SystemExit(main())
