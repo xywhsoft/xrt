@@ -21,6 +21,9 @@ typedef struct multi_stream { size_t Written,Read; bool Active,Fin,Eof,Acked,Ret
 typedef struct multi_side {
 	native_multi* Test; uint32_t Index,OwnOpened,LocalRetired,RemoteRetired,OpenHints,Changes,Closes,PeerCloses;
 	bool InCallback,OpenBlocked; multi_stream Stream[MULTI_IDS];
+#ifdef TEST_NATIVE_MULTI_DATAGRAMS
+	uint32_t GameWritten,GameRead;bool GameStarted,GameSeen[48];
+#endif
 } multi_side;
 struct native_multi {
 	xnetengine* Engine;xrudpendpoint* Endpoint[2];xrudppeer* Peer[2];xrudpendpointinfo Identity[2];multi_side Side[2];
@@ -58,6 +61,40 @@ static bool cancelled(multi_side* s,xrudpresult r)
 {
 	return r==XRUDP_CLOSED && xrtRudpEndpointState(s->Test->Endpoint[s->Index])!=XRUDP_ENDPOINT_OPEN;
 }
+static bool native_games(void)
+{
+#ifdef TEST_NATIVE_MULTI_DATAGRAMS
+	return true;
+#else
+	return false;
+#endif
+}
+#ifdef TEST_NATIVE_MULTI_DATAGRAMS
+static void write_games(multi_side* s,xrudppeer* p)
+{
+	while(s->GameWritten<48) {
+		unsigned char bytes[32];uint32_t serial=s->GameWritten;for(size_t j=0;j<4;++j)bytes[3-j]=(unsigned char)(serial>>(j*8));
+		for(size_t j=4;j<sizeof(bytes);++j)bytes[j]=pattern(s->Index,9,serial*32+j);
+		uint64_t seq=999;xrudpresult r=xrtRudpPeerDatagramWrite(p,9,bytes,serial?sizeof(bytes):0,0,&seq);
+		if(cancelled(s,r))return;
+		require(s,r==XRUDP_OK || r==XRUDP_BACKPRESSURE,"game write failed");if(r!=XRUDP_OK)return;
+		require(s,seq==0,"independent game sequence was nonzero");++s->GameWritten;
+	}
+}
+static void start_games(xnetworker* worker,ptr context)
+{
+	multi_side* s=(multi_side*)context;(void)worker;s->GameStarted=true;
+#ifdef TEST_NATIVE_DG_TIMEOUT
+	if(s->Test->Mode==6 && s->Index==1) {
+		xrudppeer* p=s->Test->Peer[1];p->Session->IdleUs=1;p->Session->Activity=0;xrudpdatagraminfo info;
+		require(s,xrtRudpPeerDatagramRead(p,NULL,0,&info)==XRUDP_TIMEOUT && xrtRudpPeerState(p)==XRUDP_PEER_CLOSED && p->Cipher==NULL,"timed API retained an invalid cipher alias");
+		require(s,xrtRudpPeerAbort(p)==XRUDP_DONE,"abort after timed API close touched retired session");return;
+	}
+	if(s->Test->Mode==6)return;
+#endif
+	write_games(s,s->Test->Peer[s->Index]);
+}
+#endif
 static void write_more(multi_side* s,xrudppeer* p,uint32_t id)
 {
 	multi_stream* m=&s->Stream[id];if(m->Fin)return;
@@ -104,6 +141,9 @@ static void completion(multi_side* s)
 	else for(uint32_t id=1;id<=(s->Test->Mode==5?127u:5u);++id) {
 		multi_stream* m=&s->Stream[id];if(!m->Active || !m->Eof || !m->Acked || (id!=1 && !m->Retired))done=false;
 	}
+#ifdef TEST_NATIVE_MULTI_DATAGRAMS
+	done=done && s->GameStarted && s->GameWritten==48 && s->GameRead==48;
+#endif
 	if(done)(void)xrtAtomic32FetchOr(&s->Test->Complete,1u<<s->Index,XMEMORY_RELEASE);
 }
 static void opened(xrudpendpoint* e,void* context)
@@ -117,6 +157,10 @@ static void confirmed(xrudpendpoint* e,xrudppeer* p,void* context)
 	xrudphandshakeinfo info;xnetaddr address;require(s,xrtRudpPeerInfo(p,&info,&address)==XRUDP_OK &&
 		info.Role==(s->Index?XRUDP_INITIATOR:XRUDP_RESPONDER),"role not authenticated");
 	if(s->Index==0)s->Test->Peer[0]=xrtRudpPeerRef(p);
+#ifdef TEST_NATIVE_MULTI_DATAGRAMS
+	xrudpdatagramchannel channel;xrtRudpDatagramChannelInit(&channel);channel.Id=9;
+	require(s,xrtRudpPeerDatagramConfigure(p,&channel)==XRUDP_OK,"native game configure failed");
+#endif
 	s->Stream[1].Active=true;if(s->Test->Mode!=3)write_more(s,p,1);open_more(s,p);
 	(void)xrtAtomic32FetchOr(&s->Test->Confirmed,1u<<s->Index,XMEMORY_RELEASE);
 }
@@ -124,6 +168,27 @@ static void changed(xrudpendpoint* e,xrudppeer* p,uint32_t events,void* context)
 {
 	multi_side* s=(multi_side*)context;(void)e;require(s,!s->InCallback,"recursive global hint");
 	if(events&XRUDP_PEER_STREAMS_READY) { ++s->OpenHints;if(s->OpenBlocked)open_more(s,p); }
+#ifdef TEST_NATIVE_MULTI_DATAGRAMS
+	s->InCallback=true;
+	if(s->GameStarted && (events&XRUDP_PEER_DATAGRAM_WRITE_READY))write_games(s,p);
+	if(events&XRUDP_PEER_DATAGRAM_READ_READY) {
+		unsigned char bytes[32];xrudpdatagraminfo info;xrudpresult r=xrtRudpPeerDatagramRead(p,bytes,sizeof(bytes),&info);
+		if(cancelled(s,r)) { s->InCallback=false;return; }
+		require(s,r==XRUDP_OK || r==XRUDP_BACKPRESSURE,"native game read failed");
+		if(r==XRUDP_OK) {
+			uint32_t serial=0;if(info.Size)for(size_t j=0;j<4;++j)serial=(serial<<8)|bytes[j];
+			require(s,info.Channel==9 && !info.Sequenced && info.Sequence==0 && serial<48 && !s->GameSeen[serial] && info.Size==(serial?32u:0u),"native game duplicate/invalid identity");
+			if(serial<48) { s->GameSeen[serial]=true;++s->GameRead; }
+			for(size_t j=4;j<info.Size;++j)require(s,bytes[j]==pattern(1-s->Index,9,serial*32+j),"native game payload corruption");
+			if(s->Index==1 && (s->Test->Mode==1 || s->Test->Mode==2)) {
+				if(s->Test->Mode==1) { xrtRudpPeerDestroy(s->Test->Peer[1]);s->Test->Peer[1]=NULL;require(s,xrtRudpPeerAbort(p)==XRUDP_OK,"game callback peer abort failed"); }
+				else require(s,xrtRudpEndpointClose(e)==XRUDP_OK,"game callback endpoint close failed");
+				s->InCallback=false;return;
+			}
+		}
+	}
+	completion(s);s->InCallback=false;
+#endif
 }
 static void stream_changed(xrudpendpoint* e,xrudppeer* p,const xrudpstreamevent* event,void* context)
 {
@@ -156,7 +221,7 @@ static void stream_changed(xrudpendpoint* e,xrudppeer* p,const xrudpstreamevent*
 			if(r==XRUDP_OK && message_stream(id) && count==0) { require(s,!m->EmptyRead && m->Read==0,"duplicate/reordered empty message");m->EmptyRead=true; }
 			for(size_t i=0;i<count;++i)require(s,bytes[i]==pattern(1-s->Index,id,m->Read+i),"byte corruption/order mismatch");
 			m->Read+=count;
-			if((t->Mode==1 || t->Mode==2) && s->Index==1 && id!=1 && count) {
+			if(!native_games() && (t->Mode==1 || t->Mode==2) && s->Index==1 && id!=1 && count) {
 				if(t->Mode==1) { xrtRudpPeerDestroy(t->Peer[1]);t->Peer[1]=NULL;require(s,xrtRudpPeerAbort(p)==XRUDP_OK,"callback peer abort failed"); }
 				else require(s,xrtRudpEndpointClose(e)==XRUDP_OK,"callback endpoint close failed");
 				s->InCallback=false;return;
@@ -193,7 +258,7 @@ static void peer_closed(xrudpendpoint* e,xrudppeer* p,xrudpresult reason,void* c
 	require(s,++s->PeerCloses==1 && xrtRudpPeerState(p)==XRUDP_PEER_CLOSED,"duplicate/premature peer close");
 	require(s,xrtRudpPeerSessionState(p,&state)==XRUDP_OK && state.Reason!=XRUDP_OK && !state.Sent.PendingPackets && !state.Sent.BytesInFlight,
 		"terminal snapshot not drained");
-	require(s,reason==XRUDP_CANCELLED || reason==XRUDP_CLOSED,"unexpected peer failure");
+	require(s,reason==XRUDP_CANCELLED || reason==XRUDP_CLOSED || (s->Test->Mode==6 && reason==XRUDP_TIMEOUT),"unexpected peer failure");
 	(void)xrtAtomic32FetchOr(&s->Test->PeerClosed,1u<<s->Index,XMEMORY_RELEASE);
 }
 static void closed(xrudpendpoint* e,xrudpresult reason,const xerror* error,void* context)
@@ -212,6 +277,9 @@ static void bind_one(xnetworker* worker,ptr context)
 	cfg.Session.TransmitCapacity=512;cfg.Session.Local.MaxMessageSize=256;cfg.Session.Local.StreamCredit=64;cfg.Session.Local.ConnectionCredit=512;
 #endif
 	cfg.Session.Local.DatagramSize=512;cfg.Session.Local.MaxAckDelayUs=1000;cfg.Session.InitialRttUs=10000;cfg.Session.KeyUpdatePackets=16;
+#ifdef TEST_NATIVE_MULTI_DATAGRAMS
+	cfg.Session.Datagrams.Channels=1;cfg.Session.Datagrams.SendCapacity=8;cfg.Session.Datagrams.ReceiveCapacity=64;cfg.Session.Datagrams.PayloadCapacity=424;
+#endif
 	xnetaddr address;require(s,xrtNetAddrLoopback(&address,t->Family,0),"loopback failed");
 	xrudpendpointevents events={opened,confirmed,peer_closed,closed,changed,stream_changed};
 	require(s,xrtRudpEndpointBind(worker,&address,&cfg,&events,s,&t->Endpoint[s->Index])==XRUDP_OK,"bind failed");
@@ -230,6 +298,10 @@ static void dial(xnetworker* worker,ptr context)
 	require(s,xrtRudpPeerStreamFinish(t->Peer[1],1)==XRUDP_BACKPRESSURE,"pre-confirmation FIN accepted");
 	require(s,xrtRudpPeerStreamReset(t->Peer[1],1,1)==XRUDP_BACKPRESSURE,"pre-confirmation RESET accepted");
 	require(s,xrtRudpPeerStreamRetire(t->Peer[1],2)==XRUDP_BACKPRESSURE,"pre-confirmation retirement accepted");
+	xrudpdatagraminfo info;uint64_t seq=999;xrudpdatagramchannel ch;xrtRudpDatagramChannelInit(&ch);ch.Id=9;
+	require(s,xrtRudpPeerDatagramWrite(t->Peer[1],9,NULL,0,0,&seq)==XRUDP_BACKPRESSURE && seq==999,"pre-confirmation game accepted");
+	require(s,xrtRudpPeerDatagramConfigure(t->Peer[1],&ch)==XRUDP_BACKPRESSURE,"pre-confirmation game channel accepted");
+	require(s,xrtRudpPeerDatagramRead(t->Peer[1],NULL,0,&info)==XRUDP_BACKPRESSURE && info.Size==0,"pre-confirmation game read accepted");
 	(void)xrtAtomic32FetchOr(&t->Dialed,1,XMEMORY_RELEASE);
 }
 static int run(xnetfamily family,uint32_t mode)
@@ -246,6 +318,9 @@ static int run(xnetfamily family,uint32_t mode)
 	t.Engine=xrtNetEngineCreate(&cfg);CHECK(t.Engine && xrtNetEngineStart(t.Engine));
 	for(size_t i=0;i<2;++i)CHECK(xrtNetEnginePost(t.Engine,i,bind_one,&t.Side[i]));
 	CHECK(wait_for(&t,&t.Ready,3));CHECK(xrtNetEnginePost(t.Engine,1,dial,&t));CHECK(wait_for(&t,&t.Dialed,1));
+#ifdef TEST_NATIVE_MULTI_DATAGRAMS
+	CHECK(wait_for(&t,&t.Confirmed,3));for(size_t i=0;i<2;++i)CHECK(xrtNetEnginePost(t.Engine,i,start_games,&t.Side[i]));
+#endif
 	if(mode==0 || mode==3 || mode==4 || mode==5) {
 		CHECK(wait_for(&t,&t.Complete,3));
 		xrudpstreamconfig stream;xrtRudpStreamConfigInit(&stream);uint32_t id=999;xrudpstreamstate state;unsigned char byte;size_t count=99;
@@ -258,7 +333,11 @@ static int run(xnetfamily family,uint32_t mode)
 		CHECK(xrtRudpPeerMessageWrite(t.Peer[0],2,NULL,0)==XRUDP_ARGUMENT);
 		CHECK(xrtRudpPeerMessagePeek(t.Peer[0],2,&count)==XRUDP_ARGUMENT && count==0);
 		CHECK(xrtRudpPeerMessageRead(t.Peer[0],2,NULL,0,&count)==XRUDP_ARGUMENT && count==0);
+		xrudpdatagraminfo info;uint64_t seq=999;
+		CHECK(xrtRudpPeerDatagramRead(t.Peer[0],NULL,0,&info)==XRUDP_ARGUMENT && info.Size==0);
+		CHECK(xrtRudpPeerDatagramWrite(t.Peer[0],9,NULL,0,0,&seq)==XRUDP_ARGUMENT && seq==999);
 	} else if(mode==1)CHECK(wait_for(&t,&t.PeerClosed,3));
+	else if(mode==6)CHECK(wait_for(&t,&t.PeerClosed,2));
 	else CHECK(wait_for(&t,&t.Closed,2));
 	for(size_t i=0;i<2;++i)CHECK(xrtRudpEndpointClose(t.Endpoint[i])==XRUDP_OK);
 	CHECK(wait_for(&t,&t.Closed,3) && wait_for(&t,&t.PeerClosed,3));CHECK(xrtNetEngineStop(t.Engine) && xrtNetEngineDestroy(t.Engine));
@@ -281,6 +360,11 @@ static int run(xnetfamily family,uint32_t mode)
 			CHECK(xrtRudpPeerMessageWrite(t.Peer[i],2,NULL,0)==XRUDP_CLOSED);
 			CHECK(xrtRudpPeerMessagePeek(t.Peer[i],2,&count)==XRUDP_CLOSED && count==0);
 			CHECK(xrtRudpPeerMessageRead(t.Peer[i],2,NULL,0,&count)==XRUDP_CLOSED && count==0);
+			xrudpdatagraminfo info;uint64_t seq=999;CHECK(xrtRudpPeerDatagramRead(t.Peer[i],NULL,0,&info)==XRUDP_CLOSED && info.Size==0);
+			CHECK(xrtRudpPeerDatagramWrite(t.Peer[i],9,NULL,0,0,&seq)==XRUDP_CLOSED && seq==999);
+#ifdef TEST_NATIVE_MULTI_DATAGRAMS
+			if(mode==0 || mode==3 || mode==4 || mode==5)CHECK(session.Datagrams.Sent==48 && session.Datagrams.Accepted==48 && session.Datagrams.Read==48 && session.Datagrams.Stopped && !session.Datagrams.SendQueued && !session.Datagrams.ReceiveQueued);
+#endif
 		}
 		xrtRudpPeerDestroy(t.Peer[i]);xrtRudpEndpointDestroy(t.Endpoint[i]);
 	}

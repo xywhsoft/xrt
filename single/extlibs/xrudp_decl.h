@@ -2525,6 +2525,19 @@
 #ifndef XRUDP_MODULE_RUDP_MESSAGE
 #define XRUDP_MODULE_RUDP_MESSAGE
 #endif
+#ifndef XRUDP_MODULE_RUDP_DATAGRAM
+#define XRUDP_MODULE_RUDP_DATAGRAM
+#endif
+#endif
+
+/* rudp_message 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_MESSAGE)
+#ifndef XRUDP_FEATURE_RUDP_MESSAGE
+#define XRUDP_FEATURE_RUDP_MESSAGE
+#endif
+#ifndef XRUDP_MODULE_RUDP_TRANSMIT
+#define XRUDP_MODULE_RUDP_TRANSMIT
+#endif
 #endif
 
 /* rudp_handshake 及其直接依赖。 */
@@ -2537,16 +2550,6 @@
 #endif
 #ifndef XRUDP_MODULE_RUDP_COOKIE
 #define XRUDP_MODULE_RUDP_COOKIE
-#endif
-#endif
-
-/* rudp_message 及其直接依赖。 */
-#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_MESSAGE)
-#ifndef XRUDP_FEATURE_RUDP_MESSAGE
-#define XRUDP_FEATURE_RUDP_MESSAGE
-#endif
-#ifndef XRUDP_MODULE_RUDP_TRANSMIT
-#define XRUDP_MODULE_RUDP_TRANSMIT
 #endif
 #endif
 
@@ -3895,6 +3898,7 @@ typedef xrudpresult (*xrudpsessionsendproc)(const void* pPacket, size_t iSize, v
 
 typedef struct xrudpsessionconfig {
 	xrudpparameters Local, Peer; /* Authenticated, already negotiated parameters. */
+	xrudpdatagramconfig Datagrams; /* All zero disables; otherwise fixed local queue budget. */
 	xrudprole Role; /* Trusted handshake role, not chosen from a DATA frame. */
 	uint32_t StreamCapacity; /* Per-origin pool, includes implicit stream 1; 1..64. */
 	uint32_t ReceiveCapacity, TransmitCapacity;
@@ -3912,6 +3916,9 @@ typedef struct xrudpsessionstate {
 	xrudpsentstate Sent;
 	xrudpcongestion Congestion;
 	xrudprtt Rtt;
+	xrudpdatagramstate Datagrams;
+	uint64_t DatagramAcknowledged, DatagramLost, DatagramDisabledDropped;
+	uint32_t DatagramSendLimit; /* Local queue/negotiated packet size bound. */
 	uint64_t ReceivedConnection, ReceiveLimit, SentConnection, PeerLimit;
 	uint64_t LastNowUs, LastActivityUs, ProgressAtUs;
 	uint64_t ReceivedPackets, SentPackets, LostPackets, ProbeTimeouts, KeyUpdates;
@@ -3948,7 +3955,8 @@ XRT_EXTERN_C_BEGIN
  * StreamCapacity reserves 2*N-1 fixed receive/transmit pairs at construction;
  * Local.MaxStreams <= N. When Local.MaxMessageSize>0, all 2*N-2 extra slots
  * also reserve one fixed message assembler. OPEN/read/write/retire never
- * allocate. Game datagrams and path migration remain separate layers.
+ * allocate. Optional datagram queues are also reserved at construction.
+ * Path migration remains a separate layer.
  * No private thread/socket, no callbacks except serialized output admission.
  * Every method requires one owner; all caller buffers must be disjoint. */
 XRUDP_API void xrtRudpSessionConfigInit(xrudpsessionconfig* pConfig);
@@ -4012,6 +4020,25 @@ XRUDP_API xrudpresult xrtRudpSessionStreamRetire(xrudpsession* pSession, uint32_
  * RETIRE_READY follows both half terminations and all packet copies draining.
  * Later output may reacquire a control reference: recheck State/Retire. */
 XRUDP_API xrudpresult xrtRudpSessionStreamNextEvent(xrudpsession* pSession, xrudpstreamevent* pEvent);
+/* Optional unreliable datagrams. Configure local channel IDs/modes at both
+ * endpoints before traffic; unknown/disabled/full channels drop authenticated
+ * datagrams without allocating or rejecting reliable frames in the same packet.
+ * ORDERED/LATEST use sequence suppression, never loss retransmission. Queues
+ * share the connection's cipher/ACK/sent ledger/NewReno/pacing with streams.
+ * Both traffic classes get packet service when continuously backlogged; PTO
+ * keeps its existing hard budget and never retransmits a game payload.
+ * Write/Read clock the owner at Now; deadlines/lifetimes are local monotonic us.
+ * No fragmenting: Write above DatagramSendLimit returns LIMIT. Sequence output
+ * is unchanged on failure. Read includes empty datagrams and TRUNCATED info.
+ * These core methods allocate nothing. Call Poll after mutable operations. */
+XRUDP_API xrudpresult xrtRudpSessionDatagramConfigure(xrudpsession* pSession, const xrudpdatagramchannel* pChannel);
+XRUDP_API xrudpresult xrtRudpSessionDatagramChannelState(const xrudpsession* pSession,
+	uint32_t iChannel, xrudpdatagramchannelstate* pState);
+XRUDP_API xrudpresult xrtRudpSessionDatagramWrite(xrudpsession* pSession, uint32_t iChannel,
+	const void* pData, size_t iSize, uint64_t iNowUs, uint64_t iDeadlineUs, uint64_t* pSequence);
+XRUDP_API xrudpresult xrtRudpSessionDatagramPeek(const xrudpsession* pSession, xrudpdatagraminfo* pInfo);
+XRUDP_API xrudpresult xrtRudpSessionDatagramRead(xrudpsession* pSession, void* pOutput,
+	size_t iCapacity, uint64_t iNowUs, xrudpdatagraminfo* pInfo);
 /* Authenticate, preflight ALL ACK/data/reset/control state, then commit once.
  * Malformed authenticated input terminates the session; no partial delivery or
  * false acknowledgement. Noise/forgery/old/duplicate packets do not terminate.
@@ -4055,6 +4082,8 @@ XRT_EXTERN_C_END
 #define XRUDP_PEER_WRITE_DONE 4u
 #define XRUDP_PEER_READ_EOF 8u
 #define XRUDP_PEER_STREAMS_READY 16u
+#define XRUDP_PEER_DATAGRAM_READ_READY 32u
+#define XRUDP_PEER_DATAGRAM_WRITE_READY 64u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
@@ -4185,6 +4214,24 @@ XRUDP_API xrudpresult xrtRudpPeerStreamRead(xrudppeer* pPeer, uint32_t iId, void
 XRUDP_API xrudpresult xrtRudpPeerMessageWrite(xrudppeer* pPeer, uint32_t iId, const void* pData, size_t iSize);
 XRUDP_API xrudpresult xrtRudpPeerMessagePeek(const xrudppeer* pPeer, uint32_t iId, size_t* pSize);
 XRUDP_API xrudpresult xrtRudpPeerMessageRead(xrudppeer* pPeer, uint32_t iId, void* pOutput, size_t iCapacity, size_t* pSize);
+/* Owner-only datagrams, after Confirmed. Bind reserves Session.Datagrams;
+ * all-zero configuration disables the local queues. Register matching IDs/
+ * modes at both peers before traffic. Unknown/full channels silently drop
+ * unreliable input while preserving reliable frames in the same packet.
+ * Changed reports DATAGRAM_READ_READY / WRITE_READY hints. Read may be bounded
+ * by the application: after a successful Read, remaining records schedule a
+ * later hint (>=1ms), never a recursive callback. Empty reads are successful.
+ * Lifetime=0 disables per-record send expiry; otherwise <=10min, measured
+ * from this native call's fresh local clock. No peer wall clock is involved.
+ * Timed operations that discover a TERMINAL session timeout may synchronously
+ * call PeerClose; an individual expired write does not close the connection.
+ * No per-datagram allocation; native timer/UDP admission uses Engine budgets. */
+XRUDP_API xrudpresult xrtRudpPeerDatagramConfigure(xrudppeer* pPeer, const xrudpdatagramchannel* pChannel);
+XRUDP_API xrudpresult xrtRudpPeerDatagramChannelState(const xrudppeer* pPeer, uint32_t iChannel, xrudpdatagramchannelstate* pState);
+XRUDP_API xrudpresult xrtRudpPeerDatagramWrite(xrudppeer* pPeer, uint32_t iChannel,
+	const void* pData, size_t iSize, uint64_t iLifetimeUs, uint64_t* pSequence);
+XRUDP_API xrudpresult xrtRudpPeerDatagramPeek(const xrudppeer* pPeer, xrudpdatagraminfo* pInfo);
+XRUDP_API xrudpresult xrtRudpPeerDatagramRead(xrudppeer* pPeer, void* pOutput, size_t iCapacity, xrudpdatagraminfo* pInfo);
 XRUDP_API xrudpresult xrtRudpPeerStreamFinish(xrudppeer* pPeer, uint32_t iId);
 XRUDP_API xrudpresult xrtRudpPeerStreamReset(xrudppeer* pPeer, uint32_t iId, uint32_t iReason);
 XRUDP_API xrudpresult xrtRudpPeerStreamRetire(xrudppeer* pPeer, uint32_t iId);
@@ -5974,6 +6021,19 @@ XRT_EXTERN_C_END
 #ifndef XRUDP_MODULE_RUDP_MESSAGE
 #define XRUDP_MODULE_RUDP_MESSAGE
 #endif
+#ifndef XRUDP_MODULE_RUDP_DATAGRAM
+#define XRUDP_MODULE_RUDP_DATAGRAM
+#endif
+#endif
+
+/* rudp_message 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_MESSAGE)
+#ifndef XRUDP_FEATURE_RUDP_MESSAGE
+#define XRUDP_FEATURE_RUDP_MESSAGE
+#endif
+#ifndef XRUDP_MODULE_RUDP_TRANSMIT
+#define XRUDP_MODULE_RUDP_TRANSMIT
+#endif
 #endif
 
 /* rudp_handshake 及其直接依赖。 */
@@ -5986,16 +6046,6 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRUDP_MODULE_RUDP_COOKIE
 #define XRUDP_MODULE_RUDP_COOKIE
-#endif
-#endif
-
-/* rudp_message 及其直接依赖。 */
-#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_MESSAGE)
-#ifndef XRUDP_FEATURE_RUDP_MESSAGE
-#define XRUDP_FEATURE_RUDP_MESSAGE
-#endif
-#ifndef XRUDP_MODULE_RUDP_TRANSMIT
-#define XRUDP_MODULE_RUDP_TRANSMIT
 #endif
 #endif
 

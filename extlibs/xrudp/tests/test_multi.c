@@ -16,6 +16,10 @@ static struct {
 	size_t Written[2][MULTI_COUNT], Read[2][MULTI_COUNT];
 	uint32_t Deferred,Dropped,Blocked,Duplicated;
 	uint32_t Epoch[2],RetiredKeys;
+#ifdef TEST_MULTI_DATAGRAMS
+	uint32_t GameWritten[2][4],GameRead[2][4],GameLast[2][4];
+	bool GameSeen[2][3][4001];
+#endif
 } net;
 static uint32_t tick, randomState;
 static uint32_t ids[MULTI_COUNT]={1,3,5,2,4};
@@ -53,6 +57,9 @@ static void config(xrudpsessionconfig* c,uint32_t side)
 	c->Local.ConnectionCredit=c->Peer.ConnectionCredit=1024;c->Local.DatagramSize=c->Peer.DatagramSize=512;
 	c->PacketCapacity=64;c->InitialRttUs=10000;c->Local.MaxAckDelayUs=c->Peer.MaxAckDelayUs=1000;
 	c->Local.IdleTimeoutMs=c->Peer.IdleTimeoutMs=60000;c->KeyUpdatePackets=16;
+#ifdef TEST_MULTI_DATAGRAMS
+	c->Datagrams.Channels=3;c->Datagrams.SendCapacity=16;c->Datagrams.ReceiveCapacity=32;c->Datagrams.PayloadCapacity=424;
+#endif
 }
 static int events(uint32_t side)
 {
@@ -75,6 +82,9 @@ static int scenario(uint32_t seed)
 	memset(&net,0,sizeof(net));net.Epoch[0]=net.Epoch[1]=1;randomState=seed;tick=0;xrudpcipher* cipher[2]={NULL,NULL};CHECK(cipher_pair(cipher)==0);
 	for(uint32_t side=0;side<2;++side) {
 		xrudpsessionconfig c;config(&c,side);CHECK(xrtRudpSessionCreate(&c,cipher[side],0,output,(void*)(uintptr_t)side,&net.Session[side])==XRUDP_OK);
+#ifdef TEST_MULTI_DATAGRAMS
+		for(uint32_t id=1;id<=3;++id) { xrudpdatagramchannel ch;xrtRudpDatagramChannelInit(&ch);ch.Id=id;ch.Mode=(uint8_t)(id-1);ch.ReplacePending=id==3;CHECK(xrtRudpSessionDatagramConfigure(net.Session[side],&ch)==XRUDP_OK); }
+#endif
 		net.Active[side][0]=true;
 		for(size_t n=0;n<2;++n) {
 			xrudpstreamconfig stream;xrtRudpStreamConfigInit(&stream);stream.Priority=(uint8_t)n;stream.Weight=(uint16_t)(n+1);
@@ -109,6 +119,27 @@ static int scenario(uint32_t seed)
 		}
 		for(uint32_t side=0;side<2;++side) {
 			CHECK(events(side)==0);
+#ifdef TEST_MULTI_DATAGRAMS
+			if(tick<4000 && tick%4==0)for(uint32_t id=1;id<=3;++id)for(uint32_t repeat=0;repeat<(id==3?3u:1u);++repeat) {
+				unsigned char bytes[424];size_t size=id==3?128:sizeof(bytes);uint32_t serial=net.GameWritten[side][id]+1;
+				for(size_t j=0;j<4;++j)bytes[3-j]=(unsigned char)(serial>>(j*8));
+				for(size_t j=4;j<size;++j)bytes[j]=pattern(side,id,j+serial);
+				uint64_t seq;xrudpresult r=xrtRudpSessionDatagramWrite(net.Session[side],id,bytes,size,now,now+(id==3?1000:50000),&seq);
+				CHECK(r==XRUDP_OK || r==XRUDP_BACKPRESSURE);
+				if(r==XRUDP_OK) { CHECK(seq==(id==1?0:serial));net.GameWritten[side][id]=serial;wake|=1u<<side; }
+			}
+			for(size_t n=0;n<8;++n) {
+				unsigned char bytes[424];xrudpdatagraminfo info;xrudpresult r=xrtRudpSessionDatagramRead(net.Session[side],bytes,sizeof(bytes),now,&info);
+				if(r==XRUDP_BACKPRESSURE)break;
+				CHECK(r==XRUDP_OK && info.Channel>=1 && info.Channel<=3 && info.Size==(info.Channel==3?128:424));
+				uint32_t serial=0;for(size_t j=0;j<4;++j)serial=(serial<<8)|bytes[j];uint32_t id=info.Channel;
+				CHECK(serial>0 && serial<=4000 && serial<=net.GameWritten[1-side][id] && !net.GameSeen[side][id-1][serial]);
+				net.GameSeen[side][id-1][serial]=true;
+				if(id!=1)CHECK(serial>net.GameLast[side][id] && info.Sequence==serial);
+				net.GameLast[side][id]=serial;++net.GameRead[side][id];
+				for(size_t j=4;j<info.Size;++j)CHECK(bytes[j]==pattern(1-side,id,j+serial));
+			}
+#endif
 			for(size_t k=0;k<MULTI_COUNT;++k)if(net.Active[side][k]) {
 				if(net.Written[side][k]<MULTI_BYTES) {
 					unsigned char source[128];size_t n=MULTI_BYTES-net.Written[side][k];if(n>sizeof(source))n=sizeof(source);
@@ -147,6 +178,11 @@ static int scenario(uint32_t seed)
 	}
 	CHECK(done && otherProgress && net.Dropped && net.Blocked && net.Duplicated && net.Deferred);
 	for(uint32_t side=0;side<2;++side) {
+#ifdef TEST_MULTI_DATAGRAMS
+		xrudpsessionstate state;CHECK(xrtRudpSessionState(net.Session[side],&state)==XRUDP_OK);
+		CHECK(state.Datagrams.Sent>0 && state.Datagrams.Accepted>0 && state.DatagramLost>0 && net.GameRead[side][1]>0 && net.GameRead[side][2]>0);
+		printf("game mixed: side=%u sent=%llu accepted=%llu lost=%llu expired=%llu replaced=%llu\n",side,(unsigned long long)state.Datagrams.Sent,(unsigned long long)state.Datagrams.Accepted,(unsigned long long)state.DatagramLost,(unsigned long long)state.Datagrams.SendExpired,(unsigned long long)state.Datagrams.SendReplaced);
+#endif
 		for(size_t k=1;k<MULTI_COUNT;++k) {
 			CHECK(xrtRudpSessionStreamRetire(net.Session[side],ids[k])==XRUDP_OK);
 			xrudpstreamstate stream;CHECK(xrtRudpSessionStreamState(net.Session[side],ids[k],&stream)==XRUDP_CLOSED);

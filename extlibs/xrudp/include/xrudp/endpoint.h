@@ -14,6 +14,8 @@
 #define XRUDP_PEER_WRITE_DONE 4u
 #define XRUDP_PEER_READ_EOF 8u
 #define XRUDP_PEER_STREAMS_READY 16u
+#define XRUDP_PEER_DATAGRAM_READ_READY 32u
+#define XRUDP_PEER_DATAGRAM_WRITE_READY 64u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
@@ -144,6 +146,24 @@ XRUDP_API xrudpresult xrtRudpPeerStreamRead(xrudppeer* pPeer, uint32_t iId, void
 XRUDP_API xrudpresult xrtRudpPeerMessageWrite(xrudppeer* pPeer, uint32_t iId, const void* pData, size_t iSize);
 XRUDP_API xrudpresult xrtRudpPeerMessagePeek(const xrudppeer* pPeer, uint32_t iId, size_t* pSize);
 XRUDP_API xrudpresult xrtRudpPeerMessageRead(xrudppeer* pPeer, uint32_t iId, void* pOutput, size_t iCapacity, size_t* pSize);
+/* Owner-only datagrams, after Confirmed. Bind reserves Session.Datagrams;
+ * all-zero configuration disables the local queues. Register matching IDs/
+ * modes at both peers before traffic. Unknown/full channels silently drop
+ * unreliable input while preserving reliable frames in the same packet.
+ * Changed reports DATAGRAM_READ_READY / WRITE_READY hints. Read may be bounded
+ * by the application: after a successful Read, remaining records schedule a
+ * later hint (>=1ms), never a recursive callback. Empty reads are successful.
+ * Lifetime=0 disables per-record send expiry; otherwise <=10min, measured
+ * from this native call's fresh local clock. No peer wall clock is involved.
+ * Timed operations that discover a TERMINAL session timeout may synchronously
+ * call PeerClose; an individual expired write does not close the connection.
+ * No per-datagram allocation; native timer/UDP admission uses Engine budgets. */
+XRUDP_API xrudpresult xrtRudpPeerDatagramConfigure(xrudppeer* pPeer, const xrudpdatagramchannel* pChannel);
+XRUDP_API xrudpresult xrtRudpPeerDatagramChannelState(const xrudppeer* pPeer, uint32_t iChannel, xrudpdatagramchannelstate* pState);
+XRUDP_API xrudpresult xrtRudpPeerDatagramWrite(xrudppeer* pPeer, uint32_t iChannel,
+	const void* pData, size_t iSize, uint64_t iLifetimeUs, uint64_t* pSequence);
+XRUDP_API xrudpresult xrtRudpPeerDatagramPeek(const xrudppeer* pPeer, xrudpdatagraminfo* pInfo);
+XRUDP_API xrudpresult xrtRudpPeerDatagramRead(xrudppeer* pPeer, void* pOutput, size_t iCapacity, xrudpdatagraminfo* pInfo);
 XRUDP_API xrudpresult xrtRudpPeerStreamFinish(xrudppeer* pPeer, uint32_t iId);
 XRUDP_API xrudpresult xrtRudpPeerStreamReset(xrudppeer* pPeer, uint32_t iId, uint32_t iReason);
 XRUDP_API xrudpresult xrtRudpPeerStreamRetire(xrudppeer* pPeer, uint32_t iId);

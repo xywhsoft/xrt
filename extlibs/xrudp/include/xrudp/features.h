@@ -44,6 +44,19 @@
 #ifndef XRUDP_MODULE_RUDP_MESSAGE
 #define XRUDP_MODULE_RUDP_MESSAGE
 #endif
+#ifndef XRUDP_MODULE_RUDP_DATAGRAM
+#define XRUDP_MODULE_RUDP_DATAGRAM
+#endif
+#endif
+
+/* rudp_message 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_MESSAGE)
+#ifndef XRUDP_FEATURE_RUDP_MESSAGE
+#define XRUDP_FEATURE_RUDP_MESSAGE
+#endif
+#ifndef XRUDP_MODULE_RUDP_TRANSMIT
+#define XRUDP_MODULE_RUDP_TRANSMIT
+#endif
 #endif
 
 /* rudp_handshake 及其直接依赖。 */
@@ -56,16 +69,6 @@
 #endif
 #ifndef XRUDP_MODULE_RUDP_COOKIE
 #define XRUDP_MODULE_RUDP_COOKIE
-#endif
-#endif
-
-/* rudp_message 及其直接依赖。 */
-#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_MESSAGE)
-#ifndef XRUDP_FEATURE_RUDP_MESSAGE
-#define XRUDP_FEATURE_RUDP_MESSAGE
-#endif
-#ifndef XRUDP_MODULE_RUDP_TRANSMIT
-#define XRUDP_MODULE_RUDP_TRANSMIT
 #endif
 #endif
 

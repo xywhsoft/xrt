@@ -8,6 +8,7 @@
 #include <xrudp/receive.h>
 #include <xrudp/transmit.h>
 #include <xrudp/message.h>
+#include <xrudp/datagram.h>
 
 #if defined(XRUDP_FEATURE_RUDP_SESSION)
 
@@ -33,6 +34,7 @@ typedef xrudpresult (*xrudpsessionsendproc)(const void* pPacket, size_t iSize, v
 
 typedef struct xrudpsessionconfig {
 	xrudpparameters Local, Peer; /* Authenticated, already negotiated parameters. */
+	xrudpdatagramconfig Datagrams; /* All zero disables; otherwise fixed local queue budget. */
 	xrudprole Role; /* Trusted handshake role, not chosen from a DATA frame. */
 	uint32_t StreamCapacity; /* Per-origin pool, includes implicit stream 1; 1..64. */
 	uint32_t ReceiveCapacity, TransmitCapacity;
@@ -50,6 +52,9 @@ typedef struct xrudpsessionstate {
 	xrudpsentstate Sent;
 	xrudpcongestion Congestion;
 	xrudprtt Rtt;
+	xrudpdatagramstate Datagrams;
+	uint64_t DatagramAcknowledged, DatagramLost, DatagramDisabledDropped;
+	uint32_t DatagramSendLimit; /* Local queue/negotiated packet size bound. */
 	uint64_t ReceivedConnection, ReceiveLimit, SentConnection, PeerLimit;
 	uint64_t LastNowUs, LastActivityUs, ProgressAtUs;
 	uint64_t ReceivedPackets, SentPackets, LostPackets, ProbeTimeouts, KeyUpdates;
@@ -86,7 +91,8 @@ XRT_EXTERN_C_BEGIN
  * StreamCapacity reserves 2*N-1 fixed receive/transmit pairs at construction;
  * Local.MaxStreams <= N. When Local.MaxMessageSize>0, all 2*N-2 extra slots
  * also reserve one fixed message assembler. OPEN/read/write/retire never
- * allocate. Game datagrams and path migration remain separate layers.
+ * allocate. Optional datagram queues are also reserved at construction.
+ * Path migration remains a separate layer.
  * No private thread/socket, no callbacks except serialized output admission.
  * Every method requires one owner; all caller buffers must be disjoint. */
 XRUDP_API void xrtRudpSessionConfigInit(xrudpsessionconfig* pConfig);
@@ -150,6 +156,25 @@ XRUDP_API xrudpresult xrtRudpSessionStreamRetire(xrudpsession* pSession, uint32_
  * RETIRE_READY follows both half terminations and all packet copies draining.
  * Later output may reacquire a control reference: recheck State/Retire. */
 XRUDP_API xrudpresult xrtRudpSessionStreamNextEvent(xrudpsession* pSession, xrudpstreamevent* pEvent);
+/* Optional unreliable datagrams. Configure local channel IDs/modes at both
+ * endpoints before traffic; unknown/disabled/full channels drop authenticated
+ * datagrams without allocating or rejecting reliable frames in the same packet.
+ * ORDERED/LATEST use sequence suppression, never loss retransmission. Queues
+ * share the connection's cipher/ACK/sent ledger/NewReno/pacing with streams.
+ * Both traffic classes get packet service when continuously backlogged; PTO
+ * keeps its existing hard budget and never retransmits a game payload.
+ * Write/Read clock the owner at Now; deadlines/lifetimes are local monotonic us.
+ * No fragmenting: Write above DatagramSendLimit returns LIMIT. Sequence output
+ * is unchanged on failure. Read includes empty datagrams and TRUNCATED info.
+ * These core methods allocate nothing. Call Poll after mutable operations. */
+XRUDP_API xrudpresult xrtRudpSessionDatagramConfigure(xrudpsession* pSession, const xrudpdatagramchannel* pChannel);
+XRUDP_API xrudpresult xrtRudpSessionDatagramChannelState(const xrudpsession* pSession,
+	uint32_t iChannel, xrudpdatagramchannelstate* pState);
+XRUDP_API xrudpresult xrtRudpSessionDatagramWrite(xrudpsession* pSession, uint32_t iChannel,
+	const void* pData, size_t iSize, uint64_t iNowUs, uint64_t iDeadlineUs, uint64_t* pSequence);
+XRUDP_API xrudpresult xrtRudpSessionDatagramPeek(const xrudpsession* pSession, xrudpdatagraminfo* pInfo);
+XRUDP_API xrudpresult xrtRudpSessionDatagramRead(xrudpsession* pSession, void* pOutput,
+	size_t iCapacity, uint64_t iNowUs, xrudpdatagraminfo* pInfo);
 /* Authenticate, preflight ALL ACK/data/reset/control state, then commit once.
  * Malformed authenticated input terminates the session; no partial delivery or
  * false acknowledgement. Noise/forgery/old/duplicate packets do not terminate.

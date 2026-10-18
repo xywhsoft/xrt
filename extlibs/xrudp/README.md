@@ -6,7 +6,7 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
 运行时不增加第三方依赖。源码、模块清单、单头产物按 XRT 的统一扩展流程管理。
 
 当前为开发中的基础设施，已能通过原生 UDP 建立已认证连接并可靠传输多条双向字节流和消息流。
-会话核心和原生端点已有固定预算的多流/消息接口；游戏和公网路径管理仍待开发，
+会话核心和原生端点已有固定预算的多流/消息/游戏数据报接口；公网路径管理仍待开发，
 尚未通过生产发布验收。
 已实现组件：固定格式报文编解码、完整负载结构预校验、有界防重放窗口、
 基于已认证方向密钥的包加密与密钥更新、固定 Noise IK 握手、无状态地址 cookie。
@@ -44,6 +44,7 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_endpoint,rudp_endpoint_fault_tests,rudp_multi_tests,rudp_multi_fault_tests --no-examples --cflag=-O2 --jobs 2
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_session_message_tests,rudp_endpoint_message_tests --no-examples --cflag=-O2 --jobs 2
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_datagram_tests --no-examples --cflag=-O2 --jobs 2
+    python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_game_tests,rudp_game_native_tests --no-examples --cflag=-O2 --jobs 2
 
 Windows 另外组合 rudp_endpoint_iocp_tests，Linux 组合 rudp_endpoint_epoll_tests；
 Linux 的优化构建同时运行 ASan/UBSan。无优化构建通过不能代替发布优化编译检查。
@@ -92,7 +93,20 @@ PeerMessagePeek/Read 只提供完整负载或 EOF/RESET，短缓冲返回 TRUNCA
 未知/模式不符/过旧/队满的数据报按不可靠策略丢弃；看到较新序号后，队满也不允许旧包复活。
 发送 Peek 不消费，只有实际 UDP 受理后才能以匹配 ticket 提交；本地背压不丢数据，
 已提交数据报在丢包后不回队重发。该模块不自带网络、加密或拥塞驱动。
-尚待接入会话的 DATAGRAM 线路、共享拥塞预算、原生事件和端点内存准入；当前会话仍拒绝 DATAGRAM。
+DATAGRAM 已接入会话和原生端点。Bind 前设置 Session.Datagrams（全零默认关闭），
+固定队列空间计入 AllocationSize 和端点的连接准入峰值；Confirmed 后双方配置同名通道。
+PeerDatagramWrite 入队完整消息，LifetimeUs 为本地相对期限，0 表示不设单条期限；
+超过 State.DatagramSendLimit 返回 LIMIT，不分片。该上限为本地负载容量与双方报文上限减 88B 的较小值。
+数据报共用连接的加密、包号、ACK、发送账本、NewReno 和 pacing，实际 UDP 受理后才消费队列。
+拥塞需求包含等待游戏记录的线路开销和当前在途字节，可靠流额度耗尽也不阻止游戏窗口增长。
+丢失只反馈拥塞和统计，不重发负载、不占可靠流字节额度，也不使用 PTO 探测保留位。
+持续积压时两类业务交替获得整包机会；轮到的一类暂时放不下时，保留窗口空隙以防小包长期抢占。
+纯 ACK 可继续发送但不消耗轮次，PTO 保持既有恢复优先级与硬预算。
+整包预检成功后才接纳游戏负载；未知/关闭/不符/队满只丢弃数据报，不拒绝同包合法可靠内容。
+Changed 提供 DATAGRAM_READ_READY/WRITE_READY；PeerDatagramPeek/Read 读取完整记录（含空消息）。
+短缓冲返回 TRUNCATED 和所需信息且不消费。每次成功读取后若还有记录，下一轮（至少 1ms）继续提示，
+应用可以单次有界读取；回调内取消或关闭停止后续交付。带时钟操作发现连接终结时立即关闭 peer，
+单条发送过期不关闭连接；期限维护不更新对端活性，已过期工作也不会误触发有用进度超时。
 模块 rudp_session 是单所有者的双向多流会话，消费握手晋升后的唯一密码器，
 组合整包 ACK/STREAM/RESET/额度预检、实际输出受理后的发送提交、恢复/流控/换钥与有限截止。
 固定数据环、引用和事件空间预先分配，Poll 最多输出 8 包，通过回调复制交给 UDP；

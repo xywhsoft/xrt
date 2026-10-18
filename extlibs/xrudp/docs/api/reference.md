@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `166` 个函数、`140` 个常量或宏、
+当前登记 `176` 个函数、`142` 个常量或宏、
 `63` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
@@ -154,7 +154,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/endpoint.h)
 
-### 函数 (27)
+### 函数 (32)
 
 - `xrtRudpEndpointBind`
 - `xrtRudpEndpointClose`
@@ -165,6 +165,11 @@
 - `xrtRudpEndpointRef`
 - `xrtRudpEndpointState`
 - `xrtRudpPeerAbort`
+- `xrtRudpPeerDatagramChannelState`
+- `xrtRudpPeerDatagramConfigure`
+- `xrtRudpPeerDatagramPeek`
+- `xrtRudpPeerDatagramRead`
+- `xrtRudpPeerDatagramWrite`
 - `xrtRudpPeerDestroy`
 - `xrtRudpPeerFinish`
 - `xrtRudpPeerInfo`
@@ -184,7 +189,7 @@
 - `xrtRudpPeerStreamWrite`
 - `xrtRudpPeerWrite`
 
-### 常量与宏 (16)
+### 常量与宏 (18)
 
 - `XRUDP_ENDPOINT_ADDRESS_BUCKETS`
 - `XRUDP_ENDPOINT_CLOSED`
@@ -195,6 +200,8 @@
 - `XRUDP_FEATURE_RUDP_ENDPOINT`
 - `XRUDP_PEER_CLOSED`
 - `XRUDP_PEER_CONFIRMED`
+- `XRUDP_PEER_DATAGRAM_READ_READY`
+- `XRUDP_PEER_DATAGRAM_WRITE_READY`
 - `XRUDP_PEER_NEGOTIATING`
 - `XRUDP_PEER_READ_EOF`
 - `XRUDP_PEER_READ_READY`
@@ -405,12 +412,17 @@
 
 [查看带契约注释的公共头](../../include/xrudp/session.h)
 
-### 函数 (23)
+### 函数 (28)
 
 - `xrtRudpSessionAbort`
 - `xrtRudpSessionAllocationSize`
 - `xrtRudpSessionConfigInit`
 - `xrtRudpSessionCreate`
+- `xrtRudpSessionDatagramChannelState`
+- `xrtRudpSessionDatagramConfigure`
+- `xrtRudpSessionDatagramPeek`
+- `xrtRudpSessionDatagramRead`
+- `xrtRudpSessionDatagramWrite`
 - `xrtRudpSessionDestroy`
 - `xrtRudpSessionFinish`
 - `xrtRudpSessionInput`

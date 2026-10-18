@@ -256,6 +256,9 @@ static void xrudp__peer_capture(xrudppeer* p)
 	if (xrudp__peer_write_done(&next) && !xrudp__peer_write_done(&p->Snapshot)) p->PendingEvents |= XRUDP_PEER_WRITE_DONE;
 	if (xrudp__peer_eof(&next) && !xrudp__peer_eof(&p->Snapshot)) p->PendingEvents |= XRUDP_PEER_READ_EOF;
 	if (next.OutgoingLimit > p->Snapshot.OutgoingLimit) p->PendingEvents |= XRUDP_PEER_STREAMS_READY;
+	if (next.Datagrams.ReceiveQueued != 0 && (next.Datagrams.Accepted > p->Snapshot.Datagrams.Accepted ||
+		next.Datagrams.ReceiveQueued > p->Snapshot.Datagrams.ReceiveQueued)) p->PendingEvents |= XRUDP_PEER_DATAGRAM_READ_READY;
+	if (next.Datagrams.SendQueued < p->Snapshot.Datagrams.SendQueued) p->PendingEvents |= XRUDP_PEER_DATAGRAM_WRITE_READY;
 	p->Snapshot = next;
 }
 static void xrudp__peer_notify(xrudppeer* p)
@@ -656,6 +659,52 @@ xrudpresult xrtRudpPeerMessageRead(xrudppeer* p, uint32_t id, void* output, size
 	xrtRudpPeerRef(p); result = xrtRudpSessionMessageRead(p->Session, id, output, capacity, size);
 	if (result == XRUDP_OK) xrudp__peer_wake(p);
 	xrtRudpPeerDestroy(p); return result;
+}
+xrudpresult xrtRudpPeerDatagramConfigure(xrudppeer* p, const xrudpdatagramchannel* channel)
+{
+	if (channel == NULL) return XRUDP_ARGUMENT;
+	xrudpresult r = xrudp__peer_io(p); if (r != XRUDP_OK) return r;
+	r = xrtRudpSessionDatagramConfigure(p->Session, channel); xrudp__peer_capture(p); return r;
+}
+xrudpresult xrtRudpPeerDatagramChannelState(const xrudppeer* p, uint32_t id, xrudpdatagramchannelstate* output)
+{
+	if (output == NULL) return XRUDP_ARGUMENT;
+	xrudpresult r = xrudp__peer_io(p); if (r != XRUDP_OK) return r;
+	return xrtRudpSessionDatagramChannelState(p->Session, id, output);
+}
+static void xrudp__peer_datagram_after(xrudppeer* p)
+{
+	xrudpsessionstate state;
+	if (xrtRudpSessionState(p->Session, &state) == XRUDP_OK && state.Reason != XRUDP_OK) xrudp__peer_close(p, state.Reason);
+	else xrudp__peer_wake(p);
+}
+xrudpresult xrtRudpPeerDatagramWrite(xrudppeer* p, uint32_t id, const void* data, size_t size, uint64_t lifetime, uint64_t* sequence)
+{
+	if (sequence == NULL || (data == NULL && size != 0) || lifetime > XRUDP_DATAGRAM_LIFETIME_MAX_US) return XRUDP_ARGUMENT;
+	xrudpresult r = xrudp__peer_io(p); if (r != XRUDP_OK) return r;
+	xrtRudpPeerRef(p); uint64_t now = xrudp__endpoint_now(p->Endpoint);
+	uint64_t deadline = lifetime == 0 ? 0 : (now > UINT64_MAX - lifetime ? UINT64_MAX : now + lifetime);
+	r = xrtRudpSessionDatagramWrite(p->Session, id, data, size, now, deadline, sequence);
+	xrudp__peer_datagram_after(p); xrtRudpPeerDestroy(p); return r;
+}
+xrudpresult xrtRudpPeerDatagramPeek(const xrudppeer* p, xrudpdatagraminfo* info)
+{
+	if (info != NULL) memset(info, 0, sizeof(*info));
+	if (info == NULL) return XRUDP_ARGUMENT;
+	xrudpresult r = xrudp__peer_io(p); if (r != XRUDP_OK) return r;
+	return xrtRudpSessionDatagramPeek(p->Session, info);
+}
+xrudpresult xrtRudpPeerDatagramRead(xrudppeer* p, void* output, size_t capacity, xrudpdatagraminfo* info)
+{
+	if (info != NULL) memset(info, 0, sizeof(*info));
+	if (info == NULL || (output == NULL && capacity != 0)) return XRUDP_ARGUMENT;
+	xrudpresult r = xrudp__peer_io(p); if (r != XRUDP_OK) return r;
+	xrtRudpPeerRef(p); r = xrtRudpSessionDatagramRead(p->Session, output, capacity, xrudp__endpoint_now(p->Endpoint), info);
+	xrudp__peer_datagram_after(p);
+	if (r == XRUDP_OK && xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && p->Snapshot.Datagrams.ReceiveQueued != 0) {
+		p->PendingEvents |= XRUDP_PEER_DATAGRAM_READ_READY; xrudp__endpoint_schedule(p->Endpoint);
+	}
+	xrtRudpPeerDestroy(p); return r;
 }
 xrudpresult xrtRudpPeerFinish(xrudppeer* p)
 {
