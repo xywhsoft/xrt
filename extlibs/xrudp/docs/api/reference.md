@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `150` 个函数、`131` 个常量或宏、
-`56` 个公共类型。
+当前登记 `166` 个函数、`140` 个常量或宏、
+`63` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -102,6 +102,53 @@
 
 - `xrudpcipher`
 - `xrudpcipherstate`
+
+## `extlibs/xrudp/include/xrudp/datagram.h`
+
+[查看带契约注释的公共头](../../include/xrudp/datagram.h)
+
+### 函数 (16)
+
+- `xrtRudpDatagramAbort`
+- `xrtRudpDatagramAllocationSize`
+- `xrtRudpDatagramChannelInit`
+- `xrtRudpDatagramChannelState`
+- `xrtRudpDatagramConfigInit`
+- `xrtRudpDatagramConfigure`
+- `xrtRudpDatagramCreate`
+- `xrtRudpDatagramDestroy`
+- `xrtRudpDatagramInput`
+- `xrtRudpDatagramMaintain`
+- `xrtRudpDatagramPeek`
+- `xrtRudpDatagramPeekSend`
+- `xrtRudpDatagramRead`
+- `xrtRudpDatagramSent`
+- `xrtRudpDatagramState`
+- `xrtRudpDatagramWrite`
+
+### 常量与宏 (11)
+
+- `XRUDP_DATAGRAM_CHANNELS_MAX`
+- `XRUDP_DATAGRAM_INDEPENDENT`
+- `XRUDP_DATAGRAM_LATEST`
+- `XRUDP_DATAGRAM_LIFETIME_MAX_US`
+- `XRUDP_DATAGRAM_ORDERED`
+- `XRUDP_DATAGRAM_OVERHEAD`
+- `XRUDP_DATAGRAM_PAYLOAD_MAX`
+- `XRUDP_DATAGRAM_QUEUE_MAX`
+- `XRUDP_FEATURE_RUDP_DATAGRAM`
+- `XRUDP_HEADER_SIZE`
+- `XRUDP_TAG_SIZE`
+
+### 类型 (7)
+
+- `xrudpdatagramchannel`
+- `xrudpdatagramchannelstate`
+- `xrudpdatagramconfig`
+- `xrudpdatagraminfo`
+- `xrudpdatagrams`
+- `xrudpdatagramstate`
+- `xrudpdatagramview`
 
 ## `extlibs/xrudp/include/xrudp/endpoint.h`
 
@@ -473,7 +520,7 @@
 - `xrtRudpReplayCheck`
 - `xrtRudpReplayInit`
 
-### 常量与宏 (45)
+### 常量与宏 (43)
 
 - `XRUDP_ARGUMENT`
 - `XRUDP_AUTH_FAILED`
@@ -500,7 +547,6 @@
 - `XRUDP_FRAME_PING`
 - `XRUDP_FRAME_RESET`
 - `XRUDP_FRAME_STREAM`
-- `XRUDP_HEADER_SIZE`
 - `XRUDP_IO_ERROR`
 - `XRUDP_LIMIT`
 - `XRUDP_MALFORMED`
@@ -516,7 +562,6 @@
 - `XRUDP_REPLAY_WORDS`
 - `XRUDP_STREAM_CHUNK_MAX`
 - `XRUDP_STREAM_FIN`
-- `XRUDP_TAG_SIZE`
 - `XRUDP_TIMEOUT`
 - `XRUDP_TOO_OLD`
 - `XRUDP_TRUNCATED`

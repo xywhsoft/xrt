@@ -69,6 +69,16 @@
 #endif
 #endif
 
+/* rudp_datagram 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_DATAGRAM)
+#ifndef XRUDP_FEATURE_RUDP_DATAGRAM
+#define XRUDP_FEATURE_RUDP_DATAGRAM
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#endif
+
 /* rudp_transmit 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_TRANSMIT)
 #ifndef XRUDP_FEATURE_RUDP_TRANSMIT

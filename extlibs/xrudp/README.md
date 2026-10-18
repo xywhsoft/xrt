@@ -43,6 +43,7 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
 
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_endpoint,rudp_endpoint_fault_tests,rudp_multi_tests,rudp_multi_fault_tests --no-examples --cflag=-O2 --jobs 2
     python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_session_message_tests,rudp_endpoint_message_tests --no-examples --cflag=-O2 --jobs 2
+    python tools/build.py --manifest extlibs/xrudp/config/modules.json --suite rudp_datagram_tests --no-examples --cflag=-O2 --jobs 2
 
 Windows 另外组合 rudp_endpoint_iocp_tests，Linux 组合 rudp_endpoint_epoll_tests；
 Linux 的优化构建同时运行 ASan/UBSan。无优化构建通过不能代替发布优化编译检查。
@@ -85,6 +86,13 @@ PeerMessagePeek/Read 只提供完整负载或 EOF/RESET，短缓冲返回 TRUNCA
 组装空间按 2*N-2 个额外槽在会话构造时预留，并计入 AllocationSize 和端点连接准入预算；
 组装时逐段释放字节额度，每次 Input/Poll 共处理至多 4096B，轮转维护并由下一截止继续推进。
 消息被应用取走前不退休流槽；FIN/RESET、包引用排空和累计开流额度规则与字节流一致。
+模块 rudp_datagram 已实现固定内存的数据报队列：独立消息、按序号去旧和最新快照替换，
+本地发送期限、接收存活时间、受限权重调度、不可回绕的序号/ticket 与取消明文清理。
+通道 ID/模式由应用在两端约定，不根据未知输入分配；最多 64 通道、双向各 256 条记录。
+未知/模式不符/过旧/队满的数据报按不可靠策略丢弃；看到较新序号后，队满也不允许旧包复活。
+发送 Peek 不消费，只有实际 UDP 受理后才能以匹配 ticket 提交；本地背压不丢数据，
+已提交数据报在丢包后不回队重发。该模块不自带网络、加密或拥塞驱动。
+尚待接入会话的 DATAGRAM 线路、共享拥塞预算、原生事件和端点内存准入；当前会话仍拒绝 DATAGRAM。
 模块 rudp_session 是单所有者的双向多流会话，消费握手晋升后的唯一密码器，
 组合整包 ACK/STREAM/RESET/额度预检、实际输出受理后的发送提交、恢复/流控/换钥与有限截止。
 固定数据环、引用和事件空间预先分配，Poll 最多输出 8 包，通过回调复制交给 UDP；
