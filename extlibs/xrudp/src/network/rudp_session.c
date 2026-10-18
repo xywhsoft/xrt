@@ -1236,7 +1236,10 @@ xrudpresult xrtRudpSessionPathInput(xrudpsession* s, const xrudpaddress* address
 	if (xrudp__session_dead(s, now)) { (void)xrudp__session_abort(s, XRUDP_TIMEOUT); return XRUDP_TIMEOUT; }
 	if (xrudp__path_equal(address, &s->Path.State.Active)) {
 		xrudpresult r = xrudp__session_input(s, address, packet, size, now);
-		if (r == XRUDP_OK) { xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher); s->Path.ActiveNumber = cipher.LargestReceivedPacket; }
+		/* Deferred frames still authenticated this active source and committed
+		 * its crypto packet number. They cannot be ACKed/delivered yet, but a
+		 * lower-numbered passive proof must not override that newer evidence. */
+		if (r == XRUDP_OK || r == XRUDP_BACKPRESSURE) { xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher); s->Path.ActiveNumber = cipher.LargestReceivedPacket; }
 		return r;
 	}
 	xrudpwirepacket parsed;

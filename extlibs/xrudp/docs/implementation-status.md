@@ -706,6 +706,21 @@ out/rudp-busy-candidate-before.log。现将固定 32 次未知地址验密拆成
 后续继续发现/打洞协调、独立 xs class:"xrudp" 与 mdo 内嵌端点直连/中继，以及 Android、
 独立互操作、模糊测试和 72 小时长稳；完整长期目标仍 active。
 
+已认证当前地址的暂缓包水位修复：额外 STREAM2 比 OPEN2 先到时，密码器已经
+受理包号 4，但业务返回 BACKPRESSURE，原包装层只在 OK 时更新地址水位，仍停在 1。
+随后迟到的候选响应包号 3 会完成切换（out/rudp-active-deferred-before.log：
+largest=4/path water=1、validations=1、active=42000），与被动迁移的新旧证据顺序不符。
+现将已认证但暂缓业务的包号也计入当前地址证据；不额外交付、确认、开流或续期。
+回归构造真实等待 OPEN 的乱序输入，验证旧匹配证明保持候选、新证明仍可恢复，
+坏标签维持 AUTH_FAILED，未读内容/流数/活性/进度不变，运行 I/O 无新增堆分配。
+Windows GCC -O2 的 27 个路径/MTU/会话与原生故障程序全部通过
+（out/rudp-deferred-final-windows.log）；Linux Clang -O2 ASan/UBSan、禁止错误后继续，
+12 个模块化及 15 个单头程序全部通过（out/rudp-deferred-final-linux-{modular,single}.log），
+无 sanitizer 或原生路径失败。产品源码/测试/清单 182 个文件在验证期间哈希不变，
+API 192 函数/156 常量/67 类型保持不变。此次为前段 101+101 全量门禁后的独立水位修复，
+最后改动使用上述 27+27 相关回归；穿透/xs/mdo 和完整生产验收仍待继续。
+
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。

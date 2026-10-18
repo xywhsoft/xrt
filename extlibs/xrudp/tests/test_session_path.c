@@ -242,10 +242,32 @@ static int path_control_budget(void)
 	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Validations==1 && state.Path.CandidateReceived==0);
 	CHECK(!xrtMemDebugFailTriggered());xrtMemDebugFailClear();xrtRudpSessionDestroy(s);xrtRudpCipherDestroy(peer);return 0;
 }
+static int path_deferred_active_evidence(void)
+{
+	memset(&net,0,sizeof(net));pathCount=0;pathBlock=pathCandidateError=pathAllError=false;
+	xrudpsessionconfig config;configure(&config,256,512);config.StreamCapacity=config.Local.MaxStreams=config.Peer.MaxStreams=2;
+	xrudpcipher* peer;xrudpsession* s;CHECK(raw_session(&peer,&s,&config)==0 && xrtRudpSessionEnablePaths(s,&oldAddress,path_send)==XRUDP_OK && xrtMemDebugFailAfter(0));
+	unsigned char ping[4]={XRUDP_FRAME_PING,0,0,0},plain[1200],held[1200],token[16],body[16]={0},bad[1200];size_t size=0,n,badSize;uint64_t due;uint32_t decoded=0;
+	CHECK(path_deliver(s,peer,&newAddress,ping,sizeof(ping),0,XRUDP_BACKPRESSURE)==0 && xrtRudpSessionPoll(s,0,&due)==XRUDP_OK && path_challenge_to(peer,&newAddress,token,&decoded)==0);
+	CHECK(append(plain,&size,XRUDP_FRAME_PATH_RESPONSE,0,token,16)==0 && xrtRudpCipherSeal(peer,plain,size,held,sizeof(held),&n)==XRUDP_OK);
+	/* PN4 is authentic current-path traffic, deferred until remote OPEN2.
+	 * PN3's valid candidate response was produced before that newer evidence. */
+	put32(body,2);memcpy(body+12,"busy",4);size=0;CHECK(append(plain,&size,XRUDP_FRAME_STREAM,0,body,sizeof(body))==0);
+	CHECK(path_deliver(s,peer,&oldAddress,plain,size,1000,XRUDP_BACKPRESSURE)==0);
+	xrudpsessionstate state;CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && !state.ReceivedPackets && !state.ReceivedConnection && !state.AckPending && state.ActiveStreams==1 && state.LastActivityUs==0 && state.ProgressAtUs==0);
+	CHECK(xrtRudpSessionPathInput(s,&newAddress,held,n,2000)==XRUDP_BACKPRESSURE);
+	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Validating && !state.Path.Validations && state.Path.DeadlineUs==3000000 && address_equal(&state.Path.Active,&oldAddress));
+	/* A forged higher-numbered packet cannot poison this watermark. */
+	CHECK(xrtRudpCipherSeal(peer,plain,size,bad,sizeof(bad),&badSize)==XRUDP_OK);bad[badSize-1]^=1;
+	CHECK(xrtRudpSessionPathInput(s,&oldAddress,bad,badSize,2500)==XRUDP_AUTH_FAILED);
+	size=0;CHECK(append(plain,&size,XRUDP_FRAME_PATH_RESPONSE,0,token,16)==0 && path_deliver(s,peer,&newAddress,plain,size,3000,XRUDP_OK)==0);
+	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Path.Validations==1 && address_equal(&state.Path.Active,&newAddress) && !state.ReceivedConnection && state.ActiveStreams==1);
+	CHECK(!xrtMemDebugFailTriggered());xrtMemDebugFailClear();xrtRudpSessionDestroy(s);xrtRudpCipherDestroy(peer);return 0;
+}
 int main(void)
 {
 	CHECK(path_quarantine_and_migration(false,32)==0 && path_quarantine_and_migration(true,32)==0 && path_quarantine_and_migration(false,1)==0 && path_bounds()==0 && path_active_transaction()==0 && path_output_failure()==0);
 	CHECK(path_fast_return()==0 && path_replay_after_failure()==0 && path_trusted_preference()==0);
-	CHECK(path_idle_probe_deadline()==0 && path_busy_candidate()==0 && path_control_budget()==0);
+	CHECK(path_idle_probe_deadline()==0 && path_busy_candidate()==0 && path_control_budget()==0 && path_deferred_active_evidence()==0);
 	puts("xrudp paths: address quarantine, fresh-byte amplification, fixed deadlines, real migration and conservative recovery passed");return 0;
 }
