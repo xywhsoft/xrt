@@ -429,12 +429,14 @@
       ],
       "tests": [
         "extlibs/xrudp/tests/test_endpoint.c",
-        "extlibs/xrudp/tests/test_endpoint_stream.c"
+        "extlibs/xrudp/tests/test_endpoint_stream.c",
+        "extlibs/xrudp/tests/test_endpoint_multi.c"
       ],
       "single_tests": [
         "extlibs/xrudp/tests/single/test_single_endpoint.c",
         "extlibs/xrudp/tests/single/test_single_all_profile.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_stream.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_stream.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_multi.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -458,9 +460,12 @@
       "sources": [],
       "tests": [
         "extlibs/xrudp/tests/test_endpoint_iocp.c",
-        "extlibs/xrudp/tests/test_endpoint_stream_iocp.c"
+        "extlibs/xrudp/tests/test_endpoint_stream_iocp.c",
+        "extlibs/xrudp/tests/test_endpoint_multi_iocp.c"
       ],
-      "single_tests": [],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_endpoint_multi_iocp.c"
+      ],
       "examples": [],
       "benchmarks": [],
       "docs": [
@@ -482,9 +487,12 @@
       "sources": [],
       "tests": [
         "extlibs/xrudp/tests/test_endpoint_epoll.c",
-        "extlibs/xrudp/tests/test_endpoint_stream_epoll.c"
+        "extlibs/xrudp/tests/test_endpoint_stream_epoll.c",
+        "extlibs/xrudp/tests/test_endpoint_multi_epoll.c"
       ],
-      "single_tests": [],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_endpoint_multi_epoll.c"
+      ],
       "examples": [],
       "benchmarks": [],
       "docs": [
@@ -503,12 +511,14 @@
       "sources": [],
       "tests": [
         "extlibs/xrudp/tests/test_endpoint_fault.c",
-        "extlibs/xrudp/tests/test_endpoint_stream_fault.c"
+        "extlibs/xrudp/tests/test_endpoint_stream_fault.c",
+        "extlibs/xrudp/tests/test_endpoint_multi_fault.c"
       ],
       "single_tests": [
         "extlibs/xrudp/tests/single/test_single_endpoint_fault.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_pending.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_stream_fault.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_stream_fault.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_multi_fault.c"
       ],
       "examples": [],
       "benchmarks": [],

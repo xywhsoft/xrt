@@ -15,7 +15,7 @@ struct xrudppeer {
 	xrudpsession* Session;
 	xrudpsessionstate Snapshot;
 	xrudphandshakeinfo Info;
-	uint64_t NextPoll, SessionPoll;
+	uint64_t NextPoll, SessionPoll, NotifyAt;
 	size_t Slot, RuntimeBytes, PendingSize;
 	uint32_t PendingEvents;
 	bool FinalQueued, Notifying, HadSession;
@@ -219,17 +219,32 @@ static void xrudp__peer_capture(xrudppeer* p)
 	if (next.Transmit.BaseOffset > p->Snapshot.Transmit.BaseOffset && !next.Transmit.FinQueued) p->PendingEvents |= XRUDP_PEER_WRITE_READY;
 	if (xrudp__peer_write_done(&next) && !xrudp__peer_write_done(&p->Snapshot)) p->PendingEvents |= XRUDP_PEER_WRITE_DONE;
 	if (xrudp__peer_eof(&next) && !xrudp__peer_eof(&p->Snapshot)) p->PendingEvents |= XRUDP_PEER_READ_EOF;
+	if (next.OutgoingLimit > p->Snapshot.OutgoingLimit) p->PendingEvents |= XRUDP_PEER_STREAMS_READY;
 	p->Snapshot = next;
 }
 static void xrudp__peer_notify(xrudppeer* p)
 {
 	xrudpendpoint* e = p->Endpoint;
-	if (p->Notifying || p->PendingEvents == 0 || xrtRudpPeerState(p) != XRUDP_PEER_CONFIRMED ||
+	if (p->Notifying || (p->PendingEvents == 0 && p->Snapshot.PendingStreamEvents == 0) ||
+		xrudp__endpoint_now(e) < p->NotifyAt || xrtRudpPeerState(p) != XRUDP_PEER_CONFIRMED ||
 		xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
 	uint32_t events = p->PendingEvents; p->PendingEvents = 0;
-	if (e->Events.Changed != NULL) {
-		p->Notifying = true; e->Events.Changed(e, p, events, e->Context); p->Notifying = false;
+	xrudpstreamevent streams[XRUDP_PEER_STREAM_EVENT_BURST]; size_t count = 0;
+	/* Snapshot before entering application code. Newly generated hints cannot
+	 * recursively enter this batch or make its work unbounded. */
+	while (count < XRUDP_PEER_STREAM_EVENT_BURST &&
+		xrtRudpSessionStreamNextEvent(p->Session, &streams[count]) == XRUDP_OK) ++count;
+	xrudp__peer_capture(p); p->Notifying = true;
+	uint64_t now = xrudp__endpoint_now(e); p->NotifyAt = now > UINT64_MAX - 1000 ? UINT64_MAX : now + 1000;
+	if (events != 0 && e->Events.Changed != NULL) e->Events.Changed(e, p, events, e->Context);
+	for (size_t i = 0; i < count && xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED &&
+		xrtRudpEndpointState(e) == XRUDP_ENDPOINT_OPEN; ++i) {
+		xrudpstreamstate state;
+		if (e->Events.StreamChanged != NULL && xrtRudpSessionStreamState(p->Session, streams[i].Id, &state) == XRUDP_OK)
+			e->Events.StreamChanged(e, p, &streams[i], e->Context);
 	}
+	p->Notifying = false;
+	now = xrudp__endpoint_now(e); p->NotifyAt = now > UINT64_MAX - 1000 ? UINT64_MAX : now + 1000;
 }
 static void xrudp__peer_pump(xrudppeer* p, uint64_t now)
 {
@@ -312,7 +327,9 @@ static void xrudp__endpoint_schedule(xrudpendpoint* e)
 		xrudppeer* p = e->Slots[i]; uint64_t next = p->PendingSize ? now : p->NextPoll;
 		if (xrtRudpPeerState(p) == XRUDP_PEER_NEGOTIATING && p->Info.DeadlineUs < next) next = p->Info.DeadlineUs;
 		if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && p->SessionPoll < next) next = p->SessionPoll;
-		if (p->PendingEvents != 0) next = now;
+		if (p->PendingEvents != 0 || p->Snapshot.PendingStreamEvents != 0) {
+			uint64_t notify = p->NotifyAt > now ? p->NotifyAt : now; if (notify < next) next = notify;
+		}
 		if (next < due) due = next;
 	}
 	uint64_t milliseconds = due > now ? (due - now) / 1000 + ((due - now) % 1000 != 0) : 1;
@@ -533,26 +550,66 @@ static void xrudp__peer_wake(xrudppeer* p)
 }
 xrudpresult xrtRudpPeerWrite(xrudppeer* p, const void* data, size_t size, size_t* written)
 {
+	return xrtRudpPeerStreamWrite(p, 1, data, size, written);
+}
+xrudpresult xrtRudpPeerStreamWrite(xrudppeer* p, uint32_t id, const void* data, size_t size, size_t* written)
+{
 	if (written != NULL) *written = 0;
 	if (written == NULL || (data == NULL && size != 0)) return XRUDP_ARGUMENT;
 	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
-	xrtRudpPeerRef(p); result = xrtRudpSessionWrite(p->Session, data, size, written);
+	xrtRudpPeerRef(p); result = xrtRudpSessionStreamWrite(p->Session, id, data, size, written);
 	if (*written != 0) xrudp__peer_wake(p);
 	xrtRudpPeerDestroy(p); return result;
 }
 xrudpresult xrtRudpPeerRead(xrudppeer* p, void* output, size_t capacity, size_t* read)
 {
+	return xrtRudpPeerStreamRead(p, 1, output, capacity, read);
+}
+xrudpresult xrtRudpPeerStreamRead(xrudppeer* p, uint32_t id, void* output, size_t capacity, size_t* read)
+{
 	if (read != NULL) *read = 0;
 	if (read == NULL || output == NULL || capacity == 0) return XRUDP_ARGUMENT;
 	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
-	xrtRudpPeerRef(p); result = xrtRudpSessionRead(p->Session, output, capacity, read);
+	xrtRudpPeerRef(p); result = xrtRudpSessionStreamRead(p->Session, id, output, capacity, read);
 	if (*read != 0) xrudp__peer_wake(p);
 	xrtRudpPeerDestroy(p); return result;
 }
 xrudpresult xrtRudpPeerFinish(xrudppeer* p)
 {
+	return xrtRudpPeerStreamFinish(p, 1);
+}
+xrudpresult xrtRudpPeerStreamFinish(xrudppeer* p, uint32_t id)
+{
 	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
-	xrtRudpPeerRef(p); result = xrtRudpSessionFinish(p->Session);
+	xrtRudpPeerRef(p); result = xrtRudpSessionStreamFinish(p->Session, id);
+	if (result == XRUDP_OK) xrudp__peer_wake(p);
+	xrtRudpPeerDestroy(p); return result;
+}
+xrudpresult xrtRudpPeerStreamOpen(xrudppeer* p, const xrudpstreamconfig* config, uint32_t* id)
+{
+	if (config == NULL || id == NULL) return XRUDP_ARGUMENT;
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	xrtRudpPeerRef(p); result = xrtRudpSessionStreamOpen(p->Session, config, id);
+	if (result == XRUDP_OK) xrudp__peer_wake(p);
+	xrtRudpPeerDestroy(p); return result;
+}
+xrudpresult xrtRudpPeerStreamState(const xrudppeer* p, uint32_t id, xrudpstreamstate* output)
+{
+	if (output == NULL) return XRUDP_ARGUMENT;
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	return xrtRudpSessionStreamState(p->Session, id, output);
+}
+xrudpresult xrtRudpPeerStreamReset(xrudppeer* p, uint32_t id, uint32_t reason)
+{
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	xrtRudpPeerRef(p); result = xrtRudpSessionStreamReset(p->Session, id, reason);
+	if (result == XRUDP_OK) xrudp__peer_wake(p);
+	xrtRudpPeerDestroy(p); return result;
+}
+xrudpresult xrtRudpPeerStreamRetire(xrudppeer* p, uint32_t id)
+{
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	xrtRudpPeerRef(p); result = xrtRudpSessionStreamRetire(p->Session, id);
 	if (result == XRUDP_OK) xrudp__peer_wake(p);
 	xrtRudpPeerDestroy(p); return result;
 }

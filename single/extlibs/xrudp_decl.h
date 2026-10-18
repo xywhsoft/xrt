@@ -3653,6 +3653,7 @@ XRT_EXTERN_C_END
 #define XRUDP_STREAM_WRITE_READY 4u
 #define XRUDP_STREAM_WRITE_DONE 8u
 #define XRUDP_STREAM_READ_EOF 16u
+#define XRUDP_STREAM_RETIRE_READY 32u
 
 typedef struct xrudpsession xrudpsession;
 /* Called only by Poll, serialized with the entire session. Must COPY the
@@ -3698,7 +3699,7 @@ typedef struct xrudpstreamstate {
 	uint32_t Id, References;
 	uint16_t Weight;
 	uint8_t Priority;
-	bool Local, OpenAcknowledged, ReadReady, WriteDone;
+	bool Local, OpenAcknowledged, ReadReady, WriteDone, RetireReady;
 	bool ResetQueued, ResetAcknowledged;
 	uint32_t ResetReason;
 	uint64_t ResetFinal;
@@ -3756,7 +3757,9 @@ XRUDP_API xrudpresult xrtRudpSessionStreamReset(xrudpsession* pSession, uint32_t
  * replenishes cumulative MAX_STREAMS; late frames for retired IDs are ignored. */
 XRUDP_API xrudpresult xrtRudpSessionStreamRetire(xrudpsession* pSession, uint32_t iId);
 /* Coalesced per-stream edge hints, including remote OPEN. DONE when none.
- * No callbacks, no allocation; explicit retirement discards pending hints. */
+ * No callbacks, no allocation; explicit retirement discards pending hints.
+ * RETIRE_READY follows both half terminations and all packet copies draining.
+ * Later output may reacquire a control reference: recheck State/Retire. */
 XRUDP_API xrudpresult xrtRudpSessionStreamNextEvent(xrudpsession* pSession, xrudpstreamevent* pEvent);
 /* Authenticate, preflight ALL ACK/data/reset/control state, then commit once.
  * Malformed authenticated input terminates the session; no partial delivery or
@@ -3800,6 +3803,8 @@ XRT_EXTERN_C_END
 #define XRUDP_PEER_WRITE_READY 2u
 #define XRUDP_PEER_WRITE_DONE 4u
 #define XRUDP_PEER_READ_EOF 8u
+#define XRUDP_PEER_STREAMS_READY 16u
+#define XRUDP_PEER_STREAM_EVENT_BURST 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
 typedef struct xrudppeer xrudppeer;
@@ -3825,11 +3830,23 @@ typedef struct xrudpendpointevents {
 	void (*Confirmed)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, void* pContext);
 	void (*PeerClose)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, xrudpresult iReason, void* pContext);
 	void (*Close)(xrudpendpoint* pEndpoint, xrudpresult iReason, const xerror* pError, void* pContext);
-	/* Edge hints; drain Read until BACKPRESSURE/EOF/RESET. WRITE_READY means
+	/* Default stream/connection edge hints; drain Read to BACKPRESSURE/EOF/RESET. WRITE_READY means
 	 * ACK returned buffer capacity; WRITE_DONE is all bytes+FIN acknowledged.
 	 * Mutations inside a callback defer further Changed delivery to another
 	 * worker turn; no recursive Changed callbacks. Borrowed peer and context. */
 	void (*Changed)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, uint32_t iEvents, void* pContext);
+	/* All byte streams, including ID 1; XRUDP_STREAM_* masks. At most eight
+	 * coalesced stream hints per dispatch. OPENED is remote-origin only. The
+	 * borrowed event is valid only during this callback. Callbacks may perform
+	 * stream operations or close/drop owned handles; never recursively invoked.
+	 * Hints generated inside callbacks wait for a later dispatch (>=1ms).
+	 * A retired ID's captured hint is discarded. Changed independently reports
+	 * default FIN/read hints and STREAMS_READY when cumulative peer OPEN credit
+	 * grows. After Open backpressure, retry on STREAMS_READY or local retirement.
+	 * RETIRE_READY hints require a fresh State/Retire check: another control
+	 * output may temporarily acquire a packet reference after the snapshot.
+	 * PeerAbort may synchronously call PeerClose; StreamChanged never reenters. */
+	void (*StreamChanged)(xrudpendpoint* pEndpoint, xrudppeer* pPeer, const xrudpstreamevent* pEvent, void* pContext);
 } xrudpendpointevents;
 
 typedef struct xrudpendpointconfig {
@@ -3839,7 +3856,7 @@ typedef struct xrudpendpointconfig {
 	const void* ApplicationContext; /* Optional exact listener context, copied. */
 	xrudpnoisetrustproc Trust;
 	void* TrustContext;
-	xrudpsessionconfig Session; /* Local is advertised; Peer overwritten after authentication. */
+	xrudpsessionconfig Session; /* Local advertised; Peer/Role supplied by authenticated handshake. */
 	uint64_t HandshakeTimeoutUs;
 	size_t MemoryLimit; /* Peak endpoint/peer/handshake/session reservation bytes.
 	                    * XRT engine pools/kernel socket buffers have own limits. */
@@ -3897,6 +3914,19 @@ XRUDP_API void xrtRudpPeerDestroy(xrudppeer* pPeer);
 XRUDP_API xrudpresult xrtRudpPeerWrite(xrudppeer* pPeer, const void* pData, size_t iSize, size_t* pWritten);
 XRUDP_API xrudpresult xrtRudpPeerRead(xrudppeer* pPeer, void* pOutput, size_t iCapacity, size_t* pRead);
 XRUDP_API xrudpresult xrtRudpPeerFinish(xrudppeer* pPeer);
+/* Owner-only advanced byte streams; capacity/IDs/half-close/retirement follow
+ * SessionStream*. No per-stream heap allocation. Before Confirmed return
+ * BACKPRESSURE; after peer close return CLOSED, without accessing the Engine.
+ * A stream state is live-only (the aggregate session snapshot survives Close).
+ * Open output is unchanged on failure; Read/Write always set their count=0
+ * before failing. Read RESET is CANCELLED without closing the connection. */
+XRUDP_API xrudpresult xrtRudpPeerStreamOpen(xrudppeer* pPeer, const xrudpstreamconfig* pConfig, uint32_t* pId);
+XRUDP_API xrudpresult xrtRudpPeerStreamState(const xrudppeer* pPeer, uint32_t iId, xrudpstreamstate* pState);
+XRUDP_API xrudpresult xrtRudpPeerStreamWrite(xrudppeer* pPeer, uint32_t iId, const void* pData, size_t iSize, size_t* pWritten);
+XRUDP_API xrudpresult xrtRudpPeerStreamRead(xrudppeer* pPeer, uint32_t iId, void* pOutput, size_t iCapacity, size_t* pRead);
+XRUDP_API xrudpresult xrtRudpPeerStreamFinish(xrudppeer* pPeer, uint32_t iId);
+XRUDP_API xrudpresult xrtRudpPeerStreamReset(xrudppeer* pPeer, uint32_t iId, uint32_t iReason);
+XRUDP_API xrudpresult xrtRudpPeerStreamRetire(xrudppeer* pPeer, uint32_t iId);
 /* Owner while live; immutable snapshot after CLOSED, safe after Engine destroy.
  * BACKPRESSURE before admission, CLOSED when no session was ever admitted. */
 XRUDP_API xrudpresult xrtRudpPeerSessionState(const xrudppeer* pPeer, xrudpsessionstate* pState);

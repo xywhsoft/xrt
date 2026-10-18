@@ -18,7 +18,7 @@ typedef struct xrudp__sessionstream {
 	uint16_t Weight;
 	uint8_t Priority;
 	bool Local, OpenSent, OpenAcked, ResetQueued, ResetSent, ResetAcked;
-	bool LastRead, LastDone, LastEof;
+	bool LastRead, LastDone, LastEof, LastRetire;
 } xrudp__sessionstream;
 
 struct xrudpsession {
@@ -82,13 +82,22 @@ static bool xrudp__stream_eof(const xrudp__sessionstream* m)
 	xrudpreceivestate r; (void)xrtRudpReceiveState(m->Rx, &r);
 	return r.HasFinal && !r.Reset && r.ReadOffset == r.FinalOffset;
 }
+static bool xrudp__stream_retire(const xrudp__sessionstream* m)
+{
+	xrudpreceivestate r; (void)xrtRudpReceiveState(m->Rx, &r);
+	return m->Id != 1 && m->OpenAcked && m->References == 0 && xrudp__stream_done(m) &&
+		(r.Reset || (r.HasFinal && r.ReadOffset == r.FinalOffset));
+}
 static void xrudp__stream_note(xrudp__sessionstream* m)
 {
 	bool read = xrtRudpReceiveReady(m->Rx), done = xrudp__stream_done(m), eof = xrudp__stream_eof(m);
+	bool retire = xrudp__stream_retire(m);
 	if (read && !m->LastRead) m->Events |= XRUDP_STREAM_READ_READY;
 	if (done && !m->LastDone) m->Events |= XRUDP_STREAM_WRITE_DONE;
 	if (eof && !m->LastEof) m->Events |= XRUDP_STREAM_READ_EOF;
-	m->LastRead = read; m->LastDone = done; m->LastEof = eof;
+	if (retire && !m->LastRetire) m->Events |= XRUDP_STREAM_RETIRE_READY;
+	if (!retire) m->Events &= ~XRUDP_STREAM_RETIRE_READY;
+	m->LastRead = read; m->LastDone = done; m->LastEof = eof; m->LastRetire = retire;
 }
 static bool xrudp__stream_local(const xrudpsession* s, uint32_t id)
 {
@@ -263,6 +272,7 @@ xrudpresult xrtRudpSessionStreamState(const xrudpsession* s, uint32_t id, xrudps
 	state.Id = id; state.References = m->References; state.Weight = m->Weight; state.Priority = m->Priority;
 	state.Local = m->Local; state.OpenAcknowledged = m->OpenAcked; state.ReadReady = xrtRudpReceiveReady(m->Rx);
 	state.WriteDone = xrudp__stream_done(m); state.ResetQueued = m->ResetQueued; state.ResetAcknowledged = m->ResetAcked;
+	state.RetireReady = xrudp__stream_retire(m);
 	state.ResetReason = m->ResetReason; state.ResetFinal = m->ResetFinal;
 	(void)xrtRudpReceiveState(m->Rx, &state.Receive); (void)xrtRudpTransmitState(m->Tx, &state.Transmit);
 	*output = state; return XRUDP_OK;
@@ -341,8 +351,8 @@ xrudpresult xrtRudpSessionStreamRetire(xrudpsession* s, uint32_t id)
 {
 	if (id == 1) return XRUDP_ARGUMENT;
 	uint32_t index; xrudpresult access = xrudp__stream_access(s, id, &index); if (access != XRUDP_OK) return access;
-	xrudp__sessionstream* m = &s->Streams[index]; xrudpreceivestate rx; (void)xrtRudpReceiveState(m->Rx, &rx);
-	if (m->References || !m->OpenAcked || !xrudp__stream_done(m) || !(rx.Reset || (rx.HasFinal && rx.ReadOffset == rx.FinalOffset))) return XRUDP_BACKPRESSURE;
+	xrudp__sessionstream* m = &s->Streams[index];
+	if (!xrudp__stream_retire(m)) return XRUDP_BACKPRESSURE;
 	bool prior = s->Work, local = m->Local; xrudpreceive* r = m->Rx; xrudptransmit* t = m->Tx;
 	if (xrtRudpReceiveRestart(r, s->Config.Local.StreamCredit) != XRUDP_OK || xrtRudpTransmitRestart(t, 0) != XRUDP_OK) return XRUDP_IO_ERROR;
 	memset(m, 0, sizeof(*m)); m->Rx = r; m->Tx = t; --s->ActiveStreams;
@@ -834,6 +844,7 @@ static xrudpresult xrudp__session_send_inner(xrudpsession* s, uint64_t* due,
 	if (ref->Stream != XRUDP__NO_STREAM) {
 		m->Deficit = deficit > size ? deficit - (uint32_t)size : 0;
 		s->ScheduleCursor = m->Deficit ? selected : (selected + 1) % s->StreamSlots;
+		xrudp__stream_note(m);
 	}
 	if (ackSize) { s->AckWanted = false; s->AckAt = UINT64_MAX; s->ElicitingSinceAck = 0; }
 	if (probe) --s->Probes;

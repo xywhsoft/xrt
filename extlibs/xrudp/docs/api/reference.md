@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `125` 个函数、`123` 个常量或宏、
+当前登记 `132` 个函数、`126` 个常量或宏、
 `54` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
@@ -107,7 +107,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/endpoint.h)
 
-### 函数 (17)
+### 函数 (24)
 
 - `xrtRudpEndpointBind`
 - `xrtRudpEndpointClose`
@@ -125,9 +125,16 @@
 - `xrtRudpPeerRef`
 - `xrtRudpPeerSessionState`
 - `xrtRudpPeerState`
+- `xrtRudpPeerStreamFinish`
+- `xrtRudpPeerStreamOpen`
+- `xrtRudpPeerStreamRead`
+- `xrtRudpPeerStreamReset`
+- `xrtRudpPeerStreamRetire`
+- `xrtRudpPeerStreamState`
+- `xrtRudpPeerStreamWrite`
 - `xrtRudpPeerWrite`
 
-### 常量与宏 (14)
+### 常量与宏 (16)
 
 - `XRUDP_ENDPOINT_ADDRESS_BUCKETS`
 - `XRUDP_ENDPOINT_CLOSED`
@@ -141,10 +148,12 @@
 - `XRUDP_PEER_NEGOTIATING`
 - `XRUDP_PEER_READ_EOF`
 - `XRUDP_PEER_READ_READY`
+- `XRUDP_PEER_STREAMS_READY`
+- `XRUDP_PEER_STREAM_EVENT_BURST`
 - `XRUDP_PEER_WRITE_DONE`
 - `XRUDP_PEER_WRITE_READY`
 
-### 类型 (12)
+### 类型 (15)
 
 - `xrudpconnectconfig`
 - `xrudpendpoint`
@@ -158,6 +167,9 @@
 - `xrudppeerstate`
 - `xrudpsessionconfig`
 - `xrudpsessionstate`
+- `xrudpstreamconfig`
+- `xrudpstreamevent`
+- `xrudpstreamstate`
 
 ## `extlibs/xrudp/include/xrudp/export.h`
 
@@ -339,7 +351,7 @@
 - `xrtRudpSessionWrite`
 - `xrtRudpStreamConfigInit`
 
-### 常量与宏 (9)
+### 常量与宏 (10)
 
 - `XRUDP_FEATURE_RUDP_SESSION`
 - `XRUDP_SESSION_PACKETS_MAX`
@@ -348,17 +360,15 @@
 - `XRUDP_STREAM_OPENED`
 - `XRUDP_STREAM_READ_EOF`
 - `XRUDP_STREAM_READ_READY`
+- `XRUDP_STREAM_RETIRE_READY`
 - `XRUDP_STREAM_WRITE_DONE`
 - `XRUDP_STREAM_WRITE_READY`
 
-### 类型 (7)
+### 类型 (4)
 
 - `xrudprtt`
 - `xrudpsession`
 - `xrudpsessionsendproc`
-- `xrudpstreamconfig`
-- `xrudpstreamevent`
-- `xrudpstreamstate`
 - `xrudptransmitstate`
 
 ## `extlibs/xrudp/include/xrudp/timing.h`

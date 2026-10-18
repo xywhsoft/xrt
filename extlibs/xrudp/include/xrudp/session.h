@@ -18,6 +18,7 @@
 #define XRUDP_STREAM_WRITE_READY 4u
 #define XRUDP_STREAM_WRITE_DONE 8u
 #define XRUDP_STREAM_READ_EOF 16u
+#define XRUDP_STREAM_RETIRE_READY 32u
 
 typedef struct xrudpsession xrudpsession;
 /* Called only by Poll, serialized with the entire session. Must COPY the
@@ -63,7 +64,7 @@ typedef struct xrudpstreamstate {
 	uint32_t Id, References;
 	uint16_t Weight;
 	uint8_t Priority;
-	bool Local, OpenAcknowledged, ReadReady, WriteDone;
+	bool Local, OpenAcknowledged, ReadReady, WriteDone, RetireReady;
 	bool ResetQueued, ResetAcknowledged;
 	uint32_t ResetReason;
 	uint64_t ResetFinal;
@@ -121,7 +122,9 @@ XRUDP_API xrudpresult xrtRudpSessionStreamReset(xrudpsession* pSession, uint32_t
  * replenishes cumulative MAX_STREAMS; late frames for retired IDs are ignored. */
 XRUDP_API xrudpresult xrtRudpSessionStreamRetire(xrudpsession* pSession, uint32_t iId);
 /* Coalesced per-stream edge hints, including remote OPEN. DONE when none.
- * No callbacks, no allocation; explicit retirement discards pending hints. */
+ * No callbacks, no allocation; explicit retirement discards pending hints.
+ * RETIRE_READY follows both half terminations and all packet copies draining.
+ * Later output may reacquire a control reference: recheck State/Retire. */
 XRUDP_API xrudpresult xrtRudpSessionStreamNextEvent(xrudpsession* pSession, xrudpstreamevent* pEvent);
 /* Authenticate, preflight ALL ACK/data/reset/control state, then commit once.
  * Malformed authenticated input terminates the session; no partial delivery or

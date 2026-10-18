@@ -128,7 +128,7 @@ static void bind_one(xnetworker* worker, ptr context)
 	cfg.Session.Local.DatagramSize=512; cfg.Session.Local.MaxAckDelayUs=1000;
 	cfg.Session.InitialRttUs=10000; cfg.Session.KeyUpdatePackets=16;
 	xnetaddr local; require(s,xrtNetAddrLoopback(&local,t->Family,0),"loopback failed");
-	xrudpendpointevents events={opened,confirmed,peer_closed,closed,changed};
+	xrudpendpointevents events={opened,confirmed,peer_closed,closed,changed,NULL};
 	/* Handshake admission must budget the future session, not just the small
 	 * half-open object. This limit cannot hold even its reserved data rings. */
 	size_t saved=cfg.MemoryLimit; xrudpsessionconfig small=cfg.Session;

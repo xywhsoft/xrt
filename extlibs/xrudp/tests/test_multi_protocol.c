@@ -213,7 +213,7 @@ static int lifetime_cycles(void)
 			CHECK(poll(true)==0);CHECK(xrtRudpSessionStreamState(raw.Session,id,&stream)==XRUDP_OK);
 			if(stream.WriteDone && !stream.References)break;
 		}
-		CHECK(stream.WriteDone && !stream.References);
+		CHECK(stream.WriteDone && !stream.References && stream.RetireReady);
 		if(cycle%3==0)CHECK(stream.ResetAcknowledged && stream.ResetFinal==32 && raw.ResetId==id && raw.ResetFinal==32);
 		if(cycle%3==1) {
 			CHECK(stream.Receive.Reset && stream.Receive.FinalOffset==32 && stream.Receive.ReadOffset==32);
@@ -259,12 +259,13 @@ static int maximum_pool(void)
 		for(id=1;id<128;++id) { xrudpstreamstate state;CHECK(xrtRudpSessionStreamState(raw.Session,id,&state)==XRUDP_OK);if(!state.WriteDone || state.References)done=false; }
 	}
 	CHECK(done);xrudpsessionstate state;CHECK(xrtRudpSessionState(raw.Session,&state)==XRUDP_OK && state.ActiveStreams==127 && state.SentConnection==127);
-	bool seen[128]={false};size_t events=0,opened=0;xrudpstreamevent event;xrudpresult r;
+	bool seen[128]={false};size_t events=0,opened=0,retirable=0;xrudpstreamevent event;xrudpresult r;
 	while((r=xrtRudpSessionStreamNextEvent(raw.Session,&event))==XRUDP_OK) {
 		CHECK(event.Id>0 && event.Id<128 && !seen[event.Id]);seen[event.Id]=true;++events;
 		if(event.Events&XRUDP_STREAM_OPENED)++opened;
+		if(event.Events&XRUDP_STREAM_RETIRE_READY)++retirable;
 	}
-	CHECK(r==XRUDP_DONE && events==127 && opened==63);
+	CHECK(r==XRUDP_DONE && events==127 && opened==63 && retirable==63);
 	/* A free local slot alone cannot bypass cumulative peer credit. */
 	size_t used=0;CHECK(stream_frame(plain,&used,2,0,true)==0);CHECK(deliver(plain,used)==XRUDP_OK);
 	CHECK(xrtRudpSessionStreamRetire(raw.Session,2)==XRUDP_OK);
