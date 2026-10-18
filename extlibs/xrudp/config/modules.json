@@ -385,6 +385,29 @@
       ]
     },
     {
+      "name": "rudp_message_transport_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_message",
+        "rudp_session",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_message_transport.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_message_transport.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
       "name": "rudp_transport_tests",
       "state": "implemented",
       "depends": [
