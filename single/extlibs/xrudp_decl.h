@@ -3935,6 +3935,18 @@ typedef struct xrudpsession xrudpsession;
  * BACKPRESSURE/NO_MEMORY for temporary local admission failure, IO_ERROR for
  * a terminal transport failure. Must not reenter/destroy this session. */
 typedef xrudpresult (*xrudpsessionsendproc)(const void* pPacket, size_t iSize, void* pContext);
+typedef xrudpresult (*xrudppathsendproc)(const void* pPacket, size_t iSize,
+	const xrudpaddress* pDestination, void* pContext);
+
+typedef struct xrudppathstate {
+	xrudpaddress Active, Candidate;
+	xrudpresult Failure; /* Last candidate failure, separate from connection Reason. */
+	uint64_t DeadlineUs, NextProbeUs, CooldownUntilUs;
+	uint64_t Validations, Failures, AddressDropped, Invalid, RateDropped;
+	uint64_t ReceivedUnvalidated, SentUnvalidated;
+	uint32_t Attempts, CandidateReceived, CandidateSent;
+	bool Enabled, Validating;
+} xrudppathstate;
 
 typedef struct xrudpsessionconfig {
 	xrudpparameters Local, Peer; /* Authenticated, already negotiated parameters. */
@@ -3959,6 +3971,7 @@ typedef struct xrudpshutdownstate {
 typedef struct xrudpsessionstate {
 	xrudpresult Reason; /* OK while active; terminal reasons are sticky. */
 	xrudpshutdownstate Shutdown;
+	xrudppathstate Path;
 	xrudpreceivestate Receive;
 	xrudptransmitstate Transmit;
 	xrudpsentstate Sent;
@@ -4028,6 +4041,26 @@ XRUDP_API xrudpresult xrtRudpSessionCreate(const xrudpsessionconfig* pConfig,
 	void* pContext, xrudpsession** ppSession);
 XRUDP_API void xrtRudpSessionDestroy(xrudpsession* pSession);
 XRUDP_API xrudpresult xrtRudpSessionState(const xrudpsession* pSession, xrudpsessionstate* pState);
+/* Enable addressed output before any session packet input/output, using the
+ * address proved by the handshake. Same Context as Create; callback admission
+ * contract is identical to Send. Once enabled, use PathInput, never Input.
+ * One fixed candidate, random 16-byte proof, max three challenges/3s and a 3s
+ * cooldown after failure; unvalidated output <=3x fresh authenticated bytes. An explicit
+ * trusted ProbePath grants only 336 initial bytes for opening a NAT mapping.
+ * Response must match the pending token and candidate source address. This is
+ * xrudp's single-path contract, not QUIC migration/MTU validation.
+ * Candidate failure leaves the active connection intact. No allocation. */
+XRUDP_API xrudpresult xrtRudpSessionEnablePaths(xrudpsession* pSession,
+	const xrudpaddress* pVerified, xrudppathsendproc pSend);
+/* Trusted discovery supplies the address; no untrusted frame chooses a target.
+ * Now clocks the session; existing connection deadlines still apply. Rejects
+ * new probes during local shutdown, but existing validation may finish draining.
+ * DUPLICATE for active/current candidate, BACKPRESSURE for cooldown/other
+ * candidate. Queries/stats are in SessionState.Path; never expose probe tokens. */
+XRUDP_API xrudpresult xrtRudpSessionProbePath(xrudpsession* pSession,
+	const xrudpaddress* pCandidate, uint64_t iNowUs);
+XRUDP_API xrudpresult xrtRudpSessionPathInput(xrudpsession* pSession,
+	const xrudpaddress* pSource, const void* pPacket, size_t iSize, uint64_t iNowUs);
 XRUDP_API xrudpresult xrtRudpSessionWrite(xrudpsession* pSession,
 	const void* pData, size_t iSize, size_t* pWritten);
 XRUDP_API xrudpresult xrtRudpSessionFinish(xrudpsession* pSession);
@@ -4176,6 +4209,8 @@ XRT_EXTERN_C_END
 #define XRUDP_PEER_WRITE_STOPPED 128u
 #define XRUDP_PEER_READ_DONE 256u
 #define XRUDP_PEER_SHUTDOWN_REQUESTED 512u
+#define XRUDP_PEER_PATH_CHANGED 1024u
+#define XRUDP_PEER_PATH_FAILED 2048u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
@@ -4293,6 +4328,13 @@ XRUDP_API xrudpresult xrtRudpPeerFinish(xrudppeer* pPeer);
  * CLOSED for a completed drain; PeerSessionState.Shutdown.Succeeded proves it.
  * Before Confirmed BACKPRESSURE, after CLOSED safe without Engine access. */
 XRUDP_API xrudpresult xrtRudpPeerShutdown(xrudppeer* pPeer, uint32_t iTimeoutMs);
+/* Owner-only, trusted discovery address, same IP family as the bound socket.
+ * Starts bounded reachability validation without switching business output.
+ * Candidate timeout leaves the peer live and emits PATH_FAILED; successful
+ * validation emits PATH_CHANGED and PeerInfo returns the new active address.
+ * SessionState.Path exposes bounded counters/deadlines; no challenge secrets.
+ * This validates address reachability, not path MTU or local socket migration. */
+XRUDP_API xrudpresult xrtRudpPeerProbePath(xrudppeer* pPeer, const xnetaddr* pCandidate);
 /* Owner-only advanced typed streams; capacity/IDs/half-close/retirement follow
  * SessionStream*. No per-stream heap allocation. Before Confirmed return
  * BACKPRESSURE; after peer close return CLOSED, without accessing the Engine.

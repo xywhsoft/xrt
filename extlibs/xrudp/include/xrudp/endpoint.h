@@ -19,6 +19,8 @@
 #define XRUDP_PEER_WRITE_STOPPED 128u
 #define XRUDP_PEER_READ_DONE 256u
 #define XRUDP_PEER_SHUTDOWN_REQUESTED 512u
+#define XRUDP_PEER_PATH_CHANGED 1024u
+#define XRUDP_PEER_PATH_FAILED 2048u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
@@ -136,6 +138,13 @@ XRUDP_API xrudpresult xrtRudpPeerFinish(xrudppeer* pPeer);
  * CLOSED for a completed drain; PeerSessionState.Shutdown.Succeeded proves it.
  * Before Confirmed BACKPRESSURE, after CLOSED safe without Engine access. */
 XRUDP_API xrudpresult xrtRudpPeerShutdown(xrudppeer* pPeer, uint32_t iTimeoutMs);
+/* Owner-only, trusted discovery address, same IP family as the bound socket.
+ * Starts bounded reachability validation without switching business output.
+ * Candidate timeout leaves the peer live and emits PATH_FAILED; successful
+ * validation emits PATH_CHANGED and PeerInfo returns the new active address.
+ * SessionState.Path exposes bounded counters/deadlines; no challenge secrets.
+ * This validates address reachability, not path MTU or local socket migration. */
+XRUDP_API xrudpresult xrtRudpPeerProbePath(xrudppeer* pPeer, const xnetaddr* pCandidate);
 /* Owner-only advanced typed streams; capacity/IDs/half-close/retirement follow
  * SessionStream*. No per-stream heap allocation. Before Confirmed return
  * BACKPRESSURE; after peer close return CLOSED, without accessing the Engine.

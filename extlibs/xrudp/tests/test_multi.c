@@ -9,7 +9,11 @@
 #define MULTI_BYTES 8192u
 #define MULTI_COUNT 5u
 #define QUEUE_COUNT 512u
-typedef struct multi_packet { unsigned char Data[1200]; size_t Size; uint32_t Target,Due; bool Used; } multi_packet;
+typedef struct multi_packet { unsigned char Data[1200]; size_t Size; uint32_t Target,Due; bool Used;
+#ifdef TEST_MULTI_PATH
+	xrudpaddress Source,Destination;
+#endif
+} multi_packet;
 static struct {
 	xrudpsession* Session[2]; multi_packet Packet[QUEUE_COUNT];
 	bool Active[2][MULTI_COUNT], Eof[2][MULTI_COUNT];
@@ -25,6 +29,13 @@ static struct {
 #endif
 } net;
 static uint32_t tick, randomState;
+#ifdef TEST_MULTI_PATH
+static xrudpaddress pathDestination;
+static xrudpaddress multi_address(uint32_t side)
+{
+	xrudpaddress a={4,0,0,{192,0,2,1}};a.Port=(uint16_t)(41000+side+(side && tick>=600?1000:0));a.Address[3]=(unsigned char)(1+side);return a;
+}
+#endif
 static uint32_t ids[MULTI_COUNT]={1,3,5,2,4};
 static uint32_t random_next(void) { randomState^=randomState<<13;randomState^=randomState>>17;randomState^=randomState<<5;return randomState; }
 static unsigned char pattern(uint32_t side,uint32_t id,size_t pos) { return (unsigned char)((side*19+id*37+pos*13)^(pos>>5)); }
@@ -38,9 +49,18 @@ static xrudpresult output(const void* data,size_t size,void* context)
 		size_t i;for(i=0;i<QUEUE_COUNT && net.Packet[i].Used;++i){}
 		if(i==QUEUE_COUNT)return XRUDP_IO_ERROR;
 		multi_packet* p=&net.Packet[i];p->Used=true;p->Size=size;p->Target=1-side;p->Due=tick+1+random_next()%12;memcpy(p->Data,data,size);
+#ifdef TEST_MULTI_PATH
+		p->Source=multi_address(side);p->Destination=pathDestination;
+#endif
 	}
 	return XRUDP_OK;
 }
+#ifdef TEST_MULTI_PATH
+static xrudpresult multi_path_output(const void* data,size_t size,const xrudpaddress* to,void* context)
+{
+	pathDestination=*to;return output(data,size,context);
+}
+#endif
 static int cipher_pair(xrudpcipher* cipher[2])
 {
 	unsigned char key[2][32]={{3},{11}},id[2][16]={{7},{19}},packet[2][100],plain[100];size_t size[2],read;
@@ -91,6 +111,9 @@ static int scenario(uint32_t seed)
 	memset(&net,0,sizeof(net));net.Epoch[0]=net.Epoch[1]=1;randomState=seed;tick=0;xrudpcipher* cipher[2]={NULL,NULL};CHECK(cipher_pair(cipher)==0);
 	for(uint32_t side=0;side<2;++side) {
 		xrudpsessionconfig c;config(&c,side);CHECK(xrtRudpSessionCreate(&c,cipher[side],0,output,(void*)(uintptr_t)side,&net.Session[side])==XRUDP_OK);
+#ifdef TEST_MULTI_PATH
+		xrudpaddress address=multi_address(1-side);CHECK(xrtRudpSessionEnablePaths(net.Session[side],&address,multi_path_output)==XRUDP_OK);
+#endif
 #ifdef TEST_MULTI_DATAGRAMS
 		for(uint32_t id=1;id<=3;++id) { xrudpdatagramchannel ch;xrtRudpDatagramChannelInit(&ch);ch.Id=id;ch.Mode=(uint8_t)(id-1);ch.ReplacePending=id==3;CHECK(xrtRudpSessionDatagramConfigure(net.Session[side],&ch)==XRUDP_OK); }
 #endif
@@ -110,11 +133,22 @@ static int scenario(uint32_t seed)
 		uint64_t now=(uint64_t)tick*1000;
 		for(size_t i=0;i<QUEUE_COUNT;++i)if(net.Packet[i].Used && net.Packet[i].Due<=tick) {
 			multi_packet packet=net.Packet[i];net.Packet[i].Used=false;
+#ifdef TEST_MULTI_PATH
+			xrudpaddress current=multi_address(packet.Target);if(packet.Destination.Port!=current.Port) { ++net.Dropped;continue; }
+#endif
 			if(random_next()%11==0) {
 				unsigned char bad[1200];memcpy(bad,packet.Data,packet.Size);bad[packet.Size-1]^=1;
+#ifdef TEST_MULTI_PATH
+				xrudpresult badResult=xrtRudpSessionPathInput(net.Session[packet.Target],&packet.Source,bad,packet.Size,now);CHECK(badResult==XRUDP_AUTH_FAILED || badResult==XRUDP_BACKPRESSURE);
+#else
 				CHECK(xrtRudpSessionInput(net.Session[packet.Target],bad,packet.Size,now)==XRUDP_AUTH_FAILED);
+#endif
 			}
+#ifdef TEST_MULTI_PATH
+			xrudpresult r=xrtRudpSessionPathInput(net.Session[packet.Target],&packet.Source,packet.Data,packet.Size,now);
+#else
 			xrudpresult r=xrtRudpSessionInput(net.Session[packet.Target],packet.Data,packet.Size,now);
+#endif
 			xrudpwirepacket header;CHECK(xrtRudpPacketDecode(packet.Data,packet.Size,&header)==XRUDP_OK);
 			if(r==XRUDP_AUTH_FAILED && header.Header.KeyEpoch+1<net.Epoch[packet.Target]) { ++net.RetiredKeys;continue; }
 			if(r!=XRUDP_AUTH_FAILED && header.Header.KeyEpoch>net.Epoch[packet.Target])net.Epoch[packet.Target]=header.Header.KeyEpoch;
@@ -208,6 +242,11 @@ static int scenario(uint32_t seed)
 	printf("stop mixed: seed=%u cancelled-final=%llu buffered-before-stop=%zu reverse-delivered=%zu\n",seed,(unsigned long long)sender.ResetFinal,net.Written[0][1],net.Read[0][1]);
 #endif
 	for(uint32_t side=0;side<2;++side) {
+#ifdef TEST_MULTI_PATH
+		xrudpsessionstate pathState;CHECK(xrtRudpSessionState(net.Session[side],&pathState)==XRUDP_OK);
+		CHECK(pathState.Path.Validations==(side?0u:1u) && pathState.Path.Active.Port==multi_address(1-side).Port);
+		printf("path mixed: side=%u migrations=%llu failures=%llu unvalidated-sent=%llu received=%llu\n",side,(unsigned long long)pathState.Path.Validations,(unsigned long long)pathState.Path.Failures,(unsigned long long)pathState.Path.SentUnvalidated,(unsigned long long)pathState.Path.ReceivedUnvalidated);
+#endif
 #ifdef TEST_MULTI_DATAGRAMS
 		xrudpsessionstate state;CHECK(xrtRudpSessionState(net.Session[side],&state)==XRUDP_OK);
 		CHECK(state.Datagrams.Sent>0 && state.Datagrams.Accepted>0 && state.DatagramLost>0 && net.GameRead[side][1]>0 && net.GameRead[side][2]>0);

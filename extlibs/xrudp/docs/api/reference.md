@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `185` 个函数、`150` 个常量或宏、
-`64` 个公共类型。
+当前登记 `189` 个函数、`152` 个常量或宏、
+`66` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -155,7 +155,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/endpoint.h)
 
-### 函数 (35)
+### 函数 (36)
 
 - `xrtRudpEndpointBind`
 - `xrtRudpEndpointClose`
@@ -177,6 +177,7 @@
 - `xrtRudpPeerMessagePeek`
 - `xrtRudpPeerMessageRead`
 - `xrtRudpPeerMessageWrite`
+- `xrtRudpPeerProbePath`
 - `xrtRudpPeerRead`
 - `xrtRudpPeerRef`
 - `xrtRudpPeerSessionState`
@@ -193,7 +194,7 @@
 - `xrtRudpPeerStreamWrite`
 - `xrtRudpPeerWrite`
 
-### 常量与宏 (21)
+### 常量与宏 (23)
 
 - `XRUDP_ENDPOINT_ADDRESS_BUCKETS`
 - `XRUDP_ENDPOINT_CLOSED`
@@ -207,6 +208,8 @@
 - `XRUDP_PEER_DATAGRAM_READ_READY`
 - `XRUDP_PEER_DATAGRAM_WRITE_READY`
 - `XRUDP_PEER_NEGOTIATING`
+- `XRUDP_PEER_PATH_CHANGED`
+- `XRUDP_PEER_PATH_FAILED`
 - `XRUDP_PEER_READ_DONE`
 - `XRUDP_PEER_READ_EOF`
 - `XRUDP_PEER_READ_READY`
@@ -421,7 +424,7 @@
 
 [查看带契约注释的公共头](../../include/xrudp/session.h)
 
-### 函数 (31)
+### 函数 (34)
 
 - `xrtRudpSessionAbort`
 - `xrtRudpSessionAllocationSize`
@@ -433,12 +436,15 @@
 - `xrtRudpSessionDatagramRead`
 - `xrtRudpSessionDatagramWrite`
 - `xrtRudpSessionDestroy`
+- `xrtRudpSessionEnablePaths`
 - `xrtRudpSessionFinish`
 - `xrtRudpSessionInput`
 - `xrtRudpSessionMessagePeek`
 - `xrtRudpSessionMessageRead`
 - `xrtRudpSessionMessageWrite`
+- `xrtRudpSessionPathInput`
 - `xrtRudpSessionPoll`
+- `xrtRudpSessionProbePath`
 - `xrtRudpSessionRead`
 - `xrtRudpSessionShutdown`
 - `xrtRudpSessionState`
@@ -473,8 +479,10 @@
 - `XRUDP_STREAM_WRITE_READY`
 - `XRUDP_STREAM_WRITE_STOPPED`
 
-### 类型 (5)
+### 类型 (7)
 
+- `xrudppathsendproc`
+- `xrudppathstate`
 - `xrudprtt`
 - `xrudpsession`
 - `xrudpsessionsendproc`

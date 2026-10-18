@@ -210,7 +210,7 @@ static xnetresult xrudp__endpoint_send(xrudpendpoint* e, const xnetaddr* address
 	}
 	return result;
 }
-static xnetresult xrudp__peer_output(xrudppeer* p, const void* data, size_t size)
+static xnetresult xrudp__peer_output_to(xrudppeer* p, const xnetaddr* address, const void* data, size_t size)
 {
 	xrudpendpoint* e = p->Endpoint;
 	p->OutputAttempted = true;
@@ -218,7 +218,7 @@ static xnetresult xrudp__peer_output(xrudppeer* p, const void* data, size_t size
 	if (first != e->Config.MaxPeers && first != p->Slot) {
 		xrudp__peer_waiting(p, true); return XNET_RESULT_AGAIN;
 	}
-	xnetresult result = xrudp__endpoint_send(e, &p->Address, data, size);
+	xnetresult result = xrudp__endpoint_send(e, address, data, size);
 	xrudp__peer_waiting(p, result == XNET_RESULT_AGAIN || (result == XNET_RESULT_ERROR &&
 		xrtGetError() != NULL && xrtErrorKind(xrtGetError()) == XERR_MEMORY));
 	/* A peer that consumed shared UDP capacity yields the next service start.
@@ -229,6 +229,21 @@ static xnetresult xrudp__peer_output(xrudppeer* p, const void* data, size_t size
 		e->ServiceCursor = next == e->Config.MaxPeers ? 0 : next;
 	}
 	return result;
+}
+static xnetresult xrudp__peer_output(xrudppeer* p, const void* data, size_t size)
+{
+	return xrudp__peer_output_to(p, &p->Address, data, size);
+}
+static xrudpresult xrudp__peer_send_path(const void* data, size_t size, const xrudpaddress* address, void* context)
+{
+	xrudppeer* p = (xrudppeer*)context;
+	if (xrtRudpEndpointState(p->Endpoint) != XRUDP_ENDPOINT_OPEN) return XRUDP_BACKPRESSURE;
+	xnetaddr destination; memset(&destination, 0, sizeof(destination)); destination.Family = (xnetfamily)address->Family;
+	destination.Port = address->Port; destination.Scope = address->Zone; memcpy(destination.Address, address->Address, 16);
+	xnetresult r = xrudp__peer_output_to(p, &destination, data, size);
+	if (r == XNET_RESULT_OK) return XRUDP_OK;
+	if (r == XNET_RESULT_AGAIN || xrtRudpEndpointState(p->Endpoint) != XRUDP_ENDPOINT_OPEN) return XRUDP_BACKPRESSURE;
+	return xrtGetError() != NULL && xrtErrorKind(xrtGetError()) == XERR_MEMORY ? XRUDP_NO_MEMORY : XRUDP_IO_ERROR;
 }
 static xrudpresult xrudp__peer_send(const void* data, size_t size, void* context)
 {
@@ -251,6 +266,12 @@ static void xrudp__peer_capture(xrudppeer* p)
 {
 	xrudpsessionstate next;
 	if (p->Session == NULL || xrtRudpSessionState(p->Session, &next) != XRUDP_OK) return;
+	if (next.Path.Validations > p->Snapshot.Path.Validations) {
+		p->PendingEvents |= XRUDP_PEER_PATH_CHANGED;
+		memset(&p->Address, 0, sizeof(p->Address)); p->Address.Family = (xnetfamily)next.Path.Active.Family;
+		p->Address.Port = next.Path.Active.Port; p->Address.Scope = next.Path.Active.Zone; memcpy(p->Address.Address, next.Path.Active.Address, 16);
+	}
+	if (next.Path.Failures > p->Snapshot.Path.Failures) p->PendingEvents |= XRUDP_PEER_PATH_FAILED;
 	if (next.ReadReady && !p->Snapshot.ReadReady) p->PendingEvents |= XRUDP_PEER_READ_READY;
 	if (next.Shutdown.PeerRequested && !p->Snapshot.Shutdown.PeerRequested) p->PendingEvents |= XRUDP_PEER_SHUTDOWN_REQUESTED;
 	if (next.Transmit.Cancelled || next.Shutdown.Requested) p->PendingEvents &= ~XRUDP_PEER_WRITE_READY;
@@ -327,6 +348,10 @@ static void xrudp__peer_pump(xrudppeer* p, uint64_t now)
 				xrudpsessionconfig config = e->Config.Session; config.Peer = p->Info.PeerParameters; config.Role = p->Info.Role;
 				xrudpresult result = xrtRudpSessionCreate(&config, p->Cipher, now, xrudp__peer_send, p, &p->Session);
 				if (result != XRUDP_OK) { if (result == XRUDP_NO_MEMORY) ++e->Stats.CapacityDropped; xrudp__peer_close(p, result); return; }
+				xrudpaddress address;
+				if (!xrudp__endpoint_address(&p->Address, &address) || xrtRudpSessionEnablePaths(p->Session, &address, xrudp__peer_send_path) != XRUDP_OK) {
+					xrudp__peer_close(p, XRUDP_IO_ERROR); return;
+				}
 				p->HadSession = true; p->SessionPoll = now; (void)xrtRudpSessionState(p->Session, &p->Snapshot);
 			}
 			if (p->PendingSize != 0) {
@@ -427,10 +452,12 @@ static void xrudp__endpoint_receive(xnetudp* udp, const xnetudpmessage* message,
 		xrtRudpPacketDecode(message->Data, message->Size, &packet) != XRUDP_OK) { ++e->Stats.Invalid; return; }
 	uint64_t now = xrudp__endpoint_now(e); xrudppeer* p = xrudp__endpoint_find(e, packet.Header.ConnectionId);
 	if (p != NULL) {
-		if (!xrtNetAddrEqual(&p->Address, &message->Remote)) { ++e->Stats.AddressDropped; return; }
+		bool active = xrtNetAddrEqual(&p->Address, &message->Remote);
+		if (!active && (xrtRudpPeerState(p) != XRUDP_PEER_CONFIRMED || packet.Header.Type != XRUDP_PACKET_DATA || packet.Header.PacketNumber < 2)) { ++e->Stats.AddressDropped; return; }
 		xrtRudpPeerRef(p);
 		if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED && packet.Header.Type == XRUDP_PACKET_DATA && packet.Header.PacketNumber >= 2) {
-			xrudpresult result = xrtRudpSessionInput(p->Session, message->Data, message->Size, now);
+			xrudpresult result = xrtRudpSessionPathInput(p->Session, &address, message->Data, message->Size, now);
+			if (!active && result != XRUDP_OK) ++e->Stats.AddressDropped;
 			if (result == XRUDP_AUTH_FAILED) ++e->Stats.Invalid;
 			else if (result != XRUDP_OK && result != XRUDP_DUPLICATE && result != XRUDP_TOO_OLD && result != XRUDP_BACKPRESSURE) xrudp__peer_close(p, result);
 			if (xrtRudpPeerState(p) == XRUDP_PEER_CONFIRMED) {
@@ -623,6 +650,19 @@ xrudpresult xrtRudpPeerShutdown(xrudppeer* p, uint32_t timeout)
 	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
 	xrtRudpPeerRef(p); result = xrtRudpSessionShutdown(p->Session, timeout);
 	if (result == XRUDP_OK) xrudp__peer_wake(p);
+	xrtRudpPeerDestroy(p); return result;
+}
+xrudpresult xrtRudpPeerProbePath(xrudppeer* p, const xnetaddr* address)
+{
+	xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+	xrudpaddress candidate;
+	if (!xrudp__endpoint_address(address, &candidate) || address->Family != p->Address.Family) return XRUDP_ARGUMENT;
+	xrtRudpPeerRef(p); result = xrtRudpSessionProbePath(p->Session, &candidate, xrudp__endpoint_now(p->Endpoint));
+	xrudpsessionstate state;
+	if (xrtRudpSessionState(p->Session, &state) == XRUDP_OK) {
+		if (state.Reason != XRUDP_OK) xrudp__peer_close(p, state.Reason);
+		else if (result == XRUDP_OK || state.Path.Failures > p->Snapshot.Path.Failures) xrudp__peer_wake(p);
+	}
 	xrtRudpPeerDestroy(p); return result;
 }
 xrudpresult xrtRudpPeerWrite(xrudppeer* p, const void* data, size_t size, size_t* written)

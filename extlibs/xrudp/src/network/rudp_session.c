@@ -1,4 +1,6 @@
 #include <xrudp/session.h>
+#include "../internal/xrudp_path.h"
+#include <xrt/crypto.h>
 #include <xrt/memory.h>
 #include <string.h>
 
@@ -39,6 +41,7 @@ struct xrudpsession {
 	void* Context;
 	xrudpresult Reason;
 	xrudpshutdownstate Shutdown;
+	xrudp__path Path;
 	uint64_t ShutdownLocalDeadline, ShutdownPeerDeadline, ShutdownRetry, PeerDrainedPacket;
 	bool ShutdownClockPending;
 	bool Busy, Work, WorkStartPending, AckWanted, ConfirmWanted, PreferDatagram;
@@ -266,6 +269,7 @@ static xrudpresult xrudp__session_abort(xrudpsession* s, xrudpresult reason)
 		s->Streams[i].ResetClockPending = false; s->Streams[i].ResetDeadline = 0;
 	}
 	s->StopWaiters = s->ResetWaiters = 0;
+	xrudp__path_clear(&s->Path);
 	if (s->Datagrams != NULL) (void)xrtRudpDatagramAbort(s->Datagrams);
 	(void)xrtRudpSentAbort(s->Sent, s->Events, s->Slots, &count);
 	(void)xrtRudpCongestionApply(&s->Cc, s->Events, count, s->Now, true);
@@ -292,6 +296,7 @@ xrudpresult xrtRudpSessionState(const xrudpsession* s, xrudpsessionstate* output
 	if (s == NULL || output == NULL || s->Busy) return XRUDP_ARGUMENT;
 	xrudpsessionstate state; memset(&state, 0, sizeof(state)); state.Reason = s->Reason;
 	state.Shutdown = s->Shutdown;
+	state.Path = s->Path.State;
 	(void)xrtRudpReceiveState(s->Rx, &state.Receive); (void)xrtRudpTransmitState(s->Tx, &state.Transmit);
 	(void)xrtRudpSentState(s->Sent, &state.Sent); state.Congestion = s->Cc; state.Rtt = s->Rtt;
 	state.ReceivedConnection = s->ConnectionReceived; state.ReceiveLimit = s->ConnectionLimit;
@@ -586,6 +591,7 @@ xrudpresult xrtRudpSessionStreamNextEvent(xrudpsession* s, xrudpstreamevent* out
 static void xrudp__session_clock(xrudpsession* s, uint64_t now)
 {
 	s->Now = now;
+	if (s->Path.State.Enabled) xrudp__path_clock(&s->Path, now);
 	if (s->ShutdownClockPending) {
 		s->ShutdownClockPending = false; s->ShutdownLocalDeadline = xrudp__session_add(now, (uint64_t)s->Shutdown.LocalTimeoutMs * 1000);
 	}
@@ -829,7 +835,7 @@ static void xrudp__session_epoch(xrudpsession* s, uint32_t previous)
 	if (grace > 60000000) grace = 60000000;
 	s->PreviousKeyUntil = xrudp__session_add(s->Now, grace); s->ConfirmWanted = true;
 }
-xrudpresult xrtRudpSessionInput(xrudpsession* s, const void* packet, size_t size, uint64_t now)
+static xrudpresult xrudp__session_input(xrudpsession* s, const xrudpaddress* source, const void* packet, size_t size, uint64_t now)
 {
 	if (s == NULL || s->Busy || packet == NULL || now < s->Now) return XRUDP_ARGUMENT;
 	if (s->Reason != XRUDP_OK) return s->Reason;
@@ -861,6 +867,7 @@ xrudpresult xrtRudpSessionInput(xrudpsession* s, const void* packet, size_t size
 		ends[count++] = cursor;
 	}
 	xrudpshutdownstate shutdown = s->Shutdown; bool peerDrained = false;
+	const unsigned char* challenge = NULL;
 	for (size_t i = 0; i < count; ++i) if (frames[i].Type == XRUDP_FRAME_SHUTDOWN) {
 		uint32_t final = xrudp__session_get32(frames[i].Data), timeout = xrudp__session_get32(frames[i].Data + 4);
 		if (final < s->IncomingNext - 1 || final > s->IncomingLimit ||
@@ -950,6 +957,12 @@ xrudpresult xrtRudpSessionInput(xrudpsession* s, const void* packet, size_t size
 		}
 		case XRUDP_FRAME_CLOSE: closing = true; break;
 		case XRUDP_FRAME_SHUTDOWN: break;
+		case XRUDP_FRAME_PATH_CHALLENGE:
+			if (!s->Path.State.Enabled || source == NULL || (challenge != NULL && memcmp(challenge, f->Data, 16) != 0)) goto malformed;
+			challenge = f->Data; break;
+		case XRUDP_FRAME_PATH_RESPONSE:
+			if (!s->Path.State.Enabled || source == NULL) goto malformed;
+			break;
 		case XRUDP_FRAME_DRAINED:
 			if (!shutdown.Requested || !shutdown.PeerRequested || s->IncomingNext + opened - 1 != shutdown.PeerFinalOrdinal) goto malformed;
 			peerDrained = true; break;
@@ -985,6 +998,7 @@ xrudpresult xrtRudpSessionInput(xrudpsession* s, const void* packet, size_t size
 		if (xrudp__message_check(m, &rx, streams, streamCount, final, end) != XRUDP_OK) goto malformed;
 	}
 	/* No peer-dependent rejection, allocation or callback after this point. */
+	if (challenge != NULL && !s->Shutdown.Ready) xrudp__path_echo(&s->Path, source, challenge);
 	if (shutdown.PeerRequested && !s->Shutdown.PeerRequested) {
 		s->Shutdown.PeerRequested = true; s->Shutdown.PeerFinalOrdinal = shutdown.PeerFinalOrdinal;
 		s->Shutdown.PeerTimeoutMs = shutdown.PeerTimeoutMs;
@@ -1086,6 +1100,91 @@ internal:
 	xrtSecureZero(plain, sizeof(plain)); (void)xrudp__session_abort(s, XRUDP_IO_ERROR); return XRUDP_IO_ERROR;
 }
 
+xrudpresult xrtRudpSessionInput(xrudpsession* s, const void* packet, size_t size, uint64_t now)
+{
+	if (s != NULL && s->Path.State.Enabled) return XRUDP_ARGUMENT;
+	return xrudp__session_input(s, NULL, packet, size, now);
+}
+xrudpresult xrtRudpSessionEnablePaths(xrudpsession* s, const xrudpaddress* address, xrudppathsendproc send)
+{
+	if (s == NULL || s->Busy || !xrudp__path_address(address) || send == NULL) return XRUDP_ARGUMENT;
+	if (s->Reason != XRUDP_OK) return s->Reason;
+	if (s->Path.State.Enabled || s->ReceivedPackets || s->SentPackets || s->Shutdown.Requested) return XRUDP_ARGUMENT;
+	xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher);
+	if (cipher.NextPacketNumber != 2 || cipher.LargestReceivedPacket != 1) return XRUDP_ARGUMENT;
+	s->Path.State.Enabled = true; s->Path.State.Active = *address; s->Path.Send = send; s->Path.ActiveNumber = 1;
+	s->Path.State.NextProbeUs = UINT64_MAX; return XRUDP_OK;
+}
+xrudpresult xrtRudpSessionProbePath(xrudpsession* s, const xrudpaddress* address, uint64_t now)
+{
+	if (s == NULL || s->Busy || !xrudp__path_address(address) || now < s->Now || !s->Path.State.Enabled) return XRUDP_ARGUMENT;
+	if (s->Reason != XRUDP_OK) return s->Reason;
+	if (s->Shutdown.Requested) return XRUDP_CLOSED;
+	xrudp__session_clock(s, now);
+	if (xrudp__session_dead(s, now)) { (void)xrudp__session_abort(s, XRUDP_TIMEOUT); return XRUDP_TIMEOUT; }
+	return xrudp__path_start(&s->Path, address, now, true);
+}
+static xrudpresult xrudp__session_migrate(xrudpsession* s)
+{
+	size_t count; xrudpresult r = xrtRudpSentDiscardPath(s->Sent, s->Now, s->Events, s->Slots, &count);
+	if (r != XRUDP_OK && r != XRUDP_DONE) return XRUDP_IO_ERROR;
+	if (xrtRudpCongestionApply(&s->Cc, s->Events, count, s->Now, true) != XRUDP_OK || xrudp__session_feedback(s, count) != XRUDP_OK) return XRUDP_IO_ERROR;
+	xrudpsentstate sent; (void)xrtRudpSentState(s->Sent, &sent);
+	(void)xrtRudpCongestionInit(&s->Cc, s->Config.MaximumWindow); s->Cc.LargestSent = sent.LargestSent; s->Cc.LastNowUs = s->Now;
+	(void)xrtRudpRttInit(&s->Rtt, s->Config.InitialRttUs, s->Config.Peer.MaxAckDelayUs);
+	s->PtoAt = 0; s->PtoCount = s->Probes = 0; s->GrantRetry = s->StreamsRetry = s->Now; s->Progress = s->Now;
+	xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher);
+	xrudp__path_promote(&s->Path, s->Now, cipher.LargestReceivedPacket);
+	xrudp__session_ackwant(s, true); return XRUDP_OK;
+}
+xrudpresult xrtRudpSessionPathInput(xrudpsession* s, const xrudpaddress* address, const void* packet, size_t size, uint64_t now)
+{
+	if (s == NULL || s->Busy || !xrudp__path_address(address) || packet == NULL || now < s->Now || !s->Path.State.Enabled) return XRUDP_ARGUMENT;
+	if (s->Reason != XRUDP_OK) return s->Reason;
+	xrudp__session_clock(s, now);
+	if (xrudp__shutdown_complete(s)) return XRUDP_CLOSED;
+	if (xrudp__session_dead(s, now)) { (void)xrudp__session_abort(s, XRUDP_TIMEOUT); return XRUDP_TIMEOUT; }
+	if (xrudp__path_equal(address, &s->Path.State.Active)) {
+		xrudpresult r = xrudp__session_input(s, address, packet, size, now);
+		if (r == XRUDP_OK) { xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher); s->Path.ActiveNumber = cipher.LargestReceivedPacket; }
+		return r;
+	}
+	if (s->Shutdown.Ready || !xrudp__path_inspect(&s->Path, address, now)) return XRUDP_BACKPRESSURE;
+	if (size > s->Config.Local.DatagramSize) { if (s->Path.State.Invalid != UINT64_MAX) ++s->Path.State.Invalid; return XRUDP_BACKPRESSURE; }
+	unsigned char plain[XRUDP_PACKET_MAX]; size_t length;
+	xrudpresult r = xrtRudpCipherInspect(s->Cipher, packet, size, plain, sizeof(plain), &length);
+	if (r != XRUDP_OK) {
+		xrtSecureZero(plain, sizeof(plain));
+		if (s->Path.State.Invalid != UINT64_MAX) ++s->Path.State.Invalid;
+		return r == XRUDP_AUTH_FAILED ? r : XRUDP_BACKPRESSURE;
+	}
+	xrudpwirepacket parsed; (void)xrtRudpPacketDecode(packet, size, &parsed);
+	bool proof = false, only = true; const unsigned char* challenge = NULL; size_t offset = 0; xrudpwireframe frame;
+	while (xrtRudpFrameNext(plain, length, &offset, &frame) == XRUDP_OK) {
+		if (frame.Type == XRUDP_FRAME_PATH_RESPONSE && s->Path.State.Validating && s->Path.State.Attempts &&
+			xrudp__path_equal(address, &s->Path.State.Candidate) && xrtConstTimeEqual(frame.Data, s->Path.Token, 16)) proof = true;
+		else if (frame.Type == XRUDP_FRAME_PATH_CHALLENGE) {
+			if (challenge != NULL && memcmp(challenge, frame.Data, 16) != 0) only = false;
+			challenge = frame.Data;
+		} else if (frame.Type != XRUDP_FRAME_PATH_RESPONSE && frame.Type != XRUDP_FRAME_PADDING && frame.Type != XRUDP_FRAME_KEY_CONFIRM) only = false;
+	}
+	if (proof && only) {
+		r = xrudp__session_input(s, address, packet, size, now);
+		if (r == XRUDP_OK) {
+			r = xrudp__session_migrate(s);
+			if (r != XRUDP_OK) (void)xrudp__session_abort(s, XRUDP_IO_ERROR);
+		}
+	} else {
+		if (!s->Path.State.Validating && parsed.Header.PacketNumber > s->Path.ActiveNumber) (void)xrudp__path_start(&s->Path, address, now, false);
+		if (s->Path.State.Validating && xrudp__path_equal(address, &s->Path.State.Candidate)) {
+			bool fresh = parsed.Header.PacketNumber > s->Path.CandidateNumber;
+			xrudp__path_credit(&s->Path, parsed.Header.PacketNumber, (uint32_t)size);
+			if (fresh && only && challenge != NULL) xrudp__path_echo(&s->Path, address, challenge);
+		}
+		r = XRUDP_BACKPRESSURE;
+	}
+	xrtSecureZero(plain, sizeof(plain)); return r;
+}
 static bool xrudp__session_append(unsigned char* plain, size_t maximum, size_t* used,
 	xrudpframetype type, uint8_t flags, const void* data, size_t size)
 {
@@ -1128,8 +1227,9 @@ static uint32_t xrudp__session_select(xrudpsession* s, bool probe)
 /* One admission/nonce/ledger path for reliable and unreliable payloads. Caller
  * prechecks congestion/capacity; no logical queue is consumed until OK. */
 static xrudpresult xrudp__session_emit(xrudpsession* s, const unsigned char* plain, size_t used,
-	uint32_t flags, unsigned char* packet, uint64_t* due, size_t* size, xrudp__sessionref** output)
+	uint32_t flags, unsigned char* packet, uint64_t* due, size_t* size, const xrudpaddress* destination, bool* routeError, xrudp__sessionref** output)
 {
+	if (routeError != NULL) *routeError = false;
 	size_t slot; for (slot = 0; slot < s->Slots && s->Ref[slot].Used; ++slot) {}
 	if (slot == s->Slots) return XRUDP_IO_ERROR;
 	xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher);
@@ -1139,12 +1239,12 @@ static xrudpresult xrudp__session_emit(xrudpsession* s, const unsigned char* pla
 	}
 	xrudpresult result = xrtRudpCipherSeal(s->Cipher, plain, used, packet, XRUDP_PACKET_MAX, size);
 	if (result != XRUDP_OK) return result == XRUDP_LIMIT ? XRUDP_LIMIT : XRUDP_IO_ERROR;
-	result = s->Send(packet, *size, s->Context);
+	result = s->Path.State.Enabled ? s->Path.Send(packet, *size, destination != NULL ? destination : &s->Path.State.Active, s->Context) : s->Send(packet, *size, s->Context);
 	if (result == XRUDP_BACKPRESSURE || result == XRUDP_NO_MEMORY) {
 		++s->OutputBackpressure; uint64_t at = xrudp__session_add(s->Now, 1000); if (at < *due) *due = at;
 		return XRUDP_BACKPRESSURE;
 	}
-	if (result != XRUDP_OK) return XRUDP_IO_ERROR;
+	if (result != XRUDP_OK) { if (routeError != NULL) *routeError = true; return XRUDP_IO_ERROR; }
 	(void)xrtRudpCipherState(s->Cipher, &cipher); uint64_t number = cipher.NextPacketNumber - 1;
 	if (xrtRudpSentRecord(s->Sent, number, s->Now, (uint32_t)*size, flags, slot + 1) != XRUDP_OK ||
 		xrtRudpCongestionOnSent(&s->Cc, number, s->Now, s->Rtt.SmoothedUs, (uint32_t)*size, flags) != XRUDP_OK) return XRUDP_IO_ERROR;
@@ -1261,7 +1361,7 @@ static xrudpresult xrudp__session_send_inner(xrudpsession* s, uint64_t* due, boo
 		at = s->AckAt > s->ControlAt ? s->AckAt : s->ControlAt;
 		if (s->Now < at) { if (at < *due) *due = at; return XRUDP_DONE; }
 	}
-	xrudp__sessionref* ref; xrudpresult result = xrudp__session_emit(s, plain, used, flags, packet, due, &size, &ref);
+	xrudp__sessionref* ref; xrudpresult result = xrudp__session_emit(s, plain, used, flags, packet, due, &size, NULL, NULL, &ref);
 	if (result == XRUDP_BACKPRESSURE) return XRUDP_DONE;
 	if (result != XRUDP_OK) return result;
 	if (data || open || reset || stop || streamGrant) { ref->Stream = selected; ++m->References; }
@@ -1325,7 +1425,7 @@ static xrudpresult xrudp__session_send_datagram(xrudpsession* s, uint64_t* due,
 		if (admission == XRUDP_TIMEOUT && at < *due) *due = at;
 		return XRUDP_DONE;
 	}
-	size_t size; xrudp__sessionref* ref; xrudpresult r = xrudp__session_emit(s, plain, used, XRUDP_SENT_ACK_ELICITING, packet, due, &size, &ref);
+	size_t size; xrudp__sessionref* ref; xrudpresult r = xrudp__session_emit(s, plain, used, XRUDP_SENT_ACK_ELICITING, packet, due, &size, NULL, NULL, &ref);
 	if (r == XRUDP_BACKPRESSURE) return XRUDP_DONE;
 	if (r != XRUDP_OK) return r;
 	ref->Datagram = true;
@@ -1335,6 +1435,50 @@ static xrudpresult xrudp__session_send_datagram(xrudpsession* s, uint64_t* due,
 	++s->SentPackets; xrudp__session_pto_sync(s, false); xrudp__session_syncwork(s); return XRUDP_OK;
 }
 
+static xrudpresult xrudp__session_send_path(xrudpsession* s, uint64_t* due)
+{
+	xrudp__path* p = &s->Path;
+	if (!p->State.Enabled || s->Shutdown.Ready || s->Now < p->ResponseAt) return XRUDP_DONE;
+	bool echo = false, challenge = false; uint32_t index = 0;
+	if (p->Echo[0].Pending) echo = true;
+	else if (p->State.Validating) {
+		index = 1; echo = p->Echo[1].Pending;
+		challenge = p->State.Attempts < 3 && s->Now >= p->State.NextProbeUs;
+	}
+	if (!echo && !challenge) return XRUDP_DONE;
+	const xrudpaddress* address = index ? &p->State.Candidate : &p->State.Active;
+	unsigned char plain[64], packet[XRUDP_PACKET_MAX], epoch[4]; size_t used = 0, size;
+	if (echo && !xrudp__session_append(plain, sizeof(plain), &used, XRUDP_FRAME_PATH_RESPONSE, 0, p->Echo[index].Token, 16)) return XRUDP_IO_ERROR;
+	if (challenge && !xrudp__session_append(plain, sizeof(plain), &used, XRUDP_FRAME_PATH_CHALLENGE, 0, p->Token, 16)) return XRUDP_IO_ERROR;
+	xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher); xrudp__session_put32(epoch, cipher.ReceiveEpoch);
+	(void)xrudp__session_append(plain, sizeof(plain), &used, XRUDP_FRAME_KEY_CONFIRM, 0, epoch, 4);
+	uint32_t bytes = (uint32_t)(used + XRUDP_HEADER_SIZE + XRUDP_TAG_SIZE);
+	uint32_t allowance = p->InitialAllowance + 3u * p->State.CandidateReceived; if (allowance > 3600) allowance = 3600;
+	if (index && bytes > allowance - p->State.CandidateSent) { xrtSecureZero(plain, sizeof(plain)); return XRUDP_DONE; }
+	uint32_t flags = XRUDP_SENT_ACK_ELICITING | (s->Probes ? XRUDP_SENT_PROBE : 0); uint64_t at = s->Now;
+	xrudpresult result = xrtRudpCongestionCanSend(&s->Cc, s->Now, s->Rtt.SmoothedUs, bytes, flags, &at);
+	if (result != XRUDP_OK || !xrtRudpSentCanRecord(s->Sent, s->Probes != 0)) {
+		if (result == XRUDP_TIMEOUT && at < *due) *due = at;
+		xrtSecureZero(plain, sizeof(plain)); return XRUDP_DONE;
+	}
+	bool routeError; xrudp__sessionref* ref; result = xrudp__session_emit(s, plain, used, flags, packet, due, &size, address, &routeError, &ref);
+	xrtSecureZero(plain, sizeof(plain)); xrtSecureZero(packet, sizeof(packet));
+	if (result == XRUDP_BACKPRESSURE) return XRUDP_DONE;
+	/* Only a rejected UDP route to the unvalidated candidate is local to this
+	 * attempt. Cipher/ledger/CC errors and the active route remain terminal. */
+	if (routeError && index) { xrudp__path_fail(p, s->Now, XRUDP_IO_ERROR); return XRUDP_DONE; }
+	if (result != XRUDP_OK) return result;
+	(void)ref;
+	if (index) {
+		p->State.CandidateSent += (uint32_t)size;
+		p->State.SentUnvalidated = xrudp__session_add(p->State.SentUnvalidated, size);
+	}
+	if (echo) xrtSecureZero(&p->Echo[index], sizeof(p->Echo[index]));
+	if (challenge) { ++p->State.Attempts; p->State.NextProbeUs = xrudp__session_add(s->Now, UINT64_C(200000) << (p->State.Attempts - 1)); }
+	p->ResponseAt = xrudp__session_add(s->Now, 50000);
+	if (s->Probes) --s->Probes;
+	++s->SentPackets; xrudp__session_pto_sync(s, false); return XRUDP_OK;
+}
 static xrudpresult xrudp__session_send(xrudpsession* s, uint64_t* due)
 {
 	unsigned char plain[XRUDP_PACKET_MAX], body[XRUDP_PACKET_MAX], packet[XRUDP_PACKET_MAX];
@@ -1379,12 +1523,17 @@ xrudpresult xrtRudpSessionPoll(xrudpsession* s, uint64_t now, uint64_t* output)
 	uint64_t due = xrudp__session_add(s->Activity, s->IdleUs);
 	if (s->Work && xrudp__session_add(s->Progress, s->Config.ProgressTimeoutUs) < due) due = xrudp__session_add(s->Progress, s->Config.ProgressTimeoutUs);
 	for (size_t i = 0; i < XRUDP_SESSION_POLL_BURST; ++i) {
-		result = xrudp__session_send(s, &due);
+		uint64_t pressure = s->OutputBackpressure;
+		result = i == 0 ? xrudp__session_send_path(s, &due) : XRUDP_DONE;
+		if (result == XRUDP_DONE && pressure == s->OutputBackpressure) result = xrudp__session_send(s, &due);
 		if (result == XRUDP_DONE) break;
 		if (result != XRUDP_OK) goto failure;
 		if (i + 1 == XRUDP_SESSION_POLL_BURST && xrudp__session_add(now, 1000) < due) due = xrudp__session_add(now, 1000);
 	}
 	xrudp__shutdown_update(s);
+	if (s->Path.State.Enabled && !s->Shutdown.Ready) {
+		uint64_t at = xrudp__path_due(&s->Path, now); if (at < due) due = at;
+	}
 	if (s->Shutdown.DeadlineUs && s->Shutdown.DeadlineUs < due) due = s->Shutdown.DeadlineUs;
 	if (s->Shutdown.Requested && (!s->Shutdown.DeclarationAcknowledged || (s->Shutdown.Ready && !s->Shutdown.DrainedAcknowledged)) && s->ShutdownRetry > now && s->ShutdownRetry < due) due = s->ShutdownRetry;
 	if (s->Shutdown.LingerUntilUs) {

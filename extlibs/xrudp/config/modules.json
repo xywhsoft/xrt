@@ -503,6 +503,32 @@
       ]
     },
     {
+      "name": "rudp_path_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_endpoint",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_session_path.c",
+        "extlibs/xrudp/tests/test_endpoint_path.c",
+        "extlibs/xrudp/tests/test_multi_path.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_session_path.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_path.c",
+        "extlibs/xrudp/tests/single/test_single_multi_path.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
       "name": "rudp_shutdown_tests",
       "state": "implemented",
       "depends": [
@@ -738,7 +764,8 @@
         "extlibs/xrudp/tests/single/test_single_endpoint_stop_iocp.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_message_stop_iocp.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_shutdown_iocp.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_message_shutdown_iocp.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_message_shutdown_iocp.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_path_iocp.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -772,7 +799,8 @@
         "extlibs/xrudp/tests/single/test_single_endpoint_stop_epoll.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_message_stop_epoll.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_shutdown_epoll.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_message_shutdown_epoll.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_message_shutdown_epoll.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_path_epoll.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -824,9 +852,12 @@
       "public_headers": [
         "extlibs/xrudp/include/xrudp/session.h"
       ],
-      "internal_headers": [],
+      "internal_headers": [
+        "extlibs/xrudp/src/internal/xrudp_path.h"
+      ],
       "sources": [
-        "extlibs/xrudp/src/network/rudp_session.c"
+        "extlibs/xrudp/src/network/rudp_session.c",
+        "extlibs/xrudp/src/network/rudp_path.c"
       ],
       "tests": [
         "extlibs/xrudp/tests/test_session.c"
