@@ -1197,6 +1197,9 @@
 #if !defined(XRT_MODULE_ATOMIC)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_ATOMIC 1
 #endif
+#if !defined(XRT_MODULE_CRC32)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRC32 1
+#endif
 #if !defined(XRT_MODULE_CRYPTO_CHACHA20_POLY1305)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_CHACHA20_POLY1305 1
 #endif
@@ -1233,6 +1236,9 @@
 #if !defined(XRUDP_FEATURE_RUDP_DATAGRAM)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_DATAGRAM 1
 #endif
+#if !defined(XRUDP_FEATURE_RUDP_DISCOVERY)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_DISCOVERY 1
+#endif
 #if !defined(XRUDP_FEATURE_RUDP_ENDPOINT)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_ENDPOINT 1
 #endif
@@ -1253,6 +1259,9 @@
 #endif
 #if !defined(XRUDP_FEATURE_RUDP_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_SESSION 1
+#endif
+#if !defined(XRUDP_FEATURE_RUDP_STUN)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_STUN 1
 #endif
 #if !defined(XRUDP_FEATURE_RUDP_TIMING)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_TIMING 1
@@ -1281,6 +1290,9 @@
 #if !defined(XRUDP_MODULE_RUDP_DATAGRAM)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_DATAGRAM 1
 #endif
+#if !defined(XRUDP_MODULE_RUDP_DISCOVERY)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_DISCOVERY 1
+#endif
 #if !defined(XRUDP_MODULE_RUDP_ENDPOINT)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_ENDPOINT 1
 #endif
@@ -1301,6 +1313,9 @@
 #endif
 #if !defined(XRUDP_MODULE_RUDP_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_SESSION 1
+#endif
+#if !defined(XRUDP_MODULE_RUDP_STUN)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_STUN 1
 #endif
 #if !defined(XRUDP_MODULE_RUDP_TIMING)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_TIMING 1
@@ -2674,6 +2689,32 @@
 #endif
 #endif
 
+/* rudp_discovery 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_DISCOVERY)
+#ifndef XRUDP_FEATURE_RUDP_DISCOVERY
+#define XRUDP_FEATURE_RUDP_DISCOVERY
+#endif
+#ifndef XRUDP_MODULE_RUDP_STUN
+#define XRUDP_MODULE_RUDP_STUN
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
+#endif
+
+/* rudp_stun 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_STUN)
+#ifndef XRUDP_FEATURE_RUDP_STUN
+#define XRUDP_FEATURE_RUDP_STUN
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#ifndef XRT_MODULE_CRC32
+#define XRT_MODULE_CRC32
+#endif
+#endif
+
 /* rudp_wire 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_WIRE)
 #ifndef XRUDP_FEATURE_RUDP_WIRE
@@ -2752,6 +2793,16 @@ typedef enum xrudpresult {
 	XRUDP_NO_MEMORY,
 	XRUDP_IO_ERROR
 } xrudpresult;
+
+/* API address only, never copied onto the wire. Port/Zone are host-order.
+ * IPv4 uses four bytes followed by twelve zero bytes and Zone=0; IPv6 uses
+ * all sixteen bytes and a local interface scope when needed. */
+typedef struct xrudpaddress {
+	uint8_t Family; /* 4 or 6. */
+	uint16_t Port;
+	uint32_t Zone;
+	unsigned char Address[16];
+} xrudpaddress;
 
 typedef enum xrudppackettype {
 	XRUDP_PACKET_HELLO = 1,
@@ -2844,6 +2895,122 @@ XRUDP_API xrudpresult xrtRudpReplayAccept(xrudpreplay* pWindow,
 
 XRT_EXTERN_C_END
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/stun.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_STUN_H
+#define XRUDP_STUN_H
+#if defined(XRUDP_FEATURE_RUDP_STUN)
+
+#define XRUDP_STUN_HEADER_SIZE 20u
+#define XRUDP_STUN_TRANSACTION_SIZE 12u
+#define XRUDP_STUN_PACKET_MAX 512u
+#define XRUDP_STUN_ATTRIBUTES_MAX 64u
+#define XRUDP_STUN_UNKNOWN_MAX 16u
+#define XRUDP_STUN_BINDING_REQUEST 0x0001u
+#define XRUDP_STUN_BINDING_SUCCESS 0x0101u
+#define XRUDP_STUN_BINDING_ERROR 0x0111u
+
+/* Bounded RFC 8489 Binding wire view; NOT an identity/authentication proof.
+ * Unknown-required types are collected uniquely; optional attributes ignored.
+ * Integrity only reports presence, it NEVER means its HMAC was verified.
+ * Attributes after integrity are ignored except integrity/fingerprint. */
+typedef struct xrudpstunmessage {
+	xrudpaddress Mapped;
+	unsigned char Transaction[XRUDP_STUN_TRANSACTION_SIZE];
+	uint16_t Type, ErrorCode, Unknown[XRUDP_STUN_UNKNOWN_MAX];
+	uint8_t UnknownCount;
+	bool HasMapped, Fingerprint, Integrity;
+} xrudpstunmessage;
+
+XRT_EXTERN_C_BEGIN
+/* Exact UDP framing, no allocation/I/O/randomness. FINGERPRINT, when present,
+ * is checked and must be last. First mapped/error attribute wins. No classic
+ * STUN, indications, redirects or credential verification. Failure preserves
+ * outputs; encode counters become zero. Input/output buffers may overlap, but
+ * counters/views must not alias them. Mapping is only a candidate address. */
+XRUDP_API xrudpresult xrtRudpStunDecode(const void* pData, size_t iSize, xrudpstunmessage* pMessage);
+XRUDP_API xrudpresult xrtRudpStunRequest(const void* pTransaction, bool bFingerprint,
+	void* pOutput, size_t iCapacity, size_t* pWritten);
+/* Mapped must be unicast/nonzero with nonzero port, Zone=0. The reflector
+ * separately enforces source routing, request/response and rate budgets. */
+XRUDP_API xrudpresult xrtRudpStunResponse(const void* pTransaction, const xrudpaddress* pMapped,
+	bool bFingerprint, void* pOutput, size_t iCapacity, size_t* pWritten);
+/* Error 300..699. Only 420 takes a nonempty list (<=UNKNOWN_MAX) of required
+ * attribute types. No peer-supplied diagnostic text is reflected. */
+XRUDP_API xrudpresult xrtRudpStunError(const void* pTransaction, uint16_t iCode,
+	const uint16_t* pUnknown, size_t iUnknownCount, bool bFingerprint,
+	void* pOutput, size_t iCapacity, size_t* pWritten);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/discovery.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_DISCOVERY_H
+#define XRUDP_DISCOVERY_H
+#if defined(XRUDP_FEATURE_RUDP_DISCOVERY)
+
+#define XRUDP_DISCOVERY_ATTEMPTS_MAX 7u
+#define XRUDP_DISCOVERY_DEFAULT_TIMEOUT_MS 39500u
+
+/* Safe to publish: mappings are hints, never peer pins or identity evidence.
+ * Reason OK=pending, DONE=mapping learned, other values terminal failure.
+ * NextUs is the next useful clock, including the absolute nonrenewable limit. */
+typedef struct xrudpdiscoverystate {
+	xrudpaddress Server, Mapped;
+	xrudpresult Reason;
+	uint64_t StartedUs, DeadlineUs, NextUs, Discarded;
+	uint32_t Attempts;
+	uint16_t RemoteError;
+	bool Fingerprint;
+} xrudpdiscoverystate;
+
+/* Caller-owned fixed storage. Initialize before use; single serialized owner.
+ * Underscore members are private, not a serialization or logging interface.
+ * No I/O, allocation or global clock. Randomness is needed only at Init.
+ * The object, I/O buffers and output counters must not overlap. */
+typedef struct xrudpdiscovery {
+	xrudpdiscoverystate State;
+	uint64_t _Now, _SendAt, _FinishAt;
+	unsigned char _Transaction[XRUDP_STUN_TRANSACTION_SIZE], _Request[28];
+	uint8_t _Size;
+	bool _Offered;
+} xrudpdiscovery;
+
+XRT_EXTERN_C_BEGIN
+/* A trusted application chooses Server, which must be a valid unicast address.
+ * Timeout=0 uses 39.5s; explicit 1000..60000ms is an absolute upper bound, not
+ * renewed by backpressure/noise/retransmission. Fingerprint mode requires it
+ * in responses; false permits absent but verifies any present fingerprint.
+ * Failure preserves the object. No credentials, redirect or DNS mechanism. */
+XRUDP_API xrudpresult xrtRudpDiscoveryInit(xrudpdiscovery* pDiscovery, const xrudpaddress* pServer,
+	uint64_t iNowUs, uint32_t iTimeoutMs, bool bFingerprint);
+/* Offers the same request until Sent confirms actual UDP admission. OK returns
+ * its bytes; TIMEOUT means pending and *pNextUs is a future useful deadline,
+ * or State.Reason=TIMEOUT for terminal expiry. Never consume attempts for
+ * local backpressure. Output counters zeroed; invalid calls preserve state. */
+XRUDP_API xrudpresult xrtRudpDiscoveryNext(xrudpdiscovery* pDiscovery, uint64_t iNowUs,
+	void* pOutput, size_t iCapacity, size_t* pWritten, uint64_t* pNextUs);
+XRUDP_API xrudpresult xrtRudpDiscoverySent(xrudpdiscovery* pDiscovery, uint64_t iNowUs);
+/* Only the exact configured source and random transaction may complete it,
+ * after at least one admitted request. Noise returns BACKPRESSURE; matched
+ * unsupported/remote-error responses terminate with PROTOCOL_MISMATCH. Bad
+ * framing, tags/fingerprint or missing required mapping cannot renew limits.
+ * Success gives DONE; no device authentication or reliable-session admission. */
+XRUDP_API xrudpresult xrtRudpDiscoveryInput(xrudpdiscovery* pDiscovery, const xrudpaddress* pSource,
+	const void* pData, size_t iSize, uint64_t iNowUs);
+XRUDP_API xrudpresult xrtRudpDiscoveryCancel(xrudpdiscovery* pDiscovery);
+XRUDP_API xrudpresult xrtRudpDiscoveryState(const xrudpdiscovery* pDiscovery, xrudpdiscoverystate* pState);
+XRT_EXTERN_C_END
 #endif
 #endif
 
@@ -3035,17 +3202,6 @@ XRT_EXTERN_C_END
 
 #define XRUDP_COOKIE_SIZE 40u
 #define XRUDP_COOKIE_MAX_AGE_US UINT64_C(30000000)
-
-/* API representation only; never memcpy this C structure onto the wire.
- * IPv4 uses Address[0..3] and twelve zero tail bytes, Zone=0.
- * IPv6 uses all 16 address bytes; Zone is the local interface scope ID.
- * Port/Zone are host-order. Unspecified and multicast addresses are rejected. */
-typedef struct xrudpaddress {
-	uint8_t Family; /* 4 or 6. */
-	uint16_t Port;
-	uint32_t Zone;
-	unsigned char Address[16];
-} xrudpaddress;
 
 XRT_EXTERN_C_BEGIN
 
@@ -6023,6 +6179,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_ATOMIC
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_ATOMIC
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRC32)
+#undef XRT_MODULE_CRC32
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRC32
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_CHACHA20_POLY1305)
 #undef XRT_MODULE_CRYPTO_CHACHA20_POLY1305
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_CRYPTO_CHACHA20_POLY1305
@@ -6071,6 +6231,10 @@ XRT_EXTERN_C_END
 #undef XRUDP_FEATURE_RUDP_DATAGRAM
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_DATAGRAM
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_DISCOVERY)
+#undef XRUDP_FEATURE_RUDP_DISCOVERY
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_DISCOVERY
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_ENDPOINT)
 #undef XRUDP_FEATURE_RUDP_ENDPOINT
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_ENDPOINT
@@ -6098,6 +6262,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_SESSION)
 #undef XRUDP_FEATURE_RUDP_SESSION
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_SESSION
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_STUN)
+#undef XRUDP_FEATURE_RUDP_STUN
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_STUN
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_TIMING)
 #undef XRUDP_FEATURE_RUDP_TIMING
@@ -6135,6 +6303,10 @@ XRT_EXTERN_C_END
 #undef XRUDP_MODULE_RUDP_DATAGRAM
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_DATAGRAM
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_DISCOVERY)
+#undef XRUDP_MODULE_RUDP_DISCOVERY
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_DISCOVERY
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_ENDPOINT)
 #undef XRUDP_MODULE_RUDP_ENDPOINT
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_ENDPOINT
@@ -6162,6 +6334,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_SESSION)
 #undef XRUDP_MODULE_RUDP_SESSION
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_SESSION
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_STUN)
+#undef XRUDP_MODULE_RUDP_STUN
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_STUN
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_TIMING)
 #undef XRUDP_MODULE_RUDP_TIMING
@@ -6372,6 +6548,32 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_CRYPTO_CHACHA20_POLY1305
 #define XRT_MODULE_CRYPTO_CHACHA20_POLY1305
+#endif
+#endif
+
+/* rudp_discovery 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_DISCOVERY)
+#ifndef XRUDP_FEATURE_RUDP_DISCOVERY
+#define XRUDP_FEATURE_RUDP_DISCOVERY
+#endif
+#ifndef XRUDP_MODULE_RUDP_STUN
+#define XRUDP_MODULE_RUDP_STUN
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
+#endif
+
+/* rudp_stun 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_STUN)
+#ifndef XRUDP_FEATURE_RUDP_STUN
+#define XRUDP_FEATURE_RUDP_STUN
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#ifndef XRT_MODULE_CRC32
+#define XRT_MODULE_CRC32
 #endif
 #endif
 

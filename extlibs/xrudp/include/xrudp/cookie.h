@@ -9,17 +9,6 @@
 #define XRUDP_COOKIE_SIZE 40u
 #define XRUDP_COOKIE_MAX_AGE_US UINT64_C(30000000)
 
-/* API representation only; never memcpy this C structure onto the wire.
- * IPv4 uses Address[0..3] and twelve zero tail bytes, Zone=0.
- * IPv6 uses all 16 address bytes; Zone is the local interface scope ID.
- * Port/Zone are host-order. Unspecified and multicast addresses are rejected. */
-typedef struct xrudpaddress {
-	uint8_t Family; /* 4 or 6. */
-	uint16_t Port;
-	uint32_t Zone;
-	unsigned char Address[16];
-} xrudpaddress;
-
 XRT_EXTERN_C_BEGIN
 
 /* Stateless address-return validation, NOT peer identity or a one-use grant.

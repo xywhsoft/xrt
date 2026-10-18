@@ -36,6 +36,16 @@ typedef enum xrudpresult {
 	XRUDP_IO_ERROR
 } xrudpresult;
 
+/* API address only, never copied onto the wire. Port/Zone are host-order.
+ * IPv4 uses four bytes followed by twelve zero bytes and Zone=0; IPv6 uses
+ * all sixteen bytes and a local interface scope when needed. */
+typedef struct xrudpaddress {
+	uint8_t Family; /* 4 or 6. */
+	uint16_t Port;
+	uint32_t Zone;
+	unsigned char Address[16];
+} xrudpaddress;
+
 typedef enum xrudppackettype {
 	XRUDP_PACKET_HELLO = 1,
 	XRUDP_PACKET_RETRY = 2,

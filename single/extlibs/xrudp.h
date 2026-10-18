@@ -244,6 +244,32 @@
 #endif
 #endif
 
+/* rudp_discovery 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_DISCOVERY)
+#ifndef XRUDP_FEATURE_RUDP_DISCOVERY
+#define XRUDP_FEATURE_RUDP_DISCOVERY
+#endif
+#ifndef XRUDP_MODULE_RUDP_STUN
+#define XRUDP_MODULE_RUDP_STUN
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
+#endif
+
+/* rudp_stun 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_STUN)
+#ifndef XRUDP_FEATURE_RUDP_STUN
+#define XRUDP_FEATURE_RUDP_STUN
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#ifndef XRT_MODULE_CRC32
+#define XRT_MODULE_CRC32
+#endif
+#endif
+
 /* rudp_wire 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_WIRE)
 #ifndef XRUDP_FEATURE_RUDP_WIRE
@@ -322,6 +348,16 @@ typedef enum xrudpresult {
 	XRUDP_NO_MEMORY,
 	XRUDP_IO_ERROR
 } xrudpresult;
+
+/* API address only, never copied onto the wire. Port/Zone are host-order.
+ * IPv4 uses four bytes followed by twelve zero bytes and Zone=0; IPv6 uses
+ * all sixteen bytes and a local interface scope when needed. */
+typedef struct xrudpaddress {
+	uint8_t Family; /* 4 or 6. */
+	uint16_t Port;
+	uint32_t Zone;
+	unsigned char Address[16];
+} xrudpaddress;
 
 typedef enum xrudppackettype {
 	XRUDP_PACKET_HELLO = 1,
@@ -414,6 +450,122 @@ XRUDP_API xrudpresult xrtRudpReplayAccept(xrudpreplay* pWindow,
 
 XRT_EXTERN_C_END
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/stun.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_STUN_H
+#define XRUDP_STUN_H
+#if defined(XRUDP_FEATURE_RUDP_STUN)
+
+#define XRUDP_STUN_HEADER_SIZE 20u
+#define XRUDP_STUN_TRANSACTION_SIZE 12u
+#define XRUDP_STUN_PACKET_MAX 512u
+#define XRUDP_STUN_ATTRIBUTES_MAX 64u
+#define XRUDP_STUN_UNKNOWN_MAX 16u
+#define XRUDP_STUN_BINDING_REQUEST 0x0001u
+#define XRUDP_STUN_BINDING_SUCCESS 0x0101u
+#define XRUDP_STUN_BINDING_ERROR 0x0111u
+
+/* Bounded RFC 8489 Binding wire view; NOT an identity/authentication proof.
+ * Unknown-required types are collected uniquely; optional attributes ignored.
+ * Integrity only reports presence, it NEVER means its HMAC was verified.
+ * Attributes after integrity are ignored except integrity/fingerprint. */
+typedef struct xrudpstunmessage {
+	xrudpaddress Mapped;
+	unsigned char Transaction[XRUDP_STUN_TRANSACTION_SIZE];
+	uint16_t Type, ErrorCode, Unknown[XRUDP_STUN_UNKNOWN_MAX];
+	uint8_t UnknownCount;
+	bool HasMapped, Fingerprint, Integrity;
+} xrudpstunmessage;
+
+XRT_EXTERN_C_BEGIN
+/* Exact UDP framing, no allocation/I/O/randomness. FINGERPRINT, when present,
+ * is checked and must be last. First mapped/error attribute wins. No classic
+ * STUN, indications, redirects or credential verification. Failure preserves
+ * outputs; encode counters become zero. Input/output buffers may overlap, but
+ * counters/views must not alias them. Mapping is only a candidate address. */
+XRUDP_API xrudpresult xrtRudpStunDecode(const void* pData, size_t iSize, xrudpstunmessage* pMessage);
+XRUDP_API xrudpresult xrtRudpStunRequest(const void* pTransaction, bool bFingerprint,
+	void* pOutput, size_t iCapacity, size_t* pWritten);
+/* Mapped must be unicast/nonzero with nonzero port, Zone=0. The reflector
+ * separately enforces source routing, request/response and rate budgets. */
+XRUDP_API xrudpresult xrtRudpStunResponse(const void* pTransaction, const xrudpaddress* pMapped,
+	bool bFingerprint, void* pOutput, size_t iCapacity, size_t* pWritten);
+/* Error 300..699. Only 420 takes a nonempty list (<=UNKNOWN_MAX) of required
+ * attribute types. No peer-supplied diagnostic text is reflected. */
+XRUDP_API xrudpresult xrtRudpStunError(const void* pTransaction, uint16_t iCode,
+	const uint16_t* pUnknown, size_t iUnknownCount, bool bFingerprint,
+	void* pOutput, size_t iCapacity, size_t* pWritten);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/discovery.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_DISCOVERY_H
+#define XRUDP_DISCOVERY_H
+#if defined(XRUDP_FEATURE_RUDP_DISCOVERY)
+
+#define XRUDP_DISCOVERY_ATTEMPTS_MAX 7u
+#define XRUDP_DISCOVERY_DEFAULT_TIMEOUT_MS 39500u
+
+/* Safe to publish: mappings are hints, never peer pins or identity evidence.
+ * Reason OK=pending, DONE=mapping learned, other values terminal failure.
+ * NextUs is the next useful clock, including the absolute nonrenewable limit. */
+typedef struct xrudpdiscoverystate {
+	xrudpaddress Server, Mapped;
+	xrudpresult Reason;
+	uint64_t StartedUs, DeadlineUs, NextUs, Discarded;
+	uint32_t Attempts;
+	uint16_t RemoteError;
+	bool Fingerprint;
+} xrudpdiscoverystate;
+
+/* Caller-owned fixed storage. Initialize before use; single serialized owner.
+ * Underscore members are private, not a serialization or logging interface.
+ * No I/O, allocation or global clock. Randomness is needed only at Init.
+ * The object, I/O buffers and output counters must not overlap. */
+typedef struct xrudpdiscovery {
+	xrudpdiscoverystate State;
+	uint64_t _Now, _SendAt, _FinishAt;
+	unsigned char _Transaction[XRUDP_STUN_TRANSACTION_SIZE], _Request[28];
+	uint8_t _Size;
+	bool _Offered;
+} xrudpdiscovery;
+
+XRT_EXTERN_C_BEGIN
+/* A trusted application chooses Server, which must be a valid unicast address.
+ * Timeout=0 uses 39.5s; explicit 1000..60000ms is an absolute upper bound, not
+ * renewed by backpressure/noise/retransmission. Fingerprint mode requires it
+ * in responses; false permits absent but verifies any present fingerprint.
+ * Failure preserves the object. No credentials, redirect or DNS mechanism. */
+XRUDP_API xrudpresult xrtRudpDiscoveryInit(xrudpdiscovery* pDiscovery, const xrudpaddress* pServer,
+	uint64_t iNowUs, uint32_t iTimeoutMs, bool bFingerprint);
+/* Offers the same request until Sent confirms actual UDP admission. OK returns
+ * its bytes; TIMEOUT means pending and *pNextUs is a future useful deadline,
+ * or State.Reason=TIMEOUT for terminal expiry. Never consume attempts for
+ * local backpressure. Output counters zeroed; invalid calls preserve state. */
+XRUDP_API xrudpresult xrtRudpDiscoveryNext(xrudpdiscovery* pDiscovery, uint64_t iNowUs,
+	void* pOutput, size_t iCapacity, size_t* pWritten, uint64_t* pNextUs);
+XRUDP_API xrudpresult xrtRudpDiscoverySent(xrudpdiscovery* pDiscovery, uint64_t iNowUs);
+/* Only the exact configured source and random transaction may complete it,
+ * after at least one admitted request. Noise returns BACKPRESSURE; matched
+ * unsupported/remote-error responses terminate with PROTOCOL_MISMATCH. Bad
+ * framing, tags/fingerprint or missing required mapping cannot renew limits.
+ * Success gives DONE; no device authentication or reliable-session admission. */
+XRUDP_API xrudpresult xrtRudpDiscoveryInput(xrudpdiscovery* pDiscovery, const xrudpaddress* pSource,
+	const void* pData, size_t iSize, uint64_t iNowUs);
+XRUDP_API xrudpresult xrtRudpDiscoveryCancel(xrudpdiscovery* pDiscovery);
+XRUDP_API xrudpresult xrtRudpDiscoveryState(const xrudpdiscovery* pDiscovery, xrudpdiscoverystate* pState);
+XRT_EXTERN_C_END
 #endif
 #endif
 
@@ -605,17 +757,6 @@ XRT_EXTERN_C_END
 
 #define XRUDP_COOKIE_SIZE 40u
 #define XRUDP_COOKIE_MAX_AGE_US UINT64_C(30000000)
-
-/* API representation only; never memcpy this C structure onto the wire.
- * IPv4 uses Address[0..3] and twelve zero tail bytes, Zone=0.
- * IPv6 uses all 16 address bytes; Zone is the local interface scope ID.
- * Port/Zone are host-order. Unspecified and multicast addresses are rejected. */
-typedef struct xrudpaddress {
-	uint8_t Family; /* 4 or 6. */
-	uint16_t Port;
-	uint32_t Zone;
-	unsigned char Address[16];
-} xrudpaddress;
 
 XRT_EXTERN_C_BEGIN
 
@@ -2438,6 +2579,226 @@ xrudpresult xrtRudpReplayAccept(xrudpreplay* pWindow, uint64_t number)
 	distance = pWindow->Largest - number;
 	pWindow->Bits[distance / 64] |= (uint64_t)1 << (distance % 64);
 	return XRUDP_OK;
+}
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrudp/src/wire/rudp_stun.c */
+/* ========================================================================== */
+
+#if defined(XRUDP_FEATURE_RUDP_STUN)
+#include <string.h>
+
+static uint16_t xrudp__stun_u16(const unsigned char* p) { return (uint16_t)((uint16_t)p[0]<<8 | p[1]); }
+static uint32_t xrudp__stun_u32(const unsigned char* p) { return (uint32_t)p[0]<<24 | (uint32_t)p[1]<<16 | (uint32_t)p[2]<<8 | p[3]; }
+static void xrudp__stun_put16(unsigned char* p,uint16_t n) { p[0]=(unsigned char)(n>>8);p[1]=(unsigned char)n; }
+static void xrudp__stun_put32(unsigned char* p,uint32_t n) { for(size_t i=0;i<4;++i)p[i]=(unsigned char)(n>>(24-8*i)); }
+static bool xrudp__stun_address(const xrudpaddress* a)
+{
+	if(a==NULL || !a->Port || a->Zone)return false;
+	if(a->Family==4) {
+		if(!a->Address[0] || a->Address[0]>=224)return false;
+		for(size_t i=4;i<16;++i)if(a->Address[i])return false;
+		return true;
+	}
+	if(a->Family!=6 || a->Address[0]==255)return false;
+	unsigned char any=0;for(size_t i=0;i<16;++i)any|=a->Address[i];
+	if(!any || (a->Address[0]==254 && (a->Address[1]&192)==128))return false;
+	bool mapped=true;for(size_t i=0;i<10;++i)if(a->Address[i])mapped=false;
+	return !(mapped && a->Address[10]==255 && a->Address[11]==255);
+}
+static void xrudp__stun_header(unsigned char* p,uint16_t type,const void* transaction)
+{
+	memset(p,0,XRUDP_STUN_HEADER_SIZE);xrudp__stun_put16(p,type);
+	xrudp__stun_put32(p+4,UINT32_C(0x2112a442));memcpy(p+8,transaction,12);
+}
+static xrudpresult xrudp__stun_finish(unsigned char* p,size_t size,bool fingerprint,void* output,size_t capacity,size_t* written)
+{
+	size_t total=size+(fingerprint?8u:0u);
+	if(capacity<total)return XRUDP_LIMIT;
+	xrudp__stun_put16(p+2,(uint16_t)(total-20));
+	if(fingerprint) {
+		xrudp__stun_put16(p+size,0x8028);xrudp__stun_put16(p+size+2,4);
+		xrudp__stun_put32(p+size+4,xrtCrc32(p,size)^UINT32_C(0x5354554e));
+	}
+	memmove(output,p,total);*written=total;return XRUDP_OK;
+}
+xrudpresult xrtRudpStunRequest(const void* transaction,bool fingerprint,void* output,size_t capacity,size_t* written)
+{
+	if(written!=NULL)*written=0;
+	if(transaction==NULL || output==NULL || written==NULL)return XRUDP_ARGUMENT;
+	unsigned char p[28];xrudp__stun_header(p,XRUDP_STUN_BINDING_REQUEST,transaction);
+	return xrudp__stun_finish(p,20,fingerprint,output,capacity,written);
+}
+xrudpresult xrtRudpStunResponse(const void* transaction,const xrudpaddress* mapped,bool fingerprint,void* output,size_t capacity,size_t* written)
+{
+	if(written!=NULL)*written=0;
+	if(transaction==NULL || output==NULL || written==NULL || !xrudp__stun_address(mapped))return XRUDP_ARGUMENT;
+	unsigned char p[52];xrudp__stun_header(p,XRUDP_STUN_BINDING_SUCCESS,transaction);
+	size_t count=mapped->Family==4?4u:16u;
+	xrudp__stun_put16(p+20,0x0020);xrudp__stun_put16(p+22,(uint16_t)(count+4));
+	p[24]=0;p[25]=mapped->Family==4?1:2;xrudp__stun_put16(p+26,mapped->Port^0x2112);
+	for(size_t i=0;i<count;++i)p[28+i]=mapped->Address[i]^p[4+i];
+	return xrudp__stun_finish(p,28+count,fingerprint,output,capacity,written);
+}
+xrudpresult xrtRudpStunError(const void* transaction,uint16_t code,const uint16_t* unknown,size_t count,bool fingerprint,void* output,size_t capacity,size_t* written)
+{
+	if(written!=NULL)*written=0;
+	if(transaction==NULL || output==NULL || written==NULL || code<300 || code>699 || count>XRUDP_STUN_UNKNOWN_MAX ||
+		(code==420?(count==0 || unknown==NULL):(count!=0)))return XRUDP_ARGUMENT;
+	for(size_t i=0;i<count;++i)if(unknown[i]>=0x8000)return XRUDP_ARGUMENT;
+	unsigned char p[72];xrudp__stun_header(p,XRUDP_STUN_BINDING_ERROR,transaction);
+	xrudp__stun_put16(p+20,0x0009);xrudp__stun_put16(p+22,4);p[24]=p[25]=0;p[26]=(unsigned char)(code/100);p[27]=(unsigned char)(code%100);
+	size_t size=28;
+	if(count) {
+		xrudp__stun_put16(p+size,0x000a);xrudp__stun_put16(p+size+2,(uint16_t)(count*2));size+=4;
+		for(size_t i=0;i<count;++i)xrudp__stun_put16(p+size+i*2,unknown[i]);
+		size+=count*2;while(size%4)p[size++]=0;
+	}
+	return xrudp__stun_finish(p,size,fingerprint,output,capacity,written);
+}
+xrudpresult xrtRudpStunDecode(const void* data,size_t size,xrudpstunmessage* output)
+{
+	if(data==NULL || output==NULL)return XRUDP_ARGUMENT;
+	if(size>XRUDP_STUN_PACKET_MAX)return XRUDP_LIMIT;
+	if(size<20)return XRUDP_TRUNCATED;
+	const unsigned char* p=(const unsigned char*)data;uint16_t type=xrudp__stun_u16(p),length=xrudp__stun_u16(p+2);
+	if(xrudp__stun_u32(p+4)!=UINT32_C(0x2112a442) ||
+		(type!=XRUDP_STUN_BINDING_REQUEST && type!=XRUDP_STUN_BINDING_SUCCESS && type!=XRUDP_STUN_BINDING_ERROR))return XRUDP_PROTOCOL_MISMATCH;
+	if(length%4)return XRUDP_MALFORMED;
+	if((size_t)length>size-20)return XRUDP_TRUNCATED;
+	if((size_t)length!=size-20)return XRUDP_MALFORMED;
+	xrudpstunmessage result;memset(&result,0,sizeof(result));result.Type=type;memcpy(result.Transaction,p+8,12);
+	bool tail=false,error=false;size_t at=20;uint32_t attributes=0;
+	while(at<size) {
+		if(++attributes>XRUDP_STUN_ATTRIBUTES_MAX)return XRUDP_LIMIT;
+		if(size-at<4)return XRUDP_TRUNCATED;
+		uint16_t kind=xrudp__stun_u16(p+at),n=xrudp__stun_u16(p+at+2);size_t padded=((size_t)n+3)&~(size_t)3;
+		if(padded>size-at-4)return XRUDP_MALFORMED;
+		const unsigned char* value=p+at+4;
+		if(kind==0x8028) {
+			if(n!=4 || at+8!=size || result.Fingerprint || xrudp__stun_u32(value)!=(xrtCrc32(p,at)^UINT32_C(0x5354554e)))return XRUDP_MALFORMED;
+			result.Fingerprint=true;
+		} else if(kind==0x0008 || kind==0x001c) {
+			if(kind==0x0008?n!=20:(n<16 || n>32 || n%4))return XRUDP_MALFORMED;
+			result.Integrity=true;tail=true;
+		} else if(!tail) {
+			if(kind==0x0020 && !result.HasMapped) {
+				if(n!=8 && n!=20)return XRUDP_MALFORMED;
+				xrudpaddress a;memset(&a,0,sizeof(a));a.Family=value[1]==1?4:value[1]==2?6:0;
+				if(!a.Family)return XRUDP_PROTOCOL_MISMATCH;
+				if(n!=(a.Family==4?8:20))return XRUDP_MALFORMED;
+				a.Port=xrudp__stun_u16(value+2)^0x2112;
+				for(size_t i=0;i<(a.Family==4?4u:16u);++i)a.Address[i]=value[4+i]^p[4+i];
+				if(!xrudp__stun_address(&a))return XRUDP_MALFORMED;
+				result.Mapped=a;result.HasMapped=true;
+			} else if(kind==0x0009 && !error) {
+				if(n<4 || (value[2]&7)<3 || (value[2]&7)>6 || value[3]>99)return XRUDP_MALFORMED;
+				result.ErrorCode=(uint16_t)((value[2]&7)*100+value[3]);error=true;
+			} else if(kind==0x000a) {
+				if(n%2)return XRUDP_MALFORMED;
+			} else if(kind!=0x0020 && kind!=0x0009 && kind<0x8000) {
+				bool duplicate=false;for(uint8_t i=0;i<result.UnknownCount;++i)if(result.Unknown[i]==kind)duplicate=true;
+				if(!duplicate) { if(result.UnknownCount==XRUDP_STUN_UNKNOWN_MAX)return XRUDP_LIMIT;result.Unknown[result.UnknownCount++]=kind; }
+			}
+		}
+		at+=4+padded;
+	}
+	*output=result;return XRUDP_OK;
+}
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrudp/src/network/rudp_discovery.c */
+/* ========================================================================== */
+
+#if defined(XRUDP_FEATURE_RUDP_DISCOVERY)
+#include <string.h>
+
+static uint64_t xrudp__discovery_add(uint64_t a,uint64_t b) { return a>UINT64_MAX-b?UINT64_MAX:a+b; }
+static bool xrudp__discovery_address(const xrudpaddress* a)
+{
+	if(a==NULL || !a->Port)return false;
+	if(a->Family==4) { if(a->Zone || !a->Address[0] || a->Address[0]>=224)return false;for(size_t i=4;i<16;++i)if(a->Address[i])return false;return true; }
+	if(a->Family!=6 || a->Address[0]==255)return false;
+	unsigned char any=0;for(size_t i=0;i<16;++i)any|=a->Address[i];if(!any)return false;
+	if(a->Address[0]==254 && (a->Address[1]&192)==128 && !a->Zone)return false;
+	bool mapped=true;for(size_t i=0;i<10;++i)if(a->Address[i])mapped=false;
+	return !(mapped && a->Address[10]==255 && a->Address[11]==255);
+}
+static bool xrudp__discovery_equal(const xrudpaddress* a,const xrudpaddress* b)
+{ return a->Family==b->Family && a->Port==b->Port && a->Zone==b->Zone && memcmp(a->Address,b->Address,16)==0; }
+static xrudpresult xrudp__discovery_end(xrudpdiscovery* d,xrudpresult reason)
+{
+	d->State.Reason=reason;d->State.NextUs=UINT64_MAX;d->_Offered=false;
+	xrtSecureZero(d->_Transaction,sizeof(d->_Transaction));xrtSecureZero(d->_Request,sizeof(d->_Request));return reason;
+}
+static xrudpresult xrudp__discovery_clock(xrudpdiscovery* d,uint64_t now)
+{
+	d->_Now=now;if(d->State.Reason!=XRUDP_OK)return d->State.Reason;
+	if(now>=d->State.DeadlineUs || (d->_FinishAt && now>=d->_FinishAt))return xrudp__discovery_end(d,XRUDP_TIMEOUT);
+	return XRUDP_OK;
+}
+xrudpresult xrtRudpDiscoveryInit(xrudpdiscovery* d,const xrudpaddress* server,uint64_t now,uint32_t timeout,bool fingerprint)
+{
+	if(d==NULL || !xrudp__discovery_address(server) || (timeout && (timeout<1000 || timeout>60000)))return XRUDP_ARGUMENT;
+	xrudpdiscovery value;memset(&value,0,sizeof(value));value.State.Server=*server;value.State.StartedUs=now;value._Now=now;
+	value.State.DeadlineUs=xrudp__discovery_add(now,(uint64_t)(timeout?timeout:XRUDP_DISCOVERY_DEFAULT_TIMEOUT_MS)*1000);
+	value.State.NextUs=value._SendAt=now;value.State.Fingerprint=fingerprint;
+	if(!xrtSecureRandom(value._Transaction,sizeof(value._Transaction))) { xrtSecureZero(&value,sizeof(value));return XRUDP_IO_ERROR; }
+	size_t size;xrudpresult r=xrtRudpStunRequest(value._Transaction,fingerprint,value._Request,sizeof(value._Request),&size);
+	if(r==XRUDP_OK) { value._Size=(uint8_t)size;*d=value; }
+	xrtSecureZero(&value,sizeof(value));return r;
+}
+xrudpresult xrtRudpDiscoveryNext(xrudpdiscovery* d,uint64_t now,void* output,size_t capacity,size_t* written,uint64_t* next)
+{
+	if(written!=NULL)*written=0;
+	if(d==NULL || output==NULL || written==NULL || next==NULL || now<d->_Now)return XRUDP_ARGUMENT;
+	xrudpresult r=xrudp__discovery_clock(d,now);*next=d->State.NextUs;if(r!=XRUDP_OK)return r;
+	if(now<d->_SendAt || d->State.Attempts==XRUDP_DISCOVERY_ATTEMPTS_MAX)return XRUDP_TIMEOUT;
+	if(capacity<d->_Size)return XRUDP_LIMIT;
+	memmove(output,d->_Request,d->_Size);*written=d->_Size;d->_Offered=true;return XRUDP_OK;
+}
+xrudpresult xrtRudpDiscoverySent(xrudpdiscovery* d,uint64_t now)
+{
+	if(d==NULL || now<d->_Now || !d->_Offered)return XRUDP_ARGUMENT;
+	xrudpresult r=xrudp__discovery_clock(d,now);if(r!=XRUDP_OK)return r;
+	d->_Offered=false;++d->State.Attempts;
+	if(d->State.Attempts==XRUDP_DISCOVERY_ATTEMPTS_MAX) { d->_FinishAt=xrudp__discovery_add(now,8000000);d->_SendAt=UINT64_MAX; }
+	else d->_SendAt=xrudp__discovery_add(now,UINT64_C(500000)<<(d->State.Attempts-1));
+	uint64_t due=d->_FinishAt?d->_FinishAt:d->_SendAt;d->State.NextUs=due<d->State.DeadlineUs?due:d->State.DeadlineUs;return XRUDP_OK;
+}
+xrudpresult xrtRudpDiscoveryInput(xrudpdiscovery* d,const xrudpaddress* source,const void* data,size_t size,uint64_t now)
+{
+	if(d==NULL || source==NULL || data==NULL || now<d->_Now)return XRUDP_ARGUMENT;
+	xrudpresult r=xrudp__discovery_clock(d,now);if(r!=XRUDP_OK)return r;
+	if(!d->State.Attempts || !xrudp__discovery_equal(source,&d->State.Server) || size<20 || size>XRUDP_STUN_PACKET_MAX || memcmp((const unsigned char*)data+8,d->_Transaction,12)!=0)goto drop;
+	xrudpstunmessage message;if(xrtRudpStunDecode(data,size,&message)!=XRUDP_OK || (d->State.Fingerprint && !message.Fingerprint))goto drop;
+	if(message.Type!=XRUDP_STUN_BINDING_SUCCESS && message.Type!=XRUDP_STUN_BINDING_ERROR)goto drop;
+	if(message.Type==XRUDP_STUN_BINDING_ERROR && message.ErrorCode)d->State.RemoteError=message.ErrorCode;
+	if(message.UnknownCount || message.Integrity)return xrudp__discovery_end(d,XRUDP_PROTOCOL_MISMATCH);
+	if(message.Type==XRUDP_STUN_BINDING_ERROR) {
+		if(!message.ErrorCode)goto drop;
+		d->State.RemoteError=message.ErrorCode;return xrudp__discovery_end(d,XRUDP_PROTOCOL_MISMATCH);
+	}
+	if(!message.HasMapped)goto drop;
+	d->State.Mapped=message.Mapped;return xrudp__discovery_end(d,XRUDP_DONE);
+drop:
+	if(d->State.Discarded!=UINT64_MAX)++d->State.Discarded;
+	return XRUDP_BACKPRESSURE;
+}
+xrudpresult xrtRudpDiscoveryCancel(xrudpdiscovery* d)
+{
+	if(d==NULL)return XRUDP_ARGUMENT;
+	if(d->State.Reason!=XRUDP_OK)return XRUDP_DONE;
+	return xrudp__discovery_end(d,XRUDP_CANCELLED);
+}
+xrudpresult xrtRudpDiscoveryState(const xrudpdiscovery* d,xrudpdiscoverystate* state)
+{
+	if(d==NULL || state==NULL)return XRUDP_ARGUMENT;
+	*state=d->State;return XRUDP_OK;
 }
 #endif
 

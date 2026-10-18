@@ -187,6 +187,32 @@
 #endif
 #endif
 
+/* rudp_discovery 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_DISCOVERY)
+#ifndef XRUDP_FEATURE_RUDP_DISCOVERY
+#define XRUDP_FEATURE_RUDP_DISCOVERY
+#endif
+#ifndef XRUDP_MODULE_RUDP_STUN
+#define XRUDP_MODULE_RUDP_STUN
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
+#endif
+
+/* rudp_stun 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_STUN)
+#ifndef XRUDP_FEATURE_RUDP_STUN
+#define XRUDP_FEATURE_RUDP_STUN
+#endif
+#ifndef XRUDP_MODULE_RUDP_WIRE
+#define XRUDP_MODULE_RUDP_WIRE
+#endif
+#ifndef XRT_MODULE_CRC32
+#define XRT_MODULE_CRC32
+#endif
+#endif
+
 /* rudp_wire 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_WIRE)
 #ifndef XRUDP_FEATURE_RUDP_WIRE

@@ -82,6 +82,83 @@
       ]
     },
     {
+      "name": "rudp_stun",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_STUN",
+      "depends": [
+        "rudp_wire",
+        "crc32"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/stun.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/wire/rudp_stun.c"
+      ],
+      "tests": [
+        "extlibs/xrudp/tests/test_stun.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_stun.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md",
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
+      "name": "rudp_discovery",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_DISCOVERY",
+      "depends": [
+        "rudp_stun",
+        "random_secure"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/discovery.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrudp/src/network/rudp_discovery.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md",
+        "extlibs/xrudp/docs/implementation-status.md"
+      ],
+      "tests": [],
+      "single_tests": []
+    },
+    {
+      "name": "rudp_discovery_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_discovery",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_discovery.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_discovery.c",
+        "extlibs/xrudp/tests/single/test_single_discovery_entropy.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
       "name": "rudp_crypto",
       "state": "implemented",
       "feature": "XRUDP_FEATURE_RUDP_CRYPTO",

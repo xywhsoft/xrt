@@ -3,6 +3,8 @@
 
 #include <xrudp/features.h>
 #include <xrudp/wire.h>
+#include <xrudp/stun.h>
+#include <xrudp/discovery.h>
 #include <xrudp/crypto.h>
 #include <xrudp/noise.h>
 #include <xrudp/cookie.h>

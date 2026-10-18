@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `192` 个函数、`156` 个常量或宏、
-`67` 个公共类型。
+当前登记 `202` 个函数、`168` 个常量或宏、
+`70` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -151,6 +151,31 @@
 - `xrudpdatagrams`
 - `xrudpdatagramstate`
 - `xrudpdatagramview`
+
+## `extlibs/xrudp/include/xrudp/discovery.h`
+
+[查看带契约注释的公共头](../../include/xrudp/discovery.h)
+
+### 函数 (6)
+
+- `xrtRudpDiscoveryCancel`
+- `xrtRudpDiscoveryInit`
+- `xrtRudpDiscoveryInput`
+- `xrtRudpDiscoveryNext`
+- `xrtRudpDiscoverySent`
+- `xrtRudpDiscoveryState`
+
+### 常量与宏 (4)
+
+- `XRUDP_DISCOVERY_ATTEMPTS_MAX`
+- `XRUDP_DISCOVERY_DEFAULT_TIMEOUT_MS`
+- `XRUDP_FEATURE_RUDP_DISCOVERY`
+- `XRUDP_STUN_TRANSACTION_SIZE`
+
+### 类型 (2)
+
+- `xrudpdiscovery`
+- `xrudpdiscoverystate`
 
 ## `extlibs/xrudp/include/xrudp/endpoint.h`
 
@@ -495,6 +520,32 @@
 - `xrudpsessionsendproc`
 - `xrudpshutdownstate`
 - `xrudptransmitstate`
+
+## `extlibs/xrudp/include/xrudp/stun.h`
+
+[查看带契约注释的公共头](../../include/xrudp/stun.h)
+
+### 函数 (4)
+
+- `xrtRudpStunDecode`
+- `xrtRudpStunError`
+- `xrtRudpStunRequest`
+- `xrtRudpStunResponse`
+
+### 常量与宏 (8)
+
+- `XRUDP_FEATURE_RUDP_STUN`
+- `XRUDP_STUN_ATTRIBUTES_MAX`
+- `XRUDP_STUN_BINDING_ERROR`
+- `XRUDP_STUN_BINDING_REQUEST`
+- `XRUDP_STUN_BINDING_SUCCESS`
+- `XRUDP_STUN_HEADER_SIZE`
+- `XRUDP_STUN_PACKET_MAX`
+- `XRUDP_STUN_UNKNOWN_MAX`
+
+### 类型 (1)
+
+- `xrudpstunmessage`
 
 ## `extlibs/xrudp/include/xrudp/timing.h`
 

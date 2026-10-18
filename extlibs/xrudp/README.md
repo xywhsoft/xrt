@@ -53,6 +53,14 @@ Windows 另外组合 rudp_endpoint_iocp_tests，Linux 组合 rudp_endpoint_epoll
 Linux 的优化构建同时运行 ASan/UBSan。无优化构建通过不能代替发布优化编译检查。
 
 模块 rudp_wire 只依赖 core；rudp_crypto 增加 XRT ChaCha20-Poly1305。
+模块 rudp_stun 提供固定预算的 STUN Binding 编解码，复用 XRT CRC32，不需要密码握手依赖；
+rudp_discovery 增加安全随机事务及无 I/O 的发现状态机。它们只产生映射候选，不认证设备。
+DiscoveryInit 后反复 Next，只有 UDP 真正受理输出时才 Sent；背压重复取得相同请求，
+不能消耗次数或续期。Input 核对配置的精确来源和事务，State 为安全可公开的结果/期限快照。
+默认最多 7 次、500ms 起指数退避和有限末次等待；调用方可设置更早的绝对截止。
+Cancel/成功/终结错误擦除内部事务与请求。只读 State 不包含事务随机值。
+不跟随重定向，不处理凭据挑战；远端错误保留数值，不转存任意文本。原生同套接字接线和
+双机打洞协调仍待接入，不能把单独获得映射当成直连已建立。
 模块 rudp_noise 增加 X25519、HKDF-SHA256 与系统安全随机源。
 模块 rudp_handshake 提供固定协议的完整握手状态机；不自行创建套接字或执行应用请求。
 模块 rudp_endpoint 在调用方现有 XRT Engine Worker 上创建 IPv4 或 IPv6 UDP 端点，
