@@ -958,6 +958,26 @@ Windows 监测器每次采样创建 ctypes 结构会被全局指针类型缓存�
 旧长测观察器已取消，后续使用修正后的提交和新收据重新计时；这些是测试监测器修正，
 没有据此修改或宣称发现 xrudp 运行时缺陷。
 
+### 真实长稳起算
+
+当前以 `3445e4e3` 的完整来源与观察器起算，Windows Select/IOCP × IPv4/IPv6 四组，
+Linux 实机 Select/Epoll × IPv4/IPv6 四组均已建立同一对持续原生会话；尚在计时，未通过 72h。
+Windows 收据为 `out/xrudp-native-soak/windows-72h-r3-*/state.json`。所有更早的取消/失败
+时钟都排除，不累加。
+
+Linux 使用显卡服务器的独立私有目录，仅环回 UDP，无账号或模型调用。源快照来自主分支
+已提交的普通浅克隆，归档 SHA256 `14e8294a9cbe19feecf84935929322961bae22600f0681319e18e9298d3acba3`；
+运行时核心与缓存的已验证 SDK 原始字节相同。GCC11 实机四组二十五秒混合故障短测全部通过后
+才启动四个 `xrudp-soak-3445e4e3-{4,6}-{select,native}.service` 用户单元，每个限制 CPU 25%、
+内存 512 MiB、任务数 16、NoNewPrivileges，禁止自动重启；收据同时核对真实父/子 PID 与单元。
+对应启动证据为 `out/xrudp-native-soak/server-launch-3445.json`；远端状态在
+`/home/xs/.cache/xrudp-native-soak-3445e4e3-20261019/source/out/xrudp-native-soak/linux-72h-*/state.json`。
+启动前后网站 MainPID 均为 `3030721` 且 active，没有重启或替换网站，也未改账号、会话或计费数据。
+
+mdo 业务长测使用独立驱动和收据，须分别完成完整时长。观察器包含真实间断检测和固定资源上限；
+启动与短测成功不能替代最终排空、父/子退出结果和时长核验。独立控制帧/结构化模糊、Android
+实机和两个独立公网 NAT 等门槛继续保留。
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。
