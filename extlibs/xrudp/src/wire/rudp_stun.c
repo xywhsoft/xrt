@@ -43,6 +43,13 @@ xrudpresult xrtRudpStunRequest(const void* transaction,bool fingerprint,void* ou
 	unsigned char p[28];xrudp__stun_header(p,XRUDP_STUN_BINDING_REQUEST,transaction);
 	return xrudp__stun_finish(p,20,fingerprint,output,capacity,written);
 }
+xrudpresult xrtRudpStunIndication(const void* transaction,bool fingerprint,void* output,size_t capacity,size_t* written)
+{
+	if(written!=NULL)*written=0;
+	if(transaction==NULL || output==NULL || written==NULL)return XRUDP_ARGUMENT;
+	unsigned char p[28];xrudp__stun_header(p,XRUDP_STUN_BINDING_INDICATION,transaction);
+	return xrudp__stun_finish(p,20,fingerprint,output,capacity,written);
+}
 xrudpresult xrtRudpStunResponse(const void* transaction,const xrudpaddress* mapped,bool fingerprint,void* output,size_t capacity,size_t* written)
 {
 	if(written!=NULL)*written=0;
@@ -77,7 +84,7 @@ xrudpresult xrtRudpStunDecode(const void* data,size_t size,xrudpstunmessage* out
 	if(size<20)return XRUDP_TRUNCATED;
 	const unsigned char* p=(const unsigned char*)data;uint16_t type=xrudp__stun_u16(p),length=xrudp__stun_u16(p+2);
 	if(xrudp__stun_u32(p+4)!=UINT32_C(0x2112a442) ||
-		(type!=XRUDP_STUN_BINDING_REQUEST && type!=XRUDP_STUN_BINDING_SUCCESS && type!=XRUDP_STUN_BINDING_ERROR))return XRUDP_PROTOCOL_MISMATCH;
+		(type!=XRUDP_STUN_BINDING_REQUEST && type!=XRUDP_STUN_BINDING_INDICATION && type!=XRUDP_STUN_BINDING_SUCCESS && type!=XRUDP_STUN_BINDING_ERROR))return XRUDP_PROTOCOL_MISMATCH;
 	if(length%4)return XRUDP_MALFORMED;
 	if((size_t)length>size-20)return XRUDP_TRUNCATED;
 	if((size_t)length!=size-20)return XRUDP_MALFORMED;

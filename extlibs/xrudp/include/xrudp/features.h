@@ -190,6 +190,19 @@
 #endif
 #endif
 
+/* rudp_punch 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_PUNCH)
+#ifndef XRUDP_FEATURE_RUDP_PUNCH
+#define XRUDP_FEATURE_RUDP_PUNCH
+#endif
+#ifndef XRUDP_MODULE_RUDP_STUN
+#define XRUDP_MODULE_RUDP_STUN
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
+#endif
+
 /* rudp_discovery 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_DISCOVERY)
 #ifndef XRUDP_FEATURE_RUDP_DISCOVERY

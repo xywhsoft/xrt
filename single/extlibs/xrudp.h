@@ -247,6 +247,19 @@
 #endif
 #endif
 
+/* rudp_punch 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_PUNCH)
+#ifndef XRUDP_FEATURE_RUDP_PUNCH
+#define XRUDP_FEATURE_RUDP_PUNCH
+#endif
+#ifndef XRUDP_MODULE_RUDP_STUN
+#define XRUDP_MODULE_RUDP_STUN
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
+#endif
+
 /* rudp_discovery 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_DISCOVERY)
 #ifndef XRUDP_FEATURE_RUDP_DISCOVERY
@@ -471,6 +484,7 @@ XRT_EXTERN_C_END
 #define XRUDP_STUN_ATTRIBUTES_MAX 64u
 #define XRUDP_STUN_UNKNOWN_MAX 16u
 #define XRUDP_STUN_BINDING_REQUEST 0x0001u
+#define XRUDP_STUN_BINDING_INDICATION 0x0011u
 #define XRUDP_STUN_BINDING_SUCCESS 0x0101u
 #define XRUDP_STUN_BINDING_ERROR 0x0111u
 
@@ -489,11 +503,15 @@ typedef struct xrudpstunmessage {
 XRT_EXTERN_C_BEGIN
 /* Exact UDP framing, no allocation/I/O/randomness. FINGERPRINT, when present,
  * is checked and must be last. First mapped/error attribute wins. No classic
- * STUN, indications, redirects or credential verification. Failure preserves
+ * STUN, redirects or credential verification. Failure preserves
  * outputs; encode counters become zero. Input/output buffers may overlap, but
  * counters/views must not alias them. Mapping is only a candidate address. */
 XRUDP_API xrudpresult xrtRudpStunDecode(const void* pData, size_t iSize, xrudpstunmessage* pMessage);
 XRUDP_API xrudpresult xrtRudpStunRequest(const void* pTransaction, bool bFingerprint,
+	void* pOutput, size_t iCapacity, size_t* pWritten);
+/* Binding indication: no response, no reachability or identity evidence. Each
+ * admitted indication has a fresh transaction; it is not request retry. */
+XRUDP_API xrudpresult xrtRudpStunIndication(const void* pTransaction, bool bFingerprint,
 	void* pOutput, size_t iCapacity, size_t* pWritten);
 /* Mapped must be unicast/nonzero with nonzero port, Zone=0. The reflector
  * separately enforces source routing, request/response and rate budgets. */
@@ -568,6 +586,91 @@ XRUDP_API xrudpresult xrtRudpDiscoveryInput(xrudpdiscovery* pDiscovery, const xr
 	const void* pData, size_t iSize, uint64_t iNowUs);
 XRUDP_API xrudpresult xrtRudpDiscoveryCancel(xrudpdiscovery* pDiscovery);
 XRUDP_API xrudpresult xrtRudpDiscoveryState(const xrudpdiscovery* pDiscovery, xrudpdiscoverystate* pState);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/punch.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_PUNCH_H
+#define XRUDP_PUNCH_H
+#if defined(XRUDP_FEATURE_RUDP_PUNCH)
+
+#define XRUDP_PUNCH_CANDIDATES_MAX 8u
+#define XRUDP_PUNCH_INDICATIONS_MAX 6u
+#define XRUDP_PUNCH_DEFAULT_TIMEOUT_MS 8000u
+#define XRUDP_PUNCH_INTERVAL_US UINT64_C(50000)
+
+/* No connectivity or identity claim: DONE means this candidate's six local
+ * UDP admissions, not delivery. OK=pending; IO_ERROR disables just this
+ * candidate. Cancel/expiry finish remaining candidates without more output. */
+typedef struct xrudppunchcandidate {
+	xrudpaddress Address;
+	xrudpresult Reason;
+	uint32_t Sent;
+} xrudppunchcandidate;
+
+/* Safe to inspect/log; no transaction IDs. Reason DONE means all bursts were
+ * admitted; IO_ERROR means one or more destinations failed, after the others
+ * finished. Only authenticated Noise confirmation establishes the peer.
+ * NextUs includes global spacing and the absolute, nonrenewable deadline;
+ * it may already be due. The adapter must supply a nondecreasing clock. */
+typedef struct xrudppunchstate {
+	xrudppunchcandidate Candidates[XRUDP_PUNCH_CANDIDATES_MAX];
+	xrudpresult Reason;
+	uint32_t Count, Sent, Completed, Failed;
+	uint64_t StartedUs, DeadlineUs, NextUs;
+} xrudppunchstate;
+
+/* Caller-owned fixed storage, serialized owner. Init needs secure randomness;
+ * Next/Sent/Reject/Cancel/State do not allocate, perform I/O or need RNG.
+ * Underscore fields are private, not serialization/logging interfaces.
+ * Object, input addresses, I/O buffers and output views must not overlap. */
+typedef struct xrudppunch {
+	xrudppunchstate State;
+	uint64_t _Now, _SendAt, _Due[XRUDP_PUNCH_CANDIDATES_MAX];
+	unsigned char _Transactions[XRUDP_PUNCH_CANDIDATES_MAX][XRUDP_PUNCH_INDICATIONS_MAX][XRUDP_STUN_TRANSACTION_SIZE];
+	uint32_t _Cursor, _Offered;
+} xrudppunch;
+
+XRT_EXTERN_C_BEGIN
+/* Trusted application policy authorizes 1..8 distinct, valid unicast targets
+ * before Init. They cannot come from unauthenticated UDP input. No DNS,
+ * destination scanning/prediction or source-learned targets. Multiple address
+ * families are allowed only if the adapter routes each on its correct socket.
+ * Timeout=0 is 8s; explicit 1000..10000ms. Failure preserves the object.
+ * This outbound-only primitive opens NAT filters. It neither processes nor
+ * answers input and cannot replace account ACL, peer key/scope/context pins.
+ * The adapter MUST use the socket that receives the real handshake/business.
+ * Across jobs, additionally enforce one admitted indication per 50ms/socket. */
+XRUDP_API xrudpresult xrtRudpPunchInit(xrudppunch* pPunch, const xrudpaddress* pCandidates,
+	size_t iCount, uint64_t iNowUs, uint32_t iTimeoutMs);
+/* Fair round robin across due candidates. A successful offer repeats the
+ * same bytes/target/index until Sent/Reject; local backpressure consumes no
+ * indication or cursor. Fresh transaction for each admitted indication.
+ * Capacity >=28. Written is always zeroed; other outputs/state preserved for
+ * invalid arguments. TIMEOUT with State.Reason OK means wait until NextUs;
+ * terminal DONE/IO_ERROR/TIMEOUT/CANCELLED must be distinguished via State.
+ * Candidate index is valid only for the current offer in this generation.
+ * Calling Init invalidates old offers; adapters must drain sends first. */
+XRUDP_API xrudpresult xrtRudpPunchNext(xrudppunch* pPunch, uint64_t iNowUs,
+	void* pOutput, size_t iCapacity, size_t* pWritten, xrudpaddress* pTarget,
+	uint32_t* pIndex, uint64_t* pNextUs);
+/* Only after the exact offered datagram was admitted by UDP. Per-candidate
+ * gaps 200/400/800/1600/2000ms; no catch-up burst after scheduler delays.
+ * Consumed offers cannot be reused. Last admission may return DONE/IO_ERROR. */
+XRUDP_API xrudpresult xrtRudpPunchSent(xrudppunch* pPunch, uint32_t iIndex, uint64_t iNowUs);
+/* Hard route failure only; temporarily full/memory/AGAIN leaves the offer
+ * pending. Disables this destination, then fairly services the rest. Does
+ * not consume Sent or permit an earlier send by another candidate. */
+XRUDP_API xrudpresult xrtRudpPunchReject(xrudppunch* pPunch, uint32_t iIndex, uint64_t iNowUs);
+/* Cancel on real peer confirmation, relay fallback, ACL change or close.
+ * No inline callbacks; already terminal returns DONE. */
+XRUDP_API xrudpresult xrtRudpPunchCancel(xrudppunch* pPunch);
+XRUDP_API xrudpresult xrtRudpPunchState(const xrudppunch* pPunch, xrudppunchstate* pState);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -2659,6 +2762,13 @@ xrudpresult xrtRudpStunRequest(const void* transaction,bool fingerprint,void* ou
 	unsigned char p[28];xrudp__stun_header(p,XRUDP_STUN_BINDING_REQUEST,transaction);
 	return xrudp__stun_finish(p,20,fingerprint,output,capacity,written);
 }
+xrudpresult xrtRudpStunIndication(const void* transaction,bool fingerprint,void* output,size_t capacity,size_t* written)
+{
+	if(written!=NULL)*written=0;
+	if(transaction==NULL || output==NULL || written==NULL)return XRUDP_ARGUMENT;
+	unsigned char p[28];xrudp__stun_header(p,XRUDP_STUN_BINDING_INDICATION,transaction);
+	return xrudp__stun_finish(p,20,fingerprint,output,capacity,written);
+}
 xrudpresult xrtRudpStunResponse(const void* transaction,const xrudpaddress* mapped,bool fingerprint,void* output,size_t capacity,size_t* written)
 {
 	if(written!=NULL)*written=0;
@@ -2693,7 +2803,7 @@ xrudpresult xrtRudpStunDecode(const void* data,size_t size,xrudpstunmessage* out
 	if(size<20)return XRUDP_TRUNCATED;
 	const unsigned char* p=(const unsigned char*)data;uint16_t type=xrudp__stun_u16(p),length=xrudp__stun_u16(p+2);
 	if(xrudp__stun_u32(p+4)!=UINT32_C(0x2112a442) ||
-		(type!=XRUDP_STUN_BINDING_REQUEST && type!=XRUDP_STUN_BINDING_SUCCESS && type!=XRUDP_STUN_BINDING_ERROR))return XRUDP_PROTOCOL_MISMATCH;
+		(type!=XRUDP_STUN_BINDING_REQUEST && type!=XRUDP_STUN_BINDING_INDICATION && type!=XRUDP_STUN_BINDING_SUCCESS && type!=XRUDP_STUN_BINDING_ERROR))return XRUDP_PROTOCOL_MISMATCH;
 	if(length%4)return XRUDP_MALFORMED;
 	if((size_t)length>size-20)return XRUDP_TRUNCATED;
 	if((size_t)length!=size-20)return XRUDP_MALFORMED;
@@ -2827,6 +2937,126 @@ xrudpresult xrtRudpDiscoveryState(const xrudpdiscovery* d,xrudpdiscoverystate* s
 {
 	if(d==NULL || state==NULL)return XRUDP_ARGUMENT;
 	*state=d->State;return XRUDP_OK;
+}
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrudp/src/network/rudp_punch.c */
+/* ========================================================================== */
+
+#if defined(XRUDP_FEATURE_RUDP_PUNCH)
+#include <string.h>
+
+static uint64_t xrudp__punch_add(uint64_t a,uint64_t b) { return a>UINT64_MAX-b?UINT64_MAX:a+b; }
+static bool xrudp__punch_address(const xrudpaddress* a)
+{
+	if(!a->Port)return false;
+	if(a->Family==4) {
+		if(a->Zone || !a->Address[0] || a->Address[0]>=224)return false;
+		for(size_t i=4;i<16;++i)if(a->Address[i])return false;
+		return true;
+	}
+	if(a->Family!=6 || a->Address[0]==255)return false;
+	unsigned char any=0;for(size_t i=0;i<16;++i)any|=a->Address[i];if(!any)return false;
+	if(a->Address[0]==254 && (a->Address[1]&192)==128 && !a->Zone)return false;
+	bool mapped=true;for(size_t i=0;i<10;++i)if(a->Address[i])mapped=false;
+	return !(mapped && a->Address[10]==255 && a->Address[11]==255);
+}
+static bool xrudp__punch_equal(const xrudpaddress* a,const xrudpaddress* b)
+{ return a->Family==b->Family && a->Port==b->Port && a->Zone==b->Zone && memcmp(a->Address,b->Address,16)==0; }
+static bool xrudp__punch_valid(const xrudppunch* p)
+{ return p!=NULL && p->State.Count!=0 && p->State.Count<=XRUDP_PUNCH_CANDIDATES_MAX; }
+static xrudpresult xrudp__punch_end(xrudppunch* p,xrudpresult reason)
+{
+	for(uint32_t i=0;i<p->State.Count;++i)if(p->State.Candidates[i].Reason==XRUDP_OK)p->State.Candidates[i].Reason=reason;
+	p->State.Reason=reason;p->State.NextUs=UINT64_MAX;p->_Offered=XRUDP_PUNCH_CANDIDATES_MAX;
+	xrtSecureZero(p->_Transactions,sizeof(p->_Transactions));return reason;
+}
+static xrudpresult xrudp__punch_clock(xrudppunch* p,uint64_t now)
+{
+	p->_Now=now;if(p->State.Reason!=XRUDP_OK)return p->State.Reason;
+	if(now>=p->State.DeadlineUs)return xrudp__punch_end(p,XRUDP_TIMEOUT);
+	return XRUDP_OK;
+}
+static xrudpresult xrudp__punch_due(xrudppunch* p)
+{
+	if(p->State.Completed+p->State.Failed==p->State.Count)return xrudp__punch_end(p,p->State.Failed?XRUDP_IO_ERROR:XRUDP_DONE);
+	uint64_t due=p->State.DeadlineUs;
+	for(uint32_t i=0;i<p->State.Count;++i)if(p->State.Candidates[i].Reason==XRUDP_OK) {
+		uint64_t value=p->_Due[i]>p->_SendAt?p->_Due[i]:p->_SendAt;
+		if(value<due)due=value;
+	}
+	p->State.NextUs=due;return XRUDP_OK;
+}
+xrudpresult xrtRudpPunchInit(xrudppunch* p,const xrudpaddress* candidates,size_t count,uint64_t now,uint32_t timeout)
+{
+	if(p==NULL || candidates==NULL || !count || count>XRUDP_PUNCH_CANDIDATES_MAX || (timeout && (timeout<1000 || timeout>10000)))return XRUDP_ARGUMENT;
+	for(size_t i=0;i<count;++i) {
+		if(!xrudp__punch_address(&candidates[i]))return XRUDP_ARGUMENT;
+		for(size_t j=0;j<i;++j)if(xrudp__punch_equal(&candidates[i],&candidates[j]))return XRUDP_ARGUMENT;
+	}
+	xrudppunch value;memset(&value,0,sizeof(value));value.State.Count=(uint32_t)count;value.State.StartedUs=value._Now=now;
+	value.State.DeadlineUs=xrudp__punch_add(now,(uint64_t)(timeout?timeout:XRUDP_PUNCH_DEFAULT_TIMEOUT_MS)*1000);
+	value.State.NextUs=value._SendAt=now;value._Offered=XRUDP_PUNCH_CANDIDATES_MAX;
+	for(size_t i=0;i<count;++i) { value.State.Candidates[i].Address=candidates[i];value._Due[i]=now; }
+	if(!xrtSecureRandom(value._Transactions,count*sizeof(value._Transactions[0]))) {
+		xrtSecureZero(&value,sizeof(value));return XRUDP_IO_ERROR;
+	}
+	*p=value;xrtSecureZero(&value,sizeof(value));return XRUDP_OK;
+}
+xrudpresult xrtRudpPunchNext(xrudppunch* p,uint64_t now,void* output,size_t capacity,size_t* written,xrudpaddress* target,uint32_t* index,uint64_t* next)
+{
+	if(written!=NULL)*written=0;
+	if(!xrudp__punch_valid(p) || output==NULL || written==NULL || target==NULL || index==NULL || next==NULL || now<p->_Now)return XRUDP_ARGUMENT;
+	xrudpresult r=xrudp__punch_clock(p,now);*next=p->State.NextUs;if(r!=XRUDP_OK)return r;
+	if(now<p->State.NextUs)return XRUDP_TIMEOUT;
+	uint32_t chosen=p->_Offered;
+	if(chosen==XRUDP_PUNCH_CANDIDATES_MAX) {
+		for(uint32_t n=0;n<p->State.Count;++n) {
+			uint32_t i=(p->_Cursor+n)%p->State.Count;
+			if(p->State.Candidates[i].Reason==XRUDP_OK && p->_Due[i]<=now) { chosen=i;break; }
+		}
+	}
+	if(chosen==XRUDP_PUNCH_CANDIDATES_MAX)return XRUDP_TIMEOUT;
+	r=xrtRudpStunIndication(p->_Transactions[chosen][p->State.Candidates[chosen].Sent],true,output,capacity,written);
+	if(r!=XRUDP_OK)return r;
+	*target=p->State.Candidates[chosen].Address;*index=chosen;p->_Offered=chosen;return XRUDP_OK;
+}
+static xrudpresult xrudp__punch_admission(xrudppunch* p,uint32_t index,uint64_t now,bool sent)
+{
+	if(!xrudp__punch_valid(p) || now<p->_Now)return XRUDP_ARGUMENT;
+	if(p->State.Reason!=XRUDP_OK)return p->State.Reason;
+	if(index>=p->State.Count || p->_Offered!=index)return XRUDP_ARGUMENT;
+	xrudpresult r=xrudp__punch_clock(p,now);if(r!=XRUDP_OK)return r;
+	xrudppunchcandidate* c=&p->State.Candidates[index];p->_Offered=XRUDP_PUNCH_CANDIDATES_MAX;p->_Cursor=(index+1)%p->State.Count;
+	if(sent) {
+		xrtSecureZero(p->_Transactions[index][c->Sent],XRUDP_STUN_TRANSACTION_SIZE);++c->Sent;++p->State.Sent;
+		p->_SendAt=xrudp__punch_add(now,XRUDP_PUNCH_INTERVAL_US);
+		if(c->Sent==XRUDP_PUNCH_INDICATIONS_MAX) { c->Reason=XRUDP_DONE;++p->State.Completed; }
+		else {
+			uint64_t delay=UINT64_C(200000)<<(c->Sent-1);if(delay>2000000)delay=2000000;
+			p->_Due[index]=xrudp__punch_add(now,delay);
+		}
+	} else {
+		c->Reason=XRUDP_IO_ERROR;++p->State.Failed;xrtSecureZero(p->_Transactions[index],sizeof(p->_Transactions[index]));
+	}
+	return xrudp__punch_due(p);
+}
+xrudpresult xrtRudpPunchSent(xrudppunch* p,uint32_t index,uint64_t now)
+{ return xrudp__punch_admission(p,index,now,true); }
+xrudpresult xrtRudpPunchReject(xrudppunch* p,uint32_t index,uint64_t now)
+{ return xrudp__punch_admission(p,index,now,false); }
+xrudpresult xrtRudpPunchCancel(xrudppunch* p)
+{
+	if(!xrudp__punch_valid(p))return XRUDP_ARGUMENT;
+	if(p->State.Reason!=XRUDP_OK)return XRUDP_DONE;
+	return xrudp__punch_end(p,XRUDP_CANCELLED);
+}
+xrudpresult xrtRudpPunchState(const xrudppunch* p,xrudppunchstate* state)
+{
+	if(!xrudp__punch_valid(p) || state==NULL)return XRUDP_ARGUMENT;
+	*state=p->State;return XRUDP_OK;
 }
 #endif
 

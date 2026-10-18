@@ -1251,6 +1251,9 @@
 #if !defined(XRUDP_FEATURE_RUDP_NOISE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_NOISE 1
 #endif
+#if !defined(XRUDP_FEATURE_RUDP_PUNCH)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_PUNCH 1
+#endif
 #if !defined(XRUDP_FEATURE_RUDP_RECEIVE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_RECEIVE 1
 #endif
@@ -1304,6 +1307,9 @@
 #endif
 #if !defined(XRUDP_MODULE_RUDP_NOISE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_NOISE 1
+#endif
+#if !defined(XRUDP_MODULE_RUDP_PUNCH)
+#define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_PUNCH 1
 #endif
 #if !defined(XRUDP_MODULE_RUDP_RECEIVE)
 #define XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_RECEIVE 1
@@ -2692,6 +2698,19 @@
 #endif
 #endif
 
+/* rudp_punch 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_PUNCH)
+#ifndef XRUDP_FEATURE_RUDP_PUNCH
+#define XRUDP_FEATURE_RUDP_PUNCH
+#endif
+#ifndef XRUDP_MODULE_RUDP_STUN
+#define XRUDP_MODULE_RUDP_STUN
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
+#endif
+#endif
+
 /* rudp_discovery 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_DISCOVERY)
 #ifndef XRUDP_FEATURE_RUDP_DISCOVERY
@@ -2916,6 +2935,7 @@ XRT_EXTERN_C_END
 #define XRUDP_STUN_ATTRIBUTES_MAX 64u
 #define XRUDP_STUN_UNKNOWN_MAX 16u
 #define XRUDP_STUN_BINDING_REQUEST 0x0001u
+#define XRUDP_STUN_BINDING_INDICATION 0x0011u
 #define XRUDP_STUN_BINDING_SUCCESS 0x0101u
 #define XRUDP_STUN_BINDING_ERROR 0x0111u
 
@@ -2934,11 +2954,15 @@ typedef struct xrudpstunmessage {
 XRT_EXTERN_C_BEGIN
 /* Exact UDP framing, no allocation/I/O/randomness. FINGERPRINT, when present,
  * is checked and must be last. First mapped/error attribute wins. No classic
- * STUN, indications, redirects or credential verification. Failure preserves
+ * STUN, redirects or credential verification. Failure preserves
  * outputs; encode counters become zero. Input/output buffers may overlap, but
  * counters/views must not alias them. Mapping is only a candidate address. */
 XRUDP_API xrudpresult xrtRudpStunDecode(const void* pData, size_t iSize, xrudpstunmessage* pMessage);
 XRUDP_API xrudpresult xrtRudpStunRequest(const void* pTransaction, bool bFingerprint,
+	void* pOutput, size_t iCapacity, size_t* pWritten);
+/* Binding indication: no response, no reachability or identity evidence. Each
+ * admitted indication has a fresh transaction; it is not request retry. */
+XRUDP_API xrudpresult xrtRudpStunIndication(const void* pTransaction, bool bFingerprint,
 	void* pOutput, size_t iCapacity, size_t* pWritten);
 /* Mapped must be unicast/nonzero with nonzero port, Zone=0. The reflector
  * separately enforces source routing, request/response and rate budgets. */
@@ -3013,6 +3037,91 @@ XRUDP_API xrudpresult xrtRudpDiscoveryInput(xrudpdiscovery* pDiscovery, const xr
 	const void* pData, size_t iSize, uint64_t iNowUs);
 XRUDP_API xrudpresult xrtRudpDiscoveryCancel(xrudpdiscovery* pDiscovery);
 XRUDP_API xrudpresult xrtRudpDiscoveryState(const xrudpdiscovery* pDiscovery, xrudpdiscoverystate* pState);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrudp/include/xrudp/punch.h */
+/* ========================================================================== */
+
+#ifndef XRUDP_PUNCH_H
+#define XRUDP_PUNCH_H
+#if defined(XRUDP_FEATURE_RUDP_PUNCH)
+
+#define XRUDP_PUNCH_CANDIDATES_MAX 8u
+#define XRUDP_PUNCH_INDICATIONS_MAX 6u
+#define XRUDP_PUNCH_DEFAULT_TIMEOUT_MS 8000u
+#define XRUDP_PUNCH_INTERVAL_US UINT64_C(50000)
+
+/* No connectivity or identity claim: DONE means this candidate's six local
+ * UDP admissions, not delivery. OK=pending; IO_ERROR disables just this
+ * candidate. Cancel/expiry finish remaining candidates without more output. */
+typedef struct xrudppunchcandidate {
+	xrudpaddress Address;
+	xrudpresult Reason;
+	uint32_t Sent;
+} xrudppunchcandidate;
+
+/* Safe to inspect/log; no transaction IDs. Reason DONE means all bursts were
+ * admitted; IO_ERROR means one or more destinations failed, after the others
+ * finished. Only authenticated Noise confirmation establishes the peer.
+ * NextUs includes global spacing and the absolute, nonrenewable deadline;
+ * it may already be due. The adapter must supply a nondecreasing clock. */
+typedef struct xrudppunchstate {
+	xrudppunchcandidate Candidates[XRUDP_PUNCH_CANDIDATES_MAX];
+	xrudpresult Reason;
+	uint32_t Count, Sent, Completed, Failed;
+	uint64_t StartedUs, DeadlineUs, NextUs;
+} xrudppunchstate;
+
+/* Caller-owned fixed storage, serialized owner. Init needs secure randomness;
+ * Next/Sent/Reject/Cancel/State do not allocate, perform I/O or need RNG.
+ * Underscore fields are private, not serialization/logging interfaces.
+ * Object, input addresses, I/O buffers and output views must not overlap. */
+typedef struct xrudppunch {
+	xrudppunchstate State;
+	uint64_t _Now, _SendAt, _Due[XRUDP_PUNCH_CANDIDATES_MAX];
+	unsigned char _Transactions[XRUDP_PUNCH_CANDIDATES_MAX][XRUDP_PUNCH_INDICATIONS_MAX][XRUDP_STUN_TRANSACTION_SIZE];
+	uint32_t _Cursor, _Offered;
+} xrudppunch;
+
+XRT_EXTERN_C_BEGIN
+/* Trusted application policy authorizes 1..8 distinct, valid unicast targets
+ * before Init. They cannot come from unauthenticated UDP input. No DNS,
+ * destination scanning/prediction or source-learned targets. Multiple address
+ * families are allowed only if the adapter routes each on its correct socket.
+ * Timeout=0 is 8s; explicit 1000..10000ms. Failure preserves the object.
+ * This outbound-only primitive opens NAT filters. It neither processes nor
+ * answers input and cannot replace account ACL, peer key/scope/context pins.
+ * The adapter MUST use the socket that receives the real handshake/business.
+ * Across jobs, additionally enforce one admitted indication per 50ms/socket. */
+XRUDP_API xrudpresult xrtRudpPunchInit(xrudppunch* pPunch, const xrudpaddress* pCandidates,
+	size_t iCount, uint64_t iNowUs, uint32_t iTimeoutMs);
+/* Fair round robin across due candidates. A successful offer repeats the
+ * same bytes/target/index until Sent/Reject; local backpressure consumes no
+ * indication or cursor. Fresh transaction for each admitted indication.
+ * Capacity >=28. Written is always zeroed; other outputs/state preserved for
+ * invalid arguments. TIMEOUT with State.Reason OK means wait until NextUs;
+ * terminal DONE/IO_ERROR/TIMEOUT/CANCELLED must be distinguished via State.
+ * Candidate index is valid only for the current offer in this generation.
+ * Calling Init invalidates old offers; adapters must drain sends first. */
+XRUDP_API xrudpresult xrtRudpPunchNext(xrudppunch* pPunch, uint64_t iNowUs,
+	void* pOutput, size_t iCapacity, size_t* pWritten, xrudpaddress* pTarget,
+	uint32_t* pIndex, uint64_t* pNextUs);
+/* Only after the exact offered datagram was admitted by UDP. Per-candidate
+ * gaps 200/400/800/1600/2000ms; no catch-up burst after scheduler delays.
+ * Consumed offers cannot be reused. Last admission may return DONE/IO_ERROR. */
+XRUDP_API xrudpresult xrtRudpPunchSent(xrudppunch* pPunch, uint32_t iIndex, uint64_t iNowUs);
+/* Hard route failure only; temporarily full/memory/AGAIN leaves the offer
+ * pending. Disables this destination, then fairly services the rest. Does
+ * not consume Sent or permit an earlier send by another candidate. */
+XRUDP_API xrudpresult xrtRudpPunchReject(xrudppunch* pPunch, uint32_t iIndex, uint64_t iNowUs);
+/* Cancel on real peer confirmation, relay fallback, ACL change or close.
+ * No inline callbacks; already terminal returns DONE. */
+XRUDP_API xrudpresult xrtRudpPunchCancel(xrudppunch* pPunch);
+XRUDP_API xrudpresult xrtRudpPunchState(const xrudppunch* pPunch, xrudppunchstate* pState);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -6279,6 +6388,10 @@ XRT_EXTERN_C_END
 #undef XRUDP_FEATURE_RUDP_NOISE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_NOISE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_PUNCH)
+#undef XRUDP_FEATURE_RUDP_PUNCH
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_PUNCH
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_RECEIVE)
 #undef XRUDP_FEATURE_RUDP_RECEIVE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_FEATURE_RUDP_RECEIVE
@@ -6350,6 +6463,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_NOISE)
 #undef XRUDP_MODULE_RUDP_NOISE
 #undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_NOISE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_PUNCH)
+#undef XRUDP_MODULE_RUDP_PUNCH
+#undef XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_PUNCH
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRUDP_MODULE_RUDP_RECEIVE)
 #undef XRUDP_MODULE_RUDP_RECEIVE
@@ -6579,6 +6696,19 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_CRYPTO_CHACHA20_POLY1305
 #define XRT_MODULE_CRYPTO_CHACHA20_POLY1305
+#endif
+#endif
+
+/* rudp_punch 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_PUNCH)
+#ifndef XRUDP_FEATURE_RUDP_PUNCH
+#define XRUDP_FEATURE_RUDP_PUNCH
+#endif
+#ifndef XRUDP_MODULE_RUDP_STUN
+#define XRUDP_MODULE_RUDP_STUN
+#endif
+#ifndef XRT_MODULE_RANDOM_SECURE
+#define XRT_MODULE_RANDOM_SECURE
 #endif
 #endif
 

@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `204` 个函数、`169` 个常量或宏、
-`71` 个公共类型。
+当前登记 `211` 个函数、`175` 个常量或宏、
+`74` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -374,6 +374,33 @@
 - `xrudpnoiseconfig`
 - `xrudpnoiseinfo`
 
+## `extlibs/xrudp/include/xrudp/punch.h`
+
+[查看带契约注释的公共头](../../include/xrudp/punch.h)
+
+### 函数 (6)
+
+- `xrtRudpPunchCancel`
+- `xrtRudpPunchInit`
+- `xrtRudpPunchNext`
+- `xrtRudpPunchReject`
+- `xrtRudpPunchSent`
+- `xrtRudpPunchState`
+
+### 常量与宏 (5)
+
+- `XRUDP_FEATURE_RUDP_PUNCH`
+- `XRUDP_PUNCH_CANDIDATES_MAX`
+- `XRUDP_PUNCH_DEFAULT_TIMEOUT_MS`
+- `XRUDP_PUNCH_INDICATIONS_MAX`
+- `XRUDP_PUNCH_INTERVAL_US`
+
+### 类型 (3)
+
+- `xrudppunch`
+- `xrudppunchcandidate`
+- `xrudppunchstate`
+
 ## `extlibs/xrudp/include/xrudp/receive.h`
 
 [查看带契约注释的公共头](../../include/xrudp/receive.h)
@@ -529,18 +556,20 @@
 
 [查看带契约注释的公共头](../../include/xrudp/stun.h)
 
-### 函数 (4)
+### 函数 (5)
 
 - `xrtRudpStunDecode`
 - `xrtRudpStunError`
+- `xrtRudpStunIndication`
 - `xrtRudpStunRequest`
 - `xrtRudpStunResponse`
 
-### 常量与宏 (8)
+### 常量与宏 (9)
 
 - `XRUDP_FEATURE_RUDP_STUN`
 - `XRUDP_STUN_ATTRIBUTES_MAX`
 - `XRUDP_STUN_BINDING_ERROR`
+- `XRUDP_STUN_BINDING_INDICATION`
 - `XRUDP_STUN_BINDING_REQUEST`
 - `XRUDP_STUN_BINDING_SUCCESS`
 - `XRUDP_STUN_HEADER_SIZE`

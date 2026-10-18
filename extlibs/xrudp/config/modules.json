@@ -159,6 +159,33 @@
       ]
     },
     {
+      "name": "rudp_punch",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_PUNCH",
+      "depends": ["rudp_stun", "random_secure"],
+      "public_headers": ["extlibs/xrudp/include/xrudp/punch.h"],
+      "internal_headers": [],
+      "sources": ["extlibs/xrudp/src/network/rudp_punch.c"],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": ["extlibs/xrudp/README.md", "extlibs/xrudp/docs/protocol.md", "extlibs/xrudp/docs/implementation-status.md"]
+    },
+    {
+      "name": "rudp_punch_tests",
+      "state": "implemented",
+      "depends": ["rudp_punch", "memory_debug"],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": ["extlibs/xrudp/tests/test_punch.c"],
+      "single_tests": ["extlibs/xrudp/tests/single/test_single_punch.c", "extlibs/xrudp/tests/single/test_single_punch_entropy.c"],
+      "examples": [],
+      "benchmarks": [],
+      "docs": ["extlibs/xrudp/docs/implementation-status.md"]
+    },
+    {
       "name": "rudp_crypto",
       "state": "implemented",
       "feature": "XRUDP_FEATURE_RUDP_CRYPTO",

@@ -48,10 +48,13 @@ static int input(void)
 		CHECK(xrtRudpDiscoveryInput(&d,&other,response,n,1000)==XRUDP_BACKPRESSURE);
 		response[8]^=1;CHECK(xrtRudpDiscoveryInput(&d,&server,response,n,1000)==XRUDP_BACKPRESSURE);response[8]^=1;
 		response[n-1]^=1;CHECK(xrtRudpDiscoveryInput(&d,&server,response,n,1000)==XRUDP_BACKPRESSURE);response[n-1]^=1;
-		CHECK(d.State.Attempts==1 && d.State.DeadlineUs==10000000 && d.State.Discarded==4);
+		/* Even a matching indication isn't a discovery response or proof. */
+		CHECK(xrtRudpStunIndication(m.Transaction,true,p,sizeof(p),&n)==XRUDP_OK && xrtRudpDiscoveryInput(&d,&server,p,n,1000)==XRUDP_BACKPRESSURE && d.State.Reason==XRUDP_OK);
+		CHECK(xrtRudpStunResponse(m.Transaction,&mapped,true,response,sizeof(response),&n)==XRUDP_OK);
+		CHECK(d.State.Attempts==1 && d.State.DeadlineUs==10000000 && d.State.Discarded==5);
 		if(mode==0) {
 			CHECK(xrtRudpDiscoveryInput(&d,&server,response,n,2000)==XRUDP_DONE && d.State.Reason==XRUDP_DONE && d.State.Mapped.Port==mapped.Port);
-			CHECK(xrtRudpDiscoveryInput(&d,&server,response,n,3000)==XRUDP_DONE && d.State.Discarded==4);
+			CHECK(xrtRudpDiscoveryInput(&d,&server,response,n,3000)==XRUDP_DONE && d.State.Discarded==5);
 		} else if(mode==1) {
 			CHECK(xrtRudpStunError(m.Transaction,500,NULL,0,true,response,sizeof(response),&n)==XRUDP_OK && xrtRudpDiscoveryInput(&d,&server,response,n,2000)==XRUDP_PROTOCOL_MISMATCH && d.State.RemoteError==500);
 		} else if(mode==2) {
