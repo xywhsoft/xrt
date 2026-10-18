@@ -1101,9 +1101,15 @@
 			"tests": [
 				"tests/concurrency/test_channel_subscribe.c",
 				"tests/concurrency/test_channel_subscribe_threads.c",
-				"tests/concurrency/test_channel_subscribe_oom.c"
+				"tests/concurrency/test_channel_subscribe_oom.c",
+				"tests/concurrency/test_channel_subscribe_ownership.c",
+				"tests/concurrency/test_channel_subscribe_pairs.c",
+				"tests/concurrency/test_channel_select_fifo.c"
 			],
-			"single_tests": ["tests/single/test_single_channel_subscribe.c"],
+			"single_tests": [
+				"tests/single/test_single_channel_subscribe.c",
+				"tests/single/test_single_channel_subscribe_owned.c"
+			],
 			"examples": [],
 			"docs": ["docs/api/channel.md"]
 		},

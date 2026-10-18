@@ -28,6 +28,23 @@ static void __xrtChannelSelectNotifyLocked(xrt_channel_impl* pImpl,
 	pSelect->Wake(pSelect->WakeData);
 }
 
+/* A rendezvous candidate whose state was temporarily CLAIMING becomes
+ * eligible again on abort. Wake only opposite, different selections; waking
+ * self/same-operation idle cases would turn an empty wait into a busy loop. */
+static void __xrtChannelSelectNotifyPeersLocked(xrt_channel_impl* pImpl,
+	const xrt_channel_select_waiter* pChanged)
+{
+	xrt_channel_select_waiter* pOther=pChanged->Operation==XCHANNEL_OP_RECV ?
+		pImpl->SelectSendWaiters : pImpl->SelectWaiters;
+	xrt_channel_select_waiter* pFirst=pOther;
+	if(!pOther || pOther->Operation==pChanged->Operation) return;
+	do {
+		if(pOther->Select!=pChanged->Select)
+			__xrtChannelSelectNotifyLocked(pImpl,pOther->Select);
+		pOther=pOther->Next;
+	} while(pOther!=pFirst && pOther->Operation!=pChanged->Operation);
+}
+
 
 
 /* 构造一个没有 case 被选中的结果。 */
@@ -305,20 +322,35 @@ bool __xrtChannelSelectRegister(
 )
 {
 	xrt_channel_impl* pImpl = __xrtChannelLock(pWaiter->Channel);
-	xrt_channel_select_waiter** ppLink;
+	xrt_channel_select_waiter* pBefore;
 
 	if ( pImpl == NULL ) {
 		return false;
 	}
-	ppLink = &pImpl->SelectWaiters;
-	while ( *ppLink != NULL ) {
-		ppLink = &(*ppLink)->Next;
+	if ( pImpl->SelectWaiters == NULL ) {
+		pWaiter->Next = pWaiter;
+		pWaiter->Previous = pWaiter;
+		pImpl->SelectWaiters = pWaiter;
+	} else {
+		pBefore = pWaiter->Operation == XCHANNEL_OP_RECV && pImpl->SelectSendWaiters ?
+			pImpl->SelectSendWaiters : pImpl->SelectWaiters;
+		pWaiter->Next = pBefore;
+		pWaiter->Previous = pBefore->Previous;
+		pBefore->Previous->Next = pWaiter;
+		pBefore->Previous = pWaiter;
+		if ( pWaiter->Operation == XCHANNEL_OP_RECV &&
+			pImpl->SelectWaiters == pImpl->SelectSendWaiters )
+			pImpl->SelectWaiters = pWaiter;
 	}
-	*ppLink = pWaiter;
+	if ( pWaiter->Operation == XCHANNEL_OP_SEND && !pImpl->SelectSendWaiters )
+		pImpl->SelectSendWaiters = pWaiter;
 	pWaiter->Registered = true;
 
-	/* 新的对端 case 可能让另一个无缓冲 Select 立即可提交。 */
-	__xrtChannelNotifySelectLocked(pImpl);
+	/* Registration changes no buffered readiness. Only the opposite rendezvous
+	 * segment can gain a peer: never rescan/wake N same-direction idle cases. */
+	if ( pImpl->Capacity == 0 ) {
+		__xrtChannelSelectNotifyPeersLocked(pImpl,pWaiter);
+	}
 	__xrtChannelUnlock(pImpl);
 	return true;
 }
@@ -331,7 +363,6 @@ static void __xrtChannelSelectUnregister(
 )
 {
 	xrt_channel_impl* pImpl;
-	xrt_channel_select_waiter** ppLink;
 
 	if ( !pWaiter->Registered ) {
 		return;
@@ -340,16 +371,22 @@ static void __xrtChannelSelectUnregister(
 	if ( pImpl == NULL ) {
 		return;
 	}
-	ppLink = &pImpl->SelectWaiters;
-	while ( (*ppLink != NULL) && (*ppLink != pWaiter) ) {
-		ppLink = &(*ppLink)->Next;
+	if ( pWaiter->Next == pWaiter ) {
+		pImpl->SelectWaiters = NULL;
+		pImpl->SelectSendWaiters = NULL;
+	} else {
+		if ( pImpl->SelectWaiters == pWaiter ) pImpl->SelectWaiters = pWaiter->Next;
+		if ( pImpl->SelectSendWaiters == pWaiter )
+			pImpl->SelectSendWaiters = pWaiter->Next->Operation == XCHANNEL_OP_SEND ?
+				pWaiter->Next : NULL;
+		pWaiter->Previous->Next = pWaiter->Next;
+		pWaiter->Next->Previous = pWaiter->Previous;
 	}
-	if ( *ppLink == pWaiter ) {
-		*ppLink = pWaiter->Next;
-		pWaiter->Next = NULL;
-		pWaiter->Registered = false;
-		__xrtChannelNotifySelectLocked(pImpl);
-	}
+	pWaiter->Next = NULL;
+	pWaiter->Previous = NULL;
+	pWaiter->Registered = false;
+	/* Removing an unavailable/terminal case cannot create readiness. A committed
+	 * transfer already delivered its state-change notification under the lock. */
 	__xrtChannelUnlock(pImpl);
 }
 
@@ -675,10 +712,11 @@ void __xrtChannelNotifySelectLocked(xrt_channel_impl* pImpl)
 		return;
 	}
 	pWaiter = pImpl->SelectWaiters;
-	while ( pWaiter != NULL ) {
+	if ( pWaiter == NULL ) return;
+	do {
 		__xrtChannelSelectNotifyLocked(pImpl,pWaiter->Select);
 		pWaiter = pWaiter->Next;
-	}
+	} while ( pWaiter != pImpl->SelectWaiters );
 }
 
 
@@ -726,6 +764,7 @@ void __xrtChannelSelectAbort(xrt_channel_select_waiter* pWaiter)
 		XRT_CHANNEL_SELECT_NONE,
 		XMEMORY_RELEASE
 	);
+	__xrtChannelSelectNotifyPeersLocked((xrt_channel_impl*)pWaiter->Channel,pWaiter);
 }
 
 

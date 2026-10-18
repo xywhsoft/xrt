@@ -325,7 +325,6 @@ static bool __xrtChannelOffer(
 	} else {
 		pImpl->Flags &= ~XRT_CHANNEL_FLAG_COMMITTED;
 	}
-	pImpl->Epoch++;
 	(void)xrtCondSignal(&pImpl->Readable);
 	#if defined(XRT_INTERNAL_CHANNEL_WAIT)
 		__xrtChannelNotifySelectLocked(pImpl);
@@ -346,7 +345,6 @@ static void __xrtChannelTakePending(
 	pImpl->CompletedGeneration = pImpl->NextGeneration;
 	pImpl->Flags &=
 		~(XRT_CHANNEL_FLAG_PENDING | XRT_CHANNEL_FLAG_COMMITTED);
-	pImpl->Epoch++;
 
 	/* 同时唤醒值的发送者和等待发布下一个值的发送者。 */
 	(void)xrtCondBroadcast(&pImpl->Writable);
@@ -363,7 +361,6 @@ static void __xrtChannelWithdraw(xrt_channel_impl* pImpl)
 	pImpl->Pending = NULL;
 	pImpl->Flags &=
 		~(XRT_CHANNEL_FLAG_PENDING | XRT_CHANNEL_FLAG_COMMITTED);
-	pImpl->Epoch++;
 	(void)xrtCondBroadcast(&pImpl->Writable);
 	#if defined(XRT_INTERNAL_CHANNEL_WAIT)
 		__xrtChannelNotifySelectLocked(pImpl);
@@ -382,7 +379,8 @@ static bool __xrtChannelMatchSelectRecvLocked(
 {
 	xrt_channel_select_waiter* pWaiter = pImpl->SelectWaiters;
 
-	while ( pWaiter != NULL ) {
+	if ( pWaiter == NULL || pWaiter->Operation != XCHANNEL_OP_RECV ) return false;
+	do {
 		if (
 			(pWaiter->Operation == XCHANNEL_OP_RECV) &&
 			__xrtChannelSelectClaim(pWaiter)
@@ -392,7 +390,7 @@ static bool __xrtChannelMatchSelectRecvLocked(
 			return true;
 		}
 		pWaiter = pWaiter->Next;
-	}
+	} while ( pWaiter != pImpl->SelectWaiters && pWaiter->Operation == XCHANNEL_OP_RECV );
 	return false;
 }
 
@@ -404,9 +402,10 @@ static bool __xrtChannelMatchSelectSendLocked(
 	ptr* pItem
 )
 {
-	xrt_channel_select_waiter* pWaiter = pImpl->SelectWaiters;
+	xrt_channel_select_waiter* pWaiter = pImpl->SelectSendWaiters;
 
-	while ( pWaiter != NULL ) {
+	if ( pWaiter == NULL ) return false;
+	do {
 		if (
 			(pWaiter->Operation == XCHANNEL_OP_SEND) &&
 			__xrtChannelSelectClaim(pWaiter)
@@ -416,7 +415,7 @@ static bool __xrtChannelMatchSelectSendLocked(
 			return true;
 		}
 		pWaiter = pWaiter->Next;
-	}
+	} while ( pWaiter != pImpl->SelectSendWaiters && pWaiter->Operation == XCHANNEL_OP_SEND );
 	return false;
 }
 
@@ -447,7 +446,6 @@ xchannelresult __xrtChannelTrySendLocked(
 		}
 		#if defined(XRT_INTERNAL_CHANNEL_WAIT)
 			if ( __xrtChannelMatchSelectRecvLocked(pImpl, pItem) ) {
-				pImpl->Epoch++;
 				__xrtChannelNotifySelectLocked(pImpl);
 				return XCHANNEL_OK;
 			}
@@ -462,7 +460,6 @@ xchannelresult __xrtChannelTrySendLocked(
 	pImpl->Items[pImpl->Tail] = pItem;
 	pImpl->Tail = __xrtChannelNext(pImpl->Tail, pImpl->Capacity);
 	pImpl->Count++;
-	pImpl->Epoch++;
 	(void)xrtCondSignal(&pImpl->Readable);
 	#if defined(XRT_INTERNAL_CHANNEL_WAIT)
 		__xrtChannelNotifySelectLocked(pImpl);
@@ -490,7 +487,6 @@ xchannelresult __xrtChannelTryRecvLocked(
 			(pImpl->Capacity == 0) &&
 			__xrtChannelMatchSelectSendLocked(pImpl, pItem)
 		) {
-			pImpl->Epoch++;
 			__xrtChannelNotifySelectLocked(pImpl);
 			return XCHANNEL_OK;
 		}
@@ -500,7 +496,6 @@ xchannelresult __xrtChannelTryRecvLocked(
 		pImpl->Items[pImpl->Head] = NULL;
 		pImpl->Head = __xrtChannelNext(pImpl->Head, pImpl->Capacity);
 		pImpl->Count--;
-		pImpl->Epoch++;
 		(void)xrtCondSignal(&pImpl->Writable);
 		#if defined(XRT_INTERNAL_CHANNEL_WAIT)
 			__xrtChannelNotifySelectLocked(pImpl);
@@ -1333,7 +1328,6 @@ XRT_API void xrtChannelClose(xchannel* pChannel)
 		) {
 			__xrtChannelWithdraw(pImpl);
 		}
-		pImpl->Epoch++;
 		(void)xrtCondBroadcast(&pImpl->Readable);
 		(void)xrtCondBroadcast(&pImpl->Writable);
 		#if defined(XRT_INTERNAL_CHANNEL_WAIT)
@@ -1432,7 +1426,6 @@ XRT_API bool xrtChannelReset(xchannel* pChannel)
 	pImpl->Pending = NULL;
 	pImpl->NextGeneration = 0;
 	pImpl->CompletedGeneration = 0;
-	pImpl->Epoch++;
 	if ( pImpl->Capacity != 0 ) {
 		memset(
 			pImpl->Items,

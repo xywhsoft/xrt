@@ -50,6 +50,35 @@ if (Subscription != NULL) {
 - 这是原生订阅底座，不是另一套语言 Future 或调度器。原始 context 对所有权图仍是 opaque；
   不能仅凭一个回调或 Trace 将它认证成可收集对象。语言适配还须封闭取消、期限、消息与生产者的真实拥有关系。
 
+### 显式拥有权订阅与图检查
+
+`xrtChannelSubscribeCreateOwnedV1` 接受独立的 `xchannelsubscribeownershipv1`，
+成功接管 Data 的一个真实引用，失败不接管。`Ops` 必须描述同一个物理 context；
+Notify/Drop 为驻留回调，自行协调其数据、代码与 mutation 生命周期，并正常返回。
+原始 `CreateV1` 不会因此自动获得图认证。
+
+`xrtChannelSubscribeOwnership` 提供真实原生节点；
+`xrtChannelSubscribeOwnershipQuiescenceV1Get` 报告正在执行/发布的分派，
+`xrtChannelSubscribeOwnershipAdapterV1` 只接受调用方显式列出的同一策略地址。
+相同字段的另一个策略对象不是身份等价，也不能据此执行未知 Drop。
+这些接口要求调用方提供完整图的 freeze 和代码驻留；Data 仍须独立准入。
+
+原生节点只追踪拥有的一个 Data 引用。case、Channel、原始消息和链表边均为借用，
+不捏造额外节点或重复计数。已注册操作的一个真实执行引用计入 Count，保持未完成工作
+可达；图收集器不得取消它或省略语义通知。驱动/回调活动期间拒绝检查；引用、发布和
+退役转换加入 ownership mutation 域，但 API 自己的作用域不会跨 Notify/Drop。
+
+只有未启动或已经完成的订阅可被 Claim。Claim 隔离 Ref/Start/Stop 新准入，Restore
+恢复；Clear 不执行回调、不提前抹除 Data。Finish 在 freeze 外归还 Data 的真实引用，
+可安全重试。随后归还父节点的外部句柄与规划器持有，不能重复 Drop。公共 Channel
+固定存储仍为 Windows 192 / POSIX 384 字节。
+
+共用 select 引擎使用按接收/发送分段的侵入双向循环 FIFO，保留每类对端的先入顺序。
+注册与任意节点摘除不再扫描全链；同向注册、无效操作摘除不触发唤醒风暴。
+放弃临时 CLAIMING 时唤醒不同选择的对向 case，防止多通道竞争后两个就绪对端都睡眠；
+不唤醒自身以忙循环代替等待。未使用的私有 Epoch 计数被移除，边界指针复用其空间，
+没有扩大公共不透明对象的 ABI。
+
 
 ## 类型与常量
 

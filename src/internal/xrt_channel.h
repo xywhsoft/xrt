@@ -68,6 +68,7 @@ struct xrt_channel_select_state {
 /* 每个 case 通过侵入节点挂入对应 Channel 的等待链。 */
 struct xrt_channel_select_waiter {
 	xrt_channel_select_waiter* Next;
+	xrt_channel_select_waiter* Previous;
 	xrt_channel_select_state* Select;
 	xchannel* Channel;
 	ptr Value;
@@ -101,11 +102,13 @@ typedef struct xrt_channel_impl {
 	size_t ReadWaiters;
 	size_t WriteWaiters;
 	#if defined(XRT_INTERNAL_CHANNEL_WAIT)
+		/* Circular intrusive FIFO: receives precede sends. SendWaiters is the
+		 * segment boundary, not another owner. Each segment retains FIFO order. */
 		xrt_channel_select_waiter* SelectWaiters;
+		xrt_channel_select_waiter* SelectSendWaiters;
 	#else
 		ptr SelectWaiters;
 	#endif
-	uint64 Epoch;
 	#if defined(XRT_FEATURE_CHANNEL_SUBSCRIBE)
 		xrt_channel_deferred* DeferredHead;
 		xrt_channel_deferred* DeferredTail;
