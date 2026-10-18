@@ -824,6 +824,32 @@ PING/ACK 只更新认证活动时间，不能延长被阻塞写入的业务进�
 本次未修改其他任务的核心文件，单头仅再生 xrudp 扩展。xs/mdo 同步与真实空闲连接
 验收继续单独记录；公网、Android、完整互操作/模糊测试及 72h 长稳仍待完成。
 
+## 2026-10-19：独立线上握手与双向默认流
+
+增加 `tools/test_xrudp_wire_interop.py` 独立 Python 对端及只调用公共原生 API 的
+`tests/test_wire_interop_server.c`。Python 端自行实现 XRUDP001 头/帧、固定 Noise IK、
+HKDF、报文保护、ACK 历史、重组及流控；密码原语使用本机已有的测试工具 cryptography，
+不调用产品编解码、Noise、Cipher 或私有接口，不增加产品运行依赖。
+
+真实 IPv4/IPv6 UDP 上，Cookie 摘要/派生 ID、完整 Prologue、参数认证、最终持钥证明
+及一次性业务确认通过。双方以不同的小窗口传输：Python 到原生 3,072 字节，原生到
+Python 4,096 字节，反复通过 MAX_DATA/MAX_STREAM_DATA 释放额度，内容和最终偏移完整。
+先注入错误标签再发送相同包号的合法报文，随后重放合法报文，均不破坏连接或重复交付。
+故意忽略短时 ACK 后，Python 用新包号重传相同逻辑数据，原生应用仍只消费一次。
+Python 主动换钥一次，原生输出跨两次换钥；方向密钥和 KEY_CONFIRM 互通，包号不归零。
+双方完成 FIN/ACK，原生确认与关闭各一次，默认流排空，Engine 及端点生命周期正常终结。
+
+Windows GCC -O2 严格警告和 Linux Clang -O2 ASan/UBSan/泄漏检查均通过两个地址族，
+证据 `dev/xrudp-wire-interop-{windows,linux-asan}.log`。构建显式使用 xs 产品 SDK 中的
+已提交核心，并逐字节核对到本仓库 HEAD 的 single/xrt.h 与声明；没有带入其他任务
+未提交的文件系统或内存改动。本提交只有测试及文档，产品代码和 API 保持原样。
+
+复现：`python tools/test_xrudp_wire_interop.py --sdk <已锁定的 xs SDK> --compiler <gcc/clang>`；
+Linux 增加 `--sanitize`。只使用合成身份及回环，报文、临时密钥不写日志；原生端点与
+Python 每阶段都有截止，原生收尾等待最终关闭并 join Engine。
+当前是独立发起方与原生响应方的默认字节流验证，独立反向角色、多流、消息、游戏数据报、
+关闭/迁移控制、模糊测试和完整生产互操作验收继续补齐；Android 实机及 72h 混合长稳仍待完成。
+
 ## 恢复工作
 
 先读取本文件、协议草案与各仓库 git status/log；核对上次结果和现有差异再修改。
