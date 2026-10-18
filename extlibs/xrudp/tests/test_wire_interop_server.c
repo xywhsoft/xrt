@@ -21,9 +21,11 @@ typedef struct wire_test {
     bool Typed, Probe, StopControl, StopVerified;
     bool Graceful, ShutdownStarted, ShutdownVerified;
     bool PathTest, PathVerified; uint16_t InitialPeerPort; unsigned PathChanges;
+    bool MtuTest, MtuLimited, MtuStarted, MtuVerified; xrudpmtustate Mtu;
     unsigned Games, StreamOpened; xrudpresult CloseReason, ExpectedClose;
     wire_slot Slots[6];
 } wire_test;
+static void start_business(wire_test* T, xrudppeer* P);
 static void require(wire_test* T, bool Ok, const char* What)
 { if (!Ok) { fprintf(stderr,"wire native failure: %s\n",What); xrtAtomic32Store(&T->Failure,1,XMEMORY_RELEASE); } }
 static void complete(wire_test* T)
@@ -52,7 +54,21 @@ static void complete(wire_test* T)
 static void check_complete(xnetworker* W, ptr Data)
 {
     wire_test* T=Data; (void)W;
-    if (!xrtAtomic32Load(&T->PeerClosed,XMEMORY_ACQUIRE)) complete(T);
+    if (!xrtAtomic32Load(&T->PeerClosed,XMEMORY_ACQUIRE)) {
+        if (T->MtuTest && T->Confirmed && T->Peer && !T->MtuStarted) {
+            xrudpsessionstate S={0};
+            require(T,xrtRudpPeerSessionState(T->Peer,&S)==XRUDP_OK,"MTU owner snapshot");
+            uint32_t Want=T->MtuLimited ? 768u:1200u;
+            if (S.Mtu.Enabled && S.Mtu.BaseConfirmed && S.Mtu.Effective==Want &&
+                !S.Mtu.ProbePacket && (!T->MtuLimited || S.Mtu.ProbeFailures==3)) {
+                require(T,S.Mtu.Ceiling==1200 && S.Mtu.ProbesSent==(T->MtuLimited ? 5u:4u) &&
+                    S.Mtu.ProbesAcknowledged==(T->MtuLimited ? 2u:4u) && !S.Mtu.Fallbacks &&
+                    S.Mtu.ProbeFailures==(T->MtuLimited ? 3u:0u),"exact authenticated MTU evidence");
+                T->MtuStarted=true; start_business(T,T->Peer);
+            }
+        }
+        complete(T);
+    }
     xrtAtomic32Store(&T->CheckPending,0,XMEMORY_RELEASE);
 }
 static void typed_write(wire_test* T, xrudppeer* P, uint32_t Id)
@@ -186,22 +202,9 @@ static void changed(xrudpendpoint* E, xrudppeer* P, uint32_t Events, void* Data)
     }
     complete(T);
 }
-static void confirmed(xrudpendpoint* E, xrudppeer* P, void* Data)
+static void start_business(wire_test* T, xrudppeer* P)
 {
-    wire_test* T=Data; unsigned char Buffer[4096]; size_t Written=0; (void)E;
-    require(T,++T->Confirmed==1,"duplicate confirmation");
-    if (!T->Peer) T->Peer=xrtRudpPeerRef(P); else require(T,T->Peer==P,"known initiating peer");
-    if (T->PathTest) {
-        xrudpsessionstate S={0};
-        require(T,xrtRudpPeerSessionState(P,&S)==XRUDP_OK && S.Path.Enabled && S.Path.Active.Port,"initial path state");
-        T->InitialPeerPort=S.Path.Active.Port;
-    }
-    if (T->Probe) {
-        xrudpdatagramchannel C; xrtRudpDatagramChannelInit(&C); C.Id=7;
-        require(T,xrtRudpPeerDatagramConfigure(P,&C)==XRUDP_OK,"probe game channel");
-        xrtAtomic32Store(&T->AppDone,1,XMEMORY_RELEASE);
-        return;
-    }
+    unsigned char Buffer[4096]; size_t Written=0;
     for (size_t I=0;I<sizeof(Buffer);++I) Buffer[I]=(unsigned char)(I*7u+19u);
     require(T,xrtRudpPeerWrite(P,Buffer,sizeof(Buffer),&Written)==XRUDP_OK && Written==sizeof(Buffer),"server write");
     require(T,xrtRudpPeerFinish(P)==XRUDP_OK,"server FIN");
@@ -217,6 +220,26 @@ static void confirmed(xrudpendpoint* E, xrudppeer* P, void* Data)
             if (Id>=2 && Id<6) { T->Slots[Id].Id=Id; typed_write(T,P,Id); }
         }
     }
+}
+static void confirmed(xrudpendpoint* E, xrudppeer* P, void* Data)
+{
+    wire_test* T=Data; (void)E;
+    require(T,++T->Confirmed==1,"duplicate confirmation");
+    if (!T->Peer) T->Peer=xrtRudpPeerRef(P); else require(T,T->Peer==P,"known initiating peer");
+    if (T->PathTest) {
+        xrudpsessionstate S={0};
+        require(T,xrtRudpPeerSessionState(P,&S)==XRUDP_OK && S.Path.Enabled && S.Path.Active.Port,"initial path state");
+        T->InitialPeerPort=S.Path.Active.Port;
+    }
+    if (T->Probe) {
+        xrudpdatagramchannel C; xrtRudpDatagramChannelInit(&C); C.Id=7;
+        require(T,xrtRudpPeerDatagramConfigure(P,&C)==XRUDP_OK,"probe game channel");
+        xrtAtomic32Store(&T->AppDone,1,XMEMORY_RELEASE);
+        return;
+    }
+    /* The MTU oracle first proves exact probe sizes independently. No normal
+     * application ACK may stand in for the initial padded 512B evidence. */
+    if (!T->MtuTest) start_business(T,P);
 }
 static void peer_closed(xrudpendpoint* E, xrudppeer* P, xrudpresult Reason, void* Data)
 {
@@ -242,6 +265,16 @@ static void peer_closed(xrudpendpoint* E, xrudppeer* P, xrudpresult Reason, void
             S.Path.AddressDropped>=2 && S.Path.SentUnvalidated<=3*S.Path.ReceivedUnvalidated;
         require(T,T->PathVerified,"migration, wrong-source isolation and amplification terminal proof");
     }
+    if (T->MtuTest) {
+        xrudpsessionstate S={0};
+        require(T,xrtRudpPeerSessionState(P,&S)==XRUDP_OK,"terminal MTU snapshot");
+        T->Mtu=S.Mtu;
+        T->MtuVerified=Reason==XRUDP_CLOSED && T->MtuStarted && S.Mtu.Enabled && S.Mtu.BaseConfirmed &&
+            S.Mtu.Effective==(T->MtuLimited ? 768u:1200u) && S.Mtu.Ceiling==1200 && !S.Mtu.Fallbacks &&
+            S.Mtu.ProbesSent==(T->MtuLimited ? 5u:4u) && S.Mtu.ProbesAcknowledged==(T->MtuLimited ? 2u:4u) &&
+            S.Mtu.ProbeFailures==(T->MtuLimited ? 3u:0u);
+        require(T,T->MtuVerified,"MTU terminal evidence and preserved ceiling");
+    }
     xrtAtomic32Store(&T->PeerClosed,1,XMEMORY_RELEASE);
 }
 static void closed(xrudpendpoint* E, xrudpresult Reason, const xerror* Error, void* Data)
@@ -260,7 +293,7 @@ static void bind_peer(xnetworker* W, ptr Data)
     C.MaxPeers=C.MaxHalfOpen=1; C.HandshakeTimeoutUs=3000000; C.MemoryLimit=4u*1024u*1024u;
     C.Session.Local.ConnectionCredit=2048; C.Session.Local.StreamCredit=1024;
     C.Session.ReceiveCapacity=1024; C.Session.TransmitCapacity=8192; C.Session.KeyUpdatePackets=8;
-    C.Session.DiscoverMtu=false; C.Session.ProgressTimeoutUs=5000000;
+    C.Session.DiscoverMtu=T->MtuTest; C.Session.ProgressTimeoutUs=T->MtuTest ? 15000000:5000000;
     if (T->Typed || T->Probe) {
         C.Session.StreamCapacity=C.Session.Local.MaxStreams=3; C.Session.Local.MaxMessageSize=8192;
         xrtRudpDatagramConfigInit(&C.Session.Datagrams); C.Session.Datagrams.Channels=3;
@@ -278,8 +311,9 @@ int main(int Argc, char** Argv)
     if (Argc!=5 && Argc!=6) return 2;
     wire_test T={0}; T.Family=atoi(Argv[1])==6 ? XNET_FAMILY_IPV6:XNET_FAMILY_IPV4;
     int Port=atoi(Argv[2]); if (Port<0 || Port>65535) return 2; T.RemotePort=(uint16_t)Port;
-    int Mode=atoi(Argv[3]); if (Mode<0 || Mode>5 || (Mode==2)!=(Argc==6)) return 2;
+    int Mode=atoi(Argv[3]); if (Mode<0 || Mode>7 || (Mode==2)!=(Argc==6)) return 2;
     T.Typed=Mode==1 || Mode>=3; T.Probe=Mode==2; T.StopControl=Mode==3; T.Graceful=Mode==4; T.PathTest=Mode==5;
+    T.MtuTest=Mode==6 || Mode==7; T.MtuLimited=Mode==7;
     if (T.Probe) { T.ExpectedClose=(xrudpresult)atoi(Argv[5]); if (T.ExpectedClose!=XRUDP_MALFORMED && T.ExpectedClose!=XRUDP_CLOSED) return 2; }
     xnetengineconfig C; xrtNetEngineConfigInit(&C); C.Workers=1; C.Backend=XNET_PORT_SELECT;
     if (atoi(Argv[4])) {
@@ -295,7 +329,7 @@ int main(int Argc, char** Argv)
     while (xrtTimer()<Until && !xrtAtomic32Load(&T.Failure,XMEMORY_ACQUIRE) && !xrtAtomic32Load(&T.PeerClosed,XMEMORY_ACQUIRE)) {
         if (!Ready && xrtAtomic32Load(&T.Opened,XMEMORY_ACQUIRE)) { printf("{\"ready\":true,\"port\":%u}\n",T.Port); fflush(stdout); Ready=true; }
         if (!Done && xrtAtomic32Load(&T.AppDone,XMEMORY_ACQUIRE)) { puts("{\"app_done\":true}"); fflush(stdout); Done=true; }
-        if (T.Graceful && xrtTimer()>=NextCheck) {
+        if ((T.Graceful || T.MtuTest) && xrtTimer()>=NextCheck) {
             if (!xrtAtomic32Exchange(&T.CheckPending,1,XMEMORY_ACQ_REL))
                 require(&T,xrtNetEnginePost(T.Engine,0,check_complete,&T),"post owner drain check");
             NextCheck=xrtTimer()+0.01;
@@ -310,7 +344,7 @@ int main(int Argc, char** Argv)
     while (!xrtNetEngineDestroy(T.Engine)) { if (xrtTimer()>=Until) return 5; xrtSleep(1); }
     xrudpendpointinfo I={0}; require(&T,xrtRudpEndpointInfo(T.Endpoint,&I)==XRUDP_OK,"terminal info");
     xrtRudpPeerDestroy(T.Peer); xrtRudpEndpointDestroy(T.Endpoint);
-    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u,\"close_reason\":%u,\"opened\":%u,\"stop_verified\":%s,\"shutdown_verified\":%s,\"path_verified\":%s,\"path_changes\":%u,\"joined\":true}\n",
-        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games,(unsigned)T.CloseReason,T.StreamOpened,T.StopVerified?"true":"false",T.ShutdownVerified?"true":"false",T.PathVerified?"true":"false",T.PathChanges);
+    printf("{\"read\":%zu,\"confirmed\":%u,\"invalid\":%llu,\"closes\":%u,\"app_done\":%s,\"streams\":%u,\"messages\":%u,\"games\":%u,\"close_reason\":%u,\"opened\":%u,\"stop_verified\":%s,\"shutdown_verified\":%s,\"path_verified\":%s,\"path_changes\":%u,\"mtu_verified\":%s,\"mtu_effective\":%u,\"mtu_probes\":%llu,\"mtu_acknowledged\":%llu,\"mtu_failures\":%llu,\"joined\":true}\n",
+        T.Read,T.Confirmed,(unsigned long long)I.Invalid,T.Closes,Done?"true":"false",T.Typed?5u:1u,T.Slots[4].MessagesRead+T.Slots[5].MessagesRead,T.Games,(unsigned)T.CloseReason,T.StreamOpened,T.StopVerified?"true":"false",T.ShutdownVerified?"true":"false",T.PathVerified?"true":"false",T.PathChanges,T.MtuVerified?"true":"false",T.Mtu.Effective,(unsigned long long)T.Mtu.ProbesSent,(unsigned long long)T.Mtu.ProbesAcknowledged,(unsigned long long)T.Mtu.ProbeFailures);
     return Ready && Done && T.Closes==1 && !xrtAtomic32Load(&T.Failure,XMEMORY_ACQUIRE) ? 0:6;
 }
