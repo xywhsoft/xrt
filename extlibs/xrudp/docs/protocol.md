@@ -155,6 +155,9 @@ STOP_SENDING 固定八字节 body、零 flags、非零 stream ID；同流方向�
 以配置 ProgressTimeoutUs 从下次本地时刻观察起算。ACK、PING、其他流进展和重复 Stop 均不能续期，
 期限包含在下一次 Poll 截止；超时终结连接并释放资源，不伪造对端最终偏移以提前复用槽位。
 PendingReceiveStops 与流的 ReceiveStopDeadlineUs 可观察等待状态。流槽退休仍需真实终结与全部引用排空。
+发送 RESET 的等待确认也采用独立 ProgressTimeoutUs 期限，从下次本地时刻观察起算，
+本地主动 Reset 与对端 STOP_SENDING 触发使用相同规则。重复请求、重传与其他流进展不续期，
+合法 ACK 只撤去一次等待；PendingSendResets 与 ResetDeadlineUs 暴露状态，超时终结连接。
 双向同时请求停止可交叉处理各自 STOP/RESET；最终偏移和逻辑消费逐方向独立核算。
 
 StreamChanged 的 WRITE_STOPPED 提示认证对端请求取消发送，发送 API 随即返回 CLOSED；

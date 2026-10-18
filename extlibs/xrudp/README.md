@@ -85,6 +85,8 @@ WRITE_STOPPED 提示对端取消发送；READ_DONE 提示真实接收终结，�
 StopComplete 表示通知被 ACK 或真实终结已到达，仍须真实最终偏移与所有包引用排空才允许退休。
 等待最终偏移另有独立的 ProgressTimeoutUs 期限；ACK、其他流进展和重复 Stop 都不能续期。
 正常收到真实终结即撤去该期限；超时会关闭不响应的连接并清理资源。
+发送 RESET 也有独立的 ProgressTimeoutUs 确认期限，重复请求/重发和其他流进展不续期，
+收到有效 ACK 才撤去。State.PendingSendResets 与流的 ResetDeadlineUs 可查询等待状态。
 模块 rudp_transmit 保留未确认内容，以分层位图查找待发范围，重传副本共享逻辑确认状态。
 TransmitMessageWrite 可将 u32 长度前缀和一条负载整体排入现有发送环，空间不足时完整拒收。
 模块 rudp_message 提供有界的消息接收组装器，构造时一次分配 0..1MiB 固定空间；

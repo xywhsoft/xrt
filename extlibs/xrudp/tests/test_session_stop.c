@@ -157,7 +157,7 @@ static int crossed_stop(void)
 	xrudpsessionstate a,b;CHECK(xrtRudpSessionState(sessions[0],&a)==XRUDP_OK && xrtRudpSessionState(sessions[1],&b)==XRUDP_OK);
 	CHECK(a.WriteStopReason==18 && b.WriteStopReason==17 && a.Receive.StopReason==17 && b.Receive.StopReason==18);
 	CHECK(a.SentConnection==b.ReceivedConnection && b.SentConnection==a.ReceivedConnection && a.ReceiveLimit==256+a.ReceivedConnection && b.ReceiveLimit==256+b.ReceivedConnection);
-	CHECK(a.PendingReceiveStops==0 && b.PendingReceiveStops==0);
+	CHECK(a.PendingReceiveStops==0 && b.PendingReceiveStops==0 && a.PendingSendResets==0 && b.PendingSendResets==0);
 	for(size_t i=0;i<2;++i)xrtRudpSessionDestroy(sessions[i]);
 	return 0;
 }
@@ -180,10 +180,36 @@ static int stop_independent_deadline(void)
 	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.Reason==XRUDP_TIMEOUT && !state.PendingReceiveStops && state.LastNowUs-state.ProgressAtUs<c.ProgressTimeoutUs);
 	xrtRudpSessionDestroy(s);xrtRudpCipherDestroy(peer);return 0;
 }
+static int reset_independent_deadline(bool peerRequest,bool acknowledge)
+{
+	memset(&net,0,sizeof(net));xrudpsessionconfig c;stop_config(&c);c.KeyUpdatePackets=XRUDP_KEY_PACKETS_MAX;
+	xrudpcipher* peer;xrudpsession* s;CHECK(raw_session(&peer,&s,&c)==0);
+	unsigned char input[100]={0};size_t written;CHECK(xrtRudpSessionWrite(s,input,sizeof(input),&written)==XRUDP_OK && written==sizeof(input));
+	if(peerRequest) { unsigned char plain[100];size_t size=0;CHECK(stop_frame(plain,&size,1,71)==0 && deliver_raw(s,peer,plain,size,0,XRUDP_OK)==0); }
+	else CHECK(xrtRudpSessionStreamReset(s,1,71)==XRUDP_OK);
+	uint64_t due,start=peerRequest?1000u:2000000u,deadline=start+c.ProgressTimeoutUs;xrudpstreamstate stream;xrudpsessionstate state;
+	CHECK(xrtRudpSessionStreamState(s,1,&stream)==XRUDP_OK && stream.ResetDeadlineUs==0);
+	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.PendingSendResets==1);
+	CHECK(xrtRudpSessionPoll(s,start,&due)==XRUDP_OK);
+	CHECK(xrtRudpSessionStreamState(s,1,&stream)==XRUDP_OK && stream.ResetDeadlineUs==deadline);
+	if(acknowledge)CHECK(stop_ack(s,peer,2,start+1000)==0);
+	CHECK(xrtRudpSessionStreamState(s,1,&stream)==XRUDP_OK && stream.ResetDeadlineUs==(acknowledge?0u:deadline));
+	CHECK(xrtRudpSessionState(s,&state)==XRUDP_OK && state.PendingSendResets==(acknowledge?0u:1u));
+	for(uint32_t i=0;i<4;++i) {
+		unsigned char plain[100],byte='a';size_t size=0,read;
+		CHECK(stop_stream(plain,&size,1,i,&byte,1)==0 && deliver_raw(s,peer,plain,size,start+200000+i*200000,XRUDP_OK)==0);
+		CHECK(xrtRudpSessionRead(s,&byte,1,&read)==XRUDP_OK && read==1);
+		CHECK(xrtRudpSessionStreamReset(s,1,71)==XRUDP_DUPLICATE);
+	}
+	xrudpresult result=xrtRudpSessionPoll(s,deadline,&due),expected=acknowledge?XRUDP_OK:XRUDP_TIMEOUT;
+	if(result!=expected)fprintf(stderr,"reset wait peer-request=%u acknowledged=%u expected=%u actual=%u\n",(unsigned)peerRequest,(unsigned)acknowledge,(unsigned)expected,(unsigned)result);
+	CHECK(result==expected);xrtRudpSessionDestroy(s);xrtRudpCipherDestroy(peer);return 0;
+}
 int main(void)
 {
 	xmemdebugsnapshot before,after;xrtClearError();xrtMemDebugSnapshot(&before);
 	CHECK(peer_stop_transaction()==0 && local_stop_credit(false)==0 && local_stop_credit(true)==0 && stop_recovery()==0 && stop_retirement()==0 && crossed_stop()==0 && stop_independent_deadline()==0);
+	CHECK(reset_independent_deadline(false,false)==0 && reset_independent_deadline(true,false)==0 && reset_independent_deadline(false,true)==0 && reset_independent_deadline(true,true)==0);
 	xrtClearError();xrtMemDebugSnapshot(&after);CHECK(before.LiveBytes==after.LiveBytes && before.LiveCount==after.LiveCount && before.DoubleFreeCount==after.DoubleFreeCount && before.UseAfterFreeCount==after.UseAfterFreeCount);
 	puts("xrudp stop session: atomic peer requests, independent halves, frozen credit, staged-message discard, bounded retries and final-before-retire passed");return 0;
 }

@@ -14,11 +14,11 @@ typedef struct xrudp__sessionstream {
 	xrudpreceive* Rx;
 	xrudptransmit* Tx;
 	xrudpmessage* Message;
-	uint64_t InitialCredit, GrantAcked, RetryAt, ResetFinal, StopRetryAt, StopDeadline;
+	uint64_t InitialCredit, GrantAcked, RetryAt, ResetFinal, ResetDeadline, StopRetryAt, StopDeadline;
 	uint32_t Id, References, Events, Deficit, ResetReason, PeerStopReason;
 	uint16_t Weight;
 	uint8_t Priority, Kind;
-	bool Local, OpenSent, OpenAcked, ResetQueued, ResetSent, ResetAcked;
+	bool Local, OpenSent, OpenAcked, ResetQueued, ResetSent, ResetAcked, ResetClockPending;
 	bool StopQueued, StopSent, StopComplete, StopClockPending, PeerStopped;
 	bool LastRead, LastReadDone, LastDone, LastEof, LastRetire;
 	bool StagePending;
@@ -41,7 +41,7 @@ struct xrudpsession {
 	bool Busy, Work, WorkStartPending, AckWanted, ConfirmWanted, PreferDatagram;
 	size_t Allocation;
 	uint32_t Slots, PtoCount, Probes, ElicitingSinceAck;
-	uint32_t StreamSlots, ActiveStreams, ScheduleCursor, EventCursor, MessageCursor, StopWaiters;
+	uint32_t StreamSlots, ActiveStreams, ScheduleCursor, EventCursor, MessageCursor, StopWaiters, ResetWaiters;
 	uint32_t IncomingNext, OutgoingNext, IncomingLimit, OutgoingLimit, StreamsAcked;
 	uint64_t Now, Activity, Progress, IdleUs, PtoAt, AckAt, ControlAt;
 	uint64_t GrantRetry, ConnectionLimit, ConnectionReceived, ConnectionSent, PeerLimit;
@@ -259,8 +259,9 @@ static xrudpresult xrudp__session_abort(xrudpsession* s, xrudpresult reason)
 		if (s->Streams[i].Message != NULL) (void)xrtRudpMessageReset(s->Streams[i].Message);
 		s->Streams[i].References = s->Streams[i].Events = 0;
 		s->Streams[i].StopClockPending = false; s->Streams[i].StopDeadline = 0;
+		s->Streams[i].ResetClockPending = false; s->Streams[i].ResetDeadline = 0;
 	}
-	s->StopWaiters = 0;
+	s->StopWaiters = s->ResetWaiters = 0;
 	if (s->Datagrams != NULL) (void)xrtRudpDatagramAbort(s->Datagrams);
 	(void)xrtRudpSentAbort(s->Sent, s->Events, s->Slots, &count);
 	(void)xrtRudpCongestionApply(&s->Cc, s->Events, count, s->Now, true);
@@ -306,6 +307,7 @@ xrudpresult xrtRudpSessionState(const xrudpsession* s, xrudpsessionstate* output
 	state.OutstandingProbes = s->Probes; state.AckPending = s->AckWanted;
 	state.ActiveStreams = s->ActiveStreams; state.IncomingLimit = s->IncomingLimit; state.OutgoingLimit = s->OutgoingLimit;
 	state.PendingReceiveStops = s->StopWaiters;
+	state.PendingSendResets = s->ResetWaiters;
 	for (uint32_t i = 0; i < s->StreamSlots; ++i) if (s->Streams[i].Events) ++state.PendingStreamEvents;
 	state.ReadReady = xrtRudpReceiveReady(s->Rx); state.WriteStopped = s->Streams[0].PeerStopped;
 	state.ReadDone = xrudp__stream_read_done(&s->Streams[0]);
@@ -325,6 +327,7 @@ xrudpresult xrtRudpSessionStreamState(const xrudpsession* s, uint32_t id, xrudps
 	state.ResetReason = m->ResetReason; state.ResetFinal = m->ResetFinal;
 	state.StopQueued = m->StopQueued; state.StopSent = m->StopSent; state.StopComplete = m->StopComplete;
 	state.ReceiveStopDeadlineUs = m->StopDeadline;
+	state.ResetDeadlineUs = m->ResetDeadline;
 	state.PeerStopped = m->PeerStopped; state.PeerStopReason = m->PeerStopReason;
 	(void)xrtRudpReceiveState(m->Rx, &state.Receive); (void)xrtRudpTransmitState(m->Tx, &state.Transmit);
 	if (m->Kind == XRUDP_STREAM_MESSAGES) {
@@ -509,6 +512,7 @@ static void xrudp__stream_reset_send(xrudpsession* s, xrudp__sessionstream* m, u
 	(void)xrtRudpTransmitState(m->Tx, &tx); (void)xrtRudpTransmitCancel(m->Tx, &change);
 	m->Events &= ~XRUDP_STREAM_WRITE_READY;
 	m->ResetQueued = true; m->ResetReason = reason; m->ResetFinal = tx.HighestSent; m->RetryAt = s->Now;
+	m->ResetClockPending = true; ++s->ResetWaiters;
 }
 xrudpresult xrtRudpSessionStreamReset(xrudpsession* s, uint32_t id, uint32_t reason)
 {
@@ -562,9 +566,10 @@ static void xrudp__session_clock(xrudpsession* s, uint64_t now)
 	 * start their deadline. Anchor only this idle->work transition at the next
 	 * driver observation; further writes/reads cannot continually rearm it. */
 	if (s->WorkStartPending) { s->Progress = now; s->WorkStartPending = false; }
-	if (s->StopWaiters) for (uint32_t i = 0; i < s->StreamSlots; ++i) {
+	if (s->StopWaiters || s->ResetWaiters) for (uint32_t i = 0; i < s->StreamSlots; ++i) {
 		xrudp__sessionstream* m = &s->Streams[i];
 		if (m->StopClockPending) { m->StopClockPending = false; m->StopDeadline = xrudp__session_add(now, s->Config.ProgressTimeoutUs); }
+		if (m->ResetClockPending) { m->ResetClockPending = false; m->ResetDeadline = xrudp__session_add(now, s->Config.ProgressTimeoutUs); }
 	}
 	/* Expired unreliable work must not trigger a useful-progress timeout for
 	 * work that no longer exists. This is local maintenance, not peer liveness. */
@@ -573,8 +578,9 @@ static void xrudp__session_clock(xrudpsession* s, uint64_t now)
 static bool xrudp__session_dead(xrudpsession* s, uint64_t now)
 {
 	if (now == UINT64_MAX || now - s->Activity >= s->IdleUs || (s->Work && now - s->Progress >= s->Config.ProgressTimeoutUs)) return true;
-	if (s->StopWaiters) for (uint32_t i = 0; i < s->StreamSlots; ++i)
-		if (s->Streams[i].StopDeadline && now >= s->Streams[i].StopDeadline) return true;
+	if (s->StopWaiters || s->ResetWaiters) for (uint32_t i = 0; i < s->StreamSlots; ++i)
+		if ((s->Streams[i].StopDeadline && now >= s->Streams[i].StopDeadline) ||
+			(s->Streams[i].ResetDeadline && now >= s->Streams[i].ResetDeadline)) return true;
 	return false;
 }
 static xrudpresult xrudp__session_datagram_access(const xrudpsession* s)
@@ -670,7 +676,9 @@ static xrudpresult xrudp__session_feedback(xrudpsession* s, size_t count)
 			if (m != NULL) {
 				if (ref->StreamGrant > m->GrantAcked) { m->GrantAcked = ref->StreamGrant; s->Progress = s->Now; }
 				if (ref->Open && !m->OpenAcked) { m->OpenAcked = true; s->Progress = s->Now; }
-				if (ref->Reset && !m->ResetAcked) { m->ResetAcked = true; s->Progress = s->Now; }
+				if (ref->Reset && !m->ResetAcked) {
+					m->ResetAcked = true; m->ResetClockPending = false; m->ResetDeadline = 0; --s->ResetWaiters; s->Progress = s->Now;
+				}
 				if (ref->Stop && !m->StopComplete) { m->StopComplete = true; s->Progress = s->Now; }
 			}
 		} else if (event->Kind == XRUDP_SENT_LOST) {
@@ -1273,6 +1281,7 @@ xrudpresult xrtRudpSessionPoll(xrudpsession* s, uint64_t now, uint64_t* output)
 		if ((!m->OpenAcked || (m->ResetQueued && !m->ResetAcked) || rx.Limit > m->GrantAcked) && m->RetryAt > now && m->RetryAt < due) due = m->RetryAt;
 		if (m->StopQueued && !m->StopComplete && m->StopRetryAt > now && m->StopRetryAt < due) due = m->StopRetryAt;
 		if (m->StopDeadline && m->StopDeadline < due) due = m->StopDeadline;
+		if (m->ResetDeadline && m->ResetDeadline < due) due = m->ResetDeadline;
 	}
 	uint64_t delay, age; xrudpsentstate sent;
 	(void)xrtRudpRttLossDelay(&s->Rtt, &delay); (void)xrtRudpRttPto(&s->Rtt, 0, &age);

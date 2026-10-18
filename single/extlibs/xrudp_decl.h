@@ -3947,6 +3947,7 @@ typedef struct xrudpsessionstate {
 	uint32_t PtoBackoff, OutstandingProbes;
 	uint32_t ActiveStreams, PendingStreamEvents;
 	uint32_t PendingReceiveStops; /* Waiting for real final size, independently bounded. */
+	uint32_t PendingSendResets; /* Waiting for RESET ACK, independently bounded. */
 	uint32_t IncomingLimit, OutgoingLimit;
 	uint32_t WriteStopReason; /* Default stream's authenticated peer request. */
 	bool AckPending, ReadReady, ReadDone, WriteDone, WriteStopped;
@@ -3968,6 +3969,7 @@ typedef struct xrudpstreamstate {
 	uint32_t PeerStopReason;
 	uint64_t ResetFinal;
 	uint64_t ReceiveStopDeadlineUs; /* 0 before first clock observation/after real final. */
+	uint64_t ResetDeadlineUs; /* 0 before first clock observation/after RESET ACK. */
 	uint32_t SendMessageLimit; /* min(peer authenticated bound, local TX capacity-4). */
 	xrudpmessagestate Message; /* Fixed receive staging; zero for byte streams. */
 	xrudpreceivestate Receive;
@@ -4035,7 +4037,10 @@ XRUDP_API xrudpresult xrtRudpSessionMessageRead(xrudpsession* pSession,
 	uint32_t iId, void* pOutput, size_t iCapacity, size_t* pSize);
 XRUDP_API xrudpresult xrtRudpSessionStreamFinish(xrudpsession* pSession, uint32_t iId);
 /* Reset only the local sending half. Final size is actual highest sent, so
- * discarded, never-sent buffers do not consume peer flow credit. */
+ * discarded, never-sent buffers do not consume peer flow credit. RESET must
+ * be ACKed within its own ProgressTimeoutUs interval, anchored at the next
+ * clock observation. Other traffic, duplicate Reset and retries cannot renew
+ * it; timeout closes the connection. Valid ACK cancels this deadline. */
 XRUDP_API xrudpresult xrtRudpSessionStreamReset(xrudpsession* pSession, uint32_t iId, uint32_t iReason);
 /* Cancel only local reception, clear unread plaintext/staged messages, freeze
  * stream credit and reliably request peer STOP_SENDING. Reverse sending and
