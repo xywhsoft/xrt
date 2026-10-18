@@ -69,6 +69,36 @@ static int probes(void)
 	return 0;
 }
 
+static int ack_reserve(void)
+{
+	xrudpsentwindow* w; CHECK(xrtRudpSentCreate(1, &w) == XRUDP_OK);
+	xrudpcongestion cc; CHECK(xrtRudpCongestionInit(&cc, 0) == XRUDP_OK);
+	CHECK(xrtMemDebugFailAfter(0));
+	CHECK(xrtRudpSentRecord(w, 1, 0, 1200, XRUDP_SENT_ACK_ELICITING, 1) == XRUDP_OK);
+	CHECK(xrtRudpCongestionOnSent(&cc, 1, 0, 1000, 1200, XRUDP_SENT_ACK_ELICITING) == XRUDP_OK);
+	for (uint64_t pn = 2; pn <= XRUDP_SENT_PROBE_RESERVE - 1; ++pn) {
+		CHECK(!xrtRudpSentCanRecord(w, false) && xrtRudpSentCanRecordAck(w));
+		CHECK(xrtRudpSentRecord(w, pn, 0, 100, XRUDP_SENT_ACK_ONLY, pn) == XRUDP_OK);
+		CHECK(xrtRudpCongestionOnSent(&cc, pn, 0, 1000, 100, XRUDP_SENT_ACK_ONLY) == XRUDP_OK && cc.BytesInFlight == 1200);
+	}
+	CHECK(!xrtRudpSentCanRecordAck(w) && xrtRudpSentCanRecord(w, true));
+	CHECK(xrtRudpSentRecord(w, 34, 0, 100, XRUDP_SENT_ACK_ONLY, 34) == XRUDP_BACKPRESSURE);
+	for (uint32_t flag = 17; flag < 32; ++flag) {
+		uint64_t due = 19; CHECK(xrtRudpSentRecord(w, 34, 0, 1200, flag, 34) == XRUDP_ARGUMENT);
+		CHECK(xrtRudpCongestionCanSend(&cc, 0, 1000, 1200, flag, &due) == XRUDP_ARGUMENT && due == 19);
+	}
+	xrudpsentevent events[33]; size_t count;
+	CHECK(xrtRudpSentDetectLoss(w, 1000, 1000, 1000, events, 33, &count) == XRUDP_OK && count == 30);
+	for (size_t i = 0; i < count; ++i) CHECK(events[i].Kind == XRUDP_SENT_EXPIRED && events[i].Flags == XRUDP_SENT_ACK_ONLY);
+	CHECK(xrtRudpCongestionApply(&cc, events, count, 1000, false) == XRUDP_OK && cc.BytesInFlight == 1200 && cc.Window == 12000);
+	/* Retired tail metadata stays behind the unacknowledged head to validate
+	 * gaps. It cannot buy normal capacity or be double released. */
+	CHECK(!xrtRudpSentCanRecordAck(w) && xrtRudpSentCanRecord(w, true) && !xrtRudpSentCanRecord(w, false));
+	CHECK(xrtRudpSentAbort(w, events, 33, &count) == XRUDP_OK && count == 1);
+	CHECK(xrtRudpCongestionApply(&cc, events, count, 1000, true) == XRUDP_OK && cc.BytesInFlight == 0);
+	CHECK(!xrtRudpSentCanRecordAck(w) && !xrtMemDebugFailTriggered()); xrtMemDebugFailClear(); xrtRudpSentDestroy(w); return 0;
+}
+
 static int trim(void)
 {
 	xrudpdatagrams* d; xrudpdatagramconfig config = {3,256,4,8};
@@ -115,7 +145,7 @@ static int trim(void)
 int main(void)
 {
 	xmemdebugsnapshot before, after; xrtClearError(); xrtMemDebugSnapshot(&before);
-	CHECK(probes() == 0 && trim() == 0);
+	CHECK(probes() == 0 && ack_reserve() == 0 && trim() == 0);
 	xrtClearError(); xrtMemDebugSnapshot(&after);
 	CHECK(before.LiveCount == after.LiveCount && before.LiveBytes == after.LiveBytes && before.DoubleFreeCount == after.DoubleFreeCount && before.UseAfterFreeCount == after.UseAfterFreeCount);
 	puts("xrudp MTU ledger: 1000 unique retire/late ACK cycles, isolated size-probe loss and bounded game queue trimming passed"); return 0;

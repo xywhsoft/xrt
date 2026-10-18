@@ -109,6 +109,12 @@ bool xrtRudpSentCanRecord(const xrudpsentwindow* w, bool probe)
 {
 	return w != NULL && !w->Stopped && w->Count < (probe ? w->Capacity : w->NormalCapacity);
 }
+bool xrtRudpSentCanRecordAck(const xrudpsentwindow* w)
+{
+	/* Keep two slots exclusively available to an actual PTO burst. ACK-only
+	 * metadata never spends the last recovery opportunity. */
+	return w != NULL && !w->Stopped && w->Count < w->Capacity - 2;
+}
 
 xrudpresult xrtRudpSentRecord(xrudpsentwindow* w, uint64_t number,
 	uint64_t now, uint32_t bytes, uint32_t flags, uint64_t tag)
@@ -117,11 +123,12 @@ xrudpresult xrtRudpSentRecord(xrudpsentwindow* w, uint64_t number,
 	bool probe = (flags & XRUDP_SENT_PROBE) != 0;
 	if (w == NULL || number == 0 || number == UINT64_MAX || number <= w->LargestSent ||
 		now < w->LastNow || bytes < XRUDP_HEADER_SIZE + XRUDP_TAG_SIZE + XRUDP_FRAME_HEADER_SIZE ||
-		bytes > XRUDP_PACKET_MAX || (flags & ~(XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PROBE | XRUDP_SENT_PADDING | XRUDP_SENT_MTU)) != 0 ||
+		bytes > XRUDP_PACKET_MAX || (flags & ~(XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PROBE | XRUDP_SENT_PADDING | XRUDP_SENT_MTU | XRUDP_SENT_ACK_ONLY)) != 0 ||
+		((flags & XRUDP_SENT_ACK_ONLY) && flags != XRUDP_SENT_ACK_ONLY) ||
 		((flags & XRUDP_SENT_MTU) && ((flags & 7u) != (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING) || bytes < 512)) ||
 		(probe && (flags & XRUDP_SENT_ACK_ELICITING) == 0)) return XRUDP_ARGUMENT;
 	if (w->Stopped) return XRUDP_CLOSED;
-	if (!xrtRudpSentCanRecord(w, probe)) return XRUDP_BACKPRESSURE;
+	if (!(flags == XRUDP_SENT_ACK_ONLY ? xrtRudpSentCanRecordAck(w) : xrtRudpSentCanRecord(w, probe))) return XRUDP_BACKPRESSURE;
 	p = xrudp__sent_at(w, w->Count++);
 	memset(p, 0, sizeof(*p));
 	p->Number = number; p->AtUs = now; p->Tag = tag; p->Bytes = bytes; p->Flags = flags;

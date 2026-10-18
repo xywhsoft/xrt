@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `191` 个函数、`153` 个常量或宏、
-`66` 个公共类型。
+当前登记 `192` 个函数、`155` 个常量或宏、
+`67` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -195,7 +195,7 @@
 - `xrtRudpPeerStreamWrite`
 - `xrtRudpPeerWrite`
 
-### 常量与宏 (23)
+### 常量与宏 (24)
 
 - `XRUDP_ENDPOINT_ADDRESS_BUCKETS`
 - `XRUDP_ENDPOINT_CLOSED`
@@ -208,6 +208,7 @@
 - `XRUDP_PEER_CONFIRMED`
 - `XRUDP_PEER_DATAGRAM_READ_READY`
 - `XRUDP_PEER_DATAGRAM_WRITE_READY`
+- `XRUDP_PEER_MTU_CHANGED`
 - `XRUDP_PEER_NEGOTIATING`
 - `XRUDP_PEER_PATH_CHANGED`
 - `XRUDP_PEER_PATH_FAILED`
@@ -385,12 +386,13 @@
 
 [查看带契约注释的公共头](../../include/xrudp/sent.h)
 
-### 函数 (13)
+### 函数 (14)
 
 - `xrtRudpSentAbort`
 - `xrtRudpSentAcknowledge`
 - `xrtRudpSentAllocationSize`
 - `xrtRudpSentCanRecord`
+- `xrtRudpSentCanRecordAck`
 - `xrtRudpSentCheckAcknowledge`
 - `xrtRudpSentCreate`
 - `xrtRudpSentCreateAfter`
@@ -401,11 +403,12 @@
 - `xrtRudpSentRecord`
 - `xrtRudpSentState`
 
-### 常量与宏 (12)
+### 常量与宏 (13)
 
 - `XRUDP_FEATURE_RUDP_SENT`
 - `XRUDP_SENT_ACKED`
 - `XRUDP_SENT_ACK_ELICITING`
+- `XRUDP_SENT_ACK_ONLY`
 - `XRUDP_SENT_CANCELLED`
 - `XRUDP_SENT_CAPACITY_DEFAULT`
 - `XRUDP_SENT_CAPACITY_MAX`
@@ -482,8 +485,9 @@
 - `XRUDP_STREAM_WRITE_READY`
 - `XRUDP_STREAM_WRITE_STOPPED`
 
-### 类型 (7)
+### 类型 (8)
 
+- `xrudpmtustate`
 - `xrudppathsendproc`
 - `xrudppathstate`
 - `xrudprtt`

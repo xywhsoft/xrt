@@ -1,5 +1,8 @@
-#ifndef XRUDP_MODULE_RUDP_MTU_TESTS
-#define XRUDP_MODULE_RUDP_MTU_TESTS
+#ifndef XRUDP_MODULE_RUDP_ENDPOINT
+#define XRUDP_MODULE_RUDP_ENDPOINT
+#endif
+#ifndef XRT_MODULE_MEMORY_DEBUG
+#define XRT_MODULE_MEMORY_DEBUG
 #endif
 #include "../../include/xrudp/features.h"
 #define XRT_IMPLEMENTATION

@@ -21,6 +21,7 @@
 #define XRUDP_PEER_SHUTDOWN_REQUESTED 512u
 #define XRUDP_PEER_PATH_CHANGED 1024u
 #define XRUDP_PEER_PATH_FAILED 2048u
+#define XRUDP_PEER_MTU_CHANGED 4096u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 
 typedef struct xrudpendpoint xrudpendpoint;

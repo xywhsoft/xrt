@@ -42,6 +42,9 @@ static unsigned char pattern(uint32_t side,uint32_t id,size_t pos) { return (uns
 static xrudpresult output(const void* data,size_t size,void* context)
 {
 	uint32_t side=(uint32_t)(uintptr_t)context;
+#ifdef TEST_MULTI_MTU
+	if (tick>=1800 && size>768) { ++net.Dropped;return XRUDP_OK; }
+#endif
 	if (random_next()%19==0) { ++net.Blocked;return XRUDP_BACKPRESSURE; }
 	if ((tick>=80 && tick<240) || random_next()%100<25) { ++net.Dropped;return XRUDP_OK; }
 	unsigned int copies=random_next()%5==0?2:1; if(copies==2)++net.Duplicated;
@@ -80,6 +83,11 @@ static void config(xrudpsessionconfig* c,uint32_t side)
 	c->Local.ConnectionCredit=c->Peer.ConnectionCredit=1024;c->Local.DatagramSize=c->Peer.DatagramSize=512;
 	c->PacketCapacity=64;c->InitialRttUs=10000;c->Local.MaxAckDelayUs=c->Peer.MaxAckDelayUs=1000;
 	c->Local.IdleTimeoutMs=c->Peer.IdleTimeoutMs=60000;c->KeyUpdatePackets=16;
+#ifdef TEST_MULTI_MTU
+	c->DiscoverMtu=true;c->Local.DatagramSize=c->Peer.DatagramSize=1200;
+	c->ReceiveCapacity=c->TransmitCapacity=4096;c->Local.StreamCredit=c->Peer.StreamCredit=4096;
+	c->Local.ConnectionCredit=c->Peer.ConnectionCredit=16384;
+#endif
 #ifdef TEST_MULTI_DATAGRAMS
 	c->Datagrams.Channels=3;c->Datagrams.SendCapacity=16;c->Datagrams.ReceiveCapacity=32;c->Datagrams.PayloadCapacity=424;
 #endif
@@ -242,6 +250,11 @@ static int scenario(uint32_t seed)
 	printf("stop mixed: seed=%u cancelled-final=%llu buffered-before-stop=%zu reverse-delivered=%zu\n",seed,(unsigned long long)sender.ResetFinal,net.Written[0][1],net.Read[0][1]);
 #endif
 	for(uint32_t side=0;side<2;++side) {
+#ifdef TEST_MULTI_MTU
+		xrudpsessionstate mtuState;CHECK(xrtRudpSessionState(net.Session[side],&mtuState)==XRUDP_OK);
+		CHECK(mtuState.Mtu.Enabled && mtuState.Mtu.BaseConfirmed && mtuState.Mtu.Effective<=768 && mtuState.Mtu.ProbesSent>0);
+		printf("MTU mixed: side=%u effective=%u probes=%llu acknowledged=%llu failures=%llu fallbacks=%llu\n",side,mtuState.Mtu.Effective,(unsigned long long)mtuState.Mtu.ProbesSent,(unsigned long long)mtuState.Mtu.ProbesAcknowledged,(unsigned long long)mtuState.Mtu.ProbeFailures,(unsigned long long)mtuState.Mtu.Fallbacks);
+#endif
 #ifdef TEST_MULTI_PATH
 		xrudpsessionstate pathState;CHECK(xrtRudpSessionState(net.Session[side],&pathState)==XRUDP_OK);
 		CHECK(pathState.Path.Validations==(side?0u:1u) && pathState.Path.Active.Port==multi_address(1-side).Port);

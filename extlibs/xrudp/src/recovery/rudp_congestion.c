@@ -13,7 +13,8 @@ static bool xrudp__cc_valid(const xrudpcongestion* s)
 static bool xrudp__cc_packet(uint32_t bytes, uint32_t flags)
 {
 	return bytes >= XRUDP_HEADER_SIZE + XRUDP_TAG_SIZE + XRUDP_FRAME_HEADER_SIZE &&
-		bytes <= XRUDP_PACKET_MAX && (flags & ~15u) == 0 &&
+		bytes <= XRUDP_PACKET_MAX && (flags & ~31u) == 0 &&
+		(!(flags & XRUDP_SENT_ACK_ONLY) || flags == XRUDP_SENT_ACK_ONLY) &&
 		(!(flags & XRUDP_SENT_MTU) || ((flags & 7u) == (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING) && bytes >= 512)) &&
 		((flags & XRUDP_SENT_PROBE) == 0 || (flags & XRUDP_SENT_ACK_ELICITING) != 0);
 }

@@ -765,7 +765,8 @@
         "extlibs/xrudp/tests/single/test_single_endpoint_message_stop_iocp.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_shutdown_iocp.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_message_shutdown_iocp.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_path_iocp.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_path_iocp.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_mtu_iocp.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -800,7 +801,8 @@
         "extlibs/xrudp/tests/single/test_single_endpoint_message_stop_epoll.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_shutdown_epoll.c",
         "extlibs/xrudp/tests/single/test_single_endpoint_message_shutdown_epoll.c",
-        "extlibs/xrudp/tests/single/test_single_endpoint_path_epoll.c"
+        "extlibs/xrudp/tests/single/test_single_endpoint_path_epoll.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_mtu_epoll.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -952,10 +954,16 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
-        "extlibs/xrudp/tests/test_mtu_ledger.c"
+        "extlibs/xrudp/tests/test_mtu_ledger.c",
+        "extlibs/xrudp/tests/test_session_mtu.c",
+        "extlibs/xrudp/tests/test_endpoint_mtu.c",
+        "extlibs/xrudp/tests/test_multi_mtu.c"
       ],
       "single_tests": [
-        "extlibs/xrudp/tests/single/test_single_mtu_ledger.c"
+        "extlibs/xrudp/tests/single/test_single_mtu_ledger.c",
+        "extlibs/xrudp/tests/single/test_single_session_mtu.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_mtu.c",
+        "extlibs/xrudp/tests/single/test_single_multi_mtu.c"
       ],
       "examples": [],
       "benchmarks": [],

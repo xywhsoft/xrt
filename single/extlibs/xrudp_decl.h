@@ -75,6 +75,9 @@
 #if !defined(XRT_FEATURE_CHANNEL_SELECT_CANCEL)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CHANNEL_SELECT_CANCEL 1
 #endif
+#if !defined(XRT_FEATURE_CHANNEL_SUBSCRIBE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CHANNEL_SUBSCRIBE 1
+#endif
 #if !defined(XRT_FEATURE_CHARSET)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CHARSET 1
 #endif
@@ -1355,6 +1358,9 @@
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CHANNEL_SELECT_CANCEL)
 #define XRT_FEATURE_CHANNEL_SELECT_CANCEL 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CHANNEL_SUBSCRIBE)
+#define XRT_FEATURE_CHANNEL_SUBSCRIBE 1
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CHARSET)
 #define XRT_FEATURE_CHARSET 1
@@ -3189,6 +3195,7 @@ XRT_EXTERN_C_END
 #define XRUDP_SENT_PROBE 2u
 #define XRUDP_SENT_PADDING 4u
 #define XRUDP_SENT_MTU 8u
+#define XRUDP_SENT_ACK_ONLY 16u
 
 typedef struct xrudpsentwindow xrudpsentwindow;
 typedef enum xrudpsenteventkind {
@@ -3252,6 +3259,13 @@ XRUDP_API xrudpresult xrtRudpSentCreateAfter(uint32_t iCapacity,
 XRUDP_API void xrtRudpSentDestroy(xrudpsentwindow* pWindow);
 XRUDP_API xrudpresult xrtRudpSentState(const xrudpsentwindow* pWindow, xrudpsentstate* pState);
 XRUDP_API bool xrtRudpSentCanRecord(const xrudpsentwindow* pWindow, bool bProbe);
+/* Pure ACK metadata may use spare slots from the same fixed reserve without
+ * consuming flight/congestion or creating a PTO probe. Must record exactly
+ * ACK_ONLY (no other flags), never business/padding/PING. This avoids circular
+ * ACK starvation when both directions have filled a one-slot normal window.
+ * Shares the total fixed cap but leaves two slots exclusively for true PTO;
+ * metadata expiry remains bounded by the driver. */
+XRUDP_API bool xrtRudpSentCanRecordAck(const xrudpsentwindow* pWindow);
 /* Record every DATA packet actually admitted to UDP output, including ACK-only
  * packets. Numbers strictly increase, gaps are permitted for failed sends.
  * Check capacity under the same serialized owner before sealing/sending.
@@ -3968,6 +3982,14 @@ typedef struct xrudppathstate {
 	bool Enabled, Validating;
 } xrudppathstate;
 
+typedef struct xrudpmtustate {
+	uint32_t Effective, Ceiling, ProbeSize, Attempts, LargeSize; /* UDP payload bytes. */
+	uint64_t ProbePacket, ProbeDeadlineUs, NextProbeUs, RaiseAfterUs, LargePacket, LargeDeadlineUs;
+	uint64_t ProbesSent, ProbesAcknowledged, ProbeFailures, Fallbacks;
+	xrudpresult Failure; /* TIMEOUT: unable to confirm the required 512B base. */
+	bool Enabled, BaseConfirmed;
+} xrudpmtustate;
+
 typedef struct xrudpsessionconfig {
 	xrudpparameters Local, Peer; /* Authenticated, already negotiated parameters. */
 	xrudpdatagramconfig Datagrams; /* All zero disables; otherwise fixed local queue budget. */
@@ -3979,6 +4001,13 @@ typedef struct xrudpsessionconfig {
 	uint64_t MaximumWindow, InitialRttUs;
 	uint64_t ProgressTimeoutUs; /* 1s..10min, default 30s; cannot be refreshed by PING. */
 	uint64_t KeyUpdatePackets; /* Local rotation threshold, 8..2^24. */
+	/* Raw Session default false: transport must guarantee no IP fragmentation
+	 * before enabling. Native Endpoint default true and enforces UDP PMTU_PROBE.
+	 * Starts at 512B, authenticated padded-PING ACKs raise to 768/1024/ceiling.
+	 * Max 3 admitted probes per size, >=1s/3 PTO interval; failed growth waits
+	 * 60s. Required 512B failure terminates. Independent large-packet stalls
+	 * reduce to 512 and requeue reliable ranges, never game payload. */
+	bool DiscoverMtu;
 } xrudpsessionconfig;
 
 typedef struct xrudpshutdownstate {
@@ -3992,6 +4021,7 @@ typedef struct xrudpsessionstate {
 	xrudpresult Reason; /* OK while active; terminal reasons are sticky. */
 	xrudpshutdownstate Shutdown;
 	xrudppathstate Path;
+	xrudpmtustate Mtu;
 	xrudpreceivestate Receive;
 	xrudptransmitstate Transmit;
 	xrudpsentstate Sent;
@@ -3999,7 +4029,7 @@ typedef struct xrudpsessionstate {
 	xrudprtt Rtt;
 	xrudpdatagramstate Datagrams;
 	uint64_t DatagramAcknowledged, DatagramLost, DatagramDisabledDropped;
-	uint32_t DatagramSendLimit; /* Local queue/negotiated packet size bound. */
+	uint32_t DatagramSendLimit; /* Current path TX limit less overhead/local queue bound. */
 	uint64_t ReceivedConnection, ReceiveLimit, SentConnection, PeerLimit;
 	uint64_t LastNowUs, LastActivityUs, ProgressAtUs;
 	uint64_t ReceivedPackets, SentPackets, LostPackets, ProbeTimeouts, KeyUpdates;
@@ -4231,6 +4261,7 @@ XRT_EXTERN_C_END
 #define XRUDP_PEER_SHUTDOWN_REQUESTED 512u
 #define XRUDP_PEER_PATH_CHANGED 1024u
 #define XRUDP_PEER_PATH_FAILED 2048u
+#define XRUDP_PEER_MTU_CHANGED 4096u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
@@ -4486,6 +4517,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CHANNEL_SELECT_CANCEL)
 #undef XRT_FEATURE_CHANNEL_SELECT_CANCEL
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CHANNEL_SELECT_CANCEL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CHANNEL_SUBSCRIBE)
+#undef XRT_FEATURE_CHANNEL_SUBSCRIBE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CHANNEL_SUBSCRIBE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_CHARSET)
 #undef XRT_FEATURE_CHARSET

@@ -765,6 +765,7 @@ XRT_EXTERN_C_END
 #define XRUDP_SENT_PROBE 2u
 #define XRUDP_SENT_PADDING 4u
 #define XRUDP_SENT_MTU 8u
+#define XRUDP_SENT_ACK_ONLY 16u
 
 typedef struct xrudpsentwindow xrudpsentwindow;
 typedef enum xrudpsenteventkind {
@@ -828,6 +829,13 @@ XRUDP_API xrudpresult xrtRudpSentCreateAfter(uint32_t iCapacity,
 XRUDP_API void xrtRudpSentDestroy(xrudpsentwindow* pWindow);
 XRUDP_API xrudpresult xrtRudpSentState(const xrudpsentwindow* pWindow, xrudpsentstate* pState);
 XRUDP_API bool xrtRudpSentCanRecord(const xrudpsentwindow* pWindow, bool bProbe);
+/* Pure ACK metadata may use spare slots from the same fixed reserve without
+ * consuming flight/congestion or creating a PTO probe. Must record exactly
+ * ACK_ONLY (no other flags), never business/padding/PING. This avoids circular
+ * ACK starvation when both directions have filled a one-slot normal window.
+ * Shares the total fixed cap but leaves two slots exclusively for true PTO;
+ * metadata expiry remains bounded by the driver. */
+XRUDP_API bool xrtRudpSentCanRecordAck(const xrudpsentwindow* pWindow);
 /* Record every DATA packet actually admitted to UDP output, including ACK-only
  * packets. Numbers strictly increase, gaps are permitted for failed sends.
  * Check capacity under the same serialized owner before sealing/sending.
@@ -1544,6 +1552,14 @@ typedef struct xrudppathstate {
 	bool Enabled, Validating;
 } xrudppathstate;
 
+typedef struct xrudpmtustate {
+	uint32_t Effective, Ceiling, ProbeSize, Attempts, LargeSize; /* UDP payload bytes. */
+	uint64_t ProbePacket, ProbeDeadlineUs, NextProbeUs, RaiseAfterUs, LargePacket, LargeDeadlineUs;
+	uint64_t ProbesSent, ProbesAcknowledged, ProbeFailures, Fallbacks;
+	xrudpresult Failure; /* TIMEOUT: unable to confirm the required 512B base. */
+	bool Enabled, BaseConfirmed;
+} xrudpmtustate;
+
 typedef struct xrudpsessionconfig {
 	xrudpparameters Local, Peer; /* Authenticated, already negotiated parameters. */
 	xrudpdatagramconfig Datagrams; /* All zero disables; otherwise fixed local queue budget. */
@@ -1555,6 +1571,13 @@ typedef struct xrudpsessionconfig {
 	uint64_t MaximumWindow, InitialRttUs;
 	uint64_t ProgressTimeoutUs; /* 1s..10min, default 30s; cannot be refreshed by PING. */
 	uint64_t KeyUpdatePackets; /* Local rotation threshold, 8..2^24. */
+	/* Raw Session default false: transport must guarantee no IP fragmentation
+	 * before enabling. Native Endpoint default true and enforces UDP PMTU_PROBE.
+	 * Starts at 512B, authenticated padded-PING ACKs raise to 768/1024/ceiling.
+	 * Max 3 admitted probes per size, >=1s/3 PTO interval; failed growth waits
+	 * 60s. Required 512B failure terminates. Independent large-packet stalls
+	 * reduce to 512 and requeue reliable ranges, never game payload. */
+	bool DiscoverMtu;
 } xrudpsessionconfig;
 
 typedef struct xrudpshutdownstate {
@@ -1568,6 +1591,7 @@ typedef struct xrudpsessionstate {
 	xrudpresult Reason; /* OK while active; terminal reasons are sticky. */
 	xrudpshutdownstate Shutdown;
 	xrudppathstate Path;
+	xrudpmtustate Mtu;
 	xrudpreceivestate Receive;
 	xrudptransmitstate Transmit;
 	xrudpsentstate Sent;
@@ -1575,7 +1599,7 @@ typedef struct xrudpsessionstate {
 	xrudprtt Rtt;
 	xrudpdatagramstate Datagrams;
 	uint64_t DatagramAcknowledged, DatagramLost, DatagramDisabledDropped;
-	uint32_t DatagramSendLimit; /* Local queue/negotiated packet size bound. */
+	uint32_t DatagramSendLimit; /* Current path TX limit less overhead/local queue bound. */
 	uint64_t ReceivedConnection, ReceiveLimit, SentConnection, PeerLimit;
 	uint64_t LastNowUs, LastActivityUs, ProgressAtUs;
 	uint64_t ReceivedPackets, SentPackets, LostPackets, ProbeTimeouts, KeyUpdates;
@@ -1807,6 +1831,7 @@ XRT_EXTERN_C_END
 #define XRUDP_PEER_SHUTDOWN_REQUESTED 512u
 #define XRUDP_PEER_PATH_CHANGED 1024u
 #define XRUDP_PEER_PATH_FAILED 2048u
+#define XRUDP_PEER_MTU_CHANGED 4096u
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 
 typedef struct xrudpendpoint xrudpendpoint;
@@ -3377,6 +3402,12 @@ bool xrtRudpSentCanRecord(const xrudpsentwindow* w, bool probe)
 {
 	return w != NULL && !w->Stopped && w->Count < (probe ? w->Capacity : w->NormalCapacity);
 }
+bool xrtRudpSentCanRecordAck(const xrudpsentwindow* w)
+{
+	/* Keep two slots exclusively available to an actual PTO burst. ACK-only
+	 * metadata never spends the last recovery opportunity. */
+	return w != NULL && !w->Stopped && w->Count < w->Capacity - 2;
+}
 
 xrudpresult xrtRudpSentRecord(xrudpsentwindow* w, uint64_t number,
 	uint64_t now, uint32_t bytes, uint32_t flags, uint64_t tag)
@@ -3385,11 +3416,12 @@ xrudpresult xrtRudpSentRecord(xrudpsentwindow* w, uint64_t number,
 	bool probe = (flags & XRUDP_SENT_PROBE) != 0;
 	if (w == NULL || number == 0 || number == UINT64_MAX || number <= w->LargestSent ||
 		now < w->LastNow || bytes < XRUDP_HEADER_SIZE + XRUDP_TAG_SIZE + XRUDP_FRAME_HEADER_SIZE ||
-		bytes > XRUDP_PACKET_MAX || (flags & ~(XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PROBE | XRUDP_SENT_PADDING | XRUDP_SENT_MTU)) != 0 ||
+		bytes > XRUDP_PACKET_MAX || (flags & ~(XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PROBE | XRUDP_SENT_PADDING | XRUDP_SENT_MTU | XRUDP_SENT_ACK_ONLY)) != 0 ||
+		((flags & XRUDP_SENT_ACK_ONLY) && flags != XRUDP_SENT_ACK_ONLY) ||
 		((flags & XRUDP_SENT_MTU) && ((flags & 7u) != (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING) || bytes < 512)) ||
 		(probe && (flags & XRUDP_SENT_ACK_ELICITING) == 0)) return XRUDP_ARGUMENT;
 	if (w->Stopped) return XRUDP_CLOSED;
-	if (!xrtRudpSentCanRecord(w, probe)) return XRUDP_BACKPRESSURE;
+	if (!(flags == XRUDP_SENT_ACK_ONLY ? xrtRudpSentCanRecordAck(w) : xrtRudpSentCanRecord(w, probe))) return XRUDP_BACKPRESSURE;
 	p = xrudp__sent_at(w, w->Count++);
 	memset(p, 0, sizeof(*p));
 	p->Number = number; p->AtUs = now; p->Tag = tag; p->Bytes = bytes; p->Flags = flags;
@@ -3589,7 +3621,8 @@ static bool xrudp__cc_valid(const xrudpcongestion* s)
 static bool xrudp__cc_packet(uint32_t bytes, uint32_t flags)
 {
 	return bytes >= XRUDP_HEADER_SIZE + XRUDP_TAG_SIZE + XRUDP_FRAME_HEADER_SIZE &&
-		bytes <= XRUDP_PACKET_MAX && (flags & ~15u) == 0 &&
+		bytes <= XRUDP_PACKET_MAX && (flags & ~31u) == 0 &&
+		(!(flags & XRUDP_SENT_ACK_ONLY) || flags == XRUDP_SENT_ACK_ONLY) &&
 		(!(flags & XRUDP_SENT_MTU) || ((flags & 7u) == (XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING) && bytes >= 512)) &&
 		((flags & XRUDP_SENT_PROBE) == 0 || (flags & XRUDP_SENT_ACK_ELICITING) != 0);
 }
@@ -5160,6 +5193,7 @@ struct xrudpsession {
 	xrudpresult Reason;
 	xrudpshutdownstate Shutdown;
 	xrudp__path Path;
+	xrudpmtustate Mtu;
 	uint64_t ShutdownLocalDeadline, ShutdownPeerDeadline, ShutdownRetry, PeerDrainedPacket;
 	bool ShutdownClockPending;
 	bool Busy, Work, WorkStartPending, AckWanted, ConfirmWanted, PreferDatagram;
@@ -5178,6 +5212,65 @@ struct xrudpsession {
 };
 
 static uint64_t xrudp__session_add(uint64_t a, uint64_t b) { return a > UINT64_MAX - b ? UINT64_MAX : a + b; }
+static uint32_t xrudp__mtu_next(uint32_t current, uint32_t ceiling)
+{
+	uint32_t next = current < 768 ? 768u : (current < 1024 ? 1024u : ceiling);
+	return next < ceiling ? next : ceiling;
+}
+static void xrudp__mtu_reset(xrudpsession* s)
+{
+	xrudpmtustate* m = &s->Mtu;
+	m->Enabled = s->Config.DiscoverMtu; m->Ceiling = s->Config.Local.DatagramSize < s->Config.Peer.DatagramSize ? s->Config.Local.DatagramSize : s->Config.Peer.DatagramSize;
+	m->Effective = m->Enabled ? 512u : m->Ceiling; m->ProbeSize = 512;
+	m->Attempts = m->LargeSize = 0; m->ProbePacket = m->ProbeDeadlineUs = m->LargePacket = m->LargeDeadlineUs = 0;
+	m->BaseConfirmed = false; m->Failure = XRUDP_OK;
+	m->RaiseAfterUs = 0;
+	m->NextProbeUs = m->Enabled ? xrudp__session_add(s->Now, 100000) : UINT64_MAX;
+}
+static uint64_t xrudp__mtu_interval(const xrudpsession* s)
+{
+	uint64_t interval = 1000000; (void)xrtRudpRttPto(&s->Rtt, 0, &interval);
+	interval = xrudp__session_add(interval, xrudp__session_add(interval, interval));
+	return interval < 1000000 ? 1000000 : interval;
+}
+static void xrudp__mtu_result(xrudpsession* s, const xrudpsentevent* e)
+{
+	xrudpmtustate* m = &s->Mtu;
+	if (!m->Enabled) return;
+	if (e->Kind == XRUDP_SENT_ACKED && e->Bytes >= 512 && !m->BaseConfirmed) {
+		m->BaseConfirmed = true; m->Failure = XRUDP_OK;
+		if (!m->ProbePacket && m->ProbeSize == 512) {
+			m->ProbeSize = xrudp__mtu_next(512, m->Ceiling); m->Attempts = 0;
+			m->NextProbeUs = m->Ceiling > 512 ? xrudp__session_add(s->Now, 100000) : UINT64_MAX;
+			if (m->NextProbeUs < m->RaiseAfterUs) m->NextProbeUs = m->RaiseAfterUs;
+		}
+	}
+	if ((e->Flags & XRUDP_SENT_MTU) && e->PacketNumber == m->ProbePacket) {
+		m->ProbePacket = m->ProbeDeadlineUs = 0;
+		if (e->Kind == XRUDP_SENT_ACKED) {
+			m->ProbesAcknowledged = xrudp__session_add(m->ProbesAcknowledged, 1);
+			m->Effective = m->ProbeSize; m->BaseConfirmed = true; m->Attempts = 0;
+			m->ProbeSize = xrudp__mtu_next(m->Effective, m->Ceiling);
+			m->NextProbeUs = m->Effective < m->Ceiling ? xrudp__session_add(s->Now, 100000) : UINT64_MAX;
+			if (m->NextProbeUs < m->RaiseAfterUs) m->NextProbeUs = m->RaiseAfterUs;
+		} else {
+			m->ProbeFailures = xrudp__session_add(m->ProbeFailures, 1);
+			if (m->BaseConfirmed && m->ProbeSize == 512) {
+				m->Attempts = 0; m->ProbeSize = xrudp__mtu_next(512, m->Ceiling);
+				m->NextProbeUs = m->Ceiling > 512 ? xrudp__session_add(s->Now, 100000) : UINT64_MAX;
+				if (m->NextProbeUs < m->RaiseAfterUs) m->NextProbeUs = m->RaiseAfterUs;
+			} else if (m->Attempts >= 3) {
+				if (!m->BaseConfirmed) { m->Failure = XRUDP_TIMEOUT; m->NextProbeUs = UINT64_MAX; }
+				else { m->Attempts = 0; m->NextProbeUs = xrudp__session_add(s->Now, 60000000); }
+			} else m->NextProbeUs = xrudp__session_add(s->Now, xrudp__mtu_interval(s));
+		}
+	}
+	/* An ACK for a smaller packet/other stream cannot renew the pending large
+	 * size evidence. Retired old-path/old-size ACKs never reach this callback. */
+	if (e->Kind == XRUDP_SENT_ACKED && e->PacketNumber >= m->LargePacket && e->Bytes >= m->LargeSize && m->LargeDeadlineUs) {
+		m->LargeSize = 0; m->LargePacket = m->LargeDeadlineUs = 0;
+	}
+}
 static uint32_t xrudp__session_get32(const unsigned char* p)
 {
 	uint32_t v = 0; for (size_t i = 0; i < 4; ++i) v = (v << 8) | p[i]; return v;
@@ -5351,7 +5444,7 @@ xrudpresult xrtRudpSessionCreate(const xrudpsessionconfig* c, xrudpcipher* ciphe
 	xrtRudpAckSetInit(&s->Ack); (void)xrtRudpAckSetRecord(&s->Ack, 1, now);
 	xrudp__stream_activate(s, 0, 1, true, c->Local.StreamCredit, 1, 1, XRUDP_STREAM_BYTES); s->Streams[0].OpenSent = true;
 	s->Rx = s->Streams[0].Rx; s->Tx = s->Streams[0].Tx;
-	s->Cipher = cipher; *output = s; (void)total; return XRUDP_OK;
+	s->Cipher = cipher; xrudp__mtu_reset(s); *output = s; (void)total; return XRUDP_OK;
 }
 static bool xrudp__session_work(xrudpsession* s)
 {
@@ -5393,6 +5486,7 @@ static xrudpresult xrudp__session_abort(xrudpsession* s, xrudpresult reason)
 	(void)xrtRudpCongestionApply(&s->Cc, s->Events, count, s->Now, true);
 	memset(s->Ref, 0, s->Slots * sizeof(*s->Ref)); xrtRudpCipherDestroy(s->Cipher); s->Cipher = NULL;
 	s->AckWanted = s->ConfirmWanted = s->Work = s->WorkStartPending = false; s->Probes = 0; s->PtoAt = 0; s->Reason = reason;
+	s->Mtu.ProbePacket = s->Mtu.ProbeDeadlineUs = s->Mtu.LargePacket = s->Mtu.LargeDeadlineUs = 0; s->Mtu.NextProbeUs = UINT64_MAX;
 	return XRUDP_OK;
 }
 xrudpresult xrtRudpSessionAbort(xrudpsession* s, xrudpresult reason)
@@ -5425,10 +5519,10 @@ xrudpresult xrtRudpSessionState(const xrudpsession* s, xrudpsessionstate* output
 	state.OutputBackpressure = s->OutputBackpressure; state.PtoBackoff = s->PtoCount;
 	state.Datagrams.NextDeadlineUs = UINT64_MAX;
 	state.DatagramAcknowledged = s->DatagramAcknowledged; state.DatagramLost = s->DatagramLost;
-	state.DatagramDisabledDropped = s->DatagramDisabledDropped;
+	state.DatagramDisabledDropped = s->DatagramDisabledDropped; state.Mtu = s->Mtu;
 	if (s->Datagrams != NULL) {
 		(void)xrtRudpDatagramState(s->Datagrams, &state.Datagrams);
-		uint32_t maximum = s->Config.Local.DatagramSize < s->Config.Peer.DatagramSize ? s->Config.Local.DatagramSize : s->Config.Peer.DatagramSize;
+		uint32_t maximum = s->Mtu.Effective;
 		state.DatagramSendLimit = maximum - XRUDP_DATAGRAM_OVERHEAD;
 		if (state.DatagramSendLimit > s->Config.Datagrams.PayloadCapacity) state.DatagramSendLimit = s->Config.Datagrams.PayloadCapacity;
 	}
@@ -5796,7 +5890,7 @@ xrudpresult xrtRudpSessionDatagramWrite(xrudpsession* s, uint32_t id, const void
 {
 	if (sequence == NULL || (data == NULL && size != 0)) return XRUDP_ARGUMENT;
 	xrudpresult r = xrudp__session_datagram_access(s); if (r != XRUDP_OK) return r;
-	uint32_t maximum = s->Config.Local.DatagramSize < s->Config.Peer.DatagramSize ? s->Config.Local.DatagramSize : s->Config.Peer.DatagramSize;
+	uint32_t maximum = s->Mtu.Effective;
 	if (size > maximum - XRUDP_DATAGRAM_OVERHEAD) return XRUDP_LIMIT;
 	r = xrudp__session_datagram_clock(s, now); if (r != XRUDP_OK) return r;
 	r = xrtRudpDatagramWrite(s->Datagrams, id, data, size, now, deadline, sequence);
@@ -5841,6 +5935,7 @@ static xrudpresult xrudp__session_feedback(xrudpsession* s, size_t count)
 		if (event->UserTag == 0 || event->UserTag > s->Slots) return XRUDP_IO_ERROR;
 		xrudp__sessionref* ref = &s->Ref[event->UserTag - 1];
 		if (!ref->Used || ref->Number != event->PacketNumber) return XRUDP_IO_ERROR;
+		xrudp__mtu_result(s, event);
 		if (ref->Stream != XRUDP__NO_STREAM && ref->Stream >= s->StreamSlots) return XRUDP_IO_ERROR;
 		if (ref->Stream == XRUDP__NO_STREAM && (ref->Size || ref->Fin || ref->Open || ref->Reset || ref->Stop || ref->StreamGrant)) return XRUDP_IO_ERROR;
 		xrudp__sessionstream* m = ref->Stream < s->StreamSlots ? &s->Streams[ref->Stream] : NULL;
@@ -5870,7 +5965,7 @@ static xrudpresult xrudp__session_feedback(xrudpsession* s, size_t count)
 		} else if (event->Kind == XRUDP_SENT_LOST) {
 			if ((ref->Shutdown && !s->Shutdown.DeclarationAcknowledged) || (ref->Drained && !s->Shutdown.DrainedAcknowledged)) s->ShutdownRetry = s->Now;
 			if (ref->Datagram && s->DatagramLost != UINT64_MAX) ++s->DatagramLost;
-			++s->LostPackets;
+			if (!(ref->Flags & XRUDP_SENT_MTU)) ++s->LostPackets;
 			if (ref->ConnectionGrant || ref->StreamGrant) s->GrantRetry = s->Now;
 			if (ref->StreamsGrant) s->StreamsRetry = s->Now;
 			if (m != NULL && (ref->StreamGrant || ref->Open || ref->Reset)) m->RetryAt = s->Now;
@@ -5891,6 +5986,32 @@ static xrudpresult xrudp__session_losses(xrudpsession* s, size_t before)
 	result = xrtRudpCongestionApply(&s->Cc, s->Events, before + count, s->Now, xrudp__session_limited(s));
 	return result == XRUDP_OK ? xrudp__session_feedback(s, before + count) : XRUDP_IO_ERROR;
 }
+static xrudpresult xrudp__mtu_maintain(xrudpsession* s)
+{
+	xrudpmtustate* m = &s->Mtu;
+	if (!m->Enabled || s->Shutdown.Ready) return XRUDP_OK;
+	if (m->ProbePacket && s->Now >= m->ProbeDeadlineUs) {
+		xrudpresult r = xrtRudpSentDiscardPacket(s->Sent, m->ProbePacket, s->Now, s->Events);
+		if (r != XRUDP_OK || xrtRudpCongestionApply(&s->Cc, s->Events, 1, s->Now, true) != XRUDP_OK || xrudp__session_feedback(s, 1) != XRUDP_OK) return XRUDP_IO_ERROR;
+	}
+	if (m->Failure != XRUDP_OK && !s->Shutdown.Requested && !s->Shutdown.PeerRequested) return m->Failure;
+	if (m->LargeDeadlineUs && s->Now >= m->LargeDeadlineUs) {
+		bool reset = m->Effective > 512 || m->BaseConfirmed;
+		size_t count; xrudpresult r = xrtRudpSentDiscardPath(s->Sent, s->Now, s->Events, s->Slots, &count);
+		if ((r != XRUDP_OK && r != XRUDP_DONE) || xrtRudpCongestionApply(&s->Cc, s->Events, count, s->Now, true) != XRUDP_OK || xrudp__session_feedback(s, count) != XRUDP_OK) return XRUDP_IO_ERROR;
+		if (reset) { xrudp__mtu_reset(s); m->NextProbeUs = s->Now; m->RaiseAfterUs = xrudp__session_add(s->Now, 60000000); }
+		/* While rechecking BASE, discarding stalled ordinary packets may free
+		 * the only normal slot, but must NEVER restart the admitted probe count. */
+		m->LargePacket = m->LargeDeadlineUs = 0; m->LargeSize = 0;
+		m->Fallbacks = xrudp__session_add(m->Fallbacks, 1);
+		if (s->Datagrams != NULL && !s->Shutdown.Requested) {
+			uint32_t dropped; if (xrtRudpDatagramTrimSend(s->Datagrams, m->Effective - XRUDP_DATAGRAM_OVERHEAD, &dropped) != XRUDP_OK) return XRUDP_IO_ERROR;
+		}
+		s->PtoAt = 0; s->PtoCount = s->Probes = 0;
+	}
+	return XRUDP_OK;
+}
+
 static void xrudp__session_ackwant(xrudpsession* s, bool immediate)
 {
 	uint64_t due = immediate ? s->Now : xrudp__session_add(s->Now, s->Config.Local.MaxAckDelayUs);
@@ -6253,6 +6374,8 @@ static xrudpresult xrudp__session_migrate(xrudpsession* s)
 	s->PtoAt = 0; s->PtoCount = s->Probes = 0; s->GrantRetry = s->StreamsRetry = s->Now; s->Progress = s->Now;
 	xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher);
 	xrudp__path_promote(&s->Path, s->Now, cipher.LargestReceivedPacket);
+	xrudp__mtu_reset(s);
+	if (s->Datagrams != NULL) { uint32_t count; if (xrtRudpDatagramTrimSend(s->Datagrams, s->Mtu.Effective - XRUDP_DATAGRAM_OVERHEAD, &count) != XRUDP_OK && !s->Shutdown.Requested) return XRUDP_IO_ERROR; }
 	xrudp__session_ackwant(s, true); return XRUDP_OK;
 }
 xrudpresult xrtRudpSessionPathInput(xrudpsession* s, const xrudpaddress* address, const void* packet, size_t size, uint64_t now)
@@ -6368,13 +6491,19 @@ static xrudpresult xrudp__session_emit(xrudpsession* s, const unsigned char* pla
 		xrtRudpCongestionOnSent(&s->Cc, number, s->Now, s->Rtt.SmoothedUs, (uint32_t)*size, flags) != XRUDP_OK) return XRUDP_IO_ERROR;
 	xrudp__sessionref* ref = &s->Ref[slot]; memset(ref, 0, sizeof(*ref)); ref->Used = true;
 	ref->Number = number; ref->At = s->Now; ref->Flags = flags; ref->Stream = XRUDP__NO_STREAM; *output = ref;
+	if (s->Mtu.Enabled && !(flags & XRUDP_SENT_MTU) && (flags & XRUDP_SENT_ACK_ELICITING) && *size >= 512) {
+		if (!s->Mtu.LargeDeadlineUs) {
+			s->Mtu.LargeDeadlineUs = xrudp__session_add(s->Now, xrudp__mtu_interval(s));
+			s->Mtu.LargeSize = (uint32_t)*size; s->Mtu.LargePacket = number;
+		} else if (*size > s->Mtu.LargeSize) { s->Mtu.LargeSize = (uint32_t)*size; s->Mtu.LargePacket = number; }
+	}
 	return XRUDP_OK;
 }
 static xrudpresult xrudp__session_send_inner(xrudpsession* s, uint64_t* due, bool ackOnly,
 	unsigned char* plain, unsigned char* body, unsigned char* packet)
 {
 	size_t used = 0, ackSize = 0, size;
-	uint32_t maximum = s->Config.Peer.DatagramSize < s->Config.Local.DatagramSize ? s->Config.Peer.DatagramSize : s->Config.Local.DatagramSize;
+	uint32_t maximum = s->Mtu.Effective;
 	size_t limit = maximum - XRUDP_HEADER_SIZE - XRUDP_TAG_SIZE;
 	xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher);
 	bool probe = s->Probes != 0;
@@ -6463,17 +6592,17 @@ static xrudpresult xrudp__session_send_inner(xrudpsession* s, uint64_t* due, boo
 		xrudp__session_put32(body, cipher.ReceiveEpoch);
 		if (!xrudp__session_append(plain, limit, &used, XRUDP_FRAME_KEY_CONFIRM, 0, body, 4)) return XRUDP_IO_ERROR;
 	}
-	uint32_t flags = eliciting ? XRUDP_SENT_ACK_ELICITING : 0;
+	uint32_t flags = eliciting ? XRUDP_SENT_ACK_ELICITING : XRUDP_SENT_ACK_ONLY;
 	if (probe) flags |= XRUDP_SENT_PROBE;
 	uint64_t at = s->Now;
 	xrudpresult admission = xrtRudpCongestionCanSend(&s->Cc, s->Now, s->Rtt.SmoothedUs,
 		(uint32_t)(used + XRUDP_HEADER_SIZE + XRUDP_TAG_SIZE), flags, &at);
-	if (!xrtRudpSentCanRecord(s->Sent, probe)) admission = XRUDP_BACKPRESSURE;
+	if (!(eliciting ? xrtRudpSentCanRecord(s->Sent, probe) : xrtRudpSentCanRecordAck(s->Sent))) admission = XRUDP_BACKPRESSURE;
 	if (admission != XRUDP_OK) {
 		if (admission == XRUDP_TIMEOUT && at < *due) *due = at;
 		if (finalAck) return XRUDP_DONE; /* Keep its recovery PING, never degrade this proof to ACK-only. */
-		if (ackSize == 0 || !xrtRudpSentCanRecord(s->Sent, false)) return XRUDP_DONE;
-		used = ackSize; data = grant = streamsGrant = streamGrant = open = reset = stop = shutdown = drained = probe = eliciting = false; flags = 0;
+		if (ackSize == 0 || !xrtRudpSentCanRecordAck(s->Sent)) return XRUDP_DONE;
+		used = ackSize; data = grant = streamsGrant = streamGrant = open = reset = stop = shutdown = drained = probe = eliciting = false; flags = XRUDP_SENT_ACK_ONLY;
 	}
 	if (!eliciting) {
 		at = s->AckAt > s->ControlAt ? s->AckAt : s->ControlAt;
@@ -6522,7 +6651,7 @@ static xrudpresult xrudp__session_send_datagram(xrudpsession* s, uint64_t* due,
 	unsigned char* plain, unsigned char* body, unsigned char* packet)
 {
 	xrudpdatagramview view; if (s->Probes != 0 || s->Datagrams == NULL || xrtRudpDatagramPeekSend(s->Datagrams, &view) != XRUDP_OK) return XRUDP_DONE;
-	uint32_t maximum = s->Config.Peer.DatagramSize < s->Config.Local.DatagramSize ? s->Config.Peer.DatagramSize : s->Config.Local.DatagramSize;
+	uint32_t maximum = s->Mtu.Effective;
 	size_t limit = maximum - XRUDP_HEADER_SIZE - XRUDP_TAG_SIZE, used = 0, ackSize = 0;
 	size_t needed = view.Info.Size + 16u + 8u;
 	if (needed > limit) return XRUDP_IO_ERROR; /* Write already enforced the effective payload bound. */
@@ -6597,6 +6726,36 @@ static xrudpresult xrudp__session_send_path(xrudpsession* s, uint64_t* due)
 	if (s->Probes) --s->Probes;
 	++s->SentPackets; xrudp__session_pto_sync(s, false); return XRUDP_OK;
 }
+static xrudpresult xrudp__session_send_mtu(xrudpsession* s, uint64_t* due)
+{
+	xrudpmtustate* m = &s->Mtu;
+	if (!m->Enabled || m->ProbePacket || m->Failure != XRUDP_OK || s->Now < m->NextProbeUs ||
+		s->Probes || s->Shutdown.Requested || s->Shutdown.PeerRequested) return XRUDP_DONE;
+	const uint32_t flags = XRUDP_SENT_ACK_ELICITING | XRUDP_SENT_PADDING | XRUDP_SENT_MTU;
+	uint64_t at = s->Now; xrudpresult r = xrtRudpCongestionCanSend(&s->Cc, s->Now, s->Rtt.SmoothedUs, m->ProbeSize, flags, &at);
+	if (r != XRUDP_OK || !xrtRudpSentCanRecord(s->Sent, false)) {
+		if (r == XRUDP_TIMEOUT && at < *due) *due = at;
+		return XRUDP_DONE;
+	}
+	unsigned char plain[XRUDP_PACKET_MAX] = {0}, packet[XRUDP_PACKET_MAX], epoch[4]; size_t used = 0, size;
+	size_t limit = m->ProbeSize - XRUDP_HEADER_SIZE - XRUDP_TAG_SIZE;
+	xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher); xrudp__session_put32(epoch, cipher.ReceiveEpoch);
+	if (!xrudp__session_append(plain, limit, &used, XRUDP_FRAME_PING, 0, NULL, 0) ||
+		!xrudp__session_append(plain, limit, &used, XRUDP_FRAME_KEY_CONFIRM, 0, epoch, 4)) return XRUDP_IO_ERROR;
+	/* Padding is one bounded all-zero frame. Its packet number, not a peer
+	 * reported length/response size, uniquely proves the admitted UDP payload. */
+	unsigned char padding[XRUDP_PACKET_MAX] = {0};
+	if (!xrudp__session_append(plain, limit, &used, XRUDP_FRAME_PADDING, 0, padding, limit - used - 4)) return XRUDP_IO_ERROR;
+	xrudp__sessionref* ref; r = xrudp__session_emit(s, plain, used, flags, packet, due, &size, NULL, NULL, &ref);
+	xrtSecureZero(plain, sizeof(plain)); xrtSecureZero(packet, sizeof(packet));
+	if (r == XRUDP_BACKPRESSURE) return XRUDP_DONE;
+	if (r != XRUDP_OK) return r;
+	if (size != m->ProbeSize) return XRUDP_IO_ERROR;
+	m->ProbePacket = ref->Number; m->ProbeDeadlineUs = xrudp__session_add(s->Now, xrudp__mtu_interval(s));
+	m->NextProbeUs = UINT64_MAX; ++m->Attempts; m->ProbesSent = xrudp__session_add(m->ProbesSent, 1);
+	s->ConfirmWanted = false; ++s->SentPackets; xrudp__session_pto_sync(s, false); return XRUDP_OK;
+}
+
 static xrudpresult xrudp__session_send(xrudpsession* s, uint64_t* due)
 {
 	unsigned char plain[XRUDP_PACKET_MAX], body[XRUDP_PACKET_MAX], packet[XRUDP_PACKET_MAX];
@@ -6629,6 +6788,7 @@ xrudpresult xrtRudpSessionPoll(xrudpsession* s, uint64_t now, uint64_t* output)
 	if (xrudp__session_dead(s, now)) { (void)xrudp__session_abort(s, XRUDP_TIMEOUT); return XRUDP_TIMEOUT; }
 	s->Busy = true; xrudpresult result = xrudp__session_losses(s, 0);
 	if (result != XRUDP_OK) goto failure;
+	result = xrudp__mtu_maintain(s); if (result != XRUDP_OK) goto failure;
 	result = xrudp__session_stage(s); if (result != XRUDP_OK) goto failure;
 	xrudp__session_pto_sync(s, false); xrudp__session_syncwork(s);
 	xrudp__shutdown_update(s);
@@ -6643,6 +6803,7 @@ xrudpresult xrtRudpSessionPoll(xrudpsession* s, uint64_t now, uint64_t* output)
 	for (size_t i = 0; i < XRUDP_SESSION_POLL_BURST; ++i) {
 		uint64_t pressure = s->OutputBackpressure;
 		result = i == 0 ? xrudp__session_send_path(s, &due) : XRUDP_DONE;
+		if (i == 0 && result == XRUDP_DONE && pressure == s->OutputBackpressure) result = xrudp__session_send_mtu(s, &due);
 		if (result == XRUDP_DONE && pressure == s->OutputBackpressure) result = xrudp__session_send(s, &due);
 		if (result == XRUDP_DONE) break;
 		if (result != XRUDP_OK) goto failure;
@@ -6665,12 +6826,17 @@ xrudpresult xrtRudpSessionPoll(xrudpsession* s, uint64_t now, uint64_t* output)
 		goto scheduled;
 	}
 	if (s->PtoAt && s->PtoAt < due) due = s->PtoAt;
+	if (s->Mtu.Enabled && !s->Shutdown.Requested && !s->Shutdown.PeerRequested) {
+		uint64_t at = s->Mtu.ProbePacket ? s->Mtu.ProbeDeadlineUs : s->Mtu.NextProbeUs;
+		if (at < due) due = at;
+		if (s->Mtu.LargeDeadlineUs && s->Mtu.LargeDeadlineUs < due) due = s->Mtu.LargeDeadlineUs;
+	}
 	if (s->PreviousKeyUntil && s->PreviousKeyUntil < due) due = s->PreviousKeyUntil;
 	if (s->Datagrams != NULL) {
 		xrudpdatagramstate state; (void)xrtRudpDatagramState(s->Datagrams, &state);
 		if (state.NextDeadlineUs < due) due = state.NextDeadlineUs;
 	}
-	if (s->AckWanted && xrtRudpSentCanRecord(s->Sent, false)) {
+	if (s->AckWanted && xrtRudpSentCanRecordAck(s->Sent)) {
 		uint64_t at = s->AckAt > s->ControlAt ? s->AckAt : s->ControlAt; if (at < due) due = at;
 	}
 	if (s->ConnectionLimit > s->ConnectionAcked && s->GrantRetry > now && s->GrantRetry < due) due = s->GrantRetry;
@@ -7078,6 +7244,7 @@ static void xrudp__peer_capture(xrudppeer* p)
 		p->Address.Port = next.Path.Active.Port; p->Address.Scope = next.Path.Active.Zone; memcpy(p->Address.Address, next.Path.Active.Address, 16);
 	}
 	if (next.Path.Failures > p->Snapshot.Path.Failures) p->PendingEvents |= XRUDP_PEER_PATH_FAILED;
+	if (next.Mtu.Effective != p->Snapshot.Mtu.Effective || next.Mtu.Fallbacks != p->Snapshot.Mtu.Fallbacks) p->PendingEvents |= XRUDP_PEER_MTU_CHANGED;
 	if (next.ReadReady && !p->Snapshot.ReadReady) p->PendingEvents |= XRUDP_PEER_READ_READY;
 	if (next.Shutdown.PeerRequested && !p->Snapshot.Shutdown.PeerRequested) p->PendingEvents |= XRUDP_PEER_SHUTDOWN_REQUESTED;
 	if (next.Transmit.Cancelled || next.Shutdown.Requested) p->PendingEvents &= ~XRUDP_PEER_WRITE_READY;
@@ -7091,7 +7258,7 @@ static void xrudp__peer_capture(xrudppeer* p)
 	if (next.Datagrams.ReceiveQueued != 0 && (next.Datagrams.Accepted > p->Snapshot.Datagrams.Accepted ||
 		next.Datagrams.ReceiveQueued > p->Snapshot.Datagrams.ReceiveQueued)) p->PendingEvents |= XRUDP_PEER_DATAGRAM_READ_READY;
 	if (next.Shutdown.Requested) p->PendingEvents &= ~(XRUDP_PEER_DATAGRAM_READ_READY | XRUDP_PEER_DATAGRAM_WRITE_READY | XRUDP_PEER_STREAMS_READY);
-	else if (next.Datagrams.SendQueued < p->Snapshot.Datagrams.SendQueued) p->PendingEvents |= XRUDP_PEER_DATAGRAM_WRITE_READY;
+	else if (next.Datagrams.SendQueued < p->Snapshot.Datagrams.SendQueued || next.DatagramSendLimit > p->Snapshot.DatagramSendLimit) p->PendingEvents |= XRUDP_PEER_DATAGRAM_WRITE_READY;
 	p->Snapshot = next;
 }
 static void xrudp__peer_notify(xrudppeer* p)
@@ -7352,6 +7519,7 @@ void xrtRudpEndpointConfigInit(xrudpendpointconfig* c)
 {
 	if (c == NULL) return;
 	memset(c, 0, sizeof(*c)); xrtRudpSessionConfigInit(&c->Session);
+	c->Session.DiscoverMtu = true;
 	c->MaxPeers = 64; c->MaxHalfOpen = 16; c->MemoryLimit = 16u * 1024u * 1024u;
 	c->HandshakesPerSecond = 128; c->AddressHandshakesPerSecond = 8;
 }
@@ -7392,6 +7560,7 @@ xrudpresult xrtRudpEndpointBind(xnetworker* worker, const xnetaddr* local,
 	udp.ReceiveQueueLimit = 0; udp.ReceiveQueueByteLimit = 0; udp.Truncation = XNET_UDP_TRUNCATE_DROP;
 	udp.SendLimit = 65536; udp.SendPacketLimit = 64; udp.SendHighWater = 49152; udp.SendLowWater = 16384;
 	udp.ReceiveBuffer = udp.SendBuffer = 262144; udp.IPv6Only = true;
+	if (session.DiscoverMtu) udp.PathMtu = XNET_PMTU_PROBE;
 	xnetudpevents ev; memset(&ev, 0, sizeof(ev)); ev.Open = xrudp__endpoint_open; ev.Receive = xrudp__endpoint_receive;
 	ev.Error = xrudp__endpoint_error; ev.Close = xrudp__endpoint_closed;
 	e->Udp = xrtNetUdpBind(e->Engine, local, xrtNetWorkerIndex(worker), &udp, &ev, e);

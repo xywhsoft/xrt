@@ -46,6 +46,14 @@ typedef struct xrudppathstate {
 	bool Enabled, Validating;
 } xrudppathstate;
 
+typedef struct xrudpmtustate {
+	uint32_t Effective, Ceiling, ProbeSize, Attempts, LargeSize; /* UDP payload bytes. */
+	uint64_t ProbePacket, ProbeDeadlineUs, NextProbeUs, RaiseAfterUs, LargePacket, LargeDeadlineUs;
+	uint64_t ProbesSent, ProbesAcknowledged, ProbeFailures, Fallbacks;
+	xrudpresult Failure; /* TIMEOUT: unable to confirm the required 512B base. */
+	bool Enabled, BaseConfirmed;
+} xrudpmtustate;
+
 typedef struct xrudpsessionconfig {
 	xrudpparameters Local, Peer; /* Authenticated, already negotiated parameters. */
 	xrudpdatagramconfig Datagrams; /* All zero disables; otherwise fixed local queue budget. */
@@ -57,6 +65,13 @@ typedef struct xrudpsessionconfig {
 	uint64_t MaximumWindow, InitialRttUs;
 	uint64_t ProgressTimeoutUs; /* 1s..10min, default 30s; cannot be refreshed by PING. */
 	uint64_t KeyUpdatePackets; /* Local rotation threshold, 8..2^24. */
+	/* Raw Session default false: transport must guarantee no IP fragmentation
+	 * before enabling. Native Endpoint default true and enforces UDP PMTU_PROBE.
+	 * Starts at 512B, authenticated padded-PING ACKs raise to 768/1024/ceiling.
+	 * Max 3 admitted probes per size, >=1s/3 PTO interval; failed growth waits
+	 * 60s. Required 512B failure terminates. Independent large-packet stalls
+	 * reduce to 512 and requeue reliable ranges, never game payload. */
+	bool DiscoverMtu;
 } xrudpsessionconfig;
 
 typedef struct xrudpshutdownstate {
@@ -70,6 +85,7 @@ typedef struct xrudpsessionstate {
 	xrudpresult Reason; /* OK while active; terminal reasons are sticky. */
 	xrudpshutdownstate Shutdown;
 	xrudppathstate Path;
+	xrudpmtustate Mtu;
 	xrudpreceivestate Receive;
 	xrudptransmitstate Transmit;
 	xrudpsentstate Sent;
@@ -77,7 +93,7 @@ typedef struct xrudpsessionstate {
 	xrudprtt Rtt;
 	xrudpdatagramstate Datagrams;
 	uint64_t DatagramAcknowledged, DatagramLost, DatagramDisabledDropped;
-	uint32_t DatagramSendLimit; /* Local queue/negotiated packet size bound. */
+	uint32_t DatagramSendLimit; /* Current path TX limit less overhead/local queue bound. */
 	uint64_t ReceivedConnection, ReceiveLimit, SentConnection, PeerLimit;
 	uint64_t LastNowUs, LastActivityUs, ProgressAtUs;
 	uint64_t ReceivedPackets, SentPackets, LostPackets, ProbeTimeouts, KeyUpdates;

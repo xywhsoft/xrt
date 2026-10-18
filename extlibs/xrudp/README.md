@@ -154,3 +154,11 @@ SessionStreamNextEvent 提供远端开流、读写及退休边缘提示；原生
 single/extlibs/xrudp.h 与 single/extlibs/xrudp_decl.h。
 
 协议草案见 docs/protocol.md；生产验收与跨仓库进度见 docs/implementation-status.md。
+
+原生端点默认启用路径 MTU 探测，使用 XRT 的 UDP PMTU_PROBE 禁止 IP 分片。
+低层 Session 的 DiscoverMtu 默认关闭；只有传输适配器能保证不分片时才启用。
+State.Mtu 区分不可变接收上限、当前发送尺寸、探测和回退；握手成功本身不证明大包可达。
+从 512B 起步，通过完整加密报文的 ACK 提升尺寸；较大尺寸持续失败时保留当前可用尺寸，
+大报文独立停滞时退回 512B，可靠数据缩包重发，未发送的超限游戏记录清除并计数。
+DatagramSendLimit 随当前路径变化，应用应按该值组织游戏负载，并处理 MTU_CHANGED 提示。
+此功能不替代 NAT 发现、协调打洞、xs 服务类型或 mdo 内嵌直连/中继集成，完整生产验收仍在进行。

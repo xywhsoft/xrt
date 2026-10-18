@@ -272,6 +272,7 @@ static void xrudp__peer_capture(xrudppeer* p)
 		p->Address.Port = next.Path.Active.Port; p->Address.Scope = next.Path.Active.Zone; memcpy(p->Address.Address, next.Path.Active.Address, 16);
 	}
 	if (next.Path.Failures > p->Snapshot.Path.Failures) p->PendingEvents |= XRUDP_PEER_PATH_FAILED;
+	if (next.Mtu.Effective != p->Snapshot.Mtu.Effective || next.Mtu.Fallbacks != p->Snapshot.Mtu.Fallbacks) p->PendingEvents |= XRUDP_PEER_MTU_CHANGED;
 	if (next.ReadReady && !p->Snapshot.ReadReady) p->PendingEvents |= XRUDP_PEER_READ_READY;
 	if (next.Shutdown.PeerRequested && !p->Snapshot.Shutdown.PeerRequested) p->PendingEvents |= XRUDP_PEER_SHUTDOWN_REQUESTED;
 	if (next.Transmit.Cancelled || next.Shutdown.Requested) p->PendingEvents &= ~XRUDP_PEER_WRITE_READY;
@@ -285,7 +286,7 @@ static void xrudp__peer_capture(xrudppeer* p)
 	if (next.Datagrams.ReceiveQueued != 0 && (next.Datagrams.Accepted > p->Snapshot.Datagrams.Accepted ||
 		next.Datagrams.ReceiveQueued > p->Snapshot.Datagrams.ReceiveQueued)) p->PendingEvents |= XRUDP_PEER_DATAGRAM_READ_READY;
 	if (next.Shutdown.Requested) p->PendingEvents &= ~(XRUDP_PEER_DATAGRAM_READ_READY | XRUDP_PEER_DATAGRAM_WRITE_READY | XRUDP_PEER_STREAMS_READY);
-	else if (next.Datagrams.SendQueued < p->Snapshot.Datagrams.SendQueued) p->PendingEvents |= XRUDP_PEER_DATAGRAM_WRITE_READY;
+	else if (next.Datagrams.SendQueued < p->Snapshot.Datagrams.SendQueued || next.DatagramSendLimit > p->Snapshot.DatagramSendLimit) p->PendingEvents |= XRUDP_PEER_DATAGRAM_WRITE_READY;
 	p->Snapshot = next;
 }
 static void xrudp__peer_notify(xrudppeer* p)
@@ -546,6 +547,7 @@ void xrtRudpEndpointConfigInit(xrudpendpointconfig* c)
 {
 	if (c == NULL) return;
 	memset(c, 0, sizeof(*c)); xrtRudpSessionConfigInit(&c->Session);
+	c->Session.DiscoverMtu = true;
 	c->MaxPeers = 64; c->MaxHalfOpen = 16; c->MemoryLimit = 16u * 1024u * 1024u;
 	c->HandshakesPerSecond = 128; c->AddressHandshakesPerSecond = 8;
 }
@@ -586,6 +588,7 @@ xrudpresult xrtRudpEndpointBind(xnetworker* worker, const xnetaddr* local,
 	udp.ReceiveQueueLimit = 0; udp.ReceiveQueueByteLimit = 0; udp.Truncation = XNET_UDP_TRUNCATE_DROP;
 	udp.SendLimit = 65536; udp.SendPacketLimit = 64; udp.SendHighWater = 49152; udp.SendLowWater = 16384;
 	udp.ReceiveBuffer = udp.SendBuffer = 262144; udp.IPv6Only = true;
+	if (session.DiscoverMtu) udp.PathMtu = XNET_PMTU_PROBE;
 	xnetudpevents ev; memset(&ev, 0, sizeof(ev)); ev.Open = xrudp__endpoint_open; ev.Receive = xrudp__endpoint_receive;
 	ev.Error = xrudp__endpoint_error; ev.Close = xrudp__endpoint_closed;
 	e->Udp = xrtNetUdpBind(e->Engine, local, xrtNetWorkerIndex(worker), &udp, &ev, e);

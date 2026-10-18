@@ -13,6 +13,7 @@
 #define XRUDP_SENT_PROBE 2u
 #define XRUDP_SENT_PADDING 4u
 #define XRUDP_SENT_MTU 8u
+#define XRUDP_SENT_ACK_ONLY 16u
 
 typedef struct xrudpsentwindow xrudpsentwindow;
 typedef enum xrudpsenteventkind {
@@ -76,6 +77,13 @@ XRUDP_API xrudpresult xrtRudpSentCreateAfter(uint32_t iCapacity,
 XRUDP_API void xrtRudpSentDestroy(xrudpsentwindow* pWindow);
 XRUDP_API xrudpresult xrtRudpSentState(const xrudpsentwindow* pWindow, xrudpsentstate* pState);
 XRUDP_API bool xrtRudpSentCanRecord(const xrudpsentwindow* pWindow, bool bProbe);
+/* Pure ACK metadata may use spare slots from the same fixed reserve without
+ * consuming flight/congestion or creating a PTO probe. Must record exactly
+ * ACK_ONLY (no other flags), never business/padding/PING. This avoids circular
+ * ACK starvation when both directions have filled a one-slot normal window.
+ * Shares the total fixed cap but leaves two slots exclusively for true PTO;
+ * metadata expiry remains bounded by the driver. */
+XRUDP_API bool xrtRudpSentCanRecordAck(const xrudpsentwindow* pWindow);
 /* Record every DATA packet actually admitted to UDP output, including ACK-only
  * packets. Numbers strictly increase, gaps are permitted for failed sends.
  * Check capacity under the same serialized owner before sealing/sending.
