@@ -1,5 +1,7 @@
 # xrudp
 
+首次发布的需求、证据及未完成门槛见 [验收矩阵](docs/acceptance-matrix.md)。
+
 基于同一份 XRT 的可靠 UDP 扩展；库名固定为 xrudp，公共符号前缀为 xrtRudp。
 xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库创建监听与打洞端点，
 不要求通过 xs 跨服务通信。
