@@ -30,6 +30,8 @@
 
 ## 本轮源码抽查
 
+20 个运行时翻译单元的 Clang 路径分析及未屏蔽告警复核见 [静态分析记录](static-analysis-validation.md)。两条候选空指针路径与当前 opaque 状态不变量矛盾，未确认新运行时缺陷；这项检查不替代完整生产验收。
+
 `src/network/rudp_endpoint.c` 先做报文结构检查，再分发已知 CID；未知 CID 在握手 Cookie/DH 前经过固定大小限速表。监听入口先预留连接与逻辑字节预算，失败路径归还；`src/crypto/rudp_handshake.c` 在分配握手对象和执行 Noise 前校验地址 Cookie。HELLO 的 Retry 不创建 peer。
 
 已认证 peer 的 `XRUDP_AUTH_FAILED` 只计入无效报文，不关闭现有连接。迁移必须经过已认证路径处理，CID 或 STUN 映射本身不授予权限。关闭先释放运行态资源并发布最终快照，保留句柄仍计入端点预算，最后一次 Destroy 才释放句柄和端点引用。
