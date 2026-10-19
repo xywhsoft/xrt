@@ -1820,25 +1820,6 @@
 #endif
 #endif
 
-/* executor 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_EXECUTOR)
-#ifndef XRT_FEATURE_EXECUTOR
-#define XRT_FEATURE_EXECUTOR
-#endif
-#ifndef XRT_MODULE_ATOMIC
-#define XRT_MODULE_ATOMIC
-#endif
-#ifndef XRT_MODULE_TEMP_MEMORY
-#define XRT_MODULE_TEMP_MEMORY
-#endif
-#ifndef XRT_MODULE_THREAD
-#define XRT_MODULE_THREAD
-#endif
-#ifndef XRT_MODULE_COND
-#define XRT_MODULE_COND
-#endif
-#endif
-
 /* task_group 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TASK_GROUP)
 #ifndef XRT_FEATURE_TASK_GROUP
@@ -4269,6 +4250,25 @@
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_STRING)
 #ifndef XRT_FEATURE_STRING
 #define XRT_FEATURE_STRING
+#endif
+#endif
+
+/* executor 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_EXECUTOR)
+#ifndef XRT_FEATURE_EXECUTOR
+#define XRT_FEATURE_EXECUTOR
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRT_MODULE_TEMP_MEMORY
+#define XRT_MODULE_TEMP_MEMORY
+#endif
+#ifndef XRT_MODULE_THREAD
+#define XRT_MODULE_THREAD
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
 #endif
 #endif
 

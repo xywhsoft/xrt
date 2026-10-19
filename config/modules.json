@@ -584,6 +584,19 @@
 			]
 		},
 		{
+			"name": "executor_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["executor", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/concurrency/test_executor_ownership.c"],
+			"single_tests": ["tests/single/test_single_executor_ownership.c"],
+			"examples": [],
+			"docs": ["docs/api/executor.md"]
+		},
+		{
 			"name": "task_pool_ownership_tests",
 			"state": "implemented",
 			"feature": null,
@@ -7129,9 +7142,12 @@
 			"public_headers": [
 				"include/xrt/executor.h"
 			],
-			"internal_headers": [],
+			"internal_headers": [
+				"src/internal/xrt_executor.h"
+			],
 			"sources": [
-				"src/concurrency/executor.c"
+				"src/concurrency/executor.c",
+				"src/concurrency/executor_ownership.c"
 			],
 			"tests": [
 				"tests/concurrency/test_executor.c"

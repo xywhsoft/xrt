@@ -3,6 +3,42 @@
 `Executor` 是独立可裁剪的高吞吐 detached 工作执行器。它不创建 `Future`，不传递返回值，
 也不提供运行中任务的强制取消；需要结果、错误传播或协作取消时应使用 `TaskPool`。
 
+## 受管理任务与拥有图
+
+`xrtExecutorSubmitOwnedV1(executor, data, policy)` 与
+`xrtExecutorSubmitOwnedBatchV1(executor, items, count)` 复用同一有界槽位和工作窃取
+机制，不为每次提交申请通用堆内存。每项成功转移一个真实 Data 引用；整批失败时
+一项也不接管。`xexecutordataownershipv1` 包含 `size`、`Proc`、`Drop` 和 `Ops`；
+`xexecutorowneditemv1` 包含 `Data` 和 `Policy`。`Proc(Data)` 借用数据，完成或排队
+取消后由 `Drop(Data, NULL)` 恰好消费一次。合同及其函数必须驻留到槽位最后的 pin
+释放；不能传递栈上或短命动态库中的合同，也不能把额外析构上下文藏在合同以外。
+
+`xrtExecutorOwnership`、`xrtExecutorOwnershipAdapterV1` 与
+`xrtExecutorOwnershipQuiescenceV1Get` 描述真实执行器。排队槽位是独立的物理节点：
+队列持有一个引用，槽位持有 Data 引用和一个保证包含它的分配存活的执行器引用。
+不能为 Worker 或队列链接捏造 RC。槽位由执行器 Trace 交付，调用
+`xrtExecutorJobOwnershipAdapterV1(ref, policies, count, &preparation)` 时，先按地址
+匹配调用者明确准入的常驻 Data 合同，再读取合同字段和遍历数据；
+`xrtExecutorJobOwnershipQuiescenceV1Get` 提供槽位活动状态。所有查询均要求整个图
+处于独占 ownership freeze。旧 `Submit`／`SubmitBatch` 的裸指针任务不获此认证：
+保留原生使用，但存在不透明排队项时拒绝拥有图快照。
+
+运行体、析构回调、取消摘链和原生 API 尾声没有完成时，不能把瞬间的空队列当作静止。
+Wait 包括已取消项的析构尾声；Worker 和取消析构回调等待或销毁自身执行器会 checked
+拒绝，其他线程仍可正常等待。`Running` 包括已从队列摘除但析构尚未结束的取消项。
+`Completed` 只在用户过程、析构及清理结束后发布。Destroy 仍要求调用者停止其他并发
+访问；重入或重叠的原生入口不会提前释放执行器。
+
+Adapter 的 Prepare 关闭新受理，让原有工作及清理自然完成，通知空闲 Worker 退出，
+在 freeze 和 mutation 之外进行零超时 join。繁忙时返回 BUSY，不取消、不代执行任务，
+也不在锁内调用用户过程。只有线程真实 join 后才能 Clear，Finish 退役线程资源。
+固定住的已完成槽位暂不复用，执行器本身被销毁后也保留其包含分配，直到最后实际引用
+释放。因此 pin 很多槽位时，即使队列为空也可能返回容量不足；不会偷偷申请新槽位。
+
+`executor_ownership_tests` 专项覆盖模块化和单头布局、实际引用/边、旧不透明合同拒绝、
+并行回调、取消析构尾声、pin 阻止 ABA 复用、两种销毁顺序以及调用线程的创建/快照
+分配失败前缀和完整内存账本；调用线程注入不等于 Worker 分配失败已认证。
+
 ## 类型与常量
 
 ### `xexecutoritem`
