@@ -26,6 +26,8 @@
 | mdo 直连优先及权限 | 进程内原生端点；认证一次性会合、公钥/owner/runtime/nonce/只读绑定；HTTP、实时订阅、业务收据、LAN/中继回退 | 当前 SDK 公网 Windows/Linux 正反向各通过一次，均跨 65 秒空闲；一侧 NAT 加公网服务器，不等于双 NAT |
 | XS 独立协议服务 | TCP 风格监听/连接/默认字节流、运行代保留/切换/回滚及生命周期 | `D:/GIT/xserver/docs/xrudp-xrt-2026-10-19.md`；mdo 无须通过该服务建立端点 |
 | 已提交 mdo 独立构建 | 仅从 Git 提交检出 2,561 个文件，无 7 个未跟踪传输源文件；Windows/Linux 六扩展宿主、打包启动/内置 TCC、Home 排他及崩溃后重开均通过 | `D:/GIT/mdo/.build/committed-source-audit-20261019/acceptance.json`；两平台再通过双族 NAT/IPv6 黑洞回退、HTTP/live/收据、只读、一次性票据、中继和注销回归 |
+| 进程暂停恢复 | Windows/Linux、IPv4/IPv6、3 秒及 65 秒八项通过；短暂停恢复既有直连/live/中继，超过 60 秒期限后关闭旧直连并重建；继续完成 Unit/撤销/注销 | mdo `tests/test_remote_process_pause.py`，`.build/xrudp-process-pause/acceptance.json`；同一子进程内的两个端点同时暂停，网站仍运行，不代表单端或物理系统休眠 |
+| 浏览器自动回退 | 当前 SDK 与干净 mdo 源码在真实 Edge 155 中完成双族 UDP 黑洞后回退 LAN，以及 LAN 失败后回退中继；实际写入无重复，关闭后原生计数为零 | 同上统一收据，2 个浏览器场景；无头浏览器验证不代表原生 WebView 外壳或发行 ABI |
 | 实机及长期运行 | 当前运行时 9 组真实时钟测试在运行；历史 18 组单列为旧运行时基线 | 未达到 72 小时；Android ARM64 QA 包构建/签名/16KiB 静态校验通过，实体设备执行待完成 |
 
 ## 本轮源码抽查
