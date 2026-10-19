@@ -185,6 +185,15 @@ single/extlibs/xrudp.h 与 single/extlibs/xrudp_decl.h。
 
 协议草案见 docs/protocol.md；生产验收与跨仓库进度见 docs/implementation-status.md。
 
+跨状态流控制模型可独立运行（显式 SDK 的核心单头须匹配当前已提交 XRT）：
+
+    python tools/test_xrudp_stream_model.py --sdk ../xserver --compiler gcc
+    python tools/test_xrudp_stream_model.py --sdk ../xserver --compiler clang --sanitize
+
+默认 32 个固定种子，每个 20,000 步；覆盖开流、消息、STOP/RESET、退休复用、
+丢失/重复/乱序与临时输出失败，并核对独立内容/偏移模型和固定资源上限。
+这是虚拟时钟的公开 API 状态探索，不替代独立线路实现、原生 I/O 或 72 小时长稳。
+
 原生端点默认启用路径 MTU 探测，使用 XRT 的 UDP PMTU_PROBE 禁止 IP 分片。
 低层 Session 的 DiscoverMtu 默认关闭；只有传输适配器能保证不分片时才启用。
 State.Mtu 区分不可变接收上限、当前发送尺寸、探测和回退；握手成功本身不证明大包可达。
