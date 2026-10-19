@@ -597,6 +597,19 @@
 			"docs": ["docs/api/executor.md"]
 		},
 		{
+			"name": "task_pool_exit_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["task_pool", "atomic", "memory_debug", "thread_key"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/concurrency/test_task_pool_worker_exit.c"],
+			"single_tests": ["tests/single/test_single_task_pool_worker_exit.c"],
+			"examples": [],
+			"docs": ["docs/api/task.md"]
+		},
+		{
 			"name": "task_pool_ownership_tests",
 			"state": "implemented",
 			"feature": null,

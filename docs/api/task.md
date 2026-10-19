@@ -2424,3 +2424,69 @@ NULL visitor 只查询元数据；非空 visitor 按链表顺序借用每个 Fut
 Count／Trace 检查。未知任务数据、opaque 回调与外部引用不因此取得
 回收权限；收集器不能把所有快照拒绝都改成重试。描述符及回调必须与
 提供它的 XRT 实例共同常驻，调用者负责节点生存期。
+
+### `xtaskpoolworkerexitownershipv1`
+
+| 字段 | 类型 | 合同 |
+| --- | --- | --- |
+| `size` | `size_t` | 精确为 `sizeof(xtaskpoolworkerexitownershipv1)`。 |
+| `Exit` | `void (*)(ptr)` | 在每个真实工作线程的任务／finalizer 尾部之后调用一次，借用共享 Data。 |
+| `Drop` | `xfuturefreeproc` | 所有线程完成后，以 `Drop(Data, NULL)` 归还池实际持有的一份引用。 |
+| `Ops` | `const xrtownershipops*` | 同一 Data 节点的真实计数和拥有边。 |
+
+策略及回调必须常驻且不可变。退出回调在锁和 ownership mutation 之外执行，
+不能跨 C 边界非局部跳转；其语言错误由 Data 自己的 checked 协议保存，不
+覆盖原生物理完成状态。每任务清理不等于线程退出；原生任务统计仍只计任务。
+
+### `xrtTaskPoolCreateOwnedExitV1`
+
+```c
+xtaskpool* xrtTaskPoolCreateOwnedExitV1(const xtaskpoolconfig* pConfig,
+    ptr pData, const xtaskpoolworkerexitownershipv1* pPolicy);
+```
+
+成功接管调用方已有的一份 Data 引用；失败不接管，也不调用 Exit／Drop，含部分
+线程启动失败的回滚。Data 和完整 policy 必须非空；无退出能力使用普通 Create。
+多个 worker 借用同一拥有上下文，调用方负责它的并发协议，不能将裸栈地址当作
+异步长期借用。上下文图节点仍需独立准入，不因提供了 policy 就自动可回收。
+
+### `xrtTaskPoolTryJoinV1`
+
+```c
+xwaitresult xrtTaskPoolTryJoinV1(xtaskpool* pPool);
+```
+
+这是 Close／Cancel 之后的非阻塞停止与线程完成检查。普通 Wait 继续只保证任务
+和数据／finalizer 尾部排空，不因为新增 API 而提前终止资源回收线程。TryJoin 在
+任务、析构、资源 finalizer、实际资源信用和冲突原生入口均排空后才原子开始停止；
+该时刻之后拒绝新资源信用，之前的受理任务仍可按原规则创建并关闭原生资源。
+
+`XWAIT_OK` 表示所有 XRT 线程都已完成，包含 worker 的退出回调和线程包装器的
+ThreadKey 清理；不是只观察 worker body 的 Exited 标志。`XWAIT_TIMEOUT` 表示
+仍忙（含调用回调、保留资源、并发控制），不设置错误；`XWAIT_ERROR` 表示非法
+状态或操作失败。未关闭的池和所属 worker 自 join 均拒绝。重复完成查询幂等，
+健康轮询不分配；调用方保持实际引用，不在 freeze／mutation 内调用。
+
+TryJoin 不取消任务、不抢占阻塞代码、不丢弃资源、不归还创建者引用。完成后
+仍可 Get／Wait；由 Destroy 或图退休释放线程资源及退出上下文。原有 Destroy
+仍是调用方停止并发访问后的阻塞终结接口。需要保证超时的宿主控制线程应使用
+TryJoin，而不是在 Wait(0) 后假设 Destroy 不会执行用户退出代码。
+
+### `xrtTaskPoolOwnershipAdapterV2`
+
+```c
+const xrtownershipadapterv1* xrtTaskPoolOwnershipAdapterV2(
+    xrtownershipref Reference, const xtaskpoolworkerexitownershipv1* const* pPolicies,
+    size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+在完整图独占冻结下查询。V1 拒绝尚持有退出上下文的池；V2 在访问上下文的
+Count／Trace 前匹配注册 policy 的精确地址，描述符副本不授予能力。未知策略、
+忙碌或非法参数不修改输出。Trace 在已有 Job 边之外报告一份实际退出上下文边，
+该子节点及其所有真实孩子仍需独立准入。
+
+准备复用同一资源感知停止／零超时线程完成检查，不取消工作制造 READY。停止
+开始至真实线程完成之间拒绝 Count，Busy 返回真，覆盖 body Exited 后仍执行的
+原生 ThreadKey 析构。Restore 不重新打开已关闭的受理门；Clear 要求真实完成。
+Finish 在锁／freeze 之外调用上下文 Drop，collector pin 保留空终态壳直至实际
+引用归零，不能以猜测减计数代替真实拥有者。
