@@ -181,11 +181,20 @@ def build(args):
     return binary,{**value,'verified_source_commit':source_commit}
 
 
+def verify_final_sample(sample, future_mode):
+    assert sample['read']==sample['written'] and min(sample[name] for name in ('read','messages','games','backpressure','rekeys'))>0,'mixed application evidence incomplete'
+    if future_mode:
+        assert sample.get('future_mode') is True and sample.get('future_submitted',0)>0,'cross-thread Future work not exercised'
+        assert sample.get('future_completed')==sample['future_submitted'],'Future operations did not all complete'
+        assert all(sample.get(name)==0 for name in ('future_pending','future_retained','future_bytes')),'Future results/quota not released'
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk',type=Path,required=True); parser.add_argument('--compiler',default='gcc')
     parser.add_argument('--sanitize',action='store_true'); parser.add_argument('--reuse',action='store_true')
     parser.add_argument('--build-dir',type=Path,help='private immutable build cache (default: out/xrudp-native-soak/builds)')
+    parser.add_argument('--future',action='store_true',help='submit both message streams across threads using bounded Futures')
     parser.add_argument('--seconds',type=int,default=72*3600); parser.add_argument('--state',type=Path,required=True)
     parser.add_argument('--family',type=int,choices=(4,6),default=4); parser.add_argument('--backend',choices=('select','native'),default='native')
     parser.add_argument('--idle-every',type=int,default=1800); parser.add_argument('--idle-seconds',type=int,default=70)
@@ -201,6 +210,7 @@ def main():
         'pid':os.getpid(),'root_commit':provenance['verified_source_commit'],
         'input_key':provenance['input_key'],'binary_sha256':provenance['binary_sha256'],'started_unix':time.time()}
     state['driver_sha256']=driver_hash
+    state['future_mode']=args.future
     state['backend_name']=('iocp' if os.name=='nt' else 'epoll') if args.backend=='native' else 'select'
     stop=state_path.with_name('stop'); progress=state_path.with_name('progress.jsonl'); saved=0
     def save(force=False):
@@ -223,6 +233,7 @@ def main():
         proxy=FaultProxy(args.family)
         argv=[str(binary),str(args.seconds),str(args.family),str(int(args.backend=='native')),str(args.idle_every),
             str(args.idle_seconds),str(args.pause_every),str(args.report_every),str(proxy.port)]
+        if args.future: argv.append('1')
         child=subprocess.Popen(argv,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=error,text=True,env={**os.environ,
             'ASAN_OPTIONS':'detect_leaks=1:halt_on_error=1','UBSAN_OPTIONS':'halt_on_error=1:print_stacktrace=1'},
             creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
@@ -276,7 +287,7 @@ def main():
         assert start is not None and time.monotonic()-start>=args.seconds,'persistent real duration did not pass'
         assert proxy.stats['dropped'] and proxy.stats['duplicated'] and proxy.stats['delayed'],'real fault classes were not exercised'
         sample=state['last_sample']
-        assert sample['read']==sample['written'] and min(sample[name] for name in ('read','messages','games','backpressure','rekeys'))>0,'mixed application evidence incomplete'
+        verify_final_sample(sample,args.future)
         state['duration_passed']=True; state['acceptance_72h']=args.seconds>=72*3600
         state['status']='passed' if state['acceptance_72h'] else 'smoke_passed'; state['exit_code']=code; save(True)
         return 0

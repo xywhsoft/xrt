@@ -22,6 +22,19 @@ class SoakMonitor(unittest.TestCase):
             with self.assertRaises(FileExistsError): tool.compile_new(binary,['compiler'])
             compiler.assert_not_called(); self.assertTrue(binary.with_name('native.building').exists())
 
+    def test_future_gate_requires_real_work_and_complete_quota_release(self):
+        raw={'read':10,'written':10,'messages':1,'games':1,'backpressure':1,'rekeys':1}
+        tool.verify_final_sample(raw,False)
+        with self.assertRaises(AssertionError): tool.verify_final_sample(raw,True)
+        good={**raw,'future_mode':True,'future_submitted':20,'future_completed':20,
+              'future_pending':0,'future_retained':0,'future_bytes':0}
+        tool.verify_final_sample(good,True)
+        for name in ('future_pending','future_retained','future_bytes'):
+            with self.subTest(name=name),self.assertRaises(AssertionError):
+                tool.verify_final_sample({**good,name:1},True)
+        with self.assertRaises(AssertionError):
+            tool.verify_final_sample({**good,'future_completed':19},True)
+
     def test_exit_resource_race_is_bounded_and_can_recover(self):
         child=SimpleNamespace(pid=123,poll=lambda:None)
         with patch.object(tool,'resources',side_effect=[ProcessLookupError(),{'private':1}]),\

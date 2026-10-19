@@ -18,6 +18,16 @@ typedef struct soak_side {
     uint64_t GamesWritten[3], GamesRead[3], LastGame[3], Seen[3][128];
     uint64_t Backpressure, Hints, Pauses; bool Shutdown;
 } soak_side;
+/* Owner publishes immutable work; main submits across threads; owner alone
+ * consumes the result and updates stream counters. No raw/async mixing on
+ * the message directions. Release/acquire state protects both hand-offs. */
+enum { JOB_IDLE, JOB_SUBMIT, JOB_CLAIMED, JOB_PENDING };
+typedef struct soak_future_job {
+    xatomic32 State;
+    xrudpoperation Request;
+    xfuture* Future;
+    unsigned char Bytes[4097];
+} soak_future_job;
 struct soak_test {
     xnetengine* Engine; xrudpendpoint* Endpoint[2]; xrudppeer* Peer[2];
     xrudpendpointinfo Info[2]; soak_side Side[2];
@@ -25,7 +35,8 @@ struct soak_test {
     xatomic32 Ready, Confirmed, PeerClosed, Closed, Pending, Failed;
     double Start, LastTick, FeedAt, GameAt, ReportAt, IdleAt, IdleUntil, PauseAt, PauseUntil;
     unsigned Seconds, IdleEvery, IdleSeconds, PauseEvery, ReportEvery, Idles;
-    xnetfamily Family; bool Closing; unsigned PeerCloses[2], EndpointCloses[2];
+    xnetfamily Family; bool Closing, FutureMode; unsigned PeerCloses[2], EndpointCloses[2];
+    soak_future_job Jobs[2][2][2]; /* side, message stream 4/5, read/write */
 };
 
 static void require(soak_test* T, bool Ok, const char* Why)
@@ -87,14 +98,17 @@ static void peer_closed(xrudpendpoint* E, xrudppeer* P, xrudpresult Reason, void
 }
 static void closed(xrudpendpoint* E, xrudpresult Reason, const xerror* Error, void* Data)
 {
-    soak_side* S=Data; (void)E; (void)Error;
+    soak_side* S=Data; xrudpasyncstate State; (void)Error;
     require(S->Test,Reason==XRUDP_CANCELLED && ++S->Test->EndpointCloses[S->Index]==1,"endpoint terminal");
+    require(S->Test,xrtRudpEndpointAsyncState(E,&State)==XRUDP_OK && !State.Pending && !State.Retained && !State.RetainedBytes,
+        "Future quota retained at endpoint close");
     (void)xrtAtomic32FetchOr(&S->Test->Closed,1u<<S->Index,XMEMORY_RELEASE);
 }
 static void bind_one(xnetworker* W, ptr Data)
 {
     soak_side* S=Data; soak_test* T=S->Test; xrudpendpointconfig C; xrtRudpEndpointConfigInit(&C);
     C.StaticPrivate=T->Private[S->Index]; C.PeerPublic=T->Public[1-S->Index]; C.Listen=S->Index==0;
+    if (T->FutureMode) { C.AsyncOperations=8; C.AsyncBytes=65536; }
     C.MaxPeers=C.MaxHalfOpen=2; C.Session.StreamCapacity=C.Session.Local.MaxStreams=3;
     C.Session.Local.MaxMessageSize=4097; C.Session.ReceiveCapacity=2048; C.Session.TransmitCapacity=8192;
     C.Session.Local.StreamCredit=1024; C.Session.Local.ConnectionCredit=4096;
@@ -142,6 +156,55 @@ static void write_stream(soak_side* S, unsigned Id)
     if (R==XRUDP_BACKPRESSURE) { ++S->Backpressure; return; }
     require(T,R==XRUDP_OK,"write persistent stream"); if (R==XRUDP_OK) V->Written+=Written;
 }
+static void future_result(soak_side* S, unsigned Id, unsigned Direction)
+{
+    soak_test* T=S->Test; soak_stream* V=&S->Stream[Id]; soak_future_job* J=&T->Jobs[S->Index][Id-4][Direction];
+    if (xrtAtomic32Load(&J->State,XMEMORY_ACQUIRE)!=JOB_PENDING || xrtFutureState(J->Future)==XFUTURE_PENDING) return;
+    const xrudpoperationresult* R=xrtFutureState(J->Future)==XFUTURE_RESOLVED ? xrtFutureValue(J->Future):NULL;
+    require(T,R && (R->Result==XRUDP_OK || (!Direction && R->Result==XRUDP_DONE)),"Future message outcome");
+    if (R && R->Result==XRUDP_OK) {
+        uint64_t N=Direction ? V->MessagesWritten:V->MessagesRead; size_t Size=message_size(N);
+        require(T,R->Size==Size,"Future message boundary");
+        if (Direction) { V->Written+=R->Size; ++V->MessagesWritten; }
+        else {
+            require(T,!Size || R->Data!=NULL,"Future read owns payload");
+            if (R->Data) for (size_t I=0;I<R->Size;++I)
+                require(T,((const unsigned char*)R->Data)[I]==pattern(1-S->Index,Id,N*4097+I),"Future corrupt/duplicate message");
+            V->Read+=R->Size; ++V->MessagesRead;
+        }
+    } else if (R && R->Result==XRUDP_DONE) V->Eof=true;
+    xrtFutureDestroy(J->Future); J->Future=NULL;
+    xrtAtomic32Store(&J->State,JOB_IDLE,XMEMORY_RELEASE);
+}
+static void future_message(soak_side* S, unsigned Id, bool Read)
+{
+    soak_test* T=S->Test; soak_stream* V=&S->Stream[Id];
+    for (unsigned Direction=0;Direction<2;++Direction) {
+        future_result(S,Id,Direction);
+        soak_future_job* J=&T->Jobs[S->Index][Id-4][Direction];
+        if (xrtAtomic32Load(&J->State,XMEMORY_ACQUIRE)!=JOB_IDLE) continue;
+        if (Direction ? (V->Fin || V->MessagesWritten==V->MessagesTarget):(!Read || V->Eof)) continue;
+        xrtRudpOperationInit(&J->Request); J->Request.Stream=Id;
+        if (Direction) {
+            J->Request.Kind=XRUDP_OPERATION_MESSAGE_WRITE; J->Request.Size=message_size(V->MessagesWritten);
+            for (size_t I=0;I<J->Request.Size;++I) J->Bytes[I]=pattern(S->Index,Id,V->MessagesWritten*4097+I);
+            J->Request.Data=J->Bytes;
+        } else { J->Request.Kind=XRUDP_OPERATION_MESSAGE_READ; J->Request.Capacity=sizeof(J->Bytes); }
+        xrtAtomic32Store(&J->State,JOB_SUBMIT,XMEMORY_RELEASE);
+    }
+}
+static void submit_futures(soak_test* T)
+{
+    if (!T->FutureMode) return;
+    for (unsigned Side=0;Side<2;++Side) for (unsigned Stream=0;Stream<2;++Stream) for (unsigned Direction=0;Direction<2;++Direction) {
+        soak_future_job* J=&T->Jobs[Side][Stream][Direction]; uint32 Expected=JOB_SUBMIT;
+        if (!xrtAtomic32CompareExchange(&J->State,&Expected,JOB_CLAIMED,XMEMORY_ACQ_REL,XMEMORY_ACQUIRE)) continue;
+        J->Future=xrtRudpPeerSubmitAsync(T->Peer[Side],&J->Request);
+        require(T,J->Future!=NULL,"cross-thread Future submission");
+        if (Direction) memset(J->Bytes,0,sizeof(J->Bytes)); /* submission must copy input */
+        xrtAtomic32Store(&J->State,J->Future ? JOB_PENDING:JOB_IDLE,XMEMORY_RELEASE);
+    }
+}
 static void games(soak_side* S, bool Send, bool Read)
 {
     soak_test* T=S->Test; unsigned char Bytes[64];
@@ -168,6 +231,7 @@ static void games(soak_side* S, bool Send, bool Read)
 static void report(soak_test* T, double Now)
 {
     uint64_t Read=0, Written=0, Messages=0, Games=0, Backpressure=0, Rekeys=0, Packets=0;
+    uint64_t Submitted=0, Completed=0; uint32 Pending=0, Retained=0; size_t Bytes=0;
     for (unsigned Side=0;Side<2;++Side) {
         soak_side* S=&T->Side[Side]; xrudpsessionstate State={0};
         require(T,xrtRudpPeerSessionState(T->Peer[Side],&State)==XRUDP_OK,"session snapshot");
@@ -175,11 +239,17 @@ static void report(soak_test* T, double Now)
         Rekeys+=State.KeyUpdates; Packets+=State.SentPackets; Backpressure+=S->Backpressure;
         for (unsigned Id=1;Id<6;++Id) { Read+=S->Stream[Id].Read; Written+=S->Stream[Id].Written; Messages+=S->Stream[Id].MessagesRead; }
         for (unsigned C=0;C<3;++C) Games+=S->GamesRead[C];
+        xrudpasyncstate Async={0};
+        require(T,xrtRudpEndpointAsyncState(T->Endpoint[Side],&Async)==XRUDP_OK && Async.Pending<=Async.Retained &&
+            Async.Retained<=Async.Limit && Async.RetainedBytes<=Async.ByteLimit,"Future resource bounds");
+        Submitted+=Async.Submitted; Completed+=Async.Completed; Pending+=Async.Pending; Retained+=Async.Retained; Bytes+=Async.RetainedBytes;
     }
-    printf("{\"phase\":\"%s\",\"elapsed\":%.3f,\"read\":%llu,\"written\":%llu,\"messages\":%llu,\"games\":%llu,\"backpressure\":%llu,\"rekeys\":%llu,\"packets\":%llu,\"idle_checks\":%u}\n",
+    printf("{\"phase\":\"%s\",\"elapsed\":%.3f,\"read\":%llu,\"written\":%llu,\"messages\":%llu,\"games\":%llu,\"backpressure\":%llu,\"rekeys\":%llu,\"packets\":%llu,\"idle_checks\":%u,"
+        "\"future_mode\":%s,\"future_submitted\":%llu,\"future_completed\":%llu,\"future_pending\":%u,\"future_retained\":%u,\"future_bytes\":%zu}\n",
         T->Closing ? "draining":(T->IdleUntil ? "idle":"running"),Now-T->Start,
         (unsigned long long)Read,(unsigned long long)Written,(unsigned long long)Messages,(unsigned long long)Games,
-        (unsigned long long)Backpressure,(unsigned long long)Rekeys,(unsigned long long)Packets,T->Idles); fflush(stdout);
+        (unsigned long long)Backpressure,(unsigned long long)Rekeys,(unsigned long long)Packets,T->Idles,T->FutureMode ? "true":"false",
+        (unsigned long long)Submitted,(unsigned long long)Completed,Pending,Retained,Bytes); fflush(stdout);
 }
 static void tick(xnetworker* W, ptr Data)
 {
@@ -210,7 +280,8 @@ static void tick(xnetworker* W, ptr Data)
                 if (Id<4 && V->Target-V->Written<8192) V->Target+=4096;
                 if (Id>=4 && V->MessagesTarget-V->MessagesWritten<4) ++V->MessagesTarget;
             }
-            write_stream(S,Id); if (Read) read_stream(S,Id);
+            if (T->FutureMode && Id>=4) future_message(S,Id,Read);
+            else { write_stream(S,Id); if (Read) read_stream(S,Id); }
             bool Queued=Id<4 ? V->Written==V->Target:V->MessagesWritten==V->MessagesTarget;
             if (T->Closing && Queued && !V->Fin) { require(T,xrtRudpPeerStreamFinish(T->Peer[Side],Id)==XRUDP_OK,"final FIN"); V->Fin=true; }
             if (!V->Eof || !V->Acked || !V->Fin) Drained=false;
@@ -229,6 +300,10 @@ done:
 static void stop(xnetworker* W, ptr Data)
 {
     soak_test* T=Data; (void)W;
+    for (unsigned Side=0;Side<2;++Side) for (unsigned Stream=0;Stream<2;++Stream) for (unsigned Direction=0;Direction<2;++Direction) {
+        soak_future_job* J=&T->Jobs[Side][Stream][Direction];
+        xrtFutureDestroy(J->Future); J->Future=NULL; xrtAtomic32Store(&J->State,JOB_IDLE,XMEMORY_RELEASE);
+    }
     for (unsigned I=0;I<2;++I) if (T->Endpoint[I]) require(T,xrtRudpEndpointClose(T->Endpoint[I])==XRUDP_OK,"endpoint close request");
 }
 static bool wait_mask(soak_test* T, xatomic32* Value, unsigned Mask, double Seconds)
@@ -242,13 +317,16 @@ static bool wait_mask(soak_test* T, xatomic32* Value, unsigned Mask, double Seco
 }
 int main(int Argc, char** Argv)
 {
-    if (Argc!=9) return 2;
+    if (Argc!=9 && Argc!=10) return 2;
     soak_test T={0}; T.Seconds=(unsigned)strtoul(Argv[1],NULL,10); T.Family=atoi(Argv[2])==6 ? XNET_FAMILY_IPV6:XNET_FAMILY_IPV4;
+    T.FutureMode=Argc==10 && atoi(Argv[9])!=0;
     T.IdleEvery=(unsigned)atoi(Argv[4]); T.IdleSeconds=(unsigned)atoi(Argv[5]); T.PauseEvery=(unsigned)atoi(Argv[6]); T.ReportEvery=(unsigned)atoi(Argv[7]);
     unsigned ProxyPort=(unsigned)atoi(Argv[8]); if (ProxyPort>65535) return 2;
     if (T.Seconds<20 || T.Seconds>604800 || !T.IdleEvery || !T.IdleSeconds || !T.PauseEvery || !T.ReportEvery) return 2;
     xrtAtomic32Init(&T.Ready,0); xrtAtomic32Init(&T.Confirmed,0); xrtAtomic32Init(&T.PeerClosed,0);
     xrtAtomic32Init(&T.Closed,0); xrtAtomic32Init(&T.Pending,0); xrtAtomic32Init(&T.Failed,0);
+    for (unsigned Side=0;Side<2;++Side) for (unsigned Stream=0;Stream<2;++Stream) for (unsigned Direction=0;Direction<2;++Direction)
+        xrtAtomic32Init(&T.Jobs[Side][Stream][Direction].State,JOB_IDLE);
     for (unsigned I=0;I<2;++I) {
         T.Side[I].Test=&T; T.Side[I].Index=I;
         for (unsigned J=0;J<32;++J) T.Private[I][J]=(unsigned char)(J+13+I*79);
@@ -274,6 +352,7 @@ int main(int Argc, char** Argv)
     } else require(&T,false,"bind deadline");
     double Until=xrtTimer()+T.Seconds+40;
     while (!xrtAtomic32Load(&T.Failed,XMEMORY_ACQUIRE) && !xrtAtomic32Load(&T.PeerClosed,XMEMORY_ACQUIRE) && xrtTimer()<Until) {
+        submit_futures(&T);
         if (!xrtAtomic32Exchange(&T.Pending,1,XMEMORY_ACQ_REL)) require(&T,xrtNetEnginePost(T.Engine,0,tick,&T),"post tick");
         xrtSleep(20);
     }
