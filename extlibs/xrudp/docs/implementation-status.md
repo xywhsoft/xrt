@@ -1293,3 +1293,20 @@ Linux 开启 ASan/UBSan/泄漏检查，两平台严格优化编译；当前全�
 `acceptance-windows.json` 和 `acceptance-linux-asan.json`，日志
 `dev/xrudp-stream-model-{windows,linux}-acceptance.log`。记录显式为虚拟时间且
 `acceptance_72h=false`。这完成本模型的固定来源门槛，不宣称整个安全审查或长期目标完成。
+
+## 当前 Future 运行时的独立控制帧复验（2026-10-19）
+
+在运行时提交 `b093114d` 的原始二进制上，重新执行独立 Python 线路对端的完整
+STOP/RESET 与双向优雅关闭矩阵。Windows GCC Select/IOCP、Linux Clang
+ASan/UBSan Select/Epoll，各包含 IPv4/IPv6 和两种握手角色；每平台 8 个
+STOP/RESET 场景及 16 个 native-first/peer-first 关闭场景，共 48 个独立进程。
+丢失请求、DRAINED 数据包及其 ACK 后仍须完成可靠业务和规定的关闭，所有 Engine
+均正常 join。两平台全部通过，未发现新的产品缺陷。
+
+原生构建收据仍保留实际的 `b093114d` 来源，不改标为后续仅测试/文档提交。
+复用前后检查当前生产 C/头、SDK 核心、编译器完整参数及二进制哈希；另外核对
+48 个场景的笛卡尔积完整且不重复。证据为
+`out/xrudp-wire-interop/future-controls-acceptance.json` 和
+`dev/xrudp-future-wire-controls-{windows,linux-asan}.log`。Windows 首次复用因编译器
+路径斜杠写法不同被严格来源检查拒绝，恢复原收据的同一参数后运行通过；没有跳过
+来源检查或重写收据。这是控制帧回归，不能代替完整负向/路径/MTU 矩阵和 72 小时验收。
