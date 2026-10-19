@@ -103,6 +103,7 @@ typedef struct xrudpsessionstate {
 	uint64_t ReceivedConnection, ReceiveLimit, SentConnection, PeerLimit;
 	uint64_t LastNowUs, LastActivityUs, ProgressAtUs;
 	uint64_t ReceivedPackets, SentPackets, LostPackets, ProbeTimeouts, KeyUpdates;
+	uint64_t PersistentCongestion; /* Proven loss periods; never a count of PTO expirations. */
 	uint64_t InvalidPackets, OutputBackpressure;
 	uint32_t PtoBackoff, OutstandingProbes;
 	uint32_t ActiveStreams, PendingStreamEvents;

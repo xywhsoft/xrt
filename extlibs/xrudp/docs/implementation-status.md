@@ -1323,3 +1323,32 @@ Clang ASan/UBSan Select/Epoll 各 1000 个独立进程，其中各 960 个负向
 按 input_key 留存到 `out/xrudp-wire-interop/builds/`，152 个实际来源/驱动另存
 `frozen-b093-future-wire-source.tar.gz`，以便后续产品变更后仍能核对原证据。
 这不替代持续拥塞区间证明、接入/资源压力审查、实体 Android、双独立 NAT 和实际 72h。
+
+## 持续拥塞证据接入会话恢复（2026-10-19）
+
+核对恢复调用链发现 `CongestionCollapse` 原先只有组件入口，会话没有建立持续拥塞区间。
+新增真实加密 ACK 的公开 Session 回归：实测 RTT 后，网络丢失包的发送区间超过三倍
+基础 PTO，原实现仅将窗口从 12000 减半到 6000；完成区间证明后应收缩到 2400。
+修复前在确认区间确实超出阈值的复验中失败，最终修复后通过。
+
+会话现在在实际输出受理时记录 RTT 是否已经存在；固定证据环与发送账本总槽数相同，
+计入 SessionAllocationSize 和端点峰值预算，不新增处理期分配。只从真实网络丢失
+提取普通 ACK-eliciting 区间端点，按当前实测 RTT 的三倍无退避 PTO、严格大于阈值判断。
+中间 ACK、退休前/后的迟到确认均为屏障；已遗忘的中间时间保守丢弃，不猜测。
+MTU 与 ACK-only 不能成为区间端点，也不以其未终结的元数据阻塞已具备的普通丢失证据；
+它们的所有权仍由原发送账本终结，迟到 ACK 仍切断区间。路径/尺寸本地丢弃、没有 RTT
+样本和本地背压不会制造持续拥塞；迁移清除旧路径摘要。每个连续区间只报告一次，
+SessionState 新增 PersistentCongestion 计数，保持实际在途和业务所有权不变。
+
+最终开发回归：Windows GCC 与 Linux Clang ASan/UBSan，各模块化/单头两个构建，
+共四个进程通过。每个进程包含六组公开 Session 正/反场景、迟到 ACK/待完成前缀/
+严格阈值/阈值缩短/饱和算术向量、7000 次固定环退休，并重跑原有四个确定性双向
+故障种子及完整事务/期限回归。新测试已登记到公共模块清单，单头在隔离的提交核心
+副本中生成，并核对与 SDK 核心一致，未覆盖其他任务的核心/文件系统/内存修改。
+
+证据：`dev/xrudp-persistent-before-windows-r2.log`、
+`dev/xrudp-persistent-{after,single}-{windows,linux-asan}-final.log`，以及
+`out/xrudp-wire-interop/congestion-generation.json`。此前开发阶段的多流/Future 回归
+不能充当最终提交收据；提交后继续固定来源的完整状态模型、Future、独立线路与宿主集成。
+当前 XS/mdo SDK 尚锁定 `b093114d`，新的状态布局与运行时需要同步构建后才进入产品。
+原有 18 组长稳不修改二进制/计时，不能改标为新运行时的最终 72 小时验收。

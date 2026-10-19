@@ -1879,6 +1879,7 @@ typedef struct xrudpsessionstate {
 	uint64_t ReceivedConnection, ReceiveLimit, SentConnection, PeerLimit;
 	uint64_t LastNowUs, LastActivityUs, ProgressAtUs;
 	uint64_t ReceivedPackets, SentPackets, LostPackets, ProbeTimeouts, KeyUpdates;
+	uint64_t PersistentCongestion; /* Proven loss periods; never a count of PTO expirations. */
 	uint64_t InvalidPackets, OutputBackpressure;
 	uint32_t PtoBackoff, OutstandingProbes;
 	uint32_t ActiveStreams, PendingStreamEvents;
@@ -2538,6 +2539,116 @@ void xrudp__path_echo(xrudp__path* path, const xrudpaddress* address, const void
 void xrudp__path_promote(xrudp__path* path, uint64_t largest);
 void xrudp__path_clear(xrudp__path* path);
 uint64_t xrudp__path_due(const xrudp__path* path, uint64_t now);
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xrudp/src/internal/xrudp_loss.h */
+/* ========================================================================== */
+
+#if defined(XRUDP_FEATURE_RUDP_SESSION)
+#ifndef XRUDP_INTERNAL_LOSS_H
+#define XRUDP_INTERNAL_LOSS_H
+
+#include <string.h>
+
+/* Separate bounded ownership history: stream references may be reused before
+ * older packets finish. Retire only a complete prefix, in send order. */
+typedef struct xrudp__lossrecord {
+	uint64_t Number, At;
+	uint32_t Flags;
+	uint8_t Status;
+	bool Sampled, NetworkLoss;
+} xrudp__lossrecord;
+typedef struct xrudp__lossproof {
+	xrudp__lossrecord* Records;
+	uint32_t Capacity, Head, Count;
+	uint64_t RetiredThrough, FirstNumber, FirstAt, LastAt;
+	bool Collapsed;
+} xrudp__lossproof;
+
+static xrudp__lossrecord* xrudp__loss_at(const xrudp__lossproof* p, uint32_t index)
+{ return &p->Records[(p->Head + index) % p->Capacity]; }
+static bool xrudp__loss_endpoint(uint32_t flags)
+{ return (flags & XRUDP_SENT_ACK_ELICITING) && !(flags & XRUDP_SENT_MTU); }
+static bool xrudp__loss_record(xrudp__lossproof* p, uint64_t number, uint64_t at, uint32_t flags, bool sampled)
+{
+	if (p->Count == p->Capacity) return false;
+	xrudp__lossrecord* r = xrudp__loss_at(p, p->Count++);
+	memset(r, 0, sizeof(*r)); r->Number = number; r->At = at; r->Flags = flags; r->Sampled = sampled;
+	return true;
+}
+static void xrudp__loss_restart(xrudp__lossproof* p)
+{ p->FirstNumber = p->FirstAt = p->LastAt = 0; p->Collapsed = false; }
+static uint32_t xrudp__loss_lower(const xrudp__lossproof* p, uint64_t number)
+{
+	uint32_t first = 0, last = p->Count;
+	while (first < last) {
+		uint32_t middle = first + (last - first) / 2;
+		if (xrudp__loss_at(p, middle)->Number < number) first = middle + 1; else last = middle;
+	}
+	return first;
+}
+static void xrudp__loss_ack(xrudp__lossproof* p, const xrudpack* ack)
+{
+	/* Late ACKs have no second ownership event. An ACK for a retired lost or
+ * expired ACK-only packet still invalidates the summarized loss prefix.
+ * Forget the whole prefix if its intermediate times were already retired. */
+	if (p->FirstNumber) for (size_t i = 0; i < ack->Count; ++i)
+		if (ack->Ranges[i].Last >= p->FirstNumber && ack->Ranges[i].First <= p->RetiredThrough) {
+			xrudp__loss_restart(p); break;
+		}
+	/* Finished packets behind an older pending packet have not retired yet.
+ * A late ACK must be a barrier even though it cannot emit ownership twice. */
+	for (size_t i = 0; i < ack->Count; ++i)
+		for (uint32_t j = xrudp__loss_lower(p, ack->Ranges[i].First); j < p->Count; ++j) {
+			xrudp__lossrecord* r = xrudp__loss_at(p, j);
+			if (r->Number > ack->Ranges[i].Last) break;
+			if (r->Status) { r->Status = XRUDP_SENT_ACKED; r->NetworkLoss = false; }
+		}
+}
+static bool xrudp__loss_finish(xrudp__lossproof* p, const xrudpsentevent* event, bool network)
+{
+	uint32_t first = xrudp__loss_lower(p, event->PacketNumber);
+	/* Pure ACK/MTU metadata may leave this proof ring before its ownership
+ * ledger completes. Its eventual ACK is a barrier, never a second loss. */
+	if (event->PacketNumber <= p->RetiredThrough && !xrudp__loss_endpoint(event->Flags)) {
+		if (event->Kind == XRUDP_SENT_ACKED && p->FirstNumber && event->PacketNumber >= p->FirstNumber) xrudp__loss_restart(p);
+		return true;
+	}
+	if (first == p->Count) return false;
+	xrudp__lossrecord* r = xrudp__loss_at(p, first);
+	if (r->Number != event->PacketNumber || r->Status || r->At != event->SentAtUs || r->Flags != event->Flags) return false;
+	r->Status = (uint8_t)event->Kind; r->NetworkLoss = network && event->Kind == XRUDP_SENT_LOST;
+	return true;
+}
+static uint32_t xrudp__loss_period(xrudp__lossproof* p, uint64_t duration)
+{
+	if (!p->FirstNumber || p->Collapsed || p->LastAt - p->FirstAt <= duration) return 0;
+	p->Collapsed = true; return 1;
+}
+static uint32_t xrudp__loss_retire(xrudp__lossproof* p, uint64_t duration)
+{
+	/* A new RTT sample may shorten the threshold even when the lost prefix
+ * was already retired. Check it before a later ACK closes that period. */
+	uint32_t periods = xrudp__loss_period(p, duration);
+	while (p->Count && (xrudp__loss_at(p, 0)->Status || !xrudp__loss_endpoint(xrudp__loss_at(p, 0)->Flags))) {
+		xrudp__lossrecord* r = xrudp__loss_at(p, 0);
+		if (r->Status == XRUDP_SENT_ACKED || r->Status == XRUDP_SENT_CANCELLED) xrudp__loss_restart(p);
+		else if (xrudp__loss_endpoint(r->Flags)) {
+			if (r->NetworkLoss && r->Sampled) {
+				if (!p->FirstNumber) { p->FirstNumber = r->Number; p->FirstAt = r->At; }
+				p->LastAt = r->At; periods += xrudp__loss_period(p, duration);
+			} else xrudp__loss_restart(p); /* Local discard/no RTT is not loss evidence. */
+		}
+		/* Unacknowledged MTU/ACK-only metadata cannot start/end a period. Its
+ * later real ACK is still a barrier via the retained prefix range above. */
+		p->RetiredThrough = r->Number;
+		memset(r, 0, sizeof(*r)); p->Head = (p->Head + 1) % p->Capacity; --p->Count;
+	}
+	return periods;
+}
 #endif
 #endif
 
@@ -5988,6 +6099,7 @@ struct xrudpsession {
 	xrudptransmit* Tx;
 	xrudp__sessionstream* Streams;
 	xrudpcongestion Cc;
+	xrudp__lossproof Loss;
 	xrudprtt Rtt;
 	xrudpackset Ack;
 	xrudpsessionsendproc Send;
@@ -6008,6 +6120,7 @@ struct xrudpsession {
 	uint64_t ConnectionAcked, StreamsRetry, PreviousKeyUntil;
 	uint64_t Eliciting[XRUDP_REPLAY_BITS];
 	uint64_t ReceivedPackets, SentPackets, LostPackets, ProbeTimeouts, KeyUpdates, InvalidPackets, OutputBackpressure;
+	uint64_t PersistentCongestion;
 	uint64_t DatagramAcknowledged, DatagramLost, DatagramDisabledDropped;
 	xrudpsentevent* Events;
 	xrudp__sessionref Ref[];
@@ -6200,7 +6313,7 @@ static xrudpresult xrudp__session_sizes(const xrudpsessionconfig* c, size_t* own
 		if (xrtRudpDatagramAllocationSize(&c->Datagrams, &datagrams) != XRUDP_OK) return XRUDP_ARGUMENT;
 	} else if (c->Datagrams.SendCapacity || c->Datagrams.ReceiveCapacity || c->Datagrams.PayloadCapacity) return XRUDP_ARGUMENT;
 	*own = sizeof(xrudpsession) + (c->PacketCapacity + XRUDP_SENT_PROBE_RESERVE) *
-		(sizeof(xrudp__sessionref) + sizeof(xrudpsentevent)) + (2 * c->StreamCapacity - 1) * sizeof(xrudp__sessionstream);
+		(sizeof(xrudp__sessionref) + sizeof(xrudpsentevent) + sizeof(xrudp__lossrecord)) + (2 * c->StreamCapacity - 1) * sizeof(xrudp__sessionstream);
 	*total = *own + (2 * c->StreamCapacity - 1) * (rx + tx) + (2 * c->StreamCapacity - 2) * message + sent + datagrams + xrtRudpCipherAllocationSize();
 	return XRUDP_OK;
 }
@@ -6222,7 +6335,8 @@ xrudpresult xrtRudpSessionCreate(const xrudpsessionconfig* c, xrudpcipher* ciphe
 	if (s == NULL) return XRUDP_NO_MEMORY;
 	memset(s, 0, own); s->Allocation = own; s->Slots = c->PacketCapacity + XRUDP_SENT_PROBE_RESERVE;
 	s->Events = (xrudpsentevent*)(s->Ref + s->Slots); s->Config = *c; s->Send = send; s->Context = context;
-	s->Streams = (xrudp__sessionstream*)(s->Events + s->Slots); s->StreamSlots = 2 * c->StreamCapacity - 1;
+	s->Loss.Records = (xrudp__lossrecord*)(s->Events + s->Slots); s->Loss.Capacity = s->Slots; s->Loss.RetiredThrough = 1;
+	s->Streams = (xrudp__sessionstream*)(s->Loss.Records + s->Slots); s->StreamSlots = 2 * c->StreamCapacity - 1;
 	s->IncomingNext = s->OutgoingNext = 2; s->IncomingLimit = s->StreamsAcked = c->Local.MaxStreams; s->OutgoingLimit = c->Peer.MaxStreams;
 	s->Now = s->Activity = s->Progress = now; s->AckAt = UINT64_MAX; s->GrantRetry = now;
 	s->ConnectionLimit = s->ConnectionAcked = c->Local.ConnectionCredit;
@@ -6327,6 +6441,7 @@ xrudpresult xrtRudpSessionState(const xrudpsession* s, xrudpsessionstate* output
 	state.LastNowUs = s->Now; state.LastActivityUs = s->Activity; state.ProgressAtUs = s->Progress;
 	state.ReceivedPackets = s->ReceivedPackets; state.SentPackets = s->SentPackets; state.LostPackets = s->LostPackets;
 	state.ProbeTimeouts = s->ProbeTimeouts; state.KeyUpdates = s->KeyUpdates; state.InvalidPackets = s->InvalidPackets;
+	state.PersistentCongestion = s->PersistentCongestion;
 	state.OutputBackpressure = s->OutputBackpressure; state.PtoBackoff = s->PtoCount;
 	state.Datagrams.NextDeadlineUs = UINT64_MAX;
 	state.DatagramAcknowledged = s->DatagramAcknowledged; state.DatagramLost = s->DatagramLost;
@@ -6739,7 +6854,7 @@ static bool xrudp__session_limited(xrudpsession* s)
 	}
 	return backlog < s->Cc.Window;
 }
-static xrudpresult xrudp__session_feedback(xrudpsession* s, size_t count)
+static xrudpresult xrudp__session_feedback(xrudpsession* s, size_t count, bool networkLoss)
 {
 	for (size_t i = 0; i < count; ++i) {
 		const xrudpsentevent* event = &s->Events[i];
@@ -6784,6 +6899,14 @@ static xrudpresult xrudp__session_feedback(xrudpsession* s, size_t count)
 		}
 		if (m != NULL) { --m->References; xrudp__stream_note(m); }
 		memset(ref, 0, sizeof(*ref));
+		if (!xrudp__loss_finish(&s->Loss, event, networkLoss)) return XRUDP_IO_ERROR;
+	}
+	uint64_t duration = UINT64_MAX;
+	if (networkLoss && s->Rtt.HasSample) { (void)xrtRudpRttPto(&s->Rtt, 0, &duration); duration = xrudp__session_add(duration, xrudp__session_add(duration, duration)); }
+	uint32_t periods = xrudp__loss_retire(&s->Loss, duration);
+	if (periods) {
+		if (xrtRudpCongestionCollapse(&s->Cc, s->Now) != XRUDP_OK) return XRUDP_IO_ERROR;
+		s->PersistentCongestion = xrudp__session_add(s->PersistentCongestion, periods);
 	}
 	return XRUDP_OK;
 }
@@ -6795,7 +6918,7 @@ static xrudpresult xrudp__session_losses(xrudpsession* s, size_t before)
 	xrudpresult result = xrtRudpSentDetectLoss(s->Sent, delay, age, s->Now, s->Events + before, s->Slots - before, &count);
 	if (result != XRUDP_OK && result != XRUDP_DONE) return XRUDP_IO_ERROR;
 	result = xrtRudpCongestionApply(&s->Cc, s->Events, before + count, s->Now, xrudp__session_limited(s));
-	return result == XRUDP_OK ? xrudp__session_feedback(s, before + count) : XRUDP_IO_ERROR;
+	return result == XRUDP_OK ? xrudp__session_feedback(s, before + count, true) : XRUDP_IO_ERROR;
 }
 static xrudpresult xrudp__mtu_maintain(xrudpsession* s)
 {
@@ -6803,13 +6926,13 @@ static xrudpresult xrudp__mtu_maintain(xrudpsession* s)
 	if (!m->Enabled || s->Shutdown.Ready) return XRUDP_OK;
 	if (m->ProbePacket && s->Now >= m->ProbeDeadlineUs) {
 		xrudpresult r = xrtRudpSentDiscardPacket(s->Sent, m->ProbePacket, s->Now, s->Events);
-		if (r != XRUDP_OK || xrtRudpCongestionApply(&s->Cc, s->Events, 1, s->Now, true) != XRUDP_OK || xrudp__session_feedback(s, 1) != XRUDP_OK) return XRUDP_IO_ERROR;
+		if (r != XRUDP_OK || xrtRudpCongestionApply(&s->Cc, s->Events, 1, s->Now, true) != XRUDP_OK || xrudp__session_feedback(s, 1, false) != XRUDP_OK) return XRUDP_IO_ERROR;
 	}
 	if (m->Failure != XRUDP_OK && !s->Shutdown.Requested && !s->Shutdown.PeerRequested) return m->Failure;
 	if (m->LargeDeadlineUs && s->Now >= m->LargeDeadlineUs) {
 		bool reset = m->Effective > 512 || m->BaseConfirmed;
 		size_t count; xrudpresult r = xrtRudpSentDiscardPath(s->Sent, s->Now, s->Events, s->Slots, &count);
-		if ((r != XRUDP_OK && r != XRUDP_DONE) || xrtRudpCongestionApply(&s->Cc, s->Events, count, s->Now, true) != XRUDP_OK || xrudp__session_feedback(s, count) != XRUDP_OK) return XRUDP_IO_ERROR;
+		if ((r != XRUDP_OK && r != XRUDP_DONE) || xrtRudpCongestionApply(&s->Cc, s->Events, count, s->Now, true) != XRUDP_OK || xrudp__session_feedback(s, count, false) != XRUDP_OK) return XRUDP_IO_ERROR;
 		if (reset) { xrudp__mtu_reset(s); m->NextProbeUs = s->Now; m->RaiseAfterUs = xrudp__session_add(s->Now, 60000000); }
 		/* While rechecking BASE, discarding stalled ordinary packets may free
 		 * the only normal slot, but must NEVER restart the admitted probe count. */
@@ -7110,6 +7233,7 @@ static xrudpresult xrudp__session_input(xrudpsession* s, const xrudpaddress* sou
 		xrudpack ack; xrudpackchange change; size_t events;
 		(void)xrtRudpAckDecode(plain + offsets[i], ends[i] - offsets[i], &ack);
 		if (xrtRudpSentAcknowledge(s->Sent, &ack, now, s->Events + eventCount, s->Slots - eventCount, &events, &change) != XRUDP_OK) goto internal;
+		xrudp__loss_ack(&s->Loss, &ack);
 		eventCount += events; if (change.NewlyAckedEliciting) progress = true;
 		if (change.RttSampleValid && (!sample.RttSampleValid || change.LargestAcked > sample.LargestAcked)) sample = change;
 	}
@@ -7178,10 +7302,11 @@ static xrudpresult xrudp__session_migrate(xrudpsession* s)
 {
 	size_t count; xrudpresult r = xrtRudpSentDiscardPath(s->Sent, s->Now, s->Events, s->Slots, &count);
 	if (r != XRUDP_OK && r != XRUDP_DONE) return XRUDP_IO_ERROR;
-	if (xrtRudpCongestionApply(&s->Cc, s->Events, count, s->Now, true) != XRUDP_OK || xrudp__session_feedback(s, count) != XRUDP_OK) return XRUDP_IO_ERROR;
+	if (xrtRudpCongestionApply(&s->Cc, s->Events, count, s->Now, true) != XRUDP_OK || xrudp__session_feedback(s, count, false) != XRUDP_OK) return XRUDP_IO_ERROR;
 	xrudpsentstate sent; (void)xrtRudpSentState(s->Sent, &sent);
 	(void)xrtRudpCongestionInit(&s->Cc, s->Config.MaximumWindow); s->Cc.LargestSent = sent.LargestSent; s->Cc.LastNowUs = s->Now;
 	(void)xrtRudpRttInit(&s->Rtt, s->Config.InitialRttUs, s->Config.Peer.MaxAckDelayUs);
+	xrudp__loss_restart(&s->Loss);
 	s->PtoAt = 0; s->PtoCount = s->Probes = 0; s->GrantRetry = s->StreamsRetry = s->Now; s->Progress = s->Now;
 	xrudpcipherstate cipher; (void)xrtRudpCipherState(s->Cipher, &cipher);
 	xrudp__path_promote(&s->Path, cipher.LargestReceivedPacket);
@@ -7316,6 +7441,7 @@ static xrudpresult xrudp__session_emit(xrudpsession* s, const unsigned char* pla
 	(void)xrtRudpCipherState(s->Cipher, &cipher); uint64_t number = cipher.NextPacketNumber - 1;
 	if (xrtRudpSentRecord(s->Sent, number, s->Now, (uint32_t)*size, flags, slot + 1) != XRUDP_OK ||
 		xrtRudpCongestionOnSent(&s->Cc, number, s->Now, s->Rtt.SmoothedUs, (uint32_t)*size, flags) != XRUDP_OK) return XRUDP_IO_ERROR;
+	if (!xrudp__loss_record(&s->Loss, number, s->Now, flags, s->Rtt.HasSample)) return XRUDP_IO_ERROR;
 	xrudp__sessionref* ref = &s->Ref[slot]; memset(ref, 0, sizeof(*ref)); ref->Used = true;
 	ref->Number = number; ref->At = s->Now; ref->Flags = flags; ref->Stream = XRUDP__NO_STREAM; *output = ref;
 	if (s->Mtu.Enabled && !(flags & XRUDP_SENT_MTU) && (flags & XRUDP_SENT_ACK_ELICITING) && *size >= 512) {

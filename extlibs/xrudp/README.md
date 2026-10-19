@@ -174,6 +174,9 @@ Changed 提供 DATAGRAM_READ_READY/WRITE_READY；PeerDatagramPeek/Read 读取完
 模块 rudp_session 是单所有者的双向多流会话，消费握手晋升后的唯一密码器，
 组合整包 ACK/STREAM/RESET/额度预检、实际输出受理后的发送提交、恢复/流控/换钥与有限截止。
 固定数据环、引用和事件空间预先分配，Poll 最多输出 8 包，通过回调复制交给 UDP；
+持续拥塞只使用已有 RTT 样本之后的真实网络丢失区间，超过三倍基础 PTO 才收缩到最小窗口；
+新元数据环计入 SessionAllocationSize 和端点预算，迟到 ACK、MTU 及本地背压不产生虚假证据。
+SessionState.PersistentCongestion 可查询已证明区间次数；单次 PTO 不触发此计数。
 不自行创建套接字、线程或 Engine，由 rudp_endpoint 驱动并映射字节流的业务读写接口。
 StreamCapacity=N 预留 2*N-1 对固定环（默认 N=1），OPEN/读写/FIN/RESET/退休均不新增分配。
 额外流使用单调奇偶 ID；退休且所有包副本排空后复用存储，不复用 ID。

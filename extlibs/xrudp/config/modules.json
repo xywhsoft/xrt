@@ -1019,17 +1019,20 @@
         "extlibs/xrudp/include/xrudp/session.h"
       ],
       "internal_headers": [
-        "extlibs/xrudp/src/internal/xrudp_path.h"
+          "extlibs/xrudp/src/internal/xrudp_path.h",
+          "extlibs/xrudp/src/internal/xrudp_loss.h"
       ],
       "sources": [
         "extlibs/xrudp/src/network/rudp_session.c",
         "extlibs/xrudp/src/network/rudp_path.c"
       ],
       "tests": [
-        "extlibs/xrudp/tests/test_session.c"
+          "extlibs/xrudp/tests/test_session.c",
+          "extlibs/xrudp/tests/test_session_congestion.c"
       ],
       "single_tests": [
-        "extlibs/xrudp/tests/single/test_single_session.c"
+          "extlibs/xrudp/tests/single/test_single_session.c",
+          "extlibs/xrudp/tests/single/test_single_session_congestion.c"
       ],
       "examples": [],
       "benchmarks": [],
