@@ -55,6 +55,23 @@ typedef struct xrudp__punchjob {
 	bool Used;
 } xrudp__punchjob;
 
+#define XRUDP__CHECK_PACKET 72u
+typedef struct xrudp__checkoutput {
+	xnetaddr Address;
+	unsigned char Packet[XRUDP__CHECK_PACKET];
+	bool Used;
+} xrudp__checkoutput;
+typedef struct xrudp__check {
+	xrudpcheckstate State;
+	xnetaddr Candidates[XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX];
+	xrudp__checkoutput Pending[XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX];
+	unsigned char Key[32], Nonce[16];
+	uint64_t Until, SendUntil, Next, Due[XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX], RateSecond;
+	uint32_t Count, Cursor, OutputCursor, RateCount;
+	uint8_t Attempts[XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX], Direction;
+	bool Started;
+} xrudp__check;
+
 struct xrudpendpoint {
 	xatomic32 References, State;
 	xatomic64 Reserved;
@@ -82,7 +99,8 @@ struct xrudpendpoint {
 	xrudp__punchjob Punches[XRUDP_ENDPOINT_PUNCHES_MAX];
 	uint64_t PunchId;
 	uint32_t PunchCount, PunchCursor;
-	bool PunchNotifying, PunchFirst;
+	bool PunchNotifying, PunchFirst, CheckFirst;
+	xrudp__check Check;
 	xrudppeer* Slots[];
 };
 
@@ -265,6 +283,138 @@ static xnetresult xrudp__endpoint_send(xrudpendpoint* e, const xnetaddr* address
 	}
 	return result;
 }
+static bool xrudp__check_equal(const void* a,const void* b,size_t n)
+{
+	const unsigned char* x=a;const unsigned char* y=b;volatile unsigned char difference=0;
+	for(size_t i=0;i<n;++i)difference|=x[i]^y[i];
+	return difference==0;
+}
+static void xrudp__check_stop(xrudpendpoint* e,xrudpresult reason)
+{
+	xrudp__check* c=&e->Check;
+	c->State.Active=false;c->State.Reason=reason;c->Next=UINT64_MAX;
+	xrtSecureZero(c->Key,sizeof(c->Key));xrtSecureZero(c->Nonce,sizeof(c->Nonce));
+	xrtSecureZero(c->Pending,sizeof(c->Pending));
+}
+static bool xrudp__check_init(xrudpendpoint* e)
+{
+	unsigned char shared[32],info[120]={0};bool low=memcmp(e->Public,e->Pin,32)<0;
+	memcpy(info,"xrudp.connectivity.v1",21);
+	memcpy(info+24,low?e->Public:e->Pin,32);memcpy(info+56,low?e->Pin:e->Public,32);
+	memcpy(info+88,e->Application,32);
+	bool ok=memcmp(e->Public,e->Pin,32)!=0 && xrtX25519Shared(e->Private,e->Pin,shared) &&
+		xrtHkdfSha256(e->Scope,16,shared,32,info,sizeof(info),e->Check.Key,32) &&
+		xrtSecureRandom(e->Check.Nonce,16) && xrudp__endpoint_nonzero(e->Check.Nonce,16);
+	xrtSecureZero(shared,sizeof(shared));xrtSecureZero(info,sizeof(info));
+	e->Check.Direction=low?0u:1u;e->Check.Next=UINT64_MAX;return ok;
+}
+static bool xrudp__check_cookie(xrudpendpoint* e,const xnetaddr* source,const void* nonce,unsigned char out[16])
+{
+	unsigned char input[43]={0},mac[32];
+	input[0]=(unsigned char)source->Family;input[1]=(unsigned char)(source->Port>>8);input[2]=(unsigned char)source->Port;
+	for(unsigned i=0;i<4;++i)input[3+i]=(unsigned char)(source->Scope>>(24u-i*8u));
+	memcpy(input+7,source->Address,16);memcpy(input+23,nonce,16);memcpy(input+39,"XRC1",4);
+	bool ok=xrtHmacSha256(e->CookieKey,32,input,sizeof(input),mac);
+	if(ok)memcpy(out,mac,16);
+	xrtSecureZero(mac,sizeof(mac));return ok;
+}
+static void xrudp__check_observe(xnetaddr* list,uint32_t* count,const xnetaddr* address)
+{
+	for(uint32_t i=0;i<*count;++i)if(xrtNetAddrEqual(&list[i],address))return;
+	if(*count<XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX)list[(*count)++]=*address;
+}
+static void xrudp__check_queue(xrudpendpoint* e,const xnetaddr* target,unsigned type,const void* nonce,const void* cookie,uint64_t now)
+{
+	xrudp__check* c=&e->Check;uint32_t slot=XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX;
+	for(uint32_t i=0;i<XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX;++i) {
+		xrudp__checkoutput* p=&c->Pending[i];
+		if(p->Used && p->Packet[4]==type && xrtNetAddrEqual(&p->Address,target) && xrudp__check_equal(p->Packet+8,nonce,16))return;
+		if(!p->Used)slot=i;
+	}
+	if(slot==XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX)return;
+	xrudp__checkoutput* p=&c->Pending[slot];memset(p,0,sizeof(*p));p->Address=*target;
+	memcpy(p->Packet,"XRC1",4);p->Packet[4]=(unsigned char)type;p->Packet[5]=c->Direction;
+	memcpy(p->Packet+8,nonce,16);if(cookie)memcpy(p->Packet+24,cookie,16);
+	if(!xrtHmacSha256(c->Key,32,p->Packet,40,p->Packet+40)) {xrtSecureZero(p,sizeof(*p));return;}
+	p->Used=true;c->Next=now;
+}
+static void xrudp__check_input(xrudpendpoint* e,const xnetudpmessage* message,uint64_t now)
+{
+	xrudp__check* c=&e->Check;const unsigned char* p=message->Data;unsigned char mac[32],cookie[16];xrudpaddress address;
+	if(!c->State.Active)return;
+	if(now>=c->Until) {xrudp__check_stop(e,c->State.Replies||c->State.Confirmations?XRUDP_DONE:XRUDP_TIMEOUT);return;}
+	uint64_t second=now/UINT64_C(1000000);
+	if(c->RateSecond!=second) {c->RateSecond=second;c->RateCount=0;}
+	if(c->RateCount>=64u) {if(c->State.Rejected!=UINT32_MAX)++c->State.Rejected;return;}
+	++c->RateCount;
+	bool ok=message->Size==XRUDP__CHECK_PACKET && p[4]>=1 && p[4]<=3 && p[5]==(c->Direction^1u) &&
+		!p[6] && !p[7] && xrudp__endpoint_nonzero(p+8,16) && xrudp__endpoint_address(&message->Remote,&address) &&
+		xrtHmacSha256(c->Key,32,p,40,mac) && xrudp__check_equal(mac,p+40,32);
+	xrtSecureZero(mac,sizeof(mac));
+	if(!ok) {if(c->State.Rejected!=UINT32_MAX)++c->State.Rejected;return;}
+	if(p[4]==1) {
+		if(xrudp__endpoint_nonzero(p+24,16) || !xrudp__check_cookie(e,&message->Remote,p+8,cookie))return;
+		xrudp__check_queue(e,&message->Remote,2,p+8,cookie,now);
+	} else if(p[4]==2) {
+        if(!c->Started || !c->State.Sent || !xrudp__check_equal(p+8,c->Nonce,16) || !xrudp__endpoint_nonzero(p+24,16)) {
+            if(c->State.Rejected!=UINT32_MAX)++c->State.Rejected;
+            return;
+        }
+		xrudp__check_observe(c->State.Reply,&c->State.Replies,&message->Remote);
+		xrudp__check_queue(e,&message->Remote,3,p+8,p+24,now);
+	} else {
+        if(!xrudp__check_cookie(e,&message->Remote,p+8,cookie) || !xrudp__check_equal(cookie,p+24,16)) {
+            if(c->State.Rejected!=UINT32_MAX)++c->State.Rejected;
+            xrtSecureZero(cookie,sizeof(cookie));return;
+        }
+		xrudp__check_observe(c->State.Confirmed,&c->State.Confirmations,&message->Remote);
+	}
+	xrtSecureZero(cookie,sizeof(cookie));
+}
+static bool xrudp__check_pump(xrudpendpoint* e,uint64_t now,bool allowSend)
+{
+	xrudp__check* c=&e->Check;if(!c->State.Active)return false;
+	if(now>=c->Until) {xrudp__check_stop(e,c->State.Replies||c->State.Confirmations?XRUDP_DONE:XRUDP_TIMEOUT);return false;}
+	c->Next=c->Until;
+	uint32_t pending=XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX,candidate=c->Count;
+	for(uint32_t n=0;n<XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX;++n) {
+		uint32_t i=(c->OutputCursor+n)%XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX;
+		if(c->Pending[i].Used) {pending=i;break;}
+	}
+	for(uint32_t n=0;n<c->Count && now<c->SendUntil;++n) {
+		uint32_t i=(c->Cursor+n)%c->Count;
+		if(c->Attempts[i]<5) {
+			if(c->Due[i]<c->Next)c->Next=c->Due[i];
+			if(candidate==c->Count && c->Due[i]<=now)candidate=i;
+		}
+	}
+	if(pending!=XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX)c->Next=now;
+	if(c->Next<=now && (!allowSend || now<e->DiscoveryAt)) {c->Next=e->DiscoveryAt>now?e->DiscoveryAt:now+1000u;return false;}
+	if(c->Next>now)return false;
+	unsigned char packet[XRUDP__CHECK_PACKET]={0};const void* bytes=packet;const xnetaddr* target;
+	if(pending!=XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX) {bytes=c->Pending[pending].Packet;target=&c->Pending[pending].Address;}
+	else if(candidate<c->Count) {
+		memcpy(packet,"XRC1",4);packet[4]=1;packet[5]=c->Direction;memcpy(packet+8,c->Nonce,16);
+		if(!xrtHmacSha256(c->Key,32,packet,40,packet+40)) {xrudp__check_stop(e,XRUDP_IO_ERROR);return false;}
+		target=&c->Candidates[candidate];
+	} else return false;
+	xnetresult sent=xrudp__endpoint_send(e,target,bytes,sizeof(packet));
+	if(xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_OPEN)return false;
+	if(sent==XNET_RESULT_OK) {
+		++c->State.Sent;e->DiscoveryAt=now+50000u;c->Next=e->DiscoveryAt;
+		if(pending!=XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX) {xrtSecureZero(&c->Pending[pending],sizeof(c->Pending[pending]));c->OutputCursor=(pending+1u)%XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX;}
+		else {++c->Attempts[candidate];c->Due[candidate]=now+(UINT64_C(100000)<<c->Attempts[candidate]);c->Cursor=(candidate+1u)%c->Count;}
+		return true;
+	}
+	/* Hard route errors only retire that destination; they cannot tear down
+	 * unrelated candidates or the pinned listener. Queue pressure retains it. */
+	c->Next=now+1000u;e->DiscoveryAt=c->Next;
+	if(sent!=XNET_RESULT_AGAIN && !(xrtGetError()!=NULL && xrtErrorKind(xrtGetError())==XERR_MEMORY)) {
+		if(pending!=XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX)xrtSecureZero(&c->Pending[pending],sizeof(c->Pending[pending]));
+		else c->Attempts[candidate]=5;
+	}
+	return false;
+}
 static uint64_t xrudp__discovery_after(uint64_t now,uint64_t delay)
 { return now>UINT64_MAX-delay?UINT64_MAX:now+delay; }
 static void xrudp__endpoint_discovery_end(xrudp__discoveryjob* j,xrudpresult reason,uint64_t now,const xerror* error)
@@ -379,7 +529,7 @@ static bool xrudp__endpoint_punch_pump(xrudpendpoint* e,uint64_t now,bool allowS
 	}
 	xrudp__endpoint_punch_notify(e,now,false);return admitted;
 }
-static bool xrudp__endpoint_aux_pump(xrudpendpoint* e,uint64_t now,bool allowSend)
+static bool xrudp__endpoint_other_aux_pump(xrudpendpoint* e,uint64_t now,bool allowSend)
 {
 	/* Both auxiliary classes share one physical gate. Alternate their first
 	 * chance only on admission; update the clock after user callbacks. */
@@ -393,6 +543,15 @@ static bool xrudp__endpoint_aux_pump(xrudpendpoint* e,uint64_t now,bool allowSen
 		if(admitted)e->PunchFirst=true;
 		if(xrudp__endpoint_punch_pump(e,xrudp__endpoint_now(e),allowSend&&!admitted)) {admitted=true;e->PunchFirst=false;}
 	}
+	return admitted;
+}
+static bool xrudp__endpoint_aux_pump(xrudpendpoint* e,uint64_t now,bool allowSend)
+{
+	bool first=e->CheckFirst,admitted=false;
+	if(first)admitted=xrudp__check_pump(e,now,allowSend);
+	if(xrudp__endpoint_other_aux_pump(e,xrudp__endpoint_now(e),allowSend&&!admitted)) {admitted=true;e->CheckFirst=true;}
+	else if(admitted)e->CheckFirst=false;
+	if(!first && xrudp__check_pump(e,xrudp__endpoint_now(e),allowSend&&!admitted)) {admitted=true;e->CheckFirst=false;}
 	return admitted;
 }
 static xnetresult xrudp__peer_output_to(xrudppeer* p, const xnetaddr* address, const void* data, size_t size)
@@ -613,8 +772,9 @@ static void xrudp__endpoint_timer(xnetworker* worker, uint64 id, xnetresult resu
 }
 static void xrudp__endpoint_schedule(xrudpendpoint* e)
 {
-	if ((e->Peers == 0 && e->DiscoveryCount == 0 && e->PunchCount == 0) || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
+	if ((e->Peers == 0 && e->DiscoveryCount == 0 && e->PunchCount == 0 && !e->Check.State.Active) || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
 	uint64_t now = xrudp__endpoint_now(e), due = UINT64_MAX;
+	if(e->Check.State.Active && e->Check.Next<due)due=e->Check.Next;
 	uint64_t asyncDue = xrudp__async_due(e); if (asyncDue < due) due = asyncDue;
 	for(uint32_t i=0;i<XRUDP_ENDPOINT_DISCOVERIES_MAX;++i)if(e->Discoveries[i].Used) {
 		xrudp__discoveryjob* j=&e->Discoveries[i];uint64_t next=j->NotifyAt;
@@ -667,6 +827,9 @@ static void xrudp__endpoint_receive(xnetudp* udp, const xnetudpmessage* message,
 	++e->Stats.Received; xrudpaddress address; xrudpwirepacket packet;
 	if ((message->Flags & XNET_UDP_MESSAGE_TRUNCATED) != 0 || !xrudp__endpoint_address(&message->Remote, &address)) { ++e->Stats.Invalid;return; }
 	uint64_t now = xrudp__endpoint_now(e);
+	if(message->Size>=4 && !memcmp(message->Data,"XRC1",4)) {
+		xrudp__check_input(e,message,now);xrudp__endpoint_schedule(e);return;
+	}
 	if(message->Size>=20 && (message->Data[0]&0xc0)==0 && message->Data[4]==0x21 && message->Data[5]==0x12 && message->Data[6]==0xa4 && message->Data[7]==0x42) {
 		xrudp__endpoint_discovery_input(e,message,&address,now);xrudp__endpoint_schedule(e);return;
 	}
@@ -734,7 +897,13 @@ static void xrudp__endpoint_open(xnetudp* udp, ptr context)
 	if (!xrtAtomic32CompareExchange(&e->State, &expected, XRUDP_ENDPOINT_OPEN, XMEMORY_ACQ_REL, XMEMORY_ACQUIRE)) {
 		(void)xrtNetUdpAbort(e->Udp); return;
 	}
+	if(e->Config.ConnectivityChecks) {
+		e->Check.State.Active=true;e->Check.State.Reason=XRUDP_OK;
+		e->Check.Until=xrudp__endpoint_now(e)+UINT64_C(10000000);e->Check.Next=e->Check.Until;
+		e->Check.State.DeadlineUs=e->Check.Until;
+	}
 	if (e->Events.Open != NULL) e->Events.Open(e, e->Context);
+	xrudp__endpoint_schedule(e);
 }
 static void xrudp__endpoint_error(xnetudp* udp, const xerror* error, ptr context)
 {
@@ -744,7 +913,7 @@ static void xrudp__endpoint_finish(xrudpendpoint* e, const xerror* error)
 {
 	if (!e->UdpClosed || e->Timer != 0 || e->CloseNotified || e->DiscoveryNotifying || e->DiscoveryCount || e->PunchNotifying || e->PunchCount) return;
 	if (!xrudp__async_idle(e)) return;
-	e->CloseNotified = true; xrtSecureZero(e->Private, 32); xrtSecureZero(e->CookieKey, 32);
+	e->CloseNotified = true; xrudp__check_stop(e,XRUDP_CANCELLED); xrtSecureZero(e->Private, 32); xrtSecureZero(e->CookieKey, 32);
 	xrtAtomic32Store(&e->State, XRUDP_ENDPOINT_CLOSED, XMEMORY_RELEASE);
 	if (error == NULL) error = e->LocalError != NULL ? e->LocalError : xrtNetUdpError(e->Udp);
 	if (e->Events.Close != NULL) e->Events.Close(e, e->CloseReason, error, e->Context);
@@ -792,6 +961,7 @@ xrudpresult xrtRudpEndpointBind(xnetworker* worker, const xnetaddr* local,
 		!xrudp__endpoint_nonzero(config->StaticPrivate, 32) || (config->Scope != NULL && !xrudp__endpoint_nonzero(config->Scope, 16)) ||
 		(config->PeerPublic != NULL && !xrudp__endpoint_nonzero(config->PeerPublic, 32)) ||
 		(config->Listen && config->PeerPublic == NULL && config->Trust == NULL) || config->MaxPeers == 0 || config->MaxPeers > XRUDP_ENDPOINT_PEERS_MAX ||
+		(config->ConnectivityChecks && (config->PeerPublic==NULL || config->ApplicationContext==NULL)) ||
 		config->MaxHalfOpen == 0 || config->MaxHalfOpen > config->MaxPeers || config->HandshakesPerSecond == 0 || config->HandshakesPerSecond > 65536 ||
 		config->AddressHandshakesPerSecond == 0 || config->AddressHandshakesPerSecond > config->HandshakesPerSecond ||
 		config->MemoryLimit > 1024u * 1024u * 1024u || (config->HandshakeTimeoutUs != 0 && (config->HandshakeTimeoutUs < 1000000 || config->HandshakeTimeoutUs > XRUDP_HANDSHAKE_MAX_TIMEOUT_US)) ||
@@ -816,6 +986,7 @@ xrudpresult xrtRudpEndpointBind(xnetworker* worker, const xnetaddr* local,
 	e->Config.Scope = e->Scope;
 	if (config->PeerPublic != NULL) { memcpy(e->Pin, config->PeerPublic, 32); e->Config.PeerPublic = e->Pin; }
 	if (config->ApplicationContext != NULL) { memcpy(e->Application, config->ApplicationContext, 32); e->Config.ApplicationContext = e->Application; }
+	if(config->ConnectivityChecks && !xrudp__check_init(e))goto random_failure;
 	xnetudpconfig udp; xrtNetUdpConfigInit(&udp); udp.ReceiveSize = XRUDP_PACKET_MAX; udp.ReceiveBatch = 8;
 	udp.ReceiveQueueLimit = 0; udp.ReceiveQueueByteLimit = 0; udp.Truncation = XNET_UDP_TRUNCATE_DROP;
 	udp.SendLimit = 65536; udp.SendPacketLimit = 64; udp.SendHighWater = 49152; udp.SendLowWater = 16384;
@@ -831,6 +1002,37 @@ xrudpresult xrtRudpEndpointBind(xnetworker* worker, const xnetaddr* local,
 	*output = e; return XRUDP_OK;
 random_failure:
 	xrtRudpEndpointDestroy(e); xrtRudpEndpointDestroy(e); return XRUDP_IO_ERROR;
+}
+xrudpresult xrtRudpEndpointCheck(xrudpendpoint* e,const xnetaddr* candidates,size_t count,uint32_t timeout)
+{
+	if(e==NULL || candidates==NULL || !count || count>XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX || !timeout || timeout>10000)return XRUDP_ARGUMENT;
+	if(xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_OPEN)return XRUDP_CLOSED;
+	if(!xrudp__endpoint_owner(e) || !e->Config.ConnectivityChecks)return XRUDP_ARGUMENT;
+	xrudp__check* c=&e->Check;uint64_t now=xrudp__endpoint_now(e);
+	if(!c->State.Active || now>=c->Until)return XRUDP_TIMEOUT;
+	if(c->Started)return XRUDP_DONE;
+	xnetaddr local;if(!xrtNetUdpLocal(e->Udp,&local))return XRUDP_IO_ERROR;
+	for(size_t i=0;i<count;++i) {
+		xrudpaddress a;if(candidates[i].Family!=local.Family || !xrudp__endpoint_address(&candidates[i],&a))return XRUDP_ARGUMENT;
+		for(size_t k=0;k<i;++k)if(xrtNetAddrEqual(&candidates[i],&candidates[k]))return XRUDP_ARGUMENT;
+	}
+	memcpy(c->Candidates,candidates,count*sizeof(*candidates));c->Count=(uint32_t)count;c->Started=true;
+	c->SendUntil=now+(uint64_t)timeout*1000u;if(c->SendUntil>c->Until)c->SendUntil=c->Until;
+	for(uint32_t i=0;i<c->Count;++i)c->Due[i]=now;
+	c->Next=now;xrudp__endpoint_schedule(e);return XRUDP_OK;
+}
+xrudpresult xrtRudpEndpointCheckInfo(const xrudpendpoint* e,xrudpcheckstate* state)
+{
+	if(e==NULL || state==NULL || (xrtRudpEndpointState(e)!=XRUDP_ENDPOINT_CLOSED && !xrudp__endpoint_owner(e)))return XRUDP_ARGUMENT;
+	*state=e->Check.State;return XRUDP_OK;
+}
+xrudpresult xrtRudpEndpointCheckCancel(xrudpendpoint* e)
+{
+	if(e==NULL)return XRUDP_ARGUMENT;
+	if(xrtRudpEndpointState(e)==XRUDP_ENDPOINT_CLOSED)return XRUDP_DONE;
+	if(!xrudp__endpoint_owner(e))return XRUDP_ARGUMENT;
+	if(!e->Check.State.Active)return XRUDP_DONE;
+	xrudp__check_stop(e,XRUDP_CANCELLED);xrudp__endpoint_schedule(e);return XRUDP_OK;
 }
 xrudpresult xrtRudpEndpointConnect(xrudpendpoint* e, const xnetaddr* remote,
 	const xrudpconnectconfig* config, xrudppeer** output)

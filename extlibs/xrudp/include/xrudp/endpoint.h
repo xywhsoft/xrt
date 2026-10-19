@@ -27,6 +27,19 @@
 #define XRUDP_PEER_STREAM_EVENT_BURST 8u
 #define XRUDP_ENDPOINT_DISCOVERIES_MAX 4u
 #define XRUDP_ENDPOINT_PUNCHES_MAX 2u
+#define XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX 8u
+
+/* Authenticated, return-path checked address hints. These do not admit
+ * application data or replace the pinned Noise handshake. No keys/nonces are
+ * exposed. Reply = our request returned; Confirmed = peer returned our cookie. */
+typedef struct xrudpcheckstate {
+	xnetaddr Reply[XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX];
+	xnetaddr Confirmed[XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX];
+	uint32_t Replies, Confirmations, Sent, Rejected;
+	uint64_t DeadlineUs;
+	xrudpresult Reason;
+	bool Active;
+} xrudpcheckstate;
 
 typedef struct xrudpendpoint xrudpendpoint;
 typedef struct xrudppeer xrudppeer;
@@ -101,6 +114,11 @@ typedef struct xrudpendpointconfig {
 	uint32_t HandshakesPerSecond;
 	uint32_t AddressHandshakesPerSecond; /* IP (not port); fixed 64-entry table. */
 	bool Listen;
+	/* Opt-in, same-socket authenticated connectivity checks for a single pinned
+	 * peer. Requires PeerPublic and ApplicationContext. Fixed 10s lifetime from
+	 * Open; at most eight destinations and observations, no per-packet heap.
+	 * Both roles may Listen; only the application's chosen dialer Connects. */
+	bool ConnectivityChecks;
     /* Optional Future adapter quota, both zero disables. Up to 64 retained
      * requests/results, 16MiB copied bytes+nodes in total. Requires the
      * rudp_endpoint_future module. Reserved within MemoryLimit at Bind. */
@@ -174,6 +192,20 @@ XRUDP_API xrudpresult xrtRudpEndpointPunch(xrudpendpoint* pEndpoint,
 /* Owner-only, no inline callback. Pending cancellation returns OK; unknown or
  * already terminal DONE. Closing endpoint returns CLOSED, Engine-safe. */
 XRUDP_API xrudpresult xrtRudpEndpointPunchCancel(xrudpendpoint* pEndpoint, uint64_t iId);
+/* Owner-only, once per endpoint, 1..8 trusted unicast destinations. At most
+ * five requests/destination under a fixed 1..10000ms deadline capped by the
+ * endpoint's check lifetime. Return-path proof uses X25519/HKDF/HMAC and a
+ * source-bound cookie, with separate packet directions and a fresh challenge.
+ * Requests/responses/confirms have equal size; aggregate auxiliary admission
+ * is paced at >=50ms. Learning never relaxes Noise's source/key validation. */
+XRUDP_API xrudpresult xrtRudpEndpointCheck(xrudpendpoint* pEndpoint,
+	const xnetaddr* pCandidates, size_t iCount, uint32_t iTimeoutMs);
+/* Owner-only while live, immutable after CLOSED. No callback is made; the
+ * owning application polls bounded observations and chooses its dialer. */
+XRUDP_API xrudpresult xrtRudpEndpointCheckInfo(const xrudpendpoint* pEndpoint, xrudpcheckstate* pState);
+/* Owner-only, idempotent. Erases credentials/pending packets, retains only
+ * public observations. Closing also cancels checks before Close delivery. */
+XRUDP_API xrudpresult xrtRudpEndpointCheckCancel(xrudpendpoint* pEndpoint);
 XRUDP_API xrudpresult xrtRudpPeerInfo(const xrudppeer* pPeer, xrudphandshakeinfo* pInfo, xnetaddr* pAddress);
 /* Owner-only; success returns an additional owned peer reference. Account ACL,
  * peer pin and scope must come from trusted application discovery. */
