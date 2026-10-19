@@ -20,3 +20,18 @@ native endpoint suite separately checks actual untrusted HELLO/forged-CID
 traffic, reservation stability and survival of an authenticated connection.
 No runtime defect was reproduced by these component vectors; production
 runtime code remains `3d55ec41`.
+
+The committed `a148a934` vectors were rebuilt in all four configurations and
+passed. The native endpoint suite was also rebuilt from committed sources for
+Windows Select/IOCP and Linux Select/Epoll: four actual native processes passed
+all 24 lifecycle cases, including 464 untrusted HELLO/forged-CID datagrams,
+stable reservations and surviving authenticated peers. All native engines
+joined; all four Linux vector/native processes enabled ASan/UBSan/leak checks.
+
+`out/xrudp-endpoint-admission/acceptance.json` records the combined result:
+40,000 deterministic full-table rejections and 1,024 virtual window rotations
+are component counts; the 464 untrusted packets are separately actual UDP
+traffic. `out/xrudp-wire-interop/verify_endpoint_admission.py` checked every
+source, cached core object, binary and the native case/backend set. Fixed logs
+use `dev/xrudp-endpoint-admission-*-fixed.log`. No result in this record claims
+large-scale CPU flood acceptance or 72-hour stability.
