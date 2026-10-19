@@ -25,3 +25,10 @@ logs are `dev/xrudp-endpoint-quota-*-dev-r3.log` and
 hashes, compiler commands and per-process results. This bounded admission test
 does not establish handshake flood resistance, real Internet NAT reachability,
 or 72-hour stability.
+
+The same 16 processes were rebuilt after committing test revision `ed000181`.
+`out/xrudp-wire-interop/verify_endpoint_quota.py` rechecked every captured source
+and executable hash, the complete family/backend matrix and normal completion.
+The aggregate receipt is `out/xrudp-endpoint-quota/acceptance.json`; fixed logs
+use the `*-fixed.log` suffix. These committed runs also passed, including all
+eight Linux sanitizer processes.
