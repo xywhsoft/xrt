@@ -56,3 +56,27 @@ batches, and a final resource-sampling exit race) were corrected in the test
 driver; they were not product-runtime defects. Committed-source verification
 follows separately. This is evidence at a measured local traffic intensity,
 not a DDoS immunity or Internet capacity guarantee, and not a 72-hour result.
+
+## Committed-source result
+
+Test revision `82e39f64` was rebuilt and passed all eight Windows/Linux,
+IPv4/IPv6, Select/IOCP/Epoll processes; the four Linux processes enabled
+ASan/UBSan/leak checks. The eight-second cases offered 388,352 actual datagrams
+in total, approximately 6,000/s per process. All 64 authenticated stream
+instances advanced in every 500-ms sample, with minimum/maximum final progress
+ratio at least 0.9581. The maximum heartbeat gap was 21.776 ms. The largest
+observed private-memory growth was 15,998,976 bytes including sanitizer
+overhead; endpoint reservations stayed constant. All native processes joined.
+
+Counters additionally recorded 129,190 known-CID wrong-source drops and 512
+bounded RETRY replies. CPU values remain aggregate two-Worker fixture
+observations; they do not compare production server performance between OSes.
+
+`out/xrudp-ingress/verify_acceptance.py` rechecked production sources against
+runtime `3d55ec41`, committed fixture/driver input, SDK core and object hashes,
+executables and all per-case transcripts. The aggregate is
+`out/xrudp-ingress/acceptance.json`; 153 actual source/metadata files are frozen
+in `frozen-82e39f64-ingress-source.tar.gz`, SHA256
+`9980efad652e76027141207abac404a84191c7265bfe9929a68a3b64ac55fc7c`.
+Logs are `dev/xrudp-ingress-{windows,linux}-fixed.log`. No product runtime,
+dependency lock, installed application or production service changed.
