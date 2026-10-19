@@ -1350,5 +1350,23 @@ SessionState 新增 PersistentCongestion 计数，保持实际在途和业务所
 `dev/xrudp-persistent-{after,single}-{windows,linux-asan}-final.log`，以及
 `out/xrudp-wire-interop/congestion-generation.json`。此前开发阶段的多流/Future 回归
 不能充当最终提交收据；提交后继续固定来源的完整状态模型、Future、独立线路与宿主集成。
-当前 XS/mdo SDK 尚锁定 `b093114d`，新的状态布局与运行时需要同步构建后才进入产品。
+本项实现提交时 XS/mdo SDK 尚锁定 `b093114d`，新的状态布局与运行时须成套同步构建。
 原有 18 组长稳不修改二进制/计时，不能改标为新运行时的最终 72 小时验收。
+
+`3d55ec41` 固定提交的后续复验已全部完成：4 个组件进程、64 个状态模型进程
+（1,280,000 个虚拟探索步、两平台逐种子计数相同）、68 个原生 Future/故障/禁用模块
+进程，共 136 个进程，Linux 开启 ASan/UBSan/泄漏检测。所有实际来源、缓存核心对象、
+单头、二进制与正常 Engine join 均复核；证据为
+`out/xrudp-wire-interop/congestion-acceptance.json`、`dev/xrudp-persistent-fixed-*`。
+其中组件包含 24 组公开会话场景、28,000 次固定环退休。普通模型记录文件名会滚动到
+最新来源；本轮另存 `out/xrudp-stream-model/acceptance-congestion-*.json`。
+旧 `661296bf` 的原始日志、不可变构建及原汇总保留；详细计数从原验收日志恢复为
+`baseline-661-acceptance-*-from-log.json`，显式标记为原日志提取，未伪称重新执行或
+将新结果改标为旧版本。
+
+XS 主仓 `6bc2fd8` 和 mdo 兼容 SDK `a6906e2` 已同步该运行时；mdo `cc29a287`
+更新依赖锁/bundle 并完成 Windows、Linux 新宿主重建。两平台实际六扩展 565 个
+外层/嵌套 TCC 导出、时间/等待/进程/持久化/根内移动以及各 12 个会合场景通过；
+Windows 进一步通过真实私有账号、双族黑洞接管和 HTTP/live/回执/只读/中继/退出。
+详见 mdo `docs/build-records/2026-10-19-xrudp-congestion.md`。尚未安装、发布或重启生产；
+当前运行时独立线路、资源/接入压力、XS 服务新宿主、Android/双独立 NAT 和最终 72h 仍待完成。
