@@ -123,19 +123,30 @@ def observe_resources(child,pending):
         return None,pending
 
 
+def compile_new(binary, command):
+    """An existing/running acceptance executable is never a compiler output."""
+    binary.parent.mkdir(parents=True,exist_ok=True)
+    marker=binary.with_name(binary.name+'.building')
+    guard=marker.open('x')
+    try:
+        if binary.exists() or binary.with_name(binary.name+'.build.json').exists():
+            raise FileExistsError('immutable build already exists; use --reuse or a fresh --build-dir')
+        subprocess.run(command,cwd=ROOT,check=True)
+    finally:
+        guard.close(); marker.unlink()
+
+
 def build(args):
     sdk=args.sdk.resolve(); core=sdk/'lib/xrt.h'; declaration=sdk/'lib/xrt_decl.h'
     source_commit=subprocess.check_output(['git','rev-parse','--verify','HEAD^{commit}'],cwd=ROOT,text=True).strip()
     for local,source in ((core,'single/xrt.h'),(declaration,'single/xrt_decl.h')):
         assert local.read_bytes()==subprocess.check_output(['git','show',source_commit+':'+source],cwd=ROOT),'SDK core must match committed upstream bytes'
     fixture=ROOT/'extlibs/xrudp/tests/test_native_soak.c'
-    output=ROOT/'out/xrudp-native-soak'; output.mkdir(parents=True,exist_ok=True)
-    binary=output/('native.exe' if os.name=='nt' else 'native')
     command=[args.compiler,'-std=gnu11','-O2','-g','-Wall','-Wextra','-Werror','-DXRT_MODULE_ALL=1','-DXRUDP_MODULE_ALL=1',
         '-I'+str(sdk/'lib'),'-I'+str(ROOT/'extlibs/xrudp/include'),'-I'+str(sdk/'lib/xrtshim')]
     if os.name=='nt': command+=['--param=ggc-min-expand=10','--param=ggc-min-heapsize=4096']
     if args.sanitize: command+=['-fsanitize=address,undefined','-fno-sanitize-recover=all','-fno-omit-frame-pointer']
-    command+=[str(fixture),*map(str,sorted((ROOT/'extlibs/xrudp/src').rglob('*.c'))),'-o',str(binary)]
+    command+=[str(fixture),*map(str,sorted((ROOT/'extlibs/xrudp/src').rglob('*.c'))),'-o','<immutable-build-output>']
     command+=['-lws2_32','-liphlpapi'] if os.name=='nt' else ['-pthread','-lm','-ldl']
     paths=[core,declaration,fixture]
     for folder,suffix in ((ROOT/'extlibs/xrudp/src','*.c'),(ROOT/'extlibs/xrudp/src','*.h'),
@@ -152,13 +163,17 @@ def build(args):
     hashes={str(path):hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}
     version=subprocess.check_output([args.compiler,'--version'],text=True).splitlines()[0]
     key=hashlib.sha256(json.dumps([command,version,hashes],sort_keys=True).encode()).hexdigest()
+    output=(args.build_dir or ROOT/'out/xrudp-native-soak/builds').resolve()/key
+    binary=output/('native.exe' if os.name=='nt' else 'native')
+    command[command.index('-o')+1]=str(binary)
     receipt=binary.with_name(binary.name+'.build.json')
     if args.reuse:
+        assert not binary.with_name(binary.name+'.building').exists(),'native build is still in progress'
         stored=json.loads(receipt.read_text())
         assert stored['input_key']==key and stored['binary_sha256']==hashlib.sha256(binary.read_bytes()).hexdigest(),'native build provenance changed; rebuild explicitly'
         return binary,{**stored,'verified_source_commit':source_commit}
     print(json.dumps({'build_started':True,'pid':os.getpid(),'compiler':version,'input_key':key}),flush=True)
-    subprocess.run(command,cwd=ROOT,check=True)
+    compile_new(binary,command)
     assert all(hashlib.sha256(Path(name).read_bytes()).hexdigest()==value for name,value in hashes.items()),'source changed while compiling'
     value={'input_key':key,'compiler':version,'command':command,'source_hashes':hashes,'source_commit':source_commit,
         'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest()}
@@ -170,6 +185,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk',type=Path,required=True); parser.add_argument('--compiler',default='gcc')
     parser.add_argument('--sanitize',action='store_true'); parser.add_argument('--reuse',action='store_true')
+    parser.add_argument('--build-dir',type=Path,help='private immutable build cache (default: out/xrudp-native-soak/builds)')
     parser.add_argument('--seconds',type=int,default=72*3600); parser.add_argument('--state',type=Path,required=True)
     parser.add_argument('--family',type=int,choices=(4,6),default=4); parser.add_argument('--backend',choices=('select','native'),default='native')
     parser.add_argument('--idle-every',type=int,default=1800); parser.add_argument('--idle-seconds',type=int,default=70)

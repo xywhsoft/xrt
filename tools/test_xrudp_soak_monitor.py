@@ -1,5 +1,7 @@
 """Observer exit races and ctypes cache growth must not invalidate a soak."""
 from types import SimpleNamespace
+from pathlib import Path
+import tempfile
 import ctypes
 import os
 import unittest
@@ -8,6 +10,18 @@ import test_xrudp_native_soak as tool
 
 
 class SoakMonitor(unittest.TestCase):
+    def test_compiler_never_replaces_an_existing_acceptance_binary(self):
+        with tempfile.TemporaryDirectory() as raw,patch.object(tool.subprocess,'run') as compiler:
+            binary=Path(raw)/'native'; binary.write_bytes(b'running acceptance')
+            with self.assertRaises(FileExistsError): tool.compile_new(binary,['compiler'])
+            self.assertEqual(binary.read_bytes(),b'running acceptance'); compiler.assert_not_called()
+
+    def test_concurrent_build_ownership_is_exclusive(self):
+        with tempfile.TemporaryDirectory() as raw,patch.object(tool.subprocess,'run') as compiler:
+            binary=Path(raw)/'native'; binary.with_name('native.building').touch()
+            with self.assertRaises(FileExistsError): tool.compile_new(binary,['compiler'])
+            compiler.assert_not_called(); self.assertTrue(binary.with_name('native.building').exists())
+
     def test_exit_resource_race_is_bounded_and_can_recover(self):
         child=SimpleNamespace(pid=123,poll=lambda:None)
         with patch.object(tool,'resources',side_effect=[ProcessLookupError(),{'private':1}]),\
