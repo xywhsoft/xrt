@@ -5,6 +5,12 @@
 #include <xrt/crypto.h>
 #include <xrt/memory.h>
 #include <string.h>
+#if defined(XRUDP_FEATURE_RUDP_ENDPOINT_FUTURE)
+#include <xrudp/future.h>
+#include <xrt/sync.h>
+#endif
+
+typedef struct xrudp__asyncstate xrudp__asyncstate;
 
 struct xrudppeer {
 	xatomic32 References, State;
@@ -20,6 +26,8 @@ struct xrudppeer {
 	uint32_t PendingEvents;
 	bool FinalQueued, Notifying, HadSession, OutputWaiting, OutputAttempted;
 	unsigned char Pending[XRUDP_HANDSHAKE_PACKET_MAX];
+	xrudppeer* AsyncCloseNext;
+	xrudpresult AsyncCloseReason;
 };
 
 typedef struct xrudp__addressrate {
@@ -63,6 +71,7 @@ struct xrudpendpoint {
 	bool UdpClosed, CloseNotified;
 	xrudpresult CloseReason;
 	xerror* LocalError;
+	xrudp__asyncstate* Async;
 	unsigned char Private[32], Public[32], Scope[16], Pin[32], Application[32], CookieKey[32];
 	xrudpendpointinfo Stats;
 	xrudp__addressrate Rates[XRUDP_ENDPOINT_ADDRESS_BUCKETS];
@@ -79,6 +88,25 @@ struct xrudpendpoint {
 
 static void xrudp__endpoint_schedule(xrudpendpoint* e);
 static void xrudp__endpoint_finish(xrudpendpoint* e, const xerror* error);
+#if defined(XRUDP_FEATURE_RUDP_ENDPOINT_FUTURE)
+static size_t xrudp__async_budget(const xrudpendpointconfig* c);
+static xrudpresult xrudp__async_init(xrudpendpoint* e);
+static void xrudp__async_destroy(xrudpendpoint* e);
+static void xrudp__async_stop(xrudpendpoint* e);
+static bool xrudp__async_peer_closed(xrudppeer* p, xrudpresult reason);
+static void xrudp__async_pump(xrudpendpoint* e);
+static uint64_t xrudp__async_due(xrudpendpoint* e);
+static bool xrudp__async_idle(xrudpendpoint* e);
+#else
+static size_t xrudp__async_budget(const xrudpendpointconfig* c) { return c->AsyncOperations || c->AsyncBytes ? SIZE_MAX:0; }
+static xrudpresult xrudp__async_init(xrudpendpoint* e) { (void)e; return XRUDP_OK; }
+static void xrudp__async_destroy(xrudpendpoint* e) { (void)e; }
+static void xrudp__async_stop(xrudpendpoint* e) { (void)e; }
+static bool xrudp__async_peer_closed(xrudppeer* p, xrudpresult r) { (void)p; (void)r; return false; }
+static void xrudp__async_pump(xrudpendpoint* e) { (void)e; }
+static uint64_t xrudp__async_due(xrudpendpoint* e) { (void)e; return UINT64_MAX; }
+static bool xrudp__async_idle(xrudpendpoint* e) { (void)e; return true; }
+#endif
 static void xrudp__peer_waiting(xrudppeer* p, bool waiting)
 {
 	if (p->OutputWaiting == waiting) return;
@@ -132,6 +160,7 @@ xrudpendpoint* xrtRudpEndpointRef(xrudpendpoint* e)
 void xrtRudpEndpointDestroy(xrudpendpoint* e)
 {
 	if (e != NULL && xrtAtomic32FetchSub(&e->References, 1, XMEMORY_ACQ_REL) == 1) {
+		xrudp__async_destroy(e);
 		xrtNetUdpDestroy(e->Udp); xrtErrorFree(e->LocalError);
 		size_t size = e->Allocation; xrtSecureZero(e, size); xrtFree(e);
 	}
@@ -173,7 +202,7 @@ static void xrudp__peer_close(xrudppeer* p, xrudpresult reason)
 	p->PendingSize = 0; p->PendingEvents = 0;
 	/* Publish the closed snapshot only after all mutable session work. */
 	xrtAtomic32Store(&p->State, XRUDP_PEER_CLOSED, XMEMORY_RELEASE);
-	if (e->Events.PeerClose != NULL) e->Events.PeerClose(e, p, reason, e->Context);
+	if (!xrudp__async_peer_closed(p, reason) && e->Events.PeerClose != NULL) e->Events.PeerClose(e, p, reason, e->Context);
 	xrtRudpPeerDestroy(p); /* Slot ownership; caller must hold its own temporary reference. */
 }
 static xrudppeer* xrudp__endpoint_find(xrudpendpoint* e, const unsigned char id[16])
@@ -538,7 +567,7 @@ static void xrudp__peer_pump(xrudppeer* p, uint64_t now)
 			xrudp__peer_capture(p);
 		}
 		if (!p->OutputAttempted) xrudp__peer_waiting(p, false);
-		xrudp__peer_notify(p);
+		xrudp__async_pump(e); xrudp__peer_notify(p);
 	} else if (!p->OutputAttempted) xrudp__peer_waiting(p, false);
 }
 static void xrudp__endpoint_input_pump(xrudppeer* p, uint64_t now, bool resume)
@@ -578,7 +607,7 @@ static void xrudp__endpoint_timer(xnetworker* worker, uint64 id, xnetresult resu
 			if(peerAdmitted)e->DiscoveryFirst=true;
 			if(xrudp__endpoint_aux_pump(e,xrudp__endpoint_now(e),!peerAdmitted))e->DiscoveryFirst=false;
 		}
-		xrudp__endpoint_schedule(e);
+		xrudp__async_pump(e); xrudp__endpoint_schedule(e);
 	}
 	xrudp__endpoint_finish(e, NULL); xrtRudpEndpointDestroy(e);
 }
@@ -586,6 +615,7 @@ static void xrudp__endpoint_schedule(xrudpendpoint* e)
 {
 	if ((e->Peers == 0 && e->DiscoveryCount == 0 && e->PunchCount == 0) || xrtRudpEndpointState(e) != XRUDP_ENDPOINT_OPEN) return;
 	uint64_t now = xrudp__endpoint_now(e), due = UINT64_MAX;
+	uint64_t asyncDue = xrudp__async_due(e); if (asyncDue < due) due = asyncDue;
 	for(uint32_t i=0;i<XRUDP_ENDPOINT_DISCOVERIES_MAX;++i)if(e->Discoveries[i].Used) {
 		xrudp__discoveryjob* j=&e->Discoveries[i];uint64_t next=j->NotifyAt;
 		if(j->Core.State.Reason==XRUDP_OK) {
@@ -713,6 +743,7 @@ static void xrudp__endpoint_error(xnetudp* udp, const xerror* error, ptr context
 static void xrudp__endpoint_finish(xrudpendpoint* e, const xerror* error)
 {
 	if (!e->UdpClosed || e->Timer != 0 || e->CloseNotified || e->DiscoveryNotifying || e->DiscoveryCount || e->PunchNotifying || e->PunchCount) return;
+	if (!xrudp__async_idle(e)) return;
 	e->CloseNotified = true; xrtSecureZero(e->Private, 32); xrtSecureZero(e->CookieKey, 32);
 	xrtAtomic32Store(&e->State, XRUDP_ENDPOINT_CLOSED, XMEMORY_RELEASE);
 	if (error == NULL) error = e->LocalError != NULL ? e->LocalError : xrtNetUdpError(e->Udp);
@@ -727,6 +758,7 @@ static void xrudp__endpoint_closed(xnetudp* udp, xnetresult result, const xerror
 	xrtAtomic32Store(&e->State, XRUDP_ENDPOINT_CLOSING, XMEMORY_RELEASE);
 	e->CloseReason = e->LocalError != NULL ? (xrtErrorKind(e->LocalError) == XERR_MEMORY ? XRUDP_NO_MEMORY : XRUDP_IO_ERROR) :
 		(previous == XRUDP_ENDPOINT_CLOSING ? XRUDP_CANCELLED : (result == XNET_RESULT_ERROR ? XRUDP_IO_ERROR : XRUDP_CLOSED));
+	xrudp__async_stop(e); xrudp__async_pump(e);
 	for (size_t i = 0; i < e->Config.MaxPeers; ++i) if (e->Slots[i] != NULL) {
 		xrudppeer* p = xrtRudpPeerRef(e->Slots[i]); xrudp__peer_close(p, e->CloseReason); xrtRudpPeerDestroy(p);
 	}
@@ -766,14 +798,16 @@ xrudpresult xrtRudpEndpointBind(xnetworker* worker, const xnetaddr* local,
 		xrtRudpSessionAllocationSize(&session, &sessionBytes) != XRUDP_OK) return XRUDP_ARGUMENT;
 	size_t size = sizeof(xrudpendpoint) + config->MaxPeers * sizeof(xrudppeer*);
 	size_t runtime = xrtRudpHandshakeAllocationSize() + sessionBytes - xrtRudpCipherAllocationSize();
-	if (config->MemoryLimit < size + sizeof(xrudppeer) + runtime) return XRUDP_ARGUMENT;
+	size_t asyncBytes = xrudp__async_budget(config);
+	if (asyncBytes == SIZE_MAX || config->MemoryLimit < size + sizeof(xrudppeer) + runtime + asyncBytes) return XRUDP_ARGUMENT;
 	xrudpendpoint* e = (xrudpendpoint*)xrtMalloc(size);
 	if (e == NULL) return XRUDP_NO_MEMORY;
 	memset(e, 0, size); e->Allocation = size; e->Worker = worker; e->Engine = xrtNetWorkerEngine(worker);
 	e->Config = *config; e->Config.Session = session; e->PeerRuntime = runtime;
 	e->Context = context; e->Epoch = xrtTimer(); e->RateSecond = UINT64_MAX;
 	if (events != NULL) e->Events = *events;
-	xrtAtomic32Init(&e->References, 2); xrtAtomic32Init(&e->State, XRUDP_ENDPOINT_OPENING); xrtAtomic64Init(&e->Reserved, size);
+	xrtAtomic32Init(&e->References, 2); xrtAtomic32Init(&e->State, XRUDP_ENDPOINT_OPENING); xrtAtomic64Init(&e->Reserved, size + asyncBytes);
+	if (xrudp__async_init(e) != XRUDP_OK) { xrtRudpEndpointDestroy(e); xrtRudpEndpointDestroy(e); return XRUDP_NO_MEMORY; }
 	memcpy(e->Private, config->StaticPrivate, 32); e->Config.StaticPrivate = e->Private;
 	if (config->Scope != NULL) memcpy(e->Scope, config->Scope, 16);
 	else if (!xrtSecureRandom(e->Scope, 16)) goto random_failure;
@@ -1004,14 +1038,20 @@ static void xrudp__peer_datagram_after(xrudppeer* p)
 	if (xrtRudpSessionState(p->Session, &state) == XRUDP_OK && state.Reason != XRUDP_OK) xrudp__peer_close(p, state.Reason);
 	else xrudp__peer_wake(p);
 }
+static xrudpresult xrudp__peer_datagram_write_at(xrudppeer* p, uint32_t id, const void* data, size_t size,
+	uint64_t now, uint64_t deadline, uint64_t* sequence)
+{
+	xrtRudpPeerRef(p);
+	xrudpresult r = xrtRudpSessionDatagramWrite(p->Session, id, data, size, now, deadline, sequence);
+	xrudp__peer_datagram_after(p); xrtRudpPeerDestroy(p); return r;
+}
 xrudpresult xrtRudpPeerDatagramWrite(xrudppeer* p, uint32_t id, const void* data, size_t size, uint64_t lifetime, uint64_t* sequence)
 {
 	if (sequence == NULL || (data == NULL && size != 0) || lifetime > XRUDP_DATAGRAM_LIFETIME_MAX_US) return XRUDP_ARGUMENT;
 	xrudpresult r = xrudp__peer_io(p); if (r != XRUDP_OK) return r;
-	xrtRudpPeerRef(p); uint64_t now = xrudp__endpoint_now(p->Endpoint);
+	uint64_t now = xrudp__endpoint_now(p->Endpoint);
 	uint64_t deadline = lifetime == 0 ? 0 : (now > UINT64_MAX - lifetime ? UINT64_MAX : now + lifetime);
-	r = xrtRudpSessionDatagramWrite(p->Session, id, data, size, now, deadline, sequence);
-	xrudp__peer_datagram_after(p); xrtRudpPeerDestroy(p); return r;
+	return xrudp__peer_datagram_write_at(p, id, data, size, now, deadline, sequence);
 }
 xrudpresult xrtRudpPeerDatagramPeek(const xrudppeer* p, xrudpdatagraminfo* info)
 {
@@ -1107,6 +1147,378 @@ xrudpresult xrtRudpEndpointClose(xrudpendpoint* e)
 	if (e == NULL) return XRUDP_ARGUMENT;
 	xrtRudpEndpointRef(e); uint32 state = xrtAtomic32Load(&e->State, XMEMORY_ACQUIRE);
 	while (state < XRUDP_ENDPOINT_CLOSING && !xrtAtomic32CompareExchange(&e->State, &state, XRUDP_ENDPOINT_CLOSING, XMEMORY_ACQ_REL, XMEMORY_ACQUIRE)) {}
-	if (state < XRUDP_ENDPOINT_CLOSED) (void)xrtNetUdpAbort(e->Udp);
+	if (state < XRUDP_ENDPOINT_CLOSED) { xrudp__async_stop(e); (void)xrtNetUdpAbort(e->Udp); }
 	xrtRudpEndpointDestroy(e); return XRUDP_OK;
 }
+
+#if defined(XRUDP_FEATURE_RUDP_ENDPOINT_FUTURE)
+typedef struct xrudp__asyncop {
+	struct xrudp__asyncop* Next;
+	xrudppeer* Peer;
+	xpromise* Promise;
+	xcancel* Cancel;
+	xcancelwatch* Watch;
+	xrudpoperation Request;
+	xrudpoperationresult Result;
+	size_t Cost, PayloadSize;
+	uint64_t Ticket, Deadline, DatagramDeadline;
+	bool Linked, Active, Counted;
+	unsigned char Payload[];
+} xrudp__asyncop;
+
+struct xrudp__asyncstate {
+	xmutex Lock;
+	xnetpost Post;
+	xrudpendpoint* Endpoint; /* Borrowed; every activation/result retains a peer. */
+	xrudp__asyncop *Head, *Tail;
+	xrudppeer *ClosedHead, *ClosedTail;
+	xrudpasyncstate Info;
+	uint64_t Ticket;
+	bool Pumping; /* Owner only. */
+};
+
+static void xrudp__async_add(uint64_t* value) { if (*value != UINT64_MAX) ++*value; }
+static void xrudp__async_dispatch(xnetworker* worker, ptr context);
+static bool xrudp__async_kick_locked(xrudp__asyncstate* s)
+{
+	if (xrtNetPostPending(&s->Post)) return true;
+	if (xrtRudpEndpointState(s->Endpoint) == XRUDP_ENDPOINT_CLOSED) return false;
+	xrtRudpEndpointRef(s->Endpoint);
+	if (xrtNetPost(s->Endpoint->Worker, &s->Post, xrudp__async_dispatch, s->Endpoint)) return true;
+	xrtRudpEndpointDestroy(s->Endpoint); return false;
+}
+static size_t xrudp__async_budget(const xrudpendpointconfig* c)
+{
+	if (!c->AsyncOperations && !c->AsyncBytes) return 0;
+	if (!c->AsyncOperations || c->AsyncOperations > XRUDP_ASYNC_OPERATIONS_MAX ||
+		c->AsyncBytes < sizeof(xrudp__asyncop) || c->AsyncBytes > XRUDP_ASYNC_BYTES_MAX) return SIZE_MAX;
+	return sizeof(xrudp__asyncstate) + c->AsyncBytes;
+}
+static xrudpresult xrudp__async_init(xrudpendpoint* e)
+{
+	if (!e->Config.AsyncOperations) return XRUDP_OK;
+	xrudp__asyncstate* s = xrtCalloc(1, sizeof(*s));
+	if (s == NULL) return XRUDP_NO_MEMORY;
+	if (!xrtMutexInit(&s->Lock)) { xrtFree(s); return XRUDP_NO_MEMORY; }
+	if (!xrtNetPostInit(&s->Post)) { (void)xrtMutexUnit(&s->Lock); xrtFree(s); return XRUDP_NO_MEMORY; }
+	s->Endpoint = e; s->Info.Limit = e->Config.AsyncOperations; s->Info.ByteLimit = e->Config.AsyncBytes;
+	e->Async = s; return XRUDP_OK;
+}
+static void xrudp__async_destroy(xrudpendpoint* e)
+{
+	xrudp__asyncstate* s = e->Async;
+	if (s != NULL) { (void)xrtMutexUnit(&s->Lock); xrtSecureZero(s, sizeof(*s)); xrtFree(s); }
+}
+static void xrudp__async_remove_locked(xrudp__asyncstate* s, xrudp__asyncop* op)
+{
+	xrudp__asyncop* previous = NULL;
+	for (xrudp__asyncop* p = s->Head; p != NULL; p = p->Next) {
+		if (p == op) {
+			if (previous != NULL) previous->Next = p->Next; else s->Head = p->Next;
+			if (s->Tail == p) s->Tail = previous;
+			op->Linked = false; op->Next = NULL; return;
+		}
+		previous = p;
+	}
+}
+static void xrudp__async_release(xrudp__asyncop* op)
+{
+	xrudppeer* p = op->Peer; xrudp__asyncstate* s = p->Endpoint->Async; size_t cost = op->Cost;
+	xrtErrorFree((xerror*)op->Result.Error);
+	xrtSecureZero(op, cost); xrtFree(op);
+	/* The peer keeps s alive until after actual erasure/free. Releasing quota
+	 * earlier would let concurrent submissions exceed the live byte budget. */
+	xrtMutexLock(&s->Lock); --s->Info.Retained; s->Info.RetainedBytes -= cost; xrtMutexUnlock(&s->Lock);
+	xrtRudpPeerDestroy(p);
+}
+static void xrudp__async_result_free(ptr value, ptr context)
+{ (void)value; xrudp__async_release((xrudp__asyncop*)context); }
+static void xrudp__async_cancel(ptr context)
+{
+	xrudp__asyncop* op = context; xrudp__asyncstate* s = op->Peer->Endpoint->Async;
+	xrtMutexLock(&s->Lock);
+	if (op->Linked && !op->Active && !s->Info.Stopping) (void)xrudp__async_kick_locked(s);
+	xrtMutexUnlock(&s->Lock);
+}
+static bool xrudp__async_read(xrudpoperationkind kind)
+{ return kind == XRUDP_OPERATION_READ || kind == XRUDP_OPERATION_MESSAGE_READ || kind == XRUDP_OPERATION_DATAGRAM_READ; }
+static bool xrudp__async_write(xrudpoperationkind kind)
+{ return kind == XRUDP_OPERATION_WRITE || kind == XRUDP_OPERATION_MESSAGE_WRITE || kind == XRUDP_OPERATION_DATAGRAM_WRITE; }
+static void xrudp__async_finish_op(xrudp__asyncop* op, bool cancelled)
+{
+	xrudp__asyncstate* s = op->Peer->Endpoint->Async; xpromise* promise = op->Promise;
+	xrtCancelUnwatch(op->Watch); op->Watch = NULL; xrtCancelDestroy(op->Cancel); op->Cancel = NULL; op->Promise = NULL;
+	xrtMutexLock(&s->Lock);
+	if (op->Counted) { --s->Info.Pending; op->Counted = false; }
+	if (cancelled) xrudp__async_add(&s->Info.Cancelled); else xrudp__async_add(&s->Info.Completed);
+	xrtMutexUnlock(&s->Lock);
+	if (cancelled) { (void)xrtPromiseCancel(promise); xrudp__async_release(op); }
+	else {
+		if (op->Result.Result == XRUDP_IO_ERROR || op->Result.Result == XRUDP_NO_MEMORY) {
+			const xerror* error = op->Peer->Endpoint->LocalError;
+			if (error == NULL) error = xrtNetUdpError(op->Peer->Endpoint->Udp);
+			if (error != NULL) op->Result.Error = xrtErrorRef(error);
+		}
+		if (xrudp__async_write(op->Request.Kind)) xrtSecureZero(op->Payload, op->PayloadSize);
+		op->Result.Data = xrudp__async_read(op->Request.Kind) && op->Result.Result == XRUDP_OK ? op->Payload : NULL;
+		if (!xrtPromiseResolveOwned(promise, &op->Result, xrudp__async_result_free, op)) xrudp__async_release(op);
+	}
+	xrtPromiseDestroy(promise);
+}
+void xrtRudpOperationInit(xrudpoperation* op)
+{
+	if (op != NULL) { memset(op, 0, sizeof(*op)); op->Kind = XRUDP_OPERATION_READ; op->Stream = 1; op->Capacity = 4096; }
+}
+xrudpresult xrtRudpEndpointAsyncState(const xrudpendpoint* e, xrudpasyncstate* output)
+{
+	if (e == NULL || output == NULL) return XRUDP_ARGUMENT;
+	memset(output, 0, sizeof(*output)); xrudp__asyncstate* s = e->Async;
+	if (s != NULL) { xrtMutexLock(&s->Lock); *output = s->Info; xrtMutexUnlock(&s->Lock); }
+	return XRUDP_OK;
+}
+xfuture* xrtRudpPeerSubmitAsync(xrudppeer* p, const xrudpoperation* request)
+{
+	if (p == NULL || request == NULL || request->Kind < XRUDP_OPERATION_READ || request->Kind > XRUDP_OPERATION_WAIT_WRITE_DONE ||
+		request->TimeoutMs > 600000u || (request->Kind == XRUDP_OPERATION_READ && !request->Capacity) ||
+		(request->Kind == XRUDP_OPERATION_DATAGRAM_WRITE && request->DatagramLifetimeUs > XRUDP_DATAGRAM_LIFETIME_MAX_US) ||
+		(xrudp__async_write(request->Kind) && request->Size && request->Data == NULL)) {
+		xrtSetErrorKind(XERR_ARGUMENT); return NULL;
+	}
+	double submitted = xrtTimer();
+	xrudp__asyncstate* s = p->Endpoint->Async;
+	if (s == NULL) { xrtSetErrorInfo(XERR_UNSUPPORTED, "xrudp-async", XRUDP_LIMIT, "endpoint Future adapter is disabled"); return NULL; }
+	size_t payload = xrudp__async_read(request->Kind) ? request->Capacity : (xrudp__async_write(request->Kind) ? request->Size : 0);
+	if (payload > XRUDP_ASYNC_BYTES_MAX || payload > SIZE_MAX - sizeof(xrudp__asyncop)) {
+		xrtSetErrorKind(XERR_RANGE); return NULL;
+	}
+	size_t cost = sizeof(xrudp__asyncop) + payload;
+	xrtMutexLock(&s->Lock);
+	if (s->Info.Stopping || xrtRudpEndpointState(p->Endpoint) >= XRUDP_ENDPOINT_CLOSING || xrtRudpPeerState(p) == XRUDP_PEER_CLOSED) {
+		xrtMutexUnlock(&s->Lock); xrtSetErrorKind(XERR_CLOSED); return NULL;
+	}
+	if (cost > s->Info.ByteLimit) {
+		xrudp__async_add(&s->Info.Rejected); xrtMutexUnlock(&s->Lock);
+		xrtSetErrorInfo(XERR_RANGE, "xrudp-async", XRUDP_LIMIT, "operation exceeds the endpoint byte limit even when empty"); return NULL;
+	}
+	if (s->Ticket == UINT64_MAX || s->Info.Retained == s->Info.Limit || cost > s->Info.ByteLimit - s->Info.RetainedBytes) {
+		xrudp__async_add(&s->Info.Rejected); xrtMutexUnlock(&s->Lock);
+		xrtSetErrorInfo(XERR_AGAIN, "xrudp-async", XRUDP_BACKPRESSURE, "retained operation/result quota exhausted"); return NULL;
+	}
+	++s->Info.Retained; s->Info.RetainedBytes += cost; xrtMutexUnlock(&s->Lock);
+	xrudp__asyncop* op = xrtCalloc(1, cost);
+	if (op == NULL) {
+		xrtMutexLock(&s->Lock); --s->Info.Retained; s->Info.RetainedBytes -= cost; xrudp__async_add(&s->Info.Rejected); xrtMutexUnlock(&s->Lock);
+		return NULL;
+	}
+	op->Peer = xrtRudpPeerRef(p); op->Cost = cost; op->PayloadSize = payload; op->Request = *request;
+	op->Result.Stream = request->Stream;
+	if (xrudp__async_write(request->Kind)) { if (payload) memcpy(op->Payload, request->Data, payload); op->Request.Data = op->Payload; }
+	if (request->TimeoutMs || (request->Kind == XRUDP_OPERATION_DATAGRAM_WRITE && request->DatagramLifetimeUs)) {
+		double elapsed = submitted - p->Endpoint->Epoch;
+		uint64_t now = elapsed > 0 && elapsed < (double)UINT64_MAX / 1000000.0 ? (uint64_t)(elapsed * 1000000.0) : 0;
+		if (request->TimeoutMs) {
+			uint64_t duration = (uint64_t)request->TimeoutMs * 1000;
+			op->Deadline = now > UINT64_MAX - duration ? UINT64_MAX : now + duration;
+		}
+		if (request->Kind == XRUDP_OPERATION_DATAGRAM_WRITE && request->DatagramLifetimeUs)
+			op->DatagramDeadline = now > UINT64_MAX - request->DatagramLifetimeUs ? UINT64_MAX : now + request->DatagramLifetimeUs;
+	}
+	xfuture* future = NULL; op->Promise = xrtPromiseCreate(&future, NULL);
+	if (op->Promise != NULL) op->Cancel = xrtPromiseCancelToken(op->Promise);
+	if (op->Cancel != NULL) op->Watch = xrtCancelWatch(op->Cancel, xrudp__async_cancel, op);
+	if (op->Watch == NULL) {
+		if (op->Promise != NULL) { (void)xrtPromiseCancel(op->Promise); xrtPromiseDestroy(op->Promise); }
+		xrtMutexLock(&s->Lock); xrudp__async_add(&s->Info.Rejected); xrtMutexUnlock(&s->Lock);
+		xrtFutureDestroy(future); xrtCancelDestroy(op->Cancel); xrudp__async_release(op); xrtSetErrorKind(XERR_MEMORY); return NULL;
+	}
+	xrtMutexLock(&s->Lock); xrudp__async_add(&s->Info.Submitted);
+	if (s->Info.Stopping || xrtRudpEndpointState(p->Endpoint) >= XRUDP_ENDPOINT_CLOSING || xrtRudpPeerState(p) == XRUDP_PEER_CLOSED)
+		op->Result.Result = XRUDP_CLOSED;
+	else if (s->Ticket == UINT64_MAX) op->Result.Result = XRUDP_LIMIT;
+	else {
+		op->Ticket = ++s->Ticket; op->Linked = op->Counted = true; ++s->Info.Pending;
+		if (s->Tail != NULL) s->Tail->Next = op; else s->Head = op;
+		s->Tail = op;
+		if (!xrudp__async_kick_locked(s)) { xrudp__async_remove_locked(s, op); op->Result.Result = XRUDP_CLOSED; }
+	}
+	bool queued = op->Linked; xrtMutexUnlock(&s->Lock);
+	if (!queued) xrudp__async_finish_op(op, false);
+	return future;
+}
+
+static xrudpresult xrudp__async_invoke(xrudp__asyncop* op)
+{
+	xrudppeer* p = op->Peer; xrudpoperation* r = &op->Request; xrudpoperationresult* out = &op->Result;
+	out->Size = 0;
+	switch (r->Kind) {
+	case XRUDP_OPERATION_READ: return xrtRudpPeerStreamRead(p, r->Stream, op->Payload, r->Capacity, &out->Size);
+	case XRUDP_OPERATION_WRITE: return xrtRudpPeerStreamWrite(p, r->Stream, op->Payload, r->Size, &out->Size);
+	case XRUDP_OPERATION_MESSAGE_READ: return xrtRudpPeerMessageRead(p, r->Stream, op->Payload, r->Capacity, &out->Size);
+	case XRUDP_OPERATION_MESSAGE_WRITE: {
+		xrudpresult result = xrtRudpPeerMessageWrite(p, r->Stream, op->Payload, r->Size);
+		if (result == XRUDP_OK) out->Size = r->Size;
+		return result;
+	}
+	case XRUDP_OPERATION_DATAGRAM_READ: {
+		xrudpresult result = xrtRudpPeerDatagramRead(p, op->Payload, r->Capacity, &out->Datagram);
+		out->Size = out->Datagram.Size; return result;
+	}
+	case XRUDP_OPERATION_DATAGRAM_WRITE: {
+		xrudpresult result = xrudp__peer_io(p); if (result != XRUDP_OK) return result;
+		uint64_t now = xrudp__endpoint_now(p->Endpoint);
+		if (op->DatagramDeadline && now >= op->DatagramDeadline) return XRUDP_TIMEOUT;
+		result = xrudp__peer_datagram_write_at(p, r->Channel, op->Payload, r->Size, now, op->DatagramDeadline, &out->Sequence);
+		if (result == XRUDP_OK) out->Size = r->Size;
+		return result;
+	}
+	case XRUDP_OPERATION_STREAM_OPEN: return xrtRudpPeerStreamOpen(p, &r->StreamConfig, &out->Stream);
+	case XRUDP_OPERATION_STREAM_FINISH: return xrtRudpPeerStreamFinish(p, r->Stream);
+	case XRUDP_OPERATION_STREAM_STOP: return xrtRudpPeerStreamStop(p, r->Stream, r->Reason);
+	case XRUDP_OPERATION_STREAM_RESET: return xrtRudpPeerStreamReset(p, r->Stream, r->Reason);
+	case XRUDP_OPERATION_STREAM_RETIRE: return xrtRudpPeerStreamRetire(p, r->Stream);
+	case XRUDP_OPERATION_DATAGRAM_CONFIGURE: return xrtRudpPeerDatagramConfigure(p, &r->ChannelConfig);
+	case XRUDP_OPERATION_SHUTDOWN: return xrtRudpPeerShutdown(p, r->DrainTimeoutMs);
+	case XRUDP_OPERATION_ABORT: return xrtRudpPeerAbort(p);
+	case XRUDP_OPERATION_WAIT_WRITE_DONE: {
+		xrudpstreamstate state; xrudpresult result = xrtRudpPeerStreamState(p, r->Stream, &state);
+		return result != XRUDP_OK ? result : (state.WriteDone ? XRUDP_OK : XRUDP_BACKPRESSURE);
+	}
+	default: return XRUDP_ARGUMENT;
+	}
+}
+
+typedef struct xrudp__asyncdomain { xrudppeer* Peer; uint32_t Stream, Direction; } xrudp__asyncdomain;
+static bool xrudp__async_graceful_write(xrudpoperationkind kind)
+{
+	return kind == XRUDP_OPERATION_WRITE || kind == XRUDP_OPERATION_MESSAGE_WRITE ||
+		kind == XRUDP_OPERATION_STREAM_OPEN || kind == XRUDP_OPERATION_STREAM_FINISH;
+}
+/* A shutdown must not discard writes merely because they have not yet won
+ * native buffer space. Later writes must not bypass that same peer barrier.
+ * Reads and abortive controls remain runnable so flow/cancellation can finish. */
+static bool xrudp__async_fenced_locked(xrudp__asyncstate* s, xrudp__asyncop* target)
+{
+	xrudpoperationkind kind = target->Request.Kind;
+	if (kind != XRUDP_OPERATION_SHUTDOWN && !xrudp__async_graceful_write(kind) && kind != XRUDP_OPERATION_DATAGRAM_WRITE) return false;
+	for (xrudp__asyncop* op = s->Head; op != NULL && op != target; op = op->Next) {
+		if (op->Peer != target->Peer) continue;
+		if (op->Request.Kind == XRUDP_OPERATION_SHUTDOWN ||
+			(kind == XRUDP_OPERATION_SHUTDOWN && xrudp__async_graceful_write(op->Request.Kind))) return true;
+	}
+	return false;
+}
+static xrudp__asyncdomain xrudp__async_domain(xrudp__asyncop* op)
+{
+	xrudp__asyncdomain key = {op->Peer, op->Request.Stream, 0};
+	switch (op->Request.Kind) {
+	case XRUDP_OPERATION_READ: case XRUDP_OPERATION_MESSAGE_READ: key.Direction = 1; break;
+	case XRUDP_OPERATION_WRITE: case XRUDP_OPERATION_MESSAGE_WRITE: case XRUDP_OPERATION_STREAM_FINISH: key.Direction = 2; break;
+	case XRUDP_OPERATION_DATAGRAM_READ: key.Direction = 3; key.Stream = 0; break;
+	case XRUDP_OPERATION_DATAGRAM_WRITE: key.Direction = 4; key.Stream = 0; break;
+	case XRUDP_OPERATION_STREAM_OPEN: key.Direction = 5; key.Stream = 0; break;
+	default: break;
+	}
+	return key;
+}
+
+static void xrudp__async_pump(xrudpendpoint* e)
+{
+	xrudp__asyncstate* s = e->Async;
+	if (s == NULL || s->Pumping) return;
+	xrtRudpEndpointRef(e); s->Pumping = true;
+	xrudp__asyncdomain blocked[XRUDP_ASYNC_OPERATIONS_MAX]; size_t blockedCount = 0;
+	xrtMutexLock(&s->Lock); uint64_t limit = s->Ticket; xrudp__asyncop* cursor = s->Head; xrtMutexUnlock(&s->Lock);
+	unsigned completed = 0; bool remaining = false;
+	while (cursor != NULL && cursor->Ticket <= limit) {
+		xrudp__asyncop* op = cursor; xrudp__asyncdomain key = xrudp__async_domain(op);
+		xrtMutexLock(&s->Lock); cursor = op->Next;
+		bool stopping = s->Info.Stopping || xrtRudpEndpointState(e) >= XRUDP_ENDPOINT_CLOSING;
+		unsigned burst = stopping || s->ClosedHead != NULL ? XRUDP_ASYNC_OPERATIONS_MAX : XRUDP_ASYNC_COMPLETION_BURST;
+		if (completed >= burst) { remaining = true; xrtMutexUnlock(&s->Lock); break; }
+		bool cancelled = xrtCancelRequested(op->Cancel);
+		bool closed = stopping || xrtRudpPeerState(op->Peer) == XRUDP_PEER_CLOSED;
+		uint64_t now = xrudp__endpoint_now(e);
+		bool expired = (op->Deadline && now >= op->Deadline) || (op->DatagramDeadline && now >= op->DatagramDeadline);
+		bool wait = !cancelled && !closed && !expired &&
+			((xrtRudpPeerState(op->Peer) != XRUDP_PEER_CONFIRMED && op->Request.Kind != XRUDP_OPERATION_ABORT) || xrudp__async_fenced_locked(s, op));
+		if (!cancelled && !closed && !expired && key.Direction) for (size_t i = 0; i < blockedCount; ++i)
+			if (blocked[i].Peer == key.Peer && blocked[i].Stream == key.Stream && blocked[i].Direction == key.Direction) wait = true;
+		if (wait) { xrtMutexUnlock(&s->Lock); continue; }
+		op->Active = true; xrtMutexUnlock(&s->Lock);
+		xrudpresult closeReason = e->CloseReason;
+		if (closeReason == XRUDP_OK) closeReason = e->LocalError != NULL ?
+			(xrtErrorKind(e->LocalError) == XERR_MEMORY ? XRUDP_NO_MEMORY : XRUDP_IO_ERROR) : XRUDP_CANCELLED;
+		xrudpresult result = closed ? (xrtRudpPeerState(op->Peer) == XRUDP_PEER_CLOSED ?
+			op->Peer->AsyncCloseReason : closeReason) :
+			(expired ? XRUDP_TIMEOUT : XRUDP_OK);
+		if (!cancelled && !closed && !expired) result = xrudp__async_invoke(op);
+		xrtMutexLock(&s->Lock); op->Active = false;
+		if (result == XRUDP_BACKPRESSURE && !cancelled) {
+			/* No native admission occurred. A cancellation arriving during the
+			 * failed try may now win; successful admission never takes this path. */
+			cancelled = xrtCancelRequested(op->Cancel);
+			if (!cancelled) {
+				if (key.Direction && blockedCount < XRUDP_ASYNC_OPERATIONS_MAX) blocked[blockedCount++] = key;
+				xrtMutexUnlock(&s->Lock); continue;
+			}
+		}
+		xrudp__async_remove_locked(s, op); op->Result.Result = result; xrtMutexUnlock(&s->Lock);
+		xrudp__async_finish_op(op, cancelled); ++completed;
+	}
+	/* PeerClose callbacks cannot overtake a currently admitted operation or
+	 * another queued operation on that peer. Reentrant aborts join this list. */
+	unsigned closes = 0;
+	while (s->ClosedHead != NULL) {
+		xrtMutexLock(&s->Lock);
+		if (!s->Info.Stopping && closes >= XRUDP_ENDPOINT_PEERS_MAX) { remaining = true; xrtMutexUnlock(&s->Lock); break; }
+		xrudppeer* p = s->ClosedHead; bool pending = false;
+		for (xrudp__asyncop* op = s->Head; op != NULL; op = op->Next) if (op->Peer == p) { pending = true; break; }
+		xrtMutexUnlock(&s->Lock);
+		if (pending) { remaining = true; break; }
+		s->ClosedHead = p->AsyncCloseNext; if (s->ClosedHead == NULL) s->ClosedTail = NULL;
+		p->AsyncCloseNext = NULL;
+		if (e->Events.PeerClose != NULL) e->Events.PeerClose(e, p, p->AsyncCloseReason, e->Context);
+		xrtRudpPeerDestroy(p); ++closes;
+	}
+	s->Pumping = false;
+	xrtMutexLock(&s->Lock);
+	if (remaining || (completed && s->Head != NULL)) (void)xrudp__async_kick_locked(s);
+	xrtMutexUnlock(&s->Lock);
+	xrudp__endpoint_finish(e, NULL); xrtRudpEndpointDestroy(e);
+}
+static void xrudp__async_dispatch(xnetworker* worker, ptr context)
+{
+	xrudpendpoint* e = context; (void)worker;
+	xrudp__async_pump(e); xrudp__endpoint_schedule(e); xrudp__endpoint_finish(e, NULL); xrtRudpEndpointDestroy(e);
+}
+static void xrudp__async_stop(xrudpendpoint* e)
+{
+	xrudp__asyncstate* s = e->Async; if (s == NULL) return;
+	xrtMutexLock(&s->Lock); s->Info.Stopping = true;
+	if (s->Info.Pending) (void)xrudp__async_kick_locked(s);
+	xrtMutexUnlock(&s->Lock);
+}
+static bool xrudp__async_peer_closed(xrudppeer* p, xrudpresult reason)
+{
+	xrudp__asyncstate* s = p->Endpoint->Async; if (s == NULL) return false;
+	p->AsyncCloseReason = reason; p->AsyncCloseNext = NULL; xrtRudpPeerRef(p);
+	if (s->ClosedTail != NULL) s->ClosedTail->AsyncCloseNext = p; else s->ClosedHead = p;
+	s->ClosedTail = p; xrudp__async_pump(p->Endpoint); return true;
+}
+static uint64_t xrudp__async_due(xrudpendpoint* e)
+{
+	xrudp__asyncstate* s = e->Async; if (s == NULL) return UINT64_MAX;
+	uint64_t due = UINT64_MAX; xrtMutexLock(&s->Lock);
+	for (xrudp__asyncop* op = s->Head; op != NULL; op = op->Next) {
+		if (op->Deadline && op->Deadline < due) due = op->Deadline;
+		if (op->DatagramDeadline && op->DatagramDeadline < due) due = op->DatagramDeadline;
+	}
+	xrtMutexUnlock(&s->Lock); return due;
+}
+static bool xrudp__async_idle(xrudpendpoint* e)
+{
+	xrudp__asyncstate* s = e->Async; if (s == NULL) return true;
+	if (s->Pumping || s->ClosedHead != NULL) return false;
+	xrtMutexLock(&s->Lock); bool idle = s->Info.Pending == 0; xrtMutexUnlock(&s->Lock); return idle;
+}
+#endif

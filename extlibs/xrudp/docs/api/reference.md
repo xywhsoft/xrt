@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `213` 个函数、`176` 个常量或宏、
-`75` 个公共类型。
+当前登记 `216` 个函数、`195` 个常量或宏、
+`79` 个公共类型。
 
 ## `extlibs/xrudp/include/xrudp/ack.h`
 
@@ -282,6 +282,45 @@
 
 - `XRUDP_BUILD_SHARED`
 - `XRUDP_USE_SHARED`
+
+## `extlibs/xrudp/include/xrudp/future.h`
+
+[查看带契约注释的公共头](../../include/xrudp/future.h)
+
+### 函数 (3)
+
+- `xrtRudpEndpointAsyncState`
+- `xrtRudpOperationInit`
+- `xrtRudpPeerSubmitAsync`
+
+### 常量与宏 (19)
+
+- `XRUDP_ASYNC_BYTES_MAX`
+- `XRUDP_ASYNC_COMPLETION_BURST`
+- `XRUDP_ASYNC_OPERATIONS_MAX`
+- `XRUDP_FEATURE_RUDP_ENDPOINT_FUTURE`
+- `XRUDP_OPERATION_ABORT`
+- `XRUDP_OPERATION_DATAGRAM_CONFIGURE`
+- `XRUDP_OPERATION_DATAGRAM_READ`
+- `XRUDP_OPERATION_DATAGRAM_WRITE`
+- `XRUDP_OPERATION_MESSAGE_READ`
+- `XRUDP_OPERATION_MESSAGE_WRITE`
+- `XRUDP_OPERATION_READ`
+- `XRUDP_OPERATION_SHUTDOWN`
+- `XRUDP_OPERATION_STREAM_FINISH`
+- `XRUDP_OPERATION_STREAM_OPEN`
+- `XRUDP_OPERATION_STREAM_RESET`
+- `XRUDP_OPERATION_STREAM_RETIRE`
+- `XRUDP_OPERATION_STREAM_STOP`
+- `XRUDP_OPERATION_WAIT_WRITE_DONE`
+- `XRUDP_OPERATION_WRITE`
+
+### 类型 (4)
+
+- `xrudpasyncstate`
+- `xrudpoperation`
+- `xrudpoperationkind`
+- `xrudpoperationresult`
 
 ## `extlibs/xrudp/include/xrudp/handshake.h`
 

@@ -101,6 +101,11 @@ typedef struct xrudpendpointconfig {
 	uint32_t HandshakesPerSecond;
 	uint32_t AddressHandshakesPerSecond; /* IP (not port); fixed 64-entry table. */
 	bool Listen;
+    /* Optional Future adapter quota, both zero disables. Up to 64 retained
+     * requests/results, 16MiB copied bytes+nodes in total. Requires the
+     * rudp_endpoint_future module. Reserved within MemoryLimit at Bind. */
+    uint32_t AsyncOperations;
+    size_t AsyncBytes;
 } xrudpendpointconfig;
 
 typedef struct xrudpconnectconfig {

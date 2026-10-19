@@ -162,28 +162,49 @@
       "name": "rudp_punch",
       "state": "implemented",
       "feature": "XRUDP_FEATURE_RUDP_PUNCH",
-      "depends": ["rudp_stun", "random_secure"],
-      "public_headers": ["extlibs/xrudp/include/xrudp/punch.h"],
+      "depends": [
+        "rudp_stun",
+        "random_secure"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/punch.h"
+      ],
       "internal_headers": [],
-      "sources": ["extlibs/xrudp/src/network/rudp_punch.c"],
+      "sources": [
+        "extlibs/xrudp/src/network/rudp_punch.c"
+      ],
       "tests": [],
       "single_tests": [],
       "examples": [],
       "benchmarks": [],
-      "docs": ["extlibs/xrudp/README.md", "extlibs/xrudp/docs/protocol.md", "extlibs/xrudp/docs/implementation-status.md"]
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/protocol.md",
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
     },
     {
       "name": "rudp_punch_tests",
       "state": "implemented",
-      "depends": ["rudp_punch", "memory_debug"],
+      "depends": [
+        "rudp_punch",
+        "memory_debug"
+      ],
       "public_headers": [],
       "internal_headers": [],
       "sources": [],
-      "tests": ["extlibs/xrudp/tests/test_punch.c"],
-      "single_tests": ["extlibs/xrudp/tests/single/test_single_punch.c", "extlibs/xrudp/tests/single/test_single_punch_entropy.c"],
+      "tests": [
+        "extlibs/xrudp/tests/test_punch.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_punch.c",
+        "extlibs/xrudp/tests/single/test_single_punch_entropy.c"
+      ],
       "examples": [],
       "benchmarks": [],
-      "docs": ["extlibs/xrudp/docs/implementation-status.md"]
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
     },
     {
       "name": "rudp_crypto",
@@ -848,6 +869,30 @@
       ]
     },
     {
+      "name": "rudp_endpoint_future",
+      "state": "implemented",
+      "feature": "XRUDP_FEATURE_RUDP_ENDPOINT_FUTURE",
+      "depends": [
+        "rudp_endpoint",
+        "future",
+        "mutex"
+      ],
+      "public_headers": [
+        "extlibs/xrudp/include/xrudp/future.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/implementation-status.md",
+        "extlibs/xrudp/docs/future.md"
+      ]
+    },
+    {
       "name": "rudp_endpoint_iocp_tests",
       "asset_platforms": [
         "windows"
@@ -1093,15 +1138,25 @@
     {
       "name": "rudp_punch_native_tests",
       "state": "implemented",
-      "depends": ["rudp_endpoint", "memory_debug"],
+      "depends": [
+        "rudp_endpoint",
+        "memory_debug"
+      ],
       "public_headers": [],
       "internal_headers": [],
       "sources": [],
-      "tests": ["extlibs/xrudp/tests/test_endpoint_punch.c"],
-      "single_tests": ["extlibs/xrudp/tests/single/test_single_endpoint_punch.c", "extlibs/xrudp/tests/single/test_single_endpoint_punch_fault.c"],
+      "tests": [
+        "extlibs/xrudp/tests/test_endpoint_punch.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_endpoint_punch.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_punch_fault.c"
+      ],
       "examples": [],
       "benchmarks": [],
-      "docs": ["extlibs/xrudp/docs/implementation-status.md"]
+      "docs": [
+        "extlibs/xrudp/docs/implementation-status.md"
+      ]
     },
     {
       "name": "rudp_discovery_native_tests",
@@ -1124,6 +1179,49 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xrudp/docs/implementation-status.md"
+      ]
+    },
+    {
+      "name": "rudp_endpoint_future_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_endpoint_future",
+        "memory_debug"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrudp/tests/test_endpoint_future.c",
+        "extlibs/xrudp/tests/test_endpoint_future_fault.c"
+      ],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_endpoint_future.c",
+        "extlibs/xrudp/tests/single/test_single_endpoint_future_fault.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/future.md"
+      ]
+    },
+    {
+      "name": "rudp_endpoint_future_disabled_tests",
+      "state": "implemented",
+      "depends": [
+        "rudp_endpoint"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [
+        "extlibs/xrudp/tests/single/test_single_endpoint_future_disabled.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrudp/docs/future.md"
       ]
     }
   ]

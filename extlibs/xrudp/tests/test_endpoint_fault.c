@@ -58,6 +58,9 @@ static void create_endpoint(xnetworker* worker, ptr context)
 	endpoint_fault* c = (endpoint_fault*)context;
 	unsigned char privateKey[32] = {7}; xrudpendpointconfig cfg;
 	xrtRudpEndpointConfigInit(&cfg); cfg.StaticPrivate = privateKey; cfg.MaxPeers = cfg.MaxHalfOpen = 2;
+#if defined(XRUDP_TEST_ENDPOINT_FUTURE)
+	cfg.AsyncOperations = 8; cfg.AsyncBytes = 4096;
+#endif
 	xnetaddr local; expect(c, xrtNetAddrLoopback(&local, XNET_FAMILY_IPV4, 0), "loopback failed");
 	xrudpendpointevents events = {opened, NULL, peer_closed, closed, NULL, NULL};
 	expect(c, xrtMemDebugFailAfter(c->Mode == 2 ? 1000 : c->Budget), "arm constructor failure failed");

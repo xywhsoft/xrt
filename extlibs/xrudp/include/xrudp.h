@@ -19,6 +19,7 @@
 #include <xrudp/datagram.h>
 #include <xrudp/handshake.h>
 #include <xrudp/endpoint.h>
+#include <xrudp/future.h>
 #include <xrudp/session.h>
 
 #endif

@@ -2,6 +2,22 @@
 #ifndef XRUDP_FEATURES_H
 #define XRUDP_FEATURES_H
 
+/* rudp_endpoint_future 及其直接依赖。 */
+#if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_ENDPOINT_FUTURE)
+#ifndef XRUDP_FEATURE_RUDP_ENDPOINT_FUTURE
+#define XRUDP_FEATURE_RUDP_ENDPOINT_FUTURE
+#endif
+#ifndef XRUDP_MODULE_RUDP_ENDPOINT
+#define XRUDP_MODULE_RUDP_ENDPOINT
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#endif
+
 /* rudp_endpoint 及其直接依赖。 */
 #if defined(XRUDP_MODULE_ALL) || defined(XRUDP_MODULE_RUDP_ENDPOINT)
 #ifndef XRUDP_FEATURE_RUDP_ENDPOINT
