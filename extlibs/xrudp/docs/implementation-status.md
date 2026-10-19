@@ -1310,3 +1310,16 @@ STOP/RESET 场景及 16 个 native-first/peer-first 关闭场景，共 48 个独
 `dev/xrudp-future-wire-controls-{windows,linux-asan}.log`。Windows 首次复用因编译器
 路径斜杠写法不同被严格来源检查拒绝，恢复原收据的同一参数后运行通过；没有跳过
 来源检查或重写收据。这是控制帧回归，不能代替完整负向/路径/MTU 矩阵和 72 小时验收。
+
+该运行时的剩余独立线路矩阵已另行复验通过：Windows GCC Select/IOCP、Linux
+Clang ASan/UBSan Select/Epoll 各 1000 个独立进程，其中各 960 个负向场景、
+8 个重绑定、16 个 MTU 增长/黑洞、8 个尺寸缩小恢复和 8 个迁移后尺寸重建。
+共实际执行 3520 份未认证变异，认证后的非法帧另按完整前缀/后缀覆盖；所有进程
+正常 join，逐项核对角色、地址族、后端、用例的完整笛卡尔积且无重复。
+
+证据为 `out/xrudp-wire-interop/future-remaining-acceptance.json`、
+`dev/xrudp-future-wire-{negative,path,mtu,mtu_recovery,path_mtu}-{windows,linux-asan}.log`。
+原生收据仍来自 `b093114d`，复验时当前 C/头/SDK 核心和二进制全部一致；二进制已
+按 input_key 留存到 `out/xrudp-wire-interop/builds/`，152 个实际来源/驱动另存
+`frozen-b093-future-wire-source.tar.gz`，以便后续产品变更后仍能核对原证据。
+这不替代持续拥塞区间证明、接入/资源压力审查、实体 Android、双独立 NAT 和实际 72h。
