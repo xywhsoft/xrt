@@ -68,11 +68,13 @@ static void bind_all(xnetworker* worker,void* context)
         c.StaticPrivate=t->Private[i];c.PeerPublic=t->Key[1-i];c.Scope=t->Scope;c.ApplicationContext=t->Context;
         unsigned char wrong[32];memcpy(wrong,t->Context,32);wrong[0]^=1;if(t->Mode==2 && i==1)c.ApplicationContext=wrong;
         c.Listen=true;c.ConnectivityChecks=true;c.MaxPeers=c.MaxHalfOpen=1;c.HandshakeTimeoutUs=1000000;
+        if(t->Mode==5)c.ConnectivityTimeoutMs=50;
         xrudpendpointevents v={opened,confirmed,NULL,closed,changed,NULL};xnetaddr local;xrtNetAddrLoopback(&local,t->Family,0);
         expect(t,xrtRudpEndpointBind(worker,&local,&c,&v,&t->S[i],&t->E[i])==XRUDP_OK,"bind");}
     for(unsigned i=0;i<3;++i){xnetudpconfig c;xrtNetUdpConfigInit(&c);c.IPv6Only=true;xnetaddr local;xrtNetAddrLoopback(&local,t->Family,0);
         xnetudpevents v={0};v.Open=gateway_open;v.Receive=gateway_input;v.Close=gateway_close;
         t->G[i]=xrtNetUdpBind(t->Engine,&local,0,&c,&v,&t->S[i+2]);expect(t,t->G[i]!=NULL,"gateway bind");}
+    if(t->Mode==5)xrtSleep(250); /* Open callbacks cannot renew admission. */
 }
 static void tick(xnetworker* worker,uint64 id,xnetresult result,void* context)
 {
@@ -94,6 +96,12 @@ static void tick(xnetworker* worker,uint64 id,xnetresult result,void* context)
 static void start(xnetworker* worker,void* context)
 {
     test* t=context;xnetaddr duplicate[2]={t->Public[0],t->Public[0]};
+    if(t->Mode==5){
+        for(unsigned i=0;i<2;++i){xrudpcheckstate state;
+            expect(t,xrtRudpEndpointCheck(t->E[i],&t->Public[0],1,1000)==XRUDP_TIMEOUT,"late Open restarted check lifetime");
+            expect(t,xrtRudpEndpointCheckInfo(t->E[i],&state)==XRUDP_OK && !state.Active && !state.Sent && state.Reason==XRUDP_TIMEOUT,"expired check emitted packets");}
+        xrtAtomic32Store(&t->Done,3,XMEMORY_RELEASE);return;
+    }
     expect(t,xrtRudpEndpointCheck(t->E[0],duplicate,2,1000)==XRUDP_ARGUMENT,"duplicate targets");
     expect(t,xrtRudpEndpointCheck(t->E[0],duplicate,0,1000)==XRUDP_ARGUMENT,"empty targets");
     expect(t,xrtRudpEndpointCheck(t->E[0],duplicate,9,1000)==XRUDP_ARGUMENT,"capacity");
@@ -116,7 +124,7 @@ static void canceled_snapshot(xnetworker* worker,uint64 id,xnetresult result,voi
 static void cancel(xnetworker* worker,void* context)
 {
     test* t=context;(void)worker;
-    for(unsigned i=0;i<2;++i){expect(t,xrtRudpEndpointCheckCancel(t->E[i])==XRUDP_OK && xrtRudpEndpointCheckCancel(t->E[i])==XRUDP_DONE,"idempotent cancel");
+    for(unsigned i=0;i<2;++i){expect(t,xrtRudpEndpointCheckCancel(t->E[i])==(t->Mode==5?XRUDP_DONE:XRUDP_OK) && xrtRudpEndpointCheckCancel(t->E[i])==XRUDP_DONE,"idempotent cancel");
         expect(t,xrtRudpEndpointCheckInfo(t->E[i],&t->State[i])==XRUDP_OK && !t->State[i].Active,"credentials canceled");}
     if(t->CapturedReply)expect(t,xrtNetUdpSendTo(t->G[2],&t->Local[0],t->Captured,72)==XNET_RESULT_OK,"post-cancel authenticated replay");
     expect(t,xrtNetEngineAfter(t->Engine,xrtNetWorkerIndex(worker),50,canceled_snapshot,t)!=0,"cancel snapshot timer");
@@ -135,8 +143,9 @@ static int run(xnetfamily family,unsigned dialer,unsigned mode)
     for(unsigned i=0;i<3;++i)CHECK(xrtNetUdpAbort(t.G[i]));
     CHECK(await(&t,&t.Closed,31) && xrtNetEngineStop(t.Engine) && xrtNetEngineDestroy(t.Engine));
     for(unsigned i=0;i<2;++i){xrudpcheckstate state;CHECK(xrtRudpEndpointCheckInfo(t.E[i],&state)==XRUDP_OK && !state.Active);
-        CHECK(xrtRudpEndpointCheckCancel(t.E[i])==XRUDP_DONE);xrtRudpPeerDestroy(t.Peer[i]);xrtRudpEndpointDestroy(t.E[i]);}
-    for(unsigned i=0;i<3;++i)xrtNetUdpDestroy(t.G[i]);CHECK(t.DropCount>0 && !xrtAtomic32Load(&t.Failure,XMEMORY_ACQUIRE));
+        CHECK(xrtRudpEndpointCheckCancel(t.E[i])==XRUDP_DONE);if(mode==5)CHECK(state.Reason==XRUDP_TIMEOUT);
+        xrtRudpPeerDestroy(t.Peer[i]);xrtRudpEndpointDestroy(t.E[i]);}
+    for(unsigned i=0;i<3;++i)xrtNetUdpDestroy(t.G[i]);CHECK((mode==5?!t.DropCount:t.DropCount>0) && !xrtAtomic32Load(&t.Failure,XMEMORY_ACQUIRE));
     printf("PASS authenticated checks family=%u dialer=%u mode=%u APDM, return path, encrypted data and close\n",(unsigned)family,dialer,mode);return 0;
 }
 int main(void)
@@ -144,5 +153,6 @@ int main(void)
     CHECK(run(XNET_FAMILY_IPV4,0,0)==0);CHECK(run(XNET_FAMILY_IPV4,1,0)==0);
     CHECK(run(XNET_FAMILY_IPV6,0,0)==0);CHECK(run(XNET_FAMILY_IPV6,1,0)==0);
     CHECK(run(XNET_FAMILY_IPV4,0,1)==0);CHECK(run(XNET_FAMILY_IPV4,0,2)==0);
-    CHECK(run(XNET_FAMILY_IPV4,0,3)==0);CHECK(run(XNET_FAMILY_IPV4,0,4)==0);return 0;
+    CHECK(run(XNET_FAMILY_IPV4,0,3)==0);CHECK(run(XNET_FAMILY_IPV4,0,4)==0);
+    CHECK(run(XNET_FAMILY_IPV4,0,5)==0);return 0;
 }

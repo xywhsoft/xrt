@@ -2205,10 +2205,11 @@ typedef struct xrudpendpointconfig {
 	uint32_t AddressHandshakesPerSecond; /* IP (not port); fixed 64-entry table. */
 	bool Listen;
 	/* Opt-in, same-socket authenticated connectivity checks for a single pinned
-	 * peer. Requires PeerPublic and ApplicationContext. Fixed 10s lifetime from
-	 * Open; at most eight destinations and observations, no per-packet heap.
+	 * peer. Requires PeerPublic and ApplicationContext. At most 10s from Bind
+	 * admission; at most eight destinations and observations, no per-packet heap.
 	 * Both roles may Listen; only the application's chosen dialer Connects. */
 	bool ConnectivityChecks;
+	uint32_t ConnectivityTimeoutMs; /* Zero = 10000; application may shorten. */
     /* Optional Future adapter quota, both zero disables. Up to 64 retained
      * requests/results, 16MiB copied bytes+nodes in total. Requires the
      * rudp_endpoint_future module. Reserved within MemoryLimit at Bind. */
@@ -8265,7 +8266,8 @@ static bool xrudp__check_equal(const void* a,const void* b,size_t n)
 static void xrudp__check_stop(xrudpendpoint* e,xrudpresult reason)
 {
 	xrudp__check* c=&e->Check;
-	c->State.Active=false;c->State.Reason=reason;c->Next=UINT64_MAX;
+	if(c->State.Active || c->State.Reason==XRUDP_OK)c->State.Reason=reason;
+	c->State.Active=false;c->Next=UINT64_MAX;
 	xrtSecureZero(c->Key,sizeof(c->Key));xrtSecureZero(c->Nonce,sizeof(c->Nonce));
 	xrtSecureZero(c->Pending,sizeof(c->Pending));
 }
@@ -8872,8 +8874,7 @@ static void xrudp__endpoint_open(xnetudp* udp, ptr context)
 	}
 	if(e->Config.ConnectivityChecks) {
 		e->Check.State.Active=true;e->Check.State.Reason=XRUDP_OK;
-		e->Check.Until=xrudp__endpoint_now(e)+UINT64_C(10000000);e->Check.Next=e->Check.Until;
-		e->Check.State.DeadlineUs=e->Check.Until;
+		if(xrudp__endpoint_now(e)>=e->Check.Until)xrudp__check_stop(e,XRUDP_TIMEOUT);
 	}
 	if (e->Events.Open != NULL) e->Events.Open(e, e->Context);
 	xrudp__endpoint_schedule(e);
@@ -8935,6 +8936,7 @@ xrudpresult xrtRudpEndpointBind(xnetworker* worker, const xnetaddr* local,
 		(config->PeerPublic != NULL && !xrudp__endpoint_nonzero(config->PeerPublic, 32)) ||
 		(config->Listen && config->PeerPublic == NULL && config->Trust == NULL) || config->MaxPeers == 0 || config->MaxPeers > XRUDP_ENDPOINT_PEERS_MAX ||
 		(config->ConnectivityChecks && (config->PeerPublic==NULL || config->ApplicationContext==NULL)) ||
+		config->ConnectivityTimeoutMs>10000 ||
 		config->MaxHalfOpen == 0 || config->MaxHalfOpen > config->MaxPeers || config->HandshakesPerSecond == 0 || config->HandshakesPerSecond > 65536 ||
 		config->AddressHandshakesPerSecond == 0 || config->AddressHandshakesPerSecond > config->HandshakesPerSecond ||
 		config->MemoryLimit > 1024u * 1024u * 1024u || (config->HandshakeTimeoutUs != 0 && (config->HandshakeTimeoutUs < 1000000 || config->HandshakeTimeoutUs > XRUDP_HANDSHAKE_MAX_TIMEOUT_US)) ||
@@ -8960,6 +8962,10 @@ xrudpresult xrtRudpEndpointBind(xnetworker* worker, const xnetaddr* local,
 	if (config->PeerPublic != NULL) { memcpy(e->Pin, config->PeerPublic, 32); e->Config.PeerPublic = e->Pin; }
 	if (config->ApplicationContext != NULL) { memcpy(e->Application, config->ApplicationContext, 32); e->Config.ApplicationContext = e->Application; }
 	if(config->ConnectivityChecks && !xrudp__check_init(e))goto random_failure;
+	if(config->ConnectivityChecks) {
+		e->Check.Until=(uint64_t)(config->ConnectivityTimeoutMs?config->ConnectivityTimeoutMs:10000u)*1000u;
+		e->Check.Next=e->Check.Until;e->Check.State.DeadlineUs=e->Check.Until;
+	}
 	xnetudpconfig udp; xrtNetUdpConfigInit(&udp); udp.ReceiveSize = XRUDP_PACKET_MAX; udp.ReceiveBatch = 8;
 	udp.ReceiveQueueLimit = 0; udp.ReceiveQueueByteLimit = 0; udp.Truncation = XNET_UDP_TRUNCATE_DROP;
 	udp.SendLimit = 65536; udp.SendPacketLimit = 64; udp.SendHighWater = 49152; udp.SendLowWater = 16384;

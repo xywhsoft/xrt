@@ -115,10 +115,11 @@ typedef struct xrudpendpointconfig {
 	uint32_t AddressHandshakesPerSecond; /* IP (not port); fixed 64-entry table. */
 	bool Listen;
 	/* Opt-in, same-socket authenticated connectivity checks for a single pinned
-	 * peer. Requires PeerPublic and ApplicationContext. Fixed 10s lifetime from
-	 * Open; at most eight destinations and observations, no per-packet heap.
+	 * peer. Requires PeerPublic and ApplicationContext. At most 10s from Bind
+	 * admission; at most eight destinations and observations, no per-packet heap.
 	 * Both roles may Listen; only the application's chosen dialer Connects. */
 	bool ConnectivityChecks;
+	uint32_t ConnectivityTimeoutMs; /* Zero = 10000; application may shorten. */
     /* Optional Future adapter quota, both zero disables. Up to 64 retained
      * requests/results, 16MiB copied bytes+nodes in total. Requires the
      * rudp_endpoint_future module. Reserved within MemoryLimit at Bind. */
