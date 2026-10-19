@@ -1370,3 +1370,32 @@ XS 主仓 `6bc2fd8` 和 mdo 兼容 SDK `a6906e2` 已同步该运行时；mdo `cc
 Windows 进一步通过真实私有账号、双族黑洞接管和 HTTP/live/回执/只读/中继/退出。
 详见 mdo `docs/build-records/2026-10-19-xrudp-congestion.md`。尚未安装、发布或重启生产；
 当前运行时独立线路、资源/接入压力、XS 服务新宿主、Android/双独立 NAT 和最终 72h 仍待完成。
+
+## 当前运行时的完整独立线路复验（2026-10-19）
+
+在测试/文档提交 `9f449361` 下重新编译，逐个核对实际生产 C/头文件仍与运行时
+`3d55ec41` 一致，并核对 SDK 核心、测试夹具、七个独立 Python 驱动与二进制哈希。
+Windows GCC Select/IOCP 和 Linux Clang ASan/UBSan/泄漏检查 Select/Epoll，
+IPv4/IPv6、双 Noise 角色的完整矩阵共 2080 个真实原生进程全部通过并正常 join：
+
+- 基本默认流和五流/消息/游戏组合 32 个进程；
+- STOP/RESET 和双方发起优雅关闭的两种顺序 48 个进程；
+- 认证后非法帧完整前缀/后缀、未认证变异和合法乱序 1920 个进程；
+- 重绑定 16 个、MTU 增长/黑洞 32 个、尺寸缩小恢复 16 个、迁移后尺寸重建 16 个进程。
+
+实际执行 3520 份未认证变异；非法包不能产生部分业务交付，失败认证不能推进重放
+状态。用例角色、地址族、后端和场景的笛卡尔积无遗漏/重复；所有测试端点正常终结。
+独立 Python 对端使用自身的 Noise/帧/流控实现，未调用产品的私有编码器。
+
+证据为 `out/xrudp-wire-interop/congestion-wire-acceptance.json`、
+`dev/xrudp-congestion-wire-{interop,controls,negative,path,mtu,mtu_recovery,path_mtu}-{windows,linux-asan}.log`。
+新二进制按 input_key 单独冻结，153 个实际来源和驱动归档为
+`frozen-3d55-congestion-wire-source.tar.gz`，每个成员均按实际输入重新核对。
+旧 b093 的线路证据和不可变构建保留，没有改标为本次运行时。
+
+另已补齐原生保留句柄内存限额的 16 进程矩阵，详见
+`endpoint-quota-validation.md`；XS 的 xrudp-only 新宿主也已完成 Windows/Linux
+实际服务回归。当前运行时的 9 组真实长跑已独立启动；仍未达到 72 小时。
+最新 Android 原生库及独立测试 APK 已重建并校验签名/16 KiB 对齐，Windows 原生
+ADB 未发现设备；不能将构建通过视为真机通过。仍需接入压力完整审查、最新产品
+宿主公网复验、Android 实机、双独立 NAT 和完整 72 小时验收。
