@@ -1389,7 +1389,7 @@ IPv4/IPv6、双 Noise 角色的完整矩阵共 2080 个真实原生进程全部�
 
 证据为 `out/xrudp-wire-interop/congestion-wire-acceptance.json`、
 `dev/xrudp-congestion-wire-{interop,controls,negative,path,mtu,mtu_recovery,path_mtu}-{windows,linux-asan}.log`。
-新二进制按 input_key 单独冻结，153 个实际来源和驱动归档为
+新二进制按 input_key 单独冻结，154 个实际来源和驱动归档为
 `frozen-3d55-congestion-wire-source.tar.gz`，每个成员均按实际输入重新核对。
 旧 b093 的线路证据和不可变构建保留，没有改标为本次运行时。
 
