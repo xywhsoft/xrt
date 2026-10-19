@@ -40,6 +40,33 @@ static bool callableTrace(const void* data, xrtownershipvisitor visit, ptr conte
 static void drop(ptr data) { --((Environment*)data)->References; }
 static bool invoke(ptr data, const xrtcallframe* frame, xrtcallresult* result)
 { (void)data; (void)frame; (void)result; return true; }
+
+typedef struct PolicyProbe { xrtcallable* callable; unsigned traces,drops; } PolicyProbe;
+static bool probeTrace(const void* raw,xrtownershipvisitor visit,ptr context)
+{PolicyProbe* p=(PolicyProbe*)raw;++p->traces;(void)visit;(void)context;return true;}
+static void probeDrop(ptr raw){++((PolicyProbe*)raw)->drops;}
+static const xrtcallableownershipv1 probePolicy={sizeof(probePolicy),probeTrace,probeDrop};
+static const xrtcallableownershipv1 probeCopy={sizeof(probeCopy),probeTrace,probeDrop};
+static bool probeInvoke(ptr raw,const xrtcallframe* frame,xrtcallresult* result)
+{
+    PolicyProbe* p=raw;(void)frame;(void)result;
+    testRequire(xrtCallableAdmitsOwnershipPolicyV1(p->callable,&probePolicy),"policy probe permits active callable");
+    testRequire(!xrtCallableAdmitsOwnershipPolicyV1(p->callable,&probeCopy),"policy copies are not authority");
+    testRequire(!xrtCallableOwnershipAdapterV1(xrtCallableOwnership(p->callable),&probePolicy),"active probe is not lifecycle admission");
+    testRequire(!p->traces&&!p->drops,"policy probe calls no semantic callbacks");return true;
+}
+static void policyProbeCase(void)
+{
+    PolicyProbe p={0};p.callable=xrtCallableCreate(NULL,probeInvoke,&p,probeDrop);
+    testRequire(p.callable&&xrtCallableOwnershipBindV1(p.callable,&probePolicy),"bind known policy");
+    xrtSetErrorKind(XERR_STATE);const xerror* original=xrtGetError();
+    testRequire(xrtCallableAdmitsOwnershipPolicyV1(p.callable,&probePolicy)&&xrtGetError()==original,"probe preserves diagnostic");
+    testRequire(!xrtCallableAdmitsOwnershipPolicyV1(NULL,&probePolicy)&&!xrtCallableAdmitsOwnershipPolicyV1(p.callable,NULL),"probe refuses missing inputs");
+    testRequire(xrtGetError()==original&&!p.traces&&!p.drops,"refusal is transparent");xrtClearError();
+    xrtcallframe frame={0};xrtcallresult result=XRT_CALL_RESULT_INIT;
+    testRequire(xrtCallableInvoke(p.callable,&frame,&result),"active policy probe");xrtCallResultUnit(&result);
+    xrtCallableUnref(p.callable);testRequire(p.drops==1&&!p.traces,"one actual environment drop");
+}
 typedef struct Native { xvalue* Value; xrtobject* Other; } Native;
 static unsigned nativeDrops;
 static bool nativeTraceFails;
@@ -271,6 +298,7 @@ int main(void)
 		xrtValueRelease(owner); testRequire(env.References == 0, "one environment drop");
 		xrtValueRelease(env.Value);
 	}
+	policyProbeCase();
 	xrtMemDebugSnapshot(&after);
 	for (unsigned mode = 0; mode < 3; ++mode) nativeCase(mode);
 	weakCase();
@@ -282,7 +310,7 @@ int main(void)
 	}
 	xrtMemDebugSnapshot(&after);
 	testRequire(before.LiveCount == after.LiveCount && before.LiveBytes == after.LiveBytes, "runtime graph memory balance");
-	puts("runtime callable and native object ownership graph passed");
+	puts("runtime callable and native object ownership graph passed; immutable policy probe includes active invocation");
 	puts("physical collector: 600 alias/cycle cases, 200 shared graphs, 700 allocation faults and 100 trace faults passed");
 	puts("physical collector: 100 cross-domain weak-lock and partial-collection cases passed");
 	return 0;

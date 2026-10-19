@@ -4,6 +4,12 @@
 
 ## 完整拥有图适配
 
+`xrtCallableAdmitsOwnershipPolicyV1(callable, expectedPolicy)` 是独立的不可变合同
+身份探针：调用者已持有真实 callable 引用，并给出已知、永久驻留的合同。允许
+callable 正在运行，不分配、不执行 Count／Trace／析构回调，也不改变错误诊断；
+字段相同的合同副本不算同一身份。它不借出环境、不证明签名，也不能代替静止的
+完整拥有图生命周期准入。Producer 不能为匹配身份而执行未知环境的用户回调。
+
 `xrtCallableOwnership` 返回 callable 物理引用节点；
 `xrtCallableOwnershipTraceBind` 在 producer 独占、尚未发布 callable 时绑定
 其环境的强拥有边追踪。环境非空而未绑定时，完整拥有图检查失败，不能推测为空。

@@ -110,6 +110,15 @@ static bool __xrtCallableAdapterFinish(const void* pData, const void* pToken)
 	if (pDrop != NULL) pDrop(pEnvironment);
 	return true;
 }
+XRT_API bool xrtCallableAdmitsOwnershipPolicyV1(const xrtcallable* pCallable,
+    const xrtcallableownershipv1* pExpectedPolicy)
+{
+    return pCallable && pExpectedPolicy && pCallable->OwnershipPolicy == pExpectedPolicy &&
+        pExpectedPolicy->size == sizeof(*pExpectedPolicy) && !pCallable->OwnershipCleared &&
+        pCallable->TraceEnvironment == pExpectedPolicy->Trace &&
+        pCallable->DropEnvironment == pExpectedPolicy->Drop &&
+        __xrtAtomicRefLoad(&pCallable->RefCount) > 0;
+}
 XRT_API const xrtownershipadapterv1* xrtCallableOwnershipAdapterV1(
 	xrtownershipref Reference, const xrtcallableownershipv1* pExpectedPolicy)
 {
@@ -120,9 +129,8 @@ XRT_API const xrtownershipadapterv1* xrtCallableOwnershipAdapterV1(
 	if (Reference.Data == NULL || Reference.Ops != &__xrtCallableOwnershipOps ||
 		pExpectedPolicy == NULL || pExpectedPolicy->size != sizeof(*pExpectedPolicy)) return NULL;
 	pCallable = (const xrtcallable*)Reference.Data;
-	if (pCallable->OwnershipPolicy != pExpectedPolicy || pCallable->OwnershipCleared ||
-		pCallable->TraceEnvironment != pExpectedPolicy->Trace || pCallable->DropEnvironment != pExpectedPolicy->Drop ||
-		__xrtAtomicRefLoad(&pCallable->RefCount) <= 0 || __xrtAtomicRefLoad(&pCallable->ActiveReferences) != 1) return NULL;
+	if (!xrtCallableAdmitsOwnershipPolicyV1(pCallable, pExpectedPolicy) ||
+		__xrtAtomicRefLoad(&pCallable->ActiveReferences) != 1) return NULL;
 	return &Adapter;
 }
 
