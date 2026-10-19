@@ -1258,7 +1258,7 @@ Future 请求完成，全部保留额度归零。`out/xrudp-native-soak/future-s
 新增 `test_stream_model.c` 和 `tools/test_xrudp_stream_model.py`。使用公开 Session API、
 固定容量的真实加密包队列和可复现种子，将多个字节/消息流的打开、短写/短读、整消息、
 FIN、STOP、RESET、退休与累计开流额度交错；注入丢失、重复、乱序、坏密文、本地
-背压和暂时的输出 NO_MEMORY。两个受保护的可靠业务方向不取消，仍须逐字节完整交付。
+背压和暂时的输出 NO_MEMORY。两条受保护的双向可靠流不取消，仍须逐字节完整交付。
 
 独立模型按每个不复用的流 ID 保存已受理/已读的字节及消息序号，验证内容和空消息边界；
 短缓冲必须保留同一消息。逐流最高偏移跨退休保存，其总和必须精确等于连接的实际收发
@@ -1281,3 +1281,15 @@ FIN、STOP、RESET、退休与累计开流额度交错；注入丢失、重复�
 
 本轮未发现需要修改的产品缺陷。提交后继续用固定输入复验；这些虚拟时间场景不能代替
 原生、独立线路、真实双 NAT、Android 实机或正在运行的实际 72 小时验收。
+
+提交 `661296bf3094b39f9ec8b641bf3e5a0cb6e2fd20` 的固定来源复验已完成：两平台共
+64 个独立进程、1,280,000 个探索步，另有最终排空；1536 次开流、3070 次流槽退休、
+1630 次 STOP、1598 次 RESET、5146 份坏密文和 2408 次临时输出 NO_MEMORY 均被
+实际执行。所有进程的活动分配数/字节回归基线，两个编译器的逐种子计数完全一致。
+Linux 开启 ASan/UBSan/泄漏检查，两平台严格优化编译；当前全部 C/头/驱动/SDK 核心/
+对象/二进制哈希与提交来源复核通过。
+
+正式证据：`out/xrudp-stream-model/acceptance-receipt.json`，详细记录
+`acceptance-windows.json` 和 `acceptance-linux-asan.json`，日志
+`dev/xrudp-stream-model-{windows,linux}-acceptance.log`。记录显式为虚拟时间且
+`acceptance_72h=false`。这完成本模型的固定来源门槛，不宣称整个安全审查或长期目标完成。
