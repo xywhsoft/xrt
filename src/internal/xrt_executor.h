@@ -80,6 +80,9 @@ struct xexecutor {
 	size_t Entries;
 	size_t LiveJobs;
 	xrt_executor_callback* Callbacks;
+	ptr ExitData;
+	const xexecutorworkerexitownershipv1* ExitPolicy;
+	xatomic32 ExitedWorkers;
 	const void* OwnershipClaim;
 	bool Initialized;
 	bool OwnerHeld;

@@ -5,6 +5,24 @@
 
 ## 受管理任务与拥有图
 
+### 可选的真实工作线程退出合同
+
+`xrtExecutorCreateOwnedExitV1(config, data, policy)` 成功时接管一个真实的上下文
+引用，由所有工作线程借用；失败（包括部分线程已创建后的回滚）不接管引用，
+也不调用 Exit／Drop。`xexecutorworkerexitownershipv1` 的函数、Ops、合同地址
+必须永久驻留。上下文的节点还须由宿主独立准入，不能因为回调已知就准入任意数据。
+
+每个真实工作线程在全部作业／析构尾部之后、发布退出之前调用一次 `Exit(data)`，
+不在锁或 ownership mutation 中调用。关闭后排空即退出，Wait 覆盖每个 Exit 尾部；
+不是每次作业后清空线程局部状态。所有线程 join 后 `Drop(data, NULL)` 恰好消费
+上下文引用一次。Exit 自身不能销毁或等待所属执行器；此类调用返回 checked 错误。
+Exit 的语义错误由上下文记录，不能阻断物理 join／退休。统计仍只计原生作业。
+
+带活跃退出上下文时，旧 `xrtExecutorOwnershipAdapterV1` 拒绝准入；使用 V2，
+显式提供已知合同地址。相同字段的合同副本不是授权。身份匹配发生在 Count／Trace
+之前；错误或 BUSY 不修改输出。Trace 交付实际上下文引用，不虚构 Worker 引用。
+普通 `xrtExecutorCreate` 不安装退出合同，原有行为不变。
+
 `xrtExecutorSubmitOwnedV1(executor, data, policy)` 与
 `xrtExecutorSubmitOwnedBatchV1(executor, items, count)` 复用同一有界槽位和工作窃取
 机制，不为每次提交申请通用堆内存。每项成功转移一个真实 Data 引用；整批失败时

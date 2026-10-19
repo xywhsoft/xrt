@@ -11,6 +11,20 @@ static XRT_THREAD_LOCAL xrt_executor_worker* __xrtExecutorCurrentWorker;
 
 
 
+static void __xrtExecutorCallbackBegin(xexecutor*, xrt_executor_callback*);
+static void __xrtExecutorCallbackEnd(xexecutor*, xrt_executor_callback*);
+static bool __xrtExecutorStopping(const xexecutor* pExecutor)
+{
+	return xrtAtomic32Load(&pExecutor->Shutdown, XMEMORY_ACQUIRE) ||
+		(pExecutor->ExitPolicy && xrtAtomic32Load(&pExecutor->Closed, XMEMORY_ACQUIRE) &&
+		 __xrtExecutorIdle(pExecutor));
+}
+static bool __xrtExecutorWaitReady(const xexecutor* pExecutor)
+{
+	return __xrtExecutorIdle(pExecutor) && (!pExecutor->ExitPolicy ||
+		xrtAtomic32Load(&pExecutor->ExitedWorkers, XMEMORY_ACQUIRE) == pExecutor->ThreadCount);
+}
+
 /* 返回当前线程是否属于指定执行器，并按需返回本地 Worker。 */
 static xrt_executor_worker* __xrtExecutorCurrent(xexecutor* pExecutor)
 {
@@ -155,6 +169,8 @@ static void __xrtExecutorNotifyIdle(xexecutor* pExecutor)
 	if ( !__xrtExecutorIdle(pExecutor) ) {
 		return;
 	}
+	if (pExecutor->ExitPolicy && xrtAtomic32Load(&pExecutor->Closed, XMEMORY_ACQUIRE))
+		__xrtExecutorWake(pExecutor, true);
 	(void)xrtMutexLock(&pExecutor->SleepLock);
 	(void)xrtCondBroadcast(&pExecutor->Idle);
 	(void)xrtMutexUnlock(&pExecutor->SleepLock);
@@ -236,10 +252,7 @@ static int32 __xrtExecutorWorker(ptr pData)
 			XMEMORY_RELEASE
 		);
 		pJob = __xrtExecutorTake(pWorker);
-		while ( (pJob == NULL) && !xrtAtomic32Load(
-			&pExecutor->Shutdown,
-			XMEMORY_ACQUIRE
-		) ) {
+		while (pJob == NULL && !__xrtExecutorStopping(pExecutor)) {
 			pWorker->Parked = true;
 			/* CondWait returns with SleepLock held. Release it BEFORE asking
 			 * for mutation again, so an exclusive freeze never inverts locks. */
@@ -259,8 +272,7 @@ static int32 __xrtExecutorWorker(ptr pData)
 			1,
 			XMEMORY_RELEASE
 		);
-		bool bExit = pJob == NULL && xrtAtomic32Load(&pExecutor->Shutdown, XMEMORY_ACQUIRE);
-		if (bExit) pWorker->Exited = true;
+		bool bExit = pJob == NULL && __xrtExecutorStopping(pExecutor);
 		(void)xrtMutexUnlock(&pExecutor->SleepLock);
 		__xrtExecutorMutationEnd(&Mutation);
 		if ( pJob != NULL ) {
@@ -271,6 +283,21 @@ static int32 __xrtExecutorWorker(ptr pData)
 			break;
 		}
 	}
+	xrtownershipscope ExitMutation = {0};
+	__xrtExecutorOwnershipBegin(pExecutor, &ExitMutation);
+	const xexecutorworkerexitownershipv1* pPolicy = pExecutor->Initialized ? pExecutor->ExitPolicy : NULL;
+	ptr pExitData = pExecutor->ExitData;
+	__xrtExecutorOwnershipEnd(pExecutor, &ExitMutation);
+	if (pPolicy) {
+		xrt_executor_callback Callback = {0}; __xrtExecutorCallbackBegin(pExecutor, &Callback);
+		pPolicy->Exit(pExitData);
+		__xrtExecutorCallbackEnd(pExecutor, &Callback);
+	}
+	__xrtExecutorOwnershipBegin(pExecutor, &ExitMutation);
+	pWorker->Exited = true;
+	(void)xrtAtomic32FetchAdd(&pExecutor->ExitedWorkers, 1, XMEMORY_RELEASE);
+	__xrtExecutorOwnershipEnd(pExecutor, &ExitMutation);
+	__xrtExecutorNotifyIdle(pExecutor);
 	#if defined(XRT_THREAD_LOCAL)
 		__xrtExecutorCurrentWorker = NULL;
 	#endif
@@ -305,7 +332,8 @@ static void __xrtExecutorCreateCleanup(xexecutor* pExecutor)
 
 
 /* 创建预分配作业槽、Worker 本地队列和工作窃取线程。 */
-XRT_API xexecutor* xrtExecutorCreate(const xexecutorconfig* pConfig)
+static xexecutor* __xrtExecutorCreate(const xexecutorconfig* pConfig,
+	ptr pExitData, const xexecutorworkerexitownershipv1* pExitPolicy)
 {
 	xexecutorconfig Config;
 	xexecutor* pExecutor;
@@ -369,6 +397,9 @@ XRT_API xexecutor* xrtExecutorCreate(const xexecutorconfig* pConfig)
 	pExecutor->SlotCount = iJobCount;
 	pExecutor->References = 1;
 	pExecutor->OwnerHeld = true;
+	pExecutor->ExitData = pExitData;
+	pExecutor->ExitPolicy = pExitPolicy;
+	xrtAtomic32Init(&pExecutor->ExitedWorkers, 0);
 	xrtAtomic32Init(&pExecutor->Closed, 0);
 	xrtAtomic32Init(&pExecutor->Cancelling, 0);
 	xrtAtomic32Init(&pExecutor->Shutdown, 0);
@@ -436,7 +467,9 @@ XRT_API xexecutor* xrtExecutorCreate(const xexecutorconfig* pConfig)
 			Config.StackSize
 		);
 		if ( pWorker->Thread == NULL ) {
+			xerror* pFailure = xrtTakeError();
 			__xrtExecutorCreateCleanup(pExecutor);
+			xrtClearError(); xrtSetErrorTake(pFailure);
 			return NULL;
 		}
 		pExecutor->StartedThreads++;
@@ -444,6 +477,18 @@ XRT_API xexecutor* xrtExecutorCreate(const xexecutorconfig* pConfig)
 	xrtownershipscope Mutation = {0}; __xrtExecutorOwnershipBegin(pExecutor, &Mutation);
 	pExecutor->Initialized = true; __xrtExecutorOwnershipEnd(pExecutor, &Mutation);
 	return pExecutor;
+}
+
+XRT_API xexecutor* xrtExecutorCreate(const xexecutorconfig* pConfig)
+{ return __xrtExecutorCreate(pConfig, NULL, NULL); }
+XRT_API xexecutor* xrtExecutorCreateOwnedExitV1(const xexecutorconfig* pConfig,
+	ptr pData, const xexecutorworkerexitownershipv1* pPolicy)
+{
+	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) || !pPolicy->Exit || !pPolicy->Drop ||
+		!pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) {
+		__xrtErrorSetInvalidArgument(); return NULL;
+	}
+	return __xrtExecutorCreate(pConfig, pData, pPolicy);
 }
 
 
@@ -834,7 +879,7 @@ static xwaitresult __xrtExecutorWaitUntilBody(
 		return XWAIT_ERROR;
 	}
 	(void)xrtMutexLock(&pExecutor->SleepLock);
-	while ( !__xrtExecutorIdle(pExecutor) ) {
+	while ( !__xrtExecutorWaitReady(pExecutor) ) {
 		if ( __xrtWaitExpired(iDeadline) ) {
 			Result = XWAIT_TIMEOUT;
 			break;
@@ -848,7 +893,7 @@ static xwaitresult __xrtExecutorWaitUntilBody(
 			break;
 		}
 		if ( Result == XWAIT_TIMEOUT ) {
-			if ( __xrtExecutorIdle(pExecutor) ) {
+			if ( __xrtExecutorWaitReady(pExecutor) ) {
 				Result = XWAIT_OK;
 			}
 			break;

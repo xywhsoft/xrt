@@ -277,12 +277,15 @@ static void create_prefixes(void)
     }
     assert(complete);
 }
+#include "test_executor_exit.h"
 int main(void)
 {
     /* Warm the calling thread's lazy contexts before exact allocation ledgers. */
     assert(xrtMemDebugEnable(true));xrtClearError();assert(xrtTemp(8));assert(xrtTempClear());
     for(unsigned i=0;i<16;++i){idle(1,(i&1)!=0);idle(3,(i&1)==0);queued();reuse();opaque();cleanup_tail();rejected();parallel();}
     idle(8,false);create_prefixes();
+    for(unsigned i=0;i<16;++i)owned_exit_round(i%2+1,(i&2)!=0);
+    owned_exit_prefixes();
     assert(snapshot_budgets==32&&snapshot_failures&&snapshot_failures<snapshot_budgets);
     printf("[PASS] executor ownership: idle=%u queued=%u opaque=%u pinned-reuse=%u cleanup-tail=%u parallel=%u create-prefixes=%u snapshots=%u/%u failed; exact live count/bytes and allocation/free balance\n",
         idle_cases,queued_cases,opaque_cases,reuse_cases,tail_cases,parallel_cases,create_budgets,snapshot_budgets,snapshot_failures);
