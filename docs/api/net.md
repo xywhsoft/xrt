@@ -6804,6 +6804,17 @@ if ( !xrtNetPostInit(&Post) ||
 `xrtNetEngineConfigInit` 初始化 `xnetengineconfig`。配置没有版本字段，也没有旧版
 兼容分支。
 
+`xrtNetEngineConfigValidate(config)` 复用创建时的硬边界校验，不分配运行资源、
+不启动线程或端口，也不修改传入配置及其 BufferPool。成功保留当前错误；非法配置
+返回 `false` 并提供 checked 错误，空指针为 `XERR_ARGUMENT`。校验成功不表示指定
+平台后端已经编入或可初始化，实际可用性仍由 `Start` 检查。
+
+拥有图协调器可通过 `xrtNetEngineOwnershipQuiescenceV1Get()` 取得常驻的精确
+Engine Ops／Busy 描述符。在冻结区间调用 Busy，只检查物理运行状态，不枚举用户边、
+调用上下文策略或分配内存。Busy 将运行／退出交接与不受支持的拥有协议区分开；
+它不是适配许可，任务、Timer、退出上下文仍须通过 AdapterV2 的精确策略身份检查。
+裸端口曝光、未归还缓冲和借用任务等限制不因 Busy 返回 false 而解除。
+
 | 字段 | 默认值 | 契约 |
 | --- | ---: | --- |
 | `Backend` | `XNET_PORT_AUTO` | 每个 Worker 使用的端口后端 |

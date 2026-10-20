@@ -67,10 +67,13 @@ static void inspect(Case* test,const xrtownershipadapterv1** adapter,const xrtow
 {
     const xnetengineworkerexitownershipv1* policies[]={&exitPolicy};
     xrtownershipref ref=xrtNetEngineOwnership(test->engine);xrtownershipscope freeze={0};size_t count=0;
+    const xrtownershipquiescencev1* quiescence=xrtNetEngineOwnershipQuiescenceV1Get();
+    assert(quiescence&&quiescence->size==sizeof(*quiescence)&&quiescence->Ops==ref.Ops&&!quiescence->Busy(NULL));
     for(unsigned n=0;;++n){assert(n<10000);freeze_begin(&freeze);
         if(ref.Ops->Count(ref.Data,&count))break;
         assert(xrtOwnershipScopeEnd(&freeze));xrtSleep(1);
     }
+    assert(!quiescence->Busy(ref.Data));
     const xrtownershippreparationv1* sentinel=(const xrtownershippreparationv1*)test;
     unsigned calls=test->contextCounts+test->contextTraces;
     assert(!xrtNetEngineOwnershipAdapterV1(ref,NULL,0,NULL,0,&sentinel)&&sentinel==(const xrtownershippreparationv1*)test);
@@ -123,6 +126,7 @@ static void lifecycle(void)
     xrtAtomic32Store(&test.jobGate,1,XMEMORY_RELEASE);wait_count(&test.exits,1);
     xrtownershipscope freeze={0};freeze_begin(&freeze);size_t count=197;
     xrtownershipref ref=xrtNetEngineOwnership(test.engine);assert(!ref.Ops->Count(ref.Data,&count)&&count==197);
+    assert(xrtNetEngineOwnershipQuiescenceV1Get()->Busy(ref.Data));
     assert(xrtOwnershipScopeEnd(&freeze));xrtAtomic32Store(&test.exitGate,1,XMEMORY_RELEASE);
     stop_ready(test.engine);assert(xrtAtomic32Load(&test.exits,XMEMORY_ACQUIRE)==2&&!xrtAtomic32Load(&test.drops,XMEMORY_ACQUIRE));
     xrtSetErrorKind(XERR_ARGUMENT);prior=xrtGetError();assert(xrtNetEngineTryStop(test.engine)==XNET_RETIRE_READY&&xrtGetError()==prior);xrtClearError();
@@ -200,9 +204,32 @@ static void backend_selection(void)
         assert(xrtNetEngineDestroy(test.engine)&&xrtAtomic32Load(&test.drops,XMEMORY_ACQUIRE)==1);balanced(&before);
     }
 }
+static void config_validation(void)
+{
+    xmemdebugsnapshot before;xrtMemDebugSnapshot(&before);
+    xnetengineconfig config;xrtNetEngineConfigInit(&config);
+    xnetbufpoolconfig buffers;xrtNetBufPoolConfigInit(&buffers);config.BufferPool=&buffers;
+    xnetengineconfig saved=config;xnetbufpoolconfig savedBuffers=buffers;
+    xrtSetErrorKind(XERR_ARGUMENT);const xerror* prior=xrtGetError();
+    xmemdebugsnapshot queryBefore,queryAfter;xrtMemDebugSnapshot(&queryBefore);
+    assert(xrtNetEngineConfigValidate(&config)&&xrtGetError()==prior);
+    xrtMemDebugSnapshot(&queryAfter);
+    assert(queryBefore.AllocCount==queryAfter.AllocCount&&queryBefore.FreeCount==queryAfter.FreeCount);
+    assert(!memcmp(&config,&saved,sizeof(config))&&!memcmp(&buffers,&savedBuffers,sizeof(buffers)));
+    xrtClearError();
+    assert(!xrtNetEngineConfigValidate(NULL)&&xrtErrorKind(xrtGetError())==XERR_ARGUMENT);xrtClearError();
+    config.CommandCapacity=1;assert(!xrtNetEngineConfigValidate(&config)&&xrtGetError());xrtClearError();config=saved;
+    config.Workers=UINT32_MAX;assert(!xrtNetEngineConfigValidate(&config)&&xrtGetError());xrtClearError();config=saved;
+    config.Backend=(xnetportbackend)-1;assert(!xrtNetEngineConfigValidate(&config)&&xrtGetError());xrtClearError();config=saved;
+    config.TimerLimit=0;assert(!xrtNetEngineConfigValidate(&config)&&xrtGetError());xrtClearError();config=saved;
+    config.EventBatch=0;assert(!xrtNetEngineConfigValidate(&config)&&xrtGetError());xrtClearError();config=saved;
+    buffers.BlockSize[0]=0;assert(!xrtNetEngineConfigValidate(&config)&&xrtGetError());xrtClearError();buffers=savedBuffers;
+    config.BufferPool=NULL;assert(xrtNetEngineConfigValidate(&config));
+    balanced(&before);puts("engine config: nonallocating immutable validation, seven checked invalid cases");
+}
 int main(void)
 {
-    lifecycle();graph_retirement(false);graph_retirement(true);create_oom();start_oom();backend_selection();
+    config_validation();lifecycle();graph_retirement(false);graph_retirement(true);create_oom();start_oom();backend_selection();
     puts("engine managed native: real exit tails, restart, exact context edge, guarded actual backend, stop/retire and balanced storage");
     return 0;
 }
