@@ -112,8 +112,14 @@ static bool __xrtNetStreamCount(const void* pData, size_t* pCount)
 static bool __xrtNetStreamTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
 {
 	const xnetstream* pStream = pData; size_t iCount;
-	return pVisit && __xrtNetStreamCount(pData, &iCount) &&
-		(!pStream->EngineHeld || pVisit(xrtNetEngineOwnership(pStream->Engine), pContext));
+	if (!pVisit || !__xrtNetStreamCount(pData, &iCount) ||
+		(pStream->EngineHeld && !pVisit(xrtNetEngineOwnership(pStream->Engine), pContext))) return false;
+	/* Diagnostics are real immutable Error/Cause owners too. Static errors
+	 * have an empty view; ordinary errors must not become unreported roots.
+	 * This DAG cannot point back to a stream and remains owned until last Drop,
+	 * just like Error's own immutable Cause tail after Clear. */
+	xrtownershipref Error = xrtErrorOwnership(pStream->Error);
+	return !Error.Data || pVisit(Error, pContext);
 }
 const xrtownershipops __xrtNetStreamOwnershipOps = {__xrtNetStreamCount, __xrtNetStreamTrace};
 static bool __xrtNetListenerCount(const void* pData, size_t* pCount)

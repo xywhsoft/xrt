@@ -5164,6 +5164,8 @@ bool xrtNetProxyDialStats(
 Engine 真正持有一个侵入式运行时槽；该槽接管构造时已有的运行时引用，不增加第二份引用。
 Stream／Listener 完成全部原生关闭义务后，从 Engine 摘除并消费该槽。
 Listener 接受队列的每个位置另持有一次已接受 Stream 引用；链接不是额外拥有边。
+Stream 的非静态 Error／Cause 诊断链也按实际强引用导出；不可变错误 DAG 不会反向引用
+Stream，和 Error 自身的不可变尾部相同，Clear 后保留到最后一次 Drop 才释放。
 连接超时和接受重试计时器仍使用原有回调在终态消费其已保留引用，元数据不再重复 Drop。
 `xrtNetStreamRuntimeOwnershipV1Get` 和 `xrtNetListenerRuntimeOwnershipV1Get` 给出这些
 不可变常驻合同，交由 `xrtNetEngineOwnershipAdapterV3` 做精确身份准入。

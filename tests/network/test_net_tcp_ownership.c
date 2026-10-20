@@ -15,12 +15,13 @@ typedef struct TcpGraph {
 	xnetengine* engine;
 	xnetlistener* listener;
 	xnetstream* client;
-	xrtownershipref refs[4];
-	const xrtownershipadapterv1* adapters[4];
+	xrtownershipref refs[16];
+	const xrtownershipadapterv1* adapters[16];
 	const xrtownershippreparationv1* preparations[4];
 	xatomic32 timers_ready;
+	size_t nodes;
 } TcpGraph;
-static unsigned graph_cases, timer_cases, future_cases, refusal_cases, allocation_budgets, allocation_failures;
+static unsigned graph_cases, timer_cases, future_cases, error_cases, refusal_cases, allocation_budgets, allocation_failures;
 
 static void freeze_begin(xrtownershipscope* scope)
 {
@@ -41,7 +42,7 @@ static bool admit(xrtownershipref ref, ptr data)
 		return xrtNetStreamOwnershipAdapterV1(ref, &preparation) != NULL;
 	if (ref.Ops == xrtNetListenerRuntimeOwnershipV1Get()->Ops)
 		return xrtNetListenerOwnershipAdapterV1(ref, &preparation) != NULL;
-	return false;
+	return xrtErrorOwnershipAdapterV1(ref) != NULL;
 }
 /* The caller's real creator slots and, later, real plan pins are declared
  * internal exactly once each. Borrowed aliases never subtract a reference. */
@@ -58,15 +59,30 @@ static void snapshot(TcpGraph* graph, bool pinned, xrtownershipscope* freeze)
 			busy = policy->Busy(graph->refs[i].Data);
 		}
 		if (!busy) {
-			xrtownershipref slots[7] = {graph->refs[0], graph->refs[1], graph->refs[2]};
-			if (pinned) for (size_t i = 0; i < 4; ++i) slots[3+i] = graph->refs[i];
+			xrtownershipref slots[19] = {graph->refs[0], graph->refs[1], graph->refs[2]};
+			if (pinned) for (size_t i = 0; i < graph->nodes; ++i) slots[3+i] = graph->refs[i];
 			xrtownershipsnapshot* result = NULL;
-			if (xrtOwnershipSnapshotCreate(graph->refs, pinned ? 4 : 3, slots, pinned ? 7 : 3, admit, graph, &result)) {
-				CHECK(xrtOwnershipSnapshotNodeCount(result) == 4);
-				for (size_t i = 0; i < 4; ++i) {
+			if (xrtOwnershipSnapshotCreate(graph->refs, pinned ? graph->nodes : 3, slots, pinned ? 3+graph->nodes : 3, admit, graph, &result)) {
+				size_t discovered = xrtOwnershipSnapshotNodeCount(result);
+				if (!pinned) CHECK(discovered == graph->nodes);
+				for (size_t i = 0; i < discovered; ++i) {
 					xrtownershipnode node;
 					CHECK(xrtOwnershipSnapshotNode(result, i, &node));
 					CHECK(!node.Reachable);
+					if (pinned) {
+						bool known = false;
+						for (size_t j = 0; j < graph->nodes; ++j)
+							if (graph->refs[j].Data == node.Reference.Data && graph->refs[j].Ops == node.Reference.Ops) known = true;
+						if (!known) {
+							/* Ordinary close can produce a fresh immutable native IO
+							 * diagnostic. Rebuild, admit and pin it from the ACTUAL
+							 * new graph, never ignore its edge or reuse an old proof. */
+							CHECK(graph->nodes < 16);
+							const xrtownershipadapterv1* adapter = xrtErrorOwnershipAdapterV1(node.Reference); CHECK(adapter);
+							CHECK(adapter->Hold(node.Reference.Data) && adapter->Claim(node.Reference.Data, graph));
+							graph->adapters[graph->nodes] = adapter; graph->refs[graph->nodes++] = node.Reference;
+						}
+					}
 				}
 				xrtOwnershipSnapshotDestroy(result); return;
 			}
@@ -87,6 +103,7 @@ static void balanced(const xmemdebugsnapshot* before)
 }
 static void create(TcpGraph* graph, xnetportbackend backend, bool future)
 {
+	graph->nodes = 4;
 	xnetengineconfig engine; xrtNetEngineConfigInit(&engine);
 	engine.Backend = backend; engine.Workers = 1; engine.NodeCacheBytes = 0;
 	graph->engine = xrtNetEngineCreate(&engine);
@@ -141,7 +158,7 @@ static void add_timers(xnetworker* worker, ptr data)
 	CHECK(graph->listener->AcceptRetryTimer && __xrtNetEngineRuntimeTimer(worker, graph->listener->AcceptRetryTimer, listener));
 	xrtAtomic32Store(&graph->timers_ready, 1, XMEMORY_RELEASE);
 }
-static void lifecycle(xnetportbackend backend, bool timers, bool future)
+static void lifecycle(xnetportbackend backend, bool timers, bool future, bool errors)
 {
 	xmemdebugsnapshot before; xrtClearError(); xrtMemDebugSnapshot(&before);
 	TcpGraph graph = {0}; xrtAtomic32Init(&graph.timers_ready, 0); create(&graph, backend, future);
@@ -174,11 +191,20 @@ static void lifecycle(xnetportbackend backend, bool timers, bool future)
 		CHECK(xrtFutureCancel(pending)); xrtFutureDestroy(pending); ++future_cases;
 	}
 	snapshot(&graph, false, &freeze);
+	if (errors) {
+		/* Offline owned diagnostics, not a malformed network exchange. Transfer
+		 * exactly the same real immutable Error/Cause chain as native IO errors. */
+		xerror* cause = xrtErrorCreate(XERR_STATE, "tcp.ownership.fixture", 1, "owned cause"); CHECK(cause);
+		xerror* error = xrtErrorWrap(cause, XERR_IO, "tcp.ownership.fixture", 2, "owned transport diagnostic"); CHECK(error);
+		CHECK(!graph.client->Error); graph.client->Error = error; xrtErrorFree(cause);
+		graph.refs[4] = xrtErrorOwnership(error); graph.refs[5] = xrtErrorOwnership(cause);
+		graph.nodes = 6; ++error_cases;
+	}
 	xrtownershipresult result;
 	xrtownershipref slots[3] = {graph.refs[0],graph.refs[1],graph.refs[2]};
-	CHECK(xrtOwnershipInspect(graph.refs, 4, slots, 3, &result));
+	CHECK(xrtOwnershipInspect(graph.refs, graph.nodes, slots, 3, &result));
 	/* Inspect includes the three real creator slots in EdgeCount too. */
-	CHECK(result.NodeCount == 4 && result.EdgeCount == (timers ? 12u : 10u) && result.ExternalRootCount == 0);
+	CHECK(result.NodeCount == graph.nodes && result.EdgeCount == (timers ? 12u : 10u)+(errors ? 2u : 0u) && result.ExternalRootCount == 0);
 	const xrtownershippreparationv1* unchanged = (const xrtownershippreparationv1*)&graph;
 	CHECK(!xrtNetEngineOwnershipAdapterV2(graph.refs[0], NULL, 0, NULL, 0, NULL, 0, &unchanged));
 	CHECK(unchanged == (const xrtownershippreparationv1*)&graph);
@@ -190,11 +216,12 @@ static void lifecycle(xnetportbackend backend, bool timers, bool future)
 	graph.adapters[0] = xrtNetEngineOwnershipAdapterV3(graph.refs[0], NULL, 0, NULL, 0, NULL, 0, runtimes, 2, &graph.preparations[0]);
 	graph.adapters[1] = xrtNetListenerOwnershipAdapterV1(graph.refs[1], &graph.preparations[1]);
 	for (size_t i = 2; i < 4; ++i) graph.adapters[i] = xrtNetStreamOwnershipAdapterV1(graph.refs[i], &graph.preparations[i]);
-	for (size_t i = 0; i < 4; ++i) {
-		CHECK(graph.adapters[i] && graph.preparations[i]);
+	for (size_t i = 4; i < graph.nodes; ++i) graph.adapters[i] = xrtErrorOwnershipAdapterV1(graph.refs[i]);
+	for (size_t i = 0; i < graph.nodes; ++i) {
+		CHECK(graph.adapters[i] && (i >= 4 || graph.preparations[i]));
 		CHECK(graph.adapters[i]->Hold(graph.refs[i].Data));
 		CHECK(graph.adapters[i]->Claim(graph.refs[i].Data, &graph));
-		CHECK(!graph.adapters[i]->Claim(graph.refs[i].Data, &result));
+		if (i < 4) CHECK(!graph.adapters[i]->Claim(graph.refs[i].Data, &result));
 		graph.adapters[i]->Restore(graph.refs[i].Data, &graph);
 		CHECK(graph.adapters[i]->Claim(graph.refs[i].Data, &graph));
 	}
@@ -219,8 +246,8 @@ static void lifecycle(xnetportbackend backend, bool timers, bool future)
 		CHECK(!__xrtWaitExpired(deadline)); xrtThreadYield();
 	}
 	snapshot(&graph, true, &freeze);
-	for (size_t i = 0; i < 4; ++i) {
-		CHECK(graph.preparations[i]->Ready(graph.refs[i].Data));
+	for (size_t i = 0; i < graph.nodes; ++i) {
+		if (i < 4) CHECK(graph.preparations[i]->Ready(graph.refs[i].Data));
 		graph.adapters[i]->Clear(graph.refs[i].Data, &graph);
 	}
 	CHECK(xrtOwnershipScopeEnd(&freeze));
@@ -228,7 +255,7 @@ static void lifecycle(xnetportbackend backend, bool timers, bool future)
 	CHECK(graph.adapters[0]->Finish(graph.engine, &graph));
 	CHECK(xrtNetEngineTryDestroy(graph.engine) == XNET_RETIRE_READY);
 	xrtNetListenerDestroy(graph.listener); xrtNetStreamDestroy(graph.client);
-	for (size_t i = 1; i < 4; ++i) graph.adapters[i]->Drop(graph.refs[i].Data);
+	for (size_t i = 1; i < graph.nodes; ++i) graph.adapters[i]->Drop(graph.refs[i].Data);
 	graph.adapters[0]->Drop(graph.engine); balanced(&before); ++graph_cases;
 }
 static void construction(xnetportbackend backend)
@@ -294,10 +321,13 @@ int main(int argc, char** argv)
 		#endif
 	}
 	CHECK(xrtMemDebugEnable(true));
-	for (unsigned i = 0; i < 3; ++i) { lifecycle(backend, false, false); lifecycle(backend, true, false); lifecycle(backend, false, true); }
+	for (unsigned i = 0; i < 3; ++i) {
+		lifecycle(backend, false, false, false); lifecycle(backend, true, false, false);
+		lifecycle(backend, false, true, false); lifecycle(backend, false, false, true);
+	}
 	construction(backend); CHECK(allocation_failures > 0 && allocation_failures < allocation_budgets);
 	testMemoryDebugDrain("TCP ownership allocations did not converge");
-	printf("[PASS] TCP graph backend=%d graphs=%u native-timers=%u future-reentry=%u policy-refusals=%u allocation-budgets=%u failures=%u\n",
-		(int)backend, graph_cases, timer_cases, future_cases, refusal_cases, allocation_budgets, allocation_failures);
+	printf("[PASS] TCP graph backend=%d graphs=%u native-timers=%u future-reentry=%u error-DAG=%u policy-refusals=%u allocation-budgets=%u failures=%u\n",
+		(int)backend, graph_cases, timer_cases, future_cases, error_cases, refusal_cases, allocation_budgets, allocation_failures);
 	return 0;
 }
