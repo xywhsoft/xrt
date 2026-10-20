@@ -111,6 +111,23 @@ static const __xrt_net_port_driver* __xrtNetPortDriver(
 
 
 
+XRT_API bool xrtNetPortBackendInfo(xnetportbackend Backend,
+	xnetportbackendinfo* pInfo)
+{
+	const __xrt_net_port_driver* pDriver;
+	if ((pInfo == NULL) || !__xrtNetPortBackendValid(Backend)) {
+		return false;
+	}
+	pDriver = __xrtNetPortDriver(Backend);
+	if (pDriver == NULL) {
+		return false;
+	}
+	*pInfo = (xnetportbackendinfo){
+		pDriver->Backend, pDriver->Name, pDriver->Capabilities
+	};
+	return true;
+}
+
 /* 把零值容量解析为实际后端适合的默认值，并保留显式硬边界。 */
 static void __xrtNetPortConfigResolve(
 	xnetportconfig* pConfig,

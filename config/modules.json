@@ -760,6 +760,7 @@
 				"tests/core/test_ref_threads.c",
 				"tests/core/test_memory.c",
 				"tests/core/test_heap.c",
+				"tests/core/test_allocation_budget.c",
 				"tests/core/test_heap_threads.c",
 				"tests/core/test_error.c",
 				"tests/core/test_error_threads.c",
@@ -8874,7 +8875,8 @@
 				"src/network/port.c"
 			],
 			"tests": [
-				"tests/network/test_net_port_config.c"
+				"tests/network/test_net_port_config.c",
+				"tests/network/test_net_port_backend_info.c"
 			],
 			"single_tests": [],
 			"examples": [],

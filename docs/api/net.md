@@ -1,5 +1,18 @@
 # 网络地址基础 API
 
+## 已编译端口后端的纯查询
+
+`xrtNetPortBackendInfo(backend, &info)` 读取当前产物中实际编入的驱动元数据。
+`info` 包含具体 `Backend`、驻留静态 `Name` 及驱动声明的 `Capabilities`；名称
+无需释放。`XNET_PORT_AUTO` 使用与端口创建完全相同的选择器，返回具体后端。
+此调用不创建端口、不分配内存、不执行 OS 初始化或探测，并保留当前线程错误。
+未知或未编入的后端及空输出指针返回 false，输出保持原值。
+
+“已编译”不代表当前内核、权限和资源条件下一定能启动；真正的可用性由
+`xrtNetPortCreate`／Engine 启动确认。特别是 io_uring，不通过元数据查询
+猜测权限，不触发探测，不静默替换显式选择。只有 `net_port` 核心而没有具体
+驱动的裁剪产物可以全部返回 false；Select-only 产物的 AUTO 则解析为 Select。
+
 Engine/Resolver 的可重试销毁接口与 READY/BUSY/ERROR 拥有权合同见
 [网络服务退休](../design/network-service-retirement.md)。
 
