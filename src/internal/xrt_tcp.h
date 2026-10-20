@@ -46,7 +46,12 @@ struct __xrt_net_stream_send {
 	xnetreleaseproc Release;
 	ptr ReleaseContext;
 	bool OwnsExternal;
+	uint8 PayloadOwnership;
 	uint8 Copy[1];
+};
+enum {
+	XRT_NET_SEND_OPAQUE = 0u, XRT_NET_SEND_COPY = 1u,
+	XRT_NET_SEND_TAKE = 2u, XRT_NET_SEND_BYTES = 3u
 };
 
 
@@ -273,6 +278,8 @@ bool __xrtNetListenerOwnershipEnter(xnetlistener* pListener, bool bSubmit);
 void __xrtNetListenerOwnershipLeave(xnetlistener* pListener);
 bool __xrtNetStreamOwnershipStop(xnetstream* pStream);
 bool __xrtNetListenerOwnershipStop(xnetlistener* pListener);
+bool __xrtNetStreamBuffersOwnership(const xnetstream* pStream,
+	xrtownershipvisitor pVisit, ptr pContext);
 
 /* 接收缓冲被消费后刷新并发快照和自动读背压。 */
 void __xrtNetStreamReadRefresh(xnetstream* pStream, bool bDrive);

@@ -64,6 +64,17 @@ static void __xrtNetEngineRelease(xnetengine* pEngine)
 	}
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 }
+/* A pool's first outstanding block lease retains this actual shell owner;
+ * its last completed release returns it. This is not a LiveObjects estimate. */
+bool __xrtNetEnginePoolRetain(xnetengine* pEngine)
+{
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	bool bHeld = xrtRefRetain(&pEngine->RefCount) >= 0;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	return bHeld;
+}
+void __xrtNetEnginePoolRelease(xnetengine* pEngine) { __xrtNetEngineRelease(pEngine); }
 static void __xrtNetEnginePark(xnetworker* pWorker, bool bParked)
 {
 	xrtownershipscope Mutation = {0};
@@ -1237,6 +1248,7 @@ static bool __xrtNetEngineWorkerStart(xnetworker* pWorker)
 		if ( pWorker->BufferPool == NULL ) {
 			return false;
 		}
+		pWorker->BufferPool->ParentEngine = pEngine;
 	}
 	if ( !pWorker->CacheLockReady ) {
 		if ( !xrtMutexInit(&pWorker->CacheLock) ) {
@@ -3174,7 +3186,8 @@ static bool __xrtNetEngineOwnershipWalk(const xnetengine* pEngine,
 	for (uint32 i = 0; i < pEngine->WorkerCount; ++i) {
 		const xnetworker* pWorker = &pEngine->Workers[i];
 		if (pWorker->Port && pWorker->OwnershipPortExposed) return false;
-		if (pWorker->BufferPool && pWorker->BufferPool->Info.LiveBlocks) return false;
+		if (pWorker->BufferPool && pVisit &&
+			!pVisit(xrtNetBufPoolOwnership(pWorker->BufferPool), pContext)) return false;
 		size_t iQueued = 0, iReserved = pWorker->Timers.Count;
 		if (pWorker->CommandsReady) {
 			const xmpscqueue* pQueue = &pWorker->Commands;

@@ -90,8 +90,9 @@ static bool __xrtNetStreamCount(const void* pData, size_t* pCount)
 	if (!pStream || !pCount || __xrtNetStreamOwnershipBusy(pData) ||
 		(xrtAtomic32Load(&pStream->OwnershipState, XMEMORY_ACQUIRE) & XRT_NET_TCP_OWNERSHIP_CLEARED) ||
 		!__xrtNetTcpEventsEmpty(&pStream->Events) || xrtAtomicPtrLoad(&pStream->Data, XMEMORY_ACQUIRE) ||
-		pStream->ReadBuffer.Head || pStream->WriteBuffer.Head || pStream->ActiveDepth || pStream->StartPending ||
+		pStream->ActiveDepth || pStream->StartPending ||
 		xrtAtomic32Load(&pStream->ControlRequests, XMEMORY_ACQUIRE)) return false;
+	if (!__xrtNetStreamBuffersOwnership(pStream, NULL, NULL)) return false;
 	#if defined(XRT_FEATURE_NET_TCP_DIAL)
 		if (pStream->Control.Open || pStream->Control.Published || pStream->Control.Close ||
 			pStream->Control.Release || pStream->Control.Data) return false;
@@ -114,6 +115,7 @@ static bool __xrtNetStreamTrace(const void* pData, xrtownershipvisitor pVisit, p
 	const xnetstream* pStream = pData; size_t iCount;
 	if (!pVisit || !__xrtNetStreamCount(pData, &iCount) ||
 		(pStream->EngineHeld && !pVisit(xrtNetEngineOwnership(pStream->Engine), pContext))) return false;
+	if (!__xrtNetStreamBuffersOwnership(pStream, pVisit, pContext)) return false;
 	/* Diagnostics are real immutable Error/Cause owners too. Static errors
 	 * have an empty view; ordinary errors must not become unreported roots.
 	 * This DAG cannot point back to a stream and remains owned until last Drop,

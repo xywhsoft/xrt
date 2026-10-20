@@ -30,7 +30,13 @@ def main():
     compilers = [Path(shutil.which(cc) or cc).resolve() for cc in args.compiler]
     # The selected existing Engine exit-window fixture also needs thread_key.
     sources, _, _, _, defines, links, *_ = _load_modules('net_tcp_ownership_tests,thread_key', platform=platform_name())
+    minimal_sources, _, _, _, minimal_defines, minimal_links, *_ = _load_modules('net_buffer_ownership_tests', platform=platform_name())
+    assert 'XRT_FEATURE_ATOMIC' not in minimal_defines and 'XRT_FEATURE_NET_ENGINE' not in minimal_defines
     fixtures = (
+        'tests/network/test_net_buffer.c',
+        'tests/network/test_net_buffer_pool.c',
+        'tests/network/test_net_buffer_ref_oom.c',
+        'tests/network/test_net_buffer_ownership.c',
         'tests/network/test_net_tcp_ownership.c',
         'tests/network/test_net_engine_ownership.c',
         'tests/network/test_net_tcp_bind.c',
@@ -38,10 +44,12 @@ def main():
         'tests/network/test_net_tcp_lifetime.c',
         'tests/network/test_net_tcp_pull.c',
     )
-    single = 'tests/single/test_single_net_tcp_ownership.c'
+    singles = ('tests/single/test_single_net_tcp_ownership.c',
+               'tests/single/test_single_net_engine_ownership.c',
+               'tests/single/test_single_net_buffer_ownership.c')
     files = {p for area in ('include', 'src') for p in (root/area).rglob('*')
              if p.is_file() and p.suffix in ('.c', '.h')}
-    files.update(root/name for name in (*fixtures, single, 'single/xrt.h', 'single/xrt_decl.h',
+    files.update(root/name for name in (*fixtures, *singles, 'single/xrt.h', 'single/xrt_decl.h',
                                        'tests/test.h', 'config/modules.json', 'tools/build.py', 'tools/amalgamate.py'))
     files.update((Path(__file__).resolve(), *compilers))
     inputs = {str(p): sha(p) for p in sorted(files)}
@@ -49,6 +57,7 @@ def main():
     out.mkdir(parents=True)
     report = dict(Complete=False, InputsUnchanged=False, LogsUnchanged=False,
                   Inputs=inputs, Rows=rows, Products=products, Failures=failures, Sources=sources,
+                  MinimalBufferSources=minimal_sources, MinimalBufferDefines=minimal_defines,
                   OrdinaryLiteralLoopback=True, ExternalNetworkTests=False, NetworkSecurityTests=False,
                   ShippingLibraryAcceptance=False)
 
@@ -99,12 +108,12 @@ def main():
                     run(f'{label}.object-{index}', [*common, '-c', source, '-o', obj])
                     objects.append(obj)
                     products.append(dict(Path=str(obj), Sha256=sha(obj)))
-                for fixture in (*fixtures, single):
+                for fixture in (*fixtures, *singles):
                     package = Path(fixture).stem
                     try:
                         binary = out/(label+'.'+package+('.exe' if os.name == 'nt' else ''))
                         run(f'{label}.{package}.build', [*common, fixture,
-                            *(objects if fixture != single else []), *libraries, '-o', binary])
+                            *(objects if fixture not in singles else []), *libraries, '-o', binary])
                         products.append(dict(Path=str(binary), Sha256=sha(binary)))
                         run(f'{label}.{package}.run', [binary], mode == 'instrumented')
                         if 'tcp_ownership' in package:
@@ -112,6 +121,22 @@ def main():
                     except Exception as error:
                         failures.append(dict(Name=label+'.'+package, Error=repr(error)))
                         save()
+                for fixture in ('tests/network/test_net_buffer_ownership.c', singles[2]):
+                    try:
+                        package = 'minimal.'+Path(fixture).stem
+                        binary = out/(label+'.'+package+('.exe' if os.name == 'nt' else ''))
+                        minimal_common = [cc, '-Wall', '-Wextra', '-Werror', *flags, '-Iinclude']
+                        if cc.stem != 'tcc': minimal_common += ['-std=c11']
+                        if os.name != 'nt': minimal_common += ['-D_GNU_SOURCE']
+                        minimal_common += ['-D'+name for name in minimal_defines]
+                        minimal_libraries = ['-l'+name for name in minimal_links]
+                        if os.name != 'nt': minimal_libraries += ['-pthread', '-lm']
+                        run(f'{label}.{package}.build', [*minimal_common, fixture,
+                            *(minimal_sources if fixture not in singles else []), *minimal_libraries, '-o', binary])
+                        products.append(dict(Path=str(binary), Sha256=sha(binary)))
+                        run(f'{label}.{package}.run', [binary], mode == 'instrumented')
+                    except Exception as error:
+                        failures.append(dict(Name=label+'.'+package, Error=repr(error))); save()
             except Exception as error:
                 failures.append(dict(Name=label, Error=repr(error)))
                 save()

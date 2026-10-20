@@ -2973,12 +2973,13 @@ static bool __xrtNetStreamAttachSend(
 		 (xrtNetStreamState(pStream) == XNET_STREAM_CLOSED) ) {
 		return false;
 	}
-	if ( !xrtNetBufAppendRef(
+	if ( !__xrtNetBufAppendNative(
 		&pStream->WriteBuffer,
 		pSend->Data,
 		pSend->Size,
 		__xrtNetStreamSendRelease,
-		pSend
+		pSend,
+		XRT_NET_BLOCK_OWN_TCP_SEND
 	) ) {
 		return false;
 	}
@@ -3091,6 +3092,7 @@ static bool __xrtNetStreamAttachBuffer(
 	for ( size_t i = 0; i < iItem; i++ ) {
 		pView->Release = __xrtNetStreamBufferRelease;
 		pView->ReleaseContext = &pBatch->Items[i];
+		pView->Flags = XRT_NET_BLOCK_OWN_TCP_BUFFER;
 		pView = pView->Next;
 	}
 	__xrtNetBufMoveTrusted(&pBatch->Owned, pBuffer);
@@ -3327,6 +3329,7 @@ static __xrt_net_stream_send* __xrtNetStreamCreateSend(
 	}
 	pSend->Stream = xrtNetStreamRef(pStream);
 	pSend->Size = iSize;
+	pSend->PayloadOwnership = bCopy ? XRT_NET_SEND_COPY : XRT_NET_SEND_OPAQUE;
 	*pResult = XNET_RESULT_OK;
 	return pSend;
 }
@@ -3566,7 +3569,8 @@ static xnetresult __xrtNetStreamSend(
 	xnetreleaseproc pRelease,
 	ptr pContext,
 	bool bCopy,
-	bool bOwnsExternal
+	bool bOwnsExternal,
+	uint32 iOwnership
 )
 {
 	__xrt_net_stream_send* pSend;
@@ -3606,6 +3610,7 @@ static xnetresult __xrtNetStreamSend(
 	pSend->Release = pRelease;
 	pSend->ReleaseContext = pContext;
 	pSend->OwnsExternal = bOwnsExternal;
+	pSend->PayloadOwnership = iOwnership;
 	if ( bCopy ) {
 		memcpy(pSend->Copy, pData, iSize);
 		pSend->Data = pSend->Copy;
@@ -3635,7 +3640,8 @@ XRT_API xnetresult xrtNetStreamSend(
 		NULL,
 		NULL,
 		true,
-		false
+		false,
+		XRT_NET_SEND_COPY
 	);
 }
 
@@ -3676,7 +3682,8 @@ XRT_API xnetresult xrtNetStreamSendVec(
 			NULL,
 			NULL,
 			true,
-			false
+			false,
+			XRT_NET_SEND_COPY
 		);
 	}
 	if ( !__xrtNetStreamBeginSend(pStream) ) {
@@ -3740,7 +3747,8 @@ XRT_API xnetresult xrtNetStreamSendRef(
 		pRelease,
 		pContext,
 		false,
-		true
+		true,
+		XRT_NET_SEND_OPAQUE
 	);
 }
 
@@ -3785,7 +3793,8 @@ XRT_API xnetresult xrtNetStreamSendRefs(
 			NULL,
 			NULL,
 			false,
-			false
+			false,
+			XRT_NET_SEND_OPAQUE
 		);
 	}
 	if ( !__xrtNetStreamBeginSend(pStream) ) {
@@ -3830,8 +3839,25 @@ XRT_API xnetresult xrtNetStreamSendTake(
 		__xrtNetStreamFreeTaken,
 		NULL,
 		false,
-		true
+		true,
+		XRT_NET_SEND_TAKE
 	);
+}
+
+static void __xrtNetStreamFreeBytes(ptr pContext, cbytes pData, size_t iSize)
+{ (void)pData; (void)iSize; xrtNetBytesDestroy(pContext); }
+XRT_API xnetresult xrtNetStreamSendBytes(xnetstream* pStream, xnetbytes* pBytes,
+	size_t iOffset, size_t iSize)
+{
+	if (!pStream || !pBytes) { __xrtErrorSetInvalidArgument(); return XNET_RESULT_ERROR; }
+	xbytesview View = xrtNetBytesView(pBytes);
+	if (iOffset > View.Size || iSize > View.Size - iOffset) { __xrtErrorSetRange(); return XNET_RESULT_ERROR; }
+	if (!iSize) return __xrtNetStreamSend(pStream, NULL, 0, NULL, NULL, false, false, XRT_NET_SEND_OPAQUE);
+	if (!xrtNetBytesRef(pBytes)) return XNET_RESULT_ERROR;
+	xnetresult Result = __xrtNetStreamSend(pStream, View.Data + iOffset, iSize,
+		__xrtNetStreamFreeBytes, pBytes, false, true, XRT_NET_SEND_BYTES);
+	if (Result != XNET_RESULT_OK) xrtNetBytesDestroy(pBytes);
+	return Result;
 }
 
 
@@ -5799,6 +5825,61 @@ static void __xrtNetStreamRuntimeRelease(ptr pData)
 { xrtNetStreamDestroy((xnetstream*)pData); }
 static void __xrtNetListenerRuntimeRelease(ptr pData)
 { xrtNetListenerDestroy((xnetlistener*)pData); }
+
+/* These tags are set by native constructors, not guessed from arbitrary
+ * callback addresses. Contained send frames have unique ownership; the
+ * original buffer batch is a FIFO aggregate jointly kept by its views. Its
+ * first remaining view enumerates its ONE actual Stream hold and owned chain. */
+static bool __xrtNetStreamBlockTrace(const xnetblock* pBlock, const void* pOwner,
+	xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xnetstream* pStream = pOwner;
+	if (pBlock->Flags == XRT_NET_BLOCK_OWN_TCP_SEND) {
+		if (pBlock->Release != __xrtNetStreamSendRelease || !pBlock->ReleaseContext) return false;
+		const __xrt_net_stream_send* pSend = pBlock->ReleaseContext;
+		if (pSend->Stream != pStream || pSend->Data != pBlock->External || pSend->Size != pBlock->ExternalSize) return false;
+		if (pSend->PayloadOwnership == XRT_NET_SEND_COPY) {
+			if (pSend->Data != pSend->Copy || pSend->Release || pSend->ReleaseContext || pSend->OwnsExternal) return false;
+		} else if (pSend->PayloadOwnership == XRT_NET_SEND_TAKE) {
+			if (!pSend->OwnsExternal || pSend->Release != __xrtNetStreamFreeTaken || pSend->ReleaseContext) return false;
+		} else if (pSend->PayloadOwnership == XRT_NET_SEND_BYTES) {
+			if (!pSend->OwnsExternal || pSend->Release != __xrtNetStreamFreeBytes || !pSend->ReleaseContext) return false;
+			xbytesview View = xrtNetBytesView(pSend->ReleaseContext);
+			uintptr_t start = (uintptr_t)View.Data, data = (uintptr_t)pSend->Data;
+			if (data < start || data - start > View.Size || pSend->Size > View.Size - (data - start)) return false;
+			if (pVisit && !pVisit(xrtNetBytesOwnership(pSend->ReleaseContext), pContext)) return false;
+		} else return false;
+		return !pVisit || pVisit(xrtNetStreamOwnership(pStream), pContext);
+	}
+	if (pBlock->Flags == XRT_NET_BLOCK_OWN_TCP_BUFFER) {
+		if (pBlock->Release != __xrtNetStreamBufferRelease || !pBlock->ReleaseContext) return false;
+		const __xrt_net_stream_buffer_item* pItem = pBlock->ReleaseContext;
+		const __xrt_net_stream_buffer* pBatch = pItem->Batch;
+		if (!pBatch || pBatch->Stream != pStream || !pBatch->Remaining || pBatch->Remaining > pBatch->Count) return false;
+		uintptr_t item = (uintptr_t)pItem, first = (uintptr_t)pBatch->Items;
+		if (item < first || (item - first) % sizeof(*pItem) || (item - first) / sizeof(*pItem) >= pBatch->Count) return false;
+		size_t index = (item - first) / sizeof(*pItem), begin = pBatch->Count - pBatch->Remaining;
+		if (index < begin) return false;
+		/* FIFO native consumption retires an initial prefix. Validate every
+		 * surviving view before following this aggregate's contained children. */
+		if (index != begin) return true;
+		const xnetblock* pView = pBlock;
+		for (size_t i = begin; i < pBatch->Count; ++i) {
+			if (!pView || pView->Flags != XRT_NET_BLOCK_OWN_TCP_BUFFER || pView->Release != __xrtNetStreamBufferRelease ||
+				pView->ReleaseContext != &pBatch->Items[i] || pBatch->Items[i].Batch != pBatch) return false;
+			pView = pView->Next;
+		}
+		return __xrtNetBufOwnershipWalk(&pBatch->Owned, NULL, NULL, pVisit, pContext) &&
+			(!pVisit || pVisit(xrtNetStreamOwnership(pStream), pContext));
+	}
+	return false;
+}
+bool __xrtNetStreamBuffersOwnership(const xnetstream* pStream, xrtownershipvisitor pVisit, ptr pContext)
+{
+	if (pStream->ReadBuffer.Tail && pStream->ReadBuffer.Tail == pStream->WriteBuffer.Tail) return false;
+	return __xrtNetBufOwnershipWalk(&pStream->ReadBuffer, NULL, NULL, pVisit, pContext) &&
+		__xrtNetBufOwnershipWalk(&pStream->WriteBuffer, __xrtNetStreamBlockTrace, pStream, pVisit, pContext);
+}
 XRT_API const xnetruntimeownershipv1* xrtNetStreamRuntimeOwnershipV1Get(void)
 {
 	static const xnettimerproc Timers[] = {__xrtNetStreamConnectTimer};

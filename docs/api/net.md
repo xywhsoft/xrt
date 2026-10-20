@@ -9668,3 +9668,47 @@ typedef struct xnettimerownershipv1 {
 | `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
 | `Proc` | `xnettimerproc` | `Proc` 的 xnettimerproc 数据；初始化、有效范围和生存期按本节协议，不独立推断拥有权。 |
 | `Ops` | `const xrtownershipops*` | 同一物理 Data 节点的计数和真实边枚举操作表。 |
+
+## 缓冲池租约与不可变字节拥有图
+
+`xnetbuf` 是不可浅拷贝的独占块链；使用 Move 转移，不能直接改写块字段。
+每个池块（包括尚未提交的独立 Reserve 块）持有池的一份真实租约引用。
+释放回调完成、缓存／统计访问结束后才归还租约；活动借用不算引用。
+池的原始创建者、租约与收集器 pin 共用实际引用计数，`LiveBlocks` 仅是统计。
+Engine 拥有 Worker 池创建者；池的第一份租约持有一份真实 Engine 引用，最后一份释放完毕后归还。
+因此外部仍持有的块会保活池及 Engine；`TryDestroy` 必须返回 BUSY，不能提前回收。
+空 `xnetbuf.Pool` 是借用的配置指针，不持有池；不得在池退休后再次使用。
+
+### `xrtNetBytesCopy` / `xrtNetBytesOwnership` / `xrtNetBytesOwnershipAdapterV1`
+
+```c
+xnetbytes* xrtNetBytesCopy(const void* data, size_t size);
+xrtownershipref xrtNetBytesOwnership(const xnetbytes* bytes);
+const xrtownershipadapterv1* xrtNetBytesOwnershipAdapterV1(xrtownershipref reference);
+```
+
+Copy 创建独立不可变字节（允许空输入，保留 NUL）。Ownership 是借用视图；适配器只接受本驻留实现的精确 Ops，
+计数读取真实 Ref／Destroy 引用。不可变字节是无子边的叶节点；Hold／Drop 才增减真实引用，Claim／Clear 不伪造引用。
+
+### `xrtNetBufAppendBytes`
+
+```c
+bool xrtNetBufAppendBytes(xnetbuf* buffer, xnetbytes* bytes, size_t offset, size_t size);
+```
+
+严格检查 offset／size（使用减法避免溢出），零拷贝保留指定片段的一份实际字节引用；空片段不保留引用。
+块创建失败不消费输入引用、不改变原缓冲；成功后由消费／清理原生块归还引用。
+
+### `xrtNetBufPoolOwnership` / `xrtNetBufPoolOwnershipQuiescenceV1Get` / `xrtNetBufPoolOwnershipAdapterV1`
+
+```c
+xrtownershipref xrtNetBufPoolOwnership(const xnetbufpool* pool);
+const xrtownershipquiescencev1* xrtNetBufPoolOwnershipQuiescenceV1Get(void);
+const xrtownershipadapterv1* xrtNetBufPoolOwnershipAdapterV1(
+    xrtownershipref reference, const xrtownershippreparationv1** preparation);
+```
+
+拥有图入口均要求冻结域。活跃分配、释放回调或未停稳 Worker 返回 BUSY／拒绝 Count，失败不修改输出。
+Trace 只枚举池确实持有的 Engine 引用。Claim 阻止新租约，既有租约仍可归还；Prepare 不等待，直至租约与活动工作归零。
+Clear 禁止继续使用分配器；原始 Destroy 退休缓存并消费创建者，最后一份真实 pin 释放后才回收池外壳。
+任何任意回调上下文不能凭函数地址自动认证；其拥有关系仍须由对应显式协议闭合。

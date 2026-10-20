@@ -7747,7 +7747,8 @@
 				"src/internal/xrt_net_buffer.h"
 			],
 			"sources": [
-				"src/network/buffer.c"
+				"src/network/buffer.c",
+				"src/network/buffer_ownership.c"
 			],
 			"tests": [
 				"tests/network/test_net_buffer.c",
@@ -7766,6 +7767,19 @@
 			"docs": [
 				"docs/api/net.md"
 			]
+		},
+		{
+			"name": "net_buffer_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["net_buffer", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/network/test_net_buffer_ownership.c"],
+			"single_tests": ["tests/single/test_single_net_buffer_ownership.c"],
+			"examples": [],
+			"docs": ["docs/api/net.md"]
 		},
 		{
 			"name": "net_frame",

@@ -11,6 +11,14 @@
 #define XRT_NET_BLOCK_DYNAMIC XNET_BUFFER_CLASS_COUNT
 #define XRT_NET_BLOCK_REF (XNET_BUFFER_CLASS_COUNT + 1u)
 #define XRT_NET_BLOCK_FILE (XNET_BUFFER_CLASS_COUNT + 2u)
+/* Explicit resident origin tags, never inferred from a user callback address.
+ * Flags is private reserved storage; legal block moves preserve the tag. */
+enum {
+	XRT_NET_BLOCK_OWN_TAKE = 1u,
+	XRT_NET_BLOCK_OWN_BYTES = 2u,
+	XRT_NET_BLOCK_OWN_TCP_SEND = 3u,
+	XRT_NET_BLOCK_OWN_TCP_BUFFER = 4u
+};
 
 
 
@@ -34,6 +42,19 @@ struct xnetblock {
 
 /* 缓冲池不加锁，由一个 worker 或一个调用线程独占。 */
 struct xnetbufpool {
+	/* Creator and EACH live block hold actual references. A block's lease
+	 * ends only after its release callback and final pool access complete. */
+	volatile int32 References;
+	volatile int32 OwnershipActive;
+	size_t Leases;
+	const void* OwnershipClaim;
+	bool CreatorOwned;
+	bool Retired;
+	bool OwnershipCleared;
+	#if defined(XRT_FEATURE_NET_ENGINE)
+		xnetengine* ParentEngine; /* borrowed while empty, real owner if ParentHeld */
+		bool ParentHeld;
+	#endif
 	xnetbufpoolconfig Config;
 	xnetblock* Free[XNET_BUFFER_CLASS_COUNT];
 	size_t Cached[XNET_BUFFER_CLASS_COUNT];
@@ -48,6 +69,24 @@ struct xnetbytes {
 	volatile int32 References;
 	uint8 Data[];
 };
+
+/* Enter/leave are short freeze-domain publications, not enclosing locks.
+ * Acquire adds a REAL block lease and opens an allocation entry; success
+ * leaves the lease in place. Release consumes it at the last pool access. */
+bool __xrtNetBufPoolAcquire(xnetbufpool* pPool);
+bool __xrtNetBufPoolEnter(xnetbufpool* pPool, bool bTerminal);
+void __xrtNetBufPoolLeave(xnetbufpool* pPool);
+void __xrtNetBufPoolRelease(xnetbufpool* pPool);
+void __xrtNetBufPoolDrop(const void* pData);
+typedef bool (*__xrt_net_block_trace)(const xnetblock*, const void*, xrtownershipvisitor, ptr);
+bool __xrtNetBufOwnershipWalk(const xnetbuf* pBuffer, __xrt_net_block_trace pNative,
+	const void* pOwner, xrtownershipvisitor pVisit, ptr pContext);
+bool __xrtNetBufAppendNative(xnetbuf* pBuffer, const void* pData, size_t iSize,
+	xnetreleaseproc pRelease, ptr pContext, uint32 iOrigin);
+#if defined(XRT_FEATURE_NET_ENGINE)
+bool __xrtNetEnginePoolRetain(xnetengine* pEngine);
+void __xrtNetEnginePoolRelease(xnetengine* pEngine);
+#endif
 
 
 

@@ -119,6 +119,8 @@ static bool admit(xrtownershipref ref,ptr data)
     EngineCase* test=data;const xrtownershippreparationv1* prep=NULL;
     const xnettaskownershipv1* tasks[]={test->wrong_task?&wrong_task:&task_policy};
     const xnettimerownershipv1* timers[]={test->wrong_timer?&wrong_timer:&timer_policy};
+    if(ref.Ops==xrtNetBufPoolOwnershipQuiescenceV1Get()->Ops)
+        return xrtNetBufPoolOwnershipAdapterV1(ref,&prep)!=NULL;
     return xrtNetEngineOwnershipAdapterV1(ref,tasks,1,timers,1,&prep)||ref.Ops==&data_ops;
 }
 static void setup(EngineCase* test,unsigned workers,size_t capacity)
@@ -168,7 +170,7 @@ static void queued(bool resurrect,bool cancel)
     uint64 id=__xrtNetEngineScheduleOwnedV1(test.engine,0,__xrtWaitAfter(3600000),item,&timer_policy);assert(id);
     xrtownershipref ref=xrtNetEngineOwnership(test.engine);xrtownershipresult graph={0};
     assert(xrtOwnershipInspect(&ref,1,&ref,1,&graph));
-    assert(graph.NodeCount==2&&graph.EdgeCount==4&&graph.ExternalRootCount==0);
+    assert(graph.NodeCount==3&&graph.EdgeCount==5&&graph.ExternalRootCount==0);
     xrtownershipsnapshot* snapshot=NULL;unsigned calls=test.counts+test.traces;
     test.wrong_task=true;assert(!xrtOwnershipSnapshotCreate(&ref,1,&ref,1,admit,&test,&snapshot)&&!snapshot);
     assert(calls==test.counts+test.traces);test.wrong_task=false;xrtClearError();
@@ -184,7 +186,7 @@ static void queued(bool resurrect,bool cancel)
     assert(xrtAtomic32Load(&test.drops,XMEMORY_ACQUIRE)==2&&xrtAtomic32Load(&test.freed,XMEMORY_ACQUIRE)==1);
     assert(xrtAtomic32Load(&test.probes,XMEMORY_ACQUIRE)==2);
     stable_freeze(test.engine,&freeze);xrtownershipref slots[2];slots[0]=ref;slots[1]=ref;
-    assert(xrtOwnershipInspect(&ref,1,slots,2,&graph)&&graph.NodeCount==1&&graph.ExternalRootCount==(resurrect?1u:0u));
+    assert(xrtOwnershipInspect(&ref,1,slots,2,&graph)&&graph.NodeCount==2&&graph.ExternalRootCount==(resurrect?1u:0u));
     if(resurrect){assert(test.escaped);test.adapter->Restore(test.engine,&test);assert(xrtOwnershipScopeEnd(&freeze));test.adapter->Drop(test.engine);}
     else {test.adapter->Clear(test.engine,&test);assert(xrtOwnershipScopeEnd(&freeze));assert(test.adapter->Finish(test.engine,&test));}
     assert(xrtNetEngineDestroy(test.engine));test.adapter->Drop(test.engine);balanced(&before);++queued_cases;
@@ -249,12 +251,43 @@ static void submit_oom(bool is_timer)
         xrtClearError();assert(xrtOwnershipScopeEnd(&freeze));assert(xrtNetEngineDestroy(test.engine));
         assert(xrtAtomic32Load(&test.drops,XMEMORY_ACQUIRE)==1&&xrtAtomic32Load(&test.freed,XMEMORY_ACQUIRE)==1);balanced(&before);}
 }
+typedef struct PoolEscape { xnetbuf buffer; xatomic32 ready; } PoolEscape;
+static void escape_block(xnetworker* worker,ptr data)
+{
+    PoolEscape* escape=data;assert(xrtNetBufInit(&escape->buffer,worker->BufferPool));
+    assert(xrtNetBufAppend(&escape->buffer,"a\0b",3));
+    xrtAtomic32Store(&escape->ready,1,XMEMORY_RELEASE);
+}
+static void external_pool_lease(void)
+{
+    xmemdebugsnapshot before;xrtClearError();xrtMemDebugSnapshot(&before);
+    EngineCase test={0};setup(&test,1,8);PoolEscape escape={0};
+    xrtAtomic32Init(&escape.ready,0);assert(xrtNetEnginePost(test.engine,0,escape_block,&escape));wait_one(&escape.ready);
+    xrtownershipscope freeze={0};stable_freeze(test.engine,&freeze);
+    xrtownershipref engine=xrtNetEngineOwnership(test.engine);size_t count=0;
+    assert(engine.Ops->Count(engine.Data,&count)&&count==2); /* creator + real pool parent hold */
+    xrtownershipresult graph={0};
+    assert(xrtOwnershipInspect(&engine,1,&engine,1,&graph));
+    assert(graph.NodeCount==2&&graph.EdgeCount==3&&graph.ExternalRootCount==1);
+    xrtownershipsnapshot* snapshot=NULL;
+    assert(xrtOwnershipSnapshotCreate(&engine,1,&engine,1,admit,&test,&snapshot));
+    for(size_t i=0;i<2;++i){xrtownershipnode node;assert(xrtOwnershipSnapshotNode(snapshot,i,&node)&&node.Reachable);}
+    xrtOwnershipSnapshotDestroy(snapshot);assert(xrtOwnershipScopeEnd(&freeze));
+    /* Checked retirement stops the worker, but cannot consume the creator or
+     * destroy the pool while the external buffer owns an actual block lease. */
+    double deadline=__xrtWaitAfter(5000);
+    while(xrtThreadWaitFor(test.engine->Workers[0].Thread,0)!=XWAIT_OK){
+        assert(xrtNetEngineTryDestroy(test.engine)==XNET_RETIRE_BUSY&&!__xrtWaitExpired(deadline));xrtThreadYield();}
+    assert(xrtNetEngineTryDestroy(test.engine)==XNET_RETIRE_BUSY);
+    xrtNetBufClear(&escape.buffer); /* worker has really exited; ownership transferred */
+    assert(xrtNetEngineTryDestroy(test.engine)==XNET_RETIRE_READY);balanced(&before);
+}
 int main(void)
 {
     assert(xrtMemDebugEnable(true));
     for(unsigned i=0;i<6;++i){idle(1,false);idle(2,true);queued(false,false);queued(false,true);queued(true,false);
         internal_port_borrow();opaque(0);opaque(1);opaque(2);exit_window();}
-    submit_oom(false);submit_oom(true);assert(oom_failures>0);
+    external_pool_lease();submit_oom(false);submit_oom(true);assert(oom_failures>0);
     testMemoryDebugDrain("engine ownership balance");
     printf("engine graph: idle=%u queued=%u internal-port=%u opaque=%u exit=%u allocation-budgets=%u failures=%u\n",
         idle_cases,queued_cases,internal_port_cases,opaque_cases,exit_cases,oom_budgets,oom_failures);

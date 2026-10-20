@@ -35,11 +35,23 @@ xnetbytes* __xrtNetBytesAlloc(size_t iSize, xnetwspan* pSpan)
 
 
 
+/* 复制任意字节为独立拥有的不可变结果，保留内嵌 NUL。 */
+XRT_API xnetbytes* xrtNetBytesCopy(const void* pData, size_t iSize)
+{
+	if (!pData && iSize) { __xrtErrorSetInvalidArgument(); return NULL; }
+	xnetwspan Span = {0}; xnetbytes* pBytes = __xrtNetBytesAlloc(iSize, &Span);
+	if (pBytes && iSize) memcpy(Span.Data, pData, iSize);
+	return pBytes;
+}
+
 /* 增加拥有型网络字节结果的引用。 */
 XRT_API xnetbytes* xrtNetBytesRef(xnetbytes* pBytes)
 {
-	if ( (pBytes == NULL) ||
-		 (xrtRefRetain(&pBytes->References) < 0) ) {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
+	bool bHeld = pBytes && xrtRefRetain(&pBytes->References) >= 0;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if ( !bHeld ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
@@ -51,10 +63,13 @@ XRT_API xnetbytes* xrtNetBytesRef(xnetbytes* pBytes)
 /* 释放拥有型网络字节结果。 */
 XRT_API void xrtNetBytesDestroy(xnetbytes* pBytes)
 {
-	if ( (pBytes != NULL) &&
-		 (xrtRefRelease(&pBytes->References) == 0) ) {
-		xrtFree(pBytes);
-	}
+	if (!pBytes) return;
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	int32 iReferences = xrtRefRelease(&pBytes->References);
+	if (iReferences < 0) abort();
+	if (!iReferences) xrtFree(pBytes);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 }
 
 
@@ -155,7 +170,7 @@ static void __xrtNetBufPoolRemoveLive(xnetbufpool* pPool, size_t iBytes)
 
 
 /* 分配一个拥有数据区的块，优先复用最小匹配尺寸类。 */
-static xnetblock* __xrtNetBlockAlloc(xnetbufpool* pPool, size_t iMinimum)
+static xnetblock* __xrtNetBlockAllocImpl(xnetbufpool* pPool, size_t iMinimum)
 {
 	xnetblock* pBlock = NULL;
 	uint32 iClass;
@@ -205,10 +220,18 @@ static xnetblock* __xrtNetBlockAlloc(xnetbufpool* pPool, size_t iMinimum)
 	return pBlock;
 }
 
+static xnetblock* __xrtNetBlockAlloc(xnetbufpool* pPool, size_t iMinimum)
+{
+	if (!__xrtNetBufPoolAcquire(pPool)) return NULL;
+	xnetblock* pBlock = __xrtNetBlockAllocImpl(pPool, iMinimum);
+	if (pBlock) __xrtNetBufPoolLeave(pPool);
+	else __xrtNetBufPoolRelease(pPool);
+	return pBlock;
+}
 
 
 /* 分配一个只引用外部数据的轻量块头。 */
-static xnetblock* __xrtNetBlockAllocRef(xnetbufpool* pPool,
+static xnetblock* __xrtNetBlockAllocRefImpl(xnetbufpool* pPool,
 	const void* pData, size_t iSize, xnetreleaseproc pRelease, ptr pContext)
 {
 	xnetblock* pBlock;
@@ -236,10 +259,19 @@ static xnetblock* __xrtNetBlockAllocRef(xnetbufpool* pPool,
 	return pBlock;
 }
 
+static xnetblock* __xrtNetBlockAllocRef(xnetbufpool* pPool,
+	const void* pData, size_t iSize, xnetreleaseproc pRelease, ptr pContext)
+{
+	if (!__xrtNetBufPoolAcquire(pPool)) return NULL;
+	xnetblock* pBlock = __xrtNetBlockAllocRefImpl(pPool, pData, iSize, pRelease, pContext);
+	if (pBlock) __xrtNetBufPoolLeave(pPool);
+	else __xrtNetBufPoolRelease(pPool);
+	return pBlock;
+}
 
 
 /* 释放块，匹配尺寸类在池预算内回到空闲链。 */
-static void __xrtNetBlockFree(xnetblock* pBlock)
+static void __xrtNetBlockFreeImpl(xnetblock* pBlock)
 {
 	xnetbufpool* pPool;
 	size_t iBytes;
@@ -283,6 +315,14 @@ static void __xrtNetBlockFree(xnetblock* pBlock)
 	xrtFree(pBlock);
 }
 
+static void __xrtNetBlockFree(xnetblock* pBlock)
+{
+	if (!pBlock) return;
+	xnetbufpool* pPool = pBlock->Pool;
+	if (!__xrtNetBufPoolEnter(pPool, true)) abort();
+	__xrtNetBlockFreeImpl(pBlock);
+	__xrtNetBufPoolRelease(pPool);
+}
 
 
 /* 将一个非空块挂到缓冲链尾部。 */
@@ -391,13 +431,15 @@ XRT_API xnetbufpool* xrtNetBufPoolCreate(const xnetbufpoolconfig* pConfig)
 		return NULL;
 	}
 	pPool->Config = Config;
+	pPool->References = 1;
+	pPool->CreatorOwned = true;
 	return pPool;
 }
 
 
 
 /* 将缓存从大块开始裁剪到指定总字节数。 */
-XRT_API size_t xrtNetBufPoolTrim(xnetbufpool* pPool, size_t iRetainBytes)
+static size_t __xrtNetBufPoolTrim(xnetbufpool* pPool, size_t iRetainBytes)
 {
 	size_t iFreed = 0;
 	uint32 iClass = XNET_BUFFER_CLASS_COUNT;
@@ -424,6 +466,14 @@ XRT_API size_t xrtNetBufPoolTrim(xnetbufpool* pPool, size_t iRetainBytes)
 	return iFreed;
 }
 
+XRT_API size_t xrtNetBufPoolTrim(xnetbufpool* pPool, size_t iRetainBytes)
+{
+	if (!pPool) { __xrtErrorSetInvalidArgument(); return 0; }
+	if (!__xrtNetBufPoolEnter(pPool, true)) return 0;
+	size_t iFreed = __xrtNetBufPoolTrim(pPool, iRetainBytes);
+	__xrtNetBufPoolLeave(pPool);
+	return iFreed;
+}
 
 
 /* 销毁一个已经没有实时块的缓冲池。 */
@@ -432,13 +482,31 @@ XRT_API bool xrtNetBufPoolDestroy(xnetbufpool* pPool)
 	if ( pPool == NULL ) {
 		return true;
 	}
-	if ( pPool->Info.LiveBlocks != 0 ) {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	if (!pPool->CreatorOwned || pPool->Retired) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+		__xrtErrorSetInvalidState(); return false;
+	}
+	if ( pPool->Leases || pPool->Info.LiveBlocks || __xrtAtomicRefLoad(&pPool->OwnershipActive) ) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 		__xrtNetSetError(XERR_STATE, XNET_ERROR_POOL_BUSY,
-			"destroy-buffer-pool", "buffer pool still owns live blocks", 0);
+			"destroy-buffer-pool", "buffer pool still owns block leases or release work", 0);
 		return false;
 	}
-	(void)xrtNetBufPoolTrim(pPool, 0);
-	xrtFree(pPool);
+	/* A real creator reference covers trimming. Pins can outlive native cache
+	 * retirement, but they never keep a worker-affine allocator usable. */
+	pPool->OwnershipActive = 1; pPool->CreatorOwned = false;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	(void)__xrtNetBufPoolTrim(pPool, 0);
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	#if defined(XRT_FEATURE_NET_ENGINE)
+		if (pPool->ParentHeld) abort();
+		pPool->ParentEngine = NULL;
+	#endif
+	pPool->Retired = true; pPool->OwnershipActive = 0;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	__xrtNetBufPoolDrop(pPool);
 	return true;
 }
 
@@ -726,7 +794,7 @@ XRT_API bool xrtNetBufPrepend(
 
 /* 追加一个外部引用块并按成功结果转移释放责任。 */
 static bool __xrtNetBufAppendRef(xnetbuf* pBuffer, const void* pData,
-	size_t iSize, xnetreleaseproc pRelease, ptr pContext)
+	size_t iSize, xnetreleaseproc pRelease, ptr pContext, uint32 iOrigin)
 {
 	xnetblock* pBlock;
 
@@ -746,6 +814,7 @@ static bool __xrtNetBufAppendRef(xnetbuf* pBuffer, const void* pData,
 	if ( pBlock == NULL ) {
 		return false;
 	}
+	pBlock->Flags = iOrigin;
 	__xrtNetBufLink(pBuffer, pBlock);
 	pBuffer->Size += iSize;
 	return true;
@@ -757,7 +826,7 @@ static bool __xrtNetBufAppendRef(xnetbuf* pBuffer, const void* pData,
 XRT_API bool xrtNetBufAppendBorrow(xnetbuf* pBuffer,
 	const void* pData, size_t iSize)
 {
-	return __xrtNetBufAppendRef(pBuffer, pData, iSize, NULL, NULL);
+	return __xrtNetBufAppendRef(pBuffer, pData, iSize, NULL, NULL, 0);
 }
 
 
@@ -766,7 +835,7 @@ XRT_API bool xrtNetBufAppendBorrow(xnetbuf* pBuffer,
 XRT_API bool xrtNetBufAppendTake(xnetbuf* pBuffer, ptr pData, size_t iSize)
 {
 	return __xrtNetBufAppendRef(pBuffer, pData, iSize,
-		__xrtNetBufFreeTaken, NULL);
+		__xrtNetBufFreeTaken, NULL, XRT_NET_BLOCK_OWN_TAKE);
 }
 
 
@@ -779,7 +848,75 @@ XRT_API bool xrtNetBufAppendRef(xnetbuf* pBuffer, const void* pData,
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	return __xrtNetBufAppendRef(pBuffer, pData, iSize, pRelease, pContext);
+	return __xrtNetBufAppendRef(pBuffer, pData, iSize, pRelease, pContext, 0);
+}
+
+bool __xrtNetBufAppendNative(xnetbuf* pBuffer, const void* pData, size_t iSize,
+	xnetreleaseproc pRelease, ptr pContext, uint32 iOrigin)
+{
+	if (!pRelease || (iOrigin != XRT_NET_BLOCK_OWN_TCP_SEND && iOrigin != XRT_NET_BLOCK_OWN_TCP_BUFFER)) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	return __xrtNetBufAppendRef(pBuffer, pData, iSize, pRelease, pContext, iOrigin);
+}
+static void __xrtNetBufBytesRelease(ptr pContext, cbytes pData, size_t iSize)
+{ (void)pData; (void)iSize; xrtNetBytesDestroy(pContext); }
+XRT_API bool xrtNetBufAppendBytes(xnetbuf* pBuffer, xnetbytes* pBytes, size_t iOffset, size_t iSize)
+{
+	if (!pBuffer || !pBytes) { __xrtErrorSetInvalidArgument(); return false; }
+	if (iOffset > pBytes->View.Size || iSize > pBytes->View.Size - iOffset) { __xrtErrorSetRange(); return false; }
+	if (!__xrtNetBufMutable(pBuffer, "append-buffer-bytes")) return false;
+	if (!iSize) return true;
+	if (!xrtNetBytesRef(pBytes)) return false;
+	if (__xrtNetBufAppendRef(pBuffer, pBytes->View.Data + iOffset, iSize,
+		__xrtNetBufBytesRelease, pBytes, XRT_NET_BLOCK_OWN_BYTES)) return true;
+	xrtNetBytesDestroy(pBytes); return false;
+}
+
+/* A block is uniquely owned storage, NOT a fabricated reference-counted node.
+ * Its actual pool lease and certified payload owners are the graph children.
+ * This read-only walker never calls an arbitrary release callback. */
+static bool __xrtNetBlockOwnership(const xnetblock* pBlock, __xrt_net_block_trace pNative,
+	const void* pOwner, xrtownershipvisitor pVisit, ptr pContext)
+{
+	if (!pBlock || pBlock->Begin > pBlock->End || pBlock->Class > XRT_NET_BLOCK_FILE) return false;
+	if (pBlock->Pool && pVisit && !pVisit(xrtNetBufPoolOwnership(pBlock->Pool), pContext)) return false;
+	if (pBlock->Class < XRT_NET_BLOCK_REF) {
+		return pBlock->End <= pBlock->Capacity && !pBlock->External && !pBlock->Release &&
+			!pBlock->ReleaseContext && !pBlock->Flags;
+	}
+	if (pBlock->Class != XRT_NET_BLOCK_REF || !pBlock->External || pBlock->End > pBlock->ExternalSize) return false;
+	if (pBlock->Flags == XRT_NET_BLOCK_OWN_TAKE)
+		return pBlock->Release == __xrtNetBufFreeTaken && !pBlock->ReleaseContext;
+	if (pBlock->Flags == XRT_NET_BLOCK_OWN_BYTES) {
+		if (pBlock->Release != __xrtNetBufBytesRelease || !pBlock->ReleaseContext) return false;
+		const xnetbytes* pBytes = pBlock->ReleaseContext;
+		uintptr_t start = (uintptr_t)pBytes->View.Data, data = (uintptr_t)pBlock->External;
+		if (data < start || data - start > pBytes->View.Size || pBlock->ExternalSize > pBytes->View.Size - (data - start)) return false;
+		return !pVisit || pVisit(xrtNetBytesOwnership(pBytes), pContext);
+	}
+	return (pBlock->Flags == XRT_NET_BLOCK_OWN_TCP_SEND || pBlock->Flags == XRT_NET_BLOCK_OWN_TCP_BUFFER) &&
+		pNative && pNative(pBlock, pOwner, pVisit, pContext);
+}
+bool __xrtNetBufOwnershipWalk(const xnetbuf* pBuffer, __xrt_net_block_trace pNative,
+	const void* pOwner, xrtownershipvisitor pVisit, ptr pContext)
+{
+	if (!pBuffer) return false;
+	size_t iCount = 0, iSize = 0; const xnetblock* pTail = NULL;
+	for (const xnetblock* pBlock = pBuffer->Head; pBlock; pBlock = pBlock->Next) {
+		if (++iCount > pBuffer->Blocks || !__xrtNetBlockOwnership(pBlock, pNative, pOwner, pVisit, pContext) ||
+			pBlock->End - pBlock->Begin > SIZE_MAX - iSize) return false;
+		iSize += pBlock->End - pBlock->Begin; pTail = pBlock;
+	}
+	if (iCount != pBuffer->Blocks || iSize != pBuffer->Size || pTail != pBuffer->Tail) return false;
+	if (pBuffer->Reserved) {
+		if (pBuffer->Reserved->Class >= XRT_NET_BLOCK_REF) return false;
+		if (pBuffer->ReservedNew) {
+			if (pBuffer->Reserved->Next || pBuffer->Reserved == pTail ||
+				!__xrtNetBlockOwnership(pBuffer->Reserved, NULL, NULL, pVisit, pContext)) return false;
+		} else if (pBuffer->Reserved != pTail) return false;
+	} else if (pBuffer->ReservedNew) return false;
+	return true;
 }
 
 
@@ -816,12 +953,14 @@ bool __xrtNetBufAppendFile(
 	if ( pBlock == NULL ) {
 		return false;
 	}
-	__xrtNetBufPoolRemoveLive(pBlock->Pool, iSize);
-	if ( !__xrtNetBufPoolAddLive(pBlock->Pool, 0) ) {
-		xrtFree(pBlock);
-		return false;
+	/* Reclassification changes accounting bytes, not the physical block lease. */
+	if (!__xrtNetBufPoolEnter(pBlock->Pool, true)) abort();
+	if (pBlock->Pool) {
+		if (pBlock->Pool->Info.LiveBytes < iSize) abort();
+		pBlock->Pool->Info.LiveBytes -= iSize;
 	}
 	pBlock->Class = XRT_NET_BLOCK_FILE;
+	__xrtNetBufPoolLeave(pBlock->Pool);
 	__xrtNetBufLink(pBuffer, pBlock);
 	pBuffer->Size += iSize;
 	return true;

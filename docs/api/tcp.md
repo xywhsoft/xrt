@@ -5193,6 +5193,26 @@ ASan／UBSan。它不运行公网、DNS、扫描、畸形报文或网络安全�
 
 ## 示例与发布门槛
 
+### 原生缓冲拥有图与 `xrtNetStreamSendBytes`
+
+```c
+xnetresult xrtNetStreamSendBytes(xnetstream* stream, xnetbytes* bytes,
+    size_t offset, size_t size);
+```
+
+严格验证字节范围，成功后零拷贝保留指定不可变片段；拒绝／OOM 不消费调用者引用，空发送不增加引用。
+释放行为与 SendTake／SendBuffer 一致：数据确实消费或关闭回收后归还引用，不能仅因调用已返回就释放。
+
+Stream 拥有图现在枚举读写缓冲内每个实际池租约、原生不可变字节以及发送帧确实持有的 Stream 自引用。
+本地复制块不产生额外 Stream 引用；跨线程复制、Take、Bytes 发送帧各持有其构造时取得的一份真实引用。
+SendBuffer 的多个 FIFO 视图共同保留原始块链：第一份尚存视图枚举原始链和批次唯一的 Stream 引用，
+不能把每个视图误算成独立 Stream 引用，也不能漏掉已经发出前缀仍由整批保留的原块。
+块采用原生构造时的内部来源标记，不从任意用户释放回调猜测拥有权；不增加每块引用计数或影子登记表。
+未知 SendRef／SendRefs 上下文、文件块、Future 等待者和上层组合控制器仍拒绝图接纳，不能视为完整托管传输已完成。
+
+专项普通回环测试记录实际留存的写队列数；Linux 必须覆盖全部六种真实留存路径。
+Windows 回环可能立即将数据复制进内核，此时只算接收缓冲与完成释放的验证，不宣称覆盖了留存写队列。
+
 推送模式回环示例位于 `examples/network/tcp/main.c`，聚合服务端示例位于 `examples/network/tcp_server/main.c`，拉取与 Future 请求响应示例位于 `examples/network/tcp_future/main.c`，阻塞 TCP 与托管连接示例位于 `examples/network/tcp_sync/main.c`、`examples/network/tcp_dial_sync/main.c`。测试使用同一契约分别验证 select 和 IOCP，并覆盖慢速对端大块发送、高低水位与 Drain、`ReadLimit` 自动停读和恢复、跨 Worker Accept/Close 排序、有界拉取 Accept 与溢出、多端点共享端口、reuse-port、聚合关闭、连接和 Accept Future、Resolver 合并、缓存命中时的 Worker 内非重入提交、跨线程 Dial 取消、双栈候选竞争、并发连接、结果复制与 Dial OOM、同步超时/取消/关闭竞态、结果 OOM 不消费、协程挂起恢复和单头文件真实收发。
 
 TLS 传输适配已经作为独立 `XRT_FEATURE_TLS_STREAM` 裁剪单元落地，直接使用 `SendBuffer` 把完整密文块链移动到 TCP 队列。`xrtTlsStreamTransport()` 返回的原始 Stream 只供地址、统计和安全 socket 选项查询；直接关闭、收发、替换事件或消费其缓冲会破坏 TLS 组合状态机。更高层协议直接组合 TCP Server 和 TLS Stream，不改变这里的字节流、所有权、背压、等待、Dial 和关闭契约。
