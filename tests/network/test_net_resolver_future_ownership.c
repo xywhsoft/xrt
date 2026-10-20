@@ -225,7 +225,7 @@ static void races(void)
         xrtFutureDestroy(future);balanced(&before);++race_cases;
     }
 }
-typedef struct Probe {unsigned refs; xrtownershipref frame; xnetresolver* resolver; unsigned called;} Probe;
+typedef struct Probe {unsigned refs; xrtownershipref frame; xnetresolver* resolver; unsigned called; xnetresolveop* operation;} Probe;
 static bool probe_count(const void* data,size_t* count)
 {const Probe* probe=data;*count=probe->refs;return probe->refs!=0;}
 static bool probe_trace(const void* data,xrtownershipvisitor visit,ptr other)
@@ -234,11 +234,19 @@ static const xrtownershipops probe_ops={probe_count,probe_trace};
 static int32 probe_thread(ptr data)
 {
     Probe* probe=data;xrtownershipscope freeze={0};freeze_begin(&freeze);size_t count=917;
+    assert(xrtNetResolverFutureOwnershipQuiescenceV1Get()->Ops==probe->frame.Ops);
+    assert(xrtNetResolverFutureOwnershipQuiescenceV1Get()->Busy(probe->frame.Data));
     assert(!probe->frame.Ops->Count(probe->frame.Data,&count)&&count==917);
     const xrtownershippreparationv1* prep=(const xrtownershippreparationv1*)probe;
     assert(!xrtNetResolverFutureOwnershipAdapterV1(probe->frame,&prep)&&prep==(const xrtownershippreparationv1*)probe);
     xrtownershipref resolver=xrtNetResolverOwnership(probe->resolver);
+    assert(xrtNetResolverOwnershipQuiescenceV1Get()->Ops==resolver.Ops);
+    assert(xrtNetResolverOwnershipQuiescenceV1Get()->Busy(resolver.Data));
     assert(!resolver.Ops->Count(resolver.Data,&count)&&count==917);
+    xrtownershipref operation=xrtNetResolveOpOwnership(probe->operation);
+    assert(xrtNetResolveOpOwnershipQuiescenceV1Get()->Ops==operation.Ops);
+    assert(xrtNetResolveOpOwnershipQuiescenceV1Get()->Busy(operation.Data));
+    assert(!operation.Ops->Count(operation.Data,&count)&&count==917);
     assert(xrtOwnershipScopeEnd(&freeze));return 0;
 }
 static void probe_notify(ptr data)
@@ -257,18 +265,22 @@ static void active(void)
     xfuture* future=xrtNetResolveAsync(resolver,"127.0.0.1",XNET_FAMILY_IPV4);assert(future);
     xrtownershipref root=xrtFutureOwnership(future);xrtownershipsnapshot* snapshot=NULL;
     assert(xrtOwnershipSnapshotCreate(&root,1,NULL,0,admit,NULL,&snapshot));
-    Probe probe={1,{0},resolver,0};const xrtownershipadapterv1* frame_adapter=NULL;
+    Probe probe={1,{0},resolver,0,NULL};const xrtownershipadapterv1* frame_adapter=NULL;
     for(size_t i=0;i<xrtOwnershipSnapshotNodeCount(snapshot);++i){
         xrtownershipnode node;const xrtownershippreparationv1* prep=NULL;
         assert(xrtOwnershipSnapshotNode(snapshot,i,&node));
-        frame_adapter=xrtNetResolverFutureOwnershipAdapterV1(node.Reference,&prep);
-        if(frame_adapter){probe.frame=node.Reference;assert(frame_adapter->Hold(probe.frame.Data));break;}
+        const xrtownershipadapterv1* current=xrtNetResolverFutureOwnershipAdapterV1(node.Reference,&prep);
+        if(current){frame_adapter=current;probe.frame=node.Reference;assert(frame_adapter->Hold(probe.frame.Data));}
+        if(node.Reference.Ops==xrtNetResolveOpOwnershipQuiescenceV1Get()->Ops){
+            assert(!probe.operation);probe.operation=xrtNetResolveOpRef((xnetresolveop*)node.Reference.Data);assert(probe.operation);}
     }
-    xrtOwnershipSnapshotDestroy(snapshot);assert(frame_adapter);
+    xrtOwnershipSnapshotDestroy(snapshot);assert(frame_adapter&&probe.operation);
     xfuturewatch watch;assert(xrtFutureWatchInitOwnershipV1(&watch,&probe,&probe_policy));++probe.refs;
     assert(xrtFutureWatchAdd(future,&watch)==XFUTURE_WATCH_PENDING);
     assert(xrtOwnershipScopeEnd(&freeze));assert(xrtNetResolverDestroy(resolver));
     assert(probe.called==1&&probe.refs==1);frame_adapter->Drop(probe.frame.Data);probe.refs=0;
+    freeze_begin(&freeze);assert(!xrtNetResolveOpOwnershipQuiescenceV1Get()->Busy(probe.operation));
+    assert(xrtOwnershipScopeEnd(&freeze));xrtNetResolveOpDestroy(probe.operation);
     xrtFutureDestroy(future);balanced(&before);++active_cases;
 }
 typedef struct Blocked {
@@ -378,6 +390,7 @@ static void exit_observation(void)
     assert(xrtThreadStateTry(item.worker,&state)&&state==XTHREAD_RUNNING);
     assert(!xrtThreadStateTry(NULL,&state)&&state==XTHREAD_RUNNING&&xrtGetError()==marker);
     assert(!ref.Ops->Count(ref.Data,&count)&&count==731&&!prep->Ready(resolver)&&xrtGetError()==marker);
+    assert(xrtNetResolverOwnershipQuiescenceV1Get()->Busy(resolver)&&xrtGetError()==marker);
     assert(xrtOwnershipScopeEnd(&freeze));xrtAtomic32Store(&item.release,1,XMEMORY_RELEASE);
     /* No additional Prepare call: the real completion must become observable
      * by read-only revalidation, or a planner can never schedule its next step. */
@@ -387,6 +400,7 @@ static void exit_observation(void)
         assert(xrtOwnershipScopeEnd(&freeze));assert(!__xrtWaitExpired(deadline));xrtThreadYield();
     }
     assert(count==2&&!prep->Ready(resolver)&&xrtGetError()==marker);
+    assert(!xrtNetResolverOwnershipQuiescenceV1Get()->Busy(resolver)&&xrtGetError()==marker);
     assert(xrtThreadStateTry(item.worker,&state)&&state==XTHREAD_FINISHED);
     assert(xrtOwnershipScopeEnd(&freeze));assert(prep->Prepare(resolver,&item)==XRT_OWNERSHIP_PREPARE_READY);
     assert(xrtGetError()==marker);xrtClearError();xrtErrorFree(marker);

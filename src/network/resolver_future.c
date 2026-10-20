@@ -46,6 +46,18 @@ static bool __xrtNetResolverFutureTrace(const void* data, xrtownershipvisitor vi
 static const xrtownershipops __xrtNetResolverFutureOps = {
     __xrtNetResolverFutureCount, __xrtNetResolverFutureTrace
 };
+static bool __xrtNetResolverFutureBusy(const void* data)
+{
+    const xrt_net_resolver_future* context = data; xrtownershipref watch;
+    return context && !context->Cleared && (context->Publishing || context->Active ||
+        !xrtFutureBridgeWatchOwnershipV1(&context->Bridge, &watch));
+}
+XRT_API const xrtownershipquiescencev1* xrtNetResolverFutureOwnershipQuiescenceV1Get(void)
+{
+    static const xrtownershipquiescencev1 policy = {sizeof(policy),
+        &__xrtNetResolverFutureOps, __xrtNetResolverFutureBusy};
+    return &policy;
+}
 static xrtownershipref __xrtNetResolverFutureOwnership(const xrt_net_resolver_future* context)
 { return (xrtownershipref){context, context ? &__xrtNetResolverFutureOps : NULL}; }
 static bool __xrtNetResolverFutureHold(const void* data)

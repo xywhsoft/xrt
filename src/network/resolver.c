@@ -1622,6 +1622,28 @@ static bool __xrtNetResolverOwnershipTrace(const void* pData, xrtownershipvisito
 	return true;
 }
 static const xrtownershipops __xrtNetResolverOwnershipOps = {__xrtNetResolverOwnershipCount, __xrtNetResolverOwnershipTrace};
+static bool __xrtNetResolverOwnershipBusy(const void* pData)
+{
+	const xnetresolver* pResolver = pData;
+	if (!pResolver || !pResolver->Initialized || pResolver->OwnershipCleared) return false;
+	if (pResolver->Joining || pResolver->Retiring || pResolver->RunningQueries || pResolver->ActiveCallbacks ||
+		pResolver->ParkedWorkers + pResolver->ExitedWorkers != pResolver->StartedThreads ||
+		pResolver->ActiveQueries != pResolver->QueuedQueries) return true;
+	if (pResolver->ExitedWorkers && !pResolver->Joined) {
+		if (pResolver->ExitedWorkers != pResolver->StartedThreads) return true;
+		for (uint32 i = 0; i < pResolver->StartedThreads; ++i) {
+			xthreadstate State;
+			if (!xrtThreadStateTry(pResolver->Threads[i], &State) || State != XTHREAD_FINISHED) return true;
+		}
+	}
+	return false;
+}
+XRT_API const xrtownershipquiescencev1* xrtNetResolverOwnershipQuiescenceV1Get(void)
+{
+	static const xrtownershipquiescencev1 Policy = {sizeof(Policy),
+		&__xrtNetResolverOwnershipOps, __xrtNetResolverOwnershipBusy};
+	return &Policy;
+}
 XRT_API xrtownershipref xrtNetResolverOwnership(const xnetresolver* pResolver)
 { return (xrtownershipref){pResolver, pResolver ? &__xrtNetResolverOwnershipOps : NULL}; }
 static bool __xrtNetResolverHold(const void* pData)
@@ -1716,6 +1738,18 @@ static bool __xrtNetResolveOpOwnershipTrace(const void* pData, xrtownershipvisit
 		(!pOperation->OwnershipPolicy || pVisit((xrtownershipref){pOperation->Data, pOperation->OwnershipPolicy->Ops}, pContext));
 }
 static const xrtownershipops __xrtNetResolveOpOwnershipOps = {__xrtNetResolveOpOwnershipCount, __xrtNetResolveOpOwnershipTrace};
+static bool __xrtNetResolveOpOwnershipBusy(const void* pData)
+{
+	const xnetresolveop* pOperation = pData;
+	return pOperation && !pOperation->OwnershipCleared && (pOperation->CallbackActive ||
+		(xrtAtomic32Load(&pOperation->CallbackClaimed, XMEMORY_ACQUIRE) && !pOperation->CallbackFinished));
+}
+XRT_API const xrtownershipquiescencev1* xrtNetResolveOpOwnershipQuiescenceV1Get(void)
+{
+	static const xrtownershipquiescencev1 Policy = {sizeof(Policy),
+		&__xrtNetResolveOpOwnershipOps, __xrtNetResolveOpOwnershipBusy};
+	return &Policy;
+}
 XRT_API xrtownershipref xrtNetResolveOpOwnership(const xnetresolveop* pOperation)
 { return (xrtownershipref){pOperation, pOperation ? &__xrtNetResolveOpOwnershipOps : NULL}; }
 static bool __xrtNetResolveOpHold(const void* pData) { return xrtNetResolveOpRef((xnetresolveop*)pData) != NULL; }
