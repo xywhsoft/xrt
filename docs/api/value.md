@@ -56,6 +56,14 @@ Release 若释放最后一份代码租约，Release 本身须常驻；XRT 不会
   mutation，须自行遵守其回调边界。原 `Set/SetTake/SetNew` 的防重入合同不变。
 - 标量不可变。`Retain` 共享同一身份，`Clone` 对标量等价于 `Retain`。
 - 非静态值可在发布前用 `xrtValueTypeIdBind` 一次性绑定调用者定义的非零语义类型身份；重复绑定同一值成功，冲突绑定报告 `XERR_STATE`。该身份随浅克隆和深克隆传播，但不改变 XRT 的类别、相等、哈希或序列化语义。
+- `xrtValueScalarDomainBindV1(value, typeId, domain)` 在唯一、尚未发布的标量外壳上
+  一次性绑定非零类型身份及调用者定义的 32 位域标签；查询用 `xrtValueScalarDomainV1`。
+  标签是不可变 POD，无分配、回调或全局登记表。相同二元组可在共享后重复绑定；
+  冲突、共享后的首次绑定、容器和 Handle 均拒绝，失败不改原值。绑定后不能换 TypeId。
+  标量 Clone/DeepClone 保留同一不可变外壳，因此完整保留标签；XRT 不解释位宽、
+  有符号性或语言枚举规则，也不改变自身的相等、哈希、序列化规则。
+  当前 Windows/Linux 64 位 ABI 利用 TypeId 前已有的 4 字节对齐空隙，外壳大小及
+  TypeId/Data 偏移不变；其他 ABI 不保证存在该空隙，外壳仍是不透明实现。
 - 精确 Getter 不做文本解析或隐式类型转换，类型错误报告 `XERR_TYPE`。
 - `xrtValueHash` 只接受可哈希标量，并与数值相等规则保持一致；Pointer 和 Handle 的哈希仅在当前进程内有效，不可持久化或跨进程比较。
 - `xrtValueScalarEqual` 比较标量内容；字符代码、有符号整数、无符号整数与可无损转换的浮点数按精确数值等价，所有 NaN 互相等价。

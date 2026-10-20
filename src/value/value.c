@@ -1117,6 +1117,48 @@ XRT_API uint64 xrtValueTypeId(const xvalue* pValue)
 	return pValue->TypeId;
 }
 
+XRT_API uint32 xrtValueScalarDomainV1(const xvalue* pValue)
+{
+	if (pValue == NULL) return 0;
+	if ((pValue->Flags & XRT_VALUE_FLAG_BUSY) != 0) {
+		__xrtErrorSetInvalidState(); return 0;
+	}
+	return pValue->ScalarDomain;
+}
+
+static bool __xrtOwnershipBody_ValueScalarDomainBindV1(
+	xvalue* pValue, uint64 iTypeId, uint32 iDomain)
+{
+	if (pValue == NULL || iTypeId == 0 || iDomain == 0) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	if ((pValue->Flags & (XRT_VALUE_FLAG_STATIC | XRT_VALUE_FLAG_BUSY |
+		XRT_VALUE_FLAG_FINALIZING | XRT_VALUE_FLAG_OWNERSHIP_CLEARED)) != 0 ||
+		pValue->OwnershipClaim != NULL) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	if (__xrtValueContainerType((xvaluetype)pValue->Type) || pValue->Type == XVALUE_HANDLE) {
+		__xrtErrorSetType(); return false;
+	}
+	if (pValue->ScalarDomain != 0) {
+		if (pValue->ScalarDomain == iDomain && pValue->TypeId == iTypeId) return true;
+		__xrtErrorSetInvalidState(); return false;
+	}
+	if (__xrtAtomicRefLoad(&pValue->RefCount) != 1 ||
+		(pValue->TypeId != 0 && pValue->TypeId != iTypeId)) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	pValue->TypeId = iTypeId;
+	pValue->ScalarDomain = iDomain;
+	return true;
+}
+
+XRT_API bool xrtValueScalarDomainBindV1(xvalue* pValue, uint64 iTypeId, uint32 iDomain)
+{
+	XRT_VALUE_MUTATION_RETURN(bool,
+		__xrtOwnershipBody_ValueScalarDomainBindV1(pValue, iTypeId, iDomain));
+}
+
 
 
 /* 一次性绑定非零语义类型身份，禁止共享值被重新解释。 */
@@ -1159,7 +1201,8 @@ static bool __xrtOwnershipBody_ValueTypeIdRebind(xvalue* pValue, uint64 iTypeId)
 	if ( pValue->TypeId == iTypeId ) {
 		return true;
 	}
-	if ( (pValue->IdentityHash != NULL) || (pValue->IdentityEqual != NULL) ) {
+	if ( pValue->ScalarDomain != 0 ||
+		 (pValue->IdentityHash != NULL) || (pValue->IdentityEqual != NULL) ) {
 		__xrtErrorSetInvalidState();
 		return false;
 	}

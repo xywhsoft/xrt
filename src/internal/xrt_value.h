@@ -35,6 +35,9 @@ struct xvalue {
 	volatile int32 WeakCount;
 	uint16 Type;
 	uint16 Flags;
+	/* Caller-defined immutable scalar domain. Uses the 64-bit ABI alignment
+	 * gap before TypeId; no registry, callback or separately owned metadata. */
+	uint32 ScalarDomain;
 	/* 调用者可选绑定的不可变语义类型身份；零表示未绑定。 */
 	uint64 TypeId;
 	/* 可选语义值身份策略；函数和用户数据随外壳 Clone 传播。 */

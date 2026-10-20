@@ -13016,11 +13016,13 @@
 			],
 			"tests": [
 				"tests/value/test_value.c",
+				"tests/value/test_value_scalar_domain.c",
 				"tests/value/test_value_handle.c",
 				"tests/value/test_value_oom.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_value.c"
+				"tests/single/test_single_value.c",
+				"tests/single/test_single_value_scalar_domain.c"
 			],
 			"examples": [
 				"examples/value/basic/main.c",
@@ -13130,12 +13132,14 @@
 			],
 			"tests": [
 				"tests/value/test_value_graph.c",
+				"tests/value/test_value_scalar_domain.c",
 				"tests/value/test_value_graph_contract.c",
 				"tests/value/test_value_graph_oom.c",
 				"tests/value/test_value_key_callback_errors.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_value_graph.c",
+				"tests/single/test_single_value_scalar_domain.c",
 				"tests/single/test_single_value_key_callback_errors.c"
 			],
 			"examples": [
