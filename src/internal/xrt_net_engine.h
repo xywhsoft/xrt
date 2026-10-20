@@ -173,6 +173,8 @@ struct xnetengine {
 	bool ResourcesRetired;
 	bool OwnershipCleared;
 	const void* OwnershipClaim;
+	ptr ExitData;
+	const xnetengineworkerexitownershipv1* ExitPolicy;
 	xnetengineconfig Config;
 	xnetbufpoolconfig BufferConfig;
 	xnetworker* Workers;

@@ -114,7 +114,8 @@
 			"internal_headers": [],
 			"sources": [],
 			"tests": [
-				"tests/network/test_net_engine_ownership.c"
+				"tests/network/test_net_engine_ownership.c",
+				"tests/network/test_net_engine_managed.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_net_engine_ownership.c"

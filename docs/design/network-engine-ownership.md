@@ -59,3 +59,38 @@ no fabricated internal slot or reference-count subtraction is used.
 Verification evidence is recorded by DEMO6's v212 private candidate runner.
 These focused results are not a full native/library/module completion claim.
 No production amalgamation or release DLL is replaced by this native candidate.
+
+## Managed worker exit and restartable stop (2026-10-20)
+
+`xrtNetEngineCreateOwnedExitV1` transfers one context only on successful
+creation. The exact permanent policy has an Exit callback on every actual
+worker, including partially started engines, and a single Drop after physical
+run-resource retirement. Stop/restart does not drop the context. Worker identity
+remains available through Exit and TLS cleanup; neither a parked marker nor a
+finished callback body substitutes for actual native thread completion.
+
+`xrtNetEngineOwnershipAdapterV2` requires the exact admitted exit-policy pointer
+before following its one context edge. V1 remains valid for ordinary engines
+but refuses the new context without invoking its Count/Trace callbacks. Drop
+runs outside the lifecycle lock and ownership mutation, while Retiring still
+prevents reentrant consumption. Clear/Finish still do not consume the creator.
+
+`xrtNetEngineTryStop` is nonwaiting and nonconsuming. Live objects keep the
+engine running and return BUSY; otherwise it progresses STOPPING to STOPPED,
+allowing restart only after real worker exits, joins and run-resource cleanup.
+BUSY/READY preserve the ambient error. Failure preserves the pending object
+for explicit retry. Callers serialize lifecycle controls. Between joining
+steps, pending STOPPING can enter the ownership graph only if all existing
+worker/queue/timer/port/pool checks also pass; it is not blanket-quiescent.
+
+`xrtNetEngineGetConfig` copies requested settings and buffer-pool values into
+caller storage, never publishing an internal pointer. Actual per-worker backend
+metadata is separate: `xrtNetEngineBackendInfo` only reads a stable running
+worker's port and does not expose the raw-port capability or disable collection.
+Compiled driver metadata is not proof that a backend can start on a host.
+
+Focused GCC/TCC O0/O2 Windows/Linux tests cover the old graph contract, new exit
+tails, stop/restart, pending-stop graph adoption, exact policy refusal, requested
+versus actual backend, failed creation/start prefixes and balanced memory.
+This is lifecycle acceptance without sockets, network traffic or security tests;
+it does not certify the future language Engine facade or complete transports.
