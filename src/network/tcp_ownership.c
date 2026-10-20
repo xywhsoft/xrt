@@ -98,7 +98,7 @@ static bool __xrtNetStreamCount(const void* pData, size_t* pCount)
 			pStream->Control.Release || pStream->Control.Data) return false;
 	#endif
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
-		if (pStream->WaitHead || pStream->WaitTail || pStream->WaitPosted || pStream->ReadWaiters) return false;
+		if (!__xrtNetStreamWaitOwnershipWalk(pStream, NULL, NULL)) return false;
 	#endif
 	if (__xrtNetStreamPrepared(pData)) {
 		if (pStream->RuntimeHeld || pStream->EngineHeld || pStream->RuntimeOwner.Data || pStream->RuntimeOwner.Previous ||
@@ -116,6 +116,9 @@ static bool __xrtNetStreamTrace(const void* pData, xrtownershipvisitor pVisit, p
 	if (!pVisit || !__xrtNetStreamCount(pData, &iCount) ||
 		(pStream->EngineHeld && !pVisit(xrtNetEngineOwnership(pStream->Engine), pContext))) return false;
 	if (!__xrtNetStreamBuffersOwnership(pStream, pVisit, pContext)) return false;
+	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
+		if (!__xrtNetStreamWaitOwnershipWalk(pStream, pVisit, pContext)) return false;
+	#endif
 	/* Diagnostics are real immutable Error/Cause owners too. Static errors
 	 * have an empty view; ordinary errors must not become unreported roots.
 	 * This DAG cannot point back to a stream and remains owned until last Drop,
@@ -133,7 +136,7 @@ static bool __xrtNetListenerCount(const void* pData, size_t* pCount)
 		!__xrtNetTcpEventsEmpty(&pListener->StreamEvents) || pListener->StartPending ||
 		xrtAtomic32Load(&pListener->ActiveDispatches, XMEMORY_ACQUIRE)) return false;
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
-		if (pListener->WaitHead || pListener->WaitTail || xrtAtomic32Load(&pListener->AcceptWaiters, XMEMORY_ACQUIRE)) return false;
+		if (!__xrtNetListenerWaitOwnershipWalk(pListener, NULL, NULL)) return false;
 	#endif
 	size_t iQueued = xrtAtomic32Load(&pListener->QueuedAccepts, XMEMORY_ACQUIRE), iSeen = 0;
 	const xnetstream* pTail = NULL;
@@ -161,6 +164,9 @@ static bool __xrtNetListenerTrace(const void* pData, xrtownershipvisitor pVisit,
 	 * link between those slots, never a second strong edge between streams. */
 	for (const xnetstream* pStream = pListener->AcceptHead; pStream; pStream = pStream->AcceptNext)
 		if (!pVisit(xrtNetStreamOwnership(pStream), pContext)) return false;
+	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
+		if (!__xrtNetListenerWaitOwnershipWalk(pListener, pVisit, pContext)) return false;
+	#endif
 	return true;
 }
 const xrtownershipops __xrtNetListenerOwnershipOps = {__xrtNetListenerCount, __xrtNetListenerTrace};

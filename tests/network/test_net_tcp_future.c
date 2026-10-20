@@ -16,6 +16,7 @@ typedef struct testtcpfuture {
 	xatomic32 Opened;
 	xatomic32 Ended;
 	xatomic32 Closed;
+	xatomic32 CacheIdle;
 } testtcpfuture;
 
 
@@ -125,6 +126,14 @@ static bool testTcpFutureAccept(
 }
 
 
+
+/* Future 终态可先于生产者返回；同 Worker 的 FIFO 屏障才证明缓存已归还。 */
+static void testTcpFutureCacheIdle(xnetworker* pWorker, ptr pData)
+{
+	(void)pWorker;
+	testtcpfuture* pContext = (testtcpfuture*)pData;
+	xrtAtomic32Store(&pContext->CacheIdle, 1, XMEMORY_RELEASE);
+}
 
 /* 验证 Future 成功值是一份指定内容的借用字节视图。 */
 static void testTcpFutureBytes(
@@ -257,6 +266,10 @@ int main(void)
 		 (xrtFutureWaitFor(pWrite, 5000) == XWAIT_OK) &&
 		 (xrtFutureState(pWrite) == XFUTURE_RESOLVED),
 		"TCP writable Future failed");
+	testRequire(xrtNetEnginePost(pEngine, 1, testTcpFutureCacheIdle, &Context),
+		"TCP Future cache barrier post failed");
+	testTcpFutureWait(&Context.CacheIdle, 1,
+		"TCP Future producer did not return before cache check");
 	testRequire(xrtNetEngineStats(pEngine, &EngineStats),
 		"TCP Future node cache initial stats failed");
 	iNodeHits = EngineStats.NodeCacheHits;

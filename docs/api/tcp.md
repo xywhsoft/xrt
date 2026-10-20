@@ -5181,8 +5181,8 @@ Prepare 不等待，也不把排队成功误当成完成。它只发布借用原
 避免悬空命令。实际端口完成、计时器终态、缓冲归还、通知和运行时槽摘除完成后才发布 Ready。
 协调器每次推进后必须重新取得静止点、检查真实图，不能沿用旧快照。
 
-当前 V1 只准入能够完整证明的无用户回调／无 Data、空缓冲、无活动 Future 等待的原生状态。
-拨号控制器、带缓冲传输、Future 节点及任意用户上下文尚未取得完整合同，因此仍明确拒绝，
+当前 V1 只准入能够完整证明的无用户回调／无 Data、已认证缓冲及 Future 等待的原生状态。
+拨号控制器、未认证缓冲和任意用户上下文尚未取得完整合同，因此仍明确拒绝，
 不把它们伪装成叶子对象。这是后续受管理传输的原生前置，不代表整个 xlang TCP 接入完成。
 外部调用和取消回调以真实接收者引用维持调用期，并登记完整元数据修改区间；不跨回调持有图锁。
 原有普通 C 调用仍须保证 Engine 销毁与外部使用者静止，不得把借用 Worker 当成独立所有者。
@@ -5208,10 +5208,38 @@ Stream 拥有图现在枚举读写缓冲内每个实际池租约、原生不可�
 SendBuffer 的多个 FIFO 视图共同保留原始块链：第一份尚存视图枚举原始链和批次唯一的 Stream 引用，
 不能把每个视图误算成独立 Stream 引用，也不能漏掉已经发出前缀仍由整批保留的原块。
 块采用原生构造时的内部来源标记，不从任意用户释放回调猜测拥有权；不增加每块引用计数或影子登记表。
-未知 SendRef／SendRefs 上下文、文件块、Future 等待者和上层组合控制器仍拒绝图接纳，不能视为完整托管传输已完成。
+未知 SendRef／SendRefs 上下文、文件块和上层组合控制器仍拒绝图接纳，不能视为完整托管传输已完成。
 
 专项普通回环测试记录实际留存的写队列数；Linux 必须覆盖全部六种真实留存路径。
 Windows 回环可能立即将数据复制进内核，此时只算接收缓冲与完成释放的验证，不宣称覆盖了留存写队列。
+
+### TCP Future 的真实生产者与终态结果
+
+`xrtNetTcpFutureProducerPolicyV1Get`、`xrtNetTcpFutureCancelPolicyV1Get` 返回等待激活的
+精确生产者／取消监听合同；`xrtNetTcpFutureBytesPayloadPolicyV1Get`、
+`xrtNetTcpFutureStreamPayloadPolicyV1Get` 返回接收字节／已接受 Stream 的终态结果合同。
+这些常驻描述符按身份准入，复制结构体不能冒充能力。应分别传入 Future V4、Cancel V2、
+CancelWatch V1 的允许集；源 Stream／Listener 可追踪等待节点，不代表所有子节点自动获得准入。
+
+一个物理等待激活分别由等待链、Future 生产者槽和取消 Watch.Data 各拥有一次真实引用；
+激活本身保留源对象、缓存分配器 Engine 租约、Promise 和 Watch 登记端点。
+Promise 与 Future 是同一物理身份，链表 Next 不是额外拥有引用，Cancel 的链接也不是 Watch 的拥有槽。
+不增加单独激活分配或每节点锁，Listener 和 Stream 等待节点仍分别位于 64／128 字节缓存档。
+
+`xrtNetTcpFutureOwnershipQuiescenceV1Get`、`xrtNetTcpFutureOwnershipAdapterV1` 只用于这些真实
+激活节点。调用期间或发布中返回忙；Prepare 是有界、非等待的观察，不偷偷取消已受理的工作。
+完整图内的源对象按正常原生关闭／通知推进，激活解除 Watch、交付 Promise 终态、归还源引用后才 Ready。
+生产者 Drop 仅消费真实引用，不把“断开拥有槽”解释为取消或 Future 完成。
+
+普通最后引用归还缓存；若收集器等确实保活了已完成激活，立即归还缓存分配器的 Engine 租约，
+留下无源对象、无 Promise、无 Watch 的惰性外壳，避免 Engine 退役反过来等待协调器销毁节点。
+非最后一次 Drop 不再访问可能由另一线程最终释放的节点。取消只结束当前等待，不关闭底层传输。
+已完成接收 Future 只拥有不可变字节，已取消 Future 不再拥有传输；已接受结果则实际拥有 Stream。
+
+`tools/check_net_tcp_future_ownership.py` 批量运行精确图、普通收发、Accept、并发取消／关闭、
+分配失败恢复和模块化／单头验证，包括 select、Windows IOCP／Linux epoll、GCC／TCC 和 Linux
+实际闭包 ASan／UBSan；每个输入、日志和产物均记录摘要。它不运行网络安全专项测试，也不等于
+xlang 全部受管理 TCP 或发布 DLL／SO 已完成验收。
 
 推送模式回环示例位于 `examples/network/tcp/main.c`，聚合服务端示例位于 `examples/network/tcp_server/main.c`，拉取与 Future 请求响应示例位于 `examples/network/tcp_future/main.c`，阻塞 TCP 与托管连接示例位于 `examples/network/tcp_sync/main.c`、`examples/network/tcp_dial_sync/main.c`。测试使用同一契约分别验证 select 和 IOCP，并覆盖慢速对端大块发送、高低水位与 Drain、`ReadLimit` 自动停读和恢复、跨 Worker Accept/Close 排序、有界拉取 Accept 与溢出、多端点共享端口、reuse-port、聚合关闭、连接和 Accept Future、Resolver 合并、缓存命中时的 Worker 内非重入提交、跨线程 Dial 取消、双栈候选竞争、并发连接、结果复制与 Dial OOM、同步超时/取消/关闭竞态、结果 OOM 不消费、协程挂起恢复和单头文件真实收发。
 

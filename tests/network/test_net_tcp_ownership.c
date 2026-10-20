@@ -138,7 +138,8 @@ static void create(TcpGraph* graph, xnetportbackend backend, bool future)
 			CHECK(xrtOwnershipScopeEnd(&freeze)); CHECK(!__xrtWaitExpired(deadline)); xrtThreadYield();
 		}
 		xrtownershipref ref = xrtNetListenerOwnership(graph->listener); size_t count = 123;
-		CHECK(!ref.Ops->Count(ref.Data, &count) && count == 123);
+		CHECK(ref.Ops->Count(ref.Data, &count) && count == 3);
+		CHECK(!xrtFutureOwnershipAdapterV1(xrtFutureOwnership(pending), NULL, 0));
 		CHECK(xrtOwnershipScopeEnd(&freeze));
 		CHECK(xrtFutureCancel(pending)); xrtFutureDestroy(pending); ++future_cases;
 	}
@@ -280,9 +281,10 @@ static void lifecycle(xnetportbackend backend, bool timers, bool future, bool er
 			CHECK(xrtOwnershipScopeEnd(&freeze)); CHECK(!__xrtWaitExpired(deadline)); xrtThreadYield();
 		}
 		size_t count = 123;
-		CHECK(!graph.refs[2].Ops->Count(graph.refs[2].Data, &count) && count == 123);
+		CHECK(graph.refs[2].Ops->Count(graph.refs[2].Data, &count) && count == 3);
 		const xrtownershippreparationv1* unchanged = (const xrtownershippreparationv1*)&graph;
-		CHECK(!xrtNetStreamOwnershipAdapterV1(graph.refs[2], &unchanged) && unchanged == (const xrtownershippreparationv1*)&graph);
+		CHECK(xrtNetStreamOwnershipAdapterV1(graph.refs[2], &unchanged) && unchanged != (const xrtownershippreparationv1*)&graph);
+		CHECK(!xrtFutureOwnershipAdapterV1(xrtFutureOwnership(pending), NULL, 0));
 		CHECK(xrtOwnershipScopeEnd(&freeze));
 		CHECK(xrtFutureCancel(pending)); xrtFutureDestroy(pending); ++future_cases;
 	}

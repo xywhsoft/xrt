@@ -330,6 +330,8 @@ xnetstream* __xrtNetListenerTakeQueued(xnetlistener* pListener);
 
 
 #if defined(XRT_FEATURE_NET_TCP_FUTURE)
+bool __xrtNetStreamWaitOwnershipWalk(const xnetstream*, xrtownershipvisitor, ptr);
+bool __xrtNetListenerWaitOwnershipWalk(const xnetlistener*, xrtownershipvisitor, ptr);
 /* 在所属 Worker 上推进已经登记的 Stream Future。 */
 void __xrtNetStreamFutureNotify(xnetstream* pStream, bool bDriveRead);
 
