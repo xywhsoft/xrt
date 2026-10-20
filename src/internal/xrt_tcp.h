@@ -129,6 +129,12 @@ struct __xrt_net_stream_control {
 
 /* Stream 的可变 IO 状态只由所属 Worker 访问。 */
 struct xnetstream {
+	__xrt_net_engine_runtime RuntimeOwner;
+	xatomicptr OwnershipClaim;
+	xatomic32 OwnershipState;
+	xatomic32 OwnershipActive;
+	xatomic32 OwnershipStop;
+	__xrt_net_engine_internal OwnershipCommand;
 	volatile int32 References;
 	xatomic32 State;
 	xatomic32 ReadPaused;
@@ -208,6 +214,12 @@ struct xnetstream {
 
 /* Listener 固定在一个 Worker，接受结果可以分发到任意 Worker。 */
 struct xnetlistener {
+	__xrt_net_engine_runtime RuntimeOwner;
+	xatomicptr OwnershipClaim;
+	xatomic32 OwnershipState;
+	xatomic32 OwnershipActive;
+	xatomic32 OwnershipStop;
+	__xrt_net_engine_internal OwnershipCommand;
 	volatile int32 References;
 	xatomic32 State;
 	xatomic64 Accepted;
@@ -248,6 +260,19 @@ struct xnetlistener {
 };
 
 
+
+/* Short mutation-domain entries publish native call borrows. No domain lock is
+ * held across allocation, IO, cancellation notification or a user callback.
+ * The caller must keep a real receiver reference through Leave. */
+enum { XRT_NET_TCP_OWNERSHIP_READY = 1u, XRT_NET_TCP_OWNERSHIP_CLEARED = 2u };
+extern const xrtownershipops __xrtNetStreamOwnershipOps;
+extern const xrtownershipops __xrtNetListenerOwnershipOps;
+bool __xrtNetStreamOwnershipEnter(xnetstream* pStream, bool bSubmit);
+void __xrtNetStreamOwnershipLeave(xnetstream* pStream);
+bool __xrtNetListenerOwnershipEnter(xnetlistener* pListener, bool bSubmit);
+void __xrtNetListenerOwnershipLeave(xnetlistener* pListener);
+bool __xrtNetStreamOwnershipStop(xnetstream* pStream);
+bool __xrtNetListenerOwnershipStop(xnetlistener* pListener);
 
 /* 接收缓冲被消费后刷新并发快照和自动读背压。 */
 void __xrtNetStreamReadRefresh(xnetstream* pStream, bool bDrive);

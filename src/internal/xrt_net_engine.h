@@ -15,6 +15,18 @@ typedef struct __xrt_net_engine_command __xrt_net_engine_command;
 typedef struct __xrt_net_engine_timer __xrt_net_engine_timer;
 typedef struct __xrt_net_engine_internal __xrt_net_engine_internal;
 typedef struct __xrt_net_engine_node __xrt_net_engine_node;
+typedef struct __xrt_net_engine_runtime __xrt_net_engine_runtime;
+
+/* Actual intrusive owning slots for protocol runtime references. Previous is
+ * a structural backlink, not a second owner. Taking a slot NULLs Data and
+ * transfers its reference to the caller, which must Release it outside locks. */
+struct __xrt_net_engine_runtime {
+	xnetengine* Engine;
+	__xrt_net_engine_runtime* Next;
+	__xrt_net_engine_runtime** Previous;
+	ptr Data;
+	const xnetruntimeownershipv1* Policy;
+};
 
 
 
@@ -85,6 +97,7 @@ struct __xrt_net_engine_timer {
 	ptr Data;
 	size_t HeapIndex;
 	const xnettimerownershipv1* OwnershipPolicy;
+	const xnetruntimeownershipv1* RuntimePolicy;
 };
 
 
@@ -184,7 +197,21 @@ struct xnetengine {
 	xatomic32 LiveObjects;
 	xatomic64 NextTimer;
 	xatomic64 NextOperation;
+	__xrt_net_engine_runtime* RuntimeOwners;
+	size_t RuntimeOwnerCount;
 };
+
+bool __xrtNetEngineRuntimeAdopt(xnetengine*, __xrt_net_engine_runtime*,
+	ptr, const xnetruntimeownershipv1*);
+ptr __xrtNetEngineRuntimeTake(xnetengine*, __xrt_net_engine_runtime*,
+	const xnetruntimeownershipv1**);
+/* Same bounded queue and execution semantics as Post, but the native-only
+ * transition marker keeps inspection BUSY until dispatch; no context inference. */
+bool __xrtNetEnginePostRuntime(xnetengine*, uint64, xnettaskproc, ptr);
+/* Current worker only, immediately after successful After. No time conversion,
+ * allocation, callback or ownership transfer; the native callback already owns
+ * and consumes the exact reference described by this resident family. */
+bool __xrtNetEngineRuntimeTimer(xnetworker*, uint64, const xnetruntimeownershipv1*);
 
 
 

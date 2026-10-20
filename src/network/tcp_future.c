@@ -205,11 +205,13 @@ static void __xrtNetListenerWaitFinish(
 {
 	xnetlistener* pListener = pWaiter->Listener;
 	xpromise* pPromise = pWaiter->Promise;
+	if (!__xrtNetListenerOwnershipEnter(pListener, false)) abort();
 
 	xrtCancelUnwatch(pWaiter->Watch);
 	pWaiter->Watch = NULL;
 	pWaiter->Promise = NULL;
 	__xrtNetListenerWaitRecycle(pListener, pWaiter);
+	__xrtNetListenerOwnershipLeave(pListener);
 	xrtNetListenerDestroy(pListener);
 	if ( pStream != NULL ) {
 		if ( !xrtPromiseResolveOwned(
@@ -262,10 +264,12 @@ static void __xrtNetListenerWaitCancel(ptr pData)
 	xnetlistener* pListener = pWaiter->Listener;
 	bool bRemoved;
 
+	if (!__xrtNetListenerOwnershipEnter(pListener, false)) abort();
 	__xrtSpinLock(&pListener->AcceptLock);
 	bRemoved = pWaiter->Linked &&
 		__xrtNetListenerWaitRemove(pListener, pWaiter);
 	__xrtSpinUnlock(&pListener->AcceptLock);
+	__xrtNetListenerOwnershipLeave(pListener);
 	if ( bRemoved ) {
 		__xrtNetListenerWaitFinish(pWaiter, NULL, true);
 	}
@@ -313,7 +317,7 @@ void __xrtNetListenerFutureNotify(xnetlistener* pListener)
 
 
 /* 建立一个 Listener 拉取 Accept Future。 */
-XRT_API xfuture* xrtNetListenerAcceptAsync(xnetlistener* pListener)
+static xfuture* __xrtNetListenerAcceptAsync(xnetlistener* pListener)
 {
 	__xrt_net_listener_wait* pWaiter;
 	xnetlistener* pOwned;
@@ -418,6 +422,13 @@ XRT_API xfuture* xrtNetListenerAcceptAsync(xnetlistener* pListener)
 	return pFuture;
 }
 
+XRT_API xfuture* xrtNetListenerAcceptAsync(xnetlistener* pListener)
+{
+	if (!__xrtNetListenerOwnershipEnter(pListener, true)) return NULL;
+	xfuture* pFuture = __xrtNetListenerAcceptAsync(pListener);
+	__xrtNetListenerOwnershipLeave(pListener);
+	return pFuture;
+}
 
 
 /* 返回 Stream 终止原因对应的统一 Future 结果。 */
@@ -698,6 +709,7 @@ static bool __xrtNetStreamWaitFinish(
 	xerror* pError = NULL;
 	bool bConsumed = false;
 
+	if (!__xrtNetStreamOwnershipEnter(pStream, false)) abort();
 	if ( Result == __XRT_NET_STREAM_WAIT_RECEIVE ) {
 		pBytes = __xrtNetStreamWaitReceive(
 			pWaiter,
@@ -711,6 +723,7 @@ static bool __xrtNetStreamWaitFinish(
 	pWaiter->Watch = NULL;
 	pWaiter->Promise = NULL;
 	__xrtNetStreamWaitRecycle(pStream, pWaiter);
+	__xrtNetStreamOwnershipLeave(pStream);
 	xrtNetStreamDestroy(pStream);
 	if ( Result == __XRT_NET_STREAM_WAIT_READY ) {
 		(void)xrtPromiseResolve(pPromise, NULL);
@@ -756,10 +769,12 @@ static void __xrtNetStreamWaitCancel(ptr pData)
 	xnetstream* pStream = pWaiter->Stream;
 	bool bRemoved;
 
+	if (!__xrtNetStreamOwnershipEnter(pStream, false)) abort();
 	__xrtSpinLock(&pStream->WaitLock);
 	bRemoved = pWaiter->Linked &&
 		__xrtNetStreamWaitRemove(pStream, pWaiter);
 	__xrtSpinUnlock(&pStream->WaitLock);
+	__xrtNetStreamOwnershipLeave(pStream);
 	if ( bRemoved ) {
 		(void)__xrtNetStreamWaitFinish(
 			pWaiter,
@@ -815,7 +830,7 @@ static void __xrtNetStreamWaitTask(xnetworker* pWorker, ptr pData)
 
 
 /* 建立 Promise、取消监听和 Stream 等待节点。 */
-static xfuture* __xrtNetStreamWaitCreate(
+static xfuture* __xrtNetStreamWaitCreateImpl(
 	xnetstream* pStream,
 	xnetstreamwait Wait,
 	bool bReceive,
@@ -948,6 +963,14 @@ static xfuture* __xrtNetStreamWaitCreate(
 	return pFuture;
 }
 
+static xfuture* __xrtNetStreamWaitCreate(xnetstream* pStream,
+	xnetstreamwait Wait, bool bReceive, size_t iMaxBytes, size_t iMinimumBytes)
+{
+	if (!__xrtNetStreamOwnershipEnter(pStream, true)) return NULL;
+	xfuture* pFuture = __xrtNetStreamWaitCreateImpl(pStream, Wait, bReceive, iMaxBytes, iMinimumBytes);
+	__xrtNetStreamOwnershipLeave(pStream);
+	return pFuture;
+}
 
 
 /* 建立一个统一 Stream 条件 Future。 */

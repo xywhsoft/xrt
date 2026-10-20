@@ -324,8 +324,12 @@ XRT_API void xrtNetListenConfigInit(xnetlistenconfig* pConfig)
 /* 增加 Stream 引用。 */
 XRT_API xnetstream* xrtNetStreamRef(xnetstream* pStream)
 {
-	if ( (pStream == NULL) ||
-		 (xrtRefRetain(&pStream->References) < 0) ) {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
+	bool bHeld = pStream && !(xrtAtomic32Load(&pStream->OwnershipState, XMEMORY_ACQUIRE) & XRT_NET_TCP_OWNERSHIP_CLEARED) &&
+		xrtRefRetain(&pStream->References) >= 0;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if ( !bHeld ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
@@ -362,7 +366,12 @@ XRT_API void xrtNetStreamDestroy(xnetstream* pStream)
 	if ( pStream == NULL ) {
 		return;
 	}
-	if ( xrtRefRelease(&pStream->References) != 0 ) {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	bool bLast = xrtRefRelease(&pStream->References) == 0;
+	if (bLast && (pStream->RuntimeOwner.Data || pStream->RuntimeOwner.Previous)) abort();
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if ( !bLast ) {
 		return;
 	}
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
@@ -378,8 +387,12 @@ XRT_API void xrtNetStreamDestroy(xnetstream* pStream)
 /* 增加 Listener 引用。 */
 XRT_API xnetlistener* xrtNetListenerRef(xnetlistener* pListener)
 {
-	if ( (pListener == NULL) ||
-		 (xrtRefRetain(&pListener->References) < 0) ) {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
+	bool bHeld = pListener && !(xrtAtomic32Load(&pListener->OwnershipState, XMEMORY_ACQUIRE) & XRT_NET_TCP_OWNERSHIP_CLEARED) &&
+		xrtRefRetain(&pListener->References) >= 0;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if ( !bHeld ) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
@@ -394,7 +407,12 @@ XRT_API void xrtNetListenerDestroy(xnetlistener* pListener)
 	if ( pListener == NULL ) {
 		return;
 	}
-	if ( xrtRefRelease(&pListener->References) != 0 ) {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	bool bLast = xrtRefRelease(&pListener->References) == 0;
+	if (bLast && (pListener->RuntimeOwner.Data || pListener->RuntimeOwner.Previous)) abort();
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if ( !bLast ) {
 		return;
 	}
 	__xrtSpinUnit(&pListener->AcceptLock);
@@ -485,6 +503,7 @@ XRT_API xnetstream* xrtNetListenerAccept(xnetlistener* pListener)
 		);
 		return NULL;
 	}
+	if (!__xrtNetListenerOwnershipEnter(pListener, true)) return NULL;
 	__xrtSpinLock(&pListener->AcceptLock);
 	if ( xrtAtomic32Load(
 		&pListener->AcceptWaiters,
@@ -495,6 +514,7 @@ XRT_API xnetstream* xrtNetListenerAccept(xnetlistener* pListener)
 		pStream = __xrtNetListenerTakeQueued(pListener);
 	}
 	__xrtSpinUnlock(&pListener->AcceptLock);
+	__xrtNetListenerOwnershipLeave(pListener);
 	if ( bWaiting ) {
 		__xrtNetStreamSetError(
 			XERR_STATE,
@@ -598,6 +618,12 @@ static void __xrtNetStreamWakeLifecycle(xnetstream* pStream)
 /* 进入跨线程发送提交区，阻止关闭过程越过已开始的提交。 */
 static bool __xrtNetStreamBeginSend(xnetstream* pStream)
 {
+	if (!__xrtNetStreamOwnershipEnter(pStream, true)) return false;
+	/* A terminal shell can outlive its Engine; do not consult Worker then. */
+	if (xrtNetStreamState(pStream) == XNET_STREAM_CLOSED) {
+		__xrtNetStreamOwnershipLeave(pStream);
+		return false;
+	}
 	bool bWorker = xrtNetWorkerIsCurrent(pStream->Worker);
 	xnetstreamstate State;
 
@@ -614,9 +640,7 @@ static bool __xrtNetStreamBeginSend(xnetstream* pStream)
 		 xrtAtomic32Load(&pStream->WriteGate, XMEMORY_ACQUIRE) ||
 		 xrtAtomic32Load(&pStream->CloseGate, XMEMORY_ACQUIRE) ||
 		 xrtAtomic32Load(&pStream->AbortGate, XMEMORY_ACQUIRE) ) {
-		if ( !bWorker ) {
-			__xrtNetStreamEndSend(pStream);
-		}
+		__xrtNetStreamEndSend(pStream);
 		return false;
 	}
 	return true;
@@ -638,6 +662,7 @@ static void __xrtNetStreamEndSend(xnetstream* pStream)
 			__xrtNetStreamWakeLifecycle(pStream);
 		}
 	}
+	__xrtNetStreamOwnershipLeave(pStream);
 }
 
 
@@ -1099,13 +1124,37 @@ static void __xrtNetStreamReleaseRuntime(xnetstream* pStream)
 	if ( !pStream->RuntimeHeld ) {
 		return;
 	}
-	if ( pStream->ActiveDepth != 0 ) {
+	if ( pStream->ActiveDepth != 0 || xrtAtomic32Load(&pStream->OwnershipStop, XMEMORY_ACQUIRE) ) {
 		pStream->ReleasePending = true;
 		return;
 	}
 	pStream->ReleasePending = false;
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	const xnetruntimeownershipv1* pPolicy = NULL;
+	ptr pOwned = __xrtNetEngineRuntimeTake(pStream->Engine, &pStream->RuntimeOwner, &pPolicy);
+	if (pOwned != pStream || !pPolicy) abort();
 	pStream->RuntimeHeld = false;
-	xrtNetStreamDestroy(pStream);
+	__xrtNetStreamReleaseEngine(pStream);
+	xrtAtomic32Store(&pStream->OwnershipState, XRT_NET_TCP_OWNERSHIP_READY, XMEMORY_RELEASE);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	pPolicy->Release(pOwned);
+}
+
+static void __xrtNetListenerReleaseRuntime(xnetlistener* pListener)
+{
+	if (!pListener->RuntimeHeld) return;
+	if (xrtAtomic32Load(&pListener->OwnershipStop, XMEMORY_ACQUIRE)) return;
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	const xnetruntimeownershipv1* pPolicy = NULL;
+	ptr pOwned = __xrtNetEngineRuntimeTake(pListener->Engine, &pListener->RuntimeOwner, &pPolicy);
+	if (pOwned != pListener || !pPolicy) abort();
+	pListener->RuntimeHeld = false;
+	__xrtNetListenerReleaseEngine(pListener);
+	xrtAtomic32Store(&pListener->OwnershipState, XRT_NET_TCP_OWNERSHIP_READY, XMEMORY_RELEASE);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	pPolicy->Release(pOwned);
 }
 
 
@@ -1367,7 +1416,9 @@ static void __xrtNetStreamTryFinish(xnetstream* pStream)
 		pStream->WaitClosed = true;
 		__xrtSpinUnlock(&pStream->WaitLock);
 	#endif
-	__xrtNetStreamReleaseEngine(pStream);
+	/* A queued retirement frame borrows the runtime slot and its Engine.
+	 * Otherwise preserve the existing close-callback/Engine join ordering. */
+	if (!xrtAtomic32Load(&pStream->OwnershipStop, XMEMORY_ACQUIRE)) __xrtNetStreamReleaseEngine(pStream);
 	xrtAtomic32Store(
 		&pStream->State,
 		XNET_STREAM_CLOSED,
@@ -2413,6 +2464,12 @@ static xnetstream* __xrtNetStreamCreate(
 		return NULL;
 	}
 	pStream->References = 2;
+	xrtAtomicPtrInit(&pStream->OwnershipClaim, NULL);
+	xrtAtomic32Init(&pStream->OwnershipState, 0);
+	/* Construction remains a native call borrow until the public creator has
+	 * finished publishing its fields and startup command. */
+	xrtAtomic32Init(&pStream->OwnershipActive, 1);
+	xrtAtomic32Init(&pStream->OwnershipStop, 0);
 	xrtAtomic32Init(&pStream->State, XNET_STREAM_CONNECTING);
 	xrtAtomic32Init(&pStream->ReadPaused, 0);
 	xrtAtomic32Init(&pStream->ControlRequests, 0);
@@ -2455,6 +2512,12 @@ static xnetstream* __xrtNetStreamCreate(
 		__xrtNetStreamCompletion,
 		pStream
 	);
+	if (!__xrtNetEngineRuntimeAdopt(pEngine, &pStream->RuntimeOwner, pStream, xrtNetStreamRuntimeOwnershipV1Get())) {
+		pStream->RuntimeHeld = false;
+		__xrtNetStreamOwnershipLeave(pStream);
+		xrtNetStreamDestroy(pStream); xrtNetStreamDestroy(pStream);
+		return NULL;
+	}
 	return pStream;
 }
 
@@ -2503,6 +2566,7 @@ static void __xrtNetStreamStartConnect(
 			__xrtNetStreamFail(pStream);
 			return;
 		}
+		if (!__xrtNetEngineRuntimeTimer(pWorker, pStream->ConnectTimer, xrtNetStreamRuntimeOwnershipV1Get())) abort();
 	}
 	if ( (xrtNetPortCapabilities(pPort) & XNET_PORT_CAP_COMPLETION) != 0 ) {
 		pStream->ConnectId = xrtNetWorkerOperationId(pWorker);
@@ -2657,10 +2721,11 @@ static xnetstream* __xrtNetStreamConnectCreate(
 		(void)pControl;
 	#endif
 	if ( bDeferred ) {
+		__xrtNetStreamOwnershipLeave(pStream);
 		return pStream;
 	}
 	pStream->StartPending = true;
-	if ( !xrtNetEnginePost(
+	if ( !__xrtNetEnginePostRuntime(
 		pEngine,
 		xrtNetWorkerIndex(pWorker),
 		__xrtNetStreamStartConnect,
@@ -2675,13 +2740,14 @@ static xnetstream* __xrtNetStreamConnectCreate(
 			XNET_STREAM_CLOSED,
 			XMEMORY_RELEASE
 		);
-		pStream->RuntimeHeld = false;
-		xrtNetStreamDestroy(pStream);
+		__xrtNetStreamReleaseRuntime(pStream);
+		__xrtNetStreamOwnershipLeave(pStream);
 		xrtNetStreamDestroy(pStream);
 		xrtSetError(pError);
 		xrtErrorFree(pError);
 		return NULL;
 	}
+	__xrtNetStreamOwnershipLeave(pStream);
 	return pStream;
 }
 
@@ -3194,7 +3260,7 @@ static xnetresult __xrtNetStreamSubmitFileNode(
 		1,
 		XMEMORY_ACQ_REL
 	);
-	if ( !xrtNetEnginePost(
+	if ( !__xrtNetEnginePostRuntime(
 		pStream->Engine,
 		xrtNetWorkerIndex(pStream->Worker),
 		__xrtNetStreamQueueFile,
@@ -3430,7 +3496,7 @@ static xnetresult __xrtNetStreamSubmitSend(
 		1,
 		XMEMORY_ACQ_REL
 	);
-	if ( !xrtNetEnginePost(
+	if ( !__xrtNetEnginePostRuntime(
 		pStream->Engine,
 		xrtNetWorkerIndex(pStream->Worker),
 		__xrtNetStreamQueueSend,
@@ -3473,7 +3539,7 @@ static xnetresult __xrtNetStreamSubmitRefs(
 		1,
 		XMEMORY_ACQ_REL
 	);
-	if ( !xrtNetEnginePost(
+	if ( !__xrtNetEnginePostRuntime(
 		pStream->Engine,
 		xrtNetWorkerIndex(pStream->Worker),
 		__xrtNetStreamQueueRefs,
@@ -4393,6 +4459,7 @@ static bool __xrtNetListenerPauseAccept(xnetlistener* pListener)
 		xrtNetListenerDestroy(pListener);
 		return false;
 	}
+	if (!__xrtNetEngineRuntimeTimer(pListener->Worker, Id, xrtNetListenerRuntimeOwnershipV1Get())) abort();
 	pListener->AcceptRetryTimer = Id;
 	pListener->AcceptRetryDelay = iDelay <
 		(XRT_NET_LISTENER_RETRY_MAX / 2u) ?
@@ -4454,7 +4521,7 @@ static void __xrtNetListenerTryFinish(xnetlistener* pListener)
 		pListener->WaitClosed = true;
 		__xrtSpinUnlock(&pListener->AcceptLock);
 	#endif
-	__xrtNetListenerReleaseEngine(pListener);
+	if (!xrtAtomic32Load(&pListener->OwnershipStop, XMEMORY_ACQUIRE)) __xrtNetListenerReleaseEngine(pListener);
 	xrtAtomic32Store(
 		&pListener->State,
 		XNET_LISTENER_CLOSED,
@@ -4463,10 +4530,7 @@ static void __xrtNetListenerTryFinish(xnetlistener* pListener)
 	if ( pListener->Events.Close != NULL ) {
 		pListener->Events.Close(pListener, pListener->Data);
 	}
-	if ( pListener->RuntimeHeld ) {
-		pListener->RuntimeHeld = false;
-		xrtNetListenerDestroy(pListener);
-	}
+	__xrtNetListenerReleaseRuntime(pListener);
 }
 
 
@@ -4663,6 +4727,9 @@ static void __xrtNetListenerDispatch(
 		return;
 	}
 	pStream->Remote = *pRemote;
+	/* The listener's active worker now protects this publication. End the
+	 * constructor borrow BEFORE the task can consume its transferred ref. */
+	__xrtNetStreamOwnershipLeave(pStream);
 	pTask = __xrtNetListenerTaskAlloc(pListener);
 	if ( pTask == NULL ) {
 		pError = xrtTakeError();
@@ -4673,8 +4740,7 @@ static void __xrtNetListenerDispatch(
 			XNET_STREAM_CLOSED,
 			XMEMORY_RELEASE
 		);
-		pStream->RuntimeHeld = false;
-		xrtNetStreamDestroy(pStream);
+		__xrtNetStreamReleaseRuntime(pStream);
 		xrtNetStreamDestroy(pStream);
 		xrtSetError(pError);
 		xrtErrorFree(pError);
@@ -4688,7 +4754,7 @@ static void __xrtNetListenerDispatch(
 		1,
 		XMEMORY_ACQ_REL
 	);
-	if ( !xrtNetEnginePost(
+	if ( !__xrtNetEnginePostRuntime(
 		pListener->Engine,
 		xrtNetWorkerIndex(pWorker),
 		__xrtNetListenerAcceptTask,
@@ -4709,8 +4775,7 @@ static void __xrtNetListenerDispatch(
 			XNET_STREAM_CLOSED,
 			XMEMORY_RELEASE
 		);
-		pStream->RuntimeHeld = false;
-		xrtNetStreamDestroy(pStream);
+		__xrtNetStreamReleaseRuntime(pStream);
 		xrtNetStreamDestroy(pStream);
 		xrtSetError(pError);
 		xrtErrorFree(pError);
@@ -5072,6 +5137,10 @@ XRT_API xnetlistener* xrtNetListen(
 		return NULL;
 	}
 	pListener->References = 2;
+	xrtAtomicPtrInit(&pListener->OwnershipClaim, NULL);
+	xrtAtomic32Init(&pListener->OwnershipState, 0);
+	xrtAtomic32Init(&pListener->OwnershipActive, 1);
+	xrtAtomic32Init(&pListener->OwnershipStop, 0);
 	xrtAtomic32Init(&pListener->State, XNET_LISTENER_OPEN);
 	xrtAtomic64Init(&pListener->Accepted, 0);
 	xrtAtomic64Init(&pListener->Rejected, 0);
@@ -5119,14 +5188,23 @@ XRT_API xnetlistener* xrtNetListen(
 			XMEMORY_RELEASE
 		);
 		pListener->RuntimeHeld = false;
+		__xrtNetListenerOwnershipLeave(pListener);
 		xrtNetListenerDestroy(pListener);
 		xrtNetListenerDestroy(pListener);
 		xrtSetError(pError);
 		xrtErrorFree(pError);
 		return NULL;
 	}
+	if (!__xrtNetEngineRuntimeAdopt(pEngine, &pListener->RuntimeOwner, pListener, xrtNetListenerRuntimeOwnershipV1Get())) {
+		pError = xrtTakeError();
+		pListener->Socket = NULL; (void)xrtNetSocketClose(Socket);
+		pListener->RuntimeHeld = false;
+		__xrtNetListenerOwnershipLeave(pListener);
+		xrtNetListenerDestroy(pListener); xrtNetListenerDestroy(pListener);
+		xrtSetErrorTake(pError); return NULL;
+	}
 	pListener->StartPending = true;
-	if ( !xrtNetEnginePost(
+	if ( !__xrtNetEnginePostRuntime(
 		pEngine,
 		xrtNetWorkerIndex(pWorker),
 		__xrtNetListenerStart,
@@ -5141,25 +5219,25 @@ XRT_API xnetlistener* xrtNetListen(
 			XNET_LISTENER_CLOSED,
 			XMEMORY_RELEASE
 		);
-		pListener->RuntimeHeld = false;
-		xrtNetListenerDestroy(pListener);
+		__xrtNetListenerReleaseRuntime(pListener);
+		__xrtNetListenerOwnershipLeave(pListener);
 		xrtNetListenerDestroy(pListener);
 		xrtSetError(pError);
 		xrtErrorFree(pError);
 		return NULL;
 	}
+	__xrtNetListenerOwnershipLeave(pListener);
 	return pListener;
 }
 
 
 
 /* 在 Listener Worker 上取消观察和全部在途 Accept。 */
-static void __xrtNetListenerCloseTask(
+static void __xrtNetListenerCloseCurrent(
 	xnetworker* pWorker,
-	ptr pData
+	xnetlistener* pListener
 )
 {
-	xnetlistener* pListener = (xnetlistener*)pData;
 	xnetport* pPort = __xrtNetWorkerPortBorrow(pWorker);
 
 	if ( pListener->AcceptRetryTimer != 0 ) {
@@ -5197,6 +5275,12 @@ static void __xrtNetListenerCloseTask(
 		}
 	}
 	__xrtNetListenerTryFinish(pListener);
+}
+
+static void __xrtNetListenerCloseTask(xnetworker* pWorker, ptr pData)
+{
+	xnetlistener* pListener = (xnetlistener*)pData;
+	__xrtNetListenerCloseCurrent(pWorker, pListener);
 	xrtNetListenerDestroy(pListener);
 }
 
@@ -5650,6 +5734,84 @@ XRT_API bool xrtNetListenerStats(
 		XMEMORY_ACQUIRE
 	);
 	return true;
+}
+
+/* Retirement commands BORROW the existing runtime slot. OwnershipStop keeps
+ * that actual reference (and its Engine hold) alive until the command starts.
+ * There is no extra RC/root and no callback/edge change during Prepare BUSY.
+ * InternalDrain clears the embedded node BEFORE invoking us; each possible
+ * runtime release below is the final receiver access on that branch. */
+static void __xrtNetStreamOwnershipStopTask(xnetworker* pWorker, ptr pData)
+{
+	xnetstream* pStream = (xnetstream*)pData;
+	(void)pWorker;
+	if (!pStream->RuntimeHeld) abort();
+	xrtAtomic32Store(&pStream->OwnershipStop, 0, XMEMORY_RELEASE);
+	if (xrtNetStreamState(pStream) == XNET_STREAM_CLOSED) {
+		__xrtNetStreamReleaseRuntime(pStream);
+		return;
+	}
+	xrtAtomic32Store(&pStream->AbortGate, 1, XMEMORY_RELEASE);
+	xrtAtomic32Store(&pStream->CloseGate, 1, XMEMORY_RELEASE);
+	xrtAtomic32Store(&pStream->WriteGate, 1, XMEMORY_RELEASE);
+	__xrtNetStreamApplyAbort(pStream);
+}
+
+static void __xrtNetListenerOwnershipStopTask(xnetworker* pWorker, ptr pData)
+{
+	xnetlistener* pListener = (xnetlistener*)pData;
+	if (!pListener->RuntimeHeld) abort();
+	xrtAtomic32Store(&pListener->OwnershipStop, 0, XMEMORY_RELEASE);
+	if (xrtNetListenerState(pListener) == XNET_LISTENER_CLOSED) {
+		__xrtNetListenerReleaseRuntime(pListener);
+		return;
+	}
+	xrtAtomic32Store(&pListener->State, XNET_LISTENER_CLOSING, XMEMORY_RELEASE);
+	__xrtNetListenerCloseCurrent(pWorker, pListener);
+}
+
+/* Called only by the resident preparation under graph freeze. The embedded
+ * nonallocating queue accepts native lifecycle work even while Engine is
+ * claimed. Failure rolls back before workers can observe the reservation. */
+bool __xrtNetStreamOwnershipStop(xnetstream* pStream)
+{
+	if (xrtAtomic32Load(&pStream->OwnershipStop, XMEMORY_ACQUIRE)) return true;
+	if (!pStream->RuntimeHeld || !pStream->EngineHeld) return false;
+	xrtAtomic32Store(&pStream->OwnershipStop, 1, XMEMORY_RELEASE);
+	if (__xrtNetEnginePostInternal(pStream->Worker, &pStream->OwnershipCommand,
+		__xrtNetStreamOwnershipStopTask, pStream)) return true;
+	xrtAtomic32Store(&pStream->OwnershipStop, 0, XMEMORY_RELEASE);
+	return false;
+}
+
+bool __xrtNetListenerOwnershipStop(xnetlistener* pListener)
+{
+	if (xrtAtomic32Load(&pListener->OwnershipStop, XMEMORY_ACQUIRE)) return true;
+	if (!pListener->RuntimeHeld || !pListener->EngineHeld) return false;
+	xrtAtomic32Store(&pListener->OwnershipStop, 1, XMEMORY_RELEASE);
+	if (__xrtNetEnginePostInternal(pListener->Worker, &pListener->OwnershipCommand,
+		__xrtNetListenerOwnershipStopTask, pListener)) return true;
+	xrtAtomic32Store(&pListener->OwnershipStop, 0, XMEMORY_RELEASE);
+	return false;
+}
+
+static void __xrtNetStreamRuntimeRelease(ptr pData)
+{ xrtNetStreamDestroy((xnetstream*)pData); }
+static void __xrtNetListenerRuntimeRelease(ptr pData)
+{ xrtNetListenerDestroy((xnetlistener*)pData); }
+XRT_API const xnetruntimeownershipv1* xrtNetStreamRuntimeOwnershipV1Get(void)
+{
+	static const xnettimerproc Timers[] = {__xrtNetStreamConnectTimer};
+	static const xnetruntimeownershipv1 Policy = {sizeof(Policy), &__xrtNetStreamOwnershipOps,
+		__xrtNetStreamRuntimeRelease, Timers, 1};
+	return &Policy;
+}
+XRT_API const xnetruntimeownershipv1* xrtNetListenerRuntimeOwnershipV1Get(void)
+{
+	static const xnettimerproc Timers[] = {__xrtNetListenerAcceptRetry};
+	static const xnetruntimeownershipv1 Policy = {sizeof(Policy), &__xrtNetListenerOwnershipOps,
+		__xrtNetListenerRuntimeRelease, Timers, 1};
+	return &Policy;
 }
 
 #endif

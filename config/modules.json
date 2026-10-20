@@ -9272,7 +9272,8 @@
 				"src/internal/xrt_tcp.h"
 			],
 			"sources": [
-				"src/network/tcp.c"
+				"src/network/tcp.c",
+				"src/network/tcp_ownership.c"
 			],
 			"tests": [
 				"tests/network/test_net_tcp.c",
@@ -9300,6 +9301,28 @@
 				"dev/bench/network/bench_network_loopback.c",
 				"dev/bench/network/bench_network_capacity.c"
 			],
+			"docs": [
+				"docs/api/tcp.md"
+			]
+		},
+		{
+			"name": "net_tcp_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"net_tcp_future",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/network/test_net_tcp_ownership.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_net_tcp_ownership.c"
+			],
+			"examples": [],
 			"docs": [
 				"docs/api/tcp.md"
 			]

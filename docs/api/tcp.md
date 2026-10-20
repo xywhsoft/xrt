@@ -5155,6 +5155,40 @@ bool xrtNetProxyDialStats(
 ```
 
 
+## 原生 TCP 拥有图与非等待退役（V1）
+
+`xrtNetStreamOwnership`、`xrtNetListenerOwnership` 返回真实物理引用计数和
+强拥有边的借用视图。它们不是独立保活引用，必须在整个可达图冻结且代码常驻时使用。
+相应 `OwnershipQuiescenceV1Get` 仅报告瞬时忙碌，不能代替生命周期准入。
+
+Engine 真正持有一个侵入式运行时槽；该槽接管构造时已有的运行时引用，不增加第二份引用。
+Stream／Listener 完成全部原生关闭义务后，从 Engine 摘除并消费该槽。
+Listener 接受队列的每个位置另持有一次已接受 Stream 引用；链接不是额外拥有边。
+连接超时和接受重试计时器仍使用原有回调在终态消费其已保留引用，元数据不再重复 Drop。
+`xrtNetStreamRuntimeOwnershipV1Get` 和 `xrtNetListenerRuntimeOwnershipV1Get` 给出这些
+不可变常驻合同，交由 `xrtNetEngineOwnershipAdapterV3` 做精确身份准入。
+
+`xrtNetStreamOwnershipAdapterV1`、`xrtNetListenerOwnershipAdapterV1` 成功时一并返回独立
+preparation 描述符。失败不修改输出或 ambient error。Hold／Drop 是真实引用；Claim／Restore
+必须在冻结下执行，令牌唯一且稳定；Clear 只能发生在重新证明整个图不可达且 Ready 后。
+Clear 不执行回调、不等待、不释放别的未保活目标；本版本无需额外 Finish。
+
+Prepare 不等待，也不把排队成功误当成完成。它只发布借用原运行时槽的嵌入式关闭命令；
+该命令不新建根引用，Prepare 返回 BUSY 时不改变拥有边或执行语义回调。
+发布失败在冻结内回滚预约。命令尚未开始时，正常关闭也保留运行时槽及 Engine 占用，
+避免悬空命令。实际端口完成、计时器终态、缓冲归还、通知和运行时槽摘除完成后才发布 Ready。
+协调器每次推进后必须重新取得静止点、检查真实图，不能沿用旧快照。
+
+当前 V1 只准入能够完整证明的无用户回调／无 Data、空缓冲、无活动 Future 等待的原生状态。
+拨号控制器、带缓冲传输、Future 节点及任意用户上下文尚未取得完整合同，因此仍明确拒绝，
+不把它们伪装成叶子对象。这是后续受管理传输的原生前置，不代表整个 xlang TCP 接入完成。
+外部调用和取消回调以真实接收者引用维持调用期，并登记完整元数据修改区间；不跨回调持有图锁。
+原有普通 C 调用仍须保证 Engine 销毁与外部使用者静止，不得把借用 Worker 当成独立所有者。
+
+验证工具 `tools/check_net_tcp_ownership.py` 只执行明确列出的离线图与自建回环生命周期测试，
+包括 select、Windows IOCP／Linux epoll，模块化／单头、GCC／TCC 及 Linux 实际闭包的
+ASan／UBSan。它不运行公网、DNS、扫描、畸形报文或网络安全专项测试。
+
 ## 示例与发布门槛
 
 推送模式回环示例位于 `examples/network/tcp/main.c`，聚合服务端示例位于 `examples/network/tcp_server/main.c`，拉取与 Future 请求响应示例位于 `examples/network/tcp_future/main.c`，阻塞 TCP 与托管连接示例位于 `examples/network/tcp_sync/main.c`、`examples/network/tcp_dial_sync/main.c`。测试使用同一契约分别验证 select 和 IOCP，并覆盖慢速对端大块发送、高低水位与 Drain、`ReadLimit` 自动停读和恢复、跨 Worker Accept/Close 排序、有界拉取 Accept 与溢出、多端点共享端口、reuse-port、聚合关闭、连接和 Accept Future、Resolver 合并、缓存命中时的 Worker 内非重入提交、跨线程 Dial 取消、双栈候选竞争、并发连接、结果复制与 Dial OOM、同步超时/取消/关闭竞态、结果 OOM 不消费、协程挂起恢复和单头文件真实收发。
