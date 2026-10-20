@@ -1084,6 +1084,19 @@ void xrtNetDialConfigInit(xnetdialconfig* pConfig)
 ```
 
 
+### `xrtNetStreamConfigValid` / `xrtNetListenConfigValid`
+
+```c
+bool xrtNetStreamConfigValid(const xnetstreamconfig* pConfig);
+bool xrtNetListenConfigValid(const xnetlistenconfig* pConfig);
+```
+
+只读验证完整配置，复用实际 Stream／Listener 创建路径的规则。Listener 同时
+检查嵌套 Stream、地址族、接受并发、队列、分发、backlog 和绑定策略关系。
+成功返回 true；非法参数（包括空指针）返回 false 并设置结构化错误。不修改
+配置，不创建 Engine／Socket，不绑定端口，也不进行 DNS 或网络通信。
+允许上层先构造不可变配置快照，再在实际创建传输时复验同一合同。
+
 ### `xrtNetDialConfigValid`
 
 完整验证 Dial 策略及其嵌套 Stream 配置。

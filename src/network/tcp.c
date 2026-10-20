@@ -278,6 +278,26 @@ XRT_API void xrtNetStreamConfigInit(xnetstreamconfig* pConfig)
 	pConfig->NoDelay = true;
 }
 
+/* 公共只读验证入口复用传输创建路径，不在语言适配层复制规则。 */
+XRT_API bool xrtNetStreamConfigValid(const xnetstreamconfig* pConfig)
+{
+	if ( pConfig == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	return __xrtNetStreamConfigValid(pConfig);
+}
+
+/* 公共只读验证入口复用 Listener 创建路径，不进行绑定或资源创建。 */
+XRT_API bool xrtNetListenConfigValid(const xnetlistenconfig* pConfig)
+{
+	if ( pConfig == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	return __xrtNetListenConfigValid(pConfig);
+}
+
 
 
 /* 初始化 Listener 默认配置。 */
