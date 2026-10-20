@@ -20,7 +20,7 @@ typedef struct Graph {
     Node nodes[CAPACITY];size_t count;bool busy,pinned,wrong;
     Node* race;
 } Graph;
-static unsigned graphCases,rootCases,dropRaces,budgets,failures;
+static unsigned graphCases,rootCases,dropRaces,budgets,failures,deliveryRejections;
 typedef struct DropRace { Node* node;xatomic32 ready,go; } DropRace;
 static int32 concurrentDrop(ptr raw)
 {
@@ -211,6 +211,32 @@ static void construction(xnetportbackend backend)
         closeOrdinary(&graph);balanced(&before);
     }
 }
+#ifdef NET_TCP_FUTURE_OWNERSHIP_SINGLE
+/* Deterministic rejected-delivery cleanup boundary. Unlink transfers the actual
+ * constructor/list reference to this local completion, just as the Worker
+ * does. Single implementation visibility permits this without shipping a
+ * test hook or adding a fake source/Promise/Stream. */
+static void rejectedDelivery(xnetportbackend backend)
+{
+    xmemdebugsnapshot before;xrtClearError();xrtMemDebugSnapshot(&before);Graph graph={0};create(&graph,backend);
+    xnetstream* peer=xrtNetListenerAccept(graph.listener);CHECK(peer);
+    xnetstream* observer=xrtNetStreamRef(peer);CHECK(observer);
+    xfuture* future=xrtNetListenerAcceptAsync(graph.listener);CHECK(future&&xrtFutureState(future)==XFUTURE_PENDING);
+    CHECK(__xrtNetListenerOwnershipEnter(graph.listener,false));xrtownershipscope scope={0};
+    CHECK(xrtOwnershipMutationBegin(&scope));__xrtSpinLock(&graph.listener->AcceptLock);
+    __xrt_net_listener_wait* waiter=graph.listener->WaitHead;CHECK(waiter&&__xrtNetListenerWaitRemove(graph.listener,waiter));
+    __xrtSpinUnlock(&graph.listener->AcceptLock);CHECK(xrtOwnershipScopeEnd(&scope));__xrtNetListenerOwnershipLeave(graph.listener);
+    /* A consumer request cannot manufacture a terminal state. The source
+     * completion still owns the decision after unlink. Explicitly complete
+     * its real Promise to exercise the delivery-rejection cleanup branch. */
+    CHECK(xrtFutureCancel(future)&&xrtFutureState(future)==XFUTURE_PENDING);
+    CHECK(xrtPromiseCancel(waiter->Base.Promise)&&xrtFutureState(future)==XFUTURE_CANCELLED);
+    __xrtNetListenerWaitFinish(waiter,peer,false);xrtFutureDestroy(future);xrtClearError();
+    double deadline=__xrtWaitAfter(5000);
+    while(xrtNetStreamState(observer)!=XNET_STREAM_CLOSED){CHECK(!__xrtWaitExpired(deadline));xrtThreadYield();}
+    xrtNetStreamDestroy(observer);closeOrdinary(&graph);balanced(&before);++deliveryRejections;
+}
+#endif
 int main(int argc,char** argv)
 {
     xnetportbackend backend=XNET_PORT_SELECT;
@@ -223,7 +249,11 @@ int main(int argc,char** argv)
     }
     CHECK(xrtMemDebugEnable(true));
     for(unsigned order=0;order<8;++order)for(unsigned outcome=0;outcome<3;++outcome)lifecycle(backend,order,outcome);
-    construction(backend);CHECK(failures>0&&failures<budgets);testMemoryDebugDrain("TCP Future graph balance");
-    printf("TCP Future graph backend=%d graphs=%u real-external-roots=%u concurrent-final-drops=%u allocation-budgets=%u failures=%u; balanced\n",
-        (int)backend,graphCases,rootCases,dropRaces,budgets,failures);return 0;
+    construction(backend);CHECK(failures>0&&failures<budgets);
+    #ifdef NET_TCP_FUTURE_OWNERSHIP_SINGLE
+    rejectedDelivery(backend);
+    #endif
+    testMemoryDebugDrain("TCP Future graph balance");
+    printf("TCP Future graph backend=%d graphs=%u real-external-roots=%u concurrent-final-drops=%u allocation-budgets=%u failures=%u accept-delivery-rejections=%u; balanced\n",
+        (int)backend,graphCases,rootCases,dropRaces,budgets,failures,deliveryRejections);return 0;
 }

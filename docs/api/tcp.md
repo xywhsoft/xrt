@@ -5236,6 +5236,10 @@ Promise 与 Future 是同一物理身份，链表 Next 不是额外拥有引用�
 非最后一次 Drop 不再访问可能由另一线程最终释放的节点。取消只结束当前等待，不关闭底层传输。
 已完成接收 Future 只拥有不可变字节，已取消 Future 不再拥有传输；已接受结果则实际拥有 Stream。
 
+Accept 已取得连接、但生产端 Promise 拒绝结果发布时，没有调用者取得该创建者引用。
+此时先 Abort 再归还引用，不能只 Destroy 留下由 Engine 运行时槽独自保活的孤立连接。
+单头普通生命周期夹具直接控制这一线性化边界，不增加生产测试钩子或伪造对象。
+
 `tools/check_net_tcp_future_ownership.py` 批量运行精确图、普通收发、Accept、并发取消／关闭、
 分配失败恢复和模块化／单头验证，包括 select、Windows IOCP／Linux epoll、GCC／TCC 和 Linux
 实际闭包 ASan／UBSan；每个输入、日志和产物均记录摘要。它不运行网络安全专项测试，也不等于
