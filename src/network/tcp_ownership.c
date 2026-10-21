@@ -94,8 +94,7 @@ static bool __xrtNetStreamCount(const void* pData, size_t* pCount)
 		xrtAtomic32Load(&pStream->ControlRequests, XMEMORY_ACQUIRE)) return false;
 	if (!__xrtNetStreamBuffersOwnership(pStream, NULL, NULL)) return false;
 	#if defined(XRT_FEATURE_NET_TCP_DIAL)
-		if (pStream->Control.Open || pStream->Control.Published || pStream->Control.Close ||
-			pStream->Control.Release || pStream->Control.Data) return false;
+		if (!__xrtNetDialControlOwnership(pStream, NULL, NULL)) return false;
 	#endif
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
 		if (!__xrtNetStreamWaitOwnershipWalk(pStream, NULL, NULL)) return false;
@@ -116,6 +115,9 @@ static bool __xrtNetStreamTrace(const void* pData, xrtownershipvisitor pVisit, p
 	if (!pVisit || !__xrtNetStreamCount(pData, &iCount) ||
 		(pStream->EngineHeld && !pVisit(xrtNetEngineOwnership(pStream->Engine), pContext))) return false;
 	if (!__xrtNetStreamBuffersOwnership(pStream, pVisit, pContext)) return false;
+	#if defined(XRT_FEATURE_NET_TCP_DIAL)
+		if (!__xrtNetDialControlOwnership(pStream, pVisit, pContext)) return false;
+	#endif
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
 		if (!__xrtNetStreamWaitOwnershipWalk(pStream, pVisit, pContext)) return false;
 	#endif

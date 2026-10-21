@@ -5245,6 +5245,42 @@ Accept 已取得连接、但生产端 Promise 拒绝结果发布时，没有调�
 实际闭包 ASan／UBSan；每个输入、日志和产物均记录摘要。它不运行网络安全专项测试，也不等于
 xlang 全部受管理 TCP 或发布 DLL／SO 已完成验收。
 
+### Dial 的真实拥有图及显式地址列表
+
+`xrtNetDialOwnedV1` 使用常驻 `xnetdialownershipv1` 描述唯一完成回调及其上下文。
+提交成功消费一份真实上下文引用，失败不消费；Done 借用上下文，Drop 在完成回调物理尾部后执行。
+不把任意回调数据扁平化成叶节点，也不以状态或活动资源计数推算强引用。
+
+Dial 在 Engine 中注册真实运行时槽。调用者、运行时槽和 Resolver 回调数据各有独立引用；
+Resolver 回调把处理阶段交给网络 Worker 时，先取得命令的实际引用，再由 Resolver 归还回调数据。
+候选的 intrusive 链只是借用链接，其真实 Dial 和 Stream 创建者引用属于 Stream.Control；
+原有截止／fallback Timer 的引用分别由 Engine 的对应定时器槽枚举。
+`xrtNetDialOwnership`、`xrtNetDialRuntimeOwnershipV1Get`、`xrtNetDialResolverPolicyV1Get`、
+`xrtNetDialOwnershipQuiescenceV1Get`、`xrtNetDialOwnershipAdapterV1` 提供精确准入。
+Engine V3、Resolver 请求及 Dial 的完成策略必须各自显式授予正确身份，复制的策略表不等同于原表。
+构造、跨 Resolver 发布和实际 Worker 执行中拒绝检查；Prepare 非等待地请求取消，
+真实结果回调和运行时槽移除后才 READY。最终局部引用的归还仍按真实 RC 记录；
+协调器必须重新证明不可达，不能把 READY 当成所有物理尾部引用已归零。
+
+`xrtNetDialAddresses`、`xrtNetDialAddressesOwnedV1`、`xrtNetDialAddressesAsync`
+使用同一个 Dial 候选竞争算法，直接接收不可变 `xnetaddrlist`，不创建或查询 Resolver。
+调用期间借用列表，异步装配保留独立引用；每个合格候选必须有非零端口，并保留各自端口。
+`Config.Family` 显式筛选候选，双栈时保留原有族内顺序及交错规则；无合格地址时 checked 失败。
+主机路径仍覆盖解析结果端口，语言或 C 调用者可显式使用 `xrtNetAddrListWithPort` 准备地址列表。
+
+Dial Future 的所有可失败桥接装配先于工作受理。Bridge 只借用 Promise，真实激活持有 Promise、
+Dial 和唯一取消 Watch；构造者、生产者、Watch 和 Dial 完成上下文分别拥有实际引用。
+`xrtNetDialFutureProducerPolicyV1Get`、`xrtNetDialFutureCancelPolicyV1Get`、
+`xrtNetDialFutureDialPolicyV1Get`、`xrtNetDialFuturePayloadPolicyV1Get`、
+`xrtNetDialFutureOwnershipQuiescenceV1Get`、`xrtNetDialFutureOwnershipAdapterV1`
+分别声明生产者、取消、完成、拥有型 Stream 结果和激活节点的合同。
+取消不伪造终态，Prepare 不以放弃仍可能完成的操作来破环；失败或被拒绝交付的 Stream 先 Abort 再 Destroy。
+成功结果维持既有 C 契约：Future 持有 Stream，调用者需显式 Ref 才取得独立引用，关闭与 Destroy 分开。
+
+`tools/check_net_tcp_dial_ownership.py` 只执行显式允许的离线 ABI／生命周期／分配失败和
+自建 loopback 正常通信，包含模块化／单头、GCC／TCC、两个平台原生后端与 Linux ASan／UBSan。
+不执行 DNS、公网、扫描、畸形协议或网络安全测试，不宣称 xlang Dial／代理或完整发布产品已经接入。
+
 推送模式回环示例位于 `examples/network/tcp/main.c`，聚合服务端示例位于 `examples/network/tcp_server/main.c`，拉取与 Future 请求响应示例位于 `examples/network/tcp_future/main.c`，阻塞 TCP 与托管连接示例位于 `examples/network/tcp_sync/main.c`、`examples/network/tcp_dial_sync/main.c`。测试使用同一契约分别验证 select 和 IOCP，并覆盖慢速对端大块发送、高低水位与 Drain、`ReadLimit` 自动停读和恢复、跨 Worker Accept/Close 排序、有界拉取 Accept 与溢出、多端点共享端口、reuse-port、聚合关闭、连接和 Accept Future、Resolver 合并、缓存命中时的 Worker 内非重入提交、跨线程 Dial 取消、双栈候选竞争、并发连接、结果复制与 Dial OOM、同步超时/取消/关闭竞态、结果 OOM 不消费、协程挂起恢复和单头文件真实收发。
 
 TLS 传输适配已经作为独立 `XRT_FEATURE_TLS_STREAM` 裁剪单元落地，直接使用 `SendBuffer` 把完整密文块链移动到 TCP 队列。`xrtTlsStreamTransport()` 返回的原始 Stream 只供地址、统计和安全 socket 选项查询；直接关闭、收发、替换事件或消费其缓冲会破坏 TLS 组合状态机。更高层协议直接组合 TCP Server 和 TLS Stream，不改变这里的字节流、所有权、背压、等待、Dial 和关闭契约。

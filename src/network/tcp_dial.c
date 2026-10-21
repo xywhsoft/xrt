@@ -15,6 +15,8 @@
 #define XRT_NET_DIAL_GATE_CANCEL 1u
 #define XRT_NET_DIAL_GATE_WINNER 2u
 #define XRT_NET_DIAL_GATE_TERMINAL 3u
+#define XRT_NET_DIAL_OWNERSHIP_READY 1u
+#define XRT_NET_DIAL_OWNERSHIP_CLEARED 2u
 
 
 
@@ -36,6 +38,11 @@ struct xrt_net_dial_attempt {
 /* Dial 的策略状态只在目标 Worker 上修改，公开快照使用原子字段。 */
 struct xnetdial {
 	volatile int32 References;
+	xatomic32 OwnershipActive, OwnershipState, OwnershipStop;
+	xatomicptr OwnershipClaim;
+	__xrt_net_engine_runtime RuntimeOwner;
+	__xrt_net_engine_internal OwnershipStopCommand;
+	const xnetdialownershipv1* DonePolicy;
 	xatomic32 State;
 	xatomic32 CancelGate;
 	xatomic32 AddressCount;
@@ -87,6 +94,37 @@ struct xnetdial {
 static void __xrtNetDialDrive(xnetdial* pDial);
 static void __xrtNetDialProcessResolve(xnetdial* pDial);
 static void __xrtNetDialResolveTask(xnetworker* pWorker, ptr pData);
+static void __xrtNetDialTryPublish(xnetdial* pDial);
+static const xrtownershipops __xrtNetDialOwnershipOps;
+
+/* Activity describes real constructor/cross-Resolver borrows. It is never a
+ * substitute for RC and never holds the global mutation scope across work. */
+static bool __xrtNetDialEnter(xnetdial* pDial, bool bSubmit)
+{
+	xrtownershipscope Mutation = {0};
+	if (!pDial || !xrtOwnershipMutationBegin(&Mutation)) return false;
+	uint32 iActive = xrtAtomic32Load(&pDial->OwnershipActive, XMEMORY_ACQUIRE);
+	bool bEntered=false;
+	if (!(xrtAtomic32Load(&pDial->OwnershipState,XMEMORY_ACQUIRE)&XRT_NET_DIAL_OWNERSHIP_CLEARED) &&
+		(!bSubmit||!xrtAtomicPtrLoad(&pDial->OwnershipClaim,XMEMORY_ACQUIRE))) {
+		while(iActive<UINT32_MAX) {
+			uint32 iExpected=iActive;
+			if(xrtAtomic32CompareExchange(&pDial->OwnershipActive,&iExpected,iActive+1,
+				XMEMORY_ACQ_REL,XMEMORY_ACQUIRE)){bEntered=true;break;}
+			iActive=iExpected;
+		}
+	}
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (!bEntered) __xrtErrorSetInvalidState();
+	return bEntered;
+}
+static void __xrtNetDialLeave(xnetdial* pDial)
+{
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (!xrtAtomic32FetchSub(&pDial->OwnershipActive, 1, XMEMORY_ACQ_REL)) abort();
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+}
 
 
 
@@ -94,6 +132,7 @@ static void __xrtNetDialResolveTask(xnetworker* pWorker, ptr pData);
 static bool __xrtNetDialCanDrive(const xnetdial* pDial)
 {
 	return !pDial->Stopping && !pDial->Terminal &&
+		!xrtAtomicPtrLoad(&pDial->OwnershipClaim, XMEMORY_ACQUIRE) &&
 		(xrtAtomic32Load(
 			&pDial->CancelGate,
 			XMEMORY_ACQUIRE
@@ -192,6 +231,7 @@ static void __xrtNetDialTryPublish(xnetdial* pDial)
 	xnetstream* pStream;
 
 	if ( !pDial->Terminal || pDial->Published ||
+		xrtAtomic32Load(&pDial->OwnershipStop, XMEMORY_ACQUIRE) ||
 		(xrtAtomic32Load(
 		&pDial->Resources,
 		XMEMORY_ACQUIRE
@@ -201,6 +241,12 @@ static void __xrtNetDialTryPublish(xnetdial* pDial)
 	pStream = pDial->TerminalStream;
 	pDial->TerminalStream = NULL;
 	pDial->Published = true;
+	const xnetruntimeownershipv1* pRuntimePolicy = NULL;
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	ptr pRuntime = __xrtNetEngineRuntimeTake(pDial->Engine, &pDial->RuntimeOwner, &pRuntimePolicy);
+	if (pRuntime != pDial || pRuntimePolicy != xrtNetDialRuntimeOwnershipV1Get()) abort();
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if ( pDial->EngineHeld ) {
 		pDial->EngineHeld = false;
 		__xrtNetEngineObjectRelease(pDial->Engine);
@@ -210,13 +256,24 @@ static void __xrtNetDialTryPublish(xnetdial* pDial)
 		(uint32)pDial->TerminalState,
 		XMEMORY_RELEASE
 	);
-	pDial->Done(
+	xnetdialproc Done = pDial->Done;
+	const xnetdialownershipv1* pDonePolicy = pDial->DonePolicy;
+	ptr pDoneData = pDial->DoneData;
+	pDial->Done = NULL;
+	pDial->DonePolicy = NULL;
+	pDial->DoneData = NULL;
+	Done(
 		pDial,
 		pDial->TerminalResult,
 		pStream,
 		pDial->Error,
-		pDial->DoneData
+		pDoneData
 	);
+	if (pDonePolicy) pDonePolicy->Drop(pDoneData);
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	xrtAtomic32Store(&pDial->OwnershipState, XRT_NET_DIAL_OWNERSHIP_READY, XMEMORY_RELEASE);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	pRuntimePolicy->Release(pRuntime);
 }
 
 
@@ -300,6 +357,9 @@ static void __xrtNetDialDetachResolve(xnetdial* pDial)
 	if ( !__xrtNetResolveOpClaimCallback(pDial->Resolve) ) {
 		return;
 	}
+	/* Transfer the callback phase to the posted Resolve command. The request
+	 * independently keeps its actual owned Data reference through Drop. */
+	if (!xrtNetDialRef(pDial)) abort();
 	xrtNetResolveOpDestroy(pDial->Resolve);
 	pDial->Resolve = NULL;
 	if ( !__xrtNetEnginePostInternal(
@@ -776,6 +836,7 @@ static bool __xrtNetDialScheduleFallback(xnetdial* pDial)
 		__xrtNetDialResourceDrop(pDial);
 		return false;
 	}
+	if (!__xrtNetEngineRuntimeTimer(pDial->Worker, pDial->FallbackTimer, xrtNetDialRuntimeOwnershipV1Get())) abort();
 	return true;
 }
 
@@ -903,7 +964,7 @@ static const xnetaddr* __xrtNetDialNextFamily(
 /* 保持各地址族内部顺序，并在双栈结果中交错 IPv6 与 IPv4。 */
 static bool __xrtNetDialPrepareAddresses(
 	xnetdial* pDial,
-	xnetaddrlist* pResolved,
+	const xnetaddrlist* pResolved,
 	xerror** ppError
 )
 {
@@ -928,9 +989,9 @@ static bool __xrtNetDialPrepareAddresses(
 	if ( pFirst == NULL ) {
 		return false;
 	}
-	Preferred = (xnetfamily)pFirst->Family;
-	Alternate = Preferred == XNET_FAMILY_IPV6 ?
-		XNET_FAMILY_IPV4 : XNET_FAMILY_IPV6;
+	Preferred = pDial->Config.Family==XNET_FAMILY_UNSPEC?(xnetfamily)pFirst->Family:pDial->Config.Family;
+	Alternate = pDial->Config.Family!=XNET_FAMILY_UNSPEC?XNET_FAMILY_UNSPEC:
+		Preferred == XNET_FAMILY_IPV6?XNET_FAMILY_IPV4:XNET_FAMILY_IPV6;
 	pDial->Addresses = (xnetaddr*)xrtMalloc(
 		iLimit * sizeof(*pDial->Addresses)
 	);
@@ -960,7 +1021,7 @@ static bool __xrtNetDialPrepareAddresses(
 			break;
 		}
 		pDial->Addresses[iWritten++] = *pAddress;
-		pDial->Addresses[iWritten - 1u].Port = pDial->Port;
+		if (pDial->Port) pDial->Addresses[iWritten - 1u].Port = pDial->Port;
 		bPreferred = !bPreferred;
 	}
 	pDial->Count = iWritten;
@@ -1106,6 +1167,7 @@ static void __xrtNetDialStartTask(xnetworker* pWorker, ptr pData)
 				);
 				xrtErrorFree(pError);
 			}
+			else if (!__xrtNetEngineRuntimeTimer(pDial->Worker, pDial->DeadlineTimer, xrtNetDialRuntimeOwnershipV1Get())) abort();
 		} else {
 			pError = __xrtNetDialBuildError(
 				pDial,
@@ -1133,14 +1195,11 @@ static void __xrtNetDialStartTask(xnetworker* pWorker, ptr pData)
 
 
 /* 目标 Worker 串行执行取消，避免与候选和 Timer 状态竞争。 */
-static void __xrtNetDialCancelTask(xnetworker* pWorker, ptr pData)
+static void __xrtNetDialCancelCurrent(xnetdial* pDial)
 {
-	xnetdial* pDial = (xnetdial*)pData;
 	xerror* pError;
 
-	(void)pWorker;
 	if ( pDial->Terminal ) {
-		__xrtNetDialResourceDrop(pDial);
 		return;
 	}
 	pDial->Stopping = true;
@@ -1161,6 +1220,12 @@ static void __xrtNetDialCancelTask(xnetworker* pWorker, ptr pData)
 		pError
 	);
 	xrtErrorFree(pError);
+}
+static void __xrtNetDialCancelTask(xnetworker* pWorker, ptr pData)
+{
+	(void)pWorker;
+	xnetdial* pDial = pData;
+	__xrtNetDialCancelCurrent(pDial);
 	__xrtNetDialResourceDrop(pDial);
 }
 
@@ -1170,6 +1235,8 @@ static void __xrtNetDialCancelTask(xnetworker* pWorker, ptr pData)
 static void __xrtNetDialResolvedPost(xnetresolveop* pOperation, ptr pData)
 {
 	xnetdial* pDial = (xnetdial*)pData;
+	if (!__xrtNetDialEnter(pDial, false)) abort();
+	if (!xrtNetDialRef(pDial)) abort(); /* actual command/processing-phase owner */
 	xnetresolveopstate State = xrtNetResolveOpState(pOperation);
 
 	if ( State == XNET_RESOLVE_RESOLVED ) {
@@ -1190,6 +1257,16 @@ static void __xrtNetDialResolvedPost(xnetresolveop* pOperation, ptr pData)
 	) ) {
 		__xrtNetDialResolveTask(pDial->Worker, pDial);
 	}
+	__xrtNetDialLeave(pDial);
+}
+
+static void __xrtNetDialResolverDrop(const void* pData)
+{ xrtNetDialDestroy((xnetdial*)pData); }
+XRT_API const xnetresolveownershipv1* xrtNetDialResolverPolicyV1Get(void)
+{
+	static const xnetresolveownershipv1 Policy = {sizeof(Policy), __xrtNetDialResolvedPost,
+		__xrtNetDialResolverDrop, &__xrtNetDialOwnershipOps};
+	return &Policy;
 }
 
 
@@ -1241,7 +1318,7 @@ XRT_API bool xrtNetDialConfigValid(const xnetdialconfig* pConfig)
 
 
 /* 创建一个由 Resolver 和目标网络 Worker 共同持有的 Dial。 */
-XRT_API xnetdial* xrtNetDial(
+static xnetdial* __xrtNetDialCreate(
 	xnetengine* pEngine,
 	xnetresolver* pResolver,
 	cstr sHost,
@@ -1250,7 +1327,9 @@ XRT_API xnetdial* xrtNetDial(
 	const xnetstreamevents* pStreamEvents,
 	ptr pStreamData,
 	xnetdialproc pDone,
-	ptr pDoneData
+	ptr pDoneData,
+	const xnetdialownershipv1* pDonePolicy,
+	const xnetaddrlist* pAddresses
 )
 {
 	xnetdialconfig Config;
@@ -1258,9 +1337,8 @@ XRT_API xnetdial* xrtNetDial(
 	size_t iHostSize;
 	uint32 iWorkerCount;
 
-	if ( (pEngine == NULL) || (pResolver == NULL) ||
-		 (sHost == NULL) || (sHost[0] == 0) ||
-		 (iPort == 0) || (pDone == NULL) ) {
+	if ( (pEngine == NULL) || (pDone == NULL) ||
+		 (!pAddresses && (!pResolver || !sHost || !sHost[0] || !iPort)) ) {
 		__xrtNetDialSetConfigError(NULL, "invalid TCP dial arguments");
 		return NULL;
 	}
@@ -1270,6 +1348,18 @@ XRT_API xnetdial* xrtNetDial(
 	}
 	if ( !xrtNetDialConfigValid(&Config) ) {
 		return NULL;
+	}
+	if (pAddresses) {
+		size_t iCount=xrtNetAddrListCount(pAddresses),iEligible=0;
+		for(size_t i=0;i<iCount;++i) {
+			const xnetaddr* pAddress=xrtNetAddrListGet(pAddresses,i);
+			if (!pAddress) return NULL;
+			if (Config.Family!=XNET_FAMILY_UNSPEC && pAddress->Family!=Config.Family) continue;
+			if (!pAddress->Port) {__xrtNetDialSetConfigError(NULL,"resolved TCP endpoints require nonzero ports");return NULL;}
+			++iEligible;
+		}
+		if (!iEligible) {__xrtNetDialSetConfigError(NULL,"resolved TCP endpoints have no eligible address");return NULL;}
+		sHost="<addresses>";iPort=0;
 	}
 	if ( xrtNetEngineState(pEngine) != XNET_ENGINE_RUNNING ) {
 		__xrtNetDialSetCreateError(
@@ -1304,7 +1394,14 @@ XRT_API xnetdial* xrtNetDial(
 		return NULL;
 	}
 	memcpy(pDial->Host, sHost, iHostSize + 1u);
-	pDial->References = 2;
+	/* Caller, registered Engine runtime, and either Resolver callback Data or
+	 * the direct-list setup command each own one real reference. A Resolver
+	 * callback transfers its phase by acquiring an actual command lease. */
+	pDial->References = 3;
+	xrtAtomic32Init(&pDial->OwnershipActive, 1);
+	xrtAtomic32Init(&pDial->OwnershipState, 0);
+	xrtAtomic32Init(&pDial->OwnershipStop, 0);
+	xrtAtomicPtrInit(&pDial->OwnershipClaim, NULL);
 	xrtAtomic32Init(&pDial->State, XNET_DIAL_RESOLVING);
 	xrtAtomic32Init(&pDial->CancelGate, XRT_NET_DIAL_GATE_OPEN);
 	xrtAtomic32Init(&pDial->AddressCount, 0);
@@ -1328,24 +1425,35 @@ XRT_API xnetdial* xrtNetDial(
 	if ( pStreamEvents != NULL ) {
 		pDial->StreamEvents = *pStreamEvents;
 	}
+	if (!__xrtNetEngineRuntimeAdopt(pEngine, &pDial->RuntimeOwner, pDial, xrtNetDialRuntimeOwnershipV1Get())) {
+		pDial->EngineHeld = false;
+		__xrtNetEngineObjectRelease(pEngine);
+		xrtNetDialDestroy(pDial);xrtNetDialDestroy(pDial);xrtNetDialDestroy(pDial);
+		return NULL;
+	}
 	if ( Config.Timeout != 0 ) {
 		pDial->Deadline = __xrtWaitAfter(Config.Timeout);
 	}
-	pDial->Resolve = xrtNetResolverResolve(
-		pResolver,
-		pDial->Host,
-		Config.Family,
-		__xrtNetDialResolvedPost,
-		pDial
-	);
-	if ( pDial->Resolve == NULL ) {
+	if (pAddresses) {
+		pDial->ResolveAddresses=xrtNetAddrListRef((xnetaddrlist*)pAddresses);
+		pDial->ResolveReady=pDial->ResolveAddresses!=NULL;
+	} else {
+		pDial->Resolve = xrtNetResolverResolveOwnedV1(pResolver,pDial->Host,Config.Family,
+			pDial,xrtNetDialResolverPolicyV1Get());
+	}
+	if ( pAddresses?!pDial->ResolveAddresses:!pDial->Resolve ) {
+		const xnetruntimeownershipv1* pPolicy = NULL;
+		if (__xrtNetEngineRuntimeTake(pEngine, &pDial->RuntimeOwner, &pPolicy) != pDial ||
+			pPolicy != xrtNetDialRuntimeOwnershipV1Get()) abort();
 		xrtAtomic32Store(&pDial->Resources, 0, XMEMORY_RELEASE);
 		pDial->EngineHeld = false;
 		__xrtNetEngineObjectRelease(pEngine);
 		xrtNetDialDestroy(pDial);
 		xrtNetDialDestroy(pDial);
+		xrtNetDialDestroy(pDial);
 		return NULL;
 	}
+	pDial->DonePolicy = pDonePolicy; /* success consumes its ONE Data reference */
 	if ( !__xrtNetEnginePostInternal(
 		pDial->Worker,
 		&pDial->StartCommand,
@@ -1354,7 +1462,44 @@ XRT_API xnetdial* xrtNetDial(
 	) ) {
 		__xrtNetDialStartTask(pDial->Worker, pDial);
 	}
+	__xrtNetDialLeave(pDial);
 	return pDial;
+}
+
+XRT_API xnetdial* xrtNetDial(xnetengine* pEngine, xnetresolver* pResolver,
+	cstr sHost, uint16 iPort, const xnetdialconfig* pConfig,
+	const xnetstreamevents* pStreamEvents, ptr pStreamData,
+	xnetdialproc pDone, ptr pDoneData)
+{
+	return __xrtNetDialCreate(pEngine,pResolver,sHost,iPort,pConfig,pStreamEvents,pStreamData,pDone,pDoneData,NULL,NULL);
+}
+static bool __xrtNetDialOwnedValid(ptr pData,const xnetdialownershipv1* pPolicy)
+{
+	if (pData&&pPolicy&&pPolicy->size==sizeof(*pPolicy)&&pPolicy->Done&&pPolicy->Drop&&
+		pPolicy->Ops&&pPolicy->Ops->Count&&pPolicy->Ops->Trace) return true;
+	__xrtErrorSetInvalidArgument();return false;
+}
+XRT_API xnetdial* xrtNetDialOwnedV1(xnetengine* pEngine, xnetresolver* pResolver,
+	cstr sHost, uint16 iPort, const xnetdialconfig* pConfig,
+	const xnetstreamevents* pStreamEvents, ptr pStreamData,
+	ptr pDoneData, const xnetdialownershipv1* pPolicy)
+{
+	if (!__xrtNetDialOwnedValid(pDoneData,pPolicy)) return NULL;
+	return __xrtNetDialCreate(pEngine,pResolver,sHost,iPort,pConfig,pStreamEvents,pStreamData,pPolicy->Done,pDoneData,pPolicy,NULL);
+}
+XRT_API xnetdial* xrtNetDialAddresses(xnetengine* pEngine,const xnetaddrlist* pAddresses,
+	const xnetdialconfig* pConfig,const xnetstreamevents* pStreamEvents,ptr pStreamData,
+	xnetdialproc pDone,ptr pDoneData)
+{
+	if (!pAddresses) {__xrtErrorSetInvalidArgument();return NULL;}
+	return __xrtNetDialCreate(pEngine,NULL,NULL,0,pConfig,pStreamEvents,pStreamData,pDone,pDoneData,NULL,pAddresses);
+}
+XRT_API xnetdial* xrtNetDialAddressesOwnedV1(xnetengine* pEngine,const xnetaddrlist* pAddresses,
+	const xnetdialconfig* pConfig,const xnetstreamevents* pStreamEvents,ptr pStreamData,
+	ptr pDoneData,const xnetdialownershipv1* pPolicy)
+{
+	if (!pAddresses||!__xrtNetDialOwnedValid(pDoneData,pPolicy)) {if(!pAddresses)__xrtErrorSetInvalidArgument();return NULL;}
+	return __xrtNetDialCreate(pEngine,NULL,NULL,0,pConfig,pStreamEvents,pStreamData,pPolicy->Done,pDoneData,pPolicy,pAddresses);
 }
 
 
@@ -1362,12 +1507,16 @@ XRT_API xnetdial* xrtNetDial(
 /* 增加 Dial 引用。 */
 XRT_API xnetdial* xrtNetDialRef(xnetdial* pDial)
 {
-	if ( (pDial == NULL) ||
-		 (xrtRefRetain(&pDial->References) < 0) ) {
+	xrtownershipscope Mutation = {0};
+	if (!pDial || !xrtOwnershipMutationBegin(&Mutation)) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	return pDial;
+	bool bHeld = !(xrtAtomic32Load(&pDial->OwnershipState, XMEMORY_ACQUIRE) & XRT_NET_DIAL_OWNERSHIP_CLEARED) &&
+		xrtRefRetain(&pDial->References)>=0;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (!bHeld) __xrtErrorSetInvalidState();
+	return bHeld?pDial:NULL;
 }
 
 
@@ -1375,10 +1524,13 @@ XRT_API xnetdial* xrtNetDialRef(xnetdial* pDial)
 /* 释放 Dial 引用，并在全部异步资源终结后回收对象。 */
 XRT_API void xrtNetDialDestroy(xnetdial* pDial)
 {
-	if ( (pDial == NULL) ||
-		 (xrtRefRelease(&pDial->References) != 0) ) {
-		return;
-	}
+	if (!pDial) return;
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	int32 iLeft=xrtRefRelease(&pDial->References);
+	if (iLeft<0 || (!iLeft && (pDial->RuntimeOwner.Data || pDial->RuntimeOwner.Previous))) abort();
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (iLeft) return;
 	xrtNetAddrListDestroy(pDial->ResolveAddresses);
 	xrtErrorFree(pDial->ResolveError);
 	xrtErrorFree(pDial->Error);
@@ -1394,7 +1546,7 @@ XRT_API void xrtNetDialDestroy(xnetdial* pDial)
 
 
 /* 原子受理一次取消请求，并无分配地交给目标 Worker。 */
-XRT_API bool xrtNetDialCancel(xnetdial* pDial)
+static bool __xrtNetDialCancel(xnetdial* pDial)
 {
 	uint32 iExpected = XRT_NET_DIAL_GATE_OPEN;
 
@@ -1441,6 +1593,13 @@ XRT_API bool xrtNetDialCancel(xnetdial* pDial)
 		return false;
 	}
 	return true;
+}
+
+XRT_API bool xrtNetDialCancel(xnetdial* pDial)
+{
+	if (!__xrtNetDialEnter(pDial,true)) return false;
+	bool bResult=__xrtNetDialCancel(pDial);
+	__xrtNetDialLeave(pDial);return bResult;
 }
 
 
@@ -1516,6 +1675,174 @@ XRT_API bool xrtNetDialStats(
 		pStats->HasWinner = true;
 	}
 	return true;
+}
+
+/* Frozen ownership views certify only resident, explicitly owned callbacks.
+ * Attempts are intrusive borrowed links: their real Dial and Stream creator
+ * references belong to Stream.Control, not to a second Dial-owned edge. */
+static bool __xrtNetDialPrepared(const void* pData)
+{
+	const xnetdial* pDial=pData;
+	return pDial && !xrtAtomic32Load(&pDial->OwnershipActive,XMEMORY_ACQUIRE) &&
+		(xrtAtomic32Load(&pDial->OwnershipState,XMEMORY_ACQUIRE)&XRT_NET_DIAL_OWNERSHIP_READY);
+}
+static bool __xrtNetDialOwnershipBusy(const void* pData)
+{
+	const xnetdial* pDial=pData;
+	if (!pDial) return false;
+	if (xrtAtomic32Load(&pDial->OwnershipActive,XMEMORY_ACQUIRE)) return true;
+	if (xrtAtomic32Load(&pDial->OwnershipState,XMEMORY_ACQUIRE)&XRT_NET_DIAL_OWNERSHIP_READY) return false;
+	return !pDial->EngineHeld || xrtNetEngineOwnershipQuiescenceV1Get()->Busy(pDial->Engine);
+}
+static bool __xrtNetDialEventsEmpty(const xnetstreamevents* pEvents)
+{
+	return !pEvents->Open&&!pEvents->Read&&!pEvents->End&&!pEvents->HighWater&&
+		!pEvents->LowWater&&!pEvents->Drain&&!pEvents->Close;
+}
+static bool __xrtNetDialCount(const void* pData,size_t* pCount)
+{
+	const xnetdial* pDial=pData;
+	if (!pDial||!pCount||__xrtNetDialOwnershipBusy(pDial)||
+		(xrtAtomic32Load(&pDial->OwnershipState,XMEMORY_ACQUIRE)&XRT_NET_DIAL_OWNERSHIP_CLEARED)||
+		pDial->StreamData||!__xrtNetDialEventsEmpty(&pDial->StreamEvents)||
+		(pDial->Done&&!pDial->DonePolicy)) return false;
+	if (__xrtNetDialPrepared(pDial)) {
+		if (!pDial->Published||pDial->EngineHeld||pDial->RuntimeOwner.Data||pDial->RuntimeOwner.Previous||
+			pDial->Done||pDial->DoneData||pDial->DonePolicy||pDial->Resolve||pDial->ResolveAddresses||
+			pDial->ResolveError||pDial->TerminalStream||pDial->Attempts||pDial->DeadlineTimer||pDial->FallbackTimer||
+			xrtAtomic32Load(&pDial->Resources,XMEMORY_ACQUIRE)) return false;
+	} else if (!pDial->EngineHeld||pDial->RuntimeOwner.Data!=pDial||!pDial->RuntimeOwner.Previous||
+		pDial->RuntimeOwner.Engine!=pDial->Engine||pDial->RuntimeOwner.Policy!=xrtNetDialRuntimeOwnershipV1Get()) return false;
+	int32 iReferences=__xrtAtomicRefLoad(&pDial->References);
+	if (iReferences<=0) return false;
+	*pCount=(size_t)iReferences;return true;
+}
+static bool __xrtNetDialTrace(const void* pData,xrtownershipvisitor pVisit,ptr pContext)
+{
+	const xnetdial* pDial=pData;size_t iCount;
+	if (!pVisit||!__xrtNetDialCount(pDial,&iCount)) return false;
+	if (pDial->EngineHeld&&!pVisit(xrtNetEngineOwnership(pDial->Engine),pContext)) return false;
+	if (pDial->Resolve&&!pVisit(xrtNetResolveOpOwnership(pDial->Resolve),pContext)) return false;
+	if (pDial->ResolveAddresses&&!pVisit(xrtNetAddrListOwnership(pDial->ResolveAddresses),pContext)) return false;
+	if (pDial->TerminalStream&&!pVisit(xrtNetStreamOwnership(pDial->TerminalStream),pContext)) return false;
+	if (pDial->DonePolicy&&!pVisit((xrtownershipref){pDial->DoneData,pDial->DonePolicy->Ops},pContext)) return false;
+	const xerror* pErrors[]={pDial->ResolveError,pDial->Error,pDial->LastError};
+	for (size_t i=0;i<sizeof(pErrors)/sizeof(*pErrors);++i) {
+		xrtownershipref Error=xrtErrorOwnership(pErrors[i]);
+		if (Error.Data&&!pVisit(Error,pContext)) return false;
+	}
+	return true;
+}
+static const xrtownershipops __xrtNetDialOwnershipOps={__xrtNetDialCount,__xrtNetDialTrace};
+XRT_API xrtownershipref xrtNetDialOwnership(const xnetdial* pDial)
+{ return (xrtownershipref){pDial,pDial?&__xrtNetDialOwnershipOps:NULL}; }
+XRT_API const xrtownershipquiescencev1* xrtNetDialOwnershipQuiescenceV1Get(void)
+{
+	static const xrtownershipquiescencev1 Policy={sizeof(Policy),&__xrtNetDialOwnershipOps,__xrtNetDialOwnershipBusy};
+	return &Policy;
+}
+static void __xrtNetDialRuntimeRelease(ptr pData)
+{ xrtNetDialDestroy(pData); }
+XRT_API const xnetruntimeownershipv1* xrtNetDialRuntimeOwnershipV1Get(void)
+{
+	static const xnettimerproc Timers[]={__xrtNetDialDeadlineTimer,__xrtNetDialFallbackTimer};
+	static const xnetruntimeownershipv1 Policy={sizeof(Policy),&__xrtNetDialOwnershipOps,__xrtNetDialRuntimeRelease,Timers,2};
+	return &Policy;
+}
+bool __xrtNetDialControlOwnership(const xnetstream* pStream,xrtownershipvisitor pVisit,ptr pContext)
+{
+	const __xrt_net_stream_control* pControl=&pStream->Control;
+	if (!pControl->Open&&!pControl->Published&&!pControl->Close&&!pControl->Release&&!pControl->Data) return true;
+	if (pControl->Open!=__xrtNetDialAttemptOpen||pControl->Published!=__xrtNetDialAttemptPublished||
+		pControl->Close!=__xrtNetDialAttemptClose||pControl->Release!=__xrtNetDialAttemptRelease||!pControl->Data) return false;
+	const xrt_net_dial_attempt* pAttempt=pControl->Data;
+	const xnetdial* pDial=pAttempt->Dial;size_t iCount;
+	if (pAttempt->Stream!=pStream||!__xrtNetDialCount(pDial,&iCount)||pDial->Engine!=pStream->Engine||
+		pAttempt->Index>=pDial->Count) return false;
+	size_t iSeen=0;bool bFound=false;
+	for (const xrt_net_dial_attempt* pItem=pDial->Attempts;pItem;pItem=pItem->Next) {
+		if (++iSeen>pDial->Config.MaxAttempts||pItem->Dial!=pDial) return false;
+		if (pItem==pAttempt) bFound=true;
+	}
+	return bFound&&(!pVisit||(pVisit(xrtNetDialOwnership(pDial),pContext)&&
+		pVisit(xrtNetStreamOwnership(pStream),pContext)));
+}
+static bool __xrtNetDialHold(const void* pData)
+{ return xrtNetDialRef((xnetdial*)pData)!=NULL; }
+static void __xrtNetDialDrop(const void* pData)
+{ xrtNetDialDestroy((xnetdial*)pData); }
+static bool __xrtNetDialClaim(const void* pData,const void* pToken)
+{
+	xnetdial* pDial=(xnetdial*)pData;size_t iCount;
+	ptr pOld=xrtAtomicPtrLoad(&pDial->OwnershipClaim,XMEMORY_ACQUIRE);
+	if (!pToken||(pOld&&pOld!=pToken)||!__xrtNetDialCount(pDial,&iCount)) return false;
+	xrtAtomicPtrStore(&pDial->OwnershipClaim,(ptr)pToken,XMEMORY_RELEASE);return true;
+}
+static void __xrtNetDialRestore(const void* pData,const void* pToken)
+{
+	xnetdial* pDial=(xnetdial*)pData;
+	if (!pToken||xrtAtomicPtrLoad(&pDial->OwnershipClaim,XMEMORY_ACQUIRE)!=pToken||
+		(xrtAtomic32Load(&pDial->OwnershipState,XMEMORY_ACQUIRE)&XRT_NET_DIAL_OWNERSHIP_CLEARED)) abort();
+	xrtAtomicPtrStore(&pDial->OwnershipClaim,NULL,XMEMORY_RELEASE);
+}
+static void __xrtNetDialOwnershipStopTask(xnetworker* pWorker,ptr pData)
+{
+	(void)pWorker;xnetdial* pDial=pData;
+	/* The registered runtime slot protects this borrowed embedded command.
+	 * Keep it until this task's last operation; no fabricated queue reference. */
+	uint32 iExpected=XRT_NET_DIAL_GATE_OPEN;
+	(void)xrtAtomic32CompareExchange(&pDial->CancelGate,&iExpected,XRT_NET_DIAL_GATE_CANCEL,
+		XMEMORY_ACQ_REL,XMEMORY_ACQUIRE);
+	__xrtNetDialCancelCurrent(pDial);
+	xrtownershipscope Mutation={0};if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	xrtAtomic32Store(&pDial->OwnershipStop,0,XMEMORY_RELEASE);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	__xrtNetDialTryPublish(pDial); /* last access: may consume the runtime lease */
+}
+static xrtownershipprepareresult __xrtNetDialPrepare(const void* pData,const void* pToken)
+{
+	xnetdial* pDial=(xnetdial*)pData;xrtownershipscope Freeze={0};
+	if (!xrtOwnershipFreezeTryBegin(&Freeze)) return XRT_OWNERSHIP_PREPARE_BUSY;
+	if (!pToken||xrtAtomicPtrLoad(&pDial->OwnershipClaim,XMEMORY_ACQUIRE)!=pToken||
+		(xrtAtomic32Load(&pDial->OwnershipState,XMEMORY_ACQUIRE)&XRT_NET_DIAL_OWNERSHIP_CLEARED)) abort();
+	xrtownershipprepareresult Result=XRT_OWNERSHIP_PREPARE_BUSY;
+	if (__xrtNetDialPrepared(pDial)) Result=XRT_OWNERSHIP_PREPARE_READY;
+	else if (!__xrtNetDialOwnershipBusy(pDial)&&!xrtAtomic32Load(&pDial->OwnershipStop,XMEMORY_ACQUIRE)) {
+		xrtAtomic32Store(&pDial->OwnershipStop,1,XMEMORY_RELEASE);
+		if (!__xrtNetEnginePostInternal(pDial->Worker,&pDial->OwnershipStopCommand,__xrtNetDialOwnershipStopTask,pDial)) {
+			xrtAtomic32Store(&pDial->OwnershipStop,0,XMEMORY_RELEASE);Result=XRT_OWNERSHIP_PREPARE_FAILED;
+		}
+	}
+	if (!xrtOwnershipScopeEnd(&Freeze)) abort();
+	return Result;
+}
+static void __xrtNetDialClear(const void* pData,const void* pToken)
+{
+	xnetdial* pDial=(xnetdial*)pData;
+	if (!pToken||xrtAtomicPtrLoad(&pDial->OwnershipClaim,XMEMORY_ACQUIRE)!=pToken||!__xrtNetDialPrepared(pDial)||
+		(xrtAtomic32Load(&pDial->OwnershipState,XMEMORY_ACQUIRE)&XRT_NET_DIAL_OWNERSHIP_CLEARED)) abort();
+	xrtAtomic32Store(&pDial->OwnershipState,XRT_NET_DIAL_OWNERSHIP_READY|XRT_NET_DIAL_OWNERSHIP_CLEARED,XMEMORY_RELEASE);
+}
+XRT_API const xrtownershipadapterv1* xrtNetDialOwnershipAdapterV1(xrtownershipref Reference,
+	const xnetdialownershipv1* const* pPolicies,size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation)
+{
+	static const xrtownershipadapterv1 Adapter={sizeof(Adapter),__xrtNetDialHold,__xrtNetDialDrop,
+		__xrtNetDialClaim,__xrtNetDialRestore,NULL,__xrtNetDialClear,NULL};
+	static const xrtownershippreparationv1 Preparation={sizeof(Preparation),&Adapter,__xrtNetDialPrepared,__xrtNetDialPrepare};
+	if (!ppPreparation||Reference.Ops!=&__xrtNetDialOwnershipOps||!Reference.Data||(iPolicyCount&&!pPolicies)) return NULL;
+	const xnetdial* pDial=Reference.Data;
+	if (__xrtNetDialOwnershipBusy(pDial)) return NULL;
+	if (pDial->DonePolicy) {
+		bool bKnown=false;
+		for (size_t i=0;i<iPolicyCount;++i) if (pPolicies[i]&&pPolicies[i]==pDial->DonePolicy) {bKnown=true;break;}
+		if (!bKnown) return NULL; /* before following unadmitted context metadata */
+		const xnetdialownershipv1* pPolicy=pDial->DonePolicy;
+		if (pPolicy->size!=sizeof(*pPolicy)||pPolicy->Done!=pDial->Done||!pPolicy->Drop||
+			!pPolicy->Ops||!pPolicy->Ops->Count||!pPolicy->Ops->Trace||!pDial->DoneData) return NULL;
+	}
+	size_t iCount;if (!__xrtNetDialCount(pDial,&iCount)) return NULL;
+	*ppPreparation=&Preparation;return &Adapter;
 }
 
 #endif

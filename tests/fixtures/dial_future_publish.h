@@ -38,7 +38,21 @@ static void testDialRelease(xnetdial* pDial)
 #else
 	#define xrtNetDialDestroy testDialRelease
 	#define xrtNetDialAsync testPublishedNetDialAsync
+	#define xrtNetDialAddressesAsync testPublishedNetDialAddressesAsync
+	#define xrtNetDialFutureProducerPolicyV1Get testPublishedDialProducer
+	#define xrtNetDialFutureCancelPolicyV1Get testPublishedDialCancel
+	#define xrtNetDialFutureDialPolicyV1Get testPublishedDialPolicy
+	#define xrtNetDialFuturePayloadPolicyV1Get testPublishedDialPayload
+	#define xrtNetDialFutureOwnershipQuiescenceV1Get testPublishedDialQuiescence
+	#define xrtNetDialFutureOwnershipAdapterV1 testPublishedDialAdapter
 	#include "../../src/network/tcp_dial_future.c"
+	#undef xrtNetDialFutureOwnershipAdapterV1
+	#undef xrtNetDialFutureOwnershipQuiescenceV1Get
+	#undef xrtNetDialFuturePayloadPolicyV1Get
+	#undef xrtNetDialFutureDialPolicyV1Get
+	#undef xrtNetDialFutureCancelPolicyV1Get
+	#undef xrtNetDialFutureProducerPolicyV1Get
+	#undef xrtNetDialAddressesAsync
 	#undef xrtNetDialAsync
 	#undef xrtNetDialDestroy
 	typedef xrt_net_dial_future test_dial_context;
@@ -51,6 +65,7 @@ static int32 testDialCompleteBeforePublish(ptr pData)
 	__xrtTlsDialFutureDone(NULL, XNET_RESULT_CLOSED, NULL, NULL, pData);
 #else
 	__xrtNetDialFutureDone(NULL, XNET_RESULT_CLOSED, NULL, NULL, pData);
+	__xrtNetDialFutureDrop(pData); /* real owned Done-context reference, after its callback tail */
 #endif
 	return 0;
 }
@@ -65,6 +80,11 @@ int main(void)
 	pFuture = xrtFutureBridgeCreate(&pContext->Bridge, NULL);
 	testRequire(pFuture != NULL, "publication bridge creation failed");
 	pContext->References = 2;
+	#if !defined(TEST_TLS_DIAL_PUBLICATION)
+		testRequire(xrtMutexInit(&pContext->Lock), "publication metadata lock init failed");
+		pContext->Promise=xrtFutureBridgePromise(&pContext->Bridge);
+		pContext->Publishing=true;
+	#endif
 	xrtAtomic32Init(&Entered, 0u);
 	pThread = xrtThreadCreate(testDialCompleteBeforePublish, pContext, 0u);
 	testRequire(pThread != NULL, "publication callback thread creation failed");
@@ -76,10 +96,18 @@ int main(void)
 #if defined(TEST_TLS_DIAL_PUBLICATION)
 	pContext->Dial = (xtlsdial*)&DialMarker;
 #else
+	xrtownershipscope Scope={0};
+	__xrtNetDialFutureBegin(pContext,&Scope);
 	pContext->Dial = (xnetdial*)&DialMarker;
+	pContext->Publishing=false;
+	__xrtNetDialFutureEnd(pContext,&Scope);
 #endif
 	testRequire(xrtFutureBridgeReady(&pContext->Bridge), "publication failed");
-	if ( xrtRefRelease(&pContext->References) == 0 ) xrtFree(pContext);
+	#if defined(TEST_TLS_DIAL_PUBLICATION)
+		if ( xrtRefRelease(&pContext->References) == 0 ) xrtFree(pContext);
+	#else
+		__xrtNetDialFutureDrop(pContext);
+	#endif
 	testRequire(xrtThreadWaitFor(pThread, INT64_C(5000)) == XWAIT_OK,
 		"publication callback did not finish");
 	xrtThreadDestroy(pThread);

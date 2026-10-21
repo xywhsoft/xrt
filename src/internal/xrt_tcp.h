@@ -18,6 +18,7 @@ typedef struct __xrt_net_accept_slot __xrt_net_accept_slot;
 
 #if defined(XRT_FEATURE_NET_TCP_DIAL)
 typedef struct __xrt_net_stream_control __xrt_net_stream_control;
+bool __xrtNetDialControlOwnership(const xnetstream*, xrtownershipvisitor, ptr);
 #endif
 
 #if defined(XRT_FEATURE_NET_TCP_FUTURE)
