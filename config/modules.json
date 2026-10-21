@@ -7873,9 +7873,12 @@
 				"src/network/proxy.c"
 			],
 			"tests": [
-				"tests/network/test_net_proxy.c"
+				"tests/network/test_net_proxy.c",
+				"tests/network/test_net_proxy_ownership.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"tests/single/test_single_net_proxy_ownership.c"
+			],
 			"examples": [
 				"examples/network/proxy_tour/main.c"
 			],
