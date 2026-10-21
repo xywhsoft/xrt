@@ -5367,3 +5367,50 @@ Prepare 使用原有实际关闭与 Worker 排空机制，只有 Data／runtime�
 证据位于 `F:/xlang-validation/five-groups-20261021/p3-listener-events` 的
 `native-win-r2`／`native-linux-r2` 和 `server-compat-win-r1`／`server-compat-linux-r1`。
 生成单头来自干净已提交父版本加此批精确源码，不夹带其他文件／内存库改动。
+
+### 聚合 Server 的完整原生拥有图
+
+`xrtNetServerOwnership` 与 `xrtNetServerRuntimeOwnershipV1Get` 声明 Server 的真实
+Engine 拥有边和实际 runtime 槽。创建者、runtime、Listener 绑定、接受队列和
+Future 激活各自按物理引用计数；不把 RuntimeHeld、队列链接或内部数组地址凭空当成根。
+
+每个内嵌 Child 现在有实际绑定引用计数，并持有一份 Server 引用，保证内嵌存储寿命。
+Listener 消费一份绑定引用，Drop 将同一份引用转移给同 Worker 的无分配尾部命令，
+不是新增一份隐藏引用。Server 保留关闭后的 Listener 引用，直到它的回调和 Drop
+确实退出；待全部尾部命令与公开借用退出，才释放这些 Listener 槽和自己的 runtime／
+Engine 边。末次借用与退休选举在同一锁内，不存在计数归零后再访问已释放接收者的间隙。
+绑定 Clear 仍保留其真实父引用到最后一次 Drop，不能提前释放还被计划 pin 持有的内嵌壳体。
+
+`xrtNetServerListenerEventPolicyV1Get` 为上述 Listener 上下文提供精确策略身份，
+`xrtNetServerOwnershipAdapterV1` 准入 Server／绑定节点；各自 Quiescence getter
+提供对应静止合同。旧 Server Data／原始 Server 或 Stream 回调继续可用，但拥有图
+保守拒绝它们，不以空叶对象冒充安全接入。拉取模式的已接受 Stream 不继承任何绑定地址。
+
+Server Prepare 只投递嵌入式关闭命令，不等待，也不在宿主 Prepare 内执行 Future
+完成回调。完整联合计划仍需准备 Listener、绑定、Future、Engine 等所有真实节点，
+原生线程退出和宿主代码租约的卸载证明仍属于宿主责任。
+
+Accept Future 现在具有真实的生产者／取消 Watch／拥有型 Stream 结果策略。
+`xrtNetServerFutureProducerPolicyV1Get`、`xrtNetServerFutureCancelPolicyV1Get`、
+`xrtNetServerFutureStreamPayloadPolicyV1Get`、`xrtNetServerFutureOwnershipQuiescenceV1Get`
+及 `xrtNetServerFutureOwnershipAdapterV1` 提供精确准入与退休合同。构造／队列、
+生产者、Watch 的引用独立计数，链表 Next 不是额外拥有边；取消只移除当前等待。
+结果交付被拒绝时先 Abort 再 Destroy 无人接管的 Stream；成功交付仍遵循原有 C
+合同，由调用者显式 Ref 取得独立引用并负责关闭。惰性激活壳保留的 Server 引用会
+被 Trace 如实枚举，直到 Clear／最终 Drop；不阻止已关闭 Server 的 Engine 退休。
+
+同步接受在整个调用期保留活动借用，并在读取 Engine 前检查关闭状态。Server 壳体
+可以合法长于其 Engine，关闭后同步／异步调用不得解引用已经释放的 Engine。
+
+最终验收 `F:/xlang-validation/five-groups-20261021/p3-server-owned`：
+`native-win-r3`／`native-linux-r3` 为 231／288 阶段；
+`listener-regression-win-r1`／`listener-regression-linux-r1` 复用已逐项验证哈希的
+相同运行库对象，另为 24／30 阶段，共 573。GCC／TCC O0／O2、模块化／单头、
+select／原生后端，Linux 增加 ASan／UBSan；输入、日志和产物哈希均不变。
+新夹具每次包括 6 次整图退休、13 次登记的策略／裸回调拒绝、15 个分配预算
+（13 个失败前缀）、两个端点 NUL 通信、9 次绑定／激活最终 Drop 竞态和 8 次
+取消／关闭竞态，以及 Engine 已释放后的 Server 壳体调用。删除真实绑定父边的
+离线代码变异会被未申报外部根检查拒绝；core-only 独立链接不包含 Server Future。
+旧原始接受／重入关闭／Future／同步／OOM 与拥有型 Listener／Stream 一并回归。
+全部通信仅为自建字面量回环正常功能，不执行 DNS、外网或网络安全性质专项。
+此批不代表 xlang 固定快照、聚合 Server 公开面或 shipping 验收完成。

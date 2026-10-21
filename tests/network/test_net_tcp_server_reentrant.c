@@ -1,5 +1,5 @@
 #include <xrt/detail/wait.h>
-#include "../test.h"
+#include "tcp_server_test.h"
 
 
 
@@ -231,7 +231,7 @@ int main(void)
 	xrtNetServerDestroy(pServer);
 
 	testTcpServerQueueLimit(pEngine);
-	testRequire(xrtNetEngineDestroy(pEngine),
+	testRequire(testTcpServerEngineDestroy(pEngine),
 		"TCP server reentrant engine destroy failed");
 	printf("[PASS] network TCP server reentrant and queue limit\n");
 	return 0;

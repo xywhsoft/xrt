@@ -209,5 +209,11 @@ int main(void)
 	xrtNetStreamDestroy(State.Client);
 	xrtNetStreamDestroy(State.Accepted);
 	xrtNetServerDestroy(pServer);
-	return xrtNetEngineDestroy(pEngine) ? 0 : 9;
+	Deadline = __xrtWaitAfter(5000);
+	for (;;) {
+		xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+		if ( Result == XNET_RETIRE_READY ) return 0;
+		if ( Result != XNET_RETIRE_BUSY || __xrtWaitExpired(Deadline) ) return 9;
+		xrtThreadYield();
+	}
 }

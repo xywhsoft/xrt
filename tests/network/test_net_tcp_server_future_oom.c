@@ -1,5 +1,5 @@
 #include <xrt/detail/wait.h>
-#include "../test.h"
+#include "tcp_server_test.h"
 
 
 
@@ -81,7 +81,7 @@ int main(void)
 		"TCP server Future OOM close failed");
 	testTcpServerFutureOomClose(pServer);
 	xrtNetServerDestroy(pServer);
-	testRequire(xrtNetEngineDestroy(pEngine),
+	testRequire(testTcpServerEngineDestroy(pEngine),
 		"TCP server Future OOM engine destroy failed");
 	printf("[PASS] network TCP server Future OOM\n");
 	return 0;

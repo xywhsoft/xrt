@@ -1,5 +1,5 @@
 #include <xrt/detail/wait.h>
-#include "../test.h"
+#include "tcp_server_test.h"
 
 
 
@@ -112,7 +112,7 @@ int main(void)
 	xrtNetStreamDestroy(pAccepted);
 	xrtNetStreamDestroy(pClient);
 	xrtNetServerDestroy(pServer);
-	testRequire(xrtNetEngineDestroy(pEngine),
+	testRequire(testTcpServerEngineDestroy(pEngine),
 		"TCP server Future engine destroy failed");
 	printf("[PASS] network TCP server Future\n");
 	return 0;

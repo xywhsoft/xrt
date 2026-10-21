@@ -167,8 +167,12 @@ XRT_API void xrtNetServerConfigInit(xnetserverconfig* pConfig)
 /* 增加 Server 引用。 */
 XRT_API xnetserver* xrtNetServerRef(xnetserver* pServer)
 {
-	if ( (pServer == NULL) ||
-		 (xrtRefRetain(&pServer->References) < 0) ) {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
+	bool bHeld = pServer && !(xrtAtomic32Load(&pServer->OwnershipState, XMEMORY_ACQUIRE) & XRT_NET_SERVER_CLEARED) &&
+		xrtRefRetain(&pServer->References) >= 0;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (!bHeld) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
@@ -180,11 +184,19 @@ XRT_API xnetserver* xrtNetServerRef(xnetserver* pServer)
 /* 释放最后引用拥有的启动错误和聚合存储。 */
 XRT_API void xrtNetServerDestroy(xnetserver* pServer)
 {
-	if ( (pServer != NULL) &&
-		 (xrtRefRelease(&pServer->References) == 0) ) {
-		xrtErrorFree(pServer->StartupError);
-		xrtFree(pServer);
-	}
+	if (!pServer) return;
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	int32 iLeft = xrtRefRelease(&pServer->References);
+	if (iLeft < 0 || (!iLeft && (pServer->RuntimeHeld || pServer->EngineHeld || pServer->RuntimeOwner.Data ||
+		xrtAtomic32Load(&pServer->Bindings, XMEMORY_ACQUIRE)))) abort();
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (iLeft) return;
+	for (size_t i = 0; i < pServer->ListenerCount; ++i)
+		if (__xrtAtomicRefLoad(&pServer->Children[i].References) || pServer->Children[i].ParentHeld) abort();
+	xrtErrorFree(pServer->StartupError);
+	__xrtSpinUnit(&pServer->Lock);__xrtSpinUnit(&pServer->AcceptLock);
+	xrtFree(pServer);
 }
 
 
@@ -260,7 +272,7 @@ static bool __xrtNetServerQueue(
 
 
 /* 拉取模式下非阻塞取走一个聚合连接。 */
-XRT_API xnetstream* xrtNetServerAccept(xnetserver* pServer)
+static xnetstream* __xrtNetServerAccept(xnetserver* pServer)
 {
 	xnetstream* pStream = NULL;
 	bool bWaiting = false;
@@ -299,6 +311,13 @@ XRT_API xnetstream* xrtNetServerAccept(xnetserver* pServer)
 		);
 	}
 	return pStream;
+}
+
+XRT_API xnetstream* xrtNetServerAccept(xnetserver* pServer)
+{
+	if (!__xrtNetServerEnter(pServer, true)) return NULL;
+	xnetstream* pResult = __xrtNetServerAccept(pServer);
+	__xrtNetServerLeave(pServer);return pResult;
 }
 
 
@@ -361,10 +380,7 @@ static void __xrtNetServerTryFinish(xnetserver* pServer)
 	if ( bPublished && (pServer->Events.Close != NULL) ) {
 		pServer->Events.Close(pServer, pServer->Data);
 	}
-	if ( pServer->RuntimeHeld ) {
-		pServer->RuntimeHeld = false;
-		xrtNetServerDestroy(pServer);
-	}
+	__xrtNetServerTryRetire(pServer);
 }
 
 
@@ -392,7 +408,7 @@ static void __xrtNetServerCloseListeners(xnetserver* pServer)
 
 
 /* 原子封闭 Server Accept 入口并关闭整组 Listener。 */
-XRT_API bool xrtNetServerClose(xnetserver* pServer)
+static bool __xrtNetServerClose(xnetserver* pServer)
 {
 	uint32 iExpected = XNET_SERVER_OPEN;
 
@@ -416,6 +432,13 @@ XRT_API bool xrtNetServerClose(xnetserver* pServer)
 	__xrtNetServerCloseListeners(pServer);
 	__xrtNetServerTryFinish(pServer);
 	return true;
+}
+
+XRT_API bool xrtNetServerClose(xnetserver* pServer)
+{
+	if (!__xrtNetServerEnter(pServer, false)) return false;
+	bool bResult = __xrtNetServerClose(pServer);
+	__xrtNetServerLeave(pServer);return bResult;
 }
 
 
@@ -479,7 +502,6 @@ static void __xrtNetServerListenerClose(
 	__xrt_net_server_child* pChild =
 		(__xrt_net_server_child*)pData;
 	xnetserver* pServer = pChild->Server;
-	bool bOwned = false;
 	xnetserverstate State;
 
 	__xrtSpinLock(&pServer->Lock);
@@ -491,15 +513,9 @@ static void __xrtNetServerListenerClose(
 			XMEMORY_RELEASE
 		);
 	}
-	if ( pChild->Listener == pListener ) {
-		pChild->Listener = NULL;
-		bOwned = true;
-	}
+	(void)pListener;
 	State = xrtNetServerState(pServer);
 	__xrtSpinUnlock(&pServer->Lock);
-	if ( bOwned ) {
-		xrtNetListenerDestroy(pListener);
-	}
 	if ( State == XNET_SERVER_OPEN ) {
 		(void)xrtNetServerClose(pServer);
 	}
@@ -557,16 +573,38 @@ static bool __xrtNetServerListenerAccept(
 
 
 
-/* 返回所有 Child 共用的静态 Listener 事件表。 */
-static const xnetlistenerevents* __xrtNetServerListenerEvents(void)
+/* One actual binding credit is transferred to Listener. Its counted parent
+ * credit keeps the enclosing allocation alive; no interior alias is a root. */
+static void __xrtNetServerBindingDropTail(xnetworker* pWorker, ptr pData)
 {
-	static const xnetlistenerevents Events = {
-		__xrtNetServerListenerAccept,
-		__xrtNetServerListenerError,
-		__xrtNetServerListenerClose
-	};
-
-	return &Events;
+	__xrt_net_server_child* pChild = pData;xnetserver* pServer = pChild->Server;
+	if (pWorker != pChild->Worker || !pChild->TailPending || !__xrtNetServerEnter(pServer, false)) abort();
+	pChild->TailPending = false;
+	if (!xrtAtomic32FetchSub(&pServer->TailCommands, 1, XMEMORY_ACQ_REL)) abort();
+	__xrtNetServerBindingRelease(pChild); /* transferred Listener.Data credit */
+	__xrtNetServerLeave(pServer); /* runtime credit protects this final borrow */
+}
+static void __xrtNetServerListenerDrop(const void* pData)
+{
+	__xrt_net_server_child* pChild = (__xrt_net_server_child*)pData;
+	xnetserver* pServer = pChild->Server;xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	if (!pChild->BindingHeld || !pChild->Closed || pChild->TailPending) abort();
+	pChild->BindingHeld = false;pChild->TailPending = true;
+	(void)xrtAtomic32FetchAdd(&pServer->TailCommands, 1, XMEMORY_ACQ_REL);
+	if (!xrtAtomic32FetchSub(&pServer->Bindings, 1, XMEMORY_ACQ_REL)) abort();
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	/* Transfer, do not duplicate, the real binding credit to a same-Worker
+	 * tail. Source runtime cannot retire while TailCommands is nonzero. */
+	if (!__xrtNetEnginePostInternal(pChild->Worker, &pChild->DropTailCommand,
+		__xrtNetServerBindingDropTail, pChild)) abort();
+}
+XRT_API const xnetlistenereventsownershipv1* xrtNetServerListenerEventPolicyV1Get(void)
+{
+	static const xnetlistenereventsownershipv1 Policy = {sizeof(Policy),
+		{__xrtNetServerListenerAccept, __xrtNetServerListenerError, __xrtNetServerListenerClose},
+		__xrtNetServerListenerDrop, &__xrtNetServerBindingOps};
+	return &Policy;
 }
 
 
@@ -663,6 +701,7 @@ static xnetserver* __xrtNetServerStartFailed(
 	#endif
 	__xrtNetServerCloseListeners(pServer);
 	__xrtNetServerTryFinish(pServer);
+	__xrtNetServerLeave(pServer); /* constructor borrow */
 	xrtNetServerDestroy(pServer);
 	if ( pError != NULL ) {
 		xrtSetError(pError);
@@ -747,11 +786,21 @@ XRT_API xnetserver* xrtNetServerStart(
 	) ) {
 		return NULL;
 	}
+	if (iListenerCount > UINT32_MAX) {__xrtErrorSetSizeOverflow();return NULL;}
+	if (!__xrtNetEngineObjectHold(pEngine)) return NULL;
 	pServer = (xnetserver*)xrtCalloc(1, iTotal);
 	if ( pServer == NULL ) {
+		__xrtNetEngineObjectRelease(pEngine);
 		return NULL;
 	}
 	pServer->References = 2;
+	xrtAtomicPtrInit(&pServer->OwnershipClaim, NULL);
+	xrtAtomic32Init(&pServer->OwnershipState, 0);
+	xrtAtomic32Init(&pServer->OwnershipActive, 1);
+	xrtAtomic32Init(&pServer->OwnershipStop, 0);
+	xrtAtomic32Init(&pServer->Bindings, 0);
+	xrtAtomic32Init(&pServer->TailCommands, 0);
+	xrtAtomic32Init(&pServer->Retiring, 0);
 	xrtAtomic32Init(&pServer->State, XNET_SERVER_STARTING);
 	xrtAtomic64Init(&pServer->Accepted, 0);
 	xrtAtomic64Init(&pServer->Rejected, 0);
@@ -772,8 +821,16 @@ XRT_API xnetserver* xrtNetServerStart(
 	pServer->ListenerCount = iListenerCount;
 	pServer->AcceptQueueLimit = Config.AcceptQueueLimit;
 	pServer->RuntimeHeld = true;
+	pServer->EngineHeld = true;
+	pServer->RawStreamEvents = pStreamEvents && (pStreamEvents->Open || pStreamEvents->Read || pStreamEvents->End ||
+		pStreamEvents->HighWater || pStreamEvents->LowWater || pStreamEvents->Drain || pStreamEvents->Close);
 	if ( pEvents != NULL ) {
 		memcpy(&pServer->Events, pEvents, sizeof(pServer->Events));
+	}
+	if (!__xrtNetEngineRuntimeAdopt(pEngine, &pServer->RuntimeOwner, pServer, xrtNetServerRuntimeOwnershipV1Get())) {
+		xerror* pFailure = xrtTakeError();pServer->RuntimeHeld = false;pServer->EngineHeld = false;
+		__xrtNetEngineObjectRelease(pEngine);__xrtNetServerLeave(pServer);
+		xrtNetServerDestroy(pServer);xrtNetServerDestroy(pServer);xrtSetErrorTake(pFailure);return NULL;
 	}
 	for ( size_t iEndpoint = 0;
 		iEndpoint < iEndpointCount;
@@ -793,10 +850,12 @@ XRT_API xnetserver* xrtNetServerStart(
 				&pServer->Children[iChild];
 			xnetlistener* pListener;
 			xnetaddr Local;
-			bool bClosed;
 
 			pChild->Server = pServer;
 			pChild->Endpoint = iEndpoint;
+			if (!xrtNetServerRef(pServer)) return __xrtNetServerStartFailed(pServer, xrtTakeError());
+			pChild->References = 1;pChild->ParentHeld = true;pChild->BindingHeld = true;
+			(void)xrtAtomic32FetchAdd(&pServer->Bindings, 1, XMEMORY_ACQ_REL);
 			if ( iCopy != 0 ) {
 				Listen.Address.Port = iEndpointPort;
 			}
@@ -806,33 +865,29 @@ XRT_API xnetserver* xrtNetServerStart(
 				Listen.ReusePort = true;
 				Listen.ExclusiveAddress = false;
 			}
-			pListener = xrtNetListen(
+			pChild->Worker = xrtNetEngineWorker(pEngine, (uint32)(Listen.Affinity % iWorkers));
+			if (!pChild->Worker) abort();
+			pListener = __xrtNetListenOwnedEvents(
 				pEngine,
 				&Listen,
-				__xrtNetServerListenerEvents(),
 				pStreamEvents,
-				pChild
+				pChild,
+				xrtNetServerListenerEventPolicyV1Get()
 			);
 			if ( pListener == NULL ) {
 				pError = xrtTakeError();
+				pChild->BindingHeld = false;
+				(void)xrtAtomic32FetchSub(&pServer->Bindings, 1, XMEMORY_ACQ_REL);
+				__xrtNetServerBindingRelease(pChild);
 				return __xrtNetServerStartFailed(pServer, pError);
 			}
 			__xrtSpinLock(&pServer->Lock);
 			pServer->StartedListeners++;
-			bClosed = pChild->Closed;
-			if ( !bClosed ) {
-				pChild->Listener = pListener;
-			}
+			pChild->Listener = pListener;
 			__xrtSpinUnlock(&pServer->Lock);
 			if ( !xrtNetListenerLocal(pListener, &Local) ) {
 				pError = xrtTakeError();
-				if ( bClosed ) {
-					xrtNetListenerDestroy(pListener);
-				}
 				return __xrtNetServerStartFailed(pServer, pError);
-			}
-			if ( bClosed ) {
-				xrtNetListenerDestroy(pListener);
 			}
 			if ( iCopy == 0 ) {
 				pServer->Locals[iEndpoint] = Local;
@@ -864,6 +919,7 @@ XRT_API xnetserver* xrtNetServerStart(
 	if ( bStartFailed ) {
 		return __xrtNetServerStartFailed(pServer, pError);
 	}
+	__xrtNetServerLeave(pServer);
 	return pServer;
 }
 
@@ -915,7 +971,7 @@ XRT_API size_t xrtNetServerListenerCount(const xnetserver* pServer)
 
 
 /* 在线性化锁内取得一个底层 Listener 调用方引用。 */
-XRT_API xnetlistener* xrtNetServerListener(
+static xnetlistener* __xrtNetServerListener(
 	xnetserver* pServer,
 	size_t iListener
 )
@@ -927,13 +983,20 @@ XRT_API xnetlistener* xrtNetServerListener(
 		return NULL;
 	}
 	__xrtSpinLock(&pServer->Lock);
-	if ( pServer->Children[iListener].Listener != NULL ) {
+	if ( !pServer->Children[iListener].Closed && pServer->Children[iListener].Listener != NULL ) {
 		pListener = xrtNetListenerRef(
 			pServer->Children[iListener].Listener
 		);
 	}
 	__xrtSpinUnlock(&pServer->Lock);
 	return pListener;
+}
+
+XRT_API xnetlistener* xrtNetServerListener(xnetserver* pServer, size_t iListener)
+{
+	if (!__xrtNetServerEnter(pServer, true)) return NULL;
+	xnetlistener* pResult = __xrtNetServerListener(pServer, iListener);
+	__xrtNetServerLeave(pServer);return pResult;
 }
 
 

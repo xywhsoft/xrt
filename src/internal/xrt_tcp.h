@@ -305,6 +305,9 @@ bool __xrtNetListenerOwnershipEnter(xnetlistener* pListener, bool bSubmit);
 void __xrtNetListenerOwnershipLeave(xnetlistener* pListener);
 bool __xrtNetStreamOwnershipStop(xnetstream* pStream);
 bool __xrtNetListenerOwnershipStop(xnetlistener* pListener);
+xnetlistener* __xrtNetListenOwnedEvents(xnetengine* pEngine,
+	const xnetlistenconfig* pConfig, const xnetstreamevents* pStreamEvents,
+	ptr pData, const xnetlistenereventsownershipv1* pPolicy);
 bool __xrtNetStreamBuffersOwnership(const xnetstream* pStream,
 	xrtownershipvisitor pVisit, ptr pContext);
 

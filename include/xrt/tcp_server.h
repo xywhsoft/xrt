@@ -129,6 +129,20 @@ XRT_API xnetserver* xrtNetServerRef(xnetserver* pServer);
 /* 释放 Server 引用；不会隐式关闭仍在运行的 Server。 */
 XRT_API void xrtNetServerDestroy(xnetserver* pServer);
 
+/* Frozen, exact native graph. Raw Server/Stream callbacks and Data remain
+ * opaque and are refused. The owned Listener binding policy is resident and
+ * admits real counted binding nodes, not borrowed interior aliases. */
+XRT_API xrtownershipref xrtNetServerOwnership(const xnetserver* pServer);
+XRT_API const xnetruntimeownershipv1* xrtNetServerRuntimeOwnershipV1Get(void);
+XRT_API const xnetlistenereventsownershipv1* xrtNetServerListenerEventPolicyV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtNetServerOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtNetServerBindingOwnershipQuiescenceV1Get(void);
+/* Accepts exact Server or binding nodes; failure preserves output/error.
+ * Prepare closes real sources without waiting; READY additionally requires
+ * all owned Listener callbacks/Drop tails and Engine/runtime edges retired. */
+XRT_API const xrtownershipadapterv1* xrtNetServerOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+
 
 
 /* 拉取模式下非阻塞取走一个已接受 Stream；空队列返回空指针。 */
@@ -192,6 +206,12 @@ XRT_API bool xrtNetServerStats(
 #if defined(XRT_FEATURE_NET_TCP_SERVER_FUTURE)
 /* 拉取模式下异步接受一个连接；成功值由 Future 持有一个 Stream 引用。 */
 XRT_API xfuture* xrtNetServerAcceptAsync(xnetserver* pServer);
+XRT_API const xfutureproducerownershipv1* xrtNetServerFutureProducerPolicyV1Get(void);
+XRT_API const xcancelwatchownershipv1* xrtNetServerFutureCancelPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtNetServerFutureStreamPayloadPolicyV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtNetServerFutureOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtNetServerFutureOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
 #endif
 
 

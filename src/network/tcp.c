@@ -5449,11 +5449,19 @@ XRT_API xnetlistener* xrtNetListenOwnedV1(xnetengine* pEngine,
 	const xnetlistenconfig* pConfig, ptr pData,
 	const xnetlistenereventsownershipv1* pPolicy)
 {
+	return __xrtNetListenOwnedEvents(pEngine, pConfig, NULL, pData, pPolicy);
+}
+/* Internal aggregate composition preserves legacy raw Stream callbacks;
+ * Listener ownership still refuses those opaque Stream callbacks. */
+xnetlistener* __xrtNetListenOwnedEvents(xnetengine* pEngine,
+	const xnetlistenconfig* pConfig, const xnetstreamevents* pStreamEvents,
+	ptr pData, const xnetlistenereventsownershipv1* pPolicy)
+{
 	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) || !pPolicy->Drop ||
 		!pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) {
 		__xrtErrorSetInvalidArgument();return NULL;
 	}
-	return __xrtNetListen(pEngine, pConfig, &pPolicy->Events, NULL, pData, pPolicy);
+	return __xrtNetListen(pEngine, pConfig, &pPolicy->Events, pStreamEvents, pData, pPolicy);
 }
 
 

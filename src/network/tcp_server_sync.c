@@ -7,7 +7,7 @@
 #if defined(XRT_FEATURE_NET_TCP_SERVER_SYNC)
 
 /* 阻塞接受一个聚合连接，并把 Future 持有转换为调用方引用。 */
-XRT_API xnetstream* __xrtNetServerAcceptWait(
+static xnetstream* __xrtNetServerAcceptWaitBody(
 	xnetserver* pServer,
 	double iDeadline,
 	xcancel* pCancel
@@ -21,6 +21,13 @@ XRT_API xnetstream* __xrtNetServerAcceptWait(
 
 	if ( pServer == NULL ) {
 		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	/* A closed shell may outlive its Engine after real retirement. Do not
+	 * inspect its borrowed Engine pointer on that path. Active admission keeps
+	 * the real Engine edge alive across every OPEN-path blocking call. */
+	if (xrtNetServerState(pServer) != XNET_SERVER_OPEN) {
+		__xrtNetSetError(XERR_CLOSED, XNET_ERROR_SERVER_ACCEPT, "accept-server", "TCP server is closed", 0);
 		return NULL;
 	}
 	if ( xrtNetEngineCurrent(pServer->Engine) != NULL ) {
@@ -51,6 +58,13 @@ XRT_API xnetstream* __xrtNetServerAcceptWait(
 	}
 	xrtFutureDestroy(pFuture);
 	return pStream;
+}
+
+XRT_API xnetstream* __xrtNetServerAcceptWait(xnetserver* pServer, double iDeadline, xcancel* pCancel)
+{
+	if (!__xrtNetServerEnter(pServer, true)) return NULL;
+	xnetstream* pResult = __xrtNetServerAcceptWaitBody(pServer, iDeadline, pCancel);
+	__xrtNetServerLeave(pServer);return pResult;
 }
 
 #endif

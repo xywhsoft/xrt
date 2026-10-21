@@ -9439,7 +9439,8 @@
 				"src/internal/xrt_tcp_server.h"
 			],
 			"sources": [
-				"src/network/tcp_server.c"
+				"src/network/tcp_server.c",
+				"src/network/tcp_server_ownership.c"
 			],
 			"tests": [
 				"tests/network/test_net_tcp_server.c",
@@ -9502,6 +9503,19 @@
 			"single_tests": [],
 			"examples": [],
 			"docs": []
+		},
+		{
+			"name": "net_tcp_server_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["net_tcp_server_sync", "net_tcp_future", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/network/test_net_server_ownership.c"],
+			"single_tests": ["tests/single/test_single_net_server_ownership.c"],
+			"examples": [],
+			"docs": ["docs/api/tcp.md"]
 		},
 		{
 			"name": "net_tcp_server_sync",
