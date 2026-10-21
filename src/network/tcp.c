@@ -369,7 +369,9 @@ XRT_API void xrtNetStreamDestroy(xnetstream* pStream)
 	xrtownershipscope Mutation = {0};
 	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	bool bLast = xrtRefRelease(&pStream->References) == 0;
-	if (bLast && (pStream->RuntimeOwner.Data || pStream->RuntimeOwner.Previous)) abort();
+	if (bLast && (pStream->RuntimeOwner.Data || pStream->RuntimeOwner.Previous ||
+		pStream->EventOwner || pStream->RetiredEventOwners || pStream->RetiredEventOwnersTail ||
+		xrtAtomic32Load(&pStream->EventDropPending, XMEMORY_ACQUIRE))) abort();
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if ( !bLast ) {
 		return;
@@ -1105,6 +1107,57 @@ static void __xrtNetStreamFreeTaken(
 static void __xrtNetStreamDriveRead(xnetstream* pStream);
 static void __xrtNetStreamDriveWrite(xnetstream* pStream);
 static void __xrtNetStreamTryFinish(xnetstream* pStream);
+static void __xrtNetStreamReleaseRuntime(xnetstream* pStream);
+
+/* No per-event pins or allocations. The registered runtime lease stays
+ * physically alive through this queued task, including reentrant Drop work.
+ * A binding is detached before calling its Drop, outside any mutation scope. */
+static void __xrtNetStreamDropEventsTask(xnetworker* pWorker, ptr pData)
+{
+	(void)pWorker;
+	xnetstream* pStream = pData;
+	while (pStream->RetiredEventOwners) {
+		__xrt_net_stream_events_owner* pOwner = pStream->RetiredEventOwners;
+		pStream->RetiredEventOwners = pOwner->Next;
+		if (!pStream->RetiredEventOwners) pStream->RetiredEventOwnersTail = NULL;
+		pOwner->Policy->Drop(pOwner->Data);
+		xrtFree(pOwner);
+	}
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	xrtAtomic32Store(&pStream->EventDropPending, 0, XMEMORY_RELEASE);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (pStream->ReleasePending) __xrtNetStreamReleaseRuntime(pStream); /* last access */
+}
+static bool __xrtNetStreamQueueEventsDrop(xnetstream* pStream)
+{
+	if (xrtAtomic32Load(&pStream->EventDropPending, XMEMORY_ACQUIRE)) return true;
+	if (!pStream->RuntimeHeld || !xrtNetWorkerIsCurrent(pStream->Worker)) abort();
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
+	xrtAtomic32Store(&pStream->EventDropPending, 1, XMEMORY_RELEASE);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (__xrtNetEnginePostInternal(pStream->Worker, &pStream->EventDropCommand,
+		__xrtNetStreamDropEventsTask, pStream)) return true;
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	xrtAtomic32Store(&pStream->EventDropPending, 0, XMEMORY_RELEASE);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	__xrtErrorSetInvalidState();
+	return false;
+}
+static void __xrtNetStreamRetireEvents(xnetstream* pStream)
+{
+	__xrt_net_stream_events_owner* pOwner = pStream->EventOwner;
+	if (!pOwner) return;
+	/* A current Worker with an unconsumed runtime lease cannot be sealed.
+ * This lifecycle post is allocation-free, including Engine shutdown. */
+	if (!__xrtNetStreamQueueEventsDrop(pStream)) abort();
+	pStream->EventOwner = NULL;
+	pOwner->Next = NULL;
+	if (pStream->RetiredEventOwnersTail) pStream->RetiredEventOwnersTail->Next = pOwner;
+	else pStream->RetiredEventOwners = pOwner;
+	pStream->RetiredEventOwnersTail = pOwner;
+}
 
 
 
@@ -1124,7 +1177,8 @@ static void __xrtNetStreamReleaseRuntime(xnetstream* pStream)
 	if ( !pStream->RuntimeHeld ) {
 		return;
 	}
-	if ( pStream->ActiveDepth != 0 || xrtAtomic32Load(&pStream->OwnershipStop, XMEMORY_ACQUIRE) ) {
+	if ( pStream->ActiveDepth != 0 || xrtAtomic32Load(&pStream->OwnershipStop, XMEMORY_ACQUIRE) ||
+		xrtAtomic32Load(&pStream->EventDropPending, XMEMORY_ACQUIRE) ) {
 		pStream->ReleasePending = true;
 		return;
 	}
@@ -1418,7 +1472,8 @@ static void __xrtNetStreamTryFinish(xnetstream* pStream)
 	#endif
 	/* A queued retirement frame borrows the runtime slot and its Engine.
 	 * Otherwise preserve the existing close-callback/Engine join ordering. */
-	if (!xrtAtomic32Load(&pStream->OwnershipStop, XMEMORY_ACQUIRE)) __xrtNetStreamReleaseEngine(pStream);
+	if (!xrtAtomic32Load(&pStream->OwnershipStop, XMEMORY_ACQUIRE) && !pStream->EventOwner &&
+		!xrtAtomic32Load(&pStream->EventDropPending, XMEMORY_ACQUIRE)) __xrtNetStreamReleaseEngine(pStream);
 	xrtAtomic32Store(
 		&pStream->State,
 		XNET_STREAM_CLOSED,
@@ -1446,6 +1501,11 @@ static void __xrtNetStreamTryFinish(xnetstream* pStream)
 		}
 	#endif
 	__xrtNetStreamNotifyFutures(pStream, false);
+	if (pStream->EventOwner) {
+		__xrtNetStreamRetireEvents(pStream);
+		memset(&pStream->Events, 0, sizeof(pStream->Events));
+		xrtAtomicPtrStore(&pStream->Data, NULL, XMEMORY_RELEASE);
+	}
 	__xrtNetStreamReleaseRuntime(pStream);
 }
 
@@ -2464,6 +2524,7 @@ static xnetstream* __xrtNetStreamCreate(
 		return NULL;
 	}
 	pStream->References = 2;
+	xrtAtomic32Init(&pStream->EventDropPending, 0);
 	xrtAtomicPtrInit(&pStream->OwnershipClaim, NULL);
 	xrtAtomic32Init(&pStream->OwnershipState, 0);
 	/* Construction remains a native call borrow until the public creator has
@@ -2854,10 +2915,11 @@ bool __xrtNetStreamAdopt(
 	在所属 Worker 上切换 Stream 事件和数据。
 	已接受但尚未发布 Open 的 Stream 也允许安装自己的协议处理器。
 */
-XRT_API bool xrtNetStreamSetEvents(
+static bool __xrtNetStreamSetEvents(
 	xnetstream* pStream,
 	const xnetstreamevents* pEvents,
-	ptr pData
+	ptr pData,
+	__xrt_net_stream_events_owner* pOwner
 )
 {
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
@@ -2866,8 +2928,8 @@ XRT_API bool xrtNetStreamSetEvents(
 	#endif
 
 	if ( (pStream == NULL) ||
-		!xrtNetWorkerIsCurrent(pStream->Worker) ||
-		(xrtNetStreamState(pStream) != XNET_STREAM_OPEN) ) {
+		(xrtNetStreamState(pStream) != XNET_STREAM_OPEN) ||
+		!xrtNetWorkerIsCurrent(pStream->Worker) ) {
 		__xrtNetStreamSetError(
 			pStream == NULL ? XERR_ARGUMENT : XERR_STATE,
 			XNET_ERROR_STREAM_CONFIG,
@@ -2889,6 +2951,14 @@ XRT_API bool xrtNetStreamSetEvents(
 			return false;
 		}
 	#endif
+	if (pStream->EventOwner && !__xrtNetStreamQueueEventsDrop(pStream)) {
+		#if defined(XRT_FEATURE_NET_TCP_FUTURE)
+			__xrtSpinUnlock(&pStream->WaitLock);
+		#endif
+		return false;
+	}
+	__xrtNetStreamRetireEvents(pStream);
+	pStream->EventOwner = pOwner;
 	memset(&pStream->Events, 0, sizeof(pStream->Events));
 	if ( pEvents != NULL ) {
 		pStream->Events = *pEvents;
@@ -2899,6 +2969,37 @@ XRT_API bool xrtNetStreamSetEvents(
 		__xrtSpinUnlock(&pStream->WaitLock);
 	#endif
 	return true;
+}
+
+XRT_API bool xrtNetStreamSetEvents(xnetstream* pStream,
+	const xnetstreamevents* pEvents, ptr pData)
+{
+	if (!__xrtNetStreamOwnershipEnter(pStream, true)) return false;
+	bool bResult = __xrtNetStreamSetEvents(pStream, pEvents, pData, NULL);
+	__xrtNetStreamOwnershipLeave(pStream);
+	return bResult;
+}
+XRT_API bool xrtNetStreamSetEventsOwnedV1(xnetstream* pStream, ptr pData,
+	const xnetstreameventsownershipv1* pPolicy)
+{
+	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) || !pPolicy->Drop ||
+		!pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) {
+		__xrtErrorSetInvalidArgument();return false;
+	}
+	if (!__xrtNetStreamOwnershipEnter(pStream, true)) return false;
+	bool bResult = false;
+	if (xrtNetStreamState(pStream) != XNET_STREAM_OPEN || !xrtNetWorkerIsCurrent(pStream->Worker)) {
+		__xrtErrorSetInvalidState();
+	} else {
+		__xrt_net_stream_events_owner* pOwner = xrtCalloc(1, sizeof(*pOwner));
+		if (pOwner) {
+			pOwner->Policy = pPolicy;pOwner->Data = pData;
+			bResult = __xrtNetStreamSetEvents(pStream, &pPolicy->Events, pData, pOwner);
+			if (!bResult) xrtFree(pOwner); /* failed submission consumes no Data credit */
+		}
+	}
+	__xrtNetStreamOwnershipLeave(pStream);
+	return bResult;
 }
 
 
@@ -5606,16 +5707,20 @@ XRT_API xnetsocket xrtNetStreamSocket(xnetstream* pStream)
 /* 只允许在所属 Worker 回调中替换 Stream 数据。 */
 XRT_API bool xrtNetStreamSetData(xnetstream* pStream, ptr pData)
 {
-	if ( (pStream == NULL) || !xrtNetWorkerIsCurrent(pStream->Worker) ) {
+	if (!__xrtNetStreamOwnershipEnter(pStream, true)) return false;
+	if ( (xrtNetStreamState(pStream) == XNET_STREAM_CLOSED) ||
+		!xrtNetWorkerIsCurrent(pStream->Worker) || pStream->EventOwner ) {
 		__xrtNetStreamSetError(
 			XERR_STATE,
 			XNET_ERROR_STREAM_CONFIG,
 			"set-stream-data",
-			"stream data can only be changed on its worker"
+			"stream data requires its live worker and cannot overwrite owned events"
 		);
+		__xrtNetStreamOwnershipLeave(pStream);
 		return false;
 	}
 	xrtAtomicPtrStore(&pStream->Data, pData, XMEMORY_RELEASE);
+	__xrtNetStreamOwnershipLeave(pStream);
 	return true;
 }
 

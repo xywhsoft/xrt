@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--compiler', action='append', required=True)
     parser.add_argument('--sanitize', action='store_true')
+    parser.add_argument('--probe', action='store_true', help='new events fixture, first compiler O0 only; not acceptance')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     out = args.out.resolve()
@@ -43,10 +44,15 @@ def main():
         'tests/network/test_net_tcp_connect_timer.c',
         'tests/network/test_net_tcp_lifetime.c',
         'tests/network/test_net_tcp_pull.c',
+        'tests/network/test_net_stream_events_ownership.c',
     )
     singles = ('tests/single/test_single_net_tcp_ownership.c',
                'tests/single/test_single_net_engine_ownership.c',
-               'tests/single/test_single_net_buffer_ownership.c')
+               'tests/single/test_single_net_buffer_ownership.c',
+               'tests/single/test_single_net_stream_events_ownership.c')
+    if args.probe:
+        fixtures = (fixtures[-1],)
+        compilers = compilers[:1]
     files = {p for area in ('include', 'src') for p in (root/area).rglob('*')
              if p.is_file() and p.suffix in ('.c', '.h')}
     files.update(root/name for name in (*fixtures, *singles, 'single/xrt.h', 'single/xrt_decl.h',
@@ -55,16 +61,17 @@ def main():
     inputs = {str(p): sha(p) for p in sorted(files)}
     rows, products, failures = [], [], []
     out.mkdir(parents=True)
-    report = dict(Complete=False, InputsUnchanged=False, LogsUnchanged=False,
+    report = dict(Complete=False, InputsUnchanged=False, LogsUnchanged=False, ProductsUnchanged=False,
                   Inputs=inputs, Rows=rows, Products=products, Failures=failures, Sources=sources,
                   MinimalBufferSources=minimal_sources, MinimalBufferDefines=minimal_defines,
                   OrdinaryLiteralLoopback=True, ExternalNetworkTests=False, NetworkSecurityTests=False,
                   ShippingLibraryAcceptance=False)
+    report['DiscoveryOnly'] = args.probe
 
     def save():
         (out/'results.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
 
-    def run(name, command, instrumented=False):
+    def run(name, command, instrumented=False, rejection=None):
         command = list(map(str, command))
         invocation = command
         if command[0] in map(str, compilers) and Path(command[0]).stem != 'tcc':
@@ -79,14 +86,15 @@ def main():
         with log.open('wb') as stream:
             result = subprocess.run(invocation, cwd=root, env=env, stdout=stream, stderr=subprocess.STDOUT, timeout=180)
         rows.append(dict(Name=name, Command=command, Invocation=invocation, Exit=result.returncode,
-                         Log=str(log), Sha256=sha(log)))
+                         Log=str(log), Sha256=sha(log), ExpectedRejection=rejection))
         save()
         print(name+': '+str(result.returncode), flush=True)
-        assert result.returncode == 0, (name, str(log))
+        assert (result.returncode!=0 and rejection in log.read_text(encoding='utf-8',errors='replace')) if rejection else result.returncode==0, (name,str(log))
 
     save()
     for number, cc in enumerate(compilers):
         modes = [('O0', ['-O0']), ('O2', ['-O2'])]
+        if args.probe:modes = modes[:1]
         if args.sanitize and cc.stem != 'tcc':
             modes.append(('instrumented', ['-O1', '-g', '-fsanitize=address,undefined',
                                           '-fno-omit-frame-pointer', '-fno-pie', '-no-pie']))
@@ -108,7 +116,7 @@ def main():
                     run(f'{label}.object-{index}', [*common, '-c', source, '-o', obj])
                     objects.append(obj)
                     products.append(dict(Path=str(obj), Sha256=sha(obj)))
-                for fixture in (*fixtures, *singles):
+                for fixture in (*fixtures, *(singles[-1:] if args.probe else singles)):
                     package = Path(fixture).stem
                     try:
                         binary = out/(label+'.'+package+('.exe' if os.name == 'nt' else ''))
@@ -116,12 +124,12 @@ def main():
                             *(objects if fixture not in singles else []), *libraries, '-o', binary])
                         products.append(dict(Path=str(binary), Sha256=sha(binary)))
                         run(f'{label}.{package}.run', [binary], mode == 'instrumented')
-                        if 'tcp_ownership' in package:
+                        if 'tcp_ownership' in package or 'stream_events_ownership' in package:
                             run(f'{label}.{package}.native-run', [binary, 'native'], mode == 'instrumented')
                     except Exception as error:
                         failures.append(dict(Name=label+'.'+package, Error=repr(error)))
                         save()
-                for fixture in ('tests/network/test_net_buffer_ownership.c', singles[2]):
+                for fixture in (() if args.probe else ('tests/network/test_net_buffer_ownership.c', singles[2])):
                     try:
                         package = 'minimal.'+Path(fixture).stem
                         binary = out/(label+'.'+package+('.exe' if os.name == 'nt' else ''))
@@ -137,12 +145,50 @@ def main():
                         run(f'{label}.{package}.run', [binary], mode == 'instrumented')
                     except Exception as error:
                         failures.append(dict(Name=label+'.'+package, Error=repr(error))); save()
+                if not args.probe and number==0 and mode=='O0':
+                    original=(root/'src/network/tcp.c').read_text(encoding='utf-8')
+                    def body(name):
+                        start=original.index('static void '+name+'(')
+                        if original.index(';',start)<original.index('{',start):
+                            start=original.index('static void '+name+'(',start+1)
+                        end=original.index('\n}\n',start)+3
+                        return start,end,original[start:end]
+                    start,end,retire=body('__xrtNetStreamRetireEvents')
+                    immediate='''static void __xrtNetStreamRetireEvents(xnetstream* pStream)
+{
+    __xrt_net_stream_events_owner* pOwner=pStream->EventOwner;
+    if(!pOwner)return;
+    pStream->EventOwner=NULL;
+    pOwner->Policy->Drop(pOwner->Data);
+    xrtFree(pOwner);
+}
+'''
+                    immediate=original[:start]+immediate+original[end:]
+                    start,end,release=body('__xrtNetStreamReleaseRuntime')
+                    pending=' ||\n\t\txrtAtomic32Load(&pStream->EventDropPending, XMEMORY_ACQUIRE)'
+                    assert release.count(pending)==1
+                    early=original[:start]+release.replace(pending,'',1)+original[end:]
+                    for name,text,proof in (
+                        ('events-drop-before-callback-tail',immediate,'!xrtAtomic32Load(&c->active,XMEMORY_ACQUIRE)'),
+                        ('events-drop-is-not-terminal',early,'!(xrtAtomic32Load(&scene->client->OwnershipState,XMEMORY_ACQUIRE)&XRT_NET_TCP_OWNERSHIP_READY)')):
+                        source=out/(name+'.c')
+                        assert text.count('#include "../internal/xrt_tcp.h"')==1
+                        text=text.replace('#include "../internal/xrt_tcp.h"',
+                            '#include "'+(root/'src/internal/xrt_tcp.h').as_posix()+'"',1)
+                        source.write_text(text,encoding='utf-8');products.append(dict(Path=str(source),Sha256=sha(source)))
+                        obj=out/(name+'.o');run(name+'.object',[*common,'-c',source,'-o',obj]);products.append(dict(Path=str(obj),Sha256=sha(obj)))
+                        selected=[obj if p==objects[sources.index('src/network/tcp.c')] else p for p in objects]
+                        binary=out/(name+('.exe' if os.name=='nt' else ''))
+                        run(name+'.build',[*common,'tests/network/test_net_stream_events_ownership.c',*selected,*libraries,'-o',binary])
+                        products.append(dict(Path=str(binary),Sha256=sha(binary)))
+                        run(name+'.refusal',[binary],rejection=proof)
             except Exception as error:
                 failures.append(dict(Name=label, Error=repr(error)))
                 save()
     report['InputsUnchanged'] = all(sha(p) == digest for p, digest in inputs.items())
     report['LogsUnchanged'] = all(sha(row['Log']) == row['Sha256'] for row in rows)
-    report['Complete'] = not failures and report['InputsUnchanged'] and report['LogsUnchanged']
+    report['ProductsUnchanged'] = all(sha(row['Path']) == row['Sha256'] for row in products)
+    report['Complete'] = not failures and all(report[key] for key in ('InputsUnchanged','LogsUnchanged','ProductsUnchanged'))
     save()
     assert report['Complete'], failures
 

@@ -65,6 +65,7 @@ static bool __xrtNetStreamOwnershipBusy(const void* pData)
 {
 	const xnetstream* pStream = pData;
 	if (!pStream) return false;
+	if (xrtAtomic32Load(&pStream->EventDropPending, XMEMORY_ACQUIRE)) return true;
 	if (xrtAtomic32Load(&pStream->OwnershipActive, XMEMORY_ACQUIRE)) return true;
 	if (xrtAtomic32Load(&pStream->OwnershipState, XMEMORY_ACQUIRE) & XRT_NET_TCP_OWNERSHIP_READY) return false;
 	return xrtNetEngineOwnershipQuiescenceV1Get()->Busy(pStream->Engine) ||
@@ -84,12 +85,25 @@ static bool __xrtNetTcpEventsEmpty(const xnetstreamevents* pEvents)
 	return !pEvents->Open && !pEvents->Read && !pEvents->End && !pEvents->HighWater &&
 		!pEvents->LowWater && !pEvents->Drain && !pEvents->Close;
 }
+static bool __xrtNetStreamEventsOwned(const xnetstream* pStream)
+{
+	const __xrt_net_stream_events_owner* pOwner = pStream->EventOwner;
+	if (!pOwner) return __xrtNetTcpEventsEmpty(&pStream->Events) &&
+		!xrtAtomicPtrLoad(&pStream->Data, XMEMORY_ACQUIRE);
+	const xnetstreameventsownershipv1* pPolicy = pOwner->Policy;
+	const xnetstreamevents* a = &pStream->Events;
+	const xnetstreamevents* b = &pPolicy->Events;
+	return pOwner->Data && !pOwner->Next &&
+		xrtAtomicPtrLoad(&pStream->Data, XMEMORY_ACQUIRE) == pOwner->Data &&
+		a->Open==b->Open && a->Read==b->Read && a->End==b->End && a->HighWater==b->HighWater &&
+		a->LowWater==b->LowWater && a->Drain==b->Drain && a->Close==b->Close;
+}
 static bool __xrtNetStreamCount(const void* pData, size_t* pCount)
 {
 	const xnetstream* pStream = pData;
 	if (!pStream || !pCount || __xrtNetStreamOwnershipBusy(pData) ||
 		(xrtAtomic32Load(&pStream->OwnershipState, XMEMORY_ACQUIRE) & XRT_NET_TCP_OWNERSHIP_CLEARED) ||
-		!__xrtNetTcpEventsEmpty(&pStream->Events) || xrtAtomicPtrLoad(&pStream->Data, XMEMORY_ACQUIRE) ||
+		pStream->RetiredEventOwners || pStream->RetiredEventOwnersTail || !__xrtNetStreamEventsOwned(pStream) ||
 		pStream->ActiveDepth || pStream->StartPending ||
 		xrtAtomic32Load(&pStream->ControlRequests, XMEMORY_ACQUIRE)) return false;
 	if (!__xrtNetStreamBuffersOwnership(pStream, NULL, NULL)) return false;
@@ -101,7 +115,7 @@ static bool __xrtNetStreamCount(const void* pData, size_t* pCount)
 	#endif
 	if (__xrtNetStreamPrepared(pData)) {
 		if (pStream->RuntimeHeld || pStream->EngineHeld || pStream->RuntimeOwner.Data || pStream->RuntimeOwner.Previous ||
-			pStream->Socket || pStream->BuffersReady || xrtNetStreamState(pStream) != XNET_STREAM_CLOSED) return false;
+			pStream->EventOwner || pStream->Socket || pStream->BuffersReady || xrtNetStreamState(pStream) != XNET_STREAM_CLOSED) return false;
 	} else if (!pStream->RuntimeHeld || !pStream->EngineHeld || pStream->RuntimeOwner.Data != pStream ||
 		pStream->RuntimeOwner.Engine != pStream->Engine || !pStream->RuntimeOwner.Previous ||
 		pStream->RuntimeOwner.Policy != xrtNetStreamRuntimeOwnershipV1Get()) return false;
@@ -114,6 +128,8 @@ static bool __xrtNetStreamTrace(const void* pData, xrtownershipvisitor pVisit, p
 	const xnetstream* pStream = pData; size_t iCount;
 	if (!pVisit || !__xrtNetStreamCount(pData, &iCount) ||
 		(pStream->EngineHeld && !pVisit(xrtNetEngineOwnership(pStream->Engine), pContext))) return false;
+	if (pStream->EventOwner && !pVisit((xrtownershipref){pStream->EventOwner->Data,
+		pStream->EventOwner->Policy->Ops}, pContext)) return false;
 	if (!__xrtNetStreamBuffersOwnership(pStream, pVisit, pContext)) return false;
 	#if defined(XRT_FEATURE_NET_TCP_DIAL)
 		if (!__xrtNetDialControlOwnership(pStream, pVisit, pContext)) return false;
@@ -276,17 +292,31 @@ static void __xrtNetListenerClear(const void* pData, const void* pToken)
 		(xrtAtomic32Load(&pListener->OwnershipState, XMEMORY_ACQUIRE) & XRT_NET_TCP_OWNERSHIP_CLEARED)) abort();
 	xrtAtomic32Store(&pListener->OwnershipState, XRT_NET_TCP_OWNERSHIP_READY | XRT_NET_TCP_OWNERSHIP_CLEARED, XMEMORY_RELEASE);
 }
-XRT_API const xrtownershipadapterv1* xrtNetStreamOwnershipAdapterV1(
-	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation)
+XRT_API const xrtownershipadapterv1* xrtNetStreamOwnershipAdapterV2(
+	xrtownershipref Reference, const xnetstreameventsownershipv1* const* pPolicies,
+	size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation)
 {
 	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtNetStreamHold, __xrtNetStreamDrop,
 		__xrtNetStreamClaim, __xrtNetStreamRestore, NULL, __xrtNetStreamClear, NULL};
 	static const xrtownershippreparationv1 Preparation = {sizeof(Preparation), &Adapter,
 		__xrtNetStreamPrepared, __xrtNetStreamPrepare};
 	size_t iCount;
-	if (!ppPreparation || Reference.Ops != &__xrtNetStreamOwnershipOps || !__xrtNetStreamCount(Reference.Data, &iCount)) return NULL;
+	if (!ppPreparation || Reference.Ops != &__xrtNetStreamOwnershipOps || !Reference.Data ||
+		(iPolicyCount && !pPolicies) || __xrtNetStreamOwnershipBusy(Reference.Data)) return NULL;
+	const xnetstream* pStream = Reference.Data;
+	if (pStream->EventOwner) {
+		const xnetstreameventsownershipv1* pPolicy = pStream->EventOwner->Policy;
+		bool bKnown = false;
+		for (size_t i=0;i<iPolicyCount;++i) if (pPolicies[i] == pPolicy) {bKnown=true;break;}
+		if (!bKnown || !pPolicy || pPolicy->size!=sizeof(*pPolicy) || !pPolicy->Drop ||
+			!pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) return NULL;
+	}
+	if (!__xrtNetStreamCount(Reference.Data, &iCount)) return NULL;
 	*ppPreparation = &Preparation; return &Adapter;
 }
+XRT_API const xrtownershipadapterv1* xrtNetStreamOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation)
+{ return xrtNetStreamOwnershipAdapterV2(Reference, NULL, 0, ppPreparation); }
 XRT_API const xrtownershipadapterv1* xrtNetListenerOwnershipAdapterV1(
 	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation)
 {

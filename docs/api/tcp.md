@@ -1,5 +1,27 @@
 # TCP 传输 API
 
+## 拥有型 Stream 事件数据
+
+`xrtNetStreamSetEventsOwnedV1(stream, data, policy)` 在 Stream 所属 Worker 上
+为已打开的 Stream 安装 `xnetstreameventsownershipv1`。成功接管一个真实的
+data 强引用；配置非法、线程/状态错误、读取 Future 冲突或分配失败均不接管。
+描述符及其中的代码必须驻留且不可变。回调借用这个引用，不再把协议控制器
+当成生命周期未知的裸 Data。`SetData` 不允许覆盖拥有型绑定；使用完整事件
+替换来交接，或通过旧 `SetEvents` 显式切回借用模型。
+
+每次成功安装仅分配一个由 Stream 独占的绑定记录，正常事件/收发没有新增
+逐包分配或引用计数。旧绑定按退役顺序在当前 Worker 任务的完整回调栈退出后
+释放；关闭也保留真实 runtime/Engine 占用直到 Drop 尾部完成。退役队列使用
+嵌入式内部命令，不因错误清理额外分配命令或系统线程。Drop 可重入，但不在
+拥有权 mutation/freeze 域内执行；不要在网络 Worker 上运行阻塞的语言回调。
+
+绑定不是另一个虚构的引用计数节点。Stream 直接报告绑定所持的真实 data
+强槽；尚未完成的 Worker 尾部明确为 BUSY。`xrtNetStreamOwnershipAdapterV1`
+仍拒绝拥有型事件；新的 `V2` 必须收到精确的事件策略身份列表才接纳，拒绝
+未知策略时不读取 data 元数据且不改变输出。只有所有回调和 Drop 真正完成，
+Stream 才进入可准备/清理的终态。这是 Proxy Dial/Server/TLS 的原生基础，
+不代表这些上层接入已经完成。
+
 TCP 在 Engine 之上提供完整传输层：Listener/Server 接受、托管与 Future 拨号、有界背压的流式读写；代理层（proxy.h）各节复用自 [proxy.md](proxy.md)。
 
 ## 类型与常量

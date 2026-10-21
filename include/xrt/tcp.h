@@ -134,6 +134,17 @@ typedef struct xnetstreamevents {
 		const xerror* pError, ptr pData);
 } xnetstreamevents;
 
+/* One explicit event-data owner. A successful SetEventsOwned consumes ONE
+ * actual Data reference; failure consumes none. Callbacks borrow that owner.
+ * Replacement/close drops it on the same Worker AFTER the current task's
+ * callback stack has returned. Descriptor and code must remain resident. */
+typedef struct xnetstreameventsownershipv1 {
+	size_t size;
+	xnetstreamevents Events;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xnetstreameventsownershipv1;
+
 
 
 /* Accept 成功返回 true 并接管一个 Stream 引用，返回 false 会立即拒绝连接。 */
@@ -438,6 +449,13 @@ XRT_API const xrtownershipquiescencev1* xrtNetStreamOwnershipQuiescenceV1Get(voi
 XRT_API const xrtownershipquiescencev1* xrtNetListenerOwnershipQuiescenceV1Get(void);
 XRT_API const xrtownershipadapterv1* xrtNetStreamOwnershipAdapterV1(
 	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+/* V1 refuses owned event data. V2 additionally admits exact, separately
+ * supplied event-policy identities before inspecting any context metadata.
+ * Retired callback tails remain BUSY until real Worker drain, never a fake
+ * zero count or a hidden context reference. Failure leaves output untouched. */
+XRT_API const xrtownershipadapterv1* xrtNetStreamOwnershipAdapterV2(
+	xrtownershipref Reference, const xnetstreameventsownershipv1* const* pPolicies,
+	size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
 XRT_API const xrtownershipadapterv1* xrtNetListenerOwnershipAdapterV1(
 	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
 
@@ -644,6 +662,12 @@ XRT_API bool xrtNetStreamSetEvents(
 	const xnetstreamevents* pEvents,
 	ptr pData
 );
+
+/* Worker-only, open Stream. Allocates one uniquely owned binding, not one
+ * allocation per event/packet. SetData cannot overwrite an owned binding.
+ * Legacy SetEvents may replace it, but does not retain its borrowed new Data. */
+XRT_API bool xrtNetStreamSetEventsOwnedV1(xnetstream* pStream, ptr pData,
+	const xnetstreameventsownershipv1* pPolicy);
 
 
 

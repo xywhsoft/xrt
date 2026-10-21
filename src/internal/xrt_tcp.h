@@ -133,6 +133,15 @@ struct __xrt_net_stream_control {
 
 
 
+/* Uniquely contained binding: no fabricated RC node. Data is ONE actual
+ * strong slot. Retired bindings keep old callback borrows alive until the
+ * current Worker task has returned; their drain borrows the Stream runtime. */
+typedef struct __xrt_net_stream_events_owner {
+	struct __xrt_net_stream_events_owner* Next;
+	const xnetstreameventsownershipv1* Policy;
+	ptr Data;
+} __xrt_net_stream_events_owner;
+
 /* Stream 的可变 IO 状态只由所属 Worker 访问。 */
 struct xnetstream {
 	__xrt_net_engine_runtime RuntimeOwner;
@@ -168,6 +177,11 @@ struct xnetstream {
 	xnetstreamconfig Config;
 	xnetstreamevents Events;
 	xatomicptr Data;
+	__xrt_net_stream_events_owner* EventOwner;
+	__xrt_net_stream_events_owner* RetiredEventOwners;
+	__xrt_net_stream_events_owner* RetiredEventOwnersTail;
+	__xrt_net_engine_internal EventDropCommand;
+	xatomic32 EventDropPending;
 	xnetaddr Local;
 	xnetaddr Remote;
 	xnetcompletion Completion;
