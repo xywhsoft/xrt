@@ -63,6 +63,7 @@ struct __xrt_net_stream_refs {
 	size_t Total;
 	size_t Count;
 	size_t Remaining;
+	uint32 PayloadOwnership;
 	__xrt_net_stream_ref_item Items[1];
 };
 

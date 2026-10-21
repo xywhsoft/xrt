@@ -5414,3 +5414,25 @@ select／原生后端，Linux 增加 ASan／UBSan；输入、日志和产物哈�
 旧原始接受／重入关闭／Future／同步／OOM 与拥有型 Listener／Stream 一并回归。
 全部通信仅为自建字面量回环正常功能，不执行 DNS、外网或网络安全性质专项。
 此批不代表 xlang 固定快照、聚合 Server 公开面或 shipping 验收完成。
+
+### 不可变字节片段的原子批量发送（2026-10-22）
+
+`xrtNetStreamSendBytesVec(stream, refs, count)` 接收 `xnetbytesref` 数组：
+每项明确指定 `Bytes`、`Offset`、`Size`。范围必须落在实际 NetBytes 内；空项不
+持有额外引用。成功为全部非空项各保留一个原生引用，重复 NetBytes 也有真实的
+重复边；失败、AGAIN、CLOSED 不消费调用者引用。没有用户释放回调或载荷复制。
+
+沿用现有批次分配、完整写预算预留与 Worker 提交；只新增原生来源标记和 typed
+构造，不将泛化 `SendRefs` 的任意回调推测为可信拥有边。FIFO 首个存活视图枚举
+所有存活载荷及批次唯一 Stream 引用，部分消费后不访问已退休前缀。
+
+`tools/check_net_tcp_bytes_vec.py` 使用自建字面量回环和分配失败检查，证据根为
+`F:/xlang-validation/five-groups-20261022/p3-tcp-ref-batch`。Windows 8／Linux 10
+个单头阶段覆盖 GCC／TCC O0／O2、select／IOCP 或 epoll，Linux ASan／UBSan。
+每次进程包括 24 个预算、两个旧 opaque 回调回归、重复原生边和精确片段观察，
+接收 NUL 内容并验证完整内存账本。Worker 高水位观察发生在实际写入驱动之前，
+不把 active 回调冒称为整图 Freeze；去掉来源标记必须被原生块拥有遍历拒绝。
+
+生成头来自隔离的已提交源码加本批五份核心文件，不包含工作区其他文件／内存
+变更。本批不改变旧 SendBuffer 的 Worker-only 合同，也不宣称链式跨线程接管、
+完整 xlang 集成、shipping 或网络安全专项已完成。

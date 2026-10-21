@@ -854,7 +854,8 @@ XRT_API bool xrtNetBufAppendRef(xnetbuf* pBuffer, const void* pData,
 bool __xrtNetBufAppendNative(xnetbuf* pBuffer, const void* pData, size_t iSize,
 	xnetreleaseproc pRelease, ptr pContext, uint32 iOrigin)
 {
-	if (!pRelease || (iOrigin != XRT_NET_BLOCK_OWN_TCP_SEND && iOrigin != XRT_NET_BLOCK_OWN_TCP_BUFFER)) {
+	if (!pRelease || (iOrigin != XRT_NET_BLOCK_OWN_TCP_SEND && iOrigin != XRT_NET_BLOCK_OWN_TCP_BUFFER &&
+		iOrigin != XRT_NET_BLOCK_OWN_TCP_REFS)) {
 		__xrtErrorSetInvalidArgument(); return false;
 	}
 	return __xrtNetBufAppendRef(pBuffer, pData, iSize, pRelease, pContext, iOrigin);
@@ -895,7 +896,8 @@ static bool __xrtNetBlockOwnership(const xnetblock* pBlock, __xrt_net_block_trac
 		if (data < start || data - start > pBytes->View.Size || pBlock->ExternalSize > pBytes->View.Size - (data - start)) return false;
 		return !pVisit || pVisit(xrtNetBytesOwnership(pBytes), pContext);
 	}
-	return (pBlock->Flags == XRT_NET_BLOCK_OWN_TCP_SEND || pBlock->Flags == XRT_NET_BLOCK_OWN_TCP_BUFFER) &&
+	return (pBlock->Flags == XRT_NET_BLOCK_OWN_TCP_SEND || pBlock->Flags == XRT_NET_BLOCK_OWN_TCP_BUFFER ||
+		pBlock->Flags == XRT_NET_BLOCK_OWN_TCP_REFS) &&
 		pNative && pNative(pBlock, pOwner, pVisit, pContext);
 }
 bool __xrtNetBufOwnershipWalk(const xnetbuf* pBuffer, __xrt_net_block_trace pNative,
