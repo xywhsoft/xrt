@@ -5311,3 +5311,16 @@ Dial 和唯一取消 Watch；构造者、生产者、Watch 和 Dial 完成上下
 推送模式回环示例位于 `examples/network/tcp/main.c`，聚合服务端示例位于 `examples/network/tcp_server/main.c`，拉取与 Future 请求响应示例位于 `examples/network/tcp_future/main.c`，阻塞 TCP 与托管连接示例位于 `examples/network/tcp_sync/main.c`、`examples/network/tcp_dial_sync/main.c`。测试使用同一契约分别验证 select 和 IOCP，并覆盖慢速对端大块发送、高低水位与 Drain、`ReadLimit` 自动停读和恢复、跨 Worker Accept/Close 排序、有界拉取 Accept 与溢出、多端点共享端口、reuse-port、聚合关闭、连接和 Accept Future、Resolver 合并、缓存命中时的 Worker 内非重入提交、跨线程 Dial 取消、双栈候选竞争、并发连接、结果复制与 Dial OOM、同步超时/取消/关闭竞态、结果 OOM 不消费、协程挂起恢复和单头文件真实收发。
 
 TLS 传输适配已经作为独立 `XRT_FEATURE_TLS_STREAM` 裁剪单元落地，直接使用 `SendBuffer` 把完整密文块链移动到 TCP 队列。`xrtTlsStreamTransport()` 返回的原始 Stream 只供地址、统计和安全 socket 选项查询；直接关闭、收发、替换事件或消费其缓冲会破坏 TLS 组合状态机。更高层协议直接组合 TCP Server 和 TLS Stream，不改变这里的字节流、所有权、背压、等待、Dial 和关闭契约。
+
+### 文件发送的后端能力边界
+
+Windows 的非阻塞内核文件发送需要支持 `XNET_PORT_CAP_SEND_FILE` 的后端（IOCP）。
+select 不具备此能力；非空 `xrtNetStreamSendFile` 现在在提交前返回
+`XNET_RESULT_ERROR`／`XERR_UNSUPPORTED`，不预留发送预算、不复制句柄、不入队，
+也不因能力不支持而中止现有连接。空区间维持原有无操作合同。
+不自动切换后端或隐式把文件读取为内存；应用可显式选择 IOCP 或自己的分块发送策略。
+
+`tools/check_net_tcp_file_capability.py` 验证自建字面量回环上的正常文件区间发送、
+NUL、源游标不变、提交后立即关闭源文件、精确内存平衡，以及 Windows select
+拒绝后连接仍可正常收发。覆盖 GCC／TCC、O0／O2、两端本机后端，Linux 另有
+ASan／UBSan；不执行外网、探测、畸形协议或网络安全测试。
