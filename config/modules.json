@@ -10293,13 +10293,51 @@
 			]
 		},
 		{
+			"name": "net_dial_future_common",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_NET_DIAL_FUTURE_COMMON",
+			"depends": ["net_tcp", "future_bridge"],
+			"public_headers": [],
+			"internal_headers": ["src/internal/xrt_dial_future.h"],
+			"sources": ["src/network/dial_future.c"],
+			"tests": [],
+			"single_tests": [],
+			"examples": [],
+			"docs": ["docs/api/proxy.md", "docs/api/tcp.md"]
+		},
+		{
+			"name": "net_proxy_dial_future",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_NET_PROXY_DIAL_FUTURE",
+			"depends": ["net_proxy_dial", "net_dial_future_common"],
+			"public_headers": ["include/xrt/proxy.h"],
+			"internal_headers": [],
+			"sources": ["src/network/proxy_dial_future.c"],
+			"tests": [],
+			"single_tests": [],
+			"examples": [],
+			"docs": ["docs/api/proxy.md"]
+		},
+		{
+			"name": "net_proxy_dial_future_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["net_proxy_dial_future", "net_tcp_dial_future", "net_proxy_socks5", "net_proxy_http_connect", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/network/test_net_proxy_dial_future.c"],
+			"single_tests": ["tests/single/test_single_net_proxy_dial_future.c"],
+			"examples": [],
+			"docs": ["docs/api/proxy.md"]
+		},
+		{
 			"name": "net_tcp_dial_future",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_NET_TCP_DIAL_FUTURE",
 			"depends": [
 				"net_tcp_dial",
-				"future",
-				"future_bridge"
+				"net_dial_future_common"
 			],
 			"public_headers": [
 				"include/xrt/tcp.h"

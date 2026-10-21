@@ -1,5 +1,32 @@
 # Proxy
 
+## Proxy Dial Future
+
+`net_proxy_dial_future` 增加 `xrtNetProxyDialAsync(engine, resolver, proxy,
+targetHost, targetPort, config, events, streamData)`。成功提交返回 Future，
+构造失败返回 NULL 且不遗留已接受工作。默认配置沿用 Proxy Dial，全过程期限
+仍覆盖代理端点解析、TCP 与握手；完成前不发布应用 Stream。
+
+结果为 RESOLVED（真正可用的隧道 Stream）、FAILED（保留原因链）或
+CANCELLED。取消只请求真实原生 Proxy Dial；Future 的终态必须来自它的实际
+完成回调及关闭尾部，不能把“已请求取消”冒充资源已退役。
+
+Future 拥有成功的 Stream 引用；`xrtFutureValue` 只借用，调用者须先
+`xrtNetStreamRef` 才取得可独立存活的引用。关闭与 Destroy 分开，原生调用者
+仍负责显式关闭；xlang 受管理层另行保证未交付结果主动关闭。事件及回调代码
+必须驻留，任意裸 Data 不会因为包装为 Future 就获得拥有图认证。
+
+TCP 与 Proxy 共用一个内部 `net_dial_future_common`，只有一份实际
+Promise／取消 Watch／生产者状态机，不分配等待线程或协程栈。两种操作保留
+独立的精确类型描述符；TCP adapter 不接受 Proxy producer，反之亦然。
+Producer、Cancel、Payload、Dial policy getter 供受信驻留层白名单使用；
+完整拥有图仍须独立认证 Engine、Resolver、Stream、Proxy、错误和所有回调边。
+
+`tools/check_net_proxy_dial_future.py` 仅使用固定有效回复和自建 literal
+loopback，覆盖匿名／认证、真实取消／超时、阻塞的自定义 lookup、Stream
+独立引用、构造分配失败、闭合拥有图与精确家族拒绝，并回归 TCP 拨号拥有图及
+构造发布窗口。不会调用系统 DNS、公网或畸形协议／网络安全专项测试。
+
 ## 拥有型 Proxy Dial
 
 `xrtNetProxyDialOwnedV1` 使用显式的 `xnetproxydialownershipv1`，成功接管

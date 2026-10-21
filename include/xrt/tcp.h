@@ -40,6 +40,7 @@
 
 #if defined(XRT_FEATURE_NET_TCP_DIAL_FUTURE) && \
 	(!defined(XRT_FEATURE_NET_TCP_DIAL) || \
+	 !defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON) || \
 	 !defined(XRT_FEATURE_FUTURE) || \
 	 !defined(XRT_FEATURE_FUTURE_BRIDGE))
 	#error "XRT TCP Dial Future support requires TCP Dial, Future and Future bridge support"

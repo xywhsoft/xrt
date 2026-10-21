@@ -1,5 +1,10 @@
 # TCP 传输 API
 
+TCP Dial Future 的 Promise、取消 Watch 与拥有图桥接现与 Proxy Dial Future
+共用内部 `net_dial_future_common`。公开入口与 Stream 引用／显式关闭合同不变；
+TCP 与 Proxy 的 adapter 仍按精确原生操作家族区分，不接受对方的生产者。
+共用桥接不新增等待线程、协程栈或第二份 Promise。
+
 ## 拥有型 Stream 事件数据
 
 `xrtNetStreamSetEventsOwnedV1(stream, data, policy)` 在 Stream 所属 Worker 上

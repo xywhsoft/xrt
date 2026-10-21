@@ -1,3 +1,6 @@
+#if !defined(TEST_TLS_DIAL_PUBLICATION)
+#include "net_dial_future_publish.h"
+#else
 #include "../test.h"
 #include <xrt/detail/wait.h>
 #include <xrt/future_bridge.h>
@@ -119,3 +122,4 @@ int main(void)
 	puts("[PASS] Dial completion before setup publication releases its reference");
 	return 0;
 }
+#endif
