@@ -16,6 +16,18 @@ int main(void)
 		#error "XRT_MODULE_REGEX_MATCH did not enable its dependency closure"
 	#endif
 
+	xregex* Regex = xrtRegexCompile(XRT_STR_LITERAL("match .*"));
+	if (Regex == NULL) return 2;
+	xregexmatcher* Matcher = xrtRegexMatcherCreate(Regex);
+	xregexcapture Capture;
+	int Result = Matcher != NULL &&
+		xrtRegexMatcherFind(Matcher, XRT_STR_LITERAL("\t\txrtahomatch Match;"), 0u) == XREGEX_MATCH &&
+		xrtRegexMatcherCapture(Matcher, 0u, &Capture) && Capture.Matched &&
+		Capture.Span.Begin == 8u && Capture.Span.End == 20u;
+	xrtRegexMatcherFree(Matcher);
+	xrtRegexRelease(Regex);
+	if (!Result) return 3;
+
 	return xrtRegexFullMatch(
 		XRT_STR_LITERAL("a|ab"),
 		XRT_STR_LITERAL("ab")

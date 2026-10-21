@@ -263,6 +263,59 @@ static void testRegexCaptureSlotGrowth(void)
 
 
 
+/* DFA must retain an accepted span while a repetition scans past it. The
+ * reverse pass used to lose that acceptance and assert on ordinary grep input. */
+static void testRegexDfaAcceptedHistory(void)
+{
+	static const struct {
+		cstr Pattern;
+		cstr Text;
+		size_t Begin;
+		size_t End;
+	} Cases[] = {
+		{ "match .*", "\t\txrtahomatch Match;", 8u, 20u },
+		{ "match .*", "xmatch x", 1u, 8u },
+		{ "match .*", "xxmatch rest\ntrailing", 2u, 12u },
+		{ "ab.*cd", "xxab--cd--tail", 2u, 8u },
+		{ "a+b", "xxaaabZ", 2u, 6u },
+		{ "a.*?", "xxabc", 2u, 3u },
+		{ "a.*", "xxabc", 2u, 5u },
+		{ "a|ab", "xxab", 2u, 3u },
+		{ "ab|a", "xxab", 2u, 4u },
+		{ "a*", "bbb", 0u, 0u },
+		{ "match .*", "no match here\nmatch final", 3u, 13u },
+		{ "^match .*", "xmatch x", SIZE_MAX, SIZE_MAX },
+		{ "match .*", "unrelated", SIZE_MAX, SIZE_MAX }
+	};
+	for (size_t i = 0u; i < sizeof(Cases) / sizeof(Cases[0]); ++i) {
+		xregex* Regex = xrtRegexCompile(xrtStrView(Cases[i].Pattern));
+		xregexmatcher* Matcher;
+		xregexcapture Capture;
+		xstrview Text = xrtStrView(Cases[i].Text);
+		xregexresult Expected = Cases[i].Begin == SIZE_MAX ? XREGEX_NONE : XREGEX_MATCH;
+		testRequire(Regex != NULL, "DFA history compile failed");
+		Matcher = xrtRegexMatcherCreate(Regex);
+		testRequire(Matcher != NULL, "DFA history matcher create failed");
+		for (size_t Repeat = 0u; Repeat < 3u; ++Repeat) {
+			testRequire(xrtRegexTest(Regex, Text) == Expected, "DFA boolean result differs");
+			testRequire(xrtRegexMatcherFind(Matcher, Text, 0u) == Expected,
+				"DFA history search result differs");
+			if (Expected == XREGEX_MATCH) {
+				testRequire(xrtRegexMatcherCapture(Matcher, 0u, &Capture) && Capture.Matched &&
+					Capture.Span.Begin == Cases[i].Begin && Capture.Span.End == Cases[i].End,
+					"DFA history span differs");
+			}
+			testRequire(xrtRegexMatcherFind(Matcher, XRT_STR_LITERAL("ZZ"), 0u) ==
+				(Cases[i].Begin == 0u && !strcmp(Cases[i].Pattern, "a*") ? XREGEX_MATCH : XREGEX_NONE),
+				"DFA history cache leaked an earlier match");
+		}
+		xrtRegexMatcherFree(Matcher);
+		xrtRegexRelease(Regex);
+	}
+}
+
+
+
 /* 运行 matcher 层全部契约测试。 */
 int main(void)
 {
@@ -275,6 +328,7 @@ int main(void)
 	testRegexCaseFoldAlternative();
 	testRegexInlineFlagAndClassDash();
 	testRegexCaptureSlotGrowth();
+	testRegexDfaAcceptedHistory();
 	printf("[PASS] regex match\n");
 	return 0;
 }

@@ -4266,6 +4266,7 @@ static int bbre_dfa_match(
   int exit_early = !!(flags & BBRE_DFA_MATCH_FLAG_EXIT_EARLY);
   int many = !!(flags & BBRE_DFA_MATCH_FLAG_MANY);
   int pri = !!(flags & BBRE_DFA_MATCH_FLAG_PRI);
+  size_t last_match = BBRE_UNSET_POSN;
   bbre_uint entry =
       reversed ? BBRE_PROG_ENTRY_REVERSE : BBRE_PROG_ENTRY_DOTSTAR;
   bbre_uint prev_ch = reversed ? (pos == n ? BBRE_SENTINEL_CH : s[pos])
@@ -4287,7 +4288,8 @@ static int bbre_dfa_match(
   }
   {
     const bbre_byte *start = reversed ? s + pos - 1 : s + pos,
-                    *end = reversed ? s - 1 : s + n, *out = NULL;
+                    *end = reversed ? s - 1 : s + n;
+    size_t cursor = pos;
     /* The amount to increment each iteration of the loop. */
     int increment = reversed ? -1 : 1;
     if (!(state = exec->dfa.entry[entry][incoming_assert_flag]) &&
@@ -4310,15 +4312,23 @@ static int bbre_dfa_match(
         }
       } else {
         if (state->num_set)
-          out = start;
+          last_match = reversed ? cursor + 1 : cursor - 1;
         if (!state->num_state) {
-          *out_pos = reversed ? out - end - increment : out - s - increment;
-          goto done_success;
+          if (last_match != BBRE_UNSET_POSN) {
+            *out_pos = last_match;
+            goto done_success;
+          }
+          err = 0;
+          goto error;
         }
         if (many)
           bbre_dfa_save_matches(&exec->dfa, state);
       }
       start += increment;
+      if (reversed)
+        --cursor;
+      else
+        ++cursor;
       if (!next) {
         if ((err = bbre_dfa_construct_chr(
                  exec, &exec->dfa, &exec->nfa, state, ch, &next, pri)))
@@ -4333,10 +4343,14 @@ static int bbre_dfa_match(
       }
     } else {
       if (state->num_set)
-        out = start;
+        last_match = reversed ? cursor + 1 : cursor - 1;
       if (!state->num_state) {
-        *out_pos = reversed ? out - end - increment : out - s - increment;
-        goto done_success;
+        if (last_match != BBRE_UNSET_POSN) {
+          *out_pos = last_match;
+          goto done_success;
+        }
+        err = 0;
+        goto error;
       }
       if (many)
         bbre_dfa_save_matches(&exec->dfa, state);
@@ -4351,10 +4365,15 @@ static int bbre_dfa_match(
     state = state->ptrs[BBRE_SENTINEL_CH];
   if (many)
     bbre_dfa_save_matches(&exec->dfa, state);
-  if (out_pos && state->num_set)
-    *out_pos = reversed ? 0 : n;
+  /* A live repetition can consume the rest of the input after an earlier
+   * acceptance. The sentinel need not accept: keep that earlier position in
+   * both directions instead of discarding a successful search. */
+  if (state->num_set)
+    last_match = reversed ? 0 : n;
+  if (out_pos && last_match != BBRE_UNSET_POSN)
+    *out_pos = last_match;
   assert(state);
-  err = !!state->num_set;
+  err = last_match != BBRE_UNSET_POSN;
   goto error;
 done_success:
   err = 1;
