@@ -76,6 +76,7 @@ static bool __xrtNetListenerOwnershipBusy(const void* pData)
 {
 	const xnetlistener* pListener = pData;
 	if (!pListener) return false;
+	if (xrtAtomic32Load(&pListener->EventDropPending, XMEMORY_ACQUIRE)) return true;
 	if (xrtAtomic32Load(&pListener->OwnershipActive, XMEMORY_ACQUIRE)) return true;
 	if (xrtAtomic32Load(&pListener->OwnershipState, XMEMORY_ACQUIRE) & XRT_NET_TCP_OWNERSHIP_READY) return false;
 	return xrtNetEngineOwnershipQuiescenceV1Get()->Busy(pListener->Engine);
@@ -145,12 +146,21 @@ static bool __xrtNetStreamTrace(const void* pData, xrtownershipvisitor pVisit, p
 	return !Error.Data || pVisit(Error, pContext);
 }
 const xrtownershipops __xrtNetStreamOwnershipOps = {__xrtNetStreamCount, __xrtNetStreamTrace};
+static bool __xrtNetListenerEventsOwned(const xnetlistener* pListener)
+{
+	const xnetlistenereventsownershipv1* pPolicy = pListener->EventPolicy;
+	const xnetlistenerevents* a = &pListener->Events;
+	ptr pData = xrtAtomicPtrLoad(&pListener->Data, XMEMORY_ACQUIRE);
+	if (!pPolicy) return !pData && !a->Accept && !a->Error && !a->Close;
+	const xnetlistenerevents* b = &pPolicy->Events;
+	return pData && a->Accept == b->Accept && a->Error == b->Error && a->Close == b->Close;
+}
 static bool __xrtNetListenerCount(const void* pData, size_t* pCount)
 {
 	const xnetlistener* pListener = pData;
 	if (!pListener || !pCount || __xrtNetListenerOwnershipBusy(pData) ||
 		(xrtAtomic32Load(&pListener->OwnershipState, XMEMORY_ACQUIRE) & XRT_NET_TCP_OWNERSHIP_CLEARED) ||
-		pListener->Data || pListener->Events.Accept || pListener->Events.Error || pListener->Events.Close ||
+		!__xrtNetListenerEventsOwned(pListener) ||
 		!__xrtNetTcpEventsEmpty(&pListener->StreamEvents) || pListener->StartPending ||
 		xrtAtomic32Load(&pListener->ActiveDispatches, XMEMORY_ACQUIRE)) return false;
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
@@ -165,7 +175,7 @@ static bool __xrtNetListenerCount(const void* pData, size_t* pCount)
 	if (iSeen != iQueued || pTail != pListener->AcceptTail) return false;
 	if (__xrtNetListenerPrepared(pData)) {
 		if (pListener->RuntimeHeld || pListener->EngineHeld || pListener->RuntimeOwner.Data || pListener->RuntimeOwner.Previous ||
-			pListener->Socket || iQueued || xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED) return false;
+			pListener->EventPolicy || pListener->Socket || iQueued || xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED) return false;
 	} else if (!pListener->RuntimeHeld || !pListener->EngineHeld || pListener->RuntimeOwner.Data != pListener ||
 		pListener->RuntimeOwner.Engine != pListener->Engine || !pListener->RuntimeOwner.Previous ||
 		pListener->RuntimeOwner.Policy != xrtNetListenerRuntimeOwnershipV1Get()) return false;
@@ -178,6 +188,8 @@ static bool __xrtNetListenerTrace(const void* pData, xrtownershipvisitor pVisit,
 	const xnetlistener* pListener = pData; size_t iCount;
 	if (!pVisit || !__xrtNetListenerCount(pData, &iCount) ||
 		(pListener->EngineHeld && !pVisit(xrtNetEngineOwnership(pListener->Engine), pContext))) return false;
+	if (pListener->EventPolicy && !pVisit((xrtownershipref){
+		xrtAtomicPtrLoad(&pListener->Data, XMEMORY_ACQUIRE), pListener->EventPolicy->Ops}, pContext)) return false;
 	/* Each queue slot owns ONE caller reference. AcceptNext is a structural
 	 * link between those slots, never a second strong edge between streams. */
 	for (const xnetstream* pStream = pListener->AcceptHead; pStream; pStream = pStream->AcceptNext)
@@ -317,16 +329,31 @@ XRT_API const xrtownershipadapterv1* xrtNetStreamOwnershipAdapterV2(
 XRT_API const xrtownershipadapterv1* xrtNetStreamOwnershipAdapterV1(
 	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation)
 { return xrtNetStreamOwnershipAdapterV2(Reference, NULL, 0, ppPreparation); }
-XRT_API const xrtownershipadapterv1* xrtNetListenerOwnershipAdapterV1(
-	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation)
+XRT_API const xrtownershipadapterv1* xrtNetListenerOwnershipAdapterV2(
+	xrtownershipref Reference, const xnetlistenereventsownershipv1* const* pPolicies,
+	size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation)
 {
 	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtNetListenerHold, __xrtNetListenerDrop,
 		__xrtNetListenerClaim, __xrtNetListenerRestore, NULL, __xrtNetListenerClear, NULL};
 	static const xrtownershippreparationv1 Preparation = {sizeof(Preparation), &Adapter,
 		__xrtNetListenerPrepared, __xrtNetListenerPrepare};
 	size_t iCount;
-	if (!ppPreparation || Reference.Ops != &__xrtNetListenerOwnershipOps || !__xrtNetListenerCount(Reference.Data, &iCount)) return NULL;
+	if (!ppPreparation || Reference.Ops != &__xrtNetListenerOwnershipOps || !Reference.Data ||
+		(iPolicyCount && !pPolicies) || __xrtNetListenerOwnershipBusy(Reference.Data)) return NULL;
+	const xnetlistener* pListener = Reference.Data;
+	if (pListener->EventPolicy) {
+		const xnetlistenereventsownershipv1* pPolicy = pListener->EventPolicy;
+		bool bKnown = false;
+		for (size_t i = 0; i < iPolicyCount; ++i)
+			if (pPolicies[i] == pPolicy) {bKnown = true;break;}
+		if (!bKnown || !pPolicy || pPolicy->size != sizeof(*pPolicy) || !pPolicy->Drop ||
+			!pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) return NULL;
+	}
+	if (!__xrtNetListenerCount(Reference.Data, &iCount)) return NULL;
 	*ppPreparation = &Preparation; return &Adapter;
 }
+XRT_API const xrtownershipadapterv1* xrtNetListenerOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation)
+{ return xrtNetListenerOwnershipAdapterV2(Reference, NULL, 0, ppPreparation); }
 
 #endif

@@ -9361,10 +9361,12 @@
 			"sources": [],
 			"tests": [
 				"tests/network/test_net_tcp_ownership.c",
+				"tests/network/test_net_listener_events_ownership.c",
 				"tests/network/test_net_stream_events_ownership.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_net_tcp_ownership.c",
+				"tests/single/test_single_net_listener_events_ownership.c",
 				"tests/single/test_single_net_stream_events_ownership.c"
 			],
 			"examples": [],

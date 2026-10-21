@@ -412,7 +412,8 @@ XRT_API void xrtNetListenerDestroy(xnetlistener* pListener)
 	xrtownershipscope Mutation = {0};
 	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	bool bLast = xrtRefRelease(&pListener->References) == 0;
-	if (bLast && (pListener->RuntimeOwner.Data || pListener->RuntimeOwner.Previous)) abort();
+	if (bLast && (pListener->RuntimeOwner.Data || pListener->RuntimeOwner.Previous ||
+		pListener->EventPolicy || xrtAtomic32Load(&pListener->EventDropPending, XMEMORY_ACQUIRE))) abort();
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if ( !bLast ) {
 		return;
@@ -1200,7 +1201,8 @@ static void __xrtNetStreamReleaseRuntime(xnetstream* pStream)
 static void __xrtNetListenerReleaseRuntime(xnetlistener* pListener)
 {
 	if (!pListener->RuntimeHeld) return;
-	if (xrtAtomic32Load(&pListener->OwnershipStop, XMEMORY_ACQUIRE)) return;
+	if (xrtAtomic32Load(&pListener->OwnershipStop, XMEMORY_ACQUIRE) ||
+		xrtAtomic32Load(&pListener->EventDropPending, XMEMORY_ACQUIRE)) return;
 	xrtownershipscope Mutation = {0};
 	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
 	const xnetruntimeownershipv1* pPolicy = NULL;
@@ -4529,7 +4531,7 @@ static void __xrtNetListenerReportError(
 		pListener->Events.Error(
 			pListener,
 			pError,
-			pListener->Data
+			xrtAtomicPtrLoad(&pListener->Data, XMEMORY_ACQUIRE)
 		);
 	}
 }
@@ -4663,6 +4665,41 @@ static bool __xrtNetListenerAcceptDone(
 
 
 
+/* The runtime slot protects this allocation-free drop command. In particular
+ * a nested Error -> Close must NOT drop Data while Error is still on-stack.
+ * A CLOSED state is not proof of this callback/code tail having returned. */
+static void __xrtNetListenerDropEventsTask(xnetworker* pWorker, ptr pData)
+{
+	xnetlistener* pListener = pData;
+	if (!xrtNetWorkerIsCurrent(pWorker) || pWorker != pListener->Worker ||
+		!pListener->RuntimeHeld || !pListener->EventPolicy ||
+		xrtNetListenerState(pListener) != XNET_LISTENER_CLOSED) abort();
+	const xnetlistenereventsownershipv1* pPolicy = pListener->EventPolicy;
+	ptr pOwned = xrtAtomicPtrLoad(&pListener->Data, XMEMORY_ACQUIRE);
+	pListener->EventPolicy = NULL;
+	memset(&pListener->Events, 0, sizeof(pListener->Events));
+	xrtAtomicPtrStore(&pListener->Data, NULL, XMEMORY_RELEASE);
+	pPolicy->Drop(pOwned);
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	xrtAtomic32Store(&pListener->EventDropPending, 0, XMEMORY_RELEASE);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	__xrtNetListenerReleaseRuntime(pListener); /* last access */
+}
+static void __xrtNetListenerRetireEvents(xnetlistener* pListener)
+{
+	if (!pListener->EventPolicy) return;
+	if (!xrtNetWorkerIsCurrent(pListener->Worker) || !pListener->RuntimeHeld ||
+		xrtAtomic32Load(&pListener->EventDropPending, XMEMORY_ACQUIRE)) abort();
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	xrtAtomic32Store(&pListener->EventDropPending, 1, XMEMORY_RELEASE);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	/* A Worker with an unconsumed runtime lease cannot already be sealed. */
+	if (!__xrtNetEnginePostInternal(pListener->Worker, &pListener->EventDropCommand,
+		__xrtNetListenerDropEventsTask, pListener)) abort();
+}
+
 /* 在所有 Accept 终态到达后关闭 Listener。 */
 static void __xrtNetListenerTryFinish(xnetlistener* pListener)
 {
@@ -4687,15 +4724,17 @@ static void __xrtNetListenerTryFinish(xnetlistener* pListener)
 		pListener->WaitClosed = true;
 		__xrtSpinUnlock(&pListener->AcceptLock);
 	#endif
-	if (!xrtAtomic32Load(&pListener->OwnershipStop, XMEMORY_ACQUIRE)) __xrtNetListenerReleaseEngine(pListener);
+	if (!pListener->EventPolicy && !xrtAtomic32Load(&pListener->OwnershipStop, XMEMORY_ACQUIRE))
+		__xrtNetListenerReleaseEngine(pListener);
 	xrtAtomic32Store(
 		&pListener->State,
 		XNET_LISTENER_CLOSED,
 		XMEMORY_RELEASE
 	);
 	if ( pListener->Events.Close != NULL ) {
-		pListener->Events.Close(pListener, pListener->Data);
+		pListener->Events.Close(pListener, xrtAtomicPtrLoad(&pListener->Data, XMEMORY_ACQUIRE));
 	}
+	__xrtNetListenerRetireEvents(pListener);
 	__xrtNetListenerReleaseRuntime(pListener);
 }
 
@@ -4772,7 +4811,7 @@ static void __xrtNetListenerAcceptTask(
 				bAccepted = pListener->Events.Accept(
 					pListener,
 					pStream,
-					pListener->Data
+					xrtAtomicPtrLoad(&pListener->Data, XMEMORY_ACQUIRE)
 				);
 			} else {
 				bAccepted = __xrtNetListenerAcceptFuture(
@@ -5200,12 +5239,13 @@ static void __xrtNetListenerStart(
 
 
 /* 同步建立监听 Socket 并异步启动 Accept。 */
-XRT_API xnetlistener* xrtNetListen(
+static xnetlistener* __xrtNetListen(
 	xnetengine* pEngine,
 	const xnetlistenconfig* pConfig,
 	const xnetlistenerevents* pEvents,
 	const xnetstreamevents* pStreamEvents,
-	ptr pData
+	ptr pData,
+	const xnetlistenereventsownershipv1* pEventPolicy
 )
 {
 	xnetlistenconfig Config;
@@ -5307,6 +5347,7 @@ XRT_API xnetlistener* xrtNetListen(
 	xrtAtomic32Init(&pListener->OwnershipState, 0);
 	xrtAtomic32Init(&pListener->OwnershipActive, 1);
 	xrtAtomic32Init(&pListener->OwnershipStop, 0);
+	xrtAtomic32Init(&pListener->EventDropPending, 0);
 	xrtAtomic32Init(&pListener->State, XNET_LISTENER_OPEN);
 	xrtAtomic64Init(&pListener->Accepted, 0);
 	xrtAtomic64Init(&pListener->Rejected, 0);
@@ -5327,7 +5368,7 @@ XRT_API xnetlistener* xrtNetListen(
 	if ( pStreamEvents != NULL ) {
 		pListener->StreamEvents = *pStreamEvents;
 	}
-	pListener->Data = pData;
+	xrtAtomicPtrInit(&pListener->Data, pData);
 	pListener->EngineHeld = true;
 	pListener->RuntimeHeld = true;
 	pListener->NextAffinity = Config.Affinity;
@@ -5370,6 +5411,7 @@ XRT_API xnetlistener* xrtNetListen(
 		xrtSetErrorTake(pError); return NULL;
 	}
 	pListener->StartPending = true;
+	pListener->EventPolicy = pEventPolicy;
 	if ( !__xrtNetEnginePostRuntime(
 		pEngine,
 		xrtNetWorkerIndex(pWorker),
@@ -5378,6 +5420,7 @@ XRT_API xnetlistener* xrtNetListen(
 	) ) {
 		pError = xrtTakeError();
 		pListener->StartPending = false;
+		pListener->EventPolicy = NULL; /* publication failed: caller keeps Data credit */
 		pListener->Socket = NULL;
 		(void)xrtNetSocketClose(Socket);
 		xrtAtomic32Store(
@@ -5394,6 +5437,23 @@ XRT_API xnetlistener* xrtNetListen(
 	}
 	__xrtNetListenerOwnershipLeave(pListener);
 	return pListener;
+}
+
+XRT_API xnetlistener* xrtNetListen(xnetengine* pEngine,
+	const xnetlistenconfig* pConfig, const xnetlistenerevents* pEvents,
+	const xnetstreamevents* pStreamEvents, ptr pData)
+{
+	return __xrtNetListen(pEngine, pConfig, pEvents, pStreamEvents, pData, NULL);
+}
+XRT_API xnetlistener* xrtNetListenOwnedV1(xnetengine* pEngine,
+	const xnetlistenconfig* pConfig, ptr pData,
+	const xnetlistenereventsownershipv1* pPolicy)
+{
+	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) || !pPolicy->Drop ||
+		!pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) {
+		__xrtErrorSetInvalidArgument();return NULL;
+	}
+	return __xrtNetListen(pEngine, pConfig, &pPolicy->Events, NULL, pData, pPolicy);
 }
 
 
@@ -5779,7 +5839,7 @@ XRT_API ptr xrtNetStreamData(const xnetstream* pStream)
 /* 返回 Listener 用户数据。 */
 XRT_API ptr xrtNetListenerData(const xnetlistener* pListener)
 {
-	return pListener != NULL ? pListener->Data : NULL;
+	return pListener != NULL ? xrtAtomicPtrLoad(&pListener->Data, XMEMORY_ACQUIRE) : NULL;
 }
 
 

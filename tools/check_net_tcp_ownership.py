@@ -24,6 +24,7 @@ def main():
     parser.add_argument('--compiler', action='append', required=True)
     parser.add_argument('--sanitize', action='store_true')
     parser.add_argument('--probe', action='store_true', help='new events fixture, first compiler O0 only; not acceptance')
+    parser.add_argument('--listener-probe', action='store_true', help='Listener events discovery only, first compiler O0; not acceptance')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     out = args.out.resolve()
@@ -44,12 +45,19 @@ def main():
         'tests/network/test_net_tcp_connect_timer.c',
         'tests/network/test_net_tcp_lifetime.c',
         'tests/network/test_net_tcp_pull.c',
+        'tests/network/test_net_listener_events_ownership.c',
         'tests/network/test_net_stream_events_ownership.c',
     )
     singles = ('tests/single/test_single_net_tcp_ownership.c',
                'tests/single/test_single_net_engine_ownership.c',
                'tests/single/test_single_net_buffer_ownership.c',
+               'tests/single/test_single_net_listener_events_ownership.c',
                'tests/single/test_single_net_stream_events_ownership.c')
+    if args.listener_probe:
+        assert not args.probe
+        fixtures = (fixtures[-2],)
+        singles = (singles[-2],)
+        compilers = compilers[:1]
     if args.probe:
         fixtures = (fixtures[-1],)
         compilers = compilers[:1]
@@ -66,7 +74,7 @@ def main():
                   MinimalBufferSources=minimal_sources, MinimalBufferDefines=minimal_defines,
                   OrdinaryLiteralLoopback=True, ExternalNetworkTests=False, NetworkSecurityTests=False,
                   ShippingLibraryAcceptance=False)
-    report['DiscoveryOnly'] = args.probe
+    report['DiscoveryOnly'] = args.probe or args.listener_probe
 
     def save():
         (out/'results.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
@@ -94,7 +102,7 @@ def main():
     save()
     for number, cc in enumerate(compilers):
         modes = [('O0', ['-O0']), ('O2', ['-O2'])]
-        if args.probe:modes = modes[:1]
+        if args.probe or args.listener_probe:modes = modes[:1]
         if args.sanitize and cc.stem != 'tcc':
             modes.append(('instrumented', ['-O1', '-g', '-fsanitize=address,undefined',
                                           '-fno-omit-frame-pointer', '-fno-pie', '-no-pie']))
@@ -124,12 +132,12 @@ def main():
                             *(objects if fixture not in singles else []), *libraries, '-o', binary])
                         products.append(dict(Path=str(binary), Sha256=sha(binary)))
                         run(f'{label}.{package}.run', [binary], mode == 'instrumented')
-                        if 'tcp_ownership' in package or 'stream_events_ownership' in package:
+                        if 'tcp_ownership' in package or 'stream_events_ownership' in package or 'listener_events_ownership' in package:
                             run(f'{label}.{package}.native-run', [binary, 'native'], mode == 'instrumented')
                     except Exception as error:
                         failures.append(dict(Name=label+'.'+package, Error=repr(error)))
                         save()
-                for fixture in (() if args.probe else ('tests/network/test_net_buffer_ownership.c', singles[2])):
+                for fixture in (() if args.probe or args.listener_probe else ('tests/network/test_net_buffer_ownership.c', singles[2])):
                     try:
                         package = 'minimal.'+Path(fixture).stem
                         binary = out/(label+'.'+package+('.exe' if os.name == 'nt' else ''))
@@ -145,7 +153,7 @@ def main():
                         run(f'{label}.{package}.run', [binary], mode == 'instrumented')
                     except Exception as error:
                         failures.append(dict(Name=label+'.'+package, Error=repr(error))); save()
-                if not args.probe and number==0 and mode=='O0':
+                if not args.probe and not args.listener_probe and number==0 and mode=='O0':
                     original=(root/'src/network/tcp.c').read_text(encoding='utf-8')
                     def body(name):
                         start=original.index('static void '+name+'(')

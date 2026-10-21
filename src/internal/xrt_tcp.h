@@ -265,7 +265,10 @@ struct xnetlistener {
 	xnetlistenconfig Config;
 	xnetlistenerevents Events;
 	xnetstreamevents StreamEvents;
-	ptr Data;
+	xatomicptr Data;
+	const xnetlistenereventsownershipv1* EventPolicy;
+	__xrt_net_engine_internal EventDropCommand;
+	xatomic32 EventDropPending;
 	xnetaddr Local;
 	xnetcompletion Completion;
 	__xrt_net_accept_slot* AcceptSlots;

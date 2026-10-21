@@ -5324,3 +5324,46 @@ select 不具备此能力；非空 `xrtNetStreamSendFile` 现在在提交前返�
 NUL、源游标不变、提交后立即关闭源文件、精确内存平衡，以及 Windows select
 拒绝后连接仍可正常收发。覆盖 GCC／TCC、O0／O2、两端本机后端，Linux 另有
 ASan／UBSan；不执行外网、探测、畸形协议或网络安全测试。
+
+### Listener 的拥有型事件上下文
+
+`xrtNetListenOwnedV1(engine, config, data, policy)` 与原有 `xrtNetListen` 共用创建、
+绑定、预投递和分发实现；成功转移一份真实 Data 引用，任一同步失败不消费。
+没有额外的上下文包装分配。调用者需保持不可变 `xnetlistenereventsownershipv1`
+描述符与回调代码驻留；如果还要在调用后独立使用 Data，应在提交前保留另一份引用。
+异步关闭可以先于成功创建调用的返回完成，不能假设成功返回后 Data 一定尚存。
+
+Accept 可在不同目标 Worker 并发执行，调用时借用 Data；Error、Close 和 Drop 在
+Listener Worker 执行。接受的 Stream 不继承 Data，也没有初始裸 Stream 回调；
+需要推送事件时，在对应 Stream Worker 显式绑定拥有型事件。
+拉取模式可令策略中的 Accept 为空，继续使用现有同步／Future 接受接口。
+
+关闭等待实际 Accept／跨 Worker 分发完成，再发布 Close。之后使用嵌入式、无分配的
+生命周期命令释放 Data，确保当前回调任务尾部已退出；不新增线程或协程栈。
+Drop 不在拥有域锁内执行，可安全检查拥有域。关闭状态不代表 Drop／代码尾部已退休：
+期间保留原来的 runtime 引用及 Engine 拥有边，`EventDropPending` 令拥有检查返回 BUSY。
+`xrtNetListenerData` 返回原子快照，拥有绑定退役后为空；它本身不保活目标。
+
+`xrtNetListenerOwnershipAdapterV2` 先按独立提供的描述符精确身份准入，再读取上下文
+合同；伪造副本／未知地址／缺失集合不被准入，失败不修改输出或线程当前诊断。
+Trace 仅增加一条实际的 Data 拥有边，既不把裸 Child 地址伪装成独立 RC 节点，
+也不把内嵌生命周期命令算作新引用。V1 继续拒绝拥有型回调，旧裸回调仍不具备图准入能力。
+Prepare 使用原有实际关闭与 Worker 排空机制，只有 Data／runtime／Engine 边实际退役后
+才会 READY；Clear 不靠清零引用计数或丢失回调来制造成功。
+
+`test_net_listener_events_ownership.c` 与对应单头入口验证策略准入、完整拥有图、
+跨 Worker 的重入关闭与回调尾部、阻塞 Drop 的 BUSY、checked Prepare、全部同步创建
+分配失败前缀及精确内存平衡，加入 `net_tcp_ownership_tests` 和
+`tools/check_net_tcp_ownership.py` 的常规允许列表。此项是聚合 Server 的原生前置，
+不是 Server 自身、语言公开面或五组库 shipping 验收完成。
+
+2026-10-21 隔离 HEAD＋本批源码的最终矩阵：核心模块化／单头套件 Windows
+306、Linux 381 阶段，旧聚合 Server 普通接受／Future 取消关闭兼容检查另为
+16／20 阶段，共 723。GCC／TCC O0／O2，Linux 增加 ASan／UBSan；输入、
+日志和产品哈希均不变。新夹具每次涵盖 6 个生命周期场景、31 次策略拒绝、
+5 个构造分配预算（4 个失败前缀）。初轮夹具的 TCC 聚合初始化问题已改为等价
+逐项赋值并用完整矩阵复测，没有为通过测试放宽产品合同。
+
+证据位于 `F:/xlang-validation/five-groups-20261021/p3-listener-events` 的
+`native-win-r2`／`native-linux-r2` 和 `server-compat-win-r1`／`server-compat-linux-r1`。
+生成单头来自干净已提交父版本加此批精确源码，不夹带其他文件／内存库改动。
