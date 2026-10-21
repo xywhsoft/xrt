@@ -8024,6 +8024,19 @@
 			]
 		},
 		{
+			"name": "net_proxy_dial_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["net_proxy_dial", "net_proxy_socks5", "net_proxy_http_connect", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/network/test_net_proxy_dial_ownership.c"],
+			"single_tests": ["tests/single/test_single_net_proxy_dial_ownership.c"],
+			"examples": [],
+			"docs": ["docs/api/proxy.md"]
+		},
+		{
 			"name": "net_proxy_dial_socks5_tests",
 			"state": "implemented",
 			"feature": null,

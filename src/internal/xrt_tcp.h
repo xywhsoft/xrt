@@ -142,6 +142,15 @@ typedef struct __xrt_net_stream_events_owner {
 	ptr Data;
 } __xrt_net_stream_events_owner;
 
+/* Prepare before asynchronous I/O starts. The unique record consumes Data's
+ * supplied credit only on successful creation/attachment. This makes protocol
+ * setup failure allocation-free after a Stream creator has been delivered. */
+__xrt_net_stream_events_owner* __xrtNetStreamEventsPrepare(ptr pData,
+	const xnetstreameventsownershipv1* pPolicy);
+bool __xrtNetStreamEventsAttach(xnetstream* pStream, __xrt_net_stream_events_owner* pOwner);
+void __xrtNetStreamEventsDiscard(__xrt_net_stream_events_owner* pOwner);
+xnetresult __xrtNetStreamSendSecureTake(xnetstream* pStream, ptr pData, size_t iSize);
+
 /* Stream 的可变 IO 状态只由所属 Worker 访问。 */
 struct xnetstream {
 	__xrt_net_engine_runtime RuntimeOwner;

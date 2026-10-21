@@ -1101,6 +1101,8 @@ static void __xrtNetStreamFreeTaken(
 	(void)iSize;
 	xrtFree((ptr)pData);
 }
+static void __xrtNetStreamFreeSecureTaken(ptr pContext,cbytes pData,size_t iSize)
+{(void)pContext;xrtSecureZero((ptr)pData,iSize);xrtFree((ptr)pData);}
 
 
 
@@ -2919,7 +2921,8 @@ static bool __xrtNetStreamSetEvents(
 	xnetstream* pStream,
 	const xnetstreamevents* pEvents,
 	ptr pData,
-	__xrt_net_stream_events_owner* pOwner
+	__xrt_net_stream_events_owner* pOwner,
+	bool bAllowClosing
 )
 {
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
@@ -2928,7 +2931,8 @@ static bool __xrtNetStreamSetEvents(
 	#endif
 
 	if ( (pStream == NULL) ||
-		(xrtNetStreamState(pStream) != XNET_STREAM_OPEN) ||
+		(xrtNetStreamState(pStream) != XNET_STREAM_OPEN &&
+		 (!bAllowClosing || xrtNetStreamState(pStream) != XNET_STREAM_CLOSING)) ||
 		!xrtNetWorkerIsCurrent(pStream->Worker) ) {
 		__xrtNetStreamSetError(
 			pStream == NULL ? XERR_ARGUMENT : XERR_STATE,
@@ -2975,26 +2979,46 @@ XRT_API bool xrtNetStreamSetEvents(xnetstream* pStream,
 	const xnetstreamevents* pEvents, ptr pData)
 {
 	if (!__xrtNetStreamOwnershipEnter(pStream, true)) return false;
-	bool bResult = __xrtNetStreamSetEvents(pStream, pEvents, pData, NULL);
+	bool bResult = __xrtNetStreamSetEvents(pStream, pEvents, pData, NULL, false);
 	__xrtNetStreamOwnershipLeave(pStream);
 	return bResult;
 }
-XRT_API bool xrtNetStreamSetEventsOwnedV1(xnetstream* pStream, ptr pData,
+__xrt_net_stream_events_owner* __xrtNetStreamEventsPrepare(ptr pData,
 	const xnetstreameventsownershipv1* pPolicy)
 {
 	if (!pData || !pPolicy || pPolicy->size != sizeof(*pPolicy) || !pPolicy->Drop ||
 		!pPolicy->Ops || !pPolicy->Ops->Count || !pPolicy->Ops->Trace) {
-		__xrtErrorSetInvalidArgument();return false;
+		__xrtErrorSetInvalidArgument();return NULL;
 	}
+	__xrt_net_stream_events_owner* pOwner = xrtCalloc(1, sizeof(*pOwner));
+	if (pOwner) {pOwner->Policy = pPolicy;pOwner->Data = pData;}
+	return pOwner;
+}
+void __xrtNetStreamEventsDiscard(__xrt_net_stream_events_owner* pOwner)
+{
+	if (!pOwner) return;
+	if (pOwner->Next) abort();
+	pOwner->Policy->Drop(pOwner->Data);
+	xrtFree(pOwner);
+}
+bool __xrtNetStreamEventsAttach(xnetstream* pStream, __xrt_net_stream_events_owner* pOwner)
+{
+	if (!pOwner || pOwner->Next) {__xrtErrorSetInvalidArgument();return false;}
+	if (!__xrtNetStreamOwnershipEnter(pStream, true)) return false;
+	bool bResult = __xrtNetStreamSetEvents(pStream, &pOwner->Policy->Events, pOwner->Data, pOwner, true);
+	__xrtNetStreamOwnershipLeave(pStream);return bResult;
+}
+XRT_API bool xrtNetStreamSetEventsOwnedV1(xnetstream* pStream, ptr pData,
+	const xnetstreameventsownershipv1* pPolicy)
+{
 	if (!__xrtNetStreamOwnershipEnter(pStream, true)) return false;
 	bool bResult = false;
 	if (xrtNetStreamState(pStream) != XNET_STREAM_OPEN || !xrtNetWorkerIsCurrent(pStream->Worker)) {
 		__xrtErrorSetInvalidState();
 	} else {
-		__xrt_net_stream_events_owner* pOwner = xrtCalloc(1, sizeof(*pOwner));
+		__xrt_net_stream_events_owner* pOwner = __xrtNetStreamEventsPrepare(pData, pPolicy);
 		if (pOwner) {
-			pOwner->Policy = pPolicy;pOwner->Data = pData;
-			bResult = __xrtNetStreamSetEvents(pStream, &pPolicy->Events, pData, pOwner);
+			bResult = __xrtNetStreamSetEvents(pStream, &pPolicy->Events, pData, pOwner, false);
 			if (!bResult) xrtFree(pOwner); /* failed submission consumes no Data credit */
 		}
 	}
@@ -3923,6 +3947,10 @@ XRT_API xnetresult xrtNetStreamSendRefs(
 
 
 /* 有界接管发送。 */
+xnetresult __xrtNetStreamSendSecureTake(xnetstream* pStream,ptr pData,size_t iSize)
+{
+	return __xrtNetStreamSend(pStream,pData,iSize,__xrtNetStreamFreeSecureTaken,NULL,false,true,XRT_NET_SEND_TAKE);
+}
 XRT_API xnetresult xrtNetStreamSendTake(
 	xnetstream* pStream,
 	ptr pData,
@@ -5946,7 +5974,8 @@ static bool __xrtNetStreamBlockTrace(const xnetblock* pBlock, const void* pOwner
 		if (pSend->PayloadOwnership == XRT_NET_SEND_COPY) {
 			if (pSend->Data != pSend->Copy || pSend->Release || pSend->ReleaseContext || pSend->OwnsExternal) return false;
 		} else if (pSend->PayloadOwnership == XRT_NET_SEND_TAKE) {
-			if (!pSend->OwnsExternal || pSend->Release != __xrtNetStreamFreeTaken || pSend->ReleaseContext) return false;
+			if (!pSend->OwnsExternal || (pSend->Release != __xrtNetStreamFreeTaken &&
+				pSend->Release != __xrtNetStreamFreeSecureTaken) || pSend->ReleaseContext) return false;
 		} else if (pSend->PayloadOwnership == XRT_NET_SEND_BYTES) {
 			if (!pSend->OwnsExternal || pSend->Release != __xrtNetStreamFreeBytes || !pSend->ReleaseContext) return false;
 			xbytesview View = xrtNetBytesView(pSend->ReleaseContext);

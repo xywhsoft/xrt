@@ -28495,6 +28495,15 @@ typedef void (*xnetproxydialproc)(
 	ptr pData
 );
 
+/* Success consumes one actual callback-data reference. Done borrows it;
+ * Drop follows its real callback tail. Failed submission consumes none. */
+typedef struct xnetproxydialownershipv1 {
+	size_t size;
+	xnetproxydialproc Done;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xnetproxydialownershipv1;
+
 #endif
 
 
@@ -28646,6 +28655,19 @@ XRT_API xnetproxydial* xrtNetProxyDial(
 	xnetproxydialproc pDone,
 	ptr pDoneData
 );
+
+XRT_API xnetproxydial* xrtNetProxyDialOwnedV1(xnetengine* pEngine, xnetresolver* pResolver,
+	const xnetproxy* pProxy, cstr sTargetHost, uint16 iTargetPort,
+	const xnetproxydialconfig* pConfig, const xnetstreamevents* pStreamEvents,
+	ptr pStreamData, ptr pDoneData, const xnetproxydialownershipv1* pPolicy);
+XRT_API xrtownershipref xrtNetProxyDialOwnership(const xnetproxydial* pDial);
+XRT_API const xrtownershipquiescencev1* xrtNetProxyDialOwnershipQuiescenceV1Get(void);
+XRT_API const xnetruntimeownershipv1* xrtNetProxyDialRuntimeOwnershipV1Get(void);
+XRT_API const xnetdialownershipv1* xrtNetProxyDialTransportOwnershipV1Get(void);
+XRT_API const xnetstreameventsownershipv1* xrtNetProxyDialStreamOwnershipV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtNetProxyDialOwnershipAdapterV1(xrtownershipref Reference,
+	const xnetproxydialownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
 
 
 

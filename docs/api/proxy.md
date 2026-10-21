@@ -1,5 +1,31 @@
 # Proxy
 
+## 拥有型 Proxy Dial
+
+`xrtNetProxyDialOwnedV1` 使用显式的 `xnetproxydialownershipv1`，成功接管
+一个真实的 DoneData 强引用，失败不接管；完成回调借用该引用，Drop 在完成
+回调尾部之后执行。旧入口与新入口共用同一个状态机和 SOCKS5/HTTP CONNECT
+实现，没有另写代理算法。事件表与上下文代码须保持驻留。
+
+先由内层拥有型 TCP Dial 交付真正的获胜 Stream，再启用代理握手。事件绑定
+在提交前准备，连接建立后的交接不再分配绑定，因此构造 OOM 不会遗失关闭
+观察。成功与取消通过单一胜出门仲裁；超时复用取消与真实传输关闭，不能把
+请求取消当成完成。Timer、内层 Done、Stream 事件和命令分别持有实际 Root
+引用，最后一个资源返回后才交付组合终态。其他线程可能在构造函数返回前
+观察到完成，但完成回调不会从提交调用栈同步重入。
+
+拥有图使用 `xrtNetProxyDialOwnership` 和独立的 quiescence / adapter / preparation
+协议。Root 报告真正的 Engine、Transport、Stream、DoneData、错误和 Proxy
+拥有槽；唯一拥有的握手内联报告其 Proxy 引用与缓冲池租约，不伪造另一个
+引用计数节点。未附着的预备绑定持有一个真实自引用，也必须报告。安全发送
+继续在最后释放时清零认证报文，并作为已知 take 拥有权处理，不能留下不透明
+回调绕过图检查。未知完成策略或裸最终事件仍拒绝接纳。
+
+`RuntimeOwnershipV1Get`、`TransportOwnershipV1Get` 和 `StreamOwnershipV1Get`
+提供精确的原生能力身份，供宿主分别登记；仅同形的结构体副本不能代替这些
+身份。Prepare 的 BUSY 不保证停止命令已排入，应按完整协议重试，直至实际
+完成与静止。此能力不等于 xlang Proxy Dial / Future 或 TLS 接入已经完成。
+
 ## 原生配置拥有图
 
 `xrtNetProxyOwnership(proxy)` 描述配置本身的物理身份和真实强引用数。
