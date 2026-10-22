@@ -10,6 +10,7 @@ struct xnetfile {
     xmutex Lock;
     size_t Active;
     bool Publishing, Closing, Closed, ControlQueued, Cleared;
+    bool ControlBorrowed, RetireRequested;
     const void* Claim;
     xfile Native;
     uint32 Flags;
@@ -218,6 +219,10 @@ XRT_API const xcancelwatchownershipv1* xrtNetFileFutureCancelPolicyV1Get(void) {
 static void __xrtNetFileOwnedControl(xnetworker* worker, ptr data)
 {
     xnetfile* f=data; xrtownershipscope s={0}; xerror* previous=xrtTakeError();
+    __xrtNetFileOwnedLock(f,&s);
+    bool borrowed=f->ControlBorrowed; f->ControlBorrowed=false;
+    __xrtNetFileOwnedUnlock(f,&s);
+    bool releaseBorrowed=false;
     for (;;) {
         uint64 id=0; xfile native=NULL; xnetengine* engine=NULL; xpromise* promise=NULL;
         __xrtNetFileOwnedLock(f,&s);
@@ -244,7 +249,12 @@ static void __xrtNetFileOwnedControl(xnetworker* worker, ptr data)
             bool closed=xrtClose(native); xerror* failure=closed?NULL:__xrtNetFileOwnedTakeFailure();
             /* Close completion is also the operational release barrier. A
              * caller may Stop immediately after observing this terminal. */
-            policy->Release(owner); __xrtNetEngineObjectRelease(engine);
+            /* A graph-authorized control borrows the EXISTING runtime slot.
+             * Once taken, transfer that same reference to this callback tail;
+             * do not manufacture another RC/root merely to retire a cycle. */
+            if (borrowed) releaseBorrowed=true;
+            else policy->Release(owner);
+            __xrtNetEngineObjectRelease(engine);
             if (closed) (void)xrtPromiseResolve(promise,NULL);
             else (void)xrtPromiseReject(promise,failure);
             xrtErrorFree(failure); xrtPromiseDestroy(promise);
@@ -252,7 +262,8 @@ static void __xrtNetFileOwnedControl(xnetworker* worker, ptr data)
         }
         break;
     }
-    xrtClearError(); xrtSetErrorTake(previous); __xrtNetFileOwnedDrop(f); /* actual command slot */
+    xrtClearError(); xrtSetErrorTake(previous);
+    if (!borrowed || releaseBorrowed) __xrtNetFileOwnedDrop(f);
 }
 XRT_API xfuture* xrtNetFileCloseFuture(xnetfile* f)
 {
@@ -487,11 +498,28 @@ static bool __xrtNetFileOwnedReady(const void* data)
 { const xnetfile* f=data; size_t count; return __xrtNetFileOwnedCount(f,&count) && f->Closed; }
 static xrtownershipprepareresult __xrtNetFileOwnedPrepare(const void* data, const void* token)
 {
-    const xnetfile* f=data; xrtownershipscope s={0}; bool ready;
+    xnetfile* f=(xnetfile*)data; xrtownershipscope s={0}; bool ready,failed=false;
     if (!xrtOwnershipFreezeTryBegin(&s)) return XRT_OWNERSHIP_PREPARE_BUSY;
     if (!token || f->Claim!=token || f->Cleared) abort();
     ready=__xrtNetFileOwnedReady(f);
+    if (!ready && !f->RetireRequested && !__xrtNetFileOwnedBusy(f)) {
+        /* Quarantined, proven-unreachable native duty. The existing runtime
+         * registration protects the embedded command and operational Engine.
+         * Reserve no extra strong reference and run no user callback here.
+         * Like TCP retirement, native completion performs all later releases. */
+        bool wasClosing=f->Closing;
+        if (!f->Registration.Data || !f->Engine || !f->Worker) failed=true;
+        else {
+            f->Closing=true; f->ControlQueued=true;
+            f->ControlBorrowed=true; f->RetireRequested=true;
+            if (!__xrtNetEnginePostInternal(f->Worker,&f->Control,__xrtNetFileOwnedControl,f)) {
+                f->Closing=wasClosing; f->ControlQueued=false;
+                f->ControlBorrowed=false; f->RetireRequested=false; failed=true;
+            }
+        }
+    }
     if (!xrtOwnershipScopeEnd(&s)) abort();
+    if (failed) { __xrtErrorSetInvalidState(); return XRT_OWNERSHIP_PREPARE_FAILED; }
     return ready?XRT_OWNERSHIP_PREPARE_READY:XRT_OWNERSHIP_PREPARE_BUSY;
 }
 static void __xrtNetFileOwnedClear(const void* data, const void* token)

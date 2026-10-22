@@ -54,8 +54,9 @@ XRT_API const xcancelwatchownershipv1* xrtNetFileFutureCancelPolicyV1Get(void);
 XRT_API const xrtownershipquiescencev1* xrtNetFileOwnershipQuiescenceV1Get(void);
 XRT_API const xrtownershipquiescencev1* xrtNetFileFutureOwnershipQuiescenceV1Get(void);
 /* Exact native identities are checked before any client input policy or Ops.
- * Unknown input policies refuse unchanged. Preparation observes native close;
- * the execution-resource owner requests Close before retiring its Engine. */
+ * Unknown input policies refuse unchanged. A proven-unreachable claimed File
+ * can authorize its existing runtime slot to perform real native close; no
+ * synthetic result cancellation or extra root replaces OS completion. */
 XRT_API const xrtownershipadapterv1* xrtNetFileOwnershipAdapterV1(xrtownershipref Ref,
     const xrtownershippreparationv1** Preparation);
 XRT_API const xrtownershipadapterv1* xrtNetFileFutureOwnershipAdapterV1(xrtownershipref Ref,

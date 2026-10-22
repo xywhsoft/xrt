@@ -130,6 +130,31 @@ static void fileUnsupported(void)
     seed=fopen(path,"rb"); char value[5]={0}; assert(seed&&fread(value,1,5,seed)==4&&fclose(seed)==0&&!strcmp(value,"keep"));
     assert(remove(path)==0);
 }
+static void fileUnreachablePreparation(void)
+{
+    const char* path="owned-file-prepare.bin"; xnetengine* engine=fileEngine(fileBackend());
+    xnetfile* file=fileOpen(engine,path); assert(file);
+    xrtownershipscope freeze={0}; fileFreeze(file,&freeze,3);
+    const xrtownershippreparationv1* prep=NULL;
+    const xrtownershipadapterv1* adapter=xrtNetFileOwnershipAdapterV1(xrtNetFileOwnership(file),&prep);
+    assert(adapter&&prep&&!prep->Ready(file)); assert(xrtOwnershipScopeEnd(&freeze));
+    assert(adapter->Hold(file)); fileFreeze(file,&freeze,4);
+    int token; assert(adapter->Claim(file,&token)); assert(xrtOwnershipScopeEnd(&freeze));
+    /* The adapter caller authorizes this native duty. A separate XLIR planner
+     * fixture proves actual unreachability/closed-graph ordering end to end. */
+    assert(prep->Prepare(file,&token)==XRT_OWNERSHIP_PREPARE_BUSY);
+    double end=xrtTimer()+10.0;
+    for (;;) {
+        if (xrtOwnershipFreezeTryBegin(&freeze)) {
+            if (prep->Ready(file)) break;
+            assert(xrtOwnershipScopeEnd(&freeze));
+        }
+        assert(xrtTimer()<end); xrtThreadYield();
+    }
+    adapter->Clear(file,&token); assert(xrtOwnershipScopeEnd(&freeze));
+    assert(adapter->Finish(file,&token)); adapter->Drop(file); xrtNetFileDestroy(file);
+    fileStop(engine); assert(remove(path)==0); ++graphs;
+}
 typedef struct FileGate { xatomic32 entered,release,done; bool failSubmit; } FileGate;
 static void fileGate(xnetworker* worker,ptr data)
 {
@@ -319,7 +344,7 @@ int main(void)
     fileBackendOom();
     assert(xrtMemDebugEnable(true));
 #endif
-    fileBasic(); fileUnsupported(); fileCancellation(); fileReferenceInput(); fileRaces();
+    fileBasic(); fileUnsupported(); fileCancellation(); fileReferenceInput(); fileRaces(); fileUnreachablePreparation();
 #if defined(XRT_FEATURE_MEMORY_DEBUG)
     assert(xrtMemDebugReset());
     for (unsigned kind=0;kind<4;++kind) for (unsigned budget=0;budget<32;++budget) fileOom(kind,budget);
