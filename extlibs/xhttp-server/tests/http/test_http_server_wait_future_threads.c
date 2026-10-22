@@ -183,7 +183,7 @@ int main(void)
 	xrtFutureDestroy(pClosed);
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP server wait threads retained Engine ownership"
 	);
 	printf(

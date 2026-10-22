@@ -185,7 +185,7 @@ int main(void)
 	xrtHttpServerDestroy(pServer);
 
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTPS OOM fixture Engine destroy failed"
 	);
 	xrtTlsIdentityRelease(pIdentity);

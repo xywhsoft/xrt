@@ -107603,8 +107603,8 @@ static xsetentry* __xrtSetAllocEntry(
 		return NULL;
 	}
 	if ( pSet->Copy != __xrtSetDefaultCopy ) {
-		uint64 iStoredHash;
-		bool bEqual;
+		uint64 iStoredHash = 0;
+		bool bEqual = false;
 		bool bValid = __xrtSetHashValue((xset*)pSet, pStored, &iStoredHash) &&
 			__xrtSetItemsEqual((xset*)pSet, pItem, pStored, &bEqual);
 		if ( !bValid || iStoredHash != iHash || !bEqual ) {

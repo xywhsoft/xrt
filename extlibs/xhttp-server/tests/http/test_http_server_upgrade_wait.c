@@ -333,7 +333,7 @@ int main(void)
 	xrtFutureDestroy(pWait);
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP Upgrade wait engine destroy failed"
 	);
 	printf("[PASS] HTTP Upgrade shutdown handoff barrier (select)\n");

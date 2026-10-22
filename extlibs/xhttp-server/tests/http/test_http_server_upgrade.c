@@ -681,7 +681,7 @@ int main(void)
 	xrtNetStreamDestroy(State.Tcp);
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP Upgrade engine destroy failed"
 	);
 	printf(

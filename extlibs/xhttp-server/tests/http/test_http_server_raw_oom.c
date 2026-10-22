@@ -577,7 +577,7 @@ int main(void)
 	);
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP server raw OOM engine destroy failed"
 	);
 	free(State.Held);

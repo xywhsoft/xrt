@@ -167,7 +167,7 @@ int main(void)
 	xrtFutureDestroy(State.CallbackWait);
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP server wait retained Engine ownership"
 	);
 	printf(

@@ -495,7 +495,7 @@ int main(void)
 	}
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP server mux engine destroy failed"
 	);
 	puts("[PASS] HTTP server mux runtime");

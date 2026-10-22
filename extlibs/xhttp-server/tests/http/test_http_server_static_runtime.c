@@ -516,7 +516,7 @@ int main(void)
 		"HTTP static runtime pool destroy failed"
 	);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP static runtime engine destroy failed"
 	);
 	testRequire(
