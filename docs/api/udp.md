@@ -529,6 +529,21 @@ void xrtNetUdpConfigInit(xnetudpconfig* pConfig)
 ```
 
 
+### `xrtNetUdpConfigValid`
+
+```c
+bool xrtNetUdpConfigValid(const xnetudpconfig* pConfig);
+```
+
+只检查配置的取值、标志与组合边界；不修改输入，不创建 Engine／Socket，
+不进行 I/O。`NULL` 或非法配置返回 false，并设置 `XERR_ARGUMENT`／
+`XNET_ERROR_UDP_CONFIG`。成功不分配，也不清除已有错误；失败的诊断可分配。
+`Open` 也复用这同一份检查。
+
+这是结构有效性而不是平台能力认证；合法的元数据、PMTU、复用或错误接收选项仍
+可能在实际打开时收到 checked Unsupported。零接收／错误队列限制保留各自的原生
+含义，不在这一层改写为任意默认值。
+
 ### `xrtNetUdpOpen`
 
 打开、绑定并可选连接 UDP；至少一个地址必须确定地址族。

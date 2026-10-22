@@ -36327,6 +36327,12 @@ XRT_EXTERN_C_BEGIN
 /* 初始化低内存默认配置：一个 2 KiB 接收槽和有界收发队列。 */
 XRT_API void xrtNetUdpConfigInit(xnetudpconfig* pConfig);
 
+/* Configuration boundary check; no Engine, socket or I/O.
+ * NULL/invalid config sets the ordinary UDP configuration argument error.
+ * A valid configuration needs no allocation; an error diagnostic may allocate.
+ * Does not certify OS/backend option support; Open may still be unsupported. */
+XRT_API bool xrtNetUdpConfigValid(const xnetudpconfig* pConfig);
+
 
 
 /* 打开、绑定并可选连接 UDP；至少一个地址必须确定地址族。 */
@@ -266398,7 +266404,7 @@ void __xrtNetUdpControl(xnetworker* w, ptr data)
 
 
 /* 检查 UDP 配置的内存、队列和平台选项边界。 */
-static bool __xrtNetUdpConfigValid(const xnetudpconfig* pConfig)
+XRT_API bool xrtNetUdpConfigValid(const xnetudpconfig* pConfig)
 {
 	const uint32 iMeta = XNET_DGRAM_META_DESTINATION |
 		XNET_DGRAM_META_INTERFACE |
@@ -266406,7 +266412,8 @@ static bool __xrtNetUdpConfigValid(const xnetudpconfig* pConfig)
 		XNET_DGRAM_META_TRAFFIC_CLASS |
 		XNET_DGRAM_META_SEGMENT_SIZE;
 
-	if ( (pConfig->ReceiveSize == 0) ||
+	if ( (pConfig == NULL) ||
+		 (pConfig->ReceiveSize == 0) ||
 		 (pConfig->ReceiveSize > 65535u) ||
 		 (pConfig->ReceiveConcurrency == 0) ||
 		 (pConfig->ReceiveConcurrency >
@@ -266904,7 +266911,7 @@ XRT_API xnetudp* xrtNetUdpOpen(
 	if ( pConfig != NULL ) {
 		Config = *pConfig;
 	}
-	if ( !__xrtNetUdpConfigValid(&Config) ) {
+	if ( !xrtNetUdpConfigValid(&Config) ) {
 		return NULL;
 	}
 	if ( pLocal != NULL ) {

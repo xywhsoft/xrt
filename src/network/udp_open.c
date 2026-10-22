@@ -21,7 +21,7 @@
 
 
 /* 检查 UDP 配置的内存、队列和平台选项边界。 */
-static bool __xrtNetUdpConfigValid(const xnetudpconfig* pConfig)
+XRT_API bool xrtNetUdpConfigValid(const xnetudpconfig* pConfig)
 {
 	const uint32 iMeta = XNET_DGRAM_META_DESTINATION |
 		XNET_DGRAM_META_INTERFACE |
@@ -29,7 +29,8 @@ static bool __xrtNetUdpConfigValid(const xnetudpconfig* pConfig)
 		XNET_DGRAM_META_TRAFFIC_CLASS |
 		XNET_DGRAM_META_SEGMENT_SIZE;
 
-	if ( (pConfig->ReceiveSize == 0) ||
+	if ( (pConfig == NULL) ||
+		 (pConfig->ReceiveSize == 0) ||
 		 (pConfig->ReceiveSize > 65535u) ||
 		 (pConfig->ReceiveConcurrency == 0) ||
 		 (pConfig->ReceiveConcurrency >
@@ -527,7 +528,7 @@ XRT_API xnetudp* xrtNetUdpOpen(
 	if ( pConfig != NULL ) {
 		Config = *pConfig;
 	}
-	if ( !__xrtNetUdpConfigValid(&Config) ) {
+	if ( !xrtNetUdpConfigValid(&Config) ) {
 		return NULL;
 	}
 	if ( pLocal != NULL ) {
