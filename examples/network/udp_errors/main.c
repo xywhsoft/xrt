@@ -23,6 +23,19 @@
 
 #include <xrt.h>
 
+/* CLOSED and terminal results can precede the final callback release.
+ * Keep the Engine alive while retirement reports BUSY, with a finite deadline. */
+static bool exampleNetEngineDestroy(xnetengine* pEngine)
+{
+    double Deadline = xrtTimer() + 5.0;
+    for (;;) {
+        xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+        if (Result == XNET_RETIRE_READY) return true;
+        if (Result != XNET_RETIRE_BUSY || !(xrtTimer() < Deadline)) return false;
+        xrtThreadYield();
+    }
+}
+
 
 
 /* 在本机关闭端口上演示 PMTU 策略和拥有型异步错误接收。 */
@@ -133,7 +146,7 @@ int main(void)
 	}
 	xrtNetUdpDestroy(pUdp);
 	pUdp = NULL;
-	iResult = xrtNetEngineDestroy(pEngine) ? 0 : 8;
+	iResult = exampleNetEngineDestroy(pEngine) ? 0 : 8;
 	pEngine = NULL;
 
 Cleanup:
@@ -148,7 +161,7 @@ Cleanup:
 		xrtNetUdpDestroy(pUdp);
 	}
 	if ( pEngine != NULL ) {
-		(void)xrtNetEngineDestroy(pEngine);
+		(void)exampleNetEngineDestroy(pEngine);
 	}
 	if ( Reserved != NULL ) {
 		(void)xrtNetSocketClose(Reserved);

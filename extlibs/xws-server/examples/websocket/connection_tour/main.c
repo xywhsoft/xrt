@@ -43,6 +43,19 @@
 #include <xws-server.h>
 #include <xws-client.h>
 
+/* CLOSED and terminal results can precede the final callback release.
+ * Keep the Engine alive while retirement reports BUSY, with a finite deadline. */
+static bool exampleNetEngineDestroy(xnetengine* pEngine)
+{
+    double Deadline = xrtTimer() + 5.0;
+    for (;;) {
+        xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+        if (Result == XNET_RETIRE_READY) return true;
+        if (Result != XNET_RETIRE_BUSY || !(xrtTimer() < Deadline)) return false;
+        xrtThreadYield();
+    }
+}
+
 #include <math.h>
 static inline double exampleTimerLimit(int64 Timeout)
 {
@@ -618,7 +631,7 @@ Cleanup:
 	}
 	tourReleaseConnection(&State.Client);
 	tourReleaseConnection(&State.Server);
-	if ( (pEngine != NULL) && !xrtNetEngineDestroy(pEngine) ) iResult = 1;
+	if ( (pEngine != NULL) && !exampleNetEngineDestroy(pEngine) ) iResult = 1;
 	if ( iResult != 0 ) fprintf(stderr, "conn-tour: verification failed\n");
 	return iResult;
 }

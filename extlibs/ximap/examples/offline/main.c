@@ -1,5 +1,18 @@
 #include <ximap.h>
 
+/* CLOSED and terminal results can precede the final callback release.
+ * Keep the Engine alive while retirement reports BUSY, with a finite deadline. */
+static bool exampleNetEngineDestroy(xnetengine* pEngine)
+{
+    double Deadline = xrtTimer() + 5.0;
+    for (;;) {
+        xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+        if (Result == XNET_RETIRE_READY) return true;
+        if (Result != XNET_RETIRE_BUSY || !(xrtTimer() < Deadline)) return false;
+        xrtThreadYield();
+    }
+}
+
 #include <stdio.h>
 #include <string.h>
 
@@ -190,7 +203,7 @@ Done:
 		xrtNetListenerDestroy(pListener);
 	}
 	if ( pResolver != NULL ) (void)xrtNetResolverDestroy(pResolver);
-	if ( pEngine != NULL ) (void)xrtNetEngineDestroy(pEngine);
+	if ( pEngine != NULL ) (void)exampleNetEngineDestroy(pEngine);
 	if ( !bOk ) {
 		fputs("offline IMAP EXAMINE failed\n", stderr);
 		return 1;
