@@ -10,9 +10,24 @@
 - 文件、缓冲和 `xnetcompletion` 必须保持到操作产生唯一终态事件。
 - 全部操作终结后使用 `xrtClose` 关闭文件。
 - `xrtNetFileCancel` 只请求取消；资源仍在原操作终态回调后释放。
+- 成功受理借用 I/O 后，该轮端口保持不透明，Engine 的闭合拥有图认证必须拒绝；
+  不能把任意调用方 Completion／缓冲猜成受管理引用。拒绝的提交不改变此状态，
+  原生端口退休后恢复认证。该约束不影响普通 C I/O 的执行和显式停止。
+- 文件 EOF 是成功的零字节读取：`Result == XNET_RESULT_OK`、`Bytes == 0`、
+  `SystemCode == 0`。Windows 的真实 EOF 完成包必须先取走，才能释放 OVERLAPPED
+  操作存储；不能把文件 EOF 误当作 TCP 关闭或传输错误。
 
 Windows 使用 IOCP `ReadFile`/`WriteFile`，Linux 使用 io_uring `READV`/`WRITEV`。
 其他后端通过能力位明确报告不支持，不会退化为阻塞 Worker。
+
+这些入口仍是显式借用的 C 接口，不因上述修正而成为拥有型 Future。语言接入
+需要独立的原生拥有记录、取消／完成唯一终态及 checked 文件退休，不能仅在
+Completion 外套一个 Promise 并借用调用方内存。
+
+`tests/network/net_file_boundary_cases.h` 由已登记的 `test_net_file.c` 执行：
+真实普通文件的读写、文件末端与末端之后读取、拒绝提交、拥有图封口和端口
+退休后恢复。打开自身新建的测试文件，不访问应用网络；调试构建另验证实际
+分配失败不污染拥有状态及精确内存账本。
 
 ## API
 

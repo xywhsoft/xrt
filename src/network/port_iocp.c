@@ -1334,6 +1334,15 @@ static bool __xrtNetIOCPFinishConnect(
 static void __xrtNetIOCPEvent(__xrt_net_iocp_operation* pOperation,
 	BOOL bSuccess, DWORD iBytes, int iSystemCode, xnetportevent* pEvent)
 {
+	/* Regular-file EOF is a successful zero-byte read, not a transport error.
+	 * Windows still dequeues the real OVERLAPPED completion with EOF status;
+	 * keep the operation alive until this packet and consume it exactly once. */
+	if ( !bSuccess && pOperation->Type == XNET_PORT_EVENT_FILE_READ &&
+		iSystemCode == ERROR_HANDLE_EOF ) {
+		bSuccess = TRUE;
+		iBytes = 0;
+		iSystemCode = 0;
+	}
 	memset(pEvent, 0, sizeof(*pEvent));
 	pEvent->Type = pOperation->Type;
 	pEvent->Result = XNET_RESULT_OK;

@@ -1,5 +1,6 @@
 #include <xrt/detail/wait.h>
 #include "../test.h"
+#include "net_file_boundary_cases.h"
 
 
 
@@ -205,6 +206,7 @@ static void testNetFileCancelStart(xnetworker* pWorker, ptr pData)
 /* 原生文件完成路径不占任务线程、不复制载荷，并保持绝对偏移语义。 */
 int main(void)
 {
+	testNetFileBoundary();
 	static const char sPath[] = "test_net_file.tmp";
 	xnetengineconfig Config;
 	xfileoptions Options;

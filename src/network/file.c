@@ -8,6 +8,18 @@
 
 #if defined(XRT_FEATURE_NET_FILE)
 
+/* Public caller-owned completions are not a closed ownership family. The
+ * current Worker remains active (not OwnershipParked) across submission, so
+ * Engine quiescence rejects inspection until this publication has completed.
+ * Never hold global mutation admission over an OS/backend submission. */
+static void __xrtNetFileExposeCompletion(xnetworker* pWorker)
+{
+	xrtownershipscope Mutation = {0};
+	if ( !xrtOwnershipMutationBegin(&Mutation) ) abort();
+	pWorker->OwnershipPortExposed = true;
+	if ( !xrtOwnershipScopeEnd(&Mutation) ) abort();
+}
+
 /* 校验文件访问、异步打开方式和 Worker 线程归属。 */
 static bool __xrtNetFileCheck(
 	xnetworker* pWorker,
@@ -126,7 +138,8 @@ XRT_API uint64 xrtNetFileRead(
 		return 0;
 	}
 	Id = xrtNetWorkerOperationId(pWorker);
-	if ( (Id == 0) || !__xrtNetPortFileRead(
+	if ( Id == 0 ) return 0;
+	bool bSubmitted = __xrtNetPortFileRead(
 		pPort,
 		xrtFileNative(File),
 		iOffset,
@@ -135,10 +148,9 @@ XRT_API uint64 xrtNetFileRead(
 		Id,
 		pCompletion,
 		pAssociated
-	) ) {
-		return 0;
-	}
-	return Id;
+	);
+	if ( bSubmitted ) __xrtNetFileExposeCompletion(pWorker);
+	return bSubmitted ? Id : 0;
 }
 
 
@@ -183,7 +195,8 @@ XRT_API uint64 xrtNetFileWrite(
 		return 0;
 	}
 	Id = xrtNetWorkerOperationId(pWorker);
-	if ( (Id == 0) || !__xrtNetPortFileWrite(
+	if ( Id == 0 ) return 0;
+	bool bSubmitted = __xrtNetPortFileWrite(
 		pPort,
 		xrtFileNative(File),
 		iOffset,
@@ -192,10 +205,9 @@ XRT_API uint64 xrtNetFileWrite(
 		Id,
 		pCompletion,
 		pAssociated
-	) ) {
-		return 0;
-	}
-	return Id;
+	);
+	if ( bSubmitted ) __xrtNetFileExposeCompletion(pWorker);
+	return bSubmitted ? Id : 0;
 }
 
 
