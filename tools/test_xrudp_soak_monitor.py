@@ -10,6 +10,37 @@ import test_xrudp_native_soak as tool
 
 
 class SoakMonitor(unittest.TestCase):
+    def test_clock_evidence_distinguishes_adjustment_from_execution_gap(self):
+        state={}
+        tool.observe_clock(state,100,99,10,1000,1090)
+        self.assertEqual(state['clock']['offset_seconds'],0)
+        with self.assertRaises(tool.SoakGateError) as failed:
+            tool.observe_clock(state,101,100,10,1000,1097)
+        tool.record_failure(state,failed.exception)
+        self.assertEqual(state['failure_code'],'clock_diverged')
+        self.assertEqual(state['clock']['offset_seconds'],6)
+        self.assertEqual(state['largest_tick_gap'],1)
+        self.assertIs(state['acceptance_72h'],False)
+        with self.assertRaises(tool.SoakGateError) as failed:
+            tool.observe_clock(state,117,101)
+        self.assertEqual(failed.exception.code,'observation_gap')
+        self.assertEqual(state['clock']['tick_gap_seconds'],16)
+
+    def test_clock_limits_remain_strict_and_failure_messages_stay_private(self):
+        for args in [(100,85,None,None,None),(100,99,10,1000,1095),
+                     (100,99,10,1000,1085),(99,100,None,None,None)]:
+            with self.subTest(args=args),self.assertRaises(tool.SoakGateError):
+                tool.observe_clock({},*args)
+        state={}
+        try:
+            raise RuntimeError('private runtime input must never enter receipt')
+        except RuntimeError as error:
+            tool.record_failure(state,error)
+        self.assertEqual(state['failure_code'],'unclassified')
+        self.assertEqual(state['error_frames'][-1]['function'],
+                         'test_clock_limits_remain_strict_and_failure_messages_stay_private')
+        self.assertNotIn('private runtime input',str(state))
+
     def test_compiler_never_replaces_an_existing_acceptance_binary(self):
         with tempfile.TemporaryDirectory() as raw,patch.object(tool.subprocess,'run') as compiler:
             binary=Path(raw)/'native'; binary.write_bytes(b'running acceptance')

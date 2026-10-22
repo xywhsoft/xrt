@@ -16,9 +16,41 @@ import socket
 import subprocess
 import threading
 import time
+import traceback
 
 ROOT=Path(__file__).resolve().parents[1]
 _WINDOWS_MEMORY=None
+
+
+class SoakGateError(AssertionError):
+    """A fixed diagnostic code; never serialize arbitrary exception messages."""
+    def __init__(self, code):
+        super().__init__(code)
+        self.code=code
+
+
+def observe_clock(state, now, previous, started=None, wall=None, wall_now=None):
+    clock={}
+    if previous is not None:
+        gap=now-previous
+        clock['tick_gap_seconds']=gap
+        state['largest_tick_gap']=max(state.get('largest_tick_gap',0),gap)
+    if started is not None:
+        clock.update(monotonic_elapsed_seconds=now-started,wall_elapsed_seconds=wall_now-wall)
+        clock['offset_seconds']=clock['wall_elapsed_seconds']-clock['monotonic_elapsed_seconds']
+    state['clock']=clock
+    if previous is not None and not 0<=clock['tick_gap_seconds']<15:
+        raise SoakGateError('observation_gap')
+    if started is not None and not abs(clock['offset_seconds'])<5:
+        raise SoakGateError('clock_diverged')
+
+
+def record_failure(state, error):
+    state.update(status='cancelled' if isinstance(error,InterruptedError) else 'failed',
+        acceptance_72h=False,error_type=type(error).__name__,
+        failure_code=error.code if isinstance(error,SoakGateError) else 'unclassified')
+    state['error_frames']=[{'file':Path(v.filename).name,'line':v.lineno,'function':v.name}
+        for v in traceback.extract_tb(error.__traceback__)]
 
 
 def windows_memory_backend():
@@ -245,7 +277,7 @@ def main():
         reader=threading.Thread(target=read,daemon=True); reader.start()
         start=None; wall=None; last=time.monotonic(); last_report=last; terminal=None
         while True:
-            now=time.monotonic(); assert now-last<15,'observation execution gap invalidates real-time gate'; last=now
+            now=time.monotonic(); observe_clock(state,now,last,start,wall,time.time()); last=now
             if stop.exists(): raise InterruptedError('stop requested')
             try: line=values.get(timeout=1)
             except queue.Empty: line=None
@@ -266,7 +298,6 @@ def main():
                 if values.empty(): break
             if start is not None:
                 elapsed=time.monotonic()-start
-                assert abs((time.time()-wall)-elapsed)<5,'wall/monotonic clock disagreement'
                 assert elapsed<args.seconds+45,'native drain deadline exceeded'
                 state['elapsed_seconds']=elapsed
             assert time.monotonic()-last_report<(args.report_every+20 if start else 30),'native reporting stopped'
@@ -292,8 +323,8 @@ def main():
         state['status']='passed' if state['acceptance_72h'] else 'smoke_passed'; state['exit_code']=code; save(True)
         return 0
     except BaseException as exc:
-        state['status']='cancelled' if isinstance(exc,InterruptedError) else 'failed'; state['error_type']=type(exc).__name__
-        state['acceptance_72h']=False; save(True); print('native soak failed; inspect private native stderr and receipt',flush=True); return 1
+        record_failure(state,exc); save(True)
+        print('native soak failed; inspect sanitized clock, failure code and frames',flush=True); return 1
     finally:
         if child:
             if child.poll() is None: child.terminate(); child.wait(timeout=10)
