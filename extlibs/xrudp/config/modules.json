@@ -12,6 +12,8 @@
   "declaration_marker": "XRUDP_DECLARATIONS",
   "package_consumer": "extlibs/xrudp/tests/package/test_consumer.c",
   "product_root": "extlibs/xrudp",
+  "performance_config": "extlibs/xrudp/config/performance_profiles.json",
+  "size_config": "extlibs/xrudp/config/size_profiles.json",
   "scope": {
     "product": "xrudp",
     "external_integrations": [],
@@ -47,6 +49,48 @@
     "extlibs/xrudp/src/internal"
   ],
   "modules": [
+    {
+      "name": "xrudp",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "rudp_wire",
+        "rudp_stun",
+        "rudp_discovery",
+        "rudp_punch",
+        "rudp_crypto",
+        "rudp_noise",
+        "rudp_cookie",
+        "rudp_ack",
+        "rudp_timing",
+        "rudp_sent",
+        "rudp_congestion",
+        "rudp_receive",
+        "rudp_transmit",
+        "rudp_datagram",
+        "rudp_message",
+        "rudp_handshake",
+        "rudp_endpoint",
+        "rudp_endpoint_future",
+        "rudp_session"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [
+        "dev/bench/bench_common.h",
+        "extlibs/xrudp/bench/bench_wire.c",
+        "extlibs/xrudp/config/performance_profiles.json",
+        "extlibs/xrudp/config/size_profiles.json"
+      ],
+      "docs": [
+        "extlibs/xrudp/README.md",
+        "extlibs/xrudp/docs/acceptance-matrix.md"
+      ]
+    },
     {
       "name": "rudp_wire",
       "state": "implemented",

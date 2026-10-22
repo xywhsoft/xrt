@@ -1,3 +1,4 @@
+#define XRUDP_MODULE_ALL
 #include <xrudp.h>
 
 int main(void)

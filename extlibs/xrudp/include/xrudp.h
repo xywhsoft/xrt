@@ -2,6 +2,7 @@
 #define XRUDP_H
 
 #include <xrudp/features.h>
+#include <xrt.h>
 #include <xrudp/wire.h>
 #include <xrudp/stun.h>
 #include <xrudp/discovery.h>

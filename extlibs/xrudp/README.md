@@ -7,6 +7,21 @@ xs 的 xrudp 服务 class 为独立能力；mdo 直接在进程内使用本库�
 不要求通过 xs 跨服务通信。
 运行时不增加第三方依赖。源码、模块清单、单头产物按 XRT 的统一扩展流程管理。
 
+产品聚合根为 `xrudp`，覆盖当前全部公开功能模块；测试专用聚合不进入产品根。
+模块化构建和打包可使用 `--suite xrudp`，单头完整选择使用 `XRUDP_MODULE_ALL`。
+本产品有独立的性能与体积配置，不继承核心库的发布 profile：
+
+```sh
+python tools/check_release_maturity.py --release --manifest extlibs/xrudp/config/modules.json
+python tools/package.py --manifest extlibs/xrudp/config/modules.json --suite xrudp --kind static --verify
+python tools/package.py --manifest extlibs/xrudp/config/modules.json --suite xrudp --kind shared --verify
+python tools/measure_performance.py --config extlibs/xrudp/config/performance_profiles.json --smoke
+python tools/measure_size.py --config extlibs/xrudp/config/size_profiles.json --kind single
+```
+
+性能 profile 只测离线报文编解码及重放窗口，不代表网络吞吐、长稳或生产验收；
+体积 profile 分别记录最小 wire 闭包和完整产品闭包，并检查未选中的协议符号。
+
 当前为开发中的基础设施，已能通过原生 UDP 建立已认证连接并可靠传输多条双向字节流和消息流。
 会话核心和原生端点已有固定预算的多流/消息/游戏数据报接口、地址验证/端口重绑定及路径 MTU 探测/回退。
 同套接字 STUN/打洞、账号协调和 mdo 内嵌直连/LAN/中继兜底已有接入；

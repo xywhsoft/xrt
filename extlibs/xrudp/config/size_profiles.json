@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "manifest": "extlibs/xrudp/config/modules.json",
+  "profiles": [
+    {
+      "name": "xrudp_wire",
+      "system": "rudp",
+      "suite": "rudp_wire",
+      "description": "Packet codec and replay window without transport or cryptography",
+      "forbid_symbols": ["xrtRudpEndpoint", "xrtRudpSession", "xrtNet", "xrtTls", "xrtHttp"]
+    },
+    {
+      "name": "xrudp_full",
+      "system": "rudp",
+      "suite": "xrudp",
+      "description": "Complete public XRUDP module closure, including endpoint Futures",
+      "forbid_symbols": ["xrtTls", "xrtHttp"]
+    }
+  ],
+  "default_growth": {"text": 0.1, "data": 0.2, "bss": 0.2, "file": 0.15}
+}

@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "manifest": "extlibs/xrudp/config/modules.json",
+  "defaults": {
+    "repeats": 5,
+    "warmups": 1,
+    "timeout_seconds": 120,
+    "policy": "baseline-unpinned",
+    "cflags": ["-O2"],
+    "ldflags": [],
+    "max_relative_mad": 0.2,
+    "max_relative_central_range": 0.3,
+    "regression": {"higher": 0.1, "lower": 0.2}
+  },
+  "profiles": [
+    {
+      "name": "rudp_wire",
+      "system": "rudp",
+      "description": "Offline packet encode/decode and replay-window pairs; no network throughput claim",
+      "benchmarks": [
+        {
+          "name": "rudp_wire",
+          "source": "extlibs/xrudp/bench/bench_wire.c",
+          "suite": "rudp_wire",
+          "args": ["1000000"],
+          "smoke_args": ["10000"],
+          "metrics": {
+            "rudp_wire_roundtrips_per_sec": {"direction": "higher", "unit": "roundtrips/s"},
+            "rudp_replay_pairs_per_sec": {"direction": "higher", "unit": "pairs/s"}
+          }
+        }
+      ]
+    }
+  ]
+}
