@@ -31,7 +31,7 @@
 | 进程暂停恢复 | Windows/Linux、IPv4/IPv6、3 秒及 65 秒八项通过；短暂停恢复既有直连/live/中继，超过 60 秒期限后关闭旧直连并重建；继续完成 Unit/撤销/注销 | mdo `tests/test_remote_process_pause.py`，`.build/xrudp-process-pause/acceptance.json`；同一子进程内的两个端点同时暂停，网站仍运行，不代表单端或物理系统休眠 |
 | 浏览器自动回退 | 当前 SDK 与干净 mdo 源码在真实 Edge 155 中完成双族 UDP 黑洞后回退 LAN，以及 LAN 失败后回退中继；实际写入无重复，关闭后原生计数为零 | 同上统一收据，2 个浏览器场景；无头浏览器验证不代表原生 WebView 外壳或发行 ABI |
 | Android 真机 | ARM64 shell UID 下 IPv4/IPv6 × Select/Epoll 四项 Future；APK JNI/TCC 单独执行；双向直连、冻结恢复、65 秒持续后台、实际 Edge/WebView 自动中继回退、强制 Doze 恢复通过 | mdo `tests/acceptance/xrudp-android/acceptance.json`、`docs/build-records/2026-10-19-xrudp-android-device.md`；设备 4 KiB 页；永久 idle 白名单由用户启用，强制 Doze 期间保持亮屏供电，不等于物理系统休眠 |
-| 长期运行 | `3d55ec41` Linux 四组已经完成连续 72 小时和正常排空；Windows 四组及 mdo 业务组约 28.1 小时后明确失败，原进程均退出 | [2026-10-22 长稳复核](long-soak-validation.md)；Linux 结果只证明对应冻结来源，Windows 失败时长不累加，也不替代新 SDK 的业务长稳 |
+| 长期运行 | `3d55ec41` Linux 四组已经完成连续 72 小时和正常排空；Windows 四组及 mdo 业务组约 28.1 小时后明确失败。另从当前主线 `1df26c67` 独立启动八组原生、当前产品 SDK 启动一组业务长稳 | [2026-10-22 长稳复核与重跑](long-soak-validation.md)；新九组仍待实际 72 小时及最终排空，历史通过与失败时长均不跨来源累计 |
 
 ## 本轮源码抽查
 

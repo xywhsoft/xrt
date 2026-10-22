@@ -36,3 +36,15 @@ mdo 业务组在 101196.719 秒终止为 failed；已完成 18849 次读、163 �
 原生观察器九项单元回归、mdo 观察器三项回归通过；涵盖正负时钟偏差、阈值等值拒绝、执行间断、倒退采样及错误文本保密。新驱动复用经过来源检查的原冻结二进制，执行 25 秒真实混合 Future/故障/空闲/背压短测并正常加入，Future 配额归零。mdo 当前 SDK 另完成 25 秒真实 HTTP/live/写入回执/大文件/重连及完整生命周期短测。短测明确标记 smoke_passed，不能产生 72 小时通过记录。
 
 诊断修复不改变协议、拥塞算法或线上服务。后续长期测试必须使用新路径、冻结的已提交来源和新起始时钟。
+
+## 当前主线的独立重跑
+
+从主分支提交 `1df26c6710114bd174d68404f167807bd0973957` 分别冻结 Windows 和 Linux 来源，包含该提交的核心单头、XRUDP 运行时与完整的功能依赖头、夹具及新观察器。每个平台都先通过 IPv4/IPv6 × 两后端的四组 25 秒真实 Future/故障/空闲/背压短测，最终配额归零，再用完全相同的已验证二进制启动新的 72 小时测试。Windows 使用 GCC 16.2，Linux 使用系统 GCC；没有把它们描述成消毒器构建。
+
+Windows 四组使用 Select/IOCP，位于 mdo `.build/xrudp-audit-20261022/native-72h-1df26c67-{4,6}-{select,native}-r1/`；二进制 SHA-256 为 `70e43e072c3eff2495df6e4fed3f39ee0a7d7f023dbea4a2d91d0b50358e497f`。观察者通过有期限、无自动重启的隐藏 WMI/pythonw 进程运行，已核对实际子进程、映像、父子关系和来源。
+
+Linux 四组使用 Select/Epoll，位于 `/home/xs/.cache/xrudp-native-soak-1df26c67-20261022/source/out/xrudp-native-soak/linux-72h-current-{4,6}-{select,native}/`；二进制 SHA-256 为 `b74dca205299f418b511f688c3177e460ad9d3cbb10f0015073511f4d6d1fb5c`。独立用户级 `xrudp-soak-1df26c67-*` 单元各限制 25% CPU、512 MiB、16 任务，NoNewPrivileges、Restart=no、RuntimeMaxSec=260000。逐项核对 InvocationID、主进程、实际原生映像及状态；正式网站 PID 在准备前后保持 17818，未重启网站。
+
+此外 mdo 当前产品 SDK 从独立主分支提交 `3344c560` 起算新的业务长稳，其 XRUDP 固定为 `0c46aca7`，并非将产品 SDK 偷换成 XRT 主线核心。这一来源区别明确保留。
+
+九组控制索引为 `out/xrudp-native-soak/current-acceptance-runs-20261022.json`，副本和 Linux 启动/实时收据在 mdo `.build/xrudp-audit-20261022/`，说明见 mdo `docs/build-records/2026-10-22-xrudp-soak-reconciliation.md`。九组目前仅验证启动和持续运行，尚未到达 72 小时；后续必须重新核对进程与最终状态，不依赖本段 PID/路径文字认定仍然运行。原 Linux 通过和 Windows 失败收据没有被覆盖。
