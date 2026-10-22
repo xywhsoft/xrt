@@ -356,7 +356,17 @@ static void offlineErrorWait(xnetportbackend backend)
     __xrtNetUdpOwnershipLeave(udp);CHECK(xrtFutureWaitFor(future,5000)==XWAIT_OK&&xrtFutureState(future)==XFUTURE_RESOLVED);
     CHECK(xrtFutureValue(future)==packet&&!memcmp(xrtNetUdpErrorPacketData(packet),"e\0r",3));xrtFutureDestroy(future);
     future=xrtNetUdpWaitAsync(udp,XNET_UDP_WAIT_ERROR);CHECK(future&&xrtFutureCancel(future));xrtFutureDestroy(future);
-    CHECK(__xrtNetUdpOwnershipEnter(udp,false)&&xrtNetSocketClose(socket));udp->Socket=NULL;
+    /* The public Future factory posted a real embedded wait command even
+     * though the socket's START was never published. A cancelled Future
+     * alone does not join that command. RollbackCreated requires its sole
+     * unpublished constructor borrow: establish actual native quiescence
+     * before restoring it, without relaxing the production assertion. */
+    until=__xrtWaitAfter(5000);
+    for(;;){freeze(&scope);
+        if(!xrtNetUdpOwnershipQuiescenceV1Get()->Busy(udp)&&!udp->WaitPosted)break;
+        CHECK(xrtOwnershipScopeEnd(&scope)&&!__xrtWaitExpired(until));xrtThreadYield();}
+    CHECK(__xrtNetUdpOwnershipEnter(udp,false));CHECK(xrtOwnershipScopeEnd(&scope));
+    CHECK(xrtNetSocketClose(socket));udp->Socket=NULL;
     __xrtNetUdpRollbackCreated(udp);xrtNetUdpDestroy(udp);CHECK(xrtNetEngineDestroy(engine));balanced(&before);++offlineErrors;
 }
 int main(int argc,char** argv)

@@ -537,17 +537,10 @@ XRT_API xnetresult xrtNetStreamSendRefs(
 XRT_API xnetresult xrtNetStreamSendBytes(xnetstream* pStream, xnetbytes* pBytes,
 	size_t iOffset, size_t iSize);
 
-/* A borrowed immutable byte slice. A successful batch retains each nonempty
- * slice independently; input metadata and caller references remain caller-owned. */
-typedef struct xnetbytesref {
-	xnetbytes* Bytes;
-	size_t Offset;
-	size_t Size;
-} xnetbytesref;
-
 /* All-or-none bounded acceptance, no payload copy and no user releaser.
  * Failure/AGAIN/CLOSED leaves every caller reference unchanged. Thread-safe
- * like SendBytes; the owning graph includes each actual retained NetBytes. */
+ * like SendBytes; the owning graph includes each actual retained NetBytes.
+ * Uses shared xnetbytesref from net.h; only nonempty slices retain owners. */
 XRT_API xnetresult xrtNetStreamSendBytesVec(xnetstream* pStream,
 	const xnetbytesref* pRefs, size_t iCount);
 

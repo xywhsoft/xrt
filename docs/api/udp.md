@@ -3448,6 +3448,44 @@ Claim 隔离新的发送、取包和 Future 创建；Prepare 在 Freeze 外推�
 正常通信，不运行 DNS、外网、ICMP／错误队列探测、扫描、畸形协议或网络安全专项。
 语言固定头、UDP 标准库／Cgen 迁移及发布库仍未更新，不能以本节代替完整接入。
 
+## 带类型的零复制发送
+
+`xrtNetUdpSendMsgBytes` 和 `xrtNetUdpSendMsgPacket` 分别保留不可变 NetBytes 与
+Packet 的实际引用，支持严格的 offset／size 字节片段。前者的 `xnetbytesref` 已移至
+共享 net.h，TCP 原类型与布局不变；UDP 不需要为了此描述符启用 TCP 实现。
+`Remote=NULL` 使用已连接 Peer，`Control=NULL`／Flags=0 表示普通数据报。
+
+`xrtNetUdpSendMsgBytesVec` 把最多 64 个不可变字节片段聚集成一个数据报，使用
+Socket／Port 的真实向量接口，不把载荷拼接复制到临时 Buffer。重复 owner 按每个
+非空片段分别保留，零长度片段仍检查范围但不增加引用。全部为空时仍发送一个
+空数据报，而不是 TCP 风格的空操作。
+
+`xrtNetUdpSendOwnedBatch` 接收 `xnetudpownedmessage[]`；Kind 明确选择 Bytes、Packet
+或 Vector 联合体成员，远端及逐包控制也逐项指定。所有描述符、控制和 Span 元数据
+在返回前完成复制，调用方的原始引用始终保留。成功受理的原生节点各自拥有其
+载荷；调用返回后可立即销毁输入对象／数组而不影响在途数据报。
+
+批量返回值和 accepted 必须一起检查：后项的参数错误、OOM 或预算不足可以返回
+ERROR／AGAIN 并受理前缀，未受理后缀不发生转移；构造出的前缀只做一次原生投递。
+若该次投递失败，accepted=0，所有内部保留均回滚。此时只释放工厂新增的实际
+引用，不释放调用方原引用；不能沿用裸 Take／Ref 的“失败不执行用户释放”规则
+而泄漏这些额外持有。裸接口的原有失败合同没有改变。
+
+发送来源使用明确的 BYTES／PACKET／VECTOR 标签，枚举时验证实际视图范围、固定
+释放过程和真正拥有槽，再访问相应子对象；不从用户回调反推类型。Vector 的
+Count／Capacity、Span 和 owner 数组只按需分配在同一节点尾部，控制记录之后
+按真实对齐补齐。Capacity 用于精确回收，Count 用于部分构造失败的已持有前缀。
+普通节点未增大：两端 x64 的 sizeof 仍为 104，Tail 偏移仍为 96。
+
+`tools/check_net_udp_refs.py` 验证静止整图、外部 payload 不反向保活生产者、重复
+owner 的真实边、清理顺序、无载荷复制、收到的 Packet 转发、零长度数据报、控制
+元数据和向量聚集、精确前缀与投递失败回滚，以及 Send／Close 竞态。纯内存整图
+停在真实工厂／链表边界，不把活动 Worker 伪造成静止。错误队列不参与这些测试。
+基础／Future 和 TCP 字节向量一并回归；旧 Future 夹具的未发布构造器回滚也先与
+真实等待命令汇合，不放宽运行时静止断言。证据根为
+`F:/xlang-validation/five-groups-20261022/p3-udp-refs`。
+此处不代表语言固定快照、驻留 UDP、完整标准库或发布产品已完成。
+
 ## UDP Future 的原生拥有图
 
 `xrtNetUdpFutureProducerPolicyV1Get`、`CancelPolicyV1Get` 和 Packet／Error／Batch

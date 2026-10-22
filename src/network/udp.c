@@ -1908,6 +1908,11 @@ static bool __xrtNetUdpPortSend(
 {
 	xnetport* pPort = __xrtNetWorkerPortBorrow(pUdp->Worker);
 
+	if (pSend->PayloadOwnership == XRT_NET_UDP_SEND_VECTOR) {
+		return xrtNetPortSendMsgVec(pPort, pUdp->Socket, pSend->Spans,
+			__xrtNetUdpSendVector(pSend)->Count, pUdp->Connected ? NULL : &pSend->Remote,
+			__xrtNetUdpSendControl(pSend), Id, pUser);
+	}
 	if ( pSend->Controlled ) {
 		return xrtNetPortSendMsg(
 			pPort,
@@ -1947,6 +1952,10 @@ static xnetresult __xrtNetUdpSocketSend(
 	size_t* pSent
 )
 {
+	if (pSend->PayloadOwnership == XRT_NET_UDP_SEND_VECTOR) {
+		return xrtNetSocketSendMsgVec(pUdp->Socket, pSend->Spans, __xrtNetUdpSendVector(pSend)->Count,
+			pSent, pUdp->Connected ? NULL : &pSend->Remote, __xrtNetUdpSendControl(pSend));
+	}
 	if ( pSend->Controlled ) {
 		return xrtNetSocketSendMsg(
 			pUdp->Socket,
@@ -2065,7 +2074,7 @@ static void __xrtNetUdpDriveWriteRun(xnetudp* pUdp)
 			) ) {
 				return;
 			}
-			if ( (pSend != NULL) && pSend->Controlled ) {
+			if (pSend && (pSend->Controlled || pSend->PayloadOwnership == XRT_NET_UDP_SEND_VECTOR)) {
 				xnetresult SendResult = __xrtNetUdpSocketSend(
 					pUdp,
 					pSend,
@@ -2099,7 +2108,7 @@ static void __xrtNetUdpDriveWriteRun(xnetudp* pUdp)
 			if ( iLimit > (size_t)iBudget ) {
 				iLimit = (size_t)iBudget;
 			}
-			while ( (pSend != NULL) && !pSend->Controlled &&
+			while ( (pSend != NULL) && !pSend->Controlled && pSend->PayloadOwnership != XRT_NET_UDP_SEND_VECTOR &&
 				 (iCount < iLimit) ) {
 				Sends[iCount] = pSend;
 				Items[iCount].Remote = pUdp->Connected ?

@@ -9321,6 +9321,14 @@ typedef struct xnetportevent {
 typedef struct xnetbufpoolconfig xnetbufpoolconfig;
 typedef struct xnetbufpool xnetbufpool;
 typedef struct xnetbytes xnetbytes;
+
+/* Borrowed immutable slice metadata, shared by TCP and UDP. Acceptance may
+ * retain the owner; neither the descriptor nor its caller reference moves. */
+typedef struct xnetbytesref {
+	xnetbytes* Bytes;
+	size_t Offset;
+	size_t Size;
+} xnetbytesref;
 #endif
 
 
@@ -25702,17 +25710,10 @@ XRT_API xnetresult xrtNetStreamSendRefs(
 XRT_API xnetresult xrtNetStreamSendBytes(xnetstream* pStream, xnetbytes* pBytes,
 	size_t iOffset, size_t iSize);
 
-/* A borrowed immutable byte slice. A successful batch retains each nonempty
- * slice independently; input metadata and caller references remain caller-owned. */
-typedef struct xnetbytesref {
-	xnetbytes* Bytes;
-	size_t Offset;
-	size_t Size;
-} xnetbytesref;
-
 /* All-or-none bounded acceptance, no payload copy and no user releaser.
  * Failure/AGAIN/CLOSED leaves every caller reference unchanged. Thread-safe
- * like SendBytes; the owning graph includes each actual retained NetBytes. */
+ * like SendBytes; the owning graph includes each actual retained NetBytes.
+ * Uses shared xnetbytesref from net.h; only nonempty slices retain owners. */
 XRT_API xnetresult xrtNetStreamSendBytesVec(xnetstream* pStream,
 	const xnetbytesref* pRefs, size_t iCount);
 
@@ -36118,12 +36119,37 @@ XRT_EXTERN_C_END
 
 /* 普通 IPv4 和 IPv6 UDP 的保守最大载荷，避免依赖 IP 分片外的扩展语义。 */
 #define XNET_UDP_PAYLOAD_MAX 65507u
+#define XNET_UDP_VECTOR_MAX 64u
 
 
 
 typedef struct xnetudp xnetudp;
 typedef struct xnetudppacket xnetudppacket;
 typedef struct xnetudperrorpacket xnetudperrorpacket;
+
+typedef struct xnetudppacketref {
+	xnetudppacket* Packet;
+	size_t Offset;
+	size_t Size;
+} xnetudppacketref;
+
+/* The selected union member is the entire payload contract. Descriptors,
+ * addresses and controls are borrowed only for the duration of the call. */
+typedef enum xnetudpownedkind {
+	XNET_UDP_OWNED_BYTES = 1,
+	XNET_UDP_OWNED_PACKET,
+	XNET_UDP_OWNED_VECTOR
+} xnetudpownedkind;
+typedef struct xnetudpownedmessage {
+	const xnetaddr* Remote;
+	const xnetdgramcontrol* Control;
+	xnetudpownedkind Kind;
+	union {
+		xnetbytesref Bytes;
+		xnetudppacketref Packet;
+		struct { const xnetbytesref* Items; size_t Count; } Vector;
+	} Payload;
+} xnetudpownedmessage;
 
 #if defined(XRT_FEATURE_NET_UDP_FUTURE)
 typedef struct xnetudpbatch xnetudpbatch;
@@ -36434,6 +36460,28 @@ XRT_API xnetresult xrtNetUdpSendMsgTake(xnetudp* pUdp,
 /* 按前缀批量受理复制发送；受理计数输出不能为空。 */
 XRT_API xnetresult xrtNetUdpSendBatch(xnetudp* pUdp,
 	const xnetdgramsend* pItems, size_t iCount, size_t* pAccepted);
+
+/* Typed zero-copy datagrams. Slices are strict (offset+size must fit). Empty
+ * slices/vectors still send ONE empty datagram but retain no payload owner.
+ * Remote=NULL uses the connected peer; Control=NULL/Flags=0 is ordinary UDP.
+ * No user callback or raw pointer is used to infer an owning graph edge. */
+XRT_API xnetresult xrtNetUdpSendMsgBytes(xnetudp* pUdp,
+	const xnetaddr* pRemote, const xnetdgramcontrol* pControl,
+	xnetbytes* pBytes, size_t iOffset, size_t iSize);
+XRT_API xnetresult xrtNetUdpSendMsgPacket(xnetudp* pUdp,
+	const xnetaddr* pRemote, const xnetdgramcontrol* pControl,
+	xnetudppacket* pPacket, size_t iOffset, size_t iSize);
+XRT_API xnetresult xrtNetUdpSendMsgBytesVec(xnetudp* pUdp,
+	const xnetaddr* pRemote, const xnetdgramcontrol* pControl,
+	const xnetbytesref* pRefs, size_t iCount);
+
+/* Prefix acceptance, one native submission for the constructed prefix. Each
+ * accepted nonempty slice retains a real owner; all caller references stay
+ * unchanged. Descriptors/control/span metadata are copied, payloads are not.
+ * ERROR/AGAIN may accompany a nonzero accepted prefix; inspect BOTH outputs.
+ * If the native submission fails, accepted=0 and all temporary holds unwind. */
+XRT_API xnetresult xrtNetUdpSendOwnedBatch(xnetudp* pUdp,
+	const xnetudpownedmessage* pItems, size_t iCount, size_t* pAccepted);
 
 
 
@@ -59691,6 +59739,9 @@ const xrtownershipadapterv1* __xrtNetStreamDialFutureOwnershipAdapterV1(
 #define XRT_NET_UDP_SEND_COPY 1u
 #define XRT_NET_UDP_SEND_TAKE 2u
 #define XRT_NET_UDP_SEND_OPAQUE 3u
+#define XRT_NET_UDP_SEND_BYTES 4u
+#define XRT_NET_UDP_SEND_PACKET 5u
+#define XRT_NET_UDP_SEND_VECTOR 6u
 
 typedef struct __xrt_net_udp_send __xrt_net_udp_send;
 typedef struct __xrt_net_udp_send_slot __xrt_net_udp_send_slot;
@@ -59749,7 +59800,7 @@ struct __xrt_net_udp_send {
 	xnetudp* Udp;
 	__xrt_net_udp_send_slot* Slot;
 	xnetaddr Remote;
-	cbytes Data;
+	union { cbytes Data; const xnetspan* Spans; };
 	size_t Size;
 	xnetreleaseproc Release;
 	ptr ReleaseContext;
@@ -59763,6 +59814,14 @@ struct __xrt_net_udp_send {
 		uint8 Data[1];
 	} Tail;
 };
+
+/* Extra storage exists ONLY on vector records, after any copied control.
+ * Capacity determines the physical allocation; Count is the actual number
+ * of retained owners (also valid during a partially constructed unwind). */
+typedef struct __xrt_net_udp_vector {
+	size_t Count, Capacity;
+	xnetspan Spans[];
+} __xrt_net_udp_vector;
 
 
 
@@ -59783,6 +59842,16 @@ static inline bytes __xrtNetUdpSendCopy(__xrt_net_udp_send* pSend)
 	return pSend->Tail.Data + (pSend->Controlled ?
 		sizeof(xnetdgramcontrol) : 0);
 }
+
+static inline size_t __xrtNetUdpVectorPrefix(bool bControlled)
+{ return bControlled ? (sizeof(xnetdgramcontrol) + _Alignof(__xrt_net_udp_vector) - 1u) &
+	~(size_t)(_Alignof(__xrt_net_udp_vector) - 1u) : 0; }
+static inline __xrt_net_udp_vector* __xrtNetUdpSendVector(const __xrt_net_udp_send* pSend)
+{ return (__xrt_net_udp_vector*)(pSend->Tail.Data + __xrtNetUdpVectorPrefix(pSend->Controlled)); }
+static inline xnetbytes** __xrtNetUdpVectorOwners(__xrt_net_udp_vector* pVector)
+{ return (xnetbytes**)(pVector->Spans + pVector->Capacity); }
+static inline bool __xrtNetUdpSendRetained(const __xrt_net_udp_send* pSend)
+{ return pSend->PayloadOwnership >= XRT_NET_UDP_SEND_BYTES && pSend->PayloadOwnership <= XRT_NET_UDP_SEND_VECTOR; }
 
 
 
@@ -265347,6 +265416,11 @@ static bool __xrtNetUdpPortSend(
 {
 	xnetport* pPort = __xrtNetWorkerPortBorrow(pUdp->Worker);
 
+	if (pSend->PayloadOwnership == XRT_NET_UDP_SEND_VECTOR) {
+		return xrtNetPortSendMsgVec(pPort, pUdp->Socket, pSend->Spans,
+			__xrtNetUdpSendVector(pSend)->Count, pUdp->Connected ? NULL : &pSend->Remote,
+			__xrtNetUdpSendControl(pSend), Id, pUser);
+	}
 	if ( pSend->Controlled ) {
 		return xrtNetPortSendMsg(
 			pPort,
@@ -265386,6 +265460,10 @@ static xnetresult __xrtNetUdpSocketSend(
 	size_t* pSent
 )
 {
+	if (pSend->PayloadOwnership == XRT_NET_UDP_SEND_VECTOR) {
+		return xrtNetSocketSendMsgVec(pUdp->Socket, pSend->Spans, __xrtNetUdpSendVector(pSend)->Count,
+			pSent, pUdp->Connected ? NULL : &pSend->Remote, __xrtNetUdpSendControl(pSend));
+	}
 	if ( pSend->Controlled ) {
 		return xrtNetSocketSendMsg(
 			pUdp->Socket,
@@ -265504,7 +265582,7 @@ static void __xrtNetUdpDriveWriteRun(xnetudp* pUdp)
 			) ) {
 				return;
 			}
-			if ( (pSend != NULL) && pSend->Controlled ) {
+			if (pSend && (pSend->Controlled || pSend->PayloadOwnership == XRT_NET_UDP_SEND_VECTOR)) {
 				xnetresult SendResult = __xrtNetUdpSocketSend(
 					pUdp,
 					pSend,
@@ -265538,7 +265616,7 @@ static void __xrtNetUdpDriveWriteRun(xnetudp* pUdp)
 			if ( iLimit > (size_t)iBudget ) {
 				iLimit = (size_t)iBudget;
 			}
-			while ( (pSend != NULL) && !pSend->Controlled &&
+			while ( (pSend != NULL) && !pSend->Controlled && pSend->PayloadOwnership != XRT_NET_UDP_SEND_VECTOR &&
 				 (iCount < iLimit) ) {
 				Sends[iCount] = pSend;
 				Items[iCount].Remote = pUdp->Connected ?
@@ -267436,6 +267514,9 @@ XRT_API bool xrtNetUdpSetData(xnetudp* u, ptr data)
 
 #if defined(XRT_FEATURE_NET_UDP)
 
+_Static_assert(XNET_UDP_VECTOR_MAX == XRT_NET_SOCKET_VECTOR_LIMIT, "UDP vector bound differs from native socket bound");
+_Static_assert(offsetof(__xrt_net_udp_send, Tail) % _Alignof(__xrt_net_udp_vector) == 0, "UDP vector tail alignment");
+
 /* 可裁剪地推进 UDP 发送侧 Future 条件。 */
 static void __xrtNetUdpSendNotifyFutures(xnetudp* pUdp)
 {
@@ -267645,6 +267726,12 @@ static size_t __xrtNetUdpSendAllocation(
 	if ( pSend->Copied ) {
 		iAllocation += pSend->Size;
 	}
+	if (pSend->PayloadOwnership == XRT_NET_UDP_SEND_VECTOR) {
+		const __xrt_net_udp_vector* pVector = __xrtNetUdpSendVector(pSend);
+		iAllocation += __xrtNetUdpVectorPrefix(pSend->Controlled) - (pSend->Controlled ? sizeof(xnetdgramcontrol) : 0) +
+			offsetof(__xrt_net_udp_vector, Spans) +
+			pVector->Capacity * (sizeof(xnetspan) + sizeof(xnetbytes*));
+	}
 	return iAllocation;
 }
 
@@ -267657,6 +267744,7 @@ static __xrt_net_udp_send* __xrtNetUdpCreateSend(
 	const xnetdgramcontrol* pControl,
 	size_t iSize,
 	bool bCopy,
+	size_t iExtra,
 	xnetresult* pResult
 )
 {
@@ -267686,6 +267774,11 @@ static __xrt_net_udp_send* __xrtNetUdpCreateSend(
 		}
 		iAllocation += iSize;
 	}
+	if (iExtra > SIZE_MAX - iAllocation) {
+		__xrtNetUdpUnreserveSend(pUdp, iSize); __xrtErrorSetSizeOverflow();
+		*pResult = XNET_RESULT_ERROR; return NULL;
+	}
+	iAllocation += iExtra;
 	if ( pControl != NULL ) {
 		if ( sizeof(*pControl) > (SIZE_MAX - iAllocation) ) {
 			__xrtNetUdpUnreserveSend(pUdp, iSize);
@@ -267705,6 +267798,10 @@ static __xrt_net_udp_send* __xrtNetUdpCreateSend(
 		return NULL;
 	}
 	pSend->Udp = xrtNetUdpRef(pUdp);
+	if (!pSend->Udp) {
+		__xrtNetWorkerNodeRecycle(pUdp->Worker, pSend, iAllocation);
+		__xrtNetUdpUnreserveSend(pUdp, iSize); *pResult = XNET_RESULT_ERROR; return NULL;
+	}
 	pSend->Next = NULL;
 	pSend->Previous = NULL;
 	pSend->Slot = NULL;
@@ -267734,7 +267831,9 @@ void __xrtNetUdpDiscardSend(
 	xnetworker* pWorker = pUdp->Worker;
 	size_t iAllocation = __xrtNetUdpSendAllocation(pSend);
 
-	if ( bReleaseExternal && pSend->OwnsExternal &&
+	/* Typed factories already own their retained references, even before
+	 * submission succeeds. Raw Take/Ref still transfer only on acceptance. */
+	if ( (bReleaseExternal || __xrtNetUdpSendRetained(pSend)) && pSend->OwnsExternal &&
 		 (pSend->Release != NULL) ) {
 		pSend->Release(
 			pSend->ReleaseContext,
@@ -268011,6 +268110,7 @@ static xnetresult __xrtNetUdpSend(
 		pControl,
 		iSize,
 		bCopy,
+		0,
 		&Result
 	);
 	if ( pSend == NULL ) {
@@ -268111,6 +268211,7 @@ XRT_API xnetresult xrtNetUdpSendVecTo(
 		NULL,
 		iTotal,
 		true,
+		0,
 		&Result
 	);
 	if ( pSend == NULL ) {
@@ -268366,6 +268467,7 @@ XRT_API xnetresult xrtNetUdpSendBatch(
 			NULL,
 			pItems[i].Size,
 			true,
+			0,
 			&Result
 		);
 		if ( pSend == NULL ) {
@@ -268400,6 +268502,152 @@ XRT_API xnetresult xrtNetUdpSendBatch(
 	return Result;
 }
 
+static void __xrtNetUdpReleaseBytes(ptr pContext, cbytes pData, size_t iSize)
+{ (void)pData; (void)iSize; xrtNetBytesDestroy(pContext); }
+static void __xrtNetUdpReleasePacket(ptr pContext, cbytes pData, size_t iSize)
+{ (void)pData; (void)iSize; xrtNetUdpPacketDestroy(pContext); }
+static void __xrtNetUdpReleaseVector(ptr pContext, cbytes pData, size_t iSize)
+{
+	(void)pData; (void)iSize;
+	__xrt_net_udp_vector* pVector = __xrtNetUdpSendVector(pContext);
+	xnetbytes** ppOwners = __xrtNetUdpVectorOwners(pVector);
+	for (size_t i = 0; i < pVector->Count; ++i) xrtNetBytesDestroy(ppOwners[i]);
+	pVector->Count = 0;
+}
+static bool __xrtNetUdpSlice(xbytesview View, size_t iOffset, size_t iSize)
+{
+	if (iOffset > View.Size || iSize > View.Size - iOffset) { __xrtErrorSetRange(); return false; }
+	return true;
+}
+
+/* A factory owns every reference it retains, independent of submission.
+ * The original descriptor/reference stays caller-owned on ALL outcomes. */
+static __xrt_net_udp_send* __xrtNetUdpCreateOwnedSend(xnetudp* pUdp,
+	const xnetudpownedmessage* pItem, xnetresult* pResult)
+{
+	xnetaddr Remote; xbytesview View = {0}; size_t iOffset = 0, iSize = 0, iUsed = 0, iExtra = 0;
+	const xnetdgramcontrol* pControl = pItem->Control && pItem->Control->Flags ? pItem->Control : NULL;
+	if (!__xrtNetUdpRemote(pUdp, pItem->Remote, &Remote)) goto Failed;
+	switch (pItem->Kind) {
+	case XNET_UDP_OWNED_BYTES:
+		if (!pItem->Payload.Bytes.Bytes) { __xrtErrorSetInvalidArgument(); goto Failed; }
+		View = xrtNetBytesView(pItem->Payload.Bytes.Bytes); iOffset = pItem->Payload.Bytes.Offset; iSize = pItem->Payload.Bytes.Size;
+		if (!__xrtNetUdpSlice(View, iOffset, iSize)) goto Failed;
+		break;
+	case XNET_UDP_OWNED_PACKET:
+		if (!pItem->Payload.Packet.Packet) { __xrtErrorSetInvalidArgument(); goto Failed; }
+		View.Data = xrtNetUdpPacketData(pItem->Payload.Packet.Packet); View.Size = xrtNetUdpPacketSize(pItem->Payload.Packet.Packet);
+		iOffset = pItem->Payload.Packet.Offset; iSize = pItem->Payload.Packet.Size;
+		if (!__xrtNetUdpSlice(View, iOffset, iSize)) goto Failed;
+		break;
+	case XNET_UDP_OWNED_VECTOR: {
+		const xnetbytesref* pRefs = pItem->Payload.Vector.Items; size_t iCount = pItem->Payload.Vector.Count;
+		if ((!pRefs && iCount) || iCount > XNET_UDP_VECTOR_MAX) { __xrtErrorSetInvalidArgument(); goto Failed; }
+		for (size_t i = 0; i < iCount; ++i) {
+			if (!pRefs[i].Bytes) { __xrtErrorSetInvalidArgument(); goto Failed; }
+			xbytesview Part = xrtNetBytesView(pRefs[i].Bytes);
+			if (!__xrtNetUdpSlice(Part, pRefs[i].Offset, pRefs[i].Size)) goto Failed;
+			if (pRefs[i].Size > XNET_UDP_PAYLOAD_MAX - iSize) { __xrtErrorSetRange(); goto Failed; }
+			iSize += pRefs[i].Size; if (pRefs[i].Size) ++iUsed;
+		}
+		if (iUsed) iExtra = __xrtNetUdpVectorPrefix(pControl != NULL) - (pControl ? sizeof(*pControl) : 0) +
+			offsetof(__xrt_net_udp_vector, Spans) + iUsed * (sizeof(xnetspan) + sizeof(xnetbytes*));
+		break;
+	}
+	default: __xrtErrorSetInvalidArgument(); goto Failed;
+	}
+	if (pControl) {
+		union {uint64 Align; unsigned char Data[XRT_NET_SOCKET_DGRAM_CONTROL_SIZE];} ControlBuffer;
+		size_t iControlSize;
+		if (!__xrtNetSocketDgramControlBuild(pUdp->Socket, pControl, iSize, ControlBuffer.Data,
+			sizeof(ControlBuffer.Data), &iControlSize, XNET_ERROR_UDP_SEND, "send-udp-owned")) goto Failed;
+	}
+	__xrt_net_udp_send* pSend = __xrtNetUdpCreateSend(pUdp, &Remote, pControl, iSize, !iSize, iExtra, pResult);
+	if (!pSend) return NULL;
+	if (!iSize) { pSend->Data = __xrtNetUdpSendCopy(pSend); return pSend; }
+	if (pItem->Kind == XNET_UDP_OWNED_BYTES) {
+		xnetbytes* pOwner = xrtNetBytesRef(pItem->Payload.Bytes.Bytes);
+		if (!pOwner) { __xrtNetUdpDiscardSend(pSend, false); goto Failed; }
+		pSend->PayloadOwnership = XRT_NET_UDP_SEND_BYTES;
+		pSend->Release = __xrtNetUdpReleaseBytes; pSend->ReleaseContext = pOwner;
+		pSend->Data = View.Data + iOffset; pSend->OwnsExternal = true;
+	} else if (pItem->Kind == XNET_UDP_OWNED_PACKET) {
+		xnetudppacket* pOwner = xrtNetUdpPacketRef(pItem->Payload.Packet.Packet);
+		if (!pOwner) { __xrtNetUdpDiscardSend(pSend, false); goto Failed; }
+		pSend->PayloadOwnership = XRT_NET_UDP_SEND_PACKET;
+		pSend->Release = __xrtNetUdpReleasePacket; pSend->ReleaseContext = pOwner;
+		pSend->Data = View.Data + iOffset; pSend->OwnsExternal = true;
+	} else {
+		__xrt_net_udp_vector* pVector = __xrtNetUdpSendVector(pSend);
+		pVector->Capacity = iUsed; pVector->Count = 0;
+		pSend->PayloadOwnership = XRT_NET_UDP_SEND_VECTOR;
+		pSend->Release = __xrtNetUdpReleaseVector; pSend->ReleaseContext = pSend;
+		pSend->Spans = pVector->Spans; pSend->OwnsExternal = true;
+		xnetbytes** ppOwners = __xrtNetUdpVectorOwners(pVector);
+		for (size_t i = 0; i < pItem->Payload.Vector.Count; ++i) {
+			const xnetbytesref* pRef = &pItem->Payload.Vector.Items[i];
+			if (!pRef->Size) continue;
+			xnetbytes* pOwner = xrtNetBytesRef(pRef->Bytes);
+			if (!pOwner) { __xrtNetUdpDiscardSend(pSend, false); goto Failed; }
+			xbytesview Part = xrtNetBytesView(pOwner); size_t iSlot = pVector->Count;
+			ppOwners[iSlot] = pOwner;
+			pVector->Spans[iSlot].Data = Part.Data + pRef->Offset; pVector->Spans[iSlot].Size = pRef->Size;
+			++pVector->Count;
+		}
+	}
+	return pSend;
+Failed:
+	*pResult = XNET_RESULT_ERROR; return NULL;
+}
+
+XRT_API xnetresult xrtNetUdpSendOwnedBatch(xnetudp* pUdp,
+	const xnetudpownedmessage* pItems, size_t iCount, size_t* pAccepted)
+{
+	if (pAccepted) *pAccepted = 0;
+	if (!pUdp || !pAccepted || (!pItems && iCount)) { __xrtErrorSetInvalidArgument(); return XNET_RESULT_ERROR; }
+	if (!iCount) return XNET_RESULT_OK;
+	if (!__xrtNetUdpBeginSend(pUdp)) return XNET_RESULT_CLOSED;
+	__xrt_net_udp_send *pHead = NULL, *pTail = NULL; size_t iAccepted = 0; xnetresult Result = XNET_RESULT_OK;
+	for (size_t i = 0; i < iCount; ++i) {
+		__xrt_net_udp_send* pSend = __xrtNetUdpCreateOwnedSend(pUdp, &pItems[i], &Result);
+		if (!pSend) break;
+		if (pTail) pTail->Next = pSend; else pHead = pSend;
+		pTail = pSend; ++iAccepted;
+	}
+	if (pHead) {
+		xnetresult Submitted = __xrtNetUdpSubmitSend(pUdp, pHead);
+		if (Submitted != XNET_RESULT_OK) { Result = Submitted; iAccepted = 0; }
+	}
+	__xrtNetUdpEndSend(pUdp); *pAccepted = iAccepted; return Result;
+}
+XRT_API xnetresult xrtNetUdpSendMsgBytes(xnetudp* pUdp, const xnetaddr* pRemote,
+	const xnetdgramcontrol* pControl, xnetbytes* pBytes, size_t iOffset, size_t iSize)
+{
+	xnetudpownedmessage Item = {0}; Item.Remote = pRemote; Item.Control = pControl; Item.Kind = XNET_UDP_OWNED_BYTES;
+	Item.Payload.Bytes = (xnetbytesref){pBytes, iOffset, iSize}; size_t iAccepted;
+	return xrtNetUdpSendOwnedBatch(pUdp, &Item, 1, &iAccepted);
+}
+XRT_API xnetresult xrtNetUdpSendMsgPacket(xnetudp* pUdp, const xnetaddr* pRemote,
+	const xnetdgramcontrol* pControl, xnetudppacket* pPacket, size_t iOffset, size_t iSize)
+{
+	xnetudpownedmessage Item = {0}; Item.Remote = pRemote; Item.Control = pControl; Item.Kind = XNET_UDP_OWNED_PACKET;
+	Item.Payload.Packet = (xnetudppacketref){pPacket, iOffset, iSize}; size_t iAccepted;
+	return xrtNetUdpSendOwnedBatch(pUdp, &Item, 1, &iAccepted);
+}
+XRT_API xnetresult xrtNetUdpSendMsgBytesVec(xnetudp* pUdp, const xnetaddr* pRemote,
+	const xnetdgramcontrol* pControl, const xnetbytesref* pRefs, size_t iCount)
+{
+	xnetudpownedmessage Item = {0}; Item.Remote = pRemote; Item.Control = pControl; Item.Kind = XNET_UDP_OWNED_VECTOR;
+	Item.Payload.Vector.Items = pRefs; Item.Payload.Vector.Count = iCount; size_t iAccepted;
+	return xrtNetUdpSendOwnedBatch(pUdp, &Item, 1, &iAccepted);
+}
+
+static bool __xrtNetUdpRetainedSpan(xbytesview View, const void* pData, size_t iSize)
+{
+	uintptr_t iFirst = (uintptr_t)View.Data, iData = (uintptr_t)pData;
+	return iSize && iData >= iFirst && iData - iFirst <= View.Size && iSize <= View.Size - (iData - iFirst);
+}
+
 /* Contained send records own one actual UDP reference each. Slots only borrow
  * their send record; they do not create a second graph node/reference. */
 bool __xrtNetUdpSendsOwnership(const xnetudp* pUdp, xrtownershipvisitor pVisit, ptr pContext)
@@ -268420,6 +268668,27 @@ bool __xrtNetUdpSendsOwnership(const xnetudp* pUdp, xrtownershipvisitor pVisit, 
 				p->Data != __xrtNetUdpSendCopy((__xrt_net_udp_send*)p)) return false;
 		} else if (p->PayloadOwnership == XRT_NET_UDP_SEND_TAKE) {
 			if (p->Copied || !p->OwnsExternal || p->Release != __xrtNetUdpFreeTaken || p->ReleaseContext || (!p->Data && p->Size)) return false;
+		} else if (p->PayloadOwnership == XRT_NET_UDP_SEND_BYTES) {
+			if (p->Copied || !p->OwnsExternal || p->Release != __xrtNetUdpReleaseBytes || !p->ReleaseContext ||
+				!__xrtNetUdpRetainedSpan(xrtNetBytesView(p->ReleaseContext), p->Data, p->Size)) return false;
+			if (pVisit && !pVisit(xrtNetBytesOwnership(p->ReleaseContext), pContext)) return false;
+		} else if (p->PayloadOwnership == XRT_NET_UDP_SEND_PACKET) {
+			xnetudppacket* pPacket = p->ReleaseContext;
+			if (p->Copied || !p->OwnsExternal || p->Release != __xrtNetUdpReleasePacket || !pPacket ||
+				!__xrtNetUdpRetainedSpan((xbytesview){xrtNetUdpPacketData(pPacket), xrtNetUdpPacketSize(pPacket)}, p->Data, p->Size)) return false;
+			if (pVisit && !pVisit(xrtNetUdpPacketOwnership(pPacket), pContext)) return false;
+		} else if (p->PayloadOwnership == XRT_NET_UDP_SEND_VECTOR) {
+			const __xrt_net_udp_vector* pVector = __xrtNetUdpSendVector(p);
+			if (p->Copied || !p->OwnsExternal || p->Release != __xrtNetUdpReleaseVector || p->ReleaseContext != p ||
+				!pVector->Count || pVector->Count != pVector->Capacity || pVector->Count > XNET_UDP_VECTOR_MAX || p->Spans != pVector->Spans) return false;
+			xnetbytes** ppOwners = __xrtNetUdpVectorOwners((__xrt_net_udp_vector*)pVector); size_t iTotal = 0;
+			for (size_t j = 0; j < pVector->Count; ++j) {
+				if (!ppOwners[j] || !__xrtNetUdpRetainedSpan(xrtNetBytesView(ppOwners[j]), p->Spans[j].Data, p->Spans[j].Size) ||
+					p->Spans[j].Size > XNET_UDP_PAYLOAD_MAX - iTotal) return false;
+				iTotal += p->Spans[j].Size;
+				if (pVisit && !pVisit(xrtNetBytesOwnership(ppOwners[j]), pContext)) return false;
+			}
+			if (iTotal != p->Size) return false;
 		} else return false;
 		if (p->Submitted) {
 			uintptr_t slot = (uintptr_t)p->Slot, first = (uintptr_t)pUdp->SendSlots;

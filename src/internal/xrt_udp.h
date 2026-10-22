@@ -20,6 +20,9 @@
 #define XRT_NET_UDP_SEND_COPY 1u
 #define XRT_NET_UDP_SEND_TAKE 2u
 #define XRT_NET_UDP_SEND_OPAQUE 3u
+#define XRT_NET_UDP_SEND_BYTES 4u
+#define XRT_NET_UDP_SEND_PACKET 5u
+#define XRT_NET_UDP_SEND_VECTOR 6u
 
 typedef struct __xrt_net_udp_send __xrt_net_udp_send;
 typedef struct __xrt_net_udp_send_slot __xrt_net_udp_send_slot;
@@ -78,7 +81,7 @@ struct __xrt_net_udp_send {
 	xnetudp* Udp;
 	__xrt_net_udp_send_slot* Slot;
 	xnetaddr Remote;
-	cbytes Data;
+	union { cbytes Data; const xnetspan* Spans; };
 	size_t Size;
 	xnetreleaseproc Release;
 	ptr ReleaseContext;
@@ -92,6 +95,14 @@ struct __xrt_net_udp_send {
 		uint8 Data[1];
 	} Tail;
 };
+
+/* Extra storage exists ONLY on vector records, after any copied control.
+ * Capacity determines the physical allocation; Count is the actual number
+ * of retained owners (also valid during a partially constructed unwind). */
+typedef struct __xrt_net_udp_vector {
+	size_t Count, Capacity;
+	xnetspan Spans[];
+} __xrt_net_udp_vector;
 
 
 
@@ -112,6 +123,16 @@ static inline bytes __xrtNetUdpSendCopy(__xrt_net_udp_send* pSend)
 	return pSend->Tail.Data + (pSend->Controlled ?
 		sizeof(xnetdgramcontrol) : 0);
 }
+
+static inline size_t __xrtNetUdpVectorPrefix(bool bControlled)
+{ return bControlled ? (sizeof(xnetdgramcontrol) + _Alignof(__xrt_net_udp_vector) - 1u) &
+	~(size_t)(_Alignof(__xrt_net_udp_vector) - 1u) : 0; }
+static inline __xrt_net_udp_vector* __xrtNetUdpSendVector(const __xrt_net_udp_send* pSend)
+{ return (__xrt_net_udp_vector*)(pSend->Tail.Data + __xrtNetUdpVectorPrefix(pSend->Controlled)); }
+static inline xnetbytes** __xrtNetUdpVectorOwners(__xrt_net_udp_vector* pVector)
+{ return (xnetbytes**)(pVector->Spans + pVector->Capacity); }
+static inline bool __xrtNetUdpSendRetained(const __xrt_net_udp_send* pSend)
+{ return pSend->PayloadOwnership >= XRT_NET_UDP_SEND_BYTES && pSend->PayloadOwnership <= XRT_NET_UDP_SEND_VECTOR; }
 
 
 
