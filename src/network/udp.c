@@ -261,10 +261,13 @@ static xnetudppacket* __xrtNetUdpPacketCreate(
 /* 销毁拥有型 UDP 数据包。 */
 XRT_API void xrtNetUdpPacketDestroy(xnetudppacket* pPacket)
 {
-	if ( (pPacket != NULL) &&
-		 (xrtRefRelease(&pPacket->References) == 0) ) {
-		xrtFree(pPacket);
-	}
+	if (!pPacket) return;
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	int32 iReferences = xrtRefRelease(&pPacket->References);
+	if (iReferences < 0) abort();
+	if (!iReferences) xrtFree(pPacket);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 }
 
 
@@ -272,12 +275,44 @@ XRT_API void xrtNetUdpPacketDestroy(xnetudppacket* pPacket)
 /* 增加拥有型 UDP 数据包引用。 */
 XRT_API xnetudppacket* xrtNetUdpPacketRef(xnetudppacket* pPacket)
 {
-	if ( (pPacket == NULL) ||
-		 (xrtRefRetain(&pPacket->References) < 0) ) {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
+	bool bHeld = pPacket && xrtRefRetain(&pPacket->References) >= 0;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (!bHeld) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
 	return pPacket;
+}
+
+static bool __xrtNetUdpPacketCount(const void* pData, size_t* pCount)
+{
+	const xnetudppacket* pPacket = pData;
+	if (!pPacket || !pCount) return false;
+	int32 iReferences = __xrtAtomicRefLoad(&pPacket->References);
+	if (iReferences <= 0) return false;
+	*pCount = (size_t)iReferences; return true;
+}
+static bool __xrtNetUdpPacketTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{ size_t iCount; (void)pContext; return pVisit && __xrtNetUdpPacketCount(pData, &iCount); }
+static const xrtownershipops __xrtNetUdpPacketOps = {__xrtNetUdpPacketCount, __xrtNetUdpPacketTrace};
+XRT_API xrtownershipref xrtNetUdpPacketOwnership(const xnetudppacket* pPacket)
+{ return (xrtownershipref){pPacket, pPacket ? &__xrtNetUdpPacketOps : NULL}; }
+static bool __xrtNetUdpPacketHold(const void* pData)
+{ return xrtNetUdpPacketRef((xnetudppacket*)pData) != NULL; }
+static void __xrtNetUdpPacketDrop(const void* pData)
+{ xrtNetUdpPacketDestroy((xnetudppacket*)pData); }
+static bool __xrtNetUdpPacketClaim(const void* pData, const void* pToken)
+{ return pData && pToken; }
+static void __xrtNetUdpPacketKeep(const void* pData, const void* pToken)
+{ (void)pData; (void)pToken; }
+XRT_API const xrtownershipadapterv1* xrtNetUdpPacketOwnershipAdapterV1(xrtownershipref Reference)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtNetUdpPacketHold, __xrtNetUdpPacketDrop,
+		__xrtNetUdpPacketClaim, __xrtNetUdpPacketKeep, NULL, __xrtNetUdpPacketKeep, NULL};
+	size_t iCount;
+	return Reference.Ops == &__xrtNetUdpPacketOps && __xrtNetUdpPacketCount(Reference.Data, &iCount) ? &Adapter : NULL;
 }
 
 
@@ -361,10 +396,13 @@ static xnetudperrorpacket* __xrtNetUdpErrorPacketCreate(
 /* 销毁拥有型数据报错误包。 */
 XRT_API void xrtNetUdpErrorPacketDestroy(xnetudperrorpacket* pPacket)
 {
-	if ( (pPacket != NULL) &&
-		 (xrtRefRelease(&pPacket->References) == 0) ) {
-		xrtFree(pPacket);
-	}
+	if (!pPacket) return;
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	int32 iReferences = xrtRefRelease(&pPacket->References);
+	if (iReferences < 0) abort();
+	if (!iReferences) xrtFree(pPacket);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 }
 
 
@@ -374,12 +412,40 @@ XRT_API xnetudperrorpacket* xrtNetUdpErrorPacketRef(
 	xnetudperrorpacket* pPacket
 )
 {
-	if ( (pPacket == NULL) ||
-		 (xrtRefRetain(&pPacket->References) < 0) ) {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
+	bool bHeld = pPacket && xrtRefRetain(&pPacket->References) >= 0;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (!bHeld) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
 	return pPacket;
+}
+
+static bool __xrtNetUdpErrorPacketCount(const void* pData, size_t* pCount)
+{
+	const xnetudperrorpacket* pPacket = pData;
+	if (!pPacket || !pCount) return false;
+	int32 iReferences = __xrtAtomicRefLoad(&pPacket->References);
+	if (iReferences <= 0) return false;
+	*pCount = (size_t)iReferences; return true;
+}
+static bool __xrtNetUdpErrorPacketTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{ size_t iCount; (void)pContext; return pVisit && __xrtNetUdpErrorPacketCount(pData, &iCount); }
+static const xrtownershipops __xrtNetUdpErrorPacketOps = {__xrtNetUdpErrorPacketCount, __xrtNetUdpErrorPacketTrace};
+XRT_API xrtownershipref xrtNetUdpErrorPacketOwnership(const xnetudperrorpacket* pPacket)
+{ return (xrtownershipref){pPacket, pPacket ? &__xrtNetUdpErrorPacketOps : NULL}; }
+static bool __xrtNetUdpErrorPacketHold(const void* pData)
+{ return xrtNetUdpErrorPacketRef((xnetudperrorpacket*)pData) != NULL; }
+static void __xrtNetUdpErrorPacketDrop(const void* pData)
+{ xrtNetUdpErrorPacketDestroy((xnetudperrorpacket*)pData); }
+XRT_API const xrtownershipadapterv1* xrtNetUdpErrorPacketOwnershipAdapterV1(xrtownershipref Reference)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtNetUdpErrorPacketHold, __xrtNetUdpErrorPacketDrop,
+		__xrtNetUdpPacketClaim, __xrtNetUdpPacketKeep, NULL, __xrtNetUdpPacketKeep, NULL};
+	size_t iCount;
+	return Reference.Ops == &__xrtNetUdpErrorPacketOps && __xrtNetUdpErrorPacketCount(Reference.Data, &iCount) ? &Adapter : NULL;
 }
 
 

@@ -3415,4 +3415,29 @@ bool xrtNetUdpSetData(xnetudp* pUdp, ptr pData)
 
 ## 示例与发布门禁
 
+### 数据包／批次拥有图前置（2026-10-22）
+
+新增 Packet、ErrorPacket、Batch 的 `Ownership` 和 `OwnershipAdapterV1`，分别
+认证实际不可变包／错误包和批次中的真实槽位。包的 Next 是队列结构，不是包对
+后继的拥有关系；包不借用生产它的 UDP／Engine／Future，生产者销毁后仍可保留。
+批次只枚举未取走槽位，不把已经转移的包计作自己的边，也不伪造包装引用。
+
+Ref／Destroy 和 BatchTake 参与统一 mutation，冻结域可稳定读取其实际引用数和边。
+Freeze 持有线程仍可做平衡的受控嵌套操作；其他线程的 Take 在 Freeze 结束后才
+能改变槽位。Take 使用原子交换，不分配、不复制载荷；并发争取同一槽最多交付
+一次。Count 保留原始索引范围，已取走槽返回 NULL。借用 BatchPacket 仍要求调用
+者保证批次存活并排除对应槽的 Take，不能把原子读取误当成拥有型返回值。
+
+专项 `tools/check_net_udp_value_ownership.py` 使用真实四包 Future 批次（含 NUL
+和零长数据报）、空批次、独立拥有图、9 个离线分配预算、64 次并发 Take、8192 次
+冻结图检查、受理后取消和生产者销毁后的载荷检查。去掉批次边／Take mutation 的
+独立对照都必须成功编译后被真实图断言拒绝。错误包只通过实际内部构造器验证
+拥有权，不产生 ICMP、不探测错误队列。两端 GCC／TCC O0／O2、Linux ASan／UBSan，
+select／IOCP 或 epoll；基础 UDP 和 UDP Future 源分别按最小模块严格编译。
+
+此批仅完成原生结果拥有图前置，不代表 UDP 对象／异步等待的整图、xlang 入口、
+固定语言快照或发布库已经更新。证据根为
+`F:/xlang-validation/five-groups-20261022/p3-udp-values`。本批不运行下文所列的完整
+底层专项，只执行离线合同／OOM 和自有字面量回环正常通信，没有网络安全测试。
+
 完整回环与按接收目标地址回包示例位于 `examples/network/udp/main.c`，底层元数据和逐包发送控制能力协商示例位于 `examples/network/socket/main.c`，Future 请求响应示例位于 `examples/network/udp_future/main.c`，阻塞外观示例位于 `examples/network/udp_sync/main.c`，PMTU 与异步错误示例位于 `examples/network/udp_errors/main.c`。当前回归门禁覆盖 select、IOCP 与 io_uring，包含同步/完成式接收元数据、逐包发送控制、GSO/GRO、PMTU/错误队列、错误 Future/同步等待、零长度/截断/向量/批量报文、硬字节和包数上限、普通与错误队列溢出策略、completion 并发发送槽、OOM 恢复、真实 IPv4 组播回环、多生产者 Send/Close/Abort 线性化、Future 取消/关闭竞态、同步终态竞争、协程挂起恢复、控制值复制、所有权唯一释放、单头文件真实收发和裁剪依赖。

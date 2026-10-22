@@ -373,6 +373,12 @@ XRT_API void xrtNetUdpPacketDestroy(xnetudppacket* pPacket);
 /* 增加数据包引用并返回原指针，便于跨 Future 和线程保留零复制结果。 */
 XRT_API xnetudppacket* xrtNetUdpPacketRef(xnetudppacket* pPacket);
 
+/* Immutable payload/metadata owner, independent of its producing UDP/Engine.
+ * Next is queue structure, not an owning edge. Ref/Destroy participate in
+ * ownership mutation, including the holder's controlled nested operations. */
+XRT_API xrtownershipref xrtNetUdpPacketOwnership(const xnetudppacket* pPacket);
+XRT_API const xrtownershipadapterv1* xrtNetUdpPacketOwnershipAdapterV1(xrtownershipref Reference);
+
 
 
 /* 返回数据包的借用远端地址。 */
@@ -411,6 +417,10 @@ XRT_API void xrtNetUdpErrorPacketDestroy(xnetudperrorpacket* pPacket);
 XRT_API xnetudperrorpacket* xrtNetUdpErrorPacketRef(
 	xnetudperrorpacket* pPacket
 );
+
+/* Owned immutable error metadata and captured prefix; no socket/Engine edge. */
+XRT_API xrtownershipref xrtNetUdpErrorPacketOwnership(const xnetudperrorpacket* pPacket);
+XRT_API const xrtownershipadapterv1* xrtNetUdpErrorPacketOwnershipAdapterV1(xrtownershipref Reference);
 
 
 
@@ -596,6 +606,11 @@ XRT_API xfuture* xrtNetUdpReceiveBatchAsync(
 /* 增加批量结果引用并返回原指针。 */
 XRT_API xnetudpbatch* xrtNetUdpBatchRef(xnetudpbatch* pBatch);
 
+/* Enumerates one real packet owner per nonempty slot. Taken slots have no
+ * edge. The batch does not own its producer, a Future or a language wrapper. */
+XRT_API xrtownershipref xrtNetUdpBatchOwnership(const xnetudpbatch* pBatch);
+XRT_API const xrtownershipadapterv1* xrtNetUdpBatchOwnershipAdapterV1(xrtownershipref Reference);
+
 
 
 /* 返回 Future 批量结果中的数据包数量。 */
@@ -603,7 +618,8 @@ XRT_API size_t xrtNetUdpBatchCount(const xnetudpbatch* pBatch);
 
 
 
-/* 返回批量结果中一个借用的数据包。 */
+/* 返回批量结果中一个借用的数据包。调用者须保持批次存活，并排除该槽 Take；
+ * 若要跨线程持有，应在排除 Take 时使用 PacketRef，或直接 Take 获取拥有权。 */
 XRT_API xnetudppacket* xrtNetUdpBatchPacket(
 	const xnetudpbatch* pBatch,
 	size_t iIndex
@@ -611,7 +627,10 @@ XRT_API xnetudppacket* xrtNetUdpBatchPacket(
 
 
 
-/* 从批量结果转移一个数据包所有权；对应位置随后为空。 */
+/* 从批量结果原子转移一个数据包所有权；对应位置随后为空。
+ * 并发 Take 同一槽最多一次取得数据包，调用期间须各自保证批次存活。
+ * Count 保留原索引范围；已取走的位置返回 NULL。Take 参与拥有图 mutation，
+ * Freeze 排除其他线程的 Take；持有 Freeze 的线程仍可执行受控的嵌套操作。 */
 XRT_API xnetudppacket* xrtNetUdpBatchTake(
 	xnetudpbatch* pBatch,
 	size_t iIndex

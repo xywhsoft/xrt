@@ -26,7 +26,7 @@ struct xnetudpbatch {
 	volatile int32 References;
 	size_t Count;
 	size_t Capacity;
-	xnetudppacket* Packets[1];
+	xatomicptr Packets[1];
 };
 
 
@@ -106,8 +106,11 @@ static void __xrtNetUdpWaitRecycle(
 /* 增加批量结果引用。 */
 XRT_API xnetudpbatch* xrtNetUdpBatchRef(xnetudpbatch* pBatch)
 {
-	if ( (pBatch == NULL) ||
-		 (xrtRefRetain(&pBatch->References) < 0) ) {
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
+	bool bHeld = pBatch && xrtRefRetain(&pBatch->References) >= 0;
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	if (!bHeld) {
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
@@ -119,14 +122,17 @@ XRT_API xnetudpbatch* xrtNetUdpBatchRef(xnetudpbatch* pBatch)
 /* 销毁批量结果及其中仍由结果拥有的数据包。 */
 XRT_API void xrtNetUdpBatchDestroy(xnetudpbatch* pBatch)
 {
-	if ( (pBatch == NULL) ||
-		 (xrtRefRelease(&pBatch->References) != 0) ) {
-		return;
+	if (!pBatch) return;
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	int32 iReferences = xrtRefRelease(&pBatch->References);
+	if (iReferences < 0) abort();
+	if (!iReferences) {
+		for (size_t i = 0; i < pBatch->Count; i++)
+			xrtNetUdpPacketDestroy(xrtAtomicPtrLoad(&pBatch->Packets[i], XMEMORY_RELAXED));
+		xrtFree(pBatch);
 	}
-	for ( size_t i = 0; i < pBatch->Count; i++ ) {
-		xrtNetUdpPacketDestroy(pBatch->Packets[i]);
-	}
-	xrtFree(pBatch);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 }
 
 
@@ -149,7 +155,7 @@ XRT_API xnetudppacket* xrtNetUdpBatchPacket(
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	return pBatch->Packets[iIndex];
+	return xrtAtomicPtrLoad(&pBatch->Packets[iIndex], XMEMORY_ACQUIRE);
 }
 
 
@@ -161,14 +167,54 @@ XRT_API xnetudppacket* xrtNetUdpBatchTake(
 )
 {
 	xnetudppacket* pPacket;
+	xrtownershipscope Mutation = {0};
+	if (!xrtOwnershipMutationBegin(&Mutation)) return NULL;
 
 	if ( (pBatch == NULL) || (iIndex >= pBatch->Count) ) {
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 		__xrtErrorSetInvalidArgument();
 		return NULL;
 	}
-	pPacket = pBatch->Packets[iIndex];
-	pBatch->Packets[iIndex] = NULL;
+	pPacket = xrtAtomicPtrExchange(&pBatch->Packets[iIndex], NULL, XMEMORY_ACQ_REL);
+	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	return pPacket;
+}
+
+static bool __xrtNetUdpBatchCount(const void* pData, size_t* pCount)
+{
+	const xnetudpbatch* pBatch = pData;
+	if (!pBatch || !pCount || pBatch->Count > pBatch->Capacity) return false;
+	int32 iReferences = __xrtAtomicRefLoad(&pBatch->References);
+	if (iReferences <= 0) return false;
+	*pCount = (size_t)iReferences; return true;
+}
+static bool __xrtNetUdpBatchTrace(const void* pData, xrtownershipvisitor pVisit, ptr pContext)
+{
+	const xnetudpbatch* pBatch = pData; size_t iCount;
+	if (!pVisit || !__xrtNetUdpBatchCount(pData, &iCount)) return false;
+	for (size_t i = 0; i < pBatch->Count; ++i) {
+		xnetudppacket* pPacket = xrtAtomicPtrLoad(&pBatch->Packets[i], XMEMORY_ACQUIRE);
+		if (pPacket && !pVisit(xrtNetUdpPacketOwnership(pPacket), pContext)) return false;
+	}
+	return true;
+}
+static const xrtownershipops __xrtNetUdpBatchOps = {__xrtNetUdpBatchCount, __xrtNetUdpBatchTrace};
+XRT_API xrtownershipref xrtNetUdpBatchOwnership(const xnetudpbatch* pBatch)
+{ return (xrtownershipref){pBatch, pBatch ? &__xrtNetUdpBatchOps : NULL}; }
+static bool __xrtNetUdpBatchHold(const void* pData)
+{ return xrtNetUdpBatchRef((xnetudpbatch*)pData) != NULL; }
+static void __xrtNetUdpBatchDrop(const void* pData)
+{ xrtNetUdpBatchDestroy((xnetudpbatch*)pData); }
+static bool __xrtNetUdpBatchClaim(const void* pData, const void* pToken)
+{ return pData && pToken; }
+static void __xrtNetUdpBatchKeep(const void* pData, const void* pToken)
+{ (void)pData; (void)pToken; }
+XRT_API const xrtownershipadapterv1* xrtNetUdpBatchOwnershipAdapterV1(xrtownershipref Reference)
+{
+	static const xrtownershipadapterv1 Adapter = {sizeof(Adapter), __xrtNetUdpBatchHold, __xrtNetUdpBatchDrop,
+		__xrtNetUdpBatchClaim, __xrtNetUdpBatchKeep, NULL, __xrtNetUdpBatchKeep, NULL};
+	size_t iCount;
+	return Reference.Ops == &__xrtNetUdpBatchOps && __xrtNetUdpBatchCount(Reference.Data, &iCount) ? &Adapter : NULL;
 }
 
 
@@ -180,15 +226,16 @@ static xnetudpbatch* __xrtNetUdpBatchCreate(size_t iCapacity)
 	size_t iBase = offsetof(xnetudpbatch, Packets);
 	size_t iAllocation;
 
-	if ( iCapacity > ((SIZE_MAX - iBase) / sizeof(xnetudppacket*)) ) {
+	if ( iCapacity > ((SIZE_MAX - iBase) / sizeof(xatomicptr)) ) {
 		__xrtErrorSetSizeOverflow();
 		return NULL;
 	}
-	iAllocation = iBase + (iCapacity * sizeof(xnetudppacket*));
+	iAllocation = iBase + (iCapacity * sizeof(xatomicptr));
 	pBatch = (xnetudpbatch*)xrtCalloc(1, iAllocation);
 	if ( pBatch != NULL ) {
 		pBatch->References = 1;
 		pBatch->Capacity = iCapacity;
+		for (size_t i = 0; i < iCapacity; ++i) xrtAtomicPtrInit(&pBatch->Packets[i], NULL);
 	}
 	return pBatch;
 }
@@ -394,8 +441,8 @@ __xrt_net_udp_wait* __xrtNetUdpFuturePairReceiveLocked(xnetudp* pUdp)
 		if ( pWaiter->Batch != NULL ) {
 			while ( (pWaiter->Batch->Count < pWaiter->Batch->Capacity) &&
 				 (pUdp->ReceiveHead != NULL) ) {
-				pWaiter->Batch->Packets[pWaiter->Batch->Count++] =
-					__xrtNetUdpTakeReceiveLocked(pUdp);
+				xrtAtomicPtrStore(&pWaiter->Batch->Packets[pWaiter->Batch->Count++],
+					__xrtNetUdpTakeReceiveLocked(pUdp), XMEMORY_RELEASE);
 			}
 		} else {
 			pWaiter->Packet = __xrtNetUdpTakeReceiveLocked(pUdp);
