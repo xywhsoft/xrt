@@ -1,5 +1,6 @@
 #include <xrt/detail/wait.h>
 #include "../test.h"
+#include "../../../../tests/network/engine_test.h"
 
 
 
@@ -817,7 +818,7 @@ static void testWsReconnectRun(uint32 iRounds)
 	xrtHttpClientDestroy(Test.Client);
 	xrtHttpServerDestroy(Test.Server);
 	testRequire(
-		xrtNetEngineDestroy(Test.Engine),
+		testNetEngineDestroy(Test.Engine),
 		"WebSocket reconnect engine destroy failed"
 	);
 }

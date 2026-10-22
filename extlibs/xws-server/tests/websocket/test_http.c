@@ -18,6 +18,7 @@
 #else
 	#include "../test.h"
 #endif
+#include "../../../../tests/network/engine_test.h"
 
 
 
@@ -1543,7 +1544,7 @@ int main(void)
 		xrtTlsContextRelease(pTlsContext);
 	#endif
 	testRequire(
-		xrtNetEngineDestroy(Test.Engine),
+		testNetEngineDestroy(Test.Engine),
 		"WebSocket HTTP engine destroy failed"
 	);
 	printf(

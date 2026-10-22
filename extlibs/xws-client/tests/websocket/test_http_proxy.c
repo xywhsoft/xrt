@@ -1,5 +1,6 @@
 #include <xrt/detail/wait.h>
 #include "../fixtures/http_connect_proxy.h"
+#include "../../../../tests/network/engine_test.h"
 
 
 
@@ -804,7 +805,7 @@ int main(void)
 	}
 	xrtNetListenerDestroy(State.Listener);
 	testRequire(
-		xrtNetEngineDestroy(State.Engine),
+		testNetEngineDestroy(State.Engine),
 		"WebSocket proxy engine destroy failed"
 	);
 	printf(
