@@ -258,6 +258,15 @@ XRT_API xnetudp* xrtNetUdpConnect(
 /* 增加 UDP 引用并返回原指针。 */
 XRT_API xnetudp* xrtNetUdpRef(xnetudp* pUdp);
 
+/* Read under ownership Freeze after this UDP/Engine quiescence is admitted.
+ * V1 certifies native copied/taken sends and pull queues, not arbitrary user
+ * callbacks/Data, escaped sockets or as-yet unregistered Future waiters. */
+XRT_API xrtownershipref xrtNetUdpOwnership(const xnetudp* pUdp);
+XRT_API const xrtownershipquiescencev1* xrtNetUdpOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtNetUdpOwnershipAdapterV1(
+    xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+XRT_API const xnetruntimeownershipv1* xrtNetUdpRuntimeOwnershipV1Get(void);
+
 
 
 /* 释放 UDP 引用；关闭操作必须另行请求。 */

@@ -10874,7 +10874,8 @@
 			"sources": [
 				"src/network/udp.c",
 				"src/network/udp_open.c",
-				"src/network/udp_send.c"
+				"src/network/udp_send.c",
+				"src/network/udp_ownership.c"
 			],
 			"tests": [
 				"tests/network/test_net_udp.c",

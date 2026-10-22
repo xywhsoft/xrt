@@ -97,6 +97,8 @@ static void __xrtNetUdpUnreserveSend(xnetudp* pUdp, size_t iSize)
 /* 进入跨线程发送提交区，阻止关闭越过已经开始的提交。 */
 static bool __xrtNetUdpBeginSend(xnetudp* pUdp)
 {
+	if (!__xrtNetUdpOwnershipEnter(pUdp, true)) return false;
+	if (xrtNetUdpState(pUdp) == XNET_UDP_CLOSED) { __xrtNetUdpOwnershipLeave(pUdp); return false; }
 	bool bWorker = xrtNetWorkerIsCurrent(pUdp->Worker);
 	xnetudpstate State;
 
@@ -119,6 +121,7 @@ static bool __xrtNetUdpBeginSend(xnetudp* pUdp)
 				XMEMORY_RELEASE
 			);
 		}
+		__xrtNetUdpOwnershipLeave(pUdp);
 		return false;
 	}
 	return true;
@@ -140,6 +143,7 @@ static void __xrtNetUdpEndSend(xnetudp* pUdp)
 			__xrtNetUdpWakeLifecycle(pUdp);
 		}
 	}
+	__xrtNetUdpOwnershipLeave(pUdp);
 }
 
 
@@ -277,6 +281,8 @@ static __xrt_net_udp_send* __xrtNetUdpCreateSend(
 	pSend->Size = iSize;
 	pSend->Copied = bCopy;
 	pSend->Controlled = pControl != NULL;
+	pSend->PayloadOwnership = bCopy ? XRT_NET_UDP_SEND_COPY : XRT_NET_UDP_SEND_OPAQUE;
+	pSend->Data = NULL; pSend->Release = NULL; pSend->ReleaseContext = NULL; pSend->OwnsExternal = false;
 	if ( pControl != NULL ) {
 		*__xrtNetUdpSendControl(pSend) = *pControl;
 	}
@@ -422,7 +428,7 @@ static bool __xrtNetUdpAttachSend(__xrt_net_udp_send* pSend)
 
 
 /* 在 Worker 上挂入一个发送节点链，并收敛被关闭入口拒绝的节点。 */
-static void __xrtNetUdpAttachSends(__xrt_net_udp_send* pSend)
+static void __xrtNetUdpAttachSendsImpl(__xrt_net_udp_send* pSend)
 {
 	xnetudp* pUdp = pSend->Udp;
 
@@ -447,6 +453,12 @@ static void __xrtNetUdpAttachSends(__xrt_net_udp_send* pSend)
 	__xrtNetUdpDriveWrite(pUdp);
 	__xrtNetUdpTryFinish(pUdp);
 	xrtNetUdpDestroy(pUdp);
+}
+
+static void __xrtNetUdpAttachSends(__xrt_net_udp_send* pSend)
+{
+	xnetudp* pUdp = pSend->Udp; __xrtNetUdpActiveEnter(pUdp);
+	__xrtNetUdpAttachSendsImpl(pSend); __xrtNetUdpActiveLeave(pUdp);
 }
 
 
@@ -490,7 +502,7 @@ static xnetresult __xrtNetUdpSubmitSend(
 		1,
 		XMEMORY_ACQ_REL
 	);
-	if ( !xrtNetEnginePost(
+	if ( !__xrtNetEnginePostRuntime(
 		pUdp->Engine,
 		xrtNetWorkerIndex(pUdp->Worker),
 		__xrtNetUdpQueueSend,
@@ -524,13 +536,14 @@ static xnetresult __xrtNetUdpSend(
 	size_t iSize,
 	xnetreleaseproc pRelease,
 	ptr pContext,
-	bool bCopy,
-	bool bOwnsExternal
+	uint32 iOwnership
 )
 {
 	__xrt_net_udp_send* pSend;
 	xnetaddr Remote;
 	xnetresult Result;
+	bool bCopy = iOwnership == XRT_NET_UDP_SEND_COPY;
+	bool bOwnsExternal = !bCopy;
 
 	if ( (pUdp == NULL) || ((pData == NULL) && (iSize != 0)) ) {
 		__xrtErrorSetInvalidArgument();
@@ -579,6 +592,7 @@ static xnetresult __xrtNetUdpSend(
 	pSend->Release = pRelease;
 	pSend->ReleaseContext = pContext;
 	pSend->OwnsExternal = bOwnsExternal;
+	pSend->PayloadOwnership = iOwnership;
 	if ( bCopy ) {
 		if ( iSize != 0 ) {
 			memcpy(__xrtNetUdpSendCopy(pSend), pData, iSize);
@@ -610,8 +624,7 @@ XRT_API xnetresult xrtNetUdpSendTo(
 		iSize,
 		NULL,
 		NULL,
-		true,
-		false
+		XRT_NET_UDP_SEND_COPY
 	);
 }
 
@@ -728,8 +741,7 @@ XRT_API xnetresult xrtNetUdpSendRefTo(
 		iSize,
 		pRelease,
 		pContext,
-		false,
-		true
+		XRT_NET_UDP_SEND_OPAQUE
 	);
 }
 
@@ -772,8 +784,7 @@ XRT_API xnetresult xrtNetUdpSendTakeTo(
 		iSize,
 		__xrtNetUdpFreeTaken,
 		NULL,
-		false,
-		true
+		XRT_NET_UDP_SEND_TAKE
 	);
 }
 
@@ -811,8 +822,7 @@ XRT_API xnetresult xrtNetUdpSendMsg(
 		iSize,
 		NULL,
 		NULL,
-		true,
-		false
+		XRT_NET_UDP_SEND_COPY
 	);
 }
 
@@ -846,8 +856,7 @@ XRT_API xnetresult xrtNetUdpSendMsgRef(
 		iSize,
 		pRelease,
 		pContext,
-		false,
-		true
+		XRT_NET_UDP_SEND_OPAQUE
 	);
 }
 
@@ -873,8 +882,7 @@ XRT_API xnetresult xrtNetUdpSendMsgTake(
 		iSize,
 		__xrtNetUdpFreeTaken,
 		NULL,
-		false,
-		true
+		XRT_NET_UDP_SEND_TAKE
 	);
 }
 
@@ -962,6 +970,47 @@ XRT_API xnetresult xrtNetUdpSendBatch(
 	__xrtNetUdpEndSend(pUdp);
 	*pAccepted = iAccepted;
 	return Result;
+}
+
+/* Contained send records own one actual UDP reference each. Slots only borrow
+ * their send record; they do not create a second graph node/reference. */
+bool __xrtNetUdpSendsOwnership(const xnetudp* pUdp, xrtownershipvisitor pVisit, ptr pContext)
+{
+	uint64 iCount = 0, iBytes = 0; size_t iSubmitted = 0;
+	const __xrt_net_udp_send* pPrevious = NULL; bool bReadySeen = pUdp->SendReady == NULL;
+	uint64 iExpected = xrtAtomic64Load(&pUdp->QueuedPackets, XMEMORY_ACQUIRE);
+	const __xrt_net_udp_send *pSlow = pUdp->SendHead, *pFast = pSlow;
+	while (pFast && pFast->Next) {
+		pSlow = pSlow->Next; pFast = pFast->Next->Next; if (pSlow == pFast) return false;
+	}
+	for (const __xrt_net_udp_send* p = pUdp->SendHead; p; p = p->Next) {
+		if (++iCount > iExpected || p->Udp != pUdp || p->Previous != pPrevious || p->Size > UINT64_MAX - iBytes) return false;
+		iBytes += p->Size; pPrevious = p;
+		if (p == pUdp->SendReady) bReadySeen = true;
+		if (p->PayloadOwnership == XRT_NET_UDP_SEND_COPY) {
+			if (!p->Copied || p->OwnsExternal || p->Release || p->ReleaseContext ||
+				p->Data != __xrtNetUdpSendCopy((__xrt_net_udp_send*)p)) return false;
+		} else if (p->PayloadOwnership == XRT_NET_UDP_SEND_TAKE) {
+			if (p->Copied || !p->OwnsExternal || p->Release != __xrtNetUdpFreeTaken || p->ReleaseContext || (!p->Data && p->Size)) return false;
+		} else return false;
+		if (p->Submitted) {
+			uintptr_t slot = (uintptr_t)p->Slot, first = (uintptr_t)pUdp->SendSlots;
+			if (!p->Slot || slot < first || (slot - first) % sizeof(*p->Slot) ||
+				(slot - first) / sizeof(*p->Slot) >= pUdp->SendSlotCount || p->Slot->Send != p || !p->Slot->Id) return false;
+			++iSubmitted;
+		} else if (p->Slot) return false;
+		if (pVisit && !pVisit(xrtNetUdpOwnership(pUdp), pContext)) return false;
+	}
+	if (iCount != iExpected || iBytes != xrtAtomic64Load(&pUdp->QueuedBytes, XMEMORY_ACQUIRE) ||
+		pPrevious != pUdp->SendTail || !bReadySeen || iSubmitted != xrtAtomic64Load(&pUdp->ActiveSends, XMEMORY_ACQUIRE)) return false;
+	size_t iSlots = 0;
+	for (uint32 i = 0; i < pUdp->SendSlotCount; ++i) {
+		const __xrt_net_udp_send_slot* s = &pUdp->SendSlots[i];
+		if (s->Udp != pUdp || s->Completion.Data != s || s->Completion.Proc != __xrtNetUdpSendCompletion ||
+			(!s->Send && s->Id)) return false;
+		if (s->Send) { if (s->Send->Slot != s || !s->Send->Submitted || !s->Id) return false; ++iSlots; }
+	}
+	return iSlots == iSubmitted;
 }
 
 #endif

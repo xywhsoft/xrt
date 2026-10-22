@@ -15,6 +15,11 @@
 #define XRT_NET_UDP_CONTROL_LIFECYCLE \
 	(XRT_NET_UDP_CONTROL_CLOSE | XRT_NET_UDP_CONTROL_ABORT)
 #define XRT_NET_UDP_CONTROL_POSTED 0x80000000u
+#define XRT_NET_UDP_OWNERSHIP_READY 0x00000001u
+#define XRT_NET_UDP_OWNERSHIP_CLEARED 0x00000002u
+#define XRT_NET_UDP_SEND_COPY 1u
+#define XRT_NET_UDP_SEND_TAKE 2u
+#define XRT_NET_UDP_SEND_OPAQUE 3u
 
 typedef struct __xrt_net_udp_send __xrt_net_udp_send;
 typedef struct __xrt_net_udp_send_slot __xrt_net_udp_send_slot;
@@ -81,6 +86,7 @@ struct __xrt_net_udp_send {
 	bool OwnsExternal;
 	bool Copied;
 	bool Controlled;
+	uint32 PayloadOwnership;
 	union {
 		uint64 Align;
 		uint8 Data[1];
@@ -200,6 +206,13 @@ struct xnetudperrorpacket {
 struct xnetudp {
 	volatile int32 References;
 	xatomic32 State;
+	__xrt_net_engine_runtime RuntimeOwner;
+	xrt_spinlock OwnershipGate;
+	xatomicptr OwnershipClaim;
+	xatomic32 OwnershipActive, OwnershipState, OwnershipStop;
+	__xrt_net_engine_internal OwnershipCommand;
+	size_t ActiveDepth; /* Worker call frames, never a fabricated owner */
+	bool EngineStorageHeld, SocketExposed;
 	xatomic32 ControlRequests;
 	xatomic32 SendGate;
 	xatomic32 CloseGate;
@@ -280,6 +293,16 @@ struct xnetudp {
 	bool RuntimeHeld;
 	__xrt_net_engine_internal ControlCommand;
 };
+
+extern const xrtownershipops __xrtNetUdpOwnershipOps;
+bool __xrtNetUdpOwnershipEnter(xnetudp*, bool);
+void __xrtNetUdpOwnershipLeave(xnetudp*);
+bool __xrtNetUdpOwnershipStop(xnetudp*);
+void __xrtNetUdpActiveEnter(xnetudp*); /* Worker-only, balanced at frame tail */
+void __xrtNetUdpActiveLeave(xnetudp*);
+void __xrtNetUdpRollbackCreated(xnetudp*);
+bool __xrtNetUdpSendsOwnership(const xnetudp*, xrtownershipvisitor, ptr);
+bool __xrtNetUdpReceivesOwnership(const xnetudp*, xrtownershipvisitor, ptr);
 
 
 

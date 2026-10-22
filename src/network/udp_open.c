@@ -328,6 +328,11 @@ static xnetudp* __xrtNetUdpCreate(
 		return NULL;
 	}
 	pUdp->References = 2;
+	__xrtSpinInit(&pUdp->OwnershipGate);
+	xrtAtomicPtrInit(&pUdp->OwnershipClaim, NULL);
+	xrtAtomic32Init(&pUdp->OwnershipActive, 1);
+	xrtAtomic32Init(&pUdp->OwnershipState, 0);
+	xrtAtomic32Init(&pUdp->OwnershipStop, 0);
 	xrtAtomic32Init(&pUdp->State, XNET_UDP_OPENING);
 	xrtAtomic32Init(
 		&pUdp->ControlRequests,
@@ -442,6 +447,11 @@ static xnetudp* __xrtNetUdpCreate(
 	if ( bNeedReceiveLock ) {
 		__xrtSpinInit(&pUdp->ReceiveLock);
 		pUdp->ReceiveLockReady = true;
+	}
+	if (!__xrtNetEngineRuntimeAdopt(pEngine, &pUdp->RuntimeOwner, pUdp, xrtNetUdpRuntimeOwnershipV1Get())) {
+		pUdp->RuntimeHeld = false; pUdp->Socket = NULL;
+		xrtAtomic32Store(&pUdp->OwnershipActive, 0, XMEMORY_RELEASE);
+		xrtNetUdpDestroy(pUdp); xrtNetUdpDestroy(pUdp); return NULL;
 	}
 	return pUdp;
 }
@@ -595,11 +605,12 @@ XRT_API xnetudp* xrtNetUdpOpen(
 		);
 		__xrtNetUdpClosePreserveError(Socket);
 		pUdp->Socket = NULL;
-		xrtNetUdpDestroy(pUdp);
+		__xrtNetUdpRollbackCreated(pUdp);
 		xrtNetUdpDestroy(pUdp);
 		xrtNetUdpDestroy(pUdp);
 		return NULL;
 	}
+	__xrtNetUdpOwnershipLeave(pUdp);
 	return pUdp;
 }
 
@@ -657,7 +668,7 @@ static bool __xrtNetUdpWorkerSocket(
 	cstr sOperation
 )
 {
-	if ( (pUdp == NULL) || !xrtNetWorkerIsCurrent(pUdp->Worker) ||
+	if ( (pUdp == NULL) || xrtNetUdpState(pUdp) == XNET_UDP_CLOSED || !xrtNetWorkerIsCurrent(pUdp->Worker) ||
 		 (pUdp->Socket == NULL) ||
 		 (xrtNetUdpState(pUdp) == XNET_UDP_CLOSED) ) {
 		__xrtNetUdpSetError(
@@ -674,7 +685,7 @@ static bool __xrtNetUdpWorkerSocket(
 
 
 /* 加入一个多播组。 */
-XRT_API bool xrtNetUdpJoin(
+static bool __xrtNetUdpJoinImpl(
 	xnetudp* pUdp,
 	const xnetaddr* pGroup,
 	const xnetaddr* pInterface
@@ -691,7 +702,7 @@ XRT_API bool xrtNetUdpJoin(
 
 
 /* 离开一个多播组。 */
-XRT_API bool xrtNetUdpLeave(
+static bool __xrtNetUdpLeaveImpl(
 	xnetudp* pUdp,
 	const xnetaddr* pGroup,
 	const xnetaddr* pInterface
@@ -708,7 +719,7 @@ XRT_API bool xrtNetUdpLeave(
 
 
 /* 设置多播回环。 */
-XRT_API bool xrtNetUdpMulticastLoop(xnetudp* pUdp, bool bEnabled)
+static bool __xrtNetUdpMulticastLoopImpl(xnetudp* pUdp, bool bEnabled)
 {
 	return __xrtNetUdpWorkerSocket(pUdp, "set-udp-multicast-loop") &&
 		xrtNetSocketMulticastLoop(pUdp->Socket, bEnabled);
@@ -717,7 +728,7 @@ XRT_API bool xrtNetUdpMulticastLoop(xnetudp* pUdp, bool bEnabled)
 
 
 /* 设置多播跳数。 */
-XRT_API bool xrtNetUdpMulticastHopLimit(
+static bool __xrtNetUdpMulticastHopLimitImpl(
 	xnetudp* pUdp,
 	int iHopLimit
 )
@@ -731,7 +742,7 @@ XRT_API bool xrtNetUdpMulticastHopLimit(
 
 
 /* 选择多播发送接口。 */
-XRT_API bool xrtNetUdpMulticastInterface(
+static bool __xrtNetUdpMulticastInterfaceImpl(
 	xnetudp* pUdp,
 	const xnetaddr* pInterface
 )
@@ -821,20 +832,21 @@ XRT_API xnetworker* xrtNetUdpWorker(const xnetudp* pUdp)
 
 
 /* 只在 UDP Worker 上返回借用 Socket。 */
-XRT_API xnetsocket xrtNetUdpSocket(xnetudp* pUdp)
+static xnetsocket __xrtNetUdpSocketImpl(xnetudp* pUdp)
 {
 	if ( !__xrtNetUdpWorkerSocket(pUdp, "get-udp-socket") ) {
 		return NULL;
 	}
+	pUdp->SocketExposed = true;
 	return pUdp->Socket;
 }
 
 
 
 /* 只允许在 UDP Worker 上替换用户数据。 */
-XRT_API bool xrtNetUdpSetData(xnetudp* pUdp, ptr pData)
+static bool __xrtNetUdpSetDataImpl(xnetudp* pUdp, ptr pData)
 {
-	if ( (pUdp == NULL) || !xrtNetWorkerIsCurrent(pUdp->Worker) ) {
+	if ( (pUdp == NULL) || xrtNetUdpState(pUdp) == XNET_UDP_CLOSED || !xrtNetWorkerIsCurrent(pUdp->Worker) ) {
 		__xrtNetUdpSetError(
 			XERR_STATE,
 			XNET_ERROR_UDP_CONFIG,
@@ -1075,5 +1087,40 @@ XRT_API bool xrtNetUdpStats(
 	return true;
 }
 
+XRT_API bool xrtNetUdpJoin(xnetudp* u, const xnetaddr* group, const xnetaddr* iface)
+{
+	if (!__xrtNetUdpOwnershipEnter(u, true)) return false;
+	bool b = __xrtNetUdpJoinImpl(u, group, iface); __xrtNetUdpOwnershipLeave(u); return b;
+}
+XRT_API bool xrtNetUdpLeave(xnetudp* u, const xnetaddr* group, const xnetaddr* iface)
+{
+	if (!__xrtNetUdpOwnershipEnter(u, true)) return false;
+	bool b = __xrtNetUdpLeaveImpl(u, group, iface); __xrtNetUdpOwnershipLeave(u); return b;
+}
+XRT_API bool xrtNetUdpMulticastLoop(xnetudp* u, bool enabled)
+{
+	if (!__xrtNetUdpOwnershipEnter(u, true)) return false;
+	bool b = __xrtNetUdpMulticastLoopImpl(u, enabled); __xrtNetUdpOwnershipLeave(u); return b;
+}
+XRT_API bool xrtNetUdpMulticastHopLimit(xnetudp* u, int hops)
+{
+	if (!__xrtNetUdpOwnershipEnter(u, true)) return false;
+	bool b = __xrtNetUdpMulticastHopLimitImpl(u, hops); __xrtNetUdpOwnershipLeave(u); return b;
+}
+XRT_API bool xrtNetUdpMulticastInterface(xnetudp* u, const xnetaddr* address)
+{
+	if (!__xrtNetUdpOwnershipEnter(u, true)) return false;
+	bool b = __xrtNetUdpMulticastInterfaceImpl(u, address); __xrtNetUdpOwnershipLeave(u); return b;
+}
+XRT_API xnetsocket xrtNetUdpSocket(xnetudp* u)
+{
+	if (!__xrtNetUdpOwnershipEnter(u, true)) return NULL;
+	xnetsocket s = __xrtNetUdpSocketImpl(u); __xrtNetUdpOwnershipLeave(u); return s;
+}
+XRT_API bool xrtNetUdpSetData(xnetudp* u, ptr data)
+{
+	if (!__xrtNetUdpOwnershipEnter(u, true)) return false;
+	bool b = __xrtNetUdpSetDataImpl(u, data); __xrtNetUdpOwnershipLeave(u); return b;
+}
 
 #endif

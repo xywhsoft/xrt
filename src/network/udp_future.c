@@ -905,7 +905,7 @@ static void __xrtNetUdpWaitDiscard(
 
 
 /* 建立 Promise、取消监听和 UDP 等待节点。 */
-static xfuture* __xrtNetUdpWaitCreate(
+static xfuture* __xrtNetUdpWaitCreateImpl(
 	xnetudp* pUdp,
 	xnetudpwait Wait,
 	bool bReceive,
@@ -1064,6 +1064,14 @@ static xfuture* __xrtNetUdpWaitCreate(
 }
 
 
+
+static xfuture* __xrtNetUdpWaitCreate(xnetudp* pUdp, xnetudpwait Wait,
+    bool bReceive, bool bWritable, size_t iValue)
+{
+    if (!__xrtNetUdpOwnershipEnter(pUdp, true)) return NULL;
+    xfuture* pFuture = __xrtNetUdpWaitCreateImpl(pUdp, Wait, bReceive, bWritable, iValue);
+    __xrtNetUdpOwnershipLeave(pUdp); return pFuture;
+}
 
 /* 建立一个统一 UDP 条件 Future。 */
 XRT_API xfuture* xrtNetUdpWaitAsync(xnetudp* pUdp, xnetudpwait Wait)

@@ -3413,6 +3413,40 @@ bool xrtNetUdpSetData(xnetudp* pUdp, ptr pData)
 ```
 
 
+## 基础 UDP 拥有图与关闭尾部（2026-10-22）
+
+新增 `xrtNetUdpOwnership`、`xrtNetUdpOwnershipQuiescenceV1Get`、
+`xrtNetUdpOwnershipAdapterV1` 和 `xrtNetUdpRuntimeOwnershipV1Get`。Engine 的实际
+RuntimeOwner 槽枚举运行时引用；UDP 枚举真实 Engine／池租约／包队列／错误包／
+发送记录与不可变诊断，不为唯一拥有的记录、completion 槽或调用借用伪造引用数。
+
+只在统一 Freeze 且 Engine／UDP 已静止时认证。复制和接管发送由各自构造入口
+设置来源标签，遍历时核对实际字段；不由外部释放回调反推拥有含义。未知事件、
+Data、已导出的裸 socket，以及尚无注册策略的 Future 等待者明确拒绝认证。
+基础 V1 不冒充 UDP Future 的完整拥有图；那部分仍须独立完成真实等待节点协议。
+
+调用守卫和 Worker 帧共同保护关闭尾部。CLOSED 发布前释放 operational LiveObjects
+占用，转为一个真实的物理存储持有，使原有的“收到关闭后可销毁 Engine”合同不变。
+最后一个原生调用／帧在同一短元数据门内完成计数及运行时解绑；必要时能在 Worker
+已退役后完成，不向失效 Worker 补发命令。这个存储引用复用 Engine 原有池保活
+底座，不重新分配 Engine，也不把 Active 标记算作强引用。
+
+Claim 隔离新的发送、取包和 Future 创建；Prepare 在 Freeze 外推进真实 Worker
+中止，保留 runtime 槽到异步取消完全收敛；Ready 后才能 Clear。Prepare／BUSY 不
+伪造终态或丢弃所有者，生命周期投递无分配，未实现的 Future 图不会被标成已完成。
+
+`tools/check_net_udp_ownership.py` 验证整图闭合、真实多轮准备、普通关闭、Engine
+销毁后仍在进行的调用尾部、Worker 水位回调重入、复制／Take／opaque 发送、16 个
+构造预算，以及错误队列的纯内存拥有边。后者使用真实未发布构造器／队列，不发送
+错误数据报、不启动错误接收。IOCP 缺少 DGRAM_ERROR 时保留 checked Unsupported。
+漏 Runtime 策略、漏普通包边、漏错误包边均由独立拒绝对照证明，引用链含环也拒绝。
+
+证据根 `F:/xlang-validation/five-groups-20261022/p3-udp-owner`。双端合计 86 个
+检查阶段，含上一批结果对象回归、GCC／TCC O0／O2、Linux ASan／UBSan、纯基础
+模块产品及六个受影响 TU 的独立严格编译。只有离线合同／OOM 和自建字面量回环
+正常通信，不运行 DNS、外网、ICMP／错误队列探测、扫描、畸形协议或网络安全专项。
+语言固定头、UDP 标准库／Cgen 迁移及发布库仍未更新，不能以本节代替完整接入。
+
 ## 示例与发布门禁
 
 ### 数据包／批次拥有图前置（2026-10-22）

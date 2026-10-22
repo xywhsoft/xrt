@@ -64,9 +64,10 @@ static void __xrtNetEngineRelease(xnetengine* pEngine)
 	}
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 }
-/* A pool's first outstanding block lease retains this actual shell owner;
- * its last completed release returns it. This is not a LiveObjects estimate. */
-bool __xrtNetEnginePoolRetain(xnetengine* pEngine)
+/* Physical storage ownership, separate from operational LiveObjects. Used
+ * by outstanding pool leases and closed transport call tails; releasing the
+ * creator may retire resources while these real shell references remain. */
+bool __xrtNetEngineStorageRetain(xnetengine* pEngine)
 {
 	xrtownershipscope Mutation = {0};
 	if (!xrtOwnershipMutationBegin(&Mutation)) return false;
@@ -74,7 +75,9 @@ bool __xrtNetEnginePoolRetain(xnetengine* pEngine)
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	return bHeld;
 }
-void __xrtNetEnginePoolRelease(xnetengine* pEngine) { __xrtNetEngineRelease(pEngine); }
+void __xrtNetEngineStorageRelease(xnetengine* pEngine) { __xrtNetEngineRelease(pEngine); }
+bool __xrtNetEnginePoolRetain(xnetengine* pEngine) { return __xrtNetEngineStorageRetain(pEngine); }
+void __xrtNetEnginePoolRelease(xnetengine* pEngine) { __xrtNetEngineStorageRelease(pEngine); }
 static void __xrtNetEnginePark(xnetworker* pWorker, bool bParked)
 {
 	xrtownershipscope Mutation = {0};

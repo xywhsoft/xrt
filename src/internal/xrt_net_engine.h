@@ -217,6 +217,10 @@ bool __xrtNetEngineRuntimeTimer(xnetworker*, uint64, const xnetruntimeownershipv
 
 /* 高层对象实际持有 Engine 强引用，同时阻止带活动对象的停止和销毁。 */
 bool __xrtNetEngineObjectHold(xnetengine* pEngine);
+/* Physical shell/Worker-array ownership only; does not keep operational
+ * resources alive or prevent a checked Stop/Destroy from joining workers. */
+bool __xrtNetEngineStorageRetain(xnetengine* pEngine);
+void __xrtNetEngineStorageRelease(xnetengine* pEngine);
 
 
 
