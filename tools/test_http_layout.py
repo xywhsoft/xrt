@@ -6,6 +6,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build
+import test_protocol_fuzz as protocol_fuzz
 from xrt_manifest import expand_manifest_paths, load_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +32,20 @@ class HttpLayoutTests(unittest.TestCase):
         self.assertFalse(any(f.startswith(("XRT_FEATURE_NET", "XRT_FEATURE_TLS")) for f in features))
         self.assertNotIn("XHTTP_FEATURE_HTTP_CLIENT", features)
         self.assertNotIn("XHTTP_FEATURE_HTTP_SERVER", features)
+
+    def test_http_fuzz_closures_follow_product_boundaries(self):
+        for target, product in (
+            ("auth", "xhttp"), ("route", "xhttp-server"),
+            ("router", "xhttp-server"), ("sse", "xhttp"),
+        ):
+            with self.subTest(target=target):
+                config = protocol_fuzz.TARGETS[target]
+                sources, features, _, includes = protocol_fuzz._closure(
+                    config["module"], config["manifest"],
+                )
+                self.assertTrue(features)
+                self.assertIn(f"extlibs/{product}/include", includes)
+                self.assertTrue(any(path.startswith(f"extlibs/{product}/src/") for path in sources))
 
     def test_client_and_server_do_not_import_each_other(self):
         for product, suite, other in (

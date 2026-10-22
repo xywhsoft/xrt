@@ -38,6 +38,8 @@ class ProtocolFuzzToolTest(unittest.TestCase):
 				config["module"], config["manifest"],
 			)
 			self.assertIn("extlibs/xhttp/include", include_dirs)
+			if name in ("route", "router"):
+				self.assertIn("extlibs/xhttp-server/include", include_dirs)
 
 
 	def test_sanitizer_keeps_alignment_checks(self) -> None:
