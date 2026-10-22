@@ -21,10 +21,6 @@ static inline double exampleTimerLimit(int64 Timeout)
 {
     return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
 }
-static inline bool exampleTimerExpired(double Limit)
-{
-    return xrtTimer() >= Limit;
-}
 static inline int64 exampleTimerRemaining(double Limit)
 {
     double Ms;
