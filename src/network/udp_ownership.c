@@ -78,13 +78,8 @@ static bool __xrtNetUdpQueues(const xnetudp* pUdp, xrtownershipvisitor pVisit, p
 }
 static bool __xrtNetUdpContents(const xnetudp* pUdp, xrtownershipvisitor pVisit, ptr pContext)
 {
-	/* Pending UDP Future nodes still need their own real RC/Watch protocol.
- * Reject them explicitly; never certify opaque callback memory as a leaf. */
 	#if defined(XRT_FEATURE_NET_UDP_FUTURE)
-		if (pUdp->WaitHead || pUdp->WaitTail || pUdp->ReceiveFutureHead || pUdp->ReceiveFutureTail || pUdp->WaitPosted ||
-			pUdp->ReceiveReadyWaiters || xrtAtomic64Load(&pUdp->ReceiveWaiters, XMEMORY_ACQUIRE) ||
-			(pUdp->Errors && (pUdp->Errors->WaitHead || pUdp->Errors->WaitTail || pUdp->Errors->ReadyWaiters ||
-				xrtAtomic64Load(&pUdp->Errors->ErrorWaiters, XMEMORY_ACQUIRE)))) return false;
+		if (!__xrtNetUdpWaitOwnershipWalk(pUdp, pVisit, pContext)) return false;
 	#endif
 	return __xrtNetUdpQueues(pUdp, pVisit, pContext) && __xrtNetUdpReceivesOwnership(pUdp, pVisit, pContext) &&
 		__xrtNetUdpSendsOwnership(pUdp, pVisit, pContext);

@@ -38995,6 +38995,18 @@ XRT_API bool xrtNetUdpStats(const xnetudp* pUdp, xnetudpstats* pStats);
 
 
 #if defined(XRT_FEATURE_NET_UDP_FUTURE)
+/* Exact native policies for the Future producer, owned cancel Watch and three
+ * result variants. Admit their actual identity, not a copy of these records.
+ * Pending producer preparation is completed by normal UDP source shutdown. */
+XRT_API const xfutureproducerownershipv1* xrtNetUdpFutureProducerPolicyV1Get(void);
+XRT_API const xcancelwatchownershipv1* xrtNetUdpFutureCancelPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtNetUdpFuturePacketPayloadPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtNetUdpFutureErrorPayloadPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtNetUdpFutureBatchPayloadPolicyV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtNetUdpFutureOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtNetUdpFutureOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+
 /* 异步等待 UDP 条件；成功、失败、取消和关闭映射到统一 Future 终态。 */
 XRT_API xfuture* xrtNetUdpWaitAsync(
 	xnetudp* pUdp,

@@ -2229,7 +2229,7 @@ void __xrtNetUdpDriveWrite(xnetudp* pUdp)
 	if ( pUdp->WriteDriving ) {
 		return;
 	}
-	if ( xrtRefRetain(&pUdp->References) < 0 ) {
+	if ( xrtNetUdpRef(pUdp) == NULL ) {
 		return;
 	}
 	pUdp->WriteDriving = true;
@@ -2313,9 +2313,6 @@ static void __xrtNetUdpCompletionImpl(
 	xnetudp* pUdp = (xnetudp*)pData;
 
 	(void)pWorker;
-	if ( xrtRefRetain(&pUdp->References) < 0 ) {
-		return;
-	}
 	if ( pEvent->Type == XNET_PORT_EVENT_READY ) {
 		pUdp->WatchPending = false;
 		pUdp->WatchEvents = 0;
@@ -2371,7 +2368,6 @@ static void __xrtNetUdpCompletionImpl(
 			__xrtNetUdpFail(pUdp, true);
 		}
 	}
-	xrtNetUdpDestroy(pUdp);
 }
 
 
@@ -2652,7 +2648,6 @@ static void __xrtNetUdpControlImpl(
 				) ) {
 					__xrtNetUdpWakeLifecycle(pUdp);
 				}
-				xrtNetUdpDestroy(pUdp);
 				return;
 			}
 			continue;
@@ -2679,7 +2674,6 @@ static void __xrtNetUdpControlImpl(
 			}
 		}
 	}
-	xrtNetUdpDestroy(pUdp);
 }
 
 
@@ -2841,13 +2835,19 @@ void __xrtNetUdpSendCompletion(xnetworker* w, const xnetportevent* e, ptr data)
 }
 void __xrtNetUdpCompletion(xnetworker* w, const xnetportevent* e, ptr data)
 {
-	xnetudp* u = data; __xrtNetUdpActiveEnter(u);
+	xnetudp* u = data;
+	if (!xrtNetUdpRef(u)) return;
+	__xrtNetUdpActiveEnter(u);
 	__xrtNetUdpCompletionImpl(w, e, data); __xrtNetUdpActiveLeave(u);
+	xrtNetUdpDestroy(u);
 }
 void __xrtNetUdpControl(xnetworker* w, ptr data)
 {
 	xnetudp* u = data; __xrtNetUdpActiveEnter(u);
 	__xrtNetUdpControlImpl(w, data); __xrtNetUdpActiveLeave(u);
+	/* The posted command owns this exact reference through the frame tail,
+	 * even when an earlier completion already detached the runtime slot. */
+	xrtNetUdpDestroy(u);
 }
 
 #endif

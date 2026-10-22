@@ -1,7 +1,7 @@
 """Native base UDP graphs, checked retirement and stable closed tails.
 Only offline ownership/OOM and self-owned literal loopback normal traffic.
 No external endpoints, DNS, ICMP/error-queue probes or security tests.
-Pending Future graph registration remains explicitly unsupported by base V1.
+Pending Future nodes are enumerated; their policies require independent admission.
 """
 from pathlib import Path
 import argparse,hashlib,json,os,shutil,subprocess

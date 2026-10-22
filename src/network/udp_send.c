@@ -432,16 +432,6 @@ static void __xrtNetUdpAttachSendsImpl(__xrt_net_udp_send* pSend)
 {
 	xnetudp* pUdp = pSend->Udp;
 
-	if ( xrtRefRetain(&pUdp->References) < 0 ) {
-		while ( pSend != NULL ) {
-			__xrt_net_udp_send* pNext = pSend->Next;
-
-			__xrtNetUdpDiscardSend(pSend, true);
-			pSend = pNext;
-		}
-		return;
-	}
-
 	while ( pSend != NULL ) {
 		__xrt_net_udp_send* pNext = pSend->Next;
 
@@ -452,13 +442,19 @@ static void __xrtNetUdpAttachSendsImpl(__xrt_net_udp_send* pSend)
 	}
 	__xrtNetUdpDriveWrite(pUdp);
 	__xrtNetUdpTryFinish(pUdp);
-	xrtNetUdpDestroy(pUdp);
 }
 
 static void __xrtNetUdpAttachSends(__xrt_net_udp_send* pSend)
 {
-	xnetudp* pUdp = pSend->Udp; __xrtNetUdpActiveEnter(pUdp);
+	xnetudp* pUdp = pSend->Udp;
+	if (!xrtNetUdpRef(pUdp)) {
+		while (pSend) { __xrt_net_udp_send* pNext = pSend->Next;
+			__xrtNetUdpDiscardSend(pSend, true); pSend = pNext; }
+		return;
+	}
+	__xrtNetUdpActiveEnter(pUdp);
 	__xrtNetUdpAttachSendsImpl(pSend); __xrtNetUdpActiveLeave(pUdp);
+	xrtNetUdpDestroy(pUdp);
 }
 
 

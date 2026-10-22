@@ -382,6 +382,7 @@ void __xrtNetUdpControl(xnetworker* pWorker, ptr pData);
 
 
 #if defined(XRT_FEATURE_NET_UDP_FUTURE)
+bool __xrtNetUdpWaitOwnershipWalk(const xnetudp*, xrtownershipvisitor, ptr);
 /* 调用方持有 ReceiveLock 时，把排队数据包配对给拉取 Future。 */
 __xrt_net_udp_wait* __xrtNetUdpFuturePairReceiveLocked(xnetudp* pUdp);
 

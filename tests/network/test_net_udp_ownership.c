@@ -86,8 +86,8 @@ static void run(xnetportbackend backend,bool retire,bool borrow,bool missing)
     xrtownershipscope pendingFreeze={0};double pendingUntil=__xrtWaitAfter(WAIT);
     for(;;){freeze(&pendingFreeze);if(!busy(&g))break;
         CHECK(xrtOwnershipScopeEnd(&pendingFreeze)&&!__xrtWaitExpired(pendingUntil));xrtThreadYield();}
-    const xrtownershippreparationv1* unsupported=NULL;
-    CHECK(!xrtNetUdpOwnershipAdapterV1(xrtNetUdpOwnership(g.a),&unsupported));++rejections;
+    const xrtownershippreparationv1* supported=NULL;
+    CHECK(xrtNetUdpOwnershipAdapterV1(xrtNetUdpOwnership(g.a),&supported));
     CHECK(xrtOwnershipScopeEnd(&pendingFreeze));CHECK(xrtFutureCancel(pending));
     CHECK(xrtFutureWaitFor(pending,WAIT)==XWAIT_OK&&xrtFutureState(pending)==XFUTURE_CANCELLED);xrtFutureDestroy(pending);
     #endif

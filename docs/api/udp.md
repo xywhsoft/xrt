@@ -3422,8 +3422,9 @@ RuntimeOwner 槽枚举运行时引用；UDP 枚举真实 Engine／池租约／�
 
 只在统一 Freeze 且 Engine／UDP 已静止时认证。复制和接管发送由各自构造入口
 设置来源标签，遍历时核对实际字段；不由外部释放回调反推拥有含义。未知事件、
-Data、已导出的裸 socket，以及尚无注册策略的 Future 等待者明确拒绝认证。
-基础 V1 不冒充 UDP Future 的完整拥有图；那部分仍须独立完成真实等待节点协议。
+Data 和已导出的裸 socket 明确拒绝认证。UDP Future 的等待节点现在具有独立的
+真实 RC／生产者／取消监听合同；来源枚举其实际链表槽，节点及 Future 的子图
+仍必须通过下述精确策略独立准入，不能因基础 UDP 准入而默认允许未知回调。
 
 调用守卫和 Worker 帧共同保护关闭尾部。CLOSED 发布前释放 operational LiveObjects
 占用，转为一个真实的物理存储持有，使原有的“收到关闭后可销毁 Engine”合同不变。
@@ -3433,7 +3434,7 @@ Data、已导出的裸 socket，以及尚无注册策略的 Future 等待者明�
 
 Claim 隔离新的发送、取包和 Future 创建；Prepare 在 Freeze 外推进真实 Worker
 中止，保留 runtime 槽到异步取消完全收敛；Ready 后才能 Clear。Prepare／BUSY 不
-伪造终态或丢弃所有者，生命周期投递无分配，未实现的 Future 图不会被标成已完成。
+伪造终态或丢弃所有者，生命周期投递无分配。
 
 `tools/check_net_udp_ownership.py` 验证整图闭合、真实多轮准备、普通关闭、Engine
 销毁后仍在进行的调用尾部、Worker 水位回调重入、复制／Take／opaque 发送、16 个
@@ -3446,6 +3447,41 @@ Claim 隔离新的发送、取包和 Future 创建；Prepare 在 Freeze 外推�
 模块产品及六个受影响 TU 的独立严格编译。只有离线合同／OOM 和自建字面量回环
 正常通信，不运行 DNS、外网、ICMP／错误队列探测、扫描、畸形协议或网络安全专项。
 语言固定头、UDP 标准库／Cgen 迁移及发布库仍未更新，不能以本节代替完整接入。
+
+## UDP Future 的原生拥有图
+
+`xrtNetUdpFutureProducerPolicyV1Get`、`CancelPolicyV1Get` 和 Packet／Error／Batch
+三个 `PayloadPolicyV1Get` 公开固定策略身份；配合 Future V4、Cancel V2、Watch V1
+的准入清单使用，不能拿结构体内容相同的策略副本代替。等待激活由 UDP 来源链、
+Promise 生产者和 Watch.Data 各拥有一个真实引用。节点拥有 UDP、缓存 Engine
+租约、Promise、Watch，以及实际存在的结果槽；Next／FinishNext 仅为结构链接，
+Active 只为调用借用，均不伪造引用。批量接收预分配的空 Batch 也必须枚举。
+
+`xrtNetUdpFutureOwnershipQuiescenceV1Get` 与 `OwnershipAdapterV1` 只认证已经发布、
+原生静止的等待者；未知回调、正在发布／执行／完成的节点不冒充可收集叶子。
+Prepare 等待来源的真实关闭及终态通知，不提前关闭 Future，也不在 Drop 中取消
+已受理工作。取消仅竞争摘除当前等待，仍保留未消费的数据包及 UDP 本身。
+
+唯一摘链胜者持有原来源槽直到完成。Unwatch 同步退出后才移除 UDP 槽；结果经
+精确 owned payload 策略交付，拒收时释放本地结果。Done 发布终结空槽，最后一个
+实际拥有者才回收节点。正常 Worker 接收热路径仍回收至原小节点缓存；外线程完成／
+取消及关闭来源在发布终态前先分离缓存的 operational Engine 租约，节点本身由
+真实拥有者继续保活，避免“Future 已完成、Engine 却仍被空壳占用”的竞态。
+热路径完成后若仅剩收集 pin，也立即分离缓存租约。
+等待节点仍保持 128 字节以内，不为等待新增线程或协程栈。
+
+控制命令、readiness 回调及发送挂接的既有引用贯穿整个 Worker 帧尾；尤其是 runtime
+已经解绑后到达的关闭命令，不能在自身活动帧内释放最后引用。终态 Notify 和晚建
+Future 不再解引用已经退役的 Worker。
+
+专项 `tools/check_net_udp_future_ownership.py` 使用明确夹具允许清单验证精确整图、
+外部根保活、多种 Prepare／Finish／Drop 顺序、三个竞争 pin 释放、36 个构造预算、
+取消／接收／关闭竞态、拒收清理、三类拥有结果、模式冲突及 Engine 销毁后的入口。
+错误包和错误等待只通过真实未发布构造器及内存队列验证；未发布 START 请求仍
+被整图认证拒绝，不制造启动状态，不执行 OS 错误接收或错误数据报。
+不运行含错误队列通信的旧通用 UDP Future 夹具，不运行外网或网络安全专项。
+证据根为 `F:/xlang-validation/five-groups-20261022/p3-udp-future`。
+这只是原生前置；语言驻留 UDP、完整公开面、固定快照与发布验收仍待迁移。
 
 ## 示例与发布门禁
 
