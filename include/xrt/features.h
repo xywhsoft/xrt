@@ -1564,6 +1564,22 @@
 #endif
 #endif
 
+/* net_file_future 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_FILE_FUTURE)
+#ifndef XRT_FEATURE_NET_FILE_FUTURE
+#define XRT_FEATURE_NET_FILE_FUTURE
+#endif
+#ifndef XRT_MODULE_NET_FILE
+#define XRT_MODULE_NET_FILE
+#endif
+#ifndef XRT_MODULE_FUTURE_BRIDGE
+#define XRT_MODULE_FUTURE_BRIDGE
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
 /* net_file 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_FILE)
 #ifndef XRT_FEATURE_NET_FILE

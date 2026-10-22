@@ -9197,7 +9197,7 @@
 			"public_headers": [
 				"include/xrt/net_file.h"
 			],
-			"internal_headers": [],
+			"internal_headers": ["src/internal/xrt_net_file.h"],
 			"sources": [
 				"src/network/file.c"
 			],
@@ -9213,6 +9213,19 @@
 			"docs": [
 				"docs/api/net-file.md"
 			]
+		},
+		{
+			"name": "net_file_future",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_NET_FILE_FUTURE",
+			"depends": ["net_file", "future_bridge", "buffer"],
+			"public_headers": ["include/xrt/net_file_future.h"],
+			"internal_headers": [],
+			"sources": ["src/network/file_future.c"],
+			"tests": ["tests/network/test_net_file_future.c"],
+			"single_tests": [],
+			"examples": [],
+			"docs": ["docs/api/net-file.md"]
 		},
 		{
 			"name": "task_net",

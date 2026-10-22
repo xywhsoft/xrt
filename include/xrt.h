@@ -70,6 +70,7 @@
 #include <xrt/process.h>
 #include <xrt/net.h>
 #include <xrt/net_file.h>
+#include <xrt/net_file_future.h>
 #include <xrt/task_net.h>
 #include <xrt/net_frame.h>
 #include <xrt/net_interface.h>
