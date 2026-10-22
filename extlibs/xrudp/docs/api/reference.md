@@ -385,9 +385,10 @@
 - `xrtRudpMessageRestart`
 - `xrtRudpMessageState`
 
-### 常量与宏 (1)
+### 常量与宏 (2)
 
 - `XRUDP_FEATURE_RUDP_MESSAGE`
+- `XRUDP_FEATURE_RUDP_TRANSMIT`
 
 ### 类型 (2)
 
@@ -666,9 +667,8 @@
 - `xrtRudpTransmitState`
 - `xrtRudpTransmitWrite`
 
-### 常量与宏 (4)
+### 常量与宏 (3)
 
-- `XRUDP_FEATURE_RUDP_TRANSMIT`
 - `XRUDP_TRANSMIT_CAPACITY_DEFAULT`
 - `XRUDP_TRANSMIT_CAPACITY_MAX`
 - `XRUDP_TRANSMIT_CAPACITY_MIN`
