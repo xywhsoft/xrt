@@ -9281,7 +9281,8 @@
 			"internal_headers": [],
 			"sources": [],
 			"tests": [
-				"tests/network/test_task_net_oom.c"
+				"tests/network/test_task_net_oom.c",
+				"tests/network/test_task_net_owned.c"
 			],
 			"single_tests": [],
 			"examples": [],
