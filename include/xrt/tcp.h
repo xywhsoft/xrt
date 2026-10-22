@@ -8,6 +8,7 @@
 #endif
 
 #if defined(XRT_FEATURE_NET_TCP_FUTURE) || \
+	defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON) || \
 	defined(XRT_FEATURE_NET_TCP_DIAL_FUTURE) || \
 	defined(XRT_FEATURE_NET_TCP_SYNC) || \
 	defined(XRT_FEATURE_NET_TCP_DIAL_SYNC)
@@ -36,6 +37,11 @@
 #if defined(XRT_FEATURE_NET_TCP_DIAL) && \
 	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_NET_RESOLVER))
 	#error "XRT TCP Dial support requires TCP and Resolver support"
+#endif
+
+#if defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON) && \
+	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FUTURE_BRIDGE))
+	#error "XRT Dial Future common support requires TCP and Future bridge support"
 #endif
 
 #if defined(XRT_FEATURE_NET_TCP_DIAL_FUTURE) && \
