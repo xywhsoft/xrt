@@ -1206,7 +1206,7 @@ static void test_lifecycle_hooks(void)
     }
 
 cleanup:
-    xrtFree(tState.sBodySeen);
+    xllm__free(tState.sBodySeen);
     xllmClientDestroy(pClient);
     test_server_stop(&tServerCtx);
 }
@@ -1373,11 +1373,14 @@ static void test_tls_serve_one(test_tls_server_ctx* pCtx, xtlsstream* pStream)
             xrtFutureWaitFor(pFuture, INT64_C(300)) : XWAIT_ERROR;
         xnetbytes* pBytes = ( eWait == XWAIT_OK ) ? (xnetbytes*)xrtFutureValue(pFuture) : NULL;
         xbytesview tView = pBytes ? xrtNetBytesView(pBytes) : (xbytesview){0};
-        if ( pBytes ) xrtNetBytesDestroy(pBytes);
+        /* FutureValue borrows the bytes. Copy their view while the Future
+         * still owns the result; destroying it releases the bytes once. */
+        bool bReceived = pBytes != NULL;
+        bool bAppended = !tView.Size || xllm__buf_append(&tIn, tView.Data, tView.Size);
         if ( pFuture ) xrtFutureDestroy(pFuture);
-        if ( !pBytes ) { ++iQuiet; continue; }
+        if ( !bReceived ) { ++iQuiet; continue; }
         iQuiet = 0u;
-        if ( tView.Size && !xllm__buf_append(&tIn, tView.Data, tView.Size) ) break;
+        if ( !bAppended ) break;
     }
     if ( tIn.iLen >= 4u && memcmp(tIn.pData, "POST", 4u) == 0 ) {
         ++pCtx->iRequests;

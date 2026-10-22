@@ -5,7 +5,7 @@ title: xhttp easy：一行请求的完整力量
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: GetSync 一行的背后没有第二套实现——便利层如何透明继承运行时的超时、缓存、TLS 与错误链。
-api: xhttp-http_client, xhttp-http_client_easy, net
+api: xhttp-http_client, xhttp-client-http_client_easy, net
 ---
 
 > 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。

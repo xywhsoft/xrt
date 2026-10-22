@@ -2375,7 +2375,7 @@
 			"sources": ["src/hash/crc32.c"],
 			"tests": ["tests/hash/test_crc32.c"],
 			"single_tests": ["tests/single/test_single_crc32.c"],
-			"examples": ["examples/hash/crc32.c"],
+			"examples": ["examples/hash/crc32/main.c"],
 			"docs": ["docs/api/crc32.md"]
 		},
 		{

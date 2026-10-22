@@ -5,7 +5,7 @@ title: xws：服务端路由与会话
 volume: 卷十一 其他扩展库
 type: practice
 lead: 一条注册同时服务明文与 TLS 的固定端点、Origin 策略与授权回调、升级的分阶段底层 API、协程会话形态——xws 收官。
-api: xws-server-websocket_server_router, xws-server-websocket_server, xhttp-http_server_router
+api: xws-server-websocket_server_router, xws-server-websocket_server, xhttp-server-http_server_router
 ---
 
 ## 导读

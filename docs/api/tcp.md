@@ -1115,8 +1115,33 @@ void xrtNetDialConfigInit(xnetdialconfig* pConfig)
 
 ```c
 bool xrtNetStreamConfigValid(const xnetstreamconfig* pConfig);
-bool xrtNetListenConfigValid(const xnetlistenconfig* pConfig);
 ```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pConfig` | 当前操作的配置；合法字段和默认行为见相应配置类型。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
 
 只读验证完整配置，复用实际 Stream／Listener 创建路径的规则。Listener 同时
 检查嵌套 Stream、地址族、接受并发、队列、分发、backlog 和绑定策略关系。
@@ -2865,13 +2890,13 @@ xnetresult xrtNetStreamSendBuffer(
 - `SendRef` 零复制引用外部数据，非空数据必须提供释放过程；零长度是无操作，不转移所有权，也不调用释放过程。
 - `SendRefs` 原子受理多个零复制引用，适合 Header、固定响应片段和文件块的聚集发送；空片段被忽略，非空片段分别在离队时执行一次释放过程。
 - `SendTake` 接管由 `xrtMalloc` 家族取得的非空数据，最终调用 `xrtFree`；`NULL, 0` 是无操作，非空指针配零长度属于参数错误且不转移所有权。
-- `SendBuffer` 在 Stream 所属 Worker 上接管完整 `xnetbuf` 块链。它只建立发送视图元数据，不复制载荷；适合把 Read 回调缓冲直接转发到另一个方向，或连接 TLS、HTTP 等协议队列。
+- `SendBuffer` 在任意线程接管符合池归属约束的完整 `xnetbuf` 块链。它只建立发送视图元数据，不复制载荷；适合把 Read 回调缓冲直接转发到另一个方向，或连接 TLS、HTTP 等协议队列。
 
 只有返回 `XNET_RESULT_OK` 才接受数据和转移 ref/take/buffer 所有权。`SendRefs` 和 `SendBuffer` 都是全有或全无操作：元数据或任一发送视图建立失败时，不会释放外部片段、清空源缓冲或留下部分队列和预算。`SendBuffer` 成功后源缓冲恢复为空但保留原缓冲池，可立即复用；其中的借用块仍要求调用方保持载荷存活到发送队列离队。`XNET_RESULT_AGAIN` 表示加入后会超过 `WriteLimit`；调用方保留数据，可以等待 `LowWater` 或 `Drain` 后重试。`XNET_RESULT_CLOSED` 表示写半关闭、关闭或 Abort 已经封闭新发送。`XNET_RESULT_ERROR` 表示参数、线程归属、活动写预留、溢出、OOM 或命令提交失败，详细原因在当前执行上下文的 `xerror`。
 
 发送预算在 API 入口原子占用，包含已经受理但尚未链接到 Worker 缓冲的跨线程命令。关闭过程先封闭新发送，再等待已经进入提交区的调用完成，因而不会越过一个已经线性化成功的 Send。
 
-Worker 回调内的 `Send`/`SendVec` 直接复制到本 Worker 的拥有型发送缓冲；缓冲池已经有合适缓存块时不依赖全局分配器，也不再建立“载荷节点 + 引用块”两级对象。普通 Send 的其他线程调用通过 Engine 命令队列提交，使用独立拥有节点保证调用返回后源数据即可失效。`SendBuffer` 只能在 Stream Worker 内调用，因为缓冲池和源块链都是线程归属对象；跨线程调用返回 `XNET_RESULT_ERROR/XERR_STATE`，不会接管源缓冲。需要跨线程发送时使用复制、ref、refs 或 take 路径，或者先把操作投递到 Stream Worker。
+Worker 回调内的 `Send`/`SendVec` 直接复制到本 Worker 的拥有型发送缓冲；缓冲池已经有合适缓存块时不依赖全局分配器，也不再建立“载荷节点 + 引用块”两级对象。普通 Send 的其他线程调用通过 Engine 命令队列提交，使用独立拥有节点保证调用返回后源数据即可失效。`SendBuffer` 允许跨线程提交堆块或来自目标 Stream Worker 缓冲池的块；其他线程归属池的块被拒绝，调用方保留源链。调用方须串行访问源缓冲；所有可失败准备完成后才接管并发布整个块链。
 
 跨线程复制发送的小载荷节点，以及 `SendRef`、`SendRefs`、`SendTake`、`SendBuffer`
 所需的不超过 1 KiB 的短生命周期元数据，共享 Stream 所属 Worker 的小节点缓存。
@@ -5454,3 +5479,2146 @@ select／原生后端，Linux 增加 ASan／UBSan；输入、日志和产物哈�
 48 个预算、65 引用块、背压、预留、池亲和、Abort、回调重入和内存平衡；Windows
 GCC／TCC select／IOCP，Linux GCC／TCC select／epoll 及 ASan／UBSan。
 仅离线生命周期和自建回环正常通信，没有外网、DNS 或网络安全专项。
+
+## 原生对象与异步协议补充参考
+
+拥有图引用描述实际强引用边，不是额外 pin；适配器要求精确策略身份和静止条件，只在准入成功后使用准备、接管和释放协议。普通查询与非等待拒绝须按各接口契约区分。
+
+### `xnetproxydialownershipv1`
+
+```c
+typedef struct xnetproxydialownershipv1 {
+	size_t size;
+	xnetproxydialproc Done;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xnetproxydialownershipv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 策略结构的字节大小，用于版本与形状校验。 |
+| `Done` | `xnetproxydialproc` | 完成阶段回调。 |
+| `Ops` | `const xrtownershipops*` | 精确匹配的所有权计数和追踪操作表。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xnetdialownershipv1`
+
+```c
+typedef struct xnetdialownershipv1 {
+	size_t size;
+	xnetdialproc Done;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xnetdialownershipv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 策略结构的字节大小，用于版本与形状校验。 |
+| `Done` | `xnetdialproc` | 完成阶段回调。 |
+| `Ops` | `const xrtownershipops*` | 精确匹配的所有权计数和追踪操作表。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xnetlistenereventsownershipv1`
+
+```c
+typedef struct xnetlistenereventsownershipv1 {
+	size_t size;
+	xnetlistenerevents Events;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xnetlistenereventsownershipv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 策略结构的字节大小，用于版本与形状校验。 |
+| `Events` | `xnetlistenerevents` | 声明中的公开字段；取值和生命周期须符合本类型及使用接口的契约。 |
+| `Ops` | `const xrtownershipops*` | 精确匹配的所有权计数和追踪操作表。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xnetstreameventsownershipv1`
+
+```c
+typedef struct xnetstreameventsownershipv1 {
+	size_t size;
+	xnetstreamevents Events;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xnetstreameventsownershipv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 策略结构的字节大小，用于版本与形状校验。 |
+| `Events` | `xnetstreamevents` | 声明中的公开字段；取值和生命周期须符合本类型及使用接口的契约。 |
+| `Ops` | `const xrtownershipops*` | 精确匹配的所有权计数和追踪操作表。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+### `xrtNetDialAddresses`
+
+Race already-resolved immutable endpoints using the SAME Dial algorithm.
+No Resolver is created or consulted. Eligible endpoints must have nonzero
+ports; each port is preserved. Config.Family filters candidates explicitly.
+The list is borrowed for this call and retained for asynchronous setup.
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+xnetdial* xrtNetDialAddresses(xnetengine* pEngine, const xnetaddrlist* pAddresses, const xnetdialconfig* pConfig, const xnetstreamevents* pStreamEvents, ptr pStreamData, xnetdialproc pDone, ptr pDoneData);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pEngine` | 网络引擎句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pAddresses` | 显式候选网络地址数组。 |
+| `pConfig` | 当前操作的配置；合法字段和默认行为见相应配置类型。 |
+| `pStreamEvents` | 连接事件回调表，须与相应上下文及拥有策略配对。 |
+| `pStreamData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `pDone` | 同步访问或完成回调；回调线程、借用参数和生命周期遵守当前接口契约。 |
+| `pDoneData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialAddressesAsync`
+
+使用显式地址集创建拨号 Future；结果和取消策略由 TCP Future 契约定义。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+xfuture* xrtNetDialAddressesAsync(xnetengine* pEngine, const xnetaddrlist* pAddresses, const xnetdialconfig* pConfig, const xnetstreamevents* pStreamEvents, ptr pStreamData);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pEngine` | 网络引擎句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pAddresses` | 显式候选网络地址数组。 |
+| `pConfig` | 当前操作的配置；合法字段和默认行为见相应配置类型。 |
+| `pStreamEvents` | 连接事件回调表，须与相应上下文及拥有策略配对。 |
+| `pStreamData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialAddressesOwnedV1`
+
+使用显式地址集发起带拥有型完成上下文的 TCP 拨号。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+xnetdial* xrtNetDialAddressesOwnedV1(xnetengine* pEngine, const xnetaddrlist* pAddresses, const xnetdialconfig* pConfig, const xnetstreamevents* pStreamEvents, ptr pStreamData, ptr pDoneData, const xnetdialownershipv1* pPolicy);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pEngine` | 网络引擎句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pAddresses` | 显式候选网络地址数组。 |
+| `pConfig` | 当前操作的配置；合法字段和默认行为见相应配置类型。 |
+| `pStreamEvents` | 连接事件回调表，须与相应上下文及拥有策略配对。 |
+| `pStreamData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `pDoneData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `pPolicy` | 对象或操作要求的精确策略描述符，生命周期覆盖受理的上下文。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialFutureCancelPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xcancelwatchownershipv1* xrtNetDialFutureCancelPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialFutureDialPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xnetdialownershipv1* xrtNetDialFutureDialPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialFutureOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetDialFutureOwnershipAdapterV1(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialFutureOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xrtownershipquiescencev1* xrtNetDialFutureOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialFuturePayloadPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xfuturepayloadownershipv1* xrtNetDialFuturePayloadPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialFutureProducerPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xfutureproducerownershipv1* xrtNetDialFutureProducerPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialOwnedV1`
+
+发起带拥有型完成上下文的 TCP 拨号，仅在成功受理后转移上下文责任。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+xnetdial* xrtNetDialOwnedV1(xnetengine* pEngine, xnetresolver* pResolver, cstr sHost, uint16 iPort, const xnetdialconfig* pConfig, const xnetstreamevents* pStreamEvents, ptr pStreamData, ptr pDoneData, const xnetdialownershipv1* pPolicy);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pEngine` | 网络引擎句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pResolver` | 名称解析器句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `sHost` | 目标主机名。 |
+| `iPort` | 目标网络端口。 |
+| `pConfig` | 当前操作的配置；合法字段和默认行为见相应配置类型。 |
+| `pStreamEvents` | 连接事件回调表，须与相应上下文及拥有策略配对。 |
+| `pStreamData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `pDoneData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `pPolicy` | 对象或操作要求的精确策略描述符，生命周期覆盖受理的上下文。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialOwnership`
+
+Query adapters under whole-domain Freeze, with exact Done-policy identities
+admitted before following context metadata. Real runtime, Resolver callback,
+candidate and timer references are preserved; unknown callback/data remains
+opaque. Prepare is nonwaiting and requires the actual terminal callback and
+runtime-slot removal before READY. Diagnostics remain immutable owned DAGs.
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+xrtownershipref xrtNetDialOwnership(const xnetdial* pDial);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pDial` | 拨号操作句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetDialOwnershipAdapterV1(xrtownershipref Reference, const xnetdialownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `pPolicies` | 允许的精确策略指针数组，与相应的策略数量参数配对。 |
+| `iPolicyCount` | 对应输入数组的有效元素数量。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xrtownershipquiescencev1* xrtNetDialOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialResolverPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xnetresolveownershipv1* xrtNetDialResolverPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetDialRuntimeOwnershipV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xnetruntimeownershipv1* xrtNetDialRuntimeOwnershipV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetListenConfigValid`
+
+验证完整 Listener 及嵌套 Stream 配置，不绑定地址；不修改输入。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+bool xrtNetListenConfigValid(const xnetlistenconfig* pConfig);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pConfig` | 当前操作的配置；合法字段和默认行为见相应配置类型。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetListenOwnedV1`
+
+Same synchronous bind/listen and asynchronous accept as xrtNetListen.
+Transfers one explicit event-context owner only on success; no inherited
+Stream callbacks/data. Configure accepted Stream events explicitly on its
+Worker (e.g. xrtNetStreamSetEventsOwnedV1) when push mode is needed.
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+xnetlistener* xrtNetListenOwnedV1(xnetengine* pEngine, const xnetlistenconfig* pConfig, ptr pData, const xnetlistenereventsownershipv1* pPolicy);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pEngine` | 网络引擎句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pConfig` | 当前操作的配置；合法字段和默认行为见相应配置类型。 |
+| `pData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `pPolicy` | 对象或操作要求的精确策略描述符，生命周期覆盖受理的上下文。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetListenerOwnership`
+
+返回对象的借用物理所有权引用，不增加普通拥有引用；图检查须保持相应静止与冻结边界。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+xrtownershipref xrtNetListenerOwnership(const xnetlistener* pListener);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pListener` | 监听器句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetListenerOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetListenerOwnershipAdapterV1(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetListenerOwnershipAdapterV2`
+
+V1 refuses owned Listener events. V2 admits exact independently supplied
+policy identities BEFORE inspecting context metadata. Callback-drop tails
+remain BUSY until their real Worker task returns. Failure leaves output
+and ambient diagnostic untouched, including unknown/forged policies.
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetListenerOwnershipAdapterV2(xrtownershipref Reference, const xnetlistenereventsownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `pPolicies` | 允许的精确策略指针数组，与相应的策略数量参数配对。 |
+| `iPolicyCount` | 对应输入数组的有效元素数量。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetListenerOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xrtownershipquiescencev1* xrtNetListenerOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetListenerRuntimeOwnershipV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xnetruntimeownershipv1* xrtNetListenerRuntimeOwnershipV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialAsync`
+
+Success holds one Stream; Value borrows it, Ref acquires another owner.
+Cancel requests the real native operation and waits for its actual terminal
+callback. No per-wait thread, coroutine stack or synthetic terminal state.
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+xfuture* xrtNetProxyDialAsync(xnetengine* pEngine, xnetresolver* pResolver, const xnetproxy* pProxy, cstr sTargetHost, uint16 iTargetPort, const xnetproxydialconfig* pConfig, const xnetstreamevents* pStreamEvents, ptr pStreamData);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pEngine` | 网络引擎句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pResolver` | 名称解析器句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pProxy` | 代理配置句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `sTargetHost` | 目标主机名。 |
+| `iTargetPort` | 目标网络端口。 |
+| `pConfig` | 当前操作的配置；合法字段和默认行为见相应配置类型。 |
+| `pStreamEvents` | 连接事件回调表，须与相应上下文及拥有策略配对。 |
+| `pStreamData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialFutureCancelPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+const xcancelwatchownershipv1* xrtNetProxyDialFutureCancelPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialFutureDialPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+const xnetproxydialownershipv1* xrtNetProxyDialFutureDialPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialFutureOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetProxyDialFutureOwnershipAdapterV1(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialFutureOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+const xrtownershipquiescencev1* xrtNetProxyDialFutureOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialFuturePayloadPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+const xfuturepayloadownershipv1* xrtNetProxyDialFuturePayloadPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialFutureProducerPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+const xfutureproducerownershipv1* xrtNetProxyDialFutureProducerPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialOwnedV1`
+
+发起带拥有型完成上下文的代理拨号；成功受理后按所传策略追踪和释放上下文。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+xnetproxydial* xrtNetProxyDialOwnedV1(xnetengine* pEngine, xnetresolver* pResolver, const xnetproxy* pProxy, cstr sTargetHost, uint16 iTargetPort, const xnetproxydialconfig* pConfig, const xnetstreamevents* pStreamEvents, ptr pStreamData, ptr pDoneData, const xnetproxydialownershipv1* pPolicy);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pEngine` | 网络引擎句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pResolver` | 名称解析器句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pProxy` | 代理配置句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `sTargetHost` | 目标主机名。 |
+| `iTargetPort` | 目标网络端口。 |
+| `pConfig` | 当前操作的配置；合法字段和默认行为见相应配置类型。 |
+| `pStreamEvents` | 连接事件回调表，须与相应上下文及拥有策略配对。 |
+| `pStreamData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `pDoneData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `pPolicy` | 对象或操作要求的精确策略描述符，生命周期覆盖受理的上下文。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialOwnership`
+
+返回对象的借用物理所有权引用，不增加普通拥有引用；图检查须保持相应静止与冻结边界。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+xrtownershipref xrtNetProxyDialOwnership(const xnetproxydial* pDial);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pDial` | 拨号操作句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetProxyDialOwnershipAdapterV1(xrtownershipref Reference, const xnetproxydialownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `pPolicies` | 允许的精确策略指针数组，与相应的策略数量参数配对。 |
+| `iPolicyCount` | 对应输入数组的有效元素数量。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+const xrtownershipquiescencev1* xrtNetProxyDialOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialRuntimeOwnershipV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+const xnetruntimeownershipv1* xrtNetProxyDialRuntimeOwnershipV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialStreamOwnershipV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+const xnetstreameventsownershipv1* xrtNetProxyDialStreamOwnershipV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyDialTransportOwnershipV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+const xnetdialownershipv1* xrtNetProxyDialTransportOwnershipV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyHandshakeOwnershipTrace`
+
+Read-only owning edges of a standalone handshake: its retained immutable
+proxy and output-chain owners. Caller excludes all handshake mutations
+and stabilizes visited owners, normally under ownership Freeze.
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+bool xrtNetProxyHandshakeOwnershipTrace(const xnetproxyhandshake* pHandshake, xrtownershipvisitor pVisit, ptr pContext);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pHandshake` | 代理握手状态句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pVisit` | 同步访问或完成回调；回调线程、借用参数和生命周期遵守当前接口契约。 |
+| `pContext` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyOwnership`
+
+Physical immutable configuration owner. Count is the real native RC;
+copied host/credential storage has no outgoing strong references. Inspect
+and resolve the adapter only at a whole-graph ownership freeze.
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+xrtownershipref xrtNetProxyOwnership(const xnetproxy* pProxy);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pProxy` | 代理配置句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetProxyOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [proxy.h](../../include/xrt/proxy.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetProxyOwnershipAdapterV1(xrtownershipref Reference);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetServerBindingOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp_server.h](../../include/xrt/tcp_server.h)。
+
+```c
+const xrtownershipquiescencev1* xrtNetServerBindingOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetServerFutureCancelPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp_server.h](../../include/xrt/tcp_server.h)。
+
+```c
+const xcancelwatchownershipv1* xrtNetServerFutureCancelPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetServerFutureOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [tcp_server.h](../../include/xrt/tcp_server.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetServerFutureOwnershipAdapterV1(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetServerFutureOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp_server.h](../../include/xrt/tcp_server.h)。
+
+```c
+const xrtownershipquiescencev1* xrtNetServerFutureOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetServerFutureProducerPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp_server.h](../../include/xrt/tcp_server.h)。
+
+```c
+const xfutureproducerownershipv1* xrtNetServerFutureProducerPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetServerFutureStreamPayloadPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp_server.h](../../include/xrt/tcp_server.h)。
+
+```c
+const xfuturepayloadownershipv1* xrtNetServerFutureStreamPayloadPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetServerListenerEventPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp_server.h](../../include/xrt/tcp_server.h)。
+
+```c
+const xnetlistenereventsownershipv1* xrtNetServerListenerEventPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetServerOwnership`
+
+Frozen, exact native graph. Raw Server/Stream callbacks and Data remain
+opaque and are refused. The owned Listener binding policy is resident and
+admits real counted binding nodes, not borrowed interior aliases.
+
+公开声明与相关策略见 [tcp_server.h](../../include/xrt/tcp_server.h)。
+
+```c
+xrtownershipref xrtNetServerOwnership(const xnetserver* pServer);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pServer` | 聚合 TCP 服务端句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetServerOwnershipAdapterV1`
+
+Accepts exact Server or binding nodes; failure preserves output/error.
+Prepare closes real sources without waiting; READY additionally requires
+all owned Listener callbacks/Drop tails and Engine/runtime edges retired.
+
+公开声明与相关策略见 [tcp_server.h](../../include/xrt/tcp_server.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetServerOwnershipAdapterV1(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetServerOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp_server.h](../../include/xrt/tcp_server.h)。
+
+```c
+const xrtownershipquiescencev1* xrtNetServerOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetServerRuntimeOwnershipV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp_server.h](../../include/xrt/tcp_server.h)。
+
+```c
+const xnetruntimeownershipv1* xrtNetServerRuntimeOwnershipV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetStreamOwnership`
+
+Whole-domain frozen views. Engine V3 must admit these exact runtime-family
+descriptors. Real caller/runtime/timer/accept-queue references are counted;
+opaque callbacks, live external buffers and unmodelled Future contexts are
+refused, never flattened into a leaf. Preparation aborts/closes without
+waiting and becomes READY only after the runtime owner has physically left.
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+xrtownershipref xrtNetStreamOwnership(const xnetstream* pStream);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pStream` | TCP 连接句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetStreamOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetStreamOwnershipAdapterV1(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetStreamOwnershipAdapterV2`
+
+V1 refuses owned event data. V2 additionally admits exact, separately
+supplied event-policy identities before inspecting any context metadata.
+Retired callback tails remain BUSY until real Worker drain, never a fake
+zero count or a hidden context reference. Failure leaves output untouched.
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetStreamOwnershipAdapterV2(xrtownershipref Reference, const xnetstreameventsownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `pPolicies` | 允许的精确策略指针数组，与相应的策略数量参数配对。 |
+| `iPolicyCount` | 对应输入数组的有效元素数量。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetStreamOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xrtownershipquiescencev1* xrtNetStreamOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetStreamRuntimeOwnershipV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xnetruntimeownershipv1* xrtNetStreamRuntimeOwnershipV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetStreamSendBytes`
+
+有界接管非空数据；NULL,0 是无操作，非空指针配零长度是参数错误。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+xnetresult xrtNetStreamSendBytes(xnetstream* pStream, xnetbytes* pBytes, size_t iOffset, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pStream` | TCP 连接句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pBytes` | 不可变网络字节结果；切片与持有引用须遵守其有效范围和生命周期。 |
+| `iOffset` | 在当前字节结果或存储中的起始偏移。 |
+| `iSize` | 当前字节视图、切片或结构的长度；对应存储须覆盖声明的范围。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetStreamSendBytesVec`
+
+All-or-none bounded acceptance, no payload copy and no user releaser.
+Failure/AGAIN/CLOSED leaves every caller reference unchanged. Thread-safe
+like SendBytes; the owning graph includes each actual retained NetBytes.
+Uses shared xnetbytesref from net.h; only nonempty slices retain owners.
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+xnetresult xrtNetStreamSendBytesVec(xnetstream* pStream, const xnetbytesref* pRefs, size_t iCount);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pStream` | TCP 连接句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pRefs` | 工作条目、订阅分支或拥有型切片数组；与有效数量及接管规则配对。 |
+| `iCount` | 对应输入数组的有效元素数量。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetStreamSetEventsOwnedV1`
+
+Worker-only, open Stream. Allocates one uniquely owned binding, not one
+allocation per event/packet. SetData cannot overwrite an owned binding.
+Legacy SetEvents may replace it, but does not retain its borrowed new Data.
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+bool xrtNetStreamSetEventsOwnedV1(xnetstream* pStream, ptr pData, const xnetstreameventsownershipv1* pPolicy);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pStream` | TCP 连接句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `pPolicy` | 对象或操作要求的精确策略描述符，生命周期覆盖受理的上下文。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetTcpFutureBytesPayloadPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xfuturepayloadownershipv1* xrtNetTcpFutureBytesPayloadPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetTcpFutureCancelPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xcancelwatchownershipv1* xrtNetTcpFutureCancelPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetTcpFutureOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetTcpFutureOwnershipAdapterV1(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetTcpFutureOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xrtownershipquiescencev1* xrtNetTcpFutureOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetTcpFutureProducerPolicyV1Get`
+
+Exact resident waiter/producer/cancel and terminal payload capabilities.
+Frozen queries; the collector must independently admit every child. The
+waiter preparation waits for its actual source's normal close/notification,
+never turns Drop into cancellation or a synthetic Future completion.
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xfutureproducerownershipv1* xrtNetTcpFutureProducerPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetTcpFutureStreamPayloadPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [tcp.h](../../include/xrt/tcp.h)。
+
+```c
+const xfuturepayloadownershipv1* xrtNetTcpFutureStreamPayloadPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。

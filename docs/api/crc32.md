@@ -63,7 +63,7 @@ uint32 xrtCrc32(const void* pData, size_t iSize);
 
 #### 范例
 
-[CRC32 范例](../../examples/hash/crc32.c) 计算标准校验向量。
+[CRC32 范例](../../examples/hash/crc32/main.c) 计算标准校验向量。
 
 ```c
 uint32 crc = xrtCrc32("123456789", 9);
@@ -98,7 +98,7 @@ uint32 xrtCrc32Update(uint32 iCrc, const void* pData, size_t iSize);
 
 #### 范例
 
-[CRC32 范例](../../examples/hash/crc32.c) 分两次计算相同校验和。
+[CRC32 范例](../../examples/hash/crc32/main.c) 分两次计算相同校验和。
 
 ```c
 uint32 incremental = xrtCrc32Update(0, "1234", 4);

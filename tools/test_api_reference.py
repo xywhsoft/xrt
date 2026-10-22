@@ -19,6 +19,22 @@ import generate_api_reference as reference
 class ApiReferenceTest(unittest.TestCase):
 	"""验证家族收集、符号归属和稳定输出。"""
 
+	def test_book_symbols_include_each_extension_feature_header(self) -> None:
+		"""扩展选择宏必须可供教程校验，不能被同名 features.h 覆盖。"""
+		import gen_web_api
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			for product in ("client", "server"):
+				header = root / "extlibs" / product / "include" / product / "features.h"
+				header.parent.mkdir(parents=True)
+				header.write_text(
+					"#define " + product.upper() + "_MODULE_ALL 1\n", encoding="utf-8")
+			symbols, headers, _ = gen_web_api.scan_all_headers(str(root))
+			self.assertIn("CLIENT_MODULE_ALL", symbols)
+			self.assertIn("SERVER_MODULE_ALL", symbols)
+			self.assertIn("client-features", headers)
+			self.assertIn("server-features", headers)
+
 	def test_xrudp_exports_are_included_without_comment_phantoms(self) -> None:
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)

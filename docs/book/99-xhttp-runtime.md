@@ -5,7 +5,7 @@ title: xhttp 运行时：构建器、调用与连接池
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: 请求快照的冻结语义、两类截止时间与取消、诊断快照，以及按 origin 分片的连接池——运行时的全部齿轮。
-api: xhttp-http_client, xhttp-http_client_runtime, net
+api: xhttp-http_client, xhttp-client-http_client_runtime, net
 ---
 
 > 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。

@@ -68,6 +68,21 @@ static void testHttpServerWait(
 	}
 }
 
+/* A close callback publishes its flag before the callback and final native
+ * release tail have returned. Advance retirement until those real owners
+ * finish, without treating a transient BUSY result as a teardown failure. */
+static void testHttpServerEngineDestroy(xnetengine* pEngine)
+{
+	double Deadline = __xrtWaitAfter(10000);
+	for (;;) {
+		xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+		if ( Result == XNET_RETIRE_READY ) return;
+		testRequire(Result == XNET_RETIRE_BUSY && !__xrtWaitExpired(Deadline),
+			"HTTP server engine retirement failed or timed out");
+		xrtThreadYield();
+	}
+}
+
 
 
 /* 比较借用字符串与零结尾测试文本。 */
@@ -1132,10 +1147,7 @@ static void testHttpServerKeepAliveHeaderTimeout(void)
 		"HTTP server keep-alive timeout statistics mismatch"
 	);
 	xrtHttpServerDestroy(State.Server);
-	testRequire(
-		xrtNetEngineDestroy(State.Engine),
-		"HTTP server keep-alive timeout engine destroy failed"
-	);
+	testHttpServerEngineDestroy(State.Engine);
 }
 
 
@@ -1816,10 +1828,7 @@ int main(void)
 		"HTTP server final statistics mismatch"
 	);
 	xrtHttpServerDestroy(State.Server);
-	testRequire(
-		xrtNetEngineDestroy(State.Engine),
-		"HTTP server engine could not stop"
-	);
+	testHttpServerEngineDestroy(State.Engine);
 	testHttpServerKeepAliveHeaderTimeout();
 	printf(
 		"[PASS] HTTP server TCP runtime (%s)\n",

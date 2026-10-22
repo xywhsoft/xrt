@@ -15,7 +15,10 @@ int main(void)
 	xnetaddr Address;
 	xnetspan Span;
 	xnetref Ref;
-	size_t iStreamSizeLimit = 576u;
+	/* Native ownership admission and deferred owned-event retirement add
+	 * fixed metadata. The x64 base is 696 bytes (800 with dial/Future);
+	 * retain a bounded 128-byte allowance above the earlier IO-only budget. */
+	size_t iStreamSizeLimit = 576u + 128u;
 
 	/* 核心对象及可裁剪扩展都必须守住各自的固定尺寸预算。 */
 	#if defined(XRT_FEATURE_NET_TCP_DIAL)

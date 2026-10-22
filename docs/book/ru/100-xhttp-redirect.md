@@ -5,7 +5,7 @@ title: Автоматическое поведение xhttp: перенапра
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: Переписывание методов для 301/302/303 и повторная передача тела для 307/308, автоматические повторы с проверкой идемпотентности, срезание междоменных учётных данных — три автоматические передачи клиента.
-api: xhttp-http_client, xhttp-http_retry, xhttp-cookie_jar
+api: xhttp-http_client, xhttp-http_retry, xhttp-policy-cookie_jar
 ---
 
 > Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).

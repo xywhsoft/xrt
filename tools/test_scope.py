@@ -160,7 +160,10 @@ class ScopeTest(unittest.TestCase):
 
 		expected = {
 			"xruntime": "integrated",
-			"xhttp": "deferred",
+			"xhttp": None,
+			"xhttp-client": None,
+			"xhttp-server": None,
+			"xhttp-policy": None,
 			"xws": "deferred",
 			"xmail": "deferred",
 			"xssh": "integrated",
@@ -173,7 +176,8 @@ class ScopeTest(unittest.TestCase):
 				item["name"]: item["state"]
 				for item in manifest["scope"]["external_integrations"]
 			}
-			self.assertEqual(integrations, {"xlang": state}, product)
+			self.assertEqual(integrations,
+				{} if state is None else {"xlang": state}, product)
 
 
 

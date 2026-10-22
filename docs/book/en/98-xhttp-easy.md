@@ -5,7 +5,7 @@ title: xhttp easy: One-Line Requests at Full Power
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: Behind the one-line GetSync there is no second implementation — how the convenience layer transparently inherits the runtime's timeouts, caching, TLS, and error chain.
-api: xhttp-http_client, xhttp-http_client_easy, net
+api: xhttp-http_client, xhttp-client-http_client_easy, net
 ---
 
 > Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).

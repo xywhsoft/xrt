@@ -183,7 +183,8 @@ def split_statements(src):
 
 def scan_header(path):
     """返回 {name: (kind, decl_text)}，kind in fn/type/const。"""
-    src = strip_c_comments(io.open(path, encoding="utf-8", errors="replace").read())
+    with io.open(path, encoding="utf-8", errors="replace") as source:
+        src = strip_c_comments(source.read())
     syms = {}
     for is_pre, text in split_statements(src):
         flat = norm_ws(text)
@@ -231,9 +232,14 @@ def scan_all_headers(repo):
     paths = sorted(glob.glob(os.path.join(repo, "include", "xrt", "*.h")))
     paths += sorted(glob.glob(os.path.join(repo, "extlibs", "*", "include",
                                            "xrt", "*.h")))
+    paths += sorted(glob.glob(os.path.join(repo, "extlibs", "*", "include",
+                                           "*", "features.h")))
     for path in paths:
         base = os.path.basename(path)[:-2]
-        hdr_srcs[base] = strip_c_comments(io.open(path, encoding="utf-8", errors="replace").read())
+        if base == "features" and os.path.basename(os.path.dirname(path)) != "xrt":
+            base = os.path.basename(os.path.dirname(path)) + "-features"
+        with io.open(path, encoding="utf-8", errors="replace") as source:
+            hdr_srcs[base] = strip_c_comments(source.read())
         hdr_syms[base] = scan_header(path)
     sym_map = {}
     for hdr, syms in hdr_syms.items():

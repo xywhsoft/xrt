@@ -63,7 +63,7 @@ xhttp1status __xrtHttp1NetParse(
 	ptr pContext
 )
 {
-	xhttp1limits Limits;
+	xhttp1limits Limits = {0};
 	xnetspan Span;
 	size_t iAvailable;
 	size_t iHead;

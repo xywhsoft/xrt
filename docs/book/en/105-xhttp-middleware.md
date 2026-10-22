@@ -5,7 +5,7 @@ title: The Server (Part 2): Middleware and Static Files
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: The onion model entering in registration order and exiting in reverse, Next's synchronous-stack semantics, static files and directory serving — the standard assembly of cross-cutting concerns.
-api: xhttp-http_server_middleware, xhttp-http_server_static, xhttp-http_server_router
+api: xhttp-server-http_server_middleware, xhttp-server-http_server_static, xhttp-server-http_server_router
 ---
 
 > Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).

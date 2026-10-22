@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [net.md](net.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `390` 个函数、`284` 个常量或宏、
-`128` 个公共类型。
+当前登记 `497` 个函数、`288` 个常量或宏、
+`139` 个公共类型。
 
 ## `include/xrt/net.h`
 
 [查看带契约注释的公共头](../../include/xrt/net.h)
 
-### 函数 (191)
+### 函数 (211)
 
 - `xrtNetAddrAny`
 - `xrtNetAddrCompare`
@@ -43,6 +43,7 @@
 - `xrtNetAddrUnmap`
 - `xrtNetBufAppend`
 - `xrtNetBufAppendBorrow`
+- `xrtNetBufAppendBytes`
 - `xrtNetBufAppendRef`
 - `xrtNetBufAppendTake`
 - `xrtNetBufCancel`
@@ -54,11 +55,15 @@
 - `xrtNetBufFront`
 - `xrtNetBufInit`
 - `xrtNetBufMove`
+- `xrtNetBufOwnershipTrace`
 - `xrtNetBufPeek`
 - `xrtNetBufPoolConfigInit`
 - `xrtNetBufPoolCreate`
 - `xrtNetBufPoolDestroy`
 - `xrtNetBufPoolGet`
+- `xrtNetBufPoolOwnership`
+- `xrtNetBufPoolOwnershipAdapterV1`
+- `xrtNetBufPoolOwnershipQuiescenceV1Get`
 - `xrtNetBufPoolTrim`
 - `xrtNetBufPrepend`
 - `xrtNetBufPullup`
@@ -67,17 +72,27 @@
 - `xrtNetBufSize`
 - `xrtNetBufSpanCount`
 - `xrtNetBufSpans`
+- `xrtNetBytesCopy`
 - `xrtNetBytesDestroy`
+- `xrtNetBytesOwnership`
+- `xrtNetBytesOwnershipAdapterV1`
 - `xrtNetBytesRef`
 - `xrtNetBytesView`
 - `xrtNetCompletionInit`
 - `xrtNetEngineAfter`
+- `xrtNetEngineBackendInfo`
 - `xrtNetEngineConfigInit`
+- `xrtNetEngineConfigValidate`
 - `xrtNetEngineCreate`
+- `xrtNetEngineCreateOwnedExitV1`
 - `xrtNetEngineCurrent`
 - `xrtNetEngineDestroy`
+- `xrtNetEngineGetConfig`
 - `xrtNetEngineOwnership`
 - `xrtNetEngineOwnershipAdapterV1`
+- `xrtNetEngineOwnershipAdapterV2`
+- `xrtNetEngineOwnershipAdapterV3`
+- `xrtNetEngineOwnershipQuiescenceV1Get`
 - `xrtNetEnginePin`
 - `xrtNetEnginePost`
 - `xrtNetEnginePostOwnedV1`
@@ -90,12 +105,14 @@
 - `xrtNetEngineTimerCancel`
 - `xrtNetEngineTimerCancelCurrent`
 - `xrtNetEngineTryDestroy`
+- `xrtNetEngineTryStop`
 - `xrtNetEngineUnpin`
 - `xrtNetEngineWorker`
 - `xrtNetEngineWorkerCount`
 - `xrtNetLookup`
 - `xrtNetPortAccept`
 - `xrtNetPortBackend`
+- `xrtNetPortBackendInfo`
 - `xrtNetPortCancel`
 - `xrtNetPortCapabilities`
 - `xrtNetPortConfigInit`
@@ -134,6 +151,7 @@
 - `xrtNetResolveOpError`
 - `xrtNetResolveOpOwnership`
 - `xrtNetResolveOpOwnershipAdapterV1`
+- `xrtNetResolveOpOwnershipQuiescenceV1Get`
 - `xrtNetResolveOpRef`
 - `xrtNetResolveOpResult`
 - `xrtNetResolveOpState`
@@ -144,11 +162,13 @@
 - `xrtNetResolverDestroy`
 - `xrtNetResolverFutureCancelPolicyV1Get`
 - `xrtNetResolverFutureOwnershipAdapterV1`
+- `xrtNetResolverFutureOwnershipQuiescenceV1Get`
 - `xrtNetResolverFuturePayloadPolicyV1Get`
 - `xrtNetResolverFutureProducerPolicyV1Get`
 - `xrtNetResolverFutureRequestPolicyV1Get`
 - `xrtNetResolverOwnership`
 - `xrtNetResolverOwnershipAdapterV1`
+- `xrtNetResolverOwnershipQuiescenceV1Get`
 - `xrtNetResolverResolve`
 - `xrtNetResolverResolveOwnedV1`
 - `xrtNetResolverStats`
@@ -410,7 +430,7 @@
 - `XNET_STATS_FULL`
 - `XNET_STATS_OFF`
 
-### 类型 (64)
+### 类型 (68)
 
 - `xnetaddr`
 - `xnetaddrlist`
@@ -420,6 +440,7 @@
 - `xnetbufpoolconfig`
 - `xnetbufpoolinfo`
 - `xnetbytes`
+- `xnetbytesref`
 - `xnetcompletion`
 - `xnetcompletionproc`
 - `xnetdgramcap`
@@ -436,6 +457,7 @@
 - `xnetengineconfig`
 - `xnetenginestate`
 - `xnetenginestats`
+- `xnetengineworkerexitownershipv1`
 - `xneterror`
 - `xnetfamily`
 - `xnetoption`
@@ -444,6 +466,7 @@
 - `xnetport`
 - `xnetport_impl`
 - `xnetportbackend`
+- `xnetportbackendinfo`
 - `xnetportcap`
 - `xnetportconfig`
 - `xnetportevent`
@@ -463,6 +486,7 @@
 - `xnetresolverstats`
 - `xnetresult`
 - `xnetretireresult`
+- `xnetruntimeownershipv1`
 - `xnetshutdown`
 - `xnetsocket`
 - `xnetsocket_impl`
@@ -562,18 +586,32 @@
 
 [查看带契约注释的公共头](../../include/xrt/proxy.h)
 
-### 函数 (23)
+### 函数 (40)
 
 - `xrtNetProxyConfigInit`
 - `xrtNetProxyCreate`
 - `xrtNetProxyDial`
+- `xrtNetProxyDialAsync`
 - `xrtNetProxyDialCancel`
 - `xrtNetProxyDialConfigInit`
 - `xrtNetProxyDialDestroy`
 - `xrtNetProxyDialError`
+- `xrtNetProxyDialFutureCancelPolicyV1Get`
+- `xrtNetProxyDialFutureDialPolicyV1Get`
+- `xrtNetProxyDialFutureOwnershipAdapterV1`
+- `xrtNetProxyDialFutureOwnershipQuiescenceV1Get`
+- `xrtNetProxyDialFuturePayloadPolicyV1Get`
+- `xrtNetProxyDialFutureProducerPolicyV1Get`
+- `xrtNetProxyDialOwnedV1`
+- `xrtNetProxyDialOwnership`
+- `xrtNetProxyDialOwnershipAdapterV1`
+- `xrtNetProxyDialOwnershipQuiescenceV1Get`
 - `xrtNetProxyDialRef`
+- `xrtNetProxyDialRuntimeOwnershipV1Get`
 - `xrtNetProxyDialState`
 - `xrtNetProxyDialStats`
+- `xrtNetProxyDialStreamOwnershipV1Get`
+- `xrtNetProxyDialTransportOwnershipV1Get`
 - `xrtNetProxyHandshakeBound`
 - `xrtNetProxyHandshakeCode`
 - `xrtNetProxyHandshakeConfigInit`
@@ -581,10 +619,13 @@
 - `xrtNetProxyHandshakeDestroy`
 - `xrtNetProxyHandshakeError`
 - `xrtNetProxyHandshakeOutput`
+- `xrtNetProxyHandshakeOwnershipTrace`
 - `xrtNetProxyHandshakeSent`
 - `xrtNetProxyHandshakeState`
 - `xrtNetProxyHandshakeStep`
 - `xrtNetProxyInfo`
+- `xrtNetProxyOwnership`
+- `xrtNetProxyOwnershipAdapterV1`
 - `xrtNetProxyRelease`
 - `xrtNetProxyRetain`
 
@@ -616,15 +657,17 @@
 - `XNET_SOCKS5_SUCCEEDED`
 - `XNET_SOCKS5_TTL_EXPIRED`
 
-### 类型 (19)
+### 类型 (22)
 
 - `xnetdialconfig`
+- `xnetdialownershipv1`
 - `xnetdialstats`
 - `xnetproxy`
 - `xnetproxyauth`
 - `xnetproxyconfig`
 - `xnetproxydial`
 - `xnetproxydialconfig`
+- `xnetproxydialownershipv1`
 - `xnetproxydialproc`
 - `xnetproxydialstate`
 - `xnetproxydialstats`
@@ -637,26 +680,44 @@
 - `xnetsocks5reply`
 - `xnetstream`
 - `xnetstreamevents`
+- `xnetstreameventsownershipv1`
 
 ## `include/xrt/tcp.h`
 
 [查看带契约注释的公共头](../../include/xrt/tcp.h)
 
-### 函数 (63)
+### 函数 (100)
 
 - `xrtNetConnect`
 - `xrtNetDial`
+- `xrtNetDialAddresses`
+- `xrtNetDialAddressesAsync`
+- `xrtNetDialAddressesOwnedV1`
 - `xrtNetDialAsync`
 - `xrtNetDialCancel`
 - `xrtNetDialConfigInit`
 - `xrtNetDialConfigValid`
 - `xrtNetDialDestroy`
 - `xrtNetDialError`
+- `xrtNetDialFutureCancelPolicyV1Get`
+- `xrtNetDialFutureDialPolicyV1Get`
+- `xrtNetDialFutureOwnershipAdapterV1`
+- `xrtNetDialFutureOwnershipQuiescenceV1Get`
+- `xrtNetDialFuturePayloadPolicyV1Get`
+- `xrtNetDialFutureProducerPolicyV1Get`
+- `xrtNetDialOwnedV1`
+- `xrtNetDialOwnership`
+- `xrtNetDialOwnershipAdapterV1`
+- `xrtNetDialOwnershipQuiescenceV1Get`
 - `xrtNetDialRef`
+- `xrtNetDialResolverPolicyV1Get`
+- `xrtNetDialRuntimeOwnershipV1Get`
 - `xrtNetDialState`
 - `xrtNetDialStats`
 - `xrtNetListen`
 - `xrtNetListenConfigInit`
+- `xrtNetListenConfigValid`
+- `xrtNetListenOwnedV1`
 - `xrtNetListenerAccept`
 - `xrtNetListenerAcceptAsync`
 - `xrtNetListenerAcceptWait`
@@ -664,7 +725,12 @@
 - `xrtNetListenerData`
 - `xrtNetListenerDestroy`
 - `xrtNetListenerLocal`
+- `xrtNetListenerOwnership`
+- `xrtNetListenerOwnershipAdapterV1`
+- `xrtNetListenerOwnershipAdapterV2`
+- `xrtNetListenerOwnershipQuiescenceV1Get`
 - `xrtNetListenerRef`
+- `xrtNetListenerRuntimeOwnershipV1Get`
 - `xrtNetListenerState`
 - `xrtNetListenerStats`
 - `xrtNetListenerWorker`
@@ -673,12 +739,17 @@
 - `xrtNetStreamBuffer`
 - `xrtNetStreamClose`
 - `xrtNetStreamConfigInit`
+- `xrtNetStreamConfigValid`
 - `xrtNetStreamConnect`
 - `xrtNetStreamConsume`
 - `xrtNetStreamData`
 - `xrtNetStreamDestroy`
 - `xrtNetStreamError`
 - `xrtNetStreamLocal`
+- `xrtNetStreamOwnership`
+- `xrtNetStreamOwnershipAdapterV1`
+- `xrtNetStreamOwnershipAdapterV2`
+- `xrtNetStreamOwnershipQuiescenceV1Get`
 - `xrtNetStreamPause`
 - `xrtNetStreamPending`
 - `xrtNetStreamRead`
@@ -687,8 +758,11 @@
 - `xrtNetStreamRef`
 - `xrtNetStreamRemote`
 - `xrtNetStreamResume`
+- `xrtNetStreamRuntimeOwnershipV1Get`
 - `xrtNetStreamSend`
 - `xrtNetStreamSendBuffer`
+- `xrtNetStreamSendBytes`
+- `xrtNetStreamSendBytesVec`
 - `xrtNetStreamSendFile`
 - `xrtNetStreamSendRef`
 - `xrtNetStreamSendRefs`
@@ -696,6 +770,7 @@
 - `xrtNetStreamSendVec`
 - `xrtNetStreamSetData`
 - `xrtNetStreamSetEvents`
+- `xrtNetStreamSetEventsOwnedV1`
 - `xrtNetStreamShutdownWrite`
 - `xrtNetStreamSocket`
 - `xrtNetStreamState`
@@ -707,6 +782,12 @@
 - `xrtNetStreamWorker`
 - `xrtNetStreamWritable`
 - `xrtNetStreamWriteLimit`
+- `xrtNetTcpFutureBytesPayloadPolicyV1Get`
+- `xrtNetTcpFutureCancelPolicyV1Get`
+- `xrtNetTcpFutureOwnershipAdapterV1`
+- `xrtNetTcpFutureOwnershipQuiescenceV1Get`
+- `xrtNetTcpFutureProducerPolicyV1Get`
+- `xrtNetTcpFutureStreamPayloadPolicyV1Get`
 
 ### 常量与宏 (22)
 
@@ -733,7 +814,7 @@
 - `XNET_STREAM_WAIT_READ`
 - `XNET_STREAM_WAIT_WRITE`
 
-### 类型 (14)
+### 类型 (15)
 
 - `xnetacceptdistribution`
 - `xnetdial`
@@ -742,6 +823,7 @@
 - `xnetlistenconfig`
 - `xnetlistener`
 - `xnetlistenerevents`
+- `xnetlistenereventsownershipv1`
 - `xnetlistenerstate`
 - `xnetlistenerstats`
 - `xnetstreamconfig`
@@ -754,20 +836,31 @@
 
 [查看带契约注释的公共头](../../include/xrt/tcp_server.h)
 
-### 函数 (15)
+### 函数 (26)
 
 - `xrtNetServerAccept`
 - `xrtNetServerAcceptAsync`
 - `xrtNetServerAcceptWait`
+- `xrtNetServerBindingOwnershipQuiescenceV1Get`
 - `xrtNetServerClose`
 - `xrtNetServerConfigInit`
 - `xrtNetServerData`
 - `xrtNetServerDestroy`
 - `xrtNetServerEndpointCount`
+- `xrtNetServerFutureCancelPolicyV1Get`
+- `xrtNetServerFutureOwnershipAdapterV1`
+- `xrtNetServerFutureOwnershipQuiescenceV1Get`
+- `xrtNetServerFutureProducerPolicyV1Get`
+- `xrtNetServerFutureStreamPayloadPolicyV1Get`
 - `xrtNetServerListener`
 - `xrtNetServerListenerCount`
+- `xrtNetServerListenerEventPolicyV1Get`
 - `xrtNetServerLocal`
+- `xrtNetServerOwnership`
+- `xrtNetServerOwnershipAdapterV1`
+- `xrtNetServerOwnershipQuiescenceV1Get`
 - `xrtNetServerRef`
+- `xrtNetServerRuntimeOwnershipV1Get`
 - `xrtNetServerStart`
 - `xrtNetServerState`
 - `xrtNetServerStats`
@@ -794,17 +887,20 @@
 
 [查看带契约注释的公共头](../../include/xrt/udp.h)
 
-### 函数 (73)
+### 函数 (95)
 
 - `xrtNetUdpAbort`
 - `xrtNetUdpBatchCount`
 - `xrtNetUdpBatchDestroy`
+- `xrtNetUdpBatchOwnership`
+- `xrtNetUdpBatchOwnershipAdapterV1`
 - `xrtNetUdpBatchPacket`
 - `xrtNetUdpBatchRef`
 - `xrtNetUdpBatchTake`
 - `xrtNetUdpBind`
 - `xrtNetUdpClose`
 - `xrtNetUdpConfigInit`
+- `xrtNetUdpConfigValid`
 - `xrtNetUdpConnect`
 - `xrtNetUdpConnected`
 - `xrtNetUdpData`
@@ -813,8 +909,17 @@
 - `xrtNetUdpErrorPacketData`
 - `xrtNetUdpErrorPacketDestroy`
 - `xrtNetUdpErrorPacketInfo`
+- `xrtNetUdpErrorPacketOwnership`
+- `xrtNetUdpErrorPacketOwnershipAdapterV1`
 - `xrtNetUdpErrorPacketRef`
 - `xrtNetUdpErrorPacketSize`
+- `xrtNetUdpFutureBatchPayloadPolicyV1Get`
+- `xrtNetUdpFutureCancelPolicyV1Get`
+- `xrtNetUdpFutureErrorPayloadPolicyV1Get`
+- `xrtNetUdpFutureOwnershipAdapterV1`
+- `xrtNetUdpFutureOwnershipQuiescenceV1Get`
+- `xrtNetUdpFuturePacketPayloadPolicyV1Get`
+- `xrtNetUdpFutureProducerPolicyV1Get`
 - `xrtNetUdpJoin`
 - `xrtNetUdpLeave`
 - `xrtNetUdpLocal`
@@ -822,9 +927,14 @@
 - `xrtNetUdpMulticastInterface`
 - `xrtNetUdpMulticastLoop`
 - `xrtNetUdpOpen`
+- `xrtNetUdpOwnership`
+- `xrtNetUdpOwnershipAdapterV1`
+- `xrtNetUdpOwnershipQuiescenceV1Get`
 - `xrtNetUdpPacketData`
 - `xrtNetUdpPacketDestroy`
 - `xrtNetUdpPacketMeta`
+- `xrtNetUdpPacketOwnership`
+- `xrtNetUdpPacketOwnershipAdapterV1`
 - `xrtNetUdpPacketRef`
 - `xrtNetUdpPacketRemote`
 - `xrtNetUdpPacketSize`
@@ -847,12 +957,17 @@
 - `xrtNetUdpReceiveErrorWait`
 - `xrtNetUdpReceiveWait`
 - `xrtNetUdpRef`
+- `xrtNetUdpRuntimeOwnershipV1Get`
 - `xrtNetUdpSend`
 - `xrtNetUdpSendBatch`
 - `xrtNetUdpSendControlAvailable`
 - `xrtNetUdpSendMsg`
+- `xrtNetUdpSendMsgBytes`
+- `xrtNetUdpSendMsgBytesVec`
+- `xrtNetUdpSendMsgPacket`
 - `xrtNetUdpSendMsgRef`
 - `xrtNetUdpSendMsgTake`
+- `xrtNetUdpSendOwnedBatch`
 - `xrtNetUdpSendRef`
 - `xrtNetUdpSendRefTo`
 - `xrtNetUdpSendTake`
@@ -870,7 +985,7 @@
 - `xrtNetUdpWritable`
 - `xrtNetUdpWritableAsync`
 
-### 常量与宏 (17)
+### 常量与宏 (21)
 
 - `XNET_UDP_CLOSED`
 - `XNET_UDP_CLOSING`
@@ -880,17 +995,21 @@
 - `XNET_UDP_MESSAGE_TRUNCATED`
 - `XNET_UDP_OPEN`
 - `XNET_UDP_OPENING`
+- `XNET_UDP_OWNED_BYTES`
+- `XNET_UDP_OWNED_PACKET`
+- `XNET_UDP_OWNED_VECTOR`
 - `XNET_UDP_PAYLOAD_MAX`
 - `XNET_UDP_TRUNCATE_DELIVER`
 - `XNET_UDP_TRUNCATE_DROP`
 - `XNET_UDP_TRUNCATE_ERROR`
+- `XNET_UDP_VECTOR_MAX`
 - `XNET_UDP_WAIT_CLOSE`
 - `XNET_UDP_WAIT_DRAIN`
 - `XNET_UDP_WAIT_ERROR`
 - `XNET_UDP_WAIT_OPEN`
 - `XNET_UDP_WAIT_RECEIVE`
 
-### 类型 (14)
+### 类型 (17)
 
 - `xnetudp`
 - `xnetudpbatch`
@@ -901,7 +1020,10 @@
 - `xnetudpflag`
 - `xnetudpmessage`
 - `xnetudpoverflow`
+- `xnetudpownedkind`
+- `xnetudpownedmessage`
 - `xnetudppacket`
+- `xnetudppacketref`
 - `xnetudpstate`
 - `xnetudpstats`
 - `xnetudptruncation`

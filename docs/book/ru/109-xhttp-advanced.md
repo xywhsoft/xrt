@@ -5,7 +5,7 @@ title: Финал сервера: сжатие, Range и общая картин
 volume: 卷十 扩展库：xhttp · 卷十收官
 type: practice
 lead: Сжатие ответов, управляемое согласованием содержимого, сборка Range, семейство заголовков прокси и панорама тома 10 — закрытие серверной темы и анонс тома 11.
-api: xhttp-http_server, xhttp-http_compress, xhttp-http_cache_range
+api: xhttp-http_server, xhttp-server-http_compress, xhttp-policy-http_cache_range
 ---
 
 > Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).

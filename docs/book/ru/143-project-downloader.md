@@ -5,7 +5,7 @@ title: Проект 4: HTTPS-загрузчик
 volume: 卷十三 实战项目
 type: project
 lead: От однострочного GET до поставляемого загрузчика: возобновление по Range с проверкой ETag, потоковая запись на диск (память отвязана от размера файла), атомарное завершение (временный файл + переименование) — комплексное применение xhttp и файлового слоя.
-api: xhttp-http_client, xhttp-http_client_easy, file
+api: xhttp-http_client, xhttp-client-http_client_easy, file
 ---
 
 > Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).

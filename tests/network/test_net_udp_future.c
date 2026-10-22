@@ -23,6 +23,35 @@ typedef struct testudpblock {
 	xatomic32 Release;
 } testudpblock;
 
+typedef struct testudpcache {
+	xnetudp* Udp;
+	xfuture* Future;
+	size_t Limit;
+	xatomic32 Done;
+} testudpcache;
+
+/* Foreign immediate completions release their Engine cache lease before
+ * publishing the result. Exercise actual reuse on the hot Worker path. */
+static void testUdpFutureCache(xnetworker* pWorker, ptr pData)
+{
+	testudpcache* pProbe = (testudpcache*)pData;
+	xnetenginestats Before, After;
+	xfuture* pWarm = xrtNetUdpWaitAsync(pProbe->Udp, XNET_UDP_WAIT_OPEN);
+	testRequire(pWarm && xrtFutureState(pWarm) == XFUTURE_RESOLVED,
+		"UDP Future Worker cache warmup failed");
+	xrtFutureDestroy(pWarm);
+	testRequire(xrtNetEngineStats(xrtNetWorkerEngine(pWorker), &Before),
+		"UDP Future node cache initial stats failed");
+	pProbe->Future = xrtNetUdpWaitAsync(pProbe->Udp, XNET_UDP_WAIT_OPEN);
+	testRequire(pProbe->Future &&
+		xrtFutureState(pProbe->Future) == XFUTURE_RESOLVED &&
+		xrtNetEngineStats(xrtNetWorkerEngine(pWorker), &After) &&
+		After.NodeCacheHits > Before.NodeCacheHits &&
+		After.NodeCachedBytes <= pProbe->Limit,
+		"UDP Future waiter did not reuse the Worker node cache");
+	xrtAtomic32Store(&pProbe->Done, 1, XMEMORY_RELEASE);
+}
+
 
 
 /* 等待 Future 在截止时间前完成，并要求达到指定终态。 */
@@ -271,7 +300,6 @@ int main(void)
 	xnetudpconfig UdpConfig;
 	xnetudpevents Events;
 	xnetudpstats Stats;
-	xnetenginestats EngineStats;
 	xnetengine* pEngine;
 	xnetudp* pServer;
 	xnetudp* pClient;
@@ -294,7 +322,6 @@ int main(void)
 	xnetudppacket* pPacket;
 	xnetudppacket* pRetained;
 	xnetudppacket* pTaken;
-	uint64 iNodeHits;
 	xnetudpbatch* pBatch;
 	char sBatch[3] = {'A', 'B', 'C'};
 
@@ -340,17 +367,18 @@ int main(void)
 		"UDP client open Future failed");
 	xrtFutureDestroy(pServerOpen);
 	xrtFutureDestroy(pClientOpen);
-	testRequire(xrtNetEngineStats(pEngine, &EngineStats),
-		"UDP Future node cache initial stats failed");
-	iNodeHits = EngineStats.NodeCacheHits;
-	pCacheOpen = xrtNetUdpWaitAsync(pClient, XNET_UDP_WAIT_OPEN);
-	testRequire((pCacheOpen != NULL) &&
-		 (xrtFutureWaitFor(pCacheOpen, 5000) == XWAIT_OK) &&
-		 (xrtFutureState(pCacheOpen) == XFUTURE_RESOLVED) &&
-		 xrtNetEngineStats(pEngine, &EngineStats) &&
-		 (EngineStats.NodeCacheHits > iNodeHits) &&
-		 (EngineStats.NodeCachedBytes <= EngineConfig.NodeCacheBytes),
-		"UDP Future waiter did not reuse the Worker node cache");
+	testudpcache Probe = {0};
+	Probe.Udp = pClient;
+	Probe.Limit = EngineConfig.NodeCacheBytes;
+	testRequire(xrtNetEnginePost(pEngine,
+		xrtNetWorkerIndex(xrtNetUdpWorker(pClient)), testUdpFutureCache, &Probe),
+		"UDP Future cache probe post failed");
+	double CacheDeadline = __xrtWaitAfter(5000);
+	while (!xrtAtomic32Load(&Probe.Done, XMEMORY_ACQUIRE)) {
+		testRequire(!__xrtWaitExpired(CacheDeadline), "UDP Future cache probe timed out");
+		xrtThreadYield();
+	}
+	pCacheOpen = Probe.Future;
 
 	/* 长期条件等待与消费式接收使用独立 FIFO，收包路径不能扫描关闭等待。 */
 	for ( size_t i = 0; i < TEST_UDP_FUTURE_CLOSE_WAITS; i++ ) {

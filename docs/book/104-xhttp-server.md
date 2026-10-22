@@ -5,7 +5,7 @@ title: 服务端（上）：启动、连接与路由
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: 五段超时防护、Headers/Body/Request 事件链、Reply 直答路径与 Drain 收尾——建立在 TCP 聚合上的 HTTP/1 服务运行时。
-api: xhttp-http_server, xhttp-http_server_router, net
+api: xhttp-http_server, xhttp-server-http_server_router, net
 ---
 
 > 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。

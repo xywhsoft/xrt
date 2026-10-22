@@ -5,7 +5,7 @@ title: Сервер (часть 2): middleware и статические фай�
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: Луковичная модель «вход в порядке регистрации, выход в обратном», синхронно-стековая семантика Next, статические файлы и обслуживание каталогов — стандартная сборка сквозных задач.
-api: xhttp-http_server_middleware, xhttp-http_server_static, xhttp-http_server_router
+api: xhttp-server-http_server_middleware, xhttp-server-http_server_static, xhttp-server-http_server_router
 ---
 
 > Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).

@@ -2130,3 +2130,101 @@ Clear 只标记退役，拥有槽保留到 Finish；它不关闭管道、不等�
 不会重复释放。终态发布和拥有槽转换参与 mutation，平台等待与 Future
 通知回调不保留外层 mutation。EXITED 或 FutureDone 不能代替等待者
 引用已释放的证据。
+
+## 原生对象与异步协议补充参考
+
+拥有图引用描述实际强引用边，不是额外 pin；适配器要求精确策略身份和静止条件，只在准入成功后使用准备、接管和释放协议。普通查询与非等待拒绝须按各接口契约区分。
+
+### `xrtProcessFuturePayloadPolicyV1Get`
+
+Exact policy for the immutable, owned xprocessstatus terminal snapshot.
+This does not certify arbitrary Future payloads, observers or producers.
+
+公开声明与相关策略见 [process.h](../../include/xrt/process.h)。
+
+```c
+const xfuturepayloadownershipv1* xrtProcessFuturePayloadPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/process/stream/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtProcessOwnership`
+
+Physical process control block. Count includes ALL real references: user
+endpoints, the native waiter's independent lifetime and collector pins.
+Trace exposes the owned Error and (when selected) shared Future/Promise.
+Queries require graph Freeze; all children need independent admission.
+Clear retires slots without closing pipes; Finish releases them outside
+Freeze. Holds are NOT user endpoints and never postpone last-user EOF.
+
+公开声明与相关策略见 [process.h](../../include/xrt/process.h)。
+
+```c
+xrtownershipref xrtProcessOwnership(const xprocess* pProcess);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pProcess` | 进程句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/process/stream/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtProcessOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [process.h](../../include/xrt/process.h)。
+
+```c
+const xrtownershipadapterv1* xrtProcessOwnershipAdapterV1(xrtownershipref Reference);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/process/stream/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。

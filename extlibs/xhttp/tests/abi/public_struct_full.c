@@ -1,5 +1,5 @@
-#define XHTTP_MODULE_ALL
-#include <xhttp.h>
+#define XHTTP_CLIENT_MODULE_ALL
+#include <xhttp-client.h>
 
 #include "public_struct_abi.h"
 #include <stddef.h>

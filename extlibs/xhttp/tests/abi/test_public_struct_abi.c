@@ -1,5 +1,5 @@
 #define XHTTP_CLIENT_MODULE_HTTP_CLIENT
-#include <xhttp.h>
+#include <xhttp-client.h>
 
 #include "public_struct_abi.h"
 #include <stddef.h>

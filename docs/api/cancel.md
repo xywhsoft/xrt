@@ -674,6 +674,32 @@ const xrtownershipadapterv1* xrtCancelWatchOwnershipAdapterV2(
     size_t iPolicyCount, const xrtownershipfinishv1** ppCompletion);
 ```
 
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 物理对象地址与精确的所有权 Ops 身份。 |
+| `pPolicies` | 按声明传入的参数；空值、容量及所有权限制见上述契约。 |
+| `iPolicyCount` | 按声明传入的参数；空值、容量及所有权限制见上述契约。 |
+| `ppCompletion` | 按声明传入的参数；空值、容量及所有权限制见上述契约。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针的含义遵循上述契约。只有取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略身份或静止条件不满足；这种准入拒绝不等同于一次系统调用失败。不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/cancel/main.c)。本接口的策略身份、回调和生命周期限制见上述契约。
+
+
+
 这两个适配器允许注册的真实拥有者在 Clear 之后解绑。它们不要求
 提前 Unwatch，也不改变旧 Watch V1 和 Token V2 的准备协议。
 查询必须处于全图冻结中；只接受白名单中指针身份完全匹配的
@@ -714,6 +740,32 @@ const xrtownershipadapterv1* xrtCancelOwnershipAdapterV3(
     size_t iPolicyCount, const xrtownershipfinishv1** ppCompletion);
 ```
 
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 物理对象地址与精确的所有权 Ops 身份。 |
+| `pPolicies` | 按声明传入的参数；空值、容量及所有权限制见上述契约。 |
+| `iPolicyCount` | 按声明传入的参数；空值、容量及所有权限制见上述契约。 |
+| `ppCompletion` | 按声明传入的参数；空值、容量及所有权限制见上述契约。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针的含义遵循上述契约。只有取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略身份或静止条件不满足；这种准入拒绝不等同于一次系统调用失败。不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/cancel/main.c)。本接口的策略身份、回调和生命周期限制见上述契约。
+
+
+
 Token 的 Clear 后完成协议。参数、准入和描述符规则与上节 Watch V2
 相同；Token 本身的计划引用和传递的父引用仍按真实计数处理。Step
 只在无链入注册且无活动请求后移走 Parent 强引用，并在 mutation
@@ -737,3 +789,108 @@ typedef struct xcancelwatchownershipv1 {
 | `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
 | `Notify` | `xcancelproc` | 通知入口，代码覆盖已接受注册的全部生存期。 |
 | `Ops` | `const xrtownershipops*` | 同一物理 Data 节点的计数和真实边枚举操作表。 |
+
+## 原生对象与异步协议补充参考
+
+拥有图引用只描述实际强引用边，不是额外 pin；适配器要求精确策略身份和静止条件。只在成功准入后使用返回的准备、接管和释放协议。普通查询与非等待拒绝须按各接口契约区分。
+
+### `xrtCancelOwnershipQuiescenceV1Get`
+
+Exact native dispatch state under whole-graph freeze. false never admits
+an unknown observer; neither query invokes policies or changes rights.
+
+公开声明与相关策略定义见 [cancel.h](../../include/xrt/cancel.h)。
+
+```c
+const xrtownershipquiescencev1* xrtCancelOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针的含义遵循上述契约。只有取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻的只读策略；调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/cancel/main.c)。本接口的策略身份、回调和生命周期限制见上述契约。
+
+
+### `xrtCancelUnwatchChecked`
+
+Consume the same registration right, reporting whether unlink/retirement
+was accepted even when no diagnostic can be allocated. NULL succeeds.
+False leaves the owner's right unconsumed; retry while storage is valid.
+Self-unwatch succeeds with its physical release deferred until callback
+return. Success does not imply that all dispatcher references have left.
+Repeated calls require an independent real lifetime pin; never reuse a
+pointer whose last right was consumed by an earlier call.
+
+公开声明与相关策略定义见 [cancel.h](../../include/xrt/cancel.h)。
+
+```c
+bool xrtCancelUnwatchChecked(xcancelwatch* pWatch);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pWatch` | 按声明传入的参数；空值、容量及所有权限制见上述契约。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+按上述参数、状态及回调契约处理拒绝。需要错误详情时读取 `xrtGetError()`；条件查询和非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/cancel/main.c)。本接口的策略身份、回调和生命周期限制见上述契约。
+
+
+### `xrtCancelWatchOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略定义见 [cancel.h](../../include/xrt/cancel.h)。
+
+```c
+const xrtownershipquiescencev1* xrtCancelWatchOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针的含义遵循上述契约。只有取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻的只读策略；调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/cancel/main.c)。本接口的策略身份、回调和生命周期限制见上述契约。

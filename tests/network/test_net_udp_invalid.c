@@ -41,7 +41,11 @@ int main(void)
 	xnetudpstats Stats;
 	xnetengine* pEngine;
 	xnetudp* pUdp;
-	size_t iUdpSizeLimit = 648u;
+	/* The ownership registry/admission fields add bounded fixed metadata.
+	 * Native x64 is 704 bytes without Future and 784 with it. Account for
+	 * the two pthread-backed TinyCC/POSIX locks separately from that budget. */
+	size_t iLockBytes = (sizeof(xrt_spinlock) + 7u) & ~(size_t)7u;
+	size_t iUdpSizeLimit = 648u + 64u + 2u * (iLockBytes - 8u);
 
 	/* 核心对象、默认单槽及可裁剪 Future 状态分别受固定预算约束。 */
 	#if defined(XRT_FEATURE_NET_UDP_FUTURE)

@@ -5,7 +5,7 @@ title: Сервер (часть 1): запуск, соединения и мар
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: Защита пятью тайм-аутами, цепочка событий Headers/Body/Request, прямой ответ Reply и финал Drain — среда выполнения HTTP/1-сервиса поверх агрегированного TCP.
-api: xhttp-http_server, xhttp-http_server_router, net
+api: xhttp-http_server, xhttp-server-http_server_router, net
 ---
 
 > Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).

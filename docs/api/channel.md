@@ -1689,3 +1689,415 @@ xchannelselectresult xrtChannelSelectAwaitFor(
 ```c
 xrtChannelSelectAwaitFor(Cases, 2u, INT64_C(3000));
 ```
+
+## 原生对象与异步协议补充参考
+
+拥有图引用描述实际强引用边，不是额外 pin；适配器要求精确策略身份和静止条件，只在准入成功后使用准备、接管和释放协议。普通查询与非等待拒绝须按各接口契约区分。
+
+### `xchannelsubscribecase`
+
+```c
+typedef struct xchannelsubscribecase {
+	xchannel* Channel;
+	xchannelop Operation;
+	ptr Value;
+} xchannelsubscribecase;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Channel` | `xchannel*` | 订阅的 Channel。 |
+| `Operation` | `xchannelop` | 该订阅分支的操作。 |
+| `Value` | `ptr` | 该分支的值槽。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xchannelsubscribeownershipv1`
+
+```c
+typedef struct xchannelsubscribeownershipv1 {
+	size_t size;
+	void (*Notify)(xchannelsubscription* pSubscription, ptr pData);
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xchannelsubscribeownershipv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 策略结构的字节大小，用于版本与形状校验。 |
+| `Ops` | `const xrtownershipops*` | 精确匹配的所有权计数和追踪操作表。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xchannelsubscribepolicyv1`
+
+```c
+typedef struct xchannelsubscribepolicyv1 {
+	size_t size;
+	void (*Notify)(xchannelsubscription* pSubscription, ptr pData);
+	void (*Drop)(const void* pData);
+} xchannelsubscribepolicyv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 策略结构的字节大小，用于版本与形状校验。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xchannelsubscription`
+
+```c
+typedef struct xchannelsubscription xchannelsubscription;
+```
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+### `xrtChannelSubscribeCreateOwnedV1`
+
+创建拥有回调上下文的 Channel 订阅；成功创建后按策略管理上下文追踪和释放。
+
+公开声明与相关策略见 [channel_subscribe.h](../../include/xrt/channel_subscribe.h)。
+
+```c
+xchannelsubscription* xrtChannelSubscribeCreateOwnedV1(const xchannelsubscribecase* pCases, size_t iCount, ptr pData, const xchannelsubscribeownershipv1* pPolicy);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pCases` | Channel 订阅分支数组。 |
+| `iCount` | 条目或切片数量；对应数组必须覆盖全部条目。 |
+| `pData` | 传给操作或完成回调的用户上下文；拥有权转移点按当前接口契约处理。 |
+| `pPolicy` | 该操作要求的精确策略描述符；其回调与存储须覆盖受理对象的生命周期。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/channel/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtChannelSubscribeCreateV1`
+
+All storage and case validation precede publication. No Channel operation,
+callback, worker, coroutine stack or timer is started here.
+
+公开声明与相关策略见 [channel_subscribe.h](../../include/xrt/channel_subscribe.h)。
+
+```c
+xchannelsubscription* xrtChannelSubscribeCreateV1(const xchannelsubscribecase* pCases, size_t iCount, ptr pData, const xchannelsubscribepolicyv1* pPolicy);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pCases` | Channel 订阅分支数组。 |
+| `iCount` | 条目或切片数量；对应数组必须覆盖全部条目。 |
+| `pData` | 传给操作或完成回调的用户上下文；拥有权转移点按当前接口契约处理。 |
+| `pPolicy` | 该操作要求的精确策略描述符；其回调与存储须覆盖受理对象的生命周期。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/channel/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtChannelSubscribeDestroy`
+
+Consume one external reference. Last release requests cancellation of a
+pending operation, but does not undo a committed send/receive. Never waits
+for a callback; internal dispatch credits delay physical destruction.
+
+公开声明与相关策略见 [channel_subscribe.h](../../include/xrt/channel_subscribe.h)。
+
+```c
+void xrtChannelSubscribeDestroy(xchannelsubscription* pSubscription);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pSubscription` | Channel 订阅句柄；须按对应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+无返回值；释放与回调顺序遵循上述契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/channel/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtChannelSubscribeOwnership`
+
+Read-only physical views under independently held whole-graph freeze.
+A live registration owns ONE execution credit in addition to external
+handles. It is an actual pending-work root, not an incoming edge invented
+for each borrowed Channel/case. No collection API cancels accepted work.
+Raw-policy contexts are refused. Adapter admission matches the exact policy
+identity before reading it; its Data remains independently admitted.
+Active dispatch/publication refuses inspection. Clear is legal only before
+Start or after completion; Finish returns the Data reference outside freeze.
+Ref/Start/Stop quarantine new admission while claimed, Restore reopens it.
+
+公开声明与相关策略见 [channel_subscribe.h](../../include/xrt/channel_subscribe.h)。
+
+```c
+xrtownershipref xrtChannelSubscribeOwnership(const xchannelsubscription* pSubscription);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pSubscription` | Channel 订阅句柄；须按对应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/channel/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtChannelSubscribeOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [channel_subscribe.h](../../include/xrt/channel_subscribe.h)。
+
+```c
+const xrtownershipadapterv1* xrtChannelSubscribeOwnershipAdapterV1(xrtownershipref Reference, const xchannelsubscribeownershipv1* const* pPolicies, size_t iPolicyCount);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 物理对象地址及精确的 Count/Trace 操作表身份；不代表新增强引用。 |
+| `pPolicies` | 允许的精确策略指针数组，与 iPolicyCount 配对。 |
+| `iPolicyCount` | pPolicies 数组的条目数。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/channel/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtChannelSubscribeOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [channel_subscribe.h](../../include/xrt/channel_subscribe.h)。
+
+```c
+const xrtownershipquiescencev1* xrtChannelSubscribeOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/channel/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtChannelSubscribeRef`
+
+增加订阅的拥有引用，之后须配对释放。
+
+公开声明与相关策略见 [channel_subscribe.h](../../include/xrt/channel_subscribe.h)。
+
+```c
+xchannelsubscription* xrtChannelSubscribeRef(xchannelsubscription* pSubscription);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pSubscription` | Channel 订阅句柄；须按对应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/channel/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtChannelSubscribeResult`
+
+false while pending; outputs remain unchanged. After Ready, copies the
+immutable result and received raw pointer (NULL also is a valid message).
+Output addresses are used only during this call, never retained.
+
+公开声明与相关策略见 [channel_subscribe.h](../../include/xrt/channel_subscribe.h)。
+
+```c
+bool xrtChannelSubscribeResult(const xchannelsubscription* pSubscription, xchannelselectresult* pResult, ptr* pValue);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pSubscription` | Channel 订阅句柄；须按对应生命周期契约保持目标有效。 |
+| `pResult` | 接收非等待操作状态的输出存储。 |
+| `pValue` | 当前操作的动态值；接管和失败保留规则见对应接口契约。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/channel/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtChannelSubscribeStart`
+
+Admit once. May complete and notify inline before returning. On success no
+allocation is needed to wait, wake, select, stop or unlink.
+
+公开声明与相关策略见 [channel_subscribe.h](../../include/xrt/channel_subscribe.h)。
+
+```c
+bool xrtChannelSubscribeStart(xchannelsubscription* pSubscription);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pSubscription` | Channel 订阅句柄；须按对应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/channel/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtChannelSubscribeStop`
+
+Record the first CANCELLED/TIMEOUT/ERROR stop request; true means recorded,
+not that it beat a ready case. Can be requested before Start. Runtime timers
+call this API: this module does not allocate a per-wait timer/worker/thread.
+
+公开声明与相关策略见 [channel_subscribe.h](../../include/xrt/channel_subscribe.h)。
+
+```c
+bool xrtChannelSubscribeStop(xchannelsubscription* pSubscription, xwaitresult iReason);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pSubscription` | Channel 订阅句柄；须按对应生命周期契约保持目标有效。 |
+| `iReason` | 取消操作的原因编号。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/channel/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。

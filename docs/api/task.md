@@ -794,6 +794,24 @@ xwaitresult xrtTaskGroupWaitForCancel(xtaskgroup* pGroup, int64 iTimeout, xcance
 xrtownershipref xrtTaskGroupOwnership(const xtaskgroup* pGroup);
 ```
 
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pGroup` | 任务组句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+
 借用的物理拥有图视图。调用方必须保证全图冻结及相关代码驻留；
 视图不增加引用，不授予循环收集或代码卸载权限。启动槽仍处于
 预留状态、组回调仍在运行时拒绝 Count，并保持输出槽不变。
@@ -816,6 +834,27 @@ xrtownershipref xrtTaskGroupOwnership(const xtaskgroup* pGroup);
 const xfuturewatchownershipv1* xrtTaskGroupWatchPolicyV1Get(void);
 ```
 
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+
 返回活动项完成注册的借用、不可变常驻策略。Data 是实际引用计数
 活动项，其 Count 和 Trace 描述该项而不是所属组的替代身份。
 只有认可完整生命周期协议的调用方才能将策略身份加入白名单；
@@ -826,6 +865,27 @@ const xfuturewatchownershipv1* xrtTaskGroupWatchPolicyV1Get(void);
 ```c
 const xcancelwatchownershipv1* xrtTaskGroupCancelPolicyV1Get(void);
 ```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
 
 返回组取消观察者的借用、不可变常驻 owned 策略。Watch 真实持有
 一份组引用；Notify 在短 mutation 之外执行，组自行标记传播在途
@@ -844,6 +904,30 @@ const xcancelwatchownershipv1* xrtTaskGroupCancelPolicyV1Get(void);
 const xrtownershipadapterv1* xrtTaskGroupOwnershipAdapterV1(
     xrtownershipref Reference, const xrtownershipfinishv1** ppCompletion);
 ```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `ppCompletion` | 用于接收完成对象或任务组条目的输出指针。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
 
 按精确原生身份查询组或真实活动项的生命周期适配器。全图冻结中
 拒绝预留启动、在途回调、已退役和未知节点；拒绝不修改输出槽。
@@ -2372,6 +2456,27 @@ typedef struct xtaskdataownershipv1 {
 const xfutureproducerownershipv1* xrtTaskGroupProducerPolicyV1Get(void);
 ```
 
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+
 返回 TaskGroup 的常驻生产者策略。未完成的 Done Future 实际持有一份
 组引用，终态发布在通知等待者之前归还该引用。它独立于创建者、取消
 观察者和活动项的引用；拥有图逐一计数，不合并成虚拟节点。
@@ -2445,6 +2550,31 @@ xtaskpool* xrtTaskPoolCreateOwnedExitV1(const xtaskpoolconfig* pConfig,
     ptr pData, const xtaskpoolworkerexitownershipv1* pPolicy);
 ```
 
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pConfig` | 当前操作的配置；合法字段和默认行为见相应配置类型。 |
+| `pData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `pPolicy` | 对象或操作要求的精确策略描述符，生命周期覆盖受理的上下文。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+
 成功接管调用方已有的一份 Data 引用；失败不接管，也不调用 Exit／Drop，含部分
 线程启动失败的回滚。Data 和完整 policy 必须非空；无退出能力使用普通 Create。
 多个 worker 借用同一拥有上下文，调用方负责它的并发协议，不能将裸栈地址当作
@@ -2455,6 +2585,24 @@ xtaskpool* xrtTaskPoolCreateOwnedExitV1(const xtaskpoolconfig* pConfig,
 ```c
 xwaitresult xrtTaskPoolTryJoinV1(xtaskpool* pPool);
 ```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pPool` | 缓冲池句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
 
 这是 Close／Cancel 之后的非阻塞停止与线程完成检查。普通 Wait 继续只保证任务
 和数据／finalizer 尾部排空，不因为新增 API 而提前终止资源回收线程。TryJoin 在
@@ -2480,6 +2628,32 @@ const xrtownershipadapterv1* xrtTaskPoolOwnershipAdapterV2(
     size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
 ```
 
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `pPolicies` | 允许的精确策略指针数组，与相应的策略数量参数配对。 |
+| `iPolicyCount` | 对应输入数组的有效元素数量。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+
 在完整图独占冻结下查询。V1 拒绝尚持有退出上下文的池；V2 在访问上下文的
 Count／Trace 前匹配注册 policy 的精确地址，描述符副本不授予能力。未知策略、
 忙碌或非法参数不修改输出。Trace 在已有 Job 边之外报告一份实际退出上下文边，
@@ -2490,3 +2664,215 @@ Count／Trace 前匹配注册 policy 的精确地址，描述符副本不授予�
 原生 ThreadKey 析构。Restore 不重新打开已关闭的受理门；Clear 要求真实完成。
 Finish 在锁／freeze 之外调用上下文 Drop，collector pin 保留空终态壳直至实际
 引用归零，不能以猜测减计数代替真实拥有者。
+
+## 原生对象与异步协议补充参考
+
+拥有图引用描述实际强引用边，不是额外 pin；适配器要求精确策略身份和静止条件，只在准入成功后使用准备、接管和释放协议。普通查询与非等待拒绝须按各接口契约区分。
+
+### `xtaskgroupwaitv1`
+
+```c
+typedef struct xtaskgroupwaitv1 {
+	size_t size;
+	xpromise* Output;
+	size_t Count;
+} xtaskgroupwaitv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 策略结构的字节大小，用于版本与形状校验。 |
+| `Output` | `xpromise*` | 声明中的公开字段；取值和生命周期须符合本类型及使用接口的契约。 |
+| `Count` | `size_t` | 声明中的公开字段；取值和生命周期须符合本类型及使用接口的契约。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xtaskgroupwaitvisitorv1`
+
+```c
+typedef bool (*xtaskgroupwaitvisitorv1)(xfuture* pSource, ptr pContext);
+```
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+### `xrtTaskGroupItemOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [task.h](../../include/xrt/task.h)。
+
+```c
+const xrtownershipquiescencev1* xrtTaskGroupItemOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtTaskGroupOwnershipAdapterV2`
+
+V2 adds normal Close/drain preparation, without cancellation or invented
+completion. A normally completed item remains an honest physical anchor
+while a plan pin owns it; V1 keeps its active-item refusal boundary.
+Prepare runs outside freeze, with the whole graph independently admitted,
+claimed unreachable and pinned. Semantic callbacks/finally finish normally
+before Clear; completion still requires all transitive pins until READY.
+Both mandatory outputs are unchanged on refusal. Group/Item identities
+are distinct from V1; never replace descriptors in an existing plan.
+
+公开声明与相关策略见 [task.h](../../include/xrt/task.h)。
+
+```c
+const xrtownershipadapterv1* xrtTaskGroupOwnershipAdapterV2(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation, const xrtownershipfinishv1** ppCompletion);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+| `ppCompletion` | 用于接收完成对象或任务组条目的输出指针。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtTaskGroupOwnershipQuiescenceV1Get`
+
+Exact resident group/item operations, including private Start reservation
+and waiter publication. Whole-graph freeze only; no Count/Trace or callback.
+These descriptors do not weaken the physical views or lifecycle adapters.
+
+公开声明与相关策略见 [task.h](../../include/xrt/task.h)。
+
+```c
+const xrtownershipquiescencev1* xrtTaskGroupOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtTaskGroupWaitV1`
+
+Borrowed ALL-terminal dependencies of a closed, stable, pending group.
+Caller holds the entire physical graph's exclusive freeze and one same
+unreachable claim on the group AND every active item. Ordered duplicate
+sources are visited once per real item, without allocation or new refs.
+A NULL visitor queries metadata only. The visitor is collector code: no
+mutation, retain, semantic callback, waiting or reentrant group operations;
+private analysis scratch is allowed. Invalid state is checked before any
+visit; visitor refusal leaves output unchanged (its own scratch may change).
+This fact neither proves a cycle nor grants cancellation/collection.
+
+公开声明与相关策略见 [task.h](../../include/xrt/task.h)。
+
+```c
+bool xrtTaskGroupWaitV1(xrtownershipref Reference, const void* pToken, xtaskgroupwaitv1* pWait, xtaskgroupwaitvisitorv1 pVisit, ptr pContext);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `pToken` | 本次接管或取消协议使用的身份令牌。 |
+| `pWait` | 任务组等待对象句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pVisit` | 同步访问或完成回调；回调线程、借用参数和生命周期遵守当前接口契约。 |
+| `pContext` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtTaskPoolOwnershipQuiescenceV1Get`
+
+Exact native transition capability; does not relax Count/Trace admission.
+Queued opaque jobs and retained resources still require their own policies.
+The immutable descriptor and callback reside with this XRT instance.
+
+公开声明与相关策略见 [task.h](../../include/xrt/task.h)。
+
+```c
+const xrtownershipquiescencev1* xrtTaskPoolOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
