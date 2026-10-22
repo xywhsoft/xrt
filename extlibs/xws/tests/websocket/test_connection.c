@@ -1617,7 +1617,9 @@ static void testWsConnServerRefTask(
 	xrtClearError();
 	xrtFree(pPayload);
 
-	pPayload = (bytes)xrtMalloc(1);
+	/* Keep the claimed reference span inside its real allocation, independent
+	 * of whether the allocator places it close to the connection object. */
+	pPayload = (bytes)xrtMalloc(TEST_WS_CONNECTION_MESSAGE_LIMIT + 1u);
 	testRequire(
 		pPayload != NULL,
 		"WebSocket oversized reference allocation failed"

@@ -1,5 +1,6 @@
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
+#include "net_engine_test.h"
 
 
 
@@ -567,5 +568,5 @@ int main(void)
 	xrtWsStreamDestroy(pClient);
 	xrtWsStreamDestroy(pServer);
 	xrtNetListenerDestroy(Test.Listener);
-	return xrtNetEngineDestroy(Test.Engine) ? 0 : 8;
+	return testSingleNetEngineDestroy(Test.Engine) ? 0 : 8;
 }

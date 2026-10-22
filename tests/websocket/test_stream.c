@@ -1630,7 +1630,9 @@ static void testWsConnServerRefTask(
 	xrtClearError();
 	xrtFree(pPayload);
 
-	pPayload = (bytes)xrtMalloc(1);
+	/* Advertise a real allocation: a one-byte block with a large claimed
+	 * span can overlap the connection on compact heaps and fail alias checks. */
+	pPayload = (bytes)xrtMalloc(TEST_WS_CONNECTION_MESSAGE_LIMIT + 1u);
 	testRequire(
 		pPayload != NULL,
 		"WebSocket oversized reference allocation failed"
