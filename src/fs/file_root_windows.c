@@ -159,6 +159,8 @@ typedef struct __xrt_root_file_link_info {
 	WCHAR FileName[1];
 } __xrt_root_file_link_info;
 
+typedef __xrt_root_file_link_info __xrt_root_file_rename_info;
+
 
 
 /* 判断 NTSTATUS 是否表示成功。 */
@@ -807,6 +809,92 @@ bool __xrtRootNativeLinkHard(xrootnative SourceParent, cstr sSource,
 			"the hard-link source handle did not close", iCode);
 		return false;
 	}
+	return true;
+}
+
+
+
+/* FileRenameInformation 使用已打开文件及目标父目录句柄，不按全路径重新查找。 */
+bool __xrtRootNativeFileRename(xrootnative SourceParent, cstr sSource,
+	xrootnative TargetParent, cstr sTarget, bool bReplace)
+{
+	HANDLE hSource;
+	NTSTATUS Status;
+	uint16* pWide;
+	size_t iUnits = 0u;
+	size_t iBytes;
+	__xrt_root_file_rename_info* pInfo;
+	HMODULE hModule;
+	__xrt_nt_set_file_proc pSet;
+	IO_STATUS_BLOCK IoStatus;
+
+	if ( !__xrtRootNtCreate(SourceParent, sSource,
+		DELETE | SYNCHRONIZE | FILE_READ_ATTRIBUTES,
+		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+		FILE_OPEN,
+		FILE_SYNCHRONOUS_IO_NONALERT |
+			FILE_OPEN_FOR_BACKUP_INTENT | FILE_NON_DIRECTORY_FILE,
+		OBJ_DONT_REPARSE, false, &hSource, &Status) ) {
+		return false;
+	}
+	if ( !__xrtRootNtSuccess(Status) ) {
+		__xrtRootSetError(XROOT_ERROR_RENAME, "rename",
+			"failed to open the root-relative rename source",
+			__xrtRootNtErrorCode(Status));
+		return false;
+	}
+	pWide = __xrtPathToWide(sTarget, &iUnits);
+	if ( pWide == NULL ) {
+		(void)CloseHandle(hSource);
+		return false;
+	}
+	if ( (iUnits > ((SIZE_MAX - offsetof(__xrt_root_file_rename_info,
+		FileName)) / sizeof(WCHAR))) ||
+		(iUnits > (UINT32_MAX / sizeof(WCHAR))) ) {
+		xrtFree(pWide);
+		(void)CloseHandle(hSource);
+		__xrtRootError(XERR_RANGE, XROOT_ERROR_LIMIT,
+			"rename", "the root-relative rename target is too long");
+		return false;
+	}
+	iBytes = offsetof(__xrt_root_file_rename_info, FileName) +
+		(iUnits * sizeof(WCHAR));
+	if ( iBytes < sizeof(__xrt_root_file_rename_info) ) {
+		iBytes = sizeof(__xrt_root_file_rename_info);
+	}
+	pInfo = (__xrt_root_file_rename_info*)xrtCalloc(1u, iBytes);
+	if ( pInfo == NULL ) {
+		xrtFree(pWide);
+		(void)CloseHandle(hSource);
+		return false;
+	}
+	pInfo->ReplaceIfExists = bReplace ? TRUE : FALSE;
+	pInfo->RootDirectory = TargetParent;
+	pInfo->FileNameLength = (DWORD)(iUnits * sizeof(WCHAR));
+	memcpy(pInfo->FileName, pWide, iUnits * sizeof(WCHAR));
+	xrtFree(pWide);
+	hModule = GetModuleHandleW(L"ntdll.dll");
+	pSet = hModule != NULL ? (__xrt_nt_set_file_proc)(uintptr_t)
+		GetProcAddress(hModule, "NtSetInformationFile") : NULL;
+	if ( pSet == NULL ) {
+		xrtFree(pInfo);
+		(void)CloseHandle(hSource);
+		__xrtRootError(XERR_UNSUPPORTED, XROOT_ERROR_RENAME,
+			"rename", "NtSetInformationFile is unavailable for handle-relative rename");
+		return false;
+	}
+	memset(&IoStatus, 0, sizeof(IoStatus));
+	Status = pSet(hSource, &IoStatus, pInfo, (ULONG)iBytes, 10);
+	xrtFree(pInfo);
+	if ( !__xrtRootNtSuccess(Status) ) {
+		(void)CloseHandle(hSource);
+		__xrtRootSetError(XROOT_ERROR_RENAME, "rename",
+			"failed to rename the root-relative file",
+			__xrtRootNtErrorCode(Status));
+		return false;
+	}
+	/* 改名已经提交，句柄关闭结果不能将提交伪报成失败。 */
+	(void)CloseHandle(hSource);
 	return true;
 }
 

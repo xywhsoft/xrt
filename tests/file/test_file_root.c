@@ -575,6 +575,139 @@ static void testRootRenameAnchor(void)
 
 
 
+/* 根内改名覆盖、排他创建和越界拒绝。 */
+static void testRootFileRename(void)
+{
+	char sDirectory[96];
+	xroot Parent;
+	xroot Root;
+	xfileinfo Info;
+
+	testRootName(sDirectory, sizeof(sDirectory), "root-rename");
+	Root = testRootCreate(sDirectory, &Parent);
+	testRequire(xrtRootDirCreate(Root, "from", 0700u),
+		"rename source directory creation failed");
+	testRequire(xrtRootDirCreate(Root, "to", 0700u),
+		"rename target directory creation failed");
+	testRootWrite(Root, "from/new.txt", "new");
+	testRootWrite(Root, "to/old.txt", "old");
+	testRequire(!xrtRootFileRename(NULL, "from/new.txt", "to/old.txt", true) &&
+		!xrtRootFileRename(Root, NULL, "to/old.txt", true) &&
+		!xrtRootFileRename(Root, "from/new.txt", "", true),
+		"rename accepted an invalid argument");
+	xrtClearError();
+	testRequire(!xrtRootFileRename(Root, "from", "to/directory.txt", true),
+		"rename accepted a directory source");
+	xrtClearError();
+	testRequire(!xrtRootFileRename(Root, "from/new.txt", "../escape.txt", true),
+		"rename accepted a target outside the root");
+	xrtClearError();
+	testRequire(!xrtRootFileRename(Root, "from/new.txt", "missing/file.txt", true),
+		"rename created a missing parent directory");
+	xrtClearError();
+	testRootRead(Root, "from/new.txt", "new");
+	testRootRead(Root, "to/old.txt", "old");
+	testRequire(!xrtRootFileRename(Root, "from/new.txt", "to/old.txt", false),
+		"exclusive rename replaced an existing file");
+	testRootRead(Root, "from/new.txt", "new");
+	testRootRead(Root, "to/old.txt", "old");
+	xrtClearError();
+	testRequire(xrtRootFileRename(Root, "from/new.txt", "to/old.txt", true),
+		"root-relative replacement rename failed");
+	testRequire(!xrtRootStat(Root, "from/new.txt", false, &Info),
+		"rename source still exists");
+	xrtClearError();
+	testRootRead(Root, "to/old.txt", "new");
+	testRootWrite(Root, "from/next.txt", "next");
+	if ( !xrtRootFileRename(Root, "from/next.txt", "to/next.txt", false) ) {
+		testRequire(xrtErrorKind(xrtGetError()) == XERR_UNSUPPORTED,
+			"root-relative exclusive rename failed unexpectedly");
+		xrtClearError();
+		testRootRead(Root, "from/next.txt", "next");
+		testRequire(!xrtRootStat(Root, "to/next.txt", false, &Info),
+			"unsupported exclusive rename created a target");
+		xrtClearError();
+		testRequire(xrtRootFileRename(Root, "from/next.txt", "to/next.txt", true),
+			"replacement rename fallback in test failed");
+	}
+	testRootRead(Root, "to/next.txt", "next");
+	if ( xrtRootLinkCreate(Root, "next.txt", "to/link.txt", false) ) {
+		testRootWrite(Root, "from/link-replacement.txt", "replacement");
+		testRequire(!xrtRootFileRename(Root,
+			"from/link-replacement.txt", "to/link.txt", false),
+			"exclusive rename accepted a symlink target");
+		xrtClearError();
+		testRequire(xrtRootFileRename(Root,
+			"from/link-replacement.txt", "to/link.txt", true),
+			"replacement rename followed a symlink target");
+		testRootRead(Root, "to/link.txt", "replacement");
+		testRootRead(Root, "to/next.txt", "next");
+		testRequire(xrtRootRemove(Root, "to/link.txt"),
+			"replacement target cleanup failed");
+		testRequire(xrtRootLinkCreate(Root,
+			"../to/next.txt", "from/source-link.txt", false),
+			"rename source link creation failed");
+		testRequire(!xrtRootFileRename(Root,
+			"from/source-link.txt", "to/source-link.txt", true),
+			"rename accepted a symlink source");
+		xrtClearError();
+		testRootRead(Root, "to/next.txt", "next");
+		testRequire(xrtRootRemove(Root, "from/source-link.txt"),
+			"rename source link cleanup failed");
+	} else {
+		xrtClearError();
+	}
+	testRequire(!xrtRootFileRename(Root, "../outside.txt", "to/escape.txt", true),
+		"rename accepted a source outside the root");
+	xrtClearError();
+	testRequire(xrtRootRemove(Root, "to/old.txt"), "rename first target cleanup failed");
+	testRequire(xrtRootRemove(Root, "to/next.txt"), "rename second target cleanup failed");
+	testRequire(xrtRootRemove(Root, "from"), "rename source directory cleanup failed");
+	testRequire(xrtRootRemove(Root, "to"), "rename target directory cleanup failed");
+	testRootDestroy(Parent, Root, sDirectory);
+}
+
+
+
+#if defined(XRT_FEATURE_MEMORY_DEBUG)
+/* Each allocation failure before commit preserves both file contents. */
+static void testRootFileRenameOom(void)
+{
+	char sDirectory[96];
+	xroot Parent;
+	xroot Root;
+	bool bComplete = false;
+
+	testRootName(sDirectory, sizeof(sDirectory), "root-rename-oom");
+	Root = testRootCreate(sDirectory, &Parent);
+	testRootWrite(Root, "source.txt", "new");
+	testRootWrite(Root, "target.txt", "old");
+	for ( uint64 i = 0; i < 128u; ++i ) {
+		bool bRenamed;
+		testRequire(xrtMemDebugFailAfter(i), "rename OOM injection failed");
+		bRenamed = xrtRootFileRename(Root, "source.txt", "target.txt", true);
+		xrtMemDebugFailClear();
+		if ( bRenamed ) {
+			bComplete = true;
+			break;
+		}
+		testRequire(xrtErrorKind(xrtGetError()) == XERR_MEMORY,
+			"rename allocation failure lost its memory error");
+		xrtClearError();
+		testRootRead(Root, "source.txt", "new");
+		testRootRead(Root, "target.txt", "old");
+	}
+	testRequire(bComplete, "rename OOM sweep never completed");
+	testRootRead(Root, "target.txt", "new");
+	testRequire(xrtRootRemove(Root, "target.txt"), "rename OOM target cleanup failed");
+	testRootDestroy(Parent, Root, sDirectory);
+	xrtClearError();
+	testMemoryDebugDrain("root rename OOM sweep leaked memory");
+}
+#endif
+
+
+
 /* 目录根回归入口。 */
 int main(void)
 {
@@ -584,5 +717,9 @@ int main(void)
 	testRootCreateObjects();
 	testRootDirectoryIterator();
 	testRootRenameAnchor();
+	testRootFileRename();
+	#if defined(XRT_FEATURE_MEMORY_DEBUG)
+		testRootFileRenameOom();
+	#endif
 	return 0;
 }

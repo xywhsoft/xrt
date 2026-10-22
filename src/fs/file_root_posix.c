@@ -12,9 +12,17 @@
 #if !defined(_WIN32) && !defined(_WIN64)
 	#include <errno.h>
 	#include <fcntl.h>
+	#include <stdio.h>
 	#include <sys/stat.h>
 	#include <sys/types.h>
 	#include <unistd.h>
+	#if defined(__linux__)
+		#include <sys/syscall.h>
+		#if !defined(RENAME_NOREPLACE)
+			#define RENAME_NOREPLACE 1u
+		#endif
+		extern long syscall(long iNumber, ...);
+	#endif
 #endif
 
 
@@ -420,6 +428,52 @@ bool __xrtRootNativeLinkHard(xrootnative SourceParent, cstr sSource,
 			"failed to create the root-relative hard link", iCode);
 		return false;
 	}
+}
+
+
+
+/* 排他改名只使用平台原子原语；不以先检查或硬链接回退。 */
+static int __xrtRootRenameExclusive(xrootnative SourceParent, cstr sSource,
+	xrootnative TargetParent, cstr sTarget)
+{
+	#if defined(__linux__) && defined(SYS_renameat2)
+		return (int)syscall(SYS_renameat2, SourceParent, sSource,
+			TargetParent, sTarget, RENAME_NOREPLACE);
+	#elif defined(__APPLE__)
+		return renameatx_np(SourceParent, sSource,
+			TargetParent, sTarget, RENAME_EXCL);
+	#else
+		(void)SourceParent;
+		(void)sSource;
+		(void)TargetParent;
+		(void)sTarget;
+		errno = ENOSYS;
+		return -1;
+	#endif
+}
+
+
+
+bool __xrtRootNativeFileRename(xrootnative SourceParent, cstr sSource,
+	xrootnative TargetParent, cstr sTarget, bool bReplace)
+{
+	int iResult;
+
+	do {
+		iResult = bReplace ?
+			renameat(SourceParent, sSource, TargetParent, sTarget) :
+			__xrtRootRenameExclusive(SourceParent, sSource,
+				TargetParent, sTarget);
+	} while ( (iResult != 0) && (errno == EINTR) );
+	if ( iResult == 0 ) { return true; }
+	if ( (errno == ENOSYS) || (errno == EINVAL && !bReplace) ) {
+		__xrtRootError(XERR_UNSUPPORTED, XROOT_ERROR_RENAME,
+			"rename", "atomic root-relative exclusive rename is unavailable");
+		return false;
+	}
+	__xrtRootSetError(XROOT_ERROR_RENAME, "rename",
+		"failed to rename the root-relative file", errno);
+	return false;
 }
 
 

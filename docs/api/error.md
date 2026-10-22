@@ -2907,3 +2907,287 @@ typedef struct xerrorlocationview {
 | `File` | `xstrview` | 源码文件名；构造期间借用，构造器复制全部字节。 |
 | `Line` | `int32` | 非负源码行号，零表示未提供。 |
 | `Column` | `int32` | 非负源码列号，零表示未提供。 |
+
+## 共享分配额度类型
+
+### `xallocationbudget`
+
+```c
+typedef struct xallocationbudget xallocationbudget;
+```
+
+可跨线程共享的活动请求字节额度。持有者、已进入的作用域及计账内存块分别持有引用；
+最后一个引用释放时销毁额度。它不限制进程 RSS、分配器元数据或外部分配器。
+
+### `xallocationscope`
+
+```c
+typedef struct xallocationscope {
+    struct xallocationscope* Previous;
+    xallocationbudget* Budget;
+    uint64 Owner;
+    uint64 Rejections;
+} xallocationscope;
+```
+
+| 字段 | 语义 |
+|---|---|
+| `Previous` | 上层作用域，由库维护 |
+| `Budget` | 当前额度，由库维护 |
+| `Owner` | 所属原生线程，由库维护 |
+| `Rejections` | 当前作用域期间额度预留被拒绝的次数；Leave 后清零 |
+
+必须零初始化，在同一原生线程后进先出地进入与退出，退出前不得移动或销毁其存储。
+嵌套作用域只向最内层额度计账。
+
+### `xallocationbudgetinfo`
+
+```c
+typedef struct xallocationbudgetinfo {
+    size_t Size;
+    size_t Limit;
+    size_t LiveBytes;
+    size_t PeakBytes;
+    size_t LiveCount;
+    uint64 Rejections;
+} xallocationbudgetinfo;
+```
+
+| 字段 | 语义 |
+|---|---|
+| `Size` | 调用前设置为 `sizeof(xallocationbudgetinfo)` |
+| `Limit` | 当前字节上限 |
+| `LiveBytes` | 活动分配和进行中的预留请求字节 |
+| `PeakBytes` | 历史预留峰值；降低上限不重置 |
+| `LiveCount` | 活动分配和进行中的预留数量 |
+| `Rejections` | 额度预留被拒绝的累计次数，不包含底层分配器 OOM |
+
+零字节请求按一字节统计；`realloc` 在归还旧块前预留完整目标块。
+
+
+## 共享分配额度函数
+
+### `xrtAllocationBudgetCreate`
+
+创建独立的共享额度，不进入当前作用域的计账。
+
+```c
+bool xrtAllocationBudgetCreate(size_t iLimit, xallocationbudget** ppBudget);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `iLimit` | 非零活动请求字节上限 |
+| `ppBudget` | 非空输出指针，成功取得一个拥有引用；失败置空 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作成功 | — |
+| `false` | 操作失败 | 详见错误及下述状态约定 |
+
+`true` 表示创建成功；`false` 表示失败。
+
+#### 错误
+
+`XERR_ARGUMENT`：零上限或空输出指针；`XERR_MEMORY`：底层分配失败。
+
+#### 范例
+
+[内存分配示例](../../examples/core/memory/main.c) 展示额度内可调用的分配与释放入口。
+额度的完整作用域用法见 [共享分配额度](memory.md#共享分配额度)。
+
+
+### `xrtAllocationBudgetAddRef`
+
+增加一个拥有引用，调用方之后必须配对 Free。
+
+```c
+bool xrtAllocationBudgetAddRef(xallocationbudget* pBudget);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pBudget` | 非空且仍有有效拥有引用的额度 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作成功 | — |
+| `false` | 操作失败 | 详见错误及下述状态约定 |
+
+`true` 表示引用增加成功；失败不改变引用数。
+
+#### 错误
+
+`XERR_ARGUMENT`：空额度；`XERR_MEMORY`：引用计数无法增加。
+
+#### 范例
+
+[内存分配示例](../../examples/core/memory/main.c) 展示额度内可调用的分配与释放入口。
+额度的完整作用域用法见 [共享分配额度](memory.md#共享分配额度)。
+
+
+### `xrtAllocationBudgetFree`
+
+释放一个拥有引用。活动作用域和计账块仍持有独立引用，允许先释放调用方持有者。
+
+```c
+void xrtAllocationBudgetFree(xallocationbudget* pBudget);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pBudget` | 待释放的拥有引用；允许空指针 |
+
+#### 返回值
+
+无返回值；最后一个引用释放时销毁额度。
+
+#### 范例
+
+[内存分配示例](../../examples/core/memory/main.c) 展示额度内可调用的分配与释放入口。
+额度的完整作用域用法见 [共享分配额度](memory.md#共享分配额度)。
+
+
+### `xrtAllocationBudgetInfo`
+
+在额度锁内取得一致的统计快照。分配仍在进行时，统计可能包含尚未完成的预留。
+
+```c
+bool xrtAllocationBudgetInfo(xallocationbudget* pBudget, xallocationbudgetinfo* pInfo);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pBudget` | 非空额度 |
+| `pInfo` | 非空输出，Size 必须预先设为结构大小 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作成功 | — |
+| `false` | 操作失败 | 详见错误及下述状态约定 |
+
+`true` 表示快照已写入；参数失败不改写输出。
+
+#### 错误
+
+`XERR_ARGUMENT`：空参数或结构大小不匹配。
+
+#### 范例
+
+[内存分配示例](../../examples/core/memory/main.c) 展示额度内可调用的分配与释放入口。
+额度的完整作用域用法见 [共享分配额度](memory.md#共享分配额度)。
+
+
+### `xrtAllocationBudgetSetLimit`
+
+并发安全地更新上限；不重置历史峰值或拒绝次数。
+
+```c
+bool xrtAllocationBudgetSetLimit(xallocationbudget* pBudget, size_t iLimit);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pBudget` | 非空额度 |
+| `iLimit` | 非零，且不得低于当前 LiveBytes |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作成功 | — |
+| `false` | 操作失败 | 详见错误及下述状态约定 |
+
+`true` 表示上限已更新；`false` 保留原上限。
+
+#### 错误
+
+`XERR_ARGUMENT`：空额度、零上限或低于当前活动字节。
+
+#### 范例
+
+[内存分配示例](../../examples/core/memory/main.c) 展示额度内可调用的分配与释放入口。
+额度的完整作用域用法见 [共享分配额度](memory.md#共享分配额度)。
+
+
+### `xrtAllocationBudgetEnter`
+
+把额度设为当前原生线程最内层作用域。成功后必须在存储失效或线程退出前调用 Leave。
+
+```c
+bool xrtAllocationBudgetEnter(xallocationbudget* pBudget, xallocationscope* pScope);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pBudget` | 非空额度，进入期间保持独立引用 |
+| `pScope` | 零初始化且未进入的作用域存储 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作成功 | — |
+| `false` | 操作失败 | 详见错误及下述状态约定 |
+
+`true` 表示作用域已进入；失败不改变当前作用域。
+
+#### 错误
+
+`XERR_ARGUMENT`：空参数或作用域未清零；`XERR_MEMORY`：引用或线程存储不可用。
+
+#### 范例
+
+[内存分配示例](../../examples/core/memory/main.c) 展示额度内可调用的分配与释放入口。
+额度的完整作用域用法见 [共享分配额度](memory.md#共享分配额度)。
+
+
+### `xrtAllocationBudgetLeave`
+
+恢复上层作用域、清零当前作用域并释放其额度引用。跨线程和乱序退出被拒绝；内存块继续计账到实际释放。
+
+```c
+bool xrtAllocationBudgetLeave(xallocationscope* pScope);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pScope` | 当前线程最内层、仍有效的作用域 |
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作成功 | — |
+| `false` | 操作失败 | 详见错误及下述状态约定 |
+
+`true` 表示退出成功；失败不改变当前作用域。
+
+#### 错误
+
+`XERR_ARGUMENT`：空、重复、跨线程或乱序退出，或线程存储更新失败。
+
+#### 范例
+
+[内存分配示例](../../examples/core/memory/main.c) 展示额度内可调用的分配与释放入口。
+额度的完整作用域用法见 [共享分配额度](memory.md#共享分配额度)。

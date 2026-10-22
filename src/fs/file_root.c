@@ -1170,6 +1170,93 @@ XRT_API bool xrtRootLinkHard(xroot Root, cstr sExisting, cstr sLink)
 
 
 
+typedef struct {
+	xroot Root;
+	cstr TargetPath;
+	bool Replace;
+} __xrt_root_rename_source;
+
+typedef struct {
+	xrootnative SourceParent;
+	cstr SourceName;
+	bool Replace;
+} __xrt_root_rename_target;
+
+
+
+/* 两端父目录句柄在改名完成前保持锚定。 */
+static xrootstep __xrtRootRenameTargetProc(xrootnative Parent,
+	cstr sName, bool bTrailing, ptr pData, str* pLink)
+{
+	const __xrt_root_rename_target* pSource =
+		(const __xrt_root_rename_target*)pData;
+
+	(void)pLink;
+	if ( bTrailing || (strcmp(sName, ".") == 0) ) {
+		__xrtRootError(XERR_ARGUMENT, XROOT_ERROR_RENAME,
+			"rename", "the target must name a file");
+		return XROOT_STEP_ERROR;
+	}
+	return __xrtRootNativeFileRename(pSource->SourceParent,
+		pSource->SourceName, Parent, sName, pSource->Replace) ?
+		XROOT_STEP_DONE : XROOT_STEP_ERROR;
+}
+
+
+
+static xrootstep __xrtRootRenameSourceProc(xrootnative Parent,
+	cstr sName, bool bTrailing, ptr pData, str* pLink)
+{
+	const __xrt_root_rename_source* pTarget =
+		(const __xrt_root_rename_source*)pData;
+	__xrt_root_rename_target Source;
+	xfileinfo Info;
+	xrootstep Step;
+
+	if ( bTrailing || (strcmp(sName, ".") == 0) ) {
+		__xrtRootError(XERR_ARGUMENT, XROOT_ERROR_RENAME,
+			"rename", "the source must name a file");
+		return XROOT_STEP_ERROR;
+	}
+	Step = __xrtRootNativeStat(Parent, sName, false,
+		false, &Info, pLink);
+	if ( Step != XROOT_STEP_DONE ) { return Step; }
+	if ( Info.Type != XFILE_TYPE_FILE ) {
+		__xrtRootError(XERR_TYPE, XROOT_ERROR_RENAME,
+			"rename", "the source must be a regular file");
+		return XROOT_STEP_ERROR;
+	}
+	Source.SourceParent = Parent;
+	Source.SourceName = sName;
+	Source.Replace = pTarget->Replace;
+	return __xrtRootResolve(pTarget->Root, pTarget->TargetPath,
+		XROOT_POLICY_FOLLOW_LINKS, false,
+		__xrtRootRenameTargetProc, &Source) ?
+		XROOT_STEP_DONE : XROOT_STEP_ERROR;
+}
+
+
+
+XRT_API bool xrtRootFileRename(xroot Root, cstr sSource,
+	cstr sTarget, bool bReplace)
+{
+	__xrt_root_rename_source Data;
+
+	if ( (Root == NULL) || (sSource == NULL) || (sSource[0] == '\0') ||
+		(sTarget == NULL) || (sTarget[0] == '\0') ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	Data.Root = Root;
+	Data.TargetPath = sTarget;
+	Data.Replace = bReplace;
+	return __xrtRootResolve(Root, sSource,
+		XROOT_POLICY_FOLLOW_LINKS, false,
+		__xrtRootRenameSourceProc, &Data);
+}
+
+
+
 
 
 /* 根内 FIFO 创建末级操作。 */

@@ -138,6 +138,12 @@ bool __xrtRootNativeLinkHard(xrootnative SourceParent, cstr sSource,
 
 
 
+/* 在两个已锚定父目录之间改名普通文件。 */
+bool __xrtRootNativeFileRename(xrootnative SourceParent, cstr sSource,
+	xrootnative TargetParent, cstr sTarget, bool bReplace);
+
+
+
 /* 相对父目录创建 FIFO。 */
 bool __xrtRootNativeFifoCreate(xrootnative Parent,
 	cstr sName, uint32 iMode);

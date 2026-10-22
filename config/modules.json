@@ -770,6 +770,7 @@
 			],
 			"single_tests": [
 				"tests/single/test_single.c",
+				"tests/single/test_single_allocation_budget.c",
 				"tests/single/test_single_module_selection.c",
 				"tests/single/test_single_runtime_retire.c"
 			],
@@ -12353,6 +12354,7 @@
 			],
 			"single_tests": [
 				"tests/single/test_single_file_root.c",
+				"tests/single/test_single_file_root_rename.c",
 				"tests/single/test_single_file_root_policy.c"
 			],
 			"examples": [

@@ -68,6 +68,38 @@ static inline bool xrtMemRangesOverlap(
 
 XRT_EXTERN_C_BEGIN
 
+/* Shared quota for live requested heap bytes (not process RSS, pool backing,
+ * allocator overhead, or allocations made directly by external libraries).
+ * Objects/blocks retain the quota through cross-thread ownership transfers. */
+typedef struct xallocationbudget xallocationbudget;
+typedef struct xallocationscope {
+	struct xallocationscope* Previous;
+	xallocationbudget* Budget;
+	uint64 Owner;
+	uint64 Rejections;
+} xallocationscope;
+typedef struct xallocationbudgetinfo {
+	size_t Size;
+	size_t Limit;
+	size_t LiveBytes;
+	size_t PeakBytes;
+	size_t LiveCount;
+	uint64 Rejections;
+} xallocationbudgetinfo;
+XRT_API bool xrtAllocationBudgetCreate(size_t iLimit, xallocationbudget** ppBudget);
+XRT_API bool xrtAllocationBudgetAddRef(xallocationbudget* pBudget);
+XRT_API void xrtAllocationBudgetFree(xallocationbudget* pBudget);
+XRT_API bool xrtAllocationBudgetInfo(xallocationbudget* pBudget, xallocationbudgetinfo* pInfo);
+XRT_API bool xrtAllocationBudgetSetLimit(xallocationbudget* pBudget, size_t iLimit);
+/* Zero-initialize scope, pair every successful Enter with Leave on the same
+ * native thread, in LIFO order, before thread exit. Nested scopes are allowed.
+ * Only the innermost quota charges new allocations. Realloc of a charged
+ * block stays in its original quota, even outside that scope; it reserves
+ * the complete destination before copying/freeing the old block. Failure
+ * leaves the old allocation intact. Free may run on any thread. */
+XRT_API bool xrtAllocationBudgetEnter(xallocationbudget* pBudget, xallocationscope* pScope);
+XRT_API bool xrtAllocationBudgetLeave(xallocationscope* pScope);
+
 
 
 /* 在首次分配前替换进程级底层分配器。 */

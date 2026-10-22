@@ -112,7 +112,8 @@ typedef enum xrooterror {
 	XROOT_ERROR_STAT,
 	XROOT_ERROR_CREATE,
 	XROOT_ERROR_REMOVE,
-	XROOT_ERROR_LINK
+	XROOT_ERROR_LINK,
+	XROOT_ERROR_RENAME
 } xrooterror;
 
 #endif
@@ -807,6 +808,13 @@ XRT_API bool xrtRootLinkCreate(xroot Root, cstr sTarget,
 
 /* 在同一根内为普通文件创建硬链接，源和目标路径都经过根解析。 */
 XRT_API bool xrtRootLinkHard(xroot Root, cstr sExisting, cstr sLink);
+
+
+
+/* 在同一锚定根内原子改名普通文件；末级链接不作为源，目标链接只替换名称。
+ * bReplace=false 时必须原子地拒绝已存在的目标。 */
+XRT_API bool xrtRootFileRename(xroot Root, cstr sSource,
+	cstr sTarget, bool bReplace);
 
 
 

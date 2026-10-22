@@ -45,6 +45,7 @@ typedef struct xrt_heap_header {
 	uint16 Flags;
 	size_t Size;
 	ptr Allocation;
+	xallocationbudget* Budget;
 	#if defined(XRT_FEATURE_MEMORY_DEBUG)
 		struct xrt_heap_header* DebugPrev;
 		struct xrt_heap_header* DebugNext;

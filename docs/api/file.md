@@ -19,7 +19,8 @@ typedef enum xrooterror {
 	XROOT_ERROR_STAT,
 	XROOT_ERROR_CREATE,
 	XROOT_ERROR_REMOVE,
-	XROOT_ERROR_LINK
+	XROOT_ERROR_LINK,
+	XROOT_ERROR_RENAME
 } xrooterror;
 ```
 
@@ -35,6 +36,7 @@ typedef enum xrooterror {
 | `XROOT_ERROR_CREATE` | 创建 |
 | `XROOT_ERROR_REMOVE` | 失败 |
 | `XROOT_ERROR_LINK` | 链接解析失败 |
+| `XROOT_ERROR_RENAME` | 根内文件改名失败 |
 
 
 ### `xfileflag`
@@ -4734,6 +4736,57 @@ bool xrtRootLinkHard(xroot Root, cstr sExisting, cstr sLink);
 	bOk = xrtRootLinkHard(Root, "xrt-root-tour-target.tmp",
 ```
 
+
+
+### `xrtRootFileRename`
+
+在同一个目录根内改名普通文件。源与目标的父目录均通过根目录句柄解析；
+拒绝源路径的末级符号链接。`bReplace=false` 使用平台原子排他改名，目标
+已存在时失败且保留源；平台不提供该原语时明确返回 `XERR_UNSUPPORTED`，
+不退化为“先检查再改名”。`bReplace=true` 允许替换目标文件或链接本身，
+不跟随目标末级链接。调用方应先关闭正在写入的源文件，并自行清理失败时的
+临时源文件。此 API 不负责创建父目录、持久化同步或跨文件系统搬移。
+
+```c
+bool xrtRootFileRename(xroot Root, cstr sSource,
+	cstr sTarget, bool bReplace);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Root` | 已打开的目录根 |
+| `sSource` | 根内相对普通文件路径 |
+| `sTarget` | 根内相对目标路径 |
+| `bReplace` | 是否允许替换已存在的目标 |
+
+Windows 使用句柄相对的文件改名；Linux 使用 `renameat` 或
+`renameat2(RENAME_NOREPLACE)`。macOS 支持排他改名，其他 POSIX 平台
+若缺少已接入的原子排他原语，会拒绝 `bReplace=false`。
+
+#### 返回值
+
+| 返回 | 含义 | 失败时状态 |
+|---|---|---|
+| `true` | 操作成功 | — |
+| `false` | 操作失败 | 详见错误及下述状态约定 |
+
+`true` 表示改名已经提交；`false` 表示解析、验证或平台操作失败。排他失败不会覆盖
+已存在的目标。调用方仍须自行清理保留的临时源文件。
+
+#### 错误
+
+- `XERR_ARGUMENT`：空参数、空路径或未命名文件。
+- `XERR_TYPE`：源路径指向目录或末级符号链接。
+- `XERR_UNSUPPORTED`：平台没有已接入的原子排他改名能力。
+- 路径越界、目标冲突、权限、跨文件系统或分配失败保留相应结构化错误。
+
+#### 范例
+
+[目录根访问示例](../../examples/file/root/main.c) 展示根和文件的创建、关闭及清理。
+在关闭源文件后，可使用 `xrtRootFileRename(Root, "pending.tmp", "ready.txt", true)`
+提交已写好的文件；失败时仍按原名清理源文件。
 
 
 ### `xrtRootFifoCreate`
