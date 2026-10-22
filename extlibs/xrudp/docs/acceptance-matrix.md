@@ -1,10 +1,11 @@
 # XRUDP 首次发布验收矩阵
 
-更新：2026-10-19。当前仍处于开发验收，不能据此宣称生产验收完成。
+更新：2026-10-22。当前仍处于开发验收，不能据此宣称生产验收完成。
 本文将需求、实际证据和剩余门槛分开记录；追加测试或文档提交不能替代运行时版本的验证。
 
 ## 验证对象
 
+- 下列 2026-10-19 矩阵是固定 `3d55ec41` 的历史基线。2026-10-22 复核时，mdo 产品 SDK 已锁定 XS `216f5445163ca30c815ad7d5d2da3b71cb2f6401`、XRUDP `0c46aca7519c5513c51b15de61d73d90ebca79b6`，核心仍为 `3d55ec41`。认证连通性检查等后续改动不能仅凭旧基线认定完成长期验收。
 - XRUDP 运行时：`3d55ec41e13f0884ffe840d44a57a0189d9310f3`。其后的接入、配额与压力提交新增测试和文档，`src`、`include` 与该运行时无差异。
 - XS 主线：`0014ed930f3afb9bce9f0a640168d3fef4bdb4bf`，已有单独的 `class:xrudp` 服务回归。
 - mdo 产品 SDK：`a6906e202e051b6bc624f16ec131b88892963457`。保留产品需要的 xllm/session/xwork 等接口，不能用 XS 主线整库覆盖它。
@@ -30,7 +31,7 @@
 | 进程暂停恢复 | Windows/Linux、IPv4/IPv6、3 秒及 65 秒八项通过；短暂停恢复既有直连/live/中继，超过 60 秒期限后关闭旧直连并重建；继续完成 Unit/撤销/注销 | mdo `tests/test_remote_process_pause.py`，`.build/xrudp-process-pause/acceptance.json`；同一子进程内的两个端点同时暂停，网站仍运行，不代表单端或物理系统休眠 |
 | 浏览器自动回退 | 当前 SDK 与干净 mdo 源码在真实 Edge 155 中完成双族 UDP 黑洞后回退 LAN，以及 LAN 失败后回退中继；实际写入无重复，关闭后原生计数为零 | 同上统一收据，2 个浏览器场景；无头浏览器验证不代表原生 WebView 外壳或发行 ABI |
 | Android 真机 | ARM64 shell UID 下 IPv4/IPv6 × Select/Epoll 四项 Future；APK JNI/TCC 单独执行；双向直连、冻结恢复、65 秒持续后台、实际 Edge/WebView 自动中继回退、强制 Doze 恢复通过 | mdo `tests/acceptance/xrudp-android/acceptance.json`、`docs/build-records/2026-10-19-xrudp-android-device.md`；设备 4 KiB 页；永久 idle 白名单由用户启用，强制 Doze 期间保持亮屏供电，不等于物理系统休眠 |
-| 长期运行 | 当前运行时 Linux 四组仍运行；Windows 原五组观察中断后，从保留原收据的新计时另起五组，采用脱离工具 Job 的隐藏 WMI 进程 | 未达到 72 小时；`out/xrudp-native-soak/congestion-long-runs.json` 保留旧观察历史和当前控制记录，不能累加中断前后的时长；历史 18 组仅作旧运行时基线 |
+| 长期运行 | `3d55ec41` Linux 四组已经完成连续 72 小时和正常排空；Windows 四组及 mdo 业务组约 28.1 小时后明确失败，原进程均退出 | [2026-10-22 长稳复核](long-soak-validation.md)；Linux 结果只证明对应冻结来源，Windows 失败时长不累加，也不替代新 SDK 的业务长稳 |
 
 ## 本轮源码抽查
 
@@ -46,7 +47,7 @@ mdo 的 `rendezvous.inc.c` 将 owner/runtime/peer/nonce/mode 纳入绑定并限�
 
 1. Android 物理系统挂起或自然熄屏 Doze：已经通过的 UID 冻结、持续后台和强制 DeviceIdle 策略，不能替代整机休眠；真实 16 KiB 页设备仍未执行。
 2. 两个相互独立 NAT 的正向直连：移动网络已实测双方映射、角色反转、失败回退与正常收尾，但端口依赖映射下两方向都回退中继，不能算作双 NAT 直连成功。
-3. 当前运行时至少 72 小时混合长稳：保留现有来源、二进制和原始起始时钟；中断、超出采样间隔或更换运行时须如实失败/重算，不能沿用旧运行时成绩。
+3. 当前交付来源至少 72 小时混合长稳：Linux 的 `3d55ec41` 四组已完成，但 Windows 原生及 mdo 业务验收尚未通过；保留来源、二进制和原始起始时钟，中断、时钟偏差或更换运行时须如实失败/重算，不能沿用其他来源成绩。
 4. 休眠恢复及最终安全/交付复核：区分进程暂停、实际系统休眠、Android 后台/Doze；当前记录不声称已完成系统级休眠恢复。测试、文档继续变化时需复核最终冻结来源。
 
 独立构建检查中的 mdo 产物是 server 开发检查包：Linux 使用本机 WSL ABI，版本元数据取自已提交源码；不作为 GUI、发行 ABI、正式版本号或安装发布的验收。后续仅安装独立 Android QA 包，未覆盖手机原 mdo 或修改其 Home。工作区其他任务的 152 个 mdo 路径和 15 个 XRT 路径未纳入提交检查。没有公开发布或重启生产网站。
