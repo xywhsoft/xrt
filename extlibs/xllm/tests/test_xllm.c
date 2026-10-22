@@ -1794,6 +1794,7 @@ static void test_audit_hardening(void)
         xllmPartInit(&tPart, XLLM_PART_TEXT);
         CHECK(xllmPartSetText(&tPart, "\360\237\230\200emoji"),
             "part text accepts a valid 4-byte sequence");
+        xllmPartUnit(&tPart);
         xllmMessageUnit(&tMessage);
     }
     /* Timer lifetime: a deadline call destroyed mid-flight must drain the

@@ -163191,7 +163191,7 @@ static xnetresult __xrtNetStreamSend(
 	ptr pContext,
 	bool bCopy,
 	bool bOwnsExternal,
-	uint32 iOwnership
+	uint8 iOwnership
 )
 {
 	__xrt_net_stream_send* pSend;

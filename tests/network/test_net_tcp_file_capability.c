@@ -46,7 +46,7 @@ static void exercise(xnetportbackend backend)
     CHECK(xrtTell(file,&after)&&after==position&&xrtClose(file));
     size_t offset=0;while(offset<3){xfuture* read=xrtNetStreamRecvAsync(peer,3-offset);completed(read,"receive");
         xbytesview view=xrtNetBytesView(xrtFutureValue(read));CHECK(view.Size&&view.Size<=3-offset);
-        CHECK(!memcmp(view.Data,"a\0b"+offset,view.Size));offset+=view.Size;xrtFutureDestroy(read);}
+        CHECK(!memcmp(view.Data,&"a\0b"[offset],view.Size));offset+=view.Size;xrtFutureDestroy(read);}
     xfuture* closeClient=xrtNetStreamWaitAsync(client,XNET_STREAM_WAIT_CLOSE);
     xfuture* closePeer=xrtNetStreamWaitAsync(peer,XNET_STREAM_WAIT_CLOSE);
     CHECK(xrtNetStreamAbort(client)&&xrtNetStreamAbort(peer)&&xrtNetListenerClose(listener));
