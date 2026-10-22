@@ -559,7 +559,12 @@ XRT_API xnetresult xrtNetStreamSendTake(
 
 
 
-/* 在所属 Worker 上零复制接管缓冲链；失败时源缓冲保持不变。 */
+/* Any-thread bounded chain take, without copying payloads. Success empties
+ * the source; failure/AGAIN/CLOSED preserves its exact chain. The caller must
+ * serialize source-buffer access. Off-Worker sources may contain heap blocks
+ * or blocks from this Stream's Worker pool, not a foreign thread-affine pool.
+ * All fallible view preparation precedes
+ * acceptance; a pending write reservation is rejected. */
 XRT_API xnetresult xrtNetStreamSendBuffer(
 	xnetstream* pStream,
 	xnetbuf* pBuffer

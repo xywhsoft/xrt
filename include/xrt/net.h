@@ -2084,6 +2084,14 @@ XRT_API bool xrtNetBufInit(xnetbuf* pBuffer, xnetbufpool* pPool);
 /* 释放全部块并取消尚未提交的写入预留。 */
 XRT_API void xrtNetBufClear(xnetbuf* pBuffer);
 
+/* Enumerate actual pool/immutable-payload owning edges of a standalone chain.
+ * Caller must exclude mutation and keep all visited owners stable (normally
+ * under ownership Freeze). No allocation, hold/release or release callback.
+ * Opaque borrowed/external refs and Stream-private views are not certified:
+ * return false instead of treating unknown ownership as a leaf. */
+XRT_API bool xrtNetBufOwnershipTrace(const xnetbuf* pBuffer,
+    xrtownershipvisitor pVisit, ptr pContext);
+
 
 
 /* 返回缓冲链总字节数。 */

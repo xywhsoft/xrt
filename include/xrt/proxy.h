@@ -276,6 +276,12 @@ XRT_API xnetproxyhandshake* xrtNetProxyHandshakeCreate(
 /* 销毁握手，并清零尚未发送的认证报文和内部目标信息。 */
 XRT_API void xrtNetProxyHandshakeDestroy(xnetproxyhandshake* pHandshake);
 
+/* Read-only owning edges of a standalone handshake: its retained immutable
+ * proxy and output-chain owners. Caller excludes all handshake mutations
+ * and stabilizes visited owners, normally under ownership Freeze. */
+XRT_API bool xrtNetProxyHandshakeOwnershipTrace(const xnetproxyhandshake* pHandshake,
+    xrtownershipvisitor pVisit, ptr pContext);
+
 
 
 /* 返回当前握手状态；空指针返回 ERROR。 */

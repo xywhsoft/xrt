@@ -80,6 +80,7 @@ typedef struct __xrt_net_stream_buffer_item {
 struct __xrt_net_stream_buffer {
 	xnetstream* Stream;
 	xnetbuf Owned;
+	xnetbuf Views;
 	size_t Count;
 	size_t Remaining;
 	__xrt_net_stream_buffer_item Items[1];

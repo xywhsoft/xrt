@@ -5434,5 +5434,23 @@ select／原生后端，Linux 增加 ASan／UBSan；输入、日志和产物哈�
 不把 active 回调冒称为整图 Freeze；去掉来源标记必须被原生块拥有遍历拒绝。
 
 生成头来自隔离的已提交源码加本批五份核心文件，不包含工作区其他文件／内存
-变更。本批不改变旧 SendBuffer 的 Worker-only 合同，也不宣称链式跨线程接管、
+变更。本批当时不改变旧 SendBuffer 的 Worker-only 合同，也不宣称链式跨线程接管、
 完整 xlang 集成、shipping 或网络安全专项已完成。
+
+### 任意线程链式接管（2026-10-22）
+
+`xrtNetStreamSendBuffer` 现可从任意线程提交完整链：先准备全部视图与预算，再
+移动真实块并提交批次。OK 源为空；受理前 ERROR／AGAIN／CLOSED 完整保留源。
+队列不持有源容器地址；受理后 Abort／I/O 失败释放已受理批次，不承诺对端交付。
+源须由调用者串行化，拒绝活动写预留；异线程禁止外来线程亲和池，允许堆块及
+所属 Worker 的池块。元数据准备失败不改变实际载荷地址或源链结构。
+
+各排队发送命令在高水位等回调重入期间保留 Active，确保 Abort 和最后引用释放
+不会使命令尾部访问已退役 Stream。补充 `xrtNetBufOwnershipTrace` 及
+`xrtNetProxyHandshakeOwnershipTrace`，仅枚举真实原生 owning 边，不调用释放回调，
+不认证未知借用。调用方须稳定链／握手及所访问拥有者，通常在 ownership Freeze 内。
+
+`tools/check_net_tcp_chain_take.py` 在独立原生头和固定微秒快照验证 Worker／异线程、
+48 个预算、65 引用块、背压、预留、池亲和、Abort、回调重入和内存平衡；Windows
+GCC／TCC select／IOCP，Linux GCC／TCC select／epoll 及 ASan／UBSan。
+仅离线生命周期和自建回环正常通信，没有外网、DNS 或网络安全专项。

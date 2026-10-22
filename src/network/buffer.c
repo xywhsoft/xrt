@@ -921,6 +921,11 @@ bool __xrtNetBufOwnershipWalk(const xnetbuf* pBuffer, __xrt_net_block_trace pNat
 	return true;
 }
 
+XRT_API bool xrtNetBufOwnershipTrace(const xnetbuf* pBuffer,
+    xrtownershipvisitor pVisit, ptr pContext)
+{
+	return pVisit && __xrtNetBufOwnershipWalk(pBuffer, NULL, NULL, pVisit, pContext);
+}
 
 
 /* 追加文件描述符节点；节点参与缓冲顺序和消费，但不会暴露为内存 Span。 */

@@ -661,6 +661,14 @@ XRT_API void xrtNetProxyHandshakeDestroy(xnetproxyhandshake* pHandshake)
 
 
 
+XRT_API bool xrtNetProxyHandshakeOwnershipTrace(const xnetproxyhandshake* pHandshake,
+    xrtownershipvisitor pVisit, ptr pContext)
+{
+	return pHandshake && pHandshake->Proxy && pVisit &&
+		__xrtNetBufOwnershipWalk(&pHandshake->Output, NULL, NULL, pVisit, pContext) &&
+		pVisit(xrtNetProxyOwnership(pHandshake->Proxy), pContext);
+}
+
 /* 返回无需锁定的当前传输状态。 */
 XRT_API xnetproxyhandshakestate xrtNetProxyHandshakeState(
 	const xnetproxyhandshake* pHandshake
