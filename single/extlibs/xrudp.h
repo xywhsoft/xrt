@@ -497,6 +497,10 @@ XRT_EXTERN_C_END
 #define XRUDP_STUN_H
 #if defined(XRUDP_FEATURE_RUDP_STUN)
 
+#if !defined(XRT_FEATURE_CRC32)
+#error "rudp_stun requires crc32 (XRT_FEATURE_CRC32)"
+#endif
+
 #define XRUDP_STUN_HEADER_SIZE 20u
 #define XRUDP_STUN_TRANSACTION_SIZE 12u
 #define XRUDP_STUN_PACKET_MAX 512u
@@ -553,6 +557,10 @@ XRT_EXTERN_C_END
 #ifndef XRUDP_DISCOVERY_H
 #define XRUDP_DISCOVERY_H
 #if defined(XRUDP_FEATURE_RUDP_DISCOVERY)
+
+#if !defined(XRT_FEATURE_RANDOM_SECURE)
+#error "rudp_discovery requires random_secure (XRT_FEATURE_RANDOM_SECURE)"
+#endif
 
 #define XRUDP_DISCOVERY_ATTEMPTS_MAX 7u
 #define XRUDP_DISCOVERY_DEFAULT_TIMEOUT_MS 39500u
@@ -617,6 +625,10 @@ XRT_EXTERN_C_END
 #ifndef XRUDP_PUNCH_H
 #define XRUDP_PUNCH_H
 #if defined(XRUDP_FEATURE_RUDP_PUNCH)
+
+#if !defined(XRT_FEATURE_RANDOM_SECURE)
+#error "rudp_punch requires random_secure (XRT_FEATURE_RANDOM_SECURE)"
+#endif
 
 #define XRUDP_PUNCH_CANDIDATES_MAX 8u
 #define XRUDP_PUNCH_INDICATIONS_MAX 6u
@@ -704,6 +716,10 @@ XRT_EXTERN_C_END
 
 
 #if defined(XRUDP_FEATURE_RUDP_CRYPTO)
+
+#if !defined(XRT_FEATURE_CRYPTO_CHACHA20_POLY1305)
+#error "rudp_crypto requires crypto_chacha20_poly1305 (XRT_FEATURE_CRYPTO_CHACHA20_POLY1305)"
+#endif
 
 #define XRUDP_KEY_SIZE 32u
 #define XRUDP_KEY_PACKETS_MAX UINT64_C(16777216)
@@ -793,6 +809,16 @@ XRT_EXTERN_C_END
 
 #if defined(XRUDP_FEATURE_RUDP_NOISE)
 
+#if !defined(XRT_FEATURE_CRYPTO_X25519)
+#error "rudp_noise requires crypto_x25519 (XRT_FEATURE_CRYPTO_X25519)"
+#endif
+#if !defined(XRT_FEATURE_CRYPTO_HKDF_SHA256)
+#error "rudp_noise requires crypto_hkdf_sha256 (XRT_FEATURE_CRYPTO_HKDF_SHA256)"
+#endif
+#if !defined(XRT_FEATURE_RANDOM_SECURE)
+#error "rudp_noise requires random_secure (XRT_FEATURE_RANDOM_SECURE)"
+#endif
+
 #define XRUDP_NOISE_PARAMETERS_MAX 256u
 #define XRUDP_NOISE_MESSAGE_MAX (96u + XRUDP_NOISE_PARAMETERS_MAX)
 
@@ -879,6 +905,10 @@ XRT_EXTERN_C_END
 
 
 #if defined(XRUDP_FEATURE_RUDP_COOKIE)
+
+#if !defined(XRT_FEATURE_CRYPTO_HMAC_SHA256)
+#error "rudp_cookie requires crypto_hmac_sha256 (XRT_FEATURE_CRYPTO_HMAC_SHA256)"
+#endif
 
 #define XRUDP_COOKIE_SIZE 40u
 #define XRUDP_COOKIE_MAX_AGE_US UINT64_C(30000000)
@@ -1481,6 +1511,10 @@ XRT_EXTERN_C_END
 
 #if defined(XRUDP_FEATURE_RUDP_MESSAGE)
 
+#if !defined(XRUDP_FEATURE_RUDP_TRANSMIT)
+#error "rudp_message requires rudp_transmit (XRUDP_FEATURE_RUDP_TRANSMIT)"
+#endif
+
 typedef struct xrudpmessage xrudpmessage;
 typedef struct xrudpmessagestate {
 	xrudpresult Reason;
@@ -1669,6 +1703,10 @@ XRT_EXTERN_C_END
 
 
 #if defined(XRUDP_FEATURE_RUDP_HANDSHAKE)
+
+#if !defined(XRUDP_FEATURE_RUDP_COOKIE)
+#error "rudp_handshake requires rudp_cookie (XRUDP_FEATURE_RUDP_COOKIE)"
+#endif
 
 #define XRUDP_PARAMETERS_SIZE 32u
 #define XRUDP_HELLO_SIZE 96u
@@ -2098,6 +2136,10 @@ XRT_EXTERN_C_END
 
 
 #if defined(XRUDP_FEATURE_RUDP_ENDPOINT)
+
+#if !defined(XRT_FEATURE_NET_UDP)
+#error "rudp_endpoint requires net_udp (XRT_FEATURE_NET_UDP)"
+#endif
 
 #define XRUDP_ENDPOINT_PEERS_MAX 256u
 #define XRUDP_ENDPOINT_ADDRESS_BUCKETS 64u

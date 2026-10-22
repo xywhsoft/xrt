@@ -7,6 +7,10 @@
 
 #if defined(XRUDP_FEATURE_RUDP_HANDSHAKE)
 
+#if !defined(XRUDP_FEATURE_RUDP_COOKIE)
+#error "rudp_handshake requires rudp_cookie (XRUDP_FEATURE_RUDP_COOKIE)"
+#endif
+
 #define XRUDP_PARAMETERS_SIZE 32u
 #define XRUDP_HELLO_SIZE 96u
 #define XRUDP_HANDSHAKE_PACKET_MAX 312u

@@ -4,6 +4,10 @@
 #include <xrudp/stun.h>
 #if defined(XRUDP_FEATURE_RUDP_DISCOVERY)
 
+#if !defined(XRT_FEATURE_RANDOM_SECURE)
+#error "rudp_discovery requires random_secure (XRT_FEATURE_RANDOM_SECURE)"
+#endif
+
 #define XRUDP_DISCOVERY_ATTEMPTS_MAX 7u
 #define XRUDP_DISCOVERY_DEFAULT_TIMEOUT_MS 39500u
 

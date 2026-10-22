@@ -6,6 +6,10 @@
 
 #if defined(XRUDP_FEATURE_RUDP_CRYPTO)
 
+#if !defined(XRT_FEATURE_CRYPTO_CHACHA20_POLY1305)
+#error "rudp_crypto requires crypto_chacha20_poly1305 (XRT_FEATURE_CRYPTO_CHACHA20_POLY1305)"
+#endif
+
 #define XRUDP_KEY_SIZE 32u
 #define XRUDP_KEY_PACKETS_MAX UINT64_C(16777216)
 

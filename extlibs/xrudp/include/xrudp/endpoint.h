@@ -9,6 +9,10 @@
 
 #if defined(XRUDP_FEATURE_RUDP_ENDPOINT)
 
+#if !defined(XRT_FEATURE_NET_UDP)
+#error "rudp_endpoint requires net_udp (XRT_FEATURE_NET_UDP)"
+#endif
+
 #define XRUDP_ENDPOINT_PEERS_MAX 256u
 #define XRUDP_ENDPOINT_ADDRESS_BUCKETS 64u
 #define XRUDP_PEER_READ_READY 1u

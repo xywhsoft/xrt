@@ -6,6 +6,16 @@
 
 #if defined(XRUDP_FEATURE_RUDP_NOISE)
 
+#if !defined(XRT_FEATURE_CRYPTO_X25519)
+#error "rudp_noise requires crypto_x25519 (XRT_FEATURE_CRYPTO_X25519)"
+#endif
+#if !defined(XRT_FEATURE_CRYPTO_HKDF_SHA256)
+#error "rudp_noise requires crypto_hkdf_sha256 (XRT_FEATURE_CRYPTO_HKDF_SHA256)"
+#endif
+#if !defined(XRT_FEATURE_RANDOM_SECURE)
+#error "rudp_noise requires random_secure (XRT_FEATURE_RANDOM_SECURE)"
+#endif
+
 #define XRUDP_NOISE_PARAMETERS_MAX 256u
 #define XRUDP_NOISE_MESSAGE_MAX (96u + XRUDP_NOISE_PARAMETERS_MAX)
 

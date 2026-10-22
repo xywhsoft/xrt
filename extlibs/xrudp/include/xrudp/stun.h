@@ -4,6 +4,10 @@
 #include <xrudp/wire.h>
 #if defined(XRUDP_FEATURE_RUDP_STUN)
 
+#if !defined(XRT_FEATURE_CRC32)
+#error "rudp_stun requires crc32 (XRT_FEATURE_CRC32)"
+#endif
+
 #define XRUDP_STUN_HEADER_SIZE 20u
 #define XRUDP_STUN_TRANSACTION_SIZE 12u
 #define XRUDP_STUN_PACKET_MAX 512u

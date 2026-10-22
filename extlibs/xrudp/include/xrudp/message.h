@@ -6,6 +6,10 @@
 
 #if defined(XRUDP_FEATURE_RUDP_MESSAGE)
 
+#if !defined(XRUDP_FEATURE_RUDP_TRANSMIT)
+#error "rudp_message requires rudp_transmit (XRUDP_FEATURE_RUDP_TRANSMIT)"
+#endif
+
 typedef struct xrudpmessage xrudpmessage;
 typedef struct xrudpmessagestate {
 	xrudpresult Reason;

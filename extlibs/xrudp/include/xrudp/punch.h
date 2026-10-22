@@ -4,6 +4,10 @@
 #include <xrudp/stun.h>
 #if defined(XRUDP_FEATURE_RUDP_PUNCH)
 
+#if !defined(XRT_FEATURE_RANDOM_SECURE)
+#error "rudp_punch requires random_secure (XRT_FEATURE_RANDOM_SECURE)"
+#endif
+
 #define XRUDP_PUNCH_CANDIDATES_MAX 8u
 #define XRUDP_PUNCH_INDICATIONS_MAX 6u
 #define XRUDP_PUNCH_DEFAULT_TIMEOUT_MS 8000u

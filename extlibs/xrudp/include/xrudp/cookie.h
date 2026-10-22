@@ -6,6 +6,10 @@
 
 #if defined(XRUDP_FEATURE_RUDP_COOKIE)
 
+#if !defined(XRT_FEATURE_CRYPTO_HMAC_SHA256)
+#error "rudp_cookie requires crypto_hmac_sha256 (XRT_FEATURE_CRYPTO_HMAC_SHA256)"
+#endif
+
 #define XRUDP_COOKIE_SIZE 40u
 #define XRUDP_COOKIE_MAX_AGE_US UINT64_C(30000000)
 
