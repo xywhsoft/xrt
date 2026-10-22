@@ -2876,3 +2876,274 @@ const xrtownershipquiescencev1* xrtTaskPoolOwnershipQuiescenceV1Get(void);
 #### 范例
 
 [同模块资源的基础组合示例](../../examples/concurrency/task_tour/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+## TaskNet 显式拥有型激活
+
+完整的受理、取消与物理 Frame 合同见 [TaskNet 拥有型任务](task-net-owned.md)。策略描述符和回调代码须驻留到最后一个拥有图 pin 释放。
+
+### `xrtTaskNetDataPolicyV1`
+
+向亲和 Worker 立即提交显式拥有型任务。成功受理前完成所有可失败装配；Data 在 Future 发布终态之前释放。
+
+```c
+xfuture* xrtTaskNetDataPolicyV1(xnetengine* pEngine, uint64 iAffinity, ptr pData, xcancel* pCancel, const xtasknetdataownershipv1* pDataPolicy, const xfuturepayloadownershipv1* pResultPolicy)
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pEngine` | 已启动且在调用期间有效的 Engine；成功受理后由原生激活持有必要的外壳引用。 |
+| `iAffinity` | 任务的 Worker 亲和键；Proc 在选定 Worker 上执行，不得阻塞事件循环。 |
+| `pData` | 非空用户对象的一份真实拥有引用；只有成功受理才转移，失败仍由调用方负责。 |
+| `pCancel` | 可选取消令牌；Proc 借用该令牌，预先取消与发布过程中的取消遵循受理合同。 |
+| `pDataPolicy` | 非空且大小、Proc、Drop、Count/Trace 均有效的常驻描述符；Drop(Data,NULL) 恰好消费转移的引用。 |
+| `pResultPolicy` | 非空且大小、Drop、Trace 均有效的结果策略；成功结果的拥有权独立于输入 Data。 |
+
+#### 返回值
+
+成功返回调用方拥有的 Future 观察引用，使用完毕调用 `xrtFutureDestroy()`；输入 Data 已转移给激活。失败返回 NULL，输入 Data 未转移。
+
+#### 错误
+
+无效 Engine、Data、策略或超时参数产生参数错误；分配失败或 Engine 拒绝受理时返回 NULL，并保留当前线程的错误详情。失败路径不消费输入 Data。
+
+#### 范例
+
+[任务与 Future 的基础组合](../../examples/concurrency/task_tour/main.c)；显式 Data 转移、策略登记和取消重放见 [拥有型 TaskNet 合同](task-net-owned.md) 及对应测试。
+
+### `xrtTaskNetAfterDataPolicyV1`
+
+按相对毫秒数调度显式拥有型任务。Timer 发布和取消重放在受理协议内完成，调用方不会得到已受理但返回空的装配失败。
+
+```c
+xfuture* xrtTaskNetAfterDataPolicyV1(xnetengine* pEngine, uint64 iAffinity, ptr pData, xcancel* pCancel, const xtasknetdataownershipv1* pDataPolicy, const xfuturepayloadownershipv1* pResultPolicy, int64 iTimeout)
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pEngine` | 已启动且在调用期间有效的 Engine；成功受理后由原生激活持有必要的外壳引用。 |
+| `iAffinity` | 任务的 Worker 亲和键；Proc 在选定 Worker 上执行，不得阻塞事件循环。 |
+| `pData` | 非空用户对象的一份真实拥有引用；只有成功受理才转移，失败仍由调用方负责。 |
+| `pCancel` | 可选取消令牌；Proc 借用该令牌，预先取消与发布过程中的取消遵循受理合同。 |
+| `pDataPolicy` | 非空且大小、Proc、Drop、Count/Trace 均有效的常驻描述符；Drop(Data,NULL) 恰好消费转移的引用。 |
+| `pResultPolicy` | 非空且大小、Drop、Trace 均有效的结果策略；成功结果的拥有权独立于输入 Data。 |
+| `iTimeout` | 相对毫秒数；-1 表示无限等待，其他负值拒绝。 |
+
+#### 返回值
+
+成功返回调用方拥有的 Future 观察引用，使用完毕调用 `xrtFutureDestroy()`；输入 Data 已转移给激活。失败返回 NULL，输入 Data 未转移。
+
+#### 错误
+
+无效 Engine、Data、策略或超时参数产生参数错误；分配失败或 Engine 拒绝受理时返回 NULL，并保留当前线程的错误详情。失败路径不消费输入 Data。
+
+#### 范例
+
+[任务与 Future 的基础组合](../../examples/concurrency/task_tour/main.c)；显式 Data 转移、策略登记和取消重放见 [拥有型 TaskNet 合同](task-net-owned.md) 及对应测试。
+
+### `xrtTaskNetForDataPolicyV1`
+
+相对毫秒调度的同义入口，行为与 xrtTaskNetAfterDataPolicyV1 一致。输入不是绝对单调时钟截止值。
+
+```c
+xfuture* xrtTaskNetForDataPolicyV1(xnetengine* pEngine, uint64 iAffinity, ptr pData, xcancel* pCancel, const xtasknetdataownershipv1* pDataPolicy, const xfuturepayloadownershipv1* pResultPolicy, int64 iTimeout)
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pEngine` | 已启动且在调用期间有效的 Engine；成功受理后由原生激活持有必要的外壳引用。 |
+| `iAffinity` | 任务的 Worker 亲和键；Proc 在选定 Worker 上执行，不得阻塞事件循环。 |
+| `pData` | 非空用户对象的一份真实拥有引用；只有成功受理才转移，失败仍由调用方负责。 |
+| `pCancel` | 可选取消令牌；Proc 借用该令牌，预先取消与发布过程中的取消遵循受理合同。 |
+| `pDataPolicy` | 非空且大小、Proc、Drop、Count/Trace 均有效的常驻描述符；Drop(Data,NULL) 恰好消费转移的引用。 |
+| `pResultPolicy` | 非空且大小、Drop、Trace 均有效的结果策略；成功结果的拥有权独立于输入 Data。 |
+| `iTimeout` | 相对毫秒数；-1 表示无限等待，其他负值拒绝。 |
+
+#### 返回值
+
+成功返回调用方拥有的 Future 观察引用，使用完毕调用 `xrtFutureDestroy()`；输入 Data 已转移给激活。失败返回 NULL，输入 Data 未转移。
+
+#### 错误
+
+无效 Engine、Data、策略或超时参数产生参数错误；分配失败或 Engine 拒绝受理时返回 NULL，并保留当前线程的错误详情。失败路径不消费输入 Data。
+
+#### 范例
+
+[任务与 Future 的基础组合](../../examples/concurrency/task_tour/main.c)；显式 Data 转移、策略登记和取消重放见 [拥有型 TaskNet 合同](task-net-owned.md) 及对应测试。
+
+### `xrtTaskNetOwnershipAdapterV1`
+
+在整图独占冻结期间验证 Frame 和显式策略身份；拒绝发生在任何用户 Count/Trace 分派之前。
+
+```c
+const xrtownershipadapterv1* xrtTaskNetOwnershipAdapterV1(xrtownershipref Reference, const xtasknetdataownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation)
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 冻结期间借用的物理 Frame 引用；Ops 必须匹配原生 TaskNet 操作表的精确身份。 |
+| `pPolicies` | 显式允许的用户 Data 策略身份数组；同形但不同地址的描述符不获得准入。 |
+| `iPolicyCount` | 策略数组元素数；非零时数组必须有效。 |
+| `ppPreparation` | 成功时写入常驻准备协议；拒绝时保持原值。准备阶段只观察完成，不替代 Engine 的排空或取消。 |
+
+#### 返回值
+
+准入成功返回常驻接管适配器，并设置准备协议。未知策略、发布中或活动记录返回 NULL，准备输出保持原值。
+
+#### 错误
+
+这是准入拒绝，不是语义任务失败；拒绝不改写诊断，不能据此触发取消或假定 Data 已被接管。
+
+#### 范例
+
+[任务与 Future 的基础组合](../../examples/concurrency/task_tour/main.c)；显式 Data 转移、策略登记和取消重放见 [拥有型 TaskNet 合同](task-net-owned.md) 及对应测试。
+
+### `xrtTaskNetPostPolicyV1Get`
+
+返回 Post 对物理 TaskNet Frame 所持引用的原生任务策略。
+
+```c
+const xnettaskownershipv1* xrtTaskNetPostPolicyV1Get(void)
+```
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+返回本 XRT 实例内常驻、只读的策略描述符；借用该指针，不释放、不修改，不创建额外拥有图节点。
+
+#### 错误
+
+无动态分配；该 getter 不执行用户回调。
+
+#### 范例
+
+[任务与 Future 的基础组合](../../examples/concurrency/task_tour/main.c)；显式 Data 转移、策略登记和取消重放见 [拥有型 TaskNet 合同](task-net-owned.md) 及对应测试。
+
+### `xrtTaskNetTimerPolicyV1Get`
+
+返回 Timer 对物理 TaskNet Frame 所持引用的原生计时器策略。
+
+```c
+const xnettimerownershipv1* xrtTaskNetTimerPolicyV1Get(void)
+```
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+返回本 XRT 实例内常驻、只读的策略描述符；借用该指针，不释放、不修改，不创建额外拥有图节点。
+
+#### 错误
+
+无动态分配；该 getter 不执行用户回调。
+
+#### 范例
+
+[任务与 Future 的基础组合](../../examples/concurrency/task_tour/main.c)；显式 Data 转移、策略登记和取消重放见 [拥有型 TaskNet 合同](task-net-owned.md) 及对应测试。
+
+### `xrtTaskNetJobDataPolicyV1Get`
+
+返回 Job Data 所持 Frame 引用的任务数据策略。
+
+```c
+const xtaskdataownershipv1* xrtTaskNetJobDataPolicyV1Get(void)
+```
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+返回本 XRT 实例内常驻、只读的策略描述符；借用该指针，不释放、不修改，不创建额外拥有图节点。
+
+#### 错误
+
+无动态分配；该 getter 不执行用户回调。
+
+#### 范例
+
+[任务与 Future 的基础组合](../../examples/concurrency/task_tour/main.c)；显式 Data 转移、策略登记和取消重放见 [拥有型 TaskNet 合同](task-net-owned.md) 及对应测试。
+
+### `xrtTaskNetCancelPolicyV1Get`
+
+返回取消 Watch 所持 Frame 引用的常驻策略。
+
+```c
+const xcancelwatchownershipv1* xrtTaskNetCancelPolicyV1Get(void)
+```
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+返回本 XRT 实例内常驻、只读的策略描述符；借用该指针，不释放、不修改，不创建额外拥有图节点。
+
+#### 错误
+
+无动态分配；该 getter 不执行用户回调。
+
+#### 范例
+
+[任务与 Future 的基础组合](../../examples/concurrency/task_tour/main.c)；显式 Data 转移、策略登记和取消重放见 [拥有型 TaskNet 合同](task-net-owned.md) 及对应测试。
+
+### `xrtTaskNetOwnershipQuiescenceV1Get`
+
+返回该 Frame 的原生静止能力；能力身份不放宽用户 Data 策略准入。
+
+```c
+const xrtownershipquiescencev1* xrtTaskNetOwnershipQuiescenceV1Get(void)
+```
+
+#### 参数
+
+无参数。
+
+#### 返回值
+
+返回本 XRT 实例内常驻、只读的策略描述符；借用该指针，不释放、不修改，不创建额外拥有图节点。
+
+#### 错误
+
+无动态分配；该 getter 不执行用户回调。
+
+#### 范例
+
+[任务与 Future 的基础组合](../../examples/concurrency/task_tour/main.c)；显式 Data 转移、策略登记和取消重放见 [拥有型 TaskNet 合同](task-net-owned.md) 及对应测试。
+
+### `xtasknetdataownershipv1`
+
+描述显式拥有型 TaskNet 激活的一份用户 Data 引用。Proc 借用 Worker、Cancel 和 Data；Drop(Data,NULL) 在结果终态发布前退休这份引用。Ops 描述同一物理对象的真实引用数与强拥有边，不制造虚拟节点。
+
+```c
+typedef struct xtasknetdataownershipv1 {
+    size_t size;
+    xtasknetproc Proc;
+    xfuturefreeproc Drop;
+    const xrtownershipops* Ops;
+} xtasknetdataownershipv1;
+```
+
+#### 字段
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `size` | `size_t` | 必须等于当前版本的 sizeof(xtasknetdataownershipv1)。 |
+| `Proc` | `xtasknetproc` | 非空任务过程，借用亲和 Worker、取消令牌和 Data，按任务合同写入结果。 |
+| `Drop` | `xfuturefreeproc` | 非空释放过程，以 Drop(Data,NULL) 消费被受理的用户引用。 |
+| `Ops` | `const xrtownershipops*` | 非空真实 Count/Trace 操作表；描述符和代码驻留至所有拥有图 pin 释放。 |
