@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `459` 个函数、`125` 个常量或宏、
-`76` 个公共类型。
+当前登记 `465` 个函数、`125` 个常量或宏、
+`77` 个公共类型。
 
 ## `extlibs/xruntime/include/xrt/runtime_call.h`
 
 [查看带契约注释的公共头](../../include/xrt/runtime_call.h)
 
-### 函数 (25)
+### 函数 (26)
 
 - `xrtCallFrameArgument`
 - `xrtCallFrameKeyword`
@@ -27,6 +27,7 @@
 - `xrtCallResultSet`
 - `xrtCallResultSetTake`
 - `xrtCallResultUnit`
+- `xrtCallableAdmitsOwnershipPolicyV1`
 - `xrtCallableCreate`
 - `xrtCallableInvoke`
 - `xrtCallableOwnership`
@@ -100,7 +101,7 @@
 
 [查看带契约注释的公共头](../../include/xrt/runtime_field.h)
 
-### 函数 (41)
+### 函数 (44)
 
 - `xrtDynamicFieldsCapacity`
 - `xrtDynamicFieldsClear`
@@ -119,6 +120,9 @@
 - `xrtDynamicFieldsIterRBegin`
 - `xrtDynamicFieldsKeys`
 - `xrtDynamicFieldsMerge`
+- `xrtDynamicFieldsMergeRefV1`
+- `xrtDynamicFieldsOwnership`
+- `xrtDynamicFieldsOwnershipAdapterV1`
 - `xrtDynamicFieldsRef`
 - `xrtDynamicFieldsRemove`
 - `xrtDynamicFieldsReserve`
@@ -683,7 +687,7 @@
 
 [查看带契约注释的公共头](../../include/xrt/typed_set.h)
 
-### 函数 (33)
+### 函数 (35)
 
 - `xrtTypedSetAdd`
 - `xrtTypedSetAt`
@@ -692,6 +696,7 @@
 - `xrtTypedSetClone`
 - `xrtTypedSetCount`
 - `xrtTypedSetCreate`
+- `xrtTypedSetCreateWithKeyPolicy`
 - `xrtTypedSetDestroy`
 - `xrtTypedSetDifference`
 - `xrtTypedSetEquals`
@@ -699,6 +704,7 @@
 - `xrtTypedSetGetOrAdd`
 - `xrtTypedSetHas`
 - `xrtTypedSetInit`
+- `xrtTypedSetInitWithKeyPolicy`
 - `xrtTypedSetInstanceOps`
 - `xrtTypedSetIntersection`
 - `xrtTypedSetIsDisjoint`
@@ -727,11 +733,12 @@
 - `XTYPED_SET_ERROR_STATE`
 - `XTYPED_SET_ERROR_TYPE`
 
-### 类型 (3)
+### 类型 (4)
 
 - `xtypedset`
 - `xtypedseterror`
 - `xtypedsetiter`
+- `xtypedsetkeypolicy`
 
 ## `extlibs/xruntime/include/xrt/typed_stack.h`
 

@@ -255,6 +255,12 @@ SSE 组帧层统一产出 `xllm_sse_event { sEvent; sData; sId; }` 字段集
 - 严格性沿用：逐事件 JSON 校验、畸形即整体失败零部分响应、[DONE]/message_stop
   哨兵、错误事件直接终态。
 
+`XLLM_ERROR_INCOMPLETE_RESPONSE` 表示事件流语法有效，但在模型终止事件之前
+遇到 HTTP EOF；其错误字符串为 `incomplete_response`。HTTP 200、已交付的文本
+增量或可解析的部分工具参数都不能单独证明响应成功。Chat Completions 方言
+在已有非空 `finish_reason` 时允许省略 `[DONE]`；其他情况仍须满足对应方言的
+终止契约。调用方应检查最终结果和错误码，不能把流中的部分工具参数当作已完成调用。
+
 ## 5. 并发与生命周期（去除每调用一线程）
 
 ```c

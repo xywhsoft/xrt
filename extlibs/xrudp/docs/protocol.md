@@ -424,6 +424,26 @@ peer、半开、逻辑内存、发送包数/字节与接收批次都有固定上
 先关闭端点并等待 peer、UDP、定时器全部终结，才可停止 Engine；关闭不依赖新分配。
 回调借用句柄，跨回调保留须显式 Ref；已关闭句柄不再保留引擎资源，可在引擎销毁后释放。
 
+## 端点候选回程检查
+
+启用端点配置的 `ConnectivityChecks` 后，`xrtRudpEndpointCheck` 可在 owner
+Worker 上对可信单播候选启动一次有界回程检查。候选数量为
+1..`XRUDP_ENDPOINT_CHECK_CANDIDATES_MAX`（8），不得重复，且须与端点 socket
+同地址族。每个候选至多发送五次请求；调用期限为 1..10000ms，仍受端点检查
+总寿命限制。检查复用已有 socket 和 Worker，辅助发送的总准入间隔至少 50ms。
+
+`xrtRudpEndpointCheckInfo` 把当前观察复制到 `xrudpcheckstate`，不触发回调。
+端点存活时只能由 owner 查询；CLOSED 后快照不再变化。`Reply` / `Replies`
+记录自身请求得到的返回地址，`Confirmed` / `Confirmations` 记录对端返回本端
+cookie 的地址；`Sent`、`Rejected`、`DeadlineUs`、`Reason` 和 `Active` 提供
+有界统计、截止时间及终止状态。快照不暴露密钥或 nonce。应用自行轮询并选择拨号
+候选，这些地址提示不代表对端身份、业务数据受理或 Noise 握手成功。
+
+`xrtRudpEndpointCheckCancel` 在 owner 上幂等取消检查：活动检查返回 `XRUDP_OK`，
+清除凭据和待发包，保留公开观察并以 `XRUDP_CANCELLED` 结束；已停止或 CLOSED
+时返回 `XRUDP_DONE`。端点关闭也会在 Close 回调之前取消检查。检查得到的提示
+不能放宽后续 Noise 握手的来源和公钥校验。
+
 ## 路径验证与生产验收边界
 
 路径验证的前置接口已实现：CipherInspect 使用栈内私有密码器副本完成同样的 AEAD/帧/确认

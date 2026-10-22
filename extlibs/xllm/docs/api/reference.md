@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `68` 个函数、`73` 个常量或宏、
+当前登记 `68` 个函数、`75` 个常量或宏、
 `34` 个公共类型。
 
 ## `extlibs/xllm/include/xllm/api.h`
@@ -82,7 +82,7 @@
 - `xllmRequestUnit`
 - `xllmResponseDestroy`
 
-### 常量与宏 (73)
+### 常量与宏 (75)
 
 - `XLLM_BLOCK_REASONING`
 - `XLLM_BLOCK_TEXT`
@@ -102,11 +102,13 @@
 - `XLLM_ERROR_AUTH`
 - `XLLM_ERROR_CANCELLED`
 - `XLLM_ERROR_HOOK`
+- `XLLM_ERROR_INCOMPLETE_RESPONSE`
 - `XLLM_ERROR_INVALID_ARGUMENT`
 - `XLLM_ERROR_LIMIT`
 - `XLLM_ERROR_MODEL_NOT_FOUND`
 - `XLLM_ERROR_NETWORK`
 - `XLLM_ERROR_NONE`
+- `XLLM_ERROR_OUTPUT_LIMIT`
 - `XLLM_ERROR_OUT_OF_MEMORY`
 - `XLLM_ERROR_PARSE`
 - `XLLM_ERROR_PROTOCOL`
