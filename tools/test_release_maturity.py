@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import sys
 import unittest
@@ -55,29 +56,24 @@ class ReleaseMaturityTest(unittest.TestCase):
 
 
 
-	def test_xruntime_extension_is_release_complete(self) -> None:
+	def test_all_extensions_are_release_complete(self) -> None:
 		"""扩展产品必须独立覆盖源码、测试、单头、文档和发布 profile。"""
 
-		errors, summary = audit_repository(
-			ROOT,
-			release=True,
-			manifest_path=Path("extlibs/xruntime/config/modules.json"),
-		)
+		manifests = sorted((ROOT / "extlibs").glob("*/config/modules.json"))
+		self.assertTrue(manifests, "没有发现扩展产品清单")
+		for manifest in manifests:
+			product = json.loads(manifest.read_text(encoding="utf-8"))["product"]
+			with self.subTest(product=product):
+				errors, summary = audit_repository(
+					ROOT,
+					release=True,
+					manifest_path=manifest.relative_to(ROOT),
+				)
 
-		self.assertEqual([], errors)
-		self.assertEqual("xruntime", summary["product"])
-		self.assertEqual(
-			summary["implementation_modules"],
-			summary["test_covered"],
-		)
-		self.assertEqual(
-			summary["implementation_modules"],
-			summary["single_covered"],
-		)
-		self.assertEqual(
-			summary["implementation_modules"],
-			summary["docs_covered"],
-		)
+				self.assertEqual([], errors)
+				self.assertEqual(product, summary["product"])
+				for covered in ("test_covered", "single_covered", "docs_covered"):
+					self.assertEqual(summary["implementation_modules"], summary[covered])
 
 
 

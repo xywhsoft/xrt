@@ -158,6 +158,7 @@ jobs:
           - xwork
           - xjwt
           - xoauth2
+          - xrudp
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -260,6 +261,10 @@ jobs:
           - product: xoauth2
             test_suite: xoauth2,xoauth2_tests,xoauth2_oidc
             package_suite: xoauth2
+          # 离线协议测试与完整产品打包；不替代跨 NAT、Android 或长稳验收。
+          - product: xrudp
+            test_suite: rudp_wire,rudp_ack,rudp_timing,rudp_sent,rudp_congestion,rudp_receive,rudp_transmit,rudp_message,rudp_datagram_tests
+            package_suite: xrudp
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -291,6 +296,12 @@ jobs:
           --exclude-test *uring*
           --exclude-single-test *uring*
           --jobs 4
+
+      - name: Verify XRUDP offline benchmark and size profiles
+        if: matrix.product == 'xrudp'
+        run: |
+          python tools/measure_performance.py --config extlibs/xrudp/config/performance_profiles.json --smoke
+          python tools/measure_size.py --config extlibs/xrudp/config/size_profiles.json --kind single
 
       - name: Verify mail coverage input provenance
         if: matrix.product == 'xmail' || matrix.product == 'xpop3' || matrix.product == 'xsmtp' || matrix.product == 'ximap'
