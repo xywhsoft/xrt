@@ -220,6 +220,51 @@ XRT_API void xrtX509StoreFree(xx509store* pStore)
 
 
 
+/* 已有源条目互异，克隆直接重建索引，不重复执行二次方去重扫描。 */
+XRT_API xx509store* xrtX509StoreClone(const xx509store* pSource)
+{
+	xx509store* pCopy;
+
+	if ( pSource == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return NULL;
+	}
+	pCopy = xrtX509StoreCreate();
+	if ( pCopy == NULL ) {
+		return NULL;
+	}
+	if ( !__xrtX509StoreReserve(pCopy, pSource->Count) ) {
+		xrtX509StoreFree(pCopy);
+		return NULL;
+	}
+	for ( size_t i = 0; i < pSource->Count; i++ ) {
+		const xrt_x509_store_entry* pEntry = &pSource->Entries[i];
+		xx509cert Certificate;
+		xx509anchor Anchor;
+		bytes pDer = (bytes)xrtMalloc(pEntry->Size);
+
+		if ( pDer == NULL ) {
+			xrtX509StoreFree(pCopy);
+			return NULL;
+		}
+		memcpy(pDer, pEntry->Data, pEntry->Size);
+		if ( !xrtX509Parse(pDer, pEntry->Size, &Certificate) ||
+			!xrtX509Anchor(&Certificate, &Anchor) ) {
+			xrtFree(pDer);
+			xrtX509StoreFree(pCopy);
+			return NULL;
+		}
+		pCopy->Entries[i].Data = pDer;
+		pCopy->Entries[i].Size = pEntry->Size;
+		pCopy->Entries[i].Certificate = Certificate;
+		pCopy->Anchors[i] = Anchor;
+		pCopy->Count++;
+	}
+	return pCopy;
+}
+
+
+
 /* 返回当前唯一信任锚数量。 */
 XRT_API size_t xrtX509StoreCount(const xx509store* pStore)
 {
@@ -264,6 +309,39 @@ XRT_API xx509result xrtX509StoreAdd(
 		xrtFree(pCopy);
 	}
 	return Result;
+}
+
+
+
+/* 复用唯一导入算法；部分追加失败时只回滚本次新条目。 */
+XRT_API bool xrtX509StoreMerge(
+	xx509store* pStore,
+	const xx509store* pSource,
+	size_t* pAdded
+)
+{
+	size_t iBefore;
+
+	if ( (pStore == NULL) || (pSource == NULL) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	iBefore = pStore->Count;
+	if ( pStore != pSource ) {
+		for ( size_t i = 0; i < pSource->Count; i++ ) {
+			const xrt_x509_store_entry* pEntry = &pSource->Entries[i];
+
+			if ( xrtX509StoreAdd(pStore, pEntry->Data, pEntry->Size) ==
+				X509_ERROR ) {
+				__xrtX509StoreTruncate(pStore, iBefore);
+				return false;
+			}
+		}
+	}
+	if ( pAdded != NULL ) {
+		*pAdded = pStore->Count - iBefore;
+	}
+	return true;
 }
 
 
