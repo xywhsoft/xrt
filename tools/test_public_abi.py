@@ -49,9 +49,10 @@ class PublicAbiTest(unittest.TestCase):
 			r"^\s*}\s*(?:[A-Za-z_][A-Za-z0-9_]*)?\s*;"
 		)
 		headers = list((ROOT / "include" / "xrt").glob("*.h"))
-		headers += list(
-			(ROOT / "extlibs" / "xhttp" / "include" / "xrt").glob("*.h")
-		)
+		for product in ("xhttp", "xhttp-client", "xhttp-server", "xhttp-policy"):
+			headers += list(
+				(ROOT / "extlibs" / product / "include" / "xrt").glob("*.h")
+			)
 		for header in sorted(headers):
 			inside = False
 			for number, line in enumerate(
@@ -142,6 +143,10 @@ class PublicAbiTest(unittest.TestCase):
 				str(ROOT / "include"),
 				"-I",
 				str(ROOT / "extlibs" / "xhttp" / "include"),
+				"-I",
+				str(ROOT / "extlibs" / "xhttp-client" / "include"),
+				"-I",
+				str(ROOT / "extlibs" / "xhttp-policy" / "include"),
 			]
 			subprocess.run(
 				common + [

@@ -36,6 +36,19 @@
 #include <string.h>
 #include <xrt.h>
 
+/* CLOSED and terminal results can precede the final callback release.
+ * Keep the Engine alive while retirement reports BUSY, with a finite deadline. */
+static bool exampleNetEngineDestroy(xnetengine* pEngine)
+{
+    double Deadline = xrtTimer() + 5.0;
+    for (;;) {
+        xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+        if (Result == XNET_RETIRE_READY) return true;
+        if (Result != XNET_RETIRE_BUSY || !(xrtTimer() < Deadline)) return false;
+        xrtThreadYield();
+    }
+}
+
 /* Worker 内自省结果：主线程核对。 */
 typedef struct exampletask {
 	xnetengine* pEngine;
@@ -334,7 +347,7 @@ Cleanup:
 		xrtNetEngineStop(pEngine);
 	}
 	if ( pEngine != NULL ) {
-		xrtNetEngineDestroy(pEngine);
+		exampleNetEngineDestroy(pEngine);
 	}
 	return iResult;
 }

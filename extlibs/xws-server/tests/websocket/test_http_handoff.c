@@ -1,5 +1,6 @@
 #include <xrt/detail/wait.h>
 #include "../test.h"
+#include "../../../../tests/network/engine_test.h"
 
 
 
@@ -884,7 +885,7 @@ int main(void)
 	xrtWsConnDestroy(State.Connection);
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testNetEngineDestroy(pEngine),
 		"WebSocket HTTP handoff engine destroy failed"
 	);
 	printf("[PASS] WebSocket HTTP buffered handoff (select)\n");

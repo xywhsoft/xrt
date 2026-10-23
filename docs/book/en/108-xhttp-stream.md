@@ -5,7 +5,7 @@ title: Streaming Bodies: Upload, Download, and Async Files
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: xhttpbody's five sources and replay semantics, the Reader's lease-based consumption, the bounded producer stream, and async file bodies — body memory decoupled from content size.
-api: xhttp-http_body, xhttp-http_body_stream, xhttp-http_body_file
+api: xhttp-http_body, xhttp-http_body_stream, xhttp-server-http_body_file
 ---
 
 > Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).

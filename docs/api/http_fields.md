@@ -3115,3 +3115,71 @@ xhttpnext xrtHttpDirectiveFind(
 | `XERR_ARGUMENT` / `XERR_STATE` / `XERR_RANGE` | 参数、字段表状态与游标范围 |
 | `XERR_MEMORY` | 字段数组扩容失败 |
 | `xrt.http` 域错误 | 名称、值与连接语义错误 |
+
+## 原生对象与异步协议补充参考
+
+拥有图引用描述实际强引用边，不是额外 pin；适配器要求精确策略身份和静止条件，只在准入成功后使用准备、接管和释放协议。普通查询与非等待拒绝须按各接口契约区分。
+
+### `xrtHttpListNext`
+
+读取逗号分隔字段列表的一项，跳过空项和 OWS，保留 quoted-string 内逗号。
+	只划分成员边界；成员的具体语法由调用方验证。成功时推进 pNext。
+	输出可以未对齐，但不能相互覆盖或覆盖输入。
+
+公开声明与相关策略见 [http.h](../../include/xrt/http.h)。
+
+```c
+xhttpnext xrtHttpListNext(xstrview Value, size_t iOffset, size_t* pNext, xstrview* pElement);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Value` | 需要迭代的 HTTP 列表或参数文本视图。 |
+| `iOffset` | 在当前字节结果或存储中的起始偏移。 |
+| `pNext` | 用于接收当前 HTTP 列表元素或名称/值参数的存储。 |
+| `pElement` | 用于接收当前 HTTP 列表元素或名称/值参数的存储。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/http/param/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtHttpNameValueNext`
+
+读取指定分隔符的 name/value 列表；分隔符仅支持分号或逗号。
+	bIgnoreEmpty 控制是否跳过空成员，其余校验与 ParamNext 相同。
+	用于扩展字段语法复用核心参数解析器。
+
+公开声明与相关策略见 [http.h](../../include/xrt/http.h)。
+
+```c
+xhttpnext xrtHttpNameValueNext(xstrview Parameters, size_t* pOffset, xhttpparam* pParam, char iSeparator, bool bIgnoreEmpty);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Parameters` | 需要迭代的 HTTP 列表或参数文本视图。 |
+| `pOffset` | 调用方维护的迭代字节位置，成功时推进。 |
+| `pParam` | 用于接收当前 HTTP 列表元素或名称/值参数的存储。 |
+| `iSeparator` | 列表或参数解析使用的分隔字符。 |
+| `bIgnoreEmpty` | 是否跳过空列表项。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/http/param/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。

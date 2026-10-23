@@ -5,6 +5,7 @@
 
 #include <xws-server.h>
 #include <xws-client.h>
+#include "../../../../tests/network/engine_test.h"
 
 
 
@@ -662,7 +663,7 @@ static int interopRunServer(uint16 iPort)
 	}
 	if ( !xrtNetEngineStart(Context.Engine) ) {
 		fprintf(stderr, "server engine start failed\n");
-		(void)xrtNetEngineDestroy(Context.Engine);
+		(void)testNetEngineDestroy(Context.Engine);
 		return 1;
 	}
 	xrtHttpServerConfigInit(&ServerConfig);
@@ -716,7 +717,7 @@ static int interopRunServer(uint16 iPort)
 	if ( Context.Server != NULL ) {
 		xrtHttpServerDestroy(Context.Server);
 	}
-	if ( !xrtNetEngineDestroy(Context.Engine) ) {
+	if ( !testNetEngineDestroy(Context.Engine) ) {
 		interopFailError(&Context, xrtGetError());
 		bSuccess = false;
 	}
@@ -841,7 +842,7 @@ static int interopRunClient(uint16 iPort)
 	}
 	if ( !xrtNetEngineStart(Context.Engine) ) {
 		fprintf(stderr, "client engine start failed\n");
-		(void)xrtNetEngineDestroy(Context.Engine);
+		(void)testNetEngineDestroy(Context.Engine);
 		return 1;
 	}
 	xrtHttpClientConfigInit(&ClientConfig);
@@ -927,7 +928,7 @@ static int interopRunClient(uint16 iPort)
 	xrtHttpResponseDestroy(Context.Response);
 	xrtHttpCallDestroy(Context.Call);
 	xrtHttpClientDestroy(Context.Client);
-	if ( !xrtNetEngineDestroy(Context.Engine) ) {
+	if ( !testNetEngineDestroy(Context.Engine) ) {
 		interopFailError(&Context, xrtGetError());
 		bSuccess = false;
 	}

@@ -6328,3 +6328,505 @@ clone 能力。控制器可在 fence 外执行声明 clone，再认证整批新�
 语言层仍须按声明的 clone 能力处理共享默认子对象，重新认证 clone 结果，
 并独立管理源实例、结果及 memo 的实际引用。用户 clone 和析构不在
 freeze 中运行；native 已协调的拥有图环不等同裸 Value 容器的禁用环。
+
+## 原生对象与异步协议补充参考
+
+拥有图引用描述实际强引用边，不是额外 pin；适配器要求精确策略身份和静止条件，只在准入成功后使用准备、接管和释放协议。普通查询与非等待拒绝须按各接口契约区分。
+
+### `xvalueobjectfieldsresultv1`
+
+```c
+typedef enum xvalueobjectfieldsresultv1 {
+	XVALUE_OBJECT_FIELDS_ERROR_V1 = -1,
+	XVALUE_OBJECT_FIELDS_BUSY_V1 = 0,
+	XVALUE_OBJECT_FIELDS_COMMITTED_V1 = 1,
+	XVALUE_OBJECT_FIELDS_SHARED_V1 = 2
+} xvalueobjectfieldsresultv1;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XVALUE_OBJECT_FIELDS_ERROR_V1` | 准备或验证错误。 |
+| `XVALUE_OBJECT_FIELDS_BUSY_V1` | 接收者或冻结边界忙，未提交。 |
+| `XVALUE_OBJECT_FIELDS_COMMITTED_V1` | 字段事务已提交。 |
+| `XVALUE_OBJECT_FIELDS_SHARED_V1` | 报告共享接收者，调用方据此处理。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xvalueobjectfieldsv1`
+
+```c
+typedef struct xvalueobjectfieldsv1 xvalueobjectfieldsv1;
+```
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xvalueobjectreadv1`
+
+```c
+typedef struct xvalueobjectreadv1 xvalueobjectreadv1;
+```
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xvalueobjectreadvisitv1`
+
+```c
+typedef bool (*xvalueobjectreadvisitv1)(const xvalueobjectreadv1* pLeft,
+	const xvalueobjectreadv1* pRight, ptr pContext);
+```
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+### `xrtValueObjectFieldsCommitV1`
+
+Nonblocking ONE freeze: admit the complete physical graph before Count/
+Trace, verify receiver privacy and unchanged observations, and preflight
+combined planned Value-container cycles. Only then swap all prepared field stores without
+allocation, release, producer callbacks or failure. Preserve the original
+class lifetime/identity and its one finalization duty. Free later retires
+old fields outside freeze. Ordinary COW aliases keep their old backing.
+Every supplied internal slot MUST be a real independently owned reference;
+each record's own unique owner is supplied automatically, once. An anchor
+is not an internal slot. Admission is mandatory, read-only and resident.
+SHARED/BUSY leave every receiver unchanged and do not set an error. Unknown
+participants, changed receivers, misuse/cycles/OOM return ERROR, also before
+any receiver write. This does not perform or infer a language clone.
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+xvalueobjectfieldsresultv1 xrtValueObjectFieldsCommitV1(xvalueobjectfieldsv1* const* ppFields, size_t iCount, const xrtownershipref* pInternalSlots, size_t iInternalSlotCount, xrtownershipadmitproc pAdmit, ptr pContext);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `ppFields` | 已准备的字段事务数组，须与提交数量配对。 |
+| `iCount` | 对应输入数组的有效元素数量。 |
+| `pInternalSlots` | 真实内部强引用槽数组，不得用借用地址伪造拥有引用。 |
+| `iInternalSlotCount` | 对应输入数组的有效元素数量。 |
+| `pAdmit` | 拥有图准入配置或检查回调，须显式识别允许的精确策略身份。 |
+| `pContext` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtValueObjectFieldsCommitV2`
+
+Same single-freeze transaction. On SHARED only, return the first shared
+receiver's record index in caller order. The entire batch remains unchanged.
+Other outcomes leave the output untouched. The index is an observation,
+not a retained reference, mutation authority or inferred clone capability.
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+xvalueobjectfieldsresultv1 xrtValueObjectFieldsCommitV2(xvalueobjectfieldsv1* const* ppFields, size_t iCount, const xrtownershipref* pInternalSlots, size_t iInternalSlotCount, xrtownershipadmitproc pAdmit, ptr pContext, size_t* piSharedIndex);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `ppFields` | 已准备的字段事务数组，须与提交数量配对。 |
+| `iCount` | 对应输入数组的有效元素数量。 |
+| `pInternalSlots` | 真实内部强引用槽数组，不得用借用地址伪造拥有引用。 |
+| `iInternalSlotCount` | 对应输入数组的有效元素数量。 |
+| `pAdmit` | 拥有图准入配置或检查回调，须显式识别允许的精确策略身份。 |
+| `pContext` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `piSharedIndex` | 用于返回共享接收者索引的输出存储。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtValueObjectFieldsFreeV1`
+
+释放准备事务及其尚持有的字段和接收者引用。
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+void xrtValueObjectFieldsFreeV1(xvalueobjectfieldsv1* pFields);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pFields` | 已准备的字段事务，持有接收者及待发布字段。 |
+
+
+#### 返回值
+
+无返回值；释放与回调顺序遵循上述契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtValueObjectFieldsOwnershipV1`
+
+A real unique record with exactly three owned Value slots. Borrowed under
+caller-owned freeze; this is not a synthetic root or extra owning slot.
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+xrtownershipref xrtValueObjectFieldsOwnershipV1(const xvalueobjectfieldsv1* pFields);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pFields` | 已准备的字段事务，持有接收者及待发布字段。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtValueObjectFieldsPrepareV1`
+
+固定实际对象接收者及其 COW 观察，准备独立字段事务；准备结果须提交或释放。
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+xvalueobjectfieldsv1* xrtValueObjectFieldsPrepareV1(xvalue* pObject);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pObject` | 当前操作的 Value 或对象；须按字段事务和只读观察契约保持其有效。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtValueObjectFieldsSetTakeV1`
+
+将拥有值写入准备事务；接管点和失败保留规则见 Value 字段事务契约。
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+bool xrtValueObjectFieldsSetTakeV1(xvalueobjectfieldsv1* pFields, xstrview Key, xvalue** ppItem);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pFields` | 已准备的字段事务，持有接收者及待发布字段。 |
+| `Key` | 字段名或映射键的完整字节视图。 |
+| `ppItem` | 用于接收完成对象或任务组条目的输出指针。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtValueObjectReadGetV1`
+
+Exact byte key, including embedded NUL. A missing field returns NULL without
+an error; NULL data with a nonzero key size is an invalid argument.
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+const xvalue* xrtValueObjectReadGetV1(const xvalueobjectreadv1* pView, xstrview Key);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pView` | 回调内的只读对象视图；不得在回调结束后保存或访问。 |
+| `Key` | 字段名或映射键的完整字节视图。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtValueObjectReadLifetimeV1`
+
+读取回调视图的生命周期身份，不增加引用或延长视图有效期。
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+const void* xrtValueObjectReadLifetimeV1(const xvalueobjectreadv1* pView);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pView` | 回调内的只读对象视图；不得在回调结束后保存或访问。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtValueObjectReadTypeIdV1`
+
+读取回调视图中的语义类型身份。
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+uint64 xrtValueObjectReadTypeIdV1(const xvalueobjectreadv1* pView);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pView` | 回调内的只读对象视图；不得在回调结束后保存或访问。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtValueObjectReadV1`
+
+在受认证的只读回调中观察两个对象；读取视图只在当前回调期间有效，不得保存或用于修改对象。
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+bool xrtValueObjectReadV1(const xvalue* pLeft, const xvalue* pRight, const xvalueobjectownershipv1* pExpectedPolicy, xvalueobjectreadvisitv1 pVisit, ptr pContext);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pLeft` | 当前操作的 Value 或对象；须按字段事务和只读观察契约保持其有效。 |
+| `pRight` | 当前操作的 Value 或对象；须按字段事务和只读观察契约保持其有效。 |
+| `pExpectedPolicy` | 对象或操作要求的精确策略描述符，生命周期覆盖受理的上下文。 |
+| `pVisit` | 同步访问或完成回调；回调线程、借用参数和生命周期遵守当前接口契约。 |
+| `pContext` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtValueObjectSetNewPostCommit`
+
+Consume the new owner on both outcomes. Publish the field before releasing
+its former owner OUTSIDE the mutation and receiver BUSY fence. The receiver
+is pinned through retirement; old-value callbacks may observe/mutate the
+committed object and release independently owned back-references to it.
+Failure preserves the field and its first diagnostic. Unlike SetNew, this
+operation does not forbid receiver reentry from the old-value destructor.
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+bool xrtValueObjectSetNewPostCommit(xvalue* pObject, xstrview Key, xvalue* pItem);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pObject` | 当前操作的 Value 或对象；须按字段事务和只读观察契约保持其有效。 |
+| `Key` | 字段名或映射键的完整字节视图。 |
+| `pItem` | 任务组条目句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtValueScalarDomainBindV1`
+
+为标量绑定语义类型身份和标量域；冲突绑定按值身份策略拒绝。
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+bool xrtValueScalarDomainBindV1(xvalue* pValue, uint64 iTypeId, uint32 iDomain);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pValue` | 当前操作的 Value 或对象；须按字段事务和只读观察契约保持其有效。 |
+| `iTypeId` | 稳定的语义类型身份。 |
+| `iDomain` | 标量值的语义域编号。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtValueScalarDomainV1`
+
+Optional caller-defined scalar domain, zero when absent (or pValue is NULL).
+XRT does not interpret the tag or change equality/hash/wire semantics. It is
+immutable POD, retained by Clone/DeepClone, not a registry or code pointer.
+Binding is atomic as a semantic transaction: both nonzero TypeId and Domain
+are committed only on success. Only non-static scalar shells are eligible;
+containers and opaque handles are refused. First binding requires a unique,
+unpublished shell (the caller synchronizes publication); repeating the exact
+pair is idempotent even after sharing. A prior equal TypeId is allowed.
+Conflicting pairs and TypeIdRebind to another identity are refused. No
+allocation or callback; success preserves the prior error. BUSY reads fail
+with XERR_STATE, like TypeId. A null query returns zero without an error.
+
+公开声明与相关策略见 [value.h](../../include/xrt/value.h)。
+
+```c
+uint32 xrtValueScalarDomainV1(const xvalue* pValue);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pValue` | 当前操作的 Value 或对象；须按字段事务和只读观察契约保持其有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。

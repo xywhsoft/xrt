@@ -70,6 +70,7 @@ static void testHttpServerWait(
 
 
 
+
 /* 比较借用字符串与零结尾测试文本。 */
 static bool testHttpServerViewEqual(
 	xstrview Value,
@@ -1132,10 +1133,8 @@ static void testHttpServerKeepAliveHeaderTimeout(void)
 		"HTTP server keep-alive timeout statistics mismatch"
 	);
 	xrtHttpServerDestroy(State.Server);
-	testRequire(
-		xrtNetEngineDestroy(State.Engine),
-		"HTTP server keep-alive timeout engine destroy failed"
-	);
+	testRequire(testHttpServerEngineDestroy(State.Engine),
+		"HTTP server engine retirement failed or timed out");
 }
 
 
@@ -1816,10 +1815,8 @@ int main(void)
 		"HTTP server final statistics mismatch"
 	);
 	xrtHttpServerDestroy(State.Server);
-	testRequire(
-		xrtNetEngineDestroy(State.Engine),
-		"HTTP server engine could not stop"
-	);
+	testRequire(testHttpServerEngineDestroy(State.Engine),
+		"HTTP server engine retirement failed or timed out");
 	testHttpServerKeepAliveHeaderTimeout();
 	printf(
 		"[PASS] HTTP server TCP runtime (%s)\n",

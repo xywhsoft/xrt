@@ -535,6 +535,32 @@ void xrtNetUdpConfigInit(xnetudpconfig* pConfig)
 bool xrtNetUdpConfigValid(const xnetudpconfig* pConfig);
 ```
 
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pConfig` | 当前操作的配置；合法字段和默认行为见相应配置类型。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+
 只检查配置的取值、标志与组合边界；不修改输入，不创建 Engine／Socket，
 不进行 I/O。`NULL` 或非法配置返回 false，并设置 `XERR_ARGUMENT`／
 `XNET_ERROR_UDP_CONFIG`。成功不分配，也不清除已有错误；失败的诊断可分配。
@@ -3564,3 +3590,697 @@ select／IOCP 或 epoll；基础 UDP 和 UDP Future 源分别按最小模块严�
 底层专项，只执行离线合同／OOM 和自有字面量回环正常通信，没有网络安全测试。
 
 完整回环与按接收目标地址回包示例位于 `examples/network/udp/main.c`，底层元数据和逐包发送控制能力协商示例位于 `examples/network/socket/main.c`，Future 请求响应示例位于 `examples/network/udp_future/main.c`，阻塞外观示例位于 `examples/network/udp_sync/main.c`，PMTU 与异步错误示例位于 `examples/network/udp_errors/main.c`。当前回归门禁覆盖 select、IOCP 与 io_uring，包含同步/完成式接收元数据、逐包发送控制、GSO/GRO、PMTU/错误队列、错误 Future/同步等待、零长度/截断/向量/批量报文、硬字节和包数上限、普通与错误队列溢出策略、completion 并发发送槽、OOM 恢复、真实 IPv4 组播回环、多生产者 Send/Close/Abort 线性化、Future 取消/关闭竞态、同步终态竞争、协程挂起恢复、控制值复制、所有权唯一释放、单头文件真实收发和裁剪依赖。
+
+## 原生对象与异步协议补充参考
+
+拥有图引用描述实际强引用边，不是额外 pin；适配器要求精确策略身份和静止条件，只在准入成功后使用准备、接管和释放协议。普通查询与非等待拒绝须按各接口契约区分。
+
+### `xnetudpownedkind`
+
+```c
+typedef enum xnetudpownedkind {
+	XNET_UDP_OWNED_BYTES = 1,
+	XNET_UDP_OWNED_PACKET,
+	XNET_UDP_OWNED_VECTOR
+} xnetudpownedkind;
+```
+
+| 值 | 语义 |
+|---|---|
+| `XNET_UDP_OWNED_BYTES` | 不可变字节结果切片。 |
+| `XNET_UDP_OWNED_PACKET` | 拥有型 UDP 数据包。 |
+| `XNET_UDP_OWNED_VECTOR` | 拥有型切片向量。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xnetudppacketref`
+
+```c
+typedef struct xnetudppacketref {
+	xnetudppacket* Packet;
+	size_t Offset;
+	size_t Size;
+} xnetudppacketref;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Packet` | `xnetudppacket*` | 声明中的公开字段；取值和生命周期须符合本类型及使用接口的契约。 |
+| `Offset` | `size_t` | 结果中的字节起始偏移。 |
+| `Size` | `size_t` | 切片长度或结构字节大小，依相应接口契约设置。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+公开常量：`XNET_UDP_VECTOR_MAX`。取值与边界见公开头文件。
+
+### `xrtNetUdpBatchOwnership`
+
+Enumerates one real packet owner per nonempty slot. Taken slots have no
+edge. The batch does not own its producer, a Future or a language wrapper.
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+xrtownershipref xrtNetUdpBatchOwnership(const xnetudpbatch* pBatch);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pBatch` | UDP 批量对象句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpBatchOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetUdpBatchOwnershipAdapterV1(xrtownershipref Reference);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpErrorPacketOwnership`
+
+Owned immutable error metadata and captured prefix; no socket/Engine edge.
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+xrtownershipref xrtNetUdpErrorPacketOwnership(const xnetudperrorpacket* pPacket);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pPacket` | 拥有型 UDP 数据包；接管和完成边界按当前操作契约处理。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpErrorPacketOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetUdpErrorPacketOwnershipAdapterV1(xrtownershipref Reference);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpFutureBatchPayloadPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xfuturepayloadownershipv1* xrtNetUdpFutureBatchPayloadPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpFutureCancelPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xcancelwatchownershipv1* xrtNetUdpFutureCancelPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpFutureErrorPayloadPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xfuturepayloadownershipv1* xrtNetUdpFutureErrorPayloadPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpFutureOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetUdpFutureOwnershipAdapterV1(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpFutureOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xrtownershipquiescencev1* xrtNetUdpFutureOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpFuturePacketPayloadPolicyV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xfuturepayloadownershipv1* xrtNetUdpFuturePacketPayloadPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpFutureProducerPolicyV1Get`
+
+Exact native policies for the Future producer, owned cancel Watch and three
+result variants. Admit their actual identity, not a copy of these records.
+Pending producer preparation is completed by normal UDP source shutdown.
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xfutureproducerownershipv1* xrtNetUdpFutureProducerPolicyV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpOwnership`
+
+Read under ownership Freeze after this UDP/Engine quiescence is admitted.
+V1 certifies native copied/taken sends and pull queues, not arbitrary user
+callbacks/Data, escaped sockets or as-yet unregistered Future waiters.
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+xrtownershipref xrtNetUdpOwnership(const xnetudp* pUdp);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pUdp` | UDP 对象句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetUdpOwnershipAdapterV1(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xrtownershipquiescencev1* xrtNetUdpOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpPacketOwnership`
+
+Immutable payload/metadata owner, independent of its producing UDP/Engine.
+Next is queue structure, not an owning edge. Ref/Destroy participate in
+ownership mutation, including the holder's controlled nested operations.
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+xrtownershipref xrtNetUdpPacketOwnership(const xnetudppacket* pPacket);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pPacket` | 拥有型 UDP 数据包；接管和完成边界按当前操作契约处理。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpPacketOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xrtownershipadapterv1* xrtNetUdpPacketOwnershipAdapterV1(xrtownershipref Reference);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpRuntimeOwnershipV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+const xnetruntimeownershipv1* xrtNetUdpRuntimeOwnershipV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpSendMsgBytes`
+
+Typed zero-copy datagrams. Slices are strict (offset+size must fit). Empty
+slices/vectors still send ONE empty datagram but retain no payload owner.
+Remote=NULL uses the connected peer; Control=NULL/Flags=0 is ordinary UDP.
+No user callback or raw pointer is used to infer an owning graph edge.
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+xnetresult xrtNetUdpSendMsgBytes(xnetudp* pUdp, const xnetaddr* pRemote, const xnetdgramcontrol* pControl, xnetbytes* pBytes, size_t iOffset, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pUdp` | UDP 对象句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pRemote` | UDP 目标地址，地址族及端口须与 socket 配置兼容。 |
+| `pControl` | UDP 附加控制消息描述，支持范围取决于平台能力。 |
+| `pBytes` | 不可变网络字节结果；切片与持有引用须遵守其有效范围和生命周期。 |
+| `iOffset` | 在当前字节结果或存储中的起始偏移。 |
+| `iSize` | 当前字节视图、切片或结构的长度；对应存储须覆盖声明的范围。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpSendMsgBytesVec`
+
+按不可变字节结果的切片向量发送 UDP 消息；切片边界、数量和生命周期受消息发送契约约束。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+xnetresult xrtNetUdpSendMsgBytesVec(xnetudp* pUdp, const xnetaddr* pRemote, const xnetdgramcontrol* pControl, const xnetbytesref* pRefs, size_t iCount);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pUdp` | UDP 对象句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pRemote` | UDP 目标地址，地址族及端口须与 socket 配置兼容。 |
+| `pControl` | UDP 附加控制消息描述，支持范围取决于平台能力。 |
+| `pRefs` | 工作条目、订阅分支或拥有型切片数组；与有效数量及接管规则配对。 |
+| `iCount` | 对应输入数组的有效元素数量。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpSendMsgPacket`
+
+使用拥有型 UDP 数据包发送消息，引用接管与完成边界遵循消息发送契约。
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+xnetresult xrtNetUdpSendMsgPacket(xnetudp* pUdp, const xnetaddr* pRemote, const xnetdgramcontrol* pControl, xnetudppacket* pPacket, size_t iOffset, size_t iSize);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pUdp` | UDP 对象句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pRemote` | UDP 目标地址，地址族及端口须与 socket 配置兼容。 |
+| `pControl` | UDP 附加控制消息描述，支持范围取决于平台能力。 |
+| `pPacket` | 拥有型 UDP 数据包；接管和完成边界按当前操作契约处理。 |
+| `iOffset` | 在当前字节结果或存储中的起始偏移。 |
+| `iSize` | 当前字节视图、切片或结构的长度；对应存储须覆盖声明的范围。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtNetUdpSendOwnedBatch`
+
+Prefix acceptance, one native submission for the constructed prefix. Each
+accepted nonempty slice retains a real owner; all caller references stay
+unchanged. Descriptors/control/span metadata are copied, payloads are not.
+ERROR/AGAIN may accompany a nonzero accepted prefix; inspect BOTH outputs.
+If the native submission fails, accepted=0 and all temporary holds unwind.
+
+公开声明与相关策略见 [udp.h](../../include/xrt/udp.h)。
+
+```c
+xnetresult xrtNetUdpSendOwnedBatch(xnetudp* pUdp, const xnetudpownedmessage* pItems, size_t iCount, size_t* pAccepted);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pUdp` | UDP 对象句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pItems` | 工作条目、订阅分支或拥有型切片数组；与有效数量及接管规则配对。 |
+| `iCount` | 对应输入数组的有效元素数量。 |
+| `pAccepted` | 已受理连接句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/network/udp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。

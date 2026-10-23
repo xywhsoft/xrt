@@ -526,7 +526,7 @@ int main(void)
 	xrtNetStreamDestroy(pSilent);
 	xrtHttpServerDestroy(Test.Server);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTPS handshake Engine destroy failed"
 	);
 	printf(

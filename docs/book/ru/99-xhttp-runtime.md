@@ -5,7 +5,7 @@ title: Среда выполнения xhttp: построители, вызов
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: Семантика заморозки снимка запроса, два рода дедлайнов и отмена, диагностический снимок и пул соединений, фрагментированный по origin, — все шестерни среды выполнения.
-api: xhttp-http_client, xhttp-http_client_runtime, net
+api: xhttp-http_client, xhttp-client-http_client_runtime, net
 ---
 
 > Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).

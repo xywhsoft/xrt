@@ -5,7 +5,7 @@ title: xhttp 自动行为：重定向、重试与 Cookie
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: 301/302/303 的方法改写与 307/308 的正文重放、幂等判定的自动重试、跨域凭据剥离——客户端的三个自动挡。
-api: xhttp-http_client, xhttp-http_retry, xhttp-cookie_jar
+api: xhttp-http_client, xhttp-http_retry, xhttp-policy-cookie_jar
 ---
 
 > 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。

@@ -1,5 +1,6 @@
 #include <xrt/detail/wait.h>
 #include "../test.h"
+#include "../network/engine_test.h"
 
 #include "../../src/internal/xrt_tcp.h"
 #include "../../src/internal/xrt_websocket.h"
@@ -1630,7 +1631,9 @@ static void testWsConnServerRefTask(
 	xrtClearError();
 	xrtFree(pPayload);
 
-	pPayload = (bytes)xrtMalloc(1);
+	/* Advertise a real allocation: a one-byte block with a large claimed
+	 * span can overlap the connection on compact heaps and fail alias checks. */
+	pPayload = (bytes)xrtMalloc(TEST_WS_CONNECTION_MESSAGE_LIMIT + 1u);
 	testRequire(
 		pPayload != NULL,
 		"WebSocket oversized reference allocation failed"
@@ -3231,7 +3234,7 @@ int main(void)
 	xrtWsStreamDestroy(pServer);
 	xrtNetListenerDestroy(Test.Listener);
 	testRequire(
-		xrtNetEngineDestroy(Test.Engine),
+		testNetEngineDestroy(Test.Engine),
 		"WebSocket connection engine destroy failed"
 	);
 	printf(

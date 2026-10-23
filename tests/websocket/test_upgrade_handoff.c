@@ -1,5 +1,6 @@
 #include <xrt/detail/wait.h>
 #include "../test.h"
+#include "../network/engine_test.h"
 
 
 
@@ -723,7 +724,7 @@ int main(void)
 	xrtWsStreamDestroy(pServer);
 	xrtNetListenerDestroy(Test.Listener);
 	testRequire(
-		xrtNetEngineDestroy(Test.Engine),
+		testNetEngineDestroy(Test.Engine),
 		"WebSocket Upgrade engine destroy failed"
 	);
 	printf("[PASS] WebSocket HTTP Upgrade handoff\n");

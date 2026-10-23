@@ -5,7 +5,7 @@ title: The Server (Part 1): Startup, Connections, and Routing
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: Five-segment timeout protection, the Headers/Body/Request event chain, the Reply direct-answer path and Drain teardown — an HTTP/1 service runtime built on aggregated TCP.
-api: xhttp-http_server, xhttp-http_server_router, net
+api: xhttp-http_server, xhttp-server-http_server_router, net
 ---
 
 > Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).

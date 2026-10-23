@@ -428,7 +428,7 @@ int main(void)
 	xrtTlsStreamDestroy(State.Client);
 	xrtHttpServerDestroy(State.Server);
 	testRequire(
-		xrtNetEngineDestroy(State.Engine),
+		testHttpServerEngineDestroy(State.Engine),
 		"HTTPS server Router Engine destroy failed"
 	);
 	xrtClearError();

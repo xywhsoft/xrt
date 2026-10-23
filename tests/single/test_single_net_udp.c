@@ -1,5 +1,6 @@
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
+#include "net_engine_test.h"
 
 
 
@@ -144,7 +145,7 @@ Cleanup:
 	}
 	xrtNetUdpDestroy(pClient);
 	xrtNetUdpDestroy(pServer);
-	if ( !xrtNetEngineDestroy(pEngine) && (iResult == 0) ) {
+	if ( !testSingleNetEngineDestroy(pEngine) && (iResult == 0) ) {
 		iResult = 6;
 	}
 	return iResult;

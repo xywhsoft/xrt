@@ -166,8 +166,9 @@ static bool xrudp__stream_retire(const xrudp__sessionstream* m)
 }
 static bool xrudp__stream_read_done(const xrudp__sessionstream* m)
 {
-	xrudpreceivestate r; (void)xrtRudpReceiveState(m->Rx, &r);
-	return r.Reset || (r.Stopped && r.HasFinal) || xrudp__stream_eof(m);
+	xrudpreceivestate r;
+	return xrtRudpReceiveState(m->Rx, &r) == XRUDP_OK &&
+		(r.Reset || (r.Stopped && r.HasFinal) || xrudp__stream_eof(m));
 }
 static bool xrudp__stream_read_ready(const xrudp__sessionstream* m)
 {
@@ -891,11 +892,13 @@ static void xrudp__session_ackwant(xrudpsession* s, bool immediate)
 }
 static void xrudp__session_pto_sync(xrudpsession* s, bool progress)
 {
-	xrudpsentstate sent; uint64_t interval; (void)xrtRudpSentState(s->Sent, &sent);
+	xrudpsentstate sent; uint64_t interval;
+	if (xrtRudpSentState(s->Sent, &sent) != XRUDP_OK) return;
 	if (progress) { s->PtoCount = 0; s->Probes = 0; s->PtoAt = 0; }
 	if (sent.BytesInFlight == 0) { s->PtoAt = 0; s->Probes = 0; }
 	else if (s->PtoAt == 0) {
-		(void)xrtRudpRttPto(&s->Rtt, s->PtoCount, &interval); s->PtoAt = xrudp__session_add(s->Now, interval);
+		if (xrtRudpRttPto(&s->Rtt, s->PtoCount, &interval) != XRUDP_OK) return;
+		s->PtoAt = xrudp__session_add(s->Now, interval);
 	}
 }
 

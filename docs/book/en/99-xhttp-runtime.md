@@ -5,7 +5,7 @@ title: The xhttp Runtime: Builders, Calls, and the Connection Pool
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: The freeze semantics of request snapshots, two kinds of deadlines with cancellation, diagnostic snapshots, and the origin-sharded connection pool — all the runtime's gears.
-api: xhttp-http_client, xhttp-http_client_runtime, net
+api: xhttp-http_client, xhttp-client-http_client_runtime, net
 ---
 
 > Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).

@@ -321,8 +321,10 @@ int main(void)
 	testValueCollectionArrayOom(&tState);
 	testValueCollectionSetOom(&tState);
 
-	/* 先测量真实分配数，避免缓存和平台差异让固定 96 次扫描永远失败。 */
-	{
+	/* Warm reusable small-block spans before measuring the backing calls.
+	 * The first cold merge can allocate spans which every later attempt reuses;
+	 * requiring its cold failure count would demand unreachable fault points. */
+	for ( unsigned iProbe = 0; iProbe < 2u; ++iProbe ) {
 		xvalue* pProbe = xrtValueClone(pTarget);
 		testRequire(pProbe != NULL, "collection allocation-count clone");
 		tState.Calls = 0;
@@ -376,6 +378,10 @@ int main(void)
 		if ( (iFailures >= iRequiredFailures) && (iSuccesses >= 4) ) {
 			break;
 		}
+	}
+	if ( iFailures < iRequiredFailures || iSuccesses < 4 ) {
+		fprintf(stderr, "[collection-oom] failures=%zu required=%zu successes=%zu limit=%zu\n",
+			iFailures, iRequiredFailures, iSuccesses, iAllocationLimit);
 	}
 	testRequire(
 		(iFailures >= iRequiredFailures) && (iSuccesses >= 4),

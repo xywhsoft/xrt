@@ -5,7 +5,7 @@ title: 流式正文：上传、下载与异步文件
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: xhttpbody 的五来源与可重放语义、Reader 的租约式消费、有界生产流与异步文件正文——正文内存与内容大小解耦。
-api: xhttp-http_body, xhttp-http_body_stream, xhttp-http_body_file
+api: xhttp-http_body, xhttp-http_body_stream, xhttp-server-http_body_file
 ---
 
 > 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。

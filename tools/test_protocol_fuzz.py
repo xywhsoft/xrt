@@ -127,7 +127,7 @@ TARGETS = {
 	},
 	"route": {
 		"module": "http_route_fuzz_tests",
-		"manifest": "extlibs/xhttp/config/modules.json",
+		"manifest": "extlibs/xhttp-server/config/modules.json",
 		"label": "HTTP route",
 		"output": "http_route_fuzz",
 		"adapter": "XRT_HTTP_ROUTE_FUZZ_LIBFUZZER",
@@ -147,7 +147,7 @@ TARGETS = {
 	},
 	"router": {
 		"module": "http_router_fuzz_tests",
-		"manifest": "extlibs/xhttp/config/modules.json",
+		"manifest": "extlibs/xhttp-server/config/modules.json",
 		"label": "HTTP router",
 		"output": "http_router_fuzz",
 		"adapter": "XRT_HTTP_ROUTER_FUZZ_LIBFUZZER",

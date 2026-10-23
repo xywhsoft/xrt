@@ -13,6 +13,12 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 CORE_MANIFEST = "config/modules.json"
 XHTTP_MANIFEST = "extlibs/xhttp/config/modules.json"
+HTTP_MANIFESTS = (
+	XHTTP_MANIFEST,
+	"extlibs/xhttp-client/config/modules.json",
+	"extlibs/xhttp-server/config/modules.json",
+	"extlibs/xhttp-policy/config/modules.json",
+)
 
 
 
@@ -43,7 +49,7 @@ class ReleaseStatusTest(unittest.TestCase):
 
 		expected = set().union(*(
 			_developing_modules(_manifest(path))
-			for path in (CORE_MANIFEST, XHTTP_MANIFEST)
+			for path in (CORE_MANIFEST, *HTTP_MANIFESTS)
 		))
 		text = (ROOT / "docs" / "RELEASE_STATUS.md").read_text(
 			encoding="utf-8"
@@ -59,16 +65,17 @@ class ReleaseStatusTest(unittest.TestCase):
 		"""待验证节点与 xhttp io_uring 契约必须进入 Linux 门禁。"""
 
 		core = _manifest(CORE_MANIFEST)
-		xhttp = _manifest(XHTTP_MANIFEST)
+		http = [_manifest(path) for path in HTTP_MANIFESTS]
 		modules = {
 			module["name"]: module
-			for manifest in (core, xhttp)
+			for manifest in (core, *http)
 			for module in manifest["modules"]
 		}
 		expected = _developing_modules(core)
-		expected.update(_developing_modules(xhttp))
+		for manifest in http:
+			expected.update(_developing_modules(manifest))
 		expected.update(
-			module["name"] for module in xhttp["modules"]
+			module["name"] for manifest in http for module in manifest["modules"]
 			if module["name"].endswith("_uring_tests")
 		)
 		workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(

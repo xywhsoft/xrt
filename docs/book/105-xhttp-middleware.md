@@ -5,7 +5,7 @@ title: 服务端（中）：中间件与静态文件
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: 注册顺序进、逆序退的洋葱模型、Next 的同步栈语义、静态文件与目录服务——横切关注点的标准装配。
-api: xhttp-http_server_middleware, xhttp-http_server_static, xhttp-http_server_router
+api: xhttp-server-http_server_middleware, xhttp-server-http_server_static, xhttp-server-http_server_router
 ---
 
 > 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。

@@ -1,5 +1,6 @@
 #include <xrt/detail/wait.h>
 #include "../fixtures/tls_server.h"
+#include "../network/engine_test.h"
 
 
 
@@ -814,7 +815,7 @@ int main(void)
 	xrtWsStreamDestroy(pServer);
 	xrtNetListenerDestroy(Test.Listener);
 	testRequire(
-		xrtNetEngineDestroy(Test.Engine),
+		testNetEngineDestroy(Test.Engine),
 		"WSS engine destroy failed"
 	);
 	xrtTlsVerifierRelease(pVerifier);

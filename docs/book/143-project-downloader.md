@@ -5,7 +5,7 @@ title: 项目四：HTTPS 下载器
 volume: 卷十三 实战项目
 type: project
 lead: 从一行 GET 到可交付下载器：断点续传（Range + ETag 校验）、流式落盘（内存与文件大小解耦）、原子完成（临时文件+改名）——xhttp 与文件层的综合运用。
-api: xhttp-http_client, xhttp-http_client_easy, file
+api: xhttp-http_client, xhttp-client-http_client_easy, file
 ---
 
 > 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。

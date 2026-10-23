@@ -5,7 +5,7 @@ title: 项目六（全书收官）：综合静态文件服务器
 volume: 卷十三 实战项目 · 全书收官
 type: project
 lead: TLS 安全入口、目录映射与穿越防护、ETag 条件请求与 Range 续传、压缩协商、日志与优雅停机——六个项目经验的合体与全书知识地图的总收拢。
-api: xhttp-http_server, xhttp-http_server_static, xhttp-http_server_middleware
+api: xhttp-http_server, xhttp-server-http_server_static, xhttp-server-http_server_middleware
 ---
 
 > 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。

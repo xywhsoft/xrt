@@ -228,7 +228,7 @@ static void exchange(xnetportbackend backend)
         xfuture* open=xrtNetStreamWaitAsync(scene.client,XNET_STREAM_WAIT_OPEN);completed(open);xrtFutureDestroy(open);
         CHECK(xrtNetStreamSend(scene.client,"a\0b",3)==XNET_RESULT_OK);size_t received=0;
         while(received<3){xfuture* read=xrtNetStreamRecvAsync(peer,3-received);completed(read);xbytesview view=xrtNetBytesView(xrtFutureValue(read));
-            CHECK(view.Size&&view.Size<=3-received&&!memcmp(view.Data,"a\0b"+received,view.Size));received+=view.Size;xrtFutureDestroy(read);}
+            CHECK(view.Size&&view.Size<=3-received&&!memcmp(view.Data,&"a\0b"[received],view.Size));received+=view.Size;xrtFutureDestroy(read);}
         CHECK(xrtNetStreamAbort(scene.client)&&xrtNetStreamAbort(peer));xrtNetStreamDestroy(scene.client);scene.client=NULL;xrtNetStreamDestroy(peer);++transfers;}
     CHECK(xrtNetServerClose(scene.server));xrtNetServerDestroy(scene.server);CHECK(testTcpServerEngineDestroy(scene.engine));balanced(before);
 }

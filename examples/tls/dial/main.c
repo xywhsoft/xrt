@@ -1,5 +1,18 @@
 #include "../common.h"
 
+/* CLOSED and terminal results can precede the final callback release.
+ * Keep the Engine alive while retirement reports BUSY, with a finite deadline. */
+static bool exampleNetEngineDestroy(xnetengine* pEngine)
+{
+    double Deadline = xrtTimer() + 5.0;
+    for (;;) {
+        xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+        if (Result == XNET_RETIRE_READY) return true;
+        if (Result != XNET_RETIRE_BUSY || !(xrtTimer() < Deadline)) return false;
+        xrtThreadYield();
+    }
+}
+
 
 
 typedef struct example_tls_dial {
@@ -342,7 +355,7 @@ Cleanup:
 		exampleTlsDialError("failed to destroy resolver", xrtGetError());
 		iResult = 1;
 	}
-	if ( (pEngine != NULL) && !xrtNetEngineDestroy(pEngine) ) {
+	if ( (pEngine != NULL) && !exampleNetEngineDestroy(pEngine) ) {
 		exampleTlsDialError("failed to destroy network engine", xrtGetError());
 		iResult = 1;
 	}

@@ -476,7 +476,7 @@ int main(void)
 	xrtTlsStreamDestroy(pClient);
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTPS slow-reader engine destroy failed"
 	);
 	xrtFree(pBody);

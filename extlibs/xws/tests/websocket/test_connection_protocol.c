@@ -1,5 +1,6 @@
 #include <xrt/detail/wait.h>
 #include "../test.h"
+#include "../../../../tests/network/engine_test.h"
 
 
 
@@ -995,7 +996,7 @@ static void testWsProtocolRun(
 	xrtNetStreamDestroy(pRaw);
 	xrtNetListenerDestroy(Test.Listener);
 	testRequire(
-		xrtNetEngineDestroy(Test.Engine),
+		testNetEngineDestroy(Test.Engine),
 		"WebSocket protocol engine destroy failed"
 	);
 }

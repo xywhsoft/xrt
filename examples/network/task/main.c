@@ -24,6 +24,19 @@
 #include <stdio.h>
 #include <xrt.h>
 
+/* CLOSED and terminal results can precede the final callback release.
+ * Keep the Engine alive while retirement reports BUSY, with a finite deadline. */
+static bool exampleNetEngineDestroy(xnetengine* pEngine)
+{
+    double Deadline = xrtTimer() + 5.0;
+    for (;;) {
+        xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+        if (Result == XNET_RETIRE_READY) return true;
+        if (Result != XNET_RETIRE_BUSY || !(xrtTimer() < Deadline)) return false;
+        xrtThreadYield();
+    }
+}
+
 
 
 /* 在 Engine Worker 上生成一个轻量结果。 */
@@ -65,7 +78,7 @@ int main(void)
 		(xrtFutureWaitFor(pFuture, 3000) != XWAIT_OK) ||
 		(xrtFutureState(pFuture) != XFUTURE_RESOLVED) ) {
 		xrtFutureDestroy(pFuture);
-		(void)xrtNetEngineDestroy(pEngine);
+		(void)exampleNetEngineDestroy(pEngine);
 		return 1;
 	}
 	printf("value=%d\n", *(int*)xrtFutureValue(pFuture));
@@ -77,7 +90,7 @@ int main(void)
 	if ( (pFuture == NULL) ||
 		(xrtFutureWaitFor(pFuture, 3000) != XWAIT_OK) ) {
 		xrtFutureDestroy(pFuture);
-		(void)xrtNetEngineDestroy(pEngine);
+		(void)exampleNetEngineDestroy(pEngine);
 		return 2;
 	}
 	printf("after: value=%d\n", *(int*)xrtFutureValue(pFuture));
@@ -87,7 +100,7 @@ int main(void)
 	if ( (pFuture == NULL) ||
 		(xrtFutureWaitFor(pFuture, 3000) != XWAIT_OK) ) {
 		xrtFutureDestroy(pFuture);
-		(void)xrtNetEngineDestroy(pEngine);
+		(void)exampleNetEngineDestroy(pEngine);
 		return 3;
 	}
 	printf("until: value=%d\n", *(int*)xrtFutureValue(pFuture));
@@ -105,11 +118,11 @@ int main(void)
 			(xrtTaskGroupWaitFor(pGroup, 3000) !=
 				XWAIT_OK) ) {
 			xrtTaskGroupDestroy(pGroup);
-			(void)xrtNetEngineDestroy(pEngine);
+			(void)exampleNetEngineDestroy(pEngine);
 			return 4;
 		}
 		printf("group-until: done\n");
 		xrtTaskGroupDestroy(pGroup);
 	}
-	return xrtNetEngineDestroy(pEngine) ? 0 : 1;
+	return exampleNetEngineDestroy(pEngine) ? 0 : 1;
 }
