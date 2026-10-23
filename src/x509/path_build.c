@@ -48,7 +48,7 @@ static bool __xrtX509PathBuildArguments(
 		(pTarget->Raw.Data == NULL) || (pTarget->Raw.Size == 0) ||
 		((pSource->Issuers == NULL) && (pSource->IssuerCount != 0)) ||
 		((const void*)pSource->Issuers == (const void*)ppPath) ||
-		(pSource->Anchors == NULL) || (pSource->AnchorCount == 0) ||
+		((pSource->Anchors == NULL) && (pSource->AnchorCount != 0)) ||
 		(iCapacity > (SIZE_MAX / sizeof(xrt_x509_path_frame))) ) {
 		return false;
 	}
@@ -114,6 +114,13 @@ static xrt_x509_decision __xrtX509PathSearch(
 	) ) {
 		__xrtErrorSetInvalidArgument();
 		return __xrtX509CheckError();
+	}
+	/* A valid but empty trust set is an ordinary completed rejection, not an
+	 * argument/resource failure. No candidate search or frame allocation can
+	 * produce a trusted path without an anchor. */
+	if ( pSource->AnchorCount == 0 ) {
+		return __xrtX509Decision(X509_CHECK_REJECTED, X509_ERROR_PATH_BUILD,
+			"no trust anchors are configured");
 	}
 	if ( iCapacity > XRT_X509_PATH_LOCAL_FRAMES ) {
 		pFrames = (xrt_x509_path_frame*)xrtMalloc(

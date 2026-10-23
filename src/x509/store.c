@@ -480,13 +480,6 @@ XRT_API bool xrtX509StoreSource(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( pStore->Count == 0 ) {
-		__xrtX509StoreError(
-			XERR_STATE, "x509-store-source",
-			"an empty trust store cannot terminate a certification path", NULL
-		);
-		return false;
-	}
 	Source.Issuers = ppIssuers;
 	Source.IssuerCount = iIssuerCount;
 	Source.Anchors = pStore->Anchors;

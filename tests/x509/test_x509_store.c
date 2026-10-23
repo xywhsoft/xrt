@@ -133,7 +133,7 @@ static void testX509StorePemRollback(void)
 
 
 
-/* 验证空库、无证书 PEM 和建链源的失败原子性。 */
+/* 验证合法空库来源、无证书 PEM 和建链源的失败原子性。 */
 static void testX509StoreBoundaries(void)
 {
 	static const char Other[] =
@@ -142,17 +142,15 @@ static void testX509StoreBoundaries(void)
 		"-----END DATA-----\n";
 	xx509store* pStore = xrtX509StoreCreate();
 	xx509pathsource Source;
-	xx509pathsource Before;
 	size_t iAdded = 99;
 
 	testRequire(pStore != NULL, "X.509 boundary store creation failed");
 	memset(&Source, 0xA5, sizeof(Source));
-	Before = Source;
-	testRequire(!xrtX509StoreSource(
+	testRequire(xrtX509StoreSource(
 		pStore, NULL, 0, &Source
-	) && (memcmp(&Source, &Before, sizeof(Source)) == 0) &&
-		(xrtErrorKind(xrtGetError()) == XERR_STATE),
-		"empty X.509 store produced a path source");
+	) && (Source.Issuers == NULL) && (Source.IssuerCount == 0) &&
+		(Source.AnchorCount == 0) && !xrtGetError(),
+		"empty X.509 store did not produce a valid empty path source");
 	testRequire(!xrtX509StoreAddPem(
 		pStore, Other, sizeof(Other) - 1u, &iAdded
 	) && (iAdded == 99) &&

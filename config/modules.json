@@ -15793,6 +15793,28 @@
 			"docs": [
 				"docs/api/x509.md"
 			]
+		},
+		{
+			"name": "x509_path_empty_store_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"x509_store",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/x509/test_x509_path_empty_store.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_x509_path_empty_store.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/x509.md"
+			]
 		}
 	]
 }
