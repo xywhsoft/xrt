@@ -5103,10 +5103,12 @@
 			],
 			"tests": [
 				"tests/x509/test_x509_parse.c",
-				"tests/x509/test_x509_parse_oom.c"
+				"tests/x509/test_x509_parse_oom.c",
+				"tests/x509/test_x509_spki.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_x509_parse.c"
+				"tests/single/test_single_x509_parse.c",
+				"tests/single/test_single_x509_spki.c"
 			],
 			"examples": [
 				"examples/x509/inspect/main.c",
