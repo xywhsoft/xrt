@@ -15815,6 +15815,29 @@
 			"docs": [
 				"docs/api/x509.md"
 			]
+		},
+		{
+			"name": "x509_path_work_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"x509_path_build",
+				"x509_verify_rsa",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/x509/test_x509_path_work.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_x509_path_work.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/x509.md"
+			]
 		}
 	]
 }
