@@ -15882,6 +15882,29 @@
 			"docs": [
 				"docs/api/x509.md"
 			]
+		},
+		{
+			"name": "tls_verify_limits_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"tls_verify",
+				"x509_verify_rsa",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/tls/test_tls_verify_limits.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_tls_verify_limits.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/tls.md"
+			]
 		}
 	]
 }

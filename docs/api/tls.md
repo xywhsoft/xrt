@@ -10641,6 +10641,133 @@ xrtTlsVerifierRelease(Verifier);
 
 `xtlsverifytimeproc` 为路径和附加策略提供同一个确定时间；省略时使用 `xrtNow()`。`Verify`、`Policy`、`Time` 可以并发调用，不能依赖线程局部的可变共享状态。配置的 `Context` 只在 `xrtTlsVerifierCreate()` 成功后转移所有权；最后一个引用释放时，`xtlsverifyreleaseproc` 恰好调用一次。
 
+### `xtlsverifylimits`
+
+显式资源预算，六个 `size_t` 字段均以 0 表示关闭该项限制：
+
+| 字段 | `xrtTlsVerifyLimitsInit` 默认值 | 单位与含义 |
+|---|---|---|
+| `MaxPeerCertificates` | 64 | 对端完整证书数，在遍历 DER 视图前检查 |
+| `MaxPeerBytes` | 16777216 | 对端全部 DER 的累计字节，不按前缀截断 |
+| `MaxPathCertificates` | 64 | 建链允许的证书深度，不包括独立 trust anchor |
+| `MaxSearchSteps` | 100000 | `xrtX509PathBuildCheckLimit` 的确定性工作单位 |
+| `MaxTrustCertificates` | 4096 | 来源信任库证书数，创建快照前检查 |
+| `MaxTrustBytes` | 67108864 | 来源信任库完整 DER 累计字节，创建快照前检查 |
+
+计数／字节／深度／搜索工作预算耗尽为 `XERR_RANGE`；完成的证书路径策略
+拒绝为 TLS `XERR_PROTOCOL`。累计字节溢出同样 checked 拒绝。
+配额是失败边界，不交付截断证书或部分路径。自定义 `Verify` 返回接受也不能
+绕过对端数量和字节预算；自定义信任回调自行负责其内部计算的资源上限，
+`MaxPathCertificates` 和 `MaxSearchSteps` 仅约束默认建链。
+
+新接口不改变 `xtlsverifierconfig`、`xtlspeer` 的布局，也不改变时间单位或
+旧 `xrtTlsVerifierCreate`／`xrtTlsPeerVerify` 的无限额行为。预算不涵盖 DER
+解析前的输入分配，调用方还须在握手／消息接收层限制输入字节。
+
+### `xrtTlsVerifyLimitsInit`
+
+初始化有限预算；不分配内存。
+
+```c
+void xrtTlsVerifyLimitsInit(xtlsverifylimits* pLimits)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLimits` | 输出 | 非空 | 完整覆盖为上述默认值 |
+
+#### 返回值
+
+无。
+
+#### 错误
+
+空指针设置 `XERR_ARGUMENT`，不写入。
+
+#### 范例
+
+[验证器的创建与释放](../../examples/tls/verify/main.c)。有限预算用法：
+
+```c
+xtlsverifylimits Limits;
+xrtTlsVerifyLimitsInit(&Limits);
+```
+
+### `xrtTlsVerifierCreateLimited`
+
+创建复制信任数据和显式预算的不可变共享验证器。来源 store 的并发修改仍由
+调用方同步；创建成功后不再借用它。Context 仅在成功后接管。
+
+```c
+xtlsverifier* xrtTlsVerifierCreateLimited(const xtlsverifierconfig* pConfig, const xtlsverifylimits* pLimits)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空 | 与原创建入口相同的回调、时钟、信任合同 |
+| `pLimits` | 输入 | 非空 | 按值复制；全零显式请求无限额 |
+
+#### 返回值
+
+成功返回拥有的验证器引用，失败返回 `NULL`，调用方仍拥有 Context。
+
+#### 错误
+
+`XERR_ARGUMENT` 为非法配置；`XERR_RANGE` 为信任配额或计数溢出；
+`XERR_MEMORY` 为快照／验证器分配失败，已分配资源回滚。
+
+#### 范例
+
+[验证器的创建与释放](../../examples/tls/verify/main.c)。有限预算用法：
+
+```c
+xtlsverifylimits Limits;
+xrtTlsVerifyLimitsInit(&Limits);
+xtlsverifier* Verifier = xrtTlsVerifierCreateLimited(&VerifyConfig, &Limits);
+```
+
+### `xrtTlsPeerVerifyLimited`
+
+按显式时间、完整证书链及信任库执行受限默认建链、用途和名称验证。
+附加 Policy 仅在全部默认验证成功后读取完整的借用路径。
+
+```c
+bool xrtTlsPeerVerifyLimited(const xtlspeer* pPeer, const xx509store* pStore, const xtlsverifylimits* pLimits, xtlsverifypolicyproc pPolicy, ptr pContext)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPeer` | 输入 | 非空 | 与原入口相同的角色、时间和借用证书合同 |
+| `pStore` | 输入 | 非空 | 调用期间不可并发修改 |
+| `pLimits` | 输入 | 非空 | 六项显式预算；全零关闭配额 |
+| `pPolicy` | 输入 | 可空 | 默认路径成功后的附加策略 |
+| `pContext` | 输入 | 借用 | 仅同步传递给 Policy，不接管 |
+
+#### 返回值
+
+仅完整验证与附加策略均通过时返回 `true`。路径失败不调用附加策略，不发布半成品。
+
+#### 错误
+
+参数、数量／字节／工作预算、内存和验证错误见上；资源错误保留结构化 cause。
+完整路径拒绝不会把调用前错误槽中的无关错误当作其原因。
+
+#### 范例
+
+[验证器用法](../../examples/tls/verify/main.c)。同步受限验证：
+
+```c
+xtlsverifylimits Limits;
+xrtTlsVerifyLimitsInit(&Limits);
+bool Accepted = xrtTlsPeerVerifyLimited(&Peer, Store, &Limits, NULL, NULL);
+```
+
 `xrtTls13CertificateVerifySignature()` 是公开的协议验签原语。它构造标准的 64 个空格、角色上下文、零分隔符和 transcript hash，严格区分 `rsae` / `pss` 密钥、P-256 / P-384 方案和 Ed25519，并拒绝 TLS 1.3 禁止的 PKCS#1 方案。它不执行证书路径验证，调用方若直接使用原语必须先完成信任决策。
 
 完整示例位于 `examples/tls/verify/main.c`；基础契约、默认真实 RSA 路径、CRL 路径策略、OOM、客户端端到端航班、TinyCC x86 和单头门禁分别位于 `tests/tls/test_tls_verify*.c`、`tests/tls/test_tls_client_server_hello.c` 与 `tests/single/test_single_tls_verify.c`。`tests/tls/test_tls_verify_policy_rsa.c` 同时展示无 CRL、空 CRL、吊销和过期 CRL 的完整组合方式。

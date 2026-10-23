@@ -688,13 +688,16 @@
 
 [查看带契约注释的公共头](../../include/xrt/tls_verify.h)
 
-### 函数 (8)
+### 函数 (11)
 
 - `xrtTls12ServerKeyExchangeVerify`
 - `xrtTls13CertificateVerifySignature`
 - `xrtTlsPeerVerify`
+- `xrtTlsPeerVerifyLimited`
+- `xrtTlsVerifyLimitsInit`
 - `xrtTlsVerifierConfigInit`
 - `xrtTlsVerifierCreate`
+- `xrtTlsVerifierCreateLimited`
 - `xrtTlsVerifierRelease`
 - `xrtTlsVerifierRetain`
 - `xrtTlsVerifierVerify`
@@ -706,11 +709,12 @@
 - `XTLS_VERIFY_ERROR`
 - `XTLS_VERIFY_REJECT`
 
-### 类型 (8)
+### 类型 (9)
 
 - `xtlspeer`
 - `xtlsverifiedpeer`
 - `xtlsverifierconfig`
+- `xtlsverifylimits`
 - `xtlsverifydecision`
 - `xtlsverifypolicyproc`
 - `xtlsverifyproc`
