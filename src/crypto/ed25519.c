@@ -694,10 +694,7 @@ bool __xrtEd25519HashInit(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( (iMode < XED25519_PURE) || (iMode > XED25519_PREHASH) ||
-		 (iContextSize > XRT_ED25519_CONTEXT_MAX_SIZE) ||
-		 ((pContext == NULL) && (iContextSize != 0)) ||
-		 ((iMode == XED25519_PURE) && (iContextSize != 0)) ) {
+	if ( !__xrtEd25519ContextValid(iMode, pContext, iContextSize) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}

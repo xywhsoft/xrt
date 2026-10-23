@@ -3,6 +3,17 @@
 
 #include "xrt_internal.h"
 
+/* Verification decisions are values, not allocated diagnostics. ERROR is
+ * reserved for an operation which could not complete; legacy bool entry
+ * points materialize their diagnostic only after the decision is known. */
+typedef enum xrt_crypto_check {
+	XRT_CRYPTO_CHECK_ERROR = -1,
+	XRT_CRYPTO_CHECK_VALID = 0,
+	XRT_CRYPTO_CHECK_SIGNATURE,
+	XRT_CRYPTO_CHECK_KEY,
+	XRT_CRYPTO_CHECK_ARGUMENT
+} xrt_crypto_check;
+
 
 
 /* 从字节序列读取一个大端 32 位字。 */

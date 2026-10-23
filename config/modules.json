@@ -15721,6 +15721,30 @@
 			"single_tests": ["tests/single/test_single_task_group_prepare.c"],
 			"examples": [],
 			"docs": ["docs/api/task.md", "docs/api/future.md"]
+		},
+		{
+			"name": "x509_verification_decision_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"x509_verify_rsa",
+				"x509_verify_ecdsa",
+				"x509_verify_ed25519",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/x509/test_x509_verification_decisions.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_x509_verification_decisions.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/verification-decisions.md"
+			]
 		}
 	]
 }

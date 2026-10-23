@@ -51480,6 +51480,17 @@ static inline void __xrtWsHandshakeWrap(
 #define XRT_INTERNAL_CRYPTO_H
 
 
+/* Verification decisions are values, not allocated diagnostics. ERROR is
+ * reserved for an operation which could not complete; legacy bool entry
+ * points materialize their diagnostic only after the decision is known. */
+typedef enum xrt_crypto_check {
+	XRT_CRYPTO_CHECK_ERROR = -1,
+	XRT_CRYPTO_CHECK_VALID = 0,
+	XRT_CRYPTO_CHECK_SIGNATURE,
+	XRT_CRYPTO_CHECK_KEY,
+	XRT_CRYPTO_CHECK_ARGUMENT
+} xrt_crypto_check;
+
 
 
 /* 从字节序列读取一个大端 32 位字。 */
@@ -58626,6 +58637,12 @@ __xrt_rsa_result __xrtRsaPrivatePower(
 
 #if defined(XRT_FEATURE_CRYPTO_RSA_PSS)
 
+xrt_crypto_check __xrtRsaPssCheck(
+	const xrsapublickey* pKey, xcryptohash iHash, xcryptohash iMaskHash,
+	size_t iSaltSize, const void* pHash, const void* pSignature,
+	size_t iSignatureSize
+);
+
 /* 返回受支持摘要的固定输出长度。 */
 size_t __xrtRsaHashSize(xcryptohash iHash);
 
@@ -58685,6 +58702,11 @@ size_t __xrtRsaModulusBits(const xrsapublickey* pKey);
 
 #if defined(XRT_FEATURE_CRYPTO_RSA_PKCS1)
 
+xrt_crypto_check __xrtRsaPkcs1Check(
+	const xrsapublickey* pKey, xcryptohash iHash, const void* pHash,
+	const void* pSignature, size_t iSignatureSize
+);
+
 /* 选择摘要对应的规范 DigestInfo 前缀和长度。 */
 bool __xrtRsaDigestInfo(
 	xcryptohash iHash,
@@ -58720,6 +58742,12 @@ void __xrtEcdsaError(cstr sOperation, cstr sMessage);
 
 
 #if defined(XRT_FEATURE_CRYPTO_ECDSA_VERIFY)
+
+xrt_crypto_check __xrtEcdsaCheck(
+	int iCurve, const void* pHash, size_t iHashSize,
+	const void* pSignature, const void* pPublic,
+	size_t iScalarSize, size_t iPublicSize
+);
 
 /* 验证固定 NIST 曲线和任意非空摘要上的 raw r||s 签名。 */
 bool __xrtEcdsaVerify(
@@ -58781,6 +58809,12 @@ void __xrtEcdsaAdd(
 
 #if defined(XRT_FEATURE_CRYPTO_ECDSA_VERIFY_DER)
 
+xrt_crypto_check __xrtEcdsaCheckDer(
+	int iCurve, const void* pHash, size_t iHashSize,
+	const void* pDer, size_t iDerSize, const void* pPublic,
+	size_t iScalarSize, size_t iPublicSize
+);
+
 /* 严格解码 DER 后调用固定曲线的 raw ECDSA 验证层。 */
 bool __xrtEcdsaVerifyDer(
 	int iCurve,
@@ -58794,6 +58828,12 @@ bool __xrtEcdsaVerifyDer(
 	cstr sOperation
 );
 
+#endif
+
+#if defined(XRT_FEATURE_CRYPTO_ECDSA_DER)
+xrt_crypto_check __xrtEcdsaDerDecodeCheck(
+	const void* pDer, size_t iDerSize, void* pRaw, size_t iScalarSize
+);
 #endif
 
 
@@ -59158,6 +59198,25 @@ void __xrtEd25519Error(
 
 /* 验证展开签名密钥的完整性标记。 */
 bool __xrtEd25519ValidateKey(const xed25519key* pKey);
+
+/* Shared argument predicate: checking a context must not allocate diagnostics. */
+static inline bool __xrtEd25519ContextValid(
+	xed25519mode Mode, const void* Context, size_t Size
+)
+{
+	return (Mode >= XED25519_PURE) && (Mode <= XED25519_PREHASH) &&
+		(Size <= XRT_ED25519_CONTEXT_MAX_SIZE) &&
+		((Context != NULL) || (Size == 0)) &&
+		((Mode != XED25519_PURE) || (Size == 0));
+}
+
+#if defined(XRT_FEATURE_CRYPTO_ED25519_VERIFY)
+xrt_crypto_check __xrtEd25519Check(
+	const void* pPublic, xed25519mode iMode, const void* pContext,
+	size_t iContextSize, const void* pMessage, size_t iMessageSize,
+	const void* pSignature
+);
+#endif
 
 
 
@@ -207392,7 +207451,7 @@ static bool __xrtRsaPssFail(cstr sMessage, int iCode)
 
 
 /* 严格验证 EMSA-PSS 签名，可分别指定消息摘要与 MGF1 摘要。 */
-bool xrtRsaPssVerify(
+xrt_crypto_check __xrtRsaPssCheck(
 	const xrsapublickey* pKey,
 	xcryptohash iHash,
 	xcryptohash iMaskHash,
@@ -207420,20 +207479,15 @@ bool xrtRsaPssVerify(
 	uint8 iUnusedBits;
 	__xrt_rsa_result iPower;
 	bool bValid = false;
+	xrt_crypto_check Result = XRT_CRYPTO_CHECK_SIGNATURE;
 
 	if ( (pKey == NULL) || (pHash == NULL) || (pSignature == NULL) ||
 		 (iHashSize == 0) || (iMaskHashSize == 0) ) {
-		return __xrtRsaPssFail(
-			"the RSA-PSS arguments are invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		return XRT_CRYPTO_CHECK_ARGUMENT;
 	}
 	if ( (iSignatureSize != pKey->ModulusSize) ||
 		 (iSignatureSize > XRT_RSA_MAX_MODULUS_SIZE) ) {
-		return __xrtRsaPssFail(
-			"the RSA-PSS signature length is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		return XRT_CRYPTO_CHECK_SIGNATURE;
 	}
 
 	iPower = __xrtRsaPower(
@@ -207443,16 +207497,11 @@ bool xrtRsaPssVerify(
 		Encoded
 	);
 	if ( iPower == XRT_RSA_RESULT_KEY ) {
-		return __xrtRsaPssFail(
-			"the RSA public key is invalid",
-			XCRYPTO_ERROR_KEY
-		);
+		Result = XRT_CRYPTO_CHECK_KEY;
+		goto cleanup;
 	}
 	if ( iPower != XRT_RSA_RESULT_OK ) {
-		return __xrtRsaPssFail(
-			"the RSA-PSS signature representative is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		goto cleanup;
 	}
 
 	iModulusBits = __xrtRsaModulusBits(pKey);
@@ -207488,6 +207537,7 @@ bool xrtRsaPssVerify(
 		pDatabase,
 		iDatabaseSize
 	) ) {
+		Result = XRT_CRYPTO_CHECK_ERROR;
 		goto cleanup;
 	}
 	if ( iUnusedBits != 0 ) {
@@ -207528,6 +207578,7 @@ bool xrtRsaPssVerify(
 		iActualSalt,
 		Expected
 	) ) {
+		Result = XRT_CRYPTO_CHECK_ERROR;
 		goto cleanup;
 	}
 	bValid = xrtConstTimeEqual(Expected, pEncodedHash, iHashSize);
@@ -207535,13 +207586,30 @@ bool xrtRsaPssVerify(
 cleanup:
 	xrtSecureZero(Encoded, sizeof(Encoded));
 	xrtSecureZero(Expected, sizeof(Expected));
-	if ( !bValid ) {
-		return __xrtRsaPssFail(
-			"the RSA-PSS signature is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+	return bValid ? XRT_CRYPTO_CHECK_VALID : Result;
+}
+
+bool xrtRsaPssVerify(
+	const xrsapublickey* pKey, xcryptohash iHash, xcryptohash iMaskHash,
+	size_t iSaltSize, const void* pHash, const void* pSignature,
+	size_t iSignatureSize
+)
+{
+	xrt_crypto_check Result = __xrtRsaPssCheck(
+		pKey, iHash, iMaskHash, iSaltSize, pHash, pSignature, iSignatureSize
+	);
+
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return true;
 	}
-	return true;
+	if ( Result == XRT_CRYPTO_CHECK_ERROR ) {
+		return false;
+	}
+	return __xrtRsaPssFail(
+		Result == XRT_CRYPTO_CHECK_KEY ? "the RSA public key is invalid" :
+		"the RSA-PSS signature or arguments are invalid",
+		Result == XRT_CRYPTO_CHECK_KEY ? XCRYPTO_ERROR_KEY : XCRYPTO_ERROR_SIGNATURE
+	);
 }
 
 #endif
@@ -207640,7 +207708,7 @@ static bool __xrtRsaPkcs1Fail(cstr sMessage, int iCode)
 
 
 /* 严格验证带规范 DigestInfo 的 EMSA-PKCS1-v1_5 签名。 */
-bool xrtRsaPkcs1Verify(
+xrt_crypto_check __xrtRsaPkcs1Check(
 	const xrsapublickey* pKey,
 	xcryptohash iHash,
 	const void* pHash,
@@ -207664,17 +207732,11 @@ bool xrtRsaPkcs1Verify(
 			&iPrefixSize,
 			&iHashSize
 		) ) {
-		return __xrtRsaPkcs1Fail(
-			"the RSA PKCS#1 arguments are invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		return XRT_CRYPTO_CHECK_ARGUMENT;
 	}
 	if ( (iSignatureSize != pKey->ModulusSize) ||
 		 (iSignatureSize > XRT_RSA_MAX_MODULUS_SIZE) ) {
-		return __xrtRsaPkcs1Fail(
-			"the RSA PKCS#1 signature length is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		return XRT_CRYPTO_CHECK_SIGNATURE;
 	}
 
 	iPower = __xrtRsaPower(
@@ -207685,17 +207747,11 @@ bool xrtRsaPkcs1Verify(
 	);
 	if ( iPower == XRT_RSA_RESULT_KEY ) {
 		xrtSecureZero(Encoded, sizeof(Encoded));
-		return __xrtRsaPkcs1Fail(
-			"the RSA public key is invalid",
-			XCRYPTO_ERROR_KEY
-		);
+		return XRT_CRYPTO_CHECK_KEY;
 	}
 	if ( iPower != XRT_RSA_RESULT_OK ) {
 		xrtSecureZero(Encoded, sizeof(Encoded));
-		return __xrtRsaPkcs1Fail(
-			"the RSA PKCS#1 signature representative is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		return XRT_CRYPTO_CHECK_SIGNATURE;
 	}
 
 	if ( iSignatureSize < (3u + 8u + iPrefixSize + iHashSize) ) {
@@ -207731,13 +207787,29 @@ bool xrtRsaPkcs1Verify(
 
 cleanup:
 	xrtSecureZero(Encoded, sizeof(Encoded));
-	if ( !bValid ) {
-		return __xrtRsaPkcs1Fail(
-			"the RSA PKCS#1 signature is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+	return bValid ? XRT_CRYPTO_CHECK_VALID : XRT_CRYPTO_CHECK_SIGNATURE;
+}
+
+bool xrtRsaPkcs1Verify(
+	const xrsapublickey* pKey, xcryptohash iHash, const void* pHash,
+	const void* pSignature, size_t iSignatureSize
+)
+{
+	xrt_crypto_check Result = __xrtRsaPkcs1Check(
+		pKey, iHash, pHash, pSignature, iSignatureSize
+	);
+
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return true;
 	}
-	return true;
+	if ( Result == XRT_CRYPTO_CHECK_ERROR ) {
+		return false;
+	}
+	return __xrtRsaPkcs1Fail(
+		Result == XRT_CRYPTO_CHECK_KEY ? "the RSA public key is invalid" :
+		"the RSA PKCS#1 signature or arguments are invalid",
+		Result == XRT_CRYPTO_CHECK_KEY ? XCRYPTO_ERROR_KEY : XCRYPTO_ERROR_SIGNATURE
+	);
 }
 
 #endif
@@ -209286,15 +209358,14 @@ static void __xrtEcdsaVerifyClear(
 
 
 /* 验证固定 NIST 曲线和任意非空摘要上的 raw r||s 签名。 */
-bool __xrtEcdsaVerify(
+xrt_crypto_check __xrtEcdsaCheck(
 	int iCurve,
 	const void* pHash,
 	size_t iHashSize,
 	const void* pSignature,
 	const void* pPublic,
 	size_t iScalarSize,
-	size_t iPublicSize,
-	cstr sOperation
+	size_t iPublicSize
 )
 {
 	const uint8* pRaw = (const uint8*)pSignature;
@@ -209328,8 +209399,7 @@ bool __xrtEcdsaVerify(
 		((iCurve == XRT_NIST_P384) &&
 		 ((iScalarSize != 48u) || (iPublicSize != 97u))) ||
 		((iCurve != XRT_NIST_P256) && (iCurve != XRT_NIST_P384)) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
+		return XRT_CRYPTO_CHECK_ARGUMENT;
 	}
 	pOrderBytes = __xrtNistOrder(iCurve, NULL);
 	pSquare = __xrtEcdsaSquare(iCurve);
@@ -209343,8 +209413,7 @@ bool __xrtEcdsaVerify(
 	iValid &= __xrtNistPointValid(iCurve, pPublic, iPublicSize);
 	if ( iValid == 0 ) {
 		__xrtEcdsaVerifyClear(Values, 9, Bytes, sizeof(Bytes));
-		__xrtEcdsaError(sOperation, "the ECDSA signature or public key is invalid");
-		return false;
+		return XRT_CRYPTO_CHECK_SIGNATURE;
 	}
 
 	/* ECDSA bits2int 取摘要左侧 qlen 位，短摘要按大端整数左补零。 */
@@ -209425,10 +209494,28 @@ bool __xrtEcdsaVerify(
 		bResult = false;
 	}
 	__xrtEcdsaVerifyClear(Values, 9, Bytes, sizeof(Bytes));
-	if ( !bResult ) {
+	return bResult ? XRT_CRYPTO_CHECK_VALID : XRT_CRYPTO_CHECK_SIGNATURE;
+}
+
+bool __xrtEcdsaVerify(
+	int iCurve, const void* pHash, size_t iHashSize,
+	const void* pSignature, const void* pPublic,
+	size_t iScalarSize, size_t iPublicSize, cstr sOperation
+)
+{
+	xrt_crypto_check Result = __xrtEcdsaCheck(
+		iCurve, pHash, iHashSize, pSignature, pPublic, iScalarSize, iPublicSize
+	);
+
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return true;
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ARGUMENT ) {
+		__xrtErrorSetInvalidArgument();
+	} else if ( Result != XRT_CRYPTO_CHECK_ERROR ) {
 		__xrtEcdsaError(sOperation, "the ECDSA signature verification failed");
 	}
-	return bResult;
+	return false;
 }
 
 #endif
@@ -209803,7 +209890,7 @@ static bool __xrtEcdsaDecodeInteger(
 
 
 /* 严格解码规范 DER ECDSA 签名为定宽 raw r||s。 */
-XRT_API bool xrtEcdsaDerDecode(
+xrt_crypto_check __xrtEcdsaDerDecodeCheck(
 	const void* pDer,
 	size_t iDerSize,
 	void* pRaw,
@@ -209818,8 +209905,7 @@ XRT_API bool xrtEcdsaDerDecode(
 
 	if ( (pDer == NULL) || (pRaw == NULL) || (iScalarSize == 0) ||
 		(iScalarSize > XRT_ECDSA_DER_SCALAR_MAX_SIZE) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
+		return XRT_CRYPTO_CHECK_ARGUMENT;
 	}
 	bValid = (iOffset < iDerSize) && (pInput[iOffset++] == 0x30u) &&
 		__xrtEcdsaReadLength(pInput, iDerSize, &iOffset, &iSequenceSize) &&
@@ -209833,12 +209919,30 @@ XRT_API bool xrtEcdsaDerDecode(
 		(iOffset == iDerSize);
 	if ( !bValid ) {
 		xrtSecureZero(Output, sizeof(Output));
-		__xrtEcdsaError("ecdsa-der-decode", "the ECDSA signature is not canonical DER");
-		return false;
+		return XRT_CRYPTO_CHECK_SIGNATURE;
 	}
 	memcpy(pRaw, Output, iScalarSize * 2u);
 	xrtSecureZero(Output, sizeof(Output));
-	return true;
+	return XRT_CRYPTO_CHECK_VALID;
+}
+
+XRT_API bool xrtEcdsaDerDecode(
+	const void* pDer, size_t iDerSize, void* pRaw, size_t iScalarSize
+)
+{
+	xrt_crypto_check Result = __xrtEcdsaDerDecodeCheck(
+		pDer, iDerSize, pRaw, iScalarSize
+	);
+
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return true;
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ARGUMENT ) {
+		__xrtErrorSetInvalidArgument();
+	} else if ( Result != XRT_CRYPTO_CHECK_ERROR ) {
+		__xrtEcdsaError("ecdsa-der-decode", "the ECDSA signature is not canonical DER");
+	}
+	return false;
 }
 
 #endif
@@ -209860,7 +209964,7 @@ XRT_API bool xrtEcdsaDerDecode(
 
 
 /* 严格解码 DER 后调用固定曲线的 raw ECDSA 验证层。 */
-bool __xrtEcdsaVerifyDer(
+xrt_crypto_check __xrtEcdsaCheckDer(
 	int iCurve,
 	const void* pHash,
 	size_t iHashSize,
@@ -209868,33 +209972,53 @@ bool __xrtEcdsaVerifyDer(
 	size_t iDerSize,
 	const void* pPublic,
 	size_t iScalarSize,
-	size_t iPublicSize,
-	cstr sOperation
+	size_t iPublicSize
 )
 {
 	uint8 Signature[XRT_ECDSA_VERIFY_DER_RAW_MAX_SIZE];
-	bool bResult;
+	xrt_crypto_check Result;
 
 	if ( (pHash == NULL) || (iHashSize == 0) ||
-		(pDer == NULL) || (pPublic == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
+		(pDer == NULL) || (pPublic == NULL) ||
+		(iScalarSize > sizeof(Signature) / 2u) ) {
+		return XRT_CRYPTO_CHECK_ARGUMENT;
 	}
-	if ( !xrtEcdsaDerDecode(pDer, iDerSize, Signature, iScalarSize) ) {
-		return false;
+	Result = __xrtEcdsaDerDecodeCheck(pDer, iDerSize, Signature, iScalarSize);
+	if ( Result != XRT_CRYPTO_CHECK_VALID ) {
+		return Result;
 	}
-	bResult = __xrtEcdsaVerify(
+	Result = __xrtEcdsaCheck(
 		iCurve,
 		pHash,
 		iHashSize,
 		Signature,
 		pPublic,
 		iScalarSize,
-		iPublicSize,
-		sOperation
+		iPublicSize
 	);
 	xrtSecureZero(Signature, sizeof(Signature));
-	return bResult;
+	return Result;
+}
+
+bool __xrtEcdsaVerifyDer(
+	int iCurve, const void* pHash, size_t iHashSize,
+	const void* pDer, size_t iDerSize, const void* pPublic,
+	size_t iScalarSize, size_t iPublicSize, cstr sOperation
+)
+{
+	xrt_crypto_check Result = __xrtEcdsaCheckDer(
+		iCurve, pHash, iHashSize, pDer, iDerSize, pPublic, iScalarSize, iPublicSize
+	);
+
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return true;
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ARGUMENT ) {
+		__xrtErrorSetInvalidArgument();
+	} else if ( Result != XRT_CRYPTO_CHECK_ERROR ) {
+		__xrtEcdsaError(sOperation, "the ECDSA signature verification failed");
+	}
+	return false;
 }
 
 #endif
@@ -211254,10 +211378,7 @@ bool __xrtEd25519HashInit(
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
-	if ( (iMode < XED25519_PURE) || (iMode > XED25519_PREHASH) ||
-		 (iContextSize > XRT_ED25519_CONTEXT_MAX_SIZE) ||
-		 ((pContext == NULL) && (iContextSize != 0)) ||
-		 ((iMode == XED25519_PURE) && (iContextSize != 0)) ) {
+	if ( !__xrtEd25519ContextValid(iMode, pContext, iContextSize) ) {
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
@@ -211362,7 +211483,6 @@ static bool __xrtEd25519VerifyMessage(
 	if ( ((pMessage == NULL) && (iMessageSize != 0)) ||
 		 ((iMode == XED25519_PREHASH) &&
 		  (iMessageSize != XRT_ED25519_PREHASH_SIZE)) ) {
-		__xrtErrorSetInvalidArgument();
 		return false;
 	}
 	return true;
@@ -211371,7 +211491,7 @@ static bool __xrtEd25519VerifyMessage(
 
 
 /* 严格验证 RFC 8032 指定模式的签名。 */
-XRT_API bool xrtEd25519VerifyMode(
+xrt_crypto_check __xrtEd25519Check(
 	const void* pPublic,
 	xed25519mode iMode,
 	const void* pContext,
@@ -211394,30 +211514,25 @@ XRT_API bool xrtEd25519VerifyMode(
 	__xrted25519point Product;
 	__xrted25519point RightPoint;
 	bool bResult = false;
+	xrt_crypto_check Result = XRT_CRYPTO_CHECK_ERROR;
 
-	if ( (pPublic == NULL) || (pSignature == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
+	if ( (pPublic == NULL) || (pSignature == NULL) ||
+		!__xrtEd25519ContextValid(iMode, pContext, iContextSize) ||
+		!__xrtEd25519VerifyMessage(iMode, pMessage, iMessageSize) ) {
+		return XRT_CRYPTO_CHECK_ARGUMENT;
 	}
-	if ( !__xrtEd25519VerifyMessage(iMode, pMessage, iMessageSize) ||
-		 !__xrtEd25519HashInit(&Hash, iMode, pContext, iContextSize) ) {
-		return false;
+	if ( !__xrtEd25519HashInit(&Hash, iMode, pContext, iContextSize) ) {
+		return XRT_CRYPTO_CHECK_ERROR;
 	}
 	if ( !__xrtEd25519PointDecode(&Public, pPublicBytes) ||
 		 __xrtEd25519PointIdentity(&Public) ||
 		 !__xrtEd25519PointMainSubgroup(&Public) ) {
-		__xrtEd25519Error(
-			"ed25519-verify", "the Ed25519 public key is not a canonical main-subgroup point",
-			XCRYPTO_ERROR_KEY
-		);
+		Result = XRT_CRYPTO_CHECK_KEY;
 		goto cleanup;
 	}
 	if ( !__xrtEd25519ScalarCanonical(pSignatureBytes + 32u) ||
 		 !__xrtEd25519PointDecode(&Nonce, pSignatureBytes) ) {
-		__xrtEd25519Error(
-			"ed25519-verify", "the Ed25519 signature encoding is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		Result = XRT_CRYPTO_CHECK_SIGNATURE;
 		goto cleanup;
 	}
 	if ( !xrtSha512Update(&Hash, pSignatureBytes, 32u) ||
@@ -211433,12 +211548,7 @@ XRT_API bool xrtEd25519VerifyMode(
 	__xrtEd25519PointEncode(Left, &LeftPoint);
 	__xrtEd25519PointEncode(Right, &RightPoint);
 	bResult = xrtConstTimeEqual(Left, Right, sizeof(Left));
-	if ( !bResult ) {
-		__xrtEd25519Error(
-			"ed25519-verify", "the Ed25519 signature does not match the message and public key",
-			XCRYPTO_ERROR_SIGNATURE
-		);
-	}
+	Result = bResult ? XRT_CRYPTO_CHECK_VALID : XRT_CRYPTO_CHECK_SIGNATURE;
 
 cleanup:
 	xrtSecureZero(&Hash, sizeof(Hash));
@@ -211451,7 +211561,31 @@ cleanup:
 	xrtSecureZero(&LeftPoint, sizeof(LeftPoint));
 	xrtSecureZero(&Product, sizeof(Product));
 	xrtSecureZero(&RightPoint, sizeof(RightPoint));
-	return bResult;
+	return Result;
+}
+
+XRT_API bool xrtEd25519VerifyMode(
+	const void* pPublic, xed25519mode iMode, const void* pContext,
+	size_t iContextSize, const void* pMessage, size_t iMessageSize,
+	const void* pSignature
+)
+{
+	xrt_crypto_check Result = __xrtEd25519Check(
+		pPublic, iMode, pContext, iContextSize, pMessage, iMessageSize, pSignature
+	);
+
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return true;
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ARGUMENT ) {
+		__xrtErrorSetInvalidArgument();
+	} else if ( Result != XRT_CRYPTO_CHECK_ERROR ) {
+		__xrtEd25519Error(
+			"ed25519-verify", "the Ed25519 signature or public key is invalid",
+			Result == XRT_CRYPTO_CHECK_KEY ? XCRYPTO_ERROR_KEY : XCRYPTO_ERROR_SIGNATURE
+		);
+	}
+	return false;
 }
 
 
