@@ -67,10 +67,11 @@ static bool __xrtX509IdentityIp(xstrview Host, xnetaddr* pAddress)
 	const xerror* pCause;
 
 	if ( (Host.Size == 0) || (Host.Size >= sizeof(sAddress)) ||
+		(memchr(Host.Data, 0, Host.Size) != NULL) ||
 		(memchr(Host.Data, '%', Host.Size) != NULL) ) {
 		__xrtX509Error(
 			XERR_VALUE, X509_ERROR_IDENTITY, "x509-match-host",
-			"reference IP address is empty, too long or contains a scope",
+			"reference IP address is empty, too long or contains NUL or a scope",
 			SIZE_MAX, NULL
 		);
 		return false;
