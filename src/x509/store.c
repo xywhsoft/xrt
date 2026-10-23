@@ -427,6 +427,58 @@ XRT_API bool xrtX509StoreAddPem(
 
 
 
+/* Share the file import rule with bounded readers and virtual filesystems.
+ * Leading DER SEQUENCE wins; otherwise a line-start PEM BEGIN selects PEM. */
+static bool __xrtX509StoreInputPem(xbytesview Data)
+{
+	static const char Begin[] = "-----BEGIN ";
+
+	if ( Data.Data[0] == 0x30u || Data.Size < sizeof(Begin) - 1u ) {
+		return false;
+	}
+	for ( size_t i = 0; i <= Data.Size - (sizeof(Begin) - 1u); i++ ) {
+		if ( ((i == 0) || (Data.Data[i - 1u] == '\n') ||
+			(Data.Data[i - 1u] == '\r')) &&
+			memcmp(Data.Data + i, Begin, sizeof(Begin) - 1u) == 0 ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+XRT_API bool xrtX509StoreAddData(
+	xx509store* pStore,
+	xbytesview Data,
+	size_t* pAdded
+)
+{
+	xx509result Result;
+
+	if ( pStore == NULL || (Data.Data == NULL && Data.Size != 0) ) {
+		__xrtErrorSetInvalidArgument();
+		return false;
+	}
+	if ( Data.Size == 0 ) {
+		__xrtX509StoreError(XERR_PROTOCOL, "x509-store-add-data",
+			"encoded trust store input is empty", NULL);
+		return false;
+	}
+	if ( __xrtX509StoreInputPem(Data) ) {
+		/* AddPem already provides transaction rollback and delayed count output. */
+		return xrtX509StoreAddPem(pStore, (cstr)Data.Data, Data.Size, pAdded);
+	}
+	Result = xrtX509StoreAdd(pStore, Data.Data, Data.Size);
+	if ( Result == X509_ERROR ) {
+		return false;
+	}
+	if ( pAdded != NULL ) {
+		*pAdded = Result == X509_VALUE ? 1u : 0u;
+	}
+	return true;
+}
+
+
+
 /* 借用指定索引的已解析证书。 */
 XRT_API const xx509cert* xrtX509StoreCertificate(
 	const xx509store* pStore,
