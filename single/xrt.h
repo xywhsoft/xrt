@@ -29565,6 +29565,16 @@ typedef enum xx509error {
 	X509_ERROR_NAME_CONSTRAINTS
 } xx509error;
 
+/* A completed validation decision is not an operation failure. Rejected and
+ * unsupported candidates may be considered by a path search; ERROR must stop
+ * it even when no allocated diagnostic is available. */
+typedef enum xx509check {
+	X509_CHECK_ERROR = -1,
+	X509_CHECK_REJECTED = 0,
+	X509_CHECK_VALID = 1,
+	X509_CHECK_UNSUPPORTED = 2
+} xx509check;
+
 
 
 /* AlgorithmIdentifier 的全部视图都借用原 DER；Parameters 保存完整 TLV。 */
@@ -30097,6 +30107,17 @@ typedef struct xx509pathconfig {
 	xx509criticalproc Critical;
 	ptr UserData;
 } xx509pathconfig;
+
+/* Published only for completed checks. Reason is zero for a valid path;
+ * Depth is the target-first certificate index, or SIZE_MAX if no individual
+ * certificate applies. Message is borrowed static diagnostic text (NULL when
+ * valid), not a machine-readable control contract. Completed decisions do not
+ * mutate the input views/configuration or the current thread error. */
+typedef struct xx509pathdecision {
+	xx509error Reason;
+	size_t Depth;
+	cstr Message;
+} xx509pathdecision;
 
 #endif
 
@@ -30776,6 +30797,16 @@ XRT_API bool xrtX509PathValidate(
 	const xx509pathconfig* pConfig
 );
 
+/* No diagnostic allocation for ordinary validation rejection. ERROR preserves
+ * the original operation/callback error and leaves pDecision unchanged. */
+XRT_API xx509check xrtX509PathCheck(
+	const xx509cert* const* ppCertificates,
+	size_t iCount,
+	const xx509anchor* pAnchor,
+	const xx509pathconfig* pConfig,
+	xx509pathdecision* pDecision
+);
+
 #endif
 
 
@@ -30790,6 +30821,18 @@ XRT_API bool xrtX509PathBuild(
 	const xx509cert** ppPath,
 	size_t iCapacity,
 	xx509pathresult* pResult
+);
+
+/* ppPath is search scratch. pResult is published only for VALID; pDecision
+ * is published for completed decisions only. Any ERROR terminates the search. */
+XRT_API xx509check xrtX509PathBuildCheck(
+	const xx509cert* pTarget,
+	const xx509pathsource* pSource,
+	const xx509pathconfig* pConfig,
+	const xx509cert** ppPath,
+	size_t iCapacity,
+	xx509pathresult* pResult,
+	xx509pathdecision* pDecision
 );
 
 #endif
@@ -54191,6 +54234,45 @@ void __xrtAsn1Error(
 
 #if defined(XRT_FEATURE_X509_PARSE)
 
+/* Allocation-free control result and borrowed static diagnostic description.
+ * CryptoCode is optional legacy cause metadata, never a control-flow input. */
+typedef struct xrt_x509_decision {
+	xx509check Result;
+	xx509error Reason;
+	size_t Depth;
+	cstr Message;
+	int32 CryptoCode;
+	xerrkind CryptoKind;
+} xrt_x509_decision;
+
+static inline xrt_x509_decision __xrtX509Decision(
+	xx509check Result, xx509error Reason, cstr Message
+)
+{
+	xrt_x509_decision Decision;
+	Decision.Result = Result;
+	Decision.Reason = Reason;
+	Decision.Depth = SIZE_MAX;
+	Decision.Message = Message;
+	Decision.CryptoCode = 0;
+	Decision.CryptoKind = XERR_NONE;
+	return Decision;
+}
+
+static inline xrt_x509_decision __xrtX509CheckError(void)
+{
+	return __xrtX509Decision(X509_CHECK_ERROR, (xx509error)0, NULL);
+}
+
+static inline xrt_x509_decision __xrtX509CheckValid(void)
+{
+	return __xrtX509Decision(X509_CHECK_VALID, (xx509error)0, NULL);
+}
+
+/* Materializes a legacy diagnostic only. Failure retains the allocation error.
+ * ERROR does not create or replace a diagnostic. */
+bool __xrtX509DecisionRaise(const xrt_x509_decision* Decision, cstr Operation);
+
 extern const uint8 __xrtX509OidRsa[];
 extern const size_t __xrtX509OidRsaSize;
 extern const uint8 __xrtX509OidRsaPss[];
@@ -54414,6 +54496,11 @@ bool __xrtX509GeneralNamesContent(
 
 #if defined(XRT_FEATURE_X509_NAME_CONSTRAINTS)
 
+xrt_x509_decision __xrtX509NameConstraintsEvaluate(
+	const xx509nameconstraints* pConstraints,
+	const xx509cert* pCertificate
+);
+
 /* 设置 NameConstraints 层统一错误。 */
 void __xrtX509NameConstraintsError(
 	xerrkind Kind,
@@ -54477,6 +54564,11 @@ extern const size_t __xrtX509OidCertificateIssuerSize;
 
 
 #if defined(XRT_FEATURE_X509_PATH)
+
+xrt_x509_decision __xrtX509PathEvaluate(
+	const xx509cert* const* ppCertificates, size_t iCount,
+	const xx509anchor* pAnchor, const xx509pathconfig* pConfig
+);
 
 /* 验证路径策略结构的公开字段组合。 */
 bool __xrtX509PathConfigValid(const xx509pathconfig* pConfig);
@@ -54555,10 +54647,20 @@ bool __xrtX509CryptoHash(
 
 
 
+#if defined(XRT_FEATURE_X509_VERIFY)
+xrt_x509_decision __xrtX509SignatureEvaluate(
+	const xx509signature* pScheme, xbytesview Content, xbytesview Signature,
+	const xx509pubkey* pPublicKey
+);
+xrt_x509_decision __xrtX509CertificateEvaluate(
+	const xx509cert* pCertificate, const xx509pubkey* pPublicKey
+);
+#endif
+
 #if defined(XRT_FEATURE_X509_VERIFY_RSA)
 
 /* 使用 RSA-PKCS#1 或 RSA-PSS 后端验证证书协议签名。 */
-bool __xrtX509VerifyRsa(
+xrt_x509_decision __xrtX509VerifyRsa(
 	const xx509signature* pScheme,
 	xbytesview Content,
 	xbytesview Signature,
@@ -54572,7 +54674,7 @@ bool __xrtX509VerifyRsa(
 #if defined(XRT_FEATURE_X509_VERIFY_ECDSA)
 
 /* 使用公钥命名曲线选择严格 DER ECDSA 验签后端。 */
-bool __xrtX509VerifyEcdsa(
+xrt_x509_decision __xrtX509VerifyEcdsa(
 	const xx509signature* pScheme,
 	xbytesview Content,
 	xbytesview Signature,
@@ -54586,7 +54688,7 @@ bool __xrtX509VerifyEcdsa(
 #if defined(XRT_FEATURE_X509_VERIFY_ED25519)
 
 /* 使用纯 Ed25519 模式验证证书协议签名。 */
-bool __xrtX509VerifyEd25519(
+xrt_x509_decision __xrtX509VerifyEd25519(
 	const xx509signature* pScheme,
 	xbytesview Content,
 	xbytesview Signature,
@@ -189624,6 +189726,41 @@ void __xrtX509Error(
 
 
 
+/* Construct diagnostics after, never during, an ordinary validation decision. */
+bool __xrtX509DecisionRaise(const xrt_x509_decision* Decision, cstr Operation)
+{
+	xerror* Cause = NULL;
+	xerror* Error;
+	xerrordesc Desc;
+
+	if ( Decision->Result == X509_CHECK_ERROR ||
+		Decision->Result == X509_CHECK_VALID ) {
+		return false;
+	}
+	if ( Decision->CryptoCode != 0 ) {
+		Cause = xrtErrorCreate(Decision->CryptoKind, "xrt.crypto",
+			Decision->CryptoCode, Decision->Message);
+		if ( Cause == NULL ) {
+			return false;
+		}
+	}
+	memset(&Desc, 0, sizeof(Desc));
+	Desc.Kind = Decision->Result == X509_CHECK_UNSUPPORTED ?
+		XERR_UNSUPPORTED : XERR_PROTOCOL;
+	Desc.Domain = "xrt.x509";
+	Desc.Code = (int32)Decision->Reason;
+	Desc.Message = Decision->Message;
+	Desc.Operation = Operation;
+	Desc.Cause = Cause;
+	Error = xrtErrorBuild(&Desc);
+	xrtErrorFree(Cause);
+	if ( Error == NULL ) {
+		return false;
+	}
+	xrtSetErrorTake(Error);
+	return true;
+}
+
 /* 返回借用指针相对证书 DER 起点的安全偏移。 */
 size_t __xrtX509Offset(
 	const uint8* pBase,
@@ -201721,7 +201858,7 @@ Invalid:
 
 
 /* 按名称类型判断一个 GeneralName 是否位于约束基点内。 */
-XRT_API xx509result xrtX509GeneralNameWithin(
+static xx509check __xrtX509GeneralNameEvaluate(
 	const xx509genname* pName,
 	const xx509genname* pBase
 )
@@ -201730,13 +201867,15 @@ XRT_API xx509result xrtX509GeneralNameWithin(
 		((pName->Value.Data == NULL) && (pName->Value.Size != 0)) ||
 		((pBase->Value.Data == NULL) && (pBase->Value.Size != 0)) ) {
 		__xrtErrorSetInvalidArgument();
-		return X509_ERROR;
+		return X509_CHECK_ERROR;
 	}
 	if ( pName->Type != pBase->Type ) {
-		return X509_DONE;
+		return X509_CHECK_REJECTED;
 	}
 	if ( pName->Type == X509_NAME_DIRECTORY ) {
-		return xrtX509NameWithin(pName->Value, pBase->Value);
+		xx509result Result = xrtX509NameWithin(pName->Value, pBase->Value);
+		return Result == X509_VALUE ? X509_CHECK_VALID :
+			Result == X509_DONE ? X509_CHECK_REJECTED : X509_CHECK_ERROR;
 	}
 	if ( pName->Type == X509_NAME_DNS ) {
 		xbytesview Name;
@@ -201752,12 +201891,14 @@ XRT_API xx509result xrtX509GeneralNameWithin(
 		}
 		return __xrtX509ConstraintDomainWithin(
 			Name, Base, false
-		) ? X509_VALUE : X509_DONE;
+		) ? X509_CHECK_VALID : X509_CHECK_REJECTED;
 	}
 	if ( pName->Type == X509_NAME_EMAIL ) {
-		return __xrtX509ConstraintEmailWithin(
+		xx509result Result = __xrtX509ConstraintEmailWithin(
 			pName->Value, pBase->Value
 		);
+		return Result == X509_VALUE ? X509_CHECK_VALID :
+			Result == X509_DONE ? X509_CHECK_REJECTED : X509_CHECK_ERROR;
 	}
 	if ( pName->Type == X509_NAME_URI ) {
 		xbytesview Host;
@@ -201772,7 +201913,7 @@ XRT_API xx509result xrtX509GeneralNameWithin(
 		}
 		return __xrtX509ConstraintDomainWithin(
 			Host, Base, bSubdomains
-		) ? X509_VALUE : X509_DONE;
+		) ? X509_CHECK_VALID : X509_CHECK_REJECTED;
 	}
 	if ( pName->Type == X509_NAME_IP ) {
 		size_t iSize = pName->Value.Size;
@@ -201786,30 +201927,38 @@ XRT_API xx509result xrtX509GeneralNameWithin(
 
 			if ( (pName->Value.Data[i] & iMask) !=
 				(pBase->Value.Data[i] & iMask) ) {
-				return X509_DONE;
+				return X509_CHECK_REJECTED;
 			}
 		}
-		return X509_VALUE;
+		return X509_CHECK_VALID;
 	}
-	__xrtX509NameConstraintsError(
-		XERR_UNSUPPORTED, "x509-general-name-within",
-		"the constrained GeneralName form has no RFC 5280 matching rules",
-		NULL
-	);
-	return X509_ERROR;
+	return X509_CHECK_UNSUPPORTED;
 
 Invalid:
 	__xrtX509NameConstraintsError(
 		XERR_PROTOCOL, "x509-general-name-within",
 		"GeneralName or its constraint has an invalid value", NULL
 	);
-	return X509_ERROR;
+	return X509_CHECK_ERROR;
+}
+
+XRT_API xx509result xrtX509GeneralNameWithin(
+	const xx509genname* pName, const xx509genname* pBase
+)
+{
+	xx509check Result = __xrtX509GeneralNameEvaluate(pName, pBase);
+	if ( Result == X509_CHECK_UNSUPPORTED ) {
+		__xrtX509NameConstraintsError(XERR_UNSUPPORTED, "x509-general-name-within",
+			"the constrained GeneralName form has no RFC 5280 matching rules", NULL);
+	}
+	return Result == X509_CHECK_VALID ? X509_VALUE :
+		Result == X509_CHECK_REJECTED ? X509_DONE : X509_ERROR;
 }
 
 
 
 /* 扫描一组子树并返回同类型基点是否存在和是否命中。 */
-static bool __xrtX509ConstraintScan(
+static xrt_x509_decision __xrtX509ConstraintScan(
 	xx509subtreecursor Cursor,
 	const xx509genname* pName,
 	bool* pPresent,
@@ -201827,73 +201976,72 @@ static bool __xrtX509ConstraintScan(
 			break;
 		}
 		if ( Result == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
 		if ( Subtree.Base.Type != pName->Type ) {
 			continue;
 		}
 		bPresent = true;
 		if ( Subtree.HasMinimum || Subtree.HasMaximum ) {
-			__xrtX509NameConstraintsError(
-				XERR_UNSUPPORTED, "x509-name-constraints-check",
-				"non-default GeneralSubtree distance is not supported",
-				NULL
-			);
-			return false;
+			return __xrtX509Decision(X509_CHECK_UNSUPPORTED, X509_ERROR_NAME_CONSTRAINTS,
+				"non-default GeneralSubtree distance is not supported");
 		}
-		Result = xrtX509GeneralNameWithin(pName, &Subtree.Base);
-		if ( Result == X509_ERROR ) {
-			return false;
-		}
-		if ( Result == X509_VALUE ) {
-			bMatch = true;
+		{
+			xx509check Match = __xrtX509GeneralNameEvaluate(pName, &Subtree.Base);
+			if ( Match == X509_CHECK_ERROR ) {
+				return __xrtX509CheckError();
+			}
+			if ( Match == X509_CHECK_UNSUPPORTED ) {
+				return __xrtX509Decision(Match, X509_ERROR_NAME_CONSTRAINTS,
+					"the constrained GeneralName form has no RFC 5280 matching rules");
+			}
+			if ( Match == X509_CHECK_VALID ) {
+				bMatch = true;
+			}
 		}
 	}
 	*pPresent = bPresent;
 	*pMatch = bMatch;
-	return true;
+	return __xrtX509CheckValid();
 }
 
 
 
 /* 检查一个证书名称是否落入 excluded 或 permitted 子树。 */
-static bool __xrtX509ConstraintName(
+static xrt_x509_decision __xrtX509ConstraintName(
 	const xx509nameconstraints* pConstraints,
 	const xx509genname* pName
 )
 {
 	bool bPresent;
 	bool bMatch;
+	xrt_x509_decision Decision;
 
 	if ( pConstraints->HasExcluded ) {
-		if ( !__xrtX509ConstraintScan(
+		Decision = __xrtX509ConstraintScan(
 			pConstraints->Excluded, pName, &bPresent, &bMatch
-		) ) {
-			return false;
+		);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			return Decision;
 		}
 		if ( bPresent && bMatch ) {
-			__xrtX509NameConstraintsError(
-				XERR_PROTOCOL, "x509-name-constraints-check",
-				"certificate name is within an excluded subtree", NULL
-			);
-			return false;
+			return __xrtX509Decision(X509_CHECK_REJECTED, X509_ERROR_NAME_CONSTRAINTS,
+				"certificate name is within an excluded subtree");
 		}
 	}
 	if ( pConstraints->HasPermitted ) {
-		if ( !__xrtX509ConstraintScan(
+		Decision = __xrtX509ConstraintScan(
 			pConstraints->Permitted, pName, &bPresent, &bMatch
-		) ) {
-			return false;
+		);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			return Decision;
 		}
 		if ( bPresent && !bMatch ) {
-			__xrtX509NameConstraintsError(
-				XERR_PROTOCOL, "x509-name-constraints-check",
-				"certificate name is outside all permitted subtrees", NULL
-			);
-			return false;
+			return __xrtX509Decision(X509_CHECK_REJECTED, X509_ERROR_NAME_CONSTRAINTS,
+				"certificate name is outside all permitted subtrees");
 		}
 	}
-	return true;
+	return __xrtX509CheckValid();
 }
 
 
@@ -201923,7 +202071,7 @@ static bool __xrtX509ConstraintCursorValid(xx509subtreecursor Cursor)
 
 
 /* 对无 SAN 的旧证书检查 Subject emailAddress 属性。 */
-static bool __xrtX509ConstraintSubjectEmail(
+static xrt_x509_decision __xrtX509ConstraintSubjectEmail(
 	const xx509nameconstraints* pConstraints,
 	const xx509cert* pCertificate
 )
@@ -201933,12 +202081,13 @@ static bool __xrtX509ConstraintSubjectEmail(
 	xx509result Result;
 
 	if ( !xrtX509NameInit(pCertificate->Subject, &Cursor) ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	while ( (Result = xrtX509NameRead(
 		&Cursor, &Attribute
 	)) == X509_VALUE ) {
 		xx509genname Name;
+		xrt_x509_decision Decision;
 
 		if ( (Attribute.Oid.Size != sizeof(__xrtX509ConstraintEmailOid)) ||
 			(memcmp(
@@ -201950,17 +202099,18 @@ static bool __xrtX509ConstraintSubjectEmail(
 		memset(&Name, 0, sizeof(Name));
 		Name.Type = X509_NAME_EMAIL;
 		Name.Value = Attribute.Value;
-		if ( !__xrtX509ConstraintName(pConstraints, &Name) ) {
-			return false;
+		Decision = __xrtX509ConstraintName(pConstraints, &Name);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			return Decision;
 		}
 	}
-	return Result == X509_DONE;
+	return Result == X509_DONE ? __xrtX509CheckValid() : __xrtX509CheckError();
 }
 
 
 
 /* 检查证书 Subject 与 SAN 是否满足一组 NameConstraints。 */
-XRT_API bool xrtX509NameConstraintsCheck(
+xrt_x509_decision __xrtX509NameConstraintsEvaluate(
 	const xx509nameconstraints* pConstraints,
 	const xx509cert* pCertificate
 )
@@ -201970,24 +202120,25 @@ XRT_API bool xrtX509NameConstraintsCheck(
 	xx509gencursor Names;
 	xx509result Result;
 	bool bHasSan;
+	xrt_x509_decision Decision;
 
 	if ( (pConstraints == NULL) || (pCertificate == NULL) ||
 		(!pConstraints->HasPermitted && !pConstraints->HasExcluded) ) {
 		__xrtErrorSetInvalidArgument();
-		return false;
+		return __xrtX509CheckError();
 	}
 	if ( (pConstraints->HasPermitted &&
 		 !__xrtX509ConstraintCursorValid(pConstraints->Permitted)) ||
 		(pConstraints->HasExcluded &&
 		 !__xrtX509ConstraintCursorValid(pConstraints->Excluded)) ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	if ( !xrtX509NameInit(pCertificate->Subject, &Subject) ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	Result = xrtX509NameRead(&Subject, &Attribute);
 	if ( Result == X509_ERROR ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	if ( Result == X509_VALUE ) {
 		xx509genname Name;
@@ -201995,13 +202146,14 @@ XRT_API bool xrtX509NameConstraintsCheck(
 		memset(&Name, 0, sizeof(Name));
 		Name.Type = X509_NAME_DIRECTORY;
 		Name.Value = pCertificate->Subject;
-		if ( !__xrtX509ConstraintName(pConstraints, &Name) ) {
-			return false;
+		Decision = __xrtX509ConstraintName(pConstraints, &Name);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			return Decision;
 		}
 	}
 	Result = xrtX509SubjectAltName(pCertificate, &Names);
 	if ( Result == X509_ERROR ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	bHasSan = Result == X509_VALUE;
 	while ( Result == X509_VALUE ) {
@@ -202009,19 +202161,31 @@ XRT_API bool xrtX509NameConstraintsCheck(
 
 		Result = xrtX509GeneralNameRead(&Names, &Name);
 		if ( Result == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
-		if ( (Result == X509_VALUE) &&
-			!__xrtX509ConstraintName(pConstraints, &Name) ) {
-			return false;
+		if ( Result == X509_VALUE ) {
+			Decision = __xrtX509ConstraintName(pConstraints, &Name);
+			if ( Decision.Result != X509_CHECK_VALID ) {
+				return Decision;
+			}
 		}
 	}
-	if ( !bHasSan && !__xrtX509ConstraintSubjectEmail(
-		pConstraints, pCertificate
-	) ) {
-		return false;
+	if ( !bHasSan ) {
+		return __xrtX509ConstraintSubjectEmail(pConstraints, pCertificate);
 	}
-	return true;
+	return __xrtX509CheckValid();
+}
+
+XRT_API bool xrtX509NameConstraintsCheck(
+	const xx509nameconstraints* pConstraints, const xx509cert* pCertificate
+)
+{
+	xrt_x509_decision Decision = __xrtX509NameConstraintsEvaluate(pConstraints, pCertificate);
+	if ( Decision.Result == X509_CHECK_VALID ) {
+		return true;
+	}
+	(void)__xrtX509DecisionRaise(&Decision, "x509-name-constraints-check");
+	return false;
 }
 
 #endif
@@ -202509,19 +202673,15 @@ static bool __xrtX509VerifyScheme(const xx509signature* pScheme)
 
 
 /* 设置当前裁剪构建缺少验签后端的明确错误。 */
-static bool __xrtX509VerifyUnsupported(cstr sMessage)
+static xrt_x509_decision __xrtX509VerifyUnsupported(cstr sMessage)
 {
-	__xrtX509Error(
-		XERR_UNSUPPORTED, X509_ERROR_SIGNATURE,
-		"x509-signature-verify", sMessage, SIZE_MAX, NULL
-	);
-	return false;
+	return __xrtX509Decision(X509_CHECK_UNSUPPORTED, X509_ERROR_SIGNATURE, sMessage);
 }
 
 
 
 /* 使用已解析方案和公钥验证一段原始内容的证书协议签名。 */
-XRT_API bool xrtX509SignatureVerify(
+xrt_x509_decision __xrtX509SignatureEvaluate(
 	const xx509signature* pScheme,
 	xbytesview Content,
 	xbytesview Signature,
@@ -202532,7 +202692,7 @@ XRT_API bool xrtX509SignatureVerify(
 		((Content.Data == NULL) && (Content.Size != 0)) ||
 		(Signature.Data == NULL) || (Signature.Size == 0) ) {
 		__xrtErrorSetInvalidArgument();
-		return false;
+		return __xrtX509CheckError();
 	}
 	switch ( pScheme->Type ) {
 		case X509_SIGNATURE_RSA_PKCS1:
@@ -202572,14 +202732,32 @@ XRT_API bool xrtX509SignatureVerify(
 			);
 		default:
 			__xrtErrorSetInvalidArgument();
-			return false;
+			return __xrtX509CheckError();
 	}
+}
+
+static bool __xrtX509VerifyFinish(xrt_x509_decision Decision)
+{
+	if ( Decision.Result == X509_CHECK_VALID ) {
+		return true;
+	}
+	(void)__xrtX509DecisionRaise(&Decision, "x509-signature-verify");
+	return false;
+}
+
+XRT_API bool xrtX509SignatureVerify(
+	const xx509signature* pScheme, xbytesview Content, xbytesview Signature,
+	const xx509pubkey* pPublicKey
+)
+{
+	return __xrtX509VerifyFinish(__xrtX509SignatureEvaluate(
+		pScheme, Content, Signature, pPublicKey));
 }
 
 
 
 /* 使用已解析公钥验证一张证书的签名，不执行任何路径策略。 */
-XRT_API bool xrtX509CertificateVerifyKey(
+xrt_x509_decision __xrtX509CertificateEvaluate(
 	const xx509cert* pCertificate,
 	const xx509pubkey* pPublicKey
 )
@@ -202593,25 +202771,32 @@ XRT_API bool xrtX509CertificateVerifyKey(
 		(pCertificate->Signature.Data == NULL) ||
 		(pCertificate->Signature.Size == 0) ) {
 		__xrtErrorSetInvalidArgument();
-		return false;
+		return __xrtX509CheckError();
 	}
 	Result = xrtX509SignatureParse(
 		&pCertificate->SignatureAlgorithm, &Scheme
 	);
 	if ( Result == X509_ERROR ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	if ( Result == X509_DONE ) {
 		return __xrtX509VerifyUnsupported(
 			"the certificate signature algorithm is not supported"
 		);
 	}
-	return xrtX509SignatureVerify(
+	return __xrtX509SignatureEvaluate(
 		&Scheme,
 		pCertificate->Tbs,
 		pCertificate->Signature,
 		pPublicKey
 	);
+}
+
+XRT_API bool xrtX509CertificateVerifyKey(
+	const xx509cert* pCertificate, const xx509pubkey* pPublicKey
+)
+{
+	return __xrtX509VerifyFinish(__xrtX509CertificateEvaluate(pCertificate, pPublicKey));
 }
 
 
@@ -202674,17 +202859,10 @@ static bool __xrtX509PathOid(
 
 
 
-/* 设置路径层错误并保留底层原因。 */
-static bool __xrtX509PathError(
-	xx509error Code,
-	cstr sMessage,
-	const xerror* pCause
-)
+/* 普通验证拒绝只生成值；错误对象由旧 bool 适配入口按需创建。 */
+static xrt_x509_decision __xrtX509PathReject(xx509error Code, cstr Message)
 {
-	__xrtX509Error(
-		XERR_PROTOCOL, Code, "x509-path", sMessage, SIZE_MAX, pCause
-	);
-	return false;
+	return __xrtX509Decision(X509_CHECK_REJECTED, Code, Message);
 }
 
 
@@ -202732,7 +202910,7 @@ XRT_API void xrtX509PathConfigInit(xx509pathconfig* pConfig)
 
 
 /* 在密码验签前执行路径级签名算法强度策略。 */
-static bool __xrtX509PathSignature(
+static xrt_x509_decision __xrtX509PathSignature(
 	const xx509cert* pCertificate,
 	const xx509pathconfig* pConfig
 )
@@ -202743,28 +202921,27 @@ static bool __xrtX509PathSignature(
 		&Signature
 	);
 
+	if ( Result == X509_ERROR ) {
+		return __xrtX509CheckError();
+	}
 	if ( Result != X509_VALUE ) {
-		return __xrtX509PathError(
-			X509_ERROR_SIGNATURE,
-			"certificate path uses an unsupported signature algorithm",
-			Result == X509_ERROR ? xrtGetError() : NULL
-		);
+		return __xrtX509Decision(X509_CHECK_UNSUPPORTED, X509_ERROR_SIGNATURE_ALGORITHM,
+			"certificate path uses an unsupported signature algorithm");
 	}
 	if ( (Signature.Hash == X509_HASH_SHA1) &&
 		((pConfig->Flags & X509_PATH_ALLOW_SHA1) == 0) ) {
-		return __xrtX509PathError(
-			X509_ERROR_SIGNATURE,
-			"certificate path uses SHA-1 without explicit legacy policy",
-			NULL
+		return __xrtX509PathReject(
+			X509_ERROR_SIGNATURE_ALGORITHM,
+			"certificate path uses SHA-1 without explicit legacy policy"
 		);
 	}
-	return true;
+	return __xrtX509CheckValid();
 }
 
 
 
 /* 验证一张证书中当前路径层已经理解的扩展。 */
-static bool __xrtX509PathExtensions(
+static xrt_x509_decision __xrtX509PathExtensions(
 	const xx509cert* pCertificate,
 	size_t iDepth,
 	const xx509pathconfig* pConfig
@@ -202774,7 +202951,7 @@ static bool __xrtX509PathExtensions(
 	xx509ext Extension;
 
 	if ( !xrtX509ExtensionInit(pCertificate, &Cursor) ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	while ( true ) {
 		xx509result ReadResult = xrtX509ExtensionRead(&Cursor, &Extension);
@@ -202782,10 +202959,10 @@ static bool __xrtX509PathExtensions(
 		bool bKnown = true;
 
 		if ( ReadResult == X509_DONE ) {
-			return true;
+			return __xrtX509CheckValid();
 		}
 		if ( ReadResult == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
 		if ( __xrtX509PathOid(
 			&Extension, __xrtX509OidSubjectAltName,
@@ -202846,14 +203023,12 @@ static bool __xrtX509PathExtensions(
 		}
 		if ( bKnown ) {
 			if ( ParseResult == X509_ERROR ) {
-				return false;
+				return __xrtX509CheckError();
 			}
 			if ( ParseResult != X509_VALUE ) {
-				return __xrtX509PathError(
-					X509_ERROR_PATH,
-					"a recognized certificate extension disappeared during processing",
-					NULL
-				);
+				__xrtX509Error(XERR_STATE, X509_ERROR_PATH, "x509-path",
+					"a recognized certificate extension disappeared during processing", SIZE_MAX, NULL);
+				return __xrtX509CheckError();
 			}
 			continue;
 		}
@@ -202869,18 +203044,17 @@ static bool __xrtX509PathExtensions(
 				continue;
 			}
 			if ( Result == X509_ERROR ) {
-				const xerror* pCause = xrtGetError();
-
-				return __xrtX509PathError(
-					X509_ERROR_CRITICAL_EXTENSION,
-					"custom critical extension processing failed",
-					pCause
-				);
+				/* Explicit callback failure is not a validation rejection. */
+				return __xrtX509CheckError();
+			}
+			if ( Result != X509_DONE ) {
+				__xrtErrorSetInvalidArgument();
+				return __xrtX509CheckError();
 			}
 		}
-		return __xrtX509PathError(
+		return __xrtX509PathReject(
 			X509_ERROR_CRITICAL_EXTENSION,
-			"certificate contains an unsupported critical extension", NULL
+			"certificate contains an unsupported critical extension"
 		);
 	}
 }
@@ -202919,7 +203093,7 @@ static xx509result __xrtX509PathExtendedPurpose(
 
 
 /* 验证目标证书的可选 KeyUsage 和 ExtendedKeyUsage 策略。 */
-static bool __xrtX509PathPurpose(
+static xrt_x509_decision __xrtX509PathPurpose(
 	const xx509cert* pCertificate,
 	const xx509pathconfig* pConfig
 )
@@ -202930,22 +203104,21 @@ static bool __xrtX509PathPurpose(
 		xx509result Result = xrtX509KeyUsage(pCertificate, &iUsage);
 
 		if ( Result == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
 		if ( Result == X509_DONE ) {
 			if ( (pConfig->Flags & X509_PATH_REQUIRE_KEY_USAGE) == 0 ) {
 				goto Extended;
 			}
-			return __xrtX509PathError(
-				X509_ERROR_PURPOSE,
-				"target certificate does not contain required KeyUsage", NULL
+			return __xrtX509PathReject(
+				X509_ERROR_KEY_USAGE,
+				"target certificate does not contain required KeyUsage"
 			);
 		}
 		if ( (iUsage & pConfig->KeyUsage) != pConfig->KeyUsage ) {
-			return __xrtX509PathError(
-				X509_ERROR_PURPOSE,
-				"target certificate KeyUsage does not allow the requested use",
-				NULL
+			return __xrtX509PathReject(
+				X509_ERROR_KEY_USAGE,
+				"target certificate KeyUsage does not allow the requested use"
 			);
 		}
 	}
@@ -202959,33 +203132,31 @@ Extended:
 		);
 
 		if ( Result == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
 		if ( !bPresent ) {
 			if ( (pConfig->Flags & X509_PATH_REQUIRE_PURPOSE) == 0 ) {
-				return true;
+				return __xrtX509CheckValid();
 			}
-			return __xrtX509PathError(
+			return __xrtX509PathReject(
 				X509_ERROR_PURPOSE,
-				"target certificate does not contain required ExtendedKeyUsage",
-				NULL
+				"target certificate does not contain required ExtendedKeyUsage"
 			);
 		}
 		if ( Result != X509_VALUE ) {
-			return __xrtX509PathError(
+			return __xrtX509PathReject(
 				X509_ERROR_PURPOSE,
-				"target certificate ExtendedKeyUsage does not allow the requested use",
-				NULL
+				"target certificate ExtendedKeyUsage does not allow the requested use"
 			);
 		}
 	}
-	return true;
+	return __xrtX509CheckValid();
 }
 
 
 
 /* 验证一张中间证书的 CA、KeyUsage 和 pathLenConstraint。 */
-static bool __xrtX509PathCa(
+static xrt_x509_decision __xrtX509PathCa(
 	const xx509cert* pCertificate,
 	size_t iCaBelow,
 	const xx509pathconfig* pConfig
@@ -202998,24 +203169,24 @@ static bool __xrtX509PathCa(
 	);
 
 	if ( Result == X509_ERROR ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	if ( (Result != X509_VALUE) || !Constraints.CA ) {
-		return __xrtX509PathError(
+		return __xrtX509PathReject(
 			X509_ERROR_PATH_CONSTRAINT,
-			"intermediate certificate is not authorized as a CA", NULL
+			"intermediate certificate is not authorized as a CA"
 		);
 	}
 	if ( !xrtX509ExtensionFind(
 		pCertificate, __xrtX509OidBasicConstraints,
 		__xrtX509OidBasicConstraintsSize, &Extension
 	) ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	if ( !Extension.Critical ) {
-		return __xrtX509PathError(
+		return __xrtX509PathReject(
 			X509_ERROR_PATH_CONSTRAINT,
-			"intermediate CA BasicConstraints is not critical", NULL
+			"intermediate CA BasicConstraints is not critical"
 		);
 	}
 	{
@@ -203023,16 +203194,16 @@ static bool __xrtX509PathCa(
 		xx509nameattr Attribute;
 
 		if ( !xrtX509NameInit(pCertificate->Subject, &Name) ) {
-			return false;
+			return __xrtX509CheckError();
 		}
 		Result = xrtX509NameRead(&Name, &Attribute);
 		if ( Result == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
 		if ( Result == X509_DONE ) {
-			return __xrtX509PathError(
+			return __xrtX509PathReject(
 				X509_ERROR_PATH_CONSTRAINT,
-				"intermediate CA subject name is empty", NULL
+				"intermediate CA subject name is empty"
 			);
 		}
 	}
@@ -203041,27 +203212,26 @@ static bool __xrtX509PathCa(
 
 		Result = xrtX509KeyUsage(pCertificate, &iUsage);
 		if ( Result == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
 		if ( (Result == X509_VALUE) &&
 			((iUsage & X509_USAGE_CERT_SIGN) == 0) ) {
-			return __xrtX509PathError(
+			return __xrtX509PathReject(
 				X509_ERROR_PATH_CONSTRAINT,
-				"intermediate certificate KeyUsage forbids certificate signing",
-				NULL
+				"intermediate certificate KeyUsage forbids certificate signing"
 			);
 		}
 		if ( Constraints.HasPathLimit && (Result != X509_VALUE) ) {
-			return __xrtX509PathError(
+			return __xrtX509PathReject(
 				X509_ERROR_PATH_CONSTRAINT,
-				"CA pathLenConstraint requires KeyUsage keyCertSign", NULL
+				"CA pathLenConstraint requires KeyUsage keyCertSign"
 			);
 		}
 	}
 	if ( Constraints.HasPathLimit && (iCaBelow > Constraints.PathLimit) ) {
-		return __xrtX509PathError(
+		return __xrtX509PathReject(
 			X509_ERROR_PATH_CONSTRAINT,
-			"intermediate certificate pathLenConstraint was exceeded", NULL
+			"intermediate certificate pathLenConstraint was exceeded"
 		);
 	}
 	if ( pConfig->Purpose.Size != 0 ) {
@@ -203071,17 +203241,16 @@ static bool __xrtX509PathCa(
 			pCertificate, pConfig->Purpose, &bPresent
 		);
 		if ( Result == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
 		if ( bPresent && (Result != X509_VALUE) ) {
-			return __xrtX509PathError(
+			return __xrtX509PathReject(
 				X509_ERROR_PURPOSE,
-				"intermediate CA ExtendedKeyUsage forbids the requested purpose",
-				NULL
+				"intermediate CA ExtendedKeyUsage forbids the requested purpose"
 			);
 		}
 	}
-	return true;
+	return __xrtX509CheckValid();
 }
 
 
@@ -203095,51 +203264,52 @@ static xx509result __xrtX509PathSelfIssued(const xx509cert* pCertificate)
 
 
 /* 把一组名称约束应用到目标及全部非 self-issued 下级中间证书。 */
-static bool __xrtX509PathApplyNameConstraints(
+static xrt_x509_decision __xrtX509PathApplyNameConstraints(
 	const xx509nameconstraints* pConstraints,
 	const xx509cert* const* ppCertificates,
 	size_t iCount
 )
 {
 	for ( size_t i = 0; i < iCount; i++ ) {
+		xrt_x509_decision Decision;
 		if ( i != 0 ) {
 			xx509result Result = __xrtX509PathSelfIssued(ppCertificates[i]);
 
 			if ( Result == X509_ERROR ) {
-				return false;
+				return __xrtX509CheckError();
 			}
 			if ( Result == X509_VALUE ) {
 				continue;
 			}
 		}
-		if ( !xrtX509NameConstraintsCheck(
+		Decision = __xrtX509NameConstraintsEvaluate(
 			pConstraints, ppCertificates[i]
-		) ) {
-			const xerror* pCause = xrtGetError();
-
-			return __xrtX509PathError(
-				X509_ERROR_NAME_CONSTRAINTS,
-				"certificate path violates a NameConstraints policy", pCause
-			);
+		);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			Decision.Depth = i;
+			return Decision;
 		}
 	}
-	return true;
+	return __xrtX509CheckValid();
 }
 
 
 
 /* 验证信任锚和每张 CA 证书向路径下方施加的名称约束。 */
-static bool __xrtX509PathNameConstraints(
+static xrt_x509_decision __xrtX509PathNameConstraints(
 	const xx509cert* const* ppCertificates,
 	size_t iCount,
 	const xx509anchor* pAnchor
 )
 {
-	if ( pAnchor->HasNameConstraints &&
-		!__xrtX509PathApplyNameConstraints(
+	xrt_x509_decision Decision;
+	if ( pAnchor->HasNameConstraints ) {
+		Decision = __xrtX509PathApplyNameConstraints(
 			&pAnchor->NameConstraints, ppCertificates, iCount
-		) ) {
-		return false;
+		);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			return Decision;
+		}
 	}
 	for ( size_t i = 0; i < iCount; i++ ) {
 		xx509nameconstraints Constraints;
@@ -203148,24 +203318,25 @@ static bool __xrtX509PathNameConstraints(
 		);
 
 		if ( Result == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
 		if ( Result == X509_DONE ) {
 			continue;
 		}
 		if ( i == 0 ) {
-			return __xrtX509PathError(
-				X509_ERROR_NAME_CONSTRAINTS,
-				"NameConstraints is only valid in a CA certificate", NULL
-			);
+			Decision = __xrtX509PathReject(X509_ERROR_NAME_CONSTRAINTS,
+				"NameConstraints is only valid in a CA certificate");
+			Decision.Depth = i;
+			return Decision;
 		}
-		if ( !__xrtX509PathApplyNameConstraints(
+		Decision = __xrtX509PathApplyNameConstraints(
 			&Constraints, ppCertificates, i
-		) ) {
-			return false;
+		);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			return Decision;
 		}
 	}
-	return true;
+	return __xrtX509CheckValid();
 }
 
 
@@ -203278,7 +203449,7 @@ XRT_API xx509result xrtX509IssuerMatch(
 
 
 /* 验证目标在首、中间 CA 向后的有序路径。 */
-XRT_API bool xrtX509PathValidate(
+xrt_x509_decision __xrtX509PathEvaluate(
 	const xx509cert* const* ppCertificates,
 	size_t iCount,
 	const xx509anchor* pAnchor,
@@ -203286,6 +203457,7 @@ XRT_API bool xrtX509PathValidate(
 )
 {
 	size_t iCaBelow = 0;
+	xrt_x509_decision Decision;
 
 	if ( (ppCertificates == NULL) || (iCount == 0) ||
 		(pAnchor == NULL) || !__xrtX509PathConfigValid(pConfig) ||
@@ -203293,7 +203465,7 @@ XRT_API bool xrtX509PathValidate(
 		((pAnchor->Certificate.Data == NULL) &&
 		 (pAnchor->Certificate.Size != 0)) ) {
 		__xrtErrorSetInvalidArgument();
-		return false;
+		return __xrtX509CheckError();
 	}
 	for ( size_t i = 0; i < iCount; i++ ) {
 		const xx509cert* pCertificate = ppCertificates[i];
@@ -203301,61 +203473,76 @@ XRT_API bool xrtX509PathValidate(
 		if ( (pCertificate == NULL) || (pCertificate->Raw.Data == NULL) ||
 			(pCertificate->Raw.Size == 0) ) {
 			__xrtErrorSetInvalidArgument();
-			return false;
+			return __xrtX509CheckError();
 		}
 		for ( size_t j = 0; j < i; j++ ) {
 			if ( __xrtX509PathDuplicate(pCertificate, ppCertificates[j]) ) {
-				return __xrtX509PathError(
+				Decision = __xrtX509PathReject(
 					X509_ERROR_PATH,
-					"a certificate appears more than once in the path", NULL
+					"a certificate appears more than once in the path"
 				);
+				Decision.Depth = i;
+				return Decision;
 			}
 		}
 		if ( (pAnchor->Certificate.Size != 0) && __xrtX509PathEqual(
 			pCertificate->Raw, pAnchor->Certificate
 		) ) {
-			return __xrtX509PathError(
+			Decision = __xrtX509PathReject(
 				X509_ERROR_PATH,
-				"the trust anchor certificate must not appear in the path", NULL
+				"the trust anchor certificate must not appear in the path"
 			);
+			Decision.Depth = i;
+			return Decision;
 		}
 		if ( !xrtX509ValidAt(pCertificate, pConfig->Time) ) {
-			return __xrtX509PathError(
-				X509_ERROR_PATH,
-				"certificate is not valid at the requested time", NULL
+			Decision = __xrtX509PathReject(
+				X509_ERROR_TIME,
+				"certificate is not valid at the requested time"
 			);
+			Decision.Depth = i;
+			return Decision;
 		}
-		if ( !__xrtX509PathSignature(pCertificate, pConfig) ) {
-			return false;
+		Decision = __xrtX509PathSignature(pCertificate, pConfig);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			Decision.Depth = i;
+			return Decision;
 		}
-		if ( !__xrtX509PathExtensions(pCertificate, i, pConfig) ) {
-			return false;
+		Decision = __xrtX509PathExtensions(pCertificate, i, pConfig);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			Decision.Depth = i;
+			return Decision;
 		}
 	}
-	if ( !__xrtX509PathPurpose(ppCertificates[0], pConfig) ) {
-		return false;
+	Decision = __xrtX509PathPurpose(ppCertificates[0], pConfig);
+	if ( Decision.Result != X509_CHECK_VALID ) {
+		Decision.Depth = 0;
+		return Decision;
 	}
 	for ( size_t i = 1; i < iCount; i++ ) {
 		const xx509cert* pCertificate = ppCertificates[i];
 		xx509result NameResult;
 
-		if ( !__xrtX509PathCa(pCertificate, iCaBelow, pConfig) ) {
-			return false;
+		Decision = __xrtX509PathCa(pCertificate, iCaBelow, pConfig);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			Decision.Depth = i;
+			return Decision;
 		}
 		NameResult = xrtX509NameEqual(
 			pCertificate->Subject, pCertificate->Issuer
 		);
 		if ( NameResult == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
 		if ( NameResult == X509_DONE ) {
 			iCaBelow++;
 		}
 	}
-	if ( !__xrtX509PathNameConstraints(
+	Decision = __xrtX509PathNameConstraints(
 		ppCertificates, iCount, pAnchor
-	) ) {
-		return false;
+	);
+	if ( Decision.Result != X509_CHECK_VALID ) {
+		return Decision;
 	}
 	for ( size_t i = 0; i < iCount; i++ ) {
 		const xx509cert* pCertificate = ppCertificates[i];
@@ -203369,7 +203556,7 @@ XRT_API bool xrtX509PathValidate(
 
 			IssuerName = pIssuer->Subject;
 			if ( !xrtX509PublicKey(pIssuer, &IssuerKey) ) {
-				return false;
+				return __xrtX509CheckError();
 			}
 			pIssuerKey = &IssuerKey;
 		} else {
@@ -203378,22 +203565,80 @@ XRT_API bool xrtX509PathValidate(
 		}
 		NameResult = xrtX509NameEqual(pCertificate->Issuer, IssuerName);
 		if ( NameResult == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
 		if ( NameResult == X509_DONE ) {
-			return __xrtX509PathError(
+			Decision = __xrtX509PathReject(
 				X509_ERROR_ISSUER,
-				"certificate issuer does not match the next path name", NULL
+				"certificate issuer does not match the next path name"
 			);
+			Decision.Depth = i;
+			return Decision;
 		}
-		if ( !xrtX509CertificateVerifyKey(pCertificate, pIssuerKey) ) {
-			return __xrtX509PathError(
-				X509_ERROR_SIGNATURE,
-				"certificate path signature verification failed", xrtGetError()
-			);
+		Decision = __xrtX509CertificateEvaluate(pCertificate, pIssuerKey);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			Decision.Depth = i;
+			return Decision;
 		}
 	}
-	return true;
+	return __xrtX509CheckValid();
+}
+
+XRT_API xx509check xrtX509PathCheck(
+	const xx509cert* const* ppCertificates, size_t iCount,
+	const xx509anchor* pAnchor, const xx509pathconfig* pConfig,
+	xx509pathdecision* pDecision
+)
+{
+	xrt_x509_decision Decision;
+	if ( pDecision == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return X509_CHECK_ERROR;
+	}
+	Decision = __xrtX509PathEvaluate(ppCertificates, iCount, pAnchor, pConfig);
+	if ( Decision.Result != X509_CHECK_ERROR ) {
+		pDecision->Reason = Decision.Reason;
+		pDecision->Depth = Decision.Depth;
+		pDecision->Message = Decision.Message;
+	}
+	return Decision.Result;
+}
+
+XRT_API bool xrtX509PathValidate(
+	const xx509cert* const* ppCertificates, size_t iCount,
+	const xx509anchor* pAnchor, const xx509pathconfig* pConfig
+)
+{
+	xrt_x509_decision Decision = __xrtX509PathEvaluate(
+		ppCertificates, iCount, pAnchor, pConfig);
+	if ( Decision.Result == X509_CHECK_VALID ) {
+		return true;
+	}
+	if ( Decision.Result == X509_CHECK_ERROR ) {
+		return false;
+	}
+	/* Keep legacy path error categories; typed checks expose precise reasons. */
+	if ( Decision.Reason == X509_ERROR_TIME ) {
+		Decision.Reason = X509_ERROR_PATH;
+	} else if ( Decision.Reason == X509_ERROR_KEY_USAGE ) {
+		Decision.Reason = X509_ERROR_PURPOSE;
+	} else if ( Decision.Reason == X509_ERROR_SIGNATURE_ALGORITHM ) {
+		Decision.Reason = X509_ERROR_SIGNATURE;
+	}
+	if ( Decision.Reason == X509_ERROR_SIGNATURE ||
+		Decision.Reason == X509_ERROR_NAME_CONSTRAINTS ) {
+		xerror* Cause;
+		if ( !__xrtX509DecisionRaise(&Decision, "x509-path") ) {
+			return false;
+		}
+		Cause = xrtTakeError();
+		__xrtX509Error(XERR_PROTOCOL, Decision.Reason, "x509-path",
+			Decision.Message, SIZE_MAX, Cause);
+		xrtErrorFree(Cause);
+	} else {
+		(void)__xrtX509DecisionRaise(&Decision, "x509-path");
+	}
+	return false;
 }
 
 #endif
@@ -203418,23 +203663,6 @@ typedef struct xrt_x509_path_frame {
 	size_t NextIssuer;
 	bool AnchorsTried;
 } xrt_x509_path_frame;
-
-
-
-/* 保存第一项候选失败，避免回溯过程泄漏临时错误对象。 */
-static void __xrtX509PathBuildCapture(xerror** ppError)
-{
-	xerror* pError = xrtTakeError();
-
-	if ( pError == NULL ) {
-		return;
-	}
-	if ( *ppError == NULL ) {
-		*ppError = pError;
-	} else {
-		xrtErrorFree(pError);
-	}
-}
 
 
 
@@ -203515,7 +203743,7 @@ static bool __xrtX509PathBuildUsed(
 
 
 /* 在候选发行者和信任锚中确定性回溯构建有效路径。 */
-XRT_API bool xrtX509PathBuild(
+static xrt_x509_decision __xrtX509PathSearch(
 	const xx509cert* pTarget,
 	const xx509pathsource* pSource,
 	const xx509pathconfig* pConfig,
@@ -203526,7 +203754,9 @@ XRT_API bool xrtX509PathBuild(
 {
 	xrt_x509_path_frame Local[XRT_X509_PATH_LOCAL_FRAMES];
 	xrt_x509_path_frame* pFrames = Local;
-	xerror* pBestError = NULL;
+	xrt_x509_decision Best = __xrtX509CheckValid();
+	xrt_x509_decision Decision;
+	bool bHasDecision = false;
 	size_t iDepth = 0;
 	bool bTooDeep = false;
 
@@ -203534,18 +203764,14 @@ XRT_API bool xrtX509PathBuild(
 		pTarget, pSource, pConfig, ppPath, iCapacity, pResult
 	) ) {
 		__xrtErrorSetInvalidArgument();
-		return false;
+		return __xrtX509CheckError();
 	}
 	if ( iCapacity > XRT_X509_PATH_LOCAL_FRAMES ) {
 		pFrames = (xrt_x509_path_frame*)xrtMalloc(
 			iCapacity * sizeof(xrt_x509_path_frame)
 		);
 		if ( pFrames == NULL ) {
-			xerror* pCause = xrtTakeError();
-
-			return __xrtX509PathBuildError(
-				XERR_MEMORY, "path search frame allocation failed", pCause
-			);
+			return __xrtX509CheckError();
 		}
 	}
 	ppPath[0] = pTarget;
@@ -203567,27 +203793,30 @@ XRT_API bool xrtX509PathBuild(
 				);
 
 				if ( Match == X509_ERROR ) {
-					__xrtX509PathBuildCapture(&pBestError);
-					continue;
+					Decision = __xrtX509CheckError();
+					goto Done;
 				}
 				if ( Match != X509_VALUE ) {
 					continue;
 				}
-				if ( xrtX509PathValidate(
+				Decision = __xrtX509PathEvaluate(
 					ppPath, iDepth + 1u, pAnchor, pConfig
-				) ) {
+				);
+				if ( Decision.Result == X509_CHECK_VALID ) {
 					xx509pathresult Result;
 
 					Result.Count = iDepth + 1u;
 					Result.Anchor = pAnchor;
 					*pResult = Result;
-					xrtErrorFree(pBestError);
-					if ( pFrames != Local ) {
-						xrtFree(pFrames);
-					}
-					return true;
+					goto Done;
 				}
-				__xrtX509PathBuildCapture(&pBestError);
+				if ( Decision.Result == X509_CHECK_ERROR ) {
+					goto Done;
+				}
+				if ( !bHasDecision ) {
+					Best = Decision;
+					bHasDecision = true;
+				}
 			}
 		}
 
@@ -203604,8 +203833,8 @@ XRT_API bool xrtX509PathBuild(
 			}
 			Match = xrtX509IssuerMatch(pCurrent, pCandidate);
 			if ( Match == X509_ERROR ) {
-				__xrtX509PathBuildCapture(&pBestError);
-				continue;
+				Decision = __xrtX509CheckError();
+				goto Done;
 			}
 			if ( Match != X509_VALUE ) {
 				continue;
@@ -203630,23 +203859,66 @@ XRT_API bool xrtX509PathBuild(
 		iDepth--;
 	}
 
+	if ( bTooDeep ) {
+		__xrtErrorSetRange();
+		Decision = __xrtX509CheckError();
+	} else if ( bHasDecision ) {
+		Decision = Best;
+	} else {
+		Decision = __xrtX509Decision(X509_CHECK_REJECTED, X509_ERROR_PATH_BUILD,
+			"no issuer chain reaches a trust anchor");
+	}
+Done:
 	if ( pFrames != Local ) {
 		xrtFree(pFrames);
 	}
-	if ( bTooDeep ) {
-		return __xrtX509PathBuildError(
-			XERR_RANGE, "path output capacity is too small", pBestError
-		);
+	return Decision;
+}
+
+XRT_API xx509check xrtX509PathBuildCheck(
+	const xx509cert* pTarget, const xx509pathsource* pSource,
+	const xx509pathconfig* pConfig, const xx509cert** ppPath,
+	size_t iCapacity, xx509pathresult* pResult, xx509pathdecision* pDecision
+)
+{
+	xrt_x509_decision Decision;
+	if ( pDecision == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return X509_CHECK_ERROR;
 	}
-	if ( pBestError != NULL ) {
-		return __xrtX509PathBuildError(
-			XERR_NOT_FOUND, "no candidate certification path passed validation",
-			pBestError
-		);
+	Decision = __xrtX509PathSearch(pTarget, pSource, pConfig, ppPath, iCapacity, pResult);
+	if ( Decision.Result != X509_CHECK_ERROR ) {
+		pDecision->Reason = Decision.Reason;
+		pDecision->Depth = Decision.Depth;
+		pDecision->Message = Decision.Message;
 	}
-	return __xrtX509PathBuildError(
-		XERR_NOT_FOUND, "no issuer chain reaches a trust anchor", NULL
-	);
+	return Decision.Result;
+}
+
+XRT_API bool xrtX509PathBuild(
+	const xx509cert* pTarget, const xx509pathsource* pSource,
+	const xx509pathconfig* pConfig, const xx509cert** ppPath,
+	size_t iCapacity, xx509pathresult* pResult
+)
+{
+	xrt_x509_decision Decision = __xrtX509PathSearch(
+		pTarget, pSource, pConfig, ppPath, iCapacity, pResult);
+	xerror* Cause;
+	if ( Decision.Result == X509_CHECK_VALID ) {
+		return true;
+	}
+	if ( Decision.Result == X509_CHECK_ERROR ) {
+		return false;
+	}
+	if ( Decision.Reason == X509_ERROR_PATH_BUILD ) {
+		return __xrtX509PathBuildError(XERR_NOT_FOUND, Decision.Message, NULL);
+	}
+	if ( !__xrtX509DecisionRaise(&Decision, "x509-path") ) {
+		return false;
+	}
+	Cause = xrtTakeError();
+	return __xrtX509PathBuildError(XERR_NOT_FOUND,
+		"no candidate certification path passed validation", Cause);
 }
 
 #endif
@@ -207826,67 +208098,56 @@ bool xrtRsaPkcs1Verify(
 
 #if defined(XRT_FEATURE_X509_VERIFY_RSA)
 
-/* 用 X.509 错误包装 RSA 后端或参数策略失败。 */
-static bool __xrtX509VerifyRsaError(
-	xerrkind Kind,
-	cstr sMessage,
-	const xerror* pCause
+/* 不分配诊断对象的 RSA 协议验证拒绝。 */
+static xrt_x509_decision __xrtX509VerifyRsaReject(
+	cstr sMessage
 )
 {
-	__xrtX509Error(
-		Kind, X509_ERROR_SIGNATURE,
-		"x509-signature-verify", sMessage, SIZE_MAX, pCause
-	);
-	return false;
+	return __xrtX509Decision(X509_CHECK_REJECTED, X509_ERROR_SIGNATURE, sMessage);
 }
 
 
 
 /* 验证 RFC 4055 中 RSA-PSS 公钥参数对具体签名的限制。 */
-static bool __xrtX509VerifyRsaPssKey(
+static xrt_x509_decision __xrtX509VerifyRsaPssKey(
 	const xx509signature* pScheme,
 	const xx509pubkey* pPublicKey
 )
 {
 	xx509signature Restriction;
 	xx509result Result;
-	const xerror* pCause;
 
 	if ( pPublicKey->Type != X509_KEY_RSA_PSS ) {
-		return true;
+		return __xrtX509CheckValid();
 	}
 	if ( !pPublicKey->Algorithm.HasParameters ) {
-		return true;
+		return __xrtX509CheckValid();
 	}
 	Result = xrtX509SignatureParse(
 		&pPublicKey->Algorithm, &Restriction
 	);
+	if ( Result == X509_ERROR ) {
+		return __xrtX509CheckError();
+	}
 	if ( Result != X509_VALUE ) {
-		pCause = Result == X509_ERROR ? xrtGetError() : NULL;
-		return __xrtX509VerifyRsaError(
-			XERR_PROTOCOL,
-			"the RSA-PSS public key restrictions are malformed",
-			pCause
-		);
+		return __xrtX509Decision(X509_CHECK_UNSUPPORTED, X509_ERROR_SIGNATURE,
+			"the RSA-PSS public key restriction is not supported");
 	}
 	if ( (Restriction.Type != X509_SIGNATURE_RSA_PSS) ||
 		(Restriction.Hash != pScheme->Hash) ||
 		(Restriction.MaskHash != pScheme->MaskHash) ||
 		(Restriction.Trailer != pScheme->Trailer) ||
 		(pScheme->SaltSize < Restriction.SaltSize) ) {
-		return __xrtX509VerifyRsaError(
-			XERR_PROTOCOL,
-			"the signature violates RSA-PSS public key restrictions",
-			NULL
-		);
+		return __xrtX509VerifyRsaReject(
+			"the signature violates RSA-PSS public key restrictions");
 	}
-	return true;
+	return __xrtX509CheckValid();
 }
 
 
 
 /* 使用 RSA-PKCS#1 或 RSA-PSS 后端验证证书协议签名。 */
-bool __xrtX509VerifyRsa(
+xrt_x509_decision __xrtX509VerifyRsa(
 	const xx509signature* pScheme,
 	xbytesview Content,
 	xbytesview Signature,
@@ -207898,45 +208159,36 @@ bool __xrtX509VerifyRsa(
 	xcryptohash MaskHash;
 	uint8 Digest[XRT_X509_DIGEST_MAX_SIZE];
 	size_t iDigestSize;
-	const xerror* pCause;
-	bool bResult;
+	xrt_crypto_check Result;
+	xrt_x509_decision Decision;
 
 	if ( (pPublicKey->Modulus.Data == NULL) ||
 		(pPublicKey->Modulus.Size == 0) ||
 		(pPublicKey->Exponent.Data == NULL) ||
 		(pPublicKey->Exponent.Size == 0) ) {
-		return __xrtX509VerifyRsaError(
-			XERR_PROTOCOL, "the RSA public key view is incomplete", NULL
-		);
+		return __xrtX509VerifyRsaReject("the RSA public key view is incomplete");
 	}
 	if ( pScheme->Type == X509_SIGNATURE_RSA_PKCS1 ) {
 		if ( pPublicKey->Type != X509_KEY_RSA ) {
-			return __xrtX509VerifyRsaError(
-				XERR_PROTOCOL,
-				"RSA-PKCS#1 signatures require an unrestricted RSA key",
-				NULL
-			);
+			return __xrtX509VerifyRsaReject(
+				"RSA-PKCS#1 signatures require an unrestricted RSA key");
 		}
 	} else if ( (pPublicKey->Type != X509_KEY_RSA) &&
 		(pPublicKey->Type != X509_KEY_RSA_PSS) ) {
-		return __xrtX509VerifyRsaError(
-			XERR_PROTOCOL,
-			"RSA-PSS signature and public key types are incompatible",
-			NULL
-		);
+		return __xrtX509VerifyRsaReject(
+			"RSA-PSS signature and public key types are incompatible");
 	}
-	if ( (pScheme->Type == X509_SIGNATURE_RSA_PSS) &&
-		!__xrtX509VerifyRsaPssKey(pScheme, pPublicKey) ) {
-		return false;
+	if ( pScheme->Type == X509_SIGNATURE_RSA_PSS ) {
+		Decision = __xrtX509VerifyRsaPssKey(pScheme, pPublicKey);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			return Decision;
+		}
 	}
 	if ( !__xrtX509Digest(
 		pScheme->Hash, Content, Digest, &iDigestSize
 	) || !__xrtX509CryptoHash(pScheme->Hash, &Hash) ) {
-		pCause = xrtGetError();
 		xrtSecureZero(Digest, sizeof(Digest));
-		return __xrtX509VerifyRsaError(
-			XERR_UNSUPPORTED, "the RSA signature digest is unavailable", pCause
-		);
+		return __xrtX509CheckError();
 	}
 	(void)iDigestSize;
 	Key.Modulus = pPublicKey->Modulus.Data;
@@ -207944,26 +208196,33 @@ bool __xrtX509VerifyRsa(
 	Key.Exponent = pPublicKey->Exponent.Data;
 	Key.ExponentSize = pPublicKey->Exponent.Size;
 	if ( pScheme->Type == X509_SIGNATURE_RSA_PKCS1 ) {
-		bResult = xrtRsaPkcs1Verify(
+		Result = __xrtRsaPkcs1Check(
 			&Key, Hash, Digest, Signature.Data, Signature.Size
 		);
 	} else if ( __xrtX509CryptoHash(pScheme->MaskHash, &MaskHash) ) {
-		bResult = xrtRsaPssVerify(
+		Result = __xrtRsaPssCheck(
 			&Key, Hash, MaskHash, pScheme->SaltSize,
 			Digest, Signature.Data, Signature.Size
 		);
 	} else {
-		bResult = false;
-	}
-	if ( !bResult ) {
-		pCause = xrtGetError();
-		xrtSecureZero(Digest, sizeof(Digest));
-		return __xrtX509VerifyRsaError(
-			XERR_PROTOCOL, "the RSA certificate signature is invalid", pCause
-		);
+		Result = XRT_CRYPTO_CHECK_ERROR;
 	}
 	xrtSecureZero(Digest, sizeof(Digest));
-	return true;
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return __xrtX509CheckValid();
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ERROR ) {
+		return __xrtX509CheckError();
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ARGUMENT ) {
+		__xrtErrorSetInvalidArgument();
+		return __xrtX509CheckError();
+	}
+	Decision = __xrtX509VerifyRsaReject("the RSA certificate signature is invalid");
+	Decision.CryptoCode = Result == XRT_CRYPTO_CHECK_KEY ?
+		XCRYPTO_ERROR_KEY : XCRYPTO_ERROR_SIGNATURE;
+	Decision.CryptoKind = Result == XRT_CRYPTO_CHECK_KEY ? XERR_VALUE : XERR_PROTOCOL;
+	return Decision;
 }
 
 #endif
@@ -210260,24 +210519,18 @@ XRT_API bool xrtEcdsaP384VerifyDer(
 
 #if defined(XRT_FEATURE_X509_VERIFY_ECDSA)
 
-/* 用 X.509 错误包装 ECDSA 后端或曲线策略失败。 */
-static bool __xrtX509VerifyEcdsaError(
-	xerrkind Kind,
-	cstr sMessage,
-	const xerror* pCause
+/* 不分配诊断对象的 ECDSA 协议验证拒绝。 */
+static xrt_x509_decision __xrtX509VerifyEcdsaReject(
+	cstr sMessage
 )
 {
-	__xrtX509Error(
-		Kind, X509_ERROR_SIGNATURE,
-		"x509-signature-verify", sMessage, SIZE_MAX, pCause
-	);
-	return false;
+	return __xrtX509Decision(X509_CHECK_REJECTED, X509_ERROR_SIGNATURE, sMessage);
 }
 
 
 
 /* 使用公钥命名曲线选择严格 DER ECDSA 验签后端。 */
-bool __xrtX509VerifyEcdsa(
+xrt_x509_decision __xrtX509VerifyEcdsa(
 	const xx509signature* pScheme,
 	xbytesview Content,
 	xbytesview Signature,
@@ -210286,69 +210539,60 @@ bool __xrtX509VerifyEcdsa(
 {
 	uint8 Digest[XRT_X509_DIGEST_MAX_SIZE];
 	size_t iDigestSize;
-	const xerror* pCause;
-	bool bResult;
+	xrt_crypto_check Result;
+	xrt_x509_decision Decision;
 
 	if ( (pPublicKey->Type != X509_KEY_EC) ||
 		(pPublicKey->Key.Data == NULL) || (pPublicKey->Key.Size == 0) ) {
-		return __xrtX509VerifyEcdsaError(
-			XERR_PROTOCOL,
-			"ECDSA signature and public key types are incompatible",
-			NULL
-		);
+		return __xrtX509VerifyEcdsaReject(
+			"ECDSA signature and public key types are incompatible");
 	}
 	if ( !__xrtX509Digest(
 		pScheme->Hash, Content, Digest, &iDigestSize
 	) ) {
-		pCause = xrtGetError();
 		xrtSecureZero(Digest, sizeof(Digest));
-		return __xrtX509VerifyEcdsaError(
-			XERR_UNSUPPORTED, "the ECDSA signature digest is unavailable", pCause
-		);
+		return __xrtX509CheckError();
 	}
 	if ( pPublicKey->Curve == X509_CURVE_P256 ) {
 		if ( pPublicKey->Key.Size != XRT_P256_PUBLIC_SIZE ) {
 			xrtSecureZero(Digest, sizeof(Digest));
-			return __xrtX509VerifyEcdsaError(
-				XERR_PROTOCOL,
-				"the P-256 public key point has the wrong size",
-				NULL
-			);
+			return __xrtX509VerifyEcdsaReject(
+				"the P-256 public key point has the wrong size");
 		}
-		bResult = xrtEcdsaP256VerifyDer(
-			Digest, iDigestSize, Signature.Data,
-			Signature.Size, pPublicKey->Key.Data
+		Result = __xrtEcdsaCheckDer(
+			XRT_NIST_P256, Digest, iDigestSize, Signature.Data,
+			Signature.Size, pPublicKey->Key.Data, 32u, 65u
 		);
 	} else if ( pPublicKey->Curve == X509_CURVE_P384 ) {
 		if ( pPublicKey->Key.Size != XRT_P384_PUBLIC_SIZE ) {
 			xrtSecureZero(Digest, sizeof(Digest));
-			return __xrtX509VerifyEcdsaError(
-				XERR_PROTOCOL,
-				"the P-384 public key point has the wrong size",
-				NULL
-			);
+			return __xrtX509VerifyEcdsaReject(
+				"the P-384 public key point has the wrong size");
 		}
-		bResult = xrtEcdsaP384VerifyDer(
-			Digest, iDigestSize, Signature.Data,
-			Signature.Size, pPublicKey->Key.Data
+		Result = __xrtEcdsaCheckDer(
+			XRT_NIST_P384, Digest, iDigestSize, Signature.Data,
+			Signature.Size, pPublicKey->Key.Data, 48u, 97u
 		);
 	} else {
 		xrtSecureZero(Digest, sizeof(Digest));
-		return __xrtX509VerifyEcdsaError(
-			XERR_UNSUPPORTED,
-			"the EC public key curve has no enabled verification backend",
-			NULL
-		);
-	}
-	if ( !bResult ) {
-		pCause = xrtGetError();
-		xrtSecureZero(Digest, sizeof(Digest));
-		return __xrtX509VerifyEcdsaError(
-			XERR_PROTOCOL, "the ECDSA certificate signature is invalid", pCause
-		);
+		return __xrtX509Decision(X509_CHECK_UNSUPPORTED, X509_ERROR_SIGNATURE,
+			"the EC public key curve has no enabled verification backend");
 	}
 	xrtSecureZero(Digest, sizeof(Digest));
-	return true;
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return __xrtX509CheckValid();
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ERROR ) {
+		return __xrtX509CheckError();
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ARGUMENT ) {
+		__xrtErrorSetInvalidArgument();
+		return __xrtX509CheckError();
+	}
+	Decision = __xrtX509VerifyEcdsaReject("the ECDSA certificate signature is invalid");
+	Decision.CryptoCode = XCRYPTO_ERROR_SIGNATURE;
+	Decision.CryptoKind = XERR_PROTOCOL;
+	return Decision;
 }
 
 #endif
@@ -211619,44 +211863,46 @@ XRT_API bool xrtEd25519Verify(
 #if defined(XRT_FEATURE_X509_VERIFY_ED25519)
 
 /* 使用纯 Ed25519 模式验证证书协议签名。 */
-bool __xrtX509VerifyEd25519(
+xrt_x509_decision __xrtX509VerifyEd25519(
 	const xx509signature* pScheme,
 	xbytesview Content,
 	xbytesview Signature,
 	const xx509pubkey* pPublicKey
 )
 {
-	const xerror* pCause;
+	xrt_crypto_check Result;
+	xrt_x509_decision Decision;
 
 	(void)pScheme;
 	if ( (pPublicKey->Type != X509_KEY_ED25519) ||
 		(pPublicKey->Key.Data == NULL) ||
 		(pPublicKey->Key.Size != XRT_ED25519_PUBLIC_SIZE) ||
 		(Signature.Size != XRT_ED25519_SIGNATURE_SIZE) ) {
-		__xrtX509Error(
-			XERR_PROTOCOL, X509_ERROR_SIGNATURE,
-			"x509-signature-verify",
-			"the Ed25519 signature or public key view is invalid",
-			SIZE_MAX, NULL
-		);
-		return false;
+		return __xrtX509Decision(X509_CHECK_REJECTED, X509_ERROR_SIGNATURE,
+			"the Ed25519 signature or public key view is invalid");
 	}
-	if ( xrtEd25519Verify(
-		pPublicKey->Key.Data,
+	Result = __xrtEd25519Check(
+		pPublicKey->Key.Data, XED25519_PURE, NULL, 0,
 		Content.Data,
 		Content.Size,
 		Signature.Data
-	) ) {
-		return true;
-	}
-	pCause = xrtGetError();
-	__xrtX509Error(
-		XERR_PROTOCOL, X509_ERROR_SIGNATURE,
-		"x509-signature-verify",
-		"the Ed25519 certificate signature is invalid",
-		SIZE_MAX, pCause
 	);
-	return false;
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return __xrtX509CheckValid();
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ERROR ) {
+		return __xrtX509CheckError();
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ARGUMENT ) {
+		__xrtErrorSetInvalidArgument();
+		return __xrtX509CheckError();
+	}
+	Decision = __xrtX509Decision(X509_CHECK_REJECTED, X509_ERROR_SIGNATURE,
+		"the Ed25519 certificate signature is invalid");
+	Decision.CryptoCode = Result == XRT_CRYPTO_CHECK_KEY ?
+		XCRYPTO_ERROR_KEY : XCRYPTO_ERROR_SIGNATURE;
+	Decision.CryptoKind = Result == XRT_CRYPTO_CHECK_KEY ? XERR_VALUE : XERR_PROTOCOL;
+	return Decision;
 }
 
 #endif

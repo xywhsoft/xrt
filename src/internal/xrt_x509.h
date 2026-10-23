@@ -9,6 +9,45 @@
 
 #if defined(XRT_FEATURE_X509_PARSE)
 
+/* Allocation-free control result and borrowed static diagnostic description.
+ * CryptoCode is optional legacy cause metadata, never a control-flow input. */
+typedef struct xrt_x509_decision {
+	xx509check Result;
+	xx509error Reason;
+	size_t Depth;
+	cstr Message;
+	int32 CryptoCode;
+	xerrkind CryptoKind;
+} xrt_x509_decision;
+
+static inline xrt_x509_decision __xrtX509Decision(
+	xx509check Result, xx509error Reason, cstr Message
+)
+{
+	xrt_x509_decision Decision;
+	Decision.Result = Result;
+	Decision.Reason = Reason;
+	Decision.Depth = SIZE_MAX;
+	Decision.Message = Message;
+	Decision.CryptoCode = 0;
+	Decision.CryptoKind = XERR_NONE;
+	return Decision;
+}
+
+static inline xrt_x509_decision __xrtX509CheckError(void)
+{
+	return __xrtX509Decision(X509_CHECK_ERROR, (xx509error)0, NULL);
+}
+
+static inline xrt_x509_decision __xrtX509CheckValid(void)
+{
+	return __xrtX509Decision(X509_CHECK_VALID, (xx509error)0, NULL);
+}
+
+/* Materializes a legacy diagnostic only. Failure retains the allocation error.
+ * ERROR does not create or replace a diagnostic. */
+bool __xrtX509DecisionRaise(const xrt_x509_decision* Decision, cstr Operation);
+
 extern const uint8 __xrtX509OidRsa[];
 extern const size_t __xrtX509OidRsaSize;
 extern const uint8 __xrtX509OidRsaPss[];
@@ -232,6 +271,11 @@ bool __xrtX509GeneralNamesContent(
 
 #if defined(XRT_FEATURE_X509_NAME_CONSTRAINTS)
 
+xrt_x509_decision __xrtX509NameConstraintsEvaluate(
+	const xx509nameconstraints* pConstraints,
+	const xx509cert* pCertificate
+);
+
 /* 设置 NameConstraints 层统一错误。 */
 void __xrtX509NameConstraintsError(
 	xerrkind Kind,
@@ -295,6 +339,11 @@ extern const size_t __xrtX509OidCertificateIssuerSize;
 
 
 #if defined(XRT_FEATURE_X509_PATH)
+
+xrt_x509_decision __xrtX509PathEvaluate(
+	const xx509cert* const* ppCertificates, size_t iCount,
+	const xx509anchor* pAnchor, const xx509pathconfig* pConfig
+);
 
 /* 验证路径策略结构的公开字段组合。 */
 bool __xrtX509PathConfigValid(const xx509pathconfig* pConfig);
@@ -373,10 +422,20 @@ bool __xrtX509CryptoHash(
 
 
 
+#if defined(XRT_FEATURE_X509_VERIFY)
+xrt_x509_decision __xrtX509SignatureEvaluate(
+	const xx509signature* pScheme, xbytesview Content, xbytesview Signature,
+	const xx509pubkey* pPublicKey
+);
+xrt_x509_decision __xrtX509CertificateEvaluate(
+	const xx509cert* pCertificate, const xx509pubkey* pPublicKey
+);
+#endif
+
 #if defined(XRT_FEATURE_X509_VERIFY_RSA)
 
 /* 使用 RSA-PKCS#1 或 RSA-PSS 后端验证证书协议签名。 */
-bool __xrtX509VerifyRsa(
+xrt_x509_decision __xrtX509VerifyRsa(
 	const xx509signature* pScheme,
 	xbytesview Content,
 	xbytesview Signature,
@@ -390,7 +449,7 @@ bool __xrtX509VerifyRsa(
 #if defined(XRT_FEATURE_X509_VERIFY_ECDSA)
 
 /* 使用公钥命名曲线选择严格 DER ECDSA 验签后端。 */
-bool __xrtX509VerifyEcdsa(
+xrt_x509_decision __xrtX509VerifyEcdsa(
 	const xx509signature* pScheme,
 	xbytesview Content,
 	xbytesview Signature,
@@ -404,7 +463,7 @@ bool __xrtX509VerifyEcdsa(
 #if defined(XRT_FEATURE_X509_VERIFY_ED25519)
 
 /* 使用纯 Ed25519 模式验证证书协议签名。 */
-bool __xrtX509VerifyEd25519(
+xrt_x509_decision __xrtX509VerifyEd25519(
 	const xx509signature* pScheme,
 	xbytesview Content,
 	xbytesview Signature,

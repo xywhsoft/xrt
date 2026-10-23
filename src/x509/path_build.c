@@ -15,23 +15,6 @@ typedef struct xrt_x509_path_frame {
 
 
 
-/* 保存第一项候选失败，避免回溯过程泄漏临时错误对象。 */
-static void __xrtX509PathBuildCapture(xerror** ppError)
-{
-	xerror* pError = xrtTakeError();
-
-	if ( pError == NULL ) {
-		return;
-	}
-	if ( *ppError == NULL ) {
-		*ppError = pError;
-	} else {
-		xrtErrorFree(pError);
-	}
-}
-
-
-
 /* 设置建链失败并接管后释放可选原因引用。 */
 static bool __xrtX509PathBuildError(
 	xerrkind Kind,
@@ -109,7 +92,7 @@ static bool __xrtX509PathBuildUsed(
 
 
 /* 在候选发行者和信任锚中确定性回溯构建有效路径。 */
-XRT_API bool xrtX509PathBuild(
+static xrt_x509_decision __xrtX509PathSearch(
 	const xx509cert* pTarget,
 	const xx509pathsource* pSource,
 	const xx509pathconfig* pConfig,
@@ -120,7 +103,9 @@ XRT_API bool xrtX509PathBuild(
 {
 	xrt_x509_path_frame Local[XRT_X509_PATH_LOCAL_FRAMES];
 	xrt_x509_path_frame* pFrames = Local;
-	xerror* pBestError = NULL;
+	xrt_x509_decision Best = __xrtX509CheckValid();
+	xrt_x509_decision Decision;
+	bool bHasDecision = false;
 	size_t iDepth = 0;
 	bool bTooDeep = false;
 
@@ -128,18 +113,14 @@ XRT_API bool xrtX509PathBuild(
 		pTarget, pSource, pConfig, ppPath, iCapacity, pResult
 	) ) {
 		__xrtErrorSetInvalidArgument();
-		return false;
+		return __xrtX509CheckError();
 	}
 	if ( iCapacity > XRT_X509_PATH_LOCAL_FRAMES ) {
 		pFrames = (xrt_x509_path_frame*)xrtMalloc(
 			iCapacity * sizeof(xrt_x509_path_frame)
 		);
 		if ( pFrames == NULL ) {
-			xerror* pCause = xrtTakeError();
-
-			return __xrtX509PathBuildError(
-				XERR_MEMORY, "path search frame allocation failed", pCause
-			);
+			return __xrtX509CheckError();
 		}
 	}
 	ppPath[0] = pTarget;
@@ -161,27 +142,30 @@ XRT_API bool xrtX509PathBuild(
 				);
 
 				if ( Match == X509_ERROR ) {
-					__xrtX509PathBuildCapture(&pBestError);
-					continue;
+					Decision = __xrtX509CheckError();
+					goto Done;
 				}
 				if ( Match != X509_VALUE ) {
 					continue;
 				}
-				if ( xrtX509PathValidate(
+				Decision = __xrtX509PathEvaluate(
 					ppPath, iDepth + 1u, pAnchor, pConfig
-				) ) {
+				);
+				if ( Decision.Result == X509_CHECK_VALID ) {
 					xx509pathresult Result;
 
 					Result.Count = iDepth + 1u;
 					Result.Anchor = pAnchor;
 					*pResult = Result;
-					xrtErrorFree(pBestError);
-					if ( pFrames != Local ) {
-						xrtFree(pFrames);
-					}
-					return true;
+					goto Done;
 				}
-				__xrtX509PathBuildCapture(&pBestError);
+				if ( Decision.Result == X509_CHECK_ERROR ) {
+					goto Done;
+				}
+				if ( !bHasDecision ) {
+					Best = Decision;
+					bHasDecision = true;
+				}
 			}
 		}
 
@@ -198,8 +182,8 @@ XRT_API bool xrtX509PathBuild(
 			}
 			Match = xrtX509IssuerMatch(pCurrent, pCandidate);
 			if ( Match == X509_ERROR ) {
-				__xrtX509PathBuildCapture(&pBestError);
-				continue;
+				Decision = __xrtX509CheckError();
+				goto Done;
 			}
 			if ( Match != X509_VALUE ) {
 				continue;
@@ -224,23 +208,66 @@ XRT_API bool xrtX509PathBuild(
 		iDepth--;
 	}
 
+	if ( bTooDeep ) {
+		__xrtErrorSetRange();
+		Decision = __xrtX509CheckError();
+	} else if ( bHasDecision ) {
+		Decision = Best;
+	} else {
+		Decision = __xrtX509Decision(X509_CHECK_REJECTED, X509_ERROR_PATH_BUILD,
+			"no issuer chain reaches a trust anchor");
+	}
+Done:
 	if ( pFrames != Local ) {
 		xrtFree(pFrames);
 	}
-	if ( bTooDeep ) {
-		return __xrtX509PathBuildError(
-			XERR_RANGE, "path output capacity is too small", pBestError
-		);
+	return Decision;
+}
+
+XRT_API xx509check xrtX509PathBuildCheck(
+	const xx509cert* pTarget, const xx509pathsource* pSource,
+	const xx509pathconfig* pConfig, const xx509cert** ppPath,
+	size_t iCapacity, xx509pathresult* pResult, xx509pathdecision* pDecision
+)
+{
+	xrt_x509_decision Decision;
+	if ( pDecision == NULL ) {
+		__xrtErrorSetInvalidArgument();
+		return X509_CHECK_ERROR;
 	}
-	if ( pBestError != NULL ) {
-		return __xrtX509PathBuildError(
-			XERR_NOT_FOUND, "no candidate certification path passed validation",
-			pBestError
-		);
+	Decision = __xrtX509PathSearch(pTarget, pSource, pConfig, ppPath, iCapacity, pResult);
+	if ( Decision.Result != X509_CHECK_ERROR ) {
+		pDecision->Reason = Decision.Reason;
+		pDecision->Depth = Decision.Depth;
+		pDecision->Message = Decision.Message;
 	}
-	return __xrtX509PathBuildError(
-		XERR_NOT_FOUND, "no issuer chain reaches a trust anchor", NULL
-	);
+	return Decision.Result;
+}
+
+XRT_API bool xrtX509PathBuild(
+	const xx509cert* pTarget, const xx509pathsource* pSource,
+	const xx509pathconfig* pConfig, const xx509cert** ppPath,
+	size_t iCapacity, xx509pathresult* pResult
+)
+{
+	xrt_x509_decision Decision = __xrtX509PathSearch(
+		pTarget, pSource, pConfig, ppPath, iCapacity, pResult);
+	xerror* Cause;
+	if ( Decision.Result == X509_CHECK_VALID ) {
+		return true;
+	}
+	if ( Decision.Result == X509_CHECK_ERROR ) {
+		return false;
+	}
+	if ( Decision.Reason == X509_ERROR_PATH_BUILD ) {
+		return __xrtX509PathBuildError(XERR_NOT_FOUND, Decision.Message, NULL);
+	}
+	if ( !__xrtX509DecisionRaise(&Decision, "x509-path") ) {
+		return false;
+	}
+	Cause = xrtTakeError();
+	return __xrtX509PathBuildError(XERR_NOT_FOUND,
+		"no candidate certification path passed validation", Cause);
 }
 
 #endif

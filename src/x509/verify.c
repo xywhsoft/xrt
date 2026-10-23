@@ -41,19 +41,15 @@ static bool __xrtX509VerifyScheme(const xx509signature* pScheme)
 
 
 /* 设置当前裁剪构建缺少验签后端的明确错误。 */
-static bool __xrtX509VerifyUnsupported(cstr sMessage)
+static xrt_x509_decision __xrtX509VerifyUnsupported(cstr sMessage)
 {
-	__xrtX509Error(
-		XERR_UNSUPPORTED, X509_ERROR_SIGNATURE,
-		"x509-signature-verify", sMessage, SIZE_MAX, NULL
-	);
-	return false;
+	return __xrtX509Decision(X509_CHECK_UNSUPPORTED, X509_ERROR_SIGNATURE, sMessage);
 }
 
 
 
 /* 使用已解析方案和公钥验证一段原始内容的证书协议签名。 */
-XRT_API bool xrtX509SignatureVerify(
+xrt_x509_decision __xrtX509SignatureEvaluate(
 	const xx509signature* pScheme,
 	xbytesview Content,
 	xbytesview Signature,
@@ -64,7 +60,7 @@ XRT_API bool xrtX509SignatureVerify(
 		((Content.Data == NULL) && (Content.Size != 0)) ||
 		(Signature.Data == NULL) || (Signature.Size == 0) ) {
 		__xrtErrorSetInvalidArgument();
-		return false;
+		return __xrtX509CheckError();
 	}
 	switch ( pScheme->Type ) {
 		case X509_SIGNATURE_RSA_PKCS1:
@@ -104,14 +100,32 @@ XRT_API bool xrtX509SignatureVerify(
 			);
 		default:
 			__xrtErrorSetInvalidArgument();
-			return false;
+			return __xrtX509CheckError();
 	}
+}
+
+static bool __xrtX509VerifyFinish(xrt_x509_decision Decision)
+{
+	if ( Decision.Result == X509_CHECK_VALID ) {
+		return true;
+	}
+	(void)__xrtX509DecisionRaise(&Decision, "x509-signature-verify");
+	return false;
+}
+
+XRT_API bool xrtX509SignatureVerify(
+	const xx509signature* pScheme, xbytesview Content, xbytesview Signature,
+	const xx509pubkey* pPublicKey
+)
+{
+	return __xrtX509VerifyFinish(__xrtX509SignatureEvaluate(
+		pScheme, Content, Signature, pPublicKey));
 }
 
 
 
 /* 使用已解析公钥验证一张证书的签名，不执行任何路径策略。 */
-XRT_API bool xrtX509CertificateVerifyKey(
+xrt_x509_decision __xrtX509CertificateEvaluate(
 	const xx509cert* pCertificate,
 	const xx509pubkey* pPublicKey
 )
@@ -125,25 +139,32 @@ XRT_API bool xrtX509CertificateVerifyKey(
 		(pCertificate->Signature.Data == NULL) ||
 		(pCertificate->Signature.Size == 0) ) {
 		__xrtErrorSetInvalidArgument();
-		return false;
+		return __xrtX509CheckError();
 	}
 	Result = xrtX509SignatureParse(
 		&pCertificate->SignatureAlgorithm, &Scheme
 	);
 	if ( Result == X509_ERROR ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	if ( Result == X509_DONE ) {
 		return __xrtX509VerifyUnsupported(
 			"the certificate signature algorithm is not supported"
 		);
 	}
-	return xrtX509SignatureVerify(
+	return __xrtX509SignatureEvaluate(
 		&Scheme,
 		pCertificate->Tbs,
 		pCertificate->Signature,
 		pPublicKey
 	);
+}
+
+XRT_API bool xrtX509CertificateVerifyKey(
+	const xx509cert* pCertificate, const xx509pubkey* pPublicKey
+)
+{
+	return __xrtX509VerifyFinish(__xrtX509CertificateEvaluate(pCertificate, pPublicKey));
 }
 
 
