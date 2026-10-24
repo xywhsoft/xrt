@@ -449,6 +449,22 @@ XRT_API void xrtTlsSessionDestroy(xtlssession* pSession)
 
 
 
+/* Only physical queue edges: opaque role/context resources remain separate. */
+XRT_API bool xrtTlsSessionBufferOwnershipTrace(
+	const xtlssession* pSession,
+	xrtownershipvisitor pVisit,
+	ptr pContext
+)
+{
+	return pSession && pVisit &&
+		xrtNetBufOwnershipTrace(&pSession->Feed, pVisit, pContext) &&
+		xrtNetBufOwnershipTrace(&pSession->Send, pVisit, pContext) &&
+		xrtNetBufOwnershipTrace(&pSession->Plain, pVisit, pContext) &&
+		xrtNetBufOwnershipTrace(&pSession->Scratch, pVisit, pContext);
+}
+
+
+
 /* 返回会话角色。 */
 XRT_API xtlsrole xrtTlsSessionRole(const xtlssession* pSession)
 {

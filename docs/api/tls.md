@@ -7985,6 +7985,25 @@ const xtlscontext* xrtTlsSessionContext(const xtlssession* pSession)
 ```
 
 
+### `xrtTlsSessionBufferOwnershipTrace`
+
+```c
+bool xrtTlsSessionBufferOwnershipTrace(
+    const xtlssession* pSession, xrtownershipvisitor pVisit, ptr pContext
+);
+```
+
+只读枚举 Feed、Send、Plain、Scratch 四条队列真实持有的池块租约与不可变
+NetBytes 引用，包括独立预留块。每条拥有边分别交付，不去重；默认池指针
+只是借用。调用方须排除会话与队列变更，并保持被访问对象稳定（通常整体
+拥有域 Freeze）；访问器不得修改资源。接口不分配、不持有／释放对象、
+不执行释放回调，也不修改线程错误槽。
+
+返回 false 表示 NULL 参数、访问器主动停止或遇到无法认证的外部／借用
+节点；失败前可能已交付部分边。它不认证会话本体、Context、角色私有状态、
+验证器或身份回调，不能把成功结果当作完整会话的叶／退役证明。详细边界见
+[队列拥有边](../design/tls-session.md#队列拥有边)。
+
 ### `xrtTlsSessionDestroy`
 
 销毁会话、释放队列并归还上下文引用；空指针无操作。

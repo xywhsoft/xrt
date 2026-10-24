@@ -8222,6 +8222,19 @@
 			]
 		},
 		{
+			"name": "tls_session_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_session", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/tls/test_tls_session_ownership.c"],
+			"single_tests": ["tests/single/test_single_tls_session_ownership.c"],
+			"examples": [],
+			"docs": ["docs/design/tls-session.md"]
+		},
+		{
 			"name": "tls_session_record_tests",
 			"state": "implemented",
 			"feature": null,
