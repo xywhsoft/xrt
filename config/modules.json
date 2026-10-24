@@ -10278,6 +10278,19 @@
 			]
 		},
 		{
+			"name": "tls_dial_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_listener_ownership_tests", "tls_stream_dial"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/tls/test_tls_dial_ownership.c"],
+			"single_tests": ["tests/single/test_single_tls_dial_ownership.c"],
+			"examples": [],
+			"docs": ["docs/api/tls.md"]
+		},
+		{
 			"name": "tls_stream_tests",
 			"state": "implemented",
 			"feature": null,

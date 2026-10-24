@@ -13624,3 +13624,31 @@ Promise、Owned CancelWatch；交付 Stream 使用拥有 payload，而非裸析�
 Clear 不执行用户回调；Finish 在 Freeze／Mutation 外释放配置和 Data，
 保留首次清理错误和已有线程错误，重复检查不重复析构。时间 ABI 不变。
 详见 [Listener 组合拥有图](../design/tls-listener-ownership.md)。
+
+### TLS Dial 拥有图
+
+`xrtTlsDialOwnedV1` 使用永久 `xtlsdialownershipv1`：成功接管一个 Data
+引用，失败不接管；Data 覆盖 Done、最终 Stream 事件与 Session 借用的
+配置上下文。已有 owned TCP Dial 先完成连接，再在实际 Worker 上 Attach
+拥有式 TLS Stream，不安装借用 TCP 事件或在 Open 时替换 TLS 事件表。
+Open 先于成功 Done；成功回调接管已有 Stream 创建信用，Stream 反向
+保留 Dial 上下文，直到 Session 销毁后释放。回调 Data 是原始 Data，
+StreamData 是私有组合上下文，应用不得强转。
+
+永久身份与图入口为 `xrtTlsDialOwnership`、
+`xrtTlsDialRuntimeOwnershipV1Get`、`xrtTlsDialTimerOwnershipV1Get`、
+`xrtTlsDialTransportOwnershipV1Get`、`xrtTlsDialStreamOwnershipV1Get`、
+`xrtTlsDialStreamPushOwnershipV1Get`、
+`xrtTlsDialOwnershipQuiescenceV1Get`、`xrtTlsDialOwnershipAdapterV1`。
+Adapter 只接受显式准入的策略地址，提供 mandatory preparation，拒绝时
+不改变输出；每个传递节点仍须独立准入。
+
+取消通过所属 Worker 访问阶段槽，独立锁串行发布与 runtime 信用的唯一
+转移；ownership Mutation 本身不是线程互斥。总期限 Timer、TCP Done 和
+回调帧分别保留实际引用。Claim 拒绝新公开取消，Prepare 请求真实停止，
+不伪造终态。Clear 无用户回调，Finish 在全图 pin 下于域外销毁 Session／
+原生资源／Data，保留首次清理错误与已有线程错误，重复检查不重复析构。
+原生相对毫秒与固定快照绝对微秒合同分别按其声明处理，不改时间 ABI。
+
+完整引用与发布规则见 [Dial 阶段拥有图](../design/tls-dial-ownership.md)。
+旧借用 Dial、Proxy 和 Future 桥接不因这些入口自动获得认证。
