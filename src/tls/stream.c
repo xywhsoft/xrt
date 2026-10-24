@@ -346,9 +346,10 @@ void __xrtTlsStreamDiscard(xtlsstream* pStream)
 
 
 /* 验证调用发生在底层 TCP Stream 的所属 Worker。 */
-static bool __xrtTlsStreamWorker(
+static bool __xrtTlsStreamWorkerMode(
 	xtlsstream* pStream,
-	cstr sOperation
+	cstr sOperation,
+	bool bSubmission
 )
 {
 	xnetstream* pTransport;
@@ -364,7 +365,7 @@ static bool __xrtTlsStreamWorker(
 		return false;
 	}
 	if (xrtAtomic32Load(&pStream->OwnershipState, XMEMORY_ACQUIRE) & XRT_TLS_STREAM_OWNERSHIP_CLEARED ||
-		xrtAtomicPtrLoad(&pStream->OwnershipClaim, XMEMORY_ACQUIRE)) {
+		(bSubmission && xrtAtomicPtrLoad(&pStream->OwnershipClaim, XMEMORY_ACQUIRE))) {
 		__xrtErrorSetInvalidState(); return false;
 	}
 	pTransport = (xnetstream*)xrtAtomicPtrLoad(
@@ -384,6 +385,9 @@ static bool __xrtTlsStreamWorker(
 	}
 	return true;
 }
+
+static bool __xrtTlsStreamWorker(xtlsstream* pStream, cstr sOperation)
+{ return __xrtTlsStreamWorkerMode(pStream, sOperation, true); }
 
 
 
@@ -617,7 +621,7 @@ static xnetresult __xrtTlsStreamFlush(xtlsstream* pStream)
 	if ( bGuard ) {
 		pStream->Driving = true;
 	}
-	Result = xrtNetStreamSendBuffer(pTransport, pBuffer);
+	Result = __xrtNetStreamSendBufferAccepted(pTransport, pBuffer);
 	if ( Result == XNET_RESULT_OK ) {
 		if ( !__xrtTlsSessionSendMoved(pStream->Session) ) {
 			Result = XNET_RESULT_ERROR;
@@ -2047,7 +2051,8 @@ static xtlsresult __xrtTlsStreamSendSpans(
 	xtlsstream* pStream,
 	const xnetspan* pSpans,
 	size_t iCount,
-	size_t* pWritten
+	size_t* pWritten,
+	bool bSubmission
 )
 {
 	xtlsresult Result = XTLS_OK;
@@ -2057,7 +2062,7 @@ static xtlsresult __xrtTlsStreamSendSpans(
 	if ( pWritten != NULL ) {
 		*pWritten = 0;
 	}
-	if ( !__xrtTlsStreamWorker(pStream, "send-tls-stream") ||
+	if ( !__xrtTlsStreamWorkerMode(pStream, "send-tls-stream", bSubmission) ||
 		(pWritten == NULL) ) {
 		if ( (pStream != NULL) && (pWritten == NULL) ) {
 			__xrtTlsStreamSetError(
@@ -2151,7 +2156,8 @@ XRT_API xtlsresult xrtTlsStreamSend(
 		pStream,
 		&Span,
 		1u,
-		pWritten
+		pWritten,
+		true
 	);
 }
 
@@ -2169,9 +2175,18 @@ XRT_API xtlsresult xrtTlsStreamSendVec(
 		pStream,
 		pSpans,
 		iCount,
-		pWritten
+		pWritten,
+		true
 	);
 }
+
+#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+xtlsresult __xrtTlsStreamSendAccepted(xtlsstream* stream, const void* data, size_t size, size_t* written)
+{
+	xnetspan span = {(cbytes)data, size};
+	return __xrtTlsStreamSendSpans(stream, &span, 1, written, false);
+}
+#endif
 
 
 
@@ -2415,16 +2430,17 @@ static void __xrtTlsStreamAfterRead(xtlsstream* pStream)
 
 
 /* 复制并安全消费一段明文。 */
-XRT_API xtlsresult xrtTlsStreamRead(
+static xtlsresult __xrtTlsStreamReadImpl(
 	xtlsstream* pStream,
 	void* pOutput,
 	size_t iCapacity,
-	size_t* pRead
+	size_t* pRead,
+	bool bSubmission
 )
 {
 	xtlsresult Result;
 
-	if ( !__xrtTlsStreamWorker(pStream, "read-tls-stream") ) {
+	if ( !__xrtTlsStreamWorkerMode(pStream, "read-tls-stream", bSubmission) ) {
 		if ( pRead != NULL ) {
 			*pRead = 0;
 		}
@@ -2441,6 +2457,13 @@ XRT_API xtlsresult xrtTlsStreamRead(
 	}
 	return Result;
 }
+
+XRT_API xtlsresult xrtTlsStreamRead(xtlsstream* stream, void* output, size_t capacity, size_t* read)
+{ return __xrtTlsStreamReadImpl(stream, output, capacity, read, true); }
+#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+xtlsresult __xrtTlsStreamReadAccepted(xtlsstream* stream, void* output, size_t capacity, size_t* read)
+{ return __xrtTlsStreamReadImpl(stream, output, capacity, read, false); }
+#endif
 
 
 
@@ -2882,13 +2905,7 @@ static bool __xrtTlsStreamOwnershipCount(const void* pData, size_t* pCount)
 		if (s->ManagedOpen || s->ManagedClose || s->ManagedData) return false;
 	#endif
 	#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
-		/* Pending async graphs must be independently represented. Until their
-		 * participant is installed, refuse them rather than flattening nodes. */
-		if (xrtAtomic32Load(&s->AsyncCount, XMEMORY_ACQUIRE) || s->AsyncSendHead || s->AsyncSendTail ||
-			s->AsyncWaitHead || s->AsyncWaitTail || s->AsyncPosted || s->AsyncRunning ||
-			xrtAtomic64Load(&s->AsyncBytes, XMEMORY_ACQUIRE) ||
-			xrtAtomic32Load(&s->AsyncReads, XMEMORY_ACQUIRE) ||
-			xrtAtomic32Load(&s->AsyncSends, XMEMORY_ACQUIRE)) return false;
+		if (!__xrtTlsStreamAsyncOwnershipWalk(s, NULL, NULL)) return false;
 	#endif
 	if (s->RuntimeHeld) {
 		if (!s->OwnershipEngineHeld || s->RuntimeOwner.Data != s || !s->RuntimeOwner.Previous ||
@@ -2916,6 +2933,9 @@ static bool __xrtTlsStreamOwnershipTrace(const void* pData, xrtownershipvisitor 
 		!visit(xrtNetStreamOwnership(xrtAtomicPtrLoad(&s->Transport, XMEMORY_ACQUIRE)), context) ||
 		!visit((xrtownershipref){xrtAtomicPtrLoad(&s->Data, XMEMORY_ACQUIRE), s->OwnershipPolicy->Ops}, context) ||
 		!xrtTlsSessionBufferOwnershipTrace(s->Session, visit, context)) return false;
+	#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+		if (!__xrtTlsStreamAsyncOwnershipWalk(s, visit, context)) return false;
+	#endif
 	return !s->Error || visit(xrtErrorOwnership(s->Error), context);
 }
 XRT_API xrtownershipref xrtTlsStreamOwnership(const xtlsstream* pStream)

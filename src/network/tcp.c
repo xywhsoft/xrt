@@ -621,9 +621,9 @@ static void __xrtNetStreamWakeLifecycle(xnetstream* pStream)
 
 
 /* 进入跨线程发送提交区，阻止关闭过程越过已开始的提交。 */
-static bool __xrtNetStreamBeginSend(xnetstream* pStream)
+static bool __xrtNetStreamBeginSendMode(xnetstream* pStream, bool bSubmission)
 {
-	if (!__xrtNetStreamOwnershipEnter(pStream, true)) return false;
+	if (!__xrtNetStreamOwnershipEnter(pStream, bSubmission)) return false;
 	/* A terminal shell can outlive its Engine; do not consult Worker then. */
 	if (xrtNetStreamState(pStream) == XNET_STREAM_CLOSED) {
 		__xrtNetStreamOwnershipLeave(pStream);
@@ -650,6 +650,9 @@ static bool __xrtNetStreamBeginSend(xnetstream* pStream)
 	}
 	return true;
 }
+
+static bool __xrtNetStreamBeginSend(xnetstream* pStream)
+{ return __xrtNetStreamBeginSendMode(pStream, true); }
 
 
 
@@ -4132,9 +4135,10 @@ XRT_API xnetresult xrtNetStreamSendBytesVec(xnetstream* pStream,
 
 
 /* Prepare first, then atomically transfer and publish a complete chain. */
-XRT_API xnetresult xrtNetStreamSendBuffer(
+static xnetresult __xrtNetStreamSendBufferImpl(
 	xnetstream* pStream,
-	xnetbuf* pBuffer
+	xnetbuf* pBuffer,
+	bool bSubmission
 )
 {
 	__xrt_net_stream_buffer* pBatch;
@@ -4145,7 +4149,7 @@ XRT_API xnetresult xrtNetStreamSendBuffer(
 		__xrtErrorSetInvalidArgument();
 		return XNET_RESULT_ERROR;
 	}
-	if (!__xrtNetStreamBeginSend(pStream)) return XNET_RESULT_CLOSED;
+	if (!__xrtNetStreamBeginSendMode(pStream, bSubmission)) return XNET_RESULT_CLOSED;
 	if ( (pBuffer == &pStream->WriteBuffer) ||
 		(pBuffer->Reserved != NULL) || pBuffer->ReservedNew ) {
 		__xrtNetStreamSetError(
@@ -4195,6 +4199,17 @@ XRT_API xnetresult xrtNetStreamSendBuffer(
 	__xrtNetStreamEndSend(pStream);
 	__xrtNetStreamActiveLeave(pStream);
 	return Result;
+}
+
+XRT_API xnetresult xrtNetStreamSendBuffer(xnetstream* stream, xnetbuf* buffer)
+{ return __xrtNetStreamSendBufferImpl(stream, buffer, true); }
+
+xnetresult __xrtNetStreamSendBufferAccepted(xnetstream* stream, xnetbuf* buffer)
+{
+	if (!stream) { __xrtErrorSetInvalidArgument(); return XNET_RESULT_ERROR; }
+	if (xrtNetStreamState(stream) == XNET_STREAM_CLOSED) return XNET_RESULT_CLOSED;
+	if (!xrtNetWorkerIsCurrent(stream->Worker)) { __xrtErrorSetInvalidState(); return XNET_RESULT_ERROR; }
+	return __xrtNetStreamSendBufferImpl(stream, buffer, false);
 }
 
 

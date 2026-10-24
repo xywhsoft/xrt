@@ -98,6 +98,14 @@ struct xtlsstream {
 bool __xrtTlsStreamOwnershipEnter(xtlsstream* pStream, bool bSubmit);
 void __xrtTlsStreamOwnershipLeave(xtlsstream* pStream);
 
+#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+/* Already accepted native work is not a new public submission. It still
+ * requires the correct Worker and may never access a cleared participant. */
+xtlsresult __xrtTlsStreamReadAccepted(xtlsstream*, void*, size_t, size_t*);
+xtlsresult __xrtTlsStreamSendAccepted(xtlsstream*, const void*, size_t, size_t*);
+bool __xrtTlsStreamAsyncOwnershipWalk(const xtlsstream*, xrtownershipvisitor, ptr);
+#endif
+
 
 
 #if defined(XRT_FEATURE_TLS_STREAM_LISTENER)

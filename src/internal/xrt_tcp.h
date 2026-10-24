@@ -152,6 +152,9 @@ __xrt_net_stream_events_owner* __xrtNetStreamEventsPrepare(ptr pData,
 bool __xrtNetStreamEventsAttach(xnetstream* pStream, __xrt_net_stream_events_owner* pOwner);
 void __xrtNetStreamEventsDiscard(__xrt_net_stream_events_owner* pOwner);
 xnetresult __xrtNetStreamSendSecureTake(xnetstream* pStream, ptr pData, size_t iSize);
+/* Already accepted protocol work on the owning Worker; still checks write,
+ * close and abort gates, and never admits a cleared native participant. */
+xnetresult __xrtNetStreamSendBufferAccepted(xnetstream* pStream, xnetbuf* pBuffer);
 
 /* Stream 的可变 IO 状态只由所属 Worker 访问。 */
 struct xnetstream {

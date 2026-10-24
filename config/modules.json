@@ -10235,6 +10235,27 @@
 			]
 		},
 		{
+			"name": "tls_stream_future_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"tls_stream_ownership_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/tls/test_tls_stream_future_ownership.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_tls_stream_future_ownership.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/design/tls-stream-future-ownership.md"
+			]
+		},
+		{
 			"name": "tls_stream_tests",
 			"state": "implemented",
 			"feature": null,

@@ -13569,3 +13569,23 @@ Clear 不执行回调；Finish 在图目标有真实 pin 的前提下于 Freeze 
 完整引用边、失败原子性和退役约束见
 [TLS Stream 拥有图设计](../design/tls-stream-ownership.md)。仅运行普通
 固定密钥本机回环与生命周期检查，不以此代替安全专项或发布验收。
+
+### TLS Stream Future 拥有图
+
+pending TLS Future 不再作为未知裸回调节点拒绝：激活节点真实拥有 Stream、
+Promise、Owned CancelWatch 和缓存 Engine 租约，构造／FIFO、producer、
+取消上下文各持有一个引用。接收 bytes 结果通过拥有策略发布。
+
+永久身份由 `xrtTlsStreamFutureProducerPolicyV1Get`、
+`xrtTlsStreamFutureCancelPolicyV1Get`、
+`xrtTlsStreamFutureBytesPayloadPolicyV1Get`、
+`xrtTlsStreamFutureOwnershipQuiescenceV1Get` 返回；
+`xrtTlsStreamFutureOwnershipAdapterV1` 返回 Adapter 与 mandatory preparation，
+拒绝时不修改输出。每个子节点仍需独立准入，旧借用式 Stream 不因此获得
+认证。节点 Prepare 等待真实源完成，不能提前关闭已有 producer 的 Future。
+
+节点完成时即脱离缓存 Engine 租约，保留惰性收集 pin 不阻塞 Engine 退役。
+Claim 仍拒绝公开新提交；原生已受理读写保留正确 Worker 上的内部通道，
+不解除 Claim，不绕过 Clear／写入／关闭／取消门，也不改变时间单位。
+具体引用、发布和退役顺序见
+[Future 激活图](../design/tls-stream-future-ownership.md)。

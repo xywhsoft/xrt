@@ -145,14 +145,14 @@ static void lifecycle(xnetportbackend backend,bool failure)
             xrtTlsStreamAvailable(s.client),xrtAtomic32Load(&s.closed,XMEMORY_ACQUIRE),xrtGetError()?(int)xrtErrorKind(xrtGetError()):0);CHECK(false);}
         xrtThreadYield();}
     CHECK(xrtNetListenerClose(s.listener));xrtNetListenerDestroy(s.listener);s.listener=NULL;
-    /* A legacy async node is not a certified participant yet. Refuse the
-     * graph, then exercise ordinary cancellation before testing retirement. */
+    /* The activation is now a real participant. Exercise ordinary cancellation
+     * here; the separate Future fixture retains its entire pending graph. */
     xfuture* pending=xrtTlsStreamWaitAsync(s.client,XTLS_STREAM_WAIT_END);CHECK(pending);
     for(;;){xrtownershipscope freeze={0};
         if(xrtOwnershipFreezeTryBegin(&freeze)){
             bool idle=!xrtNetEngineOwnershipQuiescenceV1Get()->Busy(s.engine);
-            if(idle){size_t untouched=SIZE_MAX;xrtownershipref ref=xrtTlsStreamOwnership(s.client);
-                CHECK(!ref.Ops->Count(ref.Data,&untouched)&&untouched==SIZE_MAX);refusals++;}
+            if(idle){size_t count=0;xrtownershipref ref=xrtTlsStreamOwnership(s.client);
+                CHECK(ref.Ops->Count(ref.Data,&count)&&count>0);}
             CHECK(xrtOwnershipScopeEnd(&freeze));if(idle)break;
         }CHECK(!__xrtWaitExpired(due));xrtThreadYield();
     }
