@@ -13542,3 +13542,30 @@ Future 发布前已经 OPEN、保留引用后销毁 Future 不关闭连接、DNS
 协作取消、全过程超时、结构化原因链、Select/IOCP/io_uring 后端包装与通用协程
 Await；公共桥接器的监听安装 OOM 由
 `tests/concurrency/test_future_bridge_oom.c` 确定性覆盖。
+
+### 显式拥有的 TLS Stream（V1，核心阶段）
+
+`xrtTlsStreamConnectOwnedV1`、`xrtTlsStreamAttachOwnedV1`、
+`xrtTlsStreamClientOwnedV1`、`xrtTlsStreamAcceptOwnedV1` 使用永久
+`xtlsstreamownershipv1` 策略。成功接管一个 Data 引用，失败不接管；
+Attach 的 TCP／Session 接管合同不变。Data 必须真实拥有所有事件和
+Session 所借用的回调上下文，直到 Session 销毁后才释放。此模式的
+Events／Data 不可替换，旧借用式工厂不自动获得图认证。
+
+`xrtTlsStreamOwnership` 返回真实引用；
+`xrtTlsStreamRuntimeOwnershipV1Get`、
+`xrtTlsStreamTransportOwnershipV1Get`、
+`xrtTlsStreamOwnershipQuiescenceV1Get` 返回永久策略身份。
+`xrtTlsStreamOwnershipAdapterV1` 接收策略地址白名单和 preparation 输出；
+拒绝时不修改输出。操作中的对象、未知 Listener 管理上下文和仍有旧式
+异步节点的对象目前不获认证，不能据此宣称整个 TLS 组合图已完成。
+
+Claim 隔离新提交；Prepare 推进真实 TCP 停止，待定时器、命令、运行时
+和回调静止后，在 Freeze 外释放未读 Session 缓冲，再重新发现全图。
+Clear 不执行回调；Finish 在图目标有真实 pin 的前提下于 Freeze 外
+释放 Session、TCP、Data，保留清理错误并支持重复检查，不重复析构。
+此阶段未改变任何时间单位或支持后端。
+
+完整引用边、失败原子性和退役约束见
+[TLS Stream 拥有图设计](../design/tls-stream-ownership.md)。仅运行普通
+固定密钥本机回环与生命周期检查，不以此代替安全专项或发布验收。

@@ -740,7 +740,7 @@ static bool __xrtTlsStreamAsyncSchedule(xtlsstream* pStream)
 	if ( pTransport == NULL ) {
 		return false;
 	}
-	xrtTlsStreamRef(pStream);
+	if (!xrtTlsStreamRef(pStream)) return false;
 	pStream->AsyncPosted = true;
 	if ( !__xrtNetEnginePostInternal(
 		pTransport->Worker,
@@ -764,11 +764,13 @@ static void __xrtTlsStreamAsyncCancel(ptr pData)
 		(__xrt_tls_stream_async*)pData;
 	xtlsstream* pStream = pAsync->Stream;
 
+	if (!__xrtTlsStreamOwnershipEnter(pStream, false)) return;
 	__xrtSpinLock(&pStream->AsyncLock);
 	if ( pAsync->Linked ) {
 		(void)__xrtTlsStreamAsyncSchedule(pStream);
 	}
 	__xrtSpinUnlock(&pStream->AsyncLock);
+	__xrtTlsStreamOwnershipLeave(pStream);
 }
 
 
@@ -1341,7 +1343,7 @@ XRT_API uint32 xrtTlsStreamAsyncCount(const xtlsstream* pStream)
 
 
 /* 创建并发布一个 TLS Stream 条件 Future。 */
-XRT_API xfuture* xrtTlsStreamWaitAsync(
+static xfuture* __xrtTlsStreamWaitAsync(
 	xtlsstream* pStream,
 	xtlsstreamwait Wait
 )
@@ -1377,7 +1379,7 @@ XRT_API xfuture* xrtTlsStreamWaitAsync(
 
 
 /* 创建并发布一个拥有结果的拉取接收 Future。 */
-XRT_API xfuture* xrtTlsStreamRecvAsync(
+static xfuture* __xrtTlsStreamRecvAsync(
 	xtlsstream* pStream,
 	size_t iMaxBytes
 )
@@ -1413,7 +1415,7 @@ XRT_API xfuture* xrtTlsStreamRecvAsync(
 
 
 /* 校验、复制并发布一个完整明文发送 Future。 */
-XRT_API xfuture* xrtTlsStreamSendAsync(
+static xfuture* __xrtTlsStreamSendAsync(
 	xtlsstream* pStream,
 	const void* pData,
 	size_t iSize
@@ -1452,7 +1454,7 @@ XRT_API xfuture* xrtTlsStreamSendAsync(
 
 
 /* 失败原子地校验、展平并发布一个分片发送 Future。 */
-XRT_API xfuture* xrtTlsStreamSendVecAsync(
+static xfuture* __xrtTlsStreamSendVecAsync(
 	xtlsstream* pStream,
 	const xnetspan* pSpans,
 	size_t iCount
@@ -1520,6 +1522,27 @@ XRT_API xfuture* xrtTlsStreamSendVecAsync(
 	}
 	__xrtTlsStreamAsyncSubmit(pAsync);
 	return pFuture;
+}
+
+XRT_API xfuture* xrtTlsStreamWaitAsync(xtlsstream* s, xtlsstreamwait wait)
+{
+	if (!__xrtTlsStreamOwnershipEnter(s, true)) return NULL;
+	xfuture* result = __xrtTlsStreamWaitAsync(s, wait); __xrtTlsStreamOwnershipLeave(s); return result;
+}
+XRT_API xfuture* xrtTlsStreamRecvAsync(xtlsstream* s, size_t maximum)
+{
+	if (!__xrtTlsStreamOwnershipEnter(s, true)) return NULL;
+	xfuture* result = __xrtTlsStreamRecvAsync(s, maximum); __xrtTlsStreamOwnershipLeave(s); return result;
+}
+XRT_API xfuture* xrtTlsStreamSendAsync(xtlsstream* s, const void* data, size_t size)
+{
+	if (!__xrtTlsStreamOwnershipEnter(s, true)) return NULL;
+	xfuture* result = __xrtTlsStreamSendAsync(s, data, size); __xrtTlsStreamOwnershipLeave(s); return result;
+}
+XRT_API xfuture* xrtTlsStreamSendVecAsync(xtlsstream* s, const xnetspan* spans, size_t count)
+{
+	if (!__xrtTlsStreamOwnershipEnter(s, true)) return NULL;
+	xfuture* result = __xrtTlsStreamSendVecAsync(s, spans, count); __xrtTlsStreamOwnershipLeave(s); return result;
 }
 
 #endif

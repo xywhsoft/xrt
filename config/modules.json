@@ -10204,6 +10204,37 @@
 			]
 		},
 		{
+			"name": "tls_stream_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"tls_stream",
+				"tls_client_resume",
+				"tls_server_resume",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem",
+				"net_tcp_future",
+				"tls_stream_future",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/tls/test_tls_stream_ownership.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_tls_stream_ownership.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/design/tls-stream-ownership.md"
+			]
+		},
+		{
 			"name": "tls_stream_tests",
 			"state": "implemented",
 			"feature": null,

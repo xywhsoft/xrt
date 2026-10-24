@@ -20,6 +20,19 @@ typedef struct __xrt_tls_listener_stream __xrt_tls_listener_stream;
 /* 组合对象只在所属 Worker 修改协议字段，原子字段提供跨线程快照和门。 */
 struct xtlsstream {
 	volatile int32 References;
+	xatomicptr OwnershipClaim;
+	xatomic32 OwnershipState;
+	xatomic32 OwnershipActive;
+	xnetengine* OwnershipEngine;
+	__xrt_net_engine_runtime RuntimeOwner;
+	const xtlsstreamownershipv1* OwnershipPolicy;
+	xerror* OwnershipFinishError;
+	bool OwnershipEngineHeld;
+	bool OwnershipStorageHeld;
+	bool OwnershipDataHeld;
+	bool OwnershipFinished;
+	bool OwnershipFinishing;
+	bool OwnershipBuffersSettled;
 	xatomic32 State;
 	xatomic32 CloseGate;
 	xatomic32 AbortGate;
@@ -79,6 +92,11 @@ struct xtlsstream {
 		ptr ManagedData;
 	#endif
 };
+
+/* Complete short native submission/ref transitions. Worker protocol borrows
+ * are excluded by Engine quiescence, not by a lock held across callbacks. */
+bool __xrtTlsStreamOwnershipEnter(xtlsstream* pStream, bool bSubmit);
+void __xrtTlsStreamOwnershipLeave(xtlsstream* pStream);
 
 
 
