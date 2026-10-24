@@ -3735,19 +3735,6 @@
 #endif
 #endif
 
-/* net_dial_future_common 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_DIAL_FUTURE_COMMON)
-#ifndef XRT_FEATURE_NET_DIAL_FUTURE_COMMON
-#define XRT_FEATURE_NET_DIAL_FUTURE_COMMON
-#endif
-#ifndef XRT_MODULE_NET_TCP
-#define XRT_MODULE_NET_TCP
-#endif
-#ifndef XRT_MODULE_FUTURE_BRIDGE
-#define XRT_MODULE_FUTURE_BRIDGE
-#endif
-#endif
-
 /* tls_stream_dial_future 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_DIAL_FUTURE)
 #ifndef XRT_FEATURE_TLS_STREAM_DIAL_FUTURE
@@ -3756,11 +3743,21 @@
 #ifndef XRT_MODULE_TLS_STREAM_DIAL
 #define XRT_MODULE_TLS_STREAM_DIAL
 #endif
+#ifndef XRT_MODULE_NET_DIAL_FUTURE_COMMON
+#define XRT_MODULE_NET_DIAL_FUTURE_COMMON
+#endif
+#endif
+
+/* net_dial_future_common 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_DIAL_FUTURE_COMMON)
+#ifndef XRT_FEATURE_NET_DIAL_FUTURE_COMMON
+#define XRT_FEATURE_NET_DIAL_FUTURE_COMMON
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
 #ifndef XRT_MODULE_FUTURE
 #define XRT_MODULE_FUTURE
-#endif
-#ifndef XRT_MODULE_FUTURE_BRIDGE
-#define XRT_MODULE_FUTURE_BRIDGE
 #endif
 #endif
 
@@ -3946,6 +3943,22 @@
 #endif
 #ifndef XRT_MODULE_FUTURE_BRIDGE
 #define XRT_MODULE_FUTURE_BRIDGE
+#endif
+#endif
+
+/* net_file_future 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_FILE_FUTURE)
+#ifndef XRT_FEATURE_NET_FILE_FUTURE
+#define XRT_FEATURE_NET_FILE_FUTURE
+#endif
+#ifndef XRT_MODULE_NET_FILE
+#define XRT_MODULE_NET_FILE
+#endif
+#ifndef XRT_MODULE_FUTURE_BRIDGE
+#define XRT_MODULE_FUTURE_BRIDGE
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
 #endif
 #endif
 
@@ -27586,9 +27599,8 @@ XRT_EXTERN_C_END
 #if defined(XRT_FEATURE_NET_TCP_DIAL_FUTURE) && \
 	(!defined(XRT_FEATURE_NET_TCP_DIAL) || \
 	 !defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON) || \
-	 !defined(XRT_FEATURE_FUTURE) || \
-	 !defined(XRT_FEATURE_FUTURE_BRIDGE))
-	#error "XRT TCP Dial Future support requires TCP Dial, Future and Future bridge support"
+	 !defined(XRT_FEATURE_FUTURE))
+	#error "XRT TCP Dial Future support requires TCP Dial, Future and Dial Future common"
 #endif
 
 #if defined(XRT_FEATURE_NET_TCP_SYNC) && \
@@ -34378,8 +34390,8 @@ XRT_EXTERN_C_END
 #if defined(XRT_FEATURE_TLS_STREAM_DIAL_FUTURE) && \
 	(!defined(XRT_FEATURE_TLS_STREAM_DIAL) || \
 	 !defined(XRT_FEATURE_FUTURE) || \
-	 !defined(XRT_FEATURE_FUTURE_BRIDGE))
-	#error "XRT TLS Stream Dial Future support requires TLS Stream Dial, Future and Future bridge"
+	 !defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON))
+	#error "XRT TLS Stream Dial Future support requires TLS Stream Dial, Future and Dial Future common"
 #endif
 
 #if defined(XRT_FEATURE_TLS_STREAM_LISTENER) && \
@@ -34784,6 +34796,11 @@ XRT_API xtlsdial* xrtTlsDial(
 
 
 #if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+XRT_API xtlsdial* xrtTlsDialProxyOwnedV1(xnetengine* pEngine,
+	xnetresolver* pResolver, const xnetproxy* pProxy, cstr sHost, uint16 iPort,
+	const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig, ptr pData,
+	const xtlsdialownershipv1* pPolicy);
+XRT_API const xnetproxydialownershipv1* xrtTlsDialProxyTransportOwnershipV1Get(void);
 /* 经代理 CONNECT 隧道后对真实目标完成端到端 TLS；代理只在调用期间借用。 */
 XRT_API xtlsdial* xrtTlsDialProxy(
 	xnetengine* pEngine,
@@ -34817,6 +34834,30 @@ XRT_API xfuture* xrtTlsDialAsync(
 	const xtlsstreamevents* pStreamEvents,
 	ptr pStreamData
 );
+/* Same success1/failure0 Data transfer as Stream ownership. Completion before
+ * submission publication returns immediately rather than blocking a Worker. */
+XRT_API xfuture* xrtTlsDialAsyncOwnedV1(xnetengine* pEngine,
+	xnetresolver* pResolver, cstr sHost, uint16 iPort,
+	const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig,
+	ptr pData, const xtlsstreamownershipv1* pPolicy);
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+XRT_API xfuture* xrtTlsDialProxyAsyncOwnedV1(xnetengine* pEngine,
+	xnetresolver* pResolver, const xnetproxy* pProxy, cstr sHost, uint16 iPort,
+	const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig,
+	ptr pData, const xtlsstreamownershipv1* pPolicy);
+#endif
+XRT_API const xtlsdialownershipv1* xrtTlsDialFutureDialPolicyV1Get(void);
+XRT_API const xtlsdialownershipv1* xrtTlsDialFutureDialPushPolicyV1Get(void);
+XRT_API const xfutureproducerownershipv1* xrtTlsDialFutureProducerPolicyV1Get(void);
+XRT_API const xcancelwatchownershipv1* xrtTlsDialFutureCancelPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtTlsDialFuturePayloadPolicyV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsDialFutureOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsDialFutureOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+XRT_API const xrtownershipquiescencev1* xrtTlsDialFutureContextOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsDialFutureContextOwnershipAdapterV1(
+	xrtownershipref Reference, const xtlsstreamownershipv1* const* pPolicies,
+	size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
 #endif
 
 
@@ -51115,19 +51156,6 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
-/* net_dial_future_common 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_DIAL_FUTURE_COMMON)
-#ifndef XRT_FEATURE_NET_DIAL_FUTURE_COMMON
-#define XRT_FEATURE_NET_DIAL_FUTURE_COMMON
-#endif
-#ifndef XRT_MODULE_NET_TCP
-#define XRT_MODULE_NET_TCP
-#endif
-#ifndef XRT_MODULE_FUTURE_BRIDGE
-#define XRT_MODULE_FUTURE_BRIDGE
-#endif
-#endif
-
 /* tls_stream_dial_future 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_DIAL_FUTURE)
 #ifndef XRT_FEATURE_TLS_STREAM_DIAL_FUTURE
@@ -51136,11 +51164,21 @@ XRT_EXTERN_C_END
 #ifndef XRT_MODULE_TLS_STREAM_DIAL
 #define XRT_MODULE_TLS_STREAM_DIAL
 #endif
+#ifndef XRT_MODULE_NET_DIAL_FUTURE_COMMON
+#define XRT_MODULE_NET_DIAL_FUTURE_COMMON
+#endif
+#endif
+
+/* net_dial_future_common 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_DIAL_FUTURE_COMMON)
+#ifndef XRT_FEATURE_NET_DIAL_FUTURE_COMMON
+#define XRT_FEATURE_NET_DIAL_FUTURE_COMMON
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
 #ifndef XRT_MODULE_FUTURE
 #define XRT_MODULE_FUTURE
-#endif
-#ifndef XRT_MODULE_FUTURE_BRIDGE
-#define XRT_MODULE_FUTURE_BRIDGE
 #endif
 #endif
 
@@ -51326,6 +51364,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_FUTURE_BRIDGE
 #define XRT_MODULE_FUTURE_BRIDGE
+#endif
+#endif
+
+/* net_file_future 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_FILE_FUTURE)
+#ifndef XRT_FEATURE_NET_FILE_FUTURE
+#define XRT_FEATURE_NET_FILE_FUTURE
+#endif
+#ifndef XRT_MODULE_NET_FILE
+#define XRT_MODULE_NET_FILE
+#endif
+#ifndef XRT_MODULE_FUTURE_BRIDGE
+#define XRT_MODULE_FUTURE_BRIDGE
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
 #endif
 #endif
 

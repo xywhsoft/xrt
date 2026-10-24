@@ -9878,15 +9878,13 @@
 			"feature": "XRT_FEATURE_TLS_STREAM_DIAL_FUTURE",
 			"depends": [
 				"tls_stream_dial",
-				"future",
-				"future_bridge"
+				"net_dial_future_common"
 			],
 			"public_headers": [
 				"include/xrt/tls_stream.h"
 			],
 			"internal_headers": [
-				"src/internal/xrt_tls_stream.h",
-				"src/internal/xrt_future_bridge.h"
+				"src/internal/xrt_tls_stream.h"
 			],
 			"sources": [
 				"src/tls/stream_dial_future.c"
@@ -10291,6 +10289,19 @@
 			"docs": ["docs/api/tls.md"]
 		},
 		{
+			"name": "tls_dial_future_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_dial_ownership_tests", "tls_stream_dial_future", "tls_stream_dial_proxy", "net_proxy_dial_future", "net_tcp_dial_future", "net_proxy_http_connect", "net_proxy_socks5"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/tls/test_tls_dial_future_ownership.c"],
+			"single_tests": ["tests/single/test_single_tls_dial_future_ownership.c"],
+			"examples": [],
+			"docs": ["docs/api/tls.md"]
+		},
+		{
 			"name": "tls_stream_tests",
 			"state": "implemented",
 			"feature": null,
@@ -10460,7 +10471,7 @@
 			"name": "net_dial_future_common",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_NET_DIAL_FUTURE_COMMON",
-			"depends": ["net_tcp", "future_bridge"],
+			"depends": ["net_tcp", "future"],
 			"public_headers": [],
 			"internal_headers": ["src/internal/xrt_dial_future.h"],
 			"sources": ["src/network/dial_future.c"],

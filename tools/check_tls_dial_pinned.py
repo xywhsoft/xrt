@@ -12,18 +12,21 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--implementation',type=Path,required=True);p.add_argument('--out',type=Path,required=True)
     p.add_argument('--compiler',action='append',required=True);p.add_argument('--sanitize',action='store_true')
+    p.add_argument('--fixture',choices=['core','future'],default='core')
     a=p.parse_args();root=Path(__file__).resolve().parents[1];out=a.out.resolve();assert not out.exists();out.mkdir(parents=True)
     implementation=a.implementation.resolve();sha=lambda q:hashlib.sha256(Path(q).read_bytes()).hexdigest()
-    _,_,_,_,defines,links,*_=_load_modules('tls_dial_ownership_tests',platform=platform_name())
+    module='tls_dial_future_ownership_tests' if a.fixture=='future' else 'tls_dial_ownership_tests'
+    fixture=root/('tests/tls/test_tls_dial_future_ownership.c' if a.fixture=='future' else 'tests/tls/test_tls_dial_ownership.c')
+    _,_,_,_,defines,links,*_=_load_modules(module,platform=platform_name())
     source=out/'pinned.c';source.write_text('#define XRUNTIME_IMPLEMENTATION\n#define XRT_IMPLEMENTATION\n#include "'+implementation.as_posix()+'"\n'
         '#define TLS_DIAL_OWNERSHIP_PINNED\n#define TLS_DIAL_TEST_DURATION(n) ((uint64)(n)*1000u)\n'
         '#define TLS_DIAL_TEST_DEADLINE xdeadline\n'
         '#define __xrtWaitAfter(n) xrtDeadlineAfter((uint64)(n)*1000u)\n'
         '#define __xrtWaitExpired(n) xrtDeadlineExpired(n)\n'
         '#define xrtFutureWaitFor(f,n) (xrtFutureWaitFor((f),(uint64)(n)*1000u))\n'
-        '#include "'+(root/'tests/tls/test_tls_dial_ownership.c').as_posix()+'"\n')
+        '#include "'+fixture.as_posix()+'"\n')
     compilers=[Path(shutil.which(cc) or cc).resolve() for cc in a.compiler]
-    paths=[Path(__file__),implementation,source,root/'tests/tls/test_tls_dial_ownership.c',root/'tests/test.h',root/'config/modules.json',root/'tools/build.py',*compilers]
+    paths=[Path(__file__),implementation,source,fixture,root/'tests/test.h',root/'config/modules.json',root/'tools/build.py',*compilers]
     paths += [q for folder in ['include','tests/fixtures'] for q in (root/folder).rglob('*.h')]
     r=dict(Complete=False,Inputs={str(q):sha(q) for q in paths},Rows=[],Failures=[],Products=[],
         OrdinaryLiteralLoopback=True,ExternalNetworkTests=False,NetworkSecurityTests=False,MalformedCryptoTests=False,
@@ -39,7 +42,7 @@ def main():
         row=dict(Name=name,Command=args,Exit=code,Log=str(log),Sha256=sha(log),Seconds=time.monotonic()-start)
         r['Rows'].append(row);save();print(name,code,flush=True);assert not code,str(log)
         if not name.endswith('.build'):
-            match=re.search(r'TLS Dial ownership: (\d+) graphs; (\d+) proofs; (\d+) refusals; (\d+) persistent failures; (\d+)/(\d+) budgets; balanced',log.read_text())
+            match=re.search(r'TLS Dial (?:Future )?ownership: (\d+) graphs; (\d+) proofs; (\d+) refusals; (\d+) persistent failures; (\d+)/(\d+) budgets; balanced',log.read_text())
             assert match,str(log);row['ObservedCounters']=list(map(int,match.groups()));assert row['ObservedCounters'][0]==row['ObservedCounters'][1] and row['ObservedCounters'][3]==5 and row['ObservedCounters'][5]>0
     for index,cc in enumerate(compilers):
         modes=[('tcc',[])] if cc.stem=='tcc' else [('O0',['-O0']),('O2',['-O2'])]

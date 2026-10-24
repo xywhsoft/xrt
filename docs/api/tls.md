@@ -13652,3 +13652,30 @@ Adapter 只接受显式准入的策略地址，提供 mandatory preparation，�
 
 完整引用与发布规则见 [Dial 阶段拥有图](../design/tls-dial-ownership.md)。
 旧借用 Dial、Proxy 和 Future 桥接不因这些入口自动获得认证。
+
+### TLS Dial Future 与拥有式 Proxy
+
+新增 `xrtTlsDialAsyncOwnedV1`、`xrtTlsDialProxyOwnedV1` 和
+`xrtTlsDialProxyAsyncOwnedV1`，成功消费一份 Data 信用，失败不消费。
+Data 的拥有范围必须包括配置和事件所借用的全部上下文。配置由独立
+owner record 持有；Future 完成后，已交付 Stream 仍可使用它。
+
+永久策略和图入口包括 `xrtTlsDialFutureDialPolicyV1Get`、
+`xrtTlsDialFutureDialPushPolicyV1Get`、
+`xrtTlsDialFutureProducerPolicyV1Get`、`xrtTlsDialFutureCancelPolicyV1Get`、
+`xrtTlsDialFuturePayloadPolicyV1Get`、
+`xrtTlsDialFutureOwnershipQuiescenceV1Get`、
+`xrtTlsDialFutureOwnershipAdapterV1`、
+`xrtTlsDialFutureContextOwnershipQuiescenceV1Get`、
+`xrtTlsDialFutureContextOwnershipAdapterV1`，以及
+`xrtTlsDialProxyTransportOwnershipV1Get`。各传递目标须独立准入和保留 pin。
+
+Future 发布不阻塞 Worker：提前完成保存真实结果信用并返回，发布后由
+唯一处理者完成 Promise；发布前取消不丢失。TLS payload 使用 TLS 的
+Drop／Trace，不冒充 TCP Stream。Proxy 握手后在同一 Worker Attach TLS，
+外层总期限覆盖全部阶段。Clear 不运行用户回调；Finish 域外释放资源，
+持久保存首次清理错误，重复检查不重复析构。
+
+旧 `xrtTlsDialAsync` 也移除阻塞等待，但保留借用语义，不自动认证其图。
+本批保持两边各自时间 ABI，完整合同和验收范围见
+[Dial Future 与 Proxy 拥有图](../design/tls-dial-future-ownership.md)。

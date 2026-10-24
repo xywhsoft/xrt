@@ -1102,6 +1102,10 @@ static void __xrtTlsDialOwnedTryRelease(xtlsdial* d)
 static void __xrtTlsDialOwnedCancelStage(xtlsdial* d)
 {
 	if (!xrtNetWorkerIsCurrent(d->Worker)) abort();
+	#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+		xnetproxydial* proxy = xrtAtomicPtrLoad(&d->ProxyDial, XMEMORY_ACQUIRE);
+		if (proxy && xrtNetProxyDialCancel(proxy)) return;
+	#endif
 	xnetdial* tcp = xrtAtomicPtrLoad(&d->TransportDial, XMEMORY_ACQUIRE);
 	if (tcp && xrtNetDialCancel(tcp)) return;
 	if (d->OwnedStream) (void)__xrtTlsStreamAbortAccepted(d->OwnedStream);
@@ -1236,6 +1240,19 @@ XRT_API const xnetdialownershipv1* xrtTlsDialTransportOwnershipV1Get(void)
 	static const xnetdialownershipv1 p = {sizeof(p), __xrtTlsDialOwnedTcpDone,
 		__xrtTlsDialOwnedDrop, &__xrtTlsDialOwnershipOps}; return &p;
 }
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+static void __xrtTlsDialOwnedProxyDone(xnetproxydial* proxy, xnetresult result,
+	xnetstream* stream, const xerror* error, ptr data)
+{
+	xtlsdial* d = __xrtTlsDialOwnedFrame(data); (void)proxy;
+	__xrtTlsDialOwnedTransportDone(d, result, stream, error); __xrtTlsDialOwnedFrameEnd(d);
+}
+XRT_API const xnetproxydialownershipv1* xrtTlsDialProxyTransportOwnershipV1Get(void)
+{
+	static const xnetproxydialownershipv1 p = {sizeof(p), __xrtTlsDialOwnedProxyDone,
+		__xrtTlsDialOwnedDrop, &__xrtTlsDialOwnershipOps}; return &p;
+}
+#endif
 static void __xrtTlsDialOwnedRuntimeDrop(ptr data) { xrtTlsDialDestroy(data); }
 XRT_API const xnetruntimeownershipv1* xrtTlsDialRuntimeOwnershipV1Get(void)
 {
@@ -1248,6 +1265,9 @@ static void __xrtTlsDialOwnedResources(xtlsdial* d)
 {
 	xrtownershipscope m = {0}; if (!xrtOwnershipMutationBegin(&m)) abort();
 	xnetdial* tcp = xrtAtomicPtrExchange(&d->TransportDial, NULL, XMEMORY_ACQ_REL);
+	#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+		xnetproxydial* proxy = xrtAtomicPtrExchange(&d->ProxyDial, NULL, XMEMORY_ACQ_REL);
+	#endif
 	xtlssession* session = d->OwnedSession; d->OwnedSession = NULL;
 	xtlsstream* stream = d->OwnedStream; d->OwnedStream = NULL;
 	xerror* error = d->Error; d->Error = NULL;
@@ -1257,13 +1277,20 @@ static void __xrtTlsDialOwnedResources(xtlsdial* d)
 	d->Engine = NULL; d->OwnershipEngineHeld = false; d->OwnershipStorageHeld = false;
 	if (!xrtOwnershipScopeEnd(&m)) abort();
 	xrtTlsSessionDestroy(session); xrtTlsStreamDestroy(stream); xrtNetDialDestroy(tcp); xrtErrorFree(error);
+	#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+		xrtNetProxyDialDestroy(proxy);
+	#endif
 	if (data) d->OwnershipPolicy->Drop(data);
 	if (operational) __xrtNetEngineObjectRelease(engine);
 	if (storage) __xrtNetEngineStorageRelease(engine);
 }
-XRT_API xtlsdial* xrtTlsDialOwnedV1(xnetengine* engine, xnetresolver* resolver, cstr host, uint16 port,
+static xtlsdial* __xrtTlsDialOwnedStart(xnetengine* engine, xnetresolver* resolver, const void* proxy,
+	cstr host, uint16 port,
 	const xtlsclientconfig* tls, const xtlsdialconfig* config, ptr data, const xtlsdialownershipv1* policy)
 {
+	#if !defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+		(void)proxy;
+	#endif
 	if (!engine || !resolver || !host || !host[0] || !port || !data || !policy || policy->size != sizeof(*policy) ||
 		!policy->Done || !policy->Drop || !policy->Ops || !policy->Ops->Count || !policy->Ops->Trace) {
 		__xrtErrorSetInvalidArgument(); return NULL;
@@ -1315,13 +1342,29 @@ XRT_API xtlsdial* xrtTlsDialOwnedV1(xnetengine* engine, xnetresolver* resolver, 
 		else { xrtAtomic64Store(&d->Timer, id, XMEMORY_RELEASE);
 			if (xrtAtomic32Load(&d->TimerDone, XMEMORY_ACQUIRE)) xrtAtomic64Store(&d->Timer, 0, XMEMORY_RELEASE); }
 	} else if (!ready) xrtAtomic32Store(&d->TimerDone, 1, XMEMORY_RELEASE);
-	xnetdial* tcp = NULL;
+	xnetdial* tcp = NULL; bool accepted = false;
+	#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+		xnetproxydial* proxyDial = NULL;
+	#endif
 	if (ready) {
 		bool held = xrtTlsDialRef(d) != NULL;
-		tcp = held ? xrtNetDialOwnedV1(engine, resolver, host, port, &cfg.Transport, NULL, NULL, d, xrtTlsDialTransportOwnershipV1Get()) : NULL;
-		if (!tcp && held) xrtTlsDialDestroy(d);
+		#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+			if (proxy) {
+				xnetproxydialconfig pc; xrtNetProxyDialConfigInit(&pc); pc.Transport = cfg.Transport;
+				pc.Timeout = 0; /* the enclosing timer owns the total deadline */
+				proxyDial = held ? xrtNetProxyDialOwnedV1(engine, resolver, proxy, host, port,
+					&pc, NULL, NULL, d, xrtTlsDialProxyTransportOwnershipV1Get()) : NULL;
+				accepted = proxyDial != NULL;
+			} else
+		#endif
+		{
+			tcp = held ? xrtNetDialOwnedV1(engine, resolver, host, port, &cfg.Transport,
+				NULL, NULL, d, xrtTlsDialTransportOwnershipV1Get()) : NULL;
+			accepted = tcp != NULL;
+		}
+		if (!accepted && held) xrtTlsDialDestroy(d);
 	}
-	if (!tcp) {
+	if (!accepted) {
 		xerror* failure = xrtTakeError(); __xrtTlsDialCancelTimer(d);
 		xtlssession* session = d->OwnedSession; d->OwnedSession = NULL; xrtTlsSessionDestroy(session);
 		xrtownershipscope m = {0}; if (!xrtOwnershipMutationBegin(&m)) abort();
@@ -1337,11 +1380,26 @@ XRT_API xtlsdial* xrtTlsDialOwnedV1(xnetengine* engine, xnetresolver* resolver, 
 	xrtownershipscope m = {0}; if (!xrtOwnershipMutationBegin(&m)) abort();
 	__xrtSpinLock(&d->OwnershipLock);
 	xrtAtomicPtrStore(&d->TransportDial, tcp, XMEMORY_RELEASE); d->OwnershipPublished = true;
+	#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+		xrtAtomicPtrStore(&d->ProxyDial, proxyDial, XMEMORY_RELEASE);
+	#endif
 	__xrtSpinUnlock(&d->OwnershipLock);
 	if (__xrtTlsDialStopping(d)) (void)__xrtTlsDialOwnedPostStop(d);
 	if (!xrtOwnershipScopeEnd(&m)) abort();
 	__xrtTlsDialOwnedTryRelease(d); __xrtTlsDialOwnedLeave(d); return d;
 }
+XRT_API xtlsdial* xrtTlsDialOwnedV1(xnetengine* engine, xnetresolver* resolver, cstr host, uint16 port,
+	const xtlsclientconfig* tls, const xtlsdialconfig* config, ptr data, const xtlsdialownershipv1* policy)
+{ return __xrtTlsDialOwnedStart(engine, resolver, NULL, host, port, tls, config, data, policy); }
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+XRT_API xtlsdial* xrtTlsDialProxyOwnedV1(xnetengine* engine, xnetresolver* resolver, const xnetproxy* proxy,
+	cstr host, uint16 port, const xtlsclientconfig* tls, const xtlsdialconfig* config, ptr data,
+	const xtlsdialownershipv1* policy)
+{
+	if (!proxy) { __xrtErrorSetInvalidArgument(); return NULL; }
+	return __xrtTlsDialOwnedStart(engine, resolver, proxy, host, port, tls, config, data, policy);
+}
+#endif
 static bool __xrtTlsDialOwnedCount(const void* data, size_t* count)
 {
 	const xtlsdial* d = data;
@@ -1365,6 +1423,10 @@ static bool __xrtTlsDialOwnedTrace(const void* data, xrtownershipvisitor visit, 
 		(d->OwnershipEngineHeld && !visit(xrtNetEngineOwnership(d->Engine), context)) ||
 		(d->OwnershipDataHeld && !visit((xrtownershipref){d->DoneData, d->OwnershipPolicy->Ops}, context))) return false;
 	xnetdial* tcp = xrtAtomicPtrLoad(&d->TransportDial, XMEMORY_ACQUIRE);
+	#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+		xnetproxydial* proxy = xrtAtomicPtrLoad(&d->ProxyDial, XMEMORY_ACQUIRE);
+		if (proxy && !visit(xrtNetProxyDialOwnership(proxy), context)) return false;
+	#endif
 	return (!tcp || visit(xrtNetDialOwnership(tcp), context)) &&
 		(!d->OwnedStream || visit(xrtTlsStreamOwnership(d->OwnedStream), context)) &&
 		(!d->OwnedSession || xrtTlsSessionBufferOwnershipTrace(d->OwnedSession, visit, context)) &&

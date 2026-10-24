@@ -1,7 +1,7 @@
 """Explicitly allowlisted, ordinary TLS ownership-graph acceptance.
 
 This does not execute the module's broad test list. Only a local ownership
-fixture and three existing ordinary TLS/transport loopback fixtures run. No
+fixture and seven existing ordinary TLS/transport loopback fixtures run. No
 external addresses, malformed crypto/records, probing, fuzz or security tests.
 """
 from pathlib import Path

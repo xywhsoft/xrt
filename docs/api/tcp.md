@@ -5490,3 +5490,19 @@ checked 错误。失败回滚不调用 Data 的 Drop；成功后的替换／关�
 见 [拥有型 TCP／TLS 交接用例](../../tests/tls/test_tls_transport_handoff.c) 与
 [交接合同](../design/tls-transport-handoff.md)。此入口只建立真实 TCP 拥有边，
 不单独证明 TLS Session、Listener、Dial 或异步节点已经可以收集退役。
+
+### 非阻塞 Dial Future 发布
+
+TCP／Proxy／TLS Dial Future 共用真实拥有发布器，不再依赖
+`xrtFutureBridgeWait`。Done 可以先于 Submit 返回：完成方保存实际结果
+与错误后立即返回，发布方或后续完成方以互斥锁选择唯一处理者。发布前
+取消保留并在 Dial 发布后转发，不能因句柄槽尚未赋值而丢失。
+
+producer、Owned CancelWatch、已接受 Done 和提交者分别持有真实引用。
+处理者在锁及 ownership Mutation 外取消订阅、释放原生句柄并完成
+Promise；各族使用自己的拥有 payload。准备等待真实源完成；Clear 无
+用户回调，Finish 可重复检查并保留首次清理错误。已有 TCP／Proxy
+公开调用方式不变，TLS 的借用与 owned 入口仍严格区分。
+
+合同与普通发布／回环验收见
+[Dial Future 发布设计](../design/tls-dial-future-ownership.md)。
