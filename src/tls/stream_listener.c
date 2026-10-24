@@ -6,6 +6,152 @@
 
 #define XRT_TLS_LISTENER_QUEUE_DEFAULT 1024u
 #define XRT_TLS_LISTENER_HANDSHAKE_DEFAULT 128u
+#define XRT_TLS_LISTENER_OWN_READY 1u
+#define XRT_TLS_LISTENER_OWN_CLEARED 2u
+
+static bool __xrtTlsListenerOwnershipCount(const void*, size_t*);
+static bool __xrtTlsListenerOwnershipTrace(const void*, xrtownershipvisitor, ptr);
+static bool __xrtTlsListenerOwnershipBusy(const void*);
+static const xrtownershipops __xrtTlsListenerOwnershipOps = {
+	__xrtTlsListenerOwnershipCount, __xrtTlsListenerOwnershipTrace};
+static void __xrtTlsListenerRuntimeRelease(xtlslistener*);
+static void __xrtTlsListenerStopStream(xtlsstream*);
+
+bool __xrtTlsListenerOwnershipEnter(xtlslistener* l, bool submit)
+{
+	if (!l) { __xrtErrorSetInvalidArgument(); return false; }
+	xrtownershipscope m = {0}; if (!xrtOwnershipMutationBegin(&m)) return false;
+	uint32 active = xrtAtomic32Load(&l->OwnershipActive, XMEMORY_ACQUIRE); bool entered = false;
+	if (!(xrtAtomic32Load(&l->OwnershipState, XMEMORY_ACQUIRE) & XRT_TLS_LISTENER_OWN_CLEARED) &&
+		(!submit || !xrtAtomicPtrLoad(&l->OwnershipClaim, XMEMORY_ACQUIRE))) {
+		while (active < UINT32_MAX) {
+			uint32 expected = active;
+			if (xrtAtomic32CompareExchange(&l->OwnershipActive, &expected, active + 1, XMEMORY_ACQ_REL, XMEMORY_ACQUIRE)) {
+				entered = true; break;
+			}
+			active = expected;
+		}
+	}
+	if (!xrtOwnershipScopeEnd(&m)) abort();
+	if (!entered) __xrtErrorSetInvalidState();
+	return entered;
+}
+void __xrtTlsListenerOwnershipLeave(xtlslistener* l)
+{
+	xrtownershipscope m = {0}; if (!xrtOwnershipMutationBegin(&m)) abort();
+	if (!xrtAtomic32FetchSub(&l->OwnershipActive, 1, XMEMORY_ACQ_REL)) abort();
+	if (!xrtOwnershipScopeEnd(&m)) abort();
+}
+static bool __xrtTlsListenerOwnershipBusy(const void* data)
+{
+	const xtlslistener* l = data;
+	return l && (xrtAtomic32Load(&l->OwnershipActive, XMEMORY_ACQUIRE) ||
+		(l->OwnershipStorageHeld && l->Engine && xrtNetEngineOwnershipQuiescenceV1Get()->Busy(l->Engine)));
+}
+
+/* A child context owns one Listener credit, and only owns the Stream creator
+ * credit until handoff. Each intrusive list separately owns one record credit. */
+bool __xrtTlsListenerStreamNodeHold(const void* data)
+{
+	__xrt_tls_listener_stream* n = (__xrt_tls_listener_stream*)data; xrtownershipscope m = {0};
+	if (!xrtOwnershipMutationBegin(&m)) return false;
+	bool held = n->Owned && !n->Cleared && xrtRefRetain(&n->References) >= 0;
+	if (!xrtOwnershipScopeEnd(&m)) abort();
+	return held;
+}
+void __xrtTlsListenerStreamNodeDrop(const void* data)
+{
+	__xrt_tls_listener_stream* n = (__xrt_tls_listener_stream*)data; xrtownershipscope m = {0};
+	if (!xrtOwnershipMutationBegin(&m)) abort();
+	int32 left = xrtRefRelease(&n->References);
+	if (left < 0) abort();
+	xtlslistener* listener = NULL;
+	if (!left) {
+		if (!n->Owned || n->CallerHeld || n->Queued || n->HandshakePending || n->HandshakeLinked ||
+			xrtAtomic32Load(&n->Active, XMEMORY_ACQUIRE)) abort();
+		listener = n->Listener; n->Listener = NULL;
+	}
+	if (!xrtOwnershipScopeEnd(&m)) abort();
+	if (!left) { xrtTlsListenerDestroy(listener); xrtFree(n); }
+}
+static bool __xrtTlsListenerNodeBusy(const void* data)
+{
+	const __xrt_tls_listener_stream* n = data;
+	return n && !n->Cleared && (xrtAtomic32Load(&n->Active, XMEMORY_ACQUIRE) ||
+		(n->Listener && __xrtTlsListenerOwnershipBusy(n->Listener)));
+}
+static bool __xrtTlsListenerNodeCount(const void* data, size_t* count)
+{
+	const __xrt_tls_listener_stream* n = data;
+	if (!n || !count || !n->Owned || n->Cleared || !n->Listener || !n->Listener->OwnershipPolicy ||
+		__xrtTlsListenerNodeBusy(n) || (n->CallerHeld && !n->Stream) ||
+		(n->Closed && (n->Stream || n->CallerHeld || n->HandshakePending || n->Queued || n->HandshakeLinked))) return false;
+	int32 refs = __xrtAtomicRefLoad(&n->References);
+	if (refs <= 0) return false;
+	*count = (size_t)refs; return true;
+}
+static bool __xrtTlsListenerNodeTrace(const void* data, xrtownershipvisitor visit, ptr context)
+{
+	const __xrt_tls_listener_stream* n = data; size_t count;
+	return visit && __xrtTlsListenerNodeCount(n, &count) &&
+		visit(xrtTlsListenerOwnership(n->Listener), context) &&
+		(!n->CallerHeld || visit(xrtTlsStreamOwnership(n->Stream), context));
+}
+static const xrtownershipops __xrtTlsListenerNodeOps = {__xrtTlsListenerNodeCount, __xrtTlsListenerNodeTrace};
+static xrtownershipref __xrtTlsListenerNodeOwnership(const __xrt_tls_listener_stream* n)
+{ return (xrtownershipref){n, n ? &__xrtTlsListenerNodeOps : NULL}; }
+static bool __xrtTlsListenerNodeReady(const void* data)
+{ const __xrt_tls_listener_stream* n = data; size_t count; return __xrtTlsListenerNodeCount(n, &count) && n->Closed; }
+static bool __xrtTlsListenerNodeClaim(const void* data, const void* token)
+{
+	__xrt_tls_listener_stream* n = (__xrt_tls_listener_stream*)data; size_t count;
+	if (!token || (n->Claim && n->Claim != token) || !__xrtTlsListenerNodeCount(n, &count)) return false;
+	n->Claim = token; return true;
+}
+static void __xrtTlsListenerNodeRestore(const void* data, const void* token)
+{
+	__xrt_tls_listener_stream* n = (__xrt_tls_listener_stream*)data;
+	if (!token || n->Claim != token || n->Cleared) abort();
+	n->Claim = NULL;
+}
+static xrtownershipprepareresult __xrtTlsListenerNodePrepare(const void* data, const void* token)
+{
+	const __xrt_tls_listener_stream* n = data; xrtownershipscope f = {0};
+	if (!xrtOwnershipFreezeTryBegin(&f)) return XRT_OWNERSHIP_PREPARE_BUSY;
+	if (!token || n->Claim != token || n->Cleared) abort();
+	bool ready = __xrtTlsListenerNodeReady(n);
+	if (!xrtOwnershipScopeEnd(&f)) abort();
+	return ready ? XRT_OWNERSHIP_PREPARE_READY : XRT_OWNERSHIP_PREPARE_BUSY;
+}
+static void __xrtTlsListenerNodeClear(const void* data, const void* token)
+{
+	__xrt_tls_listener_stream* n = (__xrt_tls_listener_stream*)data;
+	if (!token || n->Claim != token || n->Cleared || !__xrtTlsListenerNodeReady(n)) abort();
+	n->Cleared = true;
+}
+static bool __xrtTlsListenerNodeFinish(const void* data, const void* token)
+{
+	__xrt_tls_listener_stream* n = (__xrt_tls_listener_stream*)data; xrtownershipscope m = {0};
+	if (!xrtOwnershipMutationBegin(&m)) return false;
+	if (!token || n->Claim != token || !n->Cleared) abort();
+	xtlslistener* listener = n->Listener; n->Listener = NULL;
+	if (!xrtOwnershipScopeEnd(&m)) abort();
+	xrtTlsListenerDestroy(listener); return true;
+}
+XRT_API const xrtownershipquiescencev1* xrtTlsListenerStreamRecordOwnershipQuiescenceV1Get(void)
+{
+	static const xrtownershipquiescencev1 p = {sizeof(p), &__xrtTlsListenerNodeOps, __xrtTlsListenerNodeBusy}; return &p;
+}
+XRT_API const xrtownershipadapterv1* xrtTlsListenerStreamRecordOwnershipAdapterV1(xrtownershipref ref,
+	const xrtownershippreparationv1** preparation)
+{
+	static const xrtownershipadapterv1 a = {sizeof(a), __xrtTlsListenerStreamNodeHold, __xrtTlsListenerStreamNodeDrop,
+		__xrtTlsListenerNodeClaim, __xrtTlsListenerNodeRestore, NULL, __xrtTlsListenerNodeClear, __xrtTlsListenerNodeFinish};
+	static const xrtownershippreparationv1 p = {sizeof(p), &a, __xrtTlsListenerNodeReady, __xrtTlsListenerNodePrepare};
+	size_t count;
+	if (!preparation || ref.Ops != &__xrtTlsListenerNodeOps || !__xrtTlsListenerNodeCount(ref.Data, &count)) return NULL;
+	*preparation = &p; return &a;
+}
 
 
 
@@ -240,13 +386,17 @@ static void __xrtTlsListenerTlsUnit(xtlslistener* pListener)
 /* 增加 Listener 引用。 */
 XRT_API xtlslistener* xrtTlsListenerRef(xtlslistener* pListener)
 {
-	if ( (pListener == NULL) ||
-		(xrtRefRetain(&pListener->References) < 0) ) {
+	if (!pListener) { __xrtErrorSetInvalidArgument(); return NULL; }
+	xrtownershipscope m = {0}; if (!xrtOwnershipMutationBegin(&m)) return NULL;
+	bool held = !(xrtAtomic32Load(&pListener->OwnershipState, XMEMORY_ACQUIRE) & XRT_TLS_LISTENER_OWN_CLEARED) &&
+		xrtRefRetain(&pListener->References) >= 0;
+	if (!xrtOwnershipScopeEnd(&m)) abort();
+	if (!held) {
 		__xrtTlsListenerSetError(
-			XERR_ARGUMENT,
-			XTLS_ERROR_ARGUMENT,
+			XERR_STATE,
+			XTLS_ERROR_STATE,
 			"retain-tls-listener",
-			"TLS listener reference is invalid",
+			"TLS listener is retired or its reference count is exhausted",
 			NULL
 		);
 		return NULL;
@@ -259,14 +409,47 @@ XRT_API xtlslistener* xrtTlsListenerRef(xtlslistener* pListener)
 /* 释放最后一个 Listener 引用以及不可变 TLS 配置快照。 */
 XRT_API void xrtTlsListenerDestroy(xtlslistener* pListener)
 {
-	if ( (pListener == NULL) ||
-		(xrtRefRelease(&pListener->References) != 0) ) {
-		return;
-	}
+	if (!pListener) return;
+	xrtownershipscope m = {0}; if (!xrtOwnershipMutationBegin(&m)) abort();
+	int32 left = xrtRefRelease(&pListener->References);
+	if (left < 0 || (!left && (pListener->RuntimeOwner.Data || pListener->RuntimeOwner.Previous ||
+		xrtAtomic32Load(&pListener->OwnershipActive, XMEMORY_ACQUIRE)))) abort();
+	if (!xrtOwnershipScopeEnd(&m)) abort();
+	if (left) return;
 	__xrtTlsListenerTlsUnit(pListener);
 	xrtErrorFree(pListener->StartupError);
+	xrtErrorFree(pListener->OwnershipFinishError);
+	if (pListener->OwnershipDataHeld) pListener->OwnershipPolicy->Drop(pListener->Data);
+	if (pListener->OwnershipEngineHeld) __xrtNetEngineObjectRelease(pListener->Engine);
+	if (pListener->OwnershipStorageHeld) __xrtNetEngineStorageRelease(pListener->Engine);
 	__xrtSpinUnit(&pListener->Lock);
 	xrtFree(pListener);
+}
+
+static void __xrtTlsListenerRuntimeRelease(xtlslistener* l)
+{
+	xrtownershipscope m = {0}; if (!xrtOwnershipMutationBegin(&m)) abort();
+	if (!l->RuntimeHeld) { if (!xrtOwnershipScopeEnd(&m)) abort(); return; }
+	if (l->RuntimeOwner.Data) {
+		const xnetruntimeownershipv1* policy = NULL;
+		if (__xrtNetEngineRuntimeTake(l->Engine, &l->RuntimeOwner, &policy) != l ||
+			policy != xrtTlsListenerRuntimeOwnershipV1Get()) abort();
+	}
+	l->RuntimeHeld = false;
+	bool held = l->OwnershipEngineHeld; l->OwnershipEngineHeld = false;
+	if (l->OwnershipPolicy) xrtAtomic32Store(&l->OwnershipState, XRT_TLS_LISTENER_OWN_READY, XMEMORY_RELEASE);
+	if (!xrtOwnershipScopeEnd(&m)) abort();
+	if (held) __xrtNetEngineObjectRelease(l->Engine);
+	xrtTlsListenerDestroy(l);
+}
+static void __xrtTlsListenerDiscard(xtlslistener* l)
+{
+	xerror* error = xrtTakeError();
+	l->OwnershipDataHeld = false;
+	__xrtTlsListenerRuntimeRelease(l);
+	if (l->OwnershipPolicy) __xrtTlsListenerOwnershipLeave(l);
+	xrtTlsListenerDestroy(l);
+	xrtClearError(); xrtSetErrorTake(error);
 }
 
 
@@ -357,11 +540,14 @@ static bool __xrtTlsListenerHandshakeRelease(
 {
 	xtlslistener* pListener = pNode->Listener;
 	bool bReleased = false;
+	bool bDropRecord = false;
 
 	__xrtSpinLock(&pListener->Lock);
 	if ( pNode->HandshakePending ) {
+		bDropRecord = pNode->Owned && pNode->HandshakeLinked;
 		pNode->HandshakePending = false;
 		__xrtTlsListenerHandshakeUnlink(pListener, pNode);
+		pNode->HandshakeLinked = false;
 		bReleased = true;
 	}
 	__xrtSpinUnlock(&pListener->Lock);
@@ -372,6 +558,7 @@ static bool __xrtTlsListenerHandshakeRelease(
 			XMEMORY_ACQ_REL
 		);
 	}
+	if (bDropRecord) __xrtTlsListenerStreamNodeDrop(pNode);
 	return bReleased;
 }
 
@@ -418,7 +605,8 @@ static bool __xrtTlsListenerQueue(
 		XMEMORY_RELAXED
 	);
 	if ( (xrtTlsListenerState(pListener) == XTLS_LISTENER_OPEN) &&
-		(iQueued < pListener->AcceptQueueLimit) ) {
+		(iQueued < pListener->AcceptQueueLimit) &&
+		(!pNode->Owned || __xrtTlsListenerStreamNodeHold(pNode)) ) {
 		pNode->Next = NULL;
 		pNode->Queued = true;
 		if ( pListener->AcceptTail != NULL ) {
@@ -496,11 +684,12 @@ static bool __xrtTlsListenerStreamOpen(
 	bool bAccepted = false;
 
 	if ( pListener == NULL ) {
-		(void)xrtTlsStreamAbort(pStream);
+		__xrtTlsListenerStopStream(pStream);
 		return false;
 	}
 	__xrtTlsListenerHandshakeRelease(pNode);
-	if ( xrtTlsListenerState(pListener) == XTLS_LISTENER_OPEN ) {
+	if ( xrtTlsListenerState(pListener) == XTLS_LISTENER_OPEN &&
+		!xrtAtomicPtrLoad(&pListener->OwnershipClaim, XMEMORY_ACQUIRE) ) {
 		if ( pListener->Events.Accept != NULL ) {
 			pGuard = xrtTlsStreamRef(pStream);
 			if ( pGuard != NULL ) {
@@ -513,7 +702,7 @@ static bool __xrtTlsListenerStreamOpen(
 					pListener->Data
 				);
 				if ( !bAccepted ) {
-					(void)xrtTlsStreamAbort(pStream);
+					__xrtTlsListenerStopStream(pStream);
 					xrtTlsStreamDestroy(pStream);
 				}
 				xrtTlsStreamDestroy(pGuard);
@@ -544,7 +733,7 @@ static bool __xrtTlsListenerStreamOpen(
 		}
 	#endif
 	if ( !bAccepted && (pGuard == NULL) ) {
-		(void)xrtTlsStreamAbort(pStream);
+		__xrtTlsListenerStopStream(pStream);
 	}
 	xrtTlsListenerDestroy(pListener);
 	return bAccepted;
@@ -565,15 +754,17 @@ static void __xrtTlsListenerStreamClose(
 	xtlslistener* pListener = pNode->Listener;
 	bool bHandshake;
 	bool bCallerHeld;
+	bool bDropQueued = false;
 
 	(void)Result;
 	bHandshake = __xrtTlsListenerHandshakeRelease(pNode);
 	__xrtSpinLock(&pListener->Lock);
 	if ( pNode->Queued ) {
-		(void)__xrtTlsListenerQueueRemove(pListener, pNode);
+		bDropQueued = __xrtTlsListenerQueueRemove(pListener, pNode) && pNode->Owned;
 	}
 	bCallerHeld = pNode->CallerHeld;
 	pNode->CallerHeld = false;
+	if (pNode->Owned) { pNode->Stream = NULL; pNode->Closed = true; }
 	__xrtSpinUnlock(&pListener->Lock);
 	if ( bHandshake ) {
 		(void)xrtAtomic64FetchAdd(
@@ -600,9 +791,77 @@ static void __xrtTlsListenerStreamClose(
 	if ( bCallerHeld ) {
 		xrtTlsStreamDestroy(pStream);
 	}
-	pNode->Stream = NULL;
-	xrtTlsListenerDestroy(pListener);
-	xrtFree(pNode);
+	if (pNode->Owned) {
+		if (bDropQueued) __xrtTlsListenerStreamNodeDrop(pNode);
+	} else {
+		pNode->Stream = NULL;
+		xrtTlsListenerDestroy(pListener);
+		xrtFree(pNode);
+	}
+}
+
+static bool __xrtTlsListenerNodeFrameEnter(__xrt_tls_listener_stream* n)
+{
+	if (!__xrtTlsListenerStreamNodeHold(n)) return false;
+	xrtownershipscope m = {0}; if (!xrtOwnershipMutationBegin(&m)) abort();
+	if (xrtAtomic32FetchAdd(&n->Active, 1, XMEMORY_ACQ_REL) == UINT32_MAX) abort();
+	if (!xrtOwnershipScopeEnd(&m)) abort();
+	if (!__xrtTlsListenerOwnershipEnter(n->Listener, false)) abort();
+	return true;
+}
+static void __xrtTlsListenerNodeFrameLeave(__xrt_tls_listener_stream* n)
+{
+	__xrtTlsListenerOwnershipLeave(n->Listener);
+	xrtownershipscope m = {0}; if (!xrtOwnershipMutationBegin(&m)) abort();
+	if (!xrtAtomic32FetchSub(&n->Active, 1, XMEMORY_ACQ_REL)) abort();
+	if (!xrtOwnershipScopeEnd(&m)) abort();
+	__xrtTlsListenerStreamNodeDrop(n);
+}
+static void __xrtTlsListenerOwnedStreamOpen(xtlsstream* s, ptr data)
+{
+	__xrt_tls_listener_stream* n = data; if (!__xrtTlsListenerNodeFrameEnter(n)) return;
+	if (__xrtTlsListenerStreamOpen(s, n) && n->Listener->StreamEvents.Open)
+		n->Listener->StreamEvents.Open(s, n->Listener->Data);
+	__xrtTlsListenerNodeFrameLeave(n);
+}
+static void __xrtTlsListenerOwnedStreamRead(xtlsstream* s, const xnetbuf* buffer, ptr data)
+{
+	__xrt_tls_listener_stream* n = data; if (!__xrtTlsListenerNodeFrameEnter(n)) return;
+	if (n->Listener->StreamEvents.Read) n->Listener->StreamEvents.Read(s, buffer, n->Listener->Data);
+	__xrtTlsListenerNodeFrameLeave(n);
+}
+#define XRT_TLS_LISTENER_FORWARD_EVENT(Name) \
+	static void __xrtTlsListenerOwnedStream##Name(xtlsstream* s, ptr data) { \
+		__xrt_tls_listener_stream* n = data; if (!__xrtTlsListenerNodeFrameEnter(n)) return; \
+		if (n->Listener->StreamEvents.Name) n->Listener->StreamEvents.Name(s, n->Listener->Data); \
+		__xrtTlsListenerNodeFrameLeave(n); }
+XRT_TLS_LISTENER_FORWARD_EVENT(End)
+XRT_TLS_LISTENER_FORWARD_EVENT(Writable)
+XRT_TLS_LISTENER_FORWARD_EVENT(Drain)
+XRT_TLS_LISTENER_FORWARD_EVENT(Ticket)
+#undef XRT_TLS_LISTENER_FORWARD_EVENT
+static void __xrtTlsListenerOwnedStreamClose(xtlsstream* s, xnetresult result, const xerror* error, ptr data)
+{
+	__xrt_tls_listener_stream* n = data; if (!__xrtTlsListenerNodeFrameEnter(n)) return;
+	if (n->Listener->StreamEvents.Close) n->Listener->StreamEvents.Close(s, result, error, n->Listener->Data);
+	__xrtTlsListenerStreamClose(s, result, error, n);
+	__xrtTlsListenerNodeFrameLeave(n);
+}
+XRT_API const xtlsstreamownershipv1* xrtTlsListenerStreamOwnershipV1Get(void)
+{
+	static const xtlsstreamownershipv1 p = {sizeof(p), {
+		__xrtTlsListenerOwnedStreamOpen, NULL, __xrtTlsListenerOwnedStreamEnd,
+		__xrtTlsListenerOwnedStreamWritable, __xrtTlsListenerOwnedStreamDrain, __xrtTlsListenerOwnedStreamClose,
+		__xrtTlsListenerOwnedStreamTicket}, __xrtTlsListenerStreamNodeDrop, &__xrtTlsListenerNodeOps};
+	return &p;
+}
+XRT_API const xtlsstreamownershipv1* xrtTlsListenerStreamPushOwnershipV1Get(void)
+{
+	static const xtlsstreamownershipv1 p = {sizeof(p), {
+		__xrtTlsListenerOwnedStreamOpen, __xrtTlsListenerOwnedStreamRead, __xrtTlsListenerOwnedStreamEnd,
+		__xrtTlsListenerOwnedStreamWritable, __xrtTlsListenerOwnedStreamDrain, __xrtTlsListenerOwnedStreamClose,
+		__xrtTlsListenerOwnedStreamTicket}, __xrtTlsListenerStreamNodeDrop, &__xrtTlsListenerNodeOps};
+	return &p;
 }
 
 
@@ -621,6 +880,8 @@ static bool __xrtTlsListenerAcceptTransport(
 
 	(void)pNative;
 	if ( (xrtTlsListenerState(pListener) != XTLS_LISTENER_OPEN) ||
+		(pListener->OwnershipPolicy && (!pListener->Published ||
+		 xrtAtomicPtrLoad(&pListener->OwnershipClaim, XMEMORY_ACQUIRE))) ||
 		!__xrtTlsListenerHandshakeReserve(pListener) ) {
 		(void)xrtAtomic64FetchAdd(
 			&pListener->Rejected,
@@ -673,14 +934,12 @@ static bool __xrtTlsListenerAcceptTransport(
 	}
 	pNode->CallerHeld = true;
 	pNode->HandshakePending = true;
-	if ( !xrtTlsStreamAccept(
-		pTransport,
-		&pListener->Tls,
-		&pListener->Stream,
-		&pListener->StreamEvents,
-		pListener->Data,
-		&pStream
-	) ) {
+	pNode->Owned = pListener->OwnershipPolicy != NULL;
+	if (pNode->Owned) { pNode->References = 1; xrtAtomic32Init(&pNode->Active, 1); }
+	bool accepted = pNode->Owned ? xrtTlsStreamAcceptOwnedV1(pTransport, &pListener->Tls, &pListener->Stream,
+		pNode, pListener->StreamEvents.Read ? xrtTlsListenerStreamPushOwnershipV1Get() : xrtTlsListenerStreamOwnershipV1Get(), &pStream) :
+		xrtTlsStreamAccept(pTransport, &pListener->Tls, &pListener->Stream, &pListener->StreamEvents, pListener->Data, &pStream);
+	if (!accepted) {
 		pError = xrtGetError();
 		__xrtTlsListenerHandshakeRelease(pNode);
 		(void)xrtAtomic64FetchAdd(
@@ -700,19 +959,25 @@ static bool __xrtTlsListenerAcceptTransport(
 				pListener->Data
 			);
 		}
-		xrtTlsListenerDestroy(pNode->Listener);
-		xrtFree(pNode);
+		if (pNode->Owned) {
+			pNode->CallerHeld = false; pNode->Closed = true;
+			xrtAtomic32Store(&pNode->Active, 0, XMEMORY_RELEASE);
+			__xrtTlsListenerStreamNodeDrop(pNode);
+		} else { xrtTlsListenerDestroy(pNode->Listener); xrtFree(pNode); }
 		return false;
 	}
 	pNode->Stream = pStream;
-	__xrtTlsStreamManage(
+	if (!pNode->Owned) __xrtTlsStreamManage(
 		pStream,
 		__xrtTlsListenerStreamOpen,
 		__xrtTlsListenerStreamClose,
 		pNode
 	);
 	__xrtSpinLock(&pListener->Lock);
-	if ( xrtTlsListenerState(pListener) == XTLS_LISTENER_OPEN ) {
+	if ( xrtTlsListenerState(pListener) == XTLS_LISTENER_OPEN &&
+		!xrtAtomicPtrLoad(&pListener->OwnershipClaim, XMEMORY_ACQUIRE) ) {
+		if (pNode->Owned && !__xrtTlsListenerStreamNodeHold(pNode)) abort();
+		pNode->HandshakeLinked = true;
 		pNode->HandshakeNext = pListener->HandshakeHead;
 		if ( pListener->HandshakeHead != NULL ) {
 			pListener->HandshakeHead->HandshakePrevious = pNode;
@@ -722,8 +987,9 @@ static bool __xrtTlsListenerAcceptTransport(
 		pNode->CloseMarked = true;
 	}
 	__xrtSpinUnlock(&pListener->Lock);
+	if (pNode->Owned) xrtAtomic32Store(&pNode->Active, 0, XMEMORY_RELEASE);
 	if ( pNode->CloseMarked ) {
-		(void)xrtTlsStreamAbort(pStream);
+		__xrtTlsListenerStopStream(pStream);
 	}
 	return true;
 }
@@ -763,31 +1029,20 @@ static void __xrtTlsListenerNativeError(
 /* 丢弃全部尚未交付的连接，节点由各自 Close 回调最终释放。 */
 static void __xrtTlsListenerDiscardQueued(xtlslistener* pListener)
 {
-	__xrt_tls_listener_stream* pHead;
-
-	__xrtSpinLock(&pListener->Lock);
-	pHead = pListener->AcceptHead;
-	pListener->AcceptHead = NULL;
-	pListener->AcceptTail = NULL;
-	xrtAtomic32Store(
-		&pListener->QueuedAccepts,
-		0,
-		XMEMORY_RELEASE
-	);
-	for ( __xrt_tls_listener_stream* pNode = pHead;
-		pNode != NULL;
-		pNode = pNode->Next ) {
-		pNode->Queued = false;
-	}
-	__xrtSpinUnlock(&pListener->Lock);
-	while ( pHead != NULL ) {
-		__xrt_tls_listener_stream* pNext = pHead->Next;
-
-		pHead->Next = NULL;
-		(void)xrtTlsStreamAbort(pHead->Stream);
-		pHead = pNext;
+	for (;;) {
+		__xrtSpinLock(&pListener->Lock);
+		__xrt_tls_listener_stream* node = __xrtTlsListenerTakeQueued(pListener);
+		bool owned = node && node->Owned;
+		xtlsstream* stream = node && node->Stream ? xrtTlsStreamRef(node->Stream) : NULL;
+		__xrtSpinUnlock(&pListener->Lock);
+		if (!node) break;
+		if (stream) { __xrtTlsListenerStopStream(stream); xrtTlsStreamDestroy(stream); }
+		if (owned) __xrtTlsListenerStreamNodeDrop(node); /* transferred list credit */
 	}
 }
+
+static void __xrtTlsListenerStopStream(xtlsstream* stream)
+{ (void)__xrtTlsStreamAbortAccepted(stream); }
 
 
 
@@ -820,7 +1075,7 @@ static void __xrtTlsListenerAbortHandshakes(xtlslistener* pListener)
 			break;
 		}
 		for ( size_t i = 0; i < iCount; i++ ) {
-			(void)xrtTlsStreamAbort(Streams[i]);
+			__xrtTlsListenerStopStream(Streams[i]);
 			xrtTlsStreamDestroy(Streams[i]);
 		}
 	}
@@ -864,9 +1119,41 @@ static void __xrtTlsListenerNativeClose(
 		xrtNetListenerDestroy(pNative);
 	}
 	if ( pListener->RuntimeHeld ) {
-		pListener->RuntimeHeld = false;
-		xrtTlsListenerDestroy(pListener);
+		__xrtTlsListenerRuntimeRelease(pListener);
 	}
+}
+
+static bool __xrtTlsListenerNativeFrameEnter(xtlslistener* l)
+{
+	if (!xrtTlsListenerRef(l)) return false;
+	if (__xrtTlsListenerOwnershipEnter(l, false)) return true;
+	xrtTlsListenerDestroy(l); return false;
+}
+static void __xrtTlsListenerNativeFrameLeave(xtlslistener* l)
+{ __xrtTlsListenerOwnershipLeave(l); xrtTlsListenerDestroy(l); }
+static bool __xrtTlsListenerOwnedAcceptTransport(xnetlistener* transport, xnetstream* stream, ptr data)
+{
+	xtlslistener* l = data; if (!__xrtTlsListenerNativeFrameEnter(l)) return false;
+	bool result = __xrtTlsListenerAcceptTransport(transport, stream, l);
+	__xrtTlsListenerNativeFrameLeave(l); return result;
+}
+static void __xrtTlsListenerOwnedNativeError(xnetlistener* transport, const xerror* error, ptr data)
+{
+	xtlslistener* l = data; if (!__xrtTlsListenerNativeFrameEnter(l)) return;
+	__xrtTlsListenerNativeError(transport, error, l); __xrtTlsListenerNativeFrameLeave(l);
+}
+static void __xrtTlsListenerOwnedNativeClose(xnetlistener* transport, ptr data)
+{
+	xtlslistener* l = data; if (!__xrtTlsListenerNativeFrameEnter(l)) return;
+	__xrtTlsListenerNativeClose(transport, l); __xrtTlsListenerNativeFrameLeave(l);
+}
+static void __xrtTlsListenerNativeDataDrop(const void* data)
+{ xrtTlsListenerDestroy((xtlslistener*)data); }
+XRT_API const xnetlistenereventsownershipv1* xrtTlsListenerTransportOwnershipV1Get(void)
+{
+	static const xnetlistenereventsownershipv1 p = {sizeof(p), {
+		__xrtTlsListenerOwnedAcceptTransport, __xrtTlsListenerOwnedNativeError, __xrtTlsListenerOwnedNativeClose},
+		__xrtTlsListenerNativeDataDrop, &__xrtTlsListenerOwnershipOps}; return &p;
 }
 
 
@@ -874,24 +1161,19 @@ static void __xrtTlsListenerNativeClose(
 /* 返回底层 Listener 使用的静态事件表。 */
 static const xnetlistenerevents* __xrtTlsListenerNativeEvents(void)
 {
-	static const xnetlistenerevents Events = {
-		__xrtTlsListenerAcceptTransport,
-		__xrtTlsListenerNativeError,
-		__xrtTlsListenerNativeClose
-	};
-
-	return &Events;
+	return &xrtTlsListenerTransportOwnershipV1Get()->Events;
 }
 
 
 
 /* 创建不可变 TLS 配置快照并同步绑定底层 TCP Listener。 */
-XRT_API xtlslistener* xrtTlsListenerStart(
+static xtlslistener* __xrtTlsListenerStart(
 	xnetengine* pEngine,
 	const xtlslistenerconfig* pConfig,
 	const xtlslistenerevents* pEvents,
 	const xtlsstreamevents* pStreamEvents,
-	ptr pData
+	ptr pData,
+	const xtlslistenerownershipv1* pPolicy
 )
 {
 	xtlslistener* pListener;
@@ -902,8 +1184,8 @@ XRT_API xtlslistener* xrtTlsListenerStart(
 	size_t iTotal;
 	bool bClosed;
 
-	if ( (pEngine == NULL) ||
-		!__xrtTlsListenerConfigValid(pConfig) ||
+	if (!pEngine) { __xrtErrorSetInvalidArgument(); return NULL; }
+	if ( !__xrtTlsListenerConfigValid(pConfig) ||
 		!__xrtTlsListenerLayout(
 			pConfig,
 			&iViewsOffset,
@@ -917,6 +1199,11 @@ XRT_API xtlslistener* xrtTlsListenerStart(
 		return NULL;
 	}
 	pListener->References = 2;
+	xrtAtomicPtrInit(&pListener->OwnershipClaim, NULL);
+	xrtAtomic32Init(&pListener->OwnershipState, 0);
+	xrtAtomic32Init(&pListener->OwnershipActive, pPolicy ? 1u : 0u);
+	pListener->OwnershipPolicy = pPolicy;
+	pListener->OwnershipDataHeld = pPolicy != NULL;
 	xrtAtomic32Init(&pListener->State, XTLS_LISTENER_OPEN);
 	xrtAtomic64Init(&pListener->Handshakes, 0);
 	xrtAtomic64Init(&pListener->Accepted, 0);
@@ -934,6 +1221,12 @@ XRT_API xtlslistener* xrtTlsListenerStart(
 	pListener->AcceptQueueLimit = pConfig->AcceptQueueLimit;
 	pListener->HandshakeLimit = pConfig->HandshakeLimit;
 	pListener->RuntimeHeld = true;
+	if (pPolicy) {
+		if (!__xrtNetEngineObjectHold(pEngine)) { __xrtTlsListenerDiscard(pListener); return NULL; }
+		pListener->OwnershipEngineHeld = true;
+		if (!__xrtNetEngineStorageRetain(pEngine)) { __xrtTlsListenerDiscard(pListener); return NULL; }
+		pListener->OwnershipStorageHeld = true;
+	}
 	if ( pEvents != NULL ) {
 		pListener->Events = *pEvents;
 	}
@@ -946,22 +1239,18 @@ XRT_API xtlslistener* xrtTlsListenerStart(
 		iViewsOffset,
 		iDataOffset
 	) ) {
-		pListener->RuntimeHeld = false;
-		xrtTlsListenerDestroy(pListener);
-		xrtTlsListenerDestroy(pListener);
+		__xrtTlsListenerDiscard(pListener);
 		return NULL;
 	}
-	pNative = xrtNetListen(
-		pEngine,
-		&pConfig->Listen,
-		__xrtTlsListenerNativeEvents(),
-		NULL,
-		pListener
-	);
+	if (pPolicy && !__xrtNetEngineRuntimeAdopt(pEngine, &pListener->RuntimeOwner, pListener,
+		xrtTlsListenerRuntimeOwnershipV1Get())) { __xrtTlsListenerDiscard(pListener); return NULL; }
+	if (pPolicy) {
+		if (!xrtTlsListenerRef(pListener)) { __xrtTlsListenerDiscard(pListener); return NULL; }
+		pNative = xrtNetListenOwnedV1(pEngine, &pConfig->Listen, pListener, xrtTlsListenerTransportOwnershipV1Get());
+		if (!pNative) xrtTlsListenerDestroy(pListener); /* unconsumed native Data credit */
+	} else pNative = xrtNetListen(pEngine, &pConfig->Listen, __xrtTlsListenerNativeEvents(), NULL, pListener);
 	if ( pNative == NULL ) {
-		pListener->RuntimeHeld = false;
-		xrtTlsListenerDestroy(pListener);
-		xrtTlsListenerDestroy(pListener);
+		__xrtTlsListenerDiscard(pListener);
 		return NULL;
 	}
 	__xrtSpinLock(&pListener->Lock);
@@ -976,7 +1265,7 @@ XRT_API xtlslistener* xrtTlsListenerStart(
 	__xrtSpinUnlock(&pListener->Lock);
 	if ( bClosed ) {
 		xrtNetListenerDestroy(pNative);
-		xrtTlsListenerDestroy(pListener);
+		__xrtTlsListenerDiscard(pListener);
 		if ( pError != NULL ) {
 			xrtSetError(pError);
 			xrtErrorFree(pError);
@@ -991,17 +1280,30 @@ XRT_API xtlslistener* xrtTlsListenerStart(
 		}
 		return NULL;
 	}
+	if (pPolicy) __xrtTlsListenerOwnershipLeave(pListener);
 	return pListener;
+}
+
+XRT_API xtlslistener* xrtTlsListenerStart(xnetengine* engine, const xtlslistenerconfig* config,
+	const xtlslistenerevents* events, const xtlsstreamevents* streamEvents, ptr data)
+{ return __xrtTlsListenerStart(engine, config, events, streamEvents, data, NULL); }
+XRT_API xtlslistener* xrtTlsListenerStartOwnedV1(xnetengine* engine, const xtlslistenerconfig* config,
+	ptr data, const xtlslistenerownershipv1* policy)
+{
+	if (!data || !policy || policy->size != sizeof(*policy) || !policy->Drop || !policy->Ops ||
+		!policy->Ops->Count || !policy->Ops->Trace) { __xrtErrorSetInvalidArgument(); return NULL; }
+	return __xrtTlsListenerStart(engine, config, &policy->Events, &policy->StreamEvents, data, policy);
 }
 
 
 
 /* pull 模式下非阻塞转移一个完成握手的 Stream 引用。 */
-XRT_API xtlsstream* xrtTlsListenerAccept(xtlslistener* pListener)
+static xtlsstream* __xrtTlsListenerAccept(xtlslistener* pListener)
 {
 	__xrt_tls_listener_stream* pNode = NULL;
 	xtlsstream* pStream = NULL;
 	bool bWaiting = false;
+	bool bDropRecord = false;
 
 	if ( pListener == NULL ) {
 		__xrtTlsListenerSetError(
@@ -1032,11 +1334,13 @@ XRT_API xtlsstream* xrtTlsListenerAccept(xtlslistener* pListener)
 	} else if ( xrtTlsListenerState(pListener) == XTLS_LISTENER_OPEN ) {
 		pNode = __xrtTlsListenerTakeQueued(pListener);
 		if ( pNode != NULL ) {
+			bDropRecord = pNode->Owned;
 			pNode->CallerHeld = false;
 			pStream = pNode->Stream;
 		}
 	}
 	__xrtSpinUnlock(&pListener->Lock);
+	if (bDropRecord) __xrtTlsListenerStreamNodeDrop(pNode);
 	if ( bWaiting ) {
 		__xrtTlsListenerSetError(
 			XERR_STATE,
@@ -1049,10 +1353,16 @@ XRT_API xtlsstream* xrtTlsListenerAccept(xtlslistener* pListener)
 	return pStream;
 }
 
+XRT_API xtlsstream* xrtTlsListenerAccept(xtlslistener* l)
+{
+	if (!__xrtTlsListenerOwnershipEnter(l, true)) return NULL;
+	xtlsstream* result = __xrtTlsListenerAccept(l); __xrtTlsListenerOwnershipLeave(l); return result;
+}
+
 
 
 /* 原子关闭底层 Listener，并让完成队列和 Future 观察同一终态。 */
-XRT_API bool xrtTlsListenerClose(xtlslistener* pListener)
+static bool __xrtTlsListenerClose(xtlslistener* pListener)
 {
 	uint32 iExpected = XTLS_LISTENER_OPEN;
 	xnetlistener* pNative = NULL;
@@ -1091,6 +1401,12 @@ XRT_API bool xrtTlsListenerClose(xtlslistener* pListener)
 		xrtNetListenerDestroy(pNative);
 	}
 	return true;
+}
+
+XRT_API bool xrtTlsListenerClose(xtlslistener* l)
+{
+	if (!__xrtTlsListenerOwnershipEnter(l, true)) return false;
+	bool result = __xrtTlsListenerClose(l); __xrtTlsListenerOwnershipLeave(l); return result;
 }
 
 
@@ -1207,6 +1523,174 @@ XRT_API bool xrtTlsListenerStats(
 	);
 	*pStats = Stats;
 	return true;
+}
+
+/* Each list link is an independently retained record, never a guessed Stream
+ * or Listener reference. Handshake and ready queues are disjoint phases. */
+static bool __xrtTlsListenerRecordsWalk(const xtlslistener* l, xrtownershipvisitor visit, ptr context)
+{
+	const __xrt_tls_listener_stream *slow = l->HandshakeHead, *fast = slow, *previous = NULL;
+	while (fast && fast->HandshakeNext) {
+		slow = slow->HandshakeNext; fast = fast->HandshakeNext->HandshakeNext; if (slow == fast) return false;
+	}
+	size_t handshakes = 0, queued = 0;
+	for (const __xrt_tls_listener_stream* n = l->HandshakeHead; n; n = n->HandshakeNext) {
+		if (!n->Owned || n->Closed || n->Cleared || !n->HandshakePending || !n->HandshakeLinked || n->Queued ||
+			!n->CallerHeld || !n->Stream || n->Listener != l || n->HandshakePrevious != previous ||
+			xrtAtomic32Load(&n->Active, XMEMORY_ACQUIRE) || __xrtAtomicRefLoad(&n->References) <= 0) return false;
+		if (visit && !visit(__xrtTlsListenerNodeOwnership(n), context)) return false;
+		previous = n; ++handshakes;
+	}
+	slow = l->AcceptHead; fast = slow; previous = NULL;
+	while (fast && fast->Next) { slow = slow->Next; fast = fast->Next->Next; if (slow == fast) return false; }
+	for (const __xrt_tls_listener_stream* n = l->AcceptHead; n; n = n->Next) {
+		if (!n->Owned || n->Closed || n->Cleared || n->HandshakePending || n->HandshakeLinked || !n->Queued ||
+			!n->CallerHeld || !n->Stream || n->Listener != l || n->HandshakeNext || n->HandshakePrevious ||
+			xrtAtomic32Load(&n->Active, XMEMORY_ACQUIRE) || __xrtAtomicRefLoad(&n->References) <= 0) return false;
+		if (visit && !visit(__xrtTlsListenerNodeOwnership(n), context)) return false;
+		previous = n; ++queued;
+	}
+	return previous == l->AcceptTail && handshakes <= l->HandshakeLimit && queued <= l->AcceptQueueLimit &&
+		handshakes == xrtAtomic32Load(&l->ActiveHandshakes, XMEMORY_ACQUIRE) &&
+		queued == xrtAtomic32Load(&l->QueuedAccepts, XMEMORY_ACQUIRE);
+}
+static bool __xrtTlsListenerOwnershipCount(const void* data, size_t* count)
+{
+	const xtlslistener* l = data;
+	if (!l || !count || !l->OwnershipPolicy || !l->OwnershipDataHeld || !l->Data || !l->OwnershipStorageHeld ||
+		!l->Engine || __xrtTlsListenerOwnershipBusy(l) ||
+		(xrtAtomic32Load(&l->OwnershipState, XMEMORY_ACQUIRE) & XRT_TLS_LISTENER_OWN_CLEARED)) return false;
+	if (l->RuntimeHeld) {
+		if (!l->OwnershipEngineHeld || l->RuntimeOwner.Data != l || !l->RuntimeOwner.Previous ||
+			l->RuntimeOwner.Engine != l->Engine || l->RuntimeOwner.Policy != xrtTlsListenerRuntimeOwnershipV1Get()) return false;
+	} else if (l->OwnershipEngineHeld || l->RuntimeOwner.Data || l->RuntimeOwner.Previous ||
+		!(xrtAtomic32Load(&l->OwnershipState, XMEMORY_ACQUIRE) & XRT_TLS_LISTENER_OWN_READY)) return false;
+	if (l->Native && xrtNetListenerState(l->Native) != XNET_LISTENER_CLOSED &&
+		(l->Native->EventPolicy != xrtTlsListenerTransportOwnershipV1Get() ||
+		 xrtNetListenerData(l->Native) != l)) return false;
+	if (!__xrtTlsListenerRecordsWalk(l, NULL, NULL)) return false;
+	#if defined(XRT_FEATURE_TLS_STREAM_LISTENER_FUTURE)
+		if (!__xrtTlsListenerWaitOwnershipWalk(l, NULL, NULL)) return false;
+	#endif
+	int32 refs = __xrtAtomicRefLoad(&l->References);
+	if (refs <= 0) return false;
+	*count = (size_t)refs; return true;
+}
+static bool __xrtTlsListenerOwnershipTrace(const void* data, xrtownershipvisitor visit, ptr context)
+{
+	const xtlslistener* l = data; size_t count;
+	if (!visit || !__xrtTlsListenerOwnershipCount(l, &count)) return false;
+	if (!visit(xrtNetEngineOwnership(l->Engine), context) ||
+		(l->OwnershipEngineHeld && !visit(xrtNetEngineOwnership(l->Engine), context)) ||
+		(l->Native && !visit(xrtNetListenerOwnership(l->Native), context)) ||
+		!visit((xrtownershipref){l->Data, l->OwnershipPolicy->Ops}, context) ||
+		!__xrtTlsListenerRecordsWalk(l, visit, context)) return false;
+	#if defined(XRT_FEATURE_TLS_STREAM_LISTENER_FUTURE)
+		if (!__xrtTlsListenerWaitOwnershipWalk(l, visit, context)) return false;
+	#endif
+	return !l->StartupError || visit(xrtErrorOwnership(l->StartupError), context);
+}
+XRT_API xrtownershipref xrtTlsListenerOwnership(const xtlslistener* l)
+{ return (xrtownershipref){l, l ? &__xrtTlsListenerOwnershipOps : NULL}; }
+static void __xrtTlsListenerRuntimeDrop(ptr data) { xrtTlsListenerDestroy(data); }
+XRT_API const xnetruntimeownershipv1* xrtTlsListenerRuntimeOwnershipV1Get(void)
+{
+	static const xnetruntimeownershipv1 p = {sizeof(p), &__xrtTlsListenerOwnershipOps, __xrtTlsListenerRuntimeDrop, NULL, 0}; return &p;
+}
+XRT_API const xrtownershipquiescencev1* xrtTlsListenerOwnershipQuiescenceV1Get(void)
+{
+	static const xrtownershipquiescencev1 p = {sizeof(p), &__xrtTlsListenerOwnershipOps, __xrtTlsListenerOwnershipBusy}; return &p;
+}
+static bool __xrtTlsListenerHold(const void* data) { return xrtTlsListenerRef((xtlslistener*)data) != NULL; }
+static void __xrtTlsListenerDrop(const void* data) { xrtTlsListenerDestroy((xtlslistener*)data); }
+static bool __xrtTlsListenerClaim(const void* data, const void* token)
+{
+	xtlslistener* l = (xtlslistener*)data; size_t count; ptr old = xrtAtomicPtrLoad(&l->OwnershipClaim, XMEMORY_ACQUIRE);
+	if (!token || (old && old != token) || !__xrtTlsListenerOwnershipCount(l, &count)) return false;
+	xrtAtomicPtrStore(&l->OwnershipClaim, (ptr)token, XMEMORY_RELEASE); return true;
+}
+static void __xrtTlsListenerRestore(const void* data, const void* token)
+{
+	xtlslistener* l = (xtlslistener*)data;
+	if (!token || xrtAtomicPtrLoad(&l->OwnershipClaim, XMEMORY_ACQUIRE) != token ||
+		(xrtAtomic32Load(&l->OwnershipState, XMEMORY_ACQUIRE) & XRT_TLS_LISTENER_OWN_CLEARED)) abort();
+	xrtAtomicPtrStore(&l->OwnershipClaim, NULL, XMEMORY_RELEASE);
+}
+static bool __xrtTlsListenerReady(const void* data)
+{
+	const xtlslistener* l = data;
+	if (!l || __xrtTlsListenerOwnershipBusy(l) || !l->Closed || l->RuntimeHeld || l->OwnershipEngineHeld || l->Native ||
+		l->HandshakeHead || l->AcceptHead || l->AcceptTail || xrtAtomic32Load(&l->ActiveHandshakes, XMEMORY_ACQUIRE) ||
+		xrtAtomic32Load(&l->QueuedAccepts, XMEMORY_ACQUIRE)) return false;
+	#if defined(XRT_FEATURE_TLS_STREAM_LISTENER_FUTURE)
+		if (l->WaitHead || l->WaitTail || xrtAtomic32Load(&l->AcceptWaiters, XMEMORY_ACQUIRE)) return false;
+	#endif
+	return true;
+}
+static xrtownershipprepareresult __xrtTlsListenerPrepare(const void* data, const void* token)
+{
+	xtlslistener* l = (xtlslistener*)data; xrtownershipscope f = {0};
+	if (!xrtOwnershipFreezeTryBegin(&f)) return XRT_OWNERSHIP_PREPARE_BUSY;
+	if (!token || xrtAtomicPtrLoad(&l->OwnershipClaim, XMEMORY_ACQUIRE) != token ||
+		(xrtAtomic32Load(&l->OwnershipState, XMEMORY_ACQUIRE) & XRT_TLS_LISTENER_OWN_CLEARED)) abort();
+	xrtownershipprepareresult result = XRT_OWNERSHIP_PREPARE_BUSY;
+	if (__xrtTlsListenerReady(l)) result = XRT_OWNERSHIP_PREPARE_READY;
+	else if (!__xrtTlsListenerOwnershipBusy(l) && l->Native) {
+		xrtAtomic32Store(&l->State, XTLS_LISTENER_CLOSING, XMEMORY_RELEASE);
+		if (l->Native->RuntimeHeld && !__xrtNetListenerOwnershipStop(l->Native)) result = XRT_OWNERSHIP_PREPARE_FAILED;
+	}
+	if (!xrtOwnershipScopeEnd(&f)) abort();
+	return result;
+}
+static void __xrtTlsListenerClear(const void* data, const void* token)
+{
+	xtlslistener* l = (xtlslistener*)data;
+	if (!token || xrtAtomicPtrLoad(&l->OwnershipClaim, XMEMORY_ACQUIRE) != token || !__xrtTlsListenerReady(l) ||
+		(xrtAtomic32Load(&l->OwnershipState, XMEMORY_ACQUIRE) & XRT_TLS_LISTENER_OWN_CLEARED)) abort();
+	xrtAtomic32Store(&l->OwnershipState, XRT_TLS_LISTENER_OWN_READY | XRT_TLS_LISTENER_OWN_CLEARED, XMEMORY_RELEASE);
+}
+static bool __xrtTlsListenerFinish(const void* data, const void* token)
+{
+	xtlslistener* l = (xtlslistener*)data; xrtownershipscope m = {0}; if (!xrtOwnershipMutationBegin(&m)) return false;
+	if (!token || xrtAtomicPtrLoad(&l->OwnershipClaim, XMEMORY_ACQUIRE) != token ||
+		!(xrtAtomic32Load(&l->OwnershipState, XMEMORY_ACQUIRE) & XRT_TLS_LISTENER_OWN_CLEARED)) abort();
+	if (l->OwnershipFinishing) { if (!xrtOwnershipScopeEnd(&m)) abort(); return false; }
+	if (l->OwnershipFinished) {
+		xerror* error = l->OwnershipFinishError;
+		if (!xrtOwnershipScopeEnd(&m)) abort();
+		if (error && !xrtGetError()) xrtSetError(error);
+		return error == NULL;
+	}
+	l->OwnershipFinishing = true;
+	ptr context = l->OwnershipDataHeld ? l->Data : NULL; l->Data = NULL; l->OwnershipDataHeld = false;
+	xerror* startup = l->StartupError; l->StartupError = NULL;
+	xnetengine* engine = l->Engine; bool storage = l->OwnershipStorageHeld;
+	l->Engine = NULL; l->OwnershipStorageHeld = false;
+	if (!xrtOwnershipScopeEnd(&m)) abort();
+	xerror* prior = xrtTakeError();
+	__xrtTlsListenerTlsUnit(l); xrtErrorFree(startup);
+	if (context) l->OwnershipPolicy->Drop(context);
+	if (storage) __xrtNetEngineStorageRelease(engine);
+	xerror* error = xrtTakeError();
+	if (!xrtOwnershipMutationBegin(&m)) abort();
+	l->OwnershipFinishError = error; l->OwnershipFinishing = false; l->OwnershipFinished = true;
+	if (!xrtOwnershipScopeEnd(&m)) abort();
+	if (prior) xrtSetErrorTake(prior); else if (error) xrtSetError(error);
+	return error == NULL;
+}
+XRT_API const xrtownershipadapterv1* xrtTlsListenerOwnershipAdapterV1(xrtownershipref ref,
+	const xtlslistenerownershipv1* const* policies, size_t policyCount, const xrtownershippreparationv1** preparation)
+{
+	static const xrtownershipadapterv1 a = {sizeof(a), __xrtTlsListenerHold, __xrtTlsListenerDrop,
+		__xrtTlsListenerClaim, __xrtTlsListenerRestore, NULL, __xrtTlsListenerClear, __xrtTlsListenerFinish};
+	static const xrtownershippreparationv1 p = {sizeof(p), &a, __xrtTlsListenerReady, __xrtTlsListenerPrepare};
+	if (!preparation || ref.Ops != &__xrtTlsListenerOwnershipOps || !ref.Data || (policyCount && !policies)) return NULL;
+	const xtlslistener* l = ref.Data; bool known = false;
+	for (size_t i = 0; i < policyCount; ++i) if (policies[i] == l->OwnershipPolicy) { known = true; break; }
+	if (!known || !l->OwnershipPolicy || l->OwnershipPolicy->size != sizeof(*l->OwnershipPolicy) ||
+		!l->OwnershipPolicy->Drop || !l->OwnershipPolicy->Ops || !l->OwnershipPolicy->Ops->Count || !l->OwnershipPolicy->Ops->Trace) return NULL;
+	size_t count; if (!__xrtTlsListenerOwnershipCount(l, &count)) return NULL;
+	*preparation = &p; return &a;
 }
 
 #endif

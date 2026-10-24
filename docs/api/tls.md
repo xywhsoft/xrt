@@ -13589,3 +13589,38 @@ Claim 仍拒绝公开新提交；原生已受理读写保留正确 Worker 上的
 不解除 Claim，不绕过 Clear／写入／关闭／取消门，也不改变时间单位。
 具体引用、发布和退役顺序见
 [Future 激活图](../design/tls-stream-future-ownership.md)。
+
+### TLS Listener 拥有图
+
+`xrtTlsListenerStartOwnedV1` 接受永久 `xtlslistenerownershipv1`，成功消费一个
+Data 引用，失败不消费。Data 必须覆盖 Listener、配置选择器及子连接借用
+的全部回调上下文。Context／Identity 另行保留，ALPN 深复制；拥有模式
+事件表不可替换。回调仍收到原始 Data，子 Stream 的 `xrtTlsStreamData`
+则是私有组合记录，应用不能把它强转成原始 Data。
+
+`xrtTlsListenerOwnership` 提供真实引用视图。永久身份入口包括
+`xrtTlsListenerRuntimeOwnershipV1Get`、
+`xrtTlsListenerTransportOwnershipV1Get`、
+`xrtTlsListenerStreamOwnershipV1Get`、
+`xrtTlsListenerStreamPushOwnershipV1Get`；pull 与 push Read 策略分开，
+不以空转回调改变 Stream 模式。Root 与子连接记录分别使用
+`xrtTlsListenerOwnershipQuiescenceV1Get`／
+`xrtTlsListenerStreamRecordOwnershipQuiescenceV1Get` 和
+`xrtTlsListenerOwnershipAdapterV1`／
+`xrtTlsListenerStreamRecordOwnershipAdapterV1`。Adapter 输出 preparation，
+拒绝时不修改输出；每个目标必须独立准入，不认证旧借用式配置。
+
+accept Future 的永久入口为
+`xrtTlsListenerFutureProducerPolicyV1Get`、
+`xrtTlsListenerFutureCancelPolicyV1Get`、
+`xrtTlsListenerFutureStreamPayloadPolicyV1Get`、
+`xrtTlsListenerFutureOwnershipQuiescenceV1Get` 和
+`xrtTlsListenerFutureOwnershipAdapterV1`。等待节点实际持有 Listener、
+Promise、Owned CancelWatch；交付 Stream 使用拥有 payload，而非裸析构
+函数。Prepare 等待真实关闭推进，不提前伪造 Future 终态。
+
+普通 Close 停止接入并退役未交付连接，不关闭已经交付的连接。全图退役
+须分别准备这些子 Stream；所有目标保留 pin 直到全部 Finish 完成。
+Clear 不执行用户回调；Finish 在 Freeze／Mutation 外释放配置和 Data，
+保留首次清理错误和已有线程错误，重复检查不重复析构。时间 ABI 不变。
+详见 [Listener 组合拥有图](../design/tls-listener-ownership.md)。

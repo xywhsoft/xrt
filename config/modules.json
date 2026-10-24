@@ -10256,6 +10256,28 @@
 			]
 		},
 		{
+			"name": "tls_listener_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"tls_stream_future_ownership_tests",
+				"tls_stream_listener_future"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/tls/test_tls_listener_ownership.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_tls_listener_ownership.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/design/tls-listener-ownership.md"
+			]
+		},
+		{
 			"name": "tls_stream_tests",
 			"state": "implemented",
 			"feature": null,

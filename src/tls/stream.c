@@ -2771,6 +2771,11 @@ XRT_API bool xrtTlsStreamAbort(xtlsstream* s)
 	if (!__xrtTlsStreamOwnershipEnter(s, true)) return false;
 	bool result = __xrtTlsStreamAbort(s); __xrtTlsStreamOwnershipLeave(s); return result;
 }
+bool __xrtTlsStreamAbortAccepted(xtlsstream* s)
+{
+	if (!__xrtTlsStreamOwnershipEnter(s, false)) return false;
+	bool result = __xrtTlsStreamAbort(s); __xrtTlsStreamOwnershipLeave(s); return result;
+}
 
 /* 返回组合状态的并发快照。 */
 XRT_API xtlsstreamstate xrtTlsStreamState(const xtlsstream* pStream)
