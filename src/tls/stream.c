@@ -1626,6 +1626,7 @@ XRT_API bool xrtTlsStreamAttach(
 	xnetbufpool* pPool;
 	xtlsstream* pStream;
 	xtlsrole Role;
+	xnetbufpool* PreviousPools[4];
 
 	if ( ppStream != NULL ) {
 		*ppStream = NULL;
@@ -1697,7 +1698,24 @@ XRT_API bool xrtTlsStreamAttach(
 	if ( pStream == NULL ) {
 		return false;
 	}
+	PreviousPools[0] = pSession->Feed.Pool;
+	PreviousPools[1] = pSession->Send.Pool;
+	PreviousPools[2] = pSession->Plain.Pool;
+	PreviousPools[3] = pSession->Scratch.Pool;
 	if ( !__xrtTlsSessionPool(pSession, pPool) ) {
+		pStream->Session = NULL;
+		__xrtTlsStreamDiscard(pStream);
+		return false;
+	}
+	/* TCP owns replacement ordering, read-Future exclusion and deferred old
+	 * callback retirement. Direct field writes leave an old EventOwner behind.
+	 * This setter runs no callbacks; failure precedes TCP publication. Restore
+	 * the four allocation policies without consuming either caller reference. */
+	if ( !xrtNetStreamSetEvents(pTransport, &__xrtTlsStreamTransportEvents, pStream) ) {
+		pSession->Feed.Pool = PreviousPools[0];
+		pSession->Send.Pool = PreviousPools[1];
+		pSession->Plain.Pool = PreviousPools[2];
+		pSession->Scratch.Pool = PreviousPools[3];
 		pStream->Session = NULL;
 		__xrtTlsStreamDiscard(pStream);
 		return false;
@@ -1707,8 +1725,6 @@ XRT_API bool xrtTlsStreamAttach(
 		pTransport,
 		XMEMORY_RELEASE
 	);
-	pTransport->Events = __xrtTlsStreamTransportEvents;
-	xrtAtomicPtrStore(&pTransport->Data, pStream, XMEMORY_RELEASE);
 	*ppStream = pStream;
 	__xrtTlsStreamTransportOpen(pTransport, pStream);
 	return true;
@@ -1823,13 +1839,15 @@ XRT_API bool xrtTlsStreamAccept(
 		xrtTlsSessionDestroy(pSession);
 		return false;
 	}
+	if ( !xrtNetStreamSetEvents(pTransport, &__xrtTlsStreamTransportEvents, pStream) ) {
+		__xrtTlsStreamDiscard(pStream);
+		return false;
+	}
 	xrtAtomicPtrStore(
 		&pStream->Transport,
 		pTransport,
 		XMEMORY_RELEASE
 	);
-	pTransport->Events = __xrtTlsStreamTransportEvents;
-	xrtAtomicPtrStore(&pTransport->Data, pStream, XMEMORY_RELEASE);
 	*ppStream = pStream;
 	return true;
 }

@@ -5454,3 +5454,39 @@ select／原生后端，Linux 增加 ASan／UBSan；输入、日志和产物哈�
 48 个预算、65 引用块、背压、预留、池亲和、Abort、回调重入和内存平衡；Windows
 GCC／TCC select／IOCP，Linux GCC／TCC select／epoll 及 ASan／UBSan。
 仅离线生命周期和自建回环正常通信，没有外网、DNS 或网络安全专项。
+
+### `xrtNetStreamConnectOwnedV1`
+
+创建数字地址连接，并在发布启动任务**之前**安装拥有型事件上下文。
+不执行名称解析，不改变 `xnetstreamconfig` 的配置和时间单位。
+
+```c
+xnetstream* xrtNetStreamConnectOwnedV1(xnetengine* pEngine,
+    const xnetaddr* pRemote, uint64 iAffinity, const xnetstreamconfig* pConfig,
+    ptr pData, const xnetstreameventsownershipv1* pPolicy);
+```
+
+#### 参数
+
+Engine、Remote、Affinity、Config 与 `xrtNetStreamConnect` 相同。Data 必须为
+非空的一个真实拥有引用；Policy 必须常驻、size 精确匹配，并提供有效的
+Drop 和拥有图 Count／Trace。事件表来自 Policy，而非可变的调用方临时表。
+
+#### 返回值
+
+成功返回一个 Stream 调用方引用，同时消费恰好一个 Data 引用；失败返回
+NULL，完全不消费 Data。Open／Close 可能与提交者并发，甚至先于本函数
+返回，调用方不能假定回调会等返回值赋值完成。事件只借用已登记的 Data。
+
+#### 错误
+
+无效描述符、无效连接配置、分配、套接字及启动任务发布失败使用既有
+checked 错误。失败回滚不调用 Data 的 Drop；成功后的替换／关闭复用
+`xrtNetStreamSetEventsOwnedV1` 的 Worker 延迟退役，待回调／分派栈退出后
+才 Drop，不在拥有图 Freeze 内调用用户清理。
+
+#### 范例
+
+见 [拥有型 TCP／TLS 交接用例](../../tests/tls/test_tls_transport_handoff.c) 与
+[交接合同](../design/tls-transport-handoff.md)。此入口只建立真实 TCP 拥有边，
+不单独证明 TLS Session、Listener、Dial 或异步节点已经可以收集退役。

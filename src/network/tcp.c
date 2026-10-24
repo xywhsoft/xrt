@@ -2705,7 +2705,8 @@ static xnetstream* __xrtNetStreamConnectCreate(
 	const xnetstreamevents* pEvents,
 	ptr pData,
 	const void* pControl,
-	bool bDeferred
+	bool bDeferred,
+	__xrt_net_stream_events_owner* pOwner
 )
 {
 	xnetstreamconfig Config;
@@ -2778,6 +2779,9 @@ static xnetstream* __xrtNetStreamConnectCreate(
 		xrtErrorFree(pError);
 		return NULL;
 	}
+	/* Construction is still marked active. Publish the ONE actual context
+	 * credit before any Worker can enter a callback, never after Post. */
+	pStream->EventOwner = pOwner;
 	pStream->Remote = *pRemote;
 	#if defined(XRT_FEATURE_NET_TCP_DIAL)
 		if ( pControl != NULL ) {
@@ -2800,6 +2804,8 @@ static xnetstream* __xrtNetStreamConnectCreate(
 	) ) {
 		pError = xrtTakeError();
 		pStream->StartPending = false;
+		/* No startup task was accepted: return the context credit intact. */
+		pStream->EventOwner = NULL;
 		pStream->Socket = NULL;
 		(void)xrtNetSocketClose(Socket);
 		xrtAtomic32Store(
@@ -2838,8 +2844,21 @@ XRT_API xnetstream* xrtNetStreamConnect(
 		pEvents,
 		pData,
 		NULL,
-		false
+		false,
+		NULL
 	);
+}
+
+XRT_API xnetstream* xrtNetStreamConnectOwnedV1(xnetengine* pEngine,
+	const xnetaddr* pRemote, uint64 iAffinity, const xnetstreamconfig* pConfig,
+	ptr pData, const xnetstreameventsownershipv1* pPolicy)
+{
+	__xrt_net_stream_events_owner* pOwner = __xrtNetStreamEventsPrepare(pData, pPolicy);
+	if (!pOwner) return NULL;
+	xnetstream* pStream = __xrtNetStreamConnectCreate(pEngine, pRemote,
+		iAffinity, pConfig, &pPolicy->Events, pData, NULL, false, pOwner);
+	if (!pStream) xrtFree(pOwner); /* creation failure consumes no Data credit */
+	return pStream;
 }
 
 
@@ -2868,7 +2887,8 @@ xnetstream* __xrtNetStreamCreateControlled(
 		NULL,
 		NULL,
 		pControl,
-		true
+		true,
+		NULL
 	);
 }
 
