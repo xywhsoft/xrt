@@ -321,18 +321,6 @@ bool __xrtTlsClientResumePublish(
 
 
 
-/* 只有服务端在 ServerHello 中接受 identity 0 后才报告恢复成功。 */
-XRT_API bool xrtTlsClientResumed(const xtlssession* pSession)
-{
-	xtlsclientstate* pState = __xrtTlsClientResumeState(
-		pSession, "get-tls-client-resumed"
-	);
-
-	return (pState != NULL) && pState->Resumed;
-}
-
-
-
 /* 释放环中仍由会话拥有的全部恢复对象。 */
 void __xrtTlsClientResumeClear(xtlsclientstate* pState)
 {

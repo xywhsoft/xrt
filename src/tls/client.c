@@ -1097,9 +1097,7 @@ XRT_API void xrtTlsClientConfigInit(xtlsclientconfig* pConfig)
 
 
 
-#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
-
-/* 验证公共证书查询确实指向客户端会话。 */
+/* 验证公共角色查询确实指向完整的客户端私有状态。 */
 static xtlsclientstate* __xrtTlsClientQueryState(
 	const xtlssession* pSession,
 	cstr sOperation
@@ -1115,12 +1113,14 @@ static xtlsclientstate* __xrtTlsClientQueryState(
 		return NULL;
 	}
 	if ( (pSession->Role != XTLS_CLIENT) ||
-		(pSession->AllocationSize <= sizeof(*pSession)) ) {
+		(pSession->AllocationSize < sizeof(*pSession)) ||
+		(pSession->AllocationSize - sizeof(*pSession) <
+		 sizeof(xtlsclientstate)) ) {
 		(void)__xrtTlsClientError(
 			XERR_STATE,
 			XTLS_ERROR_STATE,
 			sOperation,
-			"TLS session is not a verified client"
+			"TLS session does not contain a client role state"
 		);
 		return NULL;
 	}
@@ -1128,6 +1128,27 @@ static xtlsclientstate* __xrtTlsClientQueryState(
 }
 
 
+
+/* 状态观察不应启用票据、PSK binder 或恢复握手实现。 */
+XRT_API bool xrtTlsClientResumed(const xtlssession* pSession)
+{
+	xtlsclientstate* pState = __xrtTlsClientQueryState(
+		pSession, "get-tls-client-resumed"
+	);
+
+	if ( pState == NULL ) {
+		return false;
+	}
+	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+		return pState->Resumed;
+	#else
+		return false;
+	#endif
+}
+
+
+
+#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
 
 /* 返回完整证书握手保留的对端证书数量。 */
 XRT_API size_t xrtTlsClientCertificateCount(

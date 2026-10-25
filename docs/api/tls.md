@@ -9637,6 +9637,10 @@ uint64 xrtTlsClientResumeDropped(const xtlssession* pSession)
 
 返回服务端是否接受了本次创建时提供的恢复对象。
 
+此查询属于基础 `tls_client` 模块，不会启用票据或恢复握手实现。
+未编译 `tls_client_resume` 时，对合法客户端会话返回 `false`；
+启用恢复能力时读取会话的真实状态。调用方仍须遵守会话线程和生命周期合同。
+
 ```c
 bool xrtTlsClientResumed(const xtlssession* pSession)
 ```
@@ -10226,6 +10230,10 @@ bool xrtTlsServerPsk(xbytesview Data, uint16* pSelected)
 ### `xrtTlsServerResumed`
 
 返回本次连接是否接受了客户端提供的 TLS 1.3 会话票据。
+
+此查询属于基础 `tls_server` 模块，不会启用票据或恢复握手实现。
+未编译 `tls_server_resume` 时，对合法服务端会话返回 `false`；
+启用恢复能力时读取会话的真实状态。调用方仍须遵守会话线程和生命周期合同。
 
 ```c
 bool xrtTlsServerResumed(const xtlssession* pSession)

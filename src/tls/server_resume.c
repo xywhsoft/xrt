@@ -502,27 +502,4 @@ XRT_API xtlsresult xrtTlsServerTicketNew(
 
 
 
-/* 查询服务端握手是否接受了本次 ClientHello 中的票据。 */
-XRT_API bool xrtTlsServerResumed(const xtlssession* pSession)
-{
-	const xtlsserverstate* pState;
-
-	if ( pSession == NULL ) {
-		return __xrtTlsServerError(
-			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT,
-			"get-tls-server-resumed", "TLS server session is null"
-		);
-	}
-	if ( xrtTlsSessionRole(pSession) != XTLS_SERVER ) {
-		return __xrtTlsServerError(
-			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT,
-			"get-tls-server-resumed", "TLS session is not a server"
-		);
-	}
-	pState = (const xtlsserverstate*)__xrtTlsSessionRoleData(
-		(xtlssession*)pSession
-	);
-	return (pState != NULL) && pState->Resumed;
-}
-
 #endif

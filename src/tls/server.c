@@ -462,6 +462,41 @@ XRT_API bool xrtTlsServerCookie(
 
 
 
+/* 状态观察属于基础角色；关闭恢复实现时不需要任何票据依赖。 */
+XRT_API bool xrtTlsServerResumed(const xtlssession* pSession)
+{
+	if ( pSession == NULL ) {
+		return __xrtTlsServerError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT,
+			"get-tls-server-resumed", "TLS server session is null"
+		);
+	}
+	if ( xrtTlsSessionRole(pSession) != XTLS_SERVER ) {
+		return __xrtTlsServerError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT,
+			"get-tls-server-resumed", "TLS session is not a server"
+		);
+	}
+	if ( (pSession->AllocationSize < sizeof(*pSession)) ||
+		(pSession->AllocationSize - sizeof(*pSession) <
+		 sizeof(xtlsserverstate)) ) {
+		return __xrtTlsServerError(
+			XERR_STATE, XTLS_ERROR_STATE,
+			"get-tls-server-resumed", "TLS session does not contain a server role state"
+		);
+	}
+	#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
+		const xtlsserverstate* pState =
+			(const xtlsserverstate*)(pSession + 1);
+
+		return pState->Resumed;
+	#else
+		return false;
+	#endif
+}
+
+
+
 /* 把当前输入、输出和应用背压统一转换成等待位。 */
 bool __xrtTlsServerWait(
 	xtlssession* pSession,

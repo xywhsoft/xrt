@@ -139,12 +139,13 @@ XRT_API xtlsresult xrtTlsClientKeyUpdate(
 
 
 
-#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
-
-/* 返回服务端是否接受了本次创建时提供的恢复对象。 */
+/* 返回服务端是否接受了本次创建时提供的恢复对象。
+ * 这是基础角色查询；未编译恢复能力时，合法客户端会话返回 false。 */
 XRT_API bool xrtTlsClientResumed(const xtlssession* pSession);
 
 
+
+#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 
 /* 返回等待调用方接管的恢复对象数量。 */
 XRT_API size_t xrtTlsClientResumeCount(const xtlssession* pSession);

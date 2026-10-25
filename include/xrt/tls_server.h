@@ -165,12 +165,13 @@ XRT_API bool xrtTlsServerCookie(
 
 
 
-#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
-
-/* 返回本次连接是否接受了客户端提供的 TLS 1.3 会话票据。 */
+/* 返回本次连接是否接受了客户端提供的 TLS 1.3 会话票据。
+ * 这是基础角色查询；未编译恢复能力时，合法服务端会话返回 false。 */
 XRT_API bool xrtTlsServerResumed(const xtlssession* pSession);
 
 
+
+#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
 
 /* 用调用方票据签发 TLS 1.3 NewSessionTicket；TLS 1.2 会话返回不支持。 */
 XRT_API xtlsresult xrtTlsServerTicket(
