@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 #include "../fixtures/tls_server.h"
 
 #if defined(TEST_TLS_STREAM_CLIENT_ATTACH)
@@ -152,10 +151,11 @@ static void testTlsStreamWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000);
+	/* Public monotonic seconds also work with the pinned microsecond ABI. */
+	double Deadline = xrtTimer() + 10.0;
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!__xrtWaitExpired(Deadline), sMessage);
+		testRequire(xrtTimer() < Deadline, sMessage);
 		xrtThreadYield();
 	}
 }

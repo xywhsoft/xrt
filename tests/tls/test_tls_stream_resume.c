@@ -1,4 +1,3 @@
-#include <xrt/detail/wait.h>
 #include "../fixtures/tls_server.h"
 
 
@@ -63,10 +62,12 @@ static void testTlsStreamResumeWait(
 	cstr sMessage
 )
 {
-	double Deadline = __xrtWaitAfter(10000);
+	/* xrtTimer is seconds in both native and pinned time ABIs. This test
+	 * must not depend on a newer product's private wait helper names. */
+	double Deadline = xrtTimer() + 10.0;
 
 	while ( xrtAtomic32Load(pValue, XMEMORY_ACQUIRE) < iExpected ) {
-		testRequire(!__xrtWaitExpired(Deadline), sMessage);
+		testRequire(xrtTimer() < Deadline, sMessage);
 		xrtThreadYield();
 	}
 }
@@ -103,7 +104,6 @@ static void testTlsStreamResumeFifthTicket(
 	test_tls_stream_resume* pTest =
 		(test_tls_stream_resume*)pData;
 	xtlsresume* pResume = NULL;
-	size_t iWritten = 0;
 
 	testRequire(
 		(pTest->Server.Stream != NULL) &&
@@ -128,13 +128,7 @@ static void testTlsStreamResumeFifthTicket(
 	xrtTlsResumeRelease(pTest->ServerResume);
 	pTest->ServerResume = pResume;
 	testRequire(
-		(xrtTlsStreamSend(
-			pTest->Server.Stream,
-			NULL,
-			0,
-			&iWritten
-		) == XTLS_OK) &&
-		(iWritten == 0),
+		xrtTlsStreamFlush(pTest->Server.Stream) == XTLS_OK,
 		"TLS stream fifth ticket flush failed"
 	);
 }
@@ -254,6 +248,16 @@ static void testTlsStreamResumeOpen(xtlsstream* pStream, ptr pData)
 	testRequire((pSession != NULL) && xrtNetWorkerIsCurrent(
 		xrtNetStreamWorker(xrtTlsStreamTransport(pStream))
 	), "TLS stream resumed Open worker mismatch");
+	#if defined(XRT_FEATURE_MEMORY_DEBUG)
+		testRequire(xrtMemDebugFailAfter(0), "TLS flush empty fail point failed");
+	#endif
+	testRequire((xrtTlsStreamFlush(pStream) == XTLS_OK) &&
+		(xrtTlsStreamFlush(pStream) == XTLS_OK),
+		"TLS stream empty flush is not idempotent");
+	#if defined(XRT_FEATURE_MEMORY_DEBUG)
+		testRequire(!xrtMemDebugFailTriggered(), "TLS empty flush allocated");
+		xrtMemDebugFailClear();
+	#endif
 	if ( pEndpoint->Server ) {
 		testRequire(xrtTlsServerResumed(pSession) == (iRound != 0),
 			"TLS stream server resumed state mismatch");
@@ -273,12 +277,20 @@ static void testTlsStreamResumeOpen(xtlsstream* pStream, ptr pData)
 			xrtTlsResumeRelease(pTest->ServerResume);
 			pTest->ServerResume = pResume;
 		}
+		testRequire((xrtTlsServerKeyUpdate(pSession,
+			XTLS_KEY_UPDATE_NOT_REQUESTED) == XTLS_OK) &&
+			(xrtTlsStreamFlush(pStream) == XTLS_OK),
+			"TLS server ticket and KeyUpdate flush failed");
 	} else {
 		testRequire(xrtTlsClientResumed(pSession) == (iRound != 0),
 			"TLS stream client resumed state mismatch");
 		testRequire(xrtTlsClientCertificateCount(pSession) ==
 			(iRound == 0 ? 1u : 0),
 			"TLS stream resumed certificate visibility mismatch");
+		testRequire((xrtTlsClientKeyUpdate(pSession,
+			XTLS_KEY_UPDATE_REQUESTED) == XTLS_OK) &&
+			(xrtTlsStreamFlush(pStream) == XTLS_OK),
+			"TLS client KeyUpdate flush failed");
 		testRequire(xrtTlsStreamSend(
 			pStream,
 			pTest->Payload,
@@ -458,6 +470,9 @@ int main(void)
 	xnetlistener* pListener;
 	xnetaddr Address;
 
+	#if defined(XRT_FEATURE_MEMORY_DEBUG)
+		testRequire(xrtMemDebugEnable(true), "TLS flush memory debug enable failed");
+	#endif
 	memset(&Test, 0, sizeof(Test));
 	memset(&ListenerEvents, 0, sizeof(ListenerEvents));
 	Test.Client.Test = &Test;
@@ -553,6 +568,11 @@ int main(void)
 		);
 		testRequire(Test.Client.Stream != NULL,
 			"TLS stream resumed client creation failed");
+		xrtClearError();
+		testRequire((xrtTlsStreamFlush(Test.Client.Stream) == XTLS_ERROR) &&
+			(xrtGetError() != NULL) && (xrtErrorKind(xrtGetError()) == XERR_STATE),
+			"TLS flush accepted the wrong Worker");
+		xrtClearError();
 		xrtTlsResumeRelease(pClientResume);
 		pClientResume = NULL;
 		testTlsStreamResumeWait(&Test.Accepted, iRound + 1u,
@@ -600,6 +620,6 @@ int main(void)
 	xrtTlsVerifierRelease(pVerifier);
 	xrtTlsIdentityRelease(pIdentity);
 	xrtTlsContextRelease(pContext);
-	printf("[PASS] TLS stream repeated TLS 1.3 resumption\n");
+	printf("[PASS] TLS stream repeated TLS 1.3 resumption, explicit ticket/KeyUpdate flush and allocation-free empty flush\n");
 	return 0;
 }
