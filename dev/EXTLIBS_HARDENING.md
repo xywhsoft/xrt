@@ -45,8 +45,8 @@
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 待复核 |
 | ximap | 11 | 9 | 22 | 15 | 5 | 待复核 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 待复核 |
-| xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8/故障诊断修复完成，交付验收待办 |
-| xllm-session | 1 | 8 | 2 | 1 | 0 | 持久化/数值/终值回归通过，交付验收继续 |
+| xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
+| xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
 | xmail | 19 | 19 | 27 | 18 | 14 | 待复核 |
 | xoauth2 | 1 | 3 | 3 | 2 | 4 | 待复核 |
 | xpop3 | 6 | 4 | 10 | 6 | 4 | 待复核 |
@@ -54,7 +54,7 @@
 | xruntime | 36 | 23 | 87 | 42 | 30 | 待复核 |
 | xsmtp | 6 | 4 | 8 | 6 | 4 | 待复核 |
 | xssh | 66 | 65 | 71 | 66 | 65 | 待复核 |
-| xwork | 1 | 8 | 1 | 1 | 0 | 待复核 |
+| xwork | 1 | 8 | 1 | 1 | 0 | 路径/只读隔离修复通过，工具状态机复核中 |
 | xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
 | xws-client | 5 | 3 | 7 | 5 | 3 | 待复核 |
 | xws-group | 3 | 3 | 4 | 3 | 2 | 待复核 |
@@ -202,3 +202,25 @@ TCP/UDP 端口兼容性失败，另批修复。此记录不将该次 CI 记为�
 
 证据：`acme-windows-ci-failure.log`、`pebble-ports-windows-final.log`、`pebble-ports-linux-final.log`、
 `pebble-prepare-local.log`。
+
+### 第五批：实际包消费与 profile
+
+- 原包消费者只初始化配置并检查核心版本，不能说明关键产品行为能通过真实库边界。
+  增强 xllm 消费者：转换带签名响应、复制请求、覆盖原始输入并释放中间消息，再构建和解析 Anthropic JSON，
+  确认推理、签名、回答仍保留且没有借用已释放存储；整个过程不发网络请求。
+- 增强 session 消费者：复制用户文本、构建借用视图、保存恢复 `UINT64_MAX` 窗口，
+  释放恢复后的会话再检查独立请求仍有效；测试生成的快照在结束时清理。
+- 两库分别在 Windows/GCC 与 Linux/GCC 的 static/shared 包上链接并运行上述消费者：8 组通过。
+  两库 Linux/GCC 的正向裁剪与缺依赖拒绝检查通过。
+- 两库各自的体积 profile 均完成 single/static/shared 三种实测；性能 profile 的 smoke 各完成一次。
+  这些 profile 使用未固定的基线，性能 smoke 不作为性能回归比较或长稳证据。
+- 构建、打包、API 工具回归共 68 项通过。增强消费者不改变公开 ABI。
+
+证据：`llm-package-consumers-linux-final.log`、`package-xllm-static-windows.log`、
+`package-xllm-shared-windows.log`、`package-xllm-session-static-windows.log`、
+`package-xllm-session-shared-windows.log`、`xllm-trim-linux-final.log`、
+`llm-size-final.log`、`xllm-size.json`、`session-size.json`、`llm-performance-smoke-final.log`、
+`xllm-performance-smoke.json`、`session-performance-smoke.json`、`package-api-tooling-final.log`。
+
+`8d70f28c` 的 CI `40213017331` 已确认 Windows/Linux 独立 ACME 服务两项均成功，
+独立邮件 `40213012058` 成功。完整 CI 在记录时仍运行，尚不记为全绿。
