@@ -45,8 +45,8 @@
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 待复核 |
 | ximap | 11 | 9 | 22 | 15 | 5 | 待复核 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 待复核 |
-| xllm | 1 | 12 | 3 | 1 | 2 | TCC 兼容复核中 |
-| xllm-session | 1 | 8 | 2 | 1 | 0 | 预算修复完成，生命周期复核中 |
+| xllm | 1 | 12 | 3 | 1 | 2 | TCC 兼容修复完成，继续复核 |
+| xllm-session | 1 | 8 | 2 | 1 | 0 | 预算/摘要寿命修复完成，持久化复核中 |
 | xmail | 19 | 19 | 27 | 18 | 14 | 待复核 |
 | xoauth2 | 1 | 3 | 3 | 2 | 4 | 待复核 |
 | xpop3 | 6 | 4 | 10 | 6 | 4 | 待复核 |
@@ -79,8 +79,26 @@ prompt/output 与下一轮增量回绕后错误降压；完整预算阈值在 do
 - 修复前：Windows/GCC 模块化和单头各有 7 个新增断言失败。
 - 修复后：上述两种构建各 245 个断言通过，零失败；两者复用同一完整离线测试入口。
 - 发布成熟度、API 文档覆盖、参考生成与单头生成检查通过。
-- Linux/Clang ASan/UBSan/float-cast-overflow 初次运行发现独立的 routing-key 栈寿命缺陷，待下一个修复提交关闭。
-- Linux/TCC 单头编译发现 `xllm_profile.c` 使用静态 const 变量初始化静态表，待下一批兼容修复。
+- Linux/Clang ASan/UBSan/float-cast-overflow 初次运行发现独立的 routing-key 栈寿命缺陷，已由后续修复关闭。
+- Linux/TCC 单头编译发现 `xllm_profile.c` 使用静态 const 变量初始化静态表，已由后续兼容修复关闭。
 
 主要证据：`session-before.log`、`session-single-before.log`、`session-after.log`、
 `session-single-after.log`、`session-sanitize-after.log`、`session-tcc-after.log`，均位于 `out/extlibs-hardening/`。
+
+### 第一批续：摘要请求寿命与 TCC
+
+- 摘要调用的 routing-key 字符数组原先在内部块结束后失效，但请求仍借用该数组；将其寿命延长到同步派发结束。
+  既有摘要测试会在模型回调中读取该头，修复前 ASan 报 `stack-use-after-scope`，无需新建镜像测试。
+- 随后的 LSan 检测到 95,296 字节的四个泄漏分配，来自两个测试夹具遗漏：一次已提交压缩事务未 Destroy，
+  以及借用请求在重新 Init 前未 Unit。补齐释放，保留全部原有断言。
+- `xllm` 内建 profile 表改用真正的 C 常量表达式；局部宏在表后取消定义，保持所有能力位和公开结构不变。
+  NaN/Infinity 回归数组使用自动存储，以兼容 TCC 的浮点常量初始化限制。
+- 最终 Linux/Clang `-O1 -g -fsanitize=address,undefined,float-cast-overflow`：会话完整离线套件 245 个断言通过；
+  `ASAN_OPTIONS=detect_leaks=1:halt_on_error=1` 和 `UBSAN_OPTIONS=halt_on_error=1` 均开启，无 sanitizer 报错。
+- Linux/TCC：`xllm-session` 及 `xllm` 完整离线单头套件分别通过。GCC/Windows 模块化会话套件通过。
+
+后续优先复核：快照/日志是否完整保留多模态 parts 与 native 数据；损坏记录的类型与数值边界；
+长度累加的极值拒绝与失败原子性。上述项目尚未判定为缺陷，不据候选线索修改运行行为。
+
+证据：`session-sanitize-lifetime-fixed.log` 为夹具泄漏报告，`session-sanitize-final.log` 为最终干净结果；
+`session-tcc-final.log`、`xllm-tcc-final.log`、`session-windows-final.log` 保留相应编译器的运行结果。

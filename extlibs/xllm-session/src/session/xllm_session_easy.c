@@ -25,6 +25,7 @@ bool xllm_session__client_summarize(xllm_session* pSession, const char* sPrompt,
     xllm_request tRequest;
     xllm_response* pResponse = NULL;
     xllm_header tHeader;
+    char sKey[40];
     xllm_result eResult;
     bool bOk = false;
     if ( pError ) { xllmErrorInit(pError); }
@@ -44,7 +45,6 @@ bool xllm_session__client_summarize(xllm_session* pSession, const char* sPrompt,
     {
         unsigned char aSeed[16];
         if ( xrtSecureRandom(aSeed, sizeof(aSeed)) ) {
-            char sKey[40];
             aSeed[6] = (unsigned char)((aSeed[6] & 0x0fu) | 0x40u); /* v4 */
             aSeed[8] = (unsigned char)((aSeed[8] & 0x3fu) | 0x80u); /* variant */
             (void)snprintf(sKey, sizeof(sKey),

@@ -713,8 +713,8 @@ static bool test_split_plan_override(xllm_session* pSession, uint64_t uPrevThrou
 
 static void test_budget_extremes(void)
 {
-    static const double aInvalidPrune[] = { NAN, INFINITY, -INFINITY, 0.0, 1.0 };
-    static const double aInvalidCompact[] = { NAN, INFINITY, -INFINITY, 0.75, 1.01 };
+    const double aInvalidPrune[] = { NAN, INFINITY, -INFINITY, 0.0, 1.0 };
+    const double aInvalidCompact[] = { NAN, INFINITY, -INFINITY, 0.75, 1.01 };
     xllm_session_config tConfig;
     xllm_session* pSession;
     xllm_session_stats tStats;
@@ -1741,6 +1741,7 @@ static void test_file_ledger(void)
         xllmSessionCommitCompaction(pSession, pCompaction,
             test_pi_summary("ledger survives compaction"), &tError),
         "compaction commits with the ledger present");
+    xllmCompactionDestroy(pCompaction);
     pCompaction = NULL;
     xllmRequestInit(&tRequest);
     if ( pSession && xllmSessionBuildRequest(pSession, &tRequest, &tError) ) {
@@ -1844,6 +1845,7 @@ static void test_borrowed_view_render(void)
     SESSION_CHECK(xllmSessionBuildRequestView(pSession, &tView, &tError) &&
         tView.iMessageCount == 2u * iTurns,
         "ledger survives view unit (no double free)");
+    xllmRequestUnit(&tView);
 
     /* 4. Performance: the view path must be dramatically cheaper on a
      * large ledger (allocation churn dominates; assert >= 5x on wall time,
