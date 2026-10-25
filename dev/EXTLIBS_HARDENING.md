@@ -45,8 +45,8 @@
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 待复核 |
 | ximap | 11 | 9 | 22 | 15 | 5 | 待复核 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 待复核 |
-| xllm | 1 | 12 | 3 | 1 | 2 | 待复核 |
-| xllm-session | 1 | 8 | 2 | 1 | 0 | 数值边界复核中 |
+| xllm | 1 | 12 | 3 | 1 | 2 | TCC 兼容复核中 |
+| xllm-session | 1 | 8 | 2 | 1 | 0 | 预算修复完成，生命周期复核中 |
 | xmail | 19 | 19 | 27 | 18 | 14 | 待复核 |
 | xoauth2 | 1 | 3 | 3 | 2 | 4 | 待复核 |
 | xpop3 | 6 | 4 | 10 | 6 | 4 | 待复核 |
@@ -72,5 +72,15 @@
 
 ### 第一批：会话预算边界
 
-正在复核 `xllm-session` 的浮点阈值、上下文容量与 usage 累加。
-新增回归与既有完整套件共用同一入口，后续记录修复前失败、修复后结果及 sanitizer 证据。
+确认并修复以下边界：NaN 阈值绕过校验；安全预留的百分比计算溢出；默认尾部预算先窄化再截断；
+prompt/output 与下一轮增量回绕后错误降压；完整预算阈值在 double 舍入后超出 uint64 转换范围。
+不改变正常配置与有效 usage 的行为，溢出的 usage 饱和到 `UINT64_MAX` 并保留溢出压力。
+
+- 修复前：Windows/GCC 模块化和单头各有 7 个新增断言失败。
+- 修复后：上述两种构建各 245 个断言通过，零失败；两者复用同一完整离线测试入口。
+- 发布成熟度、API 文档覆盖、参考生成与单头生成检查通过。
+- Linux/Clang ASan/UBSan/float-cast-overflow 初次运行发现独立的 routing-key 栈寿命缺陷，待下一个修复提交关闭。
+- Linux/TCC 单头编译发现 `xllm_profile.c` 使用静态 const 变量初始化静态表，待下一批兼容修复。
+
+主要证据：`session-before.log`、`session-single-before.log`、`session-after.log`、
+`session-single-after.log`、`session-sanitize-after.log`、`session-tcc-after.log`，均位于 `out/extlibs-hardening/`。

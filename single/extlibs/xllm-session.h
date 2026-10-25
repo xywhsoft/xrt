@@ -167,8 +167,8 @@ typedef struct xllm_session_config {
     uint32_t uSummaryMaxTokens;
     uint32_t uSummaryMinTokens;
     uint32_t uCompactionRequiredSections;
-    double fPruneTrigger;
-    double fCompactTrigger;
+    double fPruneTrigger;           /* finite; 0 < prune < compact <= 1 */
+    double fCompactTrigger;         /* NaN and infinity reject session creation */
     /* --- v3 additions (appended; ConfigInit assigns defaults) --- */
     uint32_t uKeepRecentTokens;      /* tail-window cut budget; 0 = derived min(20000, window/4) */
     uint32_t uSummaryMaxBytes;       /* summary byte cap (quality gate); 0 = 32768, clamped to window */
@@ -207,7 +207,7 @@ typedef struct xllm_session_stats {
     bool bJournalEnabled;
     xllm_session_pressure ePressure;
     /* --- v3 additions --- */
-    uint64_t uFillExact;            /* last observed prompt+output tokens; UINT64_MAX when unknown */
+    uint64_t uFillExact;            /* prompt+output, saturated at UINT64_MAX; unknown when !bFillExactValid */
     uint64_t uIncrementMax;         /* worst-case next-turn growth envelope (tokens) */
     uint64_t uCachedInputTokens;    /* last observed provider cache hit (observation only) */
     uint64_t uSummaryTokensExact;   /* current summary cost: meta-call output tokens */
@@ -784,6 +784,7 @@ double xllm_session__json_double(xvalue* pObject, const char* sKey, double fDefa
 bool xllm_session__load_message(xllm_message* pMessage, xvalue* pEntry);
 
 /* governance (govern.c) */
+uint64_t xllm_session__pressure_threshold(uint64_t uBudget, double fTrigger);
 void xllm_session__record_usage(xllm_session* pSession, const xllm_usage* pUsage);
 void xllm_session__invalidate_fill(xllm_session* pSession);
 xllm_session_pressure xllm_session__pressure_exact(const xllm_session* pSession);
@@ -969,7 +970,8 @@ fail:
 
 uint64_t xllmSessionComputeSafetyReserve(uint64_t uContextWindowTokens)
 {
-    uint64_t uReserve = (uContextWindowTokens * 3u) / 100u;
+    uint64_t uReserve = (uContextWindowTokens / 100u) * 3u +
+        ((uContextWindowTokens % 100u) * 3u) / 100u;
     if ( uReserve < 8000u ) { uReserve = 8000u; }
     if ( uReserve > 32000u ) { uReserve = 32000u; }
     return uReserve;
@@ -1038,8 +1040,8 @@ xllm_session* xllmSessionCreate(const xllm_session_config* pConfig, xllm_error* 
     if ( (uint64_t)tConfig.uMaxOutputTokens + tConfig.uSafetyReserveTokens >= tConfig.uContextWindowTokens ||
          tConfig.uOutputReserveTokens > tConfig.uMaxOutputTokens ||
          (uint64_t)tConfig.uOutputReserveTokens + tConfig.uSafetyReserveTokens >= tConfig.uContextWindowTokens ||
-         tConfig.fPruneTrigger <= 0.0 || tConfig.fPruneTrigger >= 1.0 ||
-         tConfig.fCompactTrigger <= tConfig.fPruneTrigger || tConfig.fCompactTrigger > 1.0 ) {
+         !(tConfig.fPruneTrigger > 0.0 && tConfig.fPruneTrigger < 1.0 &&
+           tConfig.fCompactTrigger > tConfig.fPruneTrigger && tConfig.fCompactTrigger <= 1.0) ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "invalid session budget or pressure thresholds");
         return NULL;
     }
@@ -1056,8 +1058,8 @@ xllm_session* xllmSessionCreate(const xllm_session_config* pConfig, xllm_error* 
      * window quarter; explicit D6 violation of the static feasibility
      * check (keep-recent + reserves + summary > window) rejects creation. */
     if ( tConfig.uKeepRecentTokens == 0u ) {
-        tConfig.uKeepRecentTokens = (uint32_t)(tConfig.uContextWindowTokens / 4u);
-        if ( tConfig.uKeepRecentTokens > 20000u ) { tConfig.uKeepRecentTokens = 20000u; }
+        uint64_t uKeep = tConfig.uContextWindowTokens / 4u;
+        tConfig.uKeepRecentTokens = uKeep < 20000u ? (uint32_t)uKeep : 20000u;
     }
     if ( tConfig.uSummaryMaxBytes == 0u ) { tConfig.uSummaryMaxBytes = 32768u; }
     {
@@ -1613,8 +1615,8 @@ bool xllmSessionGetStats(const xllm_session* pSession, xllm_session_stats* pStat
             uRaw += pSession->pEntries[i].uEstimatedTokens;
         }
     }
-    pStats->uPruneThresholdTokens = (uint64_t)((double)uInputBudget * pSession->tConfig.fPruneTrigger);
-    pStats->uCompactThresholdTokens = (uint64_t)((double)uInputBudget * pSession->tConfig.fCompactTrigger);
+    pStats->uPruneThresholdTokens = xllm_session__pressure_threshold(uInputBudget, pSession->tConfig.fPruneTrigger);
+    pStats->uCompactThresholdTokens = xllm_session__pressure_threshold(uInputBudget, pSession->tConfig.fCompactTrigger);
     bPrune = uRaw >= pStats->uPruneThresholdTokens;
     uRendered += uSummaryTokens;
     for ( i = 0u; i < pSession->iEntryCount; ++i ) {
@@ -1720,6 +1722,13 @@ static uint64_t xllm_session__compute_increment(const xllm_session* pSession)
     return uIncrement;
 }
 
+uint64_t xllm_session__pressure_threshold(uint64_t uBudget, double fTrigger)
+{
+    /* Converting UINT64_MAX to double rounds up to 2^64. A validated
+     * trigger below one stays in range; exactly one must keep the integer. */
+    return fTrigger == 1.0 ? uBudget : (uint64_t)((double)uBudget * fTrigger);
+}
+
 xllm_session_pressure xllm_session__pressure_exact(const xllm_session* pSession)
 {
     uint64_t uBudget;
@@ -1728,12 +1737,15 @@ xllm_session_pressure xllm_session__pressure_exact(const xllm_session* pSession)
     uint64_t uLoad;
     if ( !pSession || !pSession->bFillExactValid ) { return XLLM_SESSION_PRESSURE_NONE; }
     uBudget = xllm_session__input_budget(pSession);
-    uSoft = (uint64_t)((double)uBudget * pSession->tConfig.fCompactTrigger);
-    uPrune = (uint64_t)((double)uBudget * pSession->tConfig.fPruneTrigger);
+    uSoft = xllm_session__pressure_threshold(uBudget, pSession->tConfig.fCompactTrigger);
+    uPrune = xllm_session__pressure_threshold(uBudget, pSession->tConfig.fPruneTrigger);
     /* Next-call input approximates this call's prompt+output plus the bounded
      * increment, so the fill used here is prompt+output, not prompt alone. */
+    if ( pSession->uFillExact > uBudget ||
+         pSession->uIncrementMax > uBudget - pSession->uFillExact ) {
+        return XLLM_SESSION_PRESSURE_OVERFLOW;
+    }
     uLoad = pSession->uFillExact + pSession->uIncrementMax;
-    if ( uLoad > uBudget ) { return XLLM_SESSION_PRESSURE_OVERFLOW; }
     if ( uLoad >= uSoft ) { return XLLM_SESSION_PRESSURE_COMPACT; }
     if ( uLoad >= uPrune ) { return XLLM_SESSION_PRESSURE_PRUNE; }
     return XLLM_SESSION_PRESSURE_NONE;
@@ -1747,7 +1759,8 @@ void xllm_session__record_usage(xllm_session* pSession, const xllm_usage* pUsage
     }
     pSession->bFillSeen = true;
     pSession->bFillExactValid = true;
-    pSession->uFillExact = pUsage->uInputTokens + pUsage->uOutputTokens;
+    pSession->uFillExact = pUsage->uInputTokens > UINT64_MAX - pUsage->uOutputTokens
+        ? UINT64_MAX : pUsage->uInputTokens + pUsage->uOutputTokens;
     pSession->uCachedInputTokens = pUsage->uCachedInputTokens;
     pSession->uIncrementMax = xllm_session__compute_increment(pSession);
     pSession->bStatsDirty = true;

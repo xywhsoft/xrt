@@ -114,6 +114,7 @@ double xllm_session__json_double(xvalue* pObject, const char* sKey, double fDefa
 bool xllm_session__load_message(xllm_message* pMessage, xvalue* pEntry);
 
 /* governance (govern.c) */
+uint64_t xllm_session__pressure_threshold(uint64_t uBudget, double fTrigger);
 void xllm_session__record_usage(xllm_session* pSession, const xllm_usage* pUsage);
 void xllm_session__invalidate_fill(xllm_session* pSession);
 xllm_session_pressure xllm_session__pressure_exact(const xllm_session* pSession);

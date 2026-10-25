@@ -1,5 +1,6 @@
 #include "../../xllm/src/internal/xllm_internal.h"
 #include "../src/internal/xllm_session_internal.h"
+#include <math.h>
 
 
 static int g_iSessionFailures = 0;
@@ -709,6 +710,82 @@ static bool test_split_plan_override(xllm_session* pSession, uint64_t uPrevThrou
 /* ------------------------------------------------------------------ */
 /* v3: exact-feedback governance                                        */
 /* ------------------------------------------------------------------ */
+
+static void test_budget_extremes(void)
+{
+    static const double aInvalidPrune[] = { NAN, INFINITY, -INFINITY, 0.0, 1.0 };
+    static const double aInvalidCompact[] = { NAN, INFINITY, -INFINITY, 0.75, 1.01 };
+    xllm_session_config tConfig;
+    xllm_session* pSession;
+    xllm_session_stats tStats;
+    xllm_usage tUsage = {0};
+    xllm_error tError;
+    size_t i;
+
+    SESSION_CHECK(xllmSessionComputeSafetyReserve(0u) == 8000u &&
+        xllmSessionComputeSafetyReserve(266700u) == 8001u &&
+        xllmSessionComputeSafetyReserve(1066666u) == 31999u &&
+        xllmSessionComputeSafetyReserve(1066667u) == 32000u,
+        "safety reserve rounds before applying its documented caps");
+    SESSION_CHECK(xllmSessionComputeSafetyReserve(UINT64_MAX / 3u + 1u) == 32000u &&
+        xllmSessionComputeSafetyReserve(UINT64_MAX) == 32000u,
+        "large context windows cannot wrap the safety reserve");
+    for ( i = 0u; i < sizeof(aInvalidPrune) / sizeof(aInvalidPrune[0]); ++i ) {
+        xllmSessionConfigInit(&tConfig);
+        tConfig.fPruneTrigger = aInvalidPrune[i];
+        pSession = xllmSessionCreate(&tConfig, &tError);
+        SESSION_CHECK(!pSession && tError.eCode == XLLM_ERROR_INVALID_ARGUMENT,
+            "invalid prune thresholds are rejected before session creation");
+        xllmSessionDestroy(pSession);
+    }
+    for ( i = 0u; i < sizeof(aInvalidCompact) / sizeof(aInvalidCompact[0]); ++i ) {
+        xllmSessionConfigInit(&tConfig);
+        tConfig.fCompactTrigger = aInvalidCompact[i];
+        pSession = xllmSessionCreate(&tConfig, &tError);
+        SESSION_CHECK(!pSession && tError.eCode == XLLM_ERROR_INVALID_ARGUMENT,
+            "invalid compact thresholds are rejected before session creation");
+        xllmSessionDestroy(pSession);
+    }
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uContextWindowTokens = UINT64_C(1) << 34;
+    tConfig.uKeepRecentTokens = 0u;
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession && xllmSessionGetConfig(pSession, &tConfig) &&
+        tConfig.uKeepRecentTokens == 20000u,
+        "derived keep-recent cap is bounded before narrowing to uint32");
+    xllmSessionDestroy(pSession);
+
+    xllmSessionConfigInit(&tConfig);
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession != NULL, "extreme usage fixture creates");
+    if ( !pSession ) return;
+    tUsage.uInputTokens = UINT64_MAX - 64u;
+    SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage) &&
+        xllmSessionGetStats(pSession, &tStats) && tStats.bFillExactValid &&
+        tStats.uFillExact == tUsage.uInputTokens &&
+        tStats.ePressure == XLLM_SESSION_PRESSURE_OVERFLOW,
+        "fill plus increment cannot wrap into a low-pressure state");
+    tUsage.uInputTokens = UINT64_MAX;
+    tUsage.uOutputTokens = 1u;
+    SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage) &&
+        xllmSessionGetStats(pSession, &tStats) && tStats.bFillExactValid &&
+        tStats.uFillExact == UINT64_MAX &&
+        tStats.ePressure == XLLM_SESSION_PRESSURE_OVERFLOW,
+        "usage totals saturate and retain overflow pressure");
+    xllmSessionDestroy(pSession);
+
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uContextWindowTokens = UINT64_MAX;
+    tConfig.uMaxOutputTokens = 1u;
+    tConfig.uOutputReserveTokens = 1u;
+    tConfig.uSafetyReserveTokens = 1u;
+    tConfig.fCompactTrigger = 1.0;
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession && xllmSessionGetStats(pSession, &tStats) &&
+        tStats.uCompactThresholdTokens == tStats.uInputBudgetTokens,
+        "a full-budget threshold preserves the uint64 limit exactly");
+    xllmSessionDestroy(pSession);
+}
 
 static void test_exact_governance(void)
 {
@@ -1922,6 +1999,7 @@ int main(void)
     test_budget_compaction_persistence();
     test_journal_checkpoint_recovery();
     test_split_turn();
+    test_budget_extremes();
     test_exact_governance();
     test_ops_and_hooks();
     test_ladder_and_guard();

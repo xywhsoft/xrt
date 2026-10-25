@@ -21,6 +21,14 @@ governance.
 
 ## Compaction quality gate
 
+Session pressure thresholds must be finite and satisfy
+`0 < fPruneTrigger < fCompactTrigger <= 1`; invalid values reject creation with
+`XLLM_ERROR_INVALID_ARGUMENT`. The safety reserve uses 3% of the context window,
+rounded down and clamped to 8,000–32,000 tokens, across the full `uint64_t` range.
+An unrepresentable prompt-plus-output usage total saturates at `UINT64_MAX`
+with `bFillExactValid` still true. Neither usage addition nor the next-turn
+increment may wrap into a lower pressure state.
+
 Session compaction is a transaction with a deterministic quality gate. A
 candidate summary must:
 

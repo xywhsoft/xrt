@@ -19,6 +19,13 @@ static uint64_t xllm_session__compute_increment(const xllm_session* pSession)
     return uIncrement;
 }
 
+uint64_t xllm_session__pressure_threshold(uint64_t uBudget, double fTrigger)
+{
+    /* Converting UINT64_MAX to double rounds up to 2^64. A validated
+     * trigger below one stays in range; exactly one must keep the integer. */
+    return fTrigger == 1.0 ? uBudget : (uint64_t)((double)uBudget * fTrigger);
+}
+
 xllm_session_pressure xllm_session__pressure_exact(const xllm_session* pSession)
 {
     uint64_t uBudget;
@@ -27,12 +34,15 @@ xllm_session_pressure xllm_session__pressure_exact(const xllm_session* pSession)
     uint64_t uLoad;
     if ( !pSession || !pSession->bFillExactValid ) { return XLLM_SESSION_PRESSURE_NONE; }
     uBudget = xllm_session__input_budget(pSession);
-    uSoft = (uint64_t)((double)uBudget * pSession->tConfig.fCompactTrigger);
-    uPrune = (uint64_t)((double)uBudget * pSession->tConfig.fPruneTrigger);
+    uSoft = xllm_session__pressure_threshold(uBudget, pSession->tConfig.fCompactTrigger);
+    uPrune = xllm_session__pressure_threshold(uBudget, pSession->tConfig.fPruneTrigger);
     /* Next-call input approximates this call's prompt+output plus the bounded
      * increment, so the fill used here is prompt+output, not prompt alone. */
+    if ( pSession->uFillExact > uBudget ||
+         pSession->uIncrementMax > uBudget - pSession->uFillExact ) {
+        return XLLM_SESSION_PRESSURE_OVERFLOW;
+    }
     uLoad = pSession->uFillExact + pSession->uIncrementMax;
-    if ( uLoad > uBudget ) { return XLLM_SESSION_PRESSURE_OVERFLOW; }
     if ( uLoad >= uSoft ) { return XLLM_SESSION_PRESSURE_COMPACT; }
     if ( uLoad >= uPrune ) { return XLLM_SESSION_PRESSURE_PRUNE; }
     return XLLM_SESSION_PRESSURE_NONE;
@@ -46,7 +56,8 @@ void xllm_session__record_usage(xllm_session* pSession, const xllm_usage* pUsage
     }
     pSession->bFillSeen = true;
     pSession->bFillExactValid = true;
-    pSession->uFillExact = pUsage->uInputTokens + pUsage->uOutputTokens;
+    pSession->uFillExact = pUsage->uInputTokens > UINT64_MAX - pUsage->uOutputTokens
+        ? UINT64_MAX : pUsage->uInputTokens + pUsage->uOutputTokens;
     pSession->uCachedInputTokens = pUsage->uCachedInputTokens;
     pSession->uIncrementMax = xllm_session__compute_increment(pSession);
     pSession->bStatsDirty = true;

@@ -79,8 +79,8 @@ typedef struct xllm_session_config {
     uint32_t uSummaryMaxTokens;
     uint32_t uSummaryMinTokens;
     uint32_t uCompactionRequiredSections;
-    double fPruneTrigger;
-    double fCompactTrigger;
+    double fPruneTrigger;           /* finite; 0 < prune < compact <= 1 */
+    double fCompactTrigger;         /* NaN and infinity reject session creation */
     /* --- v3 additions (appended; ConfigInit assigns defaults) --- */
     uint32_t uKeepRecentTokens;      /* tail-window cut budget; 0 = derived min(20000, window/4) */
     uint32_t uSummaryMaxBytes;       /* summary byte cap (quality gate); 0 = 32768, clamped to window */
@@ -119,7 +119,7 @@ typedef struct xllm_session_stats {
     bool bJournalEnabled;
     xllm_session_pressure ePressure;
     /* --- v3 additions --- */
-    uint64_t uFillExact;            /* last observed prompt+output tokens; UINT64_MAX when unknown */
+    uint64_t uFillExact;            /* prompt+output, saturated at UINT64_MAX; unknown when !bFillExactValid */
     uint64_t uIncrementMax;         /* worst-case next-turn growth envelope (tokens) */
     uint64_t uCachedInputTokens;    /* last observed provider cache hit (observation only) */
     uint64_t uSummaryTokensExact;   /* current summary cost: meta-call output tokens */
