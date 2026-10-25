@@ -134,6 +134,47 @@ static bool __xrtTlsServerResumePartial(
 
 
 
+/* 从两种明确的查找合同取得一个拥有引用；失败也消费回调写入的引用，
+ * 保留第一份失败诊断，包括 false + NULL 诊断，不让清理替换它。 */
+static bool __xrtTlsServerResumeLookup(
+	const xtlsserverstate* pState,
+	const xtlsserverresumerequest* pRequest,
+	xtlsresume** ppResume
+)
+{
+	*ppResume = NULL;
+	if ( xrtGetError() != NULL ) {
+		return false;
+	}
+	if ( pState->ResumeOwnedV1 != NULL ) {
+		bool bOk = pState->ResumeOwnedV1(
+			pState->ResumeContext, pRequest, ppResume
+		);
+		xerror* pError = xrtTakeError();
+		if ( !bOk || (pError != NULL) ) {
+			xrtTlsResumeRelease(*ppResume);
+			*ppResume = NULL;
+			xrtClearError();
+			xrtSetErrorTake(pError);
+			return false;
+		}
+		return true;
+	}
+	const xtlsresume* pBorrowed = pState->Resume(
+		pState->ResumeContext, pRequest
+	);
+	if ( xrtGetError() != NULL ) {
+		return false;
+	}
+	if ( pBorrowed != NULL ) {
+		*ppResume = xrtTlsResumeRetain(pBorrowed);
+		return *ppResume != NULL;
+	}
+	return true;
+}
+
+
+
 /* 查找第一张可接受票据；命中的错误 binder 必须终止而不能降级。 */
 bool __xrtTlsServerResumeSelect(
 	const xtlshandshake* pMessage,
@@ -179,14 +220,13 @@ bool __xrtTlsServerResumeSelect(
 		!__xrtTlsServerResumePartial(pMessage, &Psks, &Partial) ) {
 		return false;
 	}
-	if ( !bMode || (pState->Resume == NULL) ) {
+	if ( !bMode || ((pState->Resume == NULL) && (pState->ResumeOwnedV1 == NULL)) ) {
 		return true;
 	}
 	while ( (Result = xrtTlsPsksRead(
 		&Psks, &Psk
 	)) == XTLS_ITEM_VALUE ) {
 		xtlsserverresumerequest Request;
-		const xtlsresume* pBorrowed;
 		xtlsresume* pResume;
 		xtlsresumeinfo Info;
 		uint8 Expected[XTLS_SERVER_SECRET_MAX_SIZE];
@@ -199,22 +239,15 @@ bool __xrtTlsServerResumeSelect(
 		Request.Protocols = Protocols;
 		Request.Ticket = Psk.Identity;
 		Request.Age = Psk.ObfuscatedAge;
-		pBorrowed = pState->Resume(
-			pState->ResumeContext, &Request
-		);
-		if ( pBorrowed == NULL ) {
+		if ( !__xrtTlsServerResumeLookup(pState, &Request, &pResume) ) {
+			return false;
+		}
+		if ( pResume == NULL ) {
 			if ( iSelected == UINT16_MAX ) {
 				break;
 			}
 			iSelected++;
 			continue;
-		}
-		pResume = xrtTlsResumeRetain(pBorrowed);
-		if ( pResume == NULL ) {
-			return __xrtTlsServerCause(
-				"select-server-resume",
-				"TLS server could not retain resume lookup result"
-			);
 		}
 		bMatch = xrtTlsResumeInfo(pResume, &Info) &&
 			__xrtTlsServerResumeMatch(

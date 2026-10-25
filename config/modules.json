@@ -8840,6 +8840,7 @@
 				"tests/tls/test_tls_server12.c",
 				"tests/tls/test_tls_server_alert.c",
 				"tests/tls/test_tls_server_resume.c",
+				"tests/tls/test_tls_server_resume_owned.c",
 				"tests/tls/test_tls_server_limits.c",
 				"tests/tls/test_tls_server_oom.c"
 			],

@@ -1682,6 +1682,7 @@ static void __xrtTlsServerFlightCommit(
 	pState->SelectContext = NULL;
 	#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
 		pState->Resume = NULL;
+		pState->ResumeOwnedV1 = NULL;
 		pState->ResumeContext = NULL;
 	#endif
 	pSession->Wait = XTLS_WAIT_INPUT | XTLS_WAIT_OUTPUT;
@@ -1778,6 +1779,7 @@ cleanup:
 		pState->SelectContext = NULL;
 		#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
 			pState->Resume = NULL;
+			pState->ResumeOwnedV1 = NULL;
 			pState->ResumeContext = NULL;
 		#endif
 	}

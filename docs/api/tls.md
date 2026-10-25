@@ -13711,3 +13711,29 @@ Drop／Trace，不冒充 TCP Stream。Proxy 握手后在同一 Worker Attach TLS
 旧 `xrtTlsDialAsync` 也移除阻塞等待，但保留借用语义，不自动认证其图。
 本批保持两边各自时间 ABI，完整合同和验收范围见
 [Dial Future 与 Proxy 拥有图](../design/tls-dial-future-ownership.md)。
+
+### 服务端恢复查找的拥有式结果
+
+`xtlsserverconfig.ResumeOwnedV1` 使用 `xtlsserverresumeownedprocV1`，与原来的
+借用式 `Resume` 互斥，共用 `ResumeContext`。回调接收借用请求和初始为 NULL
+的 `xtlsresume**` 输出槽；写入的独立引用在所有返回路径上均转交框架：
+
+- `true + 非 NULL`：使用该拥有对象检查绑定并复制所需 PSK，随后恰好 release 一次。
+- `true + NULL`：普通缓存未命中，可以继续完整证书握手。
+- `false`：查找失败，终止当前握手，不能解释成缓存未命中。即使写入了对象也由框架释放。
+- 回调返回 true 但留下错误同样失败；原始诊断保持为首错，失败清理不替换它。
+
+查找回调可以不提供诊断；输出释放仍不得制造替代错误。会话层沿用既有合同：
+没有根诊断时提供通用 `fail-tls-session` 错误，而不是降级握手。
+请求的 SNI、完整 ALPN、Ticket、Age 仍只借用到回调返回，保存时必须复制。
+拥有式结果关闭了“临时语言值销毁后，原生才 retain”的借用窗口，不采用隐藏缓存。
+
+原来的 `Resume` 返回借用对象并保留原有立即 retain 合同；它留下错误时也明确
+失败，不会因为返回 NULL 就忽略错误。未编入 `TLS_SERVER_RESUME` 时，Session 和
+Listener 都明确拒绝两种查找配置；同时提供两种回调则是参数错误。
+
+这是 `xtlsserverconfig` 的布局扩展，嵌入它的 Listener 配置也受影响，相关 C 单元
+必须整体重编译。既有函数签名、两边时间 ABI 和票据毫秒线路年龄转换均不升级。
+`tools/test_tls_server_resume_owned.py` 只运行正常固定材料的内存握手、拥有权、
+分配失败和无恢复能力配置检查；不运行既有畸形 PSK/binder 安全专项。
+该原生前置不等于语言层票据接口或 shipping 已验收。

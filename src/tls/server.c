@@ -324,6 +324,22 @@ XRT_API xtlssession* xrtTlsServerCreate(
 		Config = *pConfig;
 	}
 	pConfig = &Config;
+	if ( (pConfig->Resume != NULL) && (pConfig->ResumeOwnedV1 != NULL) ) {
+		(void)__xrtTlsServerError(
+			XERR_ARGUMENT, XTLS_ERROR_RESUME, "create-tls-server",
+			"TLS server borrowed and owned resume lookups are mutually exclusive"
+		);
+		return NULL;
+	}
+	#if !defined(XRT_FEATURE_TLS_SERVER_RESUME)
+		if ( (pConfig->Resume != NULL) || (pConfig->ResumeOwnedV1 != NULL) ) {
+			(void)__xrtTlsServerError(
+				XERR_UNSUPPORTED, XTLS_ERROR_RESUME, "create-tls-server",
+				"TLS server resumption support is not enabled"
+			);
+			return NULL;
+		}
+	#endif
 	if ( (pConfig->Identity == NULL) && (pConfig->Select == NULL) ) {
 		(void)__xrtTlsServerError(
 			XERR_ARGUMENT, XTLS_ERROR_IDENTITY, "create-tls-server",
@@ -395,6 +411,7 @@ XRT_API xtlssession* xrtTlsServerCreate(
 	pState->RequireProtocol = pConfig->RequireProtocol;
 	#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
 		pState->Resume = pConfig->Resume;
+		pState->ResumeOwnedV1 = pConfig->ResumeOwnedV1;
 		pState->ResumeContext = pConfig->ResumeContext;
 		pState->ResumeAgeTolerance = pConfig->ResumeAgeTolerance;
 	#endif

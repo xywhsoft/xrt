@@ -234,6 +234,7 @@ static bool __xrtTlsListenerConfigValid(
 	if ( (pConfig == NULL) ||
 		(pConfig->AcceptQueueLimit == 0) ||
 		(pConfig->HandshakeLimit == 0) ||
+		((pConfig->Tls.Resume != NULL) && (pConfig->Tls.ResumeOwnedV1 != NULL)) ||
 		((pConfig->Tls.Identity == NULL) &&
 		 (pConfig->Tls.Select == NULL)) ||
 		((pConfig->Tls.Protocols == NULL) &&
@@ -250,6 +251,15 @@ static bool __xrtTlsListenerConfigValid(
 		);
 		return false;
 	}
+	#if !defined(XRT_FEATURE_TLS_SERVER_RESUME)
+		if ( (pConfig->Tls.Resume != NULL) || (pConfig->Tls.ResumeOwnedV1 != NULL) ) {
+			__xrtTlsListenerSetError(
+				XERR_UNSUPPORTED, XTLS_ERROR_RESUME, "configure-tls-listener",
+				"TLS server resumption support is not enabled", NULL
+			);
+			return false;
+		}
+	#endif
 	#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
 		if ( (pConfig->Stream.AsyncBytesLimit == 0) ||
 			(pConfig->Stream.AsyncCountLimit == 0) ||
