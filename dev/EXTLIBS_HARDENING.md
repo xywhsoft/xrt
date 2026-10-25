@@ -102,3 +102,23 @@ prompt/output 与下一轮增量回绕后错误降压；完整预算阈值在 do
 
 证据：`session-sanitize-lifetime-fixed.log` 为夹具泄漏报告，`session-sanitize-final.log` 为最终干净结果；
 `session-tcc-final.log`、`xllm-tcc-final.log`、`session-windows-final.log` 保留相应编译器的运行结果。
+
+### 第二批：完整消息持久化
+
+复核确认旧写入路径遗漏全部多模态 parts 和整条消息的 native 数据；旧比较器也没有检查这些字段。
+扩展往返比较器后，快照与日志两条恢复路径均复现数据丢失。增加畸形消息用例后，修复前共 17 个断言失败。
+
+- 快照及 JSONL 日志使用同一完整消息序列化：保留全部 part 类型、字段、顺序和 native 原文；附件以严格 Base64 保存。
+- 新写入格式升级为 v3，避免旧读取器悄悄丢弃新字段；读取兼容 v1/v2/v3，允许旧日志恢复后继续追加 v3。
+- 消息读取拒绝错误字段类型、嵌入 NUL 的 C 字符串、非法 Base64/native JSON、未知 part 类型及 text/parts 冲突。
+- 真实往返覆盖文本、推理、图片/音频/文件字节、URL、detail/native-type 元数据、整消息 native 和工具结果关联 ID。
+- 15 类畸形消息分别通过公开 Load 和 Recover 两条路径拒绝；另外验证 v1/v2 快照及日志兼容与新格式版本标记。
+- GCC/Windows 模块化及单头、Linux/TCC 单头、Linux/Clang ASan/UBSan/float-cast-overflow 加泄漏检查：各 316 个断言通过。
+- 公开文档纠正 Save/Load 的 JSON 快照与 JSONL 日志区别；发布结构、API 覆盖和生成检查通过。
+
+证据：`persistence-before.log`、`persistence-validation-before.log`、`persistence-modular-final.log`、
+`persistence-single-final.log`、`persistence-tcc-final.log`、`persistence-sanitize-final.log`。
+本轮改动集中于草稿 PR #5，叠加在 CI 修复 PR #4 上。独立邮件工作流 `40202790485` 已成功。
+
+后续源码线索仍需复现：无符号 64 位字段恢复、配置窄化及序列检查；日志写入失败时文件账本的事务性；
+空会话的日志控制；助手响应的 native block 是否通过已有公开转换 API 完整转入会话。

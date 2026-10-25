@@ -11,7 +11,7 @@ static bool xllm_session__journal_prefix(xllm_session_buf* pRecord,
 {
     if ( pSession->uJournalSequence == UINT64_MAX ) { return false; }
     return xllm_session__buf_cstr(pRecord,
-            "{\"format\":\"xllm-session-journal\",\"version\":2,\"journal_sequence\":") &&
+            "{\"format\":\"xllm-session-journal\",\"version\":3,\"journal_sequence\":") &&
         xllm_session__buf_u64(pRecord, pSession->uJournalSequence + 1u) &&
         xllm_session__buf_cstr(pRecord, ",\"operation\":") &&
         xllm_session__json_string(pRecord, sOperation);
@@ -214,8 +214,8 @@ static bool xllm_session__replay_record(xllm_session* pSession, xvalue* pRoot, x
     sOperation = xllm_session__json_text(pRoot, "operation");
     uSequence = xllm_session__json_u64(pRoot, "journal_sequence", 0u);
     if ( !sFormat || strcmp(sFormat, "xllm-session-journal") != 0 ||
-         (xllm_session__json_u64(pRoot, "version", 0u) != 1u &&
-           xllm_session__json_u64(pRoot, "version", 0u) != 2u) ||
+         xllm_session__json_u64(pRoot, "version", 0u) < 1u ||
+         xllm_session__json_u64(pRoot, "version", 0u) > 3u ||
          !sOperation || uSequence == 0u ) {
         goto invalid;
     }

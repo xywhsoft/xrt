@@ -2867,9 +2867,11 @@ XRT_API bool xllmSessionMaybeCompact(xllm_session* pSession, bool* pbCompact, xl
  * a truncate event. L3 (per-message cap rejection) happens at Add time. */
 XRT_API bool xllmSessionOverflowLadder(xllm_session* pSession, xllm_error* pError);
 
-/* Serialize the session to a JSONL archive (atomic write). */
+/* Atomically write a JSON snapshot (format v3), preserving all message parts,
+ * inline bytes and native replay data. The append journal uses JSONL. */
 XRT_API bool xllmSessionSave(const xllm_session* pSession, const char* sPath, xllm_error* pError);
-/* Restore a session from a JSONL archive. */
+/* Restore a JSON snapshot (v1/v2/v3). Invalid message fields are parse errors;
+ * older formats without parts/native fields restore text-only messages. */
 XRT_API xllm_session* xllmSessionLoad(const char* sPath, xllm_error* pError);
 
 /*

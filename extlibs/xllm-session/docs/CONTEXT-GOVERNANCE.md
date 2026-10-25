@@ -48,3 +48,20 @@ The evaluator is intentionally structural and deterministic. The workflow
 layer owns model retries and richer task-specific checks; the session layer
 owns the invariant that only a policy-compliant summary can advance the durable
 compaction checkpoint.
+
+## Durable message content
+
+`xllmSessionSave()` writes an atomic JSON snapshot; the append journal is JSONL.
+New snapshots and journal records use format version 3. Both paths retain every
+message part in order: text, reasoning, inline image/audio/file bytes, image URL
+references, metadata and native parts. Inline bytes use strict Base64, including
+embedded NUL bytes; native JSON strings keep their original representation.
+Whole-message native data and tool-result correlation IDs also survive recovery.
+
+The reader accepts format versions 1, 2 and 3. Old text-only snapshots and
+journals remain readable, and a recovered journal may append new v3 records.
+Older readers reject v3 rather than silently dropping content they cannot
+restore. Fields with the wrong type, embedded NUL in C-string fields, invalid
+Base64/native JSON, unknown part kinds, or conflicting text and parts are parse
+errors. Recovery never returns a partially decoded message as a successful
+session.

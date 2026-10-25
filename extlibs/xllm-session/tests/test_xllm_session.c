@@ -1546,6 +1546,11 @@ static const char* round_trip_adversarial(void)
     return sText;
 }
 
+static bool round_trip_text_equal(const char* sA, const char* sB)
+{
+    return (!sA && !sB) || (sA && sB && strcmp(sA, sB) == 0);
+}
+
 static bool round_trip_requests_equal(const xllm_request* pA, const xllm_request* pB)
 {
     size_t i, j;
@@ -1558,6 +1563,22 @@ static bool round_trip_requests_equal(const xllm_request* pA, const xllm_request
         if ( pMA->sContent && strcmp(pMA->sContent, pMB->sContent) != 0 ) { return false; }
         if ( (pMA->sReasoningContent == NULL) != (pMB->sReasoningContent == NULL) ) { return false; }
         if ( pMA->sReasoningContent && strcmp(pMA->sReasoningContent, pMB->sReasoningContent) != 0 ) { return false; }
+        if ( !round_trip_text_equal(pMA->sToolCallId, pMB->sToolCallId) ||
+             !round_trip_text_equal(pMA->sNative, pMB->sNative) ||
+             pMA->iPartCount != pMB->iPartCount ) { return false; }
+        for ( j = 0u; j < pMA->iPartCount; ++j ) {
+            const xllm_part* pPA = &pMA->pParts[j];
+            const xllm_part* pPB = &pMB->pParts[j];
+            if ( pPA->eKind != pPB->eKind || pPA->iDataSize != pPB->iDataSize ||
+                 !round_trip_text_equal(pPA->sText, pPB->sText) ||
+                 !round_trip_text_equal(pPA->sNativeType, pPB->sNativeType) ||
+                 !round_trip_text_equal(pPA->sMediaType, pPB->sMediaType) ||
+                 !round_trip_text_equal(pPA->sSourceUrl, pPB->sSourceUrl) ||
+                 !round_trip_text_equal(pPA->sDetail, pPB->sDetail) ||
+                 (pPA->iDataSize && memcmp(pPA->pData, pPB->pData, pPA->iDataSize) != 0) ) {
+                return false;
+            }
+        }
         if ( pMA->iToolCallCount != pMB->iToolCallCount ) { return false; }
         for ( j = 0u; j < pMA->iToolCallCount; ++j ) {
             const xllm_tool_call* pCA = &pMA->pToolCalls[j];
@@ -1630,6 +1651,47 @@ static void test_journal_roundtrip_property(void)
             "status: success\ntool: \"quoted\" name\nbody \\ \n \x1f end"),
         "adversarial tool call and result recorded");
     iAdded += 2u;
+    {
+        static const uint8_t aBinary[] = { 0u, 1u, 255u, 128u, 0u, 42u };
+        xllm_message tMessage;
+        xllm_part tPart;
+        bool bAdded = true;
+        xllmMessageInit(&tMessage, XLLM_ROLE_USER);
+        /* AddPart copies these borrowed fixture fields, including binary NULs. */
+        xllmPartInit(&tPart, XLLM_PART_TEXT);
+        tPart.sText = (char*)"part text with \"quotes\" and 中文";
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        tPart.eKind = XLLM_PART_REASONING;
+        tPart.sText = (char*)"reasoning part";
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        xllmPartInit(&tPart, XLLM_PART_IMAGE);
+        tPart.sMediaType = (char*)"image/png";
+        tPart.sDetail = (char*)"high";
+        tPart.pData = (uint8_t*)aBinary;
+        tPart.iDataSize = sizeof(aBinary);
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        tPart.eKind = XLLM_PART_AUDIO;
+        tPart.sMediaType = (char*)"audio/wav";
+        tPart.sDetail = NULL;
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        tPart.eKind = XLLM_PART_FILE;
+        tPart.sMediaType = (char*)"application/octet-stream";
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        xllmPartInit(&tPart, XLLM_PART_IMAGE);
+        tPart.sSourceUrl = (char*)"https://example.invalid/image?a=1&b=2";
+        tPart.sDetail = (char*)"auto";
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        xllmPartInit(&tPart, XLLM_PART_NATIVE);
+        tPart.sNativeType = (char*)"provider-extension";
+        tPart.sText = (char*)"{ \"type\": \"provider-extension\", \"opaque\": [1, 2] }";
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        SESSION_CHECK(bAdded && xllmMessageSetNative(&tMessage,
+                "{ \"opaque\": \"whole-message-native\" }") &&
+            xllmSessionAddMessage(pOriginal, uTurn, &tMessage, 0u),
+            "all multimodal kinds and native replay data are journaled");
+        xllmMessageUnit(&tMessage);
+        ++iAdded;
+    }
     SESSION_CHECK(iAdded >= sizeof(sCorpus) / sizeof(sCorpus[0]) + 32u,
         "every adversarial entry was accepted");
 
@@ -1660,6 +1722,21 @@ static void test_journal_roundtrip_property(void)
             "snapshot round trip is byte-equal for adversarial content");
         xllmRequestUnit(&tGot);
     }
+    {
+        size_t iSize = 0u;
+        char* sSaved = (char*)xrtFileReadAll(sSnapshot, &iSize);
+        const char* sPrefix = "{\"format\":\"xllm-session\",\"version\":3,";
+        SESSION_CHECK(sSaved && iSize >= strlen(sPrefix) &&
+            memcmp(sSaved, sPrefix, strlen(sPrefix)) == 0,
+            "complete multimodal snapshots use format v3");
+        xrtFree(sSaved);
+        sSaved = (char*)xrtFileReadAll(sJournal, &iSize);
+        sPrefix = "{\"format\":\"xllm-session-journal\",\"version\":3,";
+        SESSION_CHECK(sSaved && iSize >= strlen(sPrefix) &&
+            memcmp(sSaved, sPrefix, strlen(sPrefix)) == 0,
+            "new journal records use format v3");
+        xrtFree(sSaved);
+    }
 
     xllmRequestUnit(&tWant);
     xllmSessionDestroy(pFromJournal);
@@ -1673,6 +1750,102 @@ static void test_journal_roundtrip_property(void)
 /* Asset ledger: note/dedup, compaction prompt + summary render,        */
 /* persistence (snapshot + journal replay), fork.                       */
 /* ------------------------------------------------------------------ */
+
+static void test_persistence_message_validation(void)
+{
+    static const char sPath[] = "out/xllm-session-tests/message_validation.json";
+    static const char sJournal[] = "out/xllm-session-tests/message_validation.jsonl";
+    static const char sAbsent[] = "out/xllm-session-tests/message_validation_absent.json";
+    static const char* aInvalidMessages[] = {
+        "\"content\":123",
+        "\"content\":\"a\\u0000b\"",
+        "\"native\":123",
+        "\"native\":\"{\"",
+        "\"tool_calls\":{}",
+        "\"parts\":{}",
+        "\"parts\":[null]",
+        "\"parts\":[{\"kind\":999}]",
+        "\"parts\":[{\"kind\":\"image\"}]",
+        "\"parts\":[{\"kind\":0,\"text\":\"a\\u0000b\"}]",
+        "\"parts\":[{\"kind\":2,\"data\":\"@@\"}]",
+        "\"parts\":[{\"kind\":2,\"data\":123}]",
+        "\"parts\":[{\"kind\":2,\"data\":\"AA\\u0000AA\"}]",
+        "\"parts\":[{\"kind\":5,\"text\":\"{\"}]",
+        "\"content\":\"conflicting fast path\",\"parts\":[{\"kind\":0,\"text\":\"part\"}]"
+    };
+    char sJson[1024];
+    xllm_error tError;
+    size_t i;
+    unsigned uVersion;
+    (void)xrtFileDelete(sAbsent);
+    for ( uVersion = 1u; uVersion <= 2u; ++uVersion ) {
+        xllm_session* pSession;
+        xllm_request tRequest;
+        int iSize = snprintf(sJson, sizeof(sJson),
+            "{\"format\":\"xllm-session\",\"version\":%u,\"current_turn\":1,"
+            "\"next_sequence\":2,\"entries\":[{\"sequence\":1,\"turn\":1,"
+            "\"role\":%u,\"content\":\"legacy text\"}]}", uVersion, (unsigned)XLLM_ROLE_USER);
+        SESSION_CHECK(iSize > 0 && (size_t)iSize < sizeof(sJson) &&
+            xrtFileWriteAll(sPath, (xbytesview){ (const uint8*)sJson, (size_t)iSize }),
+            "legacy snapshot fixture is written");
+        pSession = xllmSessionLoad(sPath, &tError);
+        xllmRequestInit(&tRequest);
+        SESSION_CHECK(pSession && xllmSessionBuildRequest(pSession, &tRequest, &tError) &&
+            tRequest.iMessageCount == 1u && tRequest.pMessages[0].iPartCount == 0u &&
+            round_trip_text_equal(tRequest.pMessages[0].sContent, "legacy text"),
+            "v1 and v2 text-only snapshots remain readable");
+        xllmRequestUnit(&tRequest);
+        xllmSessionDestroy(pSession);
+        iSize = snprintf(sJson, sizeof(sJson),
+            "{\"format\":\"xllm-session-journal\",\"version\":%u,"
+            "\"journal_sequence\":1,\"operation\":\"begin_turn\",\"turn\":1}\n"
+            "{\"format\":\"xllm-session-journal\",\"version\":%u,"
+            "\"journal_sequence\":2,\"operation\":\"add_message\","
+            "\"entry\":{\"sequence\":1,\"turn\":1,\"role\":%u,\"content\":\"legacy text\"}}\n",
+            uVersion, uVersion, (unsigned)XLLM_ROLE_USER);
+        SESSION_CHECK(iSize > 0 && (size_t)iSize < sizeof(sJson) &&
+            xrtFileWriteAll(sJournal, (xbytesview){ (const uint8*)sJson, (size_t)iSize }),
+            "legacy journal fixture is written");
+        pSession = xllmSessionRecover(sAbsent, sJournal, NULL, &tError);
+        xllmRequestInit(&tRequest);
+        SESSION_CHECK(pSession && xllmSessionBuildRequest(pSession, &tRequest, &tError) &&
+            tRequest.iMessageCount == 1u &&
+            round_trip_text_equal(tRequest.pMessages[0].sContent, "legacy text"),
+            "v1 and v2 text-only journals remain readable");
+        xllmRequestUnit(&tRequest);
+        xllmSessionDestroy(pSession);
+    }
+    for ( i = 0u; i < sizeof(aInvalidMessages) / sizeof(aInvalidMessages[0]); ++i ) {
+        xllm_session* pSession;
+        int iSize = snprintf(sJson, sizeof(sJson),
+            "{\"format\":\"xllm-session\",\"version\":2,\"current_turn\":1,"
+            "\"next_sequence\":2,\"entries\":[{\"sequence\":1,\"turn\":1,"
+            "\"role\":%u,%s}]}", (unsigned)XLLM_ROLE_USER, aInvalidMessages[i]);
+        SESSION_CHECK(iSize > 0 && (size_t)iSize < sizeof(sJson) &&
+            xrtFileWriteAll(sPath, (xbytesview){ (const uint8*)sJson, (size_t)iSize }),
+            "malformed message fixture is written");
+        pSession = xllmSessionLoad(sPath, &tError);
+        SESSION_CHECK(!pSession && tError.eCode == XLLM_ERROR_PARSE,
+            "malformed persisted message cannot silently drop data");
+        xllmSessionDestroy(pSession);
+        iSize = snprintf(sJson, sizeof(sJson),
+            "{\"format\":\"xllm-session-journal\",\"version\":2,"
+            "\"journal_sequence\":1,\"operation\":\"begin_turn\",\"turn\":1}\n"
+            "{\"format\":\"xllm-session-journal\",\"version\":2,"
+            "\"journal_sequence\":2,\"operation\":\"add_message\","
+            "\"entry\":{\"sequence\":1,\"turn\":1,\"role\":%u,%s}}\n",
+            (unsigned)XLLM_ROLE_USER, aInvalidMessages[i]);
+        SESSION_CHECK(iSize > 0 && (size_t)iSize < sizeof(sJson) &&
+            xrtFileWriteAll(sJournal, (xbytesview){ (const uint8*)sJson, (size_t)iSize }),
+            "malformed journal message fixture is written");
+        pSession = xllmSessionRecover(sAbsent, sJournal, NULL, &tError);
+        SESSION_CHECK(!pSession && tError.eCode == XLLM_ERROR_PARSE,
+            "malformed journal message fails recovery explicitly");
+        xllmSessionDestroy(pSession);
+    }
+    (void)xrtFileDelete(sPath);
+    (void)xrtFileDelete(sJournal);
+}
 
 static void test_file_ledger(void)
 {
@@ -2009,6 +2182,7 @@ int main(void)
     test_run_with_tools();
     test_bind_identity_and_cancel();
     test_journal_roundtrip_property();
+    test_persistence_message_validation();
     test_borrowed_view_render();
     test_wire_prefix_cache();
     test_file_ledger();
