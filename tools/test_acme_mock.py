@@ -379,5 +379,79 @@ class AcmeMockFlowTests(unittest.TestCase):
 			server.stop()
 
 
+class PebblePortTests(unittest.TestCase):
+	"""The independent service needs distinct ports, including TCP+UDP DNS."""
+
+	def test_real_reservations_cover_both_dns_transports(self):
+		from contextlib import ExitStack
+		import socket
+		from tools.test_acme_pebble import port
+		with ExitStack() as reserved:
+			ports = [port(reserved) for _ in range(3)]
+			dns = port(reserved, (socket.SOCK_STREAM, socket.SOCK_DGRAM))
+			self.assertEqual(len(set([*ports, dns])), 4)
+			for number, kind in [(p, socket.SOCK_STREAM) for p in [*ports, dns]] + [(dns, socket.SOCK_DGRAM)]:
+				with self.subTest(number=number, kind=kind), socket.socket(socket.AF_INET, kind) as handle:
+					with self.assertRaises(OSError):
+						handle.bind(("127.0.0.1", number))
+		# Every reservation is released before the external services start.
+		for kind in (socket.SOCK_STREAM, socket.SOCK_DGRAM):
+			with socket.socket(socket.AF_INET, kind) as handle:
+				handle.bind(("127.0.0.1", dns))
+
+	def test_dns_retries_protocol_permission_or_collision(self):
+		from contextlib import ExitStack
+		import errno
+		import socket
+		from unittest.mock import MagicMock, patch
+		from tools import test_acme_pebble as pebble
+		for reason in (errno.EACCES, errno.EADDRINUSE, 10013, 10048):
+			with self.subTest(reason=reason):
+				handles = [MagicMock() for _ in range(4)]
+				for index, handle in enumerate(handles):
+					handle.__enter__.return_value = handle
+					handle.getsockname.return_value = ("127.0.0.1", 42000 + index // 2)
+				handles[1].bind.side_effect = OSError(reason, "unavailable for UDP")
+				with patch.object(pebble.socket, "socket", side_effect=handles), ExitStack() as reserved:
+					self.assertEqual(pebble.port(reserved, (socket.SOCK_STREAM, socket.SOCK_DGRAM)), 42001)
+					for handle in handles[:2]:
+						handle.__exit__.assert_called_once()
+					for handle in handles[2:]:
+						handle.__exit__.assert_not_called()
+					self.assertEqual(handles[3].bind.call_args.args, (("127.0.0.1", 42001),))
+				for handle in handles:
+					handle.__exit__.assert_called_once()
+
+	def test_unrelated_socket_failure_is_not_retried(self):
+		from contextlib import ExitStack
+		import errno
+		from unittest.mock import MagicMock, patch
+		from tools import test_acme_pebble as pebble
+		handle = MagicMock()
+		handle.__enter__.return_value = handle
+		handle.bind.side_effect = OSError(errno.ENOBUFS, "socket resources exhausted")
+		with patch.object(pebble.socket, "socket", return_value=handle) as factory, ExitStack() as reserved:
+			with self.assertRaises(OSError) as failure:
+				pebble.port(reserved)
+			self.assertEqual(failure.exception.errno, errno.ENOBUFS)
+			factory.assert_called_once()
+			handle.__exit__.assert_called_once()
+
+	def test_port_exhaustion_has_a_bounded_failure(self):
+		from contextlib import ExitStack
+		import errno
+		from unittest.mock import MagicMock, patch
+		from tools import test_acme_pebble as pebble
+		handle = MagicMock()
+		handle.__enter__.return_value = handle
+		handle.bind.side_effect = OSError(errno.EACCES, "port excluded")
+		with patch.object(pebble.socket, "socket", return_value=handle) as factory, ExitStack() as reserved:
+			with self.assertRaisesRegex(RuntimeError, "port") as failure:
+				pebble.port(reserved)
+			self.assertIsInstance(failure.exception.__cause__, OSError)
+			self.assertEqual(factory.call_count, 64)
+			self.assertEqual(handle.__exit__.call_count, 64)
+
+
 if __name__ == "__main__":
 	unittest.main()

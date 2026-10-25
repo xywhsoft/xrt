@@ -188,3 +188,17 @@ prompt/output 与下一轮增量回绕后错误降压；完整预算阈值在 do
 
 `3d552904` 的独立邮件工作流 `40209247955` 成功；其 CI `40209250734` 发现 Windows 独立 ACME 服务夹具的
 TCP/UDP 端口兼容性失败，另批修复。此记录不将该次 CI 记为全绿，全部 21 库任务继续保持未完成。
+
+### CI 续修：独立 ACME 服务端口
+
+- CI `40209250734` 的 Windows job `121216750509` 在客户端运行前失败：先选择 UDP 临时端口，
+  随后检查同号 TCP 时触发 WinError 10013。单一传输可用不能证明另一传输可用。
+- 端口选择现在同时保留所有候选绑定，DNS 必须同时绑定 TCP 与 UDP；三个 HTTP 端点也保持独立。
+  仅对地址占用及端口权限冲突有界重选，64 次后携原始原因报错，其他 socket 故障立即传播。
+- 四项回归分别在本机 Windows 和 Linux 通过：实际双传输互斥与释放、协议间权限/占用冲突、
+  非重试错误保真及次数上限。用例纳入既有 ACME mock 测试入口，不降低独立服务验证要求。
+- 本地固定版本 Pebble 准备曾因上游 Git 拉取 TLS 中断未完成；真实端到端结果仍以修复后的独立服务 CI 为准。
+  该夹具修复不代表 xacme 产品源码复核完成。
+
+证据：`acme-windows-ci-failure.log`、`pebble-ports-windows-final.log`、`pebble-ports-linux-final.log`、
+`pebble-prepare-local.log`。
