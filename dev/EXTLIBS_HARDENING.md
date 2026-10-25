@@ -46,7 +46,7 @@
 | ximap | 11 | 9 | 22 | 15 | 5 | 待复核 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 待复核 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8/故障诊断修复完成，交付验收待办 |
-| xllm-session | 1 | 8 | 2 | 1 | 0 | 持久化/回放修复完成，恢复数值复核中 |
+| xllm-session | 1 | 8 | 2 | 1 | 0 | 持久化/数值/终值回归通过，交付验收继续 |
 | xmail | 19 | 19 | 27 | 18 | 14 | 待复核 |
 | xoauth2 | 1 | 3 | 3 | 2 | 4 | 待复核 |
 | xpop3 | 6 | 4 | 10 | 6 | 4 | 待复核 |
@@ -156,7 +156,7 @@ prompt/output 与下一轮增量回绕后错误降压；完整预算阈值在 do
 - 最终 xllm 套件：Windows/GCC 单头、Linux/TCC、Linux/Clang ASan/UBSan/float-cast-overflow 加泄漏检查，各 654 个断言通过。
   会话套件：Windows/GCC 模块化与单头、Linux/TCC 和 Linux sanitizer 均按最终源码通过 332 个断言。
 - 两库 API 覆盖、生成与发布结构检查通过；扩展工具基线 26 项通过。
-- 首批提交 `505c418b` 的 CI `40202854136`：73/73 成功。`7ab05f42` 的 CI `40205705160` 继续运行，独立邮件工作流已成功。
+- 首批提交 `505c418b` 的 CI `40202854136`：73/73 成功。`7ab05f42` 的 CI `40205705160` 随后成功，独立邮件工作流也成功。
 
 证据：`assistant-replay-before.log`、`session-assistant-replay-before.log`、`oom-diagnostics-before.log`、
 `utf8-boundary-before.log`、`assistant-utf8-oom-windows-final.log`、`assistant-utf8-oom-tcc-final.log`、
@@ -164,3 +164,27 @@ prompt/output 与下一轮增量回绕后错误降压；完整预算阈值在 do
 
 下一批已确认的问题：公开 Save/Load 将 `UINT64_MAX` 的上下文窗口恢复为默认的 204800（`boundary-probes-before.log`）。
 需连同 UInt/Int 类型、窄化、序列单调性与终值屏障一起修复；尚未完成此项，也未宣称两库已完成整轮交付验收。
+
+### 第四批：恢复数值、日志顺序与计数器终值
+
+- 修复前数值恢复新增用例有 45 个断言失败，日志元数据及计数器回归另有 15 个失败。
+  JSON 的 UInt 与非负 Int 分别精确读取，`INT64_MAX`、`INT64_MAX+1`、`UINT64_MAX` 配置往返不再回退默认值。
+- 全部 13 个 uint32 配置字段在窄化前检查范围；显式错误类型、负数、null、溢出和非法预算返回 PARSE，
+  仅缺失的可选字段沿用旧格式默认值。摘要 usage 同样保留完整 unsigned 范围。
+- 快照拒绝零值、重复、倒退或溢出的消息序列，以及越过 next_sequence 的水位；保留合法递增的序列间隔。
+  最终 turn 可正常保存消息；消息、日志、压缩次数和摘要 generation 到达终值后拒绝继续推进，不回绕到零。
+- 日志在快照去重前检查操作名与数值结构；拒绝 generation 窄化/倒退、非法 flags 及未知操作。
+  旧格式缺少 generation 时从当前 epoch 递增，不再把宽 compaction_count 窄化赋值。
+- 修复真实首次裁剪日志 `from_sequence=0` 被拒绝的问题；后续裁剪必须衔接当前水位。
+  压缩准备/提交、自动压缩和溢出恢复统一拒绝观察回调重入；失败时不污染布尔输出。
+- Windows/GCC 模块化与单头、Linux/TCC 单头、Linux/Clang ASan/UBSan/float-cast-overflow 加泄漏检查：
+  每种构建均为 436 个断言通过。API 覆盖、生成一致性、发布成熟度通过；21 个结构工具测试通过。
+- Linux/GCC 正向裁剪与六个缺依赖反向检查通过；现有静态包消费者可链接运行。
+  包消费者仍需增强实际行为覆盖，再连同动态包、体积及性能 profile 完成交付验收。
+
+证据：`numeric-recovery-before.log`、`numeric-journal-before.log`、`numeric-windows-modular-final.log`、
+`numeric-windows-single-final.log`、`numeric-tcc-final.log`、`numeric-sanitize-final.log`、
+`numeric-tooling-final.log`、`session-trim-linux-final.log`、`session-package-static-linux.log`。
+
+`3d552904` 的独立邮件工作流 `40209247955` 成功；其 CI `40209250734` 发现 Windows 独立 ACME 服务夹具的
+TCP/UDP 端口兼容性失败，另批修复。此记录不将该次 CI 记为全绿，全部 21 库任务继续保持未完成。

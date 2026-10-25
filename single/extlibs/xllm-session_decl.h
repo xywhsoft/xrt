@@ -2854,7 +2854,8 @@ XRT_API bool xllmCompactionSetUsage(xllm_compaction* pCompaction, const xllm_usa
 /* Grade a summary (length, coverage) for compaction operators. */
 XRT_API bool xllmCompactionEvaluateSummary(const xllm_compaction* pCompaction, const char* sSummary,
     xllm_compaction_quality* pQuality, xllm_error* pError);
-/* Commit a compaction: replace the span with the summary and record it. */
+/* Commit a compaction: replace the span with the summary and record it.
+ * Exhausted counters return LIMIT without mutation; hook reentry returns HOOK. */
 XRT_API bool xllmSessionCommitCompaction(xllm_session* pSession, xllm_compaction* pCompaction, const char* sSummary, xllm_error* pError);
 /* Free a compaction object. */
 XRT_API void xllmCompactionDestroy(xllm_compaction* pCompaction);
@@ -2871,8 +2872,9 @@ XRT_API bool xllmSessionOverflowLadder(xllm_session* pSession, xllm_error* pErro
 /* Atomically write a JSON snapshot (format v3), preserving all message parts,
  * inline bytes and native replay data. The append journal uses JSONL. */
 XRT_API bool xllmSessionSave(const xllm_session* pSession, const char* sPath, xllm_error* pError);
-/* Restore a JSON snapshot (v1/v2/v3). Invalid message fields are parse errors;
- * older formats without parts/native fields restore text-only messages. */
+/* Restore a JSON snapshot (v1/v2/v3). Wrong types, overflowing fields, invalid
+ * budgets and inconsistent sequences are parse errors. Optional absent fields
+ * retain old-format defaults; unsigned values keep their full uint64 range. */
 XRT_API xllm_session* xllmSessionLoad(const char* sPath, xllm_error* pError);
 
 /*

@@ -2298,6 +2298,8 @@ cleanup:
     xllmClientDestroy(pClient);
 }
 
+#include "persistence_numeric_cases.h"
+
 int main(void)
 {
     if ( !xrtDirCreateAll("out/xllm-session-tests") ) { return 1; }
@@ -2317,6 +2319,7 @@ int main(void)
     test_bind_identity_and_cancel();
     test_journal_roundtrip_property();
     test_persistence_message_validation();
+    test_persistence_numeric_cases();
     test_assistant_native_replay();
     test_journal_ledger_failure_atomicity();
     test_borrowed_view_render();

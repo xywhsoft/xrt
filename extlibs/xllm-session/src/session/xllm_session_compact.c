@@ -599,8 +599,16 @@ xllm_compaction* xllmSessionPrepareCompaction(xllm_session* pSession, bool bForc
     char* sCandidates = NULL;
     char* sPrompt = NULL;
     if ( pError ) { xllmErrorInit(pError); }
+    if ( pSession && pSession->bInHook ) {
+        xllm_session__error(pError, XLLM_ERROR_HOOK, "compaction cannot re-enter a session hook");
+        return NULL;
+    }
     if ( !pSession || !xllmSessionGetStats(pSession, &tStats) ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session is required");
+        return NULL;
+    }
+    if ( pSession->uCompactionCount == UINT64_MAX || pSession->uSummaryGeneration == UINT32_MAX ) {
+        xllm_session__error(pError, XLLM_ERROR_LIMIT, "compaction counter is exhausted");
         return NULL;
     }
     xllm_session__event(pSession, XLLM_SESSION_EVENT_COMPACT_PREPARE, 0u, 0u, NULL);
@@ -744,9 +752,17 @@ bool xllmSessionCommitCompaction(xllm_session* pSession, xllm_compaction* pCompa
     xllm_compaction_quality tQuality;
     char* sCopy;
     if ( pError ) { xllmErrorInit(pError); }
+    if ( pSession && pSession->bInHook ) {
+        xllm_session__error(pError, XLLM_ERROR_HOOK, "compaction cannot re-enter a session hook");
+        return false;
+    }
     if ( !pSession || !pCompaction || pCompaction->pSession != pSession || pCompaction->bCommitted ||
          !sSummary || !sSummary[0] || pSession->uCompactedThrough != pCompaction->uBaseCompactedThrough ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "invalid or stale compaction transaction");
+        return false;
+    }
+    if ( pSession->uCompactionCount == UINT64_MAX || pSession->uSummaryGeneration == UINT32_MAX ) {
+        xllm_session__error(pError, XLLM_ERROR_LIMIT, "compaction counter is exhausted");
         return false;
     }
     if ( !xllm_session__plan_pair_safe(pSession, pCompaction->uThroughSequence) ) {
@@ -876,6 +892,10 @@ bool xllmSessionMaybeCompact(xllm_session* pSession, bool* pbCompact, xllm_error
     xllm_session_stats tStats;
     if ( pError ) { xllmErrorInit(pError); }
     if ( pbCompact ) { *pbCompact = false; }
+    if ( pSession && pSession->bInHook ) {
+        xllm_session__error(pError, XLLM_ERROR_HOOK, "compaction cannot re-enter a session hook");
+        return false;
+    }
     if ( !pSession || !xllmSessionGetStats(pSession, &tStats) ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session is required");
         return false;
@@ -899,8 +919,16 @@ bool xllmSessionOverflowLadder(xllm_session* pSession, xllm_error* pError)
 {
     xllm_session_stats tStats;
     if ( pError ) { xllmErrorInit(pError); }
+    if ( pSession && pSession->bInHook ) {
+        xllm_session__error(pError, XLLM_ERROR_HOOK, "overflow recovery cannot re-enter a session hook");
+        return false;
+    }
     if ( !pSession || !xllmSessionGetStats(pSession, &tStats) ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session is required");
+        return false;
+    }
+    if ( pSession->uSummaryGeneration == UINT32_MAX ) {
+        xllm_session__error(pError, XLLM_ERROR_LIMIT, "summary generation is exhausted");
         return false;
     }
     /* L1: full compaction via the current ops (correctness path, no veto). */

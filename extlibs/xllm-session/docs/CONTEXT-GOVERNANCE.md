@@ -72,3 +72,17 @@ File-ledger changes follow the same write-ahead contract as messages: a failed
 journal append returns false and leaves the visible read/modified paths unchanged.
 After the I/O failure is resolved, retrying the same path writes a real record
 that survives recovery. Observation hooks cannot mutate this ledger recursively.
+
+Recovery reads nonnegative JSON integers exactly, including unsigned values
+above `INT64_MAX`. A present value of the wrong type, an integer that cannot fit
+its destination, an invalid budget, or contradictory sequence metadata is a
+parse error; only absent optional fields use legacy defaults. Snapshot entries
+have increasing positive sequence numbers, with gaps allowed. The next sequence
+must follow all stored entries, and compaction/truncation watermarks precede it.
+
+The final turn and journal sequence are usable without wrapping to zero. The
+last message uses sequence `UINT64_MAX - 1`, leaving `UINT64_MAX` as the append
+barrier. Compaction count and summary generation exhaustion return
+`XLLM_ERROR_LIMIT` before writing or mutating state. Compaction and truncation
+cannot re-enter from observation hooks. Replay accepts the initial truncation
+from floor zero and advances legacy compaction epochs that omit generation.

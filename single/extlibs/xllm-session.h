@@ -496,7 +496,8 @@ XRT_API bool xllmCompactionSetUsage(xllm_compaction* pCompaction, const xllm_usa
 /* Grade a summary (length, coverage) for compaction operators. */
 XRT_API bool xllmCompactionEvaluateSummary(const xllm_compaction* pCompaction, const char* sSummary,
     xllm_compaction_quality* pQuality, xllm_error* pError);
-/* Commit a compaction: replace the span with the summary and record it. */
+/* Commit a compaction: replace the span with the summary and record it.
+ * Exhausted counters return LIMIT without mutation; hook reentry returns HOOK. */
 XRT_API bool xllmSessionCommitCompaction(xllm_session* pSession, xllm_compaction* pCompaction, const char* sSummary, xllm_error* pError);
 /* Free a compaction object. */
 XRT_API void xllmCompactionDestroy(xllm_compaction* pCompaction);
@@ -513,8 +514,9 @@ XRT_API bool xllmSessionOverflowLadder(xllm_session* pSession, xllm_error* pErro
 /* Atomically write a JSON snapshot (format v3), preserving all message parts,
  * inline bytes and native replay data. The append journal uses JSONL. */
 XRT_API bool xllmSessionSave(const xllm_session* pSession, const char* sPath, xllm_error* pError);
-/* Restore a JSON snapshot (v1/v2/v3). Invalid message fields are parse errors;
- * older formats without parts/native fields restore text-only messages. */
+/* Restore a JSON snapshot (v1/v2/v3). Wrong types, overflowing fields, invalid
+ * budgets and inconsistent sequences are parse errors. Optional absent fields
+ * retain old-format defaults; unsigned values keep their full uint64 range. */
 XRT_API xllm_session* xllmSessionLoad(const char* sPath, xllm_error* pError);
 
 /*
@@ -782,6 +784,8 @@ bool xllm_session__journal_append_truncate(xllm_session* pSession, uint64_t uFro
 bool xllm_session__write_entry(xllm_session_buf* pJson, const xllm_session_entry* pEntry);
 xvalue* xllm_session__json_get(xvalue* pObject, const char* sKey);
 const char* xllm_session__json_text(xvalue* pObject, const char* sKey);
+bool xllm_session__json_uint(xvalue* pObject, const char* sKey, uint64_t* puValue);
+bool xllm_session__json_uint_valid(xvalue* pObject, const char* sKey, uint64_t uMax, bool bRequired);
 uint64_t xllm_session__json_u64(xvalue* pObject, const char* sKey, uint64_t uDefault);
 double xllm_session__json_double(xvalue* pObject, const char* sKey, double fDefault);
 bool xllm_session__load_message(xllm_message* pMessage, xvalue* pEntry);
@@ -2459,8 +2463,16 @@ xllm_compaction* xllmSessionPrepareCompaction(xllm_session* pSession, bool bForc
     char* sCandidates = NULL;
     char* sPrompt = NULL;
     if ( pError ) { xllmErrorInit(pError); }
+    if ( pSession && pSession->bInHook ) {
+        xllm_session__error(pError, XLLM_ERROR_HOOK, "compaction cannot re-enter a session hook");
+        return NULL;
+    }
     if ( !pSession || !xllmSessionGetStats(pSession, &tStats) ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session is required");
+        return NULL;
+    }
+    if ( pSession->uCompactionCount == UINT64_MAX || pSession->uSummaryGeneration == UINT32_MAX ) {
+        xllm_session__error(pError, XLLM_ERROR_LIMIT, "compaction counter is exhausted");
         return NULL;
     }
     xllm_session__event(pSession, XLLM_SESSION_EVENT_COMPACT_PREPARE, 0u, 0u, NULL);
@@ -2604,9 +2616,17 @@ bool xllmSessionCommitCompaction(xllm_session* pSession, xllm_compaction* pCompa
     xllm_compaction_quality tQuality;
     char* sCopy;
     if ( pError ) { xllmErrorInit(pError); }
+    if ( pSession && pSession->bInHook ) {
+        xllm_session__error(pError, XLLM_ERROR_HOOK, "compaction cannot re-enter a session hook");
+        return false;
+    }
     if ( !pSession || !pCompaction || pCompaction->pSession != pSession || pCompaction->bCommitted ||
          !sSummary || !sSummary[0] || pSession->uCompactedThrough != pCompaction->uBaseCompactedThrough ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "invalid or stale compaction transaction");
+        return false;
+    }
+    if ( pSession->uCompactionCount == UINT64_MAX || pSession->uSummaryGeneration == UINT32_MAX ) {
+        xllm_session__error(pError, XLLM_ERROR_LIMIT, "compaction counter is exhausted");
         return false;
     }
     if ( !xllm_session__plan_pair_safe(pSession, pCompaction->uThroughSequence) ) {
@@ -2736,6 +2756,10 @@ bool xllmSessionMaybeCompact(xllm_session* pSession, bool* pbCompact, xllm_error
     xllm_session_stats tStats;
     if ( pError ) { xllmErrorInit(pError); }
     if ( pbCompact ) { *pbCompact = false; }
+    if ( pSession && pSession->bInHook ) {
+        xllm_session__error(pError, XLLM_ERROR_HOOK, "compaction cannot re-enter a session hook");
+        return false;
+    }
     if ( !pSession || !xllmSessionGetStats(pSession, &tStats) ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session is required");
         return false;
@@ -2759,8 +2783,16 @@ bool xllmSessionOverflowLadder(xllm_session* pSession, xllm_error* pError)
 {
     xllm_session_stats tStats;
     if ( pError ) { xllmErrorInit(pError); }
+    if ( pSession && pSession->bInHook ) {
+        xllm_session__error(pError, XLLM_ERROR_HOOK, "overflow recovery cannot re-enter a session hook");
+        return false;
+    }
     if ( !pSession || !xllmSessionGetStats(pSession, &tStats) ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session is required");
+        return false;
+    }
+    if ( pSession->uSummaryGeneration == UINT32_MAX ) {
+        xllm_session__error(pError, XLLM_ERROR_LIMIT, "summary generation is exhausted");
         return false;
     }
     /* L1: full compaction via the current ops (correctness path, no veto). */
@@ -3945,12 +3977,33 @@ const char* xllm_session__json_text(xvalue* pObject, const char* sKey)
     return xllm_session__load_text(pObject, sKey, &sText) ? sText : NULL;
 }
 
-uint64_t xllm_session__json_u64(xvalue* pObject, const char* sKey, uint64_t uDefault)
+bool xllm_session__json_uint(xvalue* pObject, const char* sKey, uint64_t* puValue)
 {
     xvalue* pValue = xllm_session__json_get(pObject, sKey);
-    int64 iValue;
-    return pValue && xrtValueGetInt(pValue, &iValue) && iValue >= 0 ?
-        (uint64_t)iValue : uDefault;
+    int64 iSigned;
+    if ( !pValue ) return false;
+    if ( xrtValueIs(pValue, XVALUE_UINT) ) return xrtValueGetUInt(pValue, puValue);
+    if ( xrtValueIs(pValue, XVALUE_INT) && xrtValueGetInt(pValue, &iSigned) && iSigned >= 0 ) {
+        *puValue = (uint64_t)iSigned;
+        return true;
+    }
+    return false;
+}
+
+bool xllm_session__json_uint_valid(xvalue* pObject, const char* sKey, uint64_t uMax, bool bRequired)
+{
+    uint64_t uValue;
+    xvalue* pValue;
+    if ( !pObject || !xrtValueIs(pObject, XVALUE_OBJECT) ) return false;
+    pValue = xrtValueObjectGet(pObject, xrtStrView(sKey));
+    if ( !pValue ) return !bRequired;
+    return xllm_session__json_uint(pObject, sKey, &uValue) && uValue <= uMax;
+}
+
+uint64_t xllm_session__json_u64(xvalue* pObject, const char* sKey, uint64_t uDefault)
+{
+    uint64_t uValue;
+    return xllm_session__json_uint(pObject, sKey, &uValue) ? uValue : uDefault;
 }
 
 double xllm_session__json_double(xvalue* pObject, const char* sKey, double fDefault)
@@ -3958,8 +4011,10 @@ double xllm_session__json_double(xvalue* pObject, const char* sKey, double fDefa
     xvalue* pValue = xllm_session__json_get(pObject, sKey);
     double fValue;
     int64 iValue;
-    if ( pValue && xrtValueGetFloat(pValue, &fValue) ) return fValue;
-    return pValue && xrtValueGetInt(pValue, &iValue) ? (double)iValue : fDefault;
+    uint64 uValue;
+    if ( pValue && xrtValueIs(pValue, XVALUE_FLOAT) && xrtValueGetFloat(pValue, &fValue) ) return fValue;
+    if ( pValue && xrtValueIs(pValue, XVALUE_INT) && xrtValueGetInt(pValue, &iValue) ) return (double)iValue;
+    return pValue && xrtValueIs(pValue, XVALUE_UINT) && xrtValueGetUInt(pValue, &uValue) ? (double)uValue : fDefault;
 }
 
 static bool xllm_session__load_part(xllm_message* pMessage, xvalue* pObject)
@@ -4003,10 +4058,10 @@ bool xllm_session__load_message(xllm_message* pMessage, xvalue* pEntry)
     xvalue* pCalls;
     xvalue* pParts;
     size_t i;
-    int64_t iRole = (int64_t)xllm_session__json_u64(pEntry, "role", UINT64_MAX);
+    uint64_t uRole;
     const char* sText;
-    if ( iRole < XLLM_ROLE_SYSTEM || iRole > XLLM_ROLE_TOOL ) { return false; }
-    xllmMessageInit(pMessage, (xllm_role)iRole);
+    if ( !xllm_session__json_uint(pEntry, "role", &uRole) || uRole > XLLM_ROLE_TOOL ) { return false; }
+    xllmMessageInit(pMessage, (xllm_role)uRole);
     if ( !xllm_session__load_text(pEntry, "content", &sText) ) goto fail;
     if ( sText && !xllmMessageSetContent(pMessage, sText) ) goto fail;
     if ( !xllm_session__load_text(pEntry, "reasoning", &sText) ) goto fail;
@@ -4042,6 +4097,50 @@ bool xllm_session__load_message(xllm_message* pMessage, xvalue* pEntry)
 fail:
     xllmMessageUnit(pMessage);
     return false;
+}
+
+static bool xllm_session__numeric_fields_valid(xvalue* pObject,
+    const char* const* psFields, size_t iCount, uint64_t uMax)
+{
+    size_t i;
+    for ( i = 0u; i < iCount; ++i ) {
+        if ( !xllm_session__json_uint_valid(pObject, psFields[i], uMax, false) ) return false;
+    }
+    return true;
+}
+
+static bool xllm_session__snapshot_fields_valid(xvalue* pRoot)
+{
+    static const char* const aRoot[] = {
+        "current_turn", "next_sequence", "journal_sequence", "compacted_through", "compaction_count",
+        "summary_prompt_at_birth", "summary_output_at_birth", "tail_floor"
+    };
+    static const char* const aConfig32[] = {
+        "max_output_tokens", "output_reserve_tokens", "safety_reserve_tokens", "recent_turns_to_keep",
+        "tool_prune_bytes", "summary_max_tokens", "summary_min_tokens", "compaction_required_sections",
+        "keep_recent_tokens", "summary_max_bytes", "user_message_cap_bytes", "tool_result_cap_bytes",
+        "tool_result_total_cap_bytes"
+    };
+    static const char* const aConfig64[] = { "context_window_tokens", "journal_max_bytes" };
+    static const char* const aThresholds[] = { "prune_trigger", "compact_trigger" };
+    xvalue* pConfig = xrtValueObjectGet(pRoot, xrtStrView("config"));
+    const char* sText;
+    size_t i;
+    if ( !xllm_session__numeric_fields_valid(pRoot, aRoot, sizeof(aRoot) / sizeof(aRoot[0]), UINT64_MAX) ||
+         !xllm_session__json_uint_valid(pRoot, "summary_generation", UINT32_MAX, false) ||
+         !xllm_session__json_uint_valid(pRoot, "fill_seen", 1u, false) ||
+         !xllm_session__load_text(pRoot, "summary", &sText) ) return false;
+    if ( !pConfig ) return true; /* old snapshots may omit the optional config */
+    if ( !xrtValueIs(pConfig, XVALUE_OBJECT) ||
+         !xllm_session__numeric_fields_valid(pConfig, aConfig32, sizeof(aConfig32) / sizeof(aConfig32[0]), UINT32_MAX) ||
+         !xllm_session__numeric_fields_valid(pConfig, aConfig64, sizeof(aConfig64) / sizeof(aConfig64[0]), UINT64_MAX) ||
+         !xllm_session__load_text(pConfig, "summary_style", &sText) ) return false;
+    for ( i = 0u; i < sizeof(aThresholds) / sizeof(aThresholds[0]); ++i ) {
+        xvalue* pValue = xrtValueObjectGet(pConfig, xrtStrView(aThresholds[i]));
+        if ( pValue && !xrtValueIs(pValue, XVALUE_FLOAT) &&
+             !xrtValueIs(pValue, XVALUE_INT) && !xrtValueIs(pValue, XVALUE_UINT) ) return false;
+    }
+    return true;
 }
 
 xllm_session* xllmSessionLoad(const char* sPath, xllm_error* pError)
@@ -4081,6 +4180,7 @@ xllm_session* xllmSessionLoad(const char* sPath, xllm_error* pError)
             return NULL;
         }
     }
+    if ( !xllm_session__snapshot_fields_valid(pRoot) ) goto fail;
     xllmSessionConfigInit(&tSessionConfig);
     pConfig = xllm_session__json_get(pRoot, "config");
     tSessionConfig.uContextWindowTokens = xllm_session__json_u64(pConfig, "context_window_tokens", tSessionConfig.uContextWindowTokens);
@@ -4105,7 +4205,13 @@ xllm_session* xllmSessionLoad(const char* sPath, xllm_error* pError)
     tSessionConfig.sSummaryStyle = xllm_session__json_text(pConfig, "summary_style");
     pSession = xllmSessionCreate(&tSessionConfig, pError);
     tSessionConfig.sSummaryStyle = NULL; /* borrowed only for Create above */
-    if ( !pSession ) { xrtValueRelease(pRoot); return NULL; }
+    if ( !pSession ) {
+        if ( pError && pError->eCode == XLLM_ERROR_INVALID_ARGUMENT ) {
+            xllm_session__error(pError, XLLM_ERROR_PARSE, "invalid saved session config");
+        }
+        xrtValueRelease(pRoot);
+        return NULL;
+    }
     /* The session keeps an owned copy of the style so the parsed value's
      * lifetime ends with the DOM. */
     {
@@ -4132,19 +4238,30 @@ xllm_session* xllmSessionLoad(const char* sPath, xllm_error* pError)
     for ( i = 0u; i < xrtValueCount(pEntries); ++i ) {
         xvalue* pEntry = xrtValueArrayGet(pEntries, i);
         xllm_message tMessage;
-        uint64_t uTurn = xllm_session__json_u64(pEntry, "turn", UINT64_MAX);
-        uint64_t uSequence = xllm_session__json_u64(pEntry, "sequence", 0u);
+        uint64_t uTurn;
+        uint64_t uSequence = pSession->uNextSequence;
         uint32_t uFlags = (uint32_t)xllm_session__json_u64(pEntry, "flags", 0u);
-        if ( uTurn == UINT64_MAX || uTurn > pSession->uCurrentTurn || !xllm_session__load_message(&tMessage, pEntry) ) goto fail;
+        if ( !xllm_session__json_uint(pEntry, "turn", &uTurn) || uTurn > pSession->uCurrentTurn ||
+             !xllm_session__json_uint_valid(pEntry, "sequence", UINT64_MAX - 1u, false) ||
+             !xllm_session__json_uint_valid(pEntry, "flags", UINT32_MAX, false) ) goto fail;
+        if ( xrtValueObjectGet(pEntry, xrtStrView("sequence")) ) {
+            uSequence = xllm_session__json_u64(pEntry, "sequence", 0u);
+        }
+        if ( uSequence < pSession->uNextSequence || !xllm_session__load_message(&tMessage, pEntry) ) goto fail;
         if ( !xllmSessionAddMessage(pSession, uTurn, &tMessage, uFlags) ) {
             xllmMessageUnit(&tMessage);
             goto fail;
         }
         xllmMessageUnit(&tMessage);
-        if ( uSequence ) { pSession->pEntries[pSession->iEntryCount - 1u].uSequence = uSequence; }
-        if ( pSession->uNextSequence <= uSequence ) { pSession->uNextSequence = uSequence + 1u; }
+        pSession->pEntries[pSession->iEntryCount - 1u].uSequence = uSequence;
+        pSession->uNextSequence = uSequence + 1u;
     }
-    if ( pSession->uNextSequence < uSavedNext ) { pSession->uNextSequence = uSavedNext; }
+    if ( xrtValueObjectGet(pRoot, xrtStrView("next_sequence")) ) {
+        if ( !uSavedNext || uSavedNext < pSession->uNextSequence ) goto fail;
+        pSession->uNextSequence = uSavedNext;
+    }
+    if ( uSavedCompacted >= pSession->uNextSequence ||
+         xllm_session__json_u64(pRoot, "tail_floor", 0u) >= pSession->uNextSequence ) goto fail;
     pSession->uJournalSequence = uSavedJournal;
     pSession->uCompactedThrough = uSavedCompacted;
     pSession->uCompactionCount = uSavedCompactions;
@@ -4164,23 +4281,27 @@ xllm_session* xllmSessionLoad(const char* sPath, xllm_error* pError)
         xvalue* pLedger;
         size_t n, iCount;
         pLedger = xllm_session__json_get(pRoot, "read_files");
-        if ( pLedger && xrtValueIs(pLedger, XVALUE_ARRAY) ) {
+        if ( pLedger ) {
+            if ( !xrtValueIs(pLedger, XVALUE_ARRAY) ) goto fail;
             iCount = xrtValueCount(pLedger);
             for ( n = 0u; n < iCount; ++n ) {
                 xstrview tText;
                 xvalue* pItem = xrtValueArrayGet(pLedger, n);
                 if ( !xrtValueGetString(pItem, &tText) || !tText.Data || !tText.Size ||
+                     memchr(tText.Data, '\0', tText.Size) ||
                      !xllm_session__note_file(&pSession->psReadFiles, &pSession->iReadFileCount,
                         &pSession->iReadFileCap, tText.Data, NULL) ) { goto fail; }
             }
         }
         pLedger = xllm_session__json_get(pRoot, "modified_files");
-        if ( pLedger && xrtValueIs(pLedger, XVALUE_ARRAY) ) {
+        if ( pLedger ) {
+            if ( !xrtValueIs(pLedger, XVALUE_ARRAY) ) goto fail;
             iCount = xrtValueCount(pLedger);
             for ( n = 0u; n < iCount; ++n ) {
                 xstrview tText;
                 xvalue* pItem = xrtValueArrayGet(pLedger, n);
                 if ( !xrtValueGetString(pItem, &tText) || !tText.Data || !tText.Size ||
+                     memchr(tText.Data, '\0', tText.Size) ||
                      !xllm_session__note_file(&pSession->psModifiedFiles, &pSession->iModifiedFileCount,
                         &pSession->iModifiedFileCap, tText.Data, NULL) ) { goto fail; }
             }
@@ -4338,7 +4459,9 @@ static bool xllm_session__replay_message(xllm_session* pSession, xvalue* pRoot)
     uint64_t uSequence;
     uint32_t uFlags;
     if ( !pEntry || !xrtValueIs(pEntry, XVALUE_OBJECT) ) return false;
-    uTurn = xllm_session__json_u64(pEntry, "turn", UINT64_MAX);
+    if ( !xllm_session__json_uint(pEntry, "turn", &uTurn) ||
+         !xllm_session__json_uint_valid(pEntry, "sequence", UINT64_MAX - 1u, true) ||
+         !xllm_session__json_uint_valid(pEntry, "flags", UINT32_MAX, false) ) return false;
     uSequence = xllm_session__json_u64(pEntry, "sequence", 0u);
     uFlags = (uint32_t)xllm_session__json_u64(pEntry, "flags", 0u);
     if ( uTurn > pSession->uCurrentTurn || uSequence == 0u ||
@@ -4363,13 +4486,16 @@ static bool xllm_session__replay_compaction(xllm_session* pSession, xvalue* pRoo
     uint64_t uOutput = 0u;
     xvalue* pUsage = xllm_session__json_get(pRoot, "usage");
     const char* sSummary = xllm_session__json_text(pRoot, "summary");
+    bool bHasGeneration = xrtValueObjectGet(pRoot, xrtStrView("generation")) != NULL;
     char* sCopy;
     if ( pUsage ) {
         uPrompt = xllm_session__json_u64(pUsage, "prompt_tokens", 0u);
         uOutput = xllm_session__json_u64(pUsage, "output_tokens", 0u);
     }
     /* Quality gate without estimation (design D4): structure and byte cap. */
-    if ( !sSummary || !sSummary[0] || uThrough <= pSession->uCompactedThrough ||
+    if ( pSession->uCompactionCount == UINT64_MAX || pSession->uSummaryGeneration == UINT32_MAX ||
+         (bHasGeneration && uGeneration <= pSession->uSummaryGeneration) ||
+         !sSummary || !sSummary[0] || uThrough <= pSession->uCompactedThrough ||
          uThrough >= pSession->uNextSequence || uCount != pSession->uCompactionCount + 1u ||
          !xllm_session__summary_text_ok(pSession, sSummary) ) {
         return false;
@@ -4382,11 +4508,7 @@ static bool xllm_session__replay_compaction(xllm_session* pSession, xvalue* pRoo
     pSession->bStatsDirty = true;
     ++pSession->uRenderGeneration;
     pSession->uCompactionCount = uCount;
-    if ( uGeneration > pSession->uSummaryGeneration ) {
-        pSession->uSummaryGeneration = (uint32_t)uGeneration;
-    } else {
-        pSession->uSummaryGeneration = pSession->uCompactionCount;
-    }
+    pSession->uSummaryGeneration = bHasGeneration ? (uint32_t)uGeneration : pSession->uSummaryGeneration + 1u;
     pSession->uSummaryPromptAtBirth = uPrompt;
     pSession->uSummaryOutputAtBirth = uOutput;
     return true;
@@ -4396,15 +4518,58 @@ static bool xllm_session__replay_truncate(xllm_session* pSession, xvalue* pRoot)
 {
     uint64_t uFrom = xllm_session__json_u64(pRoot, "from_sequence", 0u);
     uint64_t uTo = xllm_session__json_u64(pRoot, "to_sequence", 0u);
-    if ( uFrom == 0u || uTo <= uFrom || uTo >= pSession->uNextSequence ||
-         uTo <= pSession->uTailFloor ) {
+    if ( pSession->uSummaryGeneration == UINT32_MAX ||
+         uFrom != pSession->uTailFloor || uTo <= uFrom || uTo >= pSession->uNextSequence ||
+         uTo <= pSession->uCompactedThrough ) {
         return false;
     }
     pSession->uTailFloor = uTo;
-        pSession->bStatsDirty = true;
-        ++pSession->uRenderGeneration;
+    pSession->bStatsDirty = true;
+    ++pSession->uRenderGeneration;
     ++pSession->uSummaryGeneration;
     return true;
+}
+
+static bool xllm_session__journal_fields_valid(xvalue* pRoot, const char* sOperation)
+{
+    if ( strcmp(sOperation, "begin_turn") == 0 ) {
+        return xllm_session__json_uint_valid(pRoot, "turn", UINT64_MAX, true) &&
+            xllm_session__json_u64(pRoot, "turn", 0u) != 0u;
+    }
+    if ( strcmp(sOperation, "add_message") == 0 ) {
+        xvalue* pEntry = xllm_session__json_get(pRoot, "entry");
+        return xllm_session__json_uint_valid(pEntry, "turn", UINT64_MAX, true) &&
+            xllm_session__json_uint_valid(pEntry, "sequence", UINT64_MAX - 1u, true) &&
+            xllm_session__json_u64(pEntry, "sequence", 0u) != 0u &&
+            xllm_session__json_uint_valid(pEntry, "role", XLLM_ROLE_TOOL, true) &&
+            xllm_session__json_uint_valid(pEntry, "flags", UINT32_MAX, false);
+    }
+    if ( strcmp(sOperation, "compact") == 0 ) {
+        xvalue* pUsage = xrtValueObjectGet(pRoot, xrtStrView("usage"));
+        const char* sSummary = xllm_session__json_text(pRoot, "summary");
+        return xllm_session__json_uint_valid(pRoot, "through_sequence", UINT64_MAX - 1u, true) &&
+            xllm_session__json_u64(pRoot, "through_sequence", 0u) != 0u &&
+            xllm_session__json_uint_valid(pRoot, "compaction_count", UINT64_MAX, true) &&
+            xllm_session__json_u64(pRoot, "compaction_count", 0u) != 0u &&
+            xllm_session__json_uint_valid(pRoot, "generation", UINT32_MAX, false) &&
+            (!xrtValueObjectGet(pRoot, xrtStrView("generation")) ||
+                xllm_session__json_u64(pRoot, "generation", 0u) != 0u) &&
+            sSummary && sSummary[0] && (!pUsage ||
+                (xllm_session__json_uint_valid(pUsage, "prompt_tokens", UINT64_MAX, false) &&
+                 xllm_session__json_uint_valid(pUsage, "output_tokens", UINT64_MAX, false)));
+    }
+    if ( strcmp(sOperation, "truncate") == 0 ) {
+        return xllm_session__json_uint_valid(pRoot, "from_sequence", UINT64_MAX - 1u, true) &&
+            xllm_session__json_uint_valid(pRoot, "to_sequence", UINT64_MAX - 1u, true) &&
+            xllm_session__json_u64(pRoot, "to_sequence", 0u) >
+                xllm_session__json_u64(pRoot, "from_sequence", 0u);
+    }
+    if ( strcmp(sOperation, "ledger") == 0 ) {
+        const char* sKind = xllm_session__json_text(pRoot, "kind");
+        const char* sPath = xllm_session__json_text(pRoot, "path");
+        return sKind && (strcmp(sKind, "read") == 0 || strcmp(sKind, "modified") == 0) && sPath && sPath[0];
+    }
+    return false;
 }
 
 static bool xllm_session__replay_record(xllm_session* pSession, xvalue* pRoot, xllm_error* pError)
@@ -4420,7 +4585,7 @@ static bool xllm_session__replay_record(xllm_session* pSession, xvalue* pRoot, x
     if ( !sFormat || strcmp(sFormat, "xllm-session-journal") != 0 ||
          xllm_session__json_u64(pRoot, "version", 0u) < 1u ||
          xllm_session__json_u64(pRoot, "version", 0u) > 3u ||
-         !sOperation || uSequence == 0u ) {
+         !sOperation || uSequence == 0u || !xllm_session__journal_fields_valid(pRoot, sOperation) ) {
         goto invalid;
     }
     if ( uSequence <= pSession->uJournalSequence ) {
@@ -4431,7 +4596,8 @@ static bool xllm_session__replay_record(xllm_session* pSession, xvalue* pRoot, x
     }
     if ( strcmp(sOperation, "begin_turn") == 0 ) {
         uint64_t uTurn = xllm_session__json_u64(pRoot, "turn", 0u);
-        bOk = uTurn == pSession->uCurrentTurn + 1u && xllmSessionBeginTurn(pSession) == uTurn;
+        bOk = pSession->uCurrentTurn != UINT64_MAX &&
+            uTurn == pSession->uCurrentTurn + 1u && xllmSessionBeginTurn(pSession) == uTurn;
     } else if ( strcmp(sOperation, "add_message") == 0 ) {
         bOk = xllm_session__replay_message(pSession, pRoot);
     } else if ( strcmp(sOperation, "compact") == 0 ) {
@@ -4452,6 +4618,7 @@ static bool xllm_session__replay_record(xllm_session* pSession, xvalue* pRoot, x
     }
     if ( !bOk ) { goto invalid; }
     pSession->uJournalSequence = uSequence;
+    pSession->bStatsDirty = true;
     return true;
 invalid:
     {
