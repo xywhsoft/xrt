@@ -2795,7 +2795,8 @@ XRT_API bool xllmSessionAddText(xllm_session* pSession, uint64_t uTurn, xllm_rol
  * message, so identity upgrades stay append-only (the journal records them)
  * without stacking blocks. The host owns identity; nothing here injects one. */
 XRT_API bool xllmSessionSetSystemPrompt(xllm_session* pSession, const char* sText, xllm_error* pError);
-/* Fold a model response (with tool calls) into the turn ledger. */
+/* Fold a model response with tool calls and native reasoning replay into the
+ * turn ledger, using xllmMessageFromResponse's owned-message conversion. */
 XRT_API bool xllmSessionAddAssistantResponse(xllm_session* pSession, uint64_t uTurn, const xllm_response* pResponse);
 /* Fold a tool result into the ledger, answering a pending call. */
 XRT_API bool xllmSessionAddToolResult(xllm_session* pSession, uint64_t uTurn, const char* sToolCallId, const char* sContent);

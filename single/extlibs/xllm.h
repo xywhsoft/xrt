@@ -678,7 +678,9 @@ XRT_API bool xllmMessageAddPart(xllm_message* pMessage, const xllm_part* pPart);
 XRT_API bool xllmMessageSetNative(xllm_message* pMessage, const char* sNativeJson);
 
 /* Convenience: build a history assistant message from a completed response
- * (text, reasoning, tool calls; provider-native replay blobs are preserved). */
+ * (text, reasoning, tool calls; provider-native replay blobs are preserved).
+ * Signed reasoning uses REASONING/thinking_signature pairs, with answer TEXT
+ * parts preserved in arrival order; each signature retains its own text. */
 XRT_API bool xllmMessageFromResponse(const xllm_response* pResponse, xllm_message* pMessage);
 
 /* JSON response mode (off or object). */
@@ -1470,10 +1472,11 @@ bool xllm__utf8_valid(const char* sText)
         unsigned char c = *p;
         size_t iExtra;
         uint32_t cp;
+        uint32_t uMinimum;
         if ( c < 0x80u ) { ++p; continue; }
-        if ( c >= 0xC2u && c <= 0xDFu ) { iExtra = 1u; cp = c & 0x1Fu; }
-        else if ( c >= 0xE0u && c <= 0xEFu ) { iExtra = 2u; cp = c & 0x0Fu; }
-        else if ( c >= 0xF0u && c <= 0xF4u ) { iExtra = 3u; cp = c & 0x07u; }
+        if ( c >= 0xC2u && c <= 0xDFu ) { iExtra = 1u; cp = c & 0x1Fu; uMinimum = 0x80u; }
+        else if ( c >= 0xE0u && c <= 0xEFu ) { iExtra = 2u; cp = c & 0x0Fu; uMinimum = 0x800u; }
+        else if ( c >= 0xF0u && c <= 0xF4u ) { iExtra = 3u; cp = c & 0x07u; uMinimum = 0x10000u; }
         else { return false; }
         ++p;
         while ( iExtra-- ) {
@@ -1481,9 +1484,7 @@ bool xllm__utf8_valid(const char* sText)
             cp = (cp << 6u) | (unsigned char)(*p & 0x3Fu);
             ++p;
         }
-        if ( (cp >= 0xD800u && cp <= 0xDFFFu) || cp > 0x10FFFFu ) { return false; }
-        if ( iExtra == 2u && cp < 0x800u ) { return false; }
-        if ( iExtra == 3u && cp < 0x10000u ) { return false; }
+        if ( cp < uMinimum || (cp >= 0xD800u && cp <= 0xDFFFu) || cp > 0x10FFFFu ) { return false; }
     }
     return true;
 }
@@ -2200,27 +2201,52 @@ fail:
     return false;
 }
 
+static bool xllm__message_add_response_part(xllm_message* pMessage,
+    xllm_part_kind eKind, const char* sText, const char* sNativeType)
+{
+    xllm_part tPart = {0};
+    if ( !xllm__utf8_valid(sText) ) return false;
+    tPart.eKind = eKind;
+    tPart.sText = (char*)(sText ? sText : "");
+    tPart.sNativeType = (char*)sNativeType;
+    return xllmMessageAddPart(pMessage, &tPart);
+}
+
 bool xllmMessageFromResponse(const xllm_response* pResponse, xllm_message* pMessage)
 {
     size_t i;
+    bool bSigned = false;
+    bool bText = false;
     if ( !pResponse || !pMessage ) { return false; }
     xllmMessageInit(pMessage, XLLM_ROLE_ASSISTANT);
-    if ( pResponse->sContent && !xllmMessageSetContent(pMessage, pResponse->sContent) ) goto fail;
     if ( pResponse->sReasoningContent && !xllmMessageSetReasoning(pMessage, pResponse->sReasoningContent) ) goto fail;
     for ( i = 0u; i < pResponse->iBlockCount; ++i ) {
         const xllm_block* pBlock = &pResponse->pBlocks[i];
         if ( pBlock->eKind == XLLM_BLOCK_REASONING && pBlock->sNative && pBlock->sNative[0] ) {
-            /* The signature is an opaque provider token, not JSON: build the
-             * NATIVE part fields directly instead of xllmPartSetNative. */
-            xllm_part tPart;
-            bool bOk;
-            xllmPartInit(&tPart, XLLM_PART_NATIVE);
-            bOk = xllm__replace(&tPart.sNativeType, "thinking_signature") &&
-                xllm__replace(&tPart.sText, pBlock->sNative) &&
-                xllmMessageAddPart(pMessage, &tPart);
-            xllm__part_unit(&tPart);
-            if ( !bOk ) { goto fail; }
+            bSigned = true;
+            break;
         }
+    }
+    if ( !bSigned ) {
+        if ( pResponse->sContent && !xllmMessageSetContent(pMessage, pResponse->sContent) ) goto fail;
+    } else {
+        /* Parts are authoritative. Keep text in parts as well, and put each
+         * opaque signature immediately after its own reasoning block. */
+        for ( i = 0u; i < pResponse->iBlockCount; ++i ) {
+            const xllm_block* pBlock = &pResponse->pBlocks[i];
+            if ( pBlock->eKind == XLLM_BLOCK_TEXT ) {
+                if ( !xllm__message_add_response_part(pMessage, XLLM_PART_TEXT, pBlock->sText, NULL) ) goto fail;
+                bText = true;
+            } else if ( pBlock->eKind == XLLM_BLOCK_REASONING ) {
+                if ( !xllm__message_add_response_part(pMessage, XLLM_PART_REASONING, pBlock->sText, NULL) ) goto fail;
+                if ( pBlock->sNative && pBlock->sNative[0] &&
+                     !xllm__message_add_response_part(pMessage, XLLM_PART_NATIVE,
+                         pBlock->sNative, "thinking_signature") ) goto fail;
+            }
+        }
+        /* Hand-built responses may provide joined text without TEXT blocks. */
+        if ( !bText && pResponse->sContent && pResponse->sContent[0] &&
+             !xllm__message_add_response_part(pMessage, XLLM_PART_TEXT, pResponse->sContent, NULL) ) goto fail;
     }
     for ( i = 0u; i < pResponse->iToolCallCount; ++i ) {
         const xllm_tool_call* pCall = &pResponse->pToolCalls[i];
@@ -3846,6 +3872,9 @@ static char* xllm__completions_build_request_cached(xllm_client* pClient,
 oom:
     xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to build request JSON");
 fail:
+    if ( pError && pError->eCode == XLLM_ERROR_NONE ) {
+        xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to build request JSON");
+    }
     xllm__buf_reset(&tBody);
     return NULL;
 }
@@ -4305,10 +4334,14 @@ static bool xllm__anthropic_append_message(xllm__anthropic_writer* pWriter, cons
                 if ( pPart->eKind == XLLM_PART_REASONING ) { continue; }
                 if ( pPart->eKind == XLLM_PART_NATIVE && pPart->sNativeType &&
                      strcmp(pPart->sNativeType, "thinking_signature") == 0 ) {
-                    if ( !pMessage->sReasoningContent || !pMessage->sReasoningContent[0] ) { continue; }
+                    const char* sThinking = pMessage->sReasoningContent;
+                    if ( i && pMessage->pParts[i - 1u].eKind == XLLM_PART_REASONING ) {
+                        sThinking = pMessage->pParts[i - 1u].sText;
+                    }
+                    if ( !sThinking || !sThinking[0] ) { continue; }
                     if ( !bFirst && !xllm__buf_append_char(pBody, ',') ) { return false; }
                     if ( !xllm__buf_append_cstr(pBody, "{\"type\":\"thinking\",\"thinking\":") ||
-                         !xllm__json_string(pBody, pMessage->sReasoningContent) ||
+                         !xllm__json_string(pBody, sThinking) ||
                          !xllm__buf_append_cstr(pBody, ",\"signature\":") ||
                          !xllm__json_string(pBody, pPart->sText ? pPart->sText : "") ||
                          !xllm__buf_append_char(pBody, '}') ) { return false; }
@@ -4323,7 +4356,8 @@ static bool xllm__anthropic_append_message(xllm__anthropic_writer* pWriter, cons
         if ( pMessage->sContent && pMessage->sContent[0] ) {
             if ( !bFirst && !xllm__buf_append_char(pBody, ',') ) { return false; }
             if ( !xllm__buf_append_cstr(pBody, "{\"type\":\"text\",\"text\":") ||
-                 !xllm__json_string(pBody, pMessage->sContent) ) { return false; }
+                 !xllm__json_string(pBody, pMessage->sContent) ||
+                 !xllm__buf_append_char(pBody, '}') ) { return false; }
             bFirst = false;
         }
         for ( i = 0u; i < pMessage->iToolCallCount; ++i ) {

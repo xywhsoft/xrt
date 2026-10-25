@@ -1851,6 +1851,63 @@ static void test_persistence_message_validation(void)
     (void)xrtFileDelete(sJournal);
 }
 
+static void test_assistant_native_replay(void)
+{
+    static const char sPath[] = "out/xllm-session-tests/assistant_native.json";
+    xllm_block aBlocks[2] = {
+        { XLLM_BLOCK_REASONING, "exact signed thought", 0u, "opaque-signature" },
+        { XLLM_BLOCK_TEXT, "assistant answer", 0u, NULL }
+    };
+    xllm_response tResponse = {0};
+    xllm_session* pSession = NULL;
+    xllm_session* pLoaded = NULL;
+    xllm_client* pClient;
+    xllm_client_config tClient;
+    xllm_request tRequest, tRestored;
+    xllm_error tError;
+    char* sJson;
+    uint64_t uTurn;
+    xllmClientConfigInit(&tClient);
+    tClient.sBaseUrl = "http://127.0.0.1:1/v1";
+    tClient.sApiKey = "offline-test";
+    tClient.sModel = "offline-replay";
+    tClient.eProvider = XLLM_PROVIDER_ANTHROPIC;
+    pClient = xllmClientCreate(&tClient, &tError);
+    pSession = xllmSessionCreate(NULL, &tError);
+    xllmRequestInit(&tRequest);
+    xllmRequestInit(&tRestored);
+    SESSION_CHECK(pClient && pSession, "session signed-response fixture creates");
+    if ( !pClient || !pSession ) goto done;
+    tResponse.sContent = "assistant answer";
+    tResponse.sReasoningContent = "exact signed thought";
+    tResponse.pBlocks = aBlocks;
+    tResponse.iBlockCount = 2u;
+    uTurn = xllmSessionBeginTurn(pSession);
+    SESSION_CHECK(xllmSessionAddAssistantResponse(pSession, uTurn, &tResponse) &&
+        xllmSessionBuildRequest(pSession, &tRequest, &tError),
+        "assistant response enters the session through the public folding API");
+    SESSION_CHECK(tRequest.iMessageCount == 1u && tRequest.pMessages[0].iPartCount == 3u,
+        "session keeps per-block reasoning, signature and answer parts");
+    sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+    SESSION_CHECK(sJson && xrtJsonValid(xrtStrView(sJson)) &&
+        strstr(sJson, "\"signature\":\"opaque-signature\"") &&
+        strstr(sJson, "\"text\":\"assistant answer\""),
+        "session request replays both signed thought and assistant answer");
+    xllmFree(sJson);
+    SESSION_CHECK(xllmSessionSave(pSession, sPath, &tError), "signed session snapshot saves");
+    pLoaded = xllmSessionLoad(sPath, &tError);
+    SESSION_CHECK(pLoaded && xllmSessionBuildRequest(pLoaded, &tRestored, &tError) &&
+        round_trip_requests_equal(&tRequest, &tRestored),
+        "signed assistant replay survives public save and load");
+done:
+    xllmRequestUnit(&tRestored);
+    xllmRequestUnit(&tRequest);
+    xllmSessionDestroy(pLoaded);
+    xllmSessionDestroy(pSession);
+    xllmClientDestroy(pClient);
+    (void)xrtFileDelete(sPath);
+}
+
 typedef struct test_ledger_reentry {
     bool bAttempted;
     bool bReadAccepted;
@@ -2260,6 +2317,7 @@ int main(void)
     test_bind_identity_and_cancel();
     test_journal_roundtrip_property();
     test_persistence_message_validation();
+    test_assistant_native_replay();
     test_journal_ledger_failure_atomicity();
     test_borrowed_view_render();
     test_wire_prefix_cache();

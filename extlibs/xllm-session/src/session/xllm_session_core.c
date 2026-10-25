@@ -571,16 +571,10 @@ bool xllmSessionSetSystemPrompt(xllm_session* pSession, const char* sText, xllm_
 bool xllmSessionAddAssistantResponse(xllm_session* pSession, uint64_t uTurn, const xllm_response* pResponse)
 {
     xllm_message tMessage;
-    size_t i;
     bool bOk = false;
     if ( !pSession || !pResponse ) { return false; }
-    xllmMessageInit(&tMessage, XLLM_ROLE_ASSISTANT);
-    if ( !xllmMessageSetContent(&tMessage, pResponse->sContent ? pResponse->sContent : "") ) goto done;
-    if ( pResponse->sReasoningContent && !xllmMessageSetReasoning(&tMessage, pResponse->sReasoningContent) ) goto done;
-    for ( i = 0u; i < pResponse->iToolCallCount; ++i ) {
-        const xllm_tool_call* pCall = &pResponse->pToolCalls[i];
-        if ( !xllmMessageAddToolCall(&tMessage, pCall->sId, pCall->sName, pCall->sArgumentsJson) ) goto done;
-    }
+    if ( !xllmMessageFromResponse(pResponse, &tMessage) ) return false;
+    if ( !tMessage.sContent && !tMessage.iPartCount && !xllmMessageSetContent(&tMessage, "") ) goto done;
     bOk = xllmSessionAddMessage(pSession, uTurn, &tMessage, 0u);
     if ( bOk ) {
         /* The exact-feedback loop: the response usage refreshes governance. */

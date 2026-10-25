@@ -45,8 +45,8 @@
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 待复核 |
 | ximap | 11 | 9 | 22 | 15 | 5 | 待复核 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 待复核 |
-| xllm | 1 | 12 | 3 | 1 | 2 | TCC 兼容修复完成，继续复核 |
-| xllm-session | 1 | 8 | 2 | 1 | 0 | 预算/摘要寿命修复完成，持久化复核中 |
+| xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8/故障诊断修复完成，交付验收待办 |
+| xllm-session | 1 | 8 | 2 | 1 | 0 | 持久化/回放修复完成，恢复数值复核中 |
 | xmail | 19 | 19 | 27 | 18 | 14 | 待复核 |
 | xoauth2 | 1 | 3 | 3 | 2 | 4 | 待复核 |
 | xpop3 | 6 | 4 | 10 | 6 | 4 | 待复核 |
@@ -140,3 +140,27 @@ prompt/output 与下一轮增量回绕后错误降压；完整预算阈值在 do
 一次 Windows 编译因宿主资源瞬时不足报 `cc1.exe: out of memory`；随后完整重编译运行通过。
 
 下一步保留重点：恢复数值类型与序列合法性；助手 signed-thinking 转换与文本回放；完整产品包消费、裁剪与 profile 验收。
+
+### 第三批：助手回放、UTF-8 与故障诊断
+
+- 新增回归在修复前复现：普通助手文本生成不完整 JSON；带签名推理转换后丢失回答；多段签名重用整段 reasoning；
+  SessionAddAssistantResponse 没有转入签名。xllm 的 4 个、session 的 2 个新增断言失败。
+- 响应转换保留顺序相邻的 REASONING/thinking_signature 对与 TEXT part；每个签名回放对应块的推理，
+  保留旧式 signature-only part 对聚合 reasoning 的兼容路径。普通无签名响应继续使用文本快路径。
+- 修复 Anthropic 助手文本缺少 JSON 闭括号；session 复用公开的 FromResponse 转换，保存/恢复后仍可回放签名与回答。
+- 转换测试覆盖输入被覆盖后的独立所有权；按实测分配点逐一注入失败，确认释放所有半成品输出。
+- 原 OOM 测试在每轮清空总失败标志，实际只检查最后一轮；修正后确认首个分配失败没有错误码。
+  补齐 Completions builder 的 OOM 诊断，并将 96 个分配点的扫描扩展到 OpenAI-compatible、GLM、Responses、Anthropic 四种方言。
+- 独立公开 API 探针复现三字节过长 UTF-8 被接受；新增完整回归后有 6 个失败。
+  修复使用耗尽后计数器判断最短编码的错误；14 类非法编码在内容、推理与 part 三个入口被拒绝且不替换旧值，7 个有效边界继续接受。
+- 最终 xllm 套件：Windows/GCC 单头、Linux/TCC、Linux/Clang ASan/UBSan/float-cast-overflow 加泄漏检查，各 654 个断言通过。
+  会话套件：Windows/GCC 模块化与单头、Linux/TCC 和 Linux sanitizer 均按最终源码通过 332 个断言。
+- 两库 API 覆盖、生成与发布结构检查通过；扩展工具基线 26 项通过。
+- 首批提交 `505c418b` 的 CI `40202854136`：73/73 成功。`7ab05f42` 的 CI `40205705160` 继续运行，独立邮件工作流已成功。
+
+证据：`assistant-replay-before.log`、`session-assistant-replay-before.log`、`oom-diagnostics-before.log`、
+`utf8-boundary-before.log`、`assistant-utf8-oom-windows-final.log`、`assistant-utf8-oom-tcc-final.log`、
+`assistant-utf8-oom-sanitize-final.log`、`assistant-utf8-session-windows-final.log`、`assistant-utf8-session-sanitize-final.log`。
+
+下一批已确认的问题：公开 Save/Load 将 `UINT64_MAX` 的上下文窗口恢复为默认的 204800（`boundary-probes-before.log`）。
+需连同 UInt/Int 类型、窄化、序列单调性与终值屏障一起修复；尚未完成此项，也未宣称两库已完成整轮交付验收。
