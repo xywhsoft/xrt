@@ -290,3 +290,20 @@ TCP/UDP 端口兼容性失败，另批修复。此记录不将该次 CI 记为�
 
 `a18dc3b3` 的 CI `40214563156` 在 Windows 核心 TCP 重入测试出现回调契约断言失败，
 正在单独复核，不将该次 CI 记为全绿；该问题不会被认证套件通过所替代。
+
+### 第九批：OAuth 授权 URL 与失败事务
+
+- 新增公开 BeginLogin 回归先有 13 个断言失败。端点已有 query 时原先再次加入问号，
+  把 response_type 混入原参数值；fragment 内拼接的参数不能送到授权服务器。
+- 按 RFC 6749 3.1 保留现有 query，正确处理普通、空 query 及末尾分隔符；原样保留百分号编码。
+  拒绝带 fragment 的配置端点、空端点及空客户端标识。微信生成的 provider fragment 移至全部查询参数之后。
+- 早期配置错误也走统一失败收尾，清除先前 state/verifier/challenge/nonce，不能错误复用旧事务。
+  用例从真实成功的登录事务开始，修改配置后验证失败原子性。
+- 完整 OAuth 套件：Linux/GCC 模块化、TCC 单头、Clang sanitizer 加泄漏检查各 279 项通过；
+  Windows/GCC 单头 286 项通过（既有平台分支数量不同）。最终两个平台的 static/shared 独立与组合包消费者也通过。
+- OAuth API 覆盖、参考生成、单头一致性及发布成熟度检查通过。
+
+证据：`oauth-login-url-before.log`、`oauth-login-url-tcc-final.log`、`oauth-login-url-linux-final.log`、
+`oauth-login-url-single-windows.log`、`auth-package-policy-windows-final.log`、`auth-delivery-profiles-linux-final.log`。
+
+OAuth HTTP 生命周期、token 流程及发现/身份组合仍需后续复核，未将授权 URL 的回归作为整库验收替代。

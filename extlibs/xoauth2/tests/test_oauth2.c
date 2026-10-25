@@ -491,10 +491,13 @@ static void test_http_future_terminal_states(void)
 	}
 }
 
+#include "login_url_cases.h"
+
 int main(void)
 {
 	xallocator tProbeAlloc = { NULL, probe_alloc, probe_realloc, probe_free };
 	xrtSetAllocator(&tProbeAlloc);
+	oauth2_test_login_url_boundaries();
 	test_http_future_terminal_states();
 	{
 		size_t pending = SIZE_MAX;

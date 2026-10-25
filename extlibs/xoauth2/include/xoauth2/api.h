@@ -165,7 +165,7 @@ typedef bool (*xoauth2httpproc)(const char* sMethod, const char* sUrl,
 
 /* 自定义端点配置（授权/token/userinfo/JWKS URL 与 scope）。 */
 typedef struct xoauth2config {
-	const char* AuthorizeUrl;    /* 授权端点 */
+	const char* AuthorizeUrl;    /* 非空授权端点；保留已有 query，禁止 fragment */
 	const char* TokenUrl;        /* token 端点 */
 	const char* UserInfoUrl;     /* 可选 userinfo 端点 */
 	const char* JwksUrl;         /* 可选 OIDC JWKS 端点（应用层经 xoauth2HttpGet 拉取） */
@@ -227,6 +227,8 @@ XRT_API void xoauth2ClientUnit(xoauth2client* pClient);
 	内部自动：生成随机 state、生成 PKCE verifier/challenge (S256)、
 	拼 provider 特有参数。UsePkce=false 时跳过 PKCE（预设按 provider
 	支持度决定）。
+	保留端点已有查询参数；拒绝空端点/客户端标识及端点 fragment。
+	失败会清除已有 state、verifier、challenge 和 nonce，不能复用旧登录事务。
 	返回 URL 字符串（xrtFree 释放）；调用方将用户浏览器重定向到该 URL。
 */
 XRT_API char* xoauth2BeginLogin(xoauth2client* pClient);

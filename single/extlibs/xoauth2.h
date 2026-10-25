@@ -319,7 +319,7 @@ typedef bool (*xoauth2httpproc)(const char* sMethod, const char* sUrl,
 
 /* 自定义端点配置（授权/token/userinfo/JWKS URL 与 scope）。 */
 typedef struct xoauth2config {
-	const char* AuthorizeUrl;    /* 授权端点 */
+	const char* AuthorizeUrl;    /* 非空授权端点；保留已有 query，禁止 fragment */
 	const char* TokenUrl;        /* token 端点 */
 	const char* UserInfoUrl;     /* 可选 userinfo 端点 */
 	const char* JwksUrl;         /* 可选 OIDC JWKS 端点（应用层经 xoauth2HttpGet 拉取） */
@@ -381,6 +381,8 @@ XRT_API void xoauth2ClientUnit(xoauth2client* pClient);
 	内部自动：生成随机 state、生成 PKCE verifier/challenge (S256)、
 	拼 provider 特有参数。UsePkce=false 时跳过 PKCE（预设按 provider
 	支持度决定）。
+	保留端点已有查询参数；拒绝空端点/客户端标识及端点 fragment。
+	失败会清除已有 state、verifier、challenge 和 nonce，不能复用旧登录事务。
 	返回 URL 字符串（xrtFree 释放）；调用方将用户浏览器重定向到该 URL。
 */
 XRT_API char* xoauth2BeginLogin(xoauth2client* pClient);
@@ -790,13 +792,24 @@ char* xoauth2BeginLogin(xoauth2client* pClient)
 	char* sRedir = NULL;
 	char* sScope = NULL;
 	char* sUrl = NULL;
+	const char* sSeparator;
 	size_t nCap;
+	size_t iEndpointSize;
 	int n;
-	if ( pClient == NULL || pClient->Config.ClientId == NULL ||
-	     pClient->Config.AuthorizeUrl == NULL ) {
+	if ( pClient == NULL ) {
 		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "xoauth2BeginLogin: not configured");
 		return NULL;
 	}
+	if ( pClient->Config.ClientId == NULL || !pClient->Config.ClientId[0] ||
+	     pClient->Config.AuthorizeUrl == NULL || !pClient->Config.AuthorizeUrl[0] ||
+	     strchr(pClient->Config.AuthorizeUrl, '#') != NULL ) {
+		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "authorization endpoint and client id are required; endpoint fragments are forbidden");
+		goto Fail;
+	}
+	iEndpointSize = strlen(pClient->Config.AuthorizeUrl);
+	sSeparator = strchr(pClient->Config.AuthorizeUrl, '?') == NULL ? "?" :
+		(pClient->Config.AuthorizeUrl[iEndpointSize - 1u] == '?' ||
+		 pClient->Config.AuthorizeUrl[iEndpointSize - 1u] == '&') ? "" : "&";
 
 	/* 生成 state */
 	if ( !xoauth2StateGenerate(pClient->sState, sizeof(pClient->sState)) ) {
@@ -852,13 +865,13 @@ char* xoauth2BeginLogin(xoauth2client* pClient)
 
 	if ( pClient->Wechat )
 		n = snprintf(sUrl, nCap,
-			"%s?appid=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s#wechat_redirect",
-			pClient->Config.AuthorizeUrl, sId, sRedir,
+			"%s%sappid=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s",
+			pClient->Config.AuthorizeUrl, sSeparator, sId, sRedir,
 			sScope ? sScope : "", pClient->sState);
 	else
 		n = snprintf(sUrl, nCap,
-			"%s?response_type=code&client_id=%s&redirect_uri=%s&state=%s",
-			pClient->Config.AuthorizeUrl, sId, sRedir, pClient->sState);
+			"%s%sresponse_type=code&client_id=%s&redirect_uri=%s&state=%s",
+			pClient->Config.AuthorizeUrl, sSeparator, sId, sRedir, pClient->sState);
 
 	if ( !pClient->Wechat && sScope != NULL && n > 0 && (size_t)n < nCap ) {
 		n += snprintf(sUrl + n, nCap - n, "&scope=%s", sScope);
@@ -870,6 +883,9 @@ char* xoauth2BeginLogin(xoauth2client* pClient)
 	}
 	if ( pClient->Config.UseNonce && n > 0 && (size_t)n < nCap ) {
 		n += snprintf(sUrl + n, nCap - n, "&nonce=%s", pClient->sNonce);
+	}
+	if ( pClient->Wechat && n > 0 && (size_t)n < nCap ) {
+		n += snprintf(sUrl + n, nCap - n, "#wechat_redirect");
 	}
 
 	if ( n <= 0 || (size_t)n >= nCap ) {

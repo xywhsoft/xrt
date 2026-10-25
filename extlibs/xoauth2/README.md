@@ -216,7 +216,10 @@ static bool shutdown_oauth(xoauth2client* oauth, xoauth2httpxrt** http)
 
 - PKCE (S256)：完整实现（verifier 用后焚毁）
 - State 生成与 CSRF 校验：完整实现（常时比较，校验通过即焚毁）
-- 授权 URL 构造（含 provider 特有参数）：完整实现（尊重预设 UsePkce）
+- 授权 URL 构造（含 provider 特有参数）：保留端点已有 query，尊重预设 UsePkce；
+  依据 [RFC 6749 §3.1](https://www.rfc-editor.org/rfc/rfc6749.txt)，配置端点不得含 fragment。
+  空端点或客户端标识也会拒绝；失败清除先前登录事务的 state、verifier、challenge 和 nonce。
+  微信预设生成的 `#wechat_redirect` 始终位于所有查询参数之后。
 - Token 请求构造（authorization_code / refresh_token，三种 AuthStyle）：
   完整实现（全部字段 form 编码）
 - Token 响应 JSON 解析：完整实现（token_type 归一小写、时间戳换算）
