@@ -474,7 +474,7 @@ static bool __xrtTlsClientConfigValid(
 			);
 		}
 	#else
-		if ( pConfig->ResumeOnly ) {
+		if ( pConfig->ResumeOnly || (pConfig->Resume != NULL) ) {
 			return __xrtTlsClientError(
 				XERR_UNSUPPORTED, XTLS_ERROR_RESUME, "create-tls-client",
 				"TLS client build has no session resumption support"
