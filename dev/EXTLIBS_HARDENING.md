@@ -224,3 +224,25 @@ TCP/UDP 端口兼容性失败，另批修复。此记录不将该次 CI 记为�
 
 `8d70f28c` 的 CI `40213017331` 已确认 Windows/Linux 独立 ACME 服务两项均成功，
 独立邮件 `40213012058` 成功。完整 CI 在记录时仍运行，尚不记为全绿。
+
+### 第六批：xwork 物理路径与只读隔离
+
+- 先执行完整现有离线套件：186 个断言均通过，但 LSan 报告 85 字节泄漏，来自测试夹具的 stop 输出和
+  被覆盖前的中断运行摘要。补齐两处 Unit 后消毒器通过，没有删除原有断言。
+- 新路径用例在修复前有 5 个断言失败：目录链接允许读取外部文件及创建外部后代，内部链接和工作区根别名
+  没有物理归一化，POSIX `/` 被错误判为不包含其后代。另一个公开只读子代理回归复现 `.xcode` 别名绕过。
+- 工作区根按物理路径固定；解析目标时解析最近的已存在祖先，拼接尚不存在的后缀后核对边界。
+  拒绝外部目录/文件链接与悬空链接，保留工作区内部合法链接及新文件路径。
+  Windows 普通 DOS/UNC 路径去除系统返回的扩展命名空间前缀，保留进程工作目录和相对路径的可用性。
+- 只读子代理在调用宿主许可策略前检查相对于工作区的物理目标；隐藏在普通别名后的控制目录仍拒绝。
+- 最终 Linux/GCC 模块化、Linux/TCC 单头、Clang ASan/UBSan/float-cast-overflow 加泄漏检查：各 207 个断言通过。
+  Windows/GCC 单头为 191 个断言通过；本机未授予符号链接创建权限，相关用例明确跳过，未宣称覆盖 Windows junction。
+- xwork API 覆盖、参考生成、单头生成及发布成熟度通过。文档明确路径解析后到实际操作之间要求命名空间稳定，
+  本轮并非针对并发恶意替换链接的句柄相对文件系统沙箱；该环境仍是未覆盖边界。
+
+证据：`xwork-sanitize-baseline.log`、`xwork-sanitize-fixture-fixed.log`、`xwork-path-before.log`、
+`xwork-control-alias-before.log`、`xwork-path-tcc-final.log`、`xwork-path-modular-linux.log`、
+`xwork-path-sanitize-final.log`、`xwork-path-single-windows.log`。
+
+继续项：xwork 工具/进程与 MCP 状态机、分配失败和错误路径，清单内探索/Python 实现的可达性及边界，
+产品包与 profile 验收；其余扩展库仍按逐库台账推进，当前不将任一产品标记为整轮完成。
