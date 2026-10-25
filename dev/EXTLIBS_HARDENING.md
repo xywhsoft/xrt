@@ -122,3 +122,21 @@ prompt/output 与下一轮增量回绕后错误降压；完整预算阈值在 do
 
 后续源码线索仍需复现：无符号 64 位字段恢复、配置窄化及序列检查；日志写入失败时文件账本的事务性；
 空会话的日志控制；助手响应的 native block 是否通过已有公开转换 API 完整转入会话。
+
+### 第二批续：真实 native 子类型与日志失败原子性
+
+- `xllmMessageFromResponse()` 会生成 `thinking_signature` NATIVE part，内容是 opaque 签名而非 JSON。
+  本轮刚增加的严格解析原先误拒绝了这种合法回放数据；加入真实子类型后复现两条恢复路径失败，
+  已按子类型保留原文，其他需要 JSON 的 native 数据继续严格校验。
+- 用目录阻塞已启用的日志路径，确认 NoteFileRead/NoteFileModified 返回失败后仍污染可见账本，
+  同一路径重试又被去重而不写入日志；重启无法恢复。新增回归在修复前有 4 个断言失败。
+- 新路径在追加失败后回滚，成功后才推进 render generation；追加成功同时使 journal sequence 的统计缓存失效。
+- 观察回调不能重入账本修改；NULL 会话的 EnableJournal 返回参数错误，DisableJournal 安全返回。
+- GCC/Windows 模块化、Linux/TCC 和 Linux/Clang ASan/UBSan/float-cast-overflow 加泄漏检查：各 326 个断言通过。
+  Windows/GCC 单头完成相同回归后追加确认，不使用只编译证据替代运行。
+
+证据：`native-signature-tcc-before.log`、`ledger-atomicity-before.log`、`ledger-windows-final.log`、
+`ledger-tcc-final.log`、`ledger-sanitize-final.log`、`ledger-windows-single-final.log`。
+一次 Windows 编译因宿主资源瞬时不足报 `cc1.exe: out of memory`；随后完整重编译运行通过。
+
+下一步保留重点：恢复数值类型与序列合法性；助手 signed-thinking 转换与文本回放；完整产品包消费、裁剪与 profile 验收。

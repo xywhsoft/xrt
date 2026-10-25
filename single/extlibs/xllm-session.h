@@ -1329,25 +1329,37 @@ bool xllm_session__append_ledger_blocks(xllm_session_buf* pBuf, const xllm_sessi
 bool xllmSessionNoteFileRead(xllm_session* pSession, const char* sPath)
 {
     bool bAdded = false;
-    if ( !pSession || !sPath || !sPath[0] ) { return false; }
+    if ( !pSession || pSession->bInHook || !sPath || !sPath[0] ) { return false; }
     if ( !xllm_session__note_file(&pSession->psReadFiles, &pSession->iReadFileCount,
             &pSession->iReadFileCap, sPath, &bAdded) ) {
         return false;
     }
-    if ( bAdded ) { ++pSession->uRenderGeneration; }
-    return !bAdded || xllm_session__journal_append_ledger(pSession, "read", sPath);
+    if ( !bAdded ) return true;
+    if ( !xllm_session__journal_append_ledger(pSession, "read", sPath) ) {
+        free(pSession->psReadFiles[--pSession->iReadFileCount]);
+        pSession->psReadFiles[pSession->iReadFileCount] = NULL;
+        return false;
+    }
+    ++pSession->uRenderGeneration;
+    return true;
 }
 
 bool xllmSessionNoteFileModified(xllm_session* pSession, const char* sPath)
 {
     bool bAdded = false;
-    if ( !pSession || !sPath || !sPath[0] ) { return false; }
+    if ( !pSession || pSession->bInHook || !sPath || !sPath[0] ) { return false; }
     if ( !xllm_session__note_file(&pSession->psModifiedFiles, &pSession->iModifiedFileCount,
             &pSession->iModifiedFileCap, sPath, &bAdded) ) {
         return false;
     }
-    if ( bAdded ) { ++pSession->uRenderGeneration; }
-    return !bAdded || xllm_session__journal_append_ledger(pSession, "modified", sPath);
+    if ( !bAdded ) return true;
+    if ( !xllm_session__journal_append_ledger(pSession, "modified", sPath) ) {
+        free(pSession->psModifiedFiles[--pSession->iModifiedFileCount]);
+        pSession->psModifiedFiles[pSession->iModifiedFileCount] = NULL;
+        return false;
+    }
+    ++pSession->uRenderGeneration;
+    return true;
 }
 
 bool xllmSessionGetFileLedger(const xllm_session* pSession, xllm_file_ledger* pLedger)
@@ -3977,7 +3989,9 @@ static bool xllm_session__load_part(xllm_message* pMessage, xvalue* pObject)
 #undef XLLM_SESSION_LOAD_PART_TEXT
     if ( !xllm_session__load_text(pObject, "data", &sData) ) return false;
     if ( tPart.eKind == XLLM_PART_NATIVE &&
-         (!tPart.sText || !xrtJsonValid((xstrview){ tPart.sText, strlen(tPart.sText) })) ) return false;
+         (!tPart.sText || !tPart.sText[0] ||
+          (!(tPart.sNativeType && strcmp(tPart.sNativeType, "thinking_signature") == 0) &&
+           !xrtJsonValid((xstrview){ tPart.sText, strlen(tPart.sText) }))) ) return false;
     if ( sData ) {
         tPart.pData = xrtBase64DecodeNew(sData, strlen(sData), &tPart.iDataSize, NULL);
         if ( !tPart.pData ) return false;
@@ -4231,6 +4245,7 @@ static bool xllm_session__journal_write(xllm_session* pSession, xllm_session_buf
         return false;
     }
     ++pSession->uJournalSequence;
+    pSession->bStatsDirty = true;
     xllm_session__event(pSession, XLLM_SESSION_EVENT_JOURNAL_RECORD, 0u,
         pSession->uJournalSequence, NULL);
     return true;
@@ -4537,8 +4552,12 @@ static bool xllm_session__set_journal_path(xllm_session* pSession, const char* s
 
 bool xllmSessionEnableJournal(xllm_session* pSession, const char* sJournalPath, xllm_error* pError)
 {
-    pSession->bStatsDirty = true;
     if ( pError ) { xllmErrorInit(pError); }
+    if ( !pSession ) {
+        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session is required");
+        return false;
+    }
+    pSession->bStatsDirty = true;
     if ( sJournalPath && sJournalPath[0] && xrtFileExists(sJournalPath) &&
          xllm_session__path_size(sJournalPath) != 0u ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
@@ -4550,8 +4569,8 @@ bool xllmSessionEnableJournal(xllm_session* pSession, const char* sJournalPath, 
 
 void xllmSessionDisableJournal(xllm_session* pSession)
 {
-    pSession->bStatsDirty = true;
     if ( !pSession ) { return; }
+    pSession->bStatsDirty = true;
     free(pSession->sJournalPath);
     pSession->sJournalPath = NULL;
 }

@@ -1685,6 +1685,10 @@ static void test_journal_roundtrip_property(void)
         tPart.sNativeType = (char*)"provider-extension";
         tPart.sText = (char*)"{ \"type\": \"provider-extension\", \"opaque\": [1, 2] }";
         bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        /* MessageFromResponse also emits this non-JSON native subtype. */
+        tPart.sNativeType = (char*)"thinking_signature";
+        tPart.sText = (char*)"opaque signature +/=:not-json";
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
         SESSION_CHECK(bAdded && xllmMessageSetNative(&tMessage,
                 "{ \"opaque\": \"whole-message-native\" }") &&
             xllmSessionAddMessage(pOriginal, uTurn, &tMessage, 0u),
@@ -1844,6 +1848,79 @@ static void test_persistence_message_validation(void)
         xllmSessionDestroy(pSession);
     }
     (void)xrtFileDelete(sPath);
+    (void)xrtFileDelete(sJournal);
+}
+
+typedef struct test_ledger_reentry {
+    bool bAttempted;
+    bool bReadAccepted;
+    bool bModifiedAccepted;
+} test_ledger_reentry;
+
+static void test_ledger_reentry_event(xllm_session* pSession,
+    const xllm_session_event* pEvent, void* pData)
+{
+    test_ledger_reentry* pProbe = (test_ledger_reentry*)pData;
+    if ( pEvent->eType == XLLM_SESSION_EVENT_JOURNAL_RECORD && !pProbe->bAttempted ) {
+        pProbe->bAttempted = true;
+        pProbe->bReadAccepted = xllmSessionNoteFileRead(pSession, "unexpected-read.c");
+        pProbe->bModifiedAccepted = xllmSessionNoteFileModified(pSession, "unexpected-write.c");
+    }
+}
+
+static void test_journal_ledger_failure_atomicity(void)
+{
+    static const char sJournal[] = "out/xllm-session-tests/ledger_blocked_path";
+    static const char sAbsent[] = "out/xllm-session-tests/ledger_failure_absent.json";
+    xllm_session* pSession;
+    xllm_session* pRecovered;
+    xllm_error tError;
+    xllm_file_ledger tLedger;
+    xllm_session_stats tStats;
+    xllm_session_hooks tHooks = {0};
+    test_ledger_reentry tProbe = {0};
+    SESSION_CHECK(!xllmSessionEnableJournal(NULL, sJournal, &tError) &&
+        tError.eCode == XLLM_ERROR_INVALID_ARGUMENT,
+        "null-session journal attachment returns an argument error");
+    xllmSessionDisableJournal(NULL);
+    SESSION_CHECK(xllmSessionJournalPath(NULL) == NULL,
+        "null-session journal disable is harmless");
+    (void)xrtFileDelete(sJournal);
+    (void)xrtDirRemove(sJournal);
+    (void)xrtFileDelete(sAbsent);
+    pSession = xllmSessionCreate(NULL, &tError);
+    if ( !pSession ) { SESSION_CHECK(false, "ledger failure fixture creates"); return; }
+    if ( !xllmSessionEnableJournal(pSession, sJournal, &tError) || !xrtDirCreateAll(sJournal) ) {
+        SESSION_CHECK(false, "journal path can be blocked after attachment");
+        xllmSessionDestroy(pSession);
+        return;
+    }
+    SESSION_CHECK(!xllmSessionNoteFileRead(pSession, "read.c") &&
+        xllmSessionGetFileLedger(pSession, &tLedger) && tLedger.iReadFileCount == 0u,
+        "failed read-ledger journal append leaves no visible path");
+    SESSION_CHECK(!xllmSessionNoteFileModified(pSession, "write.c") &&
+        xllmSessionGetFileLedger(pSession, &tLedger) && tLedger.iModifiedFileCount == 0u,
+        "failed modified-ledger journal append leaves no visible path");
+    SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) && tStats.uJournalSequence == 0u,
+        "failed ledger appends leave the journal sequence unchanged");
+    SESSION_CHECK(xrtDirRemove(sJournal), "journal blocker is removed");
+    tHooks.pOnEvent = test_ledger_reentry_event;
+    tHooks.pUserData = &tProbe;
+    SESSION_CHECK(xllmSessionSetHooks(pSession, &tHooks), "ledger event hook installs");
+    SESSION_CHECK(xllmSessionNoteFileRead(pSession, "read.c") &&
+        xllmSessionNoteFileModified(pSession, "write.c") &&
+        xllmSessionGetStats(pSession, &tStats) && tStats.uJournalSequence == 2u,
+        "retry writes both ledger records and refreshes cached stats");
+    SESSION_CHECK(tProbe.bAttempted && !tProbe.bReadAccepted && !tProbe.bModifiedAccepted,
+        "journal observation hooks cannot re-enter ledger mutations");
+    pRecovered = xllmSessionRecover(sAbsent, sJournal, NULL, &tError);
+    SESSION_CHECK(pRecovered && xllmSessionGetFileLedger(pRecovered, &tLedger) &&
+        tLedger.iReadFileCount == 1u && tLedger.iModifiedFileCount == 1u &&
+        strcmp(tLedger.psReadFiles[0], "read.c") == 0 &&
+        strcmp(tLedger.psModifiedFiles[0], "write.c") == 0,
+        "retried ledger records survive a fresh process recovery");
+    xllmSessionDestroy(pRecovered);
+    xllmSessionDestroy(pSession);
     (void)xrtFileDelete(sJournal);
 }
 
@@ -2183,6 +2260,7 @@ int main(void)
     test_bind_identity_and_cancel();
     test_journal_roundtrip_property();
     test_persistence_message_validation();
+    test_journal_ledger_failure_atomicity();
     test_borrowed_view_render();
     test_wire_prefix_cache();
     test_file_ledger();

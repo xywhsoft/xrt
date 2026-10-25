@@ -37,6 +37,7 @@ static bool xllm_session__journal_write(xllm_session* pSession, xllm_session_buf
         return false;
     }
     ++pSession->uJournalSequence;
+    pSession->bStatsDirty = true;
     xllm_session__event(pSession, XLLM_SESSION_EVENT_JOURNAL_RECORD, 0u,
         pSession->uJournalSequence, NULL);
     return true;
@@ -343,8 +344,12 @@ static bool xllm_session__set_journal_path(xllm_session* pSession, const char* s
 
 bool xllmSessionEnableJournal(xllm_session* pSession, const char* sJournalPath, xllm_error* pError)
 {
-    pSession->bStatsDirty = true;
     if ( pError ) { xllmErrorInit(pError); }
+    if ( !pSession ) {
+        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session is required");
+        return false;
+    }
+    pSession->bStatsDirty = true;
     if ( sJournalPath && sJournalPath[0] && xrtFileExists(sJournalPath) &&
          xllm_session__path_size(sJournalPath) != 0u ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
@@ -356,8 +361,8 @@ bool xllmSessionEnableJournal(xllm_session* pSession, const char* sJournalPath, 
 
 void xllmSessionDisableJournal(xllm_session* pSession)
 {
-    pSession->bStatsDirty = true;
     if ( !pSession ) { return; }
+    pSession->bStatsDirty = true;
     free(pSession->sJournalPath);
     pSession->sJournalPath = NULL;
 }

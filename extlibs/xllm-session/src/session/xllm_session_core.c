@@ -495,25 +495,37 @@ bool xllm_session__append_ledger_blocks(xllm_session_buf* pBuf, const xllm_sessi
 bool xllmSessionNoteFileRead(xllm_session* pSession, const char* sPath)
 {
     bool bAdded = false;
-    if ( !pSession || !sPath || !sPath[0] ) { return false; }
+    if ( !pSession || pSession->bInHook || !sPath || !sPath[0] ) { return false; }
     if ( !xllm_session__note_file(&pSession->psReadFiles, &pSession->iReadFileCount,
             &pSession->iReadFileCap, sPath, &bAdded) ) {
         return false;
     }
-    if ( bAdded ) { ++pSession->uRenderGeneration; }
-    return !bAdded || xllm_session__journal_append_ledger(pSession, "read", sPath);
+    if ( !bAdded ) return true;
+    if ( !xllm_session__journal_append_ledger(pSession, "read", sPath) ) {
+        free(pSession->psReadFiles[--pSession->iReadFileCount]);
+        pSession->psReadFiles[pSession->iReadFileCount] = NULL;
+        return false;
+    }
+    ++pSession->uRenderGeneration;
+    return true;
 }
 
 bool xllmSessionNoteFileModified(xllm_session* pSession, const char* sPath)
 {
     bool bAdded = false;
-    if ( !pSession || !sPath || !sPath[0] ) { return false; }
+    if ( !pSession || pSession->bInHook || !sPath || !sPath[0] ) { return false; }
     if ( !xllm_session__note_file(&pSession->psModifiedFiles, &pSession->iModifiedFileCount,
             &pSession->iModifiedFileCap, sPath, &bAdded) ) {
         return false;
     }
-    if ( bAdded ) { ++pSession->uRenderGeneration; }
-    return !bAdded || xllm_session__journal_append_ledger(pSession, "modified", sPath);
+    if ( !bAdded ) return true;
+    if ( !xllm_session__journal_append_ledger(pSession, "modified", sPath) ) {
+        free(pSession->psModifiedFiles[--pSession->iModifiedFileCount]);
+        pSession->psModifiedFiles[pSession->iModifiedFileCount] = NULL;
+        return false;
+    }
+    ++pSession->uRenderGeneration;
+    return true;
 }
 
 bool xllmSessionGetFileLedger(const xllm_session* pSession, xllm_file_ledger* pLedger)

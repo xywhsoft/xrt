@@ -264,7 +264,9 @@ static bool xllm_session__load_part(xllm_message* pMessage, xvalue* pObject)
 #undef XLLM_SESSION_LOAD_PART_TEXT
     if ( !xllm_session__load_text(pObject, "data", &sData) ) return false;
     if ( tPart.eKind == XLLM_PART_NATIVE &&
-         (!tPart.sText || !xrtJsonValid((xstrview){ tPart.sText, strlen(tPart.sText) })) ) return false;
+         (!tPart.sText || !tPart.sText[0] ||
+          (!(tPart.sNativeType && strcmp(tPart.sNativeType, "thinking_signature") == 0) &&
+           !xrtJsonValid((xstrview){ tPart.sText, strlen(tPart.sText) }))) ) return false;
     if ( sData ) {
         tPart.pData = xrtBase64DecodeNew(sData, strlen(sData), &tPart.iDataSize, NULL);
         if ( !tPart.pData ) return false;

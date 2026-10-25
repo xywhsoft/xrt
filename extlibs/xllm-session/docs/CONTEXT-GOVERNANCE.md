@@ -57,6 +57,8 @@ message part in order: text, reasoning, inline image/audio/file bytes, image URL
 references, metadata and native parts. Inline bytes use strict Base64, including
 embedded NUL bytes; native JSON strings keep their original representation.
 Whole-message native data and tool-result correlation IDs also survive recovery.
+The `thinking_signature` native subtype emitted by `xllmMessageFromResponse()`
+is an opaque signature string, so it is preserved without JSON validation.
 
 The reader accepts format versions 1, 2 and 3. Old text-only snapshots and
 journals remain readable, and a recovered journal may append new v3 records.
@@ -65,3 +67,8 @@ restore. Fields with the wrong type, embedded NUL in C-string fields, invalid
 Base64/native JSON, unknown part kinds, or conflicting text and parts are parse
 errors. Recovery never returns a partially decoded message as a successful
 session.
+
+File-ledger changes follow the same write-ahead contract as messages: a failed
+journal append returns false and leaves the visible read/modified paths unchanged.
+After the I/O failure is resolved, retrying the same path writes a real record
+that survives recovery. Observation hooks cannot mutate this ledger recursively.
