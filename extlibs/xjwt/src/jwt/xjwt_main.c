@@ -307,6 +307,31 @@ char* xjwtEs256(const xvalue* claims, const char* privatePem, int expireSeconds)
 /* 主入口：验证                                                          */
 /* ------------------------------------------------------------------ */
 
+static bool xjwt__header_supported(const xvalue* pHeader)
+{
+	xvalue* pB64 = xrtValueObjectGet(pHeader, xrtStrView("b64"));
+	xvalue* pCrit = xrtValueObjectGet(pHeader, xrtStrView("crit"));
+	bool bEncoded;
+	xstrview Name;
+	/* RFC 7797 sections 3/7: JWT payloads remain base64url encoded.
+	 * An explicit true is equivalent to the absent default. */
+	if ( pB64 != NULL && (!xrtValueGetBool(pB64, &bEncoded) || !bEncoded) ) {
+		xjwt__error(XJWT_ERROR_MALFORMED, "JWT b64 must be true when present");
+		return false;
+	}
+	/* RFC 7515 section 4.1.11: never ignore an unknown critical extension.
+	 * Only b64=true is supported, so any additional entry is unknown or a
+	 * forbidden duplicate; a mentioned parameter must also be present. */
+	if ( pCrit != NULL && (!xrtValueIs(pCrit, XVALUE_ARRAY) ||
+		xrtValueCount(pCrit) != 1u || pB64 == NULL ||
+		!xrtValueGetString(xrtValueArrayGet(pCrit, 0u), &Name) ||
+		Name.Size != 3u || memcmp(Name.Data, "b64", 3u) != 0) ) {
+		xjwt__error(XJWT_ERROR_MALFORMED, "unsupported or malformed critical JWT header");
+		return false;
+	}
+	return true;
+}
+
 /* 三条验证路径共用前置：header(alg+kid) → claims 解码校验 → 重建签名输入 → 解码签名。
  * 成功返回 claims 并交出中间量（调用方 xrtFree）；失败返回 NULL。 */
 xvalue* xjwt__verify_prepare(const char* sToken, const xjwtcheck* pCheck,
@@ -319,6 +344,12 @@ xvalue* xjwt__verify_prepare(const char* sToken, const xjwtcheck* pCheck,
 	/* header：alg + kid */
 	xvalue* pHdr = xjwtDecodeHeader(sToken, pAlg, pKid);
 	if ( pHdr == NULL ) return NULL;
+	if ( !xjwt__header_supported(pHdr) ) {
+		xrtValueRelease(pHdr);
+		xrtFree((void*)*pKid);
+		*pKid = NULL;
+		return NULL;
+	}
 	xrtValueRelease(pHdr);
 	if ( *pAlg == XJWT_ALG_INVALID ) {
 		xrtFree((void*)*pKid); *pKid = NULL;

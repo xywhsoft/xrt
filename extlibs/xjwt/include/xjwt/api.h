@@ -188,6 +188,8 @@ XRT_API char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims);
  * 通过返回 claims（xrtValueRelease 释放），失败返回 NULL 并设 xerror。
  * keyPem：HS 系列收密钥字符串，RS 系列收公钥 PEM，ES 收公钥 PEM。
  * check 传 NULL 等价于 xjwtCheckInit 后只查 exp。
+ * 三条验证入口均拒绝未知或畸形 crit，以及非 true 的 b64（MALFORMED）；
+ * 可接受显式 b64=true 和对应的 crit=["b64"]。
  * ------------------------------------------------------------------ */
 XRT_API xvalue* xjwtVerify(const char* token, const char* keyPem, const xjwtcheck* check);
 
@@ -211,6 +213,7 @@ XRT_API xvalue*  xjwtVerifyKey(const char* token, const xjwtkey* key, const xjwt
  * *pAlg 收 header 算法（未知为 INVALID），失败时置 INVALID。
  * *pKid 为堆拷贝，由调用方 xrtFree；缺失或失败为 NULL，显式空 kid 为 ""。
  * 传 pKid 时拒绝非字符串、≥256 字节或含 NUL 的 kid，不做前缀匹配。
+ * 解码仅供检查原文，不应用验签入口的 crit/b64 支持策略。
  * ------------------------------------------------------------------ */
 XRT_API xvalue* xjwtDecode(const char* token, int* pAlg);
 /* 只解 header 不验签（取 alg/kid 供路由选择）。 */

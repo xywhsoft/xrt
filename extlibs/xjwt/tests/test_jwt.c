@@ -250,11 +250,14 @@ static bool rsa_private_der_rejected(const void* pDer, size_t iSize)
 	return encoded && !accepted;
 }
 
+#include "critical_header_cases.h"
+
 int main(void)
 {
 	xallocator tProbeAlloc = { NULL, probe_alloc, probe_realloc, probe_free };
 	xrtSetAllocator(&tProbeAlloc);
 	g_fuzzKey = xjwtKeyParse(K_RSA_PUB);
+	jwt_test_critical_headers();
 	/* ---- HS256 往返 ---- */
 	{
 		xvalue* claims = xrtValueObject();

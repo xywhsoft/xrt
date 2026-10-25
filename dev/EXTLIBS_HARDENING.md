@@ -44,7 +44,7 @@
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 待复核 |
 | ximap | 11 | 9 | 22 | 15 | 5 | 待复核 |
-| xjwt | 1 | 4 | 3 | 2 | 1 | 待复核 |
+| xjwt | 1 | 4 | 3 | 2 | 1 | 关键头部回归通过，JWKS 用途/签发错误复核中 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
 | xmail | 19 | 19 | 27 | 18 | 14 | 待复核 |
@@ -246,3 +246,19 @@ TCP/UDP 端口兼容性失败，另批修复。此记录不将该次 CI 记为�
 
 继续项：xwork 工具/进程与 MCP 状态机、分配失败和错误路径，清单内探索/Python 实现的可达性及边界，
 产品包与 profile 验收；其余扩展库仍按逐库台账推进，当前不将任一产品标记为整轮完成。
+
+### 第七批：JWT 关键头部
+
+- 复核四个 JWT 实现分片后，用真实 HS256/RS256/ES256 签名构造 17 类关键头部反例；
+  修复前 PEM/HMAC、公钥缓存及 JWKS 验签共 119 个新增断言失败。
+- 所有验签入口共用关键头部预检：未知扩展、非法/空/重复 crit、缺少对应字段及非 true 的 b64 返回 MALFORMED。
+  依据 RFC 7515 4.1.11 与 RFC 7797 7；支持 b64=true 及 crit=["b64"]，保留普通非关键扩展的忽略规则。
+- 纯解码入口仍可检查原始头部，未将解码误作验签。错误返回前释放已经复制的 kid。
+- Linux/GCC 模块化、Linux/TCC 单头、Windows/GCC 单头、Clang ASan/UBSan/float-cast-overflow 加泄漏检查：
+  每种构建完整 JWT 套件均为 611 项通过。原有时间边界、签发所有权、逐分配点失败及密钥格式用例保留。
+- xjwt API 覆盖、参考生成、单头一致性及发布成熟度检查通过。
+
+证据：`jwt-sanitize-baseline.log`、`jwt-critical-before.log`、`jwt-critical-tcc-final.log`、
+`jwt-critical-single-windows.log`、`jwt-critical-modular-linux.log`、`jwt-critical-sanitize-final.log`。
+
+继续项：JWKS use/key_ops/alg 元数据的处理、签发 OOM 根因保真与交付验证；OAuth 授权端点已有 query 的拼接复核。

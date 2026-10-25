@@ -94,6 +94,14 @@ python tools/amalgamate.py --manifest extlibs/xjwt/config/modules.json
 - 安全基线：alg=none 与算法混淆拒绝（含 JWKS 路径）、
   kid JSON 转义、签名输出容量校验（不截断）、Base64url 非零末组补齐位拒绝
 
+PEM/共享密钥、公钥缓存、JWKS 三条验签入口均处理关键头部：
+依据 [RFC 7515 §4.1.11](https://www.rfc-editor.org/rfc/rfc7515#section-4.1.11)，
+未知关键扩展，以及空、重复、缺少对应字段或类型错误的 `crit` 都返回 `XJWT_ERROR_MALFORMED`。
+普通非关键自定义头部继续忽略。
+[RFC 7797 §7](https://www.rfc-editor.org/rfc/rfc7797#section-7) 禁止 JWT 使用未编码载荷，
+因此 `b64` 只接受缺失或布尔 `true`；显式 `b64=true` 可配合 `crit=["b64"]`。
+`xjwtDecode` / `xjwtDecodeHeader` 仍可查看这些原始数据，不代表令牌已通过验签策略。
+
 不使用 `kid` 时将 `xjwtconfig.KeyId` 留为 `NULL`；`""` 会签发显式空标识。
 [RFC 7515 §4.1.4](https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.4)
 要求 `kid` 为区分大小写的字符串，没有非空要求。验证时空标识只匹配显式空
