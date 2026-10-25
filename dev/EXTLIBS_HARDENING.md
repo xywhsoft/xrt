@@ -223,7 +223,7 @@ TCP/UDP 端口兼容性失败，另批修复。此记录不将该次 CI 记为�
 `xllm-performance-smoke.json`、`session-performance-smoke.json`、`package-api-tooling-final.log`。
 
 `8d70f28c` 的 CI `40213017331` 已确认 Windows/Linux 独立 ACME 服务两项均成功，
-独立邮件 `40213012058` 成功。完整 CI 在记录时仍运行，尚不记为全绿。
+独立邮件 `40213012058` 成功。完整 CI 随后完成，73/73 成功。
 
 ### 第六批：xwork 物理路径与只读隔离
 
@@ -307,3 +307,16 @@ TCP/UDP 端口兼容性失败，另批修复。此记录不将该次 CI 记为�
 `oauth-login-url-single-windows.log`、`auth-package-policy-windows-final.log`、`auth-delivery-profiles-linux-final.log`。
 
 OAuth HTTP 生命周期、token 流程及发现/身份组合仍需后续复核，未将授权 URL 的回归作为整库验收替代。
+
+### CI 续修：TCP 关闭状态与回调完成
+
+- `a18dc3b3` 的 Windows job `121232795168` 实际失败点是核心 `test_net_tcp_server_reentrant` 的回调契约断言。
+  该测试只等 CLOSED 状态就读取 Accept/Close 计数；公开头已明确状态先于 Close 通知发布，不能替代回调完成。
+- 保留原来的唯一回调、状态、Listener 退出和聚合队列断言，改为等待真实 Accept/Close 完成后检查。
+  在真实 Close 回调内加入测试门闩，确定性保留 CLOSED 已发布但回调未完成的窗口，再由主线程放行。
+  未修改网络运行时，也没有用固定 sleep 或放宽断言规避时序。
+- Windows/GCC 定向构建运行、Linux/Clang ASan/UBSan 加泄漏检查通过；两个平台各复跑 32 次通过，
+  每次均执行上述确定性窗口及 16 连接队列背压验证。
+
+证据：`a18-windows-ci-failure.log`、`tcp-server-callback-windows.log`、`tcp-server-callback-sanitize-linux.log`、
+`tcp-server-callback-repeat-windows.log`、`tcp-server-callback-repeat-linux.log`。
