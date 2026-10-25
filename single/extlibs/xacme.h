@@ -3625,8 +3625,15 @@ bool xacmeHttpUnit(xacmehttp* pHttp)
 	pPrevious = xrtErrorRef(xrtGetError());
 	if(pHttp->pResolver != NULL)
 	{
-		(void)xrtNetResolverDestroy(pHttp->pResolver);
-		pHttp->pResolver = NULL;
+		if(xrtNetResolverDestroy(pHttp->pResolver))
+			pHttp->pResolver = NULL;
+		else
+		{
+			/* Resolver retirement can fail too. Retain its creator slot and
+			 * dependent engine so the caller can retry the same owner. */
+			if(pPrevious != NULL) xrtSetErrorTake(pPrevious);
+			return false;
+		}
 	}
 	if(pHttp->bEngineOwned && (pHttp->pEngine != NULL))
 	{
@@ -6571,8 +6578,7 @@ bool xacmeDnsTxtQuery(
 		bool bGot = false;
 		for(iAttempt = 0; (iAttempt < 2) && !bGot; iAttempt++)
 		{
-			pPacket = __xrtNetUdpReceiveWait(
-				pUdp, xrtTimer() + 2, NULL);
+			pPacket = xrtNetUdpReceiveWait(pUdp, INT64_C(2000), NULL);
 			if(pPacket == NULL)
 			{
 				if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) goto Done;
