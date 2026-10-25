@@ -33,6 +33,34 @@ bool __xrtTlsServerCause(cstr sOperation, cstr sMessage)
 
 
 
+/* 回调期选择结果拥有独立身份引用，消除临时返回对象销毁后的借用窗口。 */
+XRT_API bool xrtTlsServerChoiceSetIdentityV1(
+	xtlsserverchoice* pChoice,
+	const xtlsidentity* pIdentity
+)
+{
+	if ( xrtGetError() != NULL ) {
+		return false;
+	}
+	if ( (pChoice == NULL) || (pIdentity == NULL) ) {
+		return __xrtTlsServerError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT, "set-server-choice-identity",
+			"TLS server choice or identity is null"
+		);
+	}
+	xtlsidentity* pOwned = xrtTlsIdentityRetain(pIdentity);
+	if ( pOwned == NULL ) {
+		return false;
+	}
+	xtlsidentity* pPrevious = pChoice->IdentityOwnerV1;
+	pChoice->IdentityOwnerV1 = pOwned;
+	pChoice->Identity = pOwned;
+	xrtTlsIdentityRelease(pPrevious);
+	return xrtGetError() == NULL;
+}
+
+
+
 /* 安全累加服务端角色尾部存储尺寸。 */
 static bool __xrtTlsServerAddSize(size_t* pSize, size_t iAdd)
 {

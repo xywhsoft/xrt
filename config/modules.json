@@ -8836,6 +8836,7 @@
 			"sources": [],
 			"tests": [
 				"tests/tls/test_tls_server.c",
+				"tests/tls/test_tls_server_choice_identity.c",
 				"tests/tls/test_tls_server12.c",
 				"tests/tls/test_tls_server_alert.c",
 				"tests/tls/test_tls_server_resume.c",

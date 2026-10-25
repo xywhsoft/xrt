@@ -474,6 +474,7 @@ static bool __xrtTlsServerSelect(
 	xbytesview KeyShareData;
 	xbytesview ExtendedMasterSecret;
 	xtlsidentitytype IdentityType;
+	bool ChoiceAccepted = false;
 
 	memset(pSelection, 0, sizeof(*pSelection));
 	pSelection->Protocol = XTLS_SERVER_PROTOCOL_NONE;
@@ -545,38 +546,64 @@ static bool __xrtTlsServerSelect(
 		pState, pSelection->Protocols
 	);
 	Choice.Cookie = 0;
+	Choice.IdentityOwnerV1 = NULL;
 	Request.ServerName = pSelection->ServerName;
 	Request.Protocols = pSelection->Protocols;
 	if ( (pState->Select != NULL) && !pState->Select(
 		pState->SelectContext, &Request, &Choice
 	) ) {
-		return __xrtTlsServerError(
-			XERR_PROTOCOL, XTLS_ERROR_IDENTITY,
-			"select-server-flight",
-			"TLS server identity selector rejected the ClientHello"
-		);
+		/* A language/host callback's primary checked error must survive. */
+		if ( xrtGetError() == NULL ) {
+			(void)__xrtTlsServerError(
+				XERR_PROTOCOL, XTLS_ERROR_IDENTITY,
+				"select-server-flight",
+				"TLS server identity selector rejected the ClientHello"
+			);
+		}
+		goto choice_done;
+	}
+	if ( xrtGetError() != NULL ) {
+		goto choice_done;
 	}
 	if ( Choice.Identity == NULL ) {
-		return __xrtTlsServerError(
+		(void)__xrtTlsServerError(
 			XERR_PROTOCOL, XTLS_ERROR_IDENTITY,
 			"select-server-flight",
 			"TLS server did not select an identity"
 		);
+		goto choice_done;
 	}
 	if ( !__xrtTlsServerProtocolChoice(
 		pState, pSelection->Protocols, Choice.Protocol
 	) ) {
-		return false;
+		goto choice_done;
 	}
 	pSelection->Identity = xrtTlsIdentityRetain(Choice.Identity);
 	if ( pSelection->Identity == NULL ) {
-		return __xrtTlsServerCause(
+		(void)__xrtTlsServerCause(
 			"select-server-flight",
 			"TLS server could not retain the selected identity"
 		);
+		goto choice_done;
 	}
 	pSelection->Cookie = Choice.Cookie;
 	pSelection->Protocol = Choice.Protocol;
+	ChoiceAccepted = true;
+choice_done:
+	{
+		/* The selected identity has its own reference before the callback's
+		 * temporary owner ends. Refused/failed choices release it as well. */
+		xerror* pPrimary = xrtTakeError();
+		xrtTlsIdentityRelease(Choice.IdentityOwnerV1);
+		Choice.IdentityOwnerV1 = NULL;
+		if ( pPrimary != NULL ) {
+			xrtClearError();
+			xrtSetErrorTake(pPrimary);
+		}
+	}
+	if ( !ChoiceAccepted || (xrtGetError() != NULL) ) {
+		return false;
+	}
 	IdentityType = xrtTlsIdentityType(pSelection->Identity);
 	Result = xrtTlsCipherSelect(
 		Version, &pSelection->Hello.CipherSuites,

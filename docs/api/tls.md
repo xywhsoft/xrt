@@ -1664,6 +1664,7 @@ typedef struct xtlsserverchoice {
 	const xtlsidentity* Identity;
 	size_t Protocol;
 	uint64 Cookie;
+	xtlsidentity* IdentityOwnerV1; /* 框架私有；回调不可直接读写或复制。 */
 } xtlsserverchoice;
 ```
 
@@ -1672,6 +1673,7 @@ typedef struct xtlsserverchoice {
 | `Identity` | `const xtlsidentity*` | Identity |
 | `Protocol` | `size_t` | Protocol |
 | `Cookie` | `uint64` | Cookie |
+| `IdentityOwnerV1` | `xtlsidentity*` | 框架管理的回调期独立引用；仅由下述 setter 管理 |
 
 
 ### `xtlsserverresumerequest`
@@ -9915,6 +9917,28 @@ bool xrtTlsServerCookie(const xtlssession* pSession, uint64* pCookie)
 		(void)xrtTlsServerCookie(pServer, &Cookie);
 ```
 
+
+### `xrtTlsServerChoiceSetIdentityV1`
+
+仅在 `xtlsserverselectproc` 回调期间使用：为选择结果独立 retain 身份。
+设置成功后，回调可以立即释放自己的身份引用，或销毁提供该身份的临时
+语言对象。多次调用会释放上次设置的引用。XRT 在验证选择并取得会话的
+独立引用之后统一释放临时引用；拒绝、checked 错误和后续失败同样释放。
+
+```c
+bool xrtTlsServerChoiceSetIdentityV1(
+    xtlsserverchoice* choice, const xtlsidentity* identity);
+```
+
+`choice` 必须是框架传给当前回调的实际选择对象，不得自行复制或在回调
+返回后保存。`IdentityOwnerV1` 是框架私有字段，不得直接读写。输入为空、
+已有错误或 retain 失败时不修改选择；若替换后的旧身份析构报错，替换
+已经提交，函数返回 false，框架仍负责释放新引用。拒绝选择时保留回调的
+首个错误，不用通用的 TLS 拒绝诊断覆盖它。
+
+直接给 `choice->Identity` 赋值仍遵守原来的借用合同，不隐式消费调用方
+引用。需要把临时结果交给框架时，应调用此 setter，而非返回即释放的裸指针。
+本次给选择对象增加了私有字段，所有使用其布局的 C 编译单元需要重编译。
 
 ### `xrtTlsServerCreate`
 
