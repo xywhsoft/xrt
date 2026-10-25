@@ -2695,7 +2695,7 @@ typedef struct xjwtconfig {
 
 /* 签发配置零值（可注入 iss/aud 与自定义 claims）。 */
 XRT_API void  xjwtConfigInit(xjwtconfig* pConfig);
-/* config 指定的字段覆盖 token 中同名字段，不改变调用方的 claims。 */
+/* config 字段覆盖 token 中同名字段，不改变输入；分配失败保留 Core 内存错误。 */
 XRT_API char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims);
 
 /* ------------------------------------------------------------------
@@ -2737,6 +2737,7 @@ XRT_API xvalue* xjwtDecodeHeader(const char* token, int* pAlg, const char** pKid
 /* ------------------------------------------------------------------
  * claims 独立校验（手工流程用）
  * ------------------------------------------------------------------ */
+/* Audience 已配置时，aud 数组的每项必须为字符串，即使前项已匹配。 */
 XRT_API bool xjwtClaimsValid(const xvalue* claims, const xjwtcheck* check);
 
 /* 取字符串 claim 到调用方缓冲（超长安全截断到 cap-1 并补零）。
@@ -2757,6 +2758,9 @@ XRT_API int xjwtLastError(void);
  * kid 严格匹配：token 带 kid 时须为字符串并精确命中带同一 kid 的条目；
  * 空字符串与缺失不同，含 NUL 不支持；JWK kid 须短于 128 字节。
  * token 无 kid 时取第一把可用密钥。
+ * 仅导入验签用途：use 须省略或为 sig；key_ops 存在时必须含 verify，
+ * 且仅可含不重复的 sign/verify。alg 须为匹配密钥族的已支持非对称算法，
+ * 提供后绑定该算法，令牌算法不符返回 ALG_MISMATCH。
  * ------------------------------------------------------------------ */
 typedef struct xjwtjwks xjwtjwks;
 

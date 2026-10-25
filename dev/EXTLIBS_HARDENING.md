@@ -44,11 +44,11 @@
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 待复核 |
 | ximap | 11 | 9 | 22 | 15 | 5 | 待复核 |
-| xjwt | 1 | 4 | 3 | 2 | 1 | 关键头部回归通过，JWKS 用途/签发错误复核中 |
+| xjwt | 1 | 4 | 3 | 2 | 1 | 四分片复核及关键头/JWKS/OOM 本地验证通过，CI 待确认 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
 | xmail | 19 | 19 | 27 | 18 | 14 | 待复核 |
-| xoauth2 | 1 | 3 | 3 | 2 | 4 | 待复核 |
+| xoauth2 | 1 | 3 | 3 | 2 | 4 | 授权 URL/失败事务修复通过，HTTP/流程复核继续 |
 | xpop3 | 6 | 4 | 10 | 6 | 4 | 待复核 |
 | xrudp | 19 | 20 | 76 | 97 | 0 | 待复核 |
 | xruntime | 36 | 23 | 87 | 42 | 30 | 待复核 |
@@ -262,3 +262,31 @@ TCP/UDP 端口兼容性失败，另批修复。此记录不将该次 CI 记为�
 `jwt-critical-single-windows.log`、`jwt-critical-modular-linux.log`、`jwt-critical-sanitize-final.log`。
 
 继续项：JWKS use/key_ops/alg 元数据的处理、签发 OOM 根因保真与交付验证；OAuth 授权端点已有 query 的拼接复核。
+
+### 第八批：JWT 密钥用途、受众类型与签发 OOM
+
+- 补强既有 HS/RS/ES 签发逐分配点扫描后，3 个新增断言证明 Core 内存错误被改写为 JWT 解析错误。
+  五处包装保留 MEMORY 根因；签发失败仍不返回半成品，也不污染调用方 claims。
+- JWKS 用途及算法新增回归先有 82 个断言失败。现在过滤不允许验签或字段畸形的 use/key_ops，
+  只接受签名相关操作且必须包含 verify；显式 alg 需匹配密钥族并绑定后续验签。
+  同一 RSA 密钥的 RS256 令牌不能越过 RS384 绑定，匹配的 RS384 签名继续通过；NULL JWKS 报 ARGUMENT。
+- 受众数组新增回归先有 12 个断言失败：匹配项前后混入数字、null、对象、数组或布尔值会被忽略。
+  配置 Audience 时检查全部元素为字符串，匹配成功也继续验证剩余元素；保留合法数组的任一匹配规则。
+- 最终完整 JWT 测试：Linux/GCC 模块化、TCC 单头、Windows/GCC 单头、Clang ASan/UBSan/float-cast-overflow
+  加泄漏检查，各 916 项通过。独立 OpenSSL RSA/EC PKCS#8 互操作通过。
+- 最终源码的 gcov 精确计数：行 93.84%、分支结果 75.82%，超过现有 85%/67% 门禁，未修改阈值；
+  报告同时绑定新增测试头的哈希。中间件示例及故障扫描在 sanitizer 下通过，覆盖 11 类身份输入及 51 个真实登录分配失败。
+- Windows/Linux 的真实独立 JWT、OAuth2 及两库组合消费者，在 static/shared 两种形式共 12 组通过，核对单一 Core 错误上下文。
+  JWT 正向/缺依赖裁剪通过，single/static/shared 体积 profile 及未固定基线的性能 smoke 通过。
+- 源码复核包含四个实现分片：Base64url/段拆分、签发的 COW 所有权、claims 时间/字符串、三条验证入口、
+  RSA/EC DER 与私钥清零、缓存及 JWKS 生命周期。公开便利字符串提取仍按文档截断；中间件已使用完整标识校验。
+  浮点 NumericDate、二进制 HMAC 密钥、JWE、远端取钥和证书链语义不在当前接口支持范围，未宣称覆盖这些能力。
+
+证据：`jwt-signing-oom-before.log`、`jwt-signing-oom-after.log`、`jwt-jwks-policy-before.log`、
+`jwt-audience-types-before.log`、`jwt-policy-tcc-final.log`、`jwt-policy-single-windows.log`、
+`jwt-policy-linux-final.log`、`jwt-interop-coverage-final.log`、`jwt-coverage-policy-final.json`、
+`jwt-example-sanitize-final.log`、`auth-package-policy-windows-final.log`、`auth-delivery-profiles-linux-final.log`、
+`auth-package-policy-linux-final.json`、`jwt-size-final.json`、`jwt-performance-smoke-final.json`。
+
+`a18dc3b3` 的 CI `40214563156` 在 Windows 核心 TCP 重入测试出现回调契约断言失败，
+正在单独复核，不将该次 CI 记为全绿；该问题不会被认证套件通过所替代。

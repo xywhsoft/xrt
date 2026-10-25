@@ -94,10 +94,13 @@ bool xjwtClaimsValid(const xvalue* claims, const xjwtcheck* check)
 		} else if ( pAud != NULL && xrtValueIs(pAud, XVALUE_ARRAY) ) {
 			size_t iExpect = strlen(check->Audience);
 			size_t n = xrtValueCount(pAud);
-			for ( size_t i = 0; i < n && !bMatch; i++ ) {
-				xvalue* pElem = xrtValueArrayGet(pAud, (uint32)i);
-				if ( pElem != NULL && xrtValueGetString(pElem, &sv) &&
-				     sv.Size == iExpect &&
+			for ( size_t i = 0; i < n; i++ ) {
+				xvalue* pElem = xrtValueArrayGet(pAud, i);
+				if ( pElem == NULL || !xrtValueGetString(pElem, &sv) ) {
+					xjwt__error(XJWT_ERROR_AUDIENCE, "aud array must contain only strings");
+					return false;
+				}
+				if ( sv.Size == iExpect &&
 				     xrtConstTimeEqual(sv.Data, check->Audience, iExpect) )
 					bMatch = true;
 			}

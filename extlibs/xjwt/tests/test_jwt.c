@@ -251,6 +251,8 @@ static bool rsa_private_der_rejected(const void* pDer, size_t iSize)
 }
 
 #include "critical_header_cases.h"
+#include "jwks_policy_cases.h"
+#include "claims_validation_cases.h"
 
 int main(void)
 {
@@ -258,6 +260,8 @@ int main(void)
 	xrtSetAllocator(&tProbeAlloc);
 	g_fuzzKey = xjwtKeyParse(K_RSA_PUB);
 	jwt_test_critical_headers();
+	jwt_test_jwks_policy();
+	jwt_test_audience_types();
 	/* ---- HS256 往返 ---- */
 	{
 		xvalue* claims = xrtValueObject();
@@ -2405,7 +2409,7 @@ int main(void)
 			ck.Audience = "not-in-list";
 			CHECK(xjwtVerify(token, "k", &ck) == NULL,
 				"aud array: no-match rejected");
-			/* 非字符串元素混入数组：其余元素命中仍应通过（宽容解析） */
+			/* 重复验证同一字符串数组，结果保持稳定。 */
 			xrtClearError();
 			ck.Audience = "myapp-web";
 			out = xjwtVerify(token, "k", &ck);

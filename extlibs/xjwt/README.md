@@ -109,6 +109,13 @@ JWK `kid`，不会匹配缺少 `kid` 的密钥；只有 token 未提供 `kid` �
 当前 C 字符串接口不支持内含 NUL 的标识，会拒绝该 token 或跳过该 JWK；
 同样拒绝非字符串标识。token `kid` 须短于 256 字节，JWK `kid` 须短于 128 字节。
 
+JWKS 导入面向签名验证，按 [RFC 7517 §4.2–4.4](https://www.rfc-editor.org/rfc/rfc7517.html#section-4.2)
+处理用途元数据：`use` 省略或为 `sig`；`key_ops` 若存在必须含 `verify`，且仅允许不重复的
+`sign` / `verify`。加密、混合用途、仅可签名或字段畸形的条目会跳过。
+`alg` 可省略；若存在，必须是匹配 RSA/EC 密钥族的已支持非对称算法，并绑定该条目，
+后续令牌算法不匹配返回 `XJWT_ERROR_ALG_MISMATCH`。未知元数据字段继续忽略。
+配置了受众时，`aud` 数组必须全部由字符串组成，不能由一个匹配项掩盖其他错误类型。
+
 ## 测试
 
 ```sh
@@ -124,7 +131,7 @@ python tools/measure_auth_coverage.py --library jwt
 `python extlibs/xjwt/tests/gen_keys.py`。主测试脚本会按平台选择编译参数，
 并执行完整 JWT 用例；独立互操作脚本另需 `openssl` 命令可用。HS/RS/ES 验签
 （含 PEM、缓存及 JWKS 入口）、公钥缓存、
-解码和 JWKS 解析逐分配点验证内存不足时返回失败并保留内存错误；缓存及解码
+签发、解码和 JWKS 解析逐分配点验证内存不足时返回失败并保留内存错误；缓存及解码
 还核对所有分配的释放。解码失败时算法输出为 `XJWT_ALG_INVALID`，`kid` 为 `NULL`。
 `xjwtDecode(token, NULL)` 只解码 claims；请求算法输出时 header 也必须成功解码。
 
