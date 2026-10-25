@@ -629,7 +629,7 @@ int main(void)
 			xvalue* claims = xrtValueObject();
 			xjwtconfig cfg;
 			bool armed = true, closed = true, unchanged = true;
-			bool completed = false, verified = false;
+			bool completed = false, verified = false, memory_preserved = true;
 			int injected = 0;
 			xrtValueObjectSetNew(claims, xrtStrView("sub"),
 				xrtValueString(xrtStrView("original")));
@@ -651,6 +651,7 @@ int main(void)
 				xrtMemDebugFailClear();
 				if ( hit ) {
 					injected++;
+					if ( xrtErrorKind(xrtGetError()) != XERR_MEMORY ) memory_preserved = false;
 					if ( token != NULL ) {
 						printf("OOM issued token: alg=%d point=%llu\n",
 							algorithms[alg], (unsigned long long)point);
@@ -679,6 +680,7 @@ int main(void)
 			CHECK(armed && completed && verified && injected > 0,
 				"JWT HS/RS/ES OOM sweep reaches valid signing");
 			CHECK(closed, "JWT HS/RS/ES OOM never issues partial token");
+			CHECK(memory_preserved, "JWT HS/RS/ES signing preserves the allocation failure");
 			CHECK(unchanged, "JWT HS/RS/ES OOM leaves caller claims intact");
 			xrtValueRelease(claims);
 		}

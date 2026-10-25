@@ -142,7 +142,7 @@ static bool xjwtSignSet(xvalue* pObject, const char* sKey, xvalue* pValue)
 {
 	if ( xrtValueObjectSetNew(pObject, xrtStrView(sKey), pValue) )
 		return true;
-	xjwt__error(XJWT_ERROR_PARSE, "JWT field allocation failed");
+	xjwt__error_unless_memory(XJWT_ERROR_PARSE, "JWT field allocation failed");
 	return false;
 }
 
@@ -171,7 +171,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	/* 仅复制顶层对象：xrt 的 COW 外壳隔离字段替换，嵌套值只读序列化。 */
 	xvalue* pClaims = xrtValueClone(claims);
 	if ( pClaims == NULL ) {
-		xjwt__error(XJWT_ERROR_PARSE, "claims clone failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE, "claims clone failed");
 		return NULL;
 	}
 	/* 自动注入标准 claims；成功或失败都不改变调用方对象。 */
@@ -197,7 +197,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	xvalue* pHead = xrtValueObject();
 	if ( pHead == NULL ) {
 		xrtValueRelease(pClaims);
-		xjwt__error(XJWT_ERROR_PARSE, "header object alloc failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE, "header object alloc failed");
 		return NULL;
 	}
 	if ( !xjwtSignSet(pHead, "alg", xrtValueString(xrtStrView(sAlg))) ||
@@ -212,7 +212,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	xrtValueRelease(pHead);
 	if ( sHeadJson == NULL ) {
 		xrtValueRelease(pClaims);
-		xjwt__error(XJWT_ERROR_PARSE, "header stringify failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE, "header stringify failed");
 		return NULL;
 	}
 
@@ -221,7 +221,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	xrtValueRelease(pClaims);
 	if ( sClaimsJson == NULL ) {
 		xrtFree(sHeadJson);
-		xjwt__error(XJWT_ERROR_PARSE, "claims stringify failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE, "claims stringify failed");
 		return NULL;
 	}
 
