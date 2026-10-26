@@ -16028,6 +16028,19 @@
 			]
 		},
 		{
+			"name": "tls_verify_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_verify", "x509_verify_rsa", "thread", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/tls/test_tls_verify_ownership.c"],
+			"single_tests": ["tests/single/test_single_tls_verify_ownership.c"],
+			"examples": [],
+			"docs": ["docs/api/tls-verifier-ownership.md"]
+		},
+		{
 			"name": "tls_verify_limits_tests",
 			"state": "implemented",
 			"feature": null,
