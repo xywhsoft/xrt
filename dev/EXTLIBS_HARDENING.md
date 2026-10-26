@@ -638,3 +638,21 @@ Retry-After 数值和总预算传播仍需分别验证。RSA 导入语义及六�
 `acme-flow-resolver-windows-final.log`、`acme-flow-resolver-linux-final.log`、
 `acme-flow-resolver-sanitize-final.log`、`acme-flow-resolver-wire-windows-final.log`、
 `acme-flow-resolver-wire-sanitize-final.log`。
+
+### 第十九批：ACME 产品聚合入口补齐组件探针
+
+- 复核实际 CI 命令发现：先前新增的 HTTP Future、私钥导入/导出擦除及 Obtain 账户探针
+  已在组件清单注册并完成本地验证，但 `xacme_tests` 没有收集依赖资产，远端产品入口会漏跑。
+  先前“默认 single_tests”仅表示对应组件入口，不足以证明产品聚合 CI 已运行这些探针；
+  既有绿色 CI 和历史覆盖报告不能被用作这四个新增探针的远端执行证据。
+- 产品聚合节点通过既有 collect_dependency_assets 收集同产品闭包的 single_tests，
+  同时纳入此前遗漏的产品单头消费测试；保持模块所有权、去重及平台过滤，不收集 Core 测试或例子。
+  Windows 实际运行 10 个、Linux 实际运行 9 个单头测试，均通过，后者正确排除 Windows 专属入口。
+- 构建器新增真实清单回归：Windows/Linux/macOS 的组件单头必须包含在产品入口中，
+  且每个入口都能解析 owner 与模块选择。修复前在三个平台选择上均失败；修复后全部 42 个
+  构建脚本测试通过。生成文件与发布成熟度检查通过，未修改 workflow 或放宽测试。
+- 私钥导出提交 `74473142` 的 run `40338449568` 已最终 73/73 success；
+  该结果仍受上述旧聚合清单边界限制。resolver run `40346675809` 尚未完成。
+
+证据：`acme-aggregate-windows-final.log`、`acme-aggregate-linux-final.log`，
+以及 tools/test_build.py 中真实产品清单的三平台回归。

@@ -456,6 +456,7 @@
 			"name": "xacme_tests",
 			"state": "implemented",
 			"feature": null,
+			"collect_dependency_assets": ["single_tests"],
 			"depends": [
 				"xacme",
 				"memory_debug",
