@@ -51,6 +51,8 @@ static void testSha256Hex(const uint8* pData, size_t iSize, char* sOut)
 	}
 }
 
+#include "key_import_cases.h"
+
 int main(void)
 {
 	xacmees256key Key;
@@ -66,6 +68,7 @@ int main(void)
 		xacmeEs256FromPrivate(&Key),
 		"acme csr from-private failed"
 	);
+	testEcKeyImportBoundaries(&Key);
 
 	/* CSR 全量 KAT：确定性输出摘要对照（openssl 验签背书）。 */
 	Domains[0] = XRT_STR_LITERAL("test.xxrpa.com");

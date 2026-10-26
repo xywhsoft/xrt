@@ -38,7 +38,7 @@
 
 | 产品目录 | 实现模块 | 源文件 | tests | single_tests | examples | 本轮状态 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| xacme | 14 | 16 | 28 | 6 | 1 | core/JOSE 已复核并修复诊断覆盖，CSR/PEM 继续 |
+| xacme | 14 | 16 | 28 | 6 | 1 | core/JOSE 及 EC 导入修复通过，RSA/敏感临时数据与其余源码继续 |
 | xhttp | 115 | 124 | 236 | 115 | 82 | 待复核 |
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
@@ -426,3 +426,31 @@ Hydra 为 CI 独立对端，不能替代这些环境；性能 smoke 没有固定
 
 证据：此前各批本地日志及交付报告；`ci-auth-3da/auth-coverage-*`；
 `auth-ci-acceptance-input-audit.json`（含四份报告摘要、哈希和输入核对结果）。
+
+### 第十二批：ACME EC 私钥导入边界
+
+- 40 组格式夹具经 EC 专用和通用两个实际入口执行，在旧实现上出现 56 项失败：
+  算法/曲线/版本被忽略，零私有标量或不匹配公钥被接受，重复/乱序/截断字段被跳过；
+  已拒绝的输入还可能没有新诊断或修改原输出。夹具预置无关 MEMORY 错误，避免旧错误掩盖结果。
+- 现在验证 PKCS#8 的 id-ecPublicKey/P-256、SEC1 版本与命名曲线，派生并核对所有公钥，
+  消费完整 DER；RFC5958 版本与外层公钥对应，attributes 合法且按 DER 排序。
+  合法省略公钥/内层曲线、带 attributes 及 RFC5958 公钥的输入均保留。
+  未声明曲线的传统 SEC1 沿用既有 P-256 上下文，不把它误称为 RFC5915 严格生成格式。
+- EC 读取先在局部结果验证，通用读取同样只在成功时发布，失败保持原输出。
+  EC 专用入口的解码 DER 与局部密钥在收尾时清零；RSA 路径和写侧临时缓冲继续单独复核。
+- Linux/TCC 生成单头、Windows/Linux GCC 模块化及 Clang ASan/UBSan 加泄漏检查通过。
+  原 CSR/PEM/RSA 固定向量不变；94 个 CSR、46 个 PEM 写出、两个读取入口各 1 个真实分配失败点通过，
+  新增读取 OOM 的输出不变断言。
+- OpenSSL 3.5.5 独立生成的 P-256 PKCS#8、SEC1、RFC5958 输入，均经两入口导入并生成 CSR，
+  OpenSSL 验签且核对 CSR 公钥通过；同工具生成的有效 secp256k1 密钥被两个入口拒绝。
+  新源码下原 flow 控制/故障矩阵在 Clang sanitizer 通过。
+- 完整 `measure_acme_coverage.py --compiler gcc --temp-root /tmp` 通过：全部模块测试、
+  独立 HTTP/TLS/所有权、五家 provider、18 项 grant 对抗验证及 15 项模拟 CA 测试全部运行，无 skip。
+  分母包含全部 16 个自有 C 文件，5766/6633 行（86.93%）、4735/6715 分支结果（70.51%），
+  保持 70%/55% 原门禁；输入哈希在测量期间无变化。尚未据此将 ACME 整库标为完成。
+
+证据：`acme-ec-import-before-final.log`、`acme-ec-import-tcc-final.log`、
+`acme-ec-import-modular-windows-final.log`、`acme-ec-import-modular-linux-final.log`、
+`acme-ec-import-sanitize-final.log`、`acme-ec-import-openssl-final.log`、
+`acme-flow-ec-import-sanitize-final.log`、`acme-ec-import-coverage-final.log`、
+`acme-ec-import-coverage-final.json`。

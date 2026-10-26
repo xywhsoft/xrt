@@ -65,7 +65,7 @@ typedef struct xacmeeab {
 */
 typedef struct xacmeaccountconfig {
 	cstr sDirectoryUrl;
-	cstr sAccountKeyPem;
+	cstr sAccountKeyPem; /* 可选 P-256 私钥（PKCS#8/RFC5958 或 SEC1）；声明的曲线/公钥须匹配 */
 	xacmeeab Eab;
 	cstr sContactEmail;
 } xacmeaccountconfig;

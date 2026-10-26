@@ -539,7 +539,7 @@ void xacmeCertKeyUnit(xacmecertkey* pKey)
 	pKey->Kind = XACME_CERT_KEY_ES256;
 }
 
-bool xacmeCertKeyReadPem(cstr sPem, size_t iSize, xacmecertkey* pKey)
+static bool xacmeCertKeyReadPemImpl(cstr sPem, size_t iSize, xacmecertkey* pKey)
 {
 	xpemblock Block;
 	bool bHavePkcs8;
@@ -680,9 +680,22 @@ bool xacmeCertKeyReadPem(cstr sPem, size_t iSize, xacmecertkey* pKey)
 
 	xacmeCertKeyUnit(pKey);
 	xrtSetErrorInfo(
-		XERR_NOT_FOUND, "xrt.acme.csr", XACME_CSR_ERROR_ARGUMENT,
-		"acme cert key pem unrecognized");
+		(bHavePkcs8 || bHaveSec1 || bHavePkcs1Rsa) ? XERR_ARGUMENT : XERR_NOT_FOUND,
+		"xrt.acme.csr", XACME_CSR_ERROR_ARGUMENT,
+		"acme cert key pem invalid or unrecognized");
 	return false;
+}
+
+bool xacmeCertKeyReadPem(cstr sPem, size_t iSize, xacmecertkey* pKey)
+{
+	xacmecertkey Parsed;
+	bool bOk;
+	if(pKey == NULL) return xacmeCertKeyReadPemImpl(sPem, iSize, NULL);
+	memset(&Parsed, 0, sizeof(Parsed));
+	bOk = xacmeCertKeyReadPemImpl(sPem, iSize, &Parsed);
+	if(bOk) memcpy(pKey, &Parsed, sizeof(Parsed));
+	xrtSecureZero(&Parsed, sizeof(Parsed));
+	return bOk;
 }
 
 str xacmeCertKeyPemWrite(const xacmecertkey* pKey)
@@ -907,15 +920,21 @@ str xacmeKeyPemWrite(const xacmees256key* pKey)
 }
 
 /* 解析 SEC1 内容（已进入最外层 SEQ）：INT ver, OCTET d, [0]?, [1]? */
+static const uint8 xacmeP256Oid[] = {0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07};
+
 static bool xacmeSec1Parse(xdercursor* pCursor, xacmees256key* pKey)
 {
 	xdervalue Version;
 	xdervalue Private;
 	xdervalue Field;
+	xbytesview Public = {NULL, 0};
+	uint64 iVersion;
+	bool bHasCurve = false;
 	bool bHasPublic = false;
 
 	if(!xrtDerExpect(
 		pCursor, XASN1_UNIVERSAL, XASN1_INTEGER, false, &Version) ||
+		!xrtDerUInt64(&Version, &iVersion) || iVersion != 1u ||
 		!xrtDerExpect(
 			pCursor, XASN1_UNIVERSAL, XASN1_OCTET_STRING, false, &Private))
 	{
@@ -925,40 +944,145 @@ static bool xacmeSec1Parse(xdercursor* pCursor, xacmees256key* pKey)
 	{
 		return false;
 	}
-	memcpy(pKey->Private, Private.Value.Data, XRT_P256_PRIVATE_SIZE);
-	while(xrtDerRead(pCursor, &Field) == XDER_VALUE)
+	while(!xrtDerDone(pCursor))
 	{
-		if((Field.Tag.Class == XASN1_CONTEXT) &&
-			(Field.Tag.Number == 1u))
+		if(xrtDerRead(pCursor, &Field) != XDER_VALUE) return false;
+		if(xrtDerIs(&Field, XASN1_CONTEXT, 0u, true) && !bHasCurve && !bHasPublic)
+		{
+			xdercursor Parameters;
+			xdervalue Curve;
+			if(!xrtDerEnter(&Field, &Parameters) ||
+				xrtDerRead(&Parameters, &Curve) != XDER_VALUE ||
+				!xrtDerOidEqual(&Curve, xacmeP256Oid, sizeof(xacmeP256Oid)) ||
+				!xrtDerDone(&Parameters)) return false;
+			bHasCurve = true;
+		}
+		else if(xrtDerIs(&Field, XASN1_CONTEXT, 1u, true) && !bHasPublic)
 		{
 			xdercursor Pub;
 			xdervalue Point;
-			xbytesview Key;
 			uint8 iUnusedBits = 0;
 			if(!xrtDerEnter(&Field, &Pub) ||
 				(xrtDerRead(&Pub, &Point) != XDER_VALUE) ||
 				!xrtDerIs(
 					&Point, XASN1_UNIVERSAL, XASN1_BIT_STRING, false) ||
-				!xrtDerBitString(&Point, &Key, &iUnusedBits) ||
+				!xrtDerBitString(&Point, &Public, &iUnusedBits) ||
 				(iUnusedBits != 0u) ||
-				(Key.Size != XRT_P256_PUBLIC_SIZE))
+				(Public.Size != XRT_P256_PUBLIC_SIZE) ||
+				(Public.Data[0] != 0x04u) || !xrtDerDone(&Pub))
 			{
 				return false;
 			}
-			memcpy(pKey->Public, Key.Data, XRT_P256_PUBLIC_SIZE);
 			bHasPublic = true;
 		}
+		else return false;
 	}
-	if(!bHasPublic)
+	/* Derivation validates the scalar even when a public point was supplied. */
+	if(!xrtP256Public(Private.Value.Data, pKey->Public) ||
+		(bHasPublic && memcmp(pKey->Public, Public.Data, Public.Size) != 0)) return false;
+	memcpy(pKey->Private, Private.Value.Data, XRT_P256_PRIVATE_SIZE);
+	return true;
+}
+
+/* Validate metadata without interpreting application-specific attribute OIDs. */
+static bool xacmePkcs8Attributes(const xdervalue* pField)
+{
+	xdercursor Attributes;
+	xdervalue Value;
+	xbytesview Previous = {NULL, 0};
+	if(!xrtDerEnter(pField, &Attributes)) return false;
+	while(!xrtDerDone(&Attributes))
 	{
-		return xacmeEs256FromPrivate(pKey);
+		xdercursor Attribute, Values;
+		xbytesview Oid, Current;
+		if(xrtDerRead(&Attributes, &Value) != XDER_VALUE ||
+			!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SEQUENCE, true)) return false;
+		Current = Value.Raw;
+		if(Previous.Data != NULL)
+		{
+			size_t Common = Previous.Size < Current.Size ? Previous.Size : Current.Size;
+			int Order = memcmp(Previous.Data, Current.Data, Common);
+			if(Order > 0 || (Order == 0 && Previous.Size > Current.Size)) return false;
+		}
+		Previous = Current;
+		if(!xrtDerEnter(&Value, &Attribute) ||
+			xrtDerRead(&Attribute, &Value) != XDER_VALUE || !xrtDerOid(&Value, &Oid) ||
+			xrtDerRead(&Attribute, &Value) != XDER_VALUE ||
+			!xrtDerIs(&Value, XASN1_UNIVERSAL, XASN1_SET, true) ||
+			!xrtDerDone(&Attribute) || !xrtDerEnter(&Value, &Values) ||
+			xrtDerDone(&Values)) return false;
+		while(!xrtDerDone(&Values))
+			if(xrtDerRead(&Values, &Value) != XDER_VALUE) return false;
 	}
 	return true;
+}
+
+static bool xacmePkcs8Options(xdercursor* pFields, uint64 iVersion, xbytesview* pPublic)
+{
+	xdervalue Value;
+	bool bAttributes = false, bPublic = false;
+	pPublic->Data = NULL;
+	pPublic->Size = 0;
+	while(!xrtDerDone(pFields))
+	{
+		if(xrtDerRead(pFields, &Value) != XDER_VALUE) return false;
+		if(xrtDerIs(&Value, XASN1_CONTEXT, 0u, true) && !bAttributes && !bPublic)
+		{
+			if(!xacmePkcs8Attributes(&Value)) return false;
+			bAttributes = true;
+		}
+		else if(xrtDerIs(&Value, XASN1_CONTEXT, 1u, false) && !bPublic &&
+			Value.Value.Size > 1u && Value.Value.Data[0] == 0u)
+		{
+			pPublic->Data = Value.Value.Data + 1u;
+			pPublic->Size = Value.Value.Size - 1u;
+			bPublic = true;
+		}
+		else return false;
+	}
+	return (iVersion == 0u && !bPublic) || (iVersion == 1u && bPublic);
+}
+
+static bool xacmeEcPrivateDer(const uint8* pDer, size_t iSize, bool bPkcs8, xacmees256key* pKey)
+{
+	static const uint8 EcOid[] = {0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01};
+	xdercursor Outer, Fields, Algorithm;
+	xdervalue Value;
+	xbytesview Private, Public = {NULL, 0};
+	uint64 iVersion;
+	if(!xrtDerValidate(pDer, iSize) || !xrtDerInit(&Outer, pDer, iSize) ||
+		!xrtDerExpect(&Outer, XASN1_UNIVERSAL, XASN1_SEQUENCE, true, &Value) ||
+		!xrtDerDone(&Outer) || !xrtDerEnter(&Value, &Fields)) return false;
+	if(bPkcs8)
+	{
+		if(xrtDerRead(&Fields, &Value) != XDER_VALUE ||
+			!xrtDerUInt64(&Value, &iVersion) || iVersion > 1u ||
+			!xrtDerExpect(&Fields, XASN1_UNIVERSAL, XASN1_SEQUENCE, true, &Value) ||
+			!xrtDerEnter(&Value, &Algorithm) ||
+			xrtDerRead(&Algorithm, &Value) != XDER_VALUE ||
+			!xrtDerOidEqual(&Value, EcOid, sizeof(EcOid)) ||
+			xrtDerRead(&Algorithm, &Value) != XDER_VALUE ||
+			!xrtDerOidEqual(&Value, xacmeP256Oid, sizeof(xacmeP256Oid)) ||
+			!xrtDerDone(&Algorithm) ||
+			xrtDerRead(&Fields, &Value) != XDER_VALUE || !xrtDerOctets(&Value, &Private) ||
+			!xacmePkcs8Options(&Fields, iVersion, &Public) ||
+			!xrtDerValidate(Private.Data, Private.Size) ||
+			!xrtDerInit(&Outer, Private.Data, Private.Size) ||
+			!xrtDerExpect(&Outer, XASN1_UNIVERSAL, XASN1_SEQUENCE, true, &Value) ||
+			!xrtDerDone(&Outer) || !xrtDerEnter(&Value, &Fields)) return false;
+	}
+	return xacmeSec1Parse(&Fields, pKey) &&
+		(Public.Data == NULL || (Public.Size == XRT_P256_PUBLIC_SIZE &&
+		 memcmp(Public.Data, pKey->Public, Public.Size) == 0));
 }
 
 bool xacmeKeyPemRead(cstr sPem, size_t iSize, xacmees256key* pKey)
 {
 	xpemblock Block;
+	xacmees256key Parsed;
+	bytes pDer;
+	size_t iDerSize = 0;
+	bool bPkcs8, bOk;
 
 	if((sPem == NULL) || (iSize == 0u) || (pKey == NULL))
 	{
@@ -971,78 +1095,34 @@ bool xacmeKeyPemRead(cstr sPem, size_t iSize, xacmees256key* pKey)
 		return false;
 	}
 
-	/* PKCS#8 "PRIVATE KEY"。 */
-	if(xrtPemFind(sPem, iSize, "PRIVATE KEY", &Block))
+	bPkcs8 = xrtPemFind(sPem, iSize, "PRIVATE KEY", &Block);
+	if(!bPkcs8 && xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
+	if(!bPkcs8)
 	{
-		size_t iDerSize = 0;
-		bytes pDer;
-		xdercursor Cursor;
-		xdervalue Value;
-		bool bOk;
-		if(!xrtPemDecode(&Block, NULL, 0u, &iDerSize))
+		xrtClearError();
+		if(!xrtPemFind(sPem, iSize, "EC PRIVATE KEY", &Block))
 		{
+			if(xrtErrorKind(xrtGetError()) != XERR_MEMORY)
+				xrtSetErrorInfo(XERR_NOT_FOUND, "xrt.acme.csr", XACME_CSR_ERROR_ARGUMENT,
+					"acme key pem read found no ec private key block");
 			return false;
 		}
-		pDer = xrtPemDecodeNew(&Block, &iDerSize);
-		if(pDer == NULL)
-		{
-			return false;
-		}
-		bOk = xrtDerInit(&Cursor, pDer, iDerSize)
-			&& xrtDerExpect(
-				&Cursor, XASN1_UNIVERSAL, XASN1_SEQUENCE, true, &Value)
-			&& xrtDerEnter(&Value, &Cursor)
-			&& xrtDerExpect(
-				&Cursor, XASN1_UNIVERSAL, XASN1_INTEGER, false, &Value)
-			&& xrtDerExpect(
-				&Cursor, XASN1_UNIVERSAL, XASN1_SEQUENCE, true, &Value)
-			&& xrtDerExpect(
-				&Cursor, XASN1_UNIVERSAL, XASN1_OCTET_STRING, false,
-				&Value)
-			/* privateKey 是 primitive OCTET STRING，内容即完整 SEC1。 */
-			&& xrtDerInit(
-				&Cursor, Value.Value.Data, Value.Value.Size)
-			&& xrtDerExpect(
-				&Cursor, XASN1_UNIVERSAL, XASN1_SEQUENCE, true, &Value)
-			&& xrtDerEnter(&Value, &Cursor)
-			&& xacmeSec1Parse(&Cursor, pKey);
-		xrtFree(pDer);
-		return bOk;
 	}
-
-	/* 传统 SEC1 "EC PRIVATE KEY"。 */
-	if(xrtPemFind(sPem, iSize, "EC PRIVATE KEY", &Block))
+	xrtClearError();
+	pDer = xrtPemDecodeNew(&Block, &iDerSize);
+	if(pDer == NULL) return false;
+	memset(&Parsed, 0, sizeof(Parsed));
+	bOk = xacmeEcPrivateDer(pDer, iDerSize, bPkcs8, &Parsed);
+	xrtSecureZero(pDer, iDerSize);
+	xrtFree(pDer);
+	if(bOk) memcpy(pKey, &Parsed, sizeof(Parsed));
+	xrtSecureZero(&Parsed, sizeof(Parsed));
+	if(!bOk && xrtErrorKind(xrtGetError()) != XERR_MEMORY)
 	{
-		size_t iDerSize = 0;
-		bytes pDer;
-		xdercursor Cursor;
-		xdervalue Value;
-		bool bOk;
-		if(!xrtPemDecode(&Block, NULL, 0u, &iDerSize))
-		{
-			return false;
-		}
-		pDer = xrtPemDecodeNew(&Block, &iDerSize);
-		if(pDer == NULL)
-		{
-			return false;
-		}
-		bOk = xrtDerInit(&Cursor, pDer, iDerSize)
-			&& xrtDerExpect(
-				&Cursor, XASN1_UNIVERSAL, XASN1_SEQUENCE, true, &Value)
-			&& xrtDerEnter(&Value, &Cursor)
-			&& xacmeSec1Parse(&Cursor, pKey);
-		xrtFree(pDer);
-		return bOk;
+		xrtSetErrorInfo(XERR_ARGUMENT, "xrt.acme.csr", XACME_CSR_ERROR_ARGUMENT,
+			"acme EC private key must contain a valid matching P-256 key");
 	}
-
-	xrtSetErrorInfo(
-		XERR_NOT_FOUND,
-		"xrt.acme.csr",
-		XACME_CSR_ERROR_ARGUMENT,
-		"acme key pem read found no ec private key block"
-	);
-	return false;
+	return bOk;
 }
 
 #endif

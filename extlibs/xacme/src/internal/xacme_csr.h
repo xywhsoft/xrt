@@ -72,13 +72,14 @@ bool xacmeCsrEc(
 /* PKCS#8 未加密 EC 私钥 PEM（"PRIVATE KEY"）；返回 xrtFree 释放文本。 */
 str xacmeKeyPemWrite(const xacmees256key* pKey);
 
-/* 解析 PKCS#8 或 SEC1 EC 私钥 PEM；公钥缺失时从私钥派生。 */
+/* 解析 PKCS#8/RFC5958 或 SEC1 P-256 私钥 PEM；验证声明的曲线/版本及公私钥一致性。
+ * 缺少公钥时派生；传统 SEC1 未声明曲线时沿用 P-256 上下文。失败不修改输出。 */
 bool xacmeKeyPemRead(cstr sPem, size_t iSize, xacmees256key* pKey);
 
 /*
 	解析证书密钥 PEM（自动识别）：EC（PKCS#8/SEC1）或 RSA
 	（PKCS#8 "PRIVATE KEY" / PKCS#1 "RSA PRIVATE KEY"）。
-	输出敏感，宿主用 xacmeCertKeyUnit 擦除。
+	失败不修改输出；输出敏感，宿主用 xacmeCertKeyUnit 擦除。
 */
 bool xacmeCertKeyReadPem(cstr sPem, size_t iSize, xacmecertkey* pKey);
 
