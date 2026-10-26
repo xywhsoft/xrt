@@ -9774,13 +9774,14 @@ static bool xacmeFlowPostAsGet(
 		pError = xrtGetError();
 		sDomain = xrtErrorDomain(pError);
 		if((uAttempt == 3u) || xacmeFlowDeadlineHit(pClient) ||
+			(xrtErrorKind(pError) == XERR_MEMORY) ||
 			(xrtErrorCode(pError) != XACME_HTTP_ERROR_UNCERTAIN) ||
 			(sDomain == NULL) ||
 			(strcmp(sDomain, "xrt.acme.http") != 0))
 		{
 			return false;
 		}
-		/* 只读 POST-as-GET 可用新 nonce/JWS 安全重试。 */
+		/* 非内存失败的只读 POST-as-GET 可用新 nonce/JWS 安全重试。 */
 		xrtClearError();
 		xrtSleep((uAttempt == 1u) ? 500u : 1000u);
 	}

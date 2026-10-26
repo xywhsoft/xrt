@@ -217,10 +217,22 @@ static str duplicate(cstr Text) {
     size_t Size=strlen(Text)+1u; str Result=(str)xrtMalloc(Size);
     testRequire(Result!=NULL,"controlled response allocation failed"); memcpy(Result,Text,Size); return Result;
 }
+static xerror* ReadRetryError;
+static unsigned ReadRetryCalls, ReadRetryFailures;
+static bool ReadRetryProbe, ReadRetryUncertain;
 static bool flow_exchange(xacmehttp* Http,cstr Method,cstr Url,cstr Type,xstrview Body,xacmehttpresponse* R) {
     (void)Http; (void)Method; (void)Type;
     cstr Stage=NULL,Json=NULL,Location=NULL,Nonce="bm9uY2U"; unsigned Status=200;
     memset(R,0,sizeof(*R)); Requests++;
+    if(ReadRetryProbe && strcmp(Url,"http://ca.example/read-retry")==0) {
+        ReadRetryCalls++;
+        if(ReadRetryFailures) {
+            ReadRetryFailures--; xrtSetError(ReadRetryError);
+            Http->bWriteUncertain=ReadRetryUncertain; return false;
+        }
+        Http->bWriteUncertain=false; R->iStatus=200; R->sBody=duplicate("{}"); R->iBodySize=2;
+        R->sReplayNonce=duplicate("bm9uY2U"); return true;
+    }
     if(strcmp(Url,"http://ca.example/dir")==0) {
         Stage="directory"; LastJson="directory-json";
         Json="{\"newNonce\":\"http://ca.example/nonce\",\"newAccount\":\"http://ca.example/account-new\",\"newOrder\":\"http://ca.example/order-new\",\"revokeCert\":\"http://ca.example/revoke\",\"keyChange\":\"http://ca.example/key-change\"}";
@@ -498,6 +510,58 @@ static bool operation(struct xacmeclient* Client) {
     }
     xrtFree(NewPem); xrtSecureZero(&NewKey,sizeof(NewKey)); return Result;
 }
+static void read_retry_policy(cstr Only) {
+    static const struct {
+        cstr Name; xerrkind Kind; bool Uncertain; unsigned Failures; bool Success; unsigned Calls, Sleeps;
+    } Rows[]={
+        {"memory-once",XERR_MEMORY,true,1,false,1,0},
+        {"memory-persistent",XERR_MEMORY,true,4,false,1,0},
+        {"memory-plain",XERR_MEMORY,false,1,false,1,0},
+        {"io-once",XERR_IO,true,1,true,2,1},
+        {"io-exhausted",XERR_IO,true,4,false,3,2},
+        {"timeout-once",XERR_TIMEOUT,true,1,true,2,1},
+        {"timeout-exhausted",XERR_TIMEOUT,true,4,false,3,2},
+        {"io-plain",XERR_IO,false,1,false,1,0}
+    };
+    bool Matched=Only==NULL;
+    for(size_t i=0;i<sizeof(Rows)/sizeof(Rows[0]);++i) {
+        if(Only && strcmp(Only,Rows[i].Name)!=0) continue;
+        Matched=true;Active=&Cases[0];Enabled=Inject=Armed=false;FirstError=NULL;xrtClearError();
+        struct xacmeclient* Client=create_client(false);testRequire(Client!=NULL,"read retry client fixture");
+        if(Rows[i].Kind==XERR_MEMORY) {
+            testRequire(xrtMemDebugFailAfter(0),"read worker allocation fault arm");
+            testRequire(xrtMalloc(1)==NULL && xrtMemDebugFailTriggered(),"actual read worker MEMORY cause");
+            xrtMemDebugFailClear();
+        } else xrtSetErrorInfo(Rows[i].Kind,"test.flow.read.worker",82,"read producer failed");
+        xerror* Root=xrtErrorRef(xrtGetError());testRequire(Root!=NULL,"read worker immutable cause");
+        /* The producer's fault injection has ended before HTTP publishes its
+         * immutable error. Retry is governed by the delivered error kind. */
+        ReadRetryError=Rows[i].Uncertain?xrtErrorWrap(Root,Rows[i].Kind,"xrt.acme.http",
+            XACME_HTTP_ERROR_UNCERTAIN,"read result unknown"):xrtErrorRef(Root);
+        testRequire(ReadRetryError!=NULL,"read error context publication");xrtClearError();
+        ReadRetryCalls=Requests=NonceRequests=Sleeps=0;ReadRetryFailures=Rows[i].Failures;
+        ReadRetryProbe=true;ReadRetryUncertain=Rows[i].Uncertain;
+        xacmehttpresponse Response;bool Result=xacmeFlowPostAsGet(Client,"http://ca.example/read-retry",&Response);
+        printf("[read-retry] %s success=%d calls=%u nonce=%u sleeps=%u kind=%d same-cause=%d\n",
+            Rows[i].Name,Result,ReadRetryCalls,NonceRequests,Sleeps,(int)xrtErrorKind(xrtGetError()),xrtGetError()==ReadRetryError);
+        testRequire(Result==Rows[i].Success && ReadRetryCalls==Rows[i].Calls &&
+            Sleeps==Rows[i].Sleeps && NonceRequests==Rows[i].Calls-1u,"read retry policy replayed terminal fault or lost bounded recovery");
+        if(Result) testRequire(xrtGetError()==NULL && Response.iStatus==200u,"read recovery retained stale diagnostic");
+        else testRequire(xrtGetError()==ReadRetryError && xrtErrorKind(xrtGetError())==Rows[i].Kind &&
+            (!Rows[i].Uncertain || xrtErrorCause(ReadRetryError)==Root) && Response.sBody==NULL && Response.sReplayNonce==NULL,
+            "read retry lost actual cause or delivered partial output");
+        xacmeHttpResponseUnit(&Response);
+        /* A separate caller request remains usable after a terminal failure. */
+        ReadRetryFailures=ReadRetryCalls=0;unsigned PriorSleeps=Sleeps;
+        testRequire(xacmeFlowPostAsGet(Client,"http://ca.example/read-retry",&Response) &&
+            ReadRetryCalls==1u && Sleeps==PriorSleeps && xrtGetError()==NULL,"explicit read retry cannot recover on same client");
+        xacmeHttpResponseUnit(&Response);ReadRetryProbe=false;xrtAcmeClientDestroy(Client);
+        xrtErrorFree(ReadRetryError);ReadRetryError=NULL;xrtErrorFree(Root);xrtClearError();
+        testMemoryDebugDrain("read retry policy retained logical allocations");
+        printf("[PASS] FLOW read-retry/%s\n",Rows[i].Name);
+    }
+    testRequire(Matched,"unknown read retry policy row");
+}
 static void run_case(const flowcase* Case,bool Oom) {
     Active=Case; Enabled=Case->Op==FLOW_CREATE; Inject=Oom; Armed=FirstReply=Finalized=false;
     Requests=NonceRequests=AuthzRequests=OrderRequests=LookupRequests=KeyChangeRequests=Sleeps=Adds=Removes=0; LastJson=NULL; FirstError=NULL;
@@ -622,9 +686,10 @@ static void link_parser(void) {
 }
 int main(int argc,char** argv) {
     if(argc==2 && strcmp(argv[1],"link-parser")==0) { link_parser(); return 0; }
+    if((argc==2 || argc==3) && strcmp(argv[1],"read-retry")==0) { read_retry_policy(argc==3?argv[2]:NULL); return 0; }
     testRequire(argc==1 || argc==3,"flow fixture usage: [name control|oom]");
     if(argc==2 && strcmp(argv[1],"alternate-urls")==0) { alternate_urls(); return 0; }
-    if(argc==1) { link_parser(); alternate_urls(); }
+    if(argc==1) { link_parser(); alternate_urls(); read_retry_policy(NULL); }
     for(size_t i=0;i<sizeof(Cases)/sizeof(Cases[0]);i++) {
         if(argc==3 && strcmp(argv[1],Cases[i].Name)!=0) continue;
         if(argc==3) { bool Oom=strcmp(argv[2],"oom")==0; testRequire(Oom || strcmp(argv[2],"control")==0,"invalid flow mode"); run_case(&Cases[i],Oom); return 0; }

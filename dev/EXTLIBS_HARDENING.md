@@ -587,3 +587,28 @@ HTTP 批次全量补记：`measure_acme_coverage.py --compiler gcc --temp-root /
 `acme-key-export-probe-sanitize-final.log`、`acme-key-export-interop-final.log/json`、
 `acme-key-export-oom-windows-final.log`、`acme-key-export-oom-linux-final.log`、
 `acme-key-export-oom-sanitize-final.log`、`acme-key-export-flow-sanitize-final.log`。
+
+### 第十七批：ACME 只读 POST 重试保留内存失败
+
+- 受控 HTTP 交付真实分配器产生的 MEMORY 原因及成功分配的 UNCERTAIN 上下文；
+  故障注入在交付前已结束，模拟生产任务失败后消费者仍可正常分配的情况。
+  原只读 POST-as-GET 仅检查结果未知码，单次 MEMORY 会被第二次成功吞掉；
+  持续 MEMORY 仍进行三次 POST、两次 nonce 获取和退避。八项矩阵中这两项在旧源码失败。
+- 现在 MEMORY 无论是否带 UNCERTAIN 都立即返回，同一不可变错误及原因链保留，
+  不取下一 nonce、不签名重发或退避。普通 I/O/超时的结果未知仍可有限恢复，最多三次；
+  无 UNCERTAIN 的普通失败仍立即返回。每项之后显式发起的新请求在原客户端恢复成功。
+- 新矩阵并入既有默认 flow 单头故障测试，无新增测试资产或放宽旧断言。
+  Windows/Linux GCC、Linux/TCC 全量及 Clang ASan/UBSan/float-cast-overflow 加泄漏检查均
+  184 个分组通过（原 176 + 新 8），包含 nonce/JWS 重新生成次数、错误身份、输出、重试上限及实际分配清理。
+  HTTP 为受控边界；真实 Future/传输错误的交付另由第十四批探针覆盖，不把本测试冒充真实 CA。
+- API/参考/生成/发布检查通过。私钥写出提交 `74473142` 的独立邮件 `40338441424` 已成功，
+  其 run `40338449568` 仍在执行。前一 `1517d655` run `40333596756` 当时 72 项成功、1 项执行中。
+  两个 run 均不提前记为整轮成功，也不替代本批新提交的远端验证。
+
+证据：`acme-flow-read-retry-proof-before.log`、`acme-flow-read-retry-before-final.log/json`、
+`acme-flow-read-retry-windows-final.log`、`acme-flow-read-retry-linux-final.log`、
+`acme-flow-read-retry-tcc-final.log`、`acme-flow-read-retry-tcc-all-final.log`、
+`acme-flow-read-retry-sanitize-final.log`。
+
+源码复核继续：flow 已读到初始化/账户注册段；EAB 临时 MAC、resolver 的 IPv6/端口拆分、
+Retry-After 数值和总预算传播仍需分别验证。RSA 导入语义及六个 provider 源文件未结束验收。
