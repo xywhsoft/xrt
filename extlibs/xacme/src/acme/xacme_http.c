@@ -101,7 +101,21 @@ static bool xacmeHttpExchangeOnceImpl(
 	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
 	xstrview sBody, const xacmehttpheader* pExtraHeaders,
 	size_t iExtraCount, xacmehttpresponse* pResponse,
-	bool* pbRequestStarted, bool* pbResponseStarted);
+	bool* pbRequestStarted, bool* pbResponseStarted, double Deadline);
+
+/* A safe retry may spend the entire request budget in backoff. Retain the
+ * original producer cause while reporting exhaustion; context OOM stays MEMORY. */
+static void xacmeHttpBudgetError(const xerror* pCause)
+{
+    if(pCause != NULL)
+    {
+        xerror* pError = xrtErrorWrap(pCause, XERR_TIMEOUT, "xrt.acme.http",
+            XACME_HTTP_ERROR_TIMEOUT, "acme http request budget exhausted");
+        if(pError != NULL) xrtSetErrorTake(pError);
+    }
+    else xrtSetErrorInfo(XERR_TIMEOUT, "xrt.acme.http", XACME_HTTP_ERROR_TIMEOUT,
+        "acme http request budget exhausted");
+}
 
 static bool xacmeHttpExchangeRetry(
 	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
@@ -111,13 +125,14 @@ static bool xacmeHttpExchangeRetry(
 	uint32 uAttempt;
 	xerror* pFirst = NULL;
 	bool bReadOnlyMethod = xacmeHttpMethodReadOnly(sMethod);
+	double Deadline = __xrtWaitAfter(pHttp != NULL ? pHttp->uTimeoutMs : 0);
 	for(uAttempt = 1u; uAttempt <= XACME_HTTP_RETRY_MAX; uAttempt++)
 	{
 		bool bRequestStarted = false;
 		bool bResponseStarted = false;
 		bool bOk = xacmeHttpExchangeOnceImpl(
 			pHttp, sMethod, sUrl, sContentType, sBody, pExtraHeaders,
-			iExtraCount, pResponse, &bRequestStarted, &bResponseStarted);
+			iExtraCount, pResponse, &bRequestStarted, &bResponseStarted, Deadline);
 		if(bOk)
 		{
 			xrtErrorFree(pFirst);
@@ -137,6 +152,12 @@ static bool xacmeHttpExchangeRetry(
 		{
 			pFirst = xrtErrorRef(xrtGetError());
 		}
+		if(__xrtWaitExpired(Deadline))
+		{
+			xacmeHttpBudgetError(pFirst);
+			xrtErrorFree(pFirst);
+			return false;
+		}
 		if(uAttempt == XACME_HTTP_RETRY_MAX)
 		{
 			if(pFirst != NULL)
@@ -150,7 +171,18 @@ static bool xacmeHttpExchangeRetry(
 			printf("[http-retry] attempt=%u url=%.80s\n",
 				(unsigned)uAttempt, sUrl);
 		}
-		xrtSleep((uAttempt == 1u) ? 500u : 1000u);
+		{
+			uint32 Delay = (uAttempt == 1u) ? 500u : 1000u;
+			int64 Remaining = __xrtWaitRemaining(Deadline);
+			if(Remaining >= 0 && Remaining < (int64)Delay) Delay = (uint32)Remaining;
+			xrtSleep(Delay);
+		}
+		if(__xrtWaitExpired(Deadline))
+		{
+			xacmeHttpBudgetError(pFirst);
+			xrtErrorFree(pFirst);
+			return false;
+		}
 	}
 	return false;
 }
@@ -273,6 +305,12 @@ bool xacmeHttpInit(
 		return false;
 	}
 	memset(pHttp, 0, sizeof(*pHttp));
+	if(uTimeoutMs < XRT_WAIT_FOREVER)
+	{
+		xacmeHttpError(XERR_ARGUMENT, XACME_HTTP_ERROR_ARGUMENT,
+			"acme http timeout must be nonnegative or forever");
+		return false;
+	}
 	pHttp->uTimeoutMs = (uTimeoutMs != 0u) ?
 		uTimeoutMs : INT64_C(30000);
 
@@ -654,17 +692,18 @@ static void xacmeFutureFailure(xfuture* pFuture, xwaitresult Wait,
 	else xacmeHttpError(Wait == XWAIT_TIMEOUT ? XERR_TIMEOUT : XERR_IO, Code, sMessage);
 }
 
-static bool xacmeFutureResolved(xfuture* pFuture, int64 uTimeoutMs)
+static bool xacmeFutureResolved(xfuture* pFuture, double Deadline)
 {
-	xwaitresult Wait = uTimeoutMs != 0 ? xrtFutureWaitFor(pFuture, uTimeoutMs) : XWAIT_TIMEOUT;
+	int64 Remaining = __xrtWaitRemaining(Deadline);
+	xwaitresult Wait = Remaining != 0 ? xrtFutureWaitFor(pFuture, Remaining) : XWAIT_TIMEOUT;
 	if(Wait == XWAIT_OK && xrtFutureState(pFuture) == XFUTURE_RESOLVED) return true;
 	xacmeFutureFailure(pFuture, Wait, XACME_HTTP_ERROR_PROTOCOL, "acme http asynchronous operation failed");
 	return false;
 }
 
-static bool xacmeFutureWait(xfuture* pFuture, int64 uTimeoutMs)
+static bool xacmeFutureWait(xfuture* pFuture, double Deadline)
 {
-	bool bResolved = xacmeFutureResolved(pFuture, uTimeoutMs);
+	bool bResolved = xacmeFutureResolved(pFuture, Deadline);
 	xerror* pCause = bResolved ? NULL : xrtErrorRef(xrtGetError());
 	xrtFutureDestroy(pFuture);
 	if(pCause != NULL) xrtSetErrorTake(pCause);
@@ -673,10 +712,10 @@ static bool xacmeFutureWait(xfuture* pFuture, int64 uTimeoutMs)
 
 /* 发送全部字节；TLS 用 SendAsync（任意线程），明文用复制语义 Send。 */
 static bool xacmeStreamSendAll(
-	xacmestream* pStream, const void* pData, size_t iSize, int64 uTimeoutMs)
+	xacmestream* pStream, const void* pData, size_t iSize,
+	double Deadline, bool* pbRequestStarted)
 {
 	size_t iOffset = 0u;
-	double Deadline = __xrtWaitAfter(uTimeoutMs);
 	xrtClearError();
 	while(iOffset < iSize)
 	{
@@ -690,12 +729,13 @@ static bool xacmeStreamSendAll(
 		{
 			iChunk = XACME_HTTP_IO_CHUNK;
 		}
+		if(pbRequestStarted != NULL) *pbRequestStarted = true;
 		if(pStream->pTls != NULL)
 		{
 			xfuture* pFuture = xrtTlsStreamSendAsync(
 				pStream->pTls, (const uint8*)pData + iOffset, iChunk);
 			if((pFuture == NULL) ||
-				!xacmeFutureWait(pFuture, __xrtWaitRemaining(Deadline)))
+				!xacmeFutureWait(pFuture, Deadline))
 			{
 				return false;
 			}
@@ -716,7 +756,7 @@ static bool xacmeStreamSendAll(
 				pFuture = xrtNetStreamWaitAsync(
 					pStream->pTcp, XNET_STREAM_WAIT_WRITE);
 				if((pFuture == NULL) ||
-					!xacmeFutureWait(pFuture, __xrtWaitRemaining(Deadline)))
+					!xacmeFutureWait(pFuture, Deadline))
 				{
 					return false;
 				}
@@ -757,7 +797,8 @@ static int xacmeStreamRecv(
 	else
 		pFuture = xrtNetStreamRecvAsync(pStream->pTcp, iCapacity);
 	if(pFuture == NULL) return -2;
-	eWait = xrtFutureWaitFor(pFuture, uRemaining);
+	uRemaining = __xrtWaitRemaining(Deadline);
+	eWait = uRemaining != 0 ? xrtFutureWaitFor(pFuture, uRemaining) : XWAIT_TIMEOUT;
 	if(eWait == XWAIT_OK && xrtFutureState(pFuture) == XFUTURE_CLOSED)
 	{
 		xrtFutureDestroy(pFuture);
@@ -768,7 +809,8 @@ static int xacmeStreamRecv(
 			xerror* pCause;
 			pFuture = xrtTlsStreamWaitAsync(pStream->pTls, XTLS_STREAM_WAIT_END);
 			if(pFuture == NULL) return -2;
-			eWait = xrtFutureWaitFor(pFuture, __xrtWaitRemaining(Deadline));
+			uRemaining = __xrtWaitRemaining(Deadline);
+			eWait = uRemaining != 0 ? xrtFutureWaitFor(pFuture, uRemaining) : XWAIT_TIMEOUT;
 			bEnd = eWait == XWAIT_OK && xrtFutureState(pFuture) == XFUTURE_RESOLVED;
 			if(!bEnd) xacmeFutureFailure(pFuture, eWait, XACME_HTTP_ERROR_PROTOCOL,
 				"acme http authenticated EOF wait failed");
@@ -951,7 +993,8 @@ bool xacmeHttpExchangeOnceV(
 	if(pHttp != NULL) pHttp->bWriteUncertain = false;
 	bool bOk = xacmeHttpExchangeOnceImpl(
 		pHttp, sMethod, sUrl, sContentType, sBody, pExtraHeaders,
-		iExtraCount, pResponse, &bRequestStarted, NULL);
+		iExtraCount, pResponse, &bRequestStarted, NULL,
+		__xrtWaitAfter(pHttp != NULL ? pHttp->uTimeoutMs : 0));
 	if(!bOk && bRequestStarted && !xacmeHttpMethodReadOnly(sMethod))
 	{
 		xacmeHttpMarkWriteUncertain(pHttp);
@@ -963,7 +1006,7 @@ static bool xacmeHttpExchangeOnceImpl(
 	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
 	xstrview sBody, const xacmehttpheader* pExtraHeaders,
 	size_t iExtraCount, xacmehttpresponse* pResponse,
-	bool* pbRequestStarted, bool* pbResponseStarted)
+	bool* pbRequestStarted, bool* pbResponseStarted, double Deadline)
 {
 	xacmeurl Url;
 	xacmestream Stream = { NULL, NULL };
@@ -988,7 +1031,6 @@ static bool xacmeHttpExchangeOnceImpl(
 	size_t iConsumed = 0u;
 	xfuture* pFuture = NULL;
 	xerror* pCleanupCause = NULL;
-	double ResponseDeadline;
 	bool bOk = false;
 	bool bHeadDone = false;
 	bool bStreamEnd = false;
@@ -1011,6 +1053,12 @@ static bool xacmeHttpExchangeOnceImpl(
 		xacmeHttpError(
 			XERR_ARGUMENT, XACME_HTTP_ERROR_ARGUMENT,
 			"acme http exchange requires http, method, url and response");
+		return false;
+	}
+	if(pHttp->uTimeoutMs < XRT_WAIT_FOREVER || !__xrtWaitValid(Deadline))
+	{
+		xacmeHttpError(XERR_ARGUMENT, XACME_HTTP_ERROR_ARGUMENT,
+			"acme http request timeout must be nonnegative or forever");
 		return false;
 	}
 	bContentLength = (sBody.Data != NULL || strcmp(sMethod, "POST") == 0);
@@ -1047,6 +1095,11 @@ static bool xacmeHttpExchangeOnceImpl(
 		xacmeHttpError(
 			XERR_ARGUMENT, XACME_HTTP_ERROR_URL,
 			"acme http exchange url is not http(s) absolute");
+		return false;
+	}
+	if(__xrtWaitExpired(Deadline))
+	{
+		xacmeHttpBudgetError(NULL);
 		return false;
 	}
 	xrtClearError();
@@ -1124,6 +1177,11 @@ static bool xacmeHttpExchangeOnceImpl(
 		goto Done;
 	}
 
+	if(__xrtWaitExpired(Deadline))
+	{
+		xacmeHttpBudgetError(NULL);
+		goto Done;
+	}
 	/* ---- 连接 ---- */
 	if(Url.bTls)
 	{
@@ -1133,7 +1191,13 @@ static bool xacmeHttpExchangeOnceImpl(
 		Tls.Verifier = pHttp->pVerifier;
 		xrtTlsDialConfigInit(&Dial);
 		xacmeUrlTlsNames(&Url, &Tls, &Dial);
-		Dial.Timeout = pHttp->uTimeoutMs;
+		Dial.Timeout = __xrtWaitRemaining(Deadline);
+		/* Native dial Timeout == 0 means unlimited, not an expired budget. */
+		if(Dial.Timeout == 0)
+		{
+			xacmeHttpBudgetError(NULL);
+			goto Done;
+		}
 		pFuture = xrtTlsDialAsync(
 			pHttp->pEngine, pHttp->pResolver, Url.sHost, Url.iPort,
 			&Tls, &Dial, NULL, NULL);
@@ -1142,7 +1206,13 @@ static bool xacmeHttpExchangeOnceImpl(
 	{
 		xnetdialconfig Dial;
 		xrtNetDialConfigInit(&Dial);
-		Dial.Timeout = pHttp->uTimeoutMs;
+		Dial.Timeout = __xrtWaitRemaining(Deadline);
+		/* Native dial Timeout == 0 means unlimited, not an expired budget. */
+		if(Dial.Timeout == 0)
+		{
+			xacmeHttpBudgetError(NULL);
+			goto Done;
+		}
 		pFuture = xrtNetDialAsync(
 			pHttp->pEngine, pHttp->pResolver, Url.sHost, Url.iPort,
 			&Dial, NULL, NULL);
@@ -1152,7 +1222,7 @@ static bool xacmeHttpExchangeOnceImpl(
 		/* 底层拨号错误已在线程错误里；仅补充域信息。 */
 		goto Done;
 	}
-	if(!xacmeFutureResolved(pFuture, pHttp->uTimeoutMs))
+	if(!xacmeFutureResolved(pFuture, Deadline))
 	{
 		xacmeHttpContextError(XACME_HTTP_ERROR_CONNECT, "acme http connect failed", true);
 		goto Done;
@@ -1177,17 +1247,12 @@ static bool xacmeHttpExchangeOnceImpl(
 	pFuture = NULL;
 
 	/* ---- 发送 ---- */
-	if(pbRequestStarted != NULL)
-	{
-		*pbRequestStarted = true;
-	}
 	if(!xacmeStreamSendAll(
-		&Stream, Request.Data, Request.Size, pHttp->uTimeoutMs))
+		&Stream, Request.Data, Request.Size, Deadline, pbRequestStarted))
 	{
 		xacmeHttpContextError(XACME_HTTP_ERROR_SEND, "acme http send failed", true);
 		goto Done;
 	}
-	ResponseDeadline = __xrtWaitAfter(pHttp->uTimeoutMs);
 
 	/* ---- 接收头 ---- */
 	xrtHttp1LimitsInit(&Limits);
@@ -1214,7 +1279,7 @@ static bool xacmeHttpExchangeOnceImpl(
 		{
 			int iGot = xacmeStreamRecv(
 				&Stream, Chunk, sizeof(Chunk), &iUsed,
-				ResponseDeadline);
+				Deadline);
 			if(iGot < 0)
 			{
 				xacmeHttpContextError(
@@ -1331,7 +1396,7 @@ static bool xacmeHttpExchangeOnceImpl(
 			}
 			int iResult = xacmeStreamRecv(
 				&Stream, Chunk, sizeof(Chunk), &iGot,
-				ResponseDeadline);
+				Deadline);
 			if(iResult < 0)
 			{
 				xacmeHttpContextError(
@@ -1377,6 +1442,11 @@ ConnectFail:
 		XERR_IO, XACME_HTTP_ERROR_CONNECT,
 		"acme http connect failed");
 Done:
+	if(bOk && __xrtWaitExpired(Deadline))
+	{
+		xacmeHttpBudgetError(NULL);
+		bOk = false;
+	}
 	pCleanupCause = bOk ? NULL : xrtErrorRef(xrtGetError());
 	if(pFuture != NULL)
 	{

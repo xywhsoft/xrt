@@ -623,6 +623,51 @@ static bool error_contains(const xerror* error, const char* message)
 	return false;
 }
 
+/* A successful Unpin permits retirement; it does not synchronously join the
+ * engine's workers. Keep each public cleanup attempt at its original 5ms budget. */
+static bool wait_pending(size_t* pending)
+{
+    xerror* expected = xrtErrorRef(xrtGetError());
+    double deadline = __xrtWaitAfter(5000);
+    bool ok = false;
+    do {
+        bool ready = xrtAcmeCleanupPending(5, pending);
+        if(expected != NULL && xrtGetError() != expected) break;
+        if(ready) { ok = *pending == 0u; break; }
+        if(*pending == 0u) break;
+        if(expected == NULL) {
+            if(xrtErrorKind(xrtGetError()) != XERR_TIMEOUT ||
+                xrtErrorCode(xrtGetError()) != XACME_HTTP_ERROR_TIMEOUT) break;
+            /* This timeout belongs to our previous short attempt, not a caller. */
+            xrtClearError();
+        }
+        xrtSleep(1u);
+    } while(!__xrtWaitExpired(deadline));
+    xrtErrorFree(expected);
+    return ok;
+}
+
+typedef struct retirement_gate {
+    xatomic32 entered;
+    xatomic32 release;
+    xatomic32 done;
+} retirement_gate;
+
+static void retirement_gate_task(xnetworker* worker, ptr data)
+{
+    retirement_gate* gate = (retirement_gate*)data;
+    (void)worker;
+    xrtAtomic32Store(&gate->entered, 1u, XMEMORY_RELEASE);
+    while(!xrtAtomic32Load(&gate->release, XMEMORY_ACQUIRE)) xrtThreadYield();
+    xrtAtomic32Store(&gate->done, 1u, XMEMORY_RELEASE);
+}
+
+/* Borrowed callback storage cannot escape on a failing fixture setup. */
+static void retirement_gate_require(bool condition, const char* message)
+{
+    if(!condition) { fprintf(stderr, "retirement gate: %s\n", message); exit(1); }
+}
+
 static bool rollback_failures(void)
 {
 	static const size_t sizes[] = {
@@ -685,11 +730,32 @@ static bool rollback_failures(void)
 			(fault == 1u ? strcmp(xrtErrorMessage(xrtGetError()), "persistent retirement error") == 0 :
 			 xrtErrorKind(xrtGetError()) == XERR_TIMEOUT &&
 			 xrtErrorCode(xrtGetError()) == XACME_HTTP_ERROR_TIMEOUT);
-		xrtSetError(original);
-		RollbackFault = 0u;
-		if(RollbackPinned && !xrtNetEngineUnpin(RollbackEngine)) return false;
-		ok = xrtAcmeCleanupPending(5, &pending) && ok;
-		ok = ok && pending == 0u && xrtGetError() == original;
+		{
+			retirement_gate gate = { XRT_ATOMIC32_INIT(0), XRT_ATOMIC32_INIT(0), XRT_ATOMIC32_INIT(0) };
+			double deadline = __xrtWaitAfter(5000);
+			retirement_gate_require(xrtNetEnginePost(RollbackEngine, 0u, retirement_gate_task, &gate),
+				"worker hold submission failed");
+			while(!xrtAtomic32Load(&gate.entered, XMEMORY_ACQUIRE)) {
+				retirement_gate_require(!__xrtWaitExpired(deadline), "worker hold was not reached");
+				xrtSleep(1u);
+			}
+			xrtSetError(original);
+			RollbackFault = 0u;
+			retirement_gate_require(!RollbackPinned || xrtNetEngineUnpin(RollbackEngine), "unpin failed");
+			retired = xrtAcmeCleanupPending(5, &pending);
+			printf("  held retirement kind=%u fault=%u ready=%u pending=%zu same-error=%u\n",
+				kind, fault, retired, pending, xrtGetError() == original);
+			ok = !retired && pending == 1u && xrtGetError() == original && ok;
+			ok = !xrtAtomic32Load(&gate.done, XMEMORY_ACQUIRE) && ok;
+			check.owner = NULL;
+			xrtMemDebugVisitLive(find_rollback_owner, &check);
+			ok = check.owner != NULL && bytes_zero((uint8*)check.owner + sizeof(xacmehttp),
+				check.size - sizeof(xacmehttp)) && ok;
+			xrtAtomic32Store(&gate.release, 1u, XMEMORY_RELEASE);
+			retirement_gate_require(wait_pending(&pending), "released worker did not retire within the outer guard");
+			ok = pending == 0u && xrtGetError() == original &&
+				xrtAtomic32Load(&gate.done, XMEMORY_ACQUIRE) == 1u && ok;
+		}
 		xrtErrorFree(original);
 		ok = xrtAcmeCleanupPending(0, NULL) && ok;
 		if(!memory_empty() || !ok) {
@@ -729,7 +795,7 @@ static bool deferred_no_allocation(void)
 		bytes_zero((uint8*)client + sizeof(xacmehttp), sizeof(*client) - sizeof(xacmehttp));
 	xrtMemDebugFailClear();
 	if(!xrtNetEngineUnpin(engine)) return false;
-	ok = xrtAcmeCleanupPending(5, &pending) && pending == 0u &&
+	ok = wait_pending(&pending) && pending == 0u &&
 		xrtGetError() == original && ok;
 	xrtErrorFree(original);
 	if(!memory_empty() || !ok) return false;
@@ -811,7 +877,7 @@ static bool deferred_claimed_owner(void)
 	} while(!__xrtWaitExpired(deadline));
 	ok = pending == 1u && ok;
 	if(!xrtNetEngineUnpin(second_engine)) return false;
-	ok = xrtAcmeCleanupPending(5, &pending) && pending == 0u && ok;
+	ok = wait_pending(&pending) && pending == 0u && ok;
 	if(!memory_empty() || !ok) {
 		fprintf(stderr, "claimed ownership ready=%d count=%zu final=%zu\n",
 			(int)task.ready, task.pending, pending);
@@ -921,7 +987,7 @@ static bool deferred_obtain(void)
 		xrtAcmeGrantUnit(&grant);
 		RollbackFault = 0u;
 		if(RollbackPinned && !xrtNetEngineUnpin(RollbackEngine)) return false;
-		ok = xrtAcmeCleanupPending(5, &pending) && pending == 0u && ok;
+		ok = wait_pending(&pending) && pending == 0u && ok;
 		if(!memory_empty() || !ok) {
 			fprintf(stderr, "Obtain deferred ownership success=%u fault=%u failed\n", success, fault);
 			return false;
@@ -1148,7 +1214,8 @@ int main(int argc, char** argv)
 		else ok = false;
 	}
 	else if(argc == 3) {
-		if(strcmp(argv[2], "deferred") == 0) ok = deferred_ownership();
+		if(strcmp(argv[2], "rollback") == 0) ok = rollback_failures();
+		else if(strcmp(argv[2], "deferred") == 0) ok = deferred_ownership();
 		else if(strcmp(argv[2], "claimed") == 0) ok = deferred_claimed_owner();
 		else if(strcmp(argv[2], "concurrent") == 0) ok = deferred_concurrent();
 		else if(strcmp(argv[2], "obtain") == 0) ok = deferred_obtain();

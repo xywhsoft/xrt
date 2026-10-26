@@ -6,6 +6,8 @@ import argparse
 import errno
 import os
 import socket
+import ssl
+import time
 import struct
 import subprocess
 import tempfile
@@ -104,6 +106,145 @@ def request_capacity_case(client: Path, ca: Path) -> None:
     if lines.count(b"Content-Length: 7") != 1 or lines.count(b"Content-Type: text/plain") != 1:
         raise AssertionError("request framing fields changed")
     print("  100 request fields including 94 extras: passed")
+
+
+def exchange_budget_case(client: Path, ca: Path, leaf: Path, key: Path, *,
+                         style: str, timeout: bool) -> None:
+    """Charge independent real handshake/response or retry phases to one exchange."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(4)
+    listener.settimeout(5)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(str(leaf), str(key))
+    retry = style == "retry"
+    requests, closed, errors = [], [], []
+    marker, returned = [], threading.Event()
+
+    def request(peer):
+        peer.settimeout(4)
+        data = bytearray()
+        while b"\r\n\r\n" not in data:
+            piece = peer.recv(4096)
+            if not piece or len(data) > 16384:
+                raise AssertionError("budget request headers not delivered")
+            data.extend(piece)
+        head, body = bytes(data).split(b"\r\n\r\n", 1)
+        wanted = b"GET /budget HTTP/1.1" if retry else b"POST /budget HTTP/1.1"
+        if not head.startswith(wanted + b"\r\n"):
+            raise AssertionError("budget request method or target changed")
+        if not retry:
+            if b"\r\nContent-Length: 7\r\n" not in head + b"\r\n":
+                raise AssertionError("budget request length changed")
+            while len(body) < 7:
+                piece = peer.recv(7 - len(body))
+                if not piece:
+                    raise AssertionError("budget request body not delivered")
+                body += piece
+            if body != b"request":
+                raise AssertionError("budget request payload changed")
+        requests.append(head)
+
+    def response(peer):
+        try:
+            if style == "tcp-body":
+                time.sleep(0.45)
+                head, body = RESPONSE.split(b"\r\n\r\n", 1)
+                peer.sendall(head + b"\r\n\r\n")
+                time.sleep(0.75)
+                peer.sendall(body)
+            else:
+                time.sleep(0.75)
+                peer.sendall(RESPONSE)
+            if timeout:
+                if peer.recv(1) != b"":
+                    raise AssertionError("failed exchange sent extra bytes")
+                if style == "tls":
+                    raise AssertionError("TLS timeout closed gracefully instead of aborting")
+                closed.append(True)
+        except (ssl.SSLEOFError, ConnectionError):
+            if not timeout:
+                raise
+            closed.append(True)
+
+    def serve():
+        try:
+            with listener.accept()[0] as raw:
+                raw.settimeout(4)
+                if style == "tls":
+                    # The connection exists while TLS negotiation consumes its first phase.
+                    time.sleep(0.45)
+                    with context.wrap_socket(raw, server_side=True, suppress_ragged_eofs=False) as peer:
+                        request(peer)
+                        response(peer)
+                else:
+                    request(raw)
+                    if retry:
+                        time.sleep(0.7)
+                    else:
+                        response(raw)
+            if retry:
+                listener.settimeout(1.0)
+                try:
+                    peer, _ = listener.accept()
+                except socket.timeout:
+                    if not timeout:
+                        raise AssertionError("in-budget retry did not reach its peer")
+                else:
+                    with peer:
+                        request(peer)
+                        peer.sendall(RESPONSE)
+            # A started POST may never be replayed.
+            listener.setblocking(False)
+            try:
+                extra, _ = listener.accept()
+            except BlockingIOError:
+                pass
+            else:
+                extra.close()
+                raise AssertionError("exchange submitted an extra connection")
+        except Exception as exc:
+            errors.append(exc)
+
+    worker = threading.Thread(target=serve, daemon=True)
+    worker.start()
+    mode = "budget-" + ("retry-" if retry else "") + ("timeout" if timeout else "control")
+    budget = 1000 if timeout else 2500
+    url = f"{'https' if style == 'tls' else 'http'}://127.0.0.1:{listener.getsockname()[1]}/budget"
+    process = subprocess.Popen([str(client), url, str(ca), mode, str(budget)],
+                               stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               text=True)
+
+    def read_returned():
+        marker.append(process.stdout.readline())
+        returned.set()
+
+    watcher = None
+    try:
+        if timeout:
+            watcher = threading.Thread(target=read_returned, daemon=True)
+            watcher.start()
+            if not returned.wait(timeout=5) or marker != ["RETURNED\n"]:
+                raise AssertionError("exhausted exchange did not return before destruction")
+        worker.join(timeout=6)
+        if worker.is_alive() or errors:
+            raise AssertionError(f"budget peer failed: {errors}")
+        expected = 2 if retry and not timeout else 1
+        if len(requests) != expected or (timeout and not retry and closed != [True]):
+            raise AssertionError(f"budget transport counts/close: requests={len(requests)}, closed={closed}")
+        _, stderr = process.communicate(input="\n" if timeout else None, timeout=5)
+        if process.returncode != 0:
+            raise AssertionError(f"budget client failed ({process.returncode}): {stderr}")
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.communicate(timeout=5)
+        worker.join(timeout=5)
+        if watcher is not None:
+            watcher.join(timeout=1)
+        listener.close()
+    print(f"  exchange budget {style} {'timeout' if timeout else 'control'}: "
+          f"{len(requests)} actual request(s), resource checks passed", flush=True)
 
 
 def lifecycle_case(client: Path, ca: Path) -> None:
@@ -296,7 +437,7 @@ def main() -> None:
     parser.add_argument("--sanitize", action="store_true")
     parser.add_argument("--coverage-dir", type=Path,
                         help="retain GCC -O0 coverage binaries and counters in this directory")
-    choices = ("identity", "handshake", "headers", "link-fields", "trailers", "chunked-memory",
+    choices = ("exchange-budget", "identity", "handshake", "headers", "link-fields", "trailers", "chunked-memory",
                "body-limits", "nul-body", "header-oom", "eof", "upload", "request-max", "url-invalid", "url-vectors", "lifecycle", "ownership", "dns-lifecycle", "provider-bodies", "provider-wire")
     parser.add_argument("--case", action="append", choices=choices)
     args = parser.parse_args()
@@ -430,6 +571,12 @@ def main() -> None:
             check("request capacity", lambda: request_capacity_case(client, ca))
         if "url-invalid" in selected:
             check("invalid URL authority/target", lambda: invalid_url_case(client, ca))
+        if "exchange-budget" in selected:
+            for style in ("tls", "tcp-body", "retry"):
+                for timeout in (False, True):
+                    check(f"exchange budget {style} timeout={timeout}",
+                          lambda style=style, timeout=timeout: exchange_budget_case(
+                              client, ca, leaf, key, style=style, timeout=timeout))
         if "lifecycle" in selected:
             check("HTTP lifecycle", lambda: lifecycle_case(client, ca))
         if "ownership" in selected or "dns-lifecycle" in selected:

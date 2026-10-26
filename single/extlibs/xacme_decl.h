@@ -3864,6 +3864,8 @@ typedef struct xacmeclientconfig {
 	const xacmeaccountconfig* pAccount;
 	cstr sCaPem;
 	struct xnetengine* pBorrowedEngine;
+	/* 单次 HTTP 交换的总预算，含连接、全部 IO 与传输层安全重试。
+	 * 0 采用 30 秒默认值，-1 不限时，其他负数为参数错误。 */
 	int64 uTimeoutMs;
 	const cstr* sPropagateResolvers;
 	size_t iPropagateResolverCount;

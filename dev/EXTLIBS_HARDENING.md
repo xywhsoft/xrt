@@ -38,7 +38,7 @@
 
 | 产品目录 | 实现模块 | 源文件 | tests | single_tests | examples | 本轮状态 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| xacme | 14 | 16 | 28 | 10 | 1 | HTTP/Obtain/私钥副本、EAB/resolver 与换钥错误修复通过，flow/provider/RSA 导入复核继续 |
+| xacme | 14 | 16 | 28 | 10 | 1 | HTTP 总预算/Obtain/私钥副本、EAB/resolver 与换钥修复通过，Issue/provider/RSA 导入复核继续 |
 | xhttp | 115 | 124 | 236 | 115 | 82 | 正文流/前置条件字节快照及专项测试通过，其余源码复核继续 |
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
@@ -1014,3 +1014,71 @@ RSA 导入及 provider/签名/XML 复核继续；大同名 RRset 的递归探测
   套件继续复验，最终整套结果另行记录；这项只关闭已确认的夹具编译兼容缺口。
 
 证据：`acme-http-budget-full-linux-tcc.log`、`acme-store-concurrent-tcc-final.log`。
+
+### 第三十二批：HTTP 交换共用绝对预算与末次拨号拦截
+
+- 旧实现对连接、全部发送、响应读取分别重新打点，安全重试又取得完整超时并无条件退避。
+  新增 32 组 TCP/TLS 受控场景，使用实际 Core Future、字节拥有者、取消和分配器，只控制
+  时钟与传输提交边界；当前回归对旧 HTTP 源码失败 26 组，六个正常/不限时/MEMORY 控制通过。
+  初始化负超时的旧实现对照也在实际资源拒绝断言失败，未只依据源码猜测。
+- 每次 Exchange/Once 仅建立一个单调截止时间，连接及等待、全部发送块、响应头/正文、
+  关闭定界 TLS END 和全部安全重试共用。退避取剩余预算，耗尽停止提交下一次操作；
+  迟创建的 Future 在等待前重新计算剩余时间。到期不交付成功或部分响应。
+  已经发布的 MEMORY 原因及取消/Abort 后的原错误保留；只读重试耗尽时以 TIMEOUT 包裹
+  首个根因，错误上下文 OOM 保留真实 MEMORY。显式后续操作能在同一对象独立恢复。
+- 发送开始标记移至首个实际发送提交之前。连接取得后、发送前耗尽预算会中止已取得流，
+  但不误报写入结果未知；已经开始的 POST 仍保持未知结果、不自动重放。覆盖三块发送、
+  头已解析后正文超时、末端 MEMORY 和耗尽诊断分配 OOM，清理均要求真实分配归零。
+  HTTP Init 的 0 仍选 30 秒默认、-1 不限时；小于 -1 在构造传输资源前拒绝。
+- 复核 Core 发现 Dial.Timeout 的 0 表示不限时。新增在配置初始化期间耗尽预算的两项
+  回归，初版修复仍实际提交一次 Dial 而失败；最终 TCP/TLS 两条路径在调用 Core 前检查
+  剩余量为零并停止，避免把到期转换为不限时。保留初版失败日志，不将其计入最终通过。
+- 独立真实对端增加六个场景：TLS 握手与响应累计、TCP 头/正文、只读丢响应重试各有
+  正常与耗尽控制。旧实现两项失败：TLS 已超总预算仍正常完成、只读重试发送第二次请求；
+  其余四项控制通过。最终三组环境的六项全通过，POST 失败在客户端析构前确认关闭，
+  TLS 必须观察到 Abort；只读到期只有一次真实请求，正常重试恰好两次。
+- 完整产品套件最终 Windows GCC 运行 38 个程序（10 单头），Linux GCC/Clang sanitizer/
+  TCC 各 37 个（9 单头）。默认 TCC 在存储夹具之外又暴露旧 max_align_t 的默认模式
+  编译缺口；改为不被解引用的自然对齐 union token，不加语言模式特例或跳过单头。
+  最后这项只改夹具存储类型，四组环境均另行重跑完整该夹具，116 个分组全部通过：
+  原有 83 个传输组、新增 32 个预算组、一个参数组（含两种负超时 Init 子用例）。
+  TCC 另完整重跑全部 37 个入口；GCC/Clang 的其他已通过入口没有改动。
+- Windows/Linux GCC、Linux Clang ASan/UBSan 的完整独立 HTTP/TLS、DNS、provider 线缆与
+  所有权脚本在末次零拨号拦截前全部通过，699 项输入快照专门绑定这一版。
+  最终补丁另在这三组环境重跑预算/lifecycle/ownership 三组：六个预算场景、构造失败扫描、
+  原错误保留、实际延后退休/借用引擎，以及单头 40 个精确错误检查均通过。
+  未把末次补丁前的全量脚本冒称最终版全量重跑；最终生产路径还经完整产品套件验证。
+- 最终 Clang 拥有权专项在该收尾路径自然失败，记录到 123 个存活分配/1184240 字节。
+  该路径旧夹具要求解除 pin 后一次 5ms 清理即完成。用真实 Worker 阻塞门确认合法窗口：pin 已释放、
+  Worker 仍被持有时，原预算 5ms 必须返回 false，队列仍有一个已擦除非 HTTP 数据的拥有者，
+  原错误身份不变；放行 Worker 后才允许全部退休。派生旧立即就绪假设在该门控稳定失败，
+  负对照自身仍完成清理，未将它冒称未修改旧 HEAD 的自然复现或已证明自然失败的唯一原因。
+  四处最终清理改为重复原 5ms 调用并验证每次剩余拥有权/原错误，外层 5 秒守卫仅防测试
+  卡死，未增加产品或每次调用预算。无调用前错误时，只清理本次短等待产生的 TIMEOUT；
+  不吞 MEMORY/其他错误。保留分配失败零下的入队/轮询、并发摘链与重排、Obtain 收尾断言。
+  完整拥有权程序在 Windows/Linux GCC、Linux Clang sanitizer 各通过，并各重复 33 轮
+  12 个真实持有场景（每组 396 场景），全部分配归零；Clang 原失败命令也重新通过。
+- 完整模拟 CA 脚本在 Windows/Linux GCC、Linux Clang sanitizer 各 18 项全部通过，
+  包含脚本级检查及真实 TLS/JWS/EAB/TXT/grant/store 流程，未将每项都计为独立 CA 会话。
+  四个实际 Windows/Linux static/shared 消费者通过，每包 16 个自有源文件且链接一份 Core。
+  生成实现/声明、feature、公开符号/参考和发布门禁通过；1198 项最终相关源码/头/驱动
+  输入归一化 LF 后 Windows/WSL 无差异。现有历史覆盖率报告未重新绑定到本批。
+- a83aa622 的新 CI 已确认 Windows xsmtp coverage、两个 Server 扩展通过，独立邮件
+  40393562237 success；PR CI 40393570759 已全部 73/73 success。
+  旧 b246cdda CI 最终 72 success/1 failure，唯一失败为 SMTP Open。新一轮未复现，
+  诊断补丁不等同根因修复；继续保留该限制及日志，不提高其 15 秒/3 秒预算。
+- 本批只关闭单次 HTTP 交换预算。Issue 的总预算还未传到各 HTTP/DNS/provider 阶段，
+  传播与外层退避需继续处理；当前 Issue 设置 bIssueDeadline 后无复位，小于 -1 可生成
+  NAN，均为下一批待复现问题。同步宿主回调不能用抢占线程方式强行中止，provider Add
+  未知结果的记录拥有权及 Remove/引擎退休的独立清理预算仍须保留。Retry-After、EAB
+  标识符、RSA 导入、provider/签名/XML 和 DNS 语义绑定等工作继续；仍为 2/21 整库完成。
+
+证据：`acme-http-budget-windows-before.json`、`acme-http-budget-before-provenance.json`、
+`acme-http-budget-legacy-arguments-before.log`、`acme-http-budget-zero-dial-before.json`、
+`acme-http-budget-wire-windows-before.{json,log}`、`acme-http-budget-full-final-{windows,linux}.json`、
+`acme-http-budget-fixture-final-*.log`、`acme-http-budget-full-final-linux-tcc-portable.log`、
+`acme-http-budget-mock-final-*.log`、`acme-http-budget-interop-*-full.log`、
+`acme-http-budget-interop-initial-inputs.json`、`acme-http-budget-interop-final-*.log`、
+`acme-http-budget-packages-final-*.json`、`acme-http-budget-final-check-*.log`、
+`acme-http-budget-final-input-audit.json`、`acme-retirement-final-*.json`、
+`acme-retirement-old-ready-assumption.log`、`acme-retirement-repeat-*.log`。
