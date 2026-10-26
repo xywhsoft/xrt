@@ -424,12 +424,47 @@ void xoauth2UseMicrosoft(xoauth2client* pClient, const char* id, const char* sec
 	pClient->Config.UseNonce = true;
 }
 
+static bool xoauth2__config_uses_owned(const xoauth2config* pConfig, const char* sOwned)
+{
+	const char* fields[] = {
+		pConfig->AuthorizeUrl, pConfig->TokenUrl, pConfig->UserInfoUrl,
+		pConfig->JwksUrl, pConfig->Issuer, pConfig->ClientId,
+		pConfig->ClientSecret, pConfig->RedirectUri, pConfig->Scope
+	};
+	uintptr_t base;
+	size_t length;
+	if ( sOwned == NULL ) return false;
+	base = (uintptr_t)sOwned;
+	length = strlen(sOwned);
+	for ( size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); ++i ) {
+		uintptr_t address = (uintptr_t)fields[i];
+		if ( fields[i] && address >= base && address - base <= length ) return true;
+	}
+	return false;
+}
+
 void xoauth2UseCustom(xoauth2client* pClient, const xoauth2config* pConfig)
 {
+	xoauth2config config;
+	char* owned[3];
 	if ( pClient == NULL || pConfig == NULL ) return;
-	xoauth2__client_clear_owned(pClient);
+	/* Snapshot before resetting: pConfig may be &pClient->Config. Retain only
+	 * allocations still referenced by a configuration string, including suffixes. */
+	config = *pConfig;
+	owned[0] = pClient->pOwnedAuthUrl;
+	owned[1] = pClient->pOwnedTokenUrl;
+	owned[2] = pClient->pOwnedIssuerUrl;
+	for ( size_t i = 0; i < sizeof(owned) / sizeof(owned[0]); ++i ) {
+		if ( !xoauth2__config_uses_owned(&config, owned[i]) ) {
+			xrtFree(owned[i]);
+			owned[i] = NULL;
+		}
+	}
 	memset(pClient, 0, sizeof(*pClient));
-	pClient->Config = *pConfig;
+	pClient->Config = config;
+	pClient->pOwnedAuthUrl = owned[0];
+	pClient->pOwnedTokenUrl = owned[1];
+	pClient->pOwnedIssuerUrl = owned[2];
 }
 
 void xoauth2ClientUnit(xoauth2client* pClient)

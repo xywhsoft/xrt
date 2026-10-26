@@ -2786,7 +2786,9 @@ XRT_API void xoauth2UseGoogle(xoauth2client* pClient, const char* id, const char
 XRT_API void xoauth2UseWechat(xoauth2client* pClient, const char* appid, const char* appSecret, const char* redirect);
 /* 一键套用 Microsoft/Azure AD 端点（含 tenant）。 */
 XRT_API void xoauth2UseMicrosoft(xoauth2client* pClient, const char* id, const char* secret, const char* redirect, const char* tenant);
-/* 套用自定义端点配置。 */
+/* 套用自定义端点配置并清除旧登录事务。允许传入 &pClient->Config 或它的副本；
+ * 新配置引用的旧预设 URL（包括子串）继续由客户端持有，其余旧 URL 立即释放。
+ * 外部字符串仍为借用，调用方须保证其在配置使用期间有效。 */
 XRT_API void xoauth2UseCustom(xoauth2client* pClient, const xoauth2config* pConfig);
 
 /* 会话终止/客户端重置：清零 state/verifier（敏感）并释放预设持有的

@@ -141,6 +141,11 @@ if ( !shutdown_oauth(&oauth, &http) ) {
 → `TOKEN_DENIED`（provider 返回 error 字段）→ `TOKEN_RESPONSE`（2xx 但体解析失败）。
 `AuthStyle` 支持 body 与 HTTP Basic（RFC 6749 §2.3.1）两种客户端认证风格。
 
+`xoauth2UseCustom` 可接收 `&oauth.Config`，也可接收修改后的配置副本。
+它会清除原登录事务，并保留新配置仍引用的 Microsoft 预设端点分配（包括端点子串）；
+不再使用的旧端点立即释放，保留部分在后续配置替换或 `xoauth2ClientUnit` 时释放。
+自行传入的外部字符串继续由调用方管理，使用配置期间须保持有效。
+
 分配失败及传输回调给出的诊断保留原始 `xerror`，请同时检查
 `xrtGetError()`；来自 Core 或宿主回调的错误域可能使 `xoauth2LastError()`
 返回 0。回调未提供错误时才补 `NETWORK`。state 校验通过后，即使请求构造

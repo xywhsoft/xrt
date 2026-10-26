@@ -365,7 +365,9 @@ XRT_API void xoauth2UseGoogle(xoauth2client* pClient, const char* id, const char
 XRT_API void xoauth2UseWechat(xoauth2client* pClient, const char* appid, const char* appSecret, const char* redirect);
 /* 一键套用 Microsoft/Azure AD 端点（含 tenant）。 */
 XRT_API void xoauth2UseMicrosoft(xoauth2client* pClient, const char* id, const char* secret, const char* redirect, const char* tenant);
-/* 套用自定义端点配置。 */
+/* 套用自定义端点配置并清除旧登录事务。允许传入 &pClient->Config 或它的副本；
+ * 新配置引用的旧预设 URL（包括子串）继续由客户端持有，其余旧 URL 立即释放。
+ * 外部字符串仍为借用，调用方须保证其在配置使用期间有效。 */
 XRT_API void xoauth2UseCustom(xoauth2client* pClient, const xoauth2config* pConfig);
 
 /* 会话终止/客户端重置：清零 state/verifier（敏感）并释放预设持有的
@@ -1064,12 +1066,47 @@ void xoauth2UseMicrosoft(xoauth2client* pClient, const char* id, const char* sec
 	pClient->Config.UseNonce = true;
 }
 
+static bool xoauth2__config_uses_owned(const xoauth2config* pConfig, const char* sOwned)
+{
+	const char* fields[] = {
+		pConfig->AuthorizeUrl, pConfig->TokenUrl, pConfig->UserInfoUrl,
+		pConfig->JwksUrl, pConfig->Issuer, pConfig->ClientId,
+		pConfig->ClientSecret, pConfig->RedirectUri, pConfig->Scope
+	};
+	uintptr_t base;
+	size_t length;
+	if ( sOwned == NULL ) return false;
+	base = (uintptr_t)sOwned;
+	length = strlen(sOwned);
+	for ( size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); ++i ) {
+		uintptr_t address = (uintptr_t)fields[i];
+		if ( fields[i] && address >= base && address - base <= length ) return true;
+	}
+	return false;
+}
+
 void xoauth2UseCustom(xoauth2client* pClient, const xoauth2config* pConfig)
 {
+	xoauth2config config;
+	char* owned[3];
 	if ( pClient == NULL || pConfig == NULL ) return;
-	xoauth2__client_clear_owned(pClient);
+	/* Snapshot before resetting: pConfig may be &pClient->Config. Retain only
+	 * allocations still referenced by a configuration string, including suffixes. */
+	config = *pConfig;
+	owned[0] = pClient->pOwnedAuthUrl;
+	owned[1] = pClient->pOwnedTokenUrl;
+	owned[2] = pClient->pOwnedIssuerUrl;
+	for ( size_t i = 0; i < sizeof(owned) / sizeof(owned[0]); ++i ) {
+		if ( !xoauth2__config_uses_owned(&config, owned[i]) ) {
+			xrtFree(owned[i]);
+			owned[i] = NULL;
+		}
+	}
 	memset(pClient, 0, sizeof(*pClient));
-	pClient->Config = *pConfig;
+	pClient->Config = config;
+	pClient->pOwnedAuthUrl = owned[0];
+	pClient->pOwnedTokenUrl = owned[1];
+	pClient->pOwnedIssuerUrl = owned[2];
 }
 
 void xoauth2ClientUnit(xoauth2client* pClient)

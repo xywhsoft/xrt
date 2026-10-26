@@ -48,7 +48,7 @@
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
 | xmail | 19 | 19 | 27 | 18 | 14 | 待复核 |
-| xoauth2 | 1 | 3 | 3 | 2 | 4 | 授权 URL/失败事务修复通过，HTTP/流程复核继续 |
+| xoauth2 | 1 | 3 | 3 | 2 | 4 | 三分片已复核，配置别名修复本地通过，交付/CI 验证中 |
 | xpop3 | 6 | 4 | 10 | 6 | 4 | 待复核 |
 | xrudp | 19 | 20 | 76 | 97 | 0 | 待复核 |
 | xruntime | 36 | 23 | 87 | 42 | 30 | 待复核 |
@@ -333,3 +333,25 @@ OAuth HTTP 生命周期、token 流程及发现/身份组合仍需后续复核�
 证据：`77-auth-linux-ci-failure.log`、`jwt-ci-guard-gcc-final.log`、
 `auth-config-alias-windows-final.log`（仅其中 JWT 段；后续 OAuth 段为中间测试结果）、
 `jwt-full-windows-final.log`、`jwt-full-linux-final.log`。
+
+### 第十批：OAuth 配置别名与端点所有权
+
+- 新增公开 API 回归在原实现上有 23 项失败：传入 `&client.Config` 会先清空源配置；
+  从 Microsoft 预设复制并修改配置后传回，会释放仍被新配置引用的三个动态端点。
+- 先快照配置，再按新配置的全部九个字符串字段保留仍引用的旧分配，包含合法子串别名；
+  其余旧端点立即释放。实现不分配额外内存，仍清空旧登录事务；外部字符串继续借用。
+- 用 Core 分配预算检查逻辑存活数量，避开底层内存池高水位；九个字段轮流覆盖三个旧端点，
+  检查立即释放无关端点及 ClientUnit 的唯一所有权收尾。夹具自身遵守带 Size 的统计接口契约。
+- Linux/TCC 与 Clang ASan/UBSan 加泄漏检查的完整 OAuth 入口各 316 项通过；
+  Windows/GCC 完整清单套件通过，模块化和单头各 323 项，另含 OIDC 组合、离线示例和最小入口。
+- 独立 HTTP/TLS/未交付构造生命周期全部探针通过。gcov 联合覆盖为行 92.33%、
+  分支结果 77.58%，保持 91%/75% 原门禁；JSON 记录精确计数和输入哈希。
+- 三个实现分片已复核：PKCE/state 与 URL、token/刷新及回调错误、HTTP/TLS URL/解析/发送期限
+  及 owned/borrowed engine 收尾。应用 OIDC 辅助策略与真实示例的发现/身份/刷新路径也已阅读。
+  未读取线上凭据；真实 provider 注册、远端 CA 和长稳环境仍未验证。
+- API 文档、参考、生成单头和发布成熟度门禁通过。剩余故障注入、网络 sanitizer、
+  包/裁剪/profile 及当前提交 CI 继续执行，整库尚未标为完成。
+
+证据：`oauth-config-alias-baseline-final.log`、`oauth-config-alias-tcc-final.log`、
+`oauth-config-alias-sanitize-final.log`（完整入口段）、`oauth-full-alias-windows-final.log`、
+`oauth-coverage-alias-final.log`、`oauth-coverage-alias-final.json`。
