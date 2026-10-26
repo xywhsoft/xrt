@@ -259,7 +259,7 @@ static bool exercise(xacmednsprovider* p, bool aws, const char* mode)
 			xrtClearError();
 			if(p->Remove(p, mixed, value) || xrtErrorCode(xrtGetError()) != XACME_DNS_ERROR_UNCERTAIN) return false;
 			xrtClearError(); ActualAdd = p->Add; flow.Add = counted_add;
-			if(xacmeFlowDnsAdd(&flow, upper.Data, value.Data) || FlowAddCalls != 1u || context->iRecordCount != 1u ||
+			if(xacmeFlowDnsAdd(NULL, &flow, upper.Data, value.Data) || FlowAddCalls != 1u || context->iRecordCount != 1u ||
 				xrtErrorCode(xrtGetError()) != XACME_DNS_ERROR_UNCERTAIN) return false;
 			xrtClearError();
 			return p->Add(p, upper, second) && p->Remove(p, mixed, second) && !tracked(p, true) &&
@@ -314,7 +314,7 @@ static bool exercise(xacmednsprovider* p, bool aws, const char* mode)
 		}
 		ActualAdd = p->Add; flow.Add = counted_add;
 		CaptureReadFailure = true; UncertaintyErrorOom = memory;
-		ok = xacmeFlowDnsAdd(&flow, owner.Data, value.Data);
+		ok = xacmeFlowDnsAdd(NULL, &flow, owner.Data, value.Data);
 		if(memory || limit) {
 			ok = !ok && FlowAddCalls == (memory ? 1u : 3u) &&
 				xrtErrorKind(xrtGetError()) == (memory ? XERR_MEMORY : XERR_IO);
@@ -408,7 +408,7 @@ static bool exercise(xacmednsprovider* p, bool aws, const char* mode)
 			if(p->Remove(p, mixed, value) || xrtErrorCode(xrtGetError()) != XACME_DNS_ERROR_UNCERTAIN) return false;
 			xrtClearError();
 			ActualAdd = p->Add; flow.Add = counted_add;
-			if(xacmeFlowDnsAdd(&flow, upper.Data, value.Data) || FlowAddCalls != 1u ||
+			if(xacmeFlowDnsAdd(NULL, &flow, upper.Data, value.Data) || FlowAddCalls != 1u ||
 				xrtErrorCode(xrtGetError()) != XACME_DNS_ERROR_UNCERTAIN || context->Records.iCount != 1u) return false;
 			xrtClearError();
 			/* DNS names fold ASCII case; TXT digest bytes must remain distinct. */
@@ -494,7 +494,7 @@ static bool exercise(xacmednsprovider* p, bool aws, const char* mode)
 		CreateParseOom = strcmp(mode, "flow-parse-oom") == 0;
 		UncertaintyErrorOom = strcmp(mode, "flow-uncertain-error-oom") == 0 ||
 			strcmp(mode, "flow-diagnostic-oom") == 0;
-		ok = !xacmeFlowDnsAdd(&flow_provider, owner.Data, value.Data) &&
+		ok = !xacmeFlowDnsAdd(NULL, &flow_provider, owner.Data, value.Data) &&
 			FlowAddCalls == 1u && !tracked(p, false);
 		if(CreateParseOom) ok = ok && CreateParseOomTriggered && xrtErrorKind(xrtGetError()) == XERR_MEMORY;
 		else if(UncertaintyErrorOom) ok = ok && UncertaintyOomTriggered == 1u && xrtErrorKind(xrtGetError()) == XERR_MEMORY;
@@ -609,7 +609,7 @@ static bool exercise(xacmednsprovider* p, bool aws, const char* mode)
 		if(strcmp(mode, "aws-error-uncertain") == 0) {
 			xacmednsprovider flow_provider = *p;
 			ActualAdd = p->Add; flow_provider.Add = counted_add;
-			ok = !xacmeFlowDnsAdd(&flow_provider, owner.Data, value.Data) && FlowAddCalls == 1u &&
+			ok = !xacmeFlowDnsAdd(NULL, &flow_provider, owner.Data, value.Data) && FlowAddCalls == 1u &&
 				context->iRecordCount == 1u && context->Records[0].bUncertain && !tracked(p, true) &&
 				xrtErrorCode(xrtGetError()) == XACME_DNS_ERROR_UNCERTAIN;
 			xrtClearError();
@@ -1229,7 +1229,7 @@ static bool exercise_rest(xacmednsprovider* p, cstr name, cstr mode)
 		ActualAdd = p->Add; flow.Add = counted_add;
 		CreateParseOom = strcmp(mode, "rest-parse-oom") == 0;
 		UncertaintyErrorOom = strcmp(mode, "rest-error-oom") == 0;
-		ok = !xacmeFlowDnsAdd(&flow, owner.Data, value.Data) && FlowAddCalls == 1u &&
+		ok = !xacmeFlowDnsAdd(NULL, &flow, owner.Data, value.Data) && FlowAddCalls == 1u &&
 			records->iCount == 1u && records->sIds[0][0] == '\0' &&
 			strcmp(records->sFqdns[0], owner.Data) == 0 && strcmp(records->sTxts[0], value.Data) == 0;
 		if(CreateParseOom) ok = ok && CreateParseOomTriggered && xrtErrorKind(xrtGetError()) == XERR_MEMORY;

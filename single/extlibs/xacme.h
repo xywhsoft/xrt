@@ -1273,7 +1273,7 @@ typedef struct xacmeclientconfig {
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
 	/*
-		单次签发的总预算（毫秒；0 = 不限时）：覆盖订单/挑战/
+		单次签发的总预算（毫秒；0 或 -1 不限时，其他负数非法）：覆盖订单/挑战/
 		finalize/证书下载的全部轮询与退避，超限以 XERR_TIMEOUT
 		失败。防病态 CA 把签发挂成小时级。
 	*/
@@ -1920,6 +1920,10 @@ typedef struct xacmehttp {
 	struct xtlsverifier* pVerifier;
 	/* One Exchange budget across dial, all I/O and safe transport retries. */
 	int64 uTimeoutMs;
+	/* Optional enclosing operation budget. Internal callers set/clear this
+	 * only for the synchronous operation; retirement keeps its own budget. */
+	bool bOperationDeadline;
+	double OperationDeadline;
 	/* Last exchange failed after a write began; independent of error allocation. */
 	bool bWriteUncertain;
 	/* 未交付的堆外壳可转移到退休队列；入列后仅由队列访问。 */
@@ -3416,6 +3420,14 @@ static void xacmeHttpBudgetError(const xerror* pCause)
         "acme http request budget exhausted");
 }
 
+static double xacmeHttpDeadline(const xacmehttp* pHttp)
+{
+	double Deadline = __xrtWaitAfter(pHttp != NULL ? pHttp->uTimeoutMs : 0);
+	if(pHttp != NULL && pHttp->bOperationDeadline &&
+		pHttp->OperationDeadline < Deadline) Deadline = pHttp->OperationDeadline;
+	return Deadline;
+}
+
 static bool xacmeHttpExchangeRetry(
 	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
 	xstrview sBody, const xacmehttpheader* pExtraHeaders,
@@ -3424,7 +3436,7 @@ static bool xacmeHttpExchangeRetry(
 	uint32 uAttempt;
 	xerror* pFirst = NULL;
 	bool bReadOnlyMethod = xacmeHttpMethodReadOnly(sMethod);
-	double Deadline = __xrtWaitAfter(pHttp != NULL ? pHttp->uTimeoutMs : 0);
+	double Deadline = xacmeHttpDeadline(pHttp);
 	for(uAttempt = 1u; uAttempt <= XACME_HTTP_RETRY_MAX; uAttempt++)
 	{
 		bool bRequestStarted = false;
@@ -4293,7 +4305,7 @@ bool xacmeHttpExchangeOnceV(
 	bool bOk = xacmeHttpExchangeOnceImpl(
 		pHttp, sMethod, sUrl, sContentType, sBody, pExtraHeaders,
 		iExtraCount, pResponse, &bRequestStarted, NULL,
-		__xrtWaitAfter(pHttp != NULL ? pHttp->uTimeoutMs : 0));
+		xacmeHttpDeadline(pHttp));
 	if(!bOk && bRequestStarted && !xacmeHttpMethodReadOnly(sMethod))
 	{
 		xacmeHttpMarkWriteUncertain(pHttp);
@@ -9747,8 +9759,43 @@ static bool xacmeFlowAlternateUrl(cstr sBase, cstr sReference,
 /* Issue 总预算：超限返回 true（已到截止）。 */
 static bool xacmeFlowDeadlineHit(const xacmeclient* pClient)
 {
-	return pClient->bIssueDeadline &&
+	return pClient != NULL && pClient->bIssueDeadline &&
 		(xrtTimer() >= pClient->IssueDeadline);
+}
+
+/* Keep a published producer error as the cause. MEMORY remains terminal even
+ * when the same work also consumes the last of the operation budget. */
+static bool xacmeFlowBudget(const xacmeclient* pClient)
+{
+	xerror* pCause;
+	xerror* pError;
+	if(!xacmeFlowDeadlineHit(pClient)) return true;
+	pCause = xrtErrorRef(xrtGetError());
+	if(xrtErrorKind(pCause) != XERR_MEMORY)
+	{
+		if(pCause != NULL)
+		{
+			pError = xrtErrorWrap(pCause, XERR_TIMEOUT, "xrt.acme.flow",
+				XACME_FLOW_ERROR_PROTOCOL, "acme flow issue budget exhausted");
+			if(pError != NULL) xrtSetErrorTake(pError);
+		}
+		else xacmeFlowError(XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
+			"acme flow issue budget exhausted");
+	}
+	xrtErrorFree(pCause);
+	return false;
+}
+
+static bool xacmeFlowSleep(const xacmeclient* pClient, uint32 uMs)
+{
+	if(!xacmeFlowBudget(pClient)) return false;
+	if(pClient != NULL && pClient->bIssueDeadline)
+	{
+		int64 Remaining = __xrtWaitRemaining(pClient->IssueDeadline);
+		if(Remaining >= 0 && Remaining < (int64)uMs) uMs = (uint32)Remaining;
+	}
+	xrtSleep(uMs);
+	return xacmeFlowBudget(pClient);
 }
 
 /* ---------------- nonce 与 POST ---------------- */
@@ -9771,6 +9818,7 @@ static void xacmeFlowTakeNonce(xacmeclient* pClient, xacmehttpresponse* pR)
 static bool xacmeFlowNewNonce(xacmeclient* pClient)
 {
 	xacmehttpresponse R;
+	if(!xacmeFlowBudget(pClient)) return false;
 	if(pClient->sNonce[0] != '\0')
 	{
 		return true;
@@ -9896,8 +9944,8 @@ static bool xacmeFlowPostAsGet(
 			return false;
 		}
 		/* 非内存失败的只读 POST-as-GET 可用新 nonce/JWS 安全重试。 */
+		if(!xacmeFlowSleep(pClient, (uAttempt == 1u) ? 500u : 1000u)) return false;
 		xrtClearError();
-		xrtSleep((uAttempt == 1u) ? 500u : 1000u);
 	}
 	return false;
 }
@@ -9933,12 +9981,7 @@ static str xacmeFlowWaitStatus(
 		xacmeflowurl Status;
 		uint32 uMs;
 		bool bTerminal;
-		if(xacmeFlowDeadlineHit(pClient))
-		{
-			xacmeFlowError(XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
-				"acme flow issue budget exhausted");
-			return NULL;
-		}
+		if(!xacmeFlowBudget(pClient)) return NULL;
 		if(!xacmeFlowPostAsGet(pClient, sUrl, &R)) return NULL;
 		if((R.iStatus < 200u) || (R.iStatus >= 300u))
 		{
@@ -9999,7 +10042,7 @@ static str xacmeFlowWaitStatus(
 		}
 		uMs = xacmeFlowSleepMs(&R);
 		xacmeHttpResponseUnit(&R);
-		xrtSleep(uMs);
+		if(!xacmeFlowSleep(pClient, uMs)) return NULL;
 	}
 	xacmeFlowError(XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
 		"acme flow status poll exhausted");
@@ -10030,12 +10073,13 @@ static bool xacmeFlowDnsAddTerminal(const xerror* pError)
 	提供商层结果未知及内存错误同样不重放 Add。
 */
 static bool xacmeFlowDnsAdd(
-	const xacmednsprovider* pDns, cstr sFqdn, cstr sTxt)
+	const xacmeclient* pClient, const xacmednsprovider* pDns, cstr sFqdn, cstr sTxt)
 {
 	uint32 uAttempt;
 	for(uAttempt = 1u; uAttempt <= 3u; uAttempt++)
 	{
 		xerror* pFirst;
+		if(!xacmeFlowBudget(pClient)) return false;
 		if(pDns->Add((xacmednsprovider*)pDns,
 				(xstrview){ sFqdn, strlen(sFqdn) },
 				(xstrview){ sTxt, strlen(sTxt) }))
@@ -10057,7 +10101,11 @@ static bool xacmeFlowDnsAdd(
 				printf("[dns-retry] add attempt=%u fqdn=%s\n",
 					(unsigned)uAttempt, sFqdn);
 			}
-			xrtSleep(1000u * uAttempt);
+			if(!xacmeFlowSleep(pClient, 1000u * uAttempt))
+			{
+				xrtErrorFree(pFirst);
+				return false;
+			}
 		}
 		xrtSetErrorTake(pFirst);
 	}
@@ -10168,6 +10216,7 @@ static void xacmeFlowWaitPropagate(
 {
 	xacmedns Probe;
 	double uDeadline;
+	if(!xacmeFlowBudget(pClient)) return;
 	if(((pDns->iCaps & XACME_DNS_CAP_PROPAGATE) != 0u) &&
 		(pDns->Propagate != NULL))
 	{
@@ -10598,6 +10647,7 @@ bool xacmeClientIssue(
 
 	if(pOut != NULL) memset(pOut, 0, sizeof(*pOut));
 	if((pClient == NULL) || (pDomains == NULL) || (iDomainCount == 0u) ||
+		(pClient->uIssueTimeoutMs < XRT_WAIT_FOREVER) ||
 		(pDns == NULL) || (pDns->Add == NULL) || (pDns->Remove == NULL) ||
 		(pOut == NULL) ||
 		!xrtAcmeDnsProviderValidate(pDns))
@@ -10619,9 +10669,14 @@ bool xacmeClientIssue(
 			"acme certificate key must differ from the account key");
 		return false;
 	}
-	/* 总预算打点：uIssueTimeoutMs 非零时本次 Issue 全程受限。 */
-	pClient->bIssueDeadline = (pClient->uIssueTimeoutMs != 0u);
-	pClient->IssueDeadline = __xrtWaitAfter(pClient->uIssueTimeoutMs);
+	/* A new issuance must not attribute a caller's stale error to this work. */
+	xrtClearError();
+	/* 总预算打点：uIssueTimeoutMs 为正时本次 Issue 全程受限。 */
+	pClient->bIssueDeadline = (pClient->uIssueTimeoutMs > 0);
+	pClient->IssueDeadline = pClient->bIssueDeadline ?
+		__xrtWaitAfter(pClient->uIssueTimeoutMs) : INFINITY;
+	pClient->Http.bOperationDeadline = pClient->bIssueDeadline;
+	pClient->Http.OperationDeadline = pClient->IssueDeadline;
 
 	/* 1. 新订单；identifier 用完整域名（通配符原样：*.example.com 是
 	   独立 identifier，CA 依此返回通配符授权）。去重按完整字符串——
@@ -10949,9 +11004,9 @@ bool xacmeClientIssue(
 					bool bCanAdd = (sFqdn != NULL) &&
 						(iWorkCount < iCount);
 					if(!bCanAdd ||
-						!xacmeFlowDnsAdd(pDns, sFqdn, sTxt))
+						!xacmeFlowDnsAdd(pClient, pDns, sFqdn, sTxt))
 					{
-						if(xacmeFlowDnsAddTerminal(xrtGetError()))
+						if(xacmeFlowDnsAddTerminal(xrtGetError()) || xacmeFlowDeadlineHit(pClient))
 						{
 							pUncertainError = xrtErrorRef(xrtGetError());
 						}
@@ -10962,8 +11017,7 @@ bool xacmeClientIssue(
 							break;
 						continue;
 					}
-					/* 传播确认：全部 TXT 就位后才进入 Pass B 统一触发。 */
-					xacmeFlowWaitPropagate(pClient, pDns, sFqdn, sTxt);
+					/* Own an acknowledged record before any deadline check or probe. */
 					memcpy(&Work[iWorkCount].Authz, &Authz,
 						sizeof(xacmeflowurl));
 					memcpy(&Work[iWorkCount].Challenge, &ChallengeUrl,
@@ -10971,7 +11025,9 @@ bool xacmeClientIssue(
 					Work[iWorkCount].sFqdn = sFqdn;
 					Work[iWorkCount].sTxt = sTxt;
 					iWorkCount++;
-					if(xrtErrorKind(xrtGetError()) == XERR_MEMORY)
+					/* 传播确认：全部 TXT 就位后才进入 Pass B 统一触发。 */
+					xacmeFlowWaitPropagate(pClient, pDns, sFqdn, sTxt);
+					if(xrtErrorKind(xrtGetError()) == XERR_MEMORY || !xacmeFlowBudget(pClient))
 					{
 						xrtValueRelease(pAuthRoot);
 						xacmeHttpResponseUnit(&A);
@@ -11242,6 +11298,18 @@ bool xacmeClientIssue(
 	bResult = true;
 
 Done:
+	/* The issuance result is decided before best-effort TXT removal. Cleanup
+	 * and subsequent caller operations must never inherit this deadline. */
+	if(!xacmeFlowBudget(pClient))
+	{
+		bResult = false;
+		xrtErrorFree(pUncertainError);
+		pUncertainError = xrtErrorRef(xrtGetError());
+	}
+	pClient->bIssueDeadline = false;
+	pClient->IssueDeadline = 0.0;
+	pClient->Http.bOperationDeadline = false;
+	pClient->Http.OperationDeadline = 0.0;
 	if(pUncertainError == NULL && !bResult)
 		pUncertainError = xrtErrorRef(xrtGetError());
 	xrtFree(pLeafDer);
@@ -11835,7 +11903,8 @@ struct xacmeclient* xrtAcmeClientCreate(
 	xacmeclient* pClient;
 	size_t i;
 
-	if((pConfig == NULL) || (pConfig->pAccount == NULL))
+	if((pConfig == NULL) || (pConfig->pAccount == NULL) ||
+		(pConfig->uIssueTimeoutMs < XRT_WAIT_FOREVER))
 	{
 		xacmeFlowError(
 			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,

@@ -355,7 +355,7 @@ int main(int argc, char** argv)
 	int64 timeout_ms = 3000;
 	bool bounded, large_body, send_failure, head_failure, body_failure;
 	bool headers, header_oom, link_fields, expected, ok, result;
-	bool request_max, url_failure, budget_mode, budget_retry, budget_timeout;
+	bool request_max, url_failure, budget_mode, budget_retry, budget_timeout, operation_scope;
 	xacmehttpheader extra[94];
 	char names[94][24];
 	const xerror* error;
@@ -417,9 +417,11 @@ int main(int argc, char** argv)
 	} else if(strcmp(argv[3], "header-oom-link-fields") == 0) {
 		header_oom = true; HeaderFaultSize = sizeof("</issuer>; rel=\"up\", </alternate>; rel=\"alternate\"");
 	}
-	budget_retry = strncmp(argv[3], "budget-retry-", 13u) == 0;
-	budget_timeout = strcmp(argv[3], "budget-timeout") == 0 || strcmp(argv[3], "budget-retry-timeout") == 0;
-	budget_mode = budget_timeout || strcmp(argv[3], "budget-control") == 0 || strcmp(argv[3], "budget-retry-control") == 0;
+	operation_scope = strncmp(argv[3], "operation-", 10u) == 0;
+	const char* budget_name = operation_scope ? argv[3] + 10u : argv[3];
+	budget_retry = strncmp(budget_name, "budget-retry-", 13u) == 0;
+	budget_timeout = strcmp(budget_name, "budget-timeout") == 0 || strcmp(budget_name, "budget-retry-timeout") == 0;
+	budget_mode = budget_timeout || strcmp(budget_name, "budget-control") == 0 || strcmp(budget_name, "budget-retry-control") == 0;
 	request_max = strcmp(argv[3], "request-max") == 0;
 	url_failure = strcmp(argv[3], "url-failure") == 0;
 	expected = strcmp(argv[3], "success") == 0 || bounded || large_body || headers || link_fields || request_max || (budget_mode && !budget_timeout);
@@ -437,9 +439,10 @@ int main(int argc, char** argv)
 	if(!xrtMemDebugEnable(true)) return 3;
 	ca = read_ca(argv[2]);
 	if(ca == NULL) return 3;
-	ok = xacmeHttpInit(&http, NULL, ca, timeout_ms);
+	ok = xacmeHttpInit(&http, NULL, ca, operation_scope ? 30000 : timeout_ms);
 	free(ca);
 	if(!ok) return 4;
+	if(operation_scope) {http.bOperationDeadline = true; http.OperationDeadline = __xrtWaitAfter(timeout_ms);}
 	xrtMemDebugSnapshot(&before);
 	if(send_failure) {
 		upload = (char*)malloc(8u * 1024u * 1024u);

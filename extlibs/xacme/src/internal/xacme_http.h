@@ -22,6 +22,10 @@ typedef struct xacmehttp {
 	struct xtlsverifier* pVerifier;
 	/* One Exchange budget across dial, all I/O and safe transport retries. */
 	int64 uTimeoutMs;
+	/* Optional enclosing operation budget. Internal callers set/clear this
+	 * only for the synchronous operation; retirement keeps its own budget. */
+	bool bOperationDeadline;
+	double OperationDeadline;
 	/* Last exchange failed after a write began; independent of error allocation. */
 	bool bWriteUncertain;
 	/* 未交付的堆外壳可转移到退休队列；入列后仅由队列访问。 */

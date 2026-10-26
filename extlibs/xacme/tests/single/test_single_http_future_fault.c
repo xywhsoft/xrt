@@ -445,8 +445,54 @@ static void run_budget(const char* Name, bool UseTls)
     xacmeHttpResponseUnit(&Response); clean(); Mode = Name;
     printf("[PASS] ACME_HTTP %s %s\n", Tls ? "tls" : "tcp", Name);
 }
+static void run_operation_budget(unsigned Row, bool UseTls, bool Once)
+{
+    static const struct {const char* Name;int64 HttpMs;bool Active;double Seconds;bool Ok;} Rows[]={
+        {"operation-short",1000,true,0.100,false}, {"operation-with-infinite-http",-1,true,0.100,false},
+        {"request-short",100,true,1.000,false}, {"both-in-budget",1000,true,1.000,true},
+        {"inactive-stale-deadline",1000,false,-1.000,true}, {"operation-expired",1000,true,0.000,false},
+        {"two-exchanges",1000,true,0.200,false}, {"operation-retry",1000,true,0.100,false}
+    };
+    require(Row < sizeof(Rows)/sizeof(Rows[0]),"operation budget row");
+    if(Once && Row==7u) return; /* OnceV deliberately has no transport replay. */
+    Mode=Row==7u?"budget-retry-backoff":"budget-control";Tls=UseTls;BudgetRun=true;BudgetClock=100.0;
+    Dials=Sends=Recvs=Ends=Aborts=Closes=Destroys=BudgetSleeps=BudgetSlept=0;
+    memset(DialTimeouts,0,sizeof(DialTimeouts));
+    xacmehttp Http;memset(&Http,0,sizeof(Http));
+    Http.pEngine=(xnetengine*)&RoutingToken;Http.pResolver=(xnetresolver*)&RoutingToken;Http.pVerifier=(xtlsverifier*)&RoutingToken;
+    Http.uTimeoutMs=Rows[Row].HttpMs;Http.bOperationDeadline=Rows[Row].Active;Http.OperationDeadline=100.0+Rows[Row].Seconds;
+    const char* Url=Tls?"https://ca.example/operation":"http://ca.example/operation";
+    xacmehttpresponse Response;
+    bool Ok=Once?xacmeHttpExchangeOnceV(&Http,"POST",Url,NULL,(xstrview)XRT_STR_LITERAL("{}"),NULL,0,&Response):
+        xacmeHttpExchangeV(&Http,Row==7u?"GET":"POST",Url,NULL,(xstrview)XRT_STR_LITERAL("{}"),NULL,0,&Response);
+    if(Row==6u) {
+        require(Ok && fabs(BudgetClock-100.120)<0.000001,"first exchange fits operation budget");
+        xacmeHttpResponseUnit(&Response);
+        Ok=Once?xacmeHttpExchangeOnceV(&Http,"POST",Url,NULL,(xstrview)XRT_STR_LITERAL("{}"),NULL,0,&Response):
+            xacmeHttpExchangeV(&Http,"POST",Url,NULL,(xstrview)XRT_STR_LITERAL("{}"),NULL,0,&Response);
+    }
+    printf("[operation-budget] %s %s once=%u ok=%u kind=%u ms=%.3f dial=%u send=%u recv=%u sleep=%u/%u\n",
+        Tls?"tls":"tcp",Rows[Row].Name,Once,Ok,(unsigned)xrtErrorKind(xrtGetError()),(BudgetClock-100.0)*1000.0,Dials,Sends,Recvs,BudgetSleeps,BudgetSlept);
+    require(Ok==Rows[Row].Ok,"exchange did not honor minimum of operation/request deadlines");
+    require(Http.uTimeoutMs==Rows[Row].HttpMs && Http.bOperationDeadline==Rows[Row].Active &&
+        Http.OperationDeadline==100.0+Rows[Row].Seconds,"exchange mutated enclosing scope/configuration");
+    if(Ok) {require(Response.sBody && strcmp(Response.sBody,"{}")==0 && !Http.bWriteUncertain,"operation control lost response");xacmeHttpResponseUnit(&Response);}
+    else {
+        require(empty_response(&Response) && xrtErrorKind(xrtGetError())==XERR_TIMEOUT,"operation expiry lost timeout/atomic output");
+        if(Row==5u) require(Dials==0 && Sends==0 && Recvs==0 && !Http.bWriteUncertain,"expired operation submitted transport or marked unknown write");
+        else if(Row==7u) require(Dials==1u && Sends==0 && Recvs==0 && BudgetSleeps==1u && BudgetSlept<=41u &&
+            Cause && has_cause(xrtGetError(),Cause),"retry restarted operation budget or lost its immutable producer cause");
+        else require(Dials==(Row==6u?2u:1u) && Http.bWriteUncertain,"started operation POST lost unknown-write ownership");
+    }
+    clean();Http.bOperationDeadline=false;Http.OperationDeadline=0;Http.uTimeoutMs=1000;
+    Mode="budget-control";Dials=Sends=Recvs=Ends=Aborts=Closes=Destroys=0;
+    require(xacmeHttpExchange(&Http,"POST",Url,NULL,(xstrview)XRT_STR_LITERAL("{}"),&Response),"cleared operation scope cannot recover on same HTTP context");
+    xacmeHttpResponseUnit(&Response);clean();BudgetRun=false;
+    printf("[PASS] ACME_HTTP %s operation-budget/%s/%s\n",Tls?"tls":"tcp",Rows[Row].Name,Once?"once":"retry");
+}
 int main(int Argc, char** Argv)
 {
+    if(Argc==5 && strcmp(Argv[1],"operation-budget")==0) {run_operation_budget((unsigned)strtoul(Argv[2],NULL,10),strcmp(Argv[3],"tls")==0,strcmp(Argv[4],"once")==0);return 0;}
     static const char* Cases[] = { "connect-memory", "send-memory", "head-memory", "body-memory", "end-memory",
         "connect-io", "send-io", "head-io", "body-io", "end-io",
         "connect-protocol", "send-protocol", "head-protocol", "body-protocol", "end-protocol",
@@ -459,6 +505,7 @@ int main(int Argc, char** Argv)
     if (Argc == 3) { if (strncmp(Argv[1], "budget-", 7u) == 0) run_budget(Argv[1], strcmp(Argv[2], "tls") == 0); else run(Argv[1], strcmp(Argv[2], "tls") == 0); return 0; }
     require(Argc == 1, "usage: test_http_fault [case tcp|tls]");
     arguments();
+    for(unsigned I=0;I<8u;I++) for(unsigned T=0;T<2u;T++) for(unsigned O=0;O<2u;O++) run_operation_budget(I,T!=0,O!=0);
     for (size_t I = 0; I < sizeof(Cases) / sizeof(Cases[0]); I++) for (unsigned T = 0; T < 2; T++) {
         if (T == 0 && strcmp(Cases[I], "end-pending") == 0) continue;
         if (T == 0 && strncmp(Cases[I], "end-direct-", 11u) == 0) continue;

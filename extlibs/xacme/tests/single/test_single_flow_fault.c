@@ -136,6 +136,16 @@ static unsigned CertificateDecodes, AlternateRequests;
 static bool AlternateResponse;
 static char ResolverTxt[256];
 static double ResolverClock;
+/* Enclosing Issue budget: scheduling is controlled at synchronous boundaries;
+ * crypto, parsers, allocator, grants and record ownership remain actual source. */
+static bool IssueBudgetProbe;
+static cstr IssueBudgetMode;
+static double IssueBudgetClock;
+static unsigned IssueBudgetSlept, IssueBudgetPropagates, IssueBudgetTriggers, IssueBudgetFaults, IssueBudgetScopeErrors, IssueBudgetClockChecks;
+static xerror* IssueBudgetCause;
+static bool issue_mode(cstr Mode) { return IssueBudgetProbe && strcmp(IssueBudgetMode,Mode)==0; }
+static void issue_charge(unsigned Ms) { if(IssueBudgetProbe) IssueBudgetClock+=(double)Ms/1000.0; }
+
 static cstr LastJson;
 static xerror* FirstError;
 /* Observe decoded EAB keys only while their storage is alive: inside the
@@ -286,6 +296,7 @@ static str flow_eab(cstr Kid,cstr Url,xstrview Jwk,const uint8* Mac,size_t Size)
     arm("eab-sign"); str Result=xacmeJwsEabHs256(Kid,Url,Jwk,Mac,Size); if(!Result) remember(); return Result;
 }
 static str flow_sign(const xacmees256key* Key,const xacmejwsheader* H,xstrview Payload) {
+    if(issue_mode("sign-spent")) issue_charge(120u);
     if(RolloverProbe) RolloverSignatures++;
     eab_end_scan();
     if(H->Url.Size==strlen("http://ca.example/alternate") && memcmp(H->Url.Data,"http://ca.example/alternate",H->Url.Size)==0)
@@ -318,15 +329,33 @@ static bytes flow_decode(const xpemblock* Block,size_t* Size) {
     if(Active && Active->Op==FLOW_REVOKE) arm("revoke-der");
     else if(AlternateResponse) arm("alternate-der");
     else { CertificateDecodes++; arm(CertificateDecodes==2u?"certificate-second-der":"certificate-der"); }
+    if(issue_mode("certificate-parse-spent") && CertificateDecodes==1u) issue_charge(120u);
     bytes Result=xrtPemDecodeNew(Block,Size); if(!Result) remember(); return Result;
 }
 static xx509result flow_name_equal(xbytesview Left,xbytesview Right) {
     arm("certificate-name"); xx509result Result=xrtX509NameEqual(Left,Right); if(Result==X509_ERROR) remember(); return Result;
 }
 /* Resolver fault controls must not depend on OS scheduling or wall time. */
-static double flow_clock(void) { return selected("resolver")?ResolverClock:xrtTimer(); }
+static double flow_clock(void) {
+    if(IssueBudgetProbe) {
+        if(issue_mode("stale-memory") && IssueBudgetClockChecks++==1u) issue_charge(120u);
+        return IssueBudgetClock;
+    }
+    return selected("resolver")?ResolverClock:xrtTimer();
+}
 static double flow_after(int64 Ms) { return Ms == XRT_WAIT_FOREVER ? INFINITY : nextafter(flow_clock() + (double)Ms / 1000.0, INFINITY); }
-static void flow_sleep(int64 Ms) { Sleeps++; if(selected("resolver")) ResolverClock+=(double)Ms/1000.0; }
+static int64 flow_remaining(double Deadline) {
+    if(!IssueBudgetProbe && !selected("resolver")) return __xrtWaitRemaining(Deadline);
+    if(Deadline==INFINITY) return XRT_WAIT_FOREVER;
+    return Deadline<=flow_clock()?0:(int64)ceil((Deadline-flow_clock())*1000.0);
+}
+static void flow_sleep(int64 Ms) {
+    Sleeps++; if(selected("resolver")) ResolverClock+=(double)Ms/1000.0;
+    if(IssueBudgetProbe) {
+        IssueBudgetSlept+=(unsigned)Ms;issue_charge((unsigned)Ms);
+        if(issue_mode("timeout-wrap-oom")) testRequire(xrtMemDebugFailAfter(0),"Issue timeout wrapper fault arm");
+    }
+}
 static bool flow_init(xacmehttp* Http,struct xnetengine* Engine,cstr Ca,int64 Timeout) {
     (void)Engine; (void)Ca; memset(Http,0,sizeof(*Http)); Http->uTimeoutMs=Timeout; return true;
 }
@@ -341,7 +370,35 @@ static bool ReadRetryProbe, ReadRetryUncertain;
 static bool flow_exchange(xacmehttp* Http,cstr Method,cstr Url,cstr Type,xstrview Body,xacmehttpresponse* R) {
     (void)Http; (void)Method; (void)Type;
     cstr Stage=NULL,Json=NULL,Location=NULL,Nonce="bm9uY2U"; unsigned Status=200;
-    memset(R,0,sizeof(*R)); Requests++;
+    memset(R,0,sizeof(*R));
+    if(IssueBudgetProbe) {
+        bool Limited=!issue_mode("unlimited-zero") && !issue_mode("unlimited-minus-one");
+        if(Http->bOperationDeadline!=Limited || (Limited && fabs(Http->OperationDeadline-100.1)>0.000001)) IssueBudgetScopeErrors++;
+        if(Http->bOperationDeadline && IssueBudgetClock>=Http->OperationDeadline) {
+            xrtSetErrorInfo(XERR_TIMEOUT,"test.flow.http",71,"enclosing budget expired before HTTP submission");return false;
+        }
+        unsigned Cost=(issue_mode("nonce-spent") && strcmp(Url,"http://ca.example/nonce")==0) ||
+            (issue_mode("order-spent") && strcmp(Url,"http://ca.example/order-new")==0) ||
+            (issue_mode("certificate-spent") && strcmp(Url,"http://ca.example/certificate")==0)?120u:0u;
+        issue_charge(Cost);
+        if(issue_mode("late-memory") && strcmp(Url,"http://ca.example/order-new")==0) {
+            testRequire(xrtMemDebugFailAfter(0),"Issue actual producer OOM arm");
+            testRequire(!xrtMalloc(1u) && xrtMemDebugFailTriggered(),"Issue actual producer OOM");
+            IssueBudgetCause=xrtErrorRef(xrtGetError());xrtMemDebugFailClear();issue_charge(120u);Requests++;return false;
+        }
+        if(Http->bOperationDeadline && IssueBudgetClock>=Http->OperationDeadline) {
+            Requests++;xrtSetErrorInfo(XERR_TIMEOUT,"test.flow.http",72,"HTTP consumed enclosing budget");return false;
+        }
+        if((issue_mode("read-backoff") || issue_mode("timeout-wrap-oom")) && strcmp(Url,"http://ca.example/authz")==0 && IssueBudgetFaults++==0u) {
+            xrtSetErrorInfo(XERR_IO,"test.flow.http",73,"read producer rejected");
+            xerror* Root=xrtErrorRef(xrtGetError());
+            IssueBudgetCause=xrtErrorWrap(Root,XERR_IO,"xrt.acme.http",XACME_HTTP_ERROR_UNCERTAIN,"read result unknown");
+            xrtErrorFree(Root);testRequire(IssueBudgetCause!=NULL,"Issue read uncertainty fixture");
+            xrtSetError(IssueBudgetCause);Requests++;issue_charge(10u);return false;
+        }
+        if(strcmp(Url,"http://ca.example/challenge")==0) IssueBudgetTriggers++;
+    }
+    Requests++;
     if(AuthPolicyProbe && strcmp(Url,"http://ca.example/order-new")==0) {
         xbuffer Json;xrtBufferInit(&Json);LastJson="new-order-json";
         testRequire(xrtBufferAppend(&Json,XRT_BYTES_LITERAL("{\"status\":\"pending\"")),"authorization response prefix");
@@ -514,6 +571,7 @@ static bool flow_exchange(xacmehttp* Http,cstr Method,cstr Url,cstr Type,xstrvie
         else xrtSetErrorInfo(XERR_IO,"test.flow.http",77,"controlled transport cause");
         remember(); return false;
     }
+    if(issue_mode("poll-backoff") && Stage && strcmp(Stage,"authz")==0 && AuthzRequests>1u) Json="{\"status\":\"pending\"}";
     R->iStatus=(uint16)Status; R->sBody=duplicate(Json); R->iBodySize=Json?strlen(Json):0;
     R->sReplayNonce=duplicate(Nonce); R->sLocation=duplicate(Location);
     if(Stage && strcmp(Stage,"certificate")==0) {
@@ -603,6 +661,7 @@ static bool flow_dns_contains(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #define xrtSleep flow_sleep
 #define xrtTimer flow_clock
 #define __xrtWaitAfter flow_after
+#define __xrtWaitRemaining flow_remaining
 #define xrtAcmeStoreNeedRenew flow_need_renew
 #define xrtAcmeStoreSaveGrant flow_save_grant
 #define xrtAcmeStoreSaveAccount flow_save_account
@@ -636,12 +695,19 @@ static bool flow_dns_contains(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #undef xrtSleep
 #undef xrtTimer
 #undef __xrtWaitAfter
+#undef __xrtWaitRemaining
 #undef xrtAcmeStoreNeedRenew
 #undef xrtAcmeStoreSaveGrant
 #undef xrtAcmeStoreSaveAccount
 
 static bool dns_add(xacmednsprovider* D,xstrview F,xstrview T) {
     (void)D;(void)F; Adds++;
+    if(issue_mode("add-ack-expired")) issue_charge(120u);
+    if(issue_mode("add-backoff")) {
+        xrtSetErrorInfo(XERR_IO,"test.flow.dns",74,"DNS Add rejected before write");
+        if(!IssueBudgetCause) IssueBudgetCause=xrtErrorRef(xrtGetError());
+        issue_charge(10u);return false;
+    }
     if(AuthPolicyProbe) {
         testRequire(F.Size==27u && memcmp(F.Data,"_acme-challenge.example.com",27u)==0 && T.Size==43u && Adds<=65u,"authorization TXT owner/digest");
         if(AuthPolicyFault==AUTH_ADD_MEMORY && Adds==AuthPolicyCount) {xrtSetError(AuthPolicyError);remember();return false;}
@@ -652,6 +718,13 @@ static bool dns_add(xacmednsprovider* D,xstrview F,xstrview T) {
 }
 static bool dns_remove(xacmednsprovider* D,xstrview F,xstrview T) {
     (void)D;(void)F;(void)T; Removes++;
+    if(IssueBudgetProbe) {
+        /* Callback and retry delays belong to independent best-effort cleanup. */
+        if(issue_mode("cleanup-spent")) {
+            issue_charge(5000u);
+            if(Removes<3u) {xrtSetErrorInfo(XERR_IO,"test.flow.cleanup",75,"cleanup retry");return false;}
+        }
+    }
     if(AuthPolicyProbe) {
         bool Found=false;
         for(size_t i=0;i<AuthPolicyCount;i++) if(strlen(AuthPolicyOwned[i])==T.Size && memcmp(AuthPolicyOwned[i],T.Data,T.Size)==0) {
@@ -664,6 +737,7 @@ static bool dns_remove(xacmednsprovider* D,xstrview F,xstrview T) {
 }
 static bool dns_propagate(xacmednsprovider* D,xstrview F,xstrview T) {
     (void)D;(void)F;(void)T;
+    if(IssueBudgetProbe) {IssueBudgetPropagates++;if(issue_mode("propagate-expired")) issue_charge(120u);}
     if(Inject && selected("propagate")) {
         arm("propagate"); void* Allocation=xrtMalloc(1);
         testRequire(!Allocation && xrtMemDebugFailTriggered(),"propagation cause injection failed"); remember(); return false;
@@ -1271,7 +1345,84 @@ static void eab_keys(bool Wire) {
     testRequire(Failed==0u,"EAB key length, secure retirement or allocation failure regression");
     printf("[PASS] FLOW EAB key lengths, padding, secure retirement and allocation recovery\n");
 }
+static bool issue_has_cause(const xerror* Error,const xerror* Expected) {
+    for(;Error;Error=xrtErrorCause(Error)) if(Error==Expected) return true;
+    return false;
+}
+static void issue_budget_policy(cstr Only) {
+    static const cstr Modes[]={"control","unlimited-zero","unlimited-minus-one","order-spent","nonce-spent",
+        "sign-spent","poll-backoff","read-backoff","add-backoff","add-ack-expired","propagate-expired",
+        "certificate-spent","certificate-parse-spent","cleanup-spent","late-memory","timeout-wrap-oom","invalid-domain","stale-memory"};
+    static const flowcase Fixture={"issue-budget",FLOW_ISSUE,FLOW_SUCCESS,NULL,false};
+    bool Matched=Only==NULL;
+    for(size_t i=0;i<sizeof(Modes)/sizeof(Modes[0]);i++) {
+        if(Only && strcmp(Only,Modes[i])!=0) continue;
+        Matched=true;Active=&Fixture;Enabled=Inject=Armed=InOperation=false;FirstError=NULL;xrtClearError();
+        struct xacmeclient* Client=create_client(false);testRequire(Client!=NULL,"Issue budget client fixture");
+        Client->uIssueTimeoutMs=strcmp(Modes[i],"unlimited-zero")==0?0:strcmp(Modes[i],"unlimited-minus-one")==0?-1:100;
+        IssueBudgetMode=Modes[i];IssueBudgetProbe=true;IssueBudgetClock=100.0;
+        IssueBudgetSlept=IssueBudgetPropagates=IssueBudgetTriggers=IssueBudgetFaults=IssueBudgetScopeErrors=IssueBudgetClockChecks=0u;IssueBudgetCause=NULL;
+        Requests=NonceRequests=AuthzRequests=OrderRequests=Sleeps=Adds=Removes=0u;Finalized=false;InOperation=true;
+        if(issue_mode("nonce-spent")) Client->sNonce[0]=0;
+        xstrview Domain=issue_mode("invalid-domain")?(xstrview){"example.com\0suffix",18u}:(xstrview)XRT_STR_LITERAL("example.com");
+        xacmednsprovider Dns={"fixture",XACME_DNS_CAP_PROPAGATE,NULL,dns_add,dns_remove,dns_propagate};
+        xacmeissuegrant Grant;memset(&Grant,0xa5,sizeof(Grant));
+        if(issue_mode("stale-memory")) {
+            testRequire(xrtMemDebugFailAfter(0),"stale caller MEMORY arm");
+            testRequire(!xrtMalloc(1u) && xrtMemDebugFailTriggered(),"stale caller actual MEMORY");
+            IssueBudgetCause=xrtErrorRef(xrtGetError());xrtMemDebugFailClear();
+        }
+        bool Result=xrtAcmeClientIssue(Client,&Domain,1u,&Dns,&Grant);
+        bool Oom=issue_mode("late-memory") || issue_mode("timeout-wrap-oom");
+        bool Success=issue_mode("control") || issue_mode("unlimited-zero") || issue_mode("unlimited-minus-one") || issue_mode("cleanup-spent");
+        printf("[issue-budget] %s success=%d kind=%d ms=%.3f requests=%u nonce=%u adds=%u removes=%u propagates=%u triggers=%u sleep=%u/%u scope-errors=%u\n",
+            Modes[i],Result,(int)xrtErrorKind(xrtGetError()),(IssueBudgetClock-100.0)*1000.0,Requests,NonceRequests,Adds,Removes,
+            IssueBudgetPropagates,IssueBudgetTriggers,Sleeps,IssueBudgetSlept,IssueBudgetScopeErrors);
+        testRequire(Result==Success,"Issue budget accepted expired work or rejected control");
+        testRequire((Client->uIssueTimeoutMs<=0 || !Client->bIssueDeadline) && !Client->Http.bOperationDeadline,
+            "finite Issue budget leaked into later caller operations or cleanup");
+        testRequire(IssueBudgetScopeErrors==0u,"Issue HTTP did not inherit the exact enclosing deadline");
+        if(Success) testRequire(Grant.sFullchainPem && Grant.sKeyPem && xrtGetError()==NULL,"Issue control lost complete grant or retained cleanup error");
+        else {
+            testRequire(!Grant.sFullchainPem && !Grant.sKeyPem,"Issue timeout delivered partial grant");
+            testRequire(xrtErrorKind(xrtGetError())==(Oom?XERR_MEMORY:issue_mode("invalid-domain")?XERR_ARGUMENT:XERR_TIMEOUT),"Issue timeout lost MEMORY/argument category");
+            if(IssueBudgetCause && !issue_mode("timeout-wrap-oom") && !issue_mode("stale-memory")) testRequire(issue_has_cause(xrtGetError(),IssueBudgetCause),"Issue budget lost immutable producer cause");
+            if(issue_mode("late-memory")) testRequire(xrtGetError()==IssueBudgetCause,"late producer MEMORY was wrapped or replaced");
+        }
+        if(issue_mode("stale-memory")) testRequire(Requests==0u && !issue_has_cause(xrtGetError(),IssueBudgetCause),"new Issue inherited a stale caller cause or submitted expired work");
+        if(issue_mode("sign-spent")) testRequire(Requests==0u,"signing consumed budget but HTTP was submitted");
+        if(issue_mode("nonce-spent") || issue_mode("order-spent")) testRequire(Requests==1u && Adds==0u,"exhausted initial stage submitted later work");
+        if(issue_mode("read-backoff") || issue_mode("timeout-wrap-oom") || issue_mode("add-backoff"))
+            testRequire(Sleeps==1u && IssueBudgetSlept<=91u && Adds==(issue_mode("add-backoff")?1u:0u),"enclosing retry backoff restarted a full delay or replayed work");
+        if(issue_mode("poll-backoff")) testRequire(Sleeps==1u && IssueBudgetSlept<=101u && Removes==1u,"status poll ignored remaining issue budget");
+        if(issue_mode("add-ack-expired")) testRequire(Adds==1u && Removes==1u && IssueBudgetPropagates==0u && IssueBudgetTriggers==0u,"acknowledged record lost cleanup ownership at deadline");
+        if(issue_mode("propagate-expired")) testRequire(Removes==1u && IssueBudgetPropagates==1u && IssueBudgetTriggers==0u,"expired propagation triggered challenge or lost TXT cleanup");
+        if(issue_mode("cleanup-spent")) testRequire(Removes==3u && Sleeps==2u && IssueBudgetSlept==3000u,"cleanup inherited exhausted issue budget");
+        if(issue_mode("certificate-spent") || issue_mode("certificate-parse-spent")) testRequire(Removes==1u,"late certificate failure lost record cleanup");
+        xrtMemDebugFailClear();xrtAcmeGrantUnit(&Grant);xrtErrorFree(IssueBudgetCause);IssueBudgetCause=NULL;xrtClearError();
+        /* One failed read now retries normally on this same client. */
+        IssueBudgetProbe=false;ReadRetryProbe=true;ReadRetryCalls=0u;ReadRetryFailures=1u;ReadRetryUncertain=true;Sleeps=0u;
+        xrtSetErrorInfo(XERR_IO,"xrt.acme.http",XACME_HTTP_ERROR_UNCERTAIN,"separately requested read");
+        ReadRetryError=xrtErrorRef(xrtGetError());xrtClearError();xacmehttpresponse Response;
+        testRequire(xacmeFlowPostAsGet(Client,"http://ca.example/read-retry",&Response) && ReadRetryCalls==2u && Sleeps==1u,"expired Issue poisoned separate caller read retry");
+        xacmeHttpResponseUnit(&Response);ReadRetryProbe=false;xrtErrorFree(ReadRetryError);ReadRetryError=NULL;
+        Client->uIssueTimeoutMs=0;Finalized=false;Requests=NonceRequests=AuthzRequests=OrderRequests=Adds=Removes=0u;
+        Domain=(xstrview)XRT_STR_LITERAL("example.com");
+        testRequire(xrtAcmeClientIssue(Client,&Domain,1u,&Dns,&Grant),"same-client separately requested Issue cannot recover");
+        xrtAcmeGrantUnit(&Grant);xrtAcmeClientDestroy(Client);xrtClearError();
+        testMemoryDebugDrain("Issue budget retained logical allocations");printf("[PASS] FLOW issue-budget/%s\n",Modes[i]);
+    }
+    testRequire(Matched,"unknown Issue budget mode");
+    if(!Only) for(unsigned i=0;i<2u;i++) {
+        unsigned Before=Requests;xacmeaccountconfig Account;xacmeclientconfig Config;
+        xrtAcmeAccountConfigInit(&Account);xrtAcmeClientConfigInit(&Config);Account.sDirectoryUrl="http://ca.example/dir";Config.pAccount=&Account;
+        Config.uIssueTimeoutMs=i?INT64_MIN:-2;
+        testRequire(xrtAcmeClientCreate(&Config)==NULL && xrtErrorKind(xrtGetError())==XERR_ARGUMENT && Requests==Before,"invalid Issue budget created transport or registered account");
+        xrtClearError();testMemoryDebugDrain("invalid Issue budget retained allocation");
+    }
+}
 int main(int argc,char** argv) {
+    if((argc==2 || argc==3) && strcmp(argv[1],"issue-budget")==0) { issue_budget_policy(argc==3?argv[2]:NULL); return 0; }
     if(argc==2 && strcmp(argv[1],"authorization-policy")==0) { authorization_policy(); return 0; }
     if(argc==2 && strcmp(argv[1],"rollover-key-separation")==0) { rollover_key_separation(); return 0; }
     if(argc==2 && strcmp(argv[1],"rollover-faults")==0) { rollover_fault_policy(); return 0; }
@@ -1281,7 +1432,7 @@ int main(int argc,char** argv) {
     if(argc==2 && strcmp(argv[1],"resolver-endpoints")==0) { resolver_endpoints(); return 0; }
     testRequire(argc==1 || argc==3,"flow fixture usage: [name control|oom]");
     if(argc==2 && strcmp(argv[1],"alternate-urls")==0) { alternate_urls(); return 0; }
-    if(argc==1) { link_parser(); alternate_urls(); read_retry_policy(NULL); resolver_endpoints(); eab_keys(false); rollover_fault_policy(); rollover_key_separation(); authorization_policy(); }
+    if(argc==1) { issue_budget_policy(NULL); link_parser(); alternate_urls(); read_retry_policy(NULL); resolver_endpoints(); eab_keys(false); rollover_fault_policy(); rollover_key_separation(); authorization_policy(); }
     for(size_t i=0;i<sizeof(Cases)/sizeof(Cases[0]);i++) {
         if(argc==3 && strcmp(argv[1],Cases[i].Name)!=0) continue;
         if(argc==3) { bool Oom=strcmp(argv[2],"oom")==0; testRequire(Oom || strcmp(argv[2],"control")==0,"invalid flow mode"); run_case(&Cases[i],Oom); return 0; }

@@ -117,6 +117,14 @@ static void xacmeHttpBudgetError(const xerror* pCause)
         "acme http request budget exhausted");
 }
 
+static double xacmeHttpDeadline(const xacmehttp* pHttp)
+{
+	double Deadline = __xrtWaitAfter(pHttp != NULL ? pHttp->uTimeoutMs : 0);
+	if(pHttp != NULL && pHttp->bOperationDeadline &&
+		pHttp->OperationDeadline < Deadline) Deadline = pHttp->OperationDeadline;
+	return Deadline;
+}
+
 static bool xacmeHttpExchangeRetry(
 	xacmehttp* pHttp, cstr sMethod, cstr sUrl, cstr sContentType,
 	xstrview sBody, const xacmehttpheader* pExtraHeaders,
@@ -125,7 +133,7 @@ static bool xacmeHttpExchangeRetry(
 	uint32 uAttempt;
 	xerror* pFirst = NULL;
 	bool bReadOnlyMethod = xacmeHttpMethodReadOnly(sMethod);
-	double Deadline = __xrtWaitAfter(pHttp != NULL ? pHttp->uTimeoutMs : 0);
+	double Deadline = xacmeHttpDeadline(pHttp);
 	for(uAttempt = 1u; uAttempt <= XACME_HTTP_RETRY_MAX; uAttempt++)
 	{
 		bool bRequestStarted = false;
@@ -994,7 +1002,7 @@ bool xacmeHttpExchangeOnceV(
 	bool bOk = xacmeHttpExchangeOnceImpl(
 		pHttp, sMethod, sUrl, sContentType, sBody, pExtraHeaders,
 		iExtraCount, pResponse, &bRequestStarted, NULL,
-		__xrtWaitAfter(pHttp != NULL ? pHttp->uTimeoutMs : 0));
+		xacmeHttpDeadline(pHttp));
 	if(!bOk && bRequestStarted && !xacmeHttpMethodReadOnly(sMethod))
 	{
 		xacmeHttpMarkWriteUncertain(pHttp);

@@ -109,8 +109,8 @@ def request_capacity_case(client: Path, ca: Path) -> None:
 
 
 def exchange_budget_case(client: Path, ca: Path, leaf: Path, key: Path, *,
-                         style: str, timeout: bool) -> None:
-    """Charge independent real handshake/response or retry phases to one exchange."""
+                         style: str, timeout: bool, operation: bool = False) -> None:
+    """Charge real wire phases to a request or a shorter enclosing operation."""
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listener.bind(("127.0.0.1", 0))
     listener.listen(4)
@@ -208,7 +208,7 @@ def exchange_budget_case(client: Path, ca: Path, leaf: Path, key: Path, *,
 
     worker = threading.Thread(target=serve, daemon=True)
     worker.start()
-    mode = "budget-" + ("retry-" if retry else "") + ("timeout" if timeout else "control")
+    mode = ("operation-" if operation else "") + "budget-" + ("retry-" if retry else "") + ("timeout" if timeout else "control")
     budget = 1000 if timeout else 2500
     url = f"{'https' if style == 'tls' else 'http'}://127.0.0.1:{listener.getsockname()[1]}/budget"
     process = subprocess.Popen([str(client), url, str(ca), mode, str(budget)],
@@ -243,7 +243,7 @@ def exchange_budget_case(client: Path, ca: Path, leaf: Path, key: Path, *,
         if watcher is not None:
             watcher.join(timeout=1)
         listener.close()
-    print(f"  exchange budget {style} {'timeout' if timeout else 'control'}: "
+    print(f"  {'operation' if operation else 'exchange'} budget {style} {'timeout' if timeout else 'control'}: "
           f"{len(requests)} actual request(s), resource checks passed", flush=True)
 
 
@@ -572,19 +572,27 @@ def main() -> None:
         if "url-invalid" in selected:
             check("invalid URL authority/target", lambda: invalid_url_case(client, ca))
         if "exchange-budget" in selected:
-            for style in ("tls", "tcp-body", "retry"):
-                for timeout in (False, True):
-                    check(f"exchange budget {style} timeout={timeout}",
-                          lambda style=style, timeout=timeout: exchange_budget_case(
-                              client, ca, leaf, key, style=style, timeout=timeout))
+            for operation in (False, True):
+                for style in ("tls", "tcp-body", "retry"):
+                    for timeout in (False, True):
+                        check(f"{'operation' if operation else 'exchange'} budget {style} timeout={timeout}",
+                              lambda style=style, timeout=timeout, operation=operation: exchange_budget_case(
+                                  client, ca, leaf, key, style=style, timeout=timeout, operation=operation))
         if "lifecycle" in selected:
             check("HTTP lifecycle", lambda: lifecycle_case(client, ca))
         if "ownership" in selected or "dns-lifecycle" in selected:
             ownership_client = build_client(build_root, args.compiler, args.sanitize,
                                             ownership=True, coverage=coverage)
         if "ownership" in selected:
-            completed = subprocess.run([str(ownership_client), str(ca)], capture_output=True,
-                                       text=True, timeout=90)
+            try:
+                completed = subprocess.run([str(ownership_client), str(ca)], capture_output=True,
+                                           text=True, timeout=90)
+            except subprocess.TimeoutExpired as exc:
+                for output in (exc.stdout, exc.stderr):
+                    if output:
+                        print(output.decode("utf-8", errors="replace") if isinstance(output, bytes) else output,
+                              end="", file=sys.stderr, flush=True)
+                raise
             print(completed.stdout, end="", flush=True)
             if completed.returncode != 0:
                 failures.append(f"client/provider ownership: {completed.stderr}")

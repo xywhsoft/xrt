@@ -3871,7 +3871,7 @@ typedef struct xacmeclientconfig {
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
 	/*
-		单次签发的总预算（毫秒；0 = 不限时）：覆盖订单/挑战/
+		单次签发的总预算（毫秒；0 或 -1 不限时，其他负数非法）：覆盖订单/挑战/
 		finalize/证书下载的全部轮询与退避，超限以 XERR_TIMEOUT
 		失败。防病态 CA 把签发挂成小时级。
 	*/

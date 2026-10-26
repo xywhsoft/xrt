@@ -38,7 +38,7 @@
 
 | 产品目录 | 实现模块 | 源文件 | tests | single_tests | examples | 本轮状态 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| xacme | 14 | 16 | 28 | 10 | 1 | HTTP 总预算/Obtain/私钥副本、EAB/resolver 与换钥修复通过，Issue/provider/RSA 导入复核继续 |
+| xacme | 14 | 16 | 28 | 10 | 1 | HTTP/Issue 预算作用域与外层退避、Obtain/私钥副本等修复通过，DNS/provider 预算及 RSA 导入复核继续 |
 | xhttp | 115 | 124 | 236 | 115 | 82 | 正文流/前置条件字节快照及专项测试通过，其余源码复核继续 |
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
@@ -1101,3 +1101,73 @@ RSA 导入及 provider/签名/XML 复核继续；大同名 RRset 的递归探测
 证据：`ci-8a23-acme-coverage-{linux,windows}.log`、`acme-issue-cfg-before.log`、
 `acme-issue-cfg-signed-before-source.log`、`acme-retirement-signed-windows.json`、
 `acme-retirement-signed-windows-gcc.log`、`acme-retirement-signed-repeat-windows-gcc.log`。
+
+
+### 第 34 批：Issue 的 HTTP 截止时间、外层退避和预算状态收尾
+
+- Issue 原先只在少数轮询入口检查截止时间，nonce、订单、挑战、finalize 和证书 HTTP
+  请求仍可各自取得完整请求预算，外层退避也重新睡满；结束后 bIssueDeadline 未复位，
+  可干扰同实例的后续操作。现在内部 HTTP 上可附加本次同步操作的绝对截止时间，
+  Exchange/OnceV 都取该时间和请求自身截止时间的较早者；不改公开 ABI，不修改请求配置值。
+  Issue 的 POST-as-GET 安全重试、状态轮询和 DNS Add 外层重试按剩余预算退避，耗尽后
+  不发起下一阶段。badNonce 的再次请求同样经过统一 HTTP 截止时间。
+- 0 和既有 -1 均保持不限时；小于 -1 在创建传输/账户之前报告 ARGUMENT，直接内部 Issue
+  也检查。8a23f336 源码对 -2/INT64_MIN 均实际建立客户端并发出三次受控 HTTP 请求；
+  最终回归要求这两种输入在请求数不增加时拒绝。实际计时使用 Core 单调截止时间。
+- 先登记已获确认的 TXT 记录，再检查预算或进入传播；即使 Add 刚成功就超时，仍保有
+  统一收尾所需的完整记录对。签发结果在清理前确定；随后清除客户端/HTTP 预算状态，
+  Remove 的三次尽力重试及引擎退休保持独立预算。迟到的成功证书不作为部分 grant 交付，
+  失败经统一 grant 析构清除私钥。预算超时保留失败原因链，实际 MEMORY 保留原对象。
+- 新 Issue 入口还须隔离调用前的旧错误。新增真实 allocator MEMORY 后再让首次 HTTP 前
+  的受控时钟耗尽预算，补清理前候选代码复现“无新 IO 却返回旧 MEMORY”；最后仅在有效
+  签发开始时清除旧错误，当前阶段真实 MEMORY 仍保真。该反例是本批未提交候选的复现，
+  与 8a23f336 的旧版本对照分别留证，未混为同一基线。
+- 完整 flow 故障夹具增加 18 组预算场景及两种非法配置：含无限时控制、nonce/签名/订单/
+  证书阶段、轮询/只读与 Add 退避、Add 成功即耗尽、传播回调耗尽、清理独立性、迟到
+  MEMORY、超时上下文 OOM、非法域名及旧错误隔离；每组检查同实例分别请求的 read/Issue
+  恢复、产物失败原子性和最终零分配。JSON/JWS/CSR/X509/allocator/grant/拥有权走真实源码，
+  时间与 HTTP/provider 同步边界受控，不将这组宣称为真实网络证明。
+  相同最终夹具配 8a23f336 源码：18 组中 16 组失败，0/-1 两组控制通过；内部 HTTP
+  新增 30 组操作预算场景，旧源码 18 组失败、12 组控制通过。原 83 组传输、32 组交换
+  预算及参数组保留，HTTP 故障程序现每环境共 146 组通过。
+- 独立真实 TCP/TLS 对端增加六组外层预算控制/超时，总计 12 组：HTTP 自身留 30 秒，
+  外层仅 1000/2500ms，跨握手、响应头/体及只读重试验证耗尽后的请求数、超时返回和
+  析构前 Abort/关闭。Windows/Linux GCC、Linux Clang sanitizer 均通过；HTTP lifecycle、
+  拥有权程序及 40 项公开聚合 provider guard 一并通过。六处内部 DnsAdd 夹具调用显式
+  传 NULL，保持其原有无 Issue 预算的合同；受影响的 46 组 provider 真实协议/拥有权场景
+  在这三环境通过，不把它们算作 provider 内层预算接通。
+- 首轮 Windows 组合验证中的拥有权程序触发原驱动 90 秒总界限，之前的直接程序通过，
+  旧日志未保留阶段输出，唯一根因尚未证实。现在夹具 stdout 不缓冲，驱动在总超时异常
+  时保留 stdout/stderr；不增加 90 秒界限。单独拥有权复验及原组合命令均重新通过；
+  保留首次失败，后续继续跟踪，诊断补充不冒充产品根因修复。
+- 首次完整套件 Windows GCC 38 程序、Linux GCC/Clang ASan+UBSan+float-cast-overflow+leaks/
+  TCC 各 37 程序通过。最终补入口旧错误清理后，四环境追加全部 28 个模块程序和完整
+  flow 故障程序，18 组新增场景各通过；未重复与这处变化无关的其他单头程序。最终模拟
+  CA 脚本在 Windows/Linux GCC、Linux Clang sanitizer 各 18 项全部通过，含脚本检查和
+  真实 TLS/JWS/EAB/TXT/grant/store 流程，不把每项都计成独立 CA 会话。
+  其中一次 Linux 复验误选历史 out/gcc/native-linux 二进制，产生五项失败；本轮构建日志
+  指定的实际产物为 out/gcc/native，修正选择后两编译器均通过，保留误选日志与两份二进制
+  哈希/mtime，不归咎于产品新回归。
+- 最终四个 Windows/Linux static/shared 消费者通过，每包 16 个自有源文件、链接一份
+  Core。生成实现/声明、feature、公开符号/参考和发布门禁通过；1211 项最终相关源码、
+  头、manifest 与驱动输入归一化 LF 后 Windows/WSL 一致。
+- 第 33 批 0ef84948 已在两平台恢复 ACME coverage：Windows 5885/6737 行（87.35%）、
+  4903/6949 分支结果（70.56%）；Linux 5874/6740 行（87.15%）、4911/6957（70.59%），
+  均超过原 70%/55% 门槛。已下载原始 artifact 并核对每平台全部 16 个自有 C 文件哈希
+  与 0ef84948 Git blob 一致；严格合并器未改。这是 0ef84948 的证据，不能套用于本批
+  新 Issue 控制流；本批仍需自己的 CI 和覆盖率。
+- 本批关闭 Issue 的 ACME HTTP 预算与外层退避/状态生命周期；内层 UDP 接收、传播睡眠
+  及内置 provider HTTP/重签退避仍需贯穿截止时间，宿主同步回调亦不能抢占终止。
+  Retry-After、EAB 标识符、RSA 导入、provider/签名/XML、DNS 问题/属主/CNAME 绑定和
+  EDNS/TCP 截断恢复继续。仍仅 xjwt/xoauth2 为整库有界首轮完成，合计 2/21。
+
+证据：`acme-issue-budget-windows-before.json`、`acme-issue-budget-before-provenance.json`、
+`acme-issue-budget-factory-before.json`、`acme-issue-budget-stale-before.log`、
+`acme-issue-budget-stale-before-provenance.json`、`acme-issue-budget-full-{windows,linux}.json`、
+`acme-issue-budget-postclear-{windows,linux}.json`、`acme-issue-budget-final-{windows,linux}.json`、
+`acme-issue-budget-wire-windows-gcc.log`（首次总超时）、`acme-issue-budget-owner-windows-repro.log`、
+`acme-issue-budget-wire-final-*.log`、`acme-issue-budget-provider-{windows,linux}.json`、
+`acme-issue-budget-mock-{windows,linux}.json`、`acme-issue-budget-mock-stale-selection.json`、
+`acme-issue-budget-mock-linux-gcc-stale-binary.log`、`acme-issue-budget-packages-final-*.json`、
+`acme-issue-budget-checks.json`、`acme-issue-budget-final-input-audit.json`、
+`ci-0ef84948-acme-coverage-provenance.json` 及对应原始 zip/json/log。

@@ -1199,6 +1199,8 @@ int main(int argc, char** argv)
 	char* ca;
 	long size;
 	bool ok;
+	/* Preserve the last completed ownership phase when a driver times out. */
+	setvbuf(stdout, NULL, _IONBF, 0);
 	if((argc != 2 && argc != 3 && argc != 4) || !xrtMemDebugEnable(true)) return 2;
 	for(RollbackFault = 0u; RollbackFault <= 2u; RollbackFault++) {
 		if(rollback_deadline(XRT_WAIT_FOREVER) != INFINITY ||
