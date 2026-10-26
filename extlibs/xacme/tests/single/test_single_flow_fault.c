@@ -161,6 +161,15 @@ static bool RolloverPemPending;
 static cstr RolloverExpectedPem;
 static bool RolloverValidationOom;
 static unsigned RolloverSignatures;
+typedef enum authpolicyfault { AUTH_OK, AUTH_VALID, AUTH_WORK_MEMORY, AUTH_LOOKUP_IO, AUTH_LOOKUP_MEMORY,
+    AUTH_ADD_MEMORY, AUTH_URL_TYPE, AUTH_URL_NUL, AUTH_URL_EMPTY, AUTH_LIST_MISSING, AUTH_LIST_TYPE,
+    AUTH_TRIGGER_IO, AUTH_FINALIZE_IO } authpolicyfault;
+static bool AuthPolicyProbe;
+static size_t AuthPolicyCount, AuthPolicyLookups, AuthPolicyTriggers, AuthPolicyCsrs, AuthPolicyFinalizes, AuthPolicyAllocations;
+static authpolicyfault AuthPolicyFault;
+static xerror* AuthPolicyError;
+static unsigned AuthPolicyReads[65];
+static char AuthPolicyOwned[65][XACME_TXT_RECORD_MAX];
 static void eab_end_scan(void) {
     if(EabProbe && EabArmed && !EabEnded) {
         xmemdebugsnapshot S; xrtMemDebugSnapshot(&S);
@@ -244,6 +253,14 @@ static void arm(cstr Target) {
     }
 }
 static void* flow_malloc(size_t Size) {
+    if(AuthPolicyProbe && LastJson && strcmp(LastJson,"new-order-json")==0) {
+        AuthPolicyAllocations++;
+        if(AuthPolicyFault==AUTH_WORK_MEMORY) testRequire(xrtMemDebugFailAfter(0),"authorization work allocation fault arm");
+        void* Result=xrtMalloc(Size);
+        if(AuthPolicyFault==AUTH_WORK_MEMORY) testRequire(!Result && xrtMemDebugFailTriggered(),"actual authorization work allocation failure");
+        if(!Result) remember();
+        xrtMemDebugFailClear();return Result;
+    }
     if(Size==sizeof(xacmecertkey)) arm("cert-key-alloc");
     else if(LastJson && strcmp(LastJson,"auth-poll-json")==0) arm("auth-status-copy");
     else if(LastJson && strcmp(LastJson,"order-ready-json")==0) arm("order-status-copy");
@@ -281,6 +298,11 @@ static bool flow_thumb(const xacmees256key* Key,char* Output) {
     arm("thumbprint"); bool Result=xacmeJwkEcThumbprint(Key,Output); if(!Result) remember(); return Result;
 }
 static bool flow_csr(const xacmecertkey* Key,const xacmecsrconfig* Config,xbuffer* Output) {
+    if(AuthPolicyProbe) {
+        AuthPolicyCsrs++;
+        testRequire(Config->DomainCount==1u && Config->Domains[0].Size==11u &&
+            memcmp(Config->Domains[0].Data,"example.com",11u)==0,"authorization count changed CSR identifiers");
+    }
     if(named("domain-duplicates")) testRequire(Config->DomainCount==1,"CSR SAN inputs differed from the distinct order identifiers");
     arm("csr"); bool Result=xacmeCsrBuild(Key,Config,Output); if(!Result) remember(); return Result;
 }
@@ -320,6 +342,48 @@ static bool flow_exchange(xacmehttp* Http,cstr Method,cstr Url,cstr Type,xstrvie
     (void)Http; (void)Method; (void)Type;
     cstr Stage=NULL,Json=NULL,Location=NULL,Nonce="bm9uY2U"; unsigned Status=200;
     memset(R,0,sizeof(*R)); Requests++;
+    if(AuthPolicyProbe && strcmp(Url,"http://ca.example/order-new")==0) {
+        xbuffer Json;xrtBufferInit(&Json);LastJson="new-order-json";
+        testRequire(xrtBufferAppend(&Json,XRT_BYTES_LITERAL("{\"status\":\"pending\"")),"authorization response prefix");
+        if(AuthPolicyFault==AUTH_LIST_TYPE) testRequire(xrtBufferAppend(&Json,XRT_BYTES_LITERAL(",\"authorizations\":\"invalid\"")),"authorization wrong-type fixture");
+        else if(AuthPolicyFault!=AUTH_LIST_MISSING) {
+            testRequire(xrtBufferAppend(&Json,XRT_BYTES_LITERAL(",\"authorizations\":[")),"authorization array prefix");
+            for(size_t i=0;i<AuthPolicyCount;i++) {
+                char Item[130];
+                if(i) testRequire(xrtBufferAppendByte(&Json,','),"authorization separator");
+                if(i+1u==AuthPolicyCount && AuthPolicyFault==AUTH_URL_TYPE) strcpy(Item,"17");
+                else if(i+1u==AuthPolicyCount && AuthPolicyFault==AUTH_URL_EMPTY) strcpy(Item,"\"\"");
+                else snprintf(Item,sizeof(Item),"\"http://ca.example/auth-policy/%zu%s\"",i,
+                    i+1u==AuthPolicyCount && AuthPolicyFault==AUTH_URL_NUL?"\\u0000suffix":"");
+                testRequire(xrtBufferAppend(&Json,(xbytesview){(const uint8*)Item,strlen(Item)}),"authorization URL fixture");
+            }
+            testRequire(xrtBufferAppendByte(&Json,']'),"authorization array end");
+        }
+        testRequire(xrtBufferAppend(&Json,XRT_BYTES_LITERAL("}")) && xrtBufferAppendByte(&Json,0),"authorization JSON fixture");
+        R->iStatus=201;R->sBody=(str)Json.Data;R->iBodySize=Json.Size-1u;
+        R->sLocation=duplicate("http://ca.example/order");R->sReplayNonce=duplicate(Nonce);return true;
+    }
+    if(AuthPolicyProbe && strncmp(Url,"http://ca.example/auth-policy/",30u)==0) {
+        size_t Id=(size_t)strtoul(Url+30u,NULL,10);char Json[400];
+        testRequire(Id<AuthPolicyCount && Id<65u,"authorization fixture URL index");AuthPolicyLookups++;
+        LastJson="auth-policy-json";
+        if(Id+1u==AuthPolicyCount && (AuthPolicyFault==AUTH_LOOKUP_IO || AuthPolicyFault==AUTH_LOOKUP_MEMORY)) {
+            xrtSetError(AuthPolicyError);remember();return false;
+        }
+        if(AuthPolicyReads[Id]++ || AuthPolicyFault==AUTH_VALID) strcpy(Json,"{\"status\":\"valid\"}");
+        else snprintf(Json,sizeof(Json),"{\"status\":\"pending\",\"identifier\":{\"type\":\"dns\",\"value\":\"example.com\"},"
+            "\"challenges\":[{\"type\":\"dns-01\",\"url\":\"http://ca.example/challenge-policy/%zu\",\"token\":\"TOKEN-%zu\"}]}",Id,Id);
+        R->iStatus=200;R->sBody=duplicate(Json);R->iBodySize=strlen(Json);R->sReplayNonce=duplicate(Nonce);return true;
+    }
+    if(AuthPolicyProbe && strncmp(Url,"http://ca.example/challenge-policy/",35u)==0) {
+        testRequire(Adds==AuthPolicyCount,"challenge triggered before all required TXT values coexist");AuthPolicyTriggers++;
+        if(AuthPolicyFault==AUTH_TRIGGER_IO && AuthPolicyTriggers==AuthPolicyCount) {xrtSetError(AuthPolicyError);remember();return false;}
+        LastJson=NULL;R->iStatus=200;R->sBody=duplicate("{}");R->iBodySize=2u;R->sReplayNonce=duplicate(Nonce);return true;
+    }
+    if(AuthPolicyProbe && strcmp(Url,"http://ca.example/finalize")==0) {
+        AuthPolicyFinalizes++;
+        if(AuthPolicyFault==AUTH_FINALIZE_IO) {xrtSetError(AuthPolicyError);remember();return false;}
+    }
     if(RolloverProbe && (strcmp(Url,"http://ca.example/account-new")==0 || strcmp(Url,"http://ca.example/key-change")==0)) {
         bool Lookup=strcmp(Url,"http://ca.example/account-new")==0;
         if(Lookup) RolloverLookups++;
@@ -571,11 +635,23 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 
 static bool dns_add(xacmednsprovider* D,xstrview F,xstrview T) {
     (void)D;(void)F; Adds++;
+    if(AuthPolicyProbe) {
+        testRequire(F.Size==27u && memcmp(F.Data,"_acme-challenge.example.com",27u)==0 && T.Size==43u && Adds<=65u,"authorization TXT owner/digest");
+        if(AuthPolicyFault==AUTH_ADD_MEMORY && Adds==AuthPolicyCount) {xrtSetError(AuthPolicyError);remember();return false;}
+        memcpy(AuthPolicyOwned[Adds-1u],T.Data,T.Size);AuthPolicyOwned[Adds-1u][T.Size]=0;return true;
+    }
     testRequire(T.Size<sizeof(ResolverTxt),"resolver fixture TXT overflow");
     memcpy(ResolverTxt,T.Data,T.Size); ResolverTxt[T.Size]=0; return true;
 }
 static bool dns_remove(xacmednsprovider* D,xstrview F,xstrview T) {
     (void)D;(void)F;(void)T; Removes++;
+    if(AuthPolicyProbe) {
+        bool Found=false;
+        for(size_t i=0;i<AuthPolicyCount;i++) if(strlen(AuthPolicyOwned[i])==T.Size && memcmp(AuthPolicyOwned[i],T.Data,T.Size)==0) {
+            testRequire(!Found,"authorization TXT removed more than once");AuthPolicyOwned[i][0]=0;Found=true;
+        }
+        testRequire(Found && F.Size==27u && memcmp(F.Data,"_acme-challenge.example.com",27u)==0,"authorization cleanup lost an owned TXT value");return true;
+    }
     if(named("cleanup-cause")) { xrtSetErrorInfo(XERR_STATE,"test.flow.dns",99,"cleanup cause"); return false; }
     return true;
 }
@@ -1052,6 +1128,67 @@ static void rollover_key_separation(void) {
     printf("[rollover-key-summary] rows=%zu failed=%u\n",sizeof(Rows)/sizeof(Rows[0]),Failed);
     testRequire(Failed==0u,"rollover reused known certificate key or rejected a separate valid account key");
 }
+static void authorization_policy(void) {
+    static const struct { cstr Name;size_t Count;authpolicyfault Fault; } Rows[]={
+        {"none",0u,AUTH_OK},{"one",1u,AUTH_OK},{"two",2u,AUTH_OK},{"local-capacity",16u,AUTH_OK},
+        {"spill",17u,AUTH_OK},{"larger",33u,AUTH_OK},{"many",65u,AUTH_OK},{"already-valid",17u,AUTH_VALID},
+        {"work-memory",17u,AUTH_WORK_MEMORY},{"last-lookup-io",17u,AUTH_LOOKUP_IO},
+        {"last-lookup-memory",17u,AUTH_LOOKUP_MEMORY},{"last-add-memory",17u,AUTH_ADD_MEMORY},
+        {"last-url-type",17u,AUTH_URL_TYPE},{"last-url-nul",17u,AUTH_URL_NUL},{"last-url-empty",17u,AUTH_URL_EMPTY},
+        {"missing-list",0u,AUTH_LIST_MISSING},{"wrong-list-type",0u,AUTH_LIST_TYPE},
+        {"last-trigger-io",17u,AUTH_TRIGGER_IO},{"finalize-io",17u,AUTH_FINALIZE_IO}
+    };
+    unsigned Failed=0;
+    xacmednsprovider Dns={"policy-fixture",XACME_DNS_CAP_PROPAGATE,NULL,dns_add,dns_remove,dns_propagate};
+    const xstrview Domain=XRT_STR_LITERAL("example.com");
+    for(size_t i=0;i<sizeof(Rows)/sizeof(Rows[0]);i++) {
+        Active=&Cases[0];Enabled=Inject=Armed=false;FirstError=NULL;AuthPolicyProbe=false;xrtClearError();
+        xacmeclient* Client=create_client(false);testRequire(Client!=NULL,"authorization policy client fixture");
+        Client->uIssueTimeoutMs=0; /* Isolate cardinality from the separate total-budget policy. */
+        bool Memory=Rows[i].Fault==AUTH_LOOKUP_MEMORY || Rows[i].Fault==AUTH_ADD_MEMORY;
+        bool Io=Rows[i].Fault==AUTH_LOOKUP_IO || Rows[i].Fault==AUTH_TRIGGER_IO || Rows[i].Fault==AUTH_FINALIZE_IO;
+        AuthPolicyError=(Memory || Io)?rollover_error(Memory?XERR_MEMORY:XERR_IO,false):NULL;
+        AuthPolicyCount=Rows[i].Count;AuthPolicyFault=Rows[i].Fault;
+        AuthPolicyLookups=AuthPolicyTriggers=AuthPolicyCsrs=AuthPolicyFinalizes=AuthPolicyAllocations=0;
+        Adds=Removes=0;Finalized=false;memset(AuthPolicyReads,0,sizeof(AuthPolicyReads));memset(AuthPolicyOwned,0,sizeof(AuthPolicyOwned));
+        AuthPolicyProbe=true; xacmeissuegrant Grant;memset(&Grant,0xa5,sizeof(Grant));
+        bool Result=xrtAcmeClientIssue(Client,&Domain,1u,&Dns,&Grant);
+        bool Success=Rows[i].Fault==AUTH_OK || Rows[i].Fault==AUTH_VALID;
+        bool EmptyList=Rows[i].Fault==AUTH_LIST_MISSING || Rows[i].Fault==AUTH_LIST_TYPE;
+        bool UrlFault=Rows[i].Fault==AUTH_URL_TYPE || Rows[i].Fault==AUTH_URL_NUL || Rows[i].Fault==AUTH_URL_EMPTY;
+        bool Early=EmptyList || Rows[i].Fault==AUTH_WORK_MEMORY;
+        bool Late=UrlFault || Rows[i].Fault==AUTH_LOOKUP_IO || Rows[i].Fault==AUTH_LOOKUP_MEMORY || Rows[i].Fault==AUTH_ADD_MEMORY;
+        size_t Owned=(Early || Rows[i].Fault==AUTH_VALID)?0u:Late?Rows[i].Count-1u:Rows[i].Count;
+        size_t ExpectedAdds=Owned+(Rows[i].Fault==AUTH_ADD_MEMORY?1u:0u);
+        size_t ExpectedLookups=Early?0u:UrlFault?Owned:Late?Rows[i].Count:
+            Rows[i].Fault==AUTH_VALID?Rows[i].Count:Rows[i].Count*2u-(Rows[i].Fault==AUTH_TRIGGER_IO?1u:0u);
+        size_t ExpectedTriggers=(Success && Rows[i].Fault!=AUTH_VALID) || Rows[i].Fault==AUTH_TRIGGER_IO || Rows[i].Fault==AUTH_FINALIZE_IO?Rows[i].Count:0u;
+        xerrkind Kind=xrtErrorKind(xrtGetError());xerrkind ExpectedKind=Success?XERR_NONE:
+            Memory || Rows[i].Fault==AUTH_WORK_MEMORY?XERR_MEMORY:Io?XERR_IO:XERR_PROTOCOL;
+        bool Ok=Result==Success && Kind==ExpectedKind && Adds==ExpectedAdds && Removes==Owned &&
+            AuthPolicyLookups==ExpectedLookups && AuthPolicyTriggers==ExpectedTriggers &&
+            AuthPolicyCsrs==(Success || Rows[i].Fault==AUTH_FINALIZE_IO?1u:0u) &&
+            AuthPolicyFinalizes==AuthPolicyCsrs && AuthPolicyAllocations==(!EmptyList && Rows[i].Count>16u?1u:0u) &&
+            (!FirstError || xrtGetError()==FirstError) && (Success?(Grant.sFullchainPem && Grant.sKeyPem):(!Grant.sFullchainPem && !Grant.sKeyPem));
+        for(size_t n=0;n<Rows[i].Count;n++) Ok=Ok && AuthPolicyOwned[n][0]==0;
+        printf("[authorization-policy] %s count=%zu success=%d kind=%d work-alloc=%zu lookup=%zu trigger=%zu add=%u remove=%u ok=%d\n",
+            Rows[i].Name,Rows[i].Count,Result,(int)Kind,AuthPolicyAllocations,AuthPolicyLookups,AuthPolicyTriggers,Adds,Removes,Ok);
+        xrtAcmeGrantUnit(&Grant);
+        /* The same client remains usable after any rejected policy or partial
+         * worklist failure; completed TXT ownership must not escape the call. */
+        AuthPolicyFault=AUTH_OK;AuthPolicyCount=1u;Adds=Removes=0;Finalized=false;
+        AuthPolicyLookups=AuthPolicyTriggers=AuthPolicyCsrs=AuthPolicyFinalizes=AuthPolicyAllocations=0;
+        memset(AuthPolicyReads,0,sizeof(AuthPolicyReads));memset(AuthPolicyOwned,0,sizeof(AuthPolicyOwned));xrtClearError();
+        testRequire(xrtAcmeClientIssue(Client,&Domain,1u,&Dns,&Grant) && Adds==1u && Removes==1u &&
+            AuthPolicyOwned[0][0]==0 && xrtGetError()==NULL,"authorization policy same-client recovery failed");
+        xrtAcmeGrantUnit(&Grant);AuthPolicyProbe=false;xrtAcmeClientDestroy(Client);
+        xrtErrorFree(AuthPolicyError);AuthPolicyError=NULL;xrtErrorFree(FirstError);FirstError=NULL;xrtClearError();
+        testMemoryDebugDrain("authorization policy retained worklist, TXT or grant allocations");
+        if(!Ok) Failed++;else printf("[PASS] FLOW authorization-policy/%s\n",Rows[i].Name);
+    }
+    printf("[authorization-summary] rows=%zu failed=%u\n",sizeof(Rows)/sizeof(Rows[0]),Failed);
+    testRequire(Failed==0u,"authorization policy cardinality, ownership, failure or CSR regression");
+}
 static bool eab_run(cstr Label,cstr Hmac,cstr Kid,int64 FailAfter,uint64* Allocations,bool Wire) {
     xacmeaccountconfig Account; xacmeclientconfig Config;
     char SavedText[5500]; testRequire(!Hmac || strlen(Hmac)<sizeof(SavedText),"EAB snapshot capacity"); strcpy(SavedText,Hmac?Hmac:"");
@@ -1128,6 +1265,7 @@ static void eab_keys(bool Wire) {
     printf("[PASS] FLOW EAB key lengths, padding, secure retirement and allocation recovery\n");
 }
 int main(int argc,char** argv) {
+    if(argc==2 && strcmp(argv[1],"authorization-policy")==0) { authorization_policy(); return 0; }
     if(argc==2 && strcmp(argv[1],"rollover-key-separation")==0) { rollover_key_separation(); return 0; }
     if(argc==2 && strcmp(argv[1],"rollover-faults")==0) { rollover_fault_policy(); return 0; }
     if(argc==2 && strcmp(argv[1],"eab-keys")==0) { eab_keys(true); return 0; }
@@ -1136,7 +1274,7 @@ int main(int argc,char** argv) {
     if(argc==2 && strcmp(argv[1],"resolver-endpoints")==0) { resolver_endpoints(); return 0; }
     testRequire(argc==1 || argc==3,"flow fixture usage: [name control|oom]");
     if(argc==2 && strcmp(argv[1],"alternate-urls")==0) { alternate_urls(); return 0; }
-    if(argc==1) { link_parser(); alternate_urls(); read_retry_policy(NULL); resolver_endpoints(); eab_keys(false); rollover_fault_policy(); rollover_key_separation(); }
+    if(argc==1) { link_parser(); alternate_urls(); read_retry_policy(NULL); resolver_endpoints(); eab_keys(false); rollover_fault_policy(); rollover_key_separation(); authorization_policy(); }
     for(size_t i=0;i<sizeof(Cases)/sizeof(Cases[0]);i++) {
         if(argc==3 && strcmp(argv[1],Cases[i].Name)!=0) continue;
         if(argc==3) { bool Oom=strcmp(argv[2],"oom")==0; testRequire(Oom || strcmp(argv[2],"control")==0,"invalid flow mode"); run_case(&Cases[i],Oom); return 0; }

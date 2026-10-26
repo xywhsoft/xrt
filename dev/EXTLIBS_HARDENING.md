@@ -752,3 +752,46 @@ Retry-After 数值和总预算传播仍需分别验证。RSA 导入语义及六�
 证据：`acme-key-separation-before.log`、`acme-key-separation-windows-final.log`、
 `acme-key-separation-linux-final.log`、`acme-key-separation-tcc-final.log`、
 `acme-key-separation-sanitize-final.log`。
+
+### 第二十三批：授权数量遵从服务端策略与完整 TXT 收尾
+
+- 19 个新增公开 Issue 场景在旧数量检查上失败 16 项：零/双授权、16/17 边界、33/65 项及
+  已有效授权均不能按服务端策略处理；对后段失败的检查还核对此前 TXT 的实际拥有权。
+  单授权与缺失/错误类型列表的三个控制保持原行为。
+- 删除授权数量等于订单域名数量的错误前提；常见 16 项以内沿用局部工作表，较大列表使用一次
+  经 SIZE_MAX 乘法检查的分配。工作表直接持有全部已确认 TXT 到统一 Done，不再向另一个固定
+  16 项表转移，也不因表满提前删除。CSR/SAN 仍由调用方的去重订单域名构造。
+- 新矩阵确认 0/1/2/16/17/33/65 项、全有效状态、唯一工作表分配失败、最后一次查询 I/O/MEMORY、
+  Add MEMORY、后段 URL 类型/NUL/空串、挑战触发及 finalize 失败。比较实际查询/触发/添加/删除
+  次数、原错误身份、失败产物、同客户端恢复及真实分配余额；要求触发前所有 TXT 并存。
+  17 项后的错误仍分别清理 16 或 17 个已拥有值。普通工作表路径不新增该分配，大列表仅一次。
+- Windows/Linux 产品聚合入口通过，分别执行 38/37 个测试；两平台 GCC、Linux/TCC 和 Clang
+  ASan/UBSan/float-cast-overflow 加泄漏检查的完整 flow 套件各 230 个分组通过，
+  同时覆盖上一批账户/证书钥隔离的六项回归。生成实现/声明头、API/参考、feature 与发布门禁通过。
+- 独立 TLS 模拟 CA 新增零/双授权策略，同时验证 CSR SAN、实际授权完成和无残留 TXT。
+  双授权显式启用流程诊断，必须有覆盖授权数量的真实递归 DNS 查询，且不得出现传播预算耗尽；
+  不是依靠咨询性超时放行。Windows GCC、Linux GCC、Linux Clang sanitizer 的整个 mock 套件
+  各 18 项通过（含多个 subTest），覆盖原 EAB/换钥/备用链/异常/持久化场景。
+  65 项及分配故障使用真实 Core/crypto 与受控 HTTP/provider 边界，不声称 65 项真实 UDP 已验证。
+- 真实双授权最初在三组环境均触发 180 秒测试超时。追踪发现既有模拟 DNS 把每条 TXT 的
+  RDLENGTH 固定写成零；单授权旧用例同样未通过递归传播，只因其为咨询性门而最终成功。
+  新字节级单测在旧报文失败 0!=44；修正每条 RDATA 及 UTF-8 字节长度，验证不同长度、空值、
+  多条记录、压缩属主、查询回放和无尾随字节。保留原超时失败日志，没有提高超时或放宽断言。
+  历史 mock 的签名/权威 TXT/证书/存储验证仍有效，但不能据其旧成功声称递归传播已命中；
+  历史覆盖率报告也不覆盖本批新控制流。独立 DNS 生命周期/对端测试使用各自报文，不据此否定其证据。
+- EAB/聚合提交 `92571a88` 的 run `40352803330` 已最终 73/73 success；换钥提交 `38a9d1f3`
+  的独立邮件 `40356901116` 成功，其 CI `40356913026` 尚未完成。
+  其中 macOS ARM64 coroutine job `121691731347` 在执行任何步骤前取消，steps=[]、日志 404，
+  单任务重跑请求被拒；保留未验证状态，新提交 CI 必须再确认该平台，不能记为代码测试失败或通过。
+
+证据：`acme-authorization-policy-before.log`、`acme-authorization-policy-windows-probe.log`、
+`acme-authorization-policy-aggregate-windows-final.log`、`acme-authorization-policy-aggregate-linux-final.log`、
+`acme-authorization-policy-tcc-final.log`、`acme-authorization-policy-sanitize-final.log`、
+`acme-authorization-policy-mock-windows-fixture-before.log`、
+`acme-authorization-policy-mock-linux-fixture-before.log`、
+`acme-authorization-policy-mock-sanitize-fixture-before.log`、`acme-mock-dns-rdata-before.log`、
+`acme-authorization-policy-full-mock-windows-final.log`、
+`acme-authorization-policy-full-mock-linux-final.log`、`acme-authorization-policy-full-mock-sanitize-final.log`。
+
+账户/证书钥复用和授权数量两项已复现问题现已修复。xacme 的总预算、Retry-After、EAB 标识符、
+RSA 导入及 provider/签名/XML 复核继续；大同名 RRset 的递归探测输出容量也须单独验证。

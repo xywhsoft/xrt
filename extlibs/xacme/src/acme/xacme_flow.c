@@ -27,6 +27,13 @@ typedef struct xacmeflowurl {
 	size_t iSize;
 } xacmeflowurl;
 
+typedef struct xacmeflowwork {
+	xacmeflowurl Authz;
+	xacmeflowurl Challenge;
+	str sFqdn;
+	str sTxt;
+} xacmeflowwork;
+
 static void xacmeFlowError(
 	xerrkind Kind, xacmeflowerror Code, cstr sMessage)
 {
@@ -1515,19 +1522,8 @@ bool xacmeClientIssue(
 	/* TXT 统一延后清理：同名多授权（裸域 + 通配符）场景下，先删后加
 	   会让 LE 次级验证器的递归缓存仍见旧值而判 Incorrect TXT；多值
 	   并存是 LE 明确允许的形态，全部验证完成后再统一 Remove。 */
-	struct
-	{
-		str sFqdn;
-		str sTxt;
-	} TxtPending[16];
-	size_t iTxtPending = 0u;
-	struct
-	{
-		xacmeflowurl Authz;
-		xacmeflowurl Challenge;
-		str sFqdn;
-		str sTxt;
-	} Work[16];
+	xacmeflowwork LocalWork[16];
+	xacmeflowwork* Work = LocalWork;
 	size_t iWorkCount = 0u;
 	xrtBufferInit(&Payload);
 	for(i = 0; i < iDomainCount; i++)
@@ -1627,13 +1623,26 @@ bool xacmeClientIssue(
 	size_t iCount = (pAuthz != NULL) ? xrtValueCount(pAuthz) : 0u;
 	char sThumb[44];
 	size_t k;
-	if((pAuthz == NULL) || !xrtValueIs(pAuthz, XVALUE_ARRAY) ||
-		(iCount != iBaseCount))
+	if((pAuthz == NULL) || !xrtValueIs(pAuthz, XVALUE_ARRAY))
 	{
 		xacmeFlowError(
 			XERR_PROTOCOL, XACME_FLOW_ERROR_ORDER,
 			"acme issue order authorizations invalid");
 		goto Done;
+	}
+	/* RFC 8555 section 7.1.3 leaves authorization cardinality to server
+	 * policy. Keep the common case local; larger arrays need one checked
+	 * allocation whose initialized entries retain TXT ownership until Done. */
+	if(iCount > sizeof(LocalWork) / sizeof(LocalWork[0]))
+	{
+		if(iCount > SIZE_MAX / sizeof(*Work))
+		{
+			xacmeFlowError(XERR_RANGE, XACME_FLOW_ERROR_ORDER,
+				"acme authorization worklist size is not representable");
+			goto Done;
+		}
+		Work = (xacmeflowwork*)xrtMalloc(iCount * sizeof(*Work));
+		if(Work == NULL) goto Done;
 	}
 	if(!xacmeJwkEcThumbprint(&pClient->AccountKey, sThumb)) goto Done;
 	/* Pass A：逐授权取 dns-01 挑战，铺 TXT 并确认传播。 */
@@ -1829,8 +1838,7 @@ bool xacmeClientIssue(
 						}
 					}
 					bool bCanAdd = (sFqdn != NULL) &&
-						(iWorkCount <
-							(sizeof(Work) / sizeof(Work[0])));
+						(iWorkCount < iCount);
 					if(!bCanAdd ||
 						!xacmeFlowDnsAdd(pDns, sFqdn, sTxt))
 					{
@@ -1931,28 +1939,7 @@ bool xacmeClientIssue(
 			}
 			xrtFree(sStatus);
 		}
-		/* 工作表移交 TXT 统一清理（表满退化为立即删）。 */
-		for(k = 0; k < iWorkCount; k++)
-		{
-			if(iTxtPending <
-				(sizeof(TxtPending) / sizeof(TxtPending[0])))
-			{
-				TxtPending[iTxtPending].sFqdn = Work[k].sFqdn;
-				TxtPending[iTxtPending].sTxt = Work[k].sTxt;
-				iTxtPending++;
-				Work[k].sFqdn = NULL;
-				Work[k].sTxt = NULL;
-			}
-			else
-			{
-				xacmeFlowDnsRemove(
-					pDns, Work[k].sFqdn, Work[k].sTxt);
-				xrtFree(Work[k].sFqdn);
-				xrtFree(Work[k].sTxt);
-				Work[k].sFqdn = NULL;
-				Work[k].sTxt = NULL;
-			}
-		}
+		/* Work keeps every acknowledged TXT pair until the common cleanup. */
 	}
 	xrtValueRelease(pRoot);
 	pRoot = NULL;
@@ -2161,15 +2148,8 @@ Done:
 			xrtFree(Work[k].sFqdn);
 			xrtFree(Work[k].sTxt);
 		}
-
-		for(k = 0; k < iTxtPending; k++)
-		{
-			xacmeFlowDnsRemove(
-				pDns, TxtPending[k].sFqdn, TxtPending[k].sTxt);
-			xrtFree(TxtPending[k].sFqdn);
-			xrtFree(TxtPending[k].sTxt);
-		}
 	}
+	if(Work != LocalWork) xrtFree(Work);
 	if(pRoot != NULL)
 	{
 		xrtValueRelease(pRoot);

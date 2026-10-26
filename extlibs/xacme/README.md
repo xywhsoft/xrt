@@ -591,6 +591,10 @@ CA 响应的字符串须完整且不含 NUL；账户状态须为 `valid`，轮�
 吊销只有 HTTP 200 或 HTTP 400 的准确 `alreadyRevoked` 类型视为成功。
 签发在复制域名或发送订单前检查 1-511 字节及无 NUL 的限制；最多
 16 个不同域名。失败时不交付部分链/密钥，TXT 清理保留签发的原始错误。
+CA 返回的授权列表按其策略处理，不要求与订单域名一一对应
+（[RFC 8555 §7.1.3](https://datatracker.ietf.org/doc/html/rfc8555#section-7.1.3)）。
+零授权、已有效授权及多重授权均可；CSR/SAN 始终使用调用方去重后的订单域名。
+待办 TXT 在全部挑战触发前并存，并在整个签发结束时统一清理。
 
 `acme_flow_fault_tests` 用公开客户端 API、真实 JSON/PEM/JWS/CSR 代码
 验证错误传播、边界输入和恢复，HTTP 边界由测试控制；实际 HTTP/TLS、

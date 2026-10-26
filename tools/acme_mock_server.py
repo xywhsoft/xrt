@@ -92,7 +92,9 @@ class State:
 		self.orders = {}            # url -> order dict（含 authz 与状态）
 		self.authzs = {}            # url -> authz dict
 		self.challenges = {}        # url -> challenge dict
+		self.authorization_count = None  # Optional server policy independent of CSR identifiers.
 		self.txt = {}               # fqdn -> [values]
+		self.dns_queries = 0
 		self.certificates = {}      # cert url -> pem chain
 		self.revoked = set()        # 叶证书 SHA-256 指纹
 		self.eab_kid = eab_kid
@@ -254,6 +256,10 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 					"keychange_badnonces": self.state.keychange_badnonces,
 					"accounts": len(self.state.accounts),
 					"orders": len(self.state.orders),
+					"authorizations": len(self.state.authzs),
+					"validated_authorizations": sum(a["status"] == "valid" for a in self.state.authzs.values()),
+					"live_txt_values": sum(len(values) for values in self.state.txt.values()),
+					"dns_queries": self.state.dns_queries,
 					"revoked": len(self.state.revoked),
 					"alt_served": self.state.alt_served,
 					"rollovers": self.state.rollovers,
@@ -400,7 +406,9 @@ class AcmeHandler(http.server.BaseHTTPRequestHandler):
 			oid = len(st.orders)
 			order_url = self.base + "/order-%d" % oid
 			authz_urls = []
-			for domain in domains:
+			auth_domains = domains if st.authorization_count is None else [
+				domains[i % len(domains)] for i in range(st.authorization_count)]
+			for domain in auth_domains:
 				aid = len(st.authzs)
 				authz_url = self.base + "/authz/%d" % aid
 				token = secrets.token_urlsafe(24)
@@ -727,11 +735,15 @@ class DnsHandler(socketserver.BaseRequestHandler):
 		except Exception:
 			return
 		with self.state.lock:
+			self.state.dns_queries += 1
 			values = list(self.state.txt.get(name, []))
-		answer = b"".join(
-			b"\xc0\x0c\x00\x10\x00\x01\x00\x00\x00\x3c\x00\x00" +
-			len(v).to_bytes(1, "big") + v.encode()
-			for v in values)
+		answers = []
+		for value in values:
+			encoded = value.encode("utf-8")
+			rdata = len(encoded).to_bytes(1, "big") + encoded
+			answers.append(b"\xc0\x0c\x00\x10\x00\x01\x00\x00\x00\x3c" +
+				len(rdata).to_bytes(2, "big") + rdata)
+		answer = b"".join(answers)
 		header = data[:2] + b"\x84\x00" + data[4:6] + \
 			len(values).to_bytes(2, "big") + b"\x00\x00\x00\x00"
 		sock.sendto(header + data[12:qend] + answer, self.client_address)
@@ -811,8 +823,11 @@ def main() -> int:
 	parser.add_argument("--drop-keychange-before-once", action="store_true")
 	parser.add_argument("--keychange-badnonce-once", action="store_true")
 	parser.add_argument("--require-contact", action="store_true")
+	parser.add_argument("--authorization-count", type=int, default=None)
 	parser.add_argument("--alternate-reference", choices=("absolute", "path", "dot", "network"), default="absolute")
 	args = parser.parse_args()
+	if args.authorization_count is not None and args.authorization_count < 0:
+		parser.error("authorization count must be nonnegative")
 
 	os.makedirs(args.workdir, exist_ok=True)
 	eab_kid, eab_mac = "", b""
@@ -820,6 +835,7 @@ def main() -> int:
 		eab_kid, mac_text = args.eab.split(":", 1)
 		eab_mac = b64u_decode(mac_text)
 	state = State(eab_kid, eab_mac, args.require_contact)
+	state.authorization_count = args.authorization_count
 	state.alternate_reference = args.alternate_reference
 	state.flakiness = max(0.0, min(0.9, args.flakiness))
 	state.flaky_every = max(0, args.flaky_every)
