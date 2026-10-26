@@ -53,11 +53,19 @@ bool xacmeDnsTxtQuery(
 	size_t* pOutCount
 );
 
+/* Query the complete received answer without a fixed text-record window.
+ * Success publishes whether the exact nonempty expected value was found.
+ * Failure clears pFound and preserves allocator causes. UDP transport only. */
+bool xacmeDnsTxtContains(
+	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
+	cstr sExpected, bool* pFound);
+
 /*
 	解析完整 DNS 响应报文为 TXT 记录集合（不可信网络输入的唯一
-	消化口，fuzz 目标）。QR 位缺失/结构损坏 → false；RCODE 非零
+	消化口，fuzz 目标）。QR 缺失、TC 截断、结构/压缩损坏 → false；RCODE 非零
 	→ true 且零记录。每条记录严格小于 XACME_TXT_RECORD_MAX。
-	输出计数必须非空；失败时不发布部分记录计数。
+	允许空分段；文本输出拒绝内嵌 NUL 和超长值。所有区段和容量外的
+	TXT 仍检查结构。输出计数必须非空；失败时不发布部分记录计数。
 */
 bool xacmeTxtParseResponse(
 	const uint8* pData,
@@ -67,6 +75,13 @@ bool xacmeTxtParseResponse(
 	size_t iCapacity,
 	size_t* pOutCount
 );
+
+/* Allocation-free binary comparison over every answer TXT. Validate all
+ * sections before publishing; empty strings and segmented values are valid.
+ * Text collection separately rejects embedded NUL/unrepresentable values. */
+bool xacmeTxtResponseContains(
+	const uint8* pData, size_t iSize, uint16 uExpectId,
+	xbytesview Expected, bool* pFound);
 
 /* 轮询直到期望 TXT 值在解析器可见；超时返回 false。 */
 bool xacmeDnsTxtWait(

@@ -575,7 +575,14 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
     }
     xrtClearError(); strcpy(Records[0],ResolverTxt); *Count=1; return true;
 }
-#define xacmeDnsTxtQuery flow_dns_query
+static bool flow_dns_contains(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,cstr Expected,bool* Found) {
+    if(!selected("resolver")) return xacmeDnsTxtContains(Dns,Resolver,Port,Fqdn,Expected,Found);
+    char Record[1][XACME_TXT_RECORD_MAX];size_t Count=0;*Found=false;
+    bool Result=flow_dns_query(Dns,Resolver,Port,Fqdn,Record,1u,&Count);
+    if(Result && Count) *Found=strcmp(Record[0],Expected)==0;
+    return Result;
+}
+#define xacmeDnsTxtContains flow_dns_contains
 #define xacmeHttpInit flow_init
 #define xacmeHttpExchange flow_exchange
 #define xrtJsonParse flow_json
@@ -608,7 +615,7 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #define xrtFree(pMemory) xrtFreeAt((pMemory), __FILE__, (uint32)__LINE__)
 #undef xrtSecureZero
 #undef xrtBase64Decode
-#undef xacmeDnsTxtQuery
+#undef xacmeDnsTxtContains
 #undef xacmeHttpInit
 #undef xacmeHttpExchange
 #undef xrtJsonParse

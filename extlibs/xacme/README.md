@@ -262,6 +262,14 @@ TCP 监听器确认清理后的请求没有拨号；同时验证原始错误、�
 Destroy，借用引擎须恢复到零活动 UDP 对象并继续运行；私有 DNS 上下文的
 清理也保留 BUSY/ERROR 拥有者、支持重试，启动失败不丢弃引擎。这些回归已
 纳入默认脚本及双平台 CI。
+传播检查与 Wait 逐字节比较收到的全部 answer TXT，不受文本查询数组容量限制。
+空 character-string 分段有效，原始 NUL 不会被当成 C 字符串结尾而误报命中；
+匹配后仍检查其余报文结构，拒绝 TC 截断、损坏的压缩名称和畸形尾部。
+独立 UDP 回归同时覆盖第五条命中、空分段、超长无关记录及 authority/additional
+记录不算 answer，并检查 Flow 与 Wait 成功路径。当前传输仍为未扩展的 UDP 查询，
+尚未实现 EDNS/TCP 回退；大 RRset 的截断恢复、应答属主/CNAME 语义绑定与总预算
+仍待继续复核，不据这组结构检查声称完整 DNS 验证。
+
 mock CA 全链路脚本需要 Python `cryptography`。协议向量由独立
 openssl/python 结果固化；Pebble/challtestsrv
 集成与 LE staging、各云厂商真实 API 联测由环境变量门控

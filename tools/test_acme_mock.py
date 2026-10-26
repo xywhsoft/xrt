@@ -328,7 +328,7 @@ class AcmeMockFlowTests(unittest.TestCase):
 
 	def test_server_authorization_cardinality_policy(self):
 		"""Authorization requirements can differ from the ordered SAN count."""
-		for count in (0, 2):
+		for count in (0, 2, 5):
 			with self.subTest(authorizations=count):
 				stats = run_flow_case(self, ["--authorization-count", str(count)], {"XACME_DEBUG": "1"})
 				self.assertGreater(stats["orders"], 0)

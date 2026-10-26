@@ -157,6 +157,7 @@ def lifecycle_case(client: Path, ca: Path) -> None:
 
 
 def dns_lifecycle_case(client: Path, ca: Path, *, endpoint_mode: str | None = None) -> None:
+    absent = endpoint_mode in {"nul-prefix", "malformed-after", "truncated", "authority-only", "additional-only"}
     family = socket.AF_INET6 if endpoint_mode in {"ipv6", "ipv6-expanded"} else socket.AF_INET
     host = "::1" if family == socket.AF_INET6 else "127.0.0.1"
     listener = None
@@ -176,6 +177,7 @@ def dns_lifecycle_case(client: Path, ca: Path, *, endpoint_mode: str | None = No
     stop = threading.Event()
     errors = []
     seen = set()
+    queries = []
 
     def serve():
         while not stop.is_set():
@@ -201,6 +203,7 @@ def dns_lifecycle_case(client: Path, ca: Path, *, endpoint_mode: str | None = No
                 if packet[2:12] != b"\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00" or question[-4:] != b"\x00\x10\x00\x01":
                     raise AssertionError("DNS query type or count changed")
                 seen.add(name)
+                queries.append(name)
                 if name == "timeout.test":
                     continue
                 if name == "bad.test":
@@ -208,8 +211,32 @@ def dns_lifecycle_case(client: Path, ca: Path, *, endpoint_mode: str | None = No
                 elif name == "nx.test":
                     response = packet[:2] + b"\x81\x83\x00\x01\x00\x00\x00\x00\x00\x00" + question
                 else:
-                    response = packet[:2] + b"\x81\x80\x00\x01\x00\x01\x00\x00\x00\x00" + question + \
-                        b"\xc0\x0c" + struct.pack("!HHIH", 16, 1, 5, 6) + b"\x05probe"
+                    values = [b"\x05probe"]
+                    flags, answers, authority, additional = 0x8180, 1, 0, 0
+                    if endpoint_mode == "late":
+                        values = [b"\x05other"] * 4 + values
+                    elif endpoint_mode == "split-empty":
+                        values = [b"\x00\x02pr\x00\x03obe\x00"]
+                    elif endpoint_mode == "empty-before":
+                        values = [b"\x00"] + values
+                    elif endpoint_mode == "nul-prefix":
+                        values = [b"\x0aprobe\x00evil"]
+                    elif endpoint_mode == "long-before":
+                        values = [b"\xff" + b"x" * 255 + b"\x01y"] + values
+                    elif endpoint_mode == "malformed-after":
+                        values += [b"\x05other"] * 3 + [b"\x02x"]
+                    elif endpoint_mode == "truncated":
+                        flags |= 0x0200
+                    elif endpoint_mode == "authority-only":
+                        authority = 1
+                    elif endpoint_mode == "additional-only":
+                        additional = 1
+                    answers = 0 if authority or additional else len(values)
+                    records = b"".join(b"\xc0\x0c" + struct.pack("!HHIH", 16, 1, 5, len(value)) + value
+                                       for value in values)
+                    response = packet[:2] + struct.pack("!HHHHH", flags, 1, answers, authority, additional) + question + records
+                    if len(response) > 512:
+                        raise AssertionError("UDP fixture exceeds the unextended DNS packet size")
                 if name == "wrong-id.test":
                     bad_id = (int.from_bytes(packet[:2], "big") ^ 1).to_bytes(2, "big")
                     listener.sendto(bad_id + response[2:], peer)
@@ -230,7 +257,9 @@ def dns_lifecycle_case(client: Path, ca: Path, *, endpoint_mode: str | None = No
                 endpoint = f"[{address}]:{port}"
             else:
                 endpoint = f"{host}:{port}" + ("junk" if endpoint_mode == "invalid" else "")
-            arguments = ["dns-resolver-invalid" if endpoint_mode == "invalid" else "dns-resolver", endpoint]
+            mode = ("dns-resolver-invalid" if endpoint_mode == "invalid" else
+                    "dns-txt-absent" if absent else "dns-resolver")
+            arguments = [mode, endpoint]
         completed = subprocess.run([str(client), str(ca), *arguments],
                                    capture_output=True, text=True, timeout=45)
         print(completed.stdout, end="", flush=True)
@@ -252,6 +281,11 @@ def dns_lifecycle_case(client: Path, ca: Path, *, endpoint_mode: str | None = No
         raise AssertionError(f"malformed resolver reached the DNS peer: {seen}")
     if endpoint_mode is not None and endpoint_mode != "invalid" and seen != {"resolver.test"}:
         raise AssertionError(f"resolver endpoint did not reach its independently bound peer: {seen}")
+    if endpoint_mode is not None and endpoint_mode != "invalid":
+        expected_queries = 1 if absent else 2  # Flow plus the successful Wait path.
+        if len(queries) != expected_queries:
+            raise AssertionError(f"DNS {endpoint_mode}: expected {expected_queries} actual queries, got {queries}")
+        print(f"  DNS wire {endpoint_mode}: {len(queries)} actual queries passed", flush=True)
     if endpoint_mode is None and not {"success.test", "nx.test", "bad.test", "timeout.test", "wrong-id.test"} <= seen:
         raise AssertionError(f"DNS UDP cases did not all reach the server: {seen}")
 
@@ -416,7 +450,9 @@ def main() -> None:
                 failures.append(f"public aggregate provider guards: {completed.stderr}")
         if "dns-lifecycle" in selected:
             check("DNS UDP lifecycle", lambda: dns_lifecycle_case(ownership_client, ca))
-            for endpoint_mode in ("ipv4", "invalid", "ipv6", "ipv6-expanded"):
+            for endpoint_mode in ("ipv4", "invalid", "ipv6", "ipv6-expanded", "late", "split-empty",
+                                  "empty-before", "nul-prefix", "long-before", "malformed-after",
+                                  "truncated", "authority-only", "additional-only"):
                 check(f"DNS resolver endpoint {endpoint_mode}", lambda endpoint_mode=endpoint_mode:
                       dns_lifecycle_case(ownership_client, ca, endpoint_mode=endpoint_mode))
         if "provider-bodies" in selected:

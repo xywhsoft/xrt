@@ -125,33 +125,31 @@ static bool xacmeTxtEncodeName(xbuffer* pOut, cstr sFqdn)
 /* 跳过响应中的（可能压缩的）name；返回消费字节数，0 表示非法。 */
 static size_t xacmeTxtSkipName(const uint8* p, size_t iSize, size_t iAt)
 {
-	size_t i = iAt;
-	size_t iGuard = 0u;
+	size_t i = iAt, iConsumed = 0u, iExpanded = 0u, iGuard = 0u;
+	bool bJumped = false;
 	for(;;)
 	{
 		uint8 iLen;
-		if(i >= iSize)
-		{
-			return 0u;
-		}
+		if(i >= iSize || ++iGuard > iSize) return 0u;
 		iLen = p[i];
 		if((iLen & 0xC0u) == 0xC0u)
 		{
-			return (i + 2u <= iSize) ? (i + 2u - iAt) : 0u;
+			size_t iTarget;
+			if(iSize - i < 2u) return 0u;
+			iTarget = ((size_t)(iLen & 0x3Fu) << 8u) | p[i + 1u];
+			/* Compression refers to a previous name, never this pointer,
+			 * the header or an out-of-packet/forward offset. */
+			if(iTarget < 12u || iTarget >= i) return 0u;
+			if(!bJumped) iConsumed = i + 2u - iAt;
+			bJumped = true;
+			i = iTarget;
+			continue;
 		}
-		if((iLen & 0xC0u) != 0u)
-		{
-			return 0u;
-		}
+		if((iLen & 0xC0u) != 0u || iExpanded > 255u - 1u - iLen ||
+			(size_t)iLen > iSize - i - 1u) return 0u;
+		iExpanded += 1u + iLen;
 		i += 1u + iLen;
-		if(iLen == 0u)
-		{
-			return i - iAt;
-		}
-		if((++iGuard) > 128u)
-		{
-			return 0u;
-		}
+		if(iLen == 0u) return bJumped ? iConsumed : i - iAt;
 	}
 }
 
@@ -173,113 +171,101 @@ static bool xacmeTxtReadU16(
 	（NXDOMAIN 等）→ true 且零记录。记录值拼接 character-string，
 	每条以零结尾且严格小于 XACME_TXT_RECORD_MAX。
 */
-bool xacmeTxtParseResponse(
+static bool xacmeTxtParse(
 	const uint8* p, size_t iSize, uint16 uExpectId,
 	char (*sOutRecords)[XACME_TXT_RECORD_MAX], size_t iCapacity,
-	size_t* pOutCount)
+	size_t* pOutCount, xbytesview Expected, bool* pFound)
 {
-	size_t iAt;
-	uint16 iQuestions;
-	uint16 iAnswers;
-	uint16 iFlags;
-	size_t iCount = 0u;
-
+	size_t iAt, iCount = 0u;
+	uint16 iQuestions, iAnswers, iAuthority, iAdditional, iFlags;
+	uint32 iRecords, iRecord;
+	bool bFound = false, bPositive;
 	if(pOutCount != NULL) *pOutCount = 0u;
-	if((p == NULL) || (iSize < 12u) || (sOutRecords == NULL) ||
-		(pOutCount == NULL) || (iCapacity == 0u))
-	{
-		return false;
-	}
-	if((p[0] != (uint8)(uExpectId >> 8u)) ||
-		(p[1] != (uint8)uExpectId))
-	{
-		return false;
-	}
+	if(pFound != NULL) *pFound = false;
+	if(p == NULL || iSize < 12u || (pOutCount == NULL && pFound == NULL) ||
+		(pOutCount != NULL && (sOutRecords == NULL || iCapacity == 0u)) ||
+		(pFound != NULL && Expected.Data == NULL && Expected.Size != 0u)) return false;
+	if(p[0] != (uint8)(uExpectId >> 8u) || p[1] != (uint8)uExpectId) return false;
 	iFlags = (uint16)(((uint16)p[2] << 8u) | p[3]);
-	if((iFlags & 0x8000u) == 0u)
-	{
-		return false;
-	}
-	if((iFlags & 0x000Fu) != 0u)
-	{
-		return true; /* NXDOMAIN 等：无记录，成功返回零。 */
-	}
+	if((iFlags & 0x8000u) == 0u || (iFlags & 0x7800u) != 0u ||
+		(iFlags & 0x0200u) != 0u) return false;
+	bPositive = (iFlags & 0x000Fu) == 0u;
 	iAt = 4u;
 	if(!xacmeTxtReadU16(p, iSize, &iAt, &iQuestions) ||
-		!xacmeTxtReadU16(p, iSize, &iAt, &iAnswers))
-	{
-		return false;
-	}
-	iAt = 12u;
+		!xacmeTxtReadU16(p, iSize, &iAt, &iAnswers) ||
+		!xacmeTxtReadU16(p, iSize, &iAt, &iAuthority) ||
+		!xacmeTxtReadU16(p, iSize, &iAt, &iAdditional)) return false;
 	for(; iQuestions > 0u; iQuestions--)
 	{
 		size_t iSkip = xacmeTxtSkipName(p, iSize, iAt);
-		if((iSkip == 0u) || ((iAt + iSkip + 4u) > iSize))
-		{
-			return false;
-		}
+		if(iSkip == 0u || iSkip > iSize - iAt || iSize - iAt - iSkip < 4u) return false;
 		iAt += iSkip + 4u;
 	}
-	for(; iAnswers > 0u; iAnswers--)
+	iRecords = (uint32)iAnswers + (uint32)iAuthority + (uint32)iAdditional;
+	for(iRecord = 0u; iRecord < iRecords; iRecord++)
 	{
-		uint16 iType;
-		uint16 iClass;
-		uint16 iRdLength;
-		size_t iRdAt;
-		size_t iSkip = xacmeTxtSkipName(p, iSize, iAt);
-		if(iSkip == 0u)
-		{
-			return false;
-		}
+		uint16 iType, iClass, iRdLength;
+		size_t iRdAt, iSkip = xacmeTxtSkipName(p, iSize, iAt);
+		if(iSkip == 0u) return false;
 		iAt += iSkip;
 		if(!xacmeTxtReadU16(p, iSize, &iAt, &iType) ||
-			!xacmeTxtReadU16(p, iSize, &iAt, &iClass) ||
-			(iAt + 4u > iSize))
-		{
-			return false;
-		}
-		iAt += 4u; /* TTL */
-		if(!xacmeTxtReadU16(p, iSize, &iAt, &iRdLength) ||
-			((iAt + iRdLength) > iSize))
-		{
-			return false;
-		}
+			!xacmeTxtReadU16(p, iSize, &iAt, &iClass) || iSize - iAt < 4u) return false;
+		iAt += 4u;
+		if(!xacmeTxtReadU16(p, iSize, &iAt, &iRdLength) || (size_t)iRdLength > iSize - iAt) return false;
 		iRdAt = iAt;
 		iAt += iRdLength;
-		if((iType != 0x0010u) || (iClass != 0x0001u) ||
-			(iCount >= iCapacity))
-		{
-			continue;
-		}
-		/* TXT rdata = 若干 character-string，拼接为一条记录值。 */
+		if(iType != 0x0010u) continue;
+		/* TXT contains one or more binary character-strings. Empty strings
+		 * are legal; an empty RDATA or an overrun is not. Validate tails even
+		 * when the text output is full or a previous record already matched. */
 		{
 			size_t iUsed = 0u;
-			char* sRecord = sOutRecords[iCount];
+			bool bAnswer = bPositive && iRecord < iAnswers && iClass == 0x0001u;
+			bool bCopy = bAnswer && pOutCount != NULL && iCount < iCapacity;
+			bool bEqual = bAnswer && pFound != NULL;
+			if(iRdLength == 0u) return false;
 			while(iRdAt < iAt)
 			{
-				uint8 iStrLen = p[iRdAt];
-				iRdAt += 1u;
-				if((iStrLen == 0u) || ((iRdAt + iStrLen) > iAt) ||
-					((iUsed + iStrLen) >= XACME_TXT_RECORD_MAX))
-				{
-					return false;
-				}
-				memcpy(sRecord + iUsed, p + iRdAt, iStrLen);
+				uint8 iStrLen = p[iRdAt++];
+				if((size_t)iStrLen > iAt - iRdAt) return false;
+				if(bCopy && ((size_t)iStrLen >= XACME_TXT_RECORD_MAX - iUsed ||
+					memchr(p + iRdAt, 0, iStrLen) != NULL)) return false;
+				if(bEqual && (iUsed > Expected.Size || (size_t)iStrLen > Expected.Size - iUsed ||
+					(iStrLen != 0u && memcmp(Expected.Data + iUsed, p + iRdAt, iStrLen) != 0))) bEqual = false;
+				if(bCopy && iStrLen != 0u) memcpy(sOutRecords[iCount] + iUsed, p + iRdAt, iStrLen);
 				iUsed += iStrLen;
 				iRdAt += iStrLen;
 			}
-			sRecord[iUsed] = '\0';
-			iCount++;
+			if(bCopy) { sOutRecords[iCount][iUsed] = '\0'; iCount++; }
+			if(bEqual && iUsed == Expected.Size) bFound = true;
 		}
 	}
-	*pOutCount = iCount;
+	if(iAt != iSize) return false;
+	if(pOutCount != NULL) *pOutCount = iCount;
+	if(pFound != NULL) *pFound = bFound;
 	return true;
 }
 
-bool xacmeDnsTxtQuery(
+bool xacmeTxtParseResponse(
+	const uint8* p, size_t iSize, uint16 uExpectId,
+	char (*sOutRecords)[XACME_TXT_RECORD_MAX], size_t iCapacity, size_t* pOutCount)
+{
+	if(pOutCount == NULL) return false;
+	return xacmeTxtParse(p, iSize, uExpectId, sOutRecords, iCapacity, pOutCount,
+		(xbytesview){ NULL, 0u }, NULL);
+}
+
+bool xacmeTxtResponseContains(
+	const uint8* p, size_t iSize, uint16 uExpectId, xbytesview Expected, bool* pFound)
+{
+	if(pFound == NULL) return false;
+	return xacmeTxtParse(p, iSize, uExpectId, NULL, 0u, NULL, Expected, pFound);
+}
+
+static bool xacmeDnsTxtExchange(
 	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
 	char (*sOutRecords)[XACME_TXT_RECORD_MAX], size_t iCapacity,
-	size_t* pOutCount)
+	size_t* pOutCount, cstr sExpected, bool* pFound)
 {
 	xbuffer Query;
 	xnetaddr Peer;
@@ -291,8 +277,10 @@ bool xacmeDnsTxtQuery(
 	bool bOk = false;
 
 	if(pOutCount != NULL) *pOutCount = 0u;
+	if(pFound != NULL) *pFound = false;
 	if((pDns == NULL) || (pDns->pEngine == NULL) || (sResolver == NULL) || (sFqdn == NULL) ||
-		(sOutRecords == NULL) || (pOutCount == NULL) || (iCapacity == 0u))
+		(pFound == NULL && (sOutRecords == NULL || pOutCount == NULL || iCapacity == 0u)) ||
+		(pFound != NULL && (sExpected == NULL || sExpected[0] == '\0')))
 	{
 		xacmeTxtError(
 			XERR_ARGUMENT, XACME_TXT_ERROR_ARGUMENT,
@@ -403,8 +391,9 @@ bool xacmeDnsTxtQuery(
 
 	p = xrtNetUdpPacketData(pPacket);
 	iSize = xrtNetUdpPacketSize(pPacket);
-	if(!xacmeTxtParseResponse(p, iSize, iId, sOutRecords, iCapacity,
-			pOutCount))
+	if(pFound != NULL ? !xacmeTxtResponseContains(p, iSize, iId,
+		(xbytesview){ (const uint8*)sExpected, strlen(sExpected) }, pFound) :
+		!xacmeTxtParseResponse(p, iSize, iId, sOutRecords, iCapacity, pOutCount))
 	{
 		goto Protocol;
 	}
@@ -413,7 +402,11 @@ bool xacmeDnsTxtQuery(
 Done:
 	{
 		xerror* pPrevious = xrtErrorRef(xrtGetError());
-		if(!bOk) *pOutCount = 0u;
+		if(!bOk)
+		{
+			if(pOutCount != NULL) *pOutCount = 0u;
+			if(pFound != NULL) *pFound = false;
+		}
 		if(pPacket != NULL)
 		{
 			xrtNetUdpPacketDestroy(pPacket);
@@ -436,6 +429,28 @@ Protocol:
 	goto Done;
 }
 
+bool xacmeDnsTxtQuery(
+	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
+	char (*sOutRecords)[XACME_TXT_RECORD_MAX], size_t iCapacity, size_t* pOutCount)
+{
+	return xacmeDnsTxtExchange(pDns, sResolver, iPort, sFqdn,
+		sOutRecords, iCapacity, pOutCount, NULL, NULL);
+}
+
+bool xacmeDnsTxtContains(
+	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
+	cstr sExpected, bool* pFound)
+{
+	if(pFound == NULL)
+	{
+		xacmeTxtError(XERR_ARGUMENT, XACME_TXT_ERROR_ARGUMENT,
+			"acme dns txt match requires output");
+		return false;
+	}
+	return xacmeDnsTxtExchange(pDns, sResolver, iPort, sFqdn,
+		NULL, 0u, NULL, sExpected, pFound);
+}
+
 bool xacmeDnsTxtWait(
 	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
 	cstr sExpected, int64 uTimeoutMs)
@@ -451,21 +466,13 @@ bool xacmeDnsTxtWait(
 	if (!__xrtWaitValid(uDeadline)) return false;
 	while(!__xrtWaitExpired(uDeadline))
 	{
-		char sRecords[4][XACME_TXT_RECORD_MAX];
-		size_t iCount = 0u;
-		size_t i;
-		if(!xacmeDnsTxtQuery(
-			pDns, sResolver, iPort, sFqdn, sRecords, 4u, &iCount))
+		bool bFound = false;
+		if(!xacmeDnsTxtContains(
+			pDns, sResolver, iPort, sFqdn, sExpected, &bFound))
 		{
 			return false;
 		}
-		for(i = 0; i < iCount; i++)
-		{
-			if(strcmp(sRecords[i], sExpected) == 0)
-			{
-				return true;
-			}
-		}
+		if(bFound) return true;
 		xrtSleep(1000u);
 	}
 	xacmeTxtError(

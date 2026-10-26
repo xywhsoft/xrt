@@ -1016,32 +1016,24 @@ static bool xacmeFlowTxtVisible(
 	size_t i;
 	for(i = 0; i < pClient->iPropagateResolverCount; i++)
 	{
-		char sRecords[4][XACME_TXT_RECORD_MAX];
 		char sHost[64];
 		uint16 iPort = xacmeFlowResolverPort(
 			pClient->sPropagateResolvers[i], sHost, sizeof(sHost));
-		size_t iCount = 0u;
-		size_t j;
+		bool bFound = false;
 		if(iPort == 0u)
 		{
 			if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
 			xrtClearError();
 			continue;
 		}
-		if(!xacmeDnsTxtQuery(
-				pDns, sHost, iPort, sFqdn, sRecords, 4u, &iCount))
+		if(!xacmeDnsTxtContains(
+				pDns, sHost, iPort, sFqdn, sExpected, &bFound))
 		{
 			if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
 			xrtClearError(); /* Advisory reachability failure must not mask a later OOM. */
 			continue; /* 单个 resolver 不可达不算失败。 */
 		}
-		for(j = 0; j < iCount; j++)
-		{
-			if(strcmp(sRecords[j], sExpected) == 0)
-			{
-				return true;
-			}
-		}
+		if(bFound) return true;
 	}
 	return false;
 }

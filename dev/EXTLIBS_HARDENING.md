@@ -795,3 +795,45 @@ Retry-After 数值和总预算传播仍需分别验证。RSA 导入语义及六�
 
 账户/证书钥复用和授权数量两项已复现问题现已修复。xacme 的总预算、Retry-After、EAB 标识符、
 RSA 导入及 provider/签名/XML 复核继续；大同名 RRset 的递归探测输出容量也须单独验证。
+
+### 第二十四批：完整应答 TXT 匹配与结构边界
+
+- 旧传播门和 Wait 只比较前四条文本结果；第五条会漏报，空分段及前置的合法长 TXT
+  也会阻断匹配。真实 UDP 的十个旧实现对照场景失败七项，还包括 NUL 前缀误判、
+  TC 截断和容量满后的畸形尾部被误报命中。三个控制保持正确。
+- 新内部入口共用原 UDP 生命周期，逐段按字节比较全部 answer TXT，无固定记录窗口、
+  无匹配临时分配。完整结构验证结束后才发布 found/计数。文本查询保留容量契约，
+  拒绝输出不可表示的长度与内嵌 NUL；无关二进制或较长 TXT 不阻断精确匹配。
+- 按 [RFC 1035 §3.3.14](https://datatracker.ietf.org/doc/html/rfc1035#section-3.3.14)
+  接受空 character-string，拒绝不含分段的零 RDATA。检查全部 question/answer/authority/
+  additional 边界、TXT 分段及尾随数据；压缩目标必须位于指针之前，检查链与展开长度，
+  拒绝 TC 截断。authority/additional TXT 不算 answer 命中。修正原本自指的“合法”分段
+  测试和两个 fuzz 种子，保留另一个真实 question 压缩控制。
+- 15 项文本解析矩阵在旧实现失败 13 项；修复后与另 18 项精确匹配矩阵全部通过。
+  覆盖第 5/65 条、空分段、二进制/NUL、256 字节前置值、空期望、参数/ID/负答复和
+  后段失败。在真实分配故障阈值零下检查不分配、不发布失败命中/部分计数及容量哨兵。
+- 实际 Core buffer/UDP/Future 的六个故障位置对 collect/contains 各执行控制/OOM，
+  共 24 组，检查原 MEMORY 身份、终止重发、同引擎恢复及真实分配归零。
+  Windows/Linux GCC、Linux/TCC 和 Clang ASan/UBSan/float-cast-overflow 加泄漏检查通过；
+  产品聚合分别实际运行 38/37/37 个测试，完整 flow 各 230 个分组通过。
+- 独立 UDP 增至 21 个生命周期/endpoint 场景，Windows GCC、Linux GCC 和 Linux Clang
+  sanitizer 全部通过，两种 IPv6 表达实际执行。正答必须收到 Flow、Wait 两次实际查询，
+  反例一次，畸形 resolver 零次；查询后 UDP 对象归零，借用引擎保持运行。
+  完整模拟 CA 在三组环境各 18 项通过，授权策略扩为 0/2/5，核对每个授权实际递归命中、
+  无残留 TXT、无咨询性传播超时。五条挑战和独立 UDP 夹具均不超过 512 字节。
+- 匹配失败原子性加入 fuzz 契约；Clang ASan/UBSan libFuzzer 实际执行 200000 轮通过。
+  生成一致性、feature、公共符号登记、参考生成与发布门禁通过；公开 API 数量不变。
+  对照发现 Linux 生成头保留了一行上一批旧注释；同步公开源注释并重新验证生成消费，
+  不将注释不同的旧生成输入冒称逐字节相同。
+- 65 条仅为直接解析测试。传输仍无 EDNS/TCP 回退；截断恢复、属主/问题/CNAME 语义绑定、
+  绝对预算与其他 ACME 源码尚待复核。本批不代表完整 DNS 或 xacme 整库验收。
+- 上批 e84969f6 CI 40366086935 最终 71 success、1 failure、1 cancelled，独立邮件
+  40366078120 成功。日志显示 macOS Apple Clang 的首个 TCP 拒绝对端连接断言失败；
+  xhttp-server 的 test_http_server_lifecycle 运行约一小时后取消，仍继续追查，不能记为通过。
+  更早换钥 CI 40356913026 最终 72 success、1 cancelled，仍无该次 macOS ARM64 通过证据。
+
+证据：`acme-dns-parser-before.log`、`acme-dns-wire-before.log`、
+`acme-dns-match-aggregate-{windows,linux,sanitize}-final.log`、
+`acme-dns-match-{dns,flow}-tcc-final.log`、`acme-dns-match-wire-{windows,linux}-counted-final.log`、
+`acme-dns-match-wire-sanitize-final.log`、`acme-dns-match-mock-{windows,linux,sanitize}-final.log`、
+`acme-dns-match-libfuzzer-final.log`、`ci-e849-macos-failed.log`、`ci-e849-xhttp-server-cancelled.log`。

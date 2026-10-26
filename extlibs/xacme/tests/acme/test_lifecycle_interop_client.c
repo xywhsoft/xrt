@@ -1043,6 +1043,12 @@ static bool dns_resolver_endpoint(cstr endpoint, bool expected)
 	xrtClearError();
 	visible = xacmeFlowTxtVisible(&dns, &client, "resolver.test", "probe");
 	ok = visible == expected;
+	if(visible && expected) {
+		char address[64];
+		uint16 port = xacmeFlowResolverPort(endpoint, address, sizeof(address));
+		ok = port != 0u &&
+			xacmeDnsTxtWait(&dns, address, port, "resolver.test", "probe", 1000) && ok;
+	}
 	deadline = __xrtWaitAfter(5000);
 	do {
 		if(!xrtNetEngineStats(engine, &stats)) return false;
@@ -1138,6 +1144,7 @@ int main(int argc, char** argv)
 		if(strcmp(argv[2], "dns") == 0) ok = dns_query_lifecycle((uint16)strtoul(argv[3], NULL, 10));
 		else if(strcmp(argv[2], "dns-resolver") == 0) ok = dns_resolver_endpoint(argv[3], true);
 		else if(strcmp(argv[2], "dns-resolver-invalid") == 0) ok = dns_resolver_endpoint(argv[3], false);
+		else if(strcmp(argv[2], "dns-txt-absent") == 0) ok = dns_resolver_endpoint(argv[3], false);
 		else ok = false;
 	}
 	else if(argc == 3) {
