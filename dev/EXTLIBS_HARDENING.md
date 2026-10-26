@@ -320,3 +320,16 @@ OAuth HTTP 生命周期、token 流程及发现/身份组合仍需后续复核�
 
 证据：`a18-windows-ci-failure.log`、`tcp-server-callback-windows.log`、`tcp-server-callback-sanitize-linux.log`、
 `tcp-server-callback-repeat-windows.log`、`tcp-server-callback-repeat-linux.log`。
+
+### CI 续修：JWT 测试夹具的可空算法名
+
+- `77b1d0d5` 的 Linux 认证 job `121242706124` 在 GCC `-O2 -Werror` 下拒绝
+  critical header 夹具将可空的 `xjwtAlgName` 返回值直接交给 `%s`。
+  先验证算法名，异常时保留失败断言并释放已建缓存密钥；正常路径复用已验证名称。
+- Windows/GCC 与 Linux/GCC 的完整 JWT 入口均为 916 项通过；未关闭编译警告或降低断言。
+- 前一批最终源码的 Windows/Linux 完整清单套件也已通过，包含模块化、两个单头入口、
+  时间边界和中间件示例；当前 CI 失败不能由这些本地结果替代，仍需新提交验证。
+
+证据：`77-auth-linux-ci-failure.log`、`jwt-ci-guard-gcc-final.log`、
+`auth-config-alias-windows-final.log`（仅其中 JWT 段；后续 OAuth 段为中间测试结果）、
+`jwt-full-windows-final.log`、`jwt-full-linux-final.log`。
