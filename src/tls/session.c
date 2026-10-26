@@ -465,6 +465,21 @@ XRT_API bool xrtTlsSessionBufferOwnershipTrace(
 
 
 
+XRT_API bool xrtTlsSessionOwnershipTrace(
+	const xtlssession* pSession, xrtownershipvisitor pVisit, ptr pContext
+)
+{
+	if (!xrtTlsSessionBufferOwnershipTrace(pSession, pVisit, pContext)) return false;
+	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+		if (pSession->Role == XTLS_CLIENT &&
+			!__xrtTlsClientVerifierOwnershipTrace(pSession, pVisit, pContext)) return false;
+	#endif
+	#if defined(XRT_FEATURE_TLS_SERVER)
+		if (pSession->Role == XTLS_SERVER && !__xrtTlsServerIdentityOwnershipLeaf(pSession)) return false;
+	#endif
+	return true;
+}
+
 /* 返回会话角色。 */
 XRT_API xtlsrole xrtTlsSessionRole(const xtlssession* pSession)
 {

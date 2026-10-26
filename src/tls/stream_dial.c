@@ -1429,7 +1429,7 @@ static bool __xrtTlsDialOwnedTrace(const void* data, xrtownershipvisitor visit, 
 	#endif
 	return (!tcp || visit(xrtNetDialOwnership(tcp), context)) &&
 		(!d->OwnedStream || visit(xrtTlsStreamOwnership(d->OwnedStream), context)) &&
-		(!d->OwnedSession || xrtTlsSessionBufferOwnershipTrace(d->OwnedSession, visit, context)) &&
+		(!d->OwnedSession || xrtTlsSessionOwnershipTrace(d->OwnedSession, visit, context)) &&
 		(!d->Error || visit(xrtErrorOwnership(d->Error), context));
 }
 static const xrtownershipops __xrtTlsDialOwnershipOps = {__xrtTlsDialOwnedCount, __xrtTlsDialOwnedTrace};

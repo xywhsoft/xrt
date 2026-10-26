@@ -1,4 +1,5 @@
 #include "../internal/xrt_tls_server.h"
+#include "../internal/xrt_tls_identity.h"
 
 
 
@@ -279,6 +280,15 @@ static void __xrtTlsServerClean(xtlssession* pSession, ptr pRole)
 	}
 	xrtTlsIdentityRelease((xtlsidentity*)pState->Identity);
 	pState->Identity = NULL;
+}
+
+bool __xrtTlsServerIdentityOwnershipLeaf(const xtlssession* pSession)
+{
+	if (!pSession || pSession->Role != XTLS_SERVER) return false;
+	if (!pSession->Clean) return true;
+	if (pSession->Clean != __xrtTlsServerClean) return false;
+	const xtlsserverstate* pState = (const xtlsserverstate*)(pSession + 1);
+	return !pState->Identity || __xrtTlsIdentityOwnershipLeaf(pState->Identity);
 }
 
 

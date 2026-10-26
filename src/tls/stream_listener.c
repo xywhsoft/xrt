@@ -1,4 +1,5 @@
 #include "../internal/xrt_tls_stream.h"
+#include "../internal/xrt_tls_identity.h"
 
 
 
@@ -1570,6 +1571,7 @@ static bool __xrtTlsListenerOwnershipCount(const void* data, size_t* count)
 	if (!l || !count || !l->OwnershipPolicy || !l->OwnershipDataHeld || !l->Data || !l->OwnershipStorageHeld ||
 		!l->Engine || __xrtTlsListenerOwnershipBusy(l) ||
 		(xrtAtomic32Load(&l->OwnershipState, XMEMORY_ACQUIRE) & XRT_TLS_LISTENER_OWN_CLEARED)) return false;
+	if (l->Tls.Identity && !__xrtTlsIdentityOwnershipLeaf(l->Tls.Identity)) return false;
 	if (l->RuntimeHeld) {
 		if (!l->OwnershipEngineHeld || l->RuntimeOwner.Data != l || !l->RuntimeOwner.Previous ||
 			l->RuntimeOwner.Engine != l->Engine || l->RuntimeOwner.Policy != xrtTlsListenerRuntimeOwnershipV1Get()) return false;

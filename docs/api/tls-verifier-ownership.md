@@ -36,12 +36,24 @@ Claim 阻止新的验证调用，Restore 可撤销尚未 Clear 的 claim。不�
 
 ## 明确边界
 
-本接口不能让现有 Context／Session／Stream 的完整图自动成立。每一个原生
-消费者仍须报告自己实际持有的 Verifier 引用，并覆盖其发布、替换和释放；
-语言包装也不能继续把带闭包的 Verifier 当作 native leaf。
+每一个消费者都须报告自己实际持有的 Verifier 引用；语言包装不能把带闭包
+的 Verifier 当作 native leaf。`xrtTlsSessionOwnershipTrace` 在四个缓冲队列
+之外，报告内建 verified-client 实际持有的 Verifier 槽。Stream 与尚持有
+Session 的 Dial 组合这套遍历，不能继续只遍历缓冲区。
+
+此接口要求 Session 被唯一拥有、静止并处于完整图 freeze 中。先核对实际
+内建角色的清理函数身份，再读取角色尾部；内部无角色尾部的 base Session
+不会被强制解释为 client/server 尾部。原生参数、内建密钥和 DER／resume
+字节不含回调拥有边；不代表这些原生资源只能有一个引用。
+
+自定义 signer 身份的外部支持、签名、清理或上下文槽只要任一个存在，
+Session 的完整图遍历就拒绝，Listener 的图接纳也拒绝；不能从 identity
+类型或 NULL Context 推断它是叶对象。普通 C 构造、签名及销毁不受影响。
+借用的 server selector／resume 数据仍由嵌入者自己的拥有图和代码驻留合同
+覆盖，不把借用指针虚构成 Session 的强引用，也不接纳未知 Verifier 子节点。
 
 语言层附加验证和 CRL 提供者的接线、公开拥有快照、异常传播、恢复凭据／
-策略绑定，以及 xlang 固定快照的定点同步属于后续接入工作。不得仅因本接口
+策略绑定属于语言接入工作。不得仅因本接口
 存在就宣称语言 CRL、完整 TLS 或 shipping 已通过。CRL 默认关闭，显式开启
 后严格拒绝未知结果的用户决策不被此原生接口改变。
 

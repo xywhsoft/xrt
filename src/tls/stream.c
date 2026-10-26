@@ -2970,7 +2970,7 @@ static bool __xrtTlsStreamOwnershipCount(const void* pData, size_t* pCount)
 	if (xrtNetStreamState(tcp) != XNET_STREAM_CLOSED &&
 		(!tcp->EventOwner || tcp->EventOwner->Data != s ||
 		 tcp->EventOwner->Policy != xrtTlsStreamTransportOwnershipV1Get())) return false;
-	if (!xrtTlsSessionBufferOwnershipTrace(s->Session, __xrtTlsStreamValidateBufferEdge, NULL)) return false;
+	if (!xrtTlsSessionOwnershipTrace(s->Session, __xrtTlsStreamValidateBufferEdge, NULL)) return false;
 	int32 refs = __xrtAtomicRefLoad(&s->References);
 	if (refs <= 0) return false;
 	*pCount = (size_t)refs; return true;
@@ -2984,7 +2984,7 @@ static bool __xrtTlsStreamOwnershipTrace(const void* pData, xrtownershipvisitor 
 		(s->OwnershipEngineHeld && !visit(xrtNetEngineOwnership(s->OwnershipEngine), context)) ||
 		!visit(xrtNetStreamOwnership(xrtAtomicPtrLoad(&s->Transport, XMEMORY_ACQUIRE)), context) ||
 		!visit((xrtownershipref){xrtAtomicPtrLoad(&s->Data, XMEMORY_ACQUIRE), s->OwnershipPolicy->Ops}, context) ||
-		!xrtTlsSessionBufferOwnershipTrace(s->Session, visit, context)) return false;
+		!xrtTlsSessionOwnershipTrace(s->Session, visit, context)) return false;
 	#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
 		if (!__xrtTlsStreamAsyncOwnershipWalk(s, visit, context)) return false;
 	#endif

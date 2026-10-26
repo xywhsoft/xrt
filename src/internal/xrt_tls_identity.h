@@ -47,6 +47,15 @@ struct xtlsidentity {
 	ptr ExternalContext;
 };
 
+/* Built-in key material is inert native storage. The public custom signer
+ * adopts an opaque Context and can execute external cleanup: never infer its
+ * graph from Type, a NULL Context, or a caller's transport Data policy. */
+static inline bool __xrtTlsIdentityOwnershipLeaf(const xtlsidentity* pIdentity)
+{
+	return pIdentity && !pIdentity->ExternalSupports && !pIdentity->ExternalSign &&
+		!pIdentity->ExternalRelease && !pIdentity->ExternalContext;
+}
+
 
 
 /* 创建证书快照和精确大小的后端私有尾部，失败时不发布半成品。 */

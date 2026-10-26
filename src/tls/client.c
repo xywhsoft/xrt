@@ -1081,6 +1081,21 @@ static void __xrtTlsClientClean(xtlssession* pSession, ptr pRole)
 
 
 
+#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+bool __xrtTlsClientVerifierOwnershipTrace(
+	const xtlssession* pSession, xrtownershipvisitor pVisit, ptr pContext
+)
+{
+	if (!pSession || !pVisit || pSession->Role != XTLS_CLIENT) return false;
+	/* Internal base sessions have no role tail. Never infer a layout from the
+	 * Role enum alone, nor follow an unknown internal cleanup callback. */
+	if (!pSession->Clean) return true;
+	if (pSession->Clean != __xrtTlsClientClean) return false;
+	const xtlsclientstate* pState = (const xtlsclientstate*)(pSession + 1);
+	return !pState->Verifier || pVisit(xrtTlsVerifierOwnership(pState->Verifier), pContext);
+}
+#endif
+
 /* 初始化不借用任何外部资源的客户端配置。 */
 XRT_API void xrtTlsClientConfigInit(xtlsclientconfig* pConfig)
 {
