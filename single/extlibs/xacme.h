@@ -1380,6 +1380,7 @@ XRT_API bool xrtAcmeClientRevoke(
 	false 并保留当前内存密钥。成功后客户端即刻使用新钥；若指定
 	sStoreRoot 而重存失败，返回 false 但内存仍使用新钥，调用方可
 	用同一 sNewKeyPem 重试对账与持久化。
+	拒绝将客户端已知的当前证书钥作为账户新钥，在签名和网络对账前检查。
 	MEMORY 保留原始原因并立即返回，不自动对账或重试；调用方须保留
 	新钥供显式恢复。持久化使用的临时私钥文本在成功和失败时均清零后释放。
 */
@@ -11482,6 +11483,17 @@ bool xacmeClientRollover(
 	if(!xacmeKeyPemRead(sNewKeyPem, strlen(sNewKeyPem), &NewKey))
 	{
 		return false;
+	}
+	/* RFC 8555 section 11.1 also applies to rollover: a known certificate
+	 * key must not be adopted as an account key, even via reconciliation. */
+	if((pClient->pCertKey != NULL) &&
+		(pClient->pCertKey->Kind == XACME_CERT_KEY_ES256) &&
+		(memcmp(NewKey.Public, pClient->pCertKey->Ec.Public,
+			sizeof(NewKey.Public)) == 0))
+	{
+		xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme new account key must differ from the certificate key");
+		goto Done;
 	}
 	/* 进程重启后重试同一新钥时，先确认服务器是否已经换钥。 */
 	Lookup = xacmeFlowRolloverLookup(pClient, &NewKey);

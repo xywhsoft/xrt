@@ -735,3 +735,20 @@ Retry-After 数值和总预算传播仍需分别验证。RSA 导入语义及六�
   Route53 C 主文件已读，签名/XML 依赖和异常原因链仍需结合真实失败验证。
 
 授权数量证据：`acme-flow-authorizations-cardinality-before.log/json`。
+
+### 第二十二批：账户换钥拒绝已知证书钥
+
+- 上一批派生公开入口探针复现：当前证书钥被当作账户新钥接受，发起对账并替换账户钥。
+  默认 flow 新增六项公钥身份与恢复回归，旧实现失败三项：PKCS#8、同钥 SEC1，以及诊断 OOM
+  已经进入签名阶段。三个正常控制为不同 EC 钥、RSA 证书钥、未配置证书钥。
+- 换钥读入新钥后、任何 JWS/网络对账前，按公钥身份拒绝与已配置 EC 证书钥相同的新钥。
+  走原有统一清理擦除临时新钥，保留原账户钥与证书钥；参数诊断分配失败保留 MEMORY。
+  不依据 PEM 文本比较，故不同私钥封装不能绕过。拒绝后同客户端可用独立新钥显式恢复。
+- Windows/Linux GCC、TCC、Clang ASan/UBSan/float-cast-overflow 加泄漏检查的完整
+  flow 套件各 211 个分组通过；每项同时检查签名/对账/写入计数、钥状态、诊断、恢复与真实分配余额。
+  公开契约与生成头同步。产品聚合及独立 TLS 将随下一授权数量修复在最终源码上再验证，
+  此处不把上一批 205 分组或旧远端结果当作本批完整产品验证。
+
+证据：`acme-key-separation-before.log`、`acme-key-separation-windows-final.log`、
+`acme-key-separation-linux-final.log`、`acme-key-separation-tcc-final.log`、
+`acme-key-separation-sanitize-final.log`。

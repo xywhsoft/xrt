@@ -159,6 +159,8 @@ static uintptr_t RolloverPemAddress;
 static size_t RolloverPemSize;
 static bool RolloverPemPending;
 static cstr RolloverExpectedPem;
+static bool RolloverValidationOom;
+static unsigned RolloverSignatures;
 static void eab_end_scan(void) {
     if(EabProbe && EabArmed && !EabEnded) {
         xmemdebugsnapshot S; xrtMemDebugSnapshot(&S);
@@ -252,7 +254,10 @@ static xvalue* flow_json(xstrview Text) {
     xvalue* Result=xrtJsonParse(Text); if(!Result) remember(); return Result;
 }
 static bool flow_key(cstr Pem,size_t Size,xacmees256key* Key) {
-    arm("account-pem"); bool Result=xacmeKeyPemRead(Pem,Size,Key); if(!Result) remember(); return Result;
+    arm("account-pem"); bool Result=xacmeKeyPemRead(Pem,Size,Key); if(!Result) remember();
+    if(Result && RolloverProbe && RolloverValidationOom)
+        testRequire(xrtMemDebugFailAfter(0),"rollover key validation diagnostic fault arm");
+    return Result;
 }
 static bool flow_certkey(cstr Pem,size_t Size,xacmecertkey* Key) {
     arm("cert-key-pem"); bool Result=xacmeCertKeyReadPem(Pem,Size,Key); if(!Result) remember(); return Result;
@@ -264,6 +269,7 @@ static str flow_eab(cstr Kid,cstr Url,xstrview Jwk,const uint8* Mac,size_t Size)
     arm("eab-sign"); str Result=xacmeJwsEabHs256(Kid,Url,Jwk,Mac,Size); if(!Result) remember(); return Result;
 }
 static str flow_sign(const xacmees256key* Key,const xacmejwsheader* H,xstrview Payload) {
+    if(RolloverProbe) RolloverSignatures++;
     eab_end_scan();
     if(H->Url.Size==strlen("http://ca.example/alternate") && memcmp(H->Url.Data,"http://ca.example/alternate",H->Url.Size)==0)
         testRequire(Payload.Size==0u,"alternate was not a signed POST-as-GET");
@@ -987,6 +993,65 @@ static void rollover_fault_policy(void) {
     printf("[rollover-summary] rows=%zu failed=%u\n",sizeof(Rows)/sizeof(Rows[0])+sizeof(StoreRows)/sizeof(StoreRows[0]),Failed);
     testRequire(Failed==0u,"rollover replayed MEMORY, lost key state/cause or retired private text uncleared");
 }
+static void rollover_key_separation(void) {
+    xpemblock Block; xdercursor Cursor; xdervalue Value; xbytesview Private;
+    size_t Size; char Sec1[1024], NewPem[1024];
+    testRequire(xrtPemFind(ACME_FIXTURE_KEY,strlen(ACME_FIXTURE_KEY),"PRIVATE KEY",&Block),"known certificate PKCS8 fixture");
+    bytes Der=xrtPemDecodeNew(&Block,&Size);
+    testRequire(Der && xrtDerInit(&Cursor,Der,Size) &&
+        xrtDerExpect(&Cursor,XASN1_UNIVERSAL,XASN1_SEQUENCE,true,&Value) && xrtDerEnter(&Value,&Cursor) &&
+        xrtDerRead(&Cursor,&Value)==XDER_VALUE && xrtDerRead(&Cursor,&Value)==XDER_VALUE &&
+        xrtDerRead(&Cursor,&Value)==XDER_VALUE && xrtDerOctets(&Value,&Private),"known certificate PKCS8 structure");
+    str Text=xrtPemEncodeNew("EC PRIVATE KEY",Private.Data,Private.Size);
+    testRequire(Text && strlen(Text)<sizeof(Sec1),"known certificate alternate SEC1 fixture"); strcpy(Sec1,Text);
+    xrtSecureZero(Der,Size);xrtFree(Der);xrtSecureZero(Text,strlen(Text));xrtFree(Text);
+    xacmees256key NewKey={{0},{0}};NewKey.Private[31]=1u;
+    testRequire(xacmeEs256FromPrivate(&NewKey),"separate account key fixture");
+    Text=xacmeKeyPemWrite(&NewKey);testRequire(Text && strlen(Text)<sizeof(NewPem),"separate account PEM fixture");
+    strcpy(NewPem,Text);xrtSecureZero(Text,strlen(Text));xrtFree(Text);xrtClearError();testMemoryDebugDrain("key separation fixture allocations");
+    const struct { cstr Name, Cert, New; bool Reject, Oom; } Rows[]={
+        {"known-cert-pkcs8",ACME_FIXTURE_KEY,ACME_FIXTURE_KEY,true,false},
+        {"known-cert-sec1",ACME_FIXTURE_KEY,Sec1,true,false},
+        {"known-cert-diagnostic-memory",ACME_FIXTURE_KEY,ACME_FIXTURE_KEY,true,true},
+        {"different-ec-cert",ACME_FIXTURE_KEY,NewPem,false,false},
+        {"rsa-cert",ACME_FIXTURE_RSA_KEY,NewPem,false,false},
+        {"no-cert-key",NULL,NewPem,false,false}
+    };
+    unsigned Failed=0;
+    for(size_t i=0;i<sizeof(Rows)/sizeof(Rows[0]);i++) {
+        xacmeaccountconfig Account;xacmeclientconfig Config;xacmecertkey SavedCert={0};
+        Active=&Cases[0];Enabled=Inject=Armed=false;FirstError=NULL;
+        xrtAcmeAccountConfigInit(&Account);xrtAcmeClientConfigInit(&Config);
+        Account.sDirectoryUrl="http://ca.example/dir";Account.sAccountKeyPem=KeyPem;
+        Config.pAccount=&Account;Config.sCertKeyPem=Rows[i].Cert;
+        xacmeclient* Client=xrtAcmeClientCreate(&Config);testRequire(Client!=NULL,"key separation client fixture");
+        xacmees256key Old=Client->AccountKey;if(Client->pCertKey) SavedCert=*Client->pCertKey;
+        RolloverError=NULL;RolloverFaultStage=ROLLOVER_NO_FAULT;RolloverFailures=0;RolloverRemoteApplied=true;
+        RolloverExports=RolloverSaves=RolloverLookups=RolloverWrites=RolloverSignatures=0;
+        RolloverExportOom=false;RolloverStoreFailure=XERR_NONE;RolloverPemPending=false;
+        RolloverValidationOom=Rows[i].Oom;RolloverProbe=true;
+        bool Result=xrtAcmeClientRollover(Client,Rows[i].New,NULL);
+        bool Triggered=xrtMemDebugFailTriggered();xerrkind Kind=xrtErrorKind(xrtGetError());xrtMemDebugFailClear();
+        bool Ok=Result==!Rows[i].Reject && Triggered==Rows[i].Oom &&
+            RolloverLookups==(Rows[i].Reject?0u:1u) && RolloverSignatures==(Rows[i].Reject?0u:1u) &&
+            RolloverWrites==0u && RolloverExports==0u && RolloverSaves==0u &&
+            Kind==(Rows[i].Reject?(Rows[i].Oom?XERR_MEMORY:XERR_ARGUMENT):XERR_NONE) &&
+            memcmp(&Client->AccountKey,Rows[i].Reject?&Old:&NewKey,sizeof(NewKey))==0 &&
+            (!Client->pCertKey || memcmp(Client->pCertKey,&SavedCert,sizeof(SavedCert))==0);
+        printf("[rollover-key-separation] %s success=%d kind=%d lookup=%u sign=%u triggered=%d ok=%d\n",
+            Rows[i].Name,Result,(int)Kind,RolloverLookups,RolloverSignatures,Triggered,Ok);
+        RolloverValidationOom=false;
+        unsigned Prior=RolloverLookups;
+        testRequire(xrtAcmeClientRollover(Client,NewPem,NULL) && RolloverLookups==Prior+1u && RolloverWrites==0u &&
+            memcmp(&Client->AccountKey,&NewKey,sizeof(NewKey))==0 && xrtGetError()==NULL,"valid rollover cannot recover after key rejection");
+        RolloverProbe=false;xrtAcmeClientDestroy(Client);xacmeCertKeyUnit(&SavedCert);xrtSecureZero(&Old,sizeof(Old));
+        xrtClearError();testMemoryDebugDrain("key separation retained allocations");
+        if(!Ok) Failed++;else printf("[PASS] FLOW rollover-key/%s\n",Rows[i].Name);
+    }
+    xrtSecureZero(Sec1,sizeof(Sec1));xrtSecureZero(NewPem,sizeof(NewPem));xrtSecureZero(&NewKey,sizeof(NewKey));
+    printf("[rollover-key-summary] rows=%zu failed=%u\n",sizeof(Rows)/sizeof(Rows[0]),Failed);
+    testRequire(Failed==0u,"rollover reused known certificate key or rejected a separate valid account key");
+}
 static bool eab_run(cstr Label,cstr Hmac,cstr Kid,int64 FailAfter,uint64* Allocations,bool Wire) {
     xacmeaccountconfig Account; xacmeclientconfig Config;
     char SavedText[5500]; testRequire(!Hmac || strlen(Hmac)<sizeof(SavedText),"EAB snapshot capacity"); strcpy(SavedText,Hmac?Hmac:"");
@@ -1063,6 +1128,7 @@ static void eab_keys(bool Wire) {
     printf("[PASS] FLOW EAB key lengths, padding, secure retirement and allocation recovery\n");
 }
 int main(int argc,char** argv) {
+    if(argc==2 && strcmp(argv[1],"rollover-key-separation")==0) { rollover_key_separation(); return 0; }
     if(argc==2 && strcmp(argv[1],"rollover-faults")==0) { rollover_fault_policy(); return 0; }
     if(argc==2 && strcmp(argv[1],"eab-keys")==0) { eab_keys(true); return 0; }
     if(argc==2 && strcmp(argv[1],"link-parser")==0) { link_parser(); return 0; }
@@ -1070,7 +1136,7 @@ int main(int argc,char** argv) {
     if(argc==2 && strcmp(argv[1],"resolver-endpoints")==0) { resolver_endpoints(); return 0; }
     testRequire(argc==1 || argc==3,"flow fixture usage: [name control|oom]");
     if(argc==2 && strcmp(argv[1],"alternate-urls")==0) { alternate_urls(); return 0; }
-    if(argc==1) { link_parser(); alternate_urls(); read_retry_policy(NULL); resolver_endpoints(); eab_keys(false); rollover_fault_policy(); }
+    if(argc==1) { link_parser(); alternate_urls(); read_retry_policy(NULL); resolver_endpoints(); eab_keys(false); rollover_fault_policy(); rollover_key_separation(); }
     for(size_t i=0;i<sizeof(Cases)/sizeof(Cases[0]);i++) {
         if(argc==3 && strcmp(argv[1],Cases[i].Name)!=0) continue;
         if(argc==3) { bool Oom=strcmp(argv[2],"oom")==0; testRequire(Oom || strcmp(argv[2],"control")==0,"invalid flow mode"); run_case(&Cases[i],Oom); return 0; }
