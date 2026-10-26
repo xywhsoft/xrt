@@ -623,7 +623,7 @@ XHTTP_SERVER_API void xrtHttpServerConfigInit(xhttpserverconfig* pConfig)
 		XRT_HTTP_SERVER_WRITE_TIMEOUT_DEFAULT;
 	Config.MaxInformations =
 		XRT_HTTP_SERVER_INFORMATION_DEFAULT;
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -643,7 +643,7 @@ XHTTP_SERVER_API void xrtHttpServerEventsInit(xhttpserverevents* pEvents)
 		);
 		return;
 	}
-	memcpy(pEvents, &Events, sizeof(Events));
+	memcpy((void*)pEvents, &Events, sizeof(Events));
 }
 
 
@@ -668,7 +668,7 @@ bool __xrtHttpServerNetworkWriteLimit(
 		} else {
 			memcpy(
 				&Listen,
-				pConfig->Network.Additional + (i - 1u),
+				(const void*)(pConfig->Network.Additional + (i - 1u)),
 				sizeof(Listen)
 			);
 		}
@@ -764,7 +764,7 @@ xhttpserver* __xrtHttpServerCreate(
 			);
 			return NULL;
 		}
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
 	if ( pEvents != NULL ) {
 		if ( !xrtMemRangeValid(pEvents, sizeof(Events)) ) {
@@ -777,7 +777,7 @@ xhttpserver* __xrtHttpServerCreate(
 			);
 			return NULL;
 		}
-		memcpy(&Events, pEvents, sizeof(Events));
+		memcpy(&Events, (const void*)pEvents, sizeof(Events));
 	}
 	if ( (pEngine == NULL) ||
 		!__xrtHttpServerConfigValid(&Config) ) {
@@ -1010,7 +1010,7 @@ XHTTP_SERVER_API bool xrtHttpServerLocal(
 		return false;
 	}
 	memcpy(
-		pAddress,
+		(void*)pAddress,
 		&pServer->Locals[iEndpoint],
 		sizeof(*pAddress)
 	);
@@ -1123,7 +1123,7 @@ XHTTP_SERVER_API bool xrtHttpServerStats(
 	Stats.Endpoints = pServer->EndpointCount;
 	Stats.Listeners = pServer->ListenerCount;
 	Stats.Secure = pServer->Secure;
-	memcpy(pStats, &Stats, sizeof(Stats));
+	memcpy((void*)pStats, &Stats, sizeof(Stats));
 	return true;
 }
 

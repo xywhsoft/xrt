@@ -175,6 +175,7 @@ static void __xrtHttpConnUpgradeTask(
 		__xrtHttpServerConnectionClosed(pServer);
 	}
 	if ( pConnection->RuntimeHeld ) {
+		__xrtHttpConnAdapterRelease(pConnection);
 		pConnection->RuntimeHeld = false;
 		xrtHttpConnDestroy(pConnection);
 	}

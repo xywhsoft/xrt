@@ -42,7 +42,7 @@
 | xhttp | 115 | 124 | 236 | 115 | 82 | 待复核 |
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
-| xhttp-server | 25 | 31 | 90 | 32 | 25 | 待复核 |
+| xhttp-server | 25 | 31 | 90 | 32 | 25 | 关闭/Upgrade 生命周期修复及包消费通过，字节视图与其余源码复核继续 |
 | ximap | 11 | 9 | 22 | 15 | 5 | 待复核 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 已完成本轮：源码、本地、双平台认证 CI 及交付验收 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
@@ -58,7 +58,7 @@
 | xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
 | xws-client | 5 | 3 | 7 | 5 | 3 | 待复核 |
 | xws-group | 3 | 3 | 4 | 3 | 2 | 待复核 |
-| xws-server | 6 | 5 | 25 | 13 | 4 | 待复核 |
+| xws-server | 6 | 5 | 25 | 13 | 4 | 握手字节视图与升级依赖回归通过，完整 sanitizer/源码复核继续 |
 
 ## 执行记录
 
@@ -860,3 +860,65 @@ RSA 导入及 provider/签名/XML 复核继续；大同名 RRset 的递归探测
 证据：`tcp-reject-gate-windows-build.log`、`tcp-reject-gate-windows-repeat-final.log`、
 `tcp-reject-gate-{clang,tcc}-linux-final.log`、`tcp-reject-gate-gcc-linux-final-refresh.log`、
 `http-server-lifecycle-repeat-before.log`、`ci-e849-xhttp-server-cancelled.log`。
+
+### 第二十六批：HTTP 运行时适配器在 Shutdown 前退休
+
+- CI 的一小时取消在 Linux 原始生命周期测试第 33 轮自然复现；gdb 栈证明 Abort 的临时
+  Connection 引用成为最后拥有者，主线程在 Destroy 的适配器清理中等待自己的后续信号。
+  进一步增加保留公开 Connection 引用的场景，稳定复现三个实际契约缺口：普通关闭不启动
+  适配器清理，Upgrade 成功和中止都在内部上下文退休前发布 Shutdown。
+- 在正常关闭及 Upgrade 运行时退出处、归还 RuntimeConnections 前清理剩余适配器。
+  Upgrade 完成回调先返回；Close 或升级层已经 Take 的上下文保持其拥有权。
+  helper 先清空 Data/Release 再调用，最终析构保留失败/未启动实例的兜底。
+  公开引用可以保留关闭/升级后的查询对象，不再把内部退休推迟到最后公开引用释放。
+- 默认生命周期测试同时覆盖保留/不保留公开引用，两条路径均要求清理在所属 Worker 上执行，
+  清理门阻塞期间 Server 保持 ABORTING，放行后唯一 Shutdown/清理完成。
+  Upgrade 的 Reply/Raw/Response/IOCP 共用回归确认回调内上下文仍有效、Shutdown 前已退休，
+  最后释放公开引用不重复清理；原有关闭、事件、统计和引擎退休断言全部保留。
+- 最终 Windows/Linux GCC 的完整 HTTP Server 套件分别实际执行 115/109 个测试程序，
+  各包含 30 个单头入口。生命周期、升级成功、升级中止三个重点回归在 Windows/Linux GCC、
+  Linux Clang ASan/UBSan/float-cast-overflow 加泄漏检查、Linux/TCC 各通过 33 轮。
+  此处 Clang/TCC 指三项重点回归，完整套件的剩余问题见下一批记录。
+- 依赖该生命周期的 WebSocket Server 最终 GCC 套件在 Windows/Linux 分别运行 38/31 个
+  测试程序，均含 13 个单头入口，覆盖 HTTP/TLS/Deflate、Future/回调及重连交接。
+  HTTP Server 的完整 31 个自有源文件分别生成双平台 static/shared 产品包，四个实际
+  消费者链接并运行通过；包消费验证接口/链接，不冒称额外的运行时回调验证。
+- 同步公开契约和生成实现/声明头；公共符号/参考/发布检查通过。
+  1197 个 Core、ACME、HTTP、WebSocket 相关源码/头文件在 Windows/WSL 快照中逐项核对，
+  仅归一化 LF/CRLF，最终无差异。两个 Server 产品仍不满足整库源码/平台验收条件。
+- 上批 e84969f6 的 macOS ARM64 coroutine job 121724053637 已确认 success，补充了较早
+  cancelled run 所缺的后续平台证据；这不代表本批改动已在 macOS 通过，仍须新的 CI。
+
+证据：`http-server-lifecycle-repeat-before.log`、`http-server-adapter-retained-before.log`、
+`http-server-adapter-upgrade-before.log`、`http-server-adapter-upgrade-failure-before.log`、
+`xhttp-server-synchronized-{windows,gcc-linux}-final.log`、`server-runtime-final-focused-linux.log`、
+`xws-server-synchronized-{windows,gcc-linux}-final.log`、
+`http-server-synchronized-package-{windows,linux}-{static,shared}-final.log`、
+`server-runtime-final-input-audit.json`。
+
+### 第二十七批：显式字节视图与未闭合的整套验证
+
+- 全量 Clang 21 sanitizer 发现文件正文配置初始化、Server 地址输出、WebSocket 配置初始化
+  的未对齐 memcpy 参数。最小 C 对照中，typed 参数报错、显式 void 字节视图通过。
+  [Clang 的对齐规则说明](https://lists.llvm.org/pipermail/llvm-dev/2016-January/094012.html)
+  明确区分隐式库函数转换与显式字节视图，未把此行为记成编译器误报。
+- 在已检查范围并承诺快照/未对齐存储的入口，共 19 处生产拷贝显式使用字节视图：文件正文
+  配置、Server 配置/事件/地址/统计、Connection 地址/统计，以及 WebSocket 配置/握手和
+  两个内部配置快照 helper。保持公开类型、范围/重叠检查、输出与分配行为不变。
+  握手夹具自身的未对齐快照读取也改为字节视图，保留全部哨兵和失败原子性断言。
+- 最终专用 WebSocket 握手 Clang ASan/UBSan/float-cast-overflow 加泄漏检查通过；普通与
+  失效范围、配置/握手未对齐输入输出的原有效回归继续执行。模块化/生成单头、双平台完整
+  GCC 套件通过。上述验收只覆盖此次明确修改的入口，不表示所有产品的字节视图已审计。
+- 完整 HTTP Server sanitizer 仍停在 Reply 压缩夹具的未对齐 typed memcpy；其余 Router、
+  静态服务等快照入口/夹具需继续统一复核。完整 TCC 在文件正文 OOM 夹具的 GNU
+  __ATOMIC_RELAXED 内建上编译失败；三项生命周期 TCC 回归通过不能替代这项缺失。
+  WebSocket 的完整 sanitizer 在本轮发现握手链中的多个存量拷贝后尚未全量完成；最终握手
+  已专门复验，不据其推断余下测试通过。保留所有失败日志，不禁用 alignment、不跳过默认
+  回归、不删除有效断言、不提高超时换取成功。
+
+证据：`http-config-memcpy-compiler-probe.log`、
+`http-server-adapter-*-alignment-before.log`、`xhttp-server-byteview-sanitize-linux-final.log`、
+`xhttp-server-byteview-tcc-linux-final.log`、`websocket-handshake-byteview-sanitize-final.log`。
+
+下一步继续关闭完整 Server sanitizer/TCC 的存量夹具及字节视图问题，再恢复 ACME 预算、
+Retry-After、EAB 标识符、RSA 导入和 provider 复核；整轮仍为 2/21 产品完成，不缩小原目标。

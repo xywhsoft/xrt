@@ -144,7 +144,8 @@ typedef struct xhttpserverevents {
 		const xerror* pError,
 		ptr pData
 	);
-	/* 全部 HTTP Connection 运行时和受理的 Upgrade 回调退出后发布。 */
+	/* 全部 HTTP Connection 运行时（含剩余适配器）和受理的 Upgrade 回调退出后发布。
+	 * 调用方仍可持有已关闭/升级的 Connection 引用，不延迟内部运行时退休。 */
 	void (*Shutdown)(xhttpserver* pServer, ptr pData);
 	ptr Data;
 } xhttpserverevents;

@@ -381,7 +381,7 @@ XWS_SERVER_API void xrtWsServerConfigInit(
 	memset(&Config, 0, sizeof(Config));
 	xrtWsConnConfigInit(&Config.Connection);
 	Config.Connection.Role = XWS_ROLE_SERVER;
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -397,7 +397,7 @@ XWS_SERVER_API bool xrtWsServerConfigValid(
 	if ( !xrtMemRangeValid(pConfig, sizeof(Config)) ) {
 		return false;
 	}
-	memcpy(&Config, pConfig, sizeof(Config));
+	memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	if ( !xrtWsProtocolsValid(Config.Protocols) ) {
 		return false;
 	}
@@ -609,7 +609,7 @@ XWS_SERVER_API bool xrtWsServerCheck(
 	) ) {
 		return false;
 	}
-	memcpy(pHandshake, &Handshake, sizeof(Handshake));
+	memcpy((void*)pHandshake, &Handshake, sizeof(Handshake));
 	return true;
 }
 
@@ -636,7 +636,7 @@ XWS_SERVER_API xhttpreply* xrtWsServerReply(
 	) ) {
 		return NULL;
 	}
-	memcpy(&Handshake, pHandshake, sizeof(Handshake));
+	memcpy(&Handshake, (const void*)pHandshake, sizeof(Handshake));
 	#if defined(XWS_SERVER_FEATURE_WEBSOCKET_SERVER_DEFLATE)
 		bDeflateValid = !Handshake.DeflateEnabled ||
 			 (xrtWsDeflateResponseWrite(
@@ -1057,7 +1057,7 @@ XWS_SERVER_API xnetresult xrtWsUpgradeAccept(
 		);
 		return XNET_RESULT_ERROR;
 	}
-	memcpy(&Handshake, pHandshake, sizeof(Handshake));
+	memcpy(&Handshake, (const void*)pHandshake, sizeof(Handshake));
 	if ( (Handshake.Protocol.Size != 0) &&
 		!xrtWsProtocolsHas(
 			Config.Protocols,
