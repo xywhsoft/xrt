@@ -837,3 +837,26 @@ RSA 导入及 provider/签名/XML 复核继续；大同名 RRset 的递归探测
 `acme-dns-match-{dns,flow}-tcc-final.log`、`acme-dns-match-wire-{windows,linux}-counted-final.log`、
 `acme-dns-match-wire-sanitize-final.log`、`acme-dns-match-mock-{windows,linux,sanitize}-final.log`、
 `acme-dns-match-libfuzzer-final.log`、`ci-e849-macos-failed.log`、`ci-e849-xhttp-server-cancelled.log`。
+
+### 第二十五批：TCP 拒绝回归的握手/回调同步与 CI 卡死定位
+
+- 上批 macOS job 121724053968 失败在 `TCP first rejected peer failed`。首个 Accept
+  立即返回 false，关闭动作可早于阻塞 connect 的返回；旧日志没有系统错误码，不能断言
+  这次 CI 唯一根因就是 reset。未据此修改 Socket/Listener 行为或放宽结果断言。
+- 首个 Accept 使用真实原子门控，客户端 connect 返回后先确认回调已经进入并仍被阻塞，
+  再放行拒绝并等待其返回。保留两次拒绝、无 Open/Close 泄漏、跨线程 SendRef 所有权、
+  Listener Close 顺序和终态计数等全部原断言；连接失败补充 kind/模块码/系统码诊断。
+- 当前最终源码在 Windows GCC select/IOCP 各 33 轮、Linux GCC/TCC/Clang ASan/UBSan
+  加泄漏检查各 33 轮通过。macOS 实机仍须新 CI 验证，不能把本地通过当作 macOS 通过。
+- 另一 cancelled job 121724053896 有真实执行记录：`test_http_server_lifecycle`
+  运行约一小时后 job 被取消。Linux 原始源码第 33 轮自然复现卡死，并在终止本次测试进程前
+  抓取 gdb 全线程栈：主线程位于 testHttpServerShutdownOrderCleanup，经 xrtHttpConnDestroy、
+  __xrtHttpServerCloseConnections、xrtHttpServerAbort 进入；唯一 Worker 已回到 select。
+  清理回调等待 ContinueCleanup，而主线程只能在 Abort 返回后设置它，构成确定的自等待。
+- 源码证实 Abort 临时持有 Connection 引用，其最后释放可能转到调用线程；需继续结合
+  Shutdown 的内部运行时/适配器清理契约处理此路径和仍持有公开 Connection 引用的情形。
+  此处只记录真实卡死证据，未提高 timeout、跳过生命周期测试或提前声称整个 CI 已修好。
+
+证据：`tcp-reject-gate-windows-build.log`、`tcp-reject-gate-windows-repeat-final.log`、
+`tcp-reject-gate-{clang,tcc}-linux-final.log`、`tcp-reject-gate-gcc-linux-final-refresh.log`、
+`http-server-lifecycle-repeat-before.log`、`ci-e849-xhttp-server-cancelled.log`。
