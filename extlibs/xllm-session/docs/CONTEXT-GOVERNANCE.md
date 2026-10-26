@@ -21,6 +21,14 @@ governance.
 
 ## Compaction quality gate
 
+Session pressure thresholds must be finite and satisfy
+`0 < fPruneTrigger < fCompactTrigger <= 1`; invalid values reject creation with
+`XLLM_ERROR_INVALID_ARGUMENT`. The safety reserve uses 3% of the context window,
+rounded down and clamped to 8,000–32,000 tokens, across the full `uint64_t` range.
+An unrepresentable prompt-plus-output usage total saturates at `UINT64_MAX`
+with `bFillExactValid` still true. Neither usage addition nor the next-turn
+increment may wrap into a lower pressure state.
+
 Session compaction is a transaction with a deterministic quality gate. A
 candidate summary must:
 
@@ -40,3 +48,41 @@ The evaluator is intentionally structural and deterministic. The workflow
 layer owns model retries and richer task-specific checks; the session layer
 owns the invariant that only a policy-compliant summary can advance the durable
 compaction checkpoint.
+
+## Durable message content
+
+`xllmSessionSave()` writes an atomic JSON snapshot; the append journal is JSONL.
+New snapshots and journal records use format version 3. Both paths retain every
+message part in order: text, reasoning, inline image/audio/file bytes, image URL
+references, metadata and native parts. Inline bytes use strict Base64, including
+embedded NUL bytes; native JSON strings keep their original representation.
+Whole-message native data and tool-result correlation IDs also survive recovery.
+The `thinking_signature` native subtype emitted by `xllmMessageFromResponse()`
+is an opaque signature string, so it is preserved without JSON validation.
+
+The reader accepts format versions 1, 2 and 3. Old text-only snapshots and
+journals remain readable, and a recovered journal may append new v3 records.
+Older readers reject v3 rather than silently dropping content they cannot
+restore. Fields with the wrong type, embedded NUL in C-string fields, invalid
+Base64/native JSON, unknown part kinds, or conflicting text and parts are parse
+errors. Recovery never returns a partially decoded message as a successful
+session.
+
+File-ledger changes follow the same write-ahead contract as messages: a failed
+journal append returns false and leaves the visible read/modified paths unchanged.
+After the I/O failure is resolved, retrying the same path writes a real record
+that survives recovery. Observation hooks cannot mutate this ledger recursively.
+
+Recovery reads nonnegative JSON integers exactly, including unsigned values
+above `INT64_MAX`. A present value of the wrong type, an integer that cannot fit
+its destination, an invalid budget, or contradictory sequence metadata is a
+parse error; only absent optional fields use legacy defaults. Snapshot entries
+have increasing positive sequence numbers, with gaps allowed. The next sequence
+must follow all stored entries, and compaction/truncation watermarks precede it.
+
+The final turn and journal sequence are usable without wrapping to zero. The
+last message uses sequence `UINT64_MAX - 1`, leaving `UINT64_MAX` as the append
+barrier. Compaction count and summary generation exhaustion return
+`XLLM_ERROR_LIMIT` before writing or mutating state. Compaction and truncation
+cannot re-enter from observation hooks. Replay accepts the initial truncation
+from floor zero and advances legacy compaction epochs that omit generation.

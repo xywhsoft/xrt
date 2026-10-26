@@ -42,6 +42,7 @@ bool xrtAcmeObtain(
 	str sStoredAccountPem = NULL;
 	str sFreshAccountPem = NULL;
 	bool bResult = false;
+	xerror* pCause = NULL;
 
 	if((pConfig == NULL) || (pConfig->pAccount == NULL) ||
 		(pDomains == NULL) || (iDomainCount == 0u) || (pDns == NULL) ||
@@ -57,7 +58,8 @@ bool xrtAcmeObtain(
 	memset(pOut, 0, sizeof(*pOut));
 	*pbRenewed = false;
 
-	/* 账户层：store 有则复用，无则开户后持久化。 */
+	xrtClearError();
+	/* 账户层：只有明确 NOT_FOUND 才可开户，存储故障必须停止。 */
 	Account = *pConfig->pAccount;
 	sStoredAccountPem = xrtAcmeStoreLoadAccount(
 		pConfig->sStoreRoot, Account.sDirectoryUrl);
@@ -66,6 +68,11 @@ bool xrtAcmeObtain(
 		Account.sAccountKeyPem = sStoredAccountPem;
 		Account.Eab.sKid = NULL; /* 复用账户无需再绑定。 */
 		Account.Eab.sHmac = NULL;
+	}
+	else
+	{
+		if(xrtErrorKind(xrtGetError()) != XERR_NOT_FOUND) goto Done;
+		xrtClearError();
 	}
 
 	xrtAcmeClientConfigInit(&ClientConfig);
@@ -88,14 +95,12 @@ bool xrtAcmeObtain(
 	if(sStoredAccountPem == NULL)
 	{
 		sFreshAccountPem = xrtAcmeClientAccountPem(pClient);
-		if((sFreshAccountPem != NULL) &&
-			!xrtAcmeStoreSaveAccount(
+		if(sFreshAccountPem == NULL) goto Done;
+		if(!xrtAcmeStoreSaveAccount(
 				pConfig->sStoreRoot, Account.sDirectoryUrl,
 				sFreshAccountPem))
 		{
-			/* 账户落盘失败不作废本次签发；续期时会再开新账户。 */
-			xacmeObtainError(
-				XERR_IO, "acme obtain save account failed");
+			/* 账户密钥导出和落盘成功后才允许签发。 */
 			goto Done;
 		}
 	}
@@ -110,7 +115,12 @@ bool xrtAcmeObtain(
 	bResult = true;
 
 Done:
+	if(!bResult && xrtGetError() == NULL)
+		xacmeObtainError(XERR_INTERNAL, "acme obtain backend failed without diagnostic");
+	pCause = bResult ? NULL : xrtErrorRef(xrtGetError());
+	if(sFreshAccountPem != NULL) xrtSecureZero(sFreshAccountPem, strlen(sFreshAccountPem));
 	xrtFree(sFreshAccountPem);
+	if(sStoredAccountPem != NULL) xrtSecureZero(sStoredAccountPem, strlen(sStoredAccountPem));
 	xrtFree(sStoredAccountPem);
 	if(pClient != NULL)
 	{
@@ -121,10 +131,10 @@ Done:
 	}
 	if(!bResult)
 	{
-		xrtFree(pOut->sFullchainPem);
-		xrtFree(pOut->sKeyPem);
-		memset(pOut, 0, sizeof(*pOut));
+		xrtAcmeGrantUnit(pOut);
+		*pbRenewed = false;
 	}
+	if(pCause != NULL) xrtSetErrorTake(pCause);
 	return bResult;
 }
 

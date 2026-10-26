@@ -50,7 +50,7 @@ bool xacmeJwkThumbprint(xstrview sCanonicalJson, char* sOut);
 bool xacmeJwkEcThumbprint(const xacmees256key* pKey, char* sOut);
 
 /*
-	ES256 JWS 紧凑序列化：base64url(header).base64url(payload).base64url(sig)。
+	ES256 JWS 扁平 JSON 序列化：protected/payload/signature 均为 base64url。
 	签名为 JOSE raw r||s（64 字节，非 DER）。payload 是调用方已备好的 JSON 字节。
 	Url 必填（ACME 要求）；失败返回 NULL 并设置线程错误。
 */

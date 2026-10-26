@@ -130,12 +130,122 @@ static const flowcase* Active;
 static bool Enabled, Inject, Armed, FirstReply, Finalized, InOperation;
 static unsigned Requests, NonceRequests, AuthzRequests, OrderRequests, LookupRequests, KeyChangeRequests, Sleeps, Adds, Removes;
 static unsigned ResolverQueries;
+static cstr ResolverEndpointExpected;
+static uint16 ResolverEndpointPort;
 static unsigned CertificateDecodes, AlternateRequests;
 static bool AlternateResponse;
 static char ResolverTxt[256];
 static double ResolverClock;
+/* Enclosing Issue budget: scheduling is controlled at synchronous boundaries;
+ * crypto, parsers, allocator, grants and record ownership remain actual source. */
+static bool IssueBudgetProbe;
+static cstr IssueBudgetMode;
+static double IssueBudgetClock;
+static unsigned IssueBudgetSlept, IssueBudgetPropagates, IssueBudgetTriggers, IssueBudgetFaults, IssueBudgetScopeErrors, IssueBudgetClockChecks;
+static xerror* IssueBudgetCause;
+static bool issue_mode(cstr Mode) { return IssueBudgetProbe && strcmp(IssueBudgetMode,Mode)==0; }
+static void issue_charge(unsigned Ms) { if(IssueBudgetProbe) IssueBudgetClock+=(double)Ms/1000.0; }
+
 static cstr LastJson;
 static xerror* FirstError;
+/* Observe decoded EAB keys only while their storage is alive: inside the
+ * actual SecureZero/free call. A missing wipe is detected by an outstanding
+ * observation, never by reading a saved stack pointer after Init returns. */
+static bool EabProbe, EabArmed, EabEnded, EabWire;
+static int64 EabFailAfter;
+static cstr EabText;
+static uintptr_t EabDecodedAddress;
+static bool EabPending;
+static size_t EabCapacity, EabDecodedSize;
+static unsigned EabWipes, EabLocalWipes, EabDirtyFrees, EabPosts;
+static uint64 EabStartAlloc, EabAllocations;
+typedef enum rolloverfaultstage { ROLLOVER_NO_FAULT, ROLLOVER_LOOKUP, ROLLOVER_WRITE } rolloverfaultstage;
+static bool RolloverProbe, RolloverUncertain, RolloverRemoteApplied, RolloverApplyWrite, RolloverExportOom;
+static rolloverfaultstage RolloverFaultStage;
+static xerror* RolloverError;
+static unsigned RolloverFailures, RolloverLookups, RolloverWrites, RolloverExports, RolloverSaves, RolloverDirtyFrees;
+static xerrkind RolloverStoreFailure;
+static uintptr_t RolloverPemAddress;
+static size_t RolloverPemSize;
+static bool RolloverPemPending;
+static cstr RolloverExpectedPem;
+static bool RolloverValidationOom;
+static unsigned RolloverSignatures;
+typedef enum authpolicyfault { AUTH_OK, AUTH_VALID, AUTH_WORK_MEMORY, AUTH_LOOKUP_IO, AUTH_LOOKUP_MEMORY,
+    AUTH_ADD_MEMORY, AUTH_URL_TYPE, AUTH_URL_NUL, AUTH_URL_EMPTY, AUTH_LIST_MISSING, AUTH_LIST_TYPE,
+    AUTH_TRIGGER_IO, AUTH_FINALIZE_IO } authpolicyfault;
+static bool AuthPolicyProbe;
+static size_t AuthPolicyCount, AuthPolicyLookups, AuthPolicyTriggers, AuthPolicyCsrs, AuthPolicyFinalizes, AuthPolicyAllocations;
+static authpolicyfault AuthPolicyFault;
+static xerror* AuthPolicyError;
+static unsigned AuthPolicyReads[65];
+static char AuthPolicyOwned[65][XACME_TXT_RECORD_MAX];
+static void eab_end_scan(void) {
+    if(EabProbe && EabArmed && !EabEnded) {
+        xmemdebugsnapshot S; xrtMemDebugSnapshot(&S);
+        EabAllocations=S.AllocCount-EabStartAlloc; EabEnded=true;
+        xrtMemDebugFailClear();
+    }
+}
+static bool flow_eab_decode(cstr Text,size_t Size,bytes Output,size_t Capacity,size_t* Written,const xbase64config* Config) {
+    bool DiagnosticFault=EabProbe && Text==EabText && EabFailAfter==-4;
+    if(DiagnosticFault) testRequire(xrtMemDebugFailAfter(0),"EAB decoder diagnostic fault arm");
+    bool Result=xrtBase64Decode(Text,Size,Output,Capacity,Written,Config);
+    if(DiagnosticFault) {
+        testRequire(!Result && xrtMemDebugFailTriggered(),"EAB decoder did not produce actual allocation failure");
+        FirstError=xrtErrorRef(xrtGetError()); xrtMemDebugFailClear();
+    }
+    if(EabProbe && Text==EabText) {
+        if(Result && Output) {
+            testRequire(!EabPending,"EAB probe saw overlapping decoded keys");
+            EabDecodedAddress=(uintptr_t)Output; EabPending=true;
+            EabCapacity=Capacity; EabDecodedSize=*Written;
+        }
+        if(Result && !EabArmed) {
+            xmemdebugsnapshot S; xrtMemDebugSnapshot(&S); EabStartAlloc=S.AllocCount; EabArmed=true;
+            if(EabFailAfter>=0) testRequire(xrtMemDebugFailAfter((uint64)EabFailAfter),"EAB fault arm");
+        }
+    }
+    return Result;
+}
+static void flow_eab_zero(ptr Address,size_t Size) {
+    xrtSecureZero(Address,Size);
+    if(EabProbe && Size==64u) EabLocalWipes++;
+    if(EabProbe && EabPending && EabDecodedAddress==(uintptr_t)Address) {
+        const uint8* Data=Address; uint8 Any=0;
+        testRequire(Size>=EabCapacity,"EAB cleared only part of decoded key storage");
+        for(size_t i=0;i<EabCapacity;i++) Any|=Data[i];
+        testRequire(Any==0,"actual EAB secure wipe left bytes"); EabWipes++; EabPending=false;
+    }
+}
+static void flow_eab_free(ptr Address) {
+    if(EabProbe && Address && EabPending && EabDecodedAddress==(uintptr_t)Address) { EabDirtyFrees++; EabPending=false; }
+    if(RolloverProbe && Address && RolloverPemPending && RolloverPemAddress==(uintptr_t)Address) {
+        const uint8* Data=Address; uint8 Any=0;
+        for(size_t i=0;i<RolloverPemSize;i++) Any|=Data[i];
+        if(Any) RolloverDirtyFrees++;
+        RolloverPemPending=false;
+    }
+    xrtFree(Address);
+}
+static str flow_account_export(const xacmees256key* Key) {
+    if(RolloverProbe) {
+        RolloverExports++;
+        if(RolloverExportOom) testRequire(xrtMemDebugFailAfter(0),"rollover export fault arm");
+    }
+    str Result=xacmeKeyPemWrite(Key);
+    if(RolloverProbe) {
+        if(RolloverExportOom) {
+            testRequire(!Result && xrtMemDebugFailTriggered(),"rollover export did not reach actual output allocation");
+            RolloverError=xrtErrorRef(xrtGetError()); xrtMemDebugFailClear();
+        }
+        if(Result) {
+            testRequire(!RolloverPemPending,"rollover exported overlapping private text");
+            RolloverPemPending=true; RolloverPemAddress=(uintptr_t)Result; RolloverPemSize=strlen(Result);
+        }
+    }
+    return Result;
+}
 static char LastNonce[512], Contact[401];
 static const char KeyPem[]=
     "-----BEGIN PRIVATE KEY-----\n"
@@ -153,6 +263,14 @@ static void arm(cstr Target) {
     }
 }
 static void* flow_malloc(size_t Size) {
+    if(AuthPolicyProbe && LastJson && strcmp(LastJson,"new-order-json")==0) {
+        AuthPolicyAllocations++;
+        if(AuthPolicyFault==AUTH_WORK_MEMORY) testRequire(xrtMemDebugFailAfter(0),"authorization work allocation fault arm");
+        void* Result=xrtMalloc(Size);
+        if(AuthPolicyFault==AUTH_WORK_MEMORY) testRequire(!Result && xrtMemDebugFailTriggered(),"actual authorization work allocation failure");
+        if(!Result) remember();
+        xrtMemDebugFailClear();return Result;
+    }
     if(Size==sizeof(xacmecertkey)) arm("cert-key-alloc");
     else if(LastJson && strcmp(LastJson,"auth-poll-json")==0) arm("auth-status-copy");
     else if(LastJson && strcmp(LastJson,"order-ready-json")==0) arm("order-status-copy");
@@ -163,7 +281,10 @@ static xvalue* flow_json(xstrview Text) {
     xvalue* Result=xrtJsonParse(Text); if(!Result) remember(); return Result;
 }
 static bool flow_key(cstr Pem,size_t Size,xacmees256key* Key) {
-    arm("account-pem"); bool Result=xacmeKeyPemRead(Pem,Size,Key); if(!Result) remember(); return Result;
+    arm("account-pem"); bool Result=xacmeKeyPemRead(Pem,Size,Key); if(!Result) remember();
+    if(Result && RolloverProbe && RolloverValidationOom)
+        testRequire(xrtMemDebugFailAfter(0),"rollover key validation diagnostic fault arm");
+    return Result;
 }
 static bool flow_certkey(cstr Pem,size_t Size,xacmecertkey* Key) {
     arm("cert-key-pem"); bool Result=xacmeCertKeyReadPem(Pem,Size,Key); if(!Result) remember(); return Result;
@@ -175,6 +296,9 @@ static str flow_eab(cstr Kid,cstr Url,xstrview Jwk,const uint8* Mac,size_t Size)
     arm("eab-sign"); str Result=xacmeJwsEabHs256(Kid,Url,Jwk,Mac,Size); if(!Result) remember(); return Result;
 }
 static str flow_sign(const xacmees256key* Key,const xacmejwsheader* H,xstrview Payload) {
+    if(issue_mode("sign-spent")) issue_charge(120u);
+    if(RolloverProbe) RolloverSignatures++;
+    eab_end_scan();
     if(H->Url.Size==strlen("http://ca.example/alternate") && memcmp(H->Url.Data,"http://ca.example/alternate",H->Url.Size)==0)
         testRequire(Payload.Size==0u,"alternate was not a signed POST-as-GET");
     if(H->Nonce.Size<sizeof(LastNonce)) { if(H->Nonce.Size) memcpy(LastNonce,H->Nonce.Data,H->Nonce.Size); LastNonce[H->Nonce.Size]=0; }
@@ -185,6 +309,11 @@ static bool flow_thumb(const xacmees256key* Key,char* Output) {
     arm("thumbprint"); bool Result=xacmeJwkEcThumbprint(Key,Output); if(!Result) remember(); return Result;
 }
 static bool flow_csr(const xacmecertkey* Key,const xacmecsrconfig* Config,xbuffer* Output) {
+    if(AuthPolicyProbe) {
+        AuthPolicyCsrs++;
+        testRequire(Config->DomainCount==1u && Config->Domains[0].Size==11u &&
+            memcmp(Config->Domains[0].Data,"example.com",11u)==0,"authorization count changed CSR identifiers");
+    }
     if(named("domain-duplicates")) testRequire(Config->DomainCount==1,"CSR SAN inputs differed from the distinct order identifiers");
     arm("csr"); bool Result=xacmeCsrBuild(Key,Config,Output); if(!Result) remember(); return Result;
 }
@@ -200,15 +329,33 @@ static bytes flow_decode(const xpemblock* Block,size_t* Size) {
     if(Active && Active->Op==FLOW_REVOKE) arm("revoke-der");
     else if(AlternateResponse) arm("alternate-der");
     else { CertificateDecodes++; arm(CertificateDecodes==2u?"certificate-second-der":"certificate-der"); }
+    if(issue_mode("certificate-parse-spent") && CertificateDecodes==1u) issue_charge(120u);
     bytes Result=xrtPemDecodeNew(Block,Size); if(!Result) remember(); return Result;
 }
 static xx509result flow_name_equal(xbytesview Left,xbytesview Right) {
     arm("certificate-name"); xx509result Result=xrtX509NameEqual(Left,Right); if(Result==X509_ERROR) remember(); return Result;
 }
 /* Resolver fault controls must not depend on OS scheduling or wall time. */
-static double flow_clock(void) { return selected("resolver")?ResolverClock:xrtTimer(); }
+static double flow_clock(void) {
+    if(IssueBudgetProbe) {
+        if(issue_mode("stale-memory") && IssueBudgetClockChecks++==1u) issue_charge(120u);
+        return IssueBudgetClock;
+    }
+    return selected("resolver")?ResolverClock:xrtTimer();
+}
 static double flow_after(int64 Ms) { return Ms == XRT_WAIT_FOREVER ? INFINITY : nextafter(flow_clock() + (double)Ms / 1000.0, INFINITY); }
-static void flow_sleep(int64 Ms) { Sleeps++; if(selected("resolver")) ResolverClock+=(double)Ms/1000.0; }
+static int64 flow_remaining(double Deadline) {
+    if(!IssueBudgetProbe && !selected("resolver")) return __xrtWaitRemaining(Deadline);
+    if(Deadline==INFINITY) return XRT_WAIT_FOREVER;
+    return Deadline<=flow_clock()?0:(int64)ceil((Deadline-flow_clock())*1000.0);
+}
+static void flow_sleep(int64 Ms) {
+    Sleeps++; if(selected("resolver")) ResolverClock+=(double)Ms/1000.0;
+    if(IssueBudgetProbe) {
+        IssueBudgetSlept+=(unsigned)Ms;issue_charge((unsigned)Ms);
+        if(issue_mode("timeout-wrap-oom")) testRequire(xrtMemDebugFailAfter(0),"Issue timeout wrapper fault arm");
+    }
+}
 static bool flow_init(xacmehttp* Http,struct xnetengine* Engine,cstr Ca,int64 Timeout) {
     (void)Engine; (void)Ca; memset(Http,0,sizeof(*Http)); Http->uTimeoutMs=Timeout; return true;
 }
@@ -217,10 +364,112 @@ static str duplicate(cstr Text) {
     size_t Size=strlen(Text)+1u; str Result=(str)xrtMalloc(Size);
     testRequire(Result!=NULL,"controlled response allocation failed"); memcpy(Result,Text,Size); return Result;
 }
+static xerror* ReadRetryError;
+static unsigned ReadRetryCalls, ReadRetryFailures;
+static bool ReadRetryProbe, ReadRetryUncertain;
 static bool flow_exchange(xacmehttp* Http,cstr Method,cstr Url,cstr Type,xstrview Body,xacmehttpresponse* R) {
     (void)Http; (void)Method; (void)Type;
     cstr Stage=NULL,Json=NULL,Location=NULL,Nonce="bm9uY2U"; unsigned Status=200;
-    memset(R,0,sizeof(*R)); Requests++;
+    memset(R,0,sizeof(*R));
+    if(IssueBudgetProbe) {
+        bool Limited=!issue_mode("unlimited-zero") && !issue_mode("unlimited-minus-one");
+        if(Http->bOperationDeadline!=Limited || (Limited && fabs(Http->OperationDeadline-100.1)>0.000001)) IssueBudgetScopeErrors++;
+        if(Http->bOperationDeadline && IssueBudgetClock>=Http->OperationDeadline) {
+            xrtSetErrorInfo(XERR_TIMEOUT,"test.flow.http",71,"enclosing budget expired before HTTP submission");return false;
+        }
+        unsigned Cost=(issue_mode("nonce-spent") && strcmp(Url,"http://ca.example/nonce")==0) ||
+            (issue_mode("order-spent") && strcmp(Url,"http://ca.example/order-new")==0) ||
+            (issue_mode("certificate-spent") && strcmp(Url,"http://ca.example/certificate")==0)?120u:0u;
+        issue_charge(Cost);
+        if(issue_mode("late-memory") && strcmp(Url,"http://ca.example/order-new")==0) {
+            testRequire(xrtMemDebugFailAfter(0),"Issue actual producer OOM arm");
+            testRequire(!xrtMalloc(1u) && xrtMemDebugFailTriggered(),"Issue actual producer OOM");
+            IssueBudgetCause=xrtErrorRef(xrtGetError());xrtMemDebugFailClear();issue_charge(120u);Requests++;return false;
+        }
+        if(Http->bOperationDeadline && IssueBudgetClock>=Http->OperationDeadline) {
+            Requests++;xrtSetErrorInfo(XERR_TIMEOUT,"test.flow.http",72,"HTTP consumed enclosing budget");return false;
+        }
+        if((issue_mode("read-backoff") || issue_mode("timeout-wrap-oom")) && strcmp(Url,"http://ca.example/authz")==0 && IssueBudgetFaults++==0u) {
+            xrtSetErrorInfo(XERR_IO,"test.flow.http",73,"read producer rejected");
+            xerror* Root=xrtErrorRef(xrtGetError());
+            IssueBudgetCause=xrtErrorWrap(Root,XERR_IO,"xrt.acme.http",XACME_HTTP_ERROR_UNCERTAIN,"read result unknown");
+            xrtErrorFree(Root);testRequire(IssueBudgetCause!=NULL,"Issue read uncertainty fixture");
+            xrtSetError(IssueBudgetCause);Requests++;issue_charge(10u);return false;
+        }
+        if(strcmp(Url,"http://ca.example/challenge")==0) IssueBudgetTriggers++;
+    }
+    Requests++;
+    if(AuthPolicyProbe && strcmp(Url,"http://ca.example/order-new")==0) {
+        xbuffer Json;xrtBufferInit(&Json);LastJson="new-order-json";
+        testRequire(xrtBufferAppend(&Json,XRT_BYTES_LITERAL("{\"status\":\"pending\"")),"authorization response prefix");
+        if(AuthPolicyFault==AUTH_LIST_TYPE) testRequire(xrtBufferAppend(&Json,XRT_BYTES_LITERAL(",\"authorizations\":\"invalid\"")),"authorization wrong-type fixture");
+        else if(AuthPolicyFault!=AUTH_LIST_MISSING) {
+            testRequire(xrtBufferAppend(&Json,XRT_BYTES_LITERAL(",\"authorizations\":[")),"authorization array prefix");
+            for(size_t i=0;i<AuthPolicyCount;i++) {
+                char Item[130];
+                if(i) testRequire(xrtBufferAppendByte(&Json,','),"authorization separator");
+                if(i+1u==AuthPolicyCount && AuthPolicyFault==AUTH_URL_TYPE) strcpy(Item,"17");
+                else if(i+1u==AuthPolicyCount && AuthPolicyFault==AUTH_URL_EMPTY) strcpy(Item,"\"\"");
+                else snprintf(Item,sizeof(Item),"\"http://ca.example/auth-policy/%zu%s\"",i,
+                    i+1u==AuthPolicyCount && AuthPolicyFault==AUTH_URL_NUL?"\\u0000suffix":"");
+                testRequire(xrtBufferAppend(&Json,(xbytesview){(const uint8*)Item,strlen(Item)}),"authorization URL fixture");
+            }
+            testRequire(xrtBufferAppendByte(&Json,']'),"authorization array end");
+        }
+        testRequire(xrtBufferAppend(&Json,XRT_BYTES_LITERAL("}")) && xrtBufferAppendByte(&Json,0),"authorization JSON fixture");
+        R->iStatus=201;R->sBody=(str)Json.Data;R->iBodySize=Json.Size-1u;
+        R->sLocation=duplicate("http://ca.example/order");R->sReplayNonce=duplicate(Nonce);return true;
+    }
+    if(AuthPolicyProbe && strncmp(Url,"http://ca.example/auth-policy/",30u)==0) {
+        size_t Id=(size_t)strtoul(Url+30u,NULL,10);char Json[400];
+        testRequire(Id<AuthPolicyCount && Id<65u,"authorization fixture URL index");AuthPolicyLookups++;
+        LastJson="auth-policy-json";
+        if(Id+1u==AuthPolicyCount && (AuthPolicyFault==AUTH_LOOKUP_IO || AuthPolicyFault==AUTH_LOOKUP_MEMORY)) {
+            xrtSetError(AuthPolicyError);remember();return false;
+        }
+        if(AuthPolicyReads[Id]++ || AuthPolicyFault==AUTH_VALID) strcpy(Json,"{\"status\":\"valid\"}");
+        else snprintf(Json,sizeof(Json),"{\"status\":\"pending\",\"identifier\":{\"type\":\"dns\",\"value\":\"example.com\"},"
+            "\"challenges\":[{\"type\":\"dns-01\",\"url\":\"http://ca.example/challenge-policy/%zu\",\"token\":\"TOKEN-%zu\"}]}",Id,Id);
+        R->iStatus=200;R->sBody=duplicate(Json);R->iBodySize=strlen(Json);R->sReplayNonce=duplicate(Nonce);return true;
+    }
+    if(AuthPolicyProbe && strncmp(Url,"http://ca.example/challenge-policy/",35u)==0) {
+        testRequire(Adds==AuthPolicyCount,"challenge triggered before all required TXT values coexist");AuthPolicyTriggers++;
+        if(AuthPolicyFault==AUTH_TRIGGER_IO && AuthPolicyTriggers==AuthPolicyCount) {xrtSetError(AuthPolicyError);remember();return false;}
+        LastJson=NULL;R->iStatus=200;R->sBody=duplicate("{}");R->iBodySize=2u;R->sReplayNonce=duplicate(Nonce);return true;
+    }
+    if(AuthPolicyProbe && strcmp(Url,"http://ca.example/finalize")==0) {
+        AuthPolicyFinalizes++;
+        if(AuthPolicyFault==AUTH_FINALIZE_IO) {xrtSetError(AuthPolicyError);remember();return false;}
+    }
+    if(RolloverProbe && (strcmp(Url,"http://ca.example/account-new")==0 || strcmp(Url,"http://ca.example/key-change")==0)) {
+        bool Lookup=strcmp(Url,"http://ca.example/account-new")==0;
+        if(Lookup) RolloverLookups++;
+        else { RolloverWrites++; RolloverRemoteApplied=RolloverApplyWrite; }
+        if(RolloverFailures && RolloverFaultStage==(Lookup?ROLLOVER_LOOKUP:ROLLOVER_WRITE)) {
+            RolloverFailures--; xrtSetError(RolloverError); Http->bWriteUncertain=RolloverUncertain; return false;
+        }
+        Http->bWriteUncertain=false;
+        R->iStatus=(uint16)(Lookup?(RolloverRemoteApplied?200u:400u):200u);
+        R->sBody=duplicate(Lookup?(RolloverRemoteApplied?"{\"status\":\"valid\"}":
+            "{\"type\":\"urn:ietf:params:acme:error:accountDoesNotExist\"}"):"{}");
+        R->iBodySize=strlen(R->sBody); R->sReplayNonce=duplicate("ZnJlc2g");
+        if(Lookup && RolloverRemoteApplied) R->sLocation=duplicate("http://ca.example/account");
+        return true;
+    }
+    if(EabProbe && strcmp(Url,"http://ca.example/nonce")==0) eab_end_scan();
+    if(EabProbe && strcmp(Url,"http://ca.example/account-new")==0) {
+        EabPosts++;
+        if(EabWire) printf("[eab-wire] %zu %s %.*s\n",EabDecodedSize,EabText,(int)Body.Size,Body.Data);
+    }
+    if(ReadRetryProbe && strcmp(Url,"http://ca.example/read-retry")==0) {
+        ReadRetryCalls++;
+        if(ReadRetryFailures) {
+            ReadRetryFailures--; xrtSetError(ReadRetryError);
+            Http->bWriteUncertain=ReadRetryUncertain; return false;
+        }
+        Http->bWriteUncertain=false; R->iStatus=200; R->sBody=duplicate("{}"); R->iBodySize=2;
+        R->sReplayNonce=duplicate("bm9uY2U"); return true;
+    }
     if(strcmp(Url,"http://ca.example/dir")==0) {
         Stage="directory"; LastJson="directory-json";
         Json="{\"newNonce\":\"http://ca.example/nonce\",\"newAccount\":\"http://ca.example/account-new\",\"newOrder\":\"http://ca.example/order-new\",\"revokeCert\":\"http://ca.example/revoke\",\"keyChange\":\"http://ca.example/key-change\"}";
@@ -322,6 +571,7 @@ static bool flow_exchange(xacmehttp* Http,cstr Method,cstr Url,cstr Type,xstrvie
         else xrtSetErrorInfo(XERR_IO,"test.flow.http",77,"controlled transport cause");
         remember(); return false;
     }
+    if(issue_mode("poll-backoff") && Stage && strcmp(Stage,"authz")==0 && AuthzRequests>1u) Json="{\"status\":\"pending\"}";
     R->iStatus=(uint16)Status; R->sBody=duplicate(Json); R->iBodySize=Json?strlen(Json):0;
     R->sReplayNonce=duplicate(Nonce); R->sLocation=duplicate(Location);
     if(Stage && strcmp(Stage,"certificate")==0) {
@@ -352,6 +602,14 @@ static bool flow_save_grant(cstr Root,cstr Domain,const xacmeissuegrant* Grant,c
     (void)Root;(void)Domain;(void)Grant;(void)Url; return !flow_store_failure("store-grant");
 }
 static bool flow_save_account(cstr Root,cstr Url,cstr Pem) {
+    if(RolloverProbe) {
+        RolloverSaves++;
+        testRequire(Root && strcmp(Root,"fixture-store")==0 && Url && strcmp(Url,"http://ca.example/dir")==0 &&
+            Pem && RolloverPemPending && (uintptr_t)Pem==RolloverPemAddress && strcmp(Pem,RolloverExpectedPem)==0,
+            "rollover store did not receive the new key's live owned export");
+        if(RolloverStoreFailure!=XERR_NONE) { xrtSetError(RolloverError); return false; }
+        return true;
+    }
     (void)Root;(void)Url;(void)Pem; return !flow_store_failure("store-account");
 }
 
@@ -359,6 +617,12 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
     char (*Records)[XACME_TXT_RECORD_MAX],size_t Capacity,size_t* Count) {
     if(!selected("resolver")) return xacmeDnsTxtQuery(Dns,Resolver,Port,Fqdn,Records,Capacity,Count);
     ResolverQueries++; *Count=0;
+    if(ResolverEndpointExpected) {
+        xnetaddr Actual,Expected;
+        testRequire(xrtNetAddrParse(&Actual,Resolver,Port) &&
+            xrtNetAddrParse(&Expected,ResolverEndpointExpected,ResolverEndpointPort) &&
+            xrtNetAddrEqual(&Actual,&Expected),"propagation queried a different resolver endpoint");
+    }
     if(named("resolver-advisory") ||
        ((named("resolver-memory-second") || named("resolver-fallback")) && ResolverQueries==1u)) {
         xrtSetErrorInfo(XERR_TIMEOUT,"test.flow.resolver",91,"resolver temporarily unavailable"); return false;
@@ -369,7 +633,14 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
     }
     xrtClearError(); strcpy(Records[0],ResolverTxt); *Count=1; return true;
 }
-#define xacmeDnsTxtQuery flow_dns_query
+static bool flow_dns_contains(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,cstr Expected,bool* Found) {
+    if(!selected("resolver")) return xacmeDnsTxtContains(Dns,Resolver,Port,Fqdn,Expected,Found);
+    char Record[1][XACME_TXT_RECORD_MAX];size_t Count=0;*Found=false;
+    bool Result=flow_dns_query(Dns,Resolver,Port,Fqdn,Record,1u,&Count);
+    if(Result && Count) *Found=strcmp(Record[0],Expected)==0;
+    return Result;
+}
+#define xacmeDnsTxtContains flow_dns_contains
 #define xacmeHttpInit flow_init
 #define xacmeHttpExchange flow_exchange
 #define xrtJsonParse flow_json
@@ -383,17 +654,27 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #define xacmeJwkEcThumbprint flow_thumb
 #define xacmeCsrBuild flow_csr
 #define xacmeCertKeyPemWrite flow_export
+#define xacmeKeyPemWrite flow_account_export
 #define xrtBase64EncodeNew flow_base64
 #define xrtPemDecodeNew flow_decode
 #define xrtX509NameEqual flow_name_equal
 #define xrtSleep flow_sleep
 #define xrtTimer flow_clock
 #define __xrtWaitAfter flow_after
+#define __xrtWaitRemaining flow_remaining
 #define xrtAcmeStoreNeedRenew flow_need_renew
 #define xrtAcmeStoreSaveGrant flow_save_grant
 #define xrtAcmeStoreSaveAccount flow_save_account
+#define xrtBase64Decode flow_eab_decode
+#define xrtSecureZero flow_eab_zero
+#undef xrtFree
+#define xrtFree flow_eab_free
 #include "../../src/acme/xacme_flow.c"
-#undef xacmeDnsTxtQuery
+#undef xrtFree
+#define xrtFree(pMemory) xrtFreeAt((pMemory), __FILE__, (uint32)__LINE__)
+#undef xrtSecureZero
+#undef xrtBase64Decode
+#undef xacmeDnsTxtContains
 #undef xacmeHttpInit
 #undef xacmeHttpExchange
 #undef xrtJsonParse
@@ -407,28 +688,56 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #undef xacmeJwkEcThumbprint
 #undef xacmeCsrBuild
 #undef xacmeCertKeyPemWrite
+#undef xacmeKeyPemWrite
 #undef xrtBase64EncodeNew
 #undef xrtPemDecodeNew
 #undef xrtX509NameEqual
 #undef xrtSleep
 #undef xrtTimer
 #undef __xrtWaitAfter
+#undef __xrtWaitRemaining
 #undef xrtAcmeStoreNeedRenew
 #undef xrtAcmeStoreSaveGrant
 #undef xrtAcmeStoreSaveAccount
 
 static bool dns_add(xacmednsprovider* D,xstrview F,xstrview T) {
     (void)D;(void)F; Adds++;
+    if(issue_mode("add-ack-expired")) issue_charge(120u);
+    if(issue_mode("add-backoff")) {
+        xrtSetErrorInfo(XERR_IO,"test.flow.dns",74,"DNS Add rejected before write");
+        if(!IssueBudgetCause) IssueBudgetCause=xrtErrorRef(xrtGetError());
+        issue_charge(10u);return false;
+    }
+    if(AuthPolicyProbe) {
+        testRequire(F.Size==27u && memcmp(F.Data,"_acme-challenge.example.com",27u)==0 && T.Size==43u && Adds<=65u,"authorization TXT owner/digest");
+        if(AuthPolicyFault==AUTH_ADD_MEMORY && Adds==AuthPolicyCount) {xrtSetError(AuthPolicyError);remember();return false;}
+        memcpy(AuthPolicyOwned[Adds-1u],T.Data,T.Size);AuthPolicyOwned[Adds-1u][T.Size]=0;return true;
+    }
     testRequire(T.Size<sizeof(ResolverTxt),"resolver fixture TXT overflow");
     memcpy(ResolverTxt,T.Data,T.Size); ResolverTxt[T.Size]=0; return true;
 }
 static bool dns_remove(xacmednsprovider* D,xstrview F,xstrview T) {
     (void)D;(void)F;(void)T; Removes++;
+    if(IssueBudgetProbe) {
+        /* Callback and retry delays belong to independent best-effort cleanup. */
+        if(issue_mode("cleanup-spent")) {
+            issue_charge(5000u);
+            if(Removes<3u) {xrtSetErrorInfo(XERR_IO,"test.flow.cleanup",75,"cleanup retry");return false;}
+        }
+    }
+    if(AuthPolicyProbe) {
+        bool Found=false;
+        for(size_t i=0;i<AuthPolicyCount;i++) if(strlen(AuthPolicyOwned[i])==T.Size && memcmp(AuthPolicyOwned[i],T.Data,T.Size)==0) {
+            testRequire(!Found,"authorization TXT removed more than once");AuthPolicyOwned[i][0]=0;Found=true;
+        }
+        testRequire(Found && F.Size==27u && memcmp(F.Data,"_acme-challenge.example.com",27u)==0,"authorization cleanup lost an owned TXT value");return true;
+    }
     if(named("cleanup-cause")) { xrtSetErrorInfo(XERR_STATE,"test.flow.dns",99,"cleanup cause"); return false; }
     return true;
 }
 static bool dns_propagate(xacmednsprovider* D,xstrview F,xstrview T) {
     (void)D;(void)F;(void)T;
+    if(IssueBudgetProbe) {IssueBudgetPropagates++;if(issue_mode("propagate-expired")) issue_charge(120u);}
     if(Inject && selected("propagate")) {
         arm("propagate"); void* Allocation=xrtMalloc(1);
         testRequire(!Allocation && xrtMemDebugFailTriggered(),"propagation cause injection failed"); remember(); return false;
@@ -497,6 +806,126 @@ static bool operation(struct xacmeclient* Client) {
         xrtFree(Applied);
     }
     xrtFree(NewPem); xrtSecureZero(&NewKey,sizeof(NewKey)); return Result;
+}
+static void read_retry_policy(cstr Only) {
+    static const struct {
+        cstr Name; xerrkind Kind; bool Uncertain; unsigned Failures; bool Success; unsigned Calls, Sleeps;
+    } Rows[]={
+        {"memory-once",XERR_MEMORY,true,1,false,1,0},
+        {"memory-persistent",XERR_MEMORY,true,4,false,1,0},
+        {"memory-plain",XERR_MEMORY,false,1,false,1,0},
+        {"io-once",XERR_IO,true,1,true,2,1},
+        {"io-exhausted",XERR_IO,true,4,false,3,2},
+        {"timeout-once",XERR_TIMEOUT,true,1,true,2,1},
+        {"timeout-exhausted",XERR_TIMEOUT,true,4,false,3,2},
+        {"io-plain",XERR_IO,false,1,false,1,0}
+    };
+    bool Matched=Only==NULL;
+    for(size_t i=0;i<sizeof(Rows)/sizeof(Rows[0]);++i) {
+        if(Only && strcmp(Only,Rows[i].Name)!=0) continue;
+        Matched=true;Active=&Cases[0];Enabled=Inject=Armed=false;FirstError=NULL;xrtClearError();
+        struct xacmeclient* Client=create_client(false);testRequire(Client!=NULL,"read retry client fixture");
+        if(Rows[i].Kind==XERR_MEMORY) {
+            testRequire(xrtMemDebugFailAfter(0),"read worker allocation fault arm");
+            testRequire(xrtMalloc(1)==NULL && xrtMemDebugFailTriggered(),"actual read worker MEMORY cause");
+            xrtMemDebugFailClear();
+        } else xrtSetErrorInfo(Rows[i].Kind,"test.flow.read.worker",82,"read producer failed");
+        xerror* Root=xrtErrorRef(xrtGetError());testRequire(Root!=NULL,"read worker immutable cause");
+        /* The producer's fault injection has ended before HTTP publishes its
+         * immutable error. Retry is governed by the delivered error kind. */
+        ReadRetryError=Rows[i].Uncertain?xrtErrorWrap(Root,Rows[i].Kind,"xrt.acme.http",
+            XACME_HTTP_ERROR_UNCERTAIN,"read result unknown"):xrtErrorRef(Root);
+        testRequire(ReadRetryError!=NULL,"read error context publication");xrtClearError();
+        ReadRetryCalls=Requests=NonceRequests=Sleeps=0;ReadRetryFailures=Rows[i].Failures;
+        ReadRetryProbe=true;ReadRetryUncertain=Rows[i].Uncertain;
+        xacmehttpresponse Response;bool Result=xacmeFlowPostAsGet(Client,"http://ca.example/read-retry",&Response);
+        printf("[read-retry] %s success=%d calls=%u nonce=%u sleeps=%u kind=%d same-cause=%d\n",
+            Rows[i].Name,Result,ReadRetryCalls,NonceRequests,Sleeps,(int)xrtErrorKind(xrtGetError()),xrtGetError()==ReadRetryError);
+        testRequire(Result==Rows[i].Success && ReadRetryCalls==Rows[i].Calls &&
+            Sleeps==Rows[i].Sleeps && NonceRequests==Rows[i].Calls-1u,"read retry policy replayed terminal fault or lost bounded recovery");
+        if(Result) testRequire(xrtGetError()==NULL && Response.iStatus==200u,"read recovery retained stale diagnostic");
+        else testRequire(xrtGetError()==ReadRetryError && xrtErrorKind(xrtGetError())==Rows[i].Kind &&
+            (!Rows[i].Uncertain || xrtErrorCause(ReadRetryError)==Root) && Response.sBody==NULL && Response.sReplayNonce==NULL,
+            "read retry lost actual cause or delivered partial output");
+        xacmeHttpResponseUnit(&Response);
+        /* A separate caller request remains usable after a terminal failure. */
+        ReadRetryFailures=ReadRetryCalls=0;unsigned PriorSleeps=Sleeps;
+        testRequire(xacmeFlowPostAsGet(Client,"http://ca.example/read-retry",&Response) &&
+            ReadRetryCalls==1u && Sleeps==PriorSleeps && xrtGetError()==NULL,"explicit read retry cannot recover on same client");
+        xacmeHttpResponseUnit(&Response);ReadRetryProbe=false;xrtAcmeClientDestroy(Client);
+        xrtErrorFree(ReadRetryError);ReadRetryError=NULL;xrtErrorFree(Root);xrtClearError();
+        testMemoryDebugDrain("read retry policy retained logical allocations");
+        printf("[PASS] FLOW read-retry/%s\n",Rows[i].Name);
+    }
+    testRequire(Matched,"unknown read retry policy row");
+}
+static void resolver_endpoints(void) {
+    static const struct {cstr Text,Host;uint16 Port;} Rows[]={
+        {"127.0.0.1","127.0.0.1",53},{"127.0.0.1:5353","127.0.0.1",5353},
+        {"1.1.1.1:00053","1.1.1.1",53},{"::1","::1",53},{"[::1]","::1",53},
+        {"[::1]:5353","::1",5353},{"2001:db8::53","2001:db8::53",53},
+        {"2001:db8::1:5353","2001:db8::1:5353",53},
+        {"[2001:db8::1:5353]:65535","2001:db8::1:5353",65535},
+        {"::","::",53},{"::ffff:127.0.0.1","::ffff:127.0.0.1",53},
+        {"[::ffff:127.0.0.1]:53","::ffff:127.0.0.1",53},
+        {"fe80::1%7","fe80::1%7",53},{"[fe80::1%7]:5353","fe80::1%7",5353},
+        {"2001:DB8:0:0:0:0:0:1","2001:db8::1",53},
+        {"",NULL,0},{"127.0.0.1:",NULL,0},{"127.0.0.1:0",NULL,0},
+        {"127.0.0.1:65536",NULL,0},{"127.0.0.1:999999999999999999999999",NULL,0},
+        {"127.0.0.1:53junk",NULL,0},{"127.0.0.1:+53",NULL,0},{"127.0.0.1:-1",NULL,0},
+        {"127.0.0.1: 53",NULL,0},{"127.0.0.1:53 ",NULL,0},{":53",NULL,0},
+        {"[::1",NULL,0},{"[::1]junk",NULL,0},{"[::1]x:53",NULL,0},
+        {"[::1]:",NULL,0},{"[::1]:0",NULL,0},{"[::1]:65536",NULL,0},
+        {"resolver.example:53",NULL,0},{"127.1:53",NULL,0},{"127.000.000.001:53",NULL,0},
+        {"[127.0.0.1]:53",NULL,0},{"2001:db8::1:99999",NULL,0}
+    };
+    size_t Failures=0;
+    for(size_t i=0;i<sizeof(Rows)/sizeof(Rows[0]);++i) {
+        char Host[64];memset(Host,0xa5,sizeof(Host));xrtClearError();
+        xmemdebugsnapshot Before,After;xrtMemDebugSnapshot(&Before);
+        uint16 Port=xacmeFlowResolverPort(Rows[i].Text,Host,sizeof(Host));
+        bool Match=Port==Rows[i].Port;
+        if(Rows[i].Host) {
+            xnetaddr Actual,Expected;
+            Match=Match && xrtNetAddrParse(&Actual,Host,Port) &&
+                xrtNetAddrParse(&Expected,Rows[i].Host,Rows[i].Port) && xrtNetAddrEqual(&Actual,&Expected);
+            xrtMemDebugSnapshot(&After);
+            Match=Match && After.AllocCount==Before.AllocCount;
+        } else Match=Match && Host[0]==0 && xrtGetError()!=NULL;
+        if(!Match) {fprintf(stderr,"resolver endpoint row=%zu input=%s port=%u host=%s\n",i,Rows[i].Text,(unsigned)Port,Host);Failures++;}
+        xrtClearError();testMemoryDebugDrain("resolver parser retained allocations");
+    }
+    testRequire(Failures==0,"resolver endpoint parser changed address or accepted malformed input");
+    struct {char Host[4];uint8 Guard[8];} Exact;
+    memset(&Exact,0xa5,sizeof(Exact));
+    testRequire(xacmeFlowResolverPort("[::1]:5353",Exact.Host,sizeof(Exact.Host))==5353 &&
+        strcmp(Exact.Host,"::1")==0,"resolver exact host capacity");
+    testRequire(xacmeFlowResolverPort("[::1]:5353",Exact.Host,3u)==0 && Exact.Host[0]==0,"resolver must not use a truncated address");
+    for(size_t i=0;i<sizeof(Exact.Guard);++i) testRequire(Exact.Guard[i]==0xa5,"resolver wrote past host capacity");
+    xrtClearError();testRequire(xacmeFlowResolverPort(NULL,Exact.Host,sizeof(Exact.Host))==0 && Exact.Host[0]==0 &&
+        xrtErrorKind(xrtGetError())==XERR_ARGUMENT,"resolver NULL input");
+    xrtClearError();testRequire(xacmeFlowResolverPort("::1",NULL,4u)==0 && xrtErrorKind(xrtGetError())==XERR_ARGUMENT,"resolver NULL output");
+    xrtClearError();Exact.Host[0]='x';testRequire(xacmeFlowResolverPort("::1",Exact.Host,0)==0 && Exact.Host[0]=='x' &&
+        xrtErrorKind(xrtGetError())==XERR_ARGUMENT,"resolver zero capacity");
+    xrtClearError();testMemoryDebugDrain("resolver argument probes retained allocations");
+    printf("[PASS] FLOW resolver endpoint parsing (%zu vectors plus capacity/argument checks)\n",sizeof(Rows)/sizeof(Rows[0]));
+    {
+        const flowcase Probe={"resolver-endpoint",FLOW_ISSUE,FLOW_SUCCESS,"resolver",false};
+        xacmeclient Client={0};xacmedns Dns={0};
+        strcpy(Client.sPropagateResolvers[0],"127.0.0.1:53junk");
+        strcpy(Client.sPropagateResolvers[1],"[::1]:5353");Client.iPropagateResolverCount=2u;
+        Active=&Probe;Enabled=true;Inject=false;ResolverQueries=0;strcpy(ResolverTxt,"fixture-TXT");
+        ResolverEndpointExpected="::1";ResolverEndpointPort=5353;
+        testRequire(xacmeFlowTxtVisible(&Dns,&Client,"_acme-challenge.example.test",ResolverTxt) && ResolverQueries==1u,
+            "invalid resolver must be skipped before querying the valid IPv6 endpoint");
+        ResolverQueries=0;testRequire(xrtMemDebugFailAfter(0),"resolver parse diagnostic allocation fault arm");
+        bool Visible=xacmeFlowTxtVisible(&Dns,&Client,"_acme-challenge.example.test",ResolverTxt);
+        testRequire(!Visible && ResolverQueries==0u && xrtMemDebugFailTriggered() && xrtErrorKind(xrtGetError())==XERR_MEMORY,
+            "resolver parse MEMORY must stop before querying a later endpoint");
+        xrtMemDebugFailClear();ResolverEndpointExpected=NULL;Enabled=false;Active=NULL;xrtClearError();
+        testMemoryDebugDrain("resolver propagation probes retained allocations");
+        puts("[PASS] FLOW resolver propagation endpoint identity and parse OOM terminal policy");
+    }
 }
 static void run_case(const flowcase* Case,bool Oom) {
     Active=Case; Enabled=Case->Op==FLOW_CREATE; Inject=Oom; Armed=FirstReply=Finalized=false;
@@ -620,11 +1049,390 @@ static void link_parser(void) {
     testRequire(!xacmeFlowLinkAlternate("<abcd>;rel=alternate",Output,0),"Link zero capacity accepted");
     printf("[PASS] FLOW Link grammar, relation association and output bounds (%zu vectors)\n",sizeof(Cases)/sizeof(Cases[0])+4u);
 }
+static xerror* rollover_error(xerrkind Kind,bool Uncertain) {
+    if(Kind==XERR_MEMORY) {
+        testRequire(xrtMemDebugFailAfter(0),"rollover worker allocation arm");
+        testRequire(xrtMalloc(1)==NULL && xrtMemDebugFailTriggered(),"rollover worker actual MEMORY cause");
+        xrtMemDebugFailClear();
+    } else xrtSetErrorInfo(Kind,"test.flow.rollover.worker",88,"rollover producer failed");
+    xerror* Root=xrtErrorRef(xrtGetError());
+    xerror* Error=Uncertain?xrtErrorWrap(Root,Kind,"xrt.acme.http",XACME_HTTP_ERROR_UNCERTAIN,"rollover result unknown"):
+        xrtErrorRef(Root);
+    testRequire(Error && xrtErrorKind(Error)==Kind && (!Uncertain || xrtErrorCause(Error)==Root),"rollover immutable cause publication");
+    xrtErrorFree(Root); xrtClearError(); return Error;
+}
+static void rollover_fault_policy(void) {
+    static const struct {
+        cstr Name; rolloverfaultstage Stage; xerrkind Kind; bool Uncertain; unsigned Failures;
+        bool Applied, Success; unsigned Lookups, Writes;
+    } Rows[]={
+        {"lookup-memory-once",ROLLOVER_LOOKUP,XERR_MEMORY,true,1,true,false,1,0},
+        {"lookup-memory-persistent",ROLLOVER_LOOKUP,XERR_MEMORY,true,4,true,false,1,0},
+        {"lookup-memory-plain",ROLLOVER_LOOKUP,XERR_MEMORY,false,1,true,false,1,0},
+        {"lookup-io-once",ROLLOVER_LOOKUP,XERR_IO,true,1,true,true,2,0},
+        {"lookup-io-exhausted",ROLLOVER_LOOKUP,XERR_IO,true,4,true,false,3,0},
+        {"lookup-timeout-once",ROLLOVER_LOOKUP,XERR_TIMEOUT,true,1,true,true,2,0},
+        {"lookup-timeout-exhausted",ROLLOVER_LOOKUP,XERR_TIMEOUT,true,4,true,false,3,0},
+        {"lookup-io-plain",ROLLOVER_LOOKUP,XERR_IO,false,1,true,false,1,0},
+        {"write-memory-applied",ROLLOVER_WRITE,XERR_MEMORY,true,1,true,false,1,1},
+        {"write-memory-not-applied",ROLLOVER_WRITE,XERR_MEMORY,true,1,false,false,1,1},
+        {"write-memory-plain",ROLLOVER_WRITE,XERR_MEMORY,false,1,true,false,1,1},
+        {"write-io-applied",ROLLOVER_WRITE,XERR_IO,true,1,true,true,2,1},
+        {"write-io-not-applied",ROLLOVER_WRITE,XERR_IO,true,1,false,false,2,1},
+        {"write-timeout-applied",ROLLOVER_WRITE,XERR_TIMEOUT,true,1,true,true,2,1}
+    };
+    xacmees256key NewKey={{0},{0}}; char NewPem[1024], SavedPem[1024]; unsigned Failed=0;
+    NewKey.Private[31]=1u; testRequire(xacmeEs256FromPrivate(&NewKey),"rollover fixed new key fixture");
+    str Encoded=xacmeKeyPemWrite(&NewKey); testRequire(Encoded && strlen(Encoded)<sizeof(NewPem),"rollover new PEM fixture");
+    strcpy(NewPem,Encoded); strcpy(SavedPem,Encoded); xrtSecureZero(Encoded,strlen(Encoded)); xrtFree(Encoded);
+    xrtClearError(); testMemoryDebugDrain("rollover fixture allocation");
+    for(size_t i=0;i<sizeof(Rows)/sizeof(Rows[0]);i++) {
+        Active=&Cases[0]; Enabled=Inject=Armed=false; FirstError=NULL;
+        struct xacmeclient* Client=create_client(false); testRequire(Client!=NULL,"rollover policy client fixture");
+        xacmees256key Old=Client->AccountKey;
+        RolloverError=rollover_error(Rows[i].Kind,Rows[i].Uncertain);
+        RolloverFaultStage=Rows[i].Stage; RolloverFailures=Rows[i].Failures; RolloverUncertain=Rows[i].Uncertain;
+        RolloverRemoteApplied=Rows[i].Stage==ROLLOVER_LOOKUP; RolloverApplyWrite=Rows[i].Applied;
+        RolloverExportOom=false; RolloverStoreFailure=XERR_NONE; RolloverPemPending=false;
+        RolloverLookups=RolloverWrites=RolloverExports=RolloverSaves=RolloverDirtyFrees=Requests=NonceRequests=Sleeps=0;
+        RolloverProbe=true;
+        bool Result=xrtAcmeClientRollover(Client,NewPem,NULL);
+        bool Same=xrtGetError()==RolloverError;
+        bool Ok=Result==Rows[i].Success && RolloverLookups==Rows[i].Lookups && RolloverWrites==Rows[i].Writes &&
+            NonceRequests==Rows[i].Lookups-1u && Sleeps==0u && RolloverExports==0u && RolloverSaves==0u &&
+            (Result?xrtGetError()==NULL:Same) && memcmp(&Client->AccountKey,Result?&NewKey:&Old,sizeof(NewKey))==0;
+        printf("[rollover-policy] %s success=%d lookups=%u writes=%u nonce=%u same-cause=%d ok=%d\n",
+            Rows[i].Name,Result,RolloverLookups,RolloverWrites,NonceRequests,Same,Ok);
+        /* A caller can reconcile the same retained new key explicitly after
+         * a terminal allocation failure, including a remotely applied write. */
+        RolloverFailures=0; RolloverRemoteApplied=true;
+        unsigned PriorLookups=RolloverLookups, PriorWrites=RolloverWrites;
+        testRequire(xrtAcmeClientRollover(Client,NewPem,NULL) && xrtGetError()==NULL &&
+            RolloverLookups==PriorLookups+1u && RolloverWrites==PriorWrites &&
+            memcmp(&Client->AccountKey,&NewKey,sizeof(NewKey))==0,"explicit rollover reconciliation failed or repeated write");
+        testRequire(strcmp(NewPem,SavedPem)==0,"rollover changed caller's new PEM");
+        RolloverProbe=false; xrtAcmeClientDestroy(Client); xrtErrorFree(RolloverError); RolloverError=NULL;
+        xrtSecureZero(&Old,sizeof(Old)); xrtClearError(); testMemoryDebugDrain("rollover policy retained allocations");
+        if(!Ok) Failed++; else printf("[PASS] FLOW rollover/%s\n",Rows[i].Name);
+    }
+    static const struct { cstr Name; xerrkind StoreFailure; bool ExportOom; } StoreRows[]={
+        {"store-success",XERR_NONE,false}, {"store-io",XERR_IO,false},
+        {"store-memory",XERR_MEMORY,false}, {"export-memory",XERR_NONE,true}
+    };
+    for(size_t i=0;i<sizeof(StoreRows)/sizeof(StoreRows[0]);i++) {
+        Active=&Cases[0]; Enabled=Inject=Armed=false; FirstError=NULL;
+        struct xacmeclient* Client=create_client(false); testRequire(Client!=NULL,"rollover store client fixture");
+        RolloverError=StoreRows[i].StoreFailure==XERR_NONE?NULL:rollover_error(StoreRows[i].StoreFailure,false);
+        RolloverFaultStage=ROLLOVER_NO_FAULT; RolloverFailures=0; RolloverRemoteApplied=false; RolloverApplyWrite=true;
+        RolloverExportOom=StoreRows[i].ExportOom; RolloverStoreFailure=StoreRows[i].StoreFailure;
+        RolloverPemPending=false; RolloverExpectedPem=NewPem;
+        RolloverLookups=RolloverWrites=RolloverExports=RolloverSaves=RolloverDirtyFrees=0;
+        RolloverProbe=true; xrtClearError();
+        bool Result=xrtAcmeClientRollover(Client,NewPem,"fixture-store");
+        bool Expected=StoreRows[i].StoreFailure==XERR_NONE && !StoreRows[i].ExportOom;
+        bool Ok=Result==Expected && (Result?xrtGetError()==NULL:xrtGetError()==RolloverError) &&
+            memcmp(&Client->AccountKey,&NewKey,sizeof(NewKey))==0 && RolloverLookups==1u && RolloverWrites==1u &&
+            RolloverExports==1u && RolloverSaves==(StoreRows[i].ExportOom?0u:1u) && !RolloverPemPending && RolloverDirtyFrees==0u;
+        printf("[rollover-retire] %s success=%d exports=%u saves=%u uncleared=%u same-cause=%d ok=%d\n",
+            StoreRows[i].Name,Result,RolloverExports,RolloverSaves,RolloverDirtyFrees,xrtGetError()==RolloverError,Ok);
+        RolloverRemoteApplied=true; RolloverExportOom=false; RolloverStoreFailure=XERR_NONE;
+        unsigned PriorSaves=RolloverSaves;
+        bool Recovered=xrtAcmeClientRollover(Client,NewPem,"fixture-store");
+        testRequire(Recovered && RolloverLookups==2u && RolloverWrites==1u && RolloverExports==2u &&
+            RolloverSaves==PriorSaves+1u && !RolloverPemPending && memcmp(&Client->AccountKey,&NewKey,sizeof(NewKey))==0 &&
+            strcmp(NewPem,SavedPem)==0 && xrtGetError()==NULL,"rollover persistence recovery changed key or repeated remote write");
+        Ok=Ok && RolloverDirtyFrees==0u;
+        RolloverProbe=false; xrtAcmeClientDestroy(Client); xrtErrorFree(RolloverError); RolloverError=NULL;
+        xrtClearError(); testMemoryDebugDrain("rollover persistence retained allocations");
+        if(!Ok) Failed++; else printf("[PASS] FLOW rollover/%s\n",StoreRows[i].Name);
+    }
+    xrtSecureZero(NewPem,sizeof(NewPem)); xrtSecureZero(SavedPem,sizeof(SavedPem)); xrtSecureZero(&NewKey,sizeof(NewKey));
+    printf("[rollover-summary] rows=%zu failed=%u\n",sizeof(Rows)/sizeof(Rows[0])+sizeof(StoreRows)/sizeof(StoreRows[0]),Failed);
+    testRequire(Failed==0u,"rollover replayed MEMORY, lost key state/cause or retired private text uncleared");
+}
+static void rollover_key_separation(void) {
+    xpemblock Block; xdercursor Cursor; xdervalue Value; xbytesview Private;
+    size_t Size; char Sec1[1024], NewPem[1024];
+    testRequire(xrtPemFind(ACME_FIXTURE_KEY,strlen(ACME_FIXTURE_KEY),"PRIVATE KEY",&Block),"known certificate PKCS8 fixture");
+    bytes Der=xrtPemDecodeNew(&Block,&Size);
+    testRequire(Der && xrtDerInit(&Cursor,Der,Size) &&
+        xrtDerExpect(&Cursor,XASN1_UNIVERSAL,XASN1_SEQUENCE,true,&Value) && xrtDerEnter(&Value,&Cursor) &&
+        xrtDerRead(&Cursor,&Value)==XDER_VALUE && xrtDerRead(&Cursor,&Value)==XDER_VALUE &&
+        xrtDerRead(&Cursor,&Value)==XDER_VALUE && xrtDerOctets(&Value,&Private),"known certificate PKCS8 structure");
+    str Text=xrtPemEncodeNew("EC PRIVATE KEY",Private.Data,Private.Size);
+    testRequire(Text && strlen(Text)<sizeof(Sec1),"known certificate alternate SEC1 fixture"); strcpy(Sec1,Text);
+    xrtSecureZero(Der,Size);xrtFree(Der);xrtSecureZero(Text,strlen(Text));xrtFree(Text);
+    xacmees256key NewKey={{0},{0}};NewKey.Private[31]=1u;
+    testRequire(xacmeEs256FromPrivate(&NewKey),"separate account key fixture");
+    Text=xacmeKeyPemWrite(&NewKey);testRequire(Text && strlen(Text)<sizeof(NewPem),"separate account PEM fixture");
+    strcpy(NewPem,Text);xrtSecureZero(Text,strlen(Text));xrtFree(Text);xrtClearError();testMemoryDebugDrain("key separation fixture allocations");
+    const struct { cstr Name, Cert, New; bool Reject, Oom; } Rows[]={
+        {"known-cert-pkcs8",ACME_FIXTURE_KEY,ACME_FIXTURE_KEY,true,false},
+        {"known-cert-sec1",ACME_FIXTURE_KEY,Sec1,true,false},
+        {"known-cert-diagnostic-memory",ACME_FIXTURE_KEY,ACME_FIXTURE_KEY,true,true},
+        {"different-ec-cert",ACME_FIXTURE_KEY,NewPem,false,false},
+        {"rsa-cert",ACME_FIXTURE_RSA_KEY,NewPem,false,false},
+        {"no-cert-key",NULL,NewPem,false,false}
+    };
+    unsigned Failed=0;
+    for(size_t i=0;i<sizeof(Rows)/sizeof(Rows[0]);i++) {
+        xacmeaccountconfig Account;xacmeclientconfig Config;xacmecertkey SavedCert={0};
+        Active=&Cases[0];Enabled=Inject=Armed=false;FirstError=NULL;
+        xrtAcmeAccountConfigInit(&Account);xrtAcmeClientConfigInit(&Config);
+        Account.sDirectoryUrl="http://ca.example/dir";Account.sAccountKeyPem=KeyPem;
+        Config.pAccount=&Account;Config.sCertKeyPem=Rows[i].Cert;
+        xacmeclient* Client=xrtAcmeClientCreate(&Config);testRequire(Client!=NULL,"key separation client fixture");
+        xacmees256key Old=Client->AccountKey;if(Client->pCertKey) SavedCert=*Client->pCertKey;
+        RolloverError=NULL;RolloverFaultStage=ROLLOVER_NO_FAULT;RolloverFailures=0;RolloverRemoteApplied=true;
+        RolloverExports=RolloverSaves=RolloverLookups=RolloverWrites=RolloverSignatures=0;
+        RolloverExportOom=false;RolloverStoreFailure=XERR_NONE;RolloverPemPending=false;
+        RolloverValidationOom=Rows[i].Oom;RolloverProbe=true;
+        bool Result=xrtAcmeClientRollover(Client,Rows[i].New,NULL);
+        bool Triggered=xrtMemDebugFailTriggered();xerrkind Kind=xrtErrorKind(xrtGetError());xrtMemDebugFailClear();
+        bool Ok=Result==!Rows[i].Reject && Triggered==Rows[i].Oom &&
+            RolloverLookups==(Rows[i].Reject?0u:1u) && RolloverSignatures==(Rows[i].Reject?0u:1u) &&
+            RolloverWrites==0u && RolloverExports==0u && RolloverSaves==0u &&
+            Kind==(Rows[i].Reject?(Rows[i].Oom?XERR_MEMORY:XERR_ARGUMENT):XERR_NONE) &&
+            memcmp(&Client->AccountKey,Rows[i].Reject?&Old:&NewKey,sizeof(NewKey))==0 &&
+            (!Client->pCertKey || memcmp(Client->pCertKey,&SavedCert,sizeof(SavedCert))==0);
+        printf("[rollover-key-separation] %s success=%d kind=%d lookup=%u sign=%u triggered=%d ok=%d\n",
+            Rows[i].Name,Result,(int)Kind,RolloverLookups,RolloverSignatures,Triggered,Ok);
+        RolloverValidationOom=false;
+        unsigned Prior=RolloverLookups;
+        testRequire(xrtAcmeClientRollover(Client,NewPem,NULL) && RolloverLookups==Prior+1u && RolloverWrites==0u &&
+            memcmp(&Client->AccountKey,&NewKey,sizeof(NewKey))==0 && xrtGetError()==NULL,"valid rollover cannot recover after key rejection");
+        RolloverProbe=false;xrtAcmeClientDestroy(Client);xacmeCertKeyUnit(&SavedCert);xrtSecureZero(&Old,sizeof(Old));
+        xrtClearError();testMemoryDebugDrain("key separation retained allocations");
+        if(!Ok) Failed++;else printf("[PASS] FLOW rollover-key/%s\n",Rows[i].Name);
+    }
+    xrtSecureZero(Sec1,sizeof(Sec1));xrtSecureZero(NewPem,sizeof(NewPem));xrtSecureZero(&NewKey,sizeof(NewKey));
+    printf("[rollover-key-summary] rows=%zu failed=%u\n",sizeof(Rows)/sizeof(Rows[0]),Failed);
+    testRequire(Failed==0u,"rollover reused known certificate key or rejected a separate valid account key");
+}
+static void authorization_policy(void) {
+    static const struct { cstr Name;size_t Count;authpolicyfault Fault; } Rows[]={
+        {"none",0u,AUTH_OK},{"one",1u,AUTH_OK},{"two",2u,AUTH_OK},{"local-capacity",16u,AUTH_OK},
+        {"spill",17u,AUTH_OK},{"larger",33u,AUTH_OK},{"many",65u,AUTH_OK},{"already-valid",17u,AUTH_VALID},
+        {"work-memory",17u,AUTH_WORK_MEMORY},{"last-lookup-io",17u,AUTH_LOOKUP_IO},
+        {"last-lookup-memory",17u,AUTH_LOOKUP_MEMORY},{"last-add-memory",17u,AUTH_ADD_MEMORY},
+        {"last-url-type",17u,AUTH_URL_TYPE},{"last-url-nul",17u,AUTH_URL_NUL},{"last-url-empty",17u,AUTH_URL_EMPTY},
+        {"missing-list",0u,AUTH_LIST_MISSING},{"wrong-list-type",0u,AUTH_LIST_TYPE},
+        {"last-trigger-io",17u,AUTH_TRIGGER_IO},{"finalize-io",17u,AUTH_FINALIZE_IO}
+    };
+    unsigned Failed=0;
+    xacmednsprovider Dns={"policy-fixture",XACME_DNS_CAP_PROPAGATE,NULL,dns_add,dns_remove,dns_propagate};
+    const xstrview Domain=XRT_STR_LITERAL("example.com");
+    for(size_t i=0;i<sizeof(Rows)/sizeof(Rows[0]);i++) {
+        Active=&Cases[0];Enabled=Inject=Armed=false;FirstError=NULL;AuthPolicyProbe=false;xrtClearError();
+        xacmeclient* Client=create_client(false);testRequire(Client!=NULL,"authorization policy client fixture");
+        Client->uIssueTimeoutMs=0; /* Isolate cardinality from the separate total-budget policy. */
+        bool Memory=Rows[i].Fault==AUTH_LOOKUP_MEMORY || Rows[i].Fault==AUTH_ADD_MEMORY;
+        bool Io=Rows[i].Fault==AUTH_LOOKUP_IO || Rows[i].Fault==AUTH_TRIGGER_IO || Rows[i].Fault==AUTH_FINALIZE_IO;
+        AuthPolicyError=(Memory || Io)?rollover_error(Memory?XERR_MEMORY:XERR_IO,false):NULL;
+        AuthPolicyCount=Rows[i].Count;AuthPolicyFault=Rows[i].Fault;
+        AuthPolicyLookups=AuthPolicyTriggers=AuthPolicyCsrs=AuthPolicyFinalizes=AuthPolicyAllocations=0;
+        Adds=Removes=0;Finalized=false;memset(AuthPolicyReads,0,sizeof(AuthPolicyReads));memset(AuthPolicyOwned,0,sizeof(AuthPolicyOwned));
+        AuthPolicyProbe=true; xacmeissuegrant Grant;memset(&Grant,0xa5,sizeof(Grant));
+        bool Result=xrtAcmeClientIssue(Client,&Domain,1u,&Dns,&Grant);
+        bool Success=Rows[i].Fault==AUTH_OK || Rows[i].Fault==AUTH_VALID;
+        bool EmptyList=Rows[i].Fault==AUTH_LIST_MISSING || Rows[i].Fault==AUTH_LIST_TYPE;
+        bool UrlFault=Rows[i].Fault==AUTH_URL_TYPE || Rows[i].Fault==AUTH_URL_NUL || Rows[i].Fault==AUTH_URL_EMPTY;
+        bool Early=EmptyList || Rows[i].Fault==AUTH_WORK_MEMORY;
+        bool Late=UrlFault || Rows[i].Fault==AUTH_LOOKUP_IO || Rows[i].Fault==AUTH_LOOKUP_MEMORY || Rows[i].Fault==AUTH_ADD_MEMORY;
+        size_t Owned=(Early || Rows[i].Fault==AUTH_VALID)?0u:Late?Rows[i].Count-1u:Rows[i].Count;
+        size_t ExpectedAdds=Owned+(Rows[i].Fault==AUTH_ADD_MEMORY?1u:0u);
+        size_t ExpectedLookups=Early?0u:UrlFault?Owned:Late?Rows[i].Count:
+            Rows[i].Fault==AUTH_VALID?Rows[i].Count:Rows[i].Count*2u-(Rows[i].Fault==AUTH_TRIGGER_IO?1u:0u);
+        size_t ExpectedTriggers=(Success && Rows[i].Fault!=AUTH_VALID) || Rows[i].Fault==AUTH_TRIGGER_IO || Rows[i].Fault==AUTH_FINALIZE_IO?Rows[i].Count:0u;
+        xerrkind Kind=xrtErrorKind(xrtGetError());xerrkind ExpectedKind=Success?XERR_NONE:
+            Memory || Rows[i].Fault==AUTH_WORK_MEMORY?XERR_MEMORY:Io?XERR_IO:XERR_PROTOCOL;
+        bool Ok=Result==Success && Kind==ExpectedKind && Adds==ExpectedAdds && Removes==Owned &&
+            AuthPolicyLookups==ExpectedLookups && AuthPolicyTriggers==ExpectedTriggers &&
+            AuthPolicyCsrs==(Success || Rows[i].Fault==AUTH_FINALIZE_IO?1u:0u) &&
+            AuthPolicyFinalizes==AuthPolicyCsrs && AuthPolicyAllocations==(!EmptyList && Rows[i].Count>16u?1u:0u) &&
+            (!FirstError || xrtGetError()==FirstError) && (Success?(Grant.sFullchainPem && Grant.sKeyPem):(!Grant.sFullchainPem && !Grant.sKeyPem));
+        for(size_t n=0;n<Rows[i].Count;n++) Ok=Ok && AuthPolicyOwned[n][0]==0;
+        printf("[authorization-policy] %s count=%zu success=%d kind=%d work-alloc=%zu lookup=%zu trigger=%zu add=%u remove=%u ok=%d\n",
+            Rows[i].Name,Rows[i].Count,Result,(int)Kind,AuthPolicyAllocations,AuthPolicyLookups,AuthPolicyTriggers,Adds,Removes,Ok);
+        xrtAcmeGrantUnit(&Grant);
+        /* The same client remains usable after any rejected policy or partial
+         * worklist failure; completed TXT ownership must not escape the call. */
+        AuthPolicyFault=AUTH_OK;AuthPolicyCount=1u;Adds=Removes=0;Finalized=false;
+        AuthPolicyLookups=AuthPolicyTriggers=AuthPolicyCsrs=AuthPolicyFinalizes=AuthPolicyAllocations=0;
+        memset(AuthPolicyReads,0,sizeof(AuthPolicyReads));memset(AuthPolicyOwned,0,sizeof(AuthPolicyOwned));xrtClearError();
+        testRequire(xrtAcmeClientIssue(Client,&Domain,1u,&Dns,&Grant) && Adds==1u && Removes==1u &&
+            AuthPolicyOwned[0][0]==0 && xrtGetError()==NULL,"authorization policy same-client recovery failed");
+        xrtAcmeGrantUnit(&Grant);AuthPolicyProbe=false;xrtAcmeClientDestroy(Client);
+        xrtErrorFree(AuthPolicyError);AuthPolicyError=NULL;xrtErrorFree(FirstError);FirstError=NULL;xrtClearError();
+        testMemoryDebugDrain("authorization policy retained worklist, TXT or grant allocations");
+        if(!Ok) Failed++;else printf("[PASS] FLOW authorization-policy/%s\n",Rows[i].Name);
+    }
+    printf("[authorization-summary] rows=%zu failed=%u\n",sizeof(Rows)/sizeof(Rows[0]),Failed);
+    testRequire(Failed==0u,"authorization policy cardinality, ownership, failure or CSR regression");
+}
+static bool eab_run(cstr Label,cstr Hmac,cstr Kid,int64 FailAfter,uint64* Allocations,bool Wire) {
+    xacmeaccountconfig Account; xacmeclientconfig Config;
+    char SavedText[5500]; testRequire(!Hmac || strlen(Hmac)<sizeof(SavedText),"EAB snapshot capacity"); strcpy(SavedText,Hmac?Hmac:"");
+    Active=&Cases[0]; Enabled=Inject=Armed=false; FirstError=NULL; xrtClearError();
+    xrtAcmeAccountConfigInit(&Account); xrtAcmeClientConfigInit(&Config);
+    Account.sDirectoryUrl="http://ca.example/dir"; Account.sAccountKeyPem=KeyPem;
+    Account.Eab.sKid=Kid; Account.Eab.sHmac=Hmac; Config.pAccount=&Account;
+    xacmeaccountconfig Saved=Account;
+    EabArmed=EabEnded=EabPending=false; EabText=Hmac; EabDecodedAddress=0; EabCapacity=EabDecodedSize=0;
+    EabWipes=EabLocalWipes=EabDirtyFrees=EabPosts=0; EabAllocations=0; EabFailAfter=FailAfter; EabWire=Wire; EabProbe=true;
+    struct xacmeclient* Client=xrtAcmeClientCreate(&Config);
+    bool Triggered=xrtMemDebugFailTriggered(); xerrkind Kind=xrtErrorKind(xrtGetError());
+    eab_end_scan();
+    bool Wiped=!EabPending && EabDirtyFrees==0u;
+    bool Ok=FailAfter==-4 ? Client==NULL && Kind==XERR_MEMORY && EabPosts==0u && EabDecodedSize==0u && EabLocalWipes==1u && Wiped :
+        FailAfter==-3 ? Client!=NULL && EabPosts==1u && EabDecodedSize==0u && EabLocalWipes==0u && Wiped :
+        FailAfter==-2 ? Client==NULL && Kind==XERR_ARGUMENT && EabPosts==0u && EabDecodedSize==0u && EabLocalWipes==1u && Wiped :
+        FailAfter<0 ? Client!=NULL && EabPosts==1u && EabDecodedSize!=0u && EabWipes==1u && EabLocalWipes==1u && Wiped :
+        Client==NULL && Triggered && Kind==XERR_MEMORY && EabPosts==0u && EabLocalWipes==1u && Wiped;
+    if(FirstError) testRequire(xrtGetError()==FirstError,"EAB lost original allocation error");
+    testRequire(Account.sDirectoryUrl==Saved.sDirectoryUrl && Account.sAccountKeyPem==Saved.sAccountKeyPem &&
+        Account.Eab.sKid==Saved.Eab.sKid && Account.Eab.sHmac==Saved.Eab.sHmac &&
+        Account.sContactEmail==Saved.sContactEmail && (!Hmac || strcmp(Hmac,SavedText)==0),"EAB modified borrowed account configuration");
+    if(Allocations) *Allocations=EabAllocations;
+    printf("[eab-key] %s fault=%lld success=%d decoded=%zu wipes=%u local-wipes=%u dirty-free=%u posts=%u allocations=%llu ok=%d\n",
+        Label,(long long)FailAfter,Client!=NULL,EabDecodedSize,EabWipes,EabLocalWipes,EabDirtyFrees,EabPosts,
+        (unsigned long long)EabAllocations,Ok);
+    EabProbe=false; xrtMemDebugFailClear(); xrtAcmeClientDestroy(Client);
+    xrtErrorFree(FirstError); FirstError=NULL; xrtClearError(); testMemoryDebugDrain("EAB retained logical allocations");
+    return Ok;
+}
+static void eab_keys(bool Wire) {
+    static const size_t Sizes[]={1u,11u,32u,63u,64u,65u,80u,128u,129u,512u,513u,4096u};
+    static const xbase64config Padded={NULL,XBASE64_URL}, Raw={NULL,XBASE64_URL|XBASE64_NO_PADDING};
+    uint8 Key[4096]; unsigned Failed=0, Runs=0; uint64 Faults=0;
+    for(size_t i=0;i<sizeof(Key);i++) Key[i]=(uint8)(17u+131u*i);
+    for(size_t i=0;i<sizeof(Sizes)/sizeof(Sizes[0]);i++) for(unsigned Padding=0;Padding<2u;Padding++) {
+        char Label[64]; snprintf(Label,sizeof(Label),"%zu-%s",Sizes[i],Padding?"padded":"raw");
+        str Encoded=xrtBase64EncodeNew((cstr)Key,Sizes[i],Padding?&Padded:&Raw);
+        testRequire(Encoded!=NULL,"EAB key fixture encoding");
+        /* Keep the fixture in local storage so per-run Core balance is exact. */
+        char Text[5500]; testRequire(strlen(Encoded)<sizeof(Text),"EAB fixture capacity");
+        strcpy(Text,Encoded); xrtFree(Encoded); xrtClearError(); testMemoryDebugDrain("EAB fixture retained allocation");
+        uint64 Allocations=0; bool Ok=eab_run(Label,Text,"fixture-\"kid\\",-1,&Allocations,Wire); Runs++;
+        if(!Ok) Failed++;
+        testRequire(strlen(Text)==((Sizes[i]+2u)/3u)*4u-(Padding?0u:((3u-Sizes[i]%3u)%3u)),"EAB modified borrowed HMAC text");
+        if(Ok && Padding==0u && (Sizes[i]==32u || Sizes[i]==129u)) {
+            testRequire(Allocations>0u && Allocations<128u,"EAB allocation scan bound");
+            for(uint64 N=0;N<Allocations;N++) {
+                if(!eab_run(Label,Text,"fixture-\"kid\\",(int64)N,NULL,false)) Failed++;
+                Runs++; Faults++;
+            }
+            if(!eab_run(Label,Text,"fixture-\"kid\\",-1,NULL,false)) Failed++;
+            Runs++;
+        }
+    }
+    static const cstr Invalid[]={NULL,"","!","A","AB","AA===","AA==suffix","AA A","+w","/w","AA\n"};
+    for(size_t i=0;i<sizeof(Invalid)/sizeof(Invalid[0]);i++) {
+        char Label[40]; snprintf(Label,sizeof(Label),"invalid-base64url-%zu",i);
+        if(!eab_run(Label,Invalid[i],"fixture-kid",-2,NULL,false)) Failed++;
+        Runs++;
+    }
+    if(!eab_run("zero-byte-raw","AA","fixture-kid",-1,NULL,false)) Failed++;
+    if(!eab_run("zero-byte-padded","AA==","fixture-kid",-1,NULL,false)) Failed++;
+    /* Core optional-padding mode also accepts this existing partial form. */
+    if(!eab_run("legacy-partial-padding","AA=","fixture-kid",-1,NULL,false)) Failed++;
+    if(!eab_run("no-kid","invalid ignored",NULL,-3,NULL,false)) Failed++;
+    if(!eab_run("empty-kid","invalid ignored","",-3,NULL,false)) Failed++;
+    if(!eab_run("decoder-diagnostic-memory","!","fixture-kid",-4,NULL,false)) Failed++;
+    Runs+=6u;
+    xrtSecureZero(Key,sizeof(Key));
+    printf("[eab-summary] runs=%u allocation-faults=%llu failed=%u\n",Runs,(unsigned long long)Faults,Failed);
+    testRequire(Failed==0u,"EAB key length, secure retirement or allocation failure regression");
+    printf("[PASS] FLOW EAB key lengths, padding, secure retirement and allocation recovery\n");
+}
+static bool issue_has_cause(const xerror* Error,const xerror* Expected) {
+    for(;Error;Error=xrtErrorCause(Error)) if(Error==Expected) return true;
+    return false;
+}
+static void issue_budget_policy(cstr Only) {
+    static const cstr Modes[]={"control","unlimited-zero","unlimited-minus-one","order-spent","nonce-spent",
+        "sign-spent","poll-backoff","read-backoff","add-backoff","add-ack-expired","propagate-expired",
+        "certificate-spent","certificate-parse-spent","cleanup-spent","late-memory","timeout-wrap-oom","invalid-domain","stale-memory"};
+    static const flowcase Fixture={"issue-budget",FLOW_ISSUE,FLOW_SUCCESS,NULL,false};
+    bool Matched=Only==NULL;
+    for(size_t i=0;i<sizeof(Modes)/sizeof(Modes[0]);i++) {
+        if(Only && strcmp(Only,Modes[i])!=0) continue;
+        Matched=true;Active=&Fixture;Enabled=Inject=Armed=InOperation=false;FirstError=NULL;xrtClearError();
+        struct xacmeclient* Client=create_client(false);testRequire(Client!=NULL,"Issue budget client fixture");
+        Client->uIssueTimeoutMs=strcmp(Modes[i],"unlimited-zero")==0?0:strcmp(Modes[i],"unlimited-minus-one")==0?-1:100;
+        IssueBudgetMode=Modes[i];IssueBudgetProbe=true;IssueBudgetClock=100.0;
+        IssueBudgetSlept=IssueBudgetPropagates=IssueBudgetTriggers=IssueBudgetFaults=IssueBudgetScopeErrors=IssueBudgetClockChecks=0u;IssueBudgetCause=NULL;
+        Requests=NonceRequests=AuthzRequests=OrderRequests=Sleeps=Adds=Removes=0u;Finalized=false;InOperation=true;
+        if(issue_mode("nonce-spent")) Client->sNonce[0]=0;
+        xstrview Domain=issue_mode("invalid-domain")?(xstrview){"example.com\0suffix",18u}:(xstrview)XRT_STR_LITERAL("example.com");
+        xacmednsprovider Dns={"fixture",XACME_DNS_CAP_PROPAGATE,NULL,dns_add,dns_remove,dns_propagate};
+        xacmeissuegrant Grant;memset(&Grant,0xa5,sizeof(Grant));
+        if(issue_mode("stale-memory")) {
+            testRequire(xrtMemDebugFailAfter(0),"stale caller MEMORY arm");
+            testRequire(!xrtMalloc(1u) && xrtMemDebugFailTriggered(),"stale caller actual MEMORY");
+            IssueBudgetCause=xrtErrorRef(xrtGetError());xrtMemDebugFailClear();
+        }
+        bool Result=xrtAcmeClientIssue(Client,&Domain,1u,&Dns,&Grant);
+        bool Oom=issue_mode("late-memory") || issue_mode("timeout-wrap-oom");
+        bool Success=issue_mode("control") || issue_mode("unlimited-zero") || issue_mode("unlimited-minus-one") || issue_mode("cleanup-spent");
+        printf("[issue-budget] %s success=%d kind=%d ms=%.3f requests=%u nonce=%u adds=%u removes=%u propagates=%u triggers=%u sleep=%u/%u scope-errors=%u\n",
+            Modes[i],Result,(int)xrtErrorKind(xrtGetError()),(IssueBudgetClock-100.0)*1000.0,Requests,NonceRequests,Adds,Removes,
+            IssueBudgetPropagates,IssueBudgetTriggers,Sleeps,IssueBudgetSlept,IssueBudgetScopeErrors);
+        testRequire(Result==Success,"Issue budget accepted expired work or rejected control");
+        testRequire((Client->uIssueTimeoutMs<=0 || !Client->bIssueDeadline) && !Client->Http.bOperationDeadline,
+            "finite Issue budget leaked into later caller operations or cleanup");
+        testRequire(IssueBudgetScopeErrors==0u,"Issue HTTP did not inherit the exact enclosing deadline");
+        if(Success) testRequire(Grant.sFullchainPem && Grant.sKeyPem && xrtGetError()==NULL,"Issue control lost complete grant or retained cleanup error");
+        else {
+            testRequire(!Grant.sFullchainPem && !Grant.sKeyPem,"Issue timeout delivered partial grant");
+            testRequire(xrtErrorKind(xrtGetError())==(Oom?XERR_MEMORY:issue_mode("invalid-domain")?XERR_ARGUMENT:XERR_TIMEOUT),"Issue timeout lost MEMORY/argument category");
+            if(IssueBudgetCause && !issue_mode("timeout-wrap-oom") && !issue_mode("stale-memory")) testRequire(issue_has_cause(xrtGetError(),IssueBudgetCause),"Issue budget lost immutable producer cause");
+            if(issue_mode("late-memory")) testRequire(xrtGetError()==IssueBudgetCause,"late producer MEMORY was wrapped or replaced");
+        }
+        if(issue_mode("stale-memory")) testRequire(Requests==0u && !issue_has_cause(xrtGetError(),IssueBudgetCause),"new Issue inherited a stale caller cause or submitted expired work");
+        if(issue_mode("sign-spent")) testRequire(Requests==0u,"signing consumed budget but HTTP was submitted");
+        if(issue_mode("nonce-spent") || issue_mode("order-spent")) testRequire(Requests==1u && Adds==0u,"exhausted initial stage submitted later work");
+        if(issue_mode("read-backoff") || issue_mode("timeout-wrap-oom") || issue_mode("add-backoff"))
+            testRequire(Sleeps==1u && IssueBudgetSlept<=91u && Adds==(issue_mode("add-backoff")?1u:0u),"enclosing retry backoff restarted a full delay or replayed work");
+        if(issue_mode("poll-backoff")) testRequire(Sleeps==1u && IssueBudgetSlept<=101u && Removes==1u,"status poll ignored remaining issue budget");
+        if(issue_mode("add-ack-expired")) testRequire(Adds==1u && Removes==1u && IssueBudgetPropagates==0u && IssueBudgetTriggers==0u,"acknowledged record lost cleanup ownership at deadline");
+        if(issue_mode("propagate-expired")) testRequire(Removes==1u && IssueBudgetPropagates==1u && IssueBudgetTriggers==0u,"expired propagation triggered challenge or lost TXT cleanup");
+        if(issue_mode("cleanup-spent")) testRequire(Removes==3u && Sleeps==2u && IssueBudgetSlept==3000u,"cleanup inherited exhausted issue budget");
+        if(issue_mode("certificate-spent") || issue_mode("certificate-parse-spent")) testRequire(Removes==1u,"late certificate failure lost record cleanup");
+        xrtMemDebugFailClear();xrtAcmeGrantUnit(&Grant);xrtErrorFree(IssueBudgetCause);IssueBudgetCause=NULL;xrtClearError();
+        /* One failed read now retries normally on this same client. */
+        IssueBudgetProbe=false;ReadRetryProbe=true;ReadRetryCalls=0u;ReadRetryFailures=1u;ReadRetryUncertain=true;Sleeps=0u;
+        xrtSetErrorInfo(XERR_IO,"xrt.acme.http",XACME_HTTP_ERROR_UNCERTAIN,"separately requested read");
+        ReadRetryError=xrtErrorRef(xrtGetError());xrtClearError();xacmehttpresponse Response;
+        testRequire(xacmeFlowPostAsGet(Client,"http://ca.example/read-retry",&Response) && ReadRetryCalls==2u && Sleeps==1u,"expired Issue poisoned separate caller read retry");
+        xacmeHttpResponseUnit(&Response);ReadRetryProbe=false;xrtErrorFree(ReadRetryError);ReadRetryError=NULL;
+        Client->uIssueTimeoutMs=0;Finalized=false;Requests=NonceRequests=AuthzRequests=OrderRequests=Adds=Removes=0u;
+        Domain=(xstrview)XRT_STR_LITERAL("example.com");
+        testRequire(xrtAcmeClientIssue(Client,&Domain,1u,&Dns,&Grant),"same-client separately requested Issue cannot recover");
+        xrtAcmeGrantUnit(&Grant);xrtAcmeClientDestroy(Client);xrtClearError();
+        testMemoryDebugDrain("Issue budget retained logical allocations");printf("[PASS] FLOW issue-budget/%s\n",Modes[i]);
+    }
+    testRequire(Matched,"unknown Issue budget mode");
+    if(!Only) for(unsigned i=0;i<2u;i++) {
+        unsigned Before=Requests;xacmeaccountconfig Account;xacmeclientconfig Config;
+        xrtAcmeAccountConfigInit(&Account);xrtAcmeClientConfigInit(&Config);Account.sDirectoryUrl="http://ca.example/dir";Config.pAccount=&Account;
+        Config.uIssueTimeoutMs=i?INT64_MIN:-2;
+        testRequire(xrtAcmeClientCreate(&Config)==NULL && xrtErrorKind(xrtGetError())==XERR_ARGUMENT && Requests==Before,"invalid Issue budget created transport or registered account");
+        xrtClearError();testMemoryDebugDrain("invalid Issue budget retained allocation");
+    }
+}
 int main(int argc,char** argv) {
+    if((argc==2 || argc==3) && strcmp(argv[1],"issue-budget")==0) { issue_budget_policy(argc==3?argv[2]:NULL); return 0; }
+    if(argc==2 && strcmp(argv[1],"authorization-policy")==0) { authorization_policy(); return 0; }
+    if(argc==2 && strcmp(argv[1],"rollover-key-separation")==0) { rollover_key_separation(); return 0; }
+    if(argc==2 && strcmp(argv[1],"rollover-faults")==0) { rollover_fault_policy(); return 0; }
+    if(argc==2 && strcmp(argv[1],"eab-keys")==0) { eab_keys(true); return 0; }
     if(argc==2 && strcmp(argv[1],"link-parser")==0) { link_parser(); return 0; }
+    if((argc==2 || argc==3) && strcmp(argv[1],"read-retry")==0) { read_retry_policy(argc==3?argv[2]:NULL); return 0; }
+    if(argc==2 && strcmp(argv[1],"resolver-endpoints")==0) { resolver_endpoints(); return 0; }
     testRequire(argc==1 || argc==3,"flow fixture usage: [name control|oom]");
     if(argc==2 && strcmp(argv[1],"alternate-urls")==0) { alternate_urls(); return 0; }
-    if(argc==1) { link_parser(); alternate_urls(); }
+    if(argc==1) { issue_budget_policy(NULL); link_parser(); alternate_urls(); read_retry_policy(NULL); resolver_endpoints(); eab_keys(false); rollover_fault_policy(); rollover_key_separation(); authorization_policy(); }
     for(size_t i=0;i<sizeof(Cases)/sizeof(Cases[0]);i++) {
         if(argc==3 && strcmp(argv[1],Cases[i].Name)!=0) continue;
         if(argc==3) { bool Oom=strcmp(argv[2],"oom")==0; testRequire(Oom || strcmp(argv[2],"control")==0,"invalid flow mode"); run_case(&Cases[i],Oom); return 0; }

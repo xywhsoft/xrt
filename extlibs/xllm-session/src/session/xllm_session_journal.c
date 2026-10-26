@@ -11,7 +11,7 @@ static bool xllm_session__journal_prefix(xllm_session_buf* pRecord,
 {
     if ( pSession->uJournalSequence == UINT64_MAX ) { return false; }
     return xllm_session__buf_cstr(pRecord,
-            "{\"format\":\"xllm-session-journal\",\"version\":2,\"journal_sequence\":") &&
+            "{\"format\":\"xllm-session-journal\",\"version\":3,\"journal_sequence\":") &&
         xllm_session__buf_u64(pRecord, pSession->uJournalSequence + 1u) &&
         xllm_session__buf_cstr(pRecord, ",\"operation\":") &&
         xllm_session__json_string(pRecord, sOperation);
@@ -37,6 +37,7 @@ static bool xllm_session__journal_write(xllm_session* pSession, xllm_session_buf
         return false;
     }
     ++pSession->uJournalSequence;
+    pSession->bStatsDirty = true;
     xllm_session__event(pSession, XLLM_SESSION_EVENT_JOURNAL_RECORD, 0u,
         pSession->uJournalSequence, NULL);
     return true;
@@ -134,7 +135,9 @@ static bool xllm_session__replay_message(xllm_session* pSession, xvalue* pRoot)
     uint64_t uSequence;
     uint32_t uFlags;
     if ( !pEntry || !xrtValueIs(pEntry, XVALUE_OBJECT) ) return false;
-    uTurn = xllm_session__json_u64(pEntry, "turn", UINT64_MAX);
+    if ( !xllm_session__json_uint(pEntry, "turn", &uTurn) ||
+         !xllm_session__json_uint_valid(pEntry, "sequence", UINT64_MAX - 1u, true) ||
+         !xllm_session__json_uint_valid(pEntry, "flags", UINT32_MAX, false) ) return false;
     uSequence = xllm_session__json_u64(pEntry, "sequence", 0u);
     uFlags = (uint32_t)xllm_session__json_u64(pEntry, "flags", 0u);
     if ( uTurn > pSession->uCurrentTurn || uSequence == 0u ||
@@ -159,13 +162,16 @@ static bool xllm_session__replay_compaction(xllm_session* pSession, xvalue* pRoo
     uint64_t uOutput = 0u;
     xvalue* pUsage = xllm_session__json_get(pRoot, "usage");
     const char* sSummary = xllm_session__json_text(pRoot, "summary");
+    bool bHasGeneration = xrtValueObjectGet(pRoot, xrtStrView("generation")) != NULL;
     char* sCopy;
     if ( pUsage ) {
         uPrompt = xllm_session__json_u64(pUsage, "prompt_tokens", 0u);
         uOutput = xllm_session__json_u64(pUsage, "output_tokens", 0u);
     }
     /* Quality gate without estimation (design D4): structure and byte cap. */
-    if ( !sSummary || !sSummary[0] || uThrough <= pSession->uCompactedThrough ||
+    if ( pSession->uCompactionCount == UINT64_MAX || pSession->uSummaryGeneration == UINT32_MAX ||
+         (bHasGeneration && uGeneration <= pSession->uSummaryGeneration) ||
+         !sSummary || !sSummary[0] || uThrough <= pSession->uCompactedThrough ||
          uThrough >= pSession->uNextSequence || uCount != pSession->uCompactionCount + 1u ||
          !xllm_session__summary_text_ok(pSession, sSummary) ) {
         return false;
@@ -178,11 +184,7 @@ static bool xllm_session__replay_compaction(xllm_session* pSession, xvalue* pRoo
     pSession->bStatsDirty = true;
     ++pSession->uRenderGeneration;
     pSession->uCompactionCount = uCount;
-    if ( uGeneration > pSession->uSummaryGeneration ) {
-        pSession->uSummaryGeneration = (uint32_t)uGeneration;
-    } else {
-        pSession->uSummaryGeneration = pSession->uCompactionCount;
-    }
+    pSession->uSummaryGeneration = bHasGeneration ? (uint32_t)uGeneration : pSession->uSummaryGeneration + 1u;
     pSession->uSummaryPromptAtBirth = uPrompt;
     pSession->uSummaryOutputAtBirth = uOutput;
     return true;
@@ -192,15 +194,58 @@ static bool xllm_session__replay_truncate(xllm_session* pSession, xvalue* pRoot)
 {
     uint64_t uFrom = xllm_session__json_u64(pRoot, "from_sequence", 0u);
     uint64_t uTo = xllm_session__json_u64(pRoot, "to_sequence", 0u);
-    if ( uFrom == 0u || uTo <= uFrom || uTo >= pSession->uNextSequence ||
-         uTo <= pSession->uTailFloor ) {
+    if ( pSession->uSummaryGeneration == UINT32_MAX ||
+         uFrom != pSession->uTailFloor || uTo <= uFrom || uTo >= pSession->uNextSequence ||
+         uTo <= pSession->uCompactedThrough ) {
         return false;
     }
     pSession->uTailFloor = uTo;
-        pSession->bStatsDirty = true;
-        ++pSession->uRenderGeneration;
+    pSession->bStatsDirty = true;
+    ++pSession->uRenderGeneration;
     ++pSession->uSummaryGeneration;
     return true;
+}
+
+static bool xllm_session__journal_fields_valid(xvalue* pRoot, const char* sOperation)
+{
+    if ( strcmp(sOperation, "begin_turn") == 0 ) {
+        return xllm_session__json_uint_valid(pRoot, "turn", UINT64_MAX, true) &&
+            xllm_session__json_u64(pRoot, "turn", 0u) != 0u;
+    }
+    if ( strcmp(sOperation, "add_message") == 0 ) {
+        xvalue* pEntry = xllm_session__json_get(pRoot, "entry");
+        return xllm_session__json_uint_valid(pEntry, "turn", UINT64_MAX, true) &&
+            xllm_session__json_uint_valid(pEntry, "sequence", UINT64_MAX - 1u, true) &&
+            xllm_session__json_u64(pEntry, "sequence", 0u) != 0u &&
+            xllm_session__json_uint_valid(pEntry, "role", XLLM_ROLE_TOOL, true) &&
+            xllm_session__json_uint_valid(pEntry, "flags", UINT32_MAX, false);
+    }
+    if ( strcmp(sOperation, "compact") == 0 ) {
+        xvalue* pUsage = xrtValueObjectGet(pRoot, xrtStrView("usage"));
+        const char* sSummary = xllm_session__json_text(pRoot, "summary");
+        return xllm_session__json_uint_valid(pRoot, "through_sequence", UINT64_MAX - 1u, true) &&
+            xllm_session__json_u64(pRoot, "through_sequence", 0u) != 0u &&
+            xllm_session__json_uint_valid(pRoot, "compaction_count", UINT64_MAX, true) &&
+            xllm_session__json_u64(pRoot, "compaction_count", 0u) != 0u &&
+            xllm_session__json_uint_valid(pRoot, "generation", UINT32_MAX, false) &&
+            (!xrtValueObjectGet(pRoot, xrtStrView("generation")) ||
+                xllm_session__json_u64(pRoot, "generation", 0u) != 0u) &&
+            sSummary && sSummary[0] && (!pUsage ||
+                (xllm_session__json_uint_valid(pUsage, "prompt_tokens", UINT64_MAX, false) &&
+                 xllm_session__json_uint_valid(pUsage, "output_tokens", UINT64_MAX, false)));
+    }
+    if ( strcmp(sOperation, "truncate") == 0 ) {
+        return xllm_session__json_uint_valid(pRoot, "from_sequence", UINT64_MAX - 1u, true) &&
+            xllm_session__json_uint_valid(pRoot, "to_sequence", UINT64_MAX - 1u, true) &&
+            xllm_session__json_u64(pRoot, "to_sequence", 0u) >
+                xllm_session__json_u64(pRoot, "from_sequence", 0u);
+    }
+    if ( strcmp(sOperation, "ledger") == 0 ) {
+        const char* sKind = xllm_session__json_text(pRoot, "kind");
+        const char* sPath = xllm_session__json_text(pRoot, "path");
+        return sKind && (strcmp(sKind, "read") == 0 || strcmp(sKind, "modified") == 0) && sPath && sPath[0];
+    }
+    return false;
 }
 
 static bool xllm_session__replay_record(xllm_session* pSession, xvalue* pRoot, xllm_error* pError)
@@ -214,9 +259,9 @@ static bool xllm_session__replay_record(xllm_session* pSession, xvalue* pRoot, x
     sOperation = xllm_session__json_text(pRoot, "operation");
     uSequence = xllm_session__json_u64(pRoot, "journal_sequence", 0u);
     if ( !sFormat || strcmp(sFormat, "xllm-session-journal") != 0 ||
-         (xllm_session__json_u64(pRoot, "version", 0u) != 1u &&
-           xllm_session__json_u64(pRoot, "version", 0u) != 2u) ||
-         !sOperation || uSequence == 0u ) {
+         xllm_session__json_u64(pRoot, "version", 0u) < 1u ||
+         xllm_session__json_u64(pRoot, "version", 0u) > 3u ||
+         !sOperation || uSequence == 0u || !xllm_session__journal_fields_valid(pRoot, sOperation) ) {
         goto invalid;
     }
     if ( uSequence <= pSession->uJournalSequence ) {
@@ -227,7 +272,8 @@ static bool xllm_session__replay_record(xllm_session* pSession, xvalue* pRoot, x
     }
     if ( strcmp(sOperation, "begin_turn") == 0 ) {
         uint64_t uTurn = xllm_session__json_u64(pRoot, "turn", 0u);
-        bOk = uTurn == pSession->uCurrentTurn + 1u && xllmSessionBeginTurn(pSession) == uTurn;
+        bOk = pSession->uCurrentTurn != UINT64_MAX &&
+            uTurn == pSession->uCurrentTurn + 1u && xllmSessionBeginTurn(pSession) == uTurn;
     } else if ( strcmp(sOperation, "add_message") == 0 ) {
         bOk = xllm_session__replay_message(pSession, pRoot);
     } else if ( strcmp(sOperation, "compact") == 0 ) {
@@ -248,6 +294,7 @@ static bool xllm_session__replay_record(xllm_session* pSession, xvalue* pRoot, x
     }
     if ( !bOk ) { goto invalid; }
     pSession->uJournalSequence = uSequence;
+    pSession->bStatsDirty = true;
     return true;
 invalid:
     {
@@ -343,8 +390,12 @@ static bool xllm_session__set_journal_path(xllm_session* pSession, const char* s
 
 bool xllmSessionEnableJournal(xllm_session* pSession, const char* sJournalPath, xllm_error* pError)
 {
-    pSession->bStatsDirty = true;
     if ( pError ) { xllmErrorInit(pError); }
+    if ( !pSession ) {
+        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session is required");
+        return false;
+    }
+    pSession->bStatsDirty = true;
     if ( sJournalPath && sJournalPath[0] && xrtFileExists(sJournalPath) &&
          xllm_session__path_size(sJournalPath) != 0u ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
@@ -356,8 +407,8 @@ bool xllmSessionEnableJournal(xllm_session* pSession, const char* sJournalPath, 
 
 void xllmSessionDisableJournal(xllm_session* pSession)
 {
-    pSession->bStatsDirty = true;
     if ( !pSession ) { return; }
+    pSession->bStatsDirty = true;
     free(pSession->sJournalPath);
     pSession->sJournalPath = NULL;
 }

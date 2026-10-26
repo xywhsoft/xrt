@@ -458,7 +458,7 @@ XWS_SERVER_API void xrtWsServerRouteConfigInit(
 	}
 	memset(&Config, 0, sizeof(Config));
 	xrtWsServerConfigInit(&Config.Server);
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -507,7 +507,7 @@ XWS_SERVER_API bool xrtWsServerRoute(
 		) ) {
 			return false;
 		}
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
 	if ( !xrtWsServerConfigValid(&Config.Server) ) {
 		pCause = xrtErrorRef(xrtGetError());

@@ -38,17 +38,21 @@ struct xnetengine;
 	pAccount 必填；sPropagateResolvers 为空时使用内置默认组
 	（223.5.5.5 / 119.29.29.29 / 8.8.8.8，任一可见即通过），
 	uPropagateTimeoutMs 为 0 时默认 120 秒。
+	resolver 仅接受数字 IPv4/IPv6，缺省端口为 53；显式端口为 1-65535，
+	IPv6 带端口须用 [地址]:端口。格式错误项在传播探测时跳过，内存失败立即停止。
 */
 typedef struct xacmeclientconfig {
 	const xacmeaccountconfig* pAccount;
 	cstr sCaPem;
 	struct xnetengine* pBorrowedEngine;
+	/* 单次 HTTP 交换的总预算，含连接、全部 IO 与传输层安全重试。
+	 * 0 采用 30 秒默认值，-1 不限时，其他负数为参数错误。 */
 	int64 uTimeoutMs;
 	const cstr* sPropagateResolvers;
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
 	/*
-		单次签发的总预算（毫秒；0 = 不限时）：覆盖订单/挑战/
+		单次签发的总预算（毫秒；0 或 -1 不限时，其他负数非法）：覆盖订单/挑战/
 		finalize/证书下载的全部轮询与退避，超限以 XERR_TIMEOUT
 		失败。防病态 CA 把签发挂成小时级。
 	*/
@@ -109,8 +113,10 @@ XRT_API str xrtAcmeClientAccountPem(const struct xacmeclient* pClient);
 	保留 MEMORY 诊断且不再查询其他 resolver 或触发挑战。
 	Remove 在结束后尽力调用。
 	最多 16 个不同域名；每段视图须为 1-511 字节且不含 NUL。
-	这些限制在发订单前检查。失败不交付部分产物，清理 TXT 时
-	保留签发的原始失败原因。轮询的解析或内存失败立即返回。
+	这些限制在发订单前检查。失败不交付部分产物。
+	授权数量由 CA 策略决定，不要求与域名数量相同；已铺设的全部
+	TXT 在签发成功或失败的统一收尾中清理。
+	清理保留签发的原始失败原因。轮询的解析或内存失败立即返回。
 	证书密钥须不同于当前账户钥。下载仅接受 PEM 证书链（最多
 	16 张、每张 DER 不超过 256 KiB），检查公钥、SAN、叶证书有效期
 	及所提供链的发行者、CA 标志和签名；不代替部署的根信任策略。
@@ -157,6 +163,9 @@ XRT_API bool xrtAcmeClientRevoke(
 	false 并保留当前内存密钥。成功后客户端即刻使用新钥；若指定
 	sStoreRoot 而重存失败，返回 false 但内存仍使用新钥，调用方可
 	用同一 sNewKeyPem 重试对账与持久化。
+	拒绝将客户端已知的当前证书钥作为账户新钥，在签名和网络对账前检查。
+	MEMORY 保留原始原因并立即返回，不自动对账或重试；调用方须保留
+	新钥供显式恢复。持久化使用的临时私钥文本在成功和失败时均清零后释放。
 */
 XRT_API bool xrtAcmeClientRollover(
 	struct xacmeclient* pClient,

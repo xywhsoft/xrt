@@ -140,7 +140,9 @@
 				"extlibs/xacme/tests/acme/test_http.c",
 				"extlibs/xacme/tests/acme/test_tlsdbg.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xacme/tests/single/test_single_http_future_fault.c"
+			],
 			"examples": [],
 			"docs": [],
 			"legacy": []
@@ -298,7 +300,10 @@
 			"tests": [
 				"extlibs/xacme/tests/acme/test_csr.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xacme/tests/single/test_single_key_import_wipe.c",
+				"extlibs/xacme/tests/single/test_single_key_export_wipe.c"
+			],
 			"examples": [],
 			"docs": [],
 			"legacy": []
@@ -451,6 +456,7 @@
 			"name": "xacme_tests",
 			"state": "implemented",
 			"feature": null,
+			"collect_dependency_assets": ["single_tests"],
 			"depends": [
 				"xacme",
 				"memory_debug",
@@ -669,7 +675,9 @@
 			"tests": [
 				"extlibs/xacme/tests/acme/test_obtain.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xacme/tests/single/test_single_obtain_account_fault.c"
+			],
 			"examples": [
 				"extlibs/xacme/examples/obtain/main.c"
 			],

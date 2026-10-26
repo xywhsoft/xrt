@@ -27,6 +27,13 @@ typedef struct xacmeflowurl {
 	size_t iSize;
 } xacmeflowurl;
 
+typedef struct xacmeflowwork {
+	xacmeflowurl Authz;
+	xacmeflowurl Challenge;
+	str sFqdn;
+	str sTxt;
+} xacmeflowwork;
+
 static void xacmeFlowError(
 	xerrkind Kind, xacmeflowerror Code, cstr sMessage)
 {
@@ -623,8 +630,43 @@ static bool xacmeFlowAlternateUrl(cstr sBase, cstr sReference,
 /* Issue 总预算：超限返回 true（已到截止）。 */
 static bool xacmeFlowDeadlineHit(const xacmeclient* pClient)
 {
-	return pClient->bIssueDeadline &&
+	return pClient != NULL && pClient->bIssueDeadline &&
 		(xrtTimer() >= pClient->IssueDeadline);
+}
+
+/* Keep a published producer error as the cause. MEMORY remains terminal even
+ * when the same work also consumes the last of the operation budget. */
+static bool xacmeFlowBudget(const xacmeclient* pClient)
+{
+	xerror* pCause;
+	xerror* pError;
+	if(!xacmeFlowDeadlineHit(pClient)) return true;
+	pCause = xrtErrorRef(xrtGetError());
+	if(xrtErrorKind(pCause) != XERR_MEMORY)
+	{
+		if(pCause != NULL)
+		{
+			pError = xrtErrorWrap(pCause, XERR_TIMEOUT, "xrt.acme.flow",
+				XACME_FLOW_ERROR_PROTOCOL, "acme flow issue budget exhausted");
+			if(pError != NULL) xrtSetErrorTake(pError);
+		}
+		else xacmeFlowError(XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
+			"acme flow issue budget exhausted");
+	}
+	xrtErrorFree(pCause);
+	return false;
+}
+
+static bool xacmeFlowSleep(const xacmeclient* pClient, uint32 uMs)
+{
+	if(!xacmeFlowBudget(pClient)) return false;
+	if(pClient != NULL && pClient->bIssueDeadline)
+	{
+		int64 Remaining = __xrtWaitRemaining(pClient->IssueDeadline);
+		if(Remaining >= 0 && Remaining < (int64)uMs) uMs = (uint32)Remaining;
+	}
+	xrtSleep(uMs);
+	return xacmeFlowBudget(pClient);
 }
 
 /* ---------------- nonce 与 POST ---------------- */
@@ -647,6 +689,7 @@ static void xacmeFlowTakeNonce(xacmeclient* pClient, xacmehttpresponse* pR)
 static bool xacmeFlowNewNonce(xacmeclient* pClient)
 {
 	xacmehttpresponse R;
+	if(!xacmeFlowBudget(pClient)) return false;
 	if(pClient->sNonce[0] != '\0')
 	{
 		return true;
@@ -764,15 +807,16 @@ static bool xacmeFlowPostAsGet(
 		pError = xrtGetError();
 		sDomain = xrtErrorDomain(pError);
 		if((uAttempt == 3u) || xacmeFlowDeadlineHit(pClient) ||
+			(xrtErrorKind(pError) == XERR_MEMORY) ||
 			(xrtErrorCode(pError) != XACME_HTTP_ERROR_UNCERTAIN) ||
 			(sDomain == NULL) ||
 			(strcmp(sDomain, "xrt.acme.http") != 0))
 		{
 			return false;
 		}
-		/* 只读 POST-as-GET 可用新 nonce/JWS 安全重试。 */
+		/* 非内存失败的只读 POST-as-GET 可用新 nonce/JWS 安全重试。 */
+		if(!xacmeFlowSleep(pClient, (uAttempt == 1u) ? 500u : 1000u)) return false;
 		xrtClearError();
-		xrtSleep((uAttempt == 1u) ? 500u : 1000u);
 	}
 	return false;
 }
@@ -808,12 +852,7 @@ static str xacmeFlowWaitStatus(
 		xacmeflowurl Status;
 		uint32 uMs;
 		bool bTerminal;
-		if(xacmeFlowDeadlineHit(pClient))
-		{
-			xacmeFlowError(XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
-				"acme flow issue budget exhausted");
-			return NULL;
-		}
+		if(!xacmeFlowBudget(pClient)) return NULL;
 		if(!xacmeFlowPostAsGet(pClient, sUrl, &R)) return NULL;
 		if((R.iStatus < 200u) || (R.iStatus >= 300u))
 		{
@@ -874,7 +913,7 @@ static str xacmeFlowWaitStatus(
 		}
 		uMs = xacmeFlowSleepMs(&R);
 		xacmeHttpResponseUnit(&R);
-		xrtSleep(uMs);
+		if(!xacmeFlowSleep(pClient, uMs)) return NULL;
 	}
 	xacmeFlowError(XERR_TIMEOUT, XACME_FLOW_ERROR_PROTOCOL,
 		"acme flow status poll exhausted");
@@ -905,12 +944,13 @@ static bool xacmeFlowDnsAddTerminal(const xerror* pError)
 	提供商层结果未知及内存错误同样不重放 Add。
 */
 static bool xacmeFlowDnsAdd(
-	const xacmednsprovider* pDns, cstr sFqdn, cstr sTxt)
+	const xacmeclient* pClient, const xacmednsprovider* pDns, cstr sFqdn, cstr sTxt)
 {
 	uint32 uAttempt;
 	for(uAttempt = 1u; uAttempt <= 3u; uAttempt++)
 	{
 		xerror* pFirst;
+		if(!xacmeFlowBudget(pClient)) return false;
 		if(pDns->Add((xacmednsprovider*)pDns,
 				(xstrview){ sFqdn, strlen(sFqdn) },
 				(xstrview){ sTxt, strlen(sTxt) }))
@@ -932,7 +972,11 @@ static bool xacmeFlowDnsAdd(
 				printf("[dns-retry] add attempt=%u fqdn=%s\n",
 					(unsigned)uAttempt, sFqdn);
 			}
-			xrtSleep(1000u * uAttempt);
+			if(!xacmeFlowSleep(pClient, 1000u * uAttempt))
+			{
+				xrtErrorFree(pFirst);
+				return false;
+			}
 		}
 		xrtSetErrorTake(pFirst);
 	}
@@ -962,33 +1006,42 @@ static void xacmeFlowDnsRemove(
 /* ---------------- 传播确认 ---------------- */
 
 /*
-	解析 resolver 字符串："host"、"host:port" 或 "[v6]:port"。
-	无端口段或段非法时回退 53；输出去掉括号的 host 到定长缓冲。
+	复用严格数字端点解析：裸 IPv4/IPv6 默认 53，显式 IPv6 端口必须加括号。
+	成功交付规范地址与非零端口；无效输入或容量不足返回 0，不交付截断地址。
 */
 static uint16 xacmeFlowResolverPort(
 	cstr sResolver, char* sOutHost, size_t iHostCap)
 {
-	const char* sColon = strrchr(sResolver, ':');
-	size_t iHostLen;
-	if((sColon != NULL) && (sColon != sResolver))
+	xnetaddr Resolver;
+	size_t iRequired;
+	if(sOutHost != NULL && iHostCap != 0u) sOutHost[0] = '\0';
+	if(sResolver == NULL || sOutHost == NULL || iHostCap == 0u)
 	{
-		long v = atol(sColon + 1);
-		iHostLen = (size_t)(sColon - sResolver);
-		if((sResolver[0] == '[') && (iHostLen > 1u) &&
-			(sResolver[iHostLen - 1u] == ']'))
-		{
-			sResolver++;
-			iHostLen -= 2u;
-		}
-		if((v > 0) && (v <= 65535) && (iHostLen < iHostCap))
-		{
-			memcpy(sOutHost, sResolver, iHostLen);
-			sOutHost[iHostLen] = '\0';
-			return (uint16)v;
-		}
+		xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme resolver endpoint requires input and host output");
+		return 0u;
 	}
-	snprintf(sOutHost, iHostCap, "%s", sResolver);
-	return 53u;
+	xrtClearError();
+	if(!xrtNetAddrParseEndpoint(&Resolver, sResolver, 53u))
+	{
+		if(xrtGetError() == NULL)
+			xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+				"acme resolver endpoint invalid");
+		return 0u;
+	}
+	if(Resolver.Port == 0u)
+	{
+		xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme resolver port must be nonzero");
+		return 0u;
+	}
+	iRequired = xrtNetAddrText(&Resolver, sOutHost, iHostCap);
+	if(iRequired == XRT_NPOS || iRequired >= iHostCap)
+	{
+		sOutHost[0] = '\0';
+		return 0u;
+	}
+	return Resolver.Port;
 }
 
 /* 任一配置 resolver 已返回期望 TXT 值即视为可见。 */
@@ -999,26 +1052,24 @@ static bool xacmeFlowTxtVisible(
 	size_t i;
 	for(i = 0; i < pClient->iPropagateResolverCount; i++)
 	{
-		char sRecords[4][XACME_TXT_RECORD_MAX];
 		char sHost[64];
 		uint16 iPort = xacmeFlowResolverPort(
 			pClient->sPropagateResolvers[i], sHost, sizeof(sHost));
-		size_t iCount = 0u;
-		size_t j;
-		if(!xacmeDnsTxtQuery(
-				pDns, sHost, iPort, sFqdn, sRecords, 4u, &iCount))
+		bool bFound = false;
+		if(iPort == 0u)
+		{
+			if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
+			xrtClearError();
+			continue;
+		}
+		if(!xacmeDnsTxtContains(
+				pDns, sHost, iPort, sFqdn, sExpected, &bFound))
 		{
 			if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
 			xrtClearError(); /* Advisory reachability failure must not mask a later OOM. */
 			continue; /* 单个 resolver 不可达不算失败。 */
 		}
-		for(j = 0; j < iCount; j++)
-		{
-			if(strcmp(sRecords[j], sExpected) == 0)
-			{
-				return true;
-			}
-		}
+		if(bFound) return true;
 	}
 	return false;
 }
@@ -1036,6 +1087,7 @@ static void xacmeFlowWaitPropagate(
 {
 	xacmedns Probe;
 	double uDeadline;
+	if(!xacmeFlowBudget(pClient)) return;
 	if(((pDns->iCaps & XACME_DNS_CAP_PROPAGATE) != 0u) &&
 		(pDns->Propagate != NULL))
 	{
@@ -1132,6 +1184,66 @@ static void xacmeFlowChallengeDetail(
 		}
 	}
 	xrtValueRelease(pRoot);
+}
+
+/* The HMAC block size is not a key-length limit. Keep the common case local,
+ * and erase every decoded copy before returning, including failure paths. */
+static bool xacmeFlowEabAppend(
+	xbuffer* pPayload, const xacmeclient* pClient, const xacmeeab* pEab)
+{
+	static const xbase64config B64UrlPad = {
+		NULL, XBASE64_URL | XBASE64_OPTIONAL_PADDING
+	};
+	uint8 Mac[64];
+	bytes pMac = Mac;
+	bytes pAllocated = NULL;
+	size_t iMacSize = 0u, iCapacity = sizeof(Mac);
+	str sJwk = NULL, sEab = NULL;
+	bool bOk = false;
+	if((pEab->sHmac == NULL) || (pEab->sHmac[0] == '\0'))
+	{
+		xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
+			"acme client eab kid without hmac");
+		goto Done;
+	}
+	/* The size query validates the entire base64url input before
+	 * allocating or writing any secret bytes. Both padding forms are valid. */
+	if(!xrtBase64Decode(pEab->sHmac, strlen(pEab->sHmac),
+		NULL, 0u, &iMacSize, &B64UrlPad) || (iMacSize == 0u))
+		goto Invalid;
+	if(iMacSize > sizeof(Mac))
+	{
+		iCapacity = iMacSize;
+		pAllocated = (bytes)xrtMalloc(iCapacity);
+		if(pAllocated == NULL) goto Done;
+		pMac = pAllocated;
+	}
+	if(!xrtBase64Decode(pEab->sHmac, strlen(pEab->sHmac),
+		pMac, iCapacity, &iMacSize, &B64UrlPad)) goto Invalid;
+	sJwk = xacmeJwkEcJson(&pClient->AccountKey);
+	if(sJwk == NULL) goto Done;
+	sEab = xacmeJwsEabHs256(pEab->sKid, pClient->sNewAccount,
+		(xstrview){ sJwk, strlen(sJwk) }, pMac, iMacSize);
+	if(sEab == NULL) goto Done;
+	bOk = xrtBufferAppend(pPayload,
+		XRT_BYTES_LITERAL(",\"externalAccountBinding\":")) &&
+		xrtBufferAppend(pPayload,
+			(xbytesview){ (const uint8*)sEab, strlen(sEab) });
+	goto Done;
+Invalid:
+	if(xrtErrorKind(xrtGetError()) != XERR_MEMORY)
+		xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
+			"acme client eab hmac invalid base64url");
+Done:
+	if(pAllocated != NULL)
+	{
+		xrtSecureZero(pAllocated, iCapacity);
+		xrtFree(pAllocated);
+	}
+	xrtSecureZero(Mac, sizeof(Mac));
+	xrtFree(sJwk);
+	xrtFree(sEab);
+	return bOk;
 }
 
 bool xacmeClientInit(
@@ -1284,57 +1396,11 @@ bool xacmeClientInit(
 	}
 	if((pAccount->Eab.sKid != NULL) && (pAccount->Eab.sKid[0] != '\0'))
 	{
-		/* base64url 文本 MAC key（兼容带/不带填充）。 */
-		static const xbase64config B64UrlPad = {
-			NULL, XBASE64_URL | XBASE64_OPTIONAL_PADDING
-		};
-		uint8 Mac[64];
-		size_t iMacSize = 0u;
-		str sJwk = NULL;
-		str sEab = NULL;
-		if((pAccount->Eab.sHmac == NULL) || (pAccount->Eab.sHmac[0] == '\0'))
-		{
-			xrtBufferUnit(&Payload);
-			xacmeFlowError(
-				XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
-				"acme client eab kid without hmac");
-			goto Done;
-		}
-		if(!xrtBase64Decode(
-				pAccount->Eab.sHmac, strlen(pAccount->Eab.sHmac), Mac,
-				sizeof(Mac), &iMacSize, &B64UrlPad) ||
-			(iMacSize == 0u))
-		{
-			xrtBufferUnit(&Payload);
-			xacmeFlowError(
-				XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
-				"acme client eab hmac invalid base64url");
-			goto Done;
-		}
-		sJwk = xacmeJwkEcJson(&pClient->AccountKey);
-		if(sJwk != NULL)
-		{
-			sEab = xacmeJwsEabHs256(
-				pAccount->Eab.sKid, pClient->sNewAccount,
-				(xstrview){ sJwk, strlen(sJwk) }, Mac, iMacSize);
-		}
-		xrtFree(sJwk);
-		if(sEab == NULL)
+		if(!xacmeFlowEabAppend(&Payload, pClient, &pAccount->Eab))
 		{
 			xrtBufferUnit(&Payload);
 			goto Done;
 		}
-		if(!xrtBufferAppend(
-				&Payload, XRT_BYTES_LITERAL(",\"externalAccountBinding\":")) ||
-			!xrtBufferAppend(
-				&Payload,
-				(xbytesview){ (const uint8*)sEab, strlen(sEab) }))
-		{
-			xrtFree(sEab);
-			xrtBufferUnit(&Payload);
-			goto Done;
-		}
-		xrtFree(sEab);
 	}
 	if(!xrtBufferAppendByte(&Payload, (uint8)'}'))
 	{
@@ -1452,6 +1518,7 @@ bool xacmeClientIssue(
 
 	if(pOut != NULL) memset(pOut, 0, sizeof(*pOut));
 	if((pClient == NULL) || (pDomains == NULL) || (iDomainCount == 0u) ||
+		(pClient->uIssueTimeoutMs < XRT_WAIT_FOREVER) ||
 		(pDns == NULL) || (pDns->Add == NULL) || (pDns->Remove == NULL) ||
 		(pOut == NULL) ||
 		!xrtAcmeDnsProviderValidate(pDns))
@@ -1473,9 +1540,14 @@ bool xacmeClientIssue(
 			"acme certificate key must differ from the account key");
 		return false;
 	}
-	/* 总预算打点：uIssueTimeoutMs 非零时本次 Issue 全程受限。 */
-	pClient->bIssueDeadline = (pClient->uIssueTimeoutMs != 0u);
-	pClient->IssueDeadline = __xrtWaitAfter(pClient->uIssueTimeoutMs);
+	/* A new issuance must not attribute a caller's stale error to this work. */
+	xrtClearError();
+	/* 总预算打点：uIssueTimeoutMs 为正时本次 Issue 全程受限。 */
+	pClient->bIssueDeadline = (pClient->uIssueTimeoutMs > 0);
+	pClient->IssueDeadline = pClient->bIssueDeadline ?
+		__xrtWaitAfter(pClient->uIssueTimeoutMs) : INFINITY;
+	pClient->Http.bOperationDeadline = pClient->bIssueDeadline;
+	pClient->Http.OperationDeadline = pClient->IssueDeadline;
 
 	/* 1. 新订单；identifier 用完整域名（通配符原样：*.example.com 是
 	   独立 identifier，CA 依此返回通配符授权）。去重按完整字符串——
@@ -1485,19 +1557,8 @@ bool xacmeClientIssue(
 	/* TXT 统一延后清理：同名多授权（裸域 + 通配符）场景下，先删后加
 	   会让 LE 次级验证器的递归缓存仍见旧值而判 Incorrect TXT；多值
 	   并存是 LE 明确允许的形态，全部验证完成后再统一 Remove。 */
-	struct
-	{
-		str sFqdn;
-		str sTxt;
-	} TxtPending[16];
-	size_t iTxtPending = 0u;
-	struct
-	{
-		xacmeflowurl Authz;
-		xacmeflowurl Challenge;
-		str sFqdn;
-		str sTxt;
-	} Work[16];
+	xacmeflowwork LocalWork[16];
+	xacmeflowwork* Work = LocalWork;
 	size_t iWorkCount = 0u;
 	xrtBufferInit(&Payload);
 	for(i = 0; i < iDomainCount; i++)
@@ -1597,13 +1658,26 @@ bool xacmeClientIssue(
 	size_t iCount = (pAuthz != NULL) ? xrtValueCount(pAuthz) : 0u;
 	char sThumb[44];
 	size_t k;
-	if((pAuthz == NULL) || !xrtValueIs(pAuthz, XVALUE_ARRAY) ||
-		(iCount != iBaseCount))
+	if((pAuthz == NULL) || !xrtValueIs(pAuthz, XVALUE_ARRAY))
 	{
 		xacmeFlowError(
 			XERR_PROTOCOL, XACME_FLOW_ERROR_ORDER,
 			"acme issue order authorizations invalid");
 		goto Done;
+	}
+	/* RFC 8555 section 7.1.3 leaves authorization cardinality to server
+	 * policy. Keep the common case local; larger arrays need one checked
+	 * allocation whose initialized entries retain TXT ownership until Done. */
+	if(iCount > sizeof(LocalWork) / sizeof(LocalWork[0]))
+	{
+		if(iCount > SIZE_MAX / sizeof(*Work))
+		{
+			xacmeFlowError(XERR_RANGE, XACME_FLOW_ERROR_ORDER,
+				"acme authorization worklist size is not representable");
+			goto Done;
+		}
+		Work = (xacmeflowwork*)xrtMalloc(iCount * sizeof(*Work));
+		if(Work == NULL) goto Done;
 	}
 	if(!xacmeJwkEcThumbprint(&pClient->AccountKey, sThumb)) goto Done;
 	/* Pass A：逐授权取 dns-01 挑战，铺 TXT 并确认传播。 */
@@ -1799,12 +1873,11 @@ bool xacmeClientIssue(
 						}
 					}
 					bool bCanAdd = (sFqdn != NULL) &&
-						(iWorkCount <
-							(sizeof(Work) / sizeof(Work[0])));
+						(iWorkCount < iCount);
 					if(!bCanAdd ||
-						!xacmeFlowDnsAdd(pDns, sFqdn, sTxt))
+						!xacmeFlowDnsAdd(pClient, pDns, sFqdn, sTxt))
 					{
-						if(xacmeFlowDnsAddTerminal(xrtGetError()))
+						if(xacmeFlowDnsAddTerminal(xrtGetError()) || xacmeFlowDeadlineHit(pClient))
 						{
 							pUncertainError = xrtErrorRef(xrtGetError());
 						}
@@ -1815,8 +1888,7 @@ bool xacmeClientIssue(
 							break;
 						continue;
 					}
-					/* 传播确认：全部 TXT 就位后才进入 Pass B 统一触发。 */
-					xacmeFlowWaitPropagate(pClient, pDns, sFqdn, sTxt);
+					/* Own an acknowledged record before any deadline check or probe. */
 					memcpy(&Work[iWorkCount].Authz, &Authz,
 						sizeof(xacmeflowurl));
 					memcpy(&Work[iWorkCount].Challenge, &ChallengeUrl,
@@ -1824,7 +1896,9 @@ bool xacmeClientIssue(
 					Work[iWorkCount].sFqdn = sFqdn;
 					Work[iWorkCount].sTxt = sTxt;
 					iWorkCount++;
-					if(xrtErrorKind(xrtGetError()) == XERR_MEMORY)
+					/* 传播确认：全部 TXT 就位后才进入 Pass B 统一触发。 */
+					xacmeFlowWaitPropagate(pClient, pDns, sFqdn, sTxt);
+					if(xrtErrorKind(xrtGetError()) == XERR_MEMORY || !xacmeFlowBudget(pClient))
 					{
 						xrtValueRelease(pAuthRoot);
 						xacmeHttpResponseUnit(&A);
@@ -1901,28 +1975,7 @@ bool xacmeClientIssue(
 			}
 			xrtFree(sStatus);
 		}
-		/* 工作表移交 TXT 统一清理（表满退化为立即删）。 */
-		for(k = 0; k < iWorkCount; k++)
-		{
-			if(iTxtPending <
-				(sizeof(TxtPending) / sizeof(TxtPending[0])))
-			{
-				TxtPending[iTxtPending].sFqdn = Work[k].sFqdn;
-				TxtPending[iTxtPending].sTxt = Work[k].sTxt;
-				iTxtPending++;
-				Work[k].sFqdn = NULL;
-				Work[k].sTxt = NULL;
-			}
-			else
-			{
-				xacmeFlowDnsRemove(
-					pDns, Work[k].sFqdn, Work[k].sTxt);
-				xrtFree(Work[k].sFqdn);
-				xrtFree(Work[k].sTxt);
-				Work[k].sFqdn = NULL;
-				Work[k].sTxt = NULL;
-			}
-		}
+		/* Work keeps every acknowledged TXT pair until the common cleanup. */
 	}
 	xrtValueRelease(pRoot);
 	pRoot = NULL;
@@ -2116,6 +2169,18 @@ bool xacmeClientIssue(
 	bResult = true;
 
 Done:
+	/* The issuance result is decided before best-effort TXT removal. Cleanup
+	 * and subsequent caller operations must never inherit this deadline. */
+	if(!xacmeFlowBudget(pClient))
+	{
+		bResult = false;
+		xrtErrorFree(pUncertainError);
+		pUncertainError = xrtErrorRef(xrtGetError());
+	}
+	pClient->bIssueDeadline = false;
+	pClient->IssueDeadline = 0.0;
+	pClient->Http.bOperationDeadline = false;
+	pClient->Http.OperationDeadline = 0.0;
 	if(pUncertainError == NULL && !bResult)
 		pUncertainError = xrtErrorRef(xrtGetError());
 	xrtFree(pLeafDer);
@@ -2131,15 +2196,8 @@ Done:
 			xrtFree(Work[k].sFqdn);
 			xrtFree(Work[k].sTxt);
 		}
-
-		for(k = 0; k < iTxtPending; k++)
-		{
-			xacmeFlowDnsRemove(
-				pDns, TxtPending[k].sFqdn, TxtPending[k].sTxt);
-			xrtFree(TxtPending[k].sFqdn);
-			xrtFree(TxtPending[k].sTxt);
-		}
 	}
+	if(Work != LocalWork) xrtFree(Work);
 	if(pRoot != NULL)
 	{
 		xrtValueRelease(pRoot);
@@ -2346,7 +2404,8 @@ static xacmerolloverlookup xacmeFlowRolloverLookup(
 				pClient->sNewAccount, "application/jose+json",
 				(xstrview){ sToken, strlen(sToken) }, &R))
 		{
-			bool bRetry = xacmeFlowHttpUncertain(xrtGetError());
+			bool bRetry = (xrtErrorKind(xrtGetError()) != XERR_MEMORY) &&
+				xacmeFlowHttpUncertain(xrtGetError());
 			xrtFree(sToken);
 			if(bRetry && (uAttempt + 1u < 3u))
 			{
@@ -2437,6 +2496,17 @@ bool xacmeClientRollover(
 	{
 		return false;
 	}
+	/* RFC 8555 section 11.1 also applies to rollover: a known certificate
+	 * key must not be adopted as an account key, even via reconciliation. */
+	if((pClient->pCertKey != NULL) &&
+		(pClient->pCertKey->Kind == XACME_CERT_KEY_ES256) &&
+		(memcmp(NewKey.Public, pClient->pCertKey->Ec.Public,
+			sizeof(NewKey.Public)) == 0))
+	{
+		xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme new account key must differ from the certificate key");
+		goto Done;
+	}
 	/* 进程重启后重试同一新钥时，先确认服务器是否已经换钥。 */
 	Lookup = xacmeFlowRolloverLookup(pClient, &NewKey);
 	if(Lookup == XACME_ROLLOVER_LOOKUP_MATCH)
@@ -2521,7 +2591,10 @@ bool xacmeClientRollover(
 					"application/jose+json",
 					(xstrview){ sOuter, strlen(sOuter) }, &R))
 			{
-				if(xacmeFlowHttpUncertain(xrtGetError()))
+				/* Allocation failure is terminal even if the remote outcome is
+				 * unknown. The caller retains the new key for explicit recovery. */
+				if((xrtErrorKind(xrtGetError()) != XERR_MEMORY) &&
+					xacmeFlowHttpUncertain(xrtGetError()))
 				{
 					xerror* pWriteError = xrtErrorRef(xrtGetError());
 					Lookup = xacmeFlowRolloverLookup(pClient, &NewKey);
@@ -2595,6 +2668,8 @@ ApplyNewKey:
 		str sNewAccountPem = xacmeKeyPemWrite(&pClient->AccountKey);
 		bool bSaved = (sNewAccountPem != NULL) && xrtAcmeStoreSaveAccount(
 			sStoreRoot, pClient->sDirectoryUrl, sNewAccountPem);
+		if(sNewAccountPem != NULL)
+			xrtSecureZero(sNewAccountPem, strlen(sNewAccountPem));
 		xrtFree(sNewAccountPem);
 		if(!bSaved)
 		{
@@ -2699,7 +2774,8 @@ struct xacmeclient* xrtAcmeClientCreate(
 	xacmeclient* pClient;
 	size_t i;
 
-	if((pConfig == NULL) || (pConfig->pAccount == NULL))
+	if((pConfig == NULL) || (pConfig->pAccount == NULL) ||
+		(pConfig->uIssueTimeoutMs < XRT_WAIT_FOREVER))
 	{
 		xacmeFlowError(
 			XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,

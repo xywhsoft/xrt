@@ -668,8 +668,10 @@ static void test_dialect_anthropic(void)
                 xllm_request tReplayRequest;
                 char* sReplayJson;
                 CHECK(xllmMessageFromResponse(pCall->pResponse, &tReplay) &&
-                    tReplay.iPartCount == 1u && tReplay.pParts[0].eKind == XLLM_PART_NATIVE &&
-                    strcmp(tReplay.pParts[0].sNativeType, "thinking_signature") == 0,
+                    tReplay.iPartCount == 3u && tReplay.pParts[0].eKind == XLLM_PART_REASONING &&
+                    tReplay.pParts[1].eKind == XLLM_PART_NATIVE &&
+                    strcmp(tReplay.pParts[1].sNativeType, "thinking_signature") == 0 &&
+                    tReplay.pParts[2].eKind == XLLM_PART_TEXT,
                     "response converts signed reasoning into a replayable part");
                 xllmRequestInit(&tReplayRequest);
                 xllmRequestAddMessage(&tReplayRequest, &tReplay);
@@ -814,6 +816,98 @@ static int32 test_concurrent_thread(ptr pData)
     xllmResponseDestroy(pResponse);
     xllmRequestUnit(&tRequest);
     return 0;
+}
+
+static bool test_json_text_equals(xvalue* pObject, const char* sKey, const char* sExpected)
+{
+    xstrview tText;
+    xvalue* pValue = pObject ? xrtValueObjectGet(pObject, xrtStrView(sKey)) : NULL;
+    return pValue && xrtValueGetString(pValue, &tText) &&
+        tText.Size == strlen(sExpected) && memcmp(tText.Data, sExpected, tText.Size) == 0;
+}
+
+static void test_anthropic_history_replay(void)
+{
+    xllm_client* pClient = test_make_client("http://127.0.0.1:1/v1", XLLM_PROVIDER_ANTHROPIC);
+    xllm_request tRequest;
+    xllm_message tMessage;
+    xllm_error tError;
+    char* sJson;
+    unsigned i;
+    CHECK(pClient != NULL, "assistant replay fixture client creates");
+    if ( !pClient ) return;
+    for ( i = 0u; i < 2u; ++i ) {
+        xllmRequestInit(&tRequest);
+        xllmMessageInit(&tMessage, XLLM_ROLE_ASSISTANT);
+        CHECK(xllmMessageSetContent(&tMessage, "quoted \"answer\"\n中文") &&
+            (!i || xllmMessageAddToolCall(&tMessage, "replay-call", "inspect", "{}")) &&
+            xllmRequestAddMessage(&tRequest, &tMessage), "plain assistant replay input creates");
+        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+        CHECK(sJson && xrtJsonValid(xrtStrView(sJson)),
+            "assistant text with or without tool calls produces valid JSON");
+        xllmFree(sJson);
+        xllmMessageUnit(&tMessage);
+        xllmRequestUnit(&tRequest);
+    }
+    {
+        xllm_part tLegacy = {0};
+        xllmRequestInit(&tRequest);
+        xllmMessageInit(&tMessage, XLLM_ROLE_ASSISTANT);
+        tLegacy.eKind = XLLM_PART_NATIVE;
+        tLegacy.sNativeType = "thinking_signature";
+        tLegacy.sText = "legacy-signature";
+        CHECK(xllmMessageSetReasoning(&tMessage, "legacy thought") &&
+            xllmMessageAddPart(&tMessage, &tLegacy) && xllmRequestAddMessage(&tRequest, &tMessage),
+            "legacy signed-thinking message creates");
+        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+        CHECK(sJson && xrtJsonValid(xrtStrView(sJson)) &&
+            strstr(sJson, "\"thinking\":\"legacy thought\",\"signature\":\"legacy-signature\""),
+            "legacy signature-only parts retain their aggregated reasoning fallback");
+        xllmFree(sJson);
+        xllmMessageUnit(&tMessage);
+        xllmRequestUnit(&tRequest);
+    }
+    {
+        char sThought[32] = "first thought";
+        xllm_block aBlocks[4] = {
+            { XLLM_BLOCK_REASONING, sThought, 0u, "sig-one" },
+            { XLLM_BLOCK_TEXT, "first answer", 0u, NULL },
+            { XLLM_BLOCK_REASONING, "second thought", 0u, "sig-two" },
+            { XLLM_BLOCK_TEXT, "second answer", 0u, NULL }
+        };
+        xllm_response tResponse = {0};
+        xvalue* pRoot;
+        xvalue* pMessages;
+        xvalue* pAssistant;
+        xvalue* pContent;
+        tResponse.sContent = "first answersecond answer";
+        tResponse.sReasoningContent = "first thoughtsecond thought";
+        tResponse.pBlocks = aBlocks;
+        tResponse.iBlockCount = 4u;
+        CHECK(xllmMessageFromResponse(&tResponse, &tMessage), "signed response converts to an owned message");
+        memcpy(sThought, "overwritten", sizeof("overwritten"));
+        xllmRequestInit(&tRequest);
+        CHECK(xllmRequestAddMessage(&tRequest, &tMessage), "signed replay message copies into a request");
+        xllmMessageUnit(&tMessage);
+        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+        pRoot = sJson ? xrtJsonParse(xrtStrView(sJson)) : NULL;
+        pMessages = pRoot ? xrtValueObjectGet(pRoot, xrtStrView("messages")) : NULL;
+        pAssistant = pMessages ? xrtValueArrayGet(pMessages, 0u) : NULL;
+        pContent = pAssistant ? xrtValueObjectGet(pAssistant, xrtStrView("content")) : NULL;
+        CHECK(pContent && xrtValueCount(pContent) == 4u,
+            "signed replay retains both thinking and both text blocks");
+        CHECK(test_json_text_equals(pContent ? xrtValueArrayGet(pContent, 0u) : NULL, "thinking", "first thought") &&
+            test_json_text_equals(pContent ? xrtValueArrayGet(pContent, 0u) : NULL, "signature", "sig-one") &&
+            test_json_text_equals(pContent ? xrtValueArrayGet(pContent, 1u) : NULL, "text", "first answer") &&
+            test_json_text_equals(pContent ? xrtValueArrayGet(pContent, 2u) : NULL, "thinking", "second thought") &&
+            test_json_text_equals(pContent ? xrtValueArrayGet(pContent, 2u) : NULL, "signature", "sig-two") &&
+            test_json_text_equals(pContent ? xrtValueArrayGet(pContent, 3u) : NULL, "text", "second answer"),
+            "each thinking signature stays paired with its own text in arrival order");
+        xrtValueRelease(pRoot);
+        xllmFree(sJson);
+        xllmRequestUnit(&tRequest);
+    }
+    xllmClientDestroy(pClient);
 }
 
 static void test_keepalive_and_concurrency(void)
@@ -1278,7 +1372,11 @@ static void test_fault_free(void* pMemory) { free(pMemory); }
 
 static void test_oom_injection(void)
 {
-    xllm_client* pClient = test_make_client("http://127.0.0.1:1/v1", XLLM_PROVIDER_OPENAI_COMPAT);
+    static const xllm_provider aProviders[] = {
+        XLLM_PROVIDER_OPENAI_COMPAT, XLLM_PROVIDER_GLM,
+        XLLM_PROVIDER_OPENAI_RESPONSES, XLLM_PROVIDER_ANTHROPIC
+    };
+    xllm_client* pClient = NULL;
     xllm_request tRequest;
     xllm_message tMessage;
     xllm_error tError;
@@ -1287,7 +1385,7 @@ static void test_oom_injection(void)
     long k;
     long iSucceeded = 0;
     long iFailed = 0;
-    CHECK(pClient != NULL, "oom test client created");
+    size_t iProvider;
     xllmRequestInit(&tRequest);
     xllmMessageInit(&tMessage, XLLM_ROLE_ASSISTANT);
     CHECK(xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_SYSTEM, "Be terse.") &&
@@ -1297,31 +1395,80 @@ static void test_oom_injection(void)
         xllmRequestAddToolResult(&tRequest, "call_1", "result") &&
         xllmRequestAddTool(&tRequest, "read_file", "Read", "{\"type\":\"object\"}", true) &&
         xllmRequestSetExtraBody(&tRequest, "{\"x\":1}"), "oom request inputs");
-    xllm__set_allocator(&tFault);
-    for ( k = 1; k <= 96; ++k ) {
-        g_iFailAt = k;
-        g_iTestAllocs = 0u;
-        g_bSawOomError = false;
-        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
-        if ( sJson ) {
-            ++iSucceeded;
-            CHECK(xrtJsonValid(xrtStrView(sJson)) || k == 0, "oom survival keeps JSON valid");
-            xllmFree(sJson);
-        } else {
-            ++iFailed;
-            if ( tError.eCode != XLLM_ERROR_OUT_OF_MEMORY ) { g_bSawOomError = true; }
+    g_bSawOomError = false;
+    for ( iProvider = 0u; iProvider < sizeof(aProviders) / sizeof(aProviders[0]); ++iProvider ) {
+        pClient = test_make_client("http://127.0.0.1:1/v1", aProviders[iProvider]);
+        CHECK(pClient != NULL, "oom dialect client created");
+        if ( !pClient ) continue;
+        xllm__set_allocator(&tFault);
+        for ( k = 1; k <= 96; ++k ) {
+            g_iFailAt = k;
+            g_iTestAllocs = 0u;
+            sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+            if ( sJson ) {
+                ++iSucceeded;
+                CHECK(xrtJsonValid(xrtStrView(sJson)), "oom survival keeps JSON valid");
+                xllmFree(sJson);
+            } else {
+                ++iFailed;
+                if ( tError.eCode != XLLM_ERROR_OUT_OF_MEMORY ) {
+                    g_bSawOomError = true;
+                    printf("       provider %d fault allocation %ld returned error %d: %s\n",
+                        (int)aProviders[iProvider], k, (int)tError.eCode, tError.sMessage);
+                }
+            }
         }
+        g_iFailAt = -1;
+        xllm__set_allocator(NULL);
+        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+        CHECK(sJson != NULL && xrtJsonValid(xrtStrView(sJson)), "default allocator restored after injection");
+        xllmFree(sJson);
+        xllmClientDestroy(pClient);
+        pClient = NULL;
     }
-    g_iFailAt = -1;
-    xllm__set_allocator(NULL);
     CHECK(iFailed > 0 && iSucceeded > 0, "allocation faults observed across the build path");
     CHECK(!g_bSawOomError, "every injected failure maps to an out-of-memory error");
-    sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
-    CHECK(sJson != NULL && xrtJsonValid(xrtStrView(sJson)), "default allocator restored after injection");
-    xllmFree(sJson);
     xllmMessageUnit(&tMessage);
     xllmRequestUnit(&tRequest);
     xllmClientDestroy(pClient);
+}
+
+static void test_response_conversion_oom(void)
+{
+    xllm_allocator tFault = { test_fault_alloc, test_fault_realloc, test_fault_free };
+    xllm_block aBlocks[2] = {
+        { XLLM_BLOCK_REASONING, "signed thought", 0u, "opaque signature" },
+        { XLLM_BLOCK_TEXT, "answer", 0u, NULL }
+    };
+    xllm_response tResponse = {0};
+    xllm_tool_call tCall = { "call-1", "inspect", "{}" };
+    xllm_message tMessage;
+    long iAllocations;
+    long k;
+    tResponse.sContent = "answer";
+    tResponse.sReasoningContent = "signed thought";
+    tResponse.pBlocks = aBlocks;
+    tResponse.iBlockCount = 2u;
+    tResponse.pToolCalls = &tCall;
+    tResponse.iToolCallCount = 1u;
+    g_iFailAt = -1;
+    g_iTestAllocs = 0u;
+    xllm__set_allocator(&tFault);
+    CHECK(xllmMessageFromResponse(&tResponse, &tMessage), "signed response allocation baseline succeeds");
+    iAllocations = (long)g_iTestAllocs;
+    xllmMessageUnit(&tMessage);
+    CHECK(iAllocations > 0, "response conversion has measured allocation failure points");
+    for ( k = 1; k <= iAllocations; ++k ) {
+        g_iFailAt = k;
+        g_iTestAllocs = 0u;
+        CHECK(!xllmMessageFromResponse(&tResponse, &tMessage) &&
+            !tMessage.sContent && !tMessage.sReasoningContent && !tMessage.pParts &&
+            !tMessage.iPartCount && !tMessage.pToolCalls && !tMessage.iToolCallCount,
+            "every response conversion allocation failure leaves a released output");
+        xllmMessageUnit(&tMessage);
+    }
+    g_iFailAt = -1;
+    xllm__set_allocator(NULL);
 }
 
 #include "fixtures/xllm_tls_identity.h"
@@ -1826,6 +1973,43 @@ static void test_audit_hardening(void)
     }
 }
 
+static void test_utf8_boundaries(void)
+{
+    static const char* aInvalid[] = {
+        "\xe0\x80\x80", "\xe0\x9f\xbf", "\xe0\x80\xaf",
+        "\xf0\x80\x80\x80", "\xf0\x8f\xbf\xbf", "\xf0\x80\x80\xaf",
+        "\xed\xa0\x80", "\xf4\x90\x80\x80", "\xf5\x80\x80\x80",
+        "\xc0\x80", "\xc1\xbf", "\x80", "\xe2\x82", "\xf0\x9f\x92"
+    };
+    static const char* aValid[] = {
+        "ASCII", "\xc2\x80", "\xdf\xbf", "\xe0\xa0\x80", "\xef\xbf\xbf",
+        "\xf0\x90\x80\x80", "\xf4\x8f\xbf\xbf"
+    };
+    xllm_message tMessage;
+    xllm_part tPart;
+    size_t i;
+    xllmMessageInit(&tMessage, XLLM_ROLE_USER);
+    xllmPartInit(&tPart, XLLM_PART_TEXT);
+    for ( i = 0u; i < sizeof(aInvalid) / sizeof(aInvalid[0]); ++i ) {
+        bool bSeed = xllmMessageSetContent(&tMessage, "kept") &&
+            xllmMessageSetReasoning(&tMessage, "kept") && xllmPartSetText(&tPart, "kept");
+        bool bContent = xllmMessageSetContent(&tMessage, aInvalid[i]);
+        bool bReasoning = xllmMessageSetReasoning(&tMessage, aInvalid[i]);
+        bool bPart = xllmPartSetText(&tPart, aInvalid[i]);
+        CHECK(bSeed && !bContent && !bReasoning && !bPart &&
+            strcmp(tMessage.sContent, "kept") == 0 && strcmp(tMessage.sReasoningContent, "kept") == 0 &&
+            strcmp(tPart.sText, "kept") == 0,
+            "noncanonical UTF-8 is rejected without replacing existing text");
+    }
+    for ( i = 0u; i < sizeof(aValid) / sizeof(aValid[0]); ++i ) {
+        CHECK(xllmMessageSetContent(&tMessage, aValid[i]) &&
+            xllmMessageSetReasoning(&tMessage, aValid[i]) && xllmPartSetText(&tPart, aValid[i]),
+            "UTF-8 scalar boundaries retain their valid encodings");
+    }
+    xllmPartUnit(&tPart);
+    xllmMessageUnit(&tMessage);
+}
+
 static void test_fragmented_parser(void)
 {
     static const char sSse[] =
@@ -2165,11 +2349,14 @@ int main(void)
     test_v3_model();
     test_v3_blocks_and_refusal();
     test_dialect_anthropic();
+    test_anthropic_history_replay();
     test_dialect_responses();
     test_keepalive_and_concurrency();
     test_async_engine();
     test_oom_injection();
+    test_response_conversion_oom();
     test_audit_hardening();
+    test_utf8_boundaries();
     test_wire_store_flags();
     test_lifecycle_hooks();
     test_history_container();

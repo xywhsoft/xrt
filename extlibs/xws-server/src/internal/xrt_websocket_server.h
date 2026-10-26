@@ -187,7 +187,7 @@ static inline bool __xwsServerConnEventsSnapshot(
 	) ) {
 		return false;
 	}
-	memcpy(pOutput, pInput, sizeof(*pOutput));
+	memcpy(pOutput, (const void*)pInput, sizeof(*pOutput));
 	return true;
 }
 
@@ -214,7 +214,7 @@ static inline bool __xwsServerServerConfigSnapshot(
 	) ) {
 		return false;
 	}
-	memcpy(pOutput, pInput, sizeof(*pOutput));
+	memcpy(pOutput, (const void*)pInput, sizeof(*pOutput));
 	#if !defined(XWS_SERVER_FEATURE_WEBSOCKET_SERVER_DEFLATE)
 		if (pOutput->EnableDeflate || pOutput->RequireDeflate) {
 			__xwsServerHandshakeError(XERR_VALUE, XWS_HANDSHAKE_ERROR_EXTENSION, sOperation, "WebSocket compression support is not selected");

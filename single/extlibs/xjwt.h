@@ -307,7 +307,7 @@ typedef struct xjwtconfig {
 
 /* 签发配置零值（可注入 iss/aud 与自定义 claims）。 */
 XRT_API void  xjwtConfigInit(xjwtconfig* pConfig);
-/* config 指定的字段覆盖 token 中同名字段，不改变调用方的 claims。 */
+/* config 字段覆盖 token 中同名字段，不改变输入；分配失败保留 Core 内存错误。 */
 XRT_API char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims);
 
 /* ------------------------------------------------------------------
@@ -315,6 +315,8 @@ XRT_API char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims);
  * 通过返回 claims（xrtValueRelease 释放），失败返回 NULL 并设 xerror。
  * keyPem：HS 系列收密钥字符串，RS 系列收公钥 PEM，ES 收公钥 PEM。
  * check 传 NULL 等价于 xjwtCheckInit 后只查 exp。
+ * 三条验证入口均拒绝未知或畸形 crit，以及非 true 的 b64（MALFORMED）；
+ * 可接受显式 b64=true 和对应的 crit=["b64"]。
  * ------------------------------------------------------------------ */
 XRT_API xvalue* xjwtVerify(const char* token, const char* keyPem, const xjwtcheck* check);
 
@@ -338,6 +340,7 @@ XRT_API xvalue*  xjwtVerifyKey(const char* token, const xjwtkey* key, const xjwt
  * *pAlg 收 header 算法（未知为 INVALID），失败时置 INVALID。
  * *pKid 为堆拷贝，由调用方 xrtFree；缺失或失败为 NULL，显式空 kid 为 ""。
  * 传 pKid 时拒绝非字符串、≥256 字节或含 NUL 的 kid，不做前缀匹配。
+ * 解码仅供检查原文，不应用验签入口的 crit/b64 支持策略。
  * ------------------------------------------------------------------ */
 XRT_API xvalue* xjwtDecode(const char* token, int* pAlg);
 /* 只解 header 不验签（取 alg/kid 供路由选择）。 */
@@ -346,6 +349,7 @@ XRT_API xvalue* xjwtDecodeHeader(const char* token, int* pAlg, const char** pKid
 /* ------------------------------------------------------------------
  * claims 独立校验（手工流程用）
  * ------------------------------------------------------------------ */
+/* Audience 已配置时，aud 数组的每项必须为字符串，即使前项已匹配。 */
 XRT_API bool xjwtClaimsValid(const xvalue* claims, const xjwtcheck* check);
 
 /* 取字符串 claim 到调用方缓冲（超长安全截断到 cap-1 并补零）。
@@ -366,6 +370,9 @@ XRT_API int xjwtLastError(void);
  * kid 严格匹配：token 带 kid 时须为字符串并精确命中带同一 kid 的条目；
  * 空字符串与缺失不同，含 NUL 不支持；JWK kid 须短于 128 字节。
  * token 无 kid 时取第一把可用密钥。
+ * 仅导入验签用途：use 须省略或为 sig；key_ops 存在时必须含 verify，
+ * 且仅可含不重复的 sign/verify。alg 须为匹配密钥族的已支持非对称算法，
+ * 提供后绑定该算法，令牌算法不符返回 ALG_MISMATCH。
  * ------------------------------------------------------------------ */
 typedef struct xjwtjwks xjwtjwks;
 
@@ -515,6 +522,7 @@ struct xjwtjwks {
 	struct {
 		char kid[128];
 		bool HasKid;      /* 显式空 kid 与未提供 kid 不同 */
+		int Alg;           /* 0 = 未绑定；其余为 XJWT_ALG_* */
 		char kty[8];       /* "RSA" 或 "EC" */
 		xrsapublickey rsa;
 		unsigned char ec65[65];
@@ -1196,10 +1204,13 @@ bool xjwtClaimsValid(const xvalue* claims, const xjwtcheck* check)
 		} else if ( pAud != NULL && xrtValueIs(pAud, XVALUE_ARRAY) ) {
 			size_t iExpect = strlen(check->Audience);
 			size_t n = xrtValueCount(pAud);
-			for ( size_t i = 0; i < n && !bMatch; i++ ) {
-				xvalue* pElem = xrtValueArrayGet(pAud, (uint32)i);
-				if ( pElem != NULL && xrtValueGetString(pElem, &sv) &&
-				     sv.Size == iExpect &&
+			for ( size_t i = 0; i < n; i++ ) {
+				xvalue* pElem = xrtValueArrayGet(pAud, i);
+				if ( pElem == NULL || !xrtValueGetString(pElem, &sv) ) {
+					xjwt__error(XJWT_ERROR_AUDIENCE, "aud array must contain only strings");
+					return false;
+				}
+				if ( sv.Size == iExpect &&
 				     xrtConstTimeEqual(sv.Data, check->Audience, iExpect) )
 					bMatch = true;
 			}
@@ -1244,7 +1255,7 @@ static bool xjwtSignSet(xvalue* pObject, const char* sKey, xvalue* pValue)
 {
 	if ( xrtValueObjectSetNew(pObject, xrtStrView(sKey), pValue) )
 		return true;
-	xjwt__error(XJWT_ERROR_PARSE, "JWT field allocation failed");
+	xjwt__error_unless_memory(XJWT_ERROR_PARSE, "JWT field allocation failed");
 	return false;
 }
 
@@ -1273,7 +1284,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	/* 仅复制顶层对象：xrt 的 COW 外壳隔离字段替换，嵌套值只读序列化。 */
 	xvalue* pClaims = xrtValueClone(claims);
 	if ( pClaims == NULL ) {
-		xjwt__error(XJWT_ERROR_PARSE, "claims clone failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE, "claims clone failed");
 		return NULL;
 	}
 	/* 自动注入标准 claims；成功或失败都不改变调用方对象。 */
@@ -1299,7 +1310,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	xvalue* pHead = xrtValueObject();
 	if ( pHead == NULL ) {
 		xrtValueRelease(pClaims);
-		xjwt__error(XJWT_ERROR_PARSE, "header object alloc failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE, "header object alloc failed");
 		return NULL;
 	}
 	if ( !xjwtSignSet(pHead, "alg", xrtValueString(xrtStrView(sAlg))) ||
@@ -1314,7 +1325,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	xrtValueRelease(pHead);
 	if ( sHeadJson == NULL ) {
 		xrtValueRelease(pClaims);
-		xjwt__error(XJWT_ERROR_PARSE, "header stringify failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE, "header stringify failed");
 		return NULL;
 	}
 
@@ -1323,7 +1334,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	xrtValueRelease(pClaims);
 	if ( sClaimsJson == NULL ) {
 		xrtFree(sHeadJson);
-		xjwt__error(XJWT_ERROR_PARSE, "claims stringify failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE, "claims stringify failed");
 		return NULL;
 	}
 
@@ -1409,6 +1420,31 @@ char* xjwtEs256(const xvalue* claims, const char* privatePem, int expireSeconds)
 /* 主入口：验证                                                          */
 /* ------------------------------------------------------------------ */
 
+static bool xjwt__header_supported(const xvalue* pHeader)
+{
+	xvalue* pB64 = xrtValueObjectGet(pHeader, xrtStrView("b64"));
+	xvalue* pCrit = xrtValueObjectGet(pHeader, xrtStrView("crit"));
+	bool bEncoded;
+	xstrview Name;
+	/* RFC 7797 sections 3/7: JWT payloads remain base64url encoded.
+	 * An explicit true is equivalent to the absent default. */
+	if ( pB64 != NULL && (!xrtValueGetBool(pB64, &bEncoded) || !bEncoded) ) {
+		xjwt__error(XJWT_ERROR_MALFORMED, "JWT b64 must be true when present");
+		return false;
+	}
+	/* RFC 7515 section 4.1.11: never ignore an unknown critical extension.
+	 * Only b64=true is supported, so any additional entry is unknown or a
+	 * forbidden duplicate; a mentioned parameter must also be present. */
+	if ( pCrit != NULL && (!xrtValueIs(pCrit, XVALUE_ARRAY) ||
+		xrtValueCount(pCrit) != 1u || pB64 == NULL ||
+		!xrtValueGetString(xrtValueArrayGet(pCrit, 0u), &Name) ||
+		Name.Size != 3u || memcmp(Name.Data, "b64", 3u) != 0) ) {
+		xjwt__error(XJWT_ERROR_MALFORMED, "unsupported or malformed critical JWT header");
+		return false;
+	}
+	return true;
+}
+
 /* 三条验证路径共用前置：header(alg+kid) → claims 解码校验 → 重建签名输入 → 解码签名。
  * 成功返回 claims 并交出中间量（调用方 xrtFree）；失败返回 NULL。 */
 xvalue* xjwt__verify_prepare(const char* sToken, const xjwtcheck* pCheck,
@@ -1421,6 +1457,12 @@ xvalue* xjwt__verify_prepare(const char* sToken, const xjwtcheck* pCheck,
 	/* header：alg + kid */
 	xvalue* pHdr = xjwtDecodeHeader(sToken, pAlg, pKid);
 	if ( pHdr == NULL ) return NULL;
+	if ( !xjwt__header_supported(pHdr) ) {
+		xrtValueRelease(pHdr);
+		xrtFree((void*)*pKid);
+		*pKid = NULL;
+		return NULL;
+	}
 	xrtValueRelease(pHdr);
 	if ( *pAlg == XJWT_ALG_INVALID ) {
 		xrtFree((void*)*pKid); *pKid = NULL;
@@ -2191,9 +2233,52 @@ cleanup:
  * （静默截断会让密钥轮换期的新 kid 验不过，比报错更难排查） */
 #define XJWT_JWKS_MAX_KEYS 16
 
+static int jwt_alg_rsa_family(int alg);
+
+static bool jwk_verification_metadata(const xvalue* pKey, const char* sType, int* pAlg)
+{
+	xvalue* pUse = xrtValueObjectGet(pKey, xrtStrView("use"));
+	xvalue* pOps = xrtValueObjectGet(pKey, xrtStrView("key_ops"));
+	xvalue* pBinding = xrtValueObjectGet(pKey, xrtStrView("alg"));
+	xstrview Text;
+	*pAlg = 0;
+	if ( pUse != NULL && (!xrtValueGetString(pUse, &Text) ||
+		Text.Size != 3u || memcmp(Text.Data, "sig", 3u) != 0) ) return false;
+	if ( pOps != NULL ) {
+		bool bSign = false, bVerify = false;
+		size_t n = xrtValueCount(pOps);
+		/* This reader imports signature-verification keys, not encryption or
+		 * key-agreement keys. Permit sign+verify, but no mixed-use operations. */
+		if ( !xrtValueIs(pOps, XVALUE_ARRAY) || n == 0u || n > 2u ) return false;
+		for ( size_t i = 0u; i < n; ++i ) {
+			if ( !xrtValueGetString(xrtValueArrayGet(pOps, i), &Text) ) return false;
+			if ( Text.Size == 6u && memcmp(Text.Data, "verify", 6u) == 0 && !bVerify ) bVerify = true;
+			else if ( Text.Size == 4u && memcmp(Text.Data, "sign", 4u) == 0 && !bSign ) bSign = true;
+			else return false;
+		}
+		if ( !bVerify ) return false;
+	}
+	if ( pBinding != NULL ) {
+		char sName[16];
+		int iFamily;
+		if ( !xrtValueGetString(pBinding, &Text) || Text.Size >= sizeof(sName) ||
+			memchr(Text.Data, 0, Text.Size) != NULL ) return false;
+		memcpy(sName, Text.Data, Text.Size);
+		sName[Text.Size] = 0;
+		*pAlg = xjwtAlgParse(sName);
+		iFamily = jwt_alg_rsa_family(*pAlg);
+		if ( iFamily < 0 || (iFamily == 1 ? strcmp(sType, "RSA") != 0 : strcmp(sType, "EC") != 0) )
+			return false;
+	}
+	return true;
+}
+
 xjwtjwks* xjwtJwksParse(const char* sJson)
 {
-	if ( sJson == NULL ) return NULL;
+	if ( sJson == NULL ) {
+		xjwt__error(XJWT_ERROR_ARGUMENT, "JWKS JSON is null");
+		return NULL;
+	}
 	xerror* pPrevious = xrtTakeError();
 	xvalue* p = xrtJsonParse(xrtStrView(sJson));
 	if ( p == NULL ) {
@@ -2250,6 +2335,8 @@ xjwtjwks* xjwtJwksParse(const char* sJson)
 			memchr(sv.Data, 0, sv.Size) != NULL ) continue;
 		memcpy(pJwks->keys[idx].kty, sv.Data, sv.Size);
 		pJwks->keys[idx].kty[sv.Size] = 0;
+		if ( !jwk_verification_metadata(pKey, pJwks->keys[idx].kty,
+			&pJwks->keys[idx].Alg) ) continue;
 
 		if ( strcmp(pJwks->keys[idx].kty, "RSA") == 0 ) {
 			/* RSA: n + e；任一缺失/畸形则释放并清零槽位后跳过
@@ -2405,6 +2492,11 @@ xvalue* xjwtVerifyJwks(const char* sToken, const xjwtjwks* pJwks,
 	if ( iFound < 0 ) {
 		xrtFree(sInput); xrtFree(pSigBin); xrtValueRelease(pClaims);
 		xjwt__error(XJWT_ERROR_KEY_NOT_FOUND, "no matching kid in JWKS");
+		return NULL;
+	}
+	if ( pJwks->keys[iFound].Alg != 0 && pJwks->keys[iFound].Alg != alg ) {
+		xrtFree(sInput); xrtFree(pSigBin); xrtValueRelease(pClaims);
+		xjwt__error(XJWT_ERROR_ALG_MISMATCH, "token algorithm does not match the JWK binding");
 		return NULL;
 	}
 

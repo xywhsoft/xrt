@@ -42,7 +42,7 @@ XHTTP_SERVER_API void xrtHttpUpgradeAbort(xhttpupgrade* pUpgrade)
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(&Upgrade, pUpgrade, sizeof(Upgrade));
+	memcpy(&Upgrade, (const void*)pUpgrade, sizeof(Upgrade));
 	memset(pUpgrade, 0, sizeof(Upgrade));
 	pPrevious = __xhttpErrorSwapOwned(NULL);
 	#if defined(XHTTP_FEATURE_HTTP_SERVER_TLS)
@@ -175,6 +175,7 @@ static void __xrtHttpConnUpgradeTask(
 		__xrtHttpServerConnectionClosed(pServer);
 	}
 	if ( pConnection->RuntimeHeld ) {
+		__xrtHttpConnAdapterRelease(pConnection);
 		pConnection->RuntimeHeld = false;
 		xrtHttpConnDestroy(pConnection);
 	}

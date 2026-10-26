@@ -12,10 +12,12 @@
 
 from __future__ import annotations
 
+import base64
 import datetime
 import io
 import json
 import os
+import struct
 import subprocess
 import sys
 import tempfile
@@ -28,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
 	sys.path.insert(0, str(ROOT))
 
-from tools.acme_mock_server import acme_error
+from tools.acme_mock_server import DnsHandler, acme_error
 
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
@@ -158,6 +160,9 @@ def run_flow_case(test: unittest.TestCase, extra_server: list[str],
 			result.returncode, 0,
 			"test_flow failed:\n" + result.stdout + result.stderr)
 		test.assertIn("[PASS]", result.stdout)
+		if extra_env.get("XACME_DEBUG") == "1":
+			test.assertNotIn("propagate confirm timeout", result.stdout,
+				"the recursive TXT probe exhausted its advisory budget")
 
 		stats = fetch_stats(server)
 		test.assertGreaterEqual(
@@ -220,6 +225,35 @@ def fetch_stats(server: MockServer) -> dict:
 
 
 class AcmeProblemResponseTests(unittest.TestCase):
+
+	def test_dns_txt_wire_lengths_and_values(self):
+		name = "_acme-challenge.example.com"
+		values = ["A" * 43, "short", "", "汉字"]
+		qname = b"".join(bytes([len(label)]) + label.encode("ascii") for label in name.split(".")) + b"\0"
+		query = struct.pack("!HHHHHH", 0x1234, 0x0100, 1, 0, 0, 0) + qname + struct.pack("!HH", 16, 1)
+		class Socket:
+			def sendto(self, packet, peer): self.packet, self.peer = packet, peer
+		sock = Socket()
+		handler = object.__new__(DnsHandler)
+		handler.request = (query, sock)
+		handler.client_address = ("127.0.0.1", 12345)
+		handler.state = SimpleNamespace(lock=threading.RLock(), txt={name: values}, dns_queries=0)
+		handler.handle()
+		packet = sock.packet
+		self.assertEqual(sock.peer, handler.client_address)
+		self.assertEqual(handler.state.dns_queries, 1)
+		self.assertEqual(struct.unpack_from("!HHHHHH", packet), (0x1234, 0x8400, 1, len(values), 0, 0))
+		self.assertEqual(packet[12:len(query)], query[12:])
+		at = len(query)
+		for value in values:
+			owner, kind, dns_class, ttl, length = struct.unpack_from("!HHHIH", packet, at)
+			self.assertEqual((owner, kind, dns_class, ttl), (0xc00c, 16, 1, 60))
+			encoded = value.encode("utf-8")
+			self.assertEqual(length, len(encoded) + 1)
+			at += 12
+			self.assertEqual(packet[at:at + length], bytes([len(encoded)]) + encoded)
+			at += length
+		self.assertEqual(at, len(packet), "TXT record boundaries left trailing wire bytes")
 
 	def test_error_response_supplies_registered_fresh_nonce(self):
 		class Handler:
@@ -292,6 +326,20 @@ class AcmeMockFlowTests(unittest.TestCase):
 	def test_duplicate_domains_use_one_order_and_csr_identifier(self):
 		run_flow_case(self, [], {"XACME_TEST_DUPLICATES": "1"})
 
+	def test_server_authorization_cardinality_policy(self):
+		"""Authorization requirements can differ from the ordered SAN count."""
+		for count in (0, 2, 5):
+			with self.subTest(authorizations=count):
+				stats = run_flow_case(self, ["--authorization-count", str(count)], {"XACME_DEBUG": "1"})
+				self.assertGreater(stats["orders"], 0)
+				self.assertEqual(stats["authorizations"], stats["orders"] * count)
+				self.assertEqual(stats["validated_authorizations"], stats["authorizations"])
+				self.assertEqual(stats["live_txt_values"], 0, "an owned TXT value escaped issue cleanup")
+				if count:
+					self.assertGreaterEqual(stats["dns_queries"], stats["authorizations"])
+				else:
+					self.assertEqual(stats["dns_queries"], 0)
+
 	def test_rollover_response_lost_then_reconciled(self):
 		stats = run_flow_case(self,
 			["--drop-keychange-response-once"],
@@ -345,6 +393,19 @@ class AcmeMockFlowTests(unittest.TestCase):
 			},
 		)
 
+	def test_eab_keys_larger_than_hmac_block(self):
+		"""A block-size crossing and a larger padded key reach the real TLS CA."""
+		for size, padded in ((65, False), (4096, True)):
+			with self.subTest(size=size, padded=padded):
+				key = bytes((17 + 131 * i) & 255 for i in range(size))
+				text = base64.urlsafe_b64encode(key).decode("ascii")
+				if not padded:
+					text = text.rstrip("=")
+				run_flow_case(self, ["--eab", "mock-long-kid:" + text], {
+					"XACME_EAB_KID": "mock-long-kid",
+					"XACME_EAB_HMAC": text,
+				})
+
 	def test_transport_flakiness_retries(self):
 		"""GET 及一次 POST-as-GET 断流，验证只读请求重试。"""
 		workdir = Path(tempfile.mkdtemp(prefix="xacme-mock-"))
@@ -377,6 +438,80 @@ class AcmeMockFlowTests(unittest.TestCase):
 			print("[flaky] dropped requests survived:", stats["flaky_hits"])
 		finally:
 			server.stop()
+
+
+class PebblePortTests(unittest.TestCase):
+	"""The independent service needs distinct ports, including TCP+UDP DNS."""
+
+	def test_real_reservations_cover_both_dns_transports(self):
+		from contextlib import ExitStack
+		import socket
+		from tools.test_acme_pebble import port
+		with ExitStack() as reserved:
+			ports = [port(reserved) for _ in range(3)]
+			dns = port(reserved, (socket.SOCK_STREAM, socket.SOCK_DGRAM))
+			self.assertEqual(len(set([*ports, dns])), 4)
+			for number, kind in [(p, socket.SOCK_STREAM) for p in [*ports, dns]] + [(dns, socket.SOCK_DGRAM)]:
+				with self.subTest(number=number, kind=kind), socket.socket(socket.AF_INET, kind) as handle:
+					with self.assertRaises(OSError):
+						handle.bind(("127.0.0.1", number))
+		# Every reservation is released before the external services start.
+		for kind in (socket.SOCK_STREAM, socket.SOCK_DGRAM):
+			with socket.socket(socket.AF_INET, kind) as handle:
+				handle.bind(("127.0.0.1", dns))
+
+	def test_dns_retries_protocol_permission_or_collision(self):
+		from contextlib import ExitStack
+		import errno
+		import socket
+		from unittest.mock import MagicMock, patch
+		from tools import test_acme_pebble as pebble
+		for reason in (errno.EACCES, errno.EADDRINUSE, 10013, 10048):
+			with self.subTest(reason=reason):
+				handles = [MagicMock() for _ in range(4)]
+				for index, handle in enumerate(handles):
+					handle.__enter__.return_value = handle
+					handle.getsockname.return_value = ("127.0.0.1", 42000 + index // 2)
+				handles[1].bind.side_effect = OSError(reason, "unavailable for UDP")
+				with patch.object(pebble.socket, "socket", side_effect=handles), ExitStack() as reserved:
+					self.assertEqual(pebble.port(reserved, (socket.SOCK_STREAM, socket.SOCK_DGRAM)), 42001)
+					for handle in handles[:2]:
+						handle.__exit__.assert_called_once()
+					for handle in handles[2:]:
+						handle.__exit__.assert_not_called()
+					self.assertEqual(handles[3].bind.call_args.args, (("127.0.0.1", 42001),))
+				for handle in handles:
+					handle.__exit__.assert_called_once()
+
+	def test_unrelated_socket_failure_is_not_retried(self):
+		from contextlib import ExitStack
+		import errno
+		from unittest.mock import MagicMock, patch
+		from tools import test_acme_pebble as pebble
+		handle = MagicMock()
+		handle.__enter__.return_value = handle
+		handle.bind.side_effect = OSError(errno.ENOBUFS, "socket resources exhausted")
+		with patch.object(pebble.socket, "socket", return_value=handle) as factory, ExitStack() as reserved:
+			with self.assertRaises(OSError) as failure:
+				pebble.port(reserved)
+			self.assertEqual(failure.exception.errno, errno.ENOBUFS)
+			factory.assert_called_once()
+			handle.__exit__.assert_called_once()
+
+	def test_port_exhaustion_has_a_bounded_failure(self):
+		from contextlib import ExitStack
+		import errno
+		from unittest.mock import MagicMock, patch
+		from tools import test_acme_pebble as pebble
+		handle = MagicMock()
+		handle.__enter__.return_value = handle
+		handle.bind.side_effect = OSError(errno.EACCES, "port excluded")
+		with patch.object(pebble.socket, "socket", return_value=handle) as factory, ExitStack() as reserved:
+			with self.assertRaisesRegex(RuntimeError, "port") as failure:
+				pebble.port(reserved)
+			self.assertIsInstance(failure.exception.__cause__, OSError)
+			self.assertEqual(factory.call_count, 64)
+			self.assertEqual(handle.__exit__.call_count, 64)
 
 
 if __name__ == "__main__":

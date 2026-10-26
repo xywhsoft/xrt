@@ -1,5 +1,6 @@
 #include "../../xllm/src/internal/xllm_internal.h"
 #include "../src/internal/xllm_session_internal.h"
+#include <math.h>
 
 
 static int g_iSessionFailures = 0;
@@ -709,6 +710,82 @@ static bool test_split_plan_override(xllm_session* pSession, uint64_t uPrevThrou
 /* ------------------------------------------------------------------ */
 /* v3: exact-feedback governance                                        */
 /* ------------------------------------------------------------------ */
+
+static void test_budget_extremes(void)
+{
+    const double aInvalidPrune[] = { NAN, INFINITY, -INFINITY, 0.0, 1.0 };
+    const double aInvalidCompact[] = { NAN, INFINITY, -INFINITY, 0.75, 1.01 };
+    xllm_session_config tConfig;
+    xllm_session* pSession;
+    xllm_session_stats tStats;
+    xllm_usage tUsage = {0};
+    xllm_error tError;
+    size_t i;
+
+    SESSION_CHECK(xllmSessionComputeSafetyReserve(0u) == 8000u &&
+        xllmSessionComputeSafetyReserve(266700u) == 8001u &&
+        xllmSessionComputeSafetyReserve(1066666u) == 31999u &&
+        xllmSessionComputeSafetyReserve(1066667u) == 32000u,
+        "safety reserve rounds before applying its documented caps");
+    SESSION_CHECK(xllmSessionComputeSafetyReserve(UINT64_MAX / 3u + 1u) == 32000u &&
+        xllmSessionComputeSafetyReserve(UINT64_MAX) == 32000u,
+        "large context windows cannot wrap the safety reserve");
+    for ( i = 0u; i < sizeof(aInvalidPrune) / sizeof(aInvalidPrune[0]); ++i ) {
+        xllmSessionConfigInit(&tConfig);
+        tConfig.fPruneTrigger = aInvalidPrune[i];
+        pSession = xllmSessionCreate(&tConfig, &tError);
+        SESSION_CHECK(!pSession && tError.eCode == XLLM_ERROR_INVALID_ARGUMENT,
+            "invalid prune thresholds are rejected before session creation");
+        xllmSessionDestroy(pSession);
+    }
+    for ( i = 0u; i < sizeof(aInvalidCompact) / sizeof(aInvalidCompact[0]); ++i ) {
+        xllmSessionConfigInit(&tConfig);
+        tConfig.fCompactTrigger = aInvalidCompact[i];
+        pSession = xllmSessionCreate(&tConfig, &tError);
+        SESSION_CHECK(!pSession && tError.eCode == XLLM_ERROR_INVALID_ARGUMENT,
+            "invalid compact thresholds are rejected before session creation");
+        xllmSessionDestroy(pSession);
+    }
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uContextWindowTokens = UINT64_C(1) << 34;
+    tConfig.uKeepRecentTokens = 0u;
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession && xllmSessionGetConfig(pSession, &tConfig) &&
+        tConfig.uKeepRecentTokens == 20000u,
+        "derived keep-recent cap is bounded before narrowing to uint32");
+    xllmSessionDestroy(pSession);
+
+    xllmSessionConfigInit(&tConfig);
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession != NULL, "extreme usage fixture creates");
+    if ( !pSession ) return;
+    tUsage.uInputTokens = UINT64_MAX - 64u;
+    SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage) &&
+        xllmSessionGetStats(pSession, &tStats) && tStats.bFillExactValid &&
+        tStats.uFillExact == tUsage.uInputTokens &&
+        tStats.ePressure == XLLM_SESSION_PRESSURE_OVERFLOW,
+        "fill plus increment cannot wrap into a low-pressure state");
+    tUsage.uInputTokens = UINT64_MAX;
+    tUsage.uOutputTokens = 1u;
+    SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage) &&
+        xllmSessionGetStats(pSession, &tStats) && tStats.bFillExactValid &&
+        tStats.uFillExact == UINT64_MAX &&
+        tStats.ePressure == XLLM_SESSION_PRESSURE_OVERFLOW,
+        "usage totals saturate and retain overflow pressure");
+    xllmSessionDestroy(pSession);
+
+    xllmSessionConfigInit(&tConfig);
+    tConfig.uContextWindowTokens = UINT64_MAX;
+    tConfig.uMaxOutputTokens = 1u;
+    tConfig.uOutputReserveTokens = 1u;
+    tConfig.uSafetyReserveTokens = 1u;
+    tConfig.fCompactTrigger = 1.0;
+    pSession = xllmSessionCreate(&tConfig, &tError);
+    SESSION_CHECK(pSession && xllmSessionGetStats(pSession, &tStats) &&
+        tStats.uCompactThresholdTokens == tStats.uInputBudgetTokens,
+        "a full-budget threshold preserves the uint64 limit exactly");
+    xllmSessionDestroy(pSession);
+}
 
 static void test_exact_governance(void)
 {
@@ -1469,6 +1546,11 @@ static const char* round_trip_adversarial(void)
     return sText;
 }
 
+static bool round_trip_text_equal(const char* sA, const char* sB)
+{
+    return (!sA && !sB) || (sA && sB && strcmp(sA, sB) == 0);
+}
+
 static bool round_trip_requests_equal(const xllm_request* pA, const xllm_request* pB)
 {
     size_t i, j;
@@ -1481,6 +1563,22 @@ static bool round_trip_requests_equal(const xllm_request* pA, const xllm_request
         if ( pMA->sContent && strcmp(pMA->sContent, pMB->sContent) != 0 ) { return false; }
         if ( (pMA->sReasoningContent == NULL) != (pMB->sReasoningContent == NULL) ) { return false; }
         if ( pMA->sReasoningContent && strcmp(pMA->sReasoningContent, pMB->sReasoningContent) != 0 ) { return false; }
+        if ( !round_trip_text_equal(pMA->sToolCallId, pMB->sToolCallId) ||
+             !round_trip_text_equal(pMA->sNative, pMB->sNative) ||
+             pMA->iPartCount != pMB->iPartCount ) { return false; }
+        for ( j = 0u; j < pMA->iPartCount; ++j ) {
+            const xllm_part* pPA = &pMA->pParts[j];
+            const xllm_part* pPB = &pMB->pParts[j];
+            if ( pPA->eKind != pPB->eKind || pPA->iDataSize != pPB->iDataSize ||
+                 !round_trip_text_equal(pPA->sText, pPB->sText) ||
+                 !round_trip_text_equal(pPA->sNativeType, pPB->sNativeType) ||
+                 !round_trip_text_equal(pPA->sMediaType, pPB->sMediaType) ||
+                 !round_trip_text_equal(pPA->sSourceUrl, pPB->sSourceUrl) ||
+                 !round_trip_text_equal(pPA->sDetail, pPB->sDetail) ||
+                 (pPA->iDataSize && memcmp(pPA->pData, pPB->pData, pPA->iDataSize) != 0) ) {
+                return false;
+            }
+        }
         if ( pMA->iToolCallCount != pMB->iToolCallCount ) { return false; }
         for ( j = 0u; j < pMA->iToolCallCount; ++j ) {
             const xllm_tool_call* pCA = &pMA->pToolCalls[j];
@@ -1553,6 +1651,51 @@ static void test_journal_roundtrip_property(void)
             "status: success\ntool: \"quoted\" name\nbody \\ \n \x1f end"),
         "adversarial tool call and result recorded");
     iAdded += 2u;
+    {
+        static const uint8_t aBinary[] = { 0u, 1u, 255u, 128u, 0u, 42u };
+        xllm_message tMessage;
+        xllm_part tPart;
+        bool bAdded = true;
+        xllmMessageInit(&tMessage, XLLM_ROLE_USER);
+        /* AddPart copies these borrowed fixture fields, including binary NULs. */
+        xllmPartInit(&tPart, XLLM_PART_TEXT);
+        tPart.sText = (char*)"part text with \"quotes\" and 中文";
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        tPart.eKind = XLLM_PART_REASONING;
+        tPart.sText = (char*)"reasoning part";
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        xllmPartInit(&tPart, XLLM_PART_IMAGE);
+        tPart.sMediaType = (char*)"image/png";
+        tPart.sDetail = (char*)"high";
+        tPart.pData = (uint8_t*)aBinary;
+        tPart.iDataSize = sizeof(aBinary);
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        tPart.eKind = XLLM_PART_AUDIO;
+        tPart.sMediaType = (char*)"audio/wav";
+        tPart.sDetail = NULL;
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        tPart.eKind = XLLM_PART_FILE;
+        tPart.sMediaType = (char*)"application/octet-stream";
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        xllmPartInit(&tPart, XLLM_PART_IMAGE);
+        tPart.sSourceUrl = (char*)"https://example.invalid/image?a=1&b=2";
+        tPart.sDetail = (char*)"auto";
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        xllmPartInit(&tPart, XLLM_PART_NATIVE);
+        tPart.sNativeType = (char*)"provider-extension";
+        tPart.sText = (char*)"{ \"type\": \"provider-extension\", \"opaque\": [1, 2] }";
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        /* MessageFromResponse also emits this non-JSON native subtype. */
+        tPart.sNativeType = (char*)"thinking_signature";
+        tPart.sText = (char*)"opaque signature +/=:not-json";
+        bAdded = bAdded && xllmMessageAddPart(&tMessage, &tPart);
+        SESSION_CHECK(bAdded && xllmMessageSetNative(&tMessage,
+                "{ \"opaque\": \"whole-message-native\" }") &&
+            xllmSessionAddMessage(pOriginal, uTurn, &tMessage, 0u),
+            "all multimodal kinds and native replay data are journaled");
+        xllmMessageUnit(&tMessage);
+        ++iAdded;
+    }
     SESSION_CHECK(iAdded >= sizeof(sCorpus) / sizeof(sCorpus[0]) + 32u,
         "every adversarial entry was accepted");
 
@@ -1583,6 +1726,21 @@ static void test_journal_roundtrip_property(void)
             "snapshot round trip is byte-equal for adversarial content");
         xllmRequestUnit(&tGot);
     }
+    {
+        size_t iSize = 0u;
+        char* sSaved = (char*)xrtFileReadAll(sSnapshot, &iSize);
+        const char* sPrefix = "{\"format\":\"xllm-session\",\"version\":3,";
+        SESSION_CHECK(sSaved && iSize >= strlen(sPrefix) &&
+            memcmp(sSaved, sPrefix, strlen(sPrefix)) == 0,
+            "complete multimodal snapshots use format v3");
+        xrtFree(sSaved);
+        sSaved = (char*)xrtFileReadAll(sJournal, &iSize);
+        sPrefix = "{\"format\":\"xllm-session-journal\",\"version\":3,";
+        SESSION_CHECK(sSaved && iSize >= strlen(sPrefix) &&
+            memcmp(sSaved, sPrefix, strlen(sPrefix)) == 0,
+            "new journal records use format v3");
+        xrtFree(sSaved);
+    }
 
     xllmRequestUnit(&tWant);
     xllmSessionDestroy(pFromJournal);
@@ -1596,6 +1754,232 @@ static void test_journal_roundtrip_property(void)
 /* Asset ledger: note/dedup, compaction prompt + summary render,        */
 /* persistence (snapshot + journal replay), fork.                       */
 /* ------------------------------------------------------------------ */
+
+static void test_persistence_message_validation(void)
+{
+    static const char sPath[] = "out/xllm-session-tests/message_validation.json";
+    static const char sJournal[] = "out/xllm-session-tests/message_validation.jsonl";
+    static const char sAbsent[] = "out/xllm-session-tests/message_validation_absent.json";
+    static const char* aInvalidMessages[] = {
+        "\"content\":123",
+        "\"content\":\"a\\u0000b\"",
+        "\"native\":123",
+        "\"native\":\"{\"",
+        "\"tool_calls\":{}",
+        "\"parts\":{}",
+        "\"parts\":[null]",
+        "\"parts\":[{\"kind\":999}]",
+        "\"parts\":[{\"kind\":\"image\"}]",
+        "\"parts\":[{\"kind\":0,\"text\":\"a\\u0000b\"}]",
+        "\"parts\":[{\"kind\":2,\"data\":\"@@\"}]",
+        "\"parts\":[{\"kind\":2,\"data\":123}]",
+        "\"parts\":[{\"kind\":2,\"data\":\"AA\\u0000AA\"}]",
+        "\"parts\":[{\"kind\":5,\"text\":\"{\"}]",
+        "\"content\":\"conflicting fast path\",\"parts\":[{\"kind\":0,\"text\":\"part\"}]"
+    };
+    char sJson[1024];
+    xllm_error tError;
+    size_t i;
+    unsigned uVersion;
+    (void)xrtFileDelete(sAbsent);
+    for ( uVersion = 1u; uVersion <= 2u; ++uVersion ) {
+        xllm_session* pSession;
+        xllm_request tRequest;
+        int iSize = snprintf(sJson, sizeof(sJson),
+            "{\"format\":\"xllm-session\",\"version\":%u,\"current_turn\":1,"
+            "\"next_sequence\":2,\"entries\":[{\"sequence\":1,\"turn\":1,"
+            "\"role\":%u,\"content\":\"legacy text\"}]}", uVersion, (unsigned)XLLM_ROLE_USER);
+        SESSION_CHECK(iSize > 0 && (size_t)iSize < sizeof(sJson) &&
+            xrtFileWriteAll(sPath, (xbytesview){ (const uint8*)sJson, (size_t)iSize }),
+            "legacy snapshot fixture is written");
+        pSession = xllmSessionLoad(sPath, &tError);
+        xllmRequestInit(&tRequest);
+        SESSION_CHECK(pSession && xllmSessionBuildRequest(pSession, &tRequest, &tError) &&
+            tRequest.iMessageCount == 1u && tRequest.pMessages[0].iPartCount == 0u &&
+            round_trip_text_equal(tRequest.pMessages[0].sContent, "legacy text"),
+            "v1 and v2 text-only snapshots remain readable");
+        xllmRequestUnit(&tRequest);
+        xllmSessionDestroy(pSession);
+        iSize = snprintf(sJson, sizeof(sJson),
+            "{\"format\":\"xllm-session-journal\",\"version\":%u,"
+            "\"journal_sequence\":1,\"operation\":\"begin_turn\",\"turn\":1}\n"
+            "{\"format\":\"xllm-session-journal\",\"version\":%u,"
+            "\"journal_sequence\":2,\"operation\":\"add_message\","
+            "\"entry\":{\"sequence\":1,\"turn\":1,\"role\":%u,\"content\":\"legacy text\"}}\n",
+            uVersion, uVersion, (unsigned)XLLM_ROLE_USER);
+        SESSION_CHECK(iSize > 0 && (size_t)iSize < sizeof(sJson) &&
+            xrtFileWriteAll(sJournal, (xbytesview){ (const uint8*)sJson, (size_t)iSize }),
+            "legacy journal fixture is written");
+        pSession = xllmSessionRecover(sAbsent, sJournal, NULL, &tError);
+        xllmRequestInit(&tRequest);
+        SESSION_CHECK(pSession && xllmSessionBuildRequest(pSession, &tRequest, &tError) &&
+            tRequest.iMessageCount == 1u &&
+            round_trip_text_equal(tRequest.pMessages[0].sContent, "legacy text"),
+            "v1 and v2 text-only journals remain readable");
+        xllmRequestUnit(&tRequest);
+        xllmSessionDestroy(pSession);
+    }
+    for ( i = 0u; i < sizeof(aInvalidMessages) / sizeof(aInvalidMessages[0]); ++i ) {
+        xllm_session* pSession;
+        int iSize = snprintf(sJson, sizeof(sJson),
+            "{\"format\":\"xllm-session\",\"version\":2,\"current_turn\":1,"
+            "\"next_sequence\":2,\"entries\":[{\"sequence\":1,\"turn\":1,"
+            "\"role\":%u,%s}]}", (unsigned)XLLM_ROLE_USER, aInvalidMessages[i]);
+        SESSION_CHECK(iSize > 0 && (size_t)iSize < sizeof(sJson) &&
+            xrtFileWriteAll(sPath, (xbytesview){ (const uint8*)sJson, (size_t)iSize }),
+            "malformed message fixture is written");
+        pSession = xllmSessionLoad(sPath, &tError);
+        SESSION_CHECK(!pSession && tError.eCode == XLLM_ERROR_PARSE,
+            "malformed persisted message cannot silently drop data");
+        xllmSessionDestroy(pSession);
+        iSize = snprintf(sJson, sizeof(sJson),
+            "{\"format\":\"xllm-session-journal\",\"version\":2,"
+            "\"journal_sequence\":1,\"operation\":\"begin_turn\",\"turn\":1}\n"
+            "{\"format\":\"xllm-session-journal\",\"version\":2,"
+            "\"journal_sequence\":2,\"operation\":\"add_message\","
+            "\"entry\":{\"sequence\":1,\"turn\":1,\"role\":%u,%s}}\n",
+            (unsigned)XLLM_ROLE_USER, aInvalidMessages[i]);
+        SESSION_CHECK(iSize > 0 && (size_t)iSize < sizeof(sJson) &&
+            xrtFileWriteAll(sJournal, (xbytesview){ (const uint8*)sJson, (size_t)iSize }),
+            "malformed journal message fixture is written");
+        pSession = xllmSessionRecover(sAbsent, sJournal, NULL, &tError);
+        SESSION_CHECK(!pSession && tError.eCode == XLLM_ERROR_PARSE,
+            "malformed journal message fails recovery explicitly");
+        xllmSessionDestroy(pSession);
+    }
+    (void)xrtFileDelete(sPath);
+    (void)xrtFileDelete(sJournal);
+}
+
+static void test_assistant_native_replay(void)
+{
+    static const char sPath[] = "out/xllm-session-tests/assistant_native.json";
+    xllm_block aBlocks[2] = {
+        { XLLM_BLOCK_REASONING, "exact signed thought", 0u, "opaque-signature" },
+        { XLLM_BLOCK_TEXT, "assistant answer", 0u, NULL }
+    };
+    xllm_response tResponse = {0};
+    xllm_session* pSession = NULL;
+    xllm_session* pLoaded = NULL;
+    xllm_client* pClient;
+    xllm_client_config tClient;
+    xllm_request tRequest, tRestored;
+    xllm_error tError;
+    char* sJson;
+    uint64_t uTurn;
+    xllmClientConfigInit(&tClient);
+    tClient.sBaseUrl = "http://127.0.0.1:1/v1";
+    tClient.sApiKey = "offline-test";
+    tClient.sModel = "offline-replay";
+    tClient.eProvider = XLLM_PROVIDER_ANTHROPIC;
+    pClient = xllmClientCreate(&tClient, &tError);
+    pSession = xllmSessionCreate(NULL, &tError);
+    xllmRequestInit(&tRequest);
+    xllmRequestInit(&tRestored);
+    SESSION_CHECK(pClient && pSession, "session signed-response fixture creates");
+    if ( !pClient || !pSession ) goto done;
+    tResponse.sContent = "assistant answer";
+    tResponse.sReasoningContent = "exact signed thought";
+    tResponse.pBlocks = aBlocks;
+    tResponse.iBlockCount = 2u;
+    uTurn = xllmSessionBeginTurn(pSession);
+    SESSION_CHECK(xllmSessionAddAssistantResponse(pSession, uTurn, &tResponse) &&
+        xllmSessionBuildRequest(pSession, &tRequest, &tError),
+        "assistant response enters the session through the public folding API");
+    SESSION_CHECK(tRequest.iMessageCount == 1u && tRequest.pMessages[0].iPartCount == 3u,
+        "session keeps per-block reasoning, signature and answer parts");
+    sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+    SESSION_CHECK(sJson && xrtJsonValid(xrtStrView(sJson)) &&
+        strstr(sJson, "\"signature\":\"opaque-signature\"") &&
+        strstr(sJson, "\"text\":\"assistant answer\""),
+        "session request replays both signed thought and assistant answer");
+    xllmFree(sJson);
+    SESSION_CHECK(xllmSessionSave(pSession, sPath, &tError), "signed session snapshot saves");
+    pLoaded = xllmSessionLoad(sPath, &tError);
+    SESSION_CHECK(pLoaded && xllmSessionBuildRequest(pLoaded, &tRestored, &tError) &&
+        round_trip_requests_equal(&tRequest, &tRestored),
+        "signed assistant replay survives public save and load");
+done:
+    xllmRequestUnit(&tRestored);
+    xllmRequestUnit(&tRequest);
+    xllmSessionDestroy(pLoaded);
+    xllmSessionDestroy(pSession);
+    xllmClientDestroy(pClient);
+    (void)xrtFileDelete(sPath);
+}
+
+typedef struct test_ledger_reentry {
+    bool bAttempted;
+    bool bReadAccepted;
+    bool bModifiedAccepted;
+} test_ledger_reentry;
+
+static void test_ledger_reentry_event(xllm_session* pSession,
+    const xllm_session_event* pEvent, void* pData)
+{
+    test_ledger_reentry* pProbe = (test_ledger_reentry*)pData;
+    if ( pEvent->eType == XLLM_SESSION_EVENT_JOURNAL_RECORD && !pProbe->bAttempted ) {
+        pProbe->bAttempted = true;
+        pProbe->bReadAccepted = xllmSessionNoteFileRead(pSession, "unexpected-read.c");
+        pProbe->bModifiedAccepted = xllmSessionNoteFileModified(pSession, "unexpected-write.c");
+    }
+}
+
+static void test_journal_ledger_failure_atomicity(void)
+{
+    static const char sJournal[] = "out/xllm-session-tests/ledger_blocked_path";
+    static const char sAbsent[] = "out/xllm-session-tests/ledger_failure_absent.json";
+    xllm_session* pSession;
+    xllm_session* pRecovered;
+    xllm_error tError;
+    xllm_file_ledger tLedger;
+    xllm_session_stats tStats;
+    xllm_session_hooks tHooks = {0};
+    test_ledger_reentry tProbe = {0};
+    SESSION_CHECK(!xllmSessionEnableJournal(NULL, sJournal, &tError) &&
+        tError.eCode == XLLM_ERROR_INVALID_ARGUMENT,
+        "null-session journal attachment returns an argument error");
+    xllmSessionDisableJournal(NULL);
+    SESSION_CHECK(xllmSessionJournalPath(NULL) == NULL,
+        "null-session journal disable is harmless");
+    (void)xrtFileDelete(sJournal);
+    (void)xrtDirRemove(sJournal);
+    (void)xrtFileDelete(sAbsent);
+    pSession = xllmSessionCreate(NULL, &tError);
+    if ( !pSession ) { SESSION_CHECK(false, "ledger failure fixture creates"); return; }
+    if ( !xllmSessionEnableJournal(pSession, sJournal, &tError) || !xrtDirCreateAll(sJournal) ) {
+        SESSION_CHECK(false, "journal path can be blocked after attachment");
+        xllmSessionDestroy(pSession);
+        return;
+    }
+    SESSION_CHECK(!xllmSessionNoteFileRead(pSession, "read.c") &&
+        xllmSessionGetFileLedger(pSession, &tLedger) && tLedger.iReadFileCount == 0u,
+        "failed read-ledger journal append leaves no visible path");
+    SESSION_CHECK(!xllmSessionNoteFileModified(pSession, "write.c") &&
+        xllmSessionGetFileLedger(pSession, &tLedger) && tLedger.iModifiedFileCount == 0u,
+        "failed modified-ledger journal append leaves no visible path");
+    SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) && tStats.uJournalSequence == 0u,
+        "failed ledger appends leave the journal sequence unchanged");
+    SESSION_CHECK(xrtDirRemove(sJournal), "journal blocker is removed");
+    tHooks.pOnEvent = test_ledger_reentry_event;
+    tHooks.pUserData = &tProbe;
+    SESSION_CHECK(xllmSessionSetHooks(pSession, &tHooks), "ledger event hook installs");
+    SESSION_CHECK(xllmSessionNoteFileRead(pSession, "read.c") &&
+        xllmSessionNoteFileModified(pSession, "write.c") &&
+        xllmSessionGetStats(pSession, &tStats) && tStats.uJournalSequence == 2u,
+        "retry writes both ledger records and refreshes cached stats");
+    SESSION_CHECK(tProbe.bAttempted && !tProbe.bReadAccepted && !tProbe.bModifiedAccepted,
+        "journal observation hooks cannot re-enter ledger mutations");
+    pRecovered = xllmSessionRecover(sAbsent, sJournal, NULL, &tError);
+    SESSION_CHECK(pRecovered && xllmSessionGetFileLedger(pRecovered, &tLedger) &&
+        tLedger.iReadFileCount == 1u && tLedger.iModifiedFileCount == 1u &&
+        strcmp(tLedger.psReadFiles[0], "read.c") == 0 &&
+        strcmp(tLedger.psModifiedFiles[0], "write.c") == 0,
+        "retried ledger records survive a fresh process recovery");
+    xllmSessionDestroy(pRecovered);
+    xllmSessionDestroy(pSession);
+    (void)xrtFileDelete(sJournal);
+}
 
 static void test_file_ledger(void)
 {
@@ -1664,6 +2048,7 @@ static void test_file_ledger(void)
         xllmSessionCommitCompaction(pSession, pCompaction,
             test_pi_summary("ledger survives compaction"), &tError),
         "compaction commits with the ledger present");
+    xllmCompactionDestroy(pCompaction);
     pCompaction = NULL;
     xllmRequestInit(&tRequest);
     if ( pSession && xllmSessionBuildRequest(pSession, &tRequest, &tError) ) {
@@ -1767,6 +2152,7 @@ static void test_borrowed_view_render(void)
     SESSION_CHECK(xllmSessionBuildRequestView(pSession, &tView, &tError) &&
         tView.iMessageCount == 2u * iTurns,
         "ledger survives view unit (no double free)");
+    xllmRequestUnit(&tView);
 
     /* 4. Performance: the view path must be dramatically cheaper on a
      * large ledger (allocation churn dominates; assert >= 5x on wall time,
@@ -1912,6 +2298,8 @@ cleanup:
     xllmClientDestroy(pClient);
 }
 
+#include "persistence_numeric_cases.h"
+
 int main(void)
 {
     if ( !xrtDirCreateAll("out/xllm-session-tests") ) { return 1; }
@@ -1922,6 +2310,7 @@ int main(void)
     test_budget_compaction_persistence();
     test_journal_checkpoint_recovery();
     test_split_turn();
+    test_budget_extremes();
     test_exact_governance();
     test_ops_and_hooks();
     test_ladder_and_guard();
@@ -1929,6 +2318,10 @@ int main(void)
     test_run_with_tools();
     test_bind_identity_and_cancel();
     test_journal_roundtrip_property();
+    test_persistence_message_validation();
+    test_persistence_numeric_cases();
+    test_assistant_native_replay();
+    test_journal_ledger_failure_atomicity();
     test_borrowed_view_render();
     test_wire_prefix_cache();
     test_file_ledger();

@@ -54,7 +54,7 @@ XHTTP_API bool xrtHttpBridgePreconditionInputRead(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(pCurrent, pInput, sizeof(*pCurrent));
+	memcpy(pCurrent, (const void*)pInput, sizeof(*pCurrent));
 	if ( (!pCurrent->Exists &&
 		(pCurrent->HasETag || pCurrent->HasLastModified)) ||
 		(pCurrent->LastModifiedStrong &&
@@ -336,7 +336,7 @@ XHTTP_API bool xrtHttpIfRangeMatch(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(&Current, pCurrent, sizeof(Current));
+	memcpy(&Current, (const void*)pCurrent, sizeof(Current));
 	if ( (!Current.Exists &&
 		(Current.HasETag || Current.HasLastModified)) ||
 		(Current.LastModifiedStrong &&

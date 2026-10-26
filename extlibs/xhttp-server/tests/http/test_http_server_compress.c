@@ -140,11 +140,11 @@ int main(void)
 	pRequest = testHttpServerCompressRequest(
 		Missing, sizeof(Missing) - 1u
 	);
-	memcpy(ppUnaligned, &pPublished, sizeof(pPublished));
+	memcpy((void*)ppUnaligned, &pPublished, sizeof(pPublished));
 	Status = xrtHttpServerReplyCompress(
 		pRequest, pReply, NULL, ppUnaligned
 	);
-	memcpy(&pPublished, ppUnaligned, sizeof(pPublished));
+	memcpy(&pPublished, (const void*)ppUnaligned, sizeof(pPublished));
 	testRequire((pRequest != NULL) &&
 		(Status == XHTTP_REPLY_COMPRESS_IDENTITY) &&
 		(pPublished != NULL),

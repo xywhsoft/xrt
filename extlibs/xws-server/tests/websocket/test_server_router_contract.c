@@ -67,7 +67,7 @@ int main(void)
 	);
 	memset(ConfigStorage, 0xC3, sizeof(ConfigStorage));
 	xrtWsServerRouteConfigInit(pUnaligned);
-	memcpy(&Config, pUnaligned, sizeof(Config));
+	memcpy(&Config, (const void*)pUnaligned, sizeof(Config));
 	testRequire(
 		(ConfigStorage[0] == UINT8_C(0xC3)) &&
 		(ConfigStorage[sizeof(ConfigStorage) - 1u] ==
@@ -169,7 +169,7 @@ int main(void)
 	Config.Server.Protocols = XRT_STR_LITERAL("chat.v2, chat.v1");
 	Config.Release = testWsServerRouterRelease;
 	Config.Data = &iOwnedReleases;
-	memcpy(pUnaligned, &Config, sizeof(Config));
+	memcpy((void*)pUnaligned, &Config, sizeof(Config));
 	testRequire(
 		xrtWsServerRoute(
 			pRouter,

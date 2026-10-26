@@ -14,7 +14,7 @@ typedef struct Scene {
     xnetengine* engine;xnetserver* server;xnetstream* client;xfuture* future;
     Node nodes[MAX_NODES];Node* races[2];size_t count;bool pinned,busy;
 } Scene;
-static unsigned graphs,refusals,oomBudgets,oomFailures,transfers,dropRaces;
+static unsigned graphs,refusals,oomBudgets,oomFailures,transfers,dropRaces,publicationGates;
 static void freeze(xrtownershipscope* scope)
 {
     double due=__xrtWaitAfter(10000);
@@ -179,7 +179,7 @@ static void closedShell(xnetportbackend backend)
     xfuture* future=xrtNetServerAcceptAsync(scene.server);CHECK(future&&xrtFutureState(future)==XFUTURE_CLOSED);
     xrtFutureDestroy(future);xrtNetServerDestroy(scene.server);balanced(before);
 }
-typedef struct CloseCancel {xnetserver* server;xfuture* future;xatomic32 ready,go;} CloseCancel;
+typedef struct CloseCancel {xnetserver* server;xfuture* future;xatomic32 ready,go;bool requested;} CloseCancel;
 static int32 closeRace(ptr data)
 {
     CloseCancel* race=data;xrtAtomic32FetchAdd(&race->ready,1,XMEMORY_RELEASE);
@@ -190,9 +190,45 @@ static int32 cancelRace(ptr data)
 {
     CloseCancel* race=data;xrtAtomic32FetchAdd(&race->ready,1,XMEMORY_RELEASE);
     while(!xrtAtomic32Load(&race->go,XMEMORY_ACQUIRE))xrtThreadYield();
-    bool cancelled=xrtFutureCancel(race->future);
-    CHECK(cancelled||xrtFutureState(race->future)!=XFUTURE_PENDING);
+    xcancel* token=xrtFutureCancelToken(race->future);CHECK(token);
+    race->requested=xrtFutureCancel(race->future);
+    /* Close can be dispatching the already-requested token before publishing
+     * its terminal state. A repeated request need not observe publication. */
+    CHECK(race->requested||xrtCancelRequested(token)||xrtFutureState(race->future)!=XFUTURE_PENDING);
+    xrtCancelDestroy(token);
     xrtFutureDestroy(race->future);xrtClearError();return 0;
+}
+typedef struct CancelPublicationGate {xatomic32 entered,open;} CancelPublicationGate;
+static void cancelPublicationGate(ptr data)
+{
+    CancelPublicationGate* gate=data;
+    xrtAtomic32Store(&gate->entered,1,XMEMORY_RELEASE);double due=__xrtWaitAfter(10000);
+    while(!xrtAtomic32Load(&gate->open,XMEMORY_ACQUIRE)){CHECK(!__xrtWaitExpired(due));xrtThreadYield();}
+}
+static void closeBeforeCancelPublication(xnetportbackend backend)
+{
+    xmemdebugsnapshot before;xrtMemDebugSnapshot(&before);Scene scene={0};create(&scene,backend);
+    scene.future=xrtNetServerAcceptAsync(scene.server);CHECK(scene.future);
+    CloseCancel race={0};race.server=xrtNetServerRef(scene.server);race.future=xrtFutureRef(scene.future);
+    CHECK(race.server&&race.future);xrtAtomic32Init(&race.ready,0);xrtAtomic32Init(&race.go,1);
+    CancelPublicationGate gate;xrtAtomic32Init(&gate.entered,0);xrtAtomic32Init(&gate.open,0);
+    xcancel* token=xrtFutureCancelToken(scene.future);CHECK(token);
+    xcancelwatch* watch=xrtCancelWatch(token,cancelPublicationGate,&gate);CHECK(watch);
+    xrtNetServerDestroy(scene.server);scene.server=NULL;
+    xthread* closer=xrtThreadCreate(closeRace,&race,0);CHECK(closer);double due=__xrtWaitAfter(10000);
+    while(!xrtAtomic32Load(&gate.entered,XMEMORY_ACQUIRE)){CHECK(!__xrtWaitExpired(due));xrtThreadYield();}
+    /* Real PromiseClose has requested cancellation, and cannot publish CLOSED
+     * until this actual observer returns. A repeat request is false while the
+     * Future is legitimately still PENDING. No state or callback is faked. */
+    CHECK(xrtCancelRequested(token)&&xrtFutureState(scene.future)==XFUTURE_PENDING);
+    CHECK(cancelRace(&race)==0);
+    CHECK(!race.requested&&xrtCancelRequested(token));
+    CHECK(xrtFutureState(scene.future)==XFUTURE_PENDING&&xrtFutureWaitFor(scene.future,0)==XWAIT_TIMEOUT);
+    xrtAtomic32Store(&gate.open,1,XMEMORY_RELEASE);
+    CHECK(xrtFutureWaitFor(scene.future,10000)==XWAIT_OK&&xrtFutureState(scene.future)==XFUTURE_CLOSED);
+    CHECK(xrtThreadWaitFor(closer,10000)==XWAIT_OK&&xrtThreadExitCode(closer)==0);xrtThreadDestroy(closer);
+    CHECK(xrtCancelTriggered(watch));xrtCancelUnwatch(watch);xrtCancelDestroy(token);xrtFutureDestroy(scene.future);
+    CHECK(testTcpServerEngineDestroy(scene.engine));balanced(before);++publicationGates;
 }
 static void closeCancelRaces(xnetportbackend backend)
 {
@@ -284,9 +320,10 @@ int main(int argc,char** argv)
         backend=XNET_PORT_EPOLL;
 #endif
     }
-    CHECK(xrtMemDebugEnable(true));opaque(backend);allocations(backend);exchange(backend);closedShell(backend);closeCancelRaces(backend);
+    CHECK(xrtMemDebugEnable(true));opaque(backend);allocations(backend);exchange(backend);closedShell(backend);
+    closeBeforeCancelPublication(backend);closeCancelRaces(backend);
     for(unsigned i=0;i<3;++i){graphCase(backend,false);graphCase(backend,true);}
     testMemoryDebugDrain("Server physical graphs and callbacks converge");
-    printf("[PASS] Server owned graph backend=%d graphs=%u refusals=%u OOM-budgets=%u OOM-failures=%u NUL-transfers=%u drop-races=%u no fabricated roots, balanced\n",
-        (int)backend,graphs,refusals,oomBudgets,oomFailures,transfers,dropRaces);return 0;
+    printf("[PASS] Server owned graph backend=%d graphs=%u refusals=%u OOM-budgets=%u OOM-failures=%u NUL-transfers=%u drop-races=%u cancel-publication-gates=%u no fabricated roots, balanced\n",
+        (int)backend,graphs,refusals,oomBudgets,oomFailures,transfers,dropRaces,publicationGates);return 0;
 }

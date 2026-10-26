@@ -287,14 +287,37 @@ static bool xwork__path_is_inside(const char* sRoot, const char* sPath)
     for ( i = 0u; i < iRootLen; ++i ) {
         if ( !sPath[i] || !xwork__path_char_equal(sRoot[i], sPath[i]) ) return false;
     }
+    if ( iRootLen && (sRoot[iRootLen - 1u] == '/' || sRoot[iRootLen - 1u] == '\\') ) return true;
     return sPath[iRootLen] == '\0' || sPath[iRootLen] == '/' || sPath[iRootLen] == '\\';
+}
+
+static char* xwork__physical_path(const char* sPath)
+{
+    char* sReal = xrtPathReal(sPath);
+#if defined(_WIN32)
+    /* Keep ordinary DOS/UNC spellings usable by child processes and PathRel.
+     * GetFinalPathNameByHandleW supplies an extended namespace prefix. */
+    if ( sReal && strncmp(sReal, "\\\\?\\UNC\\", 8u) == 0 ) {
+        memmove(sReal + 2u, sReal + 8u, strlen(sReal + 8u) + 1u);
+        sReal[0] = sReal[1] = '\\';
+    } else if ( sReal && strncmp(sReal, "\\\\?\\", 4u) == 0 &&
+                isalpha((unsigned char)sReal[4]) && sReal[5] == ':' ) {
+        memmove(sReal, sReal + 4u, strlen(sReal + 4u) + 1u);
+    }
+#endif
+    return sReal;
 }
 
 char* xwork__resolve_path(const xwork_agent* pAgent, const char* sPath, xwork_error* pError)
 {
     char* sJoined = NULL;
     char* sAbs;
-    char* sCopy;
+    char* sProbe = NULL;
+    char* sReal = NULL;
+    char* sResolved = NULL;
+    char* sCopy = NULL;
+    const char* sSuffix;
+    xfileinfo tInfo;
     if ( !pAgent || !sPath || !sPath[0] ) {
         xwork__set_error(pError, XWORK_ERROR_INVALID_ARGUMENT, "tool path is empty");
         return NULL;
@@ -314,14 +337,42 @@ char* xwork__resolve_path(const xwork_agent* pAgent, const char* sPath, xwork_er
         xwork__set_error(pError, XWORK_ERROR_IO, "failed to resolve workspace path");
         return NULL;
     }
-    if ( !xwork__path_is_inside(pAgent->sWorkspaceRoot, sAbs) ) {
-        xrtFree(sAbs);
-        xwork__set_error(pError, XWORK_ERROR_POLICY, "path escapes the configured workspace");
-        return NULL;
+    /* Resolve the nearest existing ancestor, including a symlink leaf. New
+     * write targets retain their missing suffix under that physical boundary. */
+    sProbe = xrtStrDup(sAbs);
+    if ( !sProbe ) goto oom;
+    while ( !xrtPathStat(sProbe, false, &tInfo) ) {
+        char* sParent = xrtPathParent(sProbe);
+        if ( !sParent || strcmp(sParent, sProbe) == 0 ) {
+            xrtFree(sParent);
+            goto io;
+        }
+        xrtFree(sProbe);
+        sProbe = sParent;
     }
-    sCopy = xwork__strdup(sAbs);
+    sReal = xwork__physical_path(sProbe);
+    if ( !sReal ) goto io; /* dangling links must not become new-file paths */
+    sSuffix = sAbs + strlen(sProbe);
+    while ( *sSuffix == '/' || *sSuffix == '\\' ) ++sSuffix;
+    sResolved = *sSuffix ? xrtPathJoin(sReal, sSuffix) : xrtStrDup(sReal);
+    if ( !sResolved ) goto oom;
+    if ( !xwork__path_is_inside(pAgent->sWorkspaceRoot, sResolved) ) {
+        xwork__set_error(pError, XWORK_ERROR_POLICY, "path escapes the configured workspace");
+        goto done;
+    }
+    sCopy = xwork__strdup(sResolved);
+    if ( !sCopy ) goto oom;
+    goto done;
+oom:
+    xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to copy resolved path");
+    goto done;
+io:
+    xwork__set_error(pError, XWORK_ERROR_IO, "failed to resolve physical workspace path");
+done:
+    xrtFree(sResolved);
+    xrtFree(sReal);
+    xrtFree(sProbe);
     xrtFree(sAbs);
-    if ( !sCopy ) xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to copy resolved path");
     return sCopy;
 }
 
@@ -606,7 +657,7 @@ xwork_agent* xworkAgentCreate(const xwork_agent_config* pConfig, xwork_error* pE
         xwork__set_error(pError, XWORK_ERROR_INVALID_ARGUMENT, "agent requires a session and a workspace root");
         return NULL;
     }
-    sRoot = xrtPathAbs(pConfig->sWorkspaceRoot);
+    sRoot = xwork__physical_path(pConfig->sWorkspaceRoot);
     if ( !sRoot || !xrtDirExists((str)sRoot) ) {
         if ( sRoot ) xrtFree(sRoot);
         xwork__set_error(pError, XWORK_ERROR_INVALID_ARGUMENT, "workspace root does not exist");

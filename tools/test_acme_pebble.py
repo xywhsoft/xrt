@@ -6,6 +6,8 @@ listen only on loopback and terminate in finally. See xacme README for usage.
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
+import errno
 import hashlib
 import json
 import os
@@ -18,17 +20,41 @@ import urllib.error
 import urllib.request
 
 from cryptography import x509
-from test_acme_mock import read_stored_grant, verify_grant_pairing
+if __package__:
+    from .test_acme_mock import read_stored_grant, verify_grant_pairing
+else:
+    from test_acme_mock import read_stored_grant, verify_grant_pairing
 
 
 def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def port(kind: int = socket.SOCK_STREAM) -> int:
-    with socket.socket(socket.AF_INET, kind) as handle:
-        handle.bind(("127.0.0.1", 0))
-        return handle.getsockname()[1]
+def port(reserved: ExitStack, kinds: tuple[int, ...] = (socket.SOCK_STREAM,)) -> int:
+    """Reserve a loopback port usable by every requested transport.
+
+    Windows TCP and UDP excluded ranges can differ. A port assigned to one
+    transport is only a candidate for the other; retain both binds on success.
+    """
+    last = None
+    for _ in range(64):
+        with ExitStack() as candidate:
+            number = 0
+            try:
+                for kind in kinds:
+                    handle = candidate.enter_context(socket.socket(socket.AF_INET, kind))
+                    if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+                        handle.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+                    handle.bind(("127.0.0.1", number))
+                    number = handle.getsockname()[1]
+            except OSError as error:
+                if error.errno not in (errno.EACCES, errno.EADDRINUSE, 10013, 10048):
+                    raise
+                last = error
+                continue
+            reserved.callback(candidate.pop_all().close)
+            return number
+    raise RuntimeError("no compatible loopback port after 64 attempts") from last
 
 
 def fetch(url: str, context: ssl.SSLContext, data: dict | None = None) -> bytes:
@@ -77,22 +103,21 @@ def run_case(args: argparse.Namespace, name: str, report: dict) -> None:
     cert = service / "test/certs/localhost/cert.pem"
     key = service / "test/certs/localhost/key.pem"
     context = ssl.create_default_context(cafile=str(ca))
-    api, management, challenge, dns = port(), port(), port(), port(socket.SOCK_DGRAM)
-    # DNS binds both TCP and UDP; ensure the selected UDP port is also free for TCP.
-    with socket.socket() as handle:
-        handle.bind(("127.0.0.1", dns))
-    config = json.loads((service / "test/config/pebble-config.json").read_text())
-    config["pebble"].update(listenAddress=f"127.0.0.1:{api}",
-                           managementListenAddress=f"127.0.0.1:{management}",
-                           certificate=str(cert), privateKey=str(key))
-    # Without a requested profile, Pebble chooses a configured profile. The
-    # stock configuration also has a six-day profile, which correctly renews
-    # at our C fixture's 30-day threshold. This case checks retention instead.
-    config["pebble"]["profiles"] = {
-        "default": {"description": "90-day stored-certificate retention case",
-                    "validityPeriod": 90 * 86400}}
-    config_path = output / "pebble-config.json"
-    config_path.write_text(json.dumps(config, indent=2) + "\n")
+    with ExitStack() as reserved:
+        api, management, challenge = (port(reserved) for _ in range(3))
+        dns = port(reserved, (socket.SOCK_STREAM, socket.SOCK_DGRAM))
+        config = json.loads((service / "test/config/pebble-config.json").read_text())
+        config["pebble"].update(listenAddress=f"127.0.0.1:{api}",
+                               managementListenAddress=f"127.0.0.1:{management}",
+                               certificate=str(cert), privateKey=str(key))
+        # Without a requested profile, Pebble chooses a configured profile. The
+        # stock configuration also has a six-day profile, which correctly renews
+        # at our C fixture's 30-day threshold. This case checks retention instead.
+        config["pebble"]["profiles"] = {
+            "default": {"description": "90-day stored-certificate retention case",
+                        "validityPeriod": 90 * 86400}}
+        config_path = output / "pebble-config.json"
+        config_path.write_text(json.dumps(config, indent=2) + "\n")
     platform = "windows" if os.name == "nt" else "linux"
     suffix = ".exe" if os.name == "nt" else ""
     pebble = args.runtime / "bin" / platform / ("pebble" + suffix)

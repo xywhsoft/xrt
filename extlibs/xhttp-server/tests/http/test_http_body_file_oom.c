@@ -1,93 +1,32 @@
 #include "../test.h"
 
-#if defined(_WIN32) || defined(_WIN64)
-	#include <windows.h>
-#endif
-
-
-
 #define TEST_HTTP_BODY_FILE_OOM_LONG_PATH	4096u
 #define TEST_HTTP_BODY_FILE_OOM_ADOPT_LIMIT	256u
 
 
 
-/* 测试计数器只需要覆盖远小于 32 位上限的短期分配。 */
-#if defined(_WIN32) || defined(_WIN64)
-	typedef volatile LONG test_http_body_file_atomic;
-#else
-	typedef volatile uint32 test_http_body_file_atomic;
-#endif
+/* Use Core's allocation-free atomics so allocator callbacks also work on TCC. */
+typedef xatomic32 test_http_body_file_atomic;
 
 
 
-/* 无分配地读取测试原子计数器。 */
-static uint32 testHttpBodyFileAtomicLoad(
-	const test_http_body_file_atomic* pValue
-)
+static uint32 testHttpBodyFileAtomicLoad(const test_http_body_file_atomic* pValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return (uint32)InterlockedCompareExchange(
-			(volatile LONG*)pValue,
-			0,
-			0
-		);
-	#else
-		return __atomic_load_n(pValue, __ATOMIC_RELAXED);
-	#endif
+	return xrtAtomic32Load(pValue, XMEMORY_RELAXED);
 }
 
 
 
-/* 无分配地写入测试原子计数器。 */
-static void testHttpBodyFileAtomicStore(
-	test_http_body_file_atomic* pValue,
-	uint32 iValue
-)
+static void testHttpBodyFileAtomicStore(test_http_body_file_atomic* pValue, uint32 iValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		(void)InterlockedExchange(
-			(volatile LONG*)pValue,
-			(LONG)iValue
-		);
-	#else
-		__atomic_store_n(pValue, iValue, __ATOMIC_RELAXED);
-	#endif
+	xrtAtomic32Store(pValue, iValue, XMEMORY_RELAXED);
 }
 
 
 
-/* 无分配地增加测试原子计数器并返回旧值。 */
-static uint32 testHttpBodyFileAtomicAdd(
-	test_http_body_file_atomic* pValue,
-	uint32 iValue
-)
+static uint32 testHttpBodyFileAtomicAdd(test_http_body_file_atomic* pValue, uint32 iValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		LONG iOld;
-		LONG iNew;
-
-		do {
-			iOld = InterlockedCompareExchange(
-				(volatile LONG*)pValue,
-				0,
-				0
-			);
-			iNew = iOld + (LONG)iValue;
-		} while (
-			InterlockedCompareExchange(
-				(volatile LONG*)pValue,
-				iNew,
-				iOld
-			) != iOld
-		);
-		return (uint32)iOld;
-	#else
-		return __atomic_fetch_add(
-			pValue,
-			iValue,
-			__ATOMIC_RELAXED
-		);
-	#endif
+	return xrtAtomic32FetchAdd(pValue, iValue, XMEMORY_RELAXED);
 }
 
 
@@ -276,9 +215,9 @@ static void testHttpBodyFileOomClose(xasyncfile* pFile)
 int main(void)
 {
 	static test_http_body_file_oom State = {
-		0,
-		0,
-		0
+		XRT_ATOMIC32_INIT(0),
+		XRT_ATOMIC32_INIT(0),
+		XRT_ATOMIC32_INIT(0)
 	};
 	xallocator Allocator = {
 		&State,

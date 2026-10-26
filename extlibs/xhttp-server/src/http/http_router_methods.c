@@ -285,7 +285,7 @@ XHTTP_SERVER_API xhttprouterstatus xrtHttpRouterMethods(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_ROUTER_ERROR;
 	}
-	memcpy(pCount, &iCount, sizeof(iCount));
+	memcpy((void*)pCount, &iCount, sizeof(iCount));
 	if ( !__xrtHttpRoutePathValid(Path) ) {
 		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_ROUTER_ERROR;
@@ -298,7 +298,7 @@ XHTTP_SERVER_API xhttprouterstatus xrtHttpRouterMethods(
 			pRouter, Path, NULL
 		);
 	}
-	memcpy(pCount, &iCount, sizeof(iCount));
+	memcpy((void*)pCount, &iCount, sizeof(iCount));
 	if ( iCount == 0 ) {
 		return XHTTP_ROUTER_NOT_FOUND;
 	}
@@ -306,7 +306,7 @@ XHTTP_SERVER_API xhttprouterstatus xrtHttpRouterMethods(
 		return XHTTP_ROUTER_MORE;
 	}
 	if ( bLocal ) {
-		memcpy(pMethods, Local, iCount * sizeof(*pMethods));
+		memcpy((void*)pMethods, Local, iCount * sizeof(*pMethods));
 	} else {
 		(void)__xrtHttpRouterMethodsLarge(
 			pRouter, Path, pMethods

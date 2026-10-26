@@ -138,7 +138,8 @@ fail:
 
 uint64_t xllmSessionComputeSafetyReserve(uint64_t uContextWindowTokens)
 {
-    uint64_t uReserve = (uContextWindowTokens * 3u) / 100u;
+    uint64_t uReserve = (uContextWindowTokens / 100u) * 3u +
+        ((uContextWindowTokens % 100u) * 3u) / 100u;
     if ( uReserve < 8000u ) { uReserve = 8000u; }
     if ( uReserve > 32000u ) { uReserve = 32000u; }
     return uReserve;
@@ -207,8 +208,8 @@ xllm_session* xllmSessionCreate(const xllm_session_config* pConfig, xllm_error* 
     if ( (uint64_t)tConfig.uMaxOutputTokens + tConfig.uSafetyReserveTokens >= tConfig.uContextWindowTokens ||
          tConfig.uOutputReserveTokens > tConfig.uMaxOutputTokens ||
          (uint64_t)tConfig.uOutputReserveTokens + tConfig.uSafetyReserveTokens >= tConfig.uContextWindowTokens ||
-         tConfig.fPruneTrigger <= 0.0 || tConfig.fPruneTrigger >= 1.0 ||
-         tConfig.fCompactTrigger <= tConfig.fPruneTrigger || tConfig.fCompactTrigger > 1.0 ) {
+         !(tConfig.fPruneTrigger > 0.0 && tConfig.fPruneTrigger < 1.0 &&
+           tConfig.fCompactTrigger > tConfig.fPruneTrigger && tConfig.fCompactTrigger <= 1.0) ) {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "invalid session budget or pressure thresholds");
         return NULL;
     }
@@ -225,8 +226,8 @@ xllm_session* xllmSessionCreate(const xllm_session_config* pConfig, xllm_error* 
      * window quarter; explicit D6 violation of the static feasibility
      * check (keep-recent + reserves + summary > window) rejects creation. */
     if ( tConfig.uKeepRecentTokens == 0u ) {
-        tConfig.uKeepRecentTokens = (uint32_t)(tConfig.uContextWindowTokens / 4u);
-        if ( tConfig.uKeepRecentTokens > 20000u ) { tConfig.uKeepRecentTokens = 20000u; }
+        uint64_t uKeep = tConfig.uContextWindowTokens / 4u;
+        tConfig.uKeepRecentTokens = uKeep < 20000u ? (uint32_t)uKeep : 20000u;
     }
     if ( tConfig.uSummaryMaxBytes == 0u ) { tConfig.uSummaryMaxBytes = 32768u; }
     {
@@ -494,25 +495,37 @@ bool xllm_session__append_ledger_blocks(xllm_session_buf* pBuf, const xllm_sessi
 bool xllmSessionNoteFileRead(xllm_session* pSession, const char* sPath)
 {
     bool bAdded = false;
-    if ( !pSession || !sPath || !sPath[0] ) { return false; }
+    if ( !pSession || pSession->bInHook || !sPath || !sPath[0] ) { return false; }
     if ( !xllm_session__note_file(&pSession->psReadFiles, &pSession->iReadFileCount,
             &pSession->iReadFileCap, sPath, &bAdded) ) {
         return false;
     }
-    if ( bAdded ) { ++pSession->uRenderGeneration; }
-    return !bAdded || xllm_session__journal_append_ledger(pSession, "read", sPath);
+    if ( !bAdded ) return true;
+    if ( !xllm_session__journal_append_ledger(pSession, "read", sPath) ) {
+        free(pSession->psReadFiles[--pSession->iReadFileCount]);
+        pSession->psReadFiles[pSession->iReadFileCount] = NULL;
+        return false;
+    }
+    ++pSession->uRenderGeneration;
+    return true;
 }
 
 bool xllmSessionNoteFileModified(xllm_session* pSession, const char* sPath)
 {
     bool bAdded = false;
-    if ( !pSession || !sPath || !sPath[0] ) { return false; }
+    if ( !pSession || pSession->bInHook || !sPath || !sPath[0] ) { return false; }
     if ( !xllm_session__note_file(&pSession->psModifiedFiles, &pSession->iModifiedFileCount,
             &pSession->iModifiedFileCap, sPath, &bAdded) ) {
         return false;
     }
-    if ( bAdded ) { ++pSession->uRenderGeneration; }
-    return !bAdded || xllm_session__journal_append_ledger(pSession, "modified", sPath);
+    if ( !bAdded ) return true;
+    if ( !xllm_session__journal_append_ledger(pSession, "modified", sPath) ) {
+        free(pSession->psModifiedFiles[--pSession->iModifiedFileCount]);
+        pSession->psModifiedFiles[pSession->iModifiedFileCount] = NULL;
+        return false;
+    }
+    ++pSession->uRenderGeneration;
+    return true;
 }
 
 bool xllmSessionGetFileLedger(const xllm_session* pSession, xllm_file_ledger* pLedger)
@@ -558,16 +571,10 @@ bool xllmSessionSetSystemPrompt(xllm_session* pSession, const char* sText, xllm_
 bool xllmSessionAddAssistantResponse(xllm_session* pSession, uint64_t uTurn, const xllm_response* pResponse)
 {
     xllm_message tMessage;
-    size_t i;
     bool bOk = false;
     if ( !pSession || !pResponse ) { return false; }
-    xllmMessageInit(&tMessage, XLLM_ROLE_ASSISTANT);
-    if ( !xllmMessageSetContent(&tMessage, pResponse->sContent ? pResponse->sContent : "") ) goto done;
-    if ( pResponse->sReasoningContent && !xllmMessageSetReasoning(&tMessage, pResponse->sReasoningContent) ) goto done;
-    for ( i = 0u; i < pResponse->iToolCallCount; ++i ) {
-        const xllm_tool_call* pCall = &pResponse->pToolCalls[i];
-        if ( !xllmMessageAddToolCall(&tMessage, pCall->sId, pCall->sName, pCall->sArgumentsJson) ) goto done;
-    }
+    if ( !xllmMessageFromResponse(pResponse, &tMessage) ) return false;
+    if ( !tMessage.sContent && !tMessage.iPartCount && !xllmMessageSetContent(&tMessage, "") ) goto done;
     bOk = xllmSessionAddMessage(pSession, uTurn, &tMessage, 0u);
     if ( bOk ) {
         /* The exact-feedback loop: the response usage refreshes governance. */
@@ -782,8 +789,8 @@ bool xllmSessionGetStats(const xllm_session* pSession, xllm_session_stats* pStat
             uRaw += pSession->pEntries[i].uEstimatedTokens;
         }
     }
-    pStats->uPruneThresholdTokens = (uint64_t)((double)uInputBudget * pSession->tConfig.fPruneTrigger);
-    pStats->uCompactThresholdTokens = (uint64_t)((double)uInputBudget * pSession->tConfig.fCompactTrigger);
+    pStats->uPruneThresholdTokens = xllm_session__pressure_threshold(uInputBudget, pSession->tConfig.fPruneTrigger);
+    pStats->uCompactThresholdTokens = xllm_session__pressure_threshold(uInputBudget, pSession->tConfig.fCompactTrigger);
     bPrune = uRaw >= pStats->uPruneThresholdTokens;
     uRendered += uSummaryTokens;
     for ( i = 0u; i < pSession->iEntryCount; ++i ) {

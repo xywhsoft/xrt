@@ -55,6 +55,7 @@ python tools/measure_size.py --config extlibs/xllm/config/size_profiles.json --k
 | xpop3 | POP3 客户端 |
 | ximap | IMAP 客户端 |
 | xssh | 分层 SSH 协议 |
+| xrudp | 可靠 UDP 会话、重传与拥塞控制 |
 | xacme | ACME 证书申请与管理 |
 | xjwt | JWT/JWS 签发、验证与 JWKS |
 | xoauth2 | OAuth2 客户端与 OIDC 应用组合支持 |

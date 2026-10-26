@@ -44,3 +44,7 @@ python tools/package.py --manifest extlibs/xws-server/config/modules.json --suit
 事件在所属网络 Worker 上执行。消息视图仅在回调期间借用；Copy 复制数据，Ref 保留引用，Take 按原契约转移所有权。发送预算和异步队列有硬上限，控制帧预留、取消、失败清理与关闭顺序保持原行为。
 
 详细接口见 [API 参考](docs/api/reference.md)，整体边界见 [WebSocket 拆分说明](../xws/docs/design/websocket-runtime.md)。
+
+服务端配置、握手和路由配置的未对齐存储支持见对应公共头。快照的范围、重叠和借用边界
+在复制前检查；调用方自行用 `memcpy` 读取或写入原始存储时，使用显式 `const void*` 或
+`void*` 字节视图，避免编译器从结构体指针类型推导对齐要求。

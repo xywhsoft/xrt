@@ -253,27 +253,52 @@ fail:
     return false;
 }
 
+static bool xllm__message_add_response_part(xllm_message* pMessage,
+    xllm_part_kind eKind, const char* sText, const char* sNativeType)
+{
+    xllm_part tPart = {0};
+    if ( !xllm__utf8_valid(sText) ) return false;
+    tPart.eKind = eKind;
+    tPart.sText = (char*)(sText ? sText : "");
+    tPart.sNativeType = (char*)sNativeType;
+    return xllmMessageAddPart(pMessage, &tPart);
+}
+
 bool xllmMessageFromResponse(const xllm_response* pResponse, xllm_message* pMessage)
 {
     size_t i;
+    bool bSigned = false;
+    bool bText = false;
     if ( !pResponse || !pMessage ) { return false; }
     xllmMessageInit(pMessage, XLLM_ROLE_ASSISTANT);
-    if ( pResponse->sContent && !xllmMessageSetContent(pMessage, pResponse->sContent) ) goto fail;
     if ( pResponse->sReasoningContent && !xllmMessageSetReasoning(pMessage, pResponse->sReasoningContent) ) goto fail;
     for ( i = 0u; i < pResponse->iBlockCount; ++i ) {
         const xllm_block* pBlock = &pResponse->pBlocks[i];
         if ( pBlock->eKind == XLLM_BLOCK_REASONING && pBlock->sNative && pBlock->sNative[0] ) {
-            /* The signature is an opaque provider token, not JSON: build the
-             * NATIVE part fields directly instead of xllmPartSetNative. */
-            xllm_part tPart;
-            bool bOk;
-            xllmPartInit(&tPart, XLLM_PART_NATIVE);
-            bOk = xllm__replace(&tPart.sNativeType, "thinking_signature") &&
-                xllm__replace(&tPart.sText, pBlock->sNative) &&
-                xllmMessageAddPart(pMessage, &tPart);
-            xllm__part_unit(&tPart);
-            if ( !bOk ) { goto fail; }
+            bSigned = true;
+            break;
         }
+    }
+    if ( !bSigned ) {
+        if ( pResponse->sContent && !xllmMessageSetContent(pMessage, pResponse->sContent) ) goto fail;
+    } else {
+        /* Parts are authoritative. Keep text in parts as well, and put each
+         * opaque signature immediately after its own reasoning block. */
+        for ( i = 0u; i < pResponse->iBlockCount; ++i ) {
+            const xllm_block* pBlock = &pResponse->pBlocks[i];
+            if ( pBlock->eKind == XLLM_BLOCK_TEXT ) {
+                if ( !xllm__message_add_response_part(pMessage, XLLM_PART_TEXT, pBlock->sText, NULL) ) goto fail;
+                bText = true;
+            } else if ( pBlock->eKind == XLLM_BLOCK_REASONING ) {
+                if ( !xllm__message_add_response_part(pMessage, XLLM_PART_REASONING, pBlock->sText, NULL) ) goto fail;
+                if ( pBlock->sNative && pBlock->sNative[0] &&
+                     !xllm__message_add_response_part(pMessage, XLLM_PART_NATIVE,
+                         pBlock->sNative, "thinking_signature") ) goto fail;
+            }
+        }
+        /* Hand-built responses may provide joined text without TEXT blocks. */
+        if ( !bText && pResponse->sContent && pResponse->sContent[0] &&
+             !xllm__message_add_response_part(pMessage, XLLM_PART_TEXT, pResponse->sContent, NULL) ) goto fail;
     }
     for ( i = 0u; i < pResponse->iToolCallCount; ++i ) {
         const xllm_tool_call* pCall = &pResponse->pToolCalls[i];

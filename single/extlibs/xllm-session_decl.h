@@ -2525,8 +2525,8 @@ typedef struct xllm_session_config {
     uint32_t uSummaryMaxTokens;
     uint32_t uSummaryMinTokens;
     uint32_t uCompactionRequiredSections;
-    double fPruneTrigger;
-    double fCompactTrigger;
+    double fPruneTrigger;           /* finite; 0 < prune < compact <= 1 */
+    double fCompactTrigger;         /* NaN and infinity reject session creation */
     /* --- v3 additions (appended; ConfigInit assigns defaults) --- */
     uint32_t uKeepRecentTokens;      /* tail-window cut budget; 0 = derived min(20000, window/4) */
     uint32_t uSummaryMaxBytes;       /* summary byte cap (quality gate); 0 = 32768, clamped to window */
@@ -2565,7 +2565,7 @@ typedef struct xllm_session_stats {
     bool bJournalEnabled;
     xllm_session_pressure ePressure;
     /* --- v3 additions --- */
-    uint64_t uFillExact;            /* last observed prompt+output tokens; UINT64_MAX when unknown */
+    uint64_t uFillExact;            /* prompt+output, saturated at UINT64_MAX; unknown when !bFillExactValid */
     uint64_t uIncrementMax;         /* worst-case next-turn growth envelope (tokens) */
     uint64_t uCachedInputTokens;    /* last observed provider cache hit (observation only) */
     uint64_t uSummaryTokensExact;   /* current summary cost: meta-call output tokens */
@@ -2795,7 +2795,8 @@ XRT_API bool xllmSessionAddText(xllm_session* pSession, uint64_t uTurn, xllm_rol
  * message, so identity upgrades stay append-only (the journal records them)
  * without stacking blocks. The host owns identity; nothing here injects one. */
 XRT_API bool xllmSessionSetSystemPrompt(xllm_session* pSession, const char* sText, xllm_error* pError);
-/* Fold a model response (with tool calls) into the turn ledger. */
+/* Fold a model response with tool calls and native reasoning replay into the
+ * turn ledger, using xllmMessageFromResponse's owned-message conversion. */
 XRT_API bool xllmSessionAddAssistantResponse(xllm_session* pSession, uint64_t uTurn, const xllm_response* pResponse);
 /* Fold a tool result into the ledger, answering a pending call. */
 XRT_API bool xllmSessionAddToolResult(xllm_session* pSession, uint64_t uTurn, const char* sToolCallId, const char* sContent);
@@ -2853,7 +2854,8 @@ XRT_API bool xllmCompactionSetUsage(xllm_compaction* pCompaction, const xllm_usa
 /* Grade a summary (length, coverage) for compaction operators. */
 XRT_API bool xllmCompactionEvaluateSummary(const xllm_compaction* pCompaction, const char* sSummary,
     xllm_compaction_quality* pQuality, xllm_error* pError);
-/* Commit a compaction: replace the span with the summary and record it. */
+/* Commit a compaction: replace the span with the summary and record it.
+ * Exhausted counters return LIMIT without mutation; hook reentry returns HOOK. */
 XRT_API bool xllmSessionCommitCompaction(xllm_session* pSession, xllm_compaction* pCompaction, const char* sSummary, xllm_error* pError);
 /* Free a compaction object. */
 XRT_API void xllmCompactionDestroy(xllm_compaction* pCompaction);
@@ -2867,9 +2869,12 @@ XRT_API bool xllmSessionMaybeCompact(xllm_session* pSession, bool* pbCompact, xl
  * a truncate event. L3 (per-message cap rejection) happens at Add time. */
 XRT_API bool xllmSessionOverflowLadder(xllm_session* pSession, xllm_error* pError);
 
-/* Serialize the session to a JSONL archive (atomic write). */
+/* Atomically write a JSON snapshot (format v3), preserving all message parts,
+ * inline bytes and native replay data. The append journal uses JSONL. */
 XRT_API bool xllmSessionSave(const xllm_session* pSession, const char* sPath, xllm_error* pError);
-/* Restore a session from a JSONL archive. */
+/* Restore a JSON snapshot (v1/v2/v3). Wrong types, overflowing fields, invalid
+ * budgets and inconsistent sequences are parse errors. Optional absent fields
+ * retain old-format defaults; unsigned values keep their full uint64 range. */
 XRT_API xllm_session* xllmSessionLoad(const char* sPath, xllm_error* pError);
 
 /*

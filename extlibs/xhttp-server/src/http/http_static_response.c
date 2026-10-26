@@ -61,7 +61,7 @@ XHTTP_SERVER_API void xrtHttpStaticResponseConfigInit(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -85,7 +85,7 @@ static bool __xrtHttpStaticResponseConfigRead(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(pConfig, pInput, sizeof(*pConfig));
+	memcpy(pConfig, (const void*)pInput, sizeof(*pConfig));
 	return true;
 }
 
@@ -288,7 +288,7 @@ static bool __xrtHttpStaticResponseMeasure(
 			pPlan->CompleteLength;
 		if ( pPlan->Status ==
 			XHTTP_STATUS_PARTIAL_CONTENT ) {
-			memcpy(&Range, pRanges, sizeof(Range));
+			memcpy(&Range, (const void*)pRanges, sizeof(Range));
 			Measure.ContentRange.Satisfied = true;
 			Measure.ContentRange.First = Range.First;
 			Measure.ContentRange.Last = Range.Last;
@@ -684,7 +684,7 @@ static bool __xrtHttpStaticResponseWrite(
 		xrtSetErrorKind(XERR_INTERNAL);
 		return false;
 	}
-	memcpy(pResponse, &Response, sizeof(Response));
+	memcpy((void*)pResponse, &Response, sizeof(Response));
 	return true;
 }
 
@@ -719,7 +719,7 @@ XHTTP_SERVER_API bool xrtHttpStaticResponseBuild(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(&Plan, pPlan, sizeof(Plan));
+	memcpy(&Plan, (const void*)pPlan, sizeof(Plan));
 	if ( Plan.RangeCount >
 		(SIZE_MAX / sizeof(xhttpbyterange)) ) {
 		xrtSetErrorKind(XERR_ARGUMENT);
@@ -764,19 +764,19 @@ XHTTP_SERVER_API bool xrtHttpStaticResponseBuild(
 	}
 	if ( pResponse == NULL ) {
 		iRequired = Measure.Required;
-		memcpy(pSize, &iRequired, sizeof(iRequired));
+		memcpy((void*)pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
 	if ( iCapacity < Measure.Required ) {
 		iRequired = Measure.Required;
-		memcpy(pSize, &iRequired, sizeof(iRequired));
+		memcpy((void*)pSize, &iRequired, sizeof(iRequired));
 		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( (Measure.Required != 0) &&
 		(pWorkspace == NULL) ) {
 		iRequired = Measure.Required;
-		memcpy(pSize, &iRequired, sizeof(iRequired));
+		memcpy((void*)pSize, &iRequired, sizeof(iRequired));
 		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
@@ -790,7 +790,7 @@ XHTTP_SERVER_API bool xrtHttpStaticResponseBuild(
 		return false;
 	}
 	iRequired = Measure.Required;
-	memcpy(pSize, &iRequired, sizeof(iRequired));
+	memcpy((void*)pSize, &iRequired, sizeof(iRequired));
 	return true;
 }
 
