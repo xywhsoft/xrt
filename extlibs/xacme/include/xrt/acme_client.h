@@ -159,6 +159,8 @@ XRT_API bool xrtAcmeClientRevoke(
 	false 并保留当前内存密钥。成功后客户端即刻使用新钥；若指定
 	sStoreRoot 而重存失败，返回 false 但内存仍使用新钥，调用方可
 	用同一 sNewKeyPem 重试对账与持久化。
+	MEMORY 保留原始原因并立即返回，不自动对账或重试；调用方须保留
+	新钥供显式恢复。持久化使用的临时私钥文本在成功和失败时均清零后释放。
 */
 XRT_API bool xrtAcmeClientRollover(
 	struct xacmeclient* pClient,

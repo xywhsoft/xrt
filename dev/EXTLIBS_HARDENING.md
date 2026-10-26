@@ -38,7 +38,7 @@
 
 | 产品目录 | 实现模块 | 源文件 | tests | single_tests | examples | 本轮状态 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| xacme | 14 | 16 | 28 | 10 | HTTP 全量协议/覆盖率、Obtain 失败和私钥写出临时副本修复通过，flow/provider/RSA 导入复核继续 |
+| xacme | 14 | 16 | 28 | 10 | 1 | HTTP/Obtain/私钥副本、EAB/resolver 与换钥错误修复通过，flow/provider/RSA 导入复核继续 |
 | xhttp | 115 | 124 | 236 | 115 | 82 | 待复核 |
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
@@ -692,3 +692,46 @@ Retry-After 数值和总预算传播仍需分别验证。RSA 导入语义及六�
 `acme-eab-single-windows-final.log`、`acme-eab-single-linux-final.log`、
 `acme-eab-independent-final.log`、`acme-eab-mock-windows-final.log`、
 `acme-eab-mock-linux-final.log`、`acme-eab-mock-sanitize-final.log`。
+
+### 第二十一批：换钥 MEMORY 终止与持久化私钥清理
+
+- 同一 flow 的换钥只读对账仍在带 UNCERTAIN 的 MEMORY 后继续查询；外层换钥写入失败
+  也会自动对账。旧实现可以吞掉一次 MEMORY、切换内存钥并返回成功，持续 MEMORY 则查询三次。
+  持久化导出的新私钥直接 free，成功及存储失败都有未清零退休。18 个新增场景在旧实现失败 8 项。
+- 初始只读对账和写后自动对账均将 MEMORY 视为立即终止，保留同一不可变原因，不取下一 nonce、
+  不额外查询或重复写入。普通 I/O/超时保留已有有限恢复，写后对账只在证实成功时切换账户钥。
+  调用方显式使用保留的新钥仍可恢复，包括远端已经生效的 MEMORY 情形。
+- 持久化临时私钥在真正 Core free 前清零，保存成功、I/O、MEMORY、唯一输出分配失败及恢复均覆盖。
+  持久化失败仍保留已生效的新账户钥；重试只对账和重存，不再次换钥。探针读取有效存储期的真实字节，
+  并核对原错误身份、nonce/查询/写入/导出/保存计数、借用 PEM 不变及实际分配归零。
+- 新矩阵并入已有默认 flow 单头入口，完整 205 个分组在 Windows/Linux GCC、TCC 与
+  Clang ASan/UBSan/float-cast-overflow 加泄漏检查均通过。Windows/Linux 产品聚合入口分别
+  实际运行 38/37 个测试（二者均含 28 个模块化入口；单头为 10/9），离线套件通过。
+- 独立 TLS 模拟 CA 的四项原换钥回归在 Windows GCC、Linux GCC、Linux Clang sanitizer
+  分别通过：已执行但响应丢失、执行前断流、存储失败的部分成功、badNonce 外层重新签名。
+  检查实际远端换钥次数、旧钥保留、显式对账、证书与持久化配对，不把受控 MEMORY 边界冒称真实网络 OOM。
+  公开契约、生成实现/声明头、API/参考和发布检查通过。
+- resolver 提交 `e3102af0` 的 run `40346675809` 已最终 73/73 success。
+  EAB/聚合提交 `92571a88` 的 run `40352803330` 当时 66 项成功、7 项运行中，未发现失败；
+  独立邮件 `40352793835` 成功。已下载并核对成功 Windows job `121677128146` 的实际日志：
+  五个此前聚合遗漏的探针/消费入口均执行，且 EAB 的 74 场景通过；不再仅根据清单推断执行。
+
+证据：`acme-rollover-before.log`、`acme-rollover-windows-final.log`、
+`acme-rollover-linux-final.log`、`acme-rollover-tcc-final.log`、`acme-rollover-sanitize-final.log`、
+`acme-rollover-aggregate-windows-final.log`、`acme-rollover-aggregate-linux-final.log`、
+`acme-rollover-mock-windows-final.log`、`acme-rollover-mock-linux-final.log`、
+`acme-rollover-mock-sanitize-final.log`、`ci-eab-aggregate-windows-121677128146.log`。
+
+后续已复现但未在本批修复：
+
+- 当前订单要求授权数量等于去重域名数量。独立派生的实际公开 flow 夹具中，零授权、双授权均在
+  触及 DNS 前被拒绝，单授权控制成功；[RFC 8555 §7.1.3](https://datatracker.ietf.org/doc/html/rfc8555#section-7.1.3)
+  明确允许服务端策略决定授权数量，不保证一一对应。后续须在现有容量边界内支持不同数量，
+  不可用简单的一域一授权映射代替协议要求。
+- 若新账户钥就是当前客户端已知的证书钥，换钥仍成功、执行对账并替换内存钥；
+  [RFC 8555 §11.1](https://datatracker.ietf.org/doc/html/rfc8555#section-11.1) 要求拒绝已知用于其他用途的账户新钥。
+  已有 Issue 侧的反向检查不覆盖换钥入口。证据 `acme-rollover-known-cert-key-before.log`。
+- 总预算传播、Retry-After 数值、EAB 标识符、RSA 导入及其余 provider 复核尚未结束；
+  Route53 C 主文件已读，签名/XML 依赖和异常原因链仍需结合真实失败验证。
+
+授权数量证据：`acme-flow-authorizations-cardinality-before.log/json`。

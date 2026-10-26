@@ -2376,7 +2376,8 @@ static xacmerolloverlookup xacmeFlowRolloverLookup(
 				pClient->sNewAccount, "application/jose+json",
 				(xstrview){ sToken, strlen(sToken) }, &R))
 		{
-			bool bRetry = xacmeFlowHttpUncertain(xrtGetError());
+			bool bRetry = (xrtErrorKind(xrtGetError()) != XERR_MEMORY) &&
+				xacmeFlowHttpUncertain(xrtGetError());
 			xrtFree(sToken);
 			if(bRetry && (uAttempt + 1u < 3u))
 			{
@@ -2551,7 +2552,10 @@ bool xacmeClientRollover(
 					"application/jose+json",
 					(xstrview){ sOuter, strlen(sOuter) }, &R))
 			{
-				if(xacmeFlowHttpUncertain(xrtGetError()))
+				/* Allocation failure is terminal even if the remote outcome is
+				 * unknown. The caller retains the new key for explicit recovery. */
+				if((xrtErrorKind(xrtGetError()) != XERR_MEMORY) &&
+					xacmeFlowHttpUncertain(xrtGetError()))
 				{
 					xerror* pWriteError = xrtErrorRef(xrtGetError());
 					Lookup = xacmeFlowRolloverLookup(pClient, &NewKey);
@@ -2625,6 +2629,8 @@ ApplyNewKey:
 		str sNewAccountPem = xacmeKeyPemWrite(&pClient->AccountKey);
 		bool bSaved = (sNewAccountPem != NULL) && xrtAcmeStoreSaveAccount(
 			sStoreRoot, pClient->sDirectoryUrl, sNewAccountPem);
+		if(sNewAccountPem != NULL)
+			xrtSecureZero(sNewAccountPem, strlen(sNewAccountPem));
 		xrtFree(sNewAccountPem);
 		if(!bSaved)
 		{

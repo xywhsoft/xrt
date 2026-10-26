@@ -149,6 +149,16 @@ static bool EabPending;
 static size_t EabCapacity, EabDecodedSize;
 static unsigned EabWipes, EabLocalWipes, EabDirtyFrees, EabPosts;
 static uint64 EabStartAlloc, EabAllocations;
+typedef enum rolloverfaultstage { ROLLOVER_NO_FAULT, ROLLOVER_LOOKUP, ROLLOVER_WRITE } rolloverfaultstage;
+static bool RolloverProbe, RolloverUncertain, RolloverRemoteApplied, RolloverApplyWrite, RolloverExportOom;
+static rolloverfaultstage RolloverFaultStage;
+static xerror* RolloverError;
+static unsigned RolloverFailures, RolloverLookups, RolloverWrites, RolloverExports, RolloverSaves, RolloverDirtyFrees;
+static xerrkind RolloverStoreFailure;
+static uintptr_t RolloverPemAddress;
+static size_t RolloverPemSize;
+static bool RolloverPemPending;
+static cstr RolloverExpectedPem;
 static void eab_end_scan(void) {
     if(EabProbe && EabArmed && !EabEnded) {
         xmemdebugsnapshot S; xrtMemDebugSnapshot(&S);
@@ -189,7 +199,31 @@ static void flow_eab_zero(ptr Address,size_t Size) {
 }
 static void flow_eab_free(ptr Address) {
     if(EabProbe && Address && EabPending && EabDecodedAddress==(uintptr_t)Address) { EabDirtyFrees++; EabPending=false; }
+    if(RolloverProbe && Address && RolloverPemPending && RolloverPemAddress==(uintptr_t)Address) {
+        const uint8* Data=Address; uint8 Any=0;
+        for(size_t i=0;i<RolloverPemSize;i++) Any|=Data[i];
+        if(Any) RolloverDirtyFrees++;
+        RolloverPemPending=false;
+    }
     xrtFree(Address);
+}
+static str flow_account_export(const xacmees256key* Key) {
+    if(RolloverProbe) {
+        RolloverExports++;
+        if(RolloverExportOom) testRequire(xrtMemDebugFailAfter(0),"rollover export fault arm");
+    }
+    str Result=xacmeKeyPemWrite(Key);
+    if(RolloverProbe) {
+        if(RolloverExportOom) {
+            testRequire(!Result && xrtMemDebugFailTriggered(),"rollover export did not reach actual output allocation");
+            RolloverError=xrtErrorRef(xrtGetError()); xrtMemDebugFailClear();
+        }
+        if(Result) {
+            testRequire(!RolloverPemPending,"rollover exported overlapping private text");
+            RolloverPemPending=true; RolloverPemAddress=(uintptr_t)Result; RolloverPemSize=strlen(Result);
+        }
+    }
+    return Result;
 }
 static char LastNonce[512], Contact[401];
 static const char KeyPem[]=
@@ -280,6 +314,21 @@ static bool flow_exchange(xacmehttp* Http,cstr Method,cstr Url,cstr Type,xstrvie
     (void)Http; (void)Method; (void)Type;
     cstr Stage=NULL,Json=NULL,Location=NULL,Nonce="bm9uY2U"; unsigned Status=200;
     memset(R,0,sizeof(*R)); Requests++;
+    if(RolloverProbe && (strcmp(Url,"http://ca.example/account-new")==0 || strcmp(Url,"http://ca.example/key-change")==0)) {
+        bool Lookup=strcmp(Url,"http://ca.example/account-new")==0;
+        if(Lookup) RolloverLookups++;
+        else { RolloverWrites++; RolloverRemoteApplied=RolloverApplyWrite; }
+        if(RolloverFailures && RolloverFaultStage==(Lookup?ROLLOVER_LOOKUP:ROLLOVER_WRITE)) {
+            RolloverFailures--; xrtSetError(RolloverError); Http->bWriteUncertain=RolloverUncertain; return false;
+        }
+        Http->bWriteUncertain=false;
+        R->iStatus=(uint16)(Lookup?(RolloverRemoteApplied?200u:400u):200u);
+        R->sBody=duplicate(Lookup?(RolloverRemoteApplied?"{\"status\":\"valid\"}":
+            "{\"type\":\"urn:ietf:params:acme:error:accountDoesNotExist\"}"):"{}");
+        R->iBodySize=strlen(R->sBody); R->sReplayNonce=duplicate("ZnJlc2g");
+        if(Lookup && RolloverRemoteApplied) R->sLocation=duplicate("http://ca.example/account");
+        return true;
+    }
     if(EabProbe && strcmp(Url,"http://ca.example/nonce")==0) eab_end_scan();
     if(EabProbe && strcmp(Url,"http://ca.example/account-new")==0) {
         EabPosts++;
@@ -425,6 +474,14 @@ static bool flow_save_grant(cstr Root,cstr Domain,const xacmeissuegrant* Grant,c
     (void)Root;(void)Domain;(void)Grant;(void)Url; return !flow_store_failure("store-grant");
 }
 static bool flow_save_account(cstr Root,cstr Url,cstr Pem) {
+    if(RolloverProbe) {
+        RolloverSaves++;
+        testRequire(Root && strcmp(Root,"fixture-store")==0 && Url && strcmp(Url,"http://ca.example/dir")==0 &&
+            Pem && RolloverPemPending && (uintptr_t)Pem==RolloverPemAddress && strcmp(Pem,RolloverExpectedPem)==0,
+            "rollover store did not receive the new key's live owned export");
+        if(RolloverStoreFailure!=XERR_NONE) { xrtSetError(RolloverError); return false; }
+        return true;
+    }
     (void)Root;(void)Url;(void)Pem; return !flow_store_failure("store-account");
 }
 
@@ -462,6 +519,7 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #define xacmeJwkEcThumbprint flow_thumb
 #define xacmeCsrBuild flow_csr
 #define xacmeCertKeyPemWrite flow_export
+#define xacmeKeyPemWrite flow_account_export
 #define xrtBase64EncodeNew flow_base64
 #define xrtPemDecodeNew flow_decode
 #define xrtX509NameEqual flow_name_equal
@@ -494,6 +552,7 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #undef xacmeJwkEcThumbprint
 #undef xacmeCsrBuild
 #undef xacmeCertKeyPemWrite
+#undef xacmeKeyPemWrite
 #undef xrtBase64EncodeNew
 #undef xrtPemDecodeNew
 #undef xrtX509NameEqual
@@ -827,6 +886,107 @@ static void link_parser(void) {
     testRequire(!xacmeFlowLinkAlternate("<abcd>;rel=alternate",Output,0),"Link zero capacity accepted");
     printf("[PASS] FLOW Link grammar, relation association and output bounds (%zu vectors)\n",sizeof(Cases)/sizeof(Cases[0])+4u);
 }
+static xerror* rollover_error(xerrkind Kind,bool Uncertain) {
+    if(Kind==XERR_MEMORY) {
+        testRequire(xrtMemDebugFailAfter(0),"rollover worker allocation arm");
+        testRequire(xrtMalloc(1)==NULL && xrtMemDebugFailTriggered(),"rollover worker actual MEMORY cause");
+        xrtMemDebugFailClear();
+    } else xrtSetErrorInfo(Kind,"test.flow.rollover.worker",88,"rollover producer failed");
+    xerror* Root=xrtErrorRef(xrtGetError());
+    xerror* Error=Uncertain?xrtErrorWrap(Root,Kind,"xrt.acme.http",XACME_HTTP_ERROR_UNCERTAIN,"rollover result unknown"):
+        xrtErrorRef(Root);
+    testRequire(Error && xrtErrorKind(Error)==Kind && (!Uncertain || xrtErrorCause(Error)==Root),"rollover immutable cause publication");
+    xrtErrorFree(Root); xrtClearError(); return Error;
+}
+static void rollover_fault_policy(void) {
+    static const struct {
+        cstr Name; rolloverfaultstage Stage; xerrkind Kind; bool Uncertain; unsigned Failures;
+        bool Applied, Success; unsigned Lookups, Writes;
+    } Rows[]={
+        {"lookup-memory-once",ROLLOVER_LOOKUP,XERR_MEMORY,true,1,true,false,1,0},
+        {"lookup-memory-persistent",ROLLOVER_LOOKUP,XERR_MEMORY,true,4,true,false,1,0},
+        {"lookup-memory-plain",ROLLOVER_LOOKUP,XERR_MEMORY,false,1,true,false,1,0},
+        {"lookup-io-once",ROLLOVER_LOOKUP,XERR_IO,true,1,true,true,2,0},
+        {"lookup-io-exhausted",ROLLOVER_LOOKUP,XERR_IO,true,4,true,false,3,0},
+        {"lookup-timeout-once",ROLLOVER_LOOKUP,XERR_TIMEOUT,true,1,true,true,2,0},
+        {"lookup-timeout-exhausted",ROLLOVER_LOOKUP,XERR_TIMEOUT,true,4,true,false,3,0},
+        {"lookup-io-plain",ROLLOVER_LOOKUP,XERR_IO,false,1,true,false,1,0},
+        {"write-memory-applied",ROLLOVER_WRITE,XERR_MEMORY,true,1,true,false,1,1},
+        {"write-memory-not-applied",ROLLOVER_WRITE,XERR_MEMORY,true,1,false,false,1,1},
+        {"write-memory-plain",ROLLOVER_WRITE,XERR_MEMORY,false,1,true,false,1,1},
+        {"write-io-applied",ROLLOVER_WRITE,XERR_IO,true,1,true,true,2,1},
+        {"write-io-not-applied",ROLLOVER_WRITE,XERR_IO,true,1,false,false,2,1},
+        {"write-timeout-applied",ROLLOVER_WRITE,XERR_TIMEOUT,true,1,true,true,2,1}
+    };
+    xacmees256key NewKey={{0},{0}}; char NewPem[1024], SavedPem[1024]; unsigned Failed=0;
+    NewKey.Private[31]=1u; testRequire(xacmeEs256FromPrivate(&NewKey),"rollover fixed new key fixture");
+    str Encoded=xacmeKeyPemWrite(&NewKey); testRequire(Encoded && strlen(Encoded)<sizeof(NewPem),"rollover new PEM fixture");
+    strcpy(NewPem,Encoded); strcpy(SavedPem,Encoded); xrtSecureZero(Encoded,strlen(Encoded)); xrtFree(Encoded);
+    xrtClearError(); testMemoryDebugDrain("rollover fixture allocation");
+    for(size_t i=0;i<sizeof(Rows)/sizeof(Rows[0]);i++) {
+        Active=&Cases[0]; Enabled=Inject=Armed=false; FirstError=NULL;
+        struct xacmeclient* Client=create_client(false); testRequire(Client!=NULL,"rollover policy client fixture");
+        xacmees256key Old=Client->AccountKey;
+        RolloverError=rollover_error(Rows[i].Kind,Rows[i].Uncertain);
+        RolloverFaultStage=Rows[i].Stage; RolloverFailures=Rows[i].Failures; RolloverUncertain=Rows[i].Uncertain;
+        RolloverRemoteApplied=Rows[i].Stage==ROLLOVER_LOOKUP; RolloverApplyWrite=Rows[i].Applied;
+        RolloverExportOom=false; RolloverStoreFailure=XERR_NONE; RolloverPemPending=false;
+        RolloverLookups=RolloverWrites=RolloverExports=RolloverSaves=RolloverDirtyFrees=Requests=NonceRequests=Sleeps=0;
+        RolloverProbe=true;
+        bool Result=xrtAcmeClientRollover(Client,NewPem,NULL);
+        bool Same=xrtGetError()==RolloverError;
+        bool Ok=Result==Rows[i].Success && RolloverLookups==Rows[i].Lookups && RolloverWrites==Rows[i].Writes &&
+            NonceRequests==Rows[i].Lookups-1u && Sleeps==0u && RolloverExports==0u && RolloverSaves==0u &&
+            (Result?xrtGetError()==NULL:Same) && memcmp(&Client->AccountKey,Result?&NewKey:&Old,sizeof(NewKey))==0;
+        printf("[rollover-policy] %s success=%d lookups=%u writes=%u nonce=%u same-cause=%d ok=%d\n",
+            Rows[i].Name,Result,RolloverLookups,RolloverWrites,NonceRequests,Same,Ok);
+        /* A caller can reconcile the same retained new key explicitly after
+         * a terminal allocation failure, including a remotely applied write. */
+        RolloverFailures=0; RolloverRemoteApplied=true;
+        unsigned PriorLookups=RolloverLookups, PriorWrites=RolloverWrites;
+        testRequire(xrtAcmeClientRollover(Client,NewPem,NULL) && xrtGetError()==NULL &&
+            RolloverLookups==PriorLookups+1u && RolloverWrites==PriorWrites &&
+            memcmp(&Client->AccountKey,&NewKey,sizeof(NewKey))==0,"explicit rollover reconciliation failed or repeated write");
+        testRequire(strcmp(NewPem,SavedPem)==0,"rollover changed caller's new PEM");
+        RolloverProbe=false; xrtAcmeClientDestroy(Client); xrtErrorFree(RolloverError); RolloverError=NULL;
+        xrtSecureZero(&Old,sizeof(Old)); xrtClearError(); testMemoryDebugDrain("rollover policy retained allocations");
+        if(!Ok) Failed++; else printf("[PASS] FLOW rollover/%s\n",Rows[i].Name);
+    }
+    static const struct { cstr Name; xerrkind StoreFailure; bool ExportOom; } StoreRows[]={
+        {"store-success",XERR_NONE,false}, {"store-io",XERR_IO,false},
+        {"store-memory",XERR_MEMORY,false}, {"export-memory",XERR_NONE,true}
+    };
+    for(size_t i=0;i<sizeof(StoreRows)/sizeof(StoreRows[0]);i++) {
+        Active=&Cases[0]; Enabled=Inject=Armed=false; FirstError=NULL;
+        struct xacmeclient* Client=create_client(false); testRequire(Client!=NULL,"rollover store client fixture");
+        RolloverError=StoreRows[i].StoreFailure==XERR_NONE?NULL:rollover_error(StoreRows[i].StoreFailure,false);
+        RolloverFaultStage=ROLLOVER_NO_FAULT; RolloverFailures=0; RolloverRemoteApplied=false; RolloverApplyWrite=true;
+        RolloverExportOom=StoreRows[i].ExportOom; RolloverStoreFailure=StoreRows[i].StoreFailure;
+        RolloverPemPending=false; RolloverExpectedPem=NewPem;
+        RolloverLookups=RolloverWrites=RolloverExports=RolloverSaves=RolloverDirtyFrees=0;
+        RolloverProbe=true; xrtClearError();
+        bool Result=xrtAcmeClientRollover(Client,NewPem,"fixture-store");
+        bool Expected=StoreRows[i].StoreFailure==XERR_NONE && !StoreRows[i].ExportOom;
+        bool Ok=Result==Expected && (Result?xrtGetError()==NULL:xrtGetError()==RolloverError) &&
+            memcmp(&Client->AccountKey,&NewKey,sizeof(NewKey))==0 && RolloverLookups==1u && RolloverWrites==1u &&
+            RolloverExports==1u && RolloverSaves==(StoreRows[i].ExportOom?0u:1u) && !RolloverPemPending && RolloverDirtyFrees==0u;
+        printf("[rollover-retire] %s success=%d exports=%u saves=%u uncleared=%u same-cause=%d ok=%d\n",
+            StoreRows[i].Name,Result,RolloverExports,RolloverSaves,RolloverDirtyFrees,xrtGetError()==RolloverError,Ok);
+        RolloverRemoteApplied=true; RolloverExportOom=false; RolloverStoreFailure=XERR_NONE;
+        unsigned PriorSaves=RolloverSaves;
+        bool Recovered=xrtAcmeClientRollover(Client,NewPem,"fixture-store");
+        testRequire(Recovered && RolloverLookups==2u && RolloverWrites==1u && RolloverExports==2u &&
+            RolloverSaves==PriorSaves+1u && !RolloverPemPending && memcmp(&Client->AccountKey,&NewKey,sizeof(NewKey))==0 &&
+            strcmp(NewPem,SavedPem)==0 && xrtGetError()==NULL,"rollover persistence recovery changed key or repeated remote write");
+        Ok=Ok && RolloverDirtyFrees==0u;
+        RolloverProbe=false; xrtAcmeClientDestroy(Client); xrtErrorFree(RolloverError); RolloverError=NULL;
+        xrtClearError(); testMemoryDebugDrain("rollover persistence retained allocations");
+        if(!Ok) Failed++; else printf("[PASS] FLOW rollover/%s\n",StoreRows[i].Name);
+    }
+    xrtSecureZero(NewPem,sizeof(NewPem)); xrtSecureZero(SavedPem,sizeof(SavedPem)); xrtSecureZero(&NewKey,sizeof(NewKey));
+    printf("[rollover-summary] rows=%zu failed=%u\n",sizeof(Rows)/sizeof(Rows[0])+sizeof(StoreRows)/sizeof(StoreRows[0]),Failed);
+    testRequire(Failed==0u,"rollover replayed MEMORY, lost key state/cause or retired private text uncleared");
+}
 static bool eab_run(cstr Label,cstr Hmac,cstr Kid,int64 FailAfter,uint64* Allocations,bool Wire) {
     xacmeaccountconfig Account; xacmeclientconfig Config;
     char SavedText[5500]; testRequire(!Hmac || strlen(Hmac)<sizeof(SavedText),"EAB snapshot capacity"); strcpy(SavedText,Hmac?Hmac:"");
@@ -903,13 +1063,14 @@ static void eab_keys(bool Wire) {
     printf("[PASS] FLOW EAB key lengths, padding, secure retirement and allocation recovery\n");
 }
 int main(int argc,char** argv) {
+    if(argc==2 && strcmp(argv[1],"rollover-faults")==0) { rollover_fault_policy(); return 0; }
     if(argc==2 && strcmp(argv[1],"eab-keys")==0) { eab_keys(true); return 0; }
     if(argc==2 && strcmp(argv[1],"link-parser")==0) { link_parser(); return 0; }
     if((argc==2 || argc==3) && strcmp(argv[1],"read-retry")==0) { read_retry_policy(argc==3?argv[2]:NULL); return 0; }
     if(argc==2 && strcmp(argv[1],"resolver-endpoints")==0) { resolver_endpoints(); return 0; }
     testRequire(argc==1 || argc==3,"flow fixture usage: [name control|oom]");
     if(argc==2 && strcmp(argv[1],"alternate-urls")==0) { alternate_urls(); return 0; }
-    if(argc==1) { link_parser(); alternate_urls(); read_retry_policy(NULL); resolver_endpoints(); eab_keys(false); }
+    if(argc==1) { link_parser(); alternate_urls(); read_retry_policy(NULL); resolver_endpoints(); eab_keys(false); rollover_fault_policy(); }
     for(size_t i=0;i<sizeof(Cases)/sizeof(Cases[0]);i++) {
         if(argc==3 && strcmp(argv[1],Cases[i].Name)!=0) continue;
         if(argc==3) { bool Oom=strcmp(argv[2],"oom")==0; testRequire(Oom || strcmp(argv[2],"control")==0,"invalid flow mode"); run_case(&Cases[i],Oom); return 0; }

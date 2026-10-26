@@ -1380,6 +1380,8 @@ XRT_API bool xrtAcmeClientRevoke(
 	false 并保留当前内存密钥。成功后客户端即刻使用新钥；若指定
 	sStoreRoot 而重存失败，返回 false 但内存仍使用新钥，调用方可
 	用同一 sNewKeyPem 重试对账与持久化。
+	MEMORY 保留原始原因并立即返回，不自动对账或重试；调用方须保留
+	新钥供显式恢复。持久化使用的临时私钥文本在成功和失败时均清零后释放。
 */
 XRT_API bool xrtAcmeClientRollover(
 	struct xacmeclient* pClient,
@@ -11389,7 +11391,8 @@ static xacmerolloverlookup xacmeFlowRolloverLookup(
 				pClient->sNewAccount, "application/jose+json",
 				(xstrview){ sToken, strlen(sToken) }, &R))
 		{
-			bool bRetry = xacmeFlowHttpUncertain(xrtGetError());
+			bool bRetry = (xrtErrorKind(xrtGetError()) != XERR_MEMORY) &&
+				xacmeFlowHttpUncertain(xrtGetError());
 			xrtFree(sToken);
 			if(bRetry && (uAttempt + 1u < 3u))
 			{
@@ -11564,7 +11567,10 @@ bool xacmeClientRollover(
 					"application/jose+json",
 					(xstrview){ sOuter, strlen(sOuter) }, &R))
 			{
-				if(xacmeFlowHttpUncertain(xrtGetError()))
+				/* Allocation failure is terminal even if the remote outcome is
+				 * unknown. The caller retains the new key for explicit recovery. */
+				if((xrtErrorKind(xrtGetError()) != XERR_MEMORY) &&
+					xacmeFlowHttpUncertain(xrtGetError()))
 				{
 					xerror* pWriteError = xrtErrorRef(xrtGetError());
 					Lookup = xacmeFlowRolloverLookup(pClient, &NewKey);
@@ -11638,6 +11644,8 @@ ApplyNewKey:
 		str sNewAccountPem = xacmeKeyPemWrite(&pClient->AccountKey);
 		bool bSaved = (sNewAccountPem != NULL) && xrtAcmeStoreSaveAccount(
 			sStoreRoot, pClient->sDirectoryUrl, sNewAccountPem);
+		if(sNewAccountPem != NULL)
+			xrtSecureZero(sNewAccountPem, strlen(sNewAccountPem));
 		xrtFree(sNewAccountPem);
 		if(!bSaved)
 		{
