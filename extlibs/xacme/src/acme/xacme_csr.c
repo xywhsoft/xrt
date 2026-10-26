@@ -415,44 +415,6 @@ static bool xacmeRsaParsePkcs1(xdercursor* pCursor, xacmersakey* pKey)
 		(pKey->PrivateExponentSize != 0u);
 }
 
-/* RSA PKCS#1 写出（CRT 完整时带五参数）。 */
-static bool xacmeRsaWritePkcs1(const xacmersakey* pKey, xbuffer* pOut)
-{
-	xbuffer Body;
-	bool bOk;
-	xrtBufferInit(&Body);
-	bOk = xrtDerAppendUInt64(&Body, 0u) &&
-		xacmeDerAppendBigUint(
-			&Body, pKey->Modulus, pKey->ModulusSize) &&
-		xacmeDerAppendBigUint(
-			&Body, pKey->Exponent, pKey->ExponentSize) &&
-		xacmeDerAppendBigUint(
-			&Body, pKey->PrivateExponent, pKey->PrivateExponentSize);
-	if(bOk && (pKey->Prime1Size != 0u) && (pKey->Prime2Size != 0u) &&
-		(pKey->Exponent1Size != 0u) && (pKey->Exponent2Size != 0u) &&
-		(pKey->CoefficientSize != 0u))
-	{
-		bOk = xacmeDerAppendBigUint(
-				&Body, pKey->Prime1, pKey->Prime1Size) &&
-			xacmeDerAppendBigUint(
-				&Body, pKey->Prime2, pKey->Prime2Size) &&
-			xacmeDerAppendBigUint(
-				&Body, pKey->Exponent1, pKey->Exponent1Size) &&
-			xacmeDerAppendBigUint(
-				&Body, pKey->Exponent2, pKey->Exponent2Size) &&
-			xacmeDerAppendBigUint(
-				&Body, pKey->Coefficient, pKey->CoefficientSize);
-	}
-	if(bOk)
-	{
-		bOk = xrtDerAppend(
-			pOut, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
-			xrtBufferView(&Body));
-	}
-	xrtBufferUnit(&Body);
-	return bOk;
-}
-
 /* rsaEncryption AlgIdentifier（NULL 参数）。 */
 static bool xacmeRsaAlgId(xbuffer* pOut)
 {
@@ -701,14 +663,132 @@ bool xacmeCertKeyReadPem(cstr sPem, size_t iSize, xacmecertkey* pKey)
 	return bOk;
 }
 
+/* Ordinary Buffer/DerAppend scratch can retire copies during growth as well
+ * as Unit. Private-key export instead builds backwards in one bounded local
+ * area, validates the completed DER and allocates only the delivered PEM.
+ * The bound covers all eight RSA fields plus sign/length/container headers. */
+typedef struct xacmeprivateder {
+	uint8 Data[sizeof(xacmersakey) + 128u];
+	size_t At;
+} xacmeprivateder;
+
+static bool xacmePrivateDerPut(xacmeprivateder* pDer, const void* pData, size_t iSize)
+{
+	if(iSize > pDer->At)
+	{
+		xrtSetErrorInfo(XERR_INTERNAL, "xrt.acme.csr", XACME_CSR_ERROR_INTERNAL,
+			"acme private key DER exceeds fixed field capacity");
+		return false;
+	}
+	pDer->At -= iSize;
+	if(iSize != 0u) memcpy(pDer->Data + pDer->At, pData, iSize);
+	return true;
+}
+
+static bool xacmePrivateDerWrap(xacmeprivateder* pDer, uint8 Tag, size_t iEnd)
+{
+	uint8 Header[2u + sizeof(size_t)];
+	size_t iSize = iEnd - pDer->At, iHeader = 2u;
+	Header[0] = Tag;
+	if(iSize < 128u) Header[1] = (uint8)iSize;
+	else
+	{
+		size_t iBytes = 0u;
+		for(size_t i = iSize; i != 0u; i >>= 8u) iBytes++;
+		Header[1] = (uint8)(0x80u | iBytes);
+		for(size_t i = 0u; i < iBytes; i++)
+			Header[2u + i] = (uint8)(iSize >> ((iBytes - i - 1u) * 8u));
+		iHeader += iBytes;
+	}
+	return xacmePrivateDerPut(pDer, Header, iHeader);
+}
+
+static bool xacmePrivateDerUint(xacmeprivateder* pDer, xbytesview Value)
+{
+	static const uint8 Zero = 0u;
+	size_t iEnd = pDer->At;
+	while(Value.Size > 1u && Value.Data[0] == 0u) { Value.Data++; Value.Size--; }
+	return xacmePrivateDerPut(pDer, Value.Data, Value.Size) &&
+		((Value.Size != 0u && (Value.Data[0] & 0x80u) == 0u) ||
+			xacmePrivateDerPut(pDer, &Zero, 1u)) &&
+		xacmePrivateDerWrap(pDer, 0x02u, iEnd);
+}
+
+static str xacmePrivatePemWrite(const xacmees256key* pEc, const xacmersakey* pRsa)
+{
+	static const uint8 Version0[] = {0x02, 0x01, 0x00};
+	static const uint8 EcAlgorithm[] = {
+		0x30,0x13,0x06,0x07,0x2a,0x86,0x48,0xce,0x3d,0x02,0x01,
+		0x06,0x08,0x2a,0x86,0x48,0xce,0x3d,0x03,0x01,0x07};
+	static const uint8 RsaAlgorithm[] = {
+		0x30,0x0d,0x06,0x09,0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x01,0x01,0x05,0x00};
+	xacmeprivateder Der;
+	str sPem = NULL;
+	bool bOk;
+	Der.At = sizeof(Der.Data);
+	if(pEc != NULL)
+	{
+		static const uint8 Version1[] = {0x02, 0x01, 0x01};
+		static const uint8 Curve[] = {0x06,0x08,0x2a,0x86,0x48,0xce,0x3d,0x03,0x01,0x07};
+		static const uint8 Zero = 0u;
+		size_t iCurveEnd, iPrivateEnd;
+		bOk = xacmePrivateDerPut(&Der, pEc->Public, sizeof(pEc->Public)) &&
+			xacmePrivateDerPut(&Der, &Zero, 1u) &&
+			xacmePrivateDerWrap(&Der, 0x03u, sizeof(Der.Data)) &&
+			xacmePrivateDerWrap(&Der, 0xa1u, sizeof(Der.Data));
+		iCurveEnd = Der.At;
+		bOk = bOk && xacmePrivateDerPut(&Der, Curve, sizeof(Curve)) &&
+			xacmePrivateDerWrap(&Der, 0xa0u, iCurveEnd);
+		iPrivateEnd = Der.At;
+		bOk = bOk && xacmePrivateDerPut(&Der, pEc->Private, sizeof(pEc->Private)) &&
+			xacmePrivateDerWrap(&Der, 0x04u, iPrivateEnd) &&
+			xacmePrivateDerPut(&Der, Version1, sizeof(Version1)) &&
+			xacmePrivateDerWrap(&Der, 0x30u, sizeof(Der.Data));
+	}
+	else
+	{
+		xbytesview Fields[] = {
+			{pRsa->Modulus, pRsa->ModulusSize}, {pRsa->Exponent, pRsa->ExponentSize},
+			{pRsa->PrivateExponent, pRsa->PrivateExponentSize},
+			{pRsa->Prime1, pRsa->Prime1Size}, {pRsa->Prime2, pRsa->Prime2Size},
+			{pRsa->Exponent1, pRsa->Exponent1Size}, {pRsa->Exponent2, pRsa->Exponent2Size},
+			{pRsa->Coefficient, pRsa->CoefficientSize}};
+		size_t iCount = pRsa->Prime1Size && pRsa->Prime2Size && pRsa->Exponent1Size &&
+			pRsa->Exponent2Size && pRsa->CoefficientSize ? 8u : 3u;
+		bOk = true;
+		while(iCount != 0u && bOk) bOk = xacmePrivateDerUint(&Der, Fields[--iCount]);
+		bOk = bOk && xacmePrivateDerPut(&Der, Version0, sizeof(Version0)) &&
+			xacmePrivateDerWrap(&Der, 0x30u, sizeof(Der.Data));
+	}
+	bOk = bOk && xacmePrivateDerWrap(&Der, 0x04u, sizeof(Der.Data)) &&
+		xacmePrivateDerPut(&Der, pEc != NULL ? EcAlgorithm : RsaAlgorithm,
+			pEc != NULL ? sizeof(EcAlgorithm) : sizeof(RsaAlgorithm)) &&
+		xacmePrivateDerPut(&Der, Version0, sizeof(Version0)) &&
+		xacmePrivateDerWrap(&Der, 0x30u, sizeof(Der.Data));
+	if(bOk && xrtDerValidate(Der.Data + Der.At, sizeof(Der.Data) - Der.At))
+		sPem = xrtPemEncodeNew("PRIVATE KEY", Der.Data + Der.At, sizeof(Der.Data) - Der.At);
+	xrtSecureZero(&Der, sizeof(Der));
+	return sPem;
+}
+
+static bool xacmeRsaExportSizesValid(const xacmersakey* pKey)
+{
+	return pKey->ModulusSize != 0u && pKey->PrivateExponentSize != 0u &&
+		pKey->ModulusSize <= sizeof(pKey->Modulus) &&
+		pKey->ExponentSize <= sizeof(pKey->Exponent) &&
+		pKey->PrivateExponentSize <= sizeof(pKey->PrivateExponent) &&
+		pKey->Prime1Size <= sizeof(pKey->Prime1) && pKey->Prime2Size <= sizeof(pKey->Prime2) &&
+		pKey->Exponent1Size <= sizeof(pKey->Exponent1) && pKey->Exponent2Size <= sizeof(pKey->Exponent2) &&
+		pKey->CoefficientSize <= sizeof(pKey->Coefficient);
+}
+
 str xacmeCertKeyPemWrite(const xacmecertkey* pKey)
 {
 	if((pKey == NULL) ||
+		((pKey->Kind != XACME_CERT_KEY_ES256) && (pKey->Kind != XACME_CERT_KEY_RSA)) ||
 		((pKey->Kind == XACME_CERT_KEY_ES256) &&
 			(pKey->Ec.Public[0] != 0x04u)) ||
-		((pKey->Kind == XACME_CERT_KEY_RSA) &&
-			((pKey->Rsa.ModulusSize == 0u) ||
-				(pKey->Rsa.PrivateExponentSize == 0u))))
+		((pKey->Kind == XACME_CERT_KEY_RSA) && !xacmeRsaExportSizesValid(&pKey->Rsa)))
 	{
 		xrtSetErrorInfo(
 			XERR_ARGUMENT, "xrt.acme.csr", XACME_CSR_ERROR_ARGUMENT,
@@ -719,38 +799,7 @@ str xacmeCertKeyPemWrite(const xacmecertkey* pKey)
 	{
 		return xacmeKeyPemWrite(&pKey->Ec);
 	}
-	{
-		xbuffer Alg;
-		xbuffer Pkcs1;
-		xbuffer Body;
-		xbuffer Pkcs8;
-		str sPem = NULL;
-		bool bOk;
-		xrtBufferInit(&Alg);
-		xrtBufferInit(&Pkcs1);
-		xrtBufferInit(&Body);
-		xrtBufferInit(&Pkcs8);
-		bOk = xacmeRsaAlgId(&Alg) &&
-			xacmeRsaWritePkcs1(&pKey->Rsa, &Pkcs1) &&
-			xrtDerAppendUInt64(&Body, 0u) &&
-			xrtBufferAppend(&Body, xrtBufferView(&Alg)) &&
-			xrtDerAppend(
-				&Body, XASN1_UNIVERSAL, XASN1_OCTET_STRING, false,
-				xrtBufferView(&Pkcs1)) &&
-			xrtDerAppend(
-				&Pkcs8, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
-				xrtBufferView(&Body));
-		if(bOk && (Pkcs8.Data != NULL))
-		{
-			sPem = xrtPemEncodeNew(
-				"PRIVATE KEY", Pkcs8.Data, Pkcs8.Size);
-		}
-		xrtBufferUnit(&Alg);
-		xrtBufferUnit(&Pkcs1);
-		xrtBufferUnit(&Body);
-		xrtBufferUnit(&Pkcs8);
-		return sPem;
-	}
+	return xacmePrivatePemWrite(NULL, &pKey->Rsa);
 }
 
 /* 通用 PKCS#10 组装：骨架共享，SPKI/签名算法/签名按密钥算法分派。 */
@@ -844,82 +893,17 @@ bool xacmeCsrBuild(
 }
 
 /* ---------- 私钥 PEM 序列化 ---------- */
-/* ---------- 私钥 PEM 序列化 ---------- */
-
-/* SEC1：SEQ{ INT 1, OCTET d, [0]{曲线 OID}, [1]{BIT STRING pub} } */
-static bool xacmeSec1Der(const xacmees256key* pKey, xbuffer* pOut)
-{
-	xbuffer Curve;
-	xbuffer Pub;
-	xbuffer Sec1;
-	bool bOk;
-	xrtBufferInit(&Curve);
-	xrtBufferInit(&Pub);
-	xrtBufferInit(&Sec1);
-	bOk = xrtDerAppendOid(&Curve, XRT_STR_LITERAL("1.2.840.10045.3.1.7"))
-		&& xrtDerAppendUInt64(&Sec1, 1u)
-		&& xrtDerAppend(
-			&Sec1, XASN1_UNIVERSAL, XASN1_OCTET_STRING, false,
-			(xbytesview){ pKey->Private, XRT_P256_PRIVATE_SIZE })
-		&& xrtDerAppend(
-			&Sec1, XASN1_CONTEXT, 0u, true, xrtBufferView(&Curve))
-		&& xrtDerAppendBitString(
-			&Pub,
-			(xbytesview){ pKey->Public, XRT_P256_PUBLIC_SIZE },
-			0u)
-		&& xrtDerAppend(
-			&Sec1, XASN1_CONTEXT, 1u, true, xrtBufferView(&Pub))
-		&& xrtDerAppend(
-			pOut, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
-			xrtBufferView(&Sec1));
-	xrtBufferUnit(&Curve);
-	xrtBufferUnit(&Pub);
-	xrtBufferUnit(&Sec1);
-	return bOk;
-}
 
 str xacmeKeyPemWrite(const xacmees256key* pKey)
 {
-	xbuffer AlgId;
-	xbuffer Sec1;
-	xbuffer Body;
-	xbuffer Pkcs8;
-	str sPem = NULL;
-	bool bOk;
-
 	if((pKey == NULL) || (pKey->Public[0] != 0x04u))
 	{
 		xrtSetErrorInfo(
-			XERR_ARGUMENT,
-			"xrt.acme.csr",
-			XACME_CSR_ERROR_ARGUMENT,
-			"acme key pem write requires key with public point"
-		);
+			XERR_ARGUMENT, "xrt.acme.csr", XACME_CSR_ERROR_ARGUMENT,
+			"acme key pem write requires key with public point");
 		return NULL;
 	}
-	xrtBufferInit(&AlgId);
-	xrtBufferInit(&Sec1);
-	xrtBufferInit(&Body);
-	xrtBufferInit(&Pkcs8);
-	bOk = xrtDerAppendUInt64(&Body, 0u) /* PKCS#8 version 0 */
-		&& xacmeEcAlgId(&AlgId)
-		&& xrtBufferAppend(&Body, xrtBufferView(&AlgId))
-		&& xacmeSec1Der(pKey, &Sec1)
-		&& xrtDerAppend(
-			&Body, XASN1_UNIVERSAL, XASN1_OCTET_STRING, false,
-			xrtBufferView(&Sec1))
-		&& xrtDerAppend(
-			&Pkcs8, XASN1_UNIVERSAL, XASN1_SEQUENCE, true,
-			xrtBufferView(&Body));
-	if(bOk)
-	{
-		sPem = xrtPemEncodeNew("PRIVATE KEY", Pkcs8.Data, Pkcs8.Size);
-	}
-	xrtBufferUnit(&AlgId);
-	xrtBufferUnit(&Sec1);
-	xrtBufferUnit(&Body);
-	xrtBufferUnit(&Pkcs8);
-	return sPem;
+	return xacmePrivatePemWrite(pKey, NULL);
 }
 
 /* 解析 SEC1 内容（已进入最外层 SEQ）：INT ver, OCTET d, [0]?, [1]? */

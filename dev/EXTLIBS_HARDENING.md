@@ -38,7 +38,7 @@
 
 | 产品目录 | 实现模块 | 源文件 | tests | single_tests | examples | 本轮状态 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| xacme | 14 | 16 | 28 | 9 | 1 | HTTP 全量协议/覆盖率及 Obtain 账户失败修复通过，flow/provider/RSA 等源码复核继续 |
+| xacme | 14 | 16 | 28 | 10 | HTTP 全量协议/覆盖率、Obtain 失败和私钥写出临时副本修复通过，flow/provider/RSA 导入复核继续 |
 | xhttp | 115 | 124 | 236 | 115 | 82 | 待复核 |
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
@@ -555,3 +555,35 @@ HTTP 批次全量补记：`measure_acme_coverage.py --compiler gcc --temp-root /
 `net-server-publication-windows-final.log`、`net-server-publication-sanitize-final.log`、
 `net-server-publication-tcc-final.log`、`net-server-publication-repeat-windows-final.log`、
 `net-server-publication-repeat-sanitize-final.log`。
+
+远端补记：`1517d655` 的 run `40333596756` 中 macOS Apple Clang job `121609117936`
+已成功，稳定复现的取消发布窗口已在该平台验证。独立邮件 `40333586361` 成功；
+此时其他整仓任务仍在执行，不登记为 73/73 全绿。
+
+### 第十六批：ACME 私钥写出不再产生动态中间副本
+
+- 实际 Core 分配器、DER/PEM 与 ACME 写出源码的探针确认：五个正常夹具每次有
+  36–60 次分配，累计 33 个 ACME 缓冲在实际 Unit 前仍含私钥（每例 4/4/10/5/10 个）。
+  普通动态缓冲还会在扩容和 Core DER 临时组装时退休副本，仅擦除最终缓冲不能关闭这些路径。
+- EC/RSA 共用有界反向 DER 组装，容量由固定 RSA 字段加头部余量决定；完成后继续用 Core DER
+  验证与 PEM 编码。只有交付的 PEM 文本分配堆内存，整个局部 DER（含未使用区域和元数据）
+  在成功及分配失败返回前均用真实 volatile 清零。未更改普通 Core buffer/DER 的公共契约。
+- 新增默认 single_tests 探针：29 个正常/输出 OOM/恢复/DER 长度场景，实际分配计数排除
+  全部堆中间副本，观察真实私有区域清零并核对输入不变、往返身份和精确分配余额。
+  17 个长度越界、SIZE_MAX 和无效算法枚举场景在旧实现未按参数错误拒绝，修复后全部拒绝。
+- 14 种合成 RSA 长度测试仅验证编码布局，不声称密钥数学有效。独立对照的 21 份输出
+  与旧实现逐字节一致，包括高位补零、长度转换、全部字段容量、前导零及旧 n/e/d/不完整 CRT 回退。
+  外部 RSA PKCS#8 固定向量在默认测试中精确匹配；OpenSSL 3.5.5 对四份真实 EC/RSA 产物检查成功。
+- Windows/Linux GCC 的模块化 CSR 固定向量、单头导入/导出探针，以及 TCC、Clang
+  ASan/UBSan/float-cast-overflow 加泄漏检查均通过。原 CSR 的 94 个分配失败位置、两个读取入口各
+  1 个位置不变；写出从原 46 个分配点缩为唯一交付分配，该点失败保持 MEMORY 且局部 DER 清零。
+  另有五个写出路径的同类输出 OOM 与恢复断言。flow 的 176 个分组在 Clang sanitizer 下通过。
+- API/参考/生成/发布检查通过。此前 HTTP 全库覆盖率报告绑定 `71dd59c9`，不能冒充本批精确计数。
+  RSA 导入结构/算法语义、flow/provider 及其余源码继续；不将该编码路径视为全库敏感内存审计完成。
+
+证据：`acme-key-export-before-final.log`、`acme-key-export-tcc-final.log`、
+`acme-key-export-windows-final.log`、`acme-key-export-linux-final.log`、
+`acme-key-export-sanitize-final.log`、`acme-key-export-probe-windows-final.log`、
+`acme-key-export-probe-sanitize-final.log`、`acme-key-export-interop-final.log/json`、
+`acme-key-export-oom-windows-final.log`、`acme-key-export-oom-linux-final.log`、
+`acme-key-export-oom-sanitize-final.log`、`acme-key-export-flow-sanitize-final.log`。
