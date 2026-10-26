@@ -1026,6 +1026,41 @@ static bool dns_query_lifecycle(uint16 port)
 	return true;
 }
 
+/* Run the actual propagation splitter, flow and UDP query against the
+ * independently bound DNS peer. The malformed mode must create no UDP work. */
+static bool dns_resolver_endpoint(cstr endpoint, bool expected)
+{
+	xacmeclient client = {0};
+	xacmedns dns;
+	xnetengine* engine = create_engine();
+	xnetenginestats stats;
+	bool visible, ok;
+	double deadline;
+	if(engine == NULL || strlen(endpoint) >= sizeof(client.sPropagateResolvers[0]) ||
+		!xacmeDnsInit(&dns, engine)) return false;
+	strcpy(client.sPropagateResolvers[0], endpoint);
+	client.iPropagateResolverCount = 1u;
+	xrtClearError();
+	visible = xacmeFlowTxtVisible(&dns, &client, "resolver.test", "probe");
+	ok = visible == expected;
+	deadline = __xrtWaitAfter(5000);
+	do {
+		if(!xrtNetEngineStats(engine, &stats)) return false;
+		if(stats.LiveObjects == 0u) break;
+		xrtSleep(1u);
+	} while(!__xrtWaitExpired(deadline));
+	ok = stats.LiveObjects == 0u && xacmeDnsUnit(&dns) &&
+		xrtNetEngineState(engine) == XNET_ENGINE_RUNNING && ok;
+	if(!xrtNetEngineDestroy(engine)) return false;
+	if(!memory_empty() || !ok) {
+		fprintf(stderr, "DNS resolver endpoint=%s visible=%d expected=%d live=%zu failed\n",
+			endpoint, (int)visible, (int)expected, stats.LiveObjects);
+		return false;
+	}
+	printf("  DNS propagation endpoint=%s visible=%d, zero live UDP objects: passed\n", endpoint, (int)visible);
+	return true;
+}
+
 static bool constructor_faults(void)
 {
 	for(unsigned kind = 0u; kind < 5u; kind++) {
@@ -1099,7 +1134,12 @@ int main(int argc, char** argv)
 	if(ca == NULL) { fclose(file); return 2; }
 	if(fread(ca, 1u, (size_t)size, file) != (size_t)size) { free(ca); fclose(file); return 2; }
 	ca[size] = 0; fclose(file); TestCa = ca;
-	if(argc == 4) ok = strcmp(argv[2], "dns") == 0 && dns_query_lifecycle((uint16)strtoul(argv[3], NULL, 10));
+	if(argc == 4) {
+		if(strcmp(argv[2], "dns") == 0) ok = dns_query_lifecycle((uint16)strtoul(argv[3], NULL, 10));
+		else if(strcmp(argv[2], "dns-resolver") == 0) ok = dns_resolver_endpoint(argv[3], true);
+		else if(strcmp(argv[2], "dns-resolver-invalid") == 0) ok = dns_resolver_endpoint(argv[3], false);
+		else ok = false;
+	}
 	else if(argc == 3) {
 		if(strcmp(argv[2], "deferred") == 0) ok = deferred_ownership();
 		else if(strcmp(argv[2], "claimed") == 0) ok = deferred_claimed_owner();

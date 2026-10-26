@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import os
 import socket
 import struct
@@ -155,9 +156,22 @@ def lifecycle_case(client: Path, ca: Path) -> None:
     print("  all requests after cleanup rejected before connecting: passed")
 
 
-def dns_lifecycle_case(client: Path, ca: Path) -> None:
-    listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    listener.bind(("127.0.0.1", 0))
+def dns_lifecycle_case(client: Path, ca: Path, *, endpoint_mode: str | None = None) -> None:
+    family = socket.AF_INET6 if endpoint_mode in {"ipv6", "ipv6-expanded"} else socket.AF_INET
+    host = "::1" if family == socket.AF_INET6 else "127.0.0.1"
+    listener = None
+    try:
+        listener = socket.socket(family, socket.SOCK_DGRAM)
+        listener.bind((host, 0))
+    except OSError as exc:
+        if listener is not None:
+            listener.close()
+        if family == socket.AF_INET6 and (exc.errno in {
+                errno.EAFNOSUPPORT, errno.EADDRNOTAVAIL, errno.EPROTONOSUPPORT} or
+                getattr(exc, "winerror", None) in {10047, 10049}):
+            print(f"  DNS resolver {endpoint_mode}: IPv6 loopback unavailable ({exc.errno}), skipped", flush=True)
+            return
+        raise
     listener.settimeout(0.1)
     stop = threading.Event()
     errors = []
@@ -207,16 +221,38 @@ def dns_lifecycle_case(client: Path, ca: Path) -> None:
     worker = threading.Thread(target=serve, daemon=True)
     worker.start()
     try:
-        completed = subprocess.run([str(client), str(ca), "dns", str(listener.getsockname()[1])],
+        port = listener.getsockname()[1]
+        if endpoint_mode is None:
+            arguments = ["dns", str(port)]
+        else:
+            if family == socket.AF_INET6:
+                address = "0:0:0:0:0:0:0:1" if endpoint_mode == "ipv6-expanded" else host
+                endpoint = f"[{address}]:{port}"
+            else:
+                endpoint = f"{host}:{port}" + ("junk" if endpoint_mode == "invalid" else "")
+            arguments = ["dns-resolver-invalid" if endpoint_mode == "invalid" else "dns-resolver", endpoint]
+        completed = subprocess.run([str(client), str(ca), *arguments],
                                    capture_output=True, text=True, timeout=45)
         print(completed.stdout, end="", flush=True)
     finally:
         stop.set()
         worker.join(timeout=3)
+        if endpoint_mode == "invalid" and not worker.is_alive():
+            listener.setblocking(False)
+            try:
+                listener.recvfrom(2048)
+            except BlockingIOError:
+                pass
+            else:
+                errors.append("malformed resolver sent a delayed DNS query")
         listener.close()
     if completed.returncode != 0 or worker.is_alive() or errors:
         raise AssertionError(f"DNS UDP lifecycle failed: {completed.stderr}; server={errors}")
-    if not {"success.test", "nx.test", "bad.test", "timeout.test", "wrong-id.test"} <= seen:
+    if endpoint_mode == "invalid" and seen:
+        raise AssertionError(f"malformed resolver reached the DNS peer: {seen}")
+    if endpoint_mode is not None and endpoint_mode != "invalid" and seen != {"resolver.test"}:
+        raise AssertionError(f"resolver endpoint did not reach its independently bound peer: {seen}")
+    if endpoint_mode is None and not {"success.test", "nx.test", "bad.test", "timeout.test", "wrong-id.test"} <= seen:
         raise AssertionError(f"DNS UDP cases did not all reach the server: {seen}")
 
 
@@ -380,6 +416,9 @@ def main() -> None:
                 failures.append(f"public aggregate provider guards: {completed.stderr}")
         if "dns-lifecycle" in selected:
             check("DNS UDP lifecycle", lambda: dns_lifecycle_case(ownership_client, ca))
+            for endpoint_mode in ("ipv4", "invalid", "ipv6", "ipv6-expanded"):
+                check(f"DNS resolver endpoint {endpoint_mode}", lambda endpoint_mode=endpoint_mode:
+                      dns_lifecycle_case(ownership_client, ca, endpoint_mode=endpoint_mode))
         if "provider-bodies" in selected:
             body_client = build_client(build_root, args.compiler, args.sanitize,
                                        provider_bodies=True, coverage=coverage)

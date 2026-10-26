@@ -130,6 +130,8 @@ static const flowcase* Active;
 static bool Enabled, Inject, Armed, FirstReply, Finalized, InOperation;
 static unsigned Requests, NonceRequests, AuthzRequests, OrderRequests, LookupRequests, KeyChangeRequests, Sleeps, Adds, Removes;
 static unsigned ResolverQueries;
+static cstr ResolverEndpointExpected;
+static uint16 ResolverEndpointPort;
 static unsigned CertificateDecodes, AlternateRequests;
 static bool AlternateResponse;
 static char ResolverTxt[256];
@@ -371,6 +373,12 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
     char (*Records)[XACME_TXT_RECORD_MAX],size_t Capacity,size_t* Count) {
     if(!selected("resolver")) return xacmeDnsTxtQuery(Dns,Resolver,Port,Fqdn,Records,Capacity,Count);
     ResolverQueries++; *Count=0;
+    if(ResolverEndpointExpected) {
+        xnetaddr Actual,Expected;
+        testRequire(xrtNetAddrParse(&Actual,Resolver,Port) &&
+            xrtNetAddrParse(&Expected,ResolverEndpointExpected,ResolverEndpointPort) &&
+            xrtNetAddrEqual(&Actual,&Expected),"propagation queried a different resolver endpoint");
+    }
     if(named("resolver-advisory") ||
        ((named("resolver-memory-second") || named("resolver-fallback")) && ResolverQueries==1u)) {
         xrtSetErrorInfo(XERR_TIMEOUT,"test.flow.resolver",91,"resolver temporarily unavailable"); return false;
@@ -562,6 +570,74 @@ static void read_retry_policy(cstr Only) {
     }
     testRequire(Matched,"unknown read retry policy row");
 }
+static void resolver_endpoints(void) {
+    static const struct {cstr Text,Host;uint16 Port;} Rows[]={
+        {"127.0.0.1","127.0.0.1",53},{"127.0.0.1:5353","127.0.0.1",5353},
+        {"1.1.1.1:00053","1.1.1.1",53},{"::1","::1",53},{"[::1]","::1",53},
+        {"[::1]:5353","::1",5353},{"2001:db8::53","2001:db8::53",53},
+        {"2001:db8::1:5353","2001:db8::1:5353",53},
+        {"[2001:db8::1:5353]:65535","2001:db8::1:5353",65535},
+        {"::","::",53},{"::ffff:127.0.0.1","::ffff:127.0.0.1",53},
+        {"[::ffff:127.0.0.1]:53","::ffff:127.0.0.1",53},
+        {"fe80::1%7","fe80::1%7",53},{"[fe80::1%7]:5353","fe80::1%7",5353},
+        {"2001:DB8:0:0:0:0:0:1","2001:db8::1",53},
+        {"",NULL,0},{"127.0.0.1:",NULL,0},{"127.0.0.1:0",NULL,0},
+        {"127.0.0.1:65536",NULL,0},{"127.0.0.1:999999999999999999999999",NULL,0},
+        {"127.0.0.1:53junk",NULL,0},{"127.0.0.1:+53",NULL,0},{"127.0.0.1:-1",NULL,0},
+        {"127.0.0.1: 53",NULL,0},{"127.0.0.1:53 ",NULL,0},{":53",NULL,0},
+        {"[::1",NULL,0},{"[::1]junk",NULL,0},{"[::1]x:53",NULL,0},
+        {"[::1]:",NULL,0},{"[::1]:0",NULL,0},{"[::1]:65536",NULL,0},
+        {"resolver.example:53",NULL,0},{"127.1:53",NULL,0},{"127.000.000.001:53",NULL,0},
+        {"[127.0.0.1]:53",NULL,0},{"2001:db8::1:99999",NULL,0}
+    };
+    size_t Failures=0;
+    for(size_t i=0;i<sizeof(Rows)/sizeof(Rows[0]);++i) {
+        char Host[64];memset(Host,0xa5,sizeof(Host));xrtClearError();
+        xmemdebugsnapshot Before,After;xrtMemDebugSnapshot(&Before);
+        uint16 Port=xacmeFlowResolverPort(Rows[i].Text,Host,sizeof(Host));
+        bool Match=Port==Rows[i].Port;
+        if(Rows[i].Host) {
+            xnetaddr Actual,Expected;
+            Match=Match && xrtNetAddrParse(&Actual,Host,Port) &&
+                xrtNetAddrParse(&Expected,Rows[i].Host,Rows[i].Port) && xrtNetAddrEqual(&Actual,&Expected);
+            xrtMemDebugSnapshot(&After);
+            Match=Match && After.AllocCount==Before.AllocCount;
+        } else Match=Match && Host[0]==0 && xrtGetError()!=NULL;
+        if(!Match) {fprintf(stderr,"resolver endpoint row=%zu input=%s port=%u host=%s\n",i,Rows[i].Text,(unsigned)Port,Host);Failures++;}
+        xrtClearError();testMemoryDebugDrain("resolver parser retained allocations");
+    }
+    testRequire(Failures==0,"resolver endpoint parser changed address or accepted malformed input");
+    struct {char Host[4];uint8 Guard[8];} Exact;
+    memset(&Exact,0xa5,sizeof(Exact));
+    testRequire(xacmeFlowResolverPort("[::1]:5353",Exact.Host,sizeof(Exact.Host))==5353 &&
+        strcmp(Exact.Host,"::1")==0,"resolver exact host capacity");
+    testRequire(xacmeFlowResolverPort("[::1]:5353",Exact.Host,3u)==0 && Exact.Host[0]==0,"resolver must not use a truncated address");
+    for(size_t i=0;i<sizeof(Exact.Guard);++i) testRequire(Exact.Guard[i]==0xa5,"resolver wrote past host capacity");
+    xrtClearError();testRequire(xacmeFlowResolverPort(NULL,Exact.Host,sizeof(Exact.Host))==0 && Exact.Host[0]==0 &&
+        xrtErrorKind(xrtGetError())==XERR_ARGUMENT,"resolver NULL input");
+    xrtClearError();testRequire(xacmeFlowResolverPort("::1",NULL,4u)==0 && xrtErrorKind(xrtGetError())==XERR_ARGUMENT,"resolver NULL output");
+    xrtClearError();Exact.Host[0]='x';testRequire(xacmeFlowResolverPort("::1",Exact.Host,0)==0 && Exact.Host[0]=='x' &&
+        xrtErrorKind(xrtGetError())==XERR_ARGUMENT,"resolver zero capacity");
+    xrtClearError();testMemoryDebugDrain("resolver argument probes retained allocations");
+    printf("[PASS] FLOW resolver endpoint parsing (%zu vectors plus capacity/argument checks)\n",sizeof(Rows)/sizeof(Rows[0]));
+    {
+        const flowcase Probe={"resolver-endpoint",FLOW_ISSUE,FLOW_SUCCESS,"resolver",false};
+        xacmeclient Client={0};xacmedns Dns={0};
+        strcpy(Client.sPropagateResolvers[0],"127.0.0.1:53junk");
+        strcpy(Client.sPropagateResolvers[1],"[::1]:5353");Client.iPropagateResolverCount=2u;
+        Active=&Probe;Enabled=true;Inject=false;ResolverQueries=0;strcpy(ResolverTxt,"fixture-TXT");
+        ResolverEndpointExpected="::1";ResolverEndpointPort=5353;
+        testRequire(xacmeFlowTxtVisible(&Dns,&Client,"_acme-challenge.example.test",ResolverTxt) && ResolverQueries==1u,
+            "invalid resolver must be skipped before querying the valid IPv6 endpoint");
+        ResolverQueries=0;testRequire(xrtMemDebugFailAfter(0),"resolver parse diagnostic allocation fault arm");
+        bool Visible=xacmeFlowTxtVisible(&Dns,&Client,"_acme-challenge.example.test",ResolverTxt);
+        testRequire(!Visible && ResolverQueries==0u && xrtMemDebugFailTriggered() && xrtErrorKind(xrtGetError())==XERR_MEMORY,
+            "resolver parse MEMORY must stop before querying a later endpoint");
+        xrtMemDebugFailClear();ResolverEndpointExpected=NULL;Enabled=false;Active=NULL;xrtClearError();
+        testMemoryDebugDrain("resolver propagation probes retained allocations");
+        puts("[PASS] FLOW resolver propagation endpoint identity and parse OOM terminal policy");
+    }
+}
 static void run_case(const flowcase* Case,bool Oom) {
     Active=Case; Enabled=Case->Op==FLOW_CREATE; Inject=Oom; Armed=FirstReply=Finalized=false;
     Requests=NonceRequests=AuthzRequests=OrderRequests=LookupRequests=KeyChangeRequests=Sleeps=Adds=Removes=0; LastJson=NULL; FirstError=NULL;
@@ -687,9 +763,10 @@ static void link_parser(void) {
 int main(int argc,char** argv) {
     if(argc==2 && strcmp(argv[1],"link-parser")==0) { link_parser(); return 0; }
     if((argc==2 || argc==3) && strcmp(argv[1],"read-retry")==0) { read_retry_policy(argc==3?argv[2]:NULL); return 0; }
+    if(argc==2 && strcmp(argv[1],"resolver-endpoints")==0) { resolver_endpoints(); return 0; }
     testRequire(argc==1 || argc==3,"flow fixture usage: [name control|oom]");
     if(argc==2 && strcmp(argv[1],"alternate-urls")==0) { alternate_urls(); return 0; }
-    if(argc==1) { link_parser(); alternate_urls(); read_retry_policy(NULL); }
+    if(argc==1) { link_parser(); alternate_urls(); read_retry_policy(NULL); resolver_endpoints(); }
     for(size_t i=0;i<sizeof(Cases)/sizeof(Cases[0]);i++) {
         if(argc==3 && strcmp(argv[1],Cases[i].Name)!=0) continue;
         if(argc==3) { bool Oom=strcmp(argv[2],"oom")==0; testRequire(Oom || strcmp(argv[2],"control")==0,"invalid flow mode"); run_case(&Cases[i],Oom); return 0; }

@@ -3856,6 +3856,8 @@ struct xnetengine;
 	pAccount 必填；sPropagateResolvers 为空时使用内置默认组
 	（223.5.5.5 / 119.29.29.29 / 8.8.8.8，任一可见即通过），
 	uPropagateTimeoutMs 为 0 时默认 120 秒。
+	resolver 仅接受数字 IPv4/IPv6，缺省端口为 53；显式端口为 1-65535，
+	IPv6 带端口须用 [地址]:端口。格式错误项在传播探测时跳过，内存失败立即停止。
 */
 typedef struct xacmeclientconfig {
 	const xacmeaccountconfig* pAccount;

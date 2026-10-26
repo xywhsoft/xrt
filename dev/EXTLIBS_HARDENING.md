@@ -612,3 +612,29 @@ HTTP 批次全量补记：`measure_acme_coverage.py --compiler gcc --temp-root /
 
 源码复核继续：flow 已读到初始化/账户注册段；EAB 临时 MAC、resolver 的 IPv6/端口拆分、
 Retry-After 数值和总预算传播仍需分别验证。RSA 导入语义及六个 provider 源文件未结束验收。
+
+### 第十八批：ACME resolver IPv6、端口与查询地址保真
+
+- 原拆分按最后一个冒号和 atol 处理，`::1` 被改成地址 `:`、端口 1，
+  部分裸 IPv6/带 scope 的地址也被破坏；非法端口的数字前缀则会实际发出查询。
+  37 个端点向量中旧实现失败 29 项；独立 UDP 对端还复现 `:<port>junk` 得到有效 TXT，
+  确认回归触及真实网络，不能只靠返回码判断。
+- 复用 Core 的严格数字端点解析和地址格式化；裸 IPv4/IPv6 默认 53，显式 IPv6 端口用方括号，
+  范围为 1–65535。错误输入或容量不足返回失败并清空输出，不接受端口前缀、主机名或截断地址。
+  传播流程在创建 UDP 工作前跳过无效项；诊断分配失败保留 MEMORY 并停止后续 resolver。
+- 原默认 flow 故障套件增加端点向量、精确/不足容量、参数、传给 DNS 的实际地址身份、
+  无效项跳过和解析诊断 OOM。Windows/Linux GCC、TCC 及 Clang sanitizer 加泄漏检查各
+  186 个分组通过。合法数字端点的转换还核对零新增 Core 分配。
+- 既有独立 dns-lifecycle 分组新增真实传播入口，Windows GCC、Linux GCC 和 Clang sanitizer
+  分别运行原八项 UDP 场景及四项端点场景：IPv4、非法端口前缀、IPv6 压缩和完整写法。
+  无效端点不向对端发送数据；有效端点实际收到并解析 TXT，借用引擎保持运行，UDP 对象与分配归零。
+  本机三组均无 IPv6 skip；其他环境仅在地址族/IPv6 回环不可用时明确跳过两项 IPv6 对端测试，
+  不忽略权限、编译或协议失败。37 项解析向量不因网络环境跳过。
+- 公共配置说明同步；API/参考/生成/发布门禁通过。先前 `1517d655` run `40333596756`
+  最终 73/73 success，独立邮件 `40333586361` 成功；当前 resolver 变更仍需自己的 CI。
+
+证据：`acme-flow-resolver-before.log`、`acme-flow-resolver-wire-before.log`、
+`acme-flow-resolver-tcc-final.log`、`acme-flow-resolver-tcc-all-final.log`、
+`acme-flow-resolver-windows-final.log`、`acme-flow-resolver-linux-final.log`、
+`acme-flow-resolver-sanitize-final.log`、`acme-flow-resolver-wire-windows-final.log`、
+`acme-flow-resolver-wire-sanitize-final.log`。

@@ -963,33 +963,42 @@ static void xacmeFlowDnsRemove(
 /* ---------------- 传播确认 ---------------- */
 
 /*
-	解析 resolver 字符串："host"、"host:port" 或 "[v6]:port"。
-	无端口段或段非法时回退 53；输出去掉括号的 host 到定长缓冲。
+	复用严格数字端点解析：裸 IPv4/IPv6 默认 53，显式 IPv6 端口必须加括号。
+	成功交付规范地址与非零端口；无效输入或容量不足返回 0，不交付截断地址。
 */
 static uint16 xacmeFlowResolverPort(
 	cstr sResolver, char* sOutHost, size_t iHostCap)
 {
-	const char* sColon = strrchr(sResolver, ':');
-	size_t iHostLen;
-	if((sColon != NULL) && (sColon != sResolver))
+	xnetaddr Resolver;
+	size_t iRequired;
+	if(sOutHost != NULL && iHostCap != 0u) sOutHost[0] = '\0';
+	if(sResolver == NULL || sOutHost == NULL || iHostCap == 0u)
 	{
-		long v = atol(sColon + 1);
-		iHostLen = (size_t)(sColon - sResolver);
-		if((sResolver[0] == '[') && (iHostLen > 1u) &&
-			(sResolver[iHostLen - 1u] == ']'))
-		{
-			sResolver++;
-			iHostLen -= 2u;
-		}
-		if((v > 0) && (v <= 65535) && (iHostLen < iHostCap))
-		{
-			memcpy(sOutHost, sResolver, iHostLen);
-			sOutHost[iHostLen] = '\0';
-			return (uint16)v;
-		}
+		xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme resolver endpoint requires input and host output");
+		return 0u;
 	}
-	snprintf(sOutHost, iHostCap, "%s", sResolver);
-	return 53u;
+	xrtClearError();
+	if(!xrtNetAddrParseEndpoint(&Resolver, sResolver, 53u))
+	{
+		if(xrtGetError() == NULL)
+			xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+				"acme resolver endpoint invalid");
+		return 0u;
+	}
+	if(Resolver.Port == 0u)
+	{
+		xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ARGUMENT,
+			"acme resolver port must be nonzero");
+		return 0u;
+	}
+	iRequired = xrtNetAddrText(&Resolver, sOutHost, iHostCap);
+	if(iRequired == XRT_NPOS || iRequired >= iHostCap)
+	{
+		sOutHost[0] = '\0';
+		return 0u;
+	}
+	return Resolver.Port;
 }
 
 /* 任一配置 resolver 已返回期望 TXT 值即视为可见。 */
@@ -1006,6 +1015,12 @@ static bool xacmeFlowTxtVisible(
 			pClient->sPropagateResolvers[i], sHost, sizeof(sHost));
 		size_t iCount = 0u;
 		size_t j;
+		if(iPort == 0u)
+		{
+			if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
+			xrtClearError();
+			continue;
+		}
 		if(!xacmeDnsTxtQuery(
 				pDns, sHost, iPort, sFqdn, sRecords, 4u, &iCount))
 		{
