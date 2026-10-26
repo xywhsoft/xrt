@@ -673,7 +673,9 @@
 			"tests": [
 				"extlibs/xacme/tests/acme/test_obtain.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xacme/tests/single/test_single_obtain_account_fault.c"
+			],
 			"examples": [
 				"extlibs/xacme/examples/obtain/main.c"
 			],

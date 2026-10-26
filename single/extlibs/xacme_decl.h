@@ -4396,7 +4396,10 @@ XRT_API void xrtAcmeObtainConfigInit(xacmeobtainconfig* pConfig);
 	  3. 不足则完整 dns-01 签发并以 current 原子发布新版本
 	     （certs/<主域名>/.grant-<16hex>/{key.pem,fullchain.pem,meta.txt}）。
 	pOut 两段文本均 xrtFree（或 xrtAcmeGrantUnit 统一释放）。
-	失败返回 false 并设置线程错误。
+	只有账户读取明确返回 NOT_FOUND 才注册；其他存储错误立即失败。
+	账户私钥导出及持久化成功后才签发；子操作错误保留至临时客户端清理后。
+	失败返回 false 并设置线程错误，pOut 清零且 *pbRenewed=false（参数有效时）。
+	本函数拥有的账户私钥临时文本和失败产物私钥在释放前清零。
 	返回值只表示证书操作结果。临时客户端清理独立留出至少 30 秒
 	回滚预算；仍未退休时转移至待清理队列，宿主用
 	xrtAcmeCleanupPending 重试并在退出/卸载前确认全部释放。

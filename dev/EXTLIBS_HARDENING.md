@@ -38,7 +38,7 @@
 
 | 产品目录 | 实现模块 | 源文件 | tests | single_tests | examples | 本轮状态 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| xacme | 14 | 16 | 28 | 8 | 1 | core/JOSE、EC 导入/擦除、HTTP Future 修复定向通过，完整协议验证及其余源码继续 |
+| xacme | 14 | 16 | 28 | 9 | 1 | HTTP 全量协议/覆盖率及 Obtain 账户失败修复通过，flow/provider/RSA 等源码复核继续 |
 | xhttp | 115 | 124 | 236 | 115 | 82 | 待复核 |
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
@@ -504,3 +504,35 @@ run `40309007965` 均最终 73/73 success；各自的独立邮件 run `403070605
 `acme-http-future-tcc-final.log`、`acme-http-future-windows-final.log`、
 `acme-http-future-sanitize-final.log`、`acme-http-provider-regressions-final.log`、
 `acme-http-future-interop-sanitize-final.log`。
+
+HTTP 批次全量补记：`measure_acme_coverage.py --compiler gcc --temp-root /tmp` 成功退出，
+16 个自有 C 文件共 5789/6666 行（86.84%）、4753/6743 分支结果（70.49%），原 70%/55% 门禁不变。
+全部模块、独立 HTTP/TLS/所有权/provider、18 项 grant 对抗及 15 项模拟 CA 测试通过，无 skip。
+报告的 742 个去重输入哈希与 `71dd59c9` 全部相符（允许 Git checkout 换行差异），测量期间无输入变化。
+该报告绑定 HTTP 提交；随后 Obtain 的 5 个已测输入发生变化，不能将旧计数冒充新 Obtain 覆盖率。
+证据：`acme-http-future-coverage-final.log/json`、`acme-http-coverage-input-audit.json`。
+
+远端 `71dd59c9` 的 run `40329603967` 在 macOS 既有 server ownership 取消竞争断言失败
+（job `121595202596`）；尚未完成其他任务，不登记为全绿。独立邮件 `40329599491` 成功。
+该断言与 Future 终态发布的同步关系继续定位，保留原始失败日志。
+
+### 第十五批：ACME Obtain 账户持久化与失败原子性
+
+- 账户读取的 MEMORY/I/O/PERMISSION/STATE 被当作不存在继续开户；导出私钥失败仍继续签发；
+  保存失败的 MEMORY 被重写成 I/O，清理还可能覆盖原错误。新的 20 个场景在旧源码上全部失败。
+- 只有明确 NOT_FOUND 才允许 bootstrap，并清除这个已处理状态；读取其他错误立即停止，
+  导出/保存失败都不再调用后续阶段。保留真实子操作诊断；无诊断的失败补 INTERNAL。
+  清理前保留主错误，失败产物统一 GrantUnit 且 renewed=false。
+- 存储读取和新导出的账户私钥文本均在实际 Core free 前清零，失败证书私钥通过公共析构清零；
+  探针观察释放前字节，并断言创建/导出/保存/签发次数、临时客户端一次退休、调用方借用配置不变、
+  输出交付/回滚及真实分配余额。存储、客户端和清理为受控边界，不冒称真实 CA/文件系统端到端。
+- Windows/Linux GCC 清单（原公共测试、单头入口及新增 20 场景）、Linux/TCC 和
+  Clang ASan/UBSan/float-cast-overflow 加泄漏检查通过。实际 owned/borrowed 引擎及 Obtain Done
+  生命周期、聚合 provider 保护和八个 UDP 生命周期场景，在独立 Clang sanitizer 入口继续通过。
+- 新测试进入 acme_obtain 默认 single_tests；公开说明补全失败语义，API/参考/生成/发布检查通过。
+  HTTP 上一批全量覆盖率不覆盖本批新控制流，后续远端需验证本批提交。
+
+证据：`acme-obtain-account-probe.log`、`acme-obtain-fault-before.log/json`、
+`acme-obtain-account-windows-final.log`、`acme-obtain-account-linux-final.log`、
+`acme-obtain-account-tcc-final.log`、`acme-obtain-account-sanitize-final.log`、
+`acme-obtain-account-ownership-sanitize-final.log`。

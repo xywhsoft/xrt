@@ -1798,7 +1798,10 @@ XRT_API void xrtAcmeObtainConfigInit(xacmeobtainconfig* pConfig);
 	  3. 不足则完整 dns-01 签发并以 current 原子发布新版本
 	     （certs/<主域名>/.grant-<16hex>/{key.pem,fullchain.pem,meta.txt}）。
 	pOut 两段文本均 xrtFree（或 xrtAcmeGrantUnit 统一释放）。
-	失败返回 false 并设置线程错误。
+	只有账户读取明确返回 NOT_FOUND 才注册；其他存储错误立即失败。
+	账户私钥导出及持久化成功后才签发；子操作错误保留至临时客户端清理后。
+	失败返回 false 并设置线程错误，pOut 清零且 *pbRenewed=false（参数有效时）。
+	本函数拥有的账户私钥临时文本和失败产物私钥在释放前清零。
 	返回值只表示证书操作结果。临时客户端清理独立留出至少 30 秒
 	回滚预算；仍未退休时转移至待清理队列，宿主用
 	xrtAcmeCleanupPending 重试并在退出/卸载前确认全部释放。
@@ -15628,6 +15631,7 @@ bool xrtAcmeObtain(
 	str sStoredAccountPem = NULL;
 	str sFreshAccountPem = NULL;
 	bool bResult = false;
+	xerror* pCause = NULL;
 
 	if((pConfig == NULL) || (pConfig->pAccount == NULL) ||
 		(pDomains == NULL) || (iDomainCount == 0u) || (pDns == NULL) ||
@@ -15643,7 +15647,8 @@ bool xrtAcmeObtain(
 	memset(pOut, 0, sizeof(*pOut));
 	*pbRenewed = false;
 
-	/* 账户层：store 有则复用，无则开户后持久化。 */
+	xrtClearError();
+	/* 账户层：只有明确 NOT_FOUND 才可开户，存储故障必须停止。 */
 	Account = *pConfig->pAccount;
 	sStoredAccountPem = xrtAcmeStoreLoadAccount(
 		pConfig->sStoreRoot, Account.sDirectoryUrl);
@@ -15652,6 +15657,11 @@ bool xrtAcmeObtain(
 		Account.sAccountKeyPem = sStoredAccountPem;
 		Account.Eab.sKid = NULL; /* 复用账户无需再绑定。 */
 		Account.Eab.sHmac = NULL;
+	}
+	else
+	{
+		if(xrtErrorKind(xrtGetError()) != XERR_NOT_FOUND) goto Done;
+		xrtClearError();
 	}
 
 	xrtAcmeClientConfigInit(&ClientConfig);
@@ -15674,14 +15684,12 @@ bool xrtAcmeObtain(
 	if(sStoredAccountPem == NULL)
 	{
 		sFreshAccountPem = xrtAcmeClientAccountPem(pClient);
-		if((sFreshAccountPem != NULL) &&
-			!xrtAcmeStoreSaveAccount(
+		if(sFreshAccountPem == NULL) goto Done;
+		if(!xrtAcmeStoreSaveAccount(
 				pConfig->sStoreRoot, Account.sDirectoryUrl,
 				sFreshAccountPem))
 		{
-			/* 账户落盘失败不作废本次签发；续期时会再开新账户。 */
-			xacmeObtainError(
-				XERR_IO, "acme obtain save account failed");
+			/* 账户密钥导出和落盘成功后才允许签发。 */
 			goto Done;
 		}
 	}
@@ -15696,7 +15704,12 @@ bool xrtAcmeObtain(
 	bResult = true;
 
 Done:
+	if(!bResult && xrtGetError() == NULL)
+		xacmeObtainError(XERR_INTERNAL, "acme obtain backend failed without diagnostic");
+	pCause = bResult ? NULL : xrtErrorRef(xrtGetError());
+	if(sFreshAccountPem != NULL) xrtSecureZero(sFreshAccountPem, strlen(sFreshAccountPem));
 	xrtFree(sFreshAccountPem);
+	if(sStoredAccountPem != NULL) xrtSecureZero(sStoredAccountPem, strlen(sStoredAccountPem));
 	xrtFree(sStoredAccountPem);
 	if(pClient != NULL)
 	{
@@ -15707,10 +15720,10 @@ Done:
 	}
 	if(!bResult)
 	{
-		xrtFree(pOut->sFullchainPem);
-		xrtFree(pOut->sKeyPem);
-		memset(pOut, 0, sizeof(*pOut));
+		xrtAcmeGrantUnit(pOut);
+		*pbRenewed = false;
 	}
+	if(pCause != NULL) xrtSetErrorTake(pCause);
 	return bResult;
 }
 
