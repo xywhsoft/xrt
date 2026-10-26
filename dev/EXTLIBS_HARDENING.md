@@ -44,11 +44,11 @@
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 待复核 |
 | ximap | 11 | 9 | 22 | 15 | 5 | 待复核 |
-| xjwt | 1 | 4 | 3 | 2 | 1 | 四分片复核及关键头/JWKS/OOM 本地验证通过，CI 待确认 |
+| xjwt | 1 | 4 | 3 | 2 | 1 | 已完成本轮：源码、本地、双平台认证 CI 及交付验收 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
 | xmail | 19 | 19 | 27 | 18 | 14 | 待复核 |
-| xoauth2 | 1 | 3 | 3 | 2 | 4 | 源码/完整离线/故障/网络/交付本地验收通过，CI 待确认 |
+| xoauth2 | 1 | 3 | 3 | 2 | 4 | 已完成本轮：源码、本地、双平台认证 CI、Hydra 及交付验收 |
 | xpop3 | 6 | 4 | 10 | 6 | 4 | 待复核 |
 | xrudp | 19 | 20 | 76 | 97 | 0 | 待复核 |
 | xruntime | 36 | 23 | 87 | 42 | 30 | 待复核 |
@@ -394,3 +394,35 @@ OAuth HTTP 生命周期、token 流程及发现/身份组合仍需后续复核�
 `acme-jose-tcc-final.log`、`acme-jose-modular-windows-final.log`、
 `acme-jose-modular-linux-final.log`、`acme-jose-sanitize-final.log`、
 `acme-flow-diagnostic-sanitize-final.log`。
+
+### JWT / OAuth2 逐库验收核对
+
+本轮 21 个产品中，xjwt、xoauth2 两个产品完成验收，其余 19 个继续。
+验收绑定认证源码提交 `3da19a3fcf5806230cc74096d9c48015ee68a0a6`；随后 ACME 改动不修改该输入闭包。
+这不表示整仓最新提交或全部扩展已验收。
+
+| 完成条件 | xjwt 证据 | xoauth2 证据 |
+| --- | --- | --- |
+| 公开接口、依赖、生成资产 | 四分片及公开头复核；API/参考/生成/发布检查通过 | 三分片、公开头和四个示例复核；相同元数据检查通过 |
+| 不可信输入、数值、OOM、错误与失败原子性 | 签名关键头、JWK 元数据、受众全部类型、时间极值及三算法逐分配点扫描 | URL/配置别名、事务焚毁、token 字段/NUL/整数、流程/HTTP 各阶段故障及示例分配失败 |
+| 所有权与生命周期 | 签发 COW、缓存/JWKS/DER/私钥收尾和 sanitizer | copied/borrowed 配置、部分响应、owned/borrowed engine、取消/发送期限/退休和 sanitizer |
+| 回归先复现，再修复 | 关键头 119、签发 OOM 3、JWK 82、受众 12 项失败记录 | 授权 URL 13、配置别名 23 项失败记录 |
+| 完整离线与交付 | Windows/Linux 全套模块化/单头/示例；OpenSSL；包/裁剪/三形态体积/性能 smoke | Windows/Linux 全套、OIDC/示例；全组独立网络；包/裁剪/三形态体积/性能 smoke |
+| 适用平台与远端 | 双平台 JWT/OAuth 认证及本库 Extension/Metadata job 成功 | 相同双平台 job、本库 Extension/Metadata 及真实 Hydra HTTPS job 成功 |
+
+远端 run `40307069156` 中，Windows/Linux 认证 job 分别为 `121518695074`/`121518695099`，
+真实 Hydra HTTPS job 为 `121518695080`，均为 success；本库扩展与元数据 job 也均成功。
+此时该 run 的其他整仓任务仍在执行，未将它登记为 73/73 全绿。
+
+已下载两个平台的 `auth-coverage-*` 产物，核对四份报告中的全部自有源码和测试输入哈希：
+39 个去重输入与指定 Git 提交相符，当前工作树的相应文本内容也相符；只允许 Git checkout 的 LF/CRLF 差异，
+零其他内容差异。JWT 两平台各 1189/1267 行、881/1162 分支结果；
+OAuth Linux 为 1205/1303 行、859/1106 分支结果，Windows 为 1203/1303 行、859/1106 分支结果。
+原 85%/67%、91%/75% 门禁均通过。
+
+验收边界保留：JWT 的整数 NumericDate、文本 HMAC 密钥及当前支持算法；
+OAuth 不声称完成真实商业 provider 注册/线上凭据/长期运行验证。
+Hydra 为 CI 独立对端，不能替代这些环境；性能 smoke 没有固定基线，不作为吞吐回归结论。
+
+证据：此前各批本地日志及交付报告；`ci-auth-3da/auth-coverage-*`；
+`auth-ci-acceptance-input-audit.json`（含四份报告摘要、哈希和输入核对结果）。
