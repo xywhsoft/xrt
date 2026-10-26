@@ -1029,7 +1029,8 @@ typedef enum xacmeerror {
 
 
 
-/* External Account Binding；Kid 与 Hmac 均为借用视图，Hmac 为 base64url 文本。 */
+/* External Account Binding；Kid 与 Hmac 均为借用视图，Hmac 为 base64url 文本
+   （可带填充）。非空解码密钥可超过 HS256 的 64 字节分组长度；临时解码副本返回前清零。 */
 typedef struct xacmeeab {
 	cstr sKid;
 	cstr sHmac;
@@ -10162,6 +10163,66 @@ static void xacmeFlowChallengeDetail(
 	xrtValueRelease(pRoot);
 }
 
+/* The HMAC block size is not a key-length limit. Keep the common case local,
+ * and erase every decoded copy before returning, including failure paths. */
+static bool xacmeFlowEabAppend(
+	xbuffer* pPayload, const xacmeclient* pClient, const xacmeeab* pEab)
+{
+	static const xbase64config B64UrlPad = {
+		NULL, XBASE64_URL | XBASE64_OPTIONAL_PADDING
+	};
+	uint8 Mac[64];
+	bytes pMac = Mac;
+	bytes pAllocated = NULL;
+	size_t iMacSize = 0u, iCapacity = sizeof(Mac);
+	str sJwk = NULL, sEab = NULL;
+	bool bOk = false;
+	if((pEab->sHmac == NULL) || (pEab->sHmac[0] == '\0'))
+	{
+		xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
+			"acme client eab kid without hmac");
+		goto Done;
+	}
+	/* The size query validates the entire base64url input before
+	 * allocating or writing any secret bytes. Both padding forms are valid. */
+	if(!xrtBase64Decode(pEab->sHmac, strlen(pEab->sHmac),
+		NULL, 0u, &iMacSize, &B64UrlPad) || (iMacSize == 0u))
+		goto Invalid;
+	if(iMacSize > sizeof(Mac))
+	{
+		iCapacity = iMacSize;
+		pAllocated = (bytes)xrtMalloc(iCapacity);
+		if(pAllocated == NULL) goto Done;
+		pMac = pAllocated;
+	}
+	if(!xrtBase64Decode(pEab->sHmac, strlen(pEab->sHmac),
+		pMac, iCapacity, &iMacSize, &B64UrlPad)) goto Invalid;
+	sJwk = xacmeJwkEcJson(&pClient->AccountKey);
+	if(sJwk == NULL) goto Done;
+	sEab = xacmeJwsEabHs256(pEab->sKid, pClient->sNewAccount,
+		(xstrview){ sJwk, strlen(sJwk) }, pMac, iMacSize);
+	if(sEab == NULL) goto Done;
+	bOk = xrtBufferAppend(pPayload,
+		XRT_BYTES_LITERAL(",\"externalAccountBinding\":")) &&
+		xrtBufferAppend(pPayload,
+			(xbytesview){ (const uint8*)sEab, strlen(sEab) });
+	goto Done;
+Invalid:
+	if(xrtErrorKind(xrtGetError()) != XERR_MEMORY)
+		xacmeFlowError(XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
+			"acme client eab hmac invalid base64url");
+Done:
+	if(pAllocated != NULL)
+	{
+		xrtSecureZero(pAllocated, iCapacity);
+		xrtFree(pAllocated);
+	}
+	xrtSecureZero(Mac, sizeof(Mac));
+	xrtFree(sJwk);
+	xrtFree(sEab);
+	return bOk;
+}
+
 bool xacmeClientInit(
 	xacmeclient* pClient, struct xnetengine* pBorrowedEngine,
 	cstr sCaPem, const xacmeaccountconfig* pAccount, int64 uTimeoutMs)
@@ -10312,57 +10373,11 @@ bool xacmeClientInit(
 	}
 	if((pAccount->Eab.sKid != NULL) && (pAccount->Eab.sKid[0] != '\0'))
 	{
-		/* base64url 文本 MAC key（兼容带/不带填充）。 */
-		static const xbase64config B64UrlPad = {
-			NULL, XBASE64_URL | XBASE64_OPTIONAL_PADDING
-		};
-		uint8 Mac[64];
-		size_t iMacSize = 0u;
-		str sJwk = NULL;
-		str sEab = NULL;
-		if((pAccount->Eab.sHmac == NULL) || (pAccount->Eab.sHmac[0] == '\0'))
-		{
-			xrtBufferUnit(&Payload);
-			xacmeFlowError(
-				XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
-				"acme client eab kid without hmac");
-			goto Done;
-		}
-		if(!xrtBase64Decode(
-				pAccount->Eab.sHmac, strlen(pAccount->Eab.sHmac), Mac,
-				sizeof(Mac), &iMacSize, &B64UrlPad) ||
-			(iMacSize == 0u))
-		{
-			xrtBufferUnit(&Payload);
-			xacmeFlowError(
-				XERR_ARGUMENT, XACME_FLOW_ERROR_ACCOUNT,
-				"acme client eab hmac invalid base64url");
-			goto Done;
-		}
-		sJwk = xacmeJwkEcJson(&pClient->AccountKey);
-		if(sJwk != NULL)
-		{
-			sEab = xacmeJwsEabHs256(
-				pAccount->Eab.sKid, pClient->sNewAccount,
-				(xstrview){ sJwk, strlen(sJwk) }, Mac, iMacSize);
-		}
-		xrtFree(sJwk);
-		if(sEab == NULL)
+		if(!xacmeFlowEabAppend(&Payload, pClient, &pAccount->Eab))
 		{
 			xrtBufferUnit(&Payload);
 			goto Done;
 		}
-		if(!xrtBufferAppend(
-				&Payload, XRT_BYTES_LITERAL(",\"externalAccountBinding\":")) ||
-			!xrtBufferAppend(
-				&Payload,
-				(xbytesview){ (const uint8*)sEab, strlen(sEab) }))
-		{
-			xrtFree(sEab);
-			xrtBufferUnit(&Payload);
-			goto Done;
-		}
-		xrtFree(sEab);
 	}
 	if(!xrtBufferAppendByte(&Payload, (uint8)'}'))
 	{

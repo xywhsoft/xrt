@@ -3627,7 +3627,8 @@ typedef enum xacmeerror {
 
 
 
-/* External Account Binding；Kid 与 Hmac 均为借用视图，Hmac 为 base64url 文本。 */
+/* External Account Binding；Kid 与 Hmac 均为借用视图，Hmac 为 base64url 文本
+   （可带填充）。非空解码密钥可超过 HS256 的 64 字节分组长度；临时解码副本返回前清零。 */
 typedef struct xacmeeab {
 	cstr sKid;
 	cstr sHmac;

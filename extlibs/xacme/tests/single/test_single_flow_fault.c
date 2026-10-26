@@ -138,6 +138,59 @@ static char ResolverTxt[256];
 static double ResolverClock;
 static cstr LastJson;
 static xerror* FirstError;
+/* Observe decoded EAB keys only while their storage is alive: inside the
+ * actual SecureZero/free call. A missing wipe is detected by an outstanding
+ * observation, never by reading a saved stack pointer after Init returns. */
+static bool EabProbe, EabArmed, EabEnded, EabWire;
+static int64 EabFailAfter;
+static cstr EabText;
+static uintptr_t EabDecodedAddress;
+static bool EabPending;
+static size_t EabCapacity, EabDecodedSize;
+static unsigned EabWipes, EabLocalWipes, EabDirtyFrees, EabPosts;
+static uint64 EabStartAlloc, EabAllocations;
+static void eab_end_scan(void) {
+    if(EabProbe && EabArmed && !EabEnded) {
+        xmemdebugsnapshot S; xrtMemDebugSnapshot(&S);
+        EabAllocations=S.AllocCount-EabStartAlloc; EabEnded=true;
+        xrtMemDebugFailClear();
+    }
+}
+static bool flow_eab_decode(cstr Text,size_t Size,bytes Output,size_t Capacity,size_t* Written,const xbase64config* Config) {
+    bool DiagnosticFault=EabProbe && Text==EabText && EabFailAfter==-4;
+    if(DiagnosticFault) testRequire(xrtMemDebugFailAfter(0),"EAB decoder diagnostic fault arm");
+    bool Result=xrtBase64Decode(Text,Size,Output,Capacity,Written,Config);
+    if(DiagnosticFault) {
+        testRequire(!Result && xrtMemDebugFailTriggered(),"EAB decoder did not produce actual allocation failure");
+        FirstError=xrtErrorRef(xrtGetError()); xrtMemDebugFailClear();
+    }
+    if(EabProbe && Text==EabText) {
+        if(Result && Output) {
+            testRequire(!EabPending,"EAB probe saw overlapping decoded keys");
+            EabDecodedAddress=(uintptr_t)Output; EabPending=true;
+            EabCapacity=Capacity; EabDecodedSize=*Written;
+        }
+        if(Result && !EabArmed) {
+            xmemdebugsnapshot S; xrtMemDebugSnapshot(&S); EabStartAlloc=S.AllocCount; EabArmed=true;
+            if(EabFailAfter>=0) testRequire(xrtMemDebugFailAfter((uint64)EabFailAfter),"EAB fault arm");
+        }
+    }
+    return Result;
+}
+static void flow_eab_zero(ptr Address,size_t Size) {
+    xrtSecureZero(Address,Size);
+    if(EabProbe && Size==64u) EabLocalWipes++;
+    if(EabProbe && EabPending && EabDecodedAddress==(uintptr_t)Address) {
+        const uint8* Data=Address; uint8 Any=0;
+        testRequire(Size>=EabCapacity,"EAB cleared only part of decoded key storage");
+        for(size_t i=0;i<EabCapacity;i++) Any|=Data[i];
+        testRequire(Any==0,"actual EAB secure wipe left bytes"); EabWipes++; EabPending=false;
+    }
+}
+static void flow_eab_free(ptr Address) {
+    if(EabProbe && Address && EabPending && EabDecodedAddress==(uintptr_t)Address) { EabDirtyFrees++; EabPending=false; }
+    xrtFree(Address);
+}
 static char LastNonce[512], Contact[401];
 static const char KeyPem[]=
     "-----BEGIN PRIVATE KEY-----\n"
@@ -177,6 +230,7 @@ static str flow_eab(cstr Kid,cstr Url,xstrview Jwk,const uint8* Mac,size_t Size)
     arm("eab-sign"); str Result=xacmeJwsEabHs256(Kid,Url,Jwk,Mac,Size); if(!Result) remember(); return Result;
 }
 static str flow_sign(const xacmees256key* Key,const xacmejwsheader* H,xstrview Payload) {
+    eab_end_scan();
     if(H->Url.Size==strlen("http://ca.example/alternate") && memcmp(H->Url.Data,"http://ca.example/alternate",H->Url.Size)==0)
         testRequire(Payload.Size==0u,"alternate was not a signed POST-as-GET");
     if(H->Nonce.Size<sizeof(LastNonce)) { if(H->Nonce.Size) memcpy(LastNonce,H->Nonce.Data,H->Nonce.Size); LastNonce[H->Nonce.Size]=0; }
@@ -226,6 +280,11 @@ static bool flow_exchange(xacmehttp* Http,cstr Method,cstr Url,cstr Type,xstrvie
     (void)Http; (void)Method; (void)Type;
     cstr Stage=NULL,Json=NULL,Location=NULL,Nonce="bm9uY2U"; unsigned Status=200;
     memset(R,0,sizeof(*R)); Requests++;
+    if(EabProbe && strcmp(Url,"http://ca.example/nonce")==0) eab_end_scan();
+    if(EabProbe && strcmp(Url,"http://ca.example/account-new")==0) {
+        EabPosts++;
+        if(EabWire) printf("[eab-wire] %zu %s %.*s\n",EabDecodedSize,EabText,(int)Body.Size,Body.Data);
+    }
     if(ReadRetryProbe && strcmp(Url,"http://ca.example/read-retry")==0) {
         ReadRetryCalls++;
         if(ReadRetryFailures) {
@@ -412,7 +471,15 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #define xrtAcmeStoreNeedRenew flow_need_renew
 #define xrtAcmeStoreSaveGrant flow_save_grant
 #define xrtAcmeStoreSaveAccount flow_save_account
+#define xrtBase64Decode flow_eab_decode
+#define xrtSecureZero flow_eab_zero
+#undef xrtFree
+#define xrtFree flow_eab_free
 #include "../../src/acme/xacme_flow.c"
+#undef xrtFree
+#define xrtFree(pMemory) xrtFreeAt((pMemory), __FILE__, (uint32)__LINE__)
+#undef xrtSecureZero
+#undef xrtBase64Decode
 #undef xacmeDnsTxtQuery
 #undef xacmeHttpInit
 #undef xacmeHttpExchange
@@ -760,13 +827,89 @@ static void link_parser(void) {
     testRequire(!xacmeFlowLinkAlternate("<abcd>;rel=alternate",Output,0),"Link zero capacity accepted");
     printf("[PASS] FLOW Link grammar, relation association and output bounds (%zu vectors)\n",sizeof(Cases)/sizeof(Cases[0])+4u);
 }
+static bool eab_run(cstr Label,cstr Hmac,cstr Kid,int64 FailAfter,uint64* Allocations,bool Wire) {
+    xacmeaccountconfig Account; xacmeclientconfig Config;
+    char SavedText[5500]; testRequire(!Hmac || strlen(Hmac)<sizeof(SavedText),"EAB snapshot capacity"); strcpy(SavedText,Hmac?Hmac:"");
+    Active=&Cases[0]; Enabled=Inject=Armed=false; FirstError=NULL; xrtClearError();
+    xrtAcmeAccountConfigInit(&Account); xrtAcmeClientConfigInit(&Config);
+    Account.sDirectoryUrl="http://ca.example/dir"; Account.sAccountKeyPem=KeyPem;
+    Account.Eab.sKid=Kid; Account.Eab.sHmac=Hmac; Config.pAccount=&Account;
+    xacmeaccountconfig Saved=Account;
+    EabArmed=EabEnded=EabPending=false; EabText=Hmac; EabDecodedAddress=0; EabCapacity=EabDecodedSize=0;
+    EabWipes=EabLocalWipes=EabDirtyFrees=EabPosts=0; EabAllocations=0; EabFailAfter=FailAfter; EabWire=Wire; EabProbe=true;
+    struct xacmeclient* Client=xrtAcmeClientCreate(&Config);
+    bool Triggered=xrtMemDebugFailTriggered(); xerrkind Kind=xrtErrorKind(xrtGetError());
+    eab_end_scan();
+    bool Wiped=!EabPending && EabDirtyFrees==0u;
+    bool Ok=FailAfter==-4 ? Client==NULL && Kind==XERR_MEMORY && EabPosts==0u && EabDecodedSize==0u && EabLocalWipes==1u && Wiped :
+        FailAfter==-3 ? Client!=NULL && EabPosts==1u && EabDecodedSize==0u && EabLocalWipes==0u && Wiped :
+        FailAfter==-2 ? Client==NULL && Kind==XERR_ARGUMENT && EabPosts==0u && EabDecodedSize==0u && EabLocalWipes==1u && Wiped :
+        FailAfter<0 ? Client!=NULL && EabPosts==1u && EabDecodedSize!=0u && EabWipes==1u && EabLocalWipes==1u && Wiped :
+        Client==NULL && Triggered && Kind==XERR_MEMORY && EabPosts==0u && EabLocalWipes==1u && Wiped;
+    if(FirstError) testRequire(xrtGetError()==FirstError,"EAB lost original allocation error");
+    testRequire(Account.sDirectoryUrl==Saved.sDirectoryUrl && Account.sAccountKeyPem==Saved.sAccountKeyPem &&
+        Account.Eab.sKid==Saved.Eab.sKid && Account.Eab.sHmac==Saved.Eab.sHmac &&
+        Account.sContactEmail==Saved.sContactEmail && (!Hmac || strcmp(Hmac,SavedText)==0),"EAB modified borrowed account configuration");
+    if(Allocations) *Allocations=EabAllocations;
+    printf("[eab-key] %s fault=%lld success=%d decoded=%zu wipes=%u local-wipes=%u dirty-free=%u posts=%u allocations=%llu ok=%d\n",
+        Label,(long long)FailAfter,Client!=NULL,EabDecodedSize,EabWipes,EabLocalWipes,EabDirtyFrees,EabPosts,
+        (unsigned long long)EabAllocations,Ok);
+    EabProbe=false; xrtMemDebugFailClear(); xrtAcmeClientDestroy(Client);
+    xrtErrorFree(FirstError); FirstError=NULL; xrtClearError(); testMemoryDebugDrain("EAB retained logical allocations");
+    return Ok;
+}
+static void eab_keys(bool Wire) {
+    static const size_t Sizes[]={1u,11u,32u,63u,64u,65u,80u,128u,129u,512u,513u,4096u};
+    static const xbase64config Padded={NULL,XBASE64_URL}, Raw={NULL,XBASE64_URL|XBASE64_NO_PADDING};
+    uint8 Key[4096]; unsigned Failed=0, Runs=0; uint64 Faults=0;
+    for(size_t i=0;i<sizeof(Key);i++) Key[i]=(uint8)(17u+131u*i);
+    for(size_t i=0;i<sizeof(Sizes)/sizeof(Sizes[0]);i++) for(unsigned Padding=0;Padding<2u;Padding++) {
+        char Label[64]; snprintf(Label,sizeof(Label),"%zu-%s",Sizes[i],Padding?"padded":"raw");
+        str Encoded=xrtBase64EncodeNew((cstr)Key,Sizes[i],Padding?&Padded:&Raw);
+        testRequire(Encoded!=NULL,"EAB key fixture encoding");
+        /* Keep the fixture in local storage so per-run Core balance is exact. */
+        char Text[5500]; testRequire(strlen(Encoded)<sizeof(Text),"EAB fixture capacity");
+        strcpy(Text,Encoded); xrtFree(Encoded); xrtClearError(); testMemoryDebugDrain("EAB fixture retained allocation");
+        uint64 Allocations=0; bool Ok=eab_run(Label,Text,"fixture-\"kid\\",-1,&Allocations,Wire); Runs++;
+        if(!Ok) Failed++;
+        testRequire(strlen(Text)==((Sizes[i]+2u)/3u)*4u-(Padding?0u:((3u-Sizes[i]%3u)%3u)),"EAB modified borrowed HMAC text");
+        if(Ok && Padding==0u && (Sizes[i]==32u || Sizes[i]==129u)) {
+            testRequire(Allocations>0u && Allocations<128u,"EAB allocation scan bound");
+            for(uint64 N=0;N<Allocations;N++) {
+                if(!eab_run(Label,Text,"fixture-\"kid\\",(int64)N,NULL,false)) Failed++;
+                Runs++; Faults++;
+            }
+            if(!eab_run(Label,Text,"fixture-\"kid\\",-1,NULL,false)) Failed++;
+            Runs++;
+        }
+    }
+    static const cstr Invalid[]={NULL,"","!","A","AB","AA===","AA==suffix","AA A","+w","/w","AA\n"};
+    for(size_t i=0;i<sizeof(Invalid)/sizeof(Invalid[0]);i++) {
+        char Label[40]; snprintf(Label,sizeof(Label),"invalid-base64url-%zu",i);
+        if(!eab_run(Label,Invalid[i],"fixture-kid",-2,NULL,false)) Failed++;
+        Runs++;
+    }
+    if(!eab_run("zero-byte-raw","AA","fixture-kid",-1,NULL,false)) Failed++;
+    if(!eab_run("zero-byte-padded","AA==","fixture-kid",-1,NULL,false)) Failed++;
+    /* Core optional-padding mode also accepts this existing partial form. */
+    if(!eab_run("legacy-partial-padding","AA=","fixture-kid",-1,NULL,false)) Failed++;
+    if(!eab_run("no-kid","invalid ignored",NULL,-3,NULL,false)) Failed++;
+    if(!eab_run("empty-kid","invalid ignored","",-3,NULL,false)) Failed++;
+    if(!eab_run("decoder-diagnostic-memory","!","fixture-kid",-4,NULL,false)) Failed++;
+    Runs+=6u;
+    xrtSecureZero(Key,sizeof(Key));
+    printf("[eab-summary] runs=%u allocation-faults=%llu failed=%u\n",Runs,(unsigned long long)Faults,Failed);
+    testRequire(Failed==0u,"EAB key length, secure retirement or allocation failure regression");
+    printf("[PASS] FLOW EAB key lengths, padding, secure retirement and allocation recovery\n");
+}
 int main(int argc,char** argv) {
+    if(argc==2 && strcmp(argv[1],"eab-keys")==0) { eab_keys(true); return 0; }
     if(argc==2 && strcmp(argv[1],"link-parser")==0) { link_parser(); return 0; }
     if((argc==2 || argc==3) && strcmp(argv[1],"read-retry")==0) { read_retry_policy(argc==3?argv[2]:NULL); return 0; }
     if(argc==2 && strcmp(argv[1],"resolver-endpoints")==0) { resolver_endpoints(); return 0; }
     testRequire(argc==1 || argc==3,"flow fixture usage: [name control|oom]");
     if(argc==2 && strcmp(argv[1],"alternate-urls")==0) { alternate_urls(); return 0; }
-    if(argc==1) { link_parser(); alternate_urls(); read_retry_policy(NULL); resolver_endpoints(); }
+    if(argc==1) { link_parser(); alternate_urls(); read_retry_policy(NULL); resolver_endpoints(); eab_keys(false); }
     for(size_t i=0;i<sizeof(Cases)/sizeof(Cases[0]);i++) {
         if(argc==3 && strcmp(argv[1],Cases[i].Name)!=0) continue;
         if(argc==3) { bool Oom=strcmp(argv[2],"oom")==0; testRequire(Oom || strcmp(argv[2],"control")==0,"invalid flow mode"); run_case(&Cases[i],Oom); return 0; }

@@ -299,6 +299,9 @@ POST-as-GET 由客户端换新 nonce 和 JWS 后限次重试。
 内置 LE / LE staging / ZeroSSL / Google 预设常量；
 需要 EAB 的 CA 经 `xacmeeab`（Kid + base64url HMAC，RFC 8555 §7.3.4）
 在开户时自动绑定，联系方式走 `sContactEmail`。
+HMAC 文本兼容带/不带填充的 base64url，解码密钥须非空，支持超过 64 字节的密钥；
+64 字节是 SHA-256 的分组长度，不是 HMAC 密钥上限（[RFC 2104 §3](https://www.rfc-editor.org/rfc/rfc2104.html#section-3)）。
+成功和失败返回前均清零库内临时解码副本；调用方继续负责借用原文的存储与清理。
 切换 CA = 换参数，不换构建。
 
 `XACME_DIRECTORY_BUYPASS` 和 `XACME_DIRECTORY_BUYPASS_TEST` 保留为历史

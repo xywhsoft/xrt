@@ -656,3 +656,39 @@ Retry-After 数值和总预算传播仍需分别验证。RSA 导入语义及六�
 
 证据：`acme-aggregate-windows-final.log`、`acme-aggregate-linux-final.log`，
 以及 tools/test_build.py 中真实产品清单的三平台回归。
+
+### 第二十批：EAB 长 HMAC 密钥与临时副本清理
+
+- 实际开户入口的旧实现固定 Mac[64]：1/11/32/63/64 字节密钥成功后未清零，
+  65/80/128/129/512/513/4096 字节密钥则在签名前被拒绝。带/不带填充共 24 个
+  正常向量全部复现失败。HMAC 分组长度不是密钥长度上限；Core 的真实 HMAC 已支持长密钥。
+- 先用 Core 解码器验证输入并查询长度，常见长度保留局部 64 字节路径，长密钥只增加一个
+  精确容量的临时分配；JWK/JWS/载荷构造共用清理出口，成功、OOM、格式失败都清零整个局部区，
+  堆副本在真正 free 前清零。不修改调用方借用文本。长度查询增加一次输入校验扫描，
+  不声称零成本；测得 32 字节路径的该构造窗口仍为 15 次 Core 分配，129 字节路径为 16 次。
+- 已有默认 flow 故障入口新增 74 个场景：24 个长度/填充向量、31 个真实分配失败位置及恢复、
+  无效输入、零字节内容、Core 原有部分填充兼容及未启用 EAB 的兼容控制。
+  另有真实解码器诊断 OOM：注入在交付前结束，仍必须保留同一 MEMORY 原因，不能重写成参数错误。
+  每个失败都阻止开户 POST，借用配置保持不变，实际分配余额归零。
+- 探针只在真实 SecureZero/free 的有效存储期读取字节；跨返回仅保存整数地址和待清理状态，
+  不读取已结束生命周期的栈对象。核对解码区全容量清零、局部区清零调用及未清零堆释放。
+  全部 187 个 flow 分组分别通过 Windows/Linux GCC、Linux/TCC 与 Clang
+  ASan/UBSan/float-cast-overflow 加泄漏检查。Windows/Linux 完整产品聚合测试也通过；
+  最新生成的产品实现/声明单头及组件探针已再次运行。
+- 独立 Python HMAC 与 cryptography P-256 对 Windows/TCC/sanitizer 各 24 份真实构造报文
+  验证外层签名、相同账户 JWK、HS256/kid/url 和无 nonce 的 EAB 保护字段。
+  独立 TLS 模拟 CA 通过原短密钥、65 字节无填充、4096 字节带填充三条完整流程，
+  在 Windows GCC、Linux GCC 和 Linux Clang sanitizer 各执行一轮，包含签发、撤销、换钥、
+  store 与 Obtain 证书/私钥配对检查。新增两种长密钥流程并入既有 mock 测试，不修改 workflow。
+- 公开说明、生成文件、API/参考与发布门禁同步；未引入新的密钥最小长度策略。
+  EAB 标识符的其他协议约束、RSA 导入、flow 后半段与 provider 源码仍需继续，xacme 尚未整库验收。
+  只读重试提交 `bddc8353` 的 run `40341378249` 已 73/73 success；
+  resolver run `40346675809` 尚在运行，两者仍使用第十九批之前的聚合边界。
+
+证据：`acme-eab-before.log`、`acme-eab-windows-final.log`、
+`acme-eab-flow-windows-final.log`、`acme-eab-flow-linux-final.log`、
+`acme-eab-tcc-final.log`、`acme-eab-sanitize-final.log`、
+`acme-eab-aggregate-windows-final.log`、`acme-eab-aggregate-linux-final.log`、
+`acme-eab-single-windows-final.log`、`acme-eab-single-linux-final.log`、
+`acme-eab-independent-final.log`、`acme-eab-mock-windows-final.log`、
+`acme-eab-mock-linux-final.log`、`acme-eab-mock-sanitize-final.log`。

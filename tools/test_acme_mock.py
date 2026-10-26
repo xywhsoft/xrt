@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import base64
 import datetime
 import io
 import json
@@ -344,6 +345,19 @@ class AcmeMockFlowTests(unittest.TestCase):
 				"XACME_CONTACT_EMAIL": "ops@xxrpa.com",
 			},
 		)
+
+	def test_eab_keys_larger_than_hmac_block(self):
+		"""A block-size crossing and a larger padded key reach the real TLS CA."""
+		for size, padded in ((65, False), (4096, True)):
+			with self.subTest(size=size, padded=padded):
+				key = bytes((17 + 131 * i) & 255 for i in range(size))
+				text = base64.urlsafe_b64encode(key).decode("ascii")
+				if not padded:
+					text = text.rstrip("=")
+				run_flow_case(self, ["--eab", "mock-long-kid:" + text], {
+					"XACME_EAB_KID": "mock-long-kid",
+					"XACME_EAB_HMAC": text,
+				})
 
 	def test_transport_flakiness_retries(self):
 		"""GET 及一次 POST-as-GET 断流，验证只读请求重试。"""
