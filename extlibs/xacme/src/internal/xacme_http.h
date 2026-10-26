@@ -70,6 +70,8 @@ void xacmeHttpResponseUnit(xacmehttpresponse* pResponse);
 	sMethod 为 "GET"/"POST"；POST 空 body 即 POST-as-GET。
 	失败返回 false 并设置线程错误；响应不交付部分字段。
 	响应头/trailer 各最多 100 字段，正文最多 4 MiB；关闭定界 HTTPS 要求 close_notify。
+	异步失败保留内存/超时类别及生产任务的原因链；其他底层失败归入传输 I/O。
+	等待超时先请求取消，清理不覆盖原始错误。
 	URL 支持大小写等价的 http/https 与 IPv6 方括号；无路径查询使用 /?，片段不发送。
 	拒绝 userinfo、非法端口、非规范数值地址、未编码控制字符与畸形百分号编码。
 	DNS SNI/校验名去末尾根点；IP 字面量只校验证书身份，不发送 SNI。

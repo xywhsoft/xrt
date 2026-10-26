@@ -38,7 +38,7 @@
 
 | 产品目录 | 实现模块 | 源文件 | tests | single_tests | examples | 本轮状态 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| xacme | 14 | 16 | 28 | 7 | 1 | core/JOSE、EC 导入和解码 DER 擦除修复通过，RSA/写侧临时数据及其余源码继续 |
+| xacme | 14 | 16 | 28 | 8 | 1 | core/JOSE、EC 导入/擦除、HTTP Future 修复定向通过，完整协议验证及其余源码继续 |
 | xhttp | 115 | 124 | 236 | 115 | 82 | 待复核 |
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
@@ -479,3 +479,28 @@ Hydra 为 CI 独立对端，不能替代这些环境；性能 smoke 没有固定
 远端补记：认证提交 `3da19a3f` 的 run `40307069156`，以及 JOSE 提交 `0dd55edd` 的
 run `40309007965` 均最终 73/73 success；各自的独立邮件 run `40307060575`/`40308999365`
 也成功。新 EC 导入/擦除提交尚需各自当前 CI，不由此前全绿替代。
+
+### 第十四批：ACME HTTP Future 诊断、取消与失败收尾
+
+- 实际 Future/Promise、Core 分配器和 HTTP 解析器配合受控传输边界，覆盖连接、发送、
+  响应头/体及认证 EOF 的生产任务错误、直接失败、超时取消和错误包装分配失败。
+  同一最终 83 个场景在旧实现出现 63 项失败，修复后全数通过；另有 3 项无效参数输出检查通过。
+  每次失败后独立发起正常请求，核对上下文可继续使用，未自动重放失败请求。
+- 通过 Future 取回不可变生产任务错误，保留 MEMORY/TIMEOUT；其余底层异常在 HTTP 层
+  归入 I/O 并保留原因链。清理前持有原始错误，失败响应全零；超时先请求取消。
+  发送阶段仍位于 UNCERTAIN 原因帧之下，结果未知位独立于错误分配存在。
+- 真实 provider 回归发现两项中间实现问题：TLS EOF 的底层 PROTOCOL 不能阻断安全读取重试；
+  包装本身 OOM 必须报告 MEMORY，停止内存失败重试。均在源码修正，原有断言未放宽；
+  涉及五家 provider 的 19 项断流/重试/OOM 定向回归在 Clang sanitizer 下全部通过。
+- 新增测试登记在 acme_http 的默认 single_tests，Windows/GCC、Linux/TCC、
+  Linux/Clang ASan/UBSan/float-cast-overflow 加泄漏检查各 84 个分组通过。
+  原因链、取消通知、阶段调用次数、部分响应分配退休、真实分配无泄漏均有断言。
+  受控边界不能替代真实 TCP/TLS 和 engine 生命周期。完整独立 HTTP/TLS/所有权/UDP/生命周期
+  及全部 721 项 provider 场景随后在 Clang sanitizer 加泄漏检查下通过；全量覆盖率进入模拟 CA 阶段。
+- API/参考/生成/发布门禁通过。上一批 `9038dbf0` 对应 CI `40318715631` 最终 73/73 success，
+  独立邮件 `40318707544` success；新 HTTP 改动需自己的远端结果。
+
+证据：`acme-http-future-before-final.log/json`、`acme-http-arguments-before.log`、
+`acme-http-future-tcc-final.log`、`acme-http-future-windows-final.log`、
+`acme-http-future-sanitize-final.log`、`acme-http-provider-regressions-final.log`、
+`acme-http-future-interop-sanitize-final.log`。

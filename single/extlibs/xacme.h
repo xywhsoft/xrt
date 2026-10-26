@@ -1955,6 +1955,8 @@ void xacmeHttpResponseUnit(xacmehttpresponse* pResponse);
 	sMethod 为 "GET"/"POST"；POST 空 body 即 POST-as-GET。
 	失败返回 false 并设置线程错误；响应不交付部分字段。
 	响应头/trailer 各最多 100 字段，正文最多 4 MiB；关闭定界 HTTPS 要求 close_notify。
+	异步失败保留内存/超时类别及生产任务的原因链；其他底层失败归入传输 I/O。
+	等待超时先请求取消，清理不覆盖原始错误。
 	URL 支持大小写等价的 http/https 与 IPv6 方括号；无路径查询使用 /?，片段不发送。
 	拒绝 userinfo、非法端口、非规范数值地址、未编码控制字符与畸形百分号编码。
 	DNS SNI/校验名去末尾根点；IP 字面量只校验证书身份，不发送 SNI。
@@ -3330,18 +3332,33 @@ static bool xacmeHttpMethodReadOnly(cstr sMethod)
 		((strcmp(sMethod, "GET") == 0) || (strcmp(sMethod, "HEAD") == 0));
 }
 
+static void xacmeHttpContextError(xacmehttperror Code, cstr sMessage, bool bTransport)
+{
+	xerror* pCause = xrtErrorRef(xrtGetError());
+	xerror* pContext;
+	xerrkind Kind;
+	if(pCause == NULL)
+	{
+		xrtSetErrorInfo(XERR_IO, "xrt.acme.http", (int32)Code, sMessage);
+		return;
+	}
+	Kind = xrtErrorKind(pCause);
+	/* TLS alerts/EOF may be protocol errors in the lower layer, but remain
+	 * transport failures here. Preserve allocation/timeout categories and the
+	 * complete original cause while keeping safe read-only retry semantics. */
+	if(bTransport && Kind != XERR_MEMORY && Kind != XERR_TIMEOUT) Kind = XERR_IO;
+	pContext = xrtErrorWrap(pCause, Kind, "xrt.acme.http", (int32)Code, sMessage);
+	if(pContext != NULL) xrtSetErrorTake(pContext);
+	/* A failed context allocation is itself MEMORY: callers must stop
+	 * allocation-failing retries. The independent write-unknown bit survives. */
+	xrtErrorFree(pCause);
+}
+
 static void xacmeHttpMarkWriteUncertain(xacmehttp* pHttp)
 {
-	const xerror* pCause = xrtGetError();
 	pHttp->bWriteUncertain = true;
-	xerror* pUncertain = xrtErrorWrap(
-		pCause, xrtErrorKind(pCause), "xrt.acme.http",
-		(int32)XACME_HTTP_ERROR_UNCERTAIN,
-		"http write outcome unknown after request started");
-	if(pUncertain != NULL)
-	{
-		xrtSetErrorTake(pUncertain);
-	}
+	xacmeHttpContextError(XACME_HTTP_ERROR_UNCERTAIN,
+		"http write outcome unknown after request started", false);
 }
 
 static bool xacmeHttpExchangeOnceImpl(
@@ -3890,31 +3907,47 @@ typedef struct xacmestream {
 	xnetstream* pTcp;
 } xacmestream;
 
-static bool xacmeFutureResolved(xfuture* pFuture, uint64 uUs)
+static void xacmeFutureFailure(xfuture* pFuture, xwaitresult Wait,
+	xacmehttperror Code, cstr sMessage)
 {
-	return uUs != 0u &&
-		xrtFutureWaitFor(pFuture, uUs) == XWAIT_OK &&
-		xrtFutureState(pFuture) == XFUTURE_RESOLVED;
+	/* A producer's thread-local error is not the waiting thread's diagnostic. Retain
+	 * its immutable error before cancellation callbacks or Future destruction. */
+	xerror* pCause = xrtErrorRef(xrtFutureError(pFuture));
+	if(Wait != XWAIT_OK) (void)xrtFutureCancel(pFuture);
+	if(pCause != NULL) xrtSetErrorTake(pCause);
+	else xacmeHttpError(Wait == XWAIT_TIMEOUT ? XERR_TIMEOUT : XERR_IO, Code, sMessage);
 }
 
-static bool xacmeFutureWait(xfuture* pFuture, uint64 uUs)
+static bool xacmeFutureResolved(xfuture* pFuture, int64 uTimeoutMs)
 {
-	bool bResolved = xacmeFutureResolved(pFuture, uUs);
+	xwaitresult Wait = uTimeoutMs != 0 ? xrtFutureWaitFor(pFuture, uTimeoutMs) : XWAIT_TIMEOUT;
+	if(Wait == XWAIT_OK && xrtFutureState(pFuture) == XFUTURE_RESOLVED) return true;
+	xacmeFutureFailure(pFuture, Wait, XACME_HTTP_ERROR_PROTOCOL, "acme http asynchronous operation failed");
+	return false;
+}
+
+static bool xacmeFutureWait(xfuture* pFuture, int64 uTimeoutMs)
+{
+	bool bResolved = xacmeFutureResolved(pFuture, uTimeoutMs);
+	xerror* pCause = bResolved ? NULL : xrtErrorRef(xrtGetError());
 	xrtFutureDestroy(pFuture);
+	if(pCause != NULL) xrtSetErrorTake(pCause);
 	return bResolved;
 }
 
 /* 发送全部字节；TLS 用 SendAsync（任意线程），明文用复制语义 Send。 */
 static bool xacmeStreamSendAll(
-	xacmestream* pStream, const void* pData, size_t iSize, uint64 uUs)
+	xacmestream* pStream, const void* pData, size_t iSize, int64 uTimeoutMs)
 {
 	size_t iOffset = 0u;
-	double Deadline = __xrtWaitAfter(uUs);
+	double Deadline = __xrtWaitAfter(uTimeoutMs);
+	xrtClearError();
 	while(iOffset < iSize)
 	{
 		size_t iChunk = iSize - iOffset;
 		if(__xrtWaitExpired(Deadline))
 		{
+			xacmeHttpError(XERR_TIMEOUT, XACME_HTTP_ERROR_SEND, "acme http send timeout");
 			return false;
 		}
 		if(iChunk > XACME_HTTP_IO_CHUNK)
@@ -3941,6 +3974,7 @@ static bool xacmeStreamSendAll(
 			{
 				if(__xrtWaitExpired(Deadline))
 				{
+					xacmeHttpError(XERR_TIMEOUT, XACME_HTTP_ERROR_SEND, "acme http send timeout");
 					return false;
 				}
 				pFuture = xrtNetStreamWaitAsync(
@@ -3953,6 +3987,11 @@ static bool xacmeStreamSendAll(
 			}
 			if(eResult != XNET_RESULT_OK)
 			{
+				if(xrtGetError() == NULL)
+				{
+					const xerror* pError = xrtNetStreamError(pStream->pTcp);
+					if(pError != NULL) xrtSetError(pError);
+				}
 				return false;
 			}
 		}
@@ -3971,7 +4010,12 @@ static int xacmeStreamRecv(
 	xwaitresult eWait;
 	xbytesview View;
 	int64 uRemaining = __xrtWaitRemaining(Deadline);
-	if(uRemaining == 0u) return -1;
+	xrtClearError();
+	if(uRemaining == 0u)
+	{
+		xacmeHttpError(XERR_TIMEOUT, XACME_HTTP_ERROR_PROTOCOL, "acme http receive timeout");
+		return -1;
+	}
 	if(pStream->pTls != NULL)
 		pFuture = xrtTlsStreamRecvAsync(pStream->pTls, iCapacity);
 	else
@@ -3985,23 +4029,36 @@ static int xacmeStreamRecv(
 		if(pStream->pTls != NULL)
 		{
 			bool bEnd;
+			xerror* pCause;
 			pFuture = xrtTlsStreamWaitAsync(pStream->pTls, XTLS_STREAM_WAIT_END);
 			if(pFuture == NULL) return -2;
 			eWait = xrtFutureWaitFor(pFuture, __xrtWaitRemaining(Deadline));
 			bEnd = eWait == XWAIT_OK && xrtFutureState(pFuture) == XFUTURE_RESOLVED;
+			if(!bEnd) xacmeFutureFailure(pFuture, eWait, XACME_HTTP_ERROR_PROTOCOL,
+				"acme http authenticated EOF wait failed");
+			pCause = bEnd ? NULL : xrtErrorRef(xrtGetError());
 			xrtFutureDestroy(pFuture);
+			if(pCause != NULL) xrtSetErrorTake(pCause);
 			return bEnd ? 0 : (eWait == XWAIT_TIMEOUT ? -1 : -2);
 		}
 		else
 		{
 			xnetstreamstats Stats;
-			return xrtNetStreamStats(pStream->pTcp, &Stats) &&
-				Stats.ReadEnded && xrtNetStreamError(pStream->pTcp) == NULL ? 0 : -2;
+			const xerror* pError;
+			if(!xrtNetStreamStats(pStream->pTcp, &Stats)) return -2;
+			pError = xrtNetStreamError(pStream->pTcp);
+			if(pError != NULL) xrtSetError(pError);
+			return Stats.ReadEnded && pError == NULL ? 0 : -2;
 		}
 	}
 	if(eWait != XWAIT_OK || xrtFutureState(pFuture) != XFUTURE_RESOLVED)
 	{
+		xerror* pCause;
+		xacmeFutureFailure(pFuture, eWait, XACME_HTTP_ERROR_PROTOCOL,
+			"acme http receive failed");
+		pCause = xrtErrorRef(xrtGetError());
 		xrtFutureDestroy(pFuture);
+		if(pCause != NULL) xrtSetErrorTake(pCause);
 		return eWait == XWAIT_TIMEOUT ? -1 : -2;
 	}
 	pBytes = (xnetbytes*)xrtFutureValue(pFuture);
@@ -4194,6 +4251,7 @@ static bool xacmeHttpExchangeOnceImpl(
 	size_t iUsed = 0u;
 	size_t iConsumed = 0u;
 	xfuture* pFuture = NULL;
+	xerror* pCleanupCause = NULL;
 	double ResponseDeadline;
 	bool bOk = false;
 	bool bHeadDone = false;
@@ -4209,6 +4267,7 @@ static bool xacmeHttpExchangeOnceImpl(
 	{
 		*pbResponseStarted = false;
 	}
+	if(pResponse != NULL) memset(pResponse, 0, sizeof(*pResponse));
 
 	if((pHttp == NULL) || (sMethod == NULL) || (sUrl == NULL) ||
 		(pResponse == NULL))
@@ -4218,7 +4277,6 @@ static bool xacmeHttpExchangeOnceImpl(
 			"acme http exchange requires http, method, url and response");
 		return false;
 	}
-	memset(pResponse, 0, sizeof(*pResponse));
 	bContentLength = (sBody.Data != NULL || strcmp(sMethod, "POST") == 0);
 	if(pHttp->pEngine == NULL || pHttp->pResolver == NULL || pHttp->pVerifier == NULL)
 	{
@@ -4255,6 +4313,7 @@ static bool xacmeHttpExchangeOnceImpl(
 			"acme http exchange url is not http(s) absolute");
 		return false;
 	}
+	xrtClearError();
 	if(((Url.bTls ? 443u : 80u) != Url.iPort))
 	{
 		snprintf(sPortText, sizeof(sPortText), ":%u", (unsigned)Url.iPort);
@@ -4357,28 +4416,9 @@ static bool xacmeHttpExchangeOnceImpl(
 		/* 底层拨号错误已在线程错误里；仅补充域信息。 */
 		goto Done;
 	}
-	if(xrtFutureWaitFor(pFuture, pHttp->uTimeoutMs) != XWAIT_OK ||
-		xrtFutureState(pFuture) != XFUTURE_RESOLVED)
+	if(!xacmeFutureResolved(pFuture, pHttp->uTimeoutMs))
 	{
-		const xerror* pFutureError = xrtFutureError(pFuture);
-		if(pFutureError != NULL)
-		{
-			/* 包装底层根因，保留完整因链。 */
-			xerror* pWrap = xrtErrorWrap(
-				pFutureError, XERR_IO, "xrt.acme.http",
-				(int32)XACME_HTTP_ERROR_CONNECT,
-				"acme http connect failed");
-			if(pWrap != NULL)
-			{
-				xrtSetErrorTake(pWrap);
-				goto Done;
-			}
-		}
-		{
-			xacmeHttpError(
-				XERR_TIMEOUT, XACME_HTTP_ERROR_CONNECT,
-				"acme http connect timeout");
-		}
+		xacmeHttpContextError(XACME_HTTP_ERROR_CONNECT, "acme http connect failed", true);
 		goto Done;
 	}
 	if(Url.bTls)
@@ -4408,9 +4448,7 @@ static bool xacmeHttpExchangeOnceImpl(
 	if(!xacmeStreamSendAll(
 		&Stream, Request.Data, Request.Size, pHttp->uTimeoutMs))
 	{
-		xacmeHttpError(
-			XERR_IO, XACME_HTTP_ERROR_SEND,
-			"acme http send failed");
+		xacmeHttpContextError(XACME_HTTP_ERROR_SEND, "acme http send failed", true);
 		goto Done;
 	}
 	ResponseDeadline = __xrtWaitAfter(pHttp->uTimeoutMs);
@@ -4443,11 +4481,10 @@ static bool xacmeHttpExchangeOnceImpl(
 				ResponseDeadline);
 			if(iGot < 0)
 			{
-				xacmeHttpError(
-					(iGot == -1) ? XERR_TIMEOUT : XERR_IO,
+				xacmeHttpContextError(
 					XACME_HTTP_ERROR_PROTOCOL,
 					(iGot == -1) ? "acme http response head timeout" :
-					"acme http response head read failed");
+					"acme http response head read failed", true);
 				goto Done;
 			}
 			if(iGot == 0)
@@ -4561,11 +4598,10 @@ static bool xacmeHttpExchangeOnceImpl(
 				ResponseDeadline);
 			if(iResult < 0)
 			{
-				xacmeHttpError(
-					(iResult == -1) ? XERR_TIMEOUT : XERR_IO,
+				xacmeHttpContextError(
 					XACME_HTTP_ERROR_PROTOCOL,
 					(iResult == -1) ? "acme http response body timeout" :
-					"acme http response body read failed");
+					"acme http response body read failed", true);
 				goto Done;
 			}
 			if(iResult == 0)
@@ -4605,6 +4641,7 @@ ConnectFail:
 		XERR_IO, XACME_HTTP_ERROR_CONNECT,
 		"acme http connect failed");
 Done:
+	pCleanupCause = bOk ? NULL : xrtErrorRef(xrtGetError());
 	if(pFuture != NULL)
 	{
 		xrtFutureDestroy(pFuture);
@@ -4618,6 +4655,7 @@ Done:
 		/* 响应头可能已分配；失败时不把部分响应留给调用方。 */
 		xacmeHttpResponseUnit(pResponse);
 	}
+	if(pCleanupCause != NULL) xrtSetErrorTake(pCleanupCause);
 	return bOk;
 }
 

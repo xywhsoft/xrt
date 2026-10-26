@@ -140,7 +140,9 @@
 				"extlibs/xacme/tests/acme/test_http.c",
 				"extlibs/xacme/tests/acme/test_tlsdbg.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xacme/tests/single/test_single_http_future_fault.c"
+			],
 			"examples": [],
 			"docs": [],
 			"legacy": []
