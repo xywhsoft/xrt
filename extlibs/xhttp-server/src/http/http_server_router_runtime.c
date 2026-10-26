@@ -545,7 +545,7 @@ xrt_http_server_router_runtime* __xrtHttpServerRouterRuntimeCreate(
 		return NULL;
 	}
 	if ( pEvents != NULL ) {
-		memcpy(&Events, pEvents, sizeof(Events));
+		memcpy(&Events, (const void*)pEvents, sizeof(Events));
 	}
 	pRuntime = (xrt_http_server_router_runtime*)xrtCalloc(
 		1, sizeof(*pRuntime)

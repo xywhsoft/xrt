@@ -5485,7 +5485,8 @@ XHTTP_SERVER_API xhttproutestatus xrtHttpRouteMatch(
 
 /*
 	按区分大小写的名称查找首个借用参数；未找到返回空指针且不设置错误。
-	若输入描述符数组未对齐，返回地址也可能未对齐，调用方应以 memcpy 读取。
+	若输入描述符数组未对齐，返回地址也可能未对齐；调用方应显式转成
+	const void*，再以 memcpy 读取到对齐的局部值。
 */
 XHTTP_SERVER_API const xhttprouteparam* xrtHttpRouteParam(
 	const xhttprouteparam* pParams,

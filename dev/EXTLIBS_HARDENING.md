@@ -39,10 +39,10 @@
 | 产品目录 | 实现模块 | 源文件 | tests | single_tests | examples | 本轮状态 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
 | xacme | 14 | 16 | 28 | 10 | 1 | HTTP/Obtain/私钥副本、EAB/resolver 与换钥错误修复通过，flow/provider/RSA 导入复核继续 |
-| xhttp | 115 | 124 | 236 | 115 | 82 | 待复核 |
+| xhttp | 115 | 124 | 236 | 115 | 82 | 正文流/前置条件字节快照及专项测试通过，其余源码复核继续 |
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
-| xhttp-server | 25 | 31 | 90 | 32 | 25 | 关闭/Upgrade 生命周期修复及包消费通过，字节视图与其余源码复核继续 |
+| xhttp-server | 25 | 31 | 90 | 32 | 25 | 关闭/Upgrade、字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
 | ximap | 11 | 9 | 22 | 15 | 5 | 待复核 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 已完成本轮：源码、本地、双平台认证 CI 及交付验收 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
@@ -58,7 +58,7 @@
 | xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
 | xws-client | 5 | 3 | 7 | 5 | 3 | 待复核 |
 | xws-group | 3 | 3 | 4 | 3 | 2 | 待复核 |
-| xws-server | 6 | 5 | 25 | 13 | 4 | 握手字节视图与升级依赖回归通过，完整 sanitizer/源码复核继续 |
+| xws-server | 6 | 5 | 25 | 13 | 4 | 握手/路由字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
 
 ## 执行记录
 
@@ -920,5 +920,61 @@ RSA 导入及 provider/签名/XML 复核继续；大同名 RRset 的递归探测
 `http-server-adapter-*-alignment-before.log`、`xhttp-server-byteview-sanitize-linux-final.log`、
 `xhttp-server-byteview-tcc-linux-final.log`、`websocket-handshake-byteview-sanitize-final.log`。
 
-下一步继续关闭完整 Server sanitizer/TCC 的存量夹具及字节视图问题，再恢复 ACME 预算、
-Retry-After、EAB 标识符、RSA 导入和 provider 复核；整轮仍为 2/21 产品完成，不缩小原目标。
+### 第二十八批：关闭 Server 全套 sanitizer/TCC 缺口
+
+- 以 b246cdda 为输入先运行清单选定的全部 Linux 模块化 Clang sanitizer 测试，
+  HTTP Server 79 个中 13 个失败、WebSocket Server 18 个中 1 个失败，保留逐程序日志。
+  未停止在首个错误；对照矩阵共 97 个程序，未排除默认资产。
+- 按公开未对齐/字节快照契约逐点复核，新增 75 处生产拷贝显式字节视图：Server 两库
+  67 处，依赖 xhttp 的正文流与前置条件 8 处。覆盖路由计数/匹配/方法、压缩输出、Mux、
+  事件、TLS/ALPN、升级中止、SSE、静态路径/计划/响应及配置。仅在相应输入/输出参数
+  显式使用 void/const void；保留本就对齐的私有对象及字符拷贝，不批量改写所有 memcpy。
+  五个夹具的另 16 处未对齐快照改为字节视图，保留范围/重叠、哨兵、失败原子性和所有权断言。
+- 第一轮修复后 WebSocket 18/18 通过；HTTP 还暴露共享正文流/前置条件快照及一个独立
+  Future 发布假设。补齐依赖入口并按下一批修正测试同步后，最终 97/97 模块化矩阵通过。
+  旧矩阵失败包括夹具本身的拷贝，未将每个测试失败冒称独立生产漏洞。
+- 文件正文 OOM 夹具改用 Core 的无分配 xatomic32 API，移除专用 Windows/GNU 原子分支，
+  使用公开静态初始化宏。有效原子地址/顺序路径已核对不分配；继续在真实 allocator 回调中
+  执行全部原有计数、平衡、MEMORY 与 256 个 adopt 失败位置，不降低 OOM 强度。
+- 最终完整套件在 Windows GCC 实际运行 HTTP Server 115、WebSocket Server 38 个程序；
+  Linux GCC、Clang ASan/UBSan/float-cast-overflow 加泄漏检查、TCC 各执行 109/31 个。
+  每组 HTTP 含 30 个、WebSocket 含 13 个单头入口；全部通过。本批关闭第二十七批所列
+  完整 sanitizer/TCC 缺口，没有禁用 alignment、删除有效断言或跳过默认测试。
+- 另对依赖 xhttp 的前置条件、正文流、OOM 与并发四个模块套件分别执行上述四组环境，
+  每组实际运行六个入口，含两个单头，全部通过。这只覆盖本次触及的依赖模块，不代表
+  拥有 124 个源文件的 xhttp 已整库验收。
+- xhttp、xhttp-server、xws-server 在 Windows/Linux 各生成 static/shared 包，十二个
+  实际消费者全部链接、运行通过；每个包只拥有对应库源码，并链接一份 Core。
+  三产品生成实现/声明、feature、公开符号登记、参考生成和发布门禁全部通过。
+  1197 个 Core/ACME/HTTP/WS 源码/头输入归一化 LF 后 Windows/WSL 无差异。
+  仍须后续源码、示例、裁剪及平台验收，两个 Server 产品未记为整库完成。
+
+证据：`server-byteview-matrix-{before,after,final}.json`、
+`server-byteview-change-counts.json`、`server-byteview-complete-{windows,linux}.json`、
+`{xhttp-server,xws-server}-byteview-complete-windows-gcc.log`、
+`{xhttp-server,xws-server}-byteview-complete-linux-{gcc,clang,tcc}.log`、
+`server-byteview-dependency-*.log`、`server-byteview-packages-{windows,linux}.json`、
+`server-byteview-check-*.log`、`server-byteview-final-input-audit.json`。
+
+### 第二十九批：独立关闭 Future 的真实发布门控
+
+- 全量运行自然出现 `HTTP server close wait did not resolve after shutdown`；旧夹具在第一个
+  预先注册的 Future 就绪后，对 Shutdown 内新注册的另一个 Future 做零等待并要求已完成。
+  实际 producer 按链表逐一发布，两次独立发布之间存在合法窗口，Shutdown 已返回并不让
+  它们变成一次原子广播。未修改生产 Future 实现或放宽其完成契约。
+- 使用真实 Core FutureWatch 阻塞第一个通知；在 producer 尚未推进第二个等待时，检查
+  第一项 RESOLVED、Server CLOSED、唯一 Shutdown 和第二项仍 PENDING。放行并汇合通知后，
+  独立等待第二项完成，检查 Watch 唯一释放及 Drain 线程正常退出。Drain 允许在调用线程
+  完成，故单独创建 producer 线程，使控制线程始终可以放行门。保留独立取消、回调内
+  待定、迟注册立即完成、析构与 Engine 退休的原有检查，原截止时间不变。
+- 派生旧假设对照只把门控期间第二项的预期恢复为旧零等待就绪，稳定在该断言失败；
+  这是旧假设的受控对照，不是未修改旧 HEAD 的运行证据。
+  最终夹具在 Windows GCC select/IOCP 各 33 轮，Linux GCC/Clang sanitizer/TCC 各 33 轮
+  全部通过，并参加上一批完整默认套件。
+
+证据：`xhttp-server-byteview-after-test_http_server_wait_future.log`、
+`http-server-wait-old-assumption-control.log`、`http-server-wait-publication-repeat-*.log`、
+`http-server-wait-publication-iocp-windows-repeat.log`。
+
+本轮仍为 2/21 产品完成，原范围不变。继续追查 Windows SMTP 覆盖率失败，再恢复 ACME
+绝对预算、Retry-After、EAB 标识符、RSA 导入与 provider 复核及其他产品的集中检查。

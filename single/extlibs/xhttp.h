@@ -51883,7 +51883,7 @@ XHTTP_API bool xrtHttpBridgePreconditionInputRead(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(pCurrent, pInput, sizeof(*pCurrent));
+	memcpy(pCurrent, (const void*)pInput, sizeof(*pCurrent));
 	if ( (!pCurrent->Exists &&
 		(pCurrent->HasETag || pCurrent->HasLastModified)) ||
 		(pCurrent->LastModifiedStrong &&
@@ -52165,7 +52165,7 @@ XHTTP_API bool xrtHttpIfRangeMatch(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(&Current, pCurrent, sizeof(Current));
+	memcpy(&Current, (const void*)pCurrent, sizeof(Current));
 	if ( (!Current.Exists &&
 		(Current.HasETag || Current.HasLastModified)) ||
 		(Current.LastModifiedStrong &&
@@ -72619,7 +72619,7 @@ XHTTP_API void xrtHttpBodyStreamConfigInit(
 		);
 		return;
 	}
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -72634,7 +72634,7 @@ XHTTP_API bool xrtHttpBodyStreamConfigValid(
 	if ( !xrtMemRangeValid(pConfig, sizeof(Config)) ) {
 		return false;
 	}
-	memcpy(&Config, pConfig, sizeof(Config));
+	memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	return (Config.MaxBytes != 0) && (Config.MaxChunks != 0);
 }
 
@@ -72677,9 +72677,9 @@ XHTTP_API xhttpbody* xrtHttpBodyStreamCreate(
 	if ( pConfig == NULL ) {
 		xrtHttpBodyStreamConfigInit(&Config);
 	} else {
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
-	memcpy(ppStream, &pOutput, sizeof(pOutput));
+	memcpy((void*)ppStream, &pOutput, sizeof(pOutput));
 	if ( !xrtHttpBodyStreamConfigValid(&Config) ) {
 		__xrtHttpBodyStreamSetError(
 			XERR_VALUE,
@@ -72714,7 +72714,7 @@ XHTTP_API xhttpbody* xrtHttpBodyStreamCreate(
 		__xrtHttpBodyStreamRelease(pStream);
 		return NULL;
 	}
-	memcpy(ppStream, &pStream, sizeof(pStream));
+	memcpy((void*)ppStream, &pStream, sizeof(pStream));
 	return pBody;
 }
 
@@ -73035,7 +73035,7 @@ XHTTP_API bool xrtHttpBodyStreamInfo(
 	Info.ConsumerClosed = pStream->ConsumerClosed;
 	Info.Failed = pStream->Failed;
 	(void)xrtMutexUnlock(&pMutable->Lock);
-	memcpy(pInfo, &Info, sizeof(Info));
+	memcpy((void*)pInfo, &Info, sizeof(Info));
 	return true;
 }
 

@@ -2236,7 +2236,8 @@ XHTTP_SERVER_API xhttproutestatus xrtHttpRouteMatch(
 
 /*
 	按区分大小写的名称查找首个借用参数；未找到返回空指针且不设置错误。
-	若输入描述符数组未对齐，返回地址也可能未对齐，调用方应以 memcpy 读取。
+	若输入描述符数组未对齐，返回地址也可能未对齐；调用方应显式转成
+	const void*，再以 memcpy 读取到对齐的局部值。
 */
 XHTTP_SERVER_API const xhttprouteparam* xrtHttpRouteParam(
 	const xhttprouteparam* pParams,
@@ -4759,7 +4760,7 @@ static bool __xrtHttpStaticPathConfigResolve(
 			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
-		memcpy(pConfig, pInput, sizeof(*pConfig));
+		memcpy(pConfig, (const void*)pInput, sizeof(*pConfig));
 	}
 	if ( (pConfig->Flags &
 		~((uint32)XHTTP_STATIC_PATH_PORTABLE |
@@ -5185,7 +5186,7 @@ XHTTP_SERVER_API void xrtHttpStaticPathConfigInit(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -5224,7 +5225,7 @@ static xhttpstaticpathstatus __xrtHttpStaticPathWrite(
 	if ( !Info.Matched ) {
 		iResultSize = 0;
 		bResultTrailing = false;
-		memcpy(pSize, &iResultSize, sizeof(iResultSize));
+		memcpy((void*)pSize, &iResultSize, sizeof(iResultSize));
 		memcpy(
 			pTrailingSlash,
 			&bResultTrailing,
@@ -5262,7 +5263,7 @@ static xhttpstaticpathstatus __xrtHttpStaticPathWrite(
 	}
 	iResultSize = Writer.Size;
 	bResultTrailing = Info.TrailingSlash;
-	memcpy(pSize, &iResultSize, sizeof(iResultSize));
+	memcpy((void*)pSize, &iResultSize, sizeof(iResultSize));
 	memcpy(
 		pTrailingSlash,
 		&bResultTrailing,
@@ -5341,7 +5342,7 @@ XHTTP_SERVER_API void xrtHttpStaticPathInit(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(pPath, &Path, sizeof(Path));
+	memcpy((void*)pPath, &Path, sizeof(Path));
 }
 
 
@@ -5372,7 +5373,7 @@ XHTTP_SERVER_API bool xrtHttpStaticPathMap(
 	) ) {
 		return false;
 	}
-	memcpy(&Current, pPath, sizeof(Current));
+	memcpy(&Current, (const void*)pPath, sizeof(Current));
 	if ( (Current.Path != NULL) ||
 		(Current.Size != 0) ||
 		Current.Matched ||
@@ -5437,7 +5438,7 @@ XHTTP_SERVER_API bool xrtHttpStaticPathMap(
 	Result.Size = iSize;
 	Result.Matched = true;
 	Result.TrailingSlash = bTrailingSlash;
-	memcpy(pPath, &Result, sizeof(Result));
+	memcpy((void*)pPath, &Result, sizeof(Result));
 	return true;
 }
 
@@ -5458,9 +5459,9 @@ XHTTP_SERVER_API void xrtHttpStaticPathFree(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(&Path, pPath, sizeof(Path));
+	memcpy(&Path, (const void*)pPath, sizeof(Path));
 	xrtFree(Path.Path);
-	memcpy(pPath, &Empty, sizeof(Empty));
+	memcpy((void*)pPath, &Empty, sizeof(Empty));
 }
 
 #endif
@@ -5497,7 +5498,7 @@ XHTTP_SERVER_API void xrtHttpStaticPlanConfigInit(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -5516,7 +5517,7 @@ static bool __xrtHttpStaticPlanConfigResolve(
 			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
-		memcpy(pConfig, pInput, sizeof(*pConfig));
+		memcpy(pConfig, (const void*)pInput, sizeof(*pConfig));
 	}
 	if ( (pConfig->MaxRanges >
 		 (SIZE_MAX / sizeof(xhttpbyterange))) ||
@@ -5738,7 +5739,7 @@ static void __xrtHttpStaticPlanPublish(
 	const xhttpstaticplan* pPlan
 )
 {
-	memcpy(pOutput, pPlan, sizeof(*pPlan));
+	memcpy((void*)pOutput, pPlan, sizeof(*pPlan));
 }
 
 
@@ -5972,7 +5973,7 @@ XHTTP_SERVER_API void xrtHttpStaticResponseConfigInit(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -5996,7 +5997,7 @@ static bool __xrtHttpStaticResponseConfigRead(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(pConfig, pInput, sizeof(*pConfig));
+	memcpy(pConfig, (const void*)pInput, sizeof(*pConfig));
 	return true;
 }
 
@@ -6199,7 +6200,7 @@ static bool __xrtHttpStaticResponseMeasure(
 			pPlan->CompleteLength;
 		if ( pPlan->Status ==
 			XHTTP_STATUS_PARTIAL_CONTENT ) {
-			memcpy(&Range, pRanges, sizeof(Range));
+			memcpy(&Range, (const void*)pRanges, sizeof(Range));
 			Measure.ContentRange.Satisfied = true;
 			Measure.ContentRange.First = Range.First;
 			Measure.ContentRange.Last = Range.Last;
@@ -6595,7 +6596,7 @@ static bool __xrtHttpStaticResponseWrite(
 		xrtSetErrorKind(XERR_INTERNAL);
 		return false;
 	}
-	memcpy(pResponse, &Response, sizeof(Response));
+	memcpy((void*)pResponse, &Response, sizeof(Response));
 	return true;
 }
 
@@ -6630,7 +6631,7 @@ XHTTP_SERVER_API bool xrtHttpStaticResponseBuild(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(&Plan, pPlan, sizeof(Plan));
+	memcpy(&Plan, (const void*)pPlan, sizeof(Plan));
 	if ( Plan.RangeCount >
 		(SIZE_MAX / sizeof(xhttpbyterange)) ) {
 		xrtSetErrorKind(XERR_ARGUMENT);
@@ -6675,19 +6676,19 @@ XHTTP_SERVER_API bool xrtHttpStaticResponseBuild(
 	}
 	if ( pResponse == NULL ) {
 		iRequired = Measure.Required;
-		memcpy(pSize, &iRequired, sizeof(iRequired));
+		memcpy((void*)pSize, &iRequired, sizeof(iRequired));
 		return true;
 	}
 	if ( iCapacity < Measure.Required ) {
 		iRequired = Measure.Required;
-		memcpy(pSize, &iRequired, sizeof(iRequired));
+		memcpy((void*)pSize, &iRequired, sizeof(iRequired));
 		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
 	if ( (Measure.Required != 0) &&
 		(pWorkspace == NULL) ) {
 		iRequired = Measure.Required;
-		memcpy(pSize, &iRequired, sizeof(iRequired));
+		memcpy((void*)pSize, &iRequired, sizeof(iRequired));
 		xrtSetErrorKind(XERR_RANGE);
 		return false;
 	}
@@ -6701,7 +6702,7 @@ XHTTP_SERVER_API bool xrtHttpStaticResponseBuild(
 		return false;
 	}
 	iRequired = Measure.Required;
-	memcpy(pSize, &iRequired, sizeof(iRequired));
+	memcpy((void*)pSize, &iRequired, sizeof(iRequired));
 	return true;
 }
 
@@ -8931,7 +8932,7 @@ XHTTP_SERVER_API xhttpreply* xrtHttpSseReplyCreate(
 		__xhttpErrorSetInvalidArgument();
 		return NULL;
 	}
-	memcpy(ppStream, &pOutput, sizeof(pOutput));
+	memcpy((void*)ppStream, &pOutput, sizeof(pOutput));
 	pBody = xrtHttpBodyStreamCreate(pConfig, &pStream);
 	if ( pBody == NULL ) {
 		return NULL;
@@ -8952,7 +8953,7 @@ XHTTP_SERVER_API xhttpreply* xrtHttpSseReplyCreate(
 		return NULL;
 	}
 	xrtHttpBodyDestroy(pBody);
-	memcpy(ppStream, &pStream, sizeof(pStream));
+	memcpy((void*)ppStream, &pStream, sizeof(pStream));
 	return pReply;
 }
 
@@ -14134,7 +14135,7 @@ static bool __xrtHttpServerTlsProtocolsCopy(
 		);
 		return false;
 	}
-	memcpy(&Protocol, pConfig->Protocols, sizeof(Protocol));
+	memcpy(&Protocol, (const void*)pConfig->Protocols, sizeof(Protocol));
 	if ( !__xrtHttpServerTlsProtocolValid(Protocol) ) {
 		__xrtHttpServerSetError(
 			XERR_ARGUMENT,
@@ -14188,7 +14189,7 @@ XHTTP_SERVER_API void xrtHttpServerTlsConfigInit(
 	Config.Handshake.ProtocolCount =
 		sizeof(__xrtHttpServerTlsProtocols) /
 		sizeof(__xrtHttpServerTlsProtocols[0]);
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -14213,7 +14214,7 @@ static bool __xrtHttpServerTlsConfigRead(
 		);
 		return false;
 	}
-	memcpy(pConfig, pInput, sizeof(*pConfig));
+	memcpy(pConfig, (const void*)pInput, sizeof(*pConfig));
 	return true;
 }
 
@@ -15122,7 +15123,7 @@ XHTTP_SERVER_API void xrtHttpUpgradeAbort(xhttpupgrade* pUpgrade)
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(&Upgrade, pUpgrade, sizeof(Upgrade));
+	memcpy(&Upgrade, (const void*)pUpgrade, sizeof(Upgrade));
 	memset(pUpgrade, 0, sizeof(Upgrade));
 	pPrevious = __xhttpErrorSwapOwned(NULL);
 	#if defined(XHTTP_FEATURE_HTTP_SERVER_TLS)
@@ -16878,7 +16879,7 @@ XHTTP_SERVER_API void xrtHttpStaticReplyConfigInit(
 	}
 	memset(&Config, 0, sizeof(Config));
 	xrtHttpStaticPlanConfigInit(&Config.Plan);
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -16900,7 +16901,7 @@ XHTTP_SERVER_API void xrtHttpStaticServeConfigInit(
 	Config.Indexes = __xrtHttpServerStaticIndexes;
 	Config.IndexCount = sizeof(__xrtHttpServerStaticIndexes) /
 		sizeof(__xrtHttpServerStaticIndexes[0]);
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -16925,7 +16926,7 @@ static bool __xrtHttpStaticReplyConfigResolve(
 			);
 			return false;
 		}
-		memcpy(&Config, pInput, sizeof(Config));
+		memcpy(&Config, (const void*)pInput, sizeof(Config));
 	}
 	if ( !__xhttpViewValid(Config.ContentType) ||
 		!__xhttpViewValid(Config.CacheControl) ||
@@ -16970,7 +16971,7 @@ static bool __xrtHttpStaticServeConfigResolve(
 			);
 			return false;
 		}
-		memcpy(pConfig, pInput, sizeof(*pConfig));
+		memcpy(pConfig, (const void*)pInput, sizeof(*pConfig));
 	}
 	if ( !__xrtHttpStaticReplyConfigResolve(
 		&pConfig->Reply,
@@ -17015,7 +17016,7 @@ static bool __xrtHttpStaticServeConfigResolve(
 	for ( i = 0; i < pConfig->IndexCount; i++ ) {
 		memcpy(
 			&Index,
-			pConfig->Indexes + i,
+			(const void*)(pConfig->Indexes + i),
 			sizeof(Index)
 		);
 		if ( !__xhttpViewValid(Index) ) {
@@ -17160,7 +17161,7 @@ static bool __xrtHttpServerStaticResponseRead(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(pResponse, pInput, sizeof(*pResponse));
+	memcpy(pResponse, (const void*)pInput, sizeof(*pResponse));
 	if ( (pResponse->FieldCount >
 		 XHTTP_STATIC_RESPONSE_MAX_FIELDS) ||
 		!__xhttpViewValid(pResponse->ContentType) ||
@@ -17761,7 +17762,7 @@ static xrt_http_server_static_prepare*
 		return pPrepare;
 	}
 	for ( i = 0; i < iCount; i++ ) {
-		memcpy(&Index, pIndexes + i, sizeof(Index));
+		memcpy(&Index, (const void*)(pIndexes + i), sizeof(Index));
 		sIndex = xrtStrDupView(Index);
 		if ( sIndex != NULL ) {
 			pPrepare->Paths[i] = xrtPathJoin(
@@ -18474,12 +18475,12 @@ XHTTP_SERVER_API bool xrtHttpRouteValidate(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(pParameters, &iParameters, sizeof(iParameters));
+	memcpy((void*)pParameters, &iParameters, sizeof(iParameters));
 	if ( !__xrtHttpRouteValidate(Pattern, &iParameters) ) {
 		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
-	memcpy(pParameters, &iParameters, sizeof(iParameters));
+	memcpy((void*)pParameters, &iParameters, sizeof(iParameters));
 	return true;
 }
 
@@ -18523,7 +18524,7 @@ XHTTP_SERVER_API xhttproutestatus xrtHttpRouteMatch(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_ROUTE_ERROR;
 	}
-	memcpy(pCount, &iResult, sizeof(iResult));
+	memcpy((void*)pCount, &iResult, sizeof(iResult));
 	if ( !__xrtHttpRouteValidate(Pattern, &iParameters) ||
 		!__xrtHttpRoutePathValid(Path) ) {
 		xrtSetErrorKind(XERR_VALUE);
@@ -18534,7 +18535,7 @@ XHTTP_SERVER_API xhttproutestatus xrtHttpRouteMatch(
 		return Status;
 	}
 	iResult = iParameters;
-	memcpy(pCount, &iResult, sizeof(iResult));
+	memcpy((void*)pCount, &iResult, sizeof(iResult));
 	if ( iCapacity < iParameters ) {
 		return XHTTP_ROUTE_MORE;
 	}
@@ -18544,7 +18545,7 @@ XHTTP_SERVER_API xhttproutestatus xrtHttpRouteMatch(
 		);
 		if ( Status != XHTTP_ROUTE_MATCH ) {
 			iResult = 0;
-			memcpy(pCount, &iResult, sizeof(iResult));
+			memcpy((void*)pCount, &iResult, sizeof(iResult));
 			xrtSetErrorKind(XERR_INTERNAL);
 			return XHTTP_ROUTE_ERROR;
 		}
@@ -19041,7 +19042,7 @@ XHTTP_SERVER_API void xrtHttpRouterConfigInit(xhttprouterconfig* pConfig)
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -19061,7 +19062,7 @@ XHTTP_SERVER_API xhttprouter* xrtHttpRouterCreate(
 			xrtSetErrorKind(XERR_ARGUMENT);
 			return NULL;
 		}
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
 	if ( (Config.MaxRoutes == 0) ||
 		(Config.MaxNodes == 0) ||
@@ -19671,8 +19672,8 @@ XHTTP_SERVER_API xhttprouterstatus xrtHttpRouterMatch(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_ROUTER_ERROR;
 	}
-	memcpy(pCount, &iCount, sizeof(iCount));
-	memcpy(pMatch, &Match, sizeof(Match));
+	memcpy((void*)pCount, &iCount, sizeof(iCount));
+	memcpy((void*)pMatch, &Match, sizeof(Match));
 	if ( !__xrtHttpRoutePathValid(Path) ) {
 		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_ROUTER_ERROR;
@@ -19694,8 +19695,8 @@ XHTTP_SERVER_API xhttprouterstatus xrtHttpRouterMatch(
 	);
 	Match.Value = pRoute->Value;
 	iCount = pRoute->Parameters;
-	memcpy(pMatch, &Match, sizeof(Match));
-	memcpy(pCount, &iCount, sizeof(iCount));
+	memcpy((void*)pMatch, &Match, sizeof(Match));
+	memcpy((void*)pCount, &iCount, sizeof(iCount));
 	if ( iCapacity < pRoute->Parameters ) {
 		return XHTTP_ROUTER_MORE;
 	}
@@ -19706,8 +19707,8 @@ XHTTP_SERVER_API xhttprouterstatus xrtHttpRouterMatch(
 		if ( RouteStatus != XHTTP_ROUTE_MATCH ) {
 			iCount = 0;
 			memset(&Match, 0, sizeof(Match));
-			memcpy(pCount, &iCount, sizeof(iCount));
-			memcpy(pMatch, &Match, sizeof(Match));
+			memcpy((void*)pCount, &iCount, sizeof(iCount));
+			memcpy((void*)pMatch, &Match, sizeof(Match));
 			xrtSetErrorKind(XERR_INTERNAL);
 			return XHTTP_ROUTER_ERROR;
 		}
@@ -20010,7 +20011,7 @@ XHTTP_SERVER_API xhttprouterstatus xrtHttpRouterMethods(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_ROUTER_ERROR;
 	}
-	memcpy(pCount, &iCount, sizeof(iCount));
+	memcpy((void*)pCount, &iCount, sizeof(iCount));
 	if ( !__xrtHttpRoutePathValid(Path) ) {
 		xrtSetErrorKind(XERR_VALUE);
 		return XHTTP_ROUTER_ERROR;
@@ -20023,7 +20024,7 @@ XHTTP_SERVER_API xhttprouterstatus xrtHttpRouterMethods(
 			pRouter, Path, NULL
 		);
 	}
-	memcpy(pCount, &iCount, sizeof(iCount));
+	memcpy((void*)pCount, &iCount, sizeof(iCount));
 	if ( iCount == 0 ) {
 		return XHTTP_ROUTER_NOT_FOUND;
 	}
@@ -20031,7 +20032,7 @@ XHTTP_SERVER_API xhttprouterstatus xrtHttpRouterMethods(
 		return XHTTP_ROUTER_MORE;
 	}
 	if ( bLocal ) {
-		memcpy(pMethods, Local, iCount * sizeof(*pMethods));
+		memcpy((void*)pMethods, Local, iCount * sizeof(*pMethods));
 	} else {
 		(void)__xrtHttpRouterMethodsLarge(
 			pRouter, Path, pMethods
@@ -20108,7 +20109,7 @@ static void __xrtHttpReplyCompressPublish(
 	xhttpreply* pOutput
 )
 {
-	memcpy(ppOutput, &pOutput, sizeof(pOutput));
+	memcpy((void*)ppOutput, &pOutput, sizeof(pOutput));
 }
 
 
@@ -20134,7 +20135,7 @@ static bool __xrtHttpReplyCompressConfigResolve(
 			);
 			return false;
 		}
-		memcpy(pConfig, pInput, sizeof(*pConfig));
+		memcpy(pConfig, (const void*)pInput, sizeof(*pConfig));
 	}
 	if ( ((pConfig->Codings &
 		  ~XRT_HTTP_REPLY_COMPRESS_CODINGS) != 0) ||
@@ -20629,7 +20630,7 @@ XHTTP_SERVER_API void xrtHttpReplyCompressConfigInit(
 	Config.Level = XDEFLATE_LEVEL_DEFAULT;
 	Config.Strategy = XDEFLATE_STRATEGY_DEFAULT;
 	Config.OutputLimit = XDEFLATE_OUTPUT_UNLIMITED;
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -20697,7 +20698,7 @@ XHTTP_SERVER_API xhttpreplycompressstatus xrtHttpReplyCompress(
 		);
 		return XHTTP_REPLY_COMPRESS_ERROR;
 	}
-	memcpy(&Accept, pAccept, sizeof(Accept));
+	memcpy(&Accept, (const void*)pAccept, sizeof(Accept));
 	if ( !xrtHttpAcceptEncodingValid(&Accept) ) {
 		__xrtHttpReplyCompressError(
 			XERR_ARGUMENT,
@@ -20861,7 +20862,7 @@ XHTTP_SERVER_API xhttpreplycompressstatus xrtHttpServerReplyCompress(
 		);
 		return XHTTP_REPLY_COMPRESS_ERROR;
 	}
-	memcpy(ppOutput, &pOutput, sizeof(pOutput));
+	memcpy((void*)ppOutput, &pOutput, sizeof(pOutput));
 	if ( (pRequest == NULL) || (pReply == NULL) ) {
 		__xrtHttpReplyCompressError(
 			XERR_ARGUMENT,
@@ -20996,7 +20997,7 @@ XHTTP_SERVER_API void xrtHttpServerRouteEventsInit(
 		);
 		return;
 	}
-	memcpy(pEvents, &Events, sizeof(Events));
+	memcpy((void*)pEvents, &Events, sizeof(Events));
 }
 
 
@@ -21021,7 +21022,7 @@ XHTTP_SERVER_API xhttpserverrouter* xrtHttpServerRouterCreate(
 			);
 			return NULL;
 		}
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
 	pRouter = (xhttpserverrouter*)xrtCalloc(
 		1, sizeof(*pRouter)
@@ -21192,7 +21193,7 @@ XHTTP_SERVER_API bool xrtHttpServerRouteEvents(
 		);
 		return false;
 	}
-	memcpy(&Events, pEvents, sizeof(Events));
+	memcpy(&Events, (const void*)pEvents, sizeof(Events));
 	if ( Events.Request == NULL ) {
 		__xrtHttpServerRouterSetError(
 			XERR_ARGUMENT,
@@ -22565,7 +22566,7 @@ xrt_http_server_router_runtime* __xrtHttpServerRouterRuntimeCreate(
 		return NULL;
 	}
 	if ( pEvents != NULL ) {
-		memcpy(&Events, pEvents, sizeof(Events));
+		memcpy(&Events, (const void*)pEvents, sizeof(Events));
 	}
 	pRuntime = (xrt_http_server_router_runtime*)xrtCalloc(
 		1, sizeof(*pRuntime)
@@ -23265,7 +23266,7 @@ XHTTP_SERVER_API void xrtHttpServerMuxConfigInit(
 		);
 		return;
 	}
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -23290,7 +23291,7 @@ XHTTP_SERVER_API xhttpservermux* xrtHttpServerMuxCreate(
 			);
 			return NULL;
 		}
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
 	if ( (Config.MaxHosts == 0) ||
 		(Config.MaxHostBytes == 0) ) {
@@ -23620,7 +23621,7 @@ xhttpservermuxstatus __xrtHttpServerMuxSelect(
 		);
 		return XHTTP_SERVER_MUX_ERROR;
 	}
-	memcpy(ppRouter, &pRouter, sizeof(pRouter));
+	memcpy((void*)ppRouter, &pRouter, sizeof(pRouter));
 	if ( !xrtRWLockRead(&pMux->Lock) ) {
 		__xrtHttpServerMuxWrapError(
 			XERR_IO,
@@ -23652,7 +23653,7 @@ xhttpservermuxstatus __xrtHttpServerMuxSelect(
 		);
 		return XHTTP_SERVER_MUX_ERROR;
 	}
-	memcpy(ppRouter, &pRouter, sizeof(pRouter));
+	memcpy((void*)ppRouter, &pRouter, sizeof(pRouter));
 	return Status;
 }
 
@@ -23687,7 +23688,7 @@ XHTTP_SERVER_API xhttpservermuxstatus xrtHttpServerMuxMatch(
 		);
 		return XHTTP_SERVER_MUX_ERROR;
 	}
-	memcpy(ppRouter, &pRouter, sizeof(pRouter));
+	memcpy((void*)ppRouter, &pRouter, sizeof(pRouter));
 	if ( !__xrtHttpServerMuxParseHost(
 		Text, &Host, "match-http-server-mux"
 	) ) {
@@ -23736,7 +23737,7 @@ XHTTP_SERVER_API bool xrtHttpServerMuxStats(
 	Stats.HostBytes = pMux->HostBytes;
 	Stats.HasDefault = pMux->Default != NULL;
 	(void)xrtRWLockReadUnlock(&pMux->Lock);
-	memcpy(pStats, &Stats, sizeof(Stats));
+	memcpy((void*)pStats, &Stats, sizeof(Stats));
 	return true;
 }
 

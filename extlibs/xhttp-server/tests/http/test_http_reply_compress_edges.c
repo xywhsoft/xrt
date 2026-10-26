@@ -561,8 +561,8 @@ static void testHttpReplyCompressEdgeConfig(void)
 		"Reply compression default queue limit mismatch"
 	);
 	Config.EagerLimit = 0;
-	memcpy(pUnaligned, &Config, sizeof(Config));
-	memcpy(ppUnaligned, &pPublished, sizeof(pPublished));
+	memcpy((void*)pUnaligned, &Config, sizeof(Config));
+	memcpy((void*)ppUnaligned, &pPublished, sizeof(pPublished));
 	Status = xrtHttpReplyCompress(
 		&Accept,
 		XRT_STR_LITERAL("GET"),
@@ -570,7 +570,7 @@ static void testHttpReplyCompressEdgeConfig(void)
 		pUnaligned,
 		ppUnaligned
 	);
-	memcpy(&pPublished, ppUnaligned, sizeof(pPublished));
+	memcpy(&pPublished, (const void*)ppUnaligned, sizeof(pPublished));
 	testRequire(
 		(Status == XHTTP_REPLY_COMPRESS_APPLIED) &&
 		(pPublished != NULL),

@@ -49,3 +49,8 @@ python tools/check_release_maturity.py --release --manifest extlibs/xhttp-server
 保留现有 C API 名称和 `XHTTP_FEATURE_*` 特性名。迁出的选择宏改用 `XHTTP_SERVER_MODULE_*`；替换旧的 xhttp 高层聚合入口，加入对应 manifest 与公共头。旧源码不能继续用 `XHTTP_MODULE_HTTP_CLIENT` / `XHTTP_MODULE_HTTP_SERVER` 选择已迁出的运行时。
 
 完整符号见 [公共符号参考](docs/api/reference.md)，整体职责与迁移示例见 [拆分说明](../xhttp/docs/design/http-layers.md)。保留已有功能，不增加 CORS 框架、插件注册体系或新的协议产品。
+
+公共头明确支持未对齐存储的配置、固定结果、数组和输出槽，会先验证完整范围与重叠边界，
+再以字节视图快照或发布。调用方读取可能未对齐的借用描述符时，也应显式使用字节视图，
+例如 `memcpy(&local, (const void*)borrowed, sizeof(local))`；向原始存储写入时显式使用
+`void*`。这使编译器按原始存储处理拷贝，避免依据结构体指针类型附加对齐假设。
