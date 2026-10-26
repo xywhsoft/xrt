@@ -38,7 +38,7 @@
 
 | 产品目录 | 实现模块 | 源文件 | tests | single_tests | examples | 本轮状态 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| xacme | 14 | 16 | 28 | 6 | 1 | 待复核 |
+| xacme | 14 | 16 | 28 | 6 | 1 | core/JOSE 已复核并修复诊断覆盖，CSR/PEM 继续 |
 | xhttp | 115 | 124 | 236 | 115 | 82 | 待复核 |
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
@@ -48,7 +48,7 @@
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
 | xmail | 19 | 19 | 27 | 18 | 14 | 待复核 |
-| xoauth2 | 1 | 3 | 3 | 2 | 4 | 三分片已复核，配置别名修复本地通过，交付/CI 验证中 |
+| xoauth2 | 1 | 3 | 3 | 2 | 4 | 源码/完整离线/故障/网络/交付本地验收通过，CI 待确认 |
 | xpop3 | 6 | 4 | 10 | 6 | 4 | 待复核 |
 | xrudp | 19 | 20 | 76 | 97 | 0 | 待复核 |
 | xruntime | 36 | 23 | 87 | 42 | 30 | 待复核 |
@@ -355,3 +355,42 @@ OAuth HTTP 生命周期、token 流程及发现/身份组合仍需后续复核�
 证据：`oauth-config-alias-baseline-final.log`、`oauth-config-alias-tcc-final.log`、
 `oauth-config-alias-sanitize-final.log`（完整入口段）、`oauth-full-alias-windows-final.log`、
 `oauth-coverage-alias-final.log`、`oauth-coverage-alias-final.json`。
+
+### 认证本地验收补全
+
+- OAuth 最终源码的 Windows/Linux 完整清单套件均通过：分别 323/316 项完整测试，
+  两平台均执行模块化与单头、OIDC 组合 15 项、三个离线示例及最小入口。
+- Clang sanitizer 加泄漏检查执行 OAuth 完整入口、token/刷新/微信逐分配点故障扫描、
+  TCP/TLS 各阶段故障、OIDC 组合及两个示例的分配失败和恢复测试，全部通过。
+- 独立 HTTP/TLS 的全部 23 个分组在 Clang sanitizer 下通过，含 139 个真实分配失败位置、
+  证书/身份/SNI、100/101 字段和 trailer、1 MiB 上限、raw NUL、截断、发送期限和构造退休。
+- Windows/Linux 的 JWT/OAuth/组合 static/shared 共 12 个真实消费者全部通过；
+  OAuth 裁剪正向及缺依赖拒绝、single/static/shared 体积测量和未固定基线的性能 smoke 通过。
+  真实 OIDC 示例只构建运行无参数 usage，不读取在线凭据。
+- `3da19a3f` 的 CI `40307069156`：两库扩展及元数据 job 已成功，双平台认证 job 仍在执行；
+  独立邮件 run `40307060575` 已成功。上述结果尚不作为整库远端验收完成。
+
+证据：`oauth-full-alias-windows-final.log`、`oauth-delivery-alias-linux-final.log`、
+`oauth-config-alias-sanitize-final.log`、`oauth-tls-sanitize-alias-final.log`、
+`auth-package-alias-windows-final.log`、`auth-package-alias-windows-final.json`、
+`auth-package-alias-linux-final.json`、`oauth-size-alias-final.json`、
+`oauth-performance-smoke-alias-final.json`、`acme-jose-sanitize-final.log`（开头 OIDC usage 段）。
+
+### 第十一批：ACME JOSE 失败诊断
+
+- JWS 签名将非法私钥的真实 crypto 错误覆盖为 MEMORY；真实回归使用有效公钥和零私有标量，
+  与底层直接签名的 kind/domain/code/operation 对照，在修复前失败。
+- 补强既有逐分配点扫描后，JWS 的首个 OOM 也因被改写为 JOSE 错误域而失败。
+  两种 JWS 组装仅在底层未提供诊断时补 INTERNAL，保留实际 crypto/allocator 原因。
+  同步纠正私有头中把扁平 JSON 误写为紧凑序列化的注释。
+- Windows/Linux GCC 模块化、Linux TCC 单头、Clang ASan/UBSan 加泄漏检查均通过：
+  RFC 固定密钥/JWK/指纹/签名/EAB 对照继续有效，JWK/JWS/EAB 的 1/14/13 个分配失败点全部通过。
+- 生成单头、API 覆盖、参考和发布成熟度检查通过。core/JOSE 源码复核结束，
+  CSR/PEM 的曲线识别、畸形 DER 与敏感临时缓冲等候选继续复核；其余 ACME 源码尚未完成。
+- 既有 flow 控制/故障矩阵在 Clang sanitizer 加泄漏检查下全量通过；保留实际 JOSE/CSR、
+  账户/签发/吊销/滚动/存储逻辑，HTTP 与存储失败点为受控边界，不能替代真实 CA 互操作。
+
+证据：`acme-jose-diagnostic-before.log`、`acme-jose-oom-before.log`、
+`acme-jose-tcc-final.log`、`acme-jose-modular-windows-final.log`、
+`acme-jose-modular-linux-final.log`、`acme-jose-sanitize-final.log`、
+`acme-flow-diagnostic-sanitize-final.log`。

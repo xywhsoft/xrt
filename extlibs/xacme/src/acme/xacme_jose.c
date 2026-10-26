@@ -349,10 +349,10 @@ Done:
 	xrtFree(sSignatureB64);
 	xrtBufferUnit(&Header);
 	xrtBufferUnit(&Token);
-	if(sResult == NULL)
+	if(sResult == NULL && xrtGetError() == NULL)
 	{
 		xrtSetErrorInfo(
-			XERR_MEMORY,
+			XERR_INTERNAL,
 			"xrt.acme.jose",
 			XACME_JOSE_ERROR_INTERNAL,
 			"acme jose jws assembly failed"
@@ -436,10 +436,10 @@ Done:
 	xrtFree(sSignatureB64);
 	xrtBufferUnit(&Header);
 	xrtBufferUnit(&SigningInput);
-	if(sResult == NULL)
+	if(sResult == NULL && xrtGetError() == NULL)
 	{
 		xrtSetErrorInfo(
-			XERR_MEMORY,
+			XERR_INTERNAL,
 			"xrt.acme.jose",
 			XACME_JOSE_ERROR_INTERNAL,
 			"acme jose eab assembly failed"
