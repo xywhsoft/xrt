@@ -46,7 +46,9 @@ static bool start_engine(xnetengine* engine)
 	return false;
 }
 
-static double rollback_deadline(uint64 timeout)
+/* Match the signed Core wait contract, including -1. Changing the argument
+ * type also changes GCC gcov line attribution for a conditional argument. */
+static double rollback_deadline(int64 timeout)
 {
 	if(RollbackFault != 0u && timeout > 20u) timeout = 20u;
 	return __xrtWaitAfter(timeout);
@@ -1198,6 +1200,14 @@ int main(int argc, char** argv)
 	long size;
 	bool ok;
 	if((argc != 2 && argc != 3 && argc != 4) || !xrtMemDebugEnable(true)) return 2;
+	for(RollbackFault = 0u; RollbackFault <= 2u; RollbackFault++) {
+		if(rollback_deadline(XRT_WAIT_FOREVER) != INFINITY ||
+			!isnan(rollback_deadline(-2)) || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) {
+			fprintf(stderr, "retirement deadline wrapper lost signed wait semantics\n"); return 1;
+		}
+		xrtClearError();
+	}
+	RollbackFault = 0u;
 	file = fopen(argv[1], "rb");
 	if(file == NULL) return 2;
 	if(fseek(file, 0, SEEK_END) != 0 || (size = ftell(file)) <= 0 || size > 65536 ||

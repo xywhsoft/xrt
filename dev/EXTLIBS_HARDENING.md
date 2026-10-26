@@ -1082,3 +1082,22 @@ RSA 导入及 provider/签名/XML 复核继续；大同名 RRset 的递归探测
 `acme-http-budget-packages-final-*.json`、`acme-http-budget-final-check-*.log`、
 `acme-http-budget-final-input-audit.json`、`acme-retirement-final-*.json`、
 `acme-retirement-old-ready-assumption.log`、`acme-retirement-repeat-*.log`。
+
+
+### 第 33 批：ACME 覆盖率夹具的有符号时间契约
+
+- 8a23f336 的 PR CI 40405542024 两项 ACME coverage 任务失败，任务分别为
+  Linux 121862231060、Windows 121862231101。全部独立 HTTP/TLS/DNS/provider 测试先已通过，
+  随后严格覆盖率合并在 ownership_dns_obtain 的 xacme_http.c 画像处拒绝；未降低门槛或跳过画像。
+- 退休夹具 rollback_deadline 原参数为 uint64，而 Core __xrtWaitAfter 接收 int64。
+  用 8a23f336 的实际 HTTP 源码和同一 GCC 16.2 对照模块/嵌入编译，复现 OnceV 中同一个
+  条件表达式的基本块由第 994 行分到 997 行，导致行集合与 CFG 绑定不一致。只把夹具
+  声明改为 int64 后两个画像完全一致。新 HTTP 调用链自身也保持相同签名；无需修改合并器。
+- 增加真实 Core 时间算术回归：无退休注入及两种退休故障下，-1 始终无限，-2 始终
+  为 NAN/ARGUMENT；旧无符号声明在退休注入时会把负数改成 20ms。正数短等待不变。
+  Windows GCC 完整拥有权程序通过，并额外重复三轮 12 个真实 worker 持有场景，
+  所有资源最终归零。其余平台和新 CI 继续验证；本批仅修改夹具，不包含下一批 Issue 产品修复。
+
+证据：`ci-8a23-acme-coverage-{linux,windows}.log`、`acme-issue-cfg-before.log`、
+`acme-issue-cfg-signed-before-source.log`、`acme-retirement-signed-windows.json`、
+`acme-retirement-signed-windows-gcc.log`、`acme-retirement-signed-repeat-windows-gcc.log`。
