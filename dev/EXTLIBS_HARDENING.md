@@ -536,3 +536,22 @@ HTTP 批次全量补记：`measure_acme_coverage.py --compiler gcc --temp-root /
 `acme-obtain-account-windows-final.log`、`acme-obtain-account-linux-final.log`、
 `acme-obtain-account-tcc-final.log`、`acme-obtain-account-sanitize-final.log`、
 `acme-obtain-account-ownership-sanitize-final.log`。
+
+### 远端回归修复：server ownership 取消与终态发布
+
+- `71dd59c9` 的 macOS job `121595202596` 在既有取消竞争断言处失败：
+  `xrtFutureCancel` 返回 false 时仍观察到 PENDING。源码与公开契约表明这可以合法发生：
+  PromiseClose 先请求一次性取消令牌并等待通知结束，再发布 CLOSED。
+- 新增真实取消观察者门闩，将关闭线程停在已请求取消、尚未发布终态的窗口；
+  在原断言上稳定复现同一行失败，无 sleep、伪造状态或修改运行时。
+  重复取消现在核对实际令牌已经请求，或终态已经可见；强制场景进一步断言返回 false、
+  Future 保持 PENDING、零等待超时，释放门闩后必须 CLOSED。原退休、图与精确分配平衡检查保留。
+- Windows/GCC 与 Linux/Clang sanitizer 的模块化/单头均通过，Linux/TCC 的 select/epoll 通过。
+  Windows 与 Linux sanitizer 各 32 次模块化/单头 select/native 实际运行通过，
+  每平台包含 32 个强制发布窗口和 256 次原关闭/取消竞争，无泄漏或 sanitizer 报错。
+  macOS 的最终确认交由新提交 CI；不将本机结果冒充该平台已通过。
+
+证据：`ci-http-macos-121595202596.log`、`net-server-publication-before.log`、
+`net-server-publication-windows-final.log`、`net-server-publication-sanitize-final.log`、
+`net-server-publication-tcc-final.log`、`net-server-publication-repeat-windows-final.log`、
+`net-server-publication-repeat-sanitize-final.log`。
