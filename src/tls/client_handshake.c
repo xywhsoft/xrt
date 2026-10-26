@@ -645,6 +645,9 @@ static xtlsresult __xrtTlsClient13ServerHelloCommit(
 	xbytesview Encoded;
 	bool bResumed;
 	bool bCommitted = false;
+	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+		xtlsclientpeer* pResumePeer = NULL;
+	#endif
 
 	memset(&Next, 0, sizeof(Next));
 	if ( !__xrtTlsClientServerHello(
@@ -660,6 +663,26 @@ static xtlsresult __xrtTlsClient13ServerHelloCommit(
 		);
 		goto cleanup;
 	}
+	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+		if (bResumed) {
+			pResumePeer = __xrtTlsResumePeer(pState->OfferResume);
+			if (pState->Verifier &&
+				(xrtTlsVerifierFlagsV1(pState->Verifier) & XTLS_VERIFY_RESUME_PEER_V1)) {
+				if (!pResumePeer || !xrtTlsVerifierVerify(pState->Verifier,
+					XTLS_SERVER, (xstrview){(cstr)pState->ServerName.Data, pState->ServerName.Size},
+					pResumePeer->Certificates, pResumePeer->CertificateCount)) {
+					if (!xrtGetError()) (void)__xrtTlsClientError(XERR_STATE, XTLS_ERROR_RESUME,
+						"process-server-hello", "TLS resume peer certificate chain is missing");
+					pResumePeer = NULL;
+					goto cleanup;
+				}
+			}
+			if (pResumePeer) {
+				pResumePeer = __xrtTlsClientPeerRetain(pResumePeer);
+				if (!pResumePeer) goto cleanup;
+			}
+		}
+	#endif
 	Encoded.Data = pMessage->Body.Data - XTLS_HANDSHAKE_HEADER_SIZE;
 	Encoded.Size = pMessage->EncodedSize;
 	if ( !__xrtTlsClientServerKeys(
@@ -697,12 +720,17 @@ static xtlsresult __xrtTlsClient13ServerHelloCommit(
 	pState->Version = XTLS_VERSION_13;
 	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 		pState->Resumed = Next.Resumed;
+		pState->Peer = pResumePeer;
+		pResumePeer = NULL;
 	#endif
 	pState->Step = XTLS_CLIENT_WAIT_ENCRYPTED_EXTENSIONS;
 	xrtSecureZero(pState->PrivateKey, pState->PrivateKeySize);
 	bCommitted = __xrtTlsClientWait(pSession, true);
 
 cleanup:
+	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+		__xrtTlsClientPeerRelease(pResumePeer);
+	#endif
 	__xrtTlsTranscriptClear(&Next.Transcript);
 	xrtSecureZero(&Next, sizeof(Next));
 	return bCommitted ? XTLS_OK : __xrtTlsClientFailed(pSession);
@@ -999,12 +1027,30 @@ static bool __xrtTlsClientCertificateMeasure(
 
 
 
-/* 分配并深复制完整对端证书链，所有解析视图都指向稳定 DER。 */
-static xtlsclientpeer* __xrtTlsClientCertificateCopy(
-	const xtlscertificatemessage* pCertificate,
-	size_t iCount,
-	size_t iBytes
-)
+/* One precise allocation, shared by sessions and tickets only when resumption
+ * is enabled. Published certificate views never change. */
+void __xrtTlsClientPeerRelease(xtlsclientpeer* pPeer)
+{
+	if (!pPeer) return;
+	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+		if (xrtRefRelease(&pPeer->RefCount) != 0) return;
+	#endif
+	xrtFree(pPeer);
+}
+
+#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+xtlsclientpeer* __xrtTlsClientPeerRetain(xtlsclientpeer* pPeer)
+{
+	if (!pPeer || xrtRefRetain(&pPeer->RefCount) < 0) {
+		(void)__xrtTlsClientError(XERR_STATE, XTLS_ERROR_STATE,
+			"retain-tls-client-peer", "TLS certificate owner reference is invalid");
+		return NULL;
+	}
+	return pPeer;
+}
+#endif
+
+xtlsclientpeer* __xrtTlsClientPeerAllocate(size_t iCount, size_t iBytes)
 {
 	const size_t iCertificateAlignment =
 		XRT_INTERNAL_ALIGNOF(xx509cert);
@@ -1015,13 +1061,7 @@ static xtlsclientpeer* __xrtTlsClientCertificateCopy(
 	size_t iCertificates;
 	size_t iTotal;
 	xtlsclientpeer* pPeer;
-	xtlscertificatecursor Cursor;
-	xtlscertificateentry Entry;
-	xtlsitemresult Result;
-	bytes pData;
-	size_t i = 0;
-
-	if ( iCount > (SIZE_MAX / sizeof(xx509cert)) ) {
+	if ( (iCount == 0) || (iCount > (SIZE_MAX / sizeof(xx509cert))) ) {
 		(void)__xrtTlsClientError(
 			XERR_RANGE, XTLS_ERROR_LIMIT,
 			"process-server-certificate",
@@ -1049,8 +1089,28 @@ static xtlsclientpeer* __xrtTlsClientCertificateCopy(
 		return NULL;
 	}
 	memset(pPeer, 0, iHeader + iCertificates);
+	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+		pPeer->RefCount = 1;
+	#endif
 	pPeer->Certificates = (xx509cert*)((bytes)pPeer + iHeader);
 	pPeer->CertificateCount = iCount;
+	return pPeer;
+}
+
+/* 分配并深复制完整对端证书链，所有解析视图都指向稳定 DER。 */
+static xtlsclientpeer* __xrtTlsClientCertificateCopy(
+	const xtlscertificatemessage* pCertificate,
+	size_t iCount,
+	size_t iBytes
+)
+{
+	xtlsclientpeer* pPeer = __xrtTlsClientPeerAllocate(iCount, iBytes);
+	xtlscertificatecursor Cursor;
+	xtlscertificateentry Entry;
+	xtlsitemresult Result;
+	bytes pData;
+	size_t i = 0;
+	if (!pPeer) return NULL;
 	pData = (bytes)(pPeer->Certificates + iCount);
 	if ( !xrtTlsCertificateEntries(pCertificate, &Cursor) ) {
 		xrtFree(pPeer);

@@ -28,10 +28,18 @@ typedef enum xtlsclientstep {
 
 /* 已验证对端证书只保留一份精确分配和指向该分配的解析视图。 */
 typedef struct xtlsclientpeer {
+	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+		volatile int32 RefCount;
+	#endif
 	xx509cert* Certificates;
 	size_t CertificateCount;
 	xx509pubkey PublicKey;
 } xtlsclientpeer;
+
+/* Immutable one-allocation DER owner. Refcounting exists only in builds that
+ * enable tickets. No language references or policy decision is stored here. */
+void __xrtTlsClientPeerRelease(xtlsclientpeer* pPeer);
+xtlsclientpeer* __xrtTlsClientPeerAllocate(size_t iCount, size_t iBytes);
 
 #endif
 

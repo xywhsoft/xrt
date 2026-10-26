@@ -7,6 +7,19 @@
 
 #if defined(XRT_FEATURE_TLS)
 
+/* Optional peer ownership is private to client resumption. Keeping the owner
+ * opaque here lets the base credential implementation remain independent of
+ * client/session layouts, and absent entirely from resume-only builds. */
+#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+struct xtlsclientpeer;
+void __xrtTlsClientPeerRelease(struct xtlsclientpeer* pPeer);
+struct xtlsclientpeer* __xrtTlsClientPeerRetain(struct xtlsclientpeer* pPeer);
+struct xtlsclientpeer* __xrtTlsResumePeer(const xtlsresume* pResume);
+/* Only an unpublished, uniquely owned ticket may be attached. Borrows Peer;
+ * success takes a new reference, failure leaves the ticket unchanged. */
+bool __xrtTlsResumePeerAttach(xtlsresume* pResume, struct xtlsclientpeer* pPeer);
+#endif
+
 /* 设置带可选输入偏移的 TLS 结构化错误。 */
 void __xrtTlsError(
 	xerrkind Kind,

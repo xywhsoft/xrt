@@ -1060,7 +1060,7 @@ static void __xrtTlsClientClean(xtlssession* pSession, ptr pRole)
 		__xrtTlsTranscriptClear(&pState->Transcript);
 		__xrtTlsRecordKeyClear(&pState->PendingReadKey);
 		#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
-			xrtFree(pState->Peer);
+			__xrtTlsClientPeerRelease(pState->Peer);
 			xrtTlsVerifierRelease(pState->Verifier);
 		#endif
 		if ( pState->RetryStorage != NULL ) {
@@ -1259,6 +1259,20 @@ XRT_API xtlssession* xrtTlsClientCreate(
 			&Config, &ResumeProtocol, &ResumeInfo, &iResumeAge
 		) ) {
 			return NULL;
+		}
+		if (Config.Resume && Config.Verifier &&
+			(xrtTlsVerifierFlagsV1(Config.Verifier) & XTLS_VERIFY_RESUME_PEER_V1) &&
+			!__xrtTlsResumePeer(Config.Resume)) {
+			if (Config.ResumeOnly) {
+				(void)__xrtTlsClientError(XERR_STATE, XTLS_ERROR_RESUME,
+					"create-tls-client", "Required TLS resume has no peer certificate chain");
+				return NULL;
+			}
+			/* Keep inherited name/ALPN, but do not offer this PSK. The normal
+			 * certificate flight will make the current trust decision. */
+			Config.Resume = NULL;
+			memset(&ResumeInfo, 0, sizeof(ResumeInfo));
+			iResumeAge = 0;
 		}
 	#endif
 	if ( !__xrtTlsClientConfigValid(pConfig, &iProtocolBytes) ) {

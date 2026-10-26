@@ -16,6 +16,7 @@ struct xtlsverifier {
 	ptr Context;
 	bool AllowSha1;
 	bool Limited;
+	uint32 Flags;
 	xtlsverifylimits Limits;
 	const xtlsverifiercontextownershipv1* OwnershipPolicy;
 	xatomicptr OwnershipClaim;
@@ -407,12 +408,18 @@ XRT_API void xrtTlsVerifierConfigInit(xtlsverifierconfig* pConfig)
 /* 创建深复制信任库并接管自定义上下文的共享验证器。 */
 static xtlsverifier* __xrtTlsVerifierCreate(
 	const xtlsverifierconfig* pConfig,
-	const xtlsverifylimits* pLimits
+	const xtlsverifylimits* pLimits,
+	uint32 iFlags
 )
 {
 	xtlsverifier* pVerifier;
 	xx509store* pStore;
 
+	if ( (iFlags & ~XTLS_VERIFY_RESUME_PEER_V1) != 0 ) {
+		(void)__xrtTlsVerifyError(XERR_ARGUMENT, "create-tls-verifier",
+			"TLS verifier flags contain unsupported bits");
+		return NULL;
+	}
 	if ( (pConfig == NULL) ||
 		((pConfig->Store == NULL) && (pConfig->Verify == NULL)) ) {
 		(void)__xrtTlsVerifyError(
@@ -457,6 +464,7 @@ static xtlsverifier* __xrtTlsVerifierCreate(
 	pVerifier->Context = pConfig->Context;
 	pVerifier->AllowSha1 = pConfig->AllowSha1;
 	pVerifier->Limited = pLimits != NULL;
+	pVerifier->Flags = iFlags;
 	if ( pLimits != NULL ) {
 		pVerifier->Limits = *pLimits;
 	}
@@ -466,7 +474,7 @@ static xtlsverifier* __xrtTlsVerifierCreate(
 
 XRT_API xtlsverifier* xrtTlsVerifierCreate(const xtlsverifierconfig* pConfig)
 {
-	return __xrtTlsVerifierCreate(pConfig, NULL);
+	return __xrtTlsVerifierCreate(pConfig, NULL, 0);
 }
 
 
@@ -479,13 +487,23 @@ XRT_API xtlsverifier* xrtTlsVerifierCreateLimited(
 		(void)__xrtTlsVerifyError(XERR_ARGUMENT, "create-tls-verifier", "TLS verification limits are null");
 		return NULL;
 	}
-	return __xrtTlsVerifierCreate(pConfig, pLimits);
+	return __xrtTlsVerifierCreate(pConfig, pLimits, 0);
 }
 
 XRT_API xtlsverifier* xrtTlsVerifierCreateOwnedV1(
 	const xtlsverifierconfig* pConfig,
 	const xtlsverifylimits* pLimits,
 	const xtlsverifiercontextownershipv1* pPolicy
+)
+{
+	return xrtTlsVerifierCreateOwnedFlagsV1(pConfig, pLimits, pPolicy, 0);
+}
+
+XRT_API xtlsverifier* xrtTlsVerifierCreateOwnedFlagsV1(
+	const xtlsverifierconfig* pConfig,
+	const xtlsverifylimits* pLimits,
+	const xtlsverifiercontextownershipv1* pPolicy,
+	uint32 iFlags
 )
 {
 	if (!pConfig || !pLimits || !pPolicy || pPolicy->size != sizeof(*pPolicy) ||
@@ -497,13 +515,37 @@ XRT_API xtlsverifier* xrtTlsVerifierCreateOwnedV1(
 			"TLS verifier needs an exact resident context ownership policy");
 		return NULL;
 	}
-	xtlsverifier* pVerifier = __xrtTlsVerifierCreate(pConfig, pLimits);
+	xtlsverifier* pVerifier = __xrtTlsVerifierCreate(pConfig, pLimits, iFlags);
 	if (pVerifier) {
 		pVerifier->OwnershipPolicy = pPolicy;
 		xrtAtomicPtrInit(&pVerifier->OwnershipClaim, NULL);
 		xrtAtomic32Init(&pVerifier->OwnershipActive, 0);
 	}
 	return pVerifier;
+}
+
+XRT_API xtlsverifier* xrtTlsVerifierCreateFlagsV1(
+	const xtlsverifierconfig* pConfig,
+	const xtlsverifylimits* pLimits,
+	uint32 iFlags
+)
+{
+	if (!pLimits) {
+		(void)__xrtTlsVerifyError(XERR_ARGUMENT, "create-tls-verifier",
+			"TLS verification limits are null");
+		return NULL;
+	}
+	return __xrtTlsVerifierCreate(pConfig, pLimits, iFlags);
+}
+
+XRT_API uint32 xrtTlsVerifierFlagsV1(const xtlsverifier* pVerifier)
+{
+	if (!pVerifier) {
+		(void)__xrtTlsVerifyError(XERR_ARGUMENT, "get-tls-verifier-flags",
+			"TLS verifier is null");
+		return 0;
+	}
+	return pVerifier->Flags;
 }
 
 

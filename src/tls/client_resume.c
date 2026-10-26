@@ -315,8 +315,103 @@ bool __xrtTlsClientResumePublish(
 		}
 		return false;
 	}
+	if (pState->Peer && !__xrtTlsResumePeerAttach(pResume, pState->Peer)) {
+		xrtTlsResumeRelease(pResume);
+		return false;
+	}
 	__xrtTlsClientResumeQueue(pState, pResume);
 	return true;
+}
+
+XRT_API size_t xrtTlsResumePeerCertificateCountV1(const xtlsresume* pResume)
+{
+	if (!pResume) {
+		(void)__xrtTlsClientError(XERR_ARGUMENT, XTLS_ERROR_ARGUMENT,
+			"count-tls-resume-peer-certificates", "TLS resume is null");
+		return 0;
+	}
+	const xtlsclientpeer* pPeer = __xrtTlsResumePeer(pResume);
+	return pPeer ? pPeer->CertificateCount : 0;
+}
+
+XRT_API const xx509cert* xrtTlsResumePeerCertificateV1(
+	const xtlsresume* pResume, size_t iIndex)
+{
+	const xtlsclientpeer* pPeer = __xrtTlsResumePeer(pResume);
+	if (!pResume || !pPeer || iIndex >= pPeer->CertificateCount) {
+		(void)__xrtTlsClientError(pResume ? XERR_RANGE : XERR_ARGUMENT,
+			XTLS_ERROR_ARGUMENT, "get-tls-resume-peer-certificate",
+			"TLS resume peer certificate index is invalid");
+		return NULL;
+	}
+	return &pPeer->Certificates[iIndex];
+}
+
+XRT_API xtlsresume* xrtTlsResumeWithPeerCertificatesV1(
+	const xtlsresume* pResume, const xbytesview* pCertificates,
+	size_t iCount, const xtlsverifylimits* pLimits)
+{
+	if (!pResume || !pCertificates || !pLimits || !iCount) {
+		(void)__xrtTlsClientError(XERR_ARGUMENT, XTLS_ERROR_ARGUMENT,
+			"copy-tls-resume-peer", "TLS resume, nonempty chain and limits are required");
+		return NULL;
+	}
+	if (iCount > SIZE_MAX / sizeof(xx509cert) ||
+		(pLimits->MaxPeerCertificates && iCount > pLimits->MaxPeerCertificates)) {
+		(void)__xrtTlsClientError(XERR_RANGE, XTLS_ERROR_LIMIT,
+			"copy-tls-resume-peer", "TLS resume certificate count exceeds its budget");
+		return NULL;
+	}
+	size_t iBytes = 0;
+	for (size_t i = 0; i < iCount; i++) {
+		xbytesview Raw = pCertificates[i];
+		if (!Raw.Data || !Raw.Size || Raw.Size > SIZE_MAX - iBytes) {
+			(void)__xrtTlsClientError(XERR_ARGUMENT, XTLS_ERROR_CERTIFICATE,
+				"copy-tls-resume-peer", "TLS resume certificate DER view is invalid");
+			return NULL;
+		}
+		iBytes += Raw.Size;
+		if (pLimits->MaxPeerBytes && iBytes > pLimits->MaxPeerBytes) {
+			(void)__xrtTlsClientError(XERR_RANGE, XTLS_ERROR_LIMIT,
+				"copy-tls-resume-peer", "TLS resume certificate bytes exceed their budget");
+			return NULL;
+		}
+	}
+	xtlsclientpeer* pPeer = __xrtTlsClientPeerAllocate(iCount, iBytes);
+	if (!pPeer) return NULL;
+	bytes pData = (bytes)(pPeer->Certificates + iCount);
+	for (size_t i = 0; i < iCount; i++) {
+		xbytesview Raw = pCertificates[i];
+		memcpy(pData, Raw.Data, Raw.Size);
+		if (!xrtX509Parse(pData, Raw.Size, &pPeer->Certificates[i])) {
+			__xrtTlsClientPeerRelease(pPeer);
+			return NULL;
+		}
+		pData += Raw.Size;
+	}
+	if (!xrtX509PublicKey(&pPeer->Certificates[0], &pPeer->PublicKey)) {
+		__xrtTlsClientPeerRelease(pPeer);
+		return NULL;
+	}
+	xtlsresumeinfo Info;
+	if (!xrtTlsResumeInfo(pResume, &Info)) {
+		__xrtTlsClientPeerRelease(pPeer);
+		return NULL;
+	}
+	xtlsresumeconfig Config = {0};
+	Config.Version = Info.Version; Config.Cipher = Info.Cipher;
+	Config.Ticket = Info.Ticket; Config.Secret = Info.Secret;
+	Config.ServerName = Info.ServerName; Config.Protocol = Info.Protocol;
+	Config.PeerIdentity = Info.PeerIdentity; Config.Lifetime = Info.Lifetime;
+	Config.AgeAdd = Info.AgeAdd; Config.MaxEarlyData = Info.MaxEarlyData;
+	Config.IssuedAt = Info.IssuedAt;
+	xtlsresume* pResult = xrtTlsResumeCreate(&Config);
+	if (pResult && !__xrtTlsResumePeerAttach(pResult, pPeer)) {
+		xrtTlsResumeRelease(pResult);
+		pResult = NULL;
+	}
+	__xrtTlsClientPeerRelease(pPeer);
+	return pResult;
 }
 
 

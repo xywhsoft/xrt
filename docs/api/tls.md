@@ -13737,3 +13737,9 @@ Listener 都明确拒绝两种查找配置；同时提供两种回调则是参�
 `tools/test_tls_server_resume_owned.py` 只运行正常固定材料的内存握手、拥有权、
 分配失败和无恢复能力配置检查；不运行既有畸形 PSK/binder 安全专项。
 该原生前置不等于语言层票据接口或 shipping 已验收。
+
+### 恢复时重新执行当前验证策略
+
+带 `XTLS_VERIFY_RESUME_PEER_V1` 的不可变验证器在恢复时重新验证票据共享的
+实际证书链。缺链凭据按可选／required 分别完整握手／checked 拒绝；允许显式
+复制补链但不将导入当作认证。参见 [恢复凭据与当前策略](../design/tls-resume-peer.md)。

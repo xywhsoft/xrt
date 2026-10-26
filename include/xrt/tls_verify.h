@@ -121,6 +121,11 @@ typedef struct xtlsverifylimits {
 	size_t MaxTrustBytes;
 } xtlsverifylimits;
 
+/* Recheck the actual saved certificate chain with this verifier whenever a
+ * server selects a resumption PSK. A missing chain falls back to a full
+ * handshake, unless the client explicitly requires resumption. */
+#define XTLS_VERIFY_RESUME_PEER_V1 UINT32_C(1)
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -159,6 +164,21 @@ XRT_API xtlsverifier* xrtTlsVerifierCreateOwnedV1(
 	const xtlsverifylimits* pLimits,
 	const xtlsverifiercontextownershipv1* pPolicy
 );
+
+/* Immutable verification options; unknown bits fail before adopting Context.
+ * The existing factories retain their flags=0 behavior. Limits is required. */
+XRT_API xtlsverifier* xrtTlsVerifierCreateFlagsV1(
+	const xtlsverifierconfig* pConfig,
+	const xtlsverifylimits* pLimits,
+	uint32 iFlags
+);
+XRT_API xtlsverifier* xrtTlsVerifierCreateOwnedFlagsV1(
+	const xtlsverifierconfig* pConfig,
+	const xtlsverifylimits* pLimits,
+	const xtlsverifiercontextownershipv1* pPolicy,
+	uint32 iFlags
+);
+XRT_API uint32 xrtTlsVerifierFlagsV1(const xtlsverifier* pVerifier);
 
 /* Read under the complete graph's freeze. Admission requires the exact
  * registered resident policy identity BEFORE its fields are followed. Opaque
