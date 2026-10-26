@@ -1001,3 +1001,16 @@ RSA 导入及 provider/签名/XML 复核继续；大同名 RRset 的递归探测
 `smtp-tls-fault-coverage-windows-repeat.log`、
 `smtp-tls-fault-coverage-windows-diagnostic-complete.log`、
 `smtp-tls-fault-coverage-windows-diagnostic-clean-final.log`、`smtp-tls-open-diagnostic-control.log`。
+
+### 第三十一批：TCC 并发存储回归兼容
+
+- 本轮完整 TCC 首次执行 20 个模块化程序后，在 `test_store_concurrent.c` 编译停止，
+  明确报 `stdatomic.h` 不存在；保留原日志，不把此前单独 TCC fault probe 的通过当作整套通过。
+- 夹具改用已经包含在 acme_store 依赖闭包内的 Core xatomic32 和公开静态初始化宏。
+  对应 C11 默认操作全部保留 XMEMORY_SEQ_CST，没有改为较弱内存序。
+  双写线程、每线程 12 次轮换、至少 50 次读、配对一致性、全部写成功、零读失败与混配
+  断言保持原样；原生测试线程创建/汇合逻辑不变，不引入新的产品运行时依赖。
+- Linux/TCC 的独立 acme_store 并发回归已实际执行通过。HTTP 交换预算修复的完整 TCC
+  套件继续复验，最终整套结果另行记录；这项只关闭已确认的夹具编译兼容缺口。
+
+证据：`acme-http-budget-full-linux-tcc.log`、`acme-store-concurrent-tcc-final.log`。
