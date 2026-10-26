@@ -599,6 +599,7 @@ static bool xacmeCertKeyReadPemImpl(cstr sPem, size_t iSize, xacmecertkey* pKey)
 				&Cursor, XASN1_UNIVERSAL, XASN1_SEQUENCE, true, &Value) &&
 			xrtDerEnter(&Value, &Cursor) &&
 			xacmeRsaParsePkcs1(&Cursor, &pKey->Rsa);
+		xrtSecureZero(pDer, iDerSize);
 		xrtFree(pDer);
 		if(bOk)
 		{
@@ -662,6 +663,7 @@ static bool xacmeCertKeyReadPemImpl(cstr sPem, size_t iSize, xacmecertkey* pKey)
 					&InnerSeq) &&
 				xrtDerEnter(&InnerSeq, &Inner) &&
 				xacmeRsaParsePkcs1(&Inner, &pKey->Rsa);
+			xrtSecureZero(pDer, iDerSize);
 			xrtFree(pDer);
 			if(bOk)
 			{
@@ -675,6 +677,7 @@ static bool xacmeCertKeyReadPemImpl(cstr sPem, size_t iSize, xacmecertkey* pKey)
 				"acme cert key rsa pkcs8 invalid");
 			return false;
 		}
+		xrtSecureZero(pDer, iDerSize);
 		xrtFree(pDer);
 	}
 

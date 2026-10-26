@@ -38,7 +38,7 @@
 
 | 产品目录 | 实现模块 | 源文件 | tests | single_tests | examples | 本轮状态 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| xacme | 14 | 16 | 28 | 6 | 1 | core/JOSE 及 EC 导入修复通过，RSA/敏感临时数据与其余源码继续 |
+| xacme | 14 | 16 | 28 | 7 | 1 | core/JOSE、EC 导入和解码 DER 擦除修复通过，RSA/写侧临时数据及其余源码继续 |
 | xhttp | 115 | 124 | 236 | 115 | 82 | 待复核 |
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
@@ -454,3 +454,28 @@ Hydra 为 CI 独立对端，不能替代这些环境；性能 smoke 没有固定
 `acme-ec-import-sanitize-final.log`、`acme-ec-import-openssl-final.log`、
 `acme-flow-ec-import-sanitize-final.log`、`acme-ec-import-coverage-final.log`、
 `acme-ec-import-coverage-final.json`。
+
+### 第十三批：ACME 解码私钥退休前擦除
+
+- 新增探针在实际 `xrtPemDecodeNew` 分配与实际 `xrtFree` 之间观察原始字节，
+  不替换解析、密码学或分配行为。原实现有五条路径在释放时仍包含私钥 DER：
+  EC 拒绝后的通用回退、RSA PKCS#8、RSA PKCS#1、坏 PKCS#1 和不支持算法的 PKCS#8。
+- 补齐通用读取的三个释放位置，覆盖成功、格式拒绝和算法拒绝。
+  七条入口路径累计观察 10 份真实 DER，修复后全部在 Core 释放/隔离前为零；
+  同时核对读取成功/失败结果及所有解码分配确实退休。
+- 该探针登记为 `acme_csr` 的单头故障测试，进入产品默认清单套件；
+  原 CSR 的外部 RSA 固定夹具提取为两测试共享头，保持字节及签名向量不变。
+- Linux/TCC、Windows/Linux GCC 的清单定向单头、Clang ASan/UBSan 加泄漏检查通过；
+  修复后的两平台完整 CSR 向量和 142 点分配失败回归继续通过。
+  API/参考/单头/发布门禁通过。写侧含私钥缓冲的退休及 RSA DER 语义仍继续复核，
+  不把解码擦除视为全部敏感内存审计完成。
+- 上一批全量覆盖率报告绑定 `fbda2a18` 前后的 EC 导入实现；本批三个新增清零调用与新探针
+  由上述定向验证及新提交 CI 验证，不将旧报告冒充为本批精确计数。
+
+证据：`acme-key-wipe-before.log`、`acme-key-wipe-linux-final.log`、
+`acme-key-wipe-windows-final.log`、`acme-key-wipe-sanitize-linux-final.log`、
+`acme-key-wipe-modular-windows-final.log`。
+
+远端补记：认证提交 `3da19a3f` 的 run `40307069156`，以及 JOSE 提交 `0dd55edd` 的
+run `40309007965` 均最终 73/73 success；各自的独立邮件 run `40307060575`/`40308999365`
+也成功。新 EC 导入/擦除提交尚需各自当前 CI，不由此前全绿替代。

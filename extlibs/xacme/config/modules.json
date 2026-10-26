@@ -298,7 +298,9 @@
 			"tests": [
 				"extlibs/xacme/tests/acme/test_csr.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xacme/tests/single/test_single_key_import_wipe.c"
+			],
 			"examples": [],
 			"docs": [],
 			"legacy": []
