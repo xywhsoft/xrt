@@ -27,6 +27,8 @@ typedef struct testsmtptlsserver {
 	xatomic32 PrefixReady;
 	xatomic32 Partial;
 	xatomic32 Returned;
+	/* Last completed open phase: accept, socket, TLS, banner, EHLO, capabilities. */
+	xatomic32 OpenStage;
 	size_t Received;
 	bool Bdat;
 	bool Success;
@@ -99,19 +101,29 @@ static int32 testSmtpTlsServer(ptr pData)
 	xtlsstream* pTls;
 	bool Success;
 	if ( pTcp == NULL ) return 1;
+	xrtAtomic32Store(&pServer->OpenStage, 1u, XMEMORY_RELEASE);
 	testMailPartialSmallSocket(pTcp, pServer->Deadline);
+	xrtAtomic32Store(&pServer->OpenStage, 2u, XMEMORY_RELEASE);
 	pTls = testMailTlsUpgrade(&pTcp, pServer->Tls, pServer->Deadline);
 	if ( pTls == NULL ) {
 		xrtNetStreamDestroy(pTcp);
 		return 2;
 	}
+	xrtAtomic32Store(&pServer->OpenStage, 3u, XMEMORY_RELEASE);
 	Success = testMailTlsSend(pTls, "220 smtp-partial.test ready\r\n",
-		sizeof("220 smtp-partial.test ready\r\n") - 1u, pServer->Deadline) &&
-		testMailTlsReceive(pTls, "EHLO tls-partial.test\r\n",
-			sizeof("EHLO tls-partial.test\r\n") - 1u, pServer->Deadline) &&
-		testMailTlsSend(pTls, "250-smtp-partial.test\r\n250 CHUNKING\r\n",
-			sizeof("250-smtp-partial.test\r\n250 CHUNKING\r\n") - 1u, pServer->Deadline) &&
-		testMailTlsReceive(pTls, "MAIL FROM:<sender@test>\r\n",
+		sizeof("220 smtp-partial.test ready\r\n") - 1u, pServer->Deadline);
+	if ( Success ) {
+		xrtAtomic32Store(&pServer->OpenStage, 4u, XMEMORY_RELEASE);
+		Success = testMailTlsReceive(pTls, "EHLO tls-partial.test\r\n",
+			sizeof("EHLO tls-partial.test\r\n") - 1u, pServer->Deadline);
+	}
+	if ( Success ) {
+		xrtAtomic32Store(&pServer->OpenStage, 5u, XMEMORY_RELEASE);
+		Success = testMailTlsSend(pTls, "250-smtp-partial.test\r\n250 CHUNKING\r\n",
+			sizeof("250-smtp-partial.test\r\n250 CHUNKING\r\n") - 1u, pServer->Deadline);
+	}
+	if ( Success ) xrtAtomic32Store(&pServer->OpenStage, 6u, XMEMORY_RELEASE);
+	Success = Success && testMailTlsReceive(pTls, "MAIL FROM:<sender@test>\r\n",
 			sizeof("MAIL FROM:<sender@test>\r\n") - 1u, pServer->Deadline) &&
 		testMailTlsSend(pTls, "250 sender accepted\r\n",
 			sizeof("250 sender accepted\r\n") - 1u, pServer->Deadline) &&
@@ -246,10 +258,22 @@ int main(void)
 			xrtAtomic32Init(&Server.PrefixReady, 0u);
 			xrtAtomic32Init(&Server.Partial, 0u);
 			xrtAtomic32Init(&Server.Returned, 0u);
+			xrtAtomic32Init(&Server.OpenStage, 0u);
 			testRequire(Server.Cancel != NULL, "SMTP TLS fault cancel creation failed");
 			xthread* pThread = xrtThreadCreate(testSmtpTlsServer, &Server, 0);
 			testRequire(pThread != NULL, "SMTP TLS fault server thread creation failed");
 			xsmtpclient* pClient = __xrtSmtpClientOpen(&Config, Server.Deadline, NULL);
+			if ( pClient == NULL || xrtSmtpClientState(pClient) != XSMTP_CLIENT_READY ) {
+				xerror* pOpenError = xrtTakeError();
+				fprintf(stderr, "[SMTP TLS open] bdat=%d mode=%d stage=%u thread=%d "
+					"kind=%d code=%d system=%d domain=%s operation=%s message=%s expired=%d\n",
+					Bdat, Mode, (unsigned)xrtAtomic32Load(&Server.OpenStage, XMEMORY_ACQUIRE),
+					(int)xrtThreadState(pThread), (int)xrtErrorKind(pOpenError),
+					(int)xrtErrorCode(pOpenError), (int)xrtErrorSystemCode(pOpenError),
+					xrtErrorDomain(pOpenError), xrtErrorOperation(pOpenError), xrtErrorMessage(pOpenError),
+					(int)__xrtWaitExpired(Server.Deadline));
+				xrtErrorFree(pOpenError);
+			}
 			testRequire(pClient != NULL && xrtSmtpClientState(pClient) == XSMTP_CLIENT_READY,
 				"SMTP TLS fault client open failed");
 			Server.ClientTls = xrtTlsStreamRef(pClient->Transport.Tls);

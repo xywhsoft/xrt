@@ -52,7 +52,7 @@
 | xpop3 | 6 | 4 | 10 | 6 | 4 | 待复核 |
 | xrudp | 19 | 20 | 76 | 97 | 0 | 待复核 |
 | xruntime | 36 | 23 | 87 | 42 | 30 | 待复核 |
-| xsmtp | 6 | 4 | 8 | 6 | 4 | 待复核 |
+| xsmtp | 6 | 4 | 8 | 6 | 4 | Windows 覆盖率 TLS 故障夹具失败追查中，已补阶段/错误诊断 |
 | xssh | 66 | 65 | 71 | 66 | 65 | 待复核 |
 | xwork | 1 | 8 | 1 | 1 | 0 | 路径/只读隔离修复通过，工具状态机复核中 |
 | xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
@@ -978,3 +978,26 @@ RSA 导入及 provider/签名/XML 复核继续；大同名 RRset 的递归探测
 
 本轮仍为 2/21 产品完成，原范围不变。继续追查 Windows SMTP 覆盖率失败，再恢复 ACME
 绝对预算、Retry-After、EAB 标识符、RSA 导入与 provider 复核及其他产品的集中检查。
+### 第三十批：Windows SMTP 覆盖率失败的可诊断性
+
+- b246cdda 的 CI 40384540301 中，Windows xsmtp coverage job 121789214803 在
+  `test_smtp_upload_tls_fault_runtime` 的 Open 断言失败。普通 xsmtp job、xhttp-server、
+  macOS Apple Clang 和 ARM64 coroutine 已确认 success；记录时 CI 为 71 success、
+  1 failure、1 in_progress，最后 Windows 主任务仍在继续，不能称整条流水线全绿。
+  独立邮件 run 40384529641 success。失败日志只给出 Open 断言，没有 bdat/mode 或底层错误。
+- 在故障夹具记录六个已完成的准备阶段：Accept、Socket 配置、TLS、banner、EHLO、能力回复。
+  Open 失败时输出具体 DATA/BDAT 与故障模式、阶段、线程状态、不可变错误的 kind/code/
+  system/domain/operation/message 以及原截止时间是否已过。仅失败路径输出，保持六组真实
+  部分发送、错误保真、客户端销毁前异常关闭、原 15 秒总预算及 3 秒故障预算。
+- 本地 Windows GCC 使用与 CI 相同的 O0/coverage/原子 profile 编译选项，在初步诊断夹具
+  连续 17 次执行六类故障场景均通过，未复现 CI 的 Open 失败。最终完整六阶段夹具重新编译，
+  清除本夹具因改源码留下的旧校验和 profile 后，六组再次通过，无 profile 冲突告警。
+  本机 GCC 16.2 与 GitHub MSYS2 编译器并非同一环境，不能据此宣布修复远端故障。
+- 派生对照仅把客户端 Open 的截止时间设为已过，保留服务端真实线程；断言稳定失败，
+  诊断实际显示 stage=0、TIMEOUT、xrt.mail 和 dial 前超时消息，验证错误采集路径。
+  该对照不等同于 CI 根因复现。当前只补充诊断，后续 CI 仍须追查，不增加超时或跳过夹具。
+
+证据：`ci-b246-xsmtp-windows-failed.log`、`smtp-tls-fault-coverage-windows-probe.log`、
+`smtp-tls-fault-coverage-windows-repeat.log`、
+`smtp-tls-fault-coverage-windows-diagnostic-complete.log`、
+`smtp-tls-fault-coverage-windows-diagnostic-clean-final.log`、`smtp-tls-open-diagnostic-control.log`。
