@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "product": "xredis",
+  "module_prefix": "XREDIS_MODULE_",
+  "package_ownership": "separate",
+  "api_macro": "XREDIS_API",
+  "single_header": "single/extlibs/xredis.h",
+  "declaration_header": "single/extlibs/xredis_decl.h",
+  "implementation_macro": "XREDIS_IMPLEMENTATION",
+  "implementation_once_macro": "XREDIS_IMPLEMENTATION_ONCE",
+  "single_guard": "XREDIS_SINGLE_HEADER_H",
+  "single_marker": "XREDIS_SINGLE_HEADER",
+  "declaration_guard": "XREDIS_DECLARATIONS_H",
+  "declaration_marker": "XREDIS_DECLARATIONS",
+  "package_consumer": "extlibs/xredis/tests/package/test_consumer.c",
+  "product_root": "extlibs/xredis",
+  "performance_config": "extlibs/xredis/config/performance_profiles.json",
+  "size_config": "extlibs/xredis/config/size_profiles.json",
+  "scope": {
+    "product": "xredis",
+    "external_integrations": [],
+    "systems": [
+      {
+        "name": "command",
+        "state": "retained",
+        "source_roots": [
+          "command"
+        ]
+      }
+    ]
+  },
+  "api_reference": {
+    "title": "xredis public API reference",
+    "function_prefix": "xredis",
+    "constant_prefix": "XREDIS_",
+    "type_prefix": "xredis",
+    "guide": "../../README.md",
+    "output": "extlibs/xredis/docs/api/reference.md"
+  },
+  "features_guard": "XREDIS_FEATURES_H",
+  "features_header": "extlibs/xredis/include/xredis/features.h",
+  "include_dirs": [
+    "extlibs/xredis/include"
+  ],
+  "header_roots": [
+    "extlibs/xredis/include"
+  ],
+  "umbrella_header": "xredis.h",
+  "modules": [
+    {
+      "state": "developing",
+      "depends": [
+        "xredis_command"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis.h",
+        "extlibs/xredis/include/xredis/features.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xredis/README.md"
+      ],
+      "name": "xredis",
+      "feature": "XREDIS_FEATURE_XREDIS"
+    },
+    {
+      "state": "implemented",
+      "depends": [
+        "core"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/command.h",
+        "extlibs/xredis/include/xredis/export.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xredis/src/command/command.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_command.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_command.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/command/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_command.c"
+      ],
+      "docs": [
+        "extlibs/xredis/README.md",
+        "extlibs/xredis/docs/api/reference.md",
+        "extlibs/xredis/docs/coverage.md"
+      ],
+      "name": "xredis_command",
+      "feature": "XREDIS_FEATURE_XREDIS_COMMAND"
+    },
+    {
+      "state": "implemented",
+      "depends": [
+        "xredis",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_command.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_command.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xredis/README.md"
+      ],
+      "name": "xredis_tests",
+      "feature": null,
+      "single_test_owners": {
+        "extlibs/xredis/tests/single/test_single_xredis_command.c": "xredis_command"
+      }
+    }
+  ]
+}

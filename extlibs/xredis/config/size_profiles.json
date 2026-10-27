@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "manifest": "extlibs/xredis/config/modules.json",
+  "default_growth": {
+    "text": 0.1,
+    "data": 0.2,
+    "bss": 0.2,
+    "file": 0.15
+  },
+  "profiles": [
+    {
+      "name": "xredis_command",
+      "system": "command",
+      "suite": "xredis_command",
+      "description": "Only command encoding and required core closure"
+    }
+  ]
+}
