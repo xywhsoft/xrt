@@ -18,6 +18,20 @@ import check_api_docs
 class HeaderSymbolsTest(unittest.TestCase):
 	"""验证跨行函数、常量和类型提取。"""
 
+	def test_service_extension_export_namespaces(self) -> None:
+		"""Independent extension exports must enter the generated API inventory."""
+
+		for name in ("redis", "rpc", "mqtt", "cron"):
+			with self.subTest(product=name):
+				prefix = "x" + name
+				macro = prefix.upper() + "_API"
+				source = (f"/* {macro} bool {prefix}Fake(void); */\n"
+					f"{macro} bool {prefix}Real(void);\n"
+					f'const char* text = "{macro} {prefix}Literal";\n')
+				functions, _, _ = check_api_docs._header_symbols(
+					source, prefix, prefix.upper() + "_", prefix)
+				self.assertEqual(functions, {prefix + "Real"})
+
 	def test_extracts_family_symbols(self) -> None:
 		"""只收集指定家族的导出函数，常量和类型保持完整标识符。"""
 
