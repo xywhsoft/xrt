@@ -38881,6 +38881,39 @@ typedef xjsonvisitaction (*xjsonvisitproc)(
 	ptr pUserData
 );
 
+/* Separate lexical event domain; existing decoded visitor enums stay stable. */
+typedef enum xjsonscantype {
+	XJSON_SCAN_NULL = 0,
+	XJSON_SCAN_BOOL,
+	XJSON_SCAN_NUMBER,
+	XJSON_SCAN_STRING,
+	XJSON_SCAN_ARRAY_BEGIN,
+	XJSON_SCAN_ARRAY_END,
+	XJSON_SCAN_OBJECT_BEGIN,
+	XJSON_SCAN_OBJECT_END
+} xjsonscantype;
+
+/* Lossless Scan event. All views point into the caller's input and remain
+ * valid as long as that input remains alive and unchanged. Name includes its
+ * JSON quotes/escapes; it is present for object children. Index identifies an
+ * array child. Raw includes the complete scalar lexeme; strings include their
+ * quotes. Container BEGIN Raw is its opening byte; END Raw is the complete
+ * container span, with the same parent Name/Index as BEGIN. Location is the
+ * token's first byte, except END where it is the closing byte. Numbers always
+ * use XJSON_SCAN_NUMBER; no int/double conversion or range narrowing occurs.
+ * No string/key is unescaped or copied; UTF-8/escape grammar is still checked. */
+typedef struct xjsonscanevent {
+	xjsonscantype Type;
+	xjsonlocation Location;
+	size_t Depth;
+	bool HasName;
+	xstrview Name;
+	size_t Index;
+	xstrview Raw;
+} xjsonscanevent;
+
+typedef xjsonvisitaction (*xjsonscanproc)(const xjsonscanevent* pEvent, ptr pUserData);
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -38915,6 +38948,26 @@ XRT_API xjsonvisitresult xrtJsonVisit(
 	xstrview Text,
 	const xjsonreadconfig* pConfig,
 	xjsonvisitproc pVisitor,
+	ptr pUserData
+);
+
+/* Scan one complete bounded JSON document without heap allocation, payload
+ * copying or native numeric conversion on success (visitor costs are separate).
+ * Uses the existing read limits, including decoded-byte MaxStringBytes even
+ * though decoded strings are not materialized. Comments/trailing commas remain
+ * opt-in. Duplicate policy and BigInteger conversion policy are DOM/Visit
+ * concerns: Scan emits every member and every valid numeric lexeme. Callers
+ * enforce application-level duplicate rules from raw names. Config values
+ * must still be valid. All input must be a real readable, nonwrapping span.
+ * NEXT/STOP/FAIL have the same semantics as Visit. STOP does not validate the
+ * remaining document. Callbacks may precede trailing syntax failure; publish a
+ * complete result only after DONE. Success preserves the ambient error except
+ * for callback changes. Cold diagnostic allocation may fall back to XERR_MEMORY.
+ * The event object is callback-scoped; its raw views borrow the caller input. */
+XRT_API xjsonvisitresult xrtJsonScan(
+	xstrview Text,
+	const xjsonreadconfig* pConfig,
+	xjsonscanproc pVisitor,
 	ptr pUserData
 );
 
@@ -62734,7 +62787,8 @@ typedef enum xtextvalueeventtype {
 	XTEXT_VALUE_EVENT_SET_END,
 	XTEXT_VALUE_EVENT_OBJECT_BEGIN,
 	XTEXT_VALUE_EVENT_OBJECT_END,
-	XTEXT_VALUE_EVENT_UINT
+	XTEXT_VALUE_EVENT_UINT,
+	XTEXT_VALUE_EVENT_NUMBER
 } xtextvalueeventtype;
 
 
@@ -62797,6 +62851,8 @@ typedef struct xtextvaluereadconfig {
 	xtextvaluedialect Dialect;
 	uint32 Flags;
 	bool BigIntegerFloat;
+	/* JSON Scan only: validated borrowed lexemes, no numeric/string materialization. */
+	bool RawEvents;
 	uint32 MaxDepth;
 	size_t MaxInputBytes;
 	size_t MaxStringBytes;
@@ -297607,6 +297663,7 @@ static bool __xrtTextValueReadConfigValid(
 
 	return
 		(pConfig != NULL) &&
+		(!pConfig->RawEvents || pConfig->Dialect == XTEXT_VALUE_JSON) &&
 		((pConfig->Dialect == XTEXT_VALUE_JSON) ||
 		 (pConfig->Dialect == XTEXT_VALUE_XLON)) &&
 		((pConfig->Flags & ~iKnownFlags) == 0) &&
@@ -297964,7 +298021,7 @@ static bool __xrtTextValueParserString(
 /* 向访问器提交事件并记录正常停止状态。 */
 static bool __xrtTextValueParserEmit(
 	xtextvalueparser* pParser,
-	const xtextvalueevent* pEvent
+	xtextvalueevent* pEvent
 )
 {
 	const xerror* pPrevious;
@@ -297973,6 +298030,10 @@ static bool __xrtTextValueParserEmit(
 
 	if ( pParser->Visitor == NULL ) {
 		return true;
+	}
+	if ( pParser->Config.RawEvents && pEvent->Raw.Data == NULL ) {
+		pEvent->Raw.Data = pParser->Text.Data + pEvent->Location.Offset;
+		pEvent->Raw.Size = pParser->Offset - pEvent->Location.Offset;
 	}
 	pPrevious = xrtGetError();
 	pHeld = xrtErrorRef(pPrevious);
@@ -298066,7 +298127,7 @@ static bool __xrtTextValueParserNumber(
 	size_t iStart = pParser->Offset;
 	bool bInteger = true;
 	bool bNegative = __xrtTextValueParserPeek(pParser) == (uint8)'-';
-	bool bFits = true;
+	bool bFits = !pParser->Config.RawEvents;
 	uint64 iMagnitude = 0;
 	double fValue = 0.0;
 
@@ -298161,6 +298222,10 @@ static bool __xrtTextValueParserNumber(
 	}
 	pEvent->Raw.Data = pParser->Text.Data + iStart;
 	pEvent->Raw.Size = pParser->Offset - iStart;
+	if ( pParser->Config.RawEvents ) {
+		pEvent->Type = XTEXT_VALUE_EVENT_NUMBER;
+		return true;
+	}
 	if ( bInteger && bFits ) {
 		if ( !bNegative && iMagnitude > (uint64)INT64_MAX ) {
 			pEvent->Type = XTEXT_VALUE_EVENT_UINT;
@@ -298224,6 +298289,27 @@ static bool __xrtTextValueParserValue(
 	const xvaluekey* pKey
 );
 
+/* END retains raw parent identity and the complete container span for Scan.
+ * Materialized visitors retain their existing closing-event contract. */
+static inline bool __xrtTextValueParserClose(
+	xtextvalueparser* pParser,
+	const xtextvalueevent* pBegin,
+	xtextvalueeventtype EndType
+)
+{
+	xtextvalueevent Event;
+	memset(&Event, 0, sizeof(Event));
+	Event.Type = EndType; Event.Depth = pBegin->Depth;
+	Event.Location = __xrtTextValueParserLocation(pParser);
+	if ( pParser->Config.RawEvents ) {
+		Event.Key = pBegin->Key;
+		Event.Raw.Data = pParser->Text.Data + pBegin->Location.Offset;
+		Event.Raw.Size = pParser->Offset - pBegin->Location.Offset + 1u;
+	}
+	__xrtTextValueParserAdvance(pParser);
+	return __xrtTextValueParserEmit(pParser, &Event);
+}
+
 
 
 /* 解析数组或集合，并直接发送开始、子项和结束事件。 */
@@ -298248,14 +298334,7 @@ static bool __xrtTextValueParserSequence(
 		!__xrtTextValueParserEnd(pParser) &&
 		(__xrtTextValueParserPeek(pParser) == (uint8)']')
 	) {
-		xtextvalueevent EndEvent;
-
-		memset(&EndEvent, 0, sizeof(EndEvent));
-		EndEvent.Type = EndType;
-		EndEvent.Depth = pEvent->Depth;
-		EndEvent.Location = __xrtTextValueParserLocation(pParser);
-		__xrtTextValueParserAdvance(pParser);
-		return __xrtTextValueParserEmit(pParser, &EndEvent);
+		return __xrtTextValueParserClose(pParser, pEvent, EndType);
 	}
 
 	for ( ;; ) {
@@ -298334,16 +298413,7 @@ static bool __xrtTextValueParserSequence(
 		);
 		return false;
 	}
-	{
-		xtextvalueevent EndEvent;
-
-		memset(&EndEvent, 0, sizeof(EndEvent));
-		EndEvent.Type = EndType;
-		EndEvent.Depth = pEvent->Depth;
-		EndEvent.Location = __xrtTextValueParserLocation(pParser);
-		__xrtTextValueParserAdvance(pParser);
-		return __xrtTextValueParserEmit(pParser, &EndEvent);
-	}
+	return __xrtTextValueParserClose(pParser, pEvent, EndType);
 }
 
 
@@ -298370,14 +298440,7 @@ static bool __xrtTextValueParserMapping(
 		!__xrtTextValueParserEnd(pParser) &&
 		(__xrtTextValueParserPeek(pParser) == (uint8)'}')
 	) {
-		xtextvalueevent EndEvent;
-
-		memset(&EndEvent, 0, sizeof(EndEvent));
-		EndEvent.Type = EndType;
-		EndEvent.Depth = pEvent->Depth;
-		EndEvent.Location = __xrtTextValueParserLocation(pParser);
-		__xrtTextValueParserAdvance(pParser);
-		return __xrtTextValueParserEmit(pParser, &EndEvent);
+		return __xrtTextValueParserClose(pParser, pEvent, EndType);
 	}
 
 	for ( ;; ) {
@@ -298414,6 +298477,7 @@ static bool __xrtTextValueParserMapping(
 			Key.Integer = KeyEvent.Value.Integer;
 		} else {
 			xstrview Name;
+			size_t iNameStart = pParser->Offset;
 
 			if ( !__xrtTextValueParserString(
 				pParser,
@@ -298425,6 +298489,10 @@ static bool __xrtTextValueParserMapping(
 			}
 			Key.Type = XVALUE_KEY_STRING;
 			Key.String = Name;
+			if ( pParser->Config.RawEvents ) {
+				Key.String.Data = pParser->Text.Data + iNameStart;
+				Key.String.Size = pParser->Offset - iNameStart;
+			}
 		}
 		if ( !__xrtTextValueParserSpace(pParser) ) {
 			return false;
@@ -298502,16 +298570,7 @@ static bool __xrtTextValueParserMapping(
 		);
 		return false;
 	}
-	{
-		xtextvalueevent EndEvent;
-
-		memset(&EndEvent, 0, sizeof(EndEvent));
-		EndEvent.Type = EndType;
-		EndEvent.Depth = pEvent->Depth;
-		EndEvent.Location = __xrtTextValueParserLocation(pParser);
-		__xrtTextValueParserAdvance(pParser);
-		return __xrtTextValueParserEmit(pParser, &EndEvent);
-	}
+	return __xrtTextValueParserClose(pParser, pEvent, EndType);
 }
 
 
@@ -299280,6 +299339,35 @@ static xtextvaluevisitaction __xrtJsonVisitAdapter(
 	return (xtextvaluevisitaction)Action;
 }
 
+typedef struct xjsonscanadapter {
+	xjsonscanproc Visitor;
+	ptr UserData;
+} xjsonscanadapter;
+
+static xtextvaluevisitaction __xrtJsonScanAdapter(const xtextvalueevent* Source, ptr UserData)
+{
+	xjsonscanadapter* Adapter = (xjsonscanadapter*)UserData;
+	xjsonscanevent Event;
+	memset(&Event, 0, sizeof(Event));
+	switch ( Source->Type ) {
+		case XTEXT_VALUE_EVENT_NULL: Event.Type = XJSON_SCAN_NULL; break;
+		case XTEXT_VALUE_EVENT_BOOL: Event.Type = XJSON_SCAN_BOOL; break;
+		case XTEXT_VALUE_EVENT_NUMBER: Event.Type = XJSON_SCAN_NUMBER; break;
+		case XTEXT_VALUE_EVENT_STRING: Event.Type = XJSON_SCAN_STRING; break;
+		case XTEXT_VALUE_EVENT_ARRAY_BEGIN: Event.Type = XJSON_SCAN_ARRAY_BEGIN; break;
+		case XTEXT_VALUE_EVENT_ARRAY_END: Event.Type = XJSON_SCAN_ARRAY_END; break;
+		case XTEXT_VALUE_EVENT_OBJECT_BEGIN: Event.Type = XJSON_SCAN_OBJECT_BEGIN; break;
+		case XTEXT_VALUE_EVENT_OBJECT_END: Event.Type = XJSON_SCAN_OBJECT_END; break;
+		default: return XTEXT_VALUE_VISIT_FAIL;
+	}
+	Event.Location = __xrtJsonLocation(&Source->Location);
+	Event.Depth = Source->Depth; Event.Raw = Source->Raw;
+	if ( Source->Key.Type == XVALUE_KEY_STRING ) {
+		Event.HasName = true; Event.Name = Source->Key.String;
+	} else if ( Source->Key.Type == XVALUE_KEY_INDEX ) Event.Index = Source->Key.Index;
+	return (xtextvaluevisitaction)Adapter->Visitor(&Event, Adapter->UserData);
+}
+
 
 
 /* 初始化严格且带安全资源预算的 JSON 读取配置。 */
@@ -299411,6 +299499,23 @@ XRT_API xjsonvisitresult xrtJsonVisit(
 		true
 	);
 	return (xjsonvisitresult)Result;
+}
+
+XRT_API xjsonvisitresult xrtJsonScan(xstrview Text, const xjsonreadconfig* Config,
+	xjsonscanproc Visitor, ptr UserData)
+{
+	xjsonscanadapter Adapter;
+	xtextvaluereadconfig TextConfig;
+	if ( Visitor == NULL || !__xrtJsonReadConfigValid(Config) ||
+		(Text.Data == NULL && Text.Size != 0) || !xrtMemRangeValid(Text.Data, Text.Size) ) {
+		if ( Visitor == NULL || (Text.Data == NULL && Text.Size != 0) || !xrtMemRangeValid(Text.Data, Text.Size) )
+			__xrtErrorSetInvalidArgument();
+		return XJSON_VISIT_ERROR;
+	}
+	Adapter.Visitor = Visitor; Adapter.UserData = UserData;
+	TextConfig = __xrtJsonReadTextConfig(Config); TextConfig.RawEvents = true;
+	return (xjsonvisitresult)__xrtTextValueRead(Text, &TextConfig, __xrtJsonScanAdapter,
+		&Adapter, __xrtJsonReadError, NULL, false);
 }
 
 #endif

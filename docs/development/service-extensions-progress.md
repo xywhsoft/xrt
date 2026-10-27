@@ -11,6 +11,8 @@ Target and rules: [development contract](service-extensions-plan.md).
 - xcron five-field/seconds-six-field expression compilation is locally verified.
   Calendar search, named time zones and scheduling remain pending.
 - P1 continues with independently testable RPC/MQTT protocol leaves.
+- The xrpc prototype exposed a JSON lexical-scan gap. The shared parser now has
+  a locally verified raw Scan API; RPC envelope/dispatch work is still pending.
 - Primary checkout changes remain outside this branch.
 
 ## Baseline checks
@@ -23,6 +25,7 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | `python tools/generate_features.py --check` | Passed |
 | Core single headers | Initially stale; synchronized from tracked inputs in `32abef18` |
 | `python tools/generate_example_index.py --check` | Existing layout mismatch: the committed `examples/hash/crc32.c` is not a `main.c` entry; the primary checkout already has an unrelated staged rename, which this branch preserves |
+| `tools.test_scope.ScopeTest.test_extension_integration_states_match_current_contract` | Existing mismatch: xhttp has no xlang integration entry, while the test expects deferred; both the manifest value and the test blob are unchanged from the initial revision |
 
 ## Feature ledger
 
@@ -30,6 +33,7 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | --- | --- | --- | --- |
 | common | development/acceptance contract and isolated branch | complete | this document, development contract and baseline checks |
 | common | independent API export inventory | complete | `36ea6bc8`, API/reference tooling tests |
+| common | raw JSON scan needed by xrpc | locally verified | exact borrowed scalar/key/container spans, lexical numbers, 10,000 zero-heap scans, limits/Unicode/control/OOM, Windows/WSL modular/single/shared-reader regression and external static/shared consumers; performance comparison remains unaccepted |
 | xredis | binary command size/write | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL O2 ASan+UBSan modular/single/static/shared; 10,000 randomized commands, overflow/aliasing, hot-path allocation counters, diagnostic OOM |
 | xredis | incremental RESP2/3 event reader | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/single/example/trim/static/shared; all canonical split points, event pauses, 10,000 random arrays, 20,000 mutation pairs, limits, reentry, OOM and lifecycle quota |
 | xredis | runtime, pools, HA, tracking | pending | no claim |
@@ -131,3 +135,64 @@ performance config `extlibs/xcron/config/performance_profiles.json`, and direct
 single source `extlibs/xcron/tests/single/test_single_xcron_expression.c`.
 Ignored `cron-*` logs/reports are under `out/service-extensions/`;
 [the expression matrix](../../extlibs/xcron/docs/coverage.md) lists the contracts.
+
+## Raw JSON scan prototype and validation
+
+The xrpc prototype used existing public `xrtJsonVisit` with BigInteger=FLOAT.
+A normal request and a 40-digit integer visited successfully without allocation;
+an escaped parameter string needed one temporary heap block, and `1e9999`
+failed native numeric conversion. These are existing Visit contracts, not new
+bugs in its promised native-value behavior. xrpc needs bounded lexical number
+preservation and opaque parameter/result spans before protocol classification.
+
+The additive `xrtJsonScan` surface reuses the same strict parser with no payload
+materialization. It returns borrowed raw scalar/key spans and complete container
+spans on END, validates Unicode/escapes and all existing resource budgets, and
+does not narrow numbers to native types. Parent names/indexes survive nested
+containers. Existing public layouts and Visit/Read behavior are preserved;
+the separate `xjsonscantype` enum adds no cases to existing decoded visitors. No protocol-specific
+shared runtime or second JSON parser is introduced.
+
+- `tests/json/test_json_scan.c` covers exact spans, escaped names/NUL, nested
+  empty/full containers, parent identity, numeric overflow lexemes, Unicode,
+  limits, callback stop/failure, malformed input, 10,000 warm scans with stable
+  allocation counters/error identity and successful parsing under one-byte quota.
+- Windows GCC 16.2 O2 and Ubuntu/WSL GCC O2 ASan+UBSan pass the shared
+  `json_read,xlon_read,memory_stats` regression. Existing native numeric policies,
+  DOM/OOM cases and XLON parsing are exercised. New Scan single tests pass on
+  both systems; Windows also runs all selected existing single drivers.
+- The registered public consumer is separately compiled against actual JSON-read
+  static and shared packages on Windows and Ubuntu/WSL. It invokes Scan on
+  `1e9999` and observes the same library's protocol diagnostic; all four consumers
+  pass. The consumer's first malformed fixture invoked its intentionally strict
+  numeric callback before reaching the bad terminator; a boolean fixture fixes
+  that test setup and the complete consumer gates pass.
+- JSON API inventory reports 31 functions / 56 constants / 20 types, missing=0.
+  Generated core/extension headers and feature selection are current. The JSON
+  leaf trim probes pass. Twenty focused API/reference/performance-tool tests
+  pass. The broader 29-test run has only the unchanged xhttp integration-state
+  baseline failure noted above. Core maturity still has only the previously
+  recorded `net_file_future` single-closure failure.
+- Service CI checks this shared prerequisite on both systems, including Linux
+  sanitizers, after checking generated assets. Local YAML validation does not
+  establish that remote Actions have run.
+- The registered data workload smoke passes with separate raw Scan and decoded
+  Visit metrics. These have different output semantics and are not an equivalent
+  output comparison or RPC production acceptance.
+
+Existing-Visit A/B probes against `2d72cf29:single/xrt.h` used identical inputs,
+GCC O2, interleaved programs, warmups and a pinned logical CPU. Repeated samples
+on the shared machine exceeded the planned 3% noise threshold, including the
+longer-window and metadata-copy-elision prototypes. Logs retain these
+inconclusive runs. **Neither throughput improvement nor a passed regression gate
+is claimed.** A quiet-environment comparison remains required before acceptance.
+
+Reproduction uses `tools/build.py --suite json_read,xlon_read,memory_stats
+--cflag=-O2 --no-examples`, the preceding sanitizer flags, registered single source
+`tests/single/test_single_json_scan.c`, `tools/package.py --suite json_read
+--kind static/shared --verify`, and separately links
+`tests/package/test_json_scan_consumer.c` against those artifacts. Smoke uses
+`tools/measure_performance.py --profiles data --smoke --repeats 1`.
+Ignored prototype, A/B, package, sanitizer and smoke evidence is under
+`out/service-extensions/` with `json-scan-*` names. The API contract is documented
+in [json.md](../api/json.md).

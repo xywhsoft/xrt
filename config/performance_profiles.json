@@ -337,6 +337,17 @@
 			"description": "JSON DOM、事件流访问和序列化公共路径",
 			"benchmarks": [
 				{
+					"name": "json_scan",
+					"source": "dev/bench/json/bench_json_scan.c",
+					"suite": "json_read,time",
+					"args": ["100000"],
+					"smoke_args": ["1000"],
+					"metrics": {
+						"visits_per_sec": {"direction": "higher", "unit": "documents/s"},
+						"scans_per_sec": {"direction": "higher", "unit": "documents/s"}
+					}
+				},
+				{
 					"name": "json",
 					"source": "dev/bench/json/bench_json.c",
 					"suite": "json",

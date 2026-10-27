@@ -13534,12 +13534,18 @@
 			],
 			"tests": [
 				"tests/json/test_json_read.c",
-				"tests/json/test_json_read_oom.c"
+				"tests/json/test_json_read_oom.c",
+				"tests/json/test_json_scan.c",
+				"tests/package/test_json_scan_consumer.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_json_read.c"
+				"tests/single/test_single_json_read.c",
+				"tests/single/test_single_json_scan.c"
 			],
 			"examples": [],
+			"benchmarks": [
+				"dev/bench/json/bench_json_scan.c"
+			],
 			"docs": [
 				"docs/api/json.md",
 				"docs/design/json-xlon.md"
@@ -13621,12 +13627,15 @@
 				"tests/json/test_json_read.c",
 				"tests/json/test_json_read_oom.c",
 				"tests/json/test_json_write.c",
+				"tests/json/test_json_scan.c",
+				"tests/package/test_json_scan_consumer.c",
 				"tests/json/test_json_write_oom.c",
 				"tests/json/test_json_file.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_json_read.c",
 				"tests/single/test_single_json_write.c",
+				"tests/single/test_single_json_scan.c",
 				"tests/single/test_single_json_file.c"
 			],
 			"examples": [

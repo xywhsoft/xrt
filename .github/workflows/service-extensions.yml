@@ -51,6 +51,11 @@ jobs:
           python tools/amalgamate.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
           python tools/generate_api_reference.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
           python tools/check_api_docs.py --manifest extlibs/${{ matrix.product }}/config/modules.json
+      - name: Shared JSON scanner and reader regression
+        if: matrix.product == 'xredis'
+        run: |
+          python tools/check_api_docs.py --module-prefix json --function-prefix xrtJson --constant-prefix XJSON_ --type-prefix xjson
+          python tools/build.py --compiler gcc --suite json_read,xlon_read,memory_stats --no-examples --cflag=-O2 --cflag=-fsanitize=address,undefined --cflag=-fno-omit-frame-pointer --ldflag=-fsanitize=address,undefined
       - name: Modules, single header, example and trimming
         run: |
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
@@ -106,6 +111,11 @@ jobs:
           python tools/amalgamate.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
           python tools/generate_api_reference.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
           python tools/check_api_docs.py --manifest extlibs/${{ matrix.product }}/config/modules.json
+      - name: Shared JSON scanner and reader regression
+        if: matrix.product == 'xredis'
+        run: |
+          python tools/check_api_docs.py --module-prefix json --function-prefix xrtJson --constant-prefix XJSON_ --type-prefix xjson
+          python tools/build.py --compiler gcc --suite json_read,xlon_read,memory_stats --no-examples --cflag=-O2
       - name: Modules, single header, example and trimming
         run: |
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
