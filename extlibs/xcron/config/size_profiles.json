@@ -1,0 +1,6 @@
+{
+  "schema": 1, "manifest": "extlibs/xcron/config/modules.json",
+  "default_growth": {"text": 0.1, "data": 0.2, "bss": 0.2, "file": 0.15},
+  "profiles": [{"name": "xcron_expression", "system": "expression", "suite": "xcron_expression",
+    "description": "Only expression compilation and required core closure"}]
+}

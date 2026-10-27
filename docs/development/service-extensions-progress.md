@@ -8,7 +8,9 @@ Target and rules: [development contract](service-extensions-plan.md).
 - P0 source/worktree isolation and execution contract are established.
 - xredis binary-safe command encoding and the bounded RESP2/3 event reader are
   locally verified. Runtime requests and owned reply objects remain pending.
-- P1 continues with independently testable Cron and RPC/MQTT protocol leaves.
+- xcron five-field/seconds-six-field expression compilation is locally verified.
+  Calendar search, named time zones and scheduling remain pending.
+- P1 continues with independently testable RPC/MQTT protocol leaves.
 - Primary checkout changes remain outside this branch.
 
 ## Baseline checks
@@ -33,7 +35,8 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xredis | runtime, pools, HA, tracking | pending | no claim |
 | xrpc | protocol, dispatch, transports | pending | no claim |
 | xmqtt | MQTT 5.0/3.1.1, sessions, persistence, transports | pending | no claim |
-| xcron | expression, calendar, time zones, scheduler, recovery | pending | no claim |
+| xcron | bounded immutable expression compiler | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct single, example/trim/static/shared; 111,630 range/step combinations, 10,000 generated expressions, 20,000 raw inputs, alias/offset/atomicity/allocation/OOM tests |
+| xcron | calendar, time zones, scheduler, recovery | pending | no claim |
 
 Do not replace pending rows with success based only on metadata or compilation.
 
@@ -91,3 +94,40 @@ package consumers, and performance `--profiles xredis_reader --smoke --repeats 1
 Raw `reader-*` logs and the unpinned smoke JSON reports remain under the ignored
 `out/service-extensions/` evidence paths. Reader contracts and the full matrix
 are in [reader.md](../../extlibs/xredis/docs/reader.md).
+
+## Cron expression validation
+
+- Explicit Unix five-field and seconds six-field dialects compile into a
+  caller-owned immutable value. No input is retained. Natural field bitmaps,
+  Sunday 0/7 normalization, names, range/star steps, lists and calendar aliases
+  are covered. Day-star flags preserve syntax needed for the later calendar
+  day rule; equivalent numeric full ranges do not erase that distinction.
+- All 111,630 ascending minute range/step combinations pass an independent
+  membership oracle. Another 10,000 generated five/six-field expressions cover
+  unions, steps, stars and Sunday normalization across every field.
+- Handwritten expected masks, all names/aliases, input lifetime, exact issue
+  offsets, malformed/unsupported syntax, byte limit, numeric overflow, invalid
+  spans/aliases/dialects, 20,000 raw byte inputs and atomic failure outputs pass.
+- 10,000 successful compiles preserve allocation counters and ambient error;
+  aliases succeed under a one-byte quota, and diagnostic OOM preserves both the
+  caller's expression and independent local issue.
+- Windows GCC 16.2 O2 modular/single, offline example, product/leaf trim and
+  independent static/DLL consumers pass. Ubuntu/WSL GCC O2 ASan+UBSan modular
+  and direct single-header compile/run pass, as do the O2 example, trimming and
+  independent static/shared consumers. Direct single uses the registered single
+  test source, current generated headers, strict C11 warnings, pthread, O2 and
+  the same sanitizer flags as the modular run.
+- Generated features/single/API consistency, API documentation and normal asset
+  maturity pass; strict release correctly rejects the developing product root.
+  Related 15 Python tooling tests pass. CI covers the two actual products on
+  both systems; YAML and pinned action references are validated locally only.
+- Windows and Ubuntu/WSL expression workload smoke pass, one sample each. This
+  is compilation-only, unpinned evidence; no scheduler, timezone, latency or
+  production-performance acceptance follows from it.
+
+Commands mirror the preceding reader validation with manifest
+`extlibs/xcron/config/modules.json`, suite `xcron_tests` or product `xcron`,
+performance config `extlibs/xcron/config/performance_profiles.json`, and direct
+single source `extlibs/xcron/tests/single/test_single_xcron_expression.c`.
+Ignored `cron-*` logs/reports are under `out/service-extensions/`;
+[the expression matrix](../../extlibs/xcron/docs/coverage.md) lists the contracts.

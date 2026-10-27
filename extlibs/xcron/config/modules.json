@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "product": "xcron",
+  "module_prefix": "XCRON_MODULE_",
+  "package_ownership": "separate",
+  "api_macro": "XCRON_API",
+  "single_header": "single/extlibs/xcron.h",
+  "declaration_header": "single/extlibs/xcron_decl.h",
+  "implementation_macro": "XCRON_IMPLEMENTATION",
+  "implementation_once_macro": "XCRON_IMPLEMENTATION_ONCE",
+  "single_guard": "XCRON_SINGLE_HEADER_H",
+  "single_marker": "XCRON_SINGLE_HEADER",
+  "declaration_guard": "XCRON_DECLARATIONS_H",
+  "declaration_marker": "XCRON_DECLARATIONS",
+  "package_consumer": "extlibs/xcron/tests/package/test_consumer.c",
+  "product_root": "extlibs/xcron",
+  "performance_config": "extlibs/xcron/config/performance_profiles.json",
+  "size_config": "extlibs/xcron/config/size_profiles.json",
+  "scope": {
+    "product": "xcron",
+    "external_integrations": [],
+    "systems": [{"name": "expression", "state": "retained", "source_roots": ["expression"]}]
+  },
+  "api_reference": {
+    "title": "xcron public API reference",
+    "function_prefix": "xcron",
+    "constant_prefix": "XCRON_",
+    "type_prefix": "xcron",
+    "guide": "../../README.md",
+    "output": "extlibs/xcron/docs/api/reference.md"
+  },
+  "features_guard": "XCRON_FEATURES_H",
+  "features_header": "extlibs/xcron/include/xcron/features.h",
+  "include_dirs": ["extlibs/xcron/include"],
+  "header_roots": ["extlibs/xcron/include"],
+  "umbrella_header": "xcron.h",
+  "modules": [
+    {
+      "name": "xcron",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON",
+      "depends": ["xcron_expression"],
+      "public_headers": ["extlibs/xcron/include/xcron.h", "extlibs/xcron/include/xcron/features.h"],
+      "internal_headers": [], "sources": [], "tests": [], "single_tests": [], "examples": [], "benchmarks": [],
+      "docs": ["extlibs/xcron/README.md"]
+    },
+    {
+      "name": "xcron_expression",
+      "state": "implemented",
+      "feature": "XCRON_FEATURE_XCRON_EXPRESSION",
+      "depends": ["core"],
+      "public_headers": ["extlibs/xcron/include/xcron/expression.h", "extlibs/xcron/include/xcron/export.h"],
+      "internal_headers": [],
+      "sources": ["extlibs/xcron/src/expression/expression.c"],
+      "tests": ["extlibs/xcron/tests/test_expression.c"],
+      "single_tests": ["extlibs/xcron/tests/single/test_single_xcron_expression.c"],
+      "examples": ["extlibs/xcron/examples/expression/main.c"],
+      "benchmarks": ["extlibs/xcron/bench/bench_expression.c"],
+      "docs": ["extlibs/xcron/README.md", "extlibs/xcron/docs/api/reference.md", "extlibs/xcron/docs/coverage.md"]
+    },
+    {
+      "name": "xcron_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": ["xcron", "memory_stats"],
+      "public_headers": [], "internal_headers": [], "sources": [],
+      "tests": ["extlibs/xcron/tests/test_expression.c"],
+      "single_tests": ["extlibs/xcron/tests/single/test_single_xcron_expression.c"],
+      "examples": [], "benchmarks": [], "docs": ["extlibs/xcron/README.md"],
+      "single_test_owners": {"extlibs/xcron/tests/single/test_single_xcron_expression.c": "xcron_expression"}
+    }
+  ]
+}

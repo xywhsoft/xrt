@@ -62,6 +62,7 @@ python tools/measure_size.py --config extlibs/xllm/config/size_profiles.json --k
 | xllm-session | 会话账本、预算、压缩与持久化 |
 | xwork | Agent 循环、工具执行与审批 |
 | xredis | Redis 客户端（开发中；已实现二进制命令编码与 RESP2/3 增量解析） |
+| xcron | 作业调度（开发中；已实现五字段/含秒六字段表达式编译） |
 
 `xllm-session` 的清单产品和模块标识是 `xllm_session`（C 标识符），目录和公共头仍为 `xllm-session`。依赖链为 `xwork → xllm-session → xllm → xrt`。`xoauth2` 与 `xjwt` 各自依赖核心，OIDC 示例与测试在应用层组合两者。
 

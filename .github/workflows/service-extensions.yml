@@ -5,6 +5,8 @@ on:
     paths:
       - 'extlibs/xredis/**'
       - 'single/extlibs/xredis*'
+      - 'extlibs/xcron/**'
+      - 'single/extlibs/xcron*'
       - 'include/**'
       - 'src/**'
       - 'config/modules.json'
@@ -14,6 +16,8 @@ on:
     paths:
       - 'extlibs/xredis/**'
       - 'single/extlibs/xredis*'
+      - 'extlibs/xcron/**'
+      - 'single/extlibs/xcron*'
       - 'include/**'
       - 'src/**'
       - 'config/modules.json'
@@ -31,6 +35,10 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        product: [xredis, xcron]
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -38,41 +46,45 @@ jobs:
           python-version: '3.12'
       - name: Check assets before any generator can repair them
         run: |
-          python tools/check_release_maturity.py --manifest extlibs/xredis/config/modules.json
-          python tools/generate_extension_features.py extlibs/xredis/config/modules.json --check
-          python tools/amalgamate.py --manifest extlibs/xredis/config/modules.json --check
-          python tools/generate_api_reference.py --manifest extlibs/xredis/config/modules.json --check
-          python tools/check_api_docs.py --manifest extlibs/xredis/config/modules.json
+          python tools/check_release_maturity.py --manifest extlibs/${{ matrix.product }}/config/modules.json
+          python tools/generate_extension_features.py extlibs/${{ matrix.product }}/config/modules.json --check
+          python tools/amalgamate.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
+          python tools/generate_api_reference.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
+          python tools/check_api_docs.py --manifest extlibs/${{ matrix.product }}/config/modules.json
       - name: Modules, single header, example and trimming
         run: |
-          python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests --cflag=-O2
-          python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --no-single --cflag=-O2
-          python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --trim-only
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --no-single --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --trim-only
       - name: Address and undefined behavior sanitizers
         run: >-
-          python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json
-          --suite xredis_tests --no-examples --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json
+          --suite ${{ matrix.product }}_tests --no-examples --cflag=-O2
           --cflag=-fsanitize=address,undefined --cflag=-fno-omit-frame-pointer
           --ldflag=-fsanitize=address,undefined
       - name: Independent static and shared consumers
         run: |
-          python tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --kind static --verify
-          python tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --kind shared --verify
+          python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify
+          python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind shared --verify
       - name: Workload smoke only
         run: >-
-          python tools/measure_performance.py --config extlibs/xredis/config/performance_profiles.json
-          --smoke --repeats 1 --report out/service-extensions/performance-linux-smoke.json
+          python tools/measure_performance.py --config extlibs/${{ matrix.product }}/config/performance_profiles.json
+          --smoke --repeats 1 --report out/service-extensions/performance-${{ matrix.product }}-linux-smoke.json
       - name: Preserve workload smoke evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: service-extensions-linux-smoke
+          name: service-extensions-${{ matrix.product }}-linux-smoke
           path: out/service-extensions/*.json
           if-no-files-found: warn
 
   windows:
     runs-on: windows-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        product: [xredis, xcron]
     defaults:
       run:
         shell: msys2 {0}
@@ -89,28 +101,28 @@ jobs:
           install: mingw-w64-ucrt-x86_64-gcc
       - name: Check assets before any generator can repair them
         run: |
-          python tools/check_release_maturity.py --manifest extlibs/xredis/config/modules.json
-          python tools/generate_extension_features.py extlibs/xredis/config/modules.json --check
-          python tools/amalgamate.py --manifest extlibs/xredis/config/modules.json --check
-          python tools/generate_api_reference.py --manifest extlibs/xredis/config/modules.json --check
-          python tools/check_api_docs.py --manifest extlibs/xredis/config/modules.json
+          python tools/check_release_maturity.py --manifest extlibs/${{ matrix.product }}/config/modules.json
+          python tools/generate_extension_features.py extlibs/${{ matrix.product }}/config/modules.json --check
+          python tools/amalgamate.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
+          python tools/generate_api_reference.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
+          python tools/check_api_docs.py --manifest extlibs/${{ matrix.product }}/config/modules.json
       - name: Modules, single header, example and trimming
         run: |
-          python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests --cflag=-O2
-          python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --no-single --cflag=-O2
-          python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --trim-only
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --no-single --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --trim-only
       - name: Independent static and shared consumers
         run: |
-          python tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --kind static --verify
-          python tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --kind shared --verify
+          python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify
+          python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind shared --verify
       - name: Workload smoke only
         run: >-
-          python tools/measure_performance.py --config extlibs/xredis/config/performance_profiles.json
-          --smoke --repeats 1 --report out/service-extensions/performance-windows-smoke.json
+          python tools/measure_performance.py --config extlibs/${{ matrix.product }}/config/performance_profiles.json
+          --smoke --repeats 1 --report out/service-extensions/performance-${{ matrix.product }}-windows-smoke.json
       - name: Preserve workload smoke evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: service-extensions-windows-smoke
+          name: service-extensions-${{ matrix.product }}-windows-smoke
           path: out/service-extensions/*.json
           if-no-files-found: warn
