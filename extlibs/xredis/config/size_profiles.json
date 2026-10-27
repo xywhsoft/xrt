@@ -13,6 +13,12 @@
       "system": "command",
       "suite": "xredis_command",
       "description": "Only command encoding and required core closure"
+    },
+    {
+      "name": "xredis_reader",
+      "system": "reader",
+      "suite": "xredis_reader",
+      "description": "Only incremental reply parsing and required core closure"
     }
   ]
 }

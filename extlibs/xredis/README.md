@@ -3,8 +3,9 @@
 Independent C Redis client extension on public XRT APIs. The final scope is
 RESP2/3, bounded incremental replies, asynchronous requests, pipelines/pools,
 TLS, transactions/blocking/PubSub, Sentinel, Cluster and Tracking.
-**Only binary command encoding is currently implemented. No network client,
-reply decoder or production/performance acceptance is claimed.**
+**The command encoder and incremental RESP2/3 event reader are implemented.
+Network requests, owned reply objects and production/performance acceptance
+remain pending.**
 
 ## Binary command encoding
 
@@ -19,6 +20,25 @@ fallback is retained; output atomicity still holds.
 Successful calls preserve the ambient XRT error and perform no allocation.
 The contiguous writer copies payload bytes once; a later vectored path will be
 evaluated separately, not advertised as already present.
+
+## Incremental response reader
+
+Select `XREDIS_MODULE_XREDIS_READER`. Create with a copied explicit limit config,
+feed arbitrary fragments, and consume BEGIN/DATA/END events. All RESP2/3 types,
+attributes, pushes and the RESP3 streamed string/array/map/set forms are parsed.
+DATA borrows the current input only during the callback; retain bytes explicitly
+when needed. One allocation at creation holds the reader and bounded depth stack;
+successful parsing does not allocate or copy payload bytes. It does validate
+numeric text; double conversion belongs to the later owned reply builder.
+
+`Feed` stops at one complete semantic frame, a callback pause or its byte work
+budget. Resume with the unconsumed suffix, including an empty suffix after an
+END pause. Attributes augment the following value without consuming array/map
+items. Do not publish partial events as a successful reply until READY. Limits,
+malformed wire, callback rejection and truncated EOF are terminal until Reset.
+Call `Finish` at EOF; it detects orphan attributes and incomplete frames.
+Readers are thread confined; mutating callback reentry is rejected. See the
+[reader contract and evidence](docs/reader.md) and [fragmented-input example](examples/reader/main.c).
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests

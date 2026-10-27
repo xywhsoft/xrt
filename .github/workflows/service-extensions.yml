@@ -46,7 +46,7 @@ jobs:
       - name: Modules, single header, example and trimming
         run: |
           python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests --cflag=-O2
-          python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_command --no-single --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --no-single --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --trim-only
       - name: Address and undefined behavior sanitizers
         run: >-
@@ -97,7 +97,7 @@ jobs:
       - name: Modules, single header, example and trimming
         run: |
           python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests --cflag=-O2
-          python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_command --no-single --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --no-single --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --trim-only
       - name: Independent static and shared consumers
         run: |

@@ -10,6 +10,16 @@
 #ifndef XREDIS_MODULE_XREDIS_COMMAND
 #define XREDIS_MODULE_XREDIS_COMMAND
 #endif
+#ifndef XREDIS_MODULE_XREDIS_READER
+#define XREDIS_MODULE_XREDIS_READER
+#endif
+#endif
+
+/* xredis_reader 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_READER)
+#ifndef XREDIS_FEATURE_XREDIS_READER
+#define XREDIS_FEATURE_XREDIS_READER
+#endif
 #endif
 
 /* xredis_command 及其直接依赖。 */

@@ -45,6 +45,24 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_reader",
+      "system": "reader",
+      "description": "Bounded RESP2/3 streaming events; no owned reply builder, networking or external-client parity claim",
+      "benchmarks": [
+        {
+          "name": "xredis_reader",
+          "source": "extlibs/xredis/bench/bench_reader.c",
+          "suite": "xredis_reader,time",
+          "args": ["1000000"],
+          "smoke_args": ["10000"],
+          "metrics": {
+            "frames_per_sec": {"direction": "higher", "unit": "frames/s"},
+            "wire_bytes_per_sec": {"direction": "higher", "unit": "bytes/s"}
+          }
+        }
+      ]
     }
   ]
 }

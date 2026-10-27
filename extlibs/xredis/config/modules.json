@@ -26,6 +26,13 @@
         "source_roots": [
           "command"
         ]
+      },
+      {
+        "name": "reader",
+        "state": "retained",
+        "source_roots": [
+          "reader"
+        ]
       }
     ]
   },
@@ -50,7 +57,8 @@
     {
       "state": "developing",
       "depends": [
-        "xredis_command"
+        "xredis_command",
+        "xredis_reader"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -104,6 +112,39 @@
     {
       "state": "implemented",
       "depends": [
+        "core"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/reader.h",
+        "extlibs/xredis/include/xredis/export.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xredis/src/reader/reader.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_reader.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_reader.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/reader/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_reader.c"
+      ],
+      "docs": [
+        "extlibs/xredis/README.md",
+        "extlibs/xredis/docs/api/reference.md",
+        "extlibs/xredis/docs/reader.md"
+      ],
+      "name": "xredis_reader",
+      "feature": "XREDIS_FEATURE_XREDIS_READER"
+    },
+    {
+      "state": "implemented",
+      "depends": [
         "xredis",
         "memory_stats"
       ],
@@ -111,10 +152,12 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
-        "extlibs/xredis/tests/test_command.c"
+        "extlibs/xredis/tests/test_command.c",
+        "extlibs/xredis/tests/test_reader.c"
       ],
       "single_tests": [
-        "extlibs/xredis/tests/single/test_single_xredis_command.c"
+        "extlibs/xredis/tests/single/test_single_xredis_command.c",
+        "extlibs/xredis/tests/single/test_single_xredis_reader.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -124,7 +167,8 @@
       "name": "xredis_tests",
       "feature": null,
       "single_test_owners": {
-        "extlibs/xredis/tests/single/test_single_xredis_command.c": "xredis_command"
+        "extlibs/xredis/tests/single/test_single_xredis_command.c": "xredis_command",
+        "extlibs/xredis/tests/single/test_single_xredis_reader.c": "xredis_reader"
       }
     }
   ]
