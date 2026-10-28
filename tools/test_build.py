@@ -222,7 +222,7 @@ class AggregateAssetTest(unittest.TestCase):
 	def test_service_product_commands_actually_select_documented_examples(self) -> None:
 		"""A passing empty root suite must not masquerade as example execution."""
 
-		for product in ("xredis", "xcron", "xrpc"):
+		for product in ("xredis", "xcron", "xrpc", "xmqtt"):
 			manifest = xrt_build.ROOT / "extlibs" / product / "config/modules.json"
 			expected = {path.relative_to(xrt_build.ROOT).as_posix()
 				for path in (manifest.parent.parent / "examples").rglob("main.c")}

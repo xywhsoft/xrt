@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "manifest": "extlibs/xmqtt/config/modules.json",
+  "defaults": {
+    "repeats": 5,
+    "warmups": 1,
+    "timeout_seconds": 120,
+    "policy": "baseline-unpinned",
+    "cflags": [
+      "-O2"
+    ],
+    "ldflags": [],
+    "max_relative_mad": 0.03,
+    "max_relative_central_range": 0.06,
+    "regression": {
+      "higher": 0.05,
+      "lower": 0.1
+    }
+  },
+  "profiles": [
+    {
+      "name": "xmqtt_wire",
+      "system": "wire",
+      "description": "Bounded framing, UTF-8 topic field and fixed-header writing; no packet/session completeness or production parity claim",
+      "benchmarks": [
+        {
+          "name": "xmqtt_wire",
+          "source": "extlibs/xmqtt/bench/bench_wire.c",
+          "suite": "xmqtt_wire,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "frames_per_sec": {
+              "direction": "higher",
+              "unit": "frames/s"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
