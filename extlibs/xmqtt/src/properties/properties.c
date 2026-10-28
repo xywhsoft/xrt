@@ -1,4 +1,5 @@
 #include <xmqtt/properties.h>
+#include "../internal/xmqtt_internal.h"
 #include <xrt/memory.h>
 #include <string.h>
 
@@ -209,7 +210,7 @@ static size_t xmqttPropertiesViews(const xmqttproperty* Property, xbytesview* Vi
 	return 0;
 }
 
-static bool xmqttPropertiesMeasure(const xmqttproperty* Properties, size_t Count, xmqttpropertyscope Scope,
+XMQTT_INTERNAL bool xmqttInternalPropertiesPrepare(const xmqttproperty* Properties, size_t Count, xmqttpropertyscope Scope,
 	xmqttdirection Direction, const xmqttpropertyconfig* Config, xmqttpropertyconfig* Limits, size_t* Size, uint32* BodySize)
 {
 	if (!xmqttPropertiesSettings(Scope,Direction,Config,Limits)) return false;
@@ -257,7 +258,7 @@ static bool xmqttPropertiesMeasure(const xmqttproperty* Properties, size_t Count
 	*Size = Total; *BodySize = (uint32)Body; return true;
 }
 
-static bool xmqttPropertiesOutput(const void* Output, size_t Size, const xmqttproperty* Properties,
+XMQTT_INTERNAL bool xmqttInternalPropertiesOutput(const void* Output, size_t Size, const xmqttproperty* Properties,
 	size_t Count, const xmqttpropertyconfig* Config)
 {
 	if (Output == NULL || !xrtMemRangeValid(Output,Size) || xrtMemRangesOverlap(Output,Size,Properties,Count*sizeof(*Properties)) ||
@@ -276,7 +277,7 @@ XMQTT_API bool xmqttPropertiesSize(const xmqttproperty* Properties, size_t Count
 	xmqttdirection Direction, const xmqttpropertyconfig* Config, size_t* Required)
 {
 	xmqttpropertyconfig Limits; size_t Size; uint32 Body;
-	if (!xmqttPropertiesMeasure(Properties,Count,Scope,Direction,Config,&Limits,&Size,&Body) || !xmqttPropertiesOutput(Required,sizeof(*Required),Properties,Count,Config)) return false;
+	if (!xmqttInternalPropertiesPrepare(Properties,Count,Scope,Direction,Config,&Limits,&Size,&Body) || !xmqttInternalPropertiesOutput(Required,sizeof(*Required),Properties,Count,Config)) return false;
 	*Required = Size; return true;
 }
 
@@ -287,14 +288,21 @@ XMQTT_API bool xmqttPropertiesWrite(ptr Output, size_t Capacity, const xmqttprop
 	if (Output == NULL || !xrtMemRangeValid(Output,Capacity)) {
 		xmqttPropertiesFail(XMQTT_PROPERTIES_LOCAL_ERROR,XMQTT_PROPERTY_ARGUMENT,"invalid MQTT property wire buffer"); return false;
 	}
-	if (!xmqttPropertiesMeasure(Properties,Count,Scope,Direction,Config,&Limits,&Size,&Body)) return false;
+	if (!xmqttInternalPropertiesPrepare(Properties,Count,Scope,Direction,Config,&Limits,&Size,&Body)) return false;
 	if (Capacity < Size) {
 		xmqttPropertiesFail(XMQTT_PROPERTIES_LOCAL_ERROR,XMQTT_PROPERTY_CAPACITY,"MQTT property wire capacity is too small"); return false;
 	}
-	if (!xmqttPropertiesOutput(Output,Size,Properties,Count,Config)) return false;
-	if (Written != NULL && (!xmqttPropertiesOutput(Written,sizeof(*Written),Properties,Count,Config) || xrtMemRangesOverlap(Written,sizeof(*Written),Output,Size))) {
+	if (!xmqttInternalPropertiesOutput(Output,Size,Properties,Count,Config)) return false;
+	if (Written != NULL && (!xmqttInternalPropertiesOutput(Written,sizeof(*Written),Properties,Count,Config) || xrtMemRangesOverlap(Written,sizeof(*Written),Output,Size))) {
 		xmqttPropertiesFail(XMQTT_PROPERTIES_LOCAL_ERROR,XMQTT_PROPERTY_ARGUMENT,"MQTT property Written overlaps wire or inputs"); return false;
 	}
+	(void)xmqttInternalPropertiesEmit(Output,Properties,Count,Body,Size);
+	if (Written != NULL) *Written = Size;
+	return true;
+}
+
+XMQTT_INTERNAL size_t xmqttInternalPropertiesEmit(ptr Output, const xmqttproperty* Properties, size_t Count, uint32 Body, size_t Size)
+{
 	unsigned char* Cursor = (unsigned char*)Output; size_t Bytes;
 	/* Infallible emission for preflighted immutable, nonoverlapping inputs.
 	 * Text is not rescanned; only the active views' bytes are copied once. */
@@ -316,8 +324,7 @@ XMQTT_API bool xmqttPropertiesWrite(ptr Output, size_t Capacity, const xmqttprop
 			}
 		}
 	}
-	if (Written != NULL) *Written = Size;
-	return true;
+	return (size_t)(Cursor-(unsigned char*)Output);
 }
 
 #endif

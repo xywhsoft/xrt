@@ -2,9 +2,10 @@
 
 The full [service-extension target](../../../docs/development/service-extensions-plan.md)
 remains required. The wire leaf implements data representations and fixed-header
-framing; the properties leaf implements explicit MQTT 5.0 sections. Complete
-MQTT 5.0/3.1.1 packet bodies and negotiated property rules,
-topic/filter validation, QoS/session/auth/alias/expiry/subscriptions, reconnect,
+framing; the properties leaf implements explicit MQTT 5.0 sections. The packet
+and codec5 leaves cover shared descriptors/grammar and all MQTT 5 packet bodies.
+MQTT 3.1.1 packet bodies and negotiated property rules,
+QoS/session/auth/alias/expiry/subscriptions, reconnect,
 persistence and transports remain pending. There is no reference-peer or final
 performance/production acceptance yet.
 
@@ -38,3 +39,16 @@ text/data lifetimes and remaining connection-level requirements. Property tests
 use literal wire fixtures and a complete scope/direction matrix, count/byte/field
 boundaries, duplicate/numeric/UTF-8 failures, exact ordered mutation round trips,
 atomic writes and diagnostic-OOM-independent classifications.
+
+The [full MQTT 5 codec](codec.md) adds literal fixtures for every packet type,
+all prefixes and coalesced suffixes, complete CONNECT optionals/Will/auth fields,
+every CONNECT flag byte, reason byte/sender combinations and subscription option
+bytes. Shared filter levels, empty-topic aliases, PFI payload NUL versus encoded-
+string NUL, malformed scalar sequences, mandatory/abbreviated sections and late
+failures are covered. Packet/payload/property/topic caps, CONNECT+Will aggregate
+limits, maximum uint16 fields, VBI transitions, API/alias errors, all short write
+capacities, stable canonical forms for 30,000 raw/mutated packets, 10,000 zero-
+allocation warm cycles and own/nested diagnostic OOM are tested. Modular/single
+tests, offline examples, trimming and independent static/shared consumers include
+the new APIs. Packet validation itself is stateless; client interoperability,
+session/QoS recovery and production performance acceptance remain required.

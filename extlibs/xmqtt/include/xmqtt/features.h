@@ -13,6 +13,32 @@
 #ifndef XMQTT_MODULE_XMQTT_PROPERTIES
 #define XMQTT_MODULE_XMQTT_PROPERTIES
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CODEC5
+#define XMQTT_MODULE_XMQTT_CODEC5
+#endif
+#endif
+
+/* xmqtt_codec5 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CODEC5)
+#ifndef XMQTT_FEATURE_XMQTT_CODEC5
+#define XMQTT_FEATURE_XMQTT_CODEC5
+#endif
+#ifndef XMQTT_MODULE_XMQTT_PACKET
+#define XMQTT_MODULE_XMQTT_PACKET
+#endif
+#ifndef XMQTT_MODULE_XMQTT_PROPERTIES
+#define XMQTT_MODULE_XMQTT_PROPERTIES
+#endif
+#endif
+
+/* xmqtt_packet 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_PACKET)
+#ifndef XMQTT_FEATURE_XMQTT_PACKET
+#define XMQTT_FEATURE_XMQTT_PACKET
+#endif
+#ifndef XMQTT_MODULE_XMQTT_WIRE
+#define XMQTT_MODULE_XMQTT_WIRE
+#endif
 #endif
 
 /* xmqtt_properties 及其直接依赖。 */

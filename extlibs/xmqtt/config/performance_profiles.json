@@ -65,6 +65,54 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_packet",
+      "system": "packet",
+      "description": "Private already-UTF8-validated ASCII filter grammar only; no subscription or codec throughput claim",
+      "benchmarks": [
+        {
+          "name": "xmqtt_packet",
+          "source": "extlibs/xmqtt/bench/bench_packet.c",
+          "suite": "xmqtt_packet,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "filters_per_sec": {
+              "direction": "higher",
+              "unit": "filters/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_codec5",
+      "system": "codec5",
+      "description": "Full MQTT5 QoS1 PUBLISH property/PFI decode and atomic encode in caller storage; no network/session/queueing/durability parity claim",
+      "benchmarks": [
+        {
+          "name": "xmqtt_codec5",
+          "source": "extlibs/xmqtt/bench/bench_codec5.c",
+          "suite": "xmqtt_codec5,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "packets_per_sec": {
+              "direction": "higher",
+              "unit": "packets/s"
+            }
+          }
+        }
+      ]
     }
   ]
 }

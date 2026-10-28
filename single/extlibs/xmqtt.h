@@ -70,6 +70,32 @@
 #ifndef XMQTT_MODULE_XMQTT_PROPERTIES
 #define XMQTT_MODULE_XMQTT_PROPERTIES
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CODEC5
+#define XMQTT_MODULE_XMQTT_CODEC5
+#endif
+#endif
+
+/* xmqtt_codec5 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CODEC5)
+#ifndef XMQTT_FEATURE_XMQTT_CODEC5
+#define XMQTT_FEATURE_XMQTT_CODEC5
+#endif
+#ifndef XMQTT_MODULE_XMQTT_PACKET
+#define XMQTT_MODULE_XMQTT_PACKET
+#endif
+#ifndef XMQTT_MODULE_XMQTT_PROPERTIES
+#define XMQTT_MODULE_XMQTT_PROPERTIES
+#endif
+#endif
+
+/* xmqtt_packet 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_PACKET)
+#ifndef XMQTT_FEATURE_XMQTT_PACKET
+#define XMQTT_FEATURE_XMQTT_PACKET
+#endif
+#ifndef XMQTT_MODULE_XMQTT_WIRE
+#define XMQTT_MODULE_XMQTT_WIRE
+#endif
 #endif
 
 /* xmqtt_properties 及其直接依赖。 */
@@ -144,6 +170,8 @@
 
 /* Values equal the protocol-level byte, not the spelling of a version. */
 typedef enum xmqttversion { XMQTT_VERSION_311 = 4, XMQTT_VERSION_5 = 5 } xmqttversion;
+
+typedef enum xmqttdirection { XMQTT_CLIENT_TO_SERVER = 1, XMQTT_SERVER_TO_CLIENT } xmqttdirection;
 
 typedef enum xmqttpackettype {
 	XMQTT_PACKET_CONNECT = 1, XMQTT_PACKET_CONNACK, XMQTT_PACKET_PUBLISH,
@@ -310,8 +338,6 @@ typedef enum xmqttpropertyscope {
 	XMQTT_PROPERTIES_DISCONNECT = 14, XMQTT_PROPERTIES_AUTH, XMQTT_PROPERTIES_WILL
 } xmqttpropertyscope;
 
-typedef enum xmqttdirection { XMQTT_CLIENT_TO_SERVER = 1, XMQTT_SERVER_TO_CLIENT } xmqttdirection;
-
 typedef struct xmqttpropertyconfig {
 	size_t Size;
 	/* Includes the Property Length integer itself; positive and <=SECTION_MAX.
@@ -391,6 +417,188 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/packet.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_PACKET_H
+#define XMQTT_PACKET_H
+
+#if defined(XMQTT_FEATURE_XMQTT_PACKET) && !defined(XMQTT_FEATURE_XMQTT_WIRE)
+#error "XMQTT_FEATURE_XMQTT_PACKET requires XMQTT_FEATURE_XMQTT_WIRE"
+#endif
+
+#if defined(XMQTT_FEATURE_XMQTT_PACKET)
+
+#define XMQTT_SUBSCRIBE_QOS_MASK 0x03u
+#define XMQTT_SUBSCRIBE_NO_LOCAL 0x04u
+#define XMQTT_SUBSCRIBE_RETAIN_AS_PUBLISHED 0x08u
+#define XMQTT_SUBSCRIBE_RETAIN_HANDLING_MASK 0x30u
+
+struct xmqttproperty;
+typedef struct xmqttpropertylist { const struct xmqttproperty* Data; size_t Count; } xmqttpropertylist;
+typedef struct xmqttsubscription { xstrview Filter; uint8 Options; } xmqttsubscription;
+typedef struct xmqttsubscriptionlist { const xmqttsubscription* Data; size_t Count; } xmqttsubscriptionlist;
+
+typedef struct xmqttconnectpacket {
+	bool CleanStart;
+	uint16 KeepAlive;
+	xstrview ClientId;
+	bool HasWill, WillRetain;
+	uint8 WillQos;
+	xmqttpropertylist WillProperties;
+	xstrview WillTopic;
+	xbytesview WillPayload;
+	bool HasUsername, HasPassword;
+	xstrview Username;
+	xbytesview Password;
+} xmqttconnectpacket;
+
+typedef struct xmqttpublishpacket { xstrview Topic; xbytesview Payload; } xmqttpublishpacket;
+typedef union xmqttpacketbody {
+	xmqttconnectpacket Connect;
+	xmqttpublishpacket Publish;
+	xmqttsubscriptionlist Topics; /* SUBSCRIBE and UNSUBSCRIBE (Options=0). */
+	xbytesview Reasons; /* SUBACK/UNSUBACK: ordered raw reason bytes. */
+} xmqttpacketbody;
+
+/* Only the union member selected by Type is meaningful. Flags is the actual
+ * fixed-header low nibble, including mandatory 2 for PUBREL/SUBSCRIBE/UNSUBSCRIBE.
+ * Identifier is required/nonzero for the corresponding packet types and QoS>0.
+ * Reason is scalar for CONNACK/PUBACK/PUBREC/PUBREL/PUBCOMP/DISCONNECT/AUTH;
+ * SessionPresent is CONNACK-only. Other unused common fields must be zero on
+ * encoding. Wire is decoded borrowed metadata (Size is consumed bytes), ignored
+ * by encoders. No data/list is owned; all type layouts are feature-independent. */
+typedef struct xmqttpacket {
+	xmqttpackettype Type;
+	uint8 Flags;
+	uint16 Identifier;
+	uint8 Reason;
+	bool SessionPresent;
+	xmqttpropertylist Properties;
+	xmqttpacketbody Body;
+	xbytesview Wire;
+} xmqttpacket;
+
+typedef struct xmqttcodecconfig {
+	size_t Size;
+	size_t MaxPacketBytes, MaxPayloadBytes;
+	/* Aggregate across CONNECT and Will sections, including length prefixes. */
+	size_t MaxPropertyBytes, MaxProperties;
+	/* Topic entries or SUBACK/UNSUBACK reason count. Zero is a real limit. */
+	size_t MaxTopics;
+	uint32 Utf8Flags;
+} xmqttcodecconfig;
+
+typedef struct xmqttcodecbuffers {
+	struct xmqttproperty* Properties;
+	size_t PropertyCapacity;
+	xmqttsubscription* Topics;
+	size_t TopicCapacity;
+} xmqttcodecbuffers;
+
+typedef enum xmqttcodecstatus {
+	XMQTT_CODEC_UNSUPPORTED = -5, XMQTT_CODEC_PAYLOAD_ERROR = -4,
+	XMQTT_CODEC_LOCAL_ERROR = -3, XMQTT_CODEC_PROTOCOL_ERROR = -2,
+	XMQTT_CODEC_MALFORMED = -1, XMQTT_CODEC_MORE = 0, XMQTT_CODEC_DONE = 1
+} xmqttcodecstatus;
+
+typedef enum xmqttcodecerror {
+	XMQTT_CODEC_OK = 0, XMQTT_CODEC_ARGUMENT = 3001, XMQTT_CODEC_LIMIT,
+	XMQTT_CODEC_CAPACITY, XMQTT_CODEC_FORMAT, XMQTT_CODEC_PROTOCOL,
+	XMQTT_CODEC_VERSION, XMQTT_CODEC_PAYLOAD_FORMAT, XMQTT_CODEC_TOPIC
+} xmqttcodecerror;
+
+/* Machine-readable failure context survives diagnostic OOM. Offset is a
+ * zero-based field/section start (0 for the fixed header), or exact payload
+ * UTF-8 error byte. Type/Flags/Identifier are only confirmed metadata, never a
+ * partially executable packet; Identifier remains zero until validated. */
+typedef struct xmqttcodecissue {
+	xmqttcodecstatus Status;
+	xmqttcodecerror Error;
+	size_t Offset;
+	xmqttpackettype Type;
+	uint8 Flags;
+	uint16 Identifier;
+} xmqttcodecissue;
+
+XRT_EXTERN_C_BEGIN
+
+/* Zero the packet and set Type/mandatory fixed flags. Caller explicitly fills
+ * required identifiers, payloads and connect flags. No allocation/retention;
+ * preserves ambient error on success, leaves output unchanged on failure. */
+XMQTT_API bool xmqttPacketInit(xmqttpackettype Type, xmqttpacket* Packet);
+/* Defaults: packet/payload/property bytes 1 MiB, total properties 256, topics
+ * 1024, mandatory string UTF-8 policy. Packet cap 2..PACKET_MAX_BYTES; other
+ * caps may be zero. Config layout never changes with selected protocol leaves. */
+XMQTT_API bool xmqttCodecConfigInit(xmqttcodecconfig* Config);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/codec5.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_CODEC5_H
+#define XMQTT_CODEC5_H
+
+#if defined(XMQTT_FEATURE_XMQTT_CODEC5) && \
+	(!defined(XMQTT_FEATURE_XMQTT_PACKET) || !defined(XMQTT_FEATURE_XMQTT_PROPERTIES))
+#error "XMQTT_FEATURE_XMQTT_CODEC5 requires packet and properties features"
+#endif
+
+#if defined(XMQTT_FEATURE_XMQTT_CODEC5)
+XRT_EXTERN_C_BEGIN
+
+/* Decode one complete MQTT 5.0 packet of any of the 15 control types. Explicit
+ * sender direction, no network/session side effects or retained callbacks.
+ * Header cap checked before buffering; MORE is stateless, resupply full prefix.
+ * Packet and optional Issue remain unchanged on MORE/invalid API use. Packet
+ * publishes only on DONE; property/topic scratch is provisional on other
+ * results and must not be executed/exposed. On confirmed wire/resource errors,
+ * optional Issue publishes typed context independently of diagnostic OOM.
+ * DONE clears Issue (Error=OK, Offset=NPOS) and preserves ambient error.
+ * Returned Wire/text/binary/reasons borrow Input; lists borrow caller scratch.
+ * Keep both alive/unchanged while using Packet. NULL Buffers supplies zero
+ * scratch. All outputs/arrays must be disjoint from Input/Config/Buffers and
+ * each other. Config and Buffers metadata are copied for the call.
+ * Covers packet bodies, ids, flags, standard properties, topic/filter/shared
+ * syntax, subscription options, reason domains, omitted forms and PFI UTF-8
+ * payloads (NUL is legal character data). No successful/MORE allocation or
+ * payload copy. Negative statuses distinguish local limits/capacity/API,
+ * malformed wire, protocol violations, unsupported CONNECT protocol, and
+ * invalid indicated payload format; cold diagnostics can allocate.
+ * Negotiated auth/aliases/capabilities, session order, requested ACK counts and
+ * QoS/durability obligations remain runtime checks. Short AUTH success syntax
+ * is accepted; authentication negotiation requirements are not inferred. */
+XMQTT_API xmqttcodecstatus xmqttPacketRead5(xbytesview Input, xmqttdirection Direction,
+	const xmqttcodecconfig* Config, const xmqttcodecbuffers* Buffers,
+	xmqttpacket* Packet, xmqttcodecissue* Issue);
+
+/* Independently preflight the complete immutable descriptor, every active view,
+ * properties and aggregate resource limits. No Size result is trusted by Write.
+ * All failures preserve outputs; Required/Written/wire cannot overlap active
+ * source data/vectors/Packet/config or each other. Capacity is a nonwrapping
+ * buffer range. No terminating NUL. Config NULL uses defaults, copied per call.
+ * Emit canonical shortest fixed integers and abbreviated zero-reason/no-property
+ * ACK/DISCONNECT/AUTH forms. Preserve property/topic/reason order and data bytes.
+ * Text/property validation occurs once per call, not again during emission;
+ * Size followed by Write performs two independent preflights. Each payload/
+ * string/binary field copies once. No allocation/ownership transfer on success. */
+XMQTT_API bool xmqttPacketSize5(const xmqttpacket* Packet, xmqttdirection Direction,
+	const xmqttcodecconfig* Config, size_t* Required);
+XMQTT_API bool xmqttPacketWrite5(ptr Output, size_t Capacity,
+	const xmqttpacket* Packet, xmqttdirection Direction,
+	const xmqttcodecconfig* Config, size_t* Written);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt.h */
 /* ========================================================================== */
 
@@ -402,12 +610,68 @@ XRT_EXTERN_C_END
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_PROPERTIES)
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_PROPERTIES"
 #endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CODEC5)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CODEC5"
+#endif
 #endif
 
 #endif
 
 #if defined(XMQTT_IMPLEMENTATION) && !defined(XMQTT_IMPLEMENTATION_ONCE)
 #define XMQTT_IMPLEMENTATION_ONCE 1
+
+
+/* ========================================================================== */
+/* internal: extlibs/xmqtt/src/internal/xmqtt_internal.h */
+/* ========================================================================== */
+
+#if defined(XMQTT_FEATURE_XMQTT_WIRE) || \
+	defined(XMQTT_FEATURE_XMQTT_PROPERTIES) || \
+	defined(XMQTT_FEATURE_XMQTT_PACKET) || \
+	defined(XMQTT_FEATURE_XMQTT_CODEC5)
+#ifndef XMQTT_INTERNAL_H
+#define XMQTT_INTERNAL_H
+
+#if (defined(__GNUC__) || defined(__clang__)) && !defined(_WIN32)
+#define XMQTT_INTERNAL __attribute__((visibility("hidden")))
+#else
+#define XMQTT_INTERNAL
+#endif
+
+#if defined(XMQTT_FEATURE_XMQTT_WIRE)
+/* Library-only helpers; caller has validated spans/config/output aliases.
+ * Failure is independent of diagnostic allocation and meaningful on ERROR. */
+XMQTT_INTERNAL bool xmqttInternalFlags(xmqttpackettype Type, uint8 Flags, xmqttversion Version);
+XMQTT_INTERNAL xmqttwirestatus xmqttInternalHeader(xbytesview Input,
+	const xmqttwireconfig* Config, xmqttfixedheader* Header, xmqttwireerror* Failure);
+#endif
+
+#if defined(XMQTT_FEATURE_XMQTT_PROPERTIES)
+/* A packet encoder prepares each property section exactly once, checks global
+ * aliases, then emits the prepared immutable vector without another text scan. */
+XMQTT_INTERNAL bool xmqttInternalPropertiesPrepare(const xmqttproperty* Properties,
+	size_t Count, xmqttpropertyscope Scope, xmqttdirection Direction,
+	const xmqttpropertyconfig* Config, xmqttpropertyconfig* Limits,
+	size_t* Size, uint32* BodySize);
+XMQTT_INTERNAL bool xmqttInternalPropertiesOutput(const void* Output, size_t Size,
+	const xmqttproperty* Properties, size_t Count, const xmqttpropertyconfig* Config);
+XMQTT_INTERNAL size_t xmqttInternalPropertiesEmit(ptr Output,
+	const xmqttproperty* Properties, size_t Count, uint32 Body, size_t Size);
+#endif
+
+#if defined(XMQTT_FEATURE_XMQTT_PACKET)
+XMQTT_INTERNAL bool xmqttInternalCodecSettings(xmqttdirection Direction,
+	const xmqttcodecconfig* Config, xmqttcodecconfig* Copy);
+XMQTT_INTERNAL bool xmqttInternalRole(xmqttpackettype Type, xmqttdirection Direction);
+XMQTT_INTERNAL bool xmqttInternalReason(xmqttversion Version, xmqttpackettype Type,
+	uint8 Reason, xmqttdirection Direction);
+/* Already validated MQTT UTF-8 strings. Shared prefix is interpreted only when
+ * Shared=true. Wildcards/levels are checked without Unicode normalization. */
+XMQTT_INTERNAL bool xmqttInternalTopic(xstrview Text, bool Filter, bool Shared,
+	bool* IsShared);
+#endif
+#endif
+#endif
 
 
 /* ========================================================================== */
@@ -525,7 +789,7 @@ XMQTT_API bool xmqttVbiWrite(ptr Output, size_t Capacity, uint32 Value, size_t* 
 	memcpy(Output, Encoded, Bytes); if (Written != NULL) *Written = Bytes; return true;
 }
 
-static bool xmqttWireFlags(xmqttpackettype Type, uint8 Flags, xmqttversion Version)
+XMQTT_INTERNAL bool xmqttInternalFlags(xmqttpackettype Type, uint8 Flags, xmqttversion Version)
 {
 	if (Type < XMQTT_PACKET_CONNECT || Type > XMQTT_PACKET_AUTH || (Type == XMQTT_PACKET_AUTH && Version == XMQTT_VERSION_311) || Flags > 15u) return false;
 	if (Type == XMQTT_PACKET_PUBLISH) {
@@ -544,18 +808,23 @@ static bool xmqttWireHeaderArgs(xbytesview Input, const xmqttwireconfig* Config,
 	return true;
 }
 
-static xmqttwirestatus xmqttWireHeader(xbytesview Input, const xmqttwireconfig* Config, xmqttfixedheader* Header)
+XMQTT_INTERNAL xmqttwirestatus xmqttInternalHeader(xbytesview Input, const xmqttwireconfig* Config, xmqttfixedheader* Header, xmqttwireerror* Failure)
 {
 	if (Input.Size == 0) return XMQTT_WIRE_MORE;
 	xmqttpackettype Type = (xmqttpackettype)(Input.Data[0] >> 4); uint8 Flags = Input.Data[0] & 15u;
-	if (!xmqttWireFlags(Type, Flags, Config->Version)) {
+	if (!xmqttInternalFlags(Type, Flags, Config->Version)) {
+		if (Failure != NULL) *Failure = XMQTT_WIRE_MALFORMED;
 		xmqttWireFail(XERR_PROTOCOL, XMQTT_WIRE_MALFORMED, "invalid MQTT packet type or fixed-header flags"); return XMQTT_WIRE_ERROR;
 	}
 	uint32 Remaining; size_t Bytes;
 	xmqttwirestatus Status = xmqttWireVbi((xbytesview){Input.Data+1u, Input.Size-1u}, Config->Version, &Remaining, &Bytes);
-	if (Status != XMQTT_WIRE_DONE) return Status;
+	if (Status != XMQTT_WIRE_DONE) {
+		if (Status == XMQTT_WIRE_ERROR && Failure != NULL) *Failure = XMQTT_WIRE_MALFORMED;
+		return Status;
+	}
 	size_t PacketBytes = 1u + Bytes + Remaining;
 	if (PacketBytes > Config->MaxPacketBytes) {
+		if (Failure != NULL) *Failure = XMQTT_WIRE_LIMIT;
 		xmqttWireFail(XERR_RANGE, XMQTT_WIRE_LIMIT, "MQTT total packet size exceeds configured limit"); return XMQTT_WIRE_ERROR;
 	}
 	*Header = (xmqttfixedheader){Type, Flags, Remaining, Bytes+1u, PacketBytes}; return XMQTT_WIRE_DONE;
@@ -565,7 +834,7 @@ XMQTT_API xmqttwirestatus xmqttHeaderRead(xbytesview Input, const xmqttwireconfi
 {
 	xmqttwireconfig Copy;
 	if (!xmqttWireHeaderArgs(Input, Config, Header, sizeof(*Header), &Copy)) return XMQTT_WIRE_ERROR;
-	return xmqttWireHeader(Input, &Copy, Header);
+	return xmqttInternalHeader(Input, &Copy, Header, NULL);
 }
 
 XMQTT_API bool xmqttHeaderWrite(ptr Output, size_t Capacity, xmqttpackettype Type, uint8 Flags,
@@ -573,7 +842,7 @@ XMQTT_API bool xmqttHeaderWrite(ptr Output, size_t Capacity, xmqttpackettype Typ
 {
 	xmqttwireconfig Copy;
 	if (!xmqttWireConfig(Config, &Copy)) return false;
-	if (!xmqttWireFlags(Type, Flags, Copy.Version)) return xmqttWireFail(XERR_ARGUMENT, XMQTT_WIRE_ARGUMENT, "invalid outgoing MQTT type or flags");
+	if (!xmqttInternalFlags(Type, Flags, Copy.Version)) return xmqttWireFail(XERR_ARGUMENT, XMQTT_WIRE_ARGUMENT, "invalid outgoing MQTT type or flags");
 	if (RemainingLength > XMQTT_VARIABLE_MAX) return xmqttWireFail(XERR_RANGE, XMQTT_WIRE_LIMIT, "MQTT remaining length exceeds protocol maximum");
 	unsigned char Encoded[5]; Encoded[0] = (unsigned char)(((unsigned)Type << 4) | Flags);
 	size_t Bytes = 1u + xmqttWirePutVbi(Encoded+1u, RemainingLength);
@@ -586,7 +855,7 @@ XMQTT_API xmqttwirestatus xmqttFrameRead(xbytesview Input, const xmqttwireconfig
 {
 	xmqttwireconfig Copy; xmqttfixedheader Header;
 	if (!xmqttWireHeaderArgs(Input, Config, Frame, sizeof(*Frame), &Copy)) return XMQTT_WIRE_ERROR;
-	xmqttwirestatus Status = xmqttWireHeader(Input, &Copy, &Header);
+	xmqttwirestatus Status = xmqttInternalHeader(Input, &Copy, &Header, NULL);
 	if (Status != XMQTT_WIRE_DONE) return Status;
 	if (Input.Size < Header.PacketBytes) return XMQTT_WIRE_MORE;
 	*Frame = (xmqttframe){Header, {Input.Data, Header.PacketBytes}, {Input.Data+Header.HeaderBytes, Header.RemainingLength}};
@@ -892,7 +1161,7 @@ static size_t xmqttPropertiesViews(const xmqttproperty* Property, xbytesview* Vi
 	return 0;
 }
 
-static bool xmqttPropertiesMeasure(const xmqttproperty* Properties, size_t Count, xmqttpropertyscope Scope,
+XMQTT_INTERNAL bool xmqttInternalPropertiesPrepare(const xmqttproperty* Properties, size_t Count, xmqttpropertyscope Scope,
 	xmqttdirection Direction, const xmqttpropertyconfig* Config, xmqttpropertyconfig* Limits, size_t* Size, uint32* BodySize)
 {
 	if (!xmqttPropertiesSettings(Scope,Direction,Config,Limits)) return false;
@@ -940,7 +1209,7 @@ static bool xmqttPropertiesMeasure(const xmqttproperty* Properties, size_t Count
 	*Size = Total; *BodySize = (uint32)Body; return true;
 }
 
-static bool xmqttPropertiesOutput(const void* Output, size_t Size, const xmqttproperty* Properties,
+XMQTT_INTERNAL bool xmqttInternalPropertiesOutput(const void* Output, size_t Size, const xmqttproperty* Properties,
 	size_t Count, const xmqttpropertyconfig* Config)
 {
 	if (Output == NULL || !xrtMemRangeValid(Output,Size) || xrtMemRangesOverlap(Output,Size,Properties,Count*sizeof(*Properties)) ||
@@ -959,7 +1228,7 @@ XMQTT_API bool xmqttPropertiesSize(const xmqttproperty* Properties, size_t Count
 	xmqttdirection Direction, const xmqttpropertyconfig* Config, size_t* Required)
 {
 	xmqttpropertyconfig Limits; size_t Size; uint32 Body;
-	if (!xmqttPropertiesMeasure(Properties,Count,Scope,Direction,Config,&Limits,&Size,&Body) || !xmqttPropertiesOutput(Required,sizeof(*Required),Properties,Count,Config)) return false;
+	if (!xmqttInternalPropertiesPrepare(Properties,Count,Scope,Direction,Config,&Limits,&Size,&Body) || !xmqttInternalPropertiesOutput(Required,sizeof(*Required),Properties,Count,Config)) return false;
 	*Required = Size; return true;
 }
 
@@ -970,14 +1239,21 @@ XMQTT_API bool xmqttPropertiesWrite(ptr Output, size_t Capacity, const xmqttprop
 	if (Output == NULL || !xrtMemRangeValid(Output,Capacity)) {
 		xmqttPropertiesFail(XMQTT_PROPERTIES_LOCAL_ERROR,XMQTT_PROPERTY_ARGUMENT,"invalid MQTT property wire buffer"); return false;
 	}
-	if (!xmqttPropertiesMeasure(Properties,Count,Scope,Direction,Config,&Limits,&Size,&Body)) return false;
+	if (!xmqttInternalPropertiesPrepare(Properties,Count,Scope,Direction,Config,&Limits,&Size,&Body)) return false;
 	if (Capacity < Size) {
 		xmqttPropertiesFail(XMQTT_PROPERTIES_LOCAL_ERROR,XMQTT_PROPERTY_CAPACITY,"MQTT property wire capacity is too small"); return false;
 	}
-	if (!xmqttPropertiesOutput(Output,Size,Properties,Count,Config)) return false;
-	if (Written != NULL && (!xmqttPropertiesOutput(Written,sizeof(*Written),Properties,Count,Config) || xrtMemRangesOverlap(Written,sizeof(*Written),Output,Size))) {
+	if (!xmqttInternalPropertiesOutput(Output,Size,Properties,Count,Config)) return false;
+	if (Written != NULL && (!xmqttInternalPropertiesOutput(Written,sizeof(*Written),Properties,Count,Config) || xrtMemRangesOverlap(Written,sizeof(*Written),Output,Size))) {
 		xmqttPropertiesFail(XMQTT_PROPERTIES_LOCAL_ERROR,XMQTT_PROPERTY_ARGUMENT,"MQTT property Written overlaps wire or inputs"); return false;
 	}
+	(void)xmqttInternalPropertiesEmit(Output,Properties,Count,Body,Size);
+	if (Written != NULL) *Written = Size;
+	return true;
+}
+
+XMQTT_INTERNAL size_t xmqttInternalPropertiesEmit(ptr Output, const xmqttproperty* Properties, size_t Count, uint32 Body, size_t Size)
+{
 	unsigned char* Cursor = (unsigned char*)Output; size_t Bytes;
 	/* Infallible emission for preflighted immutable, nonoverlapping inputs.
 	 * Text is not rescanned; only the active views' bytes are copied once. */
@@ -999,10 +1275,690 @@ XMQTT_API bool xmqttPropertiesWrite(ptr Output, size_t Capacity, const xmqttprop
 			}
 		}
 	}
-	if (Written != NULL) *Written = Size;
+	return (size_t)(Cursor-(unsigned char*)Output);
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xmqtt/src/packet/packet.c */
+/* ========================================================================== */
+
+#if defined(XMQTT_FEATURE_XMQTT_PACKET)
+#include <string.h>
+
+#if defined(XMQTT_FEATURE_XMQTT_PACKET)
+
+static bool xmqttPacketArgument(cstr Message)
+{
+	xrtSetErrorInfo(XERR_ARGUMENT,"xrt.mqtt",XMQTT_CODEC_ARGUMENT,Message); return false;
+}
+
+XMQTT_API bool xmqttPacketInit(xmqttpackettype Type, xmqttpacket* Packet)
+{
+	if (Type<XMQTT_PACKET_CONNECT || Type>XMQTT_PACKET_AUTH || Packet==NULL || !xrtMemRangeValid(Packet,sizeof(*Packet)))
+		return xmqttPacketArgument("invalid MQTT packet initializer");
+	*Packet=(xmqttpacket){0}; Packet->Type=Type;
+	if (Type==XMQTT_PACKET_PUBREL || Type==XMQTT_PACKET_SUBSCRIBE || Type==XMQTT_PACKET_UNSUBSCRIBE) Packet->Flags=2;
 	return true;
 }
 
+XMQTT_API bool xmqttCodecConfigInit(xmqttcodecconfig* Config)
+{
+	if (Config==NULL || !xrtMemRangeValid(Config,sizeof(*Config))) return xmqttPacketArgument("invalid MQTT codec config output");
+	*Config=(xmqttcodecconfig){sizeof(*Config),1024u*1024u,1024u*1024u,1024u*1024u,256,1024,0}; return true;
+}
+
+XMQTT_INTERNAL bool xmqttInternalCodecSettings(xmqttdirection Direction, const xmqttcodecconfig* Config, xmqttcodecconfig* Copy)
+{
+	if ((Direction!=XMQTT_CLIENT_TO_SERVER && Direction!=XMQTT_SERVER_TO_CLIENT) || (Config!=NULL && !xrtMemRangeValid(Config,sizeof(*Config))))
+		return xmqttPacketArgument("invalid MQTT codec direction/config span");
+	if (Config==NULL) xmqttCodecConfigInit(Copy); else *Copy=*Config;
+	if (Copy->Size!=sizeof(*Copy) || Copy->MaxPacketBytes<2 || Copy->MaxPacketBytes>XMQTT_PACKET_MAX_BYTES ||
+		Copy->MaxPayloadBytes>XMQTT_VARIABLE_MAX || Copy->MaxPropertyBytes>XMQTT_VARIABLE_MAX+4u || (Copy->Utf8Flags&~XMQTT_UTF8_REJECT_DISALLOWED))
+		return xmqttPacketArgument("invalid MQTT codec resource configuration");
+	return true;
+}
+
+XMQTT_INTERNAL bool xmqttInternalRole(xmqttpackettype Type, xmqttdirection Direction)
+{
+	if (Type<XMQTT_PACKET_CONNECT || Type>XMQTT_PACKET_AUTH) return false;
+	if (Type==XMQTT_PACKET_CONNECT || Type==XMQTT_PACKET_SUBSCRIBE || Type==XMQTT_PACKET_UNSUBSCRIBE || Type==XMQTT_PACKET_PINGREQ)
+		return Direction==XMQTT_CLIENT_TO_SERVER;
+	if (Type==XMQTT_PACKET_CONNACK || Type==XMQTT_PACKET_SUBACK || Type==XMQTT_PACKET_UNSUBACK || Type==XMQTT_PACKET_PINGRESP)
+		return Direction==XMQTT_SERVER_TO_CLIENT;
+	return true;
+}
+
+XMQTT_INTERNAL bool xmqttInternalReason(xmqttversion Version, xmqttpackettype Type, uint8 Reason, xmqttdirection Direction)
+{
+	if (Version==XMQTT_VERSION_311) {
+		if (Type==XMQTT_PACKET_CONNACK) return Reason<=5;
+		if (Type==XMQTT_PACKET_SUBACK) return Reason<=2 || Reason==0x80;
+		return Reason==0;
+	}
+	static const uint8 Connack[]={0,0x80,0x81,0x82,0x83,0x84,0x85,0x86,0x87,0x88,0x89,0x8a,0x8c,0x90,0x95,0x97,0x99,0x9a,0x9b,0x9c,0x9d,0x9f};
+	static const uint8 Puback[]={0,0x10,0x80,0x83,0x87,0x90,0x91,0x97,0x99};
+	static const uint8 Pubrel[]={0,0x92};
+	static const uint8 Suback[]={0,1,2,0x80,0x83,0x87,0x8f,0x91,0x97,0x9e,0xa1,0xa2};
+	static const uint8 Unsuback[]={0,0x11,0x80,0x83,0x87,0x8f,0x91};
+	static const uint8 DisconnectBoth[]={0,0x80,0x81,0x82,0x83,0x90,0x93,0x94,0x95,0x96,0x97,0x98,0x99};
+	static const uint8 DisconnectServer[]={0x87,0x89,0x8b,0x8d,0x8e,0x8f,0x9a,0x9b,0x9c,0x9d,0x9e,0x9f,0xa0,0xa1,0xa2};
+	const uint8* Values=NULL; size_t Count=0;
+	if (Type==XMQTT_PACKET_CONNACK) { Values=Connack; Count=sizeof(Connack); }
+	else if (Type==XMQTT_PACKET_PUBACK || Type==XMQTT_PACKET_PUBREC) { Values=Puback; Count=sizeof(Puback); }
+	else if (Type==XMQTT_PACKET_PUBREL || Type==XMQTT_PACKET_PUBCOMP) { Values=Pubrel; Count=sizeof(Pubrel); }
+	else if (Type==XMQTT_PACKET_SUBACK) { Values=Suback; Count=sizeof(Suback); }
+	else if (Type==XMQTT_PACKET_UNSUBACK) { Values=Unsuback; Count=sizeof(Unsuback); }
+	else if (Type==XMQTT_PACKET_AUTH) return Reason==0x18 || (Reason==0 && Direction==XMQTT_SERVER_TO_CLIENT) || (Reason==0x19 && Direction==XMQTT_CLIENT_TO_SERVER);
+	else if (Type==XMQTT_PACKET_DISCONNECT) {
+		if (Reason==4 && Direction==XMQTT_CLIENT_TO_SERVER) return true;
+		for (size_t Index=0; Index<sizeof(DisconnectBoth); ++Index) if (Reason==DisconnectBoth[Index]) return true;
+		if (Direction==XMQTT_SERVER_TO_CLIENT)
+			for (size_t Index=0; Index<sizeof(DisconnectServer); ++Index) if (Reason==DisconnectServer[Index]) return true;
+		return false;
+	} else return Reason==0;
+	for (size_t Index=0; Index<Count; ++Index) if (Reason==Values[Index]) return true;
+	return false;
+}
+
+XMQTT_INTERNAL bool xmqttInternalTopic(xstrview Text, bool Filter, bool Shared, bool* IsShared)
+{
+	size_t Begin=0;
+	if (IsShared!=NULL) *IsShared=false;
+	if (!Text.Size) return false;
+	if (Filter && Shared && Text.Size>=7 && memcmp(Text.Data,"$share/",7)==0) {
+		size_t Slash=7;
+		while (Slash<Text.Size && Text.Data[Slash]!='/') {
+			if (Text.Data[Slash]=='+' || Text.Data[Slash]=='#') return false;
+			++Slash;
+		}
+		if (Slash==7 || Slash==Text.Size || Slash+1u==Text.Size) return false;
+		Begin=Slash+1u; if (IsShared!=NULL) *IsShared=true;
+	}
+	for (size_t Index=Begin; Index<Text.Size; ++Index) {
+		if (Text.Data[Index]=='+') {
+			if (!Filter || (Index!=Begin && Text.Data[Index-1u]!='/') || (Index+1u<Text.Size && Text.Data[Index+1u]!='/')) return false;
+		} else if (Text.Data[Index]=='#') {
+			if (!Filter || Index+1u!=Text.Size || (Index!=Begin && Text.Data[Index-1u]!='/')) return false;
+		}
+	}
+	return true;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xmqtt/src/codec5/decode.c */
+/* ========================================================================== */
+
+#if defined(XMQTT_FEATURE_XMQTT_CODEC5)
+#include <string.h>
+
+#if defined(XMQTT_FEATURE_XMQTT_CODEC5)
+
+typedef struct xmqtt5reader {
+	xbytesview Input;
+	size_t Position, End, PropertiesUsed, PropertyBytes;
+	xmqttdirection Direction;
+	xmqttcodecconfig Config;
+	xmqttcodecbuffers Buffers;
+	xmqttpacket Value;
+	xmqttcodecissue Failure;
+} xmqtt5reader;
+
+static bool xmqtt5ReadMark(xmqtt5reader* Reader, xmqttcodecstatus Status, xmqttcodecerror Error, size_t Offset)
+{
+	Reader->Failure=(xmqttcodecissue){Status,Error,Offset,Reader->Value.Type,Reader->Value.Flags,Reader->Value.Identifier}; return false;
+}
+
+static bool xmqtt5ReadFail(xmqtt5reader* Reader, xmqttcodecstatus Status, xmqttcodecerror Error, size_t Offset, cstr Message)
+{
+	xerrkind Kind=Status==XMQTT_CODEC_LOCAL_ERROR ? (Error==XMQTT_CODEC_ARGUMENT ? XERR_ARGUMENT : XERR_RANGE) : XERR_PROTOCOL;
+	xmqtt5ReadMark(Reader,Status,Error,Offset); xrtSetErrorInfo(Kind,"xrt.mqtt",Error,Message); return false;
+}
+
+static bool xmqtt5ReadArgs(xbytesview Input, const xmqttcodecconfig* Config, const xmqttcodecbuffers* Buffers,
+	xmqttpacket* Packet, xmqttcodecissue* Issue, xmqttcodecbuffers* Copy)
+{
+	if ((Input.Data==NULL && Input.Size) || !xrtMemRangeValid(Input.Data,Input.Size) || Packet==NULL || !xrtMemRangeValid(Packet,sizeof(*Packet)) ||
+		(Issue!=NULL && !xrtMemRangeValid(Issue,sizeof(*Issue))) || (Buffers!=NULL && !xrtMemRangeValid(Buffers,sizeof(*Buffers)))) goto Invalid;
+	*Copy=Buffers==NULL ? (xmqttcodecbuffers){0} : *Buffers;
+	if (Copy->PropertyCapacity>SIZE_MAX/sizeof(xmqttproperty) || Copy->TopicCapacity>SIZE_MAX/sizeof(xmqttsubscription) ||
+		(Copy->Properties==NULL && Copy->PropertyCapacity) || (Copy->Topics==NULL && Copy->TopicCapacity) ||
+		!xrtMemRangeValid(Copy->Properties,Copy->PropertyCapacity*sizeof(xmqttproperty)) || !xrtMemRangeValid(Copy->Topics,Copy->TopicCapacity*sizeof(xmqttsubscription))) goto Invalid;
+	const void* Outputs[]={Packet,Issue,Copy->Properties,Copy->Topics};
+	size_t Sizes[]={sizeof(*Packet),Issue==NULL ? 0 : sizeof(*Issue),Copy->PropertyCapacity*sizeof(xmqttproperty),Copy->TopicCapacity*sizeof(xmqttsubscription)};
+	for (size_t Index=0; Index<4; ++Index) {
+		if (xrtMemRangesOverlap(Outputs[Index],Sizes[Index],Input.Data,Input.Size) ||
+			(Config!=NULL && xrtMemRangesOverlap(Outputs[Index],Sizes[Index],Config,sizeof(*Config))) ||
+			(Buffers!=NULL && xrtMemRangesOverlap(Outputs[Index],Sizes[Index],Buffers,sizeof(*Buffers)))) goto Invalid;
+		for (size_t Other=0; Other<Index; ++Other)
+			if (xrtMemRangesOverlap(Outputs[Index],Sizes[Index],Outputs[Other],Sizes[Other])) goto Invalid;
+	}
+	return true;
+Invalid:
+	xrtSetErrorInfo(XERR_ARGUMENT,"xrt.mqtt",XMQTT_CODEC_ARGUMENT,"invalid MQTT packet read spans or output overlap"); return false;
+}
+
+static bool xmqtt5ReadByte(xmqtt5reader* Reader, uint8* Value)
+{
+	if (Reader->Position==Reader->End) return xmqtt5ReadFail(Reader,XMQTT_CODEC_MALFORMED,XMQTT_CODEC_FORMAT,Reader->Position,"truncated MQTT byte field");
+	*Value=Reader->Input.Data[Reader->Position++]; return true;
+}
+
+static bool xmqtt5ReadWord(xmqtt5reader* Reader, uint16* Value)
+{
+	if (Reader->End-Reader->Position<2) return xmqtt5ReadFail(Reader,XMQTT_CODEC_MALFORMED,XMQTT_CODEC_FORMAT,Reader->Position,"truncated MQTT two-byte integer");
+	*Value=(uint16)(((uint16)Reader->Input.Data[Reader->Position]<<8)|Reader->Input.Data[Reader->Position+1u]); Reader->Position+=2; return true;
+}
+
+static bool xmqtt5ReadIdentifier(xmqtt5reader* Reader)
+{
+	uint16 Identifier; size_t Start=Reader->Position;
+	if (!xmqtt5ReadWord(Reader,&Identifier)) return false;
+	if (!Identifier) return xmqtt5ReadFail(Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_PROTOCOL,Start,"MQTT packet identifier is zero");
+	Reader->Value.Identifier=Identifier; return true;
+}
+
+static bool xmqtt5ReadField(xmqtt5reader* Reader, bool Text, ptr Value)
+{
+	xbytesview Input={Reader->Input.Data+Reader->Position,Reader->End-Reader->Position}; size_t Read;
+	xmqttwirestatus Status=Text ? xmqttUtf8StringRead(Input,Reader->Config.Utf8Flags,(xstrview*)Value,&Read) : xmqttBinaryRead(Input,(xbytesview*)Value,&Read);
+	if (Status==XMQTT_WIRE_MORE) return xmqtt5ReadFail(Reader,XMQTT_CODEC_MALFORMED,XMQTT_CODEC_FORMAT,Reader->Position,"MQTT field crosses packet boundary");
+	if (Status==XMQTT_WIRE_ERROR) return xmqtt5ReadMark(Reader,XMQTT_CODEC_MALFORMED,XMQTT_CODEC_FORMAT,Reader->Position);
+	Reader->Position+=Read; return true;
+}
+
+static bool xmqtt5ReadProperties(xmqtt5reader* Reader, xmqttpropertyscope Scope, xmqttpropertylist* Values)
+{
+	if (Reader->PropertyBytes==Reader->Config.MaxPropertyBytes)
+		return xmqtt5ReadFail(Reader,XMQTT_CODEC_LOCAL_ERROR,XMQTT_CODEC_LIMIT,Reader->Position,"MQTT aggregate property byte limit exhausted");
+	xmqttpropertyconfig Config={sizeof(Config),Reader->Config.MaxPropertyBytes-Reader->PropertyBytes,
+		Reader->Config.MaxProperties-Reader->PropertiesUsed,Reader->Config.Utf8Flags};
+	xmqttproperty* Output=Reader->Buffers.Properties==NULL ? NULL : Reader->Buffers.Properties+Reader->PropertiesUsed;
+	xmqttpropertydocument Doc;
+	xmqttpropertystatus Status=xmqttPropertiesRead((xbytesview){Reader->Input.Data+Reader->Position,Reader->End-Reader->Position},Scope,Reader->Direction,
+		&Config,Output,Reader->Buffers.PropertyCapacity-Reader->PropertiesUsed,&Doc);
+	if (Status!=XMQTT_PROPERTIES_DONE) {
+		if (Status==XMQTT_PROPERTIES_MORE) return xmqtt5ReadFail(Reader,XMQTT_CODEC_MALFORMED,XMQTT_CODEC_FORMAT,Reader->Position,"MQTT property section crosses packet boundary");
+		return xmqtt5ReadMark(Reader,Status==XMQTT_PROPERTIES_LOCAL_ERROR ? XMQTT_CODEC_LOCAL_ERROR :
+			Status==XMQTT_PROPERTIES_PROTOCOL_ERROR ? XMQTT_CODEC_PROTOCOL_ERROR : XMQTT_CODEC_MALFORMED,
+			Status==XMQTT_PROPERTIES_LOCAL_ERROR ? XMQTT_CODEC_LIMIT : Status==XMQTT_PROPERTIES_PROTOCOL_ERROR ? XMQTT_CODEC_PROTOCOL : XMQTT_CODEC_FORMAT,Reader->Position);
+	}
+	*Values=(xmqttpropertylist){Doc.Count ? Output : NULL,Doc.Count};
+	Reader->PropertiesUsed+=Doc.Count; Reader->PropertyBytes+=Doc.Consumed; Reader->Position+=Doc.Consumed; return true;
+}
+
+static bool xmqtt5ReadPayload(xmqtt5reader* Reader, xbytesview Data, xmqttpropertylist Properties, size_t Offset)
+{
+	if (Data.Size>Reader->Config.MaxPayloadBytes) return xmqtt5ReadFail(Reader,XMQTT_CODEC_LOCAL_ERROR,XMQTT_CODEC_LIMIT,Offset,"MQTT payload exceeds configured limit");
+	for (size_t Index=0; Index<Properties.Count; ++Index) {
+		if (Properties.Data[Index].Id==XMQTT_PROPERTY_PAYLOAD_FORMAT && Properties.Data[Index].Value.Number==1) {
+			size_t Error;
+			if (!xrtUtf8Valid((xstrview){(cstr)Data.Data,Data.Size},&Error))
+				return xmqtt5ReadFail(Reader,XMQTT_CODEC_PAYLOAD_ERROR,XMQTT_CODEC_PAYLOAD_FORMAT,Offset+Error,"MQTT indicated payload format is not well-formed UTF-8");
+			break;
+		}
+	}
+	return true;
+}
+
+static bool xmqtt5ReadConnect(xmqtt5reader* Reader)
+{
+	xmqttconnectpacket* Value=&Reader->Value.Body.Connect; xstrview Name; uint8 Version, Flags; size_t Start=Reader->Position;
+	if (!xmqtt5ReadField(Reader,true,&Name)) return false;
+	if (Name.Size!=4 || memcmp(Name.Data,"MQTT",4)) return xmqtt5ReadFail(Reader,XMQTT_CODEC_UNSUPPORTED,XMQTT_CODEC_VERSION,Start,"unsupported MQTT protocol name");
+	Start=Reader->Position; if (!xmqtt5ReadByte(Reader,&Version)) return false;
+	if (Version!=5) return xmqtt5ReadFail(Reader,XMQTT_CODEC_UNSUPPORTED,XMQTT_CODEC_VERSION,Start,"CONNECT is not MQTT version 5");
+	Start=Reader->Position; if (!xmqtt5ReadByte(Reader,&Flags)) return false;
+	if ((Flags&1u) || ((Flags&0x18u)==0x18u) || (!(Flags&4u) && (Flags&0x38u)))
+		return xmqtt5ReadFail(Reader,XMQTT_CODEC_MALFORMED,XMQTT_CODEC_FORMAT,Start,"invalid MQTT CONNECT flags");
+	Value->CleanStart=(Flags&2u)!=0; Value->HasWill=(Flags&4u)!=0; Value->WillQos=(Flags>>3)&3u; Value->WillRetain=(Flags&0x20u)!=0;
+	Value->HasUsername=(Flags&0x80u)!=0; Value->HasPassword=(Flags&0x40u)!=0;
+	if (!xmqtt5ReadWord(Reader,&Value->KeepAlive) || !xmqtt5ReadProperties(Reader,XMQTT_PROPERTIES_CONNECT,&Reader->Value.Properties) ||
+		!xmqtt5ReadField(Reader,true,&Value->ClientId)) return false;
+	if (Value->HasWill) {
+		if (!xmqtt5ReadProperties(Reader,XMQTT_PROPERTIES_WILL,&Value->WillProperties)) return false;
+		Start=Reader->Position; if (!xmqtt5ReadField(Reader,true,&Value->WillTopic)) return false;
+		if (!xmqttInternalTopic(Value->WillTopic,false,false,NULL)) return xmqtt5ReadFail(Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_TOPIC,Start,"invalid MQTT Will Topic");
+		Start=Reader->Position;
+		if (!xmqtt5ReadField(Reader,false,&Value->WillPayload) || !xmqtt5ReadPayload(Reader,Value->WillPayload,Value->WillProperties,Start+2u)) return false;
+	}
+	if (Value->HasUsername && !xmqtt5ReadField(Reader,true,&Value->Username)) return false;
+	if (Value->HasPassword && !xmqtt5ReadField(Reader,false,&Value->Password)) return false;
+	return true;
+}
+
+static bool xmqtt5ReadPublish(xmqtt5reader* Reader)
+{
+	xmqttpublishpacket* Value=&Reader->Value.Body.Publish; size_t Start=Reader->Position;
+	if (!xmqtt5ReadField(Reader,true,&Value->Topic)) return false;
+	if (Value->Topic.Size && !xmqttInternalTopic(Value->Topic,false,false,NULL)) return xmqtt5ReadFail(Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_TOPIC,Start,"PUBLISH Topic Name contains wildcards");
+	if ((Reader->Value.Flags&XMQTT_PUBLISH_QOS_MASK) && !xmqtt5ReadIdentifier(Reader)) return false;
+	if (!xmqtt5ReadProperties(Reader,XMQTT_PROPERTIES_PUBLISH,&Reader->Value.Properties)) return false;
+	if (!Value->Topic.Size) {
+		bool Alias=false;
+		for (size_t Index=0; Index<Reader->Value.Properties.Count; ++Index) if (Reader->Value.Properties.Data[Index].Id==XMQTT_PROPERTY_TOPIC_ALIAS) Alias=true;
+		if (!Alias) return xmqtt5ReadFail(Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_TOPIC,Start,"empty PUBLISH topic has no Topic Alias");
+	}
+	Value->Payload=(xbytesview){Reader->Input.Data+Reader->Position,Reader->End-Reader->Position};
+	if (!xmqtt5ReadPayload(Reader,Value->Payload,Reader->Value.Properties,Reader->Position)) return false;
+	Reader->Position=Reader->End; return true;
+}
+
+static bool xmqtt5ReadTopics(xmqtt5reader* Reader)
+{
+	if (!xmqtt5ReadIdentifier(Reader) || !xmqtt5ReadProperties(Reader,(xmqttpropertyscope)Reader->Value.Type,&Reader->Value.Properties)) return false;
+	size_t Count=0;
+	while (Reader->Position<Reader->End) {
+		if (Count>=Reader->Config.MaxTopics) return xmqtt5ReadFail(Reader,XMQTT_CODEC_LOCAL_ERROR,XMQTT_CODEC_LIMIT,Reader->Position,"MQTT topic count exceeds configured limit");
+		if (Count>=Reader->Buffers.TopicCapacity) return xmqtt5ReadFail(Reader,XMQTT_CODEC_LOCAL_ERROR,XMQTT_CODEC_CAPACITY,Reader->Position,"MQTT topic scratch capacity exhausted");
+		xmqttsubscription Value={0}; bool Shared; size_t Start=Reader->Position;
+		if (!xmqtt5ReadField(Reader,true,&Value.Filter)) return false;
+		if (!xmqttInternalTopic(Value.Filter,true,true,&Shared)) return xmqtt5ReadFail(Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_TOPIC,Start,"invalid MQTT Topic Filter");
+		if (Reader->Value.Type==XMQTT_PACKET_SUBSCRIBE) {
+			Start=Reader->Position; if (!xmqtt5ReadByte(Reader,&Value.Options)) return false;
+			if ((Value.Options&0xc0u) || (Value.Options&3u)==3u || (Value.Options&0x30u)==0x30u)
+				return xmqtt5ReadFail(Reader,XMQTT_CODEC_MALFORMED,XMQTT_CODEC_FORMAT,Start,"invalid MQTT subscription option bits");
+			if (Shared && (Value.Options&XMQTT_SUBSCRIBE_NO_LOCAL)) return xmqtt5ReadFail(Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_PROTOCOL,Start,"No Local is forbidden on shared subscriptions");
+		}
+		Reader->Buffers.Topics[Count++]=Value;
+	}
+	if (!Count) return xmqtt5ReadFail(Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_PROTOCOL,Reader->Position,"MQTT topic request has an empty payload");
+	Reader->Value.Body.Topics=(xmqttsubscriptionlist){Reader->Buffers.Topics,Count}; return true;
+}
+
+static bool xmqtt5ReadReason(xmqtt5reader* Reader)
+{
+	size_t Start=Reader->Position;
+	if (!xmqtt5ReadByte(Reader,&Reader->Value.Reason)) return false;
+	if (!xmqttInternalReason(XMQTT_VERSION_5,Reader->Value.Type,Reader->Value.Reason,Reader->Direction))
+		return xmqtt5ReadFail(Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_PROTOCOL,Start,"reason code is not valid for MQTT packet/direction");
+	return true;
+}
+
+static bool xmqtt5ReadBody(xmqtt5reader* Reader)
+{
+	xmqttpackettype Type=Reader->Value.Type;
+	if (Type==XMQTT_PACKET_CONNECT) return xmqtt5ReadConnect(Reader);
+	if (Type==XMQTT_PACKET_PUBLISH) return xmqtt5ReadPublish(Reader);
+	if (Type==XMQTT_PACKET_SUBSCRIBE || Type==XMQTT_PACKET_UNSUBSCRIBE) return xmqtt5ReadTopics(Reader);
+	if (Type==XMQTT_PACKET_CONNACK) {
+		uint8 Flags; size_t Start=Reader->Position;
+		if (!xmqtt5ReadByte(Reader,&Flags)) return false;
+		if (Flags&0xfeu) return xmqtt5ReadFail(Reader,XMQTT_CODEC_MALFORMED,XMQTT_CODEC_FORMAT,Start,"reserved CONNACK bits are nonzero");
+		Reader->Value.SessionPresent=Flags!=0;
+		if (!xmqtt5ReadReason(Reader)) return false;
+		if (Reader->Value.Reason && Flags) return xmqtt5ReadFail(Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_PROTOCOL,Start,"failed CONNACK has Session Present");
+		return xmqtt5ReadProperties(Reader,XMQTT_PROPERTIES_CONNACK,&Reader->Value.Properties);
+	}
+	if (Type==XMQTT_PACKET_PINGREQ || Type==XMQTT_PACKET_PINGRESP) return true;
+	if (Type==XMQTT_PACKET_SUBACK || Type==XMQTT_PACKET_UNSUBACK) {
+		if (!xmqtt5ReadIdentifier(Reader) || !xmqtt5ReadProperties(Reader,(xmqttpropertyscope)Type,&Reader->Value.Properties)) return false;
+		size_t Count=Reader->End-Reader->Position;
+		if (!Count) return xmqtt5ReadFail(Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_PROTOCOL,Reader->Position,"MQTT acknowledgement has no reason list");
+		if (Count>Reader->Config.MaxTopics) return xmqtt5ReadFail(Reader,XMQTT_CODEC_LOCAL_ERROR,XMQTT_CODEC_LIMIT,Reader->Position,"MQTT acknowledgement reason count exceeds limit");
+		for (size_t Index=0; Index<Count; ++Index)
+			if (!xmqttInternalReason(XMQTT_VERSION_5,Type,Reader->Input.Data[Reader->Position+Index],Reader->Direction))
+				return xmqtt5ReadFail(Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_PROTOCOL,Reader->Position+Index,"invalid MQTT acknowledgement reason");
+		Reader->Value.Body.Reasons=(xbytesview){Reader->Input.Data+Reader->Position,Count}; Reader->Position=Reader->End; return true;
+	}
+	if (Type>=XMQTT_PACKET_PUBACK && Type<=XMQTT_PACKET_PUBCOMP) {
+		if (!xmqtt5ReadIdentifier(Reader)) return false;
+		if (Reader->Position<Reader->End && !xmqtt5ReadReason(Reader)) return false;
+		return Reader->Position==Reader->End || xmqtt5ReadProperties(Reader,(xmqttpropertyscope)Type,&Reader->Value.Properties);
+	}
+	/* DISCONNECT and AUTH have no identifier. AUTH reason-only is not a defined
+	 * abbreviation; success with no body is explicitly permitted by the spec. */
+	if (Reader->Position==Reader->End) {
+		if (!xmqttInternalReason(XMQTT_VERSION_5,Type,0,Reader->Direction))
+			return xmqtt5ReadFail(Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_PROTOCOL,Reader->Position,"implicit MQTT reason is invalid for sender");
+		return true;
+	}
+	if (!xmqtt5ReadReason(Reader)) return false;
+	if (Type==XMQTT_PACKET_DISCONNECT && Reader->Position==Reader->End) return true;
+	return xmqtt5ReadProperties(Reader,(xmqttpropertyscope)Type,&Reader->Value.Properties);
+}
+
+XMQTT_API xmqttcodecstatus xmqttPacketRead5(xbytesview Input, xmqttdirection Direction,
+	const xmqttcodecconfig* Config, const xmqttcodecbuffers* Buffers, xmqttpacket* Packet, xmqttcodecissue* Issue)
+{
+	xmqtt5reader Reader={0}; Reader.Input=Input; Reader.Direction=Direction;
+	if (!xmqttInternalCodecSettings(Direction,Config,&Reader.Config) || !xmqtt5ReadArgs(Input,Config,Buffers,Packet,Issue,&Reader.Buffers)) return XMQTT_CODEC_LOCAL_ERROR;
+	xmqttwireconfig Wire={sizeof(Wire),XMQTT_VERSION_5,Reader.Config.MaxPacketBytes}; xmqttfixedheader Header; xmqttwireerror Error=0;
+	xmqttwirestatus Status=xmqttInternalHeader(Input,&Wire,&Header,&Error);
+	if (Status==XMQTT_WIRE_MORE) return XMQTT_CODEC_MORE;
+	if (Status==XMQTT_WIRE_ERROR) { xmqtt5ReadMark(&Reader,Error==XMQTT_WIRE_LIMIT ? XMQTT_CODEC_LOCAL_ERROR : XMQTT_CODEC_MALFORMED,
+		Error==XMQTT_WIRE_LIMIT ? XMQTT_CODEC_LIMIT : XMQTT_CODEC_FORMAT,0); goto Failed; }
+	Reader.Value.Type=Header.Type; Reader.Value.Flags=Header.Flags;
+	if (!xmqttInternalRole(Header.Type,Direction)) { xmqtt5ReadFail(&Reader,XMQTT_CODEC_PROTOCOL_ERROR,XMQTT_CODEC_PROTOCOL,0,"MQTT packet travels in forbidden direction"); goto Failed; }
+	if ((Header.Type==XMQTT_PACKET_PINGREQ || Header.Type==XMQTT_PACKET_PINGRESP) && Header.RemainingLength) {
+		xmqtt5ReadFail(&Reader,XMQTT_CODEC_MALFORMED,XMQTT_CODEC_FORMAT,0,"MQTT PING packet has a body"); goto Failed;
+	}
+	if (Header.Type==XMQTT_PACKET_AUTH && Header.RemainingLength==1) {
+		xmqtt5ReadFail(&Reader,XMQTT_CODEC_MALFORMED,XMQTT_CODEC_FORMAT,0,"AUTH lacks its property section"); goto Failed;
+	}
+	if (Input.Size<Header.PacketBytes) return XMQTT_CODEC_MORE;
+	Reader.Position=Header.HeaderBytes; Reader.End=Header.PacketBytes;
+	if (!xmqtt5ReadBody(&Reader)) goto Failed;
+	if (Reader.Position!=Reader.End) { xmqtt5ReadFail(&Reader,XMQTT_CODEC_MALFORMED,XMQTT_CODEC_FORMAT,Reader.Position,"unexpected trailing MQTT packet body bytes"); goto Failed; }
+	Reader.Value.Wire=(xbytesview){Input.Data,Header.PacketBytes}; *Packet=Reader.Value;
+	if (Issue!=NULL) *Issue=(xmqttcodecissue){XMQTT_CODEC_DONE,XMQTT_CODEC_OK,XRT_NPOS,0,0,0};
+	return XMQTT_CODEC_DONE;
+Failed:
+	if (Issue!=NULL) *Issue=Reader.Failure;
+	return Reader.Failure.Status;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xmqtt/src/codec5/encode.c */
+/* ========================================================================== */
+
+#if defined(XMQTT_FEATURE_XMQTT_CODEC5)
+#include <string.h>
+
+#if defined(XMQTT_FEATURE_XMQTT_CODEC5)
+
+typedef struct xmqtt5plan {
+	const xmqttpacket* Packet;
+	xmqttdirection Direction;
+	xmqttcodecconfig Config;
+	size_t Body, Total, PropertyBytes, PropertyCount;
+	size_t RootSize, WillSize;
+	uint32 RootBody, WillBody;
+	uint8 ConnectFlags;
+} xmqtt5plan;
+
+static bool xmqtt5WriteFail(xerrkind Kind, xmqttcodecerror Code, cstr Message)
+{
+	xrtSetErrorInfo(Kind,"xrt.mqtt",Code,Message); return false;
+}
+
+static bool xmqtt5WriteSpan(const void* Data, size_t Size)
+{
+	return ((Data!=NULL || !Size) && xrtMemRangeValid(Data,Size)) ||
+		xmqtt5WriteFail(XERR_ARGUMENT,XMQTT_CODEC_ARGUMENT,"invalid MQTT descriptor data span");
+}
+
+static size_t xmqtt5WriteVbiSize(size_t Value)
+{
+	return 1u+(Value>=128u)+(Value>=16384u)+(Value>=2097152u);
+}
+
+static bool xmqtt5WriteAdd(xmqtt5plan* Plan, size_t Size)
+{
+	if (Size>XMQTT_VARIABLE_MAX-Plan->Body) return xmqtt5WriteFail(XERR_RANGE,XMQTT_CODEC_LIMIT,"MQTT body exceeds protocol length");
+	Plan->Body+=Size;
+	if (Plan->Body+1u+xmqtt5WriteVbiSize(Plan->Body)>Plan->Config.MaxPacketBytes)
+		return xmqtt5WriteFail(XERR_RANGE,XMQTT_CODEC_LIMIT,"MQTT packet exceeds configured limit");
+	return true;
+}
+
+static bool xmqtt5WriteField(xmqtt5plan* Plan, xbytesview Value, bool Text)
+{
+	if (!xmqtt5WriteSpan(Value.Data,Value.Size)) return false;
+	if (Value.Size>XMQTT_STRING_MAX_BYTES) return xmqtt5WriteFail(XERR_RANGE,XMQTT_CODEC_LIMIT,"MQTT field exceeds two-byte length");
+	if (!xmqtt5WriteAdd(Plan,2u+Value.Size)) return false;
+	return !Text || xmqttUtf8StringCheck((xstrview){(cstr)Value.Data,Value.Size},Plan->Config.Utf8Flags,NULL);
+}
+
+static bool xmqtt5WriteText(xmqtt5plan* Plan, xstrview Value)
+{
+	return xmqtt5WriteField(Plan,(xbytesview){(cbytes)Value.Data,Value.Size},true);
+}
+
+static bool xmqtt5WriteProperties(xmqtt5plan* Plan, xmqttpropertylist Values, xmqttpropertyscope Scope, size_t* Size, uint32* Body)
+{
+	if (Plan->PropertyBytes==Plan->Config.MaxPropertyBytes)
+		return xmqtt5WriteFail(XERR_RANGE,XMQTT_CODEC_LIMIT,"MQTT aggregate property byte limit exhausted");
+	xmqttpropertyconfig Config={sizeof(Config),Plan->Config.MaxPropertyBytes-Plan->PropertyBytes,
+		Plan->Config.MaxProperties-Plan->PropertyCount,Plan->Config.Utf8Flags}, Limits;
+	/* At least two fixed-header bytes are needed. Bound the property preflight
+	 * by the remaining packet budget before it scans any property text. The
+	 * final Add also accounts for a longer Remaining Length integer. */
+	size_t Available=Plan->Config.MaxPacketBytes-2u-Plan->Body;
+	if (Available>XMQTT_VARIABLE_MAX-Plan->Body) Available=XMQTT_VARIABLE_MAX-Plan->Body;
+	if (Config.MaxBytes>Available) Config.MaxBytes=Available;
+	if (!Config.MaxBytes) return xmqtt5WriteFail(XERR_RANGE,XMQTT_CODEC_LIMIT,"no MQTT packet budget remains for a property section");
+	if (!xmqttInternalPropertiesPrepare(Values.Data,Values.Count,Scope,Plan->Direction,&Config,&Limits,Size,Body)) return false;
+	Plan->PropertyBytes+=*Size; Plan->PropertyCount+=Values.Count; return xmqtt5WriteAdd(Plan,*Size);
+}
+
+static bool xmqtt5WritePayload(xbytesview Value, xmqttpropertylist Properties)
+{
+	for (size_t Index=0; Index<Properties.Count; ++Index)
+		if (Properties.Data[Index].Id==XMQTT_PROPERTY_PAYLOAD_FORMAT && Properties.Data[Index].Value.Number==1) {
+			if (!xrtUtf8Valid((xstrview){(cstr)Value.Data,Value.Size},NULL))
+				return xmqtt5WriteFail(XERR_PROTOCOL,XMQTT_CODEC_PAYLOAD_FORMAT,"MQTT indicated payload format is not well-formed UTF-8");
+			break;
+		}
+	return true;
+}
+
+static bool xmqtt5WriteConnect(xmqtt5plan* Plan)
+{
+	const xmqttconnectpacket* Value=&Plan->Packet->Body.Connect;
+	if (Value->WillQos>2 || (!Value->HasWill && (Value->WillRetain || Value->WillQos || Value->WillProperties.Count || Value->WillTopic.Size || Value->WillPayload.Size)) ||
+		(!Value->HasUsername && Value->Username.Size) || (!Value->HasPassword && Value->Password.Size))
+		return xmqtt5WriteFail(XERR_ARGUMENT,XMQTT_CODEC_ARGUMENT,"inconsistent MQTT CONNECT descriptor flags/fields");
+	Plan->ConnectFlags=(uint8)((Value->CleanStart ? 2u : 0u)|(Value->HasWill ? 4u : 0u)|(Value->WillQos<<3)|
+		(Value->WillRetain ? 32u : 0u)|(Value->HasUsername ? 128u : 0u)|(Value->HasPassword ? 64u : 0u));
+	if (!xmqtt5WriteAdd(Plan,10) || !xmqtt5WriteProperties(Plan,Plan->Packet->Properties,XMQTT_PROPERTIES_CONNECT,&Plan->RootSize,&Plan->RootBody) ||
+		!xmqtt5WriteText(Plan,Value->ClientId)) return false;
+	if (Value->HasWill) {
+		if (Value->WillPayload.Size>Plan->Config.MaxPayloadBytes)
+			return xmqtt5WriteFail(XERR_RANGE,XMQTT_CODEC_LIMIT,"MQTT Will payload exceeds configured limit");
+		if (!xmqtt5WriteProperties(Plan,Value->WillProperties,XMQTT_PROPERTIES_WILL,&Plan->WillSize,&Plan->WillBody) ||
+			!xmqtt5WriteText(Plan,Value->WillTopic)) return false;
+		if (!xmqttInternalTopic(Value->WillTopic,false,false,NULL)) return xmqtt5WriteFail(XERR_PROTOCOL,XMQTT_CODEC_TOPIC,"invalid MQTT Will Topic");
+		if (!xmqtt5WriteField(Plan,Value->WillPayload,false)) return false;
+	}
+	if (Value->HasUsername && !xmqtt5WriteText(Plan,Value->Username)) return false;
+	if (Value->HasPassword && !xmqtt5WriteField(Plan,Value->Password,false)) return false;
+	return !Value->HasWill || xmqtt5WritePayload(Value->WillPayload,Value->WillProperties);
+}
+
+static bool xmqtt5WritePublish(xmqtt5plan* Plan)
+{
+	const xmqttpublishpacket* Value=&Plan->Packet->Body.Publish;
+	if (!xmqtt5WriteSpan(Value->Payload.Data,Value->Payload.Size)) return false;
+	if (Value->Payload.Size>Plan->Config.MaxPayloadBytes)
+		return xmqtt5WriteFail(XERR_RANGE,XMQTT_CODEC_LIMIT,"MQTT PUBLISH payload exceeds configured limit");
+	if (!xmqtt5WriteText(Plan,Value->Topic)) return false;
+	if (Value->Topic.Size && !xmqttInternalTopic(Value->Topic,false,false,NULL))
+		return xmqtt5WriteFail(XERR_PROTOCOL,XMQTT_CODEC_TOPIC,"PUBLISH Topic Name contains wildcards");
+	if (Plan->Packet->Identifier && !xmqtt5WriteAdd(Plan,2)) return false;
+	if (!xmqtt5WriteProperties(Plan,Plan->Packet->Properties,XMQTT_PROPERTIES_PUBLISH,&Plan->RootSize,&Plan->RootBody)) return false;
+	if (!Value->Topic.Size) {
+		bool Alias=false;
+		for (size_t Index=0; Index<Plan->Packet->Properties.Count; ++Index) if (Plan->Packet->Properties.Data[Index].Id==XMQTT_PROPERTY_TOPIC_ALIAS) Alias=true;
+		if (!Alias) return xmqtt5WriteFail(XERR_PROTOCOL,XMQTT_CODEC_TOPIC,"empty PUBLISH topic has no Topic Alias");
+	}
+	return xmqtt5WriteAdd(Plan,Value->Payload.Size) && xmqtt5WritePayload(Value->Payload,Plan->Packet->Properties);
+}
+
+static bool xmqtt5WriteTopics(xmqtt5plan* Plan)
+{
+	xmqttsubscriptionlist Values=Plan->Packet->Body.Topics;
+	if (!Values.Count) return xmqtt5WriteFail(XERR_PROTOCOL,XMQTT_CODEC_PROTOCOL,"MQTT topic request has an empty payload");
+	if (Values.Count>Plan->Config.MaxTopics) return xmqtt5WriteFail(XERR_RANGE,XMQTT_CODEC_LIMIT,"MQTT topic count exceeds configured limit");
+	if (Values.Count>SIZE_MAX/sizeof(*Values.Data)) return xmqtt5WriteFail(XERR_ARGUMENT,XMQTT_CODEC_ARGUMENT,"MQTT topic vector size overflows");
+	if (!xmqtt5WriteSpan(Values.Data,Values.Count*sizeof(*Values.Data))) return false;
+	if (!xmqtt5WriteAdd(Plan,2) || !xmqtt5WriteProperties(Plan,Plan->Packet->Properties,(xmqttpropertyscope)Plan->Packet->Type,&Plan->RootSize,&Plan->RootBody)) return false;
+	for (size_t Index=0; Index<Values.Count; ++Index) {
+		const xmqttsubscription* Value=&Values.Data[Index]; bool Shared;
+		if (!xmqtt5WriteText(Plan,Value->Filter)) return false;
+		if (!xmqttInternalTopic(Value->Filter,true,true,&Shared)) return xmqtt5WriteFail(XERR_PROTOCOL,XMQTT_CODEC_TOPIC,"invalid MQTT Topic Filter");
+		if (Plan->Packet->Type==XMQTT_PACKET_UNSUBSCRIBE) {
+			if (Value->Options) return xmqtt5WriteFail(XERR_ARGUMENT,XMQTT_CODEC_ARGUMENT,"UNSUBSCRIBE descriptor has subscription options");
+		} else {
+			if ((Value->Options&0xc0u) || (Value->Options&3u)==3u || (Value->Options&0x30u)==0x30u || (Shared && (Value->Options&XMQTT_SUBSCRIBE_NO_LOCAL)))
+				return xmqtt5WriteFail(XERR_PROTOCOL,XMQTT_CODEC_PROTOCOL,"invalid MQTT subscription options");
+			if (!xmqtt5WriteAdd(Plan,1)) return false;
+		}
+	}
+	return true;
+}
+
+static bool xmqtt5WritePrepare(const xmqttpacket* Packet, xmqttdirection Direction, const xmqttcodecconfig* Config, xmqtt5plan* Plan)
+{
+	if (Packet==NULL || !xmqtt5WriteSpan(Packet,sizeof(*Packet)) || !xmqttInternalCodecSettings(Direction,Config,&Plan->Config))
+		return xmqtt5WriteFail(XERR_ARGUMENT,XMQTT_CODEC_ARGUMENT,"invalid MQTT packet/config descriptor");
+	Plan->Packet=Packet; Plan->Direction=Direction;
+	xmqttpackettype Type=Packet->Type;
+	if (!xmqttInternalRole(Type,Direction) || !xmqttInternalFlags(Type,Packet->Flags,XMQTT_VERSION_5))
+		return xmqtt5WriteFail(XERR_ARGUMENT,XMQTT_CODEC_ARGUMENT,"invalid MQTT descriptor type/direction/fixed flags");
+	bool Identifier=(Type>=XMQTT_PACKET_PUBACK && Type<=XMQTT_PACKET_UNSUBACK) || (Type==XMQTT_PACKET_PUBLISH && (Packet->Flags&XMQTT_PUBLISH_QOS_MASK));
+	bool Reason=Type==XMQTT_PACKET_CONNACK || (Type>=XMQTT_PACKET_PUBACK && Type<=XMQTT_PACKET_PUBCOMP) || Type>=XMQTT_PACKET_DISCONNECT;
+	if (Identifier!=(Packet->Identifier!=0) || (Reason ? !xmqttInternalReason(XMQTT_VERSION_5,Type,Packet->Reason,Direction) : Packet->Reason!=0) ||
+		(Packet->SessionPresent && (Type!=XMQTT_PACKET_CONNACK || Packet->Reason)))
+		return xmqtt5WriteFail(XERR_PROTOCOL,XMQTT_CODEC_PROTOCOL,"inconsistent MQTT identifier/reason/session descriptor");
+	if (Type==XMQTT_PACKET_CONNECT) return xmqtt5WriteConnect(Plan);
+	if (Type==XMQTT_PACKET_PUBLISH) return xmqtt5WritePublish(Plan);
+	if (Type==XMQTT_PACKET_SUBSCRIBE || Type==XMQTT_PACKET_UNSUBSCRIBE) return xmqtt5WriteTopics(Plan);
+	if (Type==XMQTT_PACKET_CONNACK) return xmqtt5WriteAdd(Plan,2) &&
+		xmqtt5WriteProperties(Plan,Packet->Properties,XMQTT_PROPERTIES_CONNACK,&Plan->RootSize,&Plan->RootBody);
+	if (Type==XMQTT_PACKET_SUBACK || Type==XMQTT_PACKET_UNSUBACK) {
+		xbytesview Reasons=Packet->Body.Reasons;
+		if (!Reasons.Size) return xmqtt5WriteFail(XERR_PROTOCOL,XMQTT_CODEC_PROTOCOL,"MQTT acknowledgement reason list is empty");
+		if (Reasons.Size>Plan->Config.MaxTopics) return xmqtt5WriteFail(XERR_RANGE,XMQTT_CODEC_LIMIT,"MQTT acknowledgement reason count exceeds limit");
+		if (!xmqtt5WriteSpan(Reasons.Data,Reasons.Size) || !xmqtt5WriteAdd(Plan,2) ||
+			!xmqtt5WriteProperties(Plan,Packet->Properties,(xmqttpropertyscope)Type,&Plan->RootSize,&Plan->RootBody) || !xmqtt5WriteAdd(Plan,Reasons.Size)) return false;
+		for (size_t Index=0; Index<Reasons.Size; ++Index)
+			if (!xmqttInternalReason(XMQTT_VERSION_5,Type,Reasons.Data[Index],Direction)) return xmqtt5WriteFail(XERR_PROTOCOL,XMQTT_CODEC_PROTOCOL,"invalid MQTT acknowledgement reason");
+		return true;
+	}
+	if (Type==XMQTT_PACKET_PINGREQ || Type==XMQTT_PACKET_PINGRESP) {
+		if (Packet->Properties.Count) return xmqtt5WriteFail(XERR_ARGUMENT,XMQTT_CODEC_ARGUMENT,"PING descriptor has properties");
+		return true;
+	}
+	if (Type>=XMQTT_PACKET_PUBACK && Type<=XMQTT_PACKET_PUBCOMP) {
+		if (!xmqtt5WriteAdd(Plan,2)) return false;
+		if (!Packet->Reason && !Packet->Properties.Count) return true;
+	} else if (!Packet->Reason && !Packet->Properties.Count) return true;
+	if (!xmqtt5WriteAdd(Plan,1)) return false;
+	if (!Packet->Properties.Count && Type!=XMQTT_PACKET_AUTH) return true;
+	return xmqtt5WriteProperties(Plan,Packet->Properties,(xmqttpropertyscope)Type,&Plan->RootSize,&Plan->RootBody);
+}
+
+static bool xmqtt5WriteOverlap(const void* Output, size_t Size, const void* Data, size_t Bytes)
+{
+	return !xrtMemRangesOverlap(Output,Size,Data,Bytes) || xmqtt5WriteFail(XERR_ARGUMENT,XMQTT_CODEC_ARGUMENT,"MQTT output overlaps descriptor inputs");
+}
+
+static bool xmqtt5WriteOutput(const xmqtt5plan* Plan, const void* Output, size_t Size, const xmqttcodecconfig* Config)
+{
+	const xmqttpacket* Packet=Plan->Packet;
+	if (Output==NULL) return xmqtt5WriteFail(XERR_ARGUMENT,XMQTT_CODEC_ARGUMENT,"NULL MQTT codec output");
+	if (!xmqtt5WriteSpan(Output,Size) || !xmqtt5WriteOverlap(Output,Size,Packet,sizeof(*Packet)) ||
+		(Config!=NULL && !xmqtt5WriteOverlap(Output,Size,Config,sizeof(*Config)))) return false;
+	if (Plan->RootSize && !xmqttInternalPropertiesOutput(Output,Size,Packet->Properties.Data,Packet->Properties.Count,NULL)) return false;
+	if (Packet->Type==XMQTT_PACKET_CONNECT) {
+		const xmqttconnectpacket* Value=&Packet->Body.Connect;
+		if (!xmqtt5WriteOverlap(Output,Size,Value->ClientId.Data,Value->ClientId.Size)) return false;
+		if (Value->HasWill && (!xmqttInternalPropertiesOutput(Output,Size,Value->WillProperties.Data,Value->WillProperties.Count,NULL) ||
+			!xmqtt5WriteOverlap(Output,Size,Value->WillTopic.Data,Value->WillTopic.Size) || !xmqtt5WriteOverlap(Output,Size,Value->WillPayload.Data,Value->WillPayload.Size))) return false;
+		if (Value->HasUsername && !xmqtt5WriteOverlap(Output,Size,Value->Username.Data,Value->Username.Size)) return false;
+		if (Value->HasPassword && !xmqtt5WriteOverlap(Output,Size,Value->Password.Data,Value->Password.Size)) return false;
+	} else if (Packet->Type==XMQTT_PACKET_PUBLISH) {
+		if (!xmqtt5WriteOverlap(Output,Size,Packet->Body.Publish.Topic.Data,Packet->Body.Publish.Topic.Size) ||
+			!xmqtt5WriteOverlap(Output,Size,Packet->Body.Publish.Payload.Data,Packet->Body.Publish.Payload.Size)) return false;
+	} else if (Packet->Type==XMQTT_PACKET_SUBSCRIBE || Packet->Type==XMQTT_PACKET_UNSUBSCRIBE) {
+		xmqttsubscriptionlist Values=Packet->Body.Topics;
+		if (!xmqtt5WriteOverlap(Output,Size,Values.Data,Values.Count*sizeof(*Values.Data))) return false;
+		for (size_t Index=0; Index<Values.Count; ++Index)
+			if (!xmqtt5WriteOverlap(Output,Size,Values.Data[Index].Filter.Data,Values.Data[Index].Filter.Size)) return false;
+	} else if (Packet->Type==XMQTT_PACKET_SUBACK || Packet->Type==XMQTT_PACKET_UNSUBACK) {
+		if (!xmqtt5WriteOverlap(Output,Size,Packet->Body.Reasons.Data,Packet->Body.Reasons.Size)) return false;
+	}
+	return true;
+}
+
+static unsigned char* xmqtt5EmitWord(unsigned char* Output, uint16 Value)
+{
+	*Output++=(unsigned char)(Value>>8); *Output++=(unsigned char)Value; return Output;
+}
+
+static unsigned char* xmqtt5EmitData(unsigned char* Output, const void* Data, size_t Size)
+{
+	if (Size) memcpy(Output,Data,Size);
+	return Output+Size;
+}
+
+static unsigned char* xmqtt5EmitField(unsigned char* Output, const void* Data, size_t Size)
+{
+	return xmqtt5EmitData(xmqtt5EmitWord(Output,(uint16)Size),Data,Size);
+}
+
+static unsigned char* xmqtt5EmitProperties(unsigned char* Output, xmqttpropertylist Values, uint32 Body, size_t Size)
+{
+	return Output+xmqttInternalPropertiesEmit(Output,Values.Data,Values.Count,Body,Size);
+}
+
+static void xmqtt5Emit(const xmqtt5plan* Plan, ptr Output)
+{
+	const xmqttpacket* Packet=Plan->Packet; xmqttpackettype Type=Packet->Type; unsigned char* Cursor=(unsigned char*)Output; size_t Bytes;
+	*Cursor++=(uint8)((Type<<4)|Packet->Flags); (void)xmqttVbiWrite(Cursor,Plan->Total-1u,(uint32)Plan->Body,&Bytes); Cursor+=Bytes;
+	if (Type==XMQTT_PACKET_CONNECT) {
+		const xmqttconnectpacket* Value=&Packet->Body.Connect;
+		Cursor=xmqtt5EmitData(Cursor,"\x00\x04MQTT\x05",7); *Cursor++=Plan->ConnectFlags; Cursor=xmqtt5EmitWord(Cursor,Value->KeepAlive);
+		Cursor=xmqtt5EmitProperties(Cursor,Packet->Properties,Plan->RootBody,Plan->RootSize);
+		Cursor=xmqtt5EmitField(Cursor,Value->ClientId.Data,Value->ClientId.Size);
+		if (Value->HasWill) {
+			Cursor=xmqtt5EmitProperties(Cursor,Value->WillProperties,Plan->WillBody,Plan->WillSize);
+			Cursor=xmqtt5EmitField(Cursor,Value->WillTopic.Data,Value->WillTopic.Size); Cursor=xmqtt5EmitField(Cursor,Value->WillPayload.Data,Value->WillPayload.Size);
+		}
+		if (Value->HasUsername) Cursor=xmqtt5EmitField(Cursor,Value->Username.Data,Value->Username.Size);
+		if (Value->HasPassword) Cursor=xmqtt5EmitField(Cursor,Value->Password.Data,Value->Password.Size);
+	} else if (Type==XMQTT_PACKET_PUBLISH) {
+		Cursor=xmqtt5EmitField(Cursor,Packet->Body.Publish.Topic.Data,Packet->Body.Publish.Topic.Size);
+		if (Packet->Identifier) Cursor=xmqtt5EmitWord(Cursor,Packet->Identifier);
+		Cursor=xmqtt5EmitProperties(Cursor,Packet->Properties,Plan->RootBody,Plan->RootSize);
+		(void)xmqtt5EmitData(Cursor,Packet->Body.Publish.Payload.Data,Packet->Body.Publish.Payload.Size);
+	} else if (Type==XMQTT_PACKET_SUBSCRIBE || Type==XMQTT_PACKET_UNSUBSCRIBE) {
+		Cursor=xmqtt5EmitWord(Cursor,Packet->Identifier); Cursor=xmqtt5EmitProperties(Cursor,Packet->Properties,Plan->RootBody,Plan->RootSize);
+		for (size_t Index=0; Index<Packet->Body.Topics.Count; ++Index) {
+			const xmqttsubscription* Value=&Packet->Body.Topics.Data[Index]; Cursor=xmqtt5EmitField(Cursor,Value->Filter.Data,Value->Filter.Size);
+			if (Type==XMQTT_PACKET_SUBSCRIBE) *Cursor++=Value->Options;
+		}
+	} else if (Type==XMQTT_PACKET_CONNACK) {
+		*Cursor++=Packet->SessionPresent ? 1u : 0u; *Cursor++=Packet->Reason;
+		(void)xmqtt5EmitProperties(Cursor,Packet->Properties,Plan->RootBody,Plan->RootSize);
+	} else if (Type==XMQTT_PACKET_SUBACK || Type==XMQTT_PACKET_UNSUBACK) {
+		Cursor=xmqtt5EmitWord(Cursor,Packet->Identifier); Cursor=xmqtt5EmitProperties(Cursor,Packet->Properties,Plan->RootBody,Plan->RootSize);
+		(void)xmqtt5EmitData(Cursor,Packet->Body.Reasons.Data,Packet->Body.Reasons.Size);
+	} else if (Type!=XMQTT_PACKET_PINGREQ && Type!=XMQTT_PACKET_PINGRESP) {
+		if (Packet->Identifier) Cursor=xmqtt5EmitWord(Cursor,Packet->Identifier);
+		if (Plan->RootSize || Packet->Reason) *Cursor++=Packet->Reason;
+		if (Plan->RootSize) (void)xmqtt5EmitProperties(Cursor,Packet->Properties,Plan->RootBody,Plan->RootSize);
+	}
+}
+
+XMQTT_API bool xmqttPacketSize5(const xmqttpacket* Packet, xmqttdirection Direction, const xmqttcodecconfig* Config, size_t* Required)
+{
+	xmqtt5plan Plan={0};
+	if (!xmqtt5WritePrepare(Packet,Direction,Config,&Plan) || !xmqtt5WriteOutput(&Plan,Required,sizeof(*Required),Config)) return false;
+	*Required=Plan.Body+1u+xmqtt5WriteVbiSize(Plan.Body); return true;
+}
+
+XMQTT_API bool xmqttPacketWrite5(ptr Output, size_t Capacity, const xmqttpacket* Packet, xmqttdirection Direction, const xmqttcodecconfig* Config, size_t* Written)
+{
+	xmqtt5plan Plan={0};
+	if (Output==NULL || !xmqtt5WriteSpan(Output,Capacity)) return xmqtt5WriteFail(XERR_ARGUMENT,XMQTT_CODEC_ARGUMENT,"invalid MQTT packet wire buffer");
+	if (!xmqtt5WritePrepare(Packet,Direction,Config,&Plan)) return false;
+	Plan.Total=Plan.Body+1u+xmqtt5WriteVbiSize(Plan.Body);
+	if (Capacity<Plan.Total) return xmqtt5WriteFail(XERR_RANGE,XMQTT_CODEC_CAPACITY,"MQTT packet wire capacity too small");
+	if (!xmqtt5WriteOutput(&Plan,Output,Plan.Total,Config) || (Written!=NULL &&
+		(!xmqtt5WriteOutput(&Plan,Written,sizeof(*Written),Config) || !xmqtt5WriteOverlap(Written,sizeof(*Written),Output,Plan.Total)))) return false;
+	xmqtt5Emit(&Plan,Output); if (Written!=NULL) *Written=Plan.Total; return true;
+}
 #endif
 #endif
 

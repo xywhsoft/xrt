@@ -33,6 +33,12 @@
 #if !defined(XMQTT_FEATURE_XMQTT)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT 1
 #endif
+#if !defined(XMQTT_FEATURE_XMQTT_CODEC5)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CODEC5 1
+#endif
+#if !defined(XMQTT_FEATURE_XMQTT_PACKET)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_PACKET 1
+#endif
 #if !defined(XMQTT_FEATURE_XMQTT_PROPERTIES)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_PROPERTIES 1
 #endif
@@ -44,6 +50,12 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT 1
+#endif
+#if !defined(XMQTT_MODULE_XMQTT_CODEC5)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CODEC5 1
+#endif
+#if !defined(XMQTT_MODULE_XMQTT_PACKET)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_PACKET 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_PROPERTIES)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_PROPERTIES 1
@@ -2425,6 +2437,32 @@
 #ifndef XMQTT_MODULE_XMQTT_PROPERTIES
 #define XMQTT_MODULE_XMQTT_PROPERTIES
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CODEC5
+#define XMQTT_MODULE_XMQTT_CODEC5
+#endif
+#endif
+
+/* xmqtt_codec5 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CODEC5)
+#ifndef XMQTT_FEATURE_XMQTT_CODEC5
+#define XMQTT_FEATURE_XMQTT_CODEC5
+#endif
+#ifndef XMQTT_MODULE_XMQTT_PACKET
+#define XMQTT_MODULE_XMQTT_PACKET
+#endif
+#ifndef XMQTT_MODULE_XMQTT_PROPERTIES
+#define XMQTT_MODULE_XMQTT_PROPERTIES
+#endif
+#endif
+
+/* xmqtt_packet 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_PACKET)
+#ifndef XMQTT_FEATURE_XMQTT_PACKET
+#define XMQTT_FEATURE_XMQTT_PACKET
+#endif
+#ifndef XMQTT_MODULE_XMQTT_WIRE
+#define XMQTT_MODULE_XMQTT_WIRE
+#endif
 #endif
 
 /* xmqtt_properties 及其直接依赖。 */
@@ -2499,6 +2537,8 @@
 
 /* Values equal the protocol-level byte, not the spelling of a version. */
 typedef enum xmqttversion { XMQTT_VERSION_311 = 4, XMQTT_VERSION_5 = 5 } xmqttversion;
+
+typedef enum xmqttdirection { XMQTT_CLIENT_TO_SERVER = 1, XMQTT_SERVER_TO_CLIENT } xmqttdirection;
 
 typedef enum xmqttpackettype {
 	XMQTT_PACKET_CONNECT = 1, XMQTT_PACKET_CONNACK, XMQTT_PACKET_PUBLISH,
@@ -2665,8 +2705,6 @@ typedef enum xmqttpropertyscope {
 	XMQTT_PROPERTIES_DISCONNECT = 14, XMQTT_PROPERTIES_AUTH, XMQTT_PROPERTIES_WILL
 } xmqttpropertyscope;
 
-typedef enum xmqttdirection { XMQTT_CLIENT_TO_SERVER = 1, XMQTT_SERVER_TO_CLIENT } xmqttdirection;
-
 typedef struct xmqttpropertyconfig {
 	size_t Size;
 	/* Includes the Property Length integer itself; positive and <=SECTION_MAX.
@@ -2746,6 +2784,188 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/packet.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_PACKET_H
+#define XMQTT_PACKET_H
+
+#if defined(XMQTT_FEATURE_XMQTT_PACKET) && !defined(XMQTT_FEATURE_XMQTT_WIRE)
+#error "XMQTT_FEATURE_XMQTT_PACKET requires XMQTT_FEATURE_XMQTT_WIRE"
+#endif
+
+#if defined(XMQTT_FEATURE_XMQTT_PACKET)
+
+#define XMQTT_SUBSCRIBE_QOS_MASK 0x03u
+#define XMQTT_SUBSCRIBE_NO_LOCAL 0x04u
+#define XMQTT_SUBSCRIBE_RETAIN_AS_PUBLISHED 0x08u
+#define XMQTT_SUBSCRIBE_RETAIN_HANDLING_MASK 0x30u
+
+struct xmqttproperty;
+typedef struct xmqttpropertylist { const struct xmqttproperty* Data; size_t Count; } xmqttpropertylist;
+typedef struct xmqttsubscription { xstrview Filter; uint8 Options; } xmqttsubscription;
+typedef struct xmqttsubscriptionlist { const xmqttsubscription* Data; size_t Count; } xmqttsubscriptionlist;
+
+typedef struct xmqttconnectpacket {
+	bool CleanStart;
+	uint16 KeepAlive;
+	xstrview ClientId;
+	bool HasWill, WillRetain;
+	uint8 WillQos;
+	xmqttpropertylist WillProperties;
+	xstrview WillTopic;
+	xbytesview WillPayload;
+	bool HasUsername, HasPassword;
+	xstrview Username;
+	xbytesview Password;
+} xmqttconnectpacket;
+
+typedef struct xmqttpublishpacket { xstrview Topic; xbytesview Payload; } xmqttpublishpacket;
+typedef union xmqttpacketbody {
+	xmqttconnectpacket Connect;
+	xmqttpublishpacket Publish;
+	xmqttsubscriptionlist Topics; /* SUBSCRIBE and UNSUBSCRIBE (Options=0). */
+	xbytesview Reasons; /* SUBACK/UNSUBACK: ordered raw reason bytes. */
+} xmqttpacketbody;
+
+/* Only the union member selected by Type is meaningful. Flags is the actual
+ * fixed-header low nibble, including mandatory 2 for PUBREL/SUBSCRIBE/UNSUBSCRIBE.
+ * Identifier is required/nonzero for the corresponding packet types and QoS>0.
+ * Reason is scalar for CONNACK/PUBACK/PUBREC/PUBREL/PUBCOMP/DISCONNECT/AUTH;
+ * SessionPresent is CONNACK-only. Other unused common fields must be zero on
+ * encoding. Wire is decoded borrowed metadata (Size is consumed bytes), ignored
+ * by encoders. No data/list is owned; all type layouts are feature-independent. */
+typedef struct xmqttpacket {
+	xmqttpackettype Type;
+	uint8 Flags;
+	uint16 Identifier;
+	uint8 Reason;
+	bool SessionPresent;
+	xmqttpropertylist Properties;
+	xmqttpacketbody Body;
+	xbytesview Wire;
+} xmqttpacket;
+
+typedef struct xmqttcodecconfig {
+	size_t Size;
+	size_t MaxPacketBytes, MaxPayloadBytes;
+	/* Aggregate across CONNECT and Will sections, including length prefixes. */
+	size_t MaxPropertyBytes, MaxProperties;
+	/* Topic entries or SUBACK/UNSUBACK reason count. Zero is a real limit. */
+	size_t MaxTopics;
+	uint32 Utf8Flags;
+} xmqttcodecconfig;
+
+typedef struct xmqttcodecbuffers {
+	struct xmqttproperty* Properties;
+	size_t PropertyCapacity;
+	xmqttsubscription* Topics;
+	size_t TopicCapacity;
+} xmqttcodecbuffers;
+
+typedef enum xmqttcodecstatus {
+	XMQTT_CODEC_UNSUPPORTED = -5, XMQTT_CODEC_PAYLOAD_ERROR = -4,
+	XMQTT_CODEC_LOCAL_ERROR = -3, XMQTT_CODEC_PROTOCOL_ERROR = -2,
+	XMQTT_CODEC_MALFORMED = -1, XMQTT_CODEC_MORE = 0, XMQTT_CODEC_DONE = 1
+} xmqttcodecstatus;
+
+typedef enum xmqttcodecerror {
+	XMQTT_CODEC_OK = 0, XMQTT_CODEC_ARGUMENT = 3001, XMQTT_CODEC_LIMIT,
+	XMQTT_CODEC_CAPACITY, XMQTT_CODEC_FORMAT, XMQTT_CODEC_PROTOCOL,
+	XMQTT_CODEC_VERSION, XMQTT_CODEC_PAYLOAD_FORMAT, XMQTT_CODEC_TOPIC
+} xmqttcodecerror;
+
+/* Machine-readable failure context survives diagnostic OOM. Offset is a
+ * zero-based field/section start (0 for the fixed header), or exact payload
+ * UTF-8 error byte. Type/Flags/Identifier are only confirmed metadata, never a
+ * partially executable packet; Identifier remains zero until validated. */
+typedef struct xmqttcodecissue {
+	xmqttcodecstatus Status;
+	xmqttcodecerror Error;
+	size_t Offset;
+	xmqttpackettype Type;
+	uint8 Flags;
+	uint16 Identifier;
+} xmqttcodecissue;
+
+XRT_EXTERN_C_BEGIN
+
+/* Zero the packet and set Type/mandatory fixed flags. Caller explicitly fills
+ * required identifiers, payloads and connect flags. No allocation/retention;
+ * preserves ambient error on success, leaves output unchanged on failure. */
+XMQTT_API bool xmqttPacketInit(xmqttpackettype Type, xmqttpacket* Packet);
+/* Defaults: packet/payload/property bytes 1 MiB, total properties 256, topics
+ * 1024, mandatory string UTF-8 policy. Packet cap 2..PACKET_MAX_BYTES; other
+ * caps may be zero. Config layout never changes with selected protocol leaves. */
+XMQTT_API bool xmqttCodecConfigInit(xmqttcodecconfig* Config);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/codec5.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_CODEC5_H
+#define XMQTT_CODEC5_H
+
+#if defined(XMQTT_FEATURE_XMQTT_CODEC5) && \
+	(!defined(XMQTT_FEATURE_XMQTT_PACKET) || !defined(XMQTT_FEATURE_XMQTT_PROPERTIES))
+#error "XMQTT_FEATURE_XMQTT_CODEC5 requires packet and properties features"
+#endif
+
+#if defined(XMQTT_FEATURE_XMQTT_CODEC5)
+XRT_EXTERN_C_BEGIN
+
+/* Decode one complete MQTT 5.0 packet of any of the 15 control types. Explicit
+ * sender direction, no network/session side effects or retained callbacks.
+ * Header cap checked before buffering; MORE is stateless, resupply full prefix.
+ * Packet and optional Issue remain unchanged on MORE/invalid API use. Packet
+ * publishes only on DONE; property/topic scratch is provisional on other
+ * results and must not be executed/exposed. On confirmed wire/resource errors,
+ * optional Issue publishes typed context independently of diagnostic OOM.
+ * DONE clears Issue (Error=OK, Offset=NPOS) and preserves ambient error.
+ * Returned Wire/text/binary/reasons borrow Input; lists borrow caller scratch.
+ * Keep both alive/unchanged while using Packet. NULL Buffers supplies zero
+ * scratch. All outputs/arrays must be disjoint from Input/Config/Buffers and
+ * each other. Config and Buffers metadata are copied for the call.
+ * Covers packet bodies, ids, flags, standard properties, topic/filter/shared
+ * syntax, subscription options, reason domains, omitted forms and PFI UTF-8
+ * payloads (NUL is legal character data). No successful/MORE allocation or
+ * payload copy. Negative statuses distinguish local limits/capacity/API,
+ * malformed wire, protocol violations, unsupported CONNECT protocol, and
+ * invalid indicated payload format; cold diagnostics can allocate.
+ * Negotiated auth/aliases/capabilities, session order, requested ACK counts and
+ * QoS/durability obligations remain runtime checks. Short AUTH success syntax
+ * is accepted; authentication negotiation requirements are not inferred. */
+XMQTT_API xmqttcodecstatus xmqttPacketRead5(xbytesview Input, xmqttdirection Direction,
+	const xmqttcodecconfig* Config, const xmqttcodecbuffers* Buffers,
+	xmqttpacket* Packet, xmqttcodecissue* Issue);
+
+/* Independently preflight the complete immutable descriptor, every active view,
+ * properties and aggregate resource limits. No Size result is trusted by Write.
+ * All failures preserve outputs; Required/Written/wire cannot overlap active
+ * source data/vectors/Packet/config or each other. Capacity is a nonwrapping
+ * buffer range. No terminating NUL. Config NULL uses defaults, copied per call.
+ * Emit canonical shortest fixed integers and abbreviated zero-reason/no-property
+ * ACK/DISCONNECT/AUTH forms. Preserve property/topic/reason order and data bytes.
+ * Text/property validation occurs once per call, not again during emission;
+ * Size followed by Write performs two independent preflights. Each payload/
+ * string/binary field copies once. No allocation/ownership transfer on success. */
+XMQTT_API bool xmqttPacketSize5(const xmqttpacket* Packet, xmqttdirection Direction,
+	const xmqttcodecconfig* Config, size_t* Required);
+XMQTT_API bool xmqttPacketWrite5(ptr Output, size_t Capacity,
+	const xmqttpacket* Packet, xmqttdirection Direction,
+	const xmqttcodecconfig* Config, size_t* Written);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt.h */
 /* ========================================================================== */
 
@@ -2757,10 +2977,21 @@ XRT_EXTERN_C_END
 #if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_PROPERTIES)
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_PROPERTIES"
 #endif
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CODEC5)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CODEC5"
+#endif
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT)
 #undef XMQTT_FEATURE_XMQTT
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CODEC5)
+#undef XMQTT_FEATURE_XMQTT_CODEC5
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CODEC5
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_PACKET)
+#undef XMQTT_FEATURE_XMQTT_PACKET
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_PACKET
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_PROPERTIES)
 #undef XMQTT_FEATURE_XMQTT_PROPERTIES
@@ -2777,6 +3008,14 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT)
 #undef XMQTT_MODULE_XMQTT
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CODEC5)
+#undef XMQTT_MODULE_XMQTT_CODEC5
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CODEC5
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_PACKET)
+#undef XMQTT_MODULE_XMQTT_PACKET
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_PACKET
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_PROPERTIES)
 #undef XMQTT_MODULE_XMQTT_PROPERTIES
@@ -4379,6 +4618,32 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XMQTT_MODULE_XMQTT_PROPERTIES
 #define XMQTT_MODULE_XMQTT_PROPERTIES
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CODEC5
+#define XMQTT_MODULE_XMQTT_CODEC5
+#endif
+#endif
+
+/* xmqtt_codec5 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CODEC5)
+#ifndef XMQTT_FEATURE_XMQTT_CODEC5
+#define XMQTT_FEATURE_XMQTT_CODEC5
+#endif
+#ifndef XMQTT_MODULE_XMQTT_PACKET
+#define XMQTT_MODULE_XMQTT_PACKET
+#endif
+#ifndef XMQTT_MODULE_XMQTT_PROPERTIES
+#define XMQTT_MODULE_XMQTT_PROPERTIES
+#endif
+#endif
+
+/* xmqtt_packet 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_PACKET)
+#ifndef XMQTT_FEATURE_XMQTT_PACKET
+#define XMQTT_FEATURE_XMQTT_PACKET
+#endif
+#ifndef XMQTT_MODULE_XMQTT_WIRE
+#define XMQTT_MODULE_XMQTT_WIRE
 #endif
 #endif
 

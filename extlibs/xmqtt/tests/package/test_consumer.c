@@ -16,6 +16,17 @@ int main(void)
 	if (!xmqttPropertiesWrite(Output,sizeof(Output),Properties,2,XMQTT_PROPERTIES_PUBLISH,XMQTT_CLIENT_TO_SERVER,NULL,&Written) ||
 		xmqttPropertiesRead((xbytesview){Output,Written},XMQTT_PROPERTIES_PUBLISH,XMQTT_CLIENT_TO_SERVER,NULL,Parsed,2,&Doc)!=XMQTT_PROPERTIES_DONE ||
 		Doc.Count!=2 || Parsed[0].Value.Number!=1 || Parsed[1].Value.Binary.Size!=2 || memcmp(Parsed[1].Value.Binary.Data,Data,2)) return 4;
+	xmqttpacket Packet, Decoded; xmqttcodecconfig Config; xmqttcodecissue Issue;
+	if (!xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Packet) || !xmqttCodecConfigInit(&Config)) return 5;
+	Packet.Flags=2; Packet.Identifier=42; Packet.Body.Publish.Topic=XRT_STR_LITERAL("pkg/test");
+	const unsigned char Payload[]={'x',0}; Packet.Body.Publish.Payload=(xbytesview){Payload,sizeof(Payload)};
+	Packet.Properties=(xmqttpropertylist){Properties,2}; size_t Required;
+	xmqttcodecbuffers Buffers={Parsed,2,NULL,0};
+	if (!xmqttPacketSize5(&Packet,XMQTT_CLIENT_TO_SERVER,&Config,&Required) ||
+		!xmqttPacketWrite5(Output,sizeof(Output),&Packet,XMQTT_CLIENT_TO_SERVER,&Config,&Written) || Required!=Written ||
+		xmqttPacketRead5((xbytesview){Output,Written},XMQTT_CLIENT_TO_SERVER,&Config,&Buffers,&Decoded,&Issue)!=XMQTT_CODEC_DONE ||
+		Decoded.Identifier!=42 || Decoded.Body.Publish.Payload.Size!=sizeof(Payload) || memcmp(Decoded.Body.Publish.Payload.Data,Payload,sizeof(Payload)) ||
+		Decoded.Wire.Data!=Output || Decoded.Wire.Size!=Written || Issue.Error!=XMQTT_CODEC_OK) return 6;
 	if (xmqttFrameRead((xbytesview){NULL,1},NULL,&Frame) != XMQTT_WIRE_ERROR || xrtErrorDomain(xrtGetError()) == NULL ||
 		strcmp(xrtErrorDomain(xrtGetError()),"xrt.mqtt") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 3;
 	xrtClearError(); return 0;

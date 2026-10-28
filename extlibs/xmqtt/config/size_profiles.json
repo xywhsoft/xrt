@@ -19,6 +19,18 @@
       "system": "properties",
       "suite": "xmqtt_properties",
       "description": "MQTT 5 property-section codec with its public wire/Unicode dependency closure"
+    },
+    {
+      "name": "xmqtt_packet",
+      "system": "packet",
+      "suite": "xmqtt_packet",
+      "description": "MQTT packet and required public dependency closure"
+    },
+    {
+      "name": "xmqtt_codec5",
+      "system": "codec5",
+      "suite": "xmqtt_codec5",
+      "description": "MQTT codec5 and required public dependency closure"
     }
   ]
 }

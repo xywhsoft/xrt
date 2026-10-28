@@ -4,8 +4,33 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `15` 个函数、`97` 个常量或宏、
-`18` 个公共类型。
+当前登记 `20` 个函数、`119` 个常量或宏、
+`30` 个公共类型。
+
+## `extlibs/xmqtt/include/xmqtt/codec5.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/codec5.h)
+
+### 函数 (3)
+
+- `xmqttPacketRead5`
+- `xmqttPacketSize5`
+- `xmqttPacketWrite5`
+
+### 常量与宏 (3)
+
+- `XMQTT_FEATURE_XMQTT_CODEC5`
+- `XMQTT_FEATURE_XMQTT_PACKET`
+- `XMQTT_FEATURE_XMQTT_PROPERTIES`
+
+### 类型 (6)
+
+- `xmqttcodecbuffers`
+- `xmqttcodecconfig`
+- `xmqttcodecissue`
+- `xmqttcodecstatus`
+- `xmqttdirection`
+- `xmqttpacket`
 
 ## `extlibs/xmqtt/include/xmqtt/export.h`
 
@@ -15,6 +40,51 @@
 
 - `XMQTT_BUILD_SHARED`
 - `XMQTT_USE_SHARED`
+
+## `extlibs/xmqtt/include/xmqtt/packet.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/packet.h)
+
+### 函数 (2)
+
+- `xmqttCodecConfigInit`
+- `xmqttPacketInit`
+
+### 常量与宏 (21)
+
+- `XMQTT_CODEC_ARGUMENT`
+- `XMQTT_CODEC_CAPACITY`
+- `XMQTT_CODEC_DONE`
+- `XMQTT_CODEC_FORMAT`
+- `XMQTT_CODEC_LIMIT`
+- `XMQTT_CODEC_LOCAL_ERROR`
+- `XMQTT_CODEC_MALFORMED`
+- `XMQTT_CODEC_MORE`
+- `XMQTT_CODEC_OK`
+- `XMQTT_CODEC_PAYLOAD_ERROR`
+- `XMQTT_CODEC_PAYLOAD_FORMAT`
+- `XMQTT_CODEC_PROTOCOL`
+- `XMQTT_CODEC_PROTOCOL_ERROR`
+- `XMQTT_CODEC_TOPIC`
+- `XMQTT_CODEC_UNSUPPORTED`
+- `XMQTT_CODEC_VERSION`
+- `XMQTT_FEATURE_XMQTT_WIRE`
+- `XMQTT_SUBSCRIBE_NO_LOCAL`
+- `XMQTT_SUBSCRIBE_QOS_MASK`
+- `XMQTT_SUBSCRIBE_RETAIN_AS_PUBLISHED`
+- `XMQTT_SUBSCRIBE_RETAIN_HANDLING_MASK`
+
+### 类型 (9)
+
+- `xmqttcodecerror`
+- `xmqttconnectpacket`
+- `xmqttpacketbody`
+- `xmqttpackettype`
+- `xmqttproperty`
+- `xmqttpropertylist`
+- `xmqttpublishpacket`
+- `xmqttsubscription`
+- `xmqttsubscriptionlist`
 
 ## `extlibs/xmqtt/include/xmqtt/properties.h`
 
@@ -27,11 +97,8 @@
 - `xmqttPropertiesSize`
 - `xmqttPropertiesWrite`
 
-### 常量与宏 (64)
+### 常量与宏 (60)
 
-- `XMQTT_CLIENT_TO_SERVER`
-- `XMQTT_FEATURE_XMQTT_PROPERTIES`
-- `XMQTT_FEATURE_XMQTT_WIRE`
 - `XMQTT_PROPERTIES_AUTH`
 - `XMQTT_PROPERTIES_CONNACK`
 - `XMQTT_PROPERTIES_CONNECT`
@@ -91,13 +158,10 @@
 - `XMQTT_PROPERTY_VARIABLE`
 - `XMQTT_PROPERTY_WILDCARD_AVAILABLE`
 - `XMQTT_PROPERTY_WILL_DELAY`
-- `XMQTT_SERVER_TO_CLIENT`
 - `XMQTT_VARIABLE_MAX`
 
-### 类型 (11)
+### 类型 (9)
 
-- `xmqttdirection`
-- `xmqttproperty`
 - `xmqttpropertyconfig`
 - `xmqttpropertydocument`
 - `xmqttpropertyerror`
@@ -126,8 +190,9 @@
 - `xmqttVbiWrite`
 - `xmqttWireConfigInit`
 
-### 常量与宏 (31)
+### 常量与宏 (33)
 
+- `XMQTT_CLIENT_TO_SERVER`
 - `XMQTT_PACKET_AUTH`
 - `XMQTT_PACKET_CONNACK`
 - `XMQTT_PACKET_CONNECT`
@@ -147,6 +212,7 @@
 - `XMQTT_PUBLISH_DUP`
 - `XMQTT_PUBLISH_QOS_MASK`
 - `XMQTT_PUBLISH_RETAIN`
+- `XMQTT_SERVER_TO_CLIENT`
 - `XMQTT_STRING_MAX_BYTES`
 - `XMQTT_UTF8_REJECT_DISALLOWED`
 - `XMQTT_VERSION_311`
@@ -160,11 +226,10 @@
 - `XMQTT_WIRE_MORE`
 - `XMQTT_WIRE_UTF8`
 
-### 类型 (7)
+### 类型 (6)
 
 - `xmqttfixedheader`
 - `xmqttframe`
-- `xmqttpackettype`
 - `xmqttversion`
 - `xmqttwireconfig`
 - `xmqttwireerror`

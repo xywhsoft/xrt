@@ -60,8 +60,6 @@ typedef enum xmqttpropertyscope {
 	XMQTT_PROPERTIES_DISCONNECT = 14, XMQTT_PROPERTIES_AUTH, XMQTT_PROPERTIES_WILL
 } xmqttpropertyscope;
 
-typedef enum xmqttdirection { XMQTT_CLIENT_TO_SERVER = 1, XMQTT_SERVER_TO_CLIENT } xmqttdirection;
-
 typedef struct xmqttpropertyconfig {
 	size_t Size;
 	/* Includes the Property Length integer itself; positive and <=SECTION_MAX.

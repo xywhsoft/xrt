@@ -16,7 +16,8 @@ Target and rules: [development contract](service-extensions-plan.md).
   verified; correlation, dispatch and transports remain pending.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
-  verified; complete packets, negotiated property rules and the client are pending.
+  verified, along with all MQTT 5 packet body codecs and shared topic/filter
+  grammar. MQTT 3.1.1 packet bodies, negotiated rules and the client are pending.
 - Primary checkout changes remain outside this branch.
 
 ## Baseline checks
@@ -48,7 +49,8 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xrpc | correlation, dispatch, runtime, transports | pending | no claim |
 | xmqtt | bounded wire framing and string/binary primitives | locally verified | Windows O2 modular/single and Ubuntu/WSL O2 ASan+UBSan modular/direct-single; all Unicode scalars, exhaustive two-byte UTF-8/VBI prefixes, full flag matrix, fragmentation/coalescing, limits/atomicity/zero-heap/OOM; real examples/trim/static/shared consumers |
 | xmqtt | bounded MQTT 5.0 property-section codec | locally verified | all 27 ids / 7 types, scope/direction/repetition/range/auth/UTF-8 rules, typed error classes independent of diagnostic OOM; Windows/WSL modular/single/sanitizer, examples/trim/static/shared; 20,000 mutations, prefix/limit/atomicity/zero-heap tests |
-| xmqtt | complete MQTT 5.0/3.1.1 packets, negotiated property rules, client, sessions, persistence, transports | pending | no claim |
+| xmqtt | shared packet descriptors/grammar and complete MQTT 5.0 packet codec | locally verified | all 15 types, 25 literal canonical fixtures, 4608 reason/sender cases, 256 CONNECT flags, 512 subscription options, packet boundary/borrowed-view checks, 30,000 mutations, limits/atomicity/zero-heap/OOM; Windows/WSL modular/single/sanitizer/examples/trim/static/shared |
+| xmqtt | MQTT 3.1.1 packet bodies, negotiated property rules, client, sessions, persistence, transports | pending | no claim |
 | xcron | bounded immutable expression compiler | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct single, example/trim/static/shared; 111,630 range/step combinations, 10,000 generated expressions, 20,000 raw inputs, alias/offset/atomicity/allocation/OOM tests |
 | xcron | calendar, time zones, scheduler, recovery | pending | no claim |
 
@@ -470,3 +472,78 @@ Its performance config now has separate wire and property profiles. Ignored
 `mqtt-properties-*` logs/reports are under `out/service-extensions/`.
 See [property contracts](../../extlibs/xmqtt/docs/properties.md) for the exact
 section lifetime, publication, costs and pending connection-level requirements.
+
+## Complete MQTT 5 packet codec validation
+
+`xmqtt_packet` adds feature-independent borrowed packet/config/issue types and
+initializers, with private reason and topic/filter grammar helpers. Direction
+now resides in the wire header so the later 3.1.1 codec does not depend on MQTT 5
+properties. `xmqtt_codec5` implements Read/Size/Write for all fifteen MQTT 5 control
+types. Existing wire/property preflight and emission have private reusable helpers
+with hidden visibility; no private XRT facility or new shared runtime is needed.
+
+- Twenty-five independent literal fixtures cover every type, all required fixed
+  flags, QoS 0/1/2 identifiers, complete CONNECT/Will/username/password/auth fields,
+  shared and multi-topic requests, ordered reason lists, alias-only PUBLISH,
+  enhanced AUTH syntax and PFI character data containing NUL. Every valid prefix
+  preserves Packet/Issue/scratch; coalesced suffixes stay unconsumed. Shorter
+  declared packet bodies never use suffix bytes to finish an internal field.
+  Every accepted fixture/mutation has bounded borrowed wire/scratch views.
+- The 4,608 reason-byte/sender combinations, all 256 CONNECT flag bytes and 512
+  subscription option/shared cases match literal OASIS tables/bit rules. Wrong
+  sender roles, zero packet ids, invalid CONNACK session flags, topic/filter and
+  shared group grammar, No Local on shared filters, unknown CONNECT protocols,
+  missing/truncated/forbidden property sections and extra bytes are checked.
+  MQTT 5 password without username is explicitly accepted. Encoded-string NUL
+  remains malformed; PFI=1 payload NUL is legal, malformed scalar sequences are
+  not. PFI error context retains a confirmed identifier and exact payload offset.
+- Header packet caps reject before body buffering. Payload, aggregate property
+  bytes/counts across CONNECT+Will, topic/reason counts and scratch limits are
+  independent and real at zero. Boundary payloads through 65536 bytes exercise
+  every prefix and VBI transitions; ClientId/Will fields exercise 65535-byte
+  maxima and overlength rejection. Empty mandatory sections consume a byte.
+- Size and Write preflight independently. All short capacities, invalid late
+  fields, wrapped/null spans, count multiplication overflow and aliases preserve
+  bytes and size outputs. Emission reuses prepared property sizes, validates no
+  string twice and copies each active data field once. Known packet/property
+  byte-budget failures precede property text scans. Abbreviated ACK/DISCONNECT/
+  AUTH forms canonicalize; ordered data/properties/topics/reasons are retained.
+- Thirty thousand arbitrary/mutated packets test publication/bounds and stable
+  accepted canonical decode/encode forms. Ten thousand warm Read/MORE/Size/Write
+  cycles preserve allocation counters and ambient error identity. Valid codec
+  calls work under a one-byte quota. Own header/body/PFI and nested wire/property
+  diagnostic OOM retain typed issue/status context with no live quota bytes.
+- Windows GCC 16.2 O2 modular and all single tests pass. Ubuntu/WSL GCC 15.2 O2
+  ASan+UBSan modular and direct new-leaf single tests pass. Prior wire/property
+  suites remain green. Both platforms compile/run all four actual root examples,
+  pass root/leaf trim including missing-dependency rejection, and run independent
+  static/shared consumers exercising the five new public APIs against one XRT.
+- PE/ELF export inspection confirms no `xmqttInternal` helper exports; ELF has the
+  expected 20 public functions. Generated files, API inventory (20 functions /
+  119 constants / 30 types, missing=0), asset maturity and 67 tooling tests pass.
+  Strict release still correctly rejects the developing root. Four-product CI
+  selects the real new tests/examples/profiles; remote Actions is not claimed.
+- Four separate local workloads (wire, properties, private validated-ASCII filter
+  grammar and full PFI/property QoS-1 PUBLISH decode+encode) pass Windows and
+  Ubuntu/WSL smoke. One unpinned sample, with other validation potentially active,
+  is build/workload evidence only. It proves neither a performance baseline nor
+  network throughput, queue-inclusive tail latency, QoS/durability equivalence or
+  production acceptance.
+
+Packet/config and property/topic descriptor copies, span/alias checks, UTF-8
+validation, topic grammar walks, scalar encoding and PFI payload scans remain
+real costs. Reads borrow data; writers copy data once. Size+Write repeats a full
+preflight. Cold diagnostics can allocate. No end-to-end zero-copy/zero-overhead
+claim is made. The [packet contracts](../../extlibs/xmqtt/docs/codec.md) record
+publication/lifetimes/limits, omitted forms, costs and pending connection rules.
+
+Reproduce using `extlibs/xmqtt/config/modules.json`, suite `xmqtt_tests --cflag=-O2`.
+Ubuntu/WSL modular uses `--arch x64 --no-single --cflag=-fsanitize=address,undefined
+--cflag=-fno-omit-frame-pointer --ldflag=-fsanitize=address,undefined`. Direct
+single tests use `tests/single/test_single_xmqtt_packet.c` and
+`test_single_xmqtt_codec5.c` under the extension, with the strict C11/O2/ASan+UBSan
+`-pthread -lm` pattern above. Product `xmqtt --no-single`, `xmqtt --trim-only` and
+`package.py --suite xmqtt --kind static/shared --verify` cover examples/trimming/
+external consumers. Ignored logs/reports use the `mqtt-codec5-*` prefix under
+`out/service-extensions/`. MQTT 3.1.1 bodies, negotiated auth/alias/capability and
+session rules, QoS runtime/recovery, durable storage and transports remain pending.

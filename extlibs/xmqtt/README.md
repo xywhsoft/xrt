@@ -1,8 +1,8 @@
 # xmqtt (developing)
 
 Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
-**Wire primitives, bounded framing and MQTT 5.0 property sections are implemented.** Complete
-packet codecs, topic/filter rules, client/session/QoS state machines,
+**Wire primitives, bounded framing, MQTT 5.0 properties and all MQTT 5 packet
+codecs are implemented.** MQTT 3.1.1 packet bodies, client/session/QoS state machines,
 authentication, reconnect, durable storage and TCP/TLS/WebSocket are pending.
 No broker or production/performance acceptance is claimed.
 
@@ -53,7 +53,7 @@ unconsumed. String/binary reads borrow the source, and writes copy once.
 
 Every call is synchronous on the caller thread, retaining no callback/input.
 There is no mutable global codec state or successful heap allocation. DONE and
-MORE preserve ambient error. MORE/ERROR preserve read outputs; all write failures
+MORE preserve ambient error. Wire/field MORE/ERROR preserve read outputs; all write failures
 preserve the wire buffer and Written. Error diagnostics can allocate and fall
 back to XERR_MEMORY. Overlapping output/source/config/size objects, null misuse,
 unknown flags/configuration and arithmetic-wrapping spans are rejected. Range
@@ -87,6 +87,20 @@ data once and retain input order. Response topics have an additional wildcard
 scan. See [property contracts](docs/properties.md) for ownership, omitted AUTH
 forms, default limits and the required connection-level rules still pending.
 
+Select `XMQTT_MODULE_XMQTT_CODEC5` for complete MQTT 5 packet encoding/decoding.
+`xmqttPacketRead5` validates all fifteen control types with explicit sender
+direction, flags, identifiers, property sections, topic/shared-filter syntax,
+subscription options, ordered reason domains and indicated payload format.
+Text/binary/payload views borrow wire bytes; property/subscription lists borrow
+caller arrays. Packet publishes on DONE only; scratch is provisional on errors.
+MORE changes no output/scratch, and independent typed Issue context survives
+diagnostic OOM. Size/Write are atomic independent preflights, with one data copy
+and no repeated string validation during emission. Encoded strings forbid NUL;
+PFI=1 payload character data permits it. MQTT 5 password-only CONNECT is legal.
+Negotiated aliases/auth/session/QoS effects belong to the pending client runtime.
+See [packet contracts and costs](docs/codec.md). `XMQTT_MODULE_XMQTT_PACKET`
+selects just the shared descriptors/config/initializers and private grammar.
+
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_tests --cflag=-O2
 python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt --no-single --cflag=-O2
@@ -103,6 +117,10 @@ See [API inventory](docs/api/reference.md), [coverage](docs/coverage.md) and
 [development progress](../../docs/development/service-extensions-progress.md).
 The [property example](examples/properties/main.c) prints
 `properties=3 bytes=18 subscription=7` for a section round trip. Its data needs
-no broker/network or cleanup. The workloads separately measure framing/topic
-primitives/header writing and property-section decode/encode; neither measures
-complete packet validation, delivery throughput, QoS or durable sessions.
+no broker/network or cleanup. The [packet example](examples/codec5/main.c)
+round-trips a full QoS-1 PUBLISH with a PFI UTF-8 payload containing NUL. The
+[representation example](examples/packet/main.c) initializes PUBREL/config.
+Four workloads separately measure wire primitives, property sections, private
+already-UTF8-validated ASCII filter grammar, and full MQTT 5 PUBLISH decode/encode.
+They do not establish network delivery throughput, tail latency, QoS sessions,
+durability or performance parity.

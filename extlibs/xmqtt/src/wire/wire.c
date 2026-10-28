@@ -1,4 +1,5 @@
 #include <xmqtt/wire.h>
+#include "../internal/xmqtt_internal.h"
 #include <xrt/memory.h>
 #include <string.h>
 
@@ -110,7 +111,7 @@ XMQTT_API bool xmqttVbiWrite(ptr Output, size_t Capacity, uint32 Value, size_t* 
 	memcpy(Output, Encoded, Bytes); if (Written != NULL) *Written = Bytes; return true;
 }
 
-static bool xmqttWireFlags(xmqttpackettype Type, uint8 Flags, xmqttversion Version)
+XMQTT_INTERNAL bool xmqttInternalFlags(xmqttpackettype Type, uint8 Flags, xmqttversion Version)
 {
 	if (Type < XMQTT_PACKET_CONNECT || Type > XMQTT_PACKET_AUTH || (Type == XMQTT_PACKET_AUTH && Version == XMQTT_VERSION_311) || Flags > 15u) return false;
 	if (Type == XMQTT_PACKET_PUBLISH) {
@@ -129,18 +130,23 @@ static bool xmqttWireHeaderArgs(xbytesview Input, const xmqttwireconfig* Config,
 	return true;
 }
 
-static xmqttwirestatus xmqttWireHeader(xbytesview Input, const xmqttwireconfig* Config, xmqttfixedheader* Header)
+XMQTT_INTERNAL xmqttwirestatus xmqttInternalHeader(xbytesview Input, const xmqttwireconfig* Config, xmqttfixedheader* Header, xmqttwireerror* Failure)
 {
 	if (Input.Size == 0) return XMQTT_WIRE_MORE;
 	xmqttpackettype Type = (xmqttpackettype)(Input.Data[0] >> 4); uint8 Flags = Input.Data[0] & 15u;
-	if (!xmqttWireFlags(Type, Flags, Config->Version)) {
+	if (!xmqttInternalFlags(Type, Flags, Config->Version)) {
+		if (Failure != NULL) *Failure = XMQTT_WIRE_MALFORMED;
 		xmqttWireFail(XERR_PROTOCOL, XMQTT_WIRE_MALFORMED, "invalid MQTT packet type or fixed-header flags"); return XMQTT_WIRE_ERROR;
 	}
 	uint32 Remaining; size_t Bytes;
 	xmqttwirestatus Status = xmqttWireVbi((xbytesview){Input.Data+1u, Input.Size-1u}, Config->Version, &Remaining, &Bytes);
-	if (Status != XMQTT_WIRE_DONE) return Status;
+	if (Status != XMQTT_WIRE_DONE) {
+		if (Status == XMQTT_WIRE_ERROR && Failure != NULL) *Failure = XMQTT_WIRE_MALFORMED;
+		return Status;
+	}
 	size_t PacketBytes = 1u + Bytes + Remaining;
 	if (PacketBytes > Config->MaxPacketBytes) {
+		if (Failure != NULL) *Failure = XMQTT_WIRE_LIMIT;
 		xmqttWireFail(XERR_RANGE, XMQTT_WIRE_LIMIT, "MQTT total packet size exceeds configured limit"); return XMQTT_WIRE_ERROR;
 	}
 	*Header = (xmqttfixedheader){Type, Flags, Remaining, Bytes+1u, PacketBytes}; return XMQTT_WIRE_DONE;
@@ -150,7 +156,7 @@ XMQTT_API xmqttwirestatus xmqttHeaderRead(xbytesview Input, const xmqttwireconfi
 {
 	xmqttwireconfig Copy;
 	if (!xmqttWireHeaderArgs(Input, Config, Header, sizeof(*Header), &Copy)) return XMQTT_WIRE_ERROR;
-	return xmqttWireHeader(Input, &Copy, Header);
+	return xmqttInternalHeader(Input, &Copy, Header, NULL);
 }
 
 XMQTT_API bool xmqttHeaderWrite(ptr Output, size_t Capacity, xmqttpackettype Type, uint8 Flags,
@@ -158,7 +164,7 @@ XMQTT_API bool xmqttHeaderWrite(ptr Output, size_t Capacity, xmqttpackettype Typ
 {
 	xmqttwireconfig Copy;
 	if (!xmqttWireConfig(Config, &Copy)) return false;
-	if (!xmqttWireFlags(Type, Flags, Copy.Version)) return xmqttWireFail(XERR_ARGUMENT, XMQTT_WIRE_ARGUMENT, "invalid outgoing MQTT type or flags");
+	if (!xmqttInternalFlags(Type, Flags, Copy.Version)) return xmqttWireFail(XERR_ARGUMENT, XMQTT_WIRE_ARGUMENT, "invalid outgoing MQTT type or flags");
 	if (RemainingLength > XMQTT_VARIABLE_MAX) return xmqttWireFail(XERR_RANGE, XMQTT_WIRE_LIMIT, "MQTT remaining length exceeds protocol maximum");
 	unsigned char Encoded[5]; Encoded[0] = (unsigned char)(((unsigned)Type << 4) | Flags);
 	size_t Bytes = 1u + xmqttWirePutVbi(Encoded+1u, RemainingLength);
@@ -171,7 +177,7 @@ XMQTT_API xmqttwirestatus xmqttFrameRead(xbytesview Input, const xmqttwireconfig
 {
 	xmqttwireconfig Copy; xmqttfixedheader Header;
 	if (!xmqttWireHeaderArgs(Input, Config, Frame, sizeof(*Frame), &Copy)) return XMQTT_WIRE_ERROR;
-	xmqttwirestatus Status = xmqttWireHeader(Input, &Copy, &Header);
+	xmqttwirestatus Status = xmqttInternalHeader(Input, &Copy, &Header, NULL);
 	if (Status != XMQTT_WIRE_DONE) return Status;
 	if (Input.Size < Header.PacketBytes) return XMQTT_WIRE_MORE;
 	*Frame = (xmqttframe){Header, {Input.Data, Header.PacketBytes}, {Input.Data+Header.HeaderBytes, Header.RemainingLength}};
