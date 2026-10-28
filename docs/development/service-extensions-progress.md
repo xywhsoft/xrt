@@ -15,7 +15,8 @@ Target and rules: [development contract](service-extensions-plan.md).
   a locally verified raw Scan API. RPC envelope decoding and encoding are locally
   verified; correlation, dispatch and transports remain pending.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
-  locally verified. Packet/property codecs and the complete client remain pending.
+  locally verified. All standard MQTT 5.0 property sections are also locally
+  verified; complete packets, negotiated property rules and the client are pending.
 - Primary checkout changes remain outside this branch.
 
 ## Baseline checks
@@ -46,7 +47,8 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xrpc | bounded atomic JSON-RPC 2.0 envelope encode | locally verified | Windows modular/single/examples/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, examples/trim/static/shared; 10,000 independent wire properties, 500 complete-document resource oracles, 10,000 mutated raw inputs, zero-heap/OOM/aliases/atomicity |
 | xrpc | correlation, dispatch, runtime, transports | pending | no claim |
 | xmqtt | bounded wire framing and string/binary primitives | locally verified | Windows O2 modular/single and Ubuntu/WSL O2 ASan+UBSan modular/direct-single; all Unicode scalars, exhaustive two-byte UTF-8/VBI prefixes, full flag matrix, fragmentation/coalescing, limits/atomicity/zero-heap/OOM; real examples/trim/static/shared consumers |
-| xmqtt | complete MQTT 5.0/3.1.1 packets/properties, client, sessions, persistence, transports | pending | no claim |
+| xmqtt | bounded MQTT 5.0 property-section codec | locally verified | all 27 ids / 7 types, scope/direction/repetition/range/auth/UTF-8 rules, typed error classes independent of diagnostic OOM; Windows/WSL modular/single/sanitizer, examples/trim/static/shared; 20,000 mutations, prefix/limit/atomicity/zero-heap tests |
+| xmqtt | complete MQTT 5.0/3.1.1 packets, negotiated property rules, client, sessions, persistence, transports | pending | no claim |
 | xcron | bounded immutable expression compiler | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct single, example/trim/static/shared; 111,630 range/step combinations, 10,000 generated expressions, 20,000 raw inputs, alias/offset/atomicity/allocation/OOM tests |
 | xcron | calendar, time zones, scheduler, recovery | pending | no claim |
 
@@ -393,3 +395,78 @@ closure and missing dependencies. Package product `xmqtt --kind static/shared
 logs/reports are under `out/service-extensions/`.
 [Wire contracts](../../extlibs/xmqtt/docs/coverage.md) preserve the exact scope
 and remaining MQTT requirements.
+
+## MQTT 5.0 property-section validation
+
+- The separate `xmqtt_properties` leaf implements all 27 standard ids and seven
+  representations from OASIS MQTT 5.0, including explicit packet/Will scopes and
+  sender direction. Constant indexed lookup and a 64-bit seen set validate
+  allowed ids/scopes, singleton/repetition rules and numeric domains. User
+  Properties preserve order/repeated names and values; server PUBLISH preserves
+  repeated equal subscription identifiers. No value defaults are inserted.
+- Response topics require nonempty wildcard-free MQTT strings. CONNECT auth
+  data requires a method independent of property order. Explicit AUTH sections
+  require a method. Client PUBLISH subscription ids and server DISCONNECT session
+  expiry are rejected. Negotiated connection state, omitted packet forms and
+  packet-wide rules remain required at the packet/runtime layers.
+- Decoder statuses distinguish malformed wire, protocol errors and local API/
+  capacity/resource failures, even when cold diagnostics themselves hit OOM.
+  The caller scratch array is provisional; Count/Consumed/Raw publish only on
+  complete DONE. MORE changes no scratch/document and retains no prefix. Every
+  field is restricted to the declared section, preventing coalesced payload
+  bytes from completing a truncated string/scalar/property identifier.
+- Size/Write independently preflight all input descriptors, active union views,
+  semantics, aliases, bounds and output capacity. All failures preserve wire and
+  size outputs. Writers preserve property order and data bytes, use shortest
+  variable integers, and do not rescan UTF-8 during emission. Known byte-budget
+  failures are rejected before UTF-8/response-topic scans; the complete section
+  cap includes its length integer. Zero count limits admit empty sections only.
+- Literal fixtures cover all seven wire representations and all 27 identifiers.
+  The 756 scope/direction combinations verify accepted/rejected cases; singleton
+  and repeat rules are checked in both producer preflight and raw decoding.
+  Exhaustive byte values cover all eight boolean/maximum-QoS fields. Positive
+  uint16/variable/uint32 domains, uint32 maxima, zero alias maximum, unknown ids,
+  nonminimal/truncated integers, duplicates and UTF-8 failures are tested.
+- Binary payload lengths exercise section bodies 127/128/16383/16384/65538,
+  including every input prefix through the maximum 65535-byte binary field,
+  exact caps and cap-minus-one before buffering a body. One-byte output handles
+  an empty section. All short writer capacities, count/scratch/field limits,
+  invalid config/spans/aliases and late failures preserve the stated outputs.
+- Twenty thousand raw/mutated sections verify bounds/publication and exact
+  accepted decode/encode round trips without order or byte loss. Ten thousand
+  warm Read/Size/Write/MORE cycles preserve allocation counters and ambient error
+  identity. One-byte allocation quotas allow valid processing; own/nested-wire
+  diagnostic OOM retains malformed/protocol/local classification and no live
+  budget bytes remain.
+- Windows GCC 16.2 O2 modular/single tests and Ubuntu/WSL GCC 15.2 O2 ASan+UBSan
+  modular/direct property single tests pass, along with the existing wire suite.
+  Both systems run the real wire/property examples, root/leaf trim and independent
+  static/shared consumers that exercise both leaves against one host XRT.
+- Generated/API/maturity checks and 67 build/API/workload tooling tests pass.
+  Inventory is 15 functions / 97 constants / 18 types, missing=0. Strict release
+  correctly rejects the developing product root. Existing four-product CI
+  automatically includes the new tests/examples/profiles; remote Actions
+  execution is not claimed.
+- Wire and property Read/Write workload smoke passes on Windows and Ubuntu/WSL,
+  one unpinned sample each. This is neither a pinned baseline nor packet/client
+  throughput, queue-inclusive tail latency, QoS, durability or production parity.
+
+The codec borrows text/binary/pair data, copying only caller-owned descriptors on
+read. Each complete string receives one UTF-8 validation per call, with an
+additional wildcard walk for response topics; writers copy data once. Separate
+Size+Write calls repeat preflight intentionally. Public wire span/alias checks,
+configuration/descriptor copies and small variable-integer writes remain real
+costs. No owned-value/DOM layer, new shared runtime or successful heap allocation
+is introduced. No zero-overhead/end-to-end zero-copy claim is made.
+
+Reproduce with `extlibs/xmqtt/config/modules.json`, suite `xmqtt_tests
+--cflag=-O2`; Ubuntu/WSL modular runs add `--no-single` and the sanitizer flags
+documented above. Direct single uses
+`extlibs/xmqtt/tests/single/test_single_xmqtt_properties.c` and the same strict
+C11/O2/ASan+UBSan/`-pthread -lm` command pattern. Product `xmqtt --no-single`
+runs both actual examples; `xmqtt --trim-only` covers both selectors and missing
+dependencies; static/shared packages use `xmqtt --kind static/shared --verify`.
+Its performance config now has separate wire and property profiles. Ignored
+`mqtt-properties-*` logs/reports are under `out/service-extensions/`.
+See [property contracts](../../extlibs/xmqtt/docs/properties.md) for the exact
+section lifetime, publication, costs and pending connection-level requirements.

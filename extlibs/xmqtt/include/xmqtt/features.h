@@ -10,6 +10,19 @@
 #ifndef XMQTT_MODULE_XMQTT_WIRE
 #define XMQTT_MODULE_XMQTT_WIRE
 #endif
+#ifndef XMQTT_MODULE_XMQTT_PROPERTIES
+#define XMQTT_MODULE_XMQTT_PROPERTIES
+#endif
+#endif
+
+/* xmqtt_properties 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_PROPERTIES)
+#ifndef XMQTT_FEATURE_XMQTT_PROPERTIES
+#define XMQTT_FEATURE_XMQTT_PROPERTIES
+#endif
+#ifndef XMQTT_MODULE_XMQTT_WIRE
+#define XMQTT_MODULE_XMQTT_WIRE
+#endif
 #endif
 
 /* xmqtt_wire 及其直接依赖。 */

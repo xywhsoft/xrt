@@ -26,6 +26,13 @@
         "source_roots": [
           "wire"
         ]
+      },
+      {
+        "name": "properties",
+        "state": "retained",
+        "source_roots": [
+          "properties"
+        ]
       }
     ]
   },
@@ -52,7 +59,8 @@
       "state": "developing",
       "feature": "XMQTT_FEATURE_XMQTT",
       "depends": [
-        "xmqtt_wire"
+        "xmqtt_wire",
+        "xmqtt_properties"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -105,6 +113,40 @@
       ]
     },
     {
+      "name": "xmqtt_properties",
+      "state": "implemented",
+      "feature": "XMQTT_FEATURE_XMQTT_PROPERTIES",
+      "depends": [
+        "xmqtt_wire"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/properties.h",
+        "extlibs/xmqtt/include/xmqtt/export.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xmqtt/src/properties/properties.c"
+      ],
+      "tests": [
+        "extlibs/xmqtt/tests/test_properties.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_properties.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/properties/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_properties.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/README.md",
+        "extlibs/xmqtt/docs/coverage.md",
+        "extlibs/xmqtt/docs/properties.md",
+        "extlibs/xmqtt/docs/api/reference.md"
+      ]
+    },
+    {
       "name": "xmqtt_tests",
       "state": "implemented",
       "feature": null,
@@ -116,10 +158,12 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
-        "extlibs/xmqtt/tests/test_wire.c"
+        "extlibs/xmqtt/tests/test_wire.c",
+        "extlibs/xmqtt/tests/test_properties.c"
       ],
       "single_tests": [
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_properties.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -127,7 +171,8 @@
         "extlibs/xmqtt/README.md"
       ],
       "single_test_owners": {
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c": "xmqtt_wire"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c": "xmqtt_wire",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_properties.c": "xmqtt_properties"
       }
     }
   ]

@@ -41,6 +41,30 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_properties",
+      "system": "properties",
+      "description": "MQTT 5 property-section decode/encode into caller storage; no packet/client or performance parity claim",
+      "benchmarks": [
+        {
+          "name": "xmqtt_properties",
+          "source": "extlibs/xmqtt/bench/bench_properties.c",
+          "suite": "xmqtt_properties,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "sections_per_sec": {
+              "direction": "higher",
+              "unit": "sections/s"
+            }
+          }
+        }
+      ]
     }
   ]
 }

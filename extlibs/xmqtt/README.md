@@ -1,8 +1,8 @@
 # xmqtt (developing)
 
 Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
-**Only wire primitives and bounded framing are currently implemented.** Complete
-packet/property codecs, topic/filter rules, client/session/QoS state machines,
+**Wire primitives, bounded framing and MQTT 5.0 property sections are implemented.** Complete
+packet codecs, topic/filter rules, client/session/QoS state machines,
 authentication, reconnect, durable storage and TCP/TLS/WebSocket are pending.
 No broker or production/performance acceptance is claimed.
 
@@ -67,6 +67,26 @@ that small header once. Public span/alias checks and core diagnostic lookups
 remain counted work. There is no DOM, receive allocation or new shared runtime;
 this does not establish end-to-end zero-copy or comparator performance.
 
+Select `XMQTT_MODULE_XMQTT_PROPERTIES` for the MQTT 5.0 section codec. It covers
+all 27 standard property ids and seven data representations, retaining order and
+borrowed string/binary/pair views. Packet/Will scope and sender direction are
+explicit. It enforces allowed scopes, singleton/repeated rules, numeric domains,
+response-topic syntax and section-local authentication requirements. Unknown
+ids are rejected. It never applies negotiated session defaults or interprets
+an absent abbreviated packet section as an explicit zero-length section.
+
+`xmqttPropertiesRead` publishes Count/Consumed/Raw only on DONE. Caller scratch
+is provisional on failure; discard it until complete validation. MORE changes
+no scratch, retains no prefix and preserves ambient error. The complete-section
+byte cap (including the length integer) is checked before its body is available.
+Count and caller-capacity failures are local; malformed and protocol failures
+have distinct return statuses that survive diagnostic OOM. Size/Write preflight
+independently and preserve all outputs on failure, using caller storage and no
+successful heap allocations. Text is UTF-8 checked once per call; writes copy
+data once and retain input order. Response topics have an additional wildcard
+scan. See [property contracts](docs/properties.md) for ownership, omitted AUTH
+forms, default limits and the required connection-level rules still pending.
+
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_tests --cflag=-O2
 python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt --no-single --cflag=-O2
@@ -81,5 +101,8 @@ It prints packet types 12 and 13 (two-byte headers, zero-byte bodies), then
 `string-bytes=4 consumed=6`, asserting that a BOM survives a field round trip.
 See [API inventory](docs/api/reference.md), [coverage](docs/coverage.md) and
 [development progress](../../docs/development/service-extensions-progress.md).
-The workload measures framing, a topic-string primitive and header writing only,
-not complete packet validation, delivery throughput, QoS or durable sessions.
+The [property example](examples/properties/main.c) prints
+`properties=3 bytes=18 subscription=7` for a section round trip. Its data needs
+no broker/network or cleanup. The workloads separately measure framing/topic
+primitives/header writing and property-section decode/encode; neither measures
+complete packet validation, delivery throughput, QoS or durable sessions.
