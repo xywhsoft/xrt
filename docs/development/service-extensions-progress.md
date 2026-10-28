@@ -46,6 +46,7 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | common | independent API export inventory | complete | `36ea6bc8`, API/reference tooling tests |
 | common | types-only public API header inventory | complete | shared public typedef/enum headers are included without an export function; comment-only exports/selectors stay excluded; 17 focused tooling tests pass |
 | common | actual product-root example selection | locally verified | xredis/xcron/xrpc collect their leaf examples; root commands actually compile/run them on Windows and Ubuntu/WSL; build/API/workload tooling 67 tests pass |
+| common | explicit workload fixture identity | locally verified | reproduced unchanged benchmark fingerprint after a peer-header mutation; optional inputs now pins exact fixture bytes, rejects missing/outside/directory/duplicate inputs and is emitted in reports; xredis runtime fixtures registered, 69 tooling tests pass |
 | common | raw JSON scan needed by xrpc | locally verified | exact borrowed scalar/key/container spans, lexical numbers, 10,000 zero-heap scans, limits/Unicode/control/OOM, Windows/WSL modular/single/shared-reader regression and external static/shared consumers; performance comparison remains unaccepted |
 | xredis | binary command size/write | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL O2 ASan+UBSan modular/single/static/shared; 10,000 randomized commands, overflow/aliasing, hot-path allocation counters, diagnostic OOM |
 | xredis | incremental RESP2/3 event reader | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/single/example/trim/static/shared; all canonical split points, event pauses, 10,000 random arrays, 20,000 mutation pairs, limits, reentry, OOM and lifecycle quota |
@@ -1030,3 +1031,23 @@ uses `redis-init-*` under `out/service-extensions/` and its `evidence/` director
 DNS/TLS, reconnect/pools, dedicated modes, HA/Tracking, remaining RPC/MQTT/Cron
 runtime scopes, pinned matched performance and native 72-hour fault/long-run
 acceptance all remain required. Completing setup does not complete any product.
+
+## Performance workload input identity
+
+A focused reproduction changed only a declared peer header while keeping the
+benchmark source unchanged: the old fingerprint stayed identical. The failing
+unit log is retained as `performance-inputs-red.log`. Benchmarks now declare
+repository-relative `inputs` for helper/fixture bytes, which participate in the
+benchmark fingerprint and remain visible in JSON reports. Missing files,
+directories, outside-repository paths, malformed lists and duplicate declarations
+are rejected. Production source identity remains separate so implementation
+changes can still be measured under one workload.
+
+The two Redis runtime profiles register their direct and transitive peer
+headers. Windows-native and Ubuntu/WSL-x64 smoke runs of both profiles pass and
+emit the expected input lists; these are execution checks, not new performance
+baselines. All 69 relevant tooling tests pass, including the prior failing
+mutation and path/contract checks. Existing historical baselines are preserved;
+the changed runner/workload fingerprint requires fresh accepted measurements.
+No library runtime or public ABI changes in this step. Logs/reports use
+`performance-inputs-*` in the ignored service-extensions output directory.

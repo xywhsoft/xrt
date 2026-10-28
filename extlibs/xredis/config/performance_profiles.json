@@ -87,6 +87,7 @@
       "benchmarks": [{
         "name": "xredis_client",
         "source": "extlibs/xredis/bench/bench_client.c",
+        "inputs": ["extlibs/xredis/tests/support/client_peer.h"],
         "suite": "xredis_client",
         "args": ["100000", "16"],
         "smoke_args": ["1024", "16"],
@@ -106,6 +107,7 @@
       "benchmarks": [{
         "name": "xredis_client_init",
         "source": "extlibs/xredis/bench/bench_client_init.c",
+        "inputs": ["extlibs/xredis/tests/support/client_peer.h", "extlibs/xredis/tests/support/client_init_peer.h"],
         "suite": "xredis_client",
         "args": ["256"],
         "smoke_args": ["16"],

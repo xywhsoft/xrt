@@ -7,7 +7,9 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import measure_performance
@@ -16,6 +18,46 @@ import measure_performance
 
 class MeasurePerformanceTest(unittest.TestCase):
 	"""覆盖报告工具中不依赖真实计时的严格契约。"""
+
+	def test_declared_helper_changes_benchmark_identity(self) -> None:
+		"""对端/数据夹具变化必须使旧性能基线不再可比。"""
+
+		with tempfile.TemporaryDirectory() as directory:
+			root = Path(directory)
+			files = [
+				"config/performance_profiles.json", "tools/measure_performance.py",
+				"tools/release_identity.py", "tools/build.py", "dev/bench/bench_common.h",
+				"dev/bench/network/bench_network_common.h", "dev/bench/tls/bench_tls_fixture.h",
+				"tests/fixtures/tls_identity_legacy.h", "tests/fixtures/x509_legacy_cert.h",
+				"extlibs/test/bench/main.c", "extlibs/test/tests/peer.h",
+			]
+			for name in files:
+				path = root / name
+				path.parent.mkdir(parents=True, exist_ok=True)
+				path.write_text("original\n", encoding="utf-8")
+			profile = [{"benchmarks": [{"source": files[-2], "inputs": [files[-1]]}]}]
+			with patch.object(measure_performance, "ROOT", root):
+				before = measure_performance._benchmark_fingerprint(profile, root / files[0])
+				(root / files[-1]).write_text("changed peer behavior\n", encoding="utf-8")
+				after = measure_performance._benchmark_fingerprint(profile, root / files[0])
+				for missing in ("tests/missing.h", "../outside-repository.h", "extlibs/test/tests"):
+					profile[0]["benchmarks"][0]["inputs"] = [missing]
+					with self.subTest(input=missing), self.assertRaises(SystemExit):
+						measure_performance._benchmark_fingerprint(profile, root / files[0])
+			self.assertNotEqual(before, after)
+
+	def test_rejects_invalid_input_declarations(self) -> None:
+		"""显式夹具必须是唯一且非空的文件名列表。"""
+
+		benchmark = {
+			"name": "test", "source": "dev/bench/test.c", "suite": "core",
+			"args": [], "smoke_args": [],
+			"metrics": {"rate": {"direction": "higher", "unit": "ops/s"}},
+		}
+		measure_performance._benchmark_contract(benchmark, set())
+		for invalid in (None, "file.h", [None], [""], ["file.h", "file.h"]):
+			with self.subTest(inputs=invalid), self.assertRaises(SystemExit):
+				measure_performance._benchmark_contract({**benchmark, "inputs": invalid}, set())
 
 	def test_parses_only_declared_metrics(self) -> None:
 		"""标题和运行参数不能被误当成受控性能指标。"""

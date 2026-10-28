@@ -13,6 +13,10 @@ python tools/measure_performance.py --compiler <compiler> --arch x64 --baseline 
 
 运行结果应记录提交版本、操作系统、CPU、编译器与优化参数、输入矩阵、原始样本和统计方法。基准输出放在构建目录中，可通过 `python tools/clean.py --apply` 删除；不要把遗留可执行文件或缓存当作性能证据。
 
+每项 benchmark 的可选 `inputs` 列表应登记影响工作负载的仓库文件，例如本地对端头文件、测试数据和驱动脚本。使用仓库相对路径；必须列全传递使用的夹具。工具将这些文件与 benchmark 源码一起计入 `benchmark_fingerprint`，并在报告中保留声明列表。文件缺失、目录、越出仓库的路径和重复声明会被拒绝。生产实现仍由 `source_fingerprint` 单独标识，便于比较实现变化。
+
+修正工作负载或其输入声明后，旧指纹的基线应当拒绝比较；应按原验收规则重新测量，不能只更新旧报告的指纹。共享工作区中同时使用 Windows 和 WSL 时，应使用不同输出目录（例如 Windows `--arch native`、WSL `--arch x64`）或独立工作区，避免共用对象缓存。
+
 ## 解读结果
 
 - 吞吐、平均延迟和尾延迟应分别比较；一个指标改善不能掩盖另一个指标的退化。
