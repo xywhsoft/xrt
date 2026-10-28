@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "product": "xrpc",
+  "module_prefix": "XRPC_MODULE_",
+  "package_ownership": "separate",
+  "api_macro": "XRPC_API",
+  "single_header": "single/extlibs/xrpc.h",
+  "declaration_header": "single/extlibs/xrpc_decl.h",
+  "implementation_macro": "XRPC_IMPLEMENTATION",
+  "implementation_once_macro": "XRPC_IMPLEMENTATION_ONCE",
+  "single_guard": "XRPC_SINGLE_HEADER_H",
+  "single_marker": "XRPC_SINGLE_HEADER",
+  "declaration_guard": "XRPC_DECLARATIONS_H",
+  "declaration_marker": "XRPC_DECLARATIONS",
+  "package_consumer": "extlibs/xrpc/tests/package/test_consumer.c",
+  "product_root": "extlibs/xrpc",
+  "performance_config": "extlibs/xrpc/config/performance_profiles.json",
+  "size_config": "extlibs/xrpc/config/size_profiles.json",
+  "scope": {
+    "product": "xrpc",
+    "external_integrations": [],
+    "systems": [
+      {
+        "name": "decode",
+        "state": "retained",
+        "source_roots": [
+          "decode"
+        ]
+      }
+    ]
+  },
+  "api_reference": {
+    "title": "xrpc public API reference",
+    "function_prefix": "xrpc",
+    "constant_prefix": "XRPC_",
+    "type_prefix": "xrpc",
+    "guide": "../../README.md",
+    "output": "extlibs/xrpc/docs/api/reference.md"
+  },
+  "features_guard": "XRPC_FEATURES_H",
+  "features_header": "extlibs/xrpc/include/xrpc/features.h",
+  "include_dirs": [
+    "extlibs/xrpc/include"
+  ],
+  "header_roots": [
+    "extlibs/xrpc/include"
+  ],
+  "umbrella_header": "xrpc.h",
+  "modules": [
+    {
+      "name": "xrpc",
+      "state": "developing",
+      "feature": "XRPC_FEATURE_XRPC",
+      "depends": [
+        "xrpc_decode"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc.h",
+        "extlibs/xrpc/include/xrpc/features.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/README.md"
+      ]
+    },
+    {
+      "name": "xrpc_decode",
+      "state": "implemented",
+      "feature": "XRPC_FEATURE_XRPC_DECODE",
+      "depends": [
+        "json_read"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/decode.h",
+        "extlibs/xrpc/include/xrpc/export.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrpc/src/decode/decode.c"
+      ],
+      "tests": [
+        "extlibs/xrpc/tests/test_decode.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_decode.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/decode/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_decode.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/README.md",
+        "extlibs/xrpc/docs/api/reference.md",
+        "extlibs/xrpc/docs/coverage.md"
+      ]
+    },
+    {
+      "name": "xrpc_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_decode.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_decode.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/README.md"
+      ],
+      "single_test_owners": {
+        "extlibs/xrpc/tests/single/test_single_xrpc_decode.c": "xrpc_decode"
+      }
+    }
+  ]
+}

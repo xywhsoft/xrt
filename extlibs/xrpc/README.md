@@ -1,0 +1,57 @@
+# xrpc (developing)
+
+Independent pure-C JSON-RPC 2.0 client/server extension using public XRT APIs.
+**Only bounded envelope decoding is currently implemented.** Encoders, dispatch,
+client/server runtime, bidirectional transport, HTTP/WebSocket/framed stdio,
+deadline/cancellation negotiation and production acceptance remain pending.
+
+Select `XRPC_MODULE_XRPC_DECODE`. `xrpcDecode` scans one complete document into
+caller-owned message scratch. It classifies calls, notifications, success/error
+responses and invalid objects/items. A separate document result is published
+only after complete JSON validation. Do not use scratch before DONE; a later
+syntax error invalidates every earlier item. There are no business callbacks.
+
+The protocol follows the [JSON-RPC 2.0 specification](https://www.jsonrpc.org/specification)
+independently. Request/response modes validate their respective envelope and
+ignore opposite-role extra fields. Duplex classifies method-bearing requests
+and rejects ambiguous request/response envelopes. Relevant envelope/error keys
+reject duplicates after JSON-escape interpretation; user payload dictionaries
+retain their own application policy. Keys and version comparisons are case
+sensitive and recognize escaped ASCII forms.
+
+Views borrow the original input. Method/message values retain JSON quotes and
+escapes; this leaf does not create decoded strings or owned result objects.
+String, number and null identifiers stay exact, including huge/fractional/
+scientific numbers and embedded-NUL string escapes. Missing id identifies a
+valid notification; explicit null remains a call. Error codes accept integral
+numeric values without native rounding. No identifier canonicalization or
+pending-call correlation is claimed yet.
+
+Nonempty batches retain one descriptor per input item, including invalid ones.
+An empty batch yields one invalid descriptor with Batch=false for a single
+Invalid Request response. Scalar roots and nested-array batch items are invalid
+envelopes. Malformed JSON is PARSE_ERROR; scratch/admission/resource/API/OOM
+failures are LOCAL_ERROR. Local overload is never mislabeled Invalid Request.
+Only valid notifications suppress a response; application dispatch must enforce
+this and the reserved `rpc.` method namespace (the descriptor flags it).
+
+Limits cover input bytes, depth, decoded string bytes, total values, direct
+container items, messages, and id/method token bytes. Config is copied. The call
+is synchronous on its caller thread, retains no inputs, allocates/copies no
+payload on DONE and preserves ambient error. Caller scratch may be smaller
+than the configured batch cap. Source spans and config must not overlap outputs.
+Cold XRT diagnostics may allocate; an OOM diagnostic becomes a local error.
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc_tests --cflag=-O2
+python tools/build.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc --no-single --cflag=-O2
+python tools/build.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc --trim-only
+python tools/package.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc --kind static --verify
+python tools/package.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc --kind shared --verify
+python tools/measure_performance.py --config extlibs/xrpc/config/performance_profiles.json --smoke
+```
+
+See [the example](examples/decode/main.c), [API inventory](docs/api/reference.md),
+[coverage matrix](docs/coverage.md) and [live progress](../../docs/development/service-extensions-progress.md).
+The product remains developing. A codec smoke is not transport throughput,
+dispatch latency, interoperability or production acceptance.

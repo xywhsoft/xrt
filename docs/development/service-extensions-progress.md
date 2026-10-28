@@ -12,7 +12,8 @@ Target and rules: [development contract](service-extensions-plan.md).
   Calendar search, named time zones and scheduling remain pending.
 - P1 continues with independently testable RPC/MQTT protocol leaves.
 - The xrpc prototype exposed a JSON lexical-scan gap. The shared parser now has
-  a locally verified raw Scan API; RPC envelope/dispatch work is still pending.
+  a locally verified raw Scan API. RPC envelope decoding is locally verified;
+  encoding, correlation, dispatch and transports remain pending.
 - Primary checkout changes remain outside this branch.
 
 ## Baseline checks
@@ -37,7 +38,8 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xredis | binary command size/write | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL O2 ASan+UBSan modular/single/static/shared; 10,000 randomized commands, overflow/aliasing, hot-path allocation counters, diagnostic OOM |
 | xredis | incremental RESP2/3 event reader | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/single/example/trim/static/shared; all canonical split points, event pauses, 10,000 random arrays, 20,000 mutation pairs, limits, reentry, OOM and lifecycle quota |
 | xredis | runtime, pools, HA, tracking | pending | no claim |
-| xrpc | protocol, dispatch, transports | pending | no claim |
+| xrpc | bounded JSON-RPC 2.0 envelope decode | locally verified | Windows modular/single/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, example/trim/static/shared; mixed batch/role/lossless-ID/duplicate/error/limits/OOM and deterministic property/mutation tests |
+| xrpc | encode, correlation, dispatch, runtime, transports | pending | no claim |
 | xmqtt | MQTT 5.0/3.1.1, sessions, persistence, transports | pending | no claim |
 | xcron | bounded immutable expression compiler | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct single, example/trim/static/shared; 111,630 range/step combinations, 10,000 generated expressions, 20,000 raw inputs, alias/offset/atomicity/allocation/OOM tests |
 | xcron | calendar, time zones, scheduler, recovery | pending | no claim |
@@ -196,3 +198,49 @@ Reproduction uses `tools/build.py --suite json_read,xlon_read,memory_stats
 Ignored prototype, A/B, package, sanitizer and smoke evidence is under
 `out/service-extensions/` with `json-scan-*` names. The API contract is documented
 in [json.md](../api/json.md).
+
+## RPC envelope decode validation
+
+- Request, response and duplex modes classify calls, notifications, result/error
+  responses and invalid envelopes. Complete-document validation precedes Count
+  publication. Earlier scratch descriptors cannot be executed after a malformed
+  tail. Empty batches produce one invalid descriptor with a single-object reply
+  shape; invalid batch items do not erase valid siblings.
+- All identifiers remain exact raw JSON: string/null/number, huge exponents and
+  fractions included. Explicit null is a call id, not a notification. Escaped
+  protocol names/version/reserved prefix are interpreted without allocation;
+  semantic duplicate aliases are rejected in relevant envelope/error fields.
+- Error-code integrality is checked as exact decimal arithmetic, without native
+  float conversion. Params/result/error-data container spans remain borrowed.
+  Opposite-role extras are ignored in one-way modes; duplex ambiguity is explicit.
+- The deterministic suites pass 10,000 generated mixed batches, 10,000 independent
+  rational integer-code oracles, and 20,000 raw/mutated documents, including bounded
+  views and output publication invariants. Handwritten fixtures cover protocol
+  failures, every configured resource class, aliases and local capacity failures.
+- Ten thousand warm decodes preserve allocation counters and ambient error. A
+  valid escaped-parameter batch succeeds under a one-byte quota; parse-diagnostic
+  OOM becomes a local failure and preserves Document rather than publishing a
+  spurious protocol error.
+- Windows GCC 16.2 O2 modular/single tests, offline example, root/leaf trim and
+  independent static/DLL consumers pass. Ubuntu/WSL O2 ASan+UBSan modular and
+  direct single tests pass, as do its example, trim and static/shared consumers.
+- Independent API inventory reports 2 functions / 41 constants / 10 types,
+  missing=0. Generated/API/asset checks and 15 related tooling tests pass. Strict
+  release correctly rejects the still-developing root. CI now includes all three
+  actual products on both systems; remote Actions execution is not claimed.
+- Windows codec workload smoke passes with an observed descriptor checksum. A
+  single unpinned sample is not throughput/tail-latency or production acceptance.
+
+The direct-header build also reproduced an existing missing xerror include in
+the public JSON header. `12c32eea` fixes that dependency and registers a standalone
+leaf-header consumer, verified with strict C11 compilation/link/run. A separate
+module-selector trim exposed the need to process core features after extension
+module selection; the xrpc header now does so explicitly. Neither change adds a
+runtime layer.
+
+Reproduce using `extlibs/xrpc/config/modules.json`, suite `xrpc_tests --cflag=-O2`,
+product `xrpc` example/trim/static/shared package consumers, the sanitizer flags
+above, and `extlibs/xrpc/tests/single/test_single_xrpc_decode.c`. Ignored
+`rpc-decode-*` logs/reports are under `out/service-extensions/`.
+[Decoder contracts](../../extlibs/xrpc/docs/coverage.md) describe scratch lifetime,
+parse/local-error separation and deliberately pending encoder/runtime behavior.
