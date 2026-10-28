@@ -9,6 +9,11 @@
 int main(void)
 {
 	xhttpacceptencoding Accept;
+	xhttpfield Field = {
+		XRT_STR_LITERAL("Content-Encoding"),
+		XRT_STR_LITERAL("gzip")
+	};
+	size_t iSize = 0;
 	bool bPass;
 
 	xrtHttpAcceptEncodingInit(&Accept);
@@ -22,6 +27,9 @@ int main(void)
 			XHTTP_CODING_DEFLATE,
 		XHTTP_CODING_GZIP
 	) == XHTTP_CODING_DEFLATE);
+	bPass = bPass && xrtHttpContentEncodingWrite(
+		&Field, 1, NULL, 0, &iSize
+	) && (iSize == 4);
 	printf(
 		"%s single-http-encoding\n",
 		bPass ? "[PASS]" : "[FAIL]"

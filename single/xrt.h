@@ -227700,16 +227700,16 @@ XRT_API bool xrtHttpContentEncodingWrite(
 		return false;
 	}
 	*pSize = Plan.JoinedSize;
+	/* A NULL output with zero capacity is the documented size query. */
+	if ( pOutput == NULL ) {
+		return true;
+	}
 	if ( iCapacity < Plan.JoinedSize ) {
 		__xrtErrorSetRange();
 		return false;
 	}
 	if ( Plan.JoinedSize == 0 ) {
 		return true;
-	}
-	if ( pOutput == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
 	}
 	if ( __xrtHttpFieldArrayOverlap(
 		pFields, iCount,

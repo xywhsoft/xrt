@@ -339,6 +339,16 @@ static void testHttpContentEncodingPlan(void)
 		 )),
 		"Content-Encoding plan facts mismatch"
 	);
+	{
+		size_t iMeasured = 0;
+		testRequire(
+			xrtHttpContentEncodingWrite(
+				Fields, sizeof(Fields) / sizeof(Fields[0]),
+				NULL, 0, &iMeasured
+			) && (iMeasured == sizeof(Joined) - 1u),
+			"Content-Encoding NULL output size query failed"
+		);
+	}
 	xrtHttpContentEncodingCursorInit(&Cursor);
 	while ( (Next = xrtHttpContentEncodingNext(
 		Fields,
