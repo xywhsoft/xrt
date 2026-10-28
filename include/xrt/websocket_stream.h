@@ -387,6 +387,13 @@ XRT_API xnetresult xrtWsStreamSendRef(
 	const xnetref* pRef
 );
 
+/* Retain the exact immutable NetBytes range only on OK. Unmasked TCP servers
+ * retain the payload in the native typed send graph; clients mask and TLS
+ * copies into the record layer. Empty ranges still send an empty message.
+ * Call on the connection Worker. The caller retains its NetBytes reference. */
+XRT_API xnetresult xrtWsStreamSendBytes(xwsstream* pStream, xwsopcode Opcode,
+	xnetbytes* pBytes, size_t iOffset, size_t iSize);
+
 
 
 /* 发送所有权 UTF-8 Text 消息。 */

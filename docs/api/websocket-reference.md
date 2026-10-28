@@ -223,7 +223,7 @@
 
 [查看带契约注释的公共头](../../include/xrt/websocket_stream.h)
 
-### 函数 (48)
+### 函数 (49)
 
 - `xrtWsStreamAbort`
 - `xrtWsStreamAttach`
@@ -257,6 +257,7 @@
 - `xrtWsStreamRole`
 - `xrtWsStreamRuntimeOwnershipV1Get`
 - `xrtWsStreamSend`
+- `xrtWsStreamSendBytes`
 - `xrtWsStreamSendCompressed`
 - `xrtWsStreamSendRef`
 - `xrtWsStreamSendTake`

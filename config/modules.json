@@ -2043,7 +2043,8 @@
 				"tests/websocket/test_stream.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_websocket_stream.c"
+				"tests/single/test_single_websocket_stream.c",
+				"tests/single/test_single_websocket_owned_bytes.c"
 			],
 			"examples": [
 				"examples/websocket/stream_ref/main.c"

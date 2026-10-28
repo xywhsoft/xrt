@@ -33419,6 +33419,13 @@ XRT_API xnetresult xrtWsStreamSendRef(
 	const xnetref* pRef
 );
 
+/* Retain the exact immutable NetBytes range only on OK. Unmasked TCP servers
+ * retain the payload in the native typed send graph; clients mask and TLS
+ * copies into the record layer. Empty ranges still send an empty message.
+ * Call on the connection Worker. The caller retains its NetBytes reference. */
+XRT_API xnetresult xrtWsStreamSendBytes(xwsstream* pStream, xwsopcode Opcode,
+	xnetbytes* pBytes, size_t iOffset, size_t iSize);
+
 
 
 /* 发送所有权 UTF-8 Text 消息。 */
@@ -172155,6 +172162,43 @@ XRT_API xnetresult xrtWsStreamSendRef(
  xnetresult result=__xrtWsStreamSendRefBody(pConnection,Opcode,pRef);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
  return result;
+}
+
+static xnetresult __xrtWsStreamSendBytesBody(xwsstream* s,xwsopcode opcode,
+    xnetbytes* bytes,size_t offset,size_t size)
+{
+    if(!s||!bytes){__xrtErrorSetInvalidArgument();return XNET_RESULT_ERROR;}
+    if(!__xrtWsStreamWorker(s,"send-websocket-bytes"))return XNET_RESULT_ERROR;
+    xbytesview view=xrtNetBytesView(bytes);
+    if(offset>view.Size||size>view.Size-offset){__xrtErrorSetRange();return XNET_RESULT_ERROR;}
+    if(view.Data)view.Data+=offset;
+    view.Size=size;
+    if(!__xrtWsStreamMessageCheck(s,opcode,view,false))return XNET_RESULT_ERROR;
+    if(s->Config.Role==XWS_ROLE_CLIENT||s->TransportKind!=__XRT_WS_TRANSPORT_TCP)
+        return __xrtWsStreamSendFrame(s,opcode,view,true,__XRT_WS_SEND_DATA,false);
+    size_t wire=0,headSize=0;uint8 head[XWS_FRAME_HEAD_MAX];
+    xnetresult result=__xrtWsStreamFrameBudget(s,size,__XRT_WS_SEND_DATA,&wire);
+    if(result!=XNET_RESULT_OK)return result;
+    if(!__xrtWsStreamRefFrame(opcode,size,true,head,sizeof(head),&headSize))return XNET_RESULT_ERROR;
+    xnetbytes* header=xrtNetBytesCopy(head,headSize);if(!header)return XNET_RESULT_ERROR;
+    const xnetbytesref refs[2]={{header,0,headSize},{bytes,offset,size}};
+    xnetstream* tcp=xrtWsStreamTcp(s);
+    result=tcp?xrtNetStreamSendBytesVec(tcp,refs,2):XNET_RESULT_CLOSED;
+    xrtNetBytesDestroy(header);
+    if(result==XNET_RESULT_OK)s->DrainPending=true;
+    else if(result==XNET_RESULT_AGAIN)__xrtWsStreamBackpressure(s);
+    else if(result==XNET_RESULT_ERROR)__xrtWsStreamSendFailure(s,false,XERR_IO,
+        "TCP rejected a WebSocket immutable bytes frame",xrtGetError());
+    return result;
+}
+XRT_API xnetresult xrtWsStreamSendBytes(xwsstream* s,xwsopcode opcode,
+    xnetbytes* bytes,size_t offset,size_t size)
+{
+    bool owned=s&&s->OwnershipPolicy;
+    if(owned&&!__xrtWsStreamOwnershipEnter(s,true))return XNET_RESULT_ERROR;
+    xnetresult result=__xrtWsStreamSendBytesBody(s,opcode,bytes,offset,size);
+    if(owned)__xrtWsStreamOwnershipLeave(s);
+    return result;
 }
 
 
