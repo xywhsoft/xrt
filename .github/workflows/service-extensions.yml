@@ -90,6 +90,12 @@ jobs:
           python tools/measure_size.py --compiler gcc
           --config extlibs/xcron/config/size_profiles.json --profiles xcron_calendar --kind single
           --report out/service-extensions/size-xcron-calendar-linux.json
+      - name: Check owned reply dependency boundary
+        if: matrix.product == 'xredis'
+        run: >-
+          python tools/measure_size.py --compiler gcc
+          --config extlibs/xredis/config/size_profiles.json --profiles xredis_reply --kind single
+          --report out/service-extensions/size-xredis-reply-linux.json
       - name: Independent static and shared consumers
         run: |
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify
@@ -159,6 +165,12 @@ jobs:
           python tools/measure_size.py --compiler gcc
           --config extlibs/xcron/config/size_profiles.json --profiles xcron_calendar --kind single
           --report out/service-extensions/size-xcron-calendar-windows.json
+      - name: Check owned reply dependency boundary
+        if: matrix.product == 'xredis'
+        run: >-
+          python tools/measure_size.py --compiler gcc
+          --config extlibs/xredis/config/size_profiles.json --profiles xredis_reply --kind single
+          --report out/service-extensions/size-xredis-reply-windows.json
       - name: Independent static and shared consumers
         run: |
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify

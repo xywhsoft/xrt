@@ -63,6 +63,22 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_reply",
+      "system": "reply",
+      "description": "Owned scalar/metadata/streamed replies including allocation, traversal, double conversion and release; no network/parity claim",
+      "benchmarks": [{
+        "name": "xredis_reply",
+        "source": "extlibs/xredis/bench/bench_reply.c",
+        "suite": "xredis_reply,time",
+        "args": ["1000000"],
+        "smoke_args": ["10000"],
+        "metrics": {
+          "frames_per_sec": {"direction": "higher", "unit": "frames/s"},
+          "wire_bytes_per_sec": {"direction": "higher", "unit": "bytes/s"}
+        }
+      }]
     }
   ]
 }

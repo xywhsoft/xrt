@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `9` 个函数、`47` 个常量或宏、
-`12` 个公共类型。
+当前登记 `21` 个函数、`60` 个常量或宏、
+`20` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/command.h`
 
@@ -107,3 +107,49 @@
 - `xredisreadproc`
 - `xredisreadstatus`
 - `xredisreplytype`
+
+## `extlibs/xredis/include/xredis/reply.h`
+
+[查看带契约注释的公共头](../../include/xredis/reply.h)
+
+### 函数 (12)
+
+- `xredisReplyDouble`
+- `xredisReplyGet`
+- `xredisReplyInfo`
+- `xredisReplyReaderConfigInit`
+- `xredisReplyReaderCreate`
+- `xredisReplyReaderDestroy`
+- `xredisReplyReaderFeed`
+- `xredisReplyReaderFinish`
+- `xredisReplyReaderInfo`
+- `xredisReplyReaderReset`
+- `xredisReplyRelease`
+- `xredisReplyRetain`
+
+### 常量与宏 (13)
+
+- `XREDIS_FEATURE_XREDIS_REPLY`
+- `XREDIS_REPLY_ARGUMENT`
+- `XREDIS_REPLY_ERROR`
+- `XREDIS_REPLY_LIMIT`
+- `XREDIS_REPLY_MEMORY`
+- `XREDIS_REPLY_MORE`
+- `XREDIS_REPLY_NONE`
+- `XREDIS_REPLY_OK`
+- `XREDIS_REPLY_PROTOCOL`
+- `XREDIS_REPLY_READY`
+- `XREDIS_REPLY_STATE`
+- `XREDIS_REPLY_TRUNCATED`
+- `XREDIS_REPLY_YIELD`
+
+### 类型 (8)
+
+- `xredisreply`
+- `xredisreplyerror`
+- `xredisreplyinfo`
+- `xredisreplyreader`
+- `xredisreplyreaderconfig`
+- `xredisreplyreaderinfo`
+- `xredisreplystatus`
+- `xredisreplyvalue`

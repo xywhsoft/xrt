@@ -13,6 +13,25 @@
 #ifndef XREDIS_MODULE_XREDIS_READER
 #define XREDIS_MODULE_XREDIS_READER
 #endif
+#ifndef XREDIS_MODULE_XREDIS_REPLY
+#define XREDIS_MODULE_XREDIS_REPLY
+#endif
+#endif
+
+/* xredis_reply 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_REPLY)
+#ifndef XREDIS_FEATURE_XREDIS_REPLY
+#define XREDIS_FEATURE_XREDIS_REPLY
+#endif
+#ifndef XREDIS_MODULE_XREDIS_READER
+#define XREDIS_MODULE_XREDIS_READER
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRT_MODULE_NUMBER_FLOAT
+#define XRT_MODULE_NUMBER_FLOAT
+#endif
 #endif
 
 /* xredis_reader 及其直接依赖。 */

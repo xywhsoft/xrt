@@ -714,3 +714,97 @@ and static/shared `--verify` cover examples/distribution. Its size config profil
 logs/reports use `cron-calendar-*` under `out/service-extensions/`. Named zones,
 DST policies, clocks/executors, misfire/overlap and durable restart remain pending;
 the full four-product goal and its acceptance gates are unchanged.
+
+## Owned Redis response frames
+
+`xredis_reply` incrementally builds immutable owned RESP2/3 semantic frames on
+the existing event reader. It uses public XRT allocation, atomics and number
+conversion; no new shared runtime/core capability was needed. READY transfers
+one reference only after the complete frame is validated. Every other result
+preserves the result output. Input may be recycled immediately, and transferred
+replies survive reader Reset/Destroy.
+
+- Index-based nodes/byte offsets preserve all scalar/aggregate types, binary
+  data, numeric lexemes, verbatim format prefixes, original null kinds, streamed
+  flags, duplicate map keys, wire order, pushes and ordered root/nested metadata.
+  Attributes can annotate metadata keys/values without consuming child slots.
+  Node views borrow the completed frame, with explicit child/metadata chains.
+- Native integers/booleans come from the checked reader. Lazy DOUBLE conversion
+  uses locale-independent correctly rounded public XRT parsing, preserving raw
+  spelling. Tests cover negative zero, infinity, normalized/legacy signed NaN,
+  finite rounding, subnormal/underflow, maximum finite double and overflow. A
+  conversion overflow preserves the output and the valid lossless reply.
+- Two bounded control/stack allocations are made at creation. A frame embeds
+  one node and 64 payload bytes. Memory statistics verify exactly one allocation
+  and free per small scalar across 1000 warm feed/access/convert/retain/release
+  cycles; successful calls preserve ambient error identity. Larger frames grow
+  node/data vectors without per-node allocations or a final flatten/second parse.
+  Known bulk lengths reserve their bytes before fragmented payload delivery.
+- MaxOwnedBytes limits peak requested frame bytes, including inline storage,
+  capacity slack and the complete growth destination while the old buffer is
+  still live. Its default is 64 MiB. It excludes allocator overhead, diagnostics,
+  control stacks and transferred replies. Higher runtime layers must bound
+  concurrent/retained replies. Node/data growth remains actual allocation/copy
+  work; normal access/refcount/Finish/Reset does not allocate.
+- All types and metadata fixtures pass every two-part split, bytewise input and
+  feed budgets 1..3, recycling/overwriting source buffers immediately after each
+  Feed. Ordered trees and binary payloads match independent explicit fixtures.
+  A 32-bulk vector verifies payload relocation and fragmentation-independent
+  capacity; an unknown 3000-byte scalar forces repeated byte-vector growth.
+  A 512-level annotated tree verifies all 1025 node links and the deepest leaf.
+- Malformed terminators after DATA, bad pushes/maps, orphan metadata and partial
+  EOF never publish a frame. Invalid arguments, wrapped spans and input/output/
+  control/immutable-frame aliases preserve the stated outputs/state. Coalesced
+  normal/push frames stop at the correct boundaries; retained data outlives the
+  builder. Protocol/local-limit/OOM/EOF failures free partial storage immediately
+  and stay terminal until Reset. Typed builder causes remain observable even
+  when the nested callback error or diagnostic OOM would obscure them.
+- Real XRT quotas sweep 247 frame-allocation thresholds and 126 creation
+  thresholds, crossing both failure and success boundaries, clearing diagnostics
+  and proving zero live charged bytes. A one-byte diagnostic quota retains the
+  protocol cause independently of the ambient memory fallback. Four native
+  threads complete 80000 shared immutable reads/retain/release cycles with the
+  original owner released before joining. This is lifetime stress, not a claim
+  of complete race/production acceptance.
+- Windows GCC 16.2 O2 modular and all single-header regressions pass. Ubuntu/WSL
+  GCC 15.2 O2 ASan+UBSan modular and direct owned single tests pass, including
+  the deep/alias/quota/thread additions. The first test compile caught a test
+  indentation warning and an incorrect XRT wait constant; both were corrected.
+  Both systems compile/run the actual command/reader/owned examples and pass
+  positive/missing-direct-dependency trim probes. Independent static/shared
+  consumers use one host XRT and exercise owned traversal/conversion/refcounts.
+  PE/ELF exports contain all 21 public xredis functions with no private helpers.
+- Generated features, amalgamation, API/asset audits and 67 tooling tests pass:
+  21 functions / 60 constants / 20 types, missing=0. Strict release still rejects
+  the developing product root. Both native CI size-boundary steps were parsed;
+  remote CI execution is not claimed. The size gate finds zero forbidden network,
+  thread, task or future function prefixes in the owned module's isolated closure.
+- Final GNU O2 unstripped single-object closure: Windows x64 text 69408, data
+  2376, bss 11040, file 102158 bytes; Ubuntu/WSL x64 text 71183, data 2424,
+  bss 10892, file 124384 bytes. Both reports have source fingerprint
+  `128be72e179b1fd6b4a3482ebef29622538ea406ef91c760b9a81d4c89aafc7f`.
+  These include required XRT closure/object metadata, not incremental reply
+  text or a final application footprint. The Linux checkout does not resolve
+  the Windows worktree's Git metadata, so its report uses the content fingerprint.
+- All three command/reader/owned workloads pass one-sample unpinned Windows and
+  Ubuntu/WSL smoke, potentially under other validation load. Owned smoke mixes
+  inline scalar, annotated array and streamed/binary frames, including allocation,
+  traversal, lazy double conversion and release. It establishes workload execution,
+  not a pinned baseline, network throughput or queue-inclusive tail latency.
+
+The [owned-reply contract](../../extlibs/xredis/docs/reply.md) records actual
+copies/allocations, atomic and validation costs, ownership and resource exclusions.
+Reproduce with `extlibs/xredis/config/modules.json`, suite `xredis_tests --cflag=-O2`;
+Ubuntu/WSL modular adds `--arch x64 --no-single` and the sanitizer flags used
+above. Direct single source is `extlibs/xredis/tests/single/test_single_xredis_reply.c`,
+using strict C11/O2/ASan+UBSan/`-pthread -lm`. Product `xredis --no-single`, trim
+and static/shared `--verify` cover examples/distribution. Size profile
+`xredis_reply --kind single` enforces the isolated closure. Ignored reports/logs
+use `redis-reply-*` under `out/service-extensions/`.
+
+Next is the xredis request/connection vertical slice: ordered reply correlation,
+out-of-band pushes, bounded admission, queue-inclusive monotonic deadlines,
+cancellation/wire obligations and deterministic close/failure ownership. Network
+transports, pipelines/pools, TLS, transactions/blocking/PubSub, Sentinel/Cluster/
+Tracking and all original four-product interoperability, performance and long-run
+acceptance gates remain pending. The complete goal is unchanged.

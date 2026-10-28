@@ -19,6 +19,13 @@
       "system": "reader",
       "suite": "xredis_reader",
       "description": "Only incremental reply parsing and required core closure"
+    },
+    {
+      "name": "xredis_reply",
+      "system": "reply",
+      "suite": "xredis_reply",
+      "description": "Owned replies and reader/atomic/number_float closure, excluding networking and executors",
+      "forbid_symbols": ["xrtNet", "xrtTcp", "xrtThread", "xrtTask", "xrtFuture"]
     }
   ]
 }

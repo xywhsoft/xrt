@@ -26,5 +26,16 @@ int main(void)
 		xredisReaderDestroy(Reader); return 6;
 	}
 	if (!xredisReaderFinish(Reader) || !xredisReaderDestroy(Reader)) return 7;
+	xredisreplyreader* Owned = NULL; xredisreply* Frame = NULL;
+	if (!xredisReplyReaderCreate(NULL, &Owned)) return 8;
+	if (xredisReplyReaderFeed(Owned, XRT_BYTES_LITERAL("|0\r\n*2\r\n$2\r\nOK\r\n,1.25\r\n"), &Consumed, &Frame) !=
+		XREDIS_REPLY_READY || !xredisReplyReaderFinish(Owned)) return 9;
+	xredisReplyReaderDestroy(Owned);
+	xredisreplyinfo Info = {0}; Info.Size = sizeof(Info); xredisreplyvalue Root, Text;
+	if (!xredisReplyInfo(Frame, &Info) || !xredisReplyGet(Frame, Info.Root, &Root) || Root.Attributes != 0 ||
+		!xredisReplyGet(Frame, Root.FirstChild, &Text) || Text.Data.Size != 2 || memcmp(Text.Data.Data, "OK", 2)) return 10;
+	double Number;
+	if (!xredisReplyDouble(Frame, Text.Next, &Number) || Number != 1.25 || !xredisReplyRetain(Frame)) return 11;
+	xredisReplyRelease(Frame); xredisReplyRelease(Frame);
 	return 0;
 }

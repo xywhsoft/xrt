@@ -3,9 +3,9 @@
 Independent C Redis client extension on public XRT APIs. The final scope is
 RESP2/3, bounded incremental replies, asynchronous requests, pipelines/pools,
 TLS, transactions/blocking/PubSub, Sentinel, Cluster and Tracking.
-**The command encoder and incremental RESP2/3 event reader are implemented.
-Network requests, owned reply objects and production/performance acceptance
-remain pending.**
+**The command encoder, incremental RESP2/3 event reader and owned reply builder
+are implemented. Network requests and production/performance acceptance remain
+pending.**
 
 ## Binary command encoding
 
@@ -29,7 +29,7 @@ attributes, pushes and the RESP3 streamed string/array/map/set forms are parsed.
 DATA borrows the current input only during the callback; retain bytes explicitly
 when needed. One allocation at creation holds the reader and bounded depth stack;
 successful parsing does not allocate or copy payload bytes. It does validate
-numeric text; double conversion belongs to the later owned reply builder.
+numeric text; the owned builder supplies lazy double conversion.
 
 `Feed` stops at one complete semantic frame, a callback pause or its byte work
 budget. Resume with the unconsumed suffix, including an empty suffix after an
@@ -39,6 +39,23 @@ malformed wire, callback rejection and truncated EOF are terminal until Reset.
 Call `Finish` at EOF; it detects orphan attributes and incomplete frames.
 Readers are thread confined; mutating callback reentry is rejected. See the
 [reader contract and evidence](docs/reader.md) and [fragmented-input example](examples/reader/main.c).
+
+## Owned replies
+
+Select `XREDIS_MODULE_XREDIS_REPLY` for immutable owned frames. Feed transfers one
+reply reference only after the whole semantic frame passes validation. Source
+buffers can be recycled immediately; replies survive reader Reset/Destroy.
+Index-based nodes preserve all types, binary payloads, duplicate keys, streamed
+flags and ordered root/nested attributes. Completed replies support concurrent
+read access and atomic Retain/Release after a synchronized handoff.
+
+Small scalars use one allocation with inline storage. Larger frames grow node
+and byte vectors under a per-frame **peak** byte cap, including temporary growth
+copies. No per-node allocation or final flattening is required. Failure releases
+partial storage and preserves a typed cause even if diagnostic allocation fails.
+`ReplyDouble` converts raw numeric text lazily through public XRT number APIs.
+See the [ownership, limits and actual costs](docs/reply.md) and
+[buffer-recycling example](examples/reply/main.c).
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests
