@@ -8,7 +8,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct redispeer {
+typedef struct redispeer redispeer;
+typedef struct redispeerhook {
+	bool (*Command)(redispeer* Peer, xredisreply* Reply, ptr Data);
+	ptr Data;
+} redispeerhook;
+
+struct redispeer {
 	xnetengine* Engine;
 	xnetlistener* Listener;
 	xnetstream* Stream;
@@ -16,11 +22,13 @@ typedef struct redispeer {
 	xnetaddr Address;
 	xatomic32 Accepted, Commands, Closed, ListenerClosed, Released;
 	xatomic32 SyncChecked;
+	/* Publish one immutable fixture descriptor before admitting a connection. */
+	xatomicptr Hook;
 	xredisclient* Client;
 	bool Blocked;
 	unsigned char Pending[65536];
 	size_t PendingBytes;
-} redispeer;
+};
 
 static void redisPeerRequire(bool Condition, cstr Message)
 {
@@ -52,7 +60,9 @@ static void redisPeerCommand(redispeer* Peer, xredisreply* Reply)
 	xredisreplyvalue Root, Command, Value; xredisReplyGet(Reply, Info.Root, &Root);
 	redisPeerRequire(Root.Type == XREDIS_REPLY_ARRAY && Root.ChildCount != 0, "command frame");
 	xredisReplyGet(Reply, Root.FirstChild, &Command);
-	if (redisPeerName(Command, "HOLD")) { Peer->Blocked = true; redisPeerSend(Peer, "+held\r\n", 7); }
+	redispeerhook* Hook = (redispeerhook*)xrtAtomicPtrLoad(&Peer->Hook, XMEMORY_ACQUIRE);
+	if (Hook != NULL && Hook->Command(Peer, Reply, Hook->Data)) { /* Fixture supplied the response. */ }
+	else if (redisPeerName(Command, "HOLD")) { Peer->Blocked = true; redisPeerSend(Peer, "+held\r\n", 7); }
 	else if (redisPeerName(Command, "ERROR")) redisPeerSend(Peer, "-ERR deliberate\r\n", 17);
 	else if (redisPeerName(Command, "MALFORMED")) redisPeerSend(Peer, "$3\r\nabc\rX", 9);
 	else if (redisPeerName(Command, "PARTIAL")) { redisPeerSend(Peer, "$5\r\nab", 6); xrtNetStreamClose(Peer->Stream); }

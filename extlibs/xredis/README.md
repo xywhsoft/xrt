@@ -3,8 +3,9 @@
 Independent C Redis client extension on public XRT APIs. The final scope is
 RESP2/3, bounded incremental replies, asynchronous requests, pipelines/pools,
 TLS, transactions/blocking/PubSub, Sentinel, Cluster and Tracking.
-**The command encoder, incremental RESP2/3 reader, owned reply builder and one
-raw TCP request/response connection are implemented. Advanced transports/modes,
+**The command encoder, incremental RESP2/3 reader, owned reply builder, one
+TCP request/response connection and explicit HELLO/AUTH initialization are
+implemented. Advanced transports/modes,
 HA and production/performance acceptance remain pending.**
 
 ## Binary command encoding
@@ -71,6 +72,14 @@ Status/Delivery, not only generic Future state. Sync calls reject the engine's
 workers. Close has a separate physical-ownership observer; retained response
 results survive engine destruction. See the [client contract and real costs](docs/client.md)
 and [local TCP example with cleanup](examples/client/main.c).
+
+Managed `ConnectInit` adds a shared readiness barrier for strict RESP3 (default),
+explicit AUTO fallback or legacy RESP2, with optional ACL/password authentication,
+client name and database. Queued business calls keep their original deadlines
+and wait for all setup steps. Authentication failure cannot trigger fallback.
+Owned credential wire is wiped after its final send reference, and readiness
+metadata can outlive the client/engine. See the [initialization contract and
+real Redis reproduction](docs/client-init.md) and [runnable managed example](examples/client_init/main.c).
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests

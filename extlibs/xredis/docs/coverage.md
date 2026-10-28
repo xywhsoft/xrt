@@ -4,8 +4,9 @@ The Redis request wire format is an array of bulk strings, shared by RESP2 and
 RESP3. The implementation is independent and follows the
 [public protocol](https://redis.io/docs/latest/develop/reference/protocol-spec/).
 This document concerns command encoding. The incremental response parser has
-[separate contracts and evidence](reader.md). Connections, server interoperability
-and production acceptance remain pending.
+[separate contracts and evidence](reader.md). The [request runtime](client.md)
+and [initialization interoperability](client-init.md) have separate evidence.
+Full product and production acceptance remain pending.
 
 ## Contract matrix
 

@@ -98,6 +98,25 @@
           "p999_us": {"direction": "lower", "unit": "us"}
         }
       }]
+    },
+    {
+      "name": "xredis_client_init",
+      "system": "client",
+      "description": "Serial cold HELLO3 AUTH plus SELECT against a local fixture; handshake includes encoding/worker/TCP/reply observation, lifecycle rate also includes peer/engine create/retire; not production throughput or parity",
+      "benchmarks": [{
+        "name": "xredis_client_init",
+        "source": "extlibs/xredis/bench/bench_client_init.c",
+        "suite": "xredis_client",
+        "args": ["256"],
+        "smoke_args": ["16"],
+        "metrics": {
+          "lifecycle_per_sec": {"direction": "higher", "unit": "lifecycles/s"},
+          "handshake_p50_us": {"direction": "lower", "unit": "us"},
+          "handshake_p95_us": {"direction": "lower", "unit": "us"},
+          "handshake_p99_us": {"direction": "lower", "unit": "us"},
+          "handshake_p999_us": {"direction": "lower", "unit": "us"}
+        }
+      }]
     }
   ]
 }

@@ -31,7 +31,7 @@
       "name": "xredis_client",
       "system": "client",
       "suite": "xredis_client",
-      "description": "One raw TCP request/response connection and public core closure, excluding TLS, HTTP, Dial and task executors",
+      "description": "TCP requests and bounded connection initialization with public core closure, excluding TLS, HTTP, Dial and task executors",
       "forbid_symbols": ["xrtTls", "xrtHttp", "xrtWebSocket", "xrtNetDial", "xrtTask"]
     }
   ]

@@ -6,8 +6,9 @@ Target and rules: [development contract](service-extensions-plan.md).
 
 - All four final products are in development, not production accepted.
 - P0 source/worktree isolation and execution contract are established.
-- xredis binary commands, bounded RESP2/3 parsing, owned frames and one ordinary
-  TCP async/sync request connection are locally verified. Negotiation, advanced
+- xredis binary commands, bounded RESP2/3 parsing, owned frames, one ordinary
+  TCP async/sync request connection and explicit HELLO/AUTH/name/database setup
+  are locally verified, including Redis 8.0.5 interoperability. Advanced
   transports/modes, reconnect/pools, HA and final performance acceptance remain
   pending.
 - xcron five-field/seconds-six-field expression compilation and Gregorian
@@ -50,7 +51,8 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xredis | incremental RESP2/3 event reader | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/single/example/trim/static/shared; all canonical split points, event pauses, 10,000 random arrays, 20,000 mutation pairs, limits, reentry, OOM and lifecycle quota |
 | xredis | immutable owned response frames | locally verified | `e4bfab34`; all types, ordered metadata/children, every fixture split, 512 levels/1025 nodes, binary copy/growth, peak caps, quota/OOM, atomic sharing and independent packages |
 | xredis | one numeric TCP connection, async/sync requests and bounded pipeline | locally verified | IOCP/epoll, split reads, typed outcome/certainty, queue-inclusive deadline, cancellation/tombstones/drain grace, push isolation, bounded close, 384 concurrent calls, 36/71 quota thresholds, worker OOM, reentry, ASan/UBSan/qualified TSan, actual examples/packages and workload smoke |
-| xredis | negotiation, advanced transports/modes, reconnect/pools, HA, tracking | pending | no claim |
+| xredis | managed HELLO/AUTH/ACL/name/database setup and readiness barrier | locally verified | exact scripts, explicit RESP3/AUTO/RESP2 modes, error redaction, queue-inclusive deadlines/cancel, OOM/close/reentry, Windows/WSL modular/single/sanitizers and real Redis 8.0.5 |
+| xredis | advanced transports/modes, reconnect/pools, HA, tracking | pending | no claim |
 | xrpc | bounded JSON-RPC 2.0 envelope decode | locally verified | Windows modular/single/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, example/trim/static/shared; mixed batch/role/lossless-ID/duplicate/error/limits/OOM and deterministic property/mutation tests |
 | xrpc | bounded atomic JSON-RPC 2.0 envelope encode | locally verified | Windows modular/single/examples/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, examples/trim/static/shared; 10,000 independent wire properties, 500 complete-document resource oracles, 10,000 mutated raw inputs, zero-heap/OOM/aliases/atomicity |
 | xrpc | correlation, dispatch, runtime, transports | pending | no claim |
@@ -922,3 +924,109 @@ transaction/blocking/PubSub modes, Sentinel/Cluster/Tracking and all original
 four-product interoperability, matched pinned performance/overhead and native
 72-hour mixed-load/fault acceptance remain pending. The complete goal is active
 and unchanged; this is the ordinary TCP connection foundation.
+
+## Managed Redis connection initialization
+
+Implemented the next P2 feature on the existing public-API TCP worker model.
+The product root stays developing and the original four-product goal remains
+active.
+
+- New explicit ConnectInit configuration and a shared typed Ready Future add a
+  barrier before ordinary requests enter the TCP pipeline. Default is strict
+  HELLO 3; AUTH/ACL username, SETNAME and SELECT are optional. Explicit RESP2
+  sends legacy AUTH/name/SELECT without requiring HELLO. Explicit AUTO falls
+  back only on NOPROTO or canonical unknown HELLO, never auth/syntax/shape or
+  other server errors. Old raw Connect permits manual control commands and
+  reports transport readiness without asserting a negotiated protocol.
+- HELLO validates unique server/version/proto fields, retains unknown fields
+  and ordered attributes, and publishes the owned map only after every setup
+  step succeeds. Legacy steps require exact simple-string OK. Typed failure
+  retains the failed step and selection state. Server error text is discarded;
+  retained diagnostics use fixed redacted text to avoid copying echoed auth
+  arguments. Admission stops before failure notification reentry.
+- One original monotonic setup deadline spans encoding, worker wait, TCP and
+  every step. Business requests may queue, expire or cancel independently with
+  their own original deadlines; no business bytes precede successful setup.
+  Setup rejection completes surviving calls INITIALIZATION/NOT_SENT; native
+  parser/transport/resource failures retain their distinct categories. Cancelling
+  an observer does not cancel shared setup; Close explicitly does.
+- Caller username/password/name spans are borrowed only during creation.
+  Strict modes encode them once; AUTO preencodes HELLO and fallback forms, so
+  credentials/name are copied twice. The aggregate wire cap includes unused
+  fallback, and each command must fit TCP's write limit. One setup allocation
+  is protected by independent owner/send references and wiped before its actual
+  final free. InitBytes reaches zero only afterward. Closed waits for this
+  physical ownership and the setup timer. Caller/peer/OS/transport buffers and
+  arbitrary application payloads are outside that erasure contract. Raw AUTH/
+  HELLO request storage receives the same final wire wipe.
+- Deterministic tests exercise ten positive setup scripts, binary/empty/default
+  inputs, caller-buffer overwrite, root metadata, one-byte reads, exact step
+  ordering, held replies/pushes, queued timeout/cancel, observer cancellation,
+  fifteen HELLO error/shape fixtures, each legacy failure step, generic AUTH
+  server errors distinct from rejected credentials, before-TCP/
+  worker-stall/HELLO/SELECT timeouts, peer reset, pending Close, aggregate cap,
+  malformed options/aliases, managed control rejection and notification reentry.
+  Creation quotas sweep 61 thresholds and cross failure/success with zero live
+  charged bytes; two one-byte worker scopes cover timer/response and diagnostic
+  OOM without losing preallocated typed results.
+- Review corrected an overly broad legacy AUTH error classification: only
+  explicit authentication rejection is AUTH_FAILED; generic command/server
+  errors remain SERVER_ERROR. Dedicated fixtures cover this distinction. Peer
+  counter checks also wait for the enclosing dispatcher, rather than assuming
+  a delivered response means its final accounting instruction already ran.
+- Windows GCC 16.2 strict C11/O2 modular and all five leaf single tests pass with
+  IOCP. Ubuntu/WSL GCC 15.2 modular and isolated initialization single pass O2
+  ASan+UBSan with epoll. The isolated initialization single also passes O1 TSan
+  with the already-qualified `-Wno-error=tsan` for generic XRT atomic_thread_fence;
+  that warning is retained, and native race/production acceptance remains open.
+- A dedicated external consumer passed against three disposable Redis 8.0.5
+  configurations under WSL: no auth, default-user password, ACL user. All run
+  strict RESP3, explicit RESP2, AUTO, actual name/database, binary SET/GET,
+  32-request pipelines, name/database/auth failures, raw HELLO and post-engine
+  result lifetime. The supervisor uses only child-owned loopback instances,
+  disables persistence, checks their own successful startup, terminates them
+  and removes temporary data. It preserves redis-server's symlink invocation
+  name after an initial argv[0] multiplexer error. Actual Redis binary SHA-256:
+  `0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293`;
+  server v8.0.5, jemalloc 5.3.0, build d47fc40702b1fad8. The corrected complete
+  run pins source/client/server/runner hashes in its ignored JSON report.
+  Older real peers and native Windows/Linux interoperability remain pending;
+  deterministic legacy fallback is not advertised as an actual old Redis run.
+- Both systems run the real root examples and independent static/shared
+  consumers with one host XRT, including new configuration/readiness APIs and
+  metadata after engine destruction. Trim probes, generated outputs, API/normal
+  asset maturity, local documentation links and 67 tool regressions pass. API
+  inventory is 34 functions / 110 constants / 34 types, missing=0. PE and ELF
+  export the same 34 public functions, without private helpers. Strict release
+  correctly rejects the developing product. No general core source changed.
+  One parallel local example rerun collided in a shared native output directory
+  (Windows COFF objects reached the Linux linker). Both example sets were then
+  fully rebuilt in separate Windows-native and Linux-x64 directories and passed;
+  the failed collision log is retained and is not accepted test evidence.
+- Reply/client isolated O2 single objects still have zero forbidden symbols.
+  Client closure Windows text/data/bss/file: 366732/2384/11136/526757 bytes;
+  Ubuntu/WSL: 380981/4496/10908/680832. These include the required core and
+  unstripped object metadata. Content fingerprint shared by both size reports:
+  `b533c307630482c01f4203259df107f1b39274c9d0b325c2954462a91836c473`.
+  Owned replies retain their previous footprint and network isolation.
+- All five performance workloads pass one-sample unpinned smoke on both
+  systems, alongside other validation. The new cold workload uses sixteen
+  serial HELLO AUTH + SELECT setups; percentiles span API entry through ready
+  observation. Lifecycle rate additionally includes fixture/engine create and
+  retire costs. These sparse samples are workload plumbing, not reliable tails,
+  production throughput, a stable baseline or Redis/Hiredis parity. Performance
+  source fingerprint is
+  `7e7197040f10345283de0724b93e916ccc5b990f036f638a4800911dda664923`;
+  benchmark fingerprint is
+  `e442e750435417d4dd3136c5370b0b77be8a9292ef9035058536839be41fc09f`.
+  New cold Future/promise/result, setup wire/timer, copies, map traversal,
+  reference operations and full wire wipe are explicitly real costs. Final
+  per-operation allocation/copy/sync/syscall measurement is still required.
+
+The [initialization contract](../../extlibs/xredis/docs/client-init.md) contains
+public semantics, costs and runnable modular/single/example/real-Redis commands.
+The external supervisor is opt-in, not a runtime dependency. Ignored evidence
+uses `redis-init-*` under `out/service-extensions/` and its `evidence/` directory.
+DNS/TLS, reconnect/pools, dedicated modes, HA/Tracking, remaining RPC/MQTT/Cron
+runtime scopes, pinned matched performance and native 72-hour fault/long-run
+acceptance all remain required. Completing setup does not complete any product.

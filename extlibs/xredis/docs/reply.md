@@ -94,6 +94,8 @@ static/shared package consumers with `extlibs/xredis/config/modules.json`.
 The owned benchmark mixes inline scalar, metadata/array and streamed/binary
 replies, traverses nodes, converts doubles and releases every frame. It includes
 allocation and release costs; performance smoke only establishes execution.
-Network requests, correlation, cancellation, deadlines, pipelines/pools, TLS,
-HA modes, peer interoperability and final long-run/performance gates remain
-pending under the full four-product contract.
+The [request runtime](client.md) and [managed setup](client-init.md) now provide
+separate network/correlation/deadline/cancellation/pipeline evidence, including
+initialization interoperability with Redis. Pools, TLS, dedicated/HA modes and
+final long-run/performance gates remain pending under the full four-product
+contract.

@@ -112,13 +112,14 @@ through all returned Future/result callbacks and response ownership.
 
 ## Current scope and actual costs
 
-The module currently handles one raw TCP connection and ordinary one-reply
-commands, with bounded pipelining. DNS, TLS, automatic AUTH/HELLO negotiation,
-reconnect policy, pools, dedicated transaction/blocking/PubSub modes, Sentinel,
+The module currently handles one TCP connection and ordinary one-reply
+commands, with bounded pipelining. Raw Connect preserves manual setup; managed
+ConnectInit adds [HELLO/AUTH initialization and its readiness barrier](client-init.md).
+DNS, TLS, reconnect policy, pools, dedicated transaction/blocking/PubSub modes, Sentinel,
 Cluster and Tracking are subsequent work; the whole product remains developing.
 Known subscription/unsubscription, MONITOR, SYNC/PSYNC and CLIENT REPLY switches
 are rejected before admission. Unknown module commands must obey the caller's
-one-reply contract. A complete owned RESP3 codec does not imply negotiation.
+one-reply contract. Managed connections also reserve their setup controls.
 
 Admission allocates request+wire and a separate outcome box plus XRT Future/
 cancel/watch state. Timed requests also consume bounded engine timers. Payloads

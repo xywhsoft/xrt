@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `31` 个函数、`84` 个常量或宏、
-`29` 个公共类型。
+当前登记 `34` 个函数、`110` 个常量或宏、
+`34` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
 [查看带契约注释的公共头](../../include/xredis/client.h)
 
-### 函数 (10)
+### 函数 (13)
 
 - `xredisClientCall`
 - `xredisClientCallAsync`
@@ -19,12 +19,15 @@
 - `xredisClientClosed`
 - `xredisClientConfigInit`
 - `xredisClientConnect`
+- `xredisClientConnectInit`
 - `xredisClientInfo`
+- `xredisClientInitConfigInit`
+- `xredisClientReady`
 - `xredisClientRelease`
 - `xredisClientRetain`
 - `xredisClientTakePush`
 
-### 常量与宏 (26)
+### 常量与宏 (52)
 
 - `XREDIS_ADMISSION_ACCEPTED`
 - `XREDIS_ADMISSION_CLOSED`
@@ -35,17 +38,43 @@
 - `XREDIS_CLIENT_CLOSING`
 - `XREDIS_CLIENT_COMMAND_MODE`
 - `XREDIS_CLIENT_CONNECTING`
+- `XREDIS_CLIENT_INITIALIZATION_FAILED`
 - `XREDIS_CLIENT_OPEN`
 - `XREDIS_CLIENT_STATE`
 - `XREDIS_FEATURE_XREDIS_CLIENT`
 - `XREDIS_FEATURE_XREDIS_COMMAND`
 - `XREDIS_FEATURE_XREDIS_REPLY`
+- `XREDIS_INIT_AUTH`
+- `XREDIS_INIT_AUTHENTICATE`
+- `XREDIS_INIT_AUTO`
+- `XREDIS_INIT_DATABASE`
+- `XREDIS_INIT_DONE`
+- `XREDIS_INIT_HELLO`
+- `XREDIS_INIT_NAME`
+- `XREDIS_INIT_NONE`
+- `XREDIS_INIT_RESP2`
+- `XREDIS_INIT_RESP3`
+- `XREDIS_INIT_SELECT`
+- `XREDIS_INIT_SETNAME`
+- `XREDIS_INIT_USERNAME`
 - `XREDIS_MAY_HAVE_EXECUTED`
 - `XREDIS_NOT_SENT`
+- `XREDIS_PROTOCOL_UNKNOWN`
+- `XREDIS_READY_AUTH_FAILED`
+- `XREDIS_READY_CLOSED`
+- `XREDIS_READY_DISCONNECTED`
+- `XREDIS_READY_LIMIT`
+- `XREDIS_READY_MEMORY`
+- `XREDIS_READY_OK`
+- `XREDIS_READY_PROTOCOL`
+- `XREDIS_READY_SERVER_ERROR`
+- `XREDIS_READY_TIMEOUT`
+- `XREDIS_READY_UNSUPPORTED`
 - `XREDIS_REPLIED`
 - `XREDIS_REQUEST_CANCELLED`
 - `XREDIS_REQUEST_CLOSED`
 - `XREDIS_REQUEST_DISCONNECTED`
+- `XREDIS_REQUEST_INITIALIZATION`
 - `XREDIS_REQUEST_LIMIT`
 - `XREDIS_REQUEST_MEMORY`
 - `XREDIS_REQUEST_OK`
@@ -53,15 +82,21 @@
 - `XREDIS_REQUEST_SERVER_ERROR`
 - `XREDIS_REQUEST_TIMEOUT`
 
-### 类型 (11)
+### 类型 (17)
 
 - `xredisadmission`
 - `xredisclient`
 - `xredisclientconfig`
 - `xredisclienterror`
 - `xredisclientinfo`
+- `xredisclientinitconfig`
 - `xredisclientstate`
 - `xredisdelivery`
+- `xredisinitmode`
+- `xredisinitstep`
+- `xredisprotocol`
+- `xredisreadyresult`
+- `xredisreadystatus`
 - `xredisreply`
 - `xredisreplyreaderconfig`
 - `xredisrequestresult`
@@ -153,9 +188,8 @@
 - `XREDIS_RESP2`
 - `XREDIS_RESP3`
 
-### 类型 (11)
+### 类型 (10)
 
-- `xredisprotocol`
 - `xredisreadaction`
 - `xredisreader`
 - `xredisreaderconfig`

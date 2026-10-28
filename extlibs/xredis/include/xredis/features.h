@@ -38,6 +38,9 @@
 #ifndef XRT_MODULE_FUTURE
 #define XRT_MODULE_FUTURE
 #endif
+#ifndef XRT_MODULE_NUMBER_INTEGER
+#define XRT_MODULE_NUMBER_INTEGER
+#endif
 #endif
 
 /* xredis_reply 及其直接依赖。 */

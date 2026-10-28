@@ -9,8 +9,8 @@
 
 #if defined(XREDIS_FEATURE_XREDIS_CLIENT) && \
 	(!defined(XREDIS_FEATURE_XREDIS_COMMAND) || !defined(XREDIS_FEATURE_XREDIS_REPLY) || \
-	 !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FUTURE))
-#error "XREDIS_FEATURE_XREDIS_CLIENT requires command, reply, net_tcp and future features"
+	 !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FUTURE) || !defined(XRT_FEATURE_NUMBER_INTEGER))
+#error "XREDIS_FEATURE_XREDIS_CLIENT requires command, reply, net_tcp, future and number_integer features"
 #endif
 
 #if defined(XREDIS_FEATURE_XREDIS_CLIENT)
@@ -23,7 +23,8 @@ typedef enum xredisclientstate {
 typedef enum xredisrequeststatus {
 	XREDIS_REQUEST_OK = 0, XREDIS_REQUEST_SERVER_ERROR, XREDIS_REQUEST_TIMEOUT,
 	XREDIS_REQUEST_CANCELLED, XREDIS_REQUEST_CLOSED, XREDIS_REQUEST_DISCONNECTED,
-	XREDIS_REQUEST_PROTOCOL, XREDIS_REQUEST_LIMIT, XREDIS_REQUEST_MEMORY
+	XREDIS_REQUEST_PROTOCOL, XREDIS_REQUEST_LIMIT, XREDIS_REQUEST_MEMORY,
+	XREDIS_REQUEST_INITIALIZATION
 } xredisrequeststatus;
 
 typedef enum xredisdelivery {
@@ -36,7 +37,8 @@ typedef enum xredisadmission {
 } xredisadmission;
 
 typedef enum xredisclienterror {
-	XREDIS_CLIENT_ARGUMENT = 3001, XREDIS_CLIENT_STATE, XREDIS_CLIENT_COMMAND_MODE
+	XREDIS_CLIENT_ARGUMENT = 3001, XREDIS_CLIENT_STATE, XREDIS_CLIENT_COMMAND_MODE,
+	XREDIS_CLIENT_INITIALIZATION_FAILED
 } xredisclienterror;
 
 /* Every accepted call resolves its Future with this immutable typed outcome,
@@ -72,6 +74,64 @@ typedef struct xredisclientconfig {
 	int64 DrainTimeout;
 } xredisclientconfig;
 
+typedef enum xredisinitmode {
+	XREDIS_INIT_AUTO = 0, XREDIS_INIT_RESP2 = 2, XREDIS_INIT_RESP3 = 3
+} xredisinitmode;
+
+#define XREDIS_INIT_AUTH 0x01u
+#define XREDIS_INIT_USERNAME 0x02u
+#define XREDIS_INIT_SETNAME 0x04u
+#define XREDIS_INIT_SELECT 0x08u
+#define XREDIS_PROTOCOL_UNKNOWN ((xredisprotocol)0)
+
+typedef enum xredisinitstep {
+	XREDIS_INIT_NONE = 0, XREDIS_INIT_HELLO, XREDIS_INIT_AUTHENTICATE,
+	XREDIS_INIT_NAME, XREDIS_INIT_DATABASE, XREDIS_INIT_DONE
+} xredisinitstep;
+
+typedef enum xredisreadystatus {
+	XREDIS_READY_OK = 0, XREDIS_READY_AUTH_FAILED, XREDIS_READY_UNSUPPORTED,
+	XREDIS_READY_SERVER_ERROR, XREDIS_READY_PROTOCOL, XREDIS_READY_TIMEOUT,
+	XREDIS_READY_CLOSED, XREDIS_READY_DISCONNECTED, XREDIS_READY_LIMIT,
+	XREDIS_READY_MEMORY
+} xredisreadystatus;
+
+/* Initialize before use. Views borrow stable readable input only for ConnectInit.
+ * Flags make empty passwords/names and an explicit SELECT 0 unambiguous. With
+ * AUTH but no USERNAME use the default user (legacy AUTH password on RESP2).
+ * Unselected nonempty fields, USERNAME without AUTH, and a nonzero Database
+ * without SELECT are invalid. Server validates client-name/database semantics.
+ * Timeout includes factory encoding, worker wait, TCP setup and all steps.
+ * MaxWireBytes bounds ALL preencoded setup commands, including AUTO fallback.
+ * Default strict RESP3, no optional steps, 5000 ms, 64 KiB. */
+typedef struct xredisclientinitconfig {
+	size_t Size;
+	xredisinitmode Mode;
+	uint32 Flags;
+	xbytesview Username;
+	xbytesview Password;
+	xbytesview Name;
+	uint32 Database;
+	int64 Timeout;
+	size_t MaxWireBytes;
+} xredisclientinitconfig;
+
+/* Borrowed from the readiness Future. Protocol can be UNKNOWN before selection.
+ * Negotiated means a validated HELLO response; legacy RESP2 uses a new server
+ * connection's default. Hello preserves the successful RESP3 map/attributes on
+ * OK only. Error responses are not retained or copied into Cause, since a peer
+ * may echo authentication arguments. Typed status/step survive diagnostic OOM.
+ * Retained readiness outcomes do not keep the client/engine alive. */
+typedef struct xredisreadyresult {
+	xredisreadystatus Status;
+	xredisinitstep Step;
+	xredisprotocol Protocol;
+	bool Negotiated;
+	bool Downgraded;
+	xredisreply* Hello;
+	const xerror* Cause;
+} xredisreadyresult;
+
 typedef struct xredisclientinfo {
 	size_t Size;
 	xredisclientstate State;
@@ -86,10 +146,19 @@ typedef struct xredisclientinfo {
 	uint64 Completed;
 	uint64 DiscardedReplies;
 	xredisrequeststatus CloseStatus;
+	bool Ready;
+	xredisprotocol Protocol;
+	bool Negotiated;
+	bool Downgraded;
+	xredisinitstep InitStep;
+	/* Encoded setup storage still owned, including accepted TCP reference tails;
+	 * zero is published only after the owned wire is wiped and freed. */
+	size_t InitBytes;
 } xredisclientinfo;
 
 XRT_EXTERN_C_BEGIN
 XREDIS_API bool xredisClientConfigInit(xredisclientconfig* Config);
+XREDIS_API bool xredisClientInitConfigInit(xredisclientinitconfig* Init);
 
 /* One TCP connection on an existing running XRT engine, fixed worker affinity.
  * Numeric address only. Config is copied; NULL supplies finite defaults.
@@ -103,6 +172,28 @@ XREDIS_API bool xredisClientConfigInit(xredisclientconfig* Config);
  * modes and unknown module-command cardinality need their own contract. */
 XREDIS_API bool xredisClientConnect(xnetengine* Engine, const xnetaddr* Remote,
 	uint64 Affinity, const xredisclientconfig* Config, xredisclient** Result);
+
+/* Managed setup barrier. NULL Init selects strict RESP3 defaults. HELLO 3 can
+ * combine AUTH/SETNAME; optional SELECT follows its validated reply. AUTO falls
+ * back ONLY on explicit NOPROTO or unknown HELLO errors, then AUTH/name/SELECT.
+ * RESP2 uses legacy AUTH/name/SELECT directly, without requiring HELLO support.
+ * RESP3/AUTO require a RESP3 reader. Business requests may queue with their own
+ * original deadlines, but none is sent until setup succeeds. Setup failure
+ * retires the connection; surviving calls report INITIALIZATION/NOT_SENT.
+ * Options are copied as encoded wire; no credential view is retained. AUTO
+ * preencoding copies auth/name twice; strict modes once. Owned setup bytes are
+ * securely wiped after final ownership release, including error/close paths.
+ * This does not erase caller, peer, OS or lower transport buffers. No implicit
+ * TLS/DNS/reconnect; the application chooses its transport/security policy. */
+XREDIS_API bool xredisClientConnectInit(xnetengine* Engine, const xnetaddr* Remote,
+	uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+	xredisclient** Result);
+
+/* Shared readiness observer, resolved with xredisreadyresult on every terminal
+ * outcome. It does not cancel setup: use Close for connection cancellation.
+ * Raw Connect reports transport readiness with UNKNOWN protocol/no negotiation.
+ * CONNECTING remains until this barrier succeeds; OPEN means Ready. */
+XREDIS_API xfuture* xredisClientReady(xredisclient* Client);
 XREDIS_API bool xredisClientRetain(xredisclient* Client);
 XREDIS_API void xredisClientRelease(xredisclient* Client);
 
@@ -117,7 +208,10 @@ XREDIS_API void xredisClientRelease(xredisclient* Client);
  * Cancellation wins when observed before completion; deadline equality expires.
  * Local completion does not remove a sent request's FIFO/wire obligation.
  * Future watch/continuation notifications execute on XRT completion paths:
- * application callbacks must not block a network worker. */
+ * application callbacks must not block a network worker. Managed connections
+ * reserve HELLO/AUTH/SELECT/CLIENT SETNAME for setup. Raw Connect still permits
+ * explicit controls. Raw AUTH/HELLO command storage is wiped after its final
+ * send/FIFO/cancel owner releases it. */
 XREDIS_API xredisadmission xredisClientCallAsync(xredisclient* Client,
 	const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
 
