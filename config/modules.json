@@ -13536,6 +13536,7 @@
 				"tests/json/test_json_read.c",
 				"tests/json/test_json_read_oom.c",
 				"tests/json/test_json_scan.c",
+				"tests/json/test_json_header.c",
 				"tests/package/test_json_scan_consumer.c"
 			],
 			"single_tests": [
@@ -13628,6 +13629,7 @@
 				"tests/json/test_json_read_oom.c",
 				"tests/json/test_json_write.c",
 				"tests/json/test_json_scan.c",
+				"tests/json/test_json_header.c",
 				"tests/package/test_json_scan_consumer.c",
 				"tests/json/test_json_write_oom.c",
 				"tests/json/test_json_file.c"

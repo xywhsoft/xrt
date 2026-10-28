@@ -2,6 +2,7 @@
 #define XRT_JSON_H
 
 #include <xrt/value.h>
+#include <xrt/error.h>
 
 
 
