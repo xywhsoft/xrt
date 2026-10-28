@@ -1,6 +1,24 @@
 {
-  "schema": 1, "manifest": "extlibs/xrpc/config/modules.json",
-  "default_growth": {"text": 0.1, "data": 0.2, "bss": 0.2, "file": 0.15},
-  "profiles": [{"name": "xrpc_decode", "system": "decode", "suite": "xrpc_decode",
-    "description": "Only envelope decoding and its required public JSON closure"}]
+  "schema": 1,
+  "manifest": "extlibs/xrpc/config/modules.json",
+  "default_growth": {
+    "text": 0.1,
+    "data": 0.2,
+    "bss": 0.2,
+    "file": 0.15
+  },
+  "profiles": [
+    {
+      "name": "xrpc_decode",
+      "system": "decode",
+      "suite": "xrpc_decode",
+      "description": "Only envelope decoding and its required public JSON closure"
+    },
+    {
+      "name": "xrpc_encode",
+      "system": "encode",
+      "suite": "xrpc_encode",
+      "description": "Only bounded envelope encoding and its required public JSON closure"
+    }
+  ]
 }

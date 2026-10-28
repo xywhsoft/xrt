@@ -41,6 +41,30 @@
           }
         }
       ]
+    },
+    {
+      "name": "xrpc_encode",
+      "system": "encode",
+      "description": "Validated atomic JSON-RPC encoding into caller storage; no transports or production parity claim",
+      "benchmarks": [
+        {
+          "name": "xrpc_encode",
+          "source": "extlibs/xrpc/bench/bench_encode.c",
+          "suite": "xrpc_encode,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "messages_per_sec": {
+              "direction": "higher",
+              "unit": "messages/s"
+            }
+          }
+        }
+      ]
     }
   ]
 }

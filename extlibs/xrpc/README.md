@@ -1,7 +1,7 @@
 # xrpc (developing)
 
 Independent pure-C JSON-RPC 2.0 client/server extension using public XRT APIs.
-**Only bounded envelope decoding is currently implemented.** Encoders, dispatch,
+**Bounded envelope decoding and encoding are currently implemented.** Dispatch,
 client/server runtime, bidirectional transport, HTTP/WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
@@ -42,6 +42,41 @@ payload on DONE and preserves ambient error. Caller scratch may be smaller
 than the configured batch cap. Source spans and config must not overlap outputs.
 Cold XRT diagnostics may allocate; an OOM diagnostic becomes a local error.
 
+Select `XRPC_MODULE_XRPC_ENCODE` for `xrpcEncodeSize`/`xrpcEncodeWrite`. Outgoing
+descriptors distinguish calls, notifications, results and errors. Method and
+error message are decoded UTF-8 (including embedded NUL) and are quoted with
+the public XRT JSON writer. Id, params, result, error code and optional data
+are complete raw JSON values: validated once per preflight and copied exactly,
+without numeric conversion. Surrounding JSON whitespace is allowed and retained.
+Size=0 means an absent raw field; explicit null requires the `null` token.
+Required and unused fields are checked, including integer error codes and
+string/number/null ids. Payload duplicate keys retain application policy.
+
+Batch shape is explicit and never inferred from Count. Non-batch requires one
+message; a batch requires at least one and preserves brackets for one message.
+Request batches can mix calls/notifications; response batches contain only
+results/errors. Mixed request/response direction is rejected. The encoder does
+not dispatch handlers or select replies: a runtime must suppress notification
+responses and send nothing when an entire response batch would be empty.
+
+Encode limits apply to the **complete output**, including fixed envelope keys,
+container depth/items and total values across all messages. Config is copied.
+Size and Write independently preflight all inputs; every failure preserves the
+output buffer and size outputs. Inputs must stay alive/unchanged during a call.
+The written range and size output cannot overlap descriptors, config or any
+input span. Success writes exactly the measured bytes, with no terminating NUL,
+allocates nothing and preserves ambient error. Malformed local JSON/UTF-8 is a
+local failure; the encoder never turns it into an automatic protocol response.
+
+Write scans each raw JSON field once before copying it once. Each decoded text
+field passes through XRT quoting in both preflight and emission; each quote
+currently validates UTF-8 then traverses for escaping. Thus Write has four text
+traversals, rather than an unmeasured zero-overhead claim. A separate Size call
+adds its own validation/measurement. Fixed syntax is copied in small segments;
+there is no DOM, payload ownership, descriptor allocation, retained input,
+transport copy or synchronization added by this codec. XRT diagnostic save/
+restore and error reference operations still occur on public JSON API calls.
+
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc_tests --cflag=-O2
 python tools/build.py --compiler gcc --manifest extlibs/xrpc/config/modules.json --suite xrpc --no-single --cflag=-O2
@@ -51,7 +86,7 @@ python tools/package.py --compiler gcc --manifest extlibs/xrpc/config/modules.js
 python tools/measure_performance.py --config extlibs/xrpc/config/performance_profiles.json --smoke
 ```
 
-See [the example](examples/decode/main.c), [API inventory](docs/api/reference.md),
+See the [decode example](examples/decode/main.c), [encode example](examples/encode/main.c), [API inventory](docs/api/reference.md),
 [coverage matrix](docs/coverage.md) and [live progress](../../docs/development/service-extensions-progress.md).
 The product remains developing. A codec smoke is not transport throughput,
 dispatch latency, interoperability or production acceptance.

@@ -10,6 +10,22 @@
 #ifndef XRPC_MODULE_XRPC_DECODE
 #define XRPC_MODULE_XRPC_DECODE
 #endif
+#ifndef XRPC_MODULE_XRPC_ENCODE
+#define XRPC_MODULE_XRPC_ENCODE
+#endif
+#endif
+
+/* xrpc_encode 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_ENCODE)
+#ifndef XRPC_FEATURE_XRPC_ENCODE
+#define XRPC_FEATURE_XRPC_ENCODE
+#endif
+#ifndef XRT_MODULE_JSON_READ
+#define XRT_MODULE_JSON_READ
+#endif
+#ifndef XRT_MODULE_JSON_ESCAPE
+#define XRT_MODULE_JSON_ESCAPE
+#endif
 #endif
 
 /* xrpc_decode 及其直接依赖。 */

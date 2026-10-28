@@ -1,4 +1,5 @@
 #include <xrpc/decode.h>
+#include "../internal/xrpc_json.h"
 #include <xrt/memory.h>
 #include <string.h>
 
@@ -92,32 +93,6 @@ static uint32 xrpcDecodeField(xstrview Name)
 	return 0;
 }
 
-static bool xrpcDecodeIntegral(xstrview Raw)
-{
-	size_t Position = 0, Fraction = 0, Zeros = 0, Exponent = 0;
-	bool Dot = false, Nonzero = false, NegativeExponent = false;
-	while (Position < Raw.Size && Raw.Data[Position] != 'e' && Raw.Data[Position] != 'E') {
-		char Byte = Raw.Data[Position++];
-		if (Byte == '.') Dot = true;
-		else if (Byte != '-') {
-			if (Dot) ++Fraction;
-			if (Byte == '0') ++Zeros; else { Zeros = 0; Nonzero = true; }
-		}
-	}
-	if (!Nonzero) return true;
-	if (Position < Raw.Size) {
-		++Position;
-		if (Raw.Data[Position] == '+' || Raw.Data[Position] == '-') NegativeExponent = Raw.Data[Position++] == '-';
-		while (Position < Raw.Size) {
-			size_t Digit = (size_t)(Raw.Data[Position++] - '0');
-			if (Digit > Raw.Size || Exponent > (Raw.Size - Digit) / 10u) Exponent = Raw.Size;
-			else Exponent = Exponent * 10u + Digit;
-		}
-	}
-	if (NegativeExponent) return Zeros >= Fraction && Zeros - Fraction >= Exponent;
-	return Fraction <= Zeros || Exponent >= Fraction - Zeros;
-}
-
 static bool xrpcDecodeId(xrpcvaluekind Kind)
 {
 	return Kind == XRPC_VALUE_STRING || Kind == XRPC_VALUE_NUMBER || Kind == XRPC_VALUE_NULL;
@@ -149,7 +124,7 @@ static void xrpcDecodeClassify(xrpcdecodecontext* Context, xrpcmessage* Message)
 	else if (Context->Seen & XRPC_F_RESULT) Message->Kind = XRPC_MESSAGE_RESULT;
 	else if (Message->Error.Kind != XRPC_VALUE_OBJECT || Context->ErrorDuplicate ||
 		Message->ErrorCode.Kind != XRPC_VALUE_NUMBER || Message->ErrorMessage.Kind != XRPC_VALUE_STRING ||
-		!xrpcDecodeIntegral(Message->ErrorCode.Raw)) Message->Reason = XRPC_INVALID_ERROR;
+		!xrpcJsonIntegral(Message->ErrorCode.Raw)) Message->Reason = XRPC_INVALID_ERROR;
 	else Message->Kind = XRPC_MESSAGE_ERROR;
 }
 

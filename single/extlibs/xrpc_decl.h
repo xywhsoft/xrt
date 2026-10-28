@@ -36,6 +36,9 @@
 #if !defined(XRPC_FEATURE_XRPC_DECODE)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_DECODE 1
 #endif
+#if !defined(XRPC_FEATURE_XRPC_ENCODE)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_ENCODE 1
+#endif
 #if !defined(XRPC_MODULE_ALL)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_ALL 1
 #endif
@@ -44,6 +47,9 @@
 #endif
 #if !defined(XRPC_MODULE_XRPC_DECODE)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_DECODE 1
+#endif
+#if !defined(XRPC_MODULE_XRPC_ENCODE)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_ENCODE 1
 #endif
 #if !defined(XRT_FEATURE_ARRAY)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_ARRAY 1
@@ -1217,6 +1223,9 @@
 #endif
 #if !defined(XRT_FEATURE_XLON_WRITE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_WRITE 1
+#endif
+#if !defined(XRT_MODULE_JSON_ESCAPE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_ESCAPE 1
 #endif
 #if !defined(XRT_MODULE_JSON_READ)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_READ 1
@@ -2416,6 +2425,22 @@
 #ifndef XRPC_MODULE_XRPC_DECODE
 #define XRPC_MODULE_XRPC_DECODE
 #endif
+#ifndef XRPC_MODULE_XRPC_ENCODE
+#define XRPC_MODULE_XRPC_ENCODE
+#endif
+#endif
+
+/* xrpc_encode 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_ENCODE)
+#ifndef XRPC_FEATURE_XRPC_ENCODE
+#define XRPC_FEATURE_XRPC_ENCODE
+#endif
+#ifndef XRT_MODULE_JSON_READ
+#define XRT_MODULE_JSON_READ
+#endif
+#ifndef XRT_MODULE_JSON_ESCAPE
+#define XRT_MODULE_JSON_ESCAPE
+#endif
 #endif
 
 /* xrpc_decode 及其直接依赖。 */
@@ -2458,17 +2483,13 @@
 
 
 /* ========================================================================== */
-/* public: extlibs/xrpc/include/xrpc/decode.h */
+/* public: extlibs/xrpc/include/xrpc/types.h */
 /* ========================================================================== */
 
-#ifndef XRPC_DECODE_H
-#define XRPC_DECODE_H
+#ifndef XRPC_TYPES_H
+#define XRPC_TYPES_H
 
-#if defined(XRPC_FEATURE_XRPC_DECODE) && !defined(XRT_FEATURE_JSON_READ)
-#error "XRPC_FEATURE_XRPC_DECODE requires XRT_FEATURE_JSON_READ"
-#endif
-
-#if defined(XRPC_FEATURE_XRPC_DECODE)
+#if defined(XRPC_FEATURE_XRPC_DECODE) || defined(XRPC_FEATURE_XRPC_ENCODE)
 
 #define XRPC_ERROR_PARSE (-32700)
 #define XRPC_ERROR_INVALID_REQUEST (-32600)
@@ -2491,6 +2512,28 @@ typedef enum xrpcmessagekind {
 	XRPC_MESSAGE_INVALID = 0, XRPC_MESSAGE_CALL, XRPC_MESSAGE_NOTIFICATION,
 	XRPC_MESSAGE_RESULT, XRPC_MESSAGE_ERROR
 } xrpcmessagekind;
+
+typedef enum xrpccodecerror {
+	XRPC_CODEC_ARGUMENT = 1001, XRPC_CODEC_LIMIT, XRPC_CODEC_CAPACITY,
+	XRPC_CODEC_VALUE
+} xrpccodecerror;
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/decode.h */
+/* ========================================================================== */
+
+#ifndef XRPC_DECODE_H
+#define XRPC_DECODE_H
+
+#if defined(XRPC_FEATURE_XRPC_DECODE) && !defined(XRT_FEATURE_JSON_READ)
+#error "XRPC_FEATURE_XRPC_DECODE requires XRT_FEATURE_JSON_READ"
+#endif
+
+#if defined(XRPC_FEATURE_XRPC_DECODE)
 
 typedef enum xrpcinvalidreason {
 	XRPC_INVALID_NONE = 0, XRPC_INVALID_OBJECT, XRPC_INVALID_EMPTY_BATCH,
@@ -2539,10 +2582,6 @@ typedef enum xrpcdecodestatus {
 	XRPC_DECODE_DONE = 1
 } xrpcdecodestatus;
 
-typedef enum xrpccodecerror {
-	XRPC_CODEC_ARGUMENT = 1001, XRPC_CODEC_LIMIT, XRPC_CODEC_CAPACITY
-} xrpccodecerror;
-
 XRT_EXTERN_C_BEGIN
 
 /* Defaults: duplex, input/string 1 MiB, depth 64, values/items 65536,
@@ -2579,6 +2618,78 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/encode.h */
+/* ========================================================================== */
+
+#ifndef XRPC_ENCODE_H
+#define XRPC_ENCODE_H
+
+#if defined(XRPC_FEATURE_XRPC_ENCODE) && \
+	(!defined(XRT_FEATURE_JSON_READ) || !defined(XRT_FEATURE_JSON_ESCAPE))
+#error "XRPC_FEATURE_XRPC_ENCODE requires JSON read and escape features"
+#endif
+
+#if defined(XRPC_FEATURE_XRPC_ENCODE)
+
+typedef struct xrpcoutgoing {
+	xrpcmessagekind Kind;
+	/* Id/Params/Result/ErrorCode/ErrorData are raw JSON, validated and copied
+	 * unchanged, including optional surrounding JSON whitespace. Size=0 means
+	 * absent. A present null must be the token null. Id: string/number/null;
+	 * Params: array/object; Result/Data: any JSON; ErrorCode: integral number. */
+	xstrview Id, Method, Params, Result, ErrorCode, ErrorMessage, ErrorData;
+	/* Method and ErrorMessage above are decoded UTF-8, quoted by the encoder;
+	 * empty strings and embedded NUL are supported. Fields unused by Kind must
+	 * have Size=0. CALL needs Id; NOTIFICATION forbids Id; RESULT/ERROR need Id.
+	 * ERROR requires ErrorCode, RESULT requires Result. No implicit null/id. */
+} xrpcoutgoing;
+
+typedef struct xrpcencodeconfig {
+	size_t Size;
+	size_t MaxOutputBytes;
+	uint32 MaxDepth;
+	size_t MaxStringBytes, MaxValues, MaxContainerItems, MaxMessages;
+	/* Id includes supplied whitespace; Method is the encoded quoted token. */
+	size_t MaxIdBytes, MaxMethodBytes;
+} xrpcencodeconfig;
+
+XRT_EXTERN_C_BEGIN
+
+/* Defaults: output/string 1 MiB, depth 64, values/items 65536, messages 256,
+ * id/method tokens 4096 bytes. All limits finite/positive, depth<=256. Limits
+ * apply to the complete output, including envelope keys/values and batch. */
+XRPC_API bool xrpcEncodeConfigInit(xrpcencodeconfig* Config);
+
+/* Nonempty vector, Count=1 for a non-batch object. No empty response batch:
+ * callers with no responses send nothing. Batch=true retains array shape even
+ * for one message. CALL/NOTIFICATION can coexist in request batches; response
+ * batches contain RESULT/ERROR only. Mixing requests/responses is rejected.
+ * Config is copied, NULL selects defaults. Inputs borrow caller memory; keep
+ * all inputs alive and unchanged throughout the synchronous caller-thread call.
+ * No callbacks retained, no success allocation or numeric narrowing. Raw JSON
+ * is scanned once; decoded text uses public UTF-8 validation/quoting. Cold
+ * diagnostics can allocate. Errors are local, never generated wire responses.
+ * Success preserves ambient error. All failures leave outputs unchanged.
+ * Size preflights all inputs; Required cannot overlap inputs/config/vector. */
+XRPC_API bool xrpcEncodeSize(const xrpcoutgoing* Messages, size_t Count,
+	bool Batch, const xrpcencodeconfig* Config, size_t* Required);
+
+/* Preflight independently; no trust in a prior Size call. No terminating NUL.
+ * Only measured wire bytes are modified. Their range and optional Written
+ * cannot overlap each other or any input span/config/vector. Capacity must
+ * describe a nonwrapping buffer range. Raw tokens copy once; quoted text is
+ * validated/escaped once while sizing and again while writing. No raw rescan
+ * during emission. Concurrent input mutation violates the input contract. */
+XRPC_API bool xrpcEncodeWrite(ptr Output, size_t Capacity,
+	const xrpcoutgoing* Messages, size_t Count, bool Batch,
+	const xrpcencodeconfig* Config, size_t* Written);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -2586,6 +2697,9 @@ XRT_EXTERN_C_END
 #define XRPC_H
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_DECODE)
 #error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_DECODE"
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_ENCODE)
+#error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_ENCODE"
 #endif
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC)
@@ -2595,6 +2709,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_DECODE)
 #undef XRPC_FEATURE_XRPC_DECODE
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_DECODE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_ENCODE)
+#undef XRPC_FEATURE_XRPC_ENCODE
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_ENCODE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_ALL)
 #undef XRPC_MODULE_ALL
@@ -2607,6 +2725,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_DECODE)
 #undef XRPC_MODULE_XRPC_DECODE
 #undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_DECODE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_ENCODE)
+#undef XRPC_MODULE_XRPC_ENCODE
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_ENCODE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_ARRAY)
 #undef XRT_FEATURE_ARRAY
@@ -4172,6 +4294,10 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_XLON_WRITE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_XLON_WRITE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_ESCAPE)
+#undef XRT_MODULE_JSON_ESCAPE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_ESCAPE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_READ)
 #undef XRT_MODULE_JSON_READ
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_READ
@@ -4198,6 +4324,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRPC_MODULE_XRPC_DECODE
 #define XRPC_MODULE_XRPC_DECODE
+#endif
+#ifndef XRPC_MODULE_XRPC_ENCODE
+#define XRPC_MODULE_XRPC_ENCODE
+#endif
+#endif
+
+/* xrpc_encode 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_ENCODE)
+#ifndef XRPC_FEATURE_XRPC_ENCODE
+#define XRPC_FEATURE_XRPC_ENCODE
+#endif
+#ifndef XRT_MODULE_JSON_READ
+#define XRT_MODULE_JSON_READ
+#endif
+#ifndef XRT_MODULE_JSON_ESCAPE
+#define XRT_MODULE_JSON_ESCAPE
 #endif
 #endif
 

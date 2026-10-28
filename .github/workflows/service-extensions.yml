@@ -55,6 +55,9 @@ jobs:
           python tools/amalgamate.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
           python tools/generate_api_reference.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
           python tools/check_api_docs.py --manifest extlibs/${{ matrix.product }}/config/modules.json
+      - name: Build asset and public API inventory regression
+        if: matrix.product == 'xredis'
+        run: python -m unittest tools.test_build.AggregateAssetTest tools.test_api_docs tools.test_api_reference tools.test_extension_layout
       - name: Shared JSON scanner and reader regression
         if: matrix.product == 'xredis'
         run: |
@@ -115,6 +118,9 @@ jobs:
           python tools/amalgamate.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
           python tools/generate_api_reference.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
           python tools/check_api_docs.py --manifest extlibs/${{ matrix.product }}/config/modules.json
+      - name: Build asset and public API inventory regression
+        if: matrix.product == 'xredis'
+        run: python -m unittest tools.test_build.AggregateAssetTest tools.test_api_docs tools.test_api_reference tools.test_extension_layout
       - name: Shared JSON scanner and reader regression
         if: matrix.product == 'xredis'
         run: |

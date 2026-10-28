@@ -219,6 +219,19 @@ class FeatureAllExclusionTest(unittest.TestCase):
 class AggregateAssetTest(unittest.TestCase):
 	"""验证产品测试聚合不会把核心或其他扩展的资产误纳入。"""
 
+	def test_service_product_commands_actually_select_documented_examples(self) -> None:
+		"""A passing empty root suite must not masquerade as example execution."""
+
+		for product in ("xredis", "xcron", "xrpc"):
+			manifest = xrt_build.ROOT / "extlibs" / product / "config/modules.json"
+			expected = {path.relative_to(xrt_build.ROOT).as_posix()
+				for path in (manifest.parent.parent / "examples").rglob("main.c")}
+			self.assertTrue(expected)
+			for platform in ("windows", "linux"):
+				with self.subTest(product=product, platform=platform):
+					_, _, _, examples, *_ = xrt_build._load_modules(product, [manifest], platform=platform)
+					self.assertEqual(set(examples), expected)
+
 	def test_collects_only_same_product_dependency_assets(self) -> None:
 		"""聚合节点应收集闭包内同前缀模块，并保留显式根资产。"""
 

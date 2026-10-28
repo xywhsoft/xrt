@@ -26,6 +26,13 @@
         "source_roots": [
           "decode"
         ]
+      },
+      {
+        "name": "encode",
+        "state": "retained",
+        "source_roots": [
+          "encode"
+        ]
       }
     ]
   },
@@ -43,7 +50,8 @@
     "extlibs/xrpc/include"
   ],
   "header_roots": [
-    "extlibs/xrpc/include"
+    "extlibs/xrpc/include",
+    "extlibs/xrpc/src/internal"
   ],
   "umbrella_header": "xrpc.h",
   "modules": [
@@ -52,7 +60,8 @@
       "state": "developing",
       "feature": "XRPC_FEATURE_XRPC",
       "depends": [
-        "xrpc_decode"
+        "xrpc_decode",
+        "xrpc_encode"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc.h",
@@ -66,6 +75,9 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xrpc/README.md"
+      ],
+      "collect_dependency_assets": [
+        "examples"
       ]
     },
     {
@@ -77,9 +89,12 @@
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc/decode.h",
-        "extlibs/xrpc/include/xrpc/export.h"
+        "extlibs/xrpc/include/xrpc/export.h",
+        "extlibs/xrpc/include/xrpc/types.h"
       ],
-      "internal_headers": [],
+      "internal_headers": [
+        "extlibs/xrpc/src/internal/xrpc_json.h"
+      ],
       "sources": [
         "extlibs/xrpc/src/decode/decode.c"
       ],
@@ -102,6 +117,43 @@
       ]
     },
     {
+      "name": "xrpc_encode",
+      "state": "implemented",
+      "feature": "XRPC_FEATURE_XRPC_ENCODE",
+      "depends": [
+        "json_read",
+        "json_escape"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/encode.h",
+        "extlibs/xrpc/include/xrpc/export.h",
+        "extlibs/xrpc/include/xrpc/types.h"
+      ],
+      "internal_headers": [
+        "extlibs/xrpc/src/internal/xrpc_json.h"
+      ],
+      "sources": [
+        "extlibs/xrpc/src/encode/encode.c"
+      ],
+      "tests": [
+        "extlibs/xrpc/tests/test_encode.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_encode.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/encode/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_encode.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/README.md",
+        "extlibs/xrpc/docs/api/reference.md",
+        "extlibs/xrpc/docs/coverage.md"
+      ]
+    },
+    {
       "name": "xrpc_tests",
       "state": "implemented",
       "feature": null,
@@ -113,10 +165,12 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
-        "extlibs/xrpc/tests/test_decode.c"
+        "extlibs/xrpc/tests/test_decode.c",
+        "extlibs/xrpc/tests/test_encode.c"
       ],
       "single_tests": [
-        "extlibs/xrpc/tests/single/test_single_xrpc_decode.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_encode.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -124,7 +178,8 @@
         "extlibs/xrpc/README.md"
       ],
       "single_test_owners": {
-        "extlibs/xrpc/tests/single/test_single_xrpc_decode.c": "xrpc_decode"
+        "extlibs/xrpc/tests/single/test_single_xrpc_decode.c": "xrpc_decode",
+        "extlibs/xrpc/tests/single/test_single_xrpc_encode.c": "xrpc_encode"
       }
     }
   ]

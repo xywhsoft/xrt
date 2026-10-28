@@ -12,8 +12,8 @@ Target and rules: [development contract](service-extensions-plan.md).
   Calendar search, named time zones and scheduling remain pending.
 - P1 continues with independently testable RPC/MQTT protocol leaves.
 - The xrpc prototype exposed a JSON lexical-scan gap. The shared parser now has
-  a locally verified raw Scan API. RPC envelope decoding is locally verified;
-  encoding, correlation, dispatch and transports remain pending.
+  a locally verified raw Scan API. RPC envelope decoding and encoding are locally
+  verified; correlation, dispatch and transports remain pending.
 - Primary checkout changes remain outside this branch.
 
 ## Baseline checks
@@ -35,12 +35,14 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | common | development/acceptance contract and isolated branch | complete | this document, development contract and baseline checks |
 | common | independent API export inventory | complete | `36ea6bc8`, API/reference tooling tests |
 | common | types-only public API header inventory | complete | shared public typedef/enum headers are included without an export function; comment-only exports/selectors stay excluded; 17 focused tooling tests pass |
+| common | actual product-root example selection | locally verified | xredis/xcron/xrpc collect their leaf examples; root commands actually compile/run them on Windows and Ubuntu/WSL; build/API/workload tooling 67 tests pass |
 | common | raw JSON scan needed by xrpc | locally verified | exact borrowed scalar/key/container spans, lexical numbers, 10,000 zero-heap scans, limits/Unicode/control/OOM, Windows/WSL modular/single/shared-reader regression and external static/shared consumers; performance comparison remains unaccepted |
 | xredis | binary command size/write | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL O2 ASan+UBSan modular/single/static/shared; 10,000 randomized commands, overflow/aliasing, hot-path allocation counters, diagnostic OOM |
 | xredis | incremental RESP2/3 event reader | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/single/example/trim/static/shared; all canonical split points, event pauses, 10,000 random arrays, 20,000 mutation pairs, limits, reentry, OOM and lifecycle quota |
 | xredis | runtime, pools, HA, tracking | pending | no claim |
 | xrpc | bounded JSON-RPC 2.0 envelope decode | locally verified | Windows modular/single/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, example/trim/static/shared; mixed batch/role/lossless-ID/duplicate/error/limits/OOM and deterministic property/mutation tests |
-| xrpc | encode, correlation, dispatch, runtime, transports | pending | no claim |
+| xrpc | bounded atomic JSON-RPC 2.0 envelope encode | locally verified | Windows modular/single/examples/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, examples/trim/static/shared; 10,000 independent wire properties, 500 complete-document resource oracles, 10,000 mutated raw inputs, zero-heap/OOM/aliases/atomicity |
+| xrpc | correlation, dispatch, runtime, transports | pending | no claim |
 | xmqtt | MQTT 5.0/3.1.1, sessions, persistence, transports | pending | no claim |
 | xcron | bounded immutable expression compiler | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct single, example/trim/static/shared; 111,630 range/step combinations, 10,000 generated expressions, 20,000 raw inputs, alias/offset/atomicity/allocation/OOM tests |
 | xcron | calendar, time zones, scheduler, recovery | pending | no claim |
@@ -255,4 +257,64 @@ product `xrpc` example/trim/static/shared package consumers, the sanitizer flags
 above, and `extlibs/xrpc/tests/single/test_single_xrpc_decode.c`. Ignored
 `rpc-decode-*` logs/reports are under `out/service-extensions/`.
 [Decoder contracts](../../extlibs/xrpc/docs/coverage.md) describe scratch lifetime,
-parse/local-error separation and deliberately pending encoder/runtime behavior.
+parse/local-error separation and deliberately pending runtime behavior.
+
+## RPC envelope encode validation
+
+- Separate `xrpc_encode` leaf provides Size/Write for calls, notifications,
+  results, errors and explicit nonempty batches. Required/unused fields and
+  batch direction are checked. Null is explicit; absent raw values use Size=0.
+  Methods/error messages are decoded UTF-8 and are quoted with public XRT APIs.
+  Raw identifiers, payloads, integer codes and their supplied whitespace are
+  validated and retained without numeric narrowing. Standard error codes do not
+  limit application codes to a native integer range.
+- Config limits cover the complete encoded document: envelope keys/values,
+  batch arrays, embedded depth, direct items, aggregate values, bytes, messages,
+  id size and quoted method size. Exact-boundary fixtures and 500 randomized
+  comparisons against a complete-output JSON scan verify the accounting.
+- Both Size and Write preflight independently. Inputs stay borrowed/unchanged
+  during the call. Output sizes and wire bytes are unchanged on every failure;
+  vector/config/live-view/output aliases, malformed/trailing JSON, UTF-8,
+  invalid field types, nonintegral codes and late batch failure are covered.
+  Write emits no NUL. Zero-response batches are the runtime's responsibility:
+  it must send nothing, and valid notifications must never receive replies.
+- Ten thousand deterministic generated batches match an independent byte quote
+  and wire oracle; modular tests also decode and classify the resulting messages.
+  Ten thousand raw/mutated local values preserve output atomicity on rejection.
+  Ten thousand Size+Write repetitions preserve allocation counters and ambient
+  error identity. Valid output succeeds under a one-byte quota; diagnostic OOM
+  leaves outputs unchanged and budget live bytes return to zero.
+- Raw fields are grammar-scanned once per preflight and copied once per Write.
+  Public quote currently validates UTF-8 then traverses for escaping, called in
+  both preflight and emission: four traversals of each decoded text field per
+  Write. Calling Size first adds its own preflight. Fixed syntax has small segment
+  copies; public JSON calls still save/restore diagnostic references. No DOM,
+  owned payload, heap scratch or new shared runtime is introduced. This is an
+  explicit cost description, not a claim of zero bridge/transport overhead.
+- Windows GCC O2 modular/single tests and Ubuntu/WSL O2 ASan+UBSan modular and
+  direct encode single tests pass. Both systems pass root/leaf trim, actual
+  examples and independent static/shared consumers that round-trip a huge id.
+  The shared exact-decimal helper's decoder tests also pass after extraction.
+- Generated files/API/maturity checks pass; inventory is 5 functions / 43
+  constants / 12 types, missing=0. Strict release correctly rejects the developing
+  product root. Windows and Ubuntu/WSL decode/encode workload smoke passes
+  (one unpinned sample each); no baseline, tail latency or production parity is
+  inferred. Build/API/workload tooling tests pass 67 cases.
+
+The root example command originally selected an empty examples list and could
+report pass without compiling/running examples. Roots now explicitly collect
+same-product dependency examples, and a regression checks that the documented
+commands select every current example on both systems. All xredis, xcron and
+xrpc examples have now actually run on Windows and Ubuntu/WSL. CI runs that
+selection/API regression on each OS; remote Actions execution is not claimed.
+
+Reproduce with suite `xrpc_tests --cflag=-O2`; Ubuntu/WSL modular tests add
+`--no-single --cflag=-fsanitize=address,undefined
+--cflag=-fno-omit-frame-pointer --ldflag=-fsanitize=address,undefined`.
+Direct single uses `extlibs/xrpc/tests/single/test_single_xrpc_encode.c`, strict
+C11 warnings, the same sanitizer flags, `-pthread -lm`, and the current generated
+headers. Product-root `xrpc --no-single` now compiles/runs both real examples.
+Packaging uses `xrpc --kind static/shared --verify`; workload uses the extension
+performance config with `--smoke --repeats 1`. Ignored `rpc-encode-*` evidence,
+including the three products' actual example runs, is under
+`out/service-extensions/`. See [codec contracts](../../extlibs/xrpc/docs/coverage.md).

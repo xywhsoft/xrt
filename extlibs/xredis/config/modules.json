@@ -74,7 +74,10 @@
         "extlibs/xredis/README.md"
       ],
       "name": "xredis",
-      "feature": "XREDIS_FEATURE_XREDIS"
+      "feature": "XREDIS_FEATURE_XREDIS",
+      "collect_dependency_assets": [
+        "examples"
+      ]
     },
     {
       "state": "implemented",

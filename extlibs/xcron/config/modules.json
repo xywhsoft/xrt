@@ -40,6 +40,7 @@
       "state": "developing",
       "feature": "XCRON_FEATURE_XCRON",
       "depends": ["xcron_expression"],
+      "collect_dependency_assets": ["examples"],
       "public_headers": ["extlibs/xcron/include/xcron.h", "extlibs/xcron/include/xcron/features.h"],
       "internal_headers": [], "sources": [], "tests": [], "single_tests": [], "examples": [], "benchmarks": [],
       "docs": ["extlibs/xcron/README.md"]

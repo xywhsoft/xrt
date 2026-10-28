@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `2` 个函数、`41` 个常量或宏、
-`10` 个公共类型。
+当前登记 `5` 个函数、`43` 个常量或宏、
+`12` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/decode.h`
 
@@ -16,22 +16,14 @@
 - `xrpcDecode`
 - `xrpcDecodeConfigInit`
 
-### 常量与宏 (39)
+### 常量与宏 (18)
 
-- `XRPC_CODEC_ARGUMENT`
-- `XRPC_CODEC_CAPACITY`
-- `XRPC_CODEC_LIMIT`
 - `XRPC_DECODE_DONE`
 - `XRPC_DECODE_DUPLEX`
 - `XRPC_DECODE_LOCAL_ERROR`
 - `XRPC_DECODE_PARSE_ERROR`
 - `XRPC_DECODE_REQUESTS`
 - `XRPC_DECODE_RESPONSES`
-- `XRPC_ERROR_INTERNAL`
-- `XRPC_ERROR_INVALID_PARAMS`
-- `XRPC_ERROR_INVALID_REQUEST`
-- `XRPC_ERROR_METHOD_NOT_FOUND`
-- `XRPC_ERROR_PARSE`
 - `XRPC_FEATURE_XRPC_DECODE`
 - `XRPC_INVALID_AMBIGUOUS`
 - `XRPC_INVALID_DUPLICATE`
@@ -44,6 +36,61 @@
 - `XRPC_INVALID_PARAMS`
 - `XRPC_INVALID_RESPONSE`
 - `XRPC_INVALID_VERSION`
+
+### 类型 (8)
+
+- `xrpcdecodeconfig`
+- `xrpcdecodemode`
+- `xrpcdecodestatus`
+- `xrpcdocument`
+- `xrpcinvalidreason`
+- `xrpcmessage`
+- `xrpcmessagekind`
+- `xrpcvalue`
+
+## `extlibs/xrpc/include/xrpc/encode.h`
+
+[查看带契约注释的公共头](../../include/xrpc/encode.h)
+
+### 函数 (3)
+
+- `xrpcEncodeConfigInit`
+- `xrpcEncodeSize`
+- `xrpcEncodeWrite`
+
+### 常量与宏 (1)
+
+- `XRPC_FEATURE_XRPC_ENCODE`
+
+### 类型 (2)
+
+- `xrpcencodeconfig`
+- `xrpcoutgoing`
+
+## `extlibs/xrpc/include/xrpc/export.h`
+
+[查看带契约注释的公共头](../../include/xrpc/export.h)
+
+### 常量与宏 (2)
+
+- `XRPC_BUILD_SHARED`
+- `XRPC_USE_SHARED`
+
+## `extlibs/xrpc/include/xrpc/types.h`
+
+[查看带契约注释的公共头](../../include/xrpc/types.h)
+
+### 常量与宏 (22)
+
+- `XRPC_CODEC_ARGUMENT`
+- `XRPC_CODEC_CAPACITY`
+- `XRPC_CODEC_LIMIT`
+- `XRPC_CODEC_VALUE`
+- `XRPC_ERROR_INTERNAL`
+- `XRPC_ERROR_INVALID_PARAMS`
+- `XRPC_ERROR_INVALID_REQUEST`
+- `XRPC_ERROR_METHOD_NOT_FOUND`
+- `XRPC_ERROR_PARSE`
 - `XRPC_MESSAGE_CALL`
 - `XRPC_MESSAGE_ERROR`
 - `XRPC_MESSAGE_INVALID`
@@ -58,24 +105,7 @@
 - `XRPC_VALUE_OBJECT`
 - `XRPC_VALUE_STRING`
 
-### 类型 (10)
+### 类型 (2)
 
 - `xrpccodecerror`
-- `xrpcdecodeconfig`
-- `xrpcdecodemode`
-- `xrpcdecodestatus`
-- `xrpcdocument`
-- `xrpcinvalidreason`
-- `xrpcmessage`
-- `xrpcmessagekind`
-- `xrpcvalue`
 - `xrpcvaluekind`
-
-## `extlibs/xrpc/include/xrpc/export.h`
-
-[查看带契约注释的公共头](../../include/xrpc/export.h)
-
-### 常量与宏 (2)
-
-- `XRPC_BUILD_SHARED`
-- `XRPC_USE_SHARED`
