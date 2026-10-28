@@ -202,6 +202,29 @@ static xwsstream* testSingleWsAttach(
 
 	xrtWsStreamConfigInit(&Config);
 	Config.Role = pEndpoint->Role;
+	#if defined(TEST_SINGLE_WS_BUFFERED)
+		xnetbuf Initial={0};
+		uint8 Head=0x89; /* Server Ping header split after its first byte. */
+		if (pEndpoint->Role == XWS_ROLE_CLIENT) {
+			if (!xrtNetBufAppend(&Initial,&Head,1)) return NULL;
+			xwsstreamconfig Bad=Config;Bad.SendLimit=0;
+			if (xrtWsStreamAttachBuffered(pStream,&Initial,&Bad,
+				&pEndpoint->Test->Events,pEndpoint) || Initial.Size != 1) {
+				xrtNetBufClear(&Initial);testSingleWsFail(pEndpoint->Test);return NULL;
+			}
+			xrtClearError();
+		}
+		xwsstream* Result=xrtWsStreamAttachBuffered(pStream,&Initial,&Config,
+			&pEndpoint->Test->Events,pEndpoint);
+		if (!Result) {xrtNetBufClear(&Initial);return NULL;}
+		if (Initial.Size != 0) {testSingleWsFail(pEndpoint->Test);return Result;}
+		if (pEndpoint->Role == XWS_ROLE_SERVER) {
+			uint8 Tail=0;
+			if (xrtNetStreamSend(pStream,&Tail,1) != XNET_RESULT_OK)
+				testSingleWsFail(pEndpoint->Test);
+		}
+		return Result;
+	#else
 	return xrtWsStreamAttach(
 		pStream,
 		0,
@@ -209,6 +232,7 @@ static xwsstream* testSingleWsAttach(
 		&pEndpoint->Test->Events,
 		pEndpoint
 	);
+	#endif
 }
 
 

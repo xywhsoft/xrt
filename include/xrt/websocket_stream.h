@@ -202,6 +202,18 @@ XRT_API xwsstream* xrtWsStreamAttach(
 	ptr pData
 );
 
+/* Attach after an HTTP reader has already consumed the Upgrade header.
+ * Initial is an exclusive, owned buffer, delivered before transport input.
+ * Success consumes its blocks; failure leaves it intact. No payload copy or
+ * allocation is introduced for this handoff. Call on the transport Worker. */
+XRT_API xwsstream* xrtWsStreamAttachBuffered(
+	xnetstream* pTransport,
+	xnetbuf* pInitial,
+	const xwsstreamconfig* pConfig,
+	const xwsstreamevents* pEvents,
+	ptr pData
+);
+
 
 
 #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
@@ -213,6 +225,14 @@ XRT_API xwsstream* xrtWsStreamAttach(
 XRT_API xwsstream* xrtWsStreamAttachTls(
 	xtlsstream* pTransport,
 	size_t iPrefix,
+	const xwsstreamconfig* pConfig,
+	const xwsstreamevents* pEvents,
+	ptr pData
+);
+
+XRT_API xwsstream* xrtWsStreamAttachTlsBuffered(
+	xtlsstream* pTransport,
+	xnetbuf* pInitial,
 	const xwsstreamconfig* pConfig,
 	const xwsstreamevents* pEvents,
 	ptr pData

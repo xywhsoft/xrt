@@ -400,6 +400,7 @@ static void __xrtWsStreamFree(xwsstream* pConnection)
 		return;
 	}
 	__xrtWsStreamOutputClear(pConnection);
+	xrtNetBufClear(&pConnection->Initial);
 	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_DEFLATE)
 		xrtWsInflaterDestroy(pConnection->Inflater);
 		xrtWsDeflaterDestroy(pConnection->Deflater);
@@ -1482,7 +1483,7 @@ static bool __xrtWsStreamOutputDrive(xwsstream* pConnection)
 
 
 /* 返回当前 TCP 或 TLS 明文接收链。 */
-static const xnetbuf* __xrtWsStreamBuffer(xwsstream* pConnection)
+static const xnetbuf* __xrtWsStreamTransportBuffer(xwsstream* pConnection)
 {
 	ptr pTransport = xrtAtomicPtrLoad(
 		&pConnection->Transport,
@@ -1503,6 +1504,26 @@ static const xnetbuf* __xrtWsStreamBuffer(xwsstream* pConnection)
 	return xrtNetStreamBuffer((xnetstream*)pTransport);
 }
 
+static const xnetbuf* __xrtWsStreamBuffer(xwsstream* pConnection)
+{
+	return pConnection->Initial.Size != 0 ? &pConnection->Initial :
+		__xrtWsStreamTransportBuffer(pConnection);
+}
+
+/* Only a frame header can straddle the owned prefix and the transport. Copy
+ * at most fourteen bytes; payload still uses the original block chain. */
+static size_t __xrtWsStreamHeaderPeek(xwsstream* pConnection,
+	void* pOutput, size_t iSize)
+{
+	size_t iCopied = xrtNetBufPeek(&pConnection->Initial, 0, pOutput, iSize);
+	const xnetbuf* pTransport = __xrtWsStreamTransportBuffer(pConnection);
+	if ((iCopied < iSize) && pTransport) {
+		iCopied += xrtNetBufPeek(pTransport, 0,
+			(bytes)pOutput + iCopied, iSize - iCopied);
+	}
+	return iCopied;
+}
+
 
 
 /* 精确消费 TCP 或 TLS 明文，并保持各自恢复读取的内部契约。 */
@@ -1511,6 +1532,12 @@ static bool __xrtWsStreamConsume(
 	size_t iSize
 )
 {
+	size_t iInitial = iSize < pConnection->Initial.Size ?
+		iSize : pConnection->Initial.Size;
+	if (iInitial != 0 &&
+		xrtNetBufConsume(&pConnection->Initial, iInitial) != iInitial) return false;
+	iSize -= iInitial;
+	if (iSize == 0) return true;
 	ptr pTransport = xrtAtomicPtrLoad(
 		&pConnection->Transport,
 		XMEMORY_ACQUIRE
@@ -1926,31 +1953,16 @@ static bool __xrtWsStreamFrameEnd(xwsstream* pConnection)
 /* 解析一个完整帧头并建立消息层语义状态。 */
 static int __xrtWsStreamFrameBegin(xwsstream* pConnection)
 {
-	const xnetbuf* pBuffer = __xrtWsStreamBuffer(pConnection);
 	xwsframeconfig Config;
 	xwsframeerrorinfo FrameError;
 	xwsmessageerrorinfo MessageError;
 	uint8 Header[XWS_FRAME_HEAD_MAX];
-	size_t iAvailable;
 	size_t iHeader;
 	xwsframestatus Status;
 
-	if ( pBuffer == NULL ) {
-		return -1;
-	}
-	iAvailable = xrtNetBufSize(pBuffer);
-	if ( iAvailable == 0 ) {
+	iHeader = __xrtWsStreamHeaderPeek(pConnection, Header, sizeof(Header));
+	if ( iHeader == 0 ) {
 		return 0;
-	}
-	iHeader = iAvailable < sizeof(Header) ?
-		iAvailable : sizeof(Header);
-	if ( xrtNetBufPeek(
-		pBuffer,
-		0,
-		Header,
-		iHeader
-	) != iHeader ) {
-		return -1;
 	}
 	xrtWsFrameConfigInit(&Config);
 	Config.MaxPayload = pConnection->Config.FrameLimit;
@@ -3311,6 +3323,61 @@ XRT_API xwsstream* xrtWsStreamAttachTls(
 
 
 /* 增加 Connection 引用。 */
+/* Validate the external prefix before changing transport callbacks. Moving
+ * blocks needs no allocation; rollback has an exclusive, empty destination. */
+static bool __xrtWsStreamInitialTake(xnetbuf* pInitial,
+	const xnetbuf* pTransport, xnetbuf* pDraft)
+{
+	if (!pInitial || pInitial == pTransport ||
+		!__xrtRangeValid(pInitial, sizeof(*pInitial))) {
+		__xrtErrorSetInvalidArgument();return false;
+	}
+	for (const xnetblock* pBlock=pInitial->Head;pBlock;pBlock=pBlock->Next) {
+		if (pBlock->Class == XRT_NET_BLOCK_FILE) {
+			__xrtErrorSetInvalidArgument();return false;
+		}
+	}
+	return xrtNetBufMove(pDraft, pInitial);
+}
+
+XRT_API xwsstream* xrtWsStreamAttachBuffered(xnetstream* pTransport,
+	xnetbuf* pInitial, const xwsstreamconfig* pConfig,
+	const xwsstreamevents* pEvents, ptr pData)
+{
+	if (!pTransport || !xrtNetWorkerIsCurrent(xrtNetStreamWorker(pTransport))) {
+		__xrtErrorSetInvalidState();return NULL;
+	}
+	xnetbuf Draft={0};
+	if (!__xrtWsStreamInitialTake(pInitial,xrtNetStreamBuffer(pTransport),&Draft)) return NULL;
+	xwsstream* pConnection=xrtWsStreamAttach(pTransport,0,pConfig,pEvents,pData);
+	if (!pConnection) {
+		if (!xrtNetBufMove(pInitial,&Draft)) abort();
+		return NULL;
+	}
+	pConnection->Initial=Draft;
+	return pConnection;
+}
+
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
+XRT_API xwsstream* xrtWsStreamAttachTlsBuffered(xtlsstream* pTransport,
+	xnetbuf* pInitial, const xwsstreamconfig* pConfig,
+	const xwsstreamevents* pEvents, ptr pData)
+{
+	if (!pTransport || !xrtNetWorkerIsCurrent(xrtTlsStreamWorker(pTransport))) {
+		__xrtErrorSetInvalidState();return NULL;
+	}
+	xnetbuf Draft={0};
+	if (!__xrtWsStreamInitialTake(pInitial,xrtTlsStreamBuffer(pTransport),&Draft)) return NULL;
+	xwsstream* pConnection=xrtWsStreamAttachTls(pTransport,0,pConfig,pEvents,pData);
+	if (!pConnection) {
+		if (!xrtNetBufMove(pInitial,&Draft)) abort();
+		return NULL;
+	}
+	pConnection->Initial=Draft;
+	return pConnection;
+}
+#endif
+
 XRT_API xwsstream* xrtWsStreamRef(xwsstream* pConnection)
 {
 	if ( pConnection == NULL ) {

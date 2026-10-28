@@ -6,6 +6,12 @@ permessage-deflate，但不包含 Future、协程、重连、心跳调度、连�
 
 完整公共符号清单见 [WebSocket API 参考](websocket-reference.md)。
 
+HTTP 读取器已经消费 Upgrade 头时，可在所属 Worker 上使用
+`xrtWsStreamAttachBuffered`／`xrtWsStreamAttachTlsBuffered`，把拥有的
+`xnetbuf` 余量放在实时传输输入之前。成功转交块链，失败保持来源；
+跨两种来源的帧头最多复制 14 字节，负载继续使用原块链。来源必须独占，
+不能是传输自身的接收缓冲，也不能包含文件区间。
+
 ## 类型与常量
 
 ### `xwsopcode`

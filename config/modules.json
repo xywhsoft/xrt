@@ -2011,7 +2011,8 @@
 				"tests/websocket/test_stream_invalid.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_websocket_stream.c"
+				"tests/single/test_single_websocket_stream.c",
+				"tests/single/test_single_websocket_buffered.c"
 			],
 			"examples": [
 				"examples/websocket/stream_tour/main.c"

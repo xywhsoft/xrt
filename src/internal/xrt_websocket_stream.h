@@ -166,6 +166,8 @@ struct xwsstream {
 	xstrview Protocol;
 	xwsstreamevents Events;
 	ptr Data;
+	/* Owned HTTP read-ahead, drained before the live transport. */
+	xnetbuf Initial;
 	xwsmessagestate Message;
 	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_DEFLATE)
 		xwsinflater* Inflater;
