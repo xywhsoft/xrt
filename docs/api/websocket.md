@@ -5139,3 +5139,6 @@ xtlsstream* xrtWsStreamTlsRef(const xwsstream* pStream)
 `tests/websocket/` 覆盖固定向量、分块矩阵、属性测试、no-allocation、OOM、协议模糊测试，以及
 真实 Select 回环上的 `ws`/`wss` Upgrade。集成测试会拆分 TLS Header 和一字节帧头，并验证压缩
 发送、解压接收和完整 Close。`examples/websocket/` 不依赖高级连接对象。
+
+xrtWsStreamWriteLimit 返回扣除控制预留的永久预算；xrtWsStreamSendSize
+以与发送相同的帧头、掩码和 TLS 开销计算所需预算，供非阻塞等待使用。

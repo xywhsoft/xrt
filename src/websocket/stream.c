@@ -578,6 +578,12 @@ static size_t __xrtWsStreamCapacity(
 
 
 /* 前置声明供公开普通数据可写查询复用同一容量口径。 */
+XRT_API size_t xrtWsStreamWriteLimit(const xwsstream* s)
+{
+    if(!s||!__xrtWsStreamCheck(s,"query-websocket-write-limit"))return 0;
+    return __xrtWsStreamCapacity(s,__XRT_WS_SEND_DATA);
+}
+
 static size_t __xrtWsStreamAvailable(
 	const xwsstream* pConnection,
 	__xrt_ws_send_class Class
@@ -828,6 +834,18 @@ static bool __xrtWsStreamFrameSize(
 }
 
 
+
+XRT_API bool xrtWsStreamSendSize(const xwsstream* s,size_t payload,size_t* required)
+{
+    if(!s||!required){__xrtErrorSetInvalidArgument();return false;}
+    if(!__xrtWsStreamCheck(s,"query-websocket-send-size"))return false;
+    size_t frame,transport;
+    if(!__xrtWsStreamFrameSize(s,payload,&frame)||
+       !__xrtWsStreamTransportSize(s,frame,&transport)){
+        __xrtErrorSetRange();return false;
+    }
+    *required=transport;return true;
+}
 
 /* 在分配前统一检查帧上限、永久容量和瞬时预算。 */
 xnetresult __xrtWsStreamFrameBudget(

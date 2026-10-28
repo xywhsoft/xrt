@@ -223,7 +223,7 @@
 
 [查看带契约注释的公共头](../../include/xrt/websocket_stream.h)
 
-### 函数 (49)
+### 函数 (51)
 
 - `xrtWsStreamAbort`
 - `xrtWsStreamAttach`
@@ -257,6 +257,7 @@
 - `xrtWsStreamRole`
 - `xrtWsStreamRuntimeOwnershipV1Get`
 - `xrtWsStreamSend`
+- `xrtWsStreamSendSize`
 - `xrtWsStreamSendBytes`
 - `xrtWsStreamSendCompressed`
 - `xrtWsStreamSendRef`
@@ -274,6 +275,7 @@
 - `xrtWsStreamTlsRef`
 - `xrtWsStreamWorker`
 - `xrtWsStreamWritable`
+- `xrtWsStreamWriteLimit`
 
 
 ## `include/xrt/websocket_upgrade.h`

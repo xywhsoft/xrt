@@ -343,6 +343,13 @@ XRT_API size_t xrtWsStreamPending(const xwsstream* pStream);
 /* 返回普通数据当前仍可受理的硬预算快照。 */
 XRT_API size_t xrtWsStreamWritable(const xwsstream* pStream);
 
+/* Permanent ordinary-data budget after control reserve, including the TCP
+ * hard limit. SendSize uses the same framing/masking/TLS budget calculation
+ * as Send, so callers can await sufficient capacity without guessing it. */
+XRT_API size_t xrtWsStreamWriteLimit(const xwsstream* pStream);
+XRT_API bool xrtWsStreamSendSize(const xwsstream* pStream, size_t iPayload,
+	size_t* pRequired);
+
 
 
 /* 在当前消息分块结束后暂停应用数据事件。 */

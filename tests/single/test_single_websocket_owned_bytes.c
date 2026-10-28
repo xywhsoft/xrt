@@ -4,6 +4,8 @@
 
 static xnetresult testOwnedBytesText(xwsstream* s,xstrview text)
 {
+    size_t required=0;
+    if(!xrtWsStreamSendSize(s,text.Size,&required)||required> xrtWsStreamWriteLimit(s))return XNET_RESULT_ERROR;
     xnetbytes* bytes=xrtNetBytesCopy(text.Data,text.Size);
     if(!bytes)return XNET_RESULT_ERROR;
     xnetresult result=xrtWsStreamSendBytes(s,XWS_OPCODE_TEXT,bytes,0,text.Size);
