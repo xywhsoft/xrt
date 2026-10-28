@@ -73,7 +73,7 @@ static void balanced(const xmemdebugsnapshot* before)
     assert(after.AllocCount-before->AllocCount==after.FreeCount-before->FreeCount);
     assert(before->InvalidFreeCount==after.InvalidFreeCount&&before->DoubleFreeCount==after.DoubleFreeCount&&before->UseAfterFreeCount==after.UseAfterFreeCount);
 }
-static void exercise(unsigned mode,size_t prefix,bool fault)
+static void exercise(unsigned mode,size_t prefix,bool fault,bool stale)
 {
     xmemdebugsnapshot before;xrtMemDebugSnapshot(&before);
     selection_state state={0};state.mode=mode;state.signing=testTlsServerIdentity();assert(state.signing);
@@ -87,6 +87,8 @@ static void exercise(unsigned mode,size_t prefix,bool fault)
     sc.Identity=mode?NULL:state.signing;sc.Protocols=protocols;sc.ProtocolCount=1;
     sc.RequireProtocol=true;sc.Select=selectIdentity;sc.SelectContext=&state;
     xtlssession* client=xrtTlsClientCreate(&cc,NULL);xtlssession* server=xrtTlsServerCreate(&sc,NULL);assert(client&&server);
+    const xerror* previous=NULL;
+    if(stale){xrtSetErrorKind(XERR_STATE);previous=xrtGetError();assert(previous);}
     if(fault)assert(xrtMemDebugFailAfter(prefix));
     test_tls_server_rng rng={UINT32_C(0x12345678)};bool ok=handshake(client,server,&rng);
     bool hit=fault&&xrtMemDebugFailTriggered();if(fault)xrtMemDebugFailClear();
@@ -94,6 +96,7 @@ static void exercise(unsigned mode,size_t prefix,bool fault)
     if(hit){assert(!ok&&xrtGetError());}
     else if(mode<2){
         assert(ok&&state.calls==1&&state.released==state.created-(mode?1:0));
+        assert(!stale||xrtGetError()==previous);
         uint64 cookie=0;assert(xrtTlsServerCookie(server,&cookie)&&cookie==UINT64_C(0xD15EA5E5C001C0DE));
         const char data[]="ordinary application data";
         assert(testTlsServerTransfer(client,server,true,data,sizeof(data),&rng));
@@ -117,8 +120,8 @@ int main(void)
     assert(!xrtTlsServerChoiceSetIdentityV1(&choice,NULL)&&!choice.Identity&&!choice.IdentityOwnerV1&&xrtGetError());xrtClearError();
     xrtSetErrorKind(XERR_STATE);const xerror* primary=xrtGetError();
     assert(!xrtTlsServerChoiceSetIdentityV1(NULL,NULL)&&xrtGetError()==primary);xrtClearError();
-    for(unsigned mode=0;mode<5;++mode)exercise(mode,0,false);
-    for(size_t point=0;point<64;++point)exercise(1,point,true);
-    puts("TLS selector identity: borrowed and temporary results; replacement/rejection/checked errors; 64 OOM prefixes balanced");
+    for(unsigned mode=0;mode<5;++mode){exercise(mode,0,false,false);exercise(mode,0,false,true);}
+    for(size_t point=0;point<64;++point)exercise(1,point,true,false);
+    puts("TLS selector identity: borrowed/temporary results; stale and checked errors isolated; 64 OOM prefixes balanced");
     return 0;
 }

@@ -8845,7 +8845,8 @@
 				"tests/tls/test_tls_server_oom.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_tls_server.c"
+				"tests/single/test_single_tls_server.c",
+				"tests/single/test_single_tls_server_choice_identity.c"
 			],
 			"examples": [
 				"examples/tls/server/main.c"

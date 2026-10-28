@@ -194723,6 +194723,7 @@ static bool __xrtTlsServerSelect(
 	xbytesview KeyShareData;
 	xbytesview ExtendedMasterSecret;
 	xtlsidentitytype IdentityType;
+	xerror* pBeforeChoice;
 	bool ChoiceAccepted = false;
 
 	memset(pSelection, 0, sizeof(*pSelection));
@@ -194790,6 +194791,7 @@ static bool __xrtTlsServerSelect(
 	}
 
 	/* 先提供确定性的静态默认值，再让真实扩展点执行动态路由。 */
+	pBeforeChoice = xrtTakeError();
 	Choice.Identity = pState->Identity;
 	Choice.Protocol = __xrtTlsServerProtocolDefault(
 		pState, pSelection->Protocols
@@ -194851,7 +194853,11 @@ choice_done:
 		}
 	}
 	if ( !ChoiceAccepted || (xrtGetError() != NULL) ) {
+		xrtErrorFree(pBeforeChoice);
 		return false;
+	}
+	if ( pBeforeChoice != NULL ) {
+		xrtSetErrorTake(pBeforeChoice);
 	}
 	IdentityType = xrtTlsIdentityType(pSelection->Identity);
 	Result = xrtTlsCipherSelect(
