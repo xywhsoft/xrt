@@ -2003,7 +2003,8 @@
 				"src/internal/xrt_websocket_stream.h"
 			],
 			"sources": [
-				"src/websocket/stream.c"
+				"src/websocket/stream.c",
+				"src/websocket/stream_ownership.c"
 			],
 			"tests": [
 				"tests/websocket/test_stream.c",
@@ -2012,7 +2013,8 @@
 			],
 			"single_tests": [
 				"tests/single/test_single_websocket_stream.c",
-				"tests/single/test_single_websocket_buffered.c"
+				"tests/single/test_single_websocket_buffered.c",
+				"tests/single/test_single_websocket_owned.c"
 			],
 			"examples": [
 				"examples/websocket/stream_tour/main.c"

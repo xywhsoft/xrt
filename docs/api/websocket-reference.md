@@ -223,13 +223,15 @@
 
 [查看带契约注释的公共头](../../include/xrt/websocket_stream.h)
 
-### 函数 (40)
+### 函数 (48)
 
 - `xrtWsStreamAbort`
 - `xrtWsStreamAttach`
 - `xrtWsStreamAttachBuffered`
+- `xrtWsStreamAttachOwnedV1`
 - `xrtWsStreamAttachTls`
 - `xrtWsStreamAttachTlsBuffered`
+- `xrtWsStreamAttachTlsOwnedV1`
 - `xrtWsStreamBinary`
 - `xrtWsStreamBinaryCompressed`
 - `xrtWsStreamBinaryRef`
@@ -241,6 +243,9 @@
 - `xrtWsStreamDeflate`
 - `xrtWsStreamDestroy`
 - `xrtWsStreamError`
+- `xrtWsStreamOwnership`
+- `xrtWsStreamOwnershipAdapterV1`
+- `xrtWsStreamOwnershipQuiescenceV1Get`
 - `xrtWsStreamPause`
 - `xrtWsStreamPaused`
 - `xrtWsStreamPending`
@@ -250,57 +255,25 @@
 - `xrtWsStreamRef`
 - `xrtWsStreamResume`
 - `xrtWsStreamRole`
+- `xrtWsStreamRuntimeOwnershipV1Get`
 - `xrtWsStreamSend`
 - `xrtWsStreamSendCompressed`
 - `xrtWsStreamSendRef`
 - `xrtWsStreamSendTake`
 - `xrtWsStreamState`
 - `xrtWsStreamTcp`
+- `xrtWsStreamTcpEventsOwnershipV1Get`
 - `xrtWsStreamTcpRef`
 - `xrtWsStreamText`
 - `xrtWsStreamTextCompressed`
 - `xrtWsStreamTextRef`
 - `xrtWsStreamTextTake`
 - `xrtWsStreamTls`
+- `xrtWsStreamTlsEventsOwnershipV1Get`
 - `xrtWsStreamTlsRef`
 - `xrtWsStreamWorker`
 - `xrtWsStreamWritable`
 
-### 常量与宏 (23)
-
-- `XWS_STREAM_CLOSED`
-- `XWS_STREAM_CLOSE_CLEAN`
-- `XWS_STREAM_CLOSE_RECEIVED`
-- `XWS_STREAM_CLOSE_REMOTE`
-- `XWS_STREAM_CLOSE_SENT`
-- `XWS_STREAM_CLOSE_TIMEOUT_DEFAULT`
-- `XWS_STREAM_CLOSING`
-- `XWS_STREAM_CONTROL_RESERVE_DEFAULT`
-- `XWS_STREAM_ERROR_ARGUMENT`
-- `XWS_STREAM_ERROR_CONFIG`
-- `XWS_STREAM_ERROR_FRAME`
-- `XWS_STREAM_ERROR_LIMIT`
-- `XWS_STREAM_ERROR_MEMORY`
-- `XWS_STREAM_ERROR_MESSAGE`
-- `XWS_STREAM_ERROR_RANDOM`
-- `XWS_STREAM_ERROR_SEND`
-- `XWS_STREAM_ERROR_STATE`
-- `XWS_STREAM_ERROR_TIMEOUT`
-- `XWS_STREAM_ERROR_TRANSPORT`
-- `XWS_STREAM_FRAME_LIMIT_DEFAULT`
-- `XWS_STREAM_MESSAGE_LIMIT_DEFAULT`
-- `XWS_STREAM_OPEN`
-- `XWS_STREAM_SEND_LIMIT_DEFAULT`
-
-### 类型 (7)
-
-- `xwsstream`
-- `xwsstreamclose`
-- `xwsstreamcloseflag`
-- `xwsstreamconfig`
-- `xwsstreamerror`
-- `xwsstreamevents`
-- `xwsstreamstate`
 
 ## `include/xrt/websocket_upgrade.h`
 

@@ -31,6 +31,13 @@ static ptr __xrtTlsStreamDataCurrent(const xtlsstream* pStream)
 	return xrtAtomicPtrLoad(&pStream->Data, XMEMORY_RELAXED);
 }
 
+static ptr __xrtTlsStreamEventDataCurrent(const xtlsstream* pStream)
+{
+	return pStream->EventPolicy ?
+		xrtAtomicPtrLoad(&pStream->EventData, XMEMORY_RELAXED) :
+		__xrtTlsStreamDataCurrent(pStream);
+}
+
 
 
 /* 可裁剪地推进 TLS Stream Future 适配层。 */
@@ -184,6 +191,8 @@ XRT_API void xrtTlsStreamDestroy(xtlsstream* pStream)
 	xrtErrorFree(pStream->OwnershipFinishError);
 	if (pStream->OwnershipDataHeld)
 		pStream->OwnershipPolicy->Drop(xrtAtomicPtrLoad(&pStream->Data, XMEMORY_ACQUIRE));
+	if (pStream->EventPolicy)
+		pStream->EventPolicy->Drop(xrtAtomicPtrLoad(&pStream->EventData, XMEMORY_ACQUIRE));
 	if (pStream->OwnershipEngineHeld) __xrtNetEngineObjectRelease(pStream->OwnershipEngine);
 	if (pStream->OwnershipStorageHeld) __xrtNetEngineStorageRelease(pStream->OwnershipEngine);
 	#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
@@ -723,7 +732,7 @@ static void __xrtTlsStreamOpen(xtlsstream* pStream)
 	if ( pStream->Events.Open != NULL ) {
 		pStream->Events.Open(
 			pStream,
-			__xrtTlsStreamDataCurrent(pStream)
+			__xrtTlsStreamEventDataCurrent(pStream)
 		);
 	}
 	__xrtTlsStreamNotifyFutures(pStream);
@@ -741,7 +750,7 @@ static void __xrtTlsStreamEnd(xtlsstream* pStream)
 	if ( pStream->Events.End != NULL ) {
 		pStream->Events.End(
 			pStream,
-			__xrtTlsStreamDataCurrent(pStream)
+			__xrtTlsStreamEventDataCurrent(pStream)
 		);
 	}
 	__xrtTlsStreamNotifyFutures(pStream);
@@ -790,7 +799,7 @@ static bool __xrtTlsStreamPlain(xtlsstream* pStream)
 		pStream->Events.Read(
 			pStream,
 			pBuffer,
-			__xrtTlsStreamDataCurrent(pStream)
+			__xrtTlsStreamEventDataCurrent(pStream)
 		);
 		iAvailable = xrtTlsSessionPlainSize(pStream->Session);
 		xrtAtomic64Store(
@@ -913,7 +922,7 @@ static void __xrtTlsStreamDrain(xtlsstream* pStream)
 	if ( pStream->Events.Drain != NULL ) {
 		pStream->Events.Drain(
 			pStream,
-			__xrtTlsStreamDataCurrent(pStream)
+			__xrtTlsStreamEventDataCurrent(pStream)
 		);
 	}
 }
@@ -942,7 +951,7 @@ static void __xrtTlsStreamWritable(xtlsstream* pStream)
 	if ( pStream->Events.Writable != NULL ) {
 		pStream->Events.Writable(
 			pStream,
-			__xrtTlsStreamDataCurrent(pStream)
+			__xrtTlsStreamEventDataCurrent(pStream)
 		);
 	}
 }
@@ -1114,7 +1123,7 @@ static void __xrtTlsStreamDrive(xtlsstream* pStream)
 				(pStream->Events.Ticket != NULL) ) {
 				pStream->Events.Ticket(
 					pStream,
-					__xrtTlsStreamDataCurrent(pStream)
+					__xrtTlsStreamEventDataCurrent(pStream)
 				);
 			}
 		#endif
@@ -1423,7 +1432,7 @@ static void __xrtTlsStreamTransportClose(
 			pStream,
 			Final,
 			pStream->Error,
-			__xrtTlsStreamDataCurrent(pStream)
+			__xrtTlsStreamEventDataCurrent(pStream)
 		);
 	}
 	__xrtTlsStreamNotifyFutures(pStream);
@@ -1588,6 +1597,43 @@ static bool __xrtTlsStreamOwnedPolicyValid(ptr data, const xtlsstreamownershipv1
 {
 	return data && policy && policy->size == sizeof(*policy) && policy->Drop &&
 		policy->Ops && policy->Ops->Count && policy->Ops->Trace;
+}
+
+XRT_API bool xrtTlsStreamBindEventsOwnedV1(xtlsstream* s, ptr data,
+	const xtlsstreamownershipv1* policy)
+{
+	if (!s || !__xrtTlsStreamOwnedPolicyValid(data,policy)) {
+		__xrtErrorSetInvalidArgument();return false;
+	}
+	if (!__xrtTlsStreamOwnershipEnter(s,true)) return false;
+	bool ok=false;
+	if (!s->OwnershipPolicy || !s->OwnershipDataHeld || s->EventPolicy ||
+		!xrtNetWorkerIsCurrent(xrtNetStreamWorker(xrtAtomicPtrLoad(&s->Transport,XMEMORY_ACQUIRE))) ||
+		xrtTlsStreamState(s)!=XTLS_STREAM_OPEN || !s->OpenEmitted ||
+		s->ActiveDepth || s->Driving || s->Sending || s->ReadMore) {
+		__xrtErrorSetInvalidState();
+	} else {
+		xrtownershipscope Mutation={0};
+		if(!xrtOwnershipMutationBegin(&Mutation)){
+			__xrtTlsStreamOwnershipLeave(s);return false;
+		}
+		#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+		__xrtSpinLock(&s->AsyncLock);
+		if (xrtAtomic32Load(&s->AsyncReads,XMEMORY_ACQUIRE)) {
+			__xrtErrorSetInvalidState();
+		} else
+		#endif
+		{
+			s->Events=policy->Events;s->EventPolicy=policy;
+			xrtAtomicPtrStore(&s->EventData,data,XMEMORY_RELEASE);
+			ok=true;
+		}
+		#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+		__xrtSpinUnlock(&s->AsyncLock);
+		#endif
+		if (!xrtOwnershipScopeEnd(&Mutation)) abort();
+	}
+	__xrtTlsStreamOwnershipLeave(s);return ok;
 }
 static xtlsstream* __xrtTlsStreamCreateOwned(xnetengine* engine,
 	xtlssession* session, bool server, const xtlsstreamconfig* config,
@@ -2967,6 +3013,10 @@ static bool __xrtTlsStreamOwnershipCount(const void* pData, size_t* pCount)
 		!(xrtAtomic32Load(&s->OwnershipState, XMEMORY_ACQUIRE) & XRT_TLS_STREAM_OWNERSHIP_READY)) return false;
 	xnetstream* tcp = xrtAtomicPtrLoad(&s->Transport, XMEMORY_ACQUIRE);
 	if (!tcp) return false;
+	ptr eventData=xrtAtomicPtrLoad(&s->EventData,XMEMORY_ACQUIRE);
+	if ((s->EventPolicy!=NULL)!=(eventData!=NULL) ||
+		(s->EventPolicy && (!s->EventPolicy->Drop || !s->EventPolicy->Ops ||
+		 !s->EventPolicy->Ops->Count || !s->EventPolicy->Ops->Trace))) return false;
 	if (xrtNetStreamState(tcp) != XNET_STREAM_CLOSED &&
 		(!tcp->EventOwner || tcp->EventOwner->Data != s ||
 		 tcp->EventOwner->Policy != xrtTlsStreamTransportOwnershipV1Get())) return false;
@@ -2988,6 +3038,8 @@ static bool __xrtTlsStreamOwnershipTrace(const void* pData, xrtownershipvisitor 
 	#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
 		if (!__xrtTlsStreamAsyncOwnershipWalk(s, visit, context)) return false;
 	#endif
+	if (s->EventPolicy && !visit((xrtownershipref){
+		xrtAtomicPtrLoad(&s->EventData,XMEMORY_ACQUIRE),s->EventPolicy->Ops},context)) return false;
 	return !s->Error || visit(xrtErrorOwnership(s->Error), context);
 }
 XRT_API xrtownershipref xrtTlsStreamOwnership(const xtlsstream* pStream)
@@ -3104,6 +3156,8 @@ static bool __xrtTlsStreamOwnershipFinish(const void* pData, const void* token)
 	xtlssession* session = s->Session; s->Session = NULL;
 	xnetstream* tcp = xrtAtomicPtrExchange(&s->Transport, NULL, XMEMORY_ACQ_REL);
 	ptr data = s->OwnershipDataHeld ? xrtAtomicPtrExchange(&s->Data, NULL, XMEMORY_ACQ_REL) : NULL;
+	ptr eventData=xrtAtomicPtrExchange(&s->EventData,NULL,XMEMORY_ACQ_REL);
+	const xtlsstreamownershipv1* eventPolicy=s->EventPolicy;s->EventPolicy=NULL;
 	s->OwnershipDataHeld = false;
 	xerror* error = s->Error; s->Error = NULL;
 	xnetengine* engine = s->OwnershipEngine;
@@ -3115,6 +3169,7 @@ static bool __xrtTlsStreamOwnershipFinish(const void* pData, const void* token)
 	xerror* prior = xrtTakeError();
 	xrtTlsSessionDestroy(session); xrtNetStreamDestroy(tcp); xrtErrorFree(error);
 	if (data) s->OwnershipPolicy->Drop(data);
+	if (eventData) eventPolicy->Drop(eventData);
 	if (operational) __xrtNetEngineObjectRelease(engine);
 	if (storage) __xrtNetEngineStorageRelease(engine);
 	xerror* failure = xrtTakeError();
@@ -3135,6 +3190,9 @@ XRT_API const xrtownershipadapterv1* xrtTlsStreamOwnershipAdapterV1(xrtownership
 	if (!preparation || ref.Ops != &__xrtTlsStreamOwnershipOps || !ref.Data || (policyCount && !policies) || __xrtTlsStreamOwnershipBusy(ref.Data)) return NULL;
 	const xtlsstream* s = ref.Data; bool known = false;
 	for (size_t i = 0; i < policyCount; ++i) if (policies[i] == s->OwnershipPolicy) { known = true; break; }
+	bool eventKnown=s->EventPolicy==NULL;
+	for (size_t i=0;i<policyCount;++i) if (policies[i]==s->EventPolicy) {eventKnown=true;break;}
+	if (!eventKnown) return NULL;
 	if (!known || !s->OwnershipPolicy || s->OwnershipPolicy->size != sizeof(*s->OwnershipPolicy) ||
 		!s->OwnershipPolicy->Drop || !s->OwnershipPolicy->Ops || !s->OwnershipPolicy->Ops->Count || !s->OwnershipPolicy->Ops->Trace) return NULL;
 	size_t count; if (!__xrtTlsStreamOwnershipCount(s, &count)) return NULL;

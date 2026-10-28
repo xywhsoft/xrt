@@ -253,7 +253,7 @@ xnetresult __xrtWsStreamSendRefFrame(
 
 
 /* 验证所有权契约并选择零复制或必要复制路径。 */
-XRT_API xnetresult xrtWsStreamSendRef(
+static xnetresult __xrtWsStreamSendRefBody(
 	xwsstream* pConnection,
 	xwsopcode Opcode,
 	const xnetref* pRef
@@ -339,6 +339,18 @@ XRT_API xnetresult xrtWsStreamSendRef(
 		true
 	);
 	return Result;
+}
+XRT_API xnetresult xrtWsStreamSendRef(
+	xwsstream* pConnection,
+	xwsopcode Opcode,
+	const xnetref* pRef
+)
+{
+ bool owned=pConnection && pConnection->OwnershipPolicy;
+ if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true))return XNET_RESULT_ERROR;
+ xnetresult result=__xrtWsStreamSendRefBody(pConnection,Opcode,pRef);
+ if(owned)__xrtWsStreamOwnershipLeave(pConnection);
+ return result;
 }
 
 

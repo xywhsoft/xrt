@@ -35109,6 +35109,12 @@ XRT_API bool xrtTlsStreamAcceptOwnedV1(xnetstream* pTransport,
 	const xtlsstreamownershipv1* pPolicy, xtlsstream** ppStream);
 
 XRT_API xrtownershipref xrtTlsStreamOwnership(const xtlsstream* pStream);
+/* One-time, exclusive Worker handoff of OPEN stream events. The original
+ * session/configuration Data owner is retained unchanged. Success consumes
+ * one additional event Data credit; failure consumes none. No active callback
+ * or pending read may overlap. Both exact policies participate in tracing. */
+XRT_API bool xrtTlsStreamBindEventsOwnedV1(xtlsstream* pStream, ptr pData,
+	const xtlsstreamownershipv1* pPolicy);
 XRT_API const xnetruntimeownershipv1* xrtTlsStreamRuntimeOwnershipV1Get(void);
 XRT_API const xnetstreameventsownershipv1* xrtTlsStreamTransportOwnershipV1Get(void);
 XRT_API const xrtownershipquiescencev1* xrtTlsStreamOwnershipQuiescenceV1Get(void);
@@ -35527,6 +35533,18 @@ typedef struct xwsstreamevents {
 	);
 } xwsstreamevents;
 
+/* Permanent native descriptor. Success of an owned Attach consumes exactly
+ * one Data credit; failures consume none. Ops traces every actual Data edge.
+ * Retire, if present, only disables application callbacks through atomic
+ * native state; it must not call user code, allocate, wait or release edges. */
+typedef struct xwsstreamownershipv1 {
+	size_t size;
+	xwsstreamevents Events;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+	void (*Retire)(const void* pData);
+} xwsstreamownershipv1;
+
 #endif
 
 
@@ -35601,6 +35619,26 @@ XRT_API xwsstream* xrtWsStreamAttachTlsBuffered(
 
 /* 增加 Stream 引用并返回原指针。 */
 XRT_API xwsstream* xrtWsStreamRef(xwsstream* pStream);
+
+/* Owned, transactional protocol handoff. Initial may be NULL or an exclusive
+ * owned byte buffer. Prepare all allocations/ready work before rebinding
+ * callbacks; success takes transport/Data credits and Initial blocks. */
+XRT_API xwsstream* xrtWsStreamAttachOwnedV1(xnetstream* pTransport,
+	xnetbuf* pInitial, const xwsstreamconfig* pConfig,
+	ptr pData, const xwsstreamownershipv1* pPolicy);
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
+XRT_API xwsstream* xrtWsStreamAttachTlsOwnedV1(xtlsstream* pTransport,
+	xnetbuf* pInitial, const xwsstreamconfig* pConfig,
+	ptr pData, const xwsstreamownershipv1* pPolicy);
+XRT_API const xtlsstreamownershipv1* xrtWsStreamTlsEventsOwnershipV1Get(void);
+#endif
+XRT_API xrtownershipref xrtWsStreamOwnership(const xwsstream* pStream);
+XRT_API const xnetstreameventsownershipv1* xrtWsStreamTcpEventsOwnershipV1Get(void);
+XRT_API const xnetruntimeownershipv1* xrtWsStreamRuntimeOwnershipV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtWsStreamOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtWsStreamOwnershipAdapterV1(
+	xrtownershipref Reference, const xwsstreamownershipv1* const* pPolicies,
+	size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
 
 
 

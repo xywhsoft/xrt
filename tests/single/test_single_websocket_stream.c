@@ -12,6 +12,10 @@ typedef struct testsinglewsendpoint {
 	xwsrole Role;
 	size_t Size;
 	char Data[16];
+	#if defined(TEST_SINGLE_WS_OWNED)
+		xatomic32 OwnedReferences;
+		xatomic32 OwnedDrops;
+	#endif
 } testsinglewsendpoint;
 
 
@@ -28,6 +32,9 @@ struct testsinglews {
 		xatomic32 Released;
 	#endif
 	xwsstreamevents Events;
+	#if defined(TEST_SINGLE_WS_OWNED)
+		xwsstreamownershipv1 OwnedPolicy;
+	#endif
 	testsinglewsendpoint ClientEndpoint;
 	testsinglewsendpoint ServerEndpoint;
 };
@@ -193,6 +200,92 @@ static void testSingleWsClose(
 
 
 /* 按端点角色接管已经开放的 TCP Stream。 */
+#if defined(TEST_SINGLE_WS_OWNED)
+static bool testSingleWsOwnedCount(const void* data,size_t* count)
+{
+	const testsinglewsendpoint* endpoint=data;
+	uint32 n=xrtAtomic32Load(&endpoint->OwnedReferences,XMEMORY_ACQUIRE);
+	if(!count||!n)return false;
+	*count=n;return true;
+}
+static bool testSingleWsOwnedTrace(const void* data,xrtownershipvisitor visit,ptr context)
+{size_t count;(void)context;return visit&&testSingleWsOwnedCount(data,&count);}
+static void testSingleWsOwnedDrop(const void* data)
+{
+	testsinglewsendpoint* endpoint=(testsinglewsendpoint*)data;
+	if(xrtAtomic32FetchSub(&endpoint->OwnedReferences,1,XMEMORY_ACQ_REL)!=1)
+		testSingleWsFail(endpoint->Test);
+	xrtAtomic32FetchAdd(&endpoint->OwnedDrops,1,XMEMORY_RELEASE);
+}
+static const xrtownershipops testSingleWsOwnedOps={testSingleWsOwnedCount,testSingleWsOwnedTrace};
+static bool testSingleWsOwnedVisit(xrtownershipref ref,ptr data)
+{
+	size_t* count=data;
+	if(!ref.Data||!ref.Ops||!ref.Ops->Count||!ref.Ops->Trace)return false;
+	++*count;return true;
+}
+static bool testSingleWsCollectClosed(xwsstream** slot,testsinglews* test)
+{
+	xwsstream* stream=*slot;
+	xrtownershipref ref=xrtWsStreamOwnership(stream);
+	const xrtownershippreparationv1* preparing=NULL;
+	const xrtownershipadapterv1* adapter=NULL;
+	const xwsstreamownershipv1* policies[]={&test->OwnedPolicy};
+	for(size_t i=0;i<1000000&&!adapter;++i){
+		xrtownershipscope frozen={0};size_t count=0,edges=0;
+		if(xrtOwnershipFreezeTryBegin(&frozen)){
+			if(ref.Ops&&ref.Ops->Count(ref.Data,&count)&&count==1&&
+			   ref.Ops->Trace(ref.Data,testSingleWsOwnedVisit,&edges)&&edges==2){
+				if(xrtWsStreamOwnershipAdapterV1(ref,NULL,0,&preparing)){
+					(void)xrtOwnershipScopeEnd(&frozen);return false;
+				}
+				adapter=xrtWsStreamOwnershipAdapterV1(ref,policies,1,&preparing);
+			}
+			if(!xrtOwnershipScopeEnd(&frozen))return false;
+		}
+		if(!adapter)xrtThreadYield();
+	}
+	if(!adapter||!preparing||!adapter->Hold(ref.Data))return false;
+	/* Turn the caller's user credit into the inspection-only plan hold. */
+	xrtWsStreamDestroy(stream);*slot=NULL;
+	bool claimed=false;
+	for(size_t i=0;i<1000000&&!claimed;++i){
+		xrtownershipscope frozen={0};
+		if(xrtOwnershipFreezeTryBegin(&frozen)){
+			claimed=adapter->Claim(ref.Data,test);
+			if(!xrtOwnershipScopeEnd(&frozen))return false;
+		}
+		if(!claimed)xrtThreadYield();
+	}
+	if(!claimed){adapter->Drop(ref.Data);return false;}
+	bool cleared=false;
+	for(size_t i=0;i<1000000&&!cleared;++i){
+		xrtownershipprepareresult result=preparing->Prepare(ref.Data,test);
+		if(result==XRT_OWNERSHIP_PREPARE_FAILED)return false;
+		xrtownershipscope frozen={0};
+		if(xrtOwnershipFreezeTryBegin(&frozen)){
+			if(preparing->Ready(ref.Data)){adapter->Clear(ref.Data,test);cleared=true;}
+			if(!xrtOwnershipScopeEnd(&frozen))return false;
+		}
+		if(!cleared)xrtThreadYield();
+	}
+	if(!cleared)return false;
+	bool finished=adapter->Finish(ref.Data,test);
+	if(finished)finished=adapter->Finish(ref.Data,test); /* idempotent completion */
+	adapter->Drop(ref.Data);return finished;
+}
+#endif
+#if defined(TEST_SINGLE_WS_BUFFERED)
+static xwsstream* testSingleWsAttachInitial(xnetstream* stream,xnetbuf* initial,
+	const xwsstreamconfig* config,testsinglewsendpoint* endpoint)
+{
+	#if defined(TEST_SINGLE_WS_OWNED)
+		return xrtWsStreamAttachOwnedV1(stream,initial,config,endpoint,&endpoint->Test->OwnedPolicy);
+	#else
+		return xrtWsStreamAttachBuffered(stream,initial,config,&endpoint->Test->Events,endpoint);
+	#endif
+}
+#endif
 static xwsstream* testSingleWsAttach(
 	xnetstream* pStream,
 	testsinglewsendpoint* pEndpoint
@@ -202,20 +295,21 @@ static xwsstream* testSingleWsAttach(
 
 	xrtWsStreamConfigInit(&Config);
 	Config.Role = pEndpoint->Role;
+	#if defined(TEST_SINGLE_WS_OWNED)
+		xrtAtomic32Init(&pEndpoint->OwnedReferences,1);
+	#endif
 	#if defined(TEST_SINGLE_WS_BUFFERED)
 		xnetbuf Initial={0};
 		uint8 Head=0x89; /* Server Ping header split after its first byte. */
 		if (pEndpoint->Role == XWS_ROLE_CLIENT) {
 			if (!xrtNetBufAppend(&Initial,&Head,1)) return NULL;
 			xwsstreamconfig Bad=Config;Bad.SendLimit=0;
-			if (xrtWsStreamAttachBuffered(pStream,&Initial,&Bad,
-				&pEndpoint->Test->Events,pEndpoint) || Initial.Size != 1) {
+			if (testSingleWsAttachInitial(pStream,&Initial,&Bad,pEndpoint) || Initial.Size != 1) {
 				xrtNetBufClear(&Initial);testSingleWsFail(pEndpoint->Test);return NULL;
 			}
 			xrtClearError();
 		}
-		xwsstream* Result=xrtWsStreamAttachBuffered(pStream,&Initial,&Config,
-			&pEndpoint->Test->Events,pEndpoint);
+		xwsstream* Result=testSingleWsAttachInitial(pStream,&Initial,&Config,pEndpoint);
 		if (!Result) {xrtNetBufClear(&Initial);return NULL;}
 		if (Initial.Size != 0) {testSingleWsFail(pEndpoint->Test);return Result;}
 		if (pEndpoint->Role == XWS_ROLE_SERVER) {
@@ -501,6 +595,10 @@ int main(void)
 	Test.Events.MessageEnd = testSingleWsEnd;
 	Test.Events.Error = testSingleWsError;
 	Test.Events.Close = testSingleWsClose;
+	#if defined(TEST_SINGLE_WS_OWNED)
+		Test.OwnedPolicy=(xwsstreamownershipv1){sizeof(Test.OwnedPolicy),Test.Events,
+			testSingleWsOwnedDrop,&testSingleWsOwnedOps,NULL};
+	#endif
 
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = XNET_PORT_SELECT;
@@ -588,8 +686,20 @@ int main(void)
 		XNET_LISTENER_CLOSED ) {
 		xrtThreadYield();
 	}
-	xrtWsStreamDestroy(pClient);
-	xrtWsStreamDestroy(pServer);
+	#if defined(TEST_SINGLE_WS_OWNED)
+		if(!testSingleWsCollectClosed(&pClient,&Test)||!testSingleWsCollectClosed(&pServer,&Test))return 9;
+	#else
+		xrtWsStreamDestroy(pClient);
+		xrtWsStreamDestroy(pServer);
+	#endif
 	xrtNetListenerDestroy(Test.Listener);
-	return xrtNetEngineDestroy(Test.Engine) ? 0 : 8;
+	bool destroyed=xrtNetEngineDestroy(Test.Engine);
+	#if defined(TEST_SINGLE_WS_OWNED)
+		if(xrtAtomic32Load(&Test.ClientEndpoint.OwnedReferences,XMEMORY_ACQUIRE)||
+		   xrtAtomic32Load(&Test.ServerEndpoint.OwnedReferences,XMEMORY_ACQUIRE)||
+		   xrtAtomic32Load(&Test.ClientEndpoint.OwnedDrops,XMEMORY_ACQUIRE)!=1||
+		   xrtAtomic32Load(&Test.ServerEndpoint.OwnedDrops,XMEMORY_ACQUIRE)!=1||
+		   xrtAtomic32Load(&Test.Failed,XMEMORY_ACQUIRE))return 10;
+	#endif
+	return destroyed ? 0 : 8;
 }

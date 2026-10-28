@@ -12,6 +12,18 @@ HTTP 读取器已经消费 Upgrade 头时，可在所属 Worker 上使用
 跨两种来源的帧头最多复制 14 字节，负载继续使用原块链。来源必须独占，
 不能是传输自身的接收缓冲，也不能包含文件区间。
 
+受管语言使用 `xrtWsStreamAttachOwnedV1`／`xrtWsStreamAttachTlsOwnedV1`。
+永久的 `xwsstreamownershipv1` 描述回调 Data 的真实拥有图；成功接管一个
+Data 引用及传输创建者引用，失败不接管。TLS 的附加事件拥有者保留原会话
+配置 Data，避免握手配置、证书及恢复上下文提前释放。挂接须在所属 Worker
+上、前一轮回调退出后执行，且传输上不存在未完成的异步读取。
+
+拥有图使用 `xrtWsStreamOwnership`、静止检查及带明确策略白名单的
+`xrtWsStreamOwnershipAdapterV1`。准备阶段仅请求原生停止；实际回调、
+就绪任务、计时器和传输关闭全部退役后才可清除与完成。`Retire` 只允许
+原子停用应用回调，不得执行用户代码、分配或释放拥有边。普通清理与
+图清理均只释放一次 Data；重复 Finish 返回同一清理结果。
+
 ## 类型与常量
 
 ### `xwsopcode`

@@ -6,6 +6,9 @@
 
 #define __XRT_WS_MASK_CHUNK 1024u
 
+static void __xrtWsStreamOwnedTransportDrop(const void* data)
+{xrtWsStreamDestroy((xwsstream*)data);}
+
 
 
 /* 创建 Connection 域错误，并保留完整底层原因链。 */
@@ -392,7 +395,7 @@ static void __xrtWsStreamOutputClear(xwsstream* pConnection)
 
 
 /* 最后一个 Connection 引用释放所有非传输资源。 */
-static void __xrtWsStreamFree(xwsstream* pConnection)
+void __xrtWsStreamFree(xwsstream* pConnection)
 {
 	xerror* pError;
 
@@ -411,6 +414,13 @@ static void __xrtWsStreamFree(xwsstream* pConnection)
 		XMEMORY_ACQ_REL
 	);
 	xrtErrorFree(pError);
+	xrtErrorFree(pConnection->OwnershipFinishError);
+	if (pConnection->OwnershipDataHeld)
+		pConnection->OwnershipPolicy->Drop(pConnection->Data);
+	if (pConnection->OwnershipEngineHeld)
+		__xrtNetEngineObjectRelease(pConnection->OwnershipEngine);
+	if (pConnection->OwnershipStorageHeld)
+		__xrtNetEngineStorageRelease(pConnection->OwnershipEngine);
 	__xrtSpinUnit(&pConnection->TransportLock);
 	xrtFree(pConnection);
 }
@@ -1243,7 +1253,7 @@ static void __xrtWsStreamCloseTransport(xwsstream* pConnection)
 
 
 /* 关闭计时器只在远端没有回应时把握手变为明确超时。 */
-static void __xrtWsStreamCloseTimer(
+void __xrtWsStreamCloseTimer(
 	xnetworker* pWorker,
 	uint64 Id,
 	xnetresult Result,
@@ -1294,6 +1304,12 @@ static bool __xrtWsStreamStartCloseTimer(xwsstream* pConnection)
 		__xrtWsStreamCloseTimer,
 		pConnection
 	);
+	if (pConnection->CloseTimer && pConnection->OwnershipPolicy &&
+		!__xrtNetEngineRuntimeTimer(pConnection->Worker,
+			pConnection->CloseTimer,xrtWsStreamRuntimeOwnershipV1Get())) {
+		__xrtWsStreamCancelCloseTimer(pConnection);
+		return false;
+	}
 	if ( pConnection->CloseTimer == 0 ) {
 		xrtWsStreamDestroy(pConnection);
 		(void)__xrtWsStreamRemember(
@@ -2310,7 +2326,7 @@ static void __xrtWsStreamDrive(
 
 
 /* 合并任意线程的恢复请求，并为嵌入命令持有一份 Connection 引用。 */
-static void __xrtWsStreamDriveSchedule(xwsstream* pConnection)
+bool __xrtWsStreamDrivePrepare(xwsstream* pConnection)
 {
 	uint32 iExpected = 0;
 
@@ -2321,7 +2337,7 @@ static void __xrtWsStreamDriveSchedule(xwsstream* pConnection)
 		XMEMORY_ACQ_REL,
 		XMEMORY_ACQUIRE
 	) ) {
-		return;
+		return true;
 	}
 	if ( xrtWsStreamRef(pConnection) == NULL ) {
 		xrtAtomic32Store(
@@ -2329,7 +2345,7 @@ static void __xrtWsStreamDriveSchedule(xwsstream* pConnection)
 			0,
 			XMEMORY_RELEASE
 		);
-		return;
+		return false;
 	}
 	if ( !__xrtNetEnginePostInternal(
 		pConnection->Worker,
@@ -2343,13 +2359,18 @@ static void __xrtWsStreamDriveSchedule(xwsstream* pConnection)
 			XMEMORY_RELEASE
 		);
 		xrtWsStreamDestroy(pConnection);
+		return false;
 	}
+	return true;
 }
+
+static void __xrtWsStreamDriveSchedule(xwsstream* pConnection)
+{(void)__xrtWsStreamDrivePrepare(pConnection);}
 
 
 
 /* 暂停后续应用消息分块；TCP 立即停止新接收，TLS 由未消费明文施加背压。 */
-XRT_API void xrtWsStreamPause(xwsstream* pConnection)
+static void xrtWsStreamPauseBody(xwsstream* pConnection)
 {
 	ptr pTransport;
 
@@ -2388,11 +2409,18 @@ XRT_API void xrtWsStreamPause(xwsstream* pConnection)
 	}
 	__xrtWsStreamTransportRelease(pConnection, pTransport);
 }
+XRT_API void xrtWsStreamPause(xwsstream* pConnection)
+{
+ bool owned=pConnection && pConnection->OwnershipPolicy;
+ if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return;
+ xrtWsStreamPauseBody(pConnection);
+ if(owned)__xrtWsStreamOwnershipLeave(pConnection);
+}
 
 
 
 /* 恢复读取，并让所属 Worker 继续消费已缓冲的 TCP 或 TLS 明文。 */
-XRT_API bool xrtWsStreamResume(xwsstream* pConnection)
+static bool xrtWsStreamResumeBody(xwsstream* pConnection)
 {
 	if ( pConnection == NULL ) {
 		(void)__xrtWsStreamReject(
@@ -2427,6 +2455,14 @@ XRT_API bool xrtWsStreamResume(xwsstream* pConnection)
 	);
 	__xrtWsStreamDriveSchedule(pConnection);
 	return true;
+}
+XRT_API bool xrtWsStreamResume(xwsstream* pConnection)
+{
+ bool owned=pConnection && pConnection->OwnershipPolicy;
+ if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return false;
+ bool result=xrtWsStreamResumeBody(pConnection);
+ if(owned)__xrtWsStreamOwnershipLeave(pConnection);
+ return result;
 }
 
 
@@ -2696,7 +2732,8 @@ static void __xrtWsStreamTransportClose(
 		}
 	}
 	(void)pTransport;
-	xrtWsStreamDestroy(pConnection);
+	if (pConnection->OwnershipPolicy) __xrtWsOwnedRuntimeRelease(pConnection);
+	else xrtWsStreamDestroy(pConnection);
 }
 
 
@@ -2720,20 +2757,16 @@ static void __xrtWsStreamTcpClose(
 
 
 /* 返回唯一 TCP 事件表。 */
-static const xnetstreamevents* __xrtWsStreamTcpEvents(void)
+XRT_API const xnetstreameventsownershipv1* xrtWsStreamTcpEventsOwnershipV1Get(void)
 {
-	static const xnetstreamevents Events = {
-		NULL,
-		__xrtWsStreamTcpRead,
-		__xrtWsStreamTcpEnd,
-		__xrtWsStreamTcpHigh,
-		__xrtWsStreamTcpLow,
-		__xrtWsStreamTcpDrain,
-		__xrtWsStreamTcpClose
-	};
-
-	return &Events;
+ static const xnetstreameventsownershipv1 policy={sizeof(policy),
+  {NULL,__xrtWsStreamTcpRead,__xrtWsStreamTcpEnd,__xrtWsStreamTcpHigh,
+   __xrtWsStreamTcpLow,__xrtWsStreamTcpDrain,__xrtWsStreamTcpClose},
+  __xrtWsStreamOwnedTransportDrop,&__xrtWsStreamOwnershipOps};
+ return &policy;
 }
+static const xnetstreamevents* __xrtWsStreamTcpEvents(void)
+{return &xrtWsStreamTcpEventsOwnershipV1Get()->Events;}
 
 
 
@@ -2833,26 +2866,23 @@ static void __xrtWsStreamTlsClose(
 
 
 /* 返回唯一 TLS 事件表。 */
-static const xtlsstreamevents* __xrtWsStreamTlsEvents(void)
+XRT_API const xtlsstreamownershipv1* xrtWsStreamTlsEventsOwnershipV1Get(void)
 {
-	static const xtlsstreamevents Events = {
-		.Open = NULL,
-		.Read = __xrtWsStreamTlsRead,
-		.End = __xrtWsStreamTlsEnd,
-		.Writable = __xrtWsStreamTlsWritable,
-		.Drain = __xrtWsStreamTlsDrain,
-		.Close = __xrtWsStreamTlsClose,
-		.Ticket = NULL
-	};
-
-	return &Events;
+ static const xtlsstreamownershipv1 policy={sizeof(policy),
+  {.Open=NULL,.Read=__xrtWsStreamTlsRead,.End=__xrtWsStreamTlsEnd,
+   .Writable=__xrtWsStreamTlsWritable,.Drain=__xrtWsStreamTlsDrain,
+   .Close=__xrtWsStreamTlsClose,.Ticket=NULL},
+  __xrtWsStreamOwnedTransportDrop,&__xrtWsStreamOwnershipOps};
+ return &policy;
 }
+static const xtlsstreamevents* __xrtWsStreamTlsEvents(void)
+{return &xrtWsStreamTlsEventsOwnershipV1Get()->Events;}
 #endif
 
 
 
 /* 创建共享 Connection 状态，但不提前改变传输事件所有权。 */
-static xwsstream* __xrtWsStreamCreate(
+xwsstream* __xrtWsStreamCreate(
 	xnetworker* pWorker,
 	__xrt_ws_transport TransportKind,
 	ptr pTransport,
@@ -3068,7 +3098,7 @@ static void __xrtWsStreamAttachDiscard(xwsstream* pConnection)
 	把控制槽换算到实际传输成本，并验证普通数据至少能容纳一个空帧。
 	TLS 记录开销在握手完成后固定，Connection 后续可以无查询地精确计账。
 */
-static bool __xrtWsStreamAttachBudget(
+bool __xrtWsStreamAttachBudget(
 	xwsstream* pConnection,
 	ptr pTransport
 )
@@ -3325,7 +3355,7 @@ XRT_API xwsstream* xrtWsStreamAttachTls(
 /* 增加 Connection 引用。 */
 /* Validate the external prefix before changing transport callbacks. Moving
  * blocks needs no allocation; rollback has an exclusive, empty destination. */
-static bool __xrtWsStreamInitialTake(xnetbuf* pInitial,
+bool __xrtWsStreamInitialTake(xnetbuf* pInitial,
 	const xnetbuf* pTransport, xnetbuf* pDraft)
 {
 	if (!pInitial || pInitial == pTransport ||
@@ -3363,7 +3393,7 @@ XRT_API xwsstream* xrtWsStreamAttachTlsBuffered(xtlsstream* pTransport,
 	xnetbuf* pInitial, const xwsstreamconfig* pConfig,
 	const xwsstreamevents* pEvents, ptr pData)
 {
-	if (!pTransport || !xrtNetWorkerIsCurrent(xrtTlsStreamWorker(pTransport))) {
+	if (!pTransport || !xrtNetWorkerIsCurrent(xrtNetStreamWorker(xrtTlsStreamTransport(pTransport)))) {
 		__xrtErrorSetInvalidState();return NULL;
 	}
 	xnetbuf Draft={0};
@@ -3378,7 +3408,7 @@ XRT_API xwsstream* xrtWsStreamAttachTlsBuffered(xtlsstream* pTransport,
 }
 #endif
 
-XRT_API xwsstream* xrtWsStreamRef(xwsstream* pConnection)
+static xwsstream* __xrtWsStreamRefBody(xwsstream* pConnection)
 {
 	if ( pConnection == NULL ) {
 		return NULL;
@@ -3390,6 +3420,17 @@ XRT_API xwsstream* xrtWsStreamRef(xwsstream* pConnection)
 		return NULL;
 	}
 	return pConnection;
+}
+XRT_API xwsstream* xrtWsStreamRef(xwsstream* pConnection)
+{
+ if(!pConnection||!pConnection->OwnershipPolicy)return __xrtWsStreamRefBody(pConnection);
+ xrtownershipscope Mutation={0};if(!xrtOwnershipMutationBegin(&Mutation))return NULL;
+ xwsstream* result=NULL;
+ if(xrtAtomic32Load(&pConnection->OwnershipState,XMEMORY_ACQUIRE)&__XRT_WS_OWN_CLEARED)
+  __xrtErrorSetInvalidState();
+ else result=__xrtWsStreamRefBody(pConnection);
+ if(!xrtOwnershipScopeEnd(&Mutation))abort();
+ return result;
 }
 
 
@@ -3406,9 +3447,12 @@ XRT_API void xrtWsStreamDestroy(xwsstream* pConnection)
 	) ) {
 		return;
 	}
-	if ( xrtRefRelease(&pConnection->References) == 0 ) {
-		__xrtWsStreamFree(pConnection);
-	}
+	xrtownershipscope Mutation={0};
+	bool owned=pConnection->OwnershipPolicy!=NULL;
+	if(owned&&!xrtOwnershipMutationBegin(&Mutation))abort();
+	bool last=xrtRefRelease(&pConnection->References)==0;
+	if(owned&&!xrtOwnershipScopeEnd(&Mutation))abort();
+	if(last)__xrtWsStreamFree(pConnection);
 }
 
 
@@ -4100,7 +4144,7 @@ bool __xrtWsStreamMessageCheck(
 
 
 /* 验证并发送一条完整 Text 或 Binary 消息。 */
-static xnetresult __xrtWsStreamSendMessage(
+static xnetresult __xrtWsStreamSendMessageBody(
 	xwsstream* pConnection,
 	xwsopcode Opcode,
 	xbytesview Payload,
@@ -4141,6 +4185,19 @@ static xnetresult __xrtWsStreamSendMessage(
 		__XRT_WS_SEND_DATA,
 		false
 	);
+}
+static xnetresult __xrtWsStreamSendMessage(
+	xwsstream* pConnection,
+	xwsopcode Opcode,
+	xbytesview Payload,
+	bool bCompressed
+)
+{
+ bool owned=pConnection && pConnection->OwnershipPolicy;
+ if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return XNET_RESULT_ERROR;
+ xnetresult result=__xrtWsStreamSendMessageBody(pConnection, Opcode, Payload, bCompressed);
+ if(owned)__xrtWsStreamOwnershipLeave(pConnection);
+ return result;
 }
 
 
@@ -4280,7 +4337,7 @@ static xnetresult __xrtWsStreamControlSend(
 
 
 /* 发送 Ping 控制帧。 */
-XRT_API xnetresult xrtWsStreamPing(
+static xnetresult xrtWsStreamPingBody(
 	xwsstream* pConnection,
 	xbytesview Payload
 )
@@ -4291,11 +4348,22 @@ XRT_API xnetresult xrtWsStreamPing(
 		Payload
 	);
 }
+XRT_API xnetresult xrtWsStreamPing(
+	xwsstream* pConnection,
+	xbytesview Payload
+)
+{
+ bool owned=pConnection && pConnection->OwnershipPolicy;
+ if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return XNET_RESULT_ERROR;
+ xnetresult result=xrtWsStreamPingBody(pConnection, Payload);
+ if(owned)__xrtWsStreamOwnershipLeave(pConnection);
+ return result;
+}
 
 
 
 /* 发送 Pong 控制帧。 */
-XRT_API xnetresult xrtWsStreamPong(
+static xnetresult xrtWsStreamPongBody(
 	xwsstream* pConnection,
 	xbytesview Payload
 )
@@ -4306,11 +4374,22 @@ XRT_API xnetresult xrtWsStreamPong(
 		Payload
 	);
 }
+XRT_API xnetresult xrtWsStreamPong(
+	xwsstream* pConnection,
+	xbytesview Payload
+)
+{
+ bool owned=pConnection && pConnection->OwnershipPolicy;
+ if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return XNET_RESULT_ERROR;
+ xnetresult result=xrtWsStreamPongBody(pConnection, Payload);
+ if(owned)__xrtWsStreamOwnershipLeave(pConnection);
+ return result;
+}
 
 
 
 /* 发送唯一 Close 并等待远端回应。 */
-XRT_API xnetresult xrtWsStreamClose(
+static xnetresult xrtWsStreamCloseBody(
 	xwsstream* pConnection,
 	uint16 iCode,
 	xstrview Reason
@@ -4352,11 +4431,23 @@ XRT_API xnetresult xrtWsStreamClose(
 		false
 	);
 }
+XRT_API xnetresult xrtWsStreamClose(
+	xwsstream* pConnection,
+	uint16 iCode,
+	xstrview Reason
+)
+{
+ bool owned=pConnection && pConnection->OwnershipPolicy;
+ if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return XNET_RESULT_ERROR;
+ xnetresult result=xrtWsStreamCloseBody(pConnection, iCode, Reason);
+ if(owned)__xrtWsStreamOwnershipLeave(pConnection);
+ return result;
+}
 
 
 
 /* 从任意线程安全取得临时传输引用并请求异常关闭。 */
-XRT_API bool xrtWsStreamAbort(xwsstream* pConnection)
+bool __xrtWsStreamAbortBody(xwsstream* pConnection)
 {
 	ptr pTransport;
 	bool bAccepted;
@@ -4411,6 +4502,14 @@ XRT_API bool xrtWsStreamAbort(xwsstream* pConnection)
 		pTransport
 	);
 	return bAccepted;
+}
+XRT_API bool xrtWsStreamAbort(xwsstream* pConnection)
+{
+ bool owned=pConnection && pConnection->OwnershipPolicy;
+ if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return false;
+ bool result=__xrtWsStreamAbortBody(pConnection);
+ if(owned)__xrtWsStreamOwnershipLeave(pConnection);
+ return result;
 }
 
 

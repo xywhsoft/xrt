@@ -44,6 +44,9 @@ struct xtlsstream {
 	xtlsstreamconfig Config;
 	xtlsstreamevents Events;
 	xatomicptr Data;
+	/* A protocol handoff never replaces the session's original context. */
+	const xtlsstreamownershipv1* EventPolicy;
+	xatomicptr EventData;
 	xerror* Error;
 	uint64 HandshakeTimer;
 	uint64 CloseTimer;

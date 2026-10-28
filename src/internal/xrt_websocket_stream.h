@@ -11,6 +11,9 @@
 
 #if defined(XRT_FEATURE_WEBSOCKET_STREAM)
 
+#define __XRT_WS_OWN_RUNTIME_RELEASED 1u
+#define __XRT_WS_OWN_CLEARED 2u
+
 /* 发送类别按协议存活优先级逐层使用预算。 */
 typedef enum __xrt_ws_send_class {
 	__XRT_WS_SEND_DATA = 0,
@@ -154,6 +157,20 @@ typedef struct __xrt_ws_output {
 */
 struct xwsstream {
 	volatile int32 References;
+	xatomicptr OwnershipClaim;
+	xatomic32 OwnershipActive;
+	xatomic32 OwnershipState;
+	const xwsstreamownershipv1* OwnershipPolicy;
+	xnetengine* OwnershipEngine;
+	__xrt_net_engine_runtime RuntimeOwner;
+	xerror* OwnershipFinishError;
+	bool OwnershipDataHeld;
+	bool OwnershipStorageHeld;
+	bool OwnershipEngineHeld;
+	bool RuntimeHeld;
+	bool OwnershipBuffersSettled;
+	bool OwnershipFinished;
+	bool OwnershipFinishing;
 	xatomic32 State;
 	xatomic32 TransportResult;
 	xatomicptr Transport;
@@ -206,6 +223,20 @@ struct xwsstream {
 	bool ErrorEmitted;
 	bool CloseEmitted;
 };
+
+bool __xrtWsStreamOwnershipEnter(xwsstream* pStream, bool bSubmit);
+void __xrtWsStreamOwnershipLeave(xwsstream* pStream);
+void __xrtWsOwnedRuntimeRelease(xwsstream* pStream);
+extern const xrtownershipops __xrtWsStreamOwnershipOps;
+void __xrtWsStreamFree(xwsstream* pStream);
+bool __xrtWsStreamDrivePrepare(xwsstream* pStream);
+bool __xrtWsStreamAttachBudget(xwsstream* pStream,ptr pTransport);
+bool __xrtWsStreamInitialTake(xnetbuf* pInitial,const xnetbuf* pTransport,xnetbuf* pDraft);
+bool __xrtWsStreamAbortBody(xwsstream* pStream);
+void __xrtWsStreamCloseTimer(xnetworker* pWorker,uint64 Id,xnetresult Result,ptr pData);
+xwsstream* __xrtWsStreamCreate(xnetworker* pWorker,__xrt_ws_transport Kind,
+	ptr pTransport,const xwsstreamconfig* pConfig,
+	const xwsstreamevents* pEvents,ptr pData);
 
 #endif
 
