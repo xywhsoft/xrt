@@ -1,6 +1,38 @@
 {
-  "schema": 1, "manifest": "extlibs/xcron/config/modules.json",
-  "default_growth": {"text": 0.1, "data": 0.2, "bss": 0.2, "file": 0.15},
-  "profiles": [{"name": "xcron_expression", "system": "expression", "suite": "xcron_expression",
-    "description": "Only expression compilation and required core closure"}]
+  "schema": 1,
+  "manifest": "extlibs/xcron/config/modules.json",
+  "default_growth": {
+    "text": 0.1,
+    "data": 0.2,
+    "bss": 0.2,
+    "file": 0.15
+  },
+  "profiles": [
+    {
+      "name": "xcron_expression",
+      "system": "expression",
+      "suite": "xcron_expression",
+      "description": "Only expression compilation and required core closure"
+    },
+    {
+      "name": "xcron_calendar",
+      "system": "calendar",
+      "suite": "xcron_calendar",
+      "description": "Gregorian UTC/civil search, expression and public XRT time/core; no local-zone or text parser",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xrtTimeWrite",
+        "xrtTimeParse",
+        "xrtDateTimeWrite",
+        "xrtDateTimeParse",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xrtTimeWrite",
+        "_xrtTimeParse",
+        "_xrtDateTimeWrite",
+        "_xrtDateTimeParse"
+      ]
+    }
+  ]
 }

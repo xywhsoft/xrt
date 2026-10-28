@@ -2,17 +2,69 @@
   "schema": 1,
   "manifest": "extlibs/xcron/config/modules.json",
   "defaults": {
-    "repeats": 5, "warmups": 1, "timeout_seconds": 120, "policy": "baseline-unpinned",
-    "cflags": ["-O2"], "ldflags": [], "max_relative_mad": 0.03, "max_relative_central_range": 0.06,
-    "regression": {"higher": 0.05, "lower": 0.1}
+    "repeats": 5,
+    "warmups": 1,
+    "timeout_seconds": 120,
+    "policy": "baseline-unpinned",
+    "cflags": [
+      "-O2"
+    ],
+    "ldflags": [],
+    "max_relative_mad": 0.03,
+    "max_relative_central_range": 0.06,
+    "regression": {
+      "higher": 0.05,
+      "lower": 0.1
+    }
   },
-  "profiles": [{
-    "name": "xcron_expression", "system": "expression",
-    "description": "Bounded caller-value expression compilation; no calendar, timezone or scheduler acceptance claim",
-    "benchmarks": [{
-      "name": "xcron_expression", "source": "extlibs/xcron/bench/bench_expression.c", "suite": "xcron_expression,time",
-      "args": ["1000000"], "smoke_args": ["10000"],
-      "metrics": {"expressions_per_sec": {"direction": "higher", "unit": "expressions/s"}}
-    }]
-  }]
+  "profiles": [
+    {
+      "name": "xcron_expression",
+      "system": "expression",
+      "description": "Bounded caller-value expression compilation; no calendar, timezone or scheduler acceptance claim",
+      "benchmarks": [
+        {
+          "name": "xcron_expression",
+          "source": "extlibs/xcron/bench/bench_expression.c",
+          "suite": "xcron_expression,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "expressions_per_sec": {
+              "direction": "higher",
+              "unit": "expressions/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_calendar",
+      "system": "calendar",
+      "description": "Precompiled UTC dense/sparse/impossible Gregorian search with bounded complete cycle; no timezone/scheduler/latency acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_calendar",
+          "source": "extlibs/xcron/bench/bench_calendar.c",
+          "suite": "xcron_calendar",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    }
+  ]
 }

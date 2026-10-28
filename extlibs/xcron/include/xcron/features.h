@@ -10,6 +10,22 @@
 #ifndef XCRON_MODULE_XCRON_EXPRESSION
 #define XCRON_MODULE_XCRON_EXPRESSION
 #endif
+#ifndef XCRON_MODULE_XCRON_CALENDAR
+#define XCRON_MODULE_XCRON_CALENDAR
+#endif
+#endif
+
+/* xcron_calendar 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_CALENDAR)
+#ifndef XCRON_FEATURE_XCRON_CALENDAR
+#define XCRON_FEATURE_XCRON_CALENDAR
+#endif
+#ifndef XCRON_MODULE_XCRON_EXPRESSION
+#define XCRON_MODULE_XCRON_EXPRESSION
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
 #endif
 
 /* xcron_expression 及其直接依赖。 */

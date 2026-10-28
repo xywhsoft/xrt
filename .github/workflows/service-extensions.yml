@@ -84,6 +84,12 @@ jobs:
           python tools/measure_size.py --compiler gcc
           --config extlibs/xmqtt/config/size_profiles.json --profiles xmqtt_codec311 --kind single
           --report out/service-extensions/size-xmqtt-codec311-linux.json
+      - name: Check calendar dependency boundary
+        if: matrix.product == 'xcron'
+        run: >-
+          python tools/measure_size.py --compiler gcc
+          --config extlibs/xcron/config/size_profiles.json --profiles xcron_calendar --kind single
+          --report out/service-extensions/size-xcron-calendar-linux.json
       - name: Independent static and shared consumers
         run: |
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify
@@ -147,6 +153,12 @@ jobs:
           python tools/measure_size.py --compiler gcc
           --config extlibs/xmqtt/config/size_profiles.json --profiles xmqtt_codec311 --kind single
           --report out/service-extensions/size-xmqtt-codec311-windows.json
+      - name: Check calendar dependency boundary
+        if: matrix.product == 'xcron'
+        run: >-
+          python tools/measure_size.py --compiler gcc
+          --config extlibs/xcron/config/size_profiles.json --profiles xcron_calendar --kind single
+          --report out/service-extensions/size-xcron-calendar-windows.json
       - name: Independent static and shared consumers
         run: |
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify

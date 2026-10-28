@@ -8,9 +8,11 @@ Target and rules: [development contract](service-extensions-plan.md).
 - P0 source/worktree isolation and execution contract are established.
 - xredis binary-safe command encoding and the bounded RESP2/3 event reader are
   locally verified. Runtime requests and owned reply objects remain pending.
-- xcron five-field/seconds-six-field expression compilation is locally verified.
-  Calendar search, named time zones and scheduling remain pending.
-- P1 continues with independently testable RPC/MQTT protocol leaves.
+- xcron five-field/seconds-six-field expression compilation and Gregorian
+  UTC/civil matching/earliest search are locally verified. Named time zones,
+  scheduling and durable recovery remain pending.
+- P1 codec/expression/calendar foundations are locally verified. P2 continues
+  with xredis owned replies and request/connection lifecycle.
 - The xrpc prototype exposed a JSON lexical-scan gap. The shared parser now has
   a locally verified raw Scan API. RPC envelope decoding and encoding are locally
   verified; correlation, dispatch and transports remain pending.
@@ -53,7 +55,8 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xmqtt | complete MQTT 3.1.1 packet codec | locally verified | all 14 types, 22 literal fixtures at 4 header widths, 256 CONNECT flags and subscription bytes, 65,536 CONNACK flag/code combinations, >2 MiB Errata 01 range, 30,000 mutations, limits/borrows/atomicity/zero-heap/OOM; Windows/WSL modular/single/sanitizer/examples/trim/static/shared and symbol-isolation size gate |
 | xmqtt | negotiated property rules, client, sessions, persistence, transports | pending | no claim |
 | xcron | bounded immutable expression compiler | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct single, example/trim/static/shared; 111,630 range/step combinations, 10,000 generated expressions, 20,000 raw inputs, alias/offset/atomicity/allocation/OOM tests |
-| xcron | calendar, time zones, scheduler, recovery | pending | no claim |
+| xcron | bounded Gregorian UTC/civil matching and earliest search | locally verified | full 400-year/146097-day predicate oracle, 1500 brute search oracles, full UTC int64 and civil int64 years, whole-second/bounds/BCE/century rules, 4801-month complete-cycle proof, aliases/atomicity/zero-heap/OOM; Windows/WSL modular/single/sanitizer/examples/trim/static/shared and isolated-size gate |
+| xcron | named time zones, scheduler, recovery | pending | no claim |
 
 Do not replace pending rows with success based only on metadata or compilation.
 
@@ -631,3 +634,83 @@ for the isolated closure gate. Ignored evidence/reports use `mqtt-codec311-*`
 under `out/service-extensions/`. Client/session/negotiation/QoS state, persistence,
 transports, peer interoperability and final performance/long-run acceptance remain
 pending across the original four-product goal.
+
+## Gregorian calendar validation
+
+`xcron_calendar` adds exact UTC/civil matching and bounded earliest recurrence
+search over the compiled Unix5/seconds6 value. It uses public XRT time APIs,
+month/date/time bitmaps and a portable bit scan, with no new core gap/runtime.
+UTC covers the full int64 millisecond domain. Floating civil labels cover all
+nonzero int64 years; derived metadata is obtained in a safe equivalent year of
+the 400-year cycle. Offsets/DST/weekday/year-day inputs are ignored, not treated
+as a zone mapping. Output metadata is canonical with Offset=0 and IsDST=-1.
+
+- UTC intervals are `[Begin,End]` or `(Begin,End]`, with inclusive End and safe
+  upward whole-second rounding. Unix5 has second zero; nonzero milliseconds
+  never match. Full timestamp endpoints and BCE/CE transitions work without
+  constructing an unrepresentable midnight or a civil year zero. Civil year
+  INT64_MIN/INT64_MAX and fractional/exclusive final-year cases are covered.
+- Month/day masks exclude impossible dates, preserve star-vs-numeric-range
+  DOM/DOW rules, and select earliest hour/minute/second lexicographically. No
+  elapsed-second/minute scan is used. Gregorian 400-year repetition proves NONE
+  after at most 4801 month visits, rather than imposing an arbitrary horizon.
+  Tests exhaust the bound at both full UTC and full civil-year ranges.
+- Ten independent predicate patterns walk every day of 2000..2399 (146097 days,
+  1,460,970 comparisons), with an independently stepped calendar/weekday oracle.
+  These include DOM-or-DOW, star steps vs numeric steps, explicit numeric full
+  ranges, monthly restrictions, non-existent dates and leap centuries. Five
+  hundred random earliest-time queries compare against a brute one-second
+  oracle; one thousand sparse ten-year queries compare against a daily oracle.
+- Known fixtures verify inclusive/exclusive millisecond interval
+  edges, negative rounding, leap-century gaps, field carries, Fridays/weekends,
+  year 12000, canonical civil metadata and ignored invalid offset/derived fields.
+  Invalid expression masks/flags/dialect/Unix5 seconds, invalid dates/windows,
+  wrapped/null pointers and output/input aliases preserve the stated outputs.
+- Ten thousand warm cycles through all four APIs preserve allocation counters
+  and ambient error identity. Whole-cycle NONE preserves both as a normal query
+  result. One-byte quotas allow valid/none queries, while diagnostic OOM retains
+  typed expression/date/window issues and leaves zero live budget bytes.
+- Windows GCC 16.2 O2 modular/all single tests and Ubuntu/WSL GCC 15.2 O2
+  ASan+UBSan modular/direct calendar single pass. Expression regressions remain
+  green. A Linux modular test exposed a missing explicit `<limits.h>` test include;
+  it was corrected. Trim-positive compilation exposed a missing public XRT feature
+  expansion include in the new header; it was fixed and all positive/missing-
+  dependency probes now pass. No source/runtime capability was weakened.
+- Both systems compile/run the actual root expression/calendar examples. The
+  calendar example returns Monday 2024-03-04 09:00 UTC after a fractional Friday
+  firing, and 4801 visits for impossible February 30. Independent static/shared
+  consumers exercise all four new APIs against one host XRT. PE/ELF checks find
+  the expected five public xcron functions, with no exported private helpers.
+- API/generated/asset checks pass: five functions / 35 constants / eight types,
+  missing=0; 67 tooling tests pass. Strict release continues to reject the
+  developing root. Local documentation links and both native CI conditional
+  calendar-size steps were parsed/checked. Remote Actions execution is not claimed.
+- The calendar single-object size gate forbids system-local time and time-text
+  function prefixes; Windows and Ubuntu/WSL pass with zero forbidden symbols.
+  Windows GNU x64 O2 unstripped object: text 46,720, data 2,376, bss 11,072,
+  file 77,082 bytes. Ubuntu/WSL x64: text 49,706, data 2,648, bss 10,892,
+  file 95,680 bytes. These include the public XRT closure/object metadata,
+  not only incremental calendar text or a final application footprint.
+- Expression and calendar workloads pass one-sample unpinned Windows and
+  Ubuntu/WSL smoke, potentially under other validation load. Calendar workload
+  mixes dense, sparse, leap and impossible searches over precompiled expressions.
+  This establishes workload execution, not a pinned baseline, scheduler throughput,
+  queue-inclusive tail latency, timezone/DST, durable recovery or production parity.
+
+Input validation, span/alias checks, fixed date/metadata copies, XRT conversion
+and month-length calls, bitmap scans/rotation, month iteration and optional work
+counter writes remain real costs. Normal queries allocate/retain nothing; cold
+diagnostics can allocate. Separate calls repeat validation. The
+[calendar contracts](../../extlibs/xcron/docs/calendar.md) preserve these costs and
+the remaining IANA transition-segment/gap/fold responsibilities. A forward search
+from only the current local label cannot replace ordered UTC-segment search.
+
+Reproduce with `extlibs/xcron/config/modules.json`, suite `xcron_tests --cflag=-O2`;
+Ubuntu/WSL modular adds `--arch x64 --no-single` and the sanitizer flags above.
+Direct single uses `extlibs/xcron/tests/single/test_single_xcron_calendar.c` with
+strict C11/O2/ASan+UBSan/`-pthread -lm`. Product `xcron --no-single`, `--trim-only`,
+and static/shared `--verify` cover examples/distribution. Its size config profile
+`xcron_calendar --kind single` proves the isolated dependency boundary. Ignored
+logs/reports use `cron-calendar-*` under `out/service-extensions/`. Named zones,
+DST policies, clocks/executors, misfire/overlap and durable restart remain pending;
+the full four-product goal and its acceptance gates are unchanged.

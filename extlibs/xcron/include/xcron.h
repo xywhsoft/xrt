@@ -8,5 +8,9 @@
 #endif
 
 #include <xcron/expression.h>
+#if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_CALENDAR)
+#error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_CALENDAR"
+#endif
+#include <xcron/calendar.h>
 
 #endif

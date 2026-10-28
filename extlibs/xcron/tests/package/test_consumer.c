@@ -8,6 +8,14 @@ int main(void)
 	if (!xcronExpressionCompile(XRT_STR_LITERAL("0,30 9-17 * JAN-MAR MON-FRI"), XCRON_UNIX5, &Expression, &Issue)) return 1;
 	if (Expression.Fields[XCRON_FIELD_MINUTE] != ((uint64)1u | ((uint64)1u << 30u)) ||
 		Expression.Fields[XCRON_FIELD_WEEKDAY] != 0x3eu || Expression.Flags != XCRON_DAY_MONTH_STAR) return 2;
+	xtime Begin, End, Next; bool Matches; xcroncalendarissue CalendarIssue;
+	if (!xrtDateTime(2024,1,1,9,0,0,123,&Begin) || !xrtDate(2024,1,2,&End) ||
+		xcronCalendarNext(&Expression,Begin,End,0,&Next,&CalendarIssue)!=XCRON_CALENDAR_FOUND || Next!=Begin-123+30*XRT_TIME_MINUTE ||
+		!xcronCalendarMatch(&Expression,Next,&Matches,NULL) || !Matches) return 5;
+	xdatetime First, Last, Civil, Canonical; xrtTimeSplit(Begin,&First); xrtTimeSplit(End,&Last); xrtTimeSplit(Next,&Canonical); First.Offset=3600; First.Weekday=-1;
+	if (xcronCalendarNextCivil(&Expression,&First,&Last,0,&Civil,&CalendarIssue)!=XCRON_CALENDAR_FOUND || Civil.Year!=2024 || Civil.Day!=1 ||
+		Civil.Hour!=9 || Civil.Minute!=30 || Civil.Weekday!=1 || Civil.Offset!=0 || Civil.YearDay!=1 ||
+		!xcronCalendarMatchCivil(&Expression,&Civil,&Matches,NULL) || !Matches || Civil.Second!=Canonical.Second) return 6;
 	if (xcronExpressionCompile(XRT_STR_LITERAL("60 * * * *"), XCRON_UNIX5, &Expression, &Issue)) return 3;
 	if (Issue.Code != XCRON_EXPRESSION_RANGE || xrtErrorKind(xrtGetError()) != XERR_RANGE ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.cron") != 0) return 4;

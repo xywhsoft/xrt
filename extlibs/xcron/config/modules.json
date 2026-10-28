@@ -19,7 +19,8 @@
   "scope": {
     "product": "xcron",
     "external_integrations": [],
-    "systems": [{"name": "expression", "state": "retained", "source_roots": ["expression"]}]
+    "systems": [{"name": "expression", "state": "retained", "source_roots": ["expression"]},
+      {"name": "calendar", "state": "retained", "source_roots": ["calendar"]}]
   },
   "api_reference": {
     "title": "xcron public API reference",
@@ -39,7 +40,7 @@
       "name": "xcron",
       "state": "developing",
       "feature": "XCRON_FEATURE_XCRON",
-      "depends": ["xcron_expression"],
+      "depends": ["xcron_expression", "xcron_calendar"],
       "collect_dependency_assets": ["examples"],
       "public_headers": ["extlibs/xcron/include/xcron.h", "extlibs/xcron/include/xcron/features.h"],
       "internal_headers": [], "sources": [], "tests": [], "single_tests": [], "examples": [], "benchmarks": [],
@@ -60,15 +61,29 @@
       "docs": ["extlibs/xcron/README.md", "extlibs/xcron/docs/api/reference.md", "extlibs/xcron/docs/coverage.md"]
     },
     {
+      "name": "xcron_calendar",
+      "state": "implemented",
+      "feature": "XCRON_FEATURE_XCRON_CALENDAR",
+      "depends": ["xcron_expression", "time"],
+      "public_headers": ["extlibs/xcron/include/xcron/calendar.h", "extlibs/xcron/include/xcron/export.h"],
+      "internal_headers": [],
+      "sources": ["extlibs/xcron/src/calendar/calendar.c"],
+      "tests": ["extlibs/xcron/tests/test_calendar.c"],
+      "single_tests": ["extlibs/xcron/tests/single/test_single_xcron_calendar.c"],
+      "examples": ["extlibs/xcron/examples/calendar/main.c"],
+      "benchmarks": ["extlibs/xcron/bench/bench_calendar.c"],
+      "docs": ["extlibs/xcron/README.md", "extlibs/xcron/docs/calendar.md", "extlibs/xcron/docs/coverage.md", "extlibs/xcron/docs/api/reference.md"]
+    },
+    {
       "name": "xcron_tests",
       "state": "implemented",
       "feature": null,
       "depends": ["xcron", "memory_stats"],
       "public_headers": [], "internal_headers": [], "sources": [],
-      "tests": ["extlibs/xcron/tests/test_expression.c"],
-      "single_tests": ["extlibs/xcron/tests/single/test_single_xcron_expression.c"],
+      "tests": ["extlibs/xcron/tests/test_expression.c", "extlibs/xcron/tests/test_calendar.c"],
+      "single_tests": ["extlibs/xcron/tests/single/test_single_xcron_expression.c", "extlibs/xcron/tests/single/test_single_xcron_calendar.c"],
       "examples": [], "benchmarks": [], "docs": ["extlibs/xcron/README.md"],
-      "single_test_owners": {"extlibs/xcron/tests/single/test_single_xcron_expression.c": "xcron_expression"}
+      "single_test_owners": {"extlibs/xcron/tests/single/test_single_xcron_expression.c": "xcron_expression", "extlibs/xcron/tests/single/test_single_xcron_calendar.c": "xcron_calendar"}
     }
   ]
 }
