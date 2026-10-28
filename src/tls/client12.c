@@ -337,6 +337,9 @@ static bool __xrtTlsClient12FlightSize(
 		(xbytesview) { pState->PublicKey, pState->PublicKeySize }
 	);
 	iKeyExchange = xrtTlsHandshakeSize(iBody);
+	if ( pState->CertificateRequested ) {
+		iKeyExchange += XTLS_CLIENT_EMPTY_CERTIFICATE12_SIZE;
+	}
 	iKeyExchangeRecord = xrtTlsRecordSize(iKeyExchange);
 	iChangeCipherSpecRecord = xrtTlsRecordSize(1u);
 	iFinishedRecord = XTLS_RECORD_HEADER_SIZE + pCipher->ExplicitNonceSize +
@@ -393,7 +396,8 @@ static xtlsresult __xrtTlsClient12ServerHelloDone(
 	xtlsrecordkey WriteKey;
 	xtlsrecordkey ReadKey;
 	xtlstranscript Next = pState->Transcript;
-	uint8 KeyExchange[XTLS_CLIENT12_KEY_EXCHANGE_MAX_SIZE];
+	uint8 KeyExchange[XTLS_CLIENT12_KEY_EXCHANGE_MAX_SIZE +
+		XTLS_CLIENT_EMPTY_CERTIFICATE12_SIZE];
 	uint8 Finished[XTLS_CLIENT12_FINISHED_MESSAGE_SIZE];
 	uint8 SessionHash[XTLS_TRANSCRIPT_HASH_MAX_SIZE];
 	uint8 HandshakeHash[XTLS_TRANSCRIPT_HASH_MAX_SIZE];
@@ -401,6 +405,8 @@ static xtlsresult __xrtTlsClient12ServerHelloDone(
 	uint8 ChangeCipherSpec = 1u;
 	uint8* pOutput = NULL;
 	size_t iBody;
+	size_t iCertificate = pState->CertificateRequested ?
+		XTLS_CLIENT_EMPTY_CERTIFICATE12_SIZE : 0u;
 	size_t iKeyExchange;
 	size_t iKeyExchangeRecord;
 	size_t iChangeCipherSpecRecord;
@@ -436,19 +442,30 @@ static xtlsresult __xrtTlsClient12ServerHelloDone(
 	) ) {
 		goto cleanup;
 	}
+	if ( iCertificate != 0 ) {
+		static const uint8 EmptyCertificate[] = { 0, 0, 0 };
+
+		if ( !xrtTlsHandshakeEncode(
+			XTLS_HANDSHAKE_CERTIFICATE,
+			(xbytesview) { EmptyCertificate, sizeof(EmptyCertificate) },
+			KeyExchange, sizeof(KeyExchange)
+		) ) {
+			goto cleanup;
+		}
+	}
 	iBody = xrtTls12ClientKeyExchangeSize(
 		(xbytesview) { pState->PublicKey, pState->PublicKeySize }
 	);
-	iKeyExchange = xrtTlsHandshakeSize(iBody);
+	iKeyExchange = iCertificate + xrtTlsHandshakeSize(iBody);
 	if ( (iKeyExchange > sizeof(KeyExchange)) ||
 		!xrtTls12ClientKeyExchangeEncode(
 			(xbytesview) { pState->PublicKey, pState->PublicKeySize },
-			KeyExchange + XTLS_HANDSHAKE_HEADER_SIZE, iBody
+			KeyExchange + iCertificate + XTLS_HANDSHAKE_HEADER_SIZE, iBody
 		) || !xrtTlsHandshakeEncode(
 			XTLS_HANDSHAKE_CLIENT_KEY_EXCHANGE,
 			(xbytesview) {
-				KeyExchange + XTLS_HANDSHAKE_HEADER_SIZE, iBody
-			}, KeyExchange, sizeof(KeyExchange)
+				KeyExchange + iCertificate + XTLS_HANDSHAKE_HEADER_SIZE, iBody
+			}, KeyExchange + iCertificate, sizeof(KeyExchange) - iCertificate
 		) || !__xrtTlsTranscriptUpdate(
 			&Next, (xbytesview) { KeyExchange, iKeyExchange }
 		) || !__xrtTlsTranscriptDigest(
@@ -642,6 +659,11 @@ xtlsresult __xrtTlsClient12Handshake(
 		);
 	}
 	if ( pState->Step == XTLS_CLIENT_WAIT_SERVER_HELLO_DONE ) {
+		if ( pMessage->Type == XTLS_HANDSHAKE_CERTIFICATE_REQUEST ) {
+			return __xrtTlsClientCertificateRequestCommit(
+				pSession, pState, pMessage
+			);
+		}
 		return __xrtTlsClient12ServerHelloDone(
 			pSession, pState, pMessage
 		);

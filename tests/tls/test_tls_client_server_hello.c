@@ -1178,9 +1178,11 @@ static xtlssession* testTlsClientCertificateBegin(
 
 
 /* 使用指定扩展协商和真实证书签名推进到等待服务端 Finished。 */
-static xtlssession* testTlsClientFinishedBeginMode(
+static xtlssession* testTlsClientFinishedBeginRequest(
 	test_tls_client_server_hello* pFixture,
-	test_tls_encrypted_extensions_mode Mode
+	test_tls_encrypted_extensions_mode Mode,
+	const void* pRequest,
+	size_t iRequest
 )
 {
 	uint8 EncryptedExtensions[256];
@@ -1197,6 +1199,13 @@ static xtlssession* testTlsClientFinishedBeginMode(
 		sizeof(EncryptedExtensions), &iEncryptedExtensions
 	);
 	(void)iEncryptedExtensions;
+	for ( size_t i = 0; i < iRequest; i++ ) {
+		testRequire(testTlsClientServerProtect(
+			pFixture, pServer, (const uint8*)pRequest + i, 1u
+		) == XTLS_OK, "TLS Finished fixture CertificateRequest failed");
+		testRequire(pFixture->State->CertificateRequested == (i + 1u == iRequest),
+			"TLS client committed an incomplete CertificateRequest");
+	}
 	iCertificate = testTlsClientCertificateMessage(
 		(xbytesview) { NULL, 0 }, Certificate, sizeof(Certificate)
 	);
@@ -1214,6 +1223,16 @@ static xtlssession* testTlsClientFinishedBeginMode(
 		"TLS client did not reach Finished state");
 	xrtTlsIdentityRelease(pIdentity);
 	return pServer;
+}
+
+
+
+static xtlssession* testTlsClientFinishedBeginMode(
+	test_tls_client_server_hello* pFixture,
+	test_tls_encrypted_extensions_mode Mode
+)
+{
+	return testTlsClientFinishedBeginRequest(pFixture, Mode, NULL, 0);
 }
 
 
@@ -1240,13 +1259,16 @@ static xtlssession* testTlsClientReadyFinish(
 )
 {
 	uint8 Finished[64];
+	uint8 Expected[72];
 	uint8 HandshakeSecret[32];
 	uint8 MasterSecret[32];
 	uint8 Digest[32];
 	xtlstranscript Transcript;
+	xtlstranscript ClientTranscript;
 	xtlssessionrecord Record;
 	xnetspan Span;
 	size_t iFinished;
+	size_t iExpected = 0;
 
 	Transcript = pFixture->State->Transcript;
 	memcpy(
@@ -1267,6 +1289,25 @@ static xtlssession* testTlsClientReadyFinish(
 		(xbytesview) { HandshakeSecret, sizeof(HandshakeSecret) },
 		&Transcript, pClientTraffic, pServerTraffic, MasterSecret
 	);
+	ClientTranscript = Transcript;
+	if ( pFixture->State->CertificateRequested ) {
+		static const uint8 EmptyCertificate[] = {
+			11u, 0, 0, 4u, 0, 0, 0, 0
+		};
+
+		iExpected = sizeof(EmptyCertificate);
+		memcpy(Expected, EmptyCertificate, iExpected);
+		testRequire(__xrtTlsTranscriptUpdate(
+			&ClientTranscript, (xbytesview) { Expected, iExpected }
+		), "TLS READY fixture empty Certificate transcript failed");
+	}
+	iExpected += testTlsClientFinishedMessage(
+		&ClientTranscript,
+		(xbytesview) {
+			pFixture->State->ClientHandshakeTraffic, pFixture->State->HashSize
+		}, Expected + iExpected, sizeof(Expected) - iExpected
+	);
+	__xrtTlsTranscriptClear(&ClientTranscript);
 	testRequire((testTlsClientServerProtect(
 		pFixture, pServer, Finished, iFinished
 	) == XTLS_OK) &&
@@ -1285,7 +1326,8 @@ static xtlssession* testTlsClientReadyFinish(
 		pServer, &Record
 	) == XTLS_OK) && Record.Protected &&
 		(Record.Type == XTLS_RECORD_HANDSHAKE) &&
-		(Record.Data.Size == xrtTlsHandshakeSize(32u)),
+		(Record.Data.Size == iExpected) &&
+		(memcmp(Record.Data.Data, Expected, iExpected) == 0),
 		"TLS READY fixture client Finished mismatch");
 	testRequire(__xrtTlsTranscriptUpdate(
 		&Transcript, Record.Data
@@ -1311,6 +1353,7 @@ static xtlssession* testTlsClientReadyFinish(
 	xrtSecureZero(MasterSecret, sizeof(MasterSecret));
 	xrtSecureZero(HandshakeSecret, sizeof(HandshakeSecret));
 	xrtSecureZero(Finished, sizeof(Finished));
+	xrtSecureZero(Expected, sizeof(Expected));
 	return pServer;
 }
 
@@ -2817,14 +2860,175 @@ static void testTlsClientFinishedReject(void)
 
 
 
-/* Finished 输出背压必须在解析前暂停，并可在排空后无损重试。 */
-static void testTlsClientFinishedBackpressure(void)
+/* Empty-certificate clients must complete optional authentication, including
+ * unknown extensions/schemes. A required certificate is the server's decision. */
+static void testTlsClientCertificateRequestValid(void)
 {
+	static const uint8 Bodies[][16] = {
+		{ 0, 0, 8u, 0, 13u, 0, 4u, 0, 2u, 8u, 4u },
+		{ 0, 0, 13u, 0, 13u, 0, 4u, 0, 2u, 0xFEu, 0xFEu,
+			0xFAu, 0xFAu, 0, 1u, 0xA5u }
+	};
+	static const size_t Sizes[] = { 11u, 16u };
+
+	for ( size_t i = 0; i < sizeof(Sizes) / sizeof(Sizes[0]); i++ ) {
+		test_tls_client_server_hello Fixture;
+		uint8 Request[64];
+		uint8 ClientTraffic[32];
+		uint8 ServerTraffic[32];
+		xtlssession* pServer;
+		size_t iRequest = xrtTlsHandshakeSize(Sizes[i]);
+
+		testRequire(xrtTlsHandshakeEncode(
+			XTLS_HANDSHAKE_CERTIFICATE_REQUEST,
+			(xbytesview) { Bodies[i], Sizes[i] }, Request, sizeof(Request)
+		), "TLS optional request encoding failed");
+		pServer = testTlsClientFinishedBeginRequest(
+			&Fixture, TEST_TLS_ENCRYPTED_EXTENSIONS_NO_ALPN, Request, iRequest
+		);
+		testRequire(Fixture.State->CertificateRequested,
+			"TLS optional request was not retained");
+		(void)testTlsClientReadyFinish(
+			&Fixture, pServer, ClientTraffic, ServerTraffic
+		);
+		testRequire(xrtTlsSessionSendSize(Fixture.Client) == 0,
+			"TLS client duplicated the empty-certificate flight");
+		xrtTlsSessionDestroy(pServer);
+		testTlsClientServerFixtureUnit(&Fixture);
+	}
+}
+
+
+
+/* The role, not just the framing codec, must reject malformed, repeated and
+ * out-of-order requests. No failed parse may enter the Finished transcript. */
+static void testTlsClientCertificateRequestReject(void)
+{
+	static const uint8 Valid[] = { 0, 0, 8u, 0, 13u, 0, 4u, 0, 2u, 8u, 4u };
+	static const xtlsalert Alerts[] = {
+		XTLS_ALERT_DECODE_ERROR, XTLS_ALERT_MISSING_EXTENSION,
+		XTLS_ALERT_ILLEGAL_PARAMETER, XTLS_ALERT_DECODE_ERROR,
+		XTLS_ALERT_ILLEGAL_PARAMETER, XTLS_ALERT_DECODE_ERROR,
+		XTLS_ALERT_DECODE_ERROR, XTLS_ALERT_UNEXPECTED_MESSAGE,
+		XTLS_ALERT_UNEXPECTED_MESSAGE, XTLS_ALERT_UNEXPECTED_MESSAGE
+	};
+
+	for ( size_t i = 0; i < 10u; i++ ) {
+		test_tls_client_server_hello Fixture;
+		uint8 Body[64];
+		uint8 Request[80];
+		uint8 EncryptedExtensions[256];
+		uint8 Before[32];
+		uint8 After[32];
+		xtlssession* pServer;
+		xtlssessionrecord Record;
+		xnetspan Span;
+		xtlsalertlevel Level;
+		xtlsalert Alert;
+		size_t iBody = sizeof(Valid);
+		size_t iRequest;
+		size_t iEncryptedExtensions;
+
+		memcpy(Body, Valid, sizeof(Valid));
+		if ( i == 0 ) {
+			iBody = 0;
+		} else if ( i == 1u ) {
+			Body[2] = 0;
+			iBody = 3u;
+		} else if ( i == 2u ) {
+			memmove(Body + 2u, Body + 1u, iBody - 1u);
+			Body[0] = 1u;
+			Body[1] = 0xACu;
+			iBody++;
+		} else if ( i == 3u ) {
+			memcpy(Body + iBody, Valid + 3u, 8u);
+			Body[2] = 16u;
+			iBody += 8u;
+		} else if ( i == 4u ) {
+			static const uint8 WrongContext[] = { 0, 16u, 0, 0 };
+			memcpy(Body + iBody, WrongContext, sizeof(WrongContext));
+			Body[2] = 12u;
+			iBody += sizeof(WrongContext);
+		} else if ( i == 5u ) {
+			Body[8] = 1u;
+		} else if ( i == 6u ) {
+			static const uint8 EmptyCA[] = { 0, 47u, 0, 2u, 0, 0 };
+			memcpy(Body + iBody, EmptyCA, sizeof(EmptyCA));
+			Body[2] = 14u;
+			iBody += sizeof(EmptyCA);
+		}
+		iRequest = xrtTlsHandshakeSize(iBody);
+		testRequire(xrtTlsHandshakeEncode(
+			XTLS_HANDSHAKE_CERTIFICATE_REQUEST,
+			(xbytesview) { Body, iBody }, Request, sizeof(Request)
+		), "TLS invalid request fixture encoding failed");
+		if ( i == 8u ) {
+			pServer = testTlsClientFinishedBegin(&Fixture);
+		} else if ( i == 9u ) {
+			/* CertificateRequest before EncryptedExtensions is also invalid. */
+			testTlsClientServerFixtureInit(&Fixture, TEST_TLS_SERVER_HELLO_VALID);
+			testRequire(testTlsClientServerFeed(
+				&Fixture, 0, Fixture.ServerHelloSize
+			) == XTLS_OK, "TLS early request ServerHello failed");
+			pServer = testTlsClientServerPeer(&Fixture);
+		} else {
+			pServer = testTlsClientCertificateBegin(
+				&Fixture, true, EncryptedExtensions,
+				sizeof(EncryptedExtensions), &iEncryptedExtensions
+			);
+		}
+		if ( i == 7u ) {
+			testRequire(testTlsClientServerProtect(
+				&Fixture, pServer, Request, iRequest
+			) == XTLS_OK, "TLS duplicate request setup failed");
+		}
+		testRequire(__xrtTlsTranscriptDigest(
+			&Fixture.State->Transcript, Before, sizeof(Before)
+		), "TLS invalid request transcript snapshot failed");
+		testRequire((testTlsClientServerProtect(
+			&Fixture, pServer, Request, iRequest
+		) == XTLS_ERROR) &&
+			(xrtTlsSessionState(Fixture.Client) == XTLS_STATE_FAILED) &&
+			(Fixture.State->CertificateRequested == (i == 7u)) &&
+			(xrtErrorKind(xrtGetError()) == XERR_PROTOCOL) &&
+			__xrtTlsTranscriptDigest(&Fixture.State->Transcript, After, sizeof(After)) &&
+			(memcmp(Before, After, sizeof(Before)) == 0),
+			"TLS client accepted or committed an invalid CertificateRequest");
+		while ( xrtTlsSessionSendSize(Fixture.Client) != 0 ) {
+			testRequire(xrtTlsSessionSendFront(Fixture.Client, &Span) &&
+				(xrtTlsSessionFeed(pServer, Span.Data, Span.Size) == XTLS_OK) &&
+				xrtTlsSessionSendConsume(Fixture.Client, Span.Size),
+				"TLS rejected request alert transfer failed");
+		}
+		testRequire((__xrtTlsSessionRecordNext(pServer, &Record) == XTLS_OK) &&
+			Record.Protected && (Record.Type == XTLS_RECORD_ALERT) &&
+			xrtTlsAlertParse(Record.Data, &Level, &Alert) &&
+			(Level == XTLS_ALERT_FATAL) && (Alert == Alerts[i]) &&
+			(__xrtTlsSessionRecordFinish(pServer, false) == XTLS_OK) &&
+			(__xrtTlsSessionRecordNext(pServer, &Record) == XTLS_AGAIN),
+			"TLS rejected request fatal alert code or exact-once delivery differs");
+		xrtTlsSessionDestroy(pServer);
+		testTlsClientServerFixtureUnit(&Fixture);
+		xrtClearError();
+	}
+}
+
+
+
+/* Finished 输出背压必须在解析前暂停，并可在排空后无损重试。 */
+static void testTlsClientFinishedBackpressure(bool bRequest)
+{
+	static const uint8 Request[] = {
+		13u, 0, 0, 11u, 0, 0, 8u, 0, 13u, 0, 4u, 0, 2u, 8u, 4u
+	};
 	test_tls_client_server_hello Fixture;
 	uint8 Finished[64];
 	uint8 Before[32];
 	uint8 After[32];
-	xtlssession* pServer = testTlsClientFinishedBegin(&Fixture);
+	xtlssession* pServer = testTlsClientFinishedBeginRequest(
+		&Fixture, TEST_TLS_ENCRYPTED_EXTENSIONS_NO_ALPN,
+		bRequest ? Request : NULL, bRequest ? sizeof(Request) : 0u
+	);
 	const xtlslimits* pLimits = xrtTlsContextLimits(Fixture.Context);
 	bytes pFill;
 	size_t iFinished;
@@ -2840,7 +3044,7 @@ static void testTlsClientFinishedBackpressure(void)
 	);
 	iRecord = __xrtTlsRecordSealSize(
 		&Fixture.Client->WriteKey,
-		xrtTlsHandshakeSize(Fixture.State->HashSize), 0
+		xrtTlsHandshakeSize(Fixture.State->HashSize) + (bRequest ? 8u : 0u), 0
 	);
 	testRequire((pLimits != NULL) && (iRecord != 0) &&
 		(iRecord <= pLimits->SendLimit),
@@ -3443,7 +3647,10 @@ int main(void)
 	testTlsClientSessionTicketOom();
 	testTlsClientApplicationBackpressure();
 	testTlsClientFinishedReject();
-	testTlsClientFinishedBackpressure();
+	testTlsClientCertificateRequestValid();
+	testTlsClientCertificateRequestReject();
+	testTlsClientFinishedBackpressure(false);
+	testTlsClientFinishedBackpressure(true);
 	testTlsClientCertificateSnapshotOom();
 	testTlsClientCertificateRejectNoVerifier();
 	testTlsClientCertificateRejectExtension();

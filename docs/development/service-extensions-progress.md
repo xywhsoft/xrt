@@ -7,10 +7,10 @@ Target and rules: [development contract](service-extensions-plan.md).
 - All four final products are in development, not production accepted.
 - P0 source/worktree isolation and execution contract are established.
 - xredis binary commands, bounded RESP2/3 parsing, owned frames, one ordinary
-  TCP async/sync request connection and explicit HELLO/AUTH/name/database setup
-  are locally verified, including Redis 8.0.5 interoperability. Advanced
-  transports/modes, reconnect/pools, HA and final performance acceptance remain
-  pending.
+  TCP/TLS async/sync request connection, bounded hostname/address dialing and
+  explicit HELLO/AUTH/name/database setup are locally verified, including Redis
+  8.0.5 interoperability. Mutual TLS/signing, ticket management, dedicated modes,
+  reconnect/pools, HA and final performance acceptance remain pending.
 - xcron five-field/seconds-six-field expression compilation and Gregorian
   UTC/civil matching/earliest search are locally verified. Named time zones,
   scheduling and durable recovery remain pending.
@@ -47,6 +47,8 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | common | types-only public API header inventory | complete | shared public typedef/enum headers are included without an export function; comment-only exports/selectors stay excluded; 17 focused tooling tests pass |
 | common | actual product-root example selection | locally verified | xredis/xcron/xrpc collect their leaf examples; root commands actually compile/run them on Windows and Ubuntu/WSL; build/API/workload tooling 67 tests pass |
 | common | explicit workload fixture identity | locally verified | reproduced unchanged benchmark fingerprint after a peer-header mutation; optional inputs now pins exact fixture bytes, rejects missing/outside/directory/duplicate inputs and is emitted in reports; xredis runtime fixtures registered, 69 tooling tests pass |
+| common | TLS server selector error isolation | locally verified | `3bfe34a0`; stale errors survive successful selection, new checked callback errors reject; Windows modular/single and WSL ASan/UBSan single, 64 OOM prefixes |
+| common | TLS 1.2/1.3 CertificateRequest without local identity | locally verified | exact empty-certificate response, transcript/EMS/Finished, fragmentation, malformed/order/duplicate requests, backpressure/OOM; 17 Core tests per platform and 14 OpenSSL cases per platform; signing remains pending |
 | common | raw JSON scan needed by xrpc | locally verified | exact borrowed scalar/key/container spans, lexical numbers, 10,000 zero-heap scans, limits/Unicode/control/OOM, Windows/WSL modular/single/shared-reader regression and external static/shared consumers; performance comparison remains unaccepted |
 | xredis | binary command size/write | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL O2 ASan+UBSan modular/single/static/shared; 10,000 randomized commands, overflow/aliasing, hot-path allocation counters, diagnostic OOM |
 | xredis | incremental RESP2/3 event reader | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/single/example/trim/static/shared; all canonical split points, event pauses, 10,000 random arrays, 20,000 mutation pairs, limits, reentry, OOM and lifecycle quota |
@@ -1328,3 +1330,62 @@ fixture input list. Remote CI execution is unclaimed. Mutual TLS, ticket/cache
 management, wider TLS validation, reconnect/pools/dedicated modes/HA/tracking,
 RPC/MQTT/Cron runtimes, pinned matched performance and native 72-hour mixed/fault
 acceptance all remain required; the four-product goal stays active.
+
+
+## P2 core prerequisite: certificate requests without a client identity (2026-10-29)
+
+The xredis mutual-TLS prototype reproduced a real native-client gap with an
+OpenSSL server: TLS 1.2 rejected CertificateRequest as a nonempty
+ServerHelloDone, and TLS 1.3 expected Certificate directly after
+EncryptedExtensions. This also broke servers with optional client certificates.
+
+The core now validates one initial request and sends an empty chain when no
+identity is configured. TLS 1.2 orders Certificate before ClientKeyExchange;
+TLS 1.3 coalesces it with Finished under the handshake epoch. Full-response
+preflight, transcript/EMS/application-secret/resumption-master ordering,
+malformed/duplicate/early/late requests, fragmentation and output-OOM behavior
+are verified, including exact missing-extension/illegal-parameter/decode-error/
+unexpected-message fatal alerts and unchanged primary diagnostics. Client signing, identity selection and post-handshake authentication
+are not supplied by this prerequisite. Required-certificate servers correctly
+refuse the connection, including a real fatal alert after TLS 1.3 local READY.
+
+During regression the unchanged HEAD `test_tls_server12` also failed its final
+255-byte ALPN connection: a previous rejected ticket operation left a thread
+error that was mistaken for a selector failure. `3bfe34a0` independently fixes
+that error scope without discarding newly raised callback errors or temporary
+identity ownership. Its focused regression retains all 64 OOM prefixes.
+
+Final empty-certificate validation:
+
+- Windows GCC O2 and WSL GCC O2 ASan/UBSan each pass the combined client/server
+  suite: 11 modular plus six single-header programs. The previously failing
+  255-byte ALPN scenario now passes as part of the complete suite.
+- Windows Python/OpenSSL 3.0.16 and WSL Python/OpenSSL 3.5.5 each pass 14 local
+  independent-peer cases: TLS 1.2/1.3, AES-128-GCM, AES-256-GCM/SHA-384,
+  ChaCha20-Poly1305, optional success with binary data/ALPN/close, required
+  certificate refusal and received fatal alerts, and TLS 1.3 HRR.
+- Windows and WSL ASan/UBSan each also pass both modular programs in the
+  existing `xredis_tls_tests` slice against the final core. This is regression
+  evidence for the existing transport, not completed mutual-TLS integration.
+- Source/fixture/binary identities are recorded by the new opt-in runner.
+  Both final reports have source fingerprint
+  `9077604b844941a508d25cd55031dd934f07d8032f5ea17854bb1d4a5344c130`.
+- Windows/WSL x64 layout probes compare the same old/new closures:
+  `tls_client_resume` remains 728 bytes, production `xredis_tls` remains 1240,
+  and public `xtlsclientconfig` remains 88. The initial eight-byte private
+  growth was measured and removed by using existing alignment padding.
+  Requested flights grow by seven/eight wire bytes; existing native capacity,
+  allocation/size-class and transcript-scan/hash costs still apply. No pinned
+  performance or zero-overhead acceptance is claimed.
+- The focused TLS API detail checker still reports the exact same 77 problems
+  as the committed baseline, chiefly missing sections for older owned/ownership
+  APIs. There are no new public functions in this prerequisite. These unrelated
+  documentation gaps are recorded, not reported as a green check.
+
+The [feature contract](tls-client-certificate-request.md) records the standards,
+limits, costs and runnable independent-peer command. Ignored evidence uses
+`tls-empty-cert-*`, plus `tls-selector-error-*` for the separate fix, under
+`out/service-extensions/evidence/`. Older performance fingerprints remain
+historical. Native Linux long runs, full mutual TLS/signing and ticket handling,
+all unfinished protocol runtimes/modes and final acceptance remain required;
+the four-product goal stays active.

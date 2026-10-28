@@ -8467,7 +8467,8 @@
 			],
 			"single_tests": [
 				"tests/single/test_single_tls_client.c",
-				"tests/single/test_single_tls_client_server_hello.c"
+				"tests/single/test_single_tls_client_server_hello.c",
+				"tests/single/test_single_tls_client_certificate_request.c"
 			],
 			"examples": [],
 			"docs": []
@@ -8846,7 +8847,8 @@
 			],
 			"single_tests": [
 				"tests/single/test_single_tls_server.c",
-				"tests/single/test_single_tls_server_choice_identity.c"
+				"tests/single/test_single_tls_server_choice_identity.c",
+				"tests/single/test_single_tls_client12_certificate_request.c"
 			],
 			"examples": [
 				"examples/tls/server/main.c"

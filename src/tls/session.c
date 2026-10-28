@@ -2333,10 +2333,9 @@ static xtlsalert __xrtTlsSessionFailureAlert(const xerror* pError)
 
 
 /* 保留首个根错误，fatal Alert 编码或排队失败不得覆盖它。 */
-xtlsresult __xrtTlsSessionFail(xtlssession* pSession)
+xtlsresult __xrtTlsSessionFailAlert(xtlssession* pSession, xtlsalert Alert)
 {
 	xerror* pRoot = xrtTakeError();
-	xtlsalert Alert = __xrtTlsSessionFailureAlert(pRoot);
 
 	if ( (pRoot == NULL) && (pSession != NULL) &&
 		(pSession->State != XTLS_STATE_FAILED) &&
@@ -2369,6 +2368,15 @@ xtlsresult __xrtTlsSessionFail(xtlssession* pSession)
 		__xrtErrorSetOwned(pRoot);
 	}
 	return XTLS_ERROR;
+}
+
+
+
+xtlsresult __xrtTlsSessionFail(xtlssession* pSession)
+{
+	return __xrtTlsSessionFailAlert(
+		pSession, __xrtTlsSessionFailureAlert(xrtGetError())
+	);
 }
 
 

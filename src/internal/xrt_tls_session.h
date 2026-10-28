@@ -113,6 +113,10 @@ bool __xrtTlsSessionSetState(xtlssession* pSession, xtlsstate State);
 /* 尽力排队与当前根错误匹配的 fatal Alert，再进入失败终态。 */
 xtlsresult __xrtTlsSessionFail(xtlssession* pSession);
 
+/* Role-specific protocol failures can require a more precise wire alert than
+ * the shared diagnostic category. Preserve the same root-error contract. */
+xtlsresult __xrtTlsSessionFailAlert(xtlssession* pSession, xtlsalert Alert);
+
 
 
 /* 设置状态机当前等待原因组合。 */

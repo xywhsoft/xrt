@@ -95,10 +95,14 @@ def configure(dll):
 	dll.xrtErrorMessage.restype = c.c_char_p
 	dll.xrtErrorCause.argtypes = [c.c_void_p]
 	dll.xrtErrorCause.restype = c.c_void_p
+	dll.xrtTlsSessionPeerAlert.argtypes = [c.c_void_p, c.POINTER(c.c_int), c.POINTER(c.c_int)]
+	dll.xrtTlsSessionPeerAlert.restype = c.c_bool
 
 
 def exchange(dll, root, root_pem, fixture, algorithm, version, cipher, server,
-	hrr=False, bad_name=False):
+	hrr=False, bad_name=False, client_auth=None):
+	if client_auth is not None and (server or client_auth not in ("optional", "required")):
+		raise ValueError("client_auth requires an OpenSSL server and optional/required")
 	cert_path, key_path, cert_der, key_der = fixture
 	signature = {"rsa": 0x0804, "p256": 0x0403, "p384": 0x0503, "ed25519": 0x0807}[algorithm]
 	name = b"wrong.invalid" if bad_name else b"localhost"
@@ -117,6 +121,9 @@ def exchange(dll, root, root_pem, fixture, algorithm, version, cipher, server,
 		context.load_verify_locations(cadata=root_pem.decode())
 	else:
 		context.load_cert_chain(cert_path, key_path)
+		if client_auth is not None:
+			context.load_verify_locations(cadata=root_pem.decode())
+			context.verify_mode = (ssl.CERT_REQUIRED if client_auth == "required" else ssl.CERT_OPTIONAL)
 		if hrr:
 			context.set_ecdh_curve("prime256v1")
 	incoming, outgoing = ssl.MemoryBIO(), ssl.MemoryBIO()
@@ -170,7 +177,10 @@ def exchange(dll, root, root_pem, fixture, algorithm, version, cipher, server,
 
 	try:
 		pump(lambda: ready and xrt_state == 1)
+		assert client_auth != "required", "OpenSSL accepted a missing required client certificate"
 		assert not bad_name, "wrong-host certificate was accepted"
+		if client_auth == "optional":
+			assert python.getpeercert() is None, "an unconfigured client supplied a certificate"
 		assert python.selected_alpn_protocol() == "xrt-interop" and dll.xrtTestTlsAlpn(peer, cipher)
 		payload = b"independent TLS peer\x00" * 1000
 		for turn in range(2 if version == 13 else 1):
@@ -190,9 +200,26 @@ def exchange(dll, root, root_pem, fixture, algorithm, version, cipher, server,
 		assert dll.xrtTlsSessionClose(peer) == 0
 		closing = True
 		pump(lambda: closed and xrt_state == 2)
+		return {"result": "accepted", "application_rounds": 2 if version == 13 else 1,
+			"close_notify": True}
 	except ssl.SSLCertVerificationError as error:
 		if not bad_name or error.verify_code != 62:
 			raise
+	except ssl.SSLError as error:
+		if client_auth != "required" or error.reason != "PEER_DID_NOT_RETURN_A_CERTIFICATE":
+			raise
+		# Deliver the real peer's fatal alert too. TLS 1.3 local READY can precede
+		# the server's certificate decision; it is not proof of peer acceptance.
+		wire.extend(outgoing.read())
+		nout, nplain = c.c_size_t(len(output)), c.c_size_t(len(plain))
+		xrt_state = dll.xrtTestTlsStep(peer, False, bytes(wire), len(wire),
+			output, c.byref(nout), plain, c.byref(nplain))
+		level, alert = c.c_int(), c.c_int()
+		assert xrt_state < 0 and dll.xrtTlsSessionPeerAlert(peer, c.byref(level), c.byref(alert))
+		assert level.value == 2 and alert.value == (116 if version == 13 else 40), (level.value, alert.value)
+		assert nplain.value == 0
+		return {"result": "rejected_by_server", "reason": error.reason,
+			"peer_alert": alert.value, "plaintext_bytes": 0}
 	except RuntimeError as error:
 		if not bad_name or not any(word in str(error).lower() for word in ("name", "identity")):
 			raise
