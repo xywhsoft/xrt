@@ -5,8 +5,8 @@ and issue types, initialization and library-private reason/topic grammar helpers
 `xmqtt_codec5` reads and writes all fifteen MQTT 5 control packet types, including
 CONNECT/Will, enhanced-auth packet syntax, QoS 0/1/2 PUBLISH and all four publish
 acknowledgements, subscriptions and ordered reason lists, PING and DISCONNECT.
-MQTT 3.1.1 packet bodies remain a separate pending leaf; the existing wire leaf
-already supports its fixed header and integer representation.
+The separate [3.1.1 leaf](codec311.md) implements its fourteen packet types without
+depending on properties/codec5, reusing public layouts and wire/grammar leaves.
 
 The normative source is the [OASIS MQTT 5.0 standard](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html),
 especially sections 1.5, 2, 3 and 4.7. Implementation is independent pure C over
@@ -102,4 +102,4 @@ operations and do not establish network throughput or tail latency.
 Runnable examples: `examples/packet/main.c` and `examples/codec5/main.c`.
 Run suite `xmqtt_tests` for modular/single protocol, malformed-input, boundary,
 mutation, lifetime, atomicity and OOM tests. Current evidence belongs in the
-[progress ledger](../../../../docs/development/service-extensions-progress.md).
+[progress ledger](../../../docs/development/service-extensions-progress.md).

@@ -4,8 +4,32 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `20` 个函数、`119` 个常量或宏、
+当前登记 `23` 个函数、`121` 个常量或宏、
 `30` 个公共类型。
+
+## `extlibs/xmqtt/include/xmqtt/codec311.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/codec311.h)
+
+### 函数 (3)
+
+- `xmqttPacketRead311`
+- `xmqttPacketSize311`
+- `xmqttPacketWrite311`
+
+### 常量与宏 (2)
+
+- `XMQTT_FEATURE_XMQTT_CODEC311`
+- `XMQTT_FEATURE_XMQTT_PACKET`
+
+### 类型 (6)
+
+- `xmqttcodecbuffers`
+- `xmqttcodecconfig`
+- `xmqttcodecissue`
+- `xmqttcodecstatus`
+- `xmqttdirection`
+- `xmqttpacket`
 
 ## `extlibs/xmqtt/include/xmqtt/codec5.h`
 
@@ -17,20 +41,10 @@
 - `xmqttPacketSize5`
 - `xmqttPacketWrite5`
 
-### 常量与宏 (3)
+### 常量与宏 (2)
 
 - `XMQTT_FEATURE_XMQTT_CODEC5`
-- `XMQTT_FEATURE_XMQTT_PACKET`
 - `XMQTT_FEATURE_XMQTT_PROPERTIES`
-
-### 类型 (6)
-
-- `xmqttcodecbuffers`
-- `xmqttcodecconfig`
-- `xmqttcodecissue`
-- `xmqttcodecstatus`
-- `xmqttdirection`
-- `xmqttpacket`
 
 ## `extlibs/xmqtt/include/xmqtt/export.h`
 
@@ -50,10 +64,11 @@
 - `xmqttCodecConfigInit`
 - `xmqttPacketInit`
 
-### 常量与宏 (21)
+### 常量与宏 (22)
 
 - `XMQTT_CODEC_ARGUMENT`
 - `XMQTT_CODEC_CAPACITY`
+- `XMQTT_CODEC_CLIENT_ID`
 - `XMQTT_CODEC_DONE`
 - `XMQTT_CODEC_FORMAT`
 - `XMQTT_CODEC_LIMIT`

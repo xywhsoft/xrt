@@ -16,8 +16,8 @@ Target and rules: [development contract](service-extensions-plan.md).
   verified; correlation, dispatch and transports remain pending.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
-  verified, along with all MQTT 5 packet body codecs and shared topic/filter
-  grammar. MQTT 3.1.1 packet bodies, negotiated rules and the client are pending.
+  verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
+  grammar. Negotiated rules, sessions and the client remain pending.
 - Primary checkout changes remain outside this branch.
 
 ## Baseline checks
@@ -50,7 +50,8 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xmqtt | bounded wire framing and string/binary primitives | locally verified | Windows O2 modular/single and Ubuntu/WSL O2 ASan+UBSan modular/direct-single; all Unicode scalars, exhaustive two-byte UTF-8/VBI prefixes, full flag matrix, fragmentation/coalescing, limits/atomicity/zero-heap/OOM; real examples/trim/static/shared consumers |
 | xmqtt | bounded MQTT 5.0 property-section codec | locally verified | all 27 ids / 7 types, scope/direction/repetition/range/auth/UTF-8 rules, typed error classes independent of diagnostic OOM; Windows/WSL modular/single/sanitizer, examples/trim/static/shared; 20,000 mutations, prefix/limit/atomicity/zero-heap tests |
 | xmqtt | shared packet descriptors/grammar and complete MQTT 5.0 packet codec | locally verified | all 15 types, 25 literal canonical fixtures, 4608 reason/sender cases, 256 CONNECT flags, 512 subscription options, packet boundary/borrowed-view checks, 30,000 mutations, limits/atomicity/zero-heap/OOM; Windows/WSL modular/single/sanitizer/examples/trim/static/shared |
-| xmqtt | MQTT 3.1.1 packet bodies, negotiated property rules, client, sessions, persistence, transports | pending | no claim |
+| xmqtt | complete MQTT 3.1.1 packet codec | locally verified | all 14 types, 22 literal fixtures at 4 header widths, 256 CONNECT flags and subscription bytes, 65,536 CONNACK flag/code combinations, >2 MiB Errata 01 range, 30,000 mutations, limits/borrows/atomicity/zero-heap/OOM; Windows/WSL modular/single/sanitizer/examples/trim/static/shared and symbol-isolation size gate |
+| xmqtt | negotiated property rules, client, sessions, persistence, transports | pending | no claim |
 | xcron | bounded immutable expression compiler | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct single, example/trim/static/shared; 111,630 range/step combinations, 10,000 generated expressions, 20,000 raw inputs, alias/offset/atomicity/allocation/OOM tests |
 | xcron | calendar, time zones, scheduler, recovery | pending | no claim |
 
@@ -547,3 +548,86 @@ single tests use `tests/single/test_single_xmqtt_packet.c` and
 external consumers. Ignored logs/reports use the `mqtt-codec5-*` prefix under
 `out/service-extensions/`. MQTT 3.1.1 bodies, negotiated auth/alias/capability and
 session rules, QoS runtime/recovery, durable storage and transports remain pending.
+
+## Complete MQTT 3.1.1 packet codec validation
+
+`xmqtt_codec311` implements independent Read/Size/Write for all fourteen 3.1.1
+control types. It reuses public wire/Unicode and private packet grammar helpers,
+with separate static protocol paths and no per-field version dispatch. It does
+not depend on properties/codec5. Shared public layouts are unchanged; CleanStart
+maps to Clean Session, and a CLIENT_ID issue code was appended for empty
+persistent identifiers. No core/runtime gap or new shared runtime was required.
+
+- Normative reference: MQTT 3.1.1 incorporating approved Errata 01. The corrected
+  four-byte Remaining Length range is tested with complete PUBLISH packets at
+  the 2,097,151/2,097,152 transition, plus the protocol-maximum header without a
+  body. The existing nonminimal-header compatibility policy is explicit; writers
+  always canonicalize to minimal integers.
+- Twenty-two independent canonical fixtures cover all fourteen types, including
+  complete optional CONNECT fields, QoS 0/1/2, raw binary/NUL/invalid-UTF8 data,
+  multi-topic requests, ordered SUBACK codes and ordinary `$share/` text. All
+  four header widths pass every prefix without changing Packet/Issue/scratch,
+  coalesced-suffix and exact-cap tests. Returned views stay in the first packet
+  and caller topic arrays. Short declared bodies cannot consume suffix bytes.
+- Exhaustive CONNECT flags, SUBACK/CONNACK return bytes, all 65,536 CONNACK flag/
+  code combinations and subscription option bytes cover version-specific rules.
+  A 2,304-case fixed-body-length matrix rejects impossible lengths before body
+  buffering. Both sender roles are checked for every type. Password without
+  username, empty persistent ClientId, reserved AUTH, server DISCONNECT, nonzero
+  ACK/DISCONNECT reasons, v5 properties/options and UNSUBACK reason lists are
+  rejected. Nonempty ClientIds above 23 bytes and non-ASCII IDs are accepted by
+  syntax; actual server identifier policy is separate.
+- Payload and Will are opaque binary. V5-looking bytes inside PUBLISH data are
+  preserved rather than guessed as a property section. Topic and payload caps,
+  scratch/count limits, real zero budgets, uint16 ClientId/Will maxima and
+  overlength fields, null/wrapped spans, aliases, vector multiplication overflow
+  and late failures preserve the promised publication/atomicity boundaries.
+  Ignored property scratch pointers/capacities are never dereferenced; a dedicated
+  single test rejects accidental properties/codec5 feature selection at compile time.
+- Thirty thousand raw/mutated packets preserve bounded views and stable accepted
+  canonical encodings. Ten thousand warm MORE/Read/Size/Write cycles preserve all
+  allocation counters and ambient error identity. Valid calls work under a one-
+  byte quota; own/nested/header/identifier/protocol-version diagnostic OOM retains
+  typed status/context, with zero live quota bytes after leaving the scope.
+- Windows GCC 16.2 O2 modular and all single tests pass; Ubuntu/WSL GCC 15.2 O2
+  ASan+UBSan modular and direct standalone 3.1.1 single pass, including existing
+  wire/property/codec5 regressions. Both systems compile/run the five real root
+  examples and pass root/leaf trim and missing-dependency probes. Independent
+  static/shared consumers exercise both negotiated codec APIs against one XRT.
+- PE/ELF checks find all three new public functions, 23 total ELF public functions
+  and no exported internal helpers. Generated/API/asset checks pass (23 functions /
+  121 constants / 30 types, missing=0), as do 67 build/API/workload tooling tests.
+  Strict release still correctly rejects the developing root. Local Markdown
+  links were checked, correcting an older codec-guide progress-link depth.
+- A dedicated single-object size profile forbids all properties/codec5 function
+  symbol prefixes. It passes on Windows and Ubuntu/WSL, with zero forbidden
+  symbols. Windows GNU x64 O2 unstripped object: text 61,808, data 2,376, bss
+  11,040, file 95,720 bytes. Ubuntu/WSL x64: text 61,483, data 2,416, bss 10,892,
+  file 114,848 bytes. These include the public XRT dependency closure and object
+  metadata, not just incremental codec text or a linked application footprint.
+  Both native CI jobs now run this symbol-isolation gate; YAML/conditional steps
+  were parsed locally. Remote Actions execution is not claimed.
+- All five workload profiles pass Windows and Ubuntu/WSL one-sample unpinned
+  smoke, potentially under other validation load. The new workload is local
+  binary QoS-1 PUBLISH Read+Write, and is not directly comparable to the v5
+  property/PFI workload. No pinned performance, queue-inclusive tail-latency,
+  network delivery, QoS recovery, durability or production acceptance is claimed.
+
+Config/metadata and fixed packet/topic descriptor copies, scalar writes, span/
+alias checks, encoded-string UTF-8 and topic/filter grammar walks remain real
+work. Data is borrowed on read and copied once on write; opaque payload has no
+content scan. Size+Write repeats preflight. Cold error diagnostics can allocate.
+The [3.1.1 contracts](../../extlibs/xmqtt/docs/codec311.md) document actual limits,
+ownership, version differences and remaining client obligations.
+
+Reproduce with manifest `extlibs/xmqtt/config/modules.json`, suite `xmqtt_tests
+--cflag=-O2`; Ubuntu/WSL modular adds `--arch x64 --no-single` and the ASan+UBSan
+flags above. Standalone source is `extlibs/xmqtt/tests/single/test_single_xmqtt_codec311.c`,
+using strict C11/O2/ASan+UBSan `-pthread -lm`. Product `xmqtt --no-single`, trim,
+static/shared verify and the performance config include the new assets. Run
+`python tools/measure_size.py --compiler gcc --arch x64 --config
+extlibs/xmqtt/config/size_profiles.json --profiles xmqtt_codec311 --kind single`
+for the isolated closure gate. Ignored evidence/reports use `mqtt-codec311-*`
+under `out/service-extensions/`. Client/session/negotiation/QoS state, persistence,
+transports, peer interoperability and final performance/long-run acceptance remain
+pending across the original four-product goal.

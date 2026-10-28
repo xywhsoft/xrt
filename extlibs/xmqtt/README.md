@@ -1,14 +1,14 @@
 # xmqtt (developing)
 
 Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
-**Wire primitives, bounded framing, MQTT 5.0 properties and all MQTT 5 packet
-codecs are implemented.** MQTT 3.1.1 packet bodies, client/session/QoS state machines,
+**Wire primitives, bounded framing, MQTT 5.0 properties and full MQTT 5.0/3.1.1
+packet codecs are implemented.** Client/session/QoS state machines,
 authentication, reconnect, durable storage and TCP/TLS/WebSocket are pending.
 No broker or production/performance acceptance is claimed.
 
 The independent implementation follows the OASIS
 [MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html) and
-[MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html)
+[MQTT 3.1.1 with Errata 01](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/errata01/os/mqtt-v3.1.1-errata01-os-complete.html)
 standards, using their data representations and fixed-header rules. Sources of
 reference client libraries are not embedded/copied into this extension.
 
@@ -101,6 +101,18 @@ Negotiated aliases/auth/session/QoS effects belong to the pending client runtime
 See [packet contracts and costs](docs/codec.md). `XMQTT_MODULE_XMQTT_PACKET`
 selects just the shared descriptors/config/initializers and private grammar.
 
+Select `XMQTT_MODULE_XMQTT_CODEC311` for all fourteen MQTT 3.1.1 packet types,
+without depending on 5.0 properties or codec code. It shares packet types/config
+and the borrowed, atomic, bounded, zero-success-allocation model. It validates
+legacy CONNECT flag/ClientId rules, exact acknowledgement lengths, reason-byte
+domains, client-only DISCONNECT and legacy subscription option bits. Payload,
+Will and password remain opaque binary. Nonminimal Remaining Length forms are
+accepted and canonicalized, including the full four-byte range fixed by Errata
+01. The descriptor's CleanStart field means Clean Session for this codec. It
+rejects 5.0 producer fields instead of discarding them; callers select a negotiated
+protocol explicitly. See [3.1.1 contracts](docs/codec311.md) for version differences,
+ignored property scratch fields, lifetimes, limits and pending session work.
+
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_tests --cflag=-O2
 python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt --no-single --cflag=-O2
@@ -120,7 +132,9 @@ The [property example](examples/properties/main.c) prints
 no broker/network or cleanup. The [packet example](examples/codec5/main.c)
 round-trips a full QoS-1 PUBLISH with a PFI UTF-8 payload containing NUL. The
 [representation example](examples/packet/main.c) initializes PUBREL/config.
-Four workloads separately measure wire primitives, property sections, private
-already-UTF8-validated ASCII filter grammar, and full MQTT 5 PUBLISH decode/encode.
+The [3.1.1 packet example](examples/codec311/main.c) round-trips binary PUBLISH.
+Five workloads separately measure wire primitives, property sections, private
+already-UTF8-validated ASCII filter grammar, MQTT 5 PFI/property PUBLISH, and
+MQTT 3.1.1 binary PUBLISH decode/encode.
 They do not establish network delivery throughput, tail latency, QoS sessions,
 durability or performance parity.

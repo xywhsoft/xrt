@@ -21,7 +21,7 @@ typedef struct xmqttsubscription { xstrview Filter; uint8 Options; } xmqttsubscr
 typedef struct xmqttsubscriptionlist { const xmqttsubscription* Data; size_t Count; } xmqttsubscriptionlist;
 
 typedef struct xmqttconnectpacket {
-	bool CleanStart;
+	bool CleanStart; /* Clean Session when used with the 3.1.1 codec. */
 	uint16 KeepAlive;
 	xstrview ClientId;
 	bool HasWill, WillRetain;
@@ -39,7 +39,7 @@ typedef union xmqttpacketbody {
 	xmqttconnectpacket Connect;
 	xmqttpublishpacket Publish;
 	xmqttsubscriptionlist Topics; /* SUBSCRIBE and UNSUBSCRIBE (Options=0). */
-	xbytesview Reasons; /* SUBACK/UNSUBACK: ordered raw reason bytes. */
+	xbytesview Reasons; /* SUBACK/5.0 UNSUBACK: ordered bytes; 3.1.1 UNSUBACK empty. */
 } xmqttpacketbody;
 
 /* Only the union member selected by Type is meaningful. Flags is the actual
@@ -86,7 +86,8 @@ typedef enum xmqttcodecstatus {
 typedef enum xmqttcodecerror {
 	XMQTT_CODEC_OK = 0, XMQTT_CODEC_ARGUMENT = 3001, XMQTT_CODEC_LIMIT,
 	XMQTT_CODEC_CAPACITY, XMQTT_CODEC_FORMAT, XMQTT_CODEC_PROTOCOL,
-	XMQTT_CODEC_VERSION, XMQTT_CODEC_PAYLOAD_FORMAT, XMQTT_CODEC_TOPIC
+	XMQTT_CODEC_VERSION, XMQTT_CODEC_PAYLOAD_FORMAT, XMQTT_CODEC_TOPIC,
+	XMQTT_CODEC_CLIENT_ID
 } xmqttcodecerror;
 
 /* Machine-readable failure context survives diagnostic OOM. Offset is a

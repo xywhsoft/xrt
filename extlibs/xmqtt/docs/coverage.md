@@ -3,8 +3,8 @@
 The full [service-extension target](../../../docs/development/service-extensions-plan.md)
 remains required. The wire leaf implements data representations and fixed-header
 framing; the properties leaf implements explicit MQTT 5.0 sections. The packet
-and codec5 leaves cover shared descriptors/grammar and all MQTT 5 packet bodies.
-MQTT 3.1.1 packet bodies and negotiated property rules,
+and codec5/codec311 leaves cover shared descriptors/grammar and all MQTT 5/3.1.1
+packet bodies. Negotiated property rules,
 QoS/session/auth/alias/expiry/subscriptions, reconnect,
 persistence and transports remain pending. There is no reference-peer or final
 performance/production acceptance yet.
@@ -52,3 +52,17 @@ allocation warm cycles and own/nested diagnostic OOM are tested. Modular/single
 tests, offline examples, trimming and independent static/shared consumers include
 the new APIs. Packet validation itself is stateless; client interoperability,
 session/QoS recovery and production performance acceptance remain required.
+
+The [3.1.1 codec](codec311.md) has separate fourteen-type literal fixtures with
+all 1..4-byte header widths, every prefix, coalescing and canonical output. All
+CONNECT flag bytes, CONNACK flag/return-byte combinations, SUBACK codes and
+subscription option bytes are checked. Exact fixed-body lengths reject before
+buffering; filters, empty persistent ClientId, credential dependencies, reserved
+AUTH, client-only DISCONNECT and rejected 5.0 producer fields are covered.
+Borrowed views stay in the first packet/caller arrays. Opaque data includes NUL,
+invalid UTF-8 and v5-looking bytes. Tests exercise zero/property-independent
+budgets, caller capacity, uint16 field maxima, >2 MiB complete packets at the
+Errata 01 four-byte transition, protocol maximum header-only bounds, wrapped
+spans/aliases, atomic failures, 30,000 raw/mutated canonical forms, 10,000 warm
+allocation/error-identity cycles and quota/diagnostic OOM. The single trim asserts
+no properties/codec5 feature; root package consumers exercise both versions.

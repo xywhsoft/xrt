@@ -14,4 +14,8 @@
 #endif
 #include <xmqtt/packet.h>
 #include <xmqtt/codec5.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CODEC311)
+#error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CODEC311"
+#endif
+#include <xmqtt/codec311.h>
 #endif

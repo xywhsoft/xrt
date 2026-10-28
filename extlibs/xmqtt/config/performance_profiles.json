@@ -113,6 +113,30 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_codec311",
+      "system": "codec311",
+      "description": "Full MQTT311 binary QoS1 PUBLISH decode/atomic encode in caller storage; no network/session or cross-protocol performance claim",
+      "benchmarks": [
+        {
+          "name": "xmqtt_codec311",
+          "source": "extlibs/xmqtt/bench/bench_codec311.c",
+          "suite": "xmqtt_codec311,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "packets_per_sec": {
+              "direction": "higher",
+              "unit": "packets/s"
+            }
+          }
+        }
+      ]
     }
   ]
 }

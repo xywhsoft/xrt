@@ -78,6 +78,12 @@ jobs:
           --suite ${{ matrix.product }}_tests --no-examples --cflag=-O2
           --cflag=-fsanitize=address,undefined --cflag=-fno-omit-frame-pointer
           --ldflag=-fsanitize=address,undefined
+      - name: Check isolated MQTT 3.1.1 size closure
+        if: matrix.product == 'xmqtt'
+        run: >-
+          python tools/measure_size.py --compiler gcc
+          --config extlibs/xmqtt/config/size_profiles.json --profiles xmqtt_codec311 --kind single
+          --report out/service-extensions/size-xmqtt-codec311-linux.json
       - name: Independent static and shared consumers
         run: |
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify
@@ -135,6 +141,12 @@ jobs:
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --no-single --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --trim-only
+      - name: Check isolated MQTT 3.1.1 size closure
+        if: matrix.product == 'xmqtt'
+        run: >-
+          python tools/measure_size.py --compiler gcc
+          --config extlibs/xmqtt/config/size_profiles.json --profiles xmqtt_codec311 --kind single
+          --report out/service-extensions/size-xmqtt-codec311-windows.json
       - name: Independent static and shared consumers
         run: |
           python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify

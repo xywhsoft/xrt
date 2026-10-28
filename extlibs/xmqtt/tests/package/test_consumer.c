@@ -27,6 +27,13 @@ int main(void)
 		xmqttPacketRead5((xbytesview){Output,Written},XMQTT_CLIENT_TO_SERVER,&Config,&Buffers,&Decoded,&Issue)!=XMQTT_CODEC_DONE ||
 		Decoded.Identifier!=42 || Decoded.Body.Publish.Payload.Size!=sizeof(Payload) || memcmp(Decoded.Body.Publish.Payload.Data,Payload,sizeof(Payload)) ||
 		Decoded.Wire.Data!=Output || Decoded.Wire.Size!=Written || Issue.Error!=XMQTT_CODEC_OK) return 6;
+	Packet.Properties=(xmqttpropertylist){NULL,0}; const unsigned char Raw[]={255,0,0xc0,0x80}; Packet.Body.Publish.Payload=(xbytesview){Raw,sizeof(Raw)};
+	Config.MaxPropertyBytes=0; Config.MaxProperties=0;
+	if (!xmqttPacketSize311(&Packet,XMQTT_CLIENT_TO_SERVER,&Config,&Required) ||
+		!xmqttPacketWrite311(Output,sizeof(Output),&Packet,XMQTT_CLIENT_TO_SERVER,&Config,&Written) || Written!=Required ||
+		xmqttPacketRead311((xbytesview){Output,Written},XMQTT_CLIENT_TO_SERVER,&Config,NULL,&Decoded,&Issue)!=XMQTT_CODEC_DONE ||
+		Decoded.Identifier!=42 || Decoded.Body.Publish.Payload.Size!=sizeof(Raw) || memcmp(Decoded.Body.Publish.Payload.Data,Raw,sizeof(Raw)) ||
+		Decoded.Properties.Count!=0 || Issue.Error!=XMQTT_CODEC_OK) return 7;
 	if (xmqttFrameRead((xbytesview){NULL,1},NULL,&Frame) != XMQTT_WIRE_ERROR || xrtErrorDomain(xrtGetError()) == NULL ||
 		strcmp(xrtErrorDomain(xrtGetError()),"xrt.mqtt") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 3;
 	xrtClearError(); return 0;
