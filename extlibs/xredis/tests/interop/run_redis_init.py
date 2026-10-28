@@ -23,7 +23,7 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def run(client: Path, server: Path, scenario: int) -> dict:
+def run(client: Path, server: Path, scenario: int, arguments: list[str] | None = None) -> dict:
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
@@ -62,11 +62,12 @@ def run(client: Path, server: Path, scenario: int) -> dict:
                     if time.monotonic() >= deadline:
                         raise TimeoutError("fixture Redis did not become ready")
                     time.sleep(0.025)
-                result = subprocess.run([str(client), str(port), str(scenario)], check=False, capture_output=True, text=True, encoding="utf-8", timeout=90)
+                command = [str(client), str(port), str(scenario)] if arguments is None else [str(client), *[arg.replace("{port}", str(port)) for arg in arguments]]
+                result = subprocess.run(command, check=False, capture_output=True, text=True, encoding="utf-8", timeout=90)
                 print(result.stdout, end="", flush=True)
                 if result.returncode:
                     raise RuntimeError(f"client exited {result.returncode}: {result.stderr[-4000:]}")
-                return {"scenario": scenario, "result": "passed", "client_stdout": result.stdout}
+                return {"scenario": scenario, "result": "passed", "client_arguments": command[1:], "client_stdout": result.stdout}
             finally:
                 if process.poll() is None:
                     process.terminate()

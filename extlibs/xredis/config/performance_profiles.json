@@ -119,6 +119,102 @@
           "handshake_p999_us": {"direction": "lower", "unit": "us"}
         }
       }]
+    },
+    {
+      "name": "xredis_openloop",
+      "system": "client",
+      "description": "Fixed absolute arrivals with bounded observer slots; all planned offers retained, successful and all-outcome latency separate, generator lag and rejection/timeout visible; local fixture, unpinned",
+      "benchmarks": [{
+        "name": "xredis_openloop", "source": "extlibs/xredis/bench/bench_client_openloop.c",
+        "inputs": ["extlibs/xredis/bench/openloop_run.h", "extlibs/xredis/bench/openloop_schedule.h", "extlibs/xredis/tests/support/client_peer.h"],
+        "suite": "xredis_client",
+        "args": ["100000", "100000", "256", "32", "1000"],
+        "smoke_args": ["256", "5000", "64", "32", "1000"],
+        "facts": ["arrival_model", "target", "network_backend", "memory_stats", "generator_mode", "workers", "slot_capacity", "payload_bytes", "max_inflight", "target_rate_per_sec", "intended_timeout_ms"],
+        "metrics": {
+          "success_requests_per_sec": {"direction": "higher", "unit": "requests/s"},
+          "success_p50_us": {"direction": "lower", "unit": "us"},
+          "success_p95_us": {"direction": "lower", "unit": "us"},
+          "success_p99_us": {"direction": "lower", "unit": "us"},
+          "success_p999_us": {"direction": "lower", "unit": "us"},
+          "all_p99_us": {"direction": "lower", "unit": "us"},
+          "all_p999_us": {"direction": "lower", "unit": "us"},
+          "generator_p99_us": {"direction": "lower", "unit": "us"},
+          "unsuccessful": {"direction": "lower", "unit": "offers"},
+          "harness_capacity": {"direction": "lower", "unit": "offers"},
+          "client_overloaded": {"direction": "lower", "unit": "offers"},
+          "expired_before_admission": {"direction": "lower", "unit": "offers"},
+          "request_timeout": {"direction": "lower", "unit": "requests"},
+          "deadline_missed": {"direction": "lower", "unit": "offers"},
+          "process_window_cpu_seconds": {"direction": "lower", "unit": "s"},
+          "process_peak_rss_bytes": {"direction": "lower", "unit": "bytes"}
+        }
+      }]
+    },
+    {
+      "name": "xredis_openloop_stats",
+      "system": "client",
+      "description": "Same fixed-arrival workload with XRT memory statistics enabled; whole-process window includes local peer and retirement, separate from uninstrumented latency",
+      "benchmarks": [{
+        "name": "xredis_openloop_stats", "source": "extlibs/xredis/bench/bench_client_openloop.c",
+        "inputs": ["extlibs/xredis/bench/openloop_run.h", "extlibs/xredis/bench/openloop_schedule.h", "extlibs/xredis/tests/support/client_peer.h"],
+        "suite": "xredis_client,memory_stats",
+        "args": ["100000", "100000", "256", "32", "1000", "0", "0", "0", "1"],
+        "smoke_args": ["256", "5000", "64", "32", "1000", "0", "0", "0", "1"],
+        "facts": ["arrival_model", "target", "network_backend", "memory_stats", "generator_mode", "workers", "slot_capacity", "payload_bytes", "max_inflight", "target_rate_per_sec", "intended_timeout_ms"],
+        "metrics": {
+          "success_requests_per_sec": {"direction": "higher", "unit": "requests/s"},
+          "success_p99_us": {"direction": "lower", "unit": "us"},
+          "unsuccessful": {"direction": "lower", "unit": "offers"},
+          "window_malloc_calls": {"direction": "lower", "unit": "calls"},
+          "window_calloc_calls": {"direction": "lower", "unit": "calls"},
+          "window_realloc_calls": {"direction": "lower", "unit": "calls"},
+          "window_memdup_calls": {"direction": "lower", "unit": "calls"},
+          "window_block_alloc_calls": {"direction": "lower", "unit": "calls"},
+          "window_backing_alloc_calls": {"direction": "lower", "unit": "calls"},
+          "window_backing_alloc_bytes": {"direction": "lower", "unit": "bytes"},
+          "process_window_cpu_seconds": {"direction": "lower", "unit": "s"},
+          "process_peak_rss_bytes": {"direction": "lower", "unit": "bytes"}
+        }
+      }]
+    },
+    {
+      "name": "xredis_openloop_stall",
+      "system": "client",
+      "description": "Controlled initial generator stall; expired planned arrivals must remain in accounting, no client throughput acceptance",
+      "benchmarks": [{
+        "name": "xredis_openloop_stall", "source": "extlibs/xredis/bench/bench_client_openloop.c",
+        "inputs": ["extlibs/xredis/bench/openloop_run.h", "extlibs/xredis/bench/openloop_schedule.h", "extlibs/xredis/tests/support/client_peer.h"],
+        "suite": "xredis_client",
+        "args": ["32", "1000000", "32", "32", "10", "1", "50"],
+        "smoke_args": ["32", "1000000", "32", "32", "10", "1", "50"],
+        "facts": ["arrival_model", "target", "network_backend", "memory_stats", "generator_mode", "workers", "slot_capacity", "payload_bytes", "max_inflight", "target_rate_per_sec", "intended_timeout_ms"],
+        "metrics": {
+          "offered": {"direction": "higher", "unit": "offers"},
+          "expired_before_admission": {"direction": "higher", "unit": "offers"},
+          "all_p99_us": {"direction": "lower", "unit": "us"},
+          "generator_p99_us": {"direction": "lower", "unit": "us"}
+        }
+      }]
+    },
+    {
+      "name": "xredis_openloop_hold",
+      "system": "client",
+      "description": "Controlled held ECHO replies force bounded observer-capacity rejection and request timeout; fault-path accounting, no throughput acceptance",
+      "benchmarks": [{
+        "name": "xredis_openloop_hold", "source": "extlibs/xredis/bench/bench_client_openloop.c",
+        "inputs": ["extlibs/xredis/bench/openloop_run.h", "extlibs/xredis/bench/openloop_schedule.h", "extlibs/xredis/tests/support/client_peer.h"],
+        "suite": "xredis_client",
+        "args": ["4096", "1000000", "64", "32", "100", "2"],
+        "smoke_args": ["64", "1000000", "8", "32", "100", "2"],
+        "facts": ["arrival_model", "target", "network_backend", "memory_stats", "generator_mode", "workers", "slot_capacity", "payload_bytes", "max_inflight", "target_rate_per_sec", "intended_timeout_ms"],
+        "metrics": {
+          "offered": {"direction": "higher", "unit": "offers"},
+          "harness_capacity": {"direction": "higher", "unit": "offers"},
+          "request_timeout": {"direction": "higher", "unit": "requests"},
+          "all_p99_us": {"direction": "lower", "unit": "us"}
+        }
+      }]
     }
   ]
 }

@@ -81,6 +81,12 @@ Owned credential wire is wiped after its final send reference, and readiness
 metadata can outlive the client/engine. See the [initialization contract and
 real Redis reproduction](docs/client-init.md) and [runnable managed example](examples/client_init/main.c).
 
+The [fixed-arrival workload](docs/client-performance.md) retains every planned
+offer, separates observer-capacity rejection from client overload, includes
+generator lag in latency, and reports successful/all-outcome tails. Instrumented
+allocation and controlled stall/held-reply profiles remain separate from normal
+latency measurement. These workloads support acceptance work still to be done.
+
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --trim-only

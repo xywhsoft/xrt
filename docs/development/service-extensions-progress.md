@@ -53,6 +53,7 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xredis | immutable owned response frames | locally verified | `e4bfab34`; all types, ordered metadata/children, every fixture split, 512 levels/1025 nodes, binary copy/growth, peak caps, quota/OOM, atomic sharing and independent packages |
 | xredis | one numeric TCP connection, async/sync requests and bounded pipeline | locally verified | IOCP/epoll, split reads, typed outcome/certainty, queue-inclusive deadline, cancellation/tombstones/drain grace, push isolation, bounded close, 384 concurrent calls, 36/71 quota thresholds, worker OOM, reentry, ASan/UBSan/qualified TSan, actual examples/packages and workload smoke |
 | xredis | managed HELLO/AUTH/ACL/name/database setup and readiness barrier | locally verified | exact scripts, explicit RESP3/AUTO/RESP2 modes, error redaction, queue-inclusive deadlines/cancel, OOM/close/reentry, Windows/WSL modular/single/sanitizers and real Redis 8.0.5 |
+| xredis | fixed-arrival runtime workload and process counters | locally verified | absolute schedules, all-offer ledger, separate success/all-outcome tails, bounded observer slots, stalled/held-peer controls, allocation mode, Windows/WSL modular/single/sanitizers and Redis 8.0.5 diagnostics |
 | xredis | advanced transports/modes, reconnect/pools, HA, tracking | pending | no claim |
 | xrpc | bounded JSON-RPC 2.0 envelope decode | locally verified | Windows modular/single/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, example/trim/static/shared; mixed batch/role/lossless-ID/duplicate/error/limits/OOM and deterministic property/mutation tests |
 | xrpc | bounded atomic JSON-RPC 2.0 envelope encode | locally verified | Windows modular/single/examples/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, examples/trim/static/shared; 10,000 independent wire properties, 500 complete-document resource oracles, 10,000 mutated raw inputs, zero-heap/OOM/aliases/atomicity |
@@ -1051,3 +1052,77 @@ mutation and path/contract checks. Existing historical baselines are preserved;
 the changed runner/workload fingerprint requires fresh accepted measurements.
 No library runtime or public ABI changes in this step. Logs/reports use
 `performance-inputs-*` in the ignored service-extensions output directory.
+
+## Fixed-arrival Redis runtime measurement
+
+Added an actual fixed-arrival binary ECHO workload, separate from the existing
+closed-loop and cold-setup workloads. No production library source, public ABI
+or shared event runtime changes in this feature.
+
+- Every offer retains its absolute planned time. Generator delay never shifts
+  subsequent arrivals; expired-before-admission, harness observer-capacity,
+  client overload/closed/error and every accepted typed terminal status remain
+  counted. The harness verifies both admission and terminal-status partitions
+  sum exactly. Fast rejection is separate from successful latency/throughput.
+- Successful/all-outcome P50/P95/P99/P99.9 use planned-arrival-to-observation
+  latency and nearest rank. Generator lag is reported separately. Remaining
+  relative client deadlines are rounded down; independent intended-deadline
+  misses still count delayed/equal-deadline observations. This is not an atomic
+  absolute-deadline API claim. Normal runs with no successes are invalid.
+- Preallocated offer records and bounded reusable observer slots protect
+  retained Futures. Future notification only timestamps; payload verification
+  runs on the generator. A slot is recycled after the Watch Release signal,
+  including the already-ready registration case. Physical Close and engine
+  join precede freeing shared callback storage. Binary IDs and payload bytes
+  are verified for every successful reply.
+- CPU, process-lifetime peak RSS/working set, sampled request/wire peaks, explicit
+  harness bytes and before/after native handle/descriptor counts are reported.
+  The generator's polling/yield and fixture work are included in local CPU.
+  A distinct compiled/enabled memory-statistics profile records process-window
+  XRT API/block/backing allocation calls. These include cleanup and local peer
+  effects, not isolated incremental client counts. Unmeasured counters are
+  explicit unavailable/null in external JSON; payload-copy bytes are lower
+  bounds. Exact copy/lock/syscall tracing remains pending.
+- Four registered profiles cover ordinary fixed arrivals, allocation counters,
+  a 50 ms generator stall and held fixture replies. Controlled smoke observes
+  all 32 stalled offers expired and all 64 held-case offers partitioned into
+  eight timeouts plus 56 harness-capacity rejections on both systems. These
+  control profiles verify methodology, not service throughput acceptance.
+- Unit coverage includes 10,000 rational arrival oracles, overflow/atomic error
+  outputs, small-sample/size_t-boundary nearest-rank cases, 10,000 single-finalize
+  ledgers, deadline equality, invalid bounds and literal binary-corpus checks.
+  Real local TCP tests cover 32 successes, a stall without sending business
+  commands, held replies and enabled counters. Native Windows GCC 16.2 O2
+  modular/single and Ubuntu/WSL GCC 15.2 O2 ASan+UBSan modular/single pass.
+  O1 TSan also passes with the retained generic XRT atomic_thread_fence warning
+  qualified by -Wno-error=tsan. An initial O1 compile required explicitly
+  initializing checked schedule outputs; ordinary strict warnings stay enabled.
+- A disposable real Redis 8.0.5 service runs the same model with one client
+  worker plus the generator, outside the server process. Uninstrumented and
+  instrumented diagnostics each complete all 512 offers at a requested 5000/s,
+  with zero unsuccessful outcomes and descriptors 4 -> 4 after teardown. The
+  instrumented process window observes 3072 malloc API calls and
+  4096 block allocations; these are whole-process/window observations,
+  not a claim of per-operation or steady-state isolated overhead. Actual
+  executable/source/service-helper/build-report hashes and actual expanded
+  arguments/facts are retained. The shared service supervisor's existing
+  three authentication/protocol interoperability cases still pass.
+- All 69 relevant tool regressions, generated/API checks and normal maturity
+  pass. Public inventory remains 34 functions / 110 constants / 34 types with
+  missing=0. Product root stays developing. Existing CI's registered test and
+  workload selections include the new assets; remote CI execution is unclaimed.
+- Additional direct local diagnostics retain complete raw counter output and
+  verify every admission/terminal partition on Windows and WSL. They are
+  separately labeled from the runner's one-sample smoke. Current four-profile
+  workload fingerprint: `ffef590f9853ddbec28407afc78cd45df1741580cc9bac19e76531dc22f6f46d`;
+  production/config source fingerprint: `955a1da6fa2f97501f7fe41edb9c2fee58d91e0ca3d66a6c53d9207314d91c0e`.
+
+The [measurement contract](../../extlibs/xredis/docs/client-performance.md)
+records limits, clock/quantile semantics, observer lifetime, instrumentation
+scope and reproducible local/real-server commands. Ignored evidence uses
+`openloop-*` under `out/service-extensions/` and `evidence/`. These are unpinned,
+sparse diagnostics run alongside validation, not stable baselines or Hiredis
+parity. Comparator installation is currently absent, and no reference source
+has been embedded. Matched comparator/resource matrices, precise copy/sync/
+syscall costs, native long runs, remaining reconnect/transport/product features
+and every original four-product release gate remain required.
