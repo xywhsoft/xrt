@@ -112,6 +112,21 @@ class HeaderSymbolsTest(unittest.TestCase):
 class FamilyFilesTest(unittest.TestCase):
 	"""验证模块清单范围和文件存在性。"""
 
+	def test_manifest_includes_shared_types_without_exported_functions(self) -> None:
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			(root / "types.h").write_text(
+				"typedef enum xrpcvaluekind { XRPC_VALUE_NULL = 1 } xrpcvaluekind;\n",
+				encoding="utf-8")
+			(root / "features.h").write_text(
+				"/* typedef int xrpcphantom; XRPC_API bool xrpcFake(void); */\n"
+				"#define XRPC_MODULE_ALL\n", encoding="utf-8")
+			manifest = root / "modules.json"
+			manifest.write_text(json.dumps({"api_reference": {}, "modules": [{
+				"public_headers": ["types.h", "features.h"], "docs": []}]}), encoding="utf-8")
+			headers, _, _ = check_api_docs._manifest_files(root, manifest)
+			self.assertEqual(headers, [root / "types.h"])
+
 	def test_manifest_rejects_missing_registered_header(self) -> None:
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)

@@ -34,6 +34,7 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | --- | --- | --- | --- |
 | common | development/acceptance contract and isolated branch | complete | this document, development contract and baseline checks |
 | common | independent API export inventory | complete | `36ea6bc8`, API/reference tooling tests |
+| common | types-only public API header inventory | complete | shared public typedef/enum headers are included without an export function; comment-only exports/selectors stay excluded; 17 focused tooling tests pass |
 | common | raw JSON scan needed by xrpc | locally verified | exact borrowed scalar/key/container spans, lexical numbers, 10,000 zero-heap scans, limits/Unicode/control/OOM, Windows/WSL modular/single/shared-reader regression and external static/shared consumers; performance comparison remains unaccepted |
 | xredis | binary command size/write | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL O2 ASan+UBSan modular/single/static/shared; 10,000 randomized commands, overflow/aliasing, hot-path allocation counters, diagnostic OOM |
 | xredis | incremental RESP2/3 event reader | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/single/example/trim/static/shared; all canonical split points, event pauses, 10,000 random arrays, 20,000 mutation pairs, limits, reentry, OOM and lifecycle quota |
@@ -45,6 +46,17 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xcron | calendar, time zones, scheduler, recovery | pending | no claim |
 
 Do not replace pending rows with success based only on metadata or compilation.
+
+## Shared public type inventory
+
+The RPC encoder introduced a public type header shared by separate encode and
+decode leaves. This exposed an API-audit filter that required an export macro
+and silently omitted typedef/enum-only headers. API generation and coverage now
+share one filter accepting actual typedefs as well as export declarations.
+Comment-only exports/typedefs and feature-selector-only headers stay excluded.
+`python -m unittest tools.test_api_docs tools.test_api_reference
+tools.test_extension_layout` passes all 17 tests, including two dedicated
+manifest/header fixtures. This is tooling coverage, not encoder completion.
 
 ## Command encoder validation
 
