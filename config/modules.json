@@ -2014,7 +2014,8 @@
 			"single_tests": [
 				"tests/single/test_single_websocket_stream.c",
 				"tests/single/test_single_websocket_buffered.c",
-				"tests/single/test_single_websocket_owned.c"
+				"tests/single/test_single_websocket_owned.c",
+				"tests/single/test_single_websocket_attach_oom.c"
 			],
 			"examples": [
 				"examples/websocket/stream_tour/main.c"
