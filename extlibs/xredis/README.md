@@ -3,9 +3,9 @@
 Independent C Redis client extension on public XRT APIs. The final scope is
 RESP2/3, bounded incremental replies, asynchronous requests, pipelines/pools,
 TLS, transactions/blocking/PubSub, Sentinel, Cluster and Tracking.
-**The command encoder, incremental RESP2/3 event reader and owned reply builder
-are implemented. Network requests and production/performance acceptance remain
-pending.**
+**The command encoder, incremental RESP2/3 reader, owned reply builder and one
+raw TCP request/response connection are implemented. Advanced transports/modes,
+HA and production/performance acceptance remain pending.**
 
 ## Binary command encoding
 
@@ -56,6 +56,21 @@ partial storage and preserves a typed cause even if diagnostic allocation fails.
 `ReplyDouble` converts raw numeric text lazily through public XRT number APIs.
 See the [ownership, limits and actual costs](docs/reply.md) and
 [buffer-recycling example](examples/reply/main.c).
+
+## TCP requests
+
+Select `XREDIS_MODULE_XREDIS_CLIENT` to connect to a numeric endpoint on an
+existing XRT engine. Async admission copies/encodes arguments, bounds count and
+bytes, and includes setup/queue wait in one monotonic deadline. Ordinary replies
+follow the sent FIFO; RESP3 pushes use a separate bounded ownership ring. A sent
+request's local timeout/cancel retains a physical FIFO slot until drained or the
+connection is retired, with explicit execution uncertainty and no silent replay.
+
+Accepted Futures always resolve with a typed `xredisrequestresult`; inspect
+Status/Delivery, not only generic Future state. Sync calls reject the engine's
+workers. Close has a separate physical-ownership observer; retained response
+results survive engine destruction. See the [client contract and real costs](docs/client.md)
+and [local TCP example with cleanup](examples/client/main.c).
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests

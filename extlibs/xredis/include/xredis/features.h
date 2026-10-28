@@ -16,6 +16,28 @@
 #ifndef XREDIS_MODULE_XREDIS_REPLY
 #define XREDIS_MODULE_XREDIS_REPLY
 #endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#endif
+
+/* xredis_client 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_CLIENT)
+#ifndef XREDIS_FEATURE_XREDIS_CLIENT
+#define XREDIS_FEATURE_XREDIS_CLIENT
+#endif
+#ifndef XREDIS_MODULE_XREDIS_COMMAND
+#define XREDIS_MODULE_XREDIS_COMMAND
+#endif
+#ifndef XREDIS_MODULE_XREDIS_REPLY
+#define XREDIS_MODULE_XREDIS_REPLY
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
+#endif
 #endif
 
 /* xredis_reply 及其直接依赖。 */

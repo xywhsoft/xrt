@@ -15,8 +15,13 @@
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_REPLY"
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLIENT)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLIENT"
+#endif
+
 #include <xredis/command.h>
 #include <xredis/reader.h>
 #include <xredis/reply.h>
+#include <xredis/client.h>
 
 #endif

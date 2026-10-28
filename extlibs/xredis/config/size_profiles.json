@@ -26,6 +26,13 @@
       "suite": "xredis_reply",
       "description": "Owned replies and reader/atomic/number_float closure, excluding networking and executors",
       "forbid_symbols": ["xrtNet", "xrtTcp", "xrtThread", "xrtTask", "xrtFuture"]
+    },
+    {
+      "name": "xredis_client",
+      "system": "client",
+      "suite": "xredis_client",
+      "description": "One raw TCP request/response connection and public core closure, excluding TLS, HTTP, Dial and task executors",
+      "forbid_symbols": ["xrtTls", "xrtHttp", "xrtWebSocket", "xrtNetDial", "xrtTask"]
     }
   ]
 }

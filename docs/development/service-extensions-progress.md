@@ -6,13 +6,16 @@ Target and rules: [development contract](service-extensions-plan.md).
 
 - All four final products are in development, not production accepted.
 - P0 source/worktree isolation and execution contract are established.
-- xredis binary-safe command encoding and the bounded RESP2/3 event reader are
-  locally verified. Runtime requests and owned reply objects remain pending.
+- xredis binary commands, bounded RESP2/3 parsing, owned frames and one ordinary
+  TCP async/sync request connection are locally verified. Negotiation, advanced
+  transports/modes, reconnect/pools, HA and final performance acceptance remain
+  pending.
 - xcron five-field/seconds-six-field expression compilation and Gregorian
   UTC/civil matching/earliest search are locally verified. Named time zones,
   scheduling and durable recovery remain pending.
-- P1 codec/expression/calendar foundations are locally verified. P2 continues
-  with xredis owned replies and request/connection lifecycle.
+- P1 codec/expression/calendar foundations are locally verified. P2 now has a
+  measured-workload TCP request/deadline/cancel/close slice; connection recovery,
+  remaining modes and pinned overhead/performance acceptance remain pending.
 - The xrpc prototype exposed a JSON lexical-scan gap. The shared parser now has
   a locally verified raw Scan API. RPC envelope decoding and encoding are locally
   verified; correlation, dispatch and transports remain pending.
@@ -45,7 +48,9 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | common | raw JSON scan needed by xrpc | locally verified | exact borrowed scalar/key/container spans, lexical numbers, 10,000 zero-heap scans, limits/Unicode/control/OOM, Windows/WSL modular/single/shared-reader regression and external static/shared consumers; performance comparison remains unaccepted |
 | xredis | binary command size/write | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL O2 ASan+UBSan modular/single/static/shared; 10,000 randomized commands, overflow/aliasing, hot-path allocation counters, diagnostic OOM |
 | xredis | incremental RESP2/3 event reader | complete | Windows modular/single/O2/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/single/example/trim/static/shared; all canonical split points, event pauses, 10,000 random arrays, 20,000 mutation pairs, limits, reentry, OOM and lifecycle quota |
-| xredis | runtime, pools, HA, tracking | pending | no claim |
+| xredis | immutable owned response frames | locally verified | `e4bfab34`; all types, ordered metadata/children, every fixture split, 512 levels/1025 nodes, binary copy/growth, peak caps, quota/OOM, atomic sharing and independent packages |
+| xredis | one numeric TCP connection, async/sync requests and bounded pipeline | locally verified | IOCP/epoll, split reads, typed outcome/certainty, queue-inclusive deadline, cancellation/tombstones/drain grace, push isolation, bounded close, 384 concurrent calls, 36/71 quota thresholds, worker OOM, reentry, ASan/UBSan/qualified TSan, actual examples/packages and workload smoke |
+| xredis | negotiation, advanced transports/modes, reconnect/pools, HA, tracking | pending | no claim |
 | xrpc | bounded JSON-RPC 2.0 envelope decode | locally verified | Windows modular/single/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, example/trim/static/shared; mixed batch/role/lossless-ID/duplicate/error/limits/OOM and deterministic property/mutation tests |
 | xrpc | bounded atomic JSON-RPC 2.0 envelope encode | locally verified | Windows modular/single/examples/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, examples/trim/static/shared; 10,000 independent wire properties, 500 complete-document resource oracles, 10,000 mutated raw inputs, zero-heap/OOM/aliases/atomicity |
 | xrpc | correlation, dispatch, runtime, transports | pending | no claim |
@@ -808,3 +813,112 @@ cancellation/wire obligations and deterministic close/failure ownership. Network
 transports, pipelines/pools, TLS, transactions/blocking/PubSub, Sentinel/Cluster/
 Tracking and all original four-product interoperability, performance and long-run
 acceptance gates remain pending. The complete goal is unchanged.
+
+## TCP request and connection vertical slice
+
+`xredis_client` adds a real raw TCP connection on one existing XRT engine worker,
+using public TCP/Future/cancellation/timer/allocation interfaces. Numeric endpoint
+setup and calls are asynchronous; a sync facade rejects both the connection's
+worker and another affinity on the same engine. No new shared runtime/core gap
+was introduced. The product root still remains developing.
+
+- Thread-safe admission copies/encodes arguments before returning acceptance.
+  Request/count/encoded-byte caps include concurrent construction and actual
+  wire/timer/cancel tails. Worker work is bounded for ingestion, sending,
+  cancellation and retirement; receive slices have byte/frame budgets. TCP takes
+  references to encoded buffers, avoiding another extension payload copy. Opaque
+  wire bytes are not redundantly cleared before encoding.
+- Accepted Futures resolve with an immutable typed request outcome, including
+  timeout/cancel/failure. Generic RESOLVED alone is not success. Server errors,
+  request deadlines, cancellation, local resource/OOM, protocol and connection
+  failure remain distinct. NOT_SENT/MAY_HAVE_EXECUTED/REPLIED records knowledge
+  at logical completion; TCP acceptance is not proof of remote execution. The
+  preallocated outcome survives diagnostic OOM. Retained completed results do
+  not retain the client/engine. No operation is silently replayed.
+- One monotonic deadline starts at API entry, including encoding, submission
+  wait and connection setup. Cancellation/deadline is rechecked before send and
+  response publication. A controlled worker stall proves timeout before any
+  command is sent; zero timeout also sends nothing. The sync guard is tested
+  from both engine workers. Valid admission preserves caller error identity.
+- Sent timeout/cancel leaves a counted FIFO tombstone until its late response
+  drains, preventing response cross-talk. Positive drain grace bounds a stuck
+  obligation and retires the connection. Surviving calls receive DISCONNECTED,
+  while CloseStatus records the connection's TIMEOUT cause; another request's
+  grace is not falsely reported as each surviving request's own expired deadline.
+  Count/byte overload preserves outputs and still counts abandoned sent slots.
+- RESP3 pushes/attributes use an independent bounded ownership ring. Normal
+  replies continue to match the original sent FIFO. Push count/owned-byte
+  overflow and unsolicited ordinary replies retire the connection explicitly.
+  Known reply-cardinality switches are rejected before admission; dedicated
+  PubSub/replication-style modes are not pretended to work as ordinary calls.
+- Close stops admission, completes accepted requests with explicit certainty,
+  and waits for physical transport/data ownership retirement. Actual request
+  free precedes reservation release. Stream/parser owners and the engine pin
+  drop before Closed publication; callback return tails still require normal
+  engine stop/join before code unload. A one-item work budget retires 101 calls
+  through bounded successive turns, including a sent blocked command. Result
+  data survives subsequent client/engine destruction in actual examples and
+  static/shared consumers.
+- Functional tests cover binary echo, 64 ordered calls through a narrow pipeline,
+  three-byte/two-byte receive budgets, server errors, root annotated pushes,
+  timed/cancelled queued and sent requests, late replies, drain retirement,
+  malformed payload terminators, partial EOF, peer reset, connect refusal,
+  unsolicited frames, invalid modes/config/endpoints/aliases and reentrant
+  Info/asynchronous admission/Close from a Future notification. Four native
+  producers run 384 mixed successful/cancelled calls with unique correlation.
+- Caller allocation quotas sweep 36 creation and 71 request thresholds, cross
+  both OOM/success boundaries and prove zero live charged bytes after retirement.
+  A one-byte worker quota proves typed MEMORY under worker/diagnostic failure.
+  Initial quota runs exposed a retained Future-cancel token reference; the
+  missing release was fixed. Inspection also moved counters after actual buffer
+  free. These are extension fixes, not claimed XRT allocator defects.
+- Windows GCC 16.2 O2 uses actual IOCP; Ubuntu/WSL GCC 15.2 uses actual epoll.
+  Modular regressions and standalone client single tests pass, with Linux
+  ASan+UBSan. TSan single tests also pass at O1 with `-Wno-error=tsan`: GCC warns
+  that the generic public XRT `atomic_thread_fence` routine is not instrumented.
+  The warning was retained, not hidden by a source/CI policy change. This
+  qualified local run is not complete native-Linux race/production acceptance.
+  A GCC single-TU diagnostic about the size output's address was fixed with
+  explicit initialization; normal strict C11 warning policies remain enabled.
+- Both systems compile/run the actual client example and independent static/
+  shared consumers with one host XRT. Positive/missing-dependency trim probes,
+  generated files, API/asset checks and 67 tooling tests pass. API inventory is
+  31 functions / 84 constants / 29 types, missing=0. PE/ELF exports have the 31
+  public functions and no private helpers. Strict release still rejects xredis.
+- Both native CI jobs now check isolated reply/client dependency boundaries.
+  Their YAML conditions and 40-hex action pins were parsed; remote Actions
+  execution is not claimed. Both isolated profiles have zero forbidden symbols:
+  owned reply remains independent of networking, and raw client excludes TLS,
+  HTTP/WebSocket, Dial and task-executor functions.
+- Final O2 unstripped single-object client closure: Windows x64 text 351604,
+  data 2384, bss 11136, file 508176 bytes; Ubuntu/WSL x64 text 365411, data 4480,
+  bss 10908, file 657400 bytes. Reports share content fingerprint
+  `a07b0fdcad7102edbddf65025614540707c5f32867d4b4fe3130a17b3ebbd0b1`.
+  Required XRT closure/object metadata is included, not only incremental client
+  code or a final linked application's footprint. The owned-reply closure did
+  not acquire network dependencies.
+- All four workloads pass one-sample unpinned Windows and Ubuntu/WSL smoke.
+  The new closed-loop local peer uses two workers and pipeline 16; latency is
+  API-entry-to-observation and includes encoding/queueing, plus consumer batch
+  observation wait. It reports throughput and P50/P95/P99/P99.9. It also measures
+  peer parsing/response generation, ran alongside other validation work and is
+  not fixed-arrival-rate, a stable baseline, Redis/Hiredis parity or a production
+  latency claim. New metadata/Future/watch/timer allocations, copies, locks,
+  atomics, syscalls and cold paths remain real, incompletely quantified costs.
+
+The [client contract](../../extlibs/xredis/docs/client.md) records concrete
+ownership, outcome, timing, quota and residency rules. Reproduce using manifest
+`extlibs/xredis/config/modules.json`, suite `xredis_tests --cflag=-O2`; Linux
+modular adds `--arch x64 --no-single` and the ASan+UBSan flags recorded above.
+Standalone source is `extlibs/xredis/tests/single/test_single_xredis_client.c`:
+Windows strict C11/O2 links `-lws2_32 -lmswsock`; Linux uses `-pthread -lm` and
+ASan+UBSan, or O1/TSan with the qualified flag above. Root `xredis --no-single`,
+trim and static/shared `--verify` exercise actual examples/consumers. Size
+profiles `xredis_reply,xredis_client --kind single` enforce isolation. Ignored
+reports/logs use `redis-client-*` under `out/service-extensions/`.
+
+Protocol negotiation/AUTH/HELLO, DNS/TLS, reconnect policy, pools and dedicated
+transaction/blocking/PubSub modes, Sentinel/Cluster/Tracking and all original
+four-product interoperability, matched pinned performance/overhead and native
+72-hour mixed-load/fault acceptance remain pending. The complete goal is active
+and unchanged; this is the ordinary TCP connection foundation.

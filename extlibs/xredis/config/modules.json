@@ -38,6 +38,11 @@
         "name": "reply",
         "state": "retained",
         "source_roots": ["reply"]
+      },
+      {
+        "name": "client",
+        "state": "retained",
+        "source_roots": ["client"]
       }
     ]
   },
@@ -64,7 +69,8 @@
       "depends": [
         "xredis_command",
         "xredis_reader",
-        "xredis_reply"
+        "xredis_reply",
+        "xredis_client"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -166,6 +172,20 @@
       "docs": ["extlibs/xredis/README.md", "extlibs/xredis/docs/api/reference.md", "extlibs/xredis/docs/reply.md"]
     },
     {
+      "name": "xredis_client",
+      "state": "implemented",
+      "feature": "XREDIS_FEATURE_XREDIS_CLIENT",
+      "depends": ["xredis_command", "xredis_reply", "net_tcp", "future"],
+      "public_headers": ["extlibs/xredis/include/xredis/client.h"],
+      "internal_headers": [],
+      "sources": ["extlibs/xredis/src/client/client.c"],
+      "tests": ["extlibs/xredis/tests/test_client.c"],
+      "single_tests": ["extlibs/xredis/tests/single/test_single_xredis_client.c"],
+      "examples": ["extlibs/xredis/examples/client/main.c"],
+      "benchmarks": ["extlibs/xredis/bench/bench_client.c"],
+      "docs": ["extlibs/xredis/README.md", "extlibs/xredis/docs/api/reference.md", "extlibs/xredis/docs/client.md"]
+    },
+    {
       "state": "implemented",
       "depends": [
         "xredis",
@@ -178,12 +198,14 @@
       "tests": [
         "extlibs/xredis/tests/test_command.c",
         "extlibs/xredis/tests/test_reader.c",
-        "extlibs/xredis/tests/test_reply.c"
+        "extlibs/xredis/tests/test_reply.c",
+        "extlibs/xredis/tests/test_client.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
         "extlibs/xredis/tests/single/test_single_xredis_reader.c",
-        "extlibs/xredis/tests/single/test_single_xredis_reply.c"
+        "extlibs/xredis/tests/single/test_single_xredis_reply.c",
+        "extlibs/xredis/tests/single/test_single_xredis_client.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -195,7 +217,8 @@
       "single_test_owners": {
         "extlibs/xredis/tests/single/test_single_xredis_command.c": "xredis_command",
         "extlibs/xredis/tests/single/test_single_xredis_reader.c": "xredis_reader",
-        "extlibs/xredis/tests/single/test_single_xredis_reply.c": "xredis_reply"
+        "extlibs/xredis/tests/single/test_single_xredis_reply.c": "xredis_reply",
+        "extlibs/xredis/tests/single/test_single_xredis_client.c": "xredis_client"
       }
     }
   ]

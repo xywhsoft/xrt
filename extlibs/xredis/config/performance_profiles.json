@@ -79,6 +79,25 @@
           "wire_bytes_per_sec": {"direction": "higher", "unit": "bytes/s"}
         }
       }]
+    },
+    {
+      "name": "xredis_client",
+      "system": "client",
+      "description": "Closed-loop local TCP peer, 2 workers, pipeline 16; API-to-observation latency includes encoding/queueing but no open-loop or Redis/Hiredis parity claim",
+      "benchmarks": [{
+        "name": "xredis_client",
+        "source": "extlibs/xredis/bench/bench_client.c",
+        "suite": "xredis_client",
+        "args": ["100000", "16"],
+        "smoke_args": ["1024", "16"],
+        "metrics": {
+          "requests_per_sec": {"direction": "higher", "unit": "requests/s"},
+          "p50_us": {"direction": "lower", "unit": "us"},
+          "p95_us": {"direction": "lower", "unit": "us"},
+          "p99_us": {"direction": "lower", "unit": "us"},
+          "p999_us": {"direction": "lower", "unit": "us"}
+        }
+      }]
     }
   ]
 }

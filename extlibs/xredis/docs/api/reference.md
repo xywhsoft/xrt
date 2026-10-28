@@ -4,8 +4,68 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `21` 个函数、`60` 个常量或宏、
-`20` 个公共类型。
+当前登记 `31` 个函数、`84` 个常量或宏、
+`29` 个公共类型。
+
+## `extlibs/xredis/include/xredis/client.h`
+
+[查看带契约注释的公共头](../../include/xredis/client.h)
+
+### 函数 (10)
+
+- `xredisClientCall`
+- `xredisClientCallAsync`
+- `xredisClientClose`
+- `xredisClientClosed`
+- `xredisClientConfigInit`
+- `xredisClientConnect`
+- `xredisClientInfo`
+- `xredisClientRelease`
+- `xredisClientRetain`
+- `xredisClientTakePush`
+
+### 常量与宏 (26)
+
+- `XREDIS_ADMISSION_ACCEPTED`
+- `XREDIS_ADMISSION_CLOSED`
+- `XREDIS_ADMISSION_ERROR`
+- `XREDIS_ADMISSION_OVERLOADED`
+- `XREDIS_CLIENT_ARGUMENT`
+- `XREDIS_CLIENT_CLOSED`
+- `XREDIS_CLIENT_CLOSING`
+- `XREDIS_CLIENT_COMMAND_MODE`
+- `XREDIS_CLIENT_CONNECTING`
+- `XREDIS_CLIENT_OPEN`
+- `XREDIS_CLIENT_STATE`
+- `XREDIS_FEATURE_XREDIS_CLIENT`
+- `XREDIS_FEATURE_XREDIS_COMMAND`
+- `XREDIS_FEATURE_XREDIS_REPLY`
+- `XREDIS_MAY_HAVE_EXECUTED`
+- `XREDIS_NOT_SENT`
+- `XREDIS_REPLIED`
+- `XREDIS_REQUEST_CANCELLED`
+- `XREDIS_REQUEST_CLOSED`
+- `XREDIS_REQUEST_DISCONNECTED`
+- `XREDIS_REQUEST_LIMIT`
+- `XREDIS_REQUEST_MEMORY`
+- `XREDIS_REQUEST_OK`
+- `XREDIS_REQUEST_PROTOCOL`
+- `XREDIS_REQUEST_SERVER_ERROR`
+- `XREDIS_REQUEST_TIMEOUT`
+
+### 类型 (11)
+
+- `xredisadmission`
+- `xredisclient`
+- `xredisclientconfig`
+- `xredisclienterror`
+- `xredisclientinfo`
+- `xredisclientstate`
+- `xredisdelivery`
+- `xredisreply`
+- `xredisreplyreaderconfig`
+- `xredisrequestresult`
+- `xredisrequeststatus`
 
 ## `extlibs/xredis/include/xredis/command.h`
 
@@ -16,13 +76,12 @@
 - `xredisCommandSize`
 - `xredisCommandWrite`
 
-### 常量与宏 (5)
+### 常量与宏 (4)
 
 - `XREDIS_COMMAND_ARGUMENT`
 - `XREDIS_COMMAND_CAPACITY`
 - `XREDIS_COMMAND_OVERFLOW`
 - `XREDIS_COMMAND_OVERLAP`
-- `XREDIS_FEATURE_XREDIS_COMMAND`
 
 ### 类型 (1)
 
@@ -127,9 +186,8 @@
 - `xredisReplyRelease`
 - `xredisReplyRetain`
 
-### 常量与宏 (13)
+### 常量与宏 (12)
 
-- `XREDIS_FEATURE_XREDIS_REPLY`
 - `XREDIS_REPLY_ARGUMENT`
 - `XREDIS_REPLY_ERROR`
 - `XREDIS_REPLY_LIMIT`
@@ -143,13 +201,11 @@
 - `XREDIS_REPLY_TRUNCATED`
 - `XREDIS_REPLY_YIELD`
 
-### 类型 (8)
+### 类型 (6)
 
-- `xredisreply`
 - `xredisreplyerror`
 - `xredisreplyinfo`
 - `xredisreplyreader`
-- `xredisreplyreaderconfig`
 - `xredisreplyreaderinfo`
 - `xredisreplystatus`
 - `xredisreplyvalue`
