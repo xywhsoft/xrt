@@ -70,11 +70,18 @@ struct xredisclient {
 	const xredisconnectplan* Plan;
 	bool PlanOwned, PlanPending, PlanCancelled;
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	xtlsstream* TLS;
+	xredisrequest* TlsWrite;
+	size_t TlsWritten, TlsWriteBytes, TlsTurnBytes, TlsTurnCalls, InitWritten;
+	bool InitSending;
+#endif
 	xredisreply* PushQueue[];
 };
 
 static void xredisClientWork(xnetworker* Worker, ptr Data);
 static void xredisClientRead(xnetstream* Stream, xnetbuf* Buffer, ptr Data);
+static void xredisClientReadBuffer(xredisclient* Client, const xnetbuf* Buffer);
 static void xredisClientTimer(xnetworker* Worker, uint64 Id, xnetresult Result, ptr Data);
 static void xredisClientRef(xredisclient* Client);
 static bool xredisClientWakeLocked(xredisclient* Client);
@@ -83,6 +90,30 @@ static void xredisClientFail(xredisclient* Client, xredisrequeststatus Status, c
 static void xredisClientReadyFinish(xredisclient* Client, xredisreadystatus Status, const xerror* Cause);
 static void xredisClientInitPump(xredisclient* Client);
 static void xredisClientInitFrame(xredisclient* Client, xredisreply* Reply, const xredisreplyvalue* Root);
+
+static void xredisClientTransportAbort(xredisclient* Client)
+{
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Client->TLS != NULL) { (void)xrtTlsStreamAbort(Client->TLS); return; }
+#endif
+	if (Client->Stream != NULL) xrtNetStreamAbort(Client->Stream); else Client->TransportClosed = true;
+}
+
+static bool xredisClientTransportOpen(xredisclient* Client)
+{
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Client->TLS != NULL) return xrtTlsStreamState(Client->TLS) == XTLS_STREAM_OPEN;
+#endif
+	return Client->Stream != NULL && xrtNetStreamState(Client->Stream) == XNET_STREAM_OPEN;
+}
+
+static const xnetbuf* xredisClientTransportBuffer(xredisclient* Client)
+{
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Client->TLS != NULL) return Client->TransportOpen ? xrtTlsStreamBuffer(Client->TLS) : NULL;
+#endif
+	return Client->Stream == NULL ? NULL : xrtNetStreamBuffer(Client->Stream);
+}
 
 static bool xredisClientReport(xerrkind Kind, xredisclienterror Code, cstr Message)
 {
@@ -359,7 +390,7 @@ static void xredisClientFail(xredisclient* Client, xredisrequeststatus Status, c
 		Client->CloseCause = xrtErrorRef(Cause);
 	}
 	xrtMutexUnlock(&Client->Gate);
-	if (Client->Stream != NULL) xrtNetStreamAbort(Client->Stream); else Client->TransportClosed = true;
+	xredisClientTransportAbort(Client);
 	xredisClientWake(Client);
 }
 
@@ -433,10 +464,49 @@ static bool xredisClientInitArm(xredisclient* Client)
 	xredisClientRelease(Client); return false;
 }
 
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+/* TLS copies accepted plaintext into authenticated record storage. Nothing
+ * borrows input after Send returns. A short prefix must never be replayed. */
+static xtlsresult xredisClientTlsSend(xredisclient* Client, cbytes Data, size_t Size, size_t* Written)
+{
+	*Written = 0;
+	if (Client->TlsTurnBytes == 0 || Client->TlsTurnCalls == 0) { xredisClientWake(Client); return XTLS_AGAIN; }
+	if (Size > Client->TlsTurnBytes) Size = Client->TlsTurnBytes;
+	--Client->TlsTurnCalls; xtlsresult Result = xrtTlsStreamSend(Client->TLS, Data, Size, Written);
+	Client->TlsTurnBytes -= *Written; return Result;
+}
+
+static void xredisClientTlsInitPump(xredisclient* Client)
+{
+	if (Client->InitAwait != XREDIS_I_END && !Client->InitSending) return;
+	while (Client->InitNext < XREDIS_I_END && Client->InitLength[Client->InitNext] == 0) ++Client->InitNext;
+	if (Client->InitNext == XREDIS_I_END) { xredisClientReadyFinish(Client, XREDIS_READY_OK, NULL); return; }
+	size_t Index = Client->InitNext; const xredisinitstep Steps[] = {XREDIS_INIT_HELLO, XREDIS_INIT_AUTHENTICATE, XREDIS_INIT_NAME, XREDIS_INIT_DATABASE};
+	xrtMutexLock(&Client->Gate); Client->Info.InitStep = Steps[Index]; xrtMutexUnlock(&Client->Gate);
+	Client->InitAwait = Index; Client->InitSending = true;
+	while (Client->InitWritten < Client->InitLength[Index] && !xredisClientClosing(Client)) {
+		xredisinitwire* Wire = Client->InitWire; (void)xrtAtomic32FetchAdd(&Wire->References, 1, XMEMORY_RELAXED);
+		size_t Written = 0; xtlsresult Result = xredisClientTlsSend(Client, Wire->Data + Client->InitOffset[Index] + Client->InitWritten,
+			Client->InitLength[Index] - Client->InitWritten, &Written);
+		Client->InitWritten += Written; xredisInitWireRelease(Wire);
+		if (Result == XTLS_ERROR || Result == XTLS_CLOSED) {
+			xredisClientFail(Client, Result == XTLS_ERROR && xrtErrorKind(xrtGetError()) == XERR_MEMORY ? XREDIS_REQUEST_MEMORY : XREDIS_REQUEST_DISCONNECTED,
+				Result == XTLS_ERROR ? xrtGetError() : NULL); return;
+		}
+		if (Written == 0) return;
+	}
+	if (Client->InitWritten == Client->InitLength[Index]) { Client->InitWritten = 0; Client->InitSending = false; }
+}
+#endif
+
 static void xredisClientInitPump(xredisclient* Client)
 {
-	if (Client->ReadyPromise == NULL || !Client->TransportOpen || Client->InitAwait != XREDIS_I_END) return;
+	if (Client->ReadyPromise == NULL || !Client->TransportOpen) return;
 	if (xrtTimer() >= Client->InitDeadline) { xredisClientInitReject(Client, XREDIS_READY_TIMEOUT); return; }
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Client->TLS != NULL) { xredisClientTlsInitPump(Client); return; }
+#endif
+	if (Client->InitAwait != XREDIS_I_END) return;
 	while (Client->InitNext < XREDIS_I_END && Client->InitLength[Client->InitNext] == 0) ++Client->InitNext;
 	if (Client->InitNext == XREDIS_I_END) { xredisClientReadyFinish(Client, XREDIS_READY_OK, NULL); return; }
 	size_t Index = Client->InitNext;
@@ -500,6 +570,9 @@ static void xredisClientInitFrame(xredisclient* Client, xredisreply* Reply, cons
 {
 	if (xrtTimer() >= Client->InitDeadline) { xredisReplyRelease(Reply); xredisClientInitReject(Client, XREDIS_READY_TIMEOUT); return; }
 	size_t Index = Client->InitAwait;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Client->InitSending) { xredisReplyRelease(Reply); xredisClientInitReject(Client, XREDIS_READY_PROTOCOL); return; }
+#endif
 	if (Index >= XREDIS_I_END) { xredisReplyRelease(Reply); xredisClientInitReject(Client, XREDIS_READY_PROTOCOL); return; }
 	if (Root->Type == XREDIS_REPLY_SIMPLE_ERROR || Root->Type == XREDIS_REPLY_BULK_ERROR) {
 		bool Unsupported = Index == XREDIS_I_HELLO && xredisClientInitUnsupported(Root->Data);
@@ -630,6 +703,41 @@ void __xredisClientConnectRetired(xredisclient* Client)
 { Client->PlanPending = false; xredisClientWake(Client); }
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+static void xredisClientTlsOpen(xtlsstream* Stream, ptr Data)
+{ (void)Stream; xredisClientOnOpen(NULL, Data); }
+static void xredisClientTlsRead(xtlsstream* Stream, const xnetbuf* Buffer, ptr Data)
+{ (void)Stream; xredisClientReadBuffer((xredisclient*)Data, Buffer); }
+static void xredisClientTlsEnd(xtlsstream* Stream, ptr Data)
+{ (void)Stream; xredisClientOnEnd(NULL, Data); }
+static void xredisClientTlsWritable(xtlsstream* Stream, ptr Data)
+{ (void)Stream; xredisClientWake((xredisclient*)Data); }
+static void xredisClientTlsClose(xtlsstream* Stream, xnetresult Result, const xerror* Error, ptr Data)
+{
+	(void)Stream; xredisclient* Client = (xredisclient*)Data; xredisClientOnClose(NULL, Result, Error, Data);
+	if (Client->ReadyPromise != NULL && xrtErrorKind(Error) == XERR_TIMEOUT) xredisClientReadyFinish(Client, XREDIS_READY_TIMEOUT, Error);
+}
+static const xtlsstreamevents xredisClientTlsEvents = {
+	xredisClientTlsOpen, xredisClientTlsRead, xredisClientTlsEnd, xredisClientTlsWritable, xredisClientTlsWritable, xredisClientTlsClose, NULL
+};
+const xnetstreamevents* __xredisClientTlsPendingEvents(void)
+{
+	static const xnetstreamevents Events = {NULL, NULL, NULL, NULL, NULL, NULL, xredisClientOnClose}; return &Events;
+}
+bool __xredisClientConnectTls(xredisclient* Client, xnetstream* Transport, const xredistlsplan* Plan)
+{
+	if (xredisClientClosing(Client) || xrtNetStreamState(Transport) != XNET_STREAM_OPEN) {
+		__xredisClientConnectDone(Client, XNET_RESULT_OK, Transport, NULL);
+		if (!xredisClientClosing(Client)) xredisClientFail(Client, XREDIS_REQUEST_DISCONNECTED, NULL);
+		return false;
+	}
+	Client->TransportClosed = false; Client->TlsWriteBytes = Plan->WriteBytes;
+	if (xrtTlsStreamAttach(Transport, Plan->Session, &Plan->Config, &xredisClientTlsEvents, Client, &Client->TLS)) return true;
+	xerror* Cause = xrtErrorRef(xrtGetError()); __xredisClientConnectDone(Client, XNET_RESULT_ERROR, Transport, Cause);
+	xredisClientFail(Client, xredisClientConnectFailure(Cause), Cause); xrtErrorFree(Cause); return false;
+}
+#endif
+
 static void xredisClientFrame(xredisclient* Client, xredisreply* Reply)
 {
 	xredisreplyinfo Info = {0}; Info.Size = sizeof(Info); xredisReplyInfo(Reply, &Info);
@@ -648,6 +756,9 @@ static void xredisClientFrame(xredisclient* Client, xredisreply* Reply)
 	}
 	if (Client->ReadyPromise != NULL) { xredisClientInitFrame(Client, Reply, &Root); return; }
 	xredisrequest* Request = Client->SentHead;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Request != NULL && Request == Client->TlsWrite) { xredisReplyRelease(Reply); xredisClientFail(Client, XREDIS_REQUEST_PROTOCOL, NULL); return; }
+#endif
 	if (Request == NULL) { xredisReplyRelease(Reply); xredisClientFail(Client, XREDIS_REQUEST_PROTOCOL, NULL); return; }
 	if (Request->Promise != NULL) {
 		xredisrequeststatus Status = Root.Type == XREDIS_REPLY_SIMPLE_ERROR || Root.Type == XREDIS_REPLY_BULK_ERROR ?
@@ -666,9 +777,8 @@ static void xredisClientFrame(xredisclient* Client, xredisreply* Reply)
 	xredisClientCancelTimer(Request); xredisRequestRelease(Request); xredisClientWake(Client);
 }
 
-static void xredisClientRead(xnetstream* Stream, xnetbuf* Buffer, ptr Data)
+static void xredisClientReadBuffer(xredisclient* Client, const xnetbuf* Buffer)
 {
-	xredisclient* Client = (xredisclient*)Data;
 	if (Client->Reading || xredisClientClosing(Client)) return;
 	Client->Reading = true; size_t Bytes = 0, Frames = 0;
 	while (Bytes < Client->Config.ReadBytes && Frames < Client->Config.ReadFrames && !xredisClientClosing(Client)) {
@@ -677,7 +787,11 @@ static void xredisClientRead(xnetstream* Stream, xnetbuf* Buffer, ptr Data)
 		if (Span.Size > Available) Span.Size = Available;
 		xredisreply* Reply = NULL; size_t Consumed = 0;
 		xredisreplystatus Status = xredisReplyReaderFeed(Client->Reader, (xbytesview){Span.Data, Span.Size}, &Consumed, &Reply);
-		xrtNetBufConsume(Buffer, Consumed); Bytes += Consumed;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+		if (Client->TLS != NULL) (void)xrtTlsStreamConsume(Client->TLS, Consumed); else
+#endif
+		(void)xrtNetBufConsume((xnetbuf*)Buffer, Consumed);
+		Bytes += Consumed;
 		if (Status == XREDIS_REPLY_ERROR) {
 			xredisreplyreaderinfo State = {0}; State.Size = sizeof(State); xredisReplyReaderInfo(Client->Reader, &State);
 			xredisrequeststatus Error = State.Error == XREDIS_REPLY_MEMORY ? XREDIS_REQUEST_MEMORY :
@@ -689,9 +803,17 @@ static void xredisClientRead(xnetstream* Stream, xnetbuf* Buffer, ptr Data)
 	}
 	Client->Reading = false;
 	if (!xredisClientClosing(Client) && (Bytes == Client->Config.ReadBytes || Frames == Client->Config.ReadFrames)) {
-		Client->ReadYielded = true; Client->ReadPaused = true; xrtNetStreamPause(Stream); xredisClientWake(Client);
+		Client->ReadYielded = true; Client->ReadPaused = true;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+		if (Client->TLS == NULL)
+#endif
+		xrtNetStreamPause(Client->Stream);
+		xredisClientWake(Client);
 	}
 }
+
+static void xredisClientRead(xnetstream* Stream, xnetbuf* Buffer, ptr Data)
+{ (void)Stream; xredisClientReadBuffer((xredisclient*)Data, Buffer); }
 
 static void xredisClientIngest(xredisclient* Client)
 {
@@ -718,12 +840,61 @@ static void xredisClientIngest(xredisclient* Client)
 	}
 }
 
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+static void xredisClientTlsPump(xredisclient* Client)
+{
+	while (!xredisClientClosing(Client) && xredisClientTransportOpen(Client)) {
+		if (Client->TlsTurnBytes == 0 || Client->TlsTurnCalls == 0) {
+			if (Client->TlsWrite != NULL || (Client->PendingHead != NULL && Client->SentCount < Client->Config.MaxInFlight)) xredisClientWake(Client);
+			return;
+		}
+		xredisrequest* Request = Client->TlsWrite;
+		if (Request == NULL) {
+			if (Client->PendingHead == NULL || Client->SentCount >= Client->Config.MaxInFlight) return;
+			Request = Client->PendingHead;
+			if (xrtAtomic32Load(&Request->Cancelled, XMEMORY_ACQUIRE) || xrtTimer() >= Request->Deadline) {
+				--Client->TlsTurnCalls;
+				xredisClientAbandon(Request, xrtAtomic32Load(&Request->Cancelled, XMEMORY_ACQUIRE) ? XREDIS_REQUEST_CANCELLED : XREDIS_REQUEST_TIMEOUT); continue;
+			}
+			xredisClientUnlink(Request); xredisClientAppend(Client, Request, true); xredisRequestRef(Request);
+			Client->TlsWrite = Request; Client->TlsWritten = 0;
+		}
+		size_t Written = 0; xtlsresult Result = xredisClientTlsSend(Client, Request->Wire + Client->TlsWritten, Request->WireBytes - Client->TlsWritten, &Written);
+		Client->TlsWritten += Written;
+		if (Result == XTLS_ERROR || Result == XTLS_CLOSED) {
+			/* Zero accepted bytes still means NOT_SENT. A partial command is a
+			 * sent FIFO obligation even after the caller abandons its Future. */
+			if (Client->TlsWritten == 0) { xredisClientUnlink(Request); xredisClientAppend(Client, Request, false); }
+			xredisClientFail(Client, Result == XTLS_ERROR && xrtErrorKind(xrtGetError()) == XERR_MEMORY ? XREDIS_REQUEST_MEMORY : XREDIS_REQUEST_DISCONNECTED,
+				Result == XTLS_ERROR ? xrtGetError() : NULL); return;
+		}
+		if (Client->TlsWritten == Request->WireBytes) {
+			Client->TlsWrite = NULL; Client->TlsWritten = 0; xredisRequestRelease(Request);
+		}
+		if (Written == 0) {
+			if (Client->TlsWritten == 0 && Client->TlsWrite != NULL) {
+				/* No byte was accepted: keep original FIFO position and report
+				 * NOT_SENT if the caller now expires/cancels while blocked. */
+				xredisClientUnlink(Request); Request->Phase = XREDIS_R_PENDING;
+				Request->Next = Client->PendingHead;
+				if (Client->PendingHead != NULL) Client->PendingHead->Previous = Request; else Client->PendingTail = Request;
+				Client->PendingHead = Request; Client->TlsWrite = NULL; xredisRequestRelease(Request);
+			}
+			return;
+		}
+	}
+}
+#endif
+
 static void xredisClientPump(xredisclient* Client)
 {
 	if (Client->ReadyPromise != NULL) return;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Client->TLS != NULL) { xredisClientTlsPump(Client); return; }
+#endif
 	for (size_t Work = 0; Work < Client->Config.WorkRequests && Client->PendingHead != NULL &&
 		Client->SentCount < Client->Config.MaxInFlight && !xredisClientClosing(Client) &&
-		xrtNetStreamState(Client->Stream) == XNET_STREAM_OPEN; ++Work) {
+		xredisClientTransportOpen(Client); ++Work) {
 		xredisrequest* Request = Client->PendingHead;
 		if (xrtAtomic32Load(&Request->Cancelled, XMEMORY_ACQUIRE) || xrtTimer() >= Request->Deadline) {
 			xredisClientAbandon(Request, xrtAtomic32Load(&Request->Cancelled, XMEMORY_ACQUIRE) ?
@@ -761,6 +932,9 @@ static void xredisClientRetire(xredisclient* Client)
 static void xredisClientWork(xnetworker* Worker, ptr Data)
 {
 	(void)Worker; xredisclient* Client = (xredisclient*)Data;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	Client->TlsTurnBytes = Client->TlsWriteBytes; Client->TlsTurnCalls = Client->Config.WorkRequests;
+#endif
 	xrtMutexLock(&Client->Gate); Client->WakeQueued = false;
 	xredisrequest* Cancel = Client->CancelHead;
 	xredisrequest* Last = Cancel;
@@ -801,18 +975,22 @@ static void xredisClientWork(xnetworker* Worker, ptr Data)
 		} else Client->TransportClosed = true;
 	}
 	xredisClientIngest(Client);
-	if (!xredisClientClosing(Client) && Client->Stream != NULL) {
-		const xnetbuf* Buffer = xrtNetStreamBuffer(Client->Stream);
-		if (Buffer != NULL && xrtNetBufSize(Buffer) != 0) xredisClientRead(Client->Stream, (xnetbuf*)Buffer, Client);
+	if (!xredisClientClosing(Client)) {
+		const xnetbuf* Buffer = xredisClientTransportBuffer(Client);
+		if (Buffer != NULL && xrtNetBufSize(Buffer) != 0) xredisClientReadBuffer(Client, Buffer);
 		if (!xredisClientClosing(Client) && !Client->ReadEnded && !Client->ReadYielded && Client->ReadPaused) {
-			Client->ReadPaused = false; xrtNetStreamResume(Client->Stream);
+			Client->ReadPaused = false;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+			if (Client->TLS == NULL && Client->Stream != NULL)
+#endif
+			xrtNetStreamResume(Client->Stream);
 		}
 		if (Client->ReadEnded && !Client->ReadYielded && !xredisClientClosing(Client)) {
 			bool Complete = xredisReplyReaderFinish(Client->Reader);
 			xredisClientFail(Client, Complete ? XREDIS_REQUEST_DISCONNECTED : XREDIS_REQUEST_PROTOCOL,
 				Complete ? NULL : xrtGetError());
 		}
-		if (!xredisClientClosing(Client)) {
+		if (!xredisClientClosing(Client) && xredisClientTransportOpen(Client)) {
 			if (Client->Managed && Client->ReadyPromise != NULL) xredisClientInitPump(Client);
 			else xredisClientPump(Client);
 		}
@@ -825,7 +1003,12 @@ static void xredisClientWork(xnetworker* Worker, ptr Data)
 #endif
 		if (Client->ReadyPromise != NULL)
 			xredisClientReadyFinish(Client, xredisClientReadyFailure(Client->Info.CloseStatus), Client->CloseCause);
-		if (Client->Stream != NULL && !Client->TransportClosed) xrtNetStreamAbort(Client->Stream);
+		if (!Client->TransportClosed) xredisClientTransportAbort(Client);
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+		if (Client->TlsWrite != NULL) {
+			xredisrequest* Write = Client->TlsWrite; Client->TlsWrite = NULL; Client->TlsWritten = 0; xredisRequestRelease(Write);
+		}
+#endif
 		xredisClientRetire(Client);
 	}
 	xrtMutexLock(&Client->Gate);
@@ -848,6 +1031,9 @@ static void xredisClientWork(xnetworker* Worker, ptr Data)
 			const xredisconnectplan* Plan = Client->Plan; Client->Plan = NULL; Client->PlanOwned = false;
 			Plan->Drop(Plan->Data);
 		}
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+		xrtTlsStreamDestroy(Client->TLS); Client->TLS = NULL;
 #endif
 		xrtNetEngineUnpin(Client->Engine); xrtPromiseResolve(Promise, NULL); xrtPromiseDestroy(Promise);
 		xredisClientRelease(Client); /* Runtime activation. */

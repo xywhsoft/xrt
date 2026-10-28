@@ -1211,3 +1211,120 @@ above. CI now checks the selected Dial and unselected numeric boundaries;
 remote CI execution is unclaimed. TLS, reconnect/pools, dedicated modes,
 HA/Tracking, remaining RPC/MQTT/Cron runtimes, matched pinned resource/performance
 matrices and native 72-hour mixed/fault acceptance all remain required.
+
+## Server-authenticated Redis TLS transport
+
+Implemented the optional `xredis_tls` transport with four public functions:
+config initialization, hostname Dial, prepared-address Dial and numeric Connect.
+It uses the existing public NetDial and TLS Session/Stream APIs. One native TLS
+session snapshots borrowed metadata/shared objects during the factory, then
+attaches on the connection's worker after TCP wins. No core XRT implementation
+was modified and no extra TLS-Dial/Future stack or shared runtime was added.
+This is server-authenticated transport; mutual client-certificate authentication
+and ticket harvesting/cache policy remain required follow-up work.
+
+- TLS must succeed before Redis initialization or business writes. There is no
+  insecure verifier default or plaintext fallback. Explicit Context/Verifier/
+  Resume policy remains native XRT policy. Overall initialization deadline starts
+  at API entry and includes native-session creation, DNS/TCP/TLS and setup.
+  Bounded copied names/opaque ALPN, original queued request deadlines, optional
+  DNS SNI/identity inference and explicit numeric/prepared identity are documented.
+- TLS Send's accepted prefix is tracked exactly. A zero-byte AGAIN restores the
+  original pending FIFO position; any accepted prefix is a sent obligation, even
+  when ciphertext queue allocation subsequently fails. Cancellation/timeout of a
+  partial command finishes that prefix's remainder and drains its tombstone under
+  the existing grace; Close aborts it. Setup uses the same exact-prefix rule.
+  Native plaintext is read/consumed through TLS APIs; raw buffer mutation and raw
+  pause/resume are excluded for TLS. Native Close plus client callbacks/timers/
+  requests/setup wire/internal posts retire before client Closed. Engine join
+  remains necessary for native callback/session tails and code unloading.
+- Tests force 3-byte setup/business budgets and 1-byte interrupted writes, binary
+  names/ALPN snapshot recycling, binary AUTH/SELECT and close during partial AUTH,
+  32-call binary pipelines, numeric/hostname/refused-endpoint fallback, verifier
+  rejection, handshake/overall deadlines, close during blocked DNS, caller client
+  release before physical Close, caller verifier release before DNS returns,
+  constructor quota thresholds, malformed spans/limits and worker OOM. An initial
+  send-OOM assertion assumed no accepted bytes; actual native prefix acceptance
+  correctly returned MAY_HAVE_EXECUTED before queue metadata OOM. The test now
+  checks typed memory failure with the native zero/partial delivery possibilities,
+  rather than asserting a false NOT_SENT guarantee.
+- Windows GCC 16.2 O2 passes all nine modular and nine single tests; the TLS pair
+  was rerun with the final lifetime/auth cases. WSL GCC 15.2 O2 ASan+UBSan passes
+  all nine modular tests and the direct TLS single test. O2 TSan passes both TLS
+  and TLS open-loop single tests, retaining the generic atomic_thread_fence
+  instrumentation warning through `-Wno-error=tsan`. The O1 TSan compile is not
+  green: unchanged native xrtTlsClientPsks checked-output locals trigger
+  -Wmaybe-uninitialized. O2 keeps -Werror and requires no such suppression. These
+  are bounded local checks, not exhaustive races or native Linux long-run proof.
+- Root examples and dependency trim probes pass on Windows and WSL. The
+  client-only TLS example's no-argument CI invocation prints usage only; actual
+  handshake/PONG runs are separately exercised by the real-service supervisor.
+  Trim initially found seven undeclared header guards for the registered crypto
+  backends; the TLS header now explicitly requires all declared backends and
+  avoids importing native TLS headers when this leaf is unselected. The test RSA
+  identity signer is in xredis_tls_tests/workload dependencies, not production.
+- Independent static/shared package consumers pass on both systems, with one
+  separately owned Core (133 sources) and xredis (six sources). Public inventory
+  is 41 functions / 114 constants / 36 types with missing=0. PE/ELF exports match
+  all 41 public functions exactly and expose no private handoff helpers. Normal
+  maturity and 33 targeted asset/API/layout/performance tool regressions pass;
+  strict release still exits 1 for the developing root. Existing unrelated broad
+  repository failures recorded in the preceding stage were not relabeled green.
+- Real Redis 8.0.5 and OpenSSL 3.5.5 on WSL pass TLS 1.2 and 1.3 separately with
+  fresh CA/server certificates and a separate wrong CA. Both static and shared
+  consumers run six no-auth/password/ACL cases with strict RESP3, RESP2/AUTO,
+  actual name/database, binary SET/GET, pipeline and initialization failures.
+  Wrong name/wrong trust are rejected before business data. The actual example
+  also passes both versions. Explicit per-version policies restrict ciphers and
+  signatures consistently; initial fixture context construction rejected a
+  mismatched default multi-version preference list, which was corrected in the
+  test policy. Service/key files are ephemeral and cleaned; reports retain only
+  public certificate hashes, binary/source/helper identity and expanded arguments.
+  These are server-authenticated AES-128-GCM/RSA-PSS interoperability cases, not
+  a complete certificate/cipher/group/mTLS/platform matrix.
+- Numeric/Dial leaves still forbid TLS symbols. The TLS leaf excludes HTTP,
+  WebSocket, task executors, an extra native TlsDial stack and the fixture RSA
+  identity constructor. Current text/data/bss/file bytes: Windows numeric
+  366860/2384/11136/526913, Dial 420308/2384/11136/606758, TLS
+  1066664/2384/11168/1408675; WSL numeric 380901/4496/10908/680768, Dial
+  437482/5200/10908/786496, TLS 1093721/6436/10940/1792344. These are current
+  closure/symbol checks, not proof of unchanged plain-path runtime costs.
+  Size source fingerprint:
+  `1606b7adc0d57e63158ff9233b7657bc1246f6113dbb07d6c3f88de0b674113d`.
+- Four TLS profiles reuse the actual absolute-arrival ECHO model, including all
+  offer/admission/terminal partitions, planned-time success/all latency, lag,
+  binary IDs, deadline misses, watcher retirement and resource counters. TLS 1.3
+  AES-128-GCM/X25519 fixture trust is explicit. Both platform ordinary and stats
+  smokes finish 256/256 successfully at requested 5000/s; controlled stall retains
+  all 32 expired offers, and held replies partition all 64 into eight timeouts
+  plus 56 harness-capacity rejections. Separate direct runs verify the full raw
+  partitions/counters. Allocation and CPU windows include local fixture/crypto
+  teardown; handshake/warmup precede measurement. These are unpinned sparse
+  diagnostics, not tail-latency or throughput acceptance. Native crypto copies,
+  conditional branches/cursors, native/shared references, metadata scans/copies,
+  descriptor/session allocations and automatic numeric-probe diagnostics remain
+  real costs; exact matched per-operation and cold-path attribution is pending.
+  Final production/config fingerprint:
+  `f2291b4ed64cc61281148e2d0deb03063c21bc3fc3aaddb231aec694ec6b0d9a`;
+  four-profile workload fingerprint:
+  `acca60bd820399b1c5198bbeacd43023b3689649d8e8f993493b0ca783cc1f77`.
+- Windows direct process snapshots retain a cold +19 handle change. A separate
+  same-process probe observes 72 -> 91 on the first TLS lifecycle and 91 -> 91
+  on seven repeats. A second probe observes 72 -> 82 from secure RNG alone, then
+  82 -> 91 on the first TLS lifecycle and a stable 91 baseline; one immediate
+  snapshot briefly sees 92 and returns to 91 before the next lifecycle. Thus
+  first-use retained OS resources and transient effects are visible, not silently
+  subtracted or declared zero. Ten handles correlate with RNG startup; the other
+  increment is not fully attributed. WSL direct runs retain descriptors 4 -> 4
+  (or inherited 5 -> 5). Short plateau evidence does not replace long-run resource
+  acceptance or prove absence of leaks.
+
+The [TLS contract](../../extlibs/xredis/docs/tls.md) records API semantics,
+costs, runnable example, native default-verifier interoperability and measurement
+scope. Ignored evidence uses `redis-tls-*` under `out/service-extensions/evidence/`
+and direct binaries/probes one directory above. Old benchmark fingerprints are
+historical: helper bytes changed and the new TLS workload declares its complete
+fixture input list. Remote CI execution is unclaimed. Mutual TLS, ticket/cache
+management, wider TLS validation, reconnect/pools/dedicated modes/HA/tracking,
+RPC/MQTT/Cron runtimes, pinned matched performance and native 72-hour mixed/fault
+acceptance all remain required; the four-product goal stays active.

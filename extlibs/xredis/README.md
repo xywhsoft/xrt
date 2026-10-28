@@ -5,8 +5,8 @@ RESP2/3, bounded incremental replies, asynchronous requests, pipelines/pools,
 TLS, transactions/blocking/PubSub, Sentinel, Cluster and Tracking.
 **The command encoder, incremental RESP2/3 reader, owned reply builder, one
 TCP request/response connection, explicit HELLO/AUTH initialization and optional
-asynchronous DNS/multiple-endpoint setup are
-implemented. Advanced transports/modes,
+asynchronous DNS/multiple-endpoint setup and server-authenticated TLS transport
+are implemented. Mutual TLS, ticket harvesting and advanced modes,
 HA and production/performance acceptance remain pending.**
 
 ## Binary command encoding
@@ -96,6 +96,14 @@ finish later. Requests retain their original deadlines
 through DNS, TCP and HELLO. The numeric `xredis_client` leaf still excludes Dial
 and Resolver. See the [lifetime, limits and actual cold costs](docs/dial.md) and
 [self-contained hostname/address example](examples/dial/main.c).
+
+Select `XREDIS_MODULE_XREDIS_TLS` for required, verified encryption before Redis
+initialization. It snapshots native TLS configuration, supports partial record
+writes without prefix replay, preserves cancelled sent commands' FIFO duties,
+and consumes plaintext through TLS APIs. See [the TLS contract and actual costs](docs/tls.md)
+and [client-only trust/cleanup example](examples/tls/main.c). The TLS fixed-arrival
+profiles retain the same offer/accounting model; default CA/name interoperability
+uses separately generated ephemeral identities and real Redis.
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests

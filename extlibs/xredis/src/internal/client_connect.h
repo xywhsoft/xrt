@@ -1,6 +1,22 @@
 #ifndef XREDIS_CLIENT_CONNECT_INTERNAL_H
 #define XREDIS_CLIENT_CONNECT_INTERNAL_H
 #include <xredis/client.h>
+typedef struct xredisclienttlsconfig xredisclienttlsconfig;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+#include <xrt/tls_stream.h>
+typedef struct xredistlsplan {
+	xtlssession* Session;
+	xtlsstreamconfig Config;
+	size_t WriteBytes;
+} xredistlsplan;
+bool __xredisClientDialTls(xnetengine* Engine, xnetresolver* Resolver, xnetaddrlist* Addresses,
+	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS, double Entered, xredisclient** Result);
+bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, xstrview Host, xredisclient** Output, xredistlsplan* Plan);
+/* Consumes TCP always, and Session only on true. Owning Worker only. */
+bool __xredisClientConnectTls(xredisclient* Client, xnetstream* Transport, const xredistlsplan* Plan);
+const xnetstreamevents* __xredisClientTlsPendingEvents(void);
+#endif
 
 /* Private cold connection-start handoff. No per-request dispatch, public
  * transport plugin or shared runtime. The descriptor lives in Data's owner.

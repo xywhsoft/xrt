@@ -1,4 +1,6 @@
-#if defined(INTEROP_DIAL)
+#if defined(INTEROP_TLS)
+#define XREDIS_MODULE_XREDIS_TLS
+#elif defined(INTEROP_DIAL)
 #define XREDIS_MODULE_XREDIS_DIAL
 #else
 #define XREDIS_MODULE_XREDIS_CLIENT
@@ -12,12 +14,17 @@
  * These are public synthetic fixture credentials, never application secrets. */
 #define INTEROP_PASSWORD "xredis-fixture-password"
 #define INTEROP_USERNAME "xredis-fixture-user"
-#if defined(INTEROP_DIAL)
+#if defined(INTEROP_DIAL) || defined(INTEROP_TLS)
 static xnetresolver* InteropResolver;
+#endif
+#if defined(INTEROP_TLS)
+static xredisclienttlsconfig InteropTLS;
 #endif
 static bool interopConnect(xnetengine* Engine, const xnetaddr* Address, const xredisclientinitconfig* Init, xredisclient** Client)
 {
-#if defined(INTEROP_DIAL)
+#if defined(INTEROP_TLS)
+	return xredisClientTlsDial(Engine, InteropResolver, XRT_STR_LITERAL("localhost"), Address->Port, 0, NULL, Init, &InteropTLS, Client);
+#elif defined(INTEROP_DIAL)
 	return xredisClientDial(Engine, InteropResolver, XRT_STR_LITERAL("localhost"), Address->Port, 0, NULL, Init, NULL, Client);
 #else
 	return xredisClientConnectInit(Engine, Address, 0, NULL, Init, Client);
@@ -116,6 +123,7 @@ static void interopFailure(xnetengine* Engine, const xnetaddr* Address, int Scen
 	}
 }
 
+#if !defined(INTEROP_TLS)
 static void interopRaw(xnetengine* Engine, const xnetaddr* Address, int Scenario)
 {
 	xredisclient* Client = NULL; interopRequire(xredisClientConnect(Engine, Address, 0, NULL, &Client), "raw connection");
@@ -126,29 +134,89 @@ static void interopRaw(xnetengine* Engine, const xnetaddr* Address, int Scenario
 	xfuture* Hello = interopCall(Client, Args, Scenario == 0 ? 2 : 5); xredisreplyvalue Root = interopValue(Hello);
 	interopRequire(Root.Type == XREDIS_REPLY_MAP, "raw manual HELLO control"); xrtFutureDestroy(Hello); interopClose(Client); xrtFutureDestroy(ReadyFuture);
 }
+#else
+static xtlsverifier* interopTrust(cstr Path)
+{
+	FILE* File = fopen(Path, "rb"); interopRequire(File != NULL, "open fixture trust");
+	unsigned char Data[65536]; size_t Size = fread(Data, 1, sizeof(Data), File);
+	interopRequire(Size != 0 && Size < sizeof(Data) && !ferror(File) && fclose(File) == 0, "read bounded trust PEM");
+	xx509store* Store = xrtX509StoreCreate(); interopRequire(Store != NULL && xrtX509StoreAddData(Store, (xbytesview){Data, Size}, NULL), "trust import");
+	xtlsverifierconfig Config; xrtTlsVerifierConfigInit(&Config); Config.Store = Store; xtlsverifylimits Limits; xrtTlsVerifyLimitsInit(&Limits);
+	xtlsverifier* Verifier = xrtTlsVerifierCreateLimited(&Config, &Limits); xrtX509StoreFree(Store);
+	interopRequire(Verifier != NULL, "limited default verifier"); return Verifier;
+}
+static void interopTlsRejected(xnetengine* Engine, const xnetaddr* Address, xtlsverifier* Wrong)
+{
+	for (size_t Trial = 0; Trial < 2; ++Trial) {
+		xredisclienttlsconfig Bad = InteropTLS;
+		if (Trial == 0) Bad.Session.VerifyName = (xstrview)XRT_STR_LITERAL("wrong.fixture"); else Bad.Session.Verifier = Wrong;
+		xredisclient* Client = NULL; interopRequire(xredisClientTlsDial(Engine, InteropResolver, XRT_STR_LITERAL("localhost"), Address->Port,
+			0, NULL, NULL, &Bad, &Client), "rejected TLS admission");
+		xfuture* Ready = xredisClientReady(Client), *Request = NULL; xbytesview Ping = XRT_BYTES_LITERAL("PING");
+		interopRequire(xredisClientCallAsync(Client, &Ping, 1, 5000, &Request) == XREDIS_ADMISSION_ACCEPTED, "queued rejected TLS request");
+		const xredisreadyresult* State = (const xredisreadyresult*)interopWait(Ready);
+		const xredisrequestresult* Result = (const xredisrequestresult*)interopWait(Request);
+		interopRequire(State->Status == XREDIS_READY_DISCONNECTED && State->Hello == NULL && State->Cause != NULL && Result->Delivery == XREDIS_NOT_SENT,
+			"untrusted/wrong-name certificate accepted or leaked business");
+		interopClose(Client); xrtFutureDestroy(Ready); xrtFutureDestroy(Request);
+	}
+}
+#endif
 
 int main(int argc, char** argv)
 {
-	if (argc != 3) return 2;
+	if (argc !=
+#if defined(INTEROP_TLS)
+		6
+#else
+		3
+#endif
+	) return 2;
 	char* End = NULL; unsigned long Port = strtoul(argv[1], &End, 10); if (*End != 0 || Port == 0 || Port > UINT16_MAX) return 2;
 	int Scenario = atoi(argv[2]); if (Scenario < 0 || Scenario > 2) return 2;
+#if defined(INTEROP_TLS)
+	int Version = atoi(argv[5]); if (Version != 12 && Version != 13) return 2;
+	xtlsverifier* Trust = interopTrust(argv[3]), *Wrong = interopTrust(argv[4]);
+	xtlspolicy Policy; xrtTlsPolicyInit(&Policy); xtlsversion Versions[] = {Version == 12 ? XTLS_VERSION_12 : XTLS_VERSION_13};
+	xtlscipher Ciphers[] = {Version == 12 ? XTLS_ECDHE_RSA_AES_128_GCM_SHA256 : XTLS_AES_128_GCM_SHA256};
+	xtlssignature Signatures[] = {XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256};
+	Policy.Versions = Versions; Policy.VersionCount = 1; Policy.Ciphers = Ciphers; Policy.CipherCount = 1;
+	Policy.Signatures = Signatures; Policy.SignatureCount = 1;
+	xtlscontextconfig ContextConfig; xrtTlsContextConfigInit(&ContextConfig); ContextConfig.Policy = &Policy;
+	xtlscontext* Context = xrtTlsContextCreate(&ContextConfig);
+	if (Context == NULL) fprintf(stderr, "TLS context policy: %s\n", xrtErrorMessage(xrtGetError()));
+	interopRequire(Context != NULL, "TLS version policy");
+	xredisClientTlsConfigInit(&InteropTLS); InteropTLS.Session.Context = Context; InteropTLS.Session.Verifier = Trust;
+#endif
 	xnetengineconfig Config; xrtNetEngineConfigInit(&Config); Config.Workers = 2;
 	xnetengine* Engine = xrtNetEngineCreate(&Config); interopRequire(Engine != NULL && xrtNetEngineStart(Engine), "engine start");
-#if defined(INTEROP_DIAL)
+#if defined(INTEROP_DIAL) || defined(INTEROP_TLS)
 	InteropResolver = xrtNetResolverCreate(NULL); interopRequire(InteropResolver != NULL, "application Resolver");
+#if defined(INTEROP_TLS)
+	printf("connection_mode: verified TLS 1.%d / localhost / default chain and identity verifier\n", Version - 10);
+#else
 	puts("connection_mode: hostname localhost / shared system Resolver");
+#endif
 #endif
 	xnetaddr Address; interopRequire(xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, (uint16)Port), "endpoint");
 	xfuture* Results[3]; Results[0] = interopSuccess(Engine, &Address, Scenario, XREDIS_INIT_RESP3);
 	Results[1] = interopSuccess(Engine, &Address, Scenario, XREDIS_INIT_RESP2); Results[2] = interopSuccess(Engine, &Address, Scenario, XREDIS_INIT_AUTO);
-	interopFailure(Engine, &Address, Scenario); interopRaw(Engine, &Address, Scenario);
-#if defined(INTEROP_DIAL)
+	interopFailure(Engine, &Address, Scenario);
+#if defined(INTEROP_TLS)
+	interopTlsRejected(Engine, &Address, Wrong);
+#else
+	interopRaw(Engine, &Address, Scenario);
+#endif
+#if defined(INTEROP_DIAL) || defined(INTEROP_TLS)
 	interopRequire(xrtNetResolverDestroy(InteropResolver), "shared Resolver join");
 #endif
 	interopRequire(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "engine teardown");
+#if defined(INTEROP_TLS)
+	xrtTlsVerifierRelease(Trust); xrtTlsVerifierRelease(Wrong); xrtTlsContextRelease(Context);
+#endif
 	for (size_t Index = 0; Index < 3; ++Index) {
 		const xredisreadyresult* Ready = (const xredisreadyresult*)interopWait(Results[Index]);
 		interopRequire(Ready->Status == XREDIS_READY_OK && Ready->Step == XREDIS_INIT_DONE, "ready metadata survived engine teardown"); xrtFutureDestroy(Results[Index]);
 	}
-	printf("[PASS] real Redis initialization scenario=%d: protocol/auth/name/database/binary/pipeline/failure/raw/teardown\n", Scenario); return 0;
+	printf("[PASS] real Redis initialization scenario=%d: protocol/auth/name/database/binary/pipeline/failure/teardown\n", Scenario); return 0;
 }

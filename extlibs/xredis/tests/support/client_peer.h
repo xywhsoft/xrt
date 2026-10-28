@@ -9,6 +9,13 @@
 #include <string.h>
 
 typedef struct redispeer redispeer;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+typedef struct redistlsoptions {
+	xtlsserverconfig Session;
+	xtlsstreamconfig Stream;
+	bool HoldHandshake;
+} redistlsoptions;
+#endif
 typedef struct redispeerhook {
 	bool (*Command)(redispeer* Peer, xredisreply* Reply, ptr Data);
 	ptr Data;
@@ -28,6 +35,12 @@ struct redispeer {
 	bool Blocked;
 	unsigned char Pending[65536];
 	size_t PendingBytes;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	xatomicptr TlsOptions;
+	xtlsstream* Secure;
+	xatomic32 PlainBytes;
+	bool TlsFlushing;
+#endif
 };
 
 static void redisPeerRequire(bool Condition, cstr Message)
@@ -43,8 +56,29 @@ static void redisPeerWait(xatomic32* Value, uint32 Minimum)
 	}
 }
 
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+static void redisPeerTlsFlush(redispeer* Peer)
+{
+	if (Peer->TlsFlushing || Peer->Blocked) return;
+	Peer->TlsFlushing = true;
+	while (Peer->PendingBytes != 0) {
+		size_t Written = 0; xtlsresult Result = xrtTlsStreamSend(Peer->Secure, Peer->Pending, Peer->PendingBytes, &Written);
+		redisPeerRequire(Result == XTLS_OK || Result == XTLS_AGAIN, "fixture TLS response send");
+		memmove(Peer->Pending, Peer->Pending + Written, Peer->PendingBytes - Written); Peer->PendingBytes -= Written;
+		if (Written == 0) break;
+	}
+	Peer->TlsFlushing = false;
+}
+#endif
+
 static void redisPeerSend(redispeer* Peer, const void* Data, size_t Size)
 {
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Peer->Secure != NULL) {
+		redisPeerRequire(Size <= sizeof(Peer->Pending) - Peer->PendingBytes, "TLS pending reply cap");
+		memcpy(Peer->Pending + Peer->PendingBytes, Data, Size); Peer->PendingBytes += Size; redisPeerTlsFlush(Peer); return;
+	}
+#endif
 	if (Peer->Blocked) {
 		redisPeerRequire(Size <= sizeof(Peer->Pending) - Peer->PendingBytes, "pending reply cap");
 		memcpy(Peer->Pending + Peer->PendingBytes, Data, Size); Peer->PendingBytes += Size;
@@ -83,6 +117,10 @@ static void redisPeerCommand(redispeer* Peer, xredisreply* Reply)
 static void redisPeerRead(xnetstream* Stream, xnetbuf* Buffer, ptr Data)
 {
 	(void)Stream; redispeer* Peer = (redispeer*)Data; xnetspan Span;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	const redistlsoptions* TLS = (const redistlsoptions*)xrtAtomicPtrLoad(&Peer->TlsOptions, XMEMORY_ACQUIRE);
+	if (TLS != NULL && TLS->HoldHandshake) { xrtNetBufConsume(Buffer, xrtNetBufSize(Buffer)); return; }
+#endif
 	while (xrtNetBufFront(Buffer, &Span)) {
 		xredisreply* Reply = NULL; size_t Used = 0;
 		xredisreplystatus Status = xredisReplyReaderFeed(Peer->Reader, (xbytesview){Span.Data, Span.Size}, &Used, &Reply);
@@ -103,9 +141,39 @@ static void redisPeerClosed(xnetstream* Stream, xnetresult Result, const xerror*
 
 static const xnetstreamevents redisPeerEvents = {NULL, redisPeerRead, redisPeerEnd, NULL, NULL, NULL, redisPeerClosed};
 
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+static void redisPeerTlsRead(xtlsstream* Stream, const xnetbuf* Buffer, ptr Data)
+{
+	redispeer* Peer = (redispeer*)Data; xnetspan Span;
+	while (xrtNetBufFront(Buffer, &Span)) {
+		xredisreply* Reply = NULL; size_t Used = 0;
+		xredisreplystatus Status = xredisReplyReaderFeed(Peer->Reader, (xbytesview){Span.Data, Span.Size}, &Used, &Reply);
+		redisPeerRequire(Status != XREDIS_REPLY_ERROR && Used <= Span.Size && xrtTlsStreamConsume(Stream, Used), "TLS fixture command decode/consume");
+		(void)xrtAtomic32FetchAdd(&Peer->PlainBytes, (uint32)Used, XMEMORY_RELEASE);
+		if (Status == XREDIS_REPLY_READY) { redisPeerCommand(Peer, Reply); xredisReplyRelease(Reply); }
+		else redisPeerRequire(Used != 0, "TLS fixture command progress");
+	}
+}
+static void redisPeerTlsWritable(xtlsstream* Stream, ptr Data)
+{ (void)Stream; redisPeerTlsFlush((redispeer*)Data); }
+static void redisPeerTlsEnd(xtlsstream* Stream, ptr Data)
+{ (void)Data; (void)xrtTlsStreamClose(Stream); }
+static void redisPeerTlsClosed(xtlsstream* Stream, xnetresult Result, const xerror* Error, ptr Data)
+{ (void)Stream; redisPeerClosed(NULL, Result, Error, Data); }
+static const xtlsstreamevents redisPeerTlsEvents = {NULL, redisPeerTlsRead, redisPeerTlsEnd, redisPeerTlsWritable, redisPeerTlsWritable, redisPeerTlsClosed, NULL};
+#endif
+
 static bool redisPeerAccept(xnetlistener* Listener, xnetstream* Stream, ptr Data)
 {
 	(void)Listener; redispeer* Peer = (redispeer*)Data;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	const redistlsoptions* TLS = (const redistlsoptions*)xrtAtomicPtrLoad(&Peer->TlsOptions, XMEMORY_ACQUIRE);
+	if (TLS != NULL && !TLS->HoldHandshake) {
+		redisPeerRequire(xrtTlsStreamAccept(Stream, &TLS->Session, &TLS->Stream, &redisPeerTlsEvents, Peer, &Peer->Secure), "fixture TLS accept");
+		Peer->Stream = Stream; /* Borrowed from Secure. */
+		xrtAtomic32Store(&Peer->Accepted, 1, XMEMORY_RELEASE); return true;
+	}
+#endif
 	redisPeerRequire(xrtNetStreamSetEvents(Stream, &redisPeerEvents, Peer), "accepted events"); Peer->Stream = Stream;
 	xrtAtomic32Store(&Peer->Accepted, 1, XMEMORY_RELEASE); return true;
 }
@@ -143,8 +211,13 @@ static void redisPeerFlush(xnetworker* Worker, ptr Data)
 	(void)Worker; redispeer* Peer = (redispeer*)Data;
 	Peer->Blocked = false;
 	if (Peer->PendingBytes != 0) {
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+		if (Peer->Secure != NULL) redisPeerTlsFlush(Peer); else
+#endif
+		{
 		redisPeerRequire(xrtNetStreamSend(Peer->Stream, Peer->Pending, Peer->PendingBytes) == XNET_RESULT_OK, "flush replies");
 		Peer->PendingBytes = 0;
+		}
 	}
 	xrtAtomic32Store(&Peer->Released, 1, XMEMORY_RELEASE);
 }
@@ -161,7 +234,11 @@ static void redisPeerStop(redispeer* Peer)
 	redisPeerRequire(xrtNetListenerClose(Peer->Listener), "listener close"); redisPeerWait(&Peer->ListenerClosed, 1);
 	if (Peer->Stream != NULL) { xrtNetStreamAbort(Peer->Stream); redisPeerWait(&Peer->Closed, 1); }
 	redisPeerRequire(xrtNetEngineStop(Peer->Engine), "engine stop");
-	xrtNetStreamDestroy(Peer->Stream); xrtNetListenerDestroy(Peer->Listener); xredisReplyReaderDestroy(Peer->Reader);
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+	if (Peer->Secure != NULL) xrtTlsStreamDestroy(Peer->Secure); else
+#endif
+	xrtNetStreamDestroy(Peer->Stream);
+	xrtNetListenerDestroy(Peer->Listener); xredisReplyReaderDestroy(Peer->Reader);
 	redisPeerRequire(xrtNetEngineDestroy(Peer->Engine), "engine destroy");
 }
 #endif

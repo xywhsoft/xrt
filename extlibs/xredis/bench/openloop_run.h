@@ -5,6 +5,9 @@
 #endif
 #include "openloop_schedule.h"
 #include "../tests/support/client_peer.h"
+#if defined(REDIS_OPENLOOP_TLS)
+#include "../tests/support/tls_peer.h"
+#endif
 #include <inttypes.h>
 #if defined(_WIN32)
 #include <windows.h>
@@ -134,6 +137,9 @@ static void redisOpenObserve(redisopenslot* Slot, const redisopenconfig* Config,
 static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 {
 	if (!redisOpenConfigValid(Config) || Output == NULL) return false;
+#if defined(REDIS_OPENLOOP_TLS)
+	if (Config->Port != 0) return false; /* External TLS requires explicit trust; never fall back to plaintext. */
+#endif
 #if !defined(XRT_FEATURE_MEMORY_STATS)
 	if (Config->Stats) return false;
 #endif
@@ -161,7 +167,13 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	xredisclientconfig ClientConfig; xredisClientConfigInit(&ClientConfig);
 	ClientConfig.MaxRequests = Config->Slots; if (ClientConfig.MaxInFlight > Config->Slots) ClientConfig.MaxInFlight = Config->Slots;
 	xredisclient* Client = NULL;
+#if defined(REDIS_OPENLOOP_TLS)
+	redistlspeer Credentials; memset(&Credentials, 0, sizeof(Credentials)); redisTlsPeerCredentials(&Credentials, &Endpoint.Peer, false, false);
+	xredisclienttlsconfig TLS; redisTlsPeerConfig(&Credentials, &TLS);
+	redisPeerRequire(xredisClientTlsConnect(Endpoint.Peer.Engine, &Endpoint.Peer.Address, 0, &ClientConfig, NULL, &TLS, &Client), "open-loop TLS connect");
+#else
 	redisPeerRequire(xredisClientConnectInit(Endpoint.Peer.Engine, &Endpoint.Peer.Address, 0, &ClientConfig, NULL, &Client), "open-loop connect");
+#endif
 	xfuture* Ready = xredisClientReady(Client); redisPeerRequire(xrtFutureWaitFor(Ready, 10000) == XWAIT_OK, "open-loop readiness");
 	const xredisreadyresult* State = (const xredisreadyresult*)xrtFutureValue(Ready);
 	redisPeerRequire(State != NULL && State->Status == XREDIS_READY_OK && State->Protocol == XREDIS_RESP3, "open-loop HELLO outcome"); xrtFutureDestroy(Ready);
@@ -235,6 +247,9 @@ static bool redisOpenRun(const redisopenconfig* Config, redisopenresult* Output)
 	xredisClientRelease(Client); xrtFutureDestroy(Closed);
 	if (Config->Port == 0) { redisPeerStop(&Endpoint.Peer); Output->PeerCommands = xrtAtomic32Load(&Endpoint.Peer.Commands, XMEMORY_ACQUIRE); }
 	else redisPeerRequire(xrtNetEngineStop(Endpoint.Peer.Engine) && xrtNetEngineDestroy(Endpoint.Peer.Engine), "external engine retirement");
+#if defined(REDIS_OPENLOOP_TLS)
+	redisTlsPeerCredentialsDrop(&Credentials);
+#endif
 	Output->Retire = (double)(redisOpenNow() - LogicalEnd) / (double)REDIS_OPEN_NS; Output->Cpu = redisOpenCpu() - CpuStart;
 #if defined(XRT_FEATURE_MEMORY_STATS)
 	if (Config->Stats) {

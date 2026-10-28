@@ -25,21 +25,54 @@
       "system": "reply",
       "suite": "xredis_reply",
       "description": "Owned replies and reader/atomic/number_float closure, excluding networking and executors",
-      "forbid_symbols": ["xrtNet", "xrtTcp", "xrtThread", "xrtTask", "xrtFuture"]
+      "forbid_symbols": [
+        "xrtNet",
+        "xrtTcp",
+        "xrtThread",
+        "xrtTask",
+        "xrtFuture"
+      ]
     },
     {
       "name": "xredis_client",
       "system": "client",
       "suite": "xredis_client",
       "description": "TCP requests and bounded connection initialization with public core closure, excluding TLS, HTTP, Dial and task executors",
-      "forbid_symbols": ["xrtTls", "xrtHttp", "xrtWebSocket", "xrtNetDial", "xrtNetResolver", "xrtNetResolveOp", "xredisClientDial", "xrtTask"]
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtNetDial",
+        "xrtNetResolver",
+        "xrtNetResolveOp",
+        "xredisClientDial",
+        "xrtTask"
+      ]
     },
     {
       "name": "xredis_dial",
       "system": "dial",
       "suite": "xredis_dial",
       "description": "Optional hostname/resolved-endpoint setup and XRT Resolver/Dial closure; excludes TLS, HTTP, WebSocket and task executors",
-      "forbid_symbols": ["xrtTls", "xrtHttp", "xrtWebSocket", "xrtTask"]
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask"
+      ]
+    },
+    {
+      "name": "xredis_tls",
+      "system": "tls",
+      "suite": "xredis_tls",
+      "description": "Verified TLS client/records/session plus existing NetDial, excluding HTTP/WebSocket/task executors, extra TLS-Dial wrappers and fixture RSA identity creation",
+      "forbid_symbols": [
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtTlsDial",
+        "xrtTlsIdentityRsa"
+      ]
     }
   ]
 }

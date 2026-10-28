@@ -24,6 +24,11 @@ int main(int argc, char** argv)
 	bool Valid = redisOpenRun(&Config, &Result); redisopencounts* C = &Result.Counts;
 	printf("arrival_model=fixed_absolute\ntarget=%s\nnetwork_backend=%s\n", Config.Port == 0 ? "local_fixture" : "external_loopback", Result.Backend);
 	printf("memory_stats=%s\n", Config.Stats ? "enabled" : Result.StatsCompiled ? "compiled_disabled" : "not_compiled");
+#if defined(REDIS_OPENLOOP_TLS)
+	puts("transport=TLS13_AES128GCM_X25519_fixture");
+#else
+	puts("transport=tcp");
+#endif
 	printf("generator_mode=%u\nworkers=%u\nslot_capacity=%zu\npayload_bytes=%zu\nmax_inflight=%zu\n", Config.Mode, Config.Port == 0 ? 2u : 1u, Config.Slots, Config.Payload, Config.Slots < 128u ? Config.Slots : 128u);
 	printf("target_rate_per_sec=%" PRIu64 "\nintended_timeout_ms=%" PRId64 "\n", Config.Rate, Config.Timeout);
 	printf("offered: %zu\naccepted: %zu\nsuccessful: %zu\nunsuccessful: %zu\n", C->Total, C->Accepted, C->Successful, C->Total - C->Successful);

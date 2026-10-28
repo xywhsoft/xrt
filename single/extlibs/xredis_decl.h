@@ -48,6 +48,9 @@
 #if !defined(XREDIS_FEATURE_XREDIS_REPLY)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_REPLY 1
 #endif
+#if !defined(XREDIS_FEATURE_XREDIS_TLS)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_TLS 1
+#endif
 #if !defined(XREDIS_MODULE_ALL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_ALL 1
 #endif
@@ -68,6 +71,9 @@
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_REPLY)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_REPLY 1
+#endif
+#if !defined(XREDIS_MODULE_XREDIS_TLS)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_TLS 1
 #endif
 #if !defined(XRT_FEATURE_ARRAY)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_ARRAY 1
@@ -1259,6 +1265,33 @@
 #endif
 #if !defined(XRT_MODULE_NUMBER_INTEGER)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NUMBER_INTEGER 1
+#endif
+#if !defined(XRT_MODULE_TLS_CLIENT_RESUME)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME 1
+#endif
+#if !defined(XRT_MODULE_TLS_KEY_EXCHANGE_P256)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_P256 1
+#endif
+#if !defined(XRT_MODULE_TLS_KEY_EXCHANGE_P384)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_P384 1
+#endif
+#if !defined(XRT_MODULE_TLS_KEY_EXCHANGE_X25519)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_X25519 1
+#endif
+#if !defined(XRT_MODULE_TLS_RECORD_AES)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_RECORD_AES 1
+#endif
+#if !defined(XRT_MODULE_TLS_RECORD_CHACHA)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_RECORD_CHACHA 1
+#endif
+#if !defined(XRT_MODULE_TLS_SCHEDULE_SHA256)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SCHEDULE_SHA256 1
+#endif
+#if !defined(XRT_MODULE_TLS_SCHEDULE_SHA384)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SCHEDULE_SHA384 1
+#endif
+#if !defined(XRT_MODULE_TLS_STREAM)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM 1
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_ALL)
 #define XREDIS_MODULE_ALL 1
@@ -2467,6 +2500,46 @@
 #ifndef XREDIS_MODULE_XREDIS_DIAL
 #define XREDIS_MODULE_XREDIS_DIAL
 #endif
+#ifndef XREDIS_MODULE_XREDIS_TLS
+#define XREDIS_MODULE_XREDIS_TLS
+#endif
+#endif
+
+/* xredis_tls 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TLS)
+#ifndef XREDIS_FEATURE_XREDIS_TLS
+#define XREDIS_FEATURE_XREDIS_TLS
+#endif
+#ifndef XREDIS_MODULE_XREDIS_DIAL
+#define XREDIS_MODULE_XREDIS_DIAL
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_RESUME
+#define XRT_MODULE_TLS_CLIENT_RESUME
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_CHACHA
+#define XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA384
+#define XRT_MODULE_TLS_SCHEDULE_SHA384
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#endif
 #endif
 
 /* xredis_dial 及其直接依赖。 */
@@ -3241,6 +3314,65 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/tls.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_TLS_H
+#define XREDIS_TLS_H
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS) && (!defined(XREDIS_FEATURE_XREDIS_DIAL) || !defined(XRT_FEATURE_TLS_STREAM) || !defined(XRT_FEATURE_TLS_CLIENT_RESUME))
+#error "XREDIS_FEATURE_XREDIS_TLS requires dial, TLS stream and verified/resumable TLS client"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS) && (!defined(XRT_FEATURE_TLS_RECORD_AES) || !defined(XRT_FEATURE_TLS_RECORD_CHACHA) || \
+	!defined(XRT_FEATURE_TLS_SCHEDULE_SHA256) || !defined(XRT_FEATURE_TLS_SCHEDULE_SHA384) || \
+	!defined(XRT_FEATURE_TLS_KEY_EXCHANGE_X25519) || !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P256) || !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P384))
+#error "XREDIS_FEATURE_XREDIS_TLS requires its declared AES/ChaCha, SHA256/SHA384 and X25519/P256/P384 backends"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+/* All views are borrowed only during the factory. Native TLS owns a snapshot
+ * of names/ALPN and shared Context/Verifier/Resume references before return.
+ * Supply a Verifier (or explicit ResumeOnly with a valid Resume); no implicit
+ * insecure verification mode. Verifier callback code/context follow XRT's
+ * shared-verifier lifetime, including Engine join after client Closed.
+ * Defaults: native TLS policy/stream limits, normal Dial defaults, 64 KiB
+ * metadata, 64 KiB plaintext write work per client turn, infer DNS SNI/name.
+ * Numeric hosts infer VerifyName only; prepared endpoints need an explicit
+ * ServerName or VerifyName. Init's original deadline spans TLS too. */
+typedef struct xredisclienttlsconfig {
+	size_t Size;
+	xtlsclientconfig Session;
+	xtlsstreamconfig Stream;
+	xredisclientdialconfig Dial;
+	size_t MaxMetadataBytes;
+	size_t WriteBytes;
+	bool ServerNameFromHost;
+} xredisclienttlsconfig;
+
+XRT_EXTERN_C_BEGIN
+XREDIS_API bool xredisClientTlsConfigInit(xredisclienttlsconfig* Config);
+/* TLS is required. Result unchanged on rejection; no cleartext fallback or
+ * operation replay. Typed readiness is published only after TLS + Redis setup.
+ * Resolver is application owned through Closed, and joined separately. */
+XREDIS_API bool xredisClientTlsDial(xnetengine* Engine, xnetresolver* Resolver,
+	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS, xredisclient** Result);
+XREDIS_API bool xredisClientTlsDialAddresses(xnetengine* Engine, xnetaddrlist* Addresses,
+	uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+	const xredisclienttlsconfig* TLS, xredisclient** Result);
+/* Numeric endpoint convenience; TLS identity must be explicit in TLS. */
+XREDIS_API bool xredisClientTlsConnect(xnetengine* Engine, const xnetaddr* Remote,
+	uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+	const xredisclienttlsconfig* TLS, xredisclient** Result);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -3266,6 +3398,10 @@ XRT_EXTERN_C_END
 
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_DIAL)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_DIAL"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_TLS)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_TLS"
 #endif
 
 
@@ -3294,6 +3430,10 @@ XRT_EXTERN_C_END
 #undef XREDIS_FEATURE_XREDIS_REPLY
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_REPLY
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_TLS)
+#undef XREDIS_FEATURE_XREDIS_TLS
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_TLS
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_ALL)
 #undef XREDIS_MODULE_ALL
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_ALL
@@ -3321,6 +3461,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_REPLY)
 #undef XREDIS_MODULE_XREDIS_REPLY
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_REPLY
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_TLS)
+#undef XREDIS_MODULE_XREDIS_TLS
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_ARRAY)
 #undef XRT_FEATURE_ARRAY
@@ -4910,6 +5054,42 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_NUMBER_INTEGER
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NUMBER_INTEGER
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME)
+#undef XRT_MODULE_TLS_CLIENT_RESUME
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_P256)
+#undef XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_P384)
+#undef XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_X25519)
+#undef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_RECORD_AES)
+#undef XRT_MODULE_TLS_RECORD_AES
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_RECORD_AES
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_RECORD_CHACHA)
+#undef XRT_MODULE_TLS_RECORD_CHACHA
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SCHEDULE_SHA256)
+#undef XRT_MODULE_TLS_SCHEDULE_SHA256
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SCHEDULE_SHA384)
+#undef XRT_MODULE_TLS_SCHEDULE_SHA384
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SCHEDULE_SHA384
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM)
+#undef XRT_MODULE_TLS_STREAM
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM
+#endif
 
 #endif
 
@@ -4944,6 +5124,46 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XREDIS_MODULE_XREDIS_DIAL
 #define XREDIS_MODULE_XREDIS_DIAL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TLS
+#define XREDIS_MODULE_XREDIS_TLS
+#endif
+#endif
+
+/* xredis_tls 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TLS)
+#ifndef XREDIS_FEATURE_XREDIS_TLS
+#define XREDIS_FEATURE_XREDIS_TLS
+#endif
+#ifndef XREDIS_MODULE_XREDIS_DIAL
+#define XREDIS_MODULE_XREDIS_DIAL
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_RESUME
+#define XRT_MODULE_TLS_CLIENT_RESUME
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_CHACHA
+#define XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA384
+#define XRT_MODULE_TLS_SCHEDULE_SHA384
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P384
 #endif
 #endif
 

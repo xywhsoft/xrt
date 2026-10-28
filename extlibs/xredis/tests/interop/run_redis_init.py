@@ -14,6 +14,7 @@ from pathlib import Path
 import platform
 import shutil
 import socket
+import ssl
 import subprocess
 import tempfile
 import time
@@ -23,7 +24,8 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def run(client: Path, server: Path, scenario: int, arguments: list[str] | None = None) -> dict:
+def run(client: Path, server: Path, scenario: int, arguments: list[str] | None = None,
+        tls: dict[str, str] | None = None) -> dict:
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
@@ -35,8 +37,17 @@ def run(client: Path, server: Path, scenario: int, arguments: list[str] | None =
         elif scenario == 2:
             auth = "user default off\nuser xredis-fixture-user on >xredis-fixture-password ~* +@all\n"
         config = root / "redis.conf"
+        listener = f"port {port}\n"
+        health_tls = None
+        if tls is not None:
+            def quote(value: str) -> str:
+                return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
+            listener = (f'port 0\ntls-port {port}\ntls-auth-clients no\n'
+                        f'tls-cert-file {quote(tls["certificate"])}\ntls-key-file {quote(tls["key"])}\n'
+                        f'tls-ca-cert-file {quote(tls["ca"])}\ntls-protocols {quote(tls["protocol"])}\n')
+            health_tls = ssl.create_default_context(cafile=tls["ca"])
         config.write_text(
-            f'bind 127.0.0.1\nport {port}\nprotected-mode yes\nsave ""\nappendonly no\n'
+            f'bind 127.0.0.1\n{listener}protected-mode yes\nsave ""\nappendonly no\n'
             f"daemonize no\nloglevel notice\n{auth}", encoding="utf-8"
         )
         with (root / "server.log").open("wb") as log:
@@ -52,7 +63,8 @@ def run(client: Path, server: Path, scenario: int, arguments: list[str] | None =
                     startup = (root / "server.log").read_text(encoding="utf-8", errors="replace")
                     if "Ready to accept connections" in startup:
                         try:
-                            with socket.create_connection(("127.0.0.1", port), timeout=0.25) as connection:
+                            raw = socket.create_connection(("127.0.0.1", port), timeout=0.25)
+                            with (raw if health_tls is None else health_tls.wrap_socket(raw, server_hostname="localhost")) as connection:
                                 connection.sendall(b"*1\r\n$4\r\nPING\r\n")
                                 response = connection.recv(4096)
                                 if response.startswith((b"+PONG\r\n", b"-NOAUTH")) and process.poll() is None:
@@ -67,7 +79,8 @@ def run(client: Path, server: Path, scenario: int, arguments: list[str] | None =
                 print(result.stdout, end="", flush=True)
                 if result.returncode:
                     raise RuntimeError(f"client exited {result.returncode}: {result.stderr[-4000:]}")
-                return {"scenario": scenario, "result": "passed", "client_arguments": command[1:], "client_stdout": result.stdout}
+                return {"scenario": scenario, "result": "passed", "transport": "tcp" if tls is None else tls["protocol"],
+                        "client_arguments": command[1:], "client_stdout": result.stdout}
             finally:
                 if process.poll() is None:
                     process.terminate()
